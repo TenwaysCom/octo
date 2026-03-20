@@ -6,7 +6,16 @@ export const a1RecordRequestSchema = z.object({
 });
 
 export const a1ApplyRequestSchema = z.object({
-  draft: executionDraftSchema,
+  requestId: z.string().min(1),
+  draftId: z.string().min(1),
+  operatorLarkId: z.string().min(1),
+  sourceRecordId: z.string().min(1),
+  idempotencyKey: z.string().min(1),
+  confirmedDraft: z.object({
+    name: z.string().min(1),
+    fieldValuePairs: executionDraftSchema.shape.fieldValuePairs,
+    ownerUserKeys: executionDraftSchema.shape.ownerUserKeys.optional(),
+  }),
 });
 
 export type A1RecordRequest = z.infer<typeof a1RecordRequestSchema>;

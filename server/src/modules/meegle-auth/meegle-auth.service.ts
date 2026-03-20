@@ -20,6 +20,7 @@ export interface MeegleAuthServiceDeps {
 }
 
 let defaultDeps: MeegleAuthServiceDeps | undefined;
+const sharedTokenStore = new InMemoryMeegleTokenStore();
 
 export function configureMeegleAuthServiceDeps(
   deps: MeegleAuthServiceDeps,
@@ -39,7 +40,7 @@ function getDeps(overrides?: Partial<MeegleAuthServiceDeps>): MeegleAuthServiceD
 
   return {
     authAdapter: merged.authAdapter,
-    tokenStore: merged.tokenStore ?? new InMemoryMeegleTokenStore(),
+    tokenStore: merged.tokenStore ?? sharedTokenStore,
   };
 }
 

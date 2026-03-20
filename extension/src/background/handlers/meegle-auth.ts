@@ -1,4 +1,5 @@
 import type {
+  MeegleAuthCodeResponse,
   MeegleAuthEnsureRequest,
   MeegleAuthEnsureResponse,
 } from "../../types/meegle";
@@ -7,7 +8,7 @@ export interface EnsureMeegleAuthDeps {
   getCachedToken?: () => string | undefined;
   requestAuthCode?: (
     request: MeegleAuthEnsureRequest,
-  ) => Promise<string | undefined>;
+  ) => Promise<MeegleAuthCodeResponse | undefined>;
 }
 
 export async function ensureMeegleAuth(
@@ -15,7 +16,16 @@ export async function ensureMeegleAuth(
   deps: EnsureMeegleAuthDeps = {},
 ): Promise<MeegleAuthEnsureResponse> {
   const baseUrl = request.baseUrl ?? "https://project.larksuite.com";
-  const state = request.state ?? "111";
+  const state = request.state;
+
+  if (!request.requestId || !request.operatorLarkId || !state) {
+    return {
+      status: "failed",
+      baseUrl,
+      reason: "MEEGLE_AUTH_REQUIRED",
+    };
+  }
+
   const cachedToken = deps.getCachedToken?.();
 
   if (cachedToken) {
@@ -26,20 +36,30 @@ export async function ensureMeegleAuth(
     };
   }
 
-  const authCode = await deps.requestAuthCode?.({
-    requestId: request.requestId ?? "req-auth",
-    operatorLarkId: request.operatorLarkId ?? "unknown",
+  const authResult = await deps.requestAuthCode?.({
+    requestId: request.requestId,
+    operatorLarkId: request.operatorLarkId,
     meegleUserKey: request.meegleUserKey,
     baseUrl,
     state,
   });
 
-  if (authCode) {
+  if (authResult) {
+    if (authResult.state !== state) {
+      return {
+        status: "failed",
+        baseUrl,
+        state,
+        reason: "MEEGLE_AUTH_CODE_STATE_MISMATCH",
+      };
+    }
+
     return {
       status: "ready",
       baseUrl,
-      state,
-      authCode,
+      state: authResult.state,
+      authCode: authResult.authCode,
+      issuedAt: authResult.issuedAt,
     };
   }
 

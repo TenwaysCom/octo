@@ -20,6 +20,7 @@ export interface CredentialStatus {
   baseUrl: string;
   userToken?: string;
   refreshToken?: string;
+  errorCode?: string;
 }
 
 export interface MeegleCredentialServiceDeps {
@@ -74,11 +75,22 @@ export async function refreshCredential(
 
   const pluginToken =
     storedToken.pluginToken || (await deps.authAdapter.getPluginToken(input.baseUrl));
-  const refreshed = await deps.authAdapter.refreshUserToken({
-    baseUrl: input.baseUrl,
-    pluginToken,
-    refreshToken: storedToken.refreshToken,
-  });
+  let refreshed: UserTokenPair;
+
+  try {
+    refreshed = await deps.authAdapter.refreshUserToken({
+      baseUrl: input.baseUrl,
+      pluginToken,
+      refreshToken: storedToken.refreshToken,
+    });
+  } catch {
+    await deps.tokenStore.delete(input);
+    return {
+      tokenStatus: "require_auth_code",
+      baseUrl: input.baseUrl,
+      errorCode: "MEEGLE_TOKEN_REFRESH_FAILED",
+    };
+  }
 
   await deps.tokenStore.save({
     ...storedToken,

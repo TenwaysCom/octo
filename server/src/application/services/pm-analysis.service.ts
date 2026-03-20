@@ -28,10 +28,13 @@ export interface PullRequestAnalysisItem {
 }
 
 export interface PMAnalysisDeps {
-  loadA1Items?: (projectKeys: string[]) => Promise<A1AnalysisItem[]>;
-  loadA2Items?: (projectKeys: string[]) => Promise<A2AnalysisItem[]>;
-  loadBItems?: (projectKeys: string[]) => Promise<BAnalysisItem[]>;
-  loadPRItems?: (projectKeys: string[]) => Promise<PullRequestAnalysisItem[]>;
+  loadA1Items?: (projectKeys: string[], timeWindowDays: number) => Promise<A1AnalysisItem[]>;
+  loadA2Items?: (projectKeys: string[], timeWindowDays: number) => Promise<A2AnalysisItem[]>;
+  loadBItems?: (projectKeys: string[], timeWindowDays: number) => Promise<BAnalysisItem[]>;
+  loadPRItems?: (
+    projectKeys: string[],
+    timeWindowDays: number,
+  ) => Promise<PullRequestAnalysisItem[]>;
 }
 
 function buildDefaultA1Items(projectKeys: string[]): A1AnalysisItem[] {
@@ -81,35 +84,50 @@ export async function runPMAnalysis(
   input: PMAnalysisRequest,
   deps: PMAnalysisDeps = {},
 ) {
+  const timeWindowDays = input.timeWindowDays ?? 14;
   const [a1Items, a2Items, bItems, prItems] = await Promise.all([
-    deps.loadA1Items?.(input.projectKeys) ?? buildDefaultA1Items(input.projectKeys),
-    deps.loadA2Items?.(input.projectKeys) ?? buildDefaultA2Items(input.projectKeys),
-    deps.loadBItems?.(input.projectKeys) ?? buildDefaultBItems(input.projectKeys),
-    deps.loadPRItems?.(input.projectKeys) ?? buildDefaultPRItems(input.projectKeys),
+    deps.loadA1Items?.(input.projectKeys, timeWindowDays) ??
+      buildDefaultA1Items(input.projectKeys),
+    deps.loadA2Items?.(input.projectKeys, timeWindowDays) ??
+      buildDefaultA2Items(input.projectKeys),
+    deps.loadBItems?.(input.projectKeys, timeWindowDays) ??
+      buildDefaultBItems(input.projectKeys),
+    deps.loadPRItems?.(input.projectKeys, timeWindowDays) ??
+      buildDefaultPRItems(input.projectKeys),
   ]);
 
-  const staleA1 = a1Items.filter((item) => item.status === "open" && item.ageDays >= 7);
-  const staleBItems = bItems.filter((item) => item.status === "blocked" || item.ageDays >= 7);
+  const staleA1 = a1Items.filter(
+    (item) => item.status === "open" && item.ageDays >= timeWindowDays,
+  );
+  const staleBItems = bItems.filter((item) => item.ageDays >= timeWindowDays);
+  const blockers = bItems.filter((item) => item.status === "blocked");
   const pendingA2 = a2Items.filter((item) => item.status === "reviewed");
   const reviewPendingPrs = prItems.filter(
     (item) => item.status === "open" && item.reviewStatus === "pending",
   );
-
-  const highlights = [
-    `${staleA1.length} 个 A1 工单超过 7 天未关闭`,
-    `${staleBItems.length} 个 B1/B2 工作项存在阻塞或长时间滞留`,
-    `${reviewPendingPrs.length} 个 PR 等待 review`,
+  const missingDescriptionItems = pendingA2.map((item) => ({
+    id: item.id,
+    projectKey: item.projectKey,
+    reason: "需求已评审但描述仍待补全",
+  }));
+  const staleItems = [...staleA1, ...staleBItems];
+  const suggestedActions = [
+    `${blockers.length} 个阻塞项需要优先跟进`,
+    `${reviewPendingPrs.length} 个 PR 需要补 review`,
   ];
 
   return {
-    summary: `项目范围 ${input.projectKeys.join(", ")} 存在 ${staleA1.length} 个滞留工单、${staleBItems.length} 个滞留执行项。`,
+    summary: `本周期在 ${timeWindowDays} 天窗口内发现 ${blockers.length} 个阻塞项和 ${staleItems.length} 个滞留事项。`,
+    blockers,
+    staleItems,
+    missingDescriptionItems,
+    suggestedActions,
     totals: {
       staleA1Count: staleA1.length,
       staleBItemsCount: staleBItems.length,
       pendingA2Count: pendingA2.length,
       reviewPendingPrCount: reviewPendingPrs.length,
     },
-    highlights,
     items: {
       staleA1,
       staleBItems,

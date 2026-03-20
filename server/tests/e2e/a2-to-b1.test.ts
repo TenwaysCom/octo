@@ -12,7 +12,11 @@ describe("a2 to b1 e2e", () => {
       workitemId: "B1-001",
       draft: expect.objectContaining({
         draftType: "b1",
-        sourceRecordId: "recA2_001",
+        draftId: "draft_b1_recA2_001",
+        sourceRef: {
+          sourcePlatform: "lark_a2",
+          sourceRecordId: "recA2_001",
+        },
       }),
     });
   });

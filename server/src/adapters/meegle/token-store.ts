@@ -16,6 +16,7 @@ export interface MeegleTokenLookup {
 export interface MeegleTokenStore {
   save(token: StoredMeegleToken): Promise<void>;
   get(lookup: MeegleTokenLookup): Promise<StoredMeegleToken | undefined>;
+  delete(lookup: MeegleTokenLookup): Promise<void>;
 }
 
 function makeKey(input: MeegleTokenLookup): string {
@@ -33,5 +34,9 @@ export class InMemoryMeegleTokenStore implements MeegleTokenStore {
     lookup: MeegleTokenLookup,
   ): Promise<StoredMeegleToken | undefined> {
     return this.store.get(makeKey(lookup));
+  }
+
+  async delete(lookup: MeegleTokenLookup): Promise<void> {
+    this.store.delete(makeKey(lookup));
   }
 }

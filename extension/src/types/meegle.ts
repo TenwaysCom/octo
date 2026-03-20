@@ -13,6 +13,7 @@ export interface MeegleAuthEnsureResponse {
   baseUrl: string;
   state?: string;
   authCode?: string;
+  issuedAt?: string;
   reason?: string;
 }
 
@@ -25,4 +26,5 @@ export interface MeegleAuthCodeRequest {
 export interface MeegleAuthCodeResponse {
   authCode: string;
   state: string;
+  issuedAt: string;
 }

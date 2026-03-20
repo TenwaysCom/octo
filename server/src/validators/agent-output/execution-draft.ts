@@ -2,26 +2,30 @@ import { z } from "zod";
 
 export const fieldValuePairSchema = z.object({
   fieldKey: z.string().min(1),
-  value: z.unknown(),
-  label: z.string().min(1).optional(),
+  fieldValue: z.unknown(),
 });
 
-export const descriptionSectionSchema = z.object({
-  title: z.string().min(1),
-  content: z.string().min(1),
+export const sourceRefSchema = z.object({
+  sourcePlatform: z.enum(["lark_a1", "lark_a2"]),
+  sourceRecordId: z.string().min(1),
+});
+
+export const draftTargetSchema = z.object({
+  projectKey: z.string().min(1),
+  workitemTypeKey: z.string().min(1),
+  templateId: z.union([z.string().min(1), z.number().int()]),
 });
 
 export const executionDraftSchema = z.object({
+  draftId: z.string().min(1),
   draftType: z.enum(["b1", "b2"]),
+  sourceRef: sourceRefSchema,
+  target: draftTargetSchema,
+  name: z.string().min(1),
   needConfirm: z.literal(true),
-  sourceRecordId: z.string().min(1),
-  title: z.string().min(1),
-  summary: z.string().min(1),
-  projectKey: z.string().min(1),
-  workitemTypeKey: z.string().min(1),
-  templateId: z.string().min(1),
   fieldValuePairs: z.array(fieldValuePairSchema).min(1),
-  descriptionSections: z.array(descriptionSectionSchema).default([]),
+  ownerUserKeys: z.array(z.string().min(1)).default([]),
+  missingMeta: z.array(z.string().min(1)).default([]),
 });
 
 export type ExecutionDraft = z.infer<typeof executionDraftSchema>;

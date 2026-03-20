@@ -14,7 +14,12 @@ export interface A2Record {
 
 export interface A2WorkflowDeps {
   loadRecord?: (recordId: string) => Promise<A2Record>;
-  createWorkitem?: (draft: ExecutionDraft) => Promise<{ workitemId: string }>;
+  createWorkitem?: (input: {
+    draft: ExecutionDraft;
+    requestId: string;
+    operatorLarkId: string;
+    idempotencyKey: string;
+  }) => Promise<{ workitemId: string }>;
 }
 
 function defaultA2Record(recordId: string): A2Record {
@@ -42,9 +47,11 @@ export async function analyzeA2(
   const record = await loadA2Record(input.recordId, deps);
 
   return {
-    record,
-    suggestion: "b1_candidate" as const,
+    summary: `${record.title} 可继续整理为研发需求`,
+    readiness: "needs_refine" as const,
     missingFields: [],
+    suggestedSplit: [],
+    nextActions: ["补充非范围说明", "生成 B1 草稿"],
   };
 }
 
@@ -52,54 +59,81 @@ export async function createB1Draft(
   input: { recordId: string },
   deps: A2WorkflowDeps = {},
 ): Promise<ExecutionDraft> {
-  const analysis = await analyzeA2(input, deps);
+  const record = await loadA2Record(input.recordId, deps);
 
   return validateExecutionDraft({
+    draftId: `draft_b1_${record.recordId}`,
     draftType: "b1",
+    sourceRef: {
+      sourcePlatform: "lark_a2",
+      sourceRecordId: record.recordId,
+    },
+    target: {
+      projectKey: "OPS",
+      workitemTypeKey: "requirement",
+      templateId: "requirement-default",
+    },
+    name: record.title,
     needConfirm: true,
-    sourceRecordId: analysis.record.recordId,
-    title: analysis.record.title,
-    summary: analysis.record.summary,
-    projectKey: "OPS",
-    workitemTypeKey: "requirement",
-    templateId: "requirement-default",
     fieldValuePairs: [
       {
         fieldKey: "priority",
-        value: analysis.record.priority,
-        label: "优先级",
+        fieldValue: record.priority,
       },
       {
         fieldKey: "target",
-        value: analysis.record.target,
-        label: "目标",
+        fieldValue: record.target,
       },
       {
         fieldKey: "acceptance",
-        value: analysis.record.acceptance,
-        label: "验收标准",
+        fieldValue: record.acceptance,
       },
     ],
-    descriptionSections: [
-      {
-        title: "需求背景",
-        content: analysis.record.summary,
-      },
-      {
-        title: "验收标准",
-        content: analysis.record.acceptance,
-      },
-    ],
+    ownerUserKeys: [],
+    missingMeta: [],
   });
 }
 
 export async function applyB1(
-  input: { draft: ExecutionDraft },
+  input: {
+    requestId: string;
+    draftId: string;
+    operatorLarkId: string;
+    sourceRecordId: string;
+    idempotencyKey: string;
+    confirmedDraft: {
+      name: string;
+      fieldValuePairs: ExecutionDraft["fieldValuePairs"];
+      ownerUserKeys?: string[];
+    };
+  },
   deps: A2WorkflowDeps = {},
 ) {
-  const draft = validateExecutionDraft(input.draft);
+  const draft = validateExecutionDraft({
+    draftId: input.draftId,
+    draftType: "b1",
+    sourceRef: {
+      sourcePlatform: "lark_a2",
+      sourceRecordId: input.sourceRecordId,
+    },
+    target: {
+      projectKey: "OPS",
+      workitemTypeKey: "requirement",
+      templateId: "requirement-default",
+    },
+    name: input.confirmedDraft.name,
+    fieldValuePairs: input.confirmedDraft.fieldValuePairs,
+    ownerUserKeys: input.confirmedDraft.ownerUserKeys ?? [],
+    missingMeta: [],
+    needConfirm: true,
+  });
   const created =
-    (await deps.createWorkitem?.(draft)) ?? ({ workitemId: "B1-001" } as const);
+    (await deps.createWorkitem?.({
+      draft,
+      requestId: input.requestId,
+      operatorLarkId: input.operatorLarkId,
+      idempotencyKey: input.idempotencyKey,
+    })) ?? ({ workitemId: "B1-001" } as const);
 
   return {
     status: "created" as const,
@@ -113,5 +147,19 @@ export async function executeA2ToB1Flow(
   deps: A2WorkflowDeps = {},
 ) {
   const draft = await createB1Draft(input, deps);
-  return applyB1({ draft }, deps);
+  return applyB1(
+    {
+      requestId: `req_${input.recordId}`,
+      draftId: draft.draftId,
+      operatorLarkId: "ou_system",
+      sourceRecordId: draft.sourceRef.sourceRecordId,
+      idempotencyKey: `idem_${input.recordId}`,
+      confirmedDraft: {
+        name: draft.name,
+        fieldValuePairs: draft.fieldValuePairs,
+        ownerUserKeys: draft.ownerUserKeys,
+      },
+    },
+    deps,
+  );
 }
