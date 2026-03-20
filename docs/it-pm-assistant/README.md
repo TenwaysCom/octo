@@ -15,6 +15,8 @@
 9. [Meegle Adapter 适配设计](./09-meegle-adapter-design.md)
 10. [Meegle 轻认证桥设计](./10-meegle-auth-bridge-design.md)
 11. [插件消息协议与 API Schema](./11-extension-message-and-api-schema.md)
+12. [字段 Schema 与状态机](./12-field-schema-and-state-machine.md)
+13. [代码结构与校验设计](./13-code-structure-and-validation-design.md)
 
 ## 当前设计结论
 

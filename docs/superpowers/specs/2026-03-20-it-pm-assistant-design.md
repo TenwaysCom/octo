@@ -54,6 +54,8 @@
 - [Meegle Adapter 适配设计](/home/uynil/projects/tw-itdog/docs/it-pm-assistant/09-meegle-adapter-design.md)
 - [Meegle 轻认证桥设计](/home/uynil/projects/tw-itdog/docs/it-pm-assistant/10-meegle-auth-bridge-design.md)
 - [插件消息协议与 API Schema](/home/uynil/projects/tw-itdog/docs/it-pm-assistant/11-extension-message-and-api-schema.md)
+- [字段 Schema 与状态机](/home/uynil/projects/tw-itdog/docs/it-pm-assistant/12-field-schema-and-state-machine.md)
+- [代码结构与校验设计](/home/uynil/projects/tw-itdog/docs/it-pm-assistant/13-code-structure-and-validation-design.md)
 
 ## 待补说明
 
