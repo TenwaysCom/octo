@@ -14,6 +14,7 @@
 8. [开放问题与待补设计](./08-open-questions.md)
 9. [Meegle Adapter 适配设计](./09-meegle-adapter-design.md)
 10. [Meegle 轻认证桥设计](./10-meegle-auth-bridge-design.md)
+11. [插件消息协议与 API Schema](./11-extension-message-and-api-schema.md)
 
 ## 当前设计结论
 

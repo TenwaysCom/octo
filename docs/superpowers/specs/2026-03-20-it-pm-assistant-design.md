@@ -53,6 +53,7 @@
 - [开放问题与待补设计](/home/uynil/projects/tw-itdog/docs/it-pm-assistant/08-open-questions.md)
 - [Meegle Adapter 适配设计](/home/uynil/projects/tw-itdog/docs/it-pm-assistant/09-meegle-adapter-design.md)
 - [Meegle 轻认证桥设计](/home/uynil/projects/tw-itdog/docs/it-pm-assistant/10-meegle-auth-bridge-design.md)
+- [插件消息协议与 API Schema](/home/uynil/projects/tw-itdog/docs/it-pm-assistant/11-extension-message-and-api-schema.md)
 
 ## 待补说明
 
