@@ -2,7 +2,7 @@
 
 ## 1. 设计目标
 
-本文件用于补足 [插件消息协议与 API Schema](/home/uynil/projects/tw-itdog/docs/it-pm-assistant/11-extension-message-and-api-schema.md) 中未展开的细节，重点定义：
+本文件用于补足 [插件消息协议与 API Schema](./11-extension-message-and-api-schema.md) 中未展开的细节，重点定义：
 
 - 通用字段 contract
 - 核心 request / response 的必填与可选字段

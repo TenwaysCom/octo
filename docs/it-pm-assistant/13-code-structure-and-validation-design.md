@@ -380,7 +380,7 @@ server/
 
 这份文档与前序文档的关系是：
 
-- [10-meegle-auth-bridge-design.md](/home/uynil/projects/tw-itdog/docs/it-pm-assistant/10-meegle-auth-bridge-design.md)：定义认证桥流程
-- [11-extension-message-and-api-schema.md](/home/uynil/projects/tw-itdog/docs/it-pm-assistant/11-extension-message-and-api-schema.md)：定义消息与接口名
-- [12-field-schema-and-state-machine.md](/home/uynil/projects/tw-itdog/docs/it-pm-assistant/12-field-schema-and-state-machine.md)：定义字段和状态
+- [10-meegle-auth-bridge-design.md](./10-meegle-auth-bridge-design.md)：定义认证桥流程
+- [11-extension-message-and-api-schema.md](./11-extension-message-and-api-schema.md)：定义消息与接口名
+- [12-field-schema-and-state-machine.md](./12-field-schema-and-state-machine.md)：定义字段和状态
 - 本文：定义代码结构和校验落点

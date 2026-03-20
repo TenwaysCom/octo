@@ -42,20 +42,21 @@
 
 完整设计拆分为以下文档：
 
-- [文档索引](/home/uynil/projects/tw-itdog/docs/it-pm-assistant/README.md)
-- [需求概述](/home/uynil/projects/tw-itdog/docs/it-pm-assistant/01-requirements-overview.md)
-- [业务流程设计](/home/uynil/projects/tw-itdog/docs/it-pm-assistant/02-business-flow.md)
-- [PRD](/home/uynil/projects/tw-itdog/docs/it-pm-assistant/03-prd.md)
-- [总体架构设计](/home/uynil/projects/tw-itdog/docs/it-pm-assistant/04-architecture.md)
-- [AI Agent / Skill 设计](/home/uynil/projects/tw-itdog/docs/it-pm-assistant/05-ai-agent-skill-design.md)
-- [数据与安全设计](/home/uynil/projects/tw-itdog/docs/it-pm-assistant/06-data-security.md)
-- [一期实施路线](/home/uynil/projects/tw-itdog/docs/it-pm-assistant/07-phase-1-rollout.md)
-- [开放问题与待补设计](/home/uynil/projects/tw-itdog/docs/it-pm-assistant/08-open-questions.md)
-- [Meegle Adapter 适配设计](/home/uynil/projects/tw-itdog/docs/it-pm-assistant/09-meegle-adapter-design.md)
-- [Meegle 轻认证桥设计](/home/uynil/projects/tw-itdog/docs/it-pm-assistant/10-meegle-auth-bridge-design.md)
-- [插件消息协议与 API Schema](/home/uynil/projects/tw-itdog/docs/it-pm-assistant/11-extension-message-and-api-schema.md)
-- [字段 Schema 与状态机](/home/uynil/projects/tw-itdog/docs/it-pm-assistant/12-field-schema-and-state-machine.md)
-- [代码结构与校验设计](/home/uynil/projects/tw-itdog/docs/it-pm-assistant/13-code-structure-and-validation-design.md)
+- [文档索引](../../it-pm-assistant/README.md)
+- [需求概述](../../it-pm-assistant/01-requirements-overview.md)
+- [业务流程设计](../../it-pm-assistant/02-business-flow.md)
+- [PRD](../../it-pm-assistant/03-prd.md)
+- [总体架构设计](../../it-pm-assistant/04-architecture.md)
+- [AI Agent / Skill 设计](../../it-pm-assistant/05-ai-agent-skill-design.md)
+- [数据与安全设计](../../it-pm-assistant/06-data-security.md)
+- [一期实施路线](../../it-pm-assistant/07-phase-1-rollout.md)
+- [开放问题与待补设计](../../it-pm-assistant/08-open-questions.md)
+- [Meegle Adapter 适配设计](../../it-pm-assistant/09-meegle-adapter-design.md)
+- [Meegle 轻认证桥设计](../../it-pm-assistant/10-meegle-auth-bridge-design.md)
+- [插件消息协议与 API Schema](../../it-pm-assistant/11-extension-message-and-api-schema.md)
+- [字段 Schema 与状态机](../../it-pm-assistant/12-field-schema-and-state-machine.md)
+- [代码结构与校验设计](../../it-pm-assistant/13-code-structure-and-validation-design.md)
+- [详细开发计划](../plans/2026-03-20-it-pm-assistant-implementation-plan.md)
 
 ## 待补说明
 
