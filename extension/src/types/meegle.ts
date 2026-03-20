@@ -1,0 +1,28 @@
+export type MeegleAuthStatus = "ready" | "require_auth_code" | "failed";
+
+export interface MeegleAuthEnsureRequest {
+  requestId: string;
+  operatorLarkId: string;
+  meegleUserKey?: string;
+  baseUrl: string;
+  state?: string;
+}
+
+export interface MeegleAuthEnsureResponse {
+  status: MeegleAuthStatus;
+  baseUrl: string;
+  state?: string;
+  authCode?: string;
+  reason?: string;
+}
+
+export interface MeegleAuthCodeRequest {
+  baseUrl: string;
+  pluginId: string;
+  state: string;
+}
+
+export interface MeegleAuthCodeResponse {
+  authCode: string;
+  state: string;
+}

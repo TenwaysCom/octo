@@ -128,3 +128,9 @@
 - 先写哪些测试
 - 每一步如何验证
 - 每个任务完成后如何提交
+
+## 7. 当前实现落点
+
+- `extension/`：已落地协议类型、Background Router、Meegle auth bridge 与基础 e2e 测试
+- `server/`：已落地 identity、meegle-auth、A1、A2、PM analysis 模块及配套测试
+- 当前实现采用最小可运行骨架，便于下一步接入真实平台 API 与持久化存储
