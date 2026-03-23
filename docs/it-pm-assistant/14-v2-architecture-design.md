@@ -1118,9 +1118,9 @@ HALF_OPEN → OPEN: 探测失败
 
 | 风险 | 影响 | 缓解措施 |
 |------|------|----------|
-| SSE 长连接稳定性 | 中 | 实现心跳和重连机制（见 3.3 节 (Context Collectors)） |
+| SSE 长连接稳定性 | 中 | 实现心跳和重连机制（见 4.3 节） |
 | Session 数据量增长 | 高 | 实现历史归档策略（见 9.1 节 Session TTL） |
-| Skill 执行超时 | 高 | Effort Controller 强制限时（见 3.2 节 (Think Effort 语义)） |
+| Skill 执行超时 | 高 | Effort Controller 强制限时（见 4.2 节） |
 | 多 Tab Session 冲突 | 中 | Session 冲突解决策略（见 9.3 节） |
 | Context 存储成本 | 中 | Context 压缩和清理策略（见 10.4 节） |
 
