@@ -307,6 +307,54 @@ data: {
 4. 客户端重连间隔：1s, 2s, 4s, 8s, 16s (指数退避，最大 16s)
 5. 重连失败超过 5 次，显示错误提示用户手动重试
 
+**SSE 事件存储策略:**
+
+```typescript
+// 服务端事件存储接口
+interface SseEventStore {
+  // 存储事件（按 sessionId 分组）
+  store(sessionId: string, event: SseEvent): Promise<void>;
+
+  // 从 eventId 开始检索事件
+  getFrom(sessionId: string, eventId: number): Promise<SseEvent[]>;
+
+  // 清理过期事件（定时任务）
+  cleanupExpired(): Promise<number>;
+}
+
+// Redis Stream 实现
+class RedisSseEventStore implements SseEventStore {
+  // 使用 Redis Stream 存储事件
+  // Key 格式：sse:events:{sessionId}
+  // 保留时间：5 分钟（通过 Redis TTL 实现）
+
+  async store(sessionId: string, event: SseEvent): Promise<void> {
+    await redis.xadd(`sse:events:${sessionId}`, '*', 'data', JSON.stringify(event));
+    await redis.expire(`sse:events:${sessionId}`, 300);
+  }
+
+  async getFrom(sessionId: string, eventId: number): Promise<SseEvent[]> {
+    const events = await redis.xread(`sse:events:${sessionId}`, eventId);
+    return events.map(e => JSON.parse(e.data));
+  }
+}
+```
+
+**网络断线恢复策略:**
+
+| 场景 | 恢复策略 |
+|------|---------|
+| 短连接断开（<5 秒） | 自动重连，从 Last-Event-ID 恢复 |
+| 分析中断（<5 分钟） | 重连后继续接收事件 |
+| 分析超时/失败 | 返回 error 事件，提示用户重新分析 |
+| 服务端重启 | 事件丢失，返回 503 错误，客户端提示重试 |
+
+**Token 预算超限降级策略:**
+
+- `quick` 模式：达到 4K tokens 时，截断当前 LLM 调用，返回部分结果
+- `standard` 模式：达到 16K tokens 时，跳过非关键 skills，优先保证核心分析
+- `deep` 模式：达到 100K tokens 时，提前触发 reflection，输出当前最佳结果
+
 ## 5. 客户端架构
 
 ### 5.1 扩展结构
