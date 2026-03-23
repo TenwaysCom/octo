@@ -104,9 +104,9 @@ const builtinCollectors: Record<string, ContextCollector> = {
 };
 ```
 
-## 3. 服务端架构
+## 4. 服务端架构
 
-### 3.1 整体架构图
+### 4.1 整体架构图
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -184,7 +184,7 @@ const builtinCollectors: Record<string, ContextCollector> = {
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 3.2 Think Effort 模式
+### 4.2 Think Effort 模式
 
 ```typescript
 interface ThinkEffortProfile {
@@ -229,7 +229,7 @@ interface ThinkEffortProfile {
 - 反思结果追加到 `thinkingLog`，不改变已执行技能结果
 - 用于持续改进 Skill 质量和用户信任建立
 
-### 3.3 SSE 输出协议
+### 4.3 SSE 输出协议
 
 **事件格式:**
 
@@ -307,9 +307,9 @@ data: {
 4. 客户端重连间隔：1s, 2s, 4s, 8s, 16s (指数退避，最大 16s)
 5. 重连失败超过 5 次，显示错误提示用户手动重试
 
-## 4. 客户端架构
+## 5. 客户端架构
 
-### 4.1 扩展结构
+### 5.1 扩展结构
 
 ```
 extension/
@@ -348,7 +348,7 @@ extension/
 │           └── AnalysisResult.ts
 ```
 
-### 4.2 Session 管理流程
+### 5.2 Session 管理流程
 
 ```
 1. 用户访问 URL
@@ -371,7 +371,7 @@ extension/
 4. 显示 Popup    显示"开始分析"
 ```
 
-### 4.3 Skill 加载流程
+### 5.3 Skill 加载流程
 
 ```
 1. Popup 打开
@@ -392,9 +392,9 @@ extension/
 6. 渲染 SkillList UI（显示可用技能）
 ```
 
-## 5. URL → Skills 映射配置
+## 6. URL → Skills 映射配置
 
-### 5.1 配置 Schema
+### 6.1 配置 Schema
 
 ```typescript
 interface SkillConfig {
@@ -414,7 +414,7 @@ interface SkillConfig {
 }
 ```
 
-### 5.2 预置配置示例
+### 6.2 预置配置示例
 
 ```typescript
 // Lark A1 页面
@@ -502,9 +502,9 @@ interface SkillConfig {
 }
 ```
 
-## 6. Popup UI 设计
+## 7. Popup UI 设计
 
-### 6.1 主界面布局
+### 7.1 主界面布局
 
 ```
 ┌────────────────────────────────────────────────────────────┐
@@ -549,7 +549,7 @@ interface SkillConfig {
 └────────────────────────────────────────────────────────────┘
 ```
 
-### 6.2 分析中界面
+### 7.2 分析中界面
 
 ```
 ┌────────────────────────────────────────────────────────────┐
@@ -582,9 +582,9 @@ interface SkillConfig {
 └────────────────────────────────────────────────────────────┘
 ```
 
-## 7. API 端点设计
+## 8. API 端点设计
 
-### 7.1 服务端 API
+### 8.1 服务端 API
 
 ```
 GET  /health
@@ -610,7 +610,7 @@ GET  /api/sessions?prefix=...
 DELETE /api/sessions/:id
 ```
 
-### 7.2 SSE Endpoint 示例
+### 8.2 SSE Endpoint 示例
 
 ```bash
 # 发起分析请求
@@ -636,9 +636,9 @@ curl -N POST http://localhost:3000/api/a1/analyze \
 # data: {"summary":"...","decision":"to_b2",...}
 ```
 
-## 8. 数据 Schema
+## 9. 数据 Schema
 
-### 8.1 Session Schema
+### 9.1 Session Schema
 
 ```typescript
 interface Session {
@@ -691,7 +691,7 @@ const defaultSessionTTL: SessionTTL = {
 };
 ```
 
-### 8.2 Session 生命周期管理
+### 9.2 Session 生命周期管理
 
 ```typescript
 // Session 状态
@@ -725,7 +725,7 @@ interface SessionManager {
 - 历史记录超过 50 条或 1MB 时，删除最旧的记录
 - 过期 Session 标记为 `expired`，7 天后物理删除
 
-### 8.3 多 Tab Session 冲突解决
+### 9.3 多 Tab Session 冲突解决
 
 **场景:** 用户在同一 URL Prefix 打开多个 Tab
 
@@ -763,9 +763,8 @@ interface ConflictResponse {
   suggestion: 'retry' | 'create_new_session';
 }
 ```
-```
 
-### 8.2 Analysis Request/Response
+### 9.4 Analysis Request/Response
 
 ```typescript
 interface AnalysisRequest {
@@ -795,9 +794,9 @@ interface AnalysisResponse {
 }
 ```
 
-## 9. Skill Registry 详细设计
+## 10. Skill Registry 详细设计
 
-### 9.1 Skill 定义
+### 10.1 Skill 定义
 
 ```typescript
 // Skill 类型
@@ -832,7 +831,7 @@ interface SideEffect {
 }
 ```
 
-### 9.2 Skill 执行流程
+### 10.2 Skill 执行流程
 
 ```
 1. Agent 接收用户请求
@@ -856,7 +855,7 @@ interface SideEffect {
 7. 用户确认后，执行 Side Effects
 ```
 
-### 9.3 URL → Skills 映射配置
+### 10.3 URL → Skills 映射配置
 
 使用第 5.1 节定义的 `SkillConfig` 接口。
 
@@ -894,7 +893,7 @@ GET /api/skills/config?url=...  → SkillConfig[]
 - 区分大小写
 - 不包含查询参数
 
-### 9.4 设计决策
+### 10.4 Skill 设计决策
 
 | 决策点 | 选择 | 理由 |
 |--------|------|------|
@@ -903,9 +902,9 @@ GET /api/skills/config?url=...  → SkillConfig[]
 | 输入来源 | 统一 Context | Skill 解耦，不依赖具体数据源 |
 | Side Effects | Analysis + Action 分离 | 清晰的职责边界，用户确认前不执行 |
 
-## 10. Context Management 详细设计
+## 11. Context Management 详细设计
 
-### 10.1 Context 类型
+### 11.1 Context 类型
 
 ```typescript
 // 统一 Context 对象
@@ -955,7 +954,7 @@ interface HistoryContext {
 }
 ```
 
-### 10.2 Context 管理架构
+### 11.2 Context 管理架构
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -984,7 +983,7 @@ interface HistoryContext {
 └──────────────────────────────────────────────────────────────┘
 ```
 
-### 10.3 Context 存储策略
+### 11.3 Context 存储策略
 
 **分层存储:**
 
@@ -1001,7 +1000,7 @@ interface HistoryContext {
 - 使用 gzip 压缩
 - 超过 100KB 截断
 
-### 10.4 Context  Builder 实现
+### 11.4 Context Builder 实现
 
 ```typescript
 interface ContextBuilder {
@@ -1025,7 +1024,7 @@ function getContextWindowLimit(effort: ThinkEffortMode): ContextWindowSize {
 }
 ```
 
-### 10.5 设计决策
+### 10.5 Context 设计决策
 
 | 决策点 | 选择 | 理由 |
 |------|------|------|
@@ -1035,9 +1034,9 @@ function getContextWindowLimit(effort: ThinkEffortMode): ContextWindowSize {
 | 历史归档 | 服务端 | 长期存储，支持回溯分析 |
 | pageSnapshot | 选择性压缩存储 | 控制存储成本，保留关键信息 |
 
-## 11. 错误处理策略
+## 12. 错误处理策略
 
-### 11.1 错误分类
+### 12.1 错误分类
 
 | 错误码 | 类型 | 说明 | 处理策略 |
 |--------|------|------|----------|
@@ -1049,7 +1048,7 @@ function getContextWindowLimit(effort: ThinkEffortMode): ContextWindowSize {
 | `VALIDATION_FAILED` | non_retryable | 参数校验失败 | 返回 400，显示具体错误 |
 | `INTERNAL_ERROR` | retryable | 内部错误 | 重试 2 次后转人工 |
 
-### 11.2 重试策略
+### 12.2 重试策略
 
 ```typescript
 interface RetryConfig {
@@ -1068,7 +1067,7 @@ const defaultRetryConfig: RetryConfig = {
 };
 ```
 
-### 11.3 断路器模式
+### 12.3 断路器模式
 
 ```
 外部服务 (Lark/Meegle/GitHub API) → 断路器 → 适配器
@@ -1085,7 +1084,7 @@ HALF_OPEN → CLOSED: 探测成功
 HALF_OPEN → OPEN: 探测失败
 ```
 
-### 11.4 部分失败处理
+### 12.4 部分失败处理
 
 **场景:** 多技能执行时部分失败
 
@@ -1095,16 +1094,16 @@ HALF_OPEN → OPEN: 探测失败
 3. 汇总部分结果返回
 4. 标记不完整状态
 
-## 12. 待补项和技术风险
+## 13. 待补项和技术风险
 
-### 12.1 Phase 1 遗留待补项
+### 13.1 Phase 1 遗留待补项
 
 - [ ] A2 模块实现
 - [ ] PM Analysis 模块实现
 - [ ] 数据库持久化
 - [ ] 真实 Lark/Meegle API 集成
 
-### 12.2 V2 新增待补项
+### 13.2 V2 新增待补项
 
 - [ ] Think Effort Controller 实现
 - [ ] Skill Registry 实现
@@ -1115,19 +1114,19 @@ HALF_OPEN → OPEN: 探测失败
 - [ ] Popup UI 实现
 - [ ] 思考过程日志记录
 
-### 12.3 技术风险
+### 13.3 技术风险
 
 | 风险 | 影响 | 缓解措施 |
 |------|------|----------|
-| SSE 长连接稳定性 | 中 | 实现心跳和重连机制（见 3.3 节） |
-| Session 数据量增长 | 高 | 实现历史归档策略（见 8.1 节 Session TTL） |
-| Skill 执行超时 | 高 | Effort Controller 强制限时（见 3.2 节） |
-| 多 Tab Session 冲突 | 中 | Session 冲突解决策略（见 8.3 节） |
+| SSE 长连接稳定性 | 中 | 实现心跳和重连机制（见 3.3 节 (Context Collectors)） |
+| Session 数据量增长 | 高 | 实现历史归档策略（见 9.1 节 Session TTL） |
+| Skill 执行超时 | 高 | Effort Controller 强制限时（见 3.2 节 (Think Effort 语义)） |
+| 多 Tab Session 冲突 | 中 | Session 冲突解决策略（见 9.3 节） |
 | Context 存储成本 | 中 | Context 压缩和清理策略（见 10.4 节） |
 
-### 12.4 下一步计划
+### 13.4 下一步计划
 
-#### 12.4.1 优先级排序
+#### 13.4.1 优先级排序
 
 1. **P0 - 基础架构**
    - Agent Orchestrator 重构
@@ -1153,7 +1152,7 @@ HALF_OPEN → OPEN: 探测失败
    - 分析结果展示
    - 思考过程渲染
 
-#### 12.4.2 推荐实施顺序
+#### 13.4.2 推荐实施顺序
 
 ```
 Phase 2.1: 服务端架构升级
