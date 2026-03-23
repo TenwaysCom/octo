@@ -106,40 +106,56 @@
 ### 3.2 Think Effort 模式
 
 ```typescript
-interface ThinkEffortConfig {
+interface ThinkEffortProfile {
   quick: {
-    maxDurationMs: 60 * 1000,        // 1 分钟
-    llmCalls: 1,                      // 单次调用
-    skills: 'single',                 // 单技能
-    contextWindow: 'minimal'          // 最小上下文
+    maxDurationMs: 60 * 1000,         // 1 分钟硬限制
+    maxLlmCalls: 2,                    // 最多 2 次 LLM 调用
+    maxTokens: 4000,                   // 最多 4K tokens
+    skills: 'single',                  // 单技能
+    contextWindow: 'minimal'           // 最小上下文
   },
   standard: {
-    maxDurationMs: 3 * 60 * 1000,    // 3 分钟
-    llmCalls: 2-3,                    // 2-3 轮对话
-    skills: 'combo',                  // 多技能组合
-    contextWindow: 'recent'           // 包含最近历史
+    maxDurationMs: 3 * 60 * 1000,     // 3 分钟硬限制
+    maxLlmCalls: 5,                    // 最多 5 次 LLM 调用
+    maxTokens: 16000,                  // 最多 16K tokens
+    skills: 'combo',                   // 多技能组合
+    contextWindow: 'recent'            // 包含最近历史
   },
   deep: {
-    maxDurationMs: 10 * 60 * 1000,   // 10 分钟
-    llmCalls: 'unlimited',            // 多轮迭代
-    skills: 'chain',                  // 完整技能链
-    contextWindow: 'full',            // 完整上下文
-    reflection: true                  // 包含验证反思
+    maxDurationMs: 10 * 60 * 1000,    // 10 分钟硬限制
+    maxLlmCalls: 20,                   // 最多 20 次 LLM 调用 (原'unlimited'改为有限制)
+    maxTokens: 100000,                 // 最多 100K tokens
+    skills: 'chain',                   // 完整技能链
+    contextWindow: 'full',             // 完整上下文
+    reflection: true                   // 包含验证反思
   }
 }
 ```
 
+**资源限制说明:**
+- `maxDurationMs`: 硬限制，超时强制终止
+- `maxLlmCalls`: 防止无限循环调用
+- `maxTokens`: 控制 token 消耗成本
+- 所有限制在配置文件中可调整
+
 ### 3.3 SSE 输出协议
 
+**事件格式:**
+
 ```typescript
-// Server-Sent Events 流式输出
+// 所有事件的公共字段
+interface SseEvent {
+  eventId: string;       // 递增序列号，用于重连
+  sessionId: string;     // Session ID，用于恢复
+  timestamp: string;     // ISO 8601 时间戳
+}
 
 // 思考阶段开始
 event: thinking-start
 data: {
   phase: "understanding" | "analyzing" | "executing" | "synthesizing",
   message: string,
-  timestamp: string
+  ...SseEvent
 }
 
 // 思考阶段更新
@@ -147,7 +163,8 @@ event: thinking-update
 data: {
   phase: string,
   message: string,
-  progress: number  // 0-100
+  progress: number,  // 0-100
+  ...SseEvent
 }
 
 // 技能执行开始
@@ -155,7 +172,8 @@ event: skill-execution
 data: {
   skillId: string,
   skillName: string,
-  status: "running"
+  status: "running",
+  ...SseEvent
 }
 
 // 技能执行完成
@@ -163,7 +181,8 @@ event: skill-result
 data: {
   skillId: string,
   result: object,
-  duration: number
+  duration: number,
+  ...SseEvent
 }
 
 // 最终结果
@@ -174,7 +193,8 @@ data: {
   missingFields?: string[],
   riskLevel?: "low" | "medium" | "high",
   nextActions?: string[],
-  bugDraft?: object  // 如果是 A1→B2
+  bugDraft?: object,
+  ...SseEvent
 }
 
 // 错误
@@ -182,9 +202,19 @@ event: error
 data: {
   errorCode: string,
   errorMessage: string,
-  recoverable: boolean
+  recoverable: boolean,
+  retryAfter?: number,  // 建议重试时间 (秒)
+  ...SseEvent
 }
 ```
+
+**重连协议:**
+
+1. 客户端发送请求时设置 `Last-Event-ID` 头部
+2. 服务端从 `Last-Event-ID` 位置继续发送事件
+3. 事件保留 5 分钟，超时清除
+4. 客户端重连间隔：1s, 2s, 4s, 8s, 16s (指数退避，最大 16s)
+5. 重连失败超过 5 次，显示错误提示用户手动重试
 
 ## 4. 客户端架构
 
@@ -644,24 +674,22 @@ interface SideEffect {
 
 ### 9.3 URL → Skills 映射配置
 
-```typescript
-// 服务端配置表
-interface SkillConfig {
-  urlPrefix: string;        // 用于匹配和 Session 绑定
-  urlPattern: string;       // URL 通配符模式
-  pageType: string;
+使用第 5.1 节定义的 `SkillConfig` 接口。
 
-  skills: Array<{
-    skillId: string;
-    version: string;
-    enabled: boolean;
-    config?: object;
-  }>;
+**服务端 API:**
 
-  defaultEffort: 'quick' | 'standard' | 'deep';
-}
+```
+GET /api/skills/config?url=...  → SkillConfig[]
+```
 
-// Lark A1 页面配置示例
+**匹配逻辑:**
+1. 客户端发送当前 URL
+2. 服务端遍历 SkillConfig 列表，使用 urlPattern 匹配
+3. 返回第一个匹配的 SkillConfig
+4. 无匹配返回 404
+
+**Lark A1 页面配置示例:**
+```
 {
   urlPrefix: "lark_a1",
   urlPattern: "https://*.lark.cn/bases/:baseId/tables/:tableId",
@@ -674,6 +702,13 @@ interface SkillConfig {
   defaultEffort: "standard"
 }
 ```
+
+**URL Pattern 语法:**
+- 使用 `path-to-regexp` 库进行匹配
+- 支持 `*` 通配符 (匹配任意字符)
+- 支持 `:paramName` 参数捕获
+- 区分大小写
+- 不包含查询参数
 
 ### 9.4 设计决策
 
@@ -850,7 +885,67 @@ Phase 2.5: UI 实现
   - 思考过程可视化
 ```
 
-## 13. 风险与考量
+## 11. 错误处理策略
+
+### 11.1 错误分类
+
+| 错误码 | 类型 | 说明 | 处理策略 |
+|--------|------|------|----------|
+| `SKILL_TIMEOUT` | timeout | Skill 执行超时 | 指数退避重试，最大 3 次 |
+| `LLM_RATE_LIMIT` | retryable | LLM API 限流 | 等待 retry-after 后重试 |
+| `ADAPTER_UNAVAILABLE` | circuit_open | 外部服务不可用 | 断路器打开，降级处理 |
+| `CONTEXT_NOT_FOUND` | non_retryable | 上下文未找到 | 返回 404，提示重新分析 |
+| `SESSION_EXPIRED` | non_retryable | Session 过期 | 返回 401，提示重新认证 |
+| `VALIDATION_FAILED` | non_retryable | 参数校验失败 | 返回 400，显示具体错误 |
+| `INTERNAL_ERROR` | retryable | 内部错误 | 重试 2 次后转人工 |
+
+### 11.2 重试策略
+
+```typescript
+interface RetryConfig {
+  maxRetries: number;        // 最大重试次数
+  initialDelayMs: number;    // 初始延迟
+  maxDelayMs: number;        // 最大延迟
+  multiplier: number;        // 指数退避倍数
+}
+
+// 默认重试配置
+const defaultRetryConfig: RetryConfig = {
+  maxRetries: 3,
+  initialDelayMs: 1000,
+  maxDelayMs: 16000,
+  multiplier: 2
+};
+```
+
+### 11.3 断路器模式
+
+```
+外部服务 (Lark/Meegle/GitHub API) → 断路器 → 适配器
+
+断路器状态:
+- CLOSED (正常): 请求正常通过
+- OPEN (打开): 拒绝所有请求，直接返回错误
+- HALF_OPEN (半开): 允许一个探测请求
+
+状态转换:
+CLOSED → OPEN: 连续 5 次失败
+OPEN → HALF_OPEN: 30 秒后
+HALF_OPEN → CLOSED: 探测成功
+HALF_OPEN → OPEN: 探测失败
+```
+
+### 11.4 部分失败处理
+
+**场景:** 多技能执行时部分失败
+
+**策略:**
+1. 记录已执行技能结果
+2. 跳过失败技能
+3. 汇总部分结果返回
+4. 标记不完整状态
+
+## 12. 待补项
 
 ### 技术风险
 
