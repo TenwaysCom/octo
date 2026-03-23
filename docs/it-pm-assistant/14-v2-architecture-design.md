@@ -23,6 +23,87 @@
 | Agent 输出 | SSE 流式 + 思考过程可见 | 建立信任，用户可实时看到分析进度 |
 | 上下文管理 | 分层设计（Page/User/History） | 支持多场景、多页面的上下文隔离 |
 
+## 3. 类型定义
+
+### 3.1 PageType 枚举
+
+```typescript
+type PageType =
+  | 'lark_a1'      // Lark 工单页面
+  | 'lark_a2'      // Lark 需求池页面
+  | 'meegle_project'  // Meegle 项目页面
+  | 'meegle_workitem' // Meegle 工作项页面
+  | 'github_repo'     // GitHub 仓库页面
+  | 'github_pr'       // GitHub PR 页面
+  | 'unknown';        // 未知页面类型
+```
+
+### 3.2 SkillRef 类型
+
+```typescript
+// Skill 引用（服务端配置用）
+interface SkillRef {
+  skillId: string;
+  version: string;
+  config?: object;
+  enabled?: boolean;
+}
+
+// Skill 配置项（客户端 UI 用）
+interface SkillConfigItem {
+  skillId: string;
+  displayName: string;
+  description: string;
+  config?: object;
+}
+```
+
+### 3.3 Think Effort 语义定义
+
+```typescript
+// Skills 执行模式语义
+type SkillsMode =
+  | 'single'   // 单技能执行（quick 模式）
+  | 'combo'    // 多技能并行执行（standard 模式）
+  | 'chain'    // 技能链串行执行（deep 模式）
+
+// Context Window 语义
+type ContextWindowSize =
+  | 'minimal'  // 仅当前页面核心数据（<1K tokens）
+  | 'recent'   // 最近 3 次分析历史（<10K tokens）
+  | 'full';    // 完整 Session 历史（无限制）
+```
+
+### 3.4 Context Collectors
+
+```typescript
+// 上下文采集器接口
+interface ContextCollector {
+  collectorId: string;
+  description: string;
+  handler: (page: Page) => Promise<object>;
+}
+
+// 预置采集器
+const builtinCollectors: Record<string, ContextCollector> = {
+  'record-fields': {
+    collectorId: 'record-fields',
+    description: '采集记录表单字段数据',
+    handler: async (page) => { /* 实现 */ }
+  },
+  'record-comments': {
+    collectorId: 'record-comments',
+    description: '采集记录评论数据',
+    handler: async (page) => { /* 实现 */ }
+  },
+  'page-snapshot': {
+    collectorId: 'page-snapshot',
+    description: '采集页面 DOM 快照（压缩后）',
+    handler: async (page) => { /* 实现 */ }
+  }
+};
+```
+
 ## 3. 服务端架构
 
 ### 3.1 整体架构图
@@ -136,7 +217,17 @@ interface ThinkEffortProfile {
 - `maxDurationMs`: 硬限制，超时强制终止
 - `maxLlmCalls`: 防止无限循环调用
 - `maxTokens`: 控制 token 消耗成本
+- `reflection`: deep 模式特有，执行完成后额外调用 LLM 验证结果质量
 - 所有限制在配置文件中可调整
+
+**Reflection 机制 (deep 模式):**
+- 在技能链执行完成后触发
+- LLM 反思问题：
+  - "分析结果是否完整回答了用户问题？"
+  - "是否遗漏了重要信息？"
+  - "是否有更优的分析路径？"
+- 反思结果追加到 `thinkingLog`，不改变已执行技能结果
+- 用于持续改进 Skill 质量和用户信任建立
 
 ### 3.3 SSE 输出协议
 
@@ -356,6 +447,7 @@ interface SkillConfig {
 
 // Lark A2 页面
 {
+  urlPattern: "https://*.lark.cn/bases/:baseId/tables/:tableId",  // 与 A1 共享 URL 模式，通过 pageType 区分
   urlPrefix: "lark_a2",
   pageType: "lark_a2",
 
@@ -375,11 +467,15 @@ interface SkillConfig {
       displayName: "研发简报生成",
       description: "生成研发可执行的简报"
     }
-  ]
+  ],
+
+  contextCollectors: ["record-fields", "record-comments"],
+  defaultEffort: "standard"
 }
 
 // Meegle 项目页面
 {
+  urlPattern: "https://*.meegle.com/projects/:projectKey/*",
   urlPrefix: "meegle_project",
   pageType: "meegle_project",
 
@@ -399,7 +495,10 @@ interface SkillConfig {
       displayName: "Sprint 规划",
       description: "协助 Sprint 规划"
     }
-  ]
+  ],
+
+  contextCollectors: ["workitem-list", "project-members"],
+  defaultEffort: "standard"
 }
 ```
 
@@ -549,36 +648,121 @@ interface Session {
   pageType: PageType;
 
   // 绑定的 Skills
-  skills: Array<{
-    skillId: string;
-    version: string;
-    config?: object;
-  }>;
+  skills: SkillRef[];  // 使用 3.2 节定义的 SkillRef 类型
 
   // 上下文数据
   context: {
     page?: PageContext;
     user?: UserContext;
     lastRecordId?: string;
-    pageSnapshot?: object;
+    pageSnapshot?: object;    // 大小限制：< 100KB（压缩后）
   };
 
   // 历史对话
   history: Array<{
-    timestamp: string;
+    timestamp: string;  // ISO 8601
     effort: 'quick' | 'standard' | 'deep';
     input: object;
     output: object;
     thinkingLog: Array<{
       phase: string;
       message: string;
-      timestamp: string;
+      timestamp: string;  // ISO 8601
     }>;
   }>;
 
-  createdAt: string;
-  updatedAt: string;
+  // Session 生命周期
+  createdAt: string;   // ISO 8601
+  updatedAt: string;   // ISO 8601
+  lastAccessedAt: string;  // ISO 8601 - 用于 TTL 计算
 }
+
+// Session 过期策略
+interface SessionTTL {
+  ttlMs: number;           // 默认 7 天
+  maxHistoryEntries: number;  // 最多保留 50 条历史记录
+  maxHistoryBytes: number;    // 历史总大小限制 1MB
+}
+
+const defaultSessionTTL: SessionTTL = {
+  ttlMs: 7 * 24 * 60 * 60 * 1000,     // 7 天
+  maxHistoryEntries: 50,               // 最多 50 条
+  maxHistoryBytes: 1024 * 1024         // 1MB
+};
+```
+
+### 8.2 Session 生命周期管理
+
+```typescript
+// Session 状态
+type SessionState = 'active' | 'idle' | 'expired';
+
+// Session 管理器接口
+interface SessionManager {
+  // 创建 Session
+  create(urlPrefix: string, pageType: PageType): Promise<Session>;
+
+  // 恢复 Session（通过 sessionId）
+  restore(sessionId: string): Promise<Session | null>;
+
+  // 按 URL Prefix 查找 Sessions
+  findByPrefix(userId: string, urlPrefix: string): Promise<Session[]>;
+
+  // 更新 Session（touch）
+  touch(sessionId: string): Promise<void>;
+
+  // 删除 Session
+  delete(sessionId: string): Promise<void>;
+
+  // 清理过期 Sessions（定时任务）
+  cleanupExpired(): Promise<number>;  // 返回清理数量
+}
+```
+
+**TTL 策略:**
+- Session 默认 7 天过期（从 `lastAccessedAt` 计算）
+- 每次访问自动续期（滑动窗口）
+- 历史记录超过 50 条或 1MB 时，删除最旧的记录
+- 过期 Session 标记为 `expired`，7 天后物理删除
+
+### 8.3 多 Tab Session 冲突解决
+
+**场景:** 用户在同一 URL Prefix 打开多个 Tab
+
+**策略:**
+1. **写入互斥**: 同一 Session 同时只允许一个写入请求
+   - 使用乐观锁 (`updatedAt` 版本号)
+   - 冲突时拒绝旧版本写入，返回 409 Conflict
+
+2. **读并发**: 允许多个 Tab 同时读取
+
+3. **最后写入优先**:
+   - Tab A 和 Tab B 同时分析
+   - 后完成的 Tab 覆盖 Session 的 `context.lastAnalysis`
+   - 每个 Tab 保留自己的分析结果 ID，用户可回溯
+
+4. **Tab 关闭检测**:
+   - 客户端在 Tab 关闭前发送 `beforeunload` 通知
+   - 服务端标记该 Tab 的 Session 引用为 `detached`
+   - 不立即删除 Session，等待 TTL 过期
+
+```typescript
+// 多 Tab 冲突处理
+interface TabSession {
+  sessionId: string;
+  tabId: string;       // 客户端 Tab ID
+  createdAt: string;
+  lastHeartbeat: string;  // 心跳时间
+}
+
+// 冲突响应
+interface ConflictResponse {
+  errorCode: 'SESSION_CONFLICT';
+  message: string;
+  conflictingTabId: string;
+  suggestion: 'retry' | 'create_new_session';
+}
+```
 ```
 
 ### 8.2 Analysis Request/Response
@@ -800,90 +984,56 @@ interface HistoryContext {
 └──────────────────────────────────────────────────────────────┘
 ```
 
-### 10.3 设计决策
+### 10.3 Context 存储策略
+
+**分层存储:**
+
+| Context 类型 | 存储介质 | 保留时间 | 大小限制 |
+|-------------|---------|---------|---------|
+| Page Context | Redis（缓存） | 24 小时 | 单条 < 100KB |
+| User Context | PostgreSQL | 永久 | - |
+| History Context | PostgreSQL + 归档 | 按 Session TTL | 单 Session < 1MB |
+| pageSnapshot | Redis（压缩） | 1 小时 | < 100KB（压缩后） |
+
+**pageSnapshot 压缩策略:**
+- 仅存储关键 DOM 节点（表单、表格、评论）
+- 移除样式和脚本节点
+- 使用 gzip 压缩
+- 超过 100KB 截断
+
+### 10.4 Context  Builder 实现
+
+```typescript
+interface ContextBuilder {
+  // 构建完整 Context
+  build(sessionId: string, effort: ThinkEffortMode): Promise<Context>;
+
+  // 根据 effort 级别裁剪上下文
+  trimByEffort(context: Context, effort: ThinkEffortMode): Context;
+}
+
+// ContextWindow 语义实现
+function getContextWindowLimit(effort: ThinkEffortMode): ContextWindowSize {
+  switch (effort) {
+    case 'quick':
+      return { size: 'minimal', maxHistoryEntries: 0 };
+    case 'standard':
+      return { size: 'recent', maxHistoryEntries: 3 };
+    case 'deep':
+      return { size: 'full', maxHistoryEntries: Infinity };
+  }
+}
+```
+
+### 10.5 设计决策
 
 | 决策点 | 选择 | 理由 |
-|--------|------|------|
+|------|------|------|
 | Context 存储位置 | 服务端 | 支持多设备同步，Session 恢复 |
 | Context 构建 | 服务端负责 | 统一数据源，减少客户端负担 |
-| Context 传递 | 统一对象 | Skills 解耦，不依赖具体数据源 |
+| Context 传递 | 统一对象 | Skill 解耦，不依赖具体数据源 |
 | 历史归档 | 服务端 | 长期存储，支持回溯分析 |
-
-## 11. 待补项
-
-### Phase 1  deferred（从 Phase 1 延续）
-
-- [ ] A2 模块实现
-- [ ] PM Analysis 模块实现
-- [ ] 数据库持久化
-- [ ] 真实 Lark/Meegle API 集成
-
-### V2 新增待补
-
-- [ ] Think Effort Controller 实现
-- [ ] Skill Registry 实现
-- [ ] Context Manager 实现
-- [ ] SSE 输出流实现
-- [ ] Session Manager（客户端 + 服务端）
-- [ ] URL → Skills 映射配置系统
-- [ ] Popup UI 实现
-- [ ] 思考过程日志记录
-
-## 12. 下一步计划
-
-### 12.1 优先级排序
-
-1. **P0 - 基础架构**
-   - Agent Orchestrator 重构
-   - Skill Registry 设计
-   - SSE 输出协议
-
-2. **P1 - Session 管理**
-   - Session Schema 定义
-   - 客户端 Session Manager
-   - 服务端 Session API
-
-3. **P2 - Think Effort**
-   - Effort Controller
-   - 三级配置实现
-
-4. **P3 - Skills 系统**
-   - URL → Skills 映射
-   - Skill Loader
-   - 预置 Skills 配置
-
-5. **P4 - UI 实现**
-   - Popup 主界面
-   - 分析结果展示
-   - 思考过程渲染
-
-### 12.2 推荐实施顺序
-
-```
-Phase 2.1: 服务端架构升级
-  - 重构 Agent Orchestrator
-  - 实现 Skill Registry
-  - 实现 SSE 输出
-
-Phase 2.2: Session & Context
-  - 实现 Session Manager
-  - 实现 Context Manager
-  - 客户端 Session 同步
-
-Phase 2.3: Think Effort
-  - 实现 Effort Controller
-  - 配置 quick/standard/deep
-
-Phase 2.4: Skills 配置系统
-  - URL → Skills 映射
-  - 预置 Skills 配置
-  - 客户端 Skill Loader
-
-Phase 2.5: UI 实现
-  - Popup 重构
-  - 分析结果展示
-  - 思考过程可视化
-```
+| pageSnapshot | 选择性压缩存储 | 控制存储成本，保留关键信息 |
 
 ## 11. 错误处理策略
 
@@ -945,21 +1095,91 @@ HALF_OPEN → OPEN: 探测失败
 3. 汇总部分结果返回
 4. 标记不完整状态
 
-## 12. 待补项
+## 12. 待补项和技术风险
 
-### 技术风险
+### 12.1 Phase 1 遗留待补项
+
+- [ ] A2 模块实现
+- [ ] PM Analysis 模块实现
+- [ ] 数据库持久化
+- [ ] 真实 Lark/Meegle API 集成
+
+### 12.2 V2 新增待补项
+
+- [ ] Think Effort Controller 实现
+- [ ] Skill Registry 实现
+- [ ] Context Manager 实现
+- [ ] SSE 输出流实现
+- [ ] Session Manager（客户端 + 服务端）
+- [ ] URL → Skills 映射配置系统
+- [ ] Popup UI 实现
+- [ ] 思考过程日志记录
+
+### 12.3 技术风险
 
 | 风险 | 影响 | 缓解措施 |
 |------|------|----------|
-| SSE 长连接稳定性 | 中 | 实现心跳和重连机制 |
-| Session 数据量增长 | 中 | 实现历史归档策略 |
-| Skill 执行超时 | 高 | Effort Controller 强制限时 |
+| SSE 长连接稳定性 | 中 | 实现心跳和重连机制（见 3.3 节） |
+| Session 数据量增长 | 高 | 实现历史归档策略（见 8.1 节 Session TTL） |
+| Skill 执行超时 | 高 | Effort Controller 强制限时（见 3.2 节） |
+| 多 Tab Session 冲突 | 中 | Session 冲突解决策略（见 8.3 节） |
+| Context 存储成本 | 中 | Context 压缩和清理策略（见 10.4 节） |
 
-### 用户体验考量
+### 12.4 下一步计划
 
-- 思考过程展示不应过于冗长（避免信息过载）
-- Effort 级别应有明确的时间和效果预期
-- Session 切换应有确认，避免误操作丢失上下文
+#### 12.4.1 优先级排序
+
+1. **P0 - 基础架构**
+   - Agent Orchestrator 重构
+   - Skill Registry 设计
+   - SSE 输出协议
+
+2. **P1 - Session 管理**
+   - Session Schema 定义
+   - 客户端 Session Manager
+   - 服务端 Session API
+
+3. **P2 - Think Effort**
+   - Effort Controller
+   - 三级配置实现
+
+4. **P3 - Skills 系统**
+   - URL → Skills 映射
+   - Skill Loader
+   - 预置 Skills 配置
+
+5. **P4 - UI 实现**
+   - Popup 主界面
+   - 分析结果展示
+   - 思考过程渲染
+
+#### 12.4.2 推荐实施顺序
+
+```
+Phase 2.1: 服务端架构升级
+  - 重构 Agent Orchestrator
+  - 实现 Skill Registry
+  - 实现 SSE 输出
+
+Phase 2.2: Session & Context
+  - 实现 Session Manager
+  - 实现 Context Manager
+  - 客户端 Session 同步
+
+Phase 2.3: Think Effort
+  - 实现 Effort Controller
+  - 配置 quick/standard/deep
+
+Phase 2.4: Skills 配置系统
+  - URL → Skills 映射
+  - 预置 Skills 配置
+  - 客户端 Skill Loader
+
+Phase 2.5: UI 实现
+  - Popup 重构
+  - 分析结果展示
+  - 思考过程可视化
+```
 
 ---
 
