@@ -1,3 +1,4 @@
 meegle_clients
 project-oapi-sdk-golang
+package-lock.json
 *.pyc
