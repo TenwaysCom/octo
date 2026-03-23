@@ -3,4 +3,5 @@ project-oapi-sdk-golang
 package-lock.json
 *.pyc
 *.zip
-.claude.worktrees
+.claude
+.worktrees

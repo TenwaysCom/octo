@@ -27,6 +27,59 @@ export function detectLarkPageContext(): PageContext | null {
   return context;
 }
 
+/**
+ * Extract auth code from Lark OAuth redirect
+ * Lark redirects to: https://your-server.com/api/lark/auth/callback?code=xxx&state=yyy
+ */
+export function extractAuthCodeFromRedirect(): { code: string; state: string } | null {
+  const url = new URL(window.location.href);
+  const code = url.searchParams.get('code');
+  const state = url.searchParams.get('state');
+
+  if (code && state) {
+    return { code, state };
+  }
+
+  return null;
+}
+
+/**
+ * Get Lark user ID from page context
+ */
+export function getLarkUserId(): string | null {
+  // Try multiple selectors to find user ID
+  const selectors = [
+    '[data-user-id]',
+    '[data-user_id]',
+    '.user-id',
+    '[id*="user"]',
+  ];
+
+  for (const selector of selectors) {
+    const element = document.querySelector(selector) as HTMLElement;
+    if (element) {
+      // Try data-user-id first
+      if (element.dataset.userId) {
+        return element.dataset.userId;
+      }
+      // Try innerText as fallback
+      const id = element.innerText?.trim();
+      if (id && id.length > 5) {
+        return id;
+      }
+    }
+  }
+
+  // Try to find from script tags or global variables
+  // @ts-ignore - Check for Lark global objects
+  if (window.Lark?.user?.id) {
+    // @ts-ignore
+    return window.Lark.user.id;
+  }
+
+  return null;
+}
+
 export function initLarkContentScript() {
   console.log('[IT PM Assistant] Lark content script initialized');
 
@@ -35,6 +88,16 @@ export function initLarkContentScript() {
     if (message.action === 'getPageContext') {
       const context = detectLarkPageContext();
       sendResponse(context);
+    }
+
+    if (message.action === 'getLarkAuthCode') {
+      const authCode = extractAuthCodeFromRedirect();
+      sendResponse(authCode);
+    }
+
+    if (message.action === 'getLarkUserId') {
+      const userId = getLarkUserId();
+      sendResponse({ userId });
     }
   });
 }

@@ -4,6 +4,7 @@ import { analyzeA2Controller, createB1DraftController, applyB1Controller } from 
 import { analyzeA1Controller, createB2DraftController, applyB2Controller } from "./modules/a1/a1.controller.js";
 import { resolveIdentityController } from "./modules/identity/identity.controller.js";
 import { exchangeAuthCodeController, getAuthStatusController, getAuthCodeController } from "./modules/meegle-auth/meegle-auth.controller.js";
+import { exchangeAuthCodeController as exchangeLarkAuthCodeController, refreshTokenController as refreshLarkTokenController, getAuthStatusController as getLarkAuthStatusController } from "./modules/lark-auth/lark-auth.controller.js";
 import { runPMAnalysisController } from "./modules/pm-analysis/pm-analysis.controller.js";
 
 const app = express();
@@ -46,6 +47,11 @@ app.post("/api/identity/resolve", handleController(resolveIdentityController));
 app.post("/api/meegle/auth/exchange", handleController(exchangeAuthCodeController));
 app.post("/api/meegle/auth/status", handleController(getAuthStatusController));
 app.post("/api/meegle/auth/get-code", handleController(getAuthCodeController));
+
+// Lark auth routes
+app.post("/api/lark/auth/exchange", handleController(exchangeLarkAuthCodeController));
+app.post("/api/lark/auth/refresh", handleController(refreshLarkTokenController));
+app.post("/api/lark/auth/status", handleController(getLarkAuthStatusController));
 
 // A1 routes
 app.post("/api/a1/analyze", handleController(analyzeA1Controller));

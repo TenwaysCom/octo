@@ -120,6 +120,7 @@
 
     <script type="module">
       const SERVER_URL = 'http://localhost:3000';
+      const MEEGLE_BASE_URL = 'https://project.larksuite.com';
 
       const els = {
         status: document.getElementById('status'),
@@ -134,6 +135,9 @@
         recordId: null,
         analysisResult: null,
         draftResult: null,
+        meegleAuthStatus: null, // 'ready' | 'require_auth_code' | 'authenticated'
+        larkAuthStatus: null, // 'ready' | 'require_auth_code' | 'authenticated'
+        authCode: null,
       };
 
       function log(message, type = 'info') {
@@ -155,6 +159,122 @@
         els.applyBtn.disabled = !enabled;
       }
 
+      /**
+       * Check Meegle auth status
+       */
+      async function checkMeegleAuth() {
+        return new Promise((resolve) => {
+          chrome.runtime.sendMessage(
+            {
+              action: 'itdog.meegle.auth.ensure',
+              payload: {
+                requestId: `req_${Date.now()}`,
+                operatorLarkId: 'ou_current_user',
+                baseUrl: MEEGLE_BASE_URL,
+              },
+            },
+            (response) => {
+              if (chrome.runtime.lastError) {
+                log('Background script error: ' + chrome.runtime.lastError.message, 'error');
+                resolve({ status: 'error' });
+                return;
+              }
+              resolve(response?.payload || { status: 'unknown' });
+            },
+          );
+        });
+      }
+
+      /**
+       * Check Lark auth status
+       */
+      async function checkLarkAuth() {
+        return new Promise((resolve) => {
+          chrome.runtime.sendMessage(
+            {
+              action: 'itdog.lark.auth.ensure',
+              payload: {
+                requestId: `req_${Date.now()}`,
+                operatorLarkId: 'ou_current_user',
+                baseUrl: 'https://open.larksuite.com',
+              },
+            },
+            (response) => {
+              if (chrome.runtime.lastError) {
+                log('Lark background script error: ' + chrome.runtime.lastError.message, 'error');
+                resolve({ status: 'error' });
+                return;
+              }
+              resolve(response?.payload || { status: 'unknown' });
+            },
+          );
+        });
+      }
+
+      /**
+       * Exchange Lark auth code for user token
+       */
+      async function exchangeLarkAuthCode(code, operatorLarkId, baseUrl) {
+        try {
+          const response = await fetch(`${SERVER_URL}/api/lark/auth/exchange`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              operatorLarkId,
+              baseUrl,
+              code,
+              grantType: 'authorization_code',
+            }),
+          });
+
+          const result = await response.json();
+
+          if (result.ok) {
+            log('Lark token exchange successful', 'success');
+            return true;
+          } else {
+            log('Lark token exchange failed: ' + result.error?.errorMessage, 'error');
+            return false;
+          }
+        } catch (err) {
+          log('Lark token exchange error: ' + err.message, 'error');
+          return false;
+        }
+      }
+
+      /**
+       * Exchange auth code for user token (call server)
+       */
+      async function exchangeAuthCode(authCode, state) {
+        try {
+          const response = await fetch(`${SERVER_URL}/api/meegle/auth/exchange`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              requestId: `req_${Date.now()}`,
+              operatorLarkId: 'ou_current_user',
+              meegleUserKey: 'user_key_placeholder',
+              baseUrl: MEEGLE_BASE_URL,
+              authCode: authCode,
+              state: state,
+            }),
+          });
+
+          const result = await response.json();
+
+          if (result.ok) {
+            log('Token exchange successful', 'success');
+            return true;
+          } else {
+            log('Token exchange failed: ' + result.error?.errorMessage, 'error');
+            return false;
+          }
+        } catch (err) {
+          log('Token exchange error: ' + err.message, 'error');
+          return false;
+        }
+      }
+
       async function detectPage() {
         try {
           const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -166,6 +286,27 @@
               setStatus('ready', 'Lark 支持工单页面');
               setButtonsEnabled(true);
               log('检测到 Lark A1 页面', 'success');
+
+              // Check Meegle auth status
+              const authStatus = await checkMeegleAuth();
+              currentState.meegleAuthStatus = authStatus.status;
+              currentState.authCode = authStatus.authCode;
+
+              if (authStatus.status === 'ready') {
+                log('Meegle 已认证', 'success');
+              } else if (authStatus.status === 'require_auth_code') {
+                log('需要 Meegle 认证，请打开 Meegle 页面', 'pending');
+              }
+
+              // Check Lark auth status
+              const larkAuthStatus = await checkLarkAuth();
+              currentState.larkAuthStatus = larkAuthStatus.status;
+
+              if (larkAuthStatus.status === 'ready') {
+                log('Lark 已认证', 'success');
+              } else if (larkAuthStatus.status === 'require_auth_code') {
+                log('需要 Lark 认证', 'pending');
+              }
             } else if (url.includes('/a2/') || url.includes('requirement')) {
               currentState.pageType = 'lark_a2';
               setStatus('ready', 'Lark 需求页面');
@@ -179,6 +320,20 @@
             currentState.pageType = 'meegle';
             setStatus('ready', 'Meegle 页面');
             log('检测到 Meegle 页面', 'success');
+
+            // On Meegle page, trigger auth code request
+            const authStatus = await checkMeegleAuth();
+            currentState.meegleAuthStatus = authStatus.status;
+            currentState.authCode = authStatus.authCode;
+
+            if (authStatus.status === 'ready' && authStatus.authCode) {
+              log('获取到 auth code，正在交换 token...', 'success');
+              const exchanged = await exchangeAuthCode(authStatus.authCode, authStatus.state);
+              if (exchanged) {
+                currentState.meegleAuthStatus = 'authenticated';
+                log('Meegle 认证成功', 'success');
+              }
+            }
           } else {
             setStatus('error', '不支持的页面');
             log('当前页面不支持', 'error');
@@ -239,6 +394,18 @@
       async function generateDraft() {
         if (!currentState.analysisResult) {
           log('请先分析页面', 'error');
+          return;
+        }
+
+        // Check Meegle auth before generating draft
+        if (currentState.meegleAuthStatus !== 'authenticated') {
+          log('请先完成 Meegle 认证', 'error');
+          return;
+        }
+
+        // Check Lark auth before generating draft
+        if (currentState.larkAuthStatus !== 'ready' && currentState.larkAuthStatus !== 'authenticated') {
+          log('请先完成 Lark 认证', 'error');
           return;
         }
 

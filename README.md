@@ -239,7 +239,13 @@ cd server && npm test
 - [字段 Schema 与状态机](docs/it-pm-assistant/12-field-schema-and-state-machine.md)
 - [代码结构与校验设计](docs/it-pm-assistant/13-code-structure-and-validation-design.md)
 
+### V2 Agent Platform
+
+- [V2 架构设计](docs/it-pm-assistant/14-v2-architecture-design.md) - Agent Orchestrator + Skills + Session Management
+
 ## 下一步计划
+
+### Phase 1 (当前)
 
 根据 [一期实施路线](docs/it-pm-assistant/07-phase-1-rollout.md)，下一步优先：
 
@@ -247,6 +253,25 @@ cd server && npm test
 2. **接入真实 Meegle API** - 基于 `meegle_clients` 实现认证和工作项创建
 3. **接入真实 Lark API** - 读取真实工单数据
 4. **编写集成测试** - 端到端验证完整流程
+
+### Phase 2 (V2 Agent Platform)
+
+根据 [V2 架构设计](docs/it-pm-assistant/14-v2-architecture-design.md)，V2 将提供：
+
+1. **可配置 Think Effort** - quick(1m)/standard(3m)/deep(10m) 三级
+2. **Skills 系统** - URL 自动匹配 + 服务端预置 + 客户端接入
+3. **Session Management** - URL Prefix 绑定 + 手动选择
+4. **思考过程可见** - SSE 流式输出分析过程
+
+**推荐实施顺序：**
+
+```
+Phase 2.1: 服务端架构升级 (Agent Orchestrator + Skill Registry + SSE)
+Phase 2.2: Session & Context 管理
+Phase 2.3: Think Effort Controller
+Phase 2.4: Skills 配置系统
+Phase 2.5: UI 实现
+```
 
 ## License
 

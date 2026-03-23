@@ -3,10 +3,15 @@ import type {
   MeegleAuthEnsureRequest,
   MeegleAuthEnsureResponse,
 } from "./meegle";
+import type {
+  LarkAuthEnsureRequest,
+  LarkAuthEnsureResponse,
+} from "./lark";
 
 export const protocolActions = [
   "itdog.identity.resolve",
   "itdog.meegle.auth.ensure",
+  "itdog.lark.auth.ensure",
   "itdog.a1.analyze",
   "itdog.a1.create_b2_draft",
   "itdog.a1.apply_b2",
@@ -41,4 +46,14 @@ export type MeegleAuthEnsureMessage = ProtocolEnvelope<
 export type MeegleAuthEnsureResult = ProtocolEnvelope<
   "itdog.meegle.auth.ensure",
   MeegleAuthEnsureResponse
+>;
+
+export type LarkAuthEnsureMessage = ProtocolEnvelope<
+  "itdog.lark.auth.ensure",
+  LarkAuthEnsureRequest
+>;
+
+export type LarkAuthEnsureResult = ProtocolEnvelope<
+  "itdog.lark.auth.ensure",
+  LarkAuthEnsureResponse
 >;
