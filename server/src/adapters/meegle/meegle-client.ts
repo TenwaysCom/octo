@@ -1,13 +1,79 @@
 /**
  * Meegle OpenAPI Client
  *
- * TypeScript implementation based on meegle_clients Python reference
+ * TypeScript implementation based on project-oapi-sdk-golang
  * Provides workitem CRUD, catalog discovery, and user operations
+ *
+ * API Paths and patterns follow: github.com/larksuite/project-oapi-sdk-golang
  */
+
+// ==================== API Path Constants ====================
+// Based on project-oapi-sdk-golang/service/workitem/api.go
+
+const API_PATH_CREATE_WORKITEM = "/open_api/:project_key/work_item/create";
+const API_PATH_UPDATE_WORKITEM = "/open_api/:project_key/work_item/:work_item_type_key/:work_item_id";
+const API_PATH_DELETE_WORKITEM = "/open_api/:project_key/work_item/:work_item_type_key/:work_item_id";
+const API_PATH_ABORT_WORKITEM = "/open_api/:project_key/work_item/:work_item_type_key/:work_item_id/abort";
+const API_PATH_QUERY_WORKITEM = "/open_api/:project_key/work_item/:work_item_type_key/query";
+const API_PATH_FILTER_WORKITEM = "/open_api/:project_key/work_item/filter";
+const API_PATH_FILTER_WORKITEM_ACROSS_PROJECT = "/open_api/work_items/filter_across_project";
+const API_PATH_GET_WORKITEM_META = "/open_api/:project_key/work_item/:work_item_type_key/meta";
+const API_PATH_WORKFLOW_QUERY = "/open_api/:project_key/work_item/:work_item_type_key/:work_item_id/workflow/query";
+const API_PATH_WBS_VIEW = "/open_api/:project_key/work_item/:work_item_type_key/:work_item_id/wbs_view";
+const API_PATH_NODE_OPERATE = "/open_api/:project_key/workflow/:work_item_type_key/:work_item_id/node/:node_id/operate";
+const API_PATH_NODE_UPDATE = "/open_api/:project_key/workflow/:work_item_type_key/:work_item_id/node/:node_id";
+const API_PATH_NODE_STATE_CHANGE = "/open_api/:project_key/workflow/:work_item_type_key/:work_item_id/node/state_change";
+const API_PATH_CREATE_TASK = "/open_api/:project_key/work_item/:work_item_type_key/:work_item_id/workflow/task";
+const API_PATH_GET_TASKS = "/open_api/:project_key/work_item/:work_item_type_key/:work_item_id/workflow/task";
+const API_PATH_UPDATE_TASK = "/open_api/:project_key/work_item/:work_item_type_key/:work_item_id/workflow/:node_id/task/:task_id";
+const API_PATH_GET_SPACES = "/open_api/projects";
+const API_PATH_GET_SPACE_DETAILS = "/open_api/projects/detail";
+const API_PATH_GET_USERS = "/open_api/user/query";
+const API_PATH_GET_VIEWS = "/open_api/:project_key/fix_view/:view_id";
+const API_PATH_UPDATE_FIXED_VIEW = "/open_api/:project_key/story/fix_view/:view_id";
+const API_PATH_DELETE_FIXED_VIEW = "/open_api/:project_key/fix_view/:view_id";
+const API_PATH_CREATE_FIXED_VIEW = "/open_api/:project_key/story/fix_view";
+const API_PATH_LIST_VIEWS = "/open_api/:project_key/view_conf/list";
+const API_PATH_COMMENT_CREATE = "/open_api/:project_key/work_item/:work_item_type_key/:work_item_id/comment/create";
+const API_PATH_COMMENT_LIST = "/open_api/:project_key/work_item/:work_item_type_key/:work_item_id/comments";
+const API_PATH_COMMENT_UPDATE = "/open_api/:project_key/work_item/:work_item_type_key/:work_item_id/comment/:comment_id";
+const API_PATH_COMMENT_DELETE = "/open_api/:project_key/work_item/:work_item_type_key/:work_item_id/comment/:comment_id";
+const API_PATH_GET_FIELDS = "/open_api/:project_key/field/all";
+const API_PATH_GET_WORKFLOW_TEMPLATES = "/open_api/:project_key/template_list/:work_item_type";
+const API_PATH_GET_BUSINESS_LINES = "/open_api/:project_key/business/all";
+const API_PATH_GET_WORKITEM_TYPES = "/open_api/:project_key/work_item/all-types";
+
+// Auth API paths
+const API_PATH_GET_AUTH_CODE = "/bff/v2/authen/v1/auth_code";
+
+function replacePathParams(path: string, params: Record<string, string>): string {
+  return path.replace(/:(\w+)/g, (match, key) => {
+    const value = params[key];
+    if (!value) {
+      throw new Error(`Missing path parameter: ${key}`);
+    }
+    return value;
+  });
+}
 
 // ==================== Data Types ====================
 
-export interface MeegleUser {
+// Based on project-oapi-sdk-golang/service/field/model.go
+export interface FieldValuePair {
+  field_key: string;
+  field_value: unknown;
+  target_state?: TargetState;
+  field_type_key?: string;
+  field_alias?: string;
+}
+
+export interface TargetState {
+  state_key: string;
+  transition_id: number;
+}
+
+// Based on project-oapi-sdk-golang/service/common/model.go
+export interface UserDetail {
   user_key: string;
   name: string;
   email: string;
@@ -15,27 +81,81 @@ export interface MeegleUser {
   role?: string;
 }
 
-export interface MeegleWorkitem {
-  id: string;
-  key: string;
+// Based on project-oapi-sdk-golang/service/workitem/model.go
+export interface WorkItemInfo {
+  id: number;
   name: string;
-  type: string;
-  status: string;
-  assignee?: string;
-  fields: Record<string, unknown>;
-}
-
-export interface MeegleComment {
-  id: string;
-  content: string;
-  author: string;
-  created_at: string;
-}
-
-export interface MeegleSpace {
+  work_item_type_key: string;
   project_key: string;
+  fields: FieldValuePair[];
+  created_by: string;
+  updated_by: string;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface Pagination {
+  page_num: number;
+  page_size: number;
+  total: number;
+  has_more: boolean;
+}
+
+// ==================== Request Builders ====================
+// Based on project-oapi-sdk-golang/service/workitem/builder.go pattern
+
+interface ApiReq {
+  httpMethod: string;
+  apiPath: string;
+  body?: Record<string, unknown>;
+  pathParams: Record<string, string>;
+  queryParams: Record<string, string>;
+}
+
+interface MeegleServiceContext {
+  baseUrl: string;
+  userToken: string;
+  userKey: string;
+  timeout: number;
+}
+
+// CreateWorkitem Request Builder
+export interface CreateWorkitemRequest {
+  projectKey: string;
+  workItemTypeKey: string;
   name: string;
-  description?: string;
+  templateId?: number;
+  fieldValuePairs?: FieldValuePair[];
+}
+
+function createWorkitemRequestBuilder(input: CreateWorkitemRequest): ApiReq {
+  const req: ApiReq = {
+    httpMethod: "POST",
+    apiPath: API_PATH_CREATE_WORKITEM,
+    pathParams: {},
+    queryParams: {},
+  };
+
+  const body: Record<string, unknown> = {
+    work_item_type_key: input.workItemTypeKey,
+    name: input.name,
+  };
+
+  if (input.templateId !== undefined) {
+    body.template_id = input.templateId;
+  }
+
+  if (input.fieldValuePairs !== undefined) {
+    body.field_value_pairs = input.fieldValuePairs.map((pair) => ({
+      field_key: pair.field_key,
+      field_value: pair.field_value,
+    }));
+  }
+
+  req.body = body;
+  req.pathParams.project_key = input.projectKey;
+
+  return req;
 }
 
 // ==================== Error Types ====================
@@ -107,6 +227,7 @@ export interface MeegleClientOptions {
   userKey: string;
   baseUrl?: string;
   timeout?: number;
+  pluginId?: string;
 }
 
 // ==================== Utility Functions ====================
@@ -148,6 +269,38 @@ function handleResponse(response: Response, data: Record<string, unknown>): Reco
 }
 
 // ==================== Data Transformers ====================
+
+// Simple data interfaces for response parsing
+export interface MeegleUser {
+  user_key: string;
+  name: string;
+  email: string;
+  avatar?: string;
+  role?: string;
+}
+
+export interface MeegleWorkitem {
+  id: string;
+  key: string;
+  name: string;
+  type: string;
+  status: string;
+  assignee?: string;
+  fields: Record<string, unknown>;
+}
+
+export interface MeegleComment {
+  id: string;
+  content: string;
+  author: string;
+  created_at: string;
+}
+
+export interface MeegleSpace {
+  project_key: string;
+  name: string;
+  description?: string;
+}
 
 function parseUser(data: Record<string, unknown>): MeegleUser {
   return {
@@ -221,26 +374,26 @@ function parseItemsList(data: unknown, keys: string[]): Record<string, unknown>[
 }
 
 // ==================== MeegleClient Class ====================
+// Based on project-oapi-sdk-golang/client.go pattern
 
 export class MeegleClient {
-  private userToken: string;
-  private userKey: string;
-  private baseUrl: string;
-  private timeout: number;
+  private config: MeegleClientOptions;
 
   constructor(options: MeegleClientOptions) {
-    this.userToken = options.userToken;
-    this.userKey = options.userKey;
-    this.baseUrl = options.baseUrl || "https://www.meegle.com";
-    this.timeout = options.timeout || 30000;
+    this.config = {
+      baseUrl: options.baseUrl || "https://www.meegle.com",
+      timeout: options.timeout || 30000,
+      userToken: options.userToken,
+      userKey: options.userKey,
+    };
   }
 
   private getHeaders(idempotent = false): Record<string, string> {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
       "Accept": "application/json",
-      "X-USER-TOKEN": this.userToken,
-      "X-USER-KEY": this.userKey,
+      "X-USER-TOKEN": this.config.userToken,
+      "X-USER-KEY": this.config.userKey,
     };
 
     if (idempotent) {
@@ -250,111 +403,34 @@ export class MeegleClient {
     return headers;
   }
 
-  private async get(endpoint: string, params?: Record<string, unknown>): Promise<Record<string, unknown>> {
-    const url = joinUrl(this.baseUrl, endpoint);
-    const searchParams = new URLSearchParams();
-    if (params) {
-      for (const [key, value] of Object.entries(params)) {
-        if (value !== undefined && value !== null) {
-          searchParams.append(key, String(value));
-        }
+  private buildUrl(req: ApiReq): string {
+    let url = replacePathParams(req.apiPath, req.pathParams);
+
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(req.queryParams)) {
+      if (value !== undefined && value !== null) {
+        params.append(key, String(value));
       }
     }
 
-    const fullUrl = searchParams.toString() ? `${url}?${searchParams.toString()}` : url;
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-
-    try {
-      const response = await fetch(fullUrl, {
-        method: "GET",
-        headers: this.getHeaders(),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-      const data = await parseJson(response);
-      return handleResponse(response, data);
-    } catch (err) {
-      clearTimeout(timeoutId);
-      if (err instanceof Error && err.name === "AbortError") {
-        throw new MeegleAPIError("Request timeout", 408);
-      }
-      throw err;
+    const queryString = params.toString();
+    if (queryString) {
+      url += `?${queryString}`;
     }
+
+    return joinUrl(this.config.baseUrl ?? "https://www.meegle.com", url);
   }
 
-  private async post(
-    endpoint: string,
-    data?: Record<string, unknown>,
-    idempotent = false,
-  ): Promise<Record<string, unknown>> {
-    const url = joinUrl(this.baseUrl, endpoint);
-
+  private async request(req: ApiReq, idempotent = false): Promise<Record<string, unknown>> {
+    const url = this.buildUrl(req);
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+    const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
 
     try {
       const response = await fetch(url, {
-        method: "POST",
+        method: req.httpMethod,
         headers: this.getHeaders(idempotent),
-        body: JSON.stringify(data || {}),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-      const responseData = await parseJson(response);
-      return handleResponse(response, responseData);
-    } catch (err) {
-      clearTimeout(timeoutId);
-      if (err instanceof Error && err.name === "AbortError") {
-        throw new MeegleAPIError("Request timeout", 408);
-      }
-      throw err;
-    }
-  }
-
-  private async put(
-    endpoint: string,
-    data?: Record<string, unknown>,
-    idempotent = false,
-  ): Promise<Record<string, unknown>> {
-    const url = joinUrl(this.baseUrl, endpoint);
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-
-    try {
-      const response = await fetch(url, {
-        method: "PUT",
-        headers: this.getHeaders(idempotent),
-        body: JSON.stringify(data || {}),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-      const responseData = await parseJson(response);
-      return handleResponse(response, responseData);
-    } catch (err) {
-      clearTimeout(timeoutId);
-      if (err instanceof Error && err.name === "AbortError") {
-        throw new MeegleAPIError("Request timeout", 408);
-      }
-      throw err;
-    }
-  }
-
-  private async delete(endpoint: string, idempotent = false): Promise<Record<string, unknown>> {
-    const url = joinUrl(this.baseUrl, endpoint);
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-
-    try {
-      const response = await fetch(url, {
-        method: "DELETE",
-        headers: this.getHeaders(idempotent),
+        body: req.body ? JSON.stringify(req.body) : undefined,
         signal: controller.signal,
       });
 
@@ -371,71 +447,62 @@ export class MeegleClient {
   }
 
   // ==================== Space/Project Methods ====================
+  // Based on project-oapi-sdk-golang/service/project/api.go
 
   async getSpaces(userKey?: string): Promise<MeegleSpace[]> {
-    const payload = { user_key: userKey || this.userKey };
-    const data = await this.post("/open_api/projects", payload);
+    const req: ApiReq = {
+      httpMethod: "POST",
+      apiPath: API_PATH_GET_SPACES,
+      pathParams: {},
+      queryParams: {},
+      body: { user_key: userKey || this.config.userKey },
+    };
+
+    const data = await this.request(req);
     const items = parseItemsList(data.data ?? data, ["items"]);
     return items.map(parseSpace);
   }
 
   async getSpaceDetails(projectKeys: string[], userKey?: string): Promise<MeegleSpace[]> {
-    const payload = {
-      project_keys: projectKeys,
-      user_key: userKey || this.userKey,
+    const req: ApiReq = {
+      httpMethod: "POST",
+      apiPath: API_PATH_GET_SPACE_DETAILS,
+      pathParams: {},
+      queryParams: {},
+      body: {
+        project_keys: projectKeys,
+        user_key: userKey || this.config.userKey,
+      },
     };
-    const data = await this.post("/open_api/projects/detail", payload);
+
+    const data = await this.request(req);
     const items = parseItemsList(data.data ?? data, ["items"]);
     return items.map(parseSpace);
   }
 
-  async getBusinessLines(projectKey: string): Promise<Record<string, unknown>[]> {
-    const data = await this.get(`/open_api/${projectKey}/business/all`);
-    const result = data.data ?? data;
-    return Array.isArray(result) ? result : [];
-  }
-
-  async getWorkitemTypes(projectKey: string): Promise<Record<string, unknown>[]> {
-    const data = await this.get(`/open_api/${projectKey}/work_item/all-types`);
-    const result = data.data ?? data;
-    return Array.isArray(result) ? result : [];
-  }
-
   // ==================== User Methods ====================
+  // Based on project-oapi-sdk-golang/service/user/api.go
 
   async getUsers(userKeys: string[]): Promise<MeegleUser[]> {
-    const payload = { user_keys: userKeys };
-    const data = await this.post("/open_api/user/query", payload);
+    const req: ApiReq = {
+      httpMethod: "POST",
+      apiPath: API_PATH_GET_USERS,
+      pathParams: {},
+      queryParams: {},
+      body: { user_keys: userKeys },
+    };
+
+    const data = await this.request(req);
     const items = parseItemsList(data.data ?? data, ["items"]);
     return items.map(parseUser);
   }
 
   // ==================== Workitem Methods ====================
+  // Based on project-oapi-sdk-golang/service/workitem/api.go
 
-  async createWorkitem(
-    projectKey: string,
-    workitemTypeKey: string,
-    name: string,
-    options?: {
-      templateId?: number;
-      fieldValuePairs?: Array<{ fieldKey: string; fieldValue: unknown }>;
-    },
-  ): Promise<MeegleWorkitem> {
-    const endpoint = `/open_api/${projectKey}/work_item/create`;
-    const payload: Record<string, unknown> = {
-      work_item_type_key: workitemTypeKey,
-      name: name,
-    };
-
-    if (options?.templateId) {
-      payload.template_id = options.templateId;
-    }
-
-    if (options?.fieldValuePairs) {
-      payload.field_value_pairs = options.fieldValuePairs;
-    }
-
-    const data = await this.post(endpoint, payload, true);
+  async createWorkitem(input: CreateWorkitemRequest): Promise<MeegleWorkitem> {
+    const req = createWorkitemRequestBuilder(input);
+    const data = await this.request(req, true);
     const workitemData = (data.data ?? data) as Record<string, unknown>;
     return parseWorkitem(workitemData);
   }
@@ -446,9 +513,24 @@ export class MeegleClient {
     workitemId: string,
     updateFields: Array<{ fieldKey: string; fieldValue: unknown }>,
   ): Promise<MeegleWorkitem> {
-    const endpoint = `/open_api/${projectKey}/work_item/${workitemType}/${workitemId}`;
-    const payload = { update_fields: updateFields };
-    const data = await this.put(endpoint, payload, true);
+    const req: ApiReq = {
+      httpMethod: "PUT",
+      apiPath: API_PATH_UPDATE_WORKITEM,
+      pathParams: {
+        project_key: projectKey,
+        work_item_type_key: workitemType,
+        work_item_id: workitemId,
+      },
+      queryParams: {},
+      body: {
+        update_fields: updateFields.map((f) => ({
+          field_key: f.fieldKey,
+          field_value: f.fieldValue,
+        })),
+      },
+    };
+
+    const data = await this.request(req, true);
     const workitemData = (data.data ?? data) as Record<string, unknown>;
     return parseWorkitem(workitemData);
   }
@@ -458,8 +540,18 @@ export class MeegleClient {
     workitemType: string,
     workitemId: string,
   ): Promise<Record<string, unknown>> {
-    const endpoint = `/open_api/${projectKey}/work_item/${workitemType}/${workitemId}`;
-    return this.delete(endpoint, true);
+    const req: ApiReq = {
+      httpMethod: "DELETE",
+      apiPath: API_PATH_DELETE_WORKITEM,
+      pathParams: {
+        project_key: projectKey,
+        work_item_type_key: workitemType,
+        work_item_id: workitemId,
+      },
+      queryParams: {},
+    };
+
+    return this.request(req, true);
   }
 
   async abortWorkitem(
@@ -469,12 +561,22 @@ export class MeegleClient {
     isAborted: boolean,
     reason?: string,
   ): Promise<Record<string, unknown>> {
-    const endpoint = `/open_api/${projectKey}/work_item/${workitemType}/${workitemId}/abort`;
-    const payload: Record<string, unknown> = { is_aborted: isAborted };
-    if (reason) {
-      payload.reason = reason;
-    }
-    return this.put(endpoint, payload, true);
+    const req: ApiReq = {
+      httpMethod: "PUT",
+      apiPath: API_PATH_ABORT_WORKITEM,
+      pathParams: {
+        project_key: projectKey,
+        work_item_type_key: workitemType,
+        work_item_id: workitemId,
+      },
+      queryParams: {},
+      body: {
+        is_aborted: isAborted,
+        ...(reason && { reason }),
+      },
+    };
+
+    return this.request(req, true);
   }
 
   async getWorkitemDetails(
@@ -482,9 +584,20 @@ export class MeegleClient {
     workitemType: string,
     workitemIds: string[],
   ): Promise<MeegleWorkitem[]> {
-    const endpoint = `/open_api/${projectKey}/work_item/${workitemType}/query`;
-    const payload = { work_item_ids: workitemIds };
-    const data = await this.post(endpoint, payload);
+    const req: ApiReq = {
+      httpMethod: "POST",
+      apiPath: API_PATH_QUERY_WORKITEM,
+      pathParams: {
+        project_key: projectKey,
+        work_item_type_key: workitemType,
+      },
+      queryParams: {},
+      body: {
+        work_item_ids: workitemIds,
+      },
+    };
+
+    const data = await this.request(req);
     const items = parseItemsList(data.data ?? data, ["items"]);
     return items.map(parseWorkitem);
   }
@@ -518,16 +631,21 @@ export class MeegleClient {
     pageNum = 1,
     pageSize = 50,
   ): Promise<MeegleWorkitem[]> {
-    const endpoint = `/open_api/${projectKey}/work_item/filter`;
-    const payload: Record<string, unknown> = {
-      page_num: pageNum,
-      page_size: pageSize,
+    const req: ApiReq = {
+      httpMethod: "POST",
+      apiPath: API_PATH_FILTER_WORKITEM,
+      pathParams: {
+        project_key: projectKey,
+      },
+      queryParams: {},
+      body: {
+        page_num: pageNum,
+        page_size: pageSize,
+        ...(workitemTypeKeys && { work_item_type_keys: workitemTypeKeys }),
+      },
     };
-    if (workitemTypeKeys) {
-      payload.work_item_type_keys = workitemTypeKeys;
-    }
 
-    const data = await this.post(endpoint, payload);
+    const data = await this.request(req);
     const items = parseItemsList(data.data ?? data, ["items"]);
     return items.map(parseWorkitem);
   }
@@ -575,24 +693,36 @@ export class MeegleClient {
   ): Promise<MeegleWorkitem[]> {
     const { simpleNames, pageNum = 1, pageSize = 50 } = options || {};
 
-    const endpoint = "/open_api/work_items/filter_across_project";
-    const payload: Record<string, unknown> = {
-      work_item_type_key: workitemTypeKey,
-      page_num: pageNum,
-      page_size: pageSize,
+    const req: ApiReq = {
+      httpMethod: "POST",
+      apiPath: API_PATH_FILTER_WORKITEM_ACROSS_PROJECT,
+      pathParams: {},
+      queryParams: {},
+      body: {
+        work_item_type_key: workitemTypeKey,
+        page_num: pageNum,
+        page_size: pageSize,
+        ...(simpleNames && { simple_names: simpleNames }),
+      },
     };
-    if (simpleNames) {
-      payload.simple_names = simpleNames;
-    }
 
-    const data = await this.post(endpoint, payload);
+    const data = await this.request(req);
     const items = parseItemsList(data.data ?? data, ["items"]);
     return items.map(parseWorkitem);
   }
 
   async getWorkitemMeta(projectKey: string, workitemType: string): Promise<Record<string, unknown>> {
-    const endpoint = `/open_api/${projectKey}/work_item/${workitemType}/meta`;
-    const data = await this.get(endpoint);
+    const req: ApiReq = {
+      httpMethod: "GET",
+      apiPath: API_PATH_GET_WORKITEM_META,
+      pathParams: {
+        project_key: projectKey,
+        work_item_type_key: workitemType,
+      },
+      queryParams: {},
+    };
+
+    const data = await this.request(req);
     return (data.data ?? data) as Record<string, unknown>;
   }
 
@@ -604,9 +734,19 @@ export class MeegleClient {
     workitemId: string,
     flowType = 0,
   ): Promise<Record<string, unknown>> {
-    const endpoint = `/open_api/${projectKey}/work_item/${workitemType}/${workitemId}/workflow/query`;
-    const payload = { flow_type: flowType };
-    const data = await this.post(endpoint, payload);
+    const req: ApiReq = {
+      httpMethod: "POST",
+      apiPath: API_PATH_WORKFLOW_QUERY,
+      pathParams: {
+        project_key: projectKey,
+        work_item_type_key: workitemType,
+        work_item_id: workitemId,
+      },
+      queryParams: {},
+      body: { flow_type: flowType },
+    };
+
+    const data = await this.request(req);
     return (data.data ?? data) as Record<string, unknown>;
   }
 
@@ -615,8 +755,18 @@ export class MeegleClient {
     workitemType: string,
     workitemId: string,
   ): Promise<Record<string, unknown>> {
-    const endpoint = `/open_api/${projectKey}/work_item/${workitemType}/${workitemId}/wbs_view`;
-    const data = await this.get(endpoint);
+    const req: ApiReq = {
+      httpMethod: "GET",
+      apiPath: API_PATH_WBS_VIEW,
+      pathParams: {
+        project_key: projectKey,
+        work_item_type_key: workitemType,
+        work_item_id: workitemId,
+      },
+      queryParams: {},
+    };
+
+    const data = await this.request(req);
     return (data.data ?? data) as Record<string, unknown>;
   }
 
@@ -627,9 +777,20 @@ export class MeegleClient {
     nodeId: string,
     action: string,
   ): Promise<Record<string, unknown>> {
-    const endpoint = `/open_api/${projectKey}/workflow/${workitemType}/${workitemId}/node/${nodeId}/operate`;
-    const payload = { action };
-    return this.post(endpoint, payload, true);
+    const req: ApiReq = {
+      httpMethod: "POST",
+      apiPath: API_PATH_NODE_OPERATE,
+      pathParams: {
+        project_key: projectKey,
+        work_item_type_key: workitemType,
+        work_item_id: workitemId,
+        node_id: nodeId,
+      },
+      queryParams: {},
+      body: { action },
+    };
+
+    return this.request(req, true);
   }
 
   async updateWorkflowNode(
@@ -642,7 +803,6 @@ export class MeegleClient {
       nodeSchedule?: Record<string, unknown>;
     },
   ): Promise<Record<string, unknown>> {
-    const endpoint = `/open_api/${projectKey}/workflow/${workitemType}/${workitemId}/node/${nodeId}`;
     const payload: Record<string, unknown> = {};
     if (options?.nodeOwners) {
       payload.node_owners = options.nodeOwners;
@@ -650,7 +810,21 @@ export class MeegleClient {
     if (options?.nodeSchedule) {
       payload.node_schedule = options.nodeSchedule;
     }
-    return this.put(endpoint, payload, true);
+
+    const req: ApiReq = {
+      httpMethod: "PUT",
+      apiPath: API_PATH_NODE_UPDATE,
+      pathParams: {
+        project_key: projectKey,
+        work_item_type_key: workitemType,
+        work_item_id: workitemId,
+        node_id: nodeId,
+      },
+      queryParams: {},
+      body: payload,
+    };
+
+    return this.request(req, true);
   }
 
   async changeWorkflowState(
@@ -659,9 +833,19 @@ export class MeegleClient {
     workitemId: string,
     transitionId: number,
   ): Promise<Record<string, unknown>> {
-    const endpoint = `/open_api/${projectKey}/workflow/${workitemType}/${workitemId}/node/state_change`;
-    const payload = { transition_id: transitionId };
-    return this.post(endpoint, payload, true);
+    const req: ApiReq = {
+      httpMethod: "POST",
+      apiPath: API_PATH_NODE_STATE_CHANGE,
+      pathParams: {
+        project_key: projectKey,
+        work_item_type_key: workitemType,
+        work_item_id: workitemId,
+      },
+      queryParams: {},
+      body: { transition_id: transitionId },
+    };
+
+    return this.request(req, true);
   }
 
   // ==================== Task Methods ====================
@@ -678,7 +862,6 @@ export class MeegleClient {
       roleAssignee?: Record<string, unknown>[];
     },
   ): Promise<Record<string, unknown>> {
-    const endpoint = `/open_api/${projectKey}/work_item/${workitemType}/${workitemId}/workflow/task`;
     const payload: Record<string, unknown> = { name };
     if (options?.nodeId) {
       payload.node_id = options.nodeId;
@@ -692,7 +875,20 @@ export class MeegleClient {
     if (options?.roleAssignee) {
       payload.role_assignee = options.roleAssignee;
     }
-    return this.post(endpoint, payload, true);
+
+    const req: ApiReq = {
+      httpMethod: "POST",
+      apiPath: API_PATH_CREATE_TASK,
+      pathParams: {
+        project_key: projectKey,
+        work_item_type_key: workitemType,
+        work_item_id: workitemId,
+      },
+      queryParams: {},
+      body: payload,
+    };
+
+    return this.request(req, true);
   }
 
   async getTasks(
@@ -700,8 +896,18 @@ export class MeegleClient {
     workitemType: string,
     workitemId: string,
   ): Promise<Record<string, unknown>[]> {
-    const endpoint = `/open_api/${projectKey}/work_item/${workitemType}/${workitemId}/workflow/task`;
-    const data = await this.get(endpoint);
+    const req: ApiReq = {
+      httpMethod: "GET",
+      apiPath: API_PATH_GET_TASKS,
+      pathParams: {
+        project_key: projectKey,
+        work_item_type_key: workitemType,
+        work_item_id: workitemId,
+      },
+      queryParams: {},
+    };
+
+    const data = await this.request(req);
     const result = data.data ?? data;
     return Array.isArray(result) ? result : [];
   }
@@ -719,7 +925,6 @@ export class MeegleClient {
       roleAssignee?: Record<string, unknown>[];
     },
   ): Promise<Record<string, unknown>> {
-    const endpoint = `/open_api/${projectKey}/work_item/${workitemType}/${workitemId}/workflow/${nodeId}/task/${taskId}`;
     const payload: Record<string, unknown> = {};
     if (options?.name) {
       payload.name = options.name;
@@ -733,14 +938,38 @@ export class MeegleClient {
     if (options?.roleAssignee) {
       payload.role_assignee = options.roleAssignee;
     }
-    return this.post(endpoint, payload, true);
+
+    const req: ApiReq = {
+      httpMethod: "POST",
+      apiPath: API_PATH_UPDATE_TASK,
+      pathParams: {
+        project_key: projectKey,
+        work_item_type_key: workitemType,
+        work_item_id: workitemId,
+        node_id: nodeId,
+        task_id: taskId,
+      },
+      queryParams: {},
+      body: payload,
+    };
+
+    return this.request(req, true);
   }
 
   // ==================== View Methods ====================
 
   async getViewWorkitems(projectKey: string, viewId: string): Promise<MeegleWorkitem[]> {
-    const endpoint = `/open_api/${projectKey}/fix_view/${viewId}`;
-    const data = await this.get(endpoint);
+    const req: ApiReq = {
+      httpMethod: "GET",
+      apiPath: API_PATH_GET_VIEWS,
+      pathParams: {
+        project_key: projectKey,
+        fix_view_id: viewId,
+      },
+      queryParams: {},
+    };
+
+    const data = await this.request(req);
     const items = parseItemsList(data.data ?? data, ["items"]);
     return items.map(parseWorkitem);
   }
@@ -750,14 +979,32 @@ export class MeegleClient {
     viewId: string,
     addWorkItemIds: number[],
   ): Promise<Record<string, unknown>> {
-    const endpoint = `/open_api/${projectKey}/story/fix_view/${viewId}`;
-    const payload = { add_work_item_ids: addWorkItemIds };
-    return this.post(endpoint, payload, true);
+    const req: ApiReq = {
+      httpMethod: "POST",
+      apiPath: API_PATH_UPDATE_FIXED_VIEW,
+      pathParams: {
+        project_key: projectKey,
+        fix_view_id: viewId,
+      },
+      queryParams: {},
+      body: { add_work_item_ids: addWorkItemIds },
+    };
+
+    return this.request(req, true);
   }
 
   async deleteFixedView(projectKey: string, viewId: string): Promise<Record<string, unknown>> {
-    const endpoint = `/open_api/${projectKey}/fix_view/${viewId}`;
-    return this.delete(endpoint, true);
+    const req: ApiReq = {
+      httpMethod: "DELETE",
+      apiPath: API_PATH_DELETE_FIXED_VIEW,
+      pathParams: {
+        project_key: projectKey,
+        fix_view_id: viewId,
+      },
+      queryParams: {},
+    };
+
+    return this.request(req, true);
   }
 
   async createFixedView(
@@ -765,12 +1012,20 @@ export class MeegleClient {
     name: string,
     workItemIdList: number[],
   ): Promise<Record<string, unknown>> {
-    const endpoint = `/open_api/${projectKey}/story/fix_view`;
-    const payload = {
-      name,
-      work_item_id_list: workItemIdList,
+    const req: ApiReq = {
+      httpMethod: "POST",
+      apiPath: API_PATH_CREATE_FIXED_VIEW,
+      pathParams: {
+        project_key: projectKey,
+      },
+      queryParams: {},
+      body: {
+        name,
+        work_item_id_list: workItemIdList,
+      },
     };
-    return this.post(endpoint, payload, true);
+
+    return this.request(req, true);
   }
 
   async listViews(
@@ -792,7 +1047,6 @@ export class MeegleClient {
       pageSize = 10,
     } = options || {};
 
-    const endpoint = `/open_api/${projectKey}/view_conf/list`;
     const payload: Record<string, unknown> = {
       work_item_type_key: workitemTypeKey,
       page_num: pageNum,
@@ -811,7 +1065,17 @@ export class MeegleClient {
       }
     }
 
-    const data = await this.post(endpoint, payload);
+    const req: ApiReq = {
+      httpMethod: "POST",
+      apiPath: API_PATH_LIST_VIEWS,
+      pathParams: {
+        project_key: projectKey,
+      },
+      queryParams: {},
+      body: payload,
+    };
+
+    const data = await this.request(req);
     const result = data.data ?? data;
     return Array.isArray(result) ? result : [];
   }
@@ -824,9 +1088,19 @@ export class MeegleClient {
     workitemId: string,
     content: string,
   ): Promise<MeegleComment> {
-    const endpoint = `/open_api/${projectKey}/work_item/${workitemType}/${workitemId}/comment/create`;
-    const payload = { content };
-    const data = await this.post(endpoint, payload, true);
+    const req: ApiReq = {
+      httpMethod: "POST",
+      apiPath: API_PATH_COMMENT_CREATE,
+      pathParams: {
+        project_key: projectKey,
+        work_item_type_key: workitemType,
+        work_item_id: workitemId,
+      },
+      queryParams: {},
+      body: { content },
+    };
+
+    const data = await this.request(req, true);
     const commentData = (data.data ?? data) as Record<string, unknown>;
     return parseComment(commentData);
   }
@@ -836,8 +1110,18 @@ export class MeegleClient {
     workitemType: string,
     workitemId: string,
   ): Promise<MeegleComment[]> {
-    const endpoint = `/open_api/${projectKey}/work_item/${workitemType}/${workitemId}/comments`;
-    const data = await this.get(endpoint);
+    const req: ApiReq = {
+      httpMethod: "GET",
+      apiPath: API_PATH_COMMENT_LIST,
+      pathParams: {
+        project_key: projectKey,
+        work_item_type_key: workitemType,
+        work_item_id: workitemId,
+      },
+      queryParams: {},
+    };
+
+    const data = await this.request(req);
     const items = parseItemsList(data.data ?? data, ["items"]);
     return items.map(parseComment);
   }
@@ -849,9 +1133,20 @@ export class MeegleClient {
     commentId: string,
     content: string,
   ): Promise<MeegleComment> {
-    const endpoint = `/open_api/${projectKey}/work_item/${workitemType}/${workitemId}/comment/${commentId}`;
-    const payload = { content };
-    const data = await this.put(endpoint, payload, true);
+    const req: ApiReq = {
+      httpMethod: "PUT",
+      apiPath: API_PATH_COMMENT_UPDATE,
+      pathParams: {
+        project_key: projectKey,
+        work_item_type_key: workitemType,
+        work_item_id: workitemId,
+        comment_id: commentId,
+      },
+      queryParams: {},
+      body: { content },
+    };
+
+    const data = await this.request(req, true);
     const commentData = (data.data ?? data) as Record<string, unknown>;
     return parseComment(commentData);
   }
@@ -862,15 +1157,35 @@ export class MeegleClient {
     workitemId: string,
     commentId: string,
   ): Promise<Record<string, unknown>> {
-    const endpoint = `/open_api/${projectKey}/work_item/${workitemType}/${workitemId}/comment/${commentId}`;
-    return this.delete(endpoint);
+    const req: ApiReq = {
+      httpMethod: "DELETE",
+      apiPath: API_PATH_COMMENT_DELETE,
+      pathParams: {
+        project_key: projectKey,
+        work_item_type_key: workitemType,
+        work_item_id: workitemId,
+        comment_id: commentId,
+      },
+      queryParams: {},
+    };
+
+    return this.request(req);
   }
 
   // ==================== Field Methods ====================
 
   async getFields(projectKey: string): Promise<Record<string, unknown>[]> {
-    const endpoint = `/open_api/${projectKey}/field/all`;
-    const data = await this.post(endpoint, {} as Record<string, unknown>);
+    const req: ApiReq = {
+      httpMethod: "POST",
+      apiPath: API_PATH_GET_FIELDS,
+      pathParams: {
+        project_key: projectKey,
+      },
+      queryParams: {},
+      body: {},
+    };
+
+    const data = await this.request(req);
     const result = data.data ?? data;
     return Array.isArray(result) ? result : [];
   }
@@ -881,9 +1196,80 @@ export class MeegleClient {
     projectKey: string,
     workitemType: string,
   ): Promise<Record<string, unknown>[]> {
-    const endpoint = `/open_api/${projectKey}/template_list/${workitemType}`;
-    const data = await this.get(endpoint);
+    const req: ApiReq = {
+      httpMethod: "GET",
+      apiPath: API_PATH_GET_WORKFLOW_TEMPLATES,
+      pathParams: {
+        project_key: projectKey,
+        work_item_type_key: workitemType,
+      },
+      queryParams: {},
+    };
+
+    const data = await this.request(req);
     const result = data.data ?? data;
     return Array.isArray(result) ? result : [];
+  }
+
+  // ==================== Auth Methods ====================
+
+  /**
+   * Get auth code for user authorization
+   * Uses cookie-based authentication instead of user token
+   */
+  async getAuthCode(options: {
+    baseUrl?: string;
+    cookie: string;
+    state?: string;
+  }): Promise<string> {
+    const { baseUrl, cookie, state = "111" } = options;
+
+    if (!this.config.pluginId) {
+      throw new Error("Missing pluginId in client configuration");
+    }
+
+    const url = joinUrl(baseUrl ?? this.config.baseUrl ?? "https://www.meegle.com", API_PATH_GET_AUTH_CODE);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
+
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Cookie": cookie,
+        },
+        body: JSON.stringify({
+          plugin_id: this.config.pluginId,
+          state,
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+      const data = await parseJson(response);
+
+      if (!response.ok) {
+        throw new Error(`Failed to get auth code: ${response.status} - ${JSON.stringify(data)}`);
+      }
+
+      // Check for error in response body
+      const errorData = data.error as Record<string, unknown> | undefined;
+      if (errorData && typeof errorData.code === "number" && errorData.code !== 0) {
+        throw new Error(`Auth code error: ${errorData.msg as string}`);
+      }
+
+      const payload = (data.data ?? data) as Record<string, unknown>;
+      const authCode = payload.code ?? payload.auth_code;
+
+      if (typeof authCode !== "string") {
+        throw new Error("Invalid response: missing auth code");
+      }
+
+      return authCode;
+    } catch (err) {
+      clearTimeout(timeoutId);
+      throw err;
+    }
   }
 }

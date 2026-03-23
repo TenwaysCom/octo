@@ -58,12 +58,26 @@ octo/
 ```bash
 cd server
 npm install
-npm start
+npm run dev
 ```
 
 服务端运行在 `http://localhost:3000`
 
+**API 端点：**
+- `GET /health` - 健康检查
+- `POST /api/identity/resolve` - 身份解析
+- `POST /api/meegle/auth/exchange` - Meegle 认证
+- `POST /api/a1/analyze` - A1 工单分析
+- `POST /api/a1/create-b2-draft` - 生成 B2 草稿
+- `POST /api/a1/apply-b2` - 创建 B2
+- `POST /api/a2/analyze` - A2 需求分析
+- `POST /api/a2/create-b1-draft` - 生成 B1 草稿
+- `POST /api/a2/apply-b1` - 创建 B1
+- `POST /api/pm/analysis/run` - PM 即时分析
+
 ### 2. 安装浏览器扩展
+
+**构建扩展：**
 
 ```bash
 cd extension
@@ -71,11 +85,29 @@ npm install
 npm run build
 ```
 
-然后在 Chrome/Edge 浏览器中：
-1. 访问 `chrome://extensions/`
-2. 启用「开发者模式」
-3. 点击「加载已解压的扩展程序」
-4. 选择 `extension/` 目录
+**加载到浏览器：**
+
+1. 打开 Chrome/Edge 浏览器
+2. 访问 `chrome://extensions/`
+3. 启用右上角「开发者模式」
+4. 点击「加载已解压的扩展程序」
+5. 选择 `extension/dist` 目录（不是 extension 目录）
+6. 扩展图标出现在工具栏后，点击图钉固定
+
+**扩展打包：**
+
+构建后的 `extension/dist` 目录包含所有可部署文件：
+```
+extension/dist/
+├── manifest.json       # 扩展清单
+├── popup.html          # 弹窗界面
+├── background/         # Background 脚本
+├── content-scripts/    # 内容脚本
+├── page-bridge/        # 页面认证桥
+└── types/              # 类型定义
+```
+
+可将 `dist` 目录打包为 `.crx` 文件发布到 Chrome Web Store。
 
 ### 3. 使用
 

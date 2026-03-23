@@ -3,7 +3,7 @@ import express, { type Request, type Response } from "express";
 import { analyzeA2Controller, createB1DraftController, applyB1Controller } from "./modules/a2/a2.controller.js";
 import { analyzeA1Controller, createB2DraftController, applyB2Controller } from "./modules/a1/a1.controller.js";
 import { resolveIdentityController } from "./modules/identity/identity.controller.js";
-import { exchangeAuthCodeController, getAuthStatusController } from "./modules/meegle-auth/meegle-auth.controller.js";
+import { exchangeAuthCodeController, getAuthStatusController, getAuthCodeController } from "./modules/meegle-auth/meegle-auth.controller.js";
 import { runPMAnalysisController } from "./modules/pm-analysis/pm-analysis.controller.js";
 
 const app = express();
@@ -45,6 +45,7 @@ app.post("/api/identity/resolve", handleController(resolveIdentityController));
 // Meegle auth routes
 app.post("/api/meegle/auth/exchange", handleController(exchangeAuthCodeController));
 app.post("/api/meegle/auth/status", handleController(getAuthStatusController));
+app.post("/api/meegle/auth/get-code", handleController(getAuthCodeController));
 
 // A1 routes
 app.post("/api/a1/analyze", handleController(analyzeA1Controller));

@@ -32,19 +32,17 @@ export async function createWorkitemFromDraft(
 
   // Convert fieldValuePairs to the format expected by MeegleClient
   const fieldValuePairs = draft.fieldValuePairs.map((pair) => ({
-    fieldKey: pair.fieldKey,
-    fieldValue: pair.fieldValue,
+    field_key: pair.fieldKey,
+    field_value: pair.fieldValue,
   }));
 
-  const workitem = await client.createWorkitem(
+  const workitem = await client.createWorkitem({
     projectKey,
-    workitemTypeKey,
-    draft.name,
-    {
-      templateId: templateId ? parseInt(String(templateId), 10) : undefined,
-      fieldValuePairs,
-    },
-  );
+    workItemTypeKey: workitemTypeKey,
+    name: draft.name,
+    templateId: templateId ? parseInt(String(templateId), 10) : undefined,
+    fieldValuePairs,
+  });
 
   return {
     workitemId: workitem.id,

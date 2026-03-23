@@ -124,6 +124,30 @@ POST /api/meegle/auth/status
 }
 ```
 
+### Meegle 认证 - 获取 Auth Code
+
+通过 cookie 获取授权码，用于后续交换 user token。
+
+```bash
+POST /api/meegle/auth/get-code
+
+# 请求
+{
+  "operatorLarkId": "ou_xxx",
+  "meegleUserKey": "user_xxx",
+  "baseUrl": "https://project.larksuite.com",
+  "cookie": "SESSIONID=xxx; ..."
+}
+
+# 响应
+{
+  "ok": true,
+  "data": {
+    "authCode": "abc123"
+  }
+}
+```
+
 ### A1 工单分析
 
 ```bash

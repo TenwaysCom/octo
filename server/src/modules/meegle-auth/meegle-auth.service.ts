@@ -10,13 +10,17 @@ import {
 import {
   type MeegleAuthExchangeRequest,
   type MeegleAuthRefreshRequest,
+  type MeegleGetAuthCodeRequest,
   validateMeegleAuthExchangeRequest,
   validateMeegleAuthRefreshRequest,
+  validateMeegleGetAuthCodeRequest,
 } from "./meegle-auth.dto.js";
+import { MeegleClient } from "../../adapters/meegle/meegle-client.js";
 
 export interface MeegleAuthServiceDeps {
   authAdapter: MeegleAuthAdapter;
   tokenStore: MeegleTokenStore;
+  pluginId?: string;
 }
 
 let defaultDeps: MeegleAuthServiceDeps | undefined;
@@ -41,6 +45,7 @@ function getDeps(overrides?: Partial<MeegleAuthServiceDeps>): MeegleAuthServiceD
   return {
     authAdapter: merged.authAdapter,
     tokenStore: merged.tokenStore ?? sharedTokenStore,
+    pluginId: merged.pluginId,
   };
 }
 
@@ -60,4 +65,38 @@ export async function refreshAuthToken(
   const request: MeegleAuthRefreshRequest =
     validateMeegleAuthRefreshRequest(input);
   return refreshCredential(request, getDeps(overrides));
+}
+
+export async function getAuthCode(
+  input: unknown,
+  overrides?: Partial<MeegleAuthServiceDeps>,
+) {
+  const request: MeegleGetAuthCodeRequest =
+    validateMeegleGetAuthCodeRequest(input);
+
+  const deps = getDeps(overrides);
+
+  if (!deps.pluginId) {
+    throw new Error("Missing pluginId configuration");
+  }
+
+  const client = new MeegleClient({
+    userToken: "dummy", // Not used for auth code endpoint
+    userKey: "dummy", // Not used for auth code endpoint
+    baseUrl: request.baseUrl,
+    pluginId: deps.pluginId,
+  });
+
+  const authCode = await client.getAuthCode({
+    baseUrl: request.baseUrl,
+    cookie: request.cookie,
+    state: request.state,
+  });
+
+  return {
+    ok: true,
+    data: {
+      authCode,
+    },
+  };
 }
