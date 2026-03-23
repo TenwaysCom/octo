@@ -1,12 +1,12 @@
 import type {
   MeegleAuthAdapter,
   UserTokenPair,
-} from "../../adapters/meegle/auth-adapter";
+} from "../../adapters/meegle/auth-adapter.js";
 import type {
   MeegleTokenLookup,
   MeegleTokenStore,
   StoredMeegleToken,
-} from "../../adapters/meegle/token-store";
+} from "../../adapters/meegle/token-store.js";
 
 export interface CredentialExchangeInput extends MeegleTokenLookup {
   requestId: string;

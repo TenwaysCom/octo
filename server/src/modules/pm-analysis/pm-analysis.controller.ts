@@ -1,6 +1,6 @@
-import { runPMAnalysis } from "../../application/services/pm-analysis.service";
-import { validatePMAnalysisRequest } from "./pm-analysis.dto";
+import { runPMAnalysis } from "../../application/services/pm-analysis.service.js";
+import { validatePMAnalysisRequest } from "./pm-analysis.dto.js";
 
-export async function pmAnalysisController(input: unknown) {
+export async function runPMAnalysisController(input: unknown) {
   return runPMAnalysis(validatePMAnalysisRequest(input));
 }

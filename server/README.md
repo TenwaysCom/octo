@@ -379,8 +379,6 @@ server/
 
 ### 待实现
 
-- [ ] 真实 Lark API 集成
-- [ ] 真实 Meegle API 集成（基于 `meegle_clients`）
 - [ ] 数据库持久化存储
 - [ ] AI Agent 实现（Anthropic Claude API）
 - [ ] GitHub API 集成
@@ -396,6 +394,7 @@ server/
 | `SERVER_BASE_URL` | http://localhost:3000 | 服务端基础 URL |
 | `MEEGLE_PLUGIN_ID` | - | Meegle 插件 ID |
 | `MEEGLE_PLUGIN_SECRET` | - | Meegle 插件密钥 |
+| `LARK_ACCESS_TOKEN` | - | Lark 用户访问令牌 |
 | `ANTHROPIC_API_KEY` | - | Anthropic API 密钥 |
 
 ### 配置文件
@@ -436,8 +435,8 @@ npx vitest watch
 
 ## 下一步计划
 
-1. **接入真实 Meegle API** - 基于 `meegle_clients` 实现
-2. **接入真实 Lark API** - 读取工单数据
-3. **实现 AI Agent** - 集成 Anthropic Claude API
-4. **数据库持久化** - 替换内存存储
+1. **数据库持久化** - 替换内存存储
+2. **AI Agent 实现** - 集成 Anthropic Claude API
+3. **GitHub API 集成** - 读取 PR 和 issue 数据
+4. **审计日志和幂等性检查** - 防止重复创建
 5. **完善错误处理** - 超时、重试、降级

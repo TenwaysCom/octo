@@ -1,4 +1,4 @@
-import type { IdentityResolveRequest } from "../../modules/identity/identity.dto";
+import type { IdentityResolveRequest } from "../../modules/identity/identity.dto.js";
 
 export interface IdentityResolutionResult {
   requestId: string;

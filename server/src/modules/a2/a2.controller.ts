@@ -1,8 +1,8 @@
-import { applyB1, analyzeA2, createB1Draft } from "../../application/services/a2-workflow.service";
+import { applyB1, analyzeA2, createB1Draft } from "../../application/services/a2-workflow.service.js";
 import {
   validateA2ApplyRequest,
   validateA2RecordRequest,
-} from "./a2.dto";
+} from "./a2.dto.js";
 
 export async function analyzeA2Controller(input: unknown) {
   return analyzeA2(validateA2RecordRequest(input));

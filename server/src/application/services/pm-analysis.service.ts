@@ -1,4 +1,4 @@
-import type { PMAnalysisRequest } from "../../modules/pm-analysis/pm-analysis.dto";
+import type { PMAnalysisRequest } from "../../modules/pm-analysis/pm-analysis.dto.js";
 
 export interface A1AnalysisItem {
   id: string;

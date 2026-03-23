@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { executionDraftSchema } from "../../validators/agent-output/execution-draft";
+import { executionDraftSchema } from "../../validators/agent-output/execution-draft.js";
 
 export const a2RecordRequestSchema = z.object({
   recordId: z.string().min(1),

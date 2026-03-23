@@ -1,7 +1,7 @@
 import {
   validateExecutionDraft,
   type ExecutionDraft,
-} from "../../validators/agent-output/execution-draft";
+} from "../../validators/agent-output/execution-draft.js";
 
 export interface A1Record {
   recordId: string;

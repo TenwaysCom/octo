@@ -1,18 +1,18 @@
-import type { MeegleAuthAdapter } from "../../adapters/meegle/auth-adapter";
+import type { MeegleAuthAdapter } from "../../adapters/meegle/auth-adapter.js";
 import {
   InMemoryMeegleTokenStore,
   type MeegleTokenStore,
-} from "../../adapters/meegle/token-store";
+} from "../../adapters/meegle/token-store.js";
 import {
   exchangeCredential,
   refreshCredential,
-} from "../../application/services/meegle-credential.service";
+} from "../../application/services/meegle-credential.service.js";
 import {
   type MeegleAuthExchangeRequest,
   type MeegleAuthRefreshRequest,
   validateMeegleAuthExchangeRequest,
   validateMeegleAuthRefreshRequest,
-} from "./meegle-auth.dto";
+} from "./meegle-auth.dto.js";
 
 export interface MeegleAuthServiceDeps {
   authAdapter: MeegleAuthAdapter;

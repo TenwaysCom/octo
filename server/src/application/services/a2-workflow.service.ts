@@ -1,9 +1,12 @@
 import {
   validateExecutionDraft,
   type ExecutionDraft,
-} from "../../validators/agent-output/execution-draft";
+} from "../../validators/agent-output/execution-draft.js";
+import { createWorkitemFromDraft } from "./meegle-workitem.service.js";
+import type { MeegleWorkitemServiceDeps } from "./meegle-workitem.service.js";
+import type { A2Requirement } from "../../adapters/lark/lark-client.js";
 
-export interface A2Record {
+export interface A2Record extends Partial<A2Requirement> {
   recordId: string;
   title: string;
   summary: string;
@@ -12,14 +15,8 @@ export interface A2Record {
   priority: "high" | "medium" | "low";
 }
 
-export interface A2WorkflowDeps {
+export interface A2WorkflowDeps extends Partial<MeegleWorkitemServiceDeps> {
   loadRecord?: (recordId: string) => Promise<A2Record>;
-  createWorkitem?: (input: {
-    draft: ExecutionDraft;
-    requestId: string;
-    operatorLarkId: string;
-    idempotencyKey: string;
-  }) => Promise<{ workitemId: string }>;
 }
 
 function defaultA2Record(recordId: string): A2Record {
@@ -127,17 +124,21 @@ export async function applyB1(
     missingMeta: [],
     needConfirm: true,
   });
-  const created =
-    (await deps.createWorkitem?.({
-      draft,
-      requestId: input.requestId,
-      operatorLarkId: input.operatorLarkId,
-      idempotencyKey: input.idempotencyKey,
-    })) ?? ({ workitemId: "B1-001" } as const);
 
+  // If client is provided, create real workitem; otherwise return mock
+  if (deps.client) {
+    const created = await createWorkitemFromDraft(draft, { client: deps.client });
+    return {
+      status: "created" as const,
+      workitemId: created.workitemId,
+      draft,
+    };
+  }
+
+  // Mock response for tests
   return {
     status: "created" as const,
-    workitemId: created.workitemId,
+    workitemId: "B1-001",
     draft,
   };
 }

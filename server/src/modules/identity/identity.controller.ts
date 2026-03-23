@@ -1,10 +1,10 @@
-import { resolveIdentity } from "../../application/services/identity-resolution.service";
+import { resolveIdentity } from "../../application/services/identity-resolution.service.js";
 import {
   validateIdentityResolveRequest,
   type IdentityResolveRequest,
-} from "./identity.dto";
+} from "./identity.dto.js";
 
-export function identityController(input: unknown): ReturnType<typeof resolveIdentity> {
+export async function resolveIdentityController(input: unknown) {
   const request: IdentityResolveRequest = validateIdentityResolveRequest(input);
   return resolveIdentity(request);
 }

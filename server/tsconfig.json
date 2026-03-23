@@ -4,11 +4,13 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "strict": true,
-    "noEmit": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
     "isolatedModules": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "types": ["vitest/globals"]
+    "types": ["vitest/globals", "node"]
   },
-  "include": ["src", "tests"]
+  "include": ["src"],
+  "exclude": ["node_modules", "dist", "tests"]
 }

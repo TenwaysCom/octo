@@ -1,0 +1,430 @@
+/**
+ * Lark Bitable API Client
+ *
+ * Uses @larksuiteoapi/node-sdk for official Lark API integration
+ * Provides access to Lark Bitable (multidimensional table) records
+ * Used for reading A1 support tickets and A2 requirements
+ */
+
+import * as lark from "@larksuiteoapi/node-sdk";
+
+// ==================== Data Types ====================
+
+export interface LarkBitableRecord {
+  record_id: string;
+  fields: Record<string, unknown>;
+  created_time?: string;
+  updated_time?: string;
+}
+
+export interface LarkBitableTable {
+  table_id: string;
+  name: string;
+}
+
+export interface LarkBitableBase {
+  base_id: string;
+  name: string;
+}
+
+// ==================== Error Types ====================
+
+export class LarkAPIError extends Error {
+  statusCode?: number;
+  response?: Record<string, unknown>;
+
+  constructor(
+    message: string,
+    statusCode?: number,
+    response?: Record<string, unknown>,
+  ) {
+    super(message);
+    this.name = "LarkAPIError";
+    this.statusCode = statusCode;
+    this.response = response;
+  }
+}
+
+export class LarkAuthenticationError extends LarkAPIError {
+  constructor(
+    message: string,
+    statusCode = 401,
+    response?: Record<string, unknown>,
+  ) {
+    super(message, statusCode, response);
+    this.name = "LarkAuthenticationError";
+  }
+}
+
+export class LarkNotFoundError extends LarkAPIError {
+  constructor(
+    message: string,
+    statusCode = 404,
+    response?: Record<string, unknown>,
+  ) {
+    super(message, statusCode, response);
+    this.name = "LarkNotFoundError";
+  }
+}
+
+// ==================== Client Options ====================
+
+export interface LarkClientOptions {
+  accessToken: string;
+  baseUrl?: string;
+}
+
+// ==================== LarkClient Class ====================
+
+export class LarkClient {
+  private client: lark.Client;
+  private accessToken: string;
+  private baseUrl: string;
+
+  constructor(options: LarkClientOptions) {
+    this.accessToken = options.accessToken;
+    this.baseUrl = options.baseUrl || "https://open.feishu.cn";
+
+    // Initialize with dummy credentials - we'll use user token directly
+    this.client = new lark.Client({
+      appId: "dummy",
+      appSecret: "dummy",
+      appType: lark.AppType.SelfBuild,
+      domain: this.baseUrl.includes("feishu") ? lark.Domain.Feishu : lark.Domain.Lark,
+    });
+  }
+
+  // ==================== Generic Request Method ====================
+
+  private async request<T>(
+    method: string,
+    url: string,
+    data?: Record<string, unknown>,
+    params?: Record<string, unknown>,
+  ): Promise<T> {
+    try {
+      const response = await this.client.request({
+        method: method as "GET" | "POST" | "PUT" | "DELETE",
+        url,
+        data,
+        params,
+      }, lark.withUserAccessToken(this.accessToken));
+
+      if (response.code !== 0) {
+        throw this.createError(response.msg, response.code, response.data);
+      }
+
+      return response.data as T;
+    } catch (error) {
+      throw this.handleRequestError(error);
+    }
+  }
+
+  // ==================== Bitable App Methods ====================
+
+  /**
+   * Get list of bases (apps)
+   */
+  async getBases(pageToken?: string, pageSize = 50): Promise<{ items: LarkBitableBase[]; hasMore: boolean; nextPageToken?: string }> {
+    const data = await this.request<{
+      items: Array<{ app_id: string; name: string }>;
+      has_more: boolean;
+      page_token?: string;
+    }>("GET", "/open-apis/bitable/v1/apps", undefined, {
+      page_size: pageSize,
+      page_token: pageToken,
+    });
+
+    const items = data.items || [];
+
+    return {
+      items: items.map((item) => ({
+        base_id: item.app_id,
+        name: item.name,
+      })),
+      hasMore: data.has_more,
+      nextPageToken: data.page_token,
+    };
+  }
+
+  /**
+   * Get base info
+   */
+  async getBaseInfo(baseId: string): Promise<LarkBitableBase> {
+    const data = await this.request<{ app_id: string; name: string }>(
+      "GET",
+      `/open-apis/bitable/v1/apps/${baseId}`,
+    );
+
+    return {
+      base_id: data.app_id || baseId,
+      name: data.name || "",
+    };
+  }
+
+  // ==================== Bitable Table Methods ====================
+
+  /**
+   * Get list of tables in a base
+   */
+  async getTables(baseId: string): Promise<LarkBitableTable[]> {
+    const data = await this.request<{
+      items: Array<{ table_id: string; name: string }>;
+    }>("GET", `/open-apis/bitable/v1/apps/${baseId}/tables`);
+
+    return (data.items || []).map((item) => ({
+      table_id: item.table_id,
+      name: item.name,
+    }));
+  }
+
+  // ==================== Bitable Record Methods ====================
+
+  /**
+   * Get record by ID
+   */
+  async getRecord(baseId: string, tableId: string, recordId: string): Promise<LarkBitableRecord> {
+    const data = await this.request<{
+      record_id: string;
+      fields: Record<string, unknown>;
+      created_time?: string;
+      updated_time?: string;
+    }>("GET", `/open-apis/bitable/v1/apps/${baseId}/tables/${tableId}/records/${recordId}`);
+
+    return {
+      record_id: data.record_id || recordId,
+      fields: data.fields || {},
+      created_time: data.created_time,
+      updated_time: data.updated_time,
+    };
+  }
+
+  /**
+   * List records with filtering and pagination
+   */
+  async listRecords(
+    baseId: string,
+    tableId: string,
+    options?: {
+      pageNum?: number;
+      pageSize?: number;
+      filter?: string;
+      sort?: string;
+    },
+  ): Promise<{ records: LarkBitableRecord[]; hasMore: boolean; nextPageToken?: string }> {
+    const { pageNum = 1, pageSize = 50 } = options || {};
+
+    const data = await this.request<{
+      items: Array<{
+        record_id: string;
+        fields: Record<string, unknown>;
+        created_time?: string;
+        updated_time?: string;
+      }>;
+      has_more: boolean;
+      page_token?: string;
+    }>("GET", `/open-apis/bitable/v1/apps/${baseId}/tables/${tableId}/records`, undefined, {
+      page_size: pageSize,
+      page_num: pageNum,
+      filter: options?.filter,
+      sort: options?.sort,
+    });
+
+    const records = (data.items || []).map((item) => ({
+      record_id: item.record_id,
+      fields: item.fields || {},
+      created_time: item.created_time,
+      updated_time: item.updated_time,
+    }));
+
+    return {
+      records,
+      hasMore: data.has_more,
+      nextPageToken: data.page_token,
+    };
+  }
+
+  /**
+   * Create a new record
+   */
+  async createRecord(
+    baseId: string,
+    tableId: string,
+    fields: Record<string, unknown>,
+  ): Promise<LarkBitableRecord> {
+    const data = await this.request<{
+      record_id: string;
+      fields: Record<string, unknown>;
+    }>("POST", `/open-apis/bitable/v1/apps/${baseId}/tables/${tableId}/records`, {
+      fields,
+    });
+
+    return {
+      record_id: data.record_id || "",
+      fields: data.fields || {},
+    };
+  }
+
+  /**
+   * Update a record
+   */
+  async updateRecord(
+    baseId: string,
+    tableId: string,
+    recordId: string,
+    fields: Record<string, unknown>,
+  ): Promise<LarkBitableRecord> {
+    const data = await this.request<{
+      record_id: string;
+      fields: Record<string, unknown>;
+    }>("PUT", `/open-apis/bitable/v1/apps/${baseId}/tables/${tableId}/records/${recordId}`, {
+      fields,
+    });
+
+    return {
+      record_id: data.record_id || recordId,
+      fields: data.fields || {},
+    };
+  }
+
+  /**
+   * Delete a record
+   */
+  async deleteRecord(baseId: string, tableId: string, recordId: string): Promise<void> {
+    await this.request<void>(
+      "DELETE",
+      `/open-apis/bitable/v1/apps/${baseId}/tables/${tableId}/records/${recordId}`,
+    );
+  }
+
+  /**
+   * Batch get records
+   */
+  async batchGetRecords(
+    baseId: string,
+    tableId: string,
+    recordIds: string[],
+  ): Promise<LarkBitableRecord[]> {
+    // Note: Lark API may have limits on batch size
+    const BATCH_SIZE = 50;
+    const allRecords: LarkBitableRecord[] = [];
+
+    for (let i = 0; i < recordIds.length; i += BATCH_SIZE) {
+      const batch = recordIds.slice(i, i + BATCH_SIZE);
+      const promises = batch.map((id) =>
+        this.getRecord(baseId, tableId, id).catch(() => null),
+      );
+      const results = await Promise.all(promises);
+      allRecords.push(...results.filter((r): r is LarkBitableRecord => r !== null));
+    }
+
+    return allRecords;
+  }
+
+  // ==================== Error Handling ====================
+
+  private createError(
+    message: string,
+    statusCode?: number,
+    response?: Record<string, unknown>,
+  ): LarkAPIError {
+    if (statusCode === 99991004 || statusCode === 401) {
+      return new LarkAuthenticationError(message, statusCode, response);
+    }
+
+    if (statusCode === 99991002 || statusCode === 404) {
+      return new LarkNotFoundError(message, statusCode, response);
+    }
+
+    return new LarkAPIError(message, statusCode, response);
+  }
+
+  private handleRequestError(error: unknown): LarkAPIError {
+    if (error instanceof LarkAPIError) {
+      return error;
+    }
+
+    const sdkError = error as { code?: number; msg?: string; data?: unknown };
+    const statusCode = sdkError.code;
+    const message = sdkError.msg || "Lark API request failed";
+    const response = sdkError.data as Record<string, unknown> | undefined;
+
+    return this.createError(message, statusCode, response);
+  }
+}
+
+// ==================== A1/A2 Record Parsers ====================
+
+export interface A1Ticket {
+  recordId: string;
+  title: string;
+  description: string;
+  priority: "high" | "medium" | "low";
+  status: string;
+  reporter?: string;
+  assignee?: string;
+  environment?: string;
+  createdTime?: string;
+  updatedTime?: string;
+}
+
+export interface A2Requirement {
+  recordId: string;
+  title: string;
+  summary: string;
+  target: string;
+  acceptance: string;
+  priority: "high" | "medium" | "low";
+  status: string;
+  requester?: string;
+  createdTime?: string;
+  updatedTime?: string;
+}
+
+/**
+ * Parse A1 ticket from Lark record
+ */
+export function parseA1Ticket(record: LarkBitableRecord, fieldMapping?: Record<string, string>): A1Ticket {
+  const fields = record.fields;
+  const getFieldValue = (key: string) => {
+    const mappedKey = fieldMapping?.[key] || key;
+    return fields[mappedKey];
+  };
+
+  return {
+    recordId: record.record_id,
+    title: String(getFieldValue("title") || "Untitled"),
+    description: String(getFieldValue("description") || ""),
+    priority: (String(getFieldValue("priority") || "medium").toLowerCase() as "high" | "medium" | "low"),
+    status: String(getFieldValue("status") || ""),
+    reporter: getFieldValue("reporter") as string | undefined,
+    assignee: getFieldValue("assignee") as string | undefined,
+    environment: getFieldValue("environment") as string | undefined,
+    createdTime: record.created_time,
+    updatedTime: record.updated_time,
+  };
+}
+
+/**
+ * Parse A2 requirement from Lark record
+ */
+export function parseA2Requirement(record: LarkBitableRecord, fieldMapping?: Record<string, string>): A2Requirement {
+  const fields = record.fields;
+  const getFieldValue = (key: string) => {
+    const mappedKey = fieldMapping?.[key] || key;
+    return fields[mappedKey];
+  };
+
+  return {
+    recordId: record.record_id,
+    title: String(getFieldValue("title") || "Untitled"),
+    summary: String(getFieldValue("summary") || ""),
+    target: String(getFieldValue("target") || ""),
+    acceptance: String(getFieldValue("acceptance") || ""),
+    priority: (String(getFieldValue("priority") || "medium").toLowerCase() as "high" | "medium" | "low"),
+    status: String(getFieldValue("status") || ""),
+    requester: getFieldValue("requester") as string | undefined,
+    createdTime: record.created_time,
+    updatedTime: record.updated_time,
+  };
+}
