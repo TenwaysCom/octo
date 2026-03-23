@@ -581,7 +581,200 @@ interface AnalysisResponse {
 }
 ```
 
-## 9. 待补项
+## 9. Skill Registry 详细设计
+
+### 9.1 Skill 定义
+
+```typescript
+// Skill 类型
+type SkillType = 'analysis' | 'action';
+
+// Skill 定义
+interface Skill {
+  skillId: string;
+  version: string;
+  type: SkillType;
+
+  // 输入 Schema
+  inputSchema: JSONSchema;
+
+  // 执行器
+  handler: (context: Context, config?: object) => Promise<SkillResult>;
+}
+
+// 执行结果
+interface SkillResult {
+  status: 'success' | 'error' | 'requires_confirmation';
+  data: object;                    // 业务数据
+  sideEffect?: SideEffect;         // 可选的副作用
+  error?: string;
+}
+
+// 副作用定义
+interface SideEffect {
+  type: 'create_workitem' | 'update_workitem' | 'create_comment';
+  description: string;             // 用户可见的描述
+  payload: object;                 // 执行所需数据
+}
+```
+
+### 9.2 Skill 执行流程
+
+```
+1. Agent 接收用户请求
+       │
+       ▼
+2. 根据 URL 从 Skill Registry 获取配置
+       │
+       ▼
+3. 构建统一 Context（页面数据 + 用户数据 + 历史数据）
+       │
+       ▼
+4. 执行 Analysis Skills（只读分析）
+       │
+       ▼
+5. 如果有 Action Skill 返回 sideEffect
+       │
+       ▼
+6. Agent 汇总 sideEffects，询问用户确认
+       │
+       ▼
+7. 用户确认后，执行 Side Effects
+```
+
+### 9.3 URL → Skills 映射配置
+
+```typescript
+// 服务端配置表
+interface SkillConfig {
+  urlPrefix: string;        // 用于匹配和 Session 绑定
+  urlPattern: string;       // URL 通配符模式
+  pageType: string;
+
+  skills: Array<{
+    skillId: string;
+    version: string;
+    enabled: boolean;
+    config?: object;
+  }>;
+
+  defaultEffort: 'quick' | 'standard' | 'deep';
+}
+
+// Lark A1 页面配置示例
+{
+  urlPrefix: "lark_a1",
+  urlPattern: "https://*.lark.cn/bases/:baseId/tables/:tableId",
+  pageType: "lark_a1",
+  skills: [
+    { skillId: "ticket-classification", version: "1.0", enabled: true },
+    { skillId: "missing-info-detection", version: "1.0", enabled: true },
+    { skillId: "bug-draft-enrichment", version: "1.0", enabled: true }
+  ],
+  defaultEffort: "standard"
+}
+```
+
+### 9.4 设计决策
+
+| 决策点 | 选择 | 理由 |
+|--------|------|------|
+| Skill 组合 | 单一执行 | 简单清晰，易于调试和追踪 |
+| 配置存储 | 服务端集中管理 | 统一更新，便于版本控制 |
+| 输入来源 | 统一 Context | Skill 解耦，不依赖具体数据源 |
+| Side Effects | Analysis + Action 分离 | 清晰的职责边界，用户确认前不执行 |
+
+## 10. Context Management 详细设计
+
+### 10.1 Context 类型
+
+```typescript
+// 统一 Context 对象
+interface Context {
+  // 页面上下文（由客户端采集）
+  page?: PageContext;
+
+  // 用户上下文（由身份系统提供）
+  user?: UserContext;
+
+  // 历史上下文（从 Session 历史加载）
+  history?: HistoryContext;
+}
+
+// 页面上下文
+interface PageContext {
+  pageType: string;
+  url: string;
+  recordId?: string;
+  baseId?: string;
+  tableId?: string;
+  projectKey?: string;
+  workitemId?: string;
+  pageSnapshot?: object;    // 页面内容快照
+}
+
+// 用户上下文
+interface UserContext {
+  operatorLarkId: string;
+  meegleUserKey?: string;
+  githubId?: string;
+  preferences?: object;
+}
+
+// 历史上下文
+interface HistoryContext {
+  lastAnalysis?: {
+    timestamp: string;
+    effort: string;
+    result: object;
+  };
+  thinkingLogs?: Array<{
+    phase: string;
+    message: string;
+    timestamp: string;
+  }>;
+}
+```
+
+### 10.2 Context 管理架构
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                    Context Manager (服务端)                    │
+│                                                              │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │                 Context Store                         │   │
+│  │  - Session Context (PostgreSQL/Redis)                │   │
+│  │  - Page Context (临时缓存)                            │   │
+│  │  - History Context (归档存储)                         │   │
+│  └──────────────────────────────────────────────────────┘   │
+│                                                              │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │              Context Builder                          │   │
+│  │  - 从客户端接收页面上下文                             │   │
+│  │  - 从身份系统加载用户上下文                           │   │
+│  │  - 从 Session 存储加载历史上下文                       │   │
+│  │  - 构建统一 Context 对象                               │   │
+│  └──────────────────────────────────────────────────────┘   │
+│                                                              │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │              Context Provider                         │   │
+│  │  - 向 Skills 提供统一的 Context 读取接口                 │   │
+│  │  - 管理 Context 生命周期                               │   │
+│  └──────────────────────────────────────────────────────┘   │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### 10.3 设计决策
+
+| 决策点 | 选择 | 理由 |
+|--------|------|------|
+| Context 存储位置 | 服务端 | 支持多设备同步，Session 恢复 |
+| Context 构建 | 服务端负责 | 统一数据源，减少客户端负担 |
+| Context 传递 | 统一对象 | Skills 解耦，不依赖具体数据源 |
+| 历史归档 | 服务端 | 长期存储，支持回溯分析 |
+
+## 11. 待补项
 
 ### Phase 1  deferred（从 Phase 1 延续）
 
@@ -601,9 +794,9 @@ interface AnalysisResponse {
 - [ ] Popup UI 实现
 - [ ] 思考过程日志记录
 
-## 10. 下一步计划
+## 12. 下一步计划
 
-### 10.1 优先级排序
+### 12.1 优先级排序
 
 1. **P0 - 基础架构**
    - Agent Orchestrator 重构
@@ -629,7 +822,7 @@ interface AnalysisResponse {
    - 分析结果展示
    - 思考过程渲染
 
-### 10.2 推荐实施顺序
+### 12.2 推荐实施顺序
 
 ```
 Phase 2.1: 服务端架构升级
@@ -657,7 +850,7 @@ Phase 2.5: UI 实现
   - 思考过程可视化
 ```
 
-## 11. 风险与考量
+## 13. 风险与考量
 
 ### 技术风险
 
