@@ -1,11 +1,19 @@
 {
   "name": "it-pm-assistant-extension",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
     "test": "vitest run"
   },
+  "dependencies": {
+    "webextension-polyfill": "^0.10.0"
+  },
   "devDependencies": {
+    "@types/chrome": "^0.0.260",
+    "@types/webextension-polyfill": "^0.10.7",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"
   }

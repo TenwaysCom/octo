@@ -1,0 +1,44 @@
+{
+  "manifest_version": 3,
+  "name": "IT PM Assistant",
+  "version": "0.1.0",
+  "description": "跨平台协同助手 - Lark 到 Meegle 半自动建单工具",
+  "permissions": [
+    "tabs",
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "http://localhost:3000/*",
+    "https://*.feishu.cn/*",
+    "https://*.larksuite.com/*",
+    "https://*.meegle.com/*"
+  ],
+  "background": {
+    "service_worker": "dist/background/router.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "dist/popup.html",
+    "default_title": "IT PM Assistant"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*.feishu.cn/*", "https://*.larksuite.com/*"],
+      "js": ["dist/content-scripts/lark.js"],
+      "type": "module"
+    },
+    {
+      "matches": ["https://*.meegle.com/*"],
+      "js": ["dist/content-scripts/meegle.js"],
+      "type": "module"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["dist/page-bridge/*"],
+      "matches": ["https://*.meegle.com/*"]
+    }
+  ]
+}

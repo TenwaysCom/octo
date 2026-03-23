@@ -1,16 +1,25 @@
 export type SupportedPlatform = "lark" | "meegle" | "github" | "unknown";
+export type PageType = "lark_a1" | "lark_a2" | "meegle" | "github";
 
 export interface PageContext {
-  platform: SupportedPlatform;
-  baseUrl: string;
-  pathname: string;
+  pageType: PageType;
+  url: string;
+  detectedLarkId?: string;
+  detectedMeegleUserKey?: string;
+  detectedGithubId?: string;
+  baseId?: string;
+  tableId?: string;
   recordId?: string;
   projectKey?: string;
   workitemId?: string;
+  repoOwner?: string;
+  repoName?: string;
+  prNumber?: number;
 }
 
 export interface IdentityBinding {
-  larkId: string;
+  operatorLarkId: string;
+  mappingStatus: "bound" | "unbound" | "partial";
   meegleUserKey?: string;
   githubId?: string;
 }
