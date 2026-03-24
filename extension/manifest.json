@@ -3,6 +3,12 @@
   "name": "IT PM Assistant",
   "version": "0.1.0",
   "description": "跨平台协同助手 - Lark 到 Meegle 半自动建单工具",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
   "permissions": [
     "tabs",
     "activeTab",
@@ -16,29 +22,30 @@
     "https://*.meegle.com/*"
   ],
   "background": {
-    "service_worker": "dist/background/router.js",
+    "service_worker": "background/router.js",
     "type": "module"
   },
   "action": {
-    "default_popup": "dist/popup.html",
+    "default_popup": "popup.html",
     "default_title": "IT PM Assistant"
   },
   "content_scripts": [
     {
       "matches": ["https://*.feishu.cn/*", "https://*.larksuite.com/*"],
-      "js": ["dist/content-scripts/lark.js"],
+      "exclude_matches": ["https://project.larksuite.com/*"],
+      "js": ["content-scripts/lark.js"],
       "type": "module"
     },
     {
-      "matches": ["https://*.meegle.com/*"],
-      "js": ["dist/content-scripts/meegle.js"],
+      "matches": ["https://*.meegle.com/*", "https://project.larksuite.com/*"],
+      "js": ["content-scripts/meegle.js"],
       "type": "module"
     }
   ],
   "web_accessible_resources": [
     {
-      "resources": ["dist/page-bridge/*"],
-      "matches": ["https://*.meegle.com/*"]
+      "resources": ["page-bridge/*"],
+      "matches": ["https://*.meegle.com/*", "https://project.larksuite.com/*"]
     }
   ]
 }

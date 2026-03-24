@@ -6,8 +6,8 @@ import type {
 } from "../types/protocol";
 import type { EnsureMeegleAuthDeps } from "./handlers/meegle-auth";
 import type { EnsureLarkAuthDeps } from "./handlers/lark-auth";
-import { ensureMeegleAuth } from "./handlers/meegle-auth";
-import { ensureLarkAuth } from "./handlers/lark-auth";
+import { ensureMeegleAuth } from "./handlers/meegle-auth.js";
+import { ensureLarkAuth } from "./handlers/lark-auth.js";
 import type { LarkAuthCodeResponse } from "../types/lark";
 import {
   getCachedUserToken,

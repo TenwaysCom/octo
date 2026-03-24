@@ -104,18 +104,28 @@
 
     <div id="status" class="status pending">检测中...</div>
 
-    <div class="actions">
+    <!-- Lark 页面操作 -->
+    <div id="larkActions" class="actions" style="display: none;">
       <button id="analyzeBtn" class="primary" disabled>分析当前页面</button>
       <button id="draftBtn" class="secondary" disabled>生成草稿</button>
       <button id="applyBtn" class="secondary" disabled>确认创建</button>
+    </div>
+
+    <!-- Meegle 页面操作 -->
+    <div id="meegleActions" class="actions" style="display: none;">
+      <div id="meegleAuthStatus" style="padding: 8px; background: #f5f5f5; border-radius: 6px; margin-bottom: 8px;">
+        <span>认证状态：</span><span id="meegleAuthText">检查中...</span>
+      </div>
+      <button id="meegleAuthBtn" class="primary">获取认证</button>
+      <button id="meegleRefreshBtn" class="secondary">刷新状态</button>
     </div>
 
     <div id="log" class="log"></div>
 
     <div class="info">
       <p><strong>快捷键:</strong></p>
-      <p>Alt+A - 分析当前页面</p>
-      <p>Alt+D - 生成草稿</p>
+      <p>Alt+A - 分析当前页面 (Lark)</p>
+      <p>Alt+D - 生成草稿 (Lark)</p>
     </div>
 
     <script type="module">
@@ -128,6 +138,11 @@
         draftBtn: document.getElementById('draftBtn'),
         applyBtn: document.getElementById('applyBtn'),
         log: document.getElementById('log'),
+        larkActions: document.getElementById('larkActions'),
+        meegleActions: document.getElementById('meegleActions'),
+        meegleAuthText: document.getElementById('meegleAuthText'),
+        meegleAuthBtn: document.getElementById('meegleAuthBtn'),
+        meegleRefreshBtn: document.getElementById('meegleRefreshBtn'),
       };
 
       let currentState = {
@@ -157,6 +172,54 @@
         els.analyzeBtn.disabled = !enabled;
         els.draftBtn.disabled = !enabled;
         els.applyBtn.disabled = !enabled;
+      }
+
+      function showLarkActions() {
+        els.larkActions.style.display = 'flex';
+        els.meegleActions.style.display = 'none';
+      }
+
+      function showMeegleActions() {
+        els.larkActions.style.display = 'none';
+        els.meegleActions.style.display = 'flex';
+      }
+
+      function updateMeegleAuthText(status, authCode) {
+        const textEl = els.meegleAuthText;
+        const authBtn = els.meegleAuthBtn;
+
+        switch (status) {
+          case 'ready':
+            if (authCode) {
+              textEl.textContent = '已获取认证码';
+              textEl.style.color = '#2e7d32';
+              authBtn.textContent = '交换 Token';
+            } else {
+              textEl.textContent = '已认证';
+              textEl.style.color = '#2e7d32';
+              authBtn.textContent = '重新认证';
+            }
+            break;
+          case 'require_auth_code':
+            textEl.textContent = '需要登录 Meegle';
+            textEl.style.color = '#ef6c00';
+            authBtn.textContent = '前往登录';
+            break;
+          case 'authenticated':
+            textEl.textContent = '认证成功';
+            textEl.style.color = '#2e7d32';
+            authBtn.textContent = '重新认证';
+            break;
+          case 'failed':
+            textEl.textContent = '认证失败';
+            textEl.style.color = '#c62828';
+            authBtn.textContent = '重试认证';
+            break;
+          default:
+            textEl.textContent = '未知状态';
+            textEl.style.color = '#666';
+            authBtn.textContent = '检查认证';
+        }
       }
 
       /**
@@ -280,9 +343,30 @@
           const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
           const url = tab.url;
 
-          if (url.includes('feishu.cn') || url.includes('larksuite.com')) {
+          // Meegle 页面 (project.larksuite.com 是 Meegle)
+          if (url.includes('project.larksuite.com') || url.includes('meegle.com')) {
+            currentState.pageType = 'meegle';
+            showMeegleActions();
+            setStatus('ready', 'Meegle 页面');
+            log('检测到 Meegle 页面', 'success');
+
+            // On Meegle page, trigger auth code request
+            const authStatus = await checkMeegleAuth();
+            currentState.meegleAuthStatus = authStatus.status;
+            currentState.authCode = authStatus.authCode;
+
+            updateMeegleAuthText(authStatus.status, authStatus.authCode);
+
+            if (authStatus.status === 'ready' && authStatus.authCode) {
+              log('获取到 auth code', 'success');
+            } else if (authStatus.status === 'require_auth_code') {
+              log('需要登录 Meegle', 'pending');
+            }
+          } else if (url.includes('feishu.cn') || url.includes('larksuite.com')) {
+            // Lark 页面
             if (url.includes('/a1/') || url.includes('support')) {
               currentState.pageType = 'lark_a1';
+              showLarkActions();
               setStatus('ready', 'Lark 支持工单页面');
               setButtonsEnabled(true);
               log('检测到 Lark A1 页面', 'success');
@@ -309,30 +393,14 @@
               }
             } else if (url.includes('/a2/') || url.includes('requirement')) {
               currentState.pageType = 'lark_a2';
+              showLarkActions();
               setStatus('ready', 'Lark 需求页面');
               setButtonsEnabled(true);
               log('检测到 Lark A2 页面', 'success');
             } else {
+              showLarkActions();
               setStatus('pending', 'Lark 页面 (非工单/需求)');
               log('Lark 页面，但不是 A1/A2 类型');
-            }
-          } else if (url.includes('meegle.com')) {
-            currentState.pageType = 'meegle';
-            setStatus('ready', 'Meegle 页面');
-            log('检测到 Meegle 页面', 'success');
-
-            // On Meegle page, trigger auth code request
-            const authStatus = await checkMeegleAuth();
-            currentState.meegleAuthStatus = authStatus.status;
-            currentState.authCode = authStatus.authCode;
-
-            if (authStatus.status === 'ready' && authStatus.authCode) {
-              log('获取到 auth code，正在交换 token...', 'success');
-              const exchanged = await exchangeAuthCode(authStatus.authCode, authStatus.state);
-              if (exchanged) {
-                currentState.meegleAuthStatus = 'authenticated';
-                log('Meegle 认证成功', 'success');
-              }
             }
           } else {
             setStatus('error', '不支持的页面');
@@ -485,6 +553,42 @@
       els.analyzeBtn.addEventListener('click', analyzePage);
       els.draftBtn.addEventListener('click', generateDraft);
       els.applyBtn.addEventListener('click', applyDraft);
+
+      // Meegle action listeners
+      els.meegleAuthBtn.addEventListener('click', async () => {
+        const status = currentState.meegleAuthStatus;
+
+        if (status === 'ready' && currentState.authCode) {
+          // Exchange auth code for token
+          log('正在交换 token...');
+          const exchanged = await exchangeAuthCode(currentState.authCode, currentState.authCode);
+          if (exchanged) {
+            currentState.meegleAuthStatus = 'authenticated';
+            updateMeegleAuthText('authenticated');
+            log('Meegle 认证成功', 'success');
+          } else {
+            updateMeegleAuthText('failed');
+          }
+        } else if (status === 'require_auth_code') {
+          // Open Meegle login page
+          chrome.tabs.create({ url: MEEGLE_BASE_URL, active: true });
+        } else {
+          // Re-check auth
+          const authStatus = await checkMeegleAuth();
+          currentState.meegleAuthStatus = authStatus.status;
+          currentState.authCode = authStatus.authCode;
+          updateMeegleAuthText(authStatus.status, authStatus.authCode);
+        }
+      });
+
+      els.meegleRefreshBtn.addEventListener('click', async () => {
+        log('刷新认证状态...');
+        const authStatus = await checkMeegleAuth();
+        currentState.meegleAuthStatus = authStatus.status;
+        currentState.authCode = authStatus.authCode;
+        updateMeegleAuthText(authStatus.status, authStatus.authCode);
+        log('状态已更新', 'success');
+      });
 
       // Initialize
       detectPage();
