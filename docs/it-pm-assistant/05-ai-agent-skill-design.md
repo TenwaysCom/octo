@@ -60,6 +60,9 @@ AI 能力不直接写死在插件里，而是集中在服务端，以 `Agent + S
 - `blocker-detection`
 - `stale-item-detection`
 - `next-action-suggestion`
+- `evidence-grounding`
+- `priority-ranking`
+- `description-gap-detection`
 
 ### 3.4 通用 Skill
 
@@ -113,7 +116,39 @@ AI 能力不直接写死在插件里，而是集中在服务端，以 `Agent + S
 
 一期 AI 能力重点是 `A1` 和 `A2` 两条工作流；GitHub 相关能力主要用于交付状态读取与 PM 分析支撑。
 
-## 8. 待补项
+## 8. PM 即时分析 Prompt 优化机制
+
+`PM Analysis Agent` 不建议一次写死 prompt 后直接投入使用，而应作为一个单独任务做 `3` 轮优化实验。
+
+统一实验原则：
+
+- 每轮都先跑固定测试集，拿到当前效果
+- 基于测试结果找本轮优化思路，而不是凭感觉改 prompt
+- 每轮允许多次改写 prompt / skills 编排，但必须记录每次测试结果
+- 当本轮结果达到预期后，再进入下一轮新的优化方向
+- 三轮结束后沉淀出一期默认 prompt、skills 编排顺序和测试样例集
+
+推荐三轮方向：
+
+1. 第 `1` 轮：提升结果完整性
+   - 重点看是否稳定识别阻塞项、滞留项、描述缺失项、待推进项
+   - 优先优化 `cross-platform-summarization` 和 `stale-item-detection`
+2. 第 `2` 轮：提升建议动作可执行性
+   - 重点看输出是否能直接指导 PM 排优先级和推进顺序
+   - 优先优化 `blocker-detection`、`next-action-suggestion`、`priority-ranking`
+3. 第 `3` 轮：提升结论可信度与降噪能力
+   - 重点看是否减少误报、泛化建议和无依据推断
+   - 优先优化 `evidence-grounding`、`description-gap-detection`
+
+每轮建议记录这些测试维度：
+
+- 结构化输出合规率
+- 阻塞项识别准确度
+- 建议动作可执行性
+- 噪声结论比例
+- 证据引用充分性
+
+## 9. 待补项
 
 基于 `meegle_clients` 当前代码，仍需要后续补充：
 

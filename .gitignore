@@ -5,3 +5,5 @@ package-lock.json
 *.zip
 .claude
 .worktrees
+worktrees
+**/node_modules

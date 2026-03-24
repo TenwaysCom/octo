@@ -75,11 +75,13 @@
 - 多平台实时读取
 - PM Analysis Agent
 - 一次性分析结果展示
+- `3` 轮 PM 即时分析 `skills + prompts` 优化实验
 
 交付结果：
 
 - 可按项目 / 时间窗口触发一次性分析
 - 能识别阻塞项、滞留项、说明缺失项
+- 形成经过三轮测试验证的 PM 分析默认 prompt 与 skill 编排
 
 ### 阶段 6：稳定性与验收
 
@@ -110,6 +112,7 @@
 4. 多平台接口速率限制和异常降级体验
 5. `auth code -> user token / refresh token` 的实现链路与刷新策略
 6. 是否需要提前引入 `workflow task` 支持
+7. `PM Analysis Agent` prompt 优化如果缺少固定样例集，容易陷入主观调参
 
 ## 5. 验收标准
 

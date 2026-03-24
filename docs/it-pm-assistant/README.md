@@ -18,6 +18,7 @@
 12. [字段 Schema 与状态机](./12-field-schema-and-state-machine.md)
 13. [代码结构与校验设计](./13-code-structure-and-validation-design.md)
 14. [详细开发计划](../superpowers/plans/2026-03-20-it-pm-assistant-implementation-plan.md)
+15. [PM 分析 Prompt 迭代记录模板](./14-pm-analysis-prompt-iteration-log.md)
 
 ## 当前设计结论
 

@@ -388,7 +388,94 @@ git add server/src/modules/pm-analysis server/src/application/services/pm-analys
 git commit -m "feat: add pm analysis workflow"
 ```
 
-### Task 8: Stabilization and End-to-End Validation
+### Task 8: Optimize PM Analysis Skills and Prompts Across 3 Rounds
+
+**Files:**
+- Modify: `server/src/application/services/pm-analysis.service.ts`
+- Modify: `docs/it-pm-assistant/05-ai-agent-skill-design.md`
+- Create: `server/tests/pm-analysis.prompt-iteration.test.ts`
+- Create: `server/tests/fixtures/pm-analysis/cases.json`
+- Create: `docs/it-pm-assistant/14-pm-analysis-prompt-iteration-log.md`
+- Reference: `docs/it-pm-assistant/07-phase-1-rollout.md`
+
+- [ ] **Step 1: Build the baseline test harness**
+
+Create a repeatable test harness for PM analysis prompt evaluation with:
+- fixed multi-platform sample inputs
+- expected blocker / stale / missing-description outcomes
+- a score sheet for completeness, actionability, evidence-grounding, and noise
+
+Suggested initial test command:
+
+Run: `pnpm --dir server test tests/pm-analysis.prompt-iteration.test.ts`
+Expected: FAIL because the prompt iteration harness and fixtures do not exist yet
+
+- [ ] **Step 2: Run baseline and record round 1 starting point**
+
+Before changing prompt or skills:
+- run the baseline PM analysis prompt against the fixed sample set
+- write the baseline outputs and observed issues into `docs/it-pm-assistant/14-pm-analysis-prompt-iteration-log.md`
+- explicitly identify the `round 1` optimization theme from test results
+
+Round 1 focus:
+- improve result completeness
+- reduce missed blockers / stale items / description gaps
+
+- [ ] **Step 3: Iterate round 1 until results are good enough**
+
+Within round 1:
+- adjust PM analysis prompt wording
+- adjust skill ordering or skill input structure when needed
+- rerun the prompt iteration test after each meaningful change
+- append each attempt and score to the log
+
+Exit rule for round 1:
+- completeness and structure quality improve versus baseline
+- the final round 1 output is stable across the fixed sample set
+
+- [ ] **Step 4: Run round 2 with a new optimization idea**
+
+After round 1 stabilizes:
+- define a new idea for round 2 based on remaining weaknesses
+- start from the best round 1 prompt, not the original baseline
+- rerun tests and record every prompt revision plus result
+
+Round 2 focus:
+- improve prioritization and actionability
+- make the suggested next steps easier for PM to execute directly
+
+- [ ] **Step 5: Run round 3 with a third optimization idea**
+
+After round 2 stabilizes:
+- identify a third optimization direction from the latest test results
+- continue the same loop of prompt revision -> test -> result logging
+
+Round 3 focus:
+- improve evidence-grounding and reduce noisy conclusions
+- reduce unsupported inferences and generic advice
+
+- [ ] **Step 6: Lock the final prompt set and verify**
+
+At the end of round 3:
+- freeze the selected PM analysis prompt
+- document the final skill orchestration order
+- summarize why this version won over the other attempts
+- keep the iteration log and fixtures as regression assets
+
+Run:
+- `pnpm --dir server test tests/pm-analysis.prompt-iteration.test.ts`
+- `pnpm --dir server test tests/pm-analysis.service.test.ts`
+
+Expected: PASS and the iteration log contains baseline + three completed rounds
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add server/src/application/services/pm-analysis.service.ts server/tests/pm-analysis.prompt-iteration.test.ts server/tests/fixtures/pm-analysis/cases.json docs/it-pm-assistant/05-ai-agent-skill-design.md docs/it-pm-assistant/14-pm-analysis-prompt-iteration-log.md
+git commit -m "feat: optimize pm analysis prompts"
+```
+
+### Task 9: Stabilization and End-to-End Validation
 
 **Files:**
 - Create: `server/tests/e2e/a1-to-b2.test.ts`
@@ -438,6 +525,8 @@ git commit -m "test: add end-to-end workflow validation"
 - `A1 -> B2` should be the first fully working vertical slice.
 - `A2 -> B1` should reuse the same draft/apply and auth infrastructure.
 - PM analysis can stay read-only until the write paths are stable.
+- PM analysis prompt optimization should start only after Task 7 gives a stable baseline response.
+- For the three PM optimization rounds, always keep the sample set fixed within the same round so comparison remains meaningful.
 
 ## Verification Checklist
 
@@ -448,4 +537,5 @@ Before claiming milestone completion, verify:
 - Auth bridge can return `require_auth_code`, `ready`, and `failed`
 - A1 and A2 both produce confirmable drafts
 - PM analysis returns a structured response
+- PM analysis prompt iteration log includes baseline plus three finished rounds with recorded test results
 - End-to-end tests cover the main workflow and one failure path

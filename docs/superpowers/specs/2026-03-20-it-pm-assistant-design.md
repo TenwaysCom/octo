@@ -56,6 +56,7 @@
 - [插件消息协议与 API Schema](../../it-pm-assistant/11-extension-message-and-api-schema.md)
 - [字段 Schema 与状态机](../../it-pm-assistant/12-field-schema-and-state-machine.md)
 - [代码结构与校验设计](../../it-pm-assistant/13-code-structure-and-validation-design.md)
+- [PM 分析 Prompt 迭代记录模板](../../it-pm-assistant/14-pm-analysis-prompt-iteration-log.md)
 - [详细开发计划](../plans/2026-03-20-it-pm-assistant-implementation-plan.md)
 
 ## 待补说明
