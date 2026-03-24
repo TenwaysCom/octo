@@ -4,8 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && npm run copy-assets",
+    "copy-assets": "cp src/popup.html dist/ && cp manifest.json dist/",
     "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "package": "npm run clean && npm run build && cd dist && zip -r ../it-pm-assistant-extension.zip .",
     "test": "vitest run"
   },
   "dependencies": {
