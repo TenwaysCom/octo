@@ -159,7 +159,7 @@ async function doLarkAuth() {
   const appId = CONFIG.LARK_APP_ID;
   const redirectUri = 'http://localhost:3000/api/lark/auth/callback';
   const oauthUrl = `https://open.larksuite.com/service-open/oauth/authorize?app_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${Date.now()}&scope=contact:readonly:user&response_type=code`;
-  chrome.tabs.create({ url: oauthUrl, active: true });
+  // chrome.tabs.create({ url: oauthUrl, active: true });
   return false;
 }
 

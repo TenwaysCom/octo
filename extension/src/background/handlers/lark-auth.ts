@@ -146,15 +146,15 @@ async function openLarkOAuthTab(baseUrl: string, state: string, appId?: string):
 
     const oauthUrl = `https://open.larksuite.com/service-open/oauth/authorize?app_id=${APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=${scope}&response_type=code`;
 
-    chrome.tabs.create(
-      {
-        url: oauthUrl,
-        active: true,
-      },
-      () => {
-        resolve();
-      },
-    );
+    // chrome.tabs.create(
+    //   {
+    //     url: oauthUrl,
+    //     active: true,
+    //   },
+    //   () => {
+    //     resolve();
+    //   },
+    // );
   });
 }
 

@@ -70,15 +70,15 @@ async function requestAuthCodeFromContentScript(
  */
 async function openMeegleLoginTab(baseUrl: string): Promise<void> {
   return new Promise((resolve) => {
-    chrome.tabs.create(
-      {
-        url: baseUrl,
-        active: true,
-      },
-      () => {
-        resolve();
-      },
-    );
+    // chrome.tabs.create(
+    //   {
+    //     url: baseUrl,
+    //     active: true,
+    //   },
+    //   () => {
+    //     resolve();
+    //   },
+    // );
   });
 }
 
