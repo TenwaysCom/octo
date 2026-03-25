@@ -21,7 +21,7 @@ async function loadConfig() {
   });
 }
 
-// Error codes from docs/it-pm-assistant/11-extension-message-and-api-schema.md
+// Error codes from docs/tenways-octo/11-extension-message-and-api-schema.md
 const ERROR_MESSAGES = {
   IDENTITY_NOT_BOUND: '当前用户尚未绑定 Meegle 账号',
   MEEGLE_AUTH_REQUIRED: '需要 Meegle 认证',

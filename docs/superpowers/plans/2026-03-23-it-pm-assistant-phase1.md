@@ -83,7 +83,7 @@ server/
         dto-validators.ts (CREATE)
 
 docs/
-  it-pm-assistant/
+  tenways-octo/
     TODOS.md (CREATE - for deferred items)
 ```
 
@@ -105,7 +105,7 @@ docs/
 
 ```json
 {
-  "name": "it-pm-assistant-extension",
+  "name": "tenways-octo-extension",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -202,7 +202,7 @@ Expected: PASS with no errors
 
 ```json
 {
-  "name": "it-pm-assistant-server",
+  "name": "tenways-octo-server",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -2228,9 +2228,9 @@ git commit -m "feat: add execution draft validator for agent output"
 ### Task 12: Create TODOS.md for Deferred Items
 
 **Files:**
-- Create: `docs/it-pm-assistant/TODOS.md`
+- Create: `docs/tenways-octo/TODOS.md`
 
-- [ ] **Step 1: Create docs/it-pm-assistant/TODOS.md**
+- [ ] **Step 1: Create docs/tenways-octo/TODOS.md**
 
 ```markdown
 # TODOS
@@ -2306,7 +2306,7 @@ Deferred items and future work for Tenways Octo.
 - [ ] **Step 2: Commit**
 
 ```bash
-git add docs/it-pm-assistant/TODOS.md
+git add docs/tenways-octo/TODOS.md
 git commit -m "docs: add TODOS.md for deferred items and future work"
 ```
 
@@ -2405,7 +2405,7 @@ GAPS: 11 paths need tests (integration tests + unit tests)
 | Problem | Existing Code | Reuse Opportunity |
 |---------|---------------|-------------------|
 | Meegle API client | `meegle_clients` (external) | Reference implementation for token exchange |
-| Design docs | `docs/it-pm-assistant/*.md` | Source of truth for architecture |
+| Design docs | `docs/tenways-octo/*.md` | Source of truth for architecture |
 | Protocol schema | `11-extension-message-and-api-schema.md` | Copy types from this doc |
 | Code structure | `13-code-structure-and-validation-design.md` | Follow recommended structure |
 

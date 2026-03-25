@@ -2,7 +2,7 @@
 
 ## 背景
 
-基于 `docs/it-pm-assistant` 文档，当前 popup 实现存在以下差距：
+基于 `docs/tenways-octo` 文档，当前 popup 实现存在以下差距：
 
 ### 文档要求 vs 当前实现
 

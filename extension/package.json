@@ -1,5 +1,5 @@
 {
-  "name": "it-pm-assistant-extension",
+  "name": "tenways-octo-extension",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -9,7 +9,7 @@
     "dev": "tsc --watch",
     "clean": "rm -rf dist",
     "validate": "node scripts/validate.mjs",
-    "package": "npm run clean && npm run build && cd dist && zip -r ../it-pm-assistant-extension.zip .",
+    "package": "npm run clean && npm run build && cd dist && zip -r ../tenways-octo-extension.zip .",
     "test": "vitest run"
   },
   "dependencies": {

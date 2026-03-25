@@ -10,7 +10,7 @@
 
 详细可执行开发计划见：
 
-- [2026-03-20-it-pm-assistant-implementation-plan.md](../superpowers/plans/2026-03-20-it-pm-assistant-implementation-plan.md)
+- [2026-03-20-tenways-octo-implementation-plan.md](../superpowers/plans/2026-03-20-tenways-octo-implementation-plan.md)
 
 ## 2. 推荐实施顺序
 

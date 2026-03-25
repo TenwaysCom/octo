@@ -32,7 +32,7 @@ octo/
 ├── meegle_clients/         # Meegle API 客户端参考
 │   └── ...
 └── docs/                   # 设计文档
-    ├── it-pm-assistant/   # Tenways Octo 设计文档
+    ├── tenways-octo/   # Tenways Octo 设计文档
     │   ├── 01-requirements-overview.md
     │   ├── 02-business-flow.md
     │   ├── 03-prd.md
@@ -48,7 +48,7 @@ octo/
     │   └── 13-code-structure-and-validation-design.md
     └── superpowers/
         └── specs/
-            └── 2026-03-20-it-pm-assistant-design.md
+            └── 2026-03-20-tenways-octo-design.md
 ```
 
 ## 快速开始
@@ -215,39 +215,39 @@ cd server && npm test
 
 ### 产品设计
 
-- [需求概述](docs/it-pm-assistant/01-requirements-overview.md)
-- [业务流程设计](docs/it-pm-assistant/02-business-flow.md)
-- [PRD](docs/it-pm-assistant/03-prd.md)
+- [需求概述](docs/tenways-octo/01-requirements-overview.md)
+- [业务流程设计](docs/tenways-octo/02-business-flow.md)
+- [PRD](docs/tenways-octo/03-prd.md)
 
 ### 架构设计
 
-- [总体架构设计](docs/it-pm-assistant/04-architecture.md)
-- [AI Agent / Skill 设计](docs/it-pm-assistant/05-ai-agent-skill-design.md)
-- [数据与安全设计](docs/it-pm-assistant/06-data-security.md)
+- [总体架构设计](docs/tenways-octo/04-architecture.md)
+- [AI Agent / Skill 设计](docs/tenways-octo/05-ai-agent-skill-design.md)
+- [数据与安全设计](docs/tenways-octo/06-data-security.md)
 
 ### 实施路线
 
-- [一期实施路线](docs/it-pm-assistant/07-phase-1-rollout.md)
-- [详细开发计划](docs/superpowers/plans/2026-03-23-it-pm-assistant-phase1.md)
+- [一期实施路线](docs/tenways-octo/07-phase-1-rollout.md)
+- [详细开发计划](docs/superpowers/plans/2026-03-23-tenways-octo-phase1.md)
 
 ### 技术设计
 
-- [开放问题与待补设计](docs/it-pm-assistant/08-open-questions.md)
-- [Meegle Adapter 适配设计](docs/it-pm-assistant/09-meegle-adapter-design.md)
-- [Meegle 轻认证桥设计](docs/it-pm-assistant/10-meegle-auth-bridge-design.md)
-- [插件消息协议与 API Schema](docs/it-pm-assistant/11-extension-message-and-api-schema.md)
-- [字段 Schema 与状态机](docs/it-pm-assistant/12-field-schema-and-state-machine.md)
-- [代码结构与校验设计](docs/it-pm-assistant/13-code-structure-and-validation-design.md)
+- [开放问题与待补设计](docs/tenways-octo/08-open-questions.md)
+- [Meegle Adapter 适配设计](docs/tenways-octo/09-meegle-adapter-design.md)
+- [Meegle 轻认证桥设计](docs/tenways-octo/10-meegle-auth-bridge-design.md)
+- [插件消息协议与 API Schema](docs/tenways-octo/11-extension-message-and-api-schema.md)
+- [字段 Schema 与状态机](docs/tenways-octo/12-field-schema-and-state-machine.md)
+- [代码结构与校验设计](docs/tenways-octo/13-code-structure-and-validation-design.md)
 
 ### V2 Agent Platform
 
-- [V2 架构设计](docs/it-pm-assistant/14-v2-architecture-design.md) - Agent Orchestrator + Skills + Session Management
+- [V2 架构设计](docs/tenways-octo/14-v2-architecture-design.md) - Agent Orchestrator + Skills + Session Management
 
 ## 下一步计划
 
 ### Phase 1 (当前)
 
-根据 [一期实施路线](docs/it-pm-assistant/07-phase-1-rollout.md)，下一步优先：
+根据 [一期实施路线](docs/tenways-octo/07-phase-1-rollout.md)，下一步优先：
 
 1. **完成 A2 → B1 流程** - 与 A1 → B2 对称的需求转任务流程
 2. **接入真实 Meegle API** - 基于 `meegle_clients` 实现认证和工作项创建
@@ -256,7 +256,7 @@ cd server && npm test
 
 ### Phase 2 (V2 Agent Platform)
 
-根据 [V2 架构设计](docs/it-pm-assistant/14-v2-architecture-design.md)，V2 将提供：
+根据 [V2 架构设计](docs/tenways-octo/14-v2-architecture-design.md)，V2 将提供：
 
 1. **可配置 Think Effort** - quick(1m)/standard(3m)/deep(10m) 三级
 2. **Skills 系统** - URL 自动匹配 + 服务端预置 + 客户端接入

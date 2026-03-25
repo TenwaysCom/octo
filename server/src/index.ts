@@ -44,7 +44,7 @@ app.get("/health", (_req, res) => {
   res.json({
     status: "ok",
     timestamp: new Date().toISOString(),
-    service: "it-pm-assistant-server",
+    service: "tenways-octo-server",
   });
 });
 

@@ -1,5 +1,5 @@
 {
-  "name": "it-pm-assistant-server",
+  "name": "tenways-octo-server",
   "private": true,
   "type": "module",
   "scripts": {

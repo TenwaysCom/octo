@@ -36,7 +36,7 @@ Recommended file ownership:
 - Create: `extension/src/types/context.ts`
 - Create: `extension/src/types/meegle.ts`
 - Test: `extension/tests/protocol.test.ts`
-- Docs: `docs/it-pm-assistant/11-extension-message-and-api-schema.md`
+- Docs: `docs/tenways-octo/11-extension-message-and-api-schema.md`
 
 - [ ] **Step 1: Write the failing test**
 
@@ -84,7 +84,7 @@ git commit -m "feat: add extension protocol types"
 - Create: `extension/src/background/handlers/meegle-auth.ts`
 - Create: `extension/src/page-bridge/meegle-auth.ts`
 - Test: `extension/tests/meegle-auth-handler.test.ts`
-- Docs: `docs/it-pm-assistant/10-meegle-auth-bridge-design.md`
+- Docs: `docs/tenways-octo/10-meegle-auth-bridge-design.md`
 
 - [ ] **Step 1: Write the failing test**
 
@@ -137,7 +137,7 @@ git commit -m "feat: add extension meegle auth bridge"
 - Create: `server/src/application/services/identity-resolution.service.ts`
 - Create: `server/src/application/services/meegle-credential.service.ts`
 - Test: `server/tests/meegle-auth.dto.test.ts`
-- Docs: `docs/it-pm-assistant/13-code-structure-and-validation-design.md`
+- Docs: `docs/tenways-octo/13-code-structure-and-validation-design.md`
 
 - [ ] **Step 1: Write the failing test**
 
@@ -247,7 +247,7 @@ git commit -m "feat: implement meegle token exchange flow"
 - Create: `server/src/application/services/a1-workflow.service.ts`
 - Create: `server/src/validators/agent-output/execution-draft.ts`
 - Test: `server/tests/a1-workflow.service.test.ts`
-- Docs: `docs/it-pm-assistant/11-extension-message-and-api-schema.md`
+- Docs: `docs/tenways-octo/11-extension-message-and-api-schema.md`
 
 - [ ] **Step 1: Write the failing test**
 
@@ -297,7 +297,7 @@ git commit -m "feat: add a1 to b2 workflow"
 - Create: `server/src/modules/a2/a2.dto.ts`
 - Create: `server/src/application/services/a2-workflow.service.ts`
 - Test: `server/tests/a2-workflow.service.test.ts`
-- Reference: `docs/it-pm-assistant/03-prd.md`
+- Reference: `docs/tenways-octo/03-prd.md`
 
 - [ ] **Step 1: Write the failing test**
 
@@ -347,7 +347,7 @@ git commit -m "feat: add a2 to b1 workflow"
 - Create: `server/src/modules/pm-analysis/pm-analysis.dto.ts`
 - Create: `server/src/application/services/pm-analysis.service.ts`
 - Test: `server/tests/pm-analysis.service.test.ts`
-- Reference: `docs/it-pm-assistant/05-ai-agent-skill-design.md`
+- Reference: `docs/tenways-octo/05-ai-agent-skill-design.md`
 
 - [ ] **Step 1: Write the failing test**
 
@@ -392,11 +392,11 @@ git commit -m "feat: add pm analysis workflow"
 
 **Files:**
 - Modify: `server/src/application/services/pm-analysis.service.ts`
-- Modify: `docs/it-pm-assistant/05-ai-agent-skill-design.md`
+- Modify: `docs/tenways-octo/05-ai-agent-skill-design.md`
 - Create: `server/tests/pm-analysis.prompt-iteration.test.ts`
 - Create: `server/tests/fixtures/pm-analysis/cases.json`
-- Create: `docs/it-pm-assistant/14-pm-analysis-prompt-iteration-log.md`
-- Reference: `docs/it-pm-assistant/07-phase-1-rollout.md`
+- Create: `docs/tenways-octo/14-pm-analysis-prompt-iteration-log.md`
+- Reference: `docs/tenways-octo/07-phase-1-rollout.md`
 
 - [ ] **Step 1: Build the baseline test harness**
 
@@ -414,7 +414,7 @@ Expected: FAIL because the prompt iteration harness and fixtures do not exist ye
 
 Before changing prompt or skills:
 - run the baseline PM analysis prompt against the fixed sample set
-- write the baseline outputs and observed issues into `docs/it-pm-assistant/14-pm-analysis-prompt-iteration-log.md`
+- write the baseline outputs and observed issues into `docs/tenways-octo/14-pm-analysis-prompt-iteration-log.md`
 - explicitly identify the `round 1` optimization theme from test results
 
 Round 1 focus:
@@ -471,7 +471,7 @@ Expected: PASS and the iteration log contains baseline + three completed rounds
 - [ ] **Step 7: Commit**
 
 ```bash
-git add server/src/application/services/pm-analysis.service.ts server/tests/pm-analysis.prompt-iteration.test.ts server/tests/fixtures/pm-analysis/cases.json docs/it-pm-assistant/05-ai-agent-skill-design.md docs/it-pm-assistant/14-pm-analysis-prompt-iteration-log.md
+git add server/src/application/services/pm-analysis.service.ts server/tests/pm-analysis.prompt-iteration.test.ts server/tests/fixtures/pm-analysis/cases.json docs/tenways-octo/05-ai-agent-skill-design.md docs/tenways-octo/14-pm-analysis-prompt-iteration-log.md
 git commit -m "feat: optimize pm analysis prompts"
 ```
 
@@ -481,7 +481,7 @@ git commit -m "feat: optimize pm analysis prompts"
 - Create: `server/tests/e2e/a1-to-b2.test.ts`
 - Create: `server/tests/e2e/a2-to-b1.test.ts`
 - Create: `extension/tests/e2e/auth-bridge.test.ts`
-- Modify: `docs/it-pm-assistant/07-phase-1-rollout.md`
+- Modify: `docs/tenways-octo/07-phase-1-rollout.md`
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -515,7 +515,7 @@ Expected: PASS for the implemented suites
 - [ ] **Step 5: Commit**
 
 ```bash
-git add server/tests/e2e extension/tests/e2e docs/it-pm-assistant/07-phase-1-rollout.md
+git add server/tests/e2e extension/tests/e2e docs/tenways-octo/07-phase-1-rollout.md
 git commit -m "test: add end-to-end workflow validation"
 ```
 
