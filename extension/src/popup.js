@@ -1,5 +1,5 @@
 /**
- * IT PM Assistant Popup
+ * Tenways Octo Popup
  */
 
 // Default config - can be overridden via chrome.storage.sync
@@ -42,6 +42,11 @@ const dom = {
   pageIcon: $('pageIcon'),
   pageTypeText: $('pageTypeText'),
   pageUrl: $('pageUrl'),
+  // User identity
+  userIdentitySection: $('userIdentitySection'),
+  larkUserId: $('larkUserId'),
+  meegleUserKey: $('meegleUserKey'),
+  refreshIdentityBtn: $('refreshIdentityBtn'),
   meegleAuthSection: $('meegleAuthSection'),
   meegleAuthStatus: $('meegleAuthStatus'),
   meegleAuthBtn: $('meegleAuthBtn'),
@@ -730,7 +735,10 @@ async function init() {
     dom.pageUrl.textContent = tab.url;
     dom.headerSubtitle.textContent = info.subtitle;
 
-    // Resolve identity first
+    // Fetch user identity from current page
+    await fetchUserIdentity(tab.id, state.pageType);
+
+    // Resolve identity with server
     await resolveIdentity();
 
     if (state.identity.mappingStatus === 'bound') {
@@ -760,6 +768,103 @@ async function init() {
     log.success('页面检测完成');
   } catch (err) {
     handleError(err, '初始化失败');
+  }
+}
+
+/**
+ * Fetch user identity from content script
+ */
+async function fetchUserIdentity(tabId, pageType) {
+  // Update UI to show loading state
+  setAuthStatus(dom.larkUserId, 'pending', '获取中...');
+  setAuthStatus(dom.meegleUserKey, 'pending', '获取中...');
+
+  // Get Lark User ID from Lark pages
+  if (pageType?.startsWith('lark_')) {
+    try {
+      const larkId = await new Promise((resolve) => {
+        chrome.tabs.sendMessage(tabId, { action: 'getLarkUserId' }, (response) => {
+          if (chrome.runtime.lastError) {
+            resolve(null);
+          } else {
+            resolve(response?.userId);
+          }
+        });
+      });
+
+      if (larkId) {
+        state.identity.larkId = larkId;
+        setAuthStatus(dom.larkUserId, 'ready', larkId);
+        log.success(`Lark ID: ${larkId}`);
+      } else {
+        setAuthStatus(dom.larkUserId, 'pending', '未获取');
+      }
+    } catch (err) {
+      setAuthStatus(dom.larkUserId, 'error', '获取失败');
+    }
+  } else {
+    setAuthStatus(dom.larkUserId, 'pending', '-');
+  }
+
+  // Get Meegle User Key from Meegle pages
+  if (pageType === 'meegle') {
+    try {
+      const identity = await new Promise((resolve) => {
+        chrome.tabs.sendMessage(tabId, { action: 'getMeegleUserIdentity' }, (response) => {
+          if (chrome.runtime.lastError) {
+            resolve(null);
+          } else {
+            resolve(response);
+          }
+        });
+      });
+
+      if (identity?.userKey) {
+        state.identity.meegleUserKey = identity.userKey;
+        setAuthStatus(dom.meegleUserKey, 'ready', identity.userKey);
+        log.success(`Meegle Key: ${identity.userKey}`);
+      } else {
+        setAuthStatus(dom.meegleUserKey, 'pending', '未获取');
+      }
+    } catch (err) {
+      setAuthStatus(dom.meegleUserKey, 'error', '获取失败');
+    }
+  } else {
+    setAuthStatus(dom.meegleUserKey, 'pending', '-');
+  }
+
+  // Sync identity to server
+  await syncIdentityToServer();
+}
+
+/**
+ * Sync user identity to server
+ */
+async function syncIdentityToServer() {
+  if (!state.identity.larkId && !state.identity.meegleUserKey) {
+    return; // Nothing to sync
+  }
+
+  try {
+    const response = await fetch(`${CONFIG.SERVER_URL}/api/identity/sync`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        requestId: `req_${Date.now()}`,
+        larkId: state.identity.larkId,
+        meegleUserKey: state.identity.meegleUserKey,
+      }),
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      if (result.ok) {
+        log.success('身份已同步到服务器');
+        state.identity.mappingStatus = 'bound';
+      }
+    }
+  } catch (err) {
+    log.warn('身份同步失败: ' + err.message);
   }
 }
 
@@ -815,6 +920,21 @@ dom.applyA2Btn.addEventListener('click', applyA2Draft);
 dom.pmAnalysisBtn.addEventListener('click', showPmAnalysis);
 dom.closePmAnalysisBtn.addEventListener('click', hidePmAnalysis);
 dom.runPmAnalysisBtn.addEventListener('click', runPmAnalysis);
+
+// Refresh identity
+dom.refreshIdentityBtn.addEventListener('click', async () => {
+  log.add('刷新用户身份...');
+  try {
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    const tab = tabs[0];
+    if (tab) {
+      await fetchUserIdentity(tab.id, state.pageType);
+      log.success('身份刷新完成');
+    }
+  } catch (err) {
+    log.error('刷新失败: ' + err.message);
+  }
+});
 
 dom.meegleAuthBtn.addEventListener('click', async () => {
   if (state.meegleAuth.authCode) {

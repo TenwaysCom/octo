@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>IT PM Assistant</title>
+    <title>Tenways Octo</title>
     <style>
       :root {
         --primary: #4F46E5;
@@ -238,12 +238,28 @@
     <div class="header">
       <div class="header-icon">⬡</div>
       <div>
-        <div class="header-title">IT PM Assistant</div>
+        <div class="header-title">Tenways Octo</div>
         <div class="header-subtitle" id="headerSubtitle">检测页面中...</div>
       </div>
     </div>
 
     <div class="content">
+      <!-- 用户身份信息 -->
+      <div class="auth-section" id="userIdentitySection">
+        <div class="auth-header">👤 用户身份</div>
+        <div class="auth-item">
+          <div class="auth-label"><span>Lark ID</span></div>
+          <span class="auth-status pending" id="larkUserId">获取中...</span>
+        </div>
+        <div class="auth-item">
+          <div class="auth-label"><span>Meegle Key</span></div>
+          <span class="auth-status pending" id="meegleUserKey">获取中...</span>
+        </div>
+        <div style="padding: 8px 12px;">
+          <button class="secondary" id="refreshIdentityBtn" style="width: 100%;">🔄 刷新身份</button>
+        </div>
+      </div>
+
       <!-- 页面信息 -->
       <div class="page-info">
         <div class="page-type">

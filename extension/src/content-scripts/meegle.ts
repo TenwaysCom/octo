@@ -1,10 +1,83 @@
-// Meegle content script - handles auth code requests
+// Meegle content script - handles auth code requests and user identity
 // Runs on https://*.meegle.com/* pages
 
 export interface MeegleAuthCodeResult {
   authCode: string;
   state: string;
   issuedAt: string;
+}
+
+export interface MeegleUserIdentity {
+  userKey: string | null;
+  userName: string | null;
+  tenantKey: string | null;
+}
+
+/**
+ * Get user identity from Meegle page
+ */
+export function getMeegleUserIdentity(): MeegleUserIdentity {
+  const identity: MeegleUserIdentity = {
+    userKey: null,
+    userName: null,
+    tenantKey: null,
+  };
+
+  // Try to extract from global variables or API responses
+  try {
+    // Check for Meegle global objects
+    // @ts-ignore
+    if (window.__MEEGLE_CONTEXT__?.user) {
+      // @ts-ignore
+      const user = window.__MEEGLE_CONTEXT__.user;
+      identity.userKey = user.userKey || user.user_key || user.id;
+      identity.userName = user.name || user.userName;
+      identity.tenantKey = user.tenantKey || user.tenant_key;
+    }
+
+    // Try to find from meta tags
+    if (!identity.userKey) {
+      const metaUserKey = document.querySelector('meta[name="user-key"]') as HTMLMetaElement;
+      if (metaUserKey) {
+        identity.userKey = metaUserKey.content;
+      }
+    }
+
+    // Try to find from data attributes
+    if (!identity.userKey) {
+      const userElement = document.querySelector('[data-user-key]') as HTMLElement;
+      if (userElement?.dataset.userKey) {
+        identity.userKey = userElement.dataset.userKey;
+      }
+    }
+
+    // Try to get from URL or page context
+    if (!identity.userKey) {
+      // Check localStorage or sessionStorage
+      const storedUser = localStorage.getItem('meegle_user') || sessionStorage.getItem('meegle_user');
+      if (storedUser) {
+        try {
+          const userData = JSON.parse(storedUser);
+          identity.userKey = userData.userKey || userData.user_key;
+          identity.userName = userData.name || userData.userName;
+        } catch {
+          // Ignore parse errors
+        }
+      }
+    }
+
+    // Try to get tenant key from URL
+    if (!identity.tenantKey) {
+      const urlMatch = window.location.pathname.match(/\/tenant\/([^/]+)/);
+      if (urlMatch) {
+        identity.tenantKey = urlMatch[1];
+      }
+    }
+  } catch (err) {
+    console.error("[Tenways Octo] Error getting Meegle user identity:", err);
+  }
+
+  return identity;
 }
 
 /**
@@ -20,11 +93,11 @@ async function getAuthCodeFromMeegleApi(
     const cookie = document.cookie;
 
     if (!cookie || cookie.length === 0) {
-      console.error("[IT PM Assistant] No cookie found on current page");
+      console.error("[Tenways Octo] No cookie found on current page");
       return null;
     }
 
-    console.log("[IT PM Assistant] Getting auth code from Meegle API...");
+    console.log("[Tenways Octo] Getting auth code from Meegle API...");
 
     // Call Meegle BFF auth code API
     const response = await fetch(`${baseUrl}/bff/v2/authen/v1/auth_code`, {
@@ -41,7 +114,7 @@ async function getAuthCodeFromMeegleApi(
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("[IT PM Assistant] Auth code API error:", response.status, errorText);
+      console.error("[Tenways Octo] Auth code API error:", response.status, errorText);
       return null;
     }
 
@@ -54,7 +127,7 @@ async function getAuthCodeFromMeegleApi(
 
     // Check for error in response
     if (data.error && data.error.code !== 0) {
-      console.error("[IT PM Assistant] Auth code error:", data.error.msg);
+      console.error("[Tenways Octo] Auth code error:", data.error.msg);
       return null;
     }
 
@@ -62,11 +135,11 @@ async function getAuthCodeFromMeegleApi(
     const authCode = data.data?.code ?? data.code ?? data.auth_code;
 
     if (typeof authCode !== "string" || authCode.length === 0) {
-      console.error("[IT PM Assistant] Invalid auth code in response");
+      console.error("[Tenways Octo] Invalid auth code in response");
       return null;
     }
 
-    console.log("[IT PM Assistant] Auth code obtained successfully");
+    console.log("[Tenways Octo] Auth code obtained successfully");
 
     return {
       authCode,
@@ -74,7 +147,7 @@ async function getAuthCodeFromMeegleApi(
       issuedAt: new Date().toISOString(),
     };
   } catch (err) {
-    console.error("[IT PM Assistant] Failed to get auth code:", err);
+    console.error("[Tenways Octo] Failed to get auth code:", err);
     return null;
   }
 }
@@ -91,7 +164,7 @@ async function requestAuthCode(
 }
 
 export function initMeegleContentScript() {
-  console.log("[IT PM Assistant] Meegle content script initialized");
+  console.log("[Tenways Octo] Meegle content script initialized");
 
   // Listen for auth code requests from background
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -126,6 +199,12 @@ export function initMeegleContentScript() {
         });
 
       return true; // Keep channel open for async response
+    }
+
+    // Handle user identity request
+    if (message.action === "getMeegleUserIdentity") {
+      const identity = getMeegleUserIdentity();
+      sendResponse(identity);
     }
   });
 }

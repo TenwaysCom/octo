@@ -4,6 +4,7 @@ import express, { type Request, type Response } from "express";
 import { analyzeA2Controller, createB1DraftController, applyB1Controller } from "./modules/a2/a2.controller.js";
 import { analyzeA1Controller, createB2DraftController, applyB2Controller } from "./modules/a1/a1.controller.js";
 import { resolveIdentityController } from "./modules/identity/identity.controller.js";
+import { syncIdentityController, getIdentityController } from "./modules/identity/identity-sync.controller.js";
 import { exchangeAuthCodeController, getAuthStatusController, getAuthCodeController } from "./modules/meegle-auth/meegle-auth.controller.js";
 import { exchangeAuthCodeController as exchangeLarkAuthCodeController, refreshTokenController as refreshLarkTokenController, getAuthStatusController as getLarkAuthStatusController } from "./modules/lark-auth/lark-auth.controller.js";
 import { configureLarkAuthControllerDeps } from "./modules/lark-auth/lark-auth.controller.js";
@@ -68,6 +69,8 @@ function handleController(fn: (req: Request) => Promise<unknown>) {
 
 // Identity routes
 app.post("/api/identity/resolve", handleController(resolveIdentityController));
+app.post("/api/identity/sync", handleController(syncIdentityController));
+app.post("/api/identity/get", handleController(getIdentityController));
 
 // Meegle auth routes
 app.post("/api/meegle/auth/exchange", handleController(exchangeAuthCodeController));
@@ -93,7 +96,7 @@ app.post("/api/a2/apply-b1", handleController(applyB1Controller));
 app.post("/api/pm/analysis/run", handleController(runPMAnalysisController));
 
 app.listen(PORT, () => {
-  console.log(`IT PM Assistant Server running on port ${PORT}`);
+  console.log(`Tenways Octo Server running on port ${PORT}`);
   console.log(`Health check: http://localhost:${PORT}/health`);
   console.log(`A2 analyze: http://localhost:${PORT}/api/a2/analyze`);
   console.log(`A2 create draft: http://localhost:${PORT}/api/a2/create-b1-draft`);
