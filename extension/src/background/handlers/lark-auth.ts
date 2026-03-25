@@ -22,20 +22,25 @@ export interface EnsureLarkAuthDeps {
 
 /**
  * Request auth code from Lark content script
+ * Checks all *.larksuite.com and *.feishu.cn tabs
  */
 async function requestAuthCodeFromContentScript(
   baseUrl: string,
 ): Promise<{ code: string; state: string } | undefined> {
   return new Promise((resolve) => {
-    // Find Lark tab
-    chrome.tabs.query({ url: baseUrl + "/*" }, (tabs) => {
+    // Check all Lark/Feishu tabs, not just a specific baseUrl
+    chrome.tabs.query({ url: ["*://*.larksuite.com/*", "*://*.feishu.cn/*"] }, (tabs) => {
       if (!tabs || tabs.length === 0) {
         console.error("[Tenways Octo] No Lark tab found");
         resolve(undefined);
         return;
       }
 
-      const larkTab = tabs[0];
+      // Prefer tabs that match the baseUrl, otherwise use any Lark tab
+      let larkTab = tabs.find(t => t.url?.startsWith(baseUrl));
+      if (!larkTab) {
+        larkTab = tabs[0];
+      }
 
       // Send message to content script
       chrome.tabs.sendMessage(
@@ -67,33 +72,65 @@ async function requestAuthCodeFromContentScript(
 
 /**
  * Request Lark user ID from content script
+ * Checks all *.larksuite.com and *.feishu.cn tabs
  */
 async function requestLarkUserId(): Promise<string | undefined> {
   return new Promise((resolve) => {
+    // First try active tab
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (!tabs || tabs.length === 0) {
-        resolve(undefined);
-        return;
+      const activeTab = tabs[0];
+
+      // If active tab is a Lark page, use it
+      if (activeTab?.url && (activeTab.url.includes('larksuite.com') || activeTab.url.includes('feishu.cn'))) {
+        chrome.tabs.sendMessage(
+          activeTab.id!,
+          {
+            action: "getLarkUserId",
+          },
+          (response) => {
+            if (!chrome.runtime.lastError && response?.userId) {
+              resolve(response.userId);
+              return;
+            }
+            // Fall through to search all Lark tabs
+            searchAllLarkTabs(resolve);
+          },
+        );
+      } else {
+        // Active tab is not Lark, search all Lark tabs
+        searchAllLarkTabs(resolve);
       }
-
-      const tab = tabs[0];
-
-      chrome.tabs.sendMessage(
-        tab.id!,
-        {
-          action: "getLarkUserId",
-        },
-        (response) => {
-          if (chrome.runtime.lastError) {
-            console.error("[Tenways Octo] Failed to get Lark user ID:", chrome.runtime.lastError);
-            resolve(undefined);
-            return;
-          }
-
-          resolve(response?.userId);
-        },
-      );
     });
+  });
+}
+
+/**
+ * Search all Lark tabs for user ID
+ */
+function searchAllLarkTabs(resolve: (value: string | undefined) => void): void {
+  chrome.tabs.query({ url: ["*://*.larksuite.com/*", "*://*.feishu.cn/*"] }, (tabs) => {
+    if (!tabs || tabs.length === 0) {
+      console.error("[Tenways Octo] No Lark tab found for user ID");
+      resolve(undefined);
+      return;
+    }
+
+    const larkTab = tabs[0];
+    chrome.tabs.sendMessage(
+      larkTab.id!,
+      {
+        action: "getLarkUserId",
+      },
+      (response) => {
+        if (chrome.runtime.lastError) {
+          console.error("[Tenways Octo] Failed to get Lark user ID:", chrome.runtime.lastError);
+          resolve(undefined);
+          return;
+        }
+
+        resolve(response?.userId);
+      },
+    );
   });
 }
 
