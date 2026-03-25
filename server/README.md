@@ -1,4 +1,4 @@
-# IT PM Assistant - 服务端
+# Tenways Octo - 服务端
 
 服务端 API，提供 Lark 到 Meegle 工单创建的智能编排能力。
 

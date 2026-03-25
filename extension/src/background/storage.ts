@@ -71,7 +71,7 @@ export async function getCachedUserToken(): Promise<string | undefined> {
   if (state.userTokenExpiresAt) {
     const expiresAt = new Date(state.userTokenExpiresAt).getTime();
     if (Date.now() > expiresAt) {
-      console.log("[IT PM Assistant] User token expired");
+      console.log("[Tenways Octo] User token expired");
       return undefined;
     }
   }
@@ -140,7 +140,7 @@ export async function getCachedLarkUserToken(): Promise<string | undefined> {
   if (state.larkUserTokenExpiresAt) {
     const expiresAt = new Date(state.larkUserTokenExpiresAt).getTime();
     if (Date.now() > expiresAt) {
-      console.log("[IT PM Assistant] Lark user token expired");
+      console.log("[Tenways Octo] Lark user token expired");
       return undefined;
     }
   }

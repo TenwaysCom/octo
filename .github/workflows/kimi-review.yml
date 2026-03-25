@@ -47,5 +47,10 @@ jobs:
         with:
           kimi_api_key: ${{ secrets.KIMI_API_KEY }}
           kimi_base_url: ${{ secrets.KIMI_BASE_URL }}  # Optional
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          auto_review: 'false'  # Use /review command instead
+          github_token: ${{ secrets.GH_TOKEN }}
+          auto_review: 'true'  # Use /review command instead
+          fail_on: warning
+          model: 'kimi-for-coding'              # Kimi model (default: kimi-k2.5)
+          review_level: 'normal'          # Review strictness: strict, normal, gentle
+          max_files: '50'                 # Max files to review
+          exclude_patterns: '*.lock,*.min.js'  # File patterns to exclude

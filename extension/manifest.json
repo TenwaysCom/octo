@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "IT PM Assistant",
+  "name": "Tenways Octo",
   "version": "0.1.0",
   "description": "跨平台协同助手 - Lark 到 Meegle 半自动建单工具",
   "icons": {
@@ -27,7 +27,7 @@
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "IT PM Assistant"
+    "default_title": "Tenways Octo"
   },
   "content_scripts": [
     {

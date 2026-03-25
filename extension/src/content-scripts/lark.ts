@@ -81,7 +81,7 @@ export function getLarkUserId(): string | null {
 }
 
 export function initLarkContentScript() {
-  console.log('[IT PM Assistant] Lark content script initialized');
+  console.log('[Tenways Octo] Lark content script initialized');
 
   // Listen for messages from popup or background
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {

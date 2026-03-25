@@ -1,4 +1,4 @@
-# IT PM Assistant - 浏览器扩展
+# Tenways Octo - 浏览器扩展
 
 浏览器扩展插件，用于 Lark 到 Meegle 的半自动工单创建。
 

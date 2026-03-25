@@ -32,7 +32,7 @@ octo/
 ├── meegle_clients/         # Meegle API 客户端参考
 │   └── ...
 └── docs/                   # 设计文档
-    ├── it-pm-assistant/   # IT PM Assistant 设计文档
+    ├── it-pm-assistant/   # Tenways Octo 设计文档
     │   ├── 01-requirements-overview.md
     │   ├── 02-business-flow.md
     │   ├── 03-prd.md

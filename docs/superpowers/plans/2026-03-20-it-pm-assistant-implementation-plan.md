@@ -1,8 +1,8 @@
-# IT PM Assistant Implementation Plan
+# Tenways Octo Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build the first shippable version of the IT PM Assistant covering Meegle auth bridge, A1 -> B2, A2 -> B1, and PM instant analysis.
+**Goal:** Build the first shippable version of the Tenways Octo covering Meegle auth bridge, A1 -> B2, A2 -> B1, and PM instant analysis.
 
 **Architecture:** The implementation is split into a Chromium extension and a TypeScript backend. The extension handles page detection, UI, and the Meegle auth bridge; the backend handles identity resolution, Meegle token lifecycle, A1/A2 workflow orchestration, PM analysis, and schema validation.
 

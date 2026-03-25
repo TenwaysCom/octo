@@ -28,7 +28,7 @@ async function requestAuthCodeFromContentScript(
     // Find Meegle tab
     chrome.tabs.query({ url: baseUrl + "/*" }, (tabs) => {
       if (!tabs || tabs.length === 0) {
-        console.error("[IT PM Assistant] No Meegle tab found");
+        console.error("[Tenways Octo] No Meegle tab found");
         resolve(undefined);
         return;
       }
@@ -44,7 +44,7 @@ async function requestAuthCodeFromContentScript(
         },
         (response) => {
           if (chrome.runtime.lastError) {
-            console.error("[IT PM Assistant] Failed to send message to content script:", chrome.runtime.lastError);
+            console.error("[Tenways Octo] Failed to send message to content script:", chrome.runtime.lastError);
             resolve(undefined);
             return;
           }
@@ -56,7 +56,7 @@ async function requestAuthCodeFromContentScript(
               issuedAt: response.data.issuedAt,
             });
           } else {
-            console.error("[IT PM Assistant] Auth code request failed:", response?.error);
+            console.error("[Tenways Octo] Auth code request failed:", response?.error);
             resolve(undefined);
           }
         },
@@ -111,7 +111,7 @@ export async function ensureMeegleAuth(
   const pluginId = deps.getCachedPluginId?.();
 
   if (!pluginId) {
-    console.error("[IT PM Assistant] Plugin ID not configured");
+    console.error("[Tenways Octo] Plugin ID not configured");
     return {
       status: "failed",
       baseUrl,

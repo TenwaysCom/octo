@@ -95,7 +95,7 @@ export async function routeBackgroundAction(
       getCachedLarkToken: () => cachedLarkToken,
       saveLarkAuthCode: async (response: LarkAuthCodeResponse) => {
         // Save Lark auth code if needed
-        console.log("[IT PM Assistant] Lark auth code response:", response);
+        console.log("[Tenways Octo] Lark auth code response:", response);
       },
       appId: config.LARK_APP_ID,
     };
@@ -134,4 +134,4 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   return false; // Not handled
 });
 
-console.log("[IT PM Assistant] Background router initialized");
+console.log("[Tenways Octo] Background router initialized");

@@ -2,7 +2,7 @@
  * Extension Setup Script
  *
  * Run this in Chrome DevTools Console on any page to configure the extension.
- * Open: chrome://extensions -> IT PM Assistant -> Service Worker -> Console
+ * Open: chrome://extensions -> Tenways Octo -> Service Worker -> Console
  */
 
 // 配置凭据

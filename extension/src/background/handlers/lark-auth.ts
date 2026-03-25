@@ -30,7 +30,7 @@ async function requestAuthCodeFromContentScript(
     // Find Lark tab
     chrome.tabs.query({ url: baseUrl + "/*" }, (tabs) => {
       if (!tabs || tabs.length === 0) {
-        console.error("[IT PM Assistant] No Lark tab found");
+        console.error("[Tenways Octo] No Lark tab found");
         resolve(undefined);
         return;
       }
@@ -45,7 +45,7 @@ async function requestAuthCodeFromContentScript(
         },
         (response) => {
           if (chrome.runtime.lastError) {
-            console.error("[IT PM Assistant] Failed to send message to Lark content script:", chrome.runtime.lastError);
+            console.error("[Tenways Octo] Failed to send message to Lark content script:", chrome.runtime.lastError);
             resolve(undefined);
             return;
           }
@@ -56,7 +56,7 @@ async function requestAuthCodeFromContentScript(
               state: response.state,
             });
           } else {
-            console.error("[IT PM Assistant] Auth code request failed:", response);
+            console.error("[Tenways Octo] Auth code request failed:", response);
             resolve(undefined);
           }
         },
@@ -85,7 +85,7 @@ async function requestLarkUserId(): Promise<string | undefined> {
         },
         (response) => {
           if (chrome.runtime.lastError) {
-            console.error("[IT PM Assistant] Failed to get Lark user ID:", chrome.runtime.lastError);
+            console.error("[Tenways Octo] Failed to get Lark user ID:", chrome.runtime.lastError);
             resolve(undefined);
             return;
           }
@@ -144,14 +144,14 @@ async function exchangeAuthCodeWithServer(
     });
 
     if (!response.ok) {
-      console.error("[IT PM Assistant] Failed to exchange Lark auth code:", response.status);
+      console.error("[Tenways Octo] Failed to exchange Lark auth code:", response.status);
       return undefined;
     }
 
     const result = await response.json();
     return result;
   } catch (error) {
-    console.error("[IT PM Assistant] Error exchanging Lark auth code:", error);
+    console.error("[Tenways Octo] Error exchanging Lark auth code:", error);
     return undefined;
   }
 }
