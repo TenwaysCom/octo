@@ -1,0 +1,66 @@
+# Review language (en, zh-TW, zh-CN, ja, ko)
+language: zh-CN
+
+# Kimi model
+model: kimi-k2.5
+
+review:
+  # Auto-trigger settings
+  auto:
+    enabled: true
+    onOpen: true        # Review when PR is opened
+    onPush: true        # Review on new commits
+    onReviewRequest: true
+    drafts: false       # Skip draft PRs
+
+  # What to check
+  aspects:
+    bugs: true
+    security: true
+    performance: true
+    style: true
+    bestPractices: true
+    documentation: false
+    testing: false
+
+  # Severity filter: critical | warning | suggestion | nitpick
+  minSeverity: suggestion
+
+  # Max annotations per review (1-100)
+  maxAnnotations: 30
+
+  # When to fail the check: critical | warning | never
+  failOn: critical
+
+# File filters (minimatch glob patterns)
+files:
+  include:
+    - "**/*"
+  exclude:
+    - "**/node_modules/**"
+    - "**/dist/**"
+    - "**/*.lock"
+    - "**/*.min.*"
+  maxFileSize: 100000  # bytes
+
+# Custom review rules
+rules:
+  - name: no-console-log
+    description: "No console.log in production code"
+    severity: warning
+    filePattern: "src/**/*.ts"
+
+  - name: input-validation
+    description: "All API endpoints must validate input"
+    severity: critical
+    filePattern: "src/routes/**"
+
+# Custom prompt additions
+prompt:
+  systemAppend: "Pay special attention to SQL injection risks"
+  reviewFocus: "Focus on API input validation and error handling"
+
+# Prefix cache settings
+cache:
+  enabled: true
+  ttl: 3600
