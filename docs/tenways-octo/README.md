@@ -19,6 +19,7 @@
 13. [代码结构与校验设计](./13-code-structure-and-validation-design.md)
 14. [详细开发计划](../superpowers/plans/2026-03-20-tenways-octo-implementation-plan.md)
 15. [PM 分析 Prompt 迭代记录模板](./14-pm-analysis-prompt-iteration-log.md)
+16. [认证流程设计](./16-auth-flow-design.md)
 
 ## 当前设计结论
 

@@ -9,12 +9,14 @@ import { exchangeAuthCodeController, getAuthStatusController, getAuthCodeControl
 import { exchangeAuthCodeController as exchangeLarkAuthCodeController, refreshTokenController as refreshLarkTokenController, getAuthStatusController as getLarkAuthStatusController } from "./modules/lark-auth/lark-auth.controller.js";
 import { configureLarkAuthControllerDeps } from "./modules/lark-auth/lark-auth.controller.js";
 import { configureMeegleAuthServiceDeps } from "./modules/meegle-auth/meegle-auth.service.js";
+import { createHttpMeegleAuthAdapter } from "./adapters/meegle/auth-adapter.js";
 import { runPMAnalysisController } from "./modules/pm-analysis/pm-analysis.controller.js";
 
 // Load environment variables
 const LARK_APP_ID = process.env.LARK_APP_ID || "";
 const LARK_APP_SECRET = process.env.LARK_APP_SECRET || "";
 const MEEGLE_PLUGIN_ID = process.env.MEEGLE_PLUGIN_ID || "";
+const MEEGLE_PLUGIN_SECRET = process.env.MEEGLE_PLUGIN_SECRET || "";
 
 // Configure Lark auth with credentials
 if (LARK_APP_ID && LARK_APP_SECRET) {
@@ -27,11 +29,19 @@ if (LARK_APP_ID && LARK_APP_SECRET) {
   console.warn("[Server] Warning: LARK_APP_ID and LARK_APP_SECRET not configured. Lark auth will not work.");
 }
 
-// Log Meegle config status
-if (MEEGLE_PLUGIN_ID) {
-  console.log("[Server] Meegle plugin ID configured:", MEEGLE_PLUGIN_ID);
+// Configure Meegle auth with credentials
+if (MEEGLE_PLUGIN_ID && MEEGLE_PLUGIN_SECRET) {
+  const meegleAuthAdapter = createHttpMeegleAuthAdapter({
+    pluginId: MEEGLE_PLUGIN_ID,
+    pluginSecret: MEEGLE_PLUGIN_SECRET,
+  });
+  configureMeegleAuthServiceDeps({
+    authAdapter: meegleAuthAdapter,
+    pluginId: MEEGLE_PLUGIN_ID,
+  });
+  console.log("[Server] Meegle auth configured with PLUGIN_ID:", MEEGLE_PLUGIN_ID);
 } else {
-  console.warn("[Server] Warning: MEEGLE_PLUGIN_ID not configured.");
+  console.warn("[Server] Warning: MEEGLE_PLUGIN_ID and MEEGLE_PLUGIN_SECRET not configured. Meegle auth will not work.");
 }
 
 const app = express();

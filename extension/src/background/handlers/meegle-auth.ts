@@ -2,7 +2,9 @@ import type {
   MeegleAuthCodeResponse,
   MeegleAuthEnsureRequest,
   MeegleAuthEnsureResponse,
+  MeegleAuthExchangeResponse,
 } from "../../types/meegle";
+import { getConfig } from "../config";
 
 export interface EnsureMeegleAuthDeps {
   getCachedToken?: () => string | undefined;
@@ -14,6 +16,10 @@ export interface EnsureMeegleAuthDeps {
     baseUrl: string,
   ) => Promise<MeegleAuthCodeResponse | undefined>;
   openMeegleLoginTab?: (baseUrl: string) => Promise<void>;
+  exchangeAuthCodeWithServer?: (
+    request: MeegleAuthEnsureRequest,
+    authCode: string,
+  ) => Promise<MeegleAuthExchangeResponse | undefined>;
 }
 
 /**
@@ -82,6 +88,44 @@ async function openMeegleLoginTab(baseUrl: string): Promise<void> {
   });
 }
 
+/**
+ * Exchange auth code with server for user token
+ */
+async function exchangeAuthCodeWithServer(
+  request: MeegleAuthEnsureRequest,
+  authCode: string,
+): Promise<MeegleAuthExchangeResponse | undefined> {
+  try {
+    const config = await getConfig();
+
+    const response = await fetch(`${config.SERVER_URL}/api/meegle/auth/exchange`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        requestId: request.requestId,
+        operatorLarkId: request.operatorLarkId,
+        meegleUserKey: request.meegleUserKey,
+        baseUrl: request.baseUrl,
+        authCode,
+        state: request.state,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("[Tenways Octo] Failed to exchange auth code:", response.status);
+      return undefined;
+    }
+
+    const result = (await response.json()) as MeegleAuthExchangeResponse;
+    return result;
+  } catch (error) {
+    console.error("[Tenways Octo] Error exchanging auth code:", error);
+    return undefined;
+  }
+}
+
 export async function ensureMeegleAuth(
   request: Partial<MeegleAuthEnsureRequest> = {},
   deps: EnsureMeegleAuthDeps = {},
@@ -89,11 +133,12 @@ export async function ensureMeegleAuth(
   const baseUrl = request.baseUrl ?? "https://project.larksuite.com";
   const state = request.state || `state_${Date.now()}`;
 
-  if (!request.requestId || !request.operatorLarkId) {
+  // Validate required fields
+  if (!request.requestId || !request.operatorLarkId || !request.meegleUserKey) {
     return {
       status: "failed",
       baseUrl,
-      reason: "MEEGLE_AUTH_REQUIRED",
+      reason: "MEEGLE_AUTH_REQUIRED_FIELDS_MISSING",
     };
   }
 
@@ -133,15 +178,27 @@ export async function ensureMeegleAuth(
       };
     }
 
-    // Save auth code for later exchange
-    await deps.saveAuthCode?.(authResult);
+    // Exchange auth code with server for token
+    const exchangeWithServer = deps.exchangeAuthCodeWithServer ?? exchangeAuthCodeWithServer;
+    const exchangeResult = await exchangeWithServer(request as MeegleAuthEnsureRequest, authResult.authCode);
 
+    if (exchangeResult?.ok && exchangeResult.data?.tokenStatus === "ready") {
+      return {
+        status: "ready",
+        baseUrl,
+        state: authResult.state,
+        authCode: authResult.authCode,
+        issuedAt: authResult.issuedAt,
+      };
+    }
+
+    // Exchange failed
+    console.error("[Tenways Octo] Auth code exchange failed:", exchangeResult?.error);
     return {
-      status: "ready",
+      status: "failed",
       baseUrl,
       state: authResult.state,
-      authCode: authResult.authCode,
-      issuedAt: authResult.issuedAt,
+      reason: exchangeResult?.error?.errorCode || "MEEGLE_AUTH_CODE_EXCHANGE_FAILED",
     };
   }
 

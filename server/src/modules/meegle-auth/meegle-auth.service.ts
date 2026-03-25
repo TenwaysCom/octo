@@ -19,7 +19,7 @@ import { MeegleClient } from "../../adapters/meegle/meegle-client.js";
 
 export interface MeegleAuthServiceDeps {
   authAdapter: MeegleAuthAdapter;
-  tokenStore: MeegleTokenStore;
+  tokenStore?: MeegleTokenStore;
   pluginId?: string;
 }
 
@@ -55,7 +55,11 @@ export async function exchangeAuthCode(
 ) {
   const request: MeegleAuthExchangeRequest =
     validateMeegleAuthExchangeRequest(input);
-  return exchangeCredential(request, getDeps(overrides));
+  const deps = getDeps(overrides);
+  return exchangeCredential(request, {
+    authAdapter: deps.authAdapter,
+    tokenStore: deps.tokenStore!,
+  });
 }
 
 export async function refreshAuthToken(
@@ -64,7 +68,11 @@ export async function refreshAuthToken(
 ) {
   const request: MeegleAuthRefreshRequest =
     validateMeegleAuthRefreshRequest(input);
-  return refreshCredential(request, getDeps(overrides));
+  const deps = getDeps(overrides);
+  return refreshCredential(request, {
+    authAdapter: deps.authAdapter,
+    tokenStore: deps.tokenStore!,
+  });
 }
 
 export async function getAuthCode(
