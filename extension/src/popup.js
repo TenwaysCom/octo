@@ -5,6 +5,7 @@
 const CONFIG = {
   SERVER_URL: 'http://localhost:3000',
   MEEGLE_BASE_URL: 'https://project.larksuite.com',
+  LARK_APP_ID: 'cli_a9155c5fb1b99ed2',
 };
 
 const $ = (id) => document.getElementById(id);
@@ -133,9 +134,10 @@ async function doMeegleAuth() {
     }
   }
 
-  // Need to redirect
+  // Need to redirect - inform user
   log.warn('需要登录 Meegle');
-  chrome.tabs.create({ url: CONFIG.MEEGLE_BASE_URL, active: true });
+  log.warn('请在 Meegle 页面登录后重试');
+  // Note: Auto-redirect disabled, user needs to manually navigate to Meegle
   return false;
 }
 
@@ -154,7 +156,7 @@ async function doLarkAuth() {
 
   // Need to redirect
   log.warn('需要登录 Lark');
-  const appId = 'cli_a9155c5fb1b99ed2';
+  const appId = CONFIG.LARK_APP_ID;
   const redirectUri = 'http://localhost:3000/api/lark/auth/callback';
   const oauthUrl = `https://open.larksuite.com/service-open/oauth/authorize?app_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${Date.now()}&scope=contact:readonly:user&response_type=code`;
   chrome.tabs.create({ url: oauthUrl, active: true });
@@ -219,8 +221,11 @@ async function init() {
     }
     if (larkAuth.status === 'ready') {
       state.isAuthed.lark = true;
-      setStatus(dom.larkUserTop, 'ready', '已授权');
-      setStatus(dom.larkUserBottom, 'ready', '已授权');
+      // Keep user ID display if already set
+      if (!state.identity.larkId) {
+        setStatus(dom.larkUserTop, 'ready', '已授权');
+        setStatus(dom.larkUserBottom, 'ready', '已授权');
+      }
     }
 
     // Show Lark feature block if both authed
@@ -253,6 +258,7 @@ async function init() {
     }
     if (larkAuth.status === 'ready') {
       state.isAuthed.lark = true;
+      // On Meegle page, show auth status for Lark
       setStatus(dom.larkUserTop, 'ready', '已授权');
       setStatus(dom.larkUserBottom, 'ready', '已授权');
     }
@@ -276,8 +282,22 @@ dom.clearLogBtn.addEventListener('click', () => log.clear());
 
 dom.analyzeBtn.addEventListener('click', async () => {
   log.add('分析中...');
-  // Simplified for now
-  log.success('分析完成');
+  log.warn('功能开发中，请稍后');
+});
+
+dom.draftBtn.addEventListener('click', async () => {
+  log.add('生成草稿...');
+  log.warn('功能开发中，请稍后');
+});
+
+dom.applyBtn.addEventListener('click', async () => {
+  log.add('确认创建...');
+  log.warn('功能开发中，请稍后');
+});
+
+dom.meegleActionBtn.addEventListener('click', async () => {
+  log.add('查看来源上下文...');
+  log.warn('功能开发中，请稍后');
 });
 
 init();
