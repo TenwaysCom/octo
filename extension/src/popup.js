@@ -81,6 +81,7 @@ const state = {
 const log = {
   _el: dom.logContent,
   add(msg, type = 'info') {
+    if (!this._el) return;
     const entry = document.createElement('div');
     entry.className = `log-entry ${type}`;
     const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -89,7 +90,7 @@ const log = {
     this._el.scrollTop = this._el.scrollHeight;
   },
   clear() {
-    this._el.innerHTML = '';
+    if (this._el) this._el.innerHTML = '';
   },
   success(msg) { this.add(msg, 'success'); },
   error(msg) { this.add(msg, 'error'); },
@@ -350,10 +351,10 @@ async function analyzePage() {
       return;
     }
 
-    if (result.ok) {
+    if (result.ok && result.data) {
       state.analysisResult = result.data;
-      log.success(`分析完成: ${result.data.summary}`);
-      log.add(`建议: ${result.data.decision}`);
+      log.success(`分析完成: ${result.data.summary || '完成'}`);
+      if (result.data.decision) log.add(`建议: ${result.data.decision}`);
       dom.draftBtn.disabled = false;
     }
   } catch (err) {
@@ -399,10 +400,10 @@ async function generateDraft() {
       return;
     }
 
-    if (result.ok) {
+    if (result.ok && result.data) {
       state.draftResult = result.data;
       log.success('草稿生成: ' + (result.data.draft?.name || '完成'));
-      log.add(`目标项目: ${result.data.target?.projectKey || '未知'}`);
+      if (result.data.target?.projectKey) log.add(`目标项目: ${result.data.target.projectKey}`);
       dom.applyBtn.disabled = false;
     }
   } catch (err) {
@@ -495,10 +496,10 @@ async function analyzeA2Page() {
       return;
     }
 
-    if (result.ok) {
+    if (result.ok && result.data) {
       state.a2AnalysisResult = result.data;
-      log.success(`分析完成: ${result.data.summary}`);
-      log.add(`建议: ${result.data.decision}`);
+      log.success(`分析完成: ${result.data.summary || '完成'}`);
+      if (result.data.decision) log.add(`建议: ${result.data.decision}`);
       dom.draftA2Btn.disabled = false;
     }
   } catch (err) {
@@ -544,10 +545,10 @@ async function generateA2Draft() {
       return;
     }
 
-    if (result.ok) {
+    if (result.ok && result.data) {
       state.a2DraftResult = result.data;
       log.success('草稿生成: ' + (result.data.draft?.name || '完成'));
-      log.add(`目标项目: ${result.data.target?.projectKey || '未知'}`);
+      if (result.data.target?.projectKey) log.add(`目标项目: ${result.data.target.projectKey}`);
       dom.applyA2Btn.disabled = false;
     }
   } catch (err) {
@@ -667,11 +668,25 @@ async function runPmAnalysis() {
 
 function displayPmResult(data) {
   dom.pmResult.style.display = 'block';
+
+  // Escape HTML to prevent XSS
+  const escapeHtml = (str) => {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  };
+
+  const summary = escapeHtml(data.summary);
+  const blockers = data.blockers?.length || 0;
+  const staleItems = data.staleItems?.length || 0;
+  const missingDesc = data.missingDescriptionItems?.length || 0;
+
   dom.pmResult.innerHTML = `
-    <div style="margin-bottom: 8px;"><strong>摘要:</strong> ${data.summary || '无'}</div>
-    ${data.blockers?.length ? `<div style="color: var(--error);">阻塞项: ${data.blockers.length}</div>` : ''}
-    ${data.staleItems?.length ? `<div style="color: var(--warning);">过期项: ${data.staleItems.length}</div>` : ''}
-    ${data.missingDescriptionItems?.length ? `<div style="color: var(--text-muted);">缺少描述: ${data.missingDescriptionItems.length}</div>` : ''}
+    <div style="margin-bottom: 8px;"><strong>摘要:</strong> ${summary || '无'}</div>
+    ${blockers ? `<div style="color: var(--error);">阻塞项: ${blockers}</div>` : ''}
+    ${staleItems ? `<div style="color: var(--warning);">过期项: ${staleItems}</div>` : ''}
+    ${missingDesc ? `<div style="color: var(--text-muted);">缺少描述: ${missingDesc}</div>` : ''}
   `;
 }
 
@@ -680,7 +695,16 @@ async function init() {
   log.add('初始化...');
 
   try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    const tab = tabs[0];
+
+    if (!tab || !tab.url) {
+      showSection('unsupported');
+      dom.pageTypeText.textContent = '无法获取当前页面';
+      log.warn('无法获取当前标签页');
+      return;
+    }
+
     state.url = tab.url;
     state.pageType = detectPageType(tab.url);
 
