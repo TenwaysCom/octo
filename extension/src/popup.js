@@ -233,6 +233,8 @@ async function init() {
       dom.larkFeatureBlock.classList.remove('hidden');
       dom.authBlockBottom.classList.remove('hidden');
       dom.analyzeBtn.disabled = false;
+      dom.draftBtn.disabled = false;
+      dom.applyBtn.disabled = false;
     }
   } else if (state.pageType === 'meegle') {
     try {
