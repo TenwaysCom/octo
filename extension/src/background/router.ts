@@ -82,6 +82,10 @@ export async function routeBackgroundAction(
           response.issuedAt,
         );
       },
+      // Disable auto-redirect to Meegle login page
+      openMeegleLoginTab: async () => {
+        console.log("[Tenways Octo] Auto-redirect disabled. User needs to login manually.");
+      },
     };
 
     return {
