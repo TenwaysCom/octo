@@ -5,7 +5,23 @@ import { analyzeA1Controller, createB2DraftController, applyB2Controller } from 
 import { resolveIdentityController } from "./modules/identity/identity.controller.js";
 import { exchangeAuthCodeController, getAuthStatusController, getAuthCodeController } from "./modules/meegle-auth/meegle-auth.controller.js";
 import { exchangeAuthCodeController as exchangeLarkAuthCodeController, refreshTokenController as refreshLarkTokenController, getAuthStatusController as getLarkAuthStatusController } from "./modules/lark-auth/lark-auth.controller.js";
+import { configureLarkAuthControllerDeps } from "./modules/lark-auth/lark-auth.controller.js";
 import { runPMAnalysisController } from "./modules/pm-analysis/pm-analysis.controller.js";
+
+// Load environment variables
+const LARK_APP_ID = process.env.LARK_APP_ID || "";
+const LARK_APP_SECRET = process.env.LARK_APP_SECRET || "";
+
+// Configure Lark auth with credentials
+if (LARK_APP_ID && LARK_APP_SECRET) {
+  configureLarkAuthControllerDeps({
+    appId: LARK_APP_ID,
+    appSecret: LARK_APP_SECRET,
+  });
+  console.log("[Server] Lark auth configured with APP_ID:", LARK_APP_ID.substring(0, 8) + "...");
+} else {
+  console.warn("[Server] Warning: LARK_APP_ID and LARK_APP_SECRET not configured. Lark auth will not work.");
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -25,7 +41,7 @@ app.get("/health", (_req, res) => {
 function handleController(fn: (req: Request) => Promise<unknown>) {
   return async (req: Request, res: Response) => {
     try {
-      const result = await fn(req);
+      const result = await fn(req.body);
       res.json(result);
     } catch (error) {
       console.error("Controller error:", error);

@@ -16,20 +16,20 @@ import {
   getCachedLarkUserToken,
   saveLarkUserToken,
 } from "./storage.js";
-
-const PLUGIN_ID = "your-plugin-id"; // TODO: Configure via environment or settings
+import { getConfig } from "./config.js";
 
 /**
  * Build deps for ensureMeegleAuth
  */
-function buildAuthDeps(): EnsureMeegleAuthDeps {
+async function buildAuthDeps(): Promise<EnsureMeegleAuthDeps> {
+  const config = await getConfig();
   return {
     getCachedToken: () => {
       // Note: This is synchronous, but getCachedUserToken is async
       // We'll read from a cached value instead
       return undefined; // Placeholder - will be populated via async init
     },
-    getCachedPluginId: () => PLUGIN_ID,
+    getCachedPluginId: () => config.MEEGLE_PLUGIN_ID,
     saveAuthCode: async (response) => {
       await saveAuthCodeResponse(
         response.authCode,
@@ -69,10 +69,12 @@ initTokenCache();
 export async function routeBackgroundAction(
   message: MeegleAuthEnsureMessage | LarkAuthEnsureMessage,
 ): Promise<MeegleAuthEnsureResult | LarkAuthEnsureResult> {
+  const config = await getConfig();
+
   if (message.action === "itdog.meegle.auth.ensure") {
     const deps: EnsureMeegleAuthDeps = {
       getCachedToken: () => cachedToken,
-      getCachedPluginId: () => PLUGIN_ID,
+      getCachedPluginId: () => config.MEEGLE_PLUGIN_ID,
       saveAuthCode: async (response) => {
         await saveAuthCodeResponse(
           response.authCode,
@@ -95,6 +97,7 @@ export async function routeBackgroundAction(
         // Save Lark auth code if needed
         console.log("[IT PM Assistant] Lark auth code response:", response);
       },
+      appId: config.LARK_APP_ID,
     };
 
     return {

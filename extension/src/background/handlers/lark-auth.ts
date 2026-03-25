@@ -11,12 +11,13 @@ export interface EnsureLarkAuthDeps {
     baseUrl: string,
   ) => Promise<{ code: string; state: string } | undefined>;
   requestLarkUserId?: () => Promise<string | undefined>;
-  openLarkOAuthTab?: (baseUrl: string, state: string) => Promise<void>;
+  openLarkOAuthTab?: (baseUrl: string, state: string, appId?: string) => Promise<void>;
   exchangeAuthCodeWithServer?: (
     code: string,
     operatorLarkId: string,
     baseUrl: string,
   ) => Promise<LarkAuthCodeResponse | undefined>;
+  appId?: string;
 }
 
 /**
@@ -99,11 +100,10 @@ async function requestLarkUserId(): Promise<string | undefined> {
 /**
  * Open Lark OAuth authorization page
  */
-async function openLarkOAuthTab(baseUrl: string, state: string): Promise<void> {
+async function openLarkOAuthTab(baseUrl: string, state: string, appId?: string): Promise<void> {
   return new Promise((resolve) => {
-    // Construct Lark OAuth URL
-    // Note: APP_ID should be configured via environment or settings
-    const APP_ID = "cli_a4b5c6d7e8f9"; // TODO: Configure this
+    // Use provided appId or fallback to config
+    const APP_ID = appId || "cli_a4b5c6d7e8f9"; // TODO: Configure via extension storage
     const redirectUri = "http://localhost:3000/api/lark/auth/callback";
     const scope = "contact:readonly:user";
 
@@ -215,7 +215,7 @@ export async function ensureLarkAuth(
 
   // Auth code not obtained, need user to authorize
   const openOAuthTab = deps.openLarkOAuthTab ?? openLarkOAuthTab;
-  await openOAuthTab(baseUrl, state);
+  await openOAuthTab(baseUrl, state, deps.appId);
 
   return {
     status: "require_auth_code",

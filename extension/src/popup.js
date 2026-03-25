@@ -2,11 +2,24 @@
  * IT PM Assistant Popup
  */
 
-const CONFIG = {
+// Default config - can be overridden via chrome.storage.sync
+const DEFAULT_CONFIG = {
   SERVER_URL: 'http://localhost:3000',
   MEEGLE_BASE_URL: 'https://project.larksuite.com',
-  PLUGIN_ID: 'your-plugin-id', // TODO: Configure via environment
+  PLUGIN_ID: 'your-plugin-id', // TODO: Configure via extension storage
 };
+
+let CONFIG = { ...DEFAULT_CONFIG };
+
+// Load config from storage
+async function loadConfig() {
+  return new Promise((resolve) => {
+    chrome.storage.sync.get(DEFAULT_CONFIG, (result) => {
+      CONFIG = { ...DEFAULT_CONFIG, ...result };
+      resolve(CONFIG);
+    });
+  });
+}
 
 // Error codes from docs/it-pm-assistant/11-extension-message-and-api-schema.md
 const ERROR_MESSAGES = {
@@ -693,6 +706,9 @@ function displayPmResult(data) {
 // Init
 async function init() {
   log.add('初始化...');
+
+  // Load config first
+  await loadConfig();
 
   try {
     const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
