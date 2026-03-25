@@ -35,6 +35,14 @@ const dom = {
   unsupportedPage: $('unsupportedPage'),
   logContent: $('logContent'),
   clearLogBtn: $('clearLogBtn'),
+  // Settings
+  settingsBtn: $('settingsBtn'),
+  settingsModal: $('settingsModal'),
+  closeSettingsBtn: $('closeSettingsBtn'),
+  cancelSettingsBtn: $('cancelSettingsBtn'),
+  saveSettingsBtn: $('saveSettingsBtn'),
+  meegleUserKeyInput: $('meegleUserKeyInput'),
+  larkUserIdInput: $('larkUserIdInput'),
 };
 
 const state = {
@@ -85,7 +93,15 @@ function detectPageType(url) {
 async function checkMeegleAuth() {
   return new Promise((resolve) => {
     chrome.runtime.sendMessage(
-      { action: 'itdog.meegle.auth.ensure', payload: { requestId: `req_${Date.now()}`, operatorLarkId: state.identity.larkId || 'ou_user', baseUrl: CONFIG.MEEGLE_BASE_URL } },
+      {
+        action: 'itdog.meegle.auth.ensure',
+        payload: {
+          requestId: `req_${Date.now()}`,
+          operatorLarkId: state.identity.larkId || 'ou_user',
+          meegleUserKey: state.identity.meegleUserKey || '',
+          baseUrl: CONFIG.MEEGLE_BASE_URL,
+        },
+      },
       (res) => resolve(res?.payload || { status: 'unknown' })
     );
   });
@@ -135,7 +151,7 @@ async function doMeegleAuth() {
   }
 
   // Need to redirect - inform user
-  log.warn('需要登录 Meegle');
+  log.warn(`需要登录 Meegle ${auth.status} ${auth.authCode}`);
   log.warn('请在 Meegle 页面登录后重试');
   // Note: Auto-redirect disabled, user needs to manually navigate to Meegle
   return false;
@@ -166,6 +182,9 @@ async function doLarkAuth() {
 async function init() {
   log.add('初始化...');
 
+  // Load saved identity settings first
+  await loadSavedIdentity();
+
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.url) {
     hideAll();
@@ -190,11 +209,21 @@ async function init() {
   dom.authBlockTop.classList.remove('hidden');
   dom.headerSubtitle.textContent = state.pageType === 'meegle' ? 'Meegle' : 'Lark';
 
-  // Set initial status
-  setStatus(dom.meegleUserTop, 'pending', '-');
-  setStatus(dom.larkUserTop, 'pending', '-');
-  setStatus(dom.meegleUserBottom, 'pending', '-');
-  setStatus(dom.larkUserBottom, 'pending', '-');
+  // Set initial status - use saved identity if available
+  if (state.identity.meegleUserKey) {
+    setStatus(dom.meegleUserTop, 'ready', state.identity.meegleUserKey);
+    setStatus(dom.meegleUserBottom, 'ready', state.identity.meegleUserKey);
+  } else {
+    setStatus(dom.meegleUserTop, 'pending', '-');
+    setStatus(dom.meegleUserBottom, 'pending', '-');
+  }
+  if (state.identity.larkId) {
+    setStatus(dom.larkUserTop, 'ready', state.identity.larkId);
+    setStatus(dom.larkUserBottom, 'ready', state.identity.larkId);
+  } else {
+    setStatus(dom.larkUserTop, 'pending', '-');
+    setStatus(dom.larkUserBottom, 'pending', '-');
+  }
 
   // Get user identity
   if (state.pageType === 'lark') {
@@ -301,5 +330,70 @@ dom.meegleActionBtn.addEventListener('click', async () => {
   log.add('查看来源上下文...');
   log.warn('功能开发中，请稍后');
 });
+
+// Settings functions
+async function loadSettings() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(['meegleUserKey', 'larkUserId'], (result) => {
+      resolve(result);
+    });
+  });
+}
+
+async function saveSettings(meegleUserKey, larkUserId) {
+  return new Promise((resolve) => {
+    chrome.storage.local.set({ meegleUserKey, larkUserId }, resolve);
+  });
+}
+
+function openSettings() {
+  dom.settingsModal.classList.remove('hidden');
+  // Load current values
+  loadSettings().then((settings) => {
+    dom.meegleUserKeyInput.value = settings.meegleUserKey || '';
+    dom.larkUserIdInput.value = settings.larkUserId || '';
+  });
+}
+
+function closeSettings() {
+  dom.settingsModal.classList.add('hidden');
+}
+
+dom.settingsBtn.addEventListener('click', openSettings);
+dom.closeSettingsBtn.addEventListener('click', closeSettings);
+dom.cancelSettingsBtn.addEventListener('click', closeSettings);
+
+dom.saveSettingsBtn.addEventListener('click', async () => {
+  const meegleUserKey = dom.meegleUserKeyInput.value.trim();
+  const larkUserId = dom.larkUserIdInput.value.trim();
+
+  await saveSettings(meegleUserKey, larkUserId);
+
+  // Update state
+  if (meegleUserKey) {
+    state.identity.meegleUserKey = meegleUserKey;
+    setStatus(dom.meegleUserTop, 'ready', meegleUserKey);
+    setStatus(dom.meegleUserBottom, 'ready', meegleUserKey);
+  }
+  if (larkUserId) {
+    state.identity.larkId = larkUserId;
+    setStatus(dom.larkUserTop, 'ready', larkUserId);
+    setStatus(dom.larkUserBottom, 'ready', larkUserId);
+  }
+
+  log.success('设置已保存');
+  closeSettings();
+});
+
+// Load saved settings on init
+async function loadSavedIdentity() {
+  const settings = await loadSettings();
+  if (settings.meegleUserKey) {
+    state.identity.meegleUserKey = settings.meegleUserKey;
+  }
+  if (settings.larkUserId) {
+    state.identity.larkId = settings.larkUserId;
+  }
+}
 
 init();
