@@ -7,3 +7,4 @@ package-lock.json
 .worktrees
 worktrees
 **/node_modules
+.superpowers

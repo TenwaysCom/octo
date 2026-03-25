@@ -79,6 +79,16 @@ function checkManifest() {
     success(`popup: ${manifest.action.default_popup}`);
   }
 
+  // Check icons
+  if (manifest.icons) {
+    for (const [size, path] of Object.entries(manifest.icons)) {
+      checkFile(path);
+      success(`icon ${size}: ${path}`);
+    }
+  } else {
+    warn("No icons defined in manifest.json");
+  }
+
   // Check content scripts
   for (const cs of manifest.content_scripts || []) {
     for (const js of cs.js || []) {

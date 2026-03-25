@@ -3,606 +3,340 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Octo Tenways IT Assistant</title>
+    <title>IT PM Assistant</title>
     <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
+      :root {
+        --primary: #4F46E5;
+        --primary-hover: #4338CA;
+        --success: #059669;
+        --warning: #D97706;
+        --error: #DC2626;
+        --bg: #F9FAFB;
+        --card: #FFFFFF;
+        --border: #E5E7EB;
+        --text: #1F2937;
+        --text-muted: #6B7280;
       }
+
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
       body {
-        width: 320px;
-        padding: 16px;
+        width: 340px;
+        min-height: 200px;
+        background: var(--bg);
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         font-size: 14px;
-        color: #333;
+        color: var(--text);
       }
-      h1 {
+
+      .header {
+        background: linear-gradient(135deg, var(--primary), #7C3AED);
+        color: white;
+        padding: 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .header-icon {
+        width: 32px;
+        height: 32px;
+        background: rgba(255,255,255,0.2);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+      }
+
+      .header-title {
         font-size: 16px;
-        margin-bottom: 12px;
-        color: #1a1a1a;
+        font-weight: 600;
       }
-      .status {
-        padding: 8px 12px;
-        border-radius: 6px;
+
+      .header-subtitle {
+        font-size: 12px;
+        opacity: 0.8;
+      }
+
+      .content {
+        padding: 16px;
+      }
+
+      .page-info {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 12px;
         margin-bottom: 12px;
+      }
+
+      .page-type {
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .page-type .icon { font-size: 16px; }
+
+      .page-url {
+        font-size: 11px;
+        color: var(--text-muted);
+        margin-top: 4px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .auth-section {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        margin-bottom: 12px;
+        overflow: hidden;
+      }
+
+      .auth-header {
+        padding: 10px 12px;
+        font-weight: 600;
+        font-size: 13px;
+        border-bottom: 1px solid var(--border);
+        background: #F3F4F6;
+      }
+
+      .auth-item {
+        padding: 10px 12px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .auth-item:last-child { border-bottom: none; }
+
+      .auth-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
         font-size: 13px;
       }
-      .status.ready {
-        background: #e8f5e9;
-        color: #2e7d32;
+
+      .auth-status {
+        font-size: 12px;
+        padding: 2px 8px;
+        border-radius: 4px;
       }
-      .status.pending {
-        background: #fff3e0;
-        color: #ef6c00;
+
+      .auth-status.ready {
+        background: #D1FAE5;
+        color: var(--success);
       }
-      .status.error {
-        background: #ffebee;
-        color: #c62828;
+
+      .auth-status.pending {
+        background: #FEF3C7;
+        color: var(--warning);
       }
+
+      .auth-status.error {
+        background: #FEE2E2;
+        color: var(--error);
+      }
+
       .actions {
         display: flex;
         flex-direction: column;
         gap: 8px;
       }
+
       button {
         padding: 10px 16px;
         border: none;
         border-radius: 6px;
         font-size: 13px;
+        font-weight: 500;
         cursor: pointer;
-        transition: background-color 0.2s;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
       }
+
       button.primary {
-        background: #1a73e8;
+        background: var(--primary);
         color: white;
       }
-      button.primary:hover {
-        background: #1557b0;
-      }
+
+      button.primary:hover { background: var(--primary-hover); }
+
       button.secondary {
-        background: #f1f3f4;
-        color: #333;
+        background: var(--card);
+        color: var(--text);
+        border: 1px solid var(--border);
       }
-      button.secondary:hover {
-        background: #e8eaed;
-      }
+
+      button.secondary:hover { background: #F3F4F6; }
+
       button:disabled {
         opacity: 0.5;
         cursor: not-allowed;
       }
-      .info {
-        margin-top: 16px;
-        padding-top: 12px;
-        border-top: 1px solid #eee;
-        font-size: 12px;
-        color: #666;
-      }
-      .log {
+
+      .log-section {
         margin-top: 12px;
-        padding: 8px;
-        background: #f8f9fa;
-        border-radius: 4px;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+
+      .log-header {
+        padding: 8px 12px;
+        font-size: 12px;
+        font-weight: 600;
+        background: #F3F4F6;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .log-clear {
+        background: none;
+        border: none;
+        color: var(--text-muted);
+        font-size: 11px;
+        cursor: pointer;
+        padding: 0;
+      }
+
+      .log-clear:hover { color: var(--text); }
+
+      .log-content {
+        padding: 8px 12px;
         font-family: monospace;
         font-size: 11px;
-        max-height: 150px;
+        max-height: 120px;
         overflow-y: auto;
+        background: #1F2937;
+        color: #E5E7EB;
       }
-      .log-entry {
-        margin-bottom: 4px;
-      }
-      .log-entry.error {
-        color: #c62828;
-      }
-      .log-entry.success {
-        color: #2e7d32;
-      }
+
+      .log-entry { margin-bottom: 4px; }
+
+      .log-entry.error { color: #FCA5A5; }
+
+      .log-entry.success { color: #86EFAC; }
+
+      .log-entry.warn { color: #FCD34D; }
+
+      .hidden { display: none !important; }
     </style>
   </head>
   <body>
-    <h1>IT PM Assistant</h1>
-
-    <div id="status" class="status pending">检测中...</div>
-
-    <!-- Lark 页面操作 -->
-    <div id="larkActions" class="actions" style="display: none;">
-      <button id="analyzeBtn" class="primary" disabled>分析当前页面</button>
-      <button id="draftBtn" class="secondary" disabled>生成草稿</button>
-      <button id="applyBtn" class="secondary" disabled>确认创建</button>
-    </div>
-
-    <!-- Meegle 页面操作 -->
-    <div id="meegleActions" class="actions" style="display: none;">
-      <div id="meegleAuthStatus" style="padding: 8px; background: #f5f5f5; border-radius: 6px; margin-bottom: 8px;">
-        <span>认证状态：</span><span id="meegleAuthText">检查中...</span>
+    <div class="header">
+      <div class="header-icon">⬡</div>
+      <div>
+        <div class="header-title">IT PM Assistant</div>
+        <div class="header-subtitle" id="headerSubtitle">检测页面中...</div>
       </div>
-      <button id="meegleAuthBtn" class="primary">获取认证</button>
-      <button id="meegleRefreshBtn" class="secondary">刷新状态</button>
     </div>
 
-    <div id="log" class="log"></div>
+    <div class="content">
+      <!-- 页面信息 -->
+      <div class="page-info">
+        <div class="page-type">
+          <span class="icon" id="pageIcon">❓</span>
+          <span id="pageTypeText">未知页面</span>
+        </div>
+        <div class="page-url" id="pageUrl">-</div>
+      </div>
 
-    <div class="info">
-      <p><strong>快捷键:</strong></p>
-      <p>Alt+A - 分析当前页面 (Lark)</p>
-      <p>Alt+D - 生成草稿 (Lark)</p>
+      <!-- 认证状态 (Meegle 页面) -->
+      <div class="auth-section" id="meegleAuthSection">
+        <div class="auth-header">🔐 Meegle 认证</div>
+        <div class="auth-item">
+          <div class="auth-label">
+            <span>认证状态</span>
+          </div>
+          <span class="auth-status pending" id="meegleAuthStatus">检查中...</span>
+        </div>
+        <div class="actions" style="padding: 12px;">
+          <button class="primary" id="meegleAuthBtn">获取认证</button>
+          <button class="secondary" id="meegleRefreshBtn">刷新状态</button>
+        </div>
+      </div>
+
+      <!-- 认证状态 (Lark 页面) -->
+      <div class="auth-section" id="larkAuthSection">
+        <div class="auth-header">🔐 认证状态</div>
+        <div class="auth-item">
+          <div class="auth-label"><span>Meegle</span></div>
+          <span class="auth-status pending" id="larkMeegleAuthStatus">检查中...</span>
+        </div>
+        <div class="auth-item">
+          <div class="auth-label"><span>Lark</span></div>
+          <span class="auth-status pending" id="larkLarkAuthStatus">检查中...</span>
+        </div>
+      </div>
+
+      <!-- Lark A1 操作按钮 -->
+      <div class="actions" id="larkA1Actions">
+        <button class="primary" id="analyzeBtn" disabled>📊 分析工单</button>
+        <button class="secondary" id="draftBtn" disabled>📝 生成 Bug 草稿</button>
+        <button class="secondary" id="applyBtn" disabled>✅ 确认创建 Bug</button>
+      </div>
+
+      <!-- Lark A2 操作按钮 -->
+      <div class="actions" id="larkA2Actions">
+        <button class="primary" id="analyzeA2Btn" disabled>📊 分析需求</button>
+        <button class="secondary" id="draftA2Btn" disabled>📝 生成需求草稿</button>
+        <button class="secondary" id="applyA2Btn" disabled>✅ 确认创建需求</button>
+      </div>
+
+      <!-- Lark 其他页面 -->
+      <div class="actions" id="larkOtherActions">
+        <button class="primary" id="pmAnalysisBtn">📈 PM 分析</button>
+      </div>
+
+      <!-- PM 分析面板 -->
+      <div class="auth-section hidden" id="pmAnalysisSection">
+        <div class="auth-header">📈 PM 分析</div>
+        <div class="auth-item">
+          <div class="auth-label"><span>时间范围</span></div>
+          <select id="pmTimeRange" style="padding: 4px; border-radius: 4px; border: 1px solid var(--border);">
+            <option value="7d">最近 7 天</option>
+            <option value="14d">最近 14 天</option>
+            <option value="30d" selected>最近 30 天</option>
+          </select>
+        </div>
+        <div class="actions" style="padding: 12px;">
+          <button class="primary" id="runPmAnalysisBtn">开始分析</button>
+          <button class="secondary" id="closePmAnalysisBtn">关闭</button>
+        </div>
+        <div id="pmResult" style="padding: 12px; font-size: 12px; display: none;"></div>
+      </div>
+
+      <!-- 不支持页面提示 -->
+      <div id="unsupportedPage" class="hidden">
+        <div style="text-align: center; padding: 20px; color: var(--text-muted);">
+          <div style="font-size: 32px; margin-bottom: 8px;">🚫</div>
+          <div>当前页面不支持</div>
+          <div style="font-size: 12px; margin-top: 4px;">请切换到 Lark 或 Meegle 页面</div>
+        </div>
+      </div>
+
+      <!-- 日志 -->
+      <div class="log-section">
+        <div class="log-header">
+          <span>日志</span>
+          <button class="log-clear" id="clearLogBtn">清除</button>
+        </div>
+        <div class="log-content" id="logContent"></div>
+      </div>
     </div>
 
-    <script type="module">
-      const SERVER_URL = 'http://localhost:3000';
-      const MEEGLE_BASE_URL = 'https://project.larksuite.com';
-
-      const els = {
-        status: document.getElementById('status'),
-        analyzeBtn: document.getElementById('analyzeBtn'),
-        draftBtn: document.getElementById('draftBtn'),
-        applyBtn: document.getElementById('applyBtn'),
-        log: document.getElementById('log'),
-        larkActions: document.getElementById('larkActions'),
-        meegleActions: document.getElementById('meegleActions'),
-        meegleAuthText: document.getElementById('meegleAuthText'),
-        meegleAuthBtn: document.getElementById('meegleAuthBtn'),
-        meegleRefreshBtn: document.getElementById('meegleRefreshBtn'),
-      };
-
-      let currentState = {
-        pageType: null,
-        recordId: null,
-        analysisResult: null,
-        draftResult: null,
-        meegleAuthStatus: null, // 'ready' | 'require_auth_code' | 'authenticated'
-        larkAuthStatus: null, // 'ready' | 'require_auth_code' | 'authenticated'
-        authCode: null,
-      };
-
-      function log(message, type = 'info') {
-        const entry = document.createElement('div');
-        entry.className = `log-entry ${type}`;
-        entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-        els.log.appendChild(entry);
-        els.log.scrollTop = els.log.scrollHeight;
-      }
-
-      function setStatus(status, text) {
-        els.status.className = `status ${status}`;
-        els.status.textContent = text;
-      }
-
-      function setButtonsEnabled(enabled) {
-        els.analyzeBtn.disabled = !enabled;
-        els.draftBtn.disabled = !enabled;
-        els.applyBtn.disabled = !enabled;
-      }
-
-      function showLarkActions() {
-        els.larkActions.style.display = 'flex';
-        els.meegleActions.style.display = 'none';
-      }
-
-      function showMeegleActions() {
-        els.larkActions.style.display = 'none';
-        els.meegleActions.style.display = 'flex';
-      }
-
-      function updateMeegleAuthText(status, authCode) {
-        const textEl = els.meegleAuthText;
-        const authBtn = els.meegleAuthBtn;
-
-        switch (status) {
-          case 'ready':
-            if (authCode) {
-              textEl.textContent = '已获取认证码';
-              textEl.style.color = '#2e7d32';
-              authBtn.textContent = '交换 Token';
-            } else {
-              textEl.textContent = '已认证';
-              textEl.style.color = '#2e7d32';
-              authBtn.textContent = '重新认证';
-            }
-            break;
-          case 'require_auth_code':
-            textEl.textContent = '需要登录 Meegle';
-            textEl.style.color = '#ef6c00';
-            authBtn.textContent = '前往登录';
-            break;
-          case 'authenticated':
-            textEl.textContent = '认证成功';
-            textEl.style.color = '#2e7d32';
-            authBtn.textContent = '重新认证';
-            break;
-          case 'failed':
-            textEl.textContent = '认证失败';
-            textEl.style.color = '#c62828';
-            authBtn.textContent = '重试认证';
-            break;
-          default:
-            textEl.textContent = '未知状态';
-            textEl.style.color = '#666';
-            authBtn.textContent = '检查认证';
-        }
-      }
-
-      /**
-       * Check Meegle auth status
-       */
-      async function checkMeegleAuth() {
-        return new Promise((resolve) => {
-          chrome.runtime.sendMessage(
-            {
-              action: 'itdog.meegle.auth.ensure',
-              payload: {
-                requestId: `req_${Date.now()}`,
-                operatorLarkId: 'ou_current_user',
-                baseUrl: MEEGLE_BASE_URL,
-              },
-            },
-            (response) => {
-              if (chrome.runtime.lastError) {
-                log('Background script error: ' + chrome.runtime.lastError.message, 'error');
-                resolve({ status: 'error' });
-                return;
-              }
-              resolve(response?.payload || { status: 'unknown' });
-            },
-          );
-        });
-      }
-
-      /**
-       * Check Lark auth status
-       */
-      async function checkLarkAuth() {
-        return new Promise((resolve) => {
-          chrome.runtime.sendMessage(
-            {
-              action: 'itdog.lark.auth.ensure',
-              payload: {
-                requestId: `req_${Date.now()}`,
-                operatorLarkId: 'ou_current_user',
-                baseUrl: 'https://open.larksuite.com',
-              },
-            },
-            (response) => {
-              if (chrome.runtime.lastError) {
-                log('Lark background script error: ' + chrome.runtime.lastError.message, 'error');
-                resolve({ status: 'error' });
-                return;
-              }
-              resolve(response?.payload || { status: 'unknown' });
-            },
-          );
-        });
-      }
-
-      /**
-       * Exchange Lark auth code for user token
-       */
-      async function exchangeLarkAuthCode(code, operatorLarkId, baseUrl) {
-        try {
-          const response = await fetch(`${SERVER_URL}/api/lark/auth/exchange`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              operatorLarkId,
-              baseUrl,
-              code,
-              grantType: 'authorization_code',
-            }),
-          });
-
-          const result = await response.json();
-
-          if (result.ok) {
-            log('Lark token exchange successful', 'success');
-            return true;
-          } else {
-            log('Lark token exchange failed: ' + result.error?.errorMessage, 'error');
-            return false;
-          }
-        } catch (err) {
-          log('Lark token exchange error: ' + err.message, 'error');
-          return false;
-        }
-      }
-
-      /**
-       * Exchange auth code for user token (call server)
-       */
-      async function exchangeAuthCode(authCode, state) {
-        try {
-          const response = await fetch(`${SERVER_URL}/api/meegle/auth/exchange`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              requestId: `req_${Date.now()}`,
-              operatorLarkId: 'ou_current_user',
-              meegleUserKey: 'user_key_placeholder',
-              baseUrl: MEEGLE_BASE_URL,
-              authCode: authCode,
-              state: state,
-            }),
-          });
-
-          const result = await response.json();
-
-          if (result.ok) {
-            log('Token exchange successful', 'success');
-            return true;
-          } else {
-            log('Token exchange failed: ' + result.error?.errorMessage, 'error');
-            return false;
-          }
-        } catch (err) {
-          log('Token exchange error: ' + err.message, 'error');
-          return false;
-        }
-      }
-
-      async function detectPage() {
-        try {
-          const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-          const url = tab.url;
-
-          // Meegle 页面 (project.larksuite.com 是 Meegle)
-          if (url.includes('project.larksuite.com') || url.includes('meegle.com')) {
-            currentState.pageType = 'meegle';
-            showMeegleActions();
-            setStatus('ready', 'Meegle 页面');
-            log('检测到 Meegle 页面', 'success');
-
-            // On Meegle page, trigger auth code request
-            const authStatus = await checkMeegleAuth();
-            currentState.meegleAuthStatus = authStatus.status;
-            currentState.authCode = authStatus.authCode;
-
-            updateMeegleAuthText(authStatus.status, authStatus.authCode);
-
-            if (authStatus.status === 'ready' && authStatus.authCode) {
-              log('获取到 auth code', 'success');
-            } else if (authStatus.status === 'require_auth_code') {
-              log('需要登录 Meegle', 'pending');
-            }
-          } else if (url.includes('feishu.cn') || url.includes('larksuite.com')) {
-            // Lark 页面
-            if (url.includes('/a1/') || url.includes('support')) {
-              currentState.pageType = 'lark_a1';
-              showLarkActions();
-              setStatus('ready', 'Lark 支持工单页面');
-              setButtonsEnabled(true);
-              log('检测到 Lark A1 页面', 'success');
-
-              // Check Meegle auth status
-              const authStatus = await checkMeegleAuth();
-              currentState.meegleAuthStatus = authStatus.status;
-              currentState.authCode = authStatus.authCode;
-
-              if (authStatus.status === 'ready') {
-                log('Meegle 已认证', 'success');
-              } else if (authStatus.status === 'require_auth_code') {
-                log('需要 Meegle 认证，请打开 Meegle 页面', 'pending');
-              }
-
-              // Check Lark auth status
-              const larkAuthStatus = await checkLarkAuth();
-              currentState.larkAuthStatus = larkAuthStatus.status;
-
-              if (larkAuthStatus.status === 'ready') {
-                log('Lark 已认证', 'success');
-              } else if (larkAuthStatus.status === 'require_auth_code') {
-                log('需要 Lark 认证', 'pending');
-              }
-            } else if (url.includes('/a2/') || url.includes('requirement')) {
-              currentState.pageType = 'lark_a2';
-              showLarkActions();
-              setStatus('ready', 'Lark 需求页面');
-              setButtonsEnabled(true);
-              log('检测到 Lark A2 页面', 'success');
-            } else {
-              showLarkActions();
-              setStatus('pending', 'Lark 页面 (非工单/需求)');
-              log('Lark 页面，但不是 A1/A2 类型');
-            }
-          } else {
-            setStatus('error', '不支持的页面');
-            log('当前页面不支持', 'error');
-          }
-        } catch (err) {
-          setStatus('error', '检测失败');
-          log(`检测失败：${err.message}`, 'error');
-        }
-      }
-
-      async function analyzePage() {
-        if (!currentState.pageType?.startsWith('lark_')) {
-          log('请先切换到 Lark 页面', 'error');
-          return;
-        }
-
-        log('开始分析...');
-        els.analyzeBtn.disabled = true;
-
-        try {
-          const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-
-          // 从页面提取 recordId (简化版本，实际需要 content script 配合)
-          const recordId = `rec_${Date.now()}`;
-          currentState.recordId = recordId;
-
-          const response = await fetch(`${SERVER_URL}/api/a1/analyze`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              requestId: `req_${Date.now()}`,
-              operatorLarkId: 'ou_current_user',
-              recordId,
-              pageContext: {
-                pageType: currentState.pageType,
-                baseId: 'app_sample',
-                tableId: 'tbl_sample',
-              },
-            }),
-          });
-
-          const result = await response.json();
-
-          if (result.ok) {
-            currentState.analysisResult = result.data;
-            els.draftBtn.disabled = false;
-            log(`分析完成：${result.data.summary}`, 'success');
-          } else {
-            log(`分析失败：${result.error?.errorMessage}`, 'error');
-          }
-        } catch (err) {
-          log(`分析失败：${err.message}`, 'error');
-        } finally {
-          els.analyzeBtn.disabled = false;
-        }
-      }
-
-      async function generateDraft() {
-        if (!currentState.analysisResult) {
-          log('请先分析页面', 'error');
-          return;
-        }
-
-        // Check Meegle auth before generating draft
-        if (currentState.meegleAuthStatus !== 'authenticated') {
-          log('请先完成 Meegle 认证', 'error');
-          return;
-        }
-
-        // Check Lark auth before generating draft
-        if (currentState.larkAuthStatus !== 'ready' && currentState.larkAuthStatus !== 'authenticated') {
-          log('请先完成 Lark 认证', 'error');
-          return;
-        }
-
-        log('生成草稿中...');
-        els.draftBtn.disabled = true;
-
-        try {
-          const response = await fetch(`${SERVER_URL}/api/a1/create-b2-draft`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              requestId: `req_${Date.now()}`,
-              operatorLarkId: 'ou_current_user',
-              recordId: currentState.recordId,
-            }),
-          });
-
-          const result = await response.json();
-
-          if (result.ok) {
-            currentState.draftResult = result.data;
-            els.applyBtn.disabled = false;
-            log(`草稿生成：${result.data.draft?.name || '未完成'}`, 'success');
-          } else {
-            log(`草稿生成失败：${result.error?.errorMessage}`, 'error');
-          }
-        } catch (err) {
-          log(`草稿生成失败：${err.message}`, 'error');
-        } finally {
-          els.draftBtn.disabled = false;
-        }
-      }
-
-      async function applyDraft() {
-        if (!currentState.draftResult) {
-          log('请先生成草稿', 'error');
-          return;
-        }
-
-        if (!confirm('确认创建此工作项吗？')) {
-          return;
-        }
-
-        log('创建中...');
-        els.applyBtn.disabled = true;
-
-        try {
-          const response = await fetch(`${SERVER_URL}/api/a1/apply-b2`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              requestId: `req_${Date.now()}`,
-              draftId: currentState.draftResult.draftId,
-              operatorLarkId: 'ou_current_user',
-              sourceRecordId: currentState.recordId,
-              idempotencyKey: `idem_${Date.now()}`,
-              confirmedDraft: currentState.draftResult.draft,
-            }),
-          });
-
-          const result = await response.json();
-
-          if (result.ok) {
-            log(`创建成功！工作项 ID: ${result.data.workitemId}`, 'success');
-            setStatus('ready', '创建成功');
-          } else {
-            log(`创建失败：${result.error?.errorMessage}`, 'error');
-          }
-        } catch (err) {
-          log(`创建失败：${err.message}`, 'error');
-        } finally {
-          els.applyBtn.disabled = false;
-        }
-      }
-
-      // Event listeners
-      els.analyzeBtn.addEventListener('click', analyzePage);
-      els.draftBtn.addEventListener('click', generateDraft);
-      els.applyBtn.addEventListener('click', applyDraft);
-
-      // Meegle action listeners
-      els.meegleAuthBtn.addEventListener('click', async () => {
-        const status = currentState.meegleAuthStatus;
-
-        if (status === 'ready' && currentState.authCode) {
-          // Exchange auth code for token
-          log('正在交换 token...');
-          const exchanged = await exchangeAuthCode(currentState.authCode, currentState.authCode);
-          if (exchanged) {
-            currentState.meegleAuthStatus = 'authenticated';
-            updateMeegleAuthText('authenticated');
-            log('Meegle 认证成功', 'success');
-          } else {
-            updateMeegleAuthText('failed');
-          }
-        } else if (status === 'require_auth_code') {
-          // Open Meegle login page
-          chrome.tabs.create({ url: MEEGLE_BASE_URL, active: true });
-        } else {
-          // Re-check auth
-          const authStatus = await checkMeegleAuth();
-          currentState.meegleAuthStatus = authStatus.status;
-          currentState.authCode = authStatus.authCode;
-          updateMeegleAuthText(authStatus.status, authStatus.authCode);
-        }
-      });
-
-      els.meegleRefreshBtn.addEventListener('click', async () => {
-        log('刷新认证状态...');
-        const authStatus = await checkMeegleAuth();
-        currentState.meegleAuthStatus = authStatus.status;
-        currentState.authCode = authStatus.authCode;
-        updateMeegleAuthText(authStatus.status, authStatus.authCode);
-        log('状态已更新', 'success');
-      });
-
-      // Initialize
-      detectPage();
-
-      // Keyboard shortcuts
-      document.addEventListener('keydown', (e) => {
-        if (e.altKey && e.key === 'a') {
-          e.preventDefault();
-          analyzePage();
-        } else if (e.altKey && e.key === 'd') {
-          e.preventDefault();
-          generateDraft();
-        }
-      });
-    </script>
+    <script type="module" src="popup.js"></script>
   </body>
 </html>
