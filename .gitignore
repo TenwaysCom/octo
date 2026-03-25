@@ -8,3 +8,9 @@ package-lock.json
 worktrees
 **/node_modules
 .superpowers
+.gstack
+.pnpm-lock.yaml
+.pluginsecret
+**/.env
+.pluginscecret
+.env

@@ -1,4 +1,5 @@
 import "reflect-metadata";
+import "dotenv/config";
 import express, { type Request, type Response } from "express";
 import { analyzeA2Controller, createB1DraftController, applyB1Controller } from "./modules/a2/a2.controller.js";
 import { analyzeA1Controller, createB2DraftController, applyB2Controller } from "./modules/a1/a1.controller.js";
@@ -6,11 +7,13 @@ import { resolveIdentityController } from "./modules/identity/identity.controlle
 import { exchangeAuthCodeController, getAuthStatusController, getAuthCodeController } from "./modules/meegle-auth/meegle-auth.controller.js";
 import { exchangeAuthCodeController as exchangeLarkAuthCodeController, refreshTokenController as refreshLarkTokenController, getAuthStatusController as getLarkAuthStatusController } from "./modules/lark-auth/lark-auth.controller.js";
 import { configureLarkAuthControllerDeps } from "./modules/lark-auth/lark-auth.controller.js";
+import { configureMeegleAuthServiceDeps } from "./modules/meegle-auth/meegle-auth.service.js";
 import { runPMAnalysisController } from "./modules/pm-analysis/pm-analysis.controller.js";
 
 // Load environment variables
 const LARK_APP_ID = process.env.LARK_APP_ID || "";
 const LARK_APP_SECRET = process.env.LARK_APP_SECRET || "";
+const MEEGLE_PLUGIN_ID = process.env.MEEGLE_PLUGIN_ID || "";
 
 // Configure Lark auth with credentials
 if (LARK_APP_ID && LARK_APP_SECRET) {
@@ -18,9 +21,16 @@ if (LARK_APP_ID && LARK_APP_SECRET) {
     appId: LARK_APP_ID,
     appSecret: LARK_APP_SECRET,
   });
-  console.log("[Server] Lark auth configured with APP_ID:", LARK_APP_ID.substring(0, 8) + "...");
+  console.log("[Server] Lark auth configured with APP_ID:", LARK_APP_ID);
 } else {
   console.warn("[Server] Warning: LARK_APP_ID and LARK_APP_SECRET not configured. Lark auth will not work.");
+}
+
+// Log Meegle config status
+if (MEEGLE_PLUGIN_ID) {
+  console.log("[Server] Meegle plugin ID configured:", MEEGLE_PLUGIN_ID);
+} else {
+  console.warn("[Server] Warning: MEEGLE_PLUGIN_ID not configured.");
 }
 
 const app = express();
