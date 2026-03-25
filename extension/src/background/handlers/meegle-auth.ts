@@ -4,7 +4,7 @@ import type {
   MeegleAuthEnsureResponse,
   MeegleAuthExchangeResponse,
 } from "../../types/meegle";
-import { getConfig } from "../config";
+import { getConfig } from "../config.js";
 
 export interface EnsureMeegleAuthDeps {
   getCachedToken?: () => string | undefined;
@@ -76,15 +76,15 @@ async function requestAuthCodeFromContentScript(
  */
 async function openMeegleLoginTab(baseUrl: string): Promise<void> {
   return new Promise((resolve) => {
-    // chrome.tabs.create(
-    //   {
-    //     url: baseUrl,
-    //     active: true,
-    //   },
-    //   () => {
-    //     resolve();
-    //   },
-    // );
+    chrome.tabs.create(
+      {
+        url: baseUrl,
+        active: true,
+      },
+      () => {
+        resolve();
+      },
+    );
   });
 }
 

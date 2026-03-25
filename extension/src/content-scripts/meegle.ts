@@ -89,23 +89,16 @@ async function getAuthCodeFromMeegleApi(
   baseUrl: string = "https://project.larksuite.com",
 ): Promise<MeegleAuthCodeResult | null> {
   try {
-    // Get current page cookie
-    const cookie = document.cookie;
-
-    if (!cookie || cookie.length === 0) {
-      console.error("[Tenways Octo] No cookie found on current page");
-      return null;
-    }
-
     console.log("[Tenways Octo] Getting auth code from Meegle API...");
 
     // Call Meegle BFF auth code API
+    // Note: credentials 'include' ensures cookies are sent automatically
     const response = await fetch(`${baseUrl}/bff/v2/authen/v1/auth_code`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Cookie": cookie,
       },
+      credentials: "include",
       body: JSON.stringify({
         plugin_id: pluginId,
         state: state,

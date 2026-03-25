@@ -91,6 +91,10 @@ function detectPageType(url) {
 
 // Auth handlers
 async function checkMeegleAuth() {
+  // First try to get userKey from settings (manually set)
+  const settings = await loadSettings();
+  const meegleUserKey = settings.meegleUserKey || state.identity.meegleUserKey || '';
+
   return new Promise((resolve) => {
     chrome.runtime.sendMessage(
       {
@@ -98,7 +102,7 @@ async function checkMeegleAuth() {
         payload: {
           requestId: `req_${Date.now()}`,
           operatorLarkId: state.identity.larkId || 'ou_user',
-          meegleUserKey: state.identity.meegleUserKey || '',
+          meegleUserKey: meegleUserKey,
           baseUrl: CONFIG.MEEGLE_BASE_URL,
         },
       },
@@ -151,9 +155,14 @@ async function doMeegleAuth() {
   }
 
   // Need to redirect - inform user
-  log.warn(`需要登录 Meegle ${auth.status} ${auth.authCode}`);
-  log.warn('请在 Meegle 页面登录后重试');
-  // Note: Auto-redirect disabled, user needs to manually navigate to Meegle
+  if (auth.reason === 'MEEGLE_AUTH_REQUIRED_FIELDS_MISSING') {
+    log.error('缺少 Meegle User Key，请在设置中配置');
+  } else if (auth.reason === 'PLUGIN_ID_NOT_CONFIGURED') {
+    log.error('插件 ID 未配置');
+  } else {
+    log.warn(`需要登录 Meegle (${auth.reason || auth.status})`);
+    log.warn('请在 Meegle 页面登录后重试');
+  }
   return false;
 }
 
