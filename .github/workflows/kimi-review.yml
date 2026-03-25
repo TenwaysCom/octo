@@ -43,14 +43,8 @@ jobs:
         with:
           ref: ${{ (github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment') && steps.get-pr.outputs.ref || github.head_ref }}
 
-      - uses: xiaoju111a/kimi-actions@main
+      - uses: howardpen9/kimi-code-reviewer@main
         with:
-          kimi_api_key: ${{ secrets.KIMI_API_KEY }}
-          kimi_base_url: ${{ secrets.KIMI_BASE_URL }}  # Optional
-          github_token: ${{ secrets.GH_TOKEN }}
-          auto_review: 'true'  # Use /review command instead
+          kimi_api_key: ${{ secrets.MOONSHOT_API_KEY }}
+          language: zh-TW
           fail_on: warning
-          model: 'kimi-for-coding'              # Kimi model (default: kimi-k2.5)
-          review_level: 'normal'          # Review strictness: strict, normal, gentle
-          max_files: '50'                 # Max files to review
-          exclude_patterns: '*.lock,*.min.js'  # File patterns to exclude
