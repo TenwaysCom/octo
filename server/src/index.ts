@@ -5,7 +5,7 @@ import { analyzeA2Controller, createB1DraftController, applyB1Controller } from 
 import { analyzeA1Controller, createB2DraftController, applyB2Controller } from "./modules/a1/a1.controller.js";
 import { resolveIdentityController } from "./modules/identity/identity.controller.js";
 import { syncIdentityController, getIdentityController } from "./modules/identity/identity-sync.controller.js";
-import { exchangeAuthCodeController, getAuthStatusController, getAuthCodeController } from "./modules/meegle-auth/meegle-auth.controller.js";
+import { exchangeAuthCodeController, getAuthStatusController } from "./modules/meegle-auth/meegle-auth.controller.js";
 import { exchangeAuthCodeController as exchangeLarkAuthCodeController, refreshTokenController as refreshLarkTokenController, getAuthStatusController as getLarkAuthStatusController } from "./modules/lark-auth/lark-auth.controller.js";
 import { configureLarkAuthControllerDeps } from "./modules/lark-auth/lark-auth.controller.js";
 import { configureMeegleAuthServiceDeps } from "./modules/meegle-auth/meegle-auth.service.js";
@@ -85,7 +85,6 @@ app.post("/api/identity/get", handleController(getIdentityController));
 // Meegle auth routes
 app.post("/api/meegle/auth/exchange", handleController(exchangeAuthCodeController));
 app.post("/api/meegle/auth/status", handleController(getAuthStatusController));
-app.post("/api/meegle/auth/get-code", handleController(getAuthCodeController));
 
 // Lark auth routes
 app.post("/api/lark/auth/exchange", handleController(exchangeLarkAuthCodeController));

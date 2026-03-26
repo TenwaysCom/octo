@@ -36,6 +36,8 @@ describe("meegle-auth handler", () => {
           requestId: "req_001",
           operatorLarkId: "ou_xxx",
           meegleUserKey: "user_xxx",
+          currentTabId: 12,
+          currentPageIsMeegle: true,
           baseUrl: "https://project.larksuite.com",
         },
         deps,
@@ -98,6 +100,8 @@ describe("meegle-auth handler", () => {
           requestId: "req_001",
           operatorLarkId: "ou_xxx",
           meegleUserKey: "user_xxx",
+          currentTabId: 12,
+          currentPageIsMeegle: true,
           baseUrl: "https://project.larksuite.com",
           state: "state_456",
         },
@@ -106,14 +110,15 @@ describe("meegle-auth handler", () => {
 
       expect(result.status).toBe("ready");
       expect(result.authCode).toBe("auth_code_123");
+      expect(deps.saveAuthCode).toHaveBeenCalledWith(mockAuthCode);
       expect(deps.exchangeAuthCodeWithServer).toHaveBeenCalledWith(
-        {
+        expect.objectContaining({
           requestId: "req_001",
           operatorLarkId: "ou_xxx",
           meegleUserKey: "user_xxx",
           baseUrl: "https://project.larksuite.com",
           state: "state_456",
-        },
+        }),
         "auth_code_123",
       );
     });
@@ -132,6 +137,8 @@ describe("meegle-auth handler", () => {
           requestId: "req_001",
           operatorLarkId: "ou_xxx",
           meegleUserKey: "user_xxx",
+          currentTabId: 12,
+          currentPageIsMeegle: true,
           baseUrl: "https://project.larksuite.com",
           state: "expected_state",
         },
@@ -165,6 +172,8 @@ describe("meegle-auth handler", () => {
           requestId: "req_001",
           operatorLarkId: "ou_xxx",
           meegleUserKey: "user_xxx",
+          currentTabId: 12,
+          currentPageIsMeegle: true,
           baseUrl: "https://project.larksuite.com",
           state: "state_456",
         },
@@ -183,6 +192,8 @@ describe("meegle-auth handler", () => {
           requestId: "req_001",
           operatorLarkId: "ou_xxx",
           meegleUserKey: "user_xxx",
+          currentTabId: 12,
+          currentPageIsMeegle: true,
           baseUrl: "https://project.larksuite.com",
         },
         deps,
@@ -191,6 +202,49 @@ describe("meegle-auth handler", () => {
       expect(result.status).toBe("require_auth_code");
       expect(result.reason).toBe("NEED_USER_LOGIN");
       expect(deps.openMeegleLoginTab).toHaveBeenCalled();
+    });
+
+    it("should require a Meegle page when the current tab is not a Meegle page", async () => {
+      const result = await ensureMeegleAuth(
+        {
+          requestId: "req_001",
+          operatorLarkId: "ou_xxx",
+          currentTabId: 12,
+          currentPageIsMeegle: false,
+          baseUrl: "https://www.larksuite.com",
+        },
+        deps,
+      );
+
+      expect(result.status).toBe("failed");
+      expect(result.reason).toBe("MEEGLE_PAGE_REQUIRED");
+      expect(deps.requestAuthCodeFromContentScript).not.toHaveBeenCalled();
+    });
+
+    it("should allow auth code acquisition before meegleUserKey is available", async () => {
+      const mockAuthCode: MeegleAuthCodeResponse = {
+        authCode: "auth_code_123",
+        state: "state_456",
+        issuedAt: new Date().toISOString(),
+      };
+
+      deps.requestAuthCodeFromContentScript = vi.fn().mockResolvedValue(mockAuthCode);
+
+      const result = await ensureMeegleAuth(
+        {
+          requestId: "req_001",
+          operatorLarkId: "ou_xxx",
+          currentTabId: 12,
+          currentPageIsMeegle: true,
+          baseUrl: "https://tenant.meegle.com",
+          state: "state_456",
+        },
+        deps,
+      );
+
+      expect(result.authCode).toBe("auth_code_123");
+      expect(deps.saveAuthCode).toHaveBeenCalledWith(mockAuthCode);
+      expect(result.reason).toBe("MEEGLE_USER_KEY_REQUIRED");
     });
   });
 });

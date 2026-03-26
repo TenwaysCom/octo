@@ -83,7 +83,7 @@ export function getMeegleUserIdentity(): MeegleUserIdentity {
 /**
  * Get auth code from Meegle BFF API using current page cookie
  */
-async function getAuthCodeFromMeegleApi(
+export async function getAuthCodeFromMeegleApi(
   pluginId: string,
   state: string,
   baseUrl: string = "https://project.larksuite.com",

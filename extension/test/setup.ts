@@ -31,7 +31,11 @@ globalThis.chrome = {
     },
   },
   runtime: {
+    sendMessage: vi.fn(),
     lastError: null,
+    onMessage: {
+      addListener: vi.fn(),
+    },
   },
 } as unknown as typeof chrome;
 

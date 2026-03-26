@@ -1,4 +1,4 @@
-import { exchangeAuthCode, getAuthCode, refreshAuthToken } from "./meegle-auth.service.js";
+import { exchangeAuthCode, refreshAuthToken } from "./meegle-auth.service.js";
 import { validateMeegleAuthStatusRequest } from "./meegle-auth.dto.js";
 
 export async function exchangeAuthCodeController(input: unknown) {
@@ -23,8 +23,4 @@ export async function getAuthStatusController(input: unknown) {
 
 export async function refreshAuthCodeController(input: unknown) {
   return refreshAuthToken(input);
-}
-
-export async function getAuthCodeController(input: unknown) {
-  return getAuthCode(input);
 }

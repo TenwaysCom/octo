@@ -14,6 +14,7 @@ export interface EnsureMeegleAuthDeps {
     pluginId: string,
     state: string,
     baseUrl: string,
+    tabId?: number,
   ) => Promise<MeegleAuthCodeResponse | undefined>;
   openMeegleLoginTab?: (baseUrl: string) => Promise<void>;
   exchangeAuthCodeWithServer?: (
@@ -29,45 +30,42 @@ async function requestAuthCodeFromContentScript(
   pluginId: string,
   state: string,
   baseUrl: string,
+  tabId?: number,
 ): Promise<MeegleAuthCodeResponse | undefined> {
   return new Promise((resolve) => {
-    // Find Meegle tab
-    chrome.tabs.query({ url: baseUrl + "/*" }, (tabs) => {
-      if (!tabs || tabs.length === 0) {
-        console.error("[Tenways Octo] No Meegle tab found");
-        resolve(undefined);
-        return;
-      }
+    if (!tabId) {
+      resolve(undefined);
+      return;
+    }
 
-      const meegleTab = tabs[0];
+    chrome.tabs.sendMessage(
+      tabId,
+      {
+        action: "itdog.page.meegle.auth_code.request",
+        payload: { pluginId, state, baseUrl },
+      },
+      (response) => {
+        if (chrome.runtime.lastError) {
+          console.error(
+            "[Tenways Octo] Failed to send message to content script:",
+            chrome.runtime.lastError,
+          );
+          resolve(undefined);
+          return;
+        }
 
-      // Send message to content script
-      chrome.tabs.sendMessage(
-        meegleTab.id!,
-        {
-          action: "itdog.page.meegle.auth_code.request",
-          payload: { pluginId, state, baseUrl },
-        },
-        (response) => {
-          if (chrome.runtime.lastError) {
-            console.error("[Tenways Octo] Failed to send message to content script:", chrome.runtime.lastError);
-            resolve(undefined);
-            return;
-          }
-
-          if (response?.ok && response?.data) {
-            resolve({
-              authCode: response.data.authCode,
-              state: response.data.state,
-              issuedAt: response.data.issuedAt,
-            });
-          } else {
-            console.error("[Tenways Octo] Auth code request failed:", response?.error);
-            resolve(undefined);
-          }
-        },
-      );
-    });
+        if (response?.ok && response?.data) {
+          resolve({
+            authCode: response.data.authCode,
+            state: response.data.state,
+            issuedAt: response.data.issuedAt,
+          });
+        } else {
+          console.error("[Tenways Octo] Auth code request failed:", response?.error);
+          resolve(undefined);
+        }
+      },
+    );
   });
 }
 
@@ -134,7 +132,7 @@ export async function ensureMeegleAuth(
   const state = request.state || `state_${Date.now()}`;
 
   // Validate required fields
-  if (!request.requestId || !request.operatorLarkId || !request.meegleUserKey) {
+  if (!request.requestId || !request.operatorLarkId) {
     return {
       status: "failed",
       baseUrl,
@@ -166,7 +164,21 @@ export async function ensureMeegleAuth(
 
   const requestAuthCode = deps.requestAuthCodeFromContentScript ?? requestAuthCodeFromContentScript;
 
-  const authResult = await requestAuthCode(pluginId, state, baseUrl);
+  if (!request.currentPageIsMeegle || !request.currentTabId) {
+    return {
+      status: "failed",
+      baseUrl,
+      state,
+      reason: "MEEGLE_PAGE_REQUIRED",
+    };
+  }
+
+  const authResult = await requestAuthCode(
+    pluginId,
+    state,
+    baseUrl,
+    request.currentTabId,
+  );
 
   if (authResult) {
     if (authResult.state !== state) {
@@ -175,6 +187,19 @@ export async function ensureMeegleAuth(
         baseUrl,
         state,
         reason: "MEEGLE_AUTH_CODE_STATE_MISMATCH",
+      };
+    }
+
+    await deps.saveAuthCode?.(authResult);
+
+    if (!request.meegleUserKey) {
+      return {
+        status: "failed",
+        baseUrl,
+        state: authResult.state,
+        authCode: authResult.authCode,
+        issuedAt: authResult.issuedAt,
+        reason: "MEEGLE_USER_KEY_REQUIRED",
       };
     }
 

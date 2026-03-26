@@ -2,6 +2,8 @@
  * Tenways Octo Popup - Refactored
  */
 
+import { createMeegleAuthController } from "./popup/meegle-auth.js";
+
 const CONFIG = {
   SERVER_URL: 'http://localhost:3000',
   MEEGLE_BASE_URL: 'https://project.larksuite.com',
@@ -46,6 +48,8 @@ const dom = {
 };
 
 const state = {
+  currentTabId: null,
+  currentTabOrigin: null,
   pageType: null,
   url: null,
   identity: { larkId: null, meegleUserKey: null },
@@ -103,13 +107,33 @@ async function checkMeegleAuth() {
           requestId: `req_${Date.now()}`,
           operatorLarkId: state.identity.larkId || 'ou_user',
           meegleUserKey: meegleUserKey,
-          baseUrl: CONFIG.MEEGLE_BASE_URL,
+          baseUrl: state.currentTabOrigin || CONFIG.MEEGLE_BASE_URL,
+          currentTabId: state.currentTabId,
+          currentPageIsMeegle: state.pageType === 'meegle',
         },
       },
       (res) => resolve(res?.payload || { status: 'unknown' })
     );
   });
 }
+
+const meegleAuthController = createMeegleAuthController({
+  sendMessage: async (request) =>
+    new Promise((resolve) => {
+      chrome.runtime.sendMessage(
+        {
+          action: 'itdog.meegle.auth.ensure',
+          payload: request,
+        },
+        (res) => resolve(res?.payload || { status: 'unknown' }),
+      );
+    }),
+  setStatus: (status, text) => {
+    setStatus(dom.meegleUserTop, status, text);
+    setStatus(dom.meegleUserBottom, status, text);
+  },
+  log,
+});
 
 async function checkLarkAuth() {
   return new Promise((resolve) => {
@@ -121,49 +145,20 @@ async function checkLarkAuth() {
 }
 
 async function doMeegleAuth() {
-  log.add('检查 Meegle 授权...');
-  const auth = await checkMeegleAuth();
-  state.meegleAuth = auth;
-
-  if (auth.status === 'ready') {
-    state.isAuthed.meegle = true;
-    setStatus(dom.meegleUserTop, 'ready', auth.authCode || '已授权');
-    setStatus(dom.meegleUserBottom, 'ready', auth.authCode || '已授权');
-    log.success('Meegle 已授权');
-    return true;
+  if (state.pageType === 'meegle') {
+    await refreshCurrentMeegleIdentity();
   }
 
-  if (auth.authCode) {
-    log.add('交换 Token...');
-    try {
-      const res = await fetch(`${CONFIG.SERVER_URL}/api/meegle/auth/exchange`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ requestId: `req_${Date.now()}`, authCode: auth.authCode, state: auth.authCode }),
-      });
-      const result = await res.json();
-      if (result.ok) {
-        state.isAuthed.meegle = true;
-        setStatus(dom.meegleUserTop, 'ready', '已授权');
-        setStatus(dom.meegleUserBottom, 'ready', '已授权');
-        log.success('Meegle 授权成功');
-        return true;
-      }
-    } catch (e) {
-      log.error('Token 交换失败');
-    }
-  }
-
-  // Need to redirect - inform user
-  if (auth.reason === 'MEEGLE_AUTH_REQUIRED_FIELDS_MISSING') {
-    log.error('缺少 Meegle User Key，请在设置中配置');
-  } else if (auth.reason === 'PLUGIN_ID_NOT_CONFIGURED') {
-    log.error('插件 ID 未配置');
-  } else {
-    log.warn(`需要登录 Meegle (${auth.reason || auth.status})`);
-    log.warn('请在 Meegle 页面登录后重试');
-  }
-  return false;
+  const ok = await meegleAuthController.run({
+    currentTabId: state.currentTabId,
+    currentTabOrigin: state.currentTabOrigin,
+    currentPageType: state.pageType,
+    larkId: state.identity.larkId,
+    meegleUserKey: state.identity.meegleUserKey || undefined,
+  });
+  state.meegleAuth = meegleAuthController.getLastAuth() || { status: 'unknown' };
+  state.isAuthed.meegle = ok;
+  return ok;
 }
 
 async function doLarkAuth() {
@@ -202,6 +197,8 @@ async function init() {
   }
 
   state.url = tab.url;
+  state.currentTabId = tab.id ?? null;
+  state.currentTabOrigin = new URL(tab.url).origin;
   state.pageType = detectPageType(tab.url);
 
   // Unsupported page
@@ -275,16 +272,7 @@ async function init() {
       dom.applyBtn.disabled = false;
     }
   } else if (state.pageType === 'meegle') {
-    try {
-      const res = await new Promise((resolve) => {
-        chrome.tabs.sendMessage(tab.id, { action: 'getMeegleUserIdentity' }, (r) => resolve(r));
-      });
-      if (res?.userKey) {
-        state.identity.meegleUserKey = res.userKey;
-        setStatus(dom.meegleUserTop, 'ready', res.userKey);
-        setStatus(dom.meegleUserBottom, 'ready', res.userKey);
-      }
-    } catch (e) {}
+    await refreshCurrentMeegleIdentity();
 
     // Check auth status
     const [meegleAuth, larkAuth] = await Promise.all([checkMeegleAuth(), checkLarkAuth()]);
@@ -311,6 +299,23 @@ async function init() {
   }
 
   log.success('初始化完成');
+}
+
+async function refreshCurrentMeegleIdentity() {
+  if (state.pageType !== 'meegle' || state.currentTabId == null) {
+    return;
+  }
+
+  try {
+    const res = await new Promise((resolve) => {
+      chrome.tabs.sendMessage(state.currentTabId, { action: 'getMeegleUserIdentity' }, (r) => resolve(r));
+    });
+    if (res?.userKey) {
+      state.identity.meegleUserKey = res.userKey;
+      setStatus(dom.meegleUserTop, 'ready', res.userKey);
+      setStatus(dom.meegleUserBottom, 'ready', res.userKey);
+    }
+  } catch (e) {}
 }
 
 // Event listeners
