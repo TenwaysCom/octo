@@ -41,9 +41,17 @@ describe("auth-adapter", () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 401,
+        json: async () => ({
+          error: {
+            code: 10204,
+            msg: "wrong plugin secret",
+          },
+        }),
       });
 
-      await expect(adapter.getPluginToken("https://project.larksuite.com")).rejects.toThrow();
+      await expect(
+        adapter.getPluginToken("https://project.larksuite.com"),
+      ).rejects.toThrow("Failed to get plugin token: 401 wrong plugin secret");
     });
 
     it("should extract token from alternative field names", async () => {

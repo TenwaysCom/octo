@@ -33,6 +33,33 @@ async function parseJson(response: Response): Promise<JsonRecord> {
   return data;
 }
 
+function extractErrorMessage(payload: JsonRecord): string | undefined {
+  const directMessageKeys = ["msg", "message", "error_message"];
+
+  for (const key of directMessageKeys) {
+    const value = payload[key];
+    if (typeof value === "string" && value.length > 0) {
+      return value;
+    }
+  }
+
+  const errorPayload = payload.error;
+  if (
+    errorPayload &&
+    typeof errorPayload === "object" &&
+    !Array.isArray(errorPayload)
+  ) {
+    for (const key of directMessageKeys) {
+      const value = (errorPayload as JsonRecord)[key];
+      if (typeof value === "string" && value.length > 0) {
+        return value;
+      }
+    }
+  }
+
+  return undefined;
+}
+
 function joinUrl(baseUrl: string, path: string): string {
   return new URL(path, `${baseUrl.replace(/\/$/, "")}/`).toString();
 }
@@ -68,7 +95,10 @@ export function createHttpMeegleAuthAdapter(
       const payload = await parseJson(response);
 
       if (!response.ok) {
-        throw new Error(`Failed to get plugin token: ${response.status}`);
+        const detail = extractErrorMessage(payload);
+        throw new Error(
+          `Failed to get plugin token: ${response.status}${detail ? ` ${detail}` : ""}`,
+        );
       }
 
       return extractToken(payload, ["plugin_access_token", "token", "access_token"]);
@@ -92,7 +122,10 @@ export function createHttpMeegleAuthAdapter(
       const payload = await parseJson(response);
 
       if (!response.ok) {
-        throw new Error(`Failed to exchange user token: ${response.status}`);
+        const detail = extractErrorMessage(payload);
+        throw new Error(
+          `Failed to exchange user token: ${response.status}${detail ? ` ${detail}` : ""}`,
+        );
       }
 
       return {
@@ -120,7 +153,10 @@ export function createHttpMeegleAuthAdapter(
       const payload = await parseJson(response);
 
       if (!response.ok) {
-        throw new Error(`Failed to refresh user token: ${response.status}`);
+        const detail = extractErrorMessage(payload);
+        throw new Error(
+          `Failed to refresh user token: ${response.status}${detail ? ` ${detail}` : ""}`,
+        );
       }
 
       return {
