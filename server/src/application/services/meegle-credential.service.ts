@@ -17,15 +17,58 @@ export interface CredentialExchangeInput extends MeegleTokenLookup {
 export interface CredentialStatus {
   requestId?: string;
   tokenStatus: "ready" | "require_auth_code";
+  credentialStatus?: "active" | "expired";
   baseUrl: string;
   userToken?: string;
   refreshToken?: string;
+  expiresAt?: string;
   errorCode?: string;
 }
 
 export interface MeegleCredentialServiceDeps {
   authAdapter: MeegleAuthAdapter;
   tokenStore: MeegleTokenStore;
+}
+
+const EXPIRY_SAFETY_WINDOW_MS = 60_000;
+
+function toExpiresAt(expiresInSeconds?: number): string | undefined {
+  if (typeof expiresInSeconds !== "number" || !Number.isFinite(expiresInSeconds) || expiresInSeconds <= 0) {
+    return undefined;
+  }
+
+  return new Date(Date.now() + (expiresInSeconds * 1000)).toISOString();
+}
+
+function isExpired(expiresAt?: string): boolean {
+  if (!expiresAt) {
+    return true;
+  }
+
+  const expiresAtMs = Date.parse(expiresAt);
+  if (Number.isNaN(expiresAtMs)) {
+    return true;
+  }
+
+  return expiresAtMs <= Date.now() + EXPIRY_SAFETY_WINDOW_MS;
+}
+
+function buildReadyStatus(input: {
+  requestId?: string;
+  baseUrl: string;
+  userToken: string;
+  refreshToken?: string;
+  expiresAt?: string;
+}): CredentialStatus {
+  return {
+    requestId: input.requestId,
+    tokenStatus: "ready",
+    credentialStatus: "active",
+    baseUrl: input.baseUrl,
+    userToken: input.userToken,
+    refreshToken: input.refreshToken,
+    expiresAt: input.expiresAt,
+  };
 }
 
 export async function exchangeCredential(
@@ -35,7 +78,7 @@ export async function exchangeCredential(
   const pluginToken = await deps.authAdapter.getPluginToken(input.baseUrl);
   const tokenPair: UserTokenPair = await deps.authAdapter.exchangeUserToken({
     baseUrl: input.baseUrl,
-    pluginToken,
+    pluginToken: pluginToken.token,
     authCode: input.authCode,
     state: input.state,
   });
@@ -44,9 +87,13 @@ export async function exchangeCredential(
     operatorLarkId: input.operatorLarkId,
     meegleUserKey: input.meegleUserKey,
     baseUrl: input.baseUrl,
-    pluginToken,
+    pluginToken: pluginToken.token,
+    pluginTokenExpiresAt: toExpiresAt(pluginToken.expiresInSeconds),
     userToken: tokenPair.userToken,
+    userTokenExpiresAt: toExpiresAt(tokenPair.expiresInSeconds),
     refreshToken: tokenPair.refreshToken,
+    refreshTokenExpiresAt: toExpiresAt(tokenPair.refreshTokenExpiresInSeconds),
+    credentialStatus: "active",
   };
 
   await deps.tokenStore.save(storedToken);
@@ -61,13 +108,13 @@ export async function exchangeCredential(
     },
   );
 
-  return {
+  return buildReadyStatus({
     requestId: input.requestId,
-    tokenStatus: "ready",
     baseUrl: input.baseUrl,
     userToken: tokenPair.userToken,
     refreshToken: tokenPair.refreshToken,
-  };
+    expiresAt: storedToken.userTokenExpiresAt,
+  });
 }
 
 export async function refreshCredential(
@@ -76,15 +123,40 @@ export async function refreshCredential(
 ): Promise<CredentialStatus> {
   const storedToken = await deps.tokenStore.get(input);
 
-  if (!storedToken?.refreshToken) {
+  if (!storedToken?.userToken) {
     return {
       tokenStatus: "require_auth_code",
       baseUrl: input.baseUrl,
     };
   }
 
-  const pluginToken =
-    storedToken.pluginToken || (await deps.authAdapter.getPluginToken(input.baseUrl));
+  if (!isExpired(storedToken.userTokenExpiresAt)) {
+    return buildReadyStatus({
+      baseUrl: input.baseUrl,
+      userToken: storedToken.userToken,
+      refreshToken: storedToken.refreshToken,
+      expiresAt: storedToken.userTokenExpiresAt,
+    });
+  }
+
+  if (!storedToken.refreshToken || isExpired(storedToken.refreshTokenExpiresAt)) {
+    await deps.tokenStore.delete(input);
+    return {
+      tokenStatus: "require_auth_code",
+      baseUrl: input.baseUrl,
+      errorCode: "MEEGLE_REFRESH_TOKEN_EXPIRED",
+    };
+  }
+
+  let pluginToken = storedToken.pluginToken;
+  let pluginTokenExpiresAt = storedToken.pluginTokenExpiresAt;
+
+  if (!pluginToken || isExpired(pluginTokenExpiresAt)) {
+    const refreshedPluginToken = await deps.authAdapter.getPluginToken(input.baseUrl);
+    pluginToken = refreshedPluginToken.token;
+    pluginTokenExpiresAt = toExpiresAt(refreshedPluginToken.expiresInSeconds);
+  }
+
   let refreshed: UserTokenPair;
 
   try {
@@ -105,14 +177,19 @@ export async function refreshCredential(
   await deps.tokenStore.save({
     ...storedToken,
     pluginToken,
+    pluginTokenExpiresAt,
     userToken: refreshed.userToken,
-    refreshToken: refreshed.refreshToken,
+    userTokenExpiresAt: toExpiresAt(refreshed.expiresInSeconds),
+    refreshToken: refreshed.refreshToken ?? storedToken.refreshToken,
+    refreshTokenExpiresAt:
+      toExpiresAt(refreshed.refreshTokenExpiresInSeconds) ?? storedToken.refreshTokenExpiresAt,
+    credentialStatus: "active",
   });
 
-  return {
-    tokenStatus: "ready",
+  return buildReadyStatus({
     baseUrl: input.baseUrl,
     userToken: refreshed.userToken,
-    refreshToken: refreshed.refreshToken,
-  };
+    refreshToken: refreshed.refreshToken ?? storedToken.refreshToken,
+    expiresAt: toExpiresAt(refreshed.expiresInSeconds),
+  });
 }

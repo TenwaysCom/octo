@@ -11,8 +11,12 @@ interface StoredCredentialRow {
   meegle_user_key: string;
   base_url: string;
   plugin_token: string;
+  plugin_token_expires_at: string | null;
   user_token: string;
+  user_token_expires_at: string | null;
   refresh_token: string | null;
+  refresh_token_expires_at: string | null;
+  credential_status: string;
   last_auth_at: string;
   last_refresh_at: string | null;
 }
@@ -41,17 +45,23 @@ export class SqliteMeegleTokenStore implements MeegleTokenStore {
         meegle_user_key,
         base_url,
         plugin_token,
+        plugin_token_expires_at,
         user_token,
+        user_token_expires_at,
         refresh_token,
+        refresh_token_expires_at,
         credential_status,
         last_auth_at,
         last_refresh_at,
         updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(operator_lark_id, meegle_user_key, base_url) DO UPDATE SET
         plugin_token = excluded.plugin_token,
+        plugin_token_expires_at = excluded.plugin_token_expires_at,
         user_token = excluded.user_token,
+        user_token_expires_at = excluded.user_token_expires_at,
         refresh_token = excluded.refresh_token,
+        refresh_token_expires_at = excluded.refresh_token_expires_at,
         credential_status = excluded.credential_status,
         last_auth_at = excluded.last_auth_at,
         last_refresh_at = excluded.last_refresh_at,
@@ -61,9 +71,12 @@ export class SqliteMeegleTokenStore implements MeegleTokenStore {
       token.meegleUserKey,
       token.baseUrl,
       token.pluginToken,
+      token.pluginTokenExpiresAt ?? null,
       token.userToken,
+      token.userTokenExpiresAt ?? null,
       token.refreshToken ?? null,
-      "active",
+      token.refreshTokenExpiresAt ?? null,
+      token.credentialStatus ?? "active",
       lastAuthAt,
       lastRefreshAt,
       now,
@@ -79,8 +92,12 @@ export class SqliteMeegleTokenStore implements MeegleTokenStore {
         meegle_user_key,
         base_url,
         plugin_token,
+        plugin_token_expires_at,
         user_token,
+        user_token_expires_at,
         refresh_token,
+        refresh_token_expires_at,
+        credential_status,
         last_auth_at,
         last_refresh_at
       FROM meegle_credential
@@ -100,8 +117,12 @@ export class SqliteMeegleTokenStore implements MeegleTokenStore {
       meegleUserKey: row.meegle_user_key,
       baseUrl: row.base_url,
       pluginToken: row.plugin_token,
+      pluginTokenExpiresAt: row.plugin_token_expires_at ?? undefined,
       userToken: row.user_token,
+      userTokenExpiresAt: row.user_token_expires_at ?? undefined,
       refreshToken: row.refresh_token ?? undefined,
+      refreshTokenExpiresAt: row.refresh_token_expires_at ?? undefined,
+      credentialStatus: row.credential_status === "expired" ? "expired" : "active",
     };
   }
 

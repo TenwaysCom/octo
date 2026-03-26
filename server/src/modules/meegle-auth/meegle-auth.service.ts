@@ -129,6 +129,31 @@ export async function checkAuthStatus(
     };
   }
 
+  const refreshedStatus = await refreshCredential(
+    {
+      operatorLarkId: request.operatorLarkId,
+      meegleUserKey,
+      baseUrl,
+    },
+    {
+      authAdapter: deps.authAdapter,
+      tokenStore: deps.tokenStore!,
+    },
+  );
+
+  if (refreshedStatus.tokenStatus !== "ready") {
+    return {
+      ok: true,
+      data: {
+        status: "require_auth_code" as const,
+        operatorLarkId: request.operatorLarkId,
+        meegleUserKey,
+        baseUrl,
+        reason: refreshedStatus.errorCode || "Stored Meegle token expired",
+      },
+    };
+  }
+
   return {
     ok: true,
     data: {
@@ -136,7 +161,9 @@ export async function checkAuthStatus(
         operatorLarkId: request.operatorLarkId,
         meegleUserKey,
         baseUrl,
-        reason: "Stored Meegle token is available",
+        credentialStatus: refreshedStatus.credentialStatus,
+        expiresAt: refreshedStatus.expiresAt,
+        reason: stored.userTokenExpiresAt ? "Stored Meegle token is available" : "Stored Meegle token refreshed",
       },
   };
 }

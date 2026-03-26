@@ -3,8 +3,12 @@ export interface StoredMeegleToken {
   meegleUserKey: string;
   baseUrl: string;
   pluginToken: string;
+  pluginTokenExpiresAt?: string;
   userToken: string;
+  userTokenExpiresAt?: string;
   refreshToken?: string;
+  refreshTokenExpiresAt?: string;
+  credentialStatus?: "active" | "expired";
 }
 
 export interface MeegleTokenLookup {

@@ -1,10 +1,17 @@
+export interface PluginTokenInfo {
+  token: string;
+  expiresInSeconds?: number;
+}
+
 export interface UserTokenPair {
   userToken: string;
   refreshToken?: string;
+  expiresInSeconds?: number;
+  refreshTokenExpiresInSeconds?: number;
 }
 
 export interface MeegleAuthAdapter {
-  getPluginToken(baseUrl: string): Promise<string>;
+  getPluginToken(baseUrl: string): Promise<PluginTokenInfo>;
   exchangeUserToken(input: {
     baseUrl: string;
     pluginToken: string;
@@ -31,6 +38,52 @@ interface JsonRecord {
 async function parseJson(response: Response): Promise<JsonRecord> {
   const data = (await response.json()) as JsonRecord;
   return data;
+}
+
+function getNestedRecord(payload: JsonRecord, key: string): JsonRecord | undefined {
+  const nested = payload[key];
+  if (nested && typeof nested === "object" && !Array.isArray(nested)) {
+    return nested as JsonRecord;
+  }
+
+  return undefined;
+}
+
+function getCandidatePayloads(payload: JsonRecord): JsonRecord[] {
+  const nestedData = getNestedRecord(payload, "data");
+  return nestedData ? [payload, nestedData] : [payload];
+}
+
+function extractOptionalString(payload: JsonRecord, keys: string[]): string | undefined {
+  for (const candidate of getCandidatePayloads(payload)) {
+    for (const key of keys) {
+      const value = candidate[key];
+      if (typeof value === "string" && value.length > 0) {
+        return value;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function extractOptionalNumber(payload: JsonRecord, keys: string[]): number | undefined {
+  for (const candidate of getCandidatePayloads(payload)) {
+    for (const key of keys) {
+      const value = candidate[key];
+      if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+        return value;
+      }
+      if (typeof value === "string" && value.trim().length > 0) {
+        const parsed = Number(value);
+        if (Number.isFinite(parsed) && parsed > 0) {
+          return parsed;
+        }
+      }
+    }
+  }
+
+  return undefined;
 }
 
 function extractErrorMessage(payload: JsonRecord): string | undefined {
@@ -65,11 +118,9 @@ function joinUrl(baseUrl: string, path: string): string {
 }
 
 function extractToken(payload: JsonRecord, keys: string[]): string {
-  for (const key of keys) {
-    const value = payload[key];
-    if (typeof value === "string" && value.length > 0) {
-      return value;
-    }
+  const token = extractOptionalString(payload, keys);
+  if (token) {
+    return token;
   }
 
   throw new Error(`Missing token field: ${keys.join(", ")}`);
@@ -81,7 +132,7 @@ export function createHttpMeegleAuthAdapter(
   const fetchImpl = options.fetchImpl ?? fetch;
 
   return {
-    async getPluginToken(baseUrl: string): Promise<string> {
+    async getPluginToken(baseUrl: string): Promise<PluginTokenInfo> {
       const response = await fetchImpl(joinUrl(baseUrl, "/bff/v2/authen/plugin_token"), {
         method: "POST",
         headers: {
@@ -101,7 +152,10 @@ export function createHttpMeegleAuthAdapter(
         );
       }
 
-      return extractToken(payload, ["plugin_access_token", "token", "access_token"]);
+      return {
+        token: extractToken(payload, ["plugin_access_token", "token", "access_token"]),
+        expiresInSeconds: extractOptionalNumber(payload, ["expire_time", "expires_in", "expiresIn"]),
+      };
     },
 
     async exchangeUserToken(input): Promise<UserTokenPair> {
@@ -131,7 +185,13 @@ export function createHttpMeegleAuthAdapter(
       return {
         userToken: extractToken(payload, ["user_access_token", "token", "access_token"]),
         refreshToken:
-          typeof payload.refresh_token === "string" ? payload.refresh_token : undefined,
+          extractOptionalString(payload, ["refresh_token"]),
+        expiresInSeconds: extractOptionalNumber(payload, ["expire_time", "expires_in", "expiresIn"]),
+        refreshTokenExpiresInSeconds: extractOptionalNumber(payload, [
+          "refresh_token_expire_time",
+          "refresh_token_expires_in",
+          "refresh_expires_in",
+        ]),
       };
     },
 
@@ -162,7 +222,13 @@ export function createHttpMeegleAuthAdapter(
       return {
         userToken: extractToken(payload, ["user_access_token", "token", "access_token"]),
         refreshToken:
-          typeof payload.refresh_token === "string" ? payload.refresh_token : undefined,
+          extractOptionalString(payload, ["refresh_token"]),
+        expiresInSeconds: extractOptionalNumber(payload, ["expire_time", "expires_in", "expiresIn"]),
+        refreshTokenExpiresInSeconds: extractOptionalNumber(payload, [
+          "refresh_token_expire_time",
+          "refresh_token_expires_in",
+          "refresh_expires_in",
+        ]),
       };
     },
   };
