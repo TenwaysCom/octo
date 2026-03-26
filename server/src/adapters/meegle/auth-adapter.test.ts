@@ -64,6 +64,25 @@ describe("auth-adapter", () => {
 
       expect(token).toBe("alt_token_456");
     });
+
+    it("should extract plugin token from nested data payload", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          data: {
+            token: "nested_plugin_token_456",
+          },
+          error: {
+            code: 0,
+            msg: "success",
+          },
+        }),
+      });
+
+      const token = await adapter.getPluginToken("https://project.larksuite.com");
+
+      expect(token).toBe("nested_plugin_token_456");
+    });
   });
 
   describe("exchangeUserToken", () => {
@@ -108,6 +127,31 @@ describe("auth-adapter", () => {
           authCode: "invalid_code",
         }),
       ).rejects.toThrow();
+    });
+
+    it("should extract user token from nested data payload", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          data: {
+            user_access_token: "nested_user_token_789",
+            refresh_token: "nested_refresh_token_abc",
+          },
+          error: {
+            code: 0,
+            msg: "success",
+          },
+        }),
+      });
+
+      const result = await adapter.exchangeUserToken({
+        baseUrl: "https://project.larksuite.com",
+        pluginToken: "plugin_token_123",
+        authCode: "auth_code_456",
+      });
+
+      expect(result.userToken).toBe("nested_user_token_789");
+      expect(result.refreshToken).toBe("nested_refresh_token_abc");
     });
   });
 
