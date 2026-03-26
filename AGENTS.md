@@ -88,33 +88,6 @@ Server /api/meegle/auth/exchange ──▶ plugin_token + user_token
 
 **Critical**: Never send raw cookies to server. Auth codes are one-time use.
 
-## Message Protocol
-
-Extension uses action-based messaging:
-
-```javascript
-// popup.js -> background
-chrome.runtime.sendMessage({
-  action: 'itdog.meegle.auth.ensure',
-  payload: { requestId, operatorLarkId, meegleUserKey, baseUrl }
-}, callback)
-
-// Response
-{ ok: true, status: "ready", data: {...} }
-```
-
-See [11-extension-message-and-api-schema.md](docs/tenways-octo/11-extension-message-and-api-schema.md) for full protocol.
-
-## API Endpoints
-
-| Route | Purpose |
-|-------|---------|
-| `POST /api/meegle/auth/exchange` | Exchange auth_code for tokens |
-| `POST /api/meegle/auth/status` | Check token status |
-| `POST /api/lark/auth/exchange` | Lark OAuth token exchange |
-| `POST /api/a1/analyze` | Analyze A1 record |
-| `POST /api/a2/analyze` | Analyze A2 requirement |
-| `POST /api/identity/resolve` | Resolve user identity mapping |
 
 ## Environment Variables
 
