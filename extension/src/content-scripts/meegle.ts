@@ -1,22 +1,32 @@
 // Meegle content script - handles auth code requests and user identity
 // Runs on https://*.meegle.com/* pages
 
-export interface MeegleAuthCodeResult {
+interface MeegleAuthCodeResult {
   authCode: string;
   state: string;
   issuedAt: string;
 }
 
-export interface MeegleUserIdentity {
+interface MeegleUserIdentity {
   userKey: string | null;
   userName: string | null;
   tenantKey: string | null;
 }
 
+interface TenwaysMeegleTestingApi {
+  getMeegleUserIdentity: () => MeegleUserIdentity;
+  getAuthCodeFromMeegleApi: (
+    pluginId: string,
+    state: string,
+    baseUrl?: string,
+  ) => Promise<MeegleAuthCodeResult | null>;
+  initMeegleContentScript: () => void;
+}
+
 /**
  * Get user identity from Meegle page
  */
-export function getMeegleUserIdentity(): MeegleUserIdentity {
+function getMeegleUserIdentity(): MeegleUserIdentity {
   const identity: MeegleUserIdentity = {
     userKey: null,
     userName: null,
@@ -83,66 +93,61 @@ export function getMeegleUserIdentity(): MeegleUserIdentity {
 /**
  * Get auth code from Meegle BFF API using current page cookie
  */
-export async function getAuthCodeFromMeegleApi(
+async function getAuthCodeFromMeegleApi(
   pluginId: string,
   state: string,
   baseUrl: string = "https://project.larksuite.com",
 ): Promise<MeegleAuthCodeResult | null> {
-  try {
-    console.log("[Tenways Octo] Getting auth code from Meegle API...");
+  console.log("[Tenways Octo] Getting auth code from Meegle API...");
 
-    // Call Meegle BFF auth code API
-    // Note: credentials 'include' ensures cookies are sent automatically
-    const response = await fetch(`${baseUrl}/bff/v2/authen/v1/auth_code`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      credentials: "include",
-      body: JSON.stringify({
-        plugin_id: pluginId,
-        state: state,
-      }),
-    });
+  // Call Meegle BFF auth code API
+  // Note: credentials 'include' ensures cookies are sent automatically
+  const response = await fetch(`${baseUrl}/bff/v2/authen/v1/auth_code`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify({
+      plugin_id: pluginId,
+      state: state,
+    }),
+  });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("[Tenways Octo] Auth code API error:", response.status, errorText);
-      return null;
-    }
-
-    const data = await response.json() as {
-      data?: { code?: string };
-      code?: string;
-      auth_code?: string;
-      error?: { code?: number; msg?: string };
-    };
-
-    // Check for error in response
-    if (data.error && data.error.code !== 0) {
-      console.error("[Tenways Octo] Auth code error:", data.error.msg);
-      return null;
-    }
-
-    // Extract auth code from response
-    const authCode = data.data?.code ?? data.code ?? data.auth_code;
-
-    if (typeof authCode !== "string" || authCode.length === 0) {
-      console.error("[Tenways Octo] Invalid auth code in response");
-      return null;
-    }
-
-    console.log("[Tenways Octo] Auth code obtained successfully");
-
-    return {
-      authCode,
-      state,
-      issuedAt: new Date().toISOString(),
-    };
-  } catch (err) {
-    console.error("[Tenways Octo] Failed to get auth code:", err);
-    return null;
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("[Tenways Octo] Auth code API error:", response.status, errorText);
+    throw new Error(`Auth code API error: ${response.status} ${errorText}`);
   }
+
+  const data = await response.json() as {
+    data?: { code?: string };
+    code?: string;
+    auth_code?: string;
+    error?: { code?: number; msg?: string };
+  };
+
+  // Check for error in response
+  if (data.error && data.error.code !== 0) {
+    console.error("[Tenways Octo] Auth code error:", data.error.msg);
+    throw new Error(data.error.msg || "Auth code request failed");
+  }
+
+  // Extract auth code from response
+  const authCode = data.data?.code ?? data.code ?? data.auth_code;
+
+  if (typeof authCode !== "string" || authCode.length === 0) {
+    console.error("[Tenways Octo] Invalid auth code in response");
+    throw new Error("Invalid auth code in response");
+  }
+
+  console.log("[Tenways Octo] Auth code obtained successfully");
+
+  return {
+    authCode,
+    state,
+    issuedAt: new Date().toISOString(),
+  };
 }
 
 /**
@@ -156,7 +161,7 @@ async function requestAuthCode(
   return getAuthCodeFromMeegleApi(pluginId, state, baseUrl);
 }
 
-export function initMeegleContentScript() {
+function initMeegleContentScript() {
   console.log("[Tenways Octo] Meegle content script initialized");
 
   // Listen for auth code requests from background
@@ -166,26 +171,16 @@ export function initMeegleContentScript() {
 
       requestAuthCode(pluginId, state, baseUrl)
         .then((result) => {
-          if (result) {
-            sendResponse({
-              ok: true,
-              data: result,
-            });
-          } else {
-            sendResponse({
-              ok: false,
-              error: {
-                errorCode: "AUTH_CODE_REQUEST_FAILED",
-                errorMessage: "Failed to obtain auth code from Meegle",
-              },
-            });
-          }
+          sendResponse({
+            ok: true,
+            data: result,
+          });
         })
         .catch((err: Error) => {
           sendResponse({
             ok: false,
             error: {
-              errorCode: "AUTH_CODE_ERROR",
+              errorCode: "AUTH_CODE_REQUEST_FAILED",
               errorMessage: err.message,
             },
           });
@@ -201,6 +196,16 @@ export function initMeegleContentScript() {
     }
   });
 }
+
+const meegleTestingTarget = globalThis as typeof globalThis & {
+  __TENWAYS_MEEGLE_TESTING__?: TenwaysMeegleTestingApi;
+};
+
+meegleTestingTarget.__TENWAYS_MEEGLE_TESTING__ = {
+  getMeegleUserIdentity,
+  getAuthCodeFromMeegleApi,
+  initMeegleContentScript,
+};
 
 // Initialize when script loads
 initMeegleContentScript();

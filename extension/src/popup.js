@@ -3,12 +3,7 @@
  */
 
 import { createMeegleAuthController } from "./popup/meegle-auth.js";
-
-const CONFIG = {
-  SERVER_URL: 'http://localhost:3000',
-  MEEGLE_BASE_URL: 'https://project.larksuite.com',
-  LARK_APP_ID: 'cli_a9155c5fb1b99ed2',
-};
+import { DEFAULT_CONFIG, getConfig } from "./background/config.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -43,6 +38,8 @@ const dom = {
   closeSettingsBtn: $('closeSettingsBtn'),
   cancelSettingsBtn: $('cancelSettingsBtn'),
   saveSettingsBtn: $('saveSettingsBtn'),
+  serverUrlInput: $('serverUrlInput'),
+  meeglePluginIdInput: $('meeglePluginIdInput'),
   meegleUserKeyInput: $('meegleUserKeyInput'),
   larkUserIdInput: $('larkUserIdInput'),
 };
@@ -79,6 +76,11 @@ function setStatus(el, status, text) {
   el.textContent = text;
 }
 
+function setMeegleAuthButtons(isAuthorized) {
+  dom.meegleAuthBtn.disabled = Boolean(isAuthorized);
+  dom.meegleAuthBtn.textContent = isAuthorized ? '已授权' : '授权';
+}
+
 function hideAll() {
   dom.authBlockTop.classList.add('hidden');
   dom.authBlockBottom.classList.add('hidden');
@@ -95,26 +97,33 @@ function detectPageType(url) {
 
 // Auth handlers
 async function checkMeegleAuth() {
-  // First try to get userKey from settings (manually set)
+  const config = await getConfig();
   const settings = await loadSettings();
   const meegleUserKey = settings.meegleUserKey || state.identity.meegleUserKey || '';
 
-  return new Promise((resolve) => {
-    chrome.runtime.sendMessage(
-      {
-        action: 'itdog.meegle.auth.ensure',
-        payload: {
-          requestId: `req_${Date.now()}`,
-          operatorLarkId: state.identity.larkId || 'ou_user',
-          meegleUserKey: meegleUserKey,
-          baseUrl: state.currentTabOrigin || CONFIG.MEEGLE_BASE_URL,
-          currentTabId: state.currentTabId,
-          currentPageIsMeegle: state.pageType === 'meegle',
-        },
+  try {
+    const response = await fetch(`${config.SERVER_URL}/api/meegle/auth/status`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
       },
-      (res) => resolve(res?.payload || { status: 'unknown' })
-    );
-  });
+      body: JSON.stringify({
+        operatorLarkId: state.identity.larkId || 'ou_user',
+        meegleUserKey: meegleUserKey || undefined,
+        baseUrl: state.currentTabOrigin || config.MEEGLE_BASE_URL,
+      }),
+    });
+
+    if (!response.ok) {
+      return { status: 'unknown', reason: 'STATUS_REQUEST_FAILED' };
+    }
+
+    const result = await response.json();
+    return result?.data || { status: 'unknown' };
+  } catch (error) {
+    log.warn(`查询服务器授权状态失败: ${error instanceof Error ? error.message : String(error)}`);
+    return { status: 'unknown', reason: 'STATUS_REQUEST_FAILED' };
+  }
 }
 
 const meegleAuthController = createMeegleAuthController({
@@ -158,10 +167,12 @@ async function doMeegleAuth() {
   });
   state.meegleAuth = meegleAuthController.getLastAuth() || { status: 'unknown' };
   state.isAuthed.meegle = ok;
+  setMeegleAuthButtons(ok);
   return ok;
 }
 
 async function doLarkAuth() {
+  const config = await getConfig();
   log.add('检查 Lark 授权...');
   const auth = await checkLarkAuth();
   state.larkAuth = auth;
@@ -176,8 +187,8 @@ async function doLarkAuth() {
 
   // Need to redirect
   log.warn('需要登录 Lark');
-  const appId = CONFIG.LARK_APP_ID;
-  const redirectUri = 'http://localhost:3000/api/lark/auth/callback';
+  const appId = config.LARK_APP_ID;
+  const redirectUri = `${config.SERVER_URL}/api/lark/auth/callback`;
   const oauthUrl = `https://open.larksuite.com/service-open/oauth/authorize?app_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${Date.now()}&scope=contact:readonly:user&response_type=code`;
   // chrome.tabs.create({ url: oauthUrl, active: true });
   return false;
@@ -223,6 +234,7 @@ async function init() {
     setStatus(dom.meegleUserTop, 'pending', '-');
     setStatus(dom.meegleUserBottom, 'pending', '-');
   }
+  setMeegleAuthButtons(false);
   if (state.identity.larkId) {
     setStatus(dom.larkUserTop, 'ready', state.identity.larkId);
     setStatus(dom.larkUserBottom, 'ready', state.identity.larkId);
@@ -251,8 +263,9 @@ async function init() {
 
     if (meegleAuth.status === 'ready') {
       state.isAuthed.meegle = true;
-      setStatus(dom.meegleUserTop, 'ready', meegleAuth.authCode || '已授权');
-      setStatus(dom.meegleUserBottom, 'ready', meegleAuth.authCode || '已授权');
+      setStatus(dom.meegleUserTop, 'ready', '已授权');
+      setStatus(dom.meegleUserBottom, 'ready', '已授权');
+      setMeegleAuthButtons(true);
     }
     if (larkAuth.status === 'ready') {
       state.isAuthed.lark = true;
@@ -281,8 +294,9 @@ async function init() {
 
     if (meegleAuth.status === 'ready') {
       state.isAuthed.meegle = true;
-      setStatus(dom.meegleUserTop, 'ready', meegleAuth.authCode || '已授权');
-      setStatus(dom.meegleUserBottom, 'ready', meegleAuth.authCode || '已授权');
+      setStatus(dom.meegleUserTop, 'ready', '已授权');
+      setStatus(dom.meegleUserBottom, 'ready', '已授权');
+      setMeegleAuthButtons(true);
     }
     if (larkAuth.status === 'ready') {
       state.isAuthed.lark = true;
@@ -347,26 +361,45 @@ dom.meegleActionBtn.addEventListener('click', async () => {
 
 // Settings functions
 async function loadSettings() {
-  return new Promise((resolve) => {
+  const localSettings = await new Promise((resolve) => {
     chrome.storage.local.get(['meegleUserKey', 'larkUserId'], (result) => {
       resolve(result);
     });
   });
+
+  const syncSettings = await new Promise((resolve) => {
+    chrome.storage.sync.get({
+      SERVER_URL: DEFAULT_CONFIG.SERVER_URL,
+      MEEGLE_PLUGIN_ID: '',
+    }, (result) => {
+      resolve(result);
+    });
+  });
+
+  return { ...localSettings, ...syncSettings };
 }
 
-async function saveSettings(meegleUserKey, larkUserId) {
-  return new Promise((resolve) => {
+async function saveSettings(serverUrl, meeglePluginId, meegleUserKey, larkUserId) {
+  await new Promise((resolve) => {
     chrome.storage.local.set({ meegleUserKey, larkUserId }, resolve);
   });
+
+  await new Promise((resolve) => {
+    chrome.storage.sync.set({
+      SERVER_URL: serverUrl || DEFAULT_CONFIG.SERVER_URL,
+      MEEGLE_PLUGIN_ID: meeglePluginId,
+    }, resolve);
+  });
 }
 
-function openSettings() {
+async function openSettings() {
   dom.settingsModal.classList.remove('hidden');
-  // Load current values
-  loadSettings().then((settings) => {
-    dom.meegleUserKeyInput.value = settings.meegleUserKey || '';
-    dom.larkUserIdInput.value = settings.larkUserId || '';
-  });
+  const [settings, config] = await Promise.all([loadSettings(), getConfig()]);
+
+  dom.serverUrlInput.value = settings.SERVER_URL || DEFAULT_CONFIG.SERVER_URL;
+  dom.meeglePluginIdInput.value = settings.MEEGLE_PLUGIN_ID || config.MEEGLE_PLUGIN_ID || '';
+  dom.meegleUserKeyInput.value = settings.meegleUserKey || '';
+  dom.larkUserIdInput.value = settings.larkUserId || '';
 }
 
 function closeSettings() {
@@ -378,10 +411,12 @@ dom.closeSettingsBtn.addEventListener('click', closeSettings);
 dom.cancelSettingsBtn.addEventListener('click', closeSettings);
 
 dom.saveSettingsBtn.addEventListener('click', async () => {
+  const serverUrl = dom.serverUrlInput.value.trim();
+  const meeglePluginId = dom.meeglePluginIdInput.value.trim();
   const meegleUserKey = dom.meegleUserKeyInput.value.trim();
   const larkUserId = dom.larkUserIdInput.value.trim();
 
-  await saveSettings(meegleUserKey, larkUserId);
+  await saveSettings(serverUrl, meeglePluginId, meegleUserKey, larkUserId);
 
   // Update state
   if (meegleUserKey) {

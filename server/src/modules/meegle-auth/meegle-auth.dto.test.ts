@@ -62,12 +62,14 @@ describe("meegle-auth.dto", () => {
     it("should validate a valid status request", () => {
       const input = {
         operatorLarkId: "ou_xxx",
+        meegleUserKey: "user_xxx",
         baseUrl: "https://project.larksuite.com",
       };
 
       const result = validateMeegleAuthStatusRequest(input);
 
       expect(result.operatorLarkId).toBe("ou_xxx");
+      expect(result.meegleUserKey).toBe("user_xxx");
     });
 
     it("should accept request without baseUrl (optional)", () => {
@@ -79,6 +81,18 @@ describe("meegle-auth.dto", () => {
 
       expect(result.operatorLarkId).toBe("ou_xxx");
       expect(result.baseUrl).toBeUndefined();
+    });
+
+    it("should accept request without meegleUserKey (optional)", () => {
+      const input = {
+        operatorLarkId: "ou_xxx",
+        baseUrl: "https://project.larksuite.com",
+      };
+
+      const result = validateMeegleAuthStatusRequest(input);
+
+      expect(result.operatorLarkId).toBe("ou_xxx");
+      expect(result.meegleUserKey).toBeUndefined();
     });
   });
 });

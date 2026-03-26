@@ -54,23 +54,33 @@ export function createMeegleAuthController(
       lastAuth = auth;
 
       if (auth.status === "ready") {
-        deps.setStatus("ready", auth.authCode || "已授权");
-        deps.log.success("Meegle 已授权");
+        deps.setStatus("ready", "已授权");
+        deps.log.success("Meegle 已授权，服务端 token 已就绪");
         return true;
       }
 
       if (auth.reason === "MEEGLE_PAGE_REQUIRED") {
-        deps.log.warn("请先打开并登录 Meegle 页面后再授权");
+        deps.log.warn(auth.errorMessage || "请先打开并登录 Meegle 页面后再授权");
         return false;
       }
 
       if (auth.reason === "MEEGLE_USER_KEY_REQUIRED") {
+        if (auth.credentialStatus === "auth_code_received" && auth.authCode) {
+          deps.log.error("已拿到 auth code，但还没完成服务端 token 兑换：缺少 Meegle User Key");
+          return false;
+        }
+
         deps.log.error("未能从当前页面识别 Meegle 用户，请刷新页面后重试");
         return false;
       }
 
+      if (auth.reason === "AUTH_CODE_REQUEST_FAILED") {
+        deps.log.error(`获取授权码失败: ${auth.errorMessage || "未知错误"}`);
+        return false;
+      }
+
       if (auth.reason === "PLUGIN_ID_NOT_CONFIGURED") {
-        deps.log.error("插件 ID 未配置");
+        deps.log.error("插件 ID 未配置，请先在设置里填写 MEEGLE_PLUGIN_ID");
         return false;
       }
 

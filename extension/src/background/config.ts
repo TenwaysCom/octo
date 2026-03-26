@@ -12,38 +12,66 @@ export interface ExtensionConfig {
   MEEGLE_BASE_URL: string;
 }
 
+interface PublicConfigResponse {
+  ok: boolean;
+  data?: Partial<Pick<ExtensionConfig, "MEEGLE_PLUGIN_ID" | "LARK_APP_ID" | "MEEGLE_BASE_URL">>;
+}
+
 export const DEFAULT_CONFIG: ExtensionConfig = {
-  MEEGLE_PLUGIN_ID: 'your-plugin-id', // TODO: Set via chrome.storage.sync.set
+  MEEGLE_PLUGIN_ID: '',
   LARK_APP_ID: 'cli_a4b5c6d7e8f9', // TODO: Set via chrome.storage.sync.set
   SERVER_URL: 'http://localhost:3000',
   MEEGLE_BASE_URL: 'https://project.larksuite.com',
 };
 
-let cachedConfig: ExtensionConfig | null = null;
-
-export async function getConfig(): Promise<ExtensionConfig> {
-  if (cachedConfig) {
-    return cachedConfig;
+function mergePublicConfig(
+  base: ExtensionConfig,
+  publicConfig?: PublicConfigResponse["data"],
+): ExtensionConfig {
+  if (!publicConfig) {
+    return base;
   }
 
-  return new Promise((resolve) => {
+  return {
+    ...base,
+    MEEGLE_PLUGIN_ID: publicConfig.MEEGLE_PLUGIN_ID?.trim() || base.MEEGLE_PLUGIN_ID,
+    LARK_APP_ID: publicConfig.LARK_APP_ID?.trim() || base.LARK_APP_ID,
+    MEEGLE_BASE_URL: publicConfig.MEEGLE_BASE_URL?.trim() || base.MEEGLE_BASE_URL,
+  };
+}
+
+export async function getConfig(): Promise<ExtensionConfig> {
+  const storedConfig = await new Promise<ExtensionConfig>((resolve) => {
     chrome.storage.sync.get(DEFAULT_CONFIG, (result) => {
-      cachedConfig = result as ExtensionConfig;
-      resolve(cachedConfig);
+      resolve(result as ExtensionConfig);
     });
   });
+
+  try {
+    const response = await fetch(`${storedConfig.SERVER_URL}/api/config/public`);
+    if (!response.ok) {
+      return storedConfig;
+    }
+
+    const payload = await response.json() as PublicConfigResponse;
+    if (!payload.ok) {
+      return storedConfig;
+    }
+
+    return mergePublicConfig(storedConfig, payload.data);
+  } catch {
+    return storedConfig;
+  }
 }
 
 export async function setConfig(updates: Partial<ExtensionConfig>): Promise<void> {
   return new Promise((resolve) => {
     chrome.storage.sync.set(updates, () => {
-      // Update cache
-      cachedConfig = { ...DEFAULT_CONFIG, ...cachedConfig, ...updates } as ExtensionConfig;
       resolve();
     });
   });
 }
 
 export function clearConfigCache(): void {
-  cachedConfig = null;
+  // No-op: config is read fresh from chrome.storage.sync each time.
 }

@@ -5,9 +5,9 @@
  */
 
 import { z } from "zod";
-
-// In-memory user store (replace with database in production)
-const userStore = new Map<string, { larkId: string; meegleUserKey: string | null; updatedAt: string }>();
+import {
+  sharedIdentityStore,
+} from "../../adapters/sqlite/identity-store.js";
 
 export const identitySyncRequestSchema = z.object({
   requestId: z.string().min(1),
@@ -50,23 +50,20 @@ export async function syncIdentityController(input: unknown): Promise<IdentitySy
       };
     }
 
-    // Use larkId as the primary key
-    const userId = larkId || `meegle_${meegleUserKey}`;
+    if (!larkId) {
+      return {
+        ok: false,
+        error: {
+          errorCode: 'INVALID_REQUEST',
+          errorMessage: 'larkId is required to persist identity records',
+        },
+      };
+    }
 
-    // Get existing user or create new
-    const existingUser = userStore.get(userId);
-    const updatedAt = new Date().toISOString();
-
-    const user = {
-      larkId: larkId || existingUser?.larkId || '',
-      meegleUserKey: meegleUserKey || existingUser?.meegleUserKey || null,
-      updatedAt,
-    };
-
-    userStore.set(userId, user);
-
-    // If both IDs are present, create a mapping
-    const mappingStatus = user.larkId && user.meegleUserKey ? 'bound' : 'unbound';
+    const user = await sharedIdentityStore.save({
+      larkId,
+      meegleUserKey: meegleUserKey ?? null,
+    });
 
     console.log(`[Identity] Synced user: larkId=${user.larkId}, meegleUserKey=${user.meegleUserKey}`);
 
@@ -75,7 +72,7 @@ export async function syncIdentityController(input: unknown): Promise<IdentitySy
       data: {
         larkId: user.larkId,
         meegleUserKey: user.meegleUserKey,
-        mappingStatus,
+        mappingStatus: user.mappingStatus,
         updatedAt: user.updatedAt,
       },
     };
@@ -96,7 +93,7 @@ export async function syncIdentityController(input: unknown): Promise<IdentitySy
 export async function getIdentityController(input: unknown): Promise<IdentitySyncResponse> {
   try {
     const request = z.object({ larkId: z.string().min(1) }).parse(input);
-    const user = userStore.get(request.larkId);
+    const user = await sharedIdentityStore.getByLarkId(request.larkId);
 
     if (!user) {
       return {
@@ -115,7 +112,7 @@ export async function getIdentityController(input: unknown): Promise<IdentitySyn
       data: {
         larkId: user.larkId,
         meegleUserKey: user.meegleUserKey,
-        mappingStatus: user.larkId && user.meegleUserKey ? 'bound' : 'unbound',
+        mappingStatus: user.mappingStatus,
         updatedAt: user.updatedAt,
       },
     };

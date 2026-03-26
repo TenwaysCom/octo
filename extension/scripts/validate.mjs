@@ -98,6 +98,9 @@ function checkManifest() {
     if (!cs.matches || cs.matches.length === 0) {
       error(`content_script missing "matches" pattern`);
     }
+    if ("type" in cs) {
+      error(`content_script should not declare unsupported field "type"`);
+    }
   }
 
   // Check web accessible resources
@@ -251,8 +254,31 @@ function checkRequiredFiles() {
   }
 }
 
+function checkContentScriptSyntax(manifest) {
+  console.log("\n[5] Checking content script syntax...");
+
+  let syntaxErrors = 0;
+
+  for (const cs of manifest?.content_scripts || []) {
+    for (const js of cs.js || []) {
+      const fullPath = join(distDir, js);
+      if (!existsSync(fullPath)) continue;
+
+      const content = readFileSync(fullPath, "utf-8");
+      if (/^\s*export\s/m.test(content) || /^\s*import\s/m.test(content)) {
+        error(`${js}: Content scripts must compile to plain scripts without top-level import/export`);
+        syntaxErrors++;
+      }
+    }
+  }
+
+  if (syntaxErrors === 0) {
+    success("Content scripts compile as plain scripts");
+  }
+}
+
 function checkSyntax() {
-  console.log("\n[5] Basic syntax check...");
+  console.log("\n[6] Basic syntax check...");
 
   const jsFiles = [];
   function collectJs(dir) {
@@ -305,6 +331,7 @@ function main() {
   checkJsImports();
   if (manifest) {
     checkChromeApiUsage(manifest);
+    checkContentScriptSyntax(manifest);
   }
   checkRequiredFiles();
   checkSyntax();

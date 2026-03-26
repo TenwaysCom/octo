@@ -1,5 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getAuthCodeFromMeegleApi } from "./meegle.js";
+import "./meegle.js";
+
+function getTestingApi() {
+  return (globalThis as typeof globalThis & {
+    __TENWAYS_MEEGLE_TESTING__?: {
+      getAuthCodeFromMeegleApi: (
+        pluginId: string,
+        state: string,
+        baseUrl?: string,
+      ) => Promise<{
+        authCode: string;
+        state: string;
+        issuedAt: string;
+      } | null>;
+    };
+  }).__TENWAYS_MEEGLE_TESTING__;
+}
 
 describe("meegle content script auth code fetch", () => {
   beforeEach(() => {
@@ -15,7 +31,7 @@ describe("meegle content script auth code fetch", () => {
     } as Response);
 
     await expect(
-      getAuthCodeFromMeegleApi(
+      getTestingApi()?.getAuthCodeFromMeegleApi(
         "PLUGIN_123",
         "state_123",
         "https://tenant.meegle.com",
@@ -33,7 +49,7 @@ describe("meegle content script auth code fetch", () => {
     );
   });
 
-  it("returns null when the API reports an auth error", async () => {
+  it("throws the API error details when auth code acquisition fails", async () => {
     vi.mocked(fetch).mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -42,11 +58,11 @@ describe("meegle content script auth code fetch", () => {
     } as Response);
 
     await expect(
-      getAuthCodeFromMeegleApi(
+      getTestingApi()?.getAuthCodeFromMeegleApi(
         "PLUGIN_123",
         "state_123",
         "https://tenant.meegle.com",
       ),
-    ).resolves.toBeNull();
+    ).rejects.toThrow("login required");
   });
 });

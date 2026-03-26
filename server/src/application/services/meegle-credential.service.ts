@@ -51,6 +51,16 @@ export async function exchangeCredential(
 
   await deps.tokenStore.save(storedToken);
 
+  console.log(
+    "[Tenways Octo] Meegle token exchange ready:",
+    {
+      operatorLarkId: input.operatorLarkId,
+      meegleUserKey: input.meegleUserKey,
+      baseUrl: input.baseUrl,
+      requestId: input.requestId,
+    },
+  );
+
   return {
     requestId: input.requestId,
     tokenStatus: "ready",

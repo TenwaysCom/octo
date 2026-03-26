@@ -1,11 +1,25 @@
 // Lark content script - detects page context and injects page bridge
 
-import type { PageContext } from '../types/context.js';
+interface LarkPageContext {
+  pageType: 'lark_a1' | 'lark_a2' | 'unknown';
+  url: string;
+  baseId?: string;
+  tableId?: string;
+  recordId?: string;
+  detectedLarkId?: string;
+}
 
-export function detectLarkPageContext(): PageContext | null {
+interface TenwaysLarkTestingApi {
+  detectLarkPageContext: () => LarkPageContext | null;
+  extractAuthCodeFromRedirect: () => { code: string; state: string } | null;
+  getLarkUserId: () => string | null;
+  initLarkContentScript: () => void;
+}
+
+function detectLarkPageContext(): LarkPageContext | null {
   const url = window.location.href;
 
-  const context: PageContext = {
+  const context: LarkPageContext = {
     pageType: 'lark_a1',
     url,
   };
@@ -31,7 +45,7 @@ export function detectLarkPageContext(): PageContext | null {
  * Extract auth code from Lark OAuth redirect
  * Lark redirects to: https://your-server.com/api/lark/auth/callback?code=xxx&state=yyy
  */
-export function extractAuthCodeFromRedirect(): { code: string; state: string } | null {
+function extractAuthCodeFromRedirect(): { code: string; state: string } | null {
   const url = new URL(window.location.href);
   const code = url.searchParams.get('code');
   const state = url.searchParams.get('state');
@@ -46,7 +60,7 @@ export function extractAuthCodeFromRedirect(): { code: string; state: string } |
 /**
  * Get Lark user ID from page context
  */
-export function getLarkUserId(): string | null {
+function getLarkUserId(): string | null {
   // Try multiple selectors to find user ID
   const selectors = [
     '[data-user-id]',
@@ -80,7 +94,7 @@ export function getLarkUserId(): string | null {
   return null;
 }
 
-export function initLarkContentScript() {
+function initLarkContentScript() {
   console.log('[Tenways Octo] Lark content script initialized');
 
   // Listen for messages from popup or background
@@ -101,6 +115,17 @@ export function initLarkContentScript() {
     }
   });
 }
+
+const larkTestingTarget = globalThis as typeof globalThis & {
+  __TENWAYS_LARK_TESTING__?: TenwaysLarkTestingApi;
+};
+
+larkTestingTarget.__TENWAYS_LARK_TESTING__ = {
+  detectLarkPageContext,
+  extractAuthCodeFromRedirect,
+  getLarkUserId,
+  initLarkContentScript,
+};
 
 // Initialize
 initLarkContentScript();

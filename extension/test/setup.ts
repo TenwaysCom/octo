@@ -6,6 +6,9 @@
 const mockStorage: Record<string, unknown> = {};
 
 globalThis.chrome = {
+  scripting: {
+    executeScript: vi.fn(),
+  },
   tabs: {
     query: vi.fn(),
     sendMessage: vi.fn(),

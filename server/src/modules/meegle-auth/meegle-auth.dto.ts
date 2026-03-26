@@ -16,6 +16,7 @@ const baseGetAuthCodeSchema = z.object({
 // Auth status request schema
 export const meegleAuthStatusRequestSchema = z.object({
   operatorLarkId: z.string().min(1),
+  meegleUserKey: z.string().min(1).optional(),
   baseUrl: z.string().url().optional(),
 });
 

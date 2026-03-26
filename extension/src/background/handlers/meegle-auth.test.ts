@@ -17,6 +17,7 @@ describe("meegle-auth handler", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    chrome.runtime.lastError = undefined;
     deps = {
       getCachedToken: vi.fn().mockReturnValue(undefined),
       getCachedPluginId: vi.fn().mockReturnValue("MII_TEST_PLUGIN"),
@@ -75,6 +76,25 @@ describe("meegle-auth handler", () => {
 
       expect(result.status).toBe("failed");
       expect(result.reason).toBe("PLUGIN_ID_NOT_CONFIGURED");
+    });
+
+    it("should reject the placeholder plugin ID before calling Meegle", async () => {
+      deps.getCachedPluginId = vi.fn().mockReturnValue("your-plugin-id");
+
+      const result = await ensureMeegleAuth(
+        {
+          requestId: "req_001",
+          operatorLarkId: "ou_xxx",
+          currentTabId: 12,
+          currentPageIsMeegle: true,
+          baseUrl: "https://project.larksuite.com",
+        },
+        deps,
+      );
+
+      expect(result.status).toBe("failed");
+      expect(result.reason).toBe("PLUGIN_ID_NOT_CONFIGURED");
+      expect(deps.requestAuthCodeFromContentScript).not.toHaveBeenCalled();
     });
 
     it("should complete full auth flow with exchange", async () => {
@@ -245,6 +265,65 @@ describe("meegle-auth handler", () => {
       expect(result.authCode).toBe("auth_code_123");
       expect(deps.saveAuthCode).toHaveBeenCalledWith(mockAuthCode);
       expect(result.reason).toBe("MEEGLE_USER_KEY_REQUIRED");
+      expect(result.credentialStatus).toBe("auth_code_received");
     });
+
+    it("should surface auth code request failures instead of pretending the user is logged out", async () => {
+      deps.requestAuthCodeFromContentScript = vi
+        .fn()
+        .mockRejectedValue(new Error("plugin id is invalid"));
+
+      const result = await ensureMeegleAuth(
+        {
+          requestId: "req_001",
+          operatorLarkId: "ou_xxx",
+          currentTabId: 12,
+          currentPageIsMeegle: true,
+          meegleUserKey: "user_xxx",
+          baseUrl: "https://tenant.meegle.com",
+          state: "state_456",
+        },
+        deps,
+      );
+
+      expect(result.status).toBe("failed");
+      expect(result.reason).toBe("AUTH_CODE_REQUEST_FAILED");
+      expect(result.errorMessage).toContain("plugin id is invalid");
+    });
+
+    it("should fail fast when the current tab has no Meegle content script receiver", async () => {
+      const sendMessage = chrome.tabs.sendMessage as unknown as ReturnType<typeof vi.fn>;
+      const executeScript = chrome.scripting.executeScript as unknown as ReturnType<typeof vi.fn>;
+
+      sendMessage.mockImplementation((_tabId, _message, callback) => {
+        chrome.runtime.lastError = {
+          message: "Could not establish connection. Receiving end does not exist.",
+        } as chrome.runtime.LastError;
+        callback?.(undefined);
+      });
+
+      const result = await ensureMeegleAuth(
+        {
+          requestId: "req_001",
+          operatorLarkId: "ou_xxx",
+          currentTabId: 12,
+          currentPageIsMeegle: true,
+          baseUrl: "https://tenant.meegle.com",
+          state: "state_456",
+        },
+        {
+          getCachedToken: vi.fn().mockReturnValue(undefined),
+          getCachedPluginId: vi.fn().mockReturnValue("MII_TEST_PLUGIN"),
+          saveAuthCode: vi.fn(),
+          exchangeAuthCodeWithServer: vi.fn(),
+        },
+      );
+
+      expect(result.status).toBe("failed");
+      expect(result.reason).toBe("MEEGLE_PAGE_REQUIRED");
+      expect(result.errorMessage).toContain("Receiving end does not exist");
+      expect(executeScript).not.toHaveBeenCalled();
+    });
+
   });
 });

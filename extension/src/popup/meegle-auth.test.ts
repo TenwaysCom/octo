@@ -84,4 +84,71 @@ describe("popup meegle auth", () => {
       expect.stringContaining("Meegle"),
     );
   });
+
+  it("tells the user to configure the plugin ID when it is missing", async () => {
+    const log = {
+      add: vi.fn(),
+      success: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    };
+
+    const controller = createMeegleAuthController({
+      sendMessage: vi.fn().mockResolvedValue({
+        status: "failed",
+        reason: "PLUGIN_ID_NOT_CONFIGURED",
+      }),
+      setStatus: vi.fn(),
+      log,
+    });
+
+    await expect(
+      controller.run({
+        currentTabId: 42,
+        currentTabOrigin: "https://tenant.meegle.com",
+        currentPageType: "meegle",
+        larkId: "ou_xxx",
+      }),
+    ).resolves.toBe(false);
+
+    expect(log.error).toHaveBeenCalledWith(
+      expect.stringContaining("MEEGLE_PLUGIN_ID"),
+    );
+  });
+
+  it("explains when only the auth code was acquired but the server token is not ready", async () => {
+    const log = {
+      add: vi.fn(),
+      success: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    };
+
+    const controller = createMeegleAuthController({
+      sendMessage: vi.fn().mockResolvedValue({
+        status: "failed",
+        reason: "MEEGLE_USER_KEY_REQUIRED",
+        authCode: "auth_code_123",
+        credentialStatus: "auth_code_received",
+      }),
+      setStatus: vi.fn(),
+      log,
+    });
+
+    await expect(
+      controller.run({
+        currentTabId: 42,
+        currentTabOrigin: "https://tenant.meegle.com",
+        currentPageType: "meegle",
+        larkId: "ou_xxx",
+      }),
+    ).resolves.toBe(false);
+
+    expect(log.error).toHaveBeenCalledWith(
+      expect.stringContaining("auth code"),
+    );
+    expect(log.error).toHaveBeenCalledWith(
+      expect.stringContaining("服务端"),
+    );
+  });
 });

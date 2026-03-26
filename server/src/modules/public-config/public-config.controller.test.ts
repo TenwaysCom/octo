@@ -1,0 +1,24 @@
+import { describe, expect, it } from "vitest";
+import {
+  configurePublicConfigController,
+  getPublicConfigController,
+} from "./public-config.controller.js";
+
+describe("public-config.controller", () => {
+  it("returns only public extension config", async () => {
+    configurePublicConfigController({
+      MEEGLE_PLUGIN_ID: "MII_ABD86EEDB9E8CA36",
+      LARK_APP_ID: "cli_test_public",
+      MEEGLE_BASE_URL: "https://project.larksuite.com",
+    });
+
+    await expect(getPublicConfigController()).resolves.toEqual({
+      ok: true,
+      data: {
+        MEEGLE_PLUGIN_ID: "MII_ABD86EEDB9E8CA36",
+        LARK_APP_ID: "cli_test_public",
+        MEEGLE_BASE_URL: "https://project.larksuite.com",
+      },
+    });
+  });
+});
