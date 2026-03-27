@@ -20,6 +20,8 @@
 14. [详细开发计划](../superpowers/plans/2026-03-20-tenways-octo-implementation-plan.md)
 15. [PM 分析 Prompt 迭代记录模板](./14-pm-analysis-prompt-iteration-log.md)
 16. [认证流程设计](./16-auth-flow-design.md)
+17. [V2 Agent Platform / ACP 演进设计](./14-v2-architecture-design.md)
+18. [ACP 设计](./17-acp-design.md)
 
 ## 当前设计结论
 
@@ -32,6 +34,11 @@
 - 主身份：`Lark ID`
 - Meegle 接入模型：`plugin_id/plugin_secret -> plugin_token -> auth code -> user token / refresh token`，运行时请求携带 `X-USER-KEY`
 - Meegle 授权策略：采用 `方案 B`，由浏览器插件在当前登录页面直接申请 `auth code`，服务端只接收 `auth code`
+- ACP 当前落点：`V1` 先做 `PM Analysis ACP Facade`
+  - 单个 `POST` 流式 chat 接口
+  - 规则化 follow-up
+  - `Managed Redis` session 持久化
+  - 详细设计见 [ACP 设计](./17-acp-design.md)
 - 外部平台定位：
   - `Lark A1/A2`：需求与工单来源主源
   - `Meegle B1/B2`：基于 `project_key + workitem_type_key` 的工作项执行平台
@@ -44,6 +51,7 @@
 - 不做 PR 描述生成
 - 不做全自动状态推进
 - 不做多团队、多租户
+- 不在 ACP `V1` 中引入通用 orchestrator / 多场景统一网关
 
 ## 待补重点
 

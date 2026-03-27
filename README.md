@@ -242,6 +242,7 @@ cd server && npm test
 ### V2 Agent Platform
 
 - [V2 架构设计](docs/tenways-octo/14-v2-architecture-design.md) - Agent Orchestrator + Skills + Session Management
+- [ACP 设计](docs/tenways-octo/17-acp-design.md) - 当前已批准的 ACP V1 范围、架构、协议和演进路线
 
 ## 下一步计划
 
