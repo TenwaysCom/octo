@@ -169,21 +169,11 @@ export async function loadPopupSettings(): Promise<PopupSettingsForm> {
       resolve(result as Record<string, string>);
     });
   });
-  const syncSettings = await new Promise<Record<string, string>>((resolve) => {
-    chromeApi.storage.sync.get(
-      {
-        SERVER_URL: DEFAULT_CONFIG.SERVER_URL,
-        MEEGLE_PLUGIN_ID: "",
-      },
-      (result) => {
-        resolve(result as Record<string, string>);
-      },
-    );
-  });
+  const config = await getConfig();
 
   return {
-    SERVER_URL: syncSettings.SERVER_URL || DEFAULT_CONFIG.SERVER_URL,
-    MEEGLE_PLUGIN_ID: syncSettings.MEEGLE_PLUGIN_ID || "",
+    SERVER_URL: config.SERVER_URL || DEFAULT_CONFIG.SERVER_URL,
+    MEEGLE_PLUGIN_ID: config.MEEGLE_PLUGIN_ID || "",
     meegleUserKey: localSettings.meegleUserKey || "",
     larkUserId: localSettings.larkUserId || "",
   };

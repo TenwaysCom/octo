@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   buildMeegleAuthRequest,
   createMeegleAuthController,
+  resolveMeegleStatusDisplay,
 } from "./meegle-auth.js";
 
 describe("popup meegle auth", () => {
@@ -52,6 +53,64 @@ describe("popup meegle auth", () => {
 
     expect(sendMessage).toHaveBeenCalledTimes(1);
     expect(setStatus).toHaveBeenCalled();
+  });
+
+  it("reuses an already-ready server status before asking background to exchange again", async () => {
+    const sendMessage = vi.fn();
+    const setStatus = vi.fn();
+    const log = {
+      add: vi.fn(),
+      success: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    };
+
+    const controller = createMeegleAuthController({
+      getExistingStatus: vi.fn().mockResolvedValue({
+        status: "ready",
+        baseUrl: "https://project.larksuite.com",
+        credentialStatus: "active",
+        expiresAt: "2026-03-27T09:30:00.000Z",
+      }),
+      sendMessage,
+      setStatus,
+      log,
+    });
+
+    await expect(
+      controller.run({
+        currentTabId: 42,
+        currentTabOrigin: "https://tenant.meegle.com",
+        currentPageType: "meegle",
+        larkId: "ou_xxx",
+      }),
+    ).resolves.toBe(true);
+
+    expect(sendMessage).not.toHaveBeenCalled();
+    expect(setStatus).toHaveBeenCalledWith(
+      "ready",
+      expect.stringContaining("已授权"),
+    );
+    expect(log.success).toHaveBeenCalledWith(
+      expect.stringContaining("沿用服务端"),
+    );
+  });
+
+  it("formats a ready status with credential detail and expiry", () => {
+    expect(
+      resolveMeegleStatusDisplay(
+        {
+          status: "ready",
+          baseUrl: "https://project.larksuite.com",
+          credentialStatus: "active",
+          expiresAt: "2026-03-27T09:30:00.000Z",
+        },
+        "7538275242901291040",
+      ),
+    ).toMatchObject({
+      status: "ready",
+      text: expect.stringContaining("已授权"),
+    });
   });
 
   it("shows a clear message when auth is triggered from a non-Meegle page", async () => {

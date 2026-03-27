@@ -16,7 +16,8 @@ export interface MeegleAuthEnsureResponse {
   state?: string;
   authCode?: string;
   issuedAt?: string;
-  credentialStatus?: "auth_code_received" | "token_ready";
+  credentialStatus?: "auth_code_received" | "token_ready" | "active" | "expired";
+  expiresAt?: string;
   reason?: string;
   errorMessage?: string;
 }

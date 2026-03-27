@@ -21,9 +21,64 @@ export interface PopupMeegleAuthLog {
 }
 
 export interface CreateMeegleAuthControllerDeps {
+  getExistingStatus?: () => Promise<MeegleAuthEnsureResponse | undefined>;
   sendMessage: (request: MeegleAuthEnsureRequest) => Promise<MeegleAuthEnsureResponse>;
   setStatus: (status: string, text: string) => void;
   log: PopupMeegleAuthLog;
+}
+
+export interface MeegleStatusDisplay {
+  status: "ready" | "pending" | "error";
+  text: string;
+}
+
+function formatExpiry(expiresAt?: string): string | undefined {
+  if (!expiresAt) {
+    return undefined;
+  }
+
+  const parsed = new Date(expiresAt);
+  if (Number.isNaN(parsed.getTime())) {
+    return undefined;
+  }
+
+  const month = `${parsed.getMonth() + 1}`.padStart(2, "0");
+  const day = `${parsed.getDate()}`.padStart(2, "0");
+  const hours = `${parsed.getHours()}`.padStart(2, "0");
+  const minutes = `${parsed.getMinutes()}`.padStart(2, "0");
+  return `${month}-${day} ${hours}:${minutes}`;
+}
+
+export function resolveMeegleStatusDisplay(
+  auth?: Pick<MeegleAuthEnsureResponse, "status" | "credentialStatus" | "expiresAt">,
+  meegleUserKey?: string,
+): MeegleStatusDisplay {
+  if (auth?.status === "ready") {
+    const expiryText = formatExpiry(auth.expiresAt);
+    return {
+      status: "ready",
+      text: expiryText ? `已授权 · ${expiryText}` : "已授权",
+    };
+  }
+
+  if (auth?.status === "failed") {
+    return {
+      status: "error",
+      text: "授权异常",
+    };
+  }
+
+  if (auth?.status === "require_auth_code") {
+    return {
+      status: "pending",
+      text: "待授权",
+    };
+  }
+
+  return {
+    status: "pending",
+    text: meegleUserKey || "-",
+  };
 }
 
 export function buildMeegleAuthRequest(
@@ -49,12 +104,26 @@ export function createMeegleAuthController(
       return lastAuth;
     },
     async run(input: BuildMeegleAuthRequestInput): Promise<boolean> {
+      try {
+        const existingStatus = await deps.getExistingStatus?.();
+        if (existingStatus?.status === "ready") {
+          lastAuth = existingStatus;
+          const display = resolveMeegleStatusDisplay(existingStatus, input.meegleUserKey);
+          deps.setStatus(display.status, display.text);
+          deps.log.success("Meegle 已授权，沿用服务端 token");
+          return true;
+        }
+      } catch {
+        deps.log.warn("查询现有 Meegle 授权状态失败，继续尝试重新授权");
+      }
+
       deps.log.add("检查 Meegle 授权...");
       const auth = await deps.sendMessage(buildMeegleAuthRequest(input));
       lastAuth = auth;
 
       if (auth.status === "ready") {
-        deps.setStatus("ready", "已授权");
+        const display = resolveMeegleStatusDisplay(auth, input.meegleUserKey);
+        deps.setStatus(display.status, display.text);
         deps.log.success("Meegle 已授权，服务端 token 已就绪");
         return true;
       }

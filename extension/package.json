@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "wxt",
+    "dev:manual": "WXT_CHROMIUM_PROFILE= wxt",
+    "dev:profile": "sh ./scripts/dev-profile.sh",
     "build": "wxt build",
     "typecheck": "vue-tsc --noEmit",
     "clean": "wxt clean",
