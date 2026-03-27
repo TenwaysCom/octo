@@ -1,12 +1,17 @@
 <template>
-  <section class="popup-shell">
+  <section class="popup-shell" data-test="popup-shell">
     <header class="popup-shell__header">
       <div class="popup-shell__identity">
         <span class="popup-shell__eyebrow">Tenways Octo</span>
         <h1 class="popup-shell__title">跨平台协同助手</h1>
         <p class="popup-shell__subtitle">{{ subtitle }}</p>
       </div>
-      <a-button type="text" class="popup-shell__settings" @click="$emit('settings')">
+      <a-button
+        type="text"
+        class="popup-shell__settings"
+        data-test="popup-shell-settings"
+        @click="$emit('settings')"
+      >
         设置
       </a-button>
     </header>
