@@ -19,6 +19,7 @@ import type {
   PopupFeatureAction,
   PopupLogEntry,
   PopupLogLevel,
+  PopupNotebookPage,
   PopupSettingsForm,
   PopupStatusChip,
 } from "../types.js";
@@ -46,7 +47,7 @@ function createDefaultSettingsForm(): PopupSettingsForm {
 export function usePopupApp() {
   const logs = ref<PopupLogEntry[]>([]);
   const isLoading = ref(true);
-  const settingsOpen = ref(false);
+  const activePage = ref<PopupNotebookPage>("home");
   const state = reactive({
     pageType: "unsupported" as PopupPageType,
     currentTabId: null as number | null,
@@ -64,6 +65,7 @@ export function usePopupApp() {
     larkAuth: undefined as LarkAuthEnsureResponse | undefined,
   });
   const settingsForm = reactive(createDefaultSettingsForm());
+  let settingsSnapshot = createDefaultSettingsForm();
 
   const logAdapter: PopupMeegleAuthLog = {
     add(message) {
@@ -98,6 +100,7 @@ export function usePopupApp() {
   const headerSubtitle = computed(() =>
     isLoading.value ? "检测页面中..." : viewModel.value.subtitle,
   );
+  const settingsOpen = computed(() => activePage.value === "settings");
   const meegleStatus = computed(() =>
     resolveStatusChip(state.isAuthed.meegle, state.identity.meegleUserKey),
   );
@@ -146,6 +149,7 @@ export function usePopupApp() {
 
     const settings = await loadPopupSettings();
     syncSettingsForm(settings);
+    settingsSnapshot = { ...settings };
     hydrateIdentityFromSettings(settings);
 
     const tabContext = await queryActiveTabContext();
@@ -293,18 +297,20 @@ export function usePopupApp() {
   }
 
   function openSettings() {
-    settingsOpen.value = true;
+    activePage.value = "settings";
   }
 
   function closeSettings() {
-    settingsOpen.value = false;
+    syncSettingsForm(settingsSnapshot);
+    activePage.value = "home";
   }
 
   async function saveSettingsForm() {
     await savePopupSettings({ ...settingsForm });
+    settingsSnapshot = { ...settingsForm };
     hydrateIdentityFromSettings(settingsForm);
     appendLog("success", "设置已保存");
-    closeSettings();
+    activePage.value = "home";
     await refreshAuthStates();
   }
 
@@ -357,6 +363,7 @@ export function usePopupApp() {
     state,
     logs,
     isLoading,
+    activePage,
     settingsOpen,
     settingsForm,
     viewModel,
