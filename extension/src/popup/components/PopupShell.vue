@@ -2,18 +2,9 @@
   <section class="popup-shell" data-test="popup-shell">
     <header class="popup-shell__header">
       <div class="popup-shell__identity">
-        <span class="popup-shell__eyebrow">Tenways Octo</span>
-        <h1 class="popup-shell__title">跨平台协同助手</h1>
-        <p class="popup-shell__subtitle">{{ subtitle }}</p>
+        <h1 class="popup-shell__title">Tenways Octo</h1>
+        <p v-if="subtitle" class="popup-shell__subtitle">{{ subtitle }}</p>
       </div>
-      <a-button
-        type="text"
-        class="popup-shell__settings"
-        data-test="popup-shell-settings"
-        @click="$emit('settings')"
-      >
-        设置
-      </a-button>
     </header>
     <div class="popup-shell__body">
       <slot />
@@ -23,11 +14,7 @@
 
 <script setup lang="ts">
 defineProps<{
-  subtitle: string;
-}>();
-
-defineEmits<{
-  settings: [];
+  subtitle?: string | null;
 }>();
 </script>
 
@@ -38,10 +25,8 @@ defineEmits<{
 }
 
 .popup-shell__header {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 16px 18px;
+  display: block;
+  padding: 18px 20px;
   border-radius: 24px;
   background:
     linear-gradient(135deg, rgba(37, 99, 235, 0.94), rgba(59, 130, 246, 0.88)),
@@ -54,32 +39,22 @@ defineEmits<{
   min-width: 0;
 }
 
-.popup-shell__eyebrow {
-  display: inline-block;
-  margin-bottom: 6px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: rgba(239, 246, 255, 0.82);
-}
-
 .popup-shell__title {
   margin: 0;
-  font-size: 20px;
-  line-height: 1.15;
-  color: #fff;
+  font-size: 11px;
+  line-height: 1.2;
+  font-weight: 700;
+  color: rgba(239, 246, 255, 0.84);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .popup-shell__subtitle {
-  margin: 6px 0 0;
-  font-size: 12px;
-  color: rgba(239, 246, 255, 0.86);
-}
-
-.popup-shell__settings {
-  align-self: flex-start;
-  color: #eff6ff;
+  margin: 8px 0 0;
+  font-size: 18px;
+  line-height: 1.2;
+  font-weight: 600;
+  color: #fff;
 }
 
 .popup-shell__body {

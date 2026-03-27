@@ -26,6 +26,17 @@ vi.mock("../meegle-auth.js", () => ({
 
 import { usePopupApp } from "./use-popup-app";
 
+function createDeferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+
+  return { promise, resolve, reject };
+}
+
 describe("usePopupApp notebook state", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -81,12 +92,15 @@ describe("usePopupApp notebook state", () => {
     const popup = usePopupApp();
 
     await popup.initialize();
+    expect(popup.headerSubtitle.value).toBe("Lark");
     popup.openSettings();
+    expect(popup.headerSubtitle.value).toBe("Settings");
     popup.settingsForm.SERVER_URL = "http://changed.local";
 
     popup.closeSettings();
 
     expect(popup.activePage.value).toBe("home");
+    expect(popup.headerSubtitle.value).toBe("Lark");
     expect(popup.settingsForm.SERVER_URL).toBe("http://localhost:3000");
   });
 
@@ -108,5 +122,49 @@ describe("usePopupApp notebook state", () => {
     expect(popup.activePage.value).toBe("home");
     expect(globalThis.fetch).toHaveBeenCalledTimes(2);
     expect(runtimeMock.runLarkAuthRequest).toHaveBeenCalledTimes(2);
+  });
+
+  it("shows the resolved platform while auth checks are still loading", async () => {
+    const meegleStatusRequest = createDeferred<Response>();
+    vi.mocked(globalThis.fetch).mockReturnValue(meegleStatusRequest.promise);
+
+    const popup = usePopupApp();
+    const initializePromise = popup.initialize();
+
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(popup.state.pageType).toBe("lark");
+    expect(popup.headerSubtitle.value).toBe("Lark");
+
+    meegleStatusRequest.resolve({
+      ok: true,
+      json: async () => ({
+        data: {
+          status: "ready",
+          baseUrl: "https://project.larksuite.com",
+          credentialStatus: "active",
+        },
+      }),
+    } as Response);
+
+    await initializePromise;
+  });
+
+  it("clears the scanning state when initialization fails", async () => {
+    runtimeMock.runLarkAuthRequest.mockRejectedValueOnce(
+      new Error("background offline"),
+    );
+
+    const popup = usePopupApp();
+
+    await popup.initialize();
+
+    expect(popup.isLoading.value).toBe(false);
+    expect(popup.headerSubtitle.value).toBe("Lark");
+    expect(popup.logs.value[popup.logs.value.length - 1]?.message).toContain(
+      "background offline",
+    );
   });
 });

@@ -29,16 +29,19 @@
           placeholder="输入 Lark User ID"
         />
       </a-form-item>
+      <div class="settings-page__actions">
+        <a-button data-test="settings-cancel" @click="$emit('cancel')">
+          取消
+        </a-button>
+        <a-button
+          type="primary"
+          data-test="settings-save"
+          @click="$emit('save')"
+        >
+          保存
+        </a-button>
+      </div>
     </a-form>
-
-    <template #footer>
-      <a-button data-test="settings-cancel" @click="$emit('cancel')">
-        取消
-      </a-button>
-      <a-button type="primary" data-test="settings-save" @click="$emit('save')">
-        保存
-      </a-button>
-    </template>
   </PopupPage>
 </template>
 
@@ -60,5 +63,12 @@ defineEmits<{
 .settings-page__form {
   display: grid;
   gap: 4px;
+}
+
+.settings-page__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 8px;
 }
 </style>

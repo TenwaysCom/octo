@@ -23,7 +23,11 @@ import type {
   PopupSettingsForm,
   PopupStatusChip,
 } from "../types.js";
-import { createPopupViewModel, type PopupPageType } from "../view-model.js";
+import {
+  buildPopupHeaderContext,
+  createPopupViewModel,
+  type PopupPageType,
+} from "../view-model.js";
 
 interface PopupIdentityState {
   larkId: string | null;
@@ -47,6 +51,7 @@ function createDefaultSettingsForm(): PopupSettingsForm {
 export function usePopupApp() {
   const logs = ref<PopupLogEntry[]>([]);
   const isLoading = ref(true);
+  const hasResolvedPageContext = ref(false);
   const activePage = ref<PopupNotebookPage>("home");
   const state = reactive({
     pageType: "unsupported" as PopupPageType,
@@ -97,9 +102,23 @@ export function usePopupApp() {
       isAuthed: state.isAuthed,
     }),
   );
-  const headerSubtitle = computed(() =>
-    isLoading.value ? "检测页面中..." : viewModel.value.subtitle,
-  );
+  const headerSubtitle = computed(() => {
+    if (activePage.value === "settings") {
+      return "Settings";
+    }
+
+    if (!hasResolvedPageContext.value) {
+      return isLoading.value ? "Scanning" : null;
+    }
+
+    if (state.pageType === "unsupported") {
+      return "Unsupported";
+    }
+
+    return buildPopupHeaderContext({
+      platform: state.pageType === "lark" ? "Lark" : "Meegle",
+    });
+  });
   const settingsOpen = computed(() => activePage.value === "settings");
   const meegleStatus = computed(() =>
     resolveStatusChip(state.isAuthed.meegle, state.identity.meegleUserKey),
@@ -146,41 +165,48 @@ export function usePopupApp() {
 
   async function initialize() {
     appendLog("info", "初始化...");
+    try {
+      const settings = await loadPopupSettings();
+      syncSettingsForm(settings);
+      settingsSnapshot = { ...settings };
+      hydrateIdentityFromSettings(settings);
 
-    const settings = await loadPopupSettings();
-    syncSettingsForm(settings);
-    settingsSnapshot = { ...settings };
-    hydrateIdentityFromSettings(settings);
+      const tabContext = await queryActiveTabContext();
+      state.currentTabId = tabContext.id;
+      state.currentUrl = tabContext.url;
+      state.currentTabOrigin = tabContext.origin;
+      state.pageType = tabContext.pageType;
+      hasResolvedPageContext.value = true;
 
-    const tabContext = await queryActiveTabContext();
-    state.currentTabId = tabContext.id;
-    state.currentUrl = tabContext.url;
-    state.currentTabOrigin = tabContext.origin;
-    state.pageType = tabContext.pageType;
+      if (tabContext.pageType === "unsupported") {
+        appendLog("warn", "当前页面不支持");
+        return;
+      }
 
-    if (tabContext.pageType === "unsupported") {
-      appendLog("warn", "当前页面不支持");
+      if (tabContext.pageType === "lark" && tabContext.id != null) {
+        const larkId = await requestLarkUserId(tabContext.id);
+        if (larkId) {
+          state.identity.larkId = larkId;
+        }
+      }
+
+      if (tabContext.pageType === "meegle" && tabContext.id != null) {
+        const identity = await requestMeegleUserIdentity(tabContext.id);
+        if (identity?.userKey) {
+          state.identity.meegleUserKey = identity.userKey;
+        }
+      }
+
+      await refreshAuthStates();
+      appendLog("success", "初始化完成");
+    } catch (error) {
+      appendLog(
+        "error",
+        `初始化失败: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    } finally {
       isLoading.value = false;
-      return;
     }
-
-    if (tabContext.pageType === "lark" && tabContext.id != null) {
-      const larkId = await requestLarkUserId(tabContext.id);
-      if (larkId) {
-        state.identity.larkId = larkId;
-      }
-    }
-
-    if (tabContext.pageType === "meegle" && tabContext.id != null) {
-      const identity = await requestMeegleUserIdentity(tabContext.id);
-      if (identity?.userKey) {
-        state.identity.meegleUserKey = identity.userKey;
-      }
-    }
-
-    await refreshAuthStates();
-    appendLog("success", "初始化完成");
-    isLoading.value = false;
   }
 
   async function refreshAuthStates() {

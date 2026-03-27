@@ -28,6 +28,13 @@ export interface PopupViewModel {
   canApply: boolean;
 }
 
+export interface PopupHeaderContextInput {
+  platform?: string | null;
+  module?: string | null;
+  task?: string | null;
+  status?: string | null;
+}
+
 export function detectPopupPageType(url: string): PopupPageType {
   if (url.includes("project.larksuite.com") || url.includes("meegle.com")) {
     return "meegle";
@@ -61,6 +68,16 @@ export function createPopupViewModel(
     canDraft: showLarkFeatureBlock,
     canApply: showLarkFeatureBlock,
   };
+}
+
+export function buildPopupHeaderContext(
+  input: PopupHeaderContextInput,
+): string | null {
+  const segments = [input.platform, input.module, input.task, input.status]
+    .map((value) => value?.trim())
+    .filter((value): value is string => Boolean(value));
+
+  return segments.length > 0 ? segments.join(" · ") : null;
 }
 
 function resolveSubtitle(pageType: PopupPageType): string {

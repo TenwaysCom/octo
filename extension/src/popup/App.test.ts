@@ -67,12 +67,12 @@ describe("popup App", () => {
     expect(wrapper.find('[data-test="settings-page"]').exists()).toBe(false);
   });
 
-  it("switches to settings via the shell action", async () => {
+  it("switches to settings via the notebook tab", async () => {
     popupAppMock.current = createPopupAppMock("lark");
     const wrapper = mountApp();
 
     await flushPromises();
-    await wrapper.get('[data-test="popup-shell-settings"]').trigger("click");
+    await wrapper.get('[data-test="popup-tab-settings"]').trigger("click");
 
     expect(wrapper.find('[data-test="settings-page"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="home-page"]').exists()).toBe(false);
@@ -93,7 +93,6 @@ function mountApp() {
           props: ["subtitle"],
           template: `
             <div data-test='popup-shell'>
-              <button data-test='popup-shell-settings' @click="$emit('settings')">settings</button>
               {{ subtitle }}
               <slot />
             </div>
@@ -101,7 +100,13 @@ function mountApp() {
         },
         PopupNotebook: {
           props: ["modelValue"],
-          template: "<div data-test='popup-notebook'>{{ modelValue }}</div>",
+          template: `
+            <div data-test='popup-notebook'>
+              <button data-test='popup-tab-home' @click="$emit('update:modelValue', 'home')">home</button>
+              <button data-test='popup-tab-settings' @click="$emit('update:modelValue', 'settings')">settings</button>
+              {{ modelValue }}
+            </div>
+          `,
         },
         HomePage: {
           props: ["state", "larkActions", "meegleActions"],

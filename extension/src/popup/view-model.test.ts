@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildPopupHeaderContext,
   createPopupViewModel,
   detectPopupPageType,
 } from "./view-model.js";
@@ -17,6 +18,28 @@ describe("popup view model", () => {
 
   it("marks non-supported pages as unsupported", () => {
     expect(detectPopupPageType("https://github.com/tenways/tw-itdog")).toBe("unsupported");
+  });
+
+  it("builds a compact header context from platform, module, task, and status", () => {
+    expect(
+      buildPopupHeaderContext({
+        platform: "Lark",
+        module: "A1",
+        task: "Generate Draft",
+        status: "Running",
+      }),
+    ).toBe("Lark · A1 · Generate Draft · Running");
+  });
+
+  it("skips empty header context segments", () => {
+    expect(
+      buildPopupHeaderContext({
+        platform: "Meegle",
+        module: "",
+        task: null,
+        status: "Ready",
+      }),
+    ).toBe("Meegle · Ready");
   });
 
   it("shows the Lark feature actions only when both auth states are ready on a Lark page", () => {

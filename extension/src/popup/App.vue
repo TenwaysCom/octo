@@ -1,7 +1,7 @@
 <template>
   <a-config-provider :theme="themeConfig">
     <a-app>
-      <PopupShell :subtitle="headerSubtitle" @settings="openSettings">
+      <PopupShell :subtitle="headerSubtitle">
         <PopupNotebook v-model="activePage" />
         <HomePage
           v-if="activePage === 'home'"
@@ -58,7 +58,6 @@ const {
   initialize,
   authorizeMeegle,
   authorizeLark,
-  openSettings,
   closeSettings,
   saveSettingsForm,
   clearLogs,

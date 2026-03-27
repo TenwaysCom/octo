@@ -62,6 +62,10 @@ describe("SettingsPage", () => {
     expect(wrapper.text()).toContain("MEEGLE Plugin ID");
     expect(wrapper.text()).toContain("Meegle User Key");
     expect(wrapper.text()).toContain("Lark User ID");
+    expect(wrapper.find(".settings-page__actions").exists()).toBe(true);
+    expect(wrapper.get(".settings-page__actions").text()).toContain("取消");
+    expect(wrapper.get(".settings-page__actions").text()).toContain("保存");
+    expect(wrapper.get('[data-test="popup-page-footer"]').text()).toBe("");
 
     await wrapper.get('[data-test="settings-cancel"]').trigger("click");
     await wrapper.get('[data-test="settings-save"]').trigger("click");
