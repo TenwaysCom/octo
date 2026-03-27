@@ -101,7 +101,6 @@ describe("popup meegle auth", () => {
       resolveMeegleStatusDisplay(
         {
           status: "ready",
-          baseUrl: "https://project.larksuite.com",
           credentialStatus: "active",
           expiresAt: "2026-03-27T09:30:00.000Z",
         },
