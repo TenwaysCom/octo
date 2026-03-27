@@ -235,3 +235,5 @@ meegleTestingTarget.__TENWAYS_MEEGLE_TESTING__ = {
 
 // Initialize when script loads
 initMeegleContentScript();
+
+export {};

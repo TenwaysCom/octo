@@ -1,25 +1,36 @@
 {
   "name": "tenways-octo-extension",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc && npm run copy-assets && npm run validate",
-    "copy-assets": "cp src/popup.html src/popup.js dist/ && cp manifest.json dist/ && cp -r icons dist/",
-    "dev": "tsc --watch",
-    "clean": "rm -rf dist",
-    "validate": "node scripts/validate.mjs",
-    "package": "npm run clean && npm run build && cd dist && zip -r ../tenways-octo-extension.zip .",
-    "test": "vitest run"
+    "dev": "wxt",
+    "build": "wxt build",
+    "typecheck": "vue-tsc --noEmit",
+    "clean": "wxt clean",
+    "package": "wxt zip",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "postinstall": "wxt prepare"
   },
   "dependencies": {
+    "ant-design-vue": "^4.2.6",
+    "vue": "^3.5.31",
     "webextension-polyfill": "^0.10.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@types/chrome": "^0.0.260",
     "@types/node": "^24.12.0",
     "@types/webextension-polyfill": "^0.10.7",
+    "@vitejs/plugin-vue": "^6.0.5",
+    "@vue/test-utils": "^2.4.6",
+    "@wxt-dev/module-vue": "^1.0.3",
+    "jsdom": "^29.0.1",
     "typescript": "^5.9.2",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "vue-tsc": "^3.2.6",
+    "wxt": "^0.20.20"
   }
 }

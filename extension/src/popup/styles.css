@@ -1,0 +1,29 @@
+:root {
+  color-scheme: light;
+  font-family:
+    "SF Pro Text",
+    "Segoe UI",
+    "PingFang SC",
+    "Hiragino Sans GB",
+    sans-serif;
+  background:
+    radial-gradient(circle at top, rgba(37, 99, 235, 0.16), transparent 42%),
+    linear-gradient(180deg, #eef4ff 0%, #f8fbff 100%);
+  color: #0f172a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  width: 420px;
+  min-height: 240px;
+  margin: 0;
+}
+
+body {
+  background: transparent;
+}

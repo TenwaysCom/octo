@@ -129,3 +129,5 @@ larkTestingTarget.__TENWAYS_LARK_TESTING__ = {
 
 // Initialize
 initLarkContentScript();
+
+export {};

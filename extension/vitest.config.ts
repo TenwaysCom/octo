@@ -1,17 +1,13 @@
+import vue from "@vitejs/plugin-vue";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
+  plugins: [vue()],
   test: {
-    globals: true,
     environment: "node",
-    include: ["src/**/*.test.ts"],
-    coverage: {
-      provider: "v8",
-      reporter: ["text", "json", "html"],
-      include: ["src/**/*.ts"],
-      exclude: ["src/**/*.test.ts"],
-    },
-    // Mock Chrome APIs
+    globals: true,
     setupFiles: ["./test/setup.ts"],
+    include: ["src/**/*.test.ts"],
+    exclude: ["tests/**"],
   },
 });
