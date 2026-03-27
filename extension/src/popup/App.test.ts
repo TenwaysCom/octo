@@ -3,7 +3,13 @@
 import { flushPromises, shallowMount } from "@vue/test-utils";
 import { reactive, ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { PopupFeatureAction, PopupLogEntry, PopupSettingsForm, PopupStatusChip } from "./types.js";
+import type {
+  PopupFeatureAction,
+  PopupLogEntry,
+  PopupNotebookPage,
+  PopupSettingsForm,
+  PopupStatusChip,
+} from "./types.js";
 import type { PopupPageType, PopupViewModel } from "./view-model.js";
 
 const popupAppMock = vi.hoisted(() => ({
@@ -27,50 +33,49 @@ describe("popup App", () => {
     await flushPromises();
 
     expect(popupAppMock.current?.initialize).toHaveBeenCalledTimes(1);
-    expect(wrapper.find('[data-test="unsupported-view"]').exists()).toBe(true);
-    expect(wrapper.find('[data-test="lark-view"]').exists()).toBe(false);
-    expect(wrapper.find('[data-test="meegle-view"]').exists()).toBe(false);
-    expect(wrapper.get('[data-test="popup-shell"]').text()).toContain("当前页面不支持");
+    expect(wrapper.find('[data-test="home-page"]').exists()).toBe(true);
+    expect(wrapper.get('[data-test="home-page"]').text()).toContain("unsupported");
+    expect(wrapper.find('[data-test="settings-page"]').exists()).toBe(false);
   });
 
-  it("renders the lark page view with lark actions", async () => {
+  it("renders the lark page view inside the home page", async () => {
     popupAppMock.current = createPopupAppMock("lark");
     const wrapper = mountApp();
 
     await flushPromises();
 
-    expect(wrapper.find('[data-test="unsupported-view"]').exists()).toBe(false);
-    expect(wrapper.get('[data-test="lark-view"]').text()).toContain("分析当前页面");
-    expect(wrapper.find('[data-test="meegle-view"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="settings-page"]').exists()).toBe(false);
+    expect(wrapper.get('[data-test="home-page"]').text()).toContain("分析当前页面");
   });
 
-  it("renders the meegle page view with meegle actions", async () => {
+  it("renders the meegle page view inside the home page", async () => {
     popupAppMock.current = createPopupAppMock("meegle");
     const wrapper = mountApp();
 
     await flushPromises();
 
-    expect(wrapper.find('[data-test="unsupported-view"]').exists()).toBe(false);
-    expect(wrapper.find('[data-test="lark-view"]').exists()).toBe(false);
-    expect(wrapper.get('[data-test="meegle-view"]').text()).toContain("查看来源上下文");
+    expect(wrapper.find('[data-test="settings-page"]').exists()).toBe(false);
+    expect(wrapper.get('[data-test="home-page"]').text()).toContain("查看来源上下文");
   });
 
-  it("does not render the settings modal until it is opened", async () => {
+  it("renders the home page by default", async () => {
     const wrapper = mountApp();
 
     await flushPromises();
 
-    expect(wrapper.find('[data-test="settings-modal"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="home-page"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="settings-page"]').exists()).toBe(false);
   });
 
-  it("renders the settings modal after it is opened", async () => {
-    popupAppMock.current = createPopupAppMock("unsupported");
-    popupAppMock.current.settingsOpen.value = true;
+  it("switches to settings via the shell action", async () => {
+    popupAppMock.current = createPopupAppMock("lark");
     const wrapper = mountApp();
 
     await flushPromises();
+    await wrapper.get('[data-test="popup-shell-settings"]').trigger("click");
 
-    expect(wrapper.find('[data-test="settings-modal"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="settings-page"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="home-page"]').exists()).toBe(false);
   });
 });
 
@@ -86,26 +91,30 @@ function mountApp() {
         },
         PopupShell: {
           props: ["subtitle"],
-          template: "<div data-test='popup-shell'>{{ subtitle }}<slot /></div>",
+          template: `
+            <div data-test='popup-shell'>
+              <button data-test='popup-shell-settings' @click="$emit('settings')">settings</button>
+              {{ subtitle }}
+              <slot />
+            </div>
+          `,
         },
-        UnsupportedPageView: {
-          template: "<div data-test='unsupported-view'>unsupported</div>",
+        PopupNotebook: {
+          props: ["modelValue"],
+          template: "<div data-test='popup-notebook'>{{ modelValue }}</div>",
         },
-        LarkPageView: {
-          props: ["actions"],
-          template: "<div data-test='lark-view'>{{ actions[0]?.label }}</div>",
+        HomePage: {
+          props: ["state", "larkActions", "meegleActions"],
+          template: `
+            <div data-test='home-page'>
+              <span v-if="state.pageType === 'unsupported'">unsupported</span>
+              <span v-else-if="state.pageType === 'lark'">{{ larkActions[0]?.label }}</span>
+              <span v-else>{{ meegleActions[0]?.label }}</span>
+            </div>
+          `,
         },
-        MeeglePageView: {
-          props: ["actions"],
-          template: "<div data-test='meegle-view'>{{ actions[0]?.label }}</div>",
-        },
-        LogPanel: {
-          props: ["entries"],
-          template: "<div data-test='log-panel'>{{ entries.length }}</div>",
-        },
-        SettingsModal: {
-          props: ["open"],
-          template: "<div data-test='settings-modal'>{{ open }}</div>",
+        SettingsPage: {
+          template: "<div data-test='settings-page'>settings</div>",
         },
       },
     },
@@ -113,6 +122,8 @@ function mountApp() {
 }
 
 function createPopupAppMock(pageType: PopupPageType) {
+  const activePage = ref<PopupNotebookPage>("home");
+
   return {
     state: reactive({
       pageType,
@@ -132,6 +143,7 @@ function createPopupAppMock(pageType: PopupPageType) {
     }),
     logs: ref<PopupLogEntry[]>([]),
     isLoading: ref(false),
+    activePage,
     settingsOpen: ref(false),
     settingsForm: reactive<PopupSettingsForm>({
       SERVER_URL: "http://localhost:3000",
@@ -166,9 +178,15 @@ function createPopupAppMock(pageType: PopupPageType) {
     initialize: vi.fn().mockResolvedValue(undefined),
     authorizeMeegle: vi.fn(),
     authorizeLark: vi.fn(),
-    openSettings: vi.fn(),
-    closeSettings: vi.fn(),
-    saveSettingsForm: vi.fn(),
+    openSettings: vi.fn(() => {
+      activePage.value = "settings";
+    }),
+    closeSettings: vi.fn(() => {
+      activePage.value = "home";
+    }),
+    saveSettingsForm: vi.fn(async () => {
+      activePage.value = "home";
+    }),
     clearLogs: vi.fn(),
     runFeatureAction: vi.fn(),
   };

@@ -20,10 +20,14 @@ html,
 body,
 #app {
   width: 420px;
-  min-height: 240px;
+  min-height: 420px;
   margin: 0;
 }
 
 body {
   background: transparent;
+}
+
+#app {
+  display: flex;
 }
