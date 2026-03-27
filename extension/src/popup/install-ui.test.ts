@@ -14,9 +14,10 @@ describe("installPopupUi", () => {
     expect(app.component("AEmpty")).toBeTruthy();
     expect(app.component("AApp")).toBeTruthy();
     expect(app.component("AConfigProvider")).toBeTruthy();
+    expect(app.component("ASegmented")).toBeTruthy();
+    expect(app.component("AForm")).toBeTruthy();
+    expect(app.component("AFormItem")).toBeTruthy();
+    expect(app.component("AInput")).toBeTruthy();
     expect(app.component("AModal")).toBeFalsy();
-    expect(app.component("AForm")).toBeFalsy();
-    expect(app.component("AFormItem")).toBeFalsy();
-    expect(app.component("AInput")).toBeFalsy();
   });
 });

@@ -5,6 +5,9 @@ import {
   Card,
   ConfigProvider,
   Empty,
+  Form,
+  Input,
+  Segmented,
   Tag,
 } from "ant-design-vue";
 
@@ -14,6 +17,9 @@ const popupUiPlugins = [
   Card,
   ConfigProvider,
   Empty,
+  Form,
+  Input,
+  Segmented,
   Tag,
 ] as const;
 
