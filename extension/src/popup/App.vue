@@ -36,6 +36,7 @@
         <LogPanel :entries="logs" @clear="clearLogs" />
       </PopupShell>
       <SettingsModal
+        v-if="settingsOpen"
         :open="settingsOpen"
         :form="settingsForm"
         @close="closeSettings"
@@ -46,14 +47,17 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from "vue";
+import { defineAsyncComponent, onMounted } from "vue";
 import LogPanel from "./components/LogPanel.vue";
 import PopupShell from "./components/PopupShell.vue";
-import SettingsModal from "./components/SettingsModal.vue";
 import { usePopupApp } from "./composables/use-popup-app";
 import LarkPageView from "./pages/LarkPageView.vue";
 import MeeglePageView from "./pages/MeeglePageView.vue";
 import UnsupportedPageView from "./pages/UnsupportedPageView.vue";
+
+const SettingsModal = defineAsyncComponent(
+  () => import("./components/SettingsModal.vue"),
+);
 
 const {
   state,

@@ -54,6 +54,24 @@ describe("popup App", () => {
     expect(wrapper.find('[data-test="lark-view"]').exists()).toBe(false);
     expect(wrapper.get('[data-test="meegle-view"]').text()).toContain("查看来源上下文");
   });
+
+  it("does not render the settings modal until it is opened", async () => {
+    const wrapper = mountApp();
+
+    await flushPromises();
+
+    expect(wrapper.find('[data-test="settings-modal"]').exists()).toBe(false);
+  });
+
+  it("renders the settings modal after it is opened", async () => {
+    popupAppMock.current = createPopupAppMock("unsupported");
+    popupAppMock.current.settingsOpen.value = true;
+    const wrapper = mountApp();
+
+    await flushPromises();
+
+    expect(wrapper.find('[data-test="settings-modal"]').exists()).toBe(true);
+  });
 });
 
 function mountApp() {

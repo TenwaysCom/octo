@@ -1,5 +1,5 @@
 <template>
-  <a-modal
+  <AModal
     :open="open"
     title="设置"
     ok-text="保存"
@@ -7,34 +7,37 @@
     @cancel="$emit('close')"
     @ok="$emit('save')"
   >
-    <a-form layout="vertical">
-      <a-form-item label="Server URL">
-        <a-input v-model:value="form.SERVER_URL" placeholder="http://localhost:3000" />
-      </a-form-item>
-      <a-form-item label="MEEGLE Plugin ID">
-        <a-input
+    <AForm layout="vertical">
+      <AFormItem label="Server URL">
+        <AInput v-model:value="form.SERVER_URL" placeholder="http://localhost:3000" />
+      </AFormItem>
+      <AFormItem label="MEEGLE Plugin ID">
+        <AInput
           v-model:value="form.MEEGLE_PLUGIN_ID"
           placeholder="输入 MII_ 开头的 Plugin ID"
         />
-      </a-form-item>
-      <a-form-item label="Meegle User Key">
-        <a-input
+      </AFormItem>
+      <AFormItem label="Meegle User Key">
+        <AInput
           v-model:value="form.meegleUserKey"
           placeholder="输入 Meegle User Key"
         />
-      </a-form-item>
-      <a-form-item label="Lark User ID (可选)">
-        <a-input
+      </AFormItem>
+      <AFormItem label="Lark User ID (可选)">
+        <AInput
           v-model:value="form.larkUserId"
           placeholder="输入 Lark User ID"
         />
-      </a-form-item>
-    </a-form>
-  </a-modal>
+      </AFormItem>
+    </AForm>
+  </AModal>
 </template>
 
 <script setup lang="ts">
+import { Form as AForm, Input as AInput, Modal as AModal } from "ant-design-vue";
 import type { PopupSettingsForm } from "../types";
+
+const AFormItem = AForm.Item;
 
 defineProps<{
   open: boolean;

@@ -1,10 +1,10 @@
 import { createApp } from "vue";
-import Antd from "ant-design-vue";
 import "ant-design-vue/dist/reset.css";
 import "./styles.css";
 import App from "./App.vue";
+import { installPopupUi } from "./install-ui.js";
 
 const app = createApp(App);
 
-app.use(Antd);
+installPopupUi(app);
 app.mount("#app");
