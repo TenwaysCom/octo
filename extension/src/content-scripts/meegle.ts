@@ -23,6 +23,24 @@ interface TenwaysMeegleTestingApi {
   initMeegleContentScript: () => void;
 }
 
+const MCS_FLOW_PREFIX = "[MEEGLE_AUTH_FLOW][MCS]";
+
+function logMcsFlow(node: string, phase: "START" | "OK" | "FAIL", detail: Record<string, unknown>): void {
+  const logger = phase === "FAIL" ? console.error : console.log;
+  logger(`${MCS_FLOW_PREFIX}[${node}][${phase}]`, detail);
+}
+
+function getPageLocation(): { href?: string; origin?: string } {
+  if (typeof window === "undefined") {
+    return {};
+  }
+
+  return {
+    href: window.location?.href,
+    origin: window.location?.origin,
+  };
+}
+
 /**
  * Get user identity from Meegle page
  */
@@ -98,6 +116,7 @@ async function getAuthCodeFromMeegleApi(
   state: string,
   baseUrl: string = "https://project.larksuite.com",
 ): Promise<MeegleAuthCodeResult | null> {
+  logMcsFlow("AUTH_CODE_API", "START", { baseUrl, state, pluginIdSuffix: pluginId.slice(-6), location: getPageLocation().origin });
   console.log("[Tenways Octo] Getting auth code from Meegle API...");
 
   // Call Meegle BFF auth code API
@@ -116,6 +135,7 @@ async function getAuthCodeFromMeegleApi(
 
   if (!response.ok) {
     const errorText = await response.text();
+    logMcsFlow("AUTH_CODE_API", "FAIL", { baseUrl, status: response.status, errorText });
     console.error("[Tenways Octo] Auth code API error:", response.status, errorText);
     throw new Error(`Auth code API error: ${response.status} ${errorText}`);
   }
@@ -129,6 +149,7 @@ async function getAuthCodeFromMeegleApi(
 
   // Check for error in response
   if (data.error && data.error.code !== 0) {
+    logMcsFlow("AUTH_CODE_API", "FAIL", { baseUrl, errorCode: data.error.code, errorMessage: data.error.msg });
     console.error("[Tenways Octo] Auth code error:", data.error.msg);
     throw new Error(data.error.msg || "Auth code request failed");
   }
@@ -137,10 +158,12 @@ async function getAuthCodeFromMeegleApi(
   const authCode = data.data?.code ?? data.code ?? data.auth_code;
 
   if (typeof authCode !== "string" || authCode.length === 0) {
+    logMcsFlow("AUTH_CODE_API", "FAIL", { baseUrl, reason: "INVALID_AUTH_CODE_RESPONSE", keys: Object.keys(data) });
     console.error("[Tenways Octo] Invalid auth code in response");
     throw new Error("Invalid auth code in response");
   }
 
+  logMcsFlow("AUTH_CODE_API", "OK", { baseUrl, state, authCodeSuffix: authCode.slice(-6) });
   console.log("[Tenways Octo] Auth code obtained successfully");
 
   return {
@@ -168,15 +191,18 @@ function initMeegleContentScript() {
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message.action === "itdog.page.meegle.auth_code.request") {
       const { pluginId, state, baseUrl } = message.payload;
+      logMcsFlow("MESSAGE_RECEIVED", "START", { action: message.action, baseUrl, state, pluginIdSuffix: typeof pluginId === "string" ? pluginId.slice(-6) : undefined, location: getPageLocation().href });
 
       requestAuthCode(pluginId, state, baseUrl)
         .then((result) => {
+          logMcsFlow("MESSAGE_RECEIVED", "OK", { action: message.action, state: result?.state, issuedAt: result?.issuedAt });
           sendResponse({
             ok: true,
             data: result,
           });
         })
         .catch((err: Error) => {
+          logMcsFlow("MESSAGE_RECEIVED", "FAIL", { action: message.action, errorMessage: err.message });
           sendResponse({
             ok: false,
             error: {

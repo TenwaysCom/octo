@@ -151,4 +151,99 @@ describe("popup meegle auth", () => {
       expect.stringContaining("服务端"),
     );
   });
+
+  it("shows the server exchange error when token exchange fails", async () => {
+    const log = {
+      add: vi.fn(),
+      success: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    };
+
+    const controller = createMeegleAuthController({
+      sendMessage: vi.fn().mockResolvedValue({
+        status: "failed",
+        reason: "MEEGLE_AUTH_CODE_EXCHANGE_FAILED",
+        errorMessage: "auth code expired or already used",
+      }),
+      setStatus: vi.fn(),
+      log,
+    });
+
+    await expect(
+      controller.run({
+        currentTabId: 42,
+        currentTabOrigin: "https://tenant.meegle.com",
+        currentPageType: "meegle",
+        larkId: "ou_xxx",
+      }),
+    ).resolves.toBe(false);
+
+    expect(log.error).toHaveBeenCalledWith(
+      expect.stringContaining("auth code expired or already used"),
+    );
+  });
+
+  it("falls back to the exchange reason when the detailed error message is missing", async () => {
+    const log = {
+      add: vi.fn(),
+      success: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    };
+
+    const controller = createMeegleAuthController({
+      sendMessage: vi.fn().mockResolvedValue({
+        status: "failed",
+        reason: "MEEGLE_AUTH_CODE_EXCHANGE_FAILED",
+      }),
+      setStatus: vi.fn(),
+      log,
+    });
+
+    await expect(
+      controller.run({
+        currentTabId: 42,
+        currentTabOrigin: "https://tenant.meegle.com",
+        currentPageType: "meegle",
+        larkId: "ou_xxx",
+      }),
+    ).resolves.toBe(false);
+
+    expect(log.error).toHaveBeenCalledWith(
+      expect.stringContaining("MEEGLE_AUTH_CODE_EXCHANGE_FAILED"),
+    );
+  });
+
+  it("shows the detailed exchange message even when the server originally returned INTERNAL_ERROR", async () => {
+    const log = {
+      add: vi.fn(),
+      success: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    };
+
+    const controller = createMeegleAuthController({
+      sendMessage: vi.fn().mockResolvedValue({
+        status: "failed",
+        reason: "MEEGLE_AUTH_CODE_EXCHANGE_FAILED",
+        errorMessage: "Missing token field: plugin_access_token, token, access_token",
+      }),
+      setStatus: vi.fn(),
+      log,
+    });
+
+    await expect(
+      controller.run({
+        currentTabId: 42,
+        currentTabOrigin: "https://tenant.meegle.com",
+        currentPageType: "meegle",
+        larkId: "ou_xxx",
+      }),
+    ).resolves.toBe(false);
+
+    expect(log.error).toHaveBeenCalledWith(
+      expect.stringContaining("Missing token field"),
+    );
+  });
 });

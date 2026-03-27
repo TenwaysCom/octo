@@ -134,7 +134,34 @@ const meegleAuthController = createMeegleAuthController({
           action: 'itdog.meegle.auth.ensure',
           payload: request,
         },
-        (res) => resolve(res?.payload || { status: 'unknown' }),
+        (res) => {
+          if (chrome.runtime.lastError) {
+            resolve({
+              status: 'failed',
+              baseUrl: request.baseUrl,
+              reason: 'BACKGROUND_ERROR',
+              errorMessage: chrome.runtime.lastError.message,
+            });
+            return;
+          }
+
+          if (res?.payload) {
+            resolve(res.payload);
+            return;
+          }
+
+          if (res?.error) {
+            resolve({
+              status: 'failed',
+              baseUrl: request.baseUrl,
+              reason: res.error.errorCode || 'BACKGROUND_ERROR',
+              errorMessage: res.error.errorMessage,
+            });
+            return;
+          }
+
+          resolve({ status: 'unknown', baseUrl: request.baseUrl, reason: 'BACKGROUND_EMPTY_RESPONSE' });
+        },
       );
     }),
   setStatus: (status, text) => {

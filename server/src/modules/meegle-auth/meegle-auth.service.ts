@@ -28,6 +28,12 @@ export interface MeegleAuthServiceDeps {
 
 let defaultDeps: MeegleAuthServiceDeps | undefined;
 const sharedTokenStore = new InMemoryMeegleTokenStore();
+const SERVER_SERVICE_FLOW_PREFIX = "[MEEGLE_AUTH_FLOW][SERVER][SERVICE]";
+
+function logServiceFlow(node: string, phase: "START" | "OK" | "FAIL", detail: Record<string, unknown>): void {
+  const logger = phase === "FAIL" ? console.error : console.log;
+  logger(`${SERVER_SERVICE_FLOW_PREFIX}[${node}][${phase}]`, detail);
+}
 
 export function configureMeegleAuthServiceDeps(
   deps: MeegleAuthServiceDeps,
@@ -57,6 +63,7 @@ export async function exchangeAuthCode(
   input: unknown,
   overrides?: Partial<MeegleAuthServiceDeps>,
 ) {
+  logServiceFlow("EXCHANGE_AUTH_CODE", "START", { inputType: typeof input });
   const request: MeegleAuthExchangeRequest =
     validateMeegleAuthExchangeRequest(input);
   const deps = getDeps(overrides);
@@ -69,6 +76,8 @@ export async function exchangeAuthCode(
     larkId: request.operatorLarkId,
     meegleUserKey: request.meegleUserKey,
   });
+
+  logServiceFlow("EXCHANGE_AUTH_CODE", "OK", { requestId: request.requestId, operatorLarkId: request.operatorLarkId, meegleUserKey: request.meegleUserKey, baseUrl: request.baseUrl, tokenStatus: result.tokenStatus, credentialStatus: result.credentialStatus, expiresAt: result.expiresAt });
 
   return result;
 }
@@ -90,6 +99,7 @@ export async function checkAuthStatus(
   input: unknown,
   overrides?: Partial<MeegleAuthServiceDeps>,
 ) {
+  logServiceFlow("CHECK_AUTH_STATUS", "START", { inputType: typeof input });
   const request = validateMeegleAuthStatusRequest(input);
   const deps = getDeps(overrides);
   const baseUrl = request.baseUrl ?? "https://project.larksuite.com";
@@ -99,6 +109,7 @@ export async function checkAuthStatus(
   const meegleUserKey = resolvedIdentity?.meegleUserKey ?? request.meegleUserKey;
 
   if (!meegleUserKey) {
+    logServiceFlow("CHECK_AUTH_STATUS", "FAIL", { operatorLarkId: request.operatorLarkId, baseUrl, reason: "MISSING_MEEGLE_USER_KEY" });
     return {
       ok: true,
       data: {
@@ -117,6 +128,7 @@ export async function checkAuthStatus(
   });
 
   if (!stored?.userToken) {
+    logServiceFlow("CHECK_AUTH_STATUS", "FAIL", { operatorLarkId: request.operatorLarkId, meegleUserKey, baseUrl, reason: "NO_STORED_TOKEN" });
     return {
       ok: true,
       data: {
@@ -142,6 +154,7 @@ export async function checkAuthStatus(
   );
 
   if (refreshedStatus.tokenStatus !== "ready") {
+    logServiceFlow("CHECK_AUTH_STATUS", "FAIL", { operatorLarkId: request.operatorLarkId, meegleUserKey, requestedBaseUrl: baseUrl, resolvedBaseUrl: refreshedStatus.baseUrl, reason: refreshedStatus.errorCode || "Stored Meegle token expired" });
     return {
       ok: true,
       data: {
@@ -154,13 +167,15 @@ export async function checkAuthStatus(
     };
   }
 
+  logServiceFlow("CHECK_AUTH_STATUS", "OK", { operatorLarkId: request.operatorLarkId, meegleUserKey, requestedBaseUrl: baseUrl, resolvedBaseUrl: refreshedStatus.baseUrl, credentialStatus: refreshedStatus.credentialStatus, expiresAt: refreshedStatus.expiresAt });
+
   return {
     ok: true,
     data: {
         status: "ready" as const,
         operatorLarkId: request.operatorLarkId,
         meegleUserKey,
-        baseUrl,
+        baseUrl: refreshedStatus.baseUrl,
         credentialStatus: refreshedStatus.credentialStatus,
         expiresAt: refreshedStatus.expiresAt,
         reason: stored.userTokenExpiresAt ? "Stored Meegle token is available" : "Stored Meegle token refreshed",

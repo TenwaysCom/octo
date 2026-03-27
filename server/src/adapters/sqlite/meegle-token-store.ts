@@ -86,7 +86,7 @@ export class SqliteMeegleTokenStore implements MeegleTokenStore {
   async get(
     lookup: MeegleTokenLookup,
   ): Promise<StoredMeegleToken | undefined> {
-    const row = this.db.prepare(`
+    const exactRow = this.db.prepare(`
       SELECT
         operator_lark_id,
         meegle_user_key,
@@ -106,6 +106,29 @@ export class SqliteMeegleTokenStore implements MeegleTokenStore {
       lookup.operatorLarkId,
       lookup.meegleUserKey,
       lookup.baseUrl,
+    ) as StoredCredentialRow | undefined;
+
+    const row = exactRow ?? this.db.prepare(`
+      SELECT
+        operator_lark_id,
+        meegle_user_key,
+        base_url,
+        plugin_token,
+        plugin_token_expires_at,
+        user_token,
+        user_token_expires_at,
+        refresh_token,
+        refresh_token_expires_at,
+        credential_status,
+        last_auth_at,
+        last_refresh_at
+      FROM meegle_credential
+      WHERE operator_lark_id = ? AND meegle_user_key = ?
+      ORDER BY updated_at DESC
+      LIMIT 1
+    `).get(
+      lookup.operatorLarkId,
+      lookup.meegleUserKey,
     ) as StoredCredentialRow | undefined;
 
     if (!row) {

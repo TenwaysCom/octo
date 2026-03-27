@@ -201,9 +201,75 @@ describe("meegle-auth handler", () => {
       );
 
       expect(result.status).toBe("failed");
-      expect(result.reason).toBe("MEEGLE_TOKEN_EXCHANGE_FAILED");
+      expect(result.reason).toBe("MEEGLE_AUTH_CODE_EXCHANGE_FAILED");
+      expect(result.errorMessage).toBe("Exchange failed");
     });
 
+    it("should normalize server internal exchange errors into an exchange failure for the popup", async () => {
+      const mockAuthCode: MeegleAuthCodeResponse = {
+        authCode: "auth_code_123",
+        state: "state_456",
+        issuedAt: new Date().toISOString(),
+      };
+
+      const mockExchangeResponse: MeegleAuthExchangeResponse = {
+        ok: false,
+        error: {
+          errorCode: "INTERNAL_ERROR",
+          errorMessage: "Missing token field: plugin_access_token, token, access_token",
+        },
+      };
+
+      deps.requestAuthCodeFromContentScript = vi.fn().mockResolvedValue(mockAuthCode);
+      deps.exchangeAuthCodeWithServer = vi.fn().mockResolvedValue(mockExchangeResponse);
+
+      const result = await ensureMeegleAuth(
+        {
+          requestId: "req_001",
+          operatorLarkId: "ou_xxx",
+          meegleUserKey: "user_xxx",
+          currentTabId: 12,
+          currentPageIsMeegle: true,
+          baseUrl: "https://project.larksuite.com",
+          state: "state_456",
+        },
+        deps,
+      );
+
+      expect(result.status).toBe("failed");
+      expect(result.reason).toBe("MEEGLE_AUTH_CODE_EXCHANGE_FAILED");
+      expect(result.errorMessage).toContain("Missing token field");
+    });
+
+    it("should surface network errors when the server exchange request itself fails", async () => {
+      const mockAuthCode: MeegleAuthCodeResponse = {
+        authCode: "auth_code_123",
+        state: "state_456",
+        issuedAt: new Date().toISOString(),
+      };
+
+      deps.requestAuthCodeFromContentScript = vi.fn().mockResolvedValue(mockAuthCode);
+      delete deps.exchangeAuthCodeWithServer;
+      vi.mocked(globalThis.fetch).mockRejectedValueOnce(new Error("Failed to fetch"));
+
+      const result = await ensureMeegleAuth(
+        {
+          requestId: "req_001",
+          operatorLarkId: "ou_xxx",
+          meegleUserKey: "user_xxx",
+          currentTabId: 12,
+          currentPageIsMeegle: true,
+          baseUrl: "https://project.larksuite.com",
+          state: "state_456",
+        },
+        deps,
+      );
+
+      expect(result.status).toBe("failed");
+      expect(result.reason).toBe("MEEGLE_AUTH_CODE_EXCHANGE_FAILED");
+      expect(result.errorMessage).toContain("Failed to reach http://localhost:3000");
+      expect(result.errorMessage).toContain("Failed to fetch");
+    });
     it("should return require_auth_code when no Meegle tab", async () => {
       deps.requestAuthCodeFromContentScript = vi.fn().mockResolvedValue(undefined);
 

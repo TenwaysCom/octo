@@ -79,6 +79,11 @@ export function createMeegleAuthController(
         return false;
       }
 
+      if (auth.reason?.includes("EXCHANGE")) {
+        deps.log.error(`服务端 token 兑换失败: ${auth.errorMessage || auth.reason}`);
+        return false;
+      }
+
       if (auth.reason === "PLUGIN_ID_NOT_CONFIGURED") {
         deps.log.error("插件 ID 未配置，请先在设置里填写 MEEGLE_PLUGIN_ID");
         return false;

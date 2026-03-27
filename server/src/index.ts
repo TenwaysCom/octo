@@ -72,12 +72,39 @@ app.get("/health", (_req, res) => {
 
 // Error handler wrapper
 function handleController(fn: (req: Request) => Promise<unknown>) {
+  function summarizeBody(body: unknown): unknown {
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return body;
+    }
+
+    const record = body as Record<string, unknown>;
+    return {
+      requestId: record.requestId,
+      operatorLarkId: record.operatorLarkId,
+      meegleUserKey: record.meegleUserKey,
+      baseUrl: record.baseUrl,
+      state: record.state,
+      hasAuthCode: typeof record.authCode === "string" && record.authCode.length > 0,
+      authCodeSuffix:
+        typeof record.authCode === "string" && record.authCode.length > 4
+          ? record.authCode.slice(-4)
+          : undefined,
+      hasCookie: typeof record.cookie === "string" && record.cookie.length > 0,
+    };
+  }
+
   return async (req: Request, res: Response) => {
     try {
       const result = await fn(req.body);
       res.json(result);
     } catch (error) {
-      console.error("Controller error:", error);
+      console.error("Controller error:", {
+        path: req.path,
+        method: req.method,
+        body: summarizeBody(req.body),
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
       res.status(500).json({
         ok: false,
         error: {

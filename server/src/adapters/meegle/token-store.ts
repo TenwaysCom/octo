@@ -37,7 +37,21 @@ export class InMemoryMeegleTokenStore implements MeegleTokenStore {
   async get(
     lookup: MeegleTokenLookup,
   ): Promise<StoredMeegleToken | undefined> {
-    return this.store.get(makeKey(lookup));
+    const exact = this.store.get(makeKey(lookup));
+    if (exact) {
+      return exact;
+    }
+
+    for (const token of this.store.values()) {
+      if (
+        token.operatorLarkId === lookup.operatorLarkId &&
+        token.meegleUserKey === lookup.meegleUserKey
+      ) {
+        return token;
+      }
+    }
+
+    return undefined;
   }
 
   async delete(lookup: MeegleTokenLookup): Promise<void> {

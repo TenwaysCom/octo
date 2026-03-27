@@ -126,6 +126,13 @@ function extractToken(payload: JsonRecord, keys: string[]): string {
   throw new Error(`Missing token field: ${keys.join(", ")}`);
 }
 
+const SERVER_ADAPTER_FLOW_PREFIX = "[MEEGLE_AUTH_FLOW][SERVER][ADAPTER]";
+
+function logAdapterFlow(node: string, phase: "START" | "OK" | "FAIL", detail: Record<string, unknown>): void {
+  const logger = phase === "FAIL" ? console.error : console.log;
+  logger(`${SERVER_ADAPTER_FLOW_PREFIX}[${node}][${phase}]`, detail);
+}
+
 export function createHttpMeegleAuthAdapter(
   options: HttpMeegleAuthAdapterOptions,
 ): MeegleAuthAdapter {
@@ -133,6 +140,7 @@ export function createHttpMeegleAuthAdapter(
 
   return {
     async getPluginToken(baseUrl: string): Promise<PluginTokenInfo> {
+      logAdapterFlow("PLUGIN_TOKEN", "START", { baseUrl });
       const response = await fetchImpl(joinUrl(baseUrl, "/bff/v2/authen/plugin_token"), {
         method: "POST",
         headers: {
@@ -147,18 +155,23 @@ export function createHttpMeegleAuthAdapter(
 
       if (!response.ok) {
         const detail = extractErrorMessage(payload);
+        logAdapterFlow("PLUGIN_TOKEN", "FAIL", { baseUrl, status: response.status, detail, payloadKeys: Object.keys(payload) });
         throw new Error(
           `Failed to get plugin token: ${response.status}${detail ? ` ${detail}` : ""}`,
         );
       }
 
+      const token = extractToken(payload, ["plugin_access_token", "token", "access_token"]);
+      const expiresInSeconds = extractOptionalNumber(payload, ["expire_time", "expires_in", "expiresIn"]);
+      logAdapterFlow("PLUGIN_TOKEN", "OK", { baseUrl, hasToken: Boolean(token), expiresInSeconds });
       return {
-        token: extractToken(payload, ["plugin_access_token", "token", "access_token"]),
-        expiresInSeconds: extractOptionalNumber(payload, ["expire_time", "expires_in", "expiresIn"]),
+        token,
+        expiresInSeconds,
       };
     },
 
     async exchangeUserToken(input): Promise<UserTokenPair> {
+      logAdapterFlow("USER_PLUGIN_TOKEN", "START", { baseUrl: input.baseUrl, hasPluginToken: Boolean(input.pluginToken), authCodeSuffix: input.authCode.slice(-6) });
       const response = await fetchImpl(
         joinUrl(input.baseUrl, "/bff/v2/authen/user_plugin_token"),
         {
@@ -177,25 +190,31 @@ export function createHttpMeegleAuthAdapter(
 
       if (!response.ok) {
         const detail = extractErrorMessage(payload);
+        logAdapterFlow("USER_PLUGIN_TOKEN", "FAIL", { baseUrl: input.baseUrl, status: response.status, detail, payloadKeys: Object.keys(payload) });
         throw new Error(
           `Failed to exchange user token: ${response.status}${detail ? ` ${detail}` : ""}`,
         );
       }
 
+      const userToken = extractToken(payload, ["user_access_token", "token", "access_token"]);
+      const refreshToken = extractOptionalString(payload, ["refresh_token"]);
+      const expiresInSeconds = extractOptionalNumber(payload, ["expire_time", "expires_in", "expiresIn"]);
+      const refreshTokenExpiresInSeconds = extractOptionalNumber(payload, [
+        "refresh_token_expire_time",
+        "refresh_token_expires_in",
+        "refresh_expires_in",
+      ]);
+      logAdapterFlow("USER_PLUGIN_TOKEN", "OK", { baseUrl: input.baseUrl, hasUserToken: Boolean(userToken), hasRefreshToken: Boolean(refreshToken), expiresInSeconds, refreshTokenExpiresInSeconds });
       return {
-        userToken: extractToken(payload, ["user_access_token", "token", "access_token"]),
-        refreshToken:
-          extractOptionalString(payload, ["refresh_token"]),
-        expiresInSeconds: extractOptionalNumber(payload, ["expire_time", "expires_in", "expiresIn"]),
-        refreshTokenExpiresInSeconds: extractOptionalNumber(payload, [
-          "refresh_token_expire_time",
-          "refresh_token_expires_in",
-          "refresh_expires_in",
-        ]),
+        userToken,
+        refreshToken,
+        expiresInSeconds,
+        refreshTokenExpiresInSeconds,
       };
     },
 
     async refreshUserToken(input): Promise<UserTokenPair> {
+      logAdapterFlow("REFRESH_TOKEN", "START", { baseUrl: input.baseUrl, hasPluginToken: Boolean(input.pluginToken), hasRefreshToken: Boolean(input.refreshToken) });
       const response = await fetchImpl(
         joinUrl(input.baseUrl, "/bff/v2/authen/refresh_token"),
         {
@@ -214,21 +233,26 @@ export function createHttpMeegleAuthAdapter(
 
       if (!response.ok) {
         const detail = extractErrorMessage(payload);
+        logAdapterFlow("REFRESH_TOKEN", "FAIL", { baseUrl: input.baseUrl, status: response.status, detail, payloadKeys: Object.keys(payload) });
         throw new Error(
           `Failed to refresh user token: ${response.status}${detail ? ` ${detail}` : ""}`,
         );
       }
 
+      const userToken = extractToken(payload, ["user_access_token", "token", "access_token"]);
+      const refreshToken = extractOptionalString(payload, ["refresh_token"]);
+      const expiresInSeconds = extractOptionalNumber(payload, ["expire_time", "expires_in", "expiresIn"]);
+      const refreshTokenExpiresInSeconds = extractOptionalNumber(payload, [
+        "refresh_token_expire_time",
+        "refresh_token_expires_in",
+        "refresh_expires_in",
+      ]);
+      logAdapterFlow("REFRESH_TOKEN", "OK", { baseUrl: input.baseUrl, hasUserToken: Boolean(userToken), hasRefreshToken: Boolean(refreshToken), expiresInSeconds, refreshTokenExpiresInSeconds });
       return {
-        userToken: extractToken(payload, ["user_access_token", "token", "access_token"]),
-        refreshToken:
-          extractOptionalString(payload, ["refresh_token"]),
-        expiresInSeconds: extractOptionalNumber(payload, ["expire_time", "expires_in", "expiresIn"]),
-        refreshTokenExpiresInSeconds: extractOptionalNumber(payload, [
-          "refresh_token_expire_time",
-          "refresh_token_expires_in",
-          "refresh_expires_in",
-        ]),
+        userToken,
+        refreshToken,
+        expiresInSeconds,
+        refreshTokenExpiresInSeconds,
       };
     },
   };

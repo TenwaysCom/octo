@@ -10,6 +10,7 @@ import type { MeegleTokenStore, StoredMeegleToken } from "../../adapters/meegle/
 
 describe("meegle-credential.service", () => {
   const now = new Date("2026-03-26T10:00:00.000Z");
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
   let mockAuthAdapter: MeegleAuthAdapter;
   let mockTokenStore: MeegleTokenStore;
   let deps: MeegleCredentialServiceDeps;
@@ -17,6 +18,7 @@ describe("meegle-credential.service", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(now);
+    consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     mockAuthAdapter = {
       getPluginToken: vi.fn().mockResolvedValue({
@@ -46,7 +48,21 @@ describe("meegle-credential.service", () => {
       }),
       get: vi.fn(async (lookup) => {
         const key = `${lookup.operatorLarkId}:${lookup.meegleUserKey}:${lookup.baseUrl}`;
-        return storedTokens.get(key);
+        const exact = storedTokens.get(key);
+        if (exact) {
+          return exact;
+        }
+
+        for (const token of storedTokens.values()) {
+          if (
+            token.operatorLarkId === lookup.operatorLarkId &&
+            token.meegleUserKey === lookup.meegleUserKey
+          ) {
+            return token;
+          }
+        }
+
+        return undefined;
       }),
       delete: vi.fn(async (lookup) => {
         const key = `${lookup.operatorLarkId}:${lookup.meegleUserKey}:${lookup.baseUrl}`;
@@ -61,6 +77,7 @@ describe("meegle-credential.service", () => {
   });
 
   afterEach(() => {
+    consoleErrorSpy.mockRestore();
     vi.useRealTimers();
   });
 
@@ -114,6 +131,17 @@ describe("meegle-credential.service", () => {
       };
 
       await expect(exchangeCredential(input, deps)).rejects.toThrow("Plugin token failed");
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "[Tenways Octo] Meegle credential exchange failed:",
+        expect.objectContaining({
+          requestId: "req_001",
+          operatorLarkId: "ou_xxx",
+          meegleUserKey: "user_xxx",
+          baseUrl: "https://project.larksuite.com",
+          stage: "get_plugin_token",
+          message: "Plugin token failed",
+        }),
+      );
     });
   });
 
@@ -146,6 +174,36 @@ describe("meegle-credential.service", () => {
       expect(result.credentialStatus).toBe("active");
       expect(result.userToken).toBe("old_user_token");
       expect(result.expiresAt).toBe("2026-03-26T10:30:00.000Z");
+      expect(mockAuthAdapter.refreshUserToken).not.toHaveBeenCalled();
+    });
+
+    it("should reuse a stored token even when the requested baseUrl comes from a different page origin", async () => {
+      const storedToken: StoredMeegleToken = {
+        operatorLarkId: "ou_xxx",
+        meegleUserKey: "user_xxx",
+        baseUrl: "https://project.larksuite.com",
+        pluginToken: "plugin_token_123",
+        pluginTokenExpiresAt: "2026-03-26T12:00:00.000Z",
+        userToken: "old_user_token",
+        userTokenExpiresAt: "2026-03-26T10:30:00.000Z",
+        refreshToken: "old_refresh_token",
+        refreshTokenExpiresAt: "2026-04-09T10:00:00.000Z",
+        credentialStatus: "active",
+      };
+      await mockTokenStore.save(storedToken);
+
+      const result = await refreshCredential(
+        {
+          operatorLarkId: "ou_xxx",
+          meegleUserKey: "user_xxx",
+          baseUrl: "https://meegle.com",
+        },
+        deps,
+      );
+
+      expect(result.tokenStatus).toBe("ready");
+      expect(result.baseUrl).toBe("https://project.larksuite.com");
+      expect(result.userToken).toBe("old_user_token");
       expect(mockAuthAdapter.refreshUserToken).not.toHaveBeenCalled();
     });
 
