@@ -13,6 +13,7 @@ export interface LarkAuthEnsureRequest {
   requestId?: string;
   operatorLarkId?: string;
   baseUrl?: string;
+  pageOrigin?: string;
   state?: string;
 }
 

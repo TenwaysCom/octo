@@ -3,6 +3,10 @@ import type {
   LarkAuthEnsureRequest,
   LarkAuthEnsureResponse,
 } from "../../types/lark";
+import {
+  DEFAULT_LARK_AUTH_BASE_URL,
+  normalizeLarkAuthBaseUrl,
+} from "../../platform-url.js";
 
 export interface EnsureLarkAuthDeps {
   getCachedLarkToken?: () => string | undefined;
@@ -143,8 +147,16 @@ async function openLarkOAuthTab(baseUrl: string, state: string, appId?: string):
     const APP_ID = appId || "cli_a4b5c6d7e8f9"; // TODO: Configure via extension storage
     const redirectUri = "http://localhost:3000/api/lark/auth/callback";
     const scope = "contact:readonly:user";
-
-    const oauthUrl = `https://open.larksuite.com/service-open/oauth/authorize?app_id=${APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=${scope}&response_type=code`;
+    const oauthBaseUrl = new URL(
+      "/service-open/oauth/authorize",
+      `${baseUrl.replace(/\/$/, "")}/`,
+    );
+    oauthBaseUrl.searchParams.set("app_id", APP_ID);
+    oauthBaseUrl.searchParams.set("redirect_uri", redirectUri);
+    oauthBaseUrl.searchParams.set("state", state);
+    oauthBaseUrl.searchParams.set("scope", scope);
+    oauthBaseUrl.searchParams.set("response_type", "code");
+    const oauthUrl = oauthBaseUrl.toString();
 
     // chrome.tabs.create(
     //   {
@@ -197,7 +209,10 @@ export async function ensureLarkAuth(
   request: Partial<LarkAuthEnsureRequest> = {},
   deps: EnsureLarkAuthDeps = {},
 ): Promise<LarkAuthEnsureResponse> {
-  const baseUrl = request.baseUrl ?? "https://open.larksuite.com";
+  const baseUrl = normalizeLarkAuthBaseUrl(
+    request.baseUrl ?? request.pageOrigin,
+    DEFAULT_LARK_AUTH_BASE_URL,
+  );
   const state = request.state || `state_${Date.now()}`;
 
   // Check if we have a cached token

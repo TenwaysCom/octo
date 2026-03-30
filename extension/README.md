@@ -153,6 +153,13 @@ npm test
 
 详见 [server/README.md](../server/README.md)
 
+认证相关请求里需要区分两个 URL 概念：
+
+- `pageOrigin`: 当前浏览器 tab 的真实 origin，只用于识别页面属于 Meegle 还是 Lark，以及内容脚本路由/日志
+- `authBaseUrl`: 平台 canonical 授权基址。Meegle token 的查询、refresh、exchange 固定使用 `MEEGLE_BASE_URL`，Lark 固定使用统一的 canonical auth host
+
+不要把当前页面 origin 直接当成 `baseUrl` 发给服务端，否则切换 `meegle.com` / `project.larksuite.com` 这类页面别名时，会把同一份授权状态拆散。
+
 ## 故障排除
 
 ### 扩展无法连接到服务端

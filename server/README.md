@@ -78,6 +78,13 @@ POST /api/identity/resolve
 
 ### Meegle 认证 - 交换 Auth Code
 
+`baseUrl` 现在表示平台的 canonical `authBaseUrl`，不是当前 tab 的页面地址。
+
+- `pageOrigin`: 真实页面 origin，只用于页面识别、路由和日志
+- `authBaseUrl`: token lookup、refresh、exchange 一律使用的统一授权基址
+
+对 Meegle 来说，`https://meegle.com`、`https://project.larksuite.com` 等页面别名最终都会归一到同一个 canonical `authBaseUrl`。
+
 ```bash
 POST /api/meegle/auth/exchange
 
@@ -104,6 +111,8 @@ POST /api/meegle/auth/exchange
 ```
 
 ### Meegle 认证 - 查询状态
+
+`/api/meegle/auth/status` 接收的 `baseUrl` 同样是 `authBaseUrl`。老客户端即使传了页面别名，服务端也会在入口处做规范化，并继续命中 canonical token 记录。
 
 ```bash
 POST /api/meegle/auth/status

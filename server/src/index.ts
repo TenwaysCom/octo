@@ -50,6 +50,7 @@ if (MEEGLE_PLUGIN_ID && MEEGLE_PLUGIN_SECRET) {
     pluginId: MEEGLE_PLUGIN_ID,
     tokenStore: sharedMeegleTokenStore,
     identityStore: sharedIdentityStore,
+    meegleAuthBaseUrl: MEEGLE_BASE_URL,
   });
   console.log("[Server] Meegle auth configured with PLUGIN_ID:", MEEGLE_PLUGIN_ID);
 } else {

@@ -28,6 +28,10 @@ import {
   createPopupViewModel,
   type PopupPageType,
 } from "../view-model.js";
+import {
+  normalizeLarkAuthBaseUrl,
+  normalizeMeegleAuthBaseUrl,
+} from "../../platform-url.js";
 
 interface PopupIdentityState {
   larkId: string | null;
@@ -226,6 +230,10 @@ export function usePopupApp() {
     const settings = await loadPopupSettings();
     const meegleUserKey =
       settings.meegleUserKey || state.identity.meegleUserKey || undefined;
+    const authBaseUrl = normalizeMeegleAuthBaseUrl(
+      state.currentTabOrigin,
+      config.MEEGLE_BASE_URL,
+    );
 
     try {
       const response = await fetch(`${config.SERVER_URL}/api/meegle/auth/status`, {
@@ -237,14 +245,14 @@ export function usePopupApp() {
           operatorLarkId:
             state.identity.larkId || settings.larkUserId || "ou_user",
           meegleUserKey,
-          baseUrl: state.currentTabOrigin || config.MEEGLE_BASE_URL,
+          baseUrl: authBaseUrl,
         }),
       });
 
       if (!response.ok) {
         return {
           status: "failed",
-          baseUrl: state.currentTabOrigin || config.MEEGLE_BASE_URL,
+          baseUrl: authBaseUrl,
           reason: "STATUS_REQUEST_FAILED",
           errorMessage: `Auth status request failed with ${response.status}.`,
         };
@@ -257,7 +265,7 @@ export function usePopupApp() {
       return (
         result.data || {
           status: "failed",
-          baseUrl: state.currentTabOrigin || config.MEEGLE_BASE_URL,
+          baseUrl: authBaseUrl,
           reason: "STATUS_REQUEST_FAILED",
           errorMessage: "Meegle auth status response payload is missing.",
         }
@@ -272,7 +280,7 @@ export function usePopupApp() {
 
       return {
         status: "failed",
-        baseUrl: state.currentTabOrigin || config.MEEGLE_BASE_URL,
+        baseUrl: authBaseUrl,
         reason: "STATUS_REQUEST_FAILED",
         errorMessage:
           error instanceof Error ? error.message : "Unknown Meegle auth error.",
@@ -281,12 +289,11 @@ export function usePopupApp() {
   }
 
   async function checkLarkAuth(): Promise<LarkAuthEnsureResponse> {
-    return runLarkAuthRequest(
-      state.currentTabOrigin || "https://open.larksuite.com",
-    );
+    return runLarkAuthRequest(normalizeLarkAuthBaseUrl(state.currentTabOrigin));
   }
 
   async function authorizeMeegle() {
+    const config = await getConfig();
     if (state.pageType === "meegle" && state.currentTabId != null) {
       const identity = await requestMeegleUserIdentity(state.currentTabId);
       if (identity?.userKey) {
@@ -296,8 +303,11 @@ export function usePopupApp() {
 
     const success = await meegleAuthController.run({
       currentTabId: state.currentTabId ?? undefined,
-      currentTabOrigin:
-        state.currentTabOrigin || "https://project.larksuite.com",
+      currentTabOrigin: state.currentTabOrigin || undefined,
+      authBaseUrl: normalizeMeegleAuthBaseUrl(
+        state.currentTabOrigin,
+        config.MEEGLE_BASE_URL,
+      ),
       currentPageType: state.pageType,
       larkId: state.identity.larkId || undefined,
       meegleUserKey: state.identity.meegleUserKey || undefined,

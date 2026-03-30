@@ -2,12 +2,17 @@ import type {
   MeegleAuthEnsureRequest,
   MeegleAuthEnsureResponse,
 } from "../types/meegle.js";
+import {
+  DEFAULT_MEEGLE_AUTH_BASE_URL,
+  normalizeMeegleAuthBaseUrl,
+} from "../platform-url.js";
 
 type PopupPageType = "meegle" | "lark" | "unsupported" | null;
 
 export interface BuildMeegleAuthRequestInput {
   currentTabId?: number;
   currentTabOrigin?: string;
+  authBaseUrl?: string;
   currentPageType: PopupPageType;
   larkId?: string | null;
   meegleUserKey?: string;
@@ -88,7 +93,11 @@ export function buildMeegleAuthRequest(
     requestId: `req_${Date.now()}`,
     operatorLarkId: input.larkId || "ou_user",
     meegleUserKey: input.meegleUserKey,
-    baseUrl: input.currentTabOrigin || "https://project.larksuite.com",
+    baseUrl: normalizeMeegleAuthBaseUrl(
+      input.authBaseUrl ?? input.currentTabOrigin,
+      input.authBaseUrl ?? DEFAULT_MEEGLE_AUTH_BASE_URL,
+    ),
+    pageOrigin: input.currentTabOrigin,
     currentTabId: input.currentTabId,
     currentPageIsMeegle: input.currentPageType === "meegle",
   };

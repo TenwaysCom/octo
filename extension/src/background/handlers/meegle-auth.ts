@@ -4,6 +4,7 @@ import type {
   MeegleAuthEnsureResponse,
   MeegleAuthExchangeResponse,
 } from "../../types/meegle";
+import { normalizeMeegleAuthBaseUrl } from "../../platform-url.js";
 import { getConfig } from "../config.js";
 
 class MeegleAuthCodeRequestError extends Error {
@@ -216,10 +217,14 @@ export async function ensureMeegleAuth(
   request: Partial<MeegleAuthEnsureRequest> = {},
   deps: EnsureMeegleAuthDeps = {},
 ): Promise<MeegleAuthEnsureResponse> {
-  const baseUrl = request.baseUrl ?? "https://project.larksuite.com";
+  const config = await getConfig();
+  const baseUrl = normalizeMeegleAuthBaseUrl(
+    request.baseUrl ?? request.pageOrigin,
+    config.MEEGLE_BASE_URL,
+  );
   const state = request.state || `state_${Date.now()}`;
 
-  logBgFlow("ENSURE_AUTH", "START", { requestId: request.requestId, operatorLarkId: request.operatorLarkId, meegleUserKey: request.meegleUserKey, baseUrl, currentTabId: request.currentTabId, currentPageIsMeegle: request.currentPageIsMeegle });
+  logBgFlow("ENSURE_AUTH", "START", { requestId: request.requestId, operatorLarkId: request.operatorLarkId, meegleUserKey: request.meegleUserKey, baseUrl, pageOrigin: request.pageOrigin, currentTabId: request.currentTabId, currentPageIsMeegle: request.currentPageIsMeegle });
 
   // Validate required fields
   if (!request.requestId || !request.operatorLarkId) {

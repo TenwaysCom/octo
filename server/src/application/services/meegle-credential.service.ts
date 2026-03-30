@@ -7,6 +7,10 @@ import type {
   MeegleTokenStore,
   StoredMeegleToken,
 } from "../../adapters/meegle/token-store.js";
+import {
+  DEFAULT_MEEGLE_AUTH_BASE_URL,
+  normalizeMeegleAuthBaseUrl,
+} from "../../platform-url.js";
 
 export interface CredentialExchangeInput extends MeegleTokenLookup {
   requestId: string;
@@ -28,6 +32,7 @@ export interface CredentialStatus {
 export interface MeegleCredentialServiceDeps {
   authAdapter: MeegleAuthAdapter;
   tokenStore: MeegleTokenStore;
+  meegleAuthBaseUrl?: string;
 }
 
 const EXPIRY_SAFETY_WINDOW_MS = 60_000;
@@ -81,24 +86,32 @@ export async function exchangeCredential(
   input: CredentialExchangeInput,
   deps: MeegleCredentialServiceDeps,
 ): Promise<CredentialStatus> {
+  const canonicalBaseUrl = normalizeMeegleAuthBaseUrl(
+    input.baseUrl,
+    deps.meegleAuthBaseUrl ?? DEFAULT_MEEGLE_AUTH_BASE_URL,
+  );
+  const normalizedInput = {
+    ...input,
+    baseUrl: canonicalBaseUrl,
+  };
   let stage = "get_plugin_token";
 
-  logCredentialFlow("EXCHANGE", "START", { requestId: input.requestId, operatorLarkId: input.operatorLarkId, meegleUserKey: input.meegleUserKey, baseUrl: input.baseUrl, hasAuthCode: Boolean(input.authCode) });
+  logCredentialFlow("EXCHANGE", "START", { requestId: input.requestId, operatorLarkId: input.operatorLarkId, meegleUserKey: input.meegleUserKey, baseUrl: canonicalBaseUrl, requestedBaseUrl: input.baseUrl, hasAuthCode: Boolean(input.authCode) });
 
   try {
-    const pluginToken = await deps.authAdapter.getPluginToken(input.baseUrl);
+    const pluginToken = await deps.authAdapter.getPluginToken(canonicalBaseUrl);
     stage = "exchange_user_token";
     const tokenPair: UserTokenPair = await deps.authAdapter.exchangeUserToken({
-      baseUrl: input.baseUrl,
+      baseUrl: canonicalBaseUrl,
       pluginToken: pluginToken.token,
-      authCode: input.authCode,
-      state: input.state,
+      authCode: normalizedInput.authCode,
+      state: normalizedInput.state,
     });
 
     const storedToken: StoredMeegleToken = {
-      operatorLarkId: input.operatorLarkId,
-      meegleUserKey: input.meegleUserKey,
-      baseUrl: input.baseUrl,
+      operatorLarkId: normalizedInput.operatorLarkId,
+      meegleUserKey: normalizedInput.meegleUserKey,
+      baseUrl: canonicalBaseUrl,
       pluginToken: pluginToken.token,
       pluginTokenExpiresAt: toExpiresAt(pluginToken.expiresInSeconds),
       userToken: tokenPair.userToken,
@@ -110,21 +123,21 @@ export async function exchangeCredential(
 
     await deps.tokenStore.save(storedToken);
 
-    logCredentialFlow("EXCHANGE", "OK", { requestId: input.requestId, operatorLarkId: input.operatorLarkId, meegleUserKey: input.meegleUserKey, baseUrl: input.baseUrl, stage: "stored_token", hasRefreshToken: Boolean(tokenPair.refreshToken), expiresAt: storedToken.userTokenExpiresAt });
+    logCredentialFlow("EXCHANGE", "OK", { requestId: normalizedInput.requestId, operatorLarkId: normalizedInput.operatorLarkId, meegleUserKey: normalizedInput.meegleUserKey, baseUrl: canonicalBaseUrl, requestedBaseUrl: input.baseUrl, stage: "stored_token", hasRefreshToken: Boolean(tokenPair.refreshToken), expiresAt: storedToken.userTokenExpiresAt });
 
     console.log(
       "[Tenways Octo] Meegle token exchange ready:",
       {
         operatorLarkId: input.operatorLarkId,
         meegleUserKey: input.meegleUserKey,
-        baseUrl: input.baseUrl,
+        baseUrl: canonicalBaseUrl,
         requestId: input.requestId,
       },
     );
 
     return buildReadyStatus({
-      requestId: input.requestId,
-      baseUrl: input.baseUrl,
+      requestId: normalizedInput.requestId,
+      baseUrl: canonicalBaseUrl,
       userToken: tokenPair.userToken,
       refreshToken: tokenPair.refreshToken,
       expiresAt: storedToken.userTokenExpiresAt,
@@ -146,20 +159,49 @@ export async function refreshCredential(
   input: MeegleTokenLookup,
   deps: MeegleCredentialServiceDeps,
 ): Promise<CredentialStatus> {
-  logCredentialFlow("REFRESH", "START", { operatorLarkId: input.operatorLarkId, meegleUserKey: input.meegleUserKey, baseUrl: input.baseUrl });
-  const storedToken = await deps.tokenStore.get(input);
+  const canonicalRequestedBaseUrl = normalizeMeegleAuthBaseUrl(
+    input.baseUrl,
+    deps.meegleAuthBaseUrl ?? DEFAULT_MEEGLE_AUTH_BASE_URL,
+  );
+  logCredentialFlow("REFRESH", "START", { operatorLarkId: input.operatorLarkId, meegleUserKey: input.meegleUserKey, baseUrl: canonicalRequestedBaseUrl, requestedBaseUrl: input.baseUrl });
+  const storedToken = await deps.tokenStore.get({
+    ...input,
+    baseUrl: canonicalRequestedBaseUrl,
+  });
 
   if (!storedToken?.userToken) {
-    logCredentialFlow("REFRESH", "FAIL", { operatorLarkId: input.operatorLarkId, meegleUserKey: input.meegleUserKey, baseUrl: input.baseUrl, reason: "NO_STORED_USER_TOKEN" });
+    logCredentialFlow("REFRESH", "FAIL", { operatorLarkId: input.operatorLarkId, meegleUserKey: input.meegleUserKey, baseUrl: canonicalRequestedBaseUrl, requestedBaseUrl: input.baseUrl, reason: "NO_STORED_USER_TOKEN" });
     return {
       tokenStatus: "require_auth_code",
-      baseUrl: input.baseUrl,
+      baseUrl: canonicalRequestedBaseUrl,
     };
   }
 
-  const effectiveBaseUrl = storedToken.baseUrl;
+  const legacyLookup =
+    storedToken.baseUrl !== canonicalRequestedBaseUrl
+      ? {
+          operatorLarkId: storedToken.operatorLarkId,
+          meegleUserKey: storedToken.meegleUserKey,
+          baseUrl: storedToken.baseUrl,
+        }
+      : undefined;
+  const effectiveBaseUrl = normalizeMeegleAuthBaseUrl(
+    storedToken.baseUrl,
+    deps.meegleAuthBaseUrl ?? DEFAULT_MEEGLE_AUTH_BASE_URL,
+  );
+  const normalizedStoredToken =
+    storedToken.baseUrl === effectiveBaseUrl
+      ? storedToken
+      : {
+          ...storedToken,
+          baseUrl: effectiveBaseUrl,
+        };
 
   if (!isExpired(storedToken.userTokenExpiresAt)) {
+    if (legacyLookup) {
+      await deps.tokenStore.save(normalizedStoredToken);
+      await deps.tokenStore.delete(legacyLookup);
+    }
     logCredentialFlow("REFRESH", "OK", { operatorLarkId: input.operatorLarkId, meegleUserKey: input.meegleUserKey, baseUrl: effectiveBaseUrl, requestedBaseUrl: input.baseUrl, source: "cached_user_token", expiresAt: storedToken.userTokenExpiresAt });
     return buildReadyStatus({
       baseUrl: effectiveBaseUrl,
@@ -178,11 +220,13 @@ export async function refreshCredential(
       hasRefreshToken: Boolean(storedToken.refreshToken),
       refreshTokenExpiresAt: storedToken.refreshTokenExpiresAt,
     });
-    await deps.tokenStore.delete({
-      operatorLarkId: storedToken.operatorLarkId,
-      meegleUserKey: storedToken.meegleUserKey,
-      baseUrl: storedToken.baseUrl,
-    });
+    await deps.tokenStore.delete(
+      legacyLookup ?? {
+        operatorLarkId: storedToken.operatorLarkId,
+        meegleUserKey: storedToken.meegleUserKey,
+        baseUrl: storedToken.baseUrl,
+      },
+    );
     return {
       tokenStatus: "require_auth_code",
       baseUrl: effectiveBaseUrl,
@@ -228,7 +272,7 @@ export async function refreshCredential(
   }
 
   await deps.tokenStore.save({
-    ...storedToken,
+    ...normalizedStoredToken,
     pluginToken,
     pluginTokenExpiresAt,
     userToken: refreshed.userToken,
@@ -238,6 +282,9 @@ export async function refreshCredential(
       toExpiresAt(refreshed.refreshTokenExpiresInSeconds) ?? storedToken.refreshTokenExpiresAt,
     credentialStatus: "active",
   });
+  if (legacyLookup) {
+    await deps.tokenStore.delete(legacyLookup);
+  }
 
   logCredentialFlow("REFRESH", "OK", { operatorLarkId: input.operatorLarkId, meegleUserKey: input.meegleUserKey, baseUrl: effectiveBaseUrl, requestedBaseUrl: input.baseUrl, source: "refresh_token", expiresAt: toExpiresAt(refreshed.expiresInSeconds), hasRefreshToken: Boolean(refreshed.refreshToken ?? storedToken.refreshToken) });
 

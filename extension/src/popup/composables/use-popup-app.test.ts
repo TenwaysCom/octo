@@ -152,6 +152,36 @@ describe("usePopupApp notebook state", () => {
     await initializePromise;
   });
 
+  it("uses the canonical Meegle auth base when the current tab is meegle.com", async () => {
+    runtimeMock.queryActiveTabContext.mockResolvedValue({
+      id: 12,
+      url: "https://meegle.com/work_item/123",
+      origin: "https://meegle.com",
+      pageType: "meegle",
+      authBaseUrl: "https://project.larksuite.com",
+    });
+    runtimeMock.requestLarkUserId.mockResolvedValue(undefined);
+    runtimeMock.requestMeegleUserIdentity.mockResolvedValue({
+      userKey: "7538275242901291040",
+    });
+
+    const popup = usePopupApp();
+
+    await popup.initialize();
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      "http://localhost:3000/api/meegle/auth/status",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          operatorLarkId: "ou_user",
+          meegleUserKey: "7538275242901291040",
+          baseUrl: "https://project.larksuite.com",
+        }),
+      }),
+    );
+  });
+
   it("clears the scanning state when initialization fails", async () => {
     runtimeMock.runLarkAuthRequest.mockRejectedValueOnce(
       new Error("background offline"),

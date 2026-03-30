@@ -6,18 +6,20 @@ import {
 } from "./meegle-auth.js";
 
 describe("popup meegle auth", () => {
-  it("builds the auth request from the current tab", () => {
+  it("builds the auth request with the canonical auth base", () => {
     expect(
       buildMeegleAuthRequest({
         currentTabId: 42,
-        currentTabOrigin: "https://tenant.meegle.com",
+        currentTabOrigin: "https://meegle.com",
+        authBaseUrl: "https://project.larksuite.com",
         currentPageType: "meegle",
         larkId: "ou_xxx",
         meegleUserKey: undefined,
       }),
     ).toMatchObject({
       currentTabId: 42,
-      baseUrl: "https://tenant.meegle.com",
+      baseUrl: "https://project.larksuite.com",
+      pageOrigin: "https://meegle.com",
       currentPageIsMeegle: true,
       operatorLarkId: "ou_xxx",
     });

@@ -119,6 +119,33 @@ describe("meegle-credential.service", () => {
       );
     });
 
+    it("should canonicalize meegle page aliases before exchanging and storing credentials", async () => {
+      const input: CredentialExchangeInput = {
+        requestId: "req_002",
+        operatorLarkId: "ou_xxx",
+        meegleUserKey: "user_xxx",
+        baseUrl: "https://meegle.com",
+        authCode: "auth_code_123",
+      };
+
+      await exchangeCredential(input, deps);
+
+      expect(mockAuthAdapter.getPluginToken).toHaveBeenCalledWith(
+        "https://project.larksuite.com",
+      );
+      expect(mockAuthAdapter.exchangeUserToken).toHaveBeenCalledWith({
+        baseUrl: "https://project.larksuite.com",
+        pluginToken: "plugin_token_123",
+        authCode: input.authCode,
+        state: undefined,
+      });
+      expect(mockTokenStore.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          baseUrl: "https://project.larksuite.com",
+        }),
+      );
+    });
+
     it("should throw if auth adapter fails", async () => {
       vi.mocked(mockAuthAdapter.getPluginToken).mockRejectedValue(new Error("Plugin token failed"));
 
@@ -240,6 +267,52 @@ describe("meegle-credential.service", () => {
         baseUrl: "https://project.larksuite.com",
         pluginToken: "plugin_token_123",
         refreshToken: "old_refresh_token",
+      });
+    });
+
+    it("should refresh legacy alias records through the canonical auth base and rewrite storage", async () => {
+      const storedToken: StoredMeegleToken = {
+        operatorLarkId: "ou_xxx",
+        meegleUserKey: "user_xxx",
+        baseUrl: "https://meegle.com",
+        pluginToken: "stale_plugin_token",
+        pluginTokenExpiresAt: "2026-03-26T09:00:00.000Z",
+        userToken: "old_user_token",
+        userTokenExpiresAt: "2026-03-26T09:30:00.000Z",
+        refreshToken: "old_refresh_token",
+        refreshTokenExpiresAt: "2026-04-09T10:00:00.000Z",
+        credentialStatus: "active",
+      };
+      await mockTokenStore.save(storedToken);
+
+      const result = await refreshCredential(
+        {
+          operatorLarkId: "ou_xxx",
+          meegleUserKey: "user_xxx",
+          baseUrl: "https://project.larksuite.com",
+        },
+        deps,
+      );
+
+      expect(result.tokenStatus).toBe("ready");
+      expect(result.baseUrl).toBe("https://project.larksuite.com");
+      expect(mockAuthAdapter.getPluginToken).toHaveBeenCalledWith(
+        "https://project.larksuite.com",
+      );
+      expect(mockAuthAdapter.refreshUserToken).toHaveBeenCalledWith({
+        baseUrl: "https://project.larksuite.com",
+        pluginToken: "plugin_token_123",
+        refreshToken: "old_refresh_token",
+      });
+      expect(mockTokenStore.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          baseUrl: "https://project.larksuite.com",
+        }),
+      );
+      expect(mockTokenStore.delete).toHaveBeenCalledWith({
+        operatorLarkId: "ou_xxx",
+        meegleUserKey: "user_xxx",
+        baseUrl: "https://meegle.com",
       });
     });
 

@@ -5,6 +5,10 @@
 import { createMeegleAuthController } from "./popup/meegle-auth.js";
 import { resolveMeegleStatusDisplay } from "./popup/meegle-auth.js";
 import { DEFAULT_CONFIG, getConfig } from "./background/config.js";
+import {
+  normalizeMeegleAuthBaseUrl,
+  resolvePlatformUrl,
+} from "./platform-url.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -97,9 +101,9 @@ function hideAll() {
 }
 
 function detectPageType(url) {
-  if (url.includes('project.larksuite.com') || url.includes('meegle.com')) return 'meegle';
-  if (url.includes('feishu.cn') || url.includes('larksuite.com')) return 'lark';
-  return 'unsupported';
+  return resolvePlatformUrl(url, {
+    meegleAuthBaseUrl: DEFAULT_CONFIG.MEEGLE_BASE_URL,
+  }).platform;
 }
 
 // Auth handlers
@@ -107,6 +111,10 @@ async function checkMeegleAuth() {
   const config = await getConfig();
   const settings = await loadSettings();
   const meegleUserKey = settings.meegleUserKey || state.identity.meegleUserKey || '';
+  const authBaseUrl = normalizeMeegleAuthBaseUrl(
+    state.currentTabOrigin,
+    config.MEEGLE_BASE_URL,
+  );
 
   try {
     const response = await fetch(`${config.SERVER_URL}/api/meegle/auth/status`, {
@@ -117,7 +125,7 @@ async function checkMeegleAuth() {
       body: JSON.stringify({
         operatorLarkId: state.identity.larkId || 'ou_user',
         meegleUserKey: meegleUserKey || undefined,
-        baseUrl: state.currentTabOrigin || config.MEEGLE_BASE_URL,
+        baseUrl: authBaseUrl,
       }),
     });
 
@@ -189,6 +197,7 @@ async function checkLarkAuth() {
 }
 
 async function doMeegleAuth() {
+  const config = await getConfig();
   if (state.pageType === 'meegle') {
     await refreshCurrentMeegleIdentity();
   }
@@ -196,6 +205,10 @@ async function doMeegleAuth() {
   const ok = await meegleAuthController.run({
     currentTabId: state.currentTabId,
     currentTabOrigin: state.currentTabOrigin,
+    authBaseUrl: normalizeMeegleAuthBaseUrl(
+      state.currentTabOrigin,
+      config.MEEGLE_BASE_URL,
+    ),
     currentPageType: state.pageType,
     larkId: state.identity.larkId,
     meegleUserKey: state.identity.meegleUserKey || undefined,

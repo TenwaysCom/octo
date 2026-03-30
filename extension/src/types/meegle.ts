@@ -5,6 +5,7 @@ export interface MeegleAuthEnsureRequest {
   operatorLarkId: string;
   meegleUserKey?: string;
   baseUrl: string;
+  pageOrigin?: string;
   currentTabId?: number;
   currentPageIsMeegle?: boolean;
   state?: string;

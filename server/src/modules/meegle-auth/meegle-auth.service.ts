@@ -18,12 +18,14 @@ import {
   validateMeegleGetAuthCodeRequest,
 } from "./meegle-auth.dto.js";
 import { MeegleClient } from "../../adapters/meegle/meegle-client.js";
+import { normalizeMeegleAuthBaseUrl } from "../../platform-url.js";
 
 export interface MeegleAuthServiceDeps {
   authAdapter: MeegleAuthAdapter;
   tokenStore?: MeegleTokenStore;
   pluginId?: string;
   identityStore?: IdentityStore;
+  meegleAuthBaseUrl?: string;
 }
 
 let defaultDeps: MeegleAuthServiceDeps | undefined;
@@ -56,6 +58,7 @@ function getDeps(overrides?: Partial<MeegleAuthServiceDeps>): MeegleAuthServiceD
     tokenStore: merged.tokenStore ?? sharedTokenStore,
     pluginId: merged.pluginId,
     identityStore: merged.identityStore,
+    meegleAuthBaseUrl: merged.meegleAuthBaseUrl,
   };
 }
 
@@ -67,9 +70,17 @@ export async function exchangeAuthCode(
   const request: MeegleAuthExchangeRequest =
     validateMeegleAuthExchangeRequest(input);
   const deps = getDeps(overrides);
-  const result = await exchangeCredential(request, {
+  const normalizedRequest = {
+    ...request,
+    baseUrl: normalizeMeegleAuthBaseUrl(
+      request.baseUrl,
+      deps.meegleAuthBaseUrl,
+    ),
+  };
+  const result = await exchangeCredential(normalizedRequest, {
     authAdapter: deps.authAdapter,
     tokenStore: deps.tokenStore!,
+    meegleAuthBaseUrl: deps.meegleAuthBaseUrl,
   });
 
   await deps.identityStore?.save({
@@ -77,7 +88,7 @@ export async function exchangeAuthCode(
     meegleUserKey: request.meegleUserKey,
   });
 
-  logServiceFlow("EXCHANGE_AUTH_CODE", "OK", { requestId: request.requestId, operatorLarkId: request.operatorLarkId, meegleUserKey: request.meegleUserKey, baseUrl: request.baseUrl, tokenStatus: result.tokenStatus, credentialStatus: result.credentialStatus, expiresAt: result.expiresAt });
+  logServiceFlow("EXCHANGE_AUTH_CODE", "OK", { requestId: request.requestId, operatorLarkId: request.operatorLarkId, meegleUserKey: request.meegleUserKey, baseUrl: normalizedRequest.baseUrl, requestedBaseUrl: request.baseUrl, tokenStatus: result.tokenStatus, credentialStatus: result.credentialStatus, expiresAt: result.expiresAt });
 
   return result;
 }
@@ -89,10 +100,20 @@ export async function refreshAuthToken(
   const request: MeegleAuthRefreshRequest =
     validateMeegleAuthRefreshRequest(input);
   const deps = getDeps(overrides);
-  return refreshCredential(request, {
-    authAdapter: deps.authAdapter,
-    tokenStore: deps.tokenStore!,
-  });
+  return refreshCredential(
+    {
+      ...request,
+      baseUrl: normalizeMeegleAuthBaseUrl(
+        request.baseUrl,
+        deps.meegleAuthBaseUrl,
+      ),
+    },
+    {
+      authAdapter: deps.authAdapter,
+      tokenStore: deps.tokenStore!,
+      meegleAuthBaseUrl: deps.meegleAuthBaseUrl,
+    },
+  );
 }
 
 export async function checkAuthStatus(
@@ -102,7 +123,10 @@ export async function checkAuthStatus(
   logServiceFlow("CHECK_AUTH_STATUS", "START", { inputType: typeof input });
   const request = validateMeegleAuthStatusRequest(input);
   const deps = getDeps(overrides);
-  const baseUrl = request.baseUrl ?? "https://project.larksuite.com";
+  const baseUrl = normalizeMeegleAuthBaseUrl(
+    request.baseUrl,
+    deps.meegleAuthBaseUrl,
+  );
   const resolvedIdentity = request.meegleUserKey
     ? { meegleUserKey: request.meegleUserKey }
     : await deps.identityStore?.getByLarkId(request.operatorLarkId);
@@ -150,6 +174,7 @@ export async function checkAuthStatus(
     {
       authAdapter: deps.authAdapter,
       tokenStore: deps.tokenStore!,
+      meegleAuthBaseUrl: deps.meegleAuthBaseUrl,
     },
   );
 
@@ -191,6 +216,10 @@ export async function getAuthCode(
     validateMeegleGetAuthCodeRequest(input);
 
   const deps = getDeps(overrides);
+  const baseUrl = normalizeMeegleAuthBaseUrl(
+    request.baseUrl,
+    deps.meegleAuthBaseUrl,
+  );
 
   if (!deps.pluginId) {
     throw new Error("Missing pluginId configuration");
@@ -199,12 +228,12 @@ export async function getAuthCode(
   const client = new MeegleClient({
     userToken: "dummy", // Not used for auth code endpoint
     userKey: "dummy", // Not used for auth code endpoint
-    baseUrl: request.baseUrl,
+    baseUrl,
     pluginId: deps.pluginId,
   });
 
   const authCode = await client.getAuthCode({
-    baseUrl: request.baseUrl,
+    baseUrl,
     cookie: request.cookie,
     state: request.state,
   });

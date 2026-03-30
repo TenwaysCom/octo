@@ -11,6 +11,7 @@ import type {
   LarkAuthStatusResponse,
   LarkAuthStatusRequest,
 } from "./lark-auth.dto.js";
+import { normalizeLarkAuthBaseUrl } from "../../platform-url.js";
 
 export interface LarkAuthServiceDeps {
   appId: string;
@@ -81,17 +82,18 @@ export async function exchangeLarkAuthCode(
 ): Promise<LarkTokenPair> {
   const deps = getDeps(overrides);
   const fetchImpl = deps.fetchImpl ?? fetch;
+  const authBaseUrl = normalizeLarkAuthBaseUrl(request.baseUrl);
 
   // First get app access token
   const appAccessToken = await getAppAccessToken(
-    request.baseUrl,
+    authBaseUrl,
     deps.appId,
     deps.appSecret,
     fetchImpl,
   );
 
   // Exchange user token
-  const url = new URL("/open-apis/authen/v1/access_token", request.baseUrl);
+  const url = new URL("/open-apis/authen/v1/access_token", authBaseUrl);
 
   const response = await fetchImpl(url.toString(), {
     method: "POST",
@@ -139,17 +141,18 @@ export async function refreshLarkToken(
 ): Promise<LarkTokenPair> {
   const deps = getDeps(overrides);
   const fetchImpl = deps.fetchImpl ?? fetch;
+  const authBaseUrl = normalizeLarkAuthBaseUrl(request.baseUrl);
 
   // First get app access token
   const appAccessToken = await getAppAccessToken(
-    request.baseUrl,
+    authBaseUrl,
     deps.appId,
     deps.appSecret,
     fetchImpl,
   );
 
   // Refresh user token
-  const url = new URL("/open-apis/authen/v1/refresh_access_token", request.baseUrl);
+  const url = new URL("/open-apis/authen/v1/refresh_access_token", authBaseUrl);
 
   const response = await fetchImpl(url.toString(), {
     method: "POST",

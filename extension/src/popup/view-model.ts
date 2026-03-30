@@ -1,3 +1,8 @@
+import {
+  DEFAULT_MEEGLE_AUTH_BASE_URL,
+  resolvePlatformUrl,
+} from "../platform-url.js";
+
 export type PopupPageType = "meegle" | "lark" | "unsupported";
 
 export interface PopupIdentityState {
@@ -36,15 +41,9 @@ export interface PopupHeaderContextInput {
 }
 
 export function detectPopupPageType(url: string): PopupPageType {
-  if (url.includes("project.larksuite.com") || url.includes("meegle.com")) {
-    return "meegle";
-  }
-
-  if (url.includes("feishu.cn") || url.includes("larksuite.com")) {
-    return "lark";
-  }
-
-  return "unsupported";
+  return resolvePlatformUrl(url, {
+    meegleAuthBaseUrl: DEFAULT_MEEGLE_AUTH_BASE_URL,
+  }).platform;
 }
 
 export function createPopupViewModel(
