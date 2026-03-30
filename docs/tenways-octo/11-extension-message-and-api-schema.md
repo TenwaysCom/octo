@@ -21,6 +21,12 @@
 4. `A2 -> B1` 分析与半自动建单
 5. PM 即时分析
 
+补充说明：
+
+- 当前正式业务主链路仍是 `A1/A2 + PM 即时分析`
+- ACP `V1` 只为 `PM 即时分析` 增加“可会话、可追问、可流式返回”的能力
+- ACP `V1` 不要求把 A1/A2 一起迁移到 ACP 协议
+
 ## 3. 协议设计原则
 
 1. 插件内消息和服务端 API 都使用显式 `action` / `status`，不做隐式行为。
@@ -220,6 +226,18 @@
   }
 }
 ```
+
+### 4.2.10 ACP `V1` 的 PM 分析入口说明
+
+为支持流式输出和会话复用，ACP `V1` 的 PM 分析不强制走新的 `UI -> Background` action。
+
+当前建议：
+
+- Popup 直接调用服务端 `POST /api/acp/pm-analysis/chat`
+- 使用 `fetch + readable stream` 消费流式响应
+- Background 仍保留现有认证、页面桥和 legacy 动作职责
+
+这样可以避免为了 PM 分析对话能力额外引入一层不必要的扩展内部流式转发。
 
 ## 4.3 Background -> Page Bridge 动作
 
@@ -442,6 +460,8 @@
 
 ### 5.5.1 `POST /api/pm/analysis/run`
 
+这是当前保留的 legacy 一次性分析接口。
+
 请求：
 
 ```json
@@ -457,6 +477,96 @@
   }
 }
 ```
+
+### 5.5.2 `POST /api/acp/pm-analysis/chat`
+
+这是 ACP `V1` 的 PM 分析对话接口。
+
+设计目标：
+
+- 首问创建 session
+- 追问复用同一个 session
+- 单个 `POST` 请求直接返回流式事件
+- 不拆成“先建 session，再单独连流”的两段式协议
+
+请求：
+
+```json
+{
+  "sessionId": "optional_existing_session",
+  "operatorLarkId": "ou_xxx",
+  "projectKeys": ["PROJ1"],
+  "timeWindowDays": 14,
+  "message": "先给我分析当前项目风险"
+}
+```
+
+追问请求：
+
+```json
+{
+  "sessionId": "sess_pm_001",
+  "operatorLarkId": "ou_xxx",
+  "projectKeys": ["PROJ1"],
+  "timeWindowDays": 14,
+  "message": "哪些 blocker 最需要今天推进？"
+}
+```
+
+响应：
+
+- `Content-Type: text/event-stream`
+- Popup 侧通过 `fetch + readable stream` 消费
+
+事件建议：
+
+```text
+event: session.created
+data: {"sessionId":"sess_pm_001"}
+
+event: analysis.started
+data: {"phase":"pm-analysis","message":"正在分析项目状态"}
+
+event: analysis.progress
+data: {"phase":"pm-analysis","message":"正在聚合 blocker 与 stale item"}
+
+event: analysis.result
+data: {
+  "sessionId":"sess_pm_001",
+  "data":{
+    "summary":"本周期有 3 个事项阻塞超过 5 天",
+    "blockers":[],
+    "staleItems":[],
+    "missingDescriptionItems":[],
+    "suggestedActions":[]
+  }
+}
+
+event: followup.result
+data: {
+  "sessionId":"sess_pm_001",
+  "data":{
+    "answer":"优先推进支付链路和登录链路相关 blocker",
+    "basedOn":["blockers","suggestedActions"]
+  }
+}
+
+event: error
+data: {
+  "errorCode":"ACP_SESSION_NOT_FOUND",
+  "errorMessage":"会话不存在或已过期",
+  "recoverable":true
+}
+
+event: done
+data: {"sessionId":"sess_pm_001"}
+```
+
+约束：
+
+- `V1` follow-up 为规则化 follow-up，不引入完整 LLM runtime
+- `V1` session 由 `Managed Redis` 持久化，并使用 TTL
+- `V1` 不提供 session 列表、多线程切换或通用 ACP gateway
 
 响应：
 
@@ -490,6 +600,10 @@
 - `A2_RECORD_NOT_FOUND`
 - `SCHEMA_VALIDATION_FAILED`
 - `PARTIAL_DATA_UNAVAILABLE`
+- `ACP_SESSION_NOT_FOUND`
+- `ACP_SESSION_EXPIRED`
+- `ACP_UNSUPPORTED_FOLLOWUP`
+- `ACP_STREAM_INIT_FAILED`
 
 ## 7. 幂等与追踪建议
 
@@ -515,5 +629,10 @@
 2. 先实现 `auth.exchange`、`a1.analyze`、`a1.create-b2-draft`
 3. 再补 `a2.*`
 4. 最后补 `pm.analysis.run`
+
+如果要落 ACP `V1`，建议插入一个明确阶段：
+
+5. 保留 `pm.analysis.run` 作为 legacy baseline
+6. 新增 `POST /api/acp/pm-analysis/chat`，为 PM 分析提供 session + streaming + follow-up
 
 这样可以先跑通 A1 主链路，再逐步复制到 A2 和 PM 分析。

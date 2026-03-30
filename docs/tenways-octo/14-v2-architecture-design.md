@@ -1,8 +1,60 @@
 # V2 Agent Platform 架构设计
 
 **Generated:** 2026-03-23
-**Branch:** feat/extension
-**Status:** DRAFT
+**Updated:** 2026-03-27
+**Branch:** feat/extension + feat/add-acp2
+**Status:** REVISED DRAFT
+
+## 0. 当前已批准方向：ACP V1 先落在 PM Analysis
+
+这份 V2 文档最初讨论的是较完整的 Agent Platform。结合后续 ACP 设计评审，当前已批准的落地方向需要先收窄：
+
+- `V1` 只做 `PM Analysis ACP Facade`
+- 不在 `V1` 中直接引入通用 ACP Gateway
+- `A1/A2` 继续保留现有业务接口
+- `V1` follow-up 先走规则化路径，不引入完整 LLM runtime
+- `V1` session 持久化使用 `Managed Redis`，并通过 TTL 管理
+
+也就是说，这份文档现在包含两个层次：
+
+1. **当前要落地的 ACP V1**
+2. **后续如何从 V1 演进到通用 V2 Agent Platform**
+
+如果想看当前 ACP `V1` 的完整落地设计，请优先阅读 [ACP 设计](./17-acp-design.md)。
+
+### 0.1 ACP V1 当前架构
+
+```text
+Extension Popup
+  |
+  | POST /api/acp/pm-analysis/chat
+  v
+ACP PM Analysis Controller
+  |
+  +--> ACP PM Analysis Service
+         |
+         +--> Redis Session Store
+         +--> Existing PM Analysis Service
+         +--> Rules-based Followup Service
+```
+
+### 0.2 ACP V1 关键决策
+
+| 决策点 | 选择 | 理由 |
+|--------|------|------|
+| 首个 ACP 场景 | PM Analysis | 先验证真实 PM 使用价值，而不是先搭平台 |
+| 接口形状 | 单个 `POST` 流式 chat 接口 | 避免“先建 session 再连流”两段式复杂度 |
+| 客户端消费 | Popup `fetch + readable stream` | 不为流式分析额外引入 Background 转发层 |
+| Follow-up | 规则化 follow-up | 保持最小完Scanning整闭环，避免顺手引入完整 LLM 运行时 |
+| Session 持久化 | Managed Redis | 支持跨重启恢复，但不把 session 当长期业务记录 |
+
+### 0.3 演进路线
+
+```text
+V1   : PM Analysis ACP Facade
+V1.5 : 抽 Session / Stream 公共能力
+V2   : Generic ACP Gateway + Agent Registry
+```
 
 ## 1. 设计目标
 
@@ -32,7 +84,7 @@
 │                        API Gateway                              │
 │  - REST / SSE Endpoints                                         │
 │  - Session 路由                                                  │
-│  - 认证与限流                                                   │
+│  - 认证与限流                            Scanning                       │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -473,38 +525,41 @@ POST /api/a2/analyze           (SSE)
 POST /api/a2/create-b1-draft
 POST /api/a2/apply-b1
 
-POST /api/pm/analysis/run      (SSE)
+POST /api/pm/analysis/run      (legacy one-shot)
+POST /api/acp/pm-analysis/chat (ACP V1 streaming)
 
-POST /api/sessions/create
-GET  /api/sessions/:id
-GET  /api/sessions?prefix=...
-DELETE /api/sessions/:id
+# 以下 session APIs 不属于 ACP V1 必做项
+# POST /api/sessions/create
+# GET  /api/sessions/:id
+# GET  /api/sessions?prefix=...
+# DELETE /api/sessions/:id
 ```
 
 ### 7.2 SSE Endpoint 示例
 
 ```bash
-# 发起分析请求
-curl -N POST http://localhost:3000/api/a1/analyze \
+# ACP V1: 发起 PM 分析对话
+curl -N -X POST http://localhost:3000/api/acp/pm-analysis/chat \
   -H "Content-Type: application/json" \
   -d '{
-    "sessionId": "sess_abc123",
-    "effort": "standard",
-    "context": {...}
+    "operatorLarkId": "ou_xxx",
+    "projectKeys": ["PROJ1"],
+    "timeWindowDays": 14,
+    "message": "先给我分析当前项目风险"
   }'
 
 # 响应流:
-# event: thinking-start
-# data: {"phase":"understanding","message":"正在理解问题..."}
+# event: session.created
+# data: {"sessionId":"sess_pm_001"}
 #
-# event: skill-execution
-# data: {"skillId":"ticket-classification","status":"running"}
+# event: analysis.started
+# data: {"phase":"pm-analysis","message":"正在理解项目状态"}
 #
-# event: skill-result
-# data: {"skillId":"ticket-classification","result":{...}}
+# event: analysis.progress
+# data: {"phase":"pm-analysis","message":"正在聚合 blocker 与 stale item"}
 #
-# event: final-result
-# data: {"summary":"...","decision":"to_b2",...}
+# event: analysis.result
+# data: {"sessionId":"sess_pm_001","data":{...}}
 ```
 
 ## 8. 数据 Schema
@@ -589,6 +644,29 @@ interface AnalysisResponse {
 - [ ] PM Analysis 模块实现
 - [ ] 数据库持久化
 - [ ] 真实 Lark/Meegle API 集成
+##### ACP V1 当前待补
+
+- [ ] `POST /api/acp/pm-analysis/chat`
+- [ ] ACP PM Analysis DTO
+- [ ] ACP PM Analysis Controller
+- [ ] ACP PM Analysis Service
+- [ ] PM Analysis Rules-based Followup Service
+- [ ] Redis-backed Session Store
+- [ ] Popup PM Analysis Chat 模块
+- [ ] 流式事件类型定义
+- [ ] ACP V1 测试覆盖
+
+###### V1.5 / V2 演进待补
+
+- [ ] 抽 `acp-session.service.ts`
+- [ ] 抽 `acp-stream.service.ts`
+- [ ] 抽通用 ACP event schema
+- [ ] 引入通用 orchestrator
+- [ ] 接入第二个 ACP 场景（A1 或 A2）
+- [ ] Agent Registry
+- [ ] 通用 Skill Registry
+- [ ] 更完整的 Context Manager
+
 
 ### V2 新增待补
 
@@ -606,35 +684,68 @@ interface AnalysisResponse {
 ### 10.1 优先级排序
 
 1. **P0 - 基础架构**
-   - Agent Orchestrator 重构
-   - Skill Registry 设计
    - SSE 输出协议
+   - PM Analysis ACP Facade
+   - 单个 `POST` streaming chat 接口
+   - Redis session persistence
+   - Rules-based follow-up
+   
+   **P1.1 - UI 实现**
+   - Popup 主界面
+   - 分析结果展示
+   - 思考过程渲染
 
-2. **P1 - Session 管理**
-   - Session Schema 定义
-   - 客户端 Session Manager
-   - 服务端 Session API
+
+  **P1.2 - 抽共享骨架**
+   - `acp-session.service.ts`
+   - `acp-stream.service.ts`
+   - 通用事件 schema
+
+2. **P2 - 再考虑通用网关**
+   - 当第二个 ACP 场景成立时，再引入 orchestrator / agent registry
+   - Agent Orchestrator 重构
+   - 避免在 PM Analysis 价值未验证前先做大平台
+
+   **P2. 1 - Session 管理**
+    - Session Schema 定义
+    - 客户端 Session Manager
+    - 服务端 Session API
 
 3. **P2 - Think Effort**
    - Effort Controller
-   - 三级配置实现
+   - 两级配置实现
 
 4. **P3 - Skills 系统**
    - URL → Skills 映射
    - Skill Loader
    - 预置 Skills 配置
 
-5. **P4 - UI 实现**
-   - Popup 主界面
-   - 分析结果展示
-   - 思考过程渲染
+
+
 
 ### 10.2 推荐实施顺序
 
 ```
+Phase 1:
+Step 1: 交付 V1
+  - ACP PM Analysis Controller / DTO / Service
+  - Redis Session Store
+  - Rules-based Followup
+  - Popup PM Analysis Chat
+
+Step 2: 抽 V1.5 公共层
+  - Session Service
+  - Stream Service
+  - 通用 ACP event types
+
+Step 3: 演进到 V2
+  - ACP Orchestrator
+  - Agent Registry
+  - 接入第二个 ACP 场景
+
+
 Phase 2.1: 服务端架构升级
   - 重构 Agent Orchestrator
-  - 实现 Skill Registry
   - 实现 SSE 输出
 
 Phase 2.2: Session & Context
@@ -647,6 +758,7 @@ Phase 2.3: Think Effort
   - 配置 quick/standard/deep
 
 Phase 2.4: Skills 配置系统
+  - 实现 Skill Registry
   - URL → Skills 映射
   - 预置 Skills 配置
   - 客户端 Skill Loader
