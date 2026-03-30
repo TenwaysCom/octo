@@ -6,6 +6,7 @@
         <div class="auth-card__value">
           <a-tag :color="tagColorMap[meegleStatus.tone]">{{ meegleStatus.text }}</a-tag>
           <a-button
+            v-if="!meegleButtonDisabled"
             :type="secondaryButtons ? 'default' : 'primary'"
             size="small"
             :disabled="meegleButtonDisabled"
@@ -20,6 +21,7 @@
         <div class="auth-card__value">
           <a-tag :color="tagColorMap[larkStatus.tone]">{{ larkStatus.text }}</a-tag>
           <a-button
+            v-if="!larkButtonDisabled"
             :type="secondaryButtons ? 'default' : 'primary'"
             size="small"
             :disabled="larkButtonDisabled"

@@ -82,8 +82,20 @@ function setStatus(el, status, text) {
 }
 
 function setMeegleAuthButtons(isAuthorized) {
-  dom.meegleAuthBtn.disabled = Boolean(isAuthorized);
-  dom.meegleAuthBtn.textContent = isAuthorized ? '已授权' : '授权';
+  syncAuthButtons(dom.meegleAuthBtn, dom.meegleReauthBtn, isAuthorized, '授权');
+}
+
+function setLarkAuthButtons(isAuthorized) {
+  syncAuthButtons(dom.larkAuthBtn, dom.larkReauthBtn, isAuthorized, '授权');
+}
+
+function syncAuthButtons(primaryButton, secondaryButton, isAuthorized, primaryLabel) {
+  primaryButton.disabled = false;
+  primaryButton.textContent = primaryLabel;
+  primaryButton.classList.toggle('hidden', Boolean(isAuthorized));
+
+  secondaryButton.disabled = false;
+  secondaryButton.classList.toggle('hidden', Boolean(isAuthorized));
 }
 
 function applyMeegleStatus(auth = state.meegleAuth) {
@@ -228,12 +240,15 @@ async function doLarkAuth() {
 
   if (auth.status === 'ready') {
     state.isAuthed.lark = true;
+    setLarkAuthButtons(true);
     setStatus(dom.larkUserTop, 'ready', '已授权');
     setStatus(dom.larkUserBottom, 'ready', '已授权');
     log.success('Lark 已授权');
     return true;
   }
 
+  state.isAuthed.lark = false;
+  setLarkAuthButtons(false);
   // Need to redirect
   log.warn('需要登录 Lark');
   const appId = config.LARK_APP_ID;
@@ -278,6 +293,7 @@ async function init() {
   // Set initial status - use saved identity if available
   applyMeegleStatus();
   setMeegleAuthButtons(false);
+  setLarkAuthButtons(false);
   if (state.identity.larkId) {
     setStatus(dom.larkUserTop, 'ready', state.identity.larkId);
     setStatus(dom.larkUserBottom, 'ready', state.identity.larkId);
@@ -309,11 +325,15 @@ async function init() {
     setMeegleAuthButtons(state.isAuthed.meegle);
     if (larkAuth.status === 'ready') {
       state.isAuthed.lark = true;
+      setLarkAuthButtons(true);
       // Keep user ID display if already set
       if (!state.identity.larkId) {
         setStatus(dom.larkUserTop, 'ready', '已授权');
         setStatus(dom.larkUserBottom, 'ready', '已授权');
       }
+    } else {
+      state.isAuthed.lark = false;
+      setLarkAuthButtons(false);
     }
 
     // Show Lark feature block if both authed
@@ -337,9 +357,13 @@ async function init() {
     setMeegleAuthButtons(state.isAuthed.meegle);
     if (larkAuth.status === 'ready') {
       state.isAuthed.lark = true;
+      setLarkAuthButtons(true);
       // On Meegle page, show auth status for Lark
       setStatus(dom.larkUserTop, 'ready', '已授权');
       setStatus(dom.larkUserBottom, 'ready', '已授权');
+    } else {
+      state.isAuthed.lark = false;
+      setLarkAuthButtons(false);
     }
 
     // Show Meegle feature block if both authed

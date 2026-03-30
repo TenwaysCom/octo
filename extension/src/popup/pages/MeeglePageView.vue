@@ -25,6 +25,8 @@
       :lark-status="larkStatus"
       meegle-button-text="重新授权"
       lark-button-text="重新授权"
+      :meegle-button-disabled="topMeegleButtonDisabled"
+      :lark-button-disabled="topLarkButtonDisabled"
       secondary-buttons
       @authorize-meegle="$emit('authorizeMeegle')"
       @authorize-lark="$emit('authorizeLark')"
