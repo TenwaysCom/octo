@@ -8,9 +8,11 @@
     "dev": "concurrently -k -n tsc,server -c yellow,cyan \"npm:dev:watch\" \"npm:dev:serve\"",
     "dev:watch": "tsc --watch",
     "dev:serve": "nodemon --watch dist --ext js --delay 200ms dist/index.js",
+    "kimi-acp:validate": "tsx ./examples/kimi-acp-client/client.ts",
     "test": "vitest run"
   },
   "dependencies": {
+    "@agentclientprotocol/sdk": "0.17.1",
     "@larksuiteoapi/node-sdk": "^1.59.0",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
@@ -22,6 +24,7 @@
     "@types/node": "^25.5.0",
     "concurrently": "^9.2.1",
     "nodemon": "^3.1.14",
+    "tsx": "4.21.0",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"
   }

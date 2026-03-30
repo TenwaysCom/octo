@@ -727,18 +727,28 @@ interface AnalysisResponse {
 
 ```
 Phase 1:
-Step 1: 交付 V1
-  - ACP PM Analysis Controller / DTO / Service
-  - Redis Session Store
+Step 1: 先做 backend ACP 继承
+  - ACP PM Analysis DTO / event types
+  - SessionStore interface + test store
   - Rules-based Followup
+  - ACP PM Analysis Service
+  - Streaming Controller + Route
+
+Checkpoint 1:
+  - 用测试 + curl 验证 `/api/acp/pm-analysis/chat`
+  - 确认 event order、follow-up 体验、session 恢复策略
+  - 再决定 popup 交互是否需要改计划
+
+Step 2: 补齐 V1 的生产持久化和前端接线
+  - Redis Session Store
   - Popup PM Analysis Chat
 
-Step 2: 抽 V1.5 公共层
+Step 3: 抽 V1.5 公共层
   - Session Service
   - Stream Service
   - 通用 ACP event types
 
-Step 3: 演进到 V2
+Step 4: 演进到 V2
   - ACP Orchestrator
   - Agent Registry
   - 接入第二个 ACP 场景
