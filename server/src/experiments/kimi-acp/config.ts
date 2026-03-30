@@ -31,15 +31,38 @@ export function buildKimiAcpSpawnConfig(
     ACP_CONFIG_DEFAULTS.env,
   );
 
+  const mergedEnv = {
+    ...process.env,
+    ...env,
+    ...envOverrides,
+  };
+
   return {
     command,
     args,
-    env: {
-      ...process.env,
-      ...env,
-      ...envOverrides,
-    },
+    env: normalizeProxySchemes(mergedEnv),
   };
+}
+
+function normalizeProxySchemes(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const nextEnv = { ...env };
+
+  for (const key of [
+    "ALL_PROXY",
+    "all_proxy",
+    "HTTP_PROXY",
+    "http_proxy",
+    "HTTPS_PROXY",
+    "https_proxy",
+  ]) {
+    const value = nextEnv[key];
+
+    if (value?.startsWith("socks://")) {
+      nextEnv[key] = `socks5://${value.slice("socks://".length)}`;
+    }
+  }
+
+  return nextEnv;
 }
 
 function parseStringArray(

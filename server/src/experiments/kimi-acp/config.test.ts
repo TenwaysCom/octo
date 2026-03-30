@@ -7,10 +7,28 @@ import {
 describe("buildKimiAcpSpawnConfig", () => {
   it("uses the documented defaults", () => {
     const config = buildKimiAcpSpawnConfig({});
+    const {
+      ALL_PROXY: _allProxy,
+      all_proxy: _allProxyLower,
+      HTTP_PROXY: _httpProxy,
+      http_proxy: _httpProxyLower,
+      HTTPS_PROXY: _httpsProxy,
+      https_proxy: _httpsProxyLower,
+      ...expectedEnv
+    } = process.env;
+    const {
+      ALL_PROXY: _configAllProxy,
+      all_proxy: _configAllProxyLower,
+      HTTP_PROXY: _configHttpProxy,
+      http_proxy: _configHttpProxyLower,
+      HTTPS_PROXY: _configHttpsProxy,
+      https_proxy: _configHttpsProxyLower,
+      ...actualEnv
+    } = config.env;
 
     expect(config.command).toBe(ACP_CONFIG_DEFAULTS.command);
     expect(config.args).toEqual(ACP_CONFIG_DEFAULTS.args);
-    expect(config.env).toMatchObject(process.env);
+    expect(actualEnv).toMatchObject(expectedEnv);
   });
 
   it("accepts JSON overrides for args and env", () => {
