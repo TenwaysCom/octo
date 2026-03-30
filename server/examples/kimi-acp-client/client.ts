@@ -11,6 +11,7 @@ import type {
 } from "@agentclientprotocol/sdk";
 import { buildKimiAcpSpawnConfig } from "../../src/experiments/kimi-acp/config.js";
 import { runValidationTurn } from "../../src/experiments/kimi-acp/run-validation.js";
+import { renderSessionUpdate } from "../../src/experiments/kimi-acp/session-update-output.js";
 
 class LoggingClient implements acp.Client {
   async requestPermission(
@@ -28,37 +29,18 @@ class LoggingClient implements acp.Client {
   }
 
   async sessionUpdate(params: SessionNotification): Promise<void> {
-    const update = params.update;
+    const rendered = renderSessionUpdate(params.update);
 
-    switch (update.sessionUpdate) {
-      case "agent_message_chunk":
-      case "agent_thought_chunk":
-      case "user_message_chunk":
-        if (update.content.type === "text") {
-          process.stdout.write(update.content.text);
-        } else {
-          console.log(`\n[${update.sessionUpdate}:${update.content.type}]`);
-        }
-        break;
-      case "tool_call":
-        console.log(`\n[tool_call] ${update.title} (${update.status})`);
-        break;
-      case "tool_call_update":
-        console.log(
-          `\n[tool_call_update] ${update.toolCallId} -> ${update.status}`,
-        );
-        break;
-      case "plan":
-      case "available_commands_update":
-      case "current_mode_update":
-      case "config_option_update":
-      case "session_info_update":
-      case "usage_update":
-        console.log(`\n[${update.sessionUpdate}]`);
-        break;
-      default:
-        console.log(`\n[unhandled session update]`);
-        break;
+    if (!rendered) {
+      return;
+    }
+
+    if (rendered.stdoutText) {
+      process.stdout.write(rendered.stdoutText);
+    }
+
+    if (rendered.stderrLine) {
+      process.stderr.write(rendered.stderrLine);
     }
   }
 }
