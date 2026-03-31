@@ -571,6 +571,7 @@ This is a parallel validation track. It does not change the PM Analysis ACP V1 s
 Goals:
 - verify a minimal Node/TypeScript ESM client can launch local `kimi acp`
 - verify the baseline ACP flow: `initialize` -> `session/new` -> `session/prompt`
+- verify the client can stay attached in a manual REPL loop and reuse one ACP session until the user exits
 - make the `kimi acp` startup shape configurable through environment variables
 
 Boundaries:
@@ -583,6 +584,9 @@ Suggested files:
 - `server/examples/kimi-acp-client/`
   - keep this as an isolated experiment directory for the validation script and notes
   - do not expand it into production backend code in this plan
+- `server/src/experiments/kimi-acp/`
+  - keep REPL orchestration and subprocess lifecycle helpers in the experiment area until this track is fully validated
+  - do not move them into production backend modules before the REPL checkpoint is green
 
 Config surface:
 - `KIMI_ACP_COMMAND`
@@ -701,6 +705,91 @@ Validation cases that must pass:
 - missing `kimi` binary returns a clear startup error
 - Node exit leaves no orphan subprocess
 
+### Task 8: Validate the persistent Kimi ACP REPL before backend bridge work
+
+**Files:**
+- Create: `server/examples/kimi-acp-client/repl.ts`
+- Create: `server/src/experiments/kimi-acp/interactive-session.ts`
+- Create: `server/src/experiments/kimi-acp/process-lifecycle.ts`
+- Test: `server/src/experiments/kimi-acp/interactive-session.test.ts`
+- Test: `server/src/experiments/kimi-acp/process-lifecycle.test.ts`
+- Docs: `server/examples/kimi-acp-client/README.md`
+- Modify: `server/package.json`
+
+- [ ] **Step 1: Write the failing REPL orchestration tests**
+
+Cover the interactive behavior before implementation:
+- initialize once per process
+- create one ACP session and reuse its `sessionId`
+- send one `session/prompt` call per non-empty input line
+- stop on `/exit` and `/quit`
+- cleanup the subprocess when the session ends or is interrupted
+
+- [ ] **Step 2: Run the new REPL tests to verify they fail**
+
+Run: `cd server && npm test -- src/experiments/kimi-acp/interactive-session.test.ts src/experiments/kimi-acp/process-lifecycle.test.ts`
+Expected: FAIL because the REPL orchestration modules do not exist yet
+
+- [ ] **Step 3: Implement a separate persistent client entrypoint**
+
+Add a new command entry instead of changing `kimi-acp:validate`:
+- `pnpm run kimi-acp:repl`
+
+Required behavior:
+- launch `kimi acp` once
+- establish one `ClientSideConnection`
+- call `initialize` once
+- call `session/new` once
+- keep reading user input until manual exit
+- reuse the same `sessionId` for every prompt in the loop
+
+- [ ] **Step 4: Implement manual exit behavior**
+
+Support all of these exit paths:
+- `/exit`
+- `/quit`
+- `Ctrl-C`
+
+Each path must:
+- stop accepting new input
+- cleanup the ACP subprocess
+- return a clear exit reason in logs or terminal output
+
+- [ ] **Step 5: Verify non-interactive smoke coverage**
+
+Support piped input so the REPL can be smoke-tested without a TTY:
+
+```bash
+printf 'hello\n/exit\n' | pnpm run kimi-acp:repl
+printf '/quit\n' | pnpm run kimi-acp:repl
+```
+
+The command must exit cleanly in both cases.
+
+- [ ] **Step 6: Verify interactive cleanup**
+
+Confirm:
+- `Ctrl-C` exits with code `130`
+- no orphan `kimi acp` subprocess remains afterward
+- a child process exiting unexpectedly is surfaced as a clear error
+
+- [ ] **Step 7: Update the README and next-step gate**
+
+Document:
+- how to start the REPL
+- how to exit it manually
+- which command remains the one-shot validator
+- that backend bridge work does not start until the REPL checkpoint is green
+
+REPL validation cases that must pass:
+- `pnpm run kimi-acp:repl` starts and prints the negotiated session info
+- entering a normal prompt returns streamed content and a stop reason
+- `printf 'hello\n/exit\n' | pnpm run kimi-acp:repl` exits with one completed prompt
+- `printf '/quit\n' | pnpm run kimi-acp:repl` exits without sending a prompt
+- `Ctrl-C` exits with code `130`
+- no orphan `kimi acp` subprocess remains after exit
+- `kimi-acp:validate` still works unchanged after the REPL work lands
+
 ## Backend Checkpoint Exit Criteria
 
 Do not start popup integration until all of these are true:
@@ -713,7 +802,20 @@ Do not start popup integration until all of these are true:
 
 ## Follow-up Planning Note
 
-Once this backend checkpoint is green, write a separate popup plan for:
+Do not start the backend bridge plan until both of these checkpoints are green:
+
+- Task 7: one-shot `kimi-acp:validate`
+- Task 8: persistent `kimi-acp:repl`
+
+Once the REPL checkpoint is green, write the next separate plan for:
+
+- `server/src/modules/acp-kimi/`
+- `server/src/application/services/acp-kimi-proxy.service.ts`
+- `server/src/adapters/kimi-acp/`
+
+That backend bridge plan should treat the REPL implementation as the reference ACP client behavior and should not start extension work yet.
+
+Only after the backend bridge checkpoint is green, write a separate popup plan for:
 
 - `extension/src/types/acp-pm-analysis.ts`
 - `extension/src/popup/pm-analysis-chat.ts`

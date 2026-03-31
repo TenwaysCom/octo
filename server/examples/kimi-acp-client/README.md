@@ -7,6 +7,7 @@ This experiment validates that a local Node/TypeScript ACP client can:
 - create a new session
 - send one prompt
 - print streamed updates and the final stop reason
+- optionally stay attached in a manual REPL session until you exit
 
 ## Run
 
@@ -23,6 +24,19 @@ Pass a custom prompt:
 cd server
 pnpm run kimi-acp:validate -- "请介绍一下当前会话状态"
 ```
+
+Run the persistent REPL client:
+
+```bash
+cd server
+pnpm run kimi-acp:repl
+```
+
+Manual exit:
+
+- type `/exit`
+- type `/quit`
+- or press `Ctrl-C`
 
 ## Config
 

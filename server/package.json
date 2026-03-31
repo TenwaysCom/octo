@@ -8,6 +8,7 @@
     "dev": "concurrently -k -n tsc,server -c yellow,cyan \"npm:dev:watch\" \"npm:dev:serve\"",
     "dev:watch": "tsc --watch",
     "dev:serve": "nodemon --watch dist --ext js --delay 200ms dist/index.js",
+    "kimi-acp:repl": "tsx ./examples/kimi-acp-client/repl.ts",
     "kimi-acp:validate": "tsx ./examples/kimi-acp-client/client.ts",
     "test": "vitest run"
   },

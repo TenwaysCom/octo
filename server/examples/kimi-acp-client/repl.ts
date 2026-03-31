@@ -2,6 +2,7 @@
 
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { Readable, Writable } from "node:stream";
+import { createInterface, type Interface } from "node:readline";
 import process from "node:process";
 import * as acp from "@agentclientprotocol/sdk";
 import type {
@@ -10,11 +11,11 @@ import type {
   SessionNotification,
 } from "@agentclientprotocol/sdk";
 import { buildKimiAcpSpawnConfig } from "../../src/experiments/kimi-acp/config.js";
+import { runInteractiveSession } from "../../src/experiments/kimi-acp/interactive-session.js";
 import {
   cleanupAgentProcess,
   runWithAgentProcessGuard,
 } from "../../src/experiments/kimi-acp/process-lifecycle.js";
-import { runValidationTurn } from "../../src/experiments/kimi-acp/run-validation.js";
 import { renderSessionUpdate } from "../../src/experiments/kimi-acp/session-update-output.js";
 
 class LoggingClient implements acp.Client {
@@ -50,10 +51,17 @@ class LoggingClient implements acp.Client {
 }
 
 async function main() {
-  const prompt = getPromptFromArgs(process.argv.slice(2));
   const spawnConfig = buildKimiAcpSpawnConfig(process.env);
   const agentProcess = spawnAgentProcess(spawnConfig);
   const cleanup = installCleanup(agentProcess);
+  const useTerminalPrompt = Boolean(process.stdin.isTTY && process.stdout.isTTY);
+  const inputLoop = useTerminalPrompt
+    ? createInterface({
+        input: process.stdin,
+        output: process.stdout,
+        terminal: true,
+      })
+    : null;
 
   try {
     const input = Writable.toWeb(agentProcess.stdin);
@@ -65,15 +73,17 @@ async function main() {
     );
 
     const result = await runWithAgentProcessGuard(agentProcess, () =>
-      runValidationTurn({
+      runInteractiveSession({
         cwd: process.cwd(),
-        prompt,
+        lines: useTerminalPrompt
+          ? readPromptLines(inputLoop)
+          : readPipedLines(process.stdin),
         connection: {
           initialize: () =>
             connection.initialize({
               protocolVersion: acp.PROTOCOL_VERSION,
               clientInfo: {
-                name: "tenways-octo-kimi-validator",
+                name: "tenways-octo-kimi-repl",
                 version: "0.1.0",
               },
               clientCapabilities: {},
@@ -94,29 +104,89 @@ async function main() {
               ],
             }),
         },
+        onReady: ({ sessionId, protocolVersion, capabilities }) => {
+          console.log(`[kimi-acp] protocolVersion=${protocolVersion}`);
+          console.log(
+            `[kimi-acp] mcpCapabilities=${JSON.stringify(
+              capabilities.mcpCapabilities || {},
+            )}`,
+          );
+          console.log(`[kimi-acp] sessionId=${sessionId}`);
+          console.log("[kimi-acp] interactive session ready");
+          console.log("[kimi-acp] enter /exit or /quit to leave");
+        },
+        onTurnComplete: ({ stopReason }) => {
+          process.stdout.write("\n");
+          console.log(`[kimi-acp] stopReason=${stopReason}`);
+        },
       }),
     );
 
-    console.log("\n");
-    console.log(`[kimi-acp] protocolVersion=${result.protocolVersion}`);
-    console.log(
-      `[kimi-acp] mcpCapabilities=${JSON.stringify(
-        result.capabilities.mcpCapabilities || {},
-      )}`,
-    );
-    console.log(`[kimi-acp] sessionId=${result.sessionId}`);
-    console.log(`[kimi-acp] stopReason=${result.stopReason}`);
+    console.log(`[kimi-acp] exitReason=${result.exitReason}`);
+    console.log(`[kimi-acp] promptCount=${result.promptCount}`);
   } finally {
+    inputLoop?.close();
     await cleanup();
   }
 }
 
-function getPromptFromArgs(args: string[]): string {
-  if (args.length === 0) {
-    return "请简单介绍你自己，并确认 ACP 会话已经建立。";
+async function* readPromptLines(inputLoop: Interface): AsyncIterable<string> {
+  while (true) {
+    inputLoop.prompt();
+    const line = await waitForPromptLine(inputLoop);
+
+    if (line === null) {
+      return;
+    }
+
+    yield line;
+  }
+}
+
+async function* readPipedLines(
+  input: NodeJS.ReadableStream,
+): AsyncIterable<string> {
+  let buffered = "";
+
+  for await (const chunk of input) {
+    buffered += String(chunk);
+
+    while (true) {
+      const newlineIndex = buffered.indexOf("\n");
+
+      if (newlineIndex === -1) {
+        break;
+      }
+
+      const line = buffered.slice(0, newlineIndex).replace(/\r$/, "");
+      buffered = buffered.slice(newlineIndex + 1);
+      yield line;
+    }
   }
 
-  return args.join(" ");
+  if (buffered) {
+    yield buffered.replace(/\r$/, "");
+  }
+}
+
+function waitForPromptLine(inputLoop: Interface): Promise<string | null> {
+  return new Promise((resolve) => {
+    const handleLine = (line: string) => {
+      cleanup();
+      resolve(line);
+    };
+    const handleClose = () => {
+      cleanup();
+      resolve(null);
+    };
+    const cleanup = () => {
+      inputLoop.off("line", handleLine);
+      inputLoop.off("close", handleClose);
+    };
+
+    inputLoop.once("line", handleLine);
+    inputLoop.once("close", handleClose);
+  });
 }
 
 function spawnAgentProcess(
@@ -178,6 +248,6 @@ function installCleanup(agentProcess: ChildProcessWithoutNullStreams) {
 }
 
 void main().catch(async (error) => {
-  console.error("[kimi-acp] validation failed:", error);
+  console.error("[kimi-acp] repl failed:", error);
   process.exit(1);
 });
