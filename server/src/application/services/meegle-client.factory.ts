@@ -12,7 +12,7 @@ export interface MeegleClientFactoryDeps {
 }
 
 export interface MeegleClientConfig {
-  operatorLarkId: string;
+  masterUserId: string;
   meegleUserKey: string;
   baseUrl: string;
 }
@@ -25,17 +25,17 @@ export async function createMeegleClient(
   deps: MeegleClientFactoryDeps,
 ): Promise<MeegleClient> {
   const { tokenStore } = deps;
-  const { operatorLarkId, meegleUserKey, baseUrl } = config;
+  const { masterUserId, meegleUserKey, baseUrl } = config;
 
   const storedToken = await tokenStore.get({
-    operatorLarkId,
+    masterUserId,
     meegleUserKey,
     baseUrl,
   });
 
   if (!storedToken?.userToken) {
     throw new Error(
-      `No valid Meegle token found for user ${operatorLarkId} at ${baseUrl}`,
+      `No valid Meegle token found for user ${masterUserId} at ${baseUrl}`,
     );
   }
 

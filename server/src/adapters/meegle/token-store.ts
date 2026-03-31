@@ -1,5 +1,5 @@
 export interface StoredMeegleToken {
-  operatorLarkId: string;
+  masterUserId: string;
   meegleUserKey: string;
   baseUrl: string;
   pluginToken: string;
@@ -12,7 +12,7 @@ export interface StoredMeegleToken {
 }
 
 export interface MeegleTokenLookup {
-  operatorLarkId: string;
+  masterUserId: string;
   meegleUserKey: string;
   baseUrl: string;
 }
@@ -24,7 +24,7 @@ export interface MeegleTokenStore {
 }
 
 function makeKey(input: MeegleTokenLookup): string {
-  return `${input.operatorLarkId}:${input.meegleUserKey}:${input.baseUrl}`;
+  return `${input.masterUserId}:${input.meegleUserKey}:${input.baseUrl}`;
 }
 
 export class InMemoryMeegleTokenStore implements MeegleTokenStore {
@@ -44,7 +44,7 @@ export class InMemoryMeegleTokenStore implements MeegleTokenStore {
 
     for (const token of this.store.values()) {
       if (
-        token.operatorLarkId === lookup.operatorLarkId &&
+        token.masterUserId === lookup.masterUserId &&
         token.meegleUserKey === lookup.meegleUserKey
       ) {
         return token;

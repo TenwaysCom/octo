@@ -30,6 +30,7 @@ import {
 } from "../view-model.js";
 
 interface PopupIdentityState {
+  masterUserId: string | null;
   larkId: string | null;
   meegleUserKey: string | null;
 }
@@ -60,6 +61,7 @@ export function usePopupApp() {
     currentUrl: null as string | null,
     identity: {
       larkId: null,
+      masterUserId: null,
       meegleUserKey: null,
     } as PopupIdentityState,
     isAuthed: {
@@ -234,8 +236,8 @@ export function usePopupApp() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          operatorLarkId:
-            state.identity.larkId || settings.larkUserId || "ou_user",
+          masterUserId:
+            state.identity.masterUserId || state.identity.larkId || settings.larkUserId || "usr_unknown",
           meegleUserKey,
           baseUrl: state.currentTabOrigin || config.MEEGLE_BASE_URL,
         }),
@@ -299,7 +301,8 @@ export function usePopupApp() {
       currentTabOrigin:
         state.currentTabOrigin || "https://project.larksuite.com",
       currentPageType: state.pageType,
-      larkId: state.identity.larkId || undefined,
+      masterUserId:
+        state.identity.masterUserId || state.identity.larkId || undefined,
       meegleUserKey: state.identity.meegleUserKey || undefined,
     });
 

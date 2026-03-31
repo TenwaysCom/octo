@@ -2,7 +2,7 @@ export type MeegleAuthStatus = "ready" | "require_auth_code" | "failed";
 
 export interface MeegleAuthEnsureRequest {
   requestId: string;
-  operatorLarkId: string;
+  masterUserId: string;
   meegleUserKey?: string;
   baseUrl: string;
   currentTabId?: number;

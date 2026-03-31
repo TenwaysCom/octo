@@ -26,7 +26,7 @@ function initSchema(db: DatabaseSync): void {
     );
 
     CREATE TABLE IF NOT EXISTS meegle_credential (
-      operator_lark_id TEXT NOT NULL,
+      master_user_id TEXT NOT NULL,
       meegle_user_key TEXT NOT NULL,
       base_url TEXT NOT NULL,
       plugin_token TEXT NOT NULL,
@@ -39,7 +39,7 @@ function initSchema(db: DatabaseSync): void {
       last_auth_at TEXT NOT NULL,
       last_refresh_at TEXT,
       updated_at TEXT NOT NULL,
-      PRIMARY KEY (operator_lark_id, meegle_user_key, base_url)
+      PRIMARY KEY (master_user_id, meegle_user_key, base_url)
     );
   `);
 

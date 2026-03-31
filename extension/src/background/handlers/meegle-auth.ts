@@ -140,7 +140,7 @@ async function exchangeAuthCodeWithServer(
     const config = await getConfig();
     serverUrl = config.SERVER_URL;
 
-    logBgFlow("SERVER_EXCHANGE", "START", { serverUrl, requestId: request.requestId, operatorLarkId: request.operatorLarkId, meegleUserKey: request.meegleUserKey, baseUrl: request.baseUrl });
+    logBgFlow("SERVER_EXCHANGE", "START", { serverUrl, requestId: request.requestId, masterUserId: request.masterUserId, meegleUserKey: request.meegleUserKey, baseUrl: request.baseUrl });
 
     const response = await fetch(`${config.SERVER_URL}/api/meegle/auth/exchange`, {
       method: "POST",
@@ -149,7 +149,7 @@ async function exchangeAuthCodeWithServer(
       },
       body: JSON.stringify({
         requestId: request.requestId,
-        operatorLarkId: request.operatorLarkId,
+        masterUserId: request.masterUserId,
         meegleUserKey: request.meegleUserKey,
         baseUrl: request.baseUrl,
         authCode,
@@ -181,7 +181,7 @@ async function exchangeAuthCodeWithServer(
       console.error("[Tenways Octo] Failed to exchange auth code:", {
         status: response.status,
         requestId: request.requestId,
-        operatorLarkId: request.operatorLarkId,
+        masterUserId: request.masterUserId,
         meegleUserKey: request.meegleUserKey,
         baseUrl: request.baseUrl,
         error: errorResult.error,
@@ -197,7 +197,7 @@ async function exchangeAuthCodeWithServer(
     console.error("[Tenways Octo] Error exchanging auth code:", {
       serverUrl,
       requestId: request.requestId,
-      operatorLarkId: request.operatorLarkId,
+      masterUserId: request.masterUserId,
       meegleUserKey: request.meegleUserKey,
       baseUrl: request.baseUrl,
       message,
@@ -219,10 +219,10 @@ export async function ensureMeegleAuth(
   const baseUrl = request.baseUrl ?? "https://project.larksuite.com";
   const state = request.state || `state_${Date.now()}`;
 
-  logBgFlow("ENSURE_AUTH", "START", { requestId: request.requestId, operatorLarkId: request.operatorLarkId, meegleUserKey: request.meegleUserKey, baseUrl, currentTabId: request.currentTabId, currentPageIsMeegle: request.currentPageIsMeegle });
+  logBgFlow("ENSURE_AUTH", "START", { requestId: request.requestId, masterUserId: request.masterUserId, meegleUserKey: request.meegleUserKey, baseUrl, currentTabId: request.currentTabId, currentPageIsMeegle: request.currentPageIsMeegle });
 
   // Validate required fields
-  if (!request.requestId || !request.operatorLarkId) {
+  if (!request.requestId || !request.masterUserId) {
     return {
       status: "failed",
       baseUrl,

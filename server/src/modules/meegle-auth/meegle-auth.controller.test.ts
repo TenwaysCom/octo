@@ -26,7 +26,7 @@ describe("meegle-auth.controller", () => {
 
   it("returns ready when a stored token exists for the current user", async () => {
     await tokenStore.save({
-      operatorLarkId: "ou_xxx",
+      masterUserId: "usr_xxx",
       meegleUserKey: "user_xxx",
       baseUrl: "https://project.larksuite.com",
       pluginToken: "plugin_token_123",
@@ -40,7 +40,7 @@ describe("meegle-auth.controller", () => {
 
     await expect(
       getAuthStatusController({
-        operatorLarkId: "ou_xxx",
+        masterUserId: "usr_xxx",
         meegleUserKey: "user_xxx",
         baseUrl: "https://project.larksuite.com",
       }),
@@ -48,7 +48,7 @@ describe("meegle-auth.controller", () => {
       ok: true,
       data: {
         status: "ready",
-        operatorLarkId: "ou_xxx",
+        masterUserId: "usr_xxx",
         meegleUserKey: "user_xxx",
         baseUrl: "https://project.larksuite.com",
         credentialStatus: "active",
@@ -61,7 +61,7 @@ describe("meegle-auth.controller", () => {
   it("returns require_auth_code when no stored token exists", async () => {
     await expect(
       getAuthStatusController({
-        operatorLarkId: "ou_missing",
+        masterUserId: "usr_missing",
         meegleUserKey: "user_missing",
         baseUrl: "https://project.larksuite.com",
       }),
@@ -69,7 +69,7 @@ describe("meegle-auth.controller", () => {
       ok: true,
       data: {
         status: "require_auth_code",
-        operatorLarkId: "ou_missing",
+        masterUserId: "usr_missing",
         meegleUserKey: "user_missing",
         baseUrl: "https://project.larksuite.com",
         reason: "No stored Meegle token found",
@@ -79,7 +79,7 @@ describe("meegle-auth.controller", () => {
 
   it("returns ready even when the request baseUrl comes from a different page origin", async () => {
     await tokenStore.save({
-      operatorLarkId: "ou_xxx",
+      masterUserId: "usr_xxx",
       meegleUserKey: "user_xxx",
       baseUrl: "https://project.larksuite.com",
       pluginToken: "plugin_token_123",
@@ -93,7 +93,7 @@ describe("meegle-auth.controller", () => {
 
     await expect(
       getAuthStatusController({
-        operatorLarkId: "ou_xxx",
+        masterUserId: "usr_xxx",
         meegleUserKey: "user_xxx",
         baseUrl: "https://meegle.com",
       }),
@@ -101,7 +101,7 @@ describe("meegle-auth.controller", () => {
       ok: true,
       data: {
         status: "ready",
-        operatorLarkId: "ou_xxx",
+        masterUserId: "usr_xxx",
         meegleUserKey: "user_xxx",
         baseUrl: "https://project.larksuite.com",
         credentialStatus: "active",
@@ -111,13 +111,9 @@ describe("meegle-auth.controller", () => {
     });
   });
 
-  it("resolves meegleUserKey from stored identity when status is checked from a Lark page", async () => {
-    await identityStore.save({
-      larkId: "ou_xxx",
-      meegleUserKey: "user_xxx",
-    });
+  it("requires meegleUserKey when status is checked without a bound meegle identity", async () => {
     await tokenStore.save({
-      operatorLarkId: "ou_xxx",
+      masterUserId: "usr_xxx",
       meegleUserKey: "user_xxx",
       baseUrl: "https://project.larksuite.com",
       pluginToken: "plugin_token_123",
@@ -131,19 +127,16 @@ describe("meegle-auth.controller", () => {
 
     await expect(
       getAuthStatusController({
-        operatorLarkId: "ou_xxx",
+        masterUserId: "usr_xxx",
         baseUrl: "https://project.larksuite.com",
       }),
     ).resolves.toEqual({
       ok: true,
       data: {
-        status: "ready",
-        operatorLarkId: "ou_xxx",
-        meegleUserKey: "user_xxx",
+        status: "require_auth_code",
+        masterUserId: "usr_xxx",
         baseUrl: "https://project.larksuite.com",
-        credentialStatus: "active",
-        expiresAt: "2099-03-26T10:30:00.000Z",
-        reason: "Stored Meegle token is available",
+        reason: "Missing meegleUserKey for token lookup",
       },
     });
   });

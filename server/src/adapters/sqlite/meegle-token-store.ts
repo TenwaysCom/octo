@@ -7,7 +7,7 @@ import type {
 import { getSharedDatabase } from "./database.js";
 
 interface StoredCredentialRow {
-  operator_lark_id: string;
+  master_user_id: string;
   meegle_user_key: string;
   base_url: string;
   plugin_token: string;
@@ -28,9 +28,9 @@ export class SqliteMeegleTokenStore implements MeegleTokenStore {
     const existing = this.db.prepare(`
       SELECT last_auth_at, last_refresh_at
       FROM meegle_credential
-      WHERE operator_lark_id = ? AND meegle_user_key = ? AND base_url = ?
+      WHERE master_user_id = ? AND meegle_user_key = ? AND base_url = ?
     `).get(
-      token.operatorLarkId,
+      token.masterUserId,
       token.meegleUserKey,
       token.baseUrl,
     ) as { last_auth_at: string; last_refresh_at: string | null } | undefined;
@@ -41,7 +41,7 @@ export class SqliteMeegleTokenStore implements MeegleTokenStore {
 
     this.db.prepare(`
       INSERT INTO meegle_credential (
-        operator_lark_id,
+        master_user_id,
         meegle_user_key,
         base_url,
         plugin_token,
@@ -55,7 +55,7 @@ export class SqliteMeegleTokenStore implements MeegleTokenStore {
         last_refresh_at,
         updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(operator_lark_id, meegle_user_key, base_url) DO UPDATE SET
+      ON CONFLICT(master_user_id, meegle_user_key, base_url) DO UPDATE SET
         plugin_token = excluded.plugin_token,
         plugin_token_expires_at = excluded.plugin_token_expires_at,
         user_token = excluded.user_token,
@@ -67,7 +67,7 @@ export class SqliteMeegleTokenStore implements MeegleTokenStore {
         last_refresh_at = excluded.last_refresh_at,
         updated_at = excluded.updated_at
     `).run(
-      token.operatorLarkId,
+      token.masterUserId,
       token.meegleUserKey,
       token.baseUrl,
       token.pluginToken,
@@ -88,7 +88,7 @@ export class SqliteMeegleTokenStore implements MeegleTokenStore {
   ): Promise<StoredMeegleToken | undefined> {
     const exactRow = this.db.prepare(`
       SELECT
-        operator_lark_id,
+        master_user_id,
         meegle_user_key,
         base_url,
         plugin_token,
@@ -101,16 +101,16 @@ export class SqliteMeegleTokenStore implements MeegleTokenStore {
         last_auth_at,
         last_refresh_at
       FROM meegle_credential
-      WHERE operator_lark_id = ? AND meegle_user_key = ? AND base_url = ?
+      WHERE master_user_id = ? AND meegle_user_key = ? AND base_url = ?
     `).get(
-      lookup.operatorLarkId,
+      lookup.masterUserId,
       lookup.meegleUserKey,
       lookup.baseUrl,
     ) as StoredCredentialRow | undefined;
 
     const row = exactRow ?? this.db.prepare(`
       SELECT
-        operator_lark_id,
+        master_user_id,
         meegle_user_key,
         base_url,
         plugin_token,
@@ -123,11 +123,11 @@ export class SqliteMeegleTokenStore implements MeegleTokenStore {
         last_auth_at,
         last_refresh_at
       FROM meegle_credential
-      WHERE operator_lark_id = ? AND meegle_user_key = ?
+      WHERE master_user_id = ? AND meegle_user_key = ?
       ORDER BY updated_at DESC
       LIMIT 1
     `).get(
-      lookup.operatorLarkId,
+      lookup.masterUserId,
       lookup.meegleUserKey,
     ) as StoredCredentialRow | undefined;
 
@@ -136,7 +136,7 @@ export class SqliteMeegleTokenStore implements MeegleTokenStore {
     }
 
     return {
-      operatorLarkId: row.operator_lark_id,
+      masterUserId: row.master_user_id,
       meegleUserKey: row.meegle_user_key,
       baseUrl: row.base_url,
       pluginToken: row.plugin_token,
@@ -152,9 +152,9 @@ export class SqliteMeegleTokenStore implements MeegleTokenStore {
   async delete(lookup: MeegleTokenLookup): Promise<void> {
     this.db.prepare(`
       DELETE FROM meegle_credential
-      WHERE operator_lark_id = ? AND meegle_user_key = ? AND base_url = ?
+      WHERE master_user_id = ? AND meegle_user_key = ? AND base_url = ?
     `).run(
-      lookup.operatorLarkId,
+      lookup.masterUserId,
       lookup.meegleUserKey,
       lookup.baseUrl,
     );
