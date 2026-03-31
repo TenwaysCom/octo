@@ -384,11 +384,12 @@ create table user_tokens (
   - `/api/lark/auth/status`
 - `Meegle` 已经有独立 token store
 - `resolve` 已经开始落到 `users` 主表
-- `Meegle auth exchange/status` 已经开始联动 `users + meegle_credential`
+- `Meegle auth exchange/status` 已经开始联动 `users + user_tokens`
 
 当前数据库和接口现状：
 
-- `meegle_credential`
+- `user_tokens`
+  - 当前已承载 `provider=meegle`
   - 已经改为以 `master_user_id + meegle_user_key + base_url` 为主键
 - `users`
   - 已经承载 `master_user_id`
@@ -400,7 +401,7 @@ create table user_tokens (
 
 - `user_tokens`
   - 物理表名还没有统一成通用 `user_tokens`
-  - 当前 `Meegle` 仍使用专用表 `meegle_credential`
+  - 当前只接入了 `provider=meegle`
 - `Lark` 侧仍在旧身份模型向新模型迁移中
 
 ## 11. 授权和 resolve 的整体机制图

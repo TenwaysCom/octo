@@ -8,7 +8,8 @@ import { getSharedDatabase } from "./database.js";
 
 interface StoredCredentialRow {
   master_user_id: string;
-  meegle_user_key: string;
+  provider: string;
+  external_user_key: string;
   base_url: string;
   plugin_token: string;
   plugin_token_expires_at: string | null;
@@ -27,8 +28,8 @@ export class SqliteMeegleTokenStore implements MeegleTokenStore {
   async save(token: StoredMeegleToken): Promise<void> {
     const existing = this.db.prepare(`
       SELECT last_auth_at, last_refresh_at
-      FROM meegle_credential
-      WHERE master_user_id = ? AND meegle_user_key = ? AND base_url = ?
+      FROM user_tokens
+      WHERE master_user_id = ? AND provider = 'meegle' AND external_user_key = ? AND base_url = ?
     `).get(
       token.masterUserId,
       token.meegleUserKey,
@@ -40,9 +41,10 @@ export class SqliteMeegleTokenStore implements MeegleTokenStore {
     const lastRefreshAt = existing ? now : null;
 
     this.db.prepare(`
-      INSERT INTO meegle_credential (
+      INSERT INTO user_tokens (
         master_user_id,
-        meegle_user_key,
+        provider,
+        external_user_key,
         base_url,
         plugin_token,
         plugin_token_expires_at,
@@ -54,8 +56,8 @@ export class SqliteMeegleTokenStore implements MeegleTokenStore {
         last_auth_at,
         last_refresh_at,
         updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(master_user_id, meegle_user_key, base_url) DO UPDATE SET
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(master_user_id, provider, external_user_key, base_url) DO UPDATE SET
         plugin_token = excluded.plugin_token,
         plugin_token_expires_at = excluded.plugin_token_expires_at,
         user_token = excluded.user_token,
@@ -68,6 +70,7 @@ export class SqliteMeegleTokenStore implements MeegleTokenStore {
         updated_at = excluded.updated_at
     `).run(
       token.masterUserId,
+      "meegle",
       token.meegleUserKey,
       token.baseUrl,
       token.pluginToken,
@@ -89,7 +92,8 @@ export class SqliteMeegleTokenStore implements MeegleTokenStore {
     const exactRow = this.db.prepare(`
       SELECT
         master_user_id,
-        meegle_user_key,
+        provider,
+        external_user_key,
         base_url,
         plugin_token,
         plugin_token_expires_at,
@@ -100,8 +104,8 @@ export class SqliteMeegleTokenStore implements MeegleTokenStore {
         credential_status,
         last_auth_at,
         last_refresh_at
-      FROM meegle_credential
-      WHERE master_user_id = ? AND meegle_user_key = ? AND base_url = ?
+      FROM user_tokens
+      WHERE master_user_id = ? AND provider = 'meegle' AND external_user_key = ? AND base_url = ?
     `).get(
       lookup.masterUserId,
       lookup.meegleUserKey,
@@ -111,7 +115,8 @@ export class SqliteMeegleTokenStore implements MeegleTokenStore {
     const row = exactRow ?? this.db.prepare(`
       SELECT
         master_user_id,
-        meegle_user_key,
+        provider,
+        external_user_key,
         base_url,
         plugin_token,
         plugin_token_expires_at,
@@ -122,8 +127,8 @@ export class SqliteMeegleTokenStore implements MeegleTokenStore {
         credential_status,
         last_auth_at,
         last_refresh_at
-      FROM meegle_credential
-      WHERE master_user_id = ? AND meegle_user_key = ?
+      FROM user_tokens
+      WHERE master_user_id = ? AND provider = 'meegle' AND external_user_key = ?
       ORDER BY updated_at DESC
       LIMIT 1
     `).get(
@@ -137,7 +142,7 @@ export class SqliteMeegleTokenStore implements MeegleTokenStore {
 
     return {
       masterUserId: row.master_user_id,
-      meegleUserKey: row.meegle_user_key,
+      meegleUserKey: row.external_user_key,
       baseUrl: row.base_url,
       pluginToken: row.plugin_token,
       pluginTokenExpiresAt: row.plugin_token_expires_at ?? undefined,
@@ -151,8 +156,8 @@ export class SqliteMeegleTokenStore implements MeegleTokenStore {
 
   async delete(lookup: MeegleTokenLookup): Promise<void> {
     this.db.prepare(`
-      DELETE FROM meegle_credential
-      WHERE master_user_id = ? AND meegle_user_key = ? AND base_url = ?
+      DELETE FROM user_tokens
+      WHERE master_user_id = ? AND provider = 'meegle' AND external_user_key = ? AND base_url = ?
     `).run(
       lookup.masterUserId,
       lookup.meegleUserKey,
