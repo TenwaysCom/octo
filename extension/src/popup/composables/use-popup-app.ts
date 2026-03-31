@@ -408,6 +408,27 @@ export function usePopupApp() {
     activePage.value = "home";
   }
 
+  async function fetchMeegleUserKey() {
+    if (state.pageType !== "meegle" || state.currentTabId == null) {
+      appendLog("warn", "当前标签页不是 Meegle 页面，无法自动获取 User Key");
+      return;
+    }
+
+    const identity = await requestMeegleUserIdentity(
+      state.currentTabId,
+      state.currentUrl ?? undefined,
+    );
+
+    if (!identity?.userKey) {
+      appendLog("warn", "未能从当前页面获取 Meegle User Key");
+      return;
+    }
+
+    state.identity.meegleUserKey = identity.userKey;
+    settingsForm.meegleUserKey = identity.userKey;
+    appendLog("success", `已获取 Meegle User Key: ${identity.userKey}`);
+  }
+
   async function saveSettingsForm() {
     await savePopupSettings({ ...settingsForm });
     settingsSnapshot = { ...settingsForm };
@@ -528,6 +549,7 @@ export function usePopupApp() {
     authorizeLark,
     openSettings,
     closeSettings,
+    fetchMeegleUserKey,
     saveSettingsForm,
     clearLogs,
     runFeatureAction,

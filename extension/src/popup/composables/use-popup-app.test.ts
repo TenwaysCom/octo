@@ -269,6 +269,39 @@ describe("usePopupApp notebook state", () => {
     );
   });
 
+  it("fills the settings form from the current meegle page when requested manually", async () => {
+    runtimeMock.queryActiveTabContext.mockResolvedValue({
+      id: 12,
+      url: "https://project.larksuite.com/4c3fv6/overview",
+      origin: "https://project.larksuite.com",
+      pageType: "meegle",
+    });
+    runtimeMock.requestLarkUserId.mockResolvedValue(undefined);
+    runtimeMock.requestMeegleUserIdentity
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce({
+        userKey: "user_from_cookie",
+      });
+
+    const popup = usePopupApp();
+    await popup.initialize();
+
+    popup.openSettings();
+    popup.settingsForm.meegleUserKey = "";
+
+    await popup.fetchMeegleUserKey();
+
+    expect(runtimeMock.requestMeegleUserIdentity).toHaveBeenLastCalledWith(
+      12,
+      "https://project.larksuite.com/4c3fv6/overview",
+    );
+    expect(popup.settingsForm.meegleUserKey).toBe("user_from_cookie");
+    expect(popup.state.identity.meegleUserKey).toBe("user_from_cookie");
+    expect(
+      popup.logs.value.some((entry) => entry.message.includes("已获取 Meegle User Key")),
+    ).toBe(true);
+  });
+
   it("blocks meegle auth when resolve reports an identity conflict", async () => {
     runtimeMock.queryActiveTabContext.mockResolvedValue({
       id: 12,
