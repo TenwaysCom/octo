@@ -13,7 +13,7 @@ describe("popup meegle auth", () => {
         currentTabOrigin: "https://meegle.com",
         authBaseUrl: "https://project.larksuite.com",
         currentPageType: "meegle",
-        larkId: "ou_xxx",
+        masterUserId: "usr_xxx",
         meegleUserKey: undefined,
       }),
     ).toMatchObject({
@@ -21,7 +21,7 @@ describe("popup meegle auth", () => {
       baseUrl: "https://project.larksuite.com",
       pageOrigin: "https://meegle.com",
       currentPageIsMeegle: true,
-      operatorLarkId: "ou_xxx",
+      masterUserId: "usr_xxx",
     });
   });
 
@@ -49,7 +49,7 @@ describe("popup meegle auth", () => {
         currentTabId: 42,
         currentTabOrigin: "https://tenant.meegle.com",
         currentPageType: "meegle",
-        larkId: "ou_xxx",
+        masterUserId: "usr_xxx",
       }),
     ).resolves.toBe(true);
 
@@ -84,7 +84,7 @@ describe("popup meegle auth", () => {
         currentTabId: 42,
         currentTabOrigin: "https://tenant.meegle.com",
         currentPageType: "meegle",
-        larkId: "ou_xxx",
+        masterUserId: "usr_xxx",
       }),
     ).resolves.toBe(true);
 
@@ -136,7 +136,7 @@ describe("popup meegle auth", () => {
         currentTabId: 7,
         currentTabOrigin: "https://www.larksuite.com",
         currentPageType: "lark",
-        larkId: "ou_xxx",
+        masterUserId: "usr_xxx",
       }),
     ).resolves.toBe(false);
 
@@ -167,7 +167,7 @@ describe("popup meegle auth", () => {
         currentTabId: 42,
         currentTabOrigin: "https://tenant.meegle.com",
         currentPageType: "meegle",
-        larkId: "ou_xxx",
+        masterUserId: "usr_xxx",
       }),
     ).resolves.toBe(false);
 
@@ -200,7 +200,7 @@ describe("popup meegle auth", () => {
         currentTabId: 42,
         currentTabOrigin: "https://tenant.meegle.com",
         currentPageType: "meegle",
-        larkId: "ou_xxx",
+        masterUserId: "usr_xxx",
       }),
     ).resolves.toBe(false);
 
@@ -235,7 +235,7 @@ describe("popup meegle auth", () => {
         currentTabId: 42,
         currentTabOrigin: "https://tenant.meegle.com",
         currentPageType: "meegle",
-        larkId: "ou_xxx",
+        masterUserId: "usr_xxx",
       }),
     ).resolves.toBe(false);
 
@@ -266,7 +266,7 @@ describe("popup meegle auth", () => {
         currentTabId: 42,
         currentTabOrigin: "https://tenant.meegle.com",
         currentPageType: "meegle",
-        larkId: "ou_xxx",
+        masterUserId: "usr_xxx",
       }),
     ).resolves.toBe(false);
 
@@ -298,7 +298,7 @@ describe("popup meegle auth", () => {
         currentTabId: 42,
         currentTabOrigin: "https://tenant.meegle.com",
         currentPageType: "meegle",
-        larkId: "ou_xxx",
+        masterUserId: "usr_xxx",
       }),
     ).resolves.toBe(false);
 

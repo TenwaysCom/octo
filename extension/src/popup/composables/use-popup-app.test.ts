@@ -5,11 +5,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const runtimeMock = vi.hoisted(() => ({
   getConfig: vi.fn(),
   loadPopupSettings: vi.fn(),
+  loadResolvedIdentity: vi.fn(),
   queryActiveTabContext: vi.fn(),
   requestLarkUserId: vi.fn(),
   requestMeegleUserIdentity: vi.fn(),
+  resolveIdentityRequest: vi.fn(),
   runLarkAuthRequest: vi.fn(),
   runMeegleAuthRequest: vi.fn(),
+  saveResolvedIdentity: vi.fn(),
   savePopupSettings: vi.fn(),
 }));
 
@@ -20,9 +23,16 @@ const meegleAuthControllerMock = vi.hoisted(() => ({
 
 vi.mock("../runtime.js", () => runtimeMock);
 
-vi.mock("../meegle-auth.js", () => ({
-  createMeegleAuthController: vi.fn(() => meegleAuthControllerMock),
-}));
+vi.mock("../meegle-auth.js", async () => {
+  const actual = await vi.importActual<typeof import("../meegle-auth.js")>(
+    "../meegle-auth.js",
+  );
+
+  return {
+    ...actual,
+    createMeegleAuthController: vi.fn(() => meegleAuthControllerMock),
+  };
+});
 
 import { usePopupApp } from "./use-popup-app";
 
@@ -61,6 +71,14 @@ describe("usePopupApp notebook state", () => {
     });
     runtimeMock.requestLarkUserId.mockResolvedValue("ou_user");
     runtimeMock.requestMeegleUserIdentity.mockResolvedValue(undefined);
+    runtimeMock.loadResolvedIdentity.mockResolvedValue(undefined);
+    runtimeMock.resolveIdentityRequest.mockResolvedValue({
+      ok: true,
+      data: {
+        masterUserId: "usr_resolved",
+        identityStatus: "active",
+      },
+    });
     runtimeMock.runLarkAuthRequest.mockResolvedValue({
       status: "ready",
       baseUrl: "https://open.larksuite.com",
@@ -71,6 +89,7 @@ describe("usePopupApp notebook state", () => {
       baseUrl: "https://project.larksuite.com",
       credentialStatus: "active",
     });
+    runtimeMock.saveResolvedIdentity.mockResolvedValue(undefined);
     runtimeMock.savePopupSettings.mockResolvedValue(undefined);
 
     meegleAuthControllerMock.run.mockResolvedValue(true);
@@ -152,77 +171,36 @@ describe("usePopupApp notebook state", () => {
     await initializePromise;
   });
 
-  it("applies the Meegle ready state before the Lark auth check finishes", async () => {
-    const meegleStatusRequest = createDeferred<Response>();
-    const larkStatusRequest = createDeferred<{
-      status: string;
+  it("updates meegle auth state before lark auth finishes", async () => {
+    const larkAuthRequest = createDeferred<{
+      status: "ready";
       baseUrl: string;
-      tokenStatus?: string;
+      tokenStatus: "ready";
     }>();
-    vi.mocked(globalThis.fetch).mockReturnValue(meegleStatusRequest.promise);
-    runtimeMock.runLarkAuthRequest.mockReturnValue(larkStatusRequest.promise);
+    runtimeMock.runLarkAuthRequest.mockReturnValueOnce(larkAuthRequest.promise);
 
     const popup = usePopupApp();
     const initializePromise = popup.initialize();
 
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(popup.topMeegleButtonText.value).toBe("授权");
     await vi.waitFor(() => {
-      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
-      expect(runtimeMock.runLarkAuthRequest).toHaveBeenCalledTimes(1);
+      expect(popup.state.meegleAuth?.status).toBe("ready");
+      expect(popup.state.isAuthed.meegle).toBe(true);
+      expect(popup.topMeegleButtonText.value).toBe("已授权");
+      expect(popup.meegleStatus.value.text).toContain("已授权");
     });
 
-    meegleStatusRequest.resolve({
-      ok: true,
-      json: async () => ({
-        data: {
-          status: "ready",
-          baseUrl: "https://project.larksuite.com",
-          credentialStatus: "active",
-        },
-      }),
-    } as Response);
-
-    await vi.waitFor(() => {
-      expect(popup.meegleStatus.value.text).toBe("已授权");
-    });
-    expect(popup.topMeegleButtonDisabled.value).toBe(true);
-
-    larkStatusRequest.resolve({
-      status: "failed",
+    larkAuthRequest.resolve({
+      status: "ready",
       baseUrl: "https://open.larksuite.com",
-      tokenStatus: "missing",
+      tokenStatus: "ready",
     });
 
     await initializePromise;
-  });
-
-  it("uses the canonical Meegle auth base when the current tab is meegle.com", async () => {
-    runtimeMock.queryActiveTabContext.mockResolvedValue({
-      id: 12,
-      url: "https://meegle.com/work_item/123",
-      origin: "https://meegle.com",
-      pageType: "meegle",
-      authBaseUrl: "https://project.larksuite.com",
-    });
-    runtimeMock.requestLarkUserId.mockResolvedValue(undefined);
-    runtimeMock.requestMeegleUserIdentity.mockResolvedValue({
-      userKey: "7538275242901291040",
-    });
-
-    const popup = usePopupApp();
-
-    await popup.initialize();
-
-    expect(globalThis.fetch).toHaveBeenCalledWith(
-      "http://localhost:3000/api/meegle/auth/status",
-      expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify({
-          operatorLarkId: "ou_user",
-          meegleUserKey: "7538275242901291040",
-          baseUrl: "https://project.larksuite.com",
-        }),
-      }),
-    );
   });
 
   it("clears the scanning state when initialization fails", async () => {
@@ -236,8 +214,90 @@ describe("usePopupApp notebook state", () => {
 
     expect(popup.isLoading.value).toBe(false);
     expect(popup.headerSubtitle.value).toBe("Lark");
-    expect(popup.logs.value[popup.logs.value.length - 1]?.message).toContain(
-      "background offline",
+    expect(
+      popup.logs.value.some((entry) => entry.message.includes("background offline")),
+    ).toBe(true);
+  });
+
+  it("resolves and caches masterUserId during initialization", async () => {
+    const popup = usePopupApp();
+
+    await popup.initialize();
+
+    expect(runtimeMock.resolveIdentityRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operatorLarkId: "ou_user",
+        meegleUserKey: "7538275242901291040",
+      }),
     );
+    expect(runtimeMock.saveResolvedIdentity).toHaveBeenCalledWith(
+      "usr_resolved",
+    );
+    expect(popup.state.identity.masterUserId).toBe("usr_resolved");
+  });
+
+  it("resolves masterUserId before running meegle auth", async () => {
+    runtimeMock.queryActiveTabContext.mockResolvedValue({
+      id: 12,
+      url: "https://project.larksuite.com/wiki/test",
+      origin: "https://project.larksuite.com",
+      pageType: "meegle",
+    });
+    runtimeMock.requestLarkUserId.mockResolvedValue(undefined);
+    runtimeMock.requestMeegleUserIdentity.mockResolvedValue({
+      userKey: "user_from_page",
+    });
+
+    const popup = usePopupApp();
+    await popup.initialize();
+
+    meegleAuthControllerMock.run.mockClear();
+    runtimeMock.resolveIdentityRequest.mockClear();
+
+    await popup.authorizeMeegle();
+
+    expect(runtimeMock.resolveIdentityRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        meegleUserKey: "user_from_page",
+      }),
+    );
+    expect(meegleAuthControllerMock.run).toHaveBeenCalledWith(
+      expect.objectContaining({
+        masterUserId: "usr_resolved",
+        meegleUserKey: "user_from_page",
+      }),
+    );
+  });
+
+  it("blocks meegle auth when resolve reports an identity conflict", async () => {
+    runtimeMock.queryActiveTabContext.mockResolvedValue({
+      id: 12,
+      url: "https://project.larksuite.com/wiki/test",
+      origin: "https://project.larksuite.com",
+      pageType: "meegle",
+    });
+    runtimeMock.requestLarkUserId.mockResolvedValue(undefined);
+    runtimeMock.requestMeegleUserIdentity.mockResolvedValue({
+      userKey: "user_from_page",
+    });
+
+    const popup = usePopupApp();
+    await popup.initialize();
+
+    meegleAuthControllerMock.run.mockClear();
+    runtimeMock.resolveIdentityRequest.mockClear();
+    runtimeMock.resolveIdentityRequest.mockResolvedValue({
+      ok: true,
+      data: {
+        masterUserId: "usr_conflict",
+        identityStatus: "conflict",
+      },
+    });
+
+    await popup.authorizeMeegle();
+
+    expect(meegleAuthControllerMock.run).not.toHaveBeenCalled();
+    expect(popup.state.identity.masterUserId).toBeNull();
+    expect(popup.logs.value.some((entry) => entry.message.includes("账号冲突"))).toBe(true);
   });
 });

@@ -43,11 +43,11 @@ describe("meegle-credential.service", () => {
 
     mockTokenStore = {
       save: vi.fn(async (token: StoredMeegleToken) => {
-        const key = `${token.operatorLarkId}:${token.meegleUserKey}:${token.baseUrl}`;
+        const key = `${token.masterUserId}:${token.meegleUserKey}:${token.baseUrl}`;
         storedTokens.set(key, token);
       }),
       get: vi.fn(async (lookup) => {
-        const key = `${lookup.operatorLarkId}:${lookup.meegleUserKey}:${lookup.baseUrl}`;
+        const key = `${lookup.masterUserId}:${lookup.meegleUserKey}:${lookup.baseUrl}`;
         const exact = storedTokens.get(key);
         if (exact) {
           return exact;
@@ -55,7 +55,7 @@ describe("meegle-credential.service", () => {
 
         for (const token of storedTokens.values()) {
           if (
-            token.operatorLarkId === lookup.operatorLarkId &&
+            token.masterUserId === lookup.masterUserId &&
             token.meegleUserKey === lookup.meegleUserKey
           ) {
             return token;
@@ -65,7 +65,7 @@ describe("meegle-credential.service", () => {
         return undefined;
       }),
       delete: vi.fn(async (lookup) => {
-        const key = `${lookup.operatorLarkId}:${lookup.meegleUserKey}:${lookup.baseUrl}`;
+        const key = `${lookup.masterUserId}:${lookup.meegleUserKey}:${lookup.baseUrl}`;
         storedTokens.delete(key);
       }),
     };
@@ -85,7 +85,7 @@ describe("meegle-credential.service", () => {
     it("should exchange auth code for token and store it", async () => {
       const input: CredentialExchangeInput = {
         requestId: "req_001",
-        operatorLarkId: "ou_xxx",
+        masterUserId: "usr_xxx",
         meegleUserKey: "user_xxx",
         baseUrl: "https://project.larksuite.com",
         authCode: "auth_code_123",
@@ -151,7 +151,7 @@ describe("meegle-credential.service", () => {
 
       const input: CredentialExchangeInput = {
         requestId: "req_001",
-        operatorLarkId: "ou_xxx",
+        masterUserId: "usr_xxx",
         meegleUserKey: "user_xxx",
         baseUrl: "https://project.larksuite.com",
         authCode: "auth_code_123",
@@ -162,7 +162,7 @@ describe("meegle-credential.service", () => {
         "[Tenways Octo] Meegle credential exchange failed:",
         expect.objectContaining({
           requestId: "req_001",
-          operatorLarkId: "ou_xxx",
+          masterUserId: "usr_xxx",
           meegleUserKey: "user_xxx",
           baseUrl: "https://project.larksuite.com",
           stage: "get_plugin_token",
@@ -175,7 +175,7 @@ describe("meegle-credential.service", () => {
   describe("refreshCredential", () => {
     it("should reuse stored token when it is still valid", async () => {
       const storedToken: StoredMeegleToken = {
-        operatorLarkId: "ou_xxx",
+        masterUserId: "usr_xxx",
         meegleUserKey: "user_xxx",
         baseUrl: "https://project.larksuite.com",
         pluginToken: "plugin_token_123",
@@ -190,7 +190,7 @@ describe("meegle-credential.service", () => {
 
       const result = await refreshCredential(
         {
-          operatorLarkId: "ou_xxx",
+          masterUserId: "usr_xxx",
           meegleUserKey: "user_xxx",
           baseUrl: "https://project.larksuite.com",
         },
@@ -206,7 +206,7 @@ describe("meegle-credential.service", () => {
 
     it("should reuse a stored token even when the requested baseUrl comes from a different page origin", async () => {
       const storedToken: StoredMeegleToken = {
-        operatorLarkId: "ou_xxx",
+        masterUserId: "usr_xxx",
         meegleUserKey: "user_xxx",
         baseUrl: "https://project.larksuite.com",
         pluginToken: "plugin_token_123",
@@ -221,7 +221,7 @@ describe("meegle-credential.service", () => {
 
       const result = await refreshCredential(
         {
-          operatorLarkId: "ou_xxx",
+          masterUserId: "usr_xxx",
           meegleUserKey: "user_xxx",
           baseUrl: "https://meegle.com",
         },
@@ -236,7 +236,7 @@ describe("meegle-credential.service", () => {
 
     it("should refresh token when stored user token is expired", async () => {
       const storedToken: StoredMeegleToken = {
-        operatorLarkId: "ou_xxx",
+        masterUserId: "usr_xxx",
         meegleUserKey: "user_xxx",
         baseUrl: "https://project.larksuite.com",
         pluginToken: "stale_plugin_token",
@@ -251,7 +251,7 @@ describe("meegle-credential.service", () => {
 
       const result = await refreshCredential(
         {
-          operatorLarkId: "ou_xxx",
+          masterUserId: "usr_xxx",
           meegleUserKey: "user_xxx",
           baseUrl: "https://project.larksuite.com",
         },
@@ -319,7 +319,7 @@ describe("meegle-credential.service", () => {
     it("should return require_auth_code when no stored token", async () => {
       const result = await refreshCredential(
         {
-          operatorLarkId: "ou_unknown",
+          masterUserId: "usr_unknown",
           meegleUserKey: "user_unknown",
           baseUrl: "https://project.larksuite.com",
         },
@@ -332,7 +332,7 @@ describe("meegle-credential.service", () => {
     it("should return require_auth_code when refresh fails", async () => {
       // Store a token
       const storedToken: StoredMeegleToken = {
-        operatorLarkId: "ou_xxx",
+        masterUserId: "usr_xxx",
         meegleUserKey: "user_xxx",
         baseUrl: "https://project.larksuite.com",
         pluginToken: "plugin_token_123",
@@ -350,7 +350,7 @@ describe("meegle-credential.service", () => {
 
       const result = await refreshCredential(
         {
-          operatorLarkId: "ou_xxx",
+          masterUserId: "usr_xxx",
           meegleUserKey: "user_xxx",
           baseUrl: "https://project.larksuite.com",
         },
@@ -363,7 +363,7 @@ describe("meegle-credential.service", () => {
 
     it("should return require_auth_code when refresh token is expired", async () => {
       const storedToken: StoredMeegleToken = {
-        operatorLarkId: "ou_xxx",
+        masterUserId: "usr_xxx",
         meegleUserKey: "user_xxx",
         baseUrl: "https://project.larksuite.com",
         pluginToken: "plugin_token_123",
@@ -378,7 +378,7 @@ describe("meegle-credential.service", () => {
 
       const result = await refreshCredential(
         {
-          operatorLarkId: "ou_xxx",
+          masterUserId: "usr_xxx",
           meegleUserKey: "user_xxx",
           baseUrl: "https://project.larksuite.com",
         },
@@ -388,7 +388,7 @@ describe("meegle-credential.service", () => {
       expect(result.tokenStatus).toBe("require_auth_code");
       expect(mockAuthAdapter.refreshUserToken).not.toHaveBeenCalled();
       expect(mockTokenStore.delete).toHaveBeenCalledWith({
-        operatorLarkId: "ou_xxx",
+        masterUserId: "usr_xxx",
         meegleUserKey: "user_xxx",
         baseUrl: "https://project.larksuite.com",
       });

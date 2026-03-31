@@ -35,7 +35,7 @@ describe("meegle-auth handler", () => {
       const result = await ensureMeegleAuth(
         {
           requestId: "req_001",
-          operatorLarkId: "ou_xxx",
+          masterUserId: "usr_xxx",
           meegleUserKey: "user_xxx",
           currentTabId: 12,
           currentPageIsMeegle: true,
@@ -52,7 +52,7 @@ describe("meegle-auth handler", () => {
       const result = await ensureMeegleAuth(
         {
           requestId: "req_001",
-          // missing operatorLarkId and meegleUserKey
+          // missing masterUserId and meegleUserKey
         },
         deps,
       );
@@ -67,7 +67,7 @@ describe("meegle-auth handler", () => {
       const result = await ensureMeegleAuth(
         {
           requestId: "req_001",
-          operatorLarkId: "ou_xxx",
+          masterUserId: "usr_xxx",
           meegleUserKey: "user_xxx",
           baseUrl: "https://project.larksuite.com",
         },
@@ -84,7 +84,7 @@ describe("meegle-auth handler", () => {
       const result = await ensureMeegleAuth(
         {
           requestId: "req_001",
-          operatorLarkId: "ou_xxx",
+          masterUserId: "usr_xxx",
           currentTabId: 12,
           currentPageIsMeegle: true,
           baseUrl: "https://project.larksuite.com",
@@ -118,7 +118,7 @@ describe("meegle-auth handler", () => {
       const result = await ensureMeegleAuth(
         {
           requestId: "req_001",
-          operatorLarkId: "ou_xxx",
+          masterUserId: "usr_xxx",
           meegleUserKey: "user_xxx",
           currentTabId: 12,
           currentPageIsMeegle: true,
@@ -134,7 +134,7 @@ describe("meegle-auth handler", () => {
       expect(deps.exchangeAuthCodeWithServer).toHaveBeenCalledWith(
         expect.objectContaining({
           requestId: "req_001",
-          operatorLarkId: "ou_xxx",
+          masterUserId: "usr_xxx",
           meegleUserKey: "user_xxx",
           baseUrl: "https://project.larksuite.com",
           state: "state_456",
@@ -155,7 +155,7 @@ describe("meegle-auth handler", () => {
       const result = await ensureMeegleAuth(
         {
           requestId: "req_001",
-          operatorLarkId: "ou_xxx",
+          masterUserId: "usr_xxx",
           meegleUserKey: "user_xxx",
           currentTabId: 12,
           currentPageIsMeegle: true,
@@ -190,7 +190,7 @@ describe("meegle-auth handler", () => {
       const result = await ensureMeegleAuth(
         {
           requestId: "req_001",
-          operatorLarkId: "ou_xxx",
+          masterUserId: "usr_xxx",
           meegleUserKey: "user_xxx",
           currentTabId: 12,
           currentPageIsMeegle: true,
@@ -226,7 +226,7 @@ describe("meegle-auth handler", () => {
       const result = await ensureMeegleAuth(
         {
           requestId: "req_001",
-          operatorLarkId: "ou_xxx",
+          masterUserId: "usr_xxx",
           meegleUserKey: "user_xxx",
           currentTabId: 12,
           currentPageIsMeegle: true,
@@ -255,7 +255,7 @@ describe("meegle-auth handler", () => {
       const result = await ensureMeegleAuth(
         {
           requestId: "req_001",
-          operatorLarkId: "ou_xxx",
+          masterUserId: "usr_xxx",
           meegleUserKey: "user_xxx",
           currentTabId: 12,
           currentPageIsMeegle: true,
@@ -276,7 +276,7 @@ describe("meegle-auth handler", () => {
       const result = await ensureMeegleAuth(
         {
           requestId: "req_001",
-          operatorLarkId: "ou_xxx",
+          masterUserId: "usr_xxx",
           meegleUserKey: "user_xxx",
           currentTabId: 12,
           currentPageIsMeegle: true,
@@ -294,7 +294,7 @@ describe("meegle-auth handler", () => {
       const result = await ensureMeegleAuth(
         {
           requestId: "req_001",
-          operatorLarkId: "ou_xxx",
+          masterUserId: "usr_xxx",
           currentTabId: 12,
           currentPageIsMeegle: false,
           baseUrl: "https://www.larksuite.com",
@@ -319,7 +319,7 @@ describe("meegle-auth handler", () => {
       const result = await ensureMeegleAuth(
         {
           requestId: "req_001",
-          operatorLarkId: "ou_xxx",
+          masterUserId: "usr_xxx",
           currentTabId: 12,
           currentPageIsMeegle: true,
           baseUrl: "https://tenant.meegle.com",
@@ -342,7 +342,7 @@ describe("meegle-auth handler", () => {
       const result = await ensureMeegleAuth(
         {
           requestId: "req_001",
-          operatorLarkId: "ou_xxx",
+          masterUserId: "usr_xxx",
           currentTabId: 12,
           currentPageIsMeegle: true,
           meegleUserKey: "user_xxx",
@@ -371,7 +371,7 @@ describe("meegle-auth handler", () => {
       const result = await ensureMeegleAuth(
         {
           requestId: "req_001",
-          operatorLarkId: "ou_xxx",
+          masterUserId: "usr_xxx",
           currentTabId: 12,
           currentPageIsMeegle: true,
           baseUrl: "https://tenant.meegle.com",

@@ -1,13 +1,13 @@
 import { z } from "zod";
 
 const baseAuthSchema = z.object({
-  operatorLarkId: z.string().min(1),
+  masterUserId: z.string().min(1),
   meegleUserKey: z.string().min(1),
   baseUrl: z.string().url(),
 });
 
 const baseGetAuthCodeSchema = z.object({
-  operatorLarkId: z.string().min(1),
+  masterUserId: z.string().min(1),
   meegleUserKey: z.string().min(1),
   baseUrl: z.string().url().optional(),
   cookie: z.string().min(1),
@@ -15,7 +15,7 @@ const baseGetAuthCodeSchema = z.object({
 
 // Auth status request schema
 export const meegleAuthStatusRequestSchema = z.object({
-  operatorLarkId: z.string().min(1),
+  masterUserId: z.string().min(1),
   meegleUserKey: z.string().min(1).optional(),
   baseUrl: z.string().url().optional(),
 });

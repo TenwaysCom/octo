@@ -51,7 +51,8 @@ npm start
 
 ### 2. 配置服务端地址
 
-编辑 `src/popup.html` 中的 `SERVER_URL` 变量（如需要修改默认地址）。
+扩展 popup 已迁移到 WXT + Vue 入口。
+如需要修改默认服务端地址，请调整 `src/popup/runtime.ts` 里的默认配置，或通过 popup 设置页覆盖。
 
 ### 3. 使用流程
 
@@ -98,7 +99,11 @@ extension/
 │   ├── content-scripts/
 │   │   ├── lark.ts        # Lark 页面脚本
 │   │   └── meegle.ts      # Meegle 页面脚本
-│   └── popup.html         # Popup 界面
+│   ├── entrypoints/
+│   │   └── popup.html     # WXT popup 入口
+│   └── popup/
+│       ├── main.ts        # Vue popup 挂载入口
+│       └── App.vue        # Popup 界面
 ├── tests/
 │   ├── e2e/
 │   │   └── auth-bridge.test.ts

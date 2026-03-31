@@ -3,16 +3,20 @@ import type { LarkAuthEnsureResponse } from "../../types/lark.js";
 import type { MeegleAuthEnsureResponse } from "../../types/meegle.js";
 import {
   createMeegleAuthController,
+  resolveMeegleStatusDisplay,
   type PopupMeegleAuthLog,
 } from "../meegle-auth.js";
 import {
   getConfig,
   loadPopupSettings,
+  loadResolvedIdentity,
   queryActiveTabContext,
   requestLarkUserId,
   requestMeegleUserIdentity,
+  resolveIdentityRequest,
   runLarkAuthRequest,
   runMeegleAuthRequest,
+  saveResolvedIdentity,
   savePopupSettings,
 } from "../runtime.js";
 import type {
@@ -34,6 +38,7 @@ import {
 } from "../../platform-url.js";
 
 interface PopupIdentityState {
+  masterUserId: string | null;
   larkId: string | null;
   meegleUserKey: string | null;
 }
@@ -64,6 +69,7 @@ export function usePopupApp() {
     currentUrl: null as string | null,
     identity: {
       larkId: null,
+      masterUserId: null,
       meegleUserKey: null,
     } as PopupIdentityState,
     isAuthed: {
@@ -125,7 +131,7 @@ export function usePopupApp() {
   });
   const settingsOpen = computed(() => activePage.value === "settings");
   const meegleStatus = computed(() =>
-    resolveStatusChip(state.isAuthed.meegle, state.identity.meegleUserKey),
+    resolveMeegleStatusChip(state.meegleAuth, state.identity.meegleUserKey),
   );
   const larkStatus = computed(() =>
     resolveStatusChip(state.isAuthed.lark, state.identity.larkId),
@@ -174,6 +180,7 @@ export function usePopupApp() {
       syncSettingsForm(settings);
       settingsSnapshot = { ...settings };
       hydrateIdentityFromSettings(settings);
+      state.identity.masterUserId = await loadResolvedIdentity() ?? null;
 
       const tabContext = await queryActiveTabContext();
       state.currentTabId = tabContext.id;
@@ -201,6 +208,8 @@ export function usePopupApp() {
         }
       }
 
+      await ensureResolvedIdentity();
+
       await refreshAuthStates();
       appendLog("success", "初始化完成");
     } catch (error) {
@@ -214,18 +223,50 @@ export function usePopupApp() {
   }
 
   async function refreshAuthStates() {
-    const meegleAuthPromise = checkMeegleAuth().then((meegleAuth) => {
-      state.meegleAuth = meegleAuth;
-      state.isAuthed.meegle = meegleAuth.status === "ready";
-      return meegleAuth;
-    });
-    const larkAuthPromise = checkLarkAuth().then((larkAuth) => {
-      state.larkAuth = larkAuth;
-      state.isAuthed.lark = larkAuth.status === "ready";
-      return larkAuth;
-    });
-
-    await Promise.all([meegleAuthPromise, larkAuthPromise]);
+    await Promise.allSettled([
+      (async () => {
+        try {
+          const meegleAuth = await checkMeegleAuth();
+          state.meegleAuth = meegleAuth;
+          state.isAuthed.meegle = meegleAuth.status === "ready";
+        } catch (error) {
+          state.meegleAuth = {
+            status: "failed",
+            baseUrl: state.currentTabOrigin || "https://project.larksuite.com",
+            reason: "STATUS_REQUEST_FAILED",
+            errorMessage:
+              error instanceof Error ? error.message : String(error),
+          };
+          state.isAuthed.meegle = false;
+          appendLog(
+            "warn",
+            `查询服务器授权状态失败: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          );
+        }
+      })(),
+      (async () => {
+        try {
+          const larkAuth = await checkLarkAuth();
+          state.larkAuth = larkAuth;
+          state.isAuthed.lark = larkAuth.status === "ready";
+        } catch (error) {
+          state.larkAuth = {
+            status: "failed",
+            baseUrl: state.currentTabOrigin || "https://open.larksuite.com",
+            reason: "BACKGROUND_ERROR",
+          };
+          state.isAuthed.lark = false;
+          appendLog(
+            "warn",
+            `查询 Lark 授权状态失败: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          );
+        }
+      })(),
+    ]);
   }
 
   async function checkMeegleAuth(): Promise<MeegleAuthEnsureResponse> {
@@ -233,10 +274,16 @@ export function usePopupApp() {
     const settings = await loadPopupSettings();
     const meegleUserKey =
       settings.meegleUserKey || state.identity.meegleUserKey || undefined;
-    const authBaseUrl = normalizeMeegleAuthBaseUrl(
-      state.currentTabOrigin,
-      config.MEEGLE_BASE_URL,
-    );
+    const masterUserId = await ensureResolvedIdentity();
+
+    if (!masterUserId) {
+      return {
+        status: "failed",
+        baseUrl: state.currentTabOrigin || config.MEEGLE_BASE_URL,
+        reason: "IDENTITY_RESOLUTION_FAILED",
+        errorMessage: "Unable to resolve master user identity for Meegle auth.",
+      };
+    }
 
     try {
       const response = await fetch(`${config.SERVER_URL}/api/meegle/auth/status`, {
@@ -245,8 +292,7 @@ export function usePopupApp() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          operatorLarkId:
-            state.identity.larkId || settings.larkUserId || "ou_user",
+          masterUserId,
           meegleUserKey,
           baseUrl: authBaseUrl,
         }),
@@ -304,6 +350,14 @@ export function usePopupApp() {
       }
     }
 
+    const masterUserId = await ensureResolvedIdentity();
+
+    if (!masterUserId) {
+      appendLog("error", "无法解析主身份，暂时不能发起 Meegle 授权");
+      state.isAuthed.meegle = false;
+      return;
+    }
+
     const success = await meegleAuthController.run({
       currentTabId: state.currentTabId ?? undefined,
       currentTabOrigin: state.currentTabOrigin || undefined,
@@ -312,7 +366,7 @@ export function usePopupApp() {
         config.MEEGLE_BASE_URL,
       ),
       currentPageType: state.pageType,
-      larkId: state.identity.larkId || undefined,
+      masterUserId,
       meegleUserKey: state.identity.meegleUserKey || undefined,
     });
 
@@ -398,6 +452,50 @@ export function usePopupApp() {
     }
   }
 
+  async function ensureResolvedIdentity(): Promise<string | undefined> {
+    if (!state.currentTabOrigin) {
+      return state.identity.masterUserId || undefined;
+    }
+
+    const pathname = state.currentUrl
+      ? new URL(state.currentUrl).pathname
+      : "/";
+
+    const resolved = await resolveIdentityRequest({
+      masterUserId: state.identity.masterUserId || undefined,
+      operatorLarkId: state.identity.larkId || undefined,
+      meegleUserKey: state.identity.meegleUserKey || undefined,
+      pageContext: {
+        platform:
+          state.pageType === "lark" || state.pageType === "meegle"
+            ? state.pageType
+            : "unknown",
+        baseUrl: state.currentTabOrigin,
+        pathname,
+      },
+    });
+
+    if (resolved.ok && resolved.data?.masterUserId) {
+      if (resolved.data.identityStatus === "conflict") {
+        state.identity.masterUserId = null;
+        appendLog("error", "检测到 Lark 和 Meegle 账号冲突，已阻止继续授权");
+        return undefined;
+      }
+
+      state.identity.masterUserId = resolved.data.masterUserId;
+      if (resolved.data.operatorLarkId) {
+        state.identity.larkId = resolved.data.operatorLarkId;
+      }
+      if (resolved.data.meegleUserKey) {
+        state.identity.meegleUserKey = resolved.data.meegleUserKey;
+      }
+      await saveResolvedIdentity(resolved.data.masterUserId);
+      return resolved.data.masterUserId;
+    }
+
+    return undefined;
+  }
+
   return {
     state,
     logs,
@@ -447,5 +545,38 @@ function resolveStatusChip(
   return {
     tone: "default",
     text: "-",
+  };
+}
+
+function resolveMeegleStatusChip(
+  auth: MeegleAuthEnsureResponse | undefined,
+  meegleUserKey?: string | null,
+): PopupStatusChip {
+  const display = resolveMeegleStatusDisplay(auth, meegleUserKey || undefined);
+
+  if (display.status === "ready") {
+    return {
+      tone: "success",
+      text: display.text,
+    };
+  }
+
+  if (display.status === "error") {
+    return {
+      tone: "error",
+      text: display.text,
+    };
+  }
+
+  if (display.text !== "-") {
+    return {
+      tone: "processing",
+      text: display.text,
+    };
+  }
+
+  return {
+    tone: "default",
+    text: display.text,
   };
 }

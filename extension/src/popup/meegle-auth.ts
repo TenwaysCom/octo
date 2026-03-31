@@ -14,7 +14,7 @@ export interface BuildMeegleAuthRequestInput {
   currentTabOrigin?: string;
   authBaseUrl?: string;
   currentPageType: PopupPageType;
-  larkId?: string | null;
+  masterUserId?: string | null;
   meegleUserKey?: string;
 }
 
@@ -91,7 +91,7 @@ export function buildMeegleAuthRequest(
 ): MeegleAuthEnsureRequest {
   return {
     requestId: `req_${Date.now()}`,
-    operatorLarkId: input.larkId || "ou_user",
+    masterUserId: input.masterUserId || "usr_unknown",
     meegleUserKey: input.meegleUserKey,
     baseUrl: normalizeMeegleAuthBaseUrl(
       input.authBaseUrl ?? input.currentTabOrigin,

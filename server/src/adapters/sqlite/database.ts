@@ -14,38 +14,172 @@ function ensureColumn(db: DatabaseSync, tableName: string, columnName: string, d
   db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`);
 }
 
+function migrateUsersTable(db: DatabaseSync): void {
+  const usersTable = db.prepare(`
+    SELECT sql
+    FROM sqlite_master
+    WHERE type = 'table' AND name = 'users'
+  `).get() as { sql?: string } | undefined;
+
+  const schemaSql = usersTable?.sql ?? "";
+  const needsRebuild =
+    schemaSql.includes("meegle_user_key TEXT UNIQUE") ||
+    !schemaSql.includes("meegle_base_url");
+
+  if (!needsRebuild) {
+    return;
+  }
+
+  db.exec(`
+    CREATE TABLE users_v2 (
+      id TEXT PRIMARY KEY,
+      status TEXT NOT NULL,
+      lark_id TEXT UNIQUE,
+      meegle_base_url TEXT,
+      meegle_user_key TEXT,
+      github_id TEXT UNIQUE,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    INSERT INTO users_v2 (
+      id,
+      status,
+      lark_id,
+      meegle_base_url,
+      meegle_user_key,
+      github_id,
+      created_at,
+      updated_at
+    )
+    SELECT
+      id,
+      status,
+      lark_id,
+      NULL,
+      meegle_user_key,
+      github_id,
+      created_at,
+      updated_at
+    FROM users;
+
+    DROP TABLE users;
+    ALTER TABLE users_v2 RENAME TO users;
+  `);
+}
+
+function migrateTokenTable(db: DatabaseSync): void {
+  const tokenTable = db.prepare(`
+    SELECT sql
+    FROM sqlite_master
+    WHERE type = 'table' AND name = 'user_tokens'
+  `).get() as { sql?: string } | undefined;
+
+  const hasLegacyMeegleCredential = Boolean(db.prepare(`
+    SELECT name
+    FROM sqlite_master
+    WHERE type = 'table' AND name = 'meegle_credential'
+  `).get());
+
+  const schemaSql = tokenTable?.sql ?? "";
+  const needsCreate =
+    !tokenTable ||
+    !schemaSql.includes("provider TEXT NOT NULL") ||
+    !schemaSql.includes("external_user_key TEXT NOT NULL");
+
+  if (needsCreate) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS user_tokens (
+        master_user_id TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        external_user_key TEXT NOT NULL,
+        base_url TEXT NOT NULL,
+        plugin_token TEXT NOT NULL,
+        plugin_token_expires_at TEXT,
+        user_token TEXT NOT NULL,
+        user_token_expires_at TEXT,
+        refresh_token TEXT,
+        refresh_token_expires_at TEXT,
+        credential_status TEXT NOT NULL,
+        last_auth_at TEXT NOT NULL,
+        last_refresh_at TEXT,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (master_user_id, provider, external_user_key, base_url)
+      );
+    `);
+  }
+
+  if (hasLegacyMeegleCredential) {
+    db.exec(`
+      INSERT OR REPLACE INTO user_tokens (
+        master_user_id,
+        provider,
+        external_user_key,
+        base_url,
+        plugin_token,
+        plugin_token_expires_at,
+        user_token,
+        user_token_expires_at,
+        refresh_token,
+        refresh_token_expires_at,
+        credential_status,
+        last_auth_at,
+        last_refresh_at,
+        updated_at
+      )
+      SELECT
+        master_user_id,
+        'meegle',
+        meegle_user_key,
+        base_url,
+        plugin_token,
+        plugin_token_expires_at,
+        user_token,
+        user_token_expires_at,
+        refresh_token,
+        refresh_token_expires_at,
+        credential_status,
+        last_auth_at,
+        last_refresh_at,
+        updated_at
+      FROM meegle_credential;
+
+      DROP TABLE meegle_credential;
+    `);
+  }
+}
+
 function initSchema(db: DatabaseSync): void {
   db.exec(`
     PRAGMA journal_mode = WAL;
 
-    CREATE TABLE IF NOT EXISTS user_identity (
-      lark_id TEXT PRIMARY KEY,
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      status TEXT NOT NULL,
+      lark_id TEXT UNIQUE,
+      meegle_base_url TEXT,
       meegle_user_key TEXT,
-      mapping_status TEXT NOT NULL,
+      github_id TEXT UNIQUE,
+      created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS meegle_credential (
-      operator_lark_id TEXT NOT NULL,
-      meegle_user_key TEXT NOT NULL,
-      base_url TEXT NOT NULL,
-      plugin_token TEXT NOT NULL,
-      plugin_token_expires_at TEXT,
-      user_token TEXT NOT NULL,
-      user_token_expires_at TEXT,
-      refresh_token TEXT,
-      refresh_token_expires_at TEXT,
-      credential_status TEXT NOT NULL,
-      last_auth_at TEXT NOT NULL,
-      last_refresh_at TEXT,
-      updated_at TEXT NOT NULL,
-      PRIMARY KEY (operator_lark_id, meegle_user_key, base_url)
     );
   `);
 
-  ensureColumn(db, "meegle_credential", "plugin_token_expires_at", "TEXT");
-  ensureColumn(db, "meegle_credential", "user_token_expires_at", "TEXT");
-  ensureColumn(db, "meegle_credential", "refresh_token_expires_at", "TEXT");
+  migrateUsersTable(db);
+  migrateTokenTable(db);
+  ensureColumn(db, "user_tokens", "plugin_token_expires_at", "TEXT");
+  ensureColumn(db, "user_tokens", "user_token_expires_at", "TEXT");
+  ensureColumn(db, "user_tokens", "refresh_token_expires_at", "TEXT");
+  ensureColumn(db, "users", "meegle_base_url", "TEXT");
+  db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS users_meegle_binding_unique
+    ON users(meegle_base_url, meegle_user_key)
+    WHERE meegle_base_url IS NOT NULL AND meegle_user_key IS NOT NULL
+  `);
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS user_tokens_provider_lookup_idx
+    ON user_tokens(provider, master_user_id, external_user_key)
+  `);
 }
 
 export function createSqliteDatabase(
