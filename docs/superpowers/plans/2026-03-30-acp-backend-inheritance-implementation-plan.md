@@ -716,7 +716,7 @@ Validation cases that must pass:
 - Docs: `server/examples/kimi-acp-client/README.md`
 - Modify: `server/package.json`
 
-- [ ] **Step 1: Write the failing REPL orchestration tests**
+- [x] **Step 1: Write the failing REPL orchestration tests**
 
 Cover the interactive behavior before implementation:
 - initialize once per process
@@ -725,12 +725,12 @@ Cover the interactive behavior before implementation:
 - stop on `/exit` and `/quit`
 - cleanup the subprocess when the session ends or is interrupted
 
-- [ ] **Step 2: Run the new REPL tests to verify they fail**
+- [x] **Step 2: Run the new REPL tests to verify they fail**
 
 Run: `cd server && npm test -- src/experiments/kimi-acp/interactive-session.test.ts src/experiments/kimi-acp/process-lifecycle.test.ts`
 Expected: FAIL because the REPL orchestration modules do not exist yet
 
-- [ ] **Step 3: Implement a separate persistent client entrypoint**
+- [x] **Step 3: Implement a separate persistent client entrypoint**
 
 Add a new command entry instead of changing `kimi-acp:validate`:
 - `pnpm run kimi-acp:repl`
@@ -743,7 +743,7 @@ Required behavior:
 - keep reading user input until manual exit
 - reuse the same `sessionId` for every prompt in the loop
 
-- [ ] **Step 4: Implement manual exit behavior**
+- [x] **Step 4: Implement manual exit behavior**
 
 Support all of these exit paths:
 - `/exit`
@@ -755,7 +755,7 @@ Each path must:
 - cleanup the ACP subprocess
 - return a clear exit reason in logs or terminal output
 
-- [ ] **Step 5: Verify non-interactive smoke coverage**
+- [x] **Step 5: Verify non-interactive smoke coverage**
 
 Support piped input so the REPL can be smoke-tested without a TTY:
 
@@ -766,14 +766,14 @@ printf '/quit\n' | pnpm run kimi-acp:repl
 
 The command must exit cleanly in both cases.
 
-- [ ] **Step 6: Verify interactive cleanup**
+- [x] **Step 6: Verify interactive cleanup**
 
 Confirm:
 - `Ctrl-C` exits with code `130`
 - no orphan `kimi acp` subprocess remains afterward
 - a child process exiting unexpectedly is surfaced as a clear error
 
-- [ ] **Step 7: Update the README and next-step gate**
+- [x] **Step 7: Update the README and next-step gate**
 
 Document:
 - how to start the REPL
@@ -813,7 +813,11 @@ Once the REPL checkpoint is green, write the next separate plan for:
 - `server/src/application/services/acp-kimi-proxy.service.ts`
 - `server/src/adapters/kimi-acp/`
 
-That backend bridge plan should treat the REPL implementation as the reference ACP client behavior and should not start extension work yet.
+Current bridge plan file:
+
+- `docs/superpowers/plans/2026-03-31-kimi-acp-backend-bridge-implementation-plan.md`
+
+That Kimi ACP plan should treat the REPL implementation as the reference ACP client behavior, start with a minimal popup probe for single-turn validation, and only grow into multi-turn chat, rendering, commands, and capability-gated skills in later phases.
 
 Only after the backend bridge checkpoint is green, write a separate popup plan for:
 
