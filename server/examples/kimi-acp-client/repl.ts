@@ -16,6 +16,7 @@ import {
   cleanupAgentProcess,
   runWithAgentProcessGuard,
 } from "../../src/experiments/kimi-acp/process-lifecycle.js";
+import { createPromptLineReader } from "../../src/experiments/kimi-acp/prompt-line-reader.js";
 import { renderSessionUpdate } from "../../src/experiments/kimi-acp/session-update-output.js";
 
 class LoggingClient implements acp.Client {
@@ -76,7 +77,7 @@ async function main() {
       runInteractiveSession({
         cwd: process.cwd(),
         lines: useTerminalPrompt
-          ? readPromptLines(inputLoop)
+          ? createPromptLineReader(inputLoop)
           : readPipedLines(process.stdin),
         connection: {
           initialize: () =>
@@ -130,19 +131,6 @@ async function main() {
   }
 }
 
-async function* readPromptLines(inputLoop: Interface): AsyncIterable<string> {
-  while (true) {
-    inputLoop.prompt();
-    const line = await waitForPromptLine(inputLoop);
-
-    if (line === null) {
-      return;
-    }
-
-    yield line;
-  }
-}
-
 async function* readPipedLines(
   input: NodeJS.ReadableStream,
 ): AsyncIterable<string> {
@@ -167,26 +155,6 @@ async function* readPipedLines(
   if (buffered) {
     yield buffered.replace(/\r$/, "");
   }
-}
-
-function waitForPromptLine(inputLoop: Interface): Promise<string | null> {
-  return new Promise((resolve) => {
-    const handleLine = (line: string) => {
-      cleanup();
-      resolve(line);
-    };
-    const handleClose = () => {
-      cleanup();
-      resolve(null);
-    };
-    const cleanup = () => {
-      inputLoop.off("line", handleLine);
-      inputLoop.off("close", handleClose);
-    };
-
-    inputLoop.once("line", handleLine);
-    inputLoop.once("close", handleClose);
-  });
 }
 
 function spawnAgentProcess(
