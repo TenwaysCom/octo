@@ -22,6 +22,7 @@
 16. [认证流程设计](./16-auth-flow-design.md)
 17. [V2 Agent Platform / ACP 演进设计](./14-v2-architecture-design.md)
 18. [ACP 设计](./17-acp-design.md)
+19. [ACP 与 PM Analysis / Skills 结合讨论草案](./18-acp-pm-analysis-skill-notes.md)
 
 ## 当前设计结论
 
