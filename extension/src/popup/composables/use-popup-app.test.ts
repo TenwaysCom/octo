@@ -152,6 +152,49 @@ describe("usePopupApp notebook state", () => {
     await initializePromise;
   });
 
+  it("applies the Meegle ready state before the Lark auth check finishes", async () => {
+    const meegleStatusRequest = createDeferred<Response>();
+    const larkStatusRequest = createDeferred<{
+      status: string;
+      baseUrl: string;
+      tokenStatus?: string;
+    }>();
+    vi.mocked(globalThis.fetch).mockReturnValue(meegleStatusRequest.promise);
+    runtimeMock.runLarkAuthRequest.mockReturnValue(larkStatusRequest.promise);
+
+    const popup = usePopupApp();
+    const initializePromise = popup.initialize();
+
+    await vi.waitFor(() => {
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+      expect(runtimeMock.runLarkAuthRequest).toHaveBeenCalledTimes(1);
+    });
+
+    meegleStatusRequest.resolve({
+      ok: true,
+      json: async () => ({
+        data: {
+          status: "ready",
+          baseUrl: "https://project.larksuite.com",
+          credentialStatus: "active",
+        },
+      }),
+    } as Response);
+
+    await vi.waitFor(() => {
+      expect(popup.meegleStatus.value.text).toBe("已授权");
+    });
+    expect(popup.topMeegleButtonDisabled.value).toBe(true);
+
+    larkStatusRequest.resolve({
+      status: "failed",
+      baseUrl: "https://open.larksuite.com",
+      tokenStatus: "missing",
+    });
+
+    await initializePromise;
+  });
+
   it("uses the canonical Meegle auth base when the current tab is meegle.com", async () => {
     runtimeMock.queryActiveTabContext.mockResolvedValue({
       id: 12,

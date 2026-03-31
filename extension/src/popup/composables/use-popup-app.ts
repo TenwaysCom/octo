@@ -214,15 +214,18 @@ export function usePopupApp() {
   }
 
   async function refreshAuthStates() {
-    const [meegleAuth, larkAuth] = await Promise.all([
-      checkMeegleAuth(),
-      checkLarkAuth(),
-    ]);
+    const meegleAuthPromise = checkMeegleAuth().then((meegleAuth) => {
+      state.meegleAuth = meegleAuth;
+      state.isAuthed.meegle = meegleAuth.status === "ready";
+      return meegleAuth;
+    });
+    const larkAuthPromise = checkLarkAuth().then((larkAuth) => {
+      state.larkAuth = larkAuth;
+      state.isAuthed.lark = larkAuth.status === "ready";
+      return larkAuth;
+    });
 
-    state.meegleAuth = meegleAuth;
-    state.larkAuth = larkAuth;
-    state.isAuthed.meegle = meegleAuth.status === "ready";
-    state.isAuthed.lark = larkAuth.status === "ready";
+    await Promise.all([meegleAuthPromise, larkAuthPromise]);
   }
 
   async function checkMeegleAuth(): Promise<MeegleAuthEnsureResponse> {
