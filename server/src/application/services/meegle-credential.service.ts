@@ -111,7 +111,7 @@ export async function exchangeCredential(
     const storedToken: StoredMeegleToken = {
       masterUserId: input.masterUserId,
       meegleUserKey: input.meegleUserKey,
-      baseUrl: input.baseUrl,
+      baseUrl: canonicalBaseUrl,
       pluginToken: pluginToken.token,
       pluginTokenExpiresAt: toExpiresAt(pluginToken.expiresInSeconds),
       userToken: tokenPair.userToken,
@@ -160,6 +160,10 @@ export async function refreshCredential(
   deps: MeegleCredentialServiceDeps,
 ): Promise<CredentialStatus> {
   logCredentialFlow("REFRESH", "START", { masterUserId: input.masterUserId, meegleUserKey: input.meegleUserKey, baseUrl: input.baseUrl });
+  const canonicalRequestedBaseUrl = normalizeMeegleAuthBaseUrl(
+    input.baseUrl,
+    deps.meegleAuthBaseUrl ?? DEFAULT_MEEGLE_AUTH_BASE_URL,
+  );
   const storedToken = await deps.tokenStore.get(input);
 
   if (!storedToken?.userToken) {
@@ -173,7 +177,7 @@ export async function refreshCredential(
   const legacyLookup =
     storedToken.baseUrl !== canonicalRequestedBaseUrl
       ? {
-          operatorLarkId: storedToken.operatorLarkId,
+          masterUserId: storedToken.masterUserId,
           meegleUserKey: storedToken.meegleUserKey,
           baseUrl: storedToken.baseUrl,
         }

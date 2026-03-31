@@ -24,6 +24,7 @@ export interface MeegleAuthServiceDeps {
   authAdapter: MeegleAuthAdapter;
   tokenStore?: MeegleTokenStore;
   pluginId?: string;
+  meegleAuthBaseUrl?: string;
 }
 
 let defaultDeps: MeegleAuthServiceDeps | undefined;

@@ -95,7 +95,7 @@ async function requestAuthCodeFromContentScript(
             });
           } else {
             logBgFlow("AUTH_CODE_REQUEST", "FAIL", { tabId, baseUrl, state, error: response?.error });
-            console.error("[Tenways Octo] Auth code request failed:", response?.error);
+            console.error("[Tenways Octo] Meegle Auth code request failed:", response?.error);
             reject(
               new MeegleAuthCodeRequestError(
                 response?.error?.errorCode || "AUTH_CODE_REQUEST_FAILED",

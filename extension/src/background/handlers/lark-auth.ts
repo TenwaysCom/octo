@@ -65,7 +65,7 @@ async function requestAuthCodeFromContentScript(
               state: response.state,
             });
           } else {
-            console.error("[Tenways Octo] Auth code request failed:", response);
+            console.error("[Tenways Octo] Lark Auth code request failed:", response);
             resolve(undefined);
           }
         },

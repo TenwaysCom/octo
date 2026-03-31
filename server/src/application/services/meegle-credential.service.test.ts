@@ -122,7 +122,7 @@ describe("meegle-credential.service", () => {
     it("should canonicalize meegle page aliases before exchanging and storing credentials", async () => {
       const input: CredentialExchangeInput = {
         requestId: "req_002",
-        operatorLarkId: "ou_xxx",
+        masterUserId: "usr_xxx",
         meegleUserKey: "user_xxx",
         baseUrl: "https://meegle.com",
         authCode: "auth_code_123",
@@ -272,7 +272,7 @@ describe("meegle-credential.service", () => {
 
     it("should refresh legacy alias records through the canonical auth base and rewrite storage", async () => {
       const storedToken: StoredMeegleToken = {
-        operatorLarkId: "ou_xxx",
+        masterUserId: "usr_xxx",
         meegleUserKey: "user_xxx",
         baseUrl: "https://meegle.com",
         pluginToken: "stale_plugin_token",
@@ -287,7 +287,7 @@ describe("meegle-credential.service", () => {
 
       const result = await refreshCredential(
         {
-          operatorLarkId: "ou_xxx",
+          masterUserId: "usr_xxx",
           meegleUserKey: "user_xxx",
           baseUrl: "https://project.larksuite.com",
         },
@@ -310,7 +310,7 @@ describe("meegle-credential.service", () => {
         }),
       );
       expect(mockTokenStore.delete).toHaveBeenCalledWith({
-        operatorLarkId: "ou_xxx",
+        masterUserId: "usr_xxx",
         meegleUserKey: "user_xxx",
         baseUrl: "https://meegle.com",
       });

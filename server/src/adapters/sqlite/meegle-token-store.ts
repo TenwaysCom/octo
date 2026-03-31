@@ -166,4 +166,12 @@ export class SqliteMeegleTokenStore implements MeegleTokenStore {
   }
 }
 
-export const sharedMeegleTokenStore = new SqliteMeegleTokenStore();
+let sharedMeegleTokenStore: SqliteMeegleTokenStore | undefined;
+
+export function getSharedMeegleTokenStore(): SqliteMeegleTokenStore {
+  if (!sharedMeegleTokenStore) {
+    sharedMeegleTokenStore = new SqliteMeegleTokenStore();
+  }
+
+  return sharedMeegleTokenStore;
+}

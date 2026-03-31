@@ -122,10 +122,30 @@ export async function requestLarkUserId(
 
 export async function requestMeegleUserIdentity(
   tabId: number,
-): Promise<{ userKey?: string } | undefined> {
-  return sendTabMessage<{ userKey?: string }>(tabId, {
+  pageUrl?: string,
+): Promise<{ userKey?: string; tenantKey?: string } | undefined> {
+  const pageIdentity = await sendTabMessage<{ userKey?: string; tenantKey?: string }>(tabId, {
     action: "getMeegleUserIdentity",
   });
+
+  if (pageIdentity?.userKey) {
+    return pageIdentity;
+  }
+
+  if (!pageUrl) {
+    return pageIdentity;
+  }
+
+  const cookieIdentity = await sendRuntimeMessage<{
+    payload?: { userKey?: string; tenantKey?: string };
+  }>({
+    action: "itdog.meegle.identity.cookies",
+    payload: {
+      pageUrl,
+    },
+  });
+
+  return cookieIdentity.payload ?? pageIdentity;
 }
 
 export async function runMeegleAuthRequest(

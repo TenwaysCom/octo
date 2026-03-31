@@ -202,7 +202,10 @@ export function usePopupApp() {
       }
 
       if (tabContext.pageType === "meegle" && tabContext.id != null) {
-        const identity = await requestMeegleUserIdentity(tabContext.id);
+        const identity = await requestMeegleUserIdentity(
+          tabContext.id,
+          tabContext.url ?? undefined,
+        );
         if (identity?.userKey) {
           state.identity.meegleUserKey = identity.userKey;
         }
@@ -272,6 +275,10 @@ export function usePopupApp() {
   async function checkMeegleAuth(): Promise<MeegleAuthEnsureResponse> {
     const config = await getConfig();
     const settings = await loadPopupSettings();
+    const authBaseUrl = normalizeMeegleAuthBaseUrl(
+      state.currentTabOrigin,
+      config.MEEGLE_BASE_URL,
+    );
     const meegleUserKey =
       settings.meegleUserKey || state.identity.meegleUserKey || undefined;
     const masterUserId = await ensureResolvedIdentity();
@@ -279,7 +286,7 @@ export function usePopupApp() {
     if (!masterUserId) {
       return {
         status: "failed",
-        baseUrl: state.currentTabOrigin || config.MEEGLE_BASE_URL,
+        baseUrl: authBaseUrl,
         reason: "IDENTITY_RESOLUTION_FAILED",
         errorMessage: "Unable to resolve master user identity for Meegle auth.",
       };
@@ -344,7 +351,10 @@ export function usePopupApp() {
   async function authorizeMeegle() {
     const config = await getConfig();
     if (state.pageType === "meegle" && state.currentTabId != null) {
-      const identity = await requestMeegleUserIdentity(state.currentTabId);
+      const identity = await requestMeegleUserIdentity(
+        state.currentTabId,
+        state.currentUrl ?? undefined,
+      );
       if (identity?.userKey) {
         state.identity.meegleUserKey = identity.userKey;
       }

@@ -10,7 +10,7 @@ import { configureLarkAuthControllerDeps } from "./modules/lark-auth/lark-auth.c
 import { configureMeegleAuthServiceDeps } from "./modules/meegle-auth/meegle-auth.service.js";
 import { configurePublicConfigController, getPublicConfigController } from "./modules/public-config/public-config.controller.js";
 import { createHttpMeegleAuthAdapter } from "./adapters/meegle/auth-adapter.js";
-import { sharedMeegleTokenStore } from "./adapters/sqlite/meegle-token-store.js";
+import { getSharedMeegleTokenStore } from "./adapters/sqlite/meegle-token-store.js";
 import { runPMAnalysisController } from "./modules/pm-analysis/pm-analysis.controller.js";
 
 // Load environment variables
@@ -46,7 +46,8 @@ if (MEEGLE_PLUGIN_ID && MEEGLE_PLUGIN_SECRET) {
   configureMeegleAuthServiceDeps({
     authAdapter: meegleAuthAdapter,
     pluginId: MEEGLE_PLUGIN_ID,
-    tokenStore: sharedMeegleTokenStore,
+    tokenStore: getSharedMeegleTokenStore(),
+    meegleAuthBaseUrl: MEEGLE_BASE_URL,
   });
   console.log("[Server] Meegle auth configured with PLUGIN_ID:", MEEGLE_PLUGIN_ID);
 } else {

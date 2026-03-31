@@ -1,4 +1,4 @@
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
@@ -12,6 +12,11 @@ function ensureColumn(db: DatabaseSync, tableName: string, columnName: string, d
   }
 
   db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`);
+}
+
+function hasColumn(db: DatabaseSync, tableName: string, columnName: string): boolean {
+  const columns = db.prepare(`PRAGMA table_info(${tableName})`).all() as Array<{ name: string }>;
+  return columns.some((column) => column.name === columnName);
 }
 
 function migrateUsersTable(db: DatabaseSync): void {
@@ -110,6 +115,19 @@ function migrateTokenTable(db: DatabaseSync): void {
   }
 
   if (hasLegacyMeegleCredential) {
+    const legacyIdExpression = hasColumn(db, "meegle_credential", "master_user_id")
+      ? "master_user_id"
+      : hasColumn(db, "meegle_credential", "operator_lark_id")
+        ? `COALESCE(
+            (SELECT id FROM users WHERE lark_id = meegle_credential.operator_lark_id),
+            meegle_credential.operator_lark_id
+          )`
+        : undefined;
+
+    if (!legacyIdExpression) {
+      throw new Error("Unsupported meegle_credential schema: missing master_user_id/operator_lark_id");
+    }
+
     db.exec(`
       INSERT OR REPLACE INTO user_tokens (
         master_user_id,
@@ -128,7 +146,7 @@ function migrateTokenTable(db: DatabaseSync): void {
         updated_at
       )
       SELECT
-        master_user_id,
+        ${legacyIdExpression},
         'meegle',
         meegle_user_key,
         base_url,
@@ -189,6 +207,20 @@ export function createSqliteDatabase(
   const db = new DatabaseSync(dbPath);
   initSchema(db);
   return db;
+}
+
+export function getDefaultDatabasePath(): string {
+  return DEFAULT_DB_PATH;
+}
+
+export function resetSqliteDatabase(
+  dbPath: string = DEFAULT_DB_PATH,
+): DatabaseSync {
+  if (dbPath !== ":memory:" && existsSync(dbPath)) {
+    rmSync(dbPath, { force: true });
+  }
+
+  return createSqliteDatabase(dbPath);
 }
 
 let sharedDatabase: DatabaseSync | undefined;

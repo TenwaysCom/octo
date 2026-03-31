@@ -10,7 +10,11 @@ vi.mock("../background/config.js", () => ({
   getConfig: vi.fn(),
 }));
 
-import { getConfig, loadPopupSettings } from "./runtime.js";
+import {
+  getConfig,
+  loadPopupSettings,
+  requestMeegleUserIdentity,
+} from "./runtime.js";
 
 describe("popup runtime settings", () => {
   beforeEach(() => {
@@ -45,6 +49,46 @@ describe("popup runtime settings", () => {
       MEEGLE_PLUGIN_ID: "MII_SERVER_PLUGIN",
       meegleUserKey: "user_test",
       larkUserId: "ou_test",
+    });
+  });
+
+  it("falls back to background cookie lookup when the content script cannot read meegle cookies", async () => {
+    vi.mocked(chrome.tabs.sendMessage).mockImplementation((...args) => {
+      const callback = args[2] as ((response?: unknown) => void) | undefined;
+      callback?.(undefined);
+      return undefined as never;
+    });
+    vi.mocked(chrome.runtime.sendMessage).mockImplementation((...args) => {
+      const [message] = args as unknown as [
+        { action: string; payload?: unknown },
+      ];
+      const maybeCallback = args[args.length - 1] as
+        | ((response?: unknown) => void)
+        | undefined;
+      expect(message).toEqual({
+        action: "itdog.meegle.identity.cookies",
+        payload: {
+            pageUrl: "https://project.larksuite.com/4c3fv6/overview",
+          },
+        });
+
+      maybeCallback?.({
+        payload: {
+          userKey: "7538275242901291040",
+          tenantKey: "saas_7538275207677476895",
+        },
+      });
+      return undefined as never;
+    });
+
+    await expect(
+      requestMeegleUserIdentity(
+        12,
+        "https://project.larksuite.com/4c3fv6/overview",
+      ),
+    ).resolves.toEqual({
+      userKey: "7538275242901291040",
+      tenantKey: "saas_7538275207677476895",
     });
   });
 });
