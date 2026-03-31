@@ -3,6 +3,7 @@ import type { LarkAuthEnsureResponse } from "../../types/lark.js";
 import type { MeegleAuthEnsureResponse } from "../../types/meegle.js";
 import {
   createMeegleAuthController,
+  resolveMeegleStatusDisplay,
   type PopupMeegleAuthLog,
 } from "../meegle-auth.js";
 import {
@@ -126,7 +127,7 @@ export function usePopupApp() {
   });
   const settingsOpen = computed(() => activePage.value === "settings");
   const meegleStatus = computed(() =>
-    resolveStatusChip(state.isAuthed.meegle, state.identity.meegleUserKey),
+    resolveMeegleStatusChip(state.meegleAuth, state.identity.meegleUserKey),
   );
   const larkStatus = computed(() =>
     resolveStatusChip(state.isAuthed.lark, state.identity.larkId),
@@ -218,15 +219,50 @@ export function usePopupApp() {
   }
 
   async function refreshAuthStates() {
-    const [meegleAuth, larkAuth] = await Promise.all([
-      checkMeegleAuth(),
-      checkLarkAuth(),
+    await Promise.allSettled([
+      (async () => {
+        try {
+          const meegleAuth = await checkMeegleAuth();
+          state.meegleAuth = meegleAuth;
+          state.isAuthed.meegle = meegleAuth.status === "ready";
+        } catch (error) {
+          state.meegleAuth = {
+            status: "failed",
+            baseUrl: state.currentTabOrigin || "https://project.larksuite.com",
+            reason: "STATUS_REQUEST_FAILED",
+            errorMessage:
+              error instanceof Error ? error.message : String(error),
+          };
+          state.isAuthed.meegle = false;
+          appendLog(
+            "warn",
+            `查询服务器授权状态失败: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          );
+        }
+      })(),
+      (async () => {
+        try {
+          const larkAuth = await checkLarkAuth();
+          state.larkAuth = larkAuth;
+          state.isAuthed.lark = larkAuth.status === "ready";
+        } catch (error) {
+          state.larkAuth = {
+            status: "failed",
+            baseUrl: state.currentTabOrigin || "https://open.larksuite.com",
+            reason: "BACKGROUND_ERROR",
+          };
+          state.isAuthed.lark = false;
+          appendLog(
+            "warn",
+            `查询 Lark 授权状态失败: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          );
+        }
+      })(),
     ]);
-
-    state.meegleAuth = meegleAuth;
-    state.larkAuth = larkAuth;
-    state.isAuthed.meegle = meegleAuth.status === "ready";
-    state.isAuthed.lark = larkAuth.status === "ready";
   }
 
   async function checkMeegleAuth(): Promise<MeegleAuthEnsureResponse> {
@@ -503,5 +539,38 @@ function resolveStatusChip(
   return {
     tone: "default",
     text: "-",
+  };
+}
+
+function resolveMeegleStatusChip(
+  auth: MeegleAuthEnsureResponse | undefined,
+  meegleUserKey?: string | null,
+): PopupStatusChip {
+  const display = resolveMeegleStatusDisplay(auth, meegleUserKey || undefined);
+
+  if (display.status === "ready") {
+    return {
+      tone: "success",
+      text: display.text,
+    };
+  }
+
+  if (display.status === "error") {
+    return {
+      tone: "error",
+      text: display.text,
+    };
+  }
+
+  if (display.text !== "-") {
+    return {
+      tone: "processing",
+      text: display.text,
+    };
+  }
+
+  return {
+    tone: "default",
+    text: display.text,
   };
 }

@@ -23,9 +23,16 @@ const meegleAuthControllerMock = vi.hoisted(() => ({
 
 vi.mock("../runtime.js", () => runtimeMock);
 
-vi.mock("../meegle-auth.js", () => ({
-  createMeegleAuthController: vi.fn(() => meegleAuthControllerMock),
-}));
+vi.mock("../meegle-auth.js", async () => {
+  const actual = await vi.importActual<typeof import("../meegle-auth.js")>(
+    "../meegle-auth.js",
+  );
+
+  return {
+    ...actual,
+    createMeegleAuthController: vi.fn(() => meegleAuthControllerMock),
+  };
+});
 
 import { usePopupApp } from "./use-popup-app";
 
@@ -164,6 +171,38 @@ describe("usePopupApp notebook state", () => {
     await initializePromise;
   });
 
+  it("updates meegle auth state before lark auth finishes", async () => {
+    const larkAuthRequest = createDeferred<{
+      status: "ready";
+      baseUrl: string;
+      tokenStatus: "ready";
+    }>();
+    runtimeMock.runLarkAuthRequest.mockReturnValueOnce(larkAuthRequest.promise);
+
+    const popup = usePopupApp();
+    const initializePromise = popup.initialize();
+
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(popup.topMeegleButtonText.value).toBe("授权");
+    await vi.waitFor(() => {
+      expect(popup.state.meegleAuth?.status).toBe("ready");
+      expect(popup.state.isAuthed.meegle).toBe(true);
+      expect(popup.topMeegleButtonText.value).toBe("已授权");
+      expect(popup.meegleStatus.value.text).toContain("已授权");
+    });
+
+    larkAuthRequest.resolve({
+      status: "ready",
+      baseUrl: "https://open.larksuite.com",
+      tokenStatus: "ready",
+    });
+
+    await initializePromise;
+  });
+
   it("clears the scanning state when initialization fails", async () => {
     runtimeMock.runLarkAuthRequest.mockRejectedValueOnce(
       new Error("background offline"),
@@ -175,9 +214,9 @@ describe("usePopupApp notebook state", () => {
 
     expect(popup.isLoading.value).toBe(false);
     expect(popup.headerSubtitle.value).toBe("Lark");
-    expect(popup.logs.value[popup.logs.value.length - 1]?.message).toContain(
-      "background offline",
-    );
+    expect(
+      popup.logs.value.some((entry) => entry.message.includes("background offline")),
+    ).toBe(true);
   });
 
   it("resolves and caches masterUserId during initialization", async () => {
