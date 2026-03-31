@@ -17,12 +17,31 @@ import {
   runWithAgentProcessGuard,
 } from "../../src/experiments/kimi-acp/process-lifecycle.js";
 import { createPromptLineReader } from "../../src/experiments/kimi-acp/prompt-line-reader.js";
-import { renderSessionUpdate } from "../../src/experiments/kimi-acp/session-update-output.js";
+import { parseReplDisplayOptions } from "../../src/experiments/kimi-acp/repl-display-options.js";
+import { createReplOutputWriter } from "../../src/experiments/kimi-acp/repl-output-writer.js";
+import {
+  renderSessionUpdate,
+  type RenderedSessionUpdate,
+} from "../../src/experiments/kimi-acp/session-update-output.js";
+
+interface OutputWriter {
+  flush(): void;
+  write(rendered: RenderedSessionUpdate): void;
+}
 
 class LoggingClient implements acp.Client {
+  constructor(
+    private readonly displayOptions: {
+      rawEvents: boolean;
+      showThoughts: boolean;
+    },
+    private readonly outputWriter: OutputWriter,
+  ) {}
+
   async requestPermission(
     params: RequestPermissionRequest,
   ): Promise<RequestPermissionResponse> {
+    this.outputWriter.flush();
     console.error(
       `[kimi-acp] permission requested for tool call: ${params.toolCall.title}`,
     );
@@ -35,27 +54,28 @@ class LoggingClient implements acp.Client {
   }
 
   async sessionUpdate(params: SessionNotification): Promise<void> {
-    const rendered = renderSessionUpdate(params.update);
+    const rendered = renderSessionUpdate(params.update, this.displayOptions);
 
     if (!rendered) {
       return;
     }
 
-    if (rendered.stdoutText) {
-      process.stdout.write(rendered.stdoutText);
-    }
-
-    if (rendered.stderrLine) {
-      process.stderr.write(rendered.stderrLine);
-    }
+    this.outputWriter.write(rendered);
   }
 }
 
 async function main() {
+  const displayOptions = parseReplDisplayOptions(process.argv.slice(2), process.env);
   const spawnConfig = buildKimiAcpSpawnConfig(process.env);
   const agentProcess = spawnAgentProcess(spawnConfig);
   const cleanup = installCleanup(agentProcess);
   const useTerminalPrompt = Boolean(process.stdin.isTTY && process.stdout.isTTY);
+  const outputWriter = createReplOutputWriter({
+    mergeThoughts:
+      useTerminalPrompt && displayOptions.showThoughts && !displayOptions.rawEvents,
+    stdout: process.stdout,
+    stderr: process.stderr,
+  });
   const inputLoop = useTerminalPrompt
     ? createInterface({
         input: process.stdin,
@@ -69,7 +89,7 @@ async function main() {
     const output = Readable.toWeb(agentProcess.stdout);
     const stream = acp.ndJsonStream(input, output);
     const connection = new acp.ClientSideConnection(
-      () => new LoggingClient(),
+      () => new LoggingClient(displayOptions, outputWriter),
       stream,
     );
 
@@ -106,6 +126,7 @@ async function main() {
             }),
         },
         onReady: ({ sessionId, protocolVersion, capabilities }) => {
+          outputWriter.flush();
           console.log(`[kimi-acp] protocolVersion=${protocolVersion}`);
           console.log(
             `[kimi-acp] mcpCapabilities=${JSON.stringify(
@@ -115,17 +136,28 @@ async function main() {
           console.log(`[kimi-acp] sessionId=${sessionId}`);
           console.log("[kimi-acp] interactive session ready");
           console.log("[kimi-acp] enter /exit or /quit to leave");
+
+          if (displayOptions.showThoughts) {
+            console.log("[kimi-acp] thought output enabled");
+          }
+
+          if (displayOptions.rawEvents) {
+            console.log("[kimi-acp] raw event output enabled");
+          }
         },
         onTurnComplete: ({ stopReason }) => {
+          outputWriter.flush();
           process.stdout.write("\n");
           console.log(`[kimi-acp] stopReason=${stopReason}`);
         },
       }),
     );
 
+    outputWriter.flush();
     console.log(`[kimi-acp] exitReason=${result.exitReason}`);
     console.log(`[kimi-acp] promptCount=${result.promptCount}`);
   } finally {
+    outputWriter.flush();
     inputLoop?.close();
     await cleanup();
   }

@@ -32,6 +32,35 @@ cd server
 pnpm run kimi-acp:repl
 ```
 
+Optional REPL display switches:
+
+```bash
+cd server
+pnpm run kimi-acp:repl -- --show-thoughts
+pnpm run kimi-acp:repl -- --raw-events
+```
+
+## REPL Display Modes
+
+The REPL has three practical display modes:
+
+- Default mode
+  - Command: `pnpm run kimi-acp:repl`
+  - Shows assistant message text plus tool activity summaries
+  - Hides `agent_thought_chunk`
+- Thought mode
+  - Command: `pnpm run kimi-acp:repl -- --show-thoughts`
+  - Env: `KIMI_ACP_REPL_SHOW_THOUGHTS=1`
+  - In an interactive TTY, consecutive thought chunks are merged into one human-friendly `[thought] ...` line
+  - In non-TTY output like pipes or logs, thought chunks stay line-oriented instead of being merged
+- Raw/debug mode
+  - Command: `pnpm run kimi-acp:repl -- --raw-events`
+  - Env: `KIMI_ACP_REPL_RAW=1`
+  - Prints non-message ACP updates as raw JSON events for debugging
+  - Disables human-friendly thought merging
+
+If both `--show-thoughts` and `--raw-events` are enabled, raw/debug output wins.
+
 Manual exit:
 
 - type `/exit`
@@ -48,6 +77,10 @@ Environment variables:
   - default: `["acp"]`
 - `KIMI_ACP_ENV_JSON`
   - default: `{}`
+- `KIMI_ACP_REPL_SHOW_THOUGHTS`
+  - default: unset / disabled
+- `KIMI_ACP_REPL_RAW`
+  - default: unset / disabled
 
 Examples:
 
@@ -69,6 +102,7 @@ Constraints:
 - `KIMI_ACP_ARGS_JSON` must be a JSON array of strings
 - `KIMI_ACP_ENV_JSON` must be a JSON object of string pairs
 - prompt-time input never overrides command, args, or env
+- REPL display flags only affect local terminal rendering; they do not change ACP session behavior
 
 ## Troubleshooting
 
