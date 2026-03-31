@@ -3,7 +3,10 @@ import { InMemoryMeegleTokenStore } from "../../adapters/meegle/token-store.js";
 import { SqliteIdentityStore } from "../../adapters/sqlite/identity-store.js";
 import { createSqliteDatabase } from "../../adapters/sqlite/database.js";
 import { configureMeegleAuthServiceDeps } from "./meegle-auth.service.js";
-import { getAuthStatusController } from "./meegle-auth.controller.js";
+import {
+  exchangeAuthCodeController,
+  getAuthStatusController,
+} from "./meegle-auth.controller.js";
 
 describe("meegle-auth.controller", () => {
   let tokenStore: InMemoryMeegleTokenStore;
@@ -137,6 +140,72 @@ describe("meegle-auth.controller", () => {
         masterUserId: "usr_xxx",
         baseUrl: "https://project.larksuite.com",
         reason: "Missing meegleUserKey for token lookup",
+      },
+    });
+  });
+
+  it("returns a validation error instead of throwing when masterUserId is missing", async () => {
+    await expect(
+      getAuthStatusController({
+        meegleUserKey: "user_xxx",
+        baseUrl: "https://project.larksuite.com",
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      error: {
+        errorCode: "INVALID_REQUEST",
+        errorMessage: expect.stringContaining("masterUserId"),
+      },
+    });
+  });
+
+  it("returns require_auth_code when meegle auth is not configured", async () => {
+    configureMeegleAuthServiceDeps({
+      authAdapter: undefined as never,
+      tokenStore,
+      identityStore,
+      pluginId: "MII_TEST_PLUGIN",
+    });
+
+    await expect(
+      getAuthStatusController({
+        masterUserId: "usr_xxx",
+        meegleUserKey: "user_xxx",
+        baseUrl: "https://project.larksuite.com",
+      }),
+    ).resolves.toEqual({
+      ok: true,
+      data: {
+        status: "require_auth_code",
+        masterUserId: "usr_xxx",
+        meegleUserKey: "user_xxx",
+        baseUrl: "https://project.larksuite.com",
+        reason: "Meegle auth is not configured",
+      },
+    });
+  });
+
+  it("returns a structured config error for exchange when meegle auth is not configured", async () => {
+    configureMeegleAuthServiceDeps({
+      authAdapter: undefined as never,
+      tokenStore,
+      identityStore,
+      pluginId: "MII_TEST_PLUGIN",
+    });
+
+    await expect(
+      exchangeAuthCodeController({
+        requestId: "req_001",
+        masterUserId: "usr_xxx",
+        meegleUserKey: "user_xxx",
+        baseUrl: "https://project.larksuite.com",
+        authCode: "code_123",
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      error: {
+        errorCode: "MEEGLE_AUTH_NOT_CONFIGURED",
+        errorMessage: "Meegle auth adapter is not configured",
       },
     });
   });
