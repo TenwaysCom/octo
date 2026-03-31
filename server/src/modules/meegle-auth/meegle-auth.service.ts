@@ -3,7 +3,7 @@ import {
   InMemoryMeegleTokenStore,
   type MeegleTokenStore,
 } from "../../adapters/meegle/token-store.js";
-import type { IdentityStore } from "../../adapters/sqlite/identity-store.js";
+import { getResolvedUserStore } from "../../adapters/sqlite/resolved-user-store.js";
 import {
   exchangeCredential,
   refreshCredential,
@@ -23,7 +23,6 @@ export interface MeegleAuthServiceDeps {
   authAdapter: MeegleAuthAdapter;
   tokenStore?: MeegleTokenStore;
   pluginId?: string;
-  identityStore?: IdentityStore;
 }
 
 let defaultDeps: MeegleAuthServiceDeps | undefined;
@@ -55,7 +54,6 @@ function getDeps(overrides?: Partial<MeegleAuthServiceDeps>): MeegleAuthServiceD
     authAdapter: merged.authAdapter,
     tokenStore: merged.tokenStore ?? sharedTokenStore,
     pluginId: merged.pluginId,
-    identityStore: merged.identityStore,
   };
 }
 
@@ -67,10 +65,19 @@ export async function exchangeAuthCode(
   const request: MeegleAuthExchangeRequest =
     validateMeegleAuthExchangeRequest(input);
   const deps = getDeps(overrides);
+  const user = await getResolvedUserStore().getById(request.masterUserId);
   const result = await exchangeCredential(request, {
     authAdapter: deps.authAdapter,
     tokenStore: deps.tokenStore!,
   });
+
+  if (user) {
+    await getResolvedUserStore().update({
+      ...user,
+      meegleBaseUrl: user.meegleBaseUrl ?? request.baseUrl,
+      meegleUserKey: user.meegleUserKey ?? request.meegleUserKey,
+    });
+  }
 
   logServiceFlow("EXCHANGE_AUTH_CODE", "OK", { requestId: request.requestId, masterUserId: request.masterUserId, meegleUserKey: request.meegleUserKey, baseUrl: request.baseUrl, tokenStatus: result.tokenStatus, credentialStatus: result.credentialStatus, expiresAt: result.expiresAt });
 
@@ -97,8 +104,9 @@ export async function checkAuthStatus(
   logServiceFlow("CHECK_AUTH_STATUS", "START", { inputType: typeof input });
   const request = validateMeegleAuthStatusRequest(input);
   const deps = getDeps(overrides);
-  const baseUrl = request.baseUrl ?? "https://project.larksuite.com";
-  const meegleUserKey = request.meegleUserKey;
+  const user = await getResolvedUserStore().getById(request.masterUserId);
+  const baseUrl = request.baseUrl ?? user?.meegleBaseUrl ?? "https://project.larksuite.com";
+  const meegleUserKey = request.meegleUserKey ?? user?.meegleUserKey ?? undefined;
 
   if (!meegleUserKey) {
     logServiceFlow("CHECK_AUTH_STATUS", "FAIL", { masterUserId: request.masterUserId, baseUrl, reason: "MISSING_MEEGLE_USER_KEY" });

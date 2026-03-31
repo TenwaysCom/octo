@@ -14,22 +14,70 @@ function ensureColumn(db: DatabaseSync, tableName: string, columnName: string, d
   db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`);
 }
 
+function migrateUsersTable(db: DatabaseSync): void {
+  const usersTable = db.prepare(`
+    SELECT sql
+    FROM sqlite_master
+    WHERE type = 'table' AND name = 'users'
+  `).get() as { sql?: string } | undefined;
+
+  const schemaSql = usersTable?.sql ?? "";
+  const needsRebuild =
+    schemaSql.includes("meegle_user_key TEXT UNIQUE") ||
+    !schemaSql.includes("meegle_base_url");
+
+  if (!needsRebuild) {
+    return;
+  }
+
+  db.exec(`
+    CREATE TABLE users_v2 (
+      id TEXT PRIMARY KEY,
+      status TEXT NOT NULL,
+      lark_id TEXT UNIQUE,
+      meegle_base_url TEXT,
+      meegle_user_key TEXT,
+      github_id TEXT UNIQUE,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    INSERT INTO users_v2 (
+      id,
+      status,
+      lark_id,
+      meegle_base_url,
+      meegle_user_key,
+      github_id,
+      created_at,
+      updated_at
+    )
+    SELECT
+      id,
+      status,
+      lark_id,
+      NULL,
+      meegle_user_key,
+      github_id,
+      created_at,
+      updated_at
+    FROM users;
+
+    DROP TABLE users;
+    ALTER TABLE users_v2 RENAME TO users;
+  `);
+}
+
 function initSchema(db: DatabaseSync): void {
   db.exec(`
     PRAGMA journal_mode = WAL;
-
-    CREATE TABLE IF NOT EXISTS user_identity (
-      lark_id TEXT PRIMARY KEY,
-      meegle_user_key TEXT,
-      mapping_status TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
 
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       status TEXT NOT NULL,
       lark_id TEXT UNIQUE,
-      meegle_user_key TEXT UNIQUE,
+      meegle_base_url TEXT,
+      meegle_user_key TEXT,
       github_id TEXT UNIQUE,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
@@ -53,9 +101,16 @@ function initSchema(db: DatabaseSync): void {
     );
   `);
 
+  migrateUsersTable(db);
   ensureColumn(db, "meegle_credential", "plugin_token_expires_at", "TEXT");
   ensureColumn(db, "meegle_credential", "user_token_expires_at", "TEXT");
   ensureColumn(db, "meegle_credential", "refresh_token_expires_at", "TEXT");
+  ensureColumn(db, "users", "meegle_base_url", "TEXT");
+  db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS users_meegle_binding_unique
+    ON users(meegle_base_url, meegle_user_key)
+    WHERE meegle_base_url IS NOT NULL AND meegle_user_key IS NOT NULL
+  `);
 }
 
 export function createSqliteDatabase(

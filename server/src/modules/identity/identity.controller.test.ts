@@ -65,6 +65,38 @@ describe("identity.controller", () => {
     });
   });
 
+  it("treats the same meegle user key on different base urls as different bindings", async () => {
+    const first = await resolveIdentityController({
+      requestId: "req_001",
+      meegleUserKey: "user_xxx",
+      pageContext: {
+        platform: "meegle",
+        baseUrl: "https://project.larksuite.com",
+        pathname: "/wiki/test",
+      },
+    });
+
+    const second = await resolveIdentityController({
+      requestId: "req_002",
+      meegleUserKey: "user_xxx",
+      pageContext: {
+        platform: "meegle",
+        baseUrl: "https://tenant.meegle.com",
+        pathname: "/wiki/test",
+      },
+    });
+
+    expect(second).toEqual({
+      ok: true,
+      data: expect.objectContaining({
+        masterUserId: expect.any(String),
+        identityStatus: "pending_lark_identity",
+        meegleUserKey: "user_xxx",
+      }),
+    });
+    expect(second.data?.masterUserId).not.toBe(first.data?.masterUserId);
+  });
+
   it("upgrades a pending meegle user to active once lark identity is available", async () => {
     const pending = await resolveIdentityController({
       requestId: "req_001",

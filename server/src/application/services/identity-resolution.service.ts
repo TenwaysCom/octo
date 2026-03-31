@@ -39,6 +39,7 @@ export async function resolveIdentity(
   request: IdentityResolveRequest,
 ): Promise<IdentityResolutionResponse> {
   const store = getResolvedUserStore();
+  const requestedMeegleBaseUrl = getRequestedMeegleBaseUrl(request);
 
   if (request.masterUserId) {
     const existing = await store.getById(request.masterUserId);
@@ -51,8 +52,8 @@ export async function resolveIdentity(
   const larkMatch = request.operatorLarkId
     ? await store.getByLarkId(request.operatorLarkId)
     : undefined;
-  const meegleMatch = request.meegleUserKey
-    ? await store.getByMeegleUserKey(request.meegleUserKey)
+  const meegleMatch = request.meegleUserKey && requestedMeegleBaseUrl
+    ? await store.getByMeegleIdentity(requestedMeegleBaseUrl, request.meegleUserKey)
     : undefined;
 
   if (larkMatch && meegleMatch && larkMatch.id !== meegleMatch.id) {
@@ -73,6 +74,7 @@ export async function resolveIdentity(
   const created = await store.create({
     status: request.operatorLarkId ? "active" : "pending_lark_identity",
     larkId: request.operatorLarkId,
+    meegleBaseUrl: requestedMeegleBaseUrl,
     meegleUserKey: request.meegleUserKey,
     githubId: request.githubId,
   });
@@ -84,9 +86,11 @@ async function applyHints(
   user: ResolvedUserRecord,
   request: IdentityResolveRequest,
 ): Promise<ResolvedUserRecord> {
+  const requestedMeegleBaseUrl = getRequestedMeegleBaseUrl(request);
   const nextUser: ResolvedUserRecord = {
     ...user,
     larkId: user.larkId ?? request.operatorLarkId ?? null,
+    meegleBaseUrl: user.meegleBaseUrl ?? requestedMeegleBaseUrl ?? null,
     meegleUserKey: user.meegleUserKey ?? request.meegleUserKey ?? null,
     githubId: user.githubId ?? request.githubId ?? null,
     status:
@@ -97,6 +101,7 @@ async function applyHints(
 
   if (
     nextUser.larkId === user.larkId &&
+    nextUser.meegleBaseUrl === user.meegleBaseUrl &&
     nextUser.meegleUserKey === user.meegleUserKey &&
     nextUser.githubId === user.githubId &&
     nextUser.status === user.status
@@ -105,4 +110,18 @@ async function applyHints(
   }
 
   return getResolvedUserStore().update(nextUser);
+}
+
+function getRequestedMeegleBaseUrl(
+  request: IdentityResolveRequest,
+): string | undefined {
+  if (!request.meegleUserKey) {
+    return undefined;
+  }
+
+  if (request.pageContext.platform !== "meegle") {
+    return undefined;
+  }
+
+  return request.pageContext.baseUrl;
 }
