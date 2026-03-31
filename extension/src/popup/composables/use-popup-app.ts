@@ -8,11 +8,14 @@ import {
 import {
   getConfig,
   loadPopupSettings,
+  loadResolvedIdentity,
   queryActiveTabContext,
   requestLarkUserId,
   requestMeegleUserIdentity,
+  resolveIdentityRequest,
   runLarkAuthRequest,
   runMeegleAuthRequest,
+  saveResolvedIdentity,
   savePopupSettings,
 } from "../runtime.js";
 import type {
@@ -172,6 +175,7 @@ export function usePopupApp() {
       syncSettingsForm(settings);
       settingsSnapshot = { ...settings };
       hydrateIdentityFromSettings(settings);
+      state.identity.masterUserId = await loadResolvedIdentity() ?? null;
 
       const tabContext = await queryActiveTabContext();
       state.currentTabId = tabContext.id;
@@ -198,6 +202,8 @@ export function usePopupApp() {
           state.identity.meegleUserKey = identity.userKey;
         }
       }
+
+      await ensureResolvedIdentity();
 
       await refreshAuthStates();
       appendLog("success", "初始化完成");
@@ -228,6 +234,16 @@ export function usePopupApp() {
     const settings = await loadPopupSettings();
     const meegleUserKey =
       settings.meegleUserKey || state.identity.meegleUserKey || undefined;
+    const masterUserId = await ensureResolvedIdentity();
+
+    if (!masterUserId) {
+      return {
+        status: "failed",
+        baseUrl: state.currentTabOrigin || config.MEEGLE_BASE_URL,
+        reason: "IDENTITY_RESOLUTION_FAILED",
+        errorMessage: "Unable to resolve master user identity for Meegle auth.",
+      };
+    }
 
     try {
       const response = await fetch(`${config.SERVER_URL}/api/meegle/auth/status`, {
@@ -236,8 +252,7 @@ export function usePopupApp() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          masterUserId:
-            state.identity.masterUserId || state.identity.larkId || settings.larkUserId || "usr_unknown",
+          masterUserId,
           meegleUserKey,
           baseUrl: state.currentTabOrigin || config.MEEGLE_BASE_URL,
         }),
@@ -296,13 +311,20 @@ export function usePopupApp() {
       }
     }
 
+    const masterUserId = await ensureResolvedIdentity();
+
+    if (!masterUserId) {
+      appendLog("error", "无法解析主身份，暂时不能发起 Meegle 授权");
+      state.isAuthed.meegle = false;
+      return;
+    }
+
     const success = await meegleAuthController.run({
       currentTabId: state.currentTabId ?? undefined,
       currentTabOrigin:
         state.currentTabOrigin || "https://project.larksuite.com",
       currentPageType: state.pageType,
-      masterUserId:
-        state.identity.masterUserId || state.identity.larkId || undefined,
+      masterUserId,
       meegleUserKey: state.identity.meegleUserKey || undefined,
     });
 
@@ -386,6 +408,50 @@ export function usePopupApp() {
     if (settings.larkUserId) {
       state.identity.larkId = settings.larkUserId;
     }
+  }
+
+  async function ensureResolvedIdentity(): Promise<string | undefined> {
+    if (!state.currentTabOrigin) {
+      return state.identity.masterUserId || undefined;
+    }
+
+    const pathname = state.currentUrl
+      ? new URL(state.currentUrl).pathname
+      : "/";
+
+    const resolved = await resolveIdentityRequest({
+      masterUserId: state.identity.masterUserId || undefined,
+      operatorLarkId: state.identity.larkId || undefined,
+      meegleUserKey: state.identity.meegleUserKey || undefined,
+      pageContext: {
+        platform:
+          state.pageType === "lark" || state.pageType === "meegle"
+            ? state.pageType
+            : "unknown",
+        baseUrl: state.currentTabOrigin,
+        pathname,
+      },
+    });
+
+    if (resolved.ok && resolved.data?.masterUserId) {
+      if (resolved.data.identityStatus === "conflict") {
+        state.identity.masterUserId = null;
+        appendLog("error", "检测到 Lark 和 Meegle 账号冲突，已阻止继续授权");
+        return undefined;
+      }
+
+      state.identity.masterUserId = resolved.data.masterUserId;
+      if (resolved.data.operatorLarkId) {
+        state.identity.larkId = resolved.data.operatorLarkId;
+      }
+      if (resolved.data.meegleUserKey) {
+        state.identity.meegleUserKey = resolved.data.meegleUserKey;
+      }
+      await saveResolvedIdentity(resolved.data.masterUserId);
+      return resolved.data.masterUserId;
+    }
+
+    return undefined;
   }
 
   return {

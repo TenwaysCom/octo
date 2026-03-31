@@ -25,6 +25,16 @@ function initSchema(db: DatabaseSync): void {
       updated_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      status TEXT NOT NULL,
+      lark_id TEXT UNIQUE,
+      meegle_user_key TEXT UNIQUE,
+      github_id TEXT UNIQUE,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS meegle_credential (
       master_user_id TEXT NOT NULL,
       meegle_user_key TEXT NOT NULL,
