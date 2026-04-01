@@ -112,14 +112,19 @@ describe("lark-auth handler", () => {
 
   it("builds the OAuth authorize URL against the accounts host", () => {
     const url = new URL(
-      buildLarkOauthUrl("https://open.larksuite.com", "state_123", "cli_test"),
+      buildLarkOauthUrl(
+        "https://open.larksuite.com",
+        "state_123",
+        "cli_test",
+        "https://example.ngrok-free.app/api/lark/auth/callback",
+      ),
     );
 
     expect(url.origin).toBe("https://accounts.larksuite.com");
     expect(url.pathname).toBe("/open-apis/authen/v1/authorize");
     expect(url.searchParams.get("app_id")).toBe("cli_test");
     expect(url.searchParams.get("redirect_uri")).toBe(
-      "http://localhost:3000/api/lark/auth/callback",
+      "https://example.ngrok-free.app/api/lark/auth/callback",
     );
     expect(url.searchParams.get("scope")).toBe(
       "offline_access contact:user.base:readonly",

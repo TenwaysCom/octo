@@ -79,6 +79,7 @@ export async function routeBackgroundAction(
       getCachedLarkToken: () => cachedLarkToken,
       savePendingLarkOauthState,
       appId: config.LARK_APP_ID,
+      callbackUrl: config.LARK_OAUTH_CALLBACK_URL,
     };
 
     return {

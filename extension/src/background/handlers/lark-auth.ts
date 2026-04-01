@@ -30,25 +30,31 @@ export interface EnsureLarkAuthDeps {
   }) => Promise<void>;
   saveLastLarkAuthResult?: (result: LarkAuthCallbackResult) => Promise<void>;
   clearPendingLarkOauthState?: (state?: string) => Promise<void>;
-  openLarkOAuthTab?: (baseUrl: string, state: string, appId?: string) => Promise<void>;
+  openLarkOAuthTab?: (
+    baseUrl: string,
+    state: string,
+    appId?: string,
+    callbackUrl?: string,
+  ) => Promise<void>;
   appId?: string;
+  callbackUrl?: string;
 }
 
 export function buildLarkOauthUrl(
   baseUrl: string,
   state: string,
   appId?: string,
+  callbackUrl = "http://localhost:3000/api/lark/auth/callback",
 ): string {
   const authorizeBaseUrl = baseUrl.includes("feishu.cn")
     ? "https://accounts.feishu.cn"
     : "https://accounts.larksuite.com";
   const resolvedAppId = appId || "cli_a4b5c6d7e8f9";
-  const redirectUri = "http://localhost:3000/api/lark/auth/callback";
-  const scope = "offline_access contact:user.base:readonly bitable:app";
+  const scope = "offline_access contact:user.base:readonly";
   const oauthUrl = new URL("/open-apis/authen/v1/authorize", authorizeBaseUrl);
 
   oauthUrl.searchParams.set("app_id", resolvedAppId);
-  oauthUrl.searchParams.set("redirect_uri", redirectUri);
+  oauthUrl.searchParams.set("redirect_uri", callbackUrl);
   oauthUrl.searchParams.set("state", state);
   oauthUrl.searchParams.set("scope", scope);
   oauthUrl.searchParams.set("response_type", "code");
@@ -60,11 +66,12 @@ async function openLarkOAuthTab(
   baseUrl: string,
   state: string,
   appId?: string,
+  callbackUrl?: string,
 ): Promise<void> {
   return new Promise((resolve) => {
     chrome.tabs.create(
       {
-        url: buildLarkOauthUrl(baseUrl, state, appId),
+        url: buildLarkOauthUrl(baseUrl, state, appId, callbackUrl),
         active: true,
       },
       () => resolve(),
@@ -224,7 +231,20 @@ export async function ensureLarkAuth(
   });
 
   const launchOauth = deps.openLarkOAuthTab ?? openLarkOAuthTab;
-  await launchOauth(sessionResult.data.baseUrl, sessionResult.data.state, deps.appId);
+  if (deps.callbackUrl) {
+    await launchOauth(
+      sessionResult.data.baseUrl,
+      sessionResult.data.state,
+      deps.appId,
+      deps.callbackUrl,
+    );
+  } else {
+    await launchOauth(
+      sessionResult.data.baseUrl,
+      sessionResult.data.state,
+      deps.appId,
+    );
+  }
 
   return {
     status: "in_progress",

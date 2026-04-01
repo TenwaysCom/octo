@@ -8,18 +8,20 @@
 export interface ExtensionConfig {
   MEEGLE_PLUGIN_ID: string;
   LARK_APP_ID: string;
+  LARK_OAUTH_CALLBACK_URL: string;
   SERVER_URL: string;
   MEEGLE_BASE_URL: string;
 }
 
 interface PublicConfigResponse {
   ok: boolean;
-  data?: Partial<Pick<ExtensionConfig, "MEEGLE_PLUGIN_ID" | "LARK_APP_ID" | "MEEGLE_BASE_URL">>;
+  data?: Partial<Pick<ExtensionConfig, "MEEGLE_PLUGIN_ID" | "LARK_APP_ID" | "LARK_OAUTH_CALLBACK_URL" | "MEEGLE_BASE_URL">>;
 }
 
 export const DEFAULT_CONFIG: ExtensionConfig = {
   MEEGLE_PLUGIN_ID: '',
   LARK_APP_ID: 'cli_a4b5c6d7e8f9', // TODO: Set via chrome.storage.sync.set
+  LARK_OAUTH_CALLBACK_URL: 'http://localhost:3000/api/lark/auth/callback',
   SERVER_URL: 'http://localhost:3000',
   MEEGLE_BASE_URL: 'https://project.larksuite.com',
 };
@@ -36,6 +38,8 @@ function mergePublicConfig(
     ...base,
     MEEGLE_PLUGIN_ID: publicConfig.MEEGLE_PLUGIN_ID?.trim() || base.MEEGLE_PLUGIN_ID,
     LARK_APP_ID: publicConfig.LARK_APP_ID?.trim() || base.LARK_APP_ID,
+    LARK_OAUTH_CALLBACK_URL:
+      publicConfig.LARK_OAUTH_CALLBACK_URL?.trim() || base.LARK_OAUTH_CALLBACK_URL,
     MEEGLE_BASE_URL: publicConfig.MEEGLE_BASE_URL?.trim() || base.MEEGLE_BASE_URL,
   };
 }

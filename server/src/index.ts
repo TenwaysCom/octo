@@ -20,6 +20,7 @@ import { createApiRequestLogger, logApiRequest, summarizeRequestPayload } from "
 // Load environment variables
 const LARK_APP_ID = process.env.LARK_APP_ID || "";
 const LARK_APP_SECRET = process.env.LARK_APP_SECRET || "";
+const LARK_OAUTH_CALLBACK_URL = process.env.LARK_OAUTH_CALLBACK_URL || "http://localhost:3000/api/lark/auth/callback";
 const MEEGLE_PLUGIN_ID = process.env.MEEGLE_PLUGIN_ID || "";
 const MEEGLE_PLUGIN_SECRET = process.env.MEEGLE_PLUGIN_SECRET || "";
 const MEEGLE_BASE_URL = process.env.MEEGLE_BASE_URL || "https://project.larksuite.com";
@@ -27,6 +28,7 @@ const MEEGLE_BASE_URL = process.env.MEEGLE_BASE_URL || "https://project.larksuit
 configurePublicConfigController({
   MEEGLE_PLUGIN_ID,
   LARK_APP_ID,
+  LARK_OAUTH_CALLBACK_URL,
   MEEGLE_BASE_URL,
 });
 
@@ -65,7 +67,8 @@ if (MEEGLE_PLUGIN_ID && MEEGLE_PLUGIN_SECRET) {
 }
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT || 3000);
+const HOST = process.env.HOST || "0.0.0.0";
 
 app.use(express.json());
 app.use(createApiRequestLogger());
@@ -143,12 +146,12 @@ app.post("/api/a2/apply-b1", handleController(applyB1Controller));
 // PM Analysis routes
 app.post("/api/pm/analysis/run", handleController(runPMAnalysisController));
 
-app.listen(PORT, () => {
-  console.log(`Tenways Octo Server running on port ${PORT}`);
-  console.log(`Health check: http://localhost:${PORT}/health`);
-  console.log(`A2 analyze: http://localhost:${PORT}/api/a2/analyze`);
-  console.log(`A2 create draft: http://localhost:${PORT}/api/a2/create-b1-draft`);
-  console.log(`A2 apply: http://localhost:${PORT}/api/a2/apply-b1`);
+app.listen(PORT, HOST, () => {
+  console.log(`Tenways Octo Server running on http://${HOST}:${PORT}`);
+  console.log(`Health check: http://${HOST}:${PORT}/health`);
+  console.log(`A2 analyze: http://${HOST}:${PORT}/api/a2/analyze`);
+  console.log(`A2 create draft: http://${HOST}:${PORT}/api/a2/create-b1-draft`);
+  console.log(`A2 apply: http://${HOST}:${PORT}/api/a2/apply-b1`);
 });
 
 export default app;

@@ -10,6 +10,7 @@ describe("public-config.controller", () => {
       MEEGLE_PLUGIN_ID: "MII_ABD86EEDB9E8CA36",
       LARK_APP_ID: "cli_test_public",
       MEEGLE_BASE_URL: "https://project.larksuite.com",
+      LARK_OAUTH_CALLBACK_URL: "https://example.ngrok-free.app/api/lark/auth/callback",
     });
 
     await expect(getPublicConfigController()).resolves.toEqual({
@@ -18,6 +19,7 @@ describe("public-config.controller", () => {
         MEEGLE_PLUGIN_ID: "MII_ABD86EEDB9E8CA36",
         LARK_APP_ID: "cli_test_public",
         MEEGLE_BASE_URL: "https://project.larksuite.com",
+        LARK_OAUTH_CALLBACK_URL: "https://example.ngrok-free.app/api/lark/auth/callback",
       },
     });
   });
