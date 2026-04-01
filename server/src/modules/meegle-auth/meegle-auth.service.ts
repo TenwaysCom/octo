@@ -3,7 +3,7 @@ import {
   InMemoryMeegleTokenStore,
   type MeegleTokenStore,
 } from "../../adapters/meegle/token-store.js";
-import type { IdentityStore } from "../../adapters/sqlite/identity-store.js";
+import { getResolvedUserStore } from "../../adapters/sqlite/resolved-user-store.js";
 import {
   exchangeCredential,
   refreshCredential,
@@ -18,12 +18,13 @@ import {
   validateMeegleGetAuthCodeRequest,
 } from "./meegle-auth.dto.js";
 import { MeegleClient } from "../../adapters/meegle/meegle-client.js";
+import { normalizeMeegleAuthBaseUrl } from "../../platform-url.js";
 
 export interface MeegleAuthServiceDeps {
   authAdapter: MeegleAuthAdapter;
   tokenStore?: MeegleTokenStore;
   pluginId?: string;
-  identityStore?: IdentityStore;
+  meegleAuthBaseUrl?: string;
 }
 
 let defaultDeps: MeegleAuthServiceDeps | undefined;
@@ -55,7 +56,6 @@ function getDeps(overrides?: Partial<MeegleAuthServiceDeps>): MeegleAuthServiceD
     authAdapter: merged.authAdapter,
     tokenStore: merged.tokenStore ?? sharedTokenStore,
     pluginId: merged.pluginId,
-    identityStore: merged.identityStore,
   };
 }
 
@@ -67,17 +67,22 @@ export async function exchangeAuthCode(
   const request: MeegleAuthExchangeRequest =
     validateMeegleAuthExchangeRequest(input);
   const deps = getDeps(overrides);
+  const user = await getResolvedUserStore().getById(request.masterUserId);
   const result = await exchangeCredential(request, {
     authAdapter: deps.authAdapter,
     tokenStore: deps.tokenStore!,
+    meegleAuthBaseUrl: deps.meegleAuthBaseUrl,
   });
 
-  await deps.identityStore?.save({
-    larkId: request.operatorLarkId,
-    meegleUserKey: request.meegleUserKey,
-  });
+  if (user) {
+    await getResolvedUserStore().update({
+      ...user,
+      meegleBaseUrl: user.meegleBaseUrl ?? request.baseUrl,
+      meegleUserKey: user.meegleUserKey ?? request.meegleUserKey,
+    });
+  }
 
-  logServiceFlow("EXCHANGE_AUTH_CODE", "OK", { requestId: request.requestId, operatorLarkId: request.operatorLarkId, meegleUserKey: request.meegleUserKey, baseUrl: request.baseUrl, tokenStatus: result.tokenStatus, credentialStatus: result.credentialStatus, expiresAt: result.expiresAt });
+  logServiceFlow("EXCHANGE_AUTH_CODE", "OK", { requestId: request.requestId, masterUserId: request.masterUserId, meegleUserKey: request.meegleUserKey, baseUrl: request.baseUrl, tokenStatus: result.tokenStatus, credentialStatus: result.credentialStatus, expiresAt: result.expiresAt });
 
   return result;
 }
@@ -89,10 +94,20 @@ export async function refreshAuthToken(
   const request: MeegleAuthRefreshRequest =
     validateMeegleAuthRefreshRequest(input);
   const deps = getDeps(overrides);
-  return refreshCredential(request, {
-    authAdapter: deps.authAdapter,
-    tokenStore: deps.tokenStore!,
-  });
+  return refreshCredential(
+    {
+      ...request,
+      baseUrl: normalizeMeegleAuthBaseUrl(
+        request.baseUrl,
+        deps.meegleAuthBaseUrl,
+      ),
+    },
+    {
+      authAdapter: deps.authAdapter,
+      tokenStore: deps.tokenStore!,
+      meegleAuthBaseUrl: deps.meegleAuthBaseUrl,
+    },
+  );
 }
 
 export async function checkAuthStatus(
@@ -102,19 +117,17 @@ export async function checkAuthStatus(
   logServiceFlow("CHECK_AUTH_STATUS", "START", { inputType: typeof input });
   const request = validateMeegleAuthStatusRequest(input);
   const deps = getDeps(overrides);
-  const baseUrl = request.baseUrl ?? "https://project.larksuite.com";
-  const resolvedIdentity = request.meegleUserKey
-    ? { meegleUserKey: request.meegleUserKey }
-    : await deps.identityStore?.getByLarkId(request.operatorLarkId);
-  const meegleUserKey = resolvedIdentity?.meegleUserKey ?? request.meegleUserKey;
+  const user = await getResolvedUserStore().getById(request.masterUserId);
+  const baseUrl = request.baseUrl ?? user?.meegleBaseUrl ?? "https://project.larksuite.com";
+  const meegleUserKey = request.meegleUserKey ?? user?.meegleUserKey ?? undefined;
 
   if (!meegleUserKey) {
-    logServiceFlow("CHECK_AUTH_STATUS", "FAIL", { operatorLarkId: request.operatorLarkId, baseUrl, reason: "MISSING_MEEGLE_USER_KEY" });
+    logServiceFlow("CHECK_AUTH_STATUS", "FAIL", { masterUserId: request.masterUserId, baseUrl, reason: "MISSING_MEEGLE_USER_KEY" });
     return {
       ok: true,
       data: {
         status: "require_auth_code" as const,
-        operatorLarkId: request.operatorLarkId,
+        masterUserId: request.masterUserId,
         baseUrl,
         reason: "Missing meegleUserKey for token lookup",
       },
@@ -122,18 +135,18 @@ export async function checkAuthStatus(
   }
 
   const stored = await deps.tokenStore?.get({
-    operatorLarkId: request.operatorLarkId,
+    masterUserId: request.masterUserId,
     meegleUserKey,
     baseUrl,
   });
 
   if (!stored?.userToken) {
-    logServiceFlow("CHECK_AUTH_STATUS", "FAIL", { operatorLarkId: request.operatorLarkId, meegleUserKey, baseUrl, reason: "NO_STORED_TOKEN" });
+    logServiceFlow("CHECK_AUTH_STATUS", "FAIL", { masterUserId: request.masterUserId, meegleUserKey, baseUrl, reason: "NO_STORED_TOKEN" });
     return {
       ok: true,
       data: {
         status: "require_auth_code" as const,
-        operatorLarkId: request.operatorLarkId,
+        masterUserId: request.masterUserId,
         meegleUserKey,
         baseUrl,
         reason: "No stored Meegle token found",
@@ -143,23 +156,24 @@ export async function checkAuthStatus(
 
   const refreshedStatus = await refreshCredential(
     {
-      operatorLarkId: request.operatorLarkId,
+      masterUserId: request.masterUserId,
       meegleUserKey,
       baseUrl,
     },
     {
       authAdapter: deps.authAdapter,
       tokenStore: deps.tokenStore!,
+      meegleAuthBaseUrl: deps.meegleAuthBaseUrl,
     },
   );
 
   if (refreshedStatus.tokenStatus !== "ready") {
-    logServiceFlow("CHECK_AUTH_STATUS", "FAIL", { operatorLarkId: request.operatorLarkId, meegleUserKey, requestedBaseUrl: baseUrl, resolvedBaseUrl: refreshedStatus.baseUrl, reason: refreshedStatus.errorCode || "Stored Meegle token expired" });
+    logServiceFlow("CHECK_AUTH_STATUS", "FAIL", { masterUserId: request.masterUserId, meegleUserKey, requestedBaseUrl: baseUrl, resolvedBaseUrl: refreshedStatus.baseUrl, reason: refreshedStatus.errorCode || "Stored Meegle token expired" });
     return {
       ok: true,
       data: {
         status: "require_auth_code" as const,
-        operatorLarkId: request.operatorLarkId,
+        masterUserId: request.masterUserId,
         meegleUserKey,
         baseUrl,
         reason: refreshedStatus.errorCode || "Stored Meegle token expired",
@@ -167,13 +181,13 @@ export async function checkAuthStatus(
     };
   }
 
-  logServiceFlow("CHECK_AUTH_STATUS", "OK", { operatorLarkId: request.operatorLarkId, meegleUserKey, requestedBaseUrl: baseUrl, resolvedBaseUrl: refreshedStatus.baseUrl, credentialStatus: refreshedStatus.credentialStatus, expiresAt: refreshedStatus.expiresAt });
+  logServiceFlow("CHECK_AUTH_STATUS", "OK", { masterUserId: request.masterUserId, meegleUserKey, requestedBaseUrl: baseUrl, resolvedBaseUrl: refreshedStatus.baseUrl, credentialStatus: refreshedStatus.credentialStatus, expiresAt: refreshedStatus.expiresAt });
 
   return {
     ok: true,
     data: {
         status: "ready" as const,
-        operatorLarkId: request.operatorLarkId,
+        masterUserId: request.masterUserId,
         meegleUserKey,
         baseUrl: refreshedStatus.baseUrl,
         credentialStatus: refreshedStatus.credentialStatus,
@@ -191,6 +205,10 @@ export async function getAuthCode(
     validateMeegleGetAuthCodeRequest(input);
 
   const deps = getDeps(overrides);
+  const baseUrl = normalizeMeegleAuthBaseUrl(
+    request.baseUrl,
+    deps.meegleAuthBaseUrl,
+  );
 
   if (!deps.pluginId) {
     throw new Error("Missing pluginId configuration");
@@ -199,12 +217,12 @@ export async function getAuthCode(
   const client = new MeegleClient({
     userToken: "dummy", // Not used for auth code endpoint
     userKey: "dummy", // Not used for auth code endpoint
-    baseUrl: request.baseUrl,
+    baseUrl,
     pluginId: deps.pluginId,
   });
 
   const authCode = await client.getAuthCode({
-    baseUrl: request.baseUrl,
+    baseUrl,
     cookie: request.cookie,
     state: request.state,
   });

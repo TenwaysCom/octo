@@ -51,7 +51,8 @@ npm start
 
 ### 2. 配置服务端地址
 
-编辑 `src/popup.html` 中的 `SERVER_URL` 变量（如需要修改默认地址）。
+扩展 popup 已迁移到 WXT + Vue 入口。
+如需要修改默认服务端地址，请调整 `src/popup/runtime.ts` 里的默认配置，或通过 popup 设置页覆盖。
 
 ### 3. 使用流程
 
@@ -98,7 +99,11 @@ extension/
 │   ├── content-scripts/
 │   │   ├── lark.ts        # Lark 页面脚本
 │   │   └── meegle.ts      # Meegle 页面脚本
-│   └── popup.html         # Popup 界面
+│   ├── entrypoints/
+│   │   └── popup.html     # WXT popup 入口
+│   └── popup/
+│       ├── main.ts        # Vue popup 挂载入口
+│       └── App.vue        # Popup 界面
 ├── tests/
 │   ├── e2e/
 │   │   └── auth-bridge.test.ts
@@ -152,6 +157,13 @@ npm test
 | `/api/a1/apply-b2` | POST | 应用 B2 |
 
 详见 [server/README.md](../server/README.md)
+
+认证相关请求里需要区分两个 URL 概念：
+
+- `pageOrigin`: 当前浏览器 tab 的真实 origin，只用于识别页面属于 Meegle 还是 Lark，以及内容脚本路由/日志
+- `authBaseUrl`: 平台 canonical 授权基址。Meegle token 的查询、refresh、exchange 固定使用 `MEEGLE_BASE_URL`，Lark 固定使用统一的 canonical auth host
+
+不要把当前页面 origin 直接当成 `baseUrl` 发给服务端，否则切换 `meegle.com` / `project.larksuite.com` 这类页面别名时，会把同一份授权状态拆散。
 
 ## 故障排除
 

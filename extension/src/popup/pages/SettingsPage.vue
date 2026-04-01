@@ -18,10 +18,18 @@
         />
       </a-form-item>
       <a-form-item label="Meegle User Key">
-        <a-input
-          v-model:value="form.meegleUserKey"
-          placeholder="输入 Meegle User Key"
-        />
+        <div class="settings-page__inline-field">
+          <a-input
+            v-model:value="form.meegleUserKey"
+            placeholder="输入 Meegle User Key"
+          />
+          <a-button
+            data-test="settings-fetch-meegle-user-key"
+            @click="$emit('fetchMeegleUserKey')"
+          >
+            获取
+          </a-button>
+        </div>
       </a-form-item>
       <a-form-item label="Lark User ID (可选)">
         <a-input
@@ -55,6 +63,7 @@ defineProps<{
 
 defineEmits<{
   cancel: [];
+  fetchMeegleUserKey: [];
   save: [];
 }>();
 </script>
@@ -63,6 +72,13 @@ defineEmits<{
 .settings-page__form {
   display: grid;
   gap: 4px;
+}
+
+.settings-page__inline-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
 }
 
 .settings-page__actions {

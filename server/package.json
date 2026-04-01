@@ -4,6 +4,8 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
+    "db:migrate": "node dist/scripts/database-migrate.js",
+    "db:reset": "node dist/scripts/database-migrate.js --reset",
     "start": "node dist/index.js",
     "dev": "concurrently -k -n tsc,server -c yellow,cyan \"npm:dev:watch\" \"npm:dev:serve\"",
     "dev:watch": "tsc --watch",

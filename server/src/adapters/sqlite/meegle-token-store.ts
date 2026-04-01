@@ -7,8 +7,9 @@ import type {
 import { getSharedDatabase } from "./database.js";
 
 interface StoredCredentialRow {
-  operator_lark_id: string;
-  meegle_user_key: string;
+  master_user_id: string;
+  provider: string;
+  external_user_key: string;
   base_url: string;
   plugin_token: string;
   plugin_token_expires_at: string | null;
@@ -27,10 +28,10 @@ export class SqliteMeegleTokenStore implements MeegleTokenStore {
   async save(token: StoredMeegleToken): Promise<void> {
     const existing = this.db.prepare(`
       SELECT last_auth_at, last_refresh_at
-      FROM meegle_credential
-      WHERE operator_lark_id = ? AND meegle_user_key = ? AND base_url = ?
+      FROM user_tokens
+      WHERE master_user_id = ? AND provider = 'meegle' AND external_user_key = ? AND base_url = ?
     `).get(
-      token.operatorLarkId,
+      token.masterUserId,
       token.meegleUserKey,
       token.baseUrl,
     ) as { last_auth_at: string; last_refresh_at: string | null } | undefined;
@@ -40,9 +41,10 @@ export class SqliteMeegleTokenStore implements MeegleTokenStore {
     const lastRefreshAt = existing ? now : null;
 
     this.db.prepare(`
-      INSERT INTO meegle_credential (
-        operator_lark_id,
-        meegle_user_key,
+      INSERT INTO user_tokens (
+        master_user_id,
+        provider,
+        external_user_key,
         base_url,
         plugin_token,
         plugin_token_expires_at,
@@ -54,8 +56,8 @@ export class SqliteMeegleTokenStore implements MeegleTokenStore {
         last_auth_at,
         last_refresh_at,
         updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(operator_lark_id, meegle_user_key, base_url) DO UPDATE SET
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(master_user_id, provider, external_user_key, base_url) DO UPDATE SET
         plugin_token = excluded.plugin_token,
         plugin_token_expires_at = excluded.plugin_token_expires_at,
         user_token = excluded.user_token,
@@ -67,7 +69,8 @@ export class SqliteMeegleTokenStore implements MeegleTokenStore {
         last_refresh_at = excluded.last_refresh_at,
         updated_at = excluded.updated_at
     `).run(
-      token.operatorLarkId,
+      token.masterUserId,
+      "meegle",
       token.meegleUserKey,
       token.baseUrl,
       token.pluginToken,
@@ -88,8 +91,9 @@ export class SqliteMeegleTokenStore implements MeegleTokenStore {
   ): Promise<StoredMeegleToken | undefined> {
     const exactRow = this.db.prepare(`
       SELECT
-        operator_lark_id,
-        meegle_user_key,
+        master_user_id,
+        provider,
+        external_user_key,
         base_url,
         plugin_token,
         plugin_token_expires_at,
@@ -100,18 +104,19 @@ export class SqliteMeegleTokenStore implements MeegleTokenStore {
         credential_status,
         last_auth_at,
         last_refresh_at
-      FROM meegle_credential
-      WHERE operator_lark_id = ? AND meegle_user_key = ? AND base_url = ?
+      FROM user_tokens
+      WHERE master_user_id = ? AND provider = 'meegle' AND external_user_key = ? AND base_url = ?
     `).get(
-      lookup.operatorLarkId,
+      lookup.masterUserId,
       lookup.meegleUserKey,
       lookup.baseUrl,
     ) as StoredCredentialRow | undefined;
 
     const row = exactRow ?? this.db.prepare(`
       SELECT
-        operator_lark_id,
-        meegle_user_key,
+        master_user_id,
+        provider,
+        external_user_key,
         base_url,
         plugin_token,
         plugin_token_expires_at,
@@ -122,12 +127,12 @@ export class SqliteMeegleTokenStore implements MeegleTokenStore {
         credential_status,
         last_auth_at,
         last_refresh_at
-      FROM meegle_credential
-      WHERE operator_lark_id = ? AND meegle_user_key = ?
+      FROM user_tokens
+      WHERE master_user_id = ? AND provider = 'meegle' AND external_user_key = ?
       ORDER BY updated_at DESC
       LIMIT 1
     `).get(
-      lookup.operatorLarkId,
+      lookup.masterUserId,
       lookup.meegleUserKey,
     ) as StoredCredentialRow | undefined;
 
@@ -136,8 +141,8 @@ export class SqliteMeegleTokenStore implements MeegleTokenStore {
     }
 
     return {
-      operatorLarkId: row.operator_lark_id,
-      meegleUserKey: row.meegle_user_key,
+      masterUserId: row.master_user_id,
+      meegleUserKey: row.external_user_key,
       baseUrl: row.base_url,
       pluginToken: row.plugin_token,
       pluginTokenExpiresAt: row.plugin_token_expires_at ?? undefined,
@@ -151,14 +156,22 @@ export class SqliteMeegleTokenStore implements MeegleTokenStore {
 
   async delete(lookup: MeegleTokenLookup): Promise<void> {
     this.db.prepare(`
-      DELETE FROM meegle_credential
-      WHERE operator_lark_id = ? AND meegle_user_key = ? AND base_url = ?
+      DELETE FROM user_tokens
+      WHERE master_user_id = ? AND provider = 'meegle' AND external_user_key = ? AND base_url = ?
     `).run(
-      lookup.operatorLarkId,
+      lookup.masterUserId,
       lookup.meegleUserKey,
       lookup.baseUrl,
     );
   }
 }
 
-export const sharedMeegleTokenStore = new SqliteMeegleTokenStore();
+let sharedMeegleTokenStore: SqliteMeegleTokenStore | undefined;
+
+export function getSharedMeegleTokenStore(): SqliteMeegleTokenStore {
+  if (!sharedMeegleTokenStore) {
+    sharedMeegleTokenStore = new SqliteMeegleTokenStore();
+  }
+
+  return sharedMeegleTokenStore;
+}

@@ -6,6 +6,9 @@
 const mockStorage: Record<string, unknown> = {};
 
 globalThis.chrome = {
+  cookies: {
+    get: vi.fn(),
+  },
   scripting: {
     executeScript: vi.fn(),
   },

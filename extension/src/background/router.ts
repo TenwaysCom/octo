@@ -6,6 +6,7 @@ import type {
 } from "../types/protocol";
 import type { EnsureMeegleAuthDeps } from "./handlers/meegle-auth";
 import type { EnsureLarkAuthDeps } from "./handlers/lark-auth";
+import { getMeegleIdentityFromCookies } from "./handlers/meegle-identity.js";
 import { ensureMeegleAuth } from "./handlers/meegle-auth.js";
 import { ensureLarkAuth } from "./handlers/lark-auth.js";
 import type { LarkAuthCodeResponse } from "../types/lark";
@@ -117,6 +118,27 @@ export async function routeBackgroundAction(
  * Handle extension messages
  */
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message.action === "itdog.meegle.identity.cookies") {
+    getMeegleIdentityFromCookies(message.payload.pageUrl)
+      .then((identity) => {
+        sendResponse({
+          action: message.action,
+          payload: identity,
+        });
+      })
+      .catch((err: Error) => {
+        sendResponse({
+          ok: false,
+          error: {
+            errorCode: "BACKGROUND_ERROR",
+            errorMessage: err.message,
+          },
+        });
+      });
+
+    return true;
+  }
+
   if (message.action === "itdog.meegle.auth.ensure" || message.action === "itdog.lark.auth.ensure") {
     routeBackgroundAction(message as MeegleAuthEnsureMessage | LarkAuthEnsureMessage)
       .then((result) => {

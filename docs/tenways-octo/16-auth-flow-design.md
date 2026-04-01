@@ -267,17 +267,84 @@ flowchart TB
 
 ## 4. 两平台认证对比
 
+### 4.1 按授权步骤梳理
+
+#### 4.1.1 Lark 授权步骤
+
+1. 用户在 Extension UI 里点击“授权 Lark”。
+2. Extension Background 生成 `state`，并打开 Lark OAuth 授权页。
+3. 用户在 Lark 授权页确认授权。
+4. Lark OAuth 服务端把用户重定向到 `/api/lark/auth/callback?code=xxx&state=xxx`。
+5. Backend 校验 `state`，确认这是当前授权流程返回的回调。
+6. Backend 先使用 `app_id + app_secret` 获取 `app_access_token`。
+7. Backend 再使用 `code` 调用 Lark OpenAPI 换取 `user_access_token + refresh_token`。
+8. Backend 将 token 和用户身份信息持久化存储。
+9. Extension 再通过 `/api/lark/auth/status` 或通知机制感知授权完成，更新 popup 状态。
+
+#### 4.1.2 Meegle 授权步骤
+
+1. 用户在 Extension UI 里触发需要 Meegle 权限的动作。
+2. Extension Background 先向服务端查询当前 `tokenStatus`。
+3. 如果服务端返回 `require_auth_code`，Background 查找当前已登录的 Meegle 页面。
+4. Meegle Content Script 在页面上下文里调用 BFF 接口获取 `auth_code`。
+5. Content Script 将 `auth_code` 回传给 Background。
+6. Background 把 `auth_code`、`operatorLarkId`、`meegleUserKey` 等信息发给 Backend。
+7. Backend 先用 `plugin_id + plugin_secret` 获取 `plugin_token`。
+8. Backend 再用 `plugin_token + auth_code` 换取 `user_token + refresh_token`。
+9. Backend 将 token 和用户身份信息持久化存储，并返回 `ready` 状态给 Extension。
+
+#### 4.1.3 授权步骤对照表
+
+| 步骤 | Lark | Meegle |
+|------|------|--------|
+| 1. 触发入口 | 用户点击“授权 Lark” | 用户触发需要 Meegle 权限的动作 |
+| 2. Background 起手动作 | 生成 `state`，准备打开 OAuth 授权页 | 先查服务端 `tokenStatus`，判断是否需要新的 `auth_code` |
+| 3. 用户侧交互 | 用户在 OAuth 页面确认授权 | 无额外授权页，复用当前 Meegle 登录态 |
+| 4. 获取短期凭证 | Lark 重定向到服务端 callback，携带 `code + state` | Content Script 在页面上下文调用接口拿到 `auth_code` |
+| 5. 回到扩展/服务端 | 服务端 callback 接收并校验 `state` | Content Script 把 `auth_code` 回传给 Background |
+| 6. 服务端第一跳交换 | 用 `app_id + app_secret` 换 `app_access_token` | 用 `plugin_id + plugin_secret` 换 `plugin_token` |
+| 7. 服务端第二跳交换 | 用 `code` 换 `user_access_token + refresh_token` | 用 `plugin_token + auth_code` 换 `user_token + refresh_token` |
+| 8. 持久化 | 服务端保存 token、过期时间、用户身份信息 | 服务端保存 token、过期时间、用户身份信息 |
+| 9. 客户端完成态 | Extension 通过 `/status` 或通知机制更新授权结果 | 服务端直接返回 `ready`，Extension 继续后续流程 |
+
+### 4.2 Lark 和 Meegle 的异同
+
+#### 相同点
+
+- 两者最终都需要服务端持有用户级 token 和 refresh token，Extension 不负责长期保存敏感 token。
+- 两者都不是 Extension 直接调用业务 API，而是先完成认证，再由服务端负责后续能力调用。
+- 两者都存在一个短期凭证作为交换入口：Lark 是 OAuth `code`，Meegle 是页面桥接拿到的 `auth_code`。
+- 两者都需要服务端做 token exchange、refresh、状态查询和持久化存储。
+- 两者都需要 `state` 或等价流程标识来串联“一次授权请求”和“这次请求返回的结果”。
+
+#### 不同点
+
+- Lark 是标准 OAuth 2.0 Authorization Code 模式，Meegle 是基于已登录页面的 Auth Code Bridge。
+- Lark 需要单独打开授权页并走服务端 callback；Meegle 不需要授权页，也不需要独立 callback。
+- Lark 的 `code` 来源于 OAuth 回调重定向；Meegle 的 `auth_code` 来源于当前页面登录态下的前端接口调用。
+- Lark 的服务端交换链路是 `app_access_token -> user_access_token`；Meegle 的服务端交换链路是 `plugin_token -> user_token`。
+- Lark 的风险重点在 callback、`state` 校验、防重放和授权结果回传；Meegle 的风险重点在页面登录态依赖、auth code 即用即弃，以及不把 Cookie 上传到服务端。
+- 从当前实现看，Meegle 已经跑通整条闭环，Lark 目前只完成了局部 exchange/refresh 能力，OAuth 闭环还没补齐。
+
+### 4.3 Lark Auth 和 Meegle 当前实现对比
+
 | 对比项 | Lark | Meegle |
 |--------|------|--------|
-| 认证方式 | OAuth 2.0 授权码 | Auth Code Bridge |
-| 用户感知 | 需要确认授权页面 | 无感（使用已有登录态） |
-| Token 类型 | user_access_token | user_access_token |
-| 刷新机制 | refresh_token | refresh_token |
-| Cookie 处理 | 不涉及 | 不上传服务端 |
-| 服务端完整度 | ⚠️ 缺 callback | ✅ 完整 |
-| 客户端完整度 | ⚠️ OAuth 流程断裂 | ✅ 完整 |
-| 单元测试 | ❌ 无 | ✅ 24 tests |
-| 当前可跑通 | ❌ | ✅ |
+| 已实现能力 | `exchange`、`refresh`、Lark 用户 ID 检测 | `auth_code` 获取、`exchange`、`refresh`、token 存储、状态查询 |
+| 客户端入口 | `itdog.lark.auth.ensure` | `itdog.meegle.auth.ensure` |
+| 客户端当前实现状态 | 有 handler，但 OAuth 打开逻辑未启用，回调闭环未完成 | 已完成从 content script 到 background 再到 server 的闭环 |
+| 服务端当前实现状态 | 有 `/exchange`、`/refresh`、`/status`，但 `/callback` 缺失，`/status` 仍是占位实现 | `/status`、`/exchange`、refresh 流程和 token store 已可用 |
+| token 存储实现 | 还没有真正持久化存储 | 已有 `InMemoryMeegleTokenStore` |
+| 授权结果回传 | 还没有可靠通知机制 | exchange 成功后直接继续业务流程 |
+| 单元测试覆盖 | 有 service test，但整体闭环未覆盖 | 服务端和扩展侧主要链路都有测试 |
+| 当前可跑通程度 | 只能跑通局部 exchange/refresh 逻辑，整体授权链路未打通 | 当前方案已可跑通 |
+| 生产化缺口 | callback、state 持久化校验、SQLite token store、状态恢复、异常分支处理 | 主要是把内存 token store 升级为持久化存储 |
+
+### 4.4 结论
+
+- Lark 和 Meegle 的共同点是，最终都要由服务端持有用户 token 和 refresh token。
+- 两者最大的差异不在 token exchange，而在 `auth code` 的获取方式：Lark 依赖标准 OAuth callback，Meegle 依赖已登录页面内的 Auth Code Bridge。
+- 因此 Lark 的实现重点是补齐 OAuth 闭环和服务端持久化；Meegle 的实现重点则是沿用现有桥接方案并加强存储与状态管理。
 
 ---
 

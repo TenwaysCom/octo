@@ -41,6 +41,40 @@ function getPageLocation(): { href?: string; origin?: string } {
   };
 }
 
+function getCookieValue(name: string): string | null {
+  if (typeof document === "undefined" || !document.cookie) {
+    return null;
+  }
+
+  const cookies = document.cookie.split(";");
+
+  for (const cookie of cookies) {
+    const trimmed = cookie.trim();
+    if (!trimmed) {
+      continue;
+    }
+
+    const separatorIndex = trimmed.indexOf("=");
+    const cookieName =
+      separatorIndex >= 0 ? trimmed.slice(0, separatorIndex) : trimmed;
+
+    if (cookieName !== name) {
+      continue;
+    }
+
+    const rawValue =
+      separatorIndex >= 0 ? trimmed.slice(separatorIndex + 1) : "";
+
+    try {
+      return decodeURIComponent(rawValue);
+    } catch {
+      return rawValue;
+    }
+  }
+
+  return null;
+}
+
 /**
  * Get user identity from Meegle page
  */
@@ -92,6 +126,14 @@ function getMeegleUserIdentity(): MeegleUserIdentity {
           // Ignore parse errors
         }
       }
+    }
+
+    if (!identity.userKey) {
+      identity.userKey = getCookieValue("meego_user_key");
+    }
+
+    if (!identity.tenantKey) {
+      identity.tenantKey = getCookieValue("meego_tenant_key");
     }
 
     // Try to get tenant key from URL

@@ -25,6 +25,7 @@
           v-else
           :form="settingsForm"
           @cancel="closeSettings"
+          @fetch-meegle-user-key="fetchMeegleUserKey"
           @save="saveSettingsForm"
         />
       </PopupShell>
@@ -59,6 +60,7 @@ const {
   authorizeMeegle,
   authorizeLark,
   closeSettings,
+  fetchMeegleUserKey,
   saveSettingsForm,
   clearLogs,
   runFeatureAction,

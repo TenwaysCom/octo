@@ -4,15 +4,13 @@ import express, { type Request, type Response } from "express";
 import { analyzeA2Controller, createB1DraftController, applyB1Controller } from "./modules/a2/a2.controller.js";
 import { analyzeA1Controller, createB2DraftController, applyB2Controller } from "./modules/a1/a1.controller.js";
 import { resolveIdentityController } from "./modules/identity/identity.controller.js";
-import { syncIdentityController, getIdentityController } from "./modules/identity/identity-sync.controller.js";
 import { exchangeAuthCodeController, getAuthStatusController } from "./modules/meegle-auth/meegle-auth.controller.js";
 import { exchangeAuthCodeController as exchangeLarkAuthCodeController, refreshTokenController as refreshLarkTokenController, getAuthStatusController as getLarkAuthStatusController } from "./modules/lark-auth/lark-auth.controller.js";
 import { configureLarkAuthControllerDeps } from "./modules/lark-auth/lark-auth.controller.js";
 import { configureMeegleAuthServiceDeps } from "./modules/meegle-auth/meegle-auth.service.js";
 import { configurePublicConfigController, getPublicConfigController } from "./modules/public-config/public-config.controller.js";
 import { createHttpMeegleAuthAdapter } from "./adapters/meegle/auth-adapter.js";
-import { sharedIdentityStore } from "./adapters/sqlite/identity-store.js";
-import { sharedMeegleTokenStore } from "./adapters/sqlite/meegle-token-store.js";
+import { getSharedMeegleTokenStore } from "./adapters/sqlite/meegle-token-store.js";
 import { runPMAnalysisController } from "./modules/pm-analysis/pm-analysis.controller.js";
 
 // Load environment variables
@@ -48,8 +46,8 @@ if (MEEGLE_PLUGIN_ID && MEEGLE_PLUGIN_SECRET) {
   configureMeegleAuthServiceDeps({
     authAdapter: meegleAuthAdapter,
     pluginId: MEEGLE_PLUGIN_ID,
-    tokenStore: sharedMeegleTokenStore,
-    identityStore: sharedIdentityStore,
+    tokenStore: getSharedMeegleTokenStore(),
+    meegleAuthBaseUrl: MEEGLE_BASE_URL,
   });
   console.log("[Server] Meegle auth configured with PLUGIN_ID:", MEEGLE_PLUGIN_ID);
 } else {
@@ -118,8 +116,6 @@ function handleController(fn: (req: Request) => Promise<unknown>) {
 
 // Identity routes
 app.post("/api/identity/resolve", handleController(resolveIdentityController));
-app.post("/api/identity/sync", handleController(syncIdentityController));
-app.post("/api/identity/get", handleController(getIdentityController));
 
 // Public config route
 app.get("/api/config/public", async (_req, res) => {
