@@ -1,5 +1,8 @@
 import { DEFAULT_CONFIG, getConfig } from "../background/config.js";
-import type { LarkAuthEnsureResponse } from "../types/lark.js";
+import type {
+  LarkAuthCallbackResult,
+  LarkAuthEnsureResponse,
+} from "../types/lark.js";
 import type {
   MeegleAuthEnsureRequest,
   MeegleAuthEnsureResponse,
@@ -200,7 +203,10 @@ export async function resolveIdentityRequest(input: {
 }
 
 export async function runLarkAuthRequest(
-  baseUrl: string,
+  input: {
+    masterUserId?: string;
+    baseUrl: string;
+  },
 ): Promise<LarkAuthEnsureResponse> {
   const response = await sendRuntimeMessage<{
     payload?: LarkAuthEnsureResponse;
@@ -208,8 +214,8 @@ export async function runLarkAuthRequest(
     action: "itdog.lark.auth.ensure",
     payload: {
       requestId: `req_${Date.now()}`,
-      operatorLarkId: "ou_user",
-      baseUrl,
+      masterUserId: input.masterUserId,
+      baseUrl: input.baseUrl,
     },
   });
 
@@ -219,9 +225,46 @@ export async function runLarkAuthRequest(
 
   return {
     status: "failed",
-    baseUrl,
+    baseUrl: input.baseUrl,
     reason: response.error?.errorCode || "BACKGROUND_EMPTY_RESPONSE",
+    errorMessage: response.error?.errorMessage,
   };
+}
+
+const AUTH_STORAGE_KEY = "itpm_assistant_auth";
+
+export function watchLarkAuthCallbackResult(
+  listener: (result: LarkAuthCallbackResult) => void | Promise<void>,
+): () => void {
+  const chromeApi = getChromeApi();
+  const storageEvents = chromeApi.storage.onChanged;
+
+  if (!storageEvents) {
+    return () => {};
+  }
+
+  const handleChange = (
+    changes: Record<string, chrome.storage.StorageChange>,
+    areaName: string,
+  ) => {
+    if (areaName !== "local") {
+      return;
+    }
+
+    const authState = changes[AUTH_STORAGE_KEY]?.newValue as {
+      lastLarkAuthResult?: LarkAuthCallbackResult;
+    } | undefined;
+    const result = authState?.lastLarkAuthResult;
+
+    if (!result?.state || !result.status) {
+      return;
+    }
+
+    void listener(result);
+  };
+
+  storageEvents.addListener(handleChange);
+  return () => storageEvents.removeListener(handleChange);
 }
 
 export async function loadPopupSettings(): Promise<PopupSettingsForm> {

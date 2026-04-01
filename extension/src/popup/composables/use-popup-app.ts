@@ -18,6 +18,7 @@ import {
   runMeegleAuthRequest,
   saveResolvedIdentity,
   savePopupSettings,
+  watchLarkAuthCallbackResult,
 } from "../runtime.js";
 import type {
   PopupFeatureAction,
@@ -172,6 +173,22 @@ export function usePopupApp() {
       disabled: false,
     },
   ]);
+  void watchLarkAuthCallbackResult(async (result) => {
+    if (result.masterUserId && result.masterUserId !== state.identity.masterUserId) {
+      state.identity.masterUserId = result.masterUserId;
+      await saveResolvedIdentity(result.masterUserId);
+    }
+
+    if (result.status === "ready") {
+      appendLog("success", "Lark 授权完成");
+      const auth = await checkLarkAuth();
+      state.larkAuth = auth;
+      state.isAuthed.lark = auth.status === "ready";
+      return;
+    }
+
+    appendLog("error", `Lark 授权失败: ${result.reason || "Unknown error"}`);
+  });
 
   async function initialize() {
     appendLog("info", "初始化...");
@@ -345,7 +362,10 @@ export function usePopupApp() {
   }
 
   async function checkLarkAuth(): Promise<LarkAuthEnsureResponse> {
-    return runLarkAuthRequest(normalizeLarkAuthBaseUrl(state.currentTabOrigin));
+    return runLarkAuthRequest({
+      masterUserId: state.identity.masterUserId || undefined,
+      baseUrl: normalizeLarkAuthBaseUrl(state.currentTabOrigin),
+    });
   }
 
   async function authorizeMeegle() {
@@ -387,12 +407,25 @@ export function usePopupApp() {
 
   async function authorizeLark() {
     appendLog("info", "检查 Lark 授权...");
+    const masterUserId = await ensureResolvedIdentity();
+
+    if (!masterUserId) {
+      appendLog("error", "无法解析主身份，暂时不能发起 Lark 授权");
+      state.isAuthed.lark = false;
+      return;
+    }
+
     const auth = await checkLarkAuth();
     state.larkAuth = auth;
     state.isAuthed.lark = auth.status === "ready";
 
     if (auth.status === "ready") {
       appendLog("success", "Lark 已授权");
+      return;
+    }
+
+    if (auth.status === "in_progress") {
+      appendLog("info", "已打开 Lark 授权页，等待完成授权");
       return;
     }
 

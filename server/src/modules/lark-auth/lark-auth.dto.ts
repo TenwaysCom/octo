@@ -10,7 +10,7 @@ import { z } from "zod";
 // ==================== DTOs ====================
 
 const baseLarkAuthSchema = z.object({
-  operatorLarkId: z.string().min(1),
+  masterUserId: z.string().min(1),
   baseUrl: z.string().url(),
 });
 
@@ -24,10 +24,19 @@ export const larkTokenRefreshRequestSchema = baseLarkAuthSchema.extend({
 });
 
 export const larkAuthStatusRequestSchema = baseLarkAuthSchema;
+export const larkOauthSessionRequestSchema = baseLarkAuthSchema.extend({
+  state: z.string().min(1),
+});
+export const larkAuthCallbackQuerySchema = z.object({
+  code: z.string().min(1),
+  state: z.string().min(1),
+});
 
 export type LarkAuthCodeRequest = z.infer<typeof larkAuthCodeRequestSchema>;
 export type LarkTokenRefreshRequest = z.infer<typeof larkTokenRefreshRequestSchema>;
 export type LarkAuthStatusRequest = z.infer<typeof larkAuthStatusRequestSchema>;
+export type LarkOauthSessionRequest = z.infer<typeof larkOauthSessionRequestSchema>;
+export type LarkAuthCallbackQuery = z.infer<typeof larkAuthCallbackQuerySchema>;
 
 // ==================== Response Types ====================
 
@@ -40,7 +49,11 @@ export interface LarkTokenPair {
 
 export interface LarkAuthStatusResponse {
   status: "ready" | "require_auth" | "expired" | "failed";
+  masterUserId: string;
+  baseUrl: string;
   reason?: string;
+  credentialStatus?: "active" | "expired";
+  expiresAt?: string;
 }
 
 export interface LarkAuthCodeResponse {
@@ -68,4 +81,18 @@ export function validateLarkTokenRefreshRequest(input: unknown): LarkTokenRefres
 
 export function validateLarkAuthStatusRequest(input: unknown): LarkAuthStatusRequest {
   return larkAuthStatusRequestSchema.parse(input);
+}
+
+export function validateLarkOauthSessionRequest(input: unknown): LarkOauthSessionRequest {
+  return larkOauthSessionRequestSchema.parse(input);
+}
+
+export function validateLarkAuthCallbackQuery(input: unknown): LarkAuthCallbackQuery {
+  return larkAuthCallbackQuerySchema.parse(input);
+}
+
+export interface LarkAuthCallbackPage {
+  statusCode: number;
+  contentType: string;
+  body: string;
 }

@@ -545,7 +545,93 @@ flowchart TD
     J --> G
 ```
 
-## 12. 如何判断“是否已经授权”
+## 12. Lark 和 Meegle 认证流程对比
+
+这一节单独汇总两平台认证链路，避免身份模型和认证实现拆在多份文档里。
+
+### 12.1 按授权步骤梳理
+
+#### 12.1.1 Lark 授权步骤
+
+1. 用户在 Extension UI 里点击“授权 Lark”。
+2. Extension Background 先带已有 `masterUserId` 或当前 Lark 线索调用 `/api/lark/auth/status`。
+3. 如果服务端返回 `require_auth`，Background 生成 `state`，并打开 Lark OAuth 授权页。
+4. 用户在 Lark 授权页确认授权。
+5. Lark OAuth 服务端把用户重定向到 `/api/lark/auth/callback?code=xxx&state=xxx`。
+6. Backend 校验 `state`，确认这是当前授权流程返回的回调。
+7. Backend 先使用 `app_id + app_secret` 获取 `app_access_token`。
+8. Backend 再使用 `code` 调用 Lark OpenAPI 换取 `user_access_token + refresh_token`。
+9. Backend 再调用 Lark 用户信息接口拿到权威 Lark 身份，并联动 `/api/identity/resolve`。
+10. Backend 将 token 和用户身份信息持久化存储到 `users + user_tokens`。
+11. Extension 再通过 `/api/lark/auth/status` 或通知机制感知授权完成，更新 popup 状态并刷新 `masterUserId`。
+
+#### 12.1.2 Meegle 授权步骤
+
+1. 用户在 Extension UI 里触发需要 Meegle 权限的动作。
+2. Extension Background 先带 `masterUserId` 向服务端查询当前 `tokenStatus`。
+3. 如果服务端返回 `require_auth_code`，Background 查找当前已登录的 Meegle 页面。
+4. Meegle Content Script 在页面上下文里调用 BFF 接口获取 `auth_code`。
+5. Content Script 将 `auth_code` 回传给 Background。
+6. Background 把 `auth_code`、`masterUserId`、`meegleUserKey` 等信息发给 Backend。
+7. Backend 先用 `plugin_id + plugin_secret` 获取 `plugin_token`。
+8. Backend 再用 `plugin_token + auth_code` 换取 `user_token + refresh_token`。
+9. Backend 将 token 和用户身份信息持久化存储到 `users + user_tokens`，并返回 `ready` 状态给 Extension。
+
+#### 12.1.3 授权步骤对照表
+
+| 步骤 | Lark | Meegle |
+|------|------|--------|
+| 1. 触发入口 | 用户点击“授权 Lark” | 用户触发需要 Meegle 权限的动作 |
+| 2. Background 起手动作 | 先查 `/api/lark/auth/status`，未授权时生成 `state` 并准备打开 OAuth | 先查 `/api/meegle/auth/status`，判断是否需要新的 `auth_code` |
+| 3. 用户侧交互 | 用户在 OAuth 页面确认授权 | 无额外授权页，复用当前 Meegle 登录态 |
+| 4. 获取短期凭证 | Lark 重定向到服务端 callback，携带 `code + state` | Content Script 在页面上下文调用接口拿到 `auth_code` |
+| 5. 回到扩展/服务端 | 服务端 callback 接收并校验 `state` | Content Script 把 `auth_code` 回传给 Background |
+| 6. 服务端第一跳交换 | 用 `app_id + app_secret` 换 `app_access_token` | 用 `plugin_id + plugin_secret` 换 `plugin_token` |
+| 7. 服务端第二跳交换 | 用 `code` 换 `user_access_token + refresh_token` | 用 `plugin_token + auth_code` 换 `user_token + refresh_token` |
+| 8. 身份收敛 | 再取 Lark 用户信息并 resolve 主身份 | 复用已有 `masterUserId`，必要时补齐 Meegle 绑定 |
+| 9. 持久化 | 服务端保存 token、过期时间、用户身份信息 | 服务端保存 token、过期时间、用户身份信息 |
+| 10. 客户端完成态 | Extension 通过 `/status` 或通知机制更新授权结果 | 服务端直接返回 `ready`，Extension 继续后续流程 |
+
+### 12.2 Lark 和 Meegle 的异同
+
+#### 相同点
+
+- 两者最终都需要服务端持有用户级 token 和 refresh token，Extension 不负责长期保存敏感 token。
+- 两者都不是 Extension 直接调用业务 API，而是先完成认证，再由服务端负责后续能力调用。
+- 两者都存在一个短期凭证作为交换入口：Lark 是 OAuth `code`，Meegle 是页面桥接拿到的 `auth_code`。
+- 两者都需要服务端做 token exchange、refresh、状态查询和持久化存储。
+- 两者都需要某种“请求和回调可关联”的机制：Lark 直接用 OAuth `state`，Meegle 则需要 requestId / page bridge 上下文来串联同一轮授权。
+
+#### 不同点
+
+- Lark 是标准 OAuth 2.0 Authorization Code 模式，Meegle 是基于已登录页面的 Auth Code Bridge。
+- Lark 需要单独打开授权页并走服务端 callback；Meegle 不需要授权页，也不需要独立 callback。
+- Lark 的 `code` 来源于 OAuth 回调重定向；Meegle 的 `auth_code` 来源于当前页面登录态下的前端接口调用。
+- Lark 的服务端交换链路是 `app_access_token -> user_access_token`；Meegle 的服务端交换链路是 `plugin_token -> user_token`。
+- Lark 的风险重点在 callback、`state` 校验、防重放、身份确权和授权结果回传；Meegle 的风险重点在页面登录态依赖、auth code 即用即弃，以及不把 Cookie 上传到服务端。
+- Lark 完成授权后还承担“确权主身份”的职责；Meegle 更偏向“为既有主身份补齐另一侧授权”。
+
+### 12.3 当前实现状态对比
+
+| 对比项 | Lark | Meegle |
+|--------|------|--------|
+| 已实现能力 | `exchange`、`refresh`、页面 Lark ID 探测 | `auth_code` 获取、`exchange`、`refresh`、token 存储、状态查询 |
+| 客户端入口 | `itdog.lark.auth.ensure` | `itdog.meegle.auth.ensure` |
+| 客户端当前实现状态 | 有 handler，但 OAuth 打开逻辑未启用，回调闭环未完成 | 已完成从 content script 到 background 再到 server 的闭环 |
+| 服务端当前实现状态 | 有 `/exchange`、`/refresh`、`/status`，但 `/callback` 缺失，`/status` 仍是占位实现 | `/status`、`/exchange`、refresh 流程和 SQLite token store 已可用 |
+| token 存储实现 | 还没有真正接入 `provider=lark` 的持久化存储 | 已接入基于 SQLite 的 Meegle token store |
+| 授权结果回传 | 还没有可靠通知机制 | exchange 成功后直接继续业务流程 |
+| 单元测试覆盖 | 有 service test，但整体闭环未覆盖 | 服务端和扩展侧主要链路都有测试 |
+| 当前可跑通程度 | 只能跑通局部 exchange / refresh 逻辑，整体授权链路未打通 | 当前方案已可跑通 |
+| 生产化缺口 | callback、state 持久化校验、`provider=lark` token store、状态恢复、异常分支处理 | 主要是继续强化持久化策略和异常恢复 |
+
+### 12.4 结论
+
+- Lark 和 Meegle 的共同点是，最终都要由服务端持有用户 token 和 refresh token。
+- 两者最大的差异不在 token exchange，而在短期凭证的获取方式：Lark 依赖标准 OAuth callback，Meegle 依赖已登录页面内的 Auth Code Bridge。
+- 因此 Lark 的实现重点是补齐 OAuth 闭环、身份确权和服务端持久化；Meegle 的实现重点则是沿用现有桥接方案并加强存储与状态管理。
+
+## 13. 如何判断“是否已经授权”
 
 系统里要区分两件事：
 
@@ -555,14 +641,14 @@ flowchart TD
 2. 是否已经授权
    - 看 `user_tokens`
 
-### 12.1 判断绑定
+### 13.1 判断绑定
 
 - Lark 是否已确权：
   - `users.lark_tenant_key` 和 `users.lark_user_id` 是否存在
 - Meegle 是否已绑定：
   - `users.meegle_base_url` 和 `users.meegle_user_key` 是否存在
 
-### 12.2 判断授权
+### 13.2 判断授权
 
 授权状态一律通过 status 接口判断，不直接让插件猜：
 
@@ -585,7 +671,7 @@ flowchart TD
    - 更新 `auth_status = reauth_required`
    - 返回 `require_auth`
 
-### 12.3 绑定与授权的组合关系
+### 13.3 绑定与授权的组合关系
 
 | 场景 | users | user_tokens | 结论 |
 |------|------|------|------|
@@ -595,9 +681,9 @@ flowchart TD
 | Lark 已确权，无 token | `active` | 无 `provider=lark` | 主身份已确认，但 Lark 未授权 |
 | Lark 已确权，token 有效 | `active` | `provider=lark, active` | Lark 已授权 |
 
-## 13. 三种典型流程
+## 14. 三种典型流程
 
-### 13.1 Lark-first
+### 14.1 Lark-first
 
 1. 插件拿到 Lark 身份线索
 2. 调用 `/api/identity/resolve`
@@ -605,7 +691,7 @@ flowchart TD
 4. 返回 `master_user_id`
 5. 后续再绑定 Meegle
 
-### 13.2 Meegle-first
+### 14.2 Meegle-first
 
 1. 插件拿到 `meegle_user_key`
 2. 调用 `/api/identity/resolve`
@@ -615,7 +701,7 @@ flowchart TD
 6. 再次调用 `/api/identity/resolve`
 7. 服务端把该用户升级为 `active`
 
-### 13.3 Both-present
+### 14.3 Both-present
 
 1. 同时拿到 Lark 和 Meegle 身份线索
 2. 服务端先按 Lark 查主用户
@@ -623,7 +709,7 @@ flowchart TD
 4. 一致则绑定或直接返回
 5. 不一致则返回 `conflict`
 
-## 14. 冲突处理原则
+## 15. 冲突处理原则
 
 以下情况不能自动覆盖：
 
@@ -636,7 +722,7 @@ flowchart TD
 
 并要求显式人工处理或后续设计 rebind 流程。
 
-## 15. 当前阶段的兼容策略
+## 16. 当前阶段的兼容策略
 
 目前仓库里 Lark 身份获取仍然大量依赖页面探测值。
 
@@ -655,7 +741,7 @@ flowchart TD
 - 当前版本可以先落地
 - 未来把 Lark 身份来源从页面探测升级到 OAuth 确认时，不需要推翻用户系统模型
 
-## 16. 实施建议
+## 17. 实施建议
 
 建议按以下顺序落地：
 
@@ -665,7 +751,7 @@ flowchart TD
 4. Lark 授权完成后补一次 `resolve`
 5. 最后再把 Lark 的最终主身份来源收敛到 OAuth 确认结果
 
-## 17. 结论
+## 18. 结论
 
 这套设计的核心不是“插件自己知道用户是谁”，而是：
 

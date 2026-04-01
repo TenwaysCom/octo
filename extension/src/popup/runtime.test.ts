@@ -13,6 +13,8 @@ vi.mock("../background/config.js", () => ({
 import {
   getConfig,
   loadPopupSettings,
+  runLarkAuthRequest,
+  watchLarkAuthCallbackResult,
   requestMeegleUserIdentity,
 } from "./runtime.js";
 
@@ -90,5 +92,83 @@ describe("popup runtime settings", () => {
       userKey: "7538275242901291040",
       tenantKey: "saas_7538275207677476895",
     });
+  });
+
+  it("sends masterUserId when requesting Lark auth through the background", async () => {
+    vi.mocked(chrome.runtime.sendMessage).mockImplementation((...args) => {
+      const maybeCallback = args[args.length - 1] as
+        | ((response?: unknown) => void)
+        | undefined;
+      maybeCallback?.({
+        payload: {
+          status: "in_progress",
+          baseUrl: "https://open.larksuite.com",
+          state: "state_123",
+        },
+      });
+      return undefined as never;
+    });
+
+    await expect(
+      runLarkAuthRequest({
+        masterUserId: "usr_resolved",
+        baseUrl: "https://open.larksuite.com",
+      }),
+    ).resolves.toMatchObject({
+      status: "in_progress",
+      state: "state_123",
+    });
+
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+      {
+        action: "itdog.lark.auth.ensure",
+        payload: expect.objectContaining({
+          masterUserId: "usr_resolved",
+          baseUrl: "https://open.larksuite.com",
+        }),
+      },
+      expect.any(Function),
+    );
+  });
+
+  it("watches storage changes for callback completion results", async () => {
+    const addListener = vi.fn();
+    const removeListener = vi.fn();
+    chrome.storage.onChanged = {
+      addListener,
+      removeListener,
+    } as typeof chrome.storage.onChanged;
+
+    const listener = vi.fn();
+    const unsubscribe = watchLarkAuthCallbackResult(listener);
+
+    const registered = addListener.mock.calls[0]?.[0] as
+      | ((changes: Record<string, chrome.storage.StorageChange>, areaName: string) => void)
+      | undefined;
+
+    registered?.(
+      {
+        itpm_assistant_auth: {
+          newValue: {
+            lastLarkAuthResult: {
+              state: "state_123",
+              status: "ready",
+              masterUserId: "usr_xxx",
+            },
+          },
+          oldValue: {},
+        },
+      },
+      "local",
+    );
+
+    expect(listener).toHaveBeenCalledWith({
+      state: "state_123",
+      status: "ready",
+      masterUserId: "usr_xxx",
+    });
+
+    unsubscribe();
+    expect(removeListener).toHaveBeenCalledWith(registered);
   });
 });

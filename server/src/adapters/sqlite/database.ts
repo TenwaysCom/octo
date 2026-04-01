@@ -91,6 +91,8 @@ function migrateTokenTable(db: DatabaseSync): void {
     !tokenTable ||
     !schemaSql.includes("provider TEXT NOT NULL") ||
     !schemaSql.includes("external_user_key TEXT NOT NULL");
+  const needsNullablePluginToken =
+    Boolean(tokenTable) && schemaSql.includes("plugin_token TEXT NOT NULL");
 
   if (needsCreate) {
     db.exec(`
@@ -99,7 +101,7 @@ function migrateTokenTable(db: DatabaseSync): void {
         provider TEXT NOT NULL,
         external_user_key TEXT NOT NULL,
         base_url TEXT NOT NULL,
-        plugin_token TEXT NOT NULL,
+        plugin_token TEXT,
         plugin_token_expires_at TEXT,
         user_token TEXT NOT NULL,
         user_token_expires_at TEXT,
@@ -111,6 +113,62 @@ function migrateTokenTable(db: DatabaseSync): void {
         updated_at TEXT NOT NULL,
         PRIMARY KEY (master_user_id, provider, external_user_key, base_url)
       );
+    `);
+  } else if (needsNullablePluginToken) {
+    db.exec(`
+      CREATE TABLE user_tokens_v2 (
+        master_user_id TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        external_user_key TEXT NOT NULL,
+        base_url TEXT NOT NULL,
+        plugin_token TEXT,
+        plugin_token_expires_at TEXT,
+        user_token TEXT NOT NULL,
+        user_token_expires_at TEXT,
+        refresh_token TEXT,
+        refresh_token_expires_at TEXT,
+        credential_status TEXT NOT NULL,
+        last_auth_at TEXT NOT NULL,
+        last_refresh_at TEXT,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (master_user_id, provider, external_user_key, base_url)
+      );
+
+      INSERT INTO user_tokens_v2 (
+        master_user_id,
+        provider,
+        external_user_key,
+        base_url,
+        plugin_token,
+        plugin_token_expires_at,
+        user_token,
+        user_token_expires_at,
+        refresh_token,
+        refresh_token_expires_at,
+        credential_status,
+        last_auth_at,
+        last_refresh_at,
+        updated_at
+      )
+      SELECT
+        master_user_id,
+        provider,
+        external_user_key,
+        base_url,
+        plugin_token,
+        plugin_token_expires_at,
+        user_token,
+        user_token_expires_at,
+        refresh_token,
+        refresh_token_expires_at,
+        credential_status,
+        last_auth_at,
+        last_refresh_at,
+        updated_at
+      FROM user_tokens;
+
+      DROP TABLE user_tokens;
+      ALTER TABLE user_tokens_v2 RENAME TO user_tokens;
     `);
   }
 
@@ -167,6 +225,24 @@ function migrateTokenTable(db: DatabaseSync): void {
   }
 }
 
+function initOauthSessionsTable(db: DatabaseSync): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS oauth_sessions (
+      state TEXT PRIMARY KEY,
+      provider TEXT NOT NULL,
+      master_user_id TEXT,
+      base_url TEXT NOT NULL,
+      status TEXT NOT NULL,
+      auth_code TEXT,
+      external_user_key TEXT,
+      error_code TEXT,
+      expires_at TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+  `);
+}
+
 function initSchema(db: DatabaseSync): void {
   db.exec(`
     PRAGMA journal_mode = WAL;
@@ -185,6 +261,7 @@ function initSchema(db: DatabaseSync): void {
 
   migrateUsersTable(db);
   migrateTokenTable(db);
+  initOauthSessionsTable(db);
   ensureColumn(db, "user_tokens", "plugin_token_expires_at", "TEXT");
   ensureColumn(db, "user_tokens", "user_token_expires_at", "TEXT");
   ensureColumn(db, "user_tokens", "refresh_token_expires_at", "TEXT");
@@ -197,6 +274,10 @@ function initSchema(db: DatabaseSync): void {
   db.exec(`
     CREATE INDEX IF NOT EXISTS user_tokens_provider_lookup_idx
     ON user_tokens(provider, master_user_id, external_user_key)
+  `);
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS oauth_sessions_provider_state_idx
+    ON oauth_sessions(provider, state)
   `);
 }
 

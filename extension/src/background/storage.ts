@@ -17,6 +17,16 @@ export interface AuthState {
   larkUserToken?: string;
   larkUserTokenExpiresAt?: string;
   larkRefreshToken?: string;
+  pendingLarkOauthState?: string;
+  pendingLarkOauthStartedAt?: string;
+  pendingLarkOauthBaseUrl?: string;
+  pendingLarkOauthMasterUserId?: string;
+  lastLarkAuthResult?: {
+    state: string;
+    status: "ready" | "failed";
+    masterUserId?: string;
+    reason?: string;
+  };
 }
 
 const STORAGE_KEY = "itpm_assistant_auth";
@@ -199,5 +209,55 @@ export async function clearLarkAuthState(): Promise<void> {
     larkUserToken: undefined,
     larkUserTokenExpiresAt: undefined,
     larkRefreshToken: undefined,
+    pendingLarkOauthState: undefined,
+    pendingLarkOauthStartedAt: undefined,
+    pendingLarkOauthBaseUrl: undefined,
+    pendingLarkOauthMasterUserId: undefined,
+    lastLarkAuthResult: undefined,
+  });
+}
+
+export async function savePendingLarkOauthState(input: {
+  state: string;
+  startedAt: string;
+  baseUrl: string;
+  masterUserId?: string;
+}): Promise<void> {
+  const current = await getAuthState();
+  await saveAuthState({
+    ...current,
+    pendingLarkOauthState: input.state,
+    pendingLarkOauthStartedAt: input.startedAt,
+    pendingLarkOauthBaseUrl: input.baseUrl,
+    pendingLarkOauthMasterUserId: input.masterUserId,
+  });
+}
+
+export async function clearPendingLarkOauthState(state?: string): Promise<void> {
+  const current = await getAuthState();
+
+  if (state && current.pendingLarkOauthState && current.pendingLarkOauthState !== state) {
+    return;
+  }
+
+  await saveAuthState({
+    ...current,
+    pendingLarkOauthState: undefined,
+    pendingLarkOauthStartedAt: undefined,
+    pendingLarkOauthBaseUrl: undefined,
+    pendingLarkOauthMasterUserId: undefined,
+  });
+}
+
+export async function saveLastLarkAuthResult(result: {
+  state: string;
+  status: "ready" | "failed";
+  masterUserId?: string;
+  reason?: string;
+}): Promise<void> {
+  const current = await getAuthState();
+  await saveAuthState({
+    ...current,
+    lastLarkAuthResult: result,
   });
 }

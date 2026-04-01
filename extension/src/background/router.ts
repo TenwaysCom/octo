@@ -1,6 +1,7 @@
 import type {
   MeegleAuthEnsureMessage,
   MeegleAuthEnsureResult,
+  LarkAuthCallbackDetectedMessage,
   LarkAuthEnsureMessage,
   LarkAuthEnsureResult,
 } from "../types/protocol";
@@ -8,38 +9,16 @@ import type { EnsureMeegleAuthDeps } from "./handlers/meegle-auth";
 import type { EnsureLarkAuthDeps } from "./handlers/lark-auth";
 import { getMeegleIdentityFromCookies } from "./handlers/meegle-identity.js";
 import { ensureMeegleAuth } from "./handlers/meegle-auth.js";
-import { ensureLarkAuth } from "./handlers/lark-auth.js";
-import type { LarkAuthCodeResponse } from "../types/lark";
+import { ensureLarkAuth, handleLarkAuthCallbackDetected } from "./handlers/lark-auth.js";
 import {
   getCachedUserToken,
-  getCachedPluginId,
   saveAuthCodeResponse,
   getCachedLarkUserToken,
-  saveLarkUserToken,
+  clearPendingLarkOauthState,
+  saveLastLarkAuthResult,
+  savePendingLarkOauthState,
 } from "./storage.js";
 import { getConfig } from "./config.js";
-
-/**
- * Build deps for ensureMeegleAuth
- */
-async function buildAuthDeps(): Promise<EnsureMeegleAuthDeps> {
-  const config = await getConfig();
-  return {
-    getCachedToken: () => {
-      // Note: This is synchronous, but getCachedUserToken is async
-      // We'll read from a cached value instead
-      return undefined; // Placeholder - will be populated via async init
-    },
-    getCachedPluginId: () => config.MEEGLE_PLUGIN_ID,
-    saveAuthCode: async (response) => {
-      await saveAuthCodeResponse(
-        response.authCode,
-        response.state,
-        response.issuedAt,
-      );
-    },
-  };
-}
 
 // Cache for user token (populated asynchronously)
 let cachedToken: string | undefined;
@@ -68,8 +47,8 @@ async function initTokenCache(): Promise<void> {
 initTokenCache();
 
 export async function routeBackgroundAction(
-  message: MeegleAuthEnsureMessage | LarkAuthEnsureMessage,
-): Promise<MeegleAuthEnsureResult | LarkAuthEnsureResult> {
+  message: MeegleAuthEnsureMessage | LarkAuthEnsureMessage | LarkAuthCallbackDetectedMessage,
+): Promise<MeegleAuthEnsureResult | LarkAuthEnsureResult | { ok: true }> {
   const config = await getConfig();
 
   if (message.action === "itdog.meegle.auth.ensure") {
@@ -98,10 +77,7 @@ export async function routeBackgroundAction(
   if (message.action === "itdog.lark.auth.ensure") {
     const deps: EnsureLarkAuthDeps = {
       getCachedLarkToken: () => cachedLarkToken,
-      saveLarkAuthCode: async (response: LarkAuthCodeResponse) => {
-        // Save Lark auth code if needed
-        console.log("[Tenways Octo] Lark auth code response:", response);
-      },
+      savePendingLarkOauthState,
       appId: config.LARK_APP_ID,
     };
 
@@ -109,6 +85,14 @@ export async function routeBackgroundAction(
       action: message.action,
       payload: await ensureLarkAuth(message.payload, deps),
     };
+  }
+
+  if (message.action === "itdog.lark.auth.callback.detected") {
+    await handleLarkAuthCallbackDetected(message.payload, {
+      saveLastLarkAuthResult,
+      clearPendingLarkOauthState,
+    });
+    return { ok: true };
   }
 
   throw new Error(`Unknown action: ${(message as any).action}`);
@@ -139,8 +123,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
 
-  if (message.action === "itdog.meegle.auth.ensure" || message.action === "itdog.lark.auth.ensure") {
-    routeBackgroundAction(message as MeegleAuthEnsureMessage | LarkAuthEnsureMessage)
+  if (
+    message.action === "itdog.meegle.auth.ensure" ||
+    message.action === "itdog.lark.auth.ensure" ||
+    message.action === "itdog.lark.auth.callback.detected"
+  ) {
+    routeBackgroundAction(message as MeegleAuthEnsureMessage | LarkAuthEnsureMessage | LarkAuthCallbackDetectedMessage)
       .then((result) => {
         sendResponse(result);
       })

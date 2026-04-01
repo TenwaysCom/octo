@@ -35,6 +35,10 @@ globalThis.chrome = {
         callback?.();
       }),
     },
+    onChanged: {
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+    },
   },
   runtime: {
     sendMessage: vi.fn(),

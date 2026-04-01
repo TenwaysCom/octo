@@ -12,6 +12,7 @@ const runtimeMock = vi.hoisted(() => ({
   resolveIdentityRequest: vi.fn(),
   runLarkAuthRequest: vi.fn(),
   runMeegleAuthRequest: vi.fn(),
+  watchLarkAuthCallbackResult: vi.fn(),
   saveResolvedIdentity: vi.fn(),
   savePopupSettings: vi.fn(),
 }));
@@ -82,7 +83,6 @@ describe("usePopupApp notebook state", () => {
     runtimeMock.runLarkAuthRequest.mockResolvedValue({
       status: "ready",
       baseUrl: "https://open.larksuite.com",
-      tokenStatus: "ready",
     });
     runtimeMock.runMeegleAuthRequest.mockResolvedValue({
       status: "ready",
@@ -175,7 +175,6 @@ describe("usePopupApp notebook state", () => {
     const larkAuthRequest = createDeferred<{
       status: "ready";
       baseUrl: string;
-      tokenStatus: "ready";
     }>();
     runtimeMock.runLarkAuthRequest.mockReturnValueOnce(larkAuthRequest.promise);
 
@@ -197,7 +196,6 @@ describe("usePopupApp notebook state", () => {
     larkAuthRequest.resolve({
       status: "ready",
       baseUrl: "https://open.larksuite.com",
-      tokenStatus: "ready",
     });
 
     await initializePromise;
@@ -216,6 +214,43 @@ describe("usePopupApp notebook state", () => {
     expect(popup.headerSubtitle.value).toBe("Lark");
     expect(
       popup.logs.value.some((entry) => entry.message.includes("background offline")),
+    ).toBe(true);
+  });
+
+  it("refreshes Lark auth and logs success when callback completion arrives", async () => {
+    let callbackListener:
+      | ((result: {
+          state: string;
+          status: "ready" | "failed";
+          masterUserId?: string;
+          reason?: string;
+        }) => void)
+      | undefined;
+    runtimeMock.watchLarkAuthCallbackResult.mockImplementation((listener) => {
+      callbackListener = listener;
+      return () => {};
+    });
+
+    const popup = usePopupApp();
+    await popup.initialize();
+    runtimeMock.saveResolvedIdentity.mockClear();
+
+    runtimeMock.runLarkAuthRequest.mockResolvedValueOnce({
+      status: "ready",
+      baseUrl: "https://open.larksuite.com",
+    });
+
+    await callbackListener?.({
+      state: "state_123",
+      status: "ready",
+      masterUserId: "usr_callback",
+    });
+
+    expect(runtimeMock.saveResolvedIdentity).toHaveBeenCalledWith("usr_callback");
+    expect(popup.state.identity.masterUserId).toBe("usr_callback");
+    expect(runtimeMock.runLarkAuthRequest).toHaveBeenCalledTimes(2);
+    expect(
+      popup.logs.value.some((entry) => entry.message.includes("Lark 授权完成")),
     ).toBe(true);
   });
 

@@ -5,13 +5,17 @@ import { analyzeA2Controller, createB1DraftController, applyB1Controller } from 
 import { analyzeA1Controller, createB2DraftController, applyB2Controller } from "./modules/a1/a1.controller.js";
 import { resolveIdentityController } from "./modules/identity/identity.controller.js";
 import { exchangeAuthCodeController, getAuthStatusController } from "./modules/meegle-auth/meegle-auth.controller.js";
-import { exchangeAuthCodeController as exchangeLarkAuthCodeController, refreshTokenController as refreshLarkTokenController, getAuthStatusController as getLarkAuthStatusController } from "./modules/lark-auth/lark-auth.controller.js";
+import { exchangeAuthCodeController as exchangeLarkAuthCodeController, refreshTokenController as refreshLarkTokenController, getAuthStatusController as getLarkAuthStatusController, handleAuthCallbackController as handleLarkAuthCallbackController, createOauthSessionController as createLarkOauthSessionController } from "./modules/lark-auth/lark-auth.controller.js";
 import { configureLarkAuthControllerDeps } from "./modules/lark-auth/lark-auth.controller.js";
+import { configureLarkAuthServiceDeps } from "./modules/lark-auth/lark-auth.service.js";
 import { configureMeegleAuthServiceDeps } from "./modules/meegle-auth/meegle-auth.service.js";
 import { configurePublicConfigController, getPublicConfigController } from "./modules/public-config/public-config.controller.js";
 import { createHttpMeegleAuthAdapter } from "./adapters/meegle/auth-adapter.js";
 import { getSharedMeegleTokenStore } from "./adapters/sqlite/meegle-token-store.js";
+import { getSharedLarkTokenStore } from "./adapters/sqlite/lark-token-store.js";
+import { getSharedOauthSessionStore } from "./adapters/sqlite/lark-oauth-session-store.js";
 import { runPMAnalysisController } from "./modules/pm-analysis/pm-analysis.controller.js";
+import { createApiRequestLogger, logApiRequest, summarizeRequestPayload } from "./http/api-request-logger.js";
 
 // Load environment variables
 const LARK_APP_ID = process.env.LARK_APP_ID || "";
@@ -31,6 +35,12 @@ if (LARK_APP_ID && LARK_APP_SECRET) {
   configureLarkAuthControllerDeps({
     appId: LARK_APP_ID,
     appSecret: LARK_APP_SECRET,
+  });
+  configureLarkAuthServiceDeps({
+    appId: LARK_APP_ID,
+    appSecret: LARK_APP_SECRET,
+    tokenStore: getSharedLarkTokenStore(),
+    oauthSessionStore: getSharedOauthSessionStore(),
   });
   console.log("[Server] Lark auth configured with APP_ID:", LARK_APP_ID);
 } else {
@@ -58,6 +68,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
+app.use(createApiRequestLogger());
 
 // Health check
 app.get("/health", (_req, res) => {
@@ -70,39 +81,20 @@ app.get("/health", (_req, res) => {
 
 // Error handler wrapper
 function handleController(fn: (req: Request) => Promise<unknown>) {
-  function summarizeBody(body: unknown): unknown {
-    if (!body || typeof body !== "object" || Array.isArray(body)) {
-      return body;
-    }
-
-    const record = body as Record<string, unknown>;
-    return {
-      requestId: record.requestId,
-      operatorLarkId: record.operatorLarkId,
-      meegleUserKey: record.meegleUserKey,
-      baseUrl: record.baseUrl,
-      state: record.state,
-      hasAuthCode: typeof record.authCode === "string" && record.authCode.length > 0,
-      authCodeSuffix:
-        typeof record.authCode === "string" && record.authCode.length > 4
-          ? record.authCode.slice(-4)
-          : undefined,
-      hasCookie: typeof record.cookie === "string" && record.cookie.length > 0,
-    };
-  }
-
   return async (req: Request, res: Response) => {
     try {
       const result = await fn(req.body);
       res.json(result);
     } catch (error) {
-      console.error("Controller error:", {
+      logApiRequest("FAIL", {
         path: req.path,
         method: req.method,
-        body: summarizeBody(req.body),
+        originalUrl: req.originalUrl,
+        body: summarizeRequestPayload(req.body),
+        query: summarizeRequestPayload(req.query),
         message: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
-      });
+      }, "error");
       res.status(500).json({
         ok: false,
         error: {
@@ -130,6 +122,13 @@ app.post("/api/meegle/auth/status", handleController(getAuthStatusController));
 app.post("/api/lark/auth/exchange", handleController(exchangeLarkAuthCodeController));
 app.post("/api/lark/auth/refresh", handleController(refreshLarkTokenController));
 app.post("/api/lark/auth/status", handleController(getLarkAuthStatusController));
+app.post("/api/lark/auth/session", handleController(createLarkOauthSessionController));
+app.get("/api/lark/auth/callback", async (req, res) => {
+  const result = await handleLarkAuthCallbackController({
+    query: req.query,
+  });
+  res.status(result.statusCode).contentType(result.contentType).send(result.body);
+});
 
 // A1 routes
 app.post("/api/a1/analyze", handleController(analyzeA1Controller));

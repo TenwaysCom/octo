@@ -16,7 +16,7 @@
     "storage"
   ],
   "host_permissions": [
-    "http://localhost:3000/*",
+    "http://localhost/*",
     "https://*.feishu.cn/*",
     "https://*.larksuite.com/*",
     "https://meegle.com/*",
@@ -31,6 +31,14 @@
     "default_title": "Tenways Octo"
   },
   "content_scripts": [
+    {
+      "matches": [
+        "http://localhost/api/lark/auth/callback*"
+      ],
+      "js": [
+        "content-scripts/lark-auth-callback.js"
+      ]
+    },
     {
       "matches": [
         "https://*.feishu.cn/*",

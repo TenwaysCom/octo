@@ -11,19 +11,21 @@ export interface LarkTokenPair {
 
 export interface LarkAuthEnsureRequest {
   requestId?: string;
-  operatorLarkId?: string;
+  masterUserId?: string;
   baseUrl?: string;
   pageOrigin?: string;
   state?: string;
 }
 
 export interface LarkAuthEnsureResponse {
-  status: "ready" | "require_auth_code" | "failed";
+  status: "ready" | "require_auth" | "in_progress" | "failed";
   baseUrl: string;
+  masterUserId?: string;
   state?: string;
   reason?: string;
-  authCode?: string;
-  tokenPair?: LarkTokenPair;
+  errorMessage?: string;
+  credentialStatus?: "active" | "expired";
+  expiresAt?: string;
 }
 
 export type LarkAuthCodeResponse =
@@ -45,4 +47,42 @@ export interface LarkAuthErrorResponse {
     errorCode: string;
     errorMessage: string;
   };
+}
+
+export interface LarkAuthStatusServerResponse {
+  ok: boolean;
+  data?: {
+    status: "ready" | "require_auth";
+    masterUserId?: string;
+    baseUrl: string;
+    reason?: string;
+    credentialStatus?: "active" | "expired";
+    expiresAt?: string;
+  };
+  error?: {
+    errorCode: string;
+    errorMessage: string;
+  };
+}
+
+export interface LarkAuthSessionServerResponse {
+  ok: boolean;
+  data?: {
+    state: string;
+    masterUserId?: string;
+    baseUrl: string;
+    status: "pending" | "completed" | "failed";
+    expiresAt?: string;
+  };
+  error?: {
+    errorCode: string;
+    errorMessage: string;
+  };
+}
+
+export interface LarkAuthCallbackResult {
+  state: string;
+  status: "ready" | "failed";
+  masterUserId?: string;
+  reason?: string;
 }
