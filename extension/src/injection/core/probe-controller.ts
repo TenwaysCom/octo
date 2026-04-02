@@ -34,7 +34,7 @@ export function createProbeController<TContext>({
     const context = adapter.probeContext(detail.detailRoot);
     const anchor = adapter.probeAnchor(detail.detailRoot);
 
-    if (context && anchor) {
+    if (context !== null && anchor !== null) {
       adapter.render({
         pageState: { kind: "detail-ready", context, anchor },
         context,
