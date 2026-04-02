@@ -454,6 +454,10 @@ export async function handleLarkAuthCallback(
   const session = await oauthSessionStore.get(query.state);
 
   if (!session || session.provider !== "lark" || session.status !== "pending" || Date.parse(session.expiresAt) <= Date.now()) {
+    console.warn("[LARK_AUTH_CALLBACK][FAIL]", {
+      state: query.state,
+      reason: "LARK_OAUTH_STATE_INVALID",
+    });
     return renderCallbackPage({
       statusCode: 400,
       title: "Lark 授权失败",
@@ -532,6 +536,13 @@ export async function handleLarkAuthCallback(
       masterUserId: session.masterUserId,
     });
   } catch (error) {
+    console.error("[LARK_AUTH_CALLBACK][FAIL]", {
+      state: query.state,
+      masterUserId: session.masterUserId,
+      baseUrl: session.baseUrl,
+      reason: error instanceof Error ? error.message : "LARK_AUTH_CALLBACK_FAILED",
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     await oauthSessionStore.markFailed({
       state: query.state,
       errorCode: error instanceof Error ? error.message : "LARK_AUTH_CALLBACK_FAILED",

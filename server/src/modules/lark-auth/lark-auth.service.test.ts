@@ -10,6 +10,7 @@ import {
   checkLarkAuthStatus,
   configureLarkAuthServiceDeps,
   exchangeLarkAuthCode,
+  handleLarkAuthCallback,
   refreshLarkToken,
   startLarkOauthSession,
 } from "./lark-auth.service.js";
@@ -223,5 +224,48 @@ describe("lark-auth.service", () => {
       masterUserId: user.id,
       baseUrl: "https://open.larksuite.com",
     });
+  });
+
+  it("returns a failed callback page with the precise reason when oauth exchange fails", async () => {
+    const user = await resolvedUserStore.create({
+      status: "pending_lark_identity",
+    });
+
+    await startLarkOauthSession({
+      state: "state_failed",
+      baseUrl: "https://open.larksuite.com",
+      masterUserId: user.id,
+    });
+
+    const result = await handleLarkAuthCallback(
+      {
+        code: "bad_code",
+        state: "state_failed",
+      },
+      {
+        appId: "cli_test",
+        appSecret: "secret_test",
+        fetchImpl: vi
+          .fn()
+          .mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({
+              code: 0,
+              app_access_token: "app_access_token_123",
+            }),
+          })
+          .mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({
+              code: 999,
+              msg: "invalid authorization code",
+            }),
+          }) as unknown as typeof fetch,
+        resolvedUserStore,
+      },
+    );
+
+    expect(result.statusCode).toBe(500);
+    expect(result.body).toContain("data-lark-auth-reason=\"Lark Authen API error: invalid authorization code\"");
   });
 });
