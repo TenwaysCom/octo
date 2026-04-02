@@ -69,6 +69,43 @@ describe("createProbeController", () => {
     expect(probeAnchor).toHaveBeenCalledWith(document.body);
   });
 
+  it("switches the detail observer when the detail root changes", () => {
+    const render = vi.fn();
+    const observeShell = vi.fn(() => vi.fn());
+    const observeDetail = vi.fn(() => vi.fn());
+    const firstDetailRoot = document.createElement("section");
+    const secondDetailRoot = document.createElement("section");
+    const probeDetail = vi
+      .fn()
+      .mockReturnValueOnce({ isOpen: true, detailRoot: firstDetailRoot })
+      .mockReturnValueOnce({ isOpen: true, detailRoot: secondDetailRoot });
+
+    const controller = createProbeController({
+      adapter: {
+        probeShell: () => ({ shellRoot: document.body, overlayRoot: document.body }),
+        probeDetail,
+        probeContext: () => ({ title: "Burger" }),
+        probeAnchor: () => ({
+          element: document.body,
+          label: "detail-header",
+          confidence: 1,
+        }),
+        render,
+      },
+      observerFactory: {
+        observeShell,
+        observeDetail,
+      },
+    });
+
+    controller.refresh();
+    controller.refresh();
+
+    expect(observeDetail).toHaveBeenCalledTimes(2);
+    expect(observeDetail).toHaveBeenNthCalledWith(1, firstDetailRoot, expect.any(Function));
+    expect(observeDetail).toHaveBeenNthCalledWith(2, secondDetailRoot, expect.any(Function));
+  });
+
   it("calls cleanup and stops refreshing after destroy", () => {
     const cleanup = vi.fn();
     const render = vi.fn();
