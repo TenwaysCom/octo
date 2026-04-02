@@ -71,7 +71,7 @@ describe("lark-auth.service", () => {
 
     expect(fetchImpl).toHaveBeenNthCalledWith(
       1,
-      "https://open.larksuite.com/open-apis/auth/v3/app_access_token",
+      "https://open.larksuite.com/open-apis/auth/v3/app_access_token/internal",
       expect.any(Object),
     );
     expect(fetchImpl).toHaveBeenNthCalledWith(
@@ -124,7 +124,7 @@ describe("lark-auth.service", () => {
 
     expect(fetchImpl).toHaveBeenNthCalledWith(
       1,
-      "https://open.larksuite.com/open-apis/auth/v3/app_access_token",
+      "https://open.larksuite.com/open-apis/auth/v3/app_access_token/internal",
       expect.any(Object),
     );
     expect(fetchImpl).toHaveBeenNthCalledWith(

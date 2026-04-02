@@ -93,7 +93,7 @@ async function getAppAccessToken(
   appSecret: string,
   fetchImpl: typeof fetch,
 ): Promise<string> {
-  const url = new URL("/open-apis/auth/v3/app_access_token", baseUrl);
+  const url = new URL("/open-apis/auth/v3/app_access_token/internal", baseUrl);
 
   const response = await fetchImpl(url.toString(), {
     method: "POST",
