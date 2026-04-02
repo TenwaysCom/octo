@@ -81,6 +81,7 @@ describe("lark-auth.controller", () => {
         json: async () => ({
           code: 0,
           data: {
+            tenant_key: "tenant_oauth_verified",
             user_id: "ou_oauth_verified",
           },
         }),

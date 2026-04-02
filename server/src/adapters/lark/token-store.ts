@@ -1,5 +1,6 @@
 export interface StoredLarkToken {
   masterUserId: string;
+  tenantKey?: string;
   larkUserId: string;
   baseUrl: string;
   userToken: string;
@@ -12,6 +13,7 @@ export interface StoredLarkToken {
 export interface LarkTokenLookup {
   masterUserId: string;
   baseUrl: string;
+  tenantKey?: string;
   larkUserId?: string;
 }
 

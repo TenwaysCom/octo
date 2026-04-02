@@ -8,6 +8,7 @@ import { getSharedDatabase } from "./database.js";
 
 interface LarkTokenRow {
   master_user_id: string;
+  provider_tenant_key: string;
   external_user_key: string;
   base_url: string;
   user_token: string;
@@ -24,9 +25,10 @@ export class SqliteLarkTokenStore implements LarkTokenStore {
     const existing = this.db.prepare(`
       SELECT last_auth_at, last_refresh_at
       FROM user_tokens
-      WHERE master_user_id = ? AND provider = 'lark' AND external_user_key = ? AND base_url = ?
+      WHERE master_user_id = ? AND provider = 'lark' AND provider_tenant_key = ? AND external_user_key = ? AND base_url = ?
     `).get(
       token.masterUserId,
+      token.tenantKey ?? "",
       token.larkUserId,
       token.baseUrl,
     ) as { last_auth_at: string; last_refresh_at: string | null } | undefined;
@@ -39,6 +41,7 @@ export class SqliteLarkTokenStore implements LarkTokenStore {
       INSERT INTO user_tokens (
         master_user_id,
         provider,
+        provider_tenant_key,
         external_user_key,
         base_url,
         plugin_token,
@@ -51,8 +54,8 @@ export class SqliteLarkTokenStore implements LarkTokenStore {
         last_auth_at,
         last_refresh_at,
         updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(master_user_id, provider, external_user_key, base_url) DO UPDATE SET
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(master_user_id, provider, provider_tenant_key, external_user_key, base_url) DO UPDATE SET
         user_token = excluded.user_token,
         user_token_expires_at = excluded.user_token_expires_at,
         refresh_token = excluded.refresh_token,
@@ -64,6 +67,7 @@ export class SqliteLarkTokenStore implements LarkTokenStore {
     `).run(
       token.masterUserId,
       "lark",
+      token.tenantKey ?? "",
       token.larkUserId,
       token.baseUrl,
       null,
@@ -80,10 +84,33 @@ export class SqliteLarkTokenStore implements LarkTokenStore {
   }
 
   async get(lookup: LarkTokenLookup): Promise<StoredLarkToken | undefined> {
-    const exactRow = lookup.larkUserId
+    const exactRow = lookup.larkUserId && typeof lookup.tenantKey === "string"
       ? this.db.prepare(`
         SELECT
           master_user_id,
+          provider_tenant_key,
+          external_user_key,
+          base_url,
+          user_token,
+          user_token_expires_at,
+          refresh_token,
+          refresh_token_expires_at,
+          credential_status
+        FROM user_tokens
+        WHERE master_user_id = ? AND provider = 'lark' AND provider_tenant_key = ? AND external_user_key = ? AND base_url = ?
+      `).get(
+        lookup.masterUserId,
+        lookup.tenantKey ?? "",
+        lookup.larkUserId,
+        lookup.baseUrl,
+      ) as LarkTokenRow | undefined
+      : undefined;
+
+    const byUserIdRow = !exactRow && lookup.larkUserId
+      ? this.db.prepare(`
+        SELECT
+          master_user_id,
+          provider_tenant_key,
           external_user_key,
           base_url,
           user_token,
@@ -93,6 +120,8 @@ export class SqliteLarkTokenStore implements LarkTokenStore {
           credential_status
         FROM user_tokens
         WHERE master_user_id = ? AND provider = 'lark' AND external_user_key = ? AND base_url = ?
+        ORDER BY updated_at DESC
+        LIMIT 1
       `).get(
         lookup.masterUserId,
         lookup.larkUserId,
@@ -100,21 +129,22 @@ export class SqliteLarkTokenStore implements LarkTokenStore {
       ) as LarkTokenRow | undefined
       : undefined;
 
-    const row = exactRow ?? this.db.prepare(`
-      SELECT
-        master_user_id,
-        external_user_key,
-        base_url,
-        user_token,
-        user_token_expires_at,
-        refresh_token,
-        refresh_token_expires_at,
-        credential_status
-      FROM user_tokens
-      WHERE master_user_id = ? AND provider = 'lark'
-      ORDER BY updated_at DESC
-      LIMIT 1
-    `).get(
+    const row = exactRow ?? byUserIdRow ?? this.db.prepare(`
+        SELECT
+          master_user_id,
+          provider_tenant_key,
+          external_user_key,
+          base_url,
+          user_token,
+          user_token_expires_at,
+          refresh_token,
+          refresh_token_expires_at,
+          credential_status
+        FROM user_tokens
+        WHERE master_user_id = ? AND provider = 'lark'
+        ORDER BY updated_at DESC
+        LIMIT 1
+      `).get(
       lookup.masterUserId,
     ) as LarkTokenRow | undefined;
 
@@ -124,6 +154,7 @@ export class SqliteLarkTokenStore implements LarkTokenStore {
 
     return {
       masterUserId: row.master_user_id,
+      tenantKey: row.provider_tenant_key || undefined,
       larkUserId: row.external_user_key,
       baseUrl: row.base_url,
       userToken: row.user_token,
@@ -138,9 +169,10 @@ export class SqliteLarkTokenStore implements LarkTokenStore {
     if (lookup.larkUserId) {
       this.db.prepare(`
         DELETE FROM user_tokens
-        WHERE master_user_id = ? AND provider = 'lark' AND external_user_key = ? AND base_url = ?
+        WHERE master_user_id = ? AND provider = 'lark' AND provider_tenant_key = ? AND external_user_key = ? AND base_url = ?
       `).run(
         lookup.masterUserId,
+        lookup.tenantKey ?? "",
         lookup.larkUserId,
         lookup.baseUrl,
       );

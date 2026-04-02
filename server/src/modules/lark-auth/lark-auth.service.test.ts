@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { DatabaseSync } from "node:sqlite";
 import { createSqliteDatabase } from "../../adapters/sqlite/database.js";
 import { SqliteOauthSessionStore } from "../../adapters/sqlite/lark-oauth-session-store.js";
 import { SqliteLarkTokenStore } from "../../adapters/sqlite/lark-token-store.js";
@@ -16,10 +17,11 @@ import {
 } from "./lark-auth.service.js";
 
 describe("lark-auth.service", () => {
+  let db: DatabaseSync;
   let resolvedUserStore: SqliteResolvedUserStore;
 
   beforeEach(() => {
-    const db = createSqliteDatabase(":memory:");
+    db = createSqliteDatabase(":memory:");
     resolvedUserStore = new SqliteResolvedUserStore(db);
     configureResolvedUserStore(resolvedUserStore);
     configureLarkAuthServiceDeps({
@@ -267,5 +269,80 @@ describe("lark-auth.service", () => {
 
     expect(result.statusCode).toBe(500);
     expect(result.body).toContain("data-lark-auth-reason=\"Lark Authen API error: invalid authorization code\"");
+  });
+
+  it("writes tenant-aware lark identity data after a successful callback", async () => {
+    const user = await resolvedUserStore.create({
+      status: "pending_lark_identity",
+    });
+
+    await startLarkOauthSession({
+      state: "state_success",
+      baseUrl: "https://open.larksuite.com",
+      masterUserId: user.id,
+    });
+
+    const result = await handleLarkAuthCallback(
+      {
+        code: "good_code",
+        state: "state_success",
+      },
+      {
+        appId: "cli_test",
+        appSecret: "secret_test",
+        fetchImpl: vi
+          .fn()
+          .mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({
+              code: 0,
+              app_access_token: "app_access_token_123",
+            }),
+          })
+          .mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({
+              code: 0,
+              data: {
+                access_token: "user_access_token_456",
+                refresh_token: "refresh_token_789",
+                expires_in: 7200,
+                token_type: "Bearer",
+              },
+            }),
+          })
+          .mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({
+              code: 0,
+              data: {
+                user_id: "ou_123",
+                tenant_key: "tenant_123",
+              },
+            }),
+          }) as unknown as typeof fetch,
+        resolvedUserStore,
+      },
+    );
+
+    expect(result.statusCode).toBe(200);
+
+    await expect(resolvedUserStore.getById(user.id)).resolves.toMatchObject({
+      id: user.id,
+      status: "active",
+      larkTenantKey: "tenant_123",
+      larkId: "ou_123",
+    });
+
+    const tokenRow = db.prepare(`
+      SELECT provider_tenant_key, external_user_key
+      FROM user_tokens
+      WHERE master_user_id = ? AND provider = 'lark'
+    `).get(user.id) as { provider_tenant_key: string; external_user_key: string } | undefined;
+
+    expect(tokenRow).toEqual({
+      provider_tenant_key: "tenant_123",
+      external_user_key: "ou_123",
+    });
   });
 });

@@ -182,6 +182,7 @@ export async function exchangeLarkAuthCode(
   if (user?.larkId) {
     await getTokenStore(deps).save({
       masterUserId: request.masterUserId,
+      tenantKey: user.larkTenantKey ?? undefined,
       larkUserId: user.larkId,
       baseUrl: authBaseUrl,
       userToken: tokenPair.accessToken,
@@ -313,6 +314,7 @@ export async function checkLarkAuthStatus(
 
     await tokenStore.save({
       masterUserId: request.masterUserId,
+      tenantKey: stored.tenantKey,
       larkUserId: stored.larkUserId,
       baseUrl: stored.baseUrl,
       userToken: refreshed.accessToken,
@@ -414,7 +416,7 @@ async function getLarkUserInfo(
   baseUrl: string,
   accessToken: string,
   fetchImpl: typeof fetch,
-): Promise<{ userId: string }> {
+): Promise<{ userId: string; tenantKey: string }> {
   const url = new URL("/open-apis/authen/v1/user_info", baseUrl);
   const response = await fetchImpl(url.toString(), {
     method: "GET",
@@ -435,11 +437,12 @@ async function getLarkUserInfo(
 
   const userData = data.data as Record<string, unknown> | undefined;
   const userId = userData?.user_id as string | undefined;
-  if (!userId) {
-    throw new Error("Lark user info response missing user_id");
+  const tenantKey = userData?.tenant_key as string | undefined;
+  if (!userId || !tenantKey) {
+    throw new Error("Lark user info response missing tenant identity");
   }
 
-  return { userId };
+  return { userId, tenantKey };
 }
 
 export async function handleLarkAuthCallback(
@@ -484,9 +487,12 @@ export async function handleLarkAuthCallback(
     );
     const userInfo = await getLarkUserInfo(session.baseUrl, tokenPair.accessToken, fetchImpl);
     const existingByUser = await resolvedUserStore.getById(session.masterUserId);
-    const existingByLarkId = await resolvedUserStore.getByLarkId(userInfo.userId);
+    const existingByLarkIdentity = await resolvedUserStore.getByLarkIdentity(
+      userInfo.tenantKey,
+      userInfo.userId,
+    );
 
-    if (existingByLarkId && existingByLarkId.id !== session.masterUserId) {
+    if (existingByLarkIdentity && existingByLarkIdentity.id !== session.masterUserId) {
       await oauthSessionStore.markFailed({
         state: query.state,
         errorCode: "LARK_IDENTITY_CONFLICT",
@@ -497,7 +503,7 @@ export async function handleLarkAuthCallback(
         message: "当前 Lark 身份已绑定到其他用户，请联系维护者处理。",
         state: query.state,
         status: "failed",
-        masterUserId: existingByLarkId.id,
+        masterUserId: existingByLarkIdentity.id,
         reason: "LARK_IDENTITY_CONFLICT",
       });
     }
@@ -505,6 +511,7 @@ export async function handleLarkAuthCallback(
     if (existingByUser) {
       await resolvedUserStore.update({
         ...existingByUser,
+        larkTenantKey: userInfo.tenantKey,
         larkId: userInfo.userId,
         status: "active",
       });
@@ -512,6 +519,7 @@ export async function handleLarkAuthCallback(
 
     await tokenStore.save({
       masterUserId: session.masterUserId,
+      tenantKey: userInfo.tenantKey,
       larkUserId: userInfo.userId,
       baseUrl: session.baseUrl,
       userToken: tokenPair.accessToken,
