@@ -25,8 +25,6 @@ export function createProbeController<TContext>({
     if (!detail.isOpen || !detail.detailRoot) {
       adapter.render({
         pageState: { kind: "detail-loading" },
-        context: null,
-        anchor: null,
       });
       return;
     }
@@ -37,16 +35,12 @@ export function createProbeController<TContext>({
     if (context !== null && anchor !== null) {
       adapter.render({
         pageState: { kind: "detail-ready", context, anchor },
-        context,
-        anchor,
       });
       return;
     }
 
     adapter.render({
       pageState: { kind: "detail-loading" },
-      context,
-      anchor,
     });
   }
 

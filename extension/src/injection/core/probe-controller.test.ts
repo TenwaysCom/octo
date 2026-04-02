@@ -20,10 +20,27 @@ describe("createProbeController", () => {
 
     controller.refresh();
 
-    expect(render).toHaveBeenCalledWith({
-      pageState: { kind: "detail-ready", context, anchor },
-      context,
-      anchor,
+    expect(render).toHaveBeenCalledWith({ pageState: { kind: "detail-ready", context, anchor } });
+  });
+
+  it("emits detail-loading and skips detail probes when the detail is closed", () => {
+    const render = vi.fn();
+    const probeContext = vi.fn();
+    const probeAnchor = vi.fn();
+    const controller = createProbeController({
+      adapter: {
+        probeShell: () => ({ shellRoot: document.body, overlayRoot: document.body }),
+        probeDetail: () => ({ isOpen: false, detailRoot: null }),
+        probeContext,
+        probeAnchor,
+        render,
+      },
     });
+
+    controller.refresh();
+
+    expect(render).toHaveBeenCalledWith({ pageState: { kind: "detail-loading" } });
+    expect(probeContext).not.toHaveBeenCalled();
+    expect(probeAnchor).not.toHaveBeenCalled();
   });
 });

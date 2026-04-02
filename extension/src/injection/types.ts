@@ -4,11 +4,9 @@ export type AnchorCandidate = {
   confidence: number;
 };
 
-export type InjectionPageState =
-  | { kind: "idle" }
+export type InjectionPageState<TContext> =
   | { kind: "detail-loading" }
-  | { kind: "detail-ready"; context: unknown; anchor: AnchorCandidate }
-  | { kind: "unsupported"; reason: string };
+  | { kind: "detail-ready"; context: TContext; anchor: AnchorCandidate };
 
 export type ProbeShellResult = {
   shellRoot: Element | null;
@@ -27,9 +25,7 @@ export type InjectionAdapter<TContext> = {
   probeContext(detailRoot: Element): TContext | null;
   probeAnchor(detailRoot: Element): AnchorCandidate | null;
   render(state: {
-    pageState: InjectionPageState;
-    context: TContext | null;
-    anchor: AnchorCandidate | null;
+    pageState: InjectionPageState<TContext>;
   }): void;
   cleanup?(): void;
 };
