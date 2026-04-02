@@ -26,6 +26,11 @@ export const DEFAULT_CONFIG: ExtensionConfig = {
   MEEGLE_BASE_URL: 'https://project.larksuite.com',
 };
 
+function trimOrUndefined(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
 function mergePublicConfig(
   base: ExtensionConfig,
   publicConfig?: PublicConfigResponse["data"],
@@ -62,7 +67,24 @@ export async function getConfig(): Promise<ExtensionConfig> {
       return storedConfig;
     }
 
-    return mergePublicConfig(storedConfig, payload.data);
+    const mergedConfig = mergePublicConfig(storedConfig, payload.data);
+    const publicConfigUpdates = {
+      MEEGLE_PLUGIN_ID: trimOrUndefined(payload.data?.MEEGLE_PLUGIN_ID),
+      LARK_APP_ID: trimOrUndefined(payload.data?.LARK_APP_ID),
+      LARK_OAUTH_CALLBACK_URL: trimOrUndefined(payload.data?.LARK_OAUTH_CALLBACK_URL),
+      MEEGLE_BASE_URL: trimOrUndefined(payload.data?.MEEGLE_BASE_URL),
+    };
+
+    if (
+      publicConfigUpdates.MEEGLE_PLUGIN_ID ||
+      publicConfigUpdates.LARK_APP_ID ||
+      publicConfigUpdates.LARK_OAUTH_CALLBACK_URL ||
+      publicConfigUpdates.MEEGLE_BASE_URL
+    ) {
+      await setConfig(publicConfigUpdates);
+    }
+
+    return mergedConfig;
   } catch {
     return storedConfig;
   }

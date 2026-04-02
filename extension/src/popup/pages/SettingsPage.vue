@@ -17,6 +17,13 @@
           placeholder="输入 MII_ 开头的 Plugin ID"
         />
       </a-form-item>
+      <a-form-item label="Lark Callback URL">
+        <a-input
+          :value="form.LARK_OAUTH_CALLBACK_URL"
+          readonly
+          data-test="settings-lark-callback-url"
+        />
+      </a-form-item>
       <a-form-item label="Meegle User Key">
         <div class="settings-page__inline-field">
           <a-input
@@ -42,6 +49,12 @@
           取消
         </a-button>
         <a-button
+          data-test="settings-refresh-server-config"
+          @click="$emit('refreshServerConfig')"
+        >
+          刷新配置
+        </a-button>
+        <a-button
           type="primary"
           data-test="settings-save"
           @click="$emit('save')"
@@ -64,6 +77,7 @@ defineProps<{
 defineEmits<{
   cancel: [];
   fetchMeegleUserKey: [];
+  refreshServerConfig: [];
   save: [];
 }>();
 </script>

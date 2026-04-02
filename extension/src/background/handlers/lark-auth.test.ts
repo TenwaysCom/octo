@@ -37,22 +37,32 @@ describe("lark-auth handler", () => {
     };
   });
 
-  it("returns ready when a cached Lark token exists", async () => {
+  it("still opens oauth when the server requires auth even if local lark token cache exists", async () => {
     deps.getCachedLarkToken = vi.fn().mockReturnValue("cached_lark_token");
 
-    await expect(
-      ensureLarkAuth(
-        {
-          requestId: "req_001",
-          masterUserId: "usr_xxx",
-          baseUrl: "https://open.larksuite.com",
-        },
-        deps,
-      ),
-    ).resolves.toMatchObject({
-      status: "ready",
+    const result = await ensureLarkAuth(
+      {
+        requestId: "req_001",
+        masterUserId: "usr_xxx",
+        baseUrl: "https://open.larksuite.com",
+      },
+      deps,
+    );
+
+    expect(result).toMatchObject({
+      status: "in_progress",
+      state: "state_123",
       baseUrl: "https://open.larksuite.com",
     });
+    expect(deps.getAuthStatusFromServer).toHaveBeenCalledWith({
+      masterUserId: "usr_xxx",
+      baseUrl: "https://open.larksuite.com",
+    });
+    expect(deps.openLarkOAuthTab).toHaveBeenCalledWith(
+      "https://open.larksuite.com",
+      "state_123",
+      "cli_test",
+    );
   });
 
   it("creates a pending oauth session and opens the authorization tab when server requires auth", async () => {

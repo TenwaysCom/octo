@@ -5,6 +5,7 @@ vi.mock("../background/config.js", () => ({
     SERVER_URL: "http://localhost:3000",
     MEEGLE_PLUGIN_ID: "",
     LARK_APP_ID: "cli_test",
+    LARK_OAUTH_CALLBACK_URL: "http://localhost:3000/api/lark/auth/callback",
     MEEGLE_BASE_URL: "https://project.larksuite.com",
   },
   getConfig: vi.fn(),
@@ -12,6 +13,7 @@ vi.mock("../background/config.js", () => ({
 
 import {
   getConfig,
+  getLarkAuthStatus,
   loadPopupSettings,
   runLarkAuthRequest,
   watchLarkAuthCallbackResult,
@@ -43,12 +45,14 @@ describe("popup runtime settings", () => {
       SERVER_URL: "http://localhost:3000",
       MEEGLE_PLUGIN_ID: "MII_SERVER_PLUGIN",
       LARK_APP_ID: "cli_server_public",
+      LARK_OAUTH_CALLBACK_URL: "https://example.ngrok-free.app/api/lark/auth/callback",
       MEEGLE_BASE_URL: "https://project.larksuite.com",
     });
 
     await expect(loadPopupSettings()).resolves.toEqual({
       SERVER_URL: "http://localhost:3000",
       MEEGLE_PLUGIN_ID: "MII_SERVER_PLUGIN",
+      LARK_OAUTH_CALLBACK_URL: "https://example.ngrok-free.app/api/lark/auth/callback",
       meegleUserKey: "user_test",
       larkUserId: "ou_test",
     });
@@ -129,6 +133,48 @@ describe("popup runtime settings", () => {
       },
       expect.any(Function),
     );
+  });
+
+  it("requests lark auth status from the server without opening oauth", async () => {
+    vi.mocked(getConfig).mockResolvedValue({
+      SERVER_URL: "http://localhost:3000",
+      MEEGLE_PLUGIN_ID: "MII_SERVER_PLUGIN",
+      LARK_APP_ID: "cli_server_public",
+      LARK_OAUTH_CALLBACK_URL: "https://example.ngrok-free.app/api/lark/auth/callback",
+      MEEGLE_BASE_URL: "https://project.larksuite.com",
+    });
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ok: true,
+        data: {
+          status: "require_auth",
+          baseUrl: "https://open.larksuite.com",
+          masterUserId: "usr_resolved",
+          reason: "No stored Lark token found",
+        },
+      }),
+    } as Response);
+
+    await expect(
+      getLarkAuthStatus({
+        masterUserId: "usr_resolved",
+        baseUrl: "https://open.larksuite.com",
+      }),
+    ).resolves.toEqual({
+      status: "require_auth",
+      baseUrl: "https://open.larksuite.com",
+      masterUserId: "usr_resolved",
+      reason: "No stored Lark token found",
+    });
+
+    expect(fetch).toHaveBeenCalledWith(
+      "http://localhost:3000/api/lark/auth/status",
+      expect.objectContaining({
+        method: "POST",
+      }),
+    );
+    expect(chrome.runtime.sendMessage).not.toHaveBeenCalled();
   });
 
   it("watches storage changes for callback completion results", async () => {

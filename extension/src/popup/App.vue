@@ -26,6 +26,7 @@
           :form="settingsForm"
           @cancel="closeSettings"
           @fetch-meegle-user-key="fetchMeegleUserKey"
+          @refresh-server-config="refreshServerConfig"
           @save="saveSettingsForm"
         />
       </PopupShell>
@@ -62,6 +63,7 @@ const {
   closeSettings,
   fetchMeegleUserKey,
   saveSettingsForm,
+  refreshServerConfig,
   clearLogs,
   runFeatureAction,
 } = usePopupApp();

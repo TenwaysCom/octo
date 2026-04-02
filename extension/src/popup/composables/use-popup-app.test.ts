@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const runtimeMock = vi.hoisted(() => ({
   getConfig: vi.fn(),
+  getLarkAuthStatus: vi.fn(),
   loadPopupSettings: vi.fn(),
   loadResolvedIdentity: vi.fn(),
   queryActiveTabContext: vi.fn(),
@@ -57,10 +58,16 @@ describe("usePopupApp notebook state", () => {
       MEEGLE_PLUGIN_ID: "MII_PLUGIN",
       MEEGLE_BASE_URL: "https://project.larksuite.com",
       LARK_APP_ID: "cli_test",
+      LARK_OAUTH_CALLBACK_URL: "http://localhost:3000/api/lark/auth/callback",
+    });
+    runtimeMock.getLarkAuthStatus.mockResolvedValue({
+      status: "ready",
+      baseUrl: "https://open.larksuite.com",
     });
     runtimeMock.loadPopupSettings.mockResolvedValue({
       SERVER_URL: "http://localhost:3000",
       MEEGLE_PLUGIN_ID: "MII_PLUGIN",
+      LARK_OAUTH_CALLBACK_URL: "http://localhost:3000/api/lark/auth/callback",
       meegleUserKey: "7538275242901291040",
       larkUserId: "ou_user",
     });
@@ -81,8 +88,9 @@ describe("usePopupApp notebook state", () => {
       },
     });
     runtimeMock.runLarkAuthRequest.mockResolvedValue({
-      status: "ready",
+      status: "in_progress",
       baseUrl: "https://open.larksuite.com",
+      state: "state_123",
     });
     runtimeMock.runMeegleAuthRequest.mockResolvedValue({
       status: "ready",
@@ -105,6 +113,39 @@ describe("usePopupApp notebook state", () => {
         },
       }),
     } as Response);
+  });
+
+  it("does not auto-start lark oauth during initialization", async () => {
+    const popup = usePopupApp();
+
+    await popup.initialize();
+
+    expect(runtimeMock.getLarkAuthStatus).toHaveBeenCalledTimes(1);
+    expect(runtimeMock.runLarkAuthRequest).not.toHaveBeenCalled();
+  });
+
+  it("starts lark oauth only after the user clicks authorize", async () => {
+    runtimeMock.getLarkAuthStatus
+      .mockResolvedValueOnce({
+        status: "require_auth",
+        baseUrl: "https://open.larksuite.com",
+        reason: "No stored Lark token found",
+      })
+      .mockResolvedValueOnce({
+        status: "require_auth",
+        baseUrl: "https://open.larksuite.com",
+        reason: "No stored Lark token found",
+      });
+
+    const popup = usePopupApp();
+
+    await popup.initialize();
+    await popup.authorizeLark();
+
+    expect(runtimeMock.runLarkAuthRequest).toHaveBeenCalledTimes(1);
+    expect(
+      popup.logs.value.some((entry) => entry.message.includes("已打开 Lark 授权页")),
+    ).toBe(true);
   });
 
   it("switches to settings and restores the saved snapshot on cancel", async () => {
@@ -135,12 +176,51 @@ describe("usePopupApp notebook state", () => {
     expect(runtimeMock.savePopupSettings).toHaveBeenCalledWith({
       SERVER_URL: "http://saved.local",
       MEEGLE_PLUGIN_ID: "MII_PLUGIN",
+      LARK_OAUTH_CALLBACK_URL: "http://localhost:3000/api/lark/auth/callback",
       meegleUserKey: "7538275242901291040",
       larkUserId: "ou_user",
     });
     expect(popup.activePage.value).toBe("home");
     expect(globalThis.fetch).toHaveBeenCalledTimes(2);
-    expect(runtimeMock.runLarkAuthRequest).toHaveBeenCalledTimes(2);
+    expect(runtimeMock.getLarkAuthStatus).toHaveBeenCalledTimes(2);
+  });
+
+  it("reloads the latest server callback url from settings", async () => {
+    runtimeMock.loadPopupSettings
+      .mockResolvedValueOnce({
+        SERVER_URL: "http://localhost:3000",
+        MEEGLE_PLUGIN_ID: "MII_PLUGIN",
+        LARK_OAUTH_CALLBACK_URL: "http://localhost:3000/api/lark/auth/callback",
+        meegleUserKey: "7538275242901291040",
+        larkUserId: "ou_user",
+      })
+      .mockResolvedValueOnce({
+        SERVER_URL: "http://localhost:3000",
+        MEEGLE_PLUGIN_ID: "MII_PLUGIN",
+        LARK_OAUTH_CALLBACK_URL: "http://localhost:3000/api/lark/auth/callback",
+        meegleUserKey: "7538275242901291040",
+        larkUserId: "ou_user",
+      })
+      .mockResolvedValueOnce({
+        SERVER_URL: "http://localhost:3000",
+        MEEGLE_PLUGIN_ID: "MII_PLUGIN",
+        LARK_OAUTH_CALLBACK_URL: "https://example.ngrok-free.app/api/lark/auth/callback",
+        meegleUserKey: "7538275242901291040",
+        larkUserId: "ou_user",
+      });
+
+    const popup = usePopupApp();
+
+    await popup.initialize();
+    popup.openSettings();
+    await popup.refreshServerConfig();
+
+    expect(popup.settingsForm.LARK_OAUTH_CALLBACK_URL).toBe(
+      "https://example.ngrok-free.app/api/lark/auth/callback",
+    );
+    expect(
+      popup.logs.value.some((entry) => entry.message.includes("已刷新服务端配置")),
+    ).toBe(true);
   });
 
   it("shows the resolved platform while auth checks are still loading", async () => {
@@ -176,7 +256,7 @@ describe("usePopupApp notebook state", () => {
       status: "ready";
       baseUrl: string;
     }>();
-    runtimeMock.runLarkAuthRequest.mockReturnValueOnce(larkAuthRequest.promise);
+    runtimeMock.getLarkAuthStatus.mockReturnValueOnce(larkAuthRequest.promise);
 
     const popup = usePopupApp();
     const initializePromise = popup.initialize();
@@ -202,7 +282,7 @@ describe("usePopupApp notebook state", () => {
   });
 
   it("clears the scanning state when initialization fails", async () => {
-    runtimeMock.runLarkAuthRequest.mockRejectedValueOnce(
+    runtimeMock.getLarkAuthStatus.mockRejectedValueOnce(
       new Error("background offline"),
     );
 
@@ -235,7 +315,7 @@ describe("usePopupApp notebook state", () => {
     await popup.initialize();
     runtimeMock.saveResolvedIdentity.mockClear();
 
-    runtimeMock.runLarkAuthRequest.mockResolvedValueOnce({
+    runtimeMock.getLarkAuthStatus.mockResolvedValueOnce({
       status: "ready",
       baseUrl: "https://open.larksuite.com",
     });
@@ -248,7 +328,7 @@ describe("usePopupApp notebook state", () => {
 
     expect(runtimeMock.saveResolvedIdentity).toHaveBeenCalledWith("usr_callback");
     expect(popup.state.identity.masterUserId).toBe("usr_callback");
-    expect(runtimeMock.runLarkAuthRequest).toHaveBeenCalledTimes(2);
+    expect(runtimeMock.getLarkAuthStatus).toHaveBeenCalledTimes(2);
     expect(
       popup.logs.value.some((entry) => entry.message.includes("Lark 授权完成")),
     ).toBe(true);

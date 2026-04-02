@@ -16,6 +16,7 @@ import { getSharedLarkTokenStore } from "./adapters/sqlite/lark-token-store.js";
 import { getSharedOauthSessionStore } from "./adapters/sqlite/lark-oauth-session-store.js";
 import { runPMAnalysisController } from "./modules/pm-analysis/pm-analysis.controller.js";
 import { createApiRequestLogger, logApiRequest, summarizeRequestPayload } from "./http/api-request-logger.js";
+import { createCorsMiddleware } from "./http/cors.js";
 
 // Load environment variables
 const LARK_APP_ID = process.env.LARK_APP_ID || "";
@@ -70,6 +71,7 @@ const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || "0.0.0.0";
 
+app.use(createCorsMiddleware());
 app.use(express.json());
 app.use(createApiRequestLogger());
 

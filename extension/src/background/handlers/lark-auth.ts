@@ -167,16 +167,6 @@ export async function ensureLarkAuth(
     DEFAULT_LARK_AUTH_BASE_URL,
   );
   const state = request.state || `state_${Date.now()}`;
-  const cachedToken = deps.getCachedLarkToken?.();
-
-  if (cachedToken) {
-    return {
-      status: "ready",
-      baseUrl,
-      masterUserId: request.masterUserId,
-      state,
-    };
-  }
 
   if (!request.masterUserId) {
     return {

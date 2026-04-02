@@ -2,6 +2,7 @@ import { DEFAULT_CONFIG, getConfig } from "../background/config.js";
 import type {
   LarkAuthCallbackResult,
   LarkAuthEnsureResponse,
+  LarkAuthStatusServerResponse,
 } from "../types/lark.js";
 import type {
   MeegleAuthEnsureRequest,
@@ -231,6 +232,76 @@ export async function runLarkAuthRequest(
   };
 }
 
+export async function getLarkAuthStatus(
+  input: {
+    masterUserId?: string;
+    baseUrl: string;
+  },
+): Promise<LarkAuthEnsureResponse> {
+  if (!input.masterUserId) {
+    return {
+      status: "failed",
+      baseUrl: input.baseUrl,
+      reason: "LARK_AUTH_REQUIRED_FIELDS_MISSING",
+      errorMessage: "masterUserId is required for Lark auth.",
+    };
+  }
+
+  const config = await getConfig();
+
+  try {
+    const response = await fetch(`${config.SERVER_URL}/api/lark/auth/status`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        masterUserId: input.masterUserId,
+        baseUrl: input.baseUrl,
+      }),
+    });
+
+    if (!response.ok) {
+      return {
+        status: "failed",
+        baseUrl: input.baseUrl,
+        masterUserId: input.masterUserId,
+        reason: "LARK_STATUS_REQUEST_FAILED",
+        errorMessage: `Auth status request failed with ${response.status}.`,
+      };
+    }
+
+    const payload = (await response.json()) as LarkAuthStatusServerResponse;
+
+    if (!payload.ok || !payload.data) {
+      return {
+        status: "failed",
+        baseUrl: input.baseUrl,
+        masterUserId: input.masterUserId,
+        reason: payload.error?.errorCode || "LARK_STATUS_REQUEST_FAILED",
+        errorMessage: payload.error?.errorMessage || "Lark auth status response payload is missing.",
+      };
+    }
+
+    return {
+      status: payload.data.status,
+      baseUrl: payload.data.baseUrl,
+      masterUserId: payload.data.masterUserId ?? input.masterUserId,
+      reason: payload.data.reason,
+      credentialStatus: payload.data.credentialStatus,
+      expiresAt: payload.data.expiresAt,
+    };
+  } catch (error) {
+    return {
+      status: "failed",
+      baseUrl: input.baseUrl,
+      masterUserId: input.masterUserId,
+      reason: "LARK_STATUS_REQUEST_FAILED",
+      errorMessage: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
 const AUTH_STORAGE_KEY = "itpm_assistant_auth";
 
 export function watchLarkAuthCallbackResult(
@@ -279,6 +350,8 @@ export async function loadPopupSettings(): Promise<PopupSettingsForm> {
   return {
     SERVER_URL: config.SERVER_URL || DEFAULT_CONFIG.SERVER_URL,
     MEEGLE_PLUGIN_ID: config.MEEGLE_PLUGIN_ID || "",
+    LARK_OAUTH_CALLBACK_URL:
+      config.LARK_OAUTH_CALLBACK_URL || DEFAULT_CONFIG.LARK_OAUTH_CALLBACK_URL,
     meegleUserKey: localSettings.meegleUserKey || "",
     larkUserId: localSettings.larkUserId || "",
   };

@@ -10,6 +10,7 @@ describe("SettingsPage", () => {
     const form: PopupSettingsForm = {
       SERVER_URL: "http://localhost:3000",
       MEEGLE_PLUGIN_ID: "MII_PLUGIN",
+      LARK_OAUTH_CALLBACK_URL: "https://example.ngrok-free.app/api/lark/auth/callback",
       meegleUserKey: "7538275242901291040",
       larkUserId: "",
     };
@@ -60,20 +61,30 @@ describe("SettingsPage", () => {
 
     expect(wrapper.text()).toContain("Server URL");
     expect(wrapper.text()).toContain("MEEGLE Plugin ID");
+    expect(wrapper.text()).toContain("Lark Callback URL");
     expect(wrapper.text()).toContain("Meegle User Key");
     expect(wrapper.text()).toContain("Lark User ID");
+    expect(
+      wrapper.get('[data-test="settings-lark-callback-url"]').element,
+    ).toHaveProperty(
+      "value",
+      "https://example.ngrok-free.app/api/lark/auth/callback",
+    );
     expect(wrapper.get('[data-test="settings-fetch-meegle-user-key"]').text()).toContain("获取");
     expect(wrapper.find(".settings-page__actions").exists()).toBe(true);
     expect(wrapper.get(".settings-page__actions").text()).toContain("取消");
+    expect(wrapper.get(".settings-page__actions").text()).toContain("刷新配置");
     expect(wrapper.get(".settings-page__actions").text()).toContain("保存");
     expect(wrapper.get('[data-test="popup-page-footer"]').text()).toBe("");
 
     await wrapper.get('[data-test="settings-fetch-meegle-user-key"]').trigger("click");
     await wrapper.get('[data-test="settings-cancel"]').trigger("click");
+    await wrapper.get('[data-test="settings-refresh-server-config"]').trigger("click");
     await wrapper.get('[data-test="settings-save"]').trigger("click");
 
     expect(wrapper.emitted("fetchMeegleUserKey")).toBeTruthy();
     expect(wrapper.emitted("cancel")).toBeTruthy();
+    expect(wrapper.emitted("refreshServerConfig")).toBeTruthy();
     expect(wrapper.emitted("save")).toBeTruthy();
   });
 });

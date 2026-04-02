@@ -153,6 +153,7 @@ function createPopupAppMock(pageType: PopupPageType) {
     settingsForm: reactive<PopupSettingsForm>({
       SERVER_URL: "http://localhost:3000",
       MEEGLE_PLUGIN_ID: "plugin_test",
+      LARK_OAUTH_CALLBACK_URL: "http://localhost:3000/api/lark/auth/callback",
       meegleUserKey: "",
       larkUserId: "",
     }),
@@ -189,6 +190,7 @@ function createPopupAppMock(pageType: PopupPageType) {
     closeSettings: vi.fn(() => {
       activePage.value = "home";
     }),
+    refreshServerConfig: vi.fn(),
     saveSettingsForm: vi.fn(async () => {
       activePage.value = "home";
     }),

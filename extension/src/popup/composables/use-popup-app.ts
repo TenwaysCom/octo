@@ -8,6 +8,7 @@ import {
 } from "../meegle-auth.js";
 import {
   getConfig,
+  getLarkAuthStatus,
   loadPopupSettings,
   loadResolvedIdentity,
   queryActiveTabContext,
@@ -53,6 +54,7 @@ function createDefaultSettingsForm(): PopupSettingsForm {
   return {
     SERVER_URL: "http://localhost:3000",
     MEEGLE_PLUGIN_ID: "",
+    LARK_OAUTH_CALLBACK_URL: "http://localhost:3000/api/lark/auth/callback",
     meegleUserKey: "",
     larkUserId: "",
   };
@@ -362,7 +364,7 @@ export function usePopupApp() {
   }
 
   async function checkLarkAuth(): Promise<LarkAuthEnsureResponse> {
-    return runLarkAuthRequest({
+    return getLarkAuthStatus({
       masterUserId: state.identity.masterUserId || undefined,
       baseUrl: normalizeLarkAuthBaseUrl(state.currentTabOrigin),
     });
@@ -424,12 +426,24 @@ export function usePopupApp() {
       return;
     }
 
-    if (auth.status === "in_progress") {
+    const started = await runLarkAuthRequest({
+      masterUserId,
+      baseUrl: normalizeLarkAuthBaseUrl(state.currentTabOrigin),
+    });
+    state.larkAuth = started;
+    state.isAuthed.lark = started.status === "ready";
+
+    if (started.status === "ready") {
+      appendLog("success", "Lark 已授权");
+      return;
+    }
+
+    if (started.status === "in_progress") {
       appendLog("info", "已打开 Lark 授权页，等待完成授权");
       return;
     }
 
-    appendLog("warn", "需要登录 Lark");
+    appendLog("warn", started.errorMessage || started.reason || "需要登录 Lark");
   }
 
   function openSettings() {
@@ -464,11 +478,23 @@ export function usePopupApp() {
 
   async function saveSettingsForm() {
     await savePopupSettings({ ...settingsForm });
-    settingsSnapshot = { ...settingsForm };
-    hydrateIdentityFromSettings(settingsForm);
+    const refreshedSettings = await loadPopupSettings();
+    syncSettingsForm(refreshedSettings);
+    settingsSnapshot = { ...refreshedSettings };
+    hydrateIdentityFromSettings(refreshedSettings);
     appendLog("success", "设置已保存");
     activePage.value = "home";
     await refreshAuthStates();
+  }
+
+  async function refreshServerConfig() {
+    const refreshedSettings = await loadPopupSettings();
+    syncSettingsForm(refreshedSettings);
+    settingsSnapshot = { ...refreshedSettings };
+    appendLog(
+      "success",
+      `已刷新服务端配置: ${refreshedSettings.LARK_OAUTH_CALLBACK_URL}`,
+    );
   }
 
   function clearLogs() {
@@ -502,6 +528,7 @@ export function usePopupApp() {
   function syncSettingsForm(settings: PopupSettingsForm) {
     settingsForm.SERVER_URL = settings.SERVER_URL;
     settingsForm.MEEGLE_PLUGIN_ID = settings.MEEGLE_PLUGIN_ID;
+    settingsForm.LARK_OAUTH_CALLBACK_URL = settings.LARK_OAUTH_CALLBACK_URL;
     settingsForm.meegleUserKey = settings.meegleUserKey;
     settingsForm.larkUserId = settings.larkUserId;
   }
@@ -584,6 +611,7 @@ export function usePopupApp() {
     closeSettings,
     fetchMeegleUserKey,
     saveSettingsForm,
+    refreshServerConfig,
     clearLogs,
     runFeatureAction,
   };
