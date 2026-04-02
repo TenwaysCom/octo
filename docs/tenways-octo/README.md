@@ -22,10 +22,10 @@
 16. [用户身份系统设计](./18-user-identity-design.md)
 17. [V2 Agent Platform / ACP 演进设计](./14-v2-architecture-design.md)
 18. [ACP 设计](./17-acp-design.md)
-
 ## 归档文档
 
 - [认证流程设计（已归档）](./archived/16-auth-flow-design.md)
+- [Lark Base 多维表格插件替补方案（已归档）](./archived/19-lark-base-plugin-fallback-design.md)
 
 ## 当前设计结论
 

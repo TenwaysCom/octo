@@ -214,6 +214,28 @@ MutationObserver
 - 手动 refresh
 - 显示当前 probe 结果摘要
 
+### Probe Mode
+
+公共注入模块需要支持一个明确的 `probe mode`，但它只能作为开发辅助能力存在，不能进入正式发布版本。
+
+约束如下：
+
+- `probe mode` 只在开发环境可用
+- 默认关闭，必须显式开启
+- 正式 build 不包含该模式的入口和 UI
+- 正式用户不能通过任意页面操作意外触发 probe overlay
+
+建议实现口径：
+
+- 通过开发态环境变量或显式开关启用，例如 `DEV_INJECTION_PROBE=true`
+- 运行时再结合 `import.meta.env.DEV` 或等价开发态标记二次判断
+- 如果不是开发环境，`overlay.ts` 和 probe 辅助 UI 不注册、不渲染
+
+这样可以保证：
+
+- 开发时仍然可以用 probe mode 做 DOM 勘测和注入点定位
+- 生产 build 不会带着调试浮层、调试按钮、探测日志一起发出去
+
 ## Lark Adapter Design
 
 ### Scope
@@ -411,7 +433,7 @@ Lark adapter 只选择两个注入候选：
 建议按这个顺序落地：
 
 1. 先抽公共注入模块
-2. 把当前临时 debug overlay 接到公共模块
+2. 把当前临时 debug overlay 接到公共模块，并收敛成开发专用 `probe mode`
 3. 用 Lark adapter 接入详情探测和 anchor 探测
 4. 再接 `发送到 Meegle` 主按钮
 5. 最后接折叠面板和服务端 draft/apply 链路
