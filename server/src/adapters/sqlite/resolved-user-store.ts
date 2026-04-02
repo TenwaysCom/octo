@@ -7,6 +7,7 @@ export interface ResolvedUserRecord {
   status: "pending_lark_identity" | "active" | "conflict";
   larkTenantKey: string | null;
   larkId: string | null;
+  larkEmail: string | null;
   meegleBaseUrl: string | null;
   meegleUserKey: string | null;
   githubId: string | null;
@@ -26,6 +27,7 @@ export interface ResolvedUserStore {
     status: ResolvedUserRecord["status"];
     larkTenantKey?: string;
     larkId?: string;
+    larkEmail?: string;
     meegleBaseUrl?: string;
     meegleUserKey?: string;
     githubId?: string;
@@ -38,6 +40,7 @@ interface UserRow {
   status: string;
   lark_tenant_key: string | null;
   lark_id: string | null;
+  lark_email: string | null;
   meegle_base_url: string | null;
   meegle_user_key: string | null;
   github_id: string | null;
@@ -58,6 +61,7 @@ function toRecord(row: UserRow | undefined): ResolvedUserRecord | undefined {
         : "pending_lark_identity",
     larkTenantKey: row.lark_tenant_key,
     larkId: row.lark_id,
+    larkEmail: row.lark_email,
     meegleBaseUrl: row.meegle_base_url,
     meegleUserKey: row.meegle_user_key,
     githubId: row.github_id,
@@ -72,7 +76,7 @@ export class SqliteResolvedUserStore implements ResolvedUserStore {
   async getById(id: string): Promise<ResolvedUserRecord | undefined> {
     return toRecord(
       this.db.prepare(`
-        SELECT id, status, lark_tenant_key, lark_id, meegle_base_url, meegle_user_key, github_id, created_at, updated_at
+        SELECT id, status, lark_tenant_key, lark_id, lark_email, meegle_base_url, meegle_user_key, github_id, created_at, updated_at
         FROM users
         WHERE id = ?
       `).get(id) as UserRow | undefined,
@@ -82,7 +86,7 @@ export class SqliteResolvedUserStore implements ResolvedUserStore {
   async getByLarkId(larkId: string): Promise<ResolvedUserRecord | undefined> {
     return toRecord(
       this.db.prepare(`
-        SELECT id, status, lark_tenant_key, lark_id, meegle_base_url, meegle_user_key, github_id, created_at, updated_at
+        SELECT id, status, lark_tenant_key, lark_id, lark_email, meegle_base_url, meegle_user_key, github_id, created_at, updated_at
         FROM users
         WHERE lark_id = ?
       `).get(larkId) as UserRow | undefined,
@@ -95,7 +99,7 @@ export class SqliteResolvedUserStore implements ResolvedUserStore {
   ): Promise<ResolvedUserRecord | undefined> {
     return toRecord(
       this.db.prepare(`
-        SELECT id, status, lark_tenant_key, lark_id, meegle_base_url, meegle_user_key, github_id, created_at, updated_at
+        SELECT id, status, lark_tenant_key, lark_id, lark_email, meegle_base_url, meegle_user_key, github_id, created_at, updated_at
         FROM users
         WHERE lark_tenant_key = ? AND lark_id = ?
       `).get(larkTenantKey, larkId) as UserRow | undefined,
@@ -108,7 +112,7 @@ export class SqliteResolvedUserStore implements ResolvedUserStore {
   ): Promise<ResolvedUserRecord | undefined> {
     return toRecord(
       this.db.prepare(`
-        SELECT id, status, lark_tenant_key, lark_id, meegle_base_url, meegle_user_key, github_id, created_at, updated_at
+        SELECT id, status, lark_tenant_key, lark_id, lark_email, meegle_base_url, meegle_user_key, github_id, created_at, updated_at
         FROM users
         WHERE meegle_base_url = ? AND meegle_user_key = ?
       `).get(meegleBaseUrl, meegleUserKey) as UserRow | undefined,
@@ -119,6 +123,7 @@ export class SqliteResolvedUserStore implements ResolvedUserStore {
     status: ResolvedUserRecord["status"];
     larkTenantKey?: string;
     larkId?: string;
+    larkEmail?: string;
     meegleBaseUrl?: string;
     meegleUserKey?: string;
     githubId?: string;
@@ -132,17 +137,19 @@ export class SqliteResolvedUserStore implements ResolvedUserStore {
         status,
         lark_tenant_key,
         lark_id,
+        lark_email,
         meegle_base_url,
         meegle_user_key,
         github_id,
         created_at,
         updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       id,
       input.status,
       input.larkTenantKey ?? null,
       input.larkId ?? null,
+      input.larkEmail ?? null,
       input.meegleBaseUrl ?? null,
       input.meegleUserKey ?? null,
       input.githubId ?? null,
@@ -155,6 +162,7 @@ export class SqliteResolvedUserStore implements ResolvedUserStore {
       status: input.status,
       larkTenantKey: input.larkTenantKey ?? null,
       larkId: input.larkId ?? null,
+      larkEmail: input.larkEmail ?? null,
       meegleBaseUrl: input.meegleBaseUrl ?? null,
       meegleUserKey: input.meegleUserKey ?? null,
       githubId: input.githubId ?? null,
@@ -172,6 +180,7 @@ export class SqliteResolvedUserStore implements ResolvedUserStore {
         status = ?,
         lark_tenant_key = ?,
         lark_id = ?,
+        lark_email = ?,
         meegle_base_url = ?,
         meegle_user_key = ?,
         github_id = ?,
@@ -181,6 +190,7 @@ export class SqliteResolvedUserStore implements ResolvedUserStore {
       input.status,
       input.larkTenantKey,
       input.larkId,
+      input.larkEmail,
       input.meegleBaseUrl,
       input.meegleUserKey,
       input.githubId,

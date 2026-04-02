@@ -31,6 +31,7 @@ function migrateUsersTable(db: DatabaseSync): void {
     schemaSql.includes("meegle_user_key TEXT UNIQUE") ||
     !schemaSql.includes("meegle_base_url") ||
     !schemaSql.includes("lark_tenant_key") ||
+    !schemaSql.includes("lark_email") ||
     schemaSql.includes("lark_id TEXT UNIQUE");
 
   if (!needsRebuild) {
@@ -46,6 +47,7 @@ function migrateUsersTable(db: DatabaseSync): void {
       status TEXT NOT NULL,
       lark_tenant_key TEXT,
       lark_id TEXT,
+      lark_email TEXT,
       meegle_base_url TEXT,
       meegle_user_key TEXT,
       github_id TEXT UNIQUE,
@@ -58,6 +60,7 @@ function migrateUsersTable(db: DatabaseSync): void {
       status,
       lark_tenant_key,
       lark_id,
+      lark_email,
       meegle_base_url,
       meegle_user_key,
       github_id,
@@ -69,6 +72,7 @@ function migrateUsersTable(db: DatabaseSync): void {
       status,
       ${hasLarkTenantKey ? "lark_tenant_key" : "NULL"},
       lark_id,
+      ${hasColumn(db, "users", "lark_email") ? "lark_email" : "NULL"},
       ${hasMeegleBaseUrl ? "meegle_base_url" : "NULL"},
       meegle_user_key,
       github_id,
@@ -272,6 +276,7 @@ function initSchema(db: DatabaseSync): void {
       status TEXT NOT NULL,
       lark_tenant_key TEXT,
       lark_id TEXT,
+      lark_email TEXT,
       meegle_base_url TEXT,
       meegle_user_key TEXT,
       github_id TEXT UNIQUE,
@@ -287,6 +292,7 @@ function initSchema(db: DatabaseSync): void {
   ensureColumn(db, "user_tokens", "user_token_expires_at", "TEXT");
   ensureColumn(db, "user_tokens", "refresh_token_expires_at", "TEXT");
   ensureColumn(db, "users", "lark_tenant_key", "TEXT");
+  ensureColumn(db, "users", "lark_email", "TEXT");
   ensureColumn(db, "users", "meegle_base_url", "TEXT");
   db.exec(`
     CREATE UNIQUE INDEX IF NOT EXISTS users_lark_identity_unique

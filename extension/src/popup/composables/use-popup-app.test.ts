@@ -63,6 +63,7 @@ describe("usePopupApp notebook state", () => {
     runtimeMock.getLarkAuthStatus.mockResolvedValue({
       status: "ready",
       baseUrl: "https://open.larksuite.com",
+      expiresAt: "2026-04-02T21:01:00.000Z",
     });
     runtimeMock.loadPopupSettings.mockResolvedValue({
       SERVER_URL: "http://localhost:3000",
@@ -85,6 +86,8 @@ describe("usePopupApp notebook state", () => {
       data: {
         masterUserId: "usr_resolved",
         identityStatus: "active",
+        operatorLarkId: "ou_resolved",
+        larkEmail: "user@example.com",
       },
     });
     runtimeMock.runLarkAuthRequest.mockResolvedValue({
@@ -122,6 +125,8 @@ describe("usePopupApp notebook state", () => {
 
     expect(runtimeMock.getLarkAuthStatus).toHaveBeenCalledTimes(1);
     expect(runtimeMock.runLarkAuthRequest).not.toHaveBeenCalled();
+    expect(popup.larkStatus.value.text).toContain("已授权");
+    expect(popup.larkStatus.value.text).toMatch(/已授权 · \d{2}-\d{2} \d{2}:\d{2}/);
   });
 
   it("starts lark oauth only after the user clicks authorize", async () => {
@@ -349,6 +354,8 @@ describe("usePopupApp notebook state", () => {
       "usr_resolved",
     );
     expect(popup.state.identity.masterUserId).toBe("usr_resolved");
+    expect(popup.state.identity.larkId).toBe("ou_resolved");
+    expect(popup.state.identity.larkEmail).toBe("user@example.com");
   });
 
   it("resolves masterUserId before running meegle auth", async () => {

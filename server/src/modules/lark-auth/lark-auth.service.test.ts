@@ -315,12 +315,13 @@ describe("lark-auth.service", () => {
             ok: true,
             json: async () => ({
               code: 0,
-              data: {
-                user_id: "ou_123",
-                tenant_key: "tenant_123",
-              },
-            }),
-          }) as unknown as typeof fetch,
+          data: {
+            user_id: "ou_123",
+            tenant_key: "tenant_123",
+            email: "user@example.com",
+          },
+        }),
+      }) as unknown as typeof fetch,
         resolvedUserStore,
       },
     );
@@ -332,6 +333,7 @@ describe("lark-auth.service", () => {
       status: "active",
       larkTenantKey: "tenant_123",
       larkId: "ou_123",
+      larkEmail: "user@example.com",
     });
 
     const tokenRow = db.prepare(`

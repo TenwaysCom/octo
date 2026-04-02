@@ -32,6 +32,7 @@ export interface IdentityResolveResponse {
     masterUserId: string;
     identityStatus: "pending_lark_identity" | "active" | "conflict";
     operatorLarkId?: string;
+    larkEmail?: string;
     meegleUserKey?: string;
   };
   error?: {

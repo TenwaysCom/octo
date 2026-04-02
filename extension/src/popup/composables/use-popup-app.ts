@@ -42,6 +42,7 @@ import {
 interface PopupIdentityState {
   masterUserId: string | null;
   larkId: string | null;
+  larkEmail: string | null;
   meegleUserKey: string | null;
 }
 
@@ -72,6 +73,7 @@ export function usePopupApp() {
     currentUrl: null as string | null,
     identity: {
       larkId: null,
+      larkEmail: null,
       masterUserId: null,
       meegleUserKey: null,
     } as PopupIdentityState,
@@ -137,7 +139,7 @@ export function usePopupApp() {
     resolveMeegleStatusChip(state.meegleAuth, state.identity.meegleUserKey),
   );
   const larkStatus = computed(() =>
-    resolveStatusChip(state.isAuthed.lark, state.identity.larkId),
+    resolveLarkStatusChip(state.larkAuth, state.identity.larkId),
   );
   const topMeegleButtonText = computed(() =>
     state.isAuthed.meegle ? "已授权" : "授权",
@@ -577,6 +579,9 @@ export function usePopupApp() {
       if (resolved.data.operatorLarkId) {
         state.identity.larkId = resolved.data.operatorLarkId;
       }
+      if (resolved.data.larkEmail) {
+        state.identity.larkEmail = resolved.data.larkEmail;
+      }
       if (resolved.data.meegleUserKey) {
         state.identity.meegleUserKey = resolved.data.meegleUserKey;
       }
@@ -639,6 +644,38 @@ function resolveStatusChip(
     tone: "default",
     text: "-",
   };
+}
+
+function formatExpiry(expiresAt?: string): string | undefined {
+  if (!expiresAt) {
+    return undefined;
+  }
+
+  const parsed = new Date(expiresAt);
+  if (Number.isNaN(parsed.getTime())) {
+    return undefined;
+  }
+
+  const month = `${parsed.getMonth() + 1}`.padStart(2, "0");
+  const day = `${parsed.getDate()}`.padStart(2, "0");
+  const hours = `${parsed.getHours()}`.padStart(2, "0");
+  const minutes = `${parsed.getMinutes()}`.padStart(2, "0");
+  return `${month}-${day} ${hours}:${minutes}`;
+}
+
+function resolveLarkStatusChip(
+  auth: LarkAuthEnsureResponse | undefined,
+  fallbackValue?: string | null,
+): PopupStatusChip {
+  if (auth?.status === "ready") {
+    const expiryText = formatExpiry(auth.expiresAt);
+    return {
+      tone: "success",
+      text: expiryText ? `已授权 · ${expiryText}` : "已授权",
+    };
+  }
+
+  return resolveStatusChip(false, fallbackValue);
 }
 
 function resolveMeegleStatusChip(

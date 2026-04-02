@@ -4,47 +4,8 @@
     subtitle="管理当前插件实例使用的服务地址和身份映射。"
     data-test="settings-page"
   >
-    <a-form layout="vertical" class="settings-page__form">
-      <a-form-item label="Server URL">
-        <a-input
-          v-model:value="form.SERVER_URL"
-          placeholder="http://localhost:3000"
-        />
-      </a-form-item>
-      <a-form-item label="MEEGLE Plugin ID">
-        <a-input
-          v-model:value="form.MEEGLE_PLUGIN_ID"
-          placeholder="输入 MII_ 开头的 Plugin ID"
-        />
-      </a-form-item>
-      <a-form-item label="Lark Callback URL">
-        <a-input
-          :value="form.LARK_OAUTH_CALLBACK_URL"
-          readonly
-          data-test="settings-lark-callback-url"
-        />
-      </a-form-item>
-      <a-form-item label="Meegle User Key">
-        <div class="settings-page__inline-field">
-          <a-input
-            v-model:value="form.meegleUserKey"
-            placeholder="输入 Meegle User Key"
-          />
-          <a-button
-            data-test="settings-fetch-meegle-user-key"
-            @click="$emit('fetchMeegleUserKey')"
-          >
-            获取
-          </a-button>
-        </div>
-      </a-form-item>
-      <a-form-item label="Lark User ID (可选)">
-        <a-input
-          v-model:value="form.larkUserId"
-          placeholder="输入 Lark User ID"
-        />
-      </a-form-item>
-      <div class="settings-page__actions">
+    <template #actions>
+      <div class="settings-page__header-actions">
         <a-button data-test="settings-cancel" @click="$emit('cancel')">
           取消
         </a-button>
@@ -62,6 +23,59 @@
           保存
         </a-button>
       </div>
+    </template>
+    <a-form layout="vertical" class="settings-page__form">
+      <a-form-item label="Meegle User Key">
+        <div class="settings-page__inline-field">
+          <a-input
+            v-model:value="form.meegleUserKey"
+            placeholder="输入 Meegle User Key"
+          />
+          <a-button
+            data-test="settings-fetch-meegle-user-key"
+            @click="$emit('fetchMeegleUserKey')"
+          >
+            获取
+          </a-button>
+        </div>
+      </a-form-item>
+      <a-form-item label="Lark User ID (可选)">
+        <a-input
+          :value="larkUserId"
+          readonly
+          data-test="settings-lark-user-id"
+          placeholder="等待服务端回填"
+        />
+      </a-form-item>
+      <a-form-item label="Lark Email">
+        <a-input
+          :value="larkEmail"
+          readonly
+          data-test="settings-lark-email"
+          placeholder="等待服务端回填"
+        />
+      </a-form-item>
+      <a-form-item label="Server URL">
+        <a-input
+          v-model:value="form.SERVER_URL"
+          placeholder="http://localhost:3000"
+        />
+      </a-form-item>
+      <a-form-item label="Lark Callback URL">
+        <a-input
+          :value="form.LARK_OAUTH_CALLBACK_URL"
+          readonly
+          data-test="settings-lark-callback-url"
+        />
+      </a-form-item>
+      <a-form-item label="MEEGLE Plugin ID">
+        <a-input
+          :value="form.MEEGLE_PLUGIN_ID"
+          readonly
+          data-test="settings-meegle-plugin-id"
+          placeholder="由服务端配置提供"
+        />
+      </a-form-item>
     </a-form>
   </PopupPage>
 </template>
@@ -72,6 +86,8 @@ import type { PopupSettingsForm } from "../types.js";
 
 defineProps<{
   form: PopupSettingsForm;
+  larkUserId: string;
+  larkEmail: string;
 }>();
 
 defineEmits<{
@@ -95,10 +111,9 @@ defineEmits<{
   align-items: center;
 }
 
-.settings-page__actions {
+.settings-page__header-actions {
   display: flex;
-  justify-content: flex-end;
   gap: 12px;
-  padding-top: 8px;
+  align-items: center;
 }
 </style>

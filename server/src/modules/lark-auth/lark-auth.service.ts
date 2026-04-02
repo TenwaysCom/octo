@@ -416,7 +416,7 @@ async function getLarkUserInfo(
   baseUrl: string,
   accessToken: string,
   fetchImpl: typeof fetch,
-): Promise<{ userId: string; tenantKey: string }> {
+): Promise<{ userId: string; tenantKey: string; email?: string }> {
   const url = new URL("/open-apis/authen/v1/user_info", baseUrl);
   const response = await fetchImpl(url.toString(), {
     method: "GET",
@@ -438,11 +438,12 @@ async function getLarkUserInfo(
   const userData = data.data as Record<string, unknown> | undefined;
   const userId = userData?.user_id as string | undefined;
   const tenantKey = userData?.tenant_key as string | undefined;
+  const email = userData?.email as string | undefined;
   if (!userId || !tenantKey) {
     throw new Error("Lark user info response missing tenant identity");
   }
 
-  return { userId, tenantKey };
+  return { userId, tenantKey, email };
 }
 
 export async function handleLarkAuthCallback(
@@ -513,6 +514,7 @@ export async function handleLarkAuthCallback(
         ...existingByUser,
         larkTenantKey: userInfo.tenantKey,
         larkId: userInfo.userId,
+        larkEmail: userInfo.email ?? existingByUser.larkEmail,
         status: "active",
       });
     }
