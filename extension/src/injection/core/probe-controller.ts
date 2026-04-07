@@ -6,6 +6,18 @@ export type ProbeController<TContext> = {
   destroy(): void;
 };
 
+interface ProbeImportMeta extends ImportMeta {
+  readonly env: {
+    readonly DEV: boolean;
+    readonly WXT_PUBLIC_INJECTION_PROBE?: string;
+  };
+}
+
+export function isInjectionProbeEnabled(): boolean {
+  const env = import.meta as ProbeImportMeta;
+  return env.env.DEV && env.env.WXT_PUBLIC_INJECTION_PROBE === "true";
+}
+
 export type CreateProbeControllerDeps<TContext> = {
   adapter: InjectionAdapter<TContext>;
   observerFactory?: ObserverFactory;
