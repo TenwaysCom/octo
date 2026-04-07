@@ -14,8 +14,8 @@ interface ProbeImportMeta extends ImportMeta {
 }
 
 export function isInjectionProbeEnabled(): boolean {
-  const env = import.meta as ProbeImportMeta;
-  return env.env.DEV && env.env.WXT_PUBLIC_INJECTION_PROBE === "true";
+  const env = import.meta.env as ProbeImportMeta["env"];
+  return env.DEV && env.WXT_PUBLIC_INJECTION_PROBE === "true";
 }
 
 export type CreateProbeControllerDeps<TContext> = {
