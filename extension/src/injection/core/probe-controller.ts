@@ -6,15 +6,9 @@ export type ProbeController<TContext> = {
   destroy(): void;
 };
 
-interface ProbeImportMeta extends ImportMeta {
-  readonly env: {
-    readonly DEV: boolean;
-    readonly WXT_PUBLIC_INJECTION_PROBE?: string;
-  };
-}
-
 export function isInjectionProbeEnabled(): boolean {
-  const env = import.meta.env as ProbeImportMeta["env"];
+  // @ts-expect-error Vite/WXT injects import.meta.env at build time.
+  const env = import.meta.env;
   return env.DEV && env.WXT_PUBLIC_INJECTION_PROBE === "true";
 }
 
