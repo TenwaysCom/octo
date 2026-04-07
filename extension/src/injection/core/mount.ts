@@ -1,7 +1,7 @@
-const MOUNT_ATTR = "data-tenways-octo-mount";
+export const MOUNT_ATTR = "data-tenways-octo-mount";
 
-function getMountSelector(id: string): string {
-  return `[${MOUNT_ATTR}="${id}"]`;
+function hasMountId(node: Element, id: string): boolean {
+  return node.getAttribute(MOUNT_ATTR) === id;
 }
 
 function createMountNode(id: string): HTMLElement {
@@ -10,8 +10,32 @@ function createMountNode(id: string): HTMLElement {
   return node;
 }
 
+export function isTenwaysOwnedNode(node: Node): boolean {
+  let current: Node | null = node;
+
+  while (current !== null) {
+    if (current.nodeType === Node.ELEMENT_NODE && (current as Element).hasAttribute(MOUNT_ATTR)) {
+      return true;
+    }
+
+    current = current.parentNode;
+  }
+
+  return false;
+}
+
+function findDirectMountedChild(id: string, anchor: Element): HTMLElement | null {
+  for (const child of Array.from(anchor.children)) {
+    if (hasMountId(child, id)) {
+      return child as HTMLElement;
+    }
+  }
+
+  return null;
+}
+
 export function ensureMountedNode(id: string, anchor: Element): HTMLElement {
-  const existing = anchor.querySelector<HTMLElement>(getMountSelector(id));
+  const existing = findDirectMountedChild(id, anchor);
   if (existing !== null) {
     return existing;
   }
@@ -27,7 +51,9 @@ export function remountNode(id: string, anchor: Element): HTMLElement {
 }
 
 export function cleanupMountedNode(id: string, anchor: Element): void {
-  anchor.querySelectorAll(getMountSelector(id)).forEach((node) => {
-    node.remove();
-  });
+  for (const child of Array.from(anchor.children)) {
+    if (hasMountId(child, id)) {
+      child.remove();
+    }
+  }
 }

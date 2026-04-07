@@ -71,8 +71,14 @@ describe("createProbeController", () => {
 
   it("switches the detail observer when the detail root changes", () => {
     const render = vi.fn();
-    const observeShell = vi.fn(() => vi.fn());
-    const observeDetail = vi.fn(() => vi.fn());
+    const shellCleanup = vi.fn();
+    const firstDetailCleanup = vi.fn();
+    const secondDetailCleanup = vi.fn();
+    const observeShell = vi.fn(() => shellCleanup);
+    const observeDetail = vi
+      .fn()
+      .mockReturnValueOnce(firstDetailCleanup)
+      .mockReturnValueOnce(secondDetailCleanup);
     const firstDetailRoot = document.createElement("section");
     const secondDetailRoot = document.createElement("section");
     const probeDetail = vi
@@ -104,11 +110,15 @@ describe("createProbeController", () => {
     expect(observeDetail).toHaveBeenCalledTimes(2);
     expect(observeDetail).toHaveBeenNthCalledWith(1, firstDetailRoot, expect.any(Function));
     expect(observeDetail).toHaveBeenNthCalledWith(2, secondDetailRoot, expect.any(Function));
+    expect(firstDetailCleanup).toHaveBeenCalledTimes(1);
+    expect(secondDetailCleanup).not.toHaveBeenCalled();
+    expect(shellCleanup).not.toHaveBeenCalled();
   });
 
-  it("calls cleanup and stops refreshing after destroy", () => {
-    const cleanup = vi.fn();
+  it("calls both observer cleanups on destroy", () => {
     const render = vi.fn();
+    const shellCleanup = vi.fn();
+    const detailCleanup = vi.fn();
     const probeShell = vi.fn(() => ({ shellRoot: document.body, overlayRoot: document.body }));
     const probeDetail = vi.fn(() => ({ isOpen: true, detailRoot: document.body }));
     const probeContext = vi.fn(() => ({ title: "Burger" }));
@@ -117,6 +127,8 @@ describe("createProbeController", () => {
       label: "detail-header",
       confidence: 1,
     }));
+    const observeShell = vi.fn(() => shellCleanup);
+    const observeDetail = vi.fn(() => detailCleanup);
     const controller = createProbeController({
       adapter: {
         probeShell,
@@ -124,18 +136,24 @@ describe("createProbeController", () => {
         probeContext,
         probeAnchor,
         render,
-        cleanup,
+      },
+      observerFactory: {
+        observeShell,
+        observeDetail,
       },
     });
 
-    controller.destroy();
     controller.refresh();
+    controller.destroy();
 
-    expect(cleanup).toHaveBeenCalledTimes(1);
-    expect(probeShell).not.toHaveBeenCalled();
-    expect(probeDetail).not.toHaveBeenCalled();
-    expect(probeContext).not.toHaveBeenCalled();
-    expect(probeAnchor).not.toHaveBeenCalled();
-    expect(render).not.toHaveBeenCalled();
+    expect(shellCleanup).toHaveBeenCalledTimes(1);
+    expect(detailCleanup).toHaveBeenCalledTimes(1);
+    expect(observeShell).toHaveBeenCalledTimes(1);
+    expect(observeDetail).toHaveBeenCalledTimes(1);
+    expect(probeShell).toHaveBeenCalledTimes(1);
+    expect(probeDetail).toHaveBeenCalledTimes(1);
+    expect(probeContext).toHaveBeenCalledTimes(1);
+    expect(probeAnchor).toHaveBeenCalledTimes(1);
+    expect(render).toHaveBeenCalledTimes(1);
   });
 });
