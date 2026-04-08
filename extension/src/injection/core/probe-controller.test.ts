@@ -39,7 +39,7 @@ describe("createProbeController", () => {
 
     controller.refresh();
 
-    expect(render).toHaveBeenCalledWith({ pageState: { kind: "detail-loading" } });
+    expect(render).toHaveBeenCalledWith({ pageState: { kind: "detail-closed" } });
     expect(probeContext).not.toHaveBeenCalled();
     expect(probeAnchor).not.toHaveBeenCalled();
   });

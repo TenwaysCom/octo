@@ -1,5 +1,7 @@
+import { MOUNT_ATTR } from "./mount";
+
 export type ProbeOverlayState = {
-  detailState: "closed" | "detail-ready";
+  detailState: "closed" | "detail-loading" | "detail-ready";
   detailTitle: string | null;
   anchorLabel: string | null;
 };
@@ -16,7 +18,11 @@ function getMountTarget(): HTMLElement {
   return document.body ?? document.documentElement;
 }
 
-function ensureOverlayRoot(existingRoot: HTMLDivElement | null): HTMLDivElement {
+function ensureOverlayRoot(existingRoot: HTMLDivElement | null): HTMLDivElement | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
   if (existingRoot?.isConnected) {
     return existingRoot;
   }
@@ -31,6 +37,7 @@ function ensureOverlayRoot(existingRoot: HTMLDivElement | null): HTMLDivElement 
   const overlay = document.createElement("div");
   overlay.id = PROBE_OVERLAY_ID;
   overlay.setAttribute(PROBE_OVERLAY_ATTR, "true");
+  overlay.setAttribute(MOUNT_ATTR, "probe-overlay");
   overlay.style.position = "fixed";
   overlay.style.right = "16px";
   overlay.style.bottom = "16px";
@@ -68,8 +75,12 @@ function renderOverlayText(root: HTMLDivElement, state: ProbeOverlayState): void
 export function createProbeOverlay(onRefresh: () => void): ProbeOverlayHandle {
   let root: HTMLDivElement | null = null;
 
-  function ensureRoot(): HTMLDivElement {
+  function ensureRoot(): HTMLDivElement | null {
     root = ensureOverlayRoot(root);
+    if (!root) {
+      return null;
+    }
+
     if (!root.isConnected) {
       const mountTarget = getMountTarget();
       mountTarget.appendChild(root);
@@ -96,6 +107,9 @@ export function createProbeOverlay(onRefresh: () => void): ProbeOverlayHandle {
   return {
     render(state: ProbeOverlayState) {
       const overlay = ensureRoot();
+      if (!overlay) {
+        return;
+      }
       renderOverlayText(overlay, state);
     },
     destroy() {

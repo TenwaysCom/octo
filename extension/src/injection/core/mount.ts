@@ -10,6 +10,10 @@ function createMountNode(id: string): HTMLElement {
   return node;
 }
 
+function insertAfter(node: HTMLElement, anchor: Element): void {
+  anchor.parentElement?.insertBefore(node, anchor.nextSibling);
+}
+
 export function isTenwaysOwnedNode(node: Node): boolean {
   let current: Node | null = node;
 
@@ -42,6 +46,24 @@ export function ensureMountedNode(id: string, anchor: Element): HTMLElement {
 
   const node = createMountNode(id);
   anchor.appendChild(node);
+  return node;
+}
+
+export function ensureMountedSiblingNode(id: string, anchor: Element): HTMLElement {
+  const parent = anchor.parentElement;
+  if (parent === null) {
+    return ensureMountedNode(id, anchor);
+  }
+
+  const nextSibling = anchor.nextElementSibling;
+  if (nextSibling !== null && hasMountId(nextSibling, id)) {
+    return nextSibling as HTMLElement;
+  }
+
+  cleanupMountedNode(id, parent);
+
+  const node = createMountNode(id);
+  insertAfter(node, anchor);
   return node;
 }
 

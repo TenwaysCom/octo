@@ -5,6 +5,7 @@ export type AnchorCandidate = {
 };
 
 export type InjectionPageState<TContext> =
+  | { kind: "detail-closed" }
   | { kind: "detail-loading" }
   | { kind: "detail-ready"; context: TContext; anchor: AnchorCandidate };
 

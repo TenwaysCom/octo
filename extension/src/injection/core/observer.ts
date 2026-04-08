@@ -16,7 +16,7 @@ function isOwnedMutationTarget(node: Node): boolean {
   let current: Node | null = node;
 
   while (current !== null) {
-    if (current.nodeType === Node.ELEMENT_NODE && (current as Element).hasAttribute(MOUNT_ATTR)) {
+    if (current.nodeType === 1 && (current as Element).hasAttribute(MOUNT_ATTR)) {
       return true;
     }
 

@@ -67,7 +67,7 @@ export function createProbeController<TContext>({
     if (!detail.isOpen || !detail.detailRoot) {
       syncDetailObserver(null);
       adapter.render({
-        pageState: { kind: "detail-loading" },
+        pageState: { kind: "detail-closed" },
       });
       return;
     }
