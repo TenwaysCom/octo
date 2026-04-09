@@ -20,7 +20,7 @@ describe("lark auth callback content script", () => {
 
     const sendMessage = vi.mocked(chrome.runtime.sendMessage);
 
-    await import("./lark-auth-callback.ts");
+    await import("./lark-auth-callback.js");
 
     expect(sendMessage).toHaveBeenCalledWith({
       action: "itdog.lark.auth.callback.detected",

@@ -33,6 +33,17 @@ let tokenCheckPending = false;
 let cachedLarkToken: string | undefined;
 let larkTokenCheckPending = false;
 
+class BackgroundActionError extends Error {
+  constructor(
+    message: string,
+    readonly errorCode: string,
+  ) {
+    super(message);
+    this.name = "BackgroundActionError";
+    Object.setPrototypeOf(this, BackgroundActionError.prototype);
+  }
+}
+
 /**
  * Initialize token cache
  */
@@ -66,18 +77,22 @@ async function postServerJson<TResponse>(
   const payload = await response.json() as TResponse & {
     ok?: boolean;
     error?: {
+      errorCode?: string;
       errorMessage?: string;
     };
   };
 
   if (!response.ok || payload.ok === false) {
-    throw new Error(payload.error?.errorMessage ?? `Request failed with ${response.status}`);
+    throw new BackgroundActionError(
+      payload.error?.errorMessage ?? `Request failed with ${response.status}`,
+      payload.error?.errorCode ?? "BACKGROUND_ERROR",
+    );
   }
 
   return payload;
 }
 
-function buildApplyRequestBody(message: LarkApplyMessage["payload"]) {
+async function buildApplyRequestBody(message: LarkApplyMessage["payload"]) {
   if (!message.operatorLarkId) {
     throw new Error("operatorLarkId is required to apply a draft.");
   }
@@ -87,6 +102,7 @@ function buildApplyRequestBody(message: LarkApplyMessage["payload"]) {
   return {
     requestId: `req_${now}`,
     draftId: message.draft.draftId,
+    masterUserId: message.masterUserId,
     operatorLarkId: message.operatorLarkId,
     sourceRecordId: message.draft.sourceRef.sourceRecordId || message.recordId,
     idempotencyKey: `idem_${message.recordId ?? message.draft.draftId}_${now}`,
@@ -156,7 +172,7 @@ export async function routeBackgroundAction(
   if (message.action === "itdog.a1.create_b2_draft") {
     return {
       action: message.action,
-      payload: await postServerJson(config, "/api/a1/create-b2-draft", {
+      payload: await postServerJson(config, "/api/lark-bug/to-meegle-product-bug/draft", {
         recordId: message.payload.recordId,
       }),
     };
@@ -165,7 +181,7 @@ export async function routeBackgroundAction(
   if (message.action === "itdog.a2.create_b1_draft") {
     return {
       action: message.action,
-      payload: await postServerJson(config, "/api/a2/create-b1-draft", {
+      payload: await postServerJson(config, "/api/lark-user-story/to-meegle-user-story/draft", {
         recordId: message.payload.recordId,
       }),
     };
@@ -174,14 +190,22 @@ export async function routeBackgroundAction(
   if (message.action === "itdog.a1.apply_b2") {
     return {
       action: message.action,
-      payload: await postServerJson(config, "/api/a1/apply-b2", buildApplyRequestBody(message.payload)),
+      payload: await postServerJson(
+        config,
+        "/api/lark-bug/to-meegle-product-bug/apply",
+        await buildApplyRequestBody(message.payload),
+      ),
     };
   }
 
   if (message.action === "itdog.a2.apply_b1") {
     return {
       action: message.action,
-      payload: await postServerJson(config, "/api/a2/apply-b1", buildApplyRequestBody(message.payload)),
+      payload: await postServerJson(
+        config,
+        "/api/lark-user-story/to-meegle-user-story/apply",
+        await buildApplyRequestBody(message.payload),
+      ),
     };
   }
 
@@ -228,12 +252,17 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       .then((result) => {
         sendResponse(result);
       })
-      .catch((err: Error) => {
+      .catch((err: unknown) => {
+        const errorCode =
+          err instanceof BackgroundActionError
+            ? err.errorCode
+            : "BACKGROUND_ERROR";
+        const errorMessage = err instanceof Error ? err.message : String(err);
         sendResponse({
           ok: false,
           error: {
-            errorCode: "BACKGROUND_ERROR",
-            errorMessage: err.message,
+            errorCode,
+            errorMessage,
           },
         });
       });

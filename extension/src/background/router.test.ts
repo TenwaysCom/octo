@@ -21,13 +21,14 @@ vi.mock("./storage.js", () => ({
 }));
 
 const { routeBackgroundAction } = await import("./router.js");
+const runtimeMessageListener = vi.mocked(chrome.runtime.onMessage.addListener).mock.calls[0]?.[0];
 
 describe("background router draft/apply bridge", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("forwards A1 draft requests to the create-b2-draft server endpoint", async () => {
+  it("forwards Lark Bug draft requests to the renamed Meegle Product Bug draft endpoint", async () => {
     const draftPayload = {
       draftId: "draft_b2_rec_001",
       draftType: "b2" as const,
@@ -71,7 +72,7 @@ describe("background router draft/apply bridge", () => {
     const result = await routeBackgroundAction(message);
 
     expect(fetch).toHaveBeenCalledWith(
-      "http://localhost:3000/api/a1/create-b2-draft",
+      "http://localhost:3000/api/lark-bug/to-meegle-product-bug/draft",
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({ recordId: "rec_001" }),
@@ -83,7 +84,7 @@ describe("background router draft/apply bridge", () => {
     });
   });
 
-  it("forwards A2 apply requests to the apply-b1 server endpoint", async () => {
+  it("forwards Lark User Story apply requests to the renamed Meegle User Story endpoint and includes masterUserId", async () => {
     const applyPayload = {
       status: "created" as const,
       workitemId: "B1-123",
@@ -123,6 +124,7 @@ describe("background router draft/apply bridge", () => {
         tableId: "tbl_xxx",
         recordId: "rec_002",
         operatorLarkId: "ou_apply",
+        masterUserId: "usr_resolved",
         snapshot: {
           title: "需求整理",
           fields: [],
@@ -134,7 +136,7 @@ describe("background router draft/apply bridge", () => {
     const result = await routeBackgroundAction(message);
 
     expect(fetch).toHaveBeenCalledWith(
-      "http://localhost:3000/api/a2/apply-b1",
+      "http://localhost:3000/api/lark-user-story/to-meegle-user-story/apply",
       expect.objectContaining({
         method: "POST",
         body: expect.any(String),
@@ -143,6 +145,7 @@ describe("background router draft/apply bridge", () => {
     const fetchBody = JSON.parse(vi.mocked(fetch).mock.calls[0]?.[1]?.body as string);
     expect(fetchBody).toMatchObject({
       draftId: "draft_b1_rec_002",
+      masterUserId: "usr_resolved",
       operatorLarkId: "ou_apply",
       sourceRecordId: "rec_002",
       confirmedDraft: {
@@ -156,6 +159,70 @@ describe("background router draft/apply bridge", () => {
     expect(result).toEqual({
       action: "itdog.a2.apply_b1",
       payload: applyPayload,
+    });
+  });
+
+  it("preserves server business error codes instead of swallowing them as BACKGROUND_ERROR", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: false,
+      status: 409,
+      json: vi.fn().mockResolvedValue({
+        ok: false,
+        error: {
+          errorCode: "MEEGLE_AUTH_REQUIRED",
+          errorMessage: "Need Meegle auth",
+        },
+      }),
+    } as unknown as Response);
+
+    expect(runtimeMessageListener).toBeTypeOf("function");
+
+    const message: LarkApplyMessage = {
+      action: "itdog.a2.apply_b1",
+      payload: {
+        pageType: "lark_a2",
+        url: "https://tenant/base/app_xxx/table/tbl_xxx/record/rec_002",
+        baseId: "app_xxx",
+        tableId: "tbl_xxx",
+        recordId: "rec_002",
+        operatorLarkId: "ou_apply",
+        masterUserId: "usr_resolved",
+        snapshot: {
+          title: "需求整理",
+          fields: [],
+        },
+        draft: {
+          draftId: "draft_b1_rec_002",
+          draftType: "b1",
+          sourceRef: {
+            sourcePlatform: "lark_a2",
+            sourceRecordId: "rec_002",
+          },
+          target: {
+            projectKey: "OPS",
+            workitemTypeKey: "requirement",
+            templateId: "requirement-default",
+          },
+          name: "需求整理",
+          needConfirm: true,
+          fieldValuePairs: [{ fieldKey: "priority", fieldValue: "high" }],
+          ownerUserKeys: [],
+          missingMeta: [],
+        },
+      },
+    };
+
+    await new Promise<void>((resolve) => {
+      runtimeMessageListener?.(message, {} as never, (response: unknown) => {
+        expect(response).toEqual({
+          ok: false,
+          error: {
+            errorCode: "MEEGLE_AUTH_REQUIRED",
+            errorMessage: "Need Meegle auth",
+          },
+        });
+        resolve();
+      });
     });
   });
 });

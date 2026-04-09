@@ -126,6 +126,7 @@ export interface CreateWorkitemRequest {
   name: string;
   templateId?: number;
   fieldValuePairs?: FieldValuePair[];
+  idempotencyKey?: string;
 }
 
 function createWorkitemRequestBuilder(input: CreateWorkitemRequest): ApiReq {
@@ -388,7 +389,10 @@ export class MeegleClient {
     };
   }
 
-  private getHeaders(idempotent = false): Record<string, string> {
+  private getHeaders(
+    idempotent = false,
+    idempotencyKey?: string,
+  ): Record<string, string> {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
       "Accept": "application/json",
@@ -397,7 +401,7 @@ export class MeegleClient {
     };
 
     if (idempotent) {
-      headers["X-IDEM-UUID"] = generateIdemUUID();
+      headers["X-IDEM-UUID"] = idempotencyKey ?? generateIdemUUID();
     }
 
     return headers;
@@ -421,7 +425,11 @@ export class MeegleClient {
     return joinUrl(this.config.baseUrl ?? "https://www.meegle.com", url);
   }
 
-  private async request(req: ApiReq, idempotent = false): Promise<Record<string, unknown>> {
+  private async request(
+    req: ApiReq,
+    idempotent = false,
+    idempotencyKey?: string,
+  ): Promise<Record<string, unknown>> {
     const url = this.buildUrl(req);
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
@@ -429,7 +437,7 @@ export class MeegleClient {
     try {
       const response = await fetch(url, {
         method: req.httpMethod,
-        headers: this.getHeaders(idempotent),
+        headers: this.getHeaders(idempotent, idempotencyKey),
         body: req.body ? JSON.stringify(req.body) : undefined,
         signal: controller.signal,
       });
@@ -502,7 +510,7 @@ export class MeegleClient {
 
   async createWorkitem(input: CreateWorkitemRequest): Promise<MeegleWorkitem> {
     const req = createWorkitemRequestBuilder(input);
-    const data = await this.request(req, true);
+    const data = await this.request(req, true, input.idempotencyKey);
     const workitemData = (data.data ?? data) as Record<string, unknown>;
     return parseWorkitem(workitemData);
   }

@@ -20,12 +20,28 @@ export interface CreateWorkitemResult {
   workitem: MeegleWorkitem;
 }
 
+export interface CreateWorkitemFromDraftOptions {
+  idempotencyKey?: string;
+}
+
+function normalizeTemplateId(
+  templateId: ExecutionDraft["target"]["templateId"],
+): number | undefined {
+  if (typeof templateId === "number") {
+    return Number.isFinite(templateId) ? templateId : undefined;
+  }
+
+  const parsedTemplateId = Number.parseInt(templateId, 10);
+  return Number.isFinite(parsedTemplateId) ? parsedTemplateId : undefined;
+}
+
 /**
  * Create a workitem from an execution draft
  */
 export async function createWorkitemFromDraft(
   draft: ExecutionDraft,
   deps: MeegleWorkitemServiceDeps,
+  options: CreateWorkitemFromDraftOptions = {},
 ): Promise<CreateWorkitemResult> {
   const { client } = deps;
   const { projectKey, workitemTypeKey, templateId } = draft.target;
@@ -40,8 +56,9 @@ export async function createWorkitemFromDraft(
     projectKey,
     workItemTypeKey: workitemTypeKey,
     name: draft.name,
-    templateId: templateId ? parseInt(String(templateId), 10) : undefined,
+    templateId: normalizeTemplateId(templateId),
     fieldValuePairs,
+    idempotencyKey: options.idempotencyKey,
   });
 
   return {

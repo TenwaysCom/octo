@@ -98,6 +98,7 @@ export interface LarkPageContext {
   tableId?: string;
   recordId?: string;
   operatorLarkId?: string;
+  masterUserId?: string;
 }
 
 export interface LarkRecordSnapshotField {

@@ -355,6 +355,7 @@ describe("createLarkInjectionRenderer", () => {
         tableId: "tbl_xxx",
         recordId: "rec_apply",
         operatorLarkId: "ou_test_apply",
+        masterUserId: "usr_render_apply",
       },
     });
 
@@ -376,6 +377,7 @@ describe("createLarkInjectionRenderer", () => {
         pageType: "lark_a1",
         recordId: "rec_apply",
         operatorLarkId: "ou_test_apply",
+        masterUserId: "usr_render_apply",
         draft: expect.objectContaining({
           draftId: "draft_b2_rec_apply",
         }),
@@ -383,6 +385,62 @@ describe("createLarkInjectionRenderer", () => {
     );
     expect(detailRoot.querySelector('[data-tenways-octo-panel-state="success"]')).not.toBeNull();
     expect(detailRoot.textContent).toContain("已发送到 Meegle");
+  });
+
+  it("shows a specific auth message when apply returns MEEGLE_AUTH_REQUIRED", async () => {
+    const detailRoot = document.createElement("section");
+    const anchor = document.createElement("div");
+    detailRoot.appendChild(anchor);
+
+    const draftPayload = {
+      draftId: "draft_b2_rec_auth",
+      draftType: "b2" as const,
+      sourceRef: {
+        sourcePlatform: "lark_a1" as const,
+        sourceRecordId: "rec_auth",
+      },
+      target: {
+        projectKey: "OPS",
+        workitemTypeKey: "bug",
+        templateId: "production-bug",
+      },
+      name: "Burger 出库对接2",
+      needConfirm: true as const,
+      fieldValuePairs: [{ fieldKey: "priority", fieldValue: "P1" }],
+      ownerUserKeys: [],
+      missingMeta: [],
+    };
+    const requestDraft = vi.fn().mockResolvedValue(draftPayload);
+    const applyDraft = vi.fn().mockRejectedValue(
+      new Error("Meegle 授权失效，请先在插件中重新授权后再试"),
+    );
+
+    const renderer = createLarkInjectionRenderer({
+      requestDraft,
+      applyDraft,
+      pageContext: {
+        pageType: "lark_a1",
+        url: "https://tenant/base/app_xxx/table/tbl_xxx/record/rec_auth",
+        baseId: "app_xxx",
+        tableId: "tbl_xxx",
+        recordId: "rec_auth",
+        operatorLarkId: "ou_test_apply",
+      },
+    });
+
+    renderer.render({
+      pageState: {
+        kind: "detail-ready",
+        context: createContext("Burger 出库对接2"),
+        anchor: { element: anchor, label: "detail-header", confidence: 1 },
+      },
+    });
+
+    await userClick(anchor.querySelector("button"));
+    await userClick(detailRoot.querySelector('[data-tenways-octo-trigger="apply-to-meegle"]'));
+
+    expect(detailRoot.querySelector('[data-tenways-octo-panel-state="error"]')).not.toBeNull();
+    expect(detailRoot.textContent).toContain("Meegle 授权失效，请先在插件中重新授权后再试");
   });
 
   it("fails explicitly instead of fabricating a draft when pageType is unknown", async () => {
@@ -412,7 +470,7 @@ describe("createLarkInjectionRenderer", () => {
 
     expect(chrome.runtime.sendMessage).not.toHaveBeenCalled();
     expect(detailRoot.querySelector('[data-tenways-octo-panel-state="error"]')).not.toBeNull();
-    expect(detailRoot.textContent).toContain("发送到 Meegle 失败");
+    expect(detailRoot.textContent).toContain("Unable to determine whether this record is A1 or A2.");
   });
 
   it("fails explicitly instead of fabricating apply success when record identity is missing", async () => {
@@ -467,6 +525,6 @@ describe("createLarkInjectionRenderer", () => {
 
     expect(chrome.runtime.sendMessage).not.toHaveBeenCalled();
     expect(detailRoot.querySelector('[data-tenways-octo-panel-state="error"]')).not.toBeNull();
-    expect(detailRoot.textContent).toContain("发送到 Meegle 失败");
+    expect(detailRoot.textContent).toContain("recordId is required to apply a draft.");
   });
 });

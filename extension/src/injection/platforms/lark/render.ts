@@ -48,6 +48,17 @@ type RuntimeErrorResponse = {
   payload?: unknown;
 };
 
+class LarkRuntimeRequestError extends Error {
+  constructor(
+    message: string,
+    readonly errorCode?: string,
+  ) {
+    super(message);
+    this.name = "LarkRuntimeRequestError";
+    Object.setPrototypeOf(this, LarkRuntimeRequestError.prototype);
+  }
+}
+
 function getChromeRuntime(): typeof chrome.runtime | null {
   if (!globalThis.chrome?.runtime?.sendMessage) {
     return null;
@@ -115,7 +126,10 @@ async function createDefaultDraft(request: LarkDomDraftRequest): Promise<LarkWor
     return response.payload;
   }
 
-  throw new Error(response.error?.errorMessage ?? "Draft request failed.");
+  throw new LarkRuntimeRequestError(
+    response.error?.errorMessage ?? "Draft request failed.",
+    response.error?.errorCode,
+  );
 }
 
 async function defaultApplyDraft(request: LarkDomApplyRequest): Promise<LarkDraftApplyResult> {
@@ -142,7 +156,26 @@ async function defaultApplyDraft(request: LarkDomApplyRequest): Promise<LarkDraf
     return response.payload;
   }
 
-  throw new Error(response.error?.errorMessage ?? "Apply request failed.");
+  throw new LarkRuntimeRequestError(
+    response.error?.errorMessage ?? "Apply request failed.",
+    response.error?.errorCode,
+  );
+}
+
+function resolvePanelErrorMessage(error: unknown, hasDraft: boolean): string {
+  if (error instanceof LarkRuntimeRequestError) {
+    if (error.errorCode === "MEEGLE_AUTH_REQUIRED") {
+      return "Meegle 授权失效，请先在插件中重新授权后再试";
+    }
+
+    return error.message;
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return hasDraft ? "发送到 Meegle 失败，请重试提交" : "发送到 Meegle 失败";
 }
 
 function createContextIdentity(context: LarkRecordContext, pageContext: LarkPageContext | null): string {
@@ -193,6 +226,7 @@ export function createLarkInjectionRenderer({
   let panelState: LarkRenderState = "collapsed";
   let draftPayload: LarkWorkflowDraft | null = null;
   let lastContext: LarkRecordContext | null = null;
+  let lastErrorMessage: string | null = null;
   let nextRequestVersion = 0;
   let activeRequestVersion: number | null = null;
 
@@ -222,6 +256,7 @@ export function createLarkInjectionRenderer({
       tableId: nextPageContext?.tableId,
       recordId: nextPageContext?.recordId,
       operatorLarkId: nextPageContext?.operatorLarkId,
+      masterUserId: nextPageContext?.masterUserId,
       snapshot: buildSnapshot(context),
       draft,
     };
@@ -272,7 +307,8 @@ export function createLarkInjectionRenderer({
         panel.hidden = false;
         break;
       case "error":
-        body.textContent = draftPayload ? "发送到 Meegle 失败，请重试提交" : "发送到 Meegle 失败";
+        body.textContent = lastErrorMessage
+          ?? (draftPayload ? "发送到 Meegle 失败，请重试提交" : "发送到 Meegle 失败");
         panel.hidden = false;
         break;
     }
@@ -287,12 +323,14 @@ export function createLarkInjectionRenderer({
         const contextIdentity = currentContextIdentity;
         const currentDraft = draftPayload;
         if (context === null || currentDraft === null) {
+          lastErrorMessage = "发送到 Meegle 失败，请重试提交";
           setPanelState("error");
           return;
         }
 
         const requestVersion = ++nextRequestVersion;
         activeRequestVersion = requestVersion;
+        lastErrorMessage = null;
         setPanelState("submitting");
         void applyDraft(buildApplyRequest(context, currentDraft))
           .then(() => {
@@ -304,9 +342,10 @@ export function createLarkInjectionRenderer({
               return;
             }
 
+            lastErrorMessage = null;
             setPanelState("success");
           })
-          .catch(() => {
+          .catch((error) => {
             if (
               activeRequestVersion !== requestVersion
               || currentContextIdentity !== contextIdentity
@@ -315,6 +354,7 @@ export function createLarkInjectionRenderer({
               return;
             }
 
+            lastErrorMessage = resolvePanelErrorMessage(error, true);
             setPanelState("error");
           });
       });
@@ -344,12 +384,14 @@ export function createLarkInjectionRenderer({
       const context = lastContext;
       const contextIdentity = currentContextIdentity;
       if (context === null) {
+        lastErrorMessage = "发送到 Meegle 失败";
         setPanelState("error");
         return;
       }
 
       const requestVersion = ++nextRequestVersion;
       activeRequestVersion = requestVersion;
+      lastErrorMessage = null;
       setPanelState("draft-loading");
       const draftRequest = buildDraftRequest(context);
       void requestDraft(draftRequest)
@@ -363,9 +405,10 @@ export function createLarkInjectionRenderer({
           }
 
           draftPayload = draft;
+          lastErrorMessage = null;
           setPanelState("draft-ready");
         })
-        .catch(() => {
+        .catch((error) => {
           if (
             activeRequestVersion !== requestVersion
             || currentContextIdentity !== contextIdentity
@@ -375,6 +418,7 @@ export function createLarkInjectionRenderer({
           }
 
           draftPayload = null;
+          lastErrorMessage = resolvePanelErrorMessage(error, false);
           setPanelState("error");
         });
     });
@@ -403,6 +447,7 @@ export function createLarkInjectionRenderer({
         currentContextIdentity = null;
         panelState = "collapsed";
         draftPayload = null;
+        lastErrorMessage = null;
         lastContext = null;
         cleanupCurrentMounts();
         return;
@@ -423,6 +468,7 @@ export function createLarkInjectionRenderer({
         currentContextIdentity = nextContextIdentity;
         panelState = "collapsed";
         draftPayload = null;
+        lastErrorMessage = null;
       }
 
       ensureMounts(anchor.element);
@@ -433,6 +479,7 @@ export function createLarkInjectionRenderer({
       currentContextIdentity = null;
       panelState = "collapsed";
       draftPayload = null;
+      lastErrorMessage = null;
       lastContext = null;
       cleanupCurrentMounts();
     },

@@ -60,6 +60,17 @@ export async function getCachedPluginId(): Promise<string | undefined> {
 }
 
 /**
+ * Get resolved master user ID from local storage
+ */
+export async function getStoredMasterUserId(): Promise<string | undefined> {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(["masterUserId"], (result) => {
+      resolve((result as { masterUserId?: string }).masterUserId || undefined);
+    });
+  });
+}
+
+/**
  * Save plugin ID to storage
  */
 export async function savePluginId(pluginId: string): Promise<void> {

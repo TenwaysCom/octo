@@ -14,6 +14,7 @@ import { createHttpMeegleAuthAdapter } from "./adapters/meegle/auth-adapter.js";
 import { getSharedMeegleTokenStore } from "./adapters/sqlite/meegle-token-store.js";
 import { getSharedLarkTokenStore } from "./adapters/sqlite/lark-token-store.js";
 import { getSharedOauthSessionStore } from "./adapters/sqlite/lark-oauth-session-store.js";
+import { registerLarkMeegleWorkflowRoutes } from "./http/lark-meegle-workflow-routes.js";
 import { runPMAnalysisController } from "./modules/pm-analysis/pm-analysis.controller.js";
 import { createApiRequestLogger, logApiRequest, summarizeRequestPayload } from "./http/api-request-logger.js";
 import { createCorsMiddleware } from "./http/cors.js";
@@ -135,25 +136,19 @@ app.get("/api/lark/auth/callback", async (req, res) => {
   res.status(result.statusCode).contentType(result.contentType).send(result.body);
 });
 
-// A1 routes
-app.post("/api/a1/analyze", handleController(analyzeA1Controller));
-app.post("/api/a1/create-b2-draft", handleController(createB2DraftController));
-app.post("/api/a1/apply-b2", handleController(applyB2Controller));
-
-// A2 routes
-app.post("/api/a2/analyze", handleController(analyzeA2Controller));
-app.post("/api/a2/create-b1-draft", handleController(createB1DraftController));
-app.post("/api/a2/apply-b1", handleController(applyB1Controller));
+registerLarkMeegleWorkflowRoutes(app, handleController);
 
 // PM Analysis routes
 app.post("/api/pm/analysis/run", handleController(runPMAnalysisController));
 
-app.listen(PORT, HOST, () => {
-  console.log(`Tenways Octo Server running on http://${HOST}:${PORT}`);
-  console.log(`Health check: http://${HOST}:${PORT}/health`);
-  console.log(`A2 analyze: http://${HOST}:${PORT}/api/a2/analyze`);
-  console.log(`A2 create draft: http://${HOST}:${PORT}/api/a2/create-b1-draft`);
-  console.log(`A2 apply: http://${HOST}:${PORT}/api/a2/apply-b1`);
-});
+if (process.env.NODE_ENV !== "test" && process.env.VITEST !== "true") {
+  app.listen(PORT, HOST, () => {
+    console.log(`Tenways Octo Server running on http://${HOST}:${PORT}`);
+    console.log(`Health check: http://${HOST}:${PORT}/health`);
+    console.log(`A2 analyze: http://${HOST}:${PORT}/api/a2/analyze`);
+    console.log(`A2 create draft: http://${HOST}:${PORT}/api/a2/create-b1-draft`);
+    console.log(`A2 apply: http://${HOST}:${PORT}/api/a2/apply-b1`);
+  });
+}
 
 export default app;

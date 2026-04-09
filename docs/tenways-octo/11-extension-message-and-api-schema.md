@@ -17,15 +17,24 @@
 
 1. 当前用户与身份映射校验
 2. Meegle `auth code` 申请与 token 兑换
-3. `A1 -> B2` 分析与半自动建单
-4. `A2 -> B1` 分析与半自动建单
+3. `Lark Bug -> Meegle Product Bug` 分析与半自动建单
+4. `Lark User Story -> Meegle User Story` 分析与半自动建单
 5. PM 即时分析
 
 补充说明：
 
-- 当前正式业务主链路仍是 `A1/A2 + PM 即时分析`
+- 当前正式业务主链路仍是 `Lark Bug / Lark User Story + PM 即时分析`
 - ACP `V1` 只为 `PM 即时分析` 增加“可会话、可追问、可流式返回”的能力
 - ACP `V1` 不要求把 A1/A2 一起迁移到 ACP 协议
+
+术语映射：
+
+- `A1` -> `Lark Bug`
+- `A2` -> `Lark User Story`
+- `B1` -> `Meegle User Story`
+- `B2` -> `Meegle Product Bug`
+- 插件内部 action 仍保留 `a1/a2/b1/b2`
+- 服务端公开 HTTP 路径使用新命名，并保留旧路径别名
 
 ## 3. 协议设计原则
 
@@ -388,9 +397,13 @@
 - `require_binding`
 - `expired`
 
-## 5.3 A1 业务接口
+## 5.3 Lark Bug 业务接口
 
-### 5.3.1 `POST /api/a1/analyze`
+### 5.3.1 `POST /api/lark-bug/analyze`
+
+兼容别名：
+
+- `POST /api/a1/analyze`
 
 响应 data 建议：
 
@@ -404,7 +417,11 @@
 }
 ```
 
-### 5.3.2 `POST /api/a1/create-b2-draft`
+### 5.3.2 `POST /api/lark-bug/to-meegle-product-bug/draft`
+
+兼容别名：
+
+- `POST /api/a1/create-b2-draft`
 
 响应 data 建议：
 
@@ -430,31 +447,50 @@
 }
 ```
 
-### 5.3.3 `POST /api/a1/apply-b2`
+### 5.3.3 `POST /api/lark-bug/to-meegle-product-bug/apply`
+
+兼容别名：
+
+- `POST /api/a1/apply-b2`
 
 请求应包含：
 
 - `draftId`
+- 可选 `masterUserId`
 - `operatorLarkId`
 - `sourceRecordId`
+- `idempotencyKey`
 - `confirmedDraft`
 
-响应应包含：
+成功响应应包含：
 
+- `status = created`
 - `workitemId`
-- `workitemKey`
-- `projectKey`
-- `workitemTypeKey`
+- `draft`
 
-## 5.4 A2 业务接口
+失败响应应返回结构化 `errorCode / errorMessage`
 
-### 5.4.1 `POST /api/a2/analyze`
+## 5.4 Lark User Story 业务接口
 
-### 5.4.2 `POST /api/a2/create-b1-draft`
+### 5.4.1 `POST /api/lark-user-story/analyze`
 
-### 5.4.3 `POST /api/a2/apply-b1`
+兼容别名：
 
-这三组接口的结构与 A1 保持一致，只是目标类型改为 B1 对应的 `workitem_type_key`。
+- `POST /api/a2/analyze`
+
+### 5.4.2 `POST /api/lark-user-story/to-meegle-user-story/draft`
+
+兼容别名：
+
+- `POST /api/a2/create-b1-draft`
+
+### 5.4.3 `POST /api/lark-user-story/to-meegle-user-story/apply`
+
+兼容别名：
+
+- `POST /api/a2/apply-b1`
+
+这三组接口的结构与 Lark Bug 路径保持一致，只是目标类型改为 Meegle User Story 对应的 `workitem_type_key`。
 
 ## 5.5 PM 分析接口
 

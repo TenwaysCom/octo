@@ -183,7 +183,7 @@ describe("popup runtime settings", () => {
     chrome.storage.onChanged = {
       addListener,
       removeListener,
-    } as typeof chrome.storage.onChanged;
+    } as unknown as typeof chrome.storage.onChanged;
 
     const listener = vi.fn();
     const unsubscribe = watchLarkAuthCallbackResult(listener);

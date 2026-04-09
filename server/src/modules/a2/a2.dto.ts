@@ -8,6 +8,7 @@ export const a2RecordRequestSchema = z.object({
 export const a2ApplyRequestSchema = z.object({
   requestId: z.string().min(1),
   draftId: z.string().min(1),
+  masterUserId: z.string().min(1).optional(),
   operatorLarkId: z.string().min(1),
   sourceRecordId: z.string().min(1),
   idempotencyKey: z.string().min(1),
