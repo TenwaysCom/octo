@@ -1,4 +1,12 @@
 import { DEFAULT_CONFIG, getConfig } from "../background/config.js";
+import {
+  clearResolvedIdentity as clearStoredResolvedIdentity,
+  clearResolvedIdentityForTab as clearStoredResolvedIdentityForTab,
+  getStoredMasterUserId,
+  getResolvedIdentityForTab as getStoredResolvedIdentityForTab,
+  saveResolvedIdentity as persistResolvedIdentity,
+  saveResolvedIdentityForTab as persistResolvedIdentityForTab,
+} from "../background/storage.js";
 import type {
   LarkAuthCallbackResult,
   LarkAuthEnsureResponse,
@@ -359,23 +367,32 @@ export async function loadPopupSettings(): Promise<PopupSettingsForm> {
 }
 
 export async function loadResolvedIdentity(): Promise<string | undefined> {
-  const chromeApi = getChromeApi();
-
-  const localState = await new Promise<Record<string, string>>((resolve) => {
-    chromeApi.storage.local.get(["masterUserId"], (result) => {
-      resolve(result as Record<string, string>);
-    });
-  });
-
-  return localState.masterUserId || undefined;
+  return getStoredMasterUserId();
 }
 
 export async function saveResolvedIdentity(masterUserId: string): Promise<void> {
-  const chromeApi = getChromeApi();
+  await persistResolvedIdentity(masterUserId);
+}
 
-  await new Promise<void>((resolve) => {
-    chromeApi.storage.local.set({ masterUserId }, () => resolve());
-  });
+export async function clearResolvedIdentity(): Promise<void> {
+  await clearStoredResolvedIdentity();
+}
+
+export async function loadResolvedIdentityForTab(
+  tabId: number,
+): Promise<string | undefined> {
+  return getStoredResolvedIdentityForTab(tabId);
+}
+
+export async function saveResolvedIdentityForTab(
+  tabId: number,
+  masterUserId: string,
+): Promise<void> {
+  await persistResolvedIdentityForTab(tabId, masterUserId);
+}
+
+export async function clearResolvedIdentityForTab(tabId: number): Promise<void> {
+  await clearStoredResolvedIdentityForTab(tabId);
 }
 
 export async function savePopupSettings(

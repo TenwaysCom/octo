@@ -9,7 +9,7 @@ export const a2ApplyRequestSchema = z.object({
   requestId: z.string().min(1),
   draftId: z.string().min(1),
   masterUserId: z.string().min(1).optional(),
-  operatorLarkId: z.string().min(1),
+  operatorLarkId: z.string().min(1).optional(),
   sourceRecordId: z.string().min(1),
   idempotencyKey: z.string().min(1),
   confirmedDraft: z.object({
@@ -17,6 +17,14 @@ export const a2ApplyRequestSchema = z.object({
     fieldValuePairs: executionDraftSchema.shape.fieldValuePairs,
     ownerUserKeys: executionDraftSchema.shape.ownerUserKeys.optional(),
   }),
+}).superRefine((input, ctx) => {
+  if (!input.masterUserId && !input.operatorLarkId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["masterUserId"],
+      message: "masterUserId or operatorLarkId is required",
+    });
+  }
 });
 
 export type A2RecordRequest = z.infer<typeof a2RecordRequestSchema>;

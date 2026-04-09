@@ -18,6 +18,7 @@ vi.mock("./storage.js", () => ({
   clearPendingLarkOauthState: vi.fn(),
   saveLastLarkAuthResult: vi.fn(),
   savePendingLarkOauthState: vi.fn(),
+  getResolvedIdentityForTab: vi.fn().mockResolvedValue(undefined),
 }));
 
 const { routeBackgroundAction } = await import("./router.js");
@@ -223,6 +224,100 @@ describe("background router draft/apply bridge", () => {
         });
         resolve();
       });
+    });
+  });
+
+  it("falls back to tab-scoped masterUserId when the page cannot provide operatorLarkId", async () => {
+    const { getResolvedIdentityForTab } = await import("./storage.js");
+    vi.mocked(getResolvedIdentityForTab).mockResolvedValueOnce("usr_tab_scoped");
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: vi.fn().mockResolvedValue({
+        status: "created",
+        workitemId: "B2-234",
+        draft: {
+          draftId: "draft_b2_rec_003",
+          draftType: "b2",
+          sourceRef: {
+            sourcePlatform: "lark_a1",
+            sourceRecordId: "rec_003",
+          },
+          target: {
+            projectKey: "OPS",
+            workitemTypeKey: "bug",
+            templateId: "production-bug",
+          },
+          name: "支付页白屏",
+          needConfirm: true,
+          fieldValuePairs: [],
+          ownerUserKeys: [],
+          missingMeta: [],
+        },
+      }),
+    } as unknown as Response);
+
+    expect(runtimeMessageListener).toBeTypeOf("function");
+
+    await new Promise<void>((resolve) => {
+      runtimeMessageListener?.(
+        {
+          action: "itdog.a1.apply_b2",
+          payload: {
+            pageType: "lark_a1",
+            url: "https://tenant/base/app_xxx/table/tbl_xxx/record/rec_003",
+            baseId: "app_xxx",
+            tableId: "tbl_xxx",
+            recordId: "rec_003",
+            snapshot: {
+              title: "支付页白屏",
+              fields: [],
+            },
+            draft: {
+              draftId: "draft_b2_rec_003",
+              draftType: "b2",
+              sourceRef: {
+                sourcePlatform: "lark_a1",
+                sourceRecordId: "rec_003",
+              },
+              target: {
+                projectKey: "OPS",
+                workitemTypeKey: "bug",
+                templateId: "production-bug",
+              },
+              name: "支付页白屏",
+              needConfirm: true,
+              fieldValuePairs: [],
+              ownerUserKeys: [],
+              missingMeta: [],
+            },
+          },
+        } satisfies LarkApplyMessage,
+        { tab: { id: 42 } } as never,
+        (response: unknown) => {
+          expect(response).toEqual({
+            action: "itdog.a1.apply_b2",
+            payload: expect.objectContaining({
+              status: "created",
+              workitemId: "B2-234",
+            }),
+          });
+          resolve();
+        },
+      );
+    });
+
+    expect(getResolvedIdentityForTab).toHaveBeenCalledWith(42);
+    const fetchBody = JSON.parse(vi.mocked(fetch).mock.calls[0]?.[1]?.body as string);
+    expect(fetchBody).toMatchObject({
+      draftId: "draft_b2_rec_003",
+      masterUserId: "usr_tab_scoped",
+      sourceRecordId: "rec_003",
+      confirmedDraft: {
+        name: "支付页白屏",
+        fieldValuePairs: [],
+        ownerUserKeys: [],
+      },
     });
   });
 });

@@ -99,7 +99,7 @@ export async function applyB1(
     requestId: string;
     draftId: string;
     masterUserId?: string;
-    operatorLarkId: string;
+    operatorLarkId?: string;
     sourceRecordId: string;
     idempotencyKey: string;
     confirmedDraft: {

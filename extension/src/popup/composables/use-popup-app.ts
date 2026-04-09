@@ -7,6 +7,8 @@ import {
   type PopupMeegleAuthLog,
 } from "../meegle-auth.js";
 import {
+  clearResolvedIdentity,
+  clearResolvedIdentityForTab,
   getConfig,
   getLarkAuthStatus,
   loadPopupSettings,
@@ -18,6 +20,7 @@ import {
   runLarkAuthRequest,
   runMeegleAuthRequest,
   saveResolvedIdentity,
+  saveResolvedIdentityForTab,
   savePopupSettings,
   watchLarkAuthCallbackResult,
 } from "../runtime.js";
@@ -181,6 +184,9 @@ export function usePopupApp() {
     if (result.masterUserId && result.masterUserId !== state.identity.masterUserId) {
       state.identity.masterUserId = result.masterUserId;
       await saveResolvedIdentity(result.masterUserId);
+      if (state.currentTabId != null) {
+        await saveResolvedIdentityForTab(state.currentTabId, result.masterUserId);
+      }
     }
 
     if (result.status === "ready") {
@@ -571,6 +577,10 @@ export function usePopupApp() {
     if (resolved.ok && resolved.data?.masterUserId) {
       if (resolved.data.identityStatus === "conflict") {
         state.identity.masterUserId = null;
+        await clearResolvedIdentity();
+        if (state.currentTabId != null) {
+          await clearResolvedIdentityForTab(state.currentTabId);
+        }
         appendLog("error", "检测到 Lark 和 Meegle 账号冲突，已阻止继续授权");
         return undefined;
       }
@@ -586,6 +596,9 @@ export function usePopupApp() {
         state.identity.meegleUserKey = resolved.data.meegleUserKey;
       }
       await saveResolvedIdentity(resolved.data.masterUserId);
+      if (state.currentTabId != null) {
+        await saveResolvedIdentityForTab(state.currentTabId, resolved.data.masterUserId);
+      }
       return resolved.data.masterUserId;
     }
 

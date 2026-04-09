@@ -30,6 +30,10 @@ export interface AuthState {
 }
 
 const STORAGE_KEY = "itpm_assistant_auth";
+const RESOLVED_IDENTITY_STORAGE_KEY = "masterUserId";
+const RESOLVED_IDENTITY_BY_TAB_STORAGE_KEY = "resolvedIdentityByTab";
+
+type ResolvedIdentityByTabState = Record<string, string>;
 
 /**
  * Get auth state from storage
@@ -64,9 +68,77 @@ export async function getCachedPluginId(): Promise<string | undefined> {
  */
 export async function getStoredMasterUserId(): Promise<string | undefined> {
   return new Promise((resolve) => {
-    chrome.storage.local.get(["masterUserId"], (result) => {
-      resolve((result as { masterUserId?: string }).masterUserId || undefined);
+    chrome.storage.local.get([RESOLVED_IDENTITY_STORAGE_KEY], (result) => {
+      resolve(
+        (result as { [RESOLVED_IDENTITY_STORAGE_KEY]?: string })[
+          RESOLVED_IDENTITY_STORAGE_KEY
+        ] || undefined,
+      );
     });
+  });
+}
+
+export async function saveResolvedIdentity(masterUserId: string): Promise<void> {
+  return new Promise((resolve) => {
+    chrome.storage.local.set({ [RESOLVED_IDENTITY_STORAGE_KEY]: masterUserId }, resolve);
+  });
+}
+
+export async function clearResolvedIdentity(): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof chrome.storage.local.remove === "function") {
+      chrome.storage.local.remove(RESOLVED_IDENTITY_STORAGE_KEY, resolve);
+      return;
+    }
+
+    chrome.storage.local.set({ [RESOLVED_IDENTITY_STORAGE_KEY]: undefined }, resolve);
+  });
+}
+
+async function getResolvedIdentityByTabState(): Promise<ResolvedIdentityByTabState> {
+  return new Promise((resolve) => {
+    chrome.storage.local.get([RESOLVED_IDENTITY_BY_TAB_STORAGE_KEY], (result) => {
+      resolve(
+        ((result as { [RESOLVED_IDENTITY_BY_TAB_STORAGE_KEY]?: ResolvedIdentityByTabState })[
+          RESOLVED_IDENTITY_BY_TAB_STORAGE_KEY
+        ] as ResolvedIdentityByTabState | undefined) ?? {},
+      );
+    });
+  });
+}
+
+export async function getResolvedIdentityForTab(tabId: number): Promise<string | undefined> {
+  const state = await getResolvedIdentityByTabState();
+  return state[String(tabId)] || undefined;
+}
+
+export async function saveResolvedIdentityForTab(
+  tabId: number,
+  masterUserId: string,
+): Promise<void> {
+  const state = await getResolvedIdentityByTabState();
+  const nextState: ResolvedIdentityByTabState = {
+    ...state,
+    [String(tabId)]: masterUserId,
+  };
+
+  return new Promise((resolve) => {
+    chrome.storage.local.set({ [RESOLVED_IDENTITY_BY_TAB_STORAGE_KEY]: nextState }, resolve);
+  });
+}
+
+export async function clearResolvedIdentityForTab(tabId: number): Promise<void> {
+  const state = await getResolvedIdentityByTabState();
+  const nextState: ResolvedIdentityByTabState = { ...state };
+  delete nextState[String(tabId)];
+
+  return new Promise((resolve) => {
+    if (Object.keys(nextState).length === 0 && typeof chrome.storage.local.remove === "function") {
+      chrome.storage.local.remove(RESOLVED_IDENTITY_BY_TAB_STORAGE_KEY, resolve);
+      return;
+    }
+
+    chrome.storage.local.set({ [RESOLVED_IDENTITY_BY_TAB_STORAGE_KEY]: nextState }, resolve);
   });
 }
 

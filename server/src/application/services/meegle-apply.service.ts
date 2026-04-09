@@ -53,7 +53,7 @@ export interface MeegleApplyExecutionDeps {
 export interface MeegleApplyInput {
   requestId: string;
   draft: ExecutionDraft;
-  operatorLarkId: string;
+  operatorLarkId?: string;
   masterUserId?: string;
   idempotencyKey: string;
 }

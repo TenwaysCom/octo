@@ -16,6 +16,7 @@ import { getMeegleIdentityFromCookies } from "./handlers/meegle-identity.js";
 import { ensureMeegleAuth } from "./handlers/meegle-auth.js";
 import { ensureLarkAuth, handleLarkAuthCallbackDetected } from "./handlers/lark-auth.js";
 import {
+  getResolvedIdentityForTab,
   getCachedUserToken,
   saveAuthCodeResponse,
   getCachedLarkUserToken,
@@ -93,8 +94,8 @@ async function postServerJson<TResponse>(
 }
 
 async function buildApplyRequestBody(message: LarkApplyMessage["payload"]) {
-  if (!message.operatorLarkId) {
-    throw new Error("operatorLarkId is required to apply a draft.");
+  if (!message.operatorLarkId && !message.masterUserId) {
+    throw new Error("Either operatorLarkId or masterUserId is required to apply a draft.");
   }
 
   const now = Date.now();
@@ -121,6 +122,9 @@ export async function routeBackgroundAction(
     | LarkAuthCallbackDetectedMessage
     | LarkDraftMessage
     | LarkApplyMessage,
+  context: {
+    senderTabId?: number;
+  } = {},
 ): Promise<MeegleAuthEnsureResult | LarkAuthEnsureResult | LarkDraftResult | LarkApplyResult | { ok: true }> {
   const config = await getConfig();
 
@@ -188,23 +192,39 @@ export async function routeBackgroundAction(
   }
 
   if (message.action === "itdog.a1.apply_b2") {
+    const masterUserId =
+      message.payload.masterUserId
+      ?? (context.senderTabId != null
+        ? await getResolvedIdentityForTab(context.senderTabId)
+        : undefined);
     return {
       action: message.action,
       payload: await postServerJson(
         config,
         "/api/lark-bug/to-meegle-product-bug/apply",
-        await buildApplyRequestBody(message.payload),
+        await buildApplyRequestBody({
+          ...message.payload,
+          masterUserId,
+        }),
       ),
     };
   }
 
   if (message.action === "itdog.a2.apply_b1") {
+    const masterUserId =
+      message.payload.masterUserId
+      ?? (context.senderTabId != null
+        ? await getResolvedIdentityForTab(context.senderTabId)
+        : undefined);
     return {
       action: message.action,
       payload: await postServerJson(
         config,
         "/api/lark-user-story/to-meegle-user-story/apply",
-        await buildApplyRequestBody(message.payload),
+        await buildApplyRequestBody({
+          ...message.payload,
+          masterUserId,
+        }),
       ),
     };
   }
@@ -215,7 +235,7 @@ export async function routeBackgroundAction(
 /**
  * Handle extension messages
  */
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "itdog.meegle.identity.cookies") {
     getMeegleIdentityFromCookies(message.payload.pageUrl)
       .then((identity) => {
@@ -248,6 +268,9 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   ) {
     routeBackgroundAction(
       message as MeegleAuthEnsureMessage | LarkAuthEnsureMessage | LarkAuthCallbackDetectedMessage | LarkDraftMessage | LarkApplyMessage,
+      {
+        senderTabId: sender.tab?.id,
+      },
     )
       .then((result) => {
         sendResponse(result);

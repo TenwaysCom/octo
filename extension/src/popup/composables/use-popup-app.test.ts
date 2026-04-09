@@ -5,6 +5,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const runtimeMock = vi.hoisted(() => ({
   getConfig: vi.fn(),
   getLarkAuthStatus: vi.fn(),
+  clearResolvedIdentity: vi.fn(),
+  clearResolvedIdentityForTab: vi.fn(),
   loadPopupSettings: vi.fn(),
   loadResolvedIdentity: vi.fn(),
   queryActiveTabContext: vi.fn(),
@@ -13,6 +15,7 @@ const runtimeMock = vi.hoisted(() => ({
   resolveIdentityRequest: vi.fn(),
   runLarkAuthRequest: vi.fn(),
   runMeegleAuthRequest: vi.fn(),
+  saveResolvedIdentityForTab: vi.fn(),
   watchLarkAuthCallbackResult: vi.fn(),
   saveResolvedIdentity: vi.fn(),
   savePopupSettings: vi.fn(),
@@ -100,7 +103,10 @@ describe("usePopupApp notebook state", () => {
       baseUrl: "https://project.larksuite.com",
       credentialStatus: "active",
     });
+    runtimeMock.clearResolvedIdentity.mockResolvedValue(undefined);
+    runtimeMock.clearResolvedIdentityForTab.mockResolvedValue(undefined);
     runtimeMock.saveResolvedIdentity.mockResolvedValue(undefined);
+    runtimeMock.saveResolvedIdentityForTab.mockResolvedValue(undefined);
     runtimeMock.savePopupSettings.mockResolvedValue(undefined);
 
     meegleAuthControllerMock.run.mockResolvedValue(true);
@@ -332,6 +338,10 @@ describe("usePopupApp notebook state", () => {
     });
 
     expect(runtimeMock.saveResolvedIdentity).toHaveBeenCalledWith("usr_callback");
+    expect(runtimeMock.saveResolvedIdentityForTab).toHaveBeenCalledWith(
+      12,
+      "usr_callback",
+    );
     expect(popup.state.identity.masterUserId).toBe("usr_callback");
     expect(runtimeMock.getLarkAuthStatus).toHaveBeenCalledTimes(2);
     expect(
@@ -351,6 +361,10 @@ describe("usePopupApp notebook state", () => {
       }),
     );
     expect(runtimeMock.saveResolvedIdentity).toHaveBeenCalledWith(
+      "usr_resolved",
+    );
+    expect(runtimeMock.saveResolvedIdentityForTab).toHaveBeenCalledWith(
+      12,
       "usr_resolved",
     );
     expect(popup.state.identity.masterUserId).toBe("usr_resolved");
@@ -453,6 +467,8 @@ describe("usePopupApp notebook state", () => {
 
     expect(meegleAuthControllerMock.run).not.toHaveBeenCalled();
     expect(popup.state.identity.masterUserId).toBeNull();
+    expect(runtimeMock.clearResolvedIdentity).toHaveBeenCalledTimes(1);
+    expect(runtimeMock.clearResolvedIdentityForTab).toHaveBeenCalledWith(12);
     expect(popup.logs.value.some((entry) => entry.message.includes("账号冲突"))).toBe(true);
   });
 });
