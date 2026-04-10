@@ -153,6 +153,18 @@ describe("lark content script probe overlay", () => {
     });
   });
 
+  it("extracts recordId from query params when the detail panel opens without a /record path segment", async () => {
+    await import("./lark");
+
+    window.history.replaceState({}, "", "/base/app_xxx/table/tbl_xxx?recordId=rec_query");
+
+    expect(getTestingApi()?.detectLarkPageContext()).toMatchObject({
+      baseId: "app_xxx",
+      tableId: "tbl_xxx",
+      recordId: "rec_query",
+    });
+  });
+
   it("infers A2 from the parsed record fields", async () => {
     await import("./lark");
 

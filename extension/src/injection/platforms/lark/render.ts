@@ -59,6 +59,53 @@ class LarkRuntimeRequestError extends Error {
   }
 }
 
+function resolveTargetLabel(
+  pageContext: LarkPageContext | null,
+  draft: LarkWorkflowDraft | null,
+): string | null {
+  if (draft?.draftType === "b2" || pageContext?.pageType === "lark_a1") {
+    return "Meegle Product Bug";
+  }
+
+  if (draft?.draftType === "b1" || pageContext?.pageType === "lark_a2") {
+    return "Meegle User Story";
+  }
+
+  return null;
+}
+
+function formatPrimaryActionLabel(targetLabel: string | null): string {
+  return targetLabel ? `创建 ${targetLabel}` : "发送到 Meegle";
+}
+
+function formatApplyActionLabel(targetLabel: string | null): string {
+  return targetLabel ? `确认创建 ${targetLabel}` : "确认发送";
+}
+
+function formatDraftLoadingLabel(targetLabel: string | null): string {
+  return targetLabel ? `正在准备 ${targetLabel} 草稿...` : "正在准备发送到 Meegle...";
+}
+
+function formatDraftReadyLabel(targetLabel: string | null, name: string): string {
+  return targetLabel ? `准备创建 ${targetLabel}: ${name}` : `准备发送到 Meegle: ${name}`;
+}
+
+function formatSubmittingLabel(targetLabel: string | null): string {
+  return targetLabel ? `正在创建 ${targetLabel}...` : "正在提交到 Meegle...";
+}
+
+function formatSuccessLabel(targetLabel: string | null): string {
+  return targetLabel ? `已创建 ${targetLabel}` : "已发送到 Meegle";
+}
+
+function formatFailureLabel(targetLabel: string | null, hasDraft: boolean): string {
+  if (targetLabel) {
+    return hasDraft ? `创建 ${targetLabel} 失败，请重试提交` : `创建 ${targetLabel} 失败`;
+  }
+
+  return hasDraft ? "发送到 Meegle 失败，请重试提交" : "发送到 Meegle 失败";
+}
+
 function getChromeRuntime(): typeof chrome.runtime | null {
   if (!globalThis.chrome?.runtime?.sendMessage) {
     return null;
@@ -162,7 +209,11 @@ async function defaultApplyDraft(request: LarkDomApplyRequest): Promise<LarkDraf
   );
 }
 
-function resolvePanelErrorMessage(error: unknown, hasDraft: boolean): string {
+function resolvePanelErrorMessage(
+  error: unknown,
+  hasDraft: boolean,
+  targetLabel: string | null,
+): string {
   if (error instanceof LarkRuntimeRequestError) {
     if (error.errorCode === "MEEGLE_AUTH_REQUIRED") {
       return "Meegle 授权失效，请先在插件中重新授权后再试";
@@ -175,7 +226,7 @@ function resolvePanelErrorMessage(error: unknown, hasDraft: boolean): string {
     return error.message;
   }
 
-  return hasDraft ? "发送到 Meegle 失败，请重试提交" : "发送到 Meegle 失败";
+  return formatFailureLabel(targetLabel, hasDraft);
 }
 
 function createContextIdentity(context: LarkRecordContext, pageContext: LarkPageContext | null): string {
@@ -284,6 +335,7 @@ export function createLarkInjectionRenderer({
     panel.textContent = "";
 
     const body = document.createElement("div");
+    const targetLabel = resolveTargetLabel(readPageContext(), draftPayload);
 
     switch (panelState) {
       case "collapsed":
@@ -291,24 +343,27 @@ export function createLarkInjectionRenderer({
         panel.hidden = true;
         break;
       case "draft-loading":
-        body.textContent = "正在准备发送到 Meegle...";
+        body.textContent = formatDraftLoadingLabel(targetLabel);
         panel.hidden = false;
         break;
       case "draft-ready":
-        body.textContent = `准备发送到 Meegle: ${draftPayload?.name ?? lastContext?.title ?? ""}`;
+        body.textContent = formatDraftReadyLabel(
+          targetLabel,
+          draftPayload?.name ?? lastContext?.title ?? "",
+        );
         panel.hidden = false;
         break;
       case "submitting":
-        body.textContent = "正在提交到 Meegle...";
+        body.textContent = formatSubmittingLabel(targetLabel);
         panel.hidden = false;
         break;
       case "success":
-        body.textContent = "已发送到 Meegle";
+        body.textContent = formatSuccessLabel(targetLabel);
         panel.hidden = false;
         break;
       case "error":
         body.textContent = lastErrorMessage
-          ?? (draftPayload ? "发送到 Meegle 失败，请重试提交" : "发送到 Meegle 失败");
+          ?? formatFailureLabel(targetLabel, draftPayload !== null);
         panel.hidden = false;
         break;
     }
@@ -316,14 +371,14 @@ export function createLarkInjectionRenderer({
     if (panelState === "draft-ready" || (panelState === "error" && draftPayload !== null)) {
       const applyButton = document.createElement("button");
       applyButton.type = "button";
-      applyButton.textContent = "确认发送";
+      applyButton.textContent = formatApplyActionLabel(targetLabel);
       applyButton.setAttribute("data-tenways-octo-trigger", "apply-to-meegle");
       applyButton.addEventListener("click", () => {
         const context = lastContext;
         const contextIdentity = currentContextIdentity;
         const currentDraft = draftPayload;
         if (context === null || currentDraft === null) {
-          lastErrorMessage = "发送到 Meegle 失败，请重试提交";
+          lastErrorMessage = formatFailureLabel(targetLabel, true);
           setPanelState("error");
           return;
         }
@@ -354,7 +409,7 @@ export function createLarkInjectionRenderer({
               return;
             }
 
-            lastErrorMessage = resolvePanelErrorMessage(error, true);
+            lastErrorMessage = resolvePanelErrorMessage(error, true, targetLabel);
             setPanelState("error");
           });
       });
@@ -371,7 +426,8 @@ export function createLarkInjectionRenderer({
     buttonMount.textContent = "";
     const button = document.createElement("button");
     button.type = "button";
-    button.textContent = "发送到 Meegle";
+    const targetLabel = resolveTargetLabel(readPageContext(), draftPayload);
+    button.textContent = formatPrimaryActionLabel(targetLabel);
     button.setAttribute("data-tenways-octo-trigger", "send-to-meegle");
     button.setAttribute("aria-expanded", panelState === "collapsed" ? "false" : "true");
     button.addEventListener("click", () => {
@@ -384,7 +440,7 @@ export function createLarkInjectionRenderer({
       const context = lastContext;
       const contextIdentity = currentContextIdentity;
       if (context === null) {
-        lastErrorMessage = "发送到 Meegle 失败";
+        lastErrorMessage = formatFailureLabel(targetLabel, false);
         setPanelState("error");
         return;
       }
@@ -418,7 +474,7 @@ export function createLarkInjectionRenderer({
           }
 
           draftPayload = null;
-          lastErrorMessage = resolvePanelErrorMessage(error, false);
+          lastErrorMessage = resolvePanelErrorMessage(error, false, targetLabel);
           setPanelState("error");
         });
     });

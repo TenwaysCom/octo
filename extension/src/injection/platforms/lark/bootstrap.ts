@@ -18,6 +18,62 @@ export type LarkContentScriptRuntime = {
   getProbeState: () => ProbeOverlayState;
 };
 
+function readFirstSearchParam(
+  params: URLSearchParams[],
+  keys: string[],
+): string | undefined {
+  for (const key of keys) {
+    for (const set of params) {
+      const value = set.get(key)?.trim();
+      if (value) {
+        return value;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function parseLarkUrlContext(url: URL): Pick<LarkDetectedPageContext, "baseId" | "tableId" | "recordId"> {
+  const routeCandidates = [url.pathname];
+  const normalizedHash = decodeURIComponent(url.hash.replace(/^#/, ""));
+  if (normalizedHash) {
+    routeCandidates.push(normalizedHash);
+  }
+
+  let baseId: string | undefined;
+  let tableId: string | undefined;
+  let recordId: string | undefined;
+
+  for (const candidate of routeCandidates) {
+    const routeMatch = candidate.match(
+      /\/base\/([^/?#]+)\/table\/([^/?#]+)(?:\/record\/([^/?#]+))?/,
+    );
+    if (!routeMatch) {
+      continue;
+    }
+
+    baseId = routeMatch[1];
+    tableId = routeMatch[2];
+    recordId = routeMatch[3] || recordId;
+    break;
+  }
+
+  const hashQueryIndex = normalizedHash.indexOf("?");
+  const params = [
+    url.searchParams,
+    new URLSearchParams(
+      hashQueryIndex >= 0 ? normalizedHash.slice(hashQueryIndex + 1) : "",
+    ),
+  ];
+
+  return {
+    baseId: baseId ?? readFirstSearchParam(params, ["baseId", "appId", "app", "base"]),
+    tableId: tableId ?? readFirstSearchParam(params, ["tableId", "table", "tbl"]),
+    recordId: recordId ?? readFirstSearchParam(params, ["recordId", "record", "record_id"]),
+  };
+}
+
 function toProbeOverlayState(pageState: InjectionPageState<LarkRecordContext>): ProbeOverlayState {
   if (pageState.kind === "detail-ready") {
     return {
@@ -98,18 +154,16 @@ export function createLarkContentScriptRuntime(): LarkContentScriptRuntime {
     const url = window.location.href;
     const detail = probeLarkDetail();
     const parsedContext = detail.detailRoot ? probeLarkContext(detail.detailRoot) : null;
+    const parsedUrl = new URL(url);
+    const routeContext = parseLarkUrlContext(parsedUrl);
 
     const context: LarkDetectedPageContext = {
       pageType: inferPageTypeFromRecordContext(parsedContext),
       url,
+      baseId: routeContext.baseId,
+      tableId: routeContext.tableId,
+      recordId: routeContext.recordId,
     };
-
-    const urlMatch = url.match(/\/base\/([^/]+)\/table\/([^/]+)\/record\/([^/]+)/);
-    if (urlMatch) {
-      context.baseId = urlMatch[1];
-      context.tableId = urlMatch[2];
-      context.recordId = urlMatch[3];
-    }
 
     const larkIdElement = document.querySelector('[data-user-id]') as HTMLElement;
     if (larkIdElement) {

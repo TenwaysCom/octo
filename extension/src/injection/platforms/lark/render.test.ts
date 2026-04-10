@@ -44,7 +44,7 @@ async function userClick(element: Element | null): Promise<void> {
 describe("renderLarkInjection", () => {
   const context = createContext("Burger 出库对接2");
 
-  it("renders a send-to-meegle button in the header anchor", () => {
+  it("renders an explicit Meegle Product Bug button for Lark Bug records", () => {
     const anchor = document.createElement("div");
 
     renderLarkInjection({
@@ -53,11 +53,41 @@ describe("renderLarkInjection", () => {
         context,
         anchor: { element: anchor, label: "detail-header", confidence: 1 },
       },
-      context,
-      anchor: { element: anchor, label: "detail-header", confidence: 1 },
+      deps: {
+        pageContext: {
+          pageType: "lark_a1",
+          url: "https://tenant/base/app_xxx/table/tbl_xxx/record/rec_xxx",
+          baseId: "app_xxx",
+          tableId: "tbl_xxx",
+          recordId: "rec_xxx",
+        },
+      },
     });
 
-    expect(anchor.textContent).toContain("发送到 Meegle");
+    expect(anchor.textContent).toContain("创建 Meegle Product Bug");
+  });
+
+  it("renders an explicit Meegle User Story button for Lark User Story records", () => {
+    const anchor = document.createElement("div");
+
+    renderLarkInjection({
+      pageState: {
+        kind: "detail-ready",
+        context,
+        anchor: { element: anchor, label: "detail-header", confidence: 1 },
+      },
+      deps: {
+        pageContext: {
+          pageType: "lark_a2",
+          url: "https://tenant/base/app_xxx/table/tbl_xxx/record/rec_xxx",
+          baseId: "app_xxx",
+          tableId: "tbl_xxx",
+          recordId: "rec_xxx",
+        },
+      },
+    });
+
+    expect(anchor.textContent).toContain("创建 Meegle User Story");
   });
 
   it("expands the collapsible panel after clicking the button", async () => {
@@ -109,7 +139,7 @@ describe("renderLarkInjection", () => {
     await Promise.resolve();
 
     expect(detailRoot.querySelector('[data-tenways-octo-panel-state="draft-ready"]')).not.toBeNull();
-    expect(detailRoot.textContent).toContain("准备发送到 Meegle");
+    expect(detailRoot.textContent).toContain("准备创建 Meegle Product Bug");
   });
 
   it("requests a draft when the action button is clicked", async () => {
@@ -384,7 +414,7 @@ describe("createLarkInjectionRenderer", () => {
       }),
     );
     expect(detailRoot.querySelector('[data-tenways-octo-panel-state="success"]')).not.toBeNull();
-    expect(detailRoot.textContent).toContain("已发送到 Meegle");
+    expect(detailRoot.textContent).toContain("已创建 Meegle Product Bug");
   });
 
   it("shows a specific auth message when apply returns MEEGLE_AUTH_REQUIRED", async () => {
