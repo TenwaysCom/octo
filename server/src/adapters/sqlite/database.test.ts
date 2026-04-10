@@ -76,4 +76,84 @@ describe("sqlite database helpers", () => {
     expect(usersTable?.name).toBe("users");
     expect(tokenTable?.name).toBe("user_tokens");
   });
+
+  it("allows the same lark id to exist under different tenant keys", () => {
+    const db = createSqliteDatabase(":memory:");
+
+    db.prepare(`
+      INSERT INTO users (
+        id,
+        status,
+        lark_tenant_key,
+        lark_id,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?)
+    `).run(
+      "usr_1",
+      "active",
+      "tenant_a",
+      "ou_same",
+      "2026-04-02T00:00:00.000Z",
+      "2026-04-02T00:00:00.000Z",
+    );
+
+    expect(() => db.prepare(`
+      INSERT INTO users (
+        id,
+        status,
+        lark_tenant_key,
+        lark_id,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?)
+    `).run(
+      "usr_2",
+      "active",
+      "tenant_b",
+      "ou_same",
+      "2026-04-02T00:00:00.000Z",
+      "2026-04-02T00:00:00.000Z",
+    )).not.toThrow();
+  });
+
+  it("rejects duplicate lark identities within the same tenant", () => {
+    const db = createSqliteDatabase(":memory:");
+
+    db.prepare(`
+      INSERT INTO users (
+        id,
+        status,
+        lark_tenant_key,
+        lark_id,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?)
+    `).run(
+      "usr_1",
+      "active",
+      "tenant_a",
+      "ou_same",
+      "2026-04-02T00:00:00.000Z",
+      "2026-04-02T00:00:00.000Z",
+    );
+
+    expect(() => db.prepare(`
+      INSERT INTO users (
+        id,
+        status,
+        lark_tenant_key,
+        lark_id,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?)
+    `).run(
+      "usr_2",
+      "active",
+      "tenant_a",
+      "ou_same",
+      "2026-04-02T00:00:00.000Z",
+      "2026-04-02T00:00:00.000Z",
+    )).toThrow();
+  });
 });

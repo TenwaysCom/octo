@@ -17,9 +17,23 @@ export interface AuthState {
   larkUserToken?: string;
   larkUserTokenExpiresAt?: string;
   larkRefreshToken?: string;
+  pendingLarkOauthState?: string;
+  pendingLarkOauthStartedAt?: string;
+  pendingLarkOauthBaseUrl?: string;
+  pendingLarkOauthMasterUserId?: string;
+  lastLarkAuthResult?: {
+    state: string;
+    status: "ready" | "failed";
+    masterUserId?: string;
+    reason?: string;
+  };
 }
 
 const STORAGE_KEY = "itpm_assistant_auth";
+const RESOLVED_IDENTITY_STORAGE_KEY = "masterUserId";
+const RESOLVED_IDENTITY_BY_TAB_STORAGE_KEY = "resolvedIdentityByTab";
+
+type ResolvedIdentityByTabState = Record<string, string>;
 
 /**
  * Get auth state from storage
@@ -47,6 +61,85 @@ export async function saveAuthState(state: AuthState): Promise<void> {
 export async function getCachedPluginId(): Promise<string | undefined> {
   const state = await getAuthState();
   return state.pluginId;
+}
+
+/**
+ * Get resolved master user ID from local storage
+ */
+export async function getStoredMasterUserId(): Promise<string | undefined> {
+  return new Promise((resolve) => {
+    chrome.storage.local.get([RESOLVED_IDENTITY_STORAGE_KEY], (result) => {
+      resolve(
+        (result as { [RESOLVED_IDENTITY_STORAGE_KEY]?: string })[
+          RESOLVED_IDENTITY_STORAGE_KEY
+        ] || undefined,
+      );
+    });
+  });
+}
+
+export async function saveResolvedIdentity(masterUserId: string): Promise<void> {
+  return new Promise((resolve) => {
+    chrome.storage.local.set({ [RESOLVED_IDENTITY_STORAGE_KEY]: masterUserId }, resolve);
+  });
+}
+
+export async function clearResolvedIdentity(): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof chrome.storage.local.remove === "function") {
+      chrome.storage.local.remove(RESOLVED_IDENTITY_STORAGE_KEY, resolve);
+      return;
+    }
+
+    chrome.storage.local.set({ [RESOLVED_IDENTITY_STORAGE_KEY]: undefined }, resolve);
+  });
+}
+
+async function getResolvedIdentityByTabState(): Promise<ResolvedIdentityByTabState> {
+  return new Promise((resolve) => {
+    chrome.storage.local.get([RESOLVED_IDENTITY_BY_TAB_STORAGE_KEY], (result) => {
+      resolve(
+        ((result as { [RESOLVED_IDENTITY_BY_TAB_STORAGE_KEY]?: ResolvedIdentityByTabState })[
+          RESOLVED_IDENTITY_BY_TAB_STORAGE_KEY
+        ] as ResolvedIdentityByTabState | undefined) ?? {},
+      );
+    });
+  });
+}
+
+export async function getResolvedIdentityForTab(tabId: number): Promise<string | undefined> {
+  const state = await getResolvedIdentityByTabState();
+  return state[String(tabId)] || undefined;
+}
+
+export async function saveResolvedIdentityForTab(
+  tabId: number,
+  masterUserId: string,
+): Promise<void> {
+  const state = await getResolvedIdentityByTabState();
+  const nextState: ResolvedIdentityByTabState = {
+    ...state,
+    [String(tabId)]: masterUserId,
+  };
+
+  return new Promise((resolve) => {
+    chrome.storage.local.set({ [RESOLVED_IDENTITY_BY_TAB_STORAGE_KEY]: nextState }, resolve);
+  });
+}
+
+export async function clearResolvedIdentityForTab(tabId: number): Promise<void> {
+  const state = await getResolvedIdentityByTabState();
+  const nextState: ResolvedIdentityByTabState = { ...state };
+  delete nextState[String(tabId)];
+
+  return new Promise((resolve) => {
+    if (Object.keys(nextState).length === 0 && typeof chrome.storage.local.remove === "function") {
+      chrome.storage.local.remove(RESOLVED_IDENTITY_BY_TAB_STORAGE_KEY, resolve);
+      return;
+    }
+
+    chrome.storage.local.set({ [RESOLVED_IDENTITY_BY_TAB_STORAGE_KEY]: nextState }, resolve);
+  });
 }
 
 /**
@@ -199,5 +292,55 @@ export async function clearLarkAuthState(): Promise<void> {
     larkUserToken: undefined,
     larkUserTokenExpiresAt: undefined,
     larkRefreshToken: undefined,
+    pendingLarkOauthState: undefined,
+    pendingLarkOauthStartedAt: undefined,
+    pendingLarkOauthBaseUrl: undefined,
+    pendingLarkOauthMasterUserId: undefined,
+    lastLarkAuthResult: undefined,
+  });
+}
+
+export async function savePendingLarkOauthState(input: {
+  state: string;
+  startedAt: string;
+  baseUrl: string;
+  masterUserId?: string;
+}): Promise<void> {
+  const current = await getAuthState();
+  await saveAuthState({
+    ...current,
+    pendingLarkOauthState: input.state,
+    pendingLarkOauthStartedAt: input.startedAt,
+    pendingLarkOauthBaseUrl: input.baseUrl,
+    pendingLarkOauthMasterUserId: input.masterUserId,
+  });
+}
+
+export async function clearPendingLarkOauthState(state?: string): Promise<void> {
+  const current = await getAuthState();
+
+  if (state && current.pendingLarkOauthState && current.pendingLarkOauthState !== state) {
+    return;
+  }
+
+  await saveAuthState({
+    ...current,
+    pendingLarkOauthState: undefined,
+    pendingLarkOauthStartedAt: undefined,
+    pendingLarkOauthBaseUrl: undefined,
+    pendingLarkOauthMasterUserId: undefined,
+  });
+}
+
+export async function saveLastLarkAuthResult(result: {
+  state: string;
+  status: "ready" | "failed";
+  masterUserId?: string;
+  reason?: string;
+}): Promise<void> {
+  const current = await getAuthState();
+  await saveAuthState({
+    ...current,
+    lastLarkAuthResult: result,
   });
 }

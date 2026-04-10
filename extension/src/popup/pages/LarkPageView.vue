@@ -18,19 +18,6 @@
       :actions="actions"
       @action="$emit('feature', $event)"
     />
-    <AuthStatusCard
-      v-if="viewModel.showAuthBlockBottom"
-      title="授权状态"
-      :meegle-status="meegleStatus"
-      :lark-status="larkStatus"
-      meegle-button-text="重新授权"
-      lark-button-text="重新授权"
-      :meegle-button-disabled="topMeegleButtonDisabled"
-      :lark-button-disabled="topLarkButtonDisabled"
-      secondary-buttons
-      @authorize-meegle="$emit('authorizeMeegle')"
-      @authorize-lark="$emit('authorizeLark')"
-    />
   </div>
 </template>
 

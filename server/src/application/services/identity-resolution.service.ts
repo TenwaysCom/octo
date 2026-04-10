@@ -1,17 +1,18 @@
 import {
   getResolvedUserStore,
   type ResolvedUserRecord,
-} from "../../adapters/sqlite/resolved-user-store.js";
+} from "../../adapters/postgres/resolved-user-store.js";
 import type { IdentityResolveRequest } from "../../modules/identity/identity.dto.js";
 
 export interface IdentityResolutionResponse {
   ok: true;
-  data: {
-    requestId: string;
-    masterUserId: string;
-    identityStatus: ResolvedUserRecord["status"];
-    operatorLarkId?: string;
-    meegleUserKey?: string;
+    data: {
+      requestId: string;
+      masterUserId: string;
+      identityStatus: ResolvedUserRecord["status"];
+      operatorLarkId?: string;
+      larkEmail?: string;
+      meegleUserKey?: string;
     githubId?: string;
     sourcePlatform: IdentityResolveRequest["pageContext"]["platform"];
   };
@@ -28,6 +29,7 @@ function toResponse(
       masterUserId: user.id,
       identityStatus: user.status,
       operatorLarkId: user.larkId ?? undefined,
+      larkEmail: user.larkEmail ?? undefined,
       meegleUserKey: user.meegleUserKey ?? undefined,
       githubId: user.githubId ?? undefined,
       sourcePlatform: request.pageContext.platform,
@@ -74,6 +76,7 @@ export async function resolveIdentity(
   const created = await store.create({
     status: request.operatorLarkId ? "active" : "pending_lark_identity",
     larkId: request.operatorLarkId,
+    larkEmail: undefined,
     meegleBaseUrl: requestedMeegleBaseUrl,
     meegleUserKey: request.meegleUserKey,
     githubId: request.githubId,
@@ -90,6 +93,7 @@ async function applyHints(
   const nextUser: ResolvedUserRecord = {
     ...user,
     larkId: user.larkId ?? request.operatorLarkId ?? null,
+    larkEmail: user.larkEmail ?? null,
     meegleBaseUrl: user.meegleBaseUrl ?? requestedMeegleBaseUrl ?? null,
     meegleUserKey: user.meegleUserKey ?? request.meegleUserKey ?? null,
     githubId: user.githubId ?? request.githubId ?? null,
@@ -101,6 +105,7 @@ async function applyHints(
 
   if (
     nextUser.larkId === user.larkId &&
+    nextUser.larkEmail === user.larkEmail &&
     nextUser.meegleBaseUrl === user.meegleBaseUrl &&
     nextUser.meegleUserKey === user.meegleUserKey &&
     nextUser.githubId === user.githubId &&

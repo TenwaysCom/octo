@@ -2,6 +2,12 @@ import {
   validateExecutionDraft,
   type ExecutionDraft,
 } from "../../validators/agent-output/execution-draft.js";
+import {
+  executeMeegleApply,
+  type MeegleApplyExecutionDeps,
+  type MeegleApplyInput,
+  type MeegleApplyResult,
+} from "./meegle-apply.service.js";
 
 export interface A1Record {
   recordId: string;
@@ -14,12 +20,6 @@ export interface A1Record {
 
 export interface A1WorkflowDeps {
   loadRecord?: (recordId: string) => Promise<A1Record>;
-  createWorkitem?: (input: {
-    draft: ExecutionDraft;
-    requestId: string;
-    operatorLarkId: string;
-    idempotencyKey: string;
-  }) => Promise<{ workitemId: string }>;
 }
 
 function defaultA1Record(recordId: string): A1Record {
@@ -98,7 +98,8 @@ export async function applyB2(
   input: {
     requestId: string;
     draftId: string;
-    operatorLarkId: string;
+    masterUserId?: string;
+    operatorLarkId?: string;
     sourceRecordId: string;
     idempotencyKey: string;
     confirmedDraft: {
@@ -107,8 +108,8 @@ export async function applyB2(
       ownerUserKeys?: string[];
     };
   },
-  deps: A1WorkflowDeps = {},
-) {
+  deps: A1WorkflowDeps & Partial<MeegleApplyExecutionDeps> = {},
+): Promise<MeegleApplyResult> {
   const draft = validateExecutionDraft({
     draftId: input.draftId,
     draftType: "b2",
@@ -127,19 +128,16 @@ export async function applyB2(
     missingMeta: [],
     needConfirm: true,
   });
-  const created =
-    (await deps.createWorkitem?.({
-      draft,
+  return executeMeegleApply(
+    {
       requestId: input.requestId,
+      draft,
       operatorLarkId: input.operatorLarkId,
+      masterUserId: input.masterUserId,
       idempotencyKey: input.idempotencyKey,
-    })) ?? ({ workitemId: "B2-001" } as const);
-
-  return {
-    status: "created" as const,
-    workitemId: created.workitemId,
-    draft,
-  };
+    },
+    deps,
+  );
 }
 
 export async function executeA1ToB2Flow(

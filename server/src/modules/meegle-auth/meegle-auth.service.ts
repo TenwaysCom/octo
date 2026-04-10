@@ -3,7 +3,7 @@ import {
   InMemoryMeegleTokenStore,
   type MeegleTokenStore,
 } from "../../adapters/meegle/token-store.js";
-import { getResolvedUserStore } from "../../adapters/sqlite/resolved-user-store.js";
+import { getResolvedUserStore } from "../../adapters/postgres/resolved-user-store.js";
 import {
   exchangeCredential,
   refreshCredential,
@@ -43,9 +43,13 @@ export function configureMeegleAuthServiceDeps(
 }
 
 function getDeps(overrides?: Partial<MeegleAuthServiceDeps>): MeegleAuthServiceDeps {
+  const definedOverrides = Object.fromEntries(
+    Object.entries(overrides ?? {}).filter(([, value]) => value !== undefined),
+  ) as Partial<MeegleAuthServiceDeps>;
+
   const merged = {
     ...defaultDeps,
-    ...overrides,
+    ...definedOverrides,
   };
 
   if (!merged.authAdapter) {
@@ -56,7 +60,14 @@ function getDeps(overrides?: Partial<MeegleAuthServiceDeps>): MeegleAuthServiceD
     authAdapter: merged.authAdapter,
     tokenStore: merged.tokenStore ?? sharedTokenStore,
     pluginId: merged.pluginId,
+    meegleAuthBaseUrl: merged.meegleAuthBaseUrl,
   };
+}
+
+export function getConfiguredMeegleAuthServiceDeps(
+  overrides?: Partial<MeegleAuthServiceDeps>,
+): MeegleAuthServiceDeps {
+  return getDeps(overrides);
 }
 
 export async function exchangeAuthCode(

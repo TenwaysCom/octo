@@ -24,6 +24,7 @@ describe("extension config", () => {
           MEEGLE_PLUGIN_ID: "MII_SERVER_PLUGIN",
           LARK_APP_ID: "cli_server_public",
           MEEGLE_BASE_URL: "https://tenant.meegle.com",
+          LARK_OAUTH_CALLBACK_URL: "https://example.ngrok-free.app/api/lark/auth/callback",
         },
       }),
     } as Response);
@@ -33,7 +34,17 @@ describe("extension config", () => {
       MEEGLE_PLUGIN_ID: "MII_SERVER_PLUGIN",
       LARK_APP_ID: "cli_server_public",
       MEEGLE_BASE_URL: "https://tenant.meegle.com",
+      LARK_OAUTH_CALLBACK_URL: "https://example.ngrok-free.app/api/lark/auth/callback",
     });
+    expect(chrome.storage.sync.set).toHaveBeenCalledWith(
+      {
+        MEEGLE_PLUGIN_ID: "MII_SERVER_PLUGIN",
+        LARK_APP_ID: "cli_server_public",
+        MEEGLE_BASE_URL: "https://tenant.meegle.com",
+        LARK_OAUTH_CALLBACK_URL: "https://example.ngrok-free.app/api/lark/auth/callback",
+      },
+      expect.any(Function),
+    );
   });
 
   it("falls back to locally stored config when public config cannot be fetched", async () => {

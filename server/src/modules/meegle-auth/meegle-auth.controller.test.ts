@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { InMemoryMeegleTokenStore } from "../../adapters/meegle/token-store.js";
-import { createSqliteDatabase } from "../../adapters/sqlite/database.js";
 import { configureMeegleAuthServiceDeps } from "./meegle-auth.service.js";
 import {
-  SqliteResolvedUserStore,
+  PostgresResolvedUserStore,
   configureResolvedUserStore,
-} from "../../adapters/sqlite/resolved-user-store.js";
+} from "../../adapters/postgres/resolved-user-store.js";
+import { createTestPostgresDatabase } from "../../adapters/postgres/test-db.js";
 import {
   exchangeAuthCodeController,
   getAuthStatusController,
@@ -13,12 +13,12 @@ import {
 
 describe("meegle-auth.controller", () => {
   let tokenStore: InMemoryMeegleTokenStore;
-  let resolvedUserStore: SqliteResolvedUserStore;
+  let resolvedUserStore: PostgresResolvedUserStore;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     tokenStore = new InMemoryMeegleTokenStore();
-    const db = createSqliteDatabase(":memory:");
-    resolvedUserStore = new SqliteResolvedUserStore(db);
+    const { db } = await createTestPostgresDatabase();
+    resolvedUserStore = new PostgresResolvedUserStore(db);
     configureResolvedUserStore(resolvedUserStore);
     configureMeegleAuthServiceDeps({
       authAdapter: {

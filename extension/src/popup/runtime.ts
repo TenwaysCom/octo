@@ -1,5 +1,17 @@
 import { DEFAULT_CONFIG, getConfig } from "../background/config.js";
-import type { LarkAuthEnsureResponse } from "../types/lark.js";
+import {
+  clearResolvedIdentity as clearStoredResolvedIdentity,
+  clearResolvedIdentityForTab as clearStoredResolvedIdentityForTab,
+  getStoredMasterUserId,
+  getResolvedIdentityForTab as getStoredResolvedIdentityForTab,
+  saveResolvedIdentity as persistResolvedIdentity,
+  saveResolvedIdentityForTab as persistResolvedIdentityForTab,
+} from "../background/storage.js";
+import type {
+  LarkAuthCallbackResult,
+  LarkAuthEnsureResponse,
+  LarkAuthStatusServerResponse,
+} from "../types/lark.js";
 import type {
   MeegleAuthEnsureRequest,
   MeegleAuthEnsureResponse,
@@ -28,6 +40,7 @@ export interface IdentityResolveResponse {
     masterUserId: string;
     identityStatus: "pending_lark_identity" | "active" | "conflict";
     operatorLarkId?: string;
+    larkEmail?: string;
     meegleUserKey?: string;
   };
   error?: {
@@ -200,7 +213,10 @@ export async function resolveIdentityRequest(input: {
 }
 
 export async function runLarkAuthRequest(
-  baseUrl: string,
+  input: {
+    masterUserId?: string;
+    baseUrl: string;
+  },
 ): Promise<LarkAuthEnsureResponse> {
   const response = await sendRuntimeMessage<{
     payload?: LarkAuthEnsureResponse;
@@ -208,8 +224,8 @@ export async function runLarkAuthRequest(
     action: "itdog.lark.auth.ensure",
     payload: {
       requestId: `req_${Date.now()}`,
-      operatorLarkId: "ou_user",
-      baseUrl,
+      masterUserId: input.masterUserId,
+      baseUrl: input.baseUrl,
     },
   });
 
@@ -219,9 +235,116 @@ export async function runLarkAuthRequest(
 
   return {
     status: "failed",
-    baseUrl,
+    baseUrl: input.baseUrl,
     reason: response.error?.errorCode || "BACKGROUND_EMPTY_RESPONSE",
+    errorMessage: response.error?.errorMessage,
   };
+}
+
+export async function getLarkAuthStatus(
+  input: {
+    masterUserId?: string;
+    baseUrl: string;
+  },
+): Promise<LarkAuthEnsureResponse> {
+  if (!input.masterUserId) {
+    return {
+      status: "failed",
+      baseUrl: input.baseUrl,
+      reason: "LARK_AUTH_REQUIRED_FIELDS_MISSING",
+      errorMessage: "masterUserId is required for Lark auth.",
+    };
+  }
+
+  const config = await getConfig();
+
+  try {
+    const response = await fetch(`${config.SERVER_URL}/api/lark/auth/status`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        masterUserId: input.masterUserId,
+        baseUrl: input.baseUrl,
+      }),
+    });
+
+    if (!response.ok) {
+      return {
+        status: "failed",
+        baseUrl: input.baseUrl,
+        masterUserId: input.masterUserId,
+        reason: "LARK_STATUS_REQUEST_FAILED",
+        errorMessage: `Auth status request failed with ${response.status}.`,
+      };
+    }
+
+    const payload = (await response.json()) as LarkAuthStatusServerResponse;
+
+    if (!payload.ok || !payload.data) {
+      return {
+        status: "failed",
+        baseUrl: input.baseUrl,
+        masterUserId: input.masterUserId,
+        reason: payload.error?.errorCode || "LARK_STATUS_REQUEST_FAILED",
+        errorMessage: payload.error?.errorMessage || "Lark auth status response payload is missing.",
+      };
+    }
+
+    return {
+      status: payload.data.status,
+      baseUrl: payload.data.baseUrl,
+      masterUserId: payload.data.masterUserId ?? input.masterUserId,
+      reason: payload.data.reason,
+      credentialStatus: payload.data.credentialStatus,
+      expiresAt: payload.data.expiresAt,
+    };
+  } catch (error) {
+    return {
+      status: "failed",
+      baseUrl: input.baseUrl,
+      masterUserId: input.masterUserId,
+      reason: "LARK_STATUS_REQUEST_FAILED",
+      errorMessage: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+const AUTH_STORAGE_KEY = "itpm_assistant_auth";
+
+export function watchLarkAuthCallbackResult(
+  listener: (result: LarkAuthCallbackResult) => void | Promise<void>,
+): () => void {
+  const chromeApi = getChromeApi();
+  const storageEvents = chromeApi.storage.onChanged;
+
+  if (!storageEvents) {
+    return () => {};
+  }
+
+  const handleChange = (
+    changes: Record<string, chrome.storage.StorageChange>,
+    areaName: string,
+  ) => {
+    if (areaName !== "local") {
+      return;
+    }
+
+    const authState = changes[AUTH_STORAGE_KEY]?.newValue as {
+      lastLarkAuthResult?: LarkAuthCallbackResult;
+    } | undefined;
+    const result = authState?.lastLarkAuthResult;
+
+    if (!result?.state || !result.status) {
+      return;
+    }
+
+    void listener(result);
+  };
+
+  storageEvents.addListener(handleChange);
+  return () => storageEvents.removeListener(handleChange);
 }
 
 export async function loadPopupSettings(): Promise<PopupSettingsForm> {
@@ -236,29 +359,40 @@ export async function loadPopupSettings(): Promise<PopupSettingsForm> {
   return {
     SERVER_URL: config.SERVER_URL || DEFAULT_CONFIG.SERVER_URL,
     MEEGLE_PLUGIN_ID: config.MEEGLE_PLUGIN_ID || "",
+    LARK_OAUTH_CALLBACK_URL:
+      config.LARK_OAUTH_CALLBACK_URL || DEFAULT_CONFIG.LARK_OAUTH_CALLBACK_URL,
     meegleUserKey: localSettings.meegleUserKey || "",
     larkUserId: localSettings.larkUserId || "",
   };
 }
 
 export async function loadResolvedIdentity(): Promise<string | undefined> {
-  const chromeApi = getChromeApi();
-
-  const localState = await new Promise<Record<string, string>>((resolve) => {
-    chromeApi.storage.local.get(["masterUserId"], (result) => {
-      resolve(result as Record<string, string>);
-    });
-  });
-
-  return localState.masterUserId || undefined;
+  return getStoredMasterUserId();
 }
 
 export async function saveResolvedIdentity(masterUserId: string): Promise<void> {
-  const chromeApi = getChromeApi();
+  await persistResolvedIdentity(masterUserId);
+}
 
-  await new Promise<void>((resolve) => {
-    chromeApi.storage.local.set({ masterUserId }, () => resolve());
-  });
+export async function clearResolvedIdentity(): Promise<void> {
+  await clearStoredResolvedIdentity();
+}
+
+export async function loadResolvedIdentityForTab(
+  tabId: number,
+): Promise<string | undefined> {
+  return getStoredResolvedIdentityForTab(tabId);
+}
+
+export async function saveResolvedIdentityForTab(
+  tabId: number,
+  masterUserId: string,
+): Promise<void> {
+  await persistResolvedIdentityForTab(tabId, masterUserId);
+}
+
+export async function clearResolvedIdentityForTab(tabId: number): Promise<void> {
+  await clearStoredResolvedIdentityForTab(tabId);
 }
 
 export async function savePopupSettings(

@@ -145,17 +145,19 @@ flowchart LR
 
 职责：
 
-- `POST /api/a1/analyze`
-- `POST /api/a1/create-b2-draft`
-- `POST /api/a1/apply-b2`
+- `POST /api/lark-bug/analyze`
+- `POST /api/lark-bug/to-meegle-product-bug/draft`
+- `POST /api/lark-bug/to-meegle-product-bug/apply`
+- 兼容别名：`/api/a1/*`
 
 ### `src/modules/a2/`
 
 职责：
 
-- `POST /api/a2/analyze`
-- `POST /api/a2/create-b1-draft`
-- `POST /api/a2/apply-b1`
+- `POST /api/lark-user-story/analyze`
+- `POST /api/lark-user-story/to-meegle-user-story/draft`
+- `POST /api/lark-user-story/to-meegle-user-story/apply`
+- 兼容别名：`/api/a2/*`
 
 ### `src/modules/pm-analysis/`
 

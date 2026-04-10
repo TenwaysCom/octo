@@ -24,8 +24,11 @@
         <SettingsPage
           v-else
           :form="settingsForm"
+          :lark-user-id="state.identity.larkId || ''"
+          :lark-email="state.identity.larkEmail || ''"
           @cancel="closeSettings"
           @fetch-meegle-user-key="fetchMeegleUserKey"
+          @refresh-server-config="refreshServerConfig"
           @save="saveSettingsForm"
         />
       </PopupShell>
@@ -62,6 +65,7 @@ const {
   closeSettings,
   fetchMeegleUserKey,
   saveSettingsForm,
+  refreshServerConfig,
   clearLogs,
   runFeatureAction,
 } = usePopupApp();

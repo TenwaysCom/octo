@@ -29,17 +29,25 @@ function migrateUsersTable(db: DatabaseSync): void {
   const schemaSql = usersTable?.sql ?? "";
   const needsRebuild =
     schemaSql.includes("meegle_user_key TEXT UNIQUE") ||
-    !schemaSql.includes("meegle_base_url");
+    !schemaSql.includes("meegle_base_url") ||
+    !schemaSql.includes("lark_tenant_key") ||
+    !schemaSql.includes("lark_email") ||
+    schemaSql.includes("lark_id TEXT UNIQUE");
 
   if (!needsRebuild) {
     return;
   }
 
+  const hasLarkTenantKey = hasColumn(db, "users", "lark_tenant_key");
+  const hasMeegleBaseUrl = hasColumn(db, "users", "meegle_base_url");
+
   db.exec(`
     CREATE TABLE users_v2 (
       id TEXT PRIMARY KEY,
       status TEXT NOT NULL,
-      lark_id TEXT UNIQUE,
+      lark_tenant_key TEXT,
+      lark_id TEXT,
+      lark_email TEXT,
       meegle_base_url TEXT,
       meegle_user_key TEXT,
       github_id TEXT UNIQUE,
@@ -50,7 +58,9 @@ function migrateUsersTable(db: DatabaseSync): void {
     INSERT INTO users_v2 (
       id,
       status,
+      lark_tenant_key,
       lark_id,
+      lark_email,
       meegle_base_url,
       meegle_user_key,
       github_id,
@@ -60,8 +70,10 @@ function migrateUsersTable(db: DatabaseSync): void {
     SELECT
       id,
       status,
+      ${hasLarkTenantKey ? "lark_tenant_key" : "NULL"},
       lark_id,
-      NULL,
+      ${hasColumn(db, "users", "lark_email") ? "lark_email" : "NULL"},
+      ${hasMeegleBaseUrl ? "meegle_base_url" : "NULL"},
       meegle_user_key,
       github_id,
       created_at,
@@ -91,15 +103,23 @@ function migrateTokenTable(db: DatabaseSync): void {
     !tokenTable ||
     !schemaSql.includes("provider TEXT NOT NULL") ||
     !schemaSql.includes("external_user_key TEXT NOT NULL");
+  const needsNullablePluginToken =
+    Boolean(tokenTable) && schemaSql.includes("plugin_token TEXT NOT NULL");
+  const needsTenantKeyRebuild =
+    Boolean(tokenTable) && (
+      !schemaSql.includes("provider_tenant_key TEXT NOT NULL") ||
+      schemaSql.includes("PRIMARY KEY (master_user_id, provider, external_user_key, base_url)")
+    );
 
   if (needsCreate) {
     db.exec(`
       CREATE TABLE IF NOT EXISTS user_tokens (
         master_user_id TEXT NOT NULL,
         provider TEXT NOT NULL,
+        provider_tenant_key TEXT NOT NULL,
         external_user_key TEXT NOT NULL,
         base_url TEXT NOT NULL,
-        plugin_token TEXT NOT NULL,
+        plugin_token TEXT,
         plugin_token_expires_at TEXT,
         user_token TEXT NOT NULL,
         user_token_expires_at TEXT,
@@ -109,8 +129,68 @@ function migrateTokenTable(db: DatabaseSync): void {
         last_auth_at TEXT NOT NULL,
         last_refresh_at TEXT,
         updated_at TEXT NOT NULL,
-        PRIMARY KEY (master_user_id, provider, external_user_key, base_url)
+        PRIMARY KEY (master_user_id, provider, provider_tenant_key, external_user_key, base_url)
       );
+    `);
+  } else if (needsNullablePluginToken || needsTenantKeyRebuild) {
+    const hasProviderTenantKey = hasColumn(db, "user_tokens", "provider_tenant_key");
+    db.exec(`
+      CREATE TABLE user_tokens_v2 (
+        master_user_id TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        provider_tenant_key TEXT NOT NULL,
+        external_user_key TEXT NOT NULL,
+        base_url TEXT NOT NULL,
+        plugin_token TEXT,
+        plugin_token_expires_at TEXT,
+        user_token TEXT NOT NULL,
+        user_token_expires_at TEXT,
+        refresh_token TEXT,
+        refresh_token_expires_at TEXT,
+        credential_status TEXT NOT NULL,
+        last_auth_at TEXT NOT NULL,
+        last_refresh_at TEXT,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (master_user_id, provider, provider_tenant_key, external_user_key, base_url)
+      );
+
+      INSERT INTO user_tokens_v2 (
+        master_user_id,
+        provider,
+        provider_tenant_key,
+        external_user_key,
+        base_url,
+        plugin_token,
+        plugin_token_expires_at,
+        user_token,
+        user_token_expires_at,
+        refresh_token,
+        refresh_token_expires_at,
+        credential_status,
+        last_auth_at,
+        last_refresh_at,
+        updated_at
+      )
+      SELECT
+        master_user_id,
+        provider,
+        ${hasProviderTenantKey ? "provider_tenant_key" : "''"},
+        external_user_key,
+        base_url,
+        plugin_token,
+        plugin_token_expires_at,
+        user_token,
+        user_token_expires_at,
+        refresh_token,
+        refresh_token_expires_at,
+        credential_status,
+        last_auth_at,
+        last_refresh_at,
+        updated_at
+      FROM user_tokens;
+
+      DROP TABLE user_tokens;
+      ALTER TABLE user_tokens_v2 RENAME TO user_tokens;
     `);
   }
 
@@ -132,6 +212,7 @@ function migrateTokenTable(db: DatabaseSync): void {
       INSERT OR REPLACE INTO user_tokens (
         master_user_id,
         provider,
+        provider_tenant_key,
         external_user_key,
         base_url,
         plugin_token,
@@ -148,6 +229,7 @@ function migrateTokenTable(db: DatabaseSync): void {
       SELECT
         ${legacyIdExpression},
         'meegle',
+        '',
         meegle_user_key,
         base_url,
         plugin_token,
@@ -167,6 +249,24 @@ function migrateTokenTable(db: DatabaseSync): void {
   }
 }
 
+function initOauthSessionsTable(db: DatabaseSync): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS oauth_sessions (
+      state TEXT PRIMARY KEY,
+      provider TEXT NOT NULL,
+      master_user_id TEXT,
+      base_url TEXT NOT NULL,
+      status TEXT NOT NULL,
+      auth_code TEXT,
+      external_user_key TEXT,
+      error_code TEXT,
+      expires_at TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+  `);
+}
+
 function initSchema(db: DatabaseSync): void {
   db.exec(`
     PRAGMA journal_mode = WAL;
@@ -174,7 +274,9 @@ function initSchema(db: DatabaseSync): void {
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       status TEXT NOT NULL,
-      lark_id TEXT UNIQUE,
+      lark_tenant_key TEXT,
+      lark_id TEXT,
+      lark_email TEXT,
       meegle_base_url TEXT,
       meegle_user_key TEXT,
       github_id TEXT UNIQUE,
@@ -185,10 +287,18 @@ function initSchema(db: DatabaseSync): void {
 
   migrateUsersTable(db);
   migrateTokenTable(db);
+  initOauthSessionsTable(db);
   ensureColumn(db, "user_tokens", "plugin_token_expires_at", "TEXT");
   ensureColumn(db, "user_tokens", "user_token_expires_at", "TEXT");
   ensureColumn(db, "user_tokens", "refresh_token_expires_at", "TEXT");
+  ensureColumn(db, "users", "lark_tenant_key", "TEXT");
+  ensureColumn(db, "users", "lark_email", "TEXT");
   ensureColumn(db, "users", "meegle_base_url", "TEXT");
+  db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS users_lark_identity_unique
+    ON users(lark_tenant_key, lark_id)
+    WHERE lark_tenant_key IS NOT NULL AND lark_id IS NOT NULL
+  `);
   db.exec(`
     CREATE UNIQUE INDEX IF NOT EXISTS users_meegle_binding_unique
     ON users(meegle_base_url, meegle_user_key)
@@ -196,7 +306,11 @@ function initSchema(db: DatabaseSync): void {
   `);
   db.exec(`
     CREATE INDEX IF NOT EXISTS user_tokens_provider_lookup_idx
-    ON user_tokens(provider, master_user_id, external_user_key)
+    ON user_tokens(provider, master_user_id, provider_tenant_key, external_user_key)
+  `);
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS oauth_sessions_provider_state_idx
+    ON oauth_sessions(provider, state)
   `);
 }
 

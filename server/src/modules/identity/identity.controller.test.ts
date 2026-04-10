@@ -1,15 +1,16 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { createSqliteDatabase } from "../../adapters/sqlite/database.js";
 import {
-  SqliteResolvedUserStore,
+  PostgresResolvedUserStore,
   configureResolvedUserStore,
-} from "../../adapters/sqlite/resolved-user-store.js";
+} from "../../adapters/postgres/resolved-user-store.js";
+import { createTestPostgresDatabase } from "../../adapters/postgres/test-db.js";
 import { resolveIdentityController } from "./identity.controller.js";
 
 describe("identity.controller", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    const { db } = await createTestPostgresDatabase();
     configureResolvedUserStore(
-      new SqliteResolvedUserStore(createSqliteDatabase(":memory:")),
+      new PostgresResolvedUserStore(db),
     );
   });
 

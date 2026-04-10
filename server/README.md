@@ -1,475 +1,181 @@
 # Tenways Octo - 服务端
 
-服务端 API，提供 Lark 到 Meegle 工单创建的智能编排能力。
+服务端 API 负责身份解析、Meegle 认证、Lark 到 Meegle 建单编排，以及 PM 即时分析。
 
-## 功能
+## 当前对外术语
 
-- **身份解析** - 解析 Lark ID 并映射到 Meegle userKey 和 GitHub ID
-- **Meegle 认证** - auth code 交换、token 刷新、认证状态管理
-- **A1 工单分析** - 智能分析 Lark A1 工单，生成 B2 Bug 草稿
-- **A2 需求分析** - 智能分析 Lark A2 需求，生成 B1 任务草稿
-- **PM 即时分析** - 跨平台（Lark + Meegle + GitHub）项目状态分析
+| 旧术语 | 当前对外名称 |
+|------|------|
+| `A1` | `Lark Bug` |
+| `A2` | `Lark User Story` |
+| `B1` | `Meegle User Story` |
+| `B2` | `Meegle Product Bug` |
 
-## 快速开始
+说明：
+- 服务端公开路径使用新命名
+- 旧 `/api/a1/*`、`/api/a2/*` 仍保留为兼容别名
 
-### 安装
+## 开发
 
 ```bash
-cd server
-npm install
+pnpm --dir server dev
+pnpm --dir server test
+pnpm --dir server build
+pnpm --dir server db:migrate
+pnpm --dir server db:import-sqlite
+pnpm --dir server start
 ```
 
-### 开发
+默认地址：`http://localhost:3000`
+
+## 数据库
+
+运行时存储现在使用 PostgreSQL，连接串从 `POSTGRES_URI` 读取。
+
+常用命令：
 
 ```bash
-# 监听模式
-npm run dev
-
-# 运行测试
-npm test
+pnpm --dir server db:migrate
+pnpm --dir server db:reset
+pnpm --dir server db:import-sqlite -- --sqlite ./data/tenways-octo.sqlite
 ```
 
-### 启动
+推荐迁移顺序：
 
-```bash
-npm start
-```
+1. 在 `server/.env` 或进程环境里配置 `POSTGRES_URI`
+2. 运行 `pnpm --dir server build`
+3. 运行 `pnpm --dir server db:migrate`
+4. 如果要导入旧 SQLite 数据，运行 `pnpm --dir server db:import-sqlite -- --sqlite ./data/tenways-octo.sqlite`
+5. 启动服务，后续运行时只使用 PostgreSQL
 
-服务端默认运行在 `http://localhost:3000`
+## 主要接口
 
-## API 接口
+### 基础接口
 
-### 健康检查
+- `GET /health`
+- `POST /api/identity/resolve`
+- `POST /api/meegle/auth/exchange`
+- `POST /api/meegle/auth/status`
+- `POST /api/pm/analysis/run`
 
-```bash
-GET /health
+### Lark Bug -> Meegle Product Bug
 
-# 响应
+主路径：
+
+- `POST /api/lark-bug/analyze`
+- `POST /api/lark-bug/to-meegle-product-bug/draft`
+- `POST /api/lark-bug/to-meegle-product-bug/apply`
+
+兼容别名：
+
+- `POST /api/a1/analyze`
+- `POST /api/a1/create-b2-draft`
+- `POST /api/a1/apply-b2`
+
+### Lark User Story -> Meegle User Story
+
+主路径：
+
+- `POST /api/lark-user-story/analyze`
+- `POST /api/lark-user-story/to-meegle-user-story/draft`
+- `POST /api/lark-user-story/to-meegle-user-story/apply`
+
+兼容别名：
+
+- `POST /api/a2/analyze`
+- `POST /api/a2/create-b1-draft`
+- `POST /api/a2/apply-b1`
+
+## Apply 请求约定
+
+`apply` 请求目前支持：
+
+- `requestId`
+- 可选 `masterUserId`
+- `operatorLarkId`
+- `draftId`
+- `sourceRecordId`
+- `idempotencyKey`
+- `confirmedDraft`
+
+身份解析顺序：
+
+1. 优先使用 `masterUserId`
+2. 缺失时使用 `operatorLarkId` 反查
+3. 解析到用户后，读取 `meegleUserKey` 和 `meegleBaseUrl`
+4. 刷新 Meegle credential
+5. 创建 `MeegleClient`
+6. 调用 Meegle create workitem
+
+## Apply 响应约定
+
+成功响应：
+
+```json
 {
-  "status": "ok",
-  "timestamp": "2026-03-23T12:00:00.000Z"
-}
-```
-
-### 身份解析
-
-```bash
-POST /api/identity/resolve
-
-# 请求
-{
-  "requestId": "req-001",
-  "pageType": "lark_a1",
-  "detected": {
-    "larkId": "ou_xxx"
-  }
-}
-
-# 响应
-{
-  "ok": true,
-  "requestId": "req-001",
-  "data": {
-    "operatorLarkId": "ou_xxx",
-    "mappingStatus": "unbound"
-  }
-}
-```
-
-### Meegle 认证 - 交换 Auth Code
-
-`baseUrl` 现在表示平台的 canonical `authBaseUrl`，不是当前 tab 的页面地址。
-
-- `pageOrigin`: 真实页面 origin，只用于页面识别、路由和日志
-- `authBaseUrl`: token lookup、refresh、exchange 一律使用的统一授权基址
-
-对 Meegle 来说，`https://meegle.com`、`https://project.larksuite.com` 等页面别名最终都会归一到同一个 canonical `authBaseUrl`。
-
-```bash
-POST /api/meegle/auth/exchange
-
-# 请求
-{
-  "requestId": "req-002",
-  "operatorLarkId": "ou_xxx",
-  "meegleUserKey": "user_xxx",
-  "baseUrl": "https://project.larksuite.com",
-  "authCode": "abc123",
-  "state": "state-001"
-}
-
-# 响应
-{
-  "ok": true,
-  "requestId": "req-002",
-  "data": {
-    "tokenStatus": "ready",
-    "credentialStatus": "active",
-    "expiresAt": "2026-03-23T14:00:00.000Z"
-  }
-}
-```
-
-### Meegle 认证 - 查询状态
-
-`/api/meegle/auth/status` 接收的 `baseUrl` 同样是 `authBaseUrl`。老客户端即使传了页面别名，服务端也会在入口处做规范化，并继续命中 canonical token 记录。
-
-```bash
-POST /api/meegle/auth/status
-
-# 请求
-{
-  "requestId": "req-003",
-  "operatorLarkId": "ou_xxx",
-  "baseUrl": "https://project.larksuite.com"
-}
-
-# 响应
-{
-  "ok": true,
-  "data": {
-    "tokenStatus": "ready"
+  "status": "created",
+  "workitemId": "1234567890",
+  "draft": {
+    "draftId": "draft_b2_rec_001"
   }
 }
 ```
 
-### Meegle 认证 - 获取 Auth Code
+业务错误响应：
 
-通过 cookie 获取授权码，用于后续交换 user token。
-
-```bash
-POST /api/meegle/auth/get-code
-
-# 请求
+```json
 {
-  "operatorLarkId": "ou_xxx",
-  "meegleUserKey": "user_xxx",
-  "baseUrl": "https://project.larksuite.com",
-  "cookie": "SESSIONID=xxx; ..."
-}
-
-# 响应
-{
-  "ok": true,
-  "data": {
-    "authCode": "abc123"
+  "ok": false,
+  "error": {
+    "errorCode": "MEEGLE_AUTH_REQUIRED",
+    "errorMessage": "Meegle auth is required"
   }
 }
 ```
 
-### A1 工单分析
+说明：
+- 成功响应当前直接返回工作流结果对象
+- 业务失败返回结构化错误 envelope
+- `idempotencyKey` 会透传到 Meegle create 请求头，避免重复 apply 时重复建单
 
-```bash
-POST /api/a1/analyze
+## 主要错误码
 
-# 请求
-{
-  "requestId": "req-004",
-  "operatorLarkId": "ou_xxx",
-  "recordId": "recA1_001",
-  "pageContext": {
-    "pageType": "lark_a1",
-    "baseId": "app_xxx",
-    "tableId": "tbl_A1"
-  }
-}
+| 错误码 | 含义 |
+|------|------|
+| `INVALID_REQUEST` | 请求体校验失败 |
+| `IDENTITY_NOT_FOUND` | 无法根据 `masterUserId` / `operatorLarkId` 解析用户 |
+| `MEEGLE_BINDING_REQUIRED` | 已解析用户缺少 `meegleUserKey` 或 `meegleBaseUrl` |
+| `MEEGLE_AUTH_REQUIRED` | Meegle 认证缺失、失效或不可刷新 |
+| `MEEGLE_WORKITEM_CREATE_FAILED` | Meegle workitem 创建失败 |
+| `INTERNAL_ERROR` | 未归类的服务端异常 |
 
-# 响应
-{
-  "ok": true,
-  "data": {
-    "summary": "该工单更适合进入产线 Bug 流程",
-    "decision": "to_b2",
-    "missingFields": [],
-    "riskLevel": "medium",
-    "nextActions": ["补充环境信息", "生成 B2 草稿"]
-  }
-}
+## 模块划分
+
+```text
+server/src/
+├── adapters/
+│   ├── lark/
+│   ├── meegle/
+│   ├── postgres/
+│   └── sqlite/
+├── application/services/
+│   ├── a1-workflow.service.ts
+│   ├── a2-workflow.service.ts
+│   ├── meegle-apply.service.ts
+│   ├── meegle-credential.service.ts
+│   ├── meegle-workitem.service.ts
+│   └── pm-analysis.service.ts
+├── http/
+│   └── lark-meegle-workflow-routes.ts
+├── modules/
+│   ├── a1/
+│   ├── a2/
+│   ├── identity/
+│   ├── meegle-auth/
+│   └── pm-analysis/
+└── validators/
 ```
 
-### A1 创建 B2 草稿
-
-```bash
-POST /api/a1/create-b2-draft
-
-# 请求
-{
-  "requestId": "req-005",
-  "operatorLarkId": "ou_xxx",
-  "recordId": "recA1_001"
-}
-
-# 响应
-{
-  "ok": true,
-  "data": {
-    "draftId": "draft_b2_recA1_001",
-    "target": {
-      "projectKey": "OPS",
-      "workitemTypeKey": "bug"
-    },
-    "draft": {
-      "name": "支付页白屏",
-      "fieldValuePairs": [
-        {"fieldKey": "priority", "fieldValue": "P1"},
-        {"fieldKey": "environment", "fieldValue": "production"}
-      ]
-    },
-    "needConfirm": true
-  }
-}
-```
-
-### A1 应用 B2
-
-```bash
-POST /api/a1/apply-b2
-
-# 请求
-{
-  "requestId": "req-006",
-  "draftId": "draft_b2_recA1_001",
-  "operatorLarkId": "ou_xxx",
-  "sourceRecordId": "recA1_001",
-  "idempotencyKey": "idem_001",
-  "confirmedDraft": {
-    "name": "支付页白屏",
-    "fieldValuePairs": [...]
-  }
-}
-
-# 响应
-{
-  "ok": true,
-  "data": {
-    "status": "created",
-    "workitemId": "B2-001"
-  }
-}
-```
-
-### A2 相关接口
-
-与 A1 接口对称：
-
-- `POST /api/a2/analyze` - 分析 A2 需求
-- `POST /api/a2/create-b1-draft` - 生成 B1 草稿
-- `POST /api/a2/apply-b1` - 应用 B1
-
-### PM 即时分析
-
-```bash
-POST /api/pm/analysis/run
-
-# 请求
-{
-  "requestId": "req-007",
-  "operatorLarkId": "ou_xxx",
-  "scope": {
-    "projectKeys": ["PROJ1"],
-    "timeRange": {
-      "from": "2026-03-01",
-      "to": "2026-03-20"
-    }
-  }
-}
-
-# 响应
-{
-  "ok": true,
-  "data": {
-    "summary": "本周期有 3 个事项阻塞超过 5 天",
-    "blockers": [...],
-    "staleItems": [...],
-    "suggestedActions": [...]
-  }
-}
-```
-
-## 错误码
-
-| 错误码 | 描述 |
-|--------|------|
-| `IDENTITY_NOT_BOUND` | 用户身份未绑定 |
-| `MEEGLE_AUTH_REQUIRED` | 需要 Meegle 认证 |
-| `MEEGLE_NOT_LOGGED_IN` | Meegle 未登录 |
-| `MEEGLE_AUTH_CODE_EXPIRED` | Auth code 已过期 |
-| `MEEGLE_TOKEN_REFRESH_FAILED` | Token 刷新失败 |
-| `MEEGLE_META_MISSING` | Meegle 元数据缺失 |
-| `MEEGLE_CREATE_FAILED` | Meegle 创建失败 |
-| `A1_RECORD_NOT_FOUND` | A1 记录不存在 |
-| `A2_RECORD_NOT_FOUND` | A2 记录不存在 |
-| `SCHEMA_VALIDATION_FAILED` | Schema 校验失败 |
-| `PARTIAL_DATA_UNAVAILABLE` | 部分数据不可用 |
-
-## 目录结构
-
-```
-server/
-├── src/
-│   ├── adapters/
-│   │   └── meegle/
-│   │       ├── auth-adapter.ts
-│   │       └── token-store.ts
-│   ├── application/
-│   │   └── services/
-│   │       ├── a1-workflow.service.ts
-│   │       ├── a2-workflow.service.ts
-│   │       ├── pm-analysis.service.ts
-│   │       ├── meegle-credential.service.ts
-│   │       └── identity-resolution.service.ts
-│   ├── modules/
-│   │   ├── identity/
-│   │   │   ├── identity.controller.ts
-│   │   │   └── identity.dto.ts
-│   │   ├── meegle-auth/
-│   │   │   ├── meegle-auth.controller.ts
-│   │   │   ├── meegle-auth.service.ts
-│   │   │   └── meegle-auth.dto.ts
-│   │   ├── a1/
-│   │   │   ├── a1.controller.ts
-│   │   │   └── a1.dto.ts
-│   │   ├── a2/
-│   │   │   ├── a2.controller.ts
-│   │   │   └── a2.dto.ts
-│   │   └── pm-analysis/
-│   │       ├── pm-analysis.controller.ts
-│   │       └── pm-analysis.dto.ts
-│   └── validators/
-│       └── agent-output/
-│           └── execution-draft.ts
-├── tests/
-│   ├── a1-workflow.service.test.ts
-│   ├── a2-workflow.service.test.ts
-│   ├── meegle-auth.service.test.ts
-│   └── e2e/
-│       ├── a1-to-b2.test.ts
-│       └── a2-to-b1.test.ts
-├── package.json
-├── tsconfig.json
-└── README.md
-```
-
-## 架构设计
-
-### 分层架构
-
-```
-┌─────────────────────────────────────────┐
-│  Browser Extension (extension/)         │
-└─────────────────────────────────────────┘
-                    │
-                    ▼
-┌─────────────────────────────────────────┐
-│  API Gateway / Controllers              │
-│  - /api/identity/resolve                │
-│  - /api/meegle/auth/*                   │
-│  - /api/a1/*                            │
-│  - /api/a2/*                            │
-│  - /api/pm/*                            │
-└─────────────────────────────────────────┘
-                    │
-                    ▼
-┌─────────────────────────────────────────┐
-│  Application Services                   │
-│  - IdentityResolutionService            │
-│  - MeegleCredentialService              │
-│  - A1WorkflowService                    │
-│  - A2WorkflowService                    │
-│  - PMAnalysisService                    │
-└─────────────────────────────────────────┘
-                    │
-                    ▼
-┌─────────────────────────────────────────┐
-│  Domain Layer (Agents / Skills)         │
-│  - A1IntakeAgent                        │
-│  - A2RequirementAgent                   │
-│  - PMAnalysisAgent                      │
-│  - Skills: classification, enrichment   │
-└─────────────────────────────────────────┘
-                    │
-                    ▼
-┌─────────────────────────────────────────┐
-│  Platform Adapters                      │
-│  - Lark Adapter (TODO)                  │
-│  - Meegle Adapter (TODO)                │
-│  - GitHub Adapter (TODO)                │
-└─────────────────────────────────────────┘
-```
-
-## 当前状态
-
-### 已实现
-
-- [x] 项目脚手架和 TypeScript 配置
-- [x] 身份解析模块（内存存储）
-- [x] Meegle 认证模块（内存存储）
-- [x] A1 工单分析服务（mock 数据）
-- [x] A2 需求分析服务（框架）
-- [x] PM 分析服务（框架）
-- [x] Agent 输出校验器
-- [x] 单元测试和 E2E 测试框架
-
-### 待实现
-
-- [ ] 数据库持久化存储
-- [ ] AI Agent 实现（Anthropic Claude API）
-- [ ] GitHub API 集成
-- [ ] 审计日志和幂等性检查
-
-## 配置
-
-### 环境变量
-
-| 变量 | 默认值 | 描述 |
-|------|--------|------|
-| `PORT` | 3000 | 服务端端口 |
-| `SERVER_BASE_URL` | http://localhost:3000 | 服务端基础 URL |
-| `MEEGLE_PLUGIN_ID` | - | Meegle 插件 ID |
-| `MEEGLE_PLUGIN_SECRET` | - | Meegle 插件密钥 |
-| `LARK_ACCESS_TOKEN` | - | Lark 用户访问令牌 |
-| `ANTHROPIC_API_KEY` | - | Anthropic API 密钥 |
-
-### 配置文件
-
-- `tsconfig.json` - TypeScript 配置
-- `package.json` - 依赖和脚本
-
-## 测试
-
-```bash
-# 运行所有测试
-npm test
-
-# 运行特定测试
-npx vitest run tests/a1-workflow.service.test.ts
-
-# 监听模式
-npx vitest watch
-```
-
-### 测试覆盖
-
-当前测试覆盖：
-
-- A1 工作流服务
-- A2 工作流服务
-- Meegle 认证服务
-- A1/A2 Controller
-- E2E 流程测试（mock）
-
-## 与 Extension 集成
-
-扩展通过 HTTP 与服务端通信。确保：
-
-1. 服务端已启动并运行
-2. 扩展的 `SERVER_URL` 配置正确
-3. CORS 配置允许扩展访问（开发模式）
-
-## 下一步计划
-
-1. **数据库持久化** - 替换内存存储
-2. **AI Agent 实现** - 集成 Anthropic Claude API
-3. **GitHub API 集成** - 读取 PR 和 issue 数据
-4. **审计日志和幂等性检查** - 防止重复创建
-5. **完善错误处理** - 超时、重试、降级
+说明：
+- `adapters/postgres/` 是当前运行时存储实现
+- `adapters/sqlite/` 只保留给旧库读取和一次性数据导入

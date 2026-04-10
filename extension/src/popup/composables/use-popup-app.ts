@@ -7,7 +7,10 @@ import {
   type PopupMeegleAuthLog,
 } from "../meegle-auth.js";
 import {
+  clearResolvedIdentity,
+  clearResolvedIdentityForTab,
   getConfig,
+  getLarkAuthStatus,
   loadPopupSettings,
   loadResolvedIdentity,
   queryActiveTabContext,
@@ -17,7 +20,9 @@ import {
   runLarkAuthRequest,
   runMeegleAuthRequest,
   saveResolvedIdentity,
+  saveResolvedIdentityForTab,
   savePopupSettings,
+  watchLarkAuthCallbackResult,
 } from "../runtime.js";
 import type {
   PopupFeatureAction,
@@ -40,6 +45,7 @@ import {
 interface PopupIdentityState {
   masterUserId: string | null;
   larkId: string | null;
+  larkEmail: string | null;
   meegleUserKey: string | null;
 }
 
@@ -52,6 +58,7 @@ function createDefaultSettingsForm(): PopupSettingsForm {
   return {
     SERVER_URL: "http://localhost:3000",
     MEEGLE_PLUGIN_ID: "",
+    LARK_OAUTH_CALLBACK_URL: "http://localhost:3000/api/lark/auth/callback",
     meegleUserKey: "",
     larkUserId: "",
   };
@@ -69,6 +76,7 @@ export function usePopupApp() {
     currentUrl: null as string | null,
     identity: {
       larkId: null,
+      larkEmail: null,
       masterUserId: null,
       meegleUserKey: null,
     } as PopupIdentityState,
@@ -134,7 +142,7 @@ export function usePopupApp() {
     resolveMeegleStatusChip(state.meegleAuth, state.identity.meegleUserKey),
   );
   const larkStatus = computed(() =>
-    resolveStatusChip(state.isAuthed.lark, state.identity.larkId),
+    resolveLarkStatusChip(state.larkAuth, state.identity.larkId),
   );
   const topMeegleButtonText = computed(() =>
     state.isAuthed.meegle ? "已授权" : "授权",
@@ -172,6 +180,25 @@ export function usePopupApp() {
       disabled: false,
     },
   ]);
+  void watchLarkAuthCallbackResult(async (result) => {
+    if (result.masterUserId && result.masterUserId !== state.identity.masterUserId) {
+      state.identity.masterUserId = result.masterUserId;
+      await saveResolvedIdentity(result.masterUserId);
+      if (state.currentTabId != null) {
+        await saveResolvedIdentityForTab(state.currentTabId, result.masterUserId);
+      }
+    }
+
+    if (result.status === "ready") {
+      appendLog("success", "Lark 授权完成");
+      const auth = await checkLarkAuth();
+      state.larkAuth = auth;
+      state.isAuthed.lark = auth.status === "ready";
+      return;
+    }
+
+    appendLog("error", `Lark 授权失败: ${result.reason || "Unknown error"}`);
+  });
 
   async function initialize() {
     appendLog("info", "初始化...");
@@ -345,7 +372,10 @@ export function usePopupApp() {
   }
 
   async function checkLarkAuth(): Promise<LarkAuthEnsureResponse> {
-    return runLarkAuthRequest(normalizeLarkAuthBaseUrl(state.currentTabOrigin));
+    return getLarkAuthStatus({
+      masterUserId: state.identity.masterUserId || undefined,
+      baseUrl: normalizeLarkAuthBaseUrl(state.currentTabOrigin),
+    });
   }
 
   async function authorizeMeegle() {
@@ -387,6 +417,14 @@ export function usePopupApp() {
 
   async function authorizeLark() {
     appendLog("info", "检查 Lark 授权...");
+    const masterUserId = await ensureResolvedIdentity();
+
+    if (!masterUserId) {
+      appendLog("error", "无法解析主身份，暂时不能发起 Lark 授权");
+      state.isAuthed.lark = false;
+      return;
+    }
+
     const auth = await checkLarkAuth();
     state.larkAuth = auth;
     state.isAuthed.lark = auth.status === "ready";
@@ -396,7 +434,24 @@ export function usePopupApp() {
       return;
     }
 
-    appendLog("warn", "需要登录 Lark");
+    const started = await runLarkAuthRequest({
+      masterUserId,
+      baseUrl: normalizeLarkAuthBaseUrl(state.currentTabOrigin),
+    });
+    state.larkAuth = started;
+    state.isAuthed.lark = started.status === "ready";
+
+    if (started.status === "ready") {
+      appendLog("success", "Lark 已授权");
+      return;
+    }
+
+    if (started.status === "in_progress") {
+      appendLog("info", "已打开 Lark 授权页，等待完成授权");
+      return;
+    }
+
+    appendLog("warn", started.errorMessage || started.reason || "需要登录 Lark");
   }
 
   function openSettings() {
@@ -431,11 +486,23 @@ export function usePopupApp() {
 
   async function saveSettingsForm() {
     await savePopupSettings({ ...settingsForm });
-    settingsSnapshot = { ...settingsForm };
-    hydrateIdentityFromSettings(settingsForm);
+    const refreshedSettings = await loadPopupSettings();
+    syncSettingsForm(refreshedSettings);
+    settingsSnapshot = { ...refreshedSettings };
+    hydrateIdentityFromSettings(refreshedSettings);
     appendLog("success", "设置已保存");
     activePage.value = "home";
     await refreshAuthStates();
+  }
+
+  async function refreshServerConfig() {
+    const refreshedSettings = await loadPopupSettings();
+    syncSettingsForm(refreshedSettings);
+    settingsSnapshot = { ...refreshedSettings };
+    appendLog(
+      "success",
+      `已刷新服务端配置: ${refreshedSettings.LARK_OAUTH_CALLBACK_URL}`,
+    );
   }
 
   function clearLogs() {
@@ -469,6 +536,7 @@ export function usePopupApp() {
   function syncSettingsForm(settings: PopupSettingsForm) {
     settingsForm.SERVER_URL = settings.SERVER_URL;
     settingsForm.MEEGLE_PLUGIN_ID = settings.MEEGLE_PLUGIN_ID;
+    settingsForm.LARK_OAUTH_CALLBACK_URL = settings.LARK_OAUTH_CALLBACK_URL;
     settingsForm.meegleUserKey = settings.meegleUserKey;
     settingsForm.larkUserId = settings.larkUserId;
   }
@@ -509,6 +577,10 @@ export function usePopupApp() {
     if (resolved.ok && resolved.data?.masterUserId) {
       if (resolved.data.identityStatus === "conflict") {
         state.identity.masterUserId = null;
+        await clearResolvedIdentity();
+        if (state.currentTabId != null) {
+          await clearResolvedIdentityForTab(state.currentTabId);
+        }
         appendLog("error", "检测到 Lark 和 Meegle 账号冲突，已阻止继续授权");
         return undefined;
       }
@@ -517,10 +589,16 @@ export function usePopupApp() {
       if (resolved.data.operatorLarkId) {
         state.identity.larkId = resolved.data.operatorLarkId;
       }
+      if (resolved.data.larkEmail) {
+        state.identity.larkEmail = resolved.data.larkEmail;
+      }
       if (resolved.data.meegleUserKey) {
         state.identity.meegleUserKey = resolved.data.meegleUserKey;
       }
       await saveResolvedIdentity(resolved.data.masterUserId);
+      if (state.currentTabId != null) {
+        await saveResolvedIdentityForTab(state.currentTabId, resolved.data.masterUserId);
+      }
       return resolved.data.masterUserId;
     }
 
@@ -551,6 +629,7 @@ export function usePopupApp() {
     closeSettings,
     fetchMeegleUserKey,
     saveSettingsForm,
+    refreshServerConfig,
     clearLogs,
     runFeatureAction,
   };
@@ -578,6 +657,38 @@ function resolveStatusChip(
     tone: "default",
     text: "-",
   };
+}
+
+function formatExpiry(expiresAt?: string): string | undefined {
+  if (!expiresAt) {
+    return undefined;
+  }
+
+  const parsed = new Date(expiresAt);
+  if (Number.isNaN(parsed.getTime())) {
+    return undefined;
+  }
+
+  const month = `${parsed.getMonth() + 1}`.padStart(2, "0");
+  const day = `${parsed.getDate()}`.padStart(2, "0");
+  const hours = `${parsed.getHours()}`.padStart(2, "0");
+  const minutes = `${parsed.getMinutes()}`.padStart(2, "0");
+  return `${month}-${day} ${hours}:${minutes}`;
+}
+
+function resolveLarkStatusChip(
+  auth: LarkAuthEnsureResponse | undefined,
+  fallbackValue?: string | null,
+): PopupStatusChip {
+  if (auth?.status === "ready") {
+    const expiryText = formatExpiry(auth.expiresAt);
+    return {
+      tone: "success",
+      text: expiryText ? `已授权 · ${expiryText}` : "已授权",
+    };
+  }
+
+  return resolveStatusChip(false, fallbackValue);
 }
 
 function resolveMeegleStatusChip(

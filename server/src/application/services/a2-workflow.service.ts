@@ -2,8 +2,11 @@ import {
   validateExecutionDraft,
   type ExecutionDraft,
 } from "../../validators/agent-output/execution-draft.js";
-import { createWorkitemFromDraft } from "./meegle-workitem.service.js";
-import type { MeegleWorkitemServiceDeps } from "./meegle-workitem.service.js";
+import {
+  executeMeegleApply,
+  type MeegleApplyExecutionDeps,
+  type MeegleApplyResult,
+} from "./meegle-apply.service.js";
 import type { A2Requirement } from "../../adapters/lark/lark-client.js";
 
 export interface A2Record extends Partial<A2Requirement> {
@@ -15,7 +18,7 @@ export interface A2Record extends Partial<A2Requirement> {
   priority: "high" | "medium" | "low";
 }
 
-export interface A2WorkflowDeps extends Partial<MeegleWorkitemServiceDeps> {
+export interface A2WorkflowDeps extends Partial<MeegleApplyExecutionDeps> {
   loadRecord?: (recordId: string) => Promise<A2Record>;
 }
 
@@ -95,7 +98,8 @@ export async function applyB1(
   input: {
     requestId: string;
     draftId: string;
-    operatorLarkId: string;
+    masterUserId?: string;
+    operatorLarkId?: string;
     sourceRecordId: string;
     idempotencyKey: string;
     confirmedDraft: {
@@ -105,7 +109,7 @@ export async function applyB1(
     };
   },
   deps: A2WorkflowDeps = {},
-) {
+): Promise<MeegleApplyResult> {
   const draft = validateExecutionDraft({
     draftId: input.draftId,
     draftType: "b1",
@@ -124,23 +128,16 @@ export async function applyB1(
     missingMeta: [],
     needConfirm: true,
   });
-
-  // If client is provided, create real workitem; otherwise return mock
-  if (deps.client) {
-    const created = await createWorkitemFromDraft(draft, { client: deps.client });
-    return {
-      status: "created" as const,
-      workitemId: created.workitemId,
+  return executeMeegleApply(
+    {
+      requestId: input.requestId,
       draft,
-    };
-  }
-
-  // Mock response for tests
-  return {
-    status: "created" as const,
-    workitemId: "B1-001",
-    draft,
-  };
+      operatorLarkId: input.operatorLarkId,
+      masterUserId: input.masterUserId,
+      idempotencyKey: input.idempotencyKey,
+    },
+    deps,
+  );
 }
 
 export async function executeA2ToB1Flow(

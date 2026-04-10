@@ -25,7 +25,6 @@ export interface PopupViewModel {
   subtitle: string;
   showUnsupported: boolean;
   showAuthBlockTop: boolean;
-  showAuthBlockBottom: boolean;
   showLarkFeatureBlock: boolean;
   showMeegleFeatureBlock: boolean;
   canAnalyze: boolean;
@@ -52,7 +51,6 @@ export function createPopupViewModel(
   const showUnsupported = input.pageType === "unsupported";
   const showAuthBlockTop = !showUnsupported;
   const isFullyAuthorized = input.isAuthed.lark && input.isAuthed.meegle;
-  const showAuthBlockBottom = showAuthBlockTop && isFullyAuthorized;
   const showLarkFeatureBlock = input.pageType === "lark" && isFullyAuthorized;
   const showMeegleFeatureBlock = input.pageType === "meegle" && isFullyAuthorized;
 
@@ -60,7 +58,6 @@ export function createPopupViewModel(
     subtitle: resolveSubtitle(input.pageType),
     showUnsupported,
     showAuthBlockTop,
-    showAuthBlockBottom,
     showLarkFeatureBlock,
     showMeegleFeatureBlock,
     canAnalyze: showLarkFeatureBlock,

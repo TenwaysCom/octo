@@ -35,7 +35,7 @@ export default defineConfig({
     },
     permissions: ["tabs", "activeTab", "scripting", "storage", "cookies"],
     host_permissions: [
-      "http://localhost:3000/*",
+      "http://localhost/*",
       "https://*.feishu.cn/*",
       "https://*.larksuite.com/*",
       "https://meegle.com/*",

@@ -153,6 +153,7 @@ function createPopupAppMock(pageType: PopupPageType) {
     settingsForm: reactive<PopupSettingsForm>({
       SERVER_URL: "http://localhost:3000",
       MEEGLE_PLUGIN_ID: "plugin_test",
+      LARK_OAUTH_CALLBACK_URL: "http://localhost:3000/api/lark/auth/callback",
       meegleUserKey: "",
       larkUserId: "",
     }),
@@ -189,6 +190,7 @@ function createPopupAppMock(pageType: PopupPageType) {
     closeSettings: vi.fn(() => {
       activePage.value = "home";
     }),
+    refreshServerConfig: vi.fn(),
     saveSettingsForm: vi.fn(async () => {
       activePage.value = "home";
     }),
@@ -203,7 +205,6 @@ function createViewModel(pageType: PopupPageType): PopupViewModel {
       subtitle: "已连接到 Lark 页面",
       showUnsupported: false,
       showAuthBlockTop: true,
-      showAuthBlockBottom: false,
       showLarkFeatureBlock: true,
       showMeegleFeatureBlock: false,
       canAnalyze: true,
@@ -217,7 +218,6 @@ function createViewModel(pageType: PopupPageType): PopupViewModel {
       subtitle: "已连接到 Meegle 页面",
       showUnsupported: false,
       showAuthBlockTop: true,
-      showAuthBlockBottom: false,
       showLarkFeatureBlock: false,
       showMeegleFeatureBlock: true,
       canAnalyze: false,
@@ -230,7 +230,6 @@ function createViewModel(pageType: PopupPageType): PopupViewModel {
     subtitle: "当前页面不支持",
     showUnsupported: true,
     showAuthBlockTop: false,
-    showAuthBlockBottom: false,
     showLarkFeatureBlock: false,
     showMeegleFeatureBlock: false,
     canAnalyze: false,

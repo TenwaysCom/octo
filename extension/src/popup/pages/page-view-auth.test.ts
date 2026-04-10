@@ -10,7 +10,6 @@ const authorizedViewModel: PopupViewModel = {
   subtitle: "Meegle",
   showUnsupported: false,
   showAuthBlockTop: true,
-  showAuthBlockBottom: true,
   showLarkFeatureBlock: false,
   showMeegleFeatureBlock: true,
   canAnalyze: false,
@@ -30,7 +29,7 @@ const authorizedProps = {
 };
 
 describe("page view auth buttons", () => {
-  it("keeps both meegle auth buttons disabled on the Meegle page when auth is ready", () => {
+  it("keeps the auth buttons disabled on the Meegle page when auth is ready", () => {
     const wrapper = mount(MeeglePageView, {
       props: authorizedProps,
       global: {
@@ -58,13 +57,12 @@ describe("page view auth buttons", () => {
     });
 
     const cards = wrapper.findAll('[data-test="auth-card"]');
-    expect(cards).toHaveLength(2);
+    expect(cards).toHaveLength(1);
     expect(cards[0]?.attributes("data-meegle-disabled")).toBe("true");
-    expect(cards[1]?.attributes("data-meegle-disabled")).toBe("true");
-    expect(cards[1]?.attributes("data-meegle-text")).toBe("重新授权");
+    expect(cards[0]?.attributes("data-meegle-text")).toBe("已授权");
   });
 
-  it("keeps both meegle auth buttons disabled on the Lark page when auth is ready", () => {
+  it("keeps the auth buttons disabled on the Lark page when auth is ready", () => {
     const wrapper = mount(LarkPageView, {
       props: authorizedProps,
       global: {
@@ -92,10 +90,8 @@ describe("page view auth buttons", () => {
     });
 
     const cards = wrapper.findAll('[data-test="auth-card"]');
-    expect(cards).toHaveLength(2);
+    expect(cards).toHaveLength(1);
     expect(cards[0]?.attributes("data-meegle-disabled")).toBe("true");
-    expect(cards[1]?.attributes("data-meegle-disabled")).toBe("true");
     expect(cards[0]?.attributes("data-lark-disabled")).toBe("true");
-    expect(cards[1]?.attributes("data-lark-disabled")).toBe("true");
   });
 });

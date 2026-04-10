@@ -59,7 +59,6 @@ describe("popup view model", () => {
       subtitle: "Lark",
       showUnsupported: false,
       showAuthBlockTop: true,
-      showAuthBlockBottom: true,
       showLarkFeatureBlock: true,
       showMeegleFeatureBlock: false,
       canAnalyze: true,
@@ -85,7 +84,6 @@ describe("popup view model", () => {
       subtitle: "Meegle",
       showUnsupported: false,
       showAuthBlockTop: true,
-      showAuthBlockBottom: true,
       showLarkFeatureBlock: false,
       showMeegleFeatureBlock: true,
       canAnalyze: false,
@@ -109,7 +107,6 @@ describe("popup view model", () => {
       }),
     ).toMatchObject({
       showAuthBlockTop: true,
-      showAuthBlockBottom: false,
       showLarkFeatureBlock: false,
       showMeegleFeatureBlock: false,
       canAnalyze: false,
@@ -135,7 +132,6 @@ describe("popup view model", () => {
       subtitle: "不支持",
       showUnsupported: true,
       showAuthBlockTop: false,
-      showAuthBlockBottom: false,
       showLarkFeatureBlock: false,
       showMeegleFeatureBlock: false,
     });
