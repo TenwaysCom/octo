@@ -6,11 +6,11 @@
 
 import {
   getSharedOauthSessionStore,
-} from "../../adapters/sqlite/lark-oauth-session-store.js";
-import { getSharedLarkTokenStore } from "../../adapters/sqlite/lark-token-store.js";
+} from "../../adapters/postgres/lark-oauth-session-store.js";
+import { getSharedLarkTokenStore } from "../../adapters/postgres/lark-token-store.js";
 import type { OauthSessionStore } from "../../adapters/lark/oauth-session-store.js";
 import type { LarkTokenStore } from "../../adapters/lark/token-store.js";
-import { getResolvedUserStore, type ResolvedUserStore } from "../../adapters/sqlite/resolved-user-store.js";
+import { getResolvedUserStore, type ResolvedUserStore } from "../../adapters/postgres/resolved-user-store.js";
 import type {
   LarkAuthCallbackPage,
   LarkAuthCallbackQuery,

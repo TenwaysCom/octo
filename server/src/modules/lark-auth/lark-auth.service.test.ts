@@ -1,12 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { DatabaseSync } from "node:sqlite";
-import { createSqliteDatabase } from "../../adapters/sqlite/database.js";
-import { SqliteOauthSessionStore } from "../../adapters/sqlite/lark-oauth-session-store.js";
-import { SqliteLarkTokenStore } from "../../adapters/sqlite/lark-token-store.js";
+import type { Kysely } from "kysely";
+import { PostgresOauthSessionStore } from "../../adapters/postgres/lark-oauth-session-store.js";
+import { PostgresLarkTokenStore } from "../../adapters/postgres/lark-token-store.js";
 import {
-  SqliteResolvedUserStore,
+  PostgresResolvedUserStore,
   configureResolvedUserStore,
-} from "../../adapters/sqlite/resolved-user-store.js";
+} from "../../adapters/postgres/resolved-user-store.js";
+import type { DatabaseSchema } from "../../adapters/postgres/schema.js";
+import { createTestPostgresDatabase } from "../../adapters/postgres/test-db.js";
 import {
   checkLarkAuthStatus,
   configureLarkAuthServiceDeps,
@@ -17,20 +18,24 @@ import {
 } from "./lark-auth.service.js";
 
 describe("lark-auth.service", () => {
-  let db: DatabaseSync;
-  let resolvedUserStore: SqliteResolvedUserStore;
+  let db: Kysely<DatabaseSchema>;
+  let resolvedUserStore: PostgresResolvedUserStore;
+  let tokenStore: PostgresLarkTokenStore;
+  let oauthSessionStore: PostgresOauthSessionStore;
 
-  beforeEach(() => {
-    db = createSqliteDatabase(":memory:");
-    resolvedUserStore = new SqliteResolvedUserStore(db);
+  beforeEach(async () => {
+    ({ db } = await createTestPostgresDatabase());
+    resolvedUserStore = new PostgresResolvedUserStore(db);
+    tokenStore = new PostgresLarkTokenStore(db);
+    oauthSessionStore = new PostgresOauthSessionStore(db);
     configureResolvedUserStore(resolvedUserStore);
     configureLarkAuthServiceDeps({
       appId: "cli_test",
       appSecret: "secret_test",
       fetchImpl: vi.fn(),
       resolvedUserStore,
-      tokenStore: new SqliteLarkTokenStore(db),
-      oauthSessionStore: new SqliteOauthSessionStore(db),
+      tokenStore,
+      oauthSessionStore,
     });
   });
 
@@ -176,6 +181,8 @@ describe("lark-auth.service", () => {
       appSecret: "secret_test",
       fetchImpl: fetchImpl as unknown as typeof fetch,
       resolvedUserStore,
+      tokenStore,
+      oauthSessionStore,
     });
     const user = await resolvedUserStore.create({
       status: "active",
@@ -336,11 +343,11 @@ describe("lark-auth.service", () => {
       larkEmail: "user@example.com",
     });
 
-    const tokenRow = db.prepare(`
-      SELECT provider_tenant_key, external_user_key
-      FROM user_tokens
-      WHERE master_user_id = ? AND provider = 'lark'
-    `).get(user.id) as { provider_tenant_key: string; external_user_key: string } | undefined;
+    const tokenRow = await db.selectFrom("user_tokens")
+      .select(["provider_tenant_key", "external_user_key"])
+      .where("master_user_id", "=", user.id)
+      .where("provider", "=", "lark")
+      .executeTakeFirst();
 
     expect(tokenRow).toEqual({
       provider_tenant_key: "tenant_123",

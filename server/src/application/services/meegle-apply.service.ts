@@ -5,7 +5,7 @@ import {
   getResolvedUserStore,
   type ResolvedUserRecord,
   type ResolvedUserStore,
-} from "../../adapters/sqlite/resolved-user-store.js";
+} from "../../adapters/postgres/resolved-user-store.js";
 import { refreshCredential } from "./meegle-credential.service.js";
 import { getConfiguredMeegleAuthServiceDeps } from "../../modules/meegle-auth/meegle-auth.service.js";
 import {

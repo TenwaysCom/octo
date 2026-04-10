@@ -4,11 +4,11 @@ import {
   InMemoryMeegleTokenStore,
   type StoredMeegleToken,
 } from "../../adapters/meegle/token-store.js";
-import { createSqliteDatabase } from "../../adapters/sqlite/database.js";
 import {
-  SqliteResolvedUserStore,
+  PostgresResolvedUserStore,
   configureResolvedUserStore,
-} from "../../adapters/sqlite/resolved-user-store.js";
+} from "../../adapters/postgres/resolved-user-store.js";
+import { createTestPostgresDatabase } from "../../adapters/postgres/test-db.js";
 import { validateExecutionDraft } from "../../validators/agent-output/execution-draft.js";
 import {
   MeegleApplyError,
@@ -42,14 +42,15 @@ describe("meegle-apply.service", () => {
     missingMeta: [],
   });
 
-  let resolvedUserStore: SqliteResolvedUserStore;
+  let resolvedUserStore: PostgresResolvedUserStore;
   let tokenStore: InMemoryMeegleTokenStore;
   let authAdapter: MeegleAuthAdapter;
   let createClient: ReturnType<typeof vi.fn>;
   let createWorkitemFromDraft: ReturnType<typeof vi.fn>;
 
-  beforeEach(() => {
-    resolvedUserStore = new SqliteResolvedUserStore(createSqliteDatabase(":memory:"));
+  beforeEach(async () => {
+    const { db } = await createTestPostgresDatabase();
+    resolvedUserStore = new PostgresResolvedUserStore(db);
     configureResolvedUserStore(resolvedUserStore);
     tokenStore = new InMemoryMeegleTokenStore();
     createClient = vi.fn(async (input) => ({ ...input, clientTag: "mock-client" }));

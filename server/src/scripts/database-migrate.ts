@@ -1,12 +1,14 @@
+import "dotenv/config";
 import {
-  createSqliteDatabase,
-  getDefaultDatabasePath,
-  resetSqliteDatabase,
-} from "../adapters/sqlite/database.js";
+  createPostgresDatabase,
+  getDefaultPostgresUri,
+  ensurePostgresSchema,
+  resetPostgresDatabase,
+} from "../adapters/postgres/database.js";
 
-function parseArgs(argv: string[]): { reset: boolean; dbPath: string } {
+function parseArgs(argv: string[]): { reset: boolean; postgresUri: string } {
   let reset = false;
-  let dbPath = getDefaultDatabasePath();
+  let postgresUri = getDefaultPostgresUri();
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -16,34 +18,37 @@ function parseArgs(argv: string[]): { reset: boolean; dbPath: string } {
       continue;
     }
 
-    if (arg === "--db" || arg === "--db-path") {
+    if (arg === "--db" || arg === "--db-path" || arg === "--pg" || arg === "--postgres-uri") {
       const next = argv[index + 1];
       if (!next) {
         throw new Error("Missing value for --db");
       }
 
-      dbPath = next;
+      postgresUri = next;
       index += 1;
       continue;
     }
   }
 
-  return { reset, dbPath };
+  return { reset, postgresUri };
 }
 
-function main(): void {
-  const { reset, dbPath } = parseArgs(process.argv.slice(2));
-  const db = reset
-    ? resetSqliteDatabase(dbPath)
-    : createSqliteDatabase(dbPath);
-  db.close();
+async function main(): Promise<void> {
+  const { reset, postgresUri } = parseArgs(process.argv.slice(2));
+  const db = createPostgresDatabase(postgresUri);
 
-  if (reset) {
-    console.log(`[db] reset and recreated sqlite database at ${dbPath}`);
-    return;
+  try {
+    if (reset) {
+      await resetPostgresDatabase(db);
+      console.log("[db] reset and recreated postgres schema");
+      return;
+    }
+
+    await ensurePostgresSchema(db);
+    console.log("[db] ensured postgres schema");
+  } finally {
+    await db.destroy();
   }
-
-  console.log(`[db] ensured sqlite schema at ${dbPath}`);
 }
 
-main();
+void main();

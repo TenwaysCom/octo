@@ -11,9 +11,10 @@ import { configureLarkAuthServiceDeps } from "./modules/lark-auth/lark-auth.serv
 import { configureMeegleAuthServiceDeps } from "./modules/meegle-auth/meegle-auth.service.js";
 import { configurePublicConfigController, getPublicConfigController } from "./modules/public-config/public-config.controller.js";
 import { createHttpMeegleAuthAdapter } from "./adapters/meegle/auth-adapter.js";
-import { getSharedMeegleTokenStore } from "./adapters/sqlite/meegle-token-store.js";
-import { getSharedLarkTokenStore } from "./adapters/sqlite/lark-token-store.js";
-import { getSharedOauthSessionStore } from "./adapters/sqlite/lark-oauth-session-store.js";
+import { ensureSharedDatabase } from "./adapters/postgres/database.js";
+import { getSharedMeegleTokenStore } from "./adapters/postgres/meegle-token-store.js";
+import { getSharedLarkTokenStore } from "./adapters/postgres/lark-token-store.js";
+import { getSharedOauthSessionStore } from "./adapters/postgres/lark-oauth-session-store.js";
 import { registerLarkMeegleWorkflowRoutes } from "./http/lark-meegle-workflow-routes.js";
 import { runPMAnalysisController } from "./modules/pm-analysis/pm-analysis.controller.js";
 import { createApiRequestLogger, logApiRequest, summarizeRequestPayload } from "./http/api-request-logger.js";
@@ -142,6 +143,7 @@ registerLarkMeegleWorkflowRoutes(app, handleController);
 app.post("/api/pm/analysis/run", handleController(runPMAnalysisController));
 
 if (process.env.NODE_ENV !== "test" && process.env.VITEST !== "true") {
+  await ensureSharedDatabase();
   app.listen(PORT, HOST, () => {
     console.log(`Tenways Octo Server running on http://${HOST}:${PORT}`);
     console.log(`Health check: http://${HOST}:${PORT}/health`);

@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createSqliteDatabase } from "../../adapters/sqlite/database.js";
 import {
-  SqliteResolvedUserStore,
+  PostgresResolvedUserStore,
   configureResolvedUserStore,
-} from "../../adapters/sqlite/resolved-user-store.js";
+} from "../../adapters/postgres/resolved-user-store.js";
+import { PostgresLarkTokenStore } from "../../adapters/postgres/lark-token-store.js";
+import { PostgresOauthSessionStore } from "../../adapters/postgres/lark-oauth-session-store.js";
+import { createTestPostgresDatabase } from "../../adapters/postgres/test-db.js";
 import {
   configureLarkAuthControllerDeps,
   getAuthStatusController,
@@ -15,9 +17,14 @@ import {
 } from "./lark-auth.service.js";
 
 describe("lark-auth.controller", () => {
-  beforeEach(() => {
-    const db = createSqliteDatabase(":memory:");
-    configureResolvedUserStore(new SqliteResolvedUserStore(db));
+  let tokenStore: PostgresLarkTokenStore;
+  let oauthSessionStore: PostgresOauthSessionStore;
+
+  beforeEach(async () => {
+    const { db } = await createTestPostgresDatabase();
+    configureResolvedUserStore(new PostgresResolvedUserStore(db));
+    tokenStore = new PostgresLarkTokenStore(db);
+    oauthSessionStore = new PostgresOauthSessionStore(db);
 
     configureLarkAuthControllerDeps({
       appId: "cli_test",
@@ -28,6 +35,8 @@ describe("lark-auth.controller", () => {
       appId: "cli_test",
       appSecret: "secret_test",
       fetchImpl: vi.fn(),
+      tokenStore,
+      oauthSessionStore,
     });
   });
 
@@ -49,7 +58,10 @@ describe("lark-auth.controller", () => {
   });
 
   it("renders a success completion page when callback exchange succeeds", async () => {
-    const resolvedUserStore = new SqliteResolvedUserStore(createSqliteDatabase(":memory:"));
+    const { db } = await createTestPostgresDatabase();
+    const resolvedUserStore = new PostgresResolvedUserStore(db);
+    const localTokenStore = new PostgresLarkTokenStore(db);
+    const localOauthSessionStore = new PostgresOauthSessionStore(db);
     configureResolvedUserStore(resolvedUserStore);
     const user = await resolvedUserStore.create({
       status: "pending_lark_identity",
@@ -91,6 +103,8 @@ describe("lark-auth.controller", () => {
       appId: "cli_test",
       appSecret: "secret_test",
       fetchImpl: fetchImpl as unknown as typeof fetch,
+      tokenStore: localTokenStore,
+      oauthSessionStore: localOauthSessionStore,
     });
 
     await startLarkOauthSession({

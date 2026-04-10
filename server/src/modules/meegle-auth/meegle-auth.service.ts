@@ -3,7 +3,7 @@ import {
   InMemoryMeegleTokenStore,
   type MeegleTokenStore,
 } from "../../adapters/meegle/token-store.js";
-import { getResolvedUserStore } from "../../adapters/sqlite/resolved-user-store.js";
+import { getResolvedUserStore } from "../../adapters/postgres/resolved-user-store.js";
 import {
   exchangeCredential,
   refreshCredential,

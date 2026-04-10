@@ -1,7 +1,7 @@
 import {
   getResolvedUserStore,
   type ResolvedUserRecord,
-} from "../../adapters/sqlite/resolved-user-store.js";
+} from "../../adapters/postgres/resolved-user-store.js";
 import type { IdentityResolveRequest } from "../../modules/identity/identity.dto.js";
 
 export interface IdentityResolutionResponse {

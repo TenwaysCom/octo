@@ -21,10 +21,32 @@
 pnpm --dir server dev
 pnpm --dir server test
 pnpm --dir server build
+pnpm --dir server db:migrate
+pnpm --dir server db:import-sqlite
 pnpm --dir server start
 ```
 
 默认地址：`http://localhost:3000`
+
+## 数据库
+
+运行时存储现在使用 PostgreSQL，连接串从 `POSTGRES_URI` 读取。
+
+常用命令：
+
+```bash
+pnpm --dir server db:migrate
+pnpm --dir server db:reset
+pnpm --dir server db:import-sqlite -- --sqlite ./data/tenways-octo.sqlite
+```
+
+推荐迁移顺序：
+
+1. 在 `server/.env` 或进程环境里配置 `POSTGRES_URI`
+2. 运行 `pnpm --dir server build`
+3. 运行 `pnpm --dir server db:migrate`
+4. 如果要导入旧 SQLite 数据，运行 `pnpm --dir server db:import-sqlite -- --sqlite ./data/tenways-octo.sqlite`
+5. 启动服务，后续运行时只使用 PostgreSQL
 
 ## 主要接口
 
@@ -134,6 +156,7 @@ server/src/
 ├── adapters/
 │   ├── lark/
 │   ├── meegle/
+│   ├── postgres/
 │   └── sqlite/
 ├── application/services/
 │   ├── a1-workflow.service.ts
@@ -152,3 +175,7 @@ server/src/
 │   └── pm-analysis/
 └── validators/
 ```
+
+说明：
+- `adapters/postgres/` 是当前运行时存储实现
+- `adapters/sqlite/` 只保留给旧库读取和一次性数据导入
