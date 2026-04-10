@@ -17,6 +17,7 @@ import { getSharedLarkTokenStore } from "./adapters/postgres/lark-token-store.js
 import { getSharedOauthSessionStore } from "./adapters/postgres/lark-oauth-session-store.js";
 import { registerLarkMeegleWorkflowRoutes } from "./http/lark-meegle-workflow-routes.js";
 import { runPMAnalysisController } from "./modules/pm-analysis/pm-analysis.controller.js";
+import { acpKimiChatController } from "./modules/acp-kimi/acp-kimi.controller.js";
 import { createApiRequestLogger, logApiRequest, summarizeRequestPayload } from "./http/api-request-logger.js";
 import { createCorsMiddleware } from "./http/cors.js";
 
@@ -138,6 +139,7 @@ app.get("/api/lark/auth/callback", async (req, res) => {
 });
 
 registerLarkMeegleWorkflowRoutes(app, handleController);
+app.post("/api/acp/kimi/chat", acpKimiChatController);
 
 // PM Analysis routes
 app.post("/api/pm/analysis/run", handleController(runPMAnalysisController));

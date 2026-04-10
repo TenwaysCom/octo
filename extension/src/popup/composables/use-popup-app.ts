@@ -37,10 +37,15 @@ import {
   createPopupViewModel,
   type PopupPageType,
 } from "../view-model.js";
+import { createKimiChatClient } from "../kimi-chat.js";
 import {
   normalizeLarkAuthBaseUrl,
   normalizeMeegleAuthBaseUrl,
 } from "../../platform-url.js";
+import type {
+  KimiChatEvent,
+  KimiChatTranscriptEntry,
+} from "../../types/acp-kimi.js";
 
 interface PopupIdentityState {
   masterUserId: string | null;
@@ -69,6 +74,63 @@ export function usePopupApp() {
   const isLoading = ref(true);
   const hasResolvedPageContext = ref(false);
   const activePage = ref<PopupNotebookPage>("home");
+  const showKimiChat = ref(false);
+  const kimiChatBusy = ref(false);
+  const kimiChatTranscript = ref<KimiChatTranscriptEntry[]>([]);
+
+  function appendKimiChatEvent(event: KimiChatEvent): void {
+    switch (event.event) {
+      case "session.created":
+        kimiChatTranscript.value = [
+          ...kimiChatTranscript.value,
+          {
+            id: createTranscriptEntryId("session"),
+            text: `session.created · ${event.data.sessionId}`,
+          },
+        ];
+        return;
+      case "acp.session.update":
+        appendAssistantTranscript(event.data.sessionId, event.data.update);
+        return;
+      case "done":
+        kimiChatTranscript.value = [
+          ...kimiChatTranscript.value,
+          {
+            id: createTranscriptEntryId("done"),
+            text: `done · ${event.data.stopReason}`,
+          },
+        ];
+    }
+  }
+
+  function appendAssistantTranscript(
+    sessionId: string,
+    update: Record<string, unknown>,
+  ): void {
+    const text = renderUpdateText(update);
+    const entryId = `assistant-${sessionId}`;
+    const existingIndex = kimiChatTranscript.value.findIndex(
+      (entry) => entry.id === entryId,
+    );
+
+    if (existingIndex === -1) {
+      kimiChatTranscript.value = [
+        ...kimiChatTranscript.value,
+        {
+          id: entryId,
+          text: `assistant: ${text}`,
+        },
+      ];
+      return;
+    }
+
+    const nextTranscript = [...kimiChatTranscript.value];
+    nextTranscript[existingIndex] = {
+      ...nextTranscript[existingIndex],
+      text: `${nextTranscript[existingIndex].text}${text}`,
+    };
+    kimiChatTranscript.value = nextTranscript;
+  }
   const state = reactive({
     pageType: "unsupported" as PopupPageType,
     currentTabId: null as number | null,
@@ -510,6 +572,12 @@ export function usePopupApp() {
   }
 
   function runFeatureAction(actionKey: string) {
+    if (actionKey === "analyze") {
+      openKimiChat();
+      appendLog("info", "已打开 Kimi ACP 聊天面板");
+      return;
+    }
+
     const labels: Record<string, string> = {
       analyze: "分析中...",
       draft: "生成草稿...",
@@ -519,6 +587,53 @@ export function usePopupApp() {
 
     appendLog("info", labels[actionKey] || "执行操作中...");
     appendLog("warn", "功能开发中，请稍后");
+  }
+
+  function openKimiChat() {
+    showKimiChat.value = true;
+    kimiChatTranscript.value = [];
+  }
+
+  async function sendKimiChatMessage(message: string) {
+    const operatorLarkId = state.identity.larkId || settingsForm.larkUserId;
+
+    if (!operatorLarkId) {
+      appendLog("error", "缺少 operatorLarkId，无法发送 Kimi ACP 消息");
+      return;
+    }
+
+    showKimiChat.value = true;
+    kimiChatBusy.value = true;
+
+    const client = createKimiChatClient({
+      baseUrl: settingsForm.SERVER_URL,
+    });
+
+    try {
+      kimiChatTranscript.value = [
+        ...kimiChatTranscript.value,
+        {
+          id: createTranscriptEntryId("user"),
+          text: `你: ${message}`,
+        },
+      ];
+
+      await client.sendMessage({
+        operatorLarkId,
+        message,
+      }, {
+        onEvent(event) {
+          appendKimiChatEvent(event);
+        },
+      });
+    } catch (error) {
+      appendLog(
+        "error",
+        `Kimi ACP 请求失败: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    } finally {
+      kimiChatBusy.value = false;
+    }
   }
 
   function appendLog(level: PopupLogLevel, message: string) {
@@ -622,6 +737,9 @@ export function usePopupApp() {
     topLarkButtonDisabled,
     larkActions,
     meegleActions,
+    showKimiChat,
+    kimiChatTranscript,
+    kimiChatBusy,
     initialize,
     authorizeMeegle,
     authorizeLark,
@@ -632,7 +750,31 @@ export function usePopupApp() {
     refreshServerConfig,
     clearLogs,
     runFeatureAction,
+    sendKimiChatMessage,
   };
+}
+
+function createTranscriptEntryId(prefix: string): string {
+  return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+}
+
+function renderUpdateText(update: Record<string, unknown>): string {
+  const content = update.content;
+
+  if (typeof content === "string") {
+    return content;
+  }
+
+  if (
+    content &&
+    typeof content === "object" &&
+    "text" in content &&
+    typeof (content as { text?: unknown }).text === "string"
+  ) {
+    return (content as { text: string }).text;
+  }
+
+  return JSON.stringify(update);
 }
 
 function resolveStatusChip(

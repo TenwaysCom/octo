@@ -16,9 +16,13 @@
           :top-lark-button-disabled="topLarkButtonDisabled"
           :lark-actions="larkActions"
           :meegle-actions="meegleActions"
+          :show-kimi-chat="showKimiChat"
+          :kimi-chat-transcript="kimiChatTranscript"
+          :kimi-chat-busy="kimiChatBusy"
           @authorize-meegle="authorizeMeegle"
           @authorize-lark="authorizeLark"
           @feature="runFeatureAction"
+          @send-kimi-chat-message="sendKimiChatMessage"
           @clear-logs="clearLogs"
         />
         <SettingsPage
@@ -59,11 +63,15 @@ const {
   topLarkButtonDisabled,
   larkActions,
   meegleActions,
+  showKimiChat,
+  kimiChatTranscript,
+  kimiChatBusy,
   initialize,
   authorizeMeegle,
   authorizeLark,
   closeSettings,
   fetchMeegleUserKey,
+  sendKimiChatMessage,
   saveSettingsForm,
   refreshServerConfig,
   clearLogs,

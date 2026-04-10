@@ -1,5 +1,11 @@
 <template>
   <div class="home-page" data-test="home-page">
+    <KimiChatPanel
+      v-if="showKimiChat"
+      :transcript="kimiChatTranscript"
+      :busy="kimiChatBusy"
+      @send="$emit('sendKimiChatMessage', $event)"
+    />
     <UnsupportedPageView
       v-if="viewModel.showUnsupported"
       data-test="unsupported-view"
@@ -39,6 +45,8 @@
 <script setup lang="ts">
 import type { PopupLogEntry, PopupFeatureAction, PopupStatusChip } from "../types.js";
 import type { PopupViewModel } from "../view-model.js";
+import type { KimiChatTranscriptEntry } from "../../types/acp-kimi.js";
+import KimiChatPanel from "../components/KimiChatPanel.vue";
 import LogPanel from "../components/LogPanel.vue";
 import LarkPageView from "./LarkPageView.vue";
 import MeeglePageView from "./MeeglePageView.vue";
@@ -58,12 +66,16 @@ defineProps<{
   topLarkButtonDisabled: boolean;
   larkActions: PopupFeatureAction[];
   meegleActions: PopupFeatureAction[];
+  showKimiChat: boolean;
+  kimiChatTranscript: KimiChatTranscriptEntry[];
+  kimiChatBusy: boolean;
 }>();
 
 defineEmits<{
   authorizeMeegle: [];
   authorizeLark: [];
   feature: [key: string];
+  sendKimiChatMessage: [message: string];
   clearLogs: [];
 }>();
 </script>
