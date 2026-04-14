@@ -373,6 +373,22 @@ export async function executeLarkBaseWorkflow(
         error && typeof error === "object" && "errorCode" in error
           ? (error as { errorCode: MeegleApplyErrorCode }).errorCode
           : "UPDATE_FAILED";
+      const statusCode = error && typeof error === "object" && "statusCode" in error
+        ? (error as { statusCode?: number }).statusCode
+        : undefined;
+      const response = error && typeof error === "object" && "response" in error
+        ? (error as { response?: Record<string, unknown> }).response
+        : undefined;
+
+      console.error("[LarkBaseWorkflow] Workitem creation failed", {
+        index: i,
+        workitemTypeKey: mapping.workitemTypeKey,
+        errorCode,
+        statusCode,
+        response,
+        message: error instanceof Error ? error.message : String(error),
+      });
+
       return {
         ok: false,
         error: {
