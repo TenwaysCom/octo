@@ -62,6 +62,42 @@ async function initTokenCache(): Promise<void> {
 // Initialize on load
 initTokenCache();
 
+function extractLarkBaseContextFromUrl(url: string | undefined): { baseId?: string; tableId?: string } {
+  if (!url) {
+    return {};
+  }
+
+  try {
+    const parsed = new URL(url);
+    const routeCandidates = [parsed.pathname, decodeURIComponent(parsed.hash.replace(/^#/, ""))];
+
+    for (const candidate of routeCandidates) {
+      const match = candidate.match(/\/base\/([^/?#]+)\/table\/([^/?#]+)/);
+      if (match) {
+        return { baseId: match[1], tableId: match[2] };
+      }
+    }
+
+    const hashQueryIndex = decodeURIComponent(parsed.hash.replace(/^#/, "")).indexOf("?");
+    const searchParams = [
+      parsed.searchParams,
+      new URLSearchParams(hashQueryIndex >= 0 ? decodeURIComponent(parsed.hash.replace(/^#/, "")).slice(hashQueryIndex + 1) : ""),
+    ];
+
+    for (const params of searchParams) {
+      const baseId = params.get("baseId") || params.get("appId") || params.get("app") || params.get("base");
+      const tableId = params.get("tableId") || params.get("table") || params.get("tbl");
+      if (baseId && tableId) {
+        return { baseId, tableId };
+      }
+    }
+  } catch {
+    // ignore invalid URL
+  }
+
+  return {};
+}
+
 async function postServerJson<TResponse>(
   config: ExtensionConfig,
   path: string,
@@ -100,6 +136,7 @@ export async function routeBackgroundAction(
     | LarkBaseCreateWorkitemMessage,
   context: {
     senderTabId?: number;
+    tabUrl?: string;
   } = {},
 ): Promise<MeegleAuthEnsureResult | LarkAuthEnsureResult | LarkBaseCreateWorkitemResult | { ok: true }> {
   const config = await getConfig();
@@ -156,13 +193,14 @@ export async function routeBackgroundAction(
         ? await getResolvedIdentityForTab(context.senderTabId)
         : undefined)
       ?? await getStoredMasterUserId();
+    const tabUrlContext = extractLarkBaseContextFromUrl(context.tabUrl);
     return {
       action: message.action,
       payload: await postServerJson(config, "/api/lark-base/create-meegle-workitem", {
         recordId: message.payload.recordId,
         masterUserId,
-        baseId: message.payload.baseId,
-        tableId: message.payload.tableId,
+        baseId: message.payload.baseId ?? tabUrlContext.baseId,
+        tableId: message.payload.tableId ?? tabUrlContext.tableId,
       }),
     };
   }
@@ -205,6 +243,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       message as MeegleAuthEnsureMessage | LarkAuthEnsureMessage | LarkAuthCallbackDetectedMessage | LarkBaseCreateWorkitemMessage,
       {
         senderTabId: sender.tab?.id,
+        tabUrl: sender.tab?.url,
       },
     )
       .then((result) => {
