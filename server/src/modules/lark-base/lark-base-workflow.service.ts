@@ -181,10 +181,10 @@ function extractRecordTitle(record: LarkBitableRecord): string {
 function extractRecordDescription(record: LarkBitableRecord): string {
   const fields = record.fields;
   return String(
-    fields["Issue Description"] ??
-      fields["fldaAzcMtg"] ??
-      fields["Details Description"] ??
+    fields["Details Description"] ??
       fields["fldML66Cx1"] ??
+      fields["Issue Description"] ??
+      fields["fldaAzcMtg"] ??
       "",
   );
 }
