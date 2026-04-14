@@ -403,6 +403,7 @@ export async function executeLarkBaseWorkflow(
   }
 
   const meegleLinks = workitems.map((w) => w.meegleLink).join("\n");
+  console.log("[LarkBaseWorkflow] Writing meegleLink back to Lark", { recordId: request.recordId, meegleLinks });
 
   try {
     await (deps.updateLarkBaseMeegleLink ?? updateLarkBaseMeegleLink)({
@@ -413,6 +414,20 @@ export async function executeLarkBaseWorkflow(
       masterUserId: request.masterUserId,
     });
   } catch (error) {
+    const statusCode = error && typeof error === "object" && "statusCode" in error
+      ? (error as { statusCode?: number }).statusCode
+      : undefined;
+    const response = error && typeof error === "object" && "response" in error
+      ? (error as { response?: Record<string, unknown> }).response
+      : undefined;
+
+    console.error("[LarkBaseWorkflow] Write back to Lark failed", {
+      recordId: request.recordId,
+      statusCode,
+      response,
+      message: error instanceof Error ? error.message : String(error),
+    });
+
     return {
       ok: false,
       error: {
