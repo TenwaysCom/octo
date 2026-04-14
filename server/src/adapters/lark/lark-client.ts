@@ -185,17 +185,22 @@ export class LarkClient {
    */
   async getRecord(baseId: string, tableId: string, recordId: string): Promise<LarkBitableRecord> {
     const data = await this.request<{
-      record_id: string;
-      fields: Record<string, unknown>;
-      created_time?: string;
-      updated_time?: string;
+      record?: {
+        record_id: string;
+        fields: Record<string, unknown>;
+        created_time?: string;
+        updated_time?: string;
+      };
     }>("GET", `/open-apis/bitable/v1/apps/${baseId}/tables/${tableId}/records/${recordId}`);
 
+    console.log("[LarkClient] getRecord raw response", { baseId, tableId, recordId, rawData: data });
+
+    const record = data.record;
     return {
-      record_id: data.record_id || recordId,
-      fields: data.fields || {},
-      created_time: data.created_time,
-      updated_time: data.updated_time,
+      record_id: record?.record_id || recordId,
+      fields: record?.fields || {},
+      created_time: record?.created_time,
+      updated_time: record?.updated_time,
     };
   }
 
@@ -253,15 +258,18 @@ export class LarkClient {
     fields: Record<string, unknown>,
   ): Promise<LarkBitableRecord> {
     const data = await this.request<{
-      record_id: string;
-      fields: Record<string, unknown>;
+      record?: {
+        record_id: string;
+        fields: Record<string, unknown>;
+      };
     }>("POST", `/open-apis/bitable/v1/apps/${baseId}/tables/${tableId}/records`, {
       fields,
     });
 
+    const record = data.record;
     return {
-      record_id: data.record_id || "",
-      fields: data.fields || {},
+      record_id: record?.record_id || "",
+      fields: record?.fields || {},
     };
   }
 
@@ -275,15 +283,18 @@ export class LarkClient {
     fields: Record<string, unknown>,
   ): Promise<LarkBitableRecord> {
     const data = await this.request<{
-      record_id: string;
-      fields: Record<string, unknown>;
+      record?: {
+        record_id: string;
+        fields: Record<string, unknown>;
+      };
     }>("PUT", `/open-apis/bitable/v1/apps/${baseId}/tables/${tableId}/records/${recordId}`, {
       fields,
     });
 
+    const record = data.record;
     return {
-      record_id: data.record_id || recordId,
-      fields: data.fields || {},
+      record_id: record?.record_id || recordId,
+      fields: record?.fields || {},
     };
   }
 
