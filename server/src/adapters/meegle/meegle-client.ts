@@ -510,7 +510,37 @@ export class MeegleClient {
 
   async createWorkitem(input: CreateWorkitemRequest): Promise<MeegleWorkitem> {
     const req = createWorkitemRequestBuilder(input);
-    const data = await this.request(req, true, input.idempotencyKey);
+    console.log("[MeegleClient] createWorkitem request", { projectKey: input.projectKey, workItemTypeKey: input.workItemTypeKey, name: input.name, templateId: input.templateId, idempotencyKey: input.idempotencyKey });
+
+    let data: Record<string, unknown>;
+    try {
+      data = await this.request(req, true, input.idempotencyKey);
+    } catch (error) {
+      if (error instanceof MeegleRateLimitError) {
+        console.error("[MeegleClient] createWorkitem rate limited (429)", {
+          projectKey: input.projectKey,
+          workItemTypeKey: input.workItemTypeKey,
+          statusCode: error.statusCode,
+          response: error.response,
+          message: error.message,
+        });
+      } else if (error instanceof MeegleAPIError) {
+        console.error("[MeegleClient] createWorkitem API error", {
+          projectKey: input.projectKey,
+          workItemTypeKey: input.workItemTypeKey,
+          statusCode: error.statusCode,
+          response: error.response,
+          message: error.message,
+        });
+      } else {
+        console.error("[MeegleClient] createWorkitem unexpected error", {
+          projectKey: input.projectKey,
+          workItemTypeKey: input.workItemTypeKey,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+      throw error;
+    }
 
     // The API returns either:
     // - { data: <number_id> } for create responses (just the workitem ID)
@@ -520,6 +550,7 @@ export class MeegleClient {
     // If response is just a number (the workitem ID), fetch full details
     if (typeof responseData === "number" || typeof responseData === "string") {
       const workitemId = String(responseData);
+      console.log("[MeegleClient] createWorkitem success (numeric ID), fetching details", { workitemId });
       const workitems = await this.getWorkitemDetails(
         input.projectKey,
         input.workItemTypeKey,
@@ -533,6 +564,7 @@ export class MeegleClient {
 
     // Otherwise, parse the full workitem object directly
     const workitemData = responseData as Record<string, unknown>;
+    console.log("[MeegleClient] createWorkitem success (full object)", { workitemId: workitemData.id ?? workitemData.work_item_id });
     return parseWorkitem(workitemData);
   }
 
