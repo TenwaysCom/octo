@@ -13,6 +13,7 @@ function toInvalidRequest(error: ZodError) {
 }
 
 export async function createLarkBaseWorkflowController(input: unknown) {
+  console.log("[LarkBaseWorkflow] received request:", JSON.stringify(input));
   try {
     const validated = validateCreateLarkBaseWorkflowRequest(input);
     return await executeLarkBaseWorkflow(validated);
