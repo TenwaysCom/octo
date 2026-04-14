@@ -47,14 +47,14 @@ function parseLarkUrlContext(url: URL): Pick<LarkDetectedPageContext, "baseId" |
 
   for (const candidate of routeCandidates) {
     const routeMatch = candidate.match(
-      /\/base\/([^/?#]+)\/table\/([^/?#]+)(?:\/record\/([^/?#]+))?/,
+      /\/base\/([^/?#]+)(?:\/table\/([^/?#]+))?(?:\/record\/([^/?#]+))?/,
     );
     if (!routeMatch) {
       continue;
     }
 
     baseId = routeMatch[1];
-    tableId = routeMatch[2];
+    tableId = routeMatch[2] || tableId;
     recordId = routeMatch[3] || recordId;
     break;
   }

@@ -71,10 +71,15 @@ function extractLarkBaseContextFromUrl(url: string | undefined): { baseId?: stri
     const parsed = new URL(url);
     const routeCandidates = [parsed.pathname, decodeURIComponent(parsed.hash.replace(/^#/, ""))];
 
+    let baseId: string | undefined;
+    let tableId: string | undefined;
+
     for (const candidate of routeCandidates) {
-      const match = candidate.match(/\/base\/([^/?#]+)\/table\/([^/?#]+)/);
+      const match = candidate.match(/\/base\/([^/?#]+)(?:\/table\/([^/?#]+))?/);
       if (match) {
-        return { baseId: match[1], tableId: match[2] };
+        baseId = match[1];
+        tableId = match[2];
+        break;
       }
     }
 
@@ -85,11 +90,12 @@ function extractLarkBaseContextFromUrl(url: string | undefined): { baseId?: stri
     ];
 
     for (const params of searchParams) {
-      const baseId = params.get("baseId") || params.get("appId") || params.get("app") || params.get("base");
-      const tableId = params.get("tableId") || params.get("table") || params.get("tbl");
-      if (baseId && tableId) {
-        return { baseId, tableId };
-      }
+      baseId = baseId || params.get("baseId") || params.get("appId") || params.get("app") || params.get("base") || undefined;
+      tableId = tableId || params.get("tableId") || params.get("table") || params.get("tbl") || undefined;
+    }
+
+    if (baseId && tableId) {
+      return { baseId, tableId };
     }
   } catch {
     // ignore invalid URL
