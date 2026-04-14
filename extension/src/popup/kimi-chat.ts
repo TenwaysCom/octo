@@ -12,10 +12,18 @@ export interface KimiChatClient {
 export function createKimiChatClient(input: { baseUrl: string }): KimiChatClient {
   return {
     async sendMessage(request, handlers) {
-      const body = {
+      const body: {
+        operatorLarkId: string;
+        message: string;
+        sessionId?: string;
+      } = {
         operatorLarkId: request.operatorLarkId,
         message: request.message,
       };
+
+      if (request.sessionId) {
+        body.sessionId = request.sessionId;
+      }
 
       const response = await fetch(`${input.baseUrl}/api/acp/kimi/chat`, {
         method: "POST",
@@ -27,7 +35,17 @@ export function createKimiChatClient(input: { baseUrl: string }): KimiChatClient
       });
 
       if (!response.ok) {
-        throw new Error(`Kimi ACP request failed with ${response.status}`);
+        const payload = await readErrorPayload(response);
+        const error = new Error(
+          payload?.error?.errorMessage ||
+            `Kimi ACP request failed with ${response.status}`,
+        );
+        (
+          error as Error & {
+            code?: string;
+          }
+        ).code = payload?.error?.errorCode;
+        throw error;
       }
 
       if (!response.body) {
@@ -106,5 +124,23 @@ async function parseKimiChatEventStream(
 
   if (currentEvent) {
     flushFrame();
+  }
+}
+
+async function readErrorPayload(response: Response): Promise<{
+  error?: {
+    errorCode?: string;
+    errorMessage?: string;
+  };
+} | null> {
+  try {
+    return (await response.json()) as {
+      error?: {
+        errorCode?: string;
+        errorMessage?: string;
+      };
+    };
+  } catch {
+    return null;
   }
 }

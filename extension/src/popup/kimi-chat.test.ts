@@ -90,6 +90,76 @@ describe("kimi chat client", () => {
       },
     ]);
   });
+
+  it("includes sessionId in follow-up requests", async () => {
+    const { createKimiChatClient } = await import("./kimi-chat.js");
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(new ReadableStream({
+        start(controller) {
+          controller.close();
+        },
+      })),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createKimiChatClient({
+      baseUrl: "http://localhost:3000",
+    });
+
+    await client.sendMessage({
+      operatorLarkId: "ou_123",
+      sessionId: "sess_1",
+      message: "follow up",
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "http://localhost:3000/api/acp/kimi/chat",
+    );
+    expect(
+      JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)),
+    ).toEqual({
+      operatorLarkId: "ou_123",
+      sessionId: "sess_1",
+      message: "follow up",
+    });
+  });
+
+  it("surfaces backend error messages for follow-up failures", async () => {
+    const { createKimiChatClient } = await import("./kimi-chat.js");
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: {
+            errorCode: "SESSION_FORBIDDEN",
+            errorMessage: "session does not belong to this operator",
+          },
+        }),
+        {
+          status: 403,
+          headers: {
+            "content-type": "application/json",
+          },
+        },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createKimiChatClient({
+      baseUrl: "http://localhost:3000",
+    });
+
+    await expect(
+      client.sendMessage({
+        operatorLarkId: "ou_123",
+        sessionId: "sess_1",
+        message: "follow up",
+      }),
+    ).rejects.toMatchObject({
+      message: "session does not belong to this operator",
+      code: "SESSION_FORBIDDEN",
+    });
+  });
 });
 
 function createControllableSseResponse() {

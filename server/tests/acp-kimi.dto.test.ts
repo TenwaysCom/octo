@@ -17,6 +17,24 @@ describe("acp-kimi dto", () => {
     });
   });
 
+  it("accepts follow-up requests with sessionId", async () => {
+    const { validateAcpKimiChatRequest } = await import(
+      "../src/modules/acp-kimi/acp-kimi.dto.js"
+    );
+
+    expect(
+      validateAcpKimiChatRequest({
+        operatorLarkId: "ou_123",
+        sessionId: "sess_1",
+        message: "继续说",
+      }),
+    ).toEqual({
+      operatorLarkId: "ou_123",
+      sessionId: "sess_1",
+      message: "继续说",
+    });
+  });
+
   it("rejects missing or empty first-turn fields", async () => {
     const { validateAcpKimiChatRequest } = await import(
       "../src/modules/acp-kimi/acp-kimi.dto.js"
@@ -37,5 +55,12 @@ describe("acp-kimi dto", () => {
         message: "",
       }),
     ).toThrow(/message|too_small/i);
+    expect(() =>
+      validateAcpKimiChatRequest({
+        operatorLarkId: "ou_123",
+        sessionId: "",
+        message: "ok",
+      }),
+    ).toThrow(/sessionId|too_small/i);
   });
 });

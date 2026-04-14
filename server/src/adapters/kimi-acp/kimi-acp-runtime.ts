@@ -51,20 +51,44 @@ export interface KimiAcpRuntimeDeps {
   signal?: AbortSignal;
 }
 
-export async function runKimiAcpSingleTurn(
-  input: AcpKimiChatRequest,
+export interface KimiAcpSessionRuntime {
+  sessionId: string;
+  prompt(input: {
+    message: string;
+    emit: (event: AcpKimiStreamEvent) => void;
+    signal?: AbortSignal;
+  }): Promise<{ stopReason: string }>;
+  close(): Promise<void>;
+}
+
+export async function createKimiAcpSessionRuntime(
   deps: KimiAcpRuntimeDeps = {},
-): Promise<void> {
-  const emit = deps.emit ?? (() => {});
+): Promise<KimiAcpSessionRuntime> {
   const cwd = deps.cwd ?? process.cwd();
   const env = deps.env ?? process.env;
   const spawnConfig =
     deps.buildSpawnConfig?.(env) ?? buildKimiAcpRuntimeConfig(env);
+  let emit = deps.emit ?? (() => {});
+
   throwIfAborted(deps.signal);
   const connection = await (deps.createConnection
-    ? deps.createConnection({ spawnConfig, cwd, emit, signal: deps.signal })
+    ? deps.createConnection({
+        spawnConfig,
+        cwd,
+        emit(event) {
+          emit(event);
+        },
+        signal: deps.signal,
+      })
     : createDefaultConnection(
-        { spawnConfig, cwd, emit, signal: deps.signal },
+        {
+          spawnConfig,
+          cwd,
+          emit(event) {
+            emit(event);
+          },
+          signal: deps.signal,
+        },
         deps.spawnProcess,
       ));
   const closeConnection = createCloseOnce(connection);
@@ -78,33 +102,69 @@ export async function runKimiAcpSingleTurn(
       cwd,
     });
 
+    return {
+      sessionId: session.sessionId,
+      async prompt(input) {
+        emit = input.emit;
+
+        try {
+          return await runPromptWithAbort(
+            connection,
+            session.sessionId,
+            input.message,
+            input.signal,
+            closeConnection,
+          );
+        } finally {
+          emit = () => {};
+        }
+      },
+      async close() {
+        await closeConnection();
+      },
+    };
+  } catch (error) {
+    await closeConnection();
+    throw error;
+  }
+}
+
+export async function runKimiAcpSingleTurn(
+  input: AcpKimiChatRequest,
+  deps: KimiAcpRuntimeDeps = {},
+): Promise<void> {
+  const emit = deps.emit ?? (() => {});
+  const runtime = await createKimiAcpSessionRuntime({
+    ...deps,
+    emit,
+  });
+
+  try {
     emit({
       event: "session.created",
       data: {
-        sessionId: session.sessionId,
+        sessionId: runtime.sessionId,
       },
     });
 
-    const promptResult = await runPromptWithAbort(
-      connection,
-      session.sessionId,
-      input.message,
-      deps.signal,
-      closeConnection,
-    );
+    const promptResult = await runtime.prompt({
+      message: input.message,
+      emit,
+      signal: deps.signal,
+    });
 
     emit({
       event: "done",
       data: {
-        sessionId: session.sessionId,
+        sessionId: runtime.sessionId,
         stopReason: promptResult.stopReason,
       },
     });
   } catch (error) {
-    await closeConnection();
+    await runtime.close();
     throw error;
   } finally {
-    await closeConnection();
+    await runtime.close();
   }
 }
 

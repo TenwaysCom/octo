@@ -17,6 +17,7 @@ describe("KimiChatPanel", () => {
           { id: "acp.session.update-1", text: "你好" },
         ],
         busy: false,
+        draftMessage: "",
       },
     });
 
@@ -26,6 +27,10 @@ describe("KimiChatPanel", () => {
     await wrapper.get("input").setValue("再来一条");
     await wrapper.get("button").trigger("click");
 
+    expect(wrapper.emitted("update:draftMessage")).toEqual([
+      ["再来一条"],
+      [""],
+    ]);
     expect(wrapper.emitted("send")).toEqual([["再来一条"]]);
   });
 });

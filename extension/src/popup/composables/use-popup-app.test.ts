@@ -26,6 +26,10 @@ const meegleAuthControllerMock = vi.hoisted(() => ({
   getLastAuth: vi.fn(),
 }));
 
+const kimiChatClientMock = vi.hoisted(() => ({
+  sendMessage: vi.fn(),
+}));
+
 vi.mock("../runtime.js", () => runtimeMock);
 
 vi.mock("../meegle-auth.js", async () => {
@@ -38,6 +42,10 @@ vi.mock("../meegle-auth.js", async () => {
     createMeegleAuthController: vi.fn(() => meegleAuthControllerMock),
   };
 });
+
+vi.mock("../kimi-chat.js", () => ({
+  createKimiChatClient: vi.fn(() => kimiChatClientMock),
+}));
 
 import { usePopupApp } from "./use-popup-app";
 
@@ -111,6 +119,7 @@ describe("usePopupApp notebook state", () => {
 
     meegleAuthControllerMock.run.mockResolvedValue(true);
     meegleAuthControllerMock.getLastAuth.mockReturnValue(undefined);
+    kimiChatClientMock.sendMessage.mockReset();
 
     vi.mocked(globalThis.fetch).mockResolvedValue({
       ok: true,
@@ -470,5 +479,306 @@ describe("usePopupApp notebook state", () => {
     expect(runtimeMock.clearResolvedIdentity).toHaveBeenCalledTimes(1);
     expect(runtimeMock.clearResolvedIdentityForTab).toHaveBeenCalledWith(12);
     expect(popup.logs.value.some((entry) => entry.message.includes("账号冲突"))).toBe(true);
+  });
+
+  it("opens the Kimi chat panel from analyze", async () => {
+    const popup = usePopupApp();
+
+    popup.runFeatureAction("analyze");
+
+    expect(popup.showKimiChat.value).toBe(true);
+    expect(
+      popup.logs.value.some((entry) =>
+        entry.message.includes("已打开 Kimi ACP 聊天面板"),
+      ),
+    ).toBe(true);
+  });
+
+  it("resets the Kimi chat session when analyze is triggered again", async () => {
+    const popup = usePopupApp();
+
+    popup.runFeatureAction("analyze");
+    popup.kimiChatSessionId.value = "sess_1";
+    popup.kimiChatTranscript.value = [
+      {
+        id: "user-1",
+        text: "你: first turn",
+      },
+    ];
+
+    popup.runFeatureAction("analyze");
+
+    expect(popup.kimiChatSessionId.value).toBeNull();
+    expect(popup.kimiChatTranscript.value).toEqual([]);
+    expect(
+      popup.logs.value.some((entry) =>
+        entry.message.includes("已重置 Kimi ACP 会话"),
+      ),
+    ).toBe(true);
+  });
+
+  it("appends Kimi transcript entries before the request finishes", async () => {
+    const deferred = createDeferred<void>();
+    let onEvent:
+      | ((event: {
+          event: string;
+          data: Record<string, unknown>;
+        }) => void)
+      | undefined;
+    kimiChatClientMock.sendMessage.mockImplementationOnce(
+      async (
+        _input: { operatorLarkId: string; message: string },
+        handlers?: {
+          onEvent?: (event: {
+            event: string;
+            data: Record<string, unknown>;
+          }) => void;
+        },
+      ) => {
+        onEvent = handlers?.onEvent;
+        await deferred.promise;
+      },
+    );
+
+    const popup = usePopupApp();
+    popup.state.identity.larkId = "ou_test";
+
+    const sendPromise = popup.sendKimiChatMessage("请介绍一下会话状态");
+
+    expect(popup.showKimiChat.value).toBe(true);
+    await vi.waitFor(() => {
+      expect(kimiChatClientMock.sendMessage).toHaveBeenCalledTimes(1);
+    });
+
+    onEvent?.({
+      event: "session.created",
+      data: {
+        sessionId: "sess_1",
+      },
+    });
+
+    await vi.waitFor(() => {
+      expect(
+        popup.kimiChatTranscript.value.some((entry) =>
+          entry.text.includes("session.created"),
+        ),
+      ).toBe(true);
+    });
+
+    expect(kimiChatClientMock.sendMessage).toHaveBeenCalledWith(
+      {
+        operatorLarkId: "ou_test",
+        message: "请介绍一下会话状态",
+      },
+      expect.objectContaining({
+        onEvent: expect.any(Function),
+      }),
+    );
+
+    onEvent?.({
+      event: "acp.session.update",
+      data: {
+        sessionId: "sess_1",
+        update: {
+          content: "你",
+        },
+      },
+    });
+
+    await vi.waitFor(() => {
+      const assistantEntries = popup.kimiChatTranscript.value.filter((entry) =>
+        entry.id.startsWith("assistant-"),
+      );
+      expect(assistantEntries).toHaveLength(1);
+      expect(assistantEntries[0].text).toContain("assistant: 你");
+    });
+
+    onEvent?.({
+      event: "acp.session.update",
+      data: {
+        sessionId: "sess_1",
+        update: {
+          content: "好",
+        },
+      },
+    });
+    onEvent?.({
+      event: "done",
+      data: {
+        sessionId: "sess_1",
+        stopReason: "end_turn",
+      },
+    });
+
+    deferred.resolve();
+    await sendPromise;
+
+    const assistantEntries = popup.kimiChatTranscript.value.filter((entry) =>
+      entry.id.startsWith("assistant-"),
+    );
+    expect(assistantEntries).toHaveLength(1);
+    expect(assistantEntries[0].text).toContain("assistant: 你好");
+    expect(
+      popup.kimiChatTranscript.value.some((entry) =>
+        entry.text.includes("done · end_turn"),
+      ),
+    ).toBe(true);
+    expect(popup.kimiChatBusy.value).toBe(false);
+  });
+
+  it("reuses the current sessionId on a second send while keeping transcript history", async () => {
+    kimiChatClientMock.sendMessage
+      .mockImplementationOnce(
+        async (
+          _input: { operatorLarkId: string; sessionId?: string; message: string },
+          handlers?: {
+            onEvent?: (event: {
+              event: string;
+              data: Record<string, unknown>;
+            }) => void;
+          },
+        ) => {
+          handlers?.onEvent?.({
+            event: "session.created",
+            data: {
+              sessionId: "sess_1",
+            },
+          });
+          handlers?.onEvent?.({
+            event: "acp.session.update",
+            data: {
+              sessionId: "sess_1",
+              update: {
+                content: "first reply",
+              },
+            },
+          });
+          handlers?.onEvent?.({
+            event: "done",
+            data: {
+              sessionId: "sess_1",
+              stopReason: "end_turn",
+            },
+          });
+        },
+      )
+      .mockImplementationOnce(
+        async (
+          _input: { operatorLarkId: string; sessionId?: string; message: string },
+          handlers?: {
+            onEvent?: (event: {
+              event: string;
+              data: Record<string, unknown>;
+            }) => void;
+          },
+        ) => {
+          handlers?.onEvent?.({
+            event: "acp.session.update",
+            data: {
+              sessionId: "sess_1",
+              update: {
+                content: "follow up reply",
+              },
+            },
+          });
+          handlers?.onEvent?.({
+            event: "done",
+            data: {
+              sessionId: "sess_1",
+              stopReason: "end_turn",
+            },
+          });
+        },
+      );
+
+    const popup = usePopupApp();
+    popup.state.identity.larkId = "ou_test";
+
+    popup.runFeatureAction("analyze");
+    await popup.sendKimiChatMessage("first turn");
+
+    expect(popup.kimiChatSessionId.value).toBe("sess_1");
+    expect(
+      popup.kimiChatTranscript.value.some((entry) =>
+        entry.text.includes("assistant: first reply"),
+      ),
+    ).toBe(true);
+
+    popup.updateKimiChatDraftMessage("follow up");
+    await popup.sendKimiChatMessage("follow up");
+
+    expect(kimiChatClientMock.sendMessage).toHaveBeenNthCalledWith(
+      1,
+      {
+        operatorLarkId: "ou_test",
+        message: "first turn",
+      },
+      expect.objectContaining({
+        onEvent: expect.any(Function),
+      }),
+    );
+    expect(kimiChatClientMock.sendMessage).toHaveBeenNthCalledWith(
+      2,
+      {
+        operatorLarkId: "ou_test",
+        sessionId: "sess_1",
+        message: "follow up",
+      },
+      expect.objectContaining({
+        onEvent: expect.any(Function),
+      }),
+    );
+    expect(
+      popup.kimiChatTranscript.value.filter((entry) =>
+        entry.text.includes("session.created"),
+      ),
+    ).toHaveLength(1);
+    expect(
+      popup.kimiChatTranscript.value.some((entry) =>
+        entry.text.includes("assistant: first reply"),
+      ),
+    ).toBe(true);
+    expect(
+      popup.kimiChatTranscript.value.some((entry) =>
+        entry.text.includes("assistant: follow up reply"),
+      ),
+    ).toBe(true);
+    expect(
+      popup.kimiChatTranscript.value.filter((entry) =>
+        entry.id.startsWith("assistant-"),
+      ),
+    ).toHaveLength(2);
+    expect(popup.kimiChatDraftMessage.value).toBe("");
+  });
+
+  it("clears a stale sessionId and restores the draft when a follow-up fails", async () => {
+    const staleSessionError = Object.assign(
+      new Error("session expired"),
+      {
+        code: "SESSION_NOT_FOUND",
+      },
+    );
+    kimiChatClientMock.sendMessage.mockRejectedValueOnce(staleSessionError);
+
+    const popup = usePopupApp();
+    popup.state.identity.larkId = "ou_test";
+    popup.runFeatureAction("analyze");
+    popup.kimiChatSessionId.value = "sess_stale";
+    popup.updateKimiChatDraftMessage("follow up");
+
+    await popup.sendKimiChatMessage("follow up");
+
+    expect(popup.kimiChatSessionId.value).toBeNull();
+    expect(popup.kimiChatDraftMessage.value).toBe("follow up");
+    expect(
+      popup.logs.value.some((entry) =>
+        entry.message.includes("session expired"),
+      ),
+    ).toBe(true);
+    expect(
+      popup.kimiChatTranscript.value.some((entry) =>
+        entry.text.includes("你: follow up"),
+      ),
+    ).toBe(false);
   });
 });

@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { ZodError } from "zod";
 import { validateAcpKimiChatRequest } from "./acp-kimi.dto.js";
 import {
+  AcpKimiProxyError,
   acpKimiProxyService,
   type AcpKimiProxyService,
 } from "../../application/services/acp-kimi-proxy.service.js";
@@ -43,11 +44,16 @@ export function createAcpKimiChatController(
     const cleanup = bindRequestAbortHandlers(req, abortController);
 
     try {
+      const session = await service.assertSessionAccess({
+        operatorLarkId: request.operatorLarkId,
+        sessionId: request.sessionId,
+      });
       prepareAcpKimiEventStream(res);
       await service.chat(request, (event) => {
         writeAcpKimiEvent(res, event);
       }, {
         signal: abortController.signal,
+        session: session ?? null,
       });
 
       res.end();
@@ -56,6 +62,17 @@ export function createAcpKimiChatController(
         if (!res.writableEnded) {
           res.end();
         }
+        return;
+      }
+
+      if (error instanceof AcpKimiProxyError) {
+        res.status(error.statusCode).json({
+          ok: false,
+          error: {
+            errorCode: error.code,
+            errorMessage: error.message,
+          },
+        });
         return;
       }
 

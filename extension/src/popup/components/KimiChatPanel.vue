@@ -3,7 +3,7 @@
     <header class="kimi-chat-panel__header">
       <div>
         <div class="kimi-chat-panel__eyebrow">Kimi ACP</div>
-        <h3 class="kimi-chat-panel__title">单轮会话</h3>
+        <h3 class="kimi-chat-panel__title">连续会话</h3>
       </div>
       <span class="kimi-chat-panel__status" :data-busy="String(busy)">
         {{ busy ? "处理中" : "就绪" }}
@@ -27,12 +27,13 @@
 
     <form class="kimi-chat-panel__composer">
       <input
-        v-model="message"
+        :value="message"
         data-test="kimi-chat-input"
         class="kimi-chat-panel__input"
         type="text"
         placeholder="输入一条消息"
         :disabled="busy"
+        @input="handleInput"
       />
       <button
         data-test="kimi-chat-send"
@@ -48,19 +49,34 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, watch } from "vue";
 import type { KimiChatTranscriptEntry } from "../../types/acp-kimi.js";
 
-defineProps<{
+const props = defineProps<{
   transcript: KimiChatTranscriptEntry[];
   busy: boolean;
+  draftMessage?: string;
 }>();
 
 const emit = defineEmits<{
   send: [message: string];
+  "update:draftMessage": [message: string];
 }>();
 
-const message = ref("");
+const message = ref(props.draftMessage ?? "");
+
+watch(
+  () => props.draftMessage,
+  (value) => {
+    message.value = value ?? "";
+  },
+);
+
+function handleInput(event: Event) {
+  const nextMessage = (event.target as HTMLInputElement).value;
+  message.value = nextMessage;
+  emit("update:draftMessage", nextMessage);
+}
 
 function handleSubmit() {
   const nextMessage = message.value.trim();
@@ -69,6 +85,7 @@ function handleSubmit() {
   }
 
   emit("send", nextMessage);
+  emit("update:draftMessage", "");
   message.value = "";
 }
 </script>

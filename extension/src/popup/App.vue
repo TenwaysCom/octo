@@ -19,10 +19,12 @@
           :show-kimi-chat="showKimiChat"
           :kimi-chat-transcript="kimiChatTranscript"
           :kimi-chat-busy="kimiChatBusy"
+          :kimi-chat-draft-message="kimiChatDraftMessage"
           @authorize-meegle="authorizeMeegle"
           @authorize-lark="authorizeLark"
           @feature="runFeatureAction"
           @send-kimi-chat-message="sendKimiChatMessage"
+          @update-kimi-chat-draft-message="updateKimiChatDraftMessage"
           @clear-logs="clearLogs"
         />
         <SettingsPage
@@ -66,12 +68,14 @@ const {
   showKimiChat,
   kimiChatTranscript,
   kimiChatBusy,
+  kimiChatDraftMessage,
   initialize,
   authorizeMeegle,
   authorizeLark,
   closeSettings,
   fetchMeegleUserKey,
   sendKimiChatMessage,
+  updateKimiChatDraftMessage,
   saveSettingsForm,
   refreshServerConfig,
   clearLogs,

@@ -1,5 +1,6 @@
 export interface KimiChatRequest {
   operatorLarkId: string;
+  sessionId?: string;
   message: string;
 }
 

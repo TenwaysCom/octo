@@ -4,7 +4,9 @@
       v-if="showKimiChat"
       :transcript="kimiChatTranscript"
       :busy="kimiChatBusy"
+      :draft-message="kimiChatDraftMessage"
       @send="$emit('sendKimiChatMessage', $event)"
+      @update:draft-message="$emit('updateKimiChatDraftMessage', $event)"
     />
     <UnsupportedPageView
       v-if="viewModel.showUnsupported"
@@ -69,6 +71,7 @@ defineProps<{
   showKimiChat: boolean;
   kimiChatTranscript: KimiChatTranscriptEntry[];
   kimiChatBusy: boolean;
+  kimiChatDraftMessage: string;
 }>();
 
 defineEmits<{
@@ -76,6 +79,7 @@ defineEmits<{
   authorizeLark: [];
   feature: [key: string];
   sendKimiChatMessage: [message: string];
+  updateKimiChatDraftMessage: [message: string];
   clearLogs: [];
 }>();
 </script>

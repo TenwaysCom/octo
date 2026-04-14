@@ -76,11 +76,15 @@ export function usePopupApp() {
   const activePage = ref<PopupNotebookPage>("home");
   const showKimiChat = ref(false);
   const kimiChatBusy = ref(false);
+  const kimiChatSessionId = ref<string | null>(null);
+  const kimiChatDraftMessage = ref("");
+  const kimiChatActiveAssistantEntryId = ref<string | null>(null);
   const kimiChatTranscript = ref<KimiChatTranscriptEntry[]>([]);
 
   function appendKimiChatEvent(event: KimiChatEvent): void {
     switch (event.event) {
       case "session.created":
+        kimiChatSessionId.value = event.data.sessionId;
         kimiChatTranscript.value = [
           ...kimiChatTranscript.value,
           {
@@ -90,9 +94,10 @@ export function usePopupApp() {
         ];
         return;
       case "acp.session.update":
-        appendAssistantTranscript(event.data.sessionId, event.data.update);
+        appendAssistantTranscript(event.data.update);
         return;
       case "done":
+        kimiChatActiveAssistantEntryId.value = null;
         kimiChatTranscript.value = [
           ...kimiChatTranscript.value,
           {
@@ -103,12 +108,11 @@ export function usePopupApp() {
     }
   }
 
-  function appendAssistantTranscript(
-    sessionId: string,
-    update: Record<string, unknown>,
-  ): void {
+  function appendAssistantTranscript(update: Record<string, unknown>): void {
     const text = renderUpdateText(update);
-    const entryId = `assistant-${sessionId}`;
+    const entryId =
+      kimiChatActiveAssistantEntryId.value ?? createTranscriptEntryId("assistant");
+    kimiChatActiveAssistantEntryId.value = entryId;
     const existingIndex = kimiChatTranscript.value.findIndex(
       (entry) => entry.id === entryId,
     );
@@ -573,6 +577,12 @@ export function usePopupApp() {
 
   function runFeatureAction(actionKey: string) {
     if (actionKey === "analyze") {
+      if (showKimiChat.value) {
+        resetKimiChatSession();
+        appendLog("info", "已重置 Kimi ACP 会话");
+        return;
+      }
+
       openKimiChat();
       appendLog("info", "已打开 Kimi ACP 聊天面板");
       return;
@@ -590,8 +600,23 @@ export function usePopupApp() {
   }
 
   function openKimiChat() {
+    if (showKimiChat.value) {
+      return;
+    }
+
     showKimiChat.value = true;
+    resetKimiChatSession();
+  }
+
+  function resetKimiChatSession() {
+    kimiChatSessionId.value = null;
+    kimiChatDraftMessage.value = "";
+    kimiChatActiveAssistantEntryId.value = null;
     kimiChatTranscript.value = [];
+  }
+
+  function updateKimiChatDraftMessage(message: string) {
+    kimiChatDraftMessage.value = message;
   }
 
   async function sendKimiChatMessage(message: string) {
@@ -609,24 +634,54 @@ export function usePopupApp() {
       baseUrl: settingsForm.SERVER_URL,
     });
 
+    const userEntryId = createTranscriptEntryId("user");
+    let receivedEvents = false;
+
     try {
+      kimiChatDraftMessage.value = "";
+      kimiChatActiveAssistantEntryId.value = createTranscriptEntryId("assistant");
       kimiChatTranscript.value = [
         ...kimiChatTranscript.value,
         {
-          id: createTranscriptEntryId("user"),
+          id: userEntryId,
           text: `你: ${message}`,
         },
       ];
 
       await client.sendMessage({
         operatorLarkId,
+        sessionId: kimiChatSessionId.value || undefined,
         message,
       }, {
         onEvent(event) {
+          receivedEvents = true;
           appendKimiChatEvent(event);
         },
       });
     } catch (error) {
+      kimiChatSessionId.value = null;
+      kimiChatActiveAssistantEntryId.value = null;
+      if (!receivedEvents) {
+        kimiChatTranscript.value = kimiChatTranscript.value.filter(
+          (entry) => entry.id !== userEntryId,
+        );
+      }
+      const errorCode =
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        typeof (error as { code?: unknown }).code === "string"
+          ? (error as { code: string }).code
+          : undefined;
+
+      if (
+        errorCode === "SESSION_FORBIDDEN" ||
+        errorCode === "SESSION_NOT_FOUND"
+      ) {
+        kimiChatSessionId.value = null;
+      }
+
+      kimiChatDraftMessage.value = message;
       appendLog(
         "error",
         `Kimi ACP 请求失败: ${error instanceof Error ? error.message : String(error)}`,
@@ -740,6 +795,8 @@ export function usePopupApp() {
     showKimiChat,
     kimiChatTranscript,
     kimiChatBusy,
+    kimiChatSessionId,
+    kimiChatDraftMessage,
     initialize,
     authorizeMeegle,
     authorizeLark,
@@ -750,6 +807,7 @@ export function usePopupApp() {
     refreshServerConfig,
     clearLogs,
     runFeatureAction,
+    updateKimiChatDraftMessage,
     sendKimiChatMessage,
   };
 }

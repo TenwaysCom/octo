@@ -12,6 +12,7 @@ describe("acp-kimi controller", () => {
     });
     const res = createSseResponseMock();
     const service = {
+      assertSessionAccess: vi.fn(),
       chat: vi.fn(),
     };
 
@@ -20,6 +21,7 @@ describe("acp-kimi controller", () => {
     await acpKimiChatController(req as never, res as never);
 
     expect(service.chat).not.toHaveBeenCalled();
+    expect(service.assertSessionAccess).not.toHaveBeenCalled();
     expect(res.setHeader).not.toHaveBeenCalled();
     expect(res.flushHeaders).not.toHaveBeenCalled();
     expect(res.write).not.toHaveBeenCalled();
@@ -57,6 +59,7 @@ describe("acp-kimi controller", () => {
     });
     const deferred = createDeferred<void>();
     const service = {
+      assertSessionAccess: vi.fn(),
       chat: vi.fn(async (_input: unknown, emit: (event: unknown) => void) => {
         timeline.push("service:start");
         emit({
@@ -102,6 +105,10 @@ describe("acp-kimi controller", () => {
         signal: expect.any(AbortSignal),
       }),
     );
+    expect(service.assertSessionAccess).toHaveBeenCalledWith({
+      operatorLarkId: "ou_123",
+      sessionId: undefined,
+    });
     expect(timeline.slice(0, 4)).toEqual([
       "headers",
       "headers",
@@ -182,6 +189,7 @@ describe("acp-kimi controller", () => {
     });
     const res = createSseResponseMock();
     const service = {
+      assertSessionAccess: vi.fn(),
       chat: vi.fn(async (_input: unknown, _emit: unknown, deps?: { signal?: AbortSignal }) => {
         if (!deps?.signal) {
           throw new Error("missing abort signal");
@@ -210,6 +218,52 @@ describe("acp-kimi controller", () => {
     expect(res.json).not.toHaveBeenCalled();
     expect(res.end).toHaveBeenCalledTimes(1);
   });
+
+  it("returns a 403 error envelope for follow-up ownership violations", async () => {
+    const { createAcpKimiChatController } = await import(
+      "../src/modules/acp-kimi/acp-kimi.controller.js"
+    );
+    const { AcpKimiProxyError } = await import(
+      "../src/application/services/acp-kimi-proxy.service.js"
+    );
+
+    const req = createRequestMock({
+      operatorLarkId: "ou_intruder",
+      sessionId: "sess_1",
+      message: "follow up",
+    });
+    const res = createSseResponseMock();
+    const service = {
+      assertSessionAccess: vi.fn().mockRejectedValue(
+        new AcpKimiProxyError(
+          "SESSION_FORBIDDEN",
+          403,
+          "Kimi ACP session sess_1 does not belong to ou_intruder.",
+        ),
+      ),
+      chat: vi.fn().mockRejectedValue(
+        new AcpKimiProxyError(
+          "SESSION_FORBIDDEN",
+          403,
+          "Kimi ACP session sess_1 does not belong to ou_intruder.",
+        ),
+      ),
+    };
+
+    const acpKimiChatController = createAcpKimiChatController(service as never);
+
+    await acpKimiChatController(req as never, res as never);
+
+    expect(service.chat).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith({
+      ok: false,
+      error: {
+        errorCode: "SESSION_FORBIDDEN",
+        errorMessage: "Kimi ACP session sess_1 does not belong to ou_intruder.",
+      },
+    });
+  });
 });
 
 function createRequestMock(body: Record<string, unknown>) {
@@ -224,16 +278,30 @@ function createRequestMock(body: Record<string, unknown>) {
 }
 
 function createSseResponseMock() {
-  return {
+  const response = {
+    headersSent: false,
+    writableEnded: false,
     setHeader: vi.fn(),
     flushHeaders: vi.fn(),
     write: vi.fn(),
     end: vi.fn(),
-    status: vi.fn().mockReturnThis(),
+    status: vi.fn(),
     json: vi.fn(),
-    writableEnded: false,
-    headersSent: false,
   };
+
+  response.status.mockReturnValue(response);
+  response.flushHeaders.mockImplementation(() => {
+    response.headersSent = true;
+  });
+  response.write.mockImplementation(() => {
+    response.headersSent = true;
+    return true;
+  });
+  response.end.mockImplementation(() => {
+    response.writableEnded = true;
+  });
+
+  return response;
 }
 
 function parseSseEvents(output: string) {
