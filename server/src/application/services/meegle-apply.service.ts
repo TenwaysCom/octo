@@ -203,21 +203,6 @@ export async function executeMeegleApply(
       draft: input.draft,
     };
   } catch (error) {
-    const statusCode = error && typeof error === "object" && "statusCode" in error
-      ? (error as { statusCode?: number }).statusCode
-      : undefined;
-    const response = error && typeof error === "object" && "response" in error
-      ? (error as { response?: Record<string, unknown> }).response
-      : undefined;
-
-    console.error("[MeegleApply] createWorkitem failed", {
-      requestId: input.requestId,
-      workitemTypeKey: input.draft.target.workitemTypeKey,
-      statusCode,
-      response,
-      message: error instanceof Error ? error.message : String(error),
-    });
-
     throw new MeegleApplyError(
       "MEEGLE_WORKITEM_CREATE_FAILED",
       error instanceof Error ? error.message : "Failed to create Meegle workitem",
