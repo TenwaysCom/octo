@@ -17,7 +17,7 @@ describe("lark-base-workflow.controller", () => {
     executeLarkBaseWorkflowMock.mockResolvedValueOnce({
       ok: true,
       workitemId: "12345",
-      meegleLink: "https://meego.feishu.cn/issue/12345",
+      meegleLink: "https://project.larksuite.com/4c3fv6/story/detail/12345",
       recordId: "rec_abc",
     });
 
@@ -29,7 +29,7 @@ describe("lark-base-workflow.controller", () => {
     expect(result).toEqual({
       ok: true,
       workitemId: "12345",
-      meegleLink: "https://meego.feishu.cn/issue/12345",
+      meegleLink: "https://project.larksuite.com/4c3fv6/story/detail/12345",
       recordId: "rec_abc",
     });
     expect(executeLarkBaseWorkflowMock).toHaveBeenCalledWith({
@@ -42,7 +42,7 @@ describe("lark-base-workflow.controller", () => {
     executeLarkBaseWorkflowMock.mockResolvedValueOnce({
       ok: true,
       workitemId: "12345",
-      meegleLink: "https://meego.feishu.cn/issue/12345",
+      meegleLink: "https://project.larksuite.com/4c3fv6/story/detail/12345",
       recordId: "rec_abc",
     });
 

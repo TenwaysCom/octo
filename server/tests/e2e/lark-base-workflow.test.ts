@@ -74,10 +74,10 @@ describe("lark-base workflow e2e", () => {
     expect(result).toEqual({
       ok: true,
       workitemId: "wi_e2e_story",
-      meegleLink: expect.stringContaining("/issue/wi_e2e_story"),
+      meegleLink: expect.stringContaining("/detail/wi_e2e_story"),
       recordId: "rec_e2e_001",
       workitems: [
-        { workitemId: "wi_e2e_story", meegleLink: expect.stringContaining("/issue/wi_e2e_story") },
+        { workitemId: "wi_e2e_story", meegleLink: expect.stringContaining("/detail/wi_e2e_story") },
       ],
     });
 
@@ -132,10 +132,10 @@ describe("lark-base workflow e2e", () => {
     expect(result).toEqual({
       ok: true,
       workitemId: "wi_e2e_bug",
-      meegleLink: expect.stringContaining("/issue/wi_e2e_bug"),
+      meegleLink: expect.stringContaining("/detail/wi_e2e_bug"),
       recordId: "rec_e2e_001",
       workitems: [
-        { workitemId: "wi_e2e_bug", meegleLink: expect.stringContaining("/issue/wi_e2e_bug") },
+        { workitemId: "wi_e2e_bug", meegleLink: expect.stringContaining("/detail/wi_e2e_bug") },
       ],
     });
 

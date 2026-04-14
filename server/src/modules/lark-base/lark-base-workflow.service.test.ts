@@ -98,10 +98,10 @@ describe("lark-base-workflow.service", () => {
     expect(result).toEqual({
       ok: true,
       workitemId: "wi_111",
-      meegleLink: expect.stringContaining("/issue/wi_111"),
+      meegleLink: expect.stringContaining("/detail/wi_111"),
       recordId: "rec_123",
       workitems: [
-        { workitemId: "wi_111", meegleLink: expect.stringContaining("/issue/wi_111") },
+        { workitemId: "wi_111", meegleLink: expect.stringContaining("/detail/wi_111") },
       ],
     });
 
@@ -153,10 +153,10 @@ describe("lark-base-workflow.service", () => {
     expect(result).toEqual({
       ok: true,
       workitemId: "wi_222",
-      meegleLink: expect.stringContaining("/issue/wi_222"),
+      meegleLink: expect.stringContaining("/detail/wi_222"),
       recordId: "rec_123",
       workitems: [
-        { workitemId: "wi_222", meegleLink: expect.stringContaining("/issue/wi_222") },
+        { workitemId: "wi_222", meegleLink: expect.stringContaining("/detail/wi_222") },
       ],
     });
 
@@ -208,10 +208,10 @@ describe("lark-base-workflow.service", () => {
     expect(result).toEqual({
       ok: true,
       workitemId: "wi_fallback",
-      meegleLink: expect.stringContaining("/issue/wi_fallback"),
+      meegleLink: expect.stringContaining("/detail/wi_fallback"),
       recordId: "rec_123",
       workitems: [
-        { workitemId: "wi_fallback", meegleLink: expect.stringContaining("/issue/wi_fallback") },
+        { workitemId: "wi_fallback", meegleLink: expect.stringContaining("/detail/wi_fallback") },
       ],
     });
 
@@ -267,23 +267,23 @@ describe("lark-base-workflow.service", () => {
     expect(result).toEqual({
       ok: true,
       workitemId: "wi_story",
-      meegleLink: expect.stringContaining("/issue/wi_story"),
+      meegleLink: expect.stringContaining("/detail/wi_story"),
       recordId: "rec_123",
       workitems: [
-        { workitemId: "wi_story", meegleLink: expect.stringContaining("/issue/wi_story") },
-        { workitemId: "wi_bug", meegleLink: expect.stringContaining("/issue/wi_bug") },
+        { workitemId: "wi_story", meegleLink: expect.stringContaining("/detail/wi_story") },
+        { workitemId: "wi_bug", meegleLink: expect.stringContaining("/detail/wi_bug") },
       ],
     });
 
     expect(executeMeegleApplyMock).toHaveBeenCalledTimes(2);
     expect(updateLarkBaseMeegleLinkMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        meegleLink: expect.stringContaining("/issue/wi_story"),
+        meegleLink: expect.stringContaining("/detail/wi_story"),
       }),
     );
     const updateCall = updateLarkBaseMeegleLinkMock.mock.calls[0]?.[0] as { meegleLink?: string };
-    expect(updateCall?.meegleLink).toContain("/issue/wi_story");
-    expect(updateCall?.meegleLink).toContain("/issue/wi_bug");
+    expect(updateCall?.meegleLink).toContain("/detail/wi_story");
+    expect(updateCall?.meegleLink).toContain("/detail/wi_bug");
   });
 
   it("refreshes the Lark token when expired", async () => {

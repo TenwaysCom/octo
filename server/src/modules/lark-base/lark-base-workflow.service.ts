@@ -12,7 +12,7 @@ import type { ExecutionDraft } from "../../validators/agent-output/execution-dra
 const DEFAULT_BASE_ID = process.env.LARK_BASE_DEFAULT_BASE_ID || "";
 const DEFAULT_TABLE_ID = process.env.LARK_BASE_DEFAULT_TABLE_ID || "";
 const DEFAULT_PROJECT_KEY = process.env.MEEGLE_PROJECT_KEY || "4c3fv6";
-const MEEGLE_WORKITEM_URL_BASE = process.env.MEEGLE_WORKITEM_URL_BASE || "https://meego.feishu.cn";
+const MEEGLE_BASE_URL = process.env.MEEGLE_BASE_URL || "https://project.larksuite.com";
 
 // Issue type labels from Lark Base
 const ISSUE_TYPE_STORY = process.env.LARK_BASE_ISSUE_TYPE_STORY || "User Story";
@@ -269,9 +269,13 @@ function buildExecutionDraft(
   return draft;
 }
 
-function buildMeegleUrl(workitemId: string): string {
-  const base = MEEGLE_WORKITEM_URL_BASE.replace(/\/$/, "");
-  return `${base}/issue/${workitemId}`;
+function buildMeegleUrl(
+  workitemId: string,
+  projectKey: string,
+  workitemTypeKey: string,
+): string {
+  const base = MEEGLE_BASE_URL.replace(/\/$/, "");
+  return `${base}/${projectKey}/${workitemTypeKey}/detail/${workitemId}`;
 }
 
 // ==================== Orchestrator ====================
@@ -398,7 +402,7 @@ export async function executeLarkBaseWorkflow(
       };
     }
 
-    const meegleLink = buildMeegleUrl(workitemId);
+    const meegleLink = buildMeegleUrl(workitemId, projectKey, mapping.workitemTypeKey);
     workitems.push({ workitemId, meegleLink });
   }
 
