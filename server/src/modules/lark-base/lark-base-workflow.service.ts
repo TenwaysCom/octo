@@ -34,6 +34,7 @@ interface IssueTypeMappingConfig {
   larkLabels: string[];
   workitemTypeKey: string;
   templateId: string;
+  urlSlug?: string;
 }
 
 function parseIssueTypeMappings(): IssueTypeMappingConfig[] {
@@ -55,6 +56,7 @@ function parseIssueTypeMappings(): IssueTypeMappingConfig[] {
       larkLabels: [ISSUE_TYPE_STORY],
       workitemTypeKey: WORKITEM_TYPE_KEY_STORY,
       templateId: TEMPLATE_ID_STORY,
+      urlSlug: WORKITEM_TYPE_KEY_STORY,
     },
   ];
 
@@ -63,6 +65,7 @@ function parseIssueTypeMappings(): IssueTypeMappingConfig[] {
       larkLabels: [ISSUE_TYPE_TECH_TASK],
       workitemTypeKey: WORKITEM_TYPE_KEY_TECH_TASK,
       templateId: TEMPLATE_ID_TECH_TASK,
+      urlSlug: WORKITEM_TYPE_KEY_TECH_TASK,
     });
   }
 
@@ -70,6 +73,7 @@ function parseIssueTypeMappings(): IssueTypeMappingConfig[] {
     larkLabels: [ISSUE_TYPE_PROD_BUG],
     workitemTypeKey: WORKITEM_TYPE_KEY_PROD_BUG,
     templateId: TEMPLATE_ID_PROD_BUG,
+    urlSlug: WORKITEM_TYPE_KEY_PROD_BUG,
   });
 
   console.log("[LarkBaseWorkflow] parseIssueTypeMappings: using legacy env config", { count: mappings.length, mappings });
@@ -81,6 +85,7 @@ function parseIssueTypeMappings(): IssueTypeMappingConfig[] {
 interface WorkitemMapping {
   workitemTypeKey: string;
   templateId: string;
+  urlSlug: string;
 }
 
 export interface LarkBaseWorkflowResult {
@@ -127,6 +132,7 @@ function resolveWorkitemMappings(issueTypes: string[]): WorkitemMapping[] {
         mappings.push({
           workitemTypeKey: config.workitemTypeKey,
           templateId: config.templateId,
+          urlSlug: config.urlSlug || config.workitemTypeKey,
         });
       }
     }
@@ -272,10 +278,10 @@ function buildExecutionDraft(
 function buildMeegleUrl(
   workitemId: string,
   projectKey: string,
-  workitemTypeKey: string,
+  urlSlug: string,
 ): string {
   const base = MEEGLE_BASE_URL.replace(/\/$/, "");
-  return `${base}/${projectKey}/${workitemTypeKey}/detail/${workitemId}`;
+  return `${base}/${projectKey}/${urlSlug}/detail/${workitemId}`;
 }
 
 // ==================== Orchestrator ====================
@@ -402,7 +408,7 @@ export async function executeLarkBaseWorkflow(
       };
     }
 
-    const meegleLink = buildMeegleUrl(workitemId, projectKey, mapping.workitemTypeKey);
+    const meegleLink = buildMeegleUrl(workitemId, projectKey, mapping.urlSlug);
     workitems.push({ workitemId, meegleLink });
   }
 

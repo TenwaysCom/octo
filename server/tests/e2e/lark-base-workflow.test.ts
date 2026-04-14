@@ -5,9 +5,9 @@ import type { LarkBitableRecord } from "../../src/adapters/lark/lark-client.js";
 describe("lark-base workflow e2e", () => {
   beforeEach(() => {
     process.env.LARK_BASE_ISSUE_TYPE_MAPPINGS = JSON.stringify([
-      { larkLabels: ["User Story"], workitemTypeKey: "story", templateId: "400329" },
-      { larkLabels: ["Tech Task"], workitemTypeKey: "tech_task", templateId: "tpl_tech" },
-      { larkLabels: ["Production Bug"], workitemTypeKey: "6932e40429d1cd8aac635c82", templateId: "645025" },
+      { larkLabels: ["User Story"], workitemTypeKey: "story", templateId: "400329", urlSlug: "story" },
+      { larkLabels: ["Tech Task"], workitemTypeKey: "tech_task", templateId: "tpl_tech", urlSlug: "techtask" },
+      { larkLabels: ["Production Bug"], workitemTypeKey: "6932e40429d1cd8aac635c82", templateId: "645025", urlSlug: "production_bug" },
     ]);
   });
 
