@@ -396,7 +396,7 @@ export class MeegleClient {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
       "Accept": "application/json",
-      "X-USER-TOKEN": this.config.userToken,
+      "X-PLUGIN-TOKEN": this.config.userToken,
       "X-USER-KEY": this.config.userKey,
     };
 
@@ -511,7 +511,28 @@ export class MeegleClient {
   async createWorkitem(input: CreateWorkitemRequest): Promise<MeegleWorkitem> {
     const req = createWorkitemRequestBuilder(input);
     const data = await this.request(req, true, input.idempotencyKey);
-    const workitemData = (data.data ?? data) as Record<string, unknown>;
+
+    // The API returns either:
+    // - { data: <number_id> } for create responses (just the workitem ID)
+    // - { data: { full_workitem_object } } for other responses
+    const responseData = data.data ?? data;
+
+    // If response is just a number (the workitem ID), fetch full details
+    if (typeof responseData === "number" || typeof responseData === "string") {
+      const workitemId = String(responseData);
+      const workitems = await this.getWorkitemDetails(
+        input.projectKey,
+        input.workItemTypeKey,
+        [workitemId],
+      );
+      if (workitems.length === 0) {
+        throw new Error(`Failed to fetch created workitem ${workitemId}`);
+      }
+      return workitems[0];
+    }
+
+    // Otherwise, parse the full workitem object directly
+    const workitemData = responseData as Record<string, unknown>;
     return parseWorkitem(workitemData);
   }
 

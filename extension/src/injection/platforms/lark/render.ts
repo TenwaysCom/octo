@@ -2,24 +2,17 @@ import { cleanupMountedNode, ensureMountedNode, ensureMountedSiblingNode } from 
 import type { AnchorCandidate, InjectionPageState } from "../../types";
 import type { LarkRecordContext } from "./probe";
 import type {
-  LarkDomApplyRequest,
-  LarkDomDraftRequest,
-  LarkDraftApplyResult,
   LarkPageContext,
-  LarkWorkflowDraft,
+  LarkBaseCreateWorkitemRequest,
+  LarkBaseCreateWorkitemResultPayload,
+  LarkRecordSnapshot,
 } from "../../../types/lark";
-import type { LarkApplyAction, LarkDraftAction } from "../../../types/protocol";
+import type { ProtocolAction } from "../../../types/protocol";
 
 const HEADER_MOUNT_ID = "lark-detail-action";
 const PANEL_MOUNT_ID = "lark-detail-panel";
 
-export type LarkRenderState =
-  | "collapsed"
-  | "draft-loading"
-  | "draft-ready"
-  | "submitting"
-  | "success"
-  | "error";
+export type LarkRenderState = "collapsed" | "submitting" | "success" | "error";
 
 export type RenderLarkInjectionArgs = {
   pageState: InjectionPageState<LarkRecordContext>;
@@ -28,11 +21,26 @@ export type RenderLarkInjectionArgs = {
   deps?: LarkInjectionRendererDeps;
 };
 
+export type LarkCreateWorkitemRequest = {
+  pageType: "lark_base";
+  url: string;
+  baseId?: string;
+  tableId?: string;
+  recordId?: string;
+  operatorLarkId?: string;
+  masterUserId?: string;
+  snapshot: LarkRecordSnapshot;
+};
+
+export type LarkCreateWorkitemResult = {
+  status: "created";
+  workitemId: string;
+};
+
 export type LarkInjectionRendererDeps = {
   pageContext?: LarkPageContext | null;
   getPageContext?: () => LarkPageContext | null;
-  requestDraft?: (request: LarkDomDraftRequest) => Promise<LarkWorkflowDraft>;
-  applyDraft?: (request: LarkDomApplyRequest) => Promise<LarkDraftApplyResult>;
+  createWorkitem?: (request: LarkCreateWorkitemRequest) => Promise<LarkCreateWorkitemResult>;
 };
 
 export type LarkInjectionRenderer = {
@@ -59,35 +67,30 @@ class LarkRuntimeRequestError extends Error {
   }
 }
 
-function resolveTargetLabel(
-  pageContext: LarkPageContext | null,
-  draft: LarkWorkflowDraft | null,
-): string | null {
-  if (draft?.draftType === "b2" || pageContext?.pageType === "lark_a1") {
-    return "Meegle Product Bug";
-  }
-
-  if (draft?.draftType === "b1" || pageContext?.pageType === "lark_a2") {
+function resolveIssueTypeLabel(recordContext: LarkRecordContext | null | undefined): string | null {
+  const issueTypeField = recordContext?.fields.find((field) => {
+    const label = field.label.trim().toLowerCase();
+    return label === "issue 类型" || label === "issue type";
+  });
+  const issueType = issueTypeField?.value.trim() ?? "";
+  if (issueType.includes("User Story")) {
     return "Meegle User Story";
   }
-
+  if (issueType.includes("Tech Task")) {
+    return "Meegle Tech Task";
+  }
+  if (issueType.includes("Production Bug")) {
+    return "Meegle Production Bug";
+  }
   return null;
+}
+
+function resolveTargetLabel(recordContext?: LarkRecordContext | null): string | null {
+  return resolveIssueTypeLabel(recordContext) ?? "Meegle Work Item";
 }
 
 function formatPrimaryActionLabel(targetLabel: string | null): string {
   return targetLabel ? `创建 ${targetLabel}` : "发送到 Meegle";
-}
-
-function formatApplyActionLabel(targetLabel: string | null): string {
-  return targetLabel ? `确认创建 ${targetLabel}` : "确认发送";
-}
-
-function formatDraftLoadingLabel(targetLabel: string | null): string {
-  return targetLabel ? `正在准备 ${targetLabel} 草稿...` : "正在准备发送到 Meegle...";
-}
-
-function formatDraftReadyLabel(targetLabel: string | null, name: string): string {
-  return targetLabel ? `准备创建 ${targetLabel}: ${name}` : `准备发送到 Meegle: ${name}`;
 }
 
 function formatSubmittingLabel(targetLabel: string | null): string {
@@ -98,12 +101,8 @@ function formatSuccessLabel(targetLabel: string | null): string {
   return targetLabel ? `已创建 ${targetLabel}` : "已发送到 Meegle";
 }
 
-function formatFailureLabel(targetLabel: string | null, hasDraft: boolean): string {
-  if (targetLabel) {
-    return hasDraft ? `创建 ${targetLabel} 失败，请重试提交` : `创建 ${targetLabel} 失败`;
-  }
-
-  return hasDraft ? "发送到 Meegle 失败，请重试提交" : "发送到 Meegle 失败";
+function formatFailureLabel(targetLabel: string | null): string {
+  return targetLabel ? `创建 ${targetLabel} 失败` : "发送到 Meegle 失败";
 }
 
 function getChromeRuntime(): typeof chrome.runtime | null {
@@ -139,81 +138,57 @@ async function sendRuntimeMessage<TPayload>(
   });
 }
 
-function buildSnapshot(context: LarkRecordContext) {
+function buildSnapshot(context: LarkRecordContext, pageContext: LarkPageContext | null): LarkRecordSnapshot {
+  const larkUrl = pageContext?.url ?? (typeof window !== "undefined" ? window.location.href : "");
   return {
     title: context.title,
     fields: context.fields.map((field) => ({
       label: field.label,
       value: field.value,
     })),
+    larkUrl,
   };
 }
 
-async function createDefaultDraft(request: LarkDomDraftRequest): Promise<LarkWorkflowDraft> {
-  if (request.pageType === "unknown") {
-    throw new Error("Unable to determine whether this record is A1 or A2.");
-  }
-
+async function defaultCreateWorkitem(request: LarkCreateWorkitemRequest): Promise<LarkCreateWorkitemResult> {
   if (!request.recordId) {
-    throw new Error("recordId is required to request a draft.");
+    throw new Error("recordId is required to create a workitem.");
   }
 
   if (!getChromeRuntime()) {
     throw new Error("Chrome runtime is unavailable.");
   }
 
-  const action: LarkDraftAction =
-    request.pageType === "lark_a2" ? "itdog.a2.create_b1_draft" : "itdog.a1.create_b2_draft";
-  const response = await sendRuntimeMessage<{ payload?: LarkWorkflowDraft }>({
+  const payload: LarkBaseCreateWorkitemRequest = {
+    pageType: "lark_base",
+    url: request.url,
+    baseId: request.baseId,
+    tableId: request.tableId,
+    recordId: request.recordId,
+    operatorLarkId: request.operatorLarkId,
+    masterUserId: request.masterUserId,
+    snapshot: request.snapshot,
+  };
+  const action: ProtocolAction = "itdog.lark_base.create_workitem";
+  const response = await sendRuntimeMessage<{ payload?: LarkBaseCreateWorkitemResultPayload }>({
     action,
-    payload: request,
+    payload,
   });
 
   if (response.payload) {
-    return response.payload;
+    return {
+      status: "created",
+      workitemId: response.payload.workitemId,
+    };
   }
 
   throw new LarkRuntimeRequestError(
-    response.error?.errorMessage ?? "Draft request failed.",
+    response.error?.errorMessage ?? "Create workitem request failed.",
     response.error?.errorCode,
   );
 }
 
-async function defaultApplyDraft(request: LarkDomApplyRequest): Promise<LarkDraftApplyResult> {
-  if (request.pageType === "unknown") {
-    throw new Error("Unable to determine whether this record is A1 or A2.");
-  }
-
-  if (!request.recordId) {
-    throw new Error("recordId is required to apply a draft.");
-  }
-
-  if (!getChromeRuntime()) {
-    throw new Error("Chrome runtime is unavailable.");
-  }
-
-  const action: LarkApplyAction =
-    request.pageType === "lark_a2" ? "itdog.a2.apply_b1" : "itdog.a1.apply_b2";
-  const response = await sendRuntimeMessage<{ payload?: LarkDraftApplyResult }>({
-    action,
-    payload: request,
-  });
-
-  if (response.payload) {
-    return response.payload;
-  }
-
-  throw new LarkRuntimeRequestError(
-    response.error?.errorMessage ?? "Apply request failed.",
-    response.error?.errorCode,
-  );
-}
-
-function resolvePanelErrorMessage(
-  error: unknown,
-  hasDraft: boolean,
-  targetLabel: string | null,
-): string {
+function resolvePanelErrorMessage(error: unknown, targetLabel: string | null): string {
   if (error instanceof LarkRuntimeRequestError) {
     if (error.errorCode === "MEEGLE_AUTH_REQUIRED") {
       return "Meegle 授权失效，请先在插件中重新授权后再试";
@@ -226,7 +201,7 @@ function resolvePanelErrorMessage(
     return error.message;
   }
 
-  return formatFailureLabel(targetLabel, hasDraft);
+  return formatFailureLabel(targetLabel);
 }
 
 function createContextIdentity(context: LarkRecordContext, pageContext: LarkPageContext | null): string {
@@ -267,15 +242,13 @@ function readActiveAnchor(args: RenderLarkInjectionArgs): AnchorCandidate | null
 export function createLarkInjectionRenderer({
   pageContext = null,
   getPageContext,
-  requestDraft = createDefaultDraft,
-  applyDraft = defaultApplyDraft,
+  createWorkitem = defaultCreateWorkitem,
 }: LarkInjectionRendererDeps = {}): LarkInjectionRenderer {
   let currentAnchor: Element | null = null;
   let buttonMount: HTMLElement | null = null;
   let panelMount: HTMLElement | null = null;
   let currentContextIdentity: string | null = null;
   let panelState: LarkRenderState = "collapsed";
-  let draftPayload: LarkWorkflowDraft | null = null;
   let lastContext: LarkRecordContext | null = null;
   let lastErrorMessage: string | null = null;
   let nextRequestVersion = 0;
@@ -285,31 +258,17 @@ export function createLarkInjectionRenderer({
     return getPageContext?.() ?? pageContext;
   }
 
-  function buildDraftRequest(context: LarkRecordContext): LarkDomDraftRequest {
+  function buildCreateRequest(context: LarkRecordContext): LarkCreateWorkitemRequest {
     const nextPageContext = readPageContext();
     return {
-      pageType: nextPageContext?.pageType ?? "unknown",
-      url: nextPageContext?.url ?? "",
-      baseId: nextPageContext?.baseId,
-      tableId: nextPageContext?.tableId,
-      recordId: nextPageContext?.recordId,
-      operatorLarkId: nextPageContext?.operatorLarkId,
-      snapshot: buildSnapshot(context),
-    };
-  }
-
-  function buildApplyRequest(context: LarkRecordContext, draft: LarkWorkflowDraft): LarkDomApplyRequest {
-    const nextPageContext = readPageContext();
-    return {
-      pageType: nextPageContext?.pageType ?? "unknown",
+      pageType: "lark_base",
       url: nextPageContext?.url ?? "",
       baseId: nextPageContext?.baseId,
       tableId: nextPageContext?.tableId,
       recordId: nextPageContext?.recordId,
       operatorLarkId: nextPageContext?.operatorLarkId,
       masterUserId: nextPageContext?.masterUserId,
-      snapshot: buildSnapshot(context),
-      draft,
+      snapshot: buildSnapshot(context, nextPageContext),
     };
   }
 
@@ -335,23 +294,12 @@ export function createLarkInjectionRenderer({
     panel.textContent = "";
 
     const body = document.createElement("div");
-    const targetLabel = resolveTargetLabel(readPageContext(), draftPayload);
+    const targetLabel = resolveTargetLabel(lastContext);
 
     switch (panelState) {
       case "collapsed":
         body.textContent = "已折叠";
         panel.hidden = true;
-        break;
-      case "draft-loading":
-        body.textContent = formatDraftLoadingLabel(targetLabel);
-        panel.hidden = false;
-        break;
-      case "draft-ready":
-        body.textContent = formatDraftReadyLabel(
-          targetLabel,
-          draftPayload?.name ?? lastContext?.title ?? "",
-        );
-        panel.hidden = false;
         break;
       case "submitting":
         body.textContent = formatSubmittingLabel(targetLabel);
@@ -362,59 +310,11 @@ export function createLarkInjectionRenderer({
         panel.hidden = false;
         break;
       case "error":
-        body.textContent = lastErrorMessage
-          ?? formatFailureLabel(targetLabel, draftPayload !== null);
+        body.textContent = lastErrorMessage ?? formatFailureLabel(targetLabel);
         panel.hidden = false;
         break;
     }
 
-    if (panelState === "draft-ready" || (panelState === "error" && draftPayload !== null)) {
-      const applyButton = document.createElement("button");
-      applyButton.type = "button";
-      applyButton.textContent = formatApplyActionLabel(targetLabel);
-      applyButton.setAttribute("data-tenways-octo-trigger", "apply-to-meegle");
-      applyButton.addEventListener("click", () => {
-        const context = lastContext;
-        const contextIdentity = currentContextIdentity;
-        const currentDraft = draftPayload;
-        if (context === null || currentDraft === null) {
-          lastErrorMessage = formatFailureLabel(targetLabel, true);
-          setPanelState("error");
-          return;
-        }
-
-        const requestVersion = ++nextRequestVersion;
-        activeRequestVersion = requestVersion;
-        lastErrorMessage = null;
-        setPanelState("submitting");
-        void applyDraft(buildApplyRequest(context, currentDraft))
-          .then(() => {
-            if (
-              activeRequestVersion !== requestVersion
-              || currentContextIdentity !== contextIdentity
-              || panelState !== "submitting"
-            ) {
-              return;
-            }
-
-            lastErrorMessage = null;
-            setPanelState("success");
-          })
-          .catch((error) => {
-            if (
-              activeRequestVersion !== requestVersion
-              || currentContextIdentity !== contextIdentity
-              || panelState !== "submitting"
-            ) {
-              return;
-            }
-
-            lastErrorMessage = resolvePanelErrorMessage(error, true, targetLabel);
-            setPanelState("error");
-          });
-      });
-      panel.appendChild(applyButton);
-    }
     panel.prepend(body);
   }
 
@@ -426,7 +326,7 @@ export function createLarkInjectionRenderer({
     buttonMount.textContent = "";
     const button = document.createElement("button");
     button.type = "button";
-    const targetLabel = resolveTargetLabel(readPageContext(), draftPayload);
+    const targetLabel = resolveTargetLabel(lastContext);
     button.textContent = formatPrimaryActionLabel(targetLabel);
     button.setAttribute("data-tenways-octo-trigger", "send-to-meegle");
     button.setAttribute("aria-expanded", panelState === "collapsed" ? "false" : "true");
@@ -440,7 +340,7 @@ export function createLarkInjectionRenderer({
       const context = lastContext;
       const contextIdentity = currentContextIdentity;
       if (context === null) {
-        lastErrorMessage = formatFailureLabel(targetLabel, false);
+        lastErrorMessage = formatFailureLabel(targetLabel);
         setPanelState("error");
         return;
       }
@@ -448,33 +348,30 @@ export function createLarkInjectionRenderer({
       const requestVersion = ++nextRequestVersion;
       activeRequestVersion = requestVersion;
       lastErrorMessage = null;
-      setPanelState("draft-loading");
-      const draftRequest = buildDraftRequest(context);
-      void requestDraft(draftRequest)
-        .then((draft) => {
+      setPanelState("submitting");
+      void createWorkitem(buildCreateRequest(context))
+        .then(() => {
           if (
             activeRequestVersion !== requestVersion
             || currentContextIdentity !== contextIdentity
-            || panelState !== "draft-loading"
+            || panelState !== "submitting"
           ) {
             return;
           }
 
-          draftPayload = draft;
           lastErrorMessage = null;
-          setPanelState("draft-ready");
+          setPanelState("success");
         })
         .catch((error) => {
           if (
             activeRequestVersion !== requestVersion
             || currentContextIdentity !== contextIdentity
-            || panelState !== "draft-loading"
+            || panelState !== "submitting"
           ) {
             return;
           }
 
-          draftPayload = null;
-          lastErrorMessage = resolvePanelErrorMessage(error, false, targetLabel);
+          lastErrorMessage = resolvePanelErrorMessage(error, targetLabel);
           setPanelState("error");
         });
     });
@@ -502,7 +399,6 @@ export function createLarkInjectionRenderer({
         invalidatePendingRequest();
         currentContextIdentity = null;
         panelState = "collapsed";
-        draftPayload = null;
         lastErrorMessage = null;
         lastContext = null;
         cleanupCurrentMounts();
@@ -523,7 +419,6 @@ export function createLarkInjectionRenderer({
         invalidatePendingRequest();
         currentContextIdentity = nextContextIdentity;
         panelState = "collapsed";
-        draftPayload = null;
         lastErrorMessage = null;
       }
 
@@ -534,7 +429,6 @@ export function createLarkInjectionRenderer({
       invalidatePendingRequest();
       currentContextIdentity = null;
       panelState = "collapsed";
-      draftPayload = null;
       lastErrorMessage = null;
       lastContext = null;
       cleanupCurrentMounts();

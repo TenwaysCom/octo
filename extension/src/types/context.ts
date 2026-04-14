@@ -1,5 +1,5 @@
 export type SupportedPlatform = "lark" | "meegle" | "github" | "unknown";
-export type PageType = "lark_a1" | "lark_a2" | "meegle" | "github";
+export type PageType = "lark_base" | "meegle" | "github";
 
 export interface PageContext {
   pageType: PageType;

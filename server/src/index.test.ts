@@ -24,22 +24,43 @@ function collectRoutes(): string[] {
 }
 
 describe("index routes", () => {
-  it("registers the new lark-bug and lark-user-story aliases alongside legacy paths", () => {
+  it("registers lark-base and identity routes", () => {
     expect(collectRoutes()).toEqual(
       expect.arrayContaining([
-        "POST /api/lark-bug/analyze",
-        "POST /api/lark-bug/to-meegle-product-bug/draft",
-        "POST /api/lark-bug/to-meegle-product-bug/apply",
-        "POST /api/lark-user-story/analyze",
-        "POST /api/lark-user-story/to-meegle-user-story/draft",
-        "POST /api/lark-user-story/to-meegle-user-story/apply",
-        "POST /api/a1/analyze",
-        "POST /api/a1/create-b2-draft",
-        "POST /api/a1/apply-b2",
-        "POST /api/a2/analyze",
-        "POST /api/a2/create-b1-draft",
-        "POST /api/a2/apply-b1",
+        "POST /api/identity/resolve",
+        "GET /api/config/public",
+        "POST /api/meegle/auth/exchange",
+        "POST /api/meegle/auth/status",
+        "POST /api/lark/auth/exchange",
+        "POST /api/lark/auth/refresh",
+        "POST /api/lark/auth/status",
+        "POST /api/lark/auth/session",
+        "GET /api/lark/auth/callback",
+        "POST /api/pm/analysis/run",
+        "POST /api/lark-base/update-meegle-link",
+        "POST /api/lark-base/create-meegle-workitem",
       ]),
     );
+  });
+
+  it("does not register legacy A1/A2 routes", () => {
+    const routes = collectRoutes();
+    const legacyRoutes = [
+      "/api/a1/analyze",
+      "/api/a1/create-b2-draft",
+      "/api/a1/apply-b2",
+      "/api/a2/analyze",
+      "/api/a2/create-b1-draft",
+      "/api/a2/apply-b1",
+      "/api/lark-bug/analyze",
+      "/api/lark-bug/to-meegle-product-bug/draft",
+      "/api/lark-bug/to-meegle-product-bug/apply",
+      "/api/lark-user-story/analyze",
+      "/api/lark-user-story/to-meegle-user-story/draft",
+      "/api/lark-user-story/to-meegle-user-story/apply",
+    ];
+    for (const path of legacyRoutes) {
+      expect(routes).not.toContain(`POST ${path}`);
+    }
   });
 });

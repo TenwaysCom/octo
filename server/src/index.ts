@@ -1,8 +1,6 @@
 import "reflect-metadata";
 import "dotenv/config";
 import express, { type Request, type Response } from "express";
-import { analyzeA2Controller, createB1DraftController, applyB1Controller } from "./modules/a2/a2.controller.js";
-import { analyzeA1Controller, createB2DraftController, applyB2Controller } from "./modules/a1/a1.controller.js";
 import { resolveIdentityController } from "./modules/identity/identity.controller.js";
 import { exchangeAuthCodeController, getAuthStatusController } from "./modules/meegle-auth/meegle-auth.controller.js";
 import { exchangeAuthCodeController as exchangeLarkAuthCodeController, refreshTokenController as refreshLarkTokenController, getAuthStatusController as getLarkAuthStatusController, handleAuthCallbackController as handleLarkAuthCallbackController, createOauthSessionController as createLarkOauthSessionController } from "./modules/lark-auth/lark-auth.controller.js";
@@ -17,6 +15,8 @@ import { getSharedLarkTokenStore } from "./adapters/postgres/lark-token-store.js
 import { getSharedOauthSessionStore } from "./adapters/postgres/lark-oauth-session-store.js";
 import { registerLarkMeegleWorkflowRoutes } from "./http/lark-meegle-workflow-routes.js";
 import { runPMAnalysisController } from "./modules/pm-analysis/pm-analysis.controller.js";
+import { updateLarkBaseMeegleLinkController } from "./modules/lark-base/lark-base.controller.js";
+import { createLarkBaseWorkflowController } from "./modules/lark-base/lark-base-workflow.controller.js";
 import { createApiRequestLogger, logApiRequest, summarizeRequestPayload } from "./http/api-request-logger.js";
 import { createCorsMiddleware } from "./http/cors.js";
 
@@ -142,14 +142,16 @@ registerLarkMeegleWorkflowRoutes(app, handleController);
 // PM Analysis routes
 app.post("/api/pm/analysis/run", handleController(runPMAnalysisController));
 
+// Lark Base routes
+app.post("/api/lark-base/update-meegle-link", handleController(updateLarkBaseMeegleLinkController));
+app.post("/api/lark-base/create-meegle-workitem", handleController(createLarkBaseWorkflowController));
+
 if (process.env.NODE_ENV !== "test" && process.env.VITEST !== "true") {
   await ensureSharedDatabase();
   app.listen(PORT, HOST, () => {
     console.log(`Tenways Octo Server running on http://${HOST}:${PORT}`);
     console.log(`Health check: http://${HOST}:${PORT}/health`);
-    console.log(`A2 analyze: http://${HOST}:${PORT}/api/a2/analyze`);
-    console.log(`A2 create draft: http://${HOST}:${PORT}/api/a2/create-b1-draft`);
-    console.log(`A2 apply: http://${HOST}:${PORT}/api/a2/apply-b1`);
+    console.log(`Lark Base create workitem: http://${HOST}:${PORT}/api/lark-base/create-meegle-workitem`);
   });
 }
 

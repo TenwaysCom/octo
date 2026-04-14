@@ -6,7 +6,7 @@ export const fieldValuePairSchema = z.object({
 });
 
 export const sourceRefSchema = z.object({
-  sourcePlatform: z.enum(["lark_a1", "lark_a2"]),
+  sourcePlatform: z.enum(["lark_base"]),
   sourceRecordId: z.string().min(1),
 });
 

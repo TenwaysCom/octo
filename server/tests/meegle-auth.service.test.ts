@@ -14,7 +14,7 @@ describe("exchangeAuthCode", () => {
       exchangeAuthCode(
         {
           requestId: "req-1",
-          operatorLarkId: "ou_xxx",
+          masterUserId: "usr_xxx",
           meegleUserKey: "user_xxx",
           baseUrl: "https://project.larksuite.com",
           authCode: "auth-code",
@@ -59,7 +59,7 @@ describe("exchangeAuthCode", () => {
     const tokenStore = new InMemoryMeegleTokenStore();
 
     await tokenStore.save({
-      operatorLarkId: "ou_xxx",
+      masterUserId: "usr_xxx",
       meegleUserKey: "user_xxx",
       baseUrl: "https://project.larksuite.com",
       pluginToken: "plugin-token",
@@ -74,7 +74,7 @@ describe("exchangeAuthCode", () => {
     await expect(
       refreshAuthToken(
         {
-          operatorLarkId: "ou_xxx",
+          masterUserId: "usr_xxx",
           meegleUserKey: "user_xxx",
           baseUrl: "https://project.larksuite.com",
         },
@@ -144,7 +144,7 @@ describe("exchangeAuthCode", () => {
 
     await exchangeAuthCode({
       requestId: "req-2",
-      operatorLarkId: "ou_xxx",
+      masterUserId: "usr_xxx",
       meegleUserKey: "user_xxx",
       baseUrl: "https://project.larksuite.com",
       authCode: "auth-code",
@@ -152,7 +152,7 @@ describe("exchangeAuthCode", () => {
 
     await expect(
       refreshAuthToken({
-        operatorLarkId: "ou_xxx",
+        masterUserId: "usr_xxx",
         meegleUserKey: "user_xxx",
         baseUrl: "https://project.larksuite.com",
       }),
@@ -166,7 +166,7 @@ describe("exchangeAuthCode", () => {
     const tokenStore = new InMemoryMeegleTokenStore();
 
     await tokenStore.save({
-      operatorLarkId: "ou_xxx",
+      masterUserId: "usr_xxx",
       meegleUserKey: "user_xxx",
       baseUrl: "https://project.larksuite.com",
       pluginToken: "plugin-token",
@@ -181,7 +181,7 @@ describe("exchangeAuthCode", () => {
     await expect(
       refreshAuthToken(
         {
-          operatorLarkId: "ou_xxx",
+          masterUserId: "usr_xxx",
           meegleUserKey: "user_xxx",
           baseUrl: "https://project.larksuite.com",
         },
@@ -214,7 +214,7 @@ describe("exchangeAuthCode", () => {
 
     await expect(
       tokenStore.get({
-        operatorLarkId: "ou_xxx",
+        masterUserId: "usr_xxx",
         meegleUserKey: "user_xxx",
         baseUrl: "https://project.larksuite.com",
       }),

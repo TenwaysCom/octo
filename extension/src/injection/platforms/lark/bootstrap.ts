@@ -1,4 +1,4 @@
-import { createProbeOverlay, type ProbeOverlayHandle, type ProbeOverlayState } from "../../core/overlay";
+import { createProbeOverlay, type ProbeOverlayHandle, type ProbeOverlayState, type ProbeDebugInfo } from "../../core/overlay";
 import { createProbeController, isInjectionProbeEnabled, type ProbeController } from "../../core/probe-controller";
 import { createLarkInjectionAdapter } from "./adapter";
 import { probeLarkContext, probeLarkDetail, type LarkRecordContext } from "./probe";
@@ -74,12 +74,94 @@ function parseLarkUrlContext(url: URL): Pick<LarkDetectedPageContext, "baseId" |
   };
 }
 
-function toProbeOverlayState(pageState: InjectionPageState<LarkRecordContext>): ProbeOverlayState {
+function extractRecordIdFromFields(context: LarkRecordContext | null): string | undefined {
+  if (!context) {
+    return undefined;
+  }
+  const recordIdField = context.fields.find(
+    (field) => field.label.trim().replace(/\s/g, "") === "记录ID",
+  );
+  return recordIdField?.value.trim();
+}
+
+function extractRecordIdFromDom(
+  detailRoot: Element | null,
+  debugResults?: Array<{ selector: string; label: string | null; value: string | null }>,
+): string | undefined {
+  if (!detailRoot) {
+    return undefined;
+  }
+
+  const fieldSelectors = [
+    ".field-row",
+    "[data-field-row]",
+    "[class*='field-row']",
+    "[class*='field-item']",
+    "[class*='field']",
+  ];
+
+  for (const selector of fieldSelectors) {
+    const fields = detailRoot.querySelectorAll(selector);
+
+    for (const field of Array.from(fields)) {
+      const labelEl = field.querySelector("label, [class*='label'], [data-label]");
+      const label = labelEl?.textContent?.trim() ?? null;
+      const valueEl = field.querySelector("[class*='value'], [data-value], div:last-child");
+      const value = valueEl?.textContent?.trim()
+        || field.textContent?.replace(label ?? "", "").trim()
+        || null;
+
+      if (debugResults) {
+        debugResults.push({ selector, label, value });
+      }
+
+      if (label?.replace(/\s/g, "") === "记录ID") {
+        if (value?.startsWith("rec")) {
+          return value;
+        }
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function buildDebugInfo(
+  detail: ReturnType<typeof probeLarkDetail>,
+  parsedContext: LarkRecordContext | null,
+  url: string,
+): ProbeDebugInfo {
+  const domScanResults: Array<{ selector: string; label: string | null; value: string | null }> = [];
+  extractRecordIdFromDom(detail.detailRoot, domScanResults);
+
+  const urlRecordId = typeof URL !== "undefined" && url
+    ? parseLarkUrlContext(new URL(url)).recordId ?? null
+    : null;
+
+  return {
+    isDetailOpen: detail.isOpen,
+    hasDetailRoot: !!detail.detailRoot,
+    parsedFieldCount: parsedContext?.fields.length ?? 0,
+    parsedFields: parsedContext?.fields.map(f => ({ label: f.label, value: f.value })) ?? [],
+    domScanResults: domScanResults.slice(0, 10),
+    urlRecordId,
+    fieldExtractRecordId: extractRecordIdFromFields(parsedContext) ?? null,
+    domExtractRecordId: extractRecordIdFromDom(detail.detailRoot) ?? null,
+  };
+}
+
+function toProbeOverlayState(
+  pageState: InjectionPageState<LarkRecordContext>,
+  recordId: string | null,
+  debug?: ProbeDebugInfo,
+): ProbeOverlayState {
   if (pageState.kind === "detail-ready") {
     return {
       detailState: "detail-ready",
       detailTitle: pageState.context.title,
       anchorLabel: pageState.anchor.label,
+      recordId,
+      debug,
     };
   }
 
@@ -88,6 +170,8 @@ function toProbeOverlayState(pageState: InjectionPageState<LarkRecordContext>): 
       detailState: "detail-loading",
       detailTitle: null,
       anchorLabel: null,
+      recordId,
+      debug,
     };
   }
 
@@ -95,38 +179,29 @@ function toProbeOverlayState(pageState: InjectionPageState<LarkRecordContext>): 
     detailState: "closed",
     detailTitle: null,
     anchorLabel: null,
+    recordId,
+    debug,
   };
 }
 
-function inferPageTypeFromRecordContext(context: LarkRecordContext | null): LarkPageContext["pageType"] {
-  if (!context) {
-    return "unknown";
-  }
-
-  const labels = context.fields.map((field) => field.label.trim().toLowerCase());
-  const hasA2Signal = labels.some((label) =>
-    label.includes("acceptance")
-    || label.includes("验收")
-    || label.includes("target")
-    || label.includes("目标"),
-  );
-  if (hasA2Signal) {
-    return "lark_a2";
-  }
-
-  const hasA1Signal = labels.some((label) =>
-    label.includes("impact")
-    || label.includes("environment")
-    || label.includes("request status")
-    || label.includes("priority")
-    || label.includes("影响")
-    || label.includes("环境"),
-  );
-  if (hasA1Signal) {
-    return "lark_a1";
+function inferPageTypeFromRecordContext(
+  _context: LarkRecordContext | null,
+  baseId: string | undefined,
+  tableId: string | undefined,
+): LarkPageContext["pageType"] {
+  if (baseId && tableId) {
+    return "lark_base";
   }
 
   return "unknown";
+}
+
+function readCurrentRouteRecordId(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return parseLarkUrlContext(new URL(window.location.href)).recordId ?? null;
 }
 
 export function createLarkContentScriptRuntime(): LarkContentScriptRuntime {
@@ -134,6 +209,7 @@ export function createLarkContentScriptRuntime(): LarkContentScriptRuntime {
     detailState: "closed",
     detailTitle: null,
     anchorLabel: null,
+    recordId: null,
   };
   let probeOverlay: ProbeOverlayHandle | null = null;
   let probeController: ProbeController<LarkRecordContext> | null = null;
@@ -145,8 +221,27 @@ export function createLarkContentScriptRuntime(): LarkContentScriptRuntime {
     probeController?.refresh();
   }
 
-  function handlePageState(pageState: InjectionPageState<LarkRecordContext>): void {
-    probeState = toProbeOverlayState(pageState);
+  function resolveRecordId(
+    detail: ReturnType<typeof probeLarkDetail>,
+    parsedContext: LarkRecordContext | null,
+  ): string | null {
+    const url = typeof window !== "undefined" ? window.location.href : "";
+    const routeRecordId = url ? parseLarkUrlContext(new URL(url)).recordId : null;
+    return routeRecordId
+      ?? extractRecordIdFromFields(parsedContext)
+      ?? extractRecordIdFromDom(detail.detailRoot)
+      ?? null;
+  }
+
+  function handlePageState(state: {
+    pageState: InjectionPageState<LarkRecordContext>;
+    detail: ReturnType<typeof probeLarkDetail>;
+    parsedContext: LarkRecordContext | null;
+  }): void {
+    const url = typeof window !== "undefined" ? window.location.href : "";
+    const debug = buildDebugInfo(state.detail, state.parsedContext, url);
+    const finalRecordId = resolveRecordId(state.detail, state.parsedContext);
+    probeState = toProbeOverlayState(state.pageState, finalRecordId, debug);
     probeOverlay?.render(probeState);
   }
 
@@ -158,11 +253,13 @@ export function createLarkContentScriptRuntime(): LarkContentScriptRuntime {
     const routeContext = parseLarkUrlContext(parsedUrl);
 
     const context: LarkDetectedPageContext = {
-      pageType: inferPageTypeFromRecordContext(parsedContext),
+      pageType: inferPageTypeFromRecordContext(parsedContext, routeContext.baseId, routeContext.tableId),
       url,
       baseId: routeContext.baseId,
       tableId: routeContext.tableId,
-      recordId: routeContext.recordId,
+      recordId: routeContext.recordId
+        ?? extractRecordIdFromFields(parsedContext)
+        ?? extractRecordIdFromDom(detail.detailRoot),
     };
 
     const larkIdElement = document.querySelector('[data-user-id]') as HTMLElement;
@@ -181,7 +278,7 @@ export function createLarkContentScriptRuntime(): LarkContentScriptRuntime {
 
     return {
       ...pageContext,
-      operatorLarkId: getLarkUserId() ?? undefined,
+      operatorLarkId: pageContext.detectedLarkId ?? getLarkUserId() ?? undefined,
     };
   }
 

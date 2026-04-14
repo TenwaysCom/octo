@@ -1,9 +1,22 @@
 import { MOUNT_ATTR } from "./mount";
 
+export type ProbeDebugInfo = {
+  isDetailOpen: boolean;
+  hasDetailRoot: boolean;
+  parsedFieldCount: number;
+  parsedFields: Array<{ label: string; value: string }>;
+  domScanResults: Array<{ selector: string; label: string | null; value: string | null }>;
+  urlRecordId: string | null;
+  fieldExtractRecordId: string | null;
+  domExtractRecordId: string | null;
+};
+
 export type ProbeOverlayState = {
   detailState: "closed" | "detail-loading" | "detail-ready";
   detailTitle: string | null;
   anchorLabel: string | null;
+  recordId: string | null;
+  debug?: ProbeDebugInfo;
 };
 
 export type ProbeOverlayHandle = {
@@ -64,12 +77,41 @@ function renderOverlayText(root: HTMLDivElement, state: ProbeOverlayState): void
     return;
   }
 
-  textNode.textContent = [
+  const lines = [
     "[Tenways Octo probe]",
     `detail: ${state.detailState}`,
     `title: ${state.detailTitle ?? "-"}`,
     `anchor: ${state.anchorLabel ?? "-"}`,
-  ].join("\n");
+    `recordId: ${state.recordId ?? "-"}`,
+  ];
+
+  if (state.debug) {
+    lines.push("", "[Debug Info]");
+    lines.push(`detailOpen: ${state.debug.isDetailOpen}`);
+    lines.push(`hasRoot: ${state.debug.hasDetailRoot}`);
+    lines.push(`parsedFields: ${state.debug.parsedFieldCount}`);
+    lines.push(`urlRecordId: ${state.debug.urlRecordId ?? "-"}`);
+    lines.push(`fieldExtract: ${state.debug.fieldExtractRecordId ?? "-"}`);
+    lines.push(`domExtract: ${state.debug.domExtractRecordId ?? "-"}`);
+
+    if (state.debug.parsedFields.length > 0) {
+      lines.push("", "[Parsed Fields]");
+      state.debug.parsedFields.slice(0, 5).forEach((f) => {
+        lines.push(`  ${f.label}: ${f.value.substring(0, 30)}${f.value.length > 30 ? "..." : ""}`);
+      });
+    }
+
+    if (state.debug.domScanResults.length > 0) {
+      lines.push("", "[DOM Scan]");
+      state.debug.domScanResults.slice(0, 5).forEach((r) => {
+        const label = r.label ?? "?";
+        const value = r.value?.substring(0, 20) ?? "-";
+        lines.push(`  ${label}: ${value}`);
+      });
+    }
+  }
+
+  textNode.textContent = lines.join("\n");
 }
 
 export function createProbeOverlay(onRefresh: () => void): ProbeOverlayHandle {

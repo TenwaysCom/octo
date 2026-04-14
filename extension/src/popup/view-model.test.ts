@@ -24,11 +24,11 @@ describe("popup view model", () => {
     expect(
       buildPopupHeaderContext({
         platform: "Lark",
-        module: "A1",
+        module: "Base",
         task: "Generate Draft",
         status: "Running",
       }),
-    ).toBe("Lark · A1 · Generate Draft · Running");
+    ).toBe("Lark · Base · Generate Draft · Running");
   });
 
   it("skips empty header context segments", () => {

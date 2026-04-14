@@ -7,10 +7,8 @@ import type {
   LarkAuthEnsureRequest,
   LarkAuthEnsureResponse,
   LarkAuthCallbackResult,
-  LarkDomApplyRequest,
-  LarkDomDraftRequest,
-  LarkDraftApplyResult,
-  LarkWorkflowDraft,
+  LarkBaseCreateWorkitemRequest,
+  LarkBaseCreateWorkitemResultPayload,
 } from "./lark";
 
 export const protocolActions = [
@@ -18,12 +16,7 @@ export const protocolActions = [
   "itdog.meegle.auth.ensure",
   "itdog.lark.auth.ensure",
   "itdog.lark.auth.callback.detected",
-  "itdog.a1.analyze",
-  "itdog.a1.create_b2_draft",
-  "itdog.a1.apply_b2",
-  "itdog.a2.analyze",
-  "itdog.a2.create_b1_draft",
-  "itdog.a2.apply_b1",
+  "itdog.lark_base.create_workitem",
   "itdog.pm.analysis.run",
   "itdog.page.meegle.auth_code.request",
 ] as const;
@@ -69,30 +62,12 @@ export type LarkAuthCallbackDetectedMessage = ProtocolEnvelope<
   LarkAuthCallbackResult
 >;
 
-export type LarkDraftAction =
-  | "itdog.a1.create_b2_draft"
-  | "itdog.a2.create_b1_draft";
-
-export type LarkApplyAction =
-  | "itdog.a1.apply_b2"
-  | "itdog.a2.apply_b1";
-
-export type LarkDraftMessage = ProtocolEnvelope<
-  LarkDraftAction,
-  LarkDomDraftRequest
+export type LarkBaseCreateWorkitemMessage = ProtocolEnvelope<
+  "itdog.lark_base.create_workitem",
+  LarkBaseCreateWorkitemRequest
 >;
 
-export type LarkDraftResult = ProtocolEnvelope<
-  LarkDraftAction,
-  LarkWorkflowDraft
->;
-
-export type LarkApplyMessage = ProtocolEnvelope<
-  LarkApplyAction,
-  LarkDomApplyRequest
->;
-
-export type LarkApplyResult = ProtocolEnvelope<
-  LarkApplyAction,
-  LarkDraftApplyResult
+export type LarkBaseCreateWorkitemResult = ProtocolEnvelope<
+  "itdog.lark_base.create_workitem",
+  LarkBaseCreateWorkitemResultPayload
 >;

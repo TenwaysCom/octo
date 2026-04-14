@@ -9,7 +9,7 @@ describe("meegle-workitem.service", () => {
       draftId: "draft_b2_001",
       draftType: "b2",
       sourceRef: {
-        sourcePlatform: "lark_a1",
+        sourcePlatform: "lark_base",
         sourceRecordId: "record_001",
       },
       target: {

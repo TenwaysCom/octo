@@ -31,7 +31,7 @@ describe("PopupShell", () => {
   it("renders the dynamic core status only when it is provided", () => {
     const wrapper = mount(PopupShell, {
       props: {
-        subtitle: "Lark · A1 · Generate Draft · Running",
+        subtitle: "Lark · Base · Generate Draft · Running",
       },
       slots: {
         default: "<div>body</div>",
@@ -46,7 +46,7 @@ describe("PopupShell", () => {
     });
 
     expect(wrapper.find(".popup-shell__subtitle").text()).toContain(
-      "Lark · A1 · Generate Draft · Running",
+      "Lark · Base · Generate Draft · Running",
     );
   });
 });
