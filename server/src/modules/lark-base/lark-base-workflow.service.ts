@@ -227,12 +227,27 @@ async function loadLarkRecord(
   recordId: string,
   masterUserId: string,
   deps: LarkBaseWorkflowDeps,
-): Promise<LarkBitableRecord> {
+): Promise<{ record: LarkBitableRecord; baseUrl: string }> {
   const { accessToken, baseUrl } = await getLarkAccessToken(masterUserId, deps);
   const client = deps.createLarkClient
     ? deps.createLarkClient(accessToken, baseUrl)
     : new LarkClient({ accessToken, baseUrl });
-  return client.getRecord(baseId, tableId, recordId);
+  const record = await client.getRecord(baseId, tableId, recordId);
+  return { record, baseUrl };
+}
+
+// ==================== Lark Base URL Builder ====================
+
+function buildLarkBaseRecordUrl(
+  apiBaseUrl: string,
+  baseId: string,
+  tableId: string,
+  recordId: string,
+): string {
+  const domain = apiBaseUrl.includes("feishu")
+    ? "base.feishu.cn"
+    : "base.larksuite.com";
+  return `https://${domain}/base/${baseId}/table/${tableId}/record/${recordId}`;
 }
 
 // ==================== Draft Builder ====================
@@ -241,15 +256,20 @@ function buildExecutionDraft(
   record: LarkBitableRecord,
   projectKey: string,
   mapping: WorkitemMapping,
+  larkBaseRecordUrl: string | undefined,
   index = 0,
 ): ExecutionDraft {
   const title = extractRecordTitle(record);
   const description = extractRecordDescription(record);
 
+  const fullDescription = larkBaseRecordUrl
+    ? `${description || title}\n\nLark Base: ${larkBaseRecordUrl}`
+    : (description || title);
+
   const fieldValuePairs: ExecutionDraft["fieldValuePairs"] = [
     {
       fieldKey: "description",
-      fieldValue: description || title,
+      fieldValue: fullDescription,
     },
   ];
 
@@ -305,8 +325,11 @@ export async function executeLarkBaseWorkflow(
   }
 
   let record: LarkBitableRecord;
+  let larkApiBaseUrl: string | undefined;
   try {
-    record = await loadLarkRecord(baseId, tableId, request.recordId, request.masterUserId, deps);
+    const loaded = await loadLarkRecord(baseId, tableId, request.recordId, request.masterUserId, deps);
+    record = loaded.record;
+    larkApiBaseUrl = loaded.baseUrl;
     console.log("[LarkBaseWorkflow] Record loaded", {
       recordId: record.record_id,
       fieldKeys: Object.keys(record.fields),
@@ -358,9 +381,13 @@ export async function executeLarkBaseWorkflow(
 
   console.log("[LarkBaseWorkflow] Starting workitem creation loop", { mappingCount: mappings.length });
 
+  const larkBaseRecordUrl = larkApiBaseUrl
+    ? buildLarkBaseRecordUrl(larkApiBaseUrl, baseId, tableId, request.recordId)
+    : undefined;
+
   for (let i = 0; i < mappings.length; i++) {
     const mapping = mappings[i];
-    const draft = buildExecutionDraft(record, projectKey, mapping, i);
+    const draft = buildExecutionDraft(record, projectKey, mapping, larkBaseRecordUrl, i);
 
     console.log("[LarkBaseWorkflow] Applying mapping", { index: i, workitemTypeKey: mapping.workitemTypeKey, templateId: mapping.templateId, idempotencyKey: `idem_base_${request.recordId}_${mapping.workitemTypeKey}_${i}` });
 

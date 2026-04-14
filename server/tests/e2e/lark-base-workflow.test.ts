@@ -93,6 +93,12 @@ describe("lark-base workflow e2e", () => {
             workitemTypeKey: "story",
             templateId: "400329",
           }),
+          fieldValuePairs: expect.arrayContaining([
+            expect.objectContaining({
+              fieldKey: "description",
+              fieldValue: expect.stringContaining("https://base.larksuite.com/base/base_e2e/table/tbl_e2e/record/rec_e2e_001"),
+            }),
+          ]),
         }),
       }),
       {},

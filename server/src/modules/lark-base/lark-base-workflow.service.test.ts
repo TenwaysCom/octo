@@ -113,6 +113,12 @@ describe("lark-base-workflow.service", () => {
             workitemTypeKey: "story",
             templateId: "400329",
           }),
+          fieldValuePairs: expect.arrayContaining([
+            expect.objectContaining({
+              fieldKey: "description",
+              fieldValue: expect.stringContaining("https://base.larksuite.com/base/base_123/table/tbl_456/record/rec_123"),
+            }),
+          ]),
         }),
         idempotencyKey: "idem_base_rec_123_story_0",
       }),
