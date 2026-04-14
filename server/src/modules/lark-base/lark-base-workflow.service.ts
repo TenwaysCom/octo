@@ -6,6 +6,11 @@ import { executeMeegleApply, type MeegleApplyErrorCode } from "../../application
 import { updateLarkBaseMeegleLink } from "./lark-base.service.js";
 import type { CreateLarkBaseWorkflowRequest } from "./lark-base-workflow.dto.js";
 import type { ExecutionDraft } from "../../validators/agent-output/execution-draft.js";
+import {
+  loadLarkBaseWorkflowConfig,
+  type LarkBaseWorkflowConfig,
+  type FieldMappingConfig,
+} from "./lark-base-workflow-config.js";
 
 // ==================== Environment Defaults ====================
 
@@ -86,6 +91,7 @@ interface WorkitemMapping {
   workitemTypeKey: string;
   templateId: string;
   urlSlug: string;
+  fieldMappings?: FieldMappingConfig[];
 }
 
 export interface LarkBaseWorkflowResult {
@@ -114,25 +120,29 @@ export interface LarkBaseWorkflowDeps {
 
 // ==================== Issue Type Mapping ====================
 
-function resolveWorkitemMappings(issueTypes: string[]): WorkitemMapping[] {
+function resolveWorkitemMappings(
+  issueTypes: string[],
+  config?: LarkBaseWorkflowConfig,
+): WorkitemMapping[] {
   const types = issueTypes.length > 0 ? issueTypes : [DEFAULT_ISSUE_TYPE_FALLBACK];
-  const configs = parseIssueTypeMappings();
+  const configs = config?.issueTypeMappings ?? parseIssueTypeMappings();
   const seen = new Set<string>();
   const mappings: WorkitemMapping[] = [];
 
-  console.log("[LarkBaseWorkflow] resolveWorkitemMappings input", { issueTypes, fallback: DEFAULT_ISSUE_TYPE_FALLBACK, typesToMatch: types, configCount: configs.length });
+  console.log("[LarkBaseWorkflow] resolveWorkitemMappings input", { issueTypes, fallback: DEFAULT_ISSUE_TYPE_FALLBACK, typesToMatch: types, configCount: configs.length, hasFileConfig: Boolean(config) });
 
-  for (const config of configs) {
-    const hasMatch = types.some((t) => config.larkLabels.includes(t));
-    console.log("[LarkBaseWorkflow] resolveWorkitemMappings checking config", { larkLabels: config.larkLabels, workitemTypeKey: config.workitemTypeKey, hasMatch });
+  for (const c of configs) {
+    const hasMatch = types.some((t) => c.larkLabels.includes(t));
+    console.log("[LarkBaseWorkflow] resolveWorkitemMappings checking config", { larkLabels: c.larkLabels, workitemTypeKey: c.workitemTypeKey, hasMatch });
     if (hasMatch) {
-      const key = `${config.workitemTypeKey}|${config.templateId}`;
+      const key = `${c.workitemTypeKey}|${c.templateId}`;
       if (!seen.has(key)) {
         seen.add(key);
         mappings.push({
-          workitemTypeKey: config.workitemTypeKey,
-          templateId: config.templateId,
-          urlSlug: config.urlSlug || config.workitemTypeKey,
+          workitemTypeKey: c.workitemTypeKey,
+          templateId: c.templateId,
+          urlSlug: c.urlSlug || c.workitemTypeKey,
+          fieldMappings: (c as WorkitemMapping & { fieldMappings?: FieldMappingConfig[] }).fieldMappings,
         });
       }
     }
@@ -250,6 +260,61 @@ function buildLarkBaseRecordUrl(
   return `https://${domain}/base/${baseId}/table/${tableId}/record/${recordId}`;
 }
 
+// ==================== Generic Field Extractor ====================
+
+function extractRawLarkValue(
+  fields: Record<string, unknown>,
+  fieldNames: string[],
+): unknown {
+  for (const name of fieldNames) {
+    const value = fields[name];
+    if (value !== undefined && value !== null && value !== "") {
+      return value;
+    }
+  }
+  return undefined;
+}
+
+function stringifyLarkValue(raw: unknown): string {
+  if (typeof raw === "string") return raw;
+  if (typeof raw === "number" || typeof raw === "boolean") return String(raw);
+  if (Array.isArray(raw)) {
+    const texts = raw
+      .map((item) => {
+        if (typeof item === "string") return item;
+        if (item && typeof item === "object") {
+          return String((item as Record<string, unknown>).text ?? (item as Record<string, unknown>).name ?? "");
+        }
+        return "";
+      })
+      .filter(Boolean);
+    return texts.join(", ");
+  }
+  if (raw && typeof raw === "object") {
+    return String((raw as Record<string, unknown>).text ?? (raw as Record<string, unknown>).name ?? "");
+  }
+  return "";
+}
+
+function applyTransform(value: string, transform: FieldMappingConfig["transform"]): string {
+  switch (transform) {
+    case "first_line":
+      return value.split("\n")[0].slice(0, 200);
+    case "text":
+    default:
+      return value;
+  }
+}
+
+function extractMappedValue(
+  fields: Record<string, unknown>,
+  mapping: FieldMappingConfig,
+): string {
+  const raw = extractRawLarkValue(fields, [mapping.larkField, ...(mapping.fallbackLarkFields || [])]);
+  const stringified = stringifyLarkValue(raw);
+  return applyTransform(stringified, mapping.transform ?? "text");
+}
+
 // ==================== Draft Builder ====================
 
 function buildExecutionDraft(
@@ -259,19 +324,54 @@ function buildExecutionDraft(
   larkBaseRecordUrl: string | undefined,
   index = 0,
 ): ExecutionDraft {
-  const title = extractRecordTitle(record);
-  const description = extractRecordDescription(record);
+  let title: string;
+  let fieldValuePairs: ExecutionDraft["fieldValuePairs"];
 
-  const fullDescription = larkBaseRecordUrl
-    ? `${description || title}\n\nLark Base: ${larkBaseRecordUrl}`
-    : (description || title);
+  if (mapping.fieldMappings && mapping.fieldMappings.length > 0) {
+    // Config-driven path
+    const titleMapping = mapping.fieldMappings.find((m) => m.meegleField === "__title__");
+    title = titleMapping
+      ? extractMappedValue(record.fields, titleMapping)
+      : extractRecordTitle(record);
 
-  const fieldValuePairs: ExecutionDraft["fieldValuePairs"] = [
-    {
-      fieldKey: "description",
-      fieldValue: fullDescription,
-    },
-  ];
+    fieldValuePairs = mapping.fieldMappings
+      .filter((m) => m.meegleField !== "__title__")
+      .map((m) => {
+        let value = extractMappedValue(record.fields, m);
+        if (m.meegleField === "description" && larkBaseRecordUrl) {
+          value = value ? `${value}\n\nLark Base: ${larkBaseRecordUrl}` : `Lark Base: ${larkBaseRecordUrl}`;
+        }
+        return {
+          fieldKey: m.meegleField,
+          fieldValue: value,
+        };
+      });
+
+    // Ensure at least one fieldValuePair (schema requires it)
+    if (fieldValuePairs.length === 0) {
+      fieldValuePairs = [
+        {
+          fieldKey: "description",
+          fieldValue: title,
+        },
+      ];
+    }
+  } else {
+    // Legacy hardcoded path
+    const description = extractRecordDescription(record);
+    title = extractRecordTitle(record);
+
+    const fullDescription = larkBaseRecordUrl
+      ? `${description || title}\n\nLark Base: ${larkBaseRecordUrl}`
+      : (description || title);
+
+    fieldValuePairs = [
+      {
+        fieldKey: "description",
+        fieldValue: fullDescription,
+      },
+    ];
+  }
 
   const draft: ExecutionDraft = {
     draftId: `draft_base_${record.record_id}_${mapping.workitemTypeKey}_${index}`,
@@ -284,14 +384,14 @@ function buildExecutionDraft(
       workitemTypeKey: mapping.workitemTypeKey,
       templateId: mapping.templateId,
     },
-    name: title,
+    name: title || `Lark Base Record ${record.record_id}`,
     needConfirm: true,
     fieldValuePairs,
     ownerUserKeys: [],
     missingMeta: [],
   };
 
-  console.log("[LarkBaseWorkflow] buildExecutionDraft", { draftId: draft.draftId, workitemTypeKey: mapping.workitemTypeKey, templateId: mapping.templateId, title });
+  console.log("[LarkBaseWorkflow] buildExecutionDraft", { draftId: draft.draftId, workitemTypeKey: mapping.workitemTypeKey, templateId: mapping.templateId, title: draft.name });
   return draft;
 }
 
@@ -323,6 +423,8 @@ export async function executeLarkBaseWorkflow(
       },
     };
   }
+
+  const config = loadLarkBaseWorkflowConfig();
 
   let record: LarkBitableRecord;
   let larkApiBaseUrl: string | undefined;
@@ -366,7 +468,7 @@ export async function executeLarkBaseWorkflow(
   const issueTypes = extractIssueTypes(record.fields);
   let mappings: WorkitemMapping[];
   try {
-    mappings = resolveWorkitemMappings(issueTypes);
+    mappings = resolveWorkitemMappings(issueTypes, config ?? undefined);
   } catch (error) {
     return {
       ok: false,

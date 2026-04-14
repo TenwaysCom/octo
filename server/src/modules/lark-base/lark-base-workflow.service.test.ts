@@ -466,4 +466,68 @@ describe("lark-base-workflow.service", () => {
       },
     });
   });
+
+  it("uses config-driven field mappings when config file is present", async () => {
+    process.env.LARK_BASE_WORKFLOW_CONFIG_PATH = "./src/modules/lark-base/fixtures/test-config.json";
+
+    const record: LarkBitableRecord = {
+      record_id: "rec_123",
+      fields: {
+        "Issue 类型": [{ text: "User Story", id: "opt_us" }],
+        "Issue Description": "Config-driven title\nSecond line",
+        "Details Description": "Config-driven details",
+      },
+    };
+
+    createLarkClientMock.mockReturnValueOnce({
+      getRecord: vi.fn().mockResolvedValueOnce(record),
+    });
+    getLarkTokenStoreMock.mockResolvedValueOnce({
+      userToken: "token_123",
+      userTokenExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
+      baseUrl: "https://open.larksuite.com",
+    });
+    executeMeegleApplyMock.mockResolvedValueOnce({
+      status: "created",
+      workitemId: "wi_cfg",
+      draft: {},
+    });
+    updateLarkBaseMeegleLinkMock.mockResolvedValueOnce({
+      ok: true,
+      recordId: "rec_123",
+    });
+
+    const result = await executeLarkBaseWorkflow(
+      {
+        recordId: "rec_123",
+        masterUserId: "usr_xxx",
+        baseId: "base_123",
+        tableId: "tbl_456",
+      },
+      deps,
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      workitemId: "wi_cfg",
+      meegleLink: expect.stringContaining("/detail/wi_cfg"),
+      recordId: "rec_123",
+      workitems: [
+        { workitemId: "wi_cfg", meegleLink: expect.stringContaining("/detail/wi_cfg") },
+      ],
+    });
+
+    const draftArg = executeMeegleApplyMock.mock.calls[0]?.[0] as { draft?: { name?: string; fieldValuePairs?: Array<{ fieldKey: string; fieldValue: string }> } };
+    expect(draftArg?.draft?.name).toBe("Config-driven title");
+    expect(draftArg?.draft?.fieldValuePairs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          fieldKey: "description",
+          fieldValue: expect.stringContaining("Config-driven details"),
+        }),
+      ]),
+    );
+
+    delete process.env.LARK_BASE_WORKFLOW_CONFIG_PATH;
+  });
 });

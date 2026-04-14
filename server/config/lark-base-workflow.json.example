@@ -1,0 +1,64 @@
+{
+  "issueTypeMappings": [
+    {
+      "larkLabels": ["User Story"],
+      "workitemTypeKey": "story",
+      "templateId": "400329",
+      "urlSlug": "story",
+      "fieldMappings": [
+        {
+          "larkField": "Issue Description",
+          "fallbackLarkFields": ["fldaAzcMtg", "Details Description", "fldML66Cx1"],
+          "meegleField": "__title__",
+          "transform": "first_line"
+        },
+        {
+          "larkField": "Details Description",
+          "fallbackLarkFields": ["fldML66Cx1", "Issue Description", "fldaAzcMtg"],
+          "meegleField": "description",
+          "transform": "text"
+        }
+      ]
+    },
+    {
+      "larkLabels": ["Tech Task"],
+      "workitemTypeKey": "66700acbf297a8f821b4b860",
+      "templateId": "400152",
+      "urlSlug": "techtask",
+      "fieldMappings": [
+        {
+          "larkField": "Issue Description",
+          "fallbackLarkFields": ["fldaAzcMtg", "Details Description", "fldML66Cx1"],
+          "meegleField": "__title__",
+          "transform": "first_line"
+        },
+        {
+          "larkField": "Details Description",
+          "fallbackLarkFields": ["fldML66Cx1", "Issue Description", "fldaAzcMtg"],
+          "meegleField": "description",
+          "transform": "text"
+        }
+      ]
+    },
+    {
+      "larkLabels": ["Production Bug"],
+      "workitemTypeKey": "6932e40429d1cd8aac635c82",
+      "templateId": "645025",
+      "urlSlug": "production_bug",
+      "fieldMappings": [
+        {
+          "larkField": "Issue Description",
+          "fallbackLarkFields": ["fldaAzcMtg", "Details Description", "fldML66Cx1"],
+          "meegleField": "__title__",
+          "transform": "first_line"
+        },
+        {
+          "larkField": "Details Description",
+          "fallbackLarkFields": ["fldML66Cx1", "Issue Description", "fldaAzcMtg"],
+          "meegleField": "description",
+          "transform": "text"
+        }
+      ]
+    }
+  ]
+}
