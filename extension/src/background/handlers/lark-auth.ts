@@ -50,7 +50,7 @@ export function buildLarkOauthUrl(
     ? "https://accounts.feishu.cn"
     : "https://accounts.larksuite.com";
   const resolvedAppId = appId || "cli_a4b5c6d7e8f9";
-  const scope = "offline_access contact:user.base:readonly";
+  const scope = "offline_access contact:user.base:readonly bitable:app";
   const oauthUrl = new URL("/open-apis/authen/v1/authorize", authorizeBaseUrl);
 
   oauthUrl.searchParams.set("app_id", resolvedAppId);
