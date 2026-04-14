@@ -221,6 +221,18 @@ export async function executeLarkBaseWorkflow(
   try {
     record = await loadLarkRecord(baseId, tableId, request.recordId, request.masterUserId, deps);
   } catch (error) {
+    const larkErrorDetail =
+      error && typeof error === "object" && "response" in error
+        ? (error as { response?: { data?: unknown } }).response?.data
+        : undefined;
+    console.error("[LarkBaseWorkflow] Lark API error:", {
+      baseId,
+      tableId,
+      recordId: request.recordId,
+      masterUserId: request.masterUserId,
+      message: error instanceof Error ? error.message : String(error),
+      larkErrorDetail,
+    });
     return {
       ok: false,
       error: {
