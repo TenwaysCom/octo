@@ -35,6 +35,7 @@ export type LarkCreateWorkitemRequest = {
 export type LarkCreateWorkitemResult = {
   status: "created";
   workitemId: string;
+  workitems?: Array<{ workitemId: string; meegleLink: string }>;
 };
 
 export type LarkInjectionRendererDeps = {
@@ -179,6 +180,7 @@ async function defaultCreateWorkitem(request: LarkCreateWorkitemRequest): Promis
     return {
       status: "created",
       workitemId: response.payload.workitemId,
+      workitems: response.payload.workitems,
     };
   }
 

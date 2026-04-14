@@ -27,10 +27,56 @@ const TEMPLATE_ID_TECH_TASK = process.env.MEEGLE_TEMPLATE_ID_TECH_TASK || "";
 const WORKITEM_TYPE_KEY_PROD_BUG = process.env.MEEGLE_WORKITEM_TYPE_KEY_PROD_BUG || "6932e40429d1cd8aac635c82";
 const TEMPLATE_ID_PROD_BUG = process.env.MEEGLE_TEMPLATE_ID_PROD_BUG || "645025";
 
+// Fallback when Issue 类型 is empty or unrecognized
+const DEFAULT_ISSUE_TYPE_FALLBACK = process.env.LARK_BASE_DEFAULT_ISSUE_TYPE_FALLBACK || ISSUE_TYPE_PROD_BUG;
+
+interface IssueTypeMappingConfig {
+  larkLabels: string[];
+  workitemTypeKey: string;
+  templateId: string;
+}
+
+function parseIssueTypeMappings(): IssueTypeMappingConfig[] {
+  const raw = process.env.LARK_BASE_ISSUE_TYPE_MAPPINGS;
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw) as IssueTypeMappingConfig[];
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+    } catch {
+      // fall through to legacy env vars
+    }
+  }
+
+  const mappings: IssueTypeMappingConfig[] = [
+    {
+      larkLabels: [ISSUE_TYPE_STORY],
+      workitemTypeKey: WORKITEM_TYPE_KEY_STORY,
+      templateId: TEMPLATE_ID_STORY,
+    },
+  ];
+
+  if (WORKITEM_TYPE_KEY_TECH_TASK) {
+    mappings.push({
+      larkLabels: [ISSUE_TYPE_TECH_TASK],
+      workitemTypeKey: WORKITEM_TYPE_KEY_TECH_TASK,
+      templateId: TEMPLATE_ID_TECH_TASK,
+    });
+  }
+
+  mappings.push({
+    larkLabels: [ISSUE_TYPE_PROD_BUG],
+    workitemTypeKey: WORKITEM_TYPE_KEY_PROD_BUG,
+    templateId: TEMPLATE_ID_PROD_BUG,
+  });
+
+  return mappings;
+}
+
 // ==================== Types ====================
 
 interface WorkitemMapping {
-  draftType: "b1" | "b2";
   workitemTypeKey: string;
   templateId: string;
 }
@@ -40,6 +86,7 @@ export interface LarkBaseWorkflowResult {
   workitemId: string;
   meegleLink: string;
   recordId: string;
+  workitems: Array<{ workitemId: string; meegleLink: string }>;
 }
 
 export interface LarkBaseWorkflowError {
@@ -60,16 +107,30 @@ export interface LarkBaseWorkflowDeps {
 
 // ==================== Issue Type Mapping ====================
 
-function getWorkitemMapping(issueTypes: string[]): WorkitemMapping {
-  if (issueTypes.includes(ISSUE_TYPE_STORY)) {
-    return { draftType: "b1", workitemTypeKey: WORKITEM_TYPE_KEY_STORY, templateId: TEMPLATE_ID_STORY };
+function resolveWorkitemMappings(issueTypes: string[]): WorkitemMapping[] {
+  const types = issueTypes.length > 0 ? issueTypes : [DEFAULT_ISSUE_TYPE_FALLBACK];
+  const configs = parseIssueTypeMappings();
+  const seen = new Set<string>();
+  const mappings: WorkitemMapping[] = [];
+
+  for (const config of configs) {
+    const hasMatch = types.some((t) => config.larkLabels.includes(t));
+    if (hasMatch) {
+      const key = `${config.workitemTypeKey}|${config.templateId}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        mappings.push({
+          workitemTypeKey: config.workitemTypeKey,
+          templateId: config.templateId,
+        });
+      }
+    }
   }
-  if (issueTypes.includes(ISSUE_TYPE_TECH_TASK) && WORKITEM_TYPE_KEY_TECH_TASK) {
-    return { draftType: "b1", workitemTypeKey: WORKITEM_TYPE_KEY_TECH_TASK, templateId: TEMPLATE_ID_TECH_TASK };
+
+  if (mappings.length > 0) {
+    return mappings;
   }
-  if (issueTypes.includes(ISSUE_TYPE_PROD_BUG)) {
-    return { draftType: "b2", workitemTypeKey: WORKITEM_TYPE_KEY_PROD_BUG, templateId: TEMPLATE_ID_PROD_BUG };
-  }
+
   throw new Error(`Unknown or unsupported Issue 类型: ${issueTypes.join(", ") || "(empty)"}`);
 }
 
@@ -161,6 +222,7 @@ function buildExecutionDraft(
   record: LarkBitableRecord,
   projectKey: string,
   mapping: WorkitemMapping,
+  index = 0,
 ): ExecutionDraft {
   const title = extractRecordTitle(record);
   const description = extractRecordDescription(record);
@@ -173,8 +235,7 @@ function buildExecutionDraft(
   ];
 
   return {
-    draftId: `draft_base_${record.record_id}`,
-    draftType: mapping.draftType,
+    draftId: `draft_base_${record.record_id}_${mapping.workitemTypeKey}_${index}`,
     sourceRef: {
       sourcePlatform: "lark_base",
       sourceRecordId: record.record_id,
@@ -249,9 +310,9 @@ export async function executeLarkBaseWorkflow(
   }
 
   const issueTypes = extractIssueTypes(record.fields);
-  let mapping: WorkitemMapping;
+  let mappings: WorkitemMapping[];
   try {
-    mapping = getWorkitemMapping(issueTypes);
+    mappings = resolveWorkitemMappings(issueTypes);
   } catch (error) {
     return {
       ok: false,
@@ -262,43 +323,51 @@ export async function executeLarkBaseWorkflow(
     };
   }
 
-  const draft = buildExecutionDraft(record, projectKey, mapping);
+  const workitems: Array<{ workitemId: string; meegleLink: string }> = [];
 
-  let workitemId: string;
-  try {
-    const applyResult = await (deps.executeMeegleApply ?? executeMeegleApply)(
-      {
-        requestId: `req_base_${request.recordId}`,
-        draft,
-        operatorLarkId: "ou_system",
-        masterUserId: request.masterUserId,
-        idempotencyKey: `idem_base_${request.recordId}`,
-      },
-      {},
-    );
-    workitemId = applyResult.workitemId;
-  } catch (error) {
-    const errorCode =
-      error && typeof error === "object" && "errorCode" in error
-        ? (error as { errorCode: MeegleApplyErrorCode }).errorCode
-        : "UPDATE_FAILED";
-    return {
-      ok: false,
-      error: {
-        errorCode,
-        errorMessage: error instanceof Error ? error.message : String(error),
-      },
-    };
+  for (let i = 0; i < mappings.length; i++) {
+    const mapping = mappings[i];
+    const draft = buildExecutionDraft(record, projectKey, mapping, i);
+
+    let workitemId: string;
+    try {
+      const applyResult = await (deps.executeMeegleApply ?? executeMeegleApply)(
+        {
+          requestId: `req_base_${request.recordId}_${i}`,
+          draft,
+          operatorLarkId: "ou_system",
+          masterUserId: request.masterUserId,
+          idempotencyKey: `idem_base_${request.recordId}_${mapping.workitemTypeKey}_${i}`,
+        },
+        {},
+      );
+      workitemId = applyResult.workitemId;
+    } catch (error) {
+      const errorCode =
+        error && typeof error === "object" && "errorCode" in error
+          ? (error as { errorCode: MeegleApplyErrorCode }).errorCode
+          : "UPDATE_FAILED";
+      return {
+        ok: false,
+        error: {
+          errorCode,
+          errorMessage: error instanceof Error ? error.message : String(error),
+        },
+      };
+    }
+
+    const meegleLink = buildMeegleUrl(workitemId);
+    workitems.push({ workitemId, meegleLink });
   }
 
-  const meegleLink = buildMeegleUrl(workitemId);
+  const meegleLinks = workitems.map((w) => w.meegleLink).join("\n");
 
   try {
     await (deps.updateLarkBaseMeegleLink ?? updateLarkBaseMeegleLink)({
       baseId,
       tableId,
       recordId: request.recordId,
-      meegleLink,
+      meegleLink: meegleLinks,
       masterUserId: request.masterUserId,
     });
   } catch (error) {
@@ -313,8 +382,9 @@ export async function executeLarkBaseWorkflow(
 
   return {
     ok: true,
-    workitemId,
-    meegleLink,
+    workitemId: workitems[0]?.workitemId ?? "",
+    meegleLink: workitems[0]?.meegleLink ?? "",
     recordId: request.recordId,
+    workitems,
   };
 }

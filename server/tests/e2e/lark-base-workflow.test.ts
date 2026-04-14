@@ -1,8 +1,16 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { executeLarkBaseWorkflow } from "../../src/modules/lark-base/lark-base-workflow.service.js";
 import type { LarkBitableRecord } from "../../src/adapters/lark/lark-client.js";
 
 describe("lark-base workflow e2e", () => {
+  beforeEach(() => {
+    process.env.LARK_BASE_ISSUE_TYPE_MAPPINGS = JSON.stringify([
+      { larkLabels: ["User Story"], workitemTypeKey: "story", templateId: "400329" },
+      { larkLabels: ["Tech Task"], workitemTypeKey: "tech_task", templateId: "tpl_tech" },
+      { larkLabels: ["Production Bug"], workitemTypeKey: "6932e40429d1cd8aac635c82", templateId: "645025" },
+    ]);
+  });
+
   const getLarkTokenStoreMock = vi.fn();
   const refreshLarkTokenMock = vi.fn();
   const createLarkClientMock = vi.fn();
@@ -68,13 +76,15 @@ describe("lark-base workflow e2e", () => {
       workitemId: "wi_e2e_story",
       meegleLink: expect.stringContaining("/issue/wi_e2e_story"),
       recordId: "rec_e2e_001",
+      workitems: [
+        { workitemId: "wi_e2e_story", meegleLink: expect.stringContaining("/issue/wi_e2e_story") },
+      ],
     });
 
     expect(executeMeegleApplyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         draft: expect.objectContaining({
-          draftId: "draft_base_rec_e2e_001",
-          draftType: "b1",
+          draftId: "draft_base_rec_e2e_001_story_0",
           sourceRef: {
             sourcePlatform: "lark_base",
             sourceRecordId: "rec_e2e_001",
@@ -124,12 +134,15 @@ describe("lark-base workflow e2e", () => {
       workitemId: "wi_e2e_bug",
       meegleLink: expect.stringContaining("/issue/wi_e2e_bug"),
       recordId: "rec_e2e_001",
+      workitems: [
+        { workitemId: "wi_e2e_bug", meegleLink: expect.stringContaining("/issue/wi_e2e_bug") },
+      ],
     });
 
     expect(executeMeegleApplyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         draft: expect.objectContaining({
-          draftType: "b2",
+          draftId: "draft_base_rec_e2e_001_6932e40429d1cd8aac635c82_0",
           target: expect.objectContaining({
             workitemTypeKey: "6932e40429d1cd8aac635c82",
             templateId: "645025",

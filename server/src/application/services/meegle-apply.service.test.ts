@@ -20,7 +20,6 @@ import { configureMeegleAuthServiceDeps } from "../../modules/meegle-auth/meegle
 describe("meegle-apply.service", () => {
   const draft = validateExecutionDraft({
     draftId: "draft_b2_001",
-    draftType: "b2",
     sourceRef: {
       sourcePlatform: "lark_base",
       sourceRecordId: "record_001",

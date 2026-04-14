@@ -121,4 +121,5 @@ export interface LarkBaseCreateWorkitemResultPayload {
   workitemId: string;
   meegleLink: string;
   recordId: string;
+  workitems?: Array<{ workitemId: string; meegleLink: string }>;
 }

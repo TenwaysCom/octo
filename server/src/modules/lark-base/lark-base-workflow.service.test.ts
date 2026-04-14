@@ -23,6 +23,11 @@ describe("lark-base-workflow.service", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.LARK_BASE_ISSUE_TYPE_MAPPINGS = JSON.stringify([
+      { larkLabels: ["User Story"], workitemTypeKey: "story", templateId: "400329" },
+      { larkLabels: ["Tech Task"], workitemTypeKey: "tech_task", templateId: "tpl_tech" },
+      { larkLabels: ["Production Bug"], workitemTypeKey: "6932e40429d1cd8aac635c82", templateId: "645025" },
+    ]);
   });
 
   function makeRecord(issueType: string | string[]): LarkBitableRecord {
@@ -95,17 +100,21 @@ describe("lark-base-workflow.service", () => {
       workitemId: "wi_111",
       meegleLink: expect.stringContaining("/issue/wi_111"),
       recordId: "rec_123",
+      workitems: [
+        { workitemId: "wi_111", meegleLink: expect.stringContaining("/issue/wi_111") },
+      ],
     });
 
     expect(executeMeegleApplyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         draft: expect.objectContaining({
-          draftType: "b1",
+          draftId: "draft_base_rec_123_story_0",
           target: expect.objectContaining({
             workitemTypeKey: "story",
             templateId: "400329",
           }),
         }),
+        idempotencyKey: "idem_base_rec_123_story_0",
       }),
       {},
     );
@@ -146,12 +155,69 @@ describe("lark-base-workflow.service", () => {
       workitemId: "wi_222",
       meegleLink: expect.stringContaining("/issue/wi_222"),
       recordId: "rec_123",
+      workitems: [
+        { workitemId: "wi_222", meegleLink: expect.stringContaining("/issue/wi_222") },
+      ],
     });
 
     expect(executeMeegleApplyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         draft: expect.objectContaining({
-          draftType: "b2",
+          draftId: "draft_base_rec_123_6932e40429d1cd8aac635c82_0",
+          target: expect.objectContaining({
+            workitemTypeKey: "6932e40429d1cd8aac635c82",
+            templateId: "645025",
+          }),
+        }),
+        idempotencyKey: "idem_base_rec_123_6932e40429d1cd8aac635c82_0",
+      }),
+      {},
+    );
+  });
+
+  it("falls back to default issue type when Issue 类型 is empty", async () => {
+    const record = makeRecord([]);
+    createLarkClientMock.mockReturnValueOnce({
+      getRecord: vi.fn().mockResolvedValueOnce(record),
+    });
+    getLarkTokenStoreMock.mockResolvedValueOnce({
+      userToken: "token_123",
+      userTokenExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
+      baseUrl: "https://open.larksuite.com",
+    });
+    executeMeegleApplyMock.mockResolvedValueOnce({
+      status: "created",
+      workitemId: "wi_fallback",
+      draft: {},
+    });
+    updateLarkBaseMeegleLinkMock.mockResolvedValueOnce({
+      ok: true,
+      recordId: "rec_123",
+    });
+
+    const result = await executeLarkBaseWorkflow(
+      {
+        recordId: "rec_123",
+        masterUserId: "usr_xxx",
+        baseId: "base_123",
+        tableId: "tbl_456",
+      },
+      deps,
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      workitemId: "wi_fallback",
+      meegleLink: expect.stringContaining("/issue/wi_fallback"),
+      recordId: "rec_123",
+      workitems: [
+        { workitemId: "wi_fallback", meegleLink: expect.stringContaining("/issue/wi_fallback") },
+      ],
+    });
+
+    expect(executeMeegleApplyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        draft: expect.objectContaining({
           target: expect.objectContaining({
             workitemTypeKey: "6932e40429d1cd8aac635c82",
             templateId: "645025",
@@ -160,6 +226,64 @@ describe("lark-base-workflow.service", () => {
       }),
       {},
     );
+  });
+
+  it("creates multiple workitems when multiple Issue 类型 match", async () => {
+    const record = makeRecord(["User Story", "Production Bug"]);
+    createLarkClientMock.mockReturnValueOnce({
+      getRecord: vi.fn().mockResolvedValueOnce(record),
+    });
+    getLarkTokenStoreMock.mockResolvedValueOnce({
+      userToken: "token_123",
+      userTokenExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
+      baseUrl: "https://open.larksuite.com",
+    });
+    executeMeegleApplyMock
+      .mockResolvedValueOnce({
+        status: "created",
+        workitemId: "wi_story",
+        draft: {},
+      })
+      .mockResolvedValueOnce({
+        status: "created",
+        workitemId: "wi_bug",
+        draft: {},
+      });
+    updateLarkBaseMeegleLinkMock.mockResolvedValueOnce({
+      ok: true,
+      recordId: "rec_123",
+    });
+
+    const result = await executeLarkBaseWorkflow(
+      {
+        recordId: "rec_123",
+        masterUserId: "usr_xxx",
+        baseId: "base_123",
+        tableId: "tbl_456",
+      },
+      deps,
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      workitemId: "wi_story",
+      meegleLink: expect.stringContaining("/issue/wi_story"),
+      recordId: "rec_123",
+      workitems: [
+        { workitemId: "wi_story", meegleLink: expect.stringContaining("/issue/wi_story") },
+        { workitemId: "wi_bug", meegleLink: expect.stringContaining("/issue/wi_bug") },
+      ],
+    });
+
+    expect(executeMeegleApplyMock).toHaveBeenCalledTimes(2);
+    expect(updateLarkBaseMeegleLinkMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        meegleLink: expect.stringContaining("/issue/wi_story"),
+      }),
+    );
+    const updateCall = updateLarkBaseMeegleLinkMock.mock.calls[0]?.[0] as { meegleLink?: string };
+    expect(updateCall?.meegleLink).toContain("/issue/wi_story");
+    expect(updateCall?.meegleLink).toContain("/issue/wi_bug");
   });
 
   it("refreshes the Lark token when expired", async () => {

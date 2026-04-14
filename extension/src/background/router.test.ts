@@ -38,6 +38,9 @@ describe("background router lark_base workflow", () => {
         workitemId: "12345",
         meegleLink: "https://project.larksuite.com/OPS/story/detail/12345",
         recordId: "rec_base_001",
+        workitems: [
+          { workitemId: "12345", meegleLink: "https://project.larksuite.com/OPS/story/detail/12345" },
+        ],
       }),
     } as unknown as Response);
 
@@ -77,6 +80,9 @@ describe("background router lark_base workflow", () => {
         workitemId: "12345",
         meegleLink: "https://project.larksuite.com/OPS/story/detail/12345",
         recordId: "rec_base_001",
+        workitems: [
+          { workitemId: "12345", meegleLink: "https://project.larksuite.com/OPS/story/detail/12345" },
+        ],
       },
     });
   });
@@ -180,6 +186,9 @@ describe("background router lark_base workflow", () => {
         workitemId: "12345",
         meegleLink: "https://project.larksuite.com/OPS/story/detail/12345",
         recordId: "rec_base_001",
+        workitems: [
+          { workitemId: "12345", meegleLink: "https://project.larksuite.com/OPS/story/detail/12345" },
+        ],
       }),
     } as unknown as Response);
 
@@ -211,6 +220,9 @@ describe("background router lark_base workflow", () => {
               workitemId: "12345",
               meegleLink: "https://project.larksuite.com/OPS/story/detail/12345",
               recordId: "rec_base_001",
+              workitems: [
+                { workitemId: "12345", meegleLink: "https://project.larksuite.com/OPS/story/detail/12345" },
+              ],
             },
           });
           resolve();

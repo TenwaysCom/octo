@@ -18,7 +18,6 @@ export const draftTargetSchema = z.object({
 
 export const executionDraftSchema = z.object({
   draftId: z.string().min(1),
-  draftType: z.enum(["b1", "b2"]),
   sourceRef: sourceRefSchema,
   target: draftTargetSchema,
   name: z.string().min(1),

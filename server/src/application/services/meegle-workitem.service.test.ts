@@ -7,7 +7,6 @@ describe("meegle-workitem.service", () => {
   it("omits non-numeric template ids when creating workitems", async () => {
     const draft = validateExecutionDraft({
       draftId: "draft_b2_001",
-      draftType: "b2",
       sourceRef: {
         sourcePlatform: "lark_base",
         sourceRecordId: "record_001",
