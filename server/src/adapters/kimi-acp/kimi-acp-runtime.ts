@@ -388,21 +388,5 @@ function normalizeSessionUpdate(update: unknown): Record<string, unknown> {
     return { update };
   }
 
-  const record = update as Record<string, unknown>;
-  if (record.sessionUpdate === "agent_message_chunk") {
-    const content = record.content as
-      | {
-          type?: string;
-          text?: string;
-        }
-      | undefined;
-
-    if (content?.type === "text" && typeof content.text === "string") {
-      return {
-        content: content.text,
-      };
-    }
-  }
-
-  return record;
+  return update as Record<string, unknown>;
 }

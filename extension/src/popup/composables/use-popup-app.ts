@@ -37,7 +37,10 @@ import {
   createPopupViewModel,
   type PopupPageType,
 } from "../view-model.js";
-import { createKimiChatClient } from "../kimi-chat.js";
+import {
+  applyKimiChatEvent,
+  createKimiChatClient,
+} from "../kimi-chat.js";
 import {
   normalizeLarkAuthBaseUrl,
   normalizeMeegleAuthBaseUrl,
@@ -82,58 +85,18 @@ export function usePopupApp() {
   const kimiChatTranscript = ref<KimiChatTranscriptEntry[]>([]);
 
   function appendKimiChatEvent(event: KimiChatEvent): void {
-    switch (event.event) {
-      case "session.created":
-        kimiChatSessionId.value = event.data.sessionId;
-        kimiChatTranscript.value = [
-          ...kimiChatTranscript.value,
-          {
-            id: createTranscriptEntryId("session"),
-            text: `session.created · ${event.data.sessionId}`,
-          },
-        ];
-        return;
-      case "acp.session.update":
-        appendAssistantTranscript(event.data.update);
-        return;
-      case "done":
-        kimiChatActiveAssistantEntryId.value = null;
-        kimiChatTranscript.value = [
-          ...kimiChatTranscript.value,
-          {
-            id: createTranscriptEntryId("done"),
-            text: `done · ${event.data.stopReason}`,
-          },
-        ];
-    }
-  }
-
-  function appendAssistantTranscript(update: Record<string, unknown>): void {
-    const text = renderUpdateText(update);
-    const entryId =
-      kimiChatActiveAssistantEntryId.value ?? createTranscriptEntryId("assistant");
-    kimiChatActiveAssistantEntryId.value = entryId;
-    const existingIndex = kimiChatTranscript.value.findIndex(
-      (entry) => entry.id === entryId,
+    const nextState = applyKimiChatEvent(
+      {
+        sessionId: kimiChatSessionId.value,
+        activeAssistantEntryId: kimiChatActiveAssistantEntryId.value,
+        transcript: kimiChatTranscript.value,
+      },
+      event,
     );
 
-    if (existingIndex === -1) {
-      kimiChatTranscript.value = [
-        ...kimiChatTranscript.value,
-        {
-          id: entryId,
-          text: `assistant: ${text}`,
-        },
-      ];
-      return;
-    }
-
-    const nextTranscript = [...kimiChatTranscript.value];
-    nextTranscript[existingIndex] = {
-      ...nextTranscript[existingIndex],
-      text: `${nextTranscript[existingIndex].text}${text}`,
-    };
-    kimiChatTranscript.value = nextTranscript;
+    kimiChatSessionId.value = nextState.sessionId;
+    kimiChatActiveAssistantEntryId.value = nextState.activeAssistantEntryId;
+    kimiChatTranscript.value = nextState.transcript;
   }
   const state = reactive({
     pageType: "unsupported" as PopupPageType,
@@ -639,12 +602,13 @@ export function usePopupApp() {
 
     try {
       kimiChatDraftMessage.value = "";
-      kimiChatActiveAssistantEntryId.value = createTranscriptEntryId("assistant");
+      kimiChatActiveAssistantEntryId.value = null;
       kimiChatTranscript.value = [
         ...kimiChatTranscript.value,
         {
           id: userEntryId,
-          text: `你: ${message}`,
+          kind: "user",
+          text: message,
         },
       ];
 
@@ -814,25 +778,6 @@ export function usePopupApp() {
 
 function createTranscriptEntryId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
-}
-
-function renderUpdateText(update: Record<string, unknown>): string {
-  const content = update.content;
-
-  if (typeof content === "string") {
-    return content;
-  }
-
-  if (
-    content &&
-    typeof content === "object" &&
-    "text" in content &&
-    typeof (content as { text?: unknown }).text === "string"
-  ) {
-    return (content as { text: string }).text;
-  }
-
-  return JSON.stringify(update);
 }
 
 function resolveStatusChip(

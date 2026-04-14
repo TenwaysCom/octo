@@ -43,9 +43,16 @@ vi.mock("../meegle-auth.js", async () => {
   };
 });
 
-vi.mock("../kimi-chat.js", () => ({
-  createKimiChatClient: vi.fn(() => kimiChatClientMock),
-}));
+vi.mock("../kimi-chat.js", async () => {
+  const actual = await vi.importActual<typeof import("../kimi-chat.js")>(
+    "../kimi-chat.js",
+  );
+
+  return {
+    ...actual,
+    createKimiChatClient: vi.fn(() => kimiChatClientMock),
+  };
+});
 
 import { usePopupApp } from "./use-popup-app";
 
@@ -502,7 +509,8 @@ describe("usePopupApp notebook state", () => {
     popup.kimiChatTranscript.value = [
       {
         id: "user-1",
-        text: "你: first turn",
+        kind: "user",
+        text: "first turn",
       },
     ];
 
@@ -560,7 +568,7 @@ describe("usePopupApp notebook state", () => {
     await vi.waitFor(() => {
       expect(
         popup.kimiChatTranscript.value.some((entry) =>
-          entry.text.includes("session.created"),
+          entry.kind === "status" && entry.text?.includes("会话已创建 · sess_1"),
         ),
       ).toBe(true);
     });
@@ -580,17 +588,21 @@ describe("usePopupApp notebook state", () => {
       data: {
         sessionId: "sess_1",
         update: {
-          content: "你",
+          sessionUpdate: "agent_message_chunk",
+          content: {
+            type: "text",
+            text: "你",
+          },
         },
       },
     });
 
     await vi.waitFor(() => {
       const assistantEntries = popup.kimiChatTranscript.value.filter((entry) =>
-        entry.id.startsWith("assistant-"),
+        entry.kind === "assistant",
       );
       expect(assistantEntries).toHaveLength(1);
-      expect(assistantEntries[0].text).toContain("assistant: 你");
+      expect(assistantEntries[0].text).toBe("你");
     });
 
     onEvent?.({
@@ -598,7 +610,11 @@ describe("usePopupApp notebook state", () => {
       data: {
         sessionId: "sess_1",
         update: {
-          content: "好",
+          sessionUpdate: "agent_message_chunk",
+          content: {
+            type: "text",
+            text: "好",
+          },
         },
       },
     });
@@ -614,13 +630,13 @@ describe("usePopupApp notebook state", () => {
     await sendPromise;
 
     const assistantEntries = popup.kimiChatTranscript.value.filter((entry) =>
-      entry.id.startsWith("assistant-"),
+      entry.kind === "assistant",
     );
     expect(assistantEntries).toHaveLength(1);
-    expect(assistantEntries[0].text).toContain("assistant: 你好");
+    expect(assistantEntries[0].text).toBe("你好");
     expect(
       popup.kimiChatTranscript.value.some((entry) =>
-        entry.text.includes("done · end_turn"),
+        entry.kind === "status" && entry.text?.includes("本轮已完成 · end_turn"),
       ),
     ).toBe(true);
     expect(popup.kimiChatBusy.value).toBe(false);
@@ -649,7 +665,11 @@ describe("usePopupApp notebook state", () => {
             data: {
               sessionId: "sess_1",
               update: {
-                content: "first reply",
+                sessionUpdate: "agent_message_chunk",
+                content: {
+                  type: "text",
+                  text: "first reply",
+                },
               },
             },
           });
@@ -677,7 +697,11 @@ describe("usePopupApp notebook state", () => {
             data: {
               sessionId: "sess_1",
               update: {
-                content: "follow up reply",
+                sessionUpdate: "agent_message_chunk",
+                content: {
+                  type: "text",
+                  text: "follow up reply",
+                },
               },
             },
           });
@@ -700,7 +724,7 @@ describe("usePopupApp notebook state", () => {
     expect(popup.kimiChatSessionId.value).toBe("sess_1");
     expect(
       popup.kimiChatTranscript.value.some((entry) =>
-        entry.text.includes("assistant: first reply"),
+        entry.kind === "assistant" && entry.text?.includes("first reply"),
       ),
     ).toBe(true);
 
@@ -730,22 +754,22 @@ describe("usePopupApp notebook state", () => {
     );
     expect(
       popup.kimiChatTranscript.value.filter((entry) =>
-        entry.text.includes("session.created"),
+        entry.kind === "status" && entry.text?.includes("会话已创建"),
       ),
     ).toHaveLength(1);
     expect(
       popup.kimiChatTranscript.value.some((entry) =>
-        entry.text.includes("assistant: first reply"),
+        entry.kind === "assistant" && entry.text?.includes("first reply"),
       ),
     ).toBe(true);
     expect(
       popup.kimiChatTranscript.value.some((entry) =>
-        entry.text.includes("assistant: follow up reply"),
+        entry.kind === "assistant" && entry.text?.includes("follow up reply"),
       ),
     ).toBe(true);
     expect(
       popup.kimiChatTranscript.value.filter((entry) =>
-        entry.id.startsWith("assistant-"),
+        entry.kind === "assistant",
       ),
     ).toHaveLength(2);
     expect(popup.kimiChatDraftMessage.value).toBe("");
@@ -777,7 +801,7 @@ describe("usePopupApp notebook state", () => {
     ).toBe(true);
     expect(
       popup.kimiChatTranscript.value.some((entry) =>
-        entry.text.includes("你: follow up"),
+        entry.kind === "user" && entry.text?.includes("follow up"),
       ),
     ).toBe(false);
   });

@@ -19,8 +19,65 @@
           v-for="entry in transcript"
           :key="entry.id"
           class="kimi-chat-panel__entry"
+          :data-kind="entry.kind"
         >
-          {{ entry.text }}
+          <template v-if="entry.kind === 'raw'">
+            <div class="kimi-chat-panel__entry-label">
+              原始事件
+              <span v-if="entry.label" class="kimi-chat-panel__entry-pill">
+                {{ entry.label }}
+              </span>
+            </div>
+            <pre class="kimi-chat-panel__raw">{{ entry.raw }}</pre>
+          </template>
+          <template v-else>
+            <div class="kimi-chat-panel__entry-label">
+              {{ resolveEntryLabel(entry.kind) }}
+            </div>
+            <p v-if="entry.text" class="kimi-chat-panel__entry-text">
+              {{ entry.text }}
+            </p>
+
+            <section
+              v-if="entry.kind === 'assistant' && entry.thoughts?.length"
+              class="kimi-chat-panel__detail-section"
+            >
+              <div class="kimi-chat-panel__detail-title">思路</div>
+              <ul class="kimi-chat-panel__detail-list">
+                <li v-for="thought in entry.thoughts" :key="thought.id">
+                  {{ thought.text }}
+                </li>
+              </ul>
+            </section>
+
+            <section
+              v-if="entry.kind === 'assistant' && entry.toolCalls?.length"
+              class="kimi-chat-panel__detail-section"
+            >
+              <div class="kimi-chat-panel__detail-title">工具</div>
+              <ul class="kimi-chat-panel__detail-list">
+                <li
+                  v-for="toolCall in entry.toolCalls"
+                  :key="toolCall.id"
+                  class="kimi-chat-panel__tool-call"
+                >
+                  <span>{{ toolCall.title }}</span>
+                  <span
+                    v-if="toolCall.status"
+                    class="kimi-chat-panel__entry-pill"
+                  >
+                    {{ resolveToolStatus(toolCall.status) }}
+                  </span>
+                  <div
+                    v-if="toolCall.detail"
+                    class="kimi-chat-panel__tool-detail"
+                  >
+                    {{ toolCall.detail }}
+                  </div>
+                </li>
+              </ul>
+            </section>
+          </template>
         </li>
       </ul>
     </div>
@@ -87,6 +144,34 @@ function handleSubmit() {
   emit("send", nextMessage);
   emit("update:draftMessage", "");
   message.value = "";
+}
+
+function resolveEntryLabel(kind: KimiChatTranscriptEntry["kind"]): string {
+  switch (kind) {
+    case "user":
+      return "你";
+    case "assistant":
+      return "Kimi";
+    case "status":
+      return "状态";
+    case "raw":
+      return "原始事件";
+  }
+}
+
+function resolveToolStatus(status: string): string {
+  switch (status) {
+    case "pending":
+      return "待处理";
+    case "in_progress":
+      return "进行中";
+    case "completed":
+      return "已完成";
+    case "failed":
+      return "失败";
+    default:
+      return status;
+  }
 }
 </script>
 
@@ -156,6 +241,90 @@ function handleSubmit() {
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.8);
   color: #0f172a;
+  display: grid;
+  gap: 8px;
+}
+
+.kimi-chat-panel__entry[data-kind="assistant"] {
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.kimi-chat-panel__entry[data-kind="status"] {
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.kimi-chat-panel__entry[data-kind="raw"] {
+  background: rgba(15, 23, 42, 0.08);
+}
+
+.kimi-chat-panel__entry-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.kimi-chat-panel__entry-text {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.kimi-chat-panel__detail-section {
+  display: grid;
+  gap: 6px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.kimi-chat-panel__detail-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.kimi-chat-panel__detail-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+}
+
+.kimi-chat-panel__tool-call {
+  display: grid;
+  gap: 4px;
+}
+
+.kimi-chat-panel__tool-detail {
+  color: #475569;
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.kimi-chat-panel__entry-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.1);
+  color: #1d4ed8;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.kimi-chat-panel__raw {
+  margin: 0;
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.92);
+  color: #e2e8f0;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .kimi-chat-panel__composer {
