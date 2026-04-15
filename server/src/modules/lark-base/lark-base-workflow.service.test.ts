@@ -469,7 +469,7 @@ describe("lark-base-workflow.service", () => {
   });
 
   it("uses config-driven field mappings when config file is present", async () => {
-    process.env.LARK_BASE_WORKFLOW_CONFIG_PATH = "./src/modules/lark-base/fixtures/test-config.json";
+    process.env.LARK_BASE_WORKFLOW_CONFIG_PATH = "./server/src/modules/lark-base/fixtures/test-config.json";
 
     const record: LarkBitableRecord = {
       record_id: "rec_123",
@@ -533,7 +533,7 @@ describe("lark-base-workflow.service", () => {
   });
 
   it("maps select fields using options config", async () => {
-    process.env.LARK_BASE_WORKFLOW_CONFIG_PATH = "./src/modules/lark-base/fixtures/test-select-config.json";
+    process.env.LARK_BASE_WORKFLOW_CONFIG_PATH = "./server/src/modules/lark-base/fixtures/test-select-config.json";
 
     const record: LarkBitableRecord = {
       record_id: "rec_123",

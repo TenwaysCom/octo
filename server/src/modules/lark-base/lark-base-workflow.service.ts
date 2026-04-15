@@ -3,6 +3,7 @@ import { getSharedLarkTokenStore } from "../../adapters/postgres/lark-token-stor
 import type { LarkTokenStore } from "../../adapters/lark/token-store.js";
 import { refreshLarkToken } from "../lark-auth/lark-auth.service.js";
 import { executeMeegleApply, type MeegleApplyErrorCode } from "../../application/services/meegle-apply.service.js";
+import { buildAuthenticatedLarkClient, type AuthenticatedLarkClientFactoryDeps } from "../../application/services/lark-auth-client.factory.js";
 import { updateLarkBaseMeegleLink } from "./lark-base.service.js";
 import type { CreateLarkBaseWorkflowRequest } from "./lark-base-workflow.dto.js";
 import type { ExecutionDraft } from "../../validators/agent-output/execution-draft.js";
@@ -110,10 +111,7 @@ export interface LarkBaseWorkflowError {
   };
 }
 
-export interface LarkBaseWorkflowDeps {
-  getLarkTokenStore?: () => LarkTokenStore;
-  refreshLarkToken?: typeof refreshLarkToken;
-  createLarkClient?: (accessToken: string, baseUrl?: string) => LarkClient;
+export interface LarkBaseWorkflowDeps extends AuthenticatedLarkClientFactoryDeps {
   executeMeegleApply?: typeof executeMeegleApply;
   updateLarkBaseMeegleLink?: typeof updateLarkBaseMeegleLink;
 }
@@ -201,36 +199,6 @@ function extractRecordDescription(record: LarkBitableRecord): string {
 
 // ==================== Lark Auth & Record Load ====================
 
-async function getLarkAccessToken(
-  masterUserId: string,
-  deps: LarkBaseWorkflowDeps,
-): Promise<{ accessToken: string; baseUrl: string }> {
-  const tokenStore = deps.getLarkTokenStore?.() ?? getSharedLarkTokenStore();
-  const stored = await tokenStore.get({
-    masterUserId,
-    baseUrl: "https://open.larksuite.com",
-  });
-
-  if (!stored) {
-    throw new Error("Lark token not found for user");
-  }
-
-  let accessToken = stored.userToken;
-  const expiresAt = stored.userTokenExpiresAt ? Date.parse(stored.userTokenExpiresAt) : 0;
-  const isExpired = !expiresAt || expiresAt <= Date.now() + 60_000;
-
-  if (isExpired && stored.refreshToken) {
-    const refreshed = await (deps.refreshLarkToken ?? refreshLarkToken)({
-      masterUserId,
-      baseUrl: stored.baseUrl,
-      refreshToken: stored.refreshToken,
-    });
-    accessToken = refreshed.accessToken;
-  }
-
-  return { accessToken, baseUrl: stored.baseUrl };
-}
-
 async function loadLarkRecord(
   baseId: string,
   tableId: string,
@@ -238,10 +206,11 @@ async function loadLarkRecord(
   masterUserId: string,
   deps: LarkBaseWorkflowDeps,
 ): Promise<{ record: LarkBitableRecord; baseUrl: string }> {
-  const { accessToken, baseUrl } = await getLarkAccessToken(masterUserId, deps);
-  const client = deps.createLarkClient
-    ? deps.createLarkClient(accessToken, baseUrl)
-    : new LarkClient({ accessToken, baseUrl });
+  const { client, baseUrl } = await buildAuthenticatedLarkClient(
+    masterUserId,
+    "https://open.larksuite.com",
+    deps,
+  );
   const record = await client.getRecord(baseId, tableId, recordId);
   return { record, baseUrl };
 }

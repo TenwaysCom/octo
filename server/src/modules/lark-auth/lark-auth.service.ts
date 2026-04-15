@@ -34,6 +34,7 @@ export interface LarkAuthServiceDeps {
 let defaultDeps: LarkAuthServiceDeps | undefined;
 const OAUTH_SESSION_TTL_MS = 10 * 60 * 1000;
 const EXPIRY_SAFETY_WINDOW_MS = 60_000;
+const DEFAULT_REFRESH_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
 
 export function configureLarkAuthServiceDeps(deps: LarkAuthServiceDeps): void {
   defaultDeps = deps;
@@ -188,6 +189,7 @@ export async function exchangeLarkAuthCode(
       userToken: tokenPair.accessToken,
       userTokenExpiresAt: toExpiresAt(tokenPair.expiresIn),
       refreshToken: tokenPair.refreshToken,
+      refreshTokenExpiresAt: toExpiresAt(DEFAULT_REFRESH_TOKEN_TTL_SECONDS),
       credentialStatus: "active",
     });
   }
@@ -320,7 +322,7 @@ export async function checkLarkAuthStatus(
       userToken: refreshed.accessToken,
       userTokenExpiresAt: toExpiresAt(refreshed.expiresIn),
       refreshToken: refreshed.refreshToken ?? stored.refreshToken,
-      refreshTokenExpiresAt: stored.refreshTokenExpiresAt,
+      refreshTokenExpiresAt: stored.refreshTokenExpiresAt ?? toExpiresAt(DEFAULT_REFRESH_TOKEN_TTL_SECONDS),
       credentialStatus: "active",
     });
 
@@ -527,6 +529,7 @@ export async function handleLarkAuthCallback(
       userToken: tokenPair.accessToken,
       userTokenExpiresAt: toExpiresAt(tokenPair.expiresIn),
       refreshToken: tokenPair.refreshToken,
+      refreshTokenExpiresAt: toExpiresAt(DEFAULT_REFRESH_TOKEN_TTL_SECONDS),
       credentialStatus: "active",
     });
 
