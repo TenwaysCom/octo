@@ -24,6 +24,7 @@
           @authorize-lark="authorizeLark"
           @feature="runFeatureAction"
           @send-kimi-chat-message="sendKimiChatMessage"
+          @stop-kimi-chat-generation="stopKimiChatGeneration"
           @update-kimi-chat-draft-message="updateKimiChatDraftMessage"
           @clear-logs="clearLogs"
         />
@@ -75,6 +76,7 @@ const {
   closeSettings,
   fetchMeegleUserKey,
   sendKimiChatMessage,
+  stopKimiChatGeneration,
   updateKimiChatDraftMessage,
   saveSettingsForm,
   refreshServerConfig,

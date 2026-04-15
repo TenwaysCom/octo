@@ -74,4 +74,32 @@ describe("KimiChatPanel", () => {
     ]);
     expect(wrapper.emitted("send")).toEqual([["再来一条"]]);
   });
+
+  it("shows a stop button while busy and emits stop without re-enabling input", async () => {
+    const componentPath = "./KimiChatPanel.vue";
+    const { default: KimiChatPanel } = await import(
+      /* @vite-ignore */ componentPath
+    );
+
+    const wrapper = mount(KimiChatPanel, {
+      props: {
+        transcript: [
+          {
+            id: "assistant-1",
+            kind: "assistant",
+            text: "```ts\nconst value = 1;",
+          },
+        ],
+        busy: true,
+        draftMessage: "继续生成",
+      },
+    });
+
+    expect(wrapper.get('[data-test="kimi-chat-input"]').attributes("disabled")).toBe("");
+    expect(wrapper.get('[data-test="kimi-chat-stop"]').text()).toContain("停止");
+
+    await wrapper.get('[data-test="kimi-chat-stop"]').trigger("click");
+
+    expect(wrapper.emitted("stop")).toEqual([[]]);
+  });
 });

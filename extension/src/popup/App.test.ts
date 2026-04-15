@@ -196,6 +196,7 @@ function createPopupAppMock(pageType: PopupPageType) {
     }),
     clearLogs: vi.fn(),
     runFeatureAction: vi.fn(),
+    stopKimiChatGeneration: vi.fn(),
   };
 }
 

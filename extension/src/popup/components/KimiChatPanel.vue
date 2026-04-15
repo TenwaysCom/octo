@@ -34,7 +34,12 @@
             <div class="kimi-chat-panel__entry-label">
               {{ resolveEntryLabel(entry.kind) }}
             </div>
-            <p v-if="entry.text" class="kimi-chat-panel__entry-text">
+            <div
+              v-if="entry.kind === 'assistant' && entry.text"
+              class="kimi-chat-panel__entry-text kimi-chat-panel__entry-text--markdown"
+              v-html="renderAssistantText(entry.text)"
+            />
+            <p v-else-if="entry.text" class="kimi-chat-panel__entry-text">
               {{ entry.text }}
             </p>
 
@@ -101,6 +106,15 @@
       >
         发送
       </button>
+      <button
+        v-if="busy"
+        data-test="kimi-chat-stop"
+        class="kimi-chat-panel__stop"
+        type="button"
+        @click="emit('stop')"
+      >
+        停止
+      </button>
     </form>
   </section>
 </template>
@@ -108,6 +122,7 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import type { KimiChatTranscriptEntry } from "../../types/acp-kimi.js";
+import { renderMarkdownStream } from "../markdown-stream.js";
 
 const props = defineProps<{
   transcript: KimiChatTranscriptEntry[];
@@ -118,6 +133,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   send: [message: string];
   "update:draftMessage": [message: string];
+  stop: [];
 }>();
 
 const message = ref(props.draftMessage ?? "");
@@ -144,6 +160,10 @@ function handleSubmit() {
   emit("send", nextMessage);
   emit("update:draftMessage", "");
   message.value = "";
+}
+
+function renderAssistantText(text: string): string {
+  return renderMarkdownStream(text);
 }
 
 function resolveEntryLabel(kind: KimiChatTranscriptEntry["kind"]): string {
@@ -273,6 +293,42 @@ function resolveToolStatus(status: string): string {
   white-space: pre-wrap;
 }
 
+.kimi-chat-panel__entry-text--markdown {
+  display: grid;
+  gap: 8px;
+  white-space: normal;
+}
+
+.kimi-chat-panel__entry-text--markdown :deep(.kimi-chat-markdown__paragraph) {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.kimi-chat-panel__entry-text--markdown :deep(.kimi-chat-markdown__inline-code) {
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.08);
+  font-family: "SFMono-Regular", "SF Mono", Consolas, "Liberation Mono",
+    Menlo, monospace;
+  font-size: 12px;
+}
+
+.kimi-chat-panel__entry-text--markdown :deep(.kimi-chat-markdown__code-block) {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.92);
+  color: #e2e8f0;
+  overflow-x: auto;
+}
+
+.kimi-chat-panel__entry-text--markdown :deep(.kimi-chat-markdown__code) {
+  font-family: "SFMono-Regular", "SF Mono", Consolas, "Liberation Mono",
+    Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .kimi-chat-panel__detail-section {
   display: grid;
   gap: 6px;
@@ -354,5 +410,16 @@ function resolveToolStatus(status: string): string {
 
 .kimi-chat-panel__send:disabled {
   background: #94a3b8;
+}
+
+.kimi-chat-panel__stop {
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  background: rgba(220, 38, 38, 0.08);
+  color: #b91c1c;
+  font: inherit;
+  font-weight: 600;
 }
 </style>

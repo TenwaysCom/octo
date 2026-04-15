@@ -47,6 +47,7 @@ import {
 } from "../../platform-url.js";
 import type {
   KimiChatEvent,
+  KimiChatRenderState,
   KimiChatTranscriptEntry,
 } from "../../types/acp-kimi.js";
 
@@ -61,6 +62,8 @@ interface PopupAuthFlags {
   lark: boolean;
   meegle: boolean;
 }
+
+type ScheduledFrameHandle = number | ReturnType<typeof globalThis.setTimeout>;
 
 function createDefaultSettingsForm(): PopupSettingsForm {
   return {
@@ -83,20 +86,84 @@ export function usePopupApp() {
   const kimiChatDraftMessage = ref("");
   const kimiChatActiveAssistantEntryId = ref<string | null>(null);
   const kimiChatTranscript = ref<KimiChatTranscriptEntry[]>([]);
+  let pendingKimiChatState: KimiChatRenderState | null = null;
+  let pendingKimiChatFlushHandle: ScheduledFrameHandle | null = null;
+  let activeKimiChatRequestId = 0;
+  let nextKimiChatRequestId = 0;
+  let kimiChatAbortController: AbortController | null = null;
 
-  function appendKimiChatEvent(event: KimiChatEvent): void {
-    const nextState = applyKimiChatEvent(
-      {
+  function getKimiChatRenderState(): KimiChatRenderState {
+    return (
+      pendingKimiChatState ?? {
         sessionId: kimiChatSessionId.value,
         activeAssistantEntryId: kimiChatActiveAssistantEntryId.value,
         transcript: kimiChatTranscript.value,
-      },
-      event,
+      }
     );
+  }
 
+  function applyKimiChatRenderState(nextState: KimiChatRenderState): void {
     kimiChatSessionId.value = nextState.sessionId;
     kimiChatActiveAssistantEntryId.value = nextState.activeAssistantEntryId;
     kimiChatTranscript.value = nextState.transcript;
+  }
+
+  function flushPendingKimiChatState(): void {
+    pendingKimiChatFlushHandle = null;
+    if (!pendingKimiChatState) {
+      return;
+    }
+
+    const nextState = pendingKimiChatState;
+    pendingKimiChatState = null;
+    applyKimiChatRenderState(nextState);
+  }
+
+  function schedulePendingKimiChatState(nextState: KimiChatRenderState): void {
+    pendingKimiChatState = nextState;
+    if (pendingKimiChatFlushHandle != null) {
+      return;
+    }
+
+    pendingKimiChatFlushHandle = scheduleAnimationFrame(() => {
+      flushPendingKimiChatState();
+    });
+  }
+
+  function cancelPendingKimiChatState(): void {
+    if (pendingKimiChatState?.sessionId) {
+      kimiChatSessionId.value = pendingKimiChatState.sessionId;
+    }
+
+    pendingKimiChatState = null;
+
+    if (pendingKimiChatFlushHandle != null) {
+      cancelScheduledAnimationFrame(pendingKimiChatFlushHandle);
+      pendingKimiChatFlushHandle = null;
+    }
+  }
+
+  function appendKimiChatEvent(event: KimiChatEvent): void {
+    schedulePendingKimiChatState(
+      applyKimiChatEvent(getKimiChatRenderState(), event),
+    );
+  }
+
+  function appendKimiChatStatus(text: string): void {
+    flushPendingKimiChatState();
+    kimiChatTranscript.value = [
+      ...kimiChatTranscript.value,
+      {
+        id: createTranscriptEntryId("status"),
+        kind: "status",
+        text,
+      },
+    ];
+  }
+
+  function clearActiveKimiChatRequest(): void {
+    activeKimiChatRequestId = 0;
+    kimiChatAbortController = null;
   }
   const state = reactive({
     pageType: "unsupported" as PopupPageType,
@@ -572,6 +639,12 @@ export function usePopupApp() {
   }
 
   function resetKimiChatSession() {
+    cancelPendingKimiChatState();
+    if (kimiChatAbortController) {
+      kimiChatAbortController.abort();
+    }
+    clearActiveKimiChatRequest();
+    kimiChatBusy.value = false;
     kimiChatSessionId.value = null;
     kimiChatDraftMessage.value = "";
     kimiChatActiveAssistantEntryId.value = null;
@@ -580,6 +653,19 @@ export function usePopupApp() {
 
   function updateKimiChatDraftMessage(message: string) {
     kimiChatDraftMessage.value = message;
+  }
+
+  function stopKimiChatGeneration() {
+    if (!kimiChatBusy.value) {
+      return;
+    }
+
+    flushPendingKimiChatState();
+    kimiChatAbortController?.abort();
+    clearActiveKimiChatRequest();
+    kimiChatBusy.value = false;
+    kimiChatActiveAssistantEntryId.value = null;
+    appendKimiChatStatus("已停止生成");
   }
 
   async function sendKimiChatMessage(message: string) {
@@ -598,9 +684,13 @@ export function usePopupApp() {
     });
 
     const userEntryId = createTranscriptEntryId("user");
+    const requestId = ++nextKimiChatRequestId;
+    const abortController = new AbortController();
     let receivedEvents = false;
 
     try {
+      activeKimiChatRequestId = requestId;
+      kimiChatAbortController = abortController;
       kimiChatDraftMessage.value = "";
       kimiChatActiveAssistantEntryId.value = null;
       kimiChatTranscript.value = [
@@ -612,17 +702,43 @@ export function usePopupApp() {
         },
       ];
 
-      await client.sendMessage({
+      const request = {
         operatorLarkId,
-        sessionId: kimiChatSessionId.value || undefined,
         message,
-      }, {
+      } as {
+        operatorLarkId: string;
+        message: string;
+        sessionId?: string;
+      };
+
+      if (kimiChatSessionId.value) {
+        request.sessionId = kimiChatSessionId.value;
+      }
+
+      await client.sendMessage(request, {
+        signal: abortController.signal,
         onEvent(event) {
+          if (
+            abortController.signal.aborted ||
+            activeKimiChatRequestId !== requestId
+          ) {
+            return;
+          }
+
           receivedEvents = true;
           appendKimiChatEvent(event);
         },
       });
+
+      if (activeKimiChatRequestId === requestId) {
+        flushPendingKimiChatState();
+      }
     } catch (error) {
+      if (isAbortError(error)) {
+        return;
+      }
+
+      flushPendingKimiChatState();
       kimiChatSessionId.value = null;
       kimiChatActiveAssistantEntryId.value = null;
       if (!receivedEvents) {
@@ -651,7 +767,10 @@ export function usePopupApp() {
         `Kimi ACP 请求失败: ${error instanceof Error ? error.message : String(error)}`,
       );
     } finally {
-      kimiChatBusy.value = false;
+      if (activeKimiChatRequestId === requestId) {
+        clearActiveKimiChatRequest();
+        kimiChatBusy.value = false;
+      }
     }
   }
 
@@ -773,11 +892,39 @@ export function usePopupApp() {
     runFeatureAction,
     updateKimiChatDraftMessage,
     sendKimiChatMessage,
+    stopKimiChatGeneration,
   };
 }
 
 function createTranscriptEntryId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+}
+
+function scheduleAnimationFrame(callback: FrameRequestCallback): ScheduledFrameHandle {
+  if (typeof globalThis.requestAnimationFrame === "function") {
+    return globalThis.requestAnimationFrame(callback);
+  }
+
+  return globalThis.setTimeout(() => {
+    callback(Date.now());
+  }, 16);
+}
+
+function cancelScheduledAnimationFrame(handle: ScheduledFrameHandle): void {
+  if (typeof globalThis.cancelAnimationFrame === "function") {
+    globalThis.cancelAnimationFrame(handle as number);
+    return;
+  }
+
+  globalThis.clearTimeout(handle);
+}
+
+function isAbortError(error: unknown): boolean {
+  return (
+    error instanceof DOMException
+      ? error.name === "AbortError"
+      : error instanceof Error && error.name === "AbortError"
+  );
 }
 
 function resolveStatusChip(

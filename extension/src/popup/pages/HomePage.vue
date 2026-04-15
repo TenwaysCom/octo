@@ -6,6 +6,7 @@
       :busy="kimiChatBusy"
       :draft-message="kimiChatDraftMessage"
       @send="$emit('sendKimiChatMessage', $event)"
+      @stop="$emit('stopKimiChatGeneration')"
       @update:draft-message="$emit('updateKimiChatDraftMessage', $event)"
     />
     <UnsupportedPageView
@@ -79,6 +80,7 @@ defineEmits<{
   authorizeLark: [];
   feature: [key: string];
   sendKimiChatMessage: [message: string];
+  stopKimiChatGeneration: [];
   updateKimiChatDraftMessage: [message: string];
   clearLogs: [];
 }>();

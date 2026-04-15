@@ -12,6 +12,7 @@ export interface KimiChatClient {
     input: KimiChatRequest,
     handlers?: {
       onEvent?: (event: KimiChatEvent) => void;
+      signal?: AbortSignal;
     },
   ): Promise<void>;
 }
@@ -39,6 +40,7 @@ export function createKimiChatClient(input: { baseUrl: string }): KimiChatClient
           Accept: "text/event-stream",
         },
         body: JSON.stringify(body),
+        signal: handlers?.signal,
       });
 
       if (!response.ok) {
@@ -189,13 +191,20 @@ function normalizeSessionUpdateForRendering(
   update: KimiChatSessionUpdate | Record<string, unknown>,
 ): KimiChatSessionUpdate {
   if (
+    update &&
+    typeof update === "object" &&
     "sessionUpdate" in update &&
     typeof update.sessionUpdate === "string"
   ) {
     return update as KimiChatSessionUpdate;
   }
 
-  if (typeof update.content === "string") {
+  if (
+    update &&
+    typeof update === "object" &&
+    "content" in update &&
+    typeof update.content === "string"
+  ) {
     return {
       sessionUpdate: "agent_message_chunk",
       content: {
@@ -206,8 +215,8 @@ function normalizeSessionUpdateForRendering(
   }
 
   return {
-    sessionUpdate: "unknown_legacy_update",
     ...update,
+    sessionUpdate: "unknown_legacy_update",
   };
 }
 

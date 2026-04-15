@@ -67,6 +67,41 @@ function createDeferred<T>() {
   return { promise, resolve, reject };
 }
 
+function stubAnimationFrames() {
+  let nextHandle = 1;
+  const callbacks = new Map<number, FrameRequestCallback>();
+
+  vi.stubGlobal(
+    "requestAnimationFrame",
+    vi.fn((callback: FrameRequestCallback) => {
+      const handle = nextHandle++;
+      callbacks.set(handle, callback);
+      return handle;
+    }),
+  );
+  vi.stubGlobal(
+    "cancelAnimationFrame",
+    vi.fn((handle: number) => {
+      callbacks.delete(handle);
+    }),
+  );
+
+  return {
+    requestAnimationFrameMock: vi.mocked(globalThis.requestAnimationFrame),
+    flushNextFrame() {
+      const next = callbacks.entries().next().value as
+        | [number, FrameRequestCallback]
+        | undefined;
+      if (!next) {
+        return;
+      }
+
+      callbacks.delete(next[0]);
+      next[1](0);
+    },
+  };
+}
+
 describe("usePopupApp notebook state", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -640,6 +675,203 @@ describe("usePopupApp notebook state", () => {
       ),
     ).toBe(true);
     expect(popup.kimiChatBusy.value).toBe(false);
+  });
+
+  it("allows stopping an in-flight response and ignores stale chunks after abort", async () => {
+    const animationFrames = stubAnimationFrames();
+    let onEvent:
+      | ((event: {
+          event: string;
+          data: Record<string, unknown>;
+        }) => void)
+      | undefined;
+    let signal: AbortSignal | undefined;
+
+    kimiChatClientMock.sendMessage.mockImplementationOnce(
+      async (
+        _input: { operatorLarkId: string; sessionId?: string; message: string },
+        handlers?: {
+          onEvent?: (event: {
+            event: string;
+            data: Record<string, unknown>;
+          }) => void;
+          signal?: AbortSignal;
+        },
+      ) =>
+        new Promise<void>((_resolve, reject) => {
+          onEvent = handlers?.onEvent;
+          signal = handlers?.signal;
+          signal?.addEventListener(
+            "abort",
+            () => {
+              reject(new DOMException("The operation was aborted.", "AbortError"));
+            },
+            { once: true },
+          );
+        }),
+    );
+
+    const popup = usePopupApp();
+    popup.state.identity.larkId = "ou_test";
+    popup.runFeatureAction("analyze");
+
+    const sendPromise = popup.sendKimiChatMessage("请先开始，然后我会停止");
+
+    await vi.waitFor(() => {
+      expect(kimiChatClientMock.sendMessage).toHaveBeenCalledWith(
+        {
+          operatorLarkId: "ou_test",
+          message: "请先开始，然后我会停止",
+        },
+        expect.objectContaining({
+          onEvent: expect.any(Function),
+          signal: expect.any(AbortSignal),
+        }),
+      );
+    });
+
+    onEvent?.({
+      event: "session.created",
+      data: {
+        sessionId: "sess_abort",
+      },
+    });
+    onEvent?.({
+      event: "acp.session.update",
+      data: {
+        sessionId: "sess_abort",
+        update: {
+          sessionUpdate: "agent_message_chunk",
+          content: {
+            type: "text",
+            text: "这段在停止前已经到了",
+          },
+        },
+      },
+    });
+
+    popup.stopKimiChatGeneration();
+    await sendPromise;
+
+    expect(signal?.aborted).toBe(true);
+    expect(popup.kimiChatBusy.value).toBe(false);
+    expect(
+      popup.kimiChatTranscript.value.some((entry) =>
+        entry.text?.includes("这段在停止前已经到了"),
+      ),
+    ).toBe(true);
+    expect(
+      popup.kimiChatTranscript.value.some((entry) =>
+        entry.kind === "status" && entry.text?.includes("已停止生成"),
+      ),
+    ).toBe(true);
+
+    const transcriptBeforeLateChunk = popup.kimiChatTranscript.value.map((entry) => ({
+      id: entry.id,
+      kind: entry.kind,
+      text: entry.text,
+    }));
+
+    onEvent?.({
+      event: "acp.session.update",
+      data: {
+        sessionId: "sess_abort",
+        update: {
+          sessionUpdate: "agent_message_chunk",
+          content: {
+            type: "text",
+            text: "这段不应该再出现",
+          },
+        },
+      },
+    });
+    animationFrames.flushNextFrame();
+
+    expect(
+      popup.kimiChatTranscript.value.map((entry) => ({
+        id: entry.id,
+        kind: entry.kind,
+        text: entry.text,
+      })),
+    ).toEqual(transcriptBeforeLateChunk);
+  });
+
+  it("batches high-frequency streaming events until the animation frame flushes", async () => {
+    const animationFrames = stubAnimationFrames();
+    const deferred = createDeferred<void>();
+
+    kimiChatClientMock.sendMessage.mockImplementationOnce(
+      async (
+        _input: { operatorLarkId: string; sessionId?: string; message: string },
+        handlers?: {
+          onEvent?: (event: {
+            event: string;
+            data: Record<string, unknown>;
+          }) => void;
+          signal?: AbortSignal;
+        },
+      ) => {
+        handlers?.onEvent?.({
+          event: "session.created",
+          data: {
+            sessionId: "sess_burst",
+          },
+        });
+        handlers?.onEvent?.({
+          event: "acp.session.update",
+          data: {
+            sessionId: "sess_burst",
+            update: {
+              sessionUpdate: "agent_message_chunk",
+              content: {
+                type: "text",
+                text: "你",
+              },
+            },
+          },
+        });
+        handlers?.onEvent?.({
+          event: "acp.session.update",
+          data: {
+            sessionId: "sess_burst",
+            update: {
+              sessionUpdate: "agent_message_chunk",
+              content: {
+                type: "text",
+                text: "好",
+              },
+            },
+          },
+        });
+        await deferred.promise;
+      },
+    );
+
+    const popup = usePopupApp();
+    popup.state.identity.larkId = "ou_test";
+    popup.runFeatureAction("analyze");
+
+    const sendPromise = popup.sendKimiChatMessage("高频流式更新");
+
+    await vi.waitFor(() => {
+      expect(kimiChatClientMock.sendMessage).toHaveBeenCalledTimes(1);
+    });
+
+    expect(animationFrames.requestAnimationFrameMock).toHaveBeenCalled();
+    expect(
+      popup.kimiChatTranscript.value.some((entry) => entry.kind === "assistant"),
+    ).toBe(false);
+
+    animationFrames.flushNextFrame();
+
+    const assistantEntries = popup.kimiChatTranscript.value.filter((entry) =>
+      entry.kind === "assistant",
+    );
+    expect(assistantEntries).toHaveLength(1);
+    expect(assistantEntries[0]?.text).toBe("你好");
+
+    deferred.resolve();
+    await sendPromise;
   });
 
   it("reuses the current sessionId on a second send while keeping transcript history", async () => {
