@@ -414,6 +414,48 @@ function renderCallbackPage(input: {
   };
 }
 
+async function getLarkContactUserInfo(
+  baseUrl: string,
+  userId: string,
+  accessToken: string,
+  fetchImpl: typeof fetch,
+): Promise<{ email?: string; name?: string; avatarUrl?: string }> {
+  const url = new URL(`/open-apis/contact/v3/users/${encodeURIComponent(userId)}`, baseUrl);
+  url.searchParams.set("user_id_type", "user_id");
+
+  const response = await fetchImpl(url.toString(), {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    console.warn(`[LARK_CONTACT] request failed: ${response.status}`);
+    return {};
+  }
+
+  const data = (await response.json()) as Record<string, unknown>;
+  const code = data.code as number;
+  if (code !== 0) {
+    console.warn(`[LARK_CONTACT] API error: ${data.msg as string}`);
+    return {};
+  }
+
+  const contactData = (data.data as Record<string, unknown> | undefined)
+    ?? (data.data as Record<string, unknown> | undefined)?.user as Record<string, unknown> | undefined;
+  const email = (contactData?.email as string | undefined) || undefined;
+  const name = (contactData?.name as string | undefined) || undefined;
+  const avatar = contactData?.avatar as Record<string, unknown> | undefined;
+  const avatarUrl = (avatar?.avatar_240 as string | undefined)
+    || (avatar?.avatar_640 as string | undefined)
+    || (avatar?.avatar_72 as string | undefined)
+    || (contactData?.avatar_url as string | undefined)
+    || undefined;
+
+  return { email, name, avatarUrl };
+}
+
 async function getLarkUserInfo(
   baseUrl: string,
   accessToken: string,
@@ -432,6 +474,7 @@ async function getLarkUserInfo(
   }
 
   const data = (await response.json()) as Record<string, unknown>;
+  console.log(data);
   const code = data.code as number;
   if (code !== 0) {
     throw new Error(`Lark user info API error: ${data.msg as string}`);
@@ -440,11 +483,23 @@ async function getLarkUserInfo(
   const userData = data.data as Record<string, unknown> | undefined;
   const userId = userData?.user_id as string | undefined;
   const tenantKey = userData?.tenant_key as string | undefined;
-  const email = userData?.email as string | undefined;
-  const name = userData?.name as string | undefined;
-  const avatarUrl = userData?.avatar_url as string | undefined;
+  const rawEmail = userData?.email as string | undefined;
+  const enterpriseEmail = userData?.enterprise_email as string | undefined;
+  let email = rawEmail || enterpriseEmail || undefined;
+  let name = (userData?.name as string | undefined) || undefined;
+  let avatarUrl = (userData?.avatar_url as string | undefined) || undefined;
+
   if (!userId || !tenantKey) {
     throw new Error("Lark user info response missing tenant identity");
+  }
+
+  // Fall back to Contact API when email is missing, because the current
+  // OAuth scope does not always grant email access through the authen API.
+  if (!email) {
+    const contactInfo = await getLarkContactUserInfo(baseUrl, userId, accessToken, fetchImpl);
+    email = contactInfo.email ?? email;
+    name = contactInfo.name ?? name;
+    avatarUrl = contactInfo.avatarUrl ?? avatarUrl;
   }
 
   return { userId, tenantKey, email, name, avatarUrl };

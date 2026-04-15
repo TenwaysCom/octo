@@ -97,6 +97,15 @@ describe("lark-auth.controller", () => {
             user_id: "ou_oauth_verified",
           },
         }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          code: 0,
+          data: {
+            email: "user@example.com",
+          },
+        }),
       });
 
     configureLarkAuthServiceDeps({

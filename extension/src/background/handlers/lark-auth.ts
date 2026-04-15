@@ -45,12 +45,12 @@ export function buildLarkOauthUrl(
   state: string,
   appId?: string,
   callbackUrl = "http://localhost:3000/api/lark/auth/callback",
+  scope = "offline_access contact:user.base:readonly bitable:app email",
 ): string {
   const authorizeBaseUrl = baseUrl.includes("feishu.cn")
     ? "https://accounts.feishu.cn"
     : "https://accounts.larksuite.com";
   const resolvedAppId = appId || "cli_a4b5c6d7e8f9";
-  const scope = "offline_access contact:user.base:readonly bitable:app";
   const oauthUrl = new URL("/open-apis/authen/v1/authorize", authorizeBaseUrl);
 
   oauthUrl.searchParams.set("app_id", resolvedAppId);
@@ -68,10 +68,11 @@ async function openLarkOAuthTab(
   appId?: string,
   callbackUrl?: string,
 ): Promise<void> {
+  const config = await getConfig();
   return new Promise((resolve) => {
     chrome.tabs.create(
       {
-        url: buildLarkOauthUrl(baseUrl, state, appId, callbackUrl),
+        url: buildLarkOauthUrl(baseUrl, state, appId, callbackUrl, config.LARK_OAUTH_SCOPE),
         active: true,
       },
       () => resolve(),

@@ -20,6 +20,7 @@ describe("public-config.controller", () => {
         LARK_APP_ID: "cli_test_public",
         MEEGLE_BASE_URL: "https://project.larksuite.com",
         LARK_OAUTH_CALLBACK_URL: "https://example.ngrok-free.app/api/lark/auth/callback",
+        LARK_OAUTH_SCOPE: "offline_access contact:user.base:readonly bitable:app email",
       },
     });
   });

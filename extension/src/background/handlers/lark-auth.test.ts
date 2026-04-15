@@ -127,6 +127,7 @@ describe("lark-auth handler", () => {
         "state_123",
         "cli_test",
         "https://example.ngrok-free.app/api/lark/auth/callback",
+        "offline_access contact:user.base:readonly bitable:app email",
       ),
     );
 
@@ -137,7 +138,7 @@ describe("lark-auth handler", () => {
       "https://example.ngrok-free.app/api/lark/auth/callback",
     );
     expect(url.searchParams.get("scope")).toBe(
-      "offline_access contact:user.base:readonly bitable:app",
+      "offline_access contact:user.base:readonly bitable:app email",
     );
     expect(url.searchParams.get("response_type")).toBe("code");
   });

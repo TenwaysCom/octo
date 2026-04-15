@@ -13,7 +13,7 @@ export interface IdentityResolutionResponse {
       operatorLarkId?: string;
       larkEmail?: string;
       larkName?: string;
-      larkAvatarUrl?: string;
+      larkAvatar?: string;
       meegleUserKey?: string;
     githubId?: string;
     role?: string;
@@ -34,7 +34,7 @@ function toResponse(
       operatorLarkId: user.larkId ?? undefined,
       larkEmail: user.larkEmail ?? undefined,
       larkName: user.larkName ?? undefined,
-      larkAvatarUrl: user.larkAvatarUrl ?? undefined,
+      larkAvatar: user.larkAvatarUrl ?? undefined,
       meegleUserKey: user.meegleUserKey ?? undefined,
       githubId: user.githubId ?? undefined,
       role: user.role ?? undefined,
