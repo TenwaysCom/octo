@@ -51,7 +51,20 @@
         data-test="vertical-tab-profile"
         @click="handleChange('profile')"
       >
-        <svg class="vertical-tab-bar__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <img
+          v-if="larkAvatar"
+          :src="larkAvatar"
+          class="vertical-tab-bar__avatar"
+          alt="个人头像"
+        />
+        <svg
+          v-else
+          class="vertical-tab-bar__icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
           <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
           <circle cx="12" cy="7" r="4"/>
         </svg>
@@ -67,6 +80,7 @@ import type { PopupNotebookPage } from "../types.js";
 const props = defineProps<{
   modelValue: PopupNotebookPage;
   authorized?: boolean;
+  larkAvatar?: string;
 }>();
 
 const emit = defineEmits<{
@@ -141,6 +155,14 @@ function handleChange(value: PopupNotebookPage) {
 .vertical-tab-bar__icon {
   width: 20px;
   height: 20px;
+  flex-shrink: 0;
+}
+
+.vertical-tab-bar__avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: cover;
   flex-shrink: 0;
 }
 

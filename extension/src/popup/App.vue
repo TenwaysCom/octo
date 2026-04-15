@@ -42,7 +42,11 @@
             />
           </PopupShell>
         </div>
-        <VerticalTabBar v-model="activePage" :authorized="state.isAuthed.lark && state.isAuthed.meegle" />
+        <VerticalTabBar
+          v-model="activePage"
+          :authorized="state.isAuthed.lark && state.isAuthed.meegle"
+          :lark-avatar="state.identity.larkAvatar || undefined"
+        />
       </div>
     </a-app>
   </a-config-provider>
