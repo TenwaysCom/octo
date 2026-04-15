@@ -218,6 +218,18 @@ export async function routeBackgroundAction(
  * Handle extension messages
  */
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === "itdog.query_active_tab_context") {
+    const tab = sender.tab;
+    sendResponse({
+      action: message.action,
+      payload: {
+        id: tab?.id ?? null,
+        url: tab?.url ?? null,
+      },
+    });
+    return true;
+  }
+
   if (message.action === "itdog.meegle.identity.cookies") {
     getMeegleIdentityFromCookies(message.payload.pageUrl)
       .then((identity) => {

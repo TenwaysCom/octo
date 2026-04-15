@@ -418,7 +418,7 @@ async function getLarkUserInfo(
   baseUrl: string,
   accessToken: string,
   fetchImpl: typeof fetch,
-): Promise<{ userId: string; tenantKey: string; email?: string }> {
+): Promise<{ userId: string; tenantKey: string; email?: string; name?: string; avatarUrl?: string }> {
   const url = new URL("/open-apis/authen/v1/user_info", baseUrl);
   const response = await fetchImpl(url.toString(), {
     method: "GET",
@@ -441,11 +441,46 @@ async function getLarkUserInfo(
   const userId = userData?.user_id as string | undefined;
   const tenantKey = userData?.tenant_key as string | undefined;
   const email = userData?.email as string | undefined;
+  const name = userData?.name as string | undefined;
+  const avatarUrl = userData?.avatar_url as string | undefined;
   if (!userId || !tenantKey) {
     throw new Error("Lark user info response missing tenant identity");
   }
 
-  return { userId, tenantKey, email };
+  return { userId, tenantKey, email, name, avatarUrl };
+}
+
+export async function fetchLarkUserInfo(
+  request: { masterUserId: string; baseUrl: string },
+  overrides?: Partial<LarkAuthServiceDeps>,
+): Promise<{ userId: string; tenantKey: string; email?: string; name?: string; avatarUrl?: string }> {
+  const deps = getDeps(overrides);
+  const authBaseUrl = normalizeLarkAuthBaseUrl(request.baseUrl);
+  const tokenStore = getTokenStore(deps);
+  const stored = await tokenStore.get({
+    masterUserId: request.masterUserId,
+    baseUrl: authBaseUrl,
+  });
+
+  if (!stored?.userToken) {
+    throw new Error("No stored Lark token found");
+  }
+
+  const fetchImpl = deps.fetchImpl ?? fetch;
+  const userInfo = await getLarkUserInfo(authBaseUrl, stored.userToken, fetchImpl);
+
+  const resolvedUserStore = getResolvedStore(deps);
+  const existingByUser = await resolvedUserStore.getById(request.masterUserId);
+  if (existingByUser) {
+    await resolvedUserStore.update({
+      ...existingByUser,
+      larkEmail: userInfo.email ?? existingByUser.larkEmail,
+      larkName: userInfo.name ?? existingByUser.larkName,
+      larkAvatarUrl: userInfo.avatarUrl ?? existingByUser.larkAvatarUrl,
+    });
+  }
+
+  return userInfo;
 }
 
 export async function handleLarkAuthCallback(
@@ -517,6 +552,8 @@ export async function handleLarkAuthCallback(
         larkTenantKey: userInfo.tenantKey,
         larkId: userInfo.userId,
         larkEmail: userInfo.email ?? existingByUser.larkEmail,
+        larkName: userInfo.name ?? existingByUser.larkName,
+        larkAvatarUrl: userInfo.avatarUrl ?? existingByUser.larkAvatarUrl,
         status: "active",
       });
     }

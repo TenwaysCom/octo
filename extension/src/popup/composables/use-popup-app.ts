@@ -9,6 +9,7 @@ import {
 import {
   clearResolvedIdentity,
   clearResolvedIdentityForTab,
+  fetchLarkUserInfo,
   getConfig,
   getLarkAuthStatus,
   loadPopupSettings,
@@ -46,6 +47,8 @@ interface PopupIdentityState {
   masterUserId: string | null;
   larkId: string | null;
   larkEmail: string | null;
+  larkName: string | null;
+  larkAvatar: string | null;
   meegleUserKey: string | null;
 }
 
@@ -68,7 +71,7 @@ export function usePopupApp() {
   const logs = ref<PopupLogEntry[]>([]);
   const isLoading = ref(true);
   const hasResolvedPageContext = ref(false);
-  const activePage = ref<PopupNotebookPage>("home");
+  const activePage = ref<PopupNotebookPage>("automation");
   const state = reactive({
     pageType: "unsupported" as PopupPageType,
     currentTabId: null as number | null,
@@ -77,6 +80,8 @@ export function usePopupApp() {
     identity: {
       larkId: null,
       larkEmail: null,
+      larkName: null,
+      larkAvatar: null,
       masterUserId: null,
       meegleUserKey: null,
     } as PopupIdentityState,
@@ -122,7 +127,11 @@ export function usePopupApp() {
   );
   const headerSubtitle = computed(() => {
     if (activePage.value === "settings") {
-      return "Settings";
+      return "设置";
+    }
+
+    if (activePage.value === "profile") {
+      return "个人";
     }
 
     if (!hasResolvedPageContext.value) {
@@ -194,6 +203,26 @@ export function usePopupApp() {
       const auth = await checkLarkAuth();
       state.larkAuth = auth;
       state.isAuthed.lark = auth.status === "ready";
+
+      if (auth.status === "ready" && auth.masterUserId && auth.baseUrl) {
+        const userInfo = await fetchLarkUserInfo({
+          masterUserId: auth.masterUserId,
+          baseUrl: auth.baseUrl,
+        });
+
+        if (userInfo.ok && userInfo.data) {
+          if (userInfo.data.email && !state.identity.larkEmail) {
+            state.identity.larkEmail = userInfo.data.email;
+          }
+          if (userInfo.data.name && !state.identity.larkName) {
+            state.identity.larkName = userInfo.data.name;
+          }
+          if (userInfo.data.avatarUrl && !state.identity.larkAvatar) {
+            state.identity.larkAvatar = userInfo.data.avatarUrl;
+          }
+        }
+      }
+
       return;
     }
 
@@ -215,6 +244,8 @@ export function usePopupApp() {
       state.currentTabOrigin = tabContext.origin;
       state.pageType = tabContext.pageType;
       hasResolvedPageContext.value = true;
+
+      appendLog("info", `检测到页面: ${tabContext.url || "(空)"} · 类型: ${tabContext.pageType}`);
 
       if (tabContext.pageType === "unsupported") {
         appendLog("warn", "当前页面不支持");
@@ -241,6 +272,12 @@ export function usePopupApp() {
       await ensureResolvedIdentity();
 
       await refreshAuthStates();
+
+      if (!state.isAuthed.lark || !state.isAuthed.meegle) {
+        activePage.value = "profile";
+        appendLog("warn", "Lark 或 Meegle 未授权，已切换到个人页面");
+      }
+
       appendLog("success", "初始化完成");
     } catch (error) {
       appendLog(
@@ -460,7 +497,7 @@ export function usePopupApp() {
 
   function closeSettings() {
     syncSettingsForm(settingsSnapshot);
-    activePage.value = "home";
+    activePage.value = "chat";
   }
 
   async function fetchMeegleUserKey() {
@@ -491,7 +528,7 @@ export function usePopupApp() {
     settingsSnapshot = { ...refreshedSettings };
     hydrateIdentityFromSettings(refreshedSettings);
     appendLog("success", "设置已保存");
-    activePage.value = "home";
+    activePage.value = "chat";
     await refreshAuthStates();
   }
 
@@ -591,6 +628,12 @@ export function usePopupApp() {
       }
       if (resolved.data.larkEmail) {
         state.identity.larkEmail = resolved.data.larkEmail;
+      }
+      if (resolved.data.larkName) {
+        state.identity.larkName = resolved.data.larkName;
+      }
+      if (resolved.data.larkAvatar) {
+        state.identity.larkAvatar = resolved.data.larkAvatar;
       }
       if (resolved.data.meegleUserKey) {
         state.identity.meegleUserKey = resolved.data.meegleUserKey;

@@ -12,6 +12,7 @@ import {
   validateLarkOauthSessionRequest,
   validateLarkTokenRefreshRequest,
   validateLarkAuthStatusRequest,
+  validateLarkUserInfoRequest,
 } from "./lark-auth.dto.js";
 import {
   exchangeLarkAuthCode,
@@ -19,6 +20,7 @@ import {
   refreshLarkToken,
   checkLarkAuthStatus,
   startLarkOauthSession,
+  fetchLarkUserInfo,
 } from "./lark-auth.service.js";
 
 export interface LarkAuthControllerDeps {
@@ -225,5 +227,54 @@ export async function createOauthSessionController(request: unknown) {
     }
 
     throw error;
+  }
+}
+
+export async function getLarkUserInfoController(
+  request: unknown,
+): Promise<
+  | {
+      ok: true;
+      data: {
+        userId: string;
+        tenantKey: string;
+        email?: string;
+        name?: string;
+        avatarUrl?: string;
+      };
+    }
+  | LarkAuthErrorResponse
+> {
+  try {
+    const validated = validateLarkUserInfoRequest(request);
+    const deps = getDeps();
+
+    const userInfo = await fetchLarkUserInfo(
+      {
+        masterUserId: validated.masterUserId,
+        baseUrl: validated.baseUrl,
+      },
+      {
+        appId: deps.appId,
+        appSecret: deps.appSecret,
+      },
+    );
+
+    return {
+      ok: true,
+      data: userInfo,
+    };
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return toInvalidRequest(error);
+    }
+
+    return {
+      ok: false,
+      error: {
+        errorCode: "LARK_USER_INFO_FAILED",
+        errorMessage: error instanceof Error ? error.message : "Unknown error",
+      },
+    };
   }
 }

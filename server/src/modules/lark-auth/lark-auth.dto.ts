@@ -32,11 +32,14 @@ export const larkAuthCallbackQuerySchema = z.object({
   state: z.string().min(1),
 });
 
+export const larkUserInfoRequestSchema = baseLarkAuthSchema;
+
 export type LarkAuthCodeRequest = z.infer<typeof larkAuthCodeRequestSchema>;
 export type LarkTokenRefreshRequest = z.infer<typeof larkTokenRefreshRequestSchema>;
 export type LarkAuthStatusRequest = z.infer<typeof larkAuthStatusRequestSchema>;
 export type LarkOauthSessionRequest = z.infer<typeof larkOauthSessionRequestSchema>;
 export type LarkAuthCallbackQuery = z.infer<typeof larkAuthCallbackQuerySchema>;
+export type LarkUserInfoRequest = z.infer<typeof larkUserInfoRequestSchema>;
 
 // ==================== Response Types ====================
 
@@ -89,6 +92,10 @@ export function validateLarkOauthSessionRequest(input: unknown): LarkOauthSessio
 
 export function validateLarkAuthCallbackQuery(input: unknown): LarkAuthCallbackQuery {
   return larkAuthCallbackQuerySchema.parse(input);
+}
+
+export function validateLarkUserInfoRequest(input: unknown): LarkUserInfoRequest {
+  return larkUserInfoRequestSchema.parse(input);
 }
 
 export interface LarkAuthCallbackPage {

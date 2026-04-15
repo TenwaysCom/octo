@@ -1,6 +1,8 @@
 // Meegle content script - handles auth code requests and user identity
 // Runs on https://*.meegle.com/* pages
 
+import { injectSidebar } from "./shared/sidebar-injector";
+
 interface MeegleAuthCodeResult {
   authCode: string;
   state: string;
@@ -21,6 +23,9 @@ interface TenwaysMeegleTestingApi {
     baseUrl?: string,
   ) => Promise<MeegleAuthCodeResult | null>;
   initMeegleContentScript: () => void;
+  openSidebar: () => void;
+  closeSidebar: () => void;
+  toggleSidebar: () => void;
 }
 
 const MCS_FLOW_PREFIX = "[MEEGLE_AUTH_FLOW][MCS]";
@@ -229,6 +234,18 @@ async function requestAuthCode(
 function initMeegleContentScript() {
   console.log("[Tenways Octo] Meegle content script initialized");
 
+  // Inject floating sidebar trigger on Meegle pages
+  const meegleSidebar = injectSidebar();
+
+  meegleTestingTarget.__TENWAYS_MEEGLE_TESTING__ = {
+    getMeegleUserIdentity,
+    getAuthCodeFromMeegleApi,
+    initMeegleContentScript,
+    openSidebar: meegleSidebar.open,
+    closeSidebar: meegleSidebar.close,
+    toggleSidebar: meegleSidebar.toggle,
+  };
+
   // Listen for auth code requests from background
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message.action === "itdog.page.meegle.auth_code.request") {
@@ -267,12 +284,6 @@ function initMeegleContentScript() {
 
 const meegleTestingTarget = globalThis as typeof globalThis & {
   __TENWAYS_MEEGLE_TESTING__?: TenwaysMeegleTestingApi;
-};
-
-meegleTestingTarget.__TENWAYS_MEEGLE_TESTING__ = {
-  getMeegleUserIdentity,
-  getAuthCodeFromMeegleApi,
-  initMeegleContentScript,
 };
 
 // Initialize when script loads

@@ -3,7 +3,7 @@ import "dotenv/config";
 import express, { type Request, type Response } from "express";
 import { resolveIdentityController } from "./modules/identity/identity.controller.js";
 import { exchangeAuthCodeController, getAuthStatusController } from "./modules/meegle-auth/meegle-auth.controller.js";
-import { exchangeAuthCodeController as exchangeLarkAuthCodeController, refreshTokenController as refreshLarkTokenController, getAuthStatusController as getLarkAuthStatusController, handleAuthCallbackController as handleLarkAuthCallbackController, createOauthSessionController as createLarkOauthSessionController } from "./modules/lark-auth/lark-auth.controller.js";
+import { exchangeAuthCodeController as exchangeLarkAuthCodeController, refreshTokenController as refreshLarkTokenController, getAuthStatusController as getLarkAuthStatusController, handleAuthCallbackController as handleLarkAuthCallbackController, createOauthSessionController as createLarkOauthSessionController, getLarkUserInfoController as getLarkUserInfoController } from "./modules/lark-auth/lark-auth.controller.js";
 import { configureLarkAuthControllerDeps } from "./modules/lark-auth/lark-auth.controller.js";
 import { configureLarkAuthServiceDeps } from "./modules/lark-auth/lark-auth.service.js";
 import { configureMeegleAuthServiceDeps } from "./modules/meegle-auth/meegle-auth.service.js";
@@ -130,6 +130,7 @@ app.post("/api/lark/auth/exchange", handleController(exchangeLarkAuthCodeControl
 app.post("/api/lark/auth/refresh", handleController(refreshLarkTokenController));
 app.post("/api/lark/auth/status", handleController(getLarkAuthStatusController));
 app.post("/api/lark/auth/session", handleController(createLarkOauthSessionController));
+app.post("/api/lark/user-info", handleController(getLarkUserInfoController));
 app.get("/api/lark/auth/callback", async (req, res) => {
   const result = await handleLarkAuthCallbackController({
     query: req.query,

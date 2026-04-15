@@ -1,5 +1,6 @@
 import { createLarkContentScriptRuntime, type LarkDetectedPageContext } from "../injection/platforms/lark/bootstrap";
 import type { ProbeOverlayState } from "../injection/core/overlay";
+import { injectSidebar } from "./shared/sidebar-injector";
 
 interface TenwaysLarkTestingApi {
   detectLarkPageContext: () => LarkDetectedPageContext | null;
@@ -8,6 +9,9 @@ interface TenwaysLarkTestingApi {
   initLarkContentScript: () => void;
   refreshProbeState: () => void;
   getProbeState: () => ProbeOverlayState;
+  openSidebar: () => void;
+  closeSidebar: () => void;
+  toggleSidebar: () => void;
 }
 
 const runtime = createLarkContentScriptRuntime();
@@ -16,6 +20,11 @@ const larkTestingTarget = globalThis as typeof globalThis & {
   __TENWAYS_LARK_TESTING__?: TenwaysLarkTestingApi;
 };
 
+runtime.initLarkContentScript();
+
+// Inject floating sidebar trigger on Lark pages
+const larkSidebar = injectSidebar();
+
 larkTestingTarget.__TENWAYS_LARK_TESTING__ = {
   detectLarkPageContext: runtime.detectLarkPageContext,
   extractAuthCodeFromRedirect: runtime.extractAuthCodeFromRedirect,
@@ -23,8 +32,9 @@ larkTestingTarget.__TENWAYS_LARK_TESTING__ = {
   initLarkContentScript: runtime.initLarkContentScript,
   refreshProbeState: runtime.refreshProbeState,
   getProbeState: runtime.getProbeState,
+  openSidebar: larkSidebar.open,
+  closeSidebar: larkSidebar.close,
+  toggleSidebar: larkSidebar.toggle,
 };
-
-runtime.initLarkContentScript();
 
 export {};

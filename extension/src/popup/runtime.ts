@@ -41,7 +41,10 @@ export interface IdentityResolveResponse {
     identityStatus: "pending_lark_identity" | "active" | "conflict";
     operatorLarkId?: string;
     larkEmail?: string;
+    larkName?: string;
+    larkAvatar?: string;
     meegleUserKey?: string;
+    role?: string;
   };
   error?: {
     errorCode?: string;
@@ -98,29 +101,50 @@ async function sendTabMessage<TPayload>(
 }
 
 export async function queryActiveTabContext(): Promise<PopupTabContext> {
-  const chromeApi = getChromeApi();
-  const [tab] = await chromeApi.tabs.query({
-    active: true,
-    currentWindow: true,
+  const response = await sendRuntimeMessage<{
+    payload?: { id: number | null; url: string | null };
+  }>({
+    action: "itdog.query_active_tab_context",
+    payload: {},
   });
 
-  if (!tab?.url) {
+  if (response.error || !response.payload) {
     return {
-      id: tab?.id ?? null,
+      id: null,
       url: null,
       origin: null,
       pageType: "unsupported",
     };
   }
 
-  const url = new URL(tab.url);
+  const { id: tabId, url } = response.payload;
 
-  return {
-    id: tab.id ?? null,
-    url: tab.url,
-    origin: url.origin,
-    pageType: detectPopupPageType(tab.url),
-  };
+  if (!url) {
+    return {
+      id: tabId ?? null,
+      url: null,
+      origin: null,
+      pageType: "unsupported",
+    };
+  }
+
+  try {
+    const parsed = new URL(url);
+
+    return {
+      id: tabId ?? null,
+      url,
+      origin: parsed.origin,
+      pageType: detectPopupPageType(url),
+    };
+  } catch {
+    return {
+      id: tabId ?? null,
+      url,
+      origin: null,
+      pageType: "unsupported",
+    };
+  }
 }
 
 export async function requestLarkUserId(
@@ -239,6 +263,61 @@ export async function runLarkAuthRequest(
     reason: response.error?.errorCode || "BACKGROUND_EMPTY_RESPONSE",
     errorMessage: response.error?.errorMessage,
   };
+}
+
+export async function fetchLarkUserInfo(
+  input: {
+    masterUserId: string;
+    baseUrl: string;
+  },
+): Promise<
+  | {
+      ok: true;
+      data: {
+        userId: string;
+        tenantKey: string;
+        email?: string;
+        name?: string;
+        avatarUrl?: string;
+      };
+    }
+  | { ok: false; error?: { errorCode?: string; errorMessage?: string } }
+> {
+  const config = await getConfig();
+
+  try {
+    const response = await fetch(`${config.SERVER_URL}/api/lark/user-info`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        masterUserId: input.masterUserId,
+        baseUrl: input.baseUrl,
+      }),
+    });
+
+    return (await response.json()) as
+      | {
+          ok: true;
+          data: {
+            userId: string;
+            tenantKey: string;
+            email?: string;
+            name?: string;
+            avatarUrl?: string;
+          };
+        }
+      | { ok: false; error?: { errorCode?: string; errorMessage?: string } };
+  } catch (error) {
+    return {
+      ok: false,
+      error: {
+        errorCode: "FETCH_LARK_USER_INFO_FAILED",
+        errorMessage: error instanceof Error ? error.message : String(error),
+      },
+    };
+  }
 }
 
 export async function getLarkAuthStatus(
