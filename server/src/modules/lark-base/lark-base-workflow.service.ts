@@ -595,13 +595,13 @@ export async function executeLarkBaseWorkflow(
     };
   }
 
-  const result = {
+  const primaryWorkitemId = workitems[0]?.workitemId ?? "";
+  console.log("[LarkBaseWorkflow] Workflow completed successfully", { recordId: request.recordId, workitemCount: workitems.length, primaryWorkitemId });
+  return {
     ok: true,
-    workitemId: workitems[0]?.workitemId ?? "",
+    workitemId: primaryWorkitemId,
     meegleLink: workitems[0]?.meegleLink ?? "",
     recordId: request.recordId,
     workitems,
   };
-  console.log("[LarkBaseWorkflow] Workflow completed successfully", { recordId: request.recordId, workitemCount: workitems.length, primaryWorkitemId: result.workitemId });
-  return result;
 }
