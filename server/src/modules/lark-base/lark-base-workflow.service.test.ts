@@ -23,6 +23,7 @@ describe("lark-base-workflow.service", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.LARK_BASE_WORKFLOW_CONFIG_PATH = "/nonexistent/config.json";
     process.env.LARK_BASE_ISSUE_TYPE_MAPPINGS = JSON.stringify([
       { larkLabels: ["User Story"], workitemTypeKey: "story", templateId: "400329", urlSlug: "story" },
       { larkLabels: ["Tech Task"], workitemTypeKey: "tech_task", templateId: "tpl_tech", urlSlug: "techtask" },
@@ -524,6 +525,62 @@ describe("lark-base-workflow.service", () => {
         expect.objectContaining({
           fieldKey: "description",
           fieldValue: expect.stringContaining("Config-driven details"),
+        }),
+      ]),
+    );
+
+    delete process.env.LARK_BASE_WORKFLOW_CONFIG_PATH;
+  });
+
+  it("maps select fields using options config", async () => {
+    process.env.LARK_BASE_WORKFLOW_CONFIG_PATH = "./src/modules/lark-base/fixtures/test-select-config.json";
+
+    const record: LarkBitableRecord = {
+      record_id: "rec_123",
+      fields: {
+        "Issue 类型": [{ text: "User Story", id: "opt_us" }],
+        "Issue Description": "Select mapping title",
+        "Details Description": "Details",
+        "紧急度": [{ text: "P0" }],
+      },
+    };
+
+    createLarkClientMock.mockReturnValueOnce({
+      getRecord: vi.fn().mockResolvedValueOnce(record),
+    });
+    getLarkTokenStoreMock.mockResolvedValueOnce({
+      userToken: "token_123",
+      userTokenExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
+      baseUrl: "https://open.larksuite.com",
+    });
+    executeMeegleApplyMock.mockResolvedValueOnce({
+      status: "created",
+      workitemId: "wi_select",
+      draft: {},
+    });
+    updateLarkBaseMeegleLinkMock.mockResolvedValueOnce({
+      ok: true,
+      recordId: "rec_123",
+    });
+
+    const result = await executeLarkBaseWorkflow(
+      {
+        recordId: "rec_123",
+        masterUserId: "usr_xxx",
+        baseId: "base_123",
+        tableId: "tbl_456",
+      },
+      deps,
+    );
+
+    expect(result.ok).toBe(true);
+
+    const draftArg = executeMeegleApplyMock.mock.calls[0]?.[0] as { draft?: { fieldValuePairs?: Array<{ fieldKey: string; fieldValue: string }> } };
+    expect(draftArg?.draft?.fieldValuePairs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          fieldKey: "priority",
+          fieldValue: "0",
         }),
       ]),
     );

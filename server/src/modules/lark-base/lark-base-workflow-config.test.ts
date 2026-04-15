@@ -10,12 +10,14 @@ describe("lark-base-workflow-config", () => {
   beforeEach(() => {
     vi.resetModules();
     process.env = { ...originalEnv };
-    delete process.env.LARK_BASE_WORKFLOW_CONFIG_PATH;
+    process.env.LARK_BASE_WORKFLOW_CONFIG_PATH = "/nonexistent/config.json";
   });
 
   it("returns undefined when no config file exists", () => {
+    process.env.LARK_BASE_WORKFLOW_CONFIG_PATH = "/nonexistent/config.json";
     const config = loadLarkBaseWorkflowConfig();
     expect(config).toBeUndefined();
+    delete process.env.LARK_BASE_WORKFLOW_CONFIG_PATH;
   });
 
   it("loads and parses a valid config file from env path", () => {

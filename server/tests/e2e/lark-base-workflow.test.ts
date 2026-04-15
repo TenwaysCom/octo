@@ -4,6 +4,7 @@ import type { LarkBitableRecord } from "../../src/adapters/lark/lark-client.js";
 
 describe("lark-base workflow e2e", () => {
   beforeEach(() => {
+    process.env.LARK_BASE_WORKFLOW_CONFIG_PATH = "/nonexistent/config.json";
     process.env.LARK_BASE_ISSUE_TYPE_MAPPINGS = JSON.stringify([
       { larkLabels: ["User Story"], workitemTypeKey: "story", templateId: "400329", urlSlug: "story" },
       { larkLabels: ["Tech Task"], workitemTypeKey: "tech_task", templateId: "tpl_tech", urlSlug: "techtask" },

@@ -296,10 +296,15 @@ function stringifyLarkValue(raw: unknown): string {
   return "";
 }
 
-function applyTransform(value: string, transform: FieldMappingConfig["transform"]): string {
+function applyTransform(value: string, transform: FieldMappingConfig["transform"], options?: Record<string, string>): string {
   switch (transform) {
     case "first_line":
       return value.split("\n")[0].slice(0, 200);
+    case "select":
+      if (options && value in options) {
+        return options[value];
+      }
+      return value;
     case "text":
     default:
       return value;
@@ -312,7 +317,7 @@ function extractMappedValue(
 ): string {
   const raw = extractRawLarkValue(fields, [mapping.larkField, ...(mapping.fallbackLarkFields || [])]);
   const stringified = stringifyLarkValue(raw);
-  return applyTransform(stringified, mapping.transform ?? "text");
+  return applyTransform(stringified, mapping.transform ?? "text", mapping.options);
 }
 
 // ==================== Draft Builder ====================

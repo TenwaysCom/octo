@@ -10,6 +10,7 @@ const fieldMappingTransformSchema = z.enum([
   "select_first",
   "array_join",
   "number",
+  "select",
 ]).default("text");
 
 const fieldMappingSchema = z.object({
@@ -17,6 +18,7 @@ const fieldMappingSchema = z.object({
   fallbackLarkFields: z.array(z.string().min(1)).default([]),
   meegleField: z.string().min(1),
   transform: fieldMappingTransformSchema,
+  options: z.record(z.string(), z.string()).optional(),
 });
 
 const issueTypeMappingSchema = z.object({
@@ -47,6 +49,7 @@ function resolveConfigPath(): string | undefined {
     if (existsSync(absolute)) {
       return absolute;
     }
+    return undefined;
   }
 
   const defaultPath = resolve(process.cwd(), "config/lark-base-workflow.json");

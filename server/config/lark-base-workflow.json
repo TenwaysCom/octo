@@ -15,7 +15,12 @@
         {
           "larkField": "紧急度",
           "meegleField": "priority",
-          "transform": "text"
+          "transform": "select",
+          "options": {
+            "P0": "0",
+            "P1": "1",
+            "P2": "2"
+          }
         }
       ]
     },
@@ -62,7 +67,12 @@
         {
           "larkField": "紧急度",
           "meegleField": "priority",
-          "transform": "text"
+          "transform": "select",
+          "options": {
+            "P0": "option_1",
+            "P1": "option_2",
+            "P2": "option_3"
+          }
         }
       ]
     }
