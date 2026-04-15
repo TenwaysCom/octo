@@ -123,7 +123,14 @@ describe("meegle-workitem.service", () => {
 
     expect(result.workitemId).toBe("WK-002");
     expect(client.createWorkitem).toHaveBeenCalledTimes(2);
-    expect(client.createWorkitem).toHaveBeenLastCalledWith(
+    expect(client.createWorkitem).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        idempotencyKey: "idem_002",
+      }),
+    );
+    expect(client.createWorkitem).toHaveBeenNthCalledWith(
+      2,
       expect.objectContaining({
         fieldValuePairs: [
           {
@@ -131,6 +138,7 @@ describe("meegle-workitem.service", () => {
             field_value: "Some description",
           },
         ],
+        idempotencyKey: "idem_002_retry1",
       }),
     );
     expect(client.updateWorkitem).toHaveBeenCalledWith(

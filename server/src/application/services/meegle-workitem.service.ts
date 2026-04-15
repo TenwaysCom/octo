@@ -74,6 +74,11 @@ export async function createWorkitemFromDraft(
   // Some fields cannot be set during creation (e.g. priority on story).
   // Retry without illegal fields and update them afterwards.
   for (let attempt = 0; attempt < fieldValuePairs.length + 1; attempt++) {
+    const idempotencyKey = options.idempotencyKey
+      ? attempt === 0
+        ? options.idempotencyKey
+        : `${options.idempotencyKey}_retry${attempt}`
+      : undefined;
     try {
       const workitem = await client.createWorkitem({
         projectKey,
@@ -81,7 +86,7 @@ export async function createWorkitemFromDraft(
         name: draft.name,
         templateId: normalizeTemplateId(templateId),
         fieldValuePairs: creatableFields,
-        idempotencyKey: options.idempotencyKey,
+        idempotencyKey,
       });
 
       if (postCreateUpdates.length > 0) {
