@@ -19,6 +19,7 @@ const fieldMappingSchema = z.object({
   meegleField: z.string().min(1),
   transform: fieldMappingTransformSchema,
   options: z.record(z.string(), z.string()).optional(),
+  prefix: z.boolean().default(false).optional(),
 });
 
 const issueTypeMappingSchema = z.object({

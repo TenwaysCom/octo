@@ -339,12 +339,26 @@ function buildExecutionDraft(
       ? extractMappedValue(record.fields, titleMapping)
       : extractRecordTitle(record);
 
+    // Build description prefix from fields marked with prefix=true targeting description
+    const descriptionPrefixMappings = mapping.fieldMappings.filter(
+      (m) => m.prefix && m.meegleField === "description",
+    );
+    const descriptionPrefix = descriptionPrefixMappings
+      .map((m) => extractMappedValue(record.fields, m))
+      .filter(Boolean)
+      .join("\n");
+
     fieldValuePairs = mapping.fieldMappings
-      .filter((m) => m.meegleField !== "__title__")
+      .filter((m) => m.meegleField !== "__title__" && !m.prefix)
       .map((m) => {
         let value = extractMappedValue(record.fields, m);
-        if (m.meegleField === "description" && larkBaseRecordUrl) {
-          value = value ? `${value}\n\nLark Base: ${larkBaseRecordUrl}` : `Lark Base: ${larkBaseRecordUrl}`;
+        if (m.meegleField === "description") {
+          if (descriptionPrefix) {
+            value = value ? `${descriptionPrefix}\n\n${value}` : descriptionPrefix;
+          }
+          if (larkBaseRecordUrl) {
+            value = value ? `${value}\n\nLark Base: ${larkBaseRecordUrl}` : `Lark Base: ${larkBaseRecordUrl}`;
+          }
         }
         return {
           fieldKey: m.meegleField,
