@@ -11,6 +11,11 @@
           "fallbackLarkFields": ["fldML66Cx1", "Issue Description", "fldaAzcMtg"],
           "meegleField": "description",
           "transform": "text"
+        },
+        {
+          "larkField": "紧急度",
+          "meegleField": "priority",
+          "transform": "text"
         }
       ]
     },
@@ -52,6 +57,11 @@
           "larkField": "Details Description",
           "fallbackLarkFields": ["fldML66Cx1", "Issue Description", "fldaAzcMtg"],
           "meegleField": "description",
+          "transform": "text"
+        },
+        {
+          "larkField": "紧急度",
+          "meegleField": "priority",
           "transform": "text"
         }
       ]
