@@ -44,6 +44,7 @@ import {
   normalizeMeegleAuthBaseUrl,
 } from "../../platform-url.js";
 import { createExtensionLogger, exportLogsAsBlob } from "../../logger.js";
+import { message } from "ant-design-vue";
 
 const popupLogger = createExtensionLogger("popup:app");
 
@@ -613,12 +614,16 @@ export function usePopupApp() {
       appendLog("info", `[更新Lark及推送] 服务端响应: ok=${result.ok}, alreadyUpdated=${result.alreadyUpdated}, larkBaseUpdated=${result.larkBaseUpdated}, messageSent=${result.messageSent}, reactionAdded=${result.reactionAdded}, meegleStatusUpdated=${result.meegleStatusUpdated}`);
 
       if (!result.ok) {
-        appendLog("warn", `推送失败: ${result.error || "未知错误"}`);
+        const errorMsg = `推送失败: ${result.error || "未知错误"}`;
+        showToast(errorMsg, "error");
+        appendLog("warn", errorMsg);
         return;
       }
 
       if (result.alreadyUpdated) {
-        appendLog("warn", "该工作项已经更新过，无需重复推送");
+        const alreadyMsg = "该工作项已经更新过，无需重复推送";
+        showToast(alreadyMsg, "warn");
+        appendLog("warn", alreadyMsg);
         return;
       }
 
@@ -628,11 +633,25 @@ export function usePopupApp() {
       if (result.reactionAdded) parts.push("Lark 消息 reaction 已添加");
       if (result.meegleStatusUpdated) parts.push("Meegle 状态已更新");
 
-      appendLog("success", `推送完成${parts.length ? ": " + parts.join("、") : ""}`);
+      const successMsg = `推送完成${parts.length ? ": " + parts.join("、") : ""}`;
+      showToast(successMsg, "success");
+      appendLog("success", successMsg);
       return;
     }
 
     appendLog("warn", "功能开发中，请稍后");
+  }
+
+  function showToast(text: string, type: PopupLogLevel = "info") {
+    if (type === "success") {
+      message.success(text, 2);
+    } else if (type === "error") {
+      message.error(text, 2);
+    } else if (type === "warn") {
+      message.warning(text, 2);
+    } else {
+      message.info(text, 2);
+    }
   }
 
   function appendLog(level: PopupLogLevel, message: string) {

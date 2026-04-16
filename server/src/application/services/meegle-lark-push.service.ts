@@ -306,9 +306,9 @@ export async function executeMeegleLarkPush(
           const firstMessage = threadMessages.items[0];
           const rootMessageId = firstMessage?.root_id;
 
-          // For reaction: use the first message in the thread list
-          if (firstMessage?.message_id) {
-            targetMessageId = firstMessage.message_id;
+          // For reaction: use the root message
+          if (rootMessageId) {
+            targetMessageId = rootMessageId;
           }
 
           if (rootMessageId) {
@@ -343,7 +343,7 @@ export async function executeMeegleLarkPush(
 
         pushLogger.debug({ targetMessageId }, "PUSH_REACTION_TARGET");
         if (targetMessageId) {
-          await larkClient.addMessageReaction(targetMessageId, "OK");
+          await larkClient.addMessageReaction(targetMessageId, "DONE");
           reactionAdded = true;
           pushLogger.info({ messageId: targetMessageId }, "PUSH_REACTION_OK");
         } else {
