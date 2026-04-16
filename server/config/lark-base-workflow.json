@@ -101,15 +101,6 @@
             }
           ],
           "transform": "text"
-        },
-        {
-          "meegleField": "field_7c2f56",
-          "notes": "Tech Team",
-          "source": {
-            "sourceType": "fixed",
-            "value": "cmb9pif3i"
-          },
-          "transform": "text"
         }
       ]
     },
@@ -158,15 +149,6 @@
               "pattern": "https?:\\/\\/[^\\s\"<>]*(?:threadid|chatid|messageid)=[^\\s\"<>]*"
             }
           ],
-          "transform": "text"
-        },
-        {
-          "meegleField": "field_7c2f56",
-          "notes": "Tech Team",
-          "source": {
-            "sourceType": "fixed",
-            "value": "cmb9pif3i"
-          },
           "transform": "text"
         }
       ]
