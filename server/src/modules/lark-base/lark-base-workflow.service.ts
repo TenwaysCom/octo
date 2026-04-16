@@ -175,11 +175,10 @@ function resolveWorkitemMappings(
 function extractIssueTypes(fields: Record<string, unknown>): string[] {
   const raw = fields["Issue 类型"] ?? fields["fldSQ1D6LG"];
   workflowLogger.info({ rawIssueType: raw }, "EXTRACT_ISSUE_TYPES raw");
-  if (!Array.isArray(raw)) {
-    workflowLogger.info({}, "EXTRACT_ISSUE_TYPES empty_not_array");
-    return [];
-  }
-  const extracted = raw
+
+  const items: unknown[] = Array.isArray(raw) ? raw : raw != null ? [raw] : [];
+
+  const extracted = items
     .map((item) => {
       if (typeof item === "string") return item;
       if (item && typeof item === "object") {

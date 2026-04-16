@@ -242,6 +242,58 @@ describe("lark-base-workflow.service", () => {
     );
   });
 
+  it("handles single-select Issue 类型 returned as an object", async () => {
+    const record: LarkBitableRecord = {
+      record_id: "rec_123",
+      fields: {
+        "Issue 类型": { text: "User Story", id: "opt_us" },
+        "Issue Description": "Single select title",
+        "Details Description": "Single select details",
+      },
+    };
+    createLarkClientMock.mockReturnValueOnce({
+      getRecord: vi.fn().mockResolvedValueOnce(record),
+    });
+    getLarkTokenStoreMock.mockResolvedValueOnce({
+      userToken: "token_123",
+      userTokenExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
+      baseUrl: "https://open.larksuite.com",
+    });
+    executeMeegleApplyMock.mockResolvedValueOnce({
+      status: "created",
+      workitemId: "wi_single",
+      draft: {},
+    });
+    updateLarkBaseMeegleLinkMock.mockResolvedValueOnce({
+      ok: true,
+      recordId: "rec_123",
+    });
+
+    const result = await executeLarkBaseWorkflow(
+      {
+        recordId: "rec_123",
+        masterUserId: "usr_xxx",
+        baseId: "base_123",
+        tableId: "tbl_456",
+      },
+      deps,
+    );
+
+    expect(result.ok).toBe(true);
+    expect(executeMeegleApplyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        draft: expect.objectContaining({
+          target: expect.objectContaining({
+            workitemTypeKey: "story",
+            templateId: "400329",
+          }),
+        }),
+        idempotencyKey: "idem_base_rec_123_story_0_",
+      }),
+      {},
+    );
+  });
+
   it("creates multiple workitems when multiple Issue 类型 match", async () => {
     const record = makeRecord(["User Story", "Production Bug"]);
     createLarkClientMock.mockReturnValueOnce({
