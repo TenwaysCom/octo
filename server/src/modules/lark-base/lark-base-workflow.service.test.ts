@@ -33,7 +33,7 @@ describe("lark-base-workflow.service", () => {
     ]);
   });
 
-  function makeRecord(issueType: string | string[]): LarkBitableRecord {
+  function makeRecord(issueType: string | string[], tag = "urgent"): LarkBitableRecord {
     const issueTypes = Array.isArray(issueType) ? issueType : [issueType];
     return {
       record_id: "rec_123",
@@ -41,6 +41,7 @@ describe("lark-base-workflow.service", () => {
         "Issue 类型": issueTypes.map((text) => ({ text, id: `opt_${text}` })),
         "Issue Description": "Test issue description",
         "Details Description": "Detailed info",
+        tag,
       },
     };
   }
@@ -127,7 +128,7 @@ describe("lark-base-workflow.service", () => {
             }),
           ]),
         }),
-        idempotencyKey: "idem_base_rec_123_story_0",
+        idempotencyKey: "idem_base_rec_123_story_0_urgent",
       }),
       {},
     );
@@ -182,7 +183,7 @@ describe("lark-base-workflow.service", () => {
             templateId: "645025",
           }),
         }),
-        idempotencyKey: "idem_base_rec_123_6932e40429d1cd8aac635c82_0",
+        idempotencyKey: "idem_base_rec_123_6932e40429d1cd8aac635c82_0_urgent",
       }),
       {},
     );

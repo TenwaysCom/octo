@@ -193,12 +193,6 @@ export function usePopupApp() {
       type: "primary",
       disabled: false,
     },
-    {
-      key: "meegle-context",
-      label: "查看来源上下文",
-      type: "default",
-      disabled: false,
-    },
   ]);
   void watchLarkAuthCallbackResult(async (result) => {
     if (result.masterUserId && result.masterUserId !== state.identity.masterUserId) {
@@ -563,7 +557,6 @@ export function usePopupApp() {
       analyze: "分析中...",
       draft: "生成草稿...",
       apply: "确认创建...",
-      "meegle-context": "查看来源上下文...",
       "update-lark-and-push": "更新 Lark 及推送中...",
     };
 
@@ -636,6 +629,19 @@ export function usePopupApp() {
       const successMsg = `推送完成${parts.length ? ": " + parts.join("、") : ""}`;
       showToast(successMsg, "success");
       appendLog("success", successMsg);
+
+      activePage.value = "chat";
+      if (state.currentTabId != null && currentUrl) {
+        try {
+          const url = new URL(currentUrl);
+          url.searchParams.set("tabKey", "txHFa5L16");
+          url.hash = "txHFa5L16";
+          chrome.tabs.update(state.currentTabId, { url: url.toString() });
+          appendLog("info", `[更新Lark及推送] 已跳转页面: ${url.toString()}`);
+        } catch {
+          appendLog("warn", "[更新Lark及推送] 页面跳转失败");
+        }
+      }
       return;
     }
 

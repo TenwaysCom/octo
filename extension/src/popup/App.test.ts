@@ -65,7 +65,7 @@ describe("popup App", () => {
     await wrapper.get('[data-test="vertical-tab-automation"]').trigger("click");
 
     expect(wrapper.find('[data-test="automation-page"]').exists()).toBe(true);
-    expect(wrapper.get('[data-test="automation-page"]').text()).toContain("查看来源上下文");
+    expect(wrapper.get('[data-test="automation-page"]').text()).toContain("更新Lark及推送");
   });
 
   it("switches to settings via the vertical tab bar", async () => {
@@ -202,8 +202,8 @@ function createPopupAppMock(pageType: PopupPageType) {
     ]),
     meegleActions: ref<PopupFeatureAction[]>([
       {
-        key: "meegle-context",
-        label: "查看来源上下文",
+        key: "update-lark-and-push",
+        label: "更新Lark及推送",
         type: "primary",
         disabled: false,
       },

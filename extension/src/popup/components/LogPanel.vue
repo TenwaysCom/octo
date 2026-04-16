@@ -55,7 +55,7 @@ const actionLinks = h("span", { class: "log-panel__actions" }, [exportLink, h("s
 .log-panel {
   display: grid;
   gap: 6px;
-  max-height: 140px;
+  max-height: 600px;
   overflow-y: auto;
   padding: 2px 0;
   font-family:
