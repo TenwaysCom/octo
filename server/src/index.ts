@@ -15,7 +15,10 @@ import { getSharedLarkTokenStore } from "./adapters/postgres/lark-token-store.js
 import { getSharedOauthSessionStore } from "./adapters/postgres/lark-oauth-session-store.js";
 import { registerLarkMeegleWorkflowRoutes } from "./http/lark-meegle-workflow-routes.js";
 import { runPMAnalysisController } from "./modules/pm-analysis/pm-analysis.controller.js";
-import { updateLarkBaseMeegleLinkController } from "./modules/lark-base/lark-base.controller.js";
+import {
+  getLarkRecordUrlController,
+  updateLarkBaseMeegleLinkController,
+} from "./modules/lark-base/lark-base.controller.js";
 import { createLarkBaseWorkflowController } from "./modules/lark-base/lark-base-workflow.controller.js";
 import { meegleLarkPushController } from "./modules/meegle-workitem/meegle-lark-push.controller.js";
 import { createApiRequestLogger, logApiRequest, summarizeRequestPayload } from "./http/api-request-logger.js";
@@ -149,6 +152,7 @@ app.post("/api/pm/analysis/run", handleController(runPMAnalysisController));
 
 // Lark Base routes
 app.post("/api/lark-base/update-meegle-link", handleController(updateLarkBaseMeegleLinkController));
+app.post("/api/lark-base/get-record-url", handleController(getLarkRecordUrlController));
 app.post("/api/lark-base/create-meegle-workitem", handleController(createLarkBaseWorkflowController));
 
 // Meegle workitem routes

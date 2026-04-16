@@ -1,5 +1,11 @@
-import { updateLarkBaseMeegleLink } from "./lark-base.service.js";
-import { validateUpdateLarkBaseMeegleLinkRequest } from "./lark-base.dto.js";
+import {
+  getLarkRecordUrl,
+  updateLarkBaseMeegleLink,
+} from "./lark-base.service.js";
+import {
+  validateGetLarkRecordUrlRequest,
+  validateUpdateLarkBaseMeegleLinkRequest,
+} from "./lark-base.dto.js";
 import { ZodError } from "zod";
 
 function toInvalidRequest(error: ZodError) {
@@ -25,6 +31,25 @@ export async function updateLarkBaseMeegleLinkController(input: unknown) {
       ok: false as const,
       error: {
         errorCode: "UPDATE_FAILED",
+        errorMessage: error instanceof Error ? error.message : String(error),
+      },
+    };
+  }
+}
+
+export async function getLarkRecordUrlController(input: unknown) {
+  try {
+    const validated = validateGetLarkRecordUrlRequest(input);
+    return await getLarkRecordUrl(validated);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return toInvalidRequest(error);
+    }
+
+    return {
+      ok: false as const,
+      error: {
+        errorCode: "GET_RECORD_URL_FAILED",
         errorMessage: error instanceof Error ? error.message : String(error),
       },
     };

@@ -58,4 +58,57 @@ describe("lark-base-workflow-config", () => {
       meegleField: "__title__",
     });
   });
+
+  it("loads extractor sources and fallback sources from config", () => {
+    process.env.LARK_BASE_WORKFLOW_CONFIG_PATH = "./src/modules/lark-base/fixtures/test-extractor-config.json";
+    const config = loadLarkBaseWorkflowConfig();
+    expect(config).toBeDefined();
+
+    const mappings = getFieldMappingsForType("story", config!);
+    expect(mappings).toHaveLength(7);
+    const recordLinkMapping = mappings!.find((m) => m.meegleField === "field_e8ad0a");
+    const messageLinkMapping = mappings!.find((m) => m.meegleField === "field_8d0341");
+    const ticketLinkMapping = mappings!.find((m) => m.meegleField === "field_e7984b");
+    const customRecordLinkMapping = mappings!.find((m) => m.meegleField === "field_custom_record_link");
+    const customMessageLinkMapping = mappings!.find((m) => m.meegleField === "field_custom_message_link");
+
+    expect(recordLinkMapping).toMatchObject({
+      meegleField: "field_e8ad0a",
+      source: {
+        sourceType: "record_url",
+      },
+    });
+    expect(messageLinkMapping).toMatchObject({
+      meegleField: "field_8d0341",
+      source: {
+        sourceType: "field",
+        sourceField: "Lark Message Link",
+      },
+      fallbackSources: [
+        {
+          sourceType: "description_regex",
+          pattern: "https?:\\/\\/[^\\s\"<>]*(?:threadid|chatid|messageid)=[^\\s\"<>]*",
+        },
+      ],
+    });
+    expect(ticketLinkMapping).toMatchObject({
+      meegleField: "field_e7984b",
+      source: {
+        sourceType: "shared_record_url",
+      },
+    });
+    expect(customRecordLinkMapping).toMatchObject({
+      meegleField: "field_custom_record_link",
+      source: {
+        sourceType: "record_url",
+      },
+    });
+    expect(customMessageLinkMapping).toMatchObject({
+      meegleField: "field_custom_message_link",
+      source: {
+        sourceType: "description_regex",
+        pattern: "https?:\\/\\/[^\\s\"<>]*(?:threadid|chatid|messageid)=[^\\s\"<>]*",
+      },
+    });
+  });
 });

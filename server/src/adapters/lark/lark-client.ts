@@ -18,6 +18,7 @@ export interface LarkBitableRecord {
   fields: Record<string, unknown>;
   created_time?: string;
   updated_time?: string;
+  shared_url?: string;
 }
 
 export interface LarkBitableTable {
@@ -75,6 +76,16 @@ export class LarkNotFoundError extends LarkAPIError {
 export interface LarkClientOptions {
   accessToken: string;
   baseUrl?: string;
+}
+
+export interface BatchGetRecordsOptions {
+  withSharedUrl?: boolean;
+}
+
+export interface BatchGetRecordsResult {
+  records: LarkBitableRecord[];
+  forbidden_record_ids: string[];
+  absent_record_ids: string[];
 }
 
 // ==================== LarkClient Class ====================
@@ -214,18 +225,13 @@ export class LarkClient {
         fields: Record<string, unknown>;
         created_time?: string;
         updated_time?: string;
+        shared_url?: string;
       };
     }>("GET", `/open-apis/bitable/v1/apps/${baseId}/tables/${tableId}/records/${recordId}`);
 
     clientLogger.debug({ baseId, tableId, recordId }, "GET_RECORD raw response");
 
-    const record = data.record;
-    return {
-      record_id: record?.record_id || recordId,
-      fields: record?.fields || {},
-      created_time: record?.created_time,
-      updated_time: record?.updated_time,
-    };
+    return this.mapRecord(data.record, recordId);
   }
 
   /**
@@ -249,6 +255,7 @@ export class LarkClient {
         fields: Record<string, unknown>;
         created_time?: string;
         updated_time?: string;
+        shared_url?: string;
       }>;
       has_more: boolean;
       page_token?: string;
@@ -259,12 +266,7 @@ export class LarkClient {
       sort: options?.sort,
     });
 
-    const records = (data.items || []).map((item) => ({
-      record_id: item.record_id,
-      fields: item.fields || {},
-      created_time: item.created_time,
-      updated_time: item.updated_time,
-    }));
+    const records = (data.items || []).map((item) => this.mapRecord(item));
 
     return {
       records,
@@ -285,16 +287,13 @@ export class LarkClient {
       record?: {
         record_id: string;
         fields: Record<string, unknown>;
+        shared_url?: string;
       };
     }>("POST", `/open-apis/bitable/v1/apps/${baseId}/tables/${tableId}/records`, {
       fields,
     });
 
-    const record = data.record;
-    return {
-      record_id: record?.record_id || "",
-      fields: record?.fields || {},
-    };
+    return this.mapRecord(data.record);
   }
 
   /**
@@ -310,16 +309,13 @@ export class LarkClient {
       record?: {
         record_id: string;
         fields: Record<string, unknown>;
+        shared_url?: string;
       };
     }>("PUT", `/open-apis/bitable/v1/apps/${baseId}/tables/${tableId}/records/${recordId}`, {
       fields,
     });
 
-    const record = data.record;
-    return {
-      record_id: record?.record_id || recordId,
-      fields: record?.fields || {},
-    };
+    return this.mapRecord(data.record, recordId);
   }
 
   /**
@@ -339,21 +335,32 @@ export class LarkClient {
     baseId: string,
     tableId: string,
     recordIds: string[],
-  ): Promise<LarkBitableRecord[]> {
-    // Note: Lark API may have limits on batch size
-    const BATCH_SIZE = 50;
-    const allRecords: LarkBitableRecord[] = [];
+    options?: BatchGetRecordsOptions,
+  ): Promise<BatchGetRecordsResult> {
+    const data = await this.request<{
+      records?: Array<{
+        record_id: string;
+        fields: Record<string, unknown>;
+        created_time?: string;
+        updated_time?: string;
+        shared_url?: string;
+      }>;
+      forbidden_record_ids?: string[];
+      absent_record_ids?: string[];
+    }>(
+      "POST",
+      `/open-apis/bitable/v1/apps/${baseId}/tables/${tableId}/records/batch_get`,
+      {
+        record_ids: recordIds,
+        with_shared_url: options?.withSharedUrl,
+      },
+    );
 
-    for (let i = 0; i < recordIds.length; i += BATCH_SIZE) {
-      const batch = recordIds.slice(i, i + BATCH_SIZE);
-      const promises = batch.map((id) =>
-        this.getRecord(baseId, tableId, id).catch(() => null),
-      );
-      const results = await Promise.all(promises);
-      allRecords.push(...results.filter((r): r is LarkBitableRecord => r !== null));
-    }
-
-    return allRecords;
+    return {
+      records: (data.records || []).map((record) => this.mapRecord(record)),
+      forbidden_record_ids: data.forbidden_record_ids || [],
+      absent_record_ids: data.absent_record_ids || [],
+    };
   }
 
   // ==================== IM Message Methods ====================
@@ -510,5 +517,23 @@ export class LarkClient {
 
     return this.createError(message, statusCode, responseData);
   }
-}
 
+  private mapRecord(
+    record?: {
+      record_id?: string;
+      fields?: Record<string, unknown>;
+      created_time?: string;
+      updated_time?: string;
+      shared_url?: string;
+    },
+    fallbackRecordId = "",
+  ): LarkBitableRecord {
+    return {
+      record_id: record?.record_id || fallbackRecordId,
+      fields: record?.fields || {},
+      created_time: record?.created_time,
+      updated_time: record?.updated_time,
+      shared_url: record?.shared_url,
+    };
+  }
+}

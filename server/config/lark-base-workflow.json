@@ -23,6 +23,34 @@
           "fallbackLarkFields": ["fldML66Cx1", "Issue Description", "fldaAzcMtg"],
           "meegleField": "description",
           "transform": "text"
+        },
+        {
+          "meegleField": "field_e8ad0a",
+          "source": {
+            "sourceType": "record_url"
+          },
+          "transform": "text"
+        },
+        {
+          "meegleField": "field_e7984b",
+          "source": {
+            "sourceType": "shared_record_url"
+          },
+          "transform": "text"
+        },
+        {
+          "meegleField": "field_8d0341",
+          "source": {
+            "sourceType": "field",
+            "sourceField": "Lark Message Link"
+          },
+          "fallbackSources": [
+            {
+              "sourceType": "description_regex",
+              "pattern": "https?:\\/\\/[^\\s\"<>]*(?:threadid|chatid|messageid)=[^\\s\"<>]*"
+            }
+          ],
+          "transform": "text"
         }
       ]
     },
@@ -43,6 +71,34 @@
           "fallbackLarkFields": ["fldML66Cx1", "Issue Description", "fldaAzcMtg"],
           "meegleField": "description",
           "transform": "text"
+        },
+        {
+          "meegleField": "field_e8ad0a",
+          "source": {
+            "sourceType": "record_url"
+          },
+          "transform": "text"
+        },
+        {
+          "meegleField": "field_e7984b",
+          "source": {
+            "sourceType": "shared_record_url"
+          },
+          "transform": "text"
+        },
+        {
+          "meegleField": "field_8d0341",
+          "source": {
+            "sourceType": "field",
+            "sourceField": "Lark Message Link"
+          },
+          "fallbackSources": [
+            {
+              "sourceType": "description_regex",
+              "pattern": "https?:\\/\\/[^\\s\"<>]*(?:threadid|chatid|messageid)=[^\\s\"<>]*"
+            }
+          ],
+          "transform": "text"
         }
       ]
     },
@@ -62,6 +118,34 @@
           "larkField": "Details Description",
           "fallbackLarkFields": ["fldML66Cx1", "Issue Description", "fldaAzcMtg"],
           "meegleField": "description",
+          "transform": "text"
+        },
+        {
+          "meegleField": "field_e8ad0a",
+          "source": {
+            "sourceType": "record_url"
+          },
+          "transform": "text"
+        },
+        {
+          "meegleField": "field_e7984b",
+          "source": {
+            "sourceType": "shared_record_url"
+          },
+          "transform": "text"
+        },
+        {
+          "meegleField": "field_8d0341",
+          "source": {
+            "sourceType": "field",
+            "sourceField": "Lark Message Link"
+          },
+          "fallbackSources": [
+            {
+              "sourceType": "description_regex",
+              "pattern": "https?:\\/\\/[^\\s\"<>]*(?:threadid|chatid|messageid)=[^\\s\"<>]*"
+            }
+          ],
           "transform": "text"
         }
       ]
@@ -88,6 +172,34 @@
           "larkField": "Details Description",
           "fallbackLarkFields": ["fldML66Cx1", "Issue Description", "fldaAzcMtg"],
           "meegleField": "description",
+          "transform": "text"
+        },
+        {
+          "meegleField": "field_e8ad0a",
+          "source": {
+            "sourceType": "record_url"
+          },
+          "transform": "text"
+        },
+        {
+          "meegleField": "field_e7984b",
+          "source": {
+            "sourceType": "shared_record_url"
+          },
+          "transform": "text"
+        },
+        {
+          "meegleField": "field_8d0341",
+          "source": {
+            "sourceType": "field",
+            "sourceField": "Lark Message Link"
+          },
+          "fallbackSources": [
+            {
+              "sourceType": "description_regex",
+              "pattern": "https?:\\/\\/[^\\s\"<>]*(?:threadid|chatid|messageid)=[^\\s\"<>]*"
+            }
+          ],
           "transform": "text"
         }
       ]

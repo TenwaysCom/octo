@@ -16,13 +16,42 @@ const fieldMappingTransformSchema = z.enum([
   "select",
 ]).default("text");
 
+const fieldMappingSourceSchema = z.discriminatedUnion("sourceType", [
+  z.object({
+    sourceType: z.literal("field"),
+    sourceField: z.string().min(1),
+  }),
+  z.object({
+    sourceType: z.literal("record_url"),
+  }),
+  z.object({
+    sourceType: z.literal("shared_record_url"),
+  }),
+  z.object({
+    sourceType: z.literal("description_regex"),
+    pattern: z.string().min(1),
+    flags: z.string().optional(),
+  }),
+]);
+
 const fieldMappingSchema = z.object({
-  larkField: z.string().min(1),
+  larkField: z.string().min(1).optional(),
   fallbackLarkFields: z.array(z.string().min(1)).default([]),
   meegleField: z.string().min(1),
   transform: fieldMappingTransformSchema,
   options: z.record(z.string(), z.string()).optional(),
   prefix: z.boolean().default(false).optional(),
+  source: fieldMappingSourceSchema.optional(),
+  fallbackSources: z.array(fieldMappingSourceSchema).default([]),
+}).superRefine((value, ctx) => {
+  if (value.larkField || value.source) {
+    return;
+  }
+  ctx.addIssue({
+    code: z.ZodIssueCode.custom,
+    message: "field mapping requires either larkField or source",
+    path: ["larkField"],
+  });
 });
 
 const issueTypeMappingSchema = z.object({
@@ -40,6 +69,7 @@ const workflowConfigSchema = z.object({
 // ==================== Types ====================
 
 export type FieldMappingTransform = z.infer<typeof fieldMappingTransformSchema>;
+export type FieldMappingSourceConfig = z.infer<typeof fieldMappingSourceSchema>;
 export type FieldMappingConfig = z.infer<typeof fieldMappingSchema>;
 export type IssueTypeMappingConfigWithFields = z.infer<typeof issueTypeMappingSchema>;
 export type LarkBaseWorkflowConfig = z.infer<typeof workflowConfigSchema>;

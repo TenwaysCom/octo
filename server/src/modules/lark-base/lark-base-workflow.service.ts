@@ -4,13 +4,14 @@ import type { LarkTokenStore } from "../../adapters/lark/token-store.js";
 import { refreshLarkToken } from "../lark-auth/lark-auth.service.js";
 import { executeMeegleApply, type MeegleApplyErrorCode } from "../../application/services/meegle-apply.service.js";
 import { buildAuthenticatedLarkClient, type AuthenticatedLarkClientFactoryDeps } from "../../application/services/lark-auth-client.factory.js";
-import { updateLarkBaseMeegleLink } from "./lark-base.service.js";
+import { getLarkRecordUrl, updateLarkBaseMeegleLink } from "./lark-base.service.js";
 import type { CreateLarkBaseWorkflowRequest } from "./lark-base-workflow.dto.js";
 import type { ExecutionDraft } from "../../validators/agent-output/execution-draft.js";
 import {
   loadLarkBaseWorkflowConfig,
   type LarkBaseWorkflowConfig,
   type FieldMappingConfig,
+  type FieldMappingSourceConfig,
 } from "./lark-base-workflow-config.js";
 import { logger } from "../../logger.js";
 
@@ -38,6 +39,13 @@ const TEMPLATE_ID_PROD_BUG = process.env.MEEGLE_TEMPLATE_ID_PROD_BUG || "645025"
 
 // Fallback when Issue 类型 is empty or unrecognized
 const DEFAULT_ISSUE_TYPE_FALLBACK = process.env.LARK_BASE_DEFAULT_ISSUE_TYPE_FALLBACK || ISSUE_TYPE_PROD_BUG;
+
+// Meegle custom field keys for Lark link fields (must match meegle-lark-push.service.ts)
+const FIELD_LARK_RECORD_LINK = "field_e8ad0a";
+const FIELD_LARK_MESSAGE_LINK = "field_8d0341";
+const LARK_MESSAGE_LINK_PATTERN = "https?:\\/\\/[^\\s\"<>]*(?:threadid|chatid|messageid)=[^\\s\"<>]*";
+const URL_IN_TEXT_PATTERN = /https?:\/\/[^\s"'<>)\]]+/i;
+const MARKDOWN_LINK_HREF_PATTERN = /\[[^\]]*]\((https?:\/\/[^\s"'<>)]*)\)/i;
 
 interface IssueTypeMappingConfig {
   larkLabels: string[];
@@ -98,6 +106,11 @@ interface WorkitemMapping {
   fieldMappings?: FieldMappingConfig[];
 }
 
+interface WorkflowSourceContext {
+  larkBaseRecordUrl?: string;
+  larkSharedRecordUrl?: string;
+}
+
 export interface LarkBaseWorkflowResult {
   ok: true;
   workitemId: string;
@@ -117,6 +130,7 @@ export interface LarkBaseWorkflowError {
 export interface LarkBaseWorkflowDeps extends AuthenticatedLarkClientFactoryDeps {
   executeMeegleApply?: typeof executeMeegleApply;
   updateLarkBaseMeegleLink?: typeof updateLarkBaseMeegleLink;
+  getLarkRecordUrl?: typeof getLarkRecordUrl;
 }
 
 // ==================== Issue Type Mapping ====================
@@ -198,6 +212,28 @@ function extractRecordDescription(record: LarkBitableRecord): string {
       fields["fldaAzcMtg"] ??
       "",
   );
+}
+
+function extractLarkMessageLink(record: LarkBitableRecord): string | undefined {
+  // 1. Try common Lark field names that may hold a message link
+  const possibleFieldNames = [
+    "Lark Message Link",
+    "Message Link",
+    "Thread Link",
+    "Chat Link",
+    "lark_message_link",
+  ];
+  for (const name of possibleFieldNames) {
+    const raw = record.fields[name];
+    if (raw === undefined || raw === null || raw === "") continue;
+    const value = stringifyLarkValue(raw);
+    if (value && /(?:threadid|chatid|messageid)=/i.test(value)) {
+      return extractCleanUrl(value) ?? value;
+    }
+  }
+
+  // 2. Fallback: search description text for a message-like URL
+  return extractDescriptionRegexValue(record, LARK_MESSAGE_LINK_PATTERN, "i");
 }
 
 // ==================== Lark Auth & Record Load ====================
@@ -284,12 +320,106 @@ function applyTransform(value: string, transform: FieldMappingConfig["transform"
 }
 
 function extractMappedValue(
-  fields: Record<string, unknown>,
+  record: LarkBitableRecord,
   mapping: FieldMappingConfig,
+  sourceContext: WorkflowSourceContext,
 ): string {
-  const raw = extractRawLarkValue(fields, [mapping.larkField, ...(mapping.fallbackLarkFields || [])]);
-  const stringified = stringifyLarkValue(raw);
-  return applyTransform(stringified, mapping.transform ?? "text", mapping.options);
+  const sources = getFieldMappingSources(mapping);
+
+  for (const source of sources) {
+    const resolved = resolveFieldMappingSource(record, source, sourceContext);
+    if (resolved) {
+      return applyTransform(resolved, mapping.transform ?? "text", mapping.options);
+    }
+  }
+
+  return applyTransform("", mapping.transform ?? "text", mapping.options);
+}
+
+function getFieldMappingSources(mapping: FieldMappingConfig): FieldMappingSourceConfig[] {
+  const sources: FieldMappingSourceConfig[] = [];
+
+  if (mapping.source) {
+    sources.push(mapping.source);
+  } else if (mapping.larkField) {
+    sources.push({
+      sourceType: "field",
+      sourceField: mapping.larkField,
+    });
+  }
+
+  if (mapping.fallbackLarkFields) {
+    for (const fieldName of mapping.fallbackLarkFields) {
+      sources.push({
+        sourceType: "field",
+        sourceField: fieldName,
+      });
+    }
+  }
+
+  if (mapping.fallbackSources) {
+    sources.push(...mapping.fallbackSources);
+  }
+
+  return sources;
+}
+
+function resolveFieldMappingSource(
+  record: LarkBitableRecord,
+  source: FieldMappingSourceConfig,
+  sourceContext: WorkflowSourceContext,
+): string {
+  switch (source.sourceType) {
+    case "field": {
+      const raw = extractRawLarkValue(record.fields, [source.sourceField]);
+      return stringifyLarkValue(raw);
+    }
+    case "record_url":
+      return sourceContext.larkBaseRecordUrl || "";
+    case "shared_record_url":
+      return sourceContext.larkSharedRecordUrl || "";
+    case "description_regex":
+      return extractDescriptionRegexValue(record, source.pattern, source.flags) || "";
+  }
+}
+
+function mappingUsesSourceType(
+  mapping: WorkitemMapping,
+  sourceType: FieldMappingSourceConfig["sourceType"],
+): boolean {
+  return (mapping.fieldMappings || []).some((fieldMapping) =>
+    getFieldMappingSources(fieldMapping).some((source) => source.sourceType === sourceType),
+  );
+}
+
+function extractDescriptionRegexValue(
+  record: LarkBitableRecord,
+  pattern: string,
+  flags?: string,
+): string | undefined {
+  try {
+    const description = extractRecordDescription(record);
+    const regex = new RegExp(pattern, flags);
+    const match = description.match(regex);
+    return match?.[0] ? extractCleanUrl(match[0]) ?? match[0] : undefined;
+  } catch (error) {
+    workflowLogger.warn({
+      pattern,
+      flags,
+      message: error instanceof Error ? error.message : String(error),
+    }, "INVALID_DESCRIPTION_REGEX");
+    return undefined;
+  }
+}
+
+function extractCleanUrl(value: string): string | undefined {
+  const markdownHref = value.match(MARKDOWN_LINK_HREF_PATTERN);
+  if (markdownHref?.[1]) {
+    return markdownHref[1];
+  }
+
+  const directUrl = value.match(URL_IN_TEXT_PATTERN);
+  return directUrl?.[0];
 }
 
 // ==================== Draft Builder ====================
@@ -298,7 +428,7 @@ function buildExecutionDraft(
   record: LarkBitableRecord,
   projectKey: string,
   mapping: WorkitemMapping,
-  larkBaseRecordUrl: string | undefined,
+  sourceContext: WorkflowSourceContext,
   index = 0,
 ): ExecutionDraft {
   let title: string;
@@ -308,7 +438,7 @@ function buildExecutionDraft(
     // Config-driven path
     const titleMapping = mapping.fieldMappings.find((m) => m.meegleField === "__title__");
     title = titleMapping
-      ? extractMappedValue(record.fields, titleMapping)
+      ? extractMappedValue(record, titleMapping, sourceContext)
       : extractRecordTitle(record);
 
     // Build description prefix from fields marked with prefix=true targeting description
@@ -316,20 +446,20 @@ function buildExecutionDraft(
       (m) => m.prefix && m.meegleField === "description",
     );
     const descriptionPrefix = descriptionPrefixMappings
-      .map((m) => extractMappedValue(record.fields, m))
+      .map((m) => extractMappedValue(record, m, sourceContext))
       .filter(Boolean)
       .join("\n");
 
     fieldValuePairs = mapping.fieldMappings
       .filter((m) => m.meegleField !== "__title__" && !m.prefix)
       .map((m) => {
-        let value = extractMappedValue(record.fields, m);
+        let value = extractMappedValue(record, m, sourceContext);
         if (m.meegleField === "description") {
           if (descriptionPrefix) {
             value = value ? `${descriptionPrefix}\n\n${value}` : descriptionPrefix;
           }
-          if (larkBaseRecordUrl) {
-            value = value ? `${value}\n\nLark Base: ${larkBaseRecordUrl}` : `Lark Base: ${larkBaseRecordUrl}`;
+          if (sourceContext.larkBaseRecordUrl) {
+            value = value ? `${value}\n\nLark Base: ${sourceContext.larkBaseRecordUrl}` : `Lark Base: ${sourceContext.larkBaseRecordUrl}`;
           }
         }
         return {
@@ -352,8 +482,8 @@ function buildExecutionDraft(
     const description = extractRecordDescription(record);
     title = extractRecordTitle(record);
 
-    const fullDescription = larkBaseRecordUrl
-      ? `${description || title}\n\nLark Base: ${larkBaseRecordUrl}`
+    const fullDescription = sourceContext.larkBaseRecordUrl
+      ? `${description || title}\n\nLark Base: ${sourceContext.larkBaseRecordUrl}`
       : (description || title);
 
     fieldValuePairs = [
@@ -362,6 +492,21 @@ function buildExecutionDraft(
         fieldValue: fullDescription,
       },
     ];
+  }
+
+  // Auto-populate Lark link custom fields if not already provided by field mappings
+  if (sourceContext.larkBaseRecordUrl && !fieldValuePairs.some((p) => p.fieldKey === FIELD_LARK_RECORD_LINK)) {
+    fieldValuePairs.push({
+      fieldKey: FIELD_LARK_RECORD_LINK,
+      fieldValue: sourceContext.larkBaseRecordUrl,
+    });
+  }
+  const larkMessageLink = extractLarkMessageLink(record);
+  if (larkMessageLink && !fieldValuePairs.some((p) => p.fieldKey === FIELD_LARK_MESSAGE_LINK)) {
+    fieldValuePairs.push({
+      fieldKey: FIELD_LARK_MESSAGE_LINK,
+      fieldValue: larkMessageLink,
+    });
   }
 
   const draft: ExecutionDraft = {
@@ -382,7 +527,15 @@ function buildExecutionDraft(
     missingMeta: [],
   };
 
-  workflowLogger.info({ draftId: draft.draftId, workitemTypeKey: mapping.workitemTypeKey, templateId: mapping.templateId, title: draft.name }, "BUILD_EXECUTION_DRAFT");
+  workflowLogger.info({
+    draftId: draft.draftId,
+    workitemTypeKey: mapping.workitemTypeKey,
+    templateId: mapping.templateId,
+    title: draft.name,
+    hasRecordLink: !!sourceContext.larkBaseRecordUrl,
+    hasSharedRecordLink: !!sourceContext.larkSharedRecordUrl,
+    hasMessageLink: !!larkMessageLink,
+  }, "BUILD_EXECUTION_DRAFT");
   return draft;
 }
 
@@ -469,17 +622,42 @@ export async function executeLarkBaseWorkflow(
     };
   }
 
+  const sourceContext: WorkflowSourceContext = {
+    larkBaseRecordUrl: larkApiBaseUrl
+      ? buildLarkBaseRecordUrl(larkApiBaseUrl, baseId, tableId, request.recordId)
+      : undefined,
+  };
+
+  if (mappings.some((mapping) => mappingUsesSourceType(mapping, "shared_record_url"))) {
+    try {
+      const sharedRecord = await (deps.getLarkRecordUrl ?? getLarkRecordUrl)(
+        {
+          baseId,
+          tableId,
+          recordId: request.recordId,
+          masterUserId: request.masterUserId,
+        },
+        deps,
+      );
+      sourceContext.larkSharedRecordUrl = sharedRecord.recordUrl;
+    } catch (error) {
+      return {
+        ok: false,
+        error: {
+          errorCode: "LARK_API_ERROR",
+          errorMessage: error instanceof Error ? error.message : String(error),
+        },
+      };
+    }
+  }
+
   const workitems: Array<{ workitemId: string; meegleLink: string }> = [];
 
   workflowLogger.info({ mappingCount: mappings.length }, "STARTING_WORKITEM_CREATION_LOOP");
 
-  const larkBaseRecordUrl = larkApiBaseUrl
-    ? buildLarkBaseRecordUrl(larkApiBaseUrl, baseId, tableId, request.recordId)
-    : undefined;
-
   for (let i = 0; i < mappings.length; i++) {
     const mapping = mappings[i];
-    const draft = buildExecutionDraft(record, projectKey, mapping, larkBaseRecordUrl, i);
+    const draft = buildExecutionDraft(record, projectKey, mapping, sourceContext, i);
 
     workflowLogger.info({ index: i, workitemTypeKey: mapping.workitemTypeKey, templateId: mapping.templateId, idempotencyKey: `idem_base_${request.recordId}_${mapping.workitemTypeKey}_${i}` }, "APPLYING_MAPPING");
 
