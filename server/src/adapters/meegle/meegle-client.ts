@@ -439,6 +439,7 @@ export class MeegleClient {
     const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
 
     try {
+      clientLogger.debug({ url: url.replace(/\?.*/, ""), method: req.httpMethod, apiPath: req.apiPath, body: req.body }, "MEEGLE_REQUEST_START");
       const response = await fetch(url, {
         method: req.httpMethod,
         headers: this.getHeaders(idempotent, idempotencyKey),
@@ -448,6 +449,10 @@ export class MeegleClient {
 
       clearTimeout(timeoutId);
       const data = await parseJson(response);
+      clientLogger.debug({ url: url.replace(/\?.*/, ""), statusCode: response.status, ok: response.ok }, "MEEGLE_REQUEST_RESPONSE");
+      if (!response.ok) {
+        clientLogger.warn({ url: url.replace(/\?.*/, ""), statusCode: response.status, response: data }, "MEEGLE_REQUEST_ERROR");
+      }
       return handleResponse(response, data);
     } catch (err) {
       clearTimeout(timeoutId);

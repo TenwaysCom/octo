@@ -14,6 +14,9 @@ import {
   createMeegleClient,
   type MeegleClientFactoryDeps,
 } from "./meegle-client.factory.js";
+import { MeegleAuthenticationError } from "../../adapters/meegle/meegle-client.js";
+import { refreshCredential } from "./meegle-credential.service.js";
+import { getConfiguredMeegleAuthServiceDeps } from "../../modules/meegle-auth/meegle-auth.service.js";
 import { logger } from "../../logger.js";
 import { getResolvedUserStore } from "../../adapters/postgres/resolved-user-store.js";
 
@@ -26,6 +29,30 @@ const FIELD_LARK_MESSAGE_LINK = "field_8d0341";
 const FIELD_LARK_UPDATE_STATUS = "field_c64c12";
 
 const DEFAULT_LARK_STATUS_FIELD_NAME = "状态";
+
+// Meegle api_name -> type_key mapping (required because OpenAPI uses type_key in paths)
+const MEEGLE_API_NAME_TO_TYPE_KEY: Record<string, string> = {
+  story: "story",
+  issue: "issue",
+  chart: "chart",
+  sub_task: "sub_task",
+  sprint1: "642ebe04168eea39eeb0d34a",
+  epic: "642ec373f4af608bb3cb1c90",
+  version: "642f8d55c7109143ec2eb478",
+  test_plans: "63fc6b3a842ed46a33c769cf",
+  test_cases: "63fc6356a3568b3fd3800e88",
+  using_test_case: "63fc81008b7f897a30b36663",
+  project_a: "65a8a9f954468841b9caa572",
+  test_cases_set: "661c999c4c8ec6ff7208f393",
+  voc: "6621e5b5be796e305e3a9229",
+  techtask: "66700acbf297a8f821b4b860",
+  changeapproval: "6819b8e43035408c4c94307d",
+  production_bug: "6932e40429d1cd8aac635c82",
+};
+
+function resolveMeegleTypeKey(apiName: string): string {
+  return MEEGLE_API_NAME_TO_TYPE_KEY[apiName] || apiName;
+}
 
 export interface MeegleLarkPushRequest {
   projectKey: string;
@@ -61,10 +88,15 @@ function parseLarkRecordLink(
     if (baseId && tableId && recordId) {
       return { baseId, tableId, recordId };
     }
-    // Fallback: try to extract from path segments if available
-    const pathMatch = link.match(/\/base\/([^/?]+).*?[?&]table=([^&]+).*?[?&]record=([^&]+)/);
-    if (pathMatch) {
-      return { baseId: pathMatch[1], tableId: pathMatch[2], recordId: pathMatch[3] };
+    // Fallback 1: path segments like /base/{id}/table/{id}/record/{id}
+    const segmentMatch = link.match(/\/base\/([^/]+)\/table\/([^/]+)\/record\/([^/?]+)/);
+    if (segmentMatch) {
+      return { baseId: segmentMatch[1], tableId: segmentMatch[2], recordId: segmentMatch[3] };
+    }
+    // Fallback 2: mixed path/query like /base/{id}?table={id}&record={id}
+    const queryMatch = link.match(/\/base\/([^/?]+).*?[?&]table=([^&]+).*?[?&]record=([^&]+)/);
+    if (queryMatch) {
+      return { baseId: queryMatch[1], tableId: queryMatch[2], recordId: queryMatch[3] };
     }
   } catch {
     // ignore invalid URL
@@ -92,6 +124,7 @@ function parseLarkMessageLink(
 function getFieldValue(workitem: { fields: Record<string, unknown> }, key: string): string | undefined {
   // Some APIs return fields as a flat Record<string, unknown>
   const directValue = workitem.fields[key];
+  pushLogger.debug({ key, directValue}, "PUSH_RESOLVE_FIELD-10");
   if (typeof directValue === "string") {
     return directValue;
   }
@@ -103,15 +136,17 @@ function getFieldValue(workitem: { fields: Record<string, unknown> }, key: strin
   }
 
   // Other APIs return field values inside a "field_value_pairs" array
-  const fieldValuePairs = workitem.fields.field_value_pairs;
+  const fieldValuePairs = workitem.fields.fields;
+  // pushLogger.debug({ key, fields: fieldValuePairs}, "PUSH_RESOLVE_FIELD-15");
   if (Array.isArray(fieldValuePairs)) {
     const pair = fieldValuePairs.find(
       (p: unknown) =>
         p &&
-        typeof p === "object" &&
-        (p as Record<string, unknown>).field_key === key,
+      typeof p === "object" &&
+      (p as Record<string, unknown>).field_key === key,
     ) as Record<string, unknown> | undefined;
-
+    
+    pushLogger.debug({ key, pair}, "PUSH_RESOLVE_FIELD-20");
     if (pair) {
       const fv = pair.field_value;
       if (typeof fv === "string") {
@@ -149,6 +184,24 @@ export async function executeMeegleLarkPush(
       throw new Error("Meegle user key not found for master user");
     }
 
+    const authDeps = getConfiguredMeegleAuthServiceDeps();
+    const refreshResult = await refreshCredential(
+      {
+        masterUserId: request.masterUserId,
+        meegleUserKey,
+        baseUrl: request.baseUrl,
+      },
+      {
+        authAdapter: authDeps.authAdapter,
+        tokenStore: authDeps.tokenStore!,
+        meegleAuthBaseUrl: authDeps.meegleAuthBaseUrl,
+      },
+    );
+    if (refreshResult.tokenStatus !== "ready" || !refreshResult.userToken) {
+      throw new Error("Meegle 认证已过期或无效，请在插件中重新授权 Meegle 后再试。");
+    }
+    pushLogger.debug({ masterUserId: request.masterUserId, source: refreshResult.expiresAt ? "refresh" : "cached" }, "PUSH_REFRESH_CREDENTIAL");
+
     const meegleClient = await createMeegleClient(
       {
         masterUserId: request.masterUserId,
@@ -158,9 +211,12 @@ export async function executeMeegleLarkPush(
       deps,
     );
 
+    const resolvedTypeKey = resolveMeegleTypeKey(request.workItemTypeKey);
+    pushLogger.debug({ apiName: request.workItemTypeKey, resolvedTypeKey }, "PUSH_RESOLVE_TYPE_KEY");
+
     const workitems = await meegleClient.getWorkitemDetails(
       request.projectKey,
-      request.workItemTypeKey,
+      resolvedTypeKey,
       [request.workItemId],
     );
     pushLogger.debug({ workItemCount: workitems.length }, "PUSH_FETCH_WORKITEM");
@@ -242,23 +298,26 @@ export async function executeMeegleLarkPush(
         let targetMessageId: string | undefined;
 
         if (messageInfo.threadId) {
-          pushLogger.debug({ threadId: messageInfo.threadId }, "PUSH_SEND_THREAD_START");
-          const sendResult = await larkClient.sendMessage(
-            "thread_id",
-            messageInfo.threadId,
-            "text",
-            JSON.stringify({ text: larkUpdateMessage }),
-          );
-          messageSent = true;
-          pushLogger.info({ messageId: sendResult.message_id }, "PUSH_MESSAGE_OK");
-
-          // Add reaction to the first message in the thread
           pushLogger.debug({ threadId: messageInfo.threadId }, "PUSH_FETCH_THREAD_MESSAGES");
           const threadMessages = await larkClient.getThreadMessages(messageInfo.threadId);
           pushLogger.debug({ threadMessageCount: threadMessages.items.length }, "PUSH_THREAD_MESSAGES_RECEIVED");
           const firstMessage = threadMessages.items[0];
           if (firstMessage?.message_id) {
             targetMessageId = firstMessage.message_id;
+          }
+
+          if (targetMessageId) {
+            pushLogger.debug({ threadId: messageInfo.threadId, rootMessageId: targetMessageId }, "PUSH_REPLY_THREAD_START");
+            const sendResult = await larkClient.replyToMessage(
+              targetMessageId,
+              "text",
+              JSON.stringify({ text: larkUpdateMessage }),
+              { reply_in_thread: true },
+            );
+            messageSent = true;
+            pushLogger.info({ messageId: sendResult.message_id }, "PUSH_MESSAGE_OK");
+          } else {
+            pushLogger.warn({ threadId: messageInfo.threadId }, "PUSH_THREAD_NO_ROOT_MESSAGE");
           }
         } else if (messageInfo.chatId) {
           pushLogger.debug({ chatId: messageInfo.chatId }, "PUSH_SEND_CHAT_START");
@@ -296,7 +355,7 @@ export async function executeMeegleLarkPush(
     pushLogger.debug({ workItemId: request.workItemId }, "PUSH_UPDATE_STATUS_START");
     await meegleClient.updateWorkitem(
       request.projectKey,
-      request.workItemTypeKey,
+      resolvedTypeKey,
       request.workItemId,
       [
         {
@@ -321,6 +380,13 @@ export async function executeMeegleLarkPush(
       workItemId: request.workItemId,
       error: errorMessage,
     }, "PUSH_FAIL");
+
+    if (error instanceof MeegleAuthenticationError) {
+      return {
+        ok: false,
+        error: "Meegle 认证已过期或无效，请在插件中重新授权 Meegle 后再试。",
+      };
+    }
 
     return {
       ok: false,

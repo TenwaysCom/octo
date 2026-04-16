@@ -105,6 +105,7 @@ export class LarkClient {
     data?: Record<string, unknown>,
     params?: Record<string, unknown>,
   ): Promise<T> {
+    clientLogger.debug({ method, url, params }, "LARK_REQUEST_START");
     try {
       const response = await this.client.request({
         method: method as "GET" | "POST" | "PUT" | "DELETE",
@@ -114,11 +115,31 @@ export class LarkClient {
       }, lark.withUserAccessToken(this.accessToken));
 
       if (response.code !== 0) {
+        clientLogger.warn({ method, url, code: response.code, msg: response.msg, data: response.data }, "LARK_REQUEST_ERROR");
         throw this.createError(response.msg, response.code, response.data);
       }
 
       return response.data as T;
     } catch (error) {
+      const axiosError = error as {
+        message?: string;
+        response?: {
+          status?: number;
+          data?: Record<string, unknown>;
+        };
+      };
+      const httpStatus = axiosError.response?.status;
+      const responseData = axiosError.response?.data;
+      clientLogger.warn(
+        {
+          method,
+          url,
+          httpStatus,
+          responseData,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        "LARK_REQUEST_CATCH",
+      );
       throw this.handleRequestError(error);
     }
   }
@@ -338,10 +359,10 @@ export class LarkClient {
   // ==================== IM Message Methods ====================
 
   /**
-   * Send a message to a chat or thread
+   * Send a message to a chat
    */
   async sendMessage(
-    receiveIdType: "open_id" | "user_id" | "union_id" | "email" | "chat_id" | "thread_id",
+    receiveIdType: "open_id" | "user_id" | "union_id" | "email" | "chat_id",
     receiveId: string,
     msgType: "text" | "post" | "image" | "file" | "interactive",
     content: string,
@@ -354,6 +375,28 @@ export class LarkClient {
       content,
     }, {
       receive_id_type: receiveIdType,
+    });
+
+    return {
+      message_id: data.message_id || "",
+    };
+  }
+
+  /**
+   * Reply to a specific message
+   */
+  async replyToMessage(
+    messageId: string,
+    msgType: "text" | "post" | "image" | "file" | "interactive",
+    content: string,
+    options?: { reply_in_thread?: boolean },
+  ): Promise<{ message_id: string }> {
+    const data = await this.request<{
+      message_id?: string;
+    }>("POST", `/open-apis/im/v1/messages/${messageId}/reply`, {
+      msg_type: msgType,
+      content,
+      reply_in_thread: options?.reply_in_thread ?? false,
     });
 
     return {
@@ -411,12 +454,25 @@ export class LarkClient {
       return error;
     }
 
-    const sdkError = error as { code?: number; msg?: string; data?: unknown };
-    const statusCode = sdkError.code;
-    const message = sdkError.msg || "Lark API request failed";
-    const response = sdkError.data as Record<string, unknown> | undefined;
+    const axiosError = error as {
+      message?: string;
+      response?: {
+        status?: number;
+        data?: Record<string, unknown>;
+      };
+    };
 
-    return this.createError(message, statusCode, response);
+    const responseData = axiosError.response?.data;
+    const statusCode =
+      (typeof responseData?.code === "number" ? responseData.code : undefined) ??
+      axiosError.response?.status;
+    const message =
+      (typeof responseData?.msg === "string" ? responseData.msg : undefined) ??
+      (typeof responseData?.error === "string" ? responseData.error : undefined) ??
+      axiosError.message ??
+      "Lark API request failed";
+
+    return this.createError(message, statusCode, responseData);
   }
 }
 
