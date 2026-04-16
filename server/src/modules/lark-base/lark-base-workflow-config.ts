@@ -22,6 +22,10 @@ const fieldMappingSourceSchema = z.discriminatedUnion("sourceType", [
     sourceField: z.string().min(1),
   }),
   z.object({
+    sourceType: z.literal("fixed"),
+    value: z.string(),
+  }),
+  z.object({
     sourceType: z.literal("record_url"),
   }),
   z.object({
@@ -38,6 +42,7 @@ const fieldMappingSchema = z.object({
   larkField: z.string().min(1).optional(),
   fallbackLarkFields: z.array(z.string().min(1)).default([]),
   meegleField: z.string().min(1),
+  notes: z.string().min(1).optional(),
   transform: fieldMappingTransformSchema,
   options: z.record(z.string(), z.string()).optional(),
   prefix: z.boolean().default(false).optional(),

@@ -594,6 +594,60 @@ describe("lark-base-workflow.service", () => {
     delete process.env.LARK_BASE_WORKFLOW_CONFIG_PATH;
   });
 
+  it("maps fixed-value fields from config", async () => {
+    process.env.LARK_BASE_WORKFLOW_CONFIG_PATH = "./src/modules/lark-base/fixtures/test-fixed-source-config.json";
+
+    const record: LarkBitableRecord = {
+      record_id: "rec_123",
+      fields: {
+        "Issue 类型": [{ text: "数据维护", id: "opt_data_maintenance" }],
+        "Issue Description": "Fixed source title",
+        "Details Description": "Fixed source details",
+      },
+    };
+
+    createLarkClientMock.mockReturnValueOnce({
+      getRecord: vi.fn().mockResolvedValueOnce(record),
+    });
+    getLarkTokenStoreMock.mockResolvedValueOnce({
+      userToken: "token_123",
+      userTokenExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
+      baseUrl: "https://open.larksuite.com",
+    });
+    executeMeegleApplyMock.mockResolvedValueOnce({
+      status: "created",
+      workitemId: "wi_fixed",
+      draft: {},
+    });
+    updateLarkBaseMeegleLinkMock.mockResolvedValueOnce({
+      ok: true,
+      recordId: "rec_123",
+    });
+
+    const result = await executeLarkBaseWorkflow(
+      {
+        recordId: "rec_123",
+        masterUserId: "usr_xxx",
+        baseId: "base_123",
+        tableId: "tbl_456",
+      },
+      deps,
+    );
+
+    expect(result.ok).toBe(true);
+
+    const draftArg = executeMeegleApplyMock.mock.calls[0]?.[0] as { draft?: { fieldValuePairs?: Array<{ fieldKey: string; fieldValue: string }> } };
+    expect(draftArg?.draft?.fieldValuePairs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          fieldKey: "field_7c2f56",
+          fieldValue: "cmb9pif3i",
+        }),
+      ]),
+    );
+
+    delete process.env.LARK_BASE_WORKFLOW_CONFIG_PATH;
+  });
   it("extracts lark_message_link from description when available", async () => {
     const record: LarkBitableRecord = {
       record_id: "rec_123",

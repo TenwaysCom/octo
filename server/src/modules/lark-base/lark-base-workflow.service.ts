@@ -374,6 +374,8 @@ function resolveFieldMappingSource(
       const raw = extractRawLarkValue(record.fields, [source.sourceField]);
       return stringifyLarkValue(raw);
     }
+    case "fixed":
+      return source.value;
     case "record_url":
       return sourceContext.larkBaseRecordUrl || "";
     case "shared_record_url":

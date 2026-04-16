@@ -111,4 +111,22 @@ describe("lark-base-workflow-config", () => {
       },
     });
   });
+  it("loads fixed sources with notes from config", () => {
+    process.env.LARK_BASE_WORKFLOW_CONFIG_PATH = "./src/modules/lark-base/fixtures/test-fixed-source-config.json";
+    const config = loadLarkBaseWorkflowConfig();
+    expect(config).toBeDefined();
+
+    const mappings = getFieldMappingsForType("66700acbf297a8f821b4b860", config!);
+    const techTeamMapping = mappings?.find((m) => m.meegleField === "field_7c2f56");
+
+    expect(techTeamMapping).toMatchObject({
+      meegleField: "field_7c2f56",
+      notes: "Tech Team",
+      source: {
+        sourceType: "fixed",
+        value: "cmb9pif3i",
+      },
+      transform: "text",
+    });
+  });
 });
