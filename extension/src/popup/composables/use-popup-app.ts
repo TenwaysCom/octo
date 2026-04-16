@@ -161,10 +161,10 @@ export function usePopupApp() {
     state.isAuthed.meegle ? "已授权" : "授权",
   );
   const topLarkButtonText = computed(() =>
-    state.isAuthed.lark ? "已授权" : "授权",
+    state.isAuthed.lark ? "重新授权" : "授权",
   );
   const topMeegleButtonDisabled = computed(() => state.isAuthed.meegle);
-  const topLarkButtonDisabled = computed(() => state.isAuthed.lark);
+  const topLarkButtonDisabled = computed(() => false);
   const larkActions = computed<PopupFeatureAction[]>(() => [
     {
       key: "analyze",
@@ -476,14 +476,15 @@ export function usePopupApp() {
     state.larkAuth = auth;
     state.isAuthed.lark = auth.status === "ready";
 
-    if (auth.status === "ready") {
-      appendLog("success", "Lark 已授权");
-      return;
+    const force = auth.status === "ready";
+    if (force) {
+      appendLog("info", "重新发起 Lark 授权...");
     }
 
     const started = await runLarkAuthRequest({
       masterUserId,
       baseUrl: normalizeLarkAuthBaseUrl(state.currentTabOrigin),
+      force,
     });
     state.larkAuth = started;
     state.isAuthed.lark = started.status === "ready";

@@ -405,18 +405,17 @@ export class LarkClient {
   }
 
   /**
-   * Get messages in a thread
+   * Get a message by ID
    */
-  async getThreadMessages(threadId: string): Promise<{ items: Array<{ message_id: string; content?: string }> }> {
+  async getMessage(messageId: string): Promise<{ message_id: string; content?: string }> {
     const data = await this.request<{
-      items?: Array<{ message_id?: string; content?: string }>;
-    }>("GET", `/open-apis/im/v1/threads/${threadId}/messages`);
+      message_id?: string;
+      content?: string;
+    }>("GET", `/open-apis/im/v1/messages/${messageId}`);
 
     return {
-      items: (data.items || []).map((item) => ({
-        message_id: item.message_id || "",
-        content: item.content,
-      })),
+      message_id: data.message_id || "",
+      content: data.content,
     };
   }
 

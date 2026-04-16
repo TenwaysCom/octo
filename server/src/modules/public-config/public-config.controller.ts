@@ -22,7 +22,7 @@ let publicConfigDeps: PublicConfigControllerDeps = {
   LARK_APP_ID: "",
   LARK_OAUTH_CALLBACK_URL: "",
   MEEGLE_BASE_URL: "https://project.larksuite.com",
-  LARK_OAUTH_SCOPE: "offline_access contact:user.base:readonly bitable:app email",
+  LARK_OAUTH_SCOPE: "offline_access contact:user.base:readonly bitable:app",
 };
 
 export function configurePublicConfigController(

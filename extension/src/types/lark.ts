@@ -15,6 +15,7 @@ export interface LarkAuthEnsureRequest {
   baseUrl?: string;
   pageOrigin?: string;
   state?: string;
+  force?: boolean;
 }
 
 export interface LarkAuthEnsureResponse {

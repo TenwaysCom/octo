@@ -268,6 +268,7 @@ export async function runLarkAuthRequest(
   input: {
     masterUserId?: string;
     baseUrl: string;
+    force?: boolean;
   },
 ): Promise<LarkAuthEnsureResponse> {
   const response = await sendRuntimeMessage<{
@@ -278,6 +279,7 @@ export async function runLarkAuthRequest(
       requestId: `req_${Date.now()}`,
       masterUserId: input.masterUserId,
       baseUrl: input.baseUrl,
+      force: input.force,
     },
   });
 

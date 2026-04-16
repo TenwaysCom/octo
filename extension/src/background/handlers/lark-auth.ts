@@ -48,7 +48,7 @@ export function buildLarkOauthUrl(
   state: string,
   appId?: string,
   callbackUrl = "http://localhost:3000/api/lark/auth/callback",
-  scope = "offline_access contact:user.base:readonly bitable:app email",
+  scope = "offline_access contact:user.base:readonly bitable:app",
 ): string {
   const authorizeBaseUrl = baseUrl.includes("feishu.cn")
     ? "https://accounts.feishu.cn"
@@ -193,22 +193,24 @@ export async function ensureLarkAuth(
     };
   }
 
-  const requestStatus = deps.getAuthStatusFromServer ?? getAuthStatusFromServer;
-  const statusResult = await requestStatus({
-    masterUserId: request.masterUserId,
-    baseUrl,
-  });
+  if (!request.force) {
+    const requestStatus = deps.getAuthStatusFromServer ?? getAuthStatusFromServer;
+    const statusResult = await requestStatus({
+      masterUserId: request.masterUserId,
+      baseUrl,
+    });
 
-  if (statusResult.ok && statusResult.data?.status === "ready") {
-    larkAuthLogger.info("Lark auth ready (cached)", { masterUserId: request.masterUserId, baseUrl: statusResult.data.baseUrl });
-    return {
-      status: "ready",
-      baseUrl: statusResult.data.baseUrl,
-      masterUserId: statusResult.data.masterUserId ?? request.masterUserId,
-      reason: statusResult.data.reason,
-      credentialStatus: statusResult.data.credentialStatus,
-      expiresAt: statusResult.data.expiresAt,
-    };
+    if (statusResult.ok && statusResult.data?.status === "ready") {
+      larkAuthLogger.info("Lark auth ready (cached)", { masterUserId: request.masterUserId, baseUrl: statusResult.data.baseUrl });
+      return {
+        status: "ready",
+        baseUrl: statusResult.data.baseUrl,
+        masterUserId: statusResult.data.masterUserId ?? request.masterUserId,
+        reason: statusResult.data.reason,
+        credentialStatus: statusResult.data.credentialStatus,
+        expiresAt: statusResult.data.expiresAt,
+      };
+    }
   }
 
   const createSession =
