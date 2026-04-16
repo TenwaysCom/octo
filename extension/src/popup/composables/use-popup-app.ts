@@ -612,7 +612,7 @@ export function usePopupApp() {
       appendLog("info", `[更新Lark及推送] 服务端响应: ok=${result.ok}, alreadyUpdated=${result.alreadyUpdated}, larkBaseUpdated=${result.larkBaseUpdated}, messageSent=${result.messageSent}, reactionAdded=${result.reactionAdded}, meegleStatusUpdated=${result.meegleStatusUpdated}`);
 
       if (!result.ok) {
-        appendLog("error", `推送失败: ${result.error || "未知错误"}`);
+        appendLog("warn", `推送失败: ${result.error || "未知错误"}`);
         return;
       }
 

@@ -176,6 +176,20 @@ export async function executeMeegleLarkPush(
     const larkMessageLink = getFieldValue(workitem, FIELD_LARK_MESSAGE_LINK);
     pushLogger.debug({ larkUpdateStatus, hasRecordLink: !!larkRecordLink, hasUpdateMessage: !!larkUpdateMessage, hasMessageLink: !!larkMessageLink }, "PUSH_EXTRACT_FIELDS");
 
+    const missingActionFields: string[] = [];
+    if (!larkRecordLink) missingActionFields.push("Lark Record Link");
+    if (!larkUpdateMessage) missingActionFields.push("Lark Update Message");
+    if (!larkMessageLink) missingActionFields.push("Lark Message Link");
+
+    const hasBaseAction = !!larkRecordLink;
+    const hasMessageAction = !!larkMessageLink && !!larkUpdateMessage;
+
+    if (larkUpdateStatus !== "updated" && !hasBaseAction && !hasMessageAction) {
+      const errorMsg = `该工作项缺少必要的 Lark 字段，无法执行推送。缺少字段：${missingActionFields.join("、")}`;
+      pushLogger.warn({ workItemId: request.workItemId, missingActionFields }, "PUSH_MISSING_FIELDS");
+      return { ok: false, error: errorMsg };
+    }
+
     if (larkUpdateStatus === "updated") {
       pushLogger.info({ workItemId: request.workItemId }, "PUSH_ALREADY_UPDATED");
       return { ok: true, alreadyUpdated: true };
