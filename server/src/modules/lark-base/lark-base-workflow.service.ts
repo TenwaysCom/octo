@@ -319,6 +319,13 @@ function applyTransform(value: string, transform: FieldMappingConfig["transform"
   }
 }
 
+function applyValuePrefix(value: string, valuePrefix?: string): string {
+  if (!value || !valuePrefix) {
+    return value;
+  }
+  return `${valuePrefix}${value}`;
+}
+
 function extractMappedValue(
   record: LarkBitableRecord,
   mapping: FieldMappingConfig,
@@ -329,11 +336,17 @@ function extractMappedValue(
   for (const source of sources) {
     const resolved = resolveFieldMappingSource(record, source, sourceContext);
     if (resolved) {
-      return applyTransform(resolved, mapping.transform ?? "text", mapping.options);
+      return applyValuePrefix(
+        applyTransform(resolved, mapping.transform ?? "text", mapping.options),
+        mapping.valuePrefix,
+      );
     }
   }
 
-  return applyTransform("", mapping.transform ?? "text", mapping.options);
+  return applyValuePrefix(
+    applyTransform("", mapping.transform ?? "text", mapping.options),
+    mapping.valuePrefix,
+  );
 }
 
 function getFieldMappingSources(mapping: FieldMappingConfig): FieldMappingSourceConfig[] {

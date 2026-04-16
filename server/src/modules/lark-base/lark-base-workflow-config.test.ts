@@ -129,4 +129,21 @@ describe("lark-base-workflow-config", () => {
       transform: "text",
     });
   });
+
+  it("loads value prefixes from config", () => {
+    process.env.LARK_BASE_WORKFLOW_CONFIG_PATH = "./src/modules/lark-base/fixtures/test-value-prefix-config.json";
+    const config = loadLarkBaseWorkflowConfig();
+    expect(config).toBeDefined();
+
+    const mappings = getFieldMappingsForType("66700acbf297a8f821b4b860", config!);
+    const requesterMapping = mappings?.find((m) => m.larkField === "需求人");
+
+    expect(requesterMapping).toMatchObject({
+      larkField: "需求人",
+      meegleField: "description",
+      prefix: true,
+      valuePrefix: "需求人:",
+      transform: "text",
+    });
+  });
 });

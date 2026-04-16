@@ -844,4 +844,60 @@ describe("lark-base-workflow.service", () => {
 
     delete process.env.LARK_BASE_WORKFLOW_CONFIG_PATH;
   });
+
+  it("prepends configured value prefixes before description prefix fields", async () => {
+    process.env.LARK_BASE_WORKFLOW_CONFIG_PATH = "./src/modules/lark-base/fixtures/test-value-prefix-config.json";
+
+    const record: LarkBitableRecord = {
+      record_id: "rec_123",
+      fields: {
+        "Issue 类型": [{ text: "配置", id: "opt_config" }],
+        "Issue Description": "Config title",
+        "Details Description": "Config details",
+        "需求人": [{ name: "August Zhong", id: "ou_august" }],
+      },
+    };
+
+    createLarkClientMock.mockReturnValueOnce({
+      getRecord: vi.fn().mockResolvedValueOnce(record),
+    });
+    getLarkTokenStoreMock.mockResolvedValueOnce({
+      userToken: "token_123",
+      userTokenExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
+      baseUrl: "https://open.larksuite.com",
+    });
+    executeMeegleApplyMock.mockResolvedValueOnce({
+      status: "created",
+      workitemId: "wi_value_prefix",
+      draft: {},
+    });
+    updateLarkBaseMeegleLinkMock.mockResolvedValueOnce({
+      ok: true,
+      recordId: "rec_123",
+    });
+
+    const result = await executeLarkBaseWorkflow(
+      {
+        recordId: "rec_123",
+        masterUserId: "usr_xxx",
+        baseId: "base_123",
+        tableId: "tbl_456",
+      },
+      deps,
+    );
+
+    expect(result.ok).toBe(true);
+
+    const draftArg = executeMeegleApplyMock.mock.calls[0]?.[0] as { draft?: { fieldValuePairs?: Array<{ fieldKey: string; fieldValue: string }> } };
+    expect(draftArg?.draft?.fieldValuePairs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          fieldKey: "description",
+          fieldValue: "需求人:August Zhong\n\nConfig details\n\nLark Base: https://base.larksuite.com/base/base_123/table/tbl_456/record/rec_123",
+        }),
+      ]),
+    );
+
+    delete process.env.LARK_BASE_WORKFLOW_CONFIG_PATH;
+  });
 });

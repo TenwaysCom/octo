@@ -10,7 +10,8 @@
           "larkField": "需求人",
           "meegleField": "description",
           "transform": "text",
-          "prefix": true
+          "prefix": true,
+          "valuePrefix": "需求人:"
         },
         {
           "larkField": "紧急度",
@@ -64,7 +65,8 @@
           "larkField": "需求人",
           "meegleField": "description",
           "transform": "text",
-          "prefix": true
+          "prefix": true,
+          "valuePrefix": "需求人:"
         },
         {
           "larkField": "Details Description",
@@ -99,6 +101,15 @@
             }
           ],
           "transform": "text"
+        },
+        {
+          "meegleField": "field_7c2f56",
+          "notes": "Tech Team",
+          "source": {
+            "sourceType": "fixed",
+            "value": "cmb9pif3i"
+          },
+          "transform": "text"
         }
       ]
     },
@@ -112,7 +123,8 @@
           "larkField": "需求人",
           "meegleField": "description",
           "transform": "text",
-          "prefix": true
+          "prefix": true,
+          "valuePrefix": "需求人:"
         },
         {
           "larkField": "Details Description",
@@ -169,7 +181,8 @@
           "larkField": "需求人",
           "meegleField": "description",
           "transform": "text",
-          "prefix": true
+          "prefix": true,
+          "valuePrefix": "需求人:"
         },
         {
           "larkField": "紧急度",

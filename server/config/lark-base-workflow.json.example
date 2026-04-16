@@ -13,6 +13,13 @@
           "transform": "first_line"
         },
         {
+          "larkField": "需求人",
+          "meegleField": "description",
+          "transform": "text",
+          "prefix": true,
+          "valuePrefix": "需求人:"
+        },
+        {
           "larkField": "Details Description",
           "fallbackLarkFields": ["fldML66Cx1", "Issue Description", "fldaAzcMtg"],
           "meegleField": "description",
@@ -59,6 +66,13 @@
           "fallbackLarkFields": ["fldaAzcMtg", "Details Description", "fldML66Cx1"],
           "meegleField": "__title__",
           "transform": "first_line"
+        },
+        {
+          "larkField": "需求人",
+          "meegleField": "description",
+          "transform": "text",
+          "prefix": true,
+          "valuePrefix": "需求人:"
         },
         {
           "larkField": "Details Description",
@@ -116,6 +130,13 @@
           "fallbackLarkFields": ["fldaAzcMtg", "Details Description", "fldML66Cx1"],
           "meegleField": "__title__",
           "transform": "first_line"
+        },
+        {
+          "larkField": "需求人",
+          "meegleField": "description",
+          "transform": "text",
+          "prefix": true,
+          "valuePrefix": "需求人:"
         },
         {
           "larkField": "Details Description",
