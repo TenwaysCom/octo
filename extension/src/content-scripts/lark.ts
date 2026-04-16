@@ -1,3 +1,4 @@
+import "ant-design-vue/dist/reset.css";
 import { createLarkContentScriptRuntime, type LarkDetectedPageContext } from "../injection/platforms/lark/bootstrap";
 import type { ProbeOverlayState } from "../injection/core/overlay";
 import { injectSidebar } from "./shared/sidebar-injector";
@@ -12,6 +13,7 @@ interface TenwaysLarkTestingApi {
   openSidebar: () => void;
   closeSidebar: () => void;
   toggleSidebar: () => void;
+  destroy: () => void;
 }
 
 const runtime = createLarkContentScriptRuntime();
@@ -35,6 +37,10 @@ larkTestingTarget.__TENWAYS_LARK_TESTING__ = {
   openSidebar: larkSidebar.open,
   closeSidebar: larkSidebar.close,
   toggleSidebar: larkSidebar.toggle,
+  destroy: () => {
+    larkSidebar.destroy();
+    runtime.destroy();
+  },
 };
 
 export {};

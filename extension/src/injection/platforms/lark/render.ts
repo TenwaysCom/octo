@@ -1,3 +1,5 @@
+import { createApp, h, ref, type App } from "vue";
+import { Button, message } from "ant-design-vue";
 import { cleanupMountedNode, ensureMountedNode, ensureMountedSiblingNode } from "../../core/mount";
 import type { AnchorCandidate, InjectionPageState } from "../../types";
 import type { LarkRecordContext } from "./probe";
@@ -8,6 +10,7 @@ import type {
   LarkRecordSnapshot,
 } from "../../../types/lark";
 import type { ProtocolAction } from "../../../types/protocol";
+import LarkActionButton from "./LarkActionButton.vue";
 
 const HEADER_MOUNT_ID = "lark-detail-action";
 const PANEL_MOUNT_ID = "lark-detail-panel";
@@ -255,6 +258,10 @@ export function createLarkInjectionRenderer({
   let lastErrorMessage: string | null = null;
   let nextRequestVersion = 0;
   let activeRequestVersion: number | null = null;
+  let buttonApp: App | null = null;
+  const buttonLabel = ref("");
+  const buttonLoading = ref(false);
+  const buttonDisabled = ref(false);
 
   function readPageContext(): LarkPageContext | null {
     return getPageContext?.() ?? pageContext;
@@ -279,6 +286,8 @@ export function createLarkInjectionRenderer({
   }
 
   function cleanupCurrentMounts(): void {
+    buttonApp?.unmount();
+    buttonApp = null;
     buttonMount?.remove();
     panelMount?.remove();
 
@@ -325,59 +334,78 @@ export function createLarkInjectionRenderer({
       return;
     }
 
-    buttonMount.textContent = "";
-    const button = document.createElement("button");
-    button.type = "button";
     const targetLabel = resolveTargetLabel(lastContext);
-    button.textContent = formatPrimaryActionLabel(targetLabel);
-    button.setAttribute("data-tenways-octo-trigger", "send-to-meegle");
-    button.setAttribute("aria-expanded", panelState === "collapsed" ? "false" : "true");
-    button.addEventListener("click", () => {
-      if (panelState !== "collapsed") {
-        invalidatePendingRequest();
-        setPanelState("collapsed");
-        return;
-      }
+    buttonLabel.value = formatPrimaryActionLabel(targetLabel);
+    buttonLoading.value = panelState === "submitting";
+    buttonDisabled.value = panelState === "submitting";
 
-      const context = lastContext;
-      const contextIdentity = currentContextIdentity;
-      if (context === null) {
-        lastErrorMessage = formatFailureLabel(targetLabel);
-        setPanelState("error");
-        return;
-      }
+    if (buttonApp === null || !buttonMount.isConnected) {
+      buttonApp?.unmount();
+      buttonApp = null;
+      buttonMount.textContent = "";
 
-      const requestVersion = ++nextRequestVersion;
-      activeRequestVersion = requestVersion;
-      lastErrorMessage = null;
-      setPanelState("submitting");
-      void createWorkitem(buildCreateRequest(context))
-        .then(() => {
-          if (
-            activeRequestVersion !== requestVersion
-            || currentContextIdentity !== contextIdentity
-            || panelState !== "submitting"
-          ) {
-            return;
-          }
+      buttonApp = createApp({
+        render() {
+          return h(LarkActionButton, {
+            label: buttonLabel.value,
+            loading: buttonLoading.value,
+            disabled: buttonDisabled.value,
+            onClick: () => {
+              if (panelState !== "collapsed") {
+                invalidatePendingRequest();
+                setPanelState("collapsed");
+                return;
+              }
 
-          lastErrorMessage = null;
-          setPanelState("success");
-        })
-        .catch((error) => {
-          if (
-            activeRequestVersion !== requestVersion
-            || currentContextIdentity !== contextIdentity
-            || panelState !== "submitting"
-          ) {
-            return;
-          }
+              const context = lastContext;
+              const contextIdentity = currentContextIdentity;
+              if (context === null) {
+                lastErrorMessage = formatFailureLabel(targetLabel);
+                setPanelState("error");
+                return;
+              }
 
-          lastErrorMessage = resolvePanelErrorMessage(error, targetLabel);
-          setPanelState("error");
-        });
-    });
-    buttonMount.appendChild(button);
+              const requestVersion = ++nextRequestVersion;
+              activeRequestVersion = requestVersion;
+              lastErrorMessage = null;
+              setPanelState("submitting");
+              void createWorkitem(buildCreateRequest(context))
+                .then(() => {
+                  if (
+                    activeRequestVersion !== requestVersion
+                    || currentContextIdentity !== contextIdentity
+                    || panelState !== "submitting"
+                  ) {
+                    return;
+                  }
+
+                  lastErrorMessage = null;
+                  setPanelState("success");
+                  message.success(formatSuccessLabel(targetLabel), 2);
+                })
+                .catch((error) => {
+                  if (
+                    activeRequestVersion !== requestVersion
+                    || currentContextIdentity !== contextIdentity
+                    || panelState !== "submitting"
+                  ) {
+                    return;
+                  }
+
+                  lastErrorMessage = resolvePanelErrorMessage(error, targetLabel);
+                  setPanelState("error");
+                  message.error(lastErrorMessage, 2);
+                });
+            },
+          });
+        },
+      });
+
+      buttonApp.use(Button);
+      buttonApp.mount(buttonMount);
+    }
+
+    buttonMount.setAttribute("aria-expanded", panelState === "collapsed" ? "false" : "true");
 
     panelMount.setAttribute("data-tenways-octo-panel-state", panelState);
     renderPanelContent(panelMount);

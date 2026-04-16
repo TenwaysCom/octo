@@ -386,5 +386,14 @@ export function createLarkContentScriptRuntime(): LarkContentScriptRuntime {
     initLarkContentScript,
     refreshProbeState,
     getProbeState: () => probeState,
+    destroy() {
+      probeOverlay?.destroy();
+      probeOverlay = null;
+      probeController?.destroy();
+      probeController = null;
+      runtimeInitialized = false;
+      probeModeInitialized = false;
+      messageListenerInitialized = false;
+    },
   };
 }

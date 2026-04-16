@@ -19,6 +19,7 @@ function getTestingApi() {
         anchorLabel: string | null;
         recordId: string | null;
       };
+      destroy: () => void;
     };
   }).__TENWAYS_LARK_TESTING__;
 }
@@ -30,6 +31,7 @@ describe("lark content script probe overlay", () => {
   });
 
   afterEach(() => {
+    getTestingApi()?.destroy?.();
     vi.unstubAllEnvs();
   });
 
