@@ -1,3 +1,7 @@
+import { logger } from "../../logger.js";
+
+const clientLogger = logger.child({ module: "meegle-client" });
+
 /**
  * Meegle OpenAPI Client
  *
@@ -510,34 +514,34 @@ export class MeegleClient {
 
   async createWorkitem(input: CreateWorkitemRequest): Promise<MeegleWorkitem> {
     const req = createWorkitemRequestBuilder(input);
-    console.log("[MeegleClient] createWorkitem request", { projectKey: input.projectKey, workItemTypeKey: input.workItemTypeKey, name: input.name, templateId: input.templateId, idempotencyKey: input.idempotencyKey });
+    clientLogger.info({ projectKey: input.projectKey, workItemTypeKey: input.workItemTypeKey, name: input.name, templateId: input.templateId, hasIdempotencyKey: Boolean(input.idempotencyKey) }, "CREATE_WORKITEM START");
 
     let data: Record<string, unknown>;
     try {
       data = await this.request(req, true, input.idempotencyKey);
     } catch (error) {
       if (error instanceof MeegleRateLimitError) {
-        console.error("[MeegleClient] createWorkitem rate limited (429)", {
+        clientLogger.error({
           projectKey: input.projectKey,
           workItemTypeKey: input.workItemTypeKey,
           statusCode: error.statusCode,
           response: error.response,
           message: error.message,
-        });
+        }, "CREATE_WORKITEM FAIL");
       } else if (error instanceof MeegleAPIError) {
-        console.error("[MeegleClient] createWorkitem API error", {
+        clientLogger.error({
           projectKey: input.projectKey,
           workItemTypeKey: input.workItemTypeKey,
           statusCode: error.statusCode,
           response: error.response,
           message: error.message,
-        });
+        }, "CREATE_WORKITEM FAIL");
       } else {
-        console.error("[MeegleClient] createWorkitem unexpected error", {
+        clientLogger.error({
           projectKey: input.projectKey,
           workItemTypeKey: input.workItemTypeKey,
-          error: error instanceof Error ? error.message : String(error),
-        });
+          message: error instanceof Error ? error.message : String(error),
+        }, "CREATE_WORKITEM FAIL");
       }
       throw error;
     }
@@ -550,7 +554,7 @@ export class MeegleClient {
     // If response is just a number (the workitem ID), fetch full details
     if (typeof responseData === "number" || typeof responseData === "string") {
       const workitemId = String(responseData);
-      console.log("[MeegleClient] createWorkitem success (numeric ID), fetching details", { workitemId });
+      clientLogger.info({ workitemId }, "CREATE_WORKITEM OK numeric_id");
       const workitems = await this.getWorkitemDetails(
         input.projectKey,
         input.workItemTypeKey,
@@ -564,7 +568,7 @@ export class MeegleClient {
 
     // Otherwise, parse the full workitem object directly
     const workitemData = responseData as Record<string, unknown>;
-    console.log("[MeegleClient] createWorkitem success (full object)", { workitemId: workitemData.id ?? workitemData.work_item_id });
+    clientLogger.info({ workitemId: workitemData.id ?? workitemData.work_item_id }, "CREATE_WORKITEM OK full_object");
     return parseWorkitem(workitemData);
   }
 

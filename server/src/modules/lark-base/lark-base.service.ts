@@ -4,6 +4,9 @@ import {
   type AuthenticatedLarkClientFactoryDeps,
 } from "../../application/services/lark-auth-client.factory.js";
 import type { UpdateLarkBaseMeegleLinkRequest } from "./lark-base.dto.js";
+import { logger } from "../../logger.js";
+
+const serviceLogger = logger.child({ module: "lark-base-service" });
 
 const MEEGLE_LINK_FIELD_NAME = "meegle链接";
 
@@ -27,13 +30,13 @@ export async function updateLarkBaseMeegleLink(
     ? request.meegleLink
     : { text: request.meegleLink, link: request.meegleLink };
 
-  console.log("[LarkBaseService] updateLarkBaseMeegleLink", {
+  serviceLogger.info({
     baseId: request.baseId,
     tableId: request.tableId,
     recordId: request.recordId,
     meegleLinkRaw: request.meegleLink,
     meegleLinkValue,
-  });
+  }, "UPDATE_MEEGLE_LINK START");
 
   const result = await client.updateRecord(
     request.baseId,
@@ -44,7 +47,7 @@ export async function updateLarkBaseMeegleLink(
     },
   );
 
-  console.log("[LarkBaseService] updateLarkBaseMeegleLink success", { recordId: result.record_id });
+  serviceLogger.info({ recordId: result.record_id }, "UPDATE_MEEGLE_LINK OK");
 
   return {
     ok: true,

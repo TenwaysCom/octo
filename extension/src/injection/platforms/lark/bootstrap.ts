@@ -4,6 +4,9 @@ import { createLarkInjectionAdapter } from "./adapter";
 import { probeLarkContext, probeLarkDetail, type LarkRecordContext } from "./probe";
 import type { InjectionPageState } from "../../types";
 import type { LarkPageContext } from "../../../types/lark";
+import { createExtensionLogger } from "../../../logger.js";
+
+const larkBootstrapLogger = createExtensionLogger("injection:lark-bootstrap");
 
 export type LarkDetectedPageContext = LarkPageContext & {
   detectedLarkId?: string;
@@ -351,7 +354,7 @@ export function createLarkContentScriptRuntime(): LarkContentScriptRuntime {
   }
 
   function initLarkContentScript(): void {
-    console.log("[Tenways Octo] Lark content script initialized");
+    larkBootstrapLogger.info("Lark content script initialized");
 
     initInjectionRuntime();
     initProbeMode();

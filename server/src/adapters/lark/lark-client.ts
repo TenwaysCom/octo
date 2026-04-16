@@ -7,6 +7,9 @@
  */
 
 import * as lark from "@larksuiteoapi/node-sdk";
+import { logger } from "../../logger.js";
+
+const clientLogger = logger.child({ module: "lark-client" });
 
 // ==================== Data Types ====================
 
@@ -193,7 +196,7 @@ export class LarkClient {
       };
     }>("GET", `/open-apis/bitable/v1/apps/${baseId}/tables/${tableId}/records/${recordId}`);
 
-    console.log("[LarkClient] getRecord raw response", { baseId, tableId, recordId, rawData: data });
+    clientLogger.debug({ baseId, tableId, recordId }, "GET_RECORD raw response");
 
     const record = data.record;
     return {
@@ -330,6 +333,59 @@ export class LarkClient {
     }
 
     return allRecords;
+  }
+
+  // ==================== IM Message Methods ====================
+
+  /**
+   * Send a message to a chat or thread
+   */
+  async sendMessage(
+    receiveIdType: "open_id" | "user_id" | "union_id" | "email" | "chat_id" | "thread_id",
+    receiveId: string,
+    msgType: "text" | "post" | "image" | "file" | "interactive",
+    content: string,
+  ): Promise<{ message_id: string }> {
+    const data = await this.request<{
+      message_id?: string;
+    }>("POST", "/open-apis/im/v1/messages", {
+      receive_id: receiveId,
+      msg_type: msgType,
+      content,
+    }, {
+      receive_id_type: receiveIdType,
+    });
+
+    return {
+      message_id: data.message_id || "",
+    };
+  }
+
+  /**
+   * Get messages in a thread
+   */
+  async getThreadMessages(threadId: string): Promise<{ items: Array<{ message_id: string; content?: string }> }> {
+    const data = await this.request<{
+      items?: Array<{ message_id?: string; content?: string }>;
+    }>("GET", `/open-apis/im/v1/threads/${threadId}/messages`);
+
+    return {
+      items: (data.items || []).map((item) => ({
+        message_id: item.message_id || "",
+        content: item.content,
+      })),
+    };
+  }
+
+  /**
+   * Add a reaction to a message
+   */
+  async addMessageReaction(messageId: string, emojiType: string): Promise<void> {
+    await this.request<void>("POST", `/open-apis/im/v1/messages/${messageId}/reactions`, {
+      reaction_type: {
+        emoji_type: emojiType,
+      },
+    });
   }
 
   // ==================== Error Handling ====================

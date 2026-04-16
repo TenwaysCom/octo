@@ -11,6 +11,9 @@ import {
   DEFAULT_MEEGLE_AUTH_BASE_URL,
   normalizeMeegleAuthBaseUrl,
 } from "../../platform-url.js";
+import { logger } from "../../logger.js";
+
+const credentialLogger = logger.child({ module: "meegle-credential-service" });
 
 export interface CredentialExchangeInput extends MeegleTokenLookup {
   requestId: string;
@@ -36,11 +39,9 @@ export interface MeegleCredentialServiceDeps {
 }
 
 const EXPIRY_SAFETY_WINDOW_MS = 60_000;
-const SERVER_CREDENTIAL_FLOW_PREFIX = "[MEEGLE_AUTH_FLOW][SERVER][CREDENTIAL]";
-
 function logCredentialFlow(node: string, phase: "START" | "OK" | "FAIL", detail: Record<string, unknown>): void {
-  const logger = phase === "FAIL" ? console.error : console.log;
-  logger(`${SERVER_CREDENTIAL_FLOW_PREFIX}[${node}][${phase}]`, detail);
+  const logFn = phase === "FAIL" ? credentialLogger.error.bind(credentialLogger) : credentialLogger.info.bind(credentialLogger);
+  logFn({ node, phase, ...detail }, "CREDENTIAL_FLOW");
 }
 
 function toExpiresAt(expiresInSeconds?: number): string | undefined {
@@ -125,15 +126,12 @@ export async function exchangeCredential(
 
     logCredentialFlow("EXCHANGE", "OK", { requestId: input.requestId, masterUserId: input.masterUserId, meegleUserKey: input.meegleUserKey, baseUrl: input.baseUrl, stage: "stored_token", hasRefreshToken: Boolean(tokenPair.refreshToken), expiresAt: storedToken.userTokenExpiresAt });
 
-    console.log(
-      "[Tenways Octo] Meegle token exchange ready:",
-        {
-        masterUserId: input.masterUserId,
-        meegleUserKey: input.meegleUserKey,
-        baseUrl: canonicalBaseUrl,
-        requestId: input.requestId,
-      },
-    );
+    credentialLogger.info({
+      masterUserId: input.masterUserId,
+      meegleUserKey: input.meegleUserKey,
+      baseUrl: canonicalBaseUrl,
+      requestId: input.requestId,
+    }, "EXCHANGE OK");
 
     return buildReadyStatus({
       requestId: normalizedInput.requestId,
@@ -143,14 +141,14 @@ export async function exchangeCredential(
       expiresAt: storedToken.userTokenExpiresAt,
     });
   } catch (error) {
-    console.error("[Tenways Octo] Meegle credential exchange failed:", {
+    credentialLogger.error({
       requestId: input.requestId,
       masterUserId: input.masterUserId,
       meegleUserKey: input.meegleUserKey,
       baseUrl: input.baseUrl,
       stage,
       message: error instanceof Error ? error.message : String(error),
-    });
+    }, "EXCHANGE FAIL");
     throw error;
   }
 }
@@ -205,14 +203,14 @@ export async function refreshCredential(
   }
 
   if (!storedToken.refreshToken || isExpired(storedToken.refreshTokenExpiresAt)) {
-    console.warn("[Tenways Octo] Meegle refresh token unavailable or expired:", {
+    credentialLogger.warn({
       masterUserId: input.masterUserId,
       meegleUserKey: input.meegleUserKey,
       baseUrl: effectiveBaseUrl,
       requestedBaseUrl: input.baseUrl,
       hasRefreshToken: Boolean(storedToken.refreshToken),
       refreshTokenExpiresAt: storedToken.refreshTokenExpiresAt,
-    });
+    }, "REFRESH_TOKEN_UNAVAILABLE");
     await deps.tokenStore.delete({
       masterUserId: storedToken.masterUserId,
       meegleUserKey: storedToken.meegleUserKey,
@@ -244,12 +242,12 @@ export async function refreshCredential(
       refreshToken: storedToken.refreshToken,
     });
   } catch {
-    console.error("[Tenways Octo] Meegle token refresh failed:", {
+    credentialLogger.error({
       masterUserId: input.masterUserId,
       meegleUserKey: input.meegleUserKey,
       baseUrl: effectiveBaseUrl,
       requestedBaseUrl: input.baseUrl,
-    });
+    }, "REFRESH FAIL");
     await deps.tokenStore.delete({
       masterUserId: storedToken.masterUserId,
       meegleUserKey: storedToken.meegleUserKey,

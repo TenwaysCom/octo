@@ -21,6 +21,9 @@ import type {
   LarkAuthStatusRequest,
 } from "./lark-auth.dto.js";
 import { normalizeLarkAuthBaseUrl } from "../../platform-url.js";
+import { logger } from "../../logger.js";
+
+const serviceLogger = logger.child({ module: "lark-auth-service" });
 
 export interface LarkAuthServiceDeps {
   appId: string;
@@ -431,14 +434,14 @@ async function getLarkContactUserInfo(
   });
 
   if (!response.ok) {
-    console.warn(`[LARK_CONTACT] request failed: ${response.status}`);
+    serviceLogger.warn({ status: response.status }, "Lark contact request failed");
     return {};
   }
 
   const data = (await response.json()) as Record<string, unknown>;
   const code = data.code as number;
   if (code !== 0) {
-    console.warn(`[LARK_CONTACT] API error: ${data.msg as string}`);
+    serviceLogger.warn({ msg: data.msg }, "Lark contact API error");
     return {};
   }
 
@@ -474,7 +477,7 @@ async function getLarkUserInfo(
   }
 
   const data = (await response.json()) as Record<string, unknown>;
-  console.log(data);
+  serviceLogger.debug(data, "Lark user info raw response");
   const code = data.code as number;
   if (code !== 0) {
     throw new Error(`Lark user info API error: ${data.msg as string}`);
@@ -550,10 +553,7 @@ export async function handleLarkAuthCallback(
   const session = await oauthSessionStore.get(query.state);
 
   if (!session || session.provider !== "lark" || session.status !== "pending" || Date.parse(session.expiresAt) <= Date.now()) {
-    console.warn("[LARK_AUTH_CALLBACK][FAIL]", {
-      state: query.state,
-      reason: "LARK_OAUTH_STATE_INVALID",
-    });
+    serviceLogger.warn({ state: query.state, reason: "LARK_OAUTH_STATE_INVALID" }, "Lark auth callback failed");
     return renderCallbackPage({
       statusCode: 400,
       title: "Lark 授权失败",
@@ -641,13 +641,13 @@ export async function handleLarkAuthCallback(
       masterUserId: session.masterUserId,
     });
   } catch (error) {
-    console.error("[LARK_AUTH_CALLBACK][FAIL]", {
+    serviceLogger.error({
       state: query.state,
       masterUserId: session.masterUserId,
       baseUrl: session.baseUrl,
       reason: error instanceof Error ? error.message : "LARK_AUTH_CALLBACK_FAILED",
       stack: error instanceof Error ? error.stack : undefined,
-    });
+    }, "Lark auth callback failed");
     await oauthSessionStore.markFailed({
       state: query.state,
       errorCode: error instanceof Error ? error.message : "LARK_AUTH_CALLBACK_FAILED",

@@ -14,6 +14,9 @@ import {
   type CreateWorkitemResult,
 } from "./meegle-workitem.service.js";
 import type { ExecutionDraft } from "../../validators/agent-output/execution-draft.js";
+import { logger } from "../../logger.js";
+
+const applyLogger = logger.child({ module: "meegle-apply-service" });
 
 export type MeegleApplyErrorCode =
   | "IDENTITY_NOT_FOUND"
@@ -210,13 +213,13 @@ export async function executeMeegleApply(
       ? (error as { response?: Record<string, unknown> }).response
       : undefined;
 
-    console.error("[MeegleApply] createWorkitem failed", {
+    applyLogger.error({
       requestId: input.requestId,
       workitemTypeKey: input.draft.target.workitemTypeKey,
       statusCode,
       response,
       message: error instanceof Error ? error.message : String(error),
-    });
+    }, "CREATE_WORKITEM FAIL");
 
     throw new MeegleApplyError(
       "MEEGLE_WORKITEM_CREATE_FAILED",

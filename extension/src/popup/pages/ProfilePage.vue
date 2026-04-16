@@ -36,7 +36,7 @@
         <a-input :value="identity.meegleUserKey || '-'" readonly />
       </a-form-item>
     </a-form>
-    <LogPanel :entries="logs" @clear="$emit('clearLogs')" />
+    <LogPanel :entries="logs" @clear="$emit('clearLogs')" @export="$emit('exportLogs')" />
   </PopupPage>
 </template>
 
@@ -68,6 +68,7 @@ defineEmits<{
   authorizeMeegle: [];
   authorizeLark: [];
   clearLogs: [];
+  exportLogs: [];
 }>();
 </script>
 

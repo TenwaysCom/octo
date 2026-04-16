@@ -11,6 +11,9 @@ import {
   type MeegleWorkitem,
 } from "../../adapters/meegle/meegle-client.js";
 import type { ExecutionDraft } from "../../validators/agent-output/execution-draft.js";
+import { logger } from "../../logger.js";
+
+const workitemLogger = logger.child({ module: "meegle-workitem-service" });
 
 export interface MeegleWorkitemServiceDeps {
   client: MeegleClient;
@@ -116,7 +119,7 @@ export async function createWorkitemFromDraft(
       if (illegalIndex === -1) {
         throw error;
       }
-      console.log("[MeegleWorkitemService] Field illegal at creation, will update after create", { illegalField });
+      workitemLogger.info({ illegalField }, "FIELD_ILLEGAL_RETRY");
       postCreateUpdates.push(...creatableFields.splice(illegalIndex, 1));
     }
   }

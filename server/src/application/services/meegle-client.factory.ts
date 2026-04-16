@@ -6,9 +6,10 @@
 
 import { MeegleClient } from "../../adapters/meegle/meegle-client.js";
 import type { MeegleTokenStore } from "../../adapters/meegle/token-store.js";
+import { getSharedMeegleTokenStore } from "../../adapters/postgres/meegle-token-store.js";
 
 export interface MeegleClientFactoryDeps {
-  tokenStore: MeegleTokenStore;
+  tokenStore?: MeegleTokenStore;
 }
 
 export interface MeegleClientConfig {
@@ -22,9 +23,9 @@ export interface MeegleClientConfig {
  */
 export async function createMeegleClient(
   config: MeegleClientConfig,
-  deps: MeegleClientFactoryDeps,
+  deps: MeegleClientFactoryDeps = {},
 ): Promise<MeegleClient> {
-  const { tokenStore } = deps;
+  const tokenStore = deps.tokenStore ?? getSharedMeegleTokenStore();
   const { masterUserId, meegleUserKey, baseUrl } = config;
 
   const storedToken = await tokenStore.get({
@@ -51,9 +52,9 @@ export async function createMeegleClient(
  */
 export async function hasValidMeegleToken(
   config: MeegleClientConfig,
-  deps: MeegleClientFactoryDeps,
+  deps: MeegleClientFactoryDeps = {},
 ): Promise<boolean> {
-  const { tokenStore } = deps;
+  const tokenStore = deps.tokenStore ?? getSharedMeegleTokenStore();
   const storedToken = await tokenStore.get(config);
   return !!storedToken?.userToken;
 }

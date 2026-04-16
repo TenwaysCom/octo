@@ -10,6 +10,9 @@ import {
   normalizeLarkAuthBaseUrl,
 } from "../../platform-url.js";
 import { getConfig } from "../config.js";
+import { createExtensionLogger } from "../../logger.js";
+
+const larkAuthLogger = createExtensionLogger("background:lark-auth");
 
 export interface EnsureLarkAuthDeps {
   getCachedLarkToken?: () => string | undefined;
@@ -87,6 +90,7 @@ async function getAuthStatusFromServer(
   },
 ): Promise<LarkAuthStatusServerResponse> {
   const config = await getConfig();
+  larkAuthLogger.info("Getting Lark auth status from server", { masterUserId: request.masterUserId, baseUrl: request.baseUrl });
 
   try {
     const response = await fetch(`${config.SERVER_URL}/api/lark/auth/status`, {
@@ -98,6 +102,7 @@ async function getAuthStatusFromServer(
     });
 
     if (!response.ok) {
+      larkAuthLogger.warn("Lark auth status request failed", { status: response.status });
       return {
         ok: false,
         error: {
@@ -107,8 +112,11 @@ async function getAuthStatusFromServer(
       };
     }
 
-    return await response.json() as LarkAuthStatusServerResponse;
+    const result = await response.json() as LarkAuthStatusServerResponse;
+    larkAuthLogger.info("Lark auth status received", { ok: result.ok, status: result.data?.status });
+    return result;
   } catch (error) {
+    larkAuthLogger.error("Error getting Lark auth status", { error: error instanceof Error ? error.message : String(error) });
     return {
       ok: false,
       error: {
@@ -127,6 +135,7 @@ async function createOauthSessionWithServer(
   },
 ): Promise<LarkAuthSessionServerResponse> {
   const config = await getConfig();
+  larkAuthLogger.info("Creating Lark OAuth session", { masterUserId: request.masterUserId, baseUrl: request.baseUrl, state: request.state });
 
   try {
     const response = await fetch(`${config.SERVER_URL}/api/lark/auth/session`, {
@@ -138,6 +147,7 @@ async function createOauthSessionWithServer(
     });
 
     if (!response.ok) {
+      larkAuthLogger.warn("Lark OAuth session creation failed", { status: response.status });
       return {
         ok: false,
         error: {
@@ -147,8 +157,11 @@ async function createOauthSessionWithServer(
       };
     }
 
-    return await response.json() as LarkAuthSessionServerResponse;
+    const result = await response.json() as LarkAuthSessionServerResponse;
+    larkAuthLogger.info("Lark OAuth session created", { ok: result.ok, state: result.data?.state });
+    return result;
   } catch (error) {
+    larkAuthLogger.error("Error creating Lark OAuth session", { error: error instanceof Error ? error.message : String(error) });
     return {
       ok: false,
       error: {
@@ -168,8 +181,10 @@ export async function ensureLarkAuth(
     DEFAULT_LARK_AUTH_BASE_URL,
   );
   const state = request.state || `state_${Date.now()}`;
+  larkAuthLogger.info("Ensuring Lark auth", { masterUserId: request.masterUserId, baseUrl });
 
   if (!request.masterUserId) {
+    larkAuthLogger.warn("Lark auth required fields missing");
     return {
       status: "failed",
       baseUrl,
@@ -185,6 +200,7 @@ export async function ensureLarkAuth(
   });
 
   if (statusResult.ok && statusResult.data?.status === "ready") {
+    larkAuthLogger.info("Lark auth ready (cached)", { masterUserId: request.masterUserId, baseUrl: statusResult.data.baseUrl });
     return {
       status: "ready",
       baseUrl: statusResult.data.baseUrl,
@@ -204,6 +220,7 @@ export async function ensureLarkAuth(
   });
 
   if (!sessionResult.ok || !sessionResult.data) {
+    larkAuthLogger.error("Lark OAuth session creation failed", { error: sessionResult.error });
     return {
       status: "failed",
       baseUrl,
@@ -237,6 +254,7 @@ export async function ensureLarkAuth(
     );
   }
 
+  larkAuthLogger.info("Lark OAuth pending", { masterUserId: request.masterUserId, state: sessionResult.data.state });
   return {
     status: "in_progress",
     baseUrl: sessionResult.data.baseUrl,

@@ -1,9 +1,9 @@
-import { executeLarkBaseWorkflow } from "./lark-base-workflow.service.js";
-import { validateCreateLarkBaseWorkflowRequest } from "./lark-base-workflow.dto.js";
+import { executeMeegleLarkPush } from "../../application/services/meegle-lark-push.service.js";
+import { validateMeegleLarkPushRequest } from "./meegle-lark-push.dto.js";
 import { ZodError } from "zod";
 import { logger } from "../../logger.js";
 
-const controllerLogger = logger.child({ module: "lark-base-workflow-controller" });
+const controllerLogger = logger.child({ module: "meegle-lark-push-controller" });
 
 function toInvalidRequest(error: ZodError) {
   return {
@@ -15,11 +15,12 @@ function toInvalidRequest(error: ZodError) {
   };
 }
 
-export async function createLarkBaseWorkflowController(input: unknown) {
+export async function meegleLarkPushController(input: unknown) {
   controllerLogger.info({ input }, "RECEIVED_REQUEST");
   try {
-    const validated = validateCreateLarkBaseWorkflowRequest(input);
-    return await executeLarkBaseWorkflow(validated);
+    const validated = validateMeegleLarkPushRequest(input);
+    controllerLogger.debug({ validated }, "VALIDATED_REQUEST");
+    return await executeMeegleLarkPush(validated);
   } catch (error) {
     if (error instanceof ZodError) {
       return toInvalidRequest(error);
@@ -28,7 +29,7 @@ export async function createLarkBaseWorkflowController(input: unknown) {
     return {
       ok: false as const,
       error: {
-        errorCode: "UPDATE_FAILED" as const,
+        errorCode: "PUSH_FAILED" as const,
         errorMessage: error instanceof Error ? error.message : String(error),
       },
     };

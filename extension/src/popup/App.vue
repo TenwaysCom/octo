@@ -39,6 +39,7 @@
               @authorize-meegle="authorizeMeegle"
               @authorize-lark="authorizeLark"
               @clear-logs="clearLogs"
+              @export-logs="exportLogs"
             />
           </PopupShell>
         </div>
@@ -84,6 +85,7 @@ const {
   saveSettingsForm,
   refreshServerConfig,
   clearLogs,
+  exportLogs,
   runFeatureAction,
 } = usePopupApp();
 

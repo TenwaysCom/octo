@@ -1,4 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
+import { logger } from "../logger.js";
+
+const apiLogger = logger.child({ module: "api-request" });
 
 type LogLevel = "log" | "warn" | "error";
 type LogPhase = "START" | "OK" | "WARN" | "FAIL";
@@ -41,16 +44,13 @@ export function logApiRequest(
   detail: Record<string, unknown>,
   level: LogLevel = "log",
 ): void {
-  const logger = level === "error"
-    ? console.error
+  const logFn = level === "error"
+    ? apiLogger.error.bind(apiLogger)
     : level === "warn"
-      ? console.warn
-      : console.log;
+      ? apiLogger.warn.bind(apiLogger)
+      : apiLogger.info.bind(apiLogger);
 
-  logger(`[Server][API_REQUEST][${phase}]`, {
-    timestamp: new Date().toISOString(),
-    ...detail,
-  });
+  logFn({ phase, ...detail }, "API_REQUEST");
 }
 
 export function createApiRequestLogger() {

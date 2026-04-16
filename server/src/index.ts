@@ -17,8 +17,12 @@ import { registerLarkMeegleWorkflowRoutes } from "./http/lark-meegle-workflow-ro
 import { runPMAnalysisController } from "./modules/pm-analysis/pm-analysis.controller.js";
 import { updateLarkBaseMeegleLinkController } from "./modules/lark-base/lark-base.controller.js";
 import { createLarkBaseWorkflowController } from "./modules/lark-base/lark-base-workflow.controller.js";
+import { meegleLarkPushController } from "./modules/meegle-workitem/meegle-lark-push.controller.js";
 import { createApiRequestLogger, logApiRequest, summarizeRequestPayload } from "./http/api-request-logger.js";
 import { createCorsMiddleware } from "./http/cors.js";
+import { logger } from "./logger.js";
+
+const serverLogger = logger.child({ module: "server" });
 
 // Load environment variables
 const LARK_APP_ID = process.env.LARK_APP_ID || "";
@@ -47,9 +51,9 @@ if (LARK_APP_ID && LARK_APP_SECRET) {
     tokenStore: getSharedLarkTokenStore(),
     oauthSessionStore: getSharedOauthSessionStore(),
   });
-  console.log("[Server] Lark auth configured with APP_ID:", LARK_APP_ID);
+  serverLogger.info({ larkAppId: LARK_APP_ID }, "Lark auth configured");
 } else {
-  console.warn("[Server] Warning: LARK_APP_ID and LARK_APP_SECRET not configured. Lark auth will not work.");
+  serverLogger.warn("LARK_APP_ID and LARK_APP_SECRET not configured. Lark auth will not work.");
 }
 
 // Configure Meegle auth with credentials
@@ -64,9 +68,9 @@ if (MEEGLE_PLUGIN_ID && MEEGLE_PLUGIN_SECRET) {
     tokenStore: getSharedMeegleTokenStore(),
     meegleAuthBaseUrl: MEEGLE_BASE_URL,
   });
-  console.log("[Server] Meegle auth configured with PLUGIN_ID:", MEEGLE_PLUGIN_ID);
+  serverLogger.info({ meeglePluginId: MEEGLE_PLUGIN_ID }, "Meegle auth configured");
 } else {
-  console.warn("[Server] Warning: MEEGLE_PLUGIN_ID and MEEGLE_PLUGIN_SECRET not configured. Meegle auth will not work.");
+  serverLogger.warn("MEEGLE_PLUGIN_ID and MEEGLE_PLUGIN_SECRET not configured. Meegle auth will not work.");
 }
 
 const app = express();
@@ -147,12 +151,15 @@ app.post("/api/pm/analysis/run", handleController(runPMAnalysisController));
 app.post("/api/lark-base/update-meegle-link", handleController(updateLarkBaseMeegleLinkController));
 app.post("/api/lark-base/create-meegle-workitem", handleController(createLarkBaseWorkflowController));
 
+// Meegle workitem routes
+app.post("/api/meegle/workitem/update-lark-and-push", handleController(meegleLarkPushController));
+
 if (process.env.NODE_ENV !== "test" && process.env.VITEST !== "true") {
   await ensureSharedDatabase();
   app.listen(PORT, HOST, () => {
-    console.log(`Tenways Octo Server running on http://${HOST}:${PORT}`);
-    console.log(`Health check: http://${HOST}:${PORT}/health`);
-    console.log(`Lark Base create workitem: http://${HOST}:${PORT}/api/lark-base/create-meegle-workitem`);
+    serverLogger.info(`Tenways Octo Server running on http://${HOST}:${PORT}`);
+    serverLogger.info(`Health check: http://${HOST}:${PORT}/health`);
+    serverLogger.info(`Lark Base create workitem: http://${HOST}:${PORT}/api/lark-base/create-meegle-workitem`);
   });
 }
 

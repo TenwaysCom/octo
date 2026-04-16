@@ -15,6 +15,8 @@ import type {
 import type {
   MeegleAuthEnsureRequest,
   MeegleAuthEnsureResponse,
+  MeegleLarkPushRequest,
+  MeegleLarkPushResponse,
 } from "../types/meegle.js";
 import type { PopupSettingsForm } from "./types.js";
 import { detectPopupPageType, type PopupPageType } from "./view-model.js";
@@ -206,6 +208,32 @@ export async function runMeegleAuthRequest(
     errorMessage:
       response.error?.errorMessage || "Background returned an empty response.",
   };
+}
+
+export async function runMeegleLarkPushRequest(
+  request: MeegleLarkPushRequest,
+): Promise<MeegleLarkPushResponse> {
+  const config = await getConfig();
+  console.debug("[runMeegleLarkPushRequest] request:", request);
+  try {
+    const response = await fetch(`${config.SERVER_URL}/api/meegle/workitem/update-lark-and-push`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(request),
+    });
+
+    const result = (await response.json()) as MeegleLarkPushResponse;
+    console.debug("[runMeegleLarkPushRequest] response:", result);
+    return result;
+  } catch (error) {
+    console.debug("[runMeegleLarkPushRequest] error:", error);
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
 }
 
 export async function resolveIdentityRequest(input: {

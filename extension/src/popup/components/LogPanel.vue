@@ -1,5 +1,5 @@
 <template>
-  <a-card size="small" title="日志" :extra="clearLink">
+  <a-card size="small" title="日志" :extra="actionLinks">
     <div class="log-panel">
       <div v-if="entries.length === 0" class="log-panel__empty">
         暂无日志
@@ -27,6 +27,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   clear: [];
+  export: [];
 }>();
 
 const clearLink = h(
@@ -37,6 +38,17 @@ const clearLink = h(
   },
   "清除",
 );
+
+const exportLink = h(
+  "button",
+  {
+    class: "log-panel__clear",
+    onClick: () => emit("export"),
+  },
+  "导出日志",
+);
+
+const actionLinks = h("span", { class: "log-panel__actions" }, [exportLink, h("span", { class: "log-panel__action-divider" }, " | "), clearLink]);
 </script>
 
 <style scoped>
@@ -94,6 +106,17 @@ const clearLink = h(
   background: transparent;
   color: #64748b;
   cursor: pointer;
+  font-size: 12px;
+}
+
+:deep(.log-panel__actions) {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+:deep(.log-panel__action-divider) {
+  color: #94a3b8;
   font-size: 12px;
 }
 </style>

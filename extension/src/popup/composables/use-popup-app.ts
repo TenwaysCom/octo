@@ -20,6 +20,7 @@ import {
   resolveIdentityRequest,
   runLarkAuthRequest,
   runMeegleAuthRequest,
+  runMeegleLarkPushRequest,
   saveResolvedIdentity,
   saveResolvedIdentityForTab,
   savePopupSettings,
@@ -42,6 +43,9 @@ import {
   normalizeLarkAuthBaseUrl,
   normalizeMeegleAuthBaseUrl,
 } from "../../platform-url.js";
+import { createExtensionLogger, exportLogsAsBlob } from "../../logger.js";
+
+const popupLogger = createExtensionLogger("popup:app");
 
 interface PopupIdentityState {
   masterUserId: string | null;
@@ -183,9 +187,15 @@ export function usePopupApp() {
   ]);
   const meegleActions = computed<PopupFeatureAction[]>(() => [
     {
+      key: "update-lark-and-push",
+      label: "更新Lark及推送",
+      type: "primary",
+      disabled: false,
+    },
+    {
       key: "meegle-context",
       label: "查看来源上下文",
-      type: "primary",
+      type: "default",
       disabled: false,
     },
   ]);
@@ -546,15 +556,81 @@ export function usePopupApp() {
     logs.value = [];
   }
 
-  function runFeatureAction(actionKey: string) {
+  async function runFeatureAction(actionKey: string) {
     const labels: Record<string, string> = {
       analyze: "分析中...",
       draft: "生成草稿...",
       apply: "确认创建...",
       "meegle-context": "查看来源上下文...",
+      "update-lark-and-push": "更新 Lark 及推送中...",
     };
 
     appendLog("info", labels[actionKey] || "执行操作中...");
+
+    if (actionKey === "update-lark-and-push") {
+      appendLog("info", "[更新Lark及推送] 开始执行");
+      const currentUrl = state.currentUrl;
+      if (!currentUrl) {
+        appendLog("error", "当前页面 URL 为空，无法执行推送");
+        return;
+      }
+
+      let pathname: string;
+      try {
+        pathname = new URL(currentUrl).pathname;
+        appendLog("info", `[更新Lark及推送] 解析 URL pathname: ${pathname}`);
+      } catch {
+        appendLog("error", "当前页面 URL 解析失败");
+        return;
+      }
+
+      const pathParts = pathname.split("/").filter(Boolean);
+      appendLog("info", `[更新Lark及推送] 路径片段: ${pathParts.join(", ")}`);
+      if (pathParts.length < 4 || pathParts[2] !== "detail") {
+        appendLog("error", `无法从 URL 解析工作项信息: ${pathname}`);
+        return;
+      }
+
+      const [projectKey, workItemTypeKey, , workItemId] = pathParts;
+      const masterUserId = state.identity.masterUserId;
+      if (!masterUserId) {
+        appendLog("error", "未解析到主身份，无法执行推送");
+        return;
+      }
+
+      const baseUrl = state.currentTabOrigin || "https://project.larksuite.com";
+      appendLog("info", `[更新Lark及推送] 准备调用服务端 API: project=${projectKey}, type=${workItemTypeKey}, id=${workItemId}, masterUserId=${masterUserId}`);
+
+      const result = await runMeegleLarkPushRequest({
+        projectKey,
+        workItemTypeKey,
+        workItemId,
+        masterUserId,
+        baseUrl,
+      });
+
+      appendLog("info", `[更新Lark及推送] 服务端响应: ok=${result.ok}, alreadyUpdated=${result.alreadyUpdated}, larkBaseUpdated=${result.larkBaseUpdated}, messageSent=${result.messageSent}, reactionAdded=${result.reactionAdded}, meegleStatusUpdated=${result.meegleStatusUpdated}`);
+
+      if (!result.ok) {
+        appendLog("error", `推送失败: ${result.error || "未知错误"}`);
+        return;
+      }
+
+      if (result.alreadyUpdated) {
+        appendLog("warn", "该工作项已经更新过，无需重复推送");
+        return;
+      }
+
+      const parts: string[] = [];
+      if (result.larkBaseUpdated) parts.push("Lark Base 状态已更新");
+      if (result.messageSent) parts.push("Lark 消息已发送");
+      if (result.reactionAdded) parts.push("Lark 消息 reaction 已添加");
+      if (result.meegleStatusUpdated) parts.push("Meegle 状态已更新");
+
+      appendLog("success", `推送完成${parts.length ? ": " + parts.join("、") : ""}`);
+      return;
+    }
+
     appendLog("warn", "功能开发中，请稍后");
   }
 
@@ -568,6 +644,34 @@ export function usePopupApp() {
         timestamp: new Date().toLocaleTimeString(),
       },
     ];
+    const detail: Record<string, unknown> | undefined =
+      level === "error" || level === "warn" ? { popupLogLevel: level } : undefined;
+    switch (level) {
+      case "debug":
+        popupLogger.debug(message, detail);
+        break;
+      case "success":
+      case "info":
+        popupLogger.info(message, detail);
+        break;
+      case "warn":
+        popupLogger.warn(message, detail);
+        break;
+      case "error":
+        popupLogger.error(message, detail);
+        break;
+    }
+  }
+
+  function exportLogs() {
+    const blob = exportLogsAsBlob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `tenways-octo-logs-${new Date().toISOString()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    appendLog("info", "日志已导出");
   }
 
   function syncSettingsForm(settings: PopupSettingsForm) {
@@ -674,6 +778,7 @@ export function usePopupApp() {
     saveSettingsForm,
     refreshServerConfig,
     clearLogs,
+    exportLogs,
     runFeatureAction,
   };
 }

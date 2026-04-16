@@ -12,6 +12,9 @@ import {
   type LarkBaseWorkflowConfig,
   type FieldMappingConfig,
 } from "./lark-base-workflow-config.js";
+import { logger } from "../../logger.js";
+
+const workflowLogger = logger.child({ module: "lark-base-workflow-service" });
 
 // ==================== Environment Defaults ====================
 
@@ -49,7 +52,7 @@ function parseIssueTypeMappings(): IssueTypeMappingConfig[] {
     try {
       const parsed = JSON.parse(raw) as IssueTypeMappingConfig[];
       if (Array.isArray(parsed)) {
-        console.log("[LarkBaseWorkflow] parseIssueTypeMappings: using JSON config", { count: parsed.length, parsed });
+        workflowLogger.info({ count: parsed.length, parsed }, "PARSE_ISSUE_TYPE_MAPPINGS json_config");
         return parsed;
       }
     } catch {
@@ -82,7 +85,7 @@ function parseIssueTypeMappings(): IssueTypeMappingConfig[] {
     urlSlug: WORKITEM_TYPE_KEY_PROD_BUG,
   });
 
-  console.log("[LarkBaseWorkflow] parseIssueTypeMappings: using legacy env config", { count: mappings.length, mappings });
+  workflowLogger.info({ count: mappings.length, mappings }, "PARSE_ISSUE_TYPE_MAPPINGS legacy_env_config");
   return mappings;
 }
 
@@ -127,11 +130,11 @@ function resolveWorkitemMappings(
   const seen = new Set<string>();
   const mappings: WorkitemMapping[] = [];
 
-  console.log("[LarkBaseWorkflow] resolveWorkitemMappings input", { issueTypes, fallback: DEFAULT_ISSUE_TYPE_FALLBACK, typesToMatch: types, configCount: configs.length, hasFileConfig: Boolean(config) });
+  workflowLogger.info({ issueTypes, fallback: DEFAULT_ISSUE_TYPE_FALLBACK, typesToMatch: types, configCount: configs.length, hasFileConfig: Boolean(config) }, "RESOLVE_WORKITEM_MAPPINGS input");
 
   for (const c of configs) {
     const hasMatch = types.some((t) => c.larkLabels.includes(t));
-    console.log("[LarkBaseWorkflow] resolveWorkitemMappings checking config", { larkLabels: c.larkLabels, workitemTypeKey: c.workitemTypeKey, hasMatch });
+    workflowLogger.info({ larkLabels: c.larkLabels, workitemTypeKey: c.workitemTypeKey, hasMatch }, "RESOLVE_WORKITEM_MAPPINGS checking_config");
     if (hasMatch) {
       const key = `${c.workitemTypeKey}|${c.templateId}`;
       if (!seen.has(key)) {
@@ -146,7 +149,7 @@ function resolveWorkitemMappings(
     }
   }
 
-  console.log("[LarkBaseWorkflow] resolveWorkitemMappings result", { matchedCount: mappings.length, mappings });
+  workflowLogger.info({ matchedCount: mappings.length, mappings }, "RESOLVE_WORKITEM_MAPPINGS result");
 
   if (mappings.length > 0) {
     return mappings;
@@ -157,9 +160,9 @@ function resolveWorkitemMappings(
 
 function extractIssueTypes(fields: Record<string, unknown>): string[] {
   const raw = fields["Issue 类型"] ?? fields["fldSQ1D6LG"];
-  console.log("[LarkBaseWorkflow] extractIssueTypes raw", { rawIssueType: raw });
+  workflowLogger.info({ rawIssueType: raw }, "EXTRACT_ISSUE_TYPES raw");
   if (!Array.isArray(raw)) {
-    console.log("[LarkBaseWorkflow] extractIssueTypes result: empty (not an array)");
+    workflowLogger.info({}, "EXTRACT_ISSUE_TYPES empty_not_array");
     return [];
   }
   const extracted = raw
@@ -171,7 +174,7 @@ function extractIssueTypes(fields: Record<string, unknown>): string[] {
       return "";
     })
     .filter(Boolean);
-  console.log("[LarkBaseWorkflow] extractIssueTypes result", { extracted });
+  workflowLogger.info({ extracted }, "EXTRACT_ISSUE_TYPES result");
   return extracted;
 }
 
@@ -379,7 +382,7 @@ function buildExecutionDraft(
     missingMeta: [],
   };
 
-  console.log("[LarkBaseWorkflow] buildExecutionDraft", { draftId: draft.draftId, workitemTypeKey: mapping.workitemTypeKey, templateId: mapping.templateId, title: draft.name });
+  workflowLogger.info({ draftId: draft.draftId, workitemTypeKey: mapping.workitemTypeKey, templateId: mapping.templateId, title: draft.name }, "BUILD_EXECUTION_DRAFT");
   return draft;
 }
 
@@ -420,11 +423,11 @@ export async function executeLarkBaseWorkflow(
     const loaded = await loadLarkRecord(baseId, tableId, request.recordId, request.masterUserId, deps);
     record = loaded.record;
     larkApiBaseUrl = loaded.baseUrl;
-    console.log("[LarkBaseWorkflow] Record loaded", {
+    workflowLogger.info({
       recordId: record.record_id,
       fieldKeys: Object.keys(record.fields),
       issueTypeRaw: record.fields["Issue 类型"] ?? record.fields["fldSQ1D6LG"],
-    });
+    }, "RECORD_LOADED");
   } catch (error) {
     const larkErrorResponse =
       error && typeof error === "object" && "response" in error
@@ -434,7 +437,7 @@ export async function executeLarkBaseWorkflow(
       error && typeof error === "object" && "statusCode" in error
         ? (error as { statusCode?: number }).statusCode
         : undefined;
-    console.error("[LarkBaseWorkflow] Lark API error:", {
+    workflowLogger.error({
       baseId,
       tableId,
       recordId: request.recordId,
@@ -442,8 +445,7 @@ export async function executeLarkBaseWorkflow(
       statusCode: larkErrorStatusCode,
       message: error instanceof Error ? error.message : String(error),
       larkErrorResponse,
-      rawError: error,
-    });
+    }, "LARK_API_ERROR");
     return {
       ok: false,
       error: {
@@ -469,7 +471,7 @@ export async function executeLarkBaseWorkflow(
 
   const workitems: Array<{ workitemId: string; meegleLink: string }> = [];
 
-  console.log("[LarkBaseWorkflow] Starting workitem creation loop", { mappingCount: mappings.length });
+  workflowLogger.info({ mappingCount: mappings.length }, "STARTING_WORKITEM_CREATION_LOOP");
 
   const larkBaseRecordUrl = larkApiBaseUrl
     ? buildLarkBaseRecordUrl(larkApiBaseUrl, baseId, tableId, request.recordId)
@@ -479,7 +481,7 @@ export async function executeLarkBaseWorkflow(
     const mapping = mappings[i];
     const draft = buildExecutionDraft(record, projectKey, mapping, larkBaseRecordUrl, i);
 
-    console.log("[LarkBaseWorkflow] Applying mapping", { index: i, workitemTypeKey: mapping.workitemTypeKey, templateId: mapping.templateId, idempotencyKey: `idem_base_${request.recordId}_${mapping.workitemTypeKey}_${i}` });
+    workflowLogger.info({ index: i, workitemTypeKey: mapping.workitemTypeKey, templateId: mapping.templateId, idempotencyKey: `idem_base_${request.recordId}_${mapping.workitemTypeKey}_${i}` }, "APPLYING_MAPPING");
 
     let workitemId: string;
     try {
@@ -494,7 +496,7 @@ export async function executeLarkBaseWorkflow(
         {},
       );
       workitemId = applyResult.workitemId;
-      console.log("[LarkBaseWorkflow] Workitem created", { index: i, workitemId });
+      workflowLogger.info({ index: i, workitemId }, "WORKITEM_CREATED");
     } catch (error) {
       const errorCode =
         error && typeof error === "object" && "errorCode" in error
@@ -507,14 +509,14 @@ export async function executeLarkBaseWorkflow(
         ? (error as { response?: Record<string, unknown> }).response
         : undefined;
 
-      console.error("[LarkBaseWorkflow] Workitem creation failed", {
+      workflowLogger.error({
         index: i,
         workitemTypeKey: mapping.workitemTypeKey,
         errorCode,
         statusCode,
         response,
         message: error instanceof Error ? error.message : String(error),
-      });
+      }, "WORKITEM_CREATION_FAILED");
 
       return {
         ok: false,
@@ -530,7 +532,7 @@ export async function executeLarkBaseWorkflow(
   }
 
   const meegleLinks = workitems.map((w) => w.meegleLink).join("\n");
-  console.log("[LarkBaseWorkflow] Writing meegleLink back to Lark", { recordId: request.recordId, meegleLinks });
+  workflowLogger.info({ recordId: request.recordId, meegleLinks }, "WRITING_MEEGLE_LINK_BACK");
 
   try {
     await (deps.updateLarkBaseMeegleLink ?? updateLarkBaseMeegleLink)({
@@ -548,12 +550,12 @@ export async function executeLarkBaseWorkflow(
       ? (error as { response?: Record<string, unknown> }).response
       : undefined;
 
-    console.error("[LarkBaseWorkflow] Write back to Lark failed", {
+    workflowLogger.error({
       recordId: request.recordId,
       statusCode,
       response,
       message: error instanceof Error ? error.message : String(error),
-    });
+    }, "WRITE_BACK_TO_LARK_FAILED");
 
     return {
       ok: false,
@@ -565,7 +567,7 @@ export async function executeLarkBaseWorkflow(
   }
 
   const primaryWorkitemId = workitems[0]?.workitemId ?? "";
-  console.log("[LarkBaseWorkflow] Workflow completed successfully", { recordId: request.recordId, workitemCount: workitems.length, primaryWorkitemId });
+  workflowLogger.info({ recordId: request.recordId, workitemCount: workitems.length, primaryWorkitemId }, "WORKFLOW_COMPLETED");
   return {
     ok: true,
     workitemId: primaryWorkitemId,

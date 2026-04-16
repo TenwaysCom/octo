@@ -6,6 +6,9 @@ import type {
 } from "../../types/meegle";
 import { normalizeMeegleAuthBaseUrl } from "../../platform-url.js";
 import { getConfig } from "../config.js";
+import { createExtensionLogger } from "../../logger.js";
+
+const meegleAuthLogger = createExtensionLogger("background:meegle-auth");
 
 class MeegleAuthCodeRequestError extends Error {
   code: string;
@@ -17,11 +20,13 @@ class MeegleAuthCodeRequestError extends Error {
   }
 }
 
-const BG_FLOW_PREFIX = "[MEEGLE_AUTH_FLOW][BG]";
-
 function logBgFlow(node: string, phase: "START" | "OK" | "FAIL", detail: Record<string, unknown>): void {
-  const logger = phase === "FAIL" ? console.error : console.log;
-  logger(`${BG_FLOW_PREFIX}[${node}][${phase}]`, detail);
+  const message = `[MEEGLE_AUTH_FLOW][BG][${node}][${phase}]`;
+  if (phase === "FAIL") {
+    meegleAuthLogger.error(message, detail);
+  } else {
+    meegleAuthLogger.info(message, detail);
+  }
 }
 
 export interface EnsureMeegleAuthDeps {
@@ -73,10 +78,9 @@ async function requestAuthCodeFromContentScript(
             const errorMessage = chrome.runtime.lastError.message ||
               "Current tab is not a Meegle auth page";
 
-            console.error(
-              "[Tenways Octo] Failed to send message to content script:",
-              chrome.runtime.lastError,
-            );
+            meegleAuthLogger.error("Failed to send message to content script", {
+              error: chrome.runtime.lastError,
+            });
             reject(
               new MeegleAuthCodeRequestError(
                 "MEEGLE_PAGE_REQUIRED",
@@ -95,7 +99,7 @@ async function requestAuthCodeFromContentScript(
             });
           } else {
             logBgFlow("AUTH_CODE_REQUEST", "FAIL", { tabId, baseUrl, state, error: response?.error });
-            console.error("[Tenways Octo] Meegle Auth code request failed:", response?.error);
+            meegleAuthLogger.error("Meegle Auth code request failed", { error: response?.error });
             reject(
               new MeegleAuthCodeRequestError(
                 response?.error?.errorCode || "AUTH_CODE_REQUEST_FAILED",
@@ -179,7 +183,7 @@ async function exchangeAuthCodeWithServer(
 
     if (!response.ok) {
       const errorResult = await parseErrorResponse();
-      console.error("[Tenways Octo] Failed to exchange auth code:", {
+      meegleAuthLogger.error("Failed to exchange auth code", {
         status: response.status,
         requestId: request.requestId,
         masterUserId: request.masterUserId,
@@ -195,7 +199,7 @@ async function exchangeAuthCodeWithServer(
     return result;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error("[Tenways Octo] Error exchanging auth code:", {
+    meegleAuthLogger.error("Error exchanging auth code", {
       serverUrl,
       requestId: request.requestId,
       masterUserId: request.masterUserId,
@@ -251,7 +255,7 @@ export async function ensureMeegleAuth(
 
   if (!isConfiguredPluginId(pluginId)) {
     logBgFlow("ENSURE_AUTH", "FAIL", { requestId: request.requestId, baseUrl, reason: "PLUGIN_ID_NOT_CONFIGURED" });
-    console.error("[Tenways Octo] Plugin ID not configured");
+    meegleAuthLogger.error("Plugin ID not configured");
     return {
       status: "failed",
       baseUrl,
@@ -343,7 +347,7 @@ export async function ensureMeegleAuth(
 
     // Exchange failed
     logBgFlow("ENSURE_AUTH", "FAIL", { requestId: request.requestId, baseUrl, reason: "MEEGLE_AUTH_CODE_EXCHANGE_FAILED", error: exchangeResult?.error });
-    console.error("[Tenways Octo] Auth code exchange failed:", exchangeResult?.error);
+    meegleAuthLogger.error("Auth code exchange failed", { error: exchangeResult?.error });
     return {
       status: "failed",
       baseUrl,

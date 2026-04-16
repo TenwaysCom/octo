@@ -24,6 +24,9 @@ import {
   getStoredMasterUserId,
 } from "./storage.js";
 import { getConfig } from "./config.js";
+import { createExtensionLogger } from "../logger.js";
+
+const routerLogger = createExtensionLogger("background:router");
 
 // Cache for user token (populated asynchronously)
 let cachedToken: string | undefined;
@@ -160,7 +163,7 @@ export async function routeBackgroundAction(
       },
       // Disable auto-redirect to Meegle login page
       openMeegleLoginTab: async () => {
-        console.log("[Tenways Octo] Auto-redirect disabled. User needs to login manually.");
+        routerLogger.info("Auto-redirect disabled. User needs to login manually.");
       },
     };
 
@@ -273,6 +276,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             ? err.errorCode
             : "BACKGROUND_ERROR";
         const errorMessage = err instanceof Error ? err.message : String(err);
+        routerLogger.error("Background action failed", { action: message.action, errorCode, errorMessage });
         sendResponse({
           ok: false,
           error: {
@@ -288,4 +292,4 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return false; // Not handled
 });
 
-console.log("[Tenways Octo] Background router initialized");
+routerLogger.info("Background router initialized");

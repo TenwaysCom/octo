@@ -126,12 +126,9 @@ function extractToken(payload: JsonRecord, keys: string[]): string {
   throw new Error(`Missing token field: ${keys.join(", ")}`);
 }
 
-const SERVER_ADAPTER_FLOW_PREFIX = "[MEEGLE_AUTH_FLOW][SERVER][ADAPTER]";
+import { logger } from "../../logger.js";
 
-function logAdapterFlow(node: string, phase: "START" | "OK" | "FAIL", detail: Record<string, unknown>): void {
-  const logger = phase === "FAIL" ? console.error : console.log;
-  logger(`${SERVER_ADAPTER_FLOW_PREFIX}[${node}][${phase}]`, detail);
-}
+const adapterLogger = logger.child({ module: "meegle-auth-adapter" });
 
 export function createHttpMeegleAuthAdapter(
   options: HttpMeegleAuthAdapterOptions,
@@ -140,7 +137,7 @@ export function createHttpMeegleAuthAdapter(
 
   return {
     async getPluginToken(baseUrl: string): Promise<PluginTokenInfo> {
-      logAdapterFlow("PLUGIN_TOKEN", "START", { baseUrl });
+      adapterLogger.info({ baseUrl }, "PLUGIN_TOKEN START");
       const response = await fetchImpl(joinUrl(baseUrl, "/bff/v2/authen/plugin_token"), {
         method: "POST",
         headers: {
@@ -155,7 +152,7 @@ export function createHttpMeegleAuthAdapter(
 
       if (!response.ok) {
         const detail = extractErrorMessage(payload);
-        logAdapterFlow("PLUGIN_TOKEN", "FAIL", { baseUrl, status: response.status, detail, payloadKeys: Object.keys(payload) });
+        adapterLogger.error({ baseUrl, status: response.status, detail, payloadKeys: Object.keys(payload) }, "PLUGIN_TOKEN FAIL");
         throw new Error(
           `Failed to get plugin token: ${response.status}${detail ? ` ${detail}` : ""}`,
         );
@@ -163,7 +160,7 @@ export function createHttpMeegleAuthAdapter(
 
       const token = extractToken(payload, ["plugin_access_token", "token", "access_token"]);
       const expiresInSeconds = extractOptionalNumber(payload, ["expire_time", "expires_in", "expiresIn"]);
-      logAdapterFlow("PLUGIN_TOKEN", "OK", { baseUrl, hasToken: Boolean(token), expiresInSeconds });
+      adapterLogger.info({ baseUrl, hasToken: Boolean(token), expiresInSeconds }, "PLUGIN_TOKEN OK");
       return {
         token,
         expiresInSeconds,
@@ -171,7 +168,7 @@ export function createHttpMeegleAuthAdapter(
     },
 
     async exchangeUserToken(input): Promise<UserTokenPair> {
-      logAdapterFlow("USER_PLUGIN_TOKEN", "START", { baseUrl: input.baseUrl, hasPluginToken: Boolean(input.pluginToken), authCodeSuffix: input.authCode.slice(-6) });
+      adapterLogger.info({ baseUrl: input.baseUrl, hasPluginToken: Boolean(input.pluginToken), authCodeSuffix: input.authCode.slice(-6) }, "USER_PLUGIN_TOKEN START");
       const response = await fetchImpl(
         joinUrl(input.baseUrl, "/bff/v2/authen/user_plugin_token"),
         {
@@ -190,7 +187,7 @@ export function createHttpMeegleAuthAdapter(
 
       if (!response.ok) {
         const detail = extractErrorMessage(payload);
-        logAdapterFlow("USER_PLUGIN_TOKEN", "FAIL", { baseUrl: input.baseUrl, status: response.status, detail, payloadKeys: Object.keys(payload) });
+        adapterLogger.error({ baseUrl: input.baseUrl, status: response.status, detail, payloadKeys: Object.keys(payload) }, "USER_PLUGIN_TOKEN FAIL");
         throw new Error(
           `Failed to exchange user token: ${response.status}${detail ? ` ${detail}` : ""}`,
         );
@@ -204,7 +201,7 @@ export function createHttpMeegleAuthAdapter(
         "refresh_token_expires_in",
         "refresh_expires_in",
       ]);
-      logAdapterFlow("USER_PLUGIN_TOKEN", "OK", { baseUrl: input.baseUrl, hasUserToken: Boolean(userToken), hasRefreshToken: Boolean(refreshToken), expiresInSeconds, refreshTokenExpiresInSeconds });
+      adapterLogger.info({ baseUrl: input.baseUrl, hasUserToken: Boolean(userToken), hasRefreshToken: Boolean(refreshToken), expiresInSeconds, refreshTokenExpiresInSeconds }, "USER_PLUGIN_TOKEN OK");
       return {
         userToken,
         refreshToken,
@@ -214,7 +211,7 @@ export function createHttpMeegleAuthAdapter(
     },
 
     async refreshUserToken(input): Promise<UserTokenPair> {
-      logAdapterFlow("REFRESH_TOKEN", "START", { baseUrl: input.baseUrl, hasPluginToken: Boolean(input.pluginToken), hasRefreshToken: Boolean(input.refreshToken) });
+      adapterLogger.info({ baseUrl: input.baseUrl, hasPluginToken: Boolean(input.pluginToken), hasRefreshToken: Boolean(input.refreshToken) }, "REFRESH_TOKEN START");
       const response = await fetchImpl(
         joinUrl(input.baseUrl, "/bff/v2/authen/refresh_token"),
         {
@@ -233,7 +230,7 @@ export function createHttpMeegleAuthAdapter(
 
       if (!response.ok) {
         const detail = extractErrorMessage(payload);
-        logAdapterFlow("REFRESH_TOKEN", "FAIL", { baseUrl: input.baseUrl, status: response.status, detail, payloadKeys: Object.keys(payload) });
+        adapterLogger.error({ baseUrl: input.baseUrl, status: response.status, detail, payloadKeys: Object.keys(payload) }, "REFRESH_TOKEN FAIL");
         throw new Error(
           `Failed to refresh user token: ${response.status}${detail ? ` ${detail}` : ""}`,
         );
@@ -247,7 +244,7 @@ export function createHttpMeegleAuthAdapter(
         "refresh_token_expires_in",
         "refresh_expires_in",
       ]);
-      logAdapterFlow("REFRESH_TOKEN", "OK", { baseUrl: input.baseUrl, hasUserToken: Boolean(userToken), hasRefreshToken: Boolean(refreshToken), expiresInSeconds, refreshTokenExpiresInSeconds });
+      adapterLogger.info({ baseUrl: input.baseUrl, hasUserToken: Boolean(userToken), hasRefreshToken: Boolean(refreshToken), expiresInSeconds, refreshTokenExpiresInSeconds }, "REFRESH_TOKEN OK");
       return {
         userToken,
         refreshToken,

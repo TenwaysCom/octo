@@ -1,6 +1,9 @@
 import { z } from "zod";
 import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
+import { logger } from "../../logger.js";
+
+const configLogger = logger.child({ module: "lark-base-workflow-config" });
 
 // ==================== Zod Schemas ====================
 
@@ -71,13 +74,13 @@ export function loadLarkBaseWorkflowConfig(): LarkBaseWorkflowConfig | undefined
     const raw = readFileSync(configPath, "utf-8");
     const parsed = JSON.parse(raw) as unknown;
     const validated = workflowConfigSchema.parse(parsed);
-    console.log("[LarkBaseWorkflowConfig] loaded config", { path: configPath, issueTypeCount: validated.issueTypeMappings.length });
+    configLogger.info({ path: configPath, issueTypeCount: validated.issueTypeMappings.length }, "LOAD_CONFIG OK");
     return validated;
   } catch (error) {
-    console.error("[LarkBaseWorkflowConfig] failed to load config", {
+    configLogger.error({
       path: configPath,
       message: error instanceof Error ? error.message : String(error),
-    });
+    }, "LOAD_CONFIG FAIL");
     return undefined;
   }
 }
