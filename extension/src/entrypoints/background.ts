@@ -1,8 +1,4 @@
-import type { BackgroundDefinition } from "wxt";
 import { defineBackground } from "wxt/utils/define-background";
+import "../background/router.js";
 
-const background: BackgroundDefinition = defineBackground(() => {
-  void import("../background/router.js");
-});
-
-export default background;
+export default defineBackground(() => {});
