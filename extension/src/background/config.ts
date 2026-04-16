@@ -23,7 +23,7 @@ export const DEFAULT_CONFIG: ExtensionConfig = {
   MEEGLE_PLUGIN_ID: '',
   LARK_APP_ID: 'cli_a4b5c6d7e8f9', // TODO: Set via chrome.storage.sync.set
   LARK_OAUTH_CALLBACK_URL: 'http://localhost:3000/api/lark/auth/callback',
-  LARK_OAUTH_SCOPE: 'offline_access contact:user.base:readonly bitable:app',
+  LARK_OAUTH_SCOPE: 'offline_access contact:user.base:readonly bitable:app im:message.send_as_user im:message.reactions:write_only im:chat:readonly im:message',
   SERVER_URL: 'http://localhost:3000',
   MEEGLE_BASE_URL: 'https://project.larksuite.com',
 };

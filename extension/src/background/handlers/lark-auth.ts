@@ -48,7 +48,7 @@ export function buildLarkOauthUrl(
   state: string,
   appId?: string,
   callbackUrl = "http://localhost:3000/api/lark/auth/callback",
-  scope = "offline_access contact:user.base:readonly bitable:app",
+  scope = "offline_access contact:user.base:readonly bitable:app im:message.send_as_user im:message.reactions:write_only im:chat:readonly im:message",
 ): string {
   const authorizeBaseUrl = baseUrl.includes("feishu.cn")
     ? "https://accounts.feishu.cn"

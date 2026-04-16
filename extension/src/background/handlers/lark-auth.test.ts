@@ -127,7 +127,7 @@ describe("lark-auth handler", () => {
         "state_123",
         "cli_test",
         "https://example.ngrok-free.app/api/lark/auth/callback",
-        "offline_access contact:user.base:readonly bitable:app email",
+        "offline_access contact:user.base:readonly bitable:app im:message.send_as_user im:message.reactions:write_only im:chat:readonly im:message",
       ),
     );
 

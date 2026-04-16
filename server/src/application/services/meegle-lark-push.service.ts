@@ -298,35 +298,23 @@ export async function executeMeegleLarkPush(
         let targetMessageId: string | undefined;
 
         if (messageInfo.threadId) {
-          // pushLogger.debug({ threadId: messageInfo.threadId }, "PUSH_FETCH_THREAD_MESSAGES");
-          // const threadMessages = await larkClient.getThreadMessages(messageInfo.threadId);
-          // pushLogger.debug({ threadMessageCount: threadMessages.items.length }, "PUSH_THREAD_MESSAGES_RECEIVED");
-          // const firstMessage = threadMessages.items[0];
-          // if (firstMessage?.message_id) {
-          //   targetMessageId = firstMessage.message_id;
-          pushLogger.debug({ threadId: messageInfo.threadId }, "PUSH_SEND_THREAD_START");
-          const sendResult = await larkClient.sendMessage(
-            "thread_id",
-            messageInfo.threadId,
-            "text",
-            JSON.stringify({ text: larkUpdateMessage }),
-          );
-          messageSent = true;
-          pushLogger.info({ messageId: sendResult.message_id }, "PUSH_MESSAGE_OK");
+          pushLogger.debug({ threadId: messageInfo.threadId }, "PUSH_FETCH_THREAD_MESSAGES");
+          const threadMessages = await larkClient.getThreadMessages(messageInfo.threadId);
+          pushLogger.debug({ threadMessageCount: threadMessages.items.length }, "PUSH_THREAD_MESSAGES_RECEIVED");
 
-          // Add reaction to the root message in the thread
-          // In Lark, thread_id is the message_id of the parent message
-          pushLogger.debug({ threadId: messageInfo.threadId }, "PUSH_FETCH_THREAD_ROOT_MESSAGE");
-          const rootMessage = await larkClient.getMessage(messageInfo.threadId);
-          pushLogger.debug({ rootMessageId: rootMessage.message_id }, "PUSH_THREAD_ROOT_MESSAGE_RECEIVED");
-          if (rootMessage?.message_id) {
-            targetMessageId = rootMessage.message_id;
+          // For reply: use root_id of any thread message (the root message itself is not in the list)
+          const firstMessage = threadMessages.items[0];
+          const rootMessageId = firstMessage?.root_id;
+
+          // For reaction: use the first message in the thread list
+          if (firstMessage?.message_id) {
+            targetMessageId = firstMessage.message_id;
           }
 
-          if (targetMessageId) {
-            pushLogger.debug({ threadId: messageInfo.threadId, rootMessageId: targetMessageId }, "PUSH_REPLY_THREAD_START");
+          if (rootMessageId) {
+            pushLogger.debug({ threadId: messageInfo.threadId, rootMessageId }, "PUSH_REPLY_THREAD_START");
             const sendResult = await larkClient.replyToMessage(
-              targetMessageId,
+              rootMessageId,
               "text",
               JSON.stringify({ text: larkUpdateMessage }),
               { reply_in_thread: true },

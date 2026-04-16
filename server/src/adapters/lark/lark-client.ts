@@ -420,6 +420,43 @@ export class LarkClient {
   }
 
   /**
+   * Get messages in a thread
+   */
+  async getThreadMessages(threadId: string): Promise<{
+    items: Array<{
+      message_id: string;
+      root_id?: string;
+      content?: string;
+    }>;
+    hasMore: boolean;
+    pageToken?: string;
+  }> {
+    const data = await this.request<{
+      items?: Array<{
+        message_id?: string;
+        root_id?: string;
+        body?: { content?: string };
+      }>;
+      has_more?: boolean;
+      page_token?: string;
+    }>("GET", "/open-apis/im/v1/messages", undefined, {
+      container_id_type: "thread",
+      container_id: threadId,
+      page_size: 50,
+    });
+
+    return {
+      items: (data.items || []).map((item) => ({
+        message_id: item.message_id || "",
+        root_id: item.root_id,
+        content: item.body?.content,
+      })),
+      hasMore: data.has_more ?? false,
+      pageToken: data.page_token,
+    };
+  }
+
+  /**
    * Add a reaction to a message
    */
   async addMessageReaction(messageId: string, emojiType: string): Promise<void> {
