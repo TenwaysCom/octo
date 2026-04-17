@@ -25,6 +25,7 @@ describe("extension config", () => {
           LARK_APP_ID: "cli_server_public",
           MEEGLE_BASE_URL: "https://tenant.meegle.com",
           LARK_OAUTH_CALLBACK_URL: "https://example.ngrok-free.app/api/lark/auth/callback",
+          CLIENT_DEBUG_LOG_UPLOAD_ENABLED: true,
         },
       }),
     } as Response);
@@ -35,6 +36,7 @@ describe("extension config", () => {
       LARK_APP_ID: "cli_server_public",
       MEEGLE_BASE_URL: "https://tenant.meegle.com",
       LARK_OAUTH_CALLBACK_URL: "https://example.ngrok-free.app/api/lark/auth/callback",
+      CLIENT_DEBUG_LOG_UPLOAD_ENABLED: true,
     });
     expect(chrome.storage.sync.set).toHaveBeenCalledWith(
       {
@@ -42,6 +44,7 @@ describe("extension config", () => {
         LARK_APP_ID: "cli_server_public",
         MEEGLE_BASE_URL: "https://tenant.meegle.com",
         LARK_OAUTH_CALLBACK_URL: "https://example.ngrok-free.app/api/lark/auth/callback",
+        CLIENT_DEBUG_LOG_UPLOAD_ENABLED: true,
       },
       expect.any(Function),
     );

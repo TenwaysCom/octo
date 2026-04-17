@@ -12,6 +12,7 @@ vi.mock("../background/config.js", () => ({
 }));
 
 import {
+  postClientDebugLog,
   getConfig,
   getLarkAuthStatus,
   resolveIdentityRequest,
@@ -133,6 +134,7 @@ describe("popup runtime settings", () => {
       LARK_OAUTH_CALLBACK_URL: "https://example.ngrok-free.app/api/lark/auth/callback",
       MEEGLE_BASE_URL: "https://project.larksuite.com",
       LARK_OAUTH_SCOPE: "offline_access",
+      CLIENT_DEBUG_LOG_UPLOAD_ENABLED: true,
     });
     vi.mocked(fetch).mockResolvedValue({
       ok: true,
@@ -230,6 +232,67 @@ describe("popup runtime settings", () => {
     );
   });
 
+  it("posts popup debug logs to the local debug endpoint", async () => {
+    vi.mocked(getConfig).mockResolvedValue({
+      SERVER_URL: "http://localhost:3000",
+      MEEGLE_PLUGIN_ID: "MII_SERVER_PLUGIN",
+      LARK_APP_ID: "cli_server_public",
+      LARK_OAUTH_CALLBACK_URL: "https://example.ngrok-free.app/api/lark/auth/callback",
+      MEEGLE_BASE_URL: "https://project.larksuite.com",
+      LARK_OAUTH_SCOPE: "offline_access",
+      CLIENT_DEBUG_LOG_UPLOAD_ENABLED: true,
+    });
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: async () => ({ ok: true }),
+    } as Response);
+
+    await expect(
+      postClientDebugLog({
+        source: "popup:app",
+        level: "info",
+        event: "acp.send.start",
+        detail: {
+          activePage: "chat",
+        },
+      }),
+    ).resolves.toBe(true);
+
+    expect(fetch).toHaveBeenCalledWith(
+      "http://localhost:3000/api/debug/client-log",
+      expect.objectContaining({
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: expect.any(String),
+        keepalive: true,
+      }),
+    );
+  });
+
+  it("does not upload popup debug logs when client debug upload is disabled", async () => {
+    vi.mocked(getConfig).mockResolvedValue({
+      SERVER_URL: "http://localhost:3000",
+      MEEGLE_PLUGIN_ID: "MII_SERVER_PLUGIN",
+      LARK_APP_ID: "cli_server_public",
+      LARK_OAUTH_CALLBACK_URL: "https://example.ngrok-free.app/api/lark/auth/callback",
+      MEEGLE_BASE_URL: "https://project.larksuite.com",
+      LARK_OAUTH_SCOPE: "offline_access",
+      CLIENT_DEBUG_LOG_UPLOAD_ENABLED: false,
+    });
+
+    await expect(
+      postClientDebugLog({
+        source: "popup:app",
+        level: "info",
+        event: "acp.send.start",
+      }),
+    ).resolves.toBe(false);
+
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it("requests lark auth status from the server without opening oauth", async () => {
     vi.mocked(getConfig).mockResolvedValue({
       SERVER_URL: "http://localhost:3000",
@@ -238,6 +301,7 @@ describe("popup runtime settings", () => {
       LARK_OAUTH_CALLBACK_URL: "https://example.ngrok-free.app/api/lark/auth/callback",
       MEEGLE_BASE_URL: "https://project.larksuite.com",
       LARK_OAUTH_SCOPE: "offline_access",
+      CLIENT_DEBUG_LOG_UPLOAD_ENABLED: false,
     });
     vi.mocked(fetch).mockResolvedValue({
       ok: true,

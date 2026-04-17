@@ -10,13 +10,14 @@ export interface ExtensionConfig {
   LARK_APP_ID: string;
   LARK_OAUTH_CALLBACK_URL: string;
   LARK_OAUTH_SCOPE: string;
+  CLIENT_DEBUG_LOG_UPLOAD_ENABLED: boolean;
   SERVER_URL: string;
   MEEGLE_BASE_URL: string;
 }
 
 interface PublicConfigResponse {
   ok: boolean;
-  data?: Partial<Pick<ExtensionConfig, "MEEGLE_PLUGIN_ID" | "LARK_APP_ID" | "LARK_OAUTH_CALLBACK_URL" | "MEEGLE_BASE_URL" | "LARK_OAUTH_SCOPE">>;
+  data?: Partial<Pick<ExtensionConfig, "MEEGLE_PLUGIN_ID" | "LARK_APP_ID" | "LARK_OAUTH_CALLBACK_URL" | "MEEGLE_BASE_URL" | "LARK_OAUTH_SCOPE" | "CLIENT_DEBUG_LOG_UPLOAD_ENABLED">>;
 }
 
 export const DEFAULT_CONFIG: ExtensionConfig = {
@@ -24,6 +25,7 @@ export const DEFAULT_CONFIG: ExtensionConfig = {
   LARK_APP_ID: 'cli_a4b5c6d7e8f9', // TODO: Set via chrome.storage.sync.set
   LARK_OAUTH_CALLBACK_URL: 'http://localhost:3000/api/lark/auth/callback',
   LARK_OAUTH_SCOPE: 'offline_access contact:user.base:readonly bitable:app base:record:retrieve im:message.send_as_user im:message.reactions:write_only im:chat:readonly im:message',
+  CLIENT_DEBUG_LOG_UPLOAD_ENABLED: false,
   SERVER_URL: 'https://octo.odoo.tenways.it:18443',
   MEEGLE_BASE_URL: 'https://project.larksuite.com',
 };
@@ -48,6 +50,10 @@ function mergePublicConfig(
     LARK_OAUTH_CALLBACK_URL:
       publicConfig.LARK_OAUTH_CALLBACK_URL?.trim() || base.LARK_OAUTH_CALLBACK_URL,
     LARK_OAUTH_SCOPE: publicConfig.LARK_OAUTH_SCOPE?.trim() || base.LARK_OAUTH_SCOPE,
+    CLIENT_DEBUG_LOG_UPLOAD_ENABLED:
+      typeof publicConfig.CLIENT_DEBUG_LOG_UPLOAD_ENABLED === "boolean"
+        ? publicConfig.CLIENT_DEBUG_LOG_UPLOAD_ENABLED
+        : base.CLIENT_DEBUG_LOG_UPLOAD_ENABLED,
     MEEGLE_BASE_URL: publicConfig.MEEGLE_BASE_URL?.trim() || base.MEEGLE_BASE_URL,
   };
 }
@@ -76,6 +82,10 @@ export async function getConfig(): Promise<ExtensionConfig> {
       LARK_APP_ID: trimOrUndefined(payload.data?.LARK_APP_ID),
       LARK_OAUTH_CALLBACK_URL: trimOrUndefined(payload.data?.LARK_OAUTH_CALLBACK_URL),
       LARK_OAUTH_SCOPE: trimOrUndefined(payload.data?.LARK_OAUTH_SCOPE),
+      CLIENT_DEBUG_LOG_UPLOAD_ENABLED:
+        typeof payload.data?.CLIENT_DEBUG_LOG_UPLOAD_ENABLED === "boolean"
+          ? payload.data.CLIENT_DEBUG_LOG_UPLOAD_ENABLED
+          : undefined,
       MEEGLE_BASE_URL: trimOrUndefined(payload.data?.MEEGLE_BASE_URL),
     };
 
@@ -84,6 +94,7 @@ export async function getConfig(): Promise<ExtensionConfig> {
       publicConfigUpdates.LARK_APP_ID ||
       publicConfigUpdates.LARK_OAUTH_CALLBACK_URL ||
       publicConfigUpdates.LARK_OAUTH_SCOPE ||
+      typeof publicConfigUpdates.CLIENT_DEBUG_LOG_UPLOAD_ENABLED === "boolean" ||
       publicConfigUpdates.MEEGLE_BASE_URL
     ) {
       await setConfig(publicConfigUpdates);

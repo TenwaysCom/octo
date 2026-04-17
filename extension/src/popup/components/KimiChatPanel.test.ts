@@ -5,12 +5,12 @@ import { describe, expect, it } from "vitest";
 
 describe("KimiChatPanel", () => {
   it("renders assistant details, status summaries, raw fallbacks, and emits one send event from a single input", async () => {
-    const componentPath = "./KimiChatPanel.vue";
-    const { default: KimiChatPanel } = await import(
+    const componentPath = "./AcpChatPanel.vue";
+    const { default: AcpChatPanel } = await import(
       /* @vite-ignore */ componentPath
     );
 
-    const wrapper = mount(KimiChatPanel, {
+    const wrapper = mount(AcpChatPanel, {
       props: {
         transcript: [
           {
@@ -76,12 +76,12 @@ describe("KimiChatPanel", () => {
   });
 
   it("shows a stop button while busy and emits stop without re-enabling input", async () => {
-    const componentPath = "./KimiChatPanel.vue";
-    const { default: KimiChatPanel } = await import(
+    const componentPath = "./AcpChatPanel.vue";
+    const { default: AcpChatPanel } = await import(
       /* @vite-ignore */ componentPath
     );
 
-    const wrapper = mount(KimiChatPanel, {
+    const wrapper = mount(AcpChatPanel, {
       props: {
         transcript: [
           {

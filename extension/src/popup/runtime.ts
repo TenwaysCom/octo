@@ -69,6 +69,38 @@ export interface IdentityResolveResponse {
   };
 }
 
+export async function postClientDebugLog(input: {
+  source: string;
+  level: "debug" | "info" | "warn" | "error";
+  event: string;
+  detail?: Record<string, unknown>;
+}): Promise<boolean> {
+  const config = await getConfig();
+  if (!config.CLIENT_DEBUG_LOG_UPLOAD_ENABLED) {
+    return false;
+  }
+
+  try {
+    const response = await fetch(`${config.SERVER_URL}/api/debug/client-log`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      keepalive: true,
+      body: JSON.stringify(input),
+    });
+
+    return response.ok;
+  } catch (error) {
+    runtimeLogger.warn("postClientDebugLog.failed", {
+      source: input.source,
+      event: input.event,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
+    return false;
+  }
+}
+
 function getChromeApi(): typeof chrome {
   if (!globalThis.chrome) {
     throw new Error("Chrome extension APIs are unavailable in this context.");

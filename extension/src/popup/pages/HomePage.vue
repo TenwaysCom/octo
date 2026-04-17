@@ -1,6 +1,6 @@
 <template>
   <div class="home-page" data-test="home-page">
-    <KimiChatPanel
+    <AcpChatPanel
       v-if="showKimiChat"
       :transcript="kimiChatTranscript"
       :busy="kimiChatBusy"
@@ -49,7 +49,7 @@
 import type { PopupLogEntry, PopupFeatureAction, PopupStatusChip } from "../types.js";
 import type { PopupViewModel } from "../view-model.js";
 import type { KimiChatTranscriptEntry } from "../../types/acp-kimi.js";
-import KimiChatPanel from "../components/KimiChatPanel.vue";
+import AcpChatPanel from "../components/AcpChatPanel.vue";
 import LogPanel from "../components/LogPanel.vue";
 import LarkPageView from "./LarkPageView.vue";
 import MeeglePageView from "./MeeglePageView.vue";

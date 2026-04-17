@@ -28,6 +28,7 @@ describe("index routes", () => {
     expect(collectRoutes()).toEqual(
       expect.arrayContaining([
         "POST /api/identity/resolve",
+        "POST /api/debug/client-log",
         "GET /api/config/public",
         "POST /api/meegle/auth/exchange",
         "POST /api/meegle/auth/status",

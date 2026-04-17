@@ -1,4 +1,4 @@
-import { computed, reactive, ref } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 import type { LarkAuthEnsureResponse } from "../../types/lark.js";
 import type { MeegleAuthEnsureResponse } from "../../types/meegle.js";
 import {
@@ -14,6 +14,7 @@ import {
   getLarkAuthStatus,
   loadPopupSettings,
   loadResolvedIdentity,
+  postClientDebugLog,
   queryActiveTabContext,
   requestLarkUserId,
   requestMeegleUserIdentity,
@@ -143,6 +144,22 @@ export function usePopupApp() {
       // Vue derives display state from reactive auth flags and identity.
     },
     log: logAdapter,
+  });
+
+  void watch(activePage, (nextPage, previousPage) => {
+    popupLogger.info("activePage.changed", {
+      previousPage,
+      nextPage,
+    });
+    void postClientDebugLog({
+      source: "popup:app",
+      level: "info",
+      event: "activePage.changed",
+      detail: {
+        previousPage,
+        nextPage,
+      },
+    });
   });
 
   function getKimiChatRenderState(): KimiChatRenderState {
@@ -306,22 +323,7 @@ export function usePopupApp() {
       state.isAuthed.lark = auth.status === "ready";
 
       if (auth.status === "ready" && auth.masterUserId && auth.baseUrl) {
-        const userInfo = await fetchLarkUserInfo({
-          masterUserId: auth.masterUserId,
-          baseUrl: auth.baseUrl,
-        });
-
-        if (userInfo.ok && userInfo.data) {
-          if (userInfo.data.email && !state.identity.larkEmail) {
-            state.identity.larkEmail = userInfo.data.email;
-          }
-          if (userInfo.data.name && !state.identity.larkName) {
-            state.identity.larkName = userInfo.data.name;
-          }
-          if (userInfo.data.avatarUrl && !state.identity.larkAvatar) {
-            state.identity.larkAvatar = userInfo.data.avatarUrl;
-          }
-        }
+        await hydrateLarkIdentityFromServer(auth.masterUserId, auth.baseUrl);
       }
 
       return;
@@ -373,6 +375,7 @@ export function usePopupApp() {
       await ensureResolvedIdentity();
 
       await refreshAuthStates();
+      await hydrateLarkIdentityIfReady();
 
       if (!state.isAuthed.lark || !state.isAuthed.meegle) {
         activePage.value = "profile";
@@ -767,6 +770,16 @@ export function usePopupApp() {
   }
 
   function resetKimiChatSession() {
+    void postClientDebugLog({
+      source: "popup:app",
+      level: "info",
+      event: "acp.session.reset",
+      detail: {
+        activePage: activePage.value,
+        hadSessionId: Boolean(kimiChatSessionId.value),
+        transcriptLength: kimiChatTranscript.value.length,
+      },
+    });
     cancelPendingKimiChatState();
     if (kimiChatAbortController) {
       kimiChatAbortController.abort();
@@ -796,11 +809,47 @@ export function usePopupApp() {
     appendKimiChatStatus("已停止生成");
   }
 
+  function openKimiChatHistory() {
+    appendLog("info", "历史会话抽屉开发中");
+    void postClientDebugLog({
+      source: "popup:app",
+      level: "info",
+      event: "acp.history.open",
+      detail: {
+        activePage: activePage.value,
+        transcriptLength: kimiChatTranscript.value.length,
+      },
+    });
+  }
+
   async function sendKimiChatMessage(messageText: string) {
     const operatorLarkId = state.identity.larkId || settingsForm.larkUserId;
+    void postClientDebugLog({
+      source: "popup:app",
+      level: "info",
+      event: "acp.send.start",
+      detail: {
+        activePage: activePage.value,
+        hasOperatorLarkId: Boolean(operatorLarkId),
+        hasSessionId: Boolean(kimiChatSessionId.value),
+        transcriptLength: kimiChatTranscript.value.length,
+        messageLength: messageText.length,
+      },
+    });
 
     if (!operatorLarkId) {
       appendLog("error", "缺少 operatorLarkId，无法发送 Kimi ACP 消息");
+      void postClientDebugLog({
+        source: "popup:app",
+        level: "error",
+        event: "acp.send.blocked_missing_operator",
+        detail: {
+          activePage: activePage.value,
+          stateLarkId: state.identity.larkId || null,
+          settingsLarkUserId: settingsForm.larkUserId || null,
+          masterUserId: state.identity.masterUserId || null,
+        },
+      });
       return;
     }
 
@@ -859,6 +908,17 @@ export function usePopupApp() {
         },
       });
 
+      void postClientDebugLog({
+        source: "popup:app",
+        level: "info",
+        event: "acp.send.completed",
+        detail: {
+          activePage: activePage.value,
+          sessionId: kimiChatSessionId.value,
+          transcriptLength: kimiChatTranscript.value.length,
+        },
+      });
+
       if (activeKimiChatRequestId === requestId) {
         flushPendingKimiChatState();
       }
@@ -895,6 +955,17 @@ export function usePopupApp() {
         "error",
         `Kimi ACP 请求失败: ${error instanceof Error ? error.message : String(error)}`,
       );
+      void postClientDebugLog({
+        source: "popup:app",
+        level: "error",
+        event: "acp.send.failed",
+        detail: {
+          activePage: activePage.value,
+          errorCode: errorCode ?? null,
+          errorMessage: error instanceof Error ? error.message : String(error),
+          receivedEvents,
+        },
+      });
     } finally {
       if (activeKimiChatRequestId === requestId) {
         clearActiveKimiChatRequest();
@@ -1033,6 +1104,43 @@ export function usePopupApp() {
     return undefined;
   }
 
+  async function hydrateLarkIdentityIfReady(): Promise<void> {
+    const auth = state.larkAuth;
+    if (auth?.status !== "ready" || !auth.masterUserId || !auth.baseUrl) {
+      return;
+    }
+
+    await hydrateLarkIdentityFromServer(auth.masterUserId, auth.baseUrl);
+  }
+
+  async function hydrateLarkIdentityFromServer(
+    masterUserId: string,
+    baseUrl: string,
+  ): Promise<void> {
+    const userInfo = await fetchLarkUserInfo({
+      masterUserId,
+      baseUrl,
+    });
+
+    if (!userInfo.ok || !userInfo.data) {
+      return;
+    }
+
+    if (userInfo.data.userId) {
+      state.identity.larkId = userInfo.data.userId;
+      settingsForm.larkUserId = userInfo.data.userId;
+    }
+    if (userInfo.data.email && !state.identity.larkEmail) {
+      state.identity.larkEmail = userInfo.data.email;
+    }
+    if (userInfo.data.name && !state.identity.larkName) {
+      state.identity.larkName = userInfo.data.name;
+    }
+    if (userInfo.data.avatarUrl && !state.identity.larkAvatar) {
+      state.identity.larkAvatar = userInfo.data.avatarUrl;
+    }
+  }
+
   return {
     state,
     logs,
@@ -1066,6 +1174,8 @@ export function usePopupApp() {
     clearLogs,
     exportLogs,
     runFeatureAction,
+    resetKimiChatSession,
+    openKimiChatHistory,
     updateKimiChatDraftMessage,
     sendKimiChatMessage,
     stopKimiChatGeneration,

@@ -2,6 +2,7 @@ import "reflect-metadata";
 import "dotenv/config";
 import express, { type Request, type Response } from "express";
 import { resolveIdentityController } from "./modules/identity/identity.controller.js";
+import { writeClientDebugLogController } from "./modules/debug-log/debug-log.controller.js";
 import { exchangeAuthCodeController, getAuthStatusController } from "./modules/meegle-auth/meegle-auth.controller.js";
 import { exchangeAuthCodeController as exchangeLarkAuthCodeController, refreshTokenController as refreshLarkTokenController, getAuthStatusController as getLarkAuthStatusController, handleAuthCallbackController as handleLarkAuthCallbackController, createOauthSessionController as createLarkOauthSessionController, getLarkUserInfoController as getLarkUserInfoController } from "./modules/lark-auth/lark-auth.controller.js";
 import { configureLarkAuthControllerDeps } from "./modules/lark-auth/lark-auth.controller.js";
@@ -41,6 +42,8 @@ configurePublicConfigController({
   LARK_APP_ID,
   LARK_OAUTH_CALLBACK_URL,
   MEEGLE_BASE_URL,
+  CLIENT_DEBUG_LOG_UPLOAD_ENABLED:
+    process.env.CLIENT_DEBUG_LOG_UPLOAD_ENABLED === "true",
 });
 
 // Configure Lark auth with credentials
@@ -123,6 +126,7 @@ function handleController(fn: (req: Request) => Promise<unknown>) {
 
 // Identity routes
 app.post("/api/identity/resolve", handleController(resolveIdentityController));
+app.post("/api/debug/client-log", handleController(writeClientDebugLogController));
 
 // Public config route
 app.get("/api/config/public", async (_req, res) => {

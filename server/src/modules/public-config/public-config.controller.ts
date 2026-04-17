@@ -6,6 +6,7 @@ export interface PublicConfigResponse {
     LARK_OAUTH_CALLBACK_URL: string;
     MEEGLE_BASE_URL: string;
     LARK_OAUTH_SCOPE: string;
+    CLIENT_DEBUG_LOG_UPLOAD_ENABLED: boolean;
   };
 }
 
@@ -15,6 +16,7 @@ export interface PublicConfigControllerDeps {
   LARK_OAUTH_CALLBACK_URL: string;
   MEEGLE_BASE_URL: string;
   LARK_OAUTH_SCOPE: string;
+  CLIENT_DEBUG_LOG_UPLOAD_ENABLED: boolean;
 }
 
 let publicConfigDeps: PublicConfigControllerDeps = {
@@ -23,6 +25,7 @@ let publicConfigDeps: PublicConfigControllerDeps = {
   LARK_OAUTH_CALLBACK_URL: "",
   MEEGLE_BASE_URL: "https://project.larksuite.com",
   LARK_OAUTH_SCOPE: "offline_access contact:user.base:readonly bitable:app base:record:retrieve im:message.send_as_user im:message.reactions:write_only im:chat:readonly im:message",
+  CLIENT_DEBUG_LOG_UPLOAD_ENABLED: false,
 };
 
 export function configurePublicConfigController(
@@ -43,6 +46,7 @@ export async function getPublicConfigController(): Promise<PublicConfigResponse>
       LARK_OAUTH_CALLBACK_URL: publicConfigDeps.LARK_OAUTH_CALLBACK_URL,
       MEEGLE_BASE_URL: publicConfigDeps.MEEGLE_BASE_URL,
       LARK_OAUTH_SCOPE: publicConfigDeps.LARK_OAUTH_SCOPE,
+      CLIENT_DEBUG_LOG_UPLOAD_ENABLED: publicConfigDeps.CLIENT_DEBUG_LOG_UPLOAD_ENABLED,
     },
   };
 }

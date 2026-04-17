@@ -3,6 +3,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const runtimeMock = vi.hoisted(() => ({
+  postClientDebugLog: vi.fn(),
+  fetchLarkUserInfo: vi.fn(),
   getConfig: vi.fn(),
   getLarkAuthStatus: vi.fn(),
   clearResolvedIdentity: vi.fn(),
@@ -116,8 +118,20 @@ describe("usePopupApp notebook state", () => {
     runtimeMock.getLarkAuthStatus.mockResolvedValue({
       status: "ready",
       baseUrl: "https://open.larksuite.com",
+      masterUserId: "usr_resolved",
       expiresAt: "2026-04-02T21:01:00.000Z",
     });
+    runtimeMock.fetchLarkUserInfo.mockResolvedValue({
+      ok: true,
+      data: {
+        userId: "ou_user",
+        tenantKey: "tenant_123",
+        email: "user@example.com",
+        name: "Test User",
+        avatarUrl: "https://example.com/avatar.png",
+      },
+    });
+    runtimeMock.postClientDebugLog.mockResolvedValue(true);
     runtimeMock.loadPopupSettings.mockResolvedValue({
       SERVER_URL: "http://localhost:3000",
       MEEGLE_PLUGIN_ID: "MII_PLUGIN",
@@ -418,8 +432,12 @@ describe("usePopupApp notebook state", () => {
       12,
       "usr_resolved",
     );
+    expect(runtimeMock.fetchLarkUserInfo).toHaveBeenCalledWith({
+      masterUserId: "usr_resolved",
+      baseUrl: "https://open.larksuite.com",
+    });
     expect(popup.state.identity.masterUserId).toBe("usr_resolved");
-    expect(popup.state.identity.larkId).toBe("ou_resolved");
+    expect(popup.state.identity.larkId).toBe("ou_user");
     expect(popup.state.identity.larkEmail).toBe("user@example.com");
   });
 
@@ -1036,5 +1054,53 @@ describe("usePopupApp notebook state", () => {
         entry.kind === "user" && entry.text?.includes("follow up"),
       ),
     ).toBe(false);
+  });
+
+  it("hydrates operatorLarkId from server user info before sending on a meegle page", async () => {
+    runtimeMock.loadPopupSettings.mockResolvedValueOnce({
+      SERVER_URL: "http://localhost:3000",
+      MEEGLE_PLUGIN_ID: "MII_PLUGIN",
+      LARK_OAUTH_CALLBACK_URL: "http://localhost:3000/api/lark/auth/callback",
+      meegleUserKey: "7538275242901291040",
+      larkUserId: "",
+    });
+    runtimeMock.queryActiveTabContext.mockResolvedValueOnce({
+      id: 12,
+      url: "https://project.larksuite.com/4c3fv6/overview",
+      origin: "https://project.larksuite.com",
+      pageType: "meegle",
+    });
+    runtimeMock.requestMeegleUserIdentity.mockResolvedValueOnce({
+      userKey: "7538275242901291040",
+    });
+    runtimeMock.resolveIdentityRequest.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        masterUserId: "usr_resolved",
+        identityStatus: "active",
+        meegleUserKey: "7538275242901291040",
+      },
+    });
+    kimiChatClientMock.sendMessage.mockResolvedValueOnce(undefined);
+
+    const popup = usePopupApp();
+
+    await popup.initialize();
+    await popup.sendKimiChatMessage("从 meegle 页面发起");
+
+    expect(runtimeMock.fetchLarkUserInfo).toHaveBeenCalledWith({
+      masterUserId: "usr_resolved",
+      baseUrl: "https://open.larksuite.com",
+    });
+    expect(popup.state.identity.larkId).toBe("ou_user");
+    expect(kimiChatClientMock.sendMessage).toHaveBeenCalledWith(
+      {
+        operatorLarkId: "ou_user",
+        message: "从 meegle 页面发起",
+      },
+      expect.objectContaining({
+        onEvent: expect.any(Function),
+      }),
+    );
   });
 });

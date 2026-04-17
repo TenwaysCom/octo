@@ -22,6 +22,8 @@
               @send-kimi-chat-message="sendKimiChatMessage"
               @stop-kimi-chat-generation="stopKimiChatGeneration"
               @update-kimi-chat-draft-message="updateKimiChatDraftMessage"
+              @reset-kimi-chat-session="resetKimiChatSession"
+              @open-kimi-chat-history="openKimiChatHistory"
             />
             <SettingsPage
               v-else-if="activePage === 'settings'"
@@ -98,6 +100,8 @@ const {
   clearLogs,
   exportLogs,
   runFeatureAction,
+  resetKimiChatSession,
+  openKimiChatHistory,
   updateKimiChatDraftMessage,
   sendKimiChatMessage,
   stopKimiChatGeneration,
