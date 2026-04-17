@@ -15,6 +15,7 @@ export interface LarkAuthEnsureRequest {
   baseUrl?: string;
   pageOrigin?: string;
   state?: string;
+  force?: boolean;
 }
 
 export interface LarkAuthEnsureResponse {
@@ -87,7 +88,7 @@ export interface LarkAuthCallbackResult {
   reason?: string;
 }
 
-export type LarkSourcePageType = "lark_a1" | "lark_a2";
+export type LarkSourcePageType = "lark_base";
 
 export type LarkDetectedPageType = LarkSourcePageType | "unknown";
 
@@ -109,43 +110,17 @@ export interface LarkRecordSnapshotField {
 export interface LarkRecordSnapshot {
   title: string;
   fields: LarkRecordSnapshotField[];
+  larkUrl: string;
 }
 
-export interface LarkDraftFieldValuePair {
-  fieldKey: string;
-  fieldValue: unknown;
+export interface LarkBaseCreateWorkitemRequest extends LarkPageContext {
+  snapshot?: LarkRecordSnapshot;
 }
 
-export interface LarkWorkflowDraft {
-  draftId: string;
-  draftType: "b1" | "b2";
-  sourceRef: {
-    sourcePlatform: LarkSourcePageType;
-    sourceRecordId: string;
-  };
-  target: {
-    projectKey: string;
-    workitemTypeKey: string;
-    templateId: string | number;
-  };
-  name: string;
-  needConfirm: true;
-  fieldValuePairs: LarkDraftFieldValuePair[];
-  ownerUserKeys: string[];
-  missingMeta: string[];
-}
-
-export interface LarkDraftApplyResult {
-  status: "created";
+export interface LarkBaseCreateWorkitemResultPayload {
+  ok: true;
   workitemId: string;
-  draft: LarkWorkflowDraft;
-}
-
-export interface LarkDomDraftRequest extends LarkPageContext {
-  snapshot: LarkRecordSnapshot;
-}
-
-export interface LarkDomApplyRequest extends LarkPageContext {
-  snapshot: LarkRecordSnapshot;
-  draft: LarkWorkflowDraft;
+  meegleLink: string;
+  recordId: string;
+  workitems?: Array<{ workitemId: string; meegleLink: string }>;
 }

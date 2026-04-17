@@ -5,10 +5,10 @@ import { describe, expect, it } from "vitest";
 import PopupNotebook from "./PopupNotebook.vue";
 
 describe("PopupNotebook", () => {
-  it("renders home and settings tabs and emits page changes", async () => {
+  it("renders chat, automation, settings and profile tabs and emits page changes", async () => {
     const wrapper = mount(PopupNotebook, {
       props: {
-        modelValue: "home",
+        modelValue: "chat",
       },
       global: {
         stubs: {
@@ -16,11 +16,17 @@ describe("PopupNotebook", () => {
             props: ["value", "options"],
             template: `
               <div data-test="popup-notebook">
-                <button data-test="popup-tab-home" @click="$emit('change', 'home')">
+                <button data-test="popup-tab-chat" @click="$emit('change', 'chat')">
                   {{ options[0].label }}
                 </button>
-                <button data-test="popup-tab-settings" @click="$emit('change', 'settings')">
+                <button data-test="popup-tab-automation" @click="$emit('change', 'automation')">
                   {{ options[1].label }}
+                </button>
+                <button data-test="popup-tab-settings" @click="$emit('change', 'settings')">
+                  {{ options[2].label }}
+                </button>
+                <button data-test="popup-tab-profile" @click="$emit('change', 'profile')">
+                  {{ options[3].label }}
                 </button>
               </div>
             `,
@@ -29,7 +35,7 @@ describe("PopupNotebook", () => {
       },
     });
 
-    expect(wrapper.get('[data-test="popup-tab-home"]').text()).toBe("主页");
+    expect(wrapper.get('[data-test="popup-tab-chat"]').text()).toBe("聊天");
     expect(wrapper.get('[data-test="popup-tab-settings"]').text()).toBe("设置");
 
     await wrapper.get('[data-test="popup-tab-settings"]').trigger("click");

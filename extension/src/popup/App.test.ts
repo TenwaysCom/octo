@@ -27,55 +27,67 @@ describe("popup App", () => {
     popupAppMock.current = createPopupAppMock("unsupported");
   });
 
-  it("renders the unsupported page view for non-supported tabs", async () => {
+  it("renders the automation page by default", async () => {
     const wrapper = mountApp();
 
     await flushPromises();
 
     expect(popupAppMock.current?.initialize).toHaveBeenCalledTimes(1);
-    expect(wrapper.find('[data-test="home-page"]').exists()).toBe(true);
-    expect(wrapper.get('[data-test="home-page"]').text()).toContain("unsupported");
+    expect(wrapper.find('[data-test="automation-page"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="settings-page"]').exists()).toBe(false);
   });
 
-  it("renders the lark page view inside the home page", async () => {
-    popupAppMock.current = createPopupAppMock("lark");
+  it("renders the unsupported view inside the automation page", async () => {
     const wrapper = mountApp();
 
     await flushPromises();
 
     expect(wrapper.find('[data-test="settings-page"]').exists()).toBe(false);
-    expect(wrapper.get('[data-test="home-page"]').text()).toContain("分析当前页面");
+    expect(wrapper.get('[data-test="automation-page"]').text()).toContain("unsupported");
   });
 
-  it("renders the meegle page view inside the home page", async () => {
+  it("renders the automation page with lark actions", async () => {
+    popupAppMock.current = createPopupAppMock("lark");
+    const wrapper = mountApp();
+
+    await flushPromises();
+    await wrapper.get('[data-test="vertical-tab-automation"]').trigger("click");
+
+    expect(wrapper.find('[data-test="automation-page"]').exists()).toBe(true);
+    expect(wrapper.get('[data-test="automation-page"]').text()).toContain("分析当前页面");
+  });
+
+  it("renders the automation page with meegle actions", async () => {
     popupAppMock.current = createPopupAppMock("meegle");
     const wrapper = mountApp();
 
     await flushPromises();
+    await wrapper.get('[data-test="vertical-tab-automation"]').trigger("click");
 
-    expect(wrapper.find('[data-test="settings-page"]').exists()).toBe(false);
-    expect(wrapper.get('[data-test="home-page"]').text()).toContain("查看来源上下文");
+    expect(wrapper.find('[data-test="automation-page"]').exists()).toBe(true);
+    expect(wrapper.get('[data-test="automation-page"]').text()).toContain("更新Lark及推送");
   });
 
-  it("renders the home page by default", async () => {
-    const wrapper = mountApp();
-
-    await flushPromises();
-
-    expect(wrapper.find('[data-test="home-page"]').exists()).toBe(true);
-    expect(wrapper.find('[data-test="settings-page"]').exists()).toBe(false);
-  });
-
-  it("switches to settings via the notebook tab", async () => {
+  it("switches to settings via the vertical tab bar", async () => {
     popupAppMock.current = createPopupAppMock("lark");
     const wrapper = mountApp();
 
     await flushPromises();
-    await wrapper.get('[data-test="popup-tab-settings"]').trigger("click");
+    await wrapper.get('[data-test="vertical-tab-settings"]').trigger("click");
 
     expect(wrapper.find('[data-test="settings-page"]').exists()).toBe(true);
-    expect(wrapper.find('[data-test="home-page"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="chat-page"]').exists()).toBe(false);
+  });
+
+  it("switches to profile via the vertical tab bar", async () => {
+    popupAppMock.current = createPopupAppMock("lark");
+    const wrapper = mountApp();
+
+    await flushPromises();
+    await wrapper.get('[data-test="vertical-tab-profile"]').trigger("click");
+
+    expect(wrapper.find('[data-test="profile-page"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="chat-page"]').exists()).toBe(false);
   });
 });
 
@@ -98,28 +110,43 @@ function mountApp() {
             </div>
           `,
         },
-        PopupNotebook: {
+        VerticalTabBar: {
           props: ["modelValue"],
           template: `
-            <div data-test='popup-notebook'>
-              <button data-test='popup-tab-home' @click="$emit('update:modelValue', 'home')">home</button>
-              <button data-test='popup-tab-settings' @click="$emit('update:modelValue', 'settings')">settings</button>
+            <div data-test='vertical-tab-bar'>
+              <button data-test='vertical-tab-chat' @click="$emit('update:modelValue', 'chat')">chat</button>
+              <button data-test='vertical-tab-automation' @click="$emit('update:modelValue', 'automation')">automation</button>
+              <button data-test='vertical-tab-settings' @click="$emit('update:modelValue', 'settings')">settings</button>
+              <button data-test='vertical-tab-profile' @click="$emit('update:modelValue', 'profile')">profile</button>
               {{ modelValue }}
             </div>
           `,
         },
-        HomePage: {
-          props: ["state", "larkActions", "meegleActions"],
+        ChatPage: {
+          props: ["state", "viewModel", "larkActions", "meegleActions", "logs"],
           template: `
-            <div data-test='home-page'>
-              <span v-if="state.pageType === 'unsupported'">unsupported</span>
-              <span v-else-if="state.pageType === 'lark'">{{ larkActions[0]?.label }}</span>
-              <span v-else>{{ meegleActions[0]?.label }}</span>
+            <div data-test='chat-page'>
+              <span v-if="viewModel?.showUnsupported">unsupported</span>
+              <span v-else-if="state?.pageType === 'lark'">{{ larkActions?.[0]?.label }}</span>
+              <span v-else>{{ meegleActions?.[0]?.label }}</span>
+            </div>
+          `,
+        },
+        AutomationPage: {
+          props: ["state", "viewModel", "larkActions", "meegleActions"],
+          template: `
+            <div data-test='automation-page'>
+              <span v-if="viewModel?.showUnsupported">unsupported</span>
+              <span v-else-if="state?.pageType === 'lark'">{{ larkActions?.[0]?.label }}</span>
+              <span v-else>{{ meegleActions?.[0]?.label }}</span>
             </div>
           `,
         },
         SettingsPage: {
           template: "<div data-test='settings-page'>settings</div>",
+        },
+        ProfilePage: {
+          template: "<div data-test='profile-page'>profile</div>",
         },
       },
     },
@@ -127,7 +154,7 @@ function mountApp() {
 }
 
 function createPopupAppMock(pageType: PopupPageType) {
-  const activePage = ref<PopupNotebookPage>("home");
+  const activePage = ref<PopupNotebookPage>("automation");
 
   return {
     state: reactive({
@@ -175,8 +202,8 @@ function createPopupAppMock(pageType: PopupPageType) {
     ]),
     meegleActions: ref<PopupFeatureAction[]>([
       {
-        key: "meegle-context",
-        label: "查看来源上下文",
+        key: "update-lark-and-push",
+        label: "更新Lark及推送",
         type: "primary",
         disabled: false,
       },
@@ -188,11 +215,11 @@ function createPopupAppMock(pageType: PopupPageType) {
       activePage.value = "settings";
     }),
     closeSettings: vi.fn(() => {
-      activePage.value = "home";
+      activePage.value = "chat";
     }),
     refreshServerConfig: vi.fn(),
     saveSettingsForm: vi.fn(async () => {
-      activePage.value = "home";
+      activePage.value = "chat";
     }),
     clearLogs: vi.fn(),
     runFeatureAction: vi.fn(),

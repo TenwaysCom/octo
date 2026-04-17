@@ -12,8 +12,11 @@ export interface IdentityResolutionResponse {
       identityStatus: ResolvedUserRecord["status"];
       operatorLarkId?: string;
       larkEmail?: string;
+      larkName?: string;
+      larkAvatar?: string;
       meegleUserKey?: string;
     githubId?: string;
+    role?: string;
     sourcePlatform: IdentityResolveRequest["pageContext"]["platform"];
   };
 }
@@ -30,8 +33,11 @@ function toResponse(
       identityStatus: user.status,
       operatorLarkId: user.larkId ?? undefined,
       larkEmail: user.larkEmail ?? undefined,
+      larkName: user.larkName ?? undefined,
+      larkAvatar: user.larkAvatarUrl ?? undefined,
       meegleUserKey: user.meegleUserKey ?? undefined,
       githubId: user.githubId ?? undefined,
+      role: user.role ?? undefined,
       sourcePlatform: request.pageContext.platform,
     },
   };

@@ -6,10 +6,14 @@
  */
 
 import {
+  MeegleAPIError,
   MeegleClient,
   type MeegleWorkitem,
 } from "../../adapters/meegle/meegle-client.js";
 import type { ExecutionDraft } from "../../validators/agent-output/execution-draft.js";
+import { logger } from "../../logger.js";
+
+const workitemLogger = logger.child({ module: "meegle-workitem-service" });
 
 export interface MeegleWorkitemServiceDeps {
   client: MeegleClient;
@@ -35,6 +39,21 @@ function normalizeTemplateId(
   return Number.isFinite(parsedTemplateId) ? parsedTemplateId : undefined;
 }
 
+function extractIllegalField(error: unknown): string | undefined {
+  if (!(error instanceof MeegleAPIError) || !error.response) {
+    return undefined;
+  }
+  const errMsg =
+    (typeof error.response.err === "object" && error.response.err !== null &&
+      typeof (error.response.err as Record<string, unknown>).msg === "string")
+      ? (error.response.err as Record<string, string>).msg
+      : typeof error.response.err_msg === "string"
+      ? error.response.err_msg
+      : error.message;
+  const match = errMsg.match(/field \[([^\]]+)\] is illegal/);
+  return match?.[1];
+}
+
 /**
  * Create a workitem from an execution draft
  */
@@ -52,19 +71,61 @@ export async function createWorkitemFromDraft(
     field_value: pair.fieldValue,
   }));
 
-  const workitem = await client.createWorkitem({
-    projectKey,
-    workItemTypeKey: workitemTypeKey,
-    name: draft.name,
-    templateId: normalizeTemplateId(templateId),
-    fieldValuePairs,
-    idempotencyKey: options.idempotencyKey,
-  });
+  let creatableFields = fieldValuePairs;
+  const postCreateUpdates: typeof fieldValuePairs = [];
 
-  return {
-    workitemId: workitem.id,
-    workitem,
-  };
+  // Some fields cannot be set during creation (e.g. priority on story).
+  // Retry without illegal fields and update them afterwards.
+  for (let attempt = 0; attempt < fieldValuePairs.length + 1; attempt++) {
+    const idempotencyKey = options.idempotencyKey
+      ? attempt === 0
+        ? options.idempotencyKey
+        : `${options.idempotencyKey}_retry${attempt}`
+      : undefined;
+    try {
+      const workitem = await client.createWorkitem({
+        projectKey,
+        workItemTypeKey: workitemTypeKey,
+        name: draft.name,
+        templateId: normalizeTemplateId(templateId),
+        fieldValuePairs: creatableFields,
+        idempotencyKey,
+      });
+
+      if (postCreateUpdates.length > 0) {
+        await client.updateWorkitem(
+          projectKey,
+          workitemTypeKey,
+          workitem.id,
+          postCreateUpdates.map((p) => ({
+            fieldKey: p.field_key,
+            fieldValue: p.field_value,
+          })),
+        );
+      }
+
+      return {
+        workitemId: workitem.id,
+        workitem,
+      };
+    } catch (error) {
+      const illegalField = extractIllegalField(error);
+      if (!illegalField) {
+        throw error;
+      }
+      const illegalIndex = creatableFields.findIndex(
+        (f) => f.field_key === illegalField,
+      );
+      if (illegalIndex === -1) {
+        throw error;
+      }
+      workitemLogger.info({ illegalField }, "FIELD_ILLEGAL_RETRY");
+      postCreateUpdates.push(...creatableFields.splice(illegalIndex, 1));
+    }
+  }
+
+  // Should never reach here because the loop has enough iterations to strip all fields
+  throw new Error("Unexpected: exhausted retries for illegal fields during workitem creation");
 }
 
 /**

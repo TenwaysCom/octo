@@ -9,6 +9,7 @@ import {
 import {
   clearResolvedIdentity,
   clearResolvedIdentityForTab,
+  fetchLarkUserInfo,
   getConfig,
   getLarkAuthStatus,
   loadPopupSettings,
@@ -19,6 +20,7 @@ import {
   resolveIdentityRequest,
   runLarkAuthRequest,
   runMeegleAuthRequest,
+  runMeegleLarkPushRequest,
   saveResolvedIdentity,
   saveResolvedIdentityForTab,
   savePopupSettings,
@@ -45,16 +47,22 @@ import {
   normalizeLarkAuthBaseUrl,
   normalizeMeegleAuthBaseUrl,
 } from "../../platform-url.js";
+import { createExtensionLogger, exportLogsAsBlob } from "../../logger.js";
+import { message } from "ant-design-vue";
 import type {
   KimiChatEvent,
   KimiChatRenderState,
   KimiChatTranscriptEntry,
 } from "../../types/acp-kimi.js";
 
+const popupLogger = createExtensionLogger("popup:app");
+
 interface PopupIdentityState {
   masterUserId: string | null;
   larkId: string | null;
   larkEmail: string | null;
+  larkName: string | null;
+  larkAvatar: string | null;
   meegleUserKey: string | null;
 }
 
@@ -79,7 +87,7 @@ export function usePopupApp() {
   const logs = ref<PopupLogEntry[]>([]);
   const isLoading = ref(true);
   const hasResolvedPageContext = ref(false);
-  const activePage = ref<PopupNotebookPage>("home");
+  const activePage = ref<PopupNotebookPage>("automation");
   const showKimiChat = ref(false);
   const kimiChatBusy = ref(false);
   const kimiChatSessionId = ref<string | null>(null);
@@ -91,6 +99,51 @@ export function usePopupApp() {
   let activeKimiChatRequestId = 0;
   let nextKimiChatRequestId = 0;
   let kimiChatAbortController: AbortController | null = null;
+  const state = reactive({
+    pageType: "unsupported" as PopupPageType,
+    currentTabId: null as number | null,
+    currentTabOrigin: null as string | null,
+    currentUrl: null as string | null,
+    identity: {
+      larkId: null,
+      larkEmail: null,
+      larkName: null,
+      larkAvatar: null,
+      masterUserId: null,
+      meegleUserKey: null,
+    } as PopupIdentityState,
+    isAuthed: {
+      lark: false,
+      meegle: false,
+    } as PopupAuthFlags,
+    meegleAuth: undefined as MeegleAuthEnsureResponse | undefined,
+    larkAuth: undefined as LarkAuthEnsureResponse | undefined,
+  });
+  const settingsForm = reactive(createDefaultSettingsForm());
+  let settingsSnapshot = createDefaultSettingsForm();
+
+  const logAdapter: PopupMeegleAuthLog = {
+    add(message) {
+      appendLog("info", message);
+    },
+    success(message) {
+      appendLog("success", message);
+    },
+    warn(message) {
+      appendLog("warn", message);
+    },
+    error(message) {
+      appendLog("error", message);
+    },
+  };
+
+  const meegleAuthController = createMeegleAuthController({
+    sendMessage: runMeegleAuthRequest,
+    setStatus: () => {
+      // Vue derives display state from reactive auth flags and identity.
+    },
+    log: logAdapter,
+  });
 
   function getKimiChatRenderState(): KimiChatRenderState {
     return (
@@ -165,49 +218,6 @@ export function usePopupApp() {
     activeKimiChatRequestId = 0;
     kimiChatAbortController = null;
   }
-  const state = reactive({
-    pageType: "unsupported" as PopupPageType,
-    currentTabId: null as number | null,
-    currentTabOrigin: null as string | null,
-    currentUrl: null as string | null,
-    identity: {
-      larkId: null,
-      larkEmail: null,
-      masterUserId: null,
-      meegleUserKey: null,
-    } as PopupIdentityState,
-    isAuthed: {
-      lark: false,
-      meegle: false,
-    } as PopupAuthFlags,
-    meegleAuth: undefined as MeegleAuthEnsureResponse | undefined,
-    larkAuth: undefined as LarkAuthEnsureResponse | undefined,
-  });
-  const settingsForm = reactive(createDefaultSettingsForm());
-  let settingsSnapshot = createDefaultSettingsForm();
-
-  const logAdapter: PopupMeegleAuthLog = {
-    add(message) {
-      appendLog("info", message);
-    },
-    success(message) {
-      appendLog("success", message);
-    },
-    warn(message) {
-      appendLog("warn", message);
-    },
-    error(message) {
-      appendLog("error", message);
-    },
-  };
-
-  const meegleAuthController = createMeegleAuthController({
-    sendMessage: runMeegleAuthRequest,
-    setStatus: () => {
-      // Vue derives display state from reactive auth flags and identity.
-    },
-    log: logAdapter,
-  });
 
   const viewModel = computed(() =>
     createPopupViewModel({
@@ -218,7 +228,11 @@ export function usePopupApp() {
   );
   const headerSubtitle = computed(() => {
     if (activePage.value === "settings") {
-      return "Settings";
+      return "设置";
+    }
+
+    if (activePage.value === "profile") {
+      return "个人";
     }
 
     if (!hasResolvedPageContext.value) {
@@ -244,10 +258,10 @@ export function usePopupApp() {
     state.isAuthed.meegle ? "已授权" : "授权",
   );
   const topLarkButtonText = computed(() =>
-    state.isAuthed.lark ? "已授权" : "授权",
+    state.isAuthed.lark ? "重新授权" : "授权",
   );
   const topMeegleButtonDisabled = computed(() => state.isAuthed.meegle);
-  const topLarkButtonDisabled = computed(() => state.isAuthed.lark);
+  const topLarkButtonDisabled = computed(() => false);
   const larkActions = computed<PopupFeatureAction[]>(() => [
     {
       key: "analyze",
@@ -270,8 +284,8 @@ export function usePopupApp() {
   ]);
   const meegleActions = computed<PopupFeatureAction[]>(() => [
     {
-      key: "meegle-context",
-      label: "查看来源上下文",
+      key: "update-lark-and-push",
+      label: "更新Lark及推送",
       type: "primary",
       disabled: false,
     },
@@ -290,6 +304,26 @@ export function usePopupApp() {
       const auth = await checkLarkAuth();
       state.larkAuth = auth;
       state.isAuthed.lark = auth.status === "ready";
+
+      if (auth.status === "ready" && auth.masterUserId && auth.baseUrl) {
+        const userInfo = await fetchLarkUserInfo({
+          masterUserId: auth.masterUserId,
+          baseUrl: auth.baseUrl,
+        });
+
+        if (userInfo.ok && userInfo.data) {
+          if (userInfo.data.email && !state.identity.larkEmail) {
+            state.identity.larkEmail = userInfo.data.email;
+          }
+          if (userInfo.data.name && !state.identity.larkName) {
+            state.identity.larkName = userInfo.data.name;
+          }
+          if (userInfo.data.avatarUrl && !state.identity.larkAvatar) {
+            state.identity.larkAvatar = userInfo.data.avatarUrl;
+          }
+        }
+      }
+
       return;
     }
 
@@ -311,6 +345,8 @@ export function usePopupApp() {
       state.currentTabOrigin = tabContext.origin;
       state.pageType = tabContext.pageType;
       hasResolvedPageContext.value = true;
+
+      appendLog("info", `检测到页面: ${tabContext.url || "(空)"} · 类型: ${tabContext.pageType}`);
 
       if (tabContext.pageType === "unsupported") {
         appendLog("warn", "当前页面不支持");
@@ -337,6 +373,12 @@ export function usePopupApp() {
       await ensureResolvedIdentity();
 
       await refreshAuthStates();
+
+      if (!state.isAuthed.lark || !state.isAuthed.meegle) {
+        activePage.value = "profile";
+        appendLog("warn", "Lark 或 Meegle 未授权，已切换到个人页面");
+      }
+
       appendLog("success", "初始化完成");
     } catch (error) {
       appendLog(
@@ -525,14 +567,15 @@ export function usePopupApp() {
     state.larkAuth = auth;
     state.isAuthed.lark = auth.status === "ready";
 
-    if (auth.status === "ready") {
-      appendLog("success", "Lark 已授权");
-      return;
+    const force = auth.status === "ready";
+    if (force) {
+      appendLog("info", "重新发起 Lark 授权...");
     }
 
     const started = await runLarkAuthRequest({
       masterUserId,
       baseUrl: normalizeLarkAuthBaseUrl(state.currentTabOrigin),
+      force,
     });
     state.larkAuth = started;
     state.isAuthed.lark = started.status === "ready";
@@ -556,7 +599,7 @@ export function usePopupApp() {
 
   function closeSettings() {
     syncSettingsForm(settingsSnapshot);
-    activePage.value = "home";
+    activePage.value = "chat";
   }
 
   async function fetchMeegleUserKey() {
@@ -587,7 +630,7 @@ export function usePopupApp() {
     settingsSnapshot = { ...refreshedSettings };
     hydrateIdentityFromSettings(refreshedSettings);
     appendLog("success", "设置已保存");
-    activePage.value = "home";
+    activePage.value = "chat";
     await refreshAuthStates();
   }
 
@@ -605,7 +648,7 @@ export function usePopupApp() {
     logs.value = [];
   }
 
-  function runFeatureAction(actionKey: string) {
+  async function runFeatureAction(actionKey: string) {
     if (actionKey === "analyze") {
       if (showKimiChat.value) {
         resetKimiChatSession();
@@ -622,14 +665,99 @@ export function usePopupApp() {
       analyze: "分析中...",
       draft: "生成草稿...",
       apply: "确认创建...",
-      "meegle-context": "查看来源上下文...",
+      "update-lark-and-push": "更新 Lark 及推送中...",
     };
 
     appendLog("info", labels[actionKey] || "执行操作中...");
+
+    if (actionKey === "update-lark-and-push") {
+      appendLog("info", "[更新Lark及推送] 开始执行");
+      const currentUrl = state.currentUrl;
+      if (!currentUrl) {
+        appendLog("error", "当前页面 URL 为空，无法执行推送");
+        return;
+      }
+
+      let pathname: string;
+      try {
+        pathname = new URL(currentUrl).pathname;
+        appendLog("info", `[更新Lark及推送] 解析 URL pathname: ${pathname}`);
+      } catch {
+        appendLog("error", "当前页面 URL 解析失败");
+        return;
+      }
+
+      const pathParts = pathname.split("/").filter(Boolean);
+      appendLog("info", `[更新Lark及推送] 路径片段: ${pathParts.join(", ")}`);
+      if (pathParts.length < 4 || pathParts[2] !== "detail") {
+        appendLog("error", `无法从 URL 解析工作项信息: ${pathname}`);
+        return;
+      }
+
+      const [projectKey, workItemTypeKey, , workItemId] = pathParts;
+      const masterUserId = state.identity.masterUserId;
+      if (!masterUserId) {
+        appendLog("error", "未解析到主身份，无法执行推送");
+        return;
+      }
+
+      const baseUrl = state.currentTabOrigin || "https://project.larksuite.com";
+      appendLog("info", `[更新Lark及推送] 准备调用服务端 API: project=${projectKey}, type=${workItemTypeKey}, id=${workItemId}, masterUserId=${masterUserId}`);
+
+      const result = await runMeegleLarkPushRequest({
+        projectKey,
+        workItemTypeKey,
+        workItemId,
+        masterUserId,
+        baseUrl,
+      });
+
+      appendLog("info", `[更新Lark及推送] 服务端响应: ok=${result.ok}, alreadyUpdated=${result.alreadyUpdated}, larkBaseUpdated=${result.larkBaseUpdated}, messageSent=${result.messageSent}, reactionAdded=${result.reactionAdded}, meegleStatusUpdated=${result.meegleStatusUpdated}`);
+
+      if (!result.ok) {
+        const errorMsg = `推送失败: ${result.error || "未知错误"}`;
+        showToast(errorMsg, "error");
+        appendLog("warn", errorMsg);
+        return;
+      }
+
+      if (result.alreadyUpdated) {
+        const alreadyMsg = "该工作项已经更新过，无需重复推送";
+        showToast(alreadyMsg, "warn");
+        appendLog("warn", alreadyMsg);
+        return;
+      }
+
+      const parts: string[] = [];
+      if (result.larkBaseUpdated) parts.push("Lark Base 状态已更新");
+      if (result.messageSent) parts.push("Lark 消息已发送");
+      if (result.reactionAdded) parts.push("Lark 消息 reaction 已添加");
+      if (result.meegleStatusUpdated) parts.push("Meegle 状态已更新");
+
+      const successMsg = `推送完成${parts.length ? ": " + parts.join("、") : ""}`;
+      showToast(successMsg, "success");
+      appendLog("success", successMsg);
+
+      activePage.value = "chat";
+      if (state.currentTabId != null && currentUrl) {
+        try {
+          const url = new URL(currentUrl);
+          url.searchParams.set("tabKey", "txHFa5L16");
+          url.hash = "txHFa5L16";
+          chrome.tabs.update(state.currentTabId, { url: url.toString() });
+          appendLog("info", `[更新Lark及推送] 已跳转页面: ${url.toString()}`);
+        } catch {
+          appendLog("warn", "[更新Lark及推送] 页面跳转失败");
+        }
+      }
+      return;
+    }
+
     appendLog("warn", "功能开发中，请稍后");
   }
 
   function openKimiChat() {
+    activePage.value = "chat";
     if (showKimiChat.value) {
       return;
     }
@@ -668,7 +796,7 @@ export function usePopupApp() {
     appendKimiChatStatus("已停止生成");
   }
 
-  async function sendKimiChatMessage(message: string) {
+  async function sendKimiChatMessage(messageText: string) {
     const operatorLarkId = state.identity.larkId || settingsForm.larkUserId;
 
     if (!operatorLarkId) {
@@ -677,6 +805,7 @@ export function usePopupApp() {
     }
 
     showKimiChat.value = true;
+    activePage.value = "chat";
     kimiChatBusy.value = true;
 
     const client = createKimiChatClient({
@@ -698,13 +827,13 @@ export function usePopupApp() {
         {
           id: userEntryId,
           kind: "user",
-          text: message,
+          text: messageText,
         },
       ];
 
       const request = {
         operatorLarkId,
-        message,
+        message: messageText,
       } as {
         operatorLarkId: string;
         message: string;
@@ -761,7 +890,7 @@ export function usePopupApp() {
         kimiChatSessionId.value = null;
       }
 
-      kimiChatDraftMessage.value = message;
+      kimiChatDraftMessage.value = messageText;
       appendLog(
         "error",
         `Kimi ACP 请求失败: ${error instanceof Error ? error.message : String(error)}`,
@@ -771,6 +900,18 @@ export function usePopupApp() {
         clearActiveKimiChatRequest();
         kimiChatBusy.value = false;
       }
+    }
+  }
+
+  function showToast(text: string, type: PopupLogLevel = "info") {
+    if (type === "success") {
+      message.success(text, 2);
+    } else if (type === "error") {
+      message.error(text, 2);
+    } else if (type === "warn") {
+      message.warning(text, 2);
+    } else {
+      message.info(text, 2);
     }
   }
 
@@ -784,6 +925,34 @@ export function usePopupApp() {
         timestamp: new Date().toLocaleTimeString(),
       },
     ];
+    const detail: Record<string, unknown> | undefined =
+      level === "error" || level === "warn" ? { popupLogLevel: level } : undefined;
+    switch (level) {
+      case "debug":
+        popupLogger.debug(message, detail);
+        break;
+      case "success":
+      case "info":
+        popupLogger.info(message, detail);
+        break;
+      case "warn":
+        popupLogger.warn(message, detail);
+        break;
+      case "error":
+        popupLogger.error(message, detail);
+        break;
+    }
+  }
+
+  function exportLogs() {
+    const blob = exportLogsAsBlob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `tenways-octo-logs-${new Date().toISOString()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    appendLog("info", "日志已导出");
   }
 
   function syncSettingsForm(settings: PopupSettingsForm) {
@@ -845,6 +1014,12 @@ export function usePopupApp() {
       if (resolved.data.larkEmail) {
         state.identity.larkEmail = resolved.data.larkEmail;
       }
+      if (resolved.data.larkName) {
+        state.identity.larkName = resolved.data.larkName;
+      }
+      if (resolved.data.larkAvatar) {
+        state.identity.larkAvatar = resolved.data.larkAvatar;
+      }
       if (resolved.data.meegleUserKey) {
         state.identity.meegleUserKey = resolved.data.meegleUserKey;
       }
@@ -889,6 +1064,7 @@ export function usePopupApp() {
     saveSettingsForm,
     refreshServerConfig,
     clearLogs,
+    exportLogs,
     runFeatureAction,
     updateKimiChatDraftMessage,
     sendKimiChatMessage,

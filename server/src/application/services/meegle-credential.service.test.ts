@@ -8,9 +8,24 @@ import {
 import type { MeegleAuthAdapter } from "../../adapters/meegle/auth-adapter.js";
 import type { MeegleTokenStore, StoredMeegleToken } from "../../adapters/meegle/token-store.js";
 
+const { mockInfo, mockWarn, mockError } = vi.hoisted(() => ({
+  mockInfo: vi.fn(),
+  mockWarn: vi.fn(),
+  mockError: vi.fn(),
+}));
+
+vi.mock("../../logger.js", () => ({
+  logger: {
+    child: () => ({
+      info: mockInfo,
+      warn: mockWarn,
+      error: mockError,
+    }),
+  },
+}));
+
 describe("meegle-credential.service", () => {
   const now = new Date("2026-03-26T10:00:00.000Z");
-  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
   let mockAuthAdapter: MeegleAuthAdapter;
   let mockTokenStore: MeegleTokenStore;
   let deps: MeegleCredentialServiceDeps;
@@ -18,7 +33,9 @@ describe("meegle-credential.service", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(now);
-    consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    mockInfo.mockClear();
+    mockWarn.mockClear();
+    mockError.mockClear();
 
     mockAuthAdapter = {
       getPluginToken: vi.fn().mockResolvedValue({
@@ -77,7 +94,6 @@ describe("meegle-credential.service", () => {
   });
 
   afterEach(() => {
-    consoleErrorSpy.mockRestore();
     vi.useRealTimers();
   });
 
@@ -158,8 +174,7 @@ describe("meegle-credential.service", () => {
       };
 
       await expect(exchangeCredential(input, deps)).rejects.toThrow("Plugin token failed");
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "[Tenways Octo] Meegle credential exchange failed:",
+      expect(mockError).toHaveBeenCalledWith(
         expect.objectContaining({
           requestId: "req_001",
           masterUserId: "usr_xxx",
@@ -168,6 +183,7 @@ describe("meegle-credential.service", () => {
           stage: "get_plugin_token",
           message: "Plugin token failed",
         }),
+        "EXCHANGE FAIL",
       );
     });
   });

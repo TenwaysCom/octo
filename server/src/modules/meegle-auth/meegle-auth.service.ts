@@ -19,6 +19,9 @@ import {
 } from "./meegle-auth.dto.js";
 import { MeegleClient } from "../../adapters/meegle/meegle-client.js";
 import { normalizeMeegleAuthBaseUrl } from "../../platform-url.js";
+import { logger } from "../../logger.js";
+
+const serviceLogger = logger.child({ module: "meegle-auth-service" });
 
 export interface MeegleAuthServiceDeps {
   authAdapter: MeegleAuthAdapter;
@@ -29,12 +32,6 @@ export interface MeegleAuthServiceDeps {
 
 let defaultDeps: MeegleAuthServiceDeps | undefined;
 const sharedTokenStore = new InMemoryMeegleTokenStore();
-const SERVER_SERVICE_FLOW_PREFIX = "[MEEGLE_AUTH_FLOW][SERVER][SERVICE]";
-
-function logServiceFlow(node: string, phase: "START" | "OK" | "FAIL", detail: Record<string, unknown>): void {
-  const logger = phase === "FAIL" ? console.error : console.log;
-  logger(`${SERVER_SERVICE_FLOW_PREFIX}[${node}][${phase}]`, detail);
-}
 
 export function configureMeegleAuthServiceDeps(
   deps: MeegleAuthServiceDeps,
@@ -74,7 +71,7 @@ export async function exchangeAuthCode(
   input: unknown,
   overrides?: Partial<MeegleAuthServiceDeps>,
 ) {
-  logServiceFlow("EXCHANGE_AUTH_CODE", "START", { inputType: typeof input });
+  serviceLogger.info({ inputType: typeof input }, "EXCHANGE_AUTH_CODE START");
   const request: MeegleAuthExchangeRequest =
     validateMeegleAuthExchangeRequest(input);
   const deps = getDeps(overrides);
@@ -93,7 +90,15 @@ export async function exchangeAuthCode(
     });
   }
 
-  logServiceFlow("EXCHANGE_AUTH_CODE", "OK", { requestId: request.requestId, masterUserId: request.masterUserId, meegleUserKey: request.meegleUserKey, baseUrl: request.baseUrl, tokenStatus: result.tokenStatus, credentialStatus: result.credentialStatus, expiresAt: result.expiresAt });
+  serviceLogger.info({
+    requestId: request.requestId,
+    masterUserId: request.masterUserId,
+    meegleUserKey: request.meegleUserKey,
+    baseUrl: request.baseUrl,
+    tokenStatus: result.tokenStatus,
+    credentialStatus: result.credentialStatus,
+    expiresAt: result.expiresAt,
+  }, "EXCHANGE_AUTH_CODE OK");
 
   return result;
 }
@@ -125,7 +130,7 @@ export async function checkAuthStatus(
   input: unknown,
   overrides?: Partial<MeegleAuthServiceDeps>,
 ) {
-  logServiceFlow("CHECK_AUTH_STATUS", "START", { inputType: typeof input });
+  serviceLogger.info({ inputType: typeof input }, "CHECK_AUTH_STATUS START");
   const request = validateMeegleAuthStatusRequest(input);
   const deps = getDeps(overrides);
   const user = await getResolvedUserStore().getById(request.masterUserId);
@@ -133,7 +138,7 @@ export async function checkAuthStatus(
   const meegleUserKey = request.meegleUserKey ?? user?.meegleUserKey ?? undefined;
 
   if (!meegleUserKey) {
-    logServiceFlow("CHECK_AUTH_STATUS", "FAIL", { masterUserId: request.masterUserId, baseUrl, reason: "MISSING_MEEGLE_USER_KEY" });
+    serviceLogger.warn({ masterUserId: request.masterUserId, baseUrl, reason: "MISSING_MEEGLE_USER_KEY" }, "CHECK_AUTH_STATUS FAIL");
     return {
       ok: true,
       data: {
@@ -152,7 +157,7 @@ export async function checkAuthStatus(
   });
 
   if (!stored?.userToken) {
-    logServiceFlow("CHECK_AUTH_STATUS", "FAIL", { masterUserId: request.masterUserId, meegleUserKey, baseUrl, reason: "NO_STORED_TOKEN" });
+    serviceLogger.warn({ masterUserId: request.masterUserId, meegleUserKey, baseUrl, reason: "NO_STORED_TOKEN" }, "CHECK_AUTH_STATUS FAIL");
     return {
       ok: true,
       data: {
@@ -179,7 +184,13 @@ export async function checkAuthStatus(
   );
 
   if (refreshedStatus.tokenStatus !== "ready") {
-    logServiceFlow("CHECK_AUTH_STATUS", "FAIL", { masterUserId: request.masterUserId, meegleUserKey, requestedBaseUrl: baseUrl, resolvedBaseUrl: refreshedStatus.baseUrl, reason: refreshedStatus.errorCode || "Stored Meegle token expired" });
+    serviceLogger.warn({
+      masterUserId: request.masterUserId,
+      meegleUserKey,
+      requestedBaseUrl: baseUrl,
+      resolvedBaseUrl: refreshedStatus.baseUrl,
+      reason: refreshedStatus.errorCode || "Stored Meegle token expired",
+    }, "CHECK_AUTH_STATUS FAIL");
     return {
       ok: true,
       data: {
@@ -192,7 +203,14 @@ export async function checkAuthStatus(
     };
   }
 
-  logServiceFlow("CHECK_AUTH_STATUS", "OK", { masterUserId: request.masterUserId, meegleUserKey, requestedBaseUrl: baseUrl, resolvedBaseUrl: refreshedStatus.baseUrl, credentialStatus: refreshedStatus.credentialStatus, expiresAt: refreshedStatus.expiresAt });
+  serviceLogger.info({
+    masterUserId: request.masterUserId,
+    meegleUserKey,
+    requestedBaseUrl: baseUrl,
+    resolvedBaseUrl: refreshedStatus.baseUrl,
+    credentialStatus: refreshedStatus.credentialStatus,
+    expiresAt: refreshedStatus.expiresAt,
+  }, "CHECK_AUTH_STATUS OK");
 
   return {
     ok: true,

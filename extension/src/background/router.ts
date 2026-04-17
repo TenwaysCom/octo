@@ -1,13 +1,11 @@
 import type {
   MeegleAuthEnsureMessage,
   MeegleAuthEnsureResult,
-  LarkApplyMessage,
-  LarkApplyResult,
   LarkAuthCallbackDetectedMessage,
   LarkAuthEnsureMessage,
   LarkAuthEnsureResult,
-  LarkDraftMessage,
-  LarkDraftResult,
+  LarkBaseCreateWorkitemMessage,
+  LarkBaseCreateWorkitemResult,
 } from "../types/protocol";
 import type { EnsureMeegleAuthDeps } from "./handlers/meegle-auth";
 import type { EnsureLarkAuthDeps } from "./handlers/lark-auth";
@@ -23,8 +21,12 @@ import {
   clearPendingLarkOauthState,
   saveLastLarkAuthResult,
   savePendingLarkOauthState,
+  getStoredMasterUserId,
 } from "./storage.js";
 import { getConfig } from "./config.js";
+import { createExtensionLogger } from "../logger.js";
+
+const routerLogger = createExtensionLogger("background:router");
 
 // Cache for user token (populated asynchronously)
 let cachedToken: string | undefined;
@@ -63,6 +65,48 @@ async function initTokenCache(): Promise<void> {
 // Initialize on load
 initTokenCache();
 
+function extractLarkBaseContextFromUrl(url: string | undefined): { baseId?: string; tableId?: string } {
+  if (!url) {
+    return {};
+  }
+
+  try {
+    const parsed = new URL(url);
+    const routeCandidates = [parsed.pathname, decodeURIComponent(parsed.hash.replace(/^#/, ""))];
+
+    let baseId: string | undefined;
+    let tableId: string | undefined;
+
+    for (const candidate of routeCandidates) {
+      const match = candidate.match(/\/base\/([^/?#]+)(?:\/table\/([^/?#]+))?/);
+      if (match) {
+        baseId = match[1];
+        tableId = match[2];
+        break;
+      }
+    }
+
+    const hashQueryIndex = decodeURIComponent(parsed.hash.replace(/^#/, "")).indexOf("?");
+    const searchParams = [
+      parsed.searchParams,
+      new URLSearchParams(hashQueryIndex >= 0 ? decodeURIComponent(parsed.hash.replace(/^#/, "")).slice(hashQueryIndex + 1) : ""),
+    ];
+
+    for (const params of searchParams) {
+      baseId = baseId || params.get("baseId") || params.get("appId") || params.get("app") || params.get("base") || undefined;
+      tableId = tableId || params.get("tableId") || params.get("table") || params.get("tbl") || undefined;
+    }
+
+    if (baseId && tableId) {
+      return { baseId, tableId };
+    }
+  } catch {
+    // ignore invalid URL
+  }
+
+  return {};
+}
+
 async function postServerJson<TResponse>(
   config: ExtensionConfig,
   path: string,
@@ -93,39 +137,17 @@ async function postServerJson<TResponse>(
   return payload;
 }
 
-async function buildApplyRequestBody(message: LarkApplyMessage["payload"]) {
-  if (!message.operatorLarkId && !message.masterUserId) {
-    throw new Error("Either operatorLarkId or masterUserId is required to apply a draft.");
-  }
-
-  const now = Date.now();
-
-  return {
-    requestId: `req_${now}`,
-    draftId: message.draft.draftId,
-    masterUserId: message.masterUserId,
-    operatorLarkId: message.operatorLarkId,
-    sourceRecordId: message.draft.sourceRef.sourceRecordId || message.recordId,
-    idempotencyKey: `idem_${message.recordId ?? message.draft.draftId}_${now}`,
-    confirmedDraft: {
-      name: message.draft.name,
-      fieldValuePairs: message.draft.fieldValuePairs,
-      ownerUserKeys: message.draft.ownerUserKeys,
-    },
-  };
-}
-
 export async function routeBackgroundAction(
   message:
     | MeegleAuthEnsureMessage
     | LarkAuthEnsureMessage
     | LarkAuthCallbackDetectedMessage
-    | LarkDraftMessage
-    | LarkApplyMessage,
+    | LarkBaseCreateWorkitemMessage,
   context: {
     senderTabId?: number;
+    tabUrl?: string;
   } = {},
-): Promise<MeegleAuthEnsureResult | LarkAuthEnsureResult | LarkDraftResult | LarkApplyResult | { ok: true }> {
+): Promise<MeegleAuthEnsureResult | LarkAuthEnsureResult | LarkBaseCreateWorkitemResult | { ok: true }> {
   const config = await getConfig();
 
   if (message.action === "itdog.meegle.auth.ensure") {
@@ -141,7 +163,7 @@ export async function routeBackgroundAction(
       },
       // Disable auto-redirect to Meegle login page
       openMeegleLoginTab: async () => {
-        console.log("[Tenways Octo] Auto-redirect disabled. User needs to login manually.");
+        routerLogger.info("Auto-redirect disabled. User needs to login manually.");
       },
     };
 
@@ -173,59 +195,22 @@ export async function routeBackgroundAction(
     return { ok: true };
   }
 
-  if (message.action === "itdog.a1.create_b2_draft") {
-    return {
-      action: message.action,
-      payload: await postServerJson(config, "/api/lark-bug/to-meegle-product-bug/draft", {
-        recordId: message.payload.recordId,
-      }),
-    };
-  }
-
-  if (message.action === "itdog.a2.create_b1_draft") {
-    return {
-      action: message.action,
-      payload: await postServerJson(config, "/api/lark-user-story/to-meegle-user-story/draft", {
-        recordId: message.payload.recordId,
-      }),
-    };
-  }
-
-  if (message.action === "itdog.a1.apply_b2") {
+  if (message.action === "itdog.lark_base.create_workitem") {
     const masterUserId =
       message.payload.masterUserId
       ?? (context.senderTabId != null
         ? await getResolvedIdentityForTab(context.senderTabId)
-        : undefined);
+        : undefined)
+      ?? await getStoredMasterUserId();
+    const tabUrlContext = extractLarkBaseContextFromUrl(context.tabUrl);
     return {
       action: message.action,
-      payload: await postServerJson(
-        config,
-        "/api/lark-bug/to-meegle-product-bug/apply",
-        await buildApplyRequestBody({
-          ...message.payload,
-          masterUserId,
-        }),
-      ),
-    };
-  }
-
-  if (message.action === "itdog.a2.apply_b1") {
-    const masterUserId =
-      message.payload.masterUserId
-      ?? (context.senderTabId != null
-        ? await getResolvedIdentityForTab(context.senderTabId)
-        : undefined);
-    return {
-      action: message.action,
-      payload: await postServerJson(
-        config,
-        "/api/lark-user-story/to-meegle-user-story/apply",
-        await buildApplyRequestBody({
-          ...message.payload,
-          masterUserId,
-        }),
-      ),
+      payload: await postServerJson(config, "/api/lark-base/create-meegle-workitem", {
+        recordId: message.payload.recordId,
+        masterUserId,
+        baseId: message.payload.baseId ?? tabUrlContext.baseId,
+        tableId: message.payload.tableId ?? tabUrlContext.tableId,
+      }),
     };
   }
 
@@ -236,6 +221,18 @@ export async function routeBackgroundAction(
  * Handle extension messages
  */
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === "itdog.query_active_tab_context") {
+    const tab = sender.tab;
+    sendResponse({
+      action: message.action,
+      payload: {
+        id: tab?.id ?? null,
+        url: tab?.url ?? null,
+      },
+    });
+    return true;
+  }
+
   if (message.action === "itdog.meegle.identity.cookies") {
     getMeegleIdentityFromCookies(message.payload.pageUrl)
       .then((identity) => {
@@ -261,15 +258,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     message.action === "itdog.meegle.auth.ensure" ||
     message.action === "itdog.lark.auth.ensure" ||
     message.action === "itdog.lark.auth.callback.detected" ||
-    message.action === "itdog.a1.create_b2_draft" ||
-    message.action === "itdog.a1.apply_b2" ||
-    message.action === "itdog.a2.create_b1_draft" ||
-    message.action === "itdog.a2.apply_b1"
+    message.action === "itdog.lark_base.create_workitem"
   ) {
     routeBackgroundAction(
-      message as MeegleAuthEnsureMessage | LarkAuthEnsureMessage | LarkAuthCallbackDetectedMessage | LarkDraftMessage | LarkApplyMessage,
+      message as MeegleAuthEnsureMessage | LarkAuthEnsureMessage | LarkAuthCallbackDetectedMessage | LarkBaseCreateWorkitemMessage,
       {
         senderTabId: sender.tab?.id,
+        tabUrl: sender.tab?.url,
       },
     )
       .then((result) => {
@@ -281,6 +276,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             ? err.errorCode
             : "BACKGROUND_ERROR";
         const errorMessage = err instanceof Error ? err.message : String(err);
+        routerLogger.error("Background action failed", { action: message.action, errorCode, errorMessage });
         sendResponse({
           ok: false,
           error: {
@@ -296,4 +292,4 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return false; // Not handled
 });
 
-console.log("[Tenways Octo] Background router initialized");
+routerLogger.info("Background router initialized");

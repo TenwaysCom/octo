@@ -7,6 +7,9 @@
  */
 
 import * as lark from "@larksuiteoapi/node-sdk";
+import { logger } from "../../logger.js";
+
+const clientLogger = logger.child({ module: "lark-client" });
 
 // ==================== Data Types ====================
 
@@ -15,6 +18,7 @@ export interface LarkBitableRecord {
   fields: Record<string, unknown>;
   created_time?: string;
   updated_time?: string;
+  shared_url?: string;
 }
 
 export interface LarkBitableTable {
@@ -74,6 +78,16 @@ export interface LarkClientOptions {
   baseUrl?: string;
 }
 
+export interface BatchGetRecordsOptions {
+  withSharedUrl?: boolean;
+}
+
+export interface BatchGetRecordsResult {
+  records: LarkBitableRecord[];
+  forbidden_record_ids: string[];
+  absent_record_ids: string[];
+}
+
 // ==================== LarkClient Class ====================
 
 export class LarkClient {
@@ -102,6 +116,7 @@ export class LarkClient {
     data?: Record<string, unknown>,
     params?: Record<string, unknown>,
   ): Promise<T> {
+    clientLogger.debug({ method, url, params }, "LARK_REQUEST_START");
     try {
       const response = await this.client.request({
         method: method as "GET" | "POST" | "PUT" | "DELETE",
@@ -111,11 +126,31 @@ export class LarkClient {
       }, lark.withUserAccessToken(this.accessToken));
 
       if (response.code !== 0) {
+        clientLogger.warn({ method, url, code: response.code, msg: response.msg, data: response.data }, "LARK_REQUEST_ERROR");
         throw this.createError(response.msg, response.code, response.data);
       }
 
       return response.data as T;
     } catch (error) {
+      const axiosError = error as {
+        message?: string;
+        response?: {
+          status?: number;
+          data?: Record<string, unknown>;
+        };
+      };
+      const httpStatus = axiosError.response?.status;
+      const responseData = axiosError.response?.data;
+      clientLogger.warn(
+        {
+          method,
+          url,
+          httpStatus,
+          responseData,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        "LARK_REQUEST_CATCH",
+      );
       throw this.handleRequestError(error);
     }
   }
@@ -185,18 +220,18 @@ export class LarkClient {
    */
   async getRecord(baseId: string, tableId: string, recordId: string): Promise<LarkBitableRecord> {
     const data = await this.request<{
-      record_id: string;
-      fields: Record<string, unknown>;
-      created_time?: string;
-      updated_time?: string;
+      record?: {
+        record_id: string;
+        fields: Record<string, unknown>;
+        created_time?: string;
+        updated_time?: string;
+        shared_url?: string;
+      };
     }>("GET", `/open-apis/bitable/v1/apps/${baseId}/tables/${tableId}/records/${recordId}`);
 
-    return {
-      record_id: data.record_id || recordId,
-      fields: data.fields || {},
-      created_time: data.created_time,
-      updated_time: data.updated_time,
-    };
+    clientLogger.debug({ baseId, tableId, recordId }, "GET_RECORD raw response");
+
+    return this.mapRecord(data.record, recordId);
   }
 
   /**
@@ -220,6 +255,7 @@ export class LarkClient {
         fields: Record<string, unknown>;
         created_time?: string;
         updated_time?: string;
+        shared_url?: string;
       }>;
       has_more: boolean;
       page_token?: string;
@@ -230,12 +266,7 @@ export class LarkClient {
       sort: options?.sort,
     });
 
-    const records = (data.items || []).map((item) => ({
-      record_id: item.record_id,
-      fields: item.fields || {},
-      created_time: item.created_time,
-      updated_time: item.updated_time,
-    }));
+    const records = (data.items || []).map((item) => this.mapRecord(item));
 
     return {
       records,
@@ -253,16 +284,16 @@ export class LarkClient {
     fields: Record<string, unknown>,
   ): Promise<LarkBitableRecord> {
     const data = await this.request<{
-      record_id: string;
-      fields: Record<string, unknown>;
+      record?: {
+        record_id: string;
+        fields: Record<string, unknown>;
+        shared_url?: string;
+      };
     }>("POST", `/open-apis/bitable/v1/apps/${baseId}/tables/${tableId}/records`, {
       fields,
     });
 
-    return {
-      record_id: data.record_id || "",
-      fields: data.fields || {},
-    };
+    return this.mapRecord(data.record);
   }
 
   /**
@@ -275,16 +306,16 @@ export class LarkClient {
     fields: Record<string, unknown>,
   ): Promise<LarkBitableRecord> {
     const data = await this.request<{
-      record_id: string;
-      fields: Record<string, unknown>;
+      record?: {
+        record_id: string;
+        fields: Record<string, unknown>;
+        shared_url?: string;
+      };
     }>("PUT", `/open-apis/bitable/v1/apps/${baseId}/tables/${tableId}/records/${recordId}`, {
       fields,
     });
 
-    return {
-      record_id: data.record_id || recordId,
-      fields: data.fields || {},
-    };
+    return this.mapRecord(data.record, recordId);
   }
 
   /**
@@ -304,21 +335,143 @@ export class LarkClient {
     baseId: string,
     tableId: string,
     recordIds: string[],
-  ): Promise<LarkBitableRecord[]> {
-    // Note: Lark API may have limits on batch size
-    const BATCH_SIZE = 50;
-    const allRecords: LarkBitableRecord[] = [];
+    options?: BatchGetRecordsOptions,
+  ): Promise<BatchGetRecordsResult> {
+    const data = await this.request<{
+      records?: Array<{
+        record_id: string;
+        fields: Record<string, unknown>;
+        created_time?: string;
+        updated_time?: string;
+        shared_url?: string;
+      }>;
+      forbidden_record_ids?: string[];
+      absent_record_ids?: string[];
+    }>(
+      "POST",
+      `/open-apis/bitable/v1/apps/${baseId}/tables/${tableId}/records/batch_get`,
+      {
+        record_ids: recordIds,
+        with_shared_url: options?.withSharedUrl,
+      },
+    );
 
-    for (let i = 0; i < recordIds.length; i += BATCH_SIZE) {
-      const batch = recordIds.slice(i, i + BATCH_SIZE);
-      const promises = batch.map((id) =>
-        this.getRecord(baseId, tableId, id).catch(() => null),
-      );
-      const results = await Promise.all(promises);
-      allRecords.push(...results.filter((r): r is LarkBitableRecord => r !== null));
-    }
+    return {
+      records: (data.records || []).map((record) => this.mapRecord(record)),
+      forbidden_record_ids: data.forbidden_record_ids || [],
+      absent_record_ids: data.absent_record_ids || [],
+    };
+  }
 
-    return allRecords;
+  // ==================== IM Message Methods ====================
+
+  /**
+   * Send a message to a chat
+   */
+  async sendMessage(
+    receiveIdType: "open_id" | "user_id" | "union_id" | "email" | "chat_id",
+    receiveId: string,
+    msgType: "text" | "post" | "image" | "file" | "interactive",
+    content: string,
+  ): Promise<{ message_id: string }> {
+    const data = await this.request<{
+      message_id?: string;
+    }>("POST", "/open-apis/im/v1/messages", {
+      receive_id: receiveId,
+      msg_type: msgType,
+      content,
+    }, {
+      receive_id_type: receiveIdType,
+    });
+
+    return {
+      message_id: data.message_id || "",
+    };
+  }
+
+  /**
+   * Reply to a specific message
+   */
+  async replyToMessage(
+    messageId: string,
+    msgType: "text" | "post" | "image" | "file" | "interactive",
+    content: string,
+    options?: { reply_in_thread?: boolean },
+  ): Promise<{ message_id: string }> {
+    const data = await this.request<{
+      message_id?: string;
+    }>("POST", `/open-apis/im/v1/messages/${messageId}/reply`, {
+      msg_type: msgType,
+      content,
+      reply_in_thread: options?.reply_in_thread ?? false,
+    });
+
+    return {
+      message_id: data.message_id || "",
+    };
+  }
+
+  /**
+   * Get a message by ID
+   */
+  async getMessage(messageId: string): Promise<{ message_id: string; content?: string }> {
+    const data = await this.request<{
+      message_id?: string;
+      content?: string;
+    }>("GET", `/open-apis/im/v1/messages/${messageId}`);
+
+    return {
+      message_id: data.message_id || "",
+      content: data.content,
+    };
+  }
+
+  /**
+   * Get messages in a thread
+   */
+  async getThreadMessages(threadId: string): Promise<{
+    items: Array<{
+      message_id: string;
+      root_id?: string;
+      content?: string;
+    }>;
+    hasMore: boolean;
+    pageToken?: string;
+  }> {
+    const data = await this.request<{
+      items?: Array<{
+        message_id?: string;
+        root_id?: string;
+        body?: { content?: string };
+      }>;
+      has_more?: boolean;
+      page_token?: string;
+    }>("GET", "/open-apis/im/v1/messages", undefined, {
+      container_id_type: "thread",
+      container_id: threadId,
+      page_size: 50,
+    });
+
+    return {
+      items: (data.items || []).map((item) => ({
+        message_id: item.message_id || "",
+        root_id: item.root_id,
+        content: item.body?.content,
+      })),
+      hasMore: data.has_more ?? false,
+      pageToken: data.page_token,
+    };
+  }
+
+  /**
+   * Add a reaction to a message
+   */
+  async addMessageReaction(messageId: string, emojiType: string): Promise<void> {
+    await this.request<void>("POST", `/open-apis/im/v1/messages/${messageId}/reactions`, {
+      reaction_type: {
+        emoji_type: emojiType,
+      },
+    });
   }
 
   // ==================== Error Handling ====================
@@ -344,87 +497,43 @@ export class LarkClient {
       return error;
     }
 
-    const sdkError = error as { code?: number; msg?: string; data?: unknown };
-    const statusCode = sdkError.code;
-    const message = sdkError.msg || "Lark API request failed";
-    const response = sdkError.data as Record<string, unknown> | undefined;
+    const axiosError = error as {
+      message?: string;
+      response?: {
+        status?: number;
+        data?: Record<string, unknown>;
+      };
+    };
 
-    return this.createError(message, statusCode, response);
+    const responseData = axiosError.response?.data;
+    const statusCode =
+      (typeof responseData?.code === "number" ? responseData.code : undefined) ??
+      axiosError.response?.status;
+    const message =
+      (typeof responseData?.msg === "string" ? responseData.msg : undefined) ??
+      (typeof responseData?.error === "string" ? responseData.error : undefined) ??
+      axiosError.message ??
+      "Lark API request failed";
+
+    return this.createError(message, statusCode, responseData);
   }
-}
 
-// ==================== A1/A2 Record Parsers ====================
-
-export interface A1Ticket {
-  recordId: string;
-  title: string;
-  description: string;
-  priority: "high" | "medium" | "low";
-  status: string;
-  reporter?: string;
-  assignee?: string;
-  environment?: string;
-  createdTime?: string;
-  updatedTime?: string;
-}
-
-export interface A2Requirement {
-  recordId: string;
-  title: string;
-  summary: string;
-  target: string;
-  acceptance: string;
-  priority: "high" | "medium" | "low";
-  status: string;
-  requester?: string;
-  createdTime?: string;
-  updatedTime?: string;
-}
-
-/**
- * Parse A1 ticket from Lark record
- */
-export function parseA1Ticket(record: LarkBitableRecord, fieldMapping?: Record<string, string>): A1Ticket {
-  const fields = record.fields;
-  const getFieldValue = (key: string) => {
-    const mappedKey = fieldMapping?.[key] || key;
-    return fields[mappedKey];
-  };
-
-  return {
-    recordId: record.record_id,
-    title: String(getFieldValue("title") || "Untitled"),
-    description: String(getFieldValue("description") || ""),
-    priority: (String(getFieldValue("priority") || "medium").toLowerCase() as "high" | "medium" | "low"),
-    status: String(getFieldValue("status") || ""),
-    reporter: getFieldValue("reporter") as string | undefined,
-    assignee: getFieldValue("assignee") as string | undefined,
-    environment: getFieldValue("environment") as string | undefined,
-    createdTime: record.created_time,
-    updatedTime: record.updated_time,
-  };
-}
-
-/**
- * Parse A2 requirement from Lark record
- */
-export function parseA2Requirement(record: LarkBitableRecord, fieldMapping?: Record<string, string>): A2Requirement {
-  const fields = record.fields;
-  const getFieldValue = (key: string) => {
-    const mappedKey = fieldMapping?.[key] || key;
-    return fields[mappedKey];
-  };
-
-  return {
-    recordId: record.record_id,
-    title: String(getFieldValue("title") || "Untitled"),
-    summary: String(getFieldValue("summary") || ""),
-    target: String(getFieldValue("target") || ""),
-    acceptance: String(getFieldValue("acceptance") || ""),
-    priority: (String(getFieldValue("priority") || "medium").toLowerCase() as "high" | "medium" | "low"),
-    status: String(getFieldValue("status") || ""),
-    requester: getFieldValue("requester") as string | undefined,
-    createdTime: record.created_time,
-    updatedTime: record.updated_time,
-  };
+  private mapRecord(
+    record?: {
+      record_id?: string;
+      fields?: Record<string, unknown>;
+      created_time?: string;
+      updated_time?: string;
+      shared_url?: string;
+    },
+    fallbackRecordId = "",
+  ): LarkBitableRecord {
+    return {
+      record_id: record?.record_id || fallbackRecordId,
+      fields: record?.fields || {},
+      created_time: record?.created_time,
+      updated_time: record?.updated_time,
+      shared_url: record?.shared_url,
+    };
+  }
 }

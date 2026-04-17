@@ -15,6 +15,8 @@ import type {
 import type {
   MeegleAuthEnsureRequest,
   MeegleAuthEnsureResponse,
+  MeegleLarkPushRequest,
+  MeegleLarkPushResponse,
 } from "../types/meegle.js";
 import type { PopupSettingsForm } from "./types.js";
 import { detectPopupPageType, type PopupPageType } from "./view-model.js";
@@ -41,7 +43,10 @@ export interface IdentityResolveResponse {
     identityStatus: "pending_lark_identity" | "active" | "conflict";
     operatorLarkId?: string;
     larkEmail?: string;
+    larkName?: string;
+    larkAvatar?: string;
     meegleUserKey?: string;
+    role?: string;
   };
   error?: {
     errorCode?: string;
@@ -98,29 +103,50 @@ async function sendTabMessage<TPayload>(
 }
 
 export async function queryActiveTabContext(): Promise<PopupTabContext> {
-  const chromeApi = getChromeApi();
-  const [tab] = await chromeApi.tabs.query({
-    active: true,
-    currentWindow: true,
+  const response = await sendRuntimeMessage<{
+    payload?: { id: number | null; url: string | null };
+  }>({
+    action: "itdog.query_active_tab_context",
+    payload: {},
   });
 
-  if (!tab?.url) {
+  if (response.error || !response.payload) {
     return {
-      id: tab?.id ?? null,
+      id: null,
       url: null,
       origin: null,
       pageType: "unsupported",
     };
   }
 
-  const url = new URL(tab.url);
+  const { id: tabId, url } = response.payload;
 
-  return {
-    id: tab.id ?? null,
-    url: tab.url,
-    origin: url.origin,
-    pageType: detectPopupPageType(tab.url),
-  };
+  if (!url) {
+    return {
+      id: tabId ?? null,
+      url: null,
+      origin: null,
+      pageType: "unsupported",
+    };
+  }
+
+  try {
+    const parsed = new URL(url);
+
+    return {
+      id: tabId ?? null,
+      url,
+      origin: parsed.origin,
+      pageType: detectPopupPageType(url),
+    };
+  } catch {
+    return {
+      id: tabId ?? null,
+      url,
+      origin: null,
+      pageType: "unsupported",
+    };
+  }
 }
 
 export async function requestLarkUserId(
@@ -184,6 +210,32 @@ export async function runMeegleAuthRequest(
   };
 }
 
+export async function runMeegleLarkPushRequest(
+  request: MeegleLarkPushRequest,
+): Promise<MeegleLarkPushResponse> {
+  const config = await getConfig();
+  console.debug("[runMeegleLarkPushRequest] request:", request);
+  try {
+    const response = await fetch(`${config.SERVER_URL}/api/meegle/workitem/update-lark-and-push`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(request),
+    });
+
+    const result = (await response.json()) as MeegleLarkPushResponse;
+    console.debug("[runMeegleLarkPushRequest] response:", result);
+    return result;
+  } catch (error) {
+    console.debug("[runMeegleLarkPushRequest] error:", error);
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
 export async function resolveIdentityRequest(input: {
   masterUserId?: string;
   operatorLarkId?: string;
@@ -216,6 +268,7 @@ export async function runLarkAuthRequest(
   input: {
     masterUserId?: string;
     baseUrl: string;
+    force?: boolean;
   },
 ): Promise<LarkAuthEnsureResponse> {
   const response = await sendRuntimeMessage<{
@@ -226,6 +279,7 @@ export async function runLarkAuthRequest(
       requestId: `req_${Date.now()}`,
       masterUserId: input.masterUserId,
       baseUrl: input.baseUrl,
+      force: input.force,
     },
   });
 
@@ -239,6 +293,61 @@ export async function runLarkAuthRequest(
     reason: response.error?.errorCode || "BACKGROUND_EMPTY_RESPONSE",
     errorMessage: response.error?.errorMessage,
   };
+}
+
+export async function fetchLarkUserInfo(
+  input: {
+    masterUserId: string;
+    baseUrl: string;
+  },
+): Promise<
+  | {
+      ok: true;
+      data: {
+        userId: string;
+        tenantKey: string;
+        email?: string;
+        name?: string;
+        avatarUrl?: string;
+      };
+    }
+  | { ok: false; error?: { errorCode?: string; errorMessage?: string } }
+> {
+  const config = await getConfig();
+
+  try {
+    const response = await fetch(`${config.SERVER_URL}/api/lark/user-info`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        masterUserId: input.masterUserId,
+        baseUrl: input.baseUrl,
+      }),
+    });
+
+    return (await response.json()) as
+      | {
+          ok: true;
+          data: {
+            userId: string;
+            tenantKey: string;
+            email?: string;
+            name?: string;
+            avatarUrl?: string;
+          };
+        }
+      | { ok: false; error?: { errorCode?: string; errorMessage?: string } };
+  } catch (error) {
+    return {
+      ok: false,
+      error: {
+        errorCode: "FETCH_LARK_USER_INFO_FAILED",
+        errorMessage: error instanceof Error ? error.message : String(error),
+      },
+    };
+  }
 }
 
 export async function getLarkAuthStatus(

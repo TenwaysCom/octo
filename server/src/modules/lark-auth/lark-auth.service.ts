@@ -21,6 +21,9 @@ import type {
   LarkAuthStatusRequest,
 } from "./lark-auth.dto.js";
 import { normalizeLarkAuthBaseUrl } from "../../platform-url.js";
+import { logger } from "../../logger.js";
+
+const serviceLogger = logger.child({ module: "lark-auth-service" });
 
 export interface LarkAuthServiceDeps {
   appId: string;
@@ -34,6 +37,7 @@ export interface LarkAuthServiceDeps {
 let defaultDeps: LarkAuthServiceDeps | undefined;
 const OAUTH_SESSION_TTL_MS = 10 * 60 * 1000;
 const EXPIRY_SAFETY_WINDOW_MS = 60_000;
+const DEFAULT_REFRESH_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
 
 export function configureLarkAuthServiceDeps(deps: LarkAuthServiceDeps): void {
   defaultDeps = deps;
@@ -188,6 +192,7 @@ export async function exchangeLarkAuthCode(
       userToken: tokenPair.accessToken,
       userTokenExpiresAt: toExpiresAt(tokenPair.expiresIn),
       refreshToken: tokenPair.refreshToken,
+      refreshTokenExpiresAt: toExpiresAt(DEFAULT_REFRESH_TOKEN_TTL_SECONDS),
       credentialStatus: "active",
     });
   }
@@ -320,7 +325,7 @@ export async function checkLarkAuthStatus(
       userToken: refreshed.accessToken,
       userTokenExpiresAt: toExpiresAt(refreshed.expiresIn),
       refreshToken: refreshed.refreshToken ?? stored.refreshToken,
-      refreshTokenExpiresAt: stored.refreshTokenExpiresAt,
+      refreshTokenExpiresAt: stored.refreshTokenExpiresAt ?? toExpiresAt(DEFAULT_REFRESH_TOKEN_TTL_SECONDS),
       credentialStatus: "active",
     });
 
@@ -412,11 +417,53 @@ function renderCallbackPage(input: {
   };
 }
 
+async function getLarkContactUserInfo(
+  baseUrl: string,
+  userId: string,
+  accessToken: string,
+  fetchImpl: typeof fetch,
+): Promise<{ email?: string; name?: string; avatarUrl?: string }> {
+  const url = new URL(`/open-apis/contact/v3/users/${encodeURIComponent(userId)}`, baseUrl);
+  url.searchParams.set("user_id_type", "user_id");
+
+  const response = await fetchImpl(url.toString(), {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    serviceLogger.warn({ status: response.status }, "Lark contact request failed");
+    return {};
+  }
+
+  const data = (await response.json()) as Record<string, unknown>;
+  const code = data.code as number;
+  if (code !== 0) {
+    serviceLogger.warn({ msg: data.msg }, "Lark contact API error");
+    return {};
+  }
+
+  const contactData = (data.data as Record<string, unknown> | undefined)
+    ?? (data.data as Record<string, unknown> | undefined)?.user as Record<string, unknown> | undefined;
+  const email = (contactData?.email as string | undefined) || undefined;
+  const name = (contactData?.name as string | undefined) || undefined;
+  const avatar = contactData?.avatar as Record<string, unknown> | undefined;
+  const avatarUrl = (avatar?.avatar_240 as string | undefined)
+    || (avatar?.avatar_640 as string | undefined)
+    || (avatar?.avatar_72 as string | undefined)
+    || (contactData?.avatar_url as string | undefined)
+    || undefined;
+
+  return { email, name, avatarUrl };
+}
+
 async function getLarkUserInfo(
   baseUrl: string,
   accessToken: string,
   fetchImpl: typeof fetch,
-): Promise<{ userId: string; tenantKey: string; email?: string }> {
+): Promise<{ userId: string; tenantKey: string; email?: string; name?: string; avatarUrl?: string }> {
   const url = new URL("/open-apis/authen/v1/user_info", baseUrl);
   const response = await fetchImpl(url.toString(), {
     method: "GET",
@@ -430,6 +477,7 @@ async function getLarkUserInfo(
   }
 
   const data = (await response.json()) as Record<string, unknown>;
+  serviceLogger.debug(data, "Lark user info raw response");
   const code = data.code as number;
   if (code !== 0) {
     throw new Error(`Lark user info API error: ${data.msg as string}`);
@@ -438,12 +486,59 @@ async function getLarkUserInfo(
   const userData = data.data as Record<string, unknown> | undefined;
   const userId = userData?.user_id as string | undefined;
   const tenantKey = userData?.tenant_key as string | undefined;
-  const email = userData?.email as string | undefined;
+  const rawEmail = userData?.email as string | undefined;
+  const enterpriseEmail = userData?.enterprise_email as string | undefined;
+  let email = rawEmail || enterpriseEmail || undefined;
+  let name = (userData?.name as string | undefined) || undefined;
+  let avatarUrl = (userData?.avatar_url as string | undefined) || undefined;
+
   if (!userId || !tenantKey) {
     throw new Error("Lark user info response missing tenant identity");
   }
 
-  return { userId, tenantKey, email };
+  // Fall back to Contact API when email is missing, because the current
+  // OAuth scope does not always grant email access through the authen API.
+  if (!email) {
+    const contactInfo = await getLarkContactUserInfo(baseUrl, userId, accessToken, fetchImpl);
+    email = contactInfo.email ?? email;
+    name = contactInfo.name ?? name;
+    avatarUrl = contactInfo.avatarUrl ?? avatarUrl;
+  }
+
+  return { userId, tenantKey, email, name, avatarUrl };
+}
+
+export async function fetchLarkUserInfo(
+  request: { masterUserId: string; baseUrl: string },
+  overrides?: Partial<LarkAuthServiceDeps>,
+): Promise<{ userId: string; tenantKey: string; email?: string; name?: string; avatarUrl?: string }> {
+  const deps = getDeps(overrides);
+  const authBaseUrl = normalizeLarkAuthBaseUrl(request.baseUrl);
+  const tokenStore = getTokenStore(deps);
+  const stored = await tokenStore.get({
+    masterUserId: request.masterUserId,
+    baseUrl: authBaseUrl,
+  });
+
+  if (!stored?.userToken) {
+    throw new Error("No stored Lark token found");
+  }
+
+  const fetchImpl = deps.fetchImpl ?? fetch;
+  const userInfo = await getLarkUserInfo(authBaseUrl, stored.userToken, fetchImpl);
+
+  const resolvedUserStore = getResolvedStore(deps);
+  const existingByUser = await resolvedUserStore.getById(request.masterUserId);
+  if (existingByUser) {
+    await resolvedUserStore.update({
+      ...existingByUser,
+      larkEmail: userInfo.email ?? existingByUser.larkEmail,
+      larkName: userInfo.name ?? existingByUser.larkName,
+      larkAvatarUrl: userInfo.avatarUrl ?? existingByUser.larkAvatarUrl,
+    });
+  }
+
+  return userInfo;
 }
 
 export async function handleLarkAuthCallback(
@@ -458,10 +553,7 @@ export async function handleLarkAuthCallback(
   const session = await oauthSessionStore.get(query.state);
 
   if (!session || session.provider !== "lark" || session.status !== "pending" || Date.parse(session.expiresAt) <= Date.now()) {
-    console.warn("[LARK_AUTH_CALLBACK][FAIL]", {
-      state: query.state,
-      reason: "LARK_OAUTH_STATE_INVALID",
-    });
+    serviceLogger.warn({ state: query.state, reason: "LARK_OAUTH_STATE_INVALID" }, "Lark auth callback failed");
     return renderCallbackPage({
       statusCode: 400,
       title: "Lark 授权失败",
@@ -515,6 +607,8 @@ export async function handleLarkAuthCallback(
         larkTenantKey: userInfo.tenantKey,
         larkId: userInfo.userId,
         larkEmail: userInfo.email ?? existingByUser.larkEmail,
+        larkName: userInfo.name ?? existingByUser.larkName,
+        larkAvatarUrl: userInfo.avatarUrl ?? existingByUser.larkAvatarUrl,
         status: "active",
       });
     }
@@ -527,6 +621,7 @@ export async function handleLarkAuthCallback(
       userToken: tokenPair.accessToken,
       userTokenExpiresAt: toExpiresAt(tokenPair.expiresIn),
       refreshToken: tokenPair.refreshToken,
+      refreshTokenExpiresAt: toExpiresAt(DEFAULT_REFRESH_TOKEN_TTL_SECONDS),
       credentialStatus: "active",
     });
 
@@ -546,13 +641,13 @@ export async function handleLarkAuthCallback(
       masterUserId: session.masterUserId,
     });
   } catch (error) {
-    console.error("[LARK_AUTH_CALLBACK][FAIL]", {
+    serviceLogger.error({
       state: query.state,
       masterUserId: session.masterUserId,
       baseUrl: session.baseUrl,
       reason: error instanceof Error ? error.message : "LARK_AUTH_CALLBACK_FAILED",
       stack: error instanceof Error ? error.stack : undefined,
-    });
+    }, "Lark auth callback failed");
     await oauthSessionStore.markFailed({
       state: query.state,
       errorCode: error instanceof Error ? error.message : "LARK_AUTH_CALLBACK_FAILED",

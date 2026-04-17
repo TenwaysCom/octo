@@ -32,6 +32,9 @@ function migrateUsersTable(db: DatabaseSync): void {
     !schemaSql.includes("meegle_base_url") ||
     !schemaSql.includes("lark_tenant_key") ||
     !schemaSql.includes("lark_email") ||
+    !schemaSql.includes("lark_name") ||
+    !schemaSql.includes("lark_avatar_url") ||
+    !schemaSql.includes("role") ||
     schemaSql.includes("lark_id TEXT UNIQUE");
 
   if (!needsRebuild) {
@@ -48,9 +51,12 @@ function migrateUsersTable(db: DatabaseSync): void {
       lark_tenant_key TEXT,
       lark_id TEXT,
       lark_email TEXT,
+      lark_name TEXT,
+      lark_avatar_url TEXT,
       meegle_base_url TEXT,
       meegle_user_key TEXT,
       github_id TEXT UNIQUE,
+      role TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -61,9 +67,12 @@ function migrateUsersTable(db: DatabaseSync): void {
       lark_tenant_key,
       lark_id,
       lark_email,
+      lark_name,
+      lark_avatar_url,
       meegle_base_url,
       meegle_user_key,
       github_id,
+      role,
       created_at,
       updated_at
     )
@@ -73,9 +82,12 @@ function migrateUsersTable(db: DatabaseSync): void {
       ${hasLarkTenantKey ? "lark_tenant_key" : "NULL"},
       lark_id,
       ${hasColumn(db, "users", "lark_email") ? "lark_email" : "NULL"},
+      ${hasColumn(db, "users", "lark_name") ? "lark_name" : "NULL"},
+      ${hasColumn(db, "users", "lark_avatar_url") ? "lark_avatar_url" : "NULL"},
       ${hasMeegleBaseUrl ? "meegle_base_url" : "NULL"},
       meegle_user_key,
       github_id,
+      ${hasColumn(db, "users", "role") ? "role" : "NULL"},
       created_at,
       updated_at
     FROM users;
@@ -277,9 +289,12 @@ function initSchema(db: DatabaseSync): void {
       lark_tenant_key TEXT,
       lark_id TEXT,
       lark_email TEXT,
+      lark_name TEXT,
+      lark_avatar_url TEXT,
       meegle_base_url TEXT,
       meegle_user_key TEXT,
       github_id TEXT UNIQUE,
+      role TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -293,7 +308,10 @@ function initSchema(db: DatabaseSync): void {
   ensureColumn(db, "user_tokens", "refresh_token_expires_at", "TEXT");
   ensureColumn(db, "users", "lark_tenant_key", "TEXT");
   ensureColumn(db, "users", "lark_email", "TEXT");
+  ensureColumn(db, "users", "lark_name", "TEXT");
+  ensureColumn(db, "users", "lark_avatar_url", "TEXT");
   ensureColumn(db, "users", "meegle_base_url", "TEXT");
+  ensureColumn(db, "users", "role", "TEXT");
   db.exec(`
     CREATE UNIQUE INDEX IF NOT EXISTS users_lark_identity_unique
     ON users(lark_tenant_key, lark_id)

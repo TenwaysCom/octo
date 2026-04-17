@@ -17,7 +17,9 @@ function getTestingApi() {
         detailState: string;
         detailTitle: string | null;
         anchorLabel: string | null;
+        recordId: string | null;
       };
+      destroy: () => void;
     };
   }).__TENWAYS_LARK_TESTING__;
 }
@@ -29,6 +31,7 @@ describe("lark content script probe overlay", () => {
   });
 
   afterEach(() => {
+    getTestingApi()?.destroy?.();
     vi.unstubAllEnvs();
   });
 
@@ -49,7 +52,7 @@ describe("lark content script probe overlay", () => {
               <h2>Burger 出库对接2</h2>
             </div>
             <section class="field-list">
-              <div class="field-row"><label>Request Status</label><div>Testing</div></div>
+              <div class="field-row"><label>Issue 类型</label><div>User Story</div></div>
               <div class="field-row"><label>Priority</label><div>P0</div></div>
               <div data-user-id="ou_runtime_test"></div>
             </section>
@@ -81,6 +84,7 @@ describe("lark content script probe overlay", () => {
     vi.stubEnv("WXT_PUBLIC_INJECTION_PROBE", "true");
 
     await import("./lark");
+    window.history.replaceState({}, "", "/base/app_xxx/table/tbl_xxx/record/rec_probe_ready");
 
     document.body.innerHTML = `
       <div id="app">
@@ -90,7 +94,7 @@ describe("lark content script probe overlay", () => {
               <h2>Burger 出库对接2</h2>
             </div>
             <section class="field-list">
-              <div class="field-row"><label>Request Status</label><div>Testing</div></div>
+              <div class="field-row"><label>Issue 类型</label><div>User Story</div></div>
               <div class="field-row"><label>Priority</label><div>P0</div></div>
             </section>
           </aside>
@@ -100,15 +104,17 @@ describe("lark content script probe overlay", () => {
 
     getTestingApi()?.refreshProbeState();
 
-    expect(getTestingApi()?.getProbeState()).toEqual({
+    expect(getTestingApi()?.getProbeState()).toMatchObject({
       detailState: "detail-ready",
       detailTitle: "Burger 出库对接2",
       anchorLabel: "detail-header",
+      recordId: "rec_probe_ready",
     });
 
     const overlay = document.querySelector("[data-tenways-lark-probe-overlay]");
     expect(overlay?.textContent).toContain("detail: detail-ready");
     expect(overlay?.textContent).toContain("anchor: detail-header");
+    expect(overlay?.textContent).toContain("recordId: rec_probe_ready");
   });
 
   it("switches to detail-loading when a detail shell appears without parsed fields", async () => {
@@ -116,6 +122,7 @@ describe("lark content script probe overlay", () => {
     vi.stubEnv("WXT_PUBLIC_INJECTION_PROBE", "true");
 
     await import("./lark");
+    window.history.replaceState({}, "", "/base/app_xxx/table/tbl_xxx?recordId=rec_probe_loading");
 
     document.body.innerHTML = `
       <div id="app">
@@ -131,25 +138,27 @@ describe("lark content script probe overlay", () => {
 
     getTestingApi()?.refreshProbeState();
 
-    expect(getTestingApi()?.getProbeState()).toEqual({
+    expect(getTestingApi()?.getProbeState()).toMatchObject({
       detailState: "detail-loading",
       detailTitle: null,
       anchorLabel: null,
+      recordId: "rec_probe_loading",
     });
 
     const overlay = document.querySelector("[data-tenways-lark-probe-overlay]");
     expect(overlay?.textContent).toContain("detail: detail-loading");
     expect(overlay?.textContent).toContain("title: -");
+    expect(overlay?.textContent).toContain("recordId: rec_probe_loading");
   });
 
-  it("reports unknown pageType when no A1 or A2 signal is present", async () => {
+  it("reports lark_base pageType when on a Lark Base URL", async () => {
     await import("./lark");
 
-    window.history.replaceState({}, "", "/base/app_xxx/table/tbl_xxx/record/rec_unknown");
+    window.history.replaceState({}, "", "/base/app_xxx/table/tbl_xxx/record/rec_base");
 
     expect(getTestingApi()?.detectLarkPageContext()).toMatchObject({
-      pageType: "unknown",
-      recordId: "rec_unknown",
+      pageType: "lark_base",
+      recordId: "rec_base",
     });
   });
 
@@ -165,19 +174,21 @@ describe("lark content script probe overlay", () => {
     });
   });
 
-  it("infers A2 from the parsed record fields", async () => {
+  it("extracts recordId from '记录ID' field when URL does not contain it", async () => {
     await import("./lark");
+
+    window.history.replaceState({}, "", "/base/app_xxx/table/tbl_xxx");
 
     document.body.innerHTML = `
       <div id="app">
         <main>
           <aside class="record-detail-panel">
             <div class="detail-header">
-              <h2>需求整理</h2>
+              <h2>测试需求</h2>
             </div>
             <section class="field-list">
-              <div class="field-row"><label>Target</label><div>提升效率</div></div>
-              <div class="field-row"><label>Acceptance</label><div>完成验收条件</div></div>
+              <div class="field-row"><label>记录 ID</label><div>rec_from_field</div></div>
+              <div class="field-row"><label>Priority</label><div>P0</div></div>
             </section>
           </aside>
         </main>
@@ -185,7 +196,36 @@ describe("lark content script probe overlay", () => {
     `;
 
     expect(getTestingApi()?.detectLarkPageContext()).toMatchObject({
-      pageType: "lark_a2",
+      baseId: "app_xxx",
+      tableId: "tbl_xxx",
+      recordId: "rec_from_field",
+    });
+  });
+
+  it("extracts recordId from '记录ID' field even when only one field is present", async () => {
+    await import("./lark");
+
+    window.history.replaceState({}, "", "/base/app_xxx/table/tbl_xxx");
+
+    document.body.innerHTML = `
+      <div id="app">
+        <main>
+          <aside class="record-detail-panel">
+            <div class="detail-header">
+              <h2>单一字段测试</h2>
+            </div>
+            <section class="field-list">
+              <div class="field-row"><label>记录 ID</label><div>rec_single_field</div></div>
+            </section>
+          </aside>
+        </main>
+      </div>
+    `;
+
+    expect(getTestingApi()?.detectLarkPageContext()).toMatchObject({
+      baseId: "app_xxx",
+      tableId: "tbl_xxx",
+      recordId: "rec_single_field",
     });
   });
 });

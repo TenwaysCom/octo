@@ -1,3 +1,7 @@
+import { logger } from "../../logger.js";
+
+const clientLogger = logger.child({ module: "meegle-client" });
+
 /**
  * Meegle OpenAPI Client
  *
@@ -396,7 +400,7 @@ export class MeegleClient {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
       "Accept": "application/json",
-      "X-USER-TOKEN": this.config.userToken,
+      "X-PLUGIN-TOKEN": this.config.userToken,
       "X-USER-KEY": this.config.userKey,
     };
 
@@ -435,6 +439,7 @@ export class MeegleClient {
     const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
 
     try {
+      clientLogger.debug({ url: url.replace(/\?.*/, ""), method: req.httpMethod, apiPath: req.apiPath, body: req.body }, "MEEGLE_REQUEST_START");
       const response = await fetch(url, {
         method: req.httpMethod,
         headers: this.getHeaders(idempotent, idempotencyKey),
@@ -444,6 +449,10 @@ export class MeegleClient {
 
       clearTimeout(timeoutId);
       const data = await parseJson(response);
+      clientLogger.debug({ url: url.replace(/\?.*/, ""), statusCode: response.status, ok: response.ok }, "MEEGLE_REQUEST_RESPONSE");
+      if (!response.ok) {
+        clientLogger.warn({ url: url.replace(/\?.*/, ""), statusCode: response.status, response: data }, "MEEGLE_REQUEST_ERROR");
+      }
       return handleResponse(response, data);
     } catch (err) {
       clearTimeout(timeoutId);
@@ -510,8 +519,61 @@ export class MeegleClient {
 
   async createWorkitem(input: CreateWorkitemRequest): Promise<MeegleWorkitem> {
     const req = createWorkitemRequestBuilder(input);
-    const data = await this.request(req, true, input.idempotencyKey);
-    const workitemData = (data.data ?? data) as Record<string, unknown>;
+    clientLogger.info({ projectKey: input.projectKey, workItemTypeKey: input.workItemTypeKey, name: input.name, templateId: input.templateId, hasIdempotencyKey: Boolean(input.idempotencyKey) }, "CREATE_WORKITEM START");
+
+    let data: Record<string, unknown>;
+    try {
+      data = await this.request(req, true, input.idempotencyKey);
+    } catch (error) {
+      if (error instanceof MeegleRateLimitError) {
+        clientLogger.error({
+          projectKey: input.projectKey,
+          workItemTypeKey: input.workItemTypeKey,
+          statusCode: error.statusCode,
+          response: error.response,
+          message: error.message,
+        }, "CREATE_WORKITEM FAIL");
+      } else if (error instanceof MeegleAPIError) {
+        clientLogger.error({
+          projectKey: input.projectKey,
+          workItemTypeKey: input.workItemTypeKey,
+          statusCode: error.statusCode,
+          response: error.response,
+          message: error.message,
+        }, "CREATE_WORKITEM FAIL");
+      } else {
+        clientLogger.error({
+          projectKey: input.projectKey,
+          workItemTypeKey: input.workItemTypeKey,
+          message: error instanceof Error ? error.message : String(error),
+        }, "CREATE_WORKITEM FAIL");
+      }
+      throw error;
+    }
+
+    // The API returns either:
+    // - { data: <number_id> } for create responses (just the workitem ID)
+    // - { data: { full_workitem_object } } for other responses
+    const responseData = data.data ?? data;
+
+    // If response is just a number (the workitem ID), fetch full details
+    if (typeof responseData === "number" || typeof responseData === "string") {
+      const workitemId = String(responseData);
+      clientLogger.info({ workitemId }, "CREATE_WORKITEM OK numeric_id");
+      const workitems = await this.getWorkitemDetails(
+        input.projectKey,
+        input.workItemTypeKey,
+        [workitemId],
+      );
+      if (workitems.length === 0) {
+        throw new Error(`Failed to fetch created workitem ${workitemId}`);
+      }
+      return workitems[0];
+    }
+
+    // Otherwise, parse the full workitem object directly
+    const workitemData = responseData as Record<string, unknown>;
+    clientLogger.info({ workitemId: workitemData.id ?? workitemData.work_item_id }, "CREATE_WORKITEM OK full_object");
     return parseWorkitem(workitemData);
   }
 

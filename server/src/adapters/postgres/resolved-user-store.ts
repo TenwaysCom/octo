@@ -9,9 +9,12 @@ export interface ResolvedUserRecord {
   larkTenantKey: string | null;
   larkId: string | null;
   larkEmail: string | null;
+  larkName: string | null;
+  larkAvatarUrl: string | null;
   meegleBaseUrl: string | null;
   meegleUserKey: string | null;
   githubId: string | null;
+  role: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -29,9 +32,12 @@ export interface ResolvedUserStore {
     larkTenantKey?: string;
     larkId?: string;
     larkEmail?: string;
+    larkName?: string;
+    larkAvatarUrl?: string;
     meegleBaseUrl?: string;
     meegleUserKey?: string;
     githubId?: string;
+    role?: string;
   }): Promise<ResolvedUserRecord>;
   update(input: ResolvedUserRecord): Promise<ResolvedUserRecord>;
 }
@@ -52,9 +58,12 @@ function toRecord(
     larkTenantKey: row.lark_tenant_key,
     larkId: row.lark_id,
     larkEmail: row.lark_email,
+    larkName: row.lark_name,
+    larkAvatarUrl: row.lark_avatar_url,
     meegleBaseUrl: row.meegle_base_url,
     meegleUserKey: row.meegle_user_key,
     githubId: row.github_id,
+    role: row.role,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -116,9 +125,12 @@ export class PostgresResolvedUserStore implements ResolvedUserStore {
     larkTenantKey?: string;
     larkId?: string;
     larkEmail?: string;
+    larkName?: string;
+    larkAvatarUrl?: string;
     meegleBaseUrl?: string;
     meegleUserKey?: string;
     githubId?: string;
+    role?: string;
   }): Promise<ResolvedUserRecord> {
     const now = new Date().toISOString();
     const id = randomUUID();
@@ -129,9 +141,12 @@ export class PostgresResolvedUserStore implements ResolvedUserStore {
       lark_tenant_key: input.larkTenantKey ?? null,
       lark_id: input.larkId ?? null,
       lark_email: input.larkEmail ?? null,
+      lark_name: input.larkName ?? null,
+      lark_avatar_url: input.larkAvatarUrl ?? null,
       meegle_base_url: input.meegleBaseUrl ?? null,
       meegle_user_key: input.meegleUserKey ?? null,
       github_id: input.githubId ?? null,
+      role: input.role ?? null,
       created_at: now,
       updated_at: now,
     }).execute();
@@ -142,9 +157,12 @@ export class PostgresResolvedUserStore implements ResolvedUserStore {
       larkTenantKey: input.larkTenantKey ?? null,
       larkId: input.larkId ?? null,
       larkEmail: input.larkEmail ?? null,
+      larkName: input.larkName ?? null,
+      larkAvatarUrl: input.larkAvatarUrl ?? null,
       meegleBaseUrl: input.meegleBaseUrl ?? null,
       meegleUserKey: input.meegleUserKey ?? null,
       githubId: input.githubId ?? null,
+      role: input.role ?? null,
       createdAt: now,
       updatedAt: now,
     };
@@ -158,9 +176,12 @@ export class PostgresResolvedUserStore implements ResolvedUserStore {
       lark_tenant_key: input.larkTenantKey,
       lark_id: input.larkId,
       lark_email: input.larkEmail,
+      lark_name: input.larkName,
+      lark_avatar_url: input.larkAvatarUrl,
       meegle_base_url: input.meegleBaseUrl,
       meegle_user_key: input.meegleUserKey,
       github_id: input.githubId,
+      role: input.role,
       updated_at: updatedAt,
     }).where("id", "=", input.id)
       .execute();

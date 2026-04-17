@@ -1,0 +1,212 @@
+{
+  "issueTypeMappings": [
+    {
+      "larkLabels":["feature"],
+      "workitemTypeKey": "story",
+      "templateId": "400329",
+      "urlSlug": "story",
+      "fieldMappings": [
+        {
+          "larkField": "需求人",
+          "meegleField": "description",
+          "transform": "text",
+          "prefix": true,
+          "valuePrefix": "需求人:"
+        },
+        {
+          "larkField": "紧急度",
+          "meegleField": "description",
+          "transform": "text",
+          "prefix": true
+        },
+        {
+          "larkField": "Details Description",
+          "fallbackLarkFields": ["fldML66Cx1", "Issue Description", "fldaAzcMtg"],
+          "meegleField": "description",
+          "transform": "text"
+        },
+        {
+          "meegleField": "field_e8ad0a",
+          "source": {
+            "sourceType": "record_url"
+          },
+          "transform": "text"
+        },
+        {
+          "meegleField": "field_e7984b",
+          "source": {
+            "sourceType": "shared_record_url"
+          },
+          "transform": "text"
+        },
+        {
+          "meegleField": "field_8d0341",
+          "source": {
+            "sourceType": "field",
+            "sourceField": "Lark Message Link"
+          },
+          "fallbackSources": [
+            {
+              "sourceType": "description_regex",
+              "pattern": "https?:\\/\\/[^\\s\"<>]*(?:threadid|chatid|messageid)=[^\\s\"<>]*"
+            }
+          ],
+          "transform": "text"
+        }
+      ]
+    },
+    {
+      "larkLabels":["配置"],
+      "workitemTypeKey":"66700acbf297a8f821b4b860",
+      "templateId":"651452",
+      "urlSlug": "techtask",
+      "fieldMappings": [
+        {
+          "larkField": "需求人",
+          "meegleField": "description",
+          "transform": "text",
+          "prefix": true,
+          "valuePrefix": "需求人:"
+        },
+        {
+          "larkField": "Details Description",
+          "fallbackLarkFields": ["fldML66Cx1", "Issue Description", "fldaAzcMtg"],
+          "meegleField": "description",
+          "transform": "text"
+        },
+        {
+          "meegleField": "field_e8ad0a",
+          "source": {
+            "sourceType": "record_url"
+          },
+          "transform": "text"
+        },
+        {
+          "meegleField": "field_e7984b",
+          "source": {
+            "sourceType": "shared_record_url"
+          },
+          "transform": "text"
+        },
+        {
+          "meegleField": "field_8d0341",
+          "source": {
+            "sourceType": "field",
+            "sourceField": "Lark Message Link"
+          },
+          "fallbackSources": [
+            {
+              "sourceType": "description_regex",
+              "pattern": "https?:\\/\\/[^\\s\"<>]*(?:threadid|chatid|messageid)=[^\\s\"<>]*"
+            }
+          ],
+          "transform": "text"
+        }
+      ]
+    },
+    {
+      "larkLabels":["数据维护", "产品信息维护"],
+      "workitemTypeKey":"66700acbf297a8f821b4b860",
+      "templateId":"690928",
+      "urlSlug": "techtask",
+      "fieldMappings": [
+        {
+          "larkField": "需求人",
+          "meegleField": "description",
+          "transform": "text",
+          "prefix": true,
+          "valuePrefix": "需求人:"
+        },
+        {
+          "larkField": "Details Description",
+          "fallbackLarkFields": ["fldML66Cx1", "Issue Description", "fldaAzcMtg"],
+          "meegleField": "description",
+          "transform": "text"
+        },
+        {
+          "meegleField": "field_e8ad0a",
+          "source": {
+            "sourceType": "record_url"
+          },
+          "transform": "text"
+        },
+        {
+          "meegleField": "field_e7984b",
+          "source": {
+            "sourceType": "shared_record_url"
+          },
+          "transform": "text"
+        },
+        {
+          "meegleField": "field_8d0341",
+          "source": {
+            "sourceType": "field",
+            "sourceField": "Lark Message Link"
+          },
+          "fallbackSources": [
+            {
+              "sourceType": "description_regex",
+              "pattern": "https?:\\/\\/[^\\s\"<>]*(?:threadid|chatid|messageid)=[^\\s\"<>]*"
+            }
+          ],
+          "transform": "text"
+        }
+      ]
+    },
+    {
+      "larkLabels": ["Bug"],
+      "workitemTypeKey": "6932e40429d1cd8aac635c82",
+      "templateId": "645025",
+      "urlSlug": "production_bug",
+      "fieldMappings": [
+        {
+          "larkField": "需求人",
+          "meegleField": "description",
+          "transform": "text",
+          "prefix": true,
+          "valuePrefix": "需求人:"
+        },
+        {
+          "larkField": "紧急度",
+          "meegleField": "description",
+          "transform": "text",
+          "prefix": true
+        },
+        {
+          "larkField": "Details Description",
+          "fallbackLarkFields": ["fldML66Cx1", "Issue Description", "fldaAzcMtg"],
+          "meegleField": "description",
+          "transform": "text"
+        },
+        {
+          "meegleField": "field_e8ad0a",
+          "source": {
+            "sourceType": "record_url"
+          },
+          "transform": "text"
+        },
+        {
+          "meegleField": "field_e7984b",
+          "source": {
+            "sourceType": "shared_record_url"
+          },
+          "transform": "text"
+        },
+        {
+          "meegleField": "field_8d0341",
+          "source": {
+            "sourceType": "field",
+            "sourceField": "Lark Message Link"
+          },
+          "fallbackSources": [
+            {
+              "sourceType": "description_regex",
+              "pattern": "https?:\\/\\/[^\\s\"<>]*(?:threadid|chatid|messageid)=[^\\s\"<>]*"
+            }
+          ],
+          "transform": "text"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "issueTypeMappings": [
+    {
+      "larkLabels": ["User Story"],
+      "workitemTypeKey": "story",
+      "templateId": "400329",
+      "urlSlug": "story",
+      "fieldMappings": [
+        {
+          "larkField": "Issue Description",
+          "meegleField": "__title__",
+          "transform": "first_line"
+        },
+        {
+          "larkField": "Details Description",
+          "meegleField": "description",
+          "transform": "text"
+        },
+        {
+          "larkField": "紧急度",
+          "meegleField": "priority",
+          "transform": "select",
+          "options": {
+            "P0": "0",
+            "P1": "1",
+            "P2": "2"
+          }
+        }
+      ]
+    }
+  ]
+}

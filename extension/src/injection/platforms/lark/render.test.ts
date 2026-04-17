@@ -8,26 +8,14 @@ afterEach(() => {
   document.body.innerHTML = "";
 });
 
-function createContext(title: string): LarkRecordContext {
+function createContext(title: string, fields?: Array<{ label: string; value: string }>): LarkRecordContext {
   return {
     title,
-    fields: [
+    fields: fields ?? [
       { label: "Status", value: "Testing" },
       { label: "Priority", value: "P1" },
     ],
   };
-}
-
-function createDeferred<T>() {
-  let resolve!: (value: T) => void;
-  let reject!: (reason?: unknown) => void;
-
-  const promise = new Promise<T>((nextResolve, nextReject) => {
-    resolve = nextResolve;
-    reject = nextReject;
-  });
-
-  return { promise, resolve, reject };
 }
 
 async function flushPromises(): Promise<void> {
@@ -42,47 +30,25 @@ async function userClick(element: Element | null): Promise<void> {
 }
 
 describe("renderLarkInjection", () => {
-  const context = createContext("Burger 出库对接2");
-
-  it("renders an explicit Meegle Product Bug button for Lark Bug records", () => {
+  it("renders a dynamic Meegle User Story button for lark_base when issue type is User Story", () => {
     const anchor = document.createElement("div");
 
     renderLarkInjection({
       pageState: {
         kind: "detail-ready",
-        context,
+        context: createContext("Base需求", [
+          { label: "Issue 类型", value: "User Story" },
+          { label: "Priority", value: "P1" },
+        ]),
         anchor: { element: anchor, label: "detail-header", confidence: 1 },
       },
       deps: {
         pageContext: {
-          pageType: "lark_a1",
-          url: "https://tenant/base/app_xxx/table/tbl_xxx/record/rec_xxx",
+          pageType: "lark_base",
+          url: "https://tenant/base/app_xxx/table/tbl_xxx/record/rec_base",
           baseId: "app_xxx",
           tableId: "tbl_xxx",
-          recordId: "rec_xxx",
-        },
-      },
-    });
-
-    expect(anchor.textContent).toContain("创建 Meegle Product Bug");
-  });
-
-  it("renders an explicit Meegle User Story button for Lark User Story records", () => {
-    const anchor = document.createElement("div");
-
-    renderLarkInjection({
-      pageState: {
-        kind: "detail-ready",
-        context,
-        anchor: { element: anchor, label: "detail-header", confidence: 1 },
-      },
-      deps: {
-        pageContext: {
-          pageType: "lark_a2",
-          url: "https://tenant/base/app_xxx/table/tbl_xxx/record/rec_xxx",
-          baseId: "app_xxx",
-          tableId: "tbl_xxx",
-          recordId: "rec_xxx",
+          recordId: "rec_base",
         },
       },
     });
@@ -90,148 +56,203 @@ describe("renderLarkInjection", () => {
     expect(anchor.textContent).toContain("创建 Meegle User Story");
   });
 
-  it("expands the collapsible panel after clicking the button", async () => {
+  it("renders a dynamic Meegle Tech Task button for lark_base when issue type is Tech Task", () => {
+    const anchor = document.createElement("div");
+
+    renderLarkInjection({
+      pageState: {
+        kind: "detail-ready",
+        context: createContext("Base任务", [
+          { label: "Issue Type", value: "Tech Task" },
+          { label: "Priority", value: "P1" },
+        ]),
+        anchor: { element: anchor, label: "detail-header", confidence: 1 },
+      },
+      deps: {
+        pageContext: {
+          pageType: "lark_base",
+          url: "https://tenant/base/app_xxx/table/tbl_xxx/record/rec_base",
+          baseId: "app_xxx",
+          tableId: "tbl_xxx",
+          recordId: "rec_base",
+        },
+      },
+    });
+
+    expect(anchor.textContent).toContain("创建 Meegle Tech Task");
+  });
+
+  it("renders a dynamic Meegle Production Bug button for lark_base when issue type is Production Bug", () => {
+    const anchor = document.createElement("div");
+
+    renderLarkInjection({
+      pageState: {
+        kind: "detail-ready",
+        context: createContext("Base缺陷", [
+          { label: "Issue 类型", value: "Production Bug" },
+          { label: "Priority", value: "P0" },
+        ]),
+        anchor: { element: anchor, label: "detail-header", confidence: 1 },
+      },
+      deps: {
+        pageContext: {
+          pageType: "lark_base",
+          url: "https://tenant/base/app_xxx/table/tbl_xxx/record/rec_base",
+          baseId: "app_xxx",
+          tableId: "tbl_xxx",
+          recordId: "rec_base",
+        },
+      },
+    });
+
+    expect(anchor.textContent).toContain("创建 Meegle Production Bug");
+  });
+
+  it("creates workitem in one step when button is clicked", async () => {
     const detailRoot = document.createElement("section");
     const anchor = document.createElement("div");
     detailRoot.appendChild(anchor);
-    const requestDraft = vi.fn().mockResolvedValue({
-      draftId: "draft_b2_rec_expand",
-      draftType: "b2",
-      sourceRef: {
-        sourcePlatform: "lark_a1",
-        sourceRecordId: "rec_expand",
-      },
-      target: {
-        projectKey: "OPS",
-        workitemTypeKey: "bug",
-        templateId: "production-bug",
-      },
-      name: "Burger 出库对接2",
-      needConfirm: true,
-      fieldValuePairs: [],
-      ownerUserKeys: [],
-      missingMeta: [],
+
+    const createWorkitem = vi.fn().mockResolvedValue({
+      status: "created",
+      workitemId: "BASE-123",
     });
 
-    renderLarkInjection({
+    const renderer = createLarkInjectionRenderer({
+      createWorkitem,
+      pageContext: {
+        pageType: "lark_base",
+        url: "https://tenant/base/app_xxx/table/tbl_xxx/record/rec_base",
+        baseId: "app_xxx",
+        tableId: "tbl_xxx",
+        recordId: "rec_base",
+        operatorLarkId: "ou_base",
+        masterUserId: "usr_base",
+      },
+    });
+
+    renderer.render({
       pageState: {
         kind: "detail-ready",
-        context,
+        context: createContext("Base需求", [
+          { label: "Issue 类型", value: "User Story" },
+          { label: "Priority", value: "P1" },
+        ]),
         anchor: { element: anchor, label: "detail-header", confidence: 1 },
-      },
-      deps: {
-        requestDraft,
-        pageContext: {
-          pageType: "lark_a1",
-          url: "https://tenant/base/app_xxx/table/tbl_xxx/record/rec_expand",
-          baseId: "app_xxx",
-          tableId: "tbl_xxx",
-          recordId: "rec_expand",
-        },
-      },
-    });
-
-    const button = anchor.querySelector("button");
-    expect(button).not.toBeNull();
-    expect(detailRoot.querySelector('[data-tenways-octo-panel-state="collapsed"]')).not.toBeNull();
-
-    button?.click();
-    await Promise.resolve();
-
-    expect(detailRoot.querySelector('[data-tenways-octo-panel-state="draft-ready"]')).not.toBeNull();
-    expect(detailRoot.textContent).toContain("准备创建 Meegle Product Bug");
-  });
-
-  it("requests a draft when the action button is clicked", async () => {
-    const anchor = document.createElement("div");
-    const requestDraft = vi.fn().mockResolvedValue({
-      draftId: "draft_b2_rec_xxx",
-      draftType: "b2",
-      sourceRef: {
-        sourcePlatform: "lark_a1",
-        sourceRecordId: "rec_xxx",
-      },
-      target: {
-        projectKey: "OPS",
-        workitemTypeKey: "bug",
-        templateId: "production-bug",
-      },
-      name: "Burger 出库对接2",
-      needConfirm: true,
-      fieldValuePairs: [],
-      ownerUserKeys: [],
-      missingMeta: [],
-    });
-
-    renderLarkInjection({
-      pageState: {
-        kind: "detail-ready",
-        context,
-        anchor: { element: anchor, label: "detail-header", confidence: 1 },
-      },
-      deps: {
-        requestDraft,
-        pageContext: {
-          pageType: "lark_a1",
-          url: "https://tenant/base/app_xxx/table/tbl_xxx/record/rec_xxx",
-          baseId: "app_xxx",
-          tableId: "tbl_xxx",
-          recordId: "rec_xxx",
-          operatorLarkId: "ou_test_123",
-        },
       },
     });
 
     await userClick(anchor.querySelector("button"));
 
-    expect(requestDraft).toHaveBeenCalledWith(
+    expect(createWorkitem).toHaveBeenCalledWith(
       expect.objectContaining({
-        pageType: "lark_a1",
-        recordId: "rec_xxx",
-        operatorLarkId: "ou_test_123",
+        pageType: "lark_base",
+        recordId: "rec_base",
+        operatorLarkId: "ou_base",
+        masterUserId: "usr_base",
         snapshot: expect.objectContaining({
-          title: "Burger 出库对接2",
+          title: "Base需求",
         }),
       }),
     );
+    expect(detailRoot.querySelector('[data-tenways-octo-panel-state="success"]')).not.toBeNull();
+    expect(detailRoot.textContent).toContain("已创建 Meegle User Story");
   });
-});
 
-describe("createLarkInjectionRenderer", () => {
-  it("resets stale draft state when the same anchor renders a different context", async () => {
+  it("shows a specific auth message when createWorkitem returns MEEGLE_AUTH_REQUIRED", async () => {
     const detailRoot = document.createElement("section");
     const anchor = document.createElement("div");
     detailRoot.appendChild(anchor);
 
-    const requestDraft = vi.fn().mockResolvedValue({
-      draftId: "draft_b2_first",
-      draftType: "b2",
-      sourceRef: {
-        sourcePlatform: "lark_a1",
-        sourceRecordId: "rec_first",
+    class LarkRuntimeRequestError extends Error {
+      constructor(message: string, readonly errorCode?: string) {
+        super(message);
+        this.name = "LarkRuntimeRequestError";
+      }
+    }
+
+    const createWorkitem = vi.fn().mockRejectedValue(
+      new LarkRuntimeRequestError("Meegle 授权失效，请先在插件中重新授权后再试", "MEEGLE_AUTH_REQUIRED"),
+    );
+
+    const renderer = createLarkInjectionRenderer({
+      createWorkitem,
+      pageContext: {
+        pageType: "lark_base",
+        url: "https://tenant/base/app_xxx/table/tbl_xxx/record/rec_base",
+        baseId: "app_xxx",
+        tableId: "tbl_xxx",
+        recordId: "rec_base",
+        operatorLarkId: "ou_base",
       },
-      target: {
-        projectKey: "OPS",
-        workitemTypeKey: "bug",
-        templateId: "production-bug",
+    });
+
+    renderer.render({
+      pageState: {
+        kind: "detail-ready",
+        context: createContext("Base需求"),
+        anchor: { element: anchor, label: "detail-header", confidence: 1 },
       },
-      name: "First record",
-      needConfirm: true,
-      fieldValuePairs: [],
-      ownerUserKeys: [],
-      missingMeta: [],
+    });
+
+    await userClick(anchor.querySelector("button"));
+
+    expect(detailRoot.querySelector('[data-tenways-octo-panel-state="error"]')).not.toBeNull();
+    expect(detailRoot.textContent).toContain("Meegle 授权失效，请先在插件中重新授权后再试");
+  });
+
+  it("fails explicitly when recordId is missing", async () => {
+    const detailRoot = document.createElement("section");
+    const anchor = document.createElement("div");
+    detailRoot.appendChild(anchor);
+
+    const renderer = createLarkInjectionRenderer({
+      pageContext: {
+        pageType: "lark_base",
+        url: "https://tenant/base/app_xxx/table/tbl_xxx",
+        baseId: "app_xxx",
+        tableId: "tbl_xxx",
+        operatorLarkId: "ou_base",
+      },
+    });
+
+    renderer.render({
+      pageState: {
+        kind: "detail-ready",
+        context: createContext("Base需求"),
+        anchor: { element: anchor, label: "detail-header", confidence: 1 },
+      },
+    });
+
+    await userClick(anchor.querySelector("button"));
+
+    expect(detailRoot.querySelector('[data-tenways-octo-panel-state="error"]')).not.toBeNull();
+    expect(detailRoot.textContent).toContain("recordId is required to create a workitem.");
+  });
+});
+
+describe("createLarkInjectionRenderer", () => {
+  it("resets stale state when the same anchor renders a different context", async () => {
+    const detailRoot = document.createElement("section");
+    const anchor = document.createElement("div");
+    detailRoot.appendChild(anchor);
+
+    const createWorkitem = vi.fn().mockResolvedValue({
+      status: "created",
+      workitemId: "BASE-123",
     });
 
     const renderer = createLarkInjectionRenderer({
-      requestDraft,
+      createWorkitem,
       pageContext: {
-        pageType: "lark_a1",
+        pageType: "lark_base",
         url: "https://tenant/base/app_xxx/table/tbl_xxx/record/rec_first",
         baseId: "app_xxx",
         tableId: "tbl_xxx",
         recordId: "rec_first",
       },
     });
+
     renderer.render({
       pageState: {
         kind: "detail-ready",
@@ -243,7 +264,7 @@ describe("createLarkInjectionRenderer", () => {
     const button = anchor.querySelector("button");
     button?.click();
     await flushPromises();
-    expect(detailRoot.querySelector('[data-tenways-octo-panel-state="draft-ready"]')).not.toBeNull();
+    expect(detailRoot.querySelector('[data-tenways-octo-panel-state="success"]')).not.toBeNull();
 
     renderer.render({
       pageState: {
@@ -258,19 +279,19 @@ describe("createLarkInjectionRenderer", () => {
     expect(panel?.textContent).not.toContain("First record");
   });
 
-  it("ignores late draft completion after context changes or collapse", async () => {
+  it("ignores late completion after context changes or collapse", async () => {
     const detailRoot = document.createElement("section");
     const anchor = document.createElement("div");
     detailRoot.appendChild(anchor);
 
-    const firstDraft = createDeferred<{ title: string; fields: Array<{ label: string; value: string }> }>();
-    const secondDraft = createDeferred<{ title: string; fields: Array<{ label: string; value: string }> }>();
-    const requestDraft = vi
+    const firstCreate = createDeferred<{ status: "created"; workitemId: string }>();
+    const secondCreate = createDeferred<{ status: "created"; workitemId: string }>();
+    const createWorkitem = vi
       .fn()
-      .mockReturnValueOnce(firstDraft.promise)
-      .mockReturnValueOnce(secondDraft.promise);
+      .mockReturnValueOnce(firstCreate.promise)
+      .mockReturnValueOnce(secondCreate.promise);
 
-    const renderer = createLarkInjectionRenderer({ requestDraft });
+    const renderer = createLarkInjectionRenderer({ createWorkitem });
     renderer.render({
       pageState: {
         kind: "detail-ready",
@@ -281,7 +302,7 @@ describe("createLarkInjectionRenderer", () => {
 
     anchor.querySelector("button")?.click();
     await flushPromises();
-    expect(detailRoot.querySelector('[data-tenways-octo-panel-state="draft-loading"]')).not.toBeNull();
+    expect(detailRoot.querySelector('[data-tenways-octo-panel-state="submitting"]')).not.toBeNull();
 
     renderer.render({
       pageState: {
@@ -291,16 +312,16 @@ describe("createLarkInjectionRenderer", () => {
       },
     });
 
-    firstDraft.resolve({ title: "First record", fields: [] });
+    firstCreate.resolve({ status: "created", workitemId: "BASE-1" });
     await flushPromises();
 
     let panel = detailRoot.querySelector('[data-tenways-octo-mount="lark-detail-panel"]');
     expect(panel?.getAttribute("data-tenways-octo-panel-state")).toBe("collapsed");
-    expect(panel?.textContent).not.toContain("First record");
+    expect(panel?.textContent).not.toContain("BASE-1");
 
     anchor.querySelector("button")?.click();
     renderer.render({ pageState: { kind: "detail-closed" } });
-    secondDraft.resolve({ title: "Second record", fields: [] });
+    secondCreate.resolve({ status: "created", workitemId: "BASE-2" });
     await flushPromises();
 
     panel = detailRoot.querySelector('[data-tenways-octo-mount="lark-detail-panel"]');
@@ -342,219 +363,16 @@ describe("createLarkInjectionRenderer", () => {
     expect(firstContainer.querySelector('[data-tenways-octo-mount="lark-detail-panel"]')).toBeNull();
     expect(secondContainer.querySelector('[data-tenways-octo-mount="lark-detail-panel"]')).not.toBeNull();
   });
-
-  it("applies the last successful draft from the draft-ready panel action", async () => {
-    const detailRoot = document.createElement("section");
-    const anchor = document.createElement("div");
-    detailRoot.appendChild(anchor);
-
-    const draftPayload = {
-      draftId: "draft_b2_rec_apply",
-      draftType: "b2" as const,
-      sourceRef: {
-        sourcePlatform: "lark_a1" as const,
-        sourceRecordId: "rec_apply",
-      },
-      target: {
-        projectKey: "OPS",
-        workitemTypeKey: "bug",
-        templateId: "production-bug",
-      },
-      name: "Burger 出库对接2",
-      needConfirm: true as const,
-      fieldValuePairs: [
-        { fieldKey: "priority", fieldValue: "P1" },
-      ],
-      ownerUserKeys: [],
-      missingMeta: [],
-    };
-    const requestDraft = vi.fn().mockResolvedValue(draftPayload);
-    const applyDraft = vi.fn().mockResolvedValue({
-      status: "created",
-      workitemId: "B2-123",
-      draft: draftPayload,
-    });
-
-    const renderer = createLarkInjectionRenderer({
-      requestDraft,
-      applyDraft,
-      pageContext: {
-        pageType: "lark_a1",
-        url: "https://tenant/base/app_xxx/table/tbl_xxx/record/rec_apply",
-        baseId: "app_xxx",
-        tableId: "tbl_xxx",
-        recordId: "rec_apply",
-        operatorLarkId: "ou_test_apply",
-        masterUserId: "usr_render_apply",
-      },
-    });
-
-    renderer.render({
-      pageState: {
-        kind: "detail-ready",
-        context: createContext("Burger 出库对接2"),
-        anchor: { element: anchor, label: "detail-header", confidence: 1 },
-      },
-    });
-
-    await userClick(anchor.querySelector("button"));
-    expect(detailRoot.querySelector('[data-tenways-octo-panel-state="draft-ready"]')).not.toBeNull();
-
-    await userClick(detailRoot.querySelector('[data-tenways-octo-trigger="apply-to-meegle"]'));
-
-    expect(applyDraft).toHaveBeenCalledWith(
-      expect.objectContaining({
-        pageType: "lark_a1",
-        recordId: "rec_apply",
-        operatorLarkId: "ou_test_apply",
-        masterUserId: "usr_render_apply",
-        draft: expect.objectContaining({
-          draftId: "draft_b2_rec_apply",
-        }),
-      }),
-    );
-    expect(detailRoot.querySelector('[data-tenways-octo-panel-state="success"]')).not.toBeNull();
-    expect(detailRoot.textContent).toContain("已创建 Meegle Product Bug");
-  });
-
-  it("shows a specific auth message when apply returns MEEGLE_AUTH_REQUIRED", async () => {
-    const detailRoot = document.createElement("section");
-    const anchor = document.createElement("div");
-    detailRoot.appendChild(anchor);
-
-    const draftPayload = {
-      draftId: "draft_b2_rec_auth",
-      draftType: "b2" as const,
-      sourceRef: {
-        sourcePlatform: "lark_a1" as const,
-        sourceRecordId: "rec_auth",
-      },
-      target: {
-        projectKey: "OPS",
-        workitemTypeKey: "bug",
-        templateId: "production-bug",
-      },
-      name: "Burger 出库对接2",
-      needConfirm: true as const,
-      fieldValuePairs: [{ fieldKey: "priority", fieldValue: "P1" }],
-      ownerUserKeys: [],
-      missingMeta: [],
-    };
-    const requestDraft = vi.fn().mockResolvedValue(draftPayload);
-    const applyDraft = vi.fn().mockRejectedValue(
-      new Error("Meegle 授权失效，请先在插件中重新授权后再试"),
-    );
-
-    const renderer = createLarkInjectionRenderer({
-      requestDraft,
-      applyDraft,
-      pageContext: {
-        pageType: "lark_a1",
-        url: "https://tenant/base/app_xxx/table/tbl_xxx/record/rec_auth",
-        baseId: "app_xxx",
-        tableId: "tbl_xxx",
-        recordId: "rec_auth",
-        operatorLarkId: "ou_test_apply",
-      },
-    });
-
-    renderer.render({
-      pageState: {
-        kind: "detail-ready",
-        context: createContext("Burger 出库对接2"),
-        anchor: { element: anchor, label: "detail-header", confidence: 1 },
-      },
-    });
-
-    await userClick(anchor.querySelector("button"));
-    await userClick(detailRoot.querySelector('[data-tenways-octo-trigger="apply-to-meegle"]'));
-
-    expect(detailRoot.querySelector('[data-tenways-octo-panel-state="error"]')).not.toBeNull();
-    expect(detailRoot.textContent).toContain("Meegle 授权失效，请先在插件中重新授权后再试");
-  });
-
-  it("fails explicitly instead of fabricating a draft when pageType is unknown", async () => {
-    const detailRoot = document.createElement("section");
-    const anchor = document.createElement("div");
-    detailRoot.appendChild(anchor);
-
-    const renderer = createLarkInjectionRenderer({
-      pageContext: {
-        pageType: "unknown",
-        url: "https://tenant/base/app_xxx/table/tbl_xxx/record/rec_unknown",
-        baseId: "app_xxx",
-        tableId: "tbl_xxx",
-        recordId: "rec_unknown",
-      },
-    });
-
-    renderer.render({
-      pageState: {
-        kind: "detail-ready",
-        context: createContext("Unknown record"),
-        anchor: { element: anchor, label: "detail-header", confidence: 1 },
-      },
-    });
-
-    await userClick(anchor.querySelector("button"));
-
-    expect(chrome.runtime.sendMessage).not.toHaveBeenCalled();
-    expect(detailRoot.querySelector('[data-tenways-octo-panel-state="error"]')).not.toBeNull();
-    expect(detailRoot.textContent).toContain("Unable to determine whether this record is A1 or A2.");
-  });
-
-  it("fails explicitly instead of fabricating apply success when record identity is missing", async () => {
-    const detailRoot = document.createElement("section");
-    const anchor = document.createElement("div");
-    detailRoot.appendChild(anchor);
-
-    const draftPayload = {
-      draftId: "draft_b2_missing_record",
-      draftType: "b2" as const,
-      sourceRef: {
-        sourcePlatform: "lark_a1" as const,
-        sourceRecordId: "rec_missing_source",
-      },
-      target: {
-        projectKey: "OPS",
-        workitemTypeKey: "bug",
-        templateId: "production-bug",
-      },
-      name: "Burger 出库对接2",
-      needConfirm: true as const,
-      fieldValuePairs: [{ fieldKey: "priority", fieldValue: "P1" }],
-      ownerUserKeys: [],
-      missingMeta: [],
-    };
-    const requestDraft = vi.fn().mockResolvedValue(draftPayload);
-
-    const renderer = createLarkInjectionRenderer({
-      requestDraft,
-      pageContext: {
-        pageType: "lark_a1",
-        url: "https://tenant/base/app_xxx/table/tbl_xxx",
-        baseId: "app_xxx",
-        tableId: "tbl_xxx",
-        operatorLarkId: "ou_test_apply",
-      },
-    });
-
-    renderer.render({
-      pageState: {
-        kind: "detail-ready",
-        context: createContext("Burger 出库对接2"),
-        anchor: { element: anchor, label: "detail-header", confidence: 1 },
-      },
-    });
-
-    await userClick(anchor.querySelector("button"));
-    expect(detailRoot.querySelector('[data-tenways-octo-panel-state="draft-ready"]')).not.toBeNull();
-
-    vi.mocked(chrome.runtime.sendMessage).mockClear();
-    await userClick(detailRoot.querySelector('[data-tenways-octo-trigger="apply-to-meegle"]'));
-
-    expect(chrome.runtime.sendMessage).not.toHaveBeenCalled();
-    expect(detailRoot.querySelector('[data-tenways-octo-panel-state="error"]')).not.toBeNull();
-    expect(detailRoot.textContent).toContain("recordId is required to apply a draft.");
-  });
 });
+
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+
+  const promise = new Promise<T>((nextResolve, nextReject) => {
+    resolve = nextResolve;
+    reject = nextReject;
+  });
+
+  return { promise, resolve, reject };
+}

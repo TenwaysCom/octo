@@ -24,8 +24,8 @@ export default defineConfig({
         disabled: true,
       },
   manifest: {
-    name: "Tenways Octo 0.2.1",
-    version: "0.2.1",
+    name: "Tenways Octo 0.5.0",
+    version: "0.5.0",
     description: "跨平台协同助手 - Lark 到 Meegle 半自动建单工具",
     icons: {
       "16": "icons/icon-16.png",
@@ -48,6 +48,24 @@ export default defineConfig({
           "https://meegle.com/*",
           "https://*.meegle.com/*",
           "https://project.larksuite.com/*",
+        ],
+      },
+      {
+        resources: ["icons/*"],
+        matches: [
+          "https://*.feishu.cn/*",
+          "https://*.larksuite.com/*",
+          "https://meegle.com/*",
+          "https://*.meegle.com/*",
+        ],
+      },
+      {
+        resources: ["popup.html"],
+        matches: [
+          "https://*.feishu.cn/*",
+          "https://*.larksuite.com/*",
+          "https://meegle.com/*",
+          "https://*.meegle.com/*",
         ],
       },
     ],

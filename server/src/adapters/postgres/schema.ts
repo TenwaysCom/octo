@@ -5,7 +5,10 @@ export interface DatabaseSchema {
     lark_tenant_key: string | null;
     lark_id: string | null;
     lark_email: string | null;
+    lark_name: string | null;
+    lark_avatar_url: string | null;
     meegle_base_url: string | null;
+    role: string | null;
     meegle_user_key: string | null;
     github_id: string | null;
     created_at: string;

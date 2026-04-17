@@ -216,17 +216,17 @@ describe("usePopupApp notebook state", () => {
     await popup.initialize();
     expect(popup.headerSubtitle.value).toBe("Lark");
     popup.openSettings();
-    expect(popup.headerSubtitle.value).toBe("Settings");
+    expect(popup.headerSubtitle.value).toBe("设置");
     popup.settingsForm.SERVER_URL = "http://changed.local";
 
     popup.closeSettings();
 
-    expect(popup.activePage.value).toBe("home");
+    expect(popup.activePage.value).toBe("chat");
     expect(popup.headerSubtitle.value).toBe("Lark");
     expect(popup.settingsForm.SERVER_URL).toBe("http://localhost:3000");
   });
 
-  it("returns to home after save and refreshes auth state", async () => {
+  it("returns to chat after save and refreshes auth state", async () => {
     const popup = usePopupApp();
 
     await popup.initialize();
@@ -242,7 +242,7 @@ describe("usePopupApp notebook state", () => {
       meegleUserKey: "7538275242901291040",
       larkUserId: "ou_user",
     });
-    expect(popup.activePage.value).toBe("home");
+    expect(popup.activePage.value).toBe("chat");
     expect(globalThis.fetch).toHaveBeenCalledTimes(2);
     expect(runtimeMock.getLarkAuthStatus).toHaveBeenCalledTimes(2);
   });
@@ -353,7 +353,7 @@ describe("usePopupApp notebook state", () => {
     await popup.initialize();
 
     expect(popup.isLoading.value).toBe(false);
-    expect(popup.headerSubtitle.value).toBe("Lark");
+    expect(popup.headerSubtitle.value).toBe("个人");
     expect(
       popup.logs.value.some((entry) => entry.message.includes("background offline")),
     ).toBe(true);

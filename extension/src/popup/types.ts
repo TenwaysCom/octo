@@ -7,7 +7,7 @@ export interface PopupLogEntry {
   timestamp: string;
 }
 
-export type PopupNotebookPage = "home" | "settings";
+export type PopupNotebookPage = "chat" | "automation" | "settings" | "profile";
 
 export interface PopupStatusChip {
   tone: "success" | "processing" | "warning" | "error" | "default";

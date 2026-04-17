@@ -8,9 +8,12 @@ export interface ResolvedUserRecord {
   larkTenantKey: string | null;
   larkId: string | null;
   larkEmail: string | null;
+  larkName: string | null;
+  larkAvatarUrl: string | null;
   meegleBaseUrl: string | null;
   meegleUserKey: string | null;
   githubId: string | null;
+  role: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -28,9 +31,12 @@ export interface ResolvedUserStore {
     larkTenantKey?: string;
     larkId?: string;
     larkEmail?: string;
+    larkName?: string;
+    larkAvatarUrl?: string;
     meegleBaseUrl?: string;
     meegleUserKey?: string;
     githubId?: string;
+    role?: string;
   }): Promise<ResolvedUserRecord>;
   update(input: ResolvedUserRecord): Promise<ResolvedUserRecord>;
 }
@@ -41,9 +47,12 @@ interface UserRow {
   lark_tenant_key: string | null;
   lark_id: string | null;
   lark_email: string | null;
+  lark_name: string | null;
+  lark_avatar_url: string | null;
   meegle_base_url: string | null;
   meegle_user_key: string | null;
   github_id: string | null;
+  role: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -62,9 +71,12 @@ function toRecord(row: UserRow | undefined): ResolvedUserRecord | undefined {
     larkTenantKey: row.lark_tenant_key,
     larkId: row.lark_id,
     larkEmail: row.lark_email,
+    larkName: row.lark_name,
+    larkAvatarUrl: row.lark_avatar_url,
     meegleBaseUrl: row.meegle_base_url,
     meegleUserKey: row.meegle_user_key,
     githubId: row.github_id,
+    role: row.role,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -76,7 +88,7 @@ export class SqliteResolvedUserStore implements ResolvedUserStore {
   async getById(id: string): Promise<ResolvedUserRecord | undefined> {
     return toRecord(
       this.db.prepare(`
-        SELECT id, status, lark_tenant_key, lark_id, lark_email, meegle_base_url, meegle_user_key, github_id, created_at, updated_at
+        SELECT id, status, lark_tenant_key, lark_id, lark_email, lark_name, lark_avatar_url, meegle_base_url, meegle_user_key, github_id, role, created_at, updated_at
         FROM users
         WHERE id = ?
       `).get(id) as UserRow | undefined,
@@ -86,7 +98,7 @@ export class SqliteResolvedUserStore implements ResolvedUserStore {
   async getByLarkId(larkId: string): Promise<ResolvedUserRecord | undefined> {
     return toRecord(
       this.db.prepare(`
-        SELECT id, status, lark_tenant_key, lark_id, lark_email, meegle_base_url, meegle_user_key, github_id, created_at, updated_at
+        SELECT id, status, lark_tenant_key, lark_id, lark_email, lark_name, lark_avatar_url, meegle_base_url, meegle_user_key, github_id, role, created_at, updated_at
         FROM users
         WHERE lark_id = ?
       `).get(larkId) as UserRow | undefined,
@@ -99,7 +111,7 @@ export class SqliteResolvedUserStore implements ResolvedUserStore {
   ): Promise<ResolvedUserRecord | undefined> {
     return toRecord(
       this.db.prepare(`
-        SELECT id, status, lark_tenant_key, lark_id, lark_email, meegle_base_url, meegle_user_key, github_id, created_at, updated_at
+        SELECT id, status, lark_tenant_key, lark_id, lark_email, lark_name, lark_avatar_url, meegle_base_url, meegle_user_key, github_id, role, created_at, updated_at
         FROM users
         WHERE lark_tenant_key = ? AND lark_id = ?
       `).get(larkTenantKey, larkId) as UserRow | undefined,
@@ -112,7 +124,7 @@ export class SqliteResolvedUserStore implements ResolvedUserStore {
   ): Promise<ResolvedUserRecord | undefined> {
     return toRecord(
       this.db.prepare(`
-        SELECT id, status, lark_tenant_key, lark_id, lark_email, meegle_base_url, meegle_user_key, github_id, created_at, updated_at
+        SELECT id, status, lark_tenant_key, lark_id, lark_email, lark_name, lark_avatar_url, meegle_base_url, meegle_user_key, github_id, role, created_at, updated_at
         FROM users
         WHERE meegle_base_url = ? AND meegle_user_key = ?
       `).get(meegleBaseUrl, meegleUserKey) as UserRow | undefined,
@@ -124,9 +136,12 @@ export class SqliteResolvedUserStore implements ResolvedUserStore {
     larkTenantKey?: string;
     larkId?: string;
     larkEmail?: string;
+    larkName?: string;
+    larkAvatarUrl?: string;
     meegleBaseUrl?: string;
     meegleUserKey?: string;
     githubId?: string;
+    role?: string;
   }): Promise<ResolvedUserRecord> {
     const now = new Date().toISOString();
     const id = randomUUID();
@@ -138,21 +153,27 @@ export class SqliteResolvedUserStore implements ResolvedUserStore {
         lark_tenant_key,
         lark_id,
         lark_email,
+        lark_name,
+        lark_avatar_url,
         meegle_base_url,
         meegle_user_key,
         github_id,
+        role,
         created_at,
         updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       id,
       input.status,
       input.larkTenantKey ?? null,
       input.larkId ?? null,
       input.larkEmail ?? null,
+      input.larkName ?? null,
+      input.larkAvatarUrl ?? null,
       input.meegleBaseUrl ?? null,
       input.meegleUserKey ?? null,
       input.githubId ?? null,
+      input.role ?? null,
       now,
       now,
     );
@@ -163,9 +184,12 @@ export class SqliteResolvedUserStore implements ResolvedUserStore {
       larkTenantKey: input.larkTenantKey ?? null,
       larkId: input.larkId ?? null,
       larkEmail: input.larkEmail ?? null,
+      larkName: input.larkName ?? null,
+      larkAvatarUrl: input.larkAvatarUrl ?? null,
       meegleBaseUrl: input.meegleBaseUrl ?? null,
       meegleUserKey: input.meegleUserKey ?? null,
       githubId: input.githubId ?? null,
+      role: input.role ?? null,
       createdAt: now,
       updatedAt: now,
     };
@@ -181,9 +205,12 @@ export class SqliteResolvedUserStore implements ResolvedUserStore {
         lark_tenant_key = ?,
         lark_id = ?,
         lark_email = ?,
+        lark_name = ?,
+        lark_avatar_url = ?,
         meegle_base_url = ?,
         meegle_user_key = ?,
         github_id = ?,
+        role = ?,
         updated_at = ?
       WHERE id = ?
     `).run(
@@ -191,9 +218,12 @@ export class SqliteResolvedUserStore implements ResolvedUserStore {
       input.larkTenantKey,
       input.larkId,
       input.larkEmail,
+      input.larkName,
+      input.larkAvatarUrl,
       input.meegleBaseUrl,
       input.meegleUserKey,
       input.githubId,
+      input.role,
       updatedAt,
       input.id,
     );

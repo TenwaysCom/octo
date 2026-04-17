@@ -1,6 +1,11 @@
 // Meegle content script - handles auth code requests and user identity
 // Runs on https://*.meegle.com/* pages
 
+import { injectSidebar } from "./shared/sidebar-injector";
+import { createExtensionLogger } from "../logger.js";
+
+const meegleCsLogger = createExtensionLogger("content-script:meegle");
+
 interface MeegleAuthCodeResult {
   authCode: string;
   state: string;
@@ -21,13 +26,18 @@ interface TenwaysMeegleTestingApi {
     baseUrl?: string,
   ) => Promise<MeegleAuthCodeResult | null>;
   initMeegleContentScript: () => void;
+  openSidebar: () => void;
+  closeSidebar: () => void;
+  toggleSidebar: () => void;
 }
 
-const MCS_FLOW_PREFIX = "[MEEGLE_AUTH_FLOW][MCS]";
-
 function logMcsFlow(node: string, phase: "START" | "OK" | "FAIL", detail: Record<string, unknown>): void {
-  const logger = phase === "FAIL" ? console.error : console.log;
-  logger(`${MCS_FLOW_PREFIX}[${node}][${phase}]`, detail);
+  const message = `[MEEGLE_AUTH_FLOW][MCS][${node}][${phase}]`;
+  if (phase === "FAIL") {
+    meegleCsLogger.error(message, detail);
+  } else {
+    meegleCsLogger.info(message, detail);
+  }
 }
 
 function getPageLocation(): { href?: string; origin?: string } {
@@ -144,7 +154,7 @@ function getMeegleUserIdentity(): MeegleUserIdentity {
       }
     }
   } catch (err) {
-    console.error("[Tenways Octo] Error getting Meegle user identity:", err);
+    meegleCsLogger.error("Error getting Meegle user identity", { error: err instanceof Error ? err.message : String(err) });
   }
 
   return identity;
@@ -159,7 +169,7 @@ async function getAuthCodeFromMeegleApi(
   baseUrl: string = "https://project.larksuite.com",
 ): Promise<MeegleAuthCodeResult | null> {
   logMcsFlow("AUTH_CODE_API", "START", { baseUrl, state, pluginIdSuffix: pluginId.slice(-6), location: getPageLocation().origin });
-  console.log("[Tenways Octo] Getting auth code from Meegle API...");
+  meegleCsLogger.info("Getting auth code from Meegle API...");
 
   // Call Meegle BFF auth code API
   // Note: credentials 'include' ensures cookies are sent automatically
@@ -178,7 +188,7 @@ async function getAuthCodeFromMeegleApi(
   if (!response.ok) {
     const errorText = await response.text();
     logMcsFlow("AUTH_CODE_API", "FAIL", { baseUrl, status: response.status, errorText });
-    console.error("[Tenways Octo] Auth code API error:", response.status, errorText);
+    meegleCsLogger.error("Auth code API error", { status: response.status, errorText });
     throw new Error(`Auth code API error: ${response.status} ${errorText}`);
   }
 
@@ -192,7 +202,7 @@ async function getAuthCodeFromMeegleApi(
   // Check for error in response
   if (data.error && data.error.code !== 0) {
     logMcsFlow("AUTH_CODE_API", "FAIL", { baseUrl, errorCode: data.error.code, errorMessage: data.error.msg });
-    console.error("[Tenways Octo] Auth code error:", data.error.msg);
+    meegleCsLogger.error("Auth code error", { errorMessage: data.error.msg });
     throw new Error(data.error.msg || "Auth code request failed");
   }
 
@@ -201,12 +211,12 @@ async function getAuthCodeFromMeegleApi(
 
   if (typeof authCode !== "string" || authCode.length === 0) {
     logMcsFlow("AUTH_CODE_API", "FAIL", { baseUrl, reason: "INVALID_AUTH_CODE_RESPONSE", keys: Object.keys(data) });
-    console.error("[Tenways Octo] Invalid auth code in response");
+    meegleCsLogger.error("Invalid auth code in response");
     throw new Error("Invalid auth code in response");
   }
 
   logMcsFlow("AUTH_CODE_API", "OK", { baseUrl, state, authCodeSuffix: authCode.slice(-6) });
-  console.log("[Tenways Octo] Auth code obtained successfully");
+  meegleCsLogger.info("Auth code obtained successfully");
 
   return {
     authCode,
@@ -227,7 +237,19 @@ async function requestAuthCode(
 }
 
 function initMeegleContentScript() {
-  console.log("[Tenways Octo] Meegle content script initialized");
+  meegleCsLogger.info("Meegle content script initialized");
+
+  // Inject floating sidebar trigger on Meegle pages
+  const meegleSidebar = injectSidebar();
+
+  meegleTestingTarget.__TENWAYS_MEEGLE_TESTING__ = {
+    getMeegleUserIdentity,
+    getAuthCodeFromMeegleApi,
+    initMeegleContentScript,
+    openSidebar: meegleSidebar.open,
+    closeSidebar: meegleSidebar.close,
+    toggleSidebar: meegleSidebar.toggle,
+  };
 
   // Listen for auth code requests from background
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -267,12 +289,6 @@ function initMeegleContentScript() {
 
 const meegleTestingTarget = globalThis as typeof globalThis & {
   __TENWAYS_MEEGLE_TESTING__?: TenwaysMeegleTestingApi;
-};
-
-meegleTestingTarget.__TENWAYS_MEEGLE_TESTING__ = {
-  getMeegleUserIdentity,
-  getAuthCodeFromMeegleApi,
-  initMeegleContentScript,
 };
 
 // Initialize when script loads

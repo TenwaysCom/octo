@@ -23,12 +23,20 @@ const emit = defineEmits<{
 
 const options = computed(() => [
   {
-    label: "主页",
-    value: "home",
+    label: "聊天",
+    value: "chat",
+  },
+  {
+    label: "自动化",
+    value: "automation",
   },
   {
     label: "设置",
     value: "settings",
+  },
+  {
+    label: "个人",
+    value: "profile",
   },
 ]);
 

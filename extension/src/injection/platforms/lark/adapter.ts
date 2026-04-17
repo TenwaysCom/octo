@@ -2,8 +2,14 @@ import type { InjectionAdapter, InjectionPageState } from "../../types";
 import { probeLarkAnchor, probeLarkContext, probeLarkDetail, type LarkRecordContext } from "./probe";
 import { createLarkInjectionRenderer, type LarkInjectionRenderer, type LarkInjectionRendererDeps } from "./render";
 
+export type PageStateWithDetail = {
+  pageState: InjectionPageState<LarkRecordContext>;
+  detail: ReturnType<typeof probeLarkDetail>;
+  parsedContext: LarkRecordContext | null;
+};
+
 export type LarkProbeAdapterDeps = {
-  onPageState?: (state: InjectionPageState<LarkRecordContext>) => void;
+  onPageState?: (state: PageStateWithDetail) => void;
   renderer?: LarkInjectionRenderer;
 } & LarkInjectionRendererDeps;
 
@@ -12,14 +18,12 @@ export function createLarkInjectionAdapter({
   renderer,
   pageContext,
   getPageContext,
-  requestDraft,
-  applyDraft,
+  createWorkitem,
 }: LarkProbeAdapterDeps = {}): InjectionAdapter<LarkRecordContext> {
   const activeRenderer = renderer ?? createLarkInjectionRenderer({
     pageContext,
     getPageContext,
-    requestDraft,
-    applyDraft,
+    createWorkitem,
   });
 
   return {
@@ -41,7 +45,11 @@ export function createLarkInjectionAdapter({
     probeContext: probeLarkContext,
     probeAnchor: probeLarkAnchor,
     render(state) {
-      onPageState?.(state.pageState);
+      const detail = probeLarkDetail();
+      const parsedContext = state.pageState.kind !== "detail-closed" && detail.detailRoot
+        ? probeLarkContext(detail.detailRoot)
+        : null;
+      onPageState?.({ pageState: state.pageState, detail, parsedContext });
       activeRenderer.render(state);
     },
     cleanup() {

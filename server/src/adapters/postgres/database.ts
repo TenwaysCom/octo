@@ -42,6 +42,9 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .addColumn("lark_tenant_key", "text")
     .addColumn("lark_id", "text")
     .addColumn("lark_email", "text")
+    .addColumn("lark_name", "text")
+    .addColumn("lark_avatar_url", "text")
+    .addColumn("role", "text")
     .addColumn("meegle_base_url", "text")
     .addColumn("meegle_user_key", "text")
     .addColumn("github_id", "text")
@@ -114,6 +117,19 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
   await sql`
     CREATE INDEX IF NOT EXISTS oauth_sessions_provider_state_idx
     ON oauth_sessions(provider, state)
+  `.execute(db);
+
+  await sql`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS lark_name text
+  `.execute(db);
+  await sql`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS lark_avatar_url text
+  `.execute(db);
+  await sql`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS role text
   `.execute(db);
 }
 

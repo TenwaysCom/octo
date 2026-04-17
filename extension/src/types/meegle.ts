@@ -48,3 +48,23 @@ export interface MeegleAuthCodeResponse {
   state: string;
   issuedAt: string;
 }
+
+export interface MeegleLarkPushRequest {
+  projectKey: string;
+  workItemTypeKey: string;
+  workItemId: string;
+  masterUserId: string;
+  baseUrl: string;
+  larkBaseUrl?: string;
+  larkStatusFieldName?: string;
+}
+
+export interface MeegleLarkPushResponse {
+  ok: boolean;
+  alreadyUpdated?: boolean;
+  larkBaseUpdated?: boolean;
+  messageSent?: boolean;
+  reactionAdded?: boolean;
+  meegleStatusUpdated?: boolean;
+  error?: string;
+}
