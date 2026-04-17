@@ -15,15 +15,22 @@
             <ChatPage
               v-else-if="activePage === 'chat'"
               :show-kimi-chat="showKimiChat"
+              :kimi-chat-session-id="kimiChatSessionId"
               :kimi-chat-transcript="kimiChatTranscript"
               :kimi-chat-busy="kimiChatBusy"
               :kimi-chat-draft-message="kimiChatDraftMessage"
+              :kimi-chat-history-open="kimiChatHistoryOpen"
+              :kimi-chat-history-loading="kimiChatHistoryLoading"
+              :kimi-chat-history-items="kimiChatHistoryItems"
               :view-model="viewModel"
               @send-kimi-chat-message="sendKimiChatMessage"
               @stop-kimi-chat-generation="stopKimiChatGeneration"
               @update-kimi-chat-draft-message="updateKimiChatDraftMessage"
               @reset-kimi-chat-session="resetKimiChatSession"
               @open-kimi-chat-history="openKimiChatHistory"
+              @close-kimi-chat-history="closeKimiChatHistory"
+              @load-kimi-chat-history-session="loadKimiChatHistorySession"
+              @delete-kimi-chat-history-session="deleteKimiChatHistorySession"
             />
             <SettingsPage
               v-else-if="activePage === 'settings'"
@@ -89,7 +96,11 @@ const {
   showKimiChat,
   kimiChatTranscript,
   kimiChatBusy,
+  kimiChatSessionId,
   kimiChatDraftMessage,
+  kimiChatHistoryOpen,
+  kimiChatHistoryLoading,
+  kimiChatHistoryItems,
   initialize,
   authorizeMeegle,
   authorizeLark,
@@ -102,6 +113,9 @@ const {
   runFeatureAction,
   resetKimiChatSession,
   openKimiChatHistory,
+  closeKimiChatHistory,
+  loadKimiChatHistorySession,
+  deleteKimiChatHistorySession,
   updateKimiChatDraftMessage,
   sendKimiChatMessage,
   stopKimiChatGeneration,

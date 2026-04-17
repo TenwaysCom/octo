@@ -18,6 +18,10 @@ import type {
   MeegleLarkPushRequest,
   MeegleLarkPushResponse,
 } from "../types/meegle.js";
+import type {
+  KimiChatEvent,
+  KimiChatSessionSummary,
+} from "../types/acp-kimi.js";
 import type { PopupSettingsForm } from "./types.js";
 import { detectPopupPageType, type PopupPageType } from "./view-model.js";
 import { createExtensionLogger } from "../logger.js";
@@ -62,6 +66,29 @@ export interface IdentityResolveResponse {
     larkAvatar?: string;
     meegleUserKey?: string;
     role?: string;
+  };
+  error?: {
+    errorCode?: string;
+    errorMessage?: string;
+  };
+}
+
+export interface KimiChatSessionListResponse {
+  ok: boolean;
+  data?: {
+    sessions: KimiChatSessionSummary[];
+  };
+  error?: {
+    errorCode?: string;
+    errorMessage?: string;
+  };
+}
+
+export interface KimiChatSessionLoadResponse {
+  ok: boolean;
+  data?: {
+    sessionId: string;
+    events: KimiChatEvent[];
   };
   error?: {
     errorCode?: string;
@@ -395,6 +422,62 @@ export async function resolveIdentityRequest(input: {
     errorMessage: payload.error?.errorMessage,
   });
   return payload;
+}
+
+export async function listKimiChatSessions(
+  input: {
+    operatorLarkId: string;
+  },
+): Promise<KimiChatSessionListResponse> {
+  const config = await getConfig();
+  const response = await fetch(`${config.SERVER_URL}/api/acp/kimi/sessions/list`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+
+  return await response.json() as KimiChatSessionListResponse;
+}
+
+export async function loadKimiChatSession(
+  input: {
+    operatorLarkId: string;
+    sessionId: string;
+  },
+): Promise<KimiChatSessionLoadResponse> {
+  const config = await getConfig();
+  const response = await fetch(`${config.SERVER_URL}/api/acp/kimi/sessions/load`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+
+  return await response.json() as KimiChatSessionLoadResponse;
+}
+
+export async function deleteKimiChatSession(
+  input: {
+    operatorLarkId: string;
+    sessionId: string;
+  },
+): Promise<{ ok: boolean; error?: { errorCode?: string; errorMessage?: string } }> {
+  const config = await getConfig();
+  const response = await fetch(`${config.SERVER_URL}/api/acp/kimi/sessions/delete`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+
+  return await response.json() as {
+    ok: boolean;
+    error?: { errorCode?: string; errorMessage?: string };
+  };
 }
 
 export async function runLarkAuthRequest(

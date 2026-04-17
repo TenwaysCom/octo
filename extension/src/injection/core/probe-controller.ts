@@ -7,9 +7,8 @@ export type ProbeController<TContext> = {
 };
 
 export function isInjectionProbeEnabled(): boolean {
-  // @ts-expect-error Vite/WXT injects import.meta.env at build time.
   const env = import.meta.env;
-  return env.DEV && env.WXT_PUBLIC_INJECTION_PROBE === "true";
+  return Boolean(env.DEV) && env.WXT_PUBLIC_INJECTION_PROBE === "true";
 }
 
 export type CreateProbeControllerDeps<TContext> = {

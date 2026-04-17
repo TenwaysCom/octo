@@ -1,4 +1,4 @@
-export type PopupLogLevel = "info" | "success" | "warn" | "error";
+export type PopupLogLevel = "debug" | "info" | "success" | "warn" | "error";
 
 export interface PopupLogEntry {
   id: string;

@@ -7,6 +7,9 @@ const runtimeMock = vi.hoisted(() => ({
   fetchLarkUserInfo: vi.fn(),
   getConfig: vi.fn(),
   getLarkAuthStatus: vi.fn(),
+  listKimiChatSessions: vi.fn(),
+  loadKimiChatSession: vi.fn(),
+  deleteKimiChatSession: vi.fn(),
   clearResolvedIdentity: vi.fn(),
   clearResolvedIdentityForTab: vi.fn(),
   loadPopupSettings: vi.fn(),
@@ -132,6 +135,29 @@ describe("usePopupApp notebook state", () => {
       },
     });
     runtimeMock.postClientDebugLog.mockResolvedValue(true);
+    runtimeMock.listKimiChatSessions.mockResolvedValue({
+      ok: true,
+      data: {
+        sessions: [],
+      },
+    });
+    runtimeMock.loadKimiChatSession.mockResolvedValue({
+      ok: true,
+      data: {
+        sessionId: "sess_loaded",
+        events: [
+          {
+            event: "session.created",
+            data: {
+              sessionId: "sess_loaded",
+            },
+          },
+        ],
+      },
+    });
+    runtimeMock.deleteKimiChatSession.mockResolvedValue({
+      ok: true,
+    });
     runtimeMock.loadPopupSettings.mockResolvedValue({
       SERVER_URL: "http://localhost:3000",
       MEEGLE_PLUGIN_ID: "MII_PLUGIN",
@@ -1023,6 +1049,112 @@ describe("usePopupApp notebook state", () => {
       ),
     ).toHaveLength(2);
     expect(popup.kimiChatDraftMessage.value).toBe("");
+  });
+
+  it("opens history by loading user-scoped sessions from the server", async () => {
+    runtimeMock.listKimiChatSessions.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        sessions: [
+          {
+            sessionId: "sess_1",
+            title: "旧会话",
+            updatedAt: "2026-04-18T00:00:00Z",
+          },
+        ],
+      },
+    });
+
+    const popup = usePopupApp();
+    popup.state.identity.larkId = "ou_test";
+
+    await popup.openKimiChatHistory();
+
+    expect(runtimeMock.listKimiChatSessions).toHaveBeenCalledWith({
+      operatorLarkId: "ou_test",
+    });
+    expect(popup.kimiChatHistoryOpen.value).toBe(true);
+    expect(popup.kimiChatHistoryItems.value).toEqual([
+      {
+        sessionId: "sess_1",
+        title: "旧会话",
+        updatedAt: "2026-04-18T00:00:00Z",
+      },
+    ]);
+  });
+
+  it("loads a historical session into the active transcript", async () => {
+    runtimeMock.loadKimiChatSession.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        sessionId: "sess_loaded",
+        events: [
+          {
+            event: "session.created",
+            data: {
+              sessionId: "sess_loaded",
+            },
+          },
+          {
+            event: "acp.session.update",
+            data: {
+              sessionId: "sess_loaded",
+              update: {
+                sessionUpdate: "agent_message_chunk",
+                content: {
+                  type: "text",
+                  text: "历史回复",
+                },
+              },
+            },
+          },
+        ],
+      },
+    });
+
+    const popup = usePopupApp();
+    popup.state.identity.larkId = "ou_test";
+
+    await popup.loadKimiChatHistorySession("sess_loaded");
+
+    expect(runtimeMock.loadKimiChatSession).toHaveBeenCalledWith({
+      operatorLarkId: "ou_test",
+      sessionId: "sess_loaded",
+    });
+    expect(popup.kimiChatSessionId.value).toBe("sess_loaded");
+    expect(
+      popup.kimiChatTranscript.value.some((entry) => entry.text?.includes("历史回复")),
+    ).toBe(true);
+  });
+
+  it("deletes the current historical session and resets the active chat state", async () => {
+    const popup = usePopupApp();
+    popup.state.identity.larkId = "ou_test";
+    popup.kimiChatSessionId.value = "sess_1";
+    popup.kimiChatTranscript.value = [
+      {
+        id: "assistant-1",
+        kind: "assistant",
+        text: "历史回复",
+      },
+    ];
+    popup.kimiChatHistoryItems.value = [
+      {
+        sessionId: "sess_1",
+        title: "历史会话",
+      },
+    ];
+    popup.kimiChatHistoryOpen.value = true;
+
+    await popup.deleteKimiChatHistorySession("sess_1");
+
+    expect(runtimeMock.deleteKimiChatSession).toHaveBeenCalledWith({
+      operatorLarkId: "ou_test",
+      sessionId: "sess_1",
+    });
+    expect(popup.kimiChatSessionId.value).toBeNull();
+    expect(popup.kimiChatTranscript.value).toEqual([]);
+    expect(popup.kimiChatHistoryItems.value).toEqual([]);
   });
 
   it("clears a stale sessionId and restores the draft when a follow-up fails", async () => {

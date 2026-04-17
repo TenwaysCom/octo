@@ -18,6 +18,11 @@ import { registerLarkMeegleWorkflowRoutes } from "./http/lark-meegle-workflow-ro
 import { runPMAnalysisController } from "./modules/pm-analysis/pm-analysis.controller.js";
 import { acpKimiChatController } from "./modules/acp-kimi/acp-kimi.controller.js";
 import {
+  acpKimiSessionDeleteController,
+  acpKimiSessionListController,
+  acpKimiSessionLoadController,
+} from "./modules/acp-kimi/acp-kimi-sessions.controller.js";
+import {
   getLarkRecordUrlController,
   updateLarkBaseMeegleLinkController,
 } from "./modules/lark-base/lark-base.controller.js";
@@ -152,6 +157,9 @@ app.get("/api/lark/auth/callback", async (req, res) => {
 
 registerLarkMeegleWorkflowRoutes(app, handleController);
 app.post("/api/acp/kimi/chat", acpKimiChatController);
+app.post("/api/acp/kimi/sessions/list", handleController(acpKimiSessionListController));
+app.post("/api/acp/kimi/sessions/load", handleController(acpKimiSessionLoadController));
+app.post("/api/acp/kimi/sessions/delete", handleController(acpKimiSessionDeleteController));
 
 // PM Analysis routes
 app.post("/api/pm/analysis/run", handleController(runPMAnalysisController));

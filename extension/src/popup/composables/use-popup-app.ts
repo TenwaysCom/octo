@@ -9,10 +9,13 @@ import {
 import {
   clearResolvedIdentity,
   clearResolvedIdentityForTab,
+  deleteKimiChatSession,
   fetchLarkUserInfo,
   getConfig,
   getLarkAuthStatus,
+  listKimiChatSessions,
   loadPopupSettings,
+  loadKimiChatSession,
   loadResolvedIdentity,
   postClientDebugLog,
   queryActiveTabContext,
@@ -53,6 +56,7 @@ import { message } from "ant-design-vue";
 import type {
   KimiChatEvent,
   KimiChatRenderState,
+  KimiChatSessionSummary,
   KimiChatTranscriptEntry,
 } from "../../types/acp-kimi.js";
 
@@ -95,6 +99,9 @@ export function usePopupApp() {
   const kimiChatDraftMessage = ref("");
   const kimiChatActiveAssistantEntryId = ref<string | null>(null);
   const kimiChatTranscript = ref<KimiChatTranscriptEntry[]>([]);
+  const kimiChatHistoryOpen = ref(false);
+  const kimiChatHistoryLoading = ref(false);
+  const kimiChatHistoryItems = ref<KimiChatSessionSummary[]>([]);
   let pendingKimiChatState: KimiChatRenderState | null = null;
   let pendingKimiChatFlushHandle: ScheduledFrameHandle | null = null;
   let activeKimiChatRequestId = 0;
@@ -809,8 +816,14 @@ export function usePopupApp() {
     appendKimiChatStatus("已停止生成");
   }
 
-  function openKimiChatHistory() {
-    appendLog("info", "历史会话抽屉开发中");
+  async function openKimiChatHistory() {
+    const operatorLarkId = state.identity.larkId || settingsForm.larkUserId;
+    if (!operatorLarkId) {
+      appendLog("error", "缺少 operatorLarkId，无法加载历史会话");
+      return;
+    }
+
+    kimiChatHistoryLoading.value = true;
     void postClientDebugLog({
       source: "popup:app",
       level: "info",
@@ -820,6 +833,109 @@ export function usePopupApp() {
         transcriptLength: kimiChatTranscript.value.length,
       },
     });
+    try {
+      const result = await listKimiChatSessions({
+        operatorLarkId,
+      });
+      if (!result.ok || !result.data) {
+        appendLog(
+          "error",
+          `历史会话加载失败: ${result.error?.errorMessage || "未知错误"}`,
+        );
+        return;
+      }
+
+      kimiChatHistoryItems.value = result.data.sessions;
+      kimiChatHistoryOpen.value = true;
+    } catch (error) {
+      appendLog(
+        "error",
+        `历史会话加载失败: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    } finally {
+      kimiChatHistoryLoading.value = false;
+    }
+  }
+
+  function closeKimiChatHistory() {
+    kimiChatHistoryOpen.value = false;
+  }
+
+  async function loadKimiChatHistorySession(sessionId: string) {
+    const operatorLarkId = state.identity.larkId || settingsForm.larkUserId;
+    if (!operatorLarkId) {
+      appendLog("error", "缺少 operatorLarkId，无法加载历史会话");
+      return;
+    }
+
+    const result = await loadKimiChatSession({
+      operatorLarkId,
+      sessionId,
+    });
+
+    if (!result.ok || !result.data) {
+      appendLog(
+        "error",
+        `历史会话加载失败: ${result.error?.errorMessage || "未知错误"}`,
+      );
+      return;
+    }
+
+    cancelPendingKimiChatState();
+    clearActiveKimiChatRequest();
+    kimiChatBusy.value = false;
+    kimiChatSessionId.value = null;
+    kimiChatDraftMessage.value = "";
+    kimiChatActiveAssistantEntryId.value = null;
+
+    let nextState: KimiChatRenderState = {
+      sessionId: null,
+      activeAssistantEntryId: null,
+      transcript: [],
+    };
+    for (const event of result.data.events) {
+      nextState = applyKimiChatEvent(nextState, event);
+    }
+
+    applyKimiChatRenderState(nextState);
+    showKimiChat.value = true;
+    activePage.value = "chat";
+    kimiChatHistoryOpen.value = false;
+  }
+
+  async function deleteKimiChatHistorySession(sessionId: string) {
+    const operatorLarkId = state.identity.larkId || settingsForm.larkUserId;
+    if (!operatorLarkId) {
+      appendLog("error", "缺少 operatorLarkId，无法删除历史会话");
+      return;
+    }
+
+    const result = await deleteKimiChatSession({
+      operatorLarkId,
+      sessionId,
+    });
+
+    if (!result.ok) {
+      appendLog(
+        "error",
+        `历史会话删除失败: ${result.error?.errorMessage || "未知错误"}`,
+      );
+      return;
+    }
+
+    kimiChatHistoryItems.value = kimiChatHistoryItems.value.filter(
+      (item) => item.sessionId !== sessionId,
+    );
+
+    if (kimiChatSessionId.value === sessionId) {
+      cancelPendingKimiChatState();
+      clearActiveKimiChatRequest();
+      kimiChatBusy.value = false;
+      kimiChatSessionId.value = null;
+      kimiChatDraftMessage.value = "";
+      kimiChatActiveAssistantEntryId.value = null;
+      kimiChatTranscript.value = [];
+    }
   }
 
   async function sendKimiChatMessage(messageText: string) {
@@ -1163,6 +1279,9 @@ export function usePopupApp() {
     kimiChatBusy,
     kimiChatSessionId,
     kimiChatDraftMessage,
+    kimiChatHistoryOpen,
+    kimiChatHistoryLoading,
+    kimiChatHistoryItems,
     initialize,
     authorizeMeegle,
     authorizeLark,
@@ -1176,6 +1295,9 @@ export function usePopupApp() {
     runFeatureAction,
     resetKimiChatSession,
     openKimiChatHistory,
+    closeKimiChatHistory,
+    loadKimiChatHistorySession,
+    deleteKimiChatHistorySession,
     updateKimiChatDraftMessage,
     sendKimiChatMessage,
     stopKimiChatGeneration,

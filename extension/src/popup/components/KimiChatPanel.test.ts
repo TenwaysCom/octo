@@ -102,4 +102,24 @@ describe("KimiChatPanel", () => {
 
     expect(wrapper.emitted("stop")).toEqual([[]]);
   });
+
+  it("submits the composer form on enter without relying on the click button path", async () => {
+    const componentPath = "./AcpChatPanel.vue";
+    const { default: AcpChatPanel } = await import(
+      /* @vite-ignore */ componentPath
+    );
+
+    const wrapper = mount(AcpChatPanel, {
+      props: {
+        transcript: [],
+        busy: false,
+        draftMessage: "按回车发送",
+      },
+    });
+
+    await wrapper.get("form").trigger("submit");
+
+    expect(wrapper.emitted("send")).toEqual([["按回车发送"]]);
+    expect(wrapper.emitted("update:draftMessage")).toEqual([[""]]);
+  });
 });

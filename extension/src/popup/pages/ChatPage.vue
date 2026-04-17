@@ -30,6 +30,61 @@
         </div>
       </header>
 
+      <section
+        v-if="kimiChatHistoryOpen"
+        class="chat-page__history-panel"
+        data-test="chat-history-panel"
+      >
+        <div class="chat-page__history-header">
+          <div class="chat-page__history-title">历史会话</div>
+          <button
+            data-test="chat-history-close"
+            class="chat-page__history-close"
+            type="button"
+            @click="$emit('closeKimiChatHistory')"
+          >
+            关闭
+          </button>
+        </div>
+
+        <p v-if="kimiChatHistoryLoading" class="chat-page__history-empty">
+          正在加载历史会话...
+        </p>
+        <p
+          v-else-if="kimiChatHistoryItems.length === 0"
+          class="chat-page__history-empty"
+        >
+          还没有历史会话。
+        </p>
+        <ul v-else class="chat-page__history-list">
+          <li
+            v-for="session in kimiChatHistoryItems"
+            :key="session.sessionId"
+            class="chat-page__history-item"
+          >
+            <button
+              :data-test="`chat-history-load-${session.sessionId}`"
+              class="chat-page__history-load"
+              type="button"
+              @click="$emit('loadKimiChatHistorySession', session.sessionId)"
+            >
+              <span>{{ session.title || session.sessionId }}</span>
+              <span v-if="session.sessionId === kimiChatSessionId">
+                当前会话
+              </span>
+            </button>
+            <button
+              :data-test="`chat-history-delete-${session.sessionId}`"
+              class="chat-page__history-delete"
+              type="button"
+              @click="$emit('deleteKimiChatHistorySession', session.sessionId)"
+            >
+              删除
+            </button>
+          </li>
+        </ul>
+      </section>
+
       <div v-if="isEmptySession" class="chat-page__empty-state">
         <p class="chat-page__empty-title">还没有消息</p>
         <p class="chat-page__empty-copy">
@@ -51,7 +106,10 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import type { KimiChatTranscriptEntry } from "../../types/acp-kimi.js";
+import type {
+  KimiChatSessionSummary,
+  KimiChatTranscriptEntry,
+} from "../../types/acp-kimi.js";
 import AcpChatPanel from "../components/AcpChatPanel.vue";
 import type { PopupViewModel } from "../view-model.js";
 import UnsupportedPageView from "./UnsupportedPageView.vue";
@@ -59,9 +117,13 @@ import UnsupportedPageView from "./UnsupportedPageView.vue";
 const props = defineProps<{
   viewModel: PopupViewModel;
   showKimiChat: boolean;
+  kimiChatSessionId: string | null;
   kimiChatTranscript: KimiChatTranscriptEntry[];
   kimiChatBusy: boolean;
   kimiChatDraftMessage: string;
+  kimiChatHistoryOpen: boolean;
+  kimiChatHistoryLoading: boolean;
+  kimiChatHistoryItems: KimiChatSessionSummary[];
 }>();
 
 defineEmits<{
@@ -70,6 +132,9 @@ defineEmits<{
   updateKimiChatDraftMessage: [message: string];
   resetKimiChatSession: [];
   openKimiChatHistory: [];
+  closeKimiChatHistory: [];
+  loadKimiChatHistorySession: [sessionId: string];
+  deleteKimiChatHistorySession: [sessionId: string];
 }>();
 
 const isEmptySession = computed(() => props.kimiChatTranscript.length === 0);
@@ -162,5 +227,79 @@ const isEmptySession = computed(() => props.kimiChatTranscript.length === 0);
   font-size: 13px;
   line-height: 1.5;
   color: #64748b;
+}
+
+.chat-page__history-panel {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(37, 99, 235, 0.14);
+}
+
+.chat-page__history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.chat-page__history-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.chat-page__history-close,
+.chat-page__history-delete,
+.chat-page__history-load {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.92);
+  cursor: pointer;
+}
+
+.chat-page__history-close,
+.chat-page__history-delete {
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.chat-page__history-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chat-page__history-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chat-page__history-load {
+  flex: 1 1 auto;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  border-radius: 12px;
+  padding: 10px 12px;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.chat-page__history-delete {
+  color: #b91c1c;
+}
+
+.chat-page__history-empty {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
 }
 </style>

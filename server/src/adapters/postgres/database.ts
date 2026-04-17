@@ -35,6 +35,16 @@ export function createPostgresDatabase(
 
 export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<void> {
   await db.schema
+    .createTable("acp_kimi_session_owners")
+    .ifNotExists()
+    .addColumn("session_id", "text", (column) => column.primaryKey())
+    .addColumn("operator_lark_id", "text", (column) => column.notNull())
+    .addColumn("deleted_at", "text")
+    .addColumn("created_at", "text", (column) => column.notNull())
+    .addColumn("updated_at", "text", (column) => column.notNull())
+    .execute();
+
+  await db.schema
     .createTable("users")
     .ifNotExists()
     .addColumn("id", "text", (column) => column.primaryKey())
@@ -96,6 +106,10 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .execute();
 
   await sql`
+    CREATE INDEX IF NOT EXISTS acp_kimi_session_owners_operator_idx
+    ON acp_kimi_session_owners(operator_lark_id, updated_at)
+  `.execute(db);
+  await sql`
     CREATE UNIQUE INDEX IF NOT EXISTS users_github_id_unique
     ON users(github_id)
     WHERE github_id IS NOT NULL
@@ -120,6 +134,10 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
   `.execute(db);
 
   await sql`
+    ALTER TABLE acp_kimi_session_owners
+    ADD COLUMN IF NOT EXISTS deleted_at text
+  `.execute(db);
+  await sql`
     ALTER TABLE users
     ADD COLUMN IF NOT EXISTS lark_name text
   `.execute(db);
@@ -134,6 +152,7 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
 }
 
 export async function resetPostgresDatabase(db: Kysely<DatabaseSchema>): Promise<void> {
+  await sql`DROP TABLE IF EXISTS acp_kimi_session_owners`.execute(db);
   await sql`DROP TABLE IF EXISTS oauth_sessions`.execute(db);
   await sql`DROP TABLE IF EXISTS user_tokens`.execute(db);
   await sql`DROP TABLE IF EXISTS users`.execute(db);

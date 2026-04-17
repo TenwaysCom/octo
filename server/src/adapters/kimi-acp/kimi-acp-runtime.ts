@@ -28,6 +28,17 @@ export interface KimiAcpConnection {
     };
   }>;
   newSession(input: { cwd: string }): Promise<{ sessionId: string }>;
+  listSessions(input: {
+    cwd?: string;
+    cursor?: string | null;
+  }): Promise<{
+    sessions: Array<Record<string, unknown>>;
+    nextCursor?: string | null;
+  }>;
+  loadSession(input: {
+    sessionId: string;
+    cwd: string;
+  }): Promise<Record<string, unknown>>;
   prompt(input: {
     sessionId: string;
     prompt: string;
@@ -52,6 +63,7 @@ export interface KimiAcpRuntimeDeps {
   ) => Promise<KimiAcpConnection> | KimiAcpConnection;
   emit?: (event: AcpKimiStreamEvent) => void;
   signal?: AbortSignal;
+  sessionId?: string;
 }
 
 export interface KimiAcpSessionRuntime {
@@ -62,6 +74,13 @@ export interface KimiAcpSessionRuntime {
     signal?: AbortSignal;
   }): Promise<{ stopReason: string }>;
   close(): Promise<void>;
+}
+
+export interface KimiAcpSessionSummary {
+  sessionId: string;
+  cwd?: string | null;
+  title?: string | null;
+  updatedAt?: string | null;
 }
 
 export async function createKimiAcpSessionRuntime(
@@ -110,13 +129,22 @@ export async function createKimiAcpSessionRuntime(
     }, "KIMI_ACP_RUNTIME INITIALIZE OK");
     throwIfAborted(deps.signal);
 
-    const session = await connection.newSession({
-      cwd,
-    });
+    const session = deps.sessionId
+      ? {
+          sessionId: deps.sessionId,
+          ...(await connection.loadSession({
+            sessionId: deps.sessionId,
+            cwd,
+          })),
+        }
+      : await connection.newSession({
+          cwd,
+        });
     kimiAcpRuntimeLogger.info({
       cwd,
       sessionId: session.sessionId,
-    }, "KIMI_ACP_RUNTIME NEW_SESSION OK");
+      loaded: Boolean(deps.sessionId),
+    }, deps.sessionId ? "KIMI_ACP_RUNTIME LOAD_SESSION OK" : "KIMI_ACP_RUNTIME NEW_SESSION OK");
 
     return {
       sessionId: session.sessionId,
@@ -158,6 +186,58 @@ export async function createKimiAcpSessionRuntime(
     }, "KIMI_ACP_RUNTIME CREATE ERROR");
     await closeConnection();
     throw error;
+  }
+}
+
+export async function listKimiAcpSessions(
+  deps: Pick<
+    KimiAcpRuntimeDeps,
+    "cwd" | "env" | "buildSpawnConfig" | "spawnProcess" | "createConnection" | "signal"
+  > = {},
+): Promise<KimiAcpSessionSummary[]> {
+  const cwd = deps.cwd ?? process.cwd();
+  const env = deps.env ?? process.env;
+  const spawnConfig =
+    deps.buildSpawnConfig?.(env) ?? buildKimiAcpRuntimeConfig(env);
+  const connection = await (deps.createConnection
+    ? deps.createConnection({
+        spawnConfig,
+        cwd,
+        emit() {},
+        signal: deps.signal,
+      })
+    : createDefaultConnection(
+        {
+          spawnConfig,
+          cwd,
+          emit() {},
+          signal: deps.signal,
+        },
+        deps.spawnProcess,
+      ));
+  const closeConnection = createCloseOnce(connection);
+
+  try {
+    await connection.initialize();
+    const sessions: KimiAcpSessionSummary[] = [];
+    let cursor: string | null | undefined = null;
+
+    do {
+      const page = await connection.listSessions({
+        cwd,
+        cursor,
+      });
+
+      for (const session of page.sessions) {
+        sessions.push(normalizeSessionSummary(session));
+      }
+
+      cursor = page.nextCursor ?? null;
+    } while (cursor);
+
+    return sessions;
+  } finally {
+    await closeConnection();
   }
 }
 
@@ -260,6 +340,24 @@ async function createDefaultConnection(
         cwd,
         mcpServers: [],
       });
+    },
+    async listSessions(input: { cwd?: string; cursor?: string | null }) {
+      await ensureProcessStarted();
+      return (await connection.listSessions({
+        cwd: input.cwd,
+        cursor: input.cursor ?? undefined,
+      })) as {
+        sessions: Array<Record<string, unknown>>;
+        nextCursor?: string | null;
+      };
+    },
+    async loadSession({ sessionId, cwd }: { sessionId: string; cwd: string }) {
+      await ensureProcessStarted();
+      return (await connection.loadSession({
+        sessionId,
+        cwd,
+        mcpServers: [],
+      })) as Record<string, unknown>;
     },
     async prompt({
       sessionId,
@@ -454,4 +552,20 @@ function normalizeSessionUpdate(update: unknown): Record<string, unknown> {
   }
 
   return update as Record<string, unknown>;
+}
+
+function normalizeSessionSummary(session: Record<string, unknown>): KimiAcpSessionSummary {
+  const sessionId =
+    typeof session.sessionId === "string"
+      ? session.sessionId
+      : typeof session.id === "string"
+        ? session.id
+        : "";
+
+  return {
+    sessionId,
+    cwd: typeof session.cwd === "string" ? session.cwd : null,
+    title: typeof session.title === "string" ? session.title : null,
+    updatedAt: typeof session.updatedAt === "string" ? session.updatedAt : null,
+  };
 }

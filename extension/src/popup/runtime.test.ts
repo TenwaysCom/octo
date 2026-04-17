@@ -6,6 +6,8 @@ vi.mock("../background/config.js", () => ({
     MEEGLE_PLUGIN_ID: "",
     LARK_APP_ID: "cli_test",
     LARK_OAUTH_CALLBACK_URL: "http://localhost:3000/api/lark/auth/callback",
+    LARK_OAUTH_SCOPE: "offline_access",
+    CLIENT_DEBUG_LOG_UPLOAD_ENABLED: false,
     MEEGLE_BASE_URL: "https://project.larksuite.com",
   },
   getConfig: vi.fn(),
@@ -53,6 +55,7 @@ describe("popup runtime settings", () => {
       LARK_OAUTH_CALLBACK_URL: "https://example.ngrok-free.app/api/lark/auth/callback",
       MEEGLE_BASE_URL: "https://project.larksuite.com",
       LARK_OAUTH_SCOPE: "offline_access",
+      CLIENT_DEBUG_LOG_UPLOAD_ENABLED: false,
     });
 
     await expect(loadPopupSettings()).resolves.toEqual({

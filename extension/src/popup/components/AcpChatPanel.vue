@@ -77,7 +77,7 @@
       </ul>
     </div>
 
-    <form class="acp-chat-panel__composer">
+    <form class="acp-chat-panel__composer" @submit.prevent="handleSubmit">
       <input
         :value="message"
         data-test="kimi-chat-input"

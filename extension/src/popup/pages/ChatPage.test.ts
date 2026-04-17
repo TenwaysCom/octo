@@ -20,9 +20,13 @@ describe("ChatPage", () => {
           canApply: false,
         },
         showKimiChat: true,
+        kimiChatSessionId: null,
         kimiChatTranscript: [],
         kimiChatBusy: false,
         kimiChatDraftMessage: "",
+        kimiChatHistoryOpen: false,
+        kimiChatHistoryLoading: false,
+        kimiChatHistoryItems: [],
       },
       global: {
         stubs: {
@@ -55,6 +59,7 @@ describe("ChatPage", () => {
           canApply: false,
         },
         showKimiChat: true,
+        kimiChatSessionId: null,
         kimiChatTranscript: [
           {
             id: "assistant-1",
@@ -64,6 +69,9 @@ describe("ChatPage", () => {
         ],
         kimiChatBusy: false,
         kimiChatDraftMessage: "",
+        kimiChatHistoryOpen: false,
+        kimiChatHistoryLoading: false,
+        kimiChatHistoryItems: [],
       },
       global: {
         stubs: {
@@ -99,9 +107,13 @@ describe("ChatPage", () => {
           canApply: false,
         },
         showKimiChat: true,
+        kimiChatSessionId: null,
         kimiChatTranscript: [],
         kimiChatBusy: false,
         kimiChatDraftMessage: "",
+        kimiChatHistoryOpen: false,
+        kimiChatHistoryLoading: false,
+        kimiChatHistoryItems: [],
       },
     });
 
@@ -109,5 +121,55 @@ describe("ChatPage", () => {
     await wrapper.get('[data-test="kimi-chat-send"]').trigger("click");
 
     expect(wrapper.emitted("sendKimiChatMessage")).toEqual([["请帮我总结一下"]]);
+  });
+
+  it("renders the history panel above the chat box and forwards load/delete actions", async () => {
+    const { default: ChatPage } = await import("./ChatPage.vue");
+
+    const wrapper = mount(ChatPage, {
+      props: {
+        viewModel: {
+          subtitle: "Lark",
+          showUnsupported: false,
+          showAuthBlockTop: true,
+          showLarkFeatureBlock: false,
+          showMeegleFeatureBlock: false,
+          canAnalyze: false,
+          canDraft: false,
+          canApply: false,
+        },
+        showKimiChat: true,
+        kimiChatSessionId: "sess_2",
+        kimiChatTranscript: [],
+        kimiChatBusy: false,
+        kimiChatDraftMessage: "",
+        kimiChatHistoryOpen: true,
+        kimiChatHistoryLoading: false,
+        kimiChatHistoryItems: [
+          {
+            sessionId: "sess_1",
+            title: "旧会话",
+            updatedAt: "2026-04-18T00:00:00Z",
+          },
+          {
+            sessionId: "sess_2",
+            title: "当前会话",
+            updatedAt: "2026-04-18T00:01:00Z",
+          },
+        ],
+      },
+    });
+
+    expect(wrapper.find('[data-test="chat-history-panel"]').exists()).toBe(true);
+    expect(wrapper.get('[data-test="chat-history-panel"]').text()).toContain("旧会话");
+    expect(wrapper.get('[data-test="chat-history-panel"]').text()).toContain("当前会话");
+
+    await wrapper.get('[data-test="chat-history-load-sess_1"]').trigger("click");
+    await wrapper.get('[data-test="chat-history-delete-sess_2"]').trigger("click");
+    await wrapper.get('[data-test="chat-history-close"]').trigger("click");
+
+    expect(wrapper.emitted("loadKimiChatHistorySession")).toEqual([["sess_1"]]);
+    expect(wrapper.emitted("deleteKimiChatHistorySession")).toEqual([["sess_2"]]);
+    expect(wrapper.emitted("closeKimiChatHistory")).toEqual([[]]);
   });
 });

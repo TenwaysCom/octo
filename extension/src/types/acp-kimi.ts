@@ -4,6 +4,13 @@ export interface KimiChatRequest {
   message: string;
 }
 
+export interface KimiChatSessionSummary {
+  sessionId: string;
+  cwd?: string | null;
+  title?: string | null;
+  updatedAt?: string | null;
+}
+
 export type KimiChatContentBlock =
   | {
       type: "text";

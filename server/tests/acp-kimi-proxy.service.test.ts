@@ -43,10 +43,12 @@ describe("acp kimi proxy service", () => {
       prompt,
       close: vi.fn(),
     };
+    const ownershipStore = createOwnershipStoreMock();
     const createSessionRuntime = vi.fn().mockResolvedValue(runtime);
     const service = createAcpKimiProxyService({
       createSessionRuntime,
       sessionRegistry: registry,
+      ownershipStore,
     });
 
     const firstEvents: Array<{ event: string; data: Record<string, unknown> }> = [];
@@ -73,6 +75,7 @@ describe("acp kimi proxy service", () => {
     );
 
     expect(createSessionRuntime).toHaveBeenCalledTimes(1);
+    expect(ownershipStore.claim).toHaveBeenCalledWith("sess_1", "ou_123");
     expect(prompt).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
@@ -143,10 +146,12 @@ describe("acp kimi proxy service", () => {
       prompt: vi.fn().mockResolvedValue({ stopReason: "end_turn" }),
       close: vi.fn(),
     };
+    const ownershipStore = createOwnershipStoreMock();
     const createSessionRuntime = vi.fn().mockResolvedValue(runtime);
     const service = createAcpKimiProxyService({
       createSessionRuntime,
       sessionRegistry: registry,
+      ownershipStore,
     });
 
     await service.chat(
@@ -191,10 +196,12 @@ describe("acp kimi proxy service", () => {
       }),
       close: vi.fn(),
     };
+    const ownershipStore = createOwnershipStoreMock();
     const createSessionRuntime = vi.fn().mockResolvedValue(runtime);
     const service = createAcpKimiProxyService({
       createSessionRuntime,
       sessionRegistry: registry,
+      ownershipStore,
     });
 
     const firstTurn = service.chat(
@@ -225,6 +232,84 @@ describe("acp kimi proxy service", () => {
     deferred.resolve();
     await firstTurn;
   });
+
+  it("keeps the session alive after aborting a turn so the next turn can continue", async () => {
+    const { createAcpKimiProxyService } = await import(
+      "../src/application/services/acp-kimi-proxy.service.js"
+    );
+    const { createInMemoryKimiSessionRegistry } = await import(
+      "../src/adapters/kimi-acp/in-memory-kimi-session-registry.js"
+    );
+
+    const registry = createInMemoryKimiSessionRegistry();
+    const abortController = new AbortController();
+    const promptStarted = createDeferred<void>();
+    const prompt = vi
+      .fn()
+      .mockImplementationOnce(async ({ signal }: { signal?: AbortSignal }) => {
+        promptStarted.resolve();
+        await new Promise<void>((_resolve, reject) => {
+          signal?.addEventListener(
+            "abort",
+            () => reject(new DOMException("aborted", "AbortError")),
+            { once: true },
+          );
+        });
+        return { stopReason: "end_turn" };
+      })
+      .mockResolvedValueOnce({ stopReason: "end_turn" });
+    const runtime = {
+      sessionId: "sess_1",
+      prompt,
+      close: vi.fn(),
+    };
+    const ownershipStore = createOwnershipStoreMock();
+    const createSessionRuntime = vi.fn().mockResolvedValue(runtime);
+    const service = createAcpKimiProxyService({
+      createSessionRuntime,
+      sessionRegistry: registry,
+      ownershipStore,
+    });
+
+    const firstTurn = service.chat(
+      {
+        operatorLarkId: "ou_123",
+        message: "first turn",
+      },
+      () => undefined,
+      {
+        signal: abortController.signal,
+      },
+    );
+
+    await promptStarted.promise;
+    abortController.abort();
+
+    await expect(firstTurn).rejects.toMatchObject({
+      name: "AbortError",
+    });
+    expect(registry.get("sess_1")).toMatchObject({
+      sessionId: "sess_1",
+      operatorLarkId: "ou_123",
+    });
+
+    await service.chat(
+      {
+        operatorLarkId: "ou_123",
+        sessionId: "sess_1",
+        message: "follow up",
+      },
+      () => undefined,
+    );
+
+    expect(prompt).toHaveBeenCalledTimes(2);
+    expect(prompt).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        message: "follow up",
+      }),
+    );
+  });
 });
 
 function createDeferred<T>() {
@@ -234,4 +319,21 @@ function createDeferred<T>() {
   });
 
   return { promise, resolve };
+}
+
+function createOwnershipStoreMock() {
+  return {
+    claim: vi.fn(async (sessionId: string, operatorLarkId: string) => ({
+      sessionId,
+      operatorLarkId,
+      deletedAt: null,
+    })),
+    getBySessionId: vi.fn(async (sessionId: string) => ({
+      sessionId,
+      operatorLarkId: "ou_123",
+      deletedAt: null,
+    })),
+    listByOperatorLarkId: vi.fn(async () => []),
+    deleteForOperator: vi.fn(async () => true),
+  };
 }

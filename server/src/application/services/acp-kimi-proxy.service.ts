@@ -10,6 +10,10 @@ import type {
   KimiSessionRegistry,
 } from "../../adapters/kimi-acp/kimi-session-registry.js";
 import { inMemoryKimiSessionRegistry } from "../../adapters/kimi-acp/in-memory-kimi-session-registry.js";
+import {
+  getAcpKimiSessionOwnershipStore,
+  type AcpKimiSessionOwnershipStore,
+} from "../../adapters/postgres/acp-kimi-session-ownership-store.js";
 import { logger } from "../../logger.js";
 
 const acpKimiProxyLogger = logger.child({ module: "acp-kimi-proxy" });
@@ -19,6 +23,7 @@ export interface AcpKimiProxyServiceDeps {
     deps?: KimiAcpRuntimeDeps,
   ) => Promise<KimiAcpSessionRuntime>;
   sessionRegistry?: KimiSessionRegistry;
+  ownershipStore?: AcpKimiSessionOwnershipStore;
 }
 
 export interface AcpKimiProxyService {
@@ -52,9 +57,10 @@ export function createAcpKimiProxyService(
   const createSessionRuntime =
     deps.createSessionRuntime ?? createKimiAcpSessionRuntime;
   const sessionRegistry = deps.sessionRegistry ?? inMemoryKimiSessionRegistry;
+  const ownershipStore = deps.ownershipStore ?? getAcpKimiSessionOwnershipStore();
 
   return {
-    assertSessionAccess(input) {
+    async assertSessionAccess(input) {
       acpKimiProxyLogger.info({
         operatorLarkId: input.operatorLarkId,
         hasSessionId: Boolean(input.sessionId),
@@ -67,8 +73,10 @@ export function createAcpKimiProxyService(
         return null;
       }
 
-      const session = getOwnedSession(
+      const session = await getOwnedSession(
         sessionRegistry,
+        ownershipStore,
+        createSessionRuntime,
         input.sessionId,
         input.operatorLarkId,
       );
@@ -97,9 +105,16 @@ export function createAcpKimiProxyService(
       const session = deps?.session
         ? deps.session
         : input.sessionId
-        ? getOwnedSession(sessionRegistry, input.sessionId, input.operatorLarkId)
+        ? await getOwnedSession(
+            sessionRegistry,
+            ownershipStore,
+            createSessionRuntime,
+            input.sessionId,
+            input.operatorLarkId,
+          )
         : await createOwnedSession(
             sessionRegistry,
+            ownershipStore,
             createSessionRuntime,
             input.operatorLarkId,
             deps?.signal,
@@ -164,7 +179,9 @@ export function createAcpKimiProxyService(
           sessionId: session.sessionId,
           errorMessage: error instanceof Error ? error.message : String(error),
         }, "ACP_KIMI_CHAT ERROR");
-        await sessionRegistry.delete(session.sessionId);
+        if (!isAbortError(error) && !deps?.signal?.aborted) {
+          await sessionRegistry.delete(session.sessionId);
+        }
         throw error;
       } finally {
         session.busy = false;
@@ -191,6 +208,7 @@ export const acpKimiProxyService = createAcpKimiProxyService();
 
 async function createOwnedSession(
   sessionRegistry: KimiSessionRegistry,
+  ownershipStore: AcpKimiSessionOwnershipStore,
   createSessionRuntime: (
     deps?: KimiAcpRuntimeDeps,
   ) => Promise<KimiAcpSessionRuntime>,
@@ -210,6 +228,7 @@ async function createOwnedSession(
   } satisfies KimiSessionRecord;
 
   sessionRegistry.set(session);
+  await ownershipStore.claim(session.sessionId, operatorLarkId);
   acpKimiProxyLogger.info({
     operatorLarkId,
     sessionId: session.sessionId,
@@ -217,30 +236,22 @@ async function createOwnedSession(
   return session;
 }
 
-function getOwnedSession(
+async function getOwnedSession(
   sessionRegistry: KimiSessionRegistry,
+  ownershipStore: AcpKimiSessionOwnershipStore,
+  createSessionRuntime: (
+    deps?: KimiAcpRuntimeDeps,
+  ) => Promise<KimiAcpSessionRuntime>,
   sessionId: string,
   operatorLarkId: string,
-): KimiSessionRecord {
+): Promise<KimiSessionRecord> {
   acpKimiProxyLogger.info({
     operatorLarkId,
     sessionId,
   }, "ACP_KIMI_GET_OWNED_SESSION START");
   const session = sessionRegistry.get(sessionId);
 
-  if (!session) {
-    acpKimiProxyLogger.warn({
-      operatorLarkId,
-      sessionId,
-    }, "ACP_KIMI_GET_OWNED_SESSION NOT_FOUND");
-    throw new AcpKimiProxyError(
-      "SESSION_NOT_FOUND",
-      404,
-      `Kimi ACP session ${sessionId} was not found.`,
-    );
-  }
-
-  if (session.operatorLarkId !== operatorLarkId) {
+  if (session && session.operatorLarkId !== operatorLarkId) {
     acpKimiProxyLogger.warn({
       operatorLarkId,
       sessionId,
@@ -253,10 +264,60 @@ function getOwnedSession(
     );
   }
 
+  if (session) {
+    acpKimiProxyLogger.info({
+      operatorLarkId,
+      sessionId,
+      busy: session.busy,
+    }, "ACP_KIMI_GET_OWNED_SESSION OK");
+    return session;
+  }
+
+  const ownership = await ownershipStore.getBySessionId(sessionId);
+  if (!ownership || ownership.deletedAt) {
+    acpKimiProxyLogger.warn({
+      operatorLarkId,
+      sessionId,
+    }, "ACP_KIMI_GET_OWNED_SESSION NOT_FOUND");
+    throw new AcpKimiProxyError(
+      "SESSION_NOT_FOUND",
+      404,
+      `Kimi ACP session ${sessionId} was not found.`,
+    );
+  }
+
+  if (ownership.operatorLarkId !== operatorLarkId) {
+    acpKimiProxyLogger.warn({
+      operatorLarkId,
+      sessionId,
+      ownerOperatorLarkId: ownership.operatorLarkId,
+    }, "ACP_KIMI_GET_OWNED_SESSION FORBIDDEN");
+    throw new AcpKimiProxyError(
+      "SESSION_FORBIDDEN",
+      403,
+      `Kimi ACP session ${sessionId} does not belong to ${operatorLarkId}.`,
+    );
+  }
+
+  const runtime = await createSessionRuntime({
+    sessionId,
+  });
+  const restoredSession = {
+    sessionId,
+    operatorLarkId,
+    runtime,
+    busy: false,
+  } satisfies KimiSessionRecord;
+  sessionRegistry.set(restoredSession);
+
   acpKimiProxyLogger.info({
     operatorLarkId,
     sessionId,
-    busy: session.busy,
+    busy: restoredSession.busy,
   }, "ACP_KIMI_GET_OWNED_SESSION OK");
-  return session;
+  return restoredSession;
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === "AbortError";
 }

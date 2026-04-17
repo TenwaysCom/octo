@@ -6,7 +6,22 @@ export const acpKimiChatRequestSchema = z.object({
   sessionId: z.string().min(1).optional(),
 });
 
+export const acpKimiSessionLookupRequestSchema = z.object({
+  operatorLarkId: z.string().min(1),
+  sessionId: z.string().min(1),
+});
+
+export const acpKimiSessionListRequestSchema = z.object({
+  operatorLarkId: z.string().min(1),
+});
+
 export type AcpKimiChatRequest = z.infer<typeof acpKimiChatRequestSchema>;
+export type AcpKimiSessionLookupRequest = z.infer<
+  typeof acpKimiSessionLookupRequestSchema
+>;
+export type AcpKimiSessionListRequest = z.infer<
+  typeof acpKimiSessionListRequestSchema
+>;
 
 export type AcpKimiContentBlock =
   | {
@@ -32,6 +47,13 @@ export interface AcpKimiPlanEntry {
   content: string;
   priority: "high" | "medium" | "low";
   status: "pending" | "in_progress" | "completed";
+}
+
+export interface AcpKimiSessionSummary {
+  sessionId: string;
+  cwd?: string | null;
+  title?: string | null;
+  updatedAt?: string | null;
 }
 
 export type AcpKimiSessionUpdate =
@@ -83,4 +105,16 @@ export type AcpKimiSessionUpdate =
 
 export function validateAcpKimiChatRequest(input: unknown): AcpKimiChatRequest {
   return acpKimiChatRequestSchema.parse(input);
+}
+
+export function validateAcpKimiSessionLookupRequest(
+  input: unknown,
+): AcpKimiSessionLookupRequest {
+  return acpKimiSessionLookupRequestSchema.parse(input);
+}
+
+export function validateAcpKimiSessionListRequest(
+  input: unknown,
+): AcpKimiSessionListRequest {
+  return acpKimiSessionListRequestSchema.parse(input);
 }
