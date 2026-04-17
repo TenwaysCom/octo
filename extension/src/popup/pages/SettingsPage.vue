@@ -58,7 +58,7 @@
       <a-form-item label="Server URL">
         <a-input
           v-model:value="form.SERVER_URL"
-          placeholder="http://localhost:3000"
+          placeholder="https://octo.odoo.tenways.it:18443"
         />
       </a-form-item>
       <a-form-item label="Lark Callback URL">

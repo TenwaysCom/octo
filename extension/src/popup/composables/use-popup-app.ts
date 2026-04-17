@@ -75,7 +75,7 @@ type ScheduledFrameHandle = number | ReturnType<typeof globalThis.setTimeout>;
 
 function createDefaultSettingsForm(): PopupSettingsForm {
   return {
-    SERVER_URL: "http://localhost:3000",
+    SERVER_URL: "https://octo.odoo.tenways.it:18443",
     MEEGLE_PLUGIN_ID: "",
     LARK_OAUTH_CALLBACK_URL: "http://localhost:3000/api/lark/auth/callback",
     meegleUserKey: "",

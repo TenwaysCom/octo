@@ -8,6 +8,18 @@ import { createExtensionLogger } from "../../../logger.js";
 
 const larkBootstrapLogger = createExtensionLogger("injection:lark-bootstrap");
 
+function summarizeIdentifier(value: string | null | undefined): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  if (value.length <= 8) {
+    return value;
+  }
+
+  return `${value.slice(0, 4)}...${value.slice(-4)}`;
+}
+
 export type LarkDetectedPageContext = LarkPageContext & {
   detectedLarkId?: string;
 };
@@ -19,7 +31,14 @@ export type LarkContentScriptRuntime = {
   initLarkContentScript: () => void;
   refreshProbeState: () => void;
   getProbeState: () => ProbeOverlayState;
+  destroy: () => void;
 };
+
+type LarkIdentitySource =
+  | "selector"
+  | "global"
+  | "storage"
+  | "not_found";
 
 function readFirstSearchParam(
   params: URLSearchParams[],
@@ -310,7 +329,36 @@ export function createLarkContentScriptRuntime(): LarkContentScriptRuntime {
     probeOverlay.render(probeState);
   }
 
-  function getLarkUserId(): string | null {
+  function readStoredLarkUserId(): string | null {
+    const storageKeys = ["lark_user_profile", "lark_user"];
+    const sources = [localStorage, sessionStorage];
+
+    for (const storage of sources) {
+      for (const key of storageKeys) {
+        const raw = storage.getItem(key);
+        if (!raw) {
+          continue;
+        }
+
+        try {
+          const parsed = JSON.parse(raw) as Record<string, unknown>;
+          const userId =
+            (typeof parsed.user_id === "string" && parsed.user_id)
+            || (typeof parsed.userId === "string" && parsed.userId)
+            || null;
+          if (userId) {
+            return userId;
+          }
+        } catch {
+          // Ignore parse errors and keep searching.
+        }
+      }
+    }
+
+    return null;
+  }
+
+  function resolveLarkUserId(): { userId: string | null; source: LarkIdentitySource; selector?: string } {
     const selectors = [
       "[data-user-id]",
       "[data-user_id]",
@@ -322,12 +370,20 @@ export function createLarkContentScriptRuntime(): LarkContentScriptRuntime {
       const element = document.querySelector(selector) as HTMLElement;
       if (element) {
         if (element.dataset.userId) {
-          return element.dataset.userId;
+          return {
+            userId: element.dataset.userId,
+            source: "selector",
+            selector,
+          };
         }
 
         const id = element.innerText?.trim();
         if (id && id.length > 5) {
-          return id;
+          return {
+            userId: id,
+            source: "selector",
+            selector,
+          };
         }
       }
     }
@@ -335,10 +391,37 @@ export function createLarkContentScriptRuntime(): LarkContentScriptRuntime {
     // @ts-ignore - Check for Lark global objects
     if (window.Lark?.user?.id) {
       // @ts-ignore
-      return window.Lark.user.id;
+      return {
+        // @ts-ignore
+        userId: window.Lark.user.id,
+        source: "global",
+      };
     }
 
-    return null;
+    const storedUserId = readStoredLarkUserId();
+    if (storedUserId) {
+      return {
+        userId: storedUserId,
+        source: "storage",
+      };
+    }
+
+    return {
+      userId: null,
+      source: "not_found",
+    };
+  }
+
+  function getLarkUserId(): string | null {
+    const resolved = resolveLarkUserId();
+    larkBootstrapLogger.debug("larkIdentity.resolve", {
+      source: resolved.source,
+      selector: resolved.selector,
+      hasUserId: Boolean(resolved.userId),
+      userId: summarizeIdentifier(resolved.userId),
+      location: typeof window !== "undefined" ? window.location.href : undefined,
+    });
+    return resolved.userId;
   }
 
   function extractAuthCodeFromRedirect(): { code: string; state: string } | null {

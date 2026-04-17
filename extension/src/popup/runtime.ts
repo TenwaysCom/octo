@@ -20,6 +20,7 @@ import type {
 } from "../types/meegle.js";
 import type { PopupSettingsForm } from "./types.js";
 import { detectPopupPageType, type PopupPageType } from "./view-model.js";
+import { createExtensionLogger } from "../logger.js";
 
 interface RuntimeErrorResponse {
   error?: {
@@ -27,6 +28,20 @@ interface RuntimeErrorResponse {
     errorMessage?: string;
   };
   payload?: unknown;
+}
+
+const runtimeLogger = createExtensionLogger("popup:runtime");
+
+function summarizeIdentifier(value?: string | null): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  if (value.length <= 8) {
+    return value;
+  }
+
+  return `${value.slice(0, 4)}...${value.slice(-4)}`;
 }
 
 export interface PopupTabContext {
@@ -152,8 +167,15 @@ export async function queryActiveTabContext(): Promise<PopupTabContext> {
 export async function requestLarkUserId(
   tabId: number,
 ): Promise<string | undefined> {
+  runtimeLogger.debug("requestLarkUserId.start", { tabId });
   const response = await sendTabMessage<{ userId?: string }>(tabId, {
     action: "getLarkUserId",
+  });
+
+  runtimeLogger.debug("requestLarkUserId.done", {
+    tabId,
+    hasUserId: Boolean(response?.userId),
+    userId: summarizeIdentifier(response?.userId),
   });
 
   return response?.userId;
@@ -163,18 +185,46 @@ export async function requestMeegleUserIdentity(
   tabId: number,
   pageUrl?: string,
 ): Promise<{ userKey?: string; tenantKey?: string } | undefined> {
+  runtimeLogger.debug("requestMeegleUserIdentity.start", {
+    tabId,
+    hasPageUrl: Boolean(pageUrl),
+    pageUrl,
+  });
   const pageIdentity = await sendTabMessage<{ userKey?: string; tenantKey?: string }>(tabId, {
     action: "getMeegleUserIdentity",
   });
 
+  runtimeLogger.debug("requestMeegleUserIdentity.page_result", {
+    tabId,
+    hasUserKey: Boolean(pageIdentity?.userKey),
+    userKey: summarizeIdentifier(pageIdentity?.userKey),
+    tenantKey: summarizeIdentifier(pageIdentity?.tenantKey),
+  });
+
   if (pageIdentity?.userKey) {
+    runtimeLogger.debug("requestMeegleUserIdentity.done", {
+      tabId,
+      source: "page",
+      hasUserKey: true,
+      userKey: summarizeIdentifier(pageIdentity.userKey),
+      tenantKey: summarizeIdentifier(pageIdentity.tenantKey),
+    });
     return pageIdentity;
   }
 
   if (!pageUrl) {
+    runtimeLogger.debug("requestMeegleUserIdentity.done", {
+      tabId,
+      source: "page",
+      hasUserKey: Boolean(pageIdentity?.userKey),
+    });
     return pageIdentity;
   }
 
+  runtimeLogger.debug("requestMeegleUserIdentity.cookie_fallback.start", {
+    tabId,
+    pageUrl,
+  });
   const cookieIdentity = await sendRuntimeMessage<{
     payload?: { userKey?: string; tenantKey?: string };
   }>({
@@ -184,12 +234,28 @@ export async function requestMeegleUserIdentity(
     },
   });
 
+  runtimeLogger.debug("requestMeegleUserIdentity.done", {
+    tabId,
+    source: cookieIdentity.payload?.userKey ? "cookie" : "unresolved",
+    hasUserKey: Boolean(cookieIdentity.payload?.userKey ?? pageIdentity?.userKey),
+    userKey: summarizeIdentifier(cookieIdentity.payload?.userKey ?? pageIdentity?.userKey),
+    tenantKey: summarizeIdentifier(cookieIdentity.payload?.tenantKey ?? pageIdentity?.tenantKey),
+  });
+
   return cookieIdentity.payload ?? pageIdentity;
 }
 
 export async function runMeegleAuthRequest(
   request: MeegleAuthEnsureRequest,
 ): Promise<MeegleAuthEnsureResponse> {
+  runtimeLogger.debug("runMeegleAuthRequest.start", {
+    requestId: request.requestId,
+    masterUserId: summarizeIdentifier(request.masterUserId),
+    meegleUserKey: summarizeIdentifier(request.meegleUserKey),
+    baseUrl: request.baseUrl,
+    currentPageIsMeegle: request.currentPageIsMeegle,
+    currentTabId: request.currentTabId,
+  });
   const response = await sendRuntimeMessage<{
     payload?: MeegleAuthEnsureResponse;
   }>({
@@ -198,9 +264,22 @@ export async function runMeegleAuthRequest(
   });
 
   if (response.payload) {
+    runtimeLogger.debug("runMeegleAuthRequest.done", {
+      requestId: request.requestId,
+      status: response.payload.status,
+      reason: response.payload.reason,
+      credentialStatus: response.payload.credentialStatus,
+      baseUrl: response.payload.baseUrl,
+    });
     return response.payload;
   }
 
+  runtimeLogger.warn("runMeegleAuthRequest.empty_response", {
+    requestId: request.requestId,
+    baseUrl: request.baseUrl,
+    errorCode: response.error?.errorCode,
+    errorMessage: response.error?.errorMessage,
+  });
   return {
     status: "failed",
     baseUrl: request.baseUrl,
@@ -247,6 +326,17 @@ export async function resolveIdentityRequest(input: {
   };
 }): Promise<IdentityResolveResponse> {
   const config = await getConfig();
+  runtimeLogger.debug("resolveIdentityRequest.start", {
+    platform: input.pageContext.platform,
+    baseUrl: input.pageContext.baseUrl,
+    pathname: input.pageContext.pathname,
+    hasMasterUserId: Boolean(input.masterUserId),
+    hasOperatorLarkId: Boolean(input.operatorLarkId),
+    hasMeegleUserKey: Boolean(input.meegleUserKey),
+    masterUserId: summarizeIdentifier(input.masterUserId),
+    operatorLarkId: summarizeIdentifier(input.operatorLarkId),
+    meegleUserKey: summarizeIdentifier(input.meegleUserKey),
+  });
   const response = await fetch(`${config.SERVER_URL}/api/identity/resolve`, {
     method: "POST",
     headers: {
@@ -261,7 +351,18 @@ export async function resolveIdentityRequest(input: {
     }),
   });
 
-  return (await response.json()) as IdentityResolveResponse;
+  const payload = (await response.json()) as IdentityResolveResponse;
+  runtimeLogger.debug("resolveIdentityRequest.done", {
+    ok: payload.ok,
+    hasMasterUserId: Boolean(payload.data?.masterUserId),
+    masterUserId: summarizeIdentifier(payload.data?.masterUserId),
+    identityStatus: payload.data?.identityStatus,
+    operatorLarkId: summarizeIdentifier(payload.data?.operatorLarkId),
+    meegleUserKey: summarizeIdentifier(payload.data?.meegleUserKey),
+    errorCode: payload.error?.errorCode,
+    errorMessage: payload.error?.errorMessage,
+  });
+  return payload;
 }
 
 export async function runLarkAuthRequest(
@@ -271,6 +372,11 @@ export async function runLarkAuthRequest(
     force?: boolean;
   },
 ): Promise<LarkAuthEnsureResponse> {
+  runtimeLogger.debug("runLarkAuthRequest.start", {
+    masterUserId: summarizeIdentifier(input.masterUserId),
+    baseUrl: input.baseUrl,
+    force: input.force ?? false,
+  });
   const response = await sendRuntimeMessage<{
     payload?: LarkAuthEnsureResponse;
   }>({
@@ -284,9 +390,23 @@ export async function runLarkAuthRequest(
   });
 
   if (response.payload) {
+    runtimeLogger.debug("runLarkAuthRequest.done", {
+      masterUserId: summarizeIdentifier(input.masterUserId),
+      status: response.payload.status,
+      reason: response.payload.reason,
+      credentialStatus: response.payload.credentialStatus,
+      expiresAt: response.payload.expiresAt,
+      baseUrl: response.payload.baseUrl,
+    });
     return response.payload;
   }
 
+  runtimeLogger.warn("runLarkAuthRequest.empty_response", {
+    masterUserId: summarizeIdentifier(input.masterUserId),
+    baseUrl: input.baseUrl,
+    errorCode: response.error?.errorCode,
+    errorMessage: response.error?.errorMessage,
+  });
   return {
     status: "failed",
     baseUrl: input.baseUrl,
@@ -314,6 +434,10 @@ export async function fetchLarkUserInfo(
   | { ok: false; error?: { errorCode?: string; errorMessage?: string } }
 > {
   const config = await getConfig();
+  runtimeLogger.debug("fetchLarkUserInfo.start", {
+    masterUserId: summarizeIdentifier(input.masterUserId),
+    baseUrl: input.baseUrl,
+  });
 
   try {
     const response = await fetch(`${config.SERVER_URL}/api/lark/user-info`, {
@@ -327,7 +451,7 @@ export async function fetchLarkUserInfo(
       }),
     });
 
-    return (await response.json()) as
+    const payload = (await response.json()) as
       | {
           ok: true;
           data: {
@@ -339,7 +463,22 @@ export async function fetchLarkUserInfo(
           };
         }
       | { ok: false; error?: { errorCode?: string; errorMessage?: string } };
+    runtimeLogger.debug("fetchLarkUserInfo.done", {
+      masterUserId: summarizeIdentifier(input.masterUserId),
+      ok: payload.ok,
+      userId: summarizeIdentifier(payload.ok ? payload.data.userId : undefined),
+      tenantKey: summarizeIdentifier(payload.ok ? payload.data.tenantKey : undefined),
+      hasEmail: payload.ok ? Boolean(payload.data.email) : false,
+      errorCode: !payload.ok ? payload.error?.errorCode : undefined,
+      errorMessage: !payload.ok ? payload.error?.errorMessage : undefined,
+    });
+    return payload;
   } catch (error) {
+    runtimeLogger.error("fetchLarkUserInfo.failed", {
+      masterUserId: summarizeIdentifier(input.masterUserId),
+      baseUrl: input.baseUrl,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
     return {
       ok: false,
       error: {
@@ -366,6 +505,10 @@ export async function getLarkAuthStatus(
   }
 
   const config = await getConfig();
+  runtimeLogger.debug("getLarkAuthStatus.start", {
+    masterUserId: summarizeIdentifier(input.masterUserId),
+    baseUrl: input.baseUrl,
+  });
 
   try {
     const response = await fetch(`${config.SERVER_URL}/api/lark/auth/status`, {
@@ -380,6 +523,11 @@ export async function getLarkAuthStatus(
     });
 
     if (!response.ok) {
+      runtimeLogger.warn("getLarkAuthStatus.http_failed", {
+        masterUserId: summarizeIdentifier(input.masterUserId),
+        baseUrl: input.baseUrl,
+        statusCode: response.status,
+      });
       return {
         status: "failed",
         baseUrl: input.baseUrl,
@@ -392,6 +540,12 @@ export async function getLarkAuthStatus(
     const payload = (await response.json()) as LarkAuthStatusServerResponse;
 
     if (!payload.ok || !payload.data) {
+      runtimeLogger.warn("getLarkAuthStatus.invalid_payload", {
+        masterUserId: summarizeIdentifier(input.masterUserId),
+        baseUrl: input.baseUrl,
+        errorCode: payload.error?.errorCode,
+        errorMessage: payload.error?.errorMessage,
+      });
       return {
         status: "failed",
         baseUrl: input.baseUrl,
@@ -401,6 +555,14 @@ export async function getLarkAuthStatus(
       };
     }
 
+    runtimeLogger.debug("getLarkAuthStatus.done", {
+      masterUserId: summarizeIdentifier(input.masterUserId),
+      status: payload.data.status,
+      reason: payload.data.reason,
+      credentialStatus: payload.data.credentialStatus,
+      expiresAt: payload.data.expiresAt,
+      baseUrl: payload.data.baseUrl,
+    });
     return {
       status: payload.data.status,
       baseUrl: payload.data.baseUrl,
@@ -410,6 +572,11 @@ export async function getLarkAuthStatus(
       expiresAt: payload.data.expiresAt,
     };
   } catch (error) {
+    runtimeLogger.error("getLarkAuthStatus.failed", {
+      masterUserId: summarizeIdentifier(input.masterUserId),
+      baseUrl: input.baseUrl,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
     return {
       status: "failed",
       baseUrl: input.baseUrl,

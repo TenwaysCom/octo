@@ -4,7 +4,7 @@
       <button
         type="button"
         class="vertical-tab-bar__item"
-        :class="{ active: modelValue === 'automation', disabled: !authorized }"
+        :class="{ active: modelValue === 'automation', disabled: isDisabled('automation') }"
         data-test="vertical-tab-automation"
         @click="handleChange('automation')"
       >
@@ -20,7 +20,7 @@
       <button
         type="button"
         class="vertical-tab-bar__item"
-        :class="{ active: modelValue === 'chat', disabled: !authorized }"
+        :class="{ active: modelValue === 'chat', disabled: isDisabled('chat') }"
         data-test="vertical-tab-chat"
         @click="handleChange('chat')"
       >
@@ -34,7 +34,7 @@
       <button
         type="button"
         class="vertical-tab-bar__item"
-        :class="{ active: modelValue === 'settings', disabled: !authorized }"
+        :class="{ active: modelValue === 'settings', disabled: isDisabled('settings') }"
         data-test="vertical-tab-settings"
         @click="handleChange('settings')"
       >
@@ -87,8 +87,12 @@ const emit = defineEmits<{
   "update:modelValue": [value: PopupNotebookPage];
 }>();
 
+function isDisabled(value: PopupNotebookPage): boolean {
+  return !props.authorized && (value === "chat" || value === "automation");
+}
+
 function handleChange(value: PopupNotebookPage) {
-  if (!props.authorized && value !== "profile") {
+  if (isDisabled(value)) {
     return;
   }
   emit("update:modelValue", value);

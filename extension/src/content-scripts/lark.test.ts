@@ -19,9 +19,14 @@ function getTestingApi() {
         anchorLabel: string | null;
         recordId: string | null;
       };
+      getLarkUserId: () => string | null;
       destroy: () => void;
     };
   }).__TENWAYS_LARK_TESTING__;
+}
+
+async function getLoggerApi() {
+  return import("../logger.js");
 }
 
 describe("lark content script probe overlay", () => {
@@ -227,5 +232,34 @@ describe("lark content script probe overlay", () => {
       tableId: "tbl_xxx",
       recordId: "rec_single_field",
     });
+  });
+
+  it("reads lark user id from storage snapshots when the dom does not expose it", async () => {
+    const loggerApi = await getLoggerApi();
+    loggerApi.clearLogBuffer();
+    loggerApi.setLogLevel("info");
+    localStorage.setItem(
+      "lark_user_profile",
+      JSON.stringify({
+        user_id: "ou_storage_test",
+      }),
+    );
+
+    await import("./lark");
+
+    expect(getTestingApi()?.getLarkUserId()).toBe("ou_storage_test");
+    expect(loggerApi.getLogBuffer()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          module: "injection:lark-bootstrap",
+          level: "debug",
+          message: "larkIdentity.resolve",
+          detail: expect.objectContaining({
+            source: "storage",
+            hasUserId: true,
+          }),
+        }),
+      ]),
+    );
   });
 });

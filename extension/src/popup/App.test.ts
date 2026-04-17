@@ -79,6 +79,19 @@ describe("popup App", () => {
     expect(wrapper.find('[data-test="chat-page"]').exists()).toBe(false);
   });
 
+  it("keeps settings reachable even before auth is complete", async () => {
+    popupAppMock.current = createPopupAppMock("unsupported");
+    const wrapper = mountApp({
+      useRealVerticalTabBar: true,
+    });
+
+    await flushPromises();
+    await wrapper.get('[data-test="vertical-tab-settings"]').trigger("click");
+
+    expect(wrapper.find('[data-test="settings-page"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="automation-page"]').exists()).toBe(false);
+  });
+
   it("switches to profile via the vertical tab bar", async () => {
     popupAppMock.current = createPopupAppMock("lark");
     const wrapper = mountApp();
@@ -91,7 +104,7 @@ describe("popup App", () => {
   });
 });
 
-function mountApp() {
+function mountApp(options: { useRealVerticalTabBar?: boolean } = {}) {
   return shallowMount(App, {
     global: {
       stubs: {
@@ -110,18 +123,20 @@ function mountApp() {
             </div>
           `,
         },
-        VerticalTabBar: {
-          props: ["modelValue"],
-          template: `
-            <div data-test='vertical-tab-bar'>
-              <button data-test='vertical-tab-chat' @click="$emit('update:modelValue', 'chat')">chat</button>
-              <button data-test='vertical-tab-automation' @click="$emit('update:modelValue', 'automation')">automation</button>
-              <button data-test='vertical-tab-settings' @click="$emit('update:modelValue', 'settings')">settings</button>
-              <button data-test='vertical-tab-profile' @click="$emit('update:modelValue', 'profile')">profile</button>
-              {{ modelValue }}
-            </div>
-          `,
-        },
+        VerticalTabBar: options.useRealVerticalTabBar
+          ? false
+          : {
+              props: ["modelValue"],
+              template: `
+                <div data-test='vertical-tab-bar'>
+                  <button data-test='vertical-tab-chat' @click="$emit('update:modelValue', 'chat')">chat</button>
+                  <button data-test='vertical-tab-automation' @click="$emit('update:modelValue', 'automation')">automation</button>
+                  <button data-test='vertical-tab-settings' @click="$emit('update:modelValue', 'settings')">settings</button>
+                  <button data-test='vertical-tab-profile' @click="$emit('update:modelValue', 'profile')">profile</button>
+                  {{ modelValue }}
+                </div>
+              `,
+            },
         ChatPage: {
           props: ["state", "viewModel", "larkActions", "meegleActions", "logs"],
           template: `

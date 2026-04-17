@@ -11,7 +11,7 @@ describe("extension config", () => {
       const resolvedDefaults = defaults as Record<string, unknown>;
       callback({
         ...resolvedDefaults,
-        SERVER_URL: "http://localhost:3000",
+        SERVER_URL: "https://octo.odoo.tenways.it:18443",
         MEEGLE_PLUGIN_ID: "local-plugin-id",
       });
     });
@@ -30,7 +30,7 @@ describe("extension config", () => {
     } as Response);
 
     await expect(getConfig()).resolves.toMatchObject({
-      SERVER_URL: "http://localhost:3000",
+      SERVER_URL: "https://octo.odoo.tenways.it:18443",
       MEEGLE_PLUGIN_ID: "MII_SERVER_PLUGIN",
       LARK_APP_ID: "cli_server_public",
       MEEGLE_BASE_URL: "https://tenant.meegle.com",
@@ -52,7 +52,7 @@ describe("extension config", () => {
       const resolvedDefaults = defaults as Record<string, unknown>;
       callback({
         ...resolvedDefaults,
-        SERVER_URL: "http://localhost:3000",
+        SERVER_URL: "https://octo.odoo.tenways.it:18443",
         MEEGLE_PLUGIN_ID: "MII_LOCAL_PLUGIN",
         LARK_APP_ID: "cli_local",
       });
@@ -61,7 +61,7 @@ describe("extension config", () => {
     vi.mocked(fetch).mockRejectedValue(new Error("network down"));
 
     await expect(getConfig()).resolves.toMatchObject({
-      SERVER_URL: "http://localhost:3000",
+      SERVER_URL: "https://octo.odoo.tenways.it:18443",
       MEEGLE_PLUGIN_ID: "MII_LOCAL_PLUGIN",
       LARK_APP_ID: "cli_local",
     });
@@ -75,7 +75,7 @@ describe("extension config", () => {
     vi.mocked(fetch).mockRejectedValue(new Error("network down"));
 
     await expect(getConfig()).resolves.toMatchObject({
-      SERVER_URL: "http://localhost:3000",
+      SERVER_URL: "https://octo.odoo.tenways.it:18443",
     });
   });
 });

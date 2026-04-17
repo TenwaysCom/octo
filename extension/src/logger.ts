@@ -22,7 +22,7 @@ let globalMinLevel: LogLevel =
   import.meta.env.DEV ? "debug" : "info";
 const logBuffer: LogEntry[] = [];
 
-function shouldLog(level: LogLevel): boolean {
+function shouldPrintToConsole(level: LogLevel): boolean {
   return LOG_LEVEL_PRIORITY[level] >= LOG_LEVEL_PRIORITY[globalMinLevel];
 }
 
@@ -69,7 +69,6 @@ export interface ExtensionLogger {
 function createLogger(module: string): ExtensionLogger {
   return {
     debug(message: string, detail?: Record<string, unknown>): void {
-      if (!shouldLog("debug")) return;
       const entry: LogEntry = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         timestamp: new Date().toISOString(),
@@ -79,10 +78,10 @@ function createLogger(module: string): ExtensionLogger {
         detail,
       };
       pushToBuffer(entry);
+      if (!shouldPrintToConsole("debug")) return;
       console.debug(formatMessage(module, message), detail ?? "");
     },
     info(message: string, detail?: Record<string, unknown>): void {
-      if (!shouldLog("info")) return;
       const entry: LogEntry = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         timestamp: new Date().toISOString(),
@@ -92,10 +91,10 @@ function createLogger(module: string): ExtensionLogger {
         detail,
       };
       pushToBuffer(entry);
+      if (!shouldPrintToConsole("info")) return;
       console.info(formatMessage(module, message), detail ?? "");
     },
     warn(message: string, detail?: Record<string, unknown>): void {
-      if (!shouldLog("warn")) return;
       const entry: LogEntry = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         timestamp: new Date().toISOString(),
@@ -105,10 +104,10 @@ function createLogger(module: string): ExtensionLogger {
         detail,
       };
       pushToBuffer(entry);
+      if (!shouldPrintToConsole("warn")) return;
       console.warn(formatMessage(module, message), detail ?? "");
     },
     error(message: string, detail?: Record<string, unknown>): void {
-      if (!shouldLog("error")) return;
       const entry: LogEntry = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         timestamp: new Date().toISOString(),
@@ -118,6 +117,7 @@ function createLogger(module: string): ExtensionLogger {
         detail,
       };
       pushToBuffer(entry);
+      if (!shouldPrintToConsole("error")) return;
       console.error(formatMessage(module, message), detail ?? "");
     },
     child(childModule: string): ExtensionLogger {

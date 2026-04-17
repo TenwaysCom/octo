@@ -6,6 +6,18 @@ import { createExtensionLogger } from "../logger.js";
 
 const meegleCsLogger = createExtensionLogger("content-script:meegle");
 
+function summarizeIdentifier(value: string | null | undefined): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  if (value.length <= 8) {
+    return value;
+  }
+
+  return `${value.slice(0, 4)}...${value.slice(-4)}`;
+}
+
 interface MeegleAuthCodeResult {
   authCode: string;
   state: string;
@@ -17,6 +29,15 @@ interface MeegleUserIdentity {
   userName: string | null;
   tenantKey: string | null;
 }
+
+type MeegleIdentitySource =
+  | "context"
+  | "meta"
+  | "data-attr"
+  | "storage"
+  | "cookie"
+  | "url"
+  | "not_found";
 
 interface TenwaysMeegleTestingApi {
   getMeegleUserIdentity: () => MeegleUserIdentity;
@@ -85,6 +106,62 @@ function getCookieValue(name: string): string | null {
   return null;
 }
 
+function readStoredMeegleUser():
+  | {
+      userKey: string | null;
+      userName: string | null;
+      tenantKey: string | null;
+    }
+  | undefined {
+  const storageKeys = ["meegle_user", "meegle_user_profile"];
+  const sources = [localStorage, sessionStorage];
+
+  for (const storage of sources) {
+    for (const key of storageKeys) {
+      const raw = storage.getItem(key);
+      if (!raw) {
+        continue;
+      }
+
+      try {
+        const userData = JSON.parse(raw) as Record<string, unknown>;
+        return {
+          userKey:
+            (typeof userData.userKey === "string" && userData.userKey)
+            || (typeof userData.user_key === "string" && userData.user_key)
+            || null,
+          userName:
+            (typeof userData.name === "string" && userData.name)
+            || (typeof userData.userName === "string" && userData.userName)
+            || null,
+          tenantKey:
+            (typeof userData.tenantKey === "string" && userData.tenantKey)
+            || (typeof userData.tenant_key === "string" && userData.tenant_key)
+            || null,
+        };
+      } catch {
+        // Ignore parse errors and keep searching.
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function logIdentityResolution(
+  source: MeegleIdentitySource,
+  identity: MeegleUserIdentity,
+): void {
+  meegleCsLogger.debug("meegleIdentity.resolve", {
+    source,
+    hasUserKey: Boolean(identity.userKey),
+    userKey: summarizeIdentifier(identity.userKey),
+    tenantKey: summarizeIdentifier(identity.tenantKey),
+    hasUserName: Boolean(identity.userName),
+    location: getPageLocation().href,
+  });
+}
+
 /**
  * Get user identity from Meegle page
  */
@@ -94,6 +171,7 @@ function getMeegleUserIdentity(): MeegleUserIdentity {
     userName: null,
     tenantKey: null,
   };
+  let source: MeegleIdentitySource = "not_found";
 
   // Try to extract from global variables or API responses
   try {
@@ -105,6 +183,9 @@ function getMeegleUserIdentity(): MeegleUserIdentity {
       identity.userKey = user.userKey || user.user_key || user.id;
       identity.userName = user.name || user.userName;
       identity.tenantKey = user.tenantKey || user.tenant_key;
+      if (identity.userKey) {
+        source = "context";
+      }
     }
 
     // Try to find from meta tags
@@ -112,6 +193,9 @@ function getMeegleUserIdentity(): MeegleUserIdentity {
       const metaUserKey = document.querySelector('meta[name="user-key"]') as HTMLMetaElement;
       if (metaUserKey) {
         identity.userKey = metaUserKey.content;
+        if (identity.userKey) {
+          source = "meta";
+        }
       }
     }
 
@@ -120,26 +204,26 @@ function getMeegleUserIdentity(): MeegleUserIdentity {
       const userElement = document.querySelector('[data-user-key]') as HTMLElement;
       if (userElement?.dataset.userKey) {
         identity.userKey = userElement.dataset.userKey;
+        source = "data-attr";
       }
     }
 
-    // Try to get from URL or page context
+    // Try to get from storage snapshots
     if (!identity.userKey) {
-      // Check localStorage or sessionStorage
-      const storedUser = localStorage.getItem('meegle_user') || sessionStorage.getItem('meegle_user');
-      if (storedUser) {
-        try {
-          const userData = JSON.parse(storedUser);
-          identity.userKey = userData.userKey || userData.user_key;
-          identity.userName = userData.name || userData.userName;
-        } catch {
-          // Ignore parse errors
-        }
+      const storedUser = readStoredMeegleUser();
+      if (storedUser?.userKey) {
+        identity.userKey = storedUser.userKey;
+        identity.userName = storedUser.userName;
+        identity.tenantKey = storedUser.tenantKey;
+        source = "storage";
       }
     }
 
     if (!identity.userKey) {
       identity.userKey = getCookieValue("meego_user_key");
+      if (identity.userKey) {
+        source = "cookie";
+      }
     }
 
     if (!identity.tenantKey) {
@@ -151,11 +235,16 @@ function getMeegleUserIdentity(): MeegleUserIdentity {
       const urlMatch = window.location.pathname.match(/\/tenant\/([^/]+)/);
       if (urlMatch) {
         identity.tenantKey = urlMatch[1];
+        if (source === "not_found") {
+          source = "url";
+        }
       }
     }
   } catch (err) {
     meegleCsLogger.error("Error getting Meegle user identity", { error: err instanceof Error ? err.message : String(err) });
   }
+
+  logIdentityResolution(source, identity);
 
   return identity;
 }

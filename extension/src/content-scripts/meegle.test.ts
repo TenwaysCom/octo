@@ -2,6 +2,7 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "./meegle.js";
+import { clearLogBuffer, getLogBuffer, setLogLevel } from "../logger.js";
 
 function getTestingApi() {
   return (globalThis as typeof globalThis & {
@@ -27,6 +28,13 @@ function getTestingApi() {
 describe("meegle content script auth code fetch", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearLogBuffer();
+    setLogLevel("info");
+    delete (
+      window as typeof window & {
+        __MEEGLE_CONTEXT__?: unknown;
+      }
+    ).__MEEGLE_CONTEXT__;
     localStorage.clear();
     sessionStorage.clear();
     document.cookie
@@ -92,6 +100,19 @@ describe("meegle content script auth code fetch", () => {
       userName: null,
       tenantKey: "saas_7538275207677476895",
     });
+    expect(getLogBuffer()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          module: "content-script:meegle",
+          level: "debug",
+          message: "meegleIdentity.resolve",
+          detail: expect.objectContaining({
+            source: "cookie",
+            hasUserKey: true,
+          }),
+        }),
+      ]),
+    );
   });
 
   it("prefers page context over cookie values when both exist", () => {
@@ -120,11 +141,54 @@ describe("meegle content script auth code fetch", () => {
       userName: "Ben LIN",
       tenantKey: "tenant_from_context",
     });
+    expect(getLogBuffer()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          module: "content-script:meegle",
+          level: "debug",
+          message: "meegleIdentity.resolve",
+          detail: expect.objectContaining({
+            source: "context",
+            hasUserKey: true,
+          }),
+        }),
+      ]),
+    );
 
     delete (
       window as typeof window & {
         __MEEGLE_CONTEXT__?: unknown;
       }
     ).__MEEGLE_CONTEXT__;
+  });
+
+  it("falls back to storage snapshots when runtime globals are missing", () => {
+    localStorage.setItem(
+      "meegle_user_profile",
+      JSON.stringify({
+        user_key: "user_from_storage",
+        tenant_key: "tenant_from_storage",
+        name: "Storage User",
+      }),
+    );
+
+    expect(getTestingApi()?.getMeegleUserIdentity()).toEqual({
+      userKey: "user_from_storage",
+      userName: "Storage User",
+      tenantKey: "tenant_from_storage",
+    });
+    expect(getLogBuffer()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          module: "content-script:meegle",
+          level: "debug",
+          message: "meegleIdentity.resolve",
+          detail: expect.objectContaining({
+            source: "storage",
+            hasUserKey: true,
+          }),
+        }),
+      ]),
+    );
   });
 });

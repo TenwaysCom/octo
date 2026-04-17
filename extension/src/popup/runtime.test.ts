@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../background/config.js", () => ({
   DEFAULT_CONFIG: {
-    SERVER_URL: "http://localhost:3000",
+    SERVER_URL: "https://octo.odoo.tenways.it:18443",
     MEEGLE_PLUGIN_ID: "",
     LARK_APP_ID: "cli_test",
     LARK_OAUTH_CALLBACK_URL: "http://localhost:3000/api/lark/auth/callback",
@@ -14,15 +14,19 @@ vi.mock("../background/config.js", () => ({
 import {
   getConfig,
   getLarkAuthStatus,
+  resolveIdentityRequest,
   loadPopupSettings,
   runLarkAuthRequest,
   watchLarkAuthCallbackResult,
   requestMeegleUserIdentity,
 } from "./runtime.js";
+import { clearLogBuffer, getLogBuffer, setLogLevel } from "../logger.js";
 
 describe("popup runtime settings", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearLogBuffer();
+    setLogLevel("info");
   });
 
   it("prefers the latest meegle plugin id from server config over stale local sync storage", async () => {
@@ -36,21 +40,22 @@ describe("popup runtime settings", () => {
     vi.mocked(chrome.storage.sync.get).mockImplementation((defaults, callback) => {
       callback?.({
         ...(defaults as Record<string, unknown>),
-        SERVER_URL: "http://localhost:3000",
+        SERVER_URL: "https://octo.odoo.tenways.it:18443",
         MEEGLE_PLUGIN_ID: "MII_STALE_LOCAL_PLUGIN",
       });
     });
 
     vi.mocked(getConfig).mockResolvedValue({
-      SERVER_URL: "http://localhost:3000",
+      SERVER_URL: "https://octo.odoo.tenways.it:18443",
       MEEGLE_PLUGIN_ID: "MII_SERVER_PLUGIN",
       LARK_APP_ID: "cli_server_public",
       LARK_OAUTH_CALLBACK_URL: "https://example.ngrok-free.app/api/lark/auth/callback",
       MEEGLE_BASE_URL: "https://project.larksuite.com",
+      LARK_OAUTH_SCOPE: "offline_access",
     });
 
     await expect(loadPopupSettings()).resolves.toEqual({
-      SERVER_URL: "http://localhost:3000",
+      SERVER_URL: "https://octo.odoo.tenways.it:18443",
       MEEGLE_PLUGIN_ID: "MII_SERVER_PLUGIN",
       LARK_OAUTH_CALLBACK_URL: "https://example.ngrok-free.app/api/lark/auth/callback",
       meegleUserKey: "user_test",
@@ -96,6 +101,96 @@ describe("popup runtime settings", () => {
       userKey: "7538275242901291040",
       tenantKey: "saas_7538275207677476895",
     });
+
+    expect(getLogBuffer()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          module: "popup:runtime",
+          level: "debug",
+          message: "requestMeegleUserIdentity.cookie_fallback.start",
+          detail: expect.objectContaining({
+            tabId: 12,
+          }),
+        }),
+        expect.objectContaining({
+          module: "popup:runtime",
+          level: "debug",
+          message: "requestMeegleUserIdentity.done",
+          detail: expect.objectContaining({
+            source: "cookie",
+            hasUserKey: true,
+          }),
+        }),
+      ]),
+    );
+  });
+
+  it("logs identity resolve requests and responses for diagnosis", async () => {
+    vi.mocked(getConfig).mockResolvedValue({
+      SERVER_URL: "http://localhost:3000",
+      MEEGLE_PLUGIN_ID: "MII_SERVER_PLUGIN",
+      LARK_APP_ID: "cli_server_public",
+      LARK_OAUTH_CALLBACK_URL: "https://example.ngrok-free.app/api/lark/auth/callback",
+      MEEGLE_BASE_URL: "https://project.larksuite.com",
+      LARK_OAUTH_SCOPE: "offline_access",
+    });
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ok: true,
+        data: {
+          masterUserId: "usr_resolved",
+          identityStatus: "active",
+          operatorLarkId: "ou_resolved",
+          meegleUserKey: "user_resolved",
+        },
+      }),
+    } as Response);
+
+    await expect(
+      resolveIdentityRequest({
+        operatorLarkId: "ou_page_user",
+        meegleUserKey: "user_page_user",
+        pageContext: {
+          platform: "meegle",
+          baseUrl: "https://project.larksuite.com",
+          pathname: "/4c3fv6/overview",
+        },
+      }),
+    ).resolves.toEqual({
+      ok: true,
+      data: {
+        masterUserId: "usr_resolved",
+        identityStatus: "active",
+        operatorLarkId: "ou_resolved",
+        meegleUserKey: "user_resolved",
+      },
+    });
+
+    expect(getLogBuffer()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          module: "popup:runtime",
+          level: "debug",
+          message: "resolveIdentityRequest.start",
+          detail: expect.objectContaining({
+            platform: "meegle",
+            hasOperatorLarkId: true,
+            hasMeegleUserKey: true,
+          }),
+        }),
+        expect.objectContaining({
+          module: "popup:runtime",
+          level: "debug",
+          message: "resolveIdentityRequest.done",
+          detail: expect.objectContaining({
+            ok: true,
+            identityStatus: "active",
+            hasMasterUserId: true,
+          }),
+        }),
+      ]),
+    );
   });
 
   it("sends masterUserId when requesting Lark auth through the background", async () => {
@@ -142,6 +237,7 @@ describe("popup runtime settings", () => {
       LARK_APP_ID: "cli_server_public",
       LARK_OAUTH_CALLBACK_URL: "https://example.ngrok-free.app/api/lark/auth/callback",
       MEEGLE_BASE_URL: "https://project.larksuite.com",
+      LARK_OAUTH_SCOPE: "offline_access",
     });
     vi.mocked(fetch).mockResolvedValue({
       ok: true,
