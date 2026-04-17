@@ -4,6 +4,7 @@ import {
   type KimiAcpRuntimeDeps,
   type KimiAcpSessionSummary,
 } from "../../adapters/kimi-acp/kimi-acp-runtime.js";
+import { exportKimiSessionEvents } from "../../adapters/kimi-acp/session-export.js";
 import type { AcpKimiStreamEvent } from "../../modules/acp-kimi/event-stream.js";
 import {
   getAcpKimiSessionOwnershipStore,
@@ -25,6 +26,7 @@ export interface AcpKimiSessionHistoryServiceDeps {
   createSessionRuntime?: (
     deps?: KimiAcpRuntimeDeps,
   ) => ReturnType<typeof createKimiAcpSessionRuntime>;
+  exportSessionEvents?: (sessionId: string) => Promise<AcpKimiStreamEvent[]>;
 }
 
 export function createAcpKimiSessionHistoryService(
@@ -34,6 +36,7 @@ export function createAcpKimiSessionHistoryService(
   const sessionRegistry = deps.sessionRegistry ?? inMemoryKimiSessionRegistry;
   const listSessions = deps.listSessions ?? listKimiAcpSessions;
   const createSessionRuntime = deps.createSessionRuntime ?? createKimiAcpSessionRuntime;
+  const exportSessionEvents = deps.exportSessionEvents ?? exportKimiSessionEvents;
 
   return {
     async listSessions(input: { operatorLarkId: string }) {
@@ -102,6 +105,17 @@ export function createAcpKimiSessionHistoryService(
         runtime,
         busy: false,
       });
+
+      const hasReplayEvents = events.some(
+        (event) => event.event === "acp.session.update",
+      );
+      if (!hasReplayEvents) {
+        try {
+          events.push(...await exportSessionEvents(input.sessionId));
+        } catch {
+          // Fall back to the loaded runtime even if export-based history recovery fails.
+        }
+      }
 
       return {
         sessionId: input.sessionId,

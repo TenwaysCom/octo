@@ -203,6 +203,120 @@ describe("acp kimi session history service", () => {
     });
   });
 
+  it("falls back to exported session history when ACP load does not replay transcript", async () => {
+    const { createAcpKimiSessionHistoryService } = await import(
+      "../src/application/services/acp-kimi-session-history.service.js"
+    );
+    const { createInMemoryKimiSessionRegistry } = await import(
+      "../src/adapters/kimi-acp/in-memory-kimi-session-registry.js"
+    );
+
+    const ownershipStore = createOwnershipStoreMock({
+      getBySessionId: vi.fn().mockResolvedValue({
+        sessionId: "sess_exported",
+        operatorLarkId: "ou_123",
+        deletedAt: null,
+      }),
+    });
+    const sessionRegistry = createInMemoryKimiSessionRegistry();
+    const runtime = {
+      sessionId: "sess_exported",
+      prompt: vi.fn().mockResolvedValue({ stopReason: "end_turn" }),
+      close: vi.fn(),
+    };
+    const createSessionRuntime = vi.fn().mockResolvedValue(runtime);
+    const exportSessionEvents = vi.fn().mockResolvedValue([
+      {
+        event: "acp.session.update",
+        data: {
+          sessionId: "sess_exported",
+          update: {
+            sessionUpdate: "user_message_chunk",
+            content: {
+              type: "text",
+              text: "old user message",
+            },
+          },
+        },
+      },
+      {
+        event: "acp.session.update",
+        data: {
+          sessionId: "sess_exported",
+          update: {
+            sessionUpdate: "agent_message_chunk",
+            content: {
+              type: "text",
+              text: "old assistant reply",
+            },
+          },
+        },
+      },
+      {
+        event: "done",
+        data: {
+          sessionId: "sess_exported",
+          stopReason: "end_turn",
+        },
+      },
+    ]);
+
+    const service = createAcpKimiSessionHistoryService({
+      ownershipStore,
+      sessionRegistry,
+      createSessionRuntime,
+      exportSessionEvents,
+    });
+
+    const result = await service.loadSession({
+      operatorLarkId: "ou_123",
+      sessionId: "sess_exported",
+    });
+
+    expect(exportSessionEvents).toHaveBeenCalledWith("sess_exported");
+    expect(result.events).toEqual([
+      {
+        event: "session.created",
+        data: {
+          sessionId: "sess_exported",
+        },
+      },
+      {
+        event: "acp.session.update",
+        data: {
+          sessionId: "sess_exported",
+          update: {
+            sessionUpdate: "user_message_chunk",
+            content: {
+              type: "text",
+              text: "old user message",
+            },
+          },
+        },
+      },
+      {
+        event: "acp.session.update",
+        data: {
+          sessionId: "sess_exported",
+          update: {
+            sessionUpdate: "agent_message_chunk",
+            content: {
+              type: "text",
+              text: "old assistant reply",
+            },
+          },
+        },
+      },
+      {
+        event: "done",
+        data: {
+          sessionId: "sess_exported",
+          stopReason: "end_turn",
+        },
+      },
+    ]);
+  });
+
   it("hides a deleted session from future history listings", async () => {
     const { createAcpKimiSessionHistoryService } = await import(
       "../src/application/services/acp-kimi-session-history.service.js"
