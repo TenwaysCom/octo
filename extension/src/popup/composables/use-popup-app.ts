@@ -293,18 +293,6 @@ export function usePopupApp() {
       type: "primary",
       disabled: !viewModel.value.canAnalyze,
     },
-    {
-      key: "draft",
-      label: "生成草稿",
-      type: "default",
-      disabled: !viewModel.value.canDraft,
-    },
-    {
-      key: "apply",
-      label: "确认创建",
-      type: "default",
-      disabled: !viewModel.value.canApply,
-    },
   ]);
   const meegleActions = computed<PopupFeatureAction[]>(() => [
     {
