@@ -219,6 +219,81 @@ describe("acp-kimi controller", () => {
     expect(res.end).toHaveBeenCalledTimes(1);
   });
 
+  it("does not abort the SSE stream when the request emits close after the body is read", async () => {
+    const { createAcpKimiChatController } = await import(
+      "../src/modules/acp-kimi/acp-kimi.controller.js"
+    );
+
+    const req = createRequestMock({
+      operatorLarkId: "ou_123",
+      message: "继续说。",
+    });
+    const res = createSseResponseMock();
+    const writes: string[] = [];
+    res.write.mockImplementation((chunk: unknown) => {
+      writes.push(String(chunk));
+      res.headersSent = true;
+      return true;
+    });
+    const deferred = createDeferred<void>();
+    let capturedSignal: AbortSignal | undefined;
+    const service = {
+      assertSessionAccess: vi.fn(),
+      chat: vi.fn(async (_input: unknown, emit: (event: unknown) => void, deps?: {
+        signal?: AbortSignal;
+      }) => {
+        capturedSignal = deps?.signal;
+        emit({
+          event: "session.created",
+          data: {
+            sessionId: "sess_1",
+          },
+        });
+
+        await deferred.promise;
+
+        emit({
+          event: "done",
+          data: {
+            sessionId: "sess_1",
+            stopReason: "end_turn",
+          },
+        });
+      }),
+    };
+
+    const acpKimiChatController = createAcpKimiChatController(service as never);
+    const controllerPromise = acpKimiChatController(req as never, res as never);
+
+    await vi.waitFor(() => {
+      expect(res.setHeader).toHaveBeenCalled();
+      expect(capturedSignal).toBeDefined();
+    });
+
+    req.emit("close");
+    expect(capturedSignal?.aborted).toBe(false);
+
+    deferred.resolve();
+    await controllerPromise;
+
+    expect(parseSseEvents(writes.join(""))).toEqual([
+      {
+        event: "session.created",
+        data: {
+          sessionId: "sess_1",
+        },
+      },
+      {
+        event: "done",
+        data: {
+          sessionId: "sess_1",
+          stopReason: "end_turn",
+        },
+      },
+    ]);
+    expect(res.end).toHaveBeenCalledTimes(1);
+  });
+
   it("returns a 403 error envelope for follow-up ownership violations", async () => {
     const { createAcpKimiChatController } = await import(
       "../src/modules/acp-kimi/acp-kimi.controller.js"
@@ -278,7 +353,7 @@ function createRequestMock(body: Record<string, unknown>) {
 }
 
 function createSseResponseMock() {
-  const response = {
+  const response = Object.assign(new EventEmitter(), {
     headersSent: false,
     writableEnded: false,
     setHeader: vi.fn(),
@@ -287,7 +362,7 @@ function createSseResponseMock() {
     end: vi.fn(),
     status: vi.fn(),
     json: vi.fn(),
-  };
+  });
 
   response.status.mockReturnValue(response);
   response.flushHeaders.mockImplementation(() => {
@@ -299,6 +374,8 @@ function createSseResponseMock() {
   });
   response.end.mockImplementation(() => {
     response.writableEnded = true;
+    response.emit("finish");
+    response.emit("close");
   });
 
   return response;

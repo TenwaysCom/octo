@@ -51,7 +51,7 @@ export function createAcpKimiChatController(
     }, "ACP_KIMI_CHAT REQUEST");
 
     const abortController = new AbortController();
-    const cleanup = bindRequestAbortHandlers(req, abortController);
+    const cleanup = bindRequestAbortHandlers(req, res, abortController);
     let emittedEvents = 0;
 
     try {
@@ -161,16 +161,22 @@ function validateRequest(input: unknown) {
 
 function bindRequestAbortHandlers(
   req: Request,
+  res: Response,
   abortController: AbortController,
 ): () => void {
   const abort = () => abortController.abort();
+  const abortOnEarlyResponseClose = () => {
+    if (!res.writableEnded) {
+      abort();
+    }
+  };
 
   req.once("aborted", abort);
-  req.once("close", abort);
+  res.once("close", abortOnEarlyResponseClose);
 
   return () => {
     req.off("aborted", abort);
-    req.off("close", abort);
+    res.off("close", abortOnEarlyResponseClose);
   };
 }
 
