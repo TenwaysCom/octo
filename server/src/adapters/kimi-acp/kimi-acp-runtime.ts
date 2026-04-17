@@ -13,6 +13,9 @@ import type {
   AcpKimiStreamEvent,
   AcpKimiSessionUpdateEvent,
 } from "../../modules/acp-kimi/event-stream.js";
+import { logger } from "../../logger.js";
+
+const kimiAcpRuntimeLogger = logger.child({ module: "kimi-acp-runtime" });
 
 export interface KimiAcpConnection {
   initialize(): Promise<{
@@ -71,6 +74,11 @@ export async function createKimiAcpSessionRuntime(
   let emit = deps.emit ?? (() => {});
 
   throwIfAborted(deps.signal);
+  kimiAcpRuntimeLogger.info({
+    cwd,
+    command: spawnConfig.command,
+    args: spawnConfig.args,
+  }, "KIMI_ACP_RUNTIME CREATE START");
   const connection = await (deps.createConnection
     ? deps.createConnection({
         spawnConfig,
@@ -96,34 +104,58 @@ export async function createKimiAcpSessionRuntime(
   try {
     throwIfAborted(deps.signal);
     await connection.initialize();
+    kimiAcpRuntimeLogger.info({
+      cwd,
+      command: spawnConfig.command,
+    }, "KIMI_ACP_RUNTIME INITIALIZE OK");
     throwIfAborted(deps.signal);
 
     const session = await connection.newSession({
       cwd,
     });
+    kimiAcpRuntimeLogger.info({
+      cwd,
+      sessionId: session.sessionId,
+    }, "KIMI_ACP_RUNTIME NEW_SESSION OK");
 
     return {
       sessionId: session.sessionId,
       async prompt(input) {
         emit = input.emit;
+        kimiAcpRuntimeLogger.info({
+          sessionId: session.sessionId,
+          messageLength: input.message.length,
+        }, "KIMI_ACP_RUNTIME PROMPT START");
 
         try {
-          return await runPromptWithAbort(
+          const result = await runPromptWithAbort(
             connection,
             session.sessionId,
             input.message,
             input.signal,
             closeConnection,
           );
+          kimiAcpRuntimeLogger.info({
+            sessionId: session.sessionId,
+            stopReason: result.stopReason,
+          }, "KIMI_ACP_RUNTIME PROMPT OK");
+          return result;
         } finally {
           emit = () => {};
         }
       },
       async close() {
+        kimiAcpRuntimeLogger.info({
+          sessionId: session.sessionId,
+        }, "KIMI_ACP_RUNTIME CLOSE");
         await closeConnection();
       },
     };
   } catch (error) {
+    kimiAcpRuntimeLogger.error({
+      cwd,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    }, "KIMI_ACP_RUNTIME CREATE ERROR");
     await closeConnection();
     throw error;
   }
@@ -176,6 +208,12 @@ async function createDefaultConnection(
     env: input.spawnConfig.env,
     stdio: ["pipe", "pipe", "pipe"],
   }) as ChildProcessWithoutNullStreams;
+  kimiAcpRuntimeLogger.info({
+    pid: agentProcess.pid,
+    cwd: input.cwd,
+    command: input.spawnConfig.command,
+    args: input.spawnConfig.args,
+  }, "KIMI_ACP_PROCESS SPAWNED");
   const ensureProcessStarted = createProcessStartupGuard(agentProcess);
 
   agentProcess.stderr.on("data", (chunk) => {
@@ -200,6 +238,9 @@ async function createDefaultConnection(
   return {
     async initialize() {
       await ensureProcessStarted();
+      kimiAcpRuntimeLogger.info({
+        pid: agentProcess.pid,
+      }, "KIMI_ACP_CONNECTION INITIALIZE");
       return connection.initialize({
         protocolVersion: acp.PROTOCOL_VERSION,
         clientInfo: {
@@ -211,6 +252,10 @@ async function createDefaultConnection(
     },
     async newSession({ cwd }: { cwd: string }) {
       await ensureProcessStarted();
+      kimiAcpRuntimeLogger.info({
+        pid: agentProcess.pid,
+        cwd,
+      }, "KIMI_ACP_CONNECTION NEW_SESSION");
       return connection.newSession({
         cwd,
         mcpServers: [],
@@ -224,6 +269,11 @@ async function createDefaultConnection(
       prompt: string;
     }) {
       await ensureProcessStarted();
+      kimiAcpRuntimeLogger.info({
+        pid: agentProcess.pid,
+        sessionId,
+        promptLength: prompt.length,
+      }, "KIMI_ACP_CONNECTION PROMPT");
       return connection.prompt({
         sessionId,
         prompt: [
@@ -235,6 +285,9 @@ async function createDefaultConnection(
       });
     },
     async close() {
+      kimiAcpRuntimeLogger.info({
+        pid: agentProcess.pid,
+      }, "KIMI_ACP_CONNECTION CLOSE");
       await cleanupAgentProcess(agentProcess as ChildProcessWithoutNullStreams);
     },
   } satisfies KimiAcpConnection;
@@ -260,6 +313,9 @@ async function runPromptWithAbort(
 
   return await new Promise<{ stopReason: string }>((resolve, reject) => {
     const handleAbort = () => {
+      kimiAcpRuntimeLogger.warn({
+        sessionId,
+      }, "KIMI_ACP_RUNTIME PROMPT_ABORT");
       void (closeConnection ? closeConnection() : connection.close?.());
       reject(abortError());
     };
@@ -373,6 +429,15 @@ class CollectingClient implements acp.Client {
   }
 
   async sessionUpdate(params: SessionNotification): Promise<void> {
+    kimiAcpRuntimeLogger.info({
+      sessionId: params.sessionId,
+      sessionUpdate:
+        params.update &&
+        typeof params.update === "object" &&
+        "sessionUpdate" in (params.update as Record<string, unknown>)
+          ? (params.update as Record<string, unknown>).sessionUpdate
+          : undefined,
+    }, "KIMI_ACP_CLIENT SESSION_UPDATE");
     this.emit({
       event: "acp.session.update",
       data: {

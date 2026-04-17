@@ -10,6 +10,9 @@ import type {
   KimiSessionRegistry,
 } from "../../adapters/kimi-acp/kimi-session-registry.js";
 import { inMemoryKimiSessionRegistry } from "../../adapters/kimi-acp/in-memory-kimi-session-registry.js";
+import { logger } from "../../logger.js";
+
+const acpKimiProxyLogger = logger.child({ module: "acp-kimi-proxy" });
 
 export interface AcpKimiProxyServiceDeps {
   createSessionRuntime?: (
@@ -52,7 +55,15 @@ export function createAcpKimiProxyService(
 
   return {
     assertSessionAccess(input) {
+      acpKimiProxyLogger.info({
+        operatorLarkId: input.operatorLarkId,
+        hasSessionId: Boolean(input.sessionId),
+        sessionId: input.sessionId,
+      }, "ACP_KIMI_ASSERT_SESSION_ACCESS START");
       if (!input.sessionId) {
+        acpKimiProxyLogger.info({
+          operatorLarkId: input.operatorLarkId,
+        }, "ACP_KIMI_ASSERT_SESSION_ACCESS NEW_SESSION");
         return null;
       }
 
@@ -62,6 +73,10 @@ export function createAcpKimiProxyService(
         input.operatorLarkId,
       );
       assertSessionNotBusy(session);
+      acpKimiProxyLogger.info({
+        operatorLarkId: input.operatorLarkId,
+        sessionId: session.sessionId,
+      }, "ACP_KIMI_ASSERT_SESSION_ACCESS OK");
       return session;
     },
     async chat(
@@ -72,6 +87,13 @@ export function createAcpKimiProxyService(
         session?: KimiSessionRecord | null;
       },
     ) {
+      acpKimiProxyLogger.info({
+        operatorLarkId: input.operatorLarkId,
+        hasSessionId: Boolean(input.sessionId),
+        sessionId: input.sessionId,
+        messageLength: input.message.length,
+        hasPreloadedSession: Boolean(deps?.session),
+      }, "ACP_KIMI_CHAT START");
       const session = deps?.session
         ? deps.session
         : input.sessionId
@@ -83,7 +105,17 @@ export function createAcpKimiProxyService(
             deps?.signal,
           );
 
+      acpKimiProxyLogger.info({
+        operatorLarkId: input.operatorLarkId,
+        sessionId: session.sessionId,
+        reusedSession: Boolean(input.sessionId || deps?.session),
+      }, "ACP_KIMI_CHAT SESSION_READY");
+
       if (!input.sessionId) {
+        acpKimiProxyLogger.info({
+          operatorLarkId: input.operatorLarkId,
+          sessionId: session.sessionId,
+        }, "ACP_KIMI_CHAT SESSION_CREATED_EVENT");
         emit({
           event: "session.created",
           data: {
@@ -98,11 +130,21 @@ export function createAcpKimiProxyService(
 
       session.busy = true;
       try {
+        acpKimiProxyLogger.info({
+          operatorLarkId: input.operatorLarkId,
+          sessionId: session.sessionId,
+        }, "ACP_KIMI_CHAT PROMPT_START");
         const promptResult = await session.runtime.prompt({
           message: input.message,
           emit,
           signal: deps?.signal,
         });
+
+        acpKimiProxyLogger.info({
+          operatorLarkId: input.operatorLarkId,
+          sessionId: session.sessionId,
+          stopReason: promptResult.stopReason,
+        }, "ACP_KIMI_CHAT PROMPT_DONE");
 
         emit({
           event: "done",
@@ -112,11 +154,24 @@ export function createAcpKimiProxyService(
           },
         });
         sessionRegistry.touch(session.sessionId);
+        acpKimiProxyLogger.info({
+          operatorLarkId: input.operatorLarkId,
+          sessionId: session.sessionId,
+        }, "ACP_KIMI_CHAT TOUCH_SESSION");
       } catch (error) {
+        acpKimiProxyLogger.error({
+          operatorLarkId: input.operatorLarkId,
+          sessionId: session.sessionId,
+          errorMessage: error instanceof Error ? error.message : String(error),
+        }, "ACP_KIMI_CHAT ERROR");
         await sessionRegistry.delete(session.sessionId);
         throw error;
       } finally {
         session.busy = false;
+        acpKimiProxyLogger.info({
+          operatorLarkId: input.operatorLarkId,
+          sessionId: session.sessionId,
+        }, "ACP_KIMI_CHAT FINALLY");
       }
     },
   };
@@ -142,6 +197,10 @@ async function createOwnedSession(
   operatorLarkId: string,
   signal?: AbortSignal,
 ): Promise<KimiSessionRecord> {
+  acpKimiProxyLogger.info({
+    operatorLarkId,
+    cwd: process.cwd(),
+  }, "ACP_KIMI_CREATE_SESSION START");
   const runtime = await createSessionRuntime({ signal });
   const session = {
     sessionId: runtime.sessionId,
@@ -151,6 +210,10 @@ async function createOwnedSession(
   } satisfies KimiSessionRecord;
 
   sessionRegistry.set(session);
+  acpKimiProxyLogger.info({
+    operatorLarkId,
+    sessionId: session.sessionId,
+  }, "ACP_KIMI_CREATE_SESSION OK");
   return session;
 }
 
@@ -159,9 +222,17 @@ function getOwnedSession(
   sessionId: string,
   operatorLarkId: string,
 ): KimiSessionRecord {
+  acpKimiProxyLogger.info({
+    operatorLarkId,
+    sessionId,
+  }, "ACP_KIMI_GET_OWNED_SESSION START");
   const session = sessionRegistry.get(sessionId);
 
   if (!session) {
+    acpKimiProxyLogger.warn({
+      operatorLarkId,
+      sessionId,
+    }, "ACP_KIMI_GET_OWNED_SESSION NOT_FOUND");
     throw new AcpKimiProxyError(
       "SESSION_NOT_FOUND",
       404,
@@ -170,6 +241,11 @@ function getOwnedSession(
   }
 
   if (session.operatorLarkId !== operatorLarkId) {
+    acpKimiProxyLogger.warn({
+      operatorLarkId,
+      sessionId,
+      ownerOperatorLarkId: session.operatorLarkId,
+    }, "ACP_KIMI_GET_OWNED_SESSION FORBIDDEN");
     throw new AcpKimiProxyError(
       "SESSION_FORBIDDEN",
       403,
@@ -177,5 +253,10 @@ function getOwnedSession(
     );
   }
 
+  acpKimiProxyLogger.info({
+    operatorLarkId,
+    sessionId,
+    busy: session.busy,
+  }, "ACP_KIMI_GET_OWNED_SESSION OK");
   return session;
 }
