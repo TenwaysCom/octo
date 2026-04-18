@@ -10,6 +10,7 @@ export interface PageContext {
   baseId?: string;
   tableId?: string;
   recordId?: string;
+  viewId?: string;
   projectKey?: string;
   workitemId?: string;
   repoOwner?: string;

@@ -240,4 +240,123 @@ describe("background router lark_base workflow", () => {
       tableId: "tbl_xxx",
     });
   });
+
+  it("forwards lark_base.bulk_preview_workitems to the preview endpoint and reads viewId from the tab url", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: vi.fn().mockResolvedValue({
+        ok: true,
+        baseId: "app_xxx",
+        tableId: "tbl_xxx",
+        viewId: "vew_xxx",
+        totalRecordsInView: 2,
+        eligibleRecords: [],
+        skippedRecords: [],
+      }),
+    } as unknown as Response);
+
+    const result = await routeBackgroundAction(
+      {
+        action: "itdog.lark_base.bulk_preview_workitems",
+        payload: {},
+      },
+      {
+        senderTabId: 42,
+        tabUrl: "https://tenant/base/app_xxx?table=tbl_xxx&view=vew_xxx",
+      },
+    );
+
+    expect(fetch).toHaveBeenCalledWith(
+      "http://localhost:3000/api/lark-base/bulk-preview-meegle-workitems",
+      expect.objectContaining({
+        method: "POST",
+        body: expect.any(String),
+      }),
+    );
+    const fetchBody = JSON.parse(vi.mocked(fetch).mock.calls[0]?.[1]?.body as string);
+    expect(fetchBody).toMatchObject({
+      baseId: "app_xxx",
+      tableId: "tbl_xxx",
+      viewId: "vew_xxx",
+    });
+    expect(result).toEqual({
+      action: "itdog.lark_base.bulk_preview_workitems",
+      payload: {
+        ok: true,
+        baseId: "app_xxx",
+        tableId: "tbl_xxx",
+        viewId: "vew_xxx",
+        totalRecordsInView: 2,
+        eligibleRecords: [],
+        skippedRecords: [],
+      },
+    });
+  });
+
+  it("forwards lark_base.bulk_create_workitems to the create endpoint", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: vi.fn().mockResolvedValue({
+        ok: true,
+        baseId: "app_xxx",
+        tableId: "tbl_xxx",
+        viewId: "vew_xxx",
+        totalRecordsInView: 2,
+        summary: {
+          created: 1,
+          failed: 0,
+          skipped: 1,
+        },
+        createdRecords: [],
+        failedRecords: [],
+        skippedRecords: [],
+      }),
+    } as unknown as Response);
+
+    const result = await routeBackgroundAction(
+      {
+        action: "itdog.lark_base.bulk_create_workitems",
+        payload: {
+          baseId: "app_xxx",
+          tableId: "tbl_xxx",
+          viewId: "vew_xxx",
+        },
+      },
+      { senderTabId: 42 },
+    );
+
+    expect(fetch).toHaveBeenCalledWith(
+      "http://localhost:3000/api/lark-base/bulk-create-meegle-workitems",
+      expect.objectContaining({
+        method: "POST",
+        body: expect.any(String),
+      }),
+    );
+    const fetchBody = JSON.parse(vi.mocked(fetch).mock.calls[0]?.[1]?.body as string);
+    expect(fetchBody).toMatchObject({
+      baseId: "app_xxx",
+      tableId: "tbl_xxx",
+      viewId: "vew_xxx",
+    });
+    expect(result).toEqual({
+      action: "itdog.lark_base.bulk_create_workitems",
+      payload: {
+        ok: true,
+        baseId: "app_xxx",
+        tableId: "tbl_xxx",
+        viewId: "vew_xxx",
+        totalRecordsInView: 2,
+        summary: {
+          created: 1,
+          failed: 0,
+          skipped: 1,
+        },
+        createdRecords: [],
+        failedRecords: [],
+        skippedRecords: [],
+      },
+    });
+  });
 });

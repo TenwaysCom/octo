@@ -57,6 +57,17 @@ describe("popup App", () => {
     expect(wrapper.get('[data-test="automation-page"]').text()).toContain("分析当前页面");
   });
 
+  it("renders the bulk create modal when popup state opens it", async () => {
+    popupAppMock.current = createPopupAppMock("lark");
+    popupAppMock.current.larkBulkCreateModal.value.visible = true;
+    popupAppMock.current.larkBulkCreateModal.value.stage = "preview";
+    const wrapper = mountApp();
+
+    await flushPromises();
+
+    expect(wrapper.find('[data-test="lark-bulk-create-modal"]').exists()).toBe(true);
+  });
+
   it("renders the automation page with meegle actions", async () => {
     popupAppMock.current = createPopupAppMock("meegle");
     const wrapper = mountApp();
@@ -157,6 +168,10 @@ function mountApp(options: { useRealVerticalTabBar?: boolean } = {}) {
             </div>
           `,
         },
+        LarkBulkCreateModal: {
+          props: ["visible"],
+          template: "<div v-if='visible' data-test='lark-bulk-create-modal'>bulk modal</div>",
+        },
         SettingsPage: {
           template: "<div data-test='settings-page'>settings</div>",
         },
@@ -231,6 +246,12 @@ function createPopupAppMock(pageType: PopupPageType) {
     kimiChatHistoryOpen: ref(false),
     kimiChatHistoryLoading: ref(false),
     kimiChatHistoryItems: ref([]),
+    larkBulkCreateModal: ref({
+      visible: false,
+      stage: "hidden",
+      preview: null,
+      result: null,
+    }),
     initialize: vi.fn().mockResolvedValue(undefined),
     authorizeMeegle: vi.fn(),
     authorizeLark: vi.fn(),
@@ -246,6 +267,8 @@ function createPopupAppMock(pageType: PopupPageType) {
     }),
     clearLogs: vi.fn(),
     runFeatureAction: vi.fn(),
+    confirmLarkBulkCreate: vi.fn(),
+    closeLarkBulkCreateModal: vi.fn(),
     resetKimiChatSession: vi.fn(),
     openKimiChatHistory: vi.fn(),
     closeKimiChatHistory: vi.fn(),

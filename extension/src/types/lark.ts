@@ -98,6 +98,7 @@ export interface LarkPageContext {
   baseId?: string;
   tableId?: string;
   recordId?: string;
+  viewId?: string;
   operatorLarkId?: string;
   masterUserId?: string;
 }
@@ -124,3 +125,68 @@ export interface LarkBaseCreateWorkitemResultPayload {
   recordId: string;
   workitems?: Array<{ workitemId: string; meegleLink: string }>;
 }
+
+export interface LarkBaseBulkWorkflowRequest {
+  baseId?: string;
+  tableId?: string;
+  viewId?: string;
+  masterUserId?: string;
+}
+
+export interface LarkBaseBulkPreviewRecord {
+  recordId: string;
+  title: string;
+  priority: string;
+}
+
+export interface LarkBaseBulkSkippedRecord extends LarkBaseBulkPreviewRecord {
+  reason: "ALREADY_LINKED";
+}
+
+export interface LarkBaseBulkCreatedRecord extends LarkBaseBulkPreviewRecord {
+  workitemId: string;
+  meegleLink: string;
+}
+
+export interface LarkBaseBulkFailedRecord extends LarkBaseBulkPreviewRecord {
+  errorCode: string;
+  errorMessage: string;
+}
+
+export type LarkBaseBulkWorkflowErrorPayload = {
+  ok: false;
+  error: {
+    errorCode: string;
+    errorMessage: string;
+  };
+};
+
+export type LarkBaseBulkPreviewResultPayload =
+  | {
+      ok: true;
+      baseId: string;
+      tableId: string;
+      viewId: string;
+      totalRecordsInView: number;
+      eligibleRecords: LarkBaseBulkPreviewRecord[];
+      skippedRecords: LarkBaseBulkSkippedRecord[];
+    }
+  | LarkBaseBulkWorkflowErrorPayload;
+
+export type LarkBaseBulkCreateResultPayload =
+  | {
+      ok: true;
+      baseId: string;
+      tableId: string;
+      viewId: string;
+      totalRecordsInView: number;
+      summary: {
+        created: number;
+        failed: number;
+        skipped: number;
+      };
+      createdRecords: LarkBaseBulkCreatedRecord[];
+      failedRecords: LarkBaseBulkFailedRecord[];
+      skippedRecords: LarkBaseBulkSkippedRecord[];
+    }
+  | LarkBaseBulkWorkflowErrorPayload;

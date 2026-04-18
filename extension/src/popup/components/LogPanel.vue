@@ -1,5 +1,15 @@
 <template>
-  <a-card size="small" title="日志" :extra="actionLinks">
+  <UiCard title="日志">
+    <template #actions>
+      <button class="log-panel__action" type="button" @click="$emit('export')">
+        导出日志
+      </button>
+      <span class="log-panel__action-divider">|</span>
+      <button class="log-panel__action" type="button" @click="$emit('clear')">
+        清除
+      </button>
+    </template>
+
     <div class="log-panel">
       <div v-if="entries.length === 0" class="log-panel__empty">
         暂无日志
@@ -14,41 +24,20 @@
         <span class="log-panel__message">{{ entry.message }}</span>
       </div>
     </div>
-  </a-card>
+  </UiCard>
 </template>
 
 <script setup lang="ts">
-import { h } from "vue";
-import type { PopupLogEntry } from "../types";
+import type { PopupLogEntry } from "../types.js";
+import UiCard from "./UiCard.vue";
 
-const props = defineProps<{
+defineProps<{
   entries: PopupLogEntry[];
 }>();
-
-const emit = defineEmits<{
+defineEmits<{
   clear: [];
   export: [];
 }>();
-
-const clearLink = h(
-  "button",
-  {
-    class: "log-panel__clear",
-    onClick: () => emit("clear"),
-  },
-  "清除",
-);
-
-const exportLink = h(
-  "button",
-  {
-    class: "log-panel__clear",
-    onClick: () => emit("export"),
-  },
-  "导出日志",
-);
-
-const actionLinks = h("span", { class: "log-panel__actions" }, [exportLink, h("span", { class: "log-panel__action-divider" }, " | "), clearLink]);
 </script>
 
 <style scoped>
@@ -101,21 +90,20 @@ const actionLinks = h("span", { class: "log-panel__actions" }, [exportLink, h("s
   word-break: break-word;
 }
 
-:deep(.log-panel__clear) {
+.log-panel__action {
   border: none;
   background: transparent;
   color: #64748b;
   cursor: pointer;
   font-size: 12px;
+  padding: 0;
 }
 
-:deep(.log-panel__actions) {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+.log-panel__action:hover {
+  color: #2563eb;
 }
 
-:deep(.log-panel__action-divider) {
+.log-panel__action-divider {
   color: #94a3b8;
   font-size: 12px;
 }

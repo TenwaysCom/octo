@@ -58,6 +58,14 @@
               @export-logs="exportLogs"
             />
           </PopupShell>
+          <LarkBulkCreateModal
+            :visible="larkBulkCreateModal.visible"
+            :stage="larkBulkCreateModal.stage"
+            :preview="larkBulkCreateModal.preview"
+            :result="larkBulkCreateModal.result"
+            @confirm="confirmLarkBulkCreate"
+            @close="closeLarkBulkCreateModal"
+          />
         </div>
         <VerticalTabBar
           v-model="activePage"
@@ -70,14 +78,18 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from "vue";
+import { defineAsyncComponent, onMounted } from "vue";
 import VerticalTabBar from "./components/VerticalTabBar.vue";
 import PopupShell from "./components/PopupShell.vue";
 import { usePopupApp } from "./composables/use-popup-app";
-import ChatPage from "./pages/ChatPage.vue";
-import AutomationPage from "./pages/AutomationPage.vue";
-import SettingsPage from "./pages/SettingsPage.vue";
-import ProfilePage from "./pages/ProfilePage.vue";
+
+const ChatPage = defineAsyncComponent(() => import("./pages/ChatPage.vue"));
+const AutomationPage = defineAsyncComponent(() => import("./pages/AutomationPage.vue"));
+const SettingsPage = defineAsyncComponent(() => import("./pages/SettingsPage.vue"));
+const ProfilePage = defineAsyncComponent(() => import("./pages/ProfilePage.vue"));
+const LarkBulkCreateModal = defineAsyncComponent(
+  () => import("./components/LarkBulkCreateModal.vue"),
+);
 
 const {
   state,
@@ -93,6 +105,7 @@ const {
   topLarkButtonDisabled,
   larkActions,
   meegleActions,
+  larkBulkCreateModal,
   showKimiChat,
   kimiChatTranscript,
   kimiChatBusy,
@@ -111,6 +124,8 @@ const {
   clearLogs,
   exportLogs,
   runFeatureAction,
+  confirmLarkBulkCreate,
+  closeLarkBulkCreateModal,
   resetKimiChatSession,
   openKimiChatHistory,
   closeKimiChatHistory,

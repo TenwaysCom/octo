@@ -5,6 +5,7 @@ import { probeLarkContext, probeLarkDetail, type LarkRecordContext } from "./pro
 import type { InjectionPageState } from "../../types";
 import type { LarkPageContext } from "../../../types/lark";
 import { createExtensionLogger } from "../../../logger.js";
+import { extractLarkBaseContextFromUrl } from "../../../lark-base-url.js";
 
 const larkBootstrapLogger = createExtensionLogger("injection:lark-bootstrap");
 
@@ -39,63 +40,6 @@ type LarkIdentitySource =
   | "global"
   | "storage"
   | "not_found";
-
-function readFirstSearchParam(
-  params: URLSearchParams[],
-  keys: string[],
-): string | undefined {
-  for (const key of keys) {
-    for (const set of params) {
-      const value = set.get(key)?.trim();
-      if (value) {
-        return value;
-      }
-    }
-  }
-
-  return undefined;
-}
-
-function parseLarkUrlContext(url: URL): Pick<LarkDetectedPageContext, "baseId" | "tableId" | "recordId"> {
-  const routeCandidates = [url.pathname];
-  const normalizedHash = decodeURIComponent(url.hash.replace(/^#/, ""));
-  if (normalizedHash) {
-    routeCandidates.push(normalizedHash);
-  }
-
-  let baseId: string | undefined;
-  let tableId: string | undefined;
-  let recordId: string | undefined;
-
-  for (const candidate of routeCandidates) {
-    const routeMatch = candidate.match(
-      /\/base\/([^/?#]+)(?:\/table\/([^/?#]+))?(?:\/record\/([^/?#]+))?/,
-    );
-    if (!routeMatch) {
-      continue;
-    }
-
-    baseId = routeMatch[1];
-    tableId = routeMatch[2] || tableId;
-    recordId = routeMatch[3] || recordId;
-    break;
-  }
-
-  const hashQueryIndex = normalizedHash.indexOf("?");
-  const params = [
-    url.searchParams,
-    new URLSearchParams(
-      hashQueryIndex >= 0 ? normalizedHash.slice(hashQueryIndex + 1) : "",
-    ),
-  ];
-
-  return {
-    baseId: baseId ?? readFirstSearchParam(params, ["baseId", "appId", "app", "base"]),
-    tableId: tableId ?? readFirstSearchParam(params, ["tableId", "table", "tbl"]),
-    recordId: recordId ?? readFirstSearchParam(params, ["recordId", "record", "record_id"]),
-  };
-}
-
 function extractRecordIdFromFields(context: LarkRecordContext | null): string | undefined {
   if (!context) {
     return undefined;
@@ -157,7 +101,7 @@ function buildDebugInfo(
   extractRecordIdFromDom(detail.detailRoot, domScanResults);
 
   const urlRecordId = typeof URL !== "undefined" && url
-    ? parseLarkUrlContext(new URL(url)).recordId ?? null
+    ? extractLarkBaseContextFromUrl(url).recordId ?? null
     : null;
 
   return {
@@ -223,7 +167,7 @@ function readCurrentRouteRecordId(): string | null {
     return null;
   }
 
-  return parseLarkUrlContext(new URL(window.location.href)).recordId ?? null;
+  return extractLarkBaseContextFromUrl(window.location.href).recordId ?? null;
 }
 
 export function createLarkContentScriptRuntime(): LarkContentScriptRuntime {
@@ -248,7 +192,7 @@ export function createLarkContentScriptRuntime(): LarkContentScriptRuntime {
     parsedContext: LarkRecordContext | null,
   ): string | null {
     const url = typeof window !== "undefined" ? window.location.href : "";
-    const routeRecordId = url ? parseLarkUrlContext(new URL(url)).recordId : null;
+    const routeRecordId = url ? extractLarkBaseContextFromUrl(url).recordId : null;
     return routeRecordId
       ?? extractRecordIdFromFields(parsedContext)
       ?? extractRecordIdFromDom(detail.detailRoot)
@@ -271,14 +215,14 @@ export function createLarkContentScriptRuntime(): LarkContentScriptRuntime {
     const url = window.location.href;
     const detail = probeLarkDetail();
     const parsedContext = detail.detailRoot ? probeLarkContext(detail.detailRoot) : null;
-    const parsedUrl = new URL(url);
-    const routeContext = parseLarkUrlContext(parsedUrl);
+    const routeContext = extractLarkBaseContextFromUrl(url);
 
     const context: LarkDetectedPageContext = {
       pageType: inferPageTypeFromRecordContext(parsedContext, routeContext.baseId, routeContext.tableId),
       url,
       baseId: routeContext.baseId,
       tableId: routeContext.tableId,
+      viewId: routeContext.viewId,
       recordId: routeContext.recordId
         ?? extractRecordIdFromFields(parsedContext)
         ?? extractRecordIdFromDom(detail.detailRoot),

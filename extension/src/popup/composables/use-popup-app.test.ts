@@ -13,6 +13,8 @@ const runtimeMock = vi.hoisted(() => ({
   loadKimiChatTranscriptSnapshot: vi.fn(),
   saveKimiChatTranscriptSnapshot: vi.fn(),
   deleteKimiChatTranscriptSnapshot: vi.fn(),
+  runLarkBaseBulkPreviewRequest: vi.fn(),
+  runLarkBaseBulkCreateRequest: vi.fn(),
   clearResolvedIdentity: vi.fn(),
   clearResolvedIdentityForTab: vi.fn(),
   loadPopupSettings: vi.fn(),
@@ -58,9 +60,12 @@ vi.mock("../kimi-chat.js", async () => {
 
   return {
     ...actual,
-    createKimiChatClient: vi.fn(() => kimiChatClientMock),
   };
 });
+
+vi.mock("../kimi-chat-client.js", () => ({
+  createKimiChatClient: vi.fn(() => kimiChatClientMock),
+}));
 
 import { usePopupApp } from "./use-popup-app";
 
@@ -193,6 +198,58 @@ describe("usePopupApp notebook state", () => {
       status: "in_progress",
       baseUrl: "https://open.larksuite.com",
       state: "state_123",
+    });
+    runtimeMock.runLarkBaseBulkPreviewRequest.mockResolvedValue({
+      ok: true,
+      baseId: "XO0cbnxMIaralRsbBEolboEFgZc",
+      tableId: "tblUfu71xwdul3NH",
+      viewId: "vewMs17Tqk",
+      totalRecordsInView: 2,
+      eligibleRecords: [
+        {
+          recordId: "rec_1",
+          title: "Record one",
+          priority: "P0",
+        },
+      ],
+      skippedRecords: [
+        {
+          recordId: "rec_2",
+          title: "Record two",
+          priority: "P1",
+          reason: "ALREADY_LINKED",
+        },
+      ],
+    });
+    runtimeMock.runLarkBaseBulkCreateRequest.mockResolvedValue({
+      ok: true,
+      baseId: "XO0cbnxMIaralRsbBEolboEFgZc",
+      tableId: "tblUfu71xwdul3NH",
+      viewId: "vewMs17Tqk",
+      totalRecordsInView: 2,
+      summary: {
+        created: 1,
+        failed: 0,
+        skipped: 1,
+      },
+      createdRecords: [
+        {
+          recordId: "rec_1",
+          title: "Record one",
+          priority: "P0",
+          workitemId: "WI-1",
+          meegleLink: "https://project.larksuite.com/OPS/story/detail/WI-1",
+        },
+      ],
+      failedRecords: [],
+      skippedRecords: [
+        {
+          recordId: "rec_2",
+          title: "Record two",
+          priority: "P1",
+          reason: "ALREADY_LINKED",
+        },
+      ],
     });
     runtimeMock.runMeegleAuthRequest.mockResolvedValue({
       status: "ready",
@@ -608,6 +665,73 @@ describe("usePopupApp notebook state", () => {
         entry.message.includes("已重置 Kimi ACP 会话"),
       ),
     ).toBe(true);
+  });
+
+  it("shows the bulk create action only on the target lark base view", async () => {
+    runtimeMock.queryActiveTabContext.mockResolvedValueOnce({
+      id: 12,
+      url: "https://nsghpcq7ar4z.sg.larksuite.com/base/XO0cbnxMIaralRsbBEolboEFgZc?table=tblUfu71xwdul3NH&view=vewMs17Tqk",
+      origin: "https://nsghpcq7ar4z.sg.larksuite.com",
+      pageType: "lark",
+    });
+
+    const popup = usePopupApp();
+
+    await popup.initialize();
+
+    expect(
+      popup.larkActions.value.some((action) => action.label === "批量创建 MEEGLE TICKET"),
+    ).toBe(true);
+  });
+
+  it("opens preview modal first and then runs bulk create after confirmation", async () => {
+    runtimeMock.queryActiveTabContext.mockResolvedValueOnce({
+      id: 12,
+      url: "https://nsghpcq7ar4z.sg.larksuite.com/base/XO0cbnxMIaralRsbBEolboEFgZc?table=tblUfu71xwdul3NH&view=vewMs17Tqk",
+      origin: "https://nsghpcq7ar4z.sg.larksuite.com",
+      pageType: "lark",
+    });
+
+    const popup = usePopupApp();
+    await popup.initialize();
+
+    await popup.runFeatureAction("bulk-create-meegle-tickets");
+
+    expect(runtimeMock.runLarkBaseBulkPreviewRequest).toHaveBeenCalledWith({
+      baseId: "XO0cbnxMIaralRsbBEolboEFgZc",
+      tableId: "tblUfu71xwdul3NH",
+      viewId: "vewMs17Tqk",
+      masterUserId: "usr_resolved",
+    });
+    expect(popup.larkBulkCreateModal.value.visible).toBe(true);
+    expect(popup.larkBulkCreateModal.value.stage).toBe("preview");
+    expect(popup.larkBulkCreateModal.value.preview?.eligibleRecords).toEqual([
+      {
+        recordId: "rec_1",
+        title: "Record one",
+        priority: "P0",
+      },
+    ]);
+
+    const confirmPromise = popup.confirmLarkBulkCreate();
+    expect(popup.larkBulkCreateModal.value.stage).toBe("executing");
+    await confirmPromise;
+
+    expect(runtimeMock.runLarkBaseBulkCreateRequest).toHaveBeenCalledWith({
+      baseId: "XO0cbnxMIaralRsbBEolboEFgZc",
+      tableId: "tblUfu71xwdul3NH",
+      viewId: "vewMs17Tqk",
+      masterUserId: "usr_resolved",
+    });
+    expect(popup.larkBulkCreateModal.value.stage).toBe("result");
+    expect(popup.larkBulkCreateModal.value.result?.ok).toBe(true);
+    if (popup.larkBulkCreateModal.value.result?.ok) {
+      expect(popup.larkBulkCreateModal.value.result.summary).toEqual({
+        created: 1,
+        failed: 0,
+        skipped: 1,
+      });
+    }
   });
 
   it("appends Kimi transcript entries before the request finishes", async () => {

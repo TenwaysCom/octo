@@ -11,6 +11,7 @@ function getTestingApi() {
         baseId?: string;
         tableId?: string;
         recordId?: string;
+        viewId?: string;
       } | null;
       refreshProbeState: () => void;
       getProbeState: () => {
@@ -170,12 +171,13 @@ describe("lark content script probe overlay", () => {
   it("extracts recordId from query params when the detail panel opens without a /record path segment", async () => {
     await import("./lark");
 
-    window.history.replaceState({}, "", "/base/app_xxx/table/tbl_xxx?recordId=rec_query");
+    window.history.replaceState({}, "", "/base/app_xxx/table/tbl_xxx?recordId=rec_query&view=vew_query");
 
     expect(getTestingApi()?.detectLarkPageContext()).toMatchObject({
       baseId: "app_xxx",
       tableId: "tbl_xxx",
       recordId: "rec_query",
+      viewId: "vew_query",
     });
   });
 

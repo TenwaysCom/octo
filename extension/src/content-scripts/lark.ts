@@ -1,4 +1,3 @@
-import "ant-design-vue/dist/reset.css";
 import { createLarkContentScriptRuntime, type LarkDetectedPageContext } from "../injection/platforms/lark/bootstrap";
 import type { ProbeOverlayState } from "../injection/core/overlay";
 import { injectSidebar } from "./shared/sidebar-injector";

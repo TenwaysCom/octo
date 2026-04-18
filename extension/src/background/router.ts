@@ -6,7 +6,12 @@ import type {
   LarkAuthEnsureResult,
   LarkBaseCreateWorkitemMessage,
   LarkBaseCreateWorkitemResult,
+  LarkBaseBulkPreviewWorkitemsMessage,
+  LarkBaseBulkPreviewWorkitemsResult,
+  LarkBaseBulkCreateWorkitemsMessage,
+  LarkBaseBulkCreateWorkitemsResult,
 } from "../types/protocol";
+import { extractLarkBaseContextFromUrl } from "../lark-base-url.js";
 import type { EnsureMeegleAuthDeps } from "./handlers/meegle-auth";
 import type { EnsureLarkAuthDeps } from "./handlers/lark-auth";
 import type { ExtensionConfig } from "./config.js";
@@ -65,48 +70,6 @@ async function initTokenCache(): Promise<void> {
 // Initialize on load
 initTokenCache();
 
-function extractLarkBaseContextFromUrl(url: string | undefined): { baseId?: string; tableId?: string } {
-  if (!url) {
-    return {};
-  }
-
-  try {
-    const parsed = new URL(url);
-    const routeCandidates = [parsed.pathname, decodeURIComponent(parsed.hash.replace(/^#/, ""))];
-
-    let baseId: string | undefined;
-    let tableId: string | undefined;
-
-    for (const candidate of routeCandidates) {
-      const match = candidate.match(/\/base\/([^/?#]+)(?:\/table\/([^/?#]+))?/);
-      if (match) {
-        baseId = match[1];
-        tableId = match[2];
-        break;
-      }
-    }
-
-    const hashQueryIndex = decodeURIComponent(parsed.hash.replace(/^#/, "")).indexOf("?");
-    const searchParams = [
-      parsed.searchParams,
-      new URLSearchParams(hashQueryIndex >= 0 ? decodeURIComponent(parsed.hash.replace(/^#/, "")).slice(hashQueryIndex + 1) : ""),
-    ];
-
-    for (const params of searchParams) {
-      baseId = baseId || params.get("baseId") || params.get("appId") || params.get("app") || params.get("base") || undefined;
-      tableId = tableId || params.get("tableId") || params.get("table") || params.get("tbl") || undefined;
-    }
-
-    if (baseId && tableId) {
-      return { baseId, tableId };
-    }
-  } catch {
-    // ignore invalid URL
-  }
-
-  return {};
-}
-
 async function postServerJson<TResponse>(
   config: ExtensionConfig,
   path: string,
@@ -142,12 +105,21 @@ export async function routeBackgroundAction(
     | MeegleAuthEnsureMessage
     | LarkAuthEnsureMessage
     | LarkAuthCallbackDetectedMessage
-    | LarkBaseCreateWorkitemMessage,
+    | LarkBaseCreateWorkitemMessage
+    | LarkBaseBulkPreviewWorkitemsMessage
+    | LarkBaseBulkCreateWorkitemsMessage,
   context: {
     senderTabId?: number;
     tabUrl?: string;
   } = {},
-): Promise<MeegleAuthEnsureResult | LarkAuthEnsureResult | LarkBaseCreateWorkitemResult | { ok: true }> {
+): Promise<
+  | MeegleAuthEnsureResult
+  | LarkAuthEnsureResult
+  | LarkBaseCreateWorkitemResult
+  | LarkBaseBulkPreviewWorkitemsResult
+  | LarkBaseBulkCreateWorkitemsResult
+  | { ok: true }
+> {
   const config = await getConfig();
 
   if (message.action === "itdog.meegle.auth.ensure") {
@@ -214,6 +186,54 @@ export async function routeBackgroundAction(
     };
   }
 
+  if (message.action === "itdog.lark_base.bulk_preview_workitems") {
+    const masterUserId =
+      message.payload.masterUserId
+      ?? (context.senderTabId != null
+        ? await getResolvedIdentityForTab(context.senderTabId)
+        : undefined)
+      ?? await getStoredMasterUserId();
+    const tabUrlContext = extractLarkBaseContextFromUrl(context.tabUrl);
+
+    return {
+      action: message.action,
+      payload: await postServerJson(
+        config,
+        "/api/lark-base/bulk-preview-meegle-workitems",
+        {
+          masterUserId,
+          baseId: message.payload.baseId ?? tabUrlContext.baseId,
+          tableId: message.payload.tableId ?? tabUrlContext.tableId,
+          viewId: message.payload.viewId ?? tabUrlContext.viewId,
+        },
+      ),
+    };
+  }
+
+  if (message.action === "itdog.lark_base.bulk_create_workitems") {
+    const masterUserId =
+      message.payload.masterUserId
+      ?? (context.senderTabId != null
+        ? await getResolvedIdentityForTab(context.senderTabId)
+        : undefined)
+      ?? await getStoredMasterUserId();
+    const tabUrlContext = extractLarkBaseContextFromUrl(context.tabUrl);
+
+    return {
+      action: message.action,
+      payload: await postServerJson(
+        config,
+        "/api/lark-base/bulk-create-meegle-workitems",
+        {
+          masterUserId,
+          baseId: message.payload.baseId ?? tabUrlContext.baseId,
+          tableId: message.payload.tableId ?? tabUrlContext.tableId,
+          viewId: message.payload.viewId ?? tabUrlContext.viewId,
+        },
+      ),
+    };
+  }
+
   throw new Error(`Unknown action: ${(message as any).action}`);
 }
 
@@ -258,10 +278,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     message.action === "itdog.meegle.auth.ensure" ||
     message.action === "itdog.lark.auth.ensure" ||
     message.action === "itdog.lark.auth.callback.detected" ||
-    message.action === "itdog.lark_base.create_workitem"
+    message.action === "itdog.lark_base.create_workitem" ||
+    message.action === "itdog.lark_base.bulk_preview_workitems" ||
+    message.action === "itdog.lark_base.bulk_create_workitems"
   ) {
     routeBackgroundAction(
-      message as MeegleAuthEnsureMessage | LarkAuthEnsureMessage | LarkAuthCallbackDetectedMessage | LarkBaseCreateWorkitemMessage,
+      message as
+        | MeegleAuthEnsureMessage
+        | LarkAuthEnsureMessage
+        | LarkAuthCallbackDetectedMessage
+        | LarkBaseCreateWorkitemMessage
+        | LarkBaseBulkPreviewWorkitemsMessage
+        | LarkBaseBulkCreateWorkitemsMessage,
       {
         senderTabId: sender.tab?.id,
         tabUrl: sender.tab?.url,

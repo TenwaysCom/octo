@@ -1,5 +1,9 @@
 import { computed, reactive, ref, watch } from "vue";
-import type { LarkAuthEnsureResponse } from "../../types/lark.js";
+import type {
+  LarkAuthEnsureResponse,
+  LarkBaseBulkCreateResultPayload,
+  LarkBaseBulkPreviewResultPayload,
+} from "../../types/lark.js";
 import type { MeegleAuthEnsureResponse } from "../../types/meegle.js";
 import {
   createMeegleAuthController,
@@ -25,6 +29,8 @@ import {
   requestMeegleUserIdentity,
   resolveIdentityRequest,
   runLarkAuthRequest,
+  runLarkBaseBulkCreateRequest,
+  runLarkBaseBulkPreviewRequest,
   runMeegleAuthRequest,
   runMeegleLarkPushRequest,
   saveKimiChatTranscriptSnapshot,
@@ -46,16 +52,14 @@ import {
   createPopupViewModel,
   type PopupPageType,
 } from "../view-model.js";
-import {
-  applyKimiChatEvent,
-  createKimiChatClient,
-} from "../kimi-chat.js";
+import { applyKimiChatEvent } from "../kimi-chat.js";
 import {
   normalizeLarkAuthBaseUrl,
   normalizeMeegleAuthBaseUrl,
 } from "../../platform-url.js";
 import { createExtensionLogger, exportLogsAsBlob } from "../../logger.js";
 import { message } from "ant-design-vue";
+import { extractLarkBaseContextFromUrl } from "../../lark-base-url.js";
 import type {
   KimiChatEvent,
   KimiChatRenderState,
@@ -64,6 +68,10 @@ import type {
 } from "../../types/acp-kimi.js";
 
 const popupLogger = createExtensionLogger("popup:app");
+const LARK_BULK_CREATE_ACTION_KEY = "bulk-create-meegle-tickets";
+const TARGET_LARK_BASE_ID = "XO0cbnxMIaralRsbBEolboEFgZc";
+const TARGET_LARK_TABLE_ID = "tblUfu71xwdul3NH";
+const TARGET_LARK_VIEW_ID = "vewMs17Tqk";
 
 interface PopupIdentityState {
   masterUserId: string | null;
@@ -80,6 +88,14 @@ interface PopupAuthFlags {
 }
 
 type ScheduledFrameHandle = number | ReturnType<typeof globalThis.setTimeout>;
+type LarkBulkCreateModalStage = "hidden" | "preview" | "executing" | "result";
+
+interface LarkBulkCreateModalState {
+  visible: boolean;
+  stage: LarkBulkCreateModalStage;
+  preview: Extract<LarkBaseBulkPreviewResultPayload, { ok: true }> | null;
+  result: LarkBaseBulkCreateResultPayload | null;
+}
 
 function createDefaultSettingsForm(): PopupSettingsForm {
   return {
@@ -105,6 +121,12 @@ export function usePopupApp() {
   const kimiChatHistoryOpen = ref(false);
   const kimiChatHistoryLoading = ref(false);
   const kimiChatHistoryItems = ref<KimiChatSessionSummary[]>([]);
+  const larkBulkCreateModal = ref<LarkBulkCreateModalState>({
+    visible: false,
+    stage: "hidden",
+    preview: null,
+    result: null,
+  });
   let pendingKimiChatState: KimiChatRenderState | null = null;
   let pendingKimiChatFlushHandle: ScheduledFrameHandle | null = null;
   let activeKimiChatRequestId = 0;
@@ -329,14 +351,49 @@ export function usePopupApp() {
   );
   const topMeegleButtonDisabled = computed(() => state.isAuthed.meegle);
   const topLarkButtonDisabled = computed(() => false);
-  const larkActions = computed<PopupFeatureAction[]>(() => [
-    {
-      key: "analyze",
-      label: "分析当前页面",
-      type: "primary",
-      disabled: !viewModel.value.canAnalyze,
-    },
-  ]);
+  const currentLarkBaseContext = computed(() =>
+    extractLarkBaseContextFromUrl(state.currentUrl ?? undefined),
+  );
+  const showLarkBulkCreateAction = computed(() =>
+    state.pageType === "lark"
+    && viewModel.value.showLarkFeatureBlock
+    && currentLarkBaseContext.value.baseId === TARGET_LARK_BASE_ID
+    && currentLarkBaseContext.value.tableId === TARGET_LARK_TABLE_ID
+    && currentLarkBaseContext.value.viewId === TARGET_LARK_VIEW_ID,
+  );
+  const larkActions = computed<PopupFeatureAction[]>(() => {
+    const actions: PopupFeatureAction[] = [
+      {
+        key: "analyze",
+        label: "分析当前页面",
+        type: "primary",
+        disabled: !viewModel.value.canAnalyze,
+      },
+      {
+        key: "draft",
+        label: "生成草稿",
+        type: "default",
+        disabled: !viewModel.value.canDraft,
+      },
+      {
+        key: "apply",
+        label: "确认创建",
+        type: "default",
+        disabled: !viewModel.value.canApply,
+      },
+    ];
+
+    if (showLarkBulkCreateAction.value) {
+      actions.push({
+        key: LARK_BULK_CREATE_ACTION_KEY,
+        label: "批量创建 MEEGLE TICKET",
+        type: "default",
+        disabled: false,
+      });
+    }
+
+    return actions;
+  });
   const meegleActions = computed<PopupFeatureAction[]>(() => [
     {
       key: "update-lark-and-push",
@@ -689,6 +746,101 @@ export function usePopupApp() {
     logs.value = [];
   }
 
+  async function openLarkBulkCreatePreview() {
+    const context = currentLarkBaseContext.value;
+    const masterUserId = state.identity.masterUserId;
+
+    if (!masterUserId) {
+      appendLog("error", "未解析到主身份，无法执行批量创建");
+      return;
+    }
+
+    if (!context.baseId || !context.tableId || !context.viewId) {
+      appendLog("error", "当前页面缺少 base/table/view 信息，无法执行批量创建");
+      return;
+    }
+
+    const preview = await runLarkBaseBulkPreviewRequest({
+      baseId: context.baseId,
+      tableId: context.tableId,
+      viewId: context.viewId,
+      masterUserId,
+    });
+
+    if (!preview.ok) {
+      const errorMessage = `批量预览失败: ${preview.error.errorMessage}`;
+      showToast(errorMessage, "error");
+      appendLog("error", errorMessage);
+      return;
+    }
+
+    larkBulkCreateModal.value = {
+      visible: true,
+      stage: "preview",
+      preview,
+      result: null,
+    };
+
+    appendLog(
+      "info",
+      `批量预览完成，可创建 ${preview.eligibleRecords.length} 条，已跳过 ${preview.skippedRecords.length} 条`,
+    );
+  }
+
+  async function confirmLarkBulkCreate() {
+    const preview = larkBulkCreateModal.value.preview;
+    if (!preview) {
+      return;
+    }
+
+    const masterUserId = state.identity.masterUserId;
+    if (!masterUserId) {
+      appendLog("error", "未解析到主身份，无法执行批量创建");
+      return;
+    }
+
+    larkBulkCreateModal.value = {
+      ...larkBulkCreateModal.value,
+      visible: true,
+      stage: "executing",
+      result: null,
+    };
+
+    const result = await runLarkBaseBulkCreateRequest({
+      baseId: preview.baseId,
+      tableId: preview.tableId,
+      viewId: preview.viewId,
+      masterUserId,
+    });
+
+    larkBulkCreateModal.value = {
+      ...larkBulkCreateModal.value,
+      visible: true,
+      stage: "result",
+      result,
+    };
+
+    if (!result.ok) {
+      const errorMessage = `批量创建失败: ${result.error.errorMessage}`;
+      showToast(errorMessage, "error");
+      appendLog("error", errorMessage);
+      return;
+    }
+
+    const successMessage = `批量创建完成: 成功 ${result.summary.created}，失败 ${result.summary.failed}，跳过 ${result.summary.skipped}`;
+    showToast(successMessage, "success");
+    appendLog("success", successMessage);
+  }
+
+  function closeLarkBulkCreateModal() {
+    larkBulkCreateModal.value = {
+      visible: false,
+      stage: "hidden",
+      preview: null,
+      result: null,
+    };
+  }
+
   async function runFeatureAction(actionKey: string) {
     if (actionKey === "analyze") {
       if (showKimiChat.value) {
@@ -699,6 +851,12 @@ export function usePopupApp() {
 
       openKimiChat();
       appendLog("info", "已打开 Kimi ACP 聊天面板");
+      return;
+    }
+
+    if (actionKey === LARK_BULK_CREATE_ACTION_KEY) {
+      appendLog("info", "开始获取批量创建预览...");
+      await openLarkBulkCreatePreview();
       return;
     }
 
@@ -1030,6 +1188,7 @@ export function usePopupApp() {
     activePage.value = "chat";
     kimiChatBusy.value = true;
 
+    const { createKimiChatClient } = await import("../kimi-chat-client.js");
     const client = createKimiChatClient({
       baseUrl: settingsForm.SERVER_URL,
     });
@@ -1331,6 +1490,7 @@ export function usePopupApp() {
     topLarkButtonDisabled,
     larkActions,
     meegleActions,
+    larkBulkCreateModal,
     showKimiChat,
     kimiChatTranscript,
     kimiChatBusy,
@@ -1350,6 +1510,8 @@ export function usePopupApp() {
     clearLogs,
     exportLogs,
     runFeatureAction,
+    confirmLarkBulkCreate,
+    closeLarkBulkCreateModal,
     resetKimiChatSession,
     openKimiChatHistory,
     closeKimiChatHistory,

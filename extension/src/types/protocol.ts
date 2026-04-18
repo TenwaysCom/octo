@@ -9,6 +9,9 @@ import type {
   LarkAuthCallbackResult,
   LarkBaseCreateWorkitemRequest,
   LarkBaseCreateWorkitemResultPayload,
+  LarkBaseBulkWorkflowRequest,
+  LarkBaseBulkPreviewResultPayload,
+  LarkBaseBulkCreateResultPayload,
 } from "./lark";
 
 export const protocolActions = [
@@ -17,6 +20,8 @@ export const protocolActions = [
   "itdog.lark.auth.ensure",
   "itdog.lark.auth.callback.detected",
   "itdog.lark_base.create_workitem",
+  "itdog.lark_base.bulk_preview_workitems",
+  "itdog.lark_base.bulk_create_workitems",
   "itdog.pm.analysis.run",
   "itdog.page.meegle.auth_code.request",
 ] as const;
@@ -70,4 +75,24 @@ export type LarkBaseCreateWorkitemMessage = ProtocolEnvelope<
 export type LarkBaseCreateWorkitemResult = ProtocolEnvelope<
   "itdog.lark_base.create_workitem",
   LarkBaseCreateWorkitemResultPayload
+>;
+
+export type LarkBaseBulkPreviewWorkitemsMessage = ProtocolEnvelope<
+  "itdog.lark_base.bulk_preview_workitems",
+  LarkBaseBulkWorkflowRequest
+>;
+
+export type LarkBaseBulkPreviewWorkitemsResult = ProtocolEnvelope<
+  "itdog.lark_base.bulk_preview_workitems",
+  LarkBaseBulkPreviewResultPayload
+>;
+
+export type LarkBaseBulkCreateWorkitemsMessage = ProtocolEnvelope<
+  "itdog.lark_base.bulk_create_workitems",
+  LarkBaseBulkWorkflowRequest
+>;
+
+export type LarkBaseBulkCreateWorkitemsResult = ProtocolEnvelope<
+  "itdog.lark_base.bulk_create_workitems",
+  LarkBaseBulkCreateResultPayload
 >;
