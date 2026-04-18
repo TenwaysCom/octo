@@ -27,6 +27,10 @@ import {
   updateLarkBaseMeegleLinkController,
 } from "./modules/lark-base/lark-base.controller.js";
 import { createLarkBaseWorkflowController } from "./modules/lark-base/lark-base-workflow.controller.js";
+import {
+  createLarkBaseBulkWorkflowController,
+  previewLarkBaseBulkWorkflowController,
+} from "./modules/lark-base/lark-base-bulk-workflow.controller.js";
 import { meegleLarkPushController } from "./modules/meegle-workitem/meegle-lark-push.controller.js";
 import { createApiRequestLogger, logApiRequest, summarizeRequestPayload } from "./http/api-request-logger.js";
 import { createCorsMiddleware } from "./http/cors.js";
@@ -168,6 +172,8 @@ app.post("/api/pm/analysis/run", handleController(runPMAnalysisController));
 app.post("/api/lark-base/update-meegle-link", handleController(updateLarkBaseMeegleLinkController));
 app.post("/api/lark-base/get-record-url", handleController(getLarkRecordUrlController));
 app.post("/api/lark-base/create-meegle-workitem", handleController(createLarkBaseWorkflowController));
+app.post("/api/lark-base/bulk-preview-meegle-workitems", handleController(previewLarkBaseBulkWorkflowController));
+app.post("/api/lark-base/bulk-create-meegle-workitems", handleController(createLarkBaseBulkWorkflowController));
 
 // Meegle workitem routes
 app.post("/api/meegle/workitem/update-lark-and-push", handleController(meegleLarkPushController));

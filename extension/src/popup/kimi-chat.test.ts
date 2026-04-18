@@ -286,7 +286,7 @@ describe("kimi chat client", () => {
   });
 
   it("streams ACP events as frames arrive across chunk boundaries", async () => {
-    const { createKimiChatClient } = await import("./kimi-chat.js");
+    const { createKimiChatClient } = await import("./kimi-chat-client.js");
     const seenEvents: Array<{ event: string; data: Record<string, unknown> }> = [];
     const response = createControllableSseResponse();
 
@@ -376,7 +376,7 @@ describe("kimi chat client", () => {
   });
 
   it("includes sessionId in follow-up requests", async () => {
-    const { createKimiChatClient } = await import("./kimi-chat.js");
+    const { createKimiChatClient } = await import("./kimi-chat-client.js");
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(new ReadableStream({
         start(controller) {
@@ -410,7 +410,7 @@ describe("kimi chat client", () => {
   });
 
   it("surfaces backend error messages for follow-up failures", async () => {
-    const { createKimiChatClient } = await import("./kimi-chat.js");
+    const { createKimiChatClient } = await import("./kimi-chat-client.js");
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(
         JSON.stringify({

@@ -40,6 +40,8 @@ describe("index routes", () => {
         "POST /api/pm/analysis/run",
         "POST /api/lark-base/update-meegle-link",
         "POST /api/lark-base/create-meegle-workitem",
+        "POST /api/lark-base/bulk-preview-meegle-workitems",
+        "POST /api/lark-base/bulk-create-meegle-workitems",
       ]),
     );
   });

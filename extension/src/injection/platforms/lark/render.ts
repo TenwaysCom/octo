@@ -1,5 +1,3 @@
-import { createApp, h, ref, type App } from "vue";
-import { Button, message } from "ant-design-vue";
 import { cleanupMountedNode, ensureMountedNode, ensureMountedSiblingNode } from "../../core/mount";
 import type { AnchorCandidate, InjectionPageState } from "../../types";
 import type { LarkRecordContext } from "./probe";
@@ -10,10 +8,10 @@ import type {
   LarkRecordSnapshot,
 } from "../../../types/lark";
 import type { ProtocolAction } from "../../../types/protocol";
-import LarkActionButton from "./LarkActionButton.vue";
 
 const HEADER_MOUNT_ID = "lark-detail-action";
 const PANEL_MOUNT_ID = "lark-detail-panel";
+const TOAST_ROOT_ID = "tenways-octo-toast-root";
 
 export type LarkRenderState = "collapsed" | "submitting" | "success" | "error";
 
@@ -252,16 +250,13 @@ export function createLarkInjectionRenderer({
   let currentAnchor: Element | null = null;
   let buttonMount: HTMLElement | null = null;
   let panelMount: HTMLElement | null = null;
+  let buttonElement: HTMLButtonElement | null = null;
   let currentContextIdentity: string | null = null;
   let panelState: LarkRenderState = "collapsed";
   let lastContext: LarkRecordContext | null = null;
   let lastErrorMessage: string | null = null;
   let nextRequestVersion = 0;
   let activeRequestVersion: number | null = null;
-  let buttonApp: App | null = null;
-  const buttonLabel = ref("");
-  const buttonLoading = ref(false);
-  const buttonDisabled = ref(false);
 
   function readPageContext(): LarkPageContext | null {
     return getPageContext?.() ?? pageContext;
@@ -286,13 +281,12 @@ export function createLarkInjectionRenderer({
   }
 
   function cleanupCurrentMounts(): void {
-    buttonApp?.unmount();
-    buttonApp = null;
     buttonMount?.remove();
     panelMount?.remove();
 
     buttonMount = null;
     panelMount = null;
+    buttonElement = null;
     currentAnchor = null;
   }
 
@@ -335,76 +329,67 @@ export function createLarkInjectionRenderer({
     }
 
     const targetLabel = resolveTargetLabel(lastContext);
-    buttonLabel.value = formatPrimaryActionLabel(targetLabel);
-    buttonLoading.value = panelState === "submitting";
-    buttonDisabled.value = panelState === "submitting";
-
-    if (buttonApp === null || !buttonMount.isConnected) {
-      buttonApp?.unmount();
-      buttonApp = null;
+    if (buttonElement === null || !buttonMount.contains(buttonElement)) {
       buttonMount.textContent = "";
+      buttonElement = document.createElement("button");
+      buttonElement.type = "button";
+      buttonElement.setAttribute("data-tenways-octo-trigger", "send-to-meegle");
+      buttonElement.className = "tenways-octo-action-button";
+      applyActionButtonStyles(buttonElement);
+      buttonElement.addEventListener("click", () => {
+        if (panelState !== "collapsed") {
+          invalidatePendingRequest();
+          setPanelState("collapsed");
+          return;
+        }
 
-      buttonApp = createApp({
-        render() {
-          return h(LarkActionButton, {
-            label: buttonLabel.value,
-            loading: buttonLoading.value,
-            disabled: buttonDisabled.value,
-            onClick: () => {
-              if (panelState !== "collapsed") {
-                invalidatePendingRequest();
-                setPanelState("collapsed");
-                return;
-              }
+        const context = lastContext;
+        const contextIdentity = currentContextIdentity;
+        if (context === null) {
+          lastErrorMessage = formatFailureLabel(targetLabel);
+          setPanelState("error");
+          return;
+        }
 
-              const context = lastContext;
-              const contextIdentity = currentContextIdentity;
-              if (context === null) {
-                lastErrorMessage = formatFailureLabel(targetLabel);
-                setPanelState("error");
-                return;
-              }
+        const requestVersion = ++nextRequestVersion;
+        activeRequestVersion = requestVersion;
+        lastErrorMessage = null;
+        setPanelState("submitting");
+        void createWorkitem(buildCreateRequest(context))
+          .then(() => {
+            if (
+              activeRequestVersion !== requestVersion
+              || currentContextIdentity !== contextIdentity
+              || panelState !== "submitting"
+            ) {
+              return;
+            }
 
-              const requestVersion = ++nextRequestVersion;
-              activeRequestVersion = requestVersion;
-              lastErrorMessage = null;
-              setPanelState("submitting");
-              void createWorkitem(buildCreateRequest(context))
-                .then(() => {
-                  if (
-                    activeRequestVersion !== requestVersion
-                    || currentContextIdentity !== contextIdentity
-                    || panelState !== "submitting"
-                  ) {
-                    return;
-                  }
+            lastErrorMessage = null;
+            setPanelState("success");
+            showToast(formatSuccessLabel(targetLabel), "success");
+          })
+          .catch((error) => {
+            if (
+              activeRequestVersion !== requestVersion
+              || currentContextIdentity !== contextIdentity
+              || panelState !== "submitting"
+            ) {
+              return;
+            }
 
-                  lastErrorMessage = null;
-                  setPanelState("success");
-                  message.success(formatSuccessLabel(targetLabel), 2);
-                })
-                .catch((error) => {
-                  if (
-                    activeRequestVersion !== requestVersion
-                    || currentContextIdentity !== contextIdentity
-                    || panelState !== "submitting"
-                  ) {
-                    return;
-                  }
-
-                  lastErrorMessage = resolvePanelErrorMessage(error, targetLabel);
-                  setPanelState("error");
-                  message.error(lastErrorMessage, 2);
-                });
-            },
+            lastErrorMessage = resolvePanelErrorMessage(error, targetLabel);
+            setPanelState("error");
+            showToast(lastErrorMessage, "error");
           });
-        },
       });
-
-      buttonApp.use(Button);
-      buttonApp.mount(buttonMount);
+      buttonMount.append(buttonElement);
     }
 
+    const isSubmitting = panelState === "submitting";
+    buttonElement.disabled = isSubmitting;
+    buttonElement.textContent = formatPrimaryActionLabel(targetLabel);
+    buttonElement.setAttribute("aria-busy", isSubmitting ? "true" : "false");
     buttonMount.setAttribute("aria-expanded", panelState === "collapsed" ? "false" : "true");
 
     panelMount.setAttribute("data-tenways-octo-panel-state", panelState);
@@ -468,4 +453,82 @@ export function createLarkInjectionRenderer({
 
 export function renderLarkInjection(args: RenderLarkInjectionArgs): void {
   createLarkInjectionRenderer(args.deps).render(args);
+}
+
+function applyActionButtonStyles(button: HTMLButtonElement): void {
+  Object.assign(button.style, {
+    appearance: "none",
+    border: "none",
+    borderRadius: "999px",
+    background: "linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%)",
+    color: "#ffffff",
+    cursor: "pointer",
+    fontSize: "12px",
+    fontWeight: "700",
+    lineHeight: "1",
+    minHeight: "30px",
+    padding: "0 12px",
+    boxShadow: "0 10px 24px rgb(37 99 235 / 22%)",
+  } satisfies Partial<CSSStyleDeclaration>);
+}
+
+function ensureToastRoot(): HTMLElement | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  const existing = document.getElementById(TOAST_ROOT_ID);
+  if (existing) {
+    return existing;
+  }
+
+  const root = document.createElement("div");
+  root.id = TOAST_ROOT_ID;
+  Object.assign(root.style, {
+    position: "fixed",
+    top: "20px",
+    right: "20px",
+    zIndex: "2147483647",
+    display: "grid",
+    gap: "8px",
+    pointerEvents: "none",
+  } satisfies Partial<CSSStyleDeclaration>);
+  document.body.append(root);
+  return root;
+}
+
+function showToast(text: string, tone: "success" | "error"): void {
+  const root = ensureToastRoot();
+  if (!root) {
+    return;
+  }
+
+  const toast = document.createElement("div");
+  toast.textContent = text;
+  Object.assign(toast.style, {
+    maxWidth: "320px",
+    padding: "10px 12px",
+    borderRadius: "12px",
+    color: "#ffffff",
+    fontSize: "12px",
+    fontWeight: "600",
+    lineHeight: "1.45",
+    boxShadow: "0 18px 40px rgb(15 23 42 / 20%)",
+    background: tone === "success" ? "#15803d" : "#b91c1c",
+    opacity: "1",
+    transform: "translateY(0)",
+    transition: "opacity 180ms ease, transform 180ms ease",
+  } satisfies Partial<CSSStyleDeclaration>);
+  root.append(toast);
+
+  globalThis.setTimeout(() => {
+    toast.style.opacity = "0";
+    toast.style.transform = "translateY(-6px)";
+    globalThis.setTimeout(() => {
+      toast.remove();
+      if (root.childElementCount === 0) {
+        root.remove();
+      }
+    }, 220);
+  }, 1800);
 }

@@ -1,41 +1,44 @@
 <template>
-  <a-card :title="title" size="small" :bordered="true">
+  <UiCard :title="title">
     <div class="auth-card__rows">
       <div class="auth-card__row">
         <span class="auth-card__label">Meegle User</span>
         <div class="auth-card__value">
-          <a-tag :color="tagColorMap[meegleStatus.tone]">{{ meegleStatus.text }}</a-tag>
-          <a-button
+          <UiBadge :tone="meegleStatus.tone">{{ meegleStatus.text }}</UiBadge>
+          <UiButton
             v-if="!meegleButtonDisabled"
-            :type="secondaryButtons ? 'default' : 'primary'"
-            size="small"
+            :variant="secondaryButtons ? 'default' : 'primary'"
+            size="sm"
             :disabled="meegleButtonDisabled"
             @click="$emit('authorizeMeegle')"
           >
             {{ meegleButtonText }}
-          </a-button>
+          </UiButton>
         </div>
       </div>
       <div class="auth-card__row">
         <span class="auth-card__label">Lark User</span>
         <div class="auth-card__value">
-          <a-tag :color="tagColorMap[larkStatus.tone]">{{ larkStatus.text }}</a-tag>
-          <a-button
-            :type="secondaryButtons ? 'default' : 'primary'"
-            size="small"
+          <UiBadge :tone="larkStatus.tone">{{ larkStatus.text }}</UiBadge>
+          <UiButton
+            :variant="secondaryButtons ? 'default' : 'primary'"
+            size="sm"
             :disabled="larkButtonDisabled"
             @click="$emit('authorizeLark')"
           >
             {{ larkButtonText }}
-          </a-button>
+          </UiButton>
         </div>
       </div>
     </div>
-  </a-card>
+  </UiCard>
 </template>
 
 <script setup lang="ts">
-import type { PopupStatusChip } from "../types";
+import type { PopupStatusChip } from "../types.js";
+import UiBadge from "./UiBadge.vue";
+import UiButton from "./UiButton.vue";
+import UiCard from "./UiCard.vue";
 
 defineProps<{
   title: string;
@@ -52,14 +55,6 @@ defineEmits<{
   authorizeMeegle: [];
   authorizeLark: [];
 }>();
-
-const tagColorMap = {
-  success: "success",
-  processing: "processing",
-  warning: "warning",
-  error: "error",
-  default: "default",
-} as const;
 </script>
 
 <style scoped>
@@ -86,9 +81,10 @@ const tagColorMap = {
   align-items: center;
   gap: 8px;
   min-width: 0;
+  justify-content: flex-end;
 }
 
-.auth-card__value :deep(.ant-tag) {
+.auth-card__value :deep(.ui-badge) {
   max-width: 152px;
   overflow: hidden;
   text-overflow: ellipsis;

@@ -276,6 +276,41 @@ export class LarkClient {
   }
 
   /**
+   * List records from a specific view via bitable/v1.
+   */
+  async listRecordsByView(
+    baseId: string,
+    tableId: string,
+    viewId: string,
+    options?: {
+      pageSize?: number;
+      pageToken?: string;
+    },
+  ): Promise<{ records: LarkBitableRecord[]; hasMore: boolean; nextPageToken?: string }> {
+    const data = await this.request<{
+      items: Array<{
+        record_id: string;
+        fields: Record<string, unknown>;
+        created_time?: string;
+        updated_time?: string;
+        shared_url?: string;
+      }>;
+      has_more: boolean;
+      page_token?: string;
+    }>("GET", `/open-apis/bitable/v1/apps/${baseId}/tables/${tableId}/records`, undefined, {
+      view_id: viewId,
+      page_size: options?.pageSize ?? 100,
+      page_token: options?.pageToken,
+    });
+
+    return {
+      records: (data.items || []).map((item) => this.mapRecord(item)),
+      hasMore: data.has_more,
+      nextPageToken: data.page_token,
+    };
+  }
+
+  /**
    * Create a new record
    */
   async createRecord(

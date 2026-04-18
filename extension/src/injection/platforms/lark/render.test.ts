@@ -159,6 +159,50 @@ describe("renderLarkInjection", () => {
     expect(detailRoot.textContent).toContain("已创建 Meegle User Story");
   });
 
+  it("disables the trigger while createWorkitem is still pending", async () => {
+    const detailRoot = document.createElement("section");
+    const anchor = document.createElement("div");
+    detailRoot.appendChild(anchor);
+
+    const pendingCreate = createDeferred<{
+      status: "created";
+      workitemId: string;
+    }>();
+    const createWorkitem = vi.fn().mockReturnValue(pendingCreate.promise);
+
+    const renderer = createLarkInjectionRenderer({
+      createWorkitem,
+      pageContext: {
+        pageType: "lark_base",
+        url: "https://tenant/base/app_xxx/table/tbl_xxx/record/rec_base",
+        baseId: "app_xxx",
+        tableId: "tbl_xxx",
+        recordId: "rec_base",
+      },
+    });
+
+    renderer.render({
+      pageState: {
+        kind: "detail-ready",
+        context: createContext("Base需求"),
+        anchor: { element: anchor, label: "detail-header", confidence: 1 },
+      },
+    });
+
+    anchor.querySelector("button")?.click();
+    await flushPromises();
+
+    const trigger = anchor.querySelector("button") as HTMLButtonElement | null;
+    expect(trigger?.disabled).toBe(true);
+    expect(detailRoot.querySelector('[data-tenways-octo-panel-state="submitting"]')).not.toBeNull();
+
+    pendingCreate.resolve({ status: "created", workitemId: "BASE-123" });
+    await flushPromises();
+
+    const nextTrigger = anchor.querySelector("button") as HTMLButtonElement | null;
+    expect(nextTrigger?.disabled).toBe(false);
+  });
+
   it("shows a specific auth message when createWorkitem returns MEEGLE_AUTH_REQUIRED", async () => {
     const detailRoot = document.createElement("section");
     const anchor = document.createElement("div");

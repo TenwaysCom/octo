@@ -14,6 +14,9 @@ import type {
   LarkAuthCallbackResult,
   LarkAuthEnsureResponse,
   LarkAuthStatusServerResponse,
+  LarkBaseBulkWorkflowRequest,
+  LarkBaseBulkPreviewResultPayload,
+  LarkBaseBulkCreateResultPayload,
 } from "../types/lark.js";
 import type {
   MeegleAuthEnsureRequest,
@@ -558,6 +561,54 @@ export async function runLarkAuthRequest(
     baseUrl: input.baseUrl,
     reason: response.error?.errorCode || "BACKGROUND_EMPTY_RESPONSE",
     errorMessage: response.error?.errorMessage,
+  };
+}
+
+export async function runLarkBaseBulkPreviewRequest(
+  input: LarkBaseBulkWorkflowRequest,
+): Promise<LarkBaseBulkPreviewResultPayload> {
+  const response = await sendRuntimeMessage<{
+    payload?: LarkBaseBulkPreviewResultPayload;
+  }>({
+    action: "itdog.lark_base.bulk_preview_workitems",
+    payload: input,
+  });
+
+  if (response.payload) {
+    return response.payload;
+  }
+
+  return {
+    ok: false,
+    error: {
+      errorCode: response.error?.errorCode || "BACKGROUND_EMPTY_RESPONSE",
+      errorMessage:
+        response.error?.errorMessage || "Background returned an empty response.",
+    },
+  };
+}
+
+export async function runLarkBaseBulkCreateRequest(
+  input: LarkBaseBulkWorkflowRequest,
+): Promise<LarkBaseBulkCreateResultPayload> {
+  const response = await sendRuntimeMessage<{
+    payload?: LarkBaseBulkCreateResultPayload;
+  }>({
+    action: "itdog.lark_base.bulk_create_workitems",
+    payload: input,
+  });
+
+  if (response.payload) {
+    return response.payload;
+  }
+
+  return {
+    ok: false,
+    error: {
+      errorCode: response.error?.errorCode || "BACKGROUND_EMPTY_RESPONSE",
+      errorMessage:
+        response.error?.errorMessage || "Background returned an empty response.",
+    },
   };
 }
 
