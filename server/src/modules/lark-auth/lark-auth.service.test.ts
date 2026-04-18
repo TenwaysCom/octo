@@ -12,6 +12,7 @@ import {
   checkLarkAuthStatus,
   configureLarkAuthServiceDeps,
   exchangeLarkAuthCode,
+  fetchLarkUserInfo,
   handleLarkAuthCallback,
   refreshLarkToken,
   startLarkOauthSession,
@@ -353,5 +354,195 @@ describe("lark-auth.service", () => {
       provider_tenant_key: "tenant_123",
       external_user_key: "ou_123",
     });
+  });
+
+  it("refreshes an expired stored Lark token before fetching user info", async () => {
+    const user = await resolvedUserStore.create({
+      status: "active",
+      larkTenantKey: "tenant_123",
+      larkId: "ou_123",
+    });
+
+    await tokenStore.save({
+      masterUserId: user.id,
+      tenantKey: "tenant_123",
+      larkUserId: "ou_123",
+      baseUrl: "https://open.larksuite.com",
+      userToken: "expired_token",
+      userTokenExpiresAt: "2026-04-18T00:00:00.000Z",
+      refreshToken: "refresh_token_123",
+      refreshTokenExpiresAt: "2026-05-18T00:00:00.000Z",
+      credentialStatus: "active",
+    });
+
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          code: 0,
+          app_access_token: "app_access_token_123",
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          code: 0,
+          data: {
+            access_token: "fresh_access_token",
+            refresh_token: "fresh_refresh_token",
+            expires_in: 7200,
+            token_type: "Bearer",
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          code: 0,
+          data: {
+            user_id: "ou_123",
+            tenant_key: "tenant_123",
+            email: "user@example.com",
+            name: "Test User",
+            avatar_url: "https://example.com/avatar.png",
+          },
+        }),
+      });
+
+    await expect(
+      fetchLarkUserInfo(
+        {
+          masterUserId: user.id,
+          baseUrl: "https://open.larksuite.com",
+        },
+        {
+          appId: "cli_test",
+          appSecret: "secret_test",
+          fetchImpl: fetchImpl as unknown as typeof fetch,
+          tokenStore,
+          resolvedUserStore,
+        },
+      ),
+    ).resolves.toEqual({
+      userId: "ou_123",
+      tenantKey: "tenant_123",
+      email: "user@example.com",
+      name: "Test User",
+      avatarUrl: "https://example.com/avatar.png",
+    });
+
+    expect(fetchImpl).toHaveBeenNthCalledWith(
+      3,
+      "https://open.larksuite.com/open-apis/authen/v1/user_info",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: "Bearer fresh_access_token",
+        }),
+      }),
+    );
+  });
+
+  it("refreshes and retries when Lark user info rejects the stored token as invalid", async () => {
+    const user = await resolvedUserStore.create({
+      status: "active",
+      larkTenantKey: "tenant_123",
+      larkId: "ou_123",
+    });
+
+    await tokenStore.save({
+      masterUserId: user.id,
+      tenantKey: "tenant_123",
+      larkUserId: "ou_123",
+      baseUrl: "https://open.larksuite.com",
+      userToken: "stale_but_not_marked_expired",
+      userTokenExpiresAt: "2026-05-18T00:00:00.000Z",
+      refreshToken: "refresh_token_123",
+      refreshTokenExpiresAt: "2026-06-18T00:00:00.000Z",
+      credentialStatus: "active",
+    });
+
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          code: 20005,
+          msg: "invalid access token",
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          code: 0,
+          app_access_token: "app_access_token_123",
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          code: 0,
+          data: {
+            access_token: "fresh_access_token",
+            refresh_token: "fresh_refresh_token",
+            expires_in: 7200,
+            token_type: "Bearer",
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          code: 0,
+          data: {
+            user_id: "ou_123",
+            tenant_key: "tenant_123",
+            email: "user@example.com",
+            name: "Test User",
+            avatar_url: "https://example.com/avatar.png",
+          },
+        }),
+      });
+
+    await expect(
+      fetchLarkUserInfo(
+        {
+          masterUserId: user.id,
+          baseUrl: "https://open.larksuite.com",
+        },
+        {
+          appId: "cli_test",
+          appSecret: "secret_test",
+          fetchImpl: fetchImpl as unknown as typeof fetch,
+          tokenStore,
+          resolvedUserStore,
+        },
+      ),
+    ).resolves.toEqual({
+      userId: "ou_123",
+      tenantKey: "tenant_123",
+      email: "user@example.com",
+      name: "Test User",
+      avatarUrl: "https://example.com/avatar.png",
+    });
+
+    expect(fetchImpl).toHaveBeenNthCalledWith(
+      1,
+      "https://open.larksuite.com/open-apis/authen/v1/user_info",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: "Bearer stale_but_not_marked_expired",
+        }),
+      }),
+    );
+    expect(fetchImpl).toHaveBeenNthCalledWith(
+      4,
+      "https://open.larksuite.com/open-apis/authen/v1/user_info",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: "Bearer fresh_access_token",
+        }),
+      }),
+    );
   });
 });

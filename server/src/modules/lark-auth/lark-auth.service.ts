@@ -9,7 +9,7 @@ import {
 } from "../../adapters/postgres/lark-oauth-session-store.js";
 import { getSharedLarkTokenStore } from "../../adapters/postgres/lark-token-store.js";
 import type { OauthSessionStore } from "../../adapters/lark/oauth-session-store.js";
-import type { LarkTokenStore } from "../../adapters/lark/token-store.js";
+import type { LarkTokenStore, StoredLarkToken } from "../../adapters/lark/token-store.js";
 import { getResolvedUserStore, type ResolvedUserStore } from "../../adapters/postgres/resolved-user-store.js";
 import type {
   LarkAuthCallbackPage,
@@ -86,6 +86,48 @@ function isExpired(expiresAt?: string): boolean {
   }
 
   return expiresAtMs <= Date.now() + EXPIRY_SAFETY_WINDOW_MS;
+}
+
+function isInvalidAccessTokenError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    /invalid access token/i.test(error.message)
+  );
+}
+
+async function refreshStoredLarkCredential(
+  input: {
+    masterUserId: string;
+    stored: StoredLarkToken;
+  },
+  overrides?: Partial<LarkAuthServiceDeps>,
+): Promise<StoredLarkToken> {
+  const refreshed = await refreshLarkToken(
+    {
+      masterUserId: input.masterUserId,
+      baseUrl: input.stored.baseUrl,
+      refreshToken: input.stored.refreshToken!,
+    },
+    overrides,
+  );
+
+  const nextToken = {
+    masterUserId: input.masterUserId,
+    tenantKey: input.stored.tenantKey,
+    larkUserId: input.stored.larkUserId,
+    baseUrl: input.stored.baseUrl,
+    userToken: refreshed.accessToken,
+    userTokenExpiresAt: toExpiresAt(refreshed.expiresIn),
+    refreshToken: refreshed.refreshToken ?? input.stored.refreshToken,
+    refreshTokenExpiresAt:
+      input.stored.refreshTokenExpiresAt ??
+      toExpiresAt(DEFAULT_REFRESH_TOKEN_TTL_SECONDS),
+    credentialStatus: "active" as const,
+  } satisfies StoredLarkToken;
+
+  const deps = getDeps(overrides);
+  await getTokenStore(deps).save(nextToken);
+  return nextToken;
 }
 
 /**
@@ -308,33 +350,20 @@ export async function checkLarkAuthStatus(
   }
 
   try {
-    const refreshed = await refreshLarkToken(
+    const refreshed = await refreshStoredLarkCredential(
       {
         masterUserId: request.masterUserId,
-        baseUrl: stored.baseUrl,
-        refreshToken: stored.refreshToken,
+        stored,
       },
       overrides,
     );
-
-    await tokenStore.save({
-      masterUserId: request.masterUserId,
-      tenantKey: stored.tenantKey,
-      larkUserId: stored.larkUserId,
-      baseUrl: stored.baseUrl,
-      userToken: refreshed.accessToken,
-      userTokenExpiresAt: toExpiresAt(refreshed.expiresIn),
-      refreshToken: refreshed.refreshToken ?? stored.refreshToken,
-      refreshTokenExpiresAt: stored.refreshTokenExpiresAt ?? toExpiresAt(DEFAULT_REFRESH_TOKEN_TTL_SECONDS),
-      credentialStatus: "active",
-    });
 
     return {
       status: "ready",
       masterUserId: request.masterUserId,
       baseUrl: stored.baseUrl,
       credentialStatus: "active",
-      expiresAt: toExpiresAt(refreshed.expiresIn),
+      expiresAt: refreshed.userTokenExpiresAt,
       reason: "Stored Lark token refreshed",
     };
   } catch {
@@ -525,7 +554,43 @@ export async function fetchLarkUserInfo(
   }
 
   const fetchImpl = deps.fetchImpl ?? fetch;
-  const userInfo = await getLarkUserInfo(authBaseUrl, stored.userToken, fetchImpl);
+  let currentToken = stored;
+
+  if (
+    isExpired(currentToken.userTokenExpiresAt) &&
+    currentToken.refreshToken &&
+    !isExpired(currentToken.refreshTokenExpiresAt)
+  ) {
+    currentToken = await refreshStoredLarkCredential(
+      {
+        masterUserId: request.masterUserId,
+        stored: currentToken,
+      },
+      overrides,
+    );
+  }
+
+  let userInfo;
+  try {
+    userInfo = await getLarkUserInfo(authBaseUrl, currentToken.userToken, fetchImpl);
+  } catch (error) {
+    if (
+      isInvalidAccessTokenError(error) &&
+      currentToken.refreshToken &&
+      !isExpired(currentToken.refreshTokenExpiresAt)
+    ) {
+      currentToken = await refreshStoredLarkCredential(
+        {
+          masterUserId: request.masterUserId,
+          stored: currentToken,
+        },
+        overrides,
+      );
+      userInfo = await getLarkUserInfo(authBaseUrl, currentToken.userToken, fetchImpl);
+    } else {
+      throw error;
+    }
+  }
 
   const resolvedUserStore = getResolvedStore(deps);
   const existingByUser = await resolvedUserStore.getById(request.masterUserId);
