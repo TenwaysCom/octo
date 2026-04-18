@@ -58,8 +58,8 @@ import {
   normalizeMeegleAuthBaseUrl,
 } from "../../platform-url.js";
 import { createExtensionLogger, exportLogsAsBlob } from "../../logger.js";
-import { message } from "ant-design-vue";
 import { extractLarkBaseContextFromUrl } from "../../lark-base-url.js";
+import { showPopupToast } from "../toast.js";
 import type {
   KimiChatEvent,
   KimiChatRenderState,
@@ -1307,15 +1307,7 @@ export function usePopupApp() {
   }
 
   function showToast(text: string, type: PopupLogLevel = "info") {
-    if (type === "success") {
-      message.success(text, 2);
-    } else if (type === "error") {
-      message.error(text, 2);
-    } else if (type === "warn") {
-      message.warning(text, 2);
-    } else {
-      message.info(text, 2);
-    }
+    showPopupToast(text, type);
   }
 
   function appendLog(level: PopupLogLevel, message: string) {

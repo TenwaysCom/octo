@@ -119,12 +119,6 @@ function mountApp(options: { useRealVerticalTabBar?: boolean } = {}) {
   return shallowMount(App, {
     global: {
       stubs: {
-        "a-config-provider": {
-          template: "<div data-test='config-provider'><slot /></div>",
-        },
-        "a-app": {
-          template: "<div data-test='ant-app'><slot /></div>",
-        },
         PopupShell: {
           props: ["subtitle"],
           template: `
