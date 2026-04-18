@@ -10,10 +10,12 @@ import {
   clearResolvedIdentity,
   clearResolvedIdentityForTab,
   deleteKimiChatSession,
+  deleteKimiChatTranscriptSnapshot,
   fetchLarkUserInfo,
   getConfig,
   getLarkAuthStatus,
   listKimiChatSessions,
+  loadKimiChatTranscriptSnapshot,
   loadPopupSettings,
   loadKimiChatSession,
   loadResolvedIdentity,
@@ -25,6 +27,7 @@ import {
   runLarkAuthRequest,
   runMeegleAuthRequest,
   runMeegleLarkPushRequest,
+  saveKimiChatTranscriptSnapshot,
   saveResolvedIdentity,
   saveResolvedIdentityForTab,
   savePopupSettings,
@@ -183,6 +186,7 @@ export function usePopupApp() {
     kimiChatSessionId.value = nextState.sessionId;
     kimiChatActiveAssistantEntryId.value = nextState.activeAssistantEntryId;
     kimiChatTranscript.value = nextState.transcript;
+    void persistCurrentKimiChatSnapshot();
   }
 
   function flushPendingKimiChatState(): void {
@@ -236,11 +240,27 @@ export function usePopupApp() {
         text,
       },
     ];
+    void persistCurrentKimiChatSnapshot();
   }
 
   function clearActiveKimiChatRequest(): void {
     activeKimiChatRequestId = 0;
     kimiChatAbortController = null;
+  }
+
+  async function persistCurrentKimiChatSnapshot(): Promise<void> {
+    const operatorLarkId = state.identity.larkId || settingsForm.larkUserId;
+    const sessionId = kimiChatSessionId.value;
+    if (!operatorLarkId || !sessionId || kimiChatTranscript.value.length === 0) {
+      return;
+    }
+
+    await saveKimiChatTranscriptSnapshot({
+      operatorLarkId,
+      sessionId,
+      transcript: kimiChatTranscript.value,
+      updatedAt: new Date().toISOString(),
+    });
   }
 
   const viewModel = computed(() =>
@@ -885,6 +905,24 @@ export function usePopupApp() {
       nextState = applyKimiChatEvent(nextState, event);
     }
 
+    const hasVisibleMessages = nextState.transcript.some(
+      (entry) => entry.kind === "user" || entry.kind === "assistant",
+    );
+    if (!hasVisibleMessages) {
+      const snapshot = await loadKimiChatTranscriptSnapshot({
+        operatorLarkId,
+        sessionId,
+      });
+
+      if (snapshot?.transcript?.length) {
+        nextState = {
+          sessionId,
+          activeAssistantEntryId: null,
+          transcript: snapshot.transcript,
+        };
+      }
+    }
+
     applyKimiChatRenderState(nextState);
     showKimiChat.value = true;
     activePage.value = "chat";
@@ -910,6 +948,11 @@ export function usePopupApp() {
       );
       return;
     }
+
+    await deleteKimiChatTranscriptSnapshot({
+      operatorLarkId,
+      sessionId,
+    });
 
     kimiChatHistoryItems.value = kimiChatHistoryItems.value.filter(
       (item) => item.sessionId !== sessionId,

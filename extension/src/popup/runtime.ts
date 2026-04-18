@@ -2,8 +2,11 @@ import { DEFAULT_CONFIG, getConfig } from "../background/config.js";
 import {
   clearResolvedIdentity as clearStoredResolvedIdentity,
   clearResolvedIdentityForTab as clearStoredResolvedIdentityForTab,
+  deleteKimiChatTranscriptSnapshot as deleteStoredKimiChatTranscriptSnapshot,
+  getKimiChatTranscriptSnapshot as getStoredKimiChatTranscriptSnapshot,
   getStoredMasterUserId,
   getResolvedIdentityForTab as getStoredResolvedIdentityForTab,
+  saveKimiChatTranscriptSnapshot as persistKimiChatTranscriptSnapshot,
   saveResolvedIdentity as persistResolvedIdentity,
   saveResolvedIdentityForTab as persistResolvedIdentityForTab,
 } from "../background/storage.js";
@@ -20,6 +23,7 @@ import type {
 } from "../types/meegle.js";
 import type {
   KimiChatEvent,
+  KimiChatTranscriptEntry,
   KimiChatSessionSummary,
 } from "../types/acp-kimi.js";
 import type { PopupSettingsForm } from "./types.js";
@@ -94,6 +98,13 @@ export interface KimiChatSessionLoadResponse {
     errorCode?: string;
     errorMessage?: string;
   };
+}
+
+export interface KimiChatTranscriptSnapshot {
+  operatorLarkId: string;
+  sessionId: string;
+  transcript: KimiChatTranscriptEntry[];
+  updatedAt: string;
 }
 
 export async function postClientDebugLog(input: {
@@ -478,6 +489,26 @@ export async function deleteKimiChatSession(
     ok: boolean;
     error?: { errorCode?: string; errorMessage?: string };
   };
+}
+
+export async function loadKimiChatTranscriptSnapshot(input: {
+  operatorLarkId: string;
+  sessionId: string;
+}): Promise<KimiChatTranscriptSnapshot | undefined> {
+  return await getStoredKimiChatTranscriptSnapshot(input);
+}
+
+export async function saveKimiChatTranscriptSnapshot(
+  snapshot: KimiChatTranscriptSnapshot,
+): Promise<void> {
+  await persistKimiChatTranscriptSnapshot(snapshot);
+}
+
+export async function deleteKimiChatTranscriptSnapshot(input: {
+  operatorLarkId: string;
+  sessionId: string;
+}): Promise<void> {
+  await deleteStoredKimiChatTranscriptSnapshot(input);
 }
 
 export async function runLarkAuthRequest(

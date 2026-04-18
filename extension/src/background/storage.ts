@@ -3,6 +3,7 @@
  */
 
 import { createExtensionLogger } from "../logger.js";
+import type { KimiChatTranscriptEntry } from "../types/acp-kimi.js";
 
 const storageLogger = createExtensionLogger("background:storage");
 
@@ -36,8 +37,17 @@ export interface AuthState {
 const STORAGE_KEY = "itpm_assistant_auth";
 const RESOLVED_IDENTITY_STORAGE_KEY = "masterUserId";
 const RESOLVED_IDENTITY_BY_TAB_STORAGE_KEY = "resolvedIdentityByTab";
+const KIMI_CHAT_TRANSCRIPTS_STORAGE_KEY = "kimiChatTranscriptSnapshots";
 
 type ResolvedIdentityByTabState = Record<string, string>;
+type KimiChatTranscriptSnapshotsState = Record<string, KimiChatTranscriptSnapshot>;
+
+export interface KimiChatTranscriptSnapshot {
+  operatorLarkId: string;
+  sessionId: string;
+  transcript: KimiChatTranscriptEntry[];
+  updatedAt: string;
+}
 
 /**
  * Get auth state from storage
@@ -143,6 +153,69 @@ export async function clearResolvedIdentityForTab(tabId: number): Promise<void> 
     }
 
     chrome.storage.local.set({ [RESOLVED_IDENTITY_BY_TAB_STORAGE_KEY]: nextState }, resolve);
+  });
+}
+
+async function getKimiChatTranscriptSnapshotsState(): Promise<KimiChatTranscriptSnapshotsState> {
+  return new Promise((resolve) => {
+    chrome.storage.local.get([KIMI_CHAT_TRANSCRIPTS_STORAGE_KEY], (result) => {
+      resolve(
+        ((result as {
+          [KIMI_CHAT_TRANSCRIPTS_STORAGE_KEY]?: KimiChatTranscriptSnapshotsState;
+        })[KIMI_CHAT_TRANSCRIPTS_STORAGE_KEY] as KimiChatTranscriptSnapshotsState | undefined) ??
+          {},
+      );
+    });
+  });
+}
+
+function buildKimiChatTranscriptSnapshotKey(
+  operatorLarkId: string,
+  sessionId: string,
+): string {
+  return `${operatorLarkId}:${sessionId}`;
+}
+
+export async function getKimiChatTranscriptSnapshot(input: {
+  operatorLarkId: string;
+  sessionId: string;
+}): Promise<KimiChatTranscriptSnapshot | undefined> {
+  const state = await getKimiChatTranscriptSnapshotsState();
+  return state[buildKimiChatTranscriptSnapshotKey(input.operatorLarkId, input.sessionId)];
+}
+
+export async function saveKimiChatTranscriptSnapshot(
+  snapshot: KimiChatTranscriptSnapshot,
+): Promise<void> {
+  const state = await getKimiChatTranscriptSnapshotsState();
+  const nextState: KimiChatTranscriptSnapshotsState = {
+    ...state,
+    [buildKimiChatTranscriptSnapshotKey(snapshot.operatorLarkId, snapshot.sessionId)]: snapshot,
+  };
+
+  return new Promise((resolve) => {
+    chrome.storage.local.set({ [KIMI_CHAT_TRANSCRIPTS_STORAGE_KEY]: nextState }, resolve);
+  });
+}
+
+export async function deleteKimiChatTranscriptSnapshot(input: {
+  operatorLarkId: string;
+  sessionId: string;
+}): Promise<void> {
+  const state = await getKimiChatTranscriptSnapshotsState();
+  const nextState: KimiChatTranscriptSnapshotsState = { ...state };
+  delete nextState[buildKimiChatTranscriptSnapshotKey(input.operatorLarkId, input.sessionId)];
+
+  return new Promise((resolve) => {
+    if (
+      Object.keys(nextState).length === 0 &&
+      typeof chrome.storage.local.remove === "function"
+    ) {
+      chrome.storage.local.remove(KIMI_CHAT_TRANSCRIPTS_STORAGE_KEY, resolve);
+      return;
+    }
+
+    chrome.storage.local.set({ [KIMI_CHAT_TRANSCRIPTS_STORAGE_KEY]: nextState }, resolve);
   });
 }
 
