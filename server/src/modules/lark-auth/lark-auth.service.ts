@@ -102,14 +102,33 @@ async function refreshStoredLarkCredential(
   },
   overrides?: Partial<LarkAuthServiceDeps>,
 ): Promise<StoredLarkToken> {
-  const refreshed = await refreshLarkToken(
-    {
+  serviceLogger.info({
+    masterUserId: input.masterUserId,
+    baseUrl: input.stored.baseUrl,
+    larkUserId: input.stored.larkUserId,
+    userTokenExpiresAt: input.stored.userTokenExpiresAt,
+    refreshTokenExpiresAt: input.stored.refreshTokenExpiresAt,
+  }, "LARK_TOKEN_REFRESH START");
+
+  let refreshed: LarkTokenPair;
+  try {
+    refreshed = await refreshLarkToken(
+      {
+        masterUserId: input.masterUserId,
+        baseUrl: input.stored.baseUrl,
+        refreshToken: input.stored.refreshToken!,
+      },
+      overrides,
+    );
+  } catch (error) {
+    serviceLogger.warn({
       masterUserId: input.masterUserId,
       baseUrl: input.stored.baseUrl,
-      refreshToken: input.stored.refreshToken!,
-    },
-    overrides,
-  );
+      larkUserId: input.stored.larkUserId,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    }, "LARK_TOKEN_REFRESH FAIL");
+    throw error;
+  }
 
   const nextToken = {
     masterUserId: input.masterUserId,
@@ -127,6 +146,14 @@ async function refreshStoredLarkCredential(
 
   const deps = getDeps(overrides);
   await getTokenStore(deps).save(nextToken);
+  serviceLogger.info({
+    masterUserId: input.masterUserId,
+    baseUrl: input.stored.baseUrl,
+    larkUserId: input.stored.larkUserId,
+    userTokenExpiresAt: nextToken.userTokenExpiresAt,
+    refreshTokenExpiresAt: nextToken.refreshTokenExpiresAt,
+    rotatedRefreshToken: refreshed.refreshToken != null,
+  }, "LARK_TOKEN_REFRESH OK");
   return nextToken;
 }
 
@@ -326,6 +353,12 @@ export async function checkLarkAuthStatus(
   }
 
   if (!isExpired(stored.userTokenExpiresAt)) {
+    serviceLogger.info({
+      masterUserId: request.masterUserId,
+      baseUrl: stored.baseUrl,
+      larkUserId: stored.larkUserId,
+      expiresAt: stored.userTokenExpiresAt,
+    }, "LARK_AUTH_STATUS TOKEN_STILL_VALID");
     return {
       status: "ready",
       masterUserId: request.masterUserId,
@@ -337,6 +370,13 @@ export async function checkLarkAuthStatus(
   }
 
   if (!stored.refreshToken || isExpired(stored.refreshTokenExpiresAt)) {
+    serviceLogger.warn({
+      masterUserId: request.masterUserId,
+      baseUrl: stored.baseUrl,
+      larkUserId: stored.larkUserId,
+      userTokenExpiresAt: stored.userTokenExpiresAt,
+      refreshTokenExpiresAt: stored.refreshTokenExpiresAt,
+    }, "LARK_AUTH_STATUS REFRESH_UNAVAILABLE");
     await tokenStore.save({
       ...stored,
       credentialStatus: "expired",
@@ -350,6 +390,12 @@ export async function checkLarkAuthStatus(
   }
 
   try {
+    serviceLogger.info({
+      masterUserId: request.masterUserId,
+      baseUrl: stored.baseUrl,
+      larkUserId: stored.larkUserId,
+      expiresAt: stored.userTokenExpiresAt,
+    }, "LARK_AUTH_STATUS REFRESH_START");
     const refreshed = await refreshStoredLarkCredential(
       {
         masterUserId: request.masterUserId,
@@ -358,6 +404,12 @@ export async function checkLarkAuthStatus(
       overrides,
     );
 
+    serviceLogger.info({
+      masterUserId: request.masterUserId,
+      baseUrl: stored.baseUrl,
+      larkUserId: stored.larkUserId,
+      expiresAt: refreshed.userTokenExpiresAt,
+    }, "LARK_AUTH_STATUS REFRESH_OK");
     return {
       status: "ready",
       masterUserId: request.masterUserId,
@@ -366,7 +418,13 @@ export async function checkLarkAuthStatus(
       expiresAt: refreshed.userTokenExpiresAt,
       reason: "Stored Lark token refreshed",
     };
-  } catch {
+  } catch (error) {
+    serviceLogger.warn({
+      masterUserId: request.masterUserId,
+      baseUrl: stored.baseUrl,
+      larkUserId: stored.larkUserId,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    }, "LARK_AUTH_STATUS REFRESH_FAIL");
     await tokenStore.save({
       ...stored,
       credentialStatus: "expired",
@@ -561,6 +619,12 @@ export async function fetchLarkUserInfo(
     currentToken.refreshToken &&
     !isExpired(currentToken.refreshTokenExpiresAt)
   ) {
+    serviceLogger.info({
+      masterUserId: request.masterUserId,
+      baseUrl: currentToken.baseUrl,
+      larkUserId: currentToken.larkUserId,
+      expiresAt: currentToken.userTokenExpiresAt,
+    }, "LARK_USER_INFO REFRESH_BEFORE_FETCH");
     currentToken = await refreshStoredLarkCredential(
       {
         masterUserId: request.masterUserId,
@@ -579,6 +643,12 @@ export async function fetchLarkUserInfo(
       currentToken.refreshToken &&
       !isExpired(currentToken.refreshTokenExpiresAt)
     ) {
+      serviceLogger.warn({
+        masterUserId: request.masterUserId,
+        baseUrl: currentToken.baseUrl,
+        larkUserId: currentToken.larkUserId,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      }, "LARK_USER_INFO RETRY_AFTER_REFRESH");
       currentToken = await refreshStoredLarkCredential(
         {
           masterUserId: request.masterUserId,
@@ -586,7 +656,17 @@ export async function fetchLarkUserInfo(
         },
         overrides,
       );
-      userInfo = await getLarkUserInfo(authBaseUrl, currentToken.userToken, fetchImpl);
+      try {
+        userInfo = await getLarkUserInfo(authBaseUrl, currentToken.userToken, fetchImpl);
+      } catch (retryError) {
+        serviceLogger.warn({
+          masterUserId: request.masterUserId,
+          baseUrl: currentToken.baseUrl,
+          larkUserId: currentToken.larkUserId,
+          errorMessage: retryError instanceof Error ? retryError.message : String(retryError),
+        }, "LARK_USER_INFO RETRY_REFRESH_FAIL");
+        throw retryError;
+      }
     } else {
       throw error;
     }
