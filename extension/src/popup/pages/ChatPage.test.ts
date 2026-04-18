@@ -163,6 +163,7 @@ describe("ChatPage", () => {
     expect(wrapper.find('[data-test="chat-history-panel"]').exists()).toBe(true);
     expect(wrapper.get('[data-test="chat-history-panel"]').text()).toContain("旧会话");
     expect(wrapper.get('[data-test="chat-history-panel"]').text()).toContain("当前会话");
+    expect(wrapper.get('[data-test="chat-history-panel"]').text()).toContain("2026-04-18 08:00");
 
     await wrapper.get('[data-test="chat-history-load-sess_1"]').trigger("click");
     await wrapper.get('[data-test="chat-history-delete-sess_2"]').trigger("click");

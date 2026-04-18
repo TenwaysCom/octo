@@ -1064,11 +1064,23 @@ describe("usePopupApp notebook state", () => {
         sessions: [
           {
             sessionId: "sess_1",
-            title: "旧会话",
+            title: "Untitled",
             updatedAt: "2026-04-18T00:00:00Z",
           },
         ],
       },
+    });
+    runtimeMock.loadKimiChatTranscriptSnapshot.mockResolvedValueOnce({
+      sessionId: "sess_1",
+      operatorLarkId: "ou_test",
+      transcript: [
+        {
+          id: "user-1",
+          kind: "user",
+          text: "这是一个很长的历史问题，用来生成展示标题",
+        },
+      ],
+      updatedAt: "2026-04-18T00:02:00Z",
     });
 
     const popup = usePopupApp();
@@ -1083,7 +1095,7 @@ describe("usePopupApp notebook state", () => {
     expect(popup.kimiChatHistoryItems.value).toEqual([
       {
         sessionId: "sess_1",
-        title: "旧会话",
+        title: "这是一个很长的历史问题，用来生成展示标题",
         updatedAt: "2026-04-18T00:00:00Z",
       },
     ]);

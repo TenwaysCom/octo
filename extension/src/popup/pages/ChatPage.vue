@@ -68,7 +68,15 @@
               type="button"
               @click="$emit('loadKimiChatHistorySession', session.sessionId)"
             >
-              <span>{{ session.title || session.sessionId }}</span>
+              <span class="chat-page__history-copy">
+                <span>{{ session.title || session.sessionId }}</span>
+                <span
+                  v-if="session.updatedAt"
+                  class="chat-page__history-updated-at"
+                >
+                  {{ formatSessionUpdatedAt(session.updatedAt) }}
+                </span>
+              </span>
               <span v-if="session.sessionId === kimiChatSessionId">
                 当前会话
               </span>
@@ -138,6 +146,20 @@ defineEmits<{
 }>();
 
 const isEmptySession = computed(() => props.kimiChatTranscript.length === 0);
+
+function formatSessionUpdatedAt(updatedAt: string): string {
+  const date = new Date(updatedAt);
+  if (Number.isNaN(date.getTime())) {
+    return updatedAt;
+  }
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day} ${hours}:${minutes}`;
+}
 </script>
 
 <style scoped>
@@ -291,6 +313,18 @@ const isEmptySession = computed(() => props.kimiChatTranscript.length === 0);
   color: #0f172a;
   font-size: 13px;
   font-weight: 600;
+}
+
+.chat-page__history-copy {
+  display: grid;
+  gap: 2px;
+  justify-items: start;
+}
+
+.chat-page__history-updated-at {
+  font-size: 11px;
+  font-weight: 500;
+  color: #64748b;
 }
 
 .chat-page__history-delete {

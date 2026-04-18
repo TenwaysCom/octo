@@ -263,6 +263,29 @@ export function usePopupApp() {
     });
   }
 
+  async function buildKimiChatHistoryItems(
+    operatorLarkId: string,
+    sessions: KimiChatSessionSummary[],
+  ): Promise<KimiChatSessionSummary[]> {
+    return await Promise.all(
+      sessions.map(async (session) => {
+        const snapshot = await loadKimiChatTranscriptSnapshot({
+          operatorLarkId,
+          sessionId: session.sessionId,
+        });
+        const fallbackTitle = deriveKimiChatSessionTitle(snapshot?.transcript ?? []);
+
+        return {
+          ...session,
+          title: shouldUseFallbackSessionTitle(session.title)
+            ? fallbackTitle || session.title || session.sessionId
+            : session.title,
+          updatedAt: session.updatedAt ?? snapshot?.updatedAt ?? null,
+        };
+      }),
+    );
+  }
+
   const viewModel = computed(() =>
     createPopupViewModel({
       pageType: state.pageType,
@@ -853,7 +876,10 @@ export function usePopupApp() {
         return;
       }
 
-      kimiChatHistoryItems.value = result.data.sessions;
+      kimiChatHistoryItems.value = await buildKimiChatHistoryItems(
+        operatorLarkId,
+        result.data.sessions,
+      );
       kimiChatHistoryOpen.value = true;
     } catch (error) {
       appendLog(
@@ -1337,6 +1363,33 @@ export function usePopupApp() {
 
 function createTranscriptEntryId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+}
+
+function shouldUseFallbackSessionTitle(title?: string | null): boolean {
+  const normalized = title?.trim();
+  return !normalized || /^untitled\b/i.test(normalized);
+}
+
+function deriveKimiChatSessionTitle(
+  transcript: KimiChatTranscriptEntry[],
+): string | null {
+  const source = transcript.find(
+    (entry) =>
+      (entry.kind === "user" || entry.kind === "assistant") &&
+      typeof entry.text === "string" &&
+      entry.text.trim().length > 0,
+  );
+
+  if (!source?.text) {
+    return null;
+  }
+
+  const normalized = source.text.replace(/\s+/g, " ").trim();
+  if (normalized.length <= 24) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, 24)}...`;
 }
 
 function scheduleAnimationFrame(callback: FrameRequestCallback): ScheduledFrameHandle {
