@@ -75,6 +75,13 @@ function toExpiresAt(expiresInSeconds?: number): string | undefined {
   return new Date(Date.now() + (expiresInSeconds * 1000)).toISOString();
 }
 
+function toRefreshTokenExpiresAt(
+  refreshTokenExpiresIn?: number,
+  fallback?: string,
+): string | undefined {
+  return toExpiresAt(refreshTokenExpiresIn) ?? fallback ?? toExpiresAt(DEFAULT_REFRESH_TOKEN_TTL_SECONDS);
+}
+
 function isExpired(expiresAt?: string): boolean {
   if (!expiresAt) {
     return true;
@@ -138,9 +145,10 @@ async function refreshStoredLarkCredential(
     userToken: refreshed.accessToken,
     userTokenExpiresAt: toExpiresAt(refreshed.expiresIn),
     refreshToken: refreshed.refreshToken ?? input.stored.refreshToken,
-    refreshTokenExpiresAt:
-      input.stored.refreshTokenExpiresAt ??
-      toExpiresAt(DEFAULT_REFRESH_TOKEN_TTL_SECONDS),
+    refreshTokenExpiresAt: toRefreshTokenExpiresAt(
+      refreshed.refreshTokenExpiresIn,
+      input.stored.refreshTokenExpiresAt,
+    ),
     credentialStatus: "active" as const,
   } satisfies StoredLarkToken;
 
@@ -248,12 +256,13 @@ export async function exchangeLarkAuthCode(
     accessToken: tokenData.access_token as string,
     refreshToken: tokenData.refresh_token as string | undefined,
     expiresIn: tokenData.expires_in as number | undefined,
+    refreshTokenExpiresIn: tokenData.refresh_token_expires_in as number | undefined,
     tokenType: tokenData.token_type as string ?? "Bearer",
   };
 
   const user = await getResolvedStore(deps).getById(request.masterUserId);
   if (user?.larkId) {
-    await getTokenStore(deps).save({
+    const storedToken = {
       masterUserId: request.masterUserId,
       tenantKey: user.larkTenantKey ?? undefined,
       larkUserId: user.larkId,
@@ -261,9 +270,18 @@ export async function exchangeLarkAuthCode(
       userToken: tokenPair.accessToken,
       userTokenExpiresAt: toExpiresAt(tokenPair.expiresIn),
       refreshToken: tokenPair.refreshToken,
-      refreshTokenExpiresAt: toExpiresAt(DEFAULT_REFRESH_TOKEN_TTL_SECONDS),
+      refreshTokenExpiresAt: toRefreshTokenExpiresAt(tokenPair.refreshTokenExpiresIn),
       credentialStatus: "active",
-    });
+    } satisfies StoredLarkToken;
+    await getTokenStore(deps).save(storedToken);
+    serviceLogger.info({
+      masterUserId: request.masterUserId,
+      baseUrl: authBaseUrl,
+      larkUserId: user.larkId,
+      hasRefreshToken: Boolean(storedToken.refreshToken),
+      userTokenExpiresAt: storedToken.userTokenExpiresAt,
+      refreshTokenExpiresAt: storedToken.refreshTokenExpiresAt,
+    }, "LARK_AUTH_CODE_EXCHANGE TOKEN_SAVED");
   }
 
   return tokenPair;
@@ -324,6 +342,7 @@ export async function refreshLarkToken(
     accessToken: tokenData.access_token as string,
     refreshToken: tokenData.refresh_token as string | undefined,
     expiresIn: tokenData.expires_in as number | undefined,
+    refreshTokenExpiresIn: tokenData.refresh_token_expires_in as number | undefined,
     tokenType: tokenData.token_type as string ?? "Bearer",
   };
 }
@@ -758,7 +777,7 @@ export async function handleLarkAuthCallback(
       });
     }
 
-    await tokenStore.save({
+    const storedToken = {
       masterUserId: session.masterUserId,
       tenantKey: userInfo.tenantKey,
       larkUserId: userInfo.userId,
@@ -766,9 +785,19 @@ export async function handleLarkAuthCallback(
       userToken: tokenPair.accessToken,
       userTokenExpiresAt: toExpiresAt(tokenPair.expiresIn),
       refreshToken: tokenPair.refreshToken,
-      refreshTokenExpiresAt: toExpiresAt(DEFAULT_REFRESH_TOKEN_TTL_SECONDS),
+      refreshTokenExpiresAt: toRefreshTokenExpiresAt(tokenPair.refreshTokenExpiresIn),
       credentialStatus: "active",
-    });
+    } satisfies StoredLarkToken;
+    await tokenStore.save(storedToken);
+    serviceLogger.info({
+      masterUserId: session.masterUserId,
+      baseUrl: session.baseUrl,
+      larkUserId: userInfo.userId,
+      tenantKey: userInfo.tenantKey,
+      hasRefreshToken: Boolean(storedToken.refreshToken),
+      userTokenExpiresAt: storedToken.userTokenExpiresAt,
+      refreshTokenExpiresAt: storedToken.refreshTokenExpiresAt,
+    }, "LARK_AUTH_CALLBACK TOKEN_SAVED");
 
     await oauthSessionStore.markCompleted({
       state: query.state,

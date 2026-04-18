@@ -58,6 +58,7 @@ describe("lark-auth.service", () => {
             access_token: "user_access_token_456",
             refresh_token: "refresh_token_789",
             expires_in: 7200,
+            refresh_token_expires_in: 604800,
             token_type: "Bearer",
           },
         }),
@@ -90,6 +91,7 @@ describe("lark-auth.service", () => {
     expect(result).toMatchObject({
       accessToken: "user_access_token_456",
       refreshToken: "refresh_token_789",
+      refreshTokenExpiresIn: 604800,
       tokenType: "Bearer",
     });
   });
@@ -112,6 +114,7 @@ describe("lark-auth.service", () => {
             access_token: "user_access_token_456",
             refresh_token: "refresh_token_789",
             expires_in: 7200,
+            refresh_token_expires_in: 604800,
             token_type: "Bearer",
           },
         }),
@@ -143,6 +146,7 @@ describe("lark-auth.service", () => {
     expect(result).toMatchObject({
       accessToken: "user_access_token_456",
       refreshToken: "refresh_token_789",
+      refreshTokenExpiresIn: 604800,
       tokenType: "Bearer",
     });
   });
@@ -217,6 +221,7 @@ describe("lark-auth.service", () => {
                 access_token: "user_access_token_456",
                 refresh_token: "refresh_token_789",
                 expires_in: 7200,
+                refresh_token_expires_in: 604800,
                 token_type: "Bearer",
               },
             }),
@@ -315,6 +320,7 @@ describe("lark-auth.service", () => {
                 access_token: "user_access_token_456",
                 refresh_token: "refresh_token_789",
                 expires_in: 7200,
+                refresh_token_expires_in: 604800,
                 token_type: "Bearer",
               },
             }),
@@ -354,6 +360,13 @@ describe("lark-auth.service", () => {
       provider_tenant_key: "tenant_123",
       external_user_key: "ou_123",
     });
+
+    const storedToken = await tokenStore.get({
+      masterUserId: user.id,
+      baseUrl: "https://open.larksuite.com",
+    });
+    expect(storedToken?.refreshTokenExpiresAt).toBeTruthy();
+    expect(Date.parse(storedToken!.refreshTokenExpiresAt!)).toBeGreaterThan(Date.now());
   });
 
   it("refreshes an expired stored Lark token before fetching user info", async () => {
@@ -392,6 +405,7 @@ describe("lark-auth.service", () => {
             access_token: "fresh_access_token",
             refresh_token: "fresh_refresh_token",
             expires_in: 7200,
+            refresh_token_expires_in: 604800,
             token_type: "Bearer",
           },
         }),
@@ -486,6 +500,7 @@ describe("lark-auth.service", () => {
             access_token: "fresh_access_token",
             refresh_token: "fresh_refresh_token",
             expires_in: 7200,
+            refresh_token_expires_in: 604800,
             token_type: "Bearer",
           },
         }),
