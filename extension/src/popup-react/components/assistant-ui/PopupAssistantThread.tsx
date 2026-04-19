@@ -1,5 +1,6 @@
 import {
   AssistantRuntimeProvider,
+  ChainOfThoughtPrimitive,
   ComposerPrimitive,
   MessagePartPrimitive,
   MessagePrimitive,
@@ -10,12 +11,13 @@ import {
   type AppendMessage,
   type ExternalStoreAdapter,
   type MessageStatus,
+  type ReasoningMessagePartProps,
   type ThreadMessageLike,
+  type ToolCallMessagePartProps,
 } from "@assistant-ui/react";
-import { useEffect, useMemo } from "react";
+import { type ReactNode, useEffect, useMemo } from "react";
 
 import type {
-  KimiChatThoughtEntry,
   KimiChatToolCallEntry,
   KimiChatTranscriptEntry,
 } from "../../../types/acp-kimi.js";
@@ -25,6 +27,23 @@ import { buttonVariants } from "../ui/button.js";
 
 const popupMessageParts = {
   Text: function PopupMessageText() {
+    const message = useAuiState((state) => state.message);
+    const custom = normalizeCustomMetadata(message.metadata.custom);
+
+    if (message.role === "assistant" && custom.markdownHtml) {
+      return (
+        <div className="grid gap-2">
+          <div
+            className="text-sm leading-6 text-slate-900 [&_p]:m-0 [&_pre]:m-0 [&_pre]:overflow-x-auto [&_pre]:rounded-xl [&_pre]:bg-slate-950 [&_pre]:px-3 [&_pre]:py-3 [&_pre]:text-xs [&_pre]:leading-5 [&_pre]:text-slate-100 [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_code]:font-mono [&_p_code]:rounded-md [&_p_code]:bg-slate-100 [&_p_code]:px-1.5 [&_p_code]:py-0.5 [&_p_code]:text-[0.9em]"
+            dangerouslySetInnerHTML={{ __html: custom.markdownHtml }}
+          />
+          <MessagePartPrimitive.InProgress>
+            <span className="font-mono text-slate-400"> {"\u25cf"}</span>
+          </MessagePartPrimitive.InProgress>
+        </div>
+      );
+    }
+
     return (
       <p className="m-0 whitespace-pre-wrap break-words text-sm leading-6 text-slate-900">
         <MessagePartPrimitive.Text component="span" />
@@ -33,6 +52,33 @@ const popupMessageParts = {
         </MessagePartPrimitive.InProgress>
       </p>
     );
+  },
+  ChainOfThought: PopupAssistantChainOfThought,
+};
+
+const popupChainOfThoughtParts = {
+  Layout: function PopupChainOfThoughtLayout({
+    children,
+  }: {
+    children?: ReactNode;
+  }) {
+    return (
+      <div className="grid gap-2 rounded-xl border border-slate-200 bg-slate-50/85 p-3 text-xs text-slate-600">
+        {children}
+      </div>
+    );
+  },
+  Reasoning: function PopupReasoningPart(props: ReasoningMessagePartProps) {
+    return (
+      <div className="rounded-lg border border-slate-200 bg-white/90 px-3 py-2">
+        <p className="m-0 whitespace-pre-wrap break-words leading-5 text-slate-700">
+          {props.text}
+        </p>
+      </div>
+    );
+  },
+  tools: {
+    Fallback: PopupToolCallPart,
   },
 };
 
@@ -128,9 +174,6 @@ function PopupAssistantMessage() {
       : message.role === "user"
         ? "border-slate-200 bg-white"
         : "border-slate-200/70 bg-slate-50/80";
-  const showAssistantDetails =
-    message.role === "assistant" &&
-    (custom.thoughts.length > 0 || custom.toolCalls.length > 0);
 
   return (
     <MessagePrimitive.Root className={cn("rounded-2xl border px-4 py-3 shadow-sm", roleClassName)}>
@@ -147,60 +190,12 @@ function PopupAssistantMessage() {
         <pre className="m-0 overflow-x-auto whitespace-pre-wrap break-words rounded-xl bg-slate-950 px-3 py-3 text-xs leading-5 text-slate-100">
           {custom.raw}
         </pre>
-      ) : message.role === "assistant" && custom.markdownHtml ? (
-        <div className="grid gap-2">
-          <div
-            className="text-sm leading-6 text-slate-900 [&_p]:m-0 [&_pre]:m-0 [&_pre]:overflow-x-auto [&_pre]:rounded-xl [&_pre]:bg-slate-950 [&_pre]:px-3 [&_pre]:py-3 [&_pre]:text-xs [&_pre]:leading-5 [&_pre]:text-slate-100 [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_code]:font-mono [&_p_code]:rounded-md [&_p_code]:bg-slate-100 [&_p_code]:px-1.5 [&_p_code]:py-0.5 [&_p_code]:text-[0.9em]"
-            dangerouslySetInnerHTML={{ __html: custom.markdownHtml }}
-          />
-          {message.status?.type === "running" ? (
-            <span className="font-mono text-slate-400"> {"\u25cf"}</span>
-          ) : null}
-        </div>
       ) : (
-        <MessagePrimitive.Parts components={popupMessageParts} />
+        <MessagePrimitive.Parts
+          components={popupMessageParts}
+          unstable_showEmptyOnNonTextEnd={false}
+        />
       )}
-
-      {showAssistantDetails ? (
-        <div className="mt-3 grid gap-3 rounded-xl border border-slate-200 bg-slate-50/85 p-3 text-xs text-slate-600">
-          {custom.thoughts.length > 0 ? (
-            <section className="grid gap-2">
-              <div className="font-semibold text-slate-900">思路</div>
-              <ul className="m-0 grid gap-1 pl-4">
-                {custom.thoughts.map((thought) => (
-                  <li key={thought.id}>{thought.text}</li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-
-          {custom.toolCalls.length > 0 ? (
-            <section className="grid gap-2">
-              <div className="font-semibold text-slate-900">工具</div>
-              <ul className="m-0 grid gap-2 pl-0">
-                {custom.toolCalls.map((toolCall) => (
-                  <li
-                    key={toolCall.id}
-                    className="list-none rounded-lg border border-slate-200 bg-white/90 px-3 py-2"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="font-medium text-slate-900">{toolCall.title}</span>
-                      {toolCall.status ? (
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-600">
-                          {resolveToolStatusLabel(toolCall.status)}
-                        </span>
-                      ) : null}
-                    </div>
-                    {toolCall.detail ? (
-                      <div className="mt-1 text-slate-500">{toolCall.detail}</div>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-        </div>
-      ) : null}
     </MessagePrimitive.Root>
   );
 }
@@ -266,7 +261,7 @@ function convertTranscriptEntry(
   return {
     id: entry.id,
     role,
-    content: entry.kind === "raw" ? entry.raw || entry.text || "" : entry.text || "",
+    content: buildTranscriptContent(entry),
     status:
       role === "assistant"
         ? isRunningAssistant
@@ -280,11 +275,70 @@ function convertTranscriptEntry(
         markdownHtml:
           entry.kind === "assistant" && entry.text ? renderMarkdownStream(entry.text) : undefined,
         raw: entry.raw,
-        sourceIndex: index,
-        thoughts: entry.thoughts ?? [],
-        toolCalls: entry.toolCalls ?? [],
       },
     },
+  };
+}
+
+function buildTranscriptContent(entry: KimiChatTranscriptEntry): ThreadMessageLike["content"] {
+  if (entry.kind === "raw") {
+    return entry.raw || entry.text || "";
+  }
+
+  const parts: Array<Exclude<ThreadMessageLike["content"], string>[number]> = [];
+
+  if (entry.text) {
+    parts.push({
+      type: "text",
+      text: entry.text,
+    });
+  }
+
+  if (entry.kind === "assistant") {
+    for (const thought of entry.thoughts ?? []) {
+      if (!thought.text.trim()) {
+        continue;
+      }
+
+      parts.push({
+        type: "reasoning",
+        text: thought.text,
+      });
+    }
+
+    for (const toolCall of entry.toolCalls ?? []) {
+      parts.push(createToolCallPart(toolCall));
+    }
+  }
+
+  return parts.length > 0 ? parts : "";
+}
+
+function createToolCallPart(
+  toolCall: KimiChatToolCallEntry,
+): Extract<Exclude<ThreadMessageLike["content"], string>[number], { type: "tool-call" }> {
+  const artifact = {
+    title: toolCall.title,
+    detail: toolCall.detail,
+    status: toolCall.status ?? undefined,
+  } satisfies PopupToolCallArtifact;
+  const args = {
+    title: toolCall.title,
+    detail: toolCall.detail ?? null,
+    status: toolCall.status ?? null,
+  };
+
+  return {
+    type: "tool-call",
+    toolCallId: toolCall.id,
+    toolName: toolCall.title.trim() || `tool-${toolCall.id}`,
+    args,
+    argsText: JSON.stringify(args),
+    artifact,
+    ...(toolCall.status === "completed" || toolCall.status === "failed"
+      ? { result: { detail: toolCall.detail ?? null } }
+      : {}),
+    ...(toolCall.status === "failed" ? { isError: true } : {}),
   };
 }
 
@@ -378,13 +432,172 @@ function resolveToolStatusLabel(status: string): string {
   }
 }
 
+function resolvePartStatusLabel(status?: { type: string; reason?: string }): string {
+  if (!status) {
+    return "已完成";
+  }
+
+  switch (status.type) {
+    case "running":
+      return "进行中";
+    case "requires-action":
+      return "待处理";
+    case "incomplete":
+      return status.reason === "cancelled" ? "已停止" : "未完成";
+    case "complete":
+    default:
+      return "已完成";
+  }
+}
+
+function PopupAssistantChainOfThought() {
+  const chainOfThought = useAuiState((state) => state.chainOfThought);
+  const messageStatus = useAuiState((state) => state.message.status);
+  const thoughtCount = chainOfThought.parts.filter((part) => part.type === "reasoning").length;
+  const toolCount = chainOfThought.parts.filter((part) => part.type === "tool-call").length;
+  const statusLabel = resolveChainOfThoughtStatusLabel(
+    chainOfThought.parts,
+    chainOfThought.status,
+    messageStatus,
+  );
+
+  return (
+    <ChainOfThoughtPrimitive.Root className="mt-3 grid gap-2">
+      <ChainOfThoughtPrimitive.AccordionTrigger className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/85 px-3 py-2 text-left transition hover:border-slate-300 hover:bg-slate-100/90">
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-semibold text-slate-900">思考过程</div>
+          <div className="text-[11px] text-slate-500">
+            {formatChainOfThoughtSummary(thoughtCount, toolCount)}
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="rounded-full bg-white px-2 py-0.5 text-[10px] text-slate-600">
+            {statusLabel}
+          </span>
+          <span className="text-[11px] text-slate-500">
+            {chainOfThought.collapsed ? "展开" : "收起"}
+          </span>
+        </div>
+      </ChainOfThoughtPrimitive.AccordionTrigger>
+
+      {!chainOfThought.collapsed ? (
+        <ChainOfThoughtPrimitive.Parts components={popupChainOfThoughtParts} />
+      ) : null}
+    </ChainOfThoughtPrimitive.Root>
+  );
+}
+
+function PopupToolCallPart(props: ToolCallMessagePartProps) {
+  const artifact = normalizeToolCallArtifact(props.artifact);
+  const title = artifact.title || props.toolName;
+  const detail = artifact.detail;
+  const statusLabel = artifact.status
+    ? resolveToolStatusLabel(artifact.status)
+    : resolvePartStatusLabel(props.status);
+
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white/90 px-3 py-2">
+      <div className="flex items-center justify-between gap-3">
+        <span className="font-medium text-slate-900">{title}</span>
+        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-600">
+          {statusLabel}
+        </span>
+      </div>
+      {detail ? <div className="mt-1 text-slate-500">{detail}</div> : null}
+    </div>
+  );
+}
+
+function resolveChainOfThoughtStatusLabel(
+  parts: ReadonlyArray<{
+    type: string;
+    artifact?: unknown;
+  }>,
+  fallbackStatus?: {
+    type: string;
+    reason?: string;
+  },
+  messageStatus?: {
+    type: string;
+    reason?: string;
+  },
+): string {
+  const toolStatuses = parts
+    .filter(
+      (part): part is {
+        type: "tool-call";
+        artifact?: unknown;
+      } => part.type === "tool-call",
+    )
+    .map((part) => normalizeToolCallArtifact(part.artifact).status)
+    .filter((status): status is NonNullable<PopupToolCallArtifact["status"]> => Boolean(status));
+
+  if (toolStatuses.includes("failed")) {
+    return resolveToolStatusLabel("failed");
+  }
+
+  if (toolStatuses.includes("in_progress")) {
+    return resolveToolStatusLabel("in_progress");
+  }
+
+  if (toolStatuses.includes("pending")) {
+    return resolveToolStatusLabel("pending");
+  }
+
+  if (toolStatuses.includes("completed")) {
+    return resolveToolStatusLabel("completed");
+  }
+
+  if (messageStatus?.type === "running") {
+    return resolvePartStatusLabel(messageStatus);
+  }
+
+  return resolvePartStatusLabel(fallbackStatus);
+}
+
+function formatChainOfThoughtSummary(thoughtCount: number, toolCount: number): string {
+  const segments: string[] = [];
+
+  if (thoughtCount > 0) {
+    segments.push(`${thoughtCount} 条思路`);
+  }
+
+  if (toolCount > 0) {
+    segments.push(`${toolCount} 个工具调用`);
+  }
+
+  return segments.length > 0 ? segments.join(" · ") : "无额外推理";
+}
+
+interface PopupToolCallArtifact {
+  title?: string;
+  detail?: string;
+  status?: KimiChatToolCallEntry["status"];
+}
+
+function normalizeToolCallArtifact(artifact: unknown): PopupToolCallArtifact {
+  if (!artifact || typeof artifact !== "object") {
+    return {};
+  }
+
+  return {
+    title: typeof (artifact as PopupToolCallArtifact).title === "string"
+      ? (artifact as PopupToolCallArtifact).title
+      : undefined,
+    detail: typeof (artifact as PopupToolCallArtifact).detail === "string"
+      ? (artifact as PopupToolCallArtifact).detail
+      : undefined,
+    status: typeof (artifact as PopupToolCallArtifact).status === "string"
+      ? (artifact as PopupToolCallArtifact).status
+      : undefined,
+  };
+}
+
 function normalizeCustomMetadata(custom: Record<string, unknown> | undefined): {
   kind?: KimiChatTranscriptEntry["kind"];
   label?: string;
   markdownHtml?: string;
   raw?: string;
-  thoughts: KimiChatThoughtEntry[];
-  toolCalls: KimiChatToolCallEntry[];
 } {
   return {
     kind:
@@ -395,9 +608,5 @@ function normalizeCustomMetadata(custom: Record<string, unknown> | undefined): {
     markdownHtml:
       custom && typeof custom.markdownHtml === "string" ? custom.markdownHtml : undefined,
     raw: custom && typeof custom.raw === "string" ? custom.raw : undefined,
-    thoughts: Array.isArray(custom?.thoughts) ? (custom.thoughts as KimiChatThoughtEntry[]) : [],
-    toolCalls: Array.isArray(custom?.toolCalls)
-      ? (custom.toolCalls as KimiChatToolCallEntry[])
-      : [],
   };
 }

@@ -43,7 +43,7 @@ export function ChatPlaceholderPage({
   return (
     <PopupPage
       title="聊天"
-      subtitle="assistant-ui 已接入到 React 聊天页，并继续复用现有 popup controller 管理会话与历史。现有 transcript schema 里的 thoughts 和工具活动还不能干净映射到 assistant-ui 原生 reasoning/tool parts，所以先作为侧边细节展示。"
+      subtitle="assistant-ui 已接入到 React 聊天页，并继续复用现有 popup controller 管理会话与历史。当前 thoughts 和工具调用已经映射到 assistant-ui 原生 reasoning/tool-call parts。"
       actions={(
         <div className="chat-placeholder__toolbar">
           <UiButton onClick={historyOpen ? onCloseHistory : onOpenHistory}>

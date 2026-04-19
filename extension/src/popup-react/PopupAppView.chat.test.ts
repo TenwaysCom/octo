@@ -47,15 +47,11 @@ describe("popup-react chat page", () => {
     expect(await screen.findByTestId("assistant-ui-thread")).toBeTruthy();
     expect(screen.getByTestId("assistant-ui-composer")).toBeTruthy();
     expect(screen.getByRole("textbox", { name: "发送消息" })).toBeTruthy();
-    expect(
-      screen.getByText(
-        /现有 transcript schema .*assistant-ui 原生 reasoning\/tool parts/i,
-      ),
-    ).toBeTruthy();
+    expect(screen.getByText("你好，我可以帮你整理当前页面上下文。")).toBeTruthy();
   });
 
-  it("keeps assistant thoughts and tool activity visible in a compact detail section", async () => {
-    renderPopupApp({
+  it("renders assistant thoughts through the native chain-of-thought path instead of the legacy sidecar", async () => {
+    const { user } = renderPopupApp({
       initialPage: "chat",
       transcript: [
         {
@@ -80,10 +76,95 @@ describe("popup-react chat page", () => {
       ],
     });
 
-    expect(await screen.findByText("思路")).toBeTruthy();
+    const trigger = await screen.findByRole("button", { name: /思考过程/i });
+
+    expect(screen.queryByText("思路")).toBeNull();
+    expect(screen.queryByText("工具")).toBeNull();
+    expect(screen.queryByText("先确认当前页面支持的实体类型。")).toBeNull();
+
+    await user.click(trigger);
+
     expect(screen.getByText("先确认当前页面支持的实体类型。")).toBeTruthy();
-    expect(screen.getByText("工具")).toBeTruthy();
+  });
+
+  it("renders tool call title, status, and detail through the native tool-call path", async () => {
+    const { user } = renderPopupApp({
+      initialPage: "chat",
+      transcript: [
+        {
+          id: "assistant-1",
+          kind: "assistant",
+          text: "我先检查当前页面上下文。",
+          toolCalls: [
+            {
+              id: "tool-1",
+              title: "Inspect page context",
+              status: "completed",
+              detail: "读取页面标题与链接信息",
+            },
+          ],
+        },
+      ],
+    });
+
+    await user.click(await screen.findByRole("button", { name: /思考过程/i }));
+
     expect(screen.getByText("Inspect page context")).toBeTruthy();
+    expect(screen.getAllByText("已完成").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText("读取页面标题与链接信息")).toBeTruthy();
+  });
+
+  it("derives the chain-of-thought badge from native tool status while a tool is still running", async () => {
+    const { user } = renderPopupApp({
+      initialPage: "chat",
+      transcript: [
+        {
+          id: "assistant-1",
+          kind: "assistant",
+          text: "我正在继续检查当前页面上下文。",
+          toolCalls: [
+            {
+              id: "tool-1",
+              title: "Inspect page context",
+              status: "in_progress",
+              detail: "仍在读取页面标题与链接信息",
+            },
+          ],
+        },
+      ],
+    });
+
+    const trigger = await screen.findByRole("button", { name: /思考过程/i });
+    await user.click(trigger);
+
+    expect(trigger.textContent?.includes("进行中")).toBe(true);
+    expect(screen.getByText("仍在读取页面标题与链接信息")).toBeTruthy();
+  });
+
+  it("keeps the chain-of-thought badge in running state for reasoning-only streaming turns", async () => {
+    const { user } = renderPopupApp({
+      initialPage: "chat",
+      busy: true,
+      transcript: [
+        {
+          id: "assistant-1",
+          kind: "assistant",
+          text: "我正在继续分析这个问题。",
+          thoughts: [
+            {
+              id: "thought-1",
+              text: "先确认约束，再决定下一步。",
+            },
+          ],
+        },
+      ],
+    });
+
+    const trigger = await screen.findByRole("button", { name: /思考过程/i });
+    await user.click(trigger);
+
+    expect(trigger.textContent?.includes("进行中")).toBe(true);
+    expect(screen.getByText("先确认约束，再决定下一步。")).toBeTruthy();
   });
 
   it("renders assistant markdown transcript content with the existing safe markdown renderer", async () => {
