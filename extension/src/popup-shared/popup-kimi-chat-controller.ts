@@ -280,6 +280,9 @@ export function createKimiChatController<TStore extends PopupKimiChatStoreLike>(
       const result = await listKimiChatSessions({
         operatorLarkId,
       });
+      deps.appendLog("debug", `历史会话列表返回：ok=${result.ok}, sessions count=${result.data?.sessions?.length ?? 0}`);
+      deps.appendLog("debug", `历史会话列表：${result.data.sessions.map(s => `${s.sessionId}(${s.title || "无标题"})`).join(", ")}`);
+
       if (!result.ok || !result.data) {
         deps.appendLog(
           "error",
@@ -319,10 +322,14 @@ export function createKimiChatController<TStore extends PopupKimiChatStoreLike>(
       return;
     }
 
+    deps.appendLog("debug", `开始加载历史会话：${sessionId}`);
+
     const result = await loadKimiChatSession({
       operatorLarkId,
       sessionId,
     });
+
+    deps.appendLog("debug", `历史会话加载返回：ok=${result.ok}, events count=${result.data?.events?.length ?? 0}, 第一个事件=${result.data?.events?.[0]?.event}`);
 
     if (!result.ok || !result.data) {
       deps.appendLog(
@@ -342,7 +349,12 @@ export function createKimiChatController<TStore extends PopupKimiChatStoreLike>(
     };
 
     for (const event of result.data.events) {
+      const prevState = nextState;
       nextState = applyKimiChatEvent(nextState, event);
+      deps.appendLog("debug", `事件 ${event.event} 处理后 transcript 类型：${Array.isArray(nextState.transcript) ? "array" : typeof nextState.transcript}`);
+      if (!Array.isArray(nextState.transcript)) {
+        deps.appendLog("error", `transcript 不是数组！事件：${event.event}, 前一个状态 transcript 类型：${Array.isArray(prevState.transcript) ? "array" : typeof prevState.transcript}`);
+      }
     }
 
     // Ensure transcript is always an array after applying events
@@ -352,6 +364,7 @@ export function createKimiChatController<TStore extends PopupKimiChatStoreLike>(
         transcriptType: typeof nextState.transcript,
         transcript: nextState.transcript,
       });
+      deps.appendLog("error", `transcript 不是数组，已重置为空数组。sessionId=${sessionId}, transcriptType=${typeof nextState.transcript}`);
       nextState.transcript = [];
     }
 
@@ -359,18 +372,24 @@ export function createKimiChatController<TStore extends PopupKimiChatStoreLike>(
       (entry) => entry.kind === "user" || entry.kind === "assistant",
     );
 
+    deps.appendLog("debug", `是否有可见消息：${hasVisibleMessages}, transcript 长度：${nextState.transcript.length}`);
+
     if (!hasVisibleMessages) {
+      deps.appendLog("debug", `没有可见消息，尝试加载本地快照`);
       const snapshot = await loadKimiChatTranscriptSnapshot({
         operatorLarkId,
         sessionId,
       });
 
       if (snapshot?.transcript?.length && Array.isArray(snapshot.transcript)) {
+        deps.appendLog("debug", `从本地快照加载了 ${snapshot.transcript.length} 条消息`);
         nextState = {
           sessionId,
           activeAssistantEntryId: null,
           transcript: snapshot.transcript,
         };
+      } else {
+        deps.appendLog("debug", `本地快照不可用：${JSON.stringify({ hasSnapshot: !!snapshot, transcriptLength: snapshot?.transcript?.length, isArray: Array.isArray(snapshot?.transcript) })}`);
       }
     }
 
@@ -383,6 +402,7 @@ export function createKimiChatController<TStore extends PopupKimiChatStoreLike>(
       kimiChatDraftMessage: "",
       kimiChatHistoryOpen: false,
     }));
+    deps.appendLog("debug", `历史会话 ${sessionId} 加载完成`);
   }
 
   async function deleteHistorySession(sessionId: string): Promise<void> {
