@@ -1,3 +1,4 @@
+import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "wxt";
 
 const chromiumProfile = process.env.WXT_CHROMIUM_PROFILE?.trim();
@@ -7,6 +8,12 @@ const devOrigin = process.env.WXT_DEV_ORIGIN?.trim() || `http://localhost:${devP
 export default defineConfig({
   srcDir: "src",
   modules: ["@wxt-dev/module-react"],
+  alias: {
+    "@": "src",
+  },
+  vite: () => ({
+    plugins: [tailwindcss()],
+  }),
   dev: {
     server: {
       port: devPort,
