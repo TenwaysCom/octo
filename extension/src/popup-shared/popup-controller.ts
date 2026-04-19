@@ -5,22 +5,15 @@ import type {
 } from "../types/lark.js";
 import type { MeegleAuthEnsureResponse } from "../types/meegle.js";
 import type {
-  KimiChatEvent,
-  KimiChatRenderState,
   KimiChatSessionSummary,
   KimiChatTranscriptEntry,
 } from "../types/acp-kimi.js";
 import {
   clearResolvedIdentity,
   clearResolvedIdentityForTab,
-  deleteKimiChatSession,
-  deleteKimiChatTranscriptSnapshot,
   fetchLarkUserInfo,
   getConfig,
   getLarkAuthStatus,
-  listKimiChatSessions,
-  loadKimiChatSession,
-  loadKimiChatTranscriptSnapshot,
   loadPopupSettings,
   loadResolvedIdentity,
   postClientDebugLog,
@@ -33,7 +26,6 @@ import {
   runLarkBaseBulkPreviewRequest,
   runMeegleAuthRequest,
   runMeegleLarkPushRequest,
-  saveKimiChatTranscriptSnapshot,
   savePopupSettings,
   saveResolvedIdentity,
   saveResolvedIdentityForTab,
@@ -44,7 +36,6 @@ import {
   resolveMeegleStatusDisplay,
   type PopupMeegleAuthLog,
 } from "../popup/meegle-auth.js";
-import { applyKimiChatEvent } from "../popup/kimi-chat.js";
 import {
   buildPopupHeaderContext,
   createPopupViewModel,
@@ -72,8 +63,16 @@ const TARGET_LARK_BASE_ID = "XO0cbnxMIaralRsbBEolboEFgZc";
 const TARGET_LARK_TABLE_ID = "tblUfu71xwdul3NH";
 const TARGET_LARK_VIEW_ID = "vewMs17Tqk";
 
-type ScheduledFrameHandle = number | ReturnType<typeof globalThis.setTimeout>;
 type LarkBulkCreateModalStage = "hidden" | "preview" | "executing" | "result";
+type LazyKimiChatController = {
+  resetSession: () => void;
+  openHistory: () => Promise<void>;
+  loadHistorySession: (sessionId: string) => Promise<void>;
+  deleteHistorySession: (sessionId: string) => Promise<void>;
+  sendMessage: (messageText: string) => Promise<void>;
+  stopGeneration: () => void;
+  dispose: () => void;
+};
 
 export interface PopupIdentityState {
   masterUserId: string | null;
@@ -215,15 +214,13 @@ export function createPopupController() {
   const storeRef = { current: createInitialStore() };
   let cachedState: PopupControllerState | null = null;
   const settingsSnapshotRef = { current: createDefaultSettingsForm() };
-  const pendingKimiChatStateRef = { current: null as KimiChatRenderState | null };
-  const pendingKimiChatFlushHandleRef = { current: null as ScheduledFrameHandle | null };
-  const activeKimiChatRequestIdRef = { current: 0 };
-  const nextKimiChatRequestIdRef = { current: 0 };
-  const kimiChatAbortControllerRef = { current: null as AbortController | null };
   const meegleAuthControllerRef = { current: null as ReturnType<
     typeof createMeegleAuthController
   > | null };
   const listeners = new Set<() => void>();
+  let kimiChatController: LazyKimiChatController | null = null;
+  let kimiChatControllerPromise: Promise<LazyKimiChatController> | null = null;
+  let disposed = false;
 
   function updateStore(updater: (previous: PopupAppStore) => PopupAppStore): void {
     const previous = storeRef.current;
@@ -256,6 +253,39 @@ export function createPopupController() {
 
   function showToast(text: string, level: PopupLogLevel = "info"): void {
     showPopupToast(text, level);
+  }
+
+  async function loadKimiChatController(): Promise<LazyKimiChatController> {
+    if (kimiChatController) {
+      return kimiChatController;
+    }
+
+    if (!kimiChatControllerPromise) {
+      kimiChatControllerPromise = import("./popup-kimi-chat-controller.js").then(
+        ({ createKimiChatController }) => {
+          const controller = createKimiChatController({
+            readStore,
+            updateStore,
+            appendLog,
+            postClientDebugLog,
+          });
+
+          if (disposed) {
+            controller.dispose();
+          } else {
+            kimiChatController = controller;
+          }
+
+          return controller;
+        },
+      );
+    }
+
+    return kimiChatControllerPromise;
+  }
+
+  function preloadKimiChatController(): void {
+    void loadKimiChatController();
   }
 
   function appendLog(level: PopupLogLevel, message: string): void {
@@ -338,148 +368,6 @@ export function createPopupController() {
         },
       },
     }));
-  }
-
-  async function persistKimiChatSnapshotForState(
-    nextState: KimiChatRenderState,
-  ): Promise<void> {
-    const current = readStore();
-    const operatorLarkId =
-      current.state.identity.larkId || current.settingsForm.larkUserId;
-
-    if (!operatorLarkId || !nextState.sessionId || nextState.transcript.length === 0) {
-      return;
-    }
-
-    await saveKimiChatTranscriptSnapshot({
-      operatorLarkId,
-      sessionId: nextState.sessionId,
-      transcript: nextState.transcript,
-      updatedAt: new Date().toISOString(),
-    });
-  }
-
-  function getKimiChatRenderState(): KimiChatRenderState {
-    const pendingState = pendingKimiChatStateRef.current;
-    if (pendingState) {
-      return pendingState;
-    }
-
-    const current = readStore();
-    return {
-      sessionId: current.kimiChatSessionId,
-      activeAssistantEntryId: current.kimiChatActiveAssistantEntryId,
-      transcript: current.kimiChatTranscript,
-    };
-  }
-
-  function applyKimiChatRenderState(nextState: KimiChatRenderState): void {
-    updateStore((previous) => ({
-      ...previous,
-      kimiChatSessionId: nextState.sessionId,
-      kimiChatActiveAssistantEntryId: nextState.activeAssistantEntryId,
-      kimiChatTranscript: nextState.transcript,
-    }));
-
-    void persistKimiChatSnapshotForState(nextState);
-  }
-
-  function flushPendingKimiChatState(): void {
-    pendingKimiChatFlushHandleRef.current = null;
-
-    if (!pendingKimiChatStateRef.current) {
-      return;
-    }
-
-    const nextState = pendingKimiChatStateRef.current;
-    pendingKimiChatStateRef.current = null;
-    applyKimiChatRenderState(nextState);
-  }
-
-  function schedulePendingKimiChatState(nextState: KimiChatRenderState): void {
-    pendingKimiChatStateRef.current = nextState;
-
-    if (pendingKimiChatFlushHandleRef.current != null) {
-      return;
-    }
-
-    pendingKimiChatFlushHandleRef.current = scheduleAnimationFrame(() => {
-      flushPendingKimiChatState();
-    });
-  }
-
-  function cancelPendingKimiChatState(): void {
-    const pendingState = pendingKimiChatStateRef.current;
-    if (pendingState?.sessionId) {
-      updateStore((previous) => ({
-        ...previous,
-        kimiChatSessionId: pendingState.sessionId,
-      }));
-    }
-
-    pendingKimiChatStateRef.current = null;
-
-    if (pendingKimiChatFlushHandleRef.current != null) {
-      cancelScheduledAnimationFrame(pendingKimiChatFlushHandleRef.current);
-      pendingKimiChatFlushHandleRef.current = null;
-    }
-  }
-
-  function appendKimiChatEvent(event: KimiChatEvent): void {
-    schedulePendingKimiChatState(
-      applyKimiChatEvent(getKimiChatRenderState(), event),
-    );
-  }
-
-  function appendKimiChatStatus(text: string): void {
-    flushPendingKimiChatState();
-
-    updateStore((previous) => ({
-      ...previous,
-      kimiChatTranscript: [
-        ...previous.kimiChatTranscript,
-        {
-          id: createTranscriptEntryId("status"),
-          kind: "status",
-          text,
-        },
-      ],
-    }));
-
-    const current = readStore();
-    void persistKimiChatSnapshotForState({
-      sessionId: current.kimiChatSessionId,
-      activeAssistantEntryId: current.kimiChatActiveAssistantEntryId,
-      transcript: current.kimiChatTranscript,
-    });
-  }
-
-  function clearActiveKimiChatRequest(): void {
-    activeKimiChatRequestIdRef.current = 0;
-    kimiChatAbortControllerRef.current = null;
-  }
-
-  async function buildKimiChatHistoryItems(
-    operatorLarkId: string,
-    sessions: KimiChatSessionSummary[],
-  ): Promise<KimiChatSessionSummary[]> {
-    return Promise.all(
-      sessions.map(async (session) => {
-        const snapshot = await loadKimiChatTranscriptSnapshot({
-          operatorLarkId,
-          sessionId: session.sessionId,
-        });
-        const fallbackTitle = deriveKimiChatSessionTitle(snapshot?.transcript ?? []);
-
-        return {
-          ...session,
-          title: shouldUseFallbackSessionTitle(session.title)
-            ? fallbackTitle || session.title || session.sessionId
-            : session.title,
-          updatedAt: session.updatedAt ?? snapshot?.updatedAt ?? null,
-        };
-      }),
-    );
   }
 
   async function checkMeegleAuth(): Promise<MeegleAuthEnsureResponse> {
@@ -1279,34 +1167,18 @@ export function createPopupController() {
       ...previous,
       showKimiChat: true,
     }));
-    resetKimiChatSession();
+    preloadKimiChatController();
   }
 
   function resetKimiChatSession(): void {
-    const current = readStore();
-    void postClientDebugLog({
-      source: "popup:app",
-      level: "info",
-      event: "acp.session.reset",
-      detail: {
-        activePage: current.activePage,
-        hadSessionId: Boolean(current.kimiChatSessionId),
-        transcriptLength: current.kimiChatTranscript.length,
-      },
+    if (kimiChatController) {
+      kimiChatController.resetSession();
+      return;
+    }
+
+    void loadKimiChatController().then((controller) => {
+      controller.resetSession();
     });
-
-    cancelPendingKimiChatState();
-    kimiChatAbortControllerRef.current?.abort();
-    clearActiveKimiChatRequest();
-
-    updateStore((previous) => ({
-      ...previous,
-      kimiChatBusy: false,
-      kimiChatSessionId: null,
-      kimiChatDraftMessage: "",
-      kimiChatActiveAssistantEntryId: null,
-      kimiChatTranscript: [],
-    }));
   }
 
   function updateKimiChatDraftMessage(message: string): void {
@@ -1321,76 +1193,19 @@ export function createPopupController() {
       return;
     }
 
-    flushPendingKimiChatState();
-    kimiChatAbortControllerRef.current?.abort();
-    clearActiveKimiChatRequest();
-
-    updateStore((previous) => ({
-      ...previous,
-      kimiChatBusy: false,
-      kimiChatActiveAssistantEntryId: null,
-    }));
-    appendKimiChatStatus("已停止生成");
-  }
-
-  async function openKimiChatHistory(): Promise<void> {
-    const current = readStore();
-    const operatorLarkId =
-      current.state.identity.larkId || current.settingsForm.larkUserId;
-
-    if (!operatorLarkId) {
-      appendLog("error", "缺少 operatorLarkId，无法加载历史会话");
+    if (kimiChatController) {
+      kimiChatController.stopGeneration();
       return;
     }
 
-    updateStore((previous) => ({
-      ...previous,
-      kimiChatHistoryLoading: true,
-    }));
-
-    void postClientDebugLog({
-      source: "popup:app",
-      level: "info",
-      event: "acp.history.open",
-      detail: {
-        activePage: current.activePage,
-        transcriptLength: current.kimiChatTranscript.length,
-      },
+    void loadKimiChatController().then((controller) => {
+      controller.stopGeneration();
     });
+  }
 
-    try {
-      const result = await listKimiChatSessions({
-        operatorLarkId,
-      });
-      if (!result.ok || !result.data) {
-        appendLog(
-          "error",
-          `历史会话加载失败: ${result.error?.errorMessage || "未知错误"}`,
-        );
-        return;
-      }
-
-      const historyItems = await buildKimiChatHistoryItems(
-        operatorLarkId,
-        result.data.sessions,
-      );
-
-      updateStore((previous) => ({
-        ...previous,
-        kimiChatHistoryItems: historyItems,
-        kimiChatHistoryOpen: true,
-      }));
-    } catch (error) {
-      appendLog(
-        "error",
-        `历史会话加载失败: ${error instanceof Error ? error.message : String(error)}`,
-      );
-    } finally {
-      updateStore((previous) => ({
-        ...previous,
-        kimiChatHistoryLoading: false,
-      }));
-    }
+  async function openKimiChatHistory(): Promise<void> {
+    const controller = await loadKimiChatController();
+    await controller.openHistory();
   }
 
   function closeKimiChatHistory(): void {
@@ -1401,284 +1216,24 @@ export function createPopupController() {
   }
 
   async function loadKimiChatHistorySession(sessionId: string): Promise<void> {
-    const current = readStore();
-    const operatorLarkId =
-      current.state.identity.larkId || current.settingsForm.larkUserId;
-
-    if (!operatorLarkId) {
-      appendLog("error", "缺少 operatorLarkId，无法加载历史会话");
-      return;
-    }
-
-    const result = await loadKimiChatSession({
-      operatorLarkId,
-      sessionId,
-    });
-
-    if (!result.ok || !result.data) {
-      appendLog(
-        "error",
-        `历史会话加载失败: ${result.error?.errorMessage || "未知错误"}`,
-      );
-      return;
-    }
-
-    cancelPendingKimiChatState();
-    clearActiveKimiChatRequest();
-
-    let nextState: KimiChatRenderState = {
-      sessionId: null,
-      activeAssistantEntryId: null,
-      transcript: [],
-    };
-
-    for (const event of result.data.events) {
-      nextState = applyKimiChatEvent(nextState, event);
-    }
-
-    const hasVisibleMessages = nextState.transcript.some(
-      (entry) => entry.kind === "user" || entry.kind === "assistant",
-    );
-
-    if (!hasVisibleMessages) {
-      const snapshot = await loadKimiChatTranscriptSnapshot({
-        operatorLarkId,
-        sessionId,
-      });
-
-      if (snapshot?.transcript?.length) {
-        nextState = {
-          sessionId,
-          activeAssistantEntryId: null,
-          transcript: snapshot.transcript,
-        };
-      }
-    }
-
-    applyKimiChatRenderState(nextState);
-    updateStore((previous) => ({
-      ...previous,
-      showKimiChat: true,
-      activePage: "chat",
-      kimiChatBusy: false,
-      kimiChatDraftMessage: "",
-      kimiChatHistoryOpen: false,
-    }));
+    const controller = await loadKimiChatController();
+    await controller.loadHistorySession(sessionId);
   }
 
   async function deleteKimiChatHistorySession(sessionId: string): Promise<void> {
-    const current = readStore();
-    const operatorLarkId =
-      current.state.identity.larkId || current.settingsForm.larkUserId;
-
-    if (!operatorLarkId) {
-      appendLog("error", "缺少 operatorLarkId，无法删除历史会话");
-      return;
-    }
-
-    const result = await deleteKimiChatSession({
-      operatorLarkId,
-      sessionId,
-    });
-
-    if (!result.ok) {
-      appendLog(
-        "error",
-        `历史会话删除失败: ${result.error?.errorMessage || "未知错误"}`,
-      );
-      return;
-    }
-
-    await deleteKimiChatTranscriptSnapshot({
-      operatorLarkId,
-      sessionId,
-    });
-
-    updateStore((previous) => ({
-      ...previous,
-      kimiChatHistoryItems: previous.kimiChatHistoryItems.filter(
-        (item) => item.sessionId !== sessionId,
-      ),
-    }));
-
-    if (readStore().kimiChatSessionId === sessionId) {
-      cancelPendingKimiChatState();
-      clearActiveKimiChatRequest();
-      updateStore((previous) => ({
-        ...previous,
-        kimiChatBusy: false,
-        kimiChatSessionId: null,
-        kimiChatDraftMessage: "",
-        kimiChatActiveAssistantEntryId: null,
-        kimiChatTranscript: [],
-      }));
-    }
+    const controller = await loadKimiChatController();
+    await controller.deleteHistorySession(sessionId);
   }
 
   async function sendKimiChatMessage(messageText: string): Promise<void> {
-    const current = readStore();
-    const operatorLarkId =
-      current.state.identity.larkId || current.settingsForm.larkUserId;
-
-    void postClientDebugLog({
-      source: "popup:app",
-      level: "info",
-      event: "acp.send.start",
-      detail: {
-        activePage: current.activePage,
-        hasOperatorLarkId: Boolean(operatorLarkId),
-        hasSessionId: Boolean(current.kimiChatSessionId),
-        transcriptLength: current.kimiChatTranscript.length,
-        messageLength: messageText.length,
-      },
-    });
-
-    if (!operatorLarkId) {
-      appendLog("error", "缺少 operatorLarkId，无法发送 Kimi ACP 消息");
-      void postClientDebugLog({
-        source: "popup:app",
-        level: "error",
-        event: "acp.send.blocked_missing_operator",
-        detail: {
-          activePage: current.activePage,
-          stateLarkId: current.state.identity.larkId || null,
-          settingsLarkUserId: current.settingsForm.larkUserId || null,
-          masterUserId: current.state.identity.masterUserId || null,
-        },
-      });
-      return;
-    }
-
     updateStore((previous) => ({
       ...previous,
       showKimiChat: true,
       activePage: "chat",
-      kimiChatBusy: true,
     }));
 
-    const { createKimiChatClient } = await import("../popup/kimi-chat-client.js");
-    const client = createKimiChatClient({
-      baseUrl: readStore().settingsForm.SERVER_URL,
-    });
-
-    const userEntryId = createTranscriptEntryId("user");
-    const requestId = ++nextKimiChatRequestIdRef.current;
-    const abortController = new AbortController();
-    let receivedEvents = false;
-
-    try {
-      activeKimiChatRequestIdRef.current = requestId;
-      kimiChatAbortControllerRef.current = abortController;
-
-      updateStore((previous) => ({
-        ...previous,
-        kimiChatDraftMessage: "",
-        kimiChatActiveAssistantEntryId: null,
-        kimiChatTranscript: [
-          ...previous.kimiChatTranscript,
-          {
-            id: userEntryId,
-            kind: "user",
-            text: messageText,
-          },
-        ],
-      }));
-
-      const currentForRequest = readStore();
-      const request: {
-        operatorLarkId: string;
-        message: string;
-        sessionId?: string;
-      } = {
-        operatorLarkId,
-        message: messageText,
-      };
-
-      if (currentForRequest.kimiChatSessionId) {
-        request.sessionId = currentForRequest.kimiChatSessionId;
-      }
-
-      await client.sendMessage(request, {
-        signal: abortController.signal,
-        onEvent(event) {
-          if (
-            abortController.signal.aborted ||
-            activeKimiChatRequestIdRef.current !== requestId
-          ) {
-            return;
-          }
-
-          receivedEvents = true;
-          appendKimiChatEvent(event);
-        },
-      });
-
-      void postClientDebugLog({
-        source: "popup:app",
-        level: "info",
-        event: "acp.send.completed",
-        detail: {
-          activePage: readStore().activePage,
-          sessionId: readStore().kimiChatSessionId,
-          transcriptLength: readStore().kimiChatTranscript.length,
-        },
-      });
-
-      if (activeKimiChatRequestIdRef.current === requestId) {
-        flushPendingKimiChatState();
-      }
-    } catch (error) {
-      if (isAbortError(error)) {
-        return;
-      }
-
-      flushPendingKimiChatState();
-
-      const errorCode =
-        error &&
-        typeof error === "object" &&
-        "code" in error &&
-        typeof (error as { code?: unknown }).code === "string"
-          ? (error as { code: string }).code
-          : undefined;
-
-      updateStore((previous) => ({
-        ...previous,
-        kimiChatSessionId:
-          errorCode === "SESSION_FORBIDDEN" || errorCode === "SESSION_NOT_FOUND"
-            ? null
-            : previous.kimiChatSessionId,
-        kimiChatActiveAssistantEntryId: null,
-        kimiChatDraftMessage: messageText,
-        kimiChatTranscript: receivedEvents
-          ? previous.kimiChatTranscript
-          : previous.kimiChatTranscript.filter((entry) => entry.id !== userEntryId),
-      }));
-
-      appendLog(
-        "error",
-        `Kimi ACP 请求失败: ${error instanceof Error ? error.message : String(error)}`,
-      );
-      void postClientDebugLog({
-        source: "popup:app",
-        level: "error",
-        event: "acp.send.failed",
-        detail: {
-          activePage: readStore().activePage,
-          errorCode: errorCode ?? null,
-          errorMessage: error instanceof Error ? error.message : String(error),
-          receivedEvents,
-        },
-      });
-    } finally {
-      if (activeKimiChatRequestIdRef.current === requestId) {
-        clearActiveKimiChatRequest();
-        updateStore((previous) => ({
-          ...previous,
-          kimiChatBusy: false,
-        }));
-      }
-    }
+    const controller = await loadKimiChatController();
+    await controller.sendMessage(messageText);
   }
 
   async function runFeatureAction(actionKey: string): Promise<void> {
@@ -2000,9 +1555,15 @@ export function createPopupController() {
   }
 
   function dispose(): void {
+    disposed = true;
     unsubscribeLarkAuthCallback?.();
-    cancelPendingKimiChatState();
-    kimiChatAbortControllerRef.current?.abort();
+    if (kimiChatController) {
+      kimiChatController.dispose();
+    } else if (kimiChatControllerPromise) {
+      void kimiChatControllerPromise.then((controller) => {
+        controller.dispose();
+      });
+    }
     listeners.clear();
   }
 
@@ -2036,62 +1597,6 @@ export function createPopupController() {
     sendKimiChatMessage,
     stopKimiChatGeneration,
   };
-}
-
-function createTranscriptEntryId(prefix: string): string {
-  return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
-}
-
-function shouldUseFallbackSessionTitle(title?: string | null): boolean {
-  const normalized = title?.trim();
-  return !normalized || /^untitled\b/i.test(normalized);
-}
-
-function deriveKimiChatSessionTitle(
-  transcript: KimiChatTranscriptEntry[],
-): string | null {
-  const source = transcript.find(
-    (entry) =>
-      (entry.kind === "user" || entry.kind === "assistant") &&
-      typeof entry.text === "string" &&
-      entry.text.trim().length > 0,
-  );
-
-  if (!source?.text) {
-    return null;
-  }
-
-  const normalized = source.text.replace(/\s+/g, " ").trim();
-  if (normalized.length <= 24) {
-    return normalized;
-  }
-
-  return `${normalized.slice(0, 24)}...`;
-}
-
-function scheduleAnimationFrame(callback: FrameRequestCallback): ScheduledFrameHandle {
-  if (typeof globalThis.requestAnimationFrame === "function") {
-    return globalThis.requestAnimationFrame(callback);
-  }
-
-  return globalThis.setTimeout(() => {
-    callback(Date.now());
-  }, 16);
-}
-
-function cancelScheduledAnimationFrame(handle: ScheduledFrameHandle): void {
-  if (typeof globalThis.cancelAnimationFrame === "function") {
-    globalThis.cancelAnimationFrame(handle as number);
-    return;
-  }
-
-  globalThis.clearTimeout(handle);
-}
-
-function isAbortError(error: unknown): boolean {
-  return error instanceof DOMException
-    ? error.name === "AbortError"
-    : error instanceof Error && error.name === "AbortError";
 }
 
 function resolveStatusChip(
