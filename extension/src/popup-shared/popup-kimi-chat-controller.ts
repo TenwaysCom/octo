@@ -195,7 +195,8 @@ export function createKimiChatController<TStore extends PopupKimiChatStoreLike>(
           operatorLarkId,
           sessionId: session.sessionId,
         });
-        const fallbackTitle = deriveKimiChatSessionTitle(snapshot?.transcript ?? []);
+        const transcript = Array.isArray(snapshot?.transcript) ? snapshot.transcript : [];
+        const fallbackTitle = deriveKimiChatSessionTitle(transcript);
 
         return {
           ...session,
@@ -684,6 +685,10 @@ function shouldUseFallbackSessionTitle(title?: string | null): boolean {
 function deriveKimiChatSessionTitle(
   transcript: KimiChatTranscriptEntry[],
 ): string | null {
+  if (!Array.isArray(transcript)) {
+    return null;
+  }
+
   const source = transcript.find(
     (entry) =>
       (entry.kind === "user" || entry.kind === "assistant") &&
