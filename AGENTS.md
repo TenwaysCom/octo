@@ -186,9 +186,8 @@ Do not write robot copy, marketing fluff, or vague summaries.
 
 - Context7 MCP server available for library documentation lookup
 - use-gunshi-cli skill available for gunshi CLI framework documentation
-- byethrow skill available for @praha/byethrow Result type documentation
 - do not use console.log. use logger.ts instead
-- **CRITICAL VITEST REMINDER**: Vitest globals are enabled - use `describe`, `it`, `expect` directly WITHOUT imports. NEVER use `await import()` dynamic imports anywhere, especially in test blocks.
+- **CRITICAL VITEST REMINDER**: Vitest globals are enabled - use `describe`, `it`, `expect` directly WITHOUT imports. NEVER use `await import()` dynamic imports in test blocks.
 
 # important-instruction-reminders
 
