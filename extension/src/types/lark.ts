@@ -19,7 +19,7 @@ export interface LarkAuthEnsureRequest {
 }
 
 export interface LarkAuthEnsureResponse {
-  status: "ready" | "require_auth" | "in_progress" | "failed";
+  status: "ready" | "require_auth" | "require_refresh" | "in_progress" | "failed";
   baseUrl: string;
   masterUserId?: string;
   state?: string;
@@ -53,7 +53,7 @@ export interface LarkAuthErrorResponse {
 export interface LarkAuthStatusServerResponse {
   ok: boolean;
   data?: {
-    status: "ready" | "require_auth";
+    status: "ready" | "require_auth" | "require_refresh";
     masterUserId?: string;
     baseUrl: string;
     reason?: string;

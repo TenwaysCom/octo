@@ -23,6 +23,9 @@ import type {
 import { normalizeLarkAuthBaseUrl } from "../../platform-url.js";
 import { logger } from "../../logger.js";
 
+// In-memory lock for preventing concurrent token refresh per user+baseUrl
+const refreshLocks = new Map<string, Promise<StoredLarkToken>>();
+
 const serviceLogger = logger.child({ module: "lark-auth-service" });
 
 export interface LarkAuthServiceDeps {
@@ -78,7 +81,13 @@ function toExpiresAt(expiresInSeconds?: number): string | undefined {
 function toRefreshTokenExpiresAt(
   refreshTokenExpiresIn?: number,
   fallback?: string,
+  hasNewRefreshToken?: boolean,
 ): string | undefined {
+  // If we received a new refreshToken, always calculate from now, not from fallback
+  if (hasNewRefreshToken) {
+    return toExpiresAt(refreshTokenExpiresIn) ?? toExpiresAt(DEFAULT_REFRESH_TOKEN_TTL_SECONDS);
+  }
+  // No new refreshToken, keep existing expiry or fallback to default
   return toExpiresAt(refreshTokenExpiresIn) ?? fallback ?? toExpiresAt(DEFAULT_REFRESH_TOKEN_TTL_SECONDS);
 }
 
@@ -100,6 +109,43 @@ function isInvalidAccessTokenError(error: unknown): boolean {
     error instanceof Error &&
     /invalid access token/i.test(error.message)
   );
+}
+
+function getRefreshLockKey(masterUserId: string, baseUrl: string): string {
+  return `${masterUserId}::${baseUrl}`;
+}
+
+/**
+ * Refresh Lark token with concurrency control.
+ * Only one refresh operation per user+baseUrl can run at a time.
+ */
+async function refreshLarkTokenWithLock(
+  input: {
+    masterUserId: string;
+    stored: StoredLarkToken;
+  },
+  overrides?: Partial<LarkAuthServiceDeps>,
+): Promise<StoredLarkToken> {
+  const lockKey = getRefreshLockKey(input.masterUserId, input.stored.baseUrl);
+
+  // If there's already a refresh in progress for this user+baseUrl, wait for it
+  const existingLock = refreshLocks.get(lockKey);
+  if (existingLock) {
+    serviceLogger.info({
+      masterUserId: input.masterUserId,
+      baseUrl: input.stored.baseUrl,
+    }, "LARK_TOKEN_REFRESH WAITING_LOCK");
+    return existingLock;
+  }
+
+  // Create new lock promise
+  const refreshPromise = refreshStoredLarkCredential(input, overrides)
+    .finally(() => {
+      refreshLocks.delete(lockKey);
+    });
+
+  refreshLocks.set(lockKey, refreshPromise);
+  return refreshPromise;
 }
 
 async function refreshStoredLarkCredential(
@@ -148,6 +194,7 @@ async function refreshStoredLarkCredential(
     refreshTokenExpiresAt: toRefreshTokenExpiresAt(
       refreshed.refreshTokenExpiresIn,
       input.stored.refreshTokenExpiresAt,
+      refreshed.refreshToken != null,
     ),
     credentialStatus: "active" as const,
   } satisfies StoredLarkToken;
@@ -400,7 +447,90 @@ export async function refreshLarkToken(
 }
 
 /**
- * Check auth status (simplified - just checks if token exists)
+ * Refresh Lark token by user ID and baseUrl - uses lock to prevent concurrency.
+ * Fetches the stored token internally and refreshes it.
+ */
+export async function refreshLarkAuthStatus(
+  request: { masterUserId: string; baseUrl: string },
+  overrides?: Partial<LarkAuthServiceDeps>,
+): Promise<LarkAuthStatusResponse> {
+  const deps = getDeps(overrides);
+  const authBaseUrl = normalizeLarkAuthBaseUrl(request.baseUrl);
+  const tokenStore = getTokenStore(deps);
+
+  const stored = await tokenStore.get({
+    masterUserId: request.masterUserId,
+    baseUrl: authBaseUrl,
+  });
+
+  if (!stored?.userToken) {
+    return {
+      status: "require_auth",
+      masterUserId: request.masterUserId,
+      baseUrl: authBaseUrl,
+      reason: "No stored Lark token found",
+    };
+  }
+
+  if (!stored.refreshToken || isExpired(stored.refreshTokenExpiresAt)) {
+    serviceLogger.warn({
+      masterUserId: request.masterUserId,
+      baseUrl: stored.baseUrl,
+      larkUserId: stored.larkUserId,
+      refreshTokenExpiresAt: stored.refreshTokenExpiresAt,
+    }, "LARK_REFRESH REFRESH_UNAVAILABLE");
+    await tokenStore.save({
+      ...stored,
+      credentialStatus: "expired",
+    });
+    return {
+      status: "require_auth",
+      masterUserId: request.masterUserId,
+      baseUrl: stored.baseUrl,
+      reason: "Refresh token not available or expired",
+    };
+  }
+
+  try {
+    const refreshed = await refreshLarkTokenWithLock(
+      {
+        masterUserId: request.masterUserId,
+        stored,
+      },
+      overrides,
+    );
+
+    return {
+      status: "ready",
+      masterUserId: request.masterUserId,
+      baseUrl: refreshed.baseUrl,
+      credentialStatus: "active",
+      expiresAt: refreshed.userTokenExpiresAt,
+      reason: "Lark token refreshed successfully",
+    };
+  } catch (error) {
+    serviceLogger.warn({
+      masterUserId: request.masterUserId,
+      baseUrl: stored.baseUrl,
+      larkUserId: stored.larkUserId,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    }, "LARK_REFRESH FAIL");
+    await tokenStore.save({
+      ...stored,
+      credentialStatus: "expired",
+    });
+    return {
+      status: "require_auth",
+      masterUserId: request.masterUserId,
+      baseUrl: stored.baseUrl,
+      reason: "Token refresh failed",
+    };
+  }
+}
+
+/**
+ * Check auth status - only checks token state, does NOT refresh.
+ * Returns "require_refresh" if token is expired but refresh_token is available.
  */
 export async function checkLarkAuthStatus(
   request: LarkAuthStatusRequest,
@@ -440,73 +570,43 @@ export async function checkLarkAuthStatus(
     };
   }
 
-  if (!stored.refreshToken || isExpired(stored.refreshTokenExpiresAt)) {
-    serviceLogger.warn({
+  // Token is expired, check if refresh is possible
+  if (stored.refreshToken && !isExpired(stored.refreshTokenExpiresAt)) {
+    serviceLogger.info({
       masterUserId: request.masterUserId,
       baseUrl: stored.baseUrl,
       larkUserId: stored.larkUserId,
       userTokenExpiresAt: stored.userTokenExpiresAt,
       refreshTokenExpiresAt: stored.refreshTokenExpiresAt,
-    }, "LARK_AUTH_STATUS REFRESH_UNAVAILABLE");
-    await tokenStore.save({
-      ...stored,
-      credentialStatus: "expired",
-    });
+    }, "LARK_AUTH_STATUS REQUIRE_REFRESH");
     return {
-      status: "require_auth",
+      status: "require_refresh",
       masterUserId: request.masterUserId,
       baseUrl: stored.baseUrl,
-      reason: "Stored Lark token expired",
-    };
-  }
-
-  try {
-    serviceLogger.info({
-      masterUserId: request.masterUserId,
-      baseUrl: stored.baseUrl,
-      larkUserId: stored.larkUserId,
+      credentialStatus: stored.credentialStatus ?? "active",
       expiresAt: stored.userTokenExpiresAt,
-    }, "LARK_AUTH_STATUS REFRESH_START");
-    const refreshed = await refreshStoredLarkCredential(
-      {
-        masterUserId: request.masterUserId,
-        stored,
-      },
-      overrides,
-    );
-
-    serviceLogger.info({
-      masterUserId: request.masterUserId,
-      baseUrl: stored.baseUrl,
-      larkUserId: stored.larkUserId,
-      expiresAt: refreshed.userTokenExpiresAt,
-    }, "LARK_AUTH_STATUS REFRESH_OK");
-    return {
-      status: "ready",
-      masterUserId: request.masterUserId,
-      baseUrl: stored.baseUrl,
-      credentialStatus: "active",
-      expiresAt: refreshed.userTokenExpiresAt,
-      reason: "Stored Lark token refreshed",
-    };
-  } catch (error) {
-    serviceLogger.warn({
-      masterUserId: request.masterUserId,
-      baseUrl: stored.baseUrl,
-      larkUserId: stored.larkUserId,
-      errorMessage: error instanceof Error ? error.message : String(error),
-    }, "LARK_AUTH_STATUS REFRESH_FAIL");
-    await tokenStore.save({
-      ...stored,
-      credentialStatus: "expired",
-    });
-    return {
-      status: "require_auth",
-      masterUserId: request.masterUserId,
-      baseUrl: stored.baseUrl,
-      reason: "Stored Lark token expired",
+      reason: "Lark token expired, refresh available",
     };
   }
+
+  // No refresh possible - mark as expired
+  serviceLogger.warn({
+    masterUserId: request.masterUserId,
+    baseUrl: stored.baseUrl,
+    larkUserId: stored.larkUserId,
+    userTokenExpiresAt: stored.userTokenExpiresAt,
+    refreshTokenExpiresAt: stored.refreshTokenExpiresAt,
+  }, "LARK_AUTH_STATUS TOKEN_EXPIRED");
+  await tokenStore.save({
+    ...stored,
+    credentialStatus: "expired",
+  });
+  return {
+    status: "require_auth",
+    masterUserId: request.masterUserId,
+    baseUrl: stored.baseUrl,
+    reason: "Stored Lark token expired",
+  };
 }
 
 export async function startLarkOauthSession(
@@ -696,7 +796,7 @@ export async function fetchLarkUserInfo(
       larkUserId: currentToken.larkUserId,
       expiresAt: currentToken.userTokenExpiresAt,
     }, "LARK_USER_INFO REFRESH_BEFORE_FETCH");
-    currentToken = await refreshStoredLarkCredential(
+    currentToken = await refreshLarkTokenWithLock(
       {
         masterUserId: request.masterUserId,
         stored: currentToken,
@@ -720,7 +820,7 @@ export async function fetchLarkUserInfo(
         larkUserId: currentToken.larkUserId,
         errorMessage: error instanceof Error ? error.message : String(error),
       }, "LARK_USER_INFO RETRY_AFTER_REFRESH");
-      currentToken = await refreshStoredLarkCredential(
+      currentToken = await refreshLarkTokenWithLock(
         {
           masterUserId: request.masterUserId,
           stored: currentToken,

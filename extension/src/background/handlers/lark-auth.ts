@@ -127,6 +127,50 @@ async function getAuthStatusFromServer(
   }
 }
 
+async function refreshLarkTokenOnServer(
+  request: {
+    masterUserId: string;
+    baseUrl: string;
+  },
+): Promise<LarkAuthStatusServerResponse> {
+  const config = await getConfig();
+  larkAuthLogger.info("Refreshing Lark token on server", { masterUserId: request.masterUserId, baseUrl: request.baseUrl });
+
+  try {
+    const response = await fetch(`${config.SERVER_URL}/api/lark/auth/refresh`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(request),
+    });
+
+    if (!response.ok) {
+      larkAuthLogger.warn("Lark token refresh request failed", { status: response.status });
+      return {
+        ok: false,
+        error: {
+          errorCode: "LARK_REFRESH_REQUEST_FAILED",
+          errorMessage: `Token refresh request failed with ${response.status}.`,
+        },
+      };
+    }
+
+    const result = await response.json() as LarkAuthStatusServerResponse;
+    larkAuthLogger.info("Lark token refreshed", { ok: result.ok, status: result.data?.status });
+    return result;
+  } catch (error) {
+    larkAuthLogger.error("Error refreshing Lark token", { error: error instanceof Error ? error.message : String(error) });
+    return {
+      ok: false,
+      error: {
+        errorCode: "LARK_REFRESH_REQUEST_FAILED",
+        errorMessage: error instanceof Error ? error.message : String(error),
+      },
+    };
+  }
+}
+
 async function createOauthSessionWithServer(
   request: {
     masterUserId: string;
@@ -210,6 +254,32 @@ export async function ensureLarkAuth(
         credentialStatus: statusResult.data.credentialStatus,
         expiresAt: statusResult.data.expiresAt,
       };
+    }
+
+    // If server says refresh is needed, try refresh first before OAuth
+    if (statusResult.ok && statusResult.data?.status === "require_refresh") {
+      larkAuthLogger.info("Lark token expired, attempting refresh", { masterUserId: request.masterUserId, baseUrl });
+
+      const refreshResult = await refreshLarkTokenOnServer({
+        masterUserId: request.masterUserId,
+        baseUrl,
+      });
+
+      if (refreshResult.ok && refreshResult.data?.status === "ready") {
+        larkAuthLogger.info("Lark token refreshed successfully", { masterUserId: request.masterUserId });
+        return {
+          status: "ready",
+          baseUrl: refreshResult.data.baseUrl,
+          masterUserId: refreshResult.data.masterUserId ?? request.masterUserId,
+          reason: refreshResult.data.reason,
+          credentialStatus: refreshResult.data.credentialStatus,
+          expiresAt: refreshResult.data.expiresAt,
+        };
+      }
+
+      larkAuthLogger.warn("Lark token refresh failed, proceeding to OAuth", {
+        error: refreshResult.error
+      });
     }
   }
 

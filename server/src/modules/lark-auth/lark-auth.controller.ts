@@ -21,6 +21,7 @@ import {
   checkLarkAuthStatus,
   startLarkOauthSession,
   fetchLarkUserInfo,
+  refreshLarkAuthStatus,
 } from "./lark-auth.service.js";
 
 export interface LarkAuthControllerDeps {
@@ -273,6 +274,52 @@ export async function getLarkUserInfoController(
       ok: false,
       error: {
         errorCode: "LARK_USER_INFO_FAILED",
+        errorMessage: error instanceof Error ? error.message : "Unknown error",
+      },
+    };
+  }
+}
+
+/**
+ * Refresh Lark token with lock - for plugin-side ensureLarkAuth
+ */
+export async function refreshLarkAuthStatusController(
+  request: unknown,
+): Promise<
+  | {
+      ok: true;
+      data: Awaited<ReturnType<typeof refreshLarkAuthStatus>>;
+    }
+  | LarkAuthErrorResponse
+> {
+  try {
+    const validated = validateLarkAuthStatusRequest(request);
+    const deps = getDeps();
+
+    const result = await refreshLarkAuthStatus(
+      {
+        masterUserId: validated.masterUserId,
+        baseUrl: validated.baseUrl,
+      },
+      {
+        appId: deps.appId,
+        appSecret: deps.appSecret,
+      },
+    );
+
+    return {
+      ok: true,
+      data: result,
+    };
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return toInvalidRequest(error);
+    }
+
+    return {
+      ok: false,
+      error: {
+        errorCode: "LARK_TOKEN_REFRESH_FAILED",
         errorMessage: error instanceof Error ? error.message : "Unknown error",
       },
     };

@@ -52,7 +52,7 @@ export interface LarkTokenPair {
 }
 
 export interface LarkAuthStatusResponse {
-  status: "ready" | "require_auth" | "expired" | "failed";
+  status: "ready" | "require_auth" | "require_refresh" | "expired" | "failed";
   masterUserId: string;
   baseUrl: string;
   reason?: string;
