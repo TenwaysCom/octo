@@ -47,7 +47,7 @@ export function createAcpKimiSessionHistoryService(
       for (const session of discoveredSessions) {
         const existing = await ownershipStore.getBySessionId(session.sessionId);
         if (!existing) {
-          await ownershipStore.claim(session.sessionId, input.operatorLarkId);
+          await ownershipStore.claim(session.sessionId, input.operatorLarkId, session.title);
         }
       }
 
@@ -55,9 +55,18 @@ export function createAcpKimiSessionHistoryService(
         input.operatorLarkId,
       );
       const ownedSessionIds = new Set(ownedSessions.map((session) => session.sessionId));
+      const customTitles = new Map(
+        ownedSessions
+          .filter((s) => s.title)
+          .map((s) => [s.sessionId, s.title]),
+      );
 
       return discoveredSessions
         .filter((session) => ownedSessionIds.has(session.sessionId))
+        .map((session) => ({
+          ...session,
+          title: customTitles.get(session.sessionId) ?? session.title,
+        }))
         .sort((left, right) =>
           (right.updatedAt ?? "").localeCompare(left.updatedAt ?? ""),
         );
@@ -120,6 +129,36 @@ export function createAcpKimiSessionHistoryService(
       return {
         sessionId: input.sessionId,
         events,
+      };
+    },
+
+    async renameSession(input: {
+      operatorLarkId: string;
+      sessionId: string;
+      title: string;
+    }) {
+      await assertOwnership(ownershipStore, input.sessionId, input.operatorLarkId);
+
+      const record = await ownershipStore.rename(
+        input.sessionId,
+        input.operatorLarkId,
+        input.title,
+      );
+
+      if (!record) {
+        throw new AcpKimiProxyError(
+          "SESSION_NOT_FOUND",
+          404,
+          `Kimi ACP session ${input.sessionId} was not found.`,
+        );
+      }
+
+      return {
+        ok: true,
+        data: {
+          sessionId: record.sessionId,
+          title: record.title,
+        },
       };
     },
 

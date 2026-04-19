@@ -21,6 +21,7 @@ import {
   acpKimiSessionDeleteController,
   acpKimiSessionListController,
   acpKimiSessionLoadController,
+  acpKimiSessionRenameController,
 } from "./modules/acp-kimi/acp-kimi-sessions.controller.js";
 import {
   getLarkRecordUrlController,
@@ -163,6 +164,7 @@ registerLarkMeegleWorkflowRoutes(app, handleController);
 app.post("/api/acp/kimi/chat", acpKimiChatController);
 app.post("/api/acp/kimi/sessions/list", handleController(acpKimiSessionListController));
 app.post("/api/acp/kimi/sessions/load", handleController(acpKimiSessionLoadController));
+app.post("/api/acp/kimi/sessions/rename", handleController(acpKimiSessionRenameController));
 app.post("/api/acp/kimi/sessions/delete", handleController(acpKimiSessionDeleteController));
 
 // PM Analysis routes

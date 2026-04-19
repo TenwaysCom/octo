@@ -2,6 +2,7 @@ import { ZodError } from "zod";
 import {
   validateAcpKimiSessionListRequest,
   validateAcpKimiSessionLookupRequest,
+  validateAcpKimiSessionRenameRequest,
 } from "./acp-kimi.dto.js";
 import {
   acpKimiSessionHistoryService,
@@ -77,6 +78,20 @@ function toErrorEnvelope(error: unknown) {
   };
 }
 
+export function createAcpKimiSessionRenameController(
+  service = acpKimiSessionHistoryService,
+) {
+  return async function acpKimiSessionRenameController(input: unknown) {
+    try {
+      const request = validateAcpKimiSessionRenameRequest(input);
+      return await service.renameSession(request);
+    } catch (error) {
+      return toErrorEnvelope(error);
+    }
+  };
+}
+
 export const acpKimiSessionListController = createAcpKimiSessionListController();
 export const acpKimiSessionLoadController = createAcpKimiSessionLoadController();
 export const acpKimiSessionDeleteController = createAcpKimiSessionDeleteController();
+export const acpKimiSessionRenameController = createAcpKimiSessionRenameController();

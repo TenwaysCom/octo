@@ -5,6 +5,7 @@ import type { DatabaseSchema } from "./schema.js";
 export interface AcpKimiSessionOwnershipRecord {
   sessionId: string;
   operatorLarkId: string;
+  title: string | null;
   deletedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -16,7 +17,13 @@ export interface AcpKimiSessionOwnershipStore {
   claim(
     sessionId: string,
     operatorLarkId: string,
+    title?: string | null,
   ): Promise<AcpKimiSessionOwnershipRecord>;
+  rename(
+    sessionId: string,
+    operatorLarkId: string,
+    title: string,
+  ): Promise<AcpKimiSessionOwnershipRecord | undefined>;
   deleteForOperator(sessionId: string, operatorLarkId: string): Promise<boolean>;
 }
 
@@ -30,6 +37,7 @@ function toRecord(
   return {
     sessionId: row.session_id,
     operatorLarkId: row.operator_lark_id,
+    title: row.title ?? null,
     deletedAt: row.deleted_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -70,6 +78,7 @@ export class PostgresAcpKimiSessionOwnershipStore
   async claim(
     sessionId: string,
     operatorLarkId: string,
+    title?: string | null,
   ): Promise<AcpKimiSessionOwnershipRecord> {
     const now = new Date().toISOString();
 
@@ -77,6 +86,7 @@ export class PostgresAcpKimiSessionOwnershipStore
       .values({
         session_id: sessionId,
         operator_lark_id: operatorLarkId,
+        title: title ?? null,
         deleted_at: null,
         created_at: now,
         updated_at: now,
@@ -92,10 +102,34 @@ export class PostgresAcpKimiSessionOwnershipStore
     return {
       sessionId,
       operatorLarkId,
+      title: title ?? null,
       deletedAt: null,
       createdAt: now,
       updatedAt: now,
     };
+  }
+
+  async rename(
+    sessionId: string,
+    operatorLarkId: string,
+    title: string,
+  ): Promise<AcpKimiSessionOwnershipRecord | undefined> {
+    const now = new Date().toISOString();
+    const result = await this.database.updateTable("acp_kimi_session_owners")
+      .set({
+        title,
+        updated_at: now,
+      })
+      .where("session_id", "=", sessionId)
+      .where("operator_lark_id", "=", operatorLarkId)
+      .where("deleted_at", "is", null)
+      .executeTakeFirst();
+
+    if (Number(result.numUpdatedRows) === 0) {
+      return undefined;
+    }
+
+    return this.getBySessionId(sessionId);
   }
 
   async deleteForOperator(

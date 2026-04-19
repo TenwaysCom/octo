@@ -138,6 +138,10 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     ADD COLUMN IF NOT EXISTS deleted_at text
   `.execute(db);
   await sql`
+    ALTER TABLE acp_kimi_session_owners
+    ADD COLUMN IF NOT EXISTS title text
+  `.execute(db);
+  await sql`
     ALTER TABLE users
     ADD COLUMN IF NOT EXISTS lark_name text
   `.execute(db);

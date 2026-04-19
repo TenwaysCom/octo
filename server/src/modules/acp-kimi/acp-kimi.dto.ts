@@ -15,12 +15,21 @@ export const acpKimiSessionListRequestSchema = z.object({
   operatorLarkId: z.string().min(1),
 });
 
+export const acpKimiSessionRenameRequestSchema = z.object({
+  operatorLarkId: z.string().min(1),
+  sessionId: z.string().min(1),
+  title: z.string().min(1),
+});
+
 export type AcpKimiChatRequest = z.infer<typeof acpKimiChatRequestSchema>;
 export type AcpKimiSessionLookupRequest = z.infer<
   typeof acpKimiSessionLookupRequestSchema
 >;
 export type AcpKimiSessionListRequest = z.infer<
   typeof acpKimiSessionListRequestSchema
+>;
+export type AcpKimiSessionRenameRequest = z.infer<
+  typeof acpKimiSessionRenameRequestSchema
 >;
 
 export type AcpKimiContentBlock =
@@ -117,4 +126,10 @@ export function validateAcpKimiSessionListRequest(
   input: unknown,
 ): AcpKimiSessionListRequest {
   return acpKimiSessionListRequestSchema.parse(input);
+}
+
+export function validateAcpKimiSessionRenameRequest(
+  input: unknown,
+): AcpKimiSessionRenameRequest {
+  return acpKimiSessionRenameRequestSchema.parse(input);
 }

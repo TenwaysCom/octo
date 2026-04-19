@@ -15,6 +15,7 @@ import {
   type ThreadMessageLike,
   type ToolCallMessagePartProps,
 } from "@assistant-ui/react";
+import { History, RotateCcw, Square } from "lucide-react";
 import { type ReactNode, useEffect, useMemo } from "react";
 
 import type {
@@ -23,7 +24,7 @@ import type {
 } from "../../../types/acp-kimi.js";
 import { renderMarkdownStream } from "../../../popup/markdown-stream.js";
 import { cn } from "../../lib/utils.js";
-import { buttonVariants } from "../ui/button.js";
+import { Button, buttonVariants } from "../ui/button.js";
 
 const popupMessageParts = {
   Text: function PopupMessageText() {
@@ -87,9 +88,12 @@ interface PopupAssistantThreadProps {
   draftMessage: string;
   sessionId: string | null;
   transcript: KimiChatTranscriptEntry[];
+  historyOpen: boolean;
   onDraftMessageChange: (value: string) => void;
   onSendMessage: (value: string) => Promise<void> | void;
   onStopGeneration: () => void;
+  onResetSession: () => void;
+  onToggleHistory: () => void;
 }
 
 export function PopupAssistantThread({
@@ -97,9 +101,12 @@ export function PopupAssistantThread({
   draftMessage,
   sessionId,
   transcript,
+  historyOpen,
   onDraftMessageChange,
   onSendMessage,
   onStopGeneration,
+  onResetSession,
+  onToggleHistory,
 }: PopupAssistantThreadProps) {
   const adapter = useMemo<ExternalStoreAdapter<KimiChatTranscriptEntry>>(
     () => ({
@@ -124,43 +131,73 @@ export function PopupAssistantThread({
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <div className="grid gap-3">
-        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-          <span className="rounded-full border border-slate-200 bg-white/80 px-3 py-1">
-            Session: {sessionId || "未创建"}
-          </span>
-          <span className="rounded-full border border-slate-200 bg-white/80 px-3 py-1">
-            状态: {busy ? "生成中" : "空闲"}
-          </span>
+      <ThreadPrimitive.Root
+        className="flex min-h-0 flex-col gap-2 rounded-[22px] border border-slate-200/80 bg-white/92 p-3 shadow-sm"
+        data-testid="assistant-ui-thread"
+      >
+        <div className="flex items-center justify-between gap-1 px-1">
+          <div className="flex items-center gap-2 text-[11px] text-slate-400">
+            <span>Session: {sessionId || "未创建"}</span>
+            <span>{busy ? "生成中…" : "空闲"}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 p-0"
+              onClick={onToggleHistory}
+              aria-label={historyOpen ? "关闭历史" : "历史"}
+              title={historyOpen ? "关闭历史" : "历史"}
+            >
+              <History size={14} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 p-0"
+              onClick={onResetSession}
+              aria-label="新会话"
+              title="新会话"
+            >
+              <RotateCcw size={14} />
+            </Button>
+            {busy ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0 text-red-500 hover:text-red-600"
+                onClick={onStopGeneration}
+                aria-label="停止"
+                title="停止"
+              >
+                <Square size={14} />
+              </Button>
+            ) : null}
+          </div>
         </div>
 
-        <ThreadPrimitive.Root
-          className="flex min-h-0 flex-col gap-3 rounded-[22px] border border-slate-200/80 bg-white/92 p-3 shadow-sm"
-          data-testid="assistant-ui-thread"
-        >
-          <ThreadPrimitive.Viewport className="flex max-h-[320px] min-h-[180px] flex-col gap-3 overflow-y-auto pr-1">
-            <ThreadPrimitive.Empty>
-              <div className="rounded-2xl border border-dashed border-blue-200 bg-blue-50/70 px-4 py-5 text-sm text-slate-600">
-                <p className="m-0 font-semibold text-slate-900">还没有消息</p>
-                <p className="mt-2 mb-0">
-                  新会话会从这里开始，后续可以直接基于当前页面上下文继续对话。
-                </p>
-              </div>
-            </ThreadPrimitive.Empty>
+        <ThreadPrimitive.Viewport className="flex max-h-[320px] min-h-[180px] flex-col gap-3 overflow-y-auto pr-1">
+          <ThreadPrimitive.Empty>
+            <div className="rounded-2xl border border-dashed border-blue-200 bg-blue-50/70 px-4 py-5 text-sm text-slate-600">
+              <p className="m-0 font-semibold text-slate-900">还没有消息</p>
+              <p className="mt-2 mb-0">
+                新会话会从这里开始，后续可以直接基于当前页面上下文继续对话。
+              </p>
+            </div>
+          </ThreadPrimitive.Empty>
 
-            <ThreadPrimitive.Messages>
-              {() => <PopupAssistantMessage />}
-            </ThreadPrimitive.Messages>
-          </ThreadPrimitive.Viewport>
+          <ThreadPrimitive.Messages>
+            {() => <PopupAssistantMessage />}
+          </ThreadPrimitive.Messages>
+        </ThreadPrimitive.Viewport>
 
-          <div className="h-px bg-slate-200/80" />
+        <div className="h-px bg-slate-200/80" />
 
-          <PopupAssistantComposer
-            draftMessage={draftMessage}
-            onDraftMessageChange={onDraftMessageChange}
-          />
-        </ThreadPrimitive.Root>
-      </div>
+        <PopupAssistantComposer
+          draftMessage={draftMessage}
+          onDraftMessageChange={onDraftMessageChange}
+        />
+      </ThreadPrimitive.Root>
     </AssistantRuntimeProvider>
   );
 }
@@ -168,6 +205,16 @@ export function PopupAssistantThread({
 function PopupAssistantMessage() {
   const message = useAuiState((state) => state.message);
   const custom = normalizeCustomMetadata(message.metadata.custom);
+
+  if (custom.kind === "status") {
+    const text = typeof message.content === "string" ? message.content : "";
+    return (
+      <div className="py-1.5 text-center text-[11px] text-slate-400">
+        {text}
+      </div>
+    );
+  }
+
   const roleClassName =
     message.role === "assistant"
       ? "border-blue-200/70 bg-blue-50/75"

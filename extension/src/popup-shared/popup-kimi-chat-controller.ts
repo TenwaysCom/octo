@@ -13,6 +13,7 @@ import {
   listKimiChatSessions,
   loadKimiChatSession,
   loadKimiChatTranscriptSnapshot,
+  renameKimiChatSession,
   saveKimiChatTranscriptSnapshot,
 } from "../popup/runtime.js";
 
@@ -421,9 +422,32 @@ export function createKimiChatController<TStore extends PopupKimiChatStoreLike>(
     }
   }
 
+  async function renameSession(title: string): Promise<void> {
+    const operatorLarkId = readOperatorLarkId();
+    const sessionId = deps.readStore().kimiChatSessionId;
+
+    if (!operatorLarkId || !sessionId) {
+      return;
+    }
+
+    const result = await renameKimiChatSession({
+      operatorLarkId,
+      sessionId,
+      title,
+    });
+
+    if (!result.ok) {
+      deps.appendLog(
+        "warn",
+        `会话重命名失败: ${result.error?.errorMessage || "未知错误"}`,
+      );
+    }
+  }
+
   async function sendMessage(messageText: string): Promise<void> {
     const current = deps.readStore();
     const operatorLarkId = readOperatorLarkId();
+    const hadSessionIdBefore = Boolean(current.kimiChatSessionId);
 
     void deps.postClientDebugLog({
       source: "popup:app",
@@ -530,6 +554,21 @@ export function createKimiChatController<TStore extends PopupKimiChatStoreLike>(
 
       if (activeRequestIdRef.current === requestId) {
         flushPendingRenderState();
+
+        // Auto-rename new session from first message (first 10 chars)
+        if (!hadSessionIdBefore) {
+          const currentSessionId = deps.readStore().kimiChatSessionId;
+          if (currentSessionId && messageText) {
+            const title = messageText.replace(/\s+/g, " ").trim().slice(0, 10);
+            if (title) {
+              void renameKimiChatSession({
+                operatorLarkId,
+                sessionId: currentSessionId,
+                title,
+              });
+            }
+          }
+        }
       }
     } catch (error) {
       if (isAbortError(error)) {
@@ -596,6 +635,7 @@ export function createKimiChatController<TStore extends PopupKimiChatStoreLike>(
     openHistory,
     loadHistorySession,
     deleteHistorySession,
+    renameSession,
     sendMessage,
     stopGeneration,
     dispose,

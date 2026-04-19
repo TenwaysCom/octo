@@ -494,6 +494,29 @@ export async function deleteKimiChatSession(
   };
 }
 
+export async function renameKimiChatSession(
+  input: {
+    operatorLarkId: string;
+    sessionId: string;
+    title: string;
+  },
+): Promise<{ ok: boolean; data?: { sessionId: string; title: string | null }; error?: { errorCode?: string; errorMessage?: string } }> {
+  const config = await getConfig();
+  const response = await fetch(`${config.SERVER_URL}/api/acp/kimi/sessions/rename`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+
+  return await response.json() as {
+    ok: boolean;
+    data?: { sessionId: string; title: string | null };
+    error?: { errorCode?: string; errorMessage?: string };
+  };
+}
+
 export async function loadKimiChatTranscriptSnapshot(input: {
   operatorLarkId: string;
   sessionId: string;

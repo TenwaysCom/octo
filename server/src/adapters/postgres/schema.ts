@@ -2,6 +2,7 @@ export interface DatabaseSchema {
   acp_kimi_session_owners: {
     session_id: string;
     operator_lark_id: string;
+    title: string | null;
     deleted_at: string | null;
     created_at: string;
     updated_at: string;

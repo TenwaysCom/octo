@@ -31,8 +31,8 @@ export default defineConfig({
         disabled: true,
       },
   manifest: {
-    name: "Tenways Octo 0.5.0",
-    version: "0.5.0",
+    name: "Tenways Octo 0.6.1",
+    version: "0.6.1",
     description: "跨平台协同助手 - Lark 到 Meegle 半自动建单工具",
     icons: {
       "16": "icons/icon-16.png",

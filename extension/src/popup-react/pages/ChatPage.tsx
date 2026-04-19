@@ -2,10 +2,10 @@ import type {
   KimiChatSessionSummary,
   KimiChatTranscriptEntry,
 } from "../../types/acp-kimi.js";
+import { Clock, FolderOpen, Trash2 } from "lucide-react";
 import { PopupAssistantThread } from "../components/assistant-ui/PopupAssistantThread.js";
 import { PopupPage } from "../components/PopupPage.js";
-import { UiButton } from "../components/UiButton.js";
-import { UiCard } from "../components/UiCard.js";
+import { Button } from "../components/ui/button.js";
 
 export function ChatPage({
   busy,
@@ -44,50 +44,71 @@ export function ChatPage({
     <PopupPage
       title="聊天"
       subtitle="assistant-ui 已接入到 React 聊天页，并继续复用现有 popup controller 管理会话与历史。当前 thoughts 和工具调用已经映射到 assistant-ui 原生 reasoning/tool-call parts。"
-      actions={(
-        <div className="chat-placeholder__toolbar">
-          <UiButton onClick={historyOpen ? onCloseHistory : onOpenHistory}>
-            {historyOpen ? "关闭历史" : "历史"}
-          </UiButton>
-          <UiButton onClick={onResetSession}>新会话</UiButton>
-          {busy ? <UiButton onClick={onStopGeneration}>停止</UiButton> : null}
-        </div>
-      )}
     >
       <div className="chat-placeholder" data-test="chat-page">
         {historyOpen ? (
-          <UiCard title="历史会话">
-            {historyLoading ? <p className="chat-placeholder__notice">加载中...</p> : null}
-            {!historyLoading && historyItems.length === 0 ? (
-              <p className="chat-placeholder__notice">暂无历史会话</p>
+          <div className="flex flex-col gap-2 rounded-[22px] border border-slate-200/80 bg-white/92 p-3 shadow-sm">
+            <div className="flex items-center justify-between px-1">
+              <h3 className="text-sm font-semibold text-slate-900">历史会话</h3>
+              <span className="text-[11px] text-slate-400">{historyItems.length} 个会话</span>
+            </div>
+
+            {historyLoading ? (
+              <div className="py-6 text-center text-sm text-slate-400">
+                <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-slate-200 border-t-blue-400" />
+                <p className="mt-2">加载中...</p>
+              </div>
             ) : null}
+
+            {!historyLoading && historyItems.length === 0 ? (
+              <div className="py-6 text-center text-sm text-slate-400">
+                <Clock size={20} className="mx-auto mb-2 text-slate-300" />
+                <p>暂无历史会话</p>
+              </div>
+            ) : null}
+
             {!historyLoading && historyItems.length > 0 ? (
-              <div className="chat-placeholder__history-list">
+              <div className="flex flex-col gap-1.5">
                 {historyItems.map((item) => (
-                  <div key={item.sessionId} className="chat-placeholder__history-item">
-                    <div className="chat-placeholder__history-copy">
-                      <strong>{item.title || item.sessionId}</strong>
-                      <span>
+                  <div
+                    key={item.sessionId}
+                    className="group flex items-center justify-between gap-2 rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2.5 transition hover:border-slate-200 hover:bg-slate-100/70"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-slate-900">
+                        {item.title || item.sessionId}
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-slate-400">
                         {item.updatedAt ? formatSessionUpdatedAt(item.updatedAt) : "无更新时间"}
-                      </span>
+                      </p>
                     </div>
-                    <div className="chat-placeholder__toolbar">
-                      <UiButton size="sm" onClick={() => onLoadHistorySession(item.sessionId)}>
-                        打开
-                      </UiButton>
-                      <UiButton
-                        size="sm"
+                    <div className="flex shrink-0 items-center gap-1 opacity-60 transition group-hover:opacity-100">
+                      <Button
                         variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0"
+                        aria-label="打开"
+                        title="打开会话"
+                        onClick={() => onLoadHistorySession(item.sessionId)}
+                      >
+                        <FolderOpen size={14} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-slate-400 hover:text-red-500"
+                        aria-label="删除"
+                        title="删除会话"
                         onClick={() => onDeleteHistorySession(item.sessionId)}
                       >
-                        删除
-                      </UiButton>
+                        <Trash2 size={14} />
+                      </Button>
                     </div>
                   </div>
                 ))}
               </div>
             ) : null}
-          </UiCard>
+          </div>
         ) : null}
 
         <PopupAssistantThread
@@ -95,9 +116,12 @@ export function ChatPage({
           draftMessage={draftMessage}
           sessionId={sessionId}
           transcript={transcript}
+          historyOpen={historyOpen}
           onDraftMessageChange={onDraftMessageChange}
           onSendMessage={onSendMessage}
           onStopGeneration={onStopGeneration}
+          onResetSession={onResetSession}
+          onToggleHistory={() => (historyOpen ? onCloseHistory() : onOpenHistory())}
         />
       </div>
     </PopupPage>
