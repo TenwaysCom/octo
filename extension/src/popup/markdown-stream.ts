@@ -24,12 +24,39 @@ export function renderMarkdownStream(source: string): string {
 
   for (const match of stabilized.matchAll(fencePattern)) {
     const start = match.index ?? 0;
-    html += renderParagraphs(stabilized.slice(lastIndex, start));
+    html += renderMarkdownText(stabilized.slice(lastIndex, start));
     html += renderCodeBlock(match[1] ?? "", match[2] ?? "");
     lastIndex = start + match[0].length;
   }
 
-  html += renderParagraphs(stabilized.slice(lastIndex));
+  html += renderMarkdownText(stabilized.slice(lastIndex));
+
+  return html;
+}
+
+/**
+ * Render inline markdown text (bold, italic, links, inline code)
+ */
+export function renderMarkdownText(source: string): string {
+  // First escape HTML
+  let html = escapeHtml(source);
+
+  // Render inline code first (to protect code content)
+  html = html.replace(/`([^`]+)`/g, '<code class="kimi-chat-markdown__inline-code">$1</code>');
+
+  // Render bold (**text** or __text__)
+  html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  html = html.replace(/__([^_]+)__/g, "<strong>$1</strong>");
+
+  // Render italic (*text* or _text_)
+  html = html.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+  html = html.replace(/_([^_]+)_/g, "<em>$1</em>");
+
+  // Render links [text](url)
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">$1</a>');
+
+  // Render line breaks
+  html = html.replace(/\n/g, "<br>");
 
   return html;
 }
@@ -61,12 +88,7 @@ function renderParagraphs(source: string): string {
     .split(/\n{2,}/)
     .filter((segment) => segment.trim().length > 0)
     .map((segment) => {
-      const escaped = escapeHtml(segment).replace(/\n/g, "<br>");
-      const withInlineCode = escaped.replace(
-        /`([^`]+)`/g,
-        '<code class="kimi-chat-markdown__inline-code">$1</code>',
-      );
-
+      const withInlineCode = renderMarkdownText(segment);
       return `<p class="kimi-chat-markdown__paragraph">${withInlineCode}</p>`;
     })
     .join("");

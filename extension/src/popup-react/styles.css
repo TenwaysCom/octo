@@ -650,3 +650,54 @@ body {
   color: #64748b;
   cursor: pointer;
 }
+
+/* Kimi Chat Markdown Styles */
+.kimi-chat-markdown__paragraph {
+  margin: 0 0 0.75rem;
+  line-height: 1.6;
+}
+
+.kimi-chat-markdown__paragraph:last-child {
+  margin-bottom: 0;
+}
+
+.kimi-chat-markdown__inline-code {
+  font-family: "SF Mono", "Roboto Mono", "PingFang SC", monospace;
+  font-size: 0.85em;
+  padding: 0.15em 0.5em;
+  border-radius: 6px;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.kimi-chat-markdown__code-block {
+  margin: 0.75rem 0;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background: #0f172a;
+  overflow-x: auto;
+}
+
+.kimi-chat-markdown__code-block code {
+  font-family: "SF Mono", "Roboto Mono", "PingFang SC", monospace;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: #e2e8f0;
+  background: transparent;
+  padding: 0;
+}
+
+.kimi-chat-markdown__code-block code::before {
+  content: attr(data-lang);
+  display: block;
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Markdown in assistant messages */
+[data-message-role="assistant"] .text-message-part {
+  line-height: 1.6;
+}

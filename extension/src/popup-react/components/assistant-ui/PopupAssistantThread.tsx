@@ -31,11 +31,11 @@ const popupMessageParts = {
     const message = useAuiState((state) => state.message);
     const custom = normalizeCustomMetadata(message.metadata.custom);
 
-    if (message.role === "assistant" && custom.markdownHtml) {
+    if (custom.markdownHtml) {
       return (
         <div className="grid gap-2">
           <div
-            className="text-sm leading-6 text-slate-900 [&_p]:m-0 [&_pre]:m-0 [&_pre]:overflow-x-auto [&_pre]:rounded-xl [&_pre]:bg-slate-950 [&_pre]:px-3 [&_pre]:py-3 [&_pre]:text-xs [&_pre]:leading-5 [&_pre]:text-slate-100 [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_code]:font-mono [&_p_code]:rounded-md [&_p_code]:bg-slate-100 [&_p_code]:px-1.5 [&_p_code]:py-0.5 [&_p_code]:text-[0.9em]"
+            className="text-sm leading-6 text-slate-900 [&_p]:m-0 [&_pre]:m-0 [&_pre]:overflow-x-auto [&_pre]:rounded-xl [&_pre]:bg-slate-950 [&_pre]:px-3 [&_pre]:py-3 [&_pre]:text-xs [&_pre]:leading-5 [&_pre]:text-slate-100 [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_code]:font-mono [&_p_code]:rounded-md [&_p_code]:bg-slate-100 [&_p_code]:px-1.5 [&_p_code]:py-0.5 [&_p_code]:text-[0.9em] [&_a]:text-blue-600 [&_a]:hover:underline [&_strong]:font-semibold [&_em]:italic"
             dangerouslySetInnerHTML={{ __html: custom.markdownHtml }}
           />
           <MessagePartPrimitive.InProgress>
@@ -305,6 +305,9 @@ function convertTranscriptEntry(
     entry.kind === "assistant" &&
     findLastAssistantEntry(transcript)?.id === entry.id;
 
+  const hasText = entry.kind !== "raw" && entry.text && entry.text.trim().length > 0;
+  const markdownHtml = hasText ? renderMarkdownStream(entry.text || "") : undefined;
+
   return {
     id: entry.id,
     role,
@@ -319,8 +322,7 @@ function convertTranscriptEntry(
       custom: {
         kind: entry.kind,
         label: entry.label,
-        markdownHtml:
-          entry.kind === "assistant" && entry.text ? renderMarkdownStream(entry.text) : undefined,
+        markdownHtml,
         raw: entry.raw,
       },
     },
