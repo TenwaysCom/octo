@@ -8,7 +8,7 @@
     "dev:manual": "WXT_CHROMIUM_PROFILE= wxt",
     "dev:profile": "sh ./scripts/dev-profile.sh",
     "build": "wxt build",
-    "typecheck": "vue-tsc --noEmit",
+    "typecheck": "tsc --noEmit",
     "clean": "wxt clean",
     "package": "wxt zip",
     "test": "vitest run",
@@ -17,7 +17,8 @@
     "postinstall": "wxt prepare"
   },
   "dependencies": {
-    "ant-design-vue": "^4.2.6",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
     "vue": "^3.5.31",
     "webextension-polyfill": "^0.10.0"
   },
@@ -25,14 +26,17 @@
     "@playwright/test": "^1.58.2",
     "@types/chrome": "^0.0.260",
     "@types/node": "^24.12.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
     "@types/webextension-polyfill": "^0.10.7",
     "@vitejs/plugin-vue": "^6.0.5",
     "@vue/test-utils": "^2.4.6",
-    "@wxt-dev/module-vue": "^1.0.3",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@wxt-dev/module-react": "1.1.5",
     "jsdom": "^29.0.1",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4",
-    "vue-tsc": "^3.2.6",
     "wxt": "^0.20.20"
   }
 }

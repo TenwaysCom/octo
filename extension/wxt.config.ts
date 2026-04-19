@@ -6,7 +6,7 @@ const devOrigin = process.env.WXT_DEV_ORIGIN?.trim() || `http://localhost:${devP
 
 export default defineConfig({
   srcDir: "src",
-  modules: ["@wxt-dev/module-vue"],
+  modules: ["@wxt-dev/module-react"],
   dev: {
     server: {
       port: devPort,
