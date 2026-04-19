@@ -289,14 +289,17 @@ function ensureAssistantEntry(
   transcript: KimiChatTranscriptEntry[];
   entryId: string;
 } {
+  // Ensure transcript is always an array
+  const transcript = Array.isArray(state.transcript) ? state.transcript : [];
+
   const currentEntry =
     state.activeAssistantEntryId == null
       ? undefined
-      : state.transcript.find((entry) => entry.id === state.activeAssistantEntryId);
+      : transcript.find((entry) => entry.id === state.activeAssistantEntryId);
   const normalizedMessageId = normalizeMessageId(messageId);
 
   if (normalizedMessageId) {
-    const matchingEntry = state.transcript.find(
+    const matchingEntry = transcript.find(
       (entry) =>
         entry.kind === "assistant" &&
         normalizeMessageId(entry.messageId) === normalizedMessageId,
@@ -306,8 +309,9 @@ function ensureAssistantEntry(
       return {
         state: {
           ...state,
+          transcript,
         },
-        transcript: [...state.transcript],
+        transcript: [...transcript],
         entryId: matchingEntry.id,
       };
     }
@@ -321,15 +325,16 @@ function ensureAssistantEntry(
     return {
       state: {
         ...state,
+        transcript,
       },
-      transcript: [...state.transcript],
+      transcript: [...transcript],
       entryId: state.activeAssistantEntryId,
     };
   }
 
   const entryId = createTranscriptEntryId("assistant");
-  const transcript = [
-    ...state.transcript,
+  const newTranscript = [
+    ...transcript,
     {
       id: entryId,
       kind: "assistant",
@@ -344,9 +349,9 @@ function ensureAssistantEntry(
     state: {
       ...state,
       activeAssistantEntryId: entryId,
-      transcript,
+      transcript: newTranscript,
     },
-    transcript,
+    transcript: newTranscript,
     entryId,
   };
 }

@@ -345,6 +345,16 @@ export function createKimiChatController<TStore extends PopupKimiChatStoreLike>(
       nextState = applyKimiChatEvent(nextState, event);
     }
 
+    // Ensure transcript is always an array after applying events
+    if (!Array.isArray(nextState.transcript)) {
+      console.error("[popup:kimi-chat] transcript is not an array after applying events", {
+        sessionId,
+        transcriptType: typeof nextState.transcript,
+        transcript: nextState.transcript,
+      });
+      nextState.transcript = [];
+    }
+
     const hasVisibleMessages = nextState.transcript.some(
       (entry) => entry.kind === "user" || entry.kind === "assistant",
     );
@@ -355,7 +365,7 @@ export function createKimiChatController<TStore extends PopupKimiChatStoreLike>(
         sessionId,
       });
 
-      if (snapshot?.transcript?.length) {
+      if (snapshot?.transcript?.length && Array.isArray(snapshot.transcript)) {
         nextState = {
           sessionId,
           activeAssistantEntryId: null,
