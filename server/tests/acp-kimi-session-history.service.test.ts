@@ -73,7 +73,7 @@ describe("acp kimi session history service", () => {
       cwd: process.cwd(),
     });
     expect(ownershipStore.claim).toHaveBeenCalledTimes(1);
-    expect(ownershipStore.claim).toHaveBeenCalledWith("sess_orphan", "ou_123");
+    expect(ownershipStore.claim).toHaveBeenCalledWith("sess_orphan", "ou_123", "Orphan");
     expect(sessions).toEqual([
       {
         sessionId: "sess_orphan",
@@ -343,6 +343,77 @@ describe("acp kimi session history service", () => {
       "ou_123",
     );
   });
+
+  it("renames a session and returns the updated title", async () => {
+    const { createAcpKimiSessionHistoryService } = await import(
+      "../src/application/services/acp-kimi-session-history.service.js"
+    );
+
+    const ownershipStore = createOwnershipStoreMock({
+      getBySessionId: vi.fn().mockResolvedValue({
+        sessionId: "sess_1",
+        operatorLarkId: "ou_123",
+        title: "Old Title",
+        deletedAt: null,
+        createdAt: "2026-04-18T00:00:00Z",
+        updatedAt: "2026-04-18T00:00:00Z",
+      }),
+      rename: vi.fn().mockResolvedValue({
+        sessionId: "sess_1",
+        operatorLarkId: "ou_123",
+        title: "新的标题",
+        deletedAt: null,
+        createdAt: "2026-04-18T00:00:00Z",
+        updatedAt: "2026-04-18T01:00:00Z",
+      }),
+    });
+    const service = createAcpKimiSessionHistoryService({
+      ownershipStore,
+    });
+
+    const result = await service.renameSession({
+      operatorLarkId: "ou_123",
+      sessionId: "sess_1",
+      title: "新的标题",
+    });
+
+    expect(ownershipStore.rename).toHaveBeenCalledWith(
+      "sess_1",
+      "ou_123",
+      "新的标题",
+    );
+    expect(result).toEqual({
+      ok: true,
+      data: {
+        sessionId: "sess_1",
+        title: "新的标题",
+      },
+    });
+  });
+
+  it("returns 404 when renaming a non-existent session", async () => {
+    const { createAcpKimiSessionHistoryService } = await import(
+      "../src/application/services/acp-kimi-session-history.service.js"
+    );
+
+    const ownershipStore = createOwnershipStoreMock({
+      rename: vi.fn().mockResolvedValue(undefined),
+    });
+    const service = createAcpKimiSessionHistoryService({
+      ownershipStore,
+    });
+
+    await expect(
+      service.renameSession({
+        operatorLarkId: "ou_123",
+        sessionId: "sess_not_found",
+        title: "新的标题",
+      }),
+    ).rejects.toMatchObject({
+      code: "SESSION_NOT_FOUND",
+      statusCode: 404,
+    });
+  });
 });
 
 function createOwnershipStoreMock(
@@ -356,6 +427,7 @@ function createOwnershipStoreMock(
       operatorLarkId,
       deletedAt: null,
     })),
+    rename: vi.fn().mockResolvedValue(undefined),
     deleteForOperator: vi.fn().mockResolvedValue(false),
     ...overrides,
   };
