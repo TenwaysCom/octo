@@ -78,11 +78,13 @@ function renderActivePage(popupApp: PopupAppModel) {
           <LazyChatPlaceholderPage
             busy={popupApp.kimiChatBusy}
             sessionId={popupApp.kimiChatSessionId}
+            transcript={popupApp.kimiChatTranscript}
             draftMessage={popupApp.kimiChatDraftMessage}
             historyOpen={popupApp.kimiChatHistoryOpen}
             historyLoading={popupApp.kimiChatHistoryLoading}
             historyItems={popupApp.kimiChatHistoryItems}
             onDraftMessageChange={popupApp.updateKimiChatDraftMessage}
+            onSendMessage={popupApp.sendKimiChatMessage}
             onResetSession={popupApp.resetKimiChatSession}
             onOpenHistory={popupApp.openKimiChatHistory}
             onCloseHistory={popupApp.closeKimiChatHistory}

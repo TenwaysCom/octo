@@ -1,0 +1,348 @@
+// @vitest-environment jsdom
+
+import React, { useMemo, useState } from "react";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+
+import type { KimiChatSessionSummary, KimiChatTranscriptEntry } from "../types/acp-kimi.js";
+import type { PopupNotebookPage, PopupSettingsForm } from "../popup/types.js";
+import type { PopupAppModel } from "./types.js";
+import { PopupAppView } from "./PopupAppView.js";
+
+class ResizeObserverMock {
+  observe() {}
+
+  unobserve() {}
+
+  disconnect() {}
+}
+
+describe("popup-react chat page", () => {
+  beforeAll(() => {
+    vi.stubGlobal("ResizeObserver", ResizeObserverMock);
+    Object.defineProperty(HTMLElement.prototype, "scrollTo", {
+      configurable: true,
+      value: vi.fn(),
+      writable: true,
+    });
+  });
+
+  afterAll(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("renders the lazy chat page through the assistant-ui path when chat is active", async () => {
+    renderPopupApp({
+      initialPage: "chat",
+      transcript: [
+        {
+          id: "assistant-1",
+          kind: "assistant",
+          text: "你好，我可以帮你整理当前页面上下文。",
+        },
+      ],
+    });
+
+    expect(await screen.findByTestId("assistant-ui-thread")).toBeTruthy();
+    expect(screen.getByTestId("assistant-ui-composer")).toBeTruthy();
+    expect(screen.getByRole("textbox", { name: "发送消息" })).toBeTruthy();
+    expect(
+      screen.getByText(
+        /现有 transcript schema .*assistant-ui 原生 reasoning\/tool parts/i,
+      ),
+    ).toBeTruthy();
+  });
+
+  it("keeps assistant thoughts and tool activity visible in a compact detail section", async () => {
+    renderPopupApp({
+      initialPage: "chat",
+      transcript: [
+        {
+          id: "assistant-1",
+          kind: "assistant",
+          text: "我先检查当前页面上下文。",
+          thoughts: [
+            {
+              id: "thought-1",
+              text: "先确认当前页面支持的实体类型。",
+            },
+          ],
+          toolCalls: [
+            {
+              id: "tool-1",
+              title: "Inspect page context",
+              status: "completed",
+              detail: "读取页面标题与链接信息",
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(await screen.findByText("思路")).toBeTruthy();
+    expect(screen.getByText("先确认当前页面支持的实体类型。")).toBeTruthy();
+    expect(screen.getByText("工具")).toBeTruthy();
+    expect(screen.getByText("Inspect page context")).toBeTruthy();
+  });
+
+  it("renders assistant markdown transcript content with the existing safe markdown renderer", async () => {
+    const { container } = renderPopupApp({
+      initialPage: "chat",
+      transcript: [
+        {
+          id: "assistant-markdown",
+          kind: "assistant",
+          text: "Use `session.abort`.\n\n```ts\nconst value = `<tag>`;\n```",
+        },
+      ],
+    });
+
+    await screen.findByText("Kimi");
+
+    const inlineCode = container.querySelector(".kimi-chat-markdown__inline-code");
+    const fencedCode = container.querySelector(".kimi-chat-markdown__code[data-lang='ts']");
+
+    expect(inlineCode?.textContent).toBe("session.abort");
+    expect(fencedCode?.textContent).toBe("const value = `<tag>`;");
+    expect(screen.queryByText("```ts")).toBeNull();
+  });
+
+  it("sends via the chat composer using the existing popup send flow", async () => {
+    const sendKimiChatMessage = vi.fn(async () => undefined);
+    const updateKimiChatDraftMessage = vi.fn();
+    const { unmount, user } = renderPopupApp({
+      initialPage: "chat",
+      sendKimiChatMessage,
+      updateKimiChatDraftMessage,
+    });
+
+    await user.type(await screen.findByRole("textbox", { name: "发送消息" }), "请总结一下当前需求");
+    await user.click(screen.getByRole("button", { name: "发送" }));
+
+    expect(sendKimiChatMessage).toHaveBeenCalledWith("请总结一下当前需求");
+    expect(updateKimiChatDraftMessage).toHaveBeenCalled();
+
+    unmount();
+  });
+
+  it("keeps history and session toolbar actions wired to the existing popup model", async () => {
+    const openKimiChatHistory = vi.fn();
+    const closeKimiChatHistory = vi.fn();
+    const resetKimiChatSession = vi.fn();
+    const loadKimiChatHistorySession = vi.fn();
+    const deleteKimiChatHistorySession = vi.fn();
+    const stopKimiChatGeneration = vi.fn();
+    const { user } = renderPopupApp({
+      initialPage: "chat",
+      busy: true,
+      historyOpen: true,
+      historyItems: [
+        {
+          sessionId: "sess_1",
+          title: "旧会话",
+          updatedAt: "2026-04-18T00:00:00Z",
+        },
+      ],
+      openKimiChatHistory,
+      closeKimiChatHistory,
+      resetKimiChatSession,
+      loadKimiChatHistorySession,
+      deleteKimiChatHistorySession,
+      stopKimiChatGeneration,
+    });
+
+    const composerInput = await screen.findByRole("textbox", { name: "发送消息" });
+    const sendButton = screen.getByRole("button", { name: "发送" });
+
+    expect((sendButton as HTMLButtonElement).disabled).toBe(true);
+    expect((composerInput as HTMLTextAreaElement).value).toBe("");
+
+    await user.click(screen.getByRole("button", { name: "关闭历史" }));
+    await user.click(screen.getByRole("button", { name: "新会话" }));
+    await user.click(screen.getByRole("button", { name: "停止" }));
+    await user.click(screen.getByRole("button", { name: "打开" }));
+    await user.click(screen.getByRole("button", { name: "删除" }));
+
+    expect(openKimiChatHistory).not.toHaveBeenCalled();
+    expect(closeKimiChatHistory).toHaveBeenCalledTimes(1);
+    expect(resetKimiChatSession).toHaveBeenCalledTimes(1);
+    expect(stopKimiChatGeneration).toHaveBeenCalledTimes(1);
+    expect(loadKimiChatHistorySession).toHaveBeenCalledWith("sess_1");
+    expect(deleteKimiChatHistorySession).toHaveBeenCalledWith("sess_1");
+  });
+});
+
+function renderPopupApp(
+  options: {
+    busy?: boolean;
+    historyItems?: KimiChatSessionSummary[];
+    historyOpen?: boolean;
+    initialPage?: PopupNotebookPage;
+    pageType?: "lark" | "meegle" | "unsupported";
+    showUnsupported?: boolean;
+    draftMessage?: string;
+    transcript?: KimiChatTranscriptEntry[];
+    sendKimiChatMessage?: PopupAppModel["sendKimiChatMessage"];
+    updateKimiChatDraftMessage?: PopupAppModel["updateKimiChatDraftMessage"];
+    resetKimiChatSession?: PopupAppModel["resetKimiChatSession"];
+    openKimiChatHistory?: PopupAppModel["openKimiChatHistory"];
+    closeKimiChatHistory?: PopupAppModel["closeKimiChatHistory"];
+    loadKimiChatHistorySession?: PopupAppModel["loadKimiChatHistorySession"];
+    deleteKimiChatHistorySession?: PopupAppModel["deleteKimiChatHistorySession"];
+    stopKimiChatGeneration?: PopupAppModel["stopKimiChatGeneration"];
+  } = {},
+) {
+  const user = userEvent.setup();
+
+  const result = render(
+    React.createElement(function PopupAppHarness() {
+      const [activePage, setActivePage] = useState<PopupNotebookPage>(
+        options.initialPage ?? "automation",
+      );
+      const [busy, setBusy] = useState(options.busy ?? false);
+      const [draftMessage, setDraftMessage] = useState(options.draftMessage ?? "");
+      const [transcript, setTranscript] = useState<KimiChatTranscriptEntry[]>(
+        options.transcript ?? [],
+      );
+      const [settingsForm, setSettingsForm] = useState<PopupSettingsForm>({
+        SERVER_URL: "http://localhost:3000",
+        MEEGLE_PLUGIN_ID: "MII_PLUGIN",
+        LARK_OAUTH_CALLBACK_URL: "http://localhost:3000/api/lark/auth/callback",
+        meegleUserKey: "7538275242901291040",
+        larkUserId: "ou_test_user",
+      });
+
+      const popupApp = useMemo<PopupAppModel>(
+        () => ({
+          state: {
+            pageType: options.pageType ?? "lark",
+            currentTabId: 12,
+            currentTabOrigin: "https://project.larksuite.com",
+            currentUrl:
+              "https://project.larksuite.com/base/base_123?table=table_123&view=view_123",
+            identity: {
+              masterUserId: "usr_resolved",
+              larkId: "ou_test_user",
+              larkEmail: "user@example.com",
+              larkName: "Test User",
+              larkAvatar: "https://example.com/avatar.png",
+              meegleUserKey: "7538275242901291040",
+            },
+            isAuthed: {
+              lark: true,
+              meegle: true,
+            },
+            meegleAuth: undefined,
+            larkAuth: undefined,
+          },
+          logs: [],
+          isLoading: false,
+          activePage,
+          settingsOpen: activePage === "settings",
+          settingsForm,
+          viewModel: {
+            subtitle: options.pageType === "unsupported" ? "不支持" : "Lark",
+            showUnsupported: options.showUnsupported ?? options.pageType === "unsupported",
+            showAuthBlockTop: !(options.showUnsupported ?? options.pageType === "unsupported"),
+            showLarkFeatureBlock: (options.pageType ?? "lark") === "lark",
+            showMeegleFeatureBlock: (options.pageType ?? "lark") === "meegle",
+            canAnalyze: (options.pageType ?? "lark") === "lark",
+            canDraft: (options.pageType ?? "lark") === "lark",
+            canApply: (options.pageType ?? "lark") === "lark",
+          },
+          headerSubtitle: "Lark",
+          meegleStatus: { tone: "success", text: "已授权" },
+          larkStatus: { tone: "success", text: "已授权" },
+          topMeegleButtonText: "已授权",
+          topLarkButtonText: "重新授权",
+          topMeegleButtonDisabled: true,
+          topLarkButtonDisabled: false,
+          larkActions: [],
+          meegleActions: [],
+          larkBulkCreateModal: {
+            visible: false,
+            stage: "hidden",
+            preview: null,
+            result: null,
+          },
+          showKimiChat: true,
+          kimiChatTranscript: transcript,
+          kimiChatBusy: busy,
+          kimiChatSessionId: null,
+          kimiChatDraftMessage: draftMessage,
+          kimiChatHistoryOpen: options.historyOpen ?? false,
+          kimiChatHistoryLoading: false,
+          kimiChatHistoryItems: options.historyItems ?? [],
+          initialize: vi.fn().mockResolvedValue(undefined),
+          authorizeMeegle: vi.fn(),
+          authorizeLark: vi.fn(),
+          setActivePage,
+          openSettings: vi.fn(() => {
+            setActivePage("settings");
+          }),
+          closeSettings: vi.fn(() => {
+            setActivePage("chat");
+          }),
+          setSettingsForm,
+          updateSettingsFormField: vi.fn((key, value) => {
+            setSettingsForm((previous) => ({
+              ...previous,
+              [key]: value,
+            }));
+          }),
+          fetchMeegleUserKey: vi.fn(),
+          saveSettingsForm: vi.fn(async () => undefined),
+          refreshServerConfig: vi.fn(async () => undefined),
+          clearLogs: vi.fn(),
+          exportLogs: vi.fn(),
+          runFeatureAction: vi.fn(),
+          confirmLarkBulkCreate: vi.fn(async () => undefined),
+          closeLarkBulkCreateModal: vi.fn(),
+          resetKimiChatSession: (() => {
+            setDraftMessage("");
+            setTranscript([]);
+            options.resetKimiChatSession?.();
+          }) as PopupAppModel["resetKimiChatSession"],
+          openKimiChatHistory: options.openKimiChatHistory ?? vi.fn(),
+          closeKimiChatHistory: options.closeKimiChatHistory ?? vi.fn(),
+          loadKimiChatHistorySession: options.loadKimiChatHistorySession ?? vi.fn(),
+          deleteKimiChatHistorySession: options.deleteKimiChatHistorySession ?? vi.fn(),
+          updateKimiChatDraftMessage:
+            options.updateKimiChatDraftMessage ??
+            vi.fn((value: string) => {
+              setDraftMessage(value);
+            }),
+          sendKimiChatMessage: (async (message: string) => {
+            setTranscript((previous) => [
+              ...previous,
+              {
+                id: `user-${previous.length + 1}`,
+                kind: "user",
+                text: message,
+              },
+            ]);
+            await options.sendKimiChatMessage?.(message);
+          }) as PopupAppModel["sendKimiChatMessage"],
+          stopKimiChatGeneration: (() => {
+            setBusy(false);
+            options.stopKimiChatGeneration?.();
+          }) as PopupAppModel["stopKimiChatGeneration"],
+        }),
+        [activePage, busy, draftMessage, options, settingsForm, transcript],
+      );
+
+      popupApp.updateKimiChatDraftMessage = ((value: string) => {
+        setDraftMessage(value);
+        options.updateKimiChatDraftMessage?.(value);
+      }) as PopupAppModel["updateKimiChatDraftMessage"];
+
+      return React.createElement(PopupAppView, { popupApp });
+    }),
+  );
+
+  return {
+    user,
+    ...result,
+  };
+}

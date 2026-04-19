@@ -1,4 +1,8 @@
-import type { KimiChatSessionSummary } from "../../types/acp-kimi.js";
+import type {
+  KimiChatSessionSummary,
+  KimiChatTranscriptEntry,
+} from "../../types/acp-kimi.js";
+import { PopupAssistantThread } from "../components/assistant-ui/PopupAssistantThread.js";
 import { PopupPage } from "../components/PopupPage.js";
 import { UiButton } from "../components/UiButton.js";
 import { UiCard } from "../components/UiCard.js";
@@ -6,11 +10,13 @@ import { UiCard } from "../components/UiCard.js";
 export function ChatPlaceholderPage({
   busy,
   sessionId,
+  transcript,
   draftMessage,
   historyOpen,
   historyLoading,
   historyItems,
   onDraftMessageChange,
+  onSendMessage,
   onResetSession,
   onOpenHistory,
   onCloseHistory,
@@ -20,11 +26,13 @@ export function ChatPlaceholderPage({
 }: {
   busy: boolean;
   sessionId: string | null;
+  transcript: KimiChatTranscriptEntry[];
   draftMessage: string;
   historyOpen: boolean;
   historyLoading: boolean;
   historyItems: KimiChatSessionSummary[];
   onDraftMessageChange: (value: string) => void;
+  onSendMessage: (value: string) => void | Promise<void>;
   onResetSession: () => void;
   onOpenHistory: () => void;
   onCloseHistory: () => void;
@@ -35,7 +43,7 @@ export function ChatPlaceholderPage({
   return (
     <PopupPage
       title="聊天"
-      subtitle="assistant-ui 集成留给下一任务；当前先保留 React 页面壳层和工具栏结构。"
+      subtitle="assistant-ui 已接入到 React 聊天页，并继续复用现有 popup controller 管理会话与历史。现有 transcript schema 里的 thoughts 和工具活动还不能干净映射到 assistant-ui 原生 reasoning/tool parts，所以先作为侧边细节展示。"
       actions={(
         <div className="chat-placeholder__toolbar">
           <UiButton onClick={historyOpen ? onCloseHistory : onOpenHistory}>
@@ -47,24 +55,6 @@ export function ChatPlaceholderPage({
       )}
     >
       <div className="chat-placeholder" data-test="chat-page">
-        <UiCard title="聊天页面占位">
-          <p className="chat-placeholder__notice">
-            当前任务只负责切换到 React 壳层。真正的 assistant-ui 聊天主体会在后续任务接入。
-          </p>
-          <div className="chat-placeholder__meta">
-            <span>Session: {sessionId || "未创建"}</span>
-            <span>Status: {busy ? "生成中" : "空闲"}</span>
-          </div>
-          <label className="chat-placeholder__draft">
-            <span>临时草稿预览</span>
-            <textarea
-              value={draftMessage}
-              placeholder="下一任务会在这里接入真正的聊天输入区。"
-              onChange={(event) => onDraftMessageChange(event.target.value)}
-            />
-          </label>
-        </UiCard>
-
         {historyOpen ? (
           <UiCard title="历史会话">
             {historyLoading ? <p className="chat-placeholder__notice">加载中...</p> : null}
@@ -77,7 +67,9 @@ export function ChatPlaceholderPage({
                   <div key={item.sessionId} className="chat-placeholder__history-item">
                     <div className="chat-placeholder__history-copy">
                       <strong>{item.title || item.sessionId}</strong>
-                      <span>{item.updatedAt || "无更新时间"}</span>
+                      <span>
+                        {item.updatedAt ? formatSessionUpdatedAt(item.updatedAt) : "无更新时间"}
+                      </span>
                     </div>
                     <div className="chat-placeholder__toolbar">
                       <UiButton size="sm" onClick={() => onLoadHistorySession(item.sessionId)}>
@@ -97,7 +89,31 @@ export function ChatPlaceholderPage({
             ) : null}
           </UiCard>
         ) : null}
+
+        <PopupAssistantThread
+          busy={busy}
+          draftMessage={draftMessage}
+          sessionId={sessionId}
+          transcript={transcript}
+          onDraftMessageChange={onDraftMessageChange}
+          onSendMessage={onSendMessage}
+          onStopGeneration={onStopGeneration}
+        />
       </div>
     </PopupPage>
   );
+}
+
+function formatSessionUpdatedAt(updatedAt: string): string {
+  const date = new Date(updatedAt);
+  if (Number.isNaN(date.getTime())) {
+    return updatedAt;
+  }
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day} ${hours}:${minutes}`;
 }
