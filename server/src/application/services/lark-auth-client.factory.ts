@@ -34,6 +34,8 @@ function isExpired(expiresAt?: string): boolean {
   return expiresAtMs <= Date.now() + EXPIRY_SAFETY_WINDOW_MS;
 }
 
+const DEFAULT_REFRESH_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
+
 function toExpiresAt(expiresInSeconds?: number): string | undefined {
   if (
     typeof expiresInSeconds !== "number" ||
@@ -43,6 +45,13 @@ function toExpiresAt(expiresInSeconds?: number): string | undefined {
     return undefined;
   }
   return new Date(Date.now() + expiresInSeconds * 1000).toISOString();
+}
+
+function toRefreshTokenExpiresAt(
+  refreshTokenExpiresIn?: number,
+  fallback?: string,
+): string | undefined {
+  return toExpiresAt(refreshTokenExpiresIn) ?? fallback ?? toExpiresAt(DEFAULT_REFRESH_TOKEN_TTL_SECONDS);
 }
 
 /**
@@ -83,7 +92,10 @@ export async function buildAuthenticatedLarkClient(
       userToken: refreshed.accessToken,
       userTokenExpiresAt: toExpiresAt(refreshed.expiresIn),
       refreshToken: refreshed.refreshToken ?? stored.refreshToken,
-      refreshTokenExpiresAt: stored.refreshTokenExpiresAt,
+      refreshTokenExpiresAt: toRefreshTokenExpiresAt(
+        refreshed.refreshTokenExpiresIn,
+        stored.refreshTokenExpiresAt,
+      ),
       credentialStatus: "active",
     });
   }

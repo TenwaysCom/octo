@@ -7,7 +7,7 @@ import { PopupPage } from "../components/PopupPage.js";
 import { UiButton } from "../components/UiButton.js";
 import { UiCard } from "../components/UiCard.js";
 
-export function ChatPlaceholderPage({
+export function ChatPage({
   busy,
   sessionId,
   transcript,

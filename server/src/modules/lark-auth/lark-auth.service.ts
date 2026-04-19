@@ -212,6 +212,12 @@ export async function exchangeLarkAuthCode(
   const fetchImpl = deps.fetchImpl ?? fetch;
   const authBaseUrl = normalizeLarkAuthBaseUrl(request.baseUrl);
 
+  serviceLogger.info({
+    masterUserId: request.masterUserId,
+    baseUrl: authBaseUrl,
+    codePrefix: request.code?.slice(0, 8),
+  }, "LARK_EXCHANGE_API_REQUEST");
+
   // First get app access token
   const appAccessToken = await getAppAccessToken(
     authBaseUrl,
@@ -236,6 +242,10 @@ export async function exchangeLarkAuthCode(
   });
 
   if (!response.ok) {
+    serviceLogger.warn({
+      status: response.status,
+      statusText: response.statusText,
+    }, "LARK_EXCHANGE_API_HTTP_ERROR");
     throw new Error(`Failed to exchange auth code: ${response.status}`);
   }
 
@@ -243,12 +253,18 @@ export async function exchangeLarkAuthCode(
   const code = data.code as number;
 
   if (code !== 0) {
+    serviceLogger.warn({
+      code,
+      msg: data.msg,
+      data: data.data,
+    }, "LARK_EXCHANGE_API_FAIL");
     throw new Error(`Lark Authen API error: ${data.msg as string}`);
   }
 
   const tokenData = data.data as Record<string, unknown> | undefined;
 
   if (!tokenData) {
+    serviceLogger.warn({ data }, "LARK_EXCHANGE_API_MISSING_DATA");
     throw new Error("Invalid response: missing token data");
   }
 
@@ -259,6 +275,15 @@ export async function exchangeLarkAuthCode(
     refreshTokenExpiresIn: tokenData.refresh_token_expires_in as number | undefined,
     tokenType: tokenData.token_type as string ?? "Bearer",
   };
+
+  serviceLogger.info({
+    hasAccessToken: Boolean(tokenPair.accessToken),
+    hasRefreshToken: Boolean(tokenPair.refreshToken),
+    expiresIn: tokenPair.expiresIn,
+    refreshTokenExpiresIn: tokenPair.refreshTokenExpiresIn,
+    accessTokenPrefix: tokenPair.accessToken?.slice(0, 8),
+    refreshTokenPrefix: tokenPair.refreshToken?.slice(0, 8),
+  }, "LARK_EXCHANGE_API_OK");
 
   const user = await getResolvedStore(deps).getById(request.masterUserId);
   if (user?.larkId) {
@@ -298,6 +323,12 @@ export async function refreshLarkToken(
   const fetchImpl = deps.fetchImpl ?? fetch;
   const authBaseUrl = normalizeLarkAuthBaseUrl(request.baseUrl);
 
+  serviceLogger.info({
+    masterUserId: request.masterUserId,
+    baseUrl: authBaseUrl,
+    refreshTokenPrefix: request.refreshToken?.slice(0, 8),
+  }, "LARK_REFRESH_API_REQUEST");
+
   // First get app access token
   const appAccessToken = await getAppAccessToken(
     authBaseUrl,
@@ -322,6 +353,10 @@ export async function refreshLarkToken(
   });
 
   if (!response.ok) {
+    serviceLogger.warn({
+      status: response.status,
+      statusText: response.statusText,
+    }, "LARK_REFRESH_API_HTTP_ERROR");
     throw new Error(`Failed to refresh token: ${response.status}`);
   }
 
@@ -329,22 +364,39 @@ export async function refreshLarkToken(
   const code = data.code as number;
 
   if (code !== 0) {
+    serviceLogger.warn({
+      code,
+      msg: data.msg,
+      data: data.data,
+    }, "LARK_REFRESH_API_FAIL");
     throw new Error(`Lark Authen API error: ${data.msg as string}`);
   }
 
   const tokenData = data.data as Record<string, unknown> | undefined;
 
   if (!tokenData) {
+    serviceLogger.warn({ data }, "LARK_REFRESH_API_MISSING_DATA");
     throw new Error("Invalid response: missing token data");
   }
 
-  return {
+  const result = {
     accessToken: tokenData.access_token as string,
     refreshToken: tokenData.refresh_token as string | undefined,
     expiresIn: tokenData.expires_in as number | undefined,
     refreshTokenExpiresIn: tokenData.refresh_token_expires_in as number | undefined,
     tokenType: tokenData.token_type as string ?? "Bearer",
   };
+
+  serviceLogger.info({
+    hasAccessToken: Boolean(result.accessToken),
+    hasRefreshToken: Boolean(result.refreshToken),
+    expiresIn: result.expiresIn,
+    refreshTokenExpiresIn: result.refreshTokenExpiresIn,
+    accessTokenPrefix: result.accessToken?.slice(0, 8),
+    refreshTokenPrefix: result.refreshToken?.slice(0, 8),
+  }, "LARK_REFRESH_API_OK");
+
+  return result;
 }
 
 /**

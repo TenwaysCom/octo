@@ -6,30 +6,68 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PopupNotebookPage, PopupSettingsForm } from "../popup/types.js";
 import type { PopupAppModel } from "./types.js";
+import { PopupAppView } from "./PopupAppView.js";
+
+const lazyModuleState = vi.hoisted(() => ({
+  chatGate: null as ReturnType<typeof createDeferred<void>> | null,
+  modalGate: null as ReturnType<typeof createDeferred<void>> | null,
+  useChatMock: false,
+  useModalMock: false,
+}));
+
+vi.mock("./pages/ChatPage.js", async (importOriginal) => {
+  if (!lazyModuleState.useChatMock) {
+    return importOriginal();
+  }
+
+  if (lazyModuleState.chatGate) {
+    await lazyModuleState.chatGate.promise;
+  }
+
+  return {
+    ChatPage: () =>
+      React.createElement("div", { "data-test": "chat-page" }, "聊天页面占位"),
+  };
+});
+
+vi.mock("./components/LarkBulkCreateModal.js", async (importOriginal) => {
+  if (!lazyModuleState.useModalMock) {
+    return importOriginal();
+  }
+
+  if (lazyModuleState.modalGate) {
+    await lazyModuleState.modalGate.promise;
+  }
+
+  return {
+    LarkBulkCreateModal: () =>
+      React.createElement(
+        "div",
+        { "data-test": "lark-bulk-create-modal" },
+        "批量创建 MEEGLE TICKET",
+      ),
+  };
+});
 
 describe("popup-react lazy boundaries", () => {
   beforeEach(() => {
-    vi.resetModules();
+    lazyModuleState.chatGate = null;
+    lazyModuleState.modalGate = null;
+    lazyModuleState.useChatMock = false;
+    lazyModuleState.useModalMock = false;
   });
 
   afterEach(() => {
-    vi.doUnmock("./pages/ChatPlaceholderPage.js");
-    vi.doUnmock("./components/LarkBulkCreateModal.js");
+    lazyModuleState.chatGate = null;
+    lazyModuleState.modalGate = null;
+    lazyModuleState.useChatMock = false;
+    lazyModuleState.useModalMock = false;
   });
 
   it("shows the chat fallback before the lazy chat page resolves", async () => {
     const gate = createDeferred<void>();
-
-    vi.doMock("./pages/ChatPlaceholderPage.js", async () => {
-      await gate.promise;
-
-      return {
-        ChatPlaceholderPage: () =>
-          React.createElement("div", { "data-test": "chat-page" }, "聊天页面占位"),
-      };
-    });
-
-    const { PopupAppView } = await import("./PopupAppView.js");
+    lazyModuleState.useChatMock = true;
+    lazyModuleState.chatGate = gate;
     const { container } = renderPopupApp(React.createElement(PopupAppView), {
       initialPage: "chat",
     });
@@ -49,21 +87,8 @@ describe("popup-react lazy boundaries", () => {
 
   it("shows the bulk-create modal fallback before the lazy modal resolves", async () => {
     const gate = createDeferred<void>();
-
-    vi.doMock("./components/LarkBulkCreateModal.js", async () => {
-      await gate.promise;
-
-      return {
-        LarkBulkCreateModal: () =>
-          React.createElement(
-            "div",
-            { "data-test": "lark-bulk-create-modal" },
-            "批量创建 MEEGLE TICKET",
-          ),
-      };
-    });
-
-    const { PopupAppView } = await import("./PopupAppView.js");
+    lazyModuleState.useModalMock = true;
+    lazyModuleState.modalGate = gate;
     const { container } = renderPopupApp(React.createElement(PopupAppView), {
       bulkModalVisible: true,
       bulkModalStage: "preview",

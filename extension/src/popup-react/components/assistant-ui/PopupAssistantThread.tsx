@@ -544,12 +544,12 @@ function resolveChainOfThoughtStatusLabel(
     return resolveToolStatusLabel("pending");
   }
 
-  if (toolStatuses.includes("completed")) {
-    return resolveToolStatusLabel("completed");
-  }
-
   if (messageStatus?.type === "running") {
     return resolvePartStatusLabel(messageStatus);
+  }
+
+  if (toolStatuses.includes("completed")) {
+    return resolveToolStatusLabel("completed");
   }
 
   return resolvePartStatusLabel(fallbackStatus);

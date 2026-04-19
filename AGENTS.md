@@ -1,129 +1,199 @@
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to coding agents working in this repository.
 
 ## Project Overview
 
-Tenways Octo is a cross-platform coordination assistant for PMs and requirement owners. It's a Chrome extension + backend server that provides semi-automatic work item creation between Lark (A1/A2) and Meegle (B1/B2), plus PM analysis capabilities.
+Tenways Octo is a cross-platform coordination assistant for PMs and requirement owners.
+It consists of a browser extension plus a backend server that helps move work between Lark and Meegle, resolve identity and auth, and run PM analysis flows.
 
-- **Source code**: `src/agents/` contains the implementation.
-- **Tests**: `tests/` with a short guide in `tests/README.md`.
-- **Documentation**: markdown pages live in `docs/` 
-- **PR template**: .github/pull_request_template.md describes the information every PR must include.
-- **Key Principle**: The extension is a thin client (trigger + context collection + display). All business logic and AI orchestration happens on the server.
+- The extension is a thin client for page detection, context capture, auth triggers, and UI.
+- Business logic, workflow orchestration, identity resolution, and third-party API integration live on the server.
+
+### Current terminology
+
+| Old term | Current external name |
+| --- | --- |
+| `A1` | `Lark Bug` |
+| `A2` | `Lark User Story` |
+| `B1` | `Meegle User Story` |
+| `B2` | `Meegle Product Bug` |
+
+Notes:
+- Public server HTTP routes use the new names such as `/api/lark-bug/*` and `/api/lark-user-story/*`.
+- Old `/api/a1/*` and `/api/a2/*` routes remain as compatibility aliases.
+- Extension message actions still use `a1/a2/b1/b2` naming in places to avoid breaking the existing protocol.
+
+## Repository Layout
+
+```text
+tw-itdog/
+├── extension/                  # WXT browser extension
+├── server/                     # Express + TypeScript backend
+├── docs/                       # Architecture docs and design specs
+├── experiments/                # Prompt and workflow experiments
+├── Makefile                    # Root helper commands
+└── AGENTS.md
+```
+
+### Key directories
+
+**Server**
+- `server/src/index.ts` wires the app, env, controllers, and routes.
+- `server/src/http/` contains HTTP route registration and request middleware.
+- `server/src/modules/` contains controller/service modules such as `identity`, `meegle-auth`, `meegle-workitem`, `lark-auth`, `lark-base`, `pm-analysis`, `acp-kimi`, and `debug-log`.
+- `server/src/application/services/` holds business orchestration and workflow services.
+- `server/src/adapters/` contains external integrations and persistence layers, including `lark/`, `meegle/`, `postgres/`, and legacy `sqlite/`.
+- `server/src/scripts/` contains migration and import utilities.
+- `server/tests/README.md` is the current test guide.
+
+**Extension**
+- `extension/src/entrypoints/` contains WXT entrypoints such as `background`, popup HTML, content entrypoints, and page bridge hooks.
+- `extension/src/background/` contains message routing, auth handlers, and config.
+- `extension/src/content-scripts/` contains platform-specific page probes and context extraction.
+- `extension/src/injection/` contains injected UI/bootstrap logic for Lark surfaces.
+- `extension/src/popup-react/` is the current popup UI implementation.
+- `extension/src/popup/` and `extension/src/popup-shared/` contain shared popup runtime and legacy Vue-side pieces that still exist in the tree.
+
+**Docs**
+- `docs/tenways-octo/04-architecture.md` covers the current system architecture.
+- `docs/tenways-octo/11-extension-message-and-api-schema.md` documents the extension/server contract.
+- `docs/tenways-octo/13-code-structure-and-validation-design.md` explains code structure and validation decisions.
+- `docs/tenways-octo/14-v2-architecture-design.md` covers the newer ACP-oriented architecture direction.
+- `docs/tenways-octo/18-user-identity-design.md` is the current identity design reference.
+- `docs/superpowers/specs/` contains more recent implementation design docs for approved work.
 
 ## Development Commands
 
-### Server (server/)
+Prefer package-scoped commands from the package you are changing.
+
+### Root helpers
+
 ```bash
-npm run build    # Compile TypeScript
-npm run dev      # Watch mode
-npm start        # Run server (requires build first)
-npm test         # Run vitest tests
+make server-dev
+make test-server
+make ext-dev
+make ext-dev-profile
+make ext-dev-probe
+make ext-build
+make ext-test
+make ext-typecheck
 ```
 
-### Extension (extension/)
+### Server
+
 ```bash
-pnpm run build    # Compile + copy assets to dist/
-pnpm run dev      # Watch mode
-pnpm run package  # Create .zip for Chrome Web Store
-npm test         # Run vitest tests
+pnpm --dir server dev
+pnpm --dir server test
+pnpm --dir server build
+pnpm --dir server start
+pnpm --dir server db:migrate
+pnpm --dir server db:reset
+pnpm --dir server db:import-sqlite -- --sqlite ./data/tenways-octo.sqlite
+pnpm --dir server kimi-acp:repl
+pnpm --dir server kimi-acp:validate
 ```
 
-### Running Tests
+### Extension
+
 ```bash
-# Server tests
-cd server && npm test
-
-# Extension tests
-cd extension && npm test
-
-# Run single test file
-npx vitest run src/path/to/test.ts
+pnpm --dir extension dev
+pnpm --dir extension run dev:manual
+pnpm --dir extension run dev:profile
+pnpm --dir extension test
+pnpm --dir extension typecheck
+pnpm --dir extension build
+pnpm --dir extension package
+pnpm --dir extension test:e2e
 ```
 
-## Architecture
+Build output for the extension is `extension/.output/chrome-mv3/`.
 
-```
-┌─────────────────┐     ┌──────────────────┐
-│ Chrome Extension│────▶│ Backend Server   │
-│ (popup.js,      │     │ (Express + TS)   │
-│  background/,   │     │                  │
-│  content-scripts│     │ Modules:         │
-│ )               │     │ - meegle-auth    │
-└─────────────────┘     │ - lark-auth      │
-                        │ - a1/a2 workflows│
-                        │ - identity       │
-                        └────────┬─────────┘
-                                 │
-                    ┌────────────┼────────────┐
-                    ▼            ▼            ▼
-              ┌──────────┐ ┌──────────┐ ┌──────────┐
-              │Lark API  │ │Meegle API│ │GitHub API│
-              └──────────┘ └──────────┘ └──────────┘
+## Architecture Notes
+
+### Runtime split
+
+- The extension should stay thin. It detects page state, gathers context, triggers auth, and renders the UI.
+- The server owns identity resolution, auth exchange, draft/apply workflows, API orchestration, persistence, and analysis.
+
+### Auth and identity
+
+Meegle auth uses an auth-code bridge:
+
+```text
+Extension / page bridge -> Meegle page/BFF -> auth_code
+Extension background -> server /api/meegle/auth/exchange -> tokens
 ```
 
-### Key Directories
+Critical rules:
+- Never send raw browser cookies to the server.
+- Treat auth codes as one-time-use credentials.
+- `apply` flows prefer `masterUserId`; if absent, the server may fall back to `operatorLarkId`.
 
-**Extension**:
-- `src/background/` - Service worker, message routing, auth handlers
-- `src/content-scripts/` - Per-platform DOM interaction (lark.ts, meegle.ts)
-- `src/popup.js` + `popup.html` - UI
+### Persistence
 
-**Server**:
-- `src/modules/` - Controllers and DTOs for each domain
-- `src/adapters/` - External API clients (meegle/, lark/)
-- `src/application/services/` - Business logic layer
-
-## Authentication Flow (Meegle)
-
-Uses "Auth Code Bridge" pattern - extension gets auth code from logged-in Meegle page, server exchanges for tokens:
-
-```
-Extension (content script) ──▶ Meegle BFF ──▶ auth_code
-                                              │
-Extension (background) ◀──────────────────────┘
-         │
-         ▼
-Server /api/meegle/auth/exchange ──▶ plugin_token + user_token
-```
-
-**Critical**: Never send raw cookies to server. Auth codes are one-time use.
-
+- PostgreSQL is the current runtime store.
+- `POSTGRES_URI` must be set for migrations and normal runtime storage.
+- `server/src/adapters/sqlite/` exists for legacy reads and one-time import, not as the primary runtime database.
 
 ## Environment Variables
 
-Server `.env`:
-```
+### Server
+
+```bash
 LARK_APP_ID=
 LARK_APP_SECRET=
+LARK_OAUTH_CALLBACK_URL=
 MEEGLE_PLUGIN_ID=
 MEEGLE_PLUGIN_SECRET=
 MEEGLE_BASE_URL=https://project.larksuite.com
+POSTGRES_URI=
+HOST=0.0.0.0
 PORT=3000
 ```
 
 ## Key Patterns
 
-1. **Two-phase writes**: All creation operations use `draft` + `apply` pattern
-2. **Dependency injection**: Services receive deps objects for testability
-3. **Zod validation**: All API inputs validated with Zod schemas
-4. **Error envelope**: All responses use `{ ok, data, error }` format
+1. All creation flows use a `draft` then `apply` pattern.
+2. Validate API inputs with Zod DTO schemas.
+3. Keep services dependency-injected through explicit deps objects so they stay testable.
+4. Preserve the structured `{ ok, data, error }` error envelope where the module already uses it.
+5. Keep public route naming aligned with the newer `lark-bug` and `lark-user-story` vocabulary unless you are intentionally touching compatibility aliases.
+6. Do not use `console.log`; use the local `logger.ts` utilities.
+7. Keep the extension/server boundary clean. Do not move workflow logic into the extension.
 
 ## Testing
 
-- Unit tests use vitest with `describe/it/expect` pattern
-- Mock Chrome APIs in extension tests (see `extension/test/setup.ts`)
-- Services receive mock adapters via deps parameter
+- Tests are colocated with source in both `server/src/**/*.test.ts` and `extension/src/**/*.test.ts`.
+- The server test guide lives at `server/tests/README.md`.
+- Server verification usually means `pnpm --dir server test` and often `pnpm --dir server build` for compile safety.
+- Extension verification usually means `pnpm --dir extension test`, `pnpm --dir extension typecheck`, and `pnpm --dir extension build`.
+- Extension end-to-end coverage uses Playwright via `pnpm --dir extension test:e2e`.
+- Vitest globals are enabled here. Use `describe`, `it`, and `expect` directly without importing them.
+- Do not introduce dynamic `await import()` patterns in tests.
 
 ## Documentation
 
-Key docs in `docs/tenways-octo/`:
-- [04-architecture.md](docs/tenways-octo/04-architecture.md) - System architecture
-- [10-meegle-auth-bridge-design.md](docs/tenways-octo/10-meegle-auth-bridge-design.md) - Auth flow details
-- [16-auth-flow-design.md](docs/tenways-octo/16-auth-flow-design.md) - Auth implementation status
-
+- Keep high-level design references in `docs/tenways-octo/`.
+- Keep implementation-specific, date-stamped design specs in `docs/superpowers/specs/`.
+- If behavior changes across both extension and server, update whichever architecture or protocol doc is actually affected instead of adding a new stray markdown file.
 
 ## Commit Messages
 
-Write commit messages and PR descriptions as a humble but experienced engineer would. Keep it casual, avoid listicles, briefly describe what we're doing and highlight non-obvious implementation choices but don't overthink it.
+Write commit messages and PR descriptions as a humble but experienced engineer would. Keep them casual and specific. Briefly describe what changed and call out non-obvious implementation choices when that context helps the next reader.
 
-Don't embarrass me with robot speak, marketing buzzwords, or vague fluff. You're not writing a fucking pamphlet. Just leave a meaningful trace so someone can understand the choices later. Assume the reader is able to follow the code perfectly fine.
+Do not write robot copy, marketing fluff, or vague summaries.
+
+# Tips for Claude Code
+
+- Context7 MCP server available for library documentation lookup
+- use-gunshi-cli skill available for gunshi CLI framework documentation
+- byethrow skill available for @praha/byethrow Result type documentation
+- do not use console.log. use logger.ts instead
+- **CRITICAL VITEST REMINDER**: Vitest globals are enabled - use `describe`, `it`, `expect` directly WITHOUT imports. NEVER use `await import()` dynamic imports anywhere, especially in test blocks.
+
+# important-instruction-reminders
+
+Do what has been asked; nothing more, nothing less.
+NEVER create files unless they're absolutely necessary for achieving your goal.
+ALWAYS prefer editing an existing file to creating a new one.
+NEVER proactively create documentation files (\*.md) or README files. Only create documentation files if explicitly requested by the User.
+Dependencies should always be added as devDependencies unless explicitly requested otherwise.

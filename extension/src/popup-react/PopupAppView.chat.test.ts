@@ -33,7 +33,7 @@ describe("popup-react chat page", () => {
   });
 
   it("renders the lazy chat page through the assistant-ui path when chat is active", async () => {
-    renderPopupApp({
+    await renderPopupApp({
       initialPage: "chat",
       transcript: [
         {
@@ -51,7 +51,7 @@ describe("popup-react chat page", () => {
   });
 
   it("renders assistant thoughts through the native chain-of-thought path instead of the legacy sidecar", async () => {
-    const { user } = renderPopupApp({
+    const { user } = await renderPopupApp({
       initialPage: "chat",
       transcript: [
         {
@@ -88,7 +88,7 @@ describe("popup-react chat page", () => {
   });
 
   it("renders tool call title, status, and detail through the native tool-call path", async () => {
-    const { user } = renderPopupApp({
+    const { user } = await renderPopupApp({
       initialPage: "chat",
       transcript: [
         {
@@ -115,7 +115,7 @@ describe("popup-react chat page", () => {
   });
 
   it("derives the chain-of-thought badge from native tool status while a tool is still running", async () => {
-    const { user } = renderPopupApp({
+    const { user } = await renderPopupApp({
       initialPage: "chat",
       transcript: [
         {
@@ -142,7 +142,7 @@ describe("popup-react chat page", () => {
   });
 
   it("keeps the chain-of-thought badge in running state for reasoning-only streaming turns", async () => {
-    const { user } = renderPopupApp({
+    const { user } = await renderPopupApp({
       initialPage: "chat",
       busy: true,
       transcript: [
@@ -167,8 +167,36 @@ describe("popup-react chat page", () => {
     expect(screen.getByText("先确认约束，再决定下一步。")).toBeTruthy();
   });
 
+  it("keeps the chain-of-thought badge in running state when a tool has completed but the assistant is still streaming", async () => {
+    const { user } = await renderPopupApp({
+      initialPage: "chat",
+      busy: true,
+      transcript: [
+        {
+          id: "assistant-1",
+          kind: "assistant",
+          text: "我正在继续汇总工具结果。",
+          toolCalls: [
+            {
+              id: "tool-1",
+              title: "Inspect page context",
+              status: "completed",
+              detail: "页面标题与链接信息已读取完成",
+            },
+          ],
+        },
+      ],
+    });
+
+    const trigger = await screen.findByRole("button", { name: /思考过程/i });
+    await user.click(trigger);
+
+    expect(trigger.textContent?.includes("进行中")).toBe(true);
+    expect(screen.getByText("页面标题与链接信息已读取完成")).toBeTruthy();
+  });
+
   it("renders assistant markdown transcript content with the existing safe markdown renderer", async () => {
-    const { container } = renderPopupApp({
+    const { container } = await renderPopupApp({
       initialPage: "chat",
       transcript: [
         {
@@ -192,7 +220,7 @@ describe("popup-react chat page", () => {
   it("sends via the chat composer using the existing popup send flow", async () => {
     const sendKimiChatMessage = vi.fn(async () => undefined);
     const updateKimiChatDraftMessage = vi.fn();
-    const { unmount, user } = renderPopupApp({
+    const { unmount, user } = await renderPopupApp({
       initialPage: "chat",
       sendKimiChatMessage,
       updateKimiChatDraftMessage,
@@ -214,7 +242,7 @@ describe("popup-react chat page", () => {
     const loadKimiChatHistorySession = vi.fn();
     const deleteKimiChatHistorySession = vi.fn();
     const stopKimiChatGeneration = vi.fn();
-    const { user } = renderPopupApp({
+    const { user } = await renderPopupApp({
       initialPage: "chat",
       busy: true,
       historyOpen: true,
@@ -254,7 +282,7 @@ describe("popup-react chat page", () => {
   });
 });
 
-function renderPopupApp(
+async function renderPopupApp(
   options: {
     busy?: boolean;
     historyItems?: KimiChatSessionSummary[];

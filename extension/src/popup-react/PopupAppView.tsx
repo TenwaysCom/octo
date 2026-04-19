@@ -10,10 +10,10 @@ import { SettingsPage } from "./pages/SettingsPage.js";
 import { UnsupportedPageView } from "./pages/UnsupportedPageView.js";
 import type { PopupAppModel } from "./types.js";
 
-const LazyChatPlaceholderPage = lazy(async () => {
-  const module = await import("./pages/ChatPlaceholderPage.js");
+const LazyChatPage = lazy(async () => {
+  const module = await import("./pages/ChatPage.js");
 
-  return { default: module.ChatPlaceholderPage };
+  return { default: module.ChatPage };
 });
 
 const LazyLarkBulkCreateModal = lazy(async () => {
@@ -75,7 +75,7 @@ function renderActivePage(popupApp: PopupAppModel) {
         <Suspense
           fallback={<PageLoadingFallback title="聊天" subtitle="正在加载聊天壳层。" />}
         >
-          <LazyChatPlaceholderPage
+          <LazyChatPage
             busy={popupApp.kimiChatBusy}
             sessionId={popupApp.kimiChatSessionId}
             transcript={popupApp.kimiChatTranscript}
