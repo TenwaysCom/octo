@@ -24,18 +24,19 @@ export function renderMarkdownStream(source: string): string {
 
   for (const match of stabilized.matchAll(fencePattern)) {
     const start = match.index ?? 0;
-    html += renderMarkdownText(stabilized.slice(lastIndex, start));
+    html += renderParagraphs(stabilized.slice(lastIndex, start));
     html += renderCodeBlock(match[1] ?? "", match[2] ?? "");
     lastIndex = start + match[0].length;
   }
 
-  html += renderMarkdownText(stabilized.slice(lastIndex));
+  html += renderParagraphs(stabilized.slice(lastIndex));
 
   return html;
 }
 
 /**
  * Render inline markdown text (bold, italic, links, inline code)
+ * Does NOT wrap content in paragraphs - use renderParagraphs for block-level rendering.
  */
 export function renderMarkdownText(source: string): string {
   // First escape HTML
