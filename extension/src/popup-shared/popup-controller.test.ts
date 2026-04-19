@@ -1,0 +1,370 @@
+// @vitest-environment jsdom
+
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const runtimeMock = vi.hoisted(() => ({
+  clearResolvedIdentity: vi.fn(),
+  clearResolvedIdentityForTab: vi.fn(),
+  deleteKimiChatSession: vi.fn(),
+  deleteKimiChatTranscriptSnapshot: vi.fn(),
+  fetchLarkUserInfo: vi.fn(),
+  getConfig: vi.fn(),
+  getLarkAuthStatus: vi.fn(),
+  listKimiChatSessions: vi.fn(),
+  loadKimiChatSession: vi.fn(),
+  loadKimiChatTranscriptSnapshot: vi.fn(),
+  loadPopupSettings: vi.fn(),
+  loadResolvedIdentity: vi.fn(),
+  postClientDebugLog: vi.fn(),
+  queryActiveTabContext: vi.fn(),
+  requestLarkUserId: vi.fn(),
+  requestMeegleUserIdentity: vi.fn(),
+  resolveIdentityRequest: vi.fn(),
+  runLarkAuthRequest: vi.fn(),
+  runLarkBaseBulkCreateRequest: vi.fn(),
+  runLarkBaseBulkPreviewRequest: vi.fn(),
+  runMeegleAuthRequest: vi.fn(),
+  runMeegleLarkPushRequest: vi.fn(),
+  saveKimiChatTranscriptSnapshot: vi.fn(),
+  savePopupSettings: vi.fn(),
+  saveResolvedIdentity: vi.fn(),
+  saveResolvedIdentityForTab: vi.fn(),
+  watchLarkAuthCallbackResult: vi.fn((_listener?: unknown) => () => {}),
+}));
+
+const meegleAuthControllerMock = vi.hoisted(() => ({
+  getLastAuth: vi.fn(),
+  run: vi.fn(),
+}));
+
+const kimiChatClientMock = vi.hoisted(() => ({
+  sendMessage: vi.fn(),
+}));
+
+vi.mock("../popup/runtime.js", () => runtimeMock);
+
+vi.mock("../popup/meegle-auth.js", async () => {
+  const actual = await vi.importActual<typeof import("../popup/meegle-auth.js")>(
+    "../popup/meegle-auth.js",
+  );
+
+  return {
+    ...actual,
+    createMeegleAuthController: vi.fn(() => meegleAuthControllerMock),
+  };
+});
+
+vi.mock("../popup/kimi-chat-client.js", () => ({
+  createKimiChatClient: vi.fn(() => kimiChatClientMock),
+}));
+
+import { createPopupController } from "./popup-controller";
+
+describe("popup controller", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    runtimeMock.getConfig.mockResolvedValue({
+      SERVER_URL: "http://localhost:3000",
+      MEEGLE_PLUGIN_ID: "MII_PLUGIN",
+      MEEGLE_BASE_URL: "https://project.larksuite.com",
+      LARK_APP_ID: "cli_test",
+      LARK_OAUTH_CALLBACK_URL: "http://localhost:3000/api/lark/auth/callback",
+    });
+    runtimeMock.loadPopupSettings.mockResolvedValue({
+      SERVER_URL: "http://localhost:3000",
+      MEEGLE_PLUGIN_ID: "MII_PLUGIN",
+      LARK_OAUTH_CALLBACK_URL: "http://localhost:3000/api/lark/auth/callback",
+      meegleUserKey: "7538275242901291040",
+      larkUserId: "ou_user",
+    });
+    runtimeMock.loadResolvedIdentity.mockResolvedValue(undefined);
+    runtimeMock.queryActiveTabContext.mockResolvedValue({
+      id: 12,
+      url: "https://project.larksuite.com/wiki/test",
+      origin: "https://project.larksuite.com",
+      pageType: "lark",
+    });
+    runtimeMock.requestLarkUserId.mockResolvedValue("ou_user");
+    runtimeMock.requestMeegleUserIdentity.mockResolvedValue(undefined);
+    runtimeMock.resolveIdentityRequest.mockResolvedValue({
+      ok: true,
+      data: {
+        masterUserId: "usr_resolved",
+        identityStatus: "active",
+        operatorLarkId: "ou_resolved",
+        larkEmail: "user@example.com",
+      },
+    });
+    runtimeMock.getLarkAuthStatus.mockResolvedValue({
+      status: "ready",
+      baseUrl: "https://open.larksuite.com",
+      masterUserId: "usr_resolved",
+      expiresAt: "2026-04-02T21:01:00.000Z",
+    });
+    runtimeMock.fetchLarkUserInfo.mockResolvedValue({
+      ok: true,
+      data: {
+        userId: "ou_user",
+        tenantKey: "tenant_123",
+        email: "user@example.com",
+        name: "Test User",
+        avatarUrl: "https://example.com/avatar.png",
+      },
+    });
+    runtimeMock.postClientDebugLog.mockResolvedValue(true);
+    runtimeMock.listKimiChatSessions.mockResolvedValue({
+      ok: true,
+      data: {
+        sessions: [],
+      },
+    });
+    runtimeMock.loadKimiChatSession.mockResolvedValue({
+      ok: true,
+      data: {
+        sessionId: "sess_loaded",
+        events: [],
+      },
+    });
+    runtimeMock.deleteKimiChatSession.mockResolvedValue({
+      ok: true,
+    });
+    runtimeMock.loadKimiChatTranscriptSnapshot.mockResolvedValue(undefined);
+    runtimeMock.saveKimiChatTranscriptSnapshot.mockResolvedValue(undefined);
+    runtimeMock.deleteKimiChatTranscriptSnapshot.mockResolvedValue(undefined);
+    runtimeMock.runLarkBaseBulkPreviewRequest.mockResolvedValue({
+      ok: true,
+      baseId: "XO0cbnxMIaralRsbBEolboEFgZc",
+      tableId: "tblUfu71xwdul3NH",
+      viewId: "vewMs17Tqk",
+      totalRecordsInView: 2,
+      eligibleRecords: [
+        {
+          recordId: "rec_1",
+          title: "Record one",
+          priority: "P0",
+        },
+      ],
+      skippedRecords: [
+        {
+          recordId: "rec_2",
+          title: "Record two",
+          priority: "P1",
+          reason: "ALREADY_LINKED",
+        },
+      ],
+    });
+    runtimeMock.runLarkBaseBulkCreateRequest.mockImplementation(async () => ({
+      ok: true,
+      baseId: "XO0cbnxMIaralRsbBEolboEFgZc",
+      tableId: "tblUfu71xwdul3NH",
+      viewId: "vewMs17Tqk",
+      totalRecordsInView: 2,
+      summary: {
+        created: 1,
+        failed: 0,
+        skipped: 1,
+      },
+      createdRecords: [
+        {
+          recordId: "rec_1",
+          title: "Record one",
+          priority: "P0",
+          workitemId: "WI-1",
+          meegleLink: "https://project.larksuite.com/OPS/story/detail/WI-1",
+        },
+      ],
+      failedRecords: [],
+      skippedRecords: [
+        {
+          recordId: "rec_2",
+          title: "Record two",
+          priority: "P1",
+          reason: "ALREADY_LINKED",
+        },
+      ],
+    }));
+    runtimeMock.runMeegleAuthRequest.mockResolvedValue({
+      status: "ready",
+      baseUrl: "https://project.larksuite.com",
+      credentialStatus: "active",
+    });
+    runtimeMock.runMeegleLarkPushRequest.mockResolvedValue({
+      ok: true,
+      alreadyUpdated: false,
+      larkBaseUpdated: true,
+      messageSent: true,
+      reactionAdded: false,
+      meegleStatusUpdated: true,
+    });
+    runtimeMock.saveResolvedIdentity.mockResolvedValue(undefined);
+    runtimeMock.saveResolvedIdentityForTab.mockResolvedValue(undefined);
+    runtimeMock.savePopupSettings.mockResolvedValue(undefined);
+
+    meegleAuthControllerMock.run.mockResolvedValue(true);
+    meegleAuthControllerMock.getLastAuth.mockReturnValue(undefined);
+    kimiChatClientMock.sendMessage.mockReset();
+
+    vi.mocked(globalThis.fetch).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: {
+          status: "ready",
+          baseUrl: "https://project.larksuite.com",
+          credentialStatus: "active",
+        },
+      }),
+    } as Response);
+  });
+
+  it("transitions bulk-create modal from preview to executing to result", async () => {
+    runtimeMock.queryActiveTabContext.mockResolvedValueOnce({
+      id: 12,
+      url: "https://nsghpcq7ar4z.sg.larksuite.com/base/XO0cbnxMIaralRsbBEolboEFgZc?table=tblUfu71xwdul3NH&view=vewMs17Tqk",
+      origin: "https://nsghpcq7ar4z.sg.larksuite.com",
+      pageType: "lark",
+    });
+
+    const controller = createPopupController();
+    await controller.initialize();
+    await controller.runFeatureAction("bulk-create-meegle-tickets");
+
+    const confirmPromise = controller.confirmLarkBulkCreate();
+    expect(controller.getState().larkBulkCreateModal.stage).toBe("executing");
+    await confirmPromise;
+
+    expect(runtimeMock.runLarkBaseBulkCreateRequest).toHaveBeenCalledWith({
+      baseId: "XO0cbnxMIaralRsbBEolboEFgZc",
+      tableId: "tblUfu71xwdul3NH",
+      viewId: "vewMs17Tqk",
+      masterUserId: "usr_resolved",
+    });
+    expect(controller.getState().larkBulkCreateModal.stage).toBe("result");
+    expect(controller.getState().larkBulkCreateModal.result?.ok).toBe(true);
+    controller.dispose();
+  });
+
+  it("refreshes auth state when the Lark auth callback reports completion", async () => {
+    let callbackListener:
+      | ((result: {
+          state: string;
+          status: "ready" | "failed";
+          masterUserId?: string;
+          reason?: string;
+        }) => void | Promise<void>)
+      | undefined;
+    runtimeMock.watchLarkAuthCallbackResult.mockImplementation((listener) => {
+      callbackListener = listener as typeof callbackListener;
+      return () => {};
+    });
+
+    const controller = createPopupController();
+    await controller.initialize();
+    runtimeMock.saveResolvedIdentity.mockClear();
+    runtimeMock.getLarkAuthStatus.mockResolvedValueOnce({
+      status: "ready",
+      baseUrl: "https://open.larksuite.com",
+      masterUserId: "usr_callback",
+    });
+
+    await callbackListener?.({
+      state: "state_123",
+      status: "ready",
+      masterUserId: "usr_callback",
+    });
+
+    expect(runtimeMock.saveResolvedIdentity).toHaveBeenCalledWith("usr_callback");
+    expect(runtimeMock.saveResolvedIdentityForTab).toHaveBeenCalledWith(
+      12,
+      "usr_callback",
+    );
+    expect(controller.getState().state.identity.masterUserId).toBe("usr_callback");
+    expect(controller.getState().state.isAuthed.lark).toBe(true);
+    controller.dispose();
+  });
+
+  it("keeps snapshots detached and updates settings only through controller methods", () => {
+    const controller = createPopupController();
+    const firstSnapshot = controller.getState();
+
+    expect(() => {
+      firstSnapshot.settingsForm.SERVER_URL = "http://mutated.invalid";
+    }).toThrow();
+    expect(() => {
+      firstSnapshot.state.identity.larkId = "ou_mutated";
+    }).toThrow();
+
+    controller.updateSettingsFormField("SERVER_URL", "http://field-update.local");
+    controller.setSettingsForm({
+      ...controller.getState().settingsForm,
+      larkUserId: "ou_changed",
+    });
+
+    const nextSnapshot = controller.getState();
+    expect(nextSnapshot.settingsForm.SERVER_URL).toBe("http://field-update.local");
+    expect(nextSnapshot.settingsForm.larkUserId).toBe("ou_changed");
+    expect(firstSnapshot.settingsForm.SERVER_URL).toBe(
+      "https://octo.odoo.tenways.it:18443",
+    );
+    controller.dispose();
+  });
+
+  it("restores the saved settings snapshot when settings are closed without saving", async () => {
+    const controller = createPopupController();
+    await controller.initialize();
+
+    controller.openSettings();
+    controller.updateSettingsFormField("SERVER_URL", "http://unsaved.local");
+    expect(controller.getState().settingsForm.SERVER_URL).toBe("http://unsaved.local");
+
+    controller.closeSettings();
+
+    expect(controller.getState().activePage).toBe("chat");
+    expect(controller.getState().settingsForm.SERVER_URL).toBe("http://localhost:3000");
+    controller.dispose();
+  });
+
+  it("clears a stale kimi session and restores the draft after a failed follow-up", async () => {
+    kimiChatClientMock.sendMessage
+      .mockImplementationOnce(
+        async (
+          _input: { operatorLarkId: string; message: string; sessionId?: string },
+          handlers?: {
+            onEvent?: (event: {
+              event: string;
+              data: Record<string, unknown>;
+            }) => void;
+          },
+        ) => {
+          handlers?.onEvent?.({
+            event: "session.created",
+            data: {
+              sessionId: "sess_stale",
+            },
+          });
+        },
+      )
+      .mockRejectedValueOnce(
+        Object.assign(new Error("session expired"), {
+          code: "SESSION_NOT_FOUND",
+        }),
+      );
+
+    const controller = createPopupController();
+    controller.updateSettingsFormField("larkUserId", "ou_test");
+    await controller.runFeatureAction("analyze");
+    await controller.sendKimiChatMessage("first turn");
+    controller.updateKimiChatDraftMessage("follow up");
+
+    await controller.sendKimiChatMessage("follow up");
+
+    expect(controller.getState().kimiChatSessionId).toBeNull();
+    expect(controller.getState().kimiChatDraftMessage).toBe("follow up");
+    expect(
+      controller.getState().logs.some((entry) =>
+        entry.message.includes("session expired"),
+      ),
+    ).toBe(true);
+    controller.dispose();
+  });
+});

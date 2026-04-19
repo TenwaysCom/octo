@@ -6,7 +6,7 @@ type PopupToastTone = Extract<PopupLogLevel, "success" | "error" | "warn" | "inf
 
 export function showPopupToast(
   text: string,
-  tone: PopupToastTone = "info",
+  tone: PopupLogLevel = "info",
 ): void {
   if (typeof document === "undefined") {
     return;
@@ -14,7 +14,7 @@ export function showPopupToast(
 
   const root = ensurePopupToastRoot();
   const toast = document.createElement("div");
-  toast.className = `popup-toast popup-toast--${tone}`;
+  toast.className = `popup-toast popup-toast--${normalizePopupToastTone(tone)}`;
   toast.textContent = text;
   root.append(toast);
 
@@ -27,6 +27,14 @@ export function showPopupToast(
       }
     }, 180);
   }, 1800);
+}
+
+function normalizePopupToastTone(tone: PopupLogLevel): PopupToastTone {
+  if (tone === "debug") {
+    return "info";
+  }
+
+  return tone;
 }
 
 function ensurePopupToastRoot(): HTMLElement {

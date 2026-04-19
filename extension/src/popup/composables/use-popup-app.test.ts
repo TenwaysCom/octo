@@ -644,17 +644,31 @@ describe("usePopupApp notebook state", () => {
   });
 
   it("resets the Kimi chat session when analyze is triggered again", async () => {
+    kimiChatClientMock.sendMessage.mockImplementationOnce(
+      async (
+        _input: { operatorLarkId: string; message: string; sessionId?: string },
+        handlers?: {
+          onEvent?: (event: {
+            event: string;
+            data: Record<string, unknown>;
+          }) => void;
+        },
+      ) => {
+        handlers?.onEvent?.({
+          event: "session.created",
+          data: {
+            sessionId: "sess_1",
+          },
+        });
+      },
+    );
+
     const popup = usePopupApp();
+    popup.settingsForm.larkUserId = "ou_test";
+    await Promise.resolve();
 
     popup.runFeatureAction("analyze");
-    popup.kimiChatSessionId.value = "sess_1";
-    popup.kimiChatTranscript.value = [
-      {
-        id: "user-1",
-        kind: "user",
-        text: "first turn",
-      },
-    ];
+    await popup.sendKimiChatMessage("first turn");
 
     popup.runFeatureAction("analyze");
 
@@ -1181,6 +1195,18 @@ describe("usePopupApp notebook state", () => {
     expect(popup.kimiChatDraftMessage.value).toBe("");
   });
 
+  it("syncs legacy Vue identity mutations into controller-backed history actions", async () => {
+    const popup = usePopupApp();
+
+    popup.state.identity.larkId = "ou_legacy";
+
+    await popup.openKimiChatHistory();
+
+    expect(runtimeMock.listKimiChatSessions).toHaveBeenCalledWith({
+      operatorLarkId: "ou_legacy",
+    });
+  });
+
   it("opens history by loading user-scoped sessions from the server", async () => {
     runtimeMock.listKimiChatSessions.mockResolvedValueOnce({
       ok: true,
@@ -1329,23 +1355,50 @@ describe("usePopupApp notebook state", () => {
   });
 
   it("deletes the current historical session and resets the active chat state", async () => {
-    const popup = usePopupApp();
-    popup.state.identity.larkId = "ou_test";
-    popup.kimiChatSessionId.value = "sess_1";
-    popup.kimiChatTranscript.value = [
-      {
-        id: "assistant-1",
-        kind: "assistant",
-        text: "历史回复",
+    runtimeMock.listKimiChatSessions.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        sessions: [
+          {
+            sessionId: "sess_1",
+            title: "历史会话",
+          },
+        ],
       },
-    ];
-    popup.kimiChatHistoryItems.value = [
-      {
+    });
+    runtimeMock.loadKimiChatSession.mockResolvedValueOnce({
+      ok: true,
+      data: {
         sessionId: "sess_1",
-        title: "历史会话",
+        events: [
+          {
+            event: "session.created",
+            data: {
+              sessionId: "sess_1",
+            },
+          },
+          {
+            event: "acp.session.update",
+            data: {
+              sessionId: "sess_1",
+              update: {
+                sessionUpdate: "agent_message_chunk",
+                content: {
+                  type: "text",
+                  text: "历史回复",
+                },
+              },
+            },
+          },
+        ],
       },
-    ];
-    popup.kimiChatHistoryOpen.value = true;
+    });
+
+    const popup = usePopupApp();
+    popup.settingsForm.larkUserId = "ou_test";
+    await Promise.resolve();
+    await popup.openKimiChatHistory();
+    await popup.loadKimiChatHistorySession("sess_1");
 
     await popup.deleteKimiChatHistorySession("sess_1");
 
@@ -1369,12 +1422,32 @@ describe("usePopupApp notebook state", () => {
         code: "SESSION_NOT_FOUND",
       },
     );
-    kimiChatClientMock.sendMessage.mockRejectedValueOnce(staleSessionError);
+    kimiChatClientMock.sendMessage
+      .mockImplementationOnce(
+        async (
+          _input: { operatorLarkId: string; message: string; sessionId?: string },
+          handlers?: {
+            onEvent?: (event: {
+              event: string;
+              data: Record<string, unknown>;
+            }) => void;
+          },
+        ) => {
+          handlers?.onEvent?.({
+            event: "session.created",
+            data: {
+              sessionId: "sess_stale",
+            },
+          });
+        },
+      )
+      .mockRejectedValueOnce(staleSessionError);
 
     const popup = usePopupApp();
-    popup.state.identity.larkId = "ou_test";
+    popup.settingsForm.larkUserId = "ou_test";
+    await Promise.resolve();
     popup.runFeatureAction("analyze");
-    popup.kimiChatSessionId.value = "sess_stale";
+    await popup.sendKimiChatMessage("first turn");
     popup.updateKimiChatDraftMessage("follow up");
 
     await popup.sendKimiChatMessage("follow up");
