@@ -10,7 +10,13 @@
         <button class="bulk-modal__close" @click="$emit('close')">关闭</button>
       </div>
 
-      <div v-if="stage === 'preview'" class="bulk-modal__body">
+      <div v-if="stage === 'error' && bulkError" class="bulk-modal__body" data-test="lark-bulk-create-modal-error">
+        <p class="bulk-modal__error-title">无法继续</p>
+        <p v-if="bulkError.errorCode" class="bulk-modal__error-code">错误码: {{ bulkError.errorCode }}</p>
+        <p class="bulk-modal__error-message">{{ bulkError.errorMessage }}</p>
+      </div>
+
+      <div v-else-if="stage === 'preview'" class="bulk-modal__body">
         <p class="bulk-modal__summary">
           本次将创建 {{ preview?.eligibleRecords.length ?? 0 }} 条，已跳过
           {{ preview?.skippedRecords.length ?? 0 }} 条。
@@ -18,9 +24,11 @@
         <table class="bulk-modal__table">
           <thead>
             <tr>
-              <th>记录 ID</th>
+              <th>编号</th>
+              <th>Issue 类型</th>
               <th>Title</th>
               <th>Priority</th>
+              <th>记录 ID</th>
             </tr>
           </thead>
           <tbody>
@@ -28,9 +36,11 @@
               v-for="record in preview?.eligibleRecords ?? []"
               :key="record.recordId"
             >
-              <td>{{ record.recordId }}</td>
-              <td>{{ record.title }}</td>
+              <td>{{ record.issueNumber }}</td>
+              <td>{{ record.issueType }}</td>
+              <td class="bulk-modal__title-cell">{{ record.title }}</td>
               <td>{{ record.priority }}</td>
+              <td>{{ record.recordId }}</td>
             </tr>
           </tbody>
         </table>
@@ -50,7 +60,12 @@
             <h4>已创建</h4>
             <ul>
               <li v-for="record in result.createdRecords" :key="record.recordId">
-                {{ record.recordId }} | {{ record.title }} | {{ record.priority }}
+                编号 {{ record.issueNumber }} · Issue 类型 {{ record.issueType }} ·
+                {{ record.recordId }} · {{ record.title }}
+                <template v-if="record.meegleLink">
+                  ·
+                  <a :href="record.meegleLink" target="_blank" rel="noreferrer">Meegle</a>
+                </template>
               </li>
             </ul>
           </div>
@@ -58,7 +73,8 @@
             <h4>失败</h4>
             <ul>
               <li v-for="record in result.failedRecords" :key="record.recordId">
-                {{ record.recordId }} | {{ record.errorMessage }}
+                编号 {{ record.issueNumber }} · Issue 类型 {{ record.issueType }} ·
+                {{ record.recordId }} · {{ record.errorMessage }}
               </li>
             </ul>
           </div>
@@ -84,9 +100,10 @@ import type {
 
 defineProps<{
   visible: boolean;
-  stage: "hidden" | "preview" | "executing" | "result";
+  stage: "hidden" | "preview" | "executing" | "result" | "error";
   preview: Extract<LarkBaseBulkPreviewResultPayload, { ok: true }> | null;
   result: LarkBaseBulkCreateResultPayload | null;
+  bulkError: { errorCode?: string; errorMessage: string } | null;
 }>();
 
 defineEmits<{
@@ -106,7 +123,7 @@ defineEmits<{
 }
 
 .bulk-modal {
-  width: min(560px, 100%);
+  width: min(720px, 100%);
   background: #fff;
   border-radius: 16px;
   border: 1px solid #dbe4f0;
@@ -154,6 +171,13 @@ defineEmits<{
   vertical-align: top;
 }
 
+.bulk-modal__title-cell {
+  min-width: 320px;
+  max-width: 560px;
+  white-space: normal;
+  word-break: break-word;
+}
+
 .bulk-modal__section h4 {
   margin: 0 0 6px;
 }
@@ -168,5 +192,26 @@ defineEmits<{
   background: transparent;
   color: #64748b;
   cursor: pointer;
+}
+
+.bulk-modal__error-title {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #b91c1c;
+}
+
+.bulk-modal__error-code {
+  margin: 0 0 8px;
+  font-size: 0.8rem;
+  color: #64748b;
+  font-family: ui-monospace, monospace;
+}
+
+.bulk-modal__error-message {
+  margin: 0;
+  color: #334155;
+  line-height: 1.5;
+  white-space: pre-wrap;
 }
 </style>

@@ -142,6 +142,8 @@ describe("usePopupApp React hook", () => {
       eligibleRecords: [
         {
           recordId: "rec_1",
+          issueNumber: "N-1",
+          issueType: "User Story",
           title: "Record one",
           priority: "P0",
         },
@@ -313,6 +315,8 @@ describe("usePopupApp React hook", () => {
     expect(result.current.larkBulkCreateModal.preview?.eligibleRecords).toEqual([
       {
         recordId: "rec_1",
+        issueNumber: "N-1",
+        issueType: "User Story",
         title: "Record one",
         priority: "P0",
       },

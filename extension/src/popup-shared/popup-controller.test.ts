@@ -141,6 +141,8 @@ describe("popup controller", () => {
       eligibleRecords: [
         {
           recordId: "rec_1",
+          issueNumber: "N-1",
+          issueType: "User Story",
           title: "Record one",
           priority: "P0",
         },
@@ -148,6 +150,8 @@ describe("popup controller", () => {
       skippedRecords: [
         {
           recordId: "rec_2",
+          issueNumber: "N-2",
+          issueType: "Bug",
           title: "Record two",
           priority: "P1",
           reason: "ALREADY_LINKED",
@@ -168,6 +172,8 @@ describe("popup controller", () => {
       createdRecords: [
         {
           recordId: "rec_1",
+          issueNumber: "N-1",
+          issueType: "User Story",
           title: "Record one",
           priority: "P0",
           workitemId: "WI-1",
@@ -178,6 +184,8 @@ describe("popup controller", () => {
       skippedRecords: [
         {
           recordId: "rec_2",
+          issueNumber: "N-2",
+          issueType: "Bug",
           title: "Record two",
           priority: "P1",
           reason: "ALREADY_LINKED",

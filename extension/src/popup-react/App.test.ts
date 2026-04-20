@@ -47,7 +47,7 @@ describe("popup-react shell", () => {
 function renderPopupApp(
   options: {
     bulkModalVisible?: boolean;
-    bulkModalStage?: "hidden" | "preview" | "executing" | "result";
+    bulkModalStage?: "hidden" | "preview" | "executing" | "result" | "error";
     initialPage?: PopupNotebookPage;
     pageType?: "lark" | "meegle" | "unsupported";
     showUnsupported?: boolean;
@@ -81,6 +81,8 @@ function renderPopupApp(
                 eligibleRecords: [
                   {
                     recordId: "rec_1",
+                    issueNumber: "N-1",
+                    issueType: "User Story",
                     title: "Record one",
                     priority: "P0",
                   },
@@ -89,6 +91,7 @@ function renderPopupApp(
               }
             : null,
         result: null,
+        bulkError: null,
       });
 
       const popupApp = useMemo<PopupAppModel>(

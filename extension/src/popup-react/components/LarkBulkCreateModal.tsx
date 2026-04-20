@@ -4,18 +4,25 @@ import type {
 } from "../../types/lark.js";
 import { UiButton } from "./UiButton.js";
 
+export interface LarkBulkCreateModalErrorView {
+  errorCode?: string;
+  errorMessage: string;
+}
+
 export function LarkBulkCreateModal({
   visible,
   stage,
   preview,
   result,
+  bulkError,
   onClose,
   onConfirm,
 }: {
   visible: boolean;
-  stage: "hidden" | "preview" | "executing" | "result";
+  stage: "hidden" | "preview" | "executing" | "result" | "error";
   preview: Extract<LarkBaseBulkPreviewResultPayload, { ok: true }> | null;
   result: LarkBaseBulkCreateResultPayload | null;
+  bulkError: LarkBulkCreateModalErrorView | null;
   onClose: () => void;
   onConfirm: () => void | Promise<void>;
 }) {
@@ -33,6 +40,16 @@ export function LarkBulkCreateModal({
           </button>
         </div>
 
+        {stage === "error" && bulkError ? (
+          <div className="bulk-modal__body" data-test="lark-bulk-create-modal-error">
+            <p className="bulk-modal__error-title">无法继续</p>
+            {bulkError.errorCode ? (
+              <p className="bulk-modal__error-code">错误码: {bulkError.errorCode}</p>
+            ) : null}
+            <p className="bulk-modal__error-message">{bulkError.errorMessage}</p>
+          </div>
+        ) : null}
+
         {stage === "preview" ? (
           <div className="bulk-modal__body">
             <p className="bulk-modal__summary">
@@ -42,17 +59,21 @@ export function LarkBulkCreateModal({
             <table className="bulk-modal__table">
               <thead>
                 <tr>
-                  <th>记录 ID</th>
+                  <th>编号</th>
+                  <th>Issue 类型</th>
                   <th>Title</th>
                   <th>Priority</th>
+                  <th>记录 ID</th>
                 </tr>
               </thead>
               <tbody>
                 {(preview?.eligibleRecords ?? []).map((record) => (
                   <tr key={record.recordId}>
-                    <td>{record.recordId}</td>
-                    <td>{record.title}</td>
+                    <td>{record.issueNumber}</td>
+                    <td>{record.issueType}</td>
+                    <td className="bulk-modal__title-cell">{record.title}</td>
                     <td>{record.priority}</td>
+                    <td>{record.recordId}</td>
                   </tr>
                 ))}
               </tbody>
@@ -80,7 +101,17 @@ export function LarkBulkCreateModal({
                     <ul>
                       {result.createdRecords.map((record) => (
                         <li key={record.recordId}>
-                          {record.recordId} | {record.title} | {record.priority}
+                          编号 {record.issueNumber} · Issue 类型 {record.issueType} · {record.recordId}{" "}
+                          · {record.title}
+                          {record.meegleLink ? (
+                            <>
+                              {" "}
+                              ·{" "}
+                              <a href={record.meegleLink} target="_blank" rel="noreferrer">
+                                Meegle
+                              </a>
+                            </>
+                          ) : null}
                         </li>
                       ))}
                     </ul>
@@ -92,7 +123,8 @@ export function LarkBulkCreateModal({
                     <ul>
                       {result.failedRecords.map((record) => (
                         <li key={record.recordId}>
-                          {record.recordId} | {record.errorMessage}
+                          编号 {record.issueNumber} · Issue 类型 {record.issueType} · {record.recordId} ·{" "}
+                          {record.errorMessage}
                         </li>
                       ))}
                     </ul>

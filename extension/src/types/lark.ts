@@ -135,6 +135,10 @@ export interface LarkBaseBulkWorkflowRequest {
 
 export interface LarkBaseBulkPreviewRecord {
   recordId: string;
+  /** Lark Base 编号列或等价字段 */
+  issueNumber: string;
+  /** Lark Base「Issue 类型」展示文案 */
+  issueType: string;
   title: string;
   priority: string;
 }

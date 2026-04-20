@@ -37,6 +37,7 @@ export function PopupAppView({ popupApp }: { popupApp: PopupAppModel }) {
                 stage={popupApp.larkBulkCreateModal.stage}
                 preview={popupApp.larkBulkCreateModal.preview}
                 result={popupApp.larkBulkCreateModal.result}
+                bulkError={popupApp.larkBulkCreateModal.bulkError}
                 onConfirm={popupApp.confirmLarkBulkCreate}
                 onClose={popupApp.closeLarkBulkCreateModal}
               />

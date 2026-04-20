@@ -62,6 +62,7 @@
           :stage="larkBulkCreateModal.stage"
           :preview="larkBulkCreateModal.preview"
           :result="larkBulkCreateModal.result"
+          :bulk-error="larkBulkCreateModal.bulkError"
           @confirm="confirmLarkBulkCreate"
           @close="closeLarkBulkCreateModal"
         />

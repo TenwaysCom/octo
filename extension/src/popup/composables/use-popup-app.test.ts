@@ -208,6 +208,8 @@ describe("usePopupApp notebook state", () => {
       eligibleRecords: [
         {
           recordId: "rec_1",
+          issueNumber: "N-1",
+          issueType: "User Story",
           title: "Record one",
           priority: "P0",
         },
@@ -215,6 +217,8 @@ describe("usePopupApp notebook state", () => {
       skippedRecords: [
         {
           recordId: "rec_2",
+          issueNumber: "N-2",
+          issueType: "Bug",
           title: "Record two",
           priority: "P1",
           reason: "ALREADY_LINKED",
@@ -235,6 +239,8 @@ describe("usePopupApp notebook state", () => {
       createdRecords: [
         {
           recordId: "rec_1",
+          issueNumber: "N-1",
+          issueType: "User Story",
           title: "Record one",
           priority: "P0",
           workitemId: "WI-1",
@@ -245,6 +251,8 @@ describe("usePopupApp notebook state", () => {
       skippedRecords: [
         {
           recordId: "rec_2",
+          issueNumber: "N-2",
+          issueType: "Bug",
           title: "Record two",
           priority: "P1",
           reason: "ALREADY_LINKED",
@@ -722,6 +730,8 @@ describe("usePopupApp notebook state", () => {
     expect(popup.larkBulkCreateModal.value.preview?.eligibleRecords).toEqual([
       {
         recordId: "rec_1",
+        issueNumber: "N-1",
+        issueType: "User Story",
         title: "Record one",
         priority: "P0",
       },

@@ -144,6 +144,8 @@ function renderPopupApp(
                 eligibleRecords: [
                   {
                     recordId: "rec_1",
+                    issueNumber: "N-1",
+                    issueType: "User Story",
                     title: "Record one",
                     priority: "P0",
                   },
@@ -152,6 +154,7 @@ function renderPopupApp(
               }
             : null,
         result: null,
+        bulkError: null,
       });
 
       const popupApp = useMemo<PopupAppModel>(
@@ -263,6 +266,7 @@ function renderPopupApp(
               ...previous,
               visible: false,
               stage: "hidden",
+              bulkError: null,
             }));
           }),
           resetKimiChatSession: vi.fn(),

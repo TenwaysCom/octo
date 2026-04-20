@@ -13,9 +13,19 @@ const DEFAULT_PAGE_SIZE = 500;
 const MEEGLE_LINK_FIELD_NAMES = ["meegle链接", "Meegle Link", "meegleLink"];
 const PRIORITY_FIELD_NAMES = ["Priority", "优先级"];
 const TITLE_FIELD_NAMES = ["Issue Description", "标题", "Title", "Details Description"];
+const ISSUE_NUMBER_FIELD_NAMES = [
+  "编号",
+  "No.",
+  "Issue Number",
+  "工单编号",
+  "Ticket ID",
+  "ticket_id",
+];
 
 export interface LarkBaseBulkPreviewRecord {
   recordId: string;
+  issueNumber: string;
+  issueType: string;
   title: string;
   priority: string;
 }
@@ -133,6 +143,8 @@ export async function executeLarkBaseBulkWorkflow(
       if (result.ok) {
         createdRecords.push({
           recordId: record.recordId,
+          issueNumber: record.issueNumber,
+          issueType: record.issueType,
           title: record.title,
           priority: record.priority,
           workitemId: result.workitemId,
@@ -145,6 +157,8 @@ export async function executeLarkBaseBulkWorkflow(
     } catch (error) {
       failedRecords.push({
         recordId: record.recordId,
+        issueNumber: record.issueNumber,
+        issueType: record.issueType,
         title: record.title,
         priority: record.priority,
         errorCode: "UPDATE_FAILED",
@@ -206,6 +220,8 @@ function classifyRecords(records: LarkBitableRecord[]): ClassifiedRecords {
   for (const record of records) {
     const previewRecord = {
       recordId: record.record_id,
+      issueNumber: extractIssueNumber(record),
+      issueType: extractIssueTypeDisplay(record.fields),
       title: extractTitle(record),
       priority: extractPriority(record),
     };
@@ -253,6 +269,40 @@ function extractPriority(record: LarkBitableRecord): string {
   return "-";
 }
 
+function extractIssueNumber(record: LarkBitableRecord): string {
+  for (const fieldName of ISSUE_NUMBER_FIELD_NAMES) {
+    const value = stringifyFieldValue(record.fields[fieldName]).trim();
+    if (value) {
+      return value.slice(0, 120);
+    }
+  }
+
+  return "-";
+}
+
+function extractIssueTypeDisplay(fields: Record<string, unknown>): string {
+  const raw = fields["Issue 类型"] ?? fields["fldSQ1D6LG"];
+  if (raw == null || raw === "") {
+    return "-";
+  }
+
+  const items: unknown[] = Array.isArray(raw) ? raw : [raw];
+  const labels = items
+    .map((item) => {
+      if (typeof item === "string") {
+        return item.trim();
+      }
+      if (item && typeof item === "object") {
+        const o = item as Record<string, unknown>;
+        return String(o.text ?? o.name ?? "").trim();
+      }
+      return "";
+    })
+    .filter(Boolean);
+
+  return labels.length ? labels.join(", ") : "-";
+}
+
 function stringifyFieldValue(value: unknown): string {
   if (value == null) {
     return "";
@@ -286,6 +336,8 @@ function toFailedRecord(
 ): LarkBaseBulkFailedRecord {
   return {
     recordId: record.recordId,
+    issueNumber: record.issueNumber,
+    issueType: record.issueType,
     title: record.title,
     priority: record.priority,
     errorCode: result.error.errorCode,

@@ -50,11 +50,15 @@ describe("lark-base-bulk-workflow.service", () => {
       listRecordsByView: vi.fn().mockResolvedValueOnce({
         records: [
           makeRecord("rec_eligible", {
+            编号: "ISS-101",
+            "Issue 类型": { text: "User Story", id: "opt_us" },
             "Issue Description": "Need sync",
             Priority: "P0",
             meegle链接: "",
           }),
           makeRecord("rec_existing", {
+            编号: "ISS-102",
+            "Issue 类型": "Production Bug",
             "Issue Description": "Already synced",
             Priority: "P1",
             meegle链接: "https://project.larksuite.com/ABC/story/detail/1",
@@ -83,6 +87,8 @@ describe("lark-base-bulk-workflow.service", () => {
       eligibleRecords: [
         {
           recordId: "rec_eligible",
+          issueNumber: "ISS-101",
+          issueType: "User Story",
           title: "Need sync",
           priority: "P0",
         },
@@ -90,6 +96,8 @@ describe("lark-base-bulk-workflow.service", () => {
       skippedRecords: [
         {
           recordId: "rec_existing",
+          issueNumber: "ISS-102",
+          issueType: "Production Bug",
           title: "Already synced",
           priority: "P1",
           reason: "ALREADY_LINKED",
@@ -105,11 +113,13 @@ describe("lark-base-bulk-workflow.service", () => {
         .mockResolvedValueOnce({
           records: [
             makeRecord("rec_create", {
+              "Issue 类型": [{ text: "User Story", id: "opt_us" }],
               "Issue Description": "Create me",
               Priority: "P0",
               meegle链接: "",
             }),
             makeRecord("rec_skip", {
+              编号: "42",
               "Issue Description": "Skip me",
               Priority: "P1",
               meegle链接: "https://project.larksuite.com/ABC/story/detail/2",
@@ -165,6 +175,8 @@ describe("lark-base-bulk-workflow.service", () => {
       createdRecords: [
         {
           recordId: "rec_create",
+          issueNumber: "-",
+          issueType: "User Story",
           title: "Create me",
           priority: "P0",
           workitemId: "WI-1",
@@ -175,6 +187,8 @@ describe("lark-base-bulk-workflow.service", () => {
       skippedRecords: [
         {
           recordId: "rec_skip",
+          issueNumber: "42",
+          issueType: "-",
           title: "Skip me",
           priority: "P1",
           reason: "ALREADY_LINKED",

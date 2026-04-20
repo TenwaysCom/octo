@@ -584,7 +584,7 @@ body {
 }
 
 .bulk-modal {
-  width: min(560px, 100%);
+  width: min(720px, 100%);
   background: #fff;
   border-radius: 16px;
   border: 1px solid #dbe4f0;
@@ -635,6 +635,13 @@ body {
   vertical-align: top;
 }
 
+.bulk-modal__title-cell {
+  min-width: 320px;
+  max-width: 560px;
+  white-space: normal;
+  word-break: break-word;
+}
+
 .bulk-modal__section h4 {
   margin: 0 0 6px;
 }
@@ -649,6 +656,27 @@ body {
   background: transparent;
   color: #64748b;
   cursor: pointer;
+}
+
+.bulk-modal__error-title {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #b91c1c;
+}
+
+.bulk-modal__error-code {
+  margin: 0 0 8px;
+  font-size: 0.8rem;
+  color: #64748b;
+  font-family: ui-monospace, monospace;
+}
+
+.bulk-modal__error-message {
+  margin: 0;
+  color: #334155;
+  line-height: 1.5;
+  white-space: pre-wrap;
 }
 
 /* Kimi Chat Markdown Styles */

@@ -374,6 +374,7 @@ async function renderPopupApp(
             stage: "hidden",
             preview: null,
             result: null,
+            bulkError: null,
           },
           showKimiChat: true,
           kimiChatTranscript: transcript,

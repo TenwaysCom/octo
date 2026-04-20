@@ -63,7 +63,13 @@ const TARGET_LARK_BASE_ID = "XO0cbnxMIaralRsbBEolboEFgZc";
 const TARGET_LARK_TABLE_ID = "tblUfu71xwdul3NH";
 const TARGET_LARK_VIEW_ID = "vewMs17Tqk";
 
-type LarkBulkCreateModalStage = "hidden" | "preview" | "executing" | "result";
+type LarkBulkCreateModalStage = "hidden" | "preview" | "executing" | "result" | "error";
+
+export interface LarkBulkCreateModalError {
+  errorCode?: string;
+  errorMessage: string;
+}
+
 type LazyKimiChatController = {
   resetSession: () => void;
   openHistory: () => Promise<void>;
@@ -93,6 +99,7 @@ export interface LarkBulkCreateModalState {
   stage: LarkBulkCreateModalStage;
   preview: Extract<LarkBaseBulkPreviewResultPayload, { ok: true }> | null;
   result: LarkBaseBulkCreateResultPayload | null;
+  bulkError: LarkBulkCreateModalError | null;
 }
 
 export interface PopupAppState {
@@ -185,6 +192,7 @@ function createInitialStore(): PopupAppStore {
       stage: "hidden",
       preview: null,
       result: null,
+      bulkError: null,
     },
     state: {
       pageType: "unsupported",
@@ -1046,18 +1054,32 @@ export function createPopupController() {
     }));
   }
 
+  function openLarkBulkCreateErrorModal(error: LarkBulkCreateModalError): void {
+    updateStore((previous) => ({
+      ...previous,
+      larkBulkCreateModal: {
+        visible: true,
+        stage: "error",
+        preview: null,
+        result: null,
+        bulkError: error,
+      },
+    }));
+  }
+
   async function openLarkBulkCreatePreview(): Promise<void> {
     const current = readStore();
     const context = extractLarkBaseContextFromUrl(current.state.currentUrl ?? undefined);
-    const masterUserId = current.state.identity.masterUserId;
-
-    if (!masterUserId) {
-      appendLog("error", "未解析到主身份，无法执行批量创建");
-      return;
-    }
+    const masterUserId = current.state.identity.masterUserId ?? undefined;
 
     if (!context.baseId || !context.tableId || !context.viewId) {
-      appendLog("error", "当前页面缺少 base/table/view 信息，无法执行批量创建");
+      const message =
+        "当前页面缺少多维表格上下文（需要 URL 中的 base、table、view）。请在目标表格的指定视图中打开页面后重试。";
+      appendLog("error", message);
+      openLarkBulkCreateErrorModal({
+        errorCode: "MISSING_LARK_BASE_CONTEXT",
+        errorMessage: message,
+      });
       return;
     }
 
@@ -1069,9 +1091,11 @@ export function createPopupController() {
     });
 
     if (!preview.ok) {
-      const errorMessage = `批量预览失败: ${preview.error.errorMessage}`;
-      showToast(errorMessage, "error");
-      appendLog("error", errorMessage);
+      appendLog("error", `批量预览失败: ${preview.error.errorMessage}`);
+      openLarkBulkCreateErrorModal({
+        errorCode: preview.error.errorCode,
+        errorMessage: preview.error.errorMessage,
+      });
       return;
     }
 
@@ -1082,6 +1106,7 @@ export function createPopupController() {
         stage: "preview",
         preview,
         result: null,
+        bulkError: null,
       },
     }));
 
@@ -1099,11 +1124,7 @@ export function createPopupController() {
       return;
     }
 
-    const masterUserId = current.state.identity.masterUserId;
-    if (!masterUserId) {
-      appendLog("error", "未解析到主身份，无法执行批量创建");
-      return;
-    }
+    const masterUserId = current.state.identity.masterUserId ?? undefined;
 
     updateStore((previous) => ({
       ...previous,
@@ -1112,6 +1133,7 @@ export function createPopupController() {
         visible: true,
         stage: "executing",
         result: null,
+        bulkError: null,
       },
     }));
 
@@ -1129,6 +1151,7 @@ export function createPopupController() {
         visible: true,
         stage: "result",
         result,
+        bulkError: null,
       },
     }));
 
@@ -1152,6 +1175,7 @@ export function createPopupController() {
         stage: "hidden",
         preview: null,
         result: null,
+        bulkError: null,
       },
     }));
   }
