@@ -4,6 +4,13 @@ import { defineConfig } from "wxt";
 const chromiumProfile = process.env.WXT_CHROMIUM_PROFILE?.trim();
 const devPort = Number(process.env.WXT_DEV_PORT || 3000);
 const devOrigin = process.env.WXT_DEV_ORIGIN?.trim() || `http://localhost:${devPort}`;
+const devHost = (() => {
+  try {
+    return new URL(devOrigin).hostname;
+  } catch {
+    return "localhost";
+  }
+})();
 
 export default defineConfig({
   srcDir: "src",
@@ -13,6 +20,17 @@ export default defineConfig({
   },
   vite: () => ({
     plugins: [tailwindcss()],
+    // Popup HTML is served from chrome-extension:// while scripts load from this origin.
+    // Without explicit HMR settings, the Vite client may pick the wrong WS host/port and
+    // React Fast Refresh never connects, so popup-react edits appear to "not update".
+    server: {
+      hmr: {
+        protocol: "ws",
+        host: devHost,
+        port: devPort,
+        clientPort: devPort,
+      },
+    },
   }),
   dev: {
     server: {

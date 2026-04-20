@@ -1480,18 +1480,6 @@ export function createPopupController() {
         type: "primary",
         disabled: !viewModel.canAnalyze,
       },
-      {
-        key: "draft",
-        label: "生成草稿",
-        type: "default",
-        disabled: !viewModel.canDraft,
-      },
-      {
-        key: "apply",
-        label: "确认创建",
-        type: "default",
-        disabled: !viewModel.canApply,
-      },
     ];
 
     if (showLarkBulkCreateAction) {

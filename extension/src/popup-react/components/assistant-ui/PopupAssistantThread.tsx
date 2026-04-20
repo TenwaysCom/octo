@@ -176,7 +176,7 @@ export function PopupAssistantThread({
           </div>
         </div>
 
-        <ThreadPrimitive.Viewport className="flex max-h-[320px] min-h-[180px] flex-col gap-3 overflow-y-auto pr-1">
+        <ThreadPrimitive.Viewport className="flex max-h-[800px] min-h-[180px] flex-col gap-3 overflow-y-auto pr-1">
           <ThreadPrimitive.Empty>
             <div className="rounded-2xl border border-dashed border-blue-200 bg-blue-50/70 px-4 py-5 text-sm text-slate-600">
               <p className="m-0 font-semibold text-slate-900">还没有消息</p>

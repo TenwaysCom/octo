@@ -74,7 +74,7 @@ function createStyles(): string {
       top: 0;
       right: 0;
       bottom: 0;
-      width: 420px;
+      width: 480px;
       background: #fff;
       box-shadow: -8px 0 40px rgba(15, 23, 42, 0.18);
       transform: translateX(100%);
@@ -134,7 +134,8 @@ function createStyles(): string {
     .octo-trigger {
       position: fixed;
       right: 20px;
-      bottom: 120px;
+      top: 50%;
+      transform: translateY(-50%);
       width: 48px;
       height: 48px;
       border-radius: 50%;
@@ -152,12 +153,12 @@ function createStyles(): string {
     }
 
     .octo-trigger:hover {
-      transform: scale(1.06);
+      transform: translateY(-50%) scale(1.06);
       box-shadow: 0 8px 26px rgba(37, 99, 235, 0.22), 0 3px 10px rgba(15, 23, 42, 0.1);
     }
 
     .octo-trigger:active {
-      transform: scale(0.98);
+      transform: translateY(-50%) scale(0.98);
     }
 
     .octo-trigger img {
