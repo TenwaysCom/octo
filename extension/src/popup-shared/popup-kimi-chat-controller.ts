@@ -282,7 +282,6 @@ export function createKimiChatController<TStore extends PopupKimiChatStoreLike>(
         operatorLarkId,
       });
       deps.appendLog("debug", `历史会话列表返回：ok=${result.ok}, sessions count=${result.data?.sessions?.length ?? 0}`);
-      deps.appendLog("debug", `历史会话列表：${result.data.sessions.map(s => `${s.sessionId}(${s.title || "无标题"})`).join(", ")}`);
 
       if (!result.ok || !result.data) {
         deps.appendLog(
@@ -291,6 +290,13 @@ export function createKimiChatController<TStore extends PopupKimiChatStoreLike>(
         );
         return;
       }
+
+      deps.appendLog(
+        "debug",
+        `历史会话列表：${result.data.sessions
+          .map((session) => `${session.sessionId}(${session.title || "无标题"})`)
+          .join(", ")}`,
+      );
 
       const historyItems = await buildHistoryItems(
         operatorLarkId,

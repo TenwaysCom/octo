@@ -239,13 +239,60 @@ describe("popup controller", () => {
       origin: "https://nsghpcq7ar4z.sg.larksuite.com",
       pageType: "lark",
     });
+    const delayedResult = {
+      ok: true as const,
+      baseId: "XO0cbnxMIaralRsbBEolboEFgZc",
+      tableId: "tblUfu71xwdul3NH",
+      viewId: "vewMs17Tqk",
+      totalRecordsInView: 2,
+      summary: {
+        created: 1,
+        failed: 0,
+        skipped: 1,
+      },
+      createdRecords: [
+        {
+          recordId: "rec_1",
+          issueNumber: "N-1",
+          issueType: "User Story",
+          title: "Record one",
+          priority: "P0",
+          workitemId: "WI-1",
+          meegleLink: "https://project.larksuite.com/OPS/story/detail/WI-1",
+        },
+      ],
+      failedRecords: [],
+      skippedRecords: [
+        {
+          recordId: "rec_2",
+          issueNumber: "N-2",
+          issueType: "Bug",
+          title: "Record two",
+          priority: "P1",
+          reason: "ALREADY_LINKED",
+        },
+      ],
+    };
+    let resolveCreate:
+      | ((value: typeof delayedResult) => void)
+      | null = null;
+    runtimeMock.runLarkBaseBulkCreateRequest.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveCreate = resolve;
+        }),
+    );
 
     const controller = createPopupController();
     await controller.initialize();
     await controller.runFeatureAction("bulk-create-meegle-tickets");
 
     const confirmPromise = controller.confirmLarkBulkCreate();
-    expect(controller.getState().larkBulkCreateModal.stage).toBe("executing");
+    await vi.waitFor(() => {
+      expect(controller.getState().larkBulkCreateModal.stage).toBe("executing");
+    });
+    expect(resolveCreate).not.toBeNull();
+    resolveCreate!(delayedResult);
     await confirmPromise;
 
     expect(runtimeMock.runLarkBaseBulkCreateRequest).toHaveBeenCalledWith({
@@ -256,6 +303,78 @@ describe("popup controller", () => {
     });
     expect(controller.getState().larkBulkCreateModal.stage).toBe("result");
     expect(controller.getState().larkBulkCreateModal.result?.ok).toBe(true);
+    controller.dispose();
+  });
+
+  it("ignores repeated confirm requests while bulk create is already in flight", async () => {
+    runtimeMock.queryActiveTabContext.mockResolvedValueOnce({
+      id: 12,
+      url: "https://nsghpcq7ar4z.sg.larksuite.com/base/XO0cbnxMIaralRsbBEolboEFgZc?table=tblUfu71xwdul3NH&view=vewMs17Tqk",
+      origin: "https://nsghpcq7ar4z.sg.larksuite.com",
+      pageType: "lark",
+    });
+    let resolveCreate: (() => void) | null = null;
+    runtimeMock.runLarkBaseBulkCreateRequest.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveCreate = () => {
+            resolve({
+              ok: true,
+              baseId: "XO0cbnxMIaralRsbBEolboEFgZc",
+              tableId: "tblUfu71xwdul3NH",
+              viewId: "vewMs17Tqk",
+              totalRecordsInView: 2,
+              summary: {
+                created: 1,
+                failed: 0,
+                skipped: 1,
+              },
+              createdRecords: [
+                {
+                  recordId: "rec_1",
+                  issueNumber: "N-1",
+                  issueType: "User Story",
+                  title: "Record one",
+                  priority: "P0",
+                  workitemId: "WI-1",
+                  meegleLink: "https://project.larksuite.com/OPS/story/detail/WI-1",
+                },
+              ],
+              failedRecords: [],
+              skippedRecords: [
+                {
+                  recordId: "rec_2",
+                  issueNumber: "N-2",
+                  issueType: "Bug",
+                  title: "Record two",
+                  priority: "P1",
+                  reason: "ALREADY_LINKED",
+                },
+              ],
+            });
+          };
+        }),
+    );
+
+    const controller = createPopupController();
+    await controller.initialize();
+    await controller.runFeatureAction("bulk-create-meegle-tickets");
+
+    const firstConfirm = controller.confirmLarkBulkCreate();
+    const secondConfirm = controller.confirmLarkBulkCreate();
+
+    await vi.waitFor(() => {
+      expect(controller.getState().larkBulkCreateModal.stage).toBe("executing");
+    });
+
+    expect(runtimeMock.runLarkBaseBulkCreateRequest).toHaveBeenCalledTimes(1);
+    expect(firstConfirm).toBe(secondConfirm);
+    expect(resolveCreate).not.toBeNull();
+    resolveCreate!();
+    await Promise.all([firstConfirm, secondConfirm]);
+
+    expect(runtimeMock.runLarkBaseBulkCreateRequest).toHaveBeenCalledTimes(1);
+    expect(controller.getState().larkBulkCreateModal.stage).toBe("result");
     controller.dispose();
   });
 

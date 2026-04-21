@@ -23,10 +23,7 @@ import {
   requestMeegleUserIdentity,
   resolveIdentityRequest,
   runLarkAuthRequest,
-  runLarkBaseBulkCreateRequest,
-  runLarkBaseBulkPreviewRequest,
   runMeegleAuthRequest,
-  runMeegleLarkPushRequest,
   savePopupSettings,
   saveResolvedIdentity,
   saveResolvedIdentityForTab,
@@ -79,6 +76,15 @@ type LazyKimiChatController = {
   sendMessage: (messageText: string) => Promise<void>;
   stopGeneration: () => void;
   dispose: () => void;
+};
+
+type LazyLarkBulkCreateController = {
+  openPreview: () => Promise<void>;
+  confirmCreate: () => Promise<void>;
+};
+
+type LazyMeeglePushController = {
+  run: () => Promise<void>;
 };
 
 export interface PopupIdentityState {
@@ -229,6 +235,12 @@ export function createPopupController() {
   const listeners = new Set<() => void>();
   let kimiChatController: LazyKimiChatController | null = null;
   let kimiChatControllerPromise: Promise<LazyKimiChatController> | null = null;
+  let larkBulkCreateController: LazyLarkBulkCreateController | null = null;
+  let larkBulkCreateControllerPromise: Promise<LazyLarkBulkCreateController> | null =
+    null;
+  let larkBulkCreateConfirmPromise: Promise<void> | null = null;
+  let meeglePushController: LazyMeeglePushController | null = null;
+  let meeglePushControllerPromise: Promise<LazyMeeglePushController> | null = null;
   let disposed = false;
 
   function updateStore(updater: (previous: PopupAppStore) => PopupAppStore): void {
@@ -264,6 +276,18 @@ export function createPopupController() {
     showPopupToast(text, level);
   }
 
+  function setLarkBulkCreateModal(
+    next:
+      | LarkBulkCreateModalState
+      | ((previous: LarkBulkCreateModalState) => LarkBulkCreateModalState),
+  ): void {
+    updateStore((previous) => ({
+      ...previous,
+      larkBulkCreateModal:
+        typeof next === "function" ? next(previous.larkBulkCreateModal) : next,
+    }));
+  }
+
   async function loadKimiChatController(): Promise<LazyKimiChatController> {
     if (kimiChatController) {
       return kimiChatController;
@@ -291,6 +315,58 @@ export function createPopupController() {
     }
 
     return kimiChatControllerPromise;
+  }
+
+  async function loadLarkBulkCreateController(): Promise<LazyLarkBulkCreateController> {
+    if (larkBulkCreateController) {
+      return larkBulkCreateController;
+    }
+
+    if (!larkBulkCreateControllerPromise) {
+      larkBulkCreateControllerPromise = import(
+        "./popup-lark-bulk-create-controller.js"
+      ).then(({ createLarkBulkCreateController }) => {
+        const controller = createLarkBulkCreateController({
+          readStore,
+          appendLog,
+          showToast,
+          setModalState: setLarkBulkCreateModal,
+          openErrorModal: openLarkBulkCreateErrorModal,
+        });
+
+        larkBulkCreateController = controller;
+        return controller;
+      });
+    }
+
+    return larkBulkCreateControllerPromise;
+  }
+
+  async function loadMeeglePushController(): Promise<LazyMeeglePushController> {
+    if (meeglePushController) {
+      return meeglePushController;
+    }
+
+    if (!meeglePushControllerPromise) {
+      meeglePushControllerPromise = import("./popup-meegle-push-controller.js").then(
+        ({ createMeeglePushController }) => {
+          const controller = createMeeglePushController({
+            readStore,
+            appendLog,
+            showToast,
+            setActivePage,
+            updateCurrentTabUrl(tabId, url) {
+              void chrome.tabs.update(tabId, { url });
+            },
+          });
+
+          meeglePushController = controller;
+          return controller;
+        },
+      );
+    }
+
+    return meeglePushControllerPromise;
   }
 
   function preloadKimiChatController(): void {
@@ -1065,116 +1141,47 @@ export function createPopupController() {
   }
 
   function openLarkBulkCreateErrorModal(error: LarkBulkCreateModalError): void {
-    updateStore((previous) => ({
-      ...previous,
-      larkBulkCreateModal: {
-        visible: true,
-        stage: "error",
-        preview: null,
-        result: null,
-        bulkError: error,
-      },
-    }));
-  }
-
-  async function openLarkBulkCreatePreview(): Promise<void> {
-    const current = readStore();
-    const context = extractLarkBaseContextFromUrl(current.state.currentUrl ?? undefined);
-    const masterUserId = current.state.identity.masterUserId ?? undefined;
-
-    if (!context.baseId || !context.tableId || !context.viewId) {
-      const message =
-        "当前页面缺少多维表格上下文（需要 URL 中的 base、table、view）。请在目标表格的指定视图中打开页面后重试。";
-      appendLog("error", message);
-      openLarkBulkCreateErrorModal({
-        errorCode: "MISSING_LARK_BASE_CONTEXT",
-        errorMessage: message,
-      });
-      return;
-    }
-
-    const preview = await runLarkBaseBulkPreviewRequest({
-      baseId: context.baseId,
-      tableId: context.tableId,
-      viewId: context.viewId,
-      masterUserId,
+    setLarkBulkCreateModal({
+      visible: true,
+      stage: "error",
+      preview: null,
+      result: null,
+      bulkError: error,
     });
-
-    if (!preview.ok) {
-      appendLog("error", `批量预览失败: ${preview.error.errorMessage}`);
-      openLarkBulkCreateErrorModal({
-        errorCode: preview.error.errorCode,
-        errorMessage: preview.error.errorMessage,
-      });
-      return;
-    }
-
-    updateStore((previous) => ({
-      ...previous,
-      larkBulkCreateModal: {
-        visible: true,
-        stage: "preview",
-        preview,
-        result: null,
-        bulkError: null,
-      },
-    }));
-
-    appendLog(
-      "info",
-      `批量预览完成，可创建 ${preview.eligibleRecords.length} 条，已跳过 ${preview.skippedRecords.length} 条`,
-    );
   }
 
-  async function confirmLarkBulkCreate(): Promise<void> {
-    const current = readStore();
-    const preview = current.larkBulkCreateModal.preview;
+  function confirmLarkBulkCreate(): Promise<void> {
+    const currentModal = readStore().larkBulkCreateModal;
 
-    if (!preview) {
-      return;
+    if (!currentModal.preview) {
+      return Promise.resolve();
     }
 
-    const masterUserId = current.state.identity.masterUserId ?? undefined;
+    if (larkBulkCreateConfirmPromise) {
+      return larkBulkCreateConfirmPromise;
+    }
 
-    updateStore((previous) => ({
-      ...previous,
-      larkBulkCreateModal: {
-        ...previous.larkBulkCreateModal,
+    setLarkBulkCreateModal((previous) => {
+      if (!previous.preview || previous.stage !== "preview") {
+        return previous;
+      }
+
+      return {
+        ...previous,
         visible: true,
         stage: "executing",
         result: null,
         bulkError: null,
-      },
-    }));
-
-    const result = await runLarkBaseBulkCreateRequest({
-      baseId: preview.baseId,
-      tableId: preview.tableId,
-      viewId: preview.viewId,
-      masterUserId,
+      };
     });
 
-    updateStore((previous) => ({
-      ...previous,
-      larkBulkCreateModal: {
-        ...previous.larkBulkCreateModal,
-        visible: true,
-        stage: "result",
-        result,
-        bulkError: null,
-      },
-    }));
+    larkBulkCreateConfirmPromise = loadLarkBulkCreateController()
+      .then((controller) => controller.confirmCreate())
+      .finally(() => {
+        larkBulkCreateConfirmPromise = null;
+      });
 
-    if (!result.ok) {
-      const errorMessage = `批量创建失败: ${result.error.errorMessage}`;
-      showToast(errorMessage, "error");
-      appendLog("error", errorMessage);
-      return;
-    }
-
-    const successMessage = `批量创建完成: 成功 ${result.summary.created}，失败 ${result.summary.failed}，跳过 ${result.summary.skipped}`;
-    showToast(successMessage, "success");
-    appendLog("success", successMessage);
+    return larkBulkCreateConfirmPromise;
   }
 
   function closeLarkBulkCreateModal(): void {
@@ -1284,8 +1291,8 @@ export function createPopupController() {
     }
 
     if (actionKey === LARK_BULK_CREATE_ACTION_KEY) {
-      appendLog("info", "开始获取批量创建预览...");
-      await openLarkBulkCreatePreview();
+      const controller = await loadLarkBulkCreateController();
+      await controller.openPreview();
       return;
     }
 
@@ -1299,92 +1306,8 @@ export function createPopupController() {
     appendLog("info", labels[actionKey] || "执行操作中...");
 
     if (actionKey === "update-lark-and-push") {
-      appendLog("info", "[更新Lark及推送] 开始执行");
-      const current = readStore();
-      const currentUrl = current.state.currentUrl;
-      if (!currentUrl) {
-        appendLog("error", "当前页面 URL 为空，无法执行推送");
-        return;
-      }
-
-      let pathname: string;
-      try {
-        pathname = new URL(currentUrl).pathname;
-        appendLog("info", `[更新Lark及推送] 解析 URL pathname: ${pathname}`);
-      } catch {
-        appendLog("error", "当前页面 URL 解析失败");
-        return;
-      }
-
-      const pathParts = pathname.split("/").filter(Boolean);
-      appendLog("info", `[更新Lark及推送] 路径片段: ${pathParts.join(", ")}`);
-      if (pathParts.length < 4 || pathParts[2] !== "detail") {
-        appendLog("error", `无法从 URL 解析工作项信息: ${pathname}`);
-        return;
-      }
-
-      const [projectKey, workItemTypeKey, , workItemId] = pathParts;
-      const masterUserId = current.state.identity.masterUserId;
-      if (!masterUserId) {
-        appendLog("error", "未解析到主身份，无法执行推送");
-        return;
-      }
-
-      const baseUrl = current.state.currentTabOrigin || "https://project.larksuite.com";
-      appendLog(
-        "info",
-        `[更新Lark及推送] 准备调用服务端 API: project=${projectKey}, type=${workItemTypeKey}, id=${workItemId}, masterUserId=${masterUserId}`,
-      );
-
-      const result = await runMeegleLarkPushRequest({
-        projectKey,
-        workItemTypeKey,
-        workItemId,
-        masterUserId,
-        baseUrl,
-      });
-
-      appendLog(
-        "info",
-        `[更新Lark及推送] 服务端响应: ok=${result.ok}, alreadyUpdated=${result.alreadyUpdated}, larkBaseUpdated=${result.larkBaseUpdated}, messageSent=${result.messageSent}, reactionAdded=${result.reactionAdded}, meegleStatusUpdated=${result.meegleStatusUpdated}`,
-      );
-
-      if (!result.ok) {
-        const errorMessage = `推送失败: ${result.error || "未知错误"}`;
-        showToast(errorMessage, "error");
-        appendLog("warn", errorMessage);
-        return;
-      }
-
-      if (result.alreadyUpdated) {
-        const alreadyMessage = "该工作项已经更新过，无需重复推送";
-        showToast(alreadyMessage, "warn");
-        appendLog("warn", alreadyMessage);
-        return;
-      }
-
-      const parts: string[] = [];
-      if (result.larkBaseUpdated) parts.push("Lark Base 状态已更新");
-      if (result.messageSent) parts.push("Lark 消息已发送");
-      if (result.reactionAdded) parts.push("Lark 消息 reaction 已添加");
-      if (result.meegleStatusUpdated) parts.push("Meegle 状态已更新");
-
-      const successMessage = `推送完成${parts.length ? `: ${parts.join("、")}` : ""}`;
-      showToast(successMessage, "success");
-      appendLog("success", successMessage);
-
-      setActivePage("chat");
-      if (current.state.currentTabId != null && currentUrl) {
-        try {
-          const url = new URL(currentUrl);
-          url.searchParams.set("tabKey", "txHFa5L16");
-          url.hash = "txHFa5L16";
-          chrome.tabs.update(current.state.currentTabId, { url: url.toString() });
-          appendLog("info", `[更新Lark及推送] 已跳转页面: ${url.toString()}`);
-        } catch {
-          appendLog("warn", "[更新Lark及推送] 页面跳转失败");
-        }
-      }
+      const controller = await loadMeeglePushController();
+      await controller.run();
       return;
     }
 

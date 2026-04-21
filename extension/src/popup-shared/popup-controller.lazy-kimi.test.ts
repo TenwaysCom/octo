@@ -8,6 +8,7 @@ const runtimeMock = vi.hoisted(() => ({
   fetchLarkUserInfo: vi.fn(),
   getConfig: vi.fn(),
   getLarkAuthStatus: vi.fn(),
+  refreshLarkAuthStatus: vi.fn(),
   loadPopupSettings: vi.fn(),
   loadResolvedIdentity: vi.fn(),
   postClientDebugLog: vi.fn(),
@@ -45,6 +46,23 @@ const kimiChatModuleMock = vi.hoisted(() => ({
   createKimiChatController: vi.fn(() => kimiChatControllerMock),
 }));
 
+const bulkCreateControllerMock = vi.hoisted(() => ({
+  openPreview: vi.fn(async () => undefined),
+  confirmCreate: vi.fn(async () => undefined),
+}));
+
+const bulkCreateModuleMock = vi.hoisted(() => ({
+  createLarkBulkCreateController: vi.fn(() => bulkCreateControllerMock),
+}));
+
+const meeglePushControllerMock = vi.hoisted(() => ({
+  run: vi.fn(async () => undefined),
+}));
+
+const meeglePushModuleMock = vi.hoisted(() => ({
+  createMeeglePushController: vi.fn(() => meeglePushControllerMock),
+}));
+
 vi.mock("../popup/runtime.js", () => runtimeMock);
 
 vi.mock("../popup/meegle-auth.js", async () => {
@@ -59,6 +77,8 @@ vi.mock("../popup/meegle-auth.js", async () => {
 });
 
 vi.mock("./popup-kimi-chat-controller.js", () => kimiChatModuleMock);
+vi.mock("./popup-lark-bulk-create-controller.js", () => bulkCreateModuleMock);
+vi.mock("./popup-meegle-push-controller.js", () => meeglePushModuleMock);
 
 import { createPopupController } from "./popup-controller";
 
@@ -99,6 +119,12 @@ describe("popup controller Kimi lazy loading", () => {
       },
     });
     runtimeMock.getLarkAuthStatus.mockResolvedValue({
+      status: "ready",
+      baseUrl: "https://open.larksuite.com",
+      masterUserId: "usr_resolved",
+      expiresAt: "2026-04-02T21:01:00.000Z",
+    });
+    runtimeMock.refreshLarkAuthStatus.mockResolvedValue({
       status: "ready",
       baseUrl: "https://open.larksuite.com",
       masterUserId: "usr_resolved",
@@ -185,5 +211,66 @@ describe("popup controller Kimi lazy loading", () => {
     controller.dispose();
 
     expect(kimiChatControllerMock.dispose).toHaveBeenCalledTimes(1);
+  });
+
+  it("loads the bulk-create handler only when the bulk action runs", async () => {
+    runtimeMock.queryActiveTabContext.mockResolvedValueOnce({
+      id: 12,
+      url: "https://nsghpcq7ar4z.sg.larksuite.com/base/XO0cbnxMIaralRsbBEolboEFgZc?table=tblUfu71xwdul3NH&view=vewMs17Tqk",
+      origin: "https://nsghpcq7ar4z.sg.larksuite.com",
+      pageType: "lark",
+    });
+
+    const controller = createPopupController();
+
+    await controller.initialize();
+
+    expect(bulkCreateModuleMock.createLarkBulkCreateController).not.toHaveBeenCalled();
+
+    await controller.runFeatureAction("bulk-create-meegle-tickets");
+
+    expect(bulkCreateModuleMock.createLarkBulkCreateController).toHaveBeenCalledTimes(1);
+    expect(bulkCreateControllerMock.openPreview).toHaveBeenCalledTimes(1);
+    expect(meeglePushModuleMock.createMeeglePushController).not.toHaveBeenCalled();
+
+    await controller.runFeatureAction("bulk-create-meegle-tickets");
+
+    expect(bulkCreateModuleMock.createLarkBulkCreateController).toHaveBeenCalledTimes(1);
+    expect(bulkCreateControllerMock.openPreview).toHaveBeenCalledTimes(2);
+    controller.dispose();
+  });
+
+  it("loads the Meegle push handler only when the push action runs and reuses it", async () => {
+    runtimeMock.queryActiveTabContext.mockResolvedValueOnce({
+      id: 12,
+      url: "https://project.larksuite.com/OPS/story/detail/WI-1",
+      origin: "https://project.larksuite.com",
+      pageType: "meegle",
+    });
+
+    const controller = createPopupController();
+
+    await controller.initialize();
+
+    expect(meeglePushModuleMock.createMeeglePushController).not.toHaveBeenCalled();
+
+    await controller.runFeatureAction("update-lark-and-push");
+
+    expect(meeglePushModuleMock.createMeeglePushController).toHaveBeenCalledTimes(1);
+    expect(meeglePushControllerMock.run).toHaveBeenCalledTimes(1);
+    expect(bulkCreateModuleMock.createLarkBulkCreateController).not.toHaveBeenCalled();
+
+    await controller.runFeatureAction("update-lark-and-push");
+
+    expect(meeglePushModuleMock.createMeeglePushController).toHaveBeenCalledTimes(1);
+    expect(meeglePushControllerMock.run).toHaveBeenCalledTimes(2);
+    expect(controller.getState().logs.some((entry) => entry.message === "执行操作中...")).toBe(
+      false,
+    );
+    expect(
+      controller.getState().logs.filter((entry) => entry.message === "更新 Lark 及推送中...")
+        .length,
+    ).toBe(2);
+    controller.dispose();
   });
 });
