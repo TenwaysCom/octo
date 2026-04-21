@@ -78,7 +78,6 @@ export function createApiAuthMiddleware(exemptPaths: ReadonlySet<string> = DEFAU
     }
 
     req.body = bodyResult.nextValue;
-    req.query = queryResult.nextValue as Request["query"];
     next();
   };
 }

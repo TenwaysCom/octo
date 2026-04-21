@@ -139,4 +139,36 @@ describe("api auth middleware", () => {
     expect(res.status).toHaveBeenCalledWith(401);
     expect(next).not.toHaveBeenCalled();
   });
+
+  it("does not try to write back to getter-only req.query", () => {
+    const middleware = createApiAuthMiddleware();
+    const req = {
+      method: "POST",
+      path: "/api/meegle/auth/status",
+      body: {
+        baseUrl: "https://project.larksuite.com",
+      },
+      headers: {
+        "master-user-id": "usr_header",
+      },
+    } as Partial<Request> as Request;
+    Object.defineProperty(req, "query", {
+      configurable: true,
+      enumerable: true,
+      get() {
+        return {
+          baseUrl: "https://project.larksuite.com",
+        };
+      },
+    });
+    const res = createResponse();
+    const next = vi.fn() as unknown as NextFunction;
+
+    expect(() => middleware(req, res, next)).not.toThrow();
+    expect(next).toHaveBeenCalledOnce();
+    expect(req.body).toEqual({
+      baseUrl: "https://project.larksuite.com",
+      masterUserId: "usr_header",
+    });
+  });
 });
