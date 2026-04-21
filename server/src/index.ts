@@ -35,6 +35,7 @@ import {
 import { meegleLarkPushController } from "./modules/meegle-workitem/meegle-lark-push.controller.js";
 import { createApiRequestLogger } from "./http/api-request-logger.js";
 import { createApiAuthMiddleware } from "./http/api-auth.js";
+import { prMeegleLookupController } from "./modules/github-pr-lookup/pr-meegle-lookup.controller.js";
 import { createCorsMiddleware } from "./http/cors.js";
 import { logger } from "./logger.js";
 
@@ -209,6 +210,9 @@ app.post("/api/lark-base/bulk-create-meegle-workitems", handleController(createL
 
 // Meegle workitem routes
 app.post("/api/meegle/workitem/update-lark-and-push", handleController(meegleLarkPushController));
+
+// GitHub PR lookup routes
+app.post("/api/github/pr/lookup-meegle", handleController(prMeegleLookupController));
 
 if (process.env.NODE_ENV !== "test" && process.env.VITEST !== "true") {
   await ensureSharedDatabase();
