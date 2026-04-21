@@ -368,10 +368,33 @@ describe("popup controller", () => {
     });
 
     expect(runtimeMock.runLarkBaseBulkCreateRequest).toHaveBeenCalledTimes(1);
-    expect(firstConfirm).toBe(secondConfirm);
     expect(resolveCreate).not.toBeNull();
     resolveCreate!();
     await Promise.all([firstConfirm, secondConfirm]);
+
+    expect(runtimeMock.runLarkBaseBulkCreateRequest).toHaveBeenCalledTimes(1);
+    expect(controller.getState().larkBulkCreateModal.stage).toBe("result");
+    controller.dispose();
+  });
+
+  it("ignores confirm requests after bulk create has already reached result state", async () => {
+    runtimeMock.queryActiveTabContext.mockResolvedValueOnce({
+      id: 12,
+      url: "https://nsghpcq7ar4z.sg.larksuite.com/base/XO0cbnxMIaralRsbBEolboEFgZc?table=tblUfu71xwdul3NH&view=vewMs17Tqk",
+      origin: "https://nsghpcq7ar4z.sg.larksuite.com",
+      pageType: "lark",
+    });
+
+    const controller = createPopupController();
+    await controller.initialize();
+    await controller.runFeatureAction("bulk-create-meegle-tickets");
+
+    await controller.confirmLarkBulkCreate();
+
+    expect(runtimeMock.runLarkBaseBulkCreateRequest).toHaveBeenCalledTimes(1);
+    expect(controller.getState().larkBulkCreateModal.stage).toBe("result");
+
+    await controller.confirmLarkBulkCreate();
 
     expect(runtimeMock.runLarkBaseBulkCreateRequest).toHaveBeenCalledTimes(1);
     expect(controller.getState().larkBulkCreateModal.stage).toBe("result");

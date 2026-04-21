@@ -1153,7 +1153,7 @@ export function createPopupController() {
   function confirmLarkBulkCreate(): Promise<void> {
     const currentModal = readStore().larkBulkCreateModal;
 
-    if (!currentModal.preview) {
+    if (currentModal.stage !== "preview" || !currentModal.preview) {
       return Promise.resolve();
     }
 
