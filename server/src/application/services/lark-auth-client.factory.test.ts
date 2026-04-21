@@ -5,6 +5,7 @@ describe("lark-auth-client.factory", () => {
   const getMock = vi.fn();
   const saveMock = vi.fn();
   const refreshLarkTokenMock = vi.fn();
+  const refreshStoredLarkCredentialMock = vi.fn();
   const createLarkClientMock = vi.fn();
 
   const deps = {
@@ -14,6 +15,7 @@ describe("lark-auth-client.factory", () => {
       delete: vi.fn(),
     }),
     refreshLarkToken: refreshLarkTokenMock,
+    refreshStoredLarkCredential: refreshStoredLarkCredentialMock,
     createLarkClient: createLarkClientMock,
   };
 
@@ -44,7 +46,7 @@ describe("lark-auth-client.factory", () => {
 
   it("refreshes token when expired and saves new token", async () => {
     const expiredAt = new Date(Date.now() - 1000).toISOString();
-    getMock.mockResolvedValueOnce({
+    const storedToken = {
       masterUserId: "usr_123",
       tenantKey: "tenant_xxx",
       larkUserId: "lark_123",
@@ -54,28 +56,23 @@ describe("lark-auth-client.factory", () => {
       refreshToken: "refresh_123",
       refreshTokenExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
       credentialStatus: "active",
-    });
-    refreshLarkTokenMock.mockResolvedValueOnce({
-      accessToken: "new_token",
+    };
+    getMock.mockResolvedValueOnce(storedToken);
+    refreshStoredLarkCredentialMock.mockResolvedValueOnce({
+      ...storedToken,
+      userToken: "new_token",
+      userTokenExpiresAt: new Date(Date.now() + 7200_000).toISOString(),
       refreshToken: "new_refresh",
-      expiresIn: 7200,
     });
     createLarkClientMock.mockReturnValueOnce({} as ReturnType<typeof createLarkClientMock>);
 
     const result = await buildAuthenticatedLarkClient("usr_123", "https://open.larksuite.com", deps);
 
-    expect(refreshLarkTokenMock).toHaveBeenCalledWith({
+    expect(refreshStoredLarkCredentialMock).toHaveBeenCalledWith({
       masterUserId: "usr_123",
-      baseUrl: "https://open.larksuite.com",
-      refreshToken: "refresh_123",
+      stored: storedToken,
     });
-    expect(saveMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        userToken: "new_token",
-        refreshToken: "new_refresh",
-        credentialStatus: "active",
-      }),
-    );
+    expect(saveMock).not.toHaveBeenCalled();
     expect(createLarkClientMock).toHaveBeenCalledWith("new_token", "https://open.larksuite.com");
     expect(result.baseUrl).toBe("https://open.larksuite.com");
   });
@@ -110,7 +107,7 @@ describe("lark-auth-client.factory", () => {
   it("preserves refreshTokenExpiresAt when refreshing", async () => {
     const expiredAt = new Date(Date.now() - 1000).toISOString();
     const refreshExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-    getMock.mockResolvedValueOnce({
+    const storedToken = {
       masterUserId: "usr_123",
       tenantKey: "tenant_xxx",
       larkUserId: "lark_123",
@@ -120,19 +117,52 @@ describe("lark-auth-client.factory", () => {
       refreshToken: "refresh_123",
       refreshTokenExpiresAt: refreshExpiresAt,
       credentialStatus: "active",
-    });
-    refreshLarkTokenMock.mockResolvedValueOnce({
-      accessToken: "new_token",
-      expiresIn: 7200,
+    };
+    getMock.mockResolvedValueOnce(storedToken);
+    refreshStoredLarkCredentialMock.mockResolvedValueOnce({
+      ...storedToken,
+      userToken: "new_token",
+      userTokenExpiresAt: new Date(Date.now() + 7200_000).toISOString(),
     });
     createLarkClientMock.mockReturnValueOnce({} as ReturnType<typeof createLarkClientMock>);
 
     await buildAuthenticatedLarkClient("usr_123", "https://open.larksuite.com", deps);
 
-    expect(saveMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        refreshTokenExpiresAt: refreshExpiresAt,
-      }),
-    );
+    expect(saveMock).not.toHaveBeenCalled();
+    expect(createLarkClientMock).toHaveBeenCalledWith("new_token", "https://open.larksuite.com");
+  });
+
+  it("recalculates refreshTokenExpiresAt when refresh token rotates without ttl", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-21T04:24:51.219Z"));
+
+    const expiredAt = new Date(Date.now() - 1000).toISOString();
+    const refreshExpiresAt = "2026-05-19T20:24:25.096Z";
+    const storedToken = {
+      masterUserId: "usr_123",
+      tenantKey: "tenant_xxx",
+      larkUserId: "lark_123",
+      baseUrl: "https://open.larksuite.com",
+      userToken: "old_token",
+      userTokenExpiresAt: expiredAt,
+      refreshToken: "refresh_123",
+      refreshTokenExpiresAt: refreshExpiresAt,
+      credentialStatus: "active",
+    };
+    getMock.mockResolvedValueOnce(storedToken);
+    refreshStoredLarkCredentialMock.mockResolvedValueOnce({
+      ...storedToken,
+      userToken: "new_token",
+      userTokenExpiresAt: new Date(Date.now() + 7200_000).toISOString(),
+      refreshToken: "new_refresh",
+    });
+    createLarkClientMock.mockReturnValueOnce({} as ReturnType<typeof createLarkClientMock>);
+
+    await buildAuthenticatedLarkClient("usr_123", "https://open.larksuite.com", deps);
+
+    expect(saveMock).not.toHaveBeenCalled();
+    expect(createLarkClientMock).toHaveBeenCalledWith("new_token", "https://open.larksuite.com");
+
+    vi.useRealTimers();
   });
 });

@@ -17,6 +17,7 @@ import {
   postClientDebugLog,
   getConfig,
   getLarkAuthStatus,
+  refreshLarkAuthStatus,
   resolveIdentityRequest,
   loadPopupSettings,
   runLarkAuthRequest,
@@ -333,6 +334,54 @@ describe("popup runtime settings", () => {
 
     expect(fetch).toHaveBeenCalledWith(
       "http://localhost:3000/api/lark/auth/status",
+      expect.objectContaining({
+        method: "POST",
+      }),
+    );
+    expect(chrome.runtime.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it("refreshes lark auth status through the server without opening oauth", async () => {
+    vi.mocked(getConfig).mockResolvedValue({
+      SERVER_URL: "http://localhost:3000",
+      MEEGLE_PLUGIN_ID: "MII_SERVER_PLUGIN",
+      LARK_APP_ID: "cli_server_public",
+      LARK_OAUTH_CALLBACK_URL: "https://example.ngrok-free.app/api/lark/auth/callback",
+      MEEGLE_BASE_URL: "https://project.larksuite.com",
+      LARK_OAUTH_SCOPE: "offline_access",
+      CLIENT_DEBUG_LOG_UPLOAD_ENABLED: false,
+    });
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ok: true,
+        data: {
+          status: "ready",
+          baseUrl: "https://open.larksuite.com",
+          masterUserId: "usr_resolved",
+          reason: "Lark token refreshed successfully",
+          credentialStatus: "active",
+          expiresAt: "2026-04-21T06:19:51.218Z",
+        },
+      }),
+    } as Response);
+
+    await expect(
+      refreshLarkAuthStatus({
+        masterUserId: "usr_resolved",
+        baseUrl: "https://open.larksuite.com",
+      }),
+    ).resolves.toEqual({
+      status: "ready",
+      baseUrl: "https://open.larksuite.com",
+      masterUserId: "usr_resolved",
+      reason: "Lark token refreshed successfully",
+      credentialStatus: "active",
+      expiresAt: "2026-04-21T06:19:51.218Z",
+    });
+
+    expect(fetch).toHaveBeenCalledWith(
+      "http://localhost:3000/api/lark/auth/refresh",
       expect.objectContaining({
         method: "POST",
       }),

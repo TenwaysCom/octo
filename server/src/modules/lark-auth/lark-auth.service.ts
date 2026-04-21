@@ -148,6 +148,16 @@ async function refreshLarkTokenWithLock(
   return refreshPromise;
 }
 
+export async function refreshStoredLarkCredentialWithLock(
+  input: {
+    masterUserId: string;
+    stored: StoredLarkToken;
+  },
+  overrides?: Partial<LarkAuthServiceDeps>,
+): Promise<StoredLarkToken> {
+  return refreshLarkTokenWithLock(input, overrides);
+}
+
 async function refreshStoredLarkCredential(
   input: {
     masterUserId: string;

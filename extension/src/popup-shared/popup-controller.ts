@@ -14,6 +14,7 @@ import {
   fetchLarkUserInfo,
   getConfig,
   getLarkAuthStatus,
+  refreshLarkAuthStatus,
   loadPopupSettings,
   loadResolvedIdentity,
   postClientDebugLog,
@@ -453,9 +454,18 @@ export function createPopupController() {
 
   async function checkLarkAuth(): Promise<LarkAuthEnsureResponse> {
     const current = readStore();
-    return getLarkAuthStatus({
+    const status = await getLarkAuthStatus({
       masterUserId: current.state.identity.masterUserId || undefined,
       baseUrl: normalizeLarkAuthBaseUrl(current.state.currentTabOrigin),
+    });
+
+    if (status.status !== "require_refresh") {
+      return status;
+    }
+
+    return refreshLarkAuthStatus({
+      masterUserId: current.state.identity.masterUserId || undefined,
+      baseUrl: status.baseUrl,
     });
   }
 

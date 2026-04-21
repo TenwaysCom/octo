@@ -6,13 +6,17 @@
  */
 
 import { LarkClient } from "../../adapters/lark/lark-client.js";
-import type { LarkTokenStore } from "../../adapters/lark/token-store.js";
+import type { LarkTokenStore, StoredLarkToken } from "../../adapters/lark/token-store.js";
 import { getSharedLarkTokenStore } from "../../adapters/postgres/lark-token-store.js";
-import { refreshLarkToken } from "../../modules/lark-auth/lark-auth.service.js";
+import {
+  refreshLarkToken,
+  refreshStoredLarkCredentialWithLock,
+} from "../../modules/lark-auth/lark-auth.service.js";
 
 export interface AuthenticatedLarkClientFactoryDeps {
   getLarkTokenStore?: () => LarkTokenStore;
   refreshLarkToken?: typeof refreshLarkToken;
+  refreshStoredLarkCredential?: typeof refreshStoredLarkCredentialWithLock;
   createLarkClient?: (accessToken: string, baseUrl?: string) => LarkClient;
 }
 
@@ -50,7 +54,12 @@ function toExpiresAt(expiresInSeconds?: number): string | undefined {
 function toRefreshTokenExpiresAt(
   refreshTokenExpiresIn?: number,
   fallback?: string,
+  hasNewRefreshToken?: boolean,
 ): string | undefined {
+  if (hasNewRefreshToken) {
+    return toExpiresAt(refreshTokenExpiresIn) ?? toExpiresAt(DEFAULT_REFRESH_TOKEN_TTL_SECONDS);
+  }
+
   return toExpiresAt(refreshTokenExpiresIn) ?? fallback ?? toExpiresAt(DEFAULT_REFRESH_TOKEN_TTL_SECONDS);
 }
 
@@ -76,28 +85,45 @@ export async function buildAuthenticatedLarkClient(
   let accessToken = stored.userToken;
 
   if (isExpired(stored.userTokenExpiresAt) && stored.refreshToken) {
-    const refreshed = await (deps.refreshLarkToken ?? refreshLarkToken)({
-      masterUserId,
-      baseUrl: stored.baseUrl,
-      refreshToken: stored.refreshToken,
-    });
+    let refreshedToken: StoredLarkToken | undefined;
 
-    accessToken = refreshed.accessToken;
+    if (deps.refreshStoredLarkCredential) {
+      refreshedToken = await deps.refreshStoredLarkCredential({
+        masterUserId,
+        stored,
+      });
+      accessToken = refreshedToken.userToken;
+    } else if (!deps.refreshLarkToken) {
+      refreshedToken = await refreshStoredLarkCredentialWithLock({
+        masterUserId,
+        stored,
+      });
+      accessToken = refreshedToken.userToken;
+    } else {
+      const refreshed = await deps.refreshLarkToken({
+        masterUserId,
+        baseUrl: stored.baseUrl,
+        refreshToken: stored.refreshToken,
+      });
 
-    await tokenStore.save({
-      masterUserId: stored.masterUserId,
-      tenantKey: stored.tenantKey,
-      larkUserId: stored.larkUserId,
-      baseUrl: stored.baseUrl,
-      userToken: refreshed.accessToken,
-      userTokenExpiresAt: toExpiresAt(refreshed.expiresIn),
-      refreshToken: refreshed.refreshToken ?? stored.refreshToken,
-      refreshTokenExpiresAt: toRefreshTokenExpiresAt(
-        refreshed.refreshTokenExpiresIn,
-        stored.refreshTokenExpiresAt,
-      ),
-      credentialStatus: "active",
-    });
+      accessToken = refreshed.accessToken;
+
+      await tokenStore.save({
+        masterUserId: stored.masterUserId,
+        tenantKey: stored.tenantKey,
+        larkUserId: stored.larkUserId,
+        baseUrl: stored.baseUrl,
+        userToken: refreshed.accessToken,
+        userTokenExpiresAt: toExpiresAt(refreshed.expiresIn),
+        refreshToken: refreshed.refreshToken ?? stored.refreshToken,
+        refreshTokenExpiresAt: toRefreshTokenExpiresAt(
+          refreshed.refreshTokenExpiresIn,
+          stored.refreshTokenExpiresAt,
+          refreshed.refreshToken != null,
+        ),
+        credentialStatus: "active",
+      });
+    }
   }
 
   const client = deps.createLarkClient

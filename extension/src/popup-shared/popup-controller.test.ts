@@ -10,6 +10,7 @@ const runtimeMock = vi.hoisted(() => ({
   fetchLarkUserInfo: vi.fn(),
   getConfig: vi.fn(),
   getLarkAuthStatus: vi.fn(),
+  refreshLarkAuthStatus: vi.fn(),
   listKimiChatSessions: vi.fn(),
   loadKimiChatSession: vi.fn(),
   loadKimiChatTranscriptSnapshot: vi.fn(),
@@ -97,6 +98,12 @@ describe("popup controller", () => {
       },
     });
     runtimeMock.getLarkAuthStatus.mockResolvedValue({
+      status: "ready",
+      baseUrl: "https://open.larksuite.com",
+      masterUserId: "usr_resolved",
+      expiresAt: "2026-04-02T21:01:00.000Z",
+    });
+    runtimeMock.refreshLarkAuthStatus.mockResolvedValue({
       status: "ready",
       baseUrl: "https://open.larksuite.com",
       masterUserId: "usr_resolved",
@@ -287,6 +294,39 @@ describe("popup controller", () => {
       "usr_callback",
     );
     expect(controller.getState().state.identity.masterUserId).toBe("usr_callback");
+    expect(controller.getState().state.isAuthed.lark).toBe(true);
+    controller.dispose();
+  });
+
+  it("refreshes lark token during initialize when auth status requires refresh", async () => {
+    runtimeMock.getLarkAuthStatus.mockResolvedValueOnce({
+      status: "require_refresh",
+      baseUrl: "https://open.larksuite.com",
+      masterUserId: "usr_resolved",
+      reason: "Lark token expired, refresh available",
+    });
+    runtimeMock.refreshLarkAuthStatus.mockResolvedValueOnce({
+      status: "ready",
+      baseUrl: "https://open.larksuite.com",
+      masterUserId: "usr_resolved",
+      reason: "Lark token refreshed successfully",
+      credentialStatus: "active",
+      expiresAt: "2026-04-21T06:19:51.218Z",
+    });
+
+    const controller = createPopupController();
+    await controller.initialize();
+
+    expect(runtimeMock.refreshLarkAuthStatus).toHaveBeenCalledWith({
+      masterUserId: "usr_resolved",
+      baseUrl: "https://open.larksuite.com",
+    });
+    expect(controller.getState().state.larkAuth).toEqual(
+      expect.objectContaining({
+        status: "ready",
+        reason: "Lark token refreshed successfully",
+      }),
+    );
     expect(controller.getState().state.isAuthed.lark).toBe(true);
     controller.dispose();
   });

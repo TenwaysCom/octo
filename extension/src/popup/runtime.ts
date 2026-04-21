@@ -807,6 +807,105 @@ export async function getLarkAuthStatus(
   }
 }
 
+export async function refreshLarkAuthStatus(
+  input: {
+    masterUserId?: string;
+    baseUrl: string;
+  },
+): Promise<LarkAuthEnsureResponse> {
+  if (!input.masterUserId) {
+    return {
+      status: "failed",
+      baseUrl: input.baseUrl,
+      reason: "LARK_AUTH_REQUIRED_FIELDS_MISSING",
+      errorMessage: "masterUserId is required for Lark auth.",
+    };
+  }
+
+  const config = await getConfig();
+  runtimeLogger.debug("refreshLarkAuthStatus.start", {
+    masterUserId: summarizeIdentifier(input.masterUserId),
+    baseUrl: input.baseUrl,
+  });
+
+  try {
+    const response = await fetch(`${config.SERVER_URL}/api/lark/auth/refresh`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        masterUserId: input.masterUserId,
+        baseUrl: input.baseUrl,
+      }),
+    });
+
+    if (!response.ok) {
+      runtimeLogger.warn("refreshLarkAuthStatus.http_failed", {
+        masterUserId: summarizeIdentifier(input.masterUserId),
+        baseUrl: input.baseUrl,
+        statusCode: response.status,
+      });
+      return {
+        status: "failed",
+        baseUrl: input.baseUrl,
+        masterUserId: input.masterUserId,
+        reason: "LARK_REFRESH_REQUEST_FAILED",
+        errorMessage: `Token refresh request failed with ${response.status}.`,
+      };
+    }
+
+    const payload = (await response.json()) as LarkAuthStatusServerResponse;
+
+    if (!payload.ok || !payload.data) {
+      runtimeLogger.warn("refreshLarkAuthStatus.invalid_payload", {
+        masterUserId: summarizeIdentifier(input.masterUserId),
+        baseUrl: input.baseUrl,
+        errorCode: payload.error?.errorCode,
+        errorMessage: payload.error?.errorMessage,
+      });
+      return {
+        status: "failed",
+        baseUrl: input.baseUrl,
+        masterUserId: input.masterUserId,
+        reason: payload.error?.errorCode || "LARK_REFRESH_REQUEST_FAILED",
+        errorMessage: payload.error?.errorMessage || "Lark auth refresh response payload is missing.",
+      };
+    }
+
+    runtimeLogger.debug("refreshLarkAuthStatus.done", {
+      masterUserId: summarizeIdentifier(input.masterUserId),
+      status: payload.data.status,
+      reason: payload.data.reason,
+      credentialStatus: payload.data.credentialStatus,
+      expiresAt: payload.data.expiresAt,
+      baseUrl: payload.data.baseUrl,
+    });
+
+    return {
+      status: payload.data.status,
+      baseUrl: payload.data.baseUrl,
+      masterUserId: payload.data.masterUserId ?? input.masterUserId,
+      reason: payload.data.reason,
+      credentialStatus: payload.data.credentialStatus,
+      expiresAt: payload.data.expiresAt,
+    };
+  } catch (error) {
+    runtimeLogger.error("refreshLarkAuthStatus.failed", {
+      masterUserId: summarizeIdentifier(input.masterUserId),
+      baseUrl: input.baseUrl,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
+    return {
+      status: "failed",
+      baseUrl: input.baseUrl,
+      masterUserId: input.masterUserId,
+      reason: "LARK_REFRESH_REQUEST_FAILED",
+      errorMessage: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
 const AUTH_STORAGE_KEY = "itpm_assistant_auth";
 
 export function watchLarkAuthCallbackResult(
