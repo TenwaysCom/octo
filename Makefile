@@ -5,7 +5,7 @@ EXT_PROFILE_DIR ?= $(HOME)/.config/octo-ext-profile
 
 .DEFAULT_GOAL := help
 
-.PHONY: help completion server-dev test-server test-client ext-dev ext-dev-manual ext-dev-profile ext-dev-probe ext-build ext-test ext-typecheck deploy-test deploy-prod
+.PHONY: help completion server-dev test-server test-client ext-dev ext-dev-manual ext-dev-profile ext-dev-probe ext-build ext-package ext-test ext-typecheck deploy-test deploy-prod
 
 help: ## Show available make targets
 	@awk 'BEGIN {FS = ":.*## "}; /^[a-zA-Z0-9_.-]+:.*## / {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -47,6 +47,9 @@ ext-dev-probe: ## Run extension dev mode with probe mode enabled
 
 ext-build: ## Build the extension
 	pnpm --dir $(EXT_DIR) build
+
+ext-package: ## Package the extension into a zip file for distribution
+	pnpm --dir $(EXT_DIR) package
 
 ext-test: ## Run extension tests
 	pnpm --dir $(EXT_DIR) test
