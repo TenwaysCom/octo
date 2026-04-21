@@ -24,6 +24,9 @@ describe("popup-react shell", () => {
     await user.click(screen.getByRole("button", { name: "设置" }));
     expect(container.querySelector('[data-test="settings-page"]')).not.toBeNull();
     expect(container.querySelector('[data-test="profile-page"]')).toBeNull();
+    expect(screen.queryByText("Meegle User Key")).toBeNull();
+    expect(screen.queryByText("Lark User ID (可选)")).toBeNull();
+    expect(screen.queryByText("Lark Email")).toBeNull();
 
     await user.click(screen.getByRole("button", { name: "个人" }));
     expect(container.querySelector('[data-test="profile-page"]')).not.toBeNull();

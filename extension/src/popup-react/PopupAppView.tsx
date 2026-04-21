@@ -99,10 +99,7 @@ function renderActivePage(popupApp: PopupAppModel) {
       return (
         <SettingsPage
           form={popupApp.settingsForm}
-          larkUserId={popupApp.state.identity.larkId || ""}
-          larkEmail={popupApp.state.identity.larkEmail || ""}
           onCancel={popupApp.closeSettings}
-          onFetchMeegleUserKey={popupApp.fetchMeegleUserKey}
           onRefreshServerConfig={popupApp.refreshServerConfig}
           onSave={popupApp.saveSettingsForm}
           onFormFieldChange={popupApp.updateSettingsFormField}
