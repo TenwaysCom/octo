@@ -3,7 +3,7 @@ import { extractMeegleIds } from "./meegle-id-extractor.js";
 
 describe("extractMeegleIds", () => {
   it("should extract pure numeric IDs (6+ digits)", () => {
-    const result = extractMeegleIds("Fix bug #123456 and #789012");
+    const result = extractMeegleIds("Fix bug 123456 and 789012");
     expect(result).toEqual(["123456", "789012"]);
   });
 
