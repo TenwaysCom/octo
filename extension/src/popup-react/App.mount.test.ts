@@ -30,4 +30,18 @@ describe("popup-react App", () => {
       expect(initialize).toHaveBeenCalledTimes(1);
     });
   });
+
+  it("does not run initialize twice under StrictMode", async () => {
+    render(
+      React.createElement(
+        React.StrictMode,
+        null,
+        React.createElement(App),
+      ),
+    );
+
+    await waitFor(() => {
+      expect(initialize).toHaveBeenCalledTimes(1);
+    });
+  });
 });
