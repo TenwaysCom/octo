@@ -182,6 +182,8 @@ export async function routeBackgroundAction(
         masterUserId,
         baseId: message.payload.baseId ?? tabUrlContext.baseId,
         tableId: message.payload.tableId ?? tabUrlContext.tableId,
+        wikiRecordId: message.payload.wikiRecordId ?? tabUrlContext.wikiRecordId,
+        pageType: message.payload.pageType ?? (tabUrlContext.wikiRecordId ? "lark_wiki_record" : "lark_base"),
       }),
     };
   }

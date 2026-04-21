@@ -18,6 +18,26 @@ const DETAIL_ROOT_SELECTOR = [
   "[class*='sidebar']",
 ].join(",");
 
+// Wiki record pages use different selectors
+const WIKI_RECORD_ROOT_SELECTOR = [
+  "main",
+  "article",
+  "[class*='wiki']",
+  "[class*='wiki-content']",
+  "[class*='record-content']",
+  "[class*='article']",
+  "[class*='detail-body']",
+  "[class*='page-body']",
+  "[class*='doc-body']",
+  "[class*='document-body']",
+  "[class*='content-body']",
+  "[role='main']",
+  ".lark-record-page",
+  "[data-testid='record-page']",
+  "[data-testid='wiki-page']",
+  "[data-testid='doc-page']",
+].join(",");
+
 const FIELD_CANDIDATE_SELECTOR = [
   ".field-row",
   "[data-field-row]",
@@ -337,5 +357,134 @@ export function probeLarkDetail(): ProbeDetailResult {
     isOpen: true,
     detailRoot,
     reason: probeLarkContext(detailRoot) === null ? "loading" : undefined,
+  };
+}
+
+// Probe for Wiki record pages (e.g., /record/{id} URLs)
+function isWikiRecordPage(): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  return /^\/record\/[a-zA-Z0-9]+/.test(window.location.pathname);
+}
+
+function findWikiRecordRoot(): Element | null {
+  if (!hasDocument()) {
+    return null;
+  }
+
+  // Try specific Wiki record selectors first
+  const candidates = Array.from(document.querySelectorAll(WIKI_RECORD_ROOT_SELECTOR)).filter(
+    isElementVisible,
+  );
+
+  for (const candidate of candidates) {
+    const hasTitle = findTitleNode(candidate) !== null || document.title.length > 0;
+    const hasContent = candidate.textContent && candidate.textContent.length > 50;
+
+    if (hasTitle && hasContent) {
+      return candidate;
+    }
+  }
+
+  // Fallback: look for main content area
+  const mainContent = document.querySelector("main") || document.querySelector("[class*='content']");
+  if (mainContent && isElementVisible(mainContent)) {
+    return mainContent;
+  }
+
+  // Last resort: use document body if we have a page title
+  if (document.title && document.body) {
+    return document.body;
+  }
+
+  return null;
+}
+
+function resolveWikiPageTitle(detailRoot: Element): string | null {
+  // Try to find a title node in the DOM
+  const domTitle = normalizeText(findTitleNode(detailRoot)?.textContent);
+  if (domTitle) {
+    return domTitle;
+  }
+
+  // Fallback: use document title (minus site suffix like " - Lark")
+  if (typeof document !== "undefined" && document.title) {
+    const pageTitle = document.title.replace(/\s*[-–—|]\s*.+$/, "").trim();
+    if (pageTitle) {
+      return pageTitle;
+    }
+  }
+
+  return null;
+}
+
+export function probeLarkWikiContext(detailRoot: Element): LarkRecordContext | null {
+  if (!hasDocument()) {
+    return null;
+  }
+
+  const title = resolveWikiPageTitle(detailRoot);
+  if (!title) {
+    return null;
+  }
+
+  // For wiki pages, try to find fields but don't require them
+  const fields = findFieldRows(detailRoot)
+    .map(parseFieldRow)
+    .filter((field): field is LarkFieldRow => field !== null);
+
+  // Wiki pages may have 0 or more fields - we only require a title
+  return {
+    title,
+    fields,
+  };
+}
+
+export function probeLarkWikiAnchor(detailRoot: Element): AnchorCandidate | null {
+  if (!hasDocument()) {
+    return null;
+  }
+
+  // For wiki pages, we only need a title, not fields
+  if (probeLarkWikiContext(detailRoot) === null) {
+    return null;
+  }
+
+  const anchorNode = findAnchorNode(detailRoot);
+  if (anchorNode === null) {
+    return null;
+  }
+
+  return {
+    element: anchorNode,
+    label: describeElement(anchorNode) ?? "wiki-detail",
+    confidence: anchorNode === detailRoot ? 0.6 : 0.9,
+  };
+}
+
+export function probeLarkWikiRecordContext(): ProbeDetailResult {
+  if (!hasDocument() || !isWikiRecordPage()) {
+    return {
+      isOpen: false,
+      detailRoot: null,
+    };
+  }
+
+  const detailRoot = findWikiRecordRoot();
+  if (detailRoot === null) {
+    return {
+      isOpen: false,
+      detailRoot: null,
+    };
+  }
+
+  // For Wiki pages, we consider them ready if we can extract a title
+  const title = resolveWikiPageTitle(detailRoot);
+
+  return {
+    isOpen: true,
+    detailRoot,
+    reason: title === null ? "loading" : undefined,
   };
 }

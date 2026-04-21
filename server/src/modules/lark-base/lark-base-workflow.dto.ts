@@ -6,6 +6,8 @@ export const createLarkBaseWorkflowSchema = z.object({
   baseId: z.string().optional(),
   tableId: z.string().optional(),
   projectKey: z.string().optional(),
+  wikiRecordId: z.string().optional(),
+  pageType: z.enum(["lark_base", "lark_wiki_record"]).optional(),
 });
 
 export type CreateLarkBaseWorkflowRequest = z.infer<

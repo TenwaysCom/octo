@@ -8,6 +8,7 @@ import type {
   LarkRecordSnapshot,
 } from "../../../types/lark";
 import type { ProtocolAction } from "../../../types/protocol";
+import { extractLarkBaseContextFromUrl } from "../../../lark-base-url.js";
 
 const HEADER_MOUNT_ID = "lark-detail-action";
 const PANEL_MOUNT_ID = "lark-detail-panel";
@@ -23,11 +24,12 @@ export type RenderLarkInjectionArgs = {
 };
 
 export type LarkCreateWorkitemRequest = {
-  pageType: "lark_base";
+  pageType: "lark_base" | "lark_wiki_record";
   url: string;
   baseId?: string;
   tableId?: string;
   recordId?: string;
+  wikiRecordId?: string;
   operatorLarkId?: string;
   masterUserId?: string;
   snapshot: LarkRecordSnapshot;
@@ -153,8 +155,10 @@ function buildSnapshot(context: LarkRecordContext, pageContext: LarkPageContext 
 }
 
 async function defaultCreateWorkitem(request: LarkCreateWorkitemRequest): Promise<LarkCreateWorkitemResult> {
-  if (!request.recordId) {
-    throw new Error("recordId is required to create a workitem.");
+  // Accept either recordId (for Base) or wikiRecordId (for Wiki record pages)
+  const effectiveRecordId = request.recordId || request.wikiRecordId;
+  if (!effectiveRecordId) {
+    throw new Error("recordId or wikiRecordId is required to create a workitem.");
   }
 
   if (!getChromeRuntime()) {
@@ -162,11 +166,12 @@ async function defaultCreateWorkitem(request: LarkCreateWorkitemRequest): Promis
   }
 
   const payload: LarkBaseCreateWorkitemRequest = {
-    pageType: "lark_base",
+    pageType: request.pageType,
     url: request.url,
     baseId: request.baseId,
     tableId: request.tableId,
-    recordId: request.recordId,
+    recordId: effectiveRecordId,
+    wikiRecordId: request.wikiRecordId,
     operatorLarkId: request.operatorLarkId,
     masterUserId: request.masterUserId,
     snapshot: request.snapshot,
@@ -264,12 +269,20 @@ export function createLarkInjectionRenderer({
 
   function buildCreateRequest(context: LarkRecordContext): LarkCreateWorkitemRequest {
     const nextPageContext = readPageContext();
+    const routeContext = typeof window !== "undefined"
+      ? extractLarkBaseContextFromUrl(window.location.href)
+      : {};
+    const isWikiPage = nextPageContext?.pageType === "lark_wiki_record";
+    const wikiRecordId = routeContext.wikiRecordId ?? nextPageContext?.wikiRecordId;
+    // For wiki pages, use wikiRecordId as recordId if recordId is not available
+    const recordId = nextPageContext?.recordId ?? (isWikiPage ? wikiRecordId : undefined);
     return {
-      pageType: "lark_base",
+      pageType: isWikiPage ? "lark_wiki_record" : "lark_base",
       url: nextPageContext?.url ?? "",
       baseId: nextPageContext?.baseId,
       tableId: nextPageContext?.tableId,
-      recordId: nextPageContext?.recordId,
+      recordId,
+      wikiRecordId,
       operatorLarkId: nextPageContext?.operatorLarkId,
       masterUserId: nextPageContext?.masterUserId,
       snapshot: buildSnapshot(context, nextPageContext),

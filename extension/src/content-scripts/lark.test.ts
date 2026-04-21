@@ -236,6 +236,30 @@ describe("lark content script probe overlay", () => {
     });
   });
 
+  it("reports lark_wiki_record pageType when on a Lark Wiki record URL", async () => {
+    await import("./lark");
+
+    window.history.replaceState({}, "", "/record/JfrhrMSAHeNRowcqTTclnyteg0c");
+
+    // Simulate a wiki page DOM with a title
+    document.body.innerHTML = `
+      <div id="app">
+        <main>
+          <article class="wiki-content">
+            <h1>Wiki Document Title</h1>
+            <p>This is the content of the wiki page with some details.</p>
+          </article>
+        </main>
+      </div>
+    `;
+
+    expect(getTestingApi()?.detectLarkPageContext()).toMatchObject({
+      pageType: "lark_wiki_record",
+      wikiRecordId: "JfrhrMSAHeNRowcqTTclnyteg0c",
+      recordId: "JfrhrMSAHeNRowcqTTclnyteg0c",
+    });
+  });
+
   it("reads lark user id from storage snapshots when the dom does not expose it", async () => {
     const loggerApi = await getLoggerApi();
     loggerApi.clearLogBuffer();

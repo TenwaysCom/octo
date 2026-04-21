@@ -3,6 +3,7 @@ export interface LarkBaseUrlContext {
   tableId?: string;
   recordId?: string;
   viewId?: string;
+  wikiRecordId?: string;
 }
 
 function readFirstSearchParam(
@@ -39,6 +40,7 @@ export function extractLarkBaseContextFromUrl(
     let baseId: string | undefined;
     let tableId: string | undefined;
     let recordId: string | undefined;
+    let wikiRecordId: string | undefined;
 
     for (const candidate of routeCandidates) {
       const routeMatch = candidate.match(
@@ -62,6 +64,15 @@ export function extractLarkBaseContextFromUrl(
       ),
     ];
 
+    // Extract wiki record ID from /record/{id} pattern at root path (for Lark Wiki pages)
+    // Wiki pages have format: /record/{id} or /record/{id}/view/...
+    // Lark Base has format: /base/{baseId}/table/{tableId}/record/{recordId}
+    // So we only extract wikiRecordId if the pathname starts with /record/
+    const wikiRecordMatch = url.pathname.match(/^\/record\/([a-zA-Z0-9]+)/);
+    if (wikiRecordMatch) {
+      wikiRecordId = wikiRecordMatch[1];
+    }
+
     return {
       baseId:
         baseId ??
@@ -72,6 +83,7 @@ export function extractLarkBaseContextFromUrl(
         recordId ??
         readFirstSearchParam(params, ["recordId", "record", "record_id"]),
       viewId: readFirstSearchParam(params, ["viewId", "view"]),
+      wikiRecordId,
     };
   } catch {
     return {};

@@ -159,6 +159,73 @@ describe("renderLarkInjection", () => {
     expect(detailRoot.textContent).toContain("已创建 Meegle User Story");
   });
 
+  it("renders button for lark_wiki_record pages with wikiRecordId", () => {
+    const anchor = document.createElement("div");
+
+    renderLarkInjection({
+      pageState: {
+        kind: "detail-ready",
+        context: createContext("Wiki Document"),
+        anchor: { element: anchor, label: "wiki-header", confidence: 1 },
+      },
+      deps: {
+        pageContext: {
+          pageType: "lark_wiki_record",
+          url: "https://tenant/record/JfrhrMSAHeNRowcqTTclnyteg0c",
+          wikiRecordId: "JfrhrMSAHeNRowcqTTclnyteg0c",
+        },
+      },
+    });
+
+    expect(anchor.textContent).toContain("创建 Meegle Work Item");
+  });
+
+  it("creates workitem for wiki record page when button is clicked", async () => {
+    const detailRoot = document.createElement("section");
+    const anchor = document.createElement("div");
+    detailRoot.appendChild(anchor);
+
+    const createWorkitem = vi.fn().mockResolvedValue({
+      status: "created",
+      workitemId: "WIKI-123",
+    });
+
+    const renderer = createLarkInjectionRenderer({
+      createWorkitem,
+      pageContext: {
+        pageType: "lark_wiki_record",
+        url: "https://tenant/record/JfrhrMSAHeNRowcqTTclnyteg0c",
+        wikiRecordId: "JfrhrMSAHeNRowcqTTclnyteg0c",
+        operatorLarkId: "ou_wiki",
+        masterUserId: "usr_wiki",
+      },
+    });
+
+    renderer.render({
+      pageState: {
+        kind: "detail-ready",
+        context: createContext("Wiki Document"),
+        anchor: { element: anchor, label: "wiki-header", confidence: 1 },
+      },
+    });
+
+    await userClick(anchor.querySelector("button"));
+
+    expect(createWorkitem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pageType: "lark_wiki_record",
+        recordId: "JfrhrMSAHeNRowcqTTclnyteg0c",
+        wikiRecordId: "JfrhrMSAHeNRowcqTTclnyteg0c",
+        operatorLarkId: "ou_wiki",
+        masterUserId: "usr_wiki",
+        snapshot: expect.objectContaining({
+          title: "Wiki Document",
+        }),
+      }),
+    );
+    expect(detailRoot.querySelector('[data-tenways-octo-panel-state="success"]')).not.toBeNull();
+  });
+
   it("disables the trigger while createWorkitem is still pending", async () => {
     const detailRoot = document.createElement("section");
     const anchor = document.createElement("div");
@@ -271,7 +338,7 @@ describe("renderLarkInjection", () => {
     await userClick(anchor.querySelector("button"));
 
     expect(detailRoot.querySelector('[data-tenways-octo-panel-state="error"]')).not.toBeNull();
-    expect(detailRoot.textContent).toContain("recordId is required to create a workitem.");
+    expect(detailRoot.textContent).toContain("recordId or wikiRecordId is required to create a workitem.");
   });
 });
 

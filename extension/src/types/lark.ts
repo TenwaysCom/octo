@@ -88,7 +88,7 @@ export interface LarkAuthCallbackResult {
   reason?: string;
 }
 
-export type LarkSourcePageType = "lark_base";
+export type LarkSourcePageType = "lark_base" | "lark_wiki_record";
 
 export type LarkDetectedPageType = LarkSourcePageType | "unknown";
 
@@ -99,6 +99,7 @@ export interface LarkPageContext {
   tableId?: string;
   recordId?: string;
   viewId?: string;
+  wikiRecordId?: string;
   operatorLarkId?: string;
   masterUserId?: string;
 }
@@ -115,6 +116,15 @@ export interface LarkRecordSnapshot {
 }
 
 export interface LarkBaseCreateWorkitemRequest extends LarkPageContext {
+  snapshot?: LarkRecordSnapshot;
+}
+
+export interface LarkWikiRecordCreateWorkitemRequest {
+  pageType: "lark_wiki_record";
+  url: string;
+  wikiRecordId?: string;
+  operatorLarkId?: string;
+  masterUserId?: string;
   snapshot?: LarkRecordSnapshot;
 }
 

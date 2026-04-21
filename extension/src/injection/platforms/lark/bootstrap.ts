@@ -1,7 +1,7 @@
 import { createProbeOverlay, type ProbeOverlayHandle, type ProbeOverlayState, type ProbeDebugInfo } from "../../core/overlay";
 import { createProbeController, isInjectionProbeEnabled, type ProbeController } from "../../core/probe-controller";
 import { createLarkInjectionAdapter } from "./adapter";
-import { probeLarkContext, probeLarkDetail, type LarkRecordContext } from "./probe";
+import { probeLarkContext, probeLarkDetail, probeLarkWikiRecordContext, type LarkRecordContext } from "./probe";
 import type { InjectionPageState } from "../../types";
 import type { LarkPageContext } from "../../../types/lark";
 import { createExtensionLogger } from "../../../logger.js";
@@ -154,9 +154,14 @@ function inferPageTypeFromRecordContext(
   _context: LarkRecordContext | null,
   baseId: string | undefined,
   tableId: string | undefined,
+  wikiRecordId: string | undefined,
 ): LarkPageContext["pageType"] {
   if (baseId && tableId) {
     return "lark_base";
+  }
+
+  if (wikiRecordId) {
+    return "lark_wiki_record";
   }
 
   return "unknown";
@@ -213,19 +218,26 @@ export function createLarkContentScriptRuntime(): LarkContentScriptRuntime {
 
   function readPageContext(): LarkDetectedPageContext | null {
     const url = window.location.href;
-    const detail = probeLarkDetail();
-    const parsedContext = detail.detailRoot ? probeLarkContext(detail.detailRoot) : null;
     const routeContext = extractLarkBaseContextFromUrl(url);
 
+    // Check if this is a Wiki record page
+    const isWikiRecord = routeContext.wikiRecordId !== undefined;
+
+    // Use appropriate probe based on page type
+    const detail = isWikiRecord ? probeLarkWikiRecordContext() : probeLarkDetail();
+    const parsedContext = detail.detailRoot ? probeLarkContext(detail.detailRoot) : null;
+
     const context: LarkDetectedPageContext = {
-      pageType: inferPageTypeFromRecordContext(parsedContext, routeContext.baseId, routeContext.tableId),
+      pageType: inferPageTypeFromRecordContext(parsedContext, routeContext.baseId, routeContext.tableId, routeContext.wikiRecordId),
       url,
       baseId: routeContext.baseId,
       tableId: routeContext.tableId,
       viewId: routeContext.viewId,
+      wikiRecordId: routeContext.wikiRecordId,
       recordId: routeContext.recordId
         ?? extractRecordIdFromFields(parsedContext)
-        ?? extractRecordIdFromDom(detail.detailRoot),
+        ?? extractRecordIdFromDom(detail.detailRoot)
+        ?? routeContext.wikiRecordId,
     };
 
     const larkIdElement = document.querySelector('[data-user-id]') as HTMLElement;
