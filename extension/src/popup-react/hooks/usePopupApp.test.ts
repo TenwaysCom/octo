@@ -13,6 +13,7 @@ const runtimeMock = vi.hoisted(() => ({
   getLarkAuthStatus: vi.fn(),
   listKimiChatSessions: vi.fn(),
   loadKimiChatSession: vi.fn(),
+  renameKimiChatSession: vi.fn(),
   loadKimiChatTranscriptSnapshot: vi.fn(),
   loadPopupSettings: vi.fn(),
   loadResolvedIdentity: vi.fn(),

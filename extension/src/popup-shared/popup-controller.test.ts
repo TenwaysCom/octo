@@ -13,6 +13,7 @@ const runtimeMock = vi.hoisted(() => ({
   refreshLarkAuthStatus: vi.fn(),
   listKimiChatSessions: vi.fn(),
   loadKimiChatSession: vi.fn(),
+  renameKimiChatSession: vi.fn(),
   loadKimiChatTranscriptSnapshot: vi.fn(),
   loadPopupSettings: vi.fn(),
   loadResolvedIdentity: vi.fn(),
@@ -542,6 +543,9 @@ describe("popup controller", () => {
 
     const controller = createPopupController();
     controller.updateSettingsFormField("larkUserId", "ou_test");
+    controller.syncLegacyIdentityState({
+      masterUserId: "usr_resolved",
+    });
     await controller.runFeatureAction("analyze");
     await controller.sendKimiChatMessage("first turn");
     controller.updateKimiChatDraftMessage("follow up");

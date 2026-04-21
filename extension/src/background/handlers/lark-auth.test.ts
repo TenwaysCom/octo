@@ -1,4 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("../config.js", () => ({
+  getConfig: vi.fn().mockResolvedValue({
+    SERVER_URL: "http://localhost:3000",
+    MEEGLE_PLUGIN_ID: "MII_TEST_PLUGIN",
+    MEEGLE_BASE_URL: "https://project.larksuite.com",
+    LARK_APP_ID: "cli_test",
+    LARK_OAUTH_CALLBACK_URL: "http://localhost:3000/api/lark/auth/callback",
+    LARK_OAUTH_SCOPE: "offline_access",
+    CLIENT_DEBUG_LOG_UPLOAD_ENABLED: false,
+  }),
+}));
+
 import {
   buildLarkOauthUrl,
   ensureLarkAuth,
@@ -99,6 +112,65 @@ describe("lark-auth handler", () => {
       "https://open.larksuite.com",
       "state_123",
       "cli_test",
+    );
+  });
+
+  it("sends master-user-id when creating a lark oauth session through the server", async () => {
+    vi.mocked(globalThis.fetch)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          ok: true,
+          data: {
+            status: "require_auth",
+            masterUserId: "usr_xxx",
+            baseUrl: "https://open.larksuite.com",
+          },
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          ok: true,
+          data: {
+            state: "state_123",
+            baseUrl: "https://open.larksuite.com",
+          },
+        }),
+      } as Response);
+
+    await ensureLarkAuth(
+      {
+        requestId: "req_001",
+        masterUserId: "usr_xxx",
+        baseUrl: "https://open.larksuite.com",
+      },
+      {
+        openLarkOAuthTab: vi.fn(),
+        savePendingLarkOauthState: vi.fn(),
+        appId: "cli_test",
+      },
+    );
+
+    expect(globalThis.fetch).toHaveBeenNthCalledWith(
+      1,
+      "http://localhost:3000/api/lark/auth/status",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          "Content-Type": "application/json",
+          "master-user-id": "usr_xxx",
+        }),
+      }),
+    );
+    expect(globalThis.fetch).toHaveBeenNthCalledWith(
+      2,
+      "http://localhost:3000/api/lark/auth/session",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          "Content-Type": "application/json",
+          "master-user-id": "usr_xxx",
+        }),
+      }),
     );
   });
 

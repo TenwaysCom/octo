@@ -32,6 +32,7 @@ import type {
 import type { PopupSettingsForm } from "./types.js";
 import { detectPopupPageType, type PopupPageType } from "./view-model.js";
 import { createExtensionLogger } from "../logger.js";
+import { createServerRequestHeaders } from "../server-request.js";
 
 interface RuntimeErrorResponse {
   error?: {
@@ -122,11 +123,10 @@ export async function postClientDebugLog(input: {
   }
 
   try {
+    const masterUserId = await getStoredMasterUserId();
     const response = await fetch(`${config.SERVER_URL}/api/debug/client-log`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: createServerRequestHeaders({ masterUserId }),
       keepalive: true,
       body: JSON.stringify(input),
     });
@@ -370,9 +370,7 @@ export async function runMeegleLarkPushRequest(
   try {
     const response = await fetch(`${config.SERVER_URL}/api/meegle/workitem/update-lark-and-push`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: createServerRequestHeaders({ masterUserId: request.masterUserId }),
       body: JSON.stringify(request),
     });
 
@@ -412,9 +410,7 @@ export async function resolveIdentityRequest(input: {
   });
   const response = await fetch(`${config.SERVER_URL}/api/identity/resolve`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: createServerRequestHeaders({ masterUserId: input.masterUserId }),
     body: JSON.stringify({
       requestId: `req_${Date.now()}`,
       masterUserId: input.masterUserId,
@@ -440,15 +436,14 @@ export async function resolveIdentityRequest(input: {
 
 export async function listKimiChatSessions(
   input: {
+    masterUserId: string;
     operatorLarkId: string;
   },
 ): Promise<KimiChatSessionListResponse> {
   const config = await getConfig();
   const response = await fetch(`${config.SERVER_URL}/api/acp/kimi/sessions/list`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: createServerRequestHeaders({ masterUserId: input.masterUserId }),
     body: JSON.stringify(input),
   });
 
@@ -457,6 +452,7 @@ export async function listKimiChatSessions(
 
 export async function loadKimiChatSession(
   input: {
+    masterUserId: string;
     operatorLarkId: string;
     sessionId: string;
   },
@@ -464,9 +460,7 @@ export async function loadKimiChatSession(
   const config = await getConfig();
   const response = await fetch(`${config.SERVER_URL}/api/acp/kimi/sessions/load`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: createServerRequestHeaders({ masterUserId: input.masterUserId }),
     body: JSON.stringify(input),
   });
 
@@ -475,6 +469,7 @@ export async function loadKimiChatSession(
 
 export async function deleteKimiChatSession(
   input: {
+    masterUserId: string;
     operatorLarkId: string;
     sessionId: string;
   },
@@ -482,9 +477,7 @@ export async function deleteKimiChatSession(
   const config = await getConfig();
   const response = await fetch(`${config.SERVER_URL}/api/acp/kimi/sessions/delete`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: createServerRequestHeaders({ masterUserId: input.masterUserId }),
     body: JSON.stringify(input),
   });
 
@@ -496,6 +489,7 @@ export async function deleteKimiChatSession(
 
 export async function renameKimiChatSession(
   input: {
+    masterUserId: string;
     operatorLarkId: string;
     sessionId: string;
     title: string;
@@ -504,9 +498,7 @@ export async function renameKimiChatSession(
   const config = await getConfig();
   const response = await fetch(`${config.SERVER_URL}/api/acp/kimi/sessions/rename`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: createServerRequestHeaders({ masterUserId: input.masterUserId }),
     body: JSON.stringify(input),
   });
 
@@ -662,9 +654,7 @@ export async function fetchLarkUserInfo(
   try {
     const response = await fetch(`${config.SERVER_URL}/api/lark/user-info`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: createServerRequestHeaders({ masterUserId: input.masterUserId }),
       body: JSON.stringify({
         masterUserId: input.masterUserId,
         baseUrl: input.baseUrl,
@@ -733,9 +723,7 @@ export async function getLarkAuthStatus(
   try {
     const response = await fetch(`${config.SERVER_URL}/api/lark/auth/status`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: createServerRequestHeaders({ masterUserId: input.masterUserId }),
       body: JSON.stringify({
         masterUserId: input.masterUserId,
         baseUrl: input.baseUrl,
@@ -831,9 +819,7 @@ export async function refreshLarkAuthStatus(
   try {
     const response = await fetch(`${config.SERVER_URL}/api/lark/auth/refresh`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: createServerRequestHeaders({ masterUserId: input.masterUserId }),
       body: JSON.stringify({
         masterUserId: input.masterUserId,
         baseUrl: input.baseUrl,
