@@ -6,6 +6,7 @@ const clientDebugLogRequestSchema = z.object({
   source: z.string().min(1),
   level: z.enum(["debug", "info", "warn", "error"]),
   event: z.string().min(1),
+  masterUserId: z.string().min(1).optional(),
   detail: z.record(z.string(), z.unknown()).optional(),
 });
 

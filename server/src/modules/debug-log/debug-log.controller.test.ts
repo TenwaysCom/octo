@@ -47,4 +47,32 @@ describe("debug-log.controller", () => {
       },
     });
   });
+
+  it("persists masterUserId when provided", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "tw-itdog-debug-log-"));
+    tempDirs.push(dir);
+    const logFile = join(dir, "popup-client.log");
+    process.env.CLIENT_DEBUG_LOG_FILE = logFile;
+
+    await expect(
+      writeClientDebugLogController({
+        source: "popup:app",
+        level: "warn",
+        event: "api.retry",
+        masterUserId: "usr_123",
+      }),
+    ).resolves.toEqual({
+      ok: true,
+    });
+
+    const content = await readFile(logFile, "utf-8");
+    const lines = content.trim().split("\n");
+    expect(lines).toHaveLength(1);
+    expect(JSON.parse(lines[0] ?? "{}")).toMatchObject({
+      source: "popup:app",
+      level: "warn",
+      event: "api.retry",
+      masterUserId: "usr_123",
+    });
+  });
 });

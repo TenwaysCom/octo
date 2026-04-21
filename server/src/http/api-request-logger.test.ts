@@ -10,7 +10,7 @@ const { mockInfo, mockWarn, mockError } = vi.hoisted(() => ({
 }));
 
 vi.mock("../logger.js", () => ({
-  logger: {
+  apiLogger: {
     child: () => ({
       info: mockInfo,
       warn: mockWarn,
@@ -34,6 +34,9 @@ describe("api-request-logger", () => {
       method: "POST",
       path: "/api/lark/auth/status",
       originalUrl: "/api/lark/auth/status",
+      headers: {
+        "master-user-id": "usr_header_123",
+      },
       body: {
         masterUserId: "usr_123",
         baseUrl: "https://open.larksuite.com",
@@ -43,9 +46,18 @@ describe("api-request-logger", () => {
     } as Partial<Request> as Request;
     const res = new EventEmitter() as Response & EventEmitter;
     res.statusCode = 200;
+    res.json = vi.fn((body: unknown) => body) as unknown as Response["json"];
+    res.send = vi.fn((body: unknown) => body) as unknown as Response["send"];
     const next = vi.fn() as unknown as NextFunction;
 
     middleware(req, res, next);
+    res.json({
+      ok: true,
+      data: {
+        status: "ready",
+        accessToken: "token-secret",
+      },
+    });
     vi.advanceTimersByTime(37);
     res.emit("finish");
 
@@ -58,6 +70,7 @@ describe("api-request-logger", () => {
         method: "POST",
         path: "/api/lark/auth/status",
         originalUrl: "/api/lark/auth/status",
+        headerMasterUserId: "usr_header_123",
         body: expect.objectContaining({
           masterUserId: "usr_123",
           baseUrl: "https://open.larksuite.com",
@@ -79,6 +92,14 @@ describe("api-request-logger", () => {
         originalUrl: "/api/lark/auth/status",
         statusCode: 200,
         durationMs: 37,
+        headerMasterUserId: "usr_header_123",
+        responseBody: {
+          ok: true,
+          data: {
+            status: "ready",
+            hasAccessToken: true,
+          },
+        },
       }),
       "API_REQUEST",
     );
@@ -92,6 +113,7 @@ describe("api-request-logger", () => {
       method: "GET",
       path: "/api/lark/auth/callback",
       originalUrl: "/api/lark/auth/callback?state=state_123&code=auth_code_9876",
+      headers: {},
       body: undefined,
       query: {
         state: "state_123",
@@ -100,8 +122,17 @@ describe("api-request-logger", () => {
     } as Partial<Request> as Request;
     const res = new EventEmitter() as Response & EventEmitter;
     res.statusCode = 500;
+    res.json = vi.fn((body: unknown) => body) as unknown as Response["json"];
+    res.send = vi.fn((body: unknown) => body) as unknown as Response["send"];
 
     middleware(req, res, vi.fn() as unknown as NextFunction);
+    res.json({
+      ok: false,
+      error: {
+        errorCode: "INTERNAL_ERROR",
+        errorMessage: "boom",
+      },
+    });
     vi.advanceTimersByTime(12);
     res.emit("finish");
 
@@ -118,6 +149,13 @@ describe("api-request-logger", () => {
           hasAuthCode: true,
           authCodeSuffix: "9876",
         }),
+        responseBody: {
+          ok: false,
+          error: {
+            errorCode: "INTERNAL_ERROR",
+            errorMessage: "boom",
+          },
+        },
       }),
       "API_REQUEST",
     );
