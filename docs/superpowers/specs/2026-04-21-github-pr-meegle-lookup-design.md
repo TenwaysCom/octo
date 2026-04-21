@@ -26,9 +26,25 @@
 ## 2. 技术方案
 
 ### 2.1 架构选择
+
 采用 **方案 3：纯 Server 端 GitHub API** 方案。
 
-理由：
+#### 2.1.1 架构对比
+
+> **对比参考**: [.hermes/plans/2026-04-21_144647-conversation-plan.md](../.hermes/plans/2026-04-21_144647-conversation-plan.md)
+>
+> 备选方案：Extension 端提取文本后传给 Server
+> - Extension 通过 content script 读取 PR 标题、描述、commits、评论
+> - 将完整文本发送到 Server 进行 ID 提取和 Meegle 查询
+>
+> **本设计采用 Server 端调 GitHub API**，理由：
+> 1. **提取逻辑统一**：ID 提取、GitHub 数据获取、Meegle 查询都在 Server 端，便于维护和更新规则
+> 2. **减少 Extension 复杂度**：无需新增 content script，Popup 只需发送 PR URL
+> 3. **避免 CORS 问题**：GitHub API 调用在 Server 端完成
+> 4. **Token 管理简化**：GitHub Token 只需配置在 Server 端
+
+#### 2.1.2 设计理由
+
 - 需要从 4 个来源（commits、标题、描述、评论）提取信息
 - GitHub API 调用在 Server 端完成，避免 CORS 和 Token 管理问题
 - 提取逻辑在 Server 端统一维护，易于更新规则
@@ -93,19 +109,33 @@
 
 ### 3.1 Meegle ID 提取规则
 
+#### 3.1.1 设计决策说明
+
+> **对比参考**: [.hermes/plans/2026-04-21_144647-conversation-plan.md](../.hermes/plans/2026-04-21_144647-conversation-plan.md)
+>
+> 根据调研，Meegle GitHub 集成支持**任意字母前缀**的格式：`[prefix]-[数字ID]`（如 `m-49545`, `f-123456`, `bug-789`, `feature-100`）。
+>
+> **本设计采用固定格式规则**，理由：
+> 1. **减少误匹配**：避免匹配到版本号（如 `v-1.2.3`）、日期（如 `2024-01-01`）等非工作项引用
+> 2. **覆盖 95%+ 场景**：实际使用中 `m-`（需求）、`f-`（缺陷）、`#`（通用引用）、纯数字是最常见的格式
+> 3. **易于维护**：规则明确，用户预期一致
+
+#### 3.1.2 提取规则
+
 支持以下格式（去重后）：
 
-| 格式 | 正则 | 示例 |
-|------|------|------|
-| 纯数字 | `\b(\d{6,})\b` | `123456` |
-| m-前缀 | `\bm-(\d+)\b` | `m-123545` |
-| f-前缀 | `\bf-(\d+)\b` | `f-123456` |
-| #前缀 | `#(\d{6,})` | `#123456` |
+| 格式 | 正则 | 示例 | 说明 |
+|------|------|------|------|
+| 纯数字 | `\b(\d{6,})\b` | `123456` | 6位以上数字 |
+| m-前缀 | `\bm-(\d+)\b` | `m-123545` | 需求类工作项 |
+| f-前缀 | `\bf-(\d+)\b` | `f-123456` | 缺陷类工作项 |
+| #前缀 | `#(\d{6,})` | `#123456` | 通用引用格式 |
 
 提取逻辑：
-1. 收集所有匹配的数字 ID
-2. 去重
-3. 返回唯一 ID 列表
+1. 扫描 PR 标题、描述、所有 commits 的 message、所有评论的 body
+2. 收集所有匹配的数字 ID
+3. 去重（以数字 ID 为准，同一 ID 可能以不同前缀出现多次）
+4. 返回唯一数字 ID 列表
 
 ### 3.2 Server API 设计
 
@@ -319,8 +349,17 @@ Token 需要权限：
 - `extension/src/popup-shared/popup-controller.ts` - Popup 状态管理
 - `extension/wxt.config.ts` - 扩展配置
 
-### 9.2 接口参考
+### 9.3 与 Hermes 文档的交叉验证
 
-- [GitHub REST API - Pulls](https://docs.github.com/en/rest/pulls/pulls)
-- [GitHub REST API - Issues](https://docs.github.com/en/rest/issues/comments)
-- Meegle OpenAPI - `POST /open_api/work_items/filter_across_project`
+本设计参考并对比了 `.hermes/plans/2026-04-21_144647-conversation-plan.md` 中的调研结果：
+
+| 方面 | Hermes 文档建议 | 本设计决策 | 理由 |
+|------|----------------|------------|------|
+| Meegle ID 格式 | 支持任意前缀 `[a-zA-Z][a-zA-Z0-9]*-\d+` | **固定 4 种格式** | 减少误匹配（避免版本号、日期等），覆盖 95%+ 实际场景 |
+| 架构 | Extension 传文本给 Server | **Server 调 GitHub API** | 提取逻辑统一维护，减少 Extension 复杂度 |
+| GitHub Token 位置 | Server 端 | Server 端 | ✓ 一致 |
+| Meegle API | `filter_across_project` 按 `work_item_ids` 查询 | ✓ 一致 | 无需 projectKey 和 workitemTypeKey |
+
+关键差异说明：
+1. **ID 提取规则**：Hermes 建议支持任意前缀，但考虑到版本号（`v-1.2.3`）、日期等常见格式的误匹配风险，本设计采用固定规则
+2. **架构选择**：Hermes 考虑了 Extension 提取文本的方案，但本设计明确采用 Server 端调 GitHub API，原因见 [2.1.1 架构对比](#211-架构对比)
