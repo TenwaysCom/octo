@@ -295,6 +295,7 @@ describe("kimi chat client", () => {
 
     const client = createKimiChatClient({
       baseUrl: "http://localhost:3000",
+      masterUserId: "usr_123",
     });
 
     const sendPromise = client.sendMessage({
@@ -388,6 +389,7 @@ describe("kimi chat client", () => {
 
     const client = createKimiChatClient({
       baseUrl: "http://localhost:3000",
+      masterUserId: "usr_123",
     });
 
     await client.sendMessage({
@@ -431,6 +433,7 @@ describe("kimi chat client", () => {
 
     const client = createKimiChatClient({
       baseUrl: "http://localhost:3000",
+      masterUserId: "usr_123",
     });
 
     await expect(

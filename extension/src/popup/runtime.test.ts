@@ -19,6 +19,7 @@ import {
   getLarkAuthStatus,
   refreshLarkAuthStatus,
   resolveIdentityRequest,
+  runMeegleLarkPushRequest,
   loadPopupSettings,
   runLarkAuthRequest,
   watchLarkAuthCallbackResult,
@@ -155,6 +156,7 @@ describe("popup runtime settings", () => {
 
     await expect(
       resolveIdentityRequest({
+        masterUserId: "usr_resolved",
         operatorLarkId: "ou_page_user",
         meegleUserKey: "user_page_user",
         pageContext: {
@@ -196,6 +198,15 @@ describe("popup runtime settings", () => {
           }),
         }),
       ]),
+    );
+    expect(fetch).toHaveBeenCalledWith(
+      "http://localhost:3000/api/identity/resolve",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          "Content-Type": "application/json",
+          "master-user-id": "usr_resolved",
+        }),
+      }),
     );
   });
 
@@ -336,6 +347,10 @@ describe("popup runtime settings", () => {
       "http://localhost:3000/api/lark/auth/status",
       expect.objectContaining({
         method: "POST",
+        headers: expect.objectContaining({
+          "Content-Type": "application/json",
+          "master-user-id": "usr_resolved",
+        }),
       }),
     );
     expect(chrome.runtime.sendMessage).not.toHaveBeenCalled();
@@ -384,9 +399,49 @@ describe("popup runtime settings", () => {
       "http://localhost:3000/api/lark/auth/refresh",
       expect.objectContaining({
         method: "POST",
+        headers: expect.objectContaining({
+          "Content-Type": "application/json",
+          "master-user-id": "usr_resolved",
+        }),
       }),
     );
     expect(chrome.runtime.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it("sends master-user-id when pushing meegle updates through the server", async () => {
+    vi.mocked(getConfig).mockResolvedValue({
+      SERVER_URL: "http://localhost:3000",
+      MEEGLE_PLUGIN_ID: "MII_SERVER_PLUGIN",
+      LARK_APP_ID: "cli_server_public",
+      LARK_OAUTH_CALLBACK_URL: "https://example.ngrok-free.app/api/lark/auth/callback",
+      MEEGLE_BASE_URL: "https://project.larksuite.com",
+      LARK_OAUTH_SCOPE: "offline_access",
+      CLIENT_DEBUG_LOG_UPLOAD_ENABLED: false,
+    });
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ok: true,
+      }),
+    } as Response);
+
+    await runMeegleLarkPushRequest({
+      projectKey: "OPS",
+      workItemTypeKey: "story",
+      workItemId: "WI-1",
+      masterUserId: "usr_resolved",
+      baseUrl: "https://project.larksuite.com",
+    });
+
+    expect(fetch).toHaveBeenCalledWith(
+      "http://localhost:3000/api/meegle/workitem/update-lark-and-push",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          "Content-Type": "application/json",
+          "master-user-id": "usr_resolved",
+        }),
+      }),
+    );
   });
 
   it("watches storage changes for callback completion results", async () => {

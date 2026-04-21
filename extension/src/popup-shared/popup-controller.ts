@@ -53,6 +53,7 @@ import {
 } from "../platform-url.js";
 import { extractLarkBaseContextFromUrl } from "../lark-base-url.js";
 import { createExtensionLogger, exportLogsAsBlob } from "../logger.js";
+import { createServerRequestHeaders } from "../server-request.js";
 import { showPopupToast } from "../popup/toast.js";
 
 const popupLogger = createExtensionLogger("popup:app");
@@ -479,9 +480,7 @@ export function createPopupController() {
     try {
       const response = await fetch(`${config.SERVER_URL}/api/meegle/auth/status`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: createServerRequestHeaders({ masterUserId }),
         body: JSON.stringify({
           masterUserId,
           meegleUserKey,

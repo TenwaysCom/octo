@@ -270,6 +270,50 @@ describe("meegle-auth handler", () => {
       expect(result.errorMessage).toContain("Failed to reach http://localhost:3000");
       expect(result.errorMessage).toContain("Failed to fetch");
     });
+
+    it("should send master-user-id when exchanging the auth code with the server", async () => {
+      const mockAuthCode: MeegleAuthCodeResponse = {
+        authCode: "auth_code_123",
+        state: "state_456",
+        issuedAt: new Date().toISOString(),
+      };
+
+      deps.requestAuthCodeFromContentScript = vi.fn().mockResolvedValue(mockAuthCode);
+      delete deps.exchangeAuthCodeWithServer;
+      vi.mocked(globalThis.fetch).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          ok: true,
+          data: {
+            tokenStatus: "ready",
+            credentialStatus: "active",
+          },
+        }),
+      } as Response);
+
+      await ensureMeegleAuth(
+        {
+          requestId: "req_001",
+          masterUserId: "usr_xxx",
+          meegleUserKey: "user_xxx",
+          currentTabId: 12,
+          currentPageIsMeegle: true,
+          baseUrl: "https://project.larksuite.com",
+          state: "state_456",
+        },
+        deps,
+      );
+
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "http://localhost:3000/api/meegle/auth/exchange",
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            "Content-Type": "application/json",
+            "master-user-id": "usr_xxx",
+          }),
+        }),
+      );
+    });
     it("should return require_auth_code when no Meegle tab", async () => {
       deps.requestAuthCodeFromContentScript = vi.fn().mockResolvedValue(undefined);
 

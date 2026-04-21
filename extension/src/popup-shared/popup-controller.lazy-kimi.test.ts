@@ -21,6 +21,7 @@ const runtimeMock = vi.hoisted(() => ({
   runLarkBaseBulkPreviewRequest: vi.fn(),
   runMeegleAuthRequest: vi.fn(),
   runMeegleLarkPushRequest: vi.fn(),
+  renameKimiChatSession: vi.fn(),
   savePopupSettings: vi.fn(),
   saveResolvedIdentity: vi.fn(),
   saveResolvedIdentityForTab: vi.fn(),
