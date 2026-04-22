@@ -64,6 +64,8 @@ function renderActivePage(popupApp: PopupAppModel) {
           viewModel={popupApp.viewModel}
           larkActions={popupApp.larkActions}
           meegleActions={popupApp.meegleActions}
+          githubActions={popupApp.githubActions}
+          githubLookup={popupApp.githubLookup}
           onFeature={popupApp.runFeatureAction}
         />
       );
