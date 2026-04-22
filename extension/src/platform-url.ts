@@ -1,4 +1,4 @@
-export type SupportedPlatform = "meegle" | "lark" | "unsupported";
+export type SupportedPlatform = "meegle" | "lark" | "github" | "unsupported";
 
 export interface ResolvePlatformUrlOptions {
   meegleAuthBaseUrl: string;
@@ -46,6 +46,19 @@ function isLarkHost(hostname: string): boolean {
   );
 }
 
+function isGitHubHost(hostname: string): boolean {
+  return hostname === "github.com" || hostname.endsWith(".github.com");
+}
+
+function isGitHubPrPage(url: string): boolean {
+  try {
+    const pathname = new URL(url).pathname;
+    return /\/[^/]+\/[^/]+\/pull\/\d+/.test(pathname);
+  } catch {
+    return false;
+  }
+}
+
 export function resolvePlatformUrl(
   input: string | null | undefined,
   options: ResolvePlatformUrlOptions,
@@ -72,6 +85,14 @@ export function resolvePlatformUrl(
     return {
       platform: "lark",
       authBaseUrl: options.larkAuthBaseUrl ?? DEFAULT_LARK_AUTH_BASE_URL,
+      pageOrigin,
+    };
+  }
+
+  if (isGitHubHost(hostname) && isGitHubPrPage(input || "")) {
+    return {
+      platform: "github",
+      authBaseUrl: null,
       pageOrigin,
     };
   }

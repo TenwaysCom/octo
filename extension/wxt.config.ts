@@ -65,6 +65,7 @@ export default defineConfig({
       "https://*.larksuite.com/*",
       "https://meegle.com/*",
       "https://*.meegle.com/*",
+      "https://github.com/*",
     ],
     web_accessible_resources: [
       {
