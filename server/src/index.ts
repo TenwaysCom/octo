@@ -37,6 +37,8 @@ import { createApiRequestLogger } from "./http/api-request-logger.js";
 import { createApiAuthMiddleware } from "./http/api-auth.js";
 import { prMeegleLookupController } from "./modules/github-pr-lookup/pr-meegle-lookup.controller.js";
 import { createCorsMiddleware } from "./http/cors.js";
+import { createGitHubLookupRouter } from "./routes/github-lookup.js";
+import { MeegleClient } from "./adapters/meegle/meegle-client.js";
 import { logger } from "./logger.js";
 
 const serverLogger = logger.child({ module: "server" });
@@ -213,6 +215,25 @@ app.post("/api/meegle/workitem/update-lark-and-push", handleController(meegleLar
 
 // GitHub PR lookup routes
 app.post("/api/github/pr/lookup-meegle", handleController(prMeegleLookupController));
+
+// GitHub reverse lookup routes (requires GITHUB_TOKEN)
+// Note: The MeegleClient requires userToken and userKey credentials.
+// For production use, configure MEEGLE_USER_TOKEN and MEEGLE_USER_KEY environment variables
+// or use a service account approach.
+if (process.env.GITHUB_TOKEN) {
+  // TODO: Configure proper MeegleClient credentials for the lookup service
+  // This is a placeholder - replace with actual credentials management
+  const meegleClient = new MeegleClient({
+    userToken: process.env.MEEGLE_USER_TOKEN || "placeholder_token",
+    userKey: process.env.MEEGLE_USER_KEY || "placeholder_key",
+    baseUrl: MEEGLE_BASE_URL,
+  });
+  app.use("/api/github", createGitHubLookupRouter({
+    meegleClient,
+    githubToken: process.env.GITHUB_TOKEN,
+  }));
+  serverLogger.info("GitHub reverse lookup route registered");
+}
 
 if (process.env.NODE_ENV !== "test" && process.env.VITEST !== "true") {
   await ensureSharedDatabase();
