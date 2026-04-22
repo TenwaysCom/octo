@@ -228,6 +228,14 @@ function renderPopupApp(
               disabled: false,
             },
           ],
+          githubActions: [
+            {
+              key: "lookup-github-pr",
+              label: "查询 PR 关联的 Meegle 工作项",
+              type: "primary",
+              disabled: false,
+            },
+          ],
           larkBulkCreateModal: bulkModal,
           showKimiChat: false,
           kimiChatTranscript: [],
@@ -237,6 +245,11 @@ function renderPopupApp(
           kimiChatHistoryOpen: false,
           kimiChatHistoryLoading: false,
           kimiChatHistoryItems: [],
+          githubLookup: {
+            isLoading: false,
+            error: null,
+            result: null,
+          },
           initialize: vi.fn().mockResolvedValue(undefined),
           authorizeMeegle: vi.fn(),
           authorizeLark: vi.fn(),
@@ -277,6 +290,7 @@ function renderPopupApp(
           updateKimiChatDraftMessage: vi.fn(),
           sendKimiChatMessage: vi.fn(async () => undefined),
           stopKimiChatGeneration: vi.fn(),
+          lookupGitHubPr: vi.fn(),
         }),
         [activePage, bulkModal, options.pageType, options.showUnsupported, settingsForm],
       );

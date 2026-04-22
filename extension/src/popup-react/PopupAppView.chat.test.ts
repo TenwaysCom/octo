@@ -369,6 +369,7 @@ async function renderPopupApp(
           topLarkButtonDisabled: false,
           larkActions: [],
           meegleActions: [],
+          githubActions: [],
           larkBulkCreateModal: {
             visible: false,
             stage: "hidden",
@@ -384,6 +385,11 @@ async function renderPopupApp(
           kimiChatHistoryOpen: options.historyOpen ?? false,
           kimiChatHistoryLoading: false,
           kimiChatHistoryItems: options.historyItems ?? [],
+          githubLookup: {
+            isLoading: false,
+            error: null,
+            result: null,
+          },
           initialize: vi.fn().mockResolvedValue(undefined),
           authorizeMeegle: vi.fn(),
           authorizeLark: vi.fn(),
@@ -438,6 +444,7 @@ async function renderPopupApp(
             setBusy(false);
             options.stopKimiChatGeneration?.();
           }) as PopupAppModel["stopKimiChatGeneration"],
+          lookupGitHubPr: vi.fn(),
         }),
         [activePage, busy, draftMessage, options, settingsForm, transcript],
       );
