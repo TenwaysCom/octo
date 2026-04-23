@@ -83,6 +83,7 @@ export default defineConfig({
           "https://*.larksuite.com/*",
           "https://meegle.com/*",
           "https://*.meegle.com/*",
+          "https://github.com/*",
         ],
       },
       {
@@ -92,6 +93,7 @@ export default defineConfig({
           "https://*.larksuite.com/*",
           "https://meegle.com/*",
           "https://*.meegle.com/*",
+          "https://github.com/*",
         ],
       },
     ],

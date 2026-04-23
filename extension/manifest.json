@@ -20,7 +20,8 @@
     "https://*.feishu.cn/*",
     "https://*.larksuite.com/*",
     "https://meegle.com/*",
-    "https://*.meegle.com/*"
+    "https://*.meegle.com/*",
+    "https://github.com/*"
   ],
   "background": {
     "service_worker": "background/router.js",
@@ -53,6 +54,14 @@
     },
     {
       "matches": [
+        "https://github.com/*"
+      ],
+      "js": [
+        "content-scripts/github.js"
+      ]
+    },
+    {
+      "matches": [
         "https://meegle.com/*",
         "https://*.meegle.com/*",
         "https://project.larksuite.com/*"
@@ -81,7 +90,20 @@
         "https://*.feishu.cn/*",
         "https://*.larksuite.com/*",
         "https://meegle.com/*",
-        "https://*.meegle.com/*"
+        "https://*.meegle.com/*",
+        "https://github.com/*"
+      ]
+    },
+    {
+      "resources": [
+        "popup.html"
+      ],
+      "matches": [
+        "https://*.feishu.cn/*",
+        "https://*.larksuite.com/*",
+        "https://meegle.com/*",
+        "https://*.meegle.com/*",
+        "https://github.com/*"
       ]
     }
   ]
