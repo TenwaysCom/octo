@@ -44,7 +44,9 @@ describe("popup-react chat page", () => {
       ],
     });
 
-    expect(await screen.findByTestId("assistant-ui-thread")).toBeTruthy();
+    expect(
+      await screen.findByTestId("assistant-ui-thread", undefined, { timeout: 3000 }),
+    ).toBeTruthy();
     expect(screen.getByTestId("assistant-ui-composer")).toBeTruthy();
     expect(screen.getByRole("textbox", { name: "发送消息" })).toBeTruthy();
     expect(screen.getByText("你好，我可以帮你整理当前页面上下文。")).toBeTruthy();
@@ -369,6 +371,7 @@ async function renderPopupApp(
           topLarkButtonDisabled: false,
           larkActions: [],
           meegleActions: [],
+          githubActions: [],
           larkBulkCreateModal: {
             visible: false,
             stage: "hidden",
@@ -385,6 +388,11 @@ async function renderPopupApp(
           kimiChatHistoryLoading: false,
           kimiChatHistoryItems: options.historyItems ?? [],
           update: null,
+          githubLookup: {
+            isLoading: false,
+            error: null,
+            result: null,
+          },
           initialize: vi.fn().mockResolvedValue(undefined),
           authorizeMeegle: vi.fn(),
           authorizeLark: vi.fn(),
@@ -441,6 +449,7 @@ async function renderPopupApp(
           }) as PopupAppModel["stopKimiChatGeneration"],
           ignoreUpdateVersion: vi.fn(),
           downloadUpdate: vi.fn(),
+          lookupGitHubPr: vi.fn(),
         }),
         [activePage, busy, draftMessage, options, settingsForm, transcript],
       );

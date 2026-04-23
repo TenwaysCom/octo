@@ -6,19 +6,13 @@ import { UiButton } from "../components/UiButton.js";
 
 export function SettingsPage({
   form,
-  larkUserId,
-  larkEmail,
   onCancel,
-  onFetchMeegleUserKey,
   onRefreshServerConfig,
   onSave,
   onFormFieldChange,
 }: {
   form: PopupSettingsForm;
-  larkUserId: string;
-  larkEmail: string;
   onCancel: () => void;
-  onFetchMeegleUserKey: () => void | Promise<void>;
   onRefreshServerConfig: () => void | Promise<void>;
   onSave: () => void | Promise<void>;
   onFormFieldChange: <TKey extends keyof PopupSettingsForm>(
@@ -48,43 +42,6 @@ export function SettingsPage({
       )}
     >
       <div className="settings-page__form" data-test="settings-page">
-        <label className="settings-page__field">
-          <span className="settings-page__label">Meegle User Key</span>
-          <div className="settings-page__inline-field">
-            <input
-              value={form.meegleUserKey}
-              className="settings-page__input"
-              placeholder="输入 Meegle User Key"
-              onChange={handleFieldChange("meegleUserKey", onFormFieldChange)}
-            />
-            <UiButton
-              data-test="settings-fetch-meegle-user-key"
-              onClick={onFetchMeegleUserKey}
-            >
-              获取
-            </UiButton>
-          </div>
-        </label>
-        <label className="settings-page__field">
-          <span className="settings-page__label">Lark User ID (可选)</span>
-          <input
-            value={larkUserId}
-            className="settings-page__input"
-            readOnly
-            data-test="settings-lark-user-id"
-            placeholder="等待服务端回填"
-          />
-        </label>
-        <label className="settings-page__field">
-          <span className="settings-page__label">Lark Email</span>
-          <input
-            value={larkEmail}
-            className="settings-page__input"
-            readOnly
-            data-test="settings-lark-email"
-            placeholder="等待服务端回填"
-          />
-        </label>
         <label className="settings-page__field">
           <span className="settings-page__label">Server URL</span>
           <input

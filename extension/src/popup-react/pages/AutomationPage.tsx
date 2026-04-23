@@ -1,10 +1,11 @@
 import type { PopupControllerState } from "../../popup-shared/popup-controller.js";
 import { FeatureActionsCard } from "../components/FeatureActionsCard.js";
+import { GithubLookupResult } from "../components/GithubLookupResult.js";
 import { UnsupportedPageView } from "./UnsupportedPageView.js";
 
 type AutomationPageProps = Pick<
   PopupControllerState,
-  "state" | "viewModel" | "larkActions" | "meegleActions"
+  "state" | "viewModel" | "larkActions" | "meegleActions" | "githubActions" | "githubLookup"
 > & {
   onFeature: (key: string) => void | Promise<void>;
 };
@@ -14,6 +15,8 @@ export function AutomationPage({
   viewModel,
   larkActions,
   meegleActions,
+  githubActions,
+  githubLookup,
   onFeature,
 }: AutomationPageProps) {
   return (
@@ -28,6 +31,16 @@ export function AutomationPage({
           actions={meegleActions}
           onAction={onFeature}
         />
+      ) : null}
+      {!viewModel.showUnsupported && state.pageType === "github" ? (
+        <>
+          <FeatureActionsCard
+            title="GitHub 功能"
+            actions={githubActions}
+            onAction={onFeature}
+          />
+          <GithubLookupResult state={githubLookup} />
+        </>
       ) : null}
     </div>
   );

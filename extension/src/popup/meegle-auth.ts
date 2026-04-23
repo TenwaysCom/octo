@@ -7,7 +7,7 @@ import {
   normalizeMeegleAuthBaseUrl,
 } from "../platform-url.js";
 
-type PopupPageType = "meegle" | "lark" | "unsupported" | null;
+type PopupPageType = "meegle" | "lark" | "github" | "unsupported" | null;
 
 export interface BuildMeegleAuthRequestInput {
   currentTabId?: number;

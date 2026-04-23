@@ -7,6 +7,7 @@ import type {
 import { normalizeMeegleAuthBaseUrl } from "../../platform-url.js";
 import { getConfig } from "../config.js";
 import { createExtensionLogger } from "../../logger.js";
+import { createServerRequestHeaders } from "../../server-request.js";
 
 const meegleAuthLogger = createExtensionLogger("background:meegle-auth");
 
@@ -149,9 +150,7 @@ async function exchangeAuthCodeWithServer(
 
     const response = await fetch(`${config.SERVER_URL}/api/meegle/auth/exchange`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: createServerRequestHeaders({ masterUserId: request.masterUserId }),
       body: JSON.stringify({
         requestId: request.requestId,
         masterUserId: request.masterUserId,

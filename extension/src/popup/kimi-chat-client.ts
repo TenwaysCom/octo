@@ -1,4 +1,5 @@
 import type { KimiChatEvent, KimiChatRequest } from "../types/acp-kimi.js";
+import { createServerRequestHeaders } from "../server-request.js";
 
 export interface KimiChatClient {
   sendMessage(
@@ -10,7 +11,7 @@ export interface KimiChatClient {
   ): Promise<void>;
 }
 
-export function createKimiChatClient(input: { baseUrl: string }): KimiChatClient {
+export function createKimiChatClient(input: { baseUrl: string; masterUserId: string }): KimiChatClient {
   return {
     async sendMessage(request, handlers) {
       const body: {
@@ -28,10 +29,10 @@ export function createKimiChatClient(input: { baseUrl: string }): KimiChatClient
 
       const response = await fetch(`${input.baseUrl}/api/acp/kimi/chat`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "text/event-stream",
-        },
+        headers: createServerRequestHeaders({
+          masterUserId: input.masterUserId,
+          accept: "text/event-stream",
+        }),
         body: JSON.stringify(body),
         signal: handlers?.signal,
       });

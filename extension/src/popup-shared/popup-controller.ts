@@ -54,7 +54,11 @@ import {
 } from "../platform-url.js";
 import { extractLarkBaseContextFromUrl } from "../lark-base-url.js";
 import { createExtensionLogger, exportLogsAsBlob } from "../logger.js";
+import { createServerRequestHeaders } from "../server-request.js";
 import { showPopupToast } from "../popup/toast.js";
+import type {
+  GitHubLookupState,
+} from "./popup-github-lookup-controller.js";
 
 const popupLogger = createExtensionLogger("popup:app");
 const LARK_BULK_CREATE_ACTION_KEY = "bulk-create-meegle-tickets";
@@ -86,6 +90,10 @@ type LazyLarkBulkCreateController = {
 
 type LazyMeeglePushController = {
   run: () => Promise<void>;
+};
+
+type LazyGitHubLookupController = {
+  lookup: () => Promise<void>;
 };
 
 export interface PopupIdentityState {
@@ -136,6 +144,7 @@ interface PopupAppStore {
   kimiChatHistoryLoading: boolean;
   kimiChatHistoryItems: KimiChatSessionSummary[];
   larkBulkCreateModal: LarkBulkCreateModalState;
+  githubLookup: GitHubLookupState;
   state: PopupAppState;
   settingsForm: PopupSettingsForm;
   update: UpdateState | null;
@@ -158,6 +167,7 @@ export interface PopupControllerState {
   topLarkButtonDisabled: boolean;
   larkActions: PopupFeatureAction[];
   meegleActions: PopupFeatureAction[];
+  githubActions: PopupFeatureAction[];
   larkBulkCreateModal: LarkBulkCreateModalState;
   showKimiChat: boolean;
   kimiChatTranscript: KimiChatTranscriptEntry[];
@@ -168,6 +178,7 @@ export interface PopupControllerState {
   kimiChatHistoryLoading: boolean;
   kimiChatHistoryItems: KimiChatSessionSummary[];
   update: UpdateState | null;
+  githubLookup: GitHubLookupState;
 }
 
 type PopupIdentityCompatInput = Partial<PopupIdentityState>;
@@ -203,6 +214,11 @@ function createInitialStore(): PopupAppStore {
       preview: null,
       result: null,
       bulkError: null,
+    },
+    githubLookup: {
+      isLoading: false,
+      error: null,
+      result: null,
     },
     state: {
       pageType: "unsupported",
@@ -245,6 +261,8 @@ export function createPopupController() {
   let larkBulkCreateConfirmPromise: Promise<void> | null = null;
   let meeglePushController: LazyMeeglePushController | null = null;
   let meeglePushControllerPromise: Promise<LazyMeeglePushController> | null = null;
+  let githubLookupController: LazyGitHubLookupController | null = null;
+  let githubLookupControllerPromise: Promise<LazyGitHubLookupController> | null = null;
   let disposed = false;
 
   function updateStore(updater: (previous: PopupAppStore) => PopupAppStore): void {
@@ -289,6 +307,15 @@ export function createPopupController() {
       ...previous,
       larkBulkCreateModal:
         typeof next === "function" ? next(previous.larkBulkCreateModal) : next,
+    }));
+  }
+
+  function setGitHubLookupState(
+    next: GitHubLookupState | ((previous: GitHubLookupState) => GitHubLookupState),
+  ): void {
+    updateStore((previous) => ({
+      ...previous,
+      githubLookup: typeof next === "function" ? next(previous.githubLookup) : next,
     }));
   }
 
@@ -371,6 +398,30 @@ export function createPopupController() {
     }
 
     return meeglePushControllerPromise;
+  }
+
+  async function loadGitHubLookupController(): Promise<LazyGitHubLookupController> {
+    if (githubLookupController) {
+      return githubLookupController;
+    }
+
+    if (!githubLookupControllerPromise) {
+      githubLookupControllerPromise = import("./popup-github-lookup-controller.js").then(
+        ({ createGitHubLookupController }) => {
+          const controller = createGitHubLookupController({
+            readStore,
+            appendLog,
+            showToast,
+            setState: setGitHubLookupState,
+          });
+
+          githubLookupController = controller;
+          return controller;
+        },
+      );
+    }
+
+    return githubLookupControllerPromise;
   }
 
   function preloadKimiChatController(): void {
@@ -483,9 +534,7 @@ export function createPopupController() {
     try {
       const response = await fetch(`${config.SERVER_URL}/api/meegle/auth/status`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: createServerRequestHeaders({ masterUserId }),
         body: JSON.stringify({
           masterUserId,
           meegleUserKey,
@@ -1364,6 +1413,12 @@ export function createPopupController() {
       return;
     }
 
+    if (actionKey === "lookup-github-pr") {
+      const controller = await loadGitHubLookupController();
+      await controller.lookup();
+      return;
+    }
+
     appendLog("warn", "功能开发中，请稍后");
   }
 
@@ -1376,6 +1431,11 @@ export function createPopupController() {
     anchor.click();
     URL.revokeObjectURL(url);
     appendLog("info", "日志已导出");
+  }
+
+  async function lookupGitHubPr(): Promise<void> {
+    const controller = await loadGitHubLookupController();
+    await controller.lookup();
   }
 
   const unsubscribeLarkAuthCallback = watchLarkAuthCallbackResult(async (result) => {
@@ -1511,6 +1571,14 @@ export function createPopupController() {
         disabled: false,
       },
     ];
+    const githubActions: PopupFeatureAction[] = [
+      {
+        key: "lookup-github-pr",
+        label: "查询 PR 关联的 Meegle 工作项",
+        type: "primary",
+        disabled: false,
+      },
+    ];
 
     cachedState = freezeSnapshot(
       cloneData({
@@ -1530,6 +1598,7 @@ export function createPopupController() {
       topLarkButtonDisabled,
       larkActions,
       meegleActions,
+      githubActions,
       larkBulkCreateModal: store.larkBulkCreateModal,
       showKimiChat: store.showKimiChat,
       kimiChatTranscript: store.kimiChatTranscript,
@@ -1540,6 +1609,7 @@ export function createPopupController() {
       kimiChatHistoryLoading: store.kimiChatHistoryLoading,
       kimiChatHistoryItems: store.kimiChatHistoryItems,
       update: store.update,
+      githubLookup: store.githubLookup,
       }),
     );
 
@@ -1597,6 +1667,7 @@ export function createPopupController() {
     stopKimiChatGeneration,
     ignoreUpdateVersion,
     downloadUpdate,
+    lookupGitHubPr,
   };
 }
 

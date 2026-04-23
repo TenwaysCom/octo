@@ -23,7 +23,7 @@ describe("cors middleware", () => {
 
     expect(res.header).toHaveBeenCalledWith("Access-Control-Allow-Origin", "*");
     expect(res.header).toHaveBeenCalledWith("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-    expect(res.header).toHaveBeenCalledWith("Access-Control-Allow-Headers", "Content-Type");
+    expect(res.header).toHaveBeenCalledWith("Access-Control-Allow-Headers", "Content-Type, master-user-id");
     expect(next).toHaveBeenCalledOnce();
   });
 

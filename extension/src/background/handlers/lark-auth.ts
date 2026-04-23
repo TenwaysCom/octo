@@ -11,6 +11,7 @@ import {
 } from "../../platform-url.js";
 import { getConfig } from "../config.js";
 import { createExtensionLogger } from "../../logger.js";
+import { createServerRequestHeaders } from "../../server-request.js";
 
 const larkAuthLogger = createExtensionLogger("background:lark-auth");
 
@@ -95,9 +96,7 @@ async function getAuthStatusFromServer(
   try {
     const response = await fetch(`${config.SERVER_URL}/api/lark/auth/status`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: createServerRequestHeaders({ masterUserId: request.masterUserId }),
       body: JSON.stringify(request),
     });
 
@@ -139,9 +138,7 @@ async function refreshLarkTokenOnServer(
   try {
     const response = await fetch(`${config.SERVER_URL}/api/lark/auth/refresh`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: createServerRequestHeaders({ masterUserId: request.masterUserId }),
       body: JSON.stringify(request),
     });
 
@@ -184,9 +181,7 @@ async function createOauthSessionWithServer(
   try {
     const response = await fetch(`${config.SERVER_URL}/api/lark/auth/session`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: createServerRequestHeaders({ masterUserId: request.masterUserId }),
       body: JSON.stringify(request),
     });
 

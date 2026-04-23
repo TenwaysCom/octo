@@ -72,6 +72,8 @@ function renderActivePage(popupApp: PopupAppModel) {
           viewModel={popupApp.viewModel}
           larkActions={popupApp.larkActions}
           meegleActions={popupApp.meegleActions}
+          githubActions={popupApp.githubActions}
+          githubLookup={popupApp.githubLookup}
           onFeature={popupApp.runFeatureAction}
         />
       );
@@ -107,10 +109,7 @@ function renderActivePage(popupApp: PopupAppModel) {
       return (
         <SettingsPage
           form={popupApp.settingsForm}
-          larkUserId={popupApp.state.identity.larkId || ""}
-          larkEmail={popupApp.state.identity.larkEmail || ""}
           onCancel={popupApp.closeSettings}
-          onFetchMeegleUserKey={popupApp.fetchMeegleUserKey}
           onRefreshServerConfig={popupApp.refreshServerConfig}
           onSave={popupApp.saveSettingsForm}
           onFormFieldChange={popupApp.updateSettingsFormField}

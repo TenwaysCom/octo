@@ -3,7 +3,7 @@ import {
   resolvePlatformUrl,
 } from "../platform-url.js";
 
-export type PopupPageType = "meegle" | "lark" | "unsupported";
+export type PopupPageType = "meegle" | "lark" | "github" | "unsupported";
 
 export interface PopupIdentityState {
   larkId?: string | null;

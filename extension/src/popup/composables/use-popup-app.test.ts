@@ -10,6 +10,7 @@ const runtimeMock = vi.hoisted(() => ({
   listKimiChatSessions: vi.fn(),
   loadKimiChatSession: vi.fn(),
   deleteKimiChatSession: vi.fn(),
+  renameKimiChatSession: vi.fn(),
   loadKimiChatTranscriptSnapshot: vi.fn(),
   saveKimiChatTranscriptSnapshot: vi.fn(),
   deleteKimiChatTranscriptSnapshot: vi.fn(),
@@ -783,6 +784,7 @@ describe("usePopupApp notebook state", () => {
 
     const popup = usePopupApp();
     popup.state.identity.larkId = "ou_test";
+    popup.state.identity.masterUserId = "usr_resolved";
 
     const sendPromise = popup.sendKimiChatMessage("请介绍一下会话状态");
 
@@ -911,6 +913,7 @@ describe("usePopupApp notebook state", () => {
 
     const popup = usePopupApp();
     popup.state.identity.larkId = "ou_test";
+    popup.state.identity.masterUserId = "usr_resolved";
     popup.runFeatureAction("analyze");
 
     const sendPromise = popup.sendKimiChatMessage("请先开始，然后我会停止");
@@ -1047,6 +1050,7 @@ describe("usePopupApp notebook state", () => {
 
     const popup = usePopupApp();
     popup.state.identity.larkId = "ou_test";
+    popup.state.identity.masterUserId = "usr_resolved";
     popup.runFeatureAction("analyze");
 
     const sendPromise = popup.sendKimiChatMessage("高频流式更新");
@@ -1147,6 +1151,7 @@ describe("usePopupApp notebook state", () => {
 
     const popup = usePopupApp();
     popup.state.identity.larkId = "ou_test";
+    popup.state.identity.masterUserId = "usr_resolved";
 
     popup.runFeatureAction("analyze");
     await popup.sendKimiChatMessage("first turn");
@@ -1209,10 +1214,12 @@ describe("usePopupApp notebook state", () => {
     const popup = usePopupApp();
 
     popup.state.identity.larkId = "ou_legacy";
+    popup.state.identity.masterUserId = "usr_resolved";
 
     await popup.openKimiChatHistory();
 
     expect(runtimeMock.listKimiChatSessions).toHaveBeenCalledWith({
+      masterUserId: "usr_resolved",
       operatorLarkId: "ou_legacy",
     });
   });
@@ -1245,10 +1252,12 @@ describe("usePopupApp notebook state", () => {
 
     const popup = usePopupApp();
     popup.state.identity.larkId = "ou_test";
+    popup.state.identity.masterUserId = "usr_resolved";
 
     await popup.openKimiChatHistory();
 
     expect(runtimeMock.listKimiChatSessions).toHaveBeenCalledWith({
+      masterUserId: "usr_resolved",
       operatorLarkId: "ou_test",
     });
     expect(popup.kimiChatHistoryOpen.value).toBe(true);
@@ -1292,10 +1301,12 @@ describe("usePopupApp notebook state", () => {
 
     const popup = usePopupApp();
     popup.state.identity.larkId = "ou_test";
+    popup.state.identity.masterUserId = "usr_resolved";
 
     await popup.loadKimiChatHistorySession("sess_loaded");
 
     expect(runtimeMock.loadKimiChatSession).toHaveBeenCalledWith({
+      masterUserId: "usr_resolved",
       operatorLarkId: "ou_test",
       sessionId: "sess_loaded",
     });
@@ -1340,6 +1351,7 @@ describe("usePopupApp notebook state", () => {
 
     const popup = usePopupApp();
     popup.state.identity.larkId = "ou_test";
+    popup.state.identity.masterUserId = "usr_resolved";
 
     await popup.loadKimiChatHistorySession("sess_loaded");
 
@@ -1406,6 +1418,7 @@ describe("usePopupApp notebook state", () => {
 
     const popup = usePopupApp();
     popup.settingsForm.larkUserId = "ou_test";
+    popup.state.identity.masterUserId = "usr_resolved";
     await Promise.resolve();
     await popup.openKimiChatHistory();
     await popup.loadKimiChatHistorySession("sess_1");
@@ -1413,6 +1426,7 @@ describe("usePopupApp notebook state", () => {
     await popup.deleteKimiChatHistorySession("sess_1");
 
     expect(runtimeMock.deleteKimiChatSession).toHaveBeenCalledWith({
+      masterUserId: "usr_resolved",
       operatorLarkId: "ou_test",
       sessionId: "sess_1",
     });
@@ -1455,6 +1469,7 @@ describe("usePopupApp notebook state", () => {
 
     const popup = usePopupApp();
     popup.settingsForm.larkUserId = "ou_test";
+    popup.state.identity.masterUserId = "usr_resolved";
     await Promise.resolve();
     popup.runFeatureAction("analyze");
     await popup.sendKimiChatMessage("first turn");

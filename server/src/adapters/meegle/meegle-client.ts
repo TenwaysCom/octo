@@ -754,14 +754,15 @@ export class MeegleClient {
   }
 
   async filterWorkitemsAcrossProjects(
-    workitemTypeKey: string,
     options?: {
+      workitemTypeKey?: string;
       simpleNames?: string[];
+      workItemIds?: number[];
       pageNum?: number;
       pageSize?: number;
     },
   ): Promise<MeegleWorkitem[]> {
-    const { simpleNames, pageNum = 1, pageSize = 50 } = options || {};
+    const { workitemTypeKey, simpleNames, workItemIds, pageNum = 1, pageSize = 50 } = options || {};
 
     const req: ApiReq = {
       httpMethod: "POST",
@@ -769,10 +770,11 @@ export class MeegleClient {
       pathParams: {},
       queryParams: {},
       body: {
-        work_item_type_key: workitemTypeKey,
+        ...(workitemTypeKey && { work_item_type_key: workitemTypeKey }),
+        ...(simpleNames && { simple_names: simpleNames }),
+        ...(workItemIds && workItemIds.length > 0 && { work_item_ids: workItemIds }),
         page_num: pageNum,
         page_size: pageSize,
-        ...(simpleNames && { simple_names: simpleNames }),
       },
     };
 

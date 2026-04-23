@@ -256,9 +256,14 @@ export function createKimiChatController<TStore extends PopupKimiChatStoreLike>(
   async function openHistory(): Promise<void> {
     const current = deps.readStore();
     const operatorLarkId = readOperatorLarkId();
+    const masterUserId = current.state.identity.masterUserId;
 
     if (!operatorLarkId) {
       deps.appendLog("error", "缺少 operatorLarkId，无法加载历史会话");
+      return;
+    }
+    if (!masterUserId) {
+      deps.appendLog("error", "缺少 masterUserId，无法加载历史会话");
       return;
     }
 
@@ -279,6 +284,7 @@ export function createKimiChatController<TStore extends PopupKimiChatStoreLike>(
 
     try {
       const result = await listKimiChatSessions({
+        masterUserId,
         operatorLarkId,
       });
       deps.appendLog("debug", `历史会话列表返回：ok=${result.ok}, sessions count=${result.data?.sessions?.length ?? 0}`);
@@ -323,15 +329,21 @@ export function createKimiChatController<TStore extends PopupKimiChatStoreLike>(
 
   async function loadHistorySession(sessionId: string): Promise<void> {
     const operatorLarkId = readOperatorLarkId();
+    const masterUserId = deps.readStore().state.identity.masterUserId;
 
     if (!operatorLarkId) {
       deps.appendLog("error", "缺少 operatorLarkId，无法加载历史会话");
+      return;
+    }
+    if (!masterUserId) {
+      deps.appendLog("error", "缺少 masterUserId，无法加载历史会话");
       return;
     }
 
     deps.appendLog("debug", `开始加载历史会话：${sessionId}`);
 
     const result = await loadKimiChatSession({
+      masterUserId,
       operatorLarkId,
       sessionId,
     });
@@ -414,13 +426,19 @@ export function createKimiChatController<TStore extends PopupKimiChatStoreLike>(
 
   async function deleteHistorySession(sessionId: string): Promise<void> {
     const operatorLarkId = readOperatorLarkId();
+    const masterUserId = deps.readStore().state.identity.masterUserId;
 
     if (!operatorLarkId) {
       deps.appendLog("error", "缺少 operatorLarkId，无法删除历史会话");
       return;
     }
+    if (!masterUserId) {
+      deps.appendLog("error", "缺少 masterUserId，无法删除历史会话");
+      return;
+    }
 
     const result = await deleteKimiChatSession({
+      masterUserId,
       operatorLarkId,
       sessionId,
     });
@@ -461,13 +479,15 @@ export function createKimiChatController<TStore extends PopupKimiChatStoreLike>(
 
   async function renameSession(title: string): Promise<void> {
     const operatorLarkId = readOperatorLarkId();
+    const masterUserId = deps.readStore().state.identity.masterUserId;
     const sessionId = deps.readStore().kimiChatSessionId;
 
-    if (!operatorLarkId || !sessionId) {
+    if (!operatorLarkId || !masterUserId || !sessionId) {
       return;
     }
 
     const result = await renameKimiChatSession({
+      masterUserId,
       operatorLarkId,
       sessionId,
       title,
@@ -484,6 +504,7 @@ export function createKimiChatController<TStore extends PopupKimiChatStoreLike>(
   async function sendMessage(messageText: string): Promise<void> {
     const current = deps.readStore();
     const operatorLarkId = readOperatorLarkId();
+    const masterUserId = current.state.identity.masterUserId;
     const hadSessionIdBefore = Boolean(current.kimiChatSessionId);
 
     void deps.postClientDebugLog({
@@ -514,6 +535,10 @@ export function createKimiChatController<TStore extends PopupKimiChatStoreLike>(
       });
       return;
     }
+    if (!masterUserId) {
+      deps.appendLog("error", "缺少 masterUserId，无法发送 Kimi ACP 消息");
+      return;
+    }
 
     deps.updateStore((previous) => ({
       ...previous,
@@ -524,6 +549,7 @@ export function createKimiChatController<TStore extends PopupKimiChatStoreLike>(
 
     const client = createKimiChatClient({
       baseUrl: deps.readStore().settingsForm.SERVER_URL,
+      masterUserId,
     });
 
     const userEntryId = createTranscriptEntryId("user");
@@ -599,6 +625,7 @@ export function createKimiChatController<TStore extends PopupKimiChatStoreLike>(
             const title = messageText.replace(/\s+/g, " ").trim().slice(0, 10);
             if (title) {
               void renameKimiChatSession({
+                masterUserId,
                 operatorLarkId,
                 sessionId: currentSessionId,
                 title,

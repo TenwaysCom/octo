@@ -34,8 +34,12 @@ import {
   previewLarkBaseBulkWorkflowController,
 } from "./modules/lark-base/lark-base-bulk-workflow.controller.js";
 import { meegleLarkPushController } from "./modules/meegle-workitem/meegle-lark-push.controller.js";
-import { createApiRequestLogger, logApiRequest, summarizeRequestPayload } from "./http/api-request-logger.js";
+import { createApiRequestLogger } from "./http/api-request-logger.js";
+import { createApiAuthMiddleware } from "./http/api-auth.js";
+import { prMeegleLookupController } from "./modules/github-pr-lookup/pr-meegle-lookup.controller.js";
 import { createCorsMiddleware } from "./http/cors.js";
+import { createGitHubLookupRouter } from "./routes/github-lookup.js";
+
 import { logger } from "./logger.js";
 
 const serverLogger = logger.child({ module: "server" });
@@ -95,9 +99,17 @@ const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || "0.0.0.0";
 
+function getMasterUserIdHeader(req: Request): string | undefined {
+  const headerValue = req.headers["master-user-id"];
+  const value = Array.isArray(headerValue) ? headerValue[0] : headerValue;
+
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
 app.use(createCorsMiddleware());
 app.use(express.json());
 app.use(createApiRequestLogger());
+app.use(createApiAuthMiddleware());
 
 // Health check
 app.get("/health", (_req, res) => {
@@ -115,15 +127,13 @@ function handleController(fn: (req: Request) => Promise<unknown>) {
       const result = await fn(req.body);
       res.json(result);
     } catch (error) {
-      logApiRequest("FAIL", {
+      serverLogger.error({
         path: req.path,
         method: req.method,
         originalUrl: req.originalUrl,
-        body: summarizeRequestPayload(req.body),
-        query: summarizeRequestPayload(req.query),
         message: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
-      }, "error");
+      }, "REQUEST_HANDLER_ERROR");
       res.status(500).json({
         ok: false,
         error: {
@@ -137,7 +147,30 @@ function handleController(fn: (req: Request) => Promise<unknown>) {
 
 // Identity routes
 app.post("/api/identity/resolve", handleController(resolveIdentityController));
-app.post("/api/debug/client-log", handleController(writeClientDebugLogController));
+app.post("/api/debug/client-log", async (req, res) => {
+  try {
+    const result = await writeClientDebugLogController({
+      ...(req.body && typeof req.body === "object" && !Array.isArray(req.body) ? req.body : {}),
+      masterUserId: getMasterUserIdHeader(req),
+    });
+    res.json(result);
+  } catch (error) {
+    serverLogger.error({
+      path: req.path,
+      method: req.method,
+      originalUrl: req.originalUrl,
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    }, "REQUEST_HANDLER_ERROR");
+    res.status(500).json({
+      ok: false,
+      error: {
+        errorCode: "INTERNAL_ERROR",
+        errorMessage: error instanceof Error ? error.message : String(error),
+      },
+    });
+  }
+});
 
 // Public config route
 app.get("/api/config/public", async (_req, res) => {
@@ -183,6 +216,17 @@ app.post("/api/lark-base/bulk-create-meegle-workitems", handleController(createL
 
 // Meegle workitem routes
 app.post("/api/meegle/workitem/update-lark-and-push", handleController(meegleLarkPushController));
+
+// GitHub PR lookup routes
+app.post("/api/github/pr/lookup-meegle", handleController(prMeegleLookupController));
+
+// GitHub reverse lookup routes (requires GITHUB_TOKEN)
+if (process.env.GITHUB_TOKEN) {
+  app.use("/api/github", createGitHubLookupRouter({
+    githubToken: process.env.GITHUB_TOKEN,
+  }));
+  serverLogger.info("GitHub reverse lookup route registered");
+}
 
 if (process.env.NODE_ENV !== "test" && process.env.VITEST !== "true") {
   await ensureSharedDatabase();
