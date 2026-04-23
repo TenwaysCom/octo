@@ -8,6 +8,8 @@ export interface GitHubLookupWorkitem {
   type: string;
   status: string;
   url?: string;
+  plannedVersion?: string;
+  plannedSprint?: string;
 }
 
 export interface GitHubLookupResult {
@@ -50,6 +52,12 @@ const ERROR_CODE_MESSAGES: Record<string, string> = {
   NO_MEEGLE_ID_FOUND: "未在 PR 中找到 Meegle ID",
   GITHUB_API_ERROR: "GitHub API 调用失败",
   MEEGLE_API_ERROR: "Meegle API 调用失败",
+  MEEGLE_AUTH_ERROR: "Meegle 认证失败",
+  MEEGLE_NOT_FOUND: "未找到对应的 Meegle 工作项",
+  MEEGLE_RATE_LIMIT: "Meegle API 请求过于频繁，请稍后再试",
+  AUTH_EXPIRED: "Meegle 认证已过期，请重新授权",
+  USER_NOT_RESOLVED: "用户身份未解析",
+  UNAUTHORIZED: "未授权，请重新登录",
   UNKNOWN_ERROR: "未知错误",
 };
 

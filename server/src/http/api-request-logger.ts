@@ -120,6 +120,9 @@ export function summarizeResponsePayload(payload: unknown): unknown {
   if (typeof record.ok === "boolean") {
     summary.ok = record.ok;
   }
+  if (typeof record.success === "boolean") {
+    summary.success = record.success;
+  }
   if (typeof record.status === "string") {
     summary.status = record.status;
   }
@@ -132,8 +135,8 @@ export function summarizeResponsePayload(payload: unknown): unknown {
   if ("error" in record && record.error && typeof record.error === "object" && !Array.isArray(record.error)) {
     const error = record.error as Record<string, unknown>;
     summary.error = {
-      errorCode: error.errorCode,
-      errorMessage: error.errorMessage,
+      errorCode: error.errorCode ?? error.code,
+      errorMessage: error.errorMessage ?? error.message,
     };
   }
 

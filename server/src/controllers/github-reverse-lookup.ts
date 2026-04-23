@@ -5,6 +5,84 @@ import { extractMeegleIds } from "../domain/meegle-id-extractor.js";
 
 const lookupLogger = logger.child({ module: "github-reverse-lookup" });
 
+// 从环境变量获取需要轮询的 work_item_type_key 列表（排除 tech_task）
+const CANDIDATE_WORK_ITEM_TYPE_KEYS: string[] = [
+  process.env.MEEGLE_WORKITEM_TYPE_KEY_STORY || "story",
+  process.env.MEEGLE_WORKITEM_TYPE_KEY_PROD_BUG || "6932e40429d1cd8aac635c82",
+].filter((k): k is string => Boolean(k));
+
+// 字段映射：不同 work_item_type_key 对应的 Planned Version / Planned Sprint 字段 key
+const PLANNED_VERSION_FIELD_MAP: Record<string, string> = {
+  story: "field_1b9eb0",
+  "6932e40429d1cd8aac635c82": "field_c6f6d0",
+};
+
+const PLANNED_SPRINT_FIELD_MAP: Record<string, string> = {
+  story: "field_feb079",
+  "6932e40429d1cd8aac635c82": "field_ee999e",
+};
+
+const BASE_URL = process.env.MEEGLE_BASE_URL || "https://project.larksuite.com";
+const DEFAULT_PROJECT_KEY = process.env.MEEGLE_PROJECT_KEY || "";
+
+// work_item_type_key → URL slug 映射
+const URL_SLUG_MAP: Record<string, string> = {
+  story: "story",
+  "6932e40429d1cd8aac635c82": "production_bug",
+};
+
+function extractFieldValue(fields: Record<string, unknown> | undefined | null, key: string): string | undefined {
+  if (!key || !fields) return undefined;
+
+  const value = fields[key];
+
+  // 直接是字符串
+  if (typeof value === "string") {
+    return value;
+  }
+
+  // 对象形式：取 name / value / title
+  if (value && typeof value === "object") {
+    const obj = value as Record<string, unknown>;
+    if (typeof obj.name === "string") return obj.name;
+    if (typeof obj.value === "string") return obj.value;
+    if (typeof obj.title === "string") return obj.title;
+    if (Array.isArray(obj.value) && obj.value.length > 0) {
+      return obj.value.map((v: unknown) =>
+        typeof v === "string" ? v : (v as Record<string, unknown>)?.name || String(v)
+      ).join(", ");
+    }
+  }
+
+  // field_value_pairs 格式（某些 API 返回的格式）
+  const fieldValuePairs = fields.fields;
+  if (Array.isArray(fieldValuePairs)) {
+    const pair = fieldValuePairs.find(
+      (p: unknown) =>
+        p &&
+        typeof p === "object" &&
+        (p as Record<string, unknown>).field_key === key,
+    ) as Record<string, unknown> | undefined;
+
+    if (pair) {
+      const fv = pair.field_value;
+      if (typeof fv === "string") return fv;
+      if (fv && typeof fv === "object") {
+        const obj = fv as Record<string, unknown>;
+        if (typeof obj.name === "string") return obj.name;
+        if (typeof obj.value === "string") return obj.value;
+        if (Array.isArray(obj.value) && obj.value.length > 0) {
+          return obj.value.map((v: unknown) =>
+            typeof v === "string" ? v : (v as Record<string, unknown>)?.name || String(v)
+          ).join(", ");
+        }
+      }
+    }
+  }
+
+  return undefined;
+}
+
 export interface LookupResult {
   prInfo: {
     title: string;
@@ -12,17 +90,14 @@ export interface LookupResult {
     url: string;
   };
   extractedIds: string[];
-  workitems: MeegleWorkitem[];
+  workitems: Array<MeegleWorkitem & { url: string; plannedVersion?: string; plannedSprint?: string }>;
   notFound: string[];
 }
 
 export class GitHubReverseLookupController {
-  constructor(
-    private githubClient: GitHubClient,
-    private meegleClient: MeegleClient
-  ) {}
+  constructor(private githubClient: GitHubClient) {}
 
-  async lookup(prUrl: string): Promise<LookupResult> {
+  async lookup(prUrl: string, meegleClient: MeegleClient): Promise<LookupResult> {
     lookupLogger.info({ prUrl }, "Starting GitHub PR lookup");
 
     // Parse PR URL
@@ -56,15 +131,57 @@ export class GitHubReverseLookupController {
       throw error;
     }
 
-    // Query Meegle
-    const meegleWorkitems = await this.meegleClient.filterWorkitemsAcrossProjects({
-      workItemIds: extractedIds,
-      pageSize: 50,
-    });
+    // Convert string IDs to numbers for the API
+    const workItemIds = extractedIds.map(id => parseInt(id, 10)).filter(n => !isNaN(n));
 
-    // Map to result format
-    const foundIds = new Set(meegleWorkitems.map(w => w.id));
+    if (workItemIds.length === 0) {
+      const error = new Error("No valid numeric Meegle IDs found in PR");
+      (error as Error & { code: string }).code = "NO_MEEGLE_ID_FOUND";
+      throw error;
+    }
+
+    // Query Meegle across candidate work item types
+    const allWorkitems: MeegleWorkitem[] = [];
+    const foundIds = new Set<string>();
+
+    for (const workitemTypeKey of CANDIDATE_WORK_ITEM_TYPE_KEYS) {
+      try {
+        lookupLogger.info({ workitemTypeKey, idCount: workItemIds.length }, "Querying Meegle for type");
+        const items = await meegleClient.filterWorkitemsAcrossProjects({
+          workitemTypeKey,
+          workItemIds,
+          pageSize: 50,
+        });
+
+        for (const item of items) {
+          if (!foundIds.has(item.id)) {
+            foundIds.add(item.id);
+            allWorkitems.push(item);
+          }
+        }
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        lookupLogger.warn({ workitemTypeKey, error: msg }, "Meegle query failed for type, skipping");
+      }
+    }
+
+    lookupLogger.info({ found: allWorkitems.length, totalTypes: CANDIDATE_WORK_ITEM_TYPE_KEYS.length }, "Meegle query complete");
+
     const notFound = extractedIds.filter(id => !foundIds.has(id));
+
+    // Enrich workitems with URL, Planned Version and Planned Sprint
+    const enrichedWorkitems = allWorkitems.map(w => {
+      const versionKey = PLANNED_VERSION_FIELD_MAP[w.type];
+      const sprintKey = PLANNED_SPRINT_FIELD_MAP[w.type];
+      const projectKey = String(w.fields.project_key || w.fields.projectKey || DEFAULT_PROJECT_KEY);
+      const urlSlug = URL_SLUG_MAP[w.type] || w.type;
+      return {
+        ...w,
+        url: `${BASE_URL}/${projectKey}/${urlSlug}/detail/${w.id}`,
+        plannedVersion: extractFieldValue(w.fields, versionKey || ""),
+        plannedSprint: extractFieldValue(w.fields, sprintKey || ""),
+      };
+    });
 
     return {
       prInfo: {
@@ -73,7 +190,7 @@ export class GitHubReverseLookupController {
         url: prDetails.html_url,
       },
       extractedIds,
-      workitems: meegleWorkitems.map(w => w),
+      workitems: enrichedWorkitems,
       notFound,
     };
   }

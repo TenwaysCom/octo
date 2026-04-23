@@ -757,7 +757,7 @@ export class MeegleClient {
     options?: {
       workitemTypeKey?: string;
       simpleNames?: string[];
-      workItemIds?: string[];
+      workItemIds?: number[];
       pageNum?: number;
       pageSize?: number;
     },
@@ -772,7 +772,7 @@ export class MeegleClient {
       body: {
         ...(workitemTypeKey && { work_item_type_key: workitemTypeKey }),
         ...(simpleNames && { simple_names: simpleNames }),
-        ...(workItemIds && { work_item_ids: workItemIds }),
+        ...(workItemIds && workItemIds.length > 0 && { work_item_ids: workItemIds }),
         page_num: pageNum,
         page_size: pageSize,
       },

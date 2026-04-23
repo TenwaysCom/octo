@@ -75,8 +75,14 @@ export function GithubLookupResult({ state }: GithubLookupResultProps) {
                     <UiBadge tone="processing">{workitem.status}</UiBadge>
                   </div>
                   <div className="workitem-name text-sm font-medium">{workitem.name}</div>
-                  <div className="workitem-type text-xs text-muted-foreground mt-1">
-                    {workitem.type}
+                  <div className="workitem-meta text-xs text-muted-foreground mt-1 space-y-0.5">
+                    <div className="workitem-type">类型: {workitem.type}</div>
+                    {workitem.plannedVersion && (
+                      <div className="workitem-planned-version">计划版本: {workitem.plannedVersion}</div>
+                    )}
+                    {workitem.plannedSprint && (
+                      <div className="workitem-planned-sprint">计划迭代: {workitem.plannedSprint}</div>
+                    )}
                   </div>
                 </div>
               ))}
