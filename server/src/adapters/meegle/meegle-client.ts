@@ -324,20 +324,28 @@ export function parseWorkitem(data: Record<string, unknown>): MeegleWorkitem {
   const type = String(data.type || data.work_item_type_key || "");
   const assignee = (data.assignee || data.owner) as string | undefined;
 
+  // current_nodes and work_item_status may be nested inside data.fields
+  const rawFields = data.fields as Record<string, unknown> | undefined;
+
   // Extract status from multiple possible locations
-  // Priority: direct status > current_nodes[0].name (human-readable) > work_item_status.state_key
+  // Priority: direct status/state > current_nodes[0].name > work_item_status.state_key
   let status = String(data.status || data.state || "");
 
   // Try current_nodes[0].name for human-readable status (e.g. "Server Launch")
-  if (!status && Array.isArray(data.current_nodes) && data.current_nodes.length > 0) {
-    const firstNode = data.current_nodes[0] as Record<string, unknown>;
-    status = String(firstNode.name || firstNode.id || "");
+  if (!status) {
+    const currentNodes = (rawFields?.current_nodes ?? data.current_nodes) as unknown[] | undefined;
+    if (Array.isArray(currentNodes) && currentNodes.length > 0) {
+      const firstNode = currentNodes[0] as Record<string, unknown>;
+      status = String(firstNode.name || firstNode.id || "");
+    }
   }
 
   // Try work_item_status.state_key as fallback
-  if (!status && data.work_item_status && typeof data.work_item_status === "object") {
-    const wis = data.work_item_status as Record<string, unknown>;
-    status = String(wis.state_key || "");
+  if (!status) {
+    const workItemStatus = (rawFields?.work_item_status ?? data.work_item_status) as Record<string, unknown> | undefined;
+    if (workItemStatus && typeof workItemStatus === "object") {
+      status = String(workItemStatus.state_key || "");
+    }
   }
 
   // Extract other fields

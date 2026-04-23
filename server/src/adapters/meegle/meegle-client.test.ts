@@ -26,23 +26,40 @@ describe("parseWorkitem", () => {
       name: "Test Item",
       type: "story",
       status: "",
-      work_item_status: { state_key: "sub_stage_1682410348054" },
+      fields: {
+        work_item_status: { state_key: "sub_stage_1682410348054" },
+      },
     });
 
     expect(result.status).toBe("sub_stage_1682410348054");
   });
 
-  it("should prefer current_nodes[0].name for human-readable status", () => {
+  it("should extract status from fields.current_nodes[0].name", () => {
     const result = parseWorkitem({
       id: "123",
       name: "Test Item",
       type: "story",
       status: "",
-      work_item_status: { state_key: "sub_stage_1682410348054" },
-      current_nodes: [{ id: "state_24", name: "Server Launch", owners: [], milestone: false }],
+      fields: {
+        work_item_status: { state_key: "sub_stage_1682410348054" },
+        current_nodes: [{ id: "state_24", name: "Server Launch", owners: [], milestone: false }],
+      },
     });
 
     expect(result.status).toBe("Server Launch");
+  });
+
+  it("should also accept current_nodes and work_item_status at top level", () => {
+    const result = parseWorkitem({
+      id: "123",
+      name: "Test Item",
+      type: "story",
+      status: "",
+      current_nodes: [{ id: "state_24", name: "Top Level Node", owners: [], milestone: false }],
+      work_item_status: { state_key: "sub_stage_xxx" },
+    });
+
+    expect(result.status).toBe("Top Level Node");
   });
 
   it("should fallback to state when status is missing", () => {
