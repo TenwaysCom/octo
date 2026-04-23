@@ -25,8 +25,8 @@ const PLANNED_SPRINT_FIELD_MAP: Record<string, string> = {
 const BASE_URL = process.env.MEEGLE_BASE_URL || "https://project.larksuite.com";
 const DEFAULT_PROJECT_KEY = process.env.MEEGLE_PROJECT_KEY || "";
 
-// work_item_type_key → URL slug 映射
-const URL_SLUG_MAP: Record<string, string> = {
+// work_item_type_key → 可读类型名称 / URL slug 映射
+const TYPE_DISPLAY_MAP: Record<string, string> = {
   story: "story",
   "6932e40429d1cd8aac635c82": "production_bug",
 };
@@ -187,21 +187,60 @@ export class GitHubReverseLookupController {
 
     const notFound = extractedIds.filter(id => !foundIds.has(id));
 
-    // Enrich workitems with URL, Planned Version and Planned Sprint
+    // Collect related workitem IDs (version & sprint) to resolve their names
+    const relatedIdSet = new Set<number>();
+    for (const w of allWorkitems) {
+      const versionKey = PLANNED_VERSION_FIELD_MAP[w.type];
+      const sprintKey = PLANNED_SPRINT_FIELD_MAP[w.type];
+      const versionRaw = extractFieldValue(w.fields, versionKey || "");
+      const sprintRaw = extractFieldValue(w.fields, sprintKey || "");
+      if (versionRaw) {
+        const num = parseInt(versionRaw, 10);
+        if (!isNaN(num)) relatedIdSet.add(num);
+      }
+      if (sprintRaw) {
+        const num = parseInt(sprintRaw, 10);
+        if (!isNaN(num)) relatedIdSet.add(num);
+      }
+    }
+
+    // Resolve related workitem names (best-effort; fallback to raw ID on failure)
+    const relatedNameMap = new Map<string, string>();
+    if (relatedIdSet.size > 0) {
+      try {
+        const relatedItems = await meegleClient.filterWorkitemsAcrossProjects({
+          workItemIds: Array.from(relatedIdSet),
+          pageSize: relatedIdSet.size,
+        });
+        for (const item of relatedItems) {
+          if (item.name) {
+            relatedNameMap.set(item.id, item.name);
+          }
+        }
+        lookupLogger.info({ resolved: relatedNameMap.size, total: relatedIdSet.size }, "Resolved related workitem names");
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        lookupLogger.warn({ error: msg, relatedCount: relatedIdSet.size }, "Failed to resolve related workitem names, falling back to IDs");
+      }
+    }
+
+    // Enrich workitems with URL, readable type name, Planned Version and Planned Sprint
     // Only return fields the extension needs; drop the heavy raw `fields` blob.
     const enrichedWorkitems: LookupWorkitem[] = allWorkitems.map(w => {
       const versionKey = PLANNED_VERSION_FIELD_MAP[w.type];
       const sprintKey = PLANNED_SPRINT_FIELD_MAP[w.type];
       const projectKey = String(w.fields.project_key || w.fields.projectKey || DEFAULT_PROJECT_KEY);
-      const urlSlug = URL_SLUG_MAP[w.type] || w.type;
+      const urlSlug = TYPE_DISPLAY_MAP[w.type] || w.type;
+      const versionRaw = extractFieldValue(w.fields, versionKey || "");
+      const sprintRaw = extractFieldValue(w.fields, sprintKey || "");
       return {
         id: w.id,
         name: w.name,
-        type: w.type,
+        type: TYPE_DISPLAY_MAP[w.type] || w.type,
         status: w.status,
         url: `${BASE_URL}/${projectKey}/${urlSlug}/detail/${w.id}`,
-        plannedVersion: extractFieldValue(w.fields, versionKey || ""),
-        plannedSprint: extractFieldValue(w.fields, sprintKey || ""),
+        plannedVersion: relatedNameMap.get(versionRaw || "") || versionRaw,
+        plannedSprint: relatedNameMap.get(sprintRaw || "") || sprintRaw,
       };
     });
 

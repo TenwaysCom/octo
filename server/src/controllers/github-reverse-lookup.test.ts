@@ -20,7 +20,7 @@ describe("GitHubReverseLookupController", () => {
     controller = new GitHubReverseLookupController(mockGitHubClient);
   });
 
-  it("should lookup Meegle workitems from PR", async () => {
+  it("should lookup Meegle workitems from PR with string field values", async () => {
     mockGitHubClient.parsePrUrl.mockReturnValue({ owner: "org", repo: "repo", pullNumber: 123 });
     mockGitHubClient.getPullRequest.mockResolvedValue({ title: "Fix m-123", body: "Desc", html_url: "https://github.com/org/repo/pull/123" });
     mockGitHubClient.getCommits.mockResolvedValue([]);
@@ -41,6 +41,7 @@ describe("GitHubReverseLookupController", () => {
     expect(result.workitems[0]).not.toHaveProperty("fields");
     expect(result.workitems[0].plannedVersion).toBe("v1.2");
     expect(result.workitems[0].plannedSprint).toBe("Sprint 3");
+    expect(result.workitems[0].type).toBe("story");
     expect(mockMeegleClient.filterWorkitemsAcrossProjects).toHaveBeenCalledTimes(2);
 
     // Verify workItemIds are passed as numbers
@@ -69,36 +70,98 @@ describe("GitHubReverseLookupController", () => {
     expect(result.workitems).toHaveLength(1);
   });
 
-  it("should extract plannedVersion and plannedSprint from nested fields array with number values", async () => {
+  it("should map production_bug type key to readable name", async () => {
+    mockGitHubClient.parsePrUrl.mockReturnValue({ owner: "org", repo: "repo", pullNumber: 123 });
+    mockGitHubClient.getPullRequest.mockResolvedValue({ title: "Fix m-123", body: "Desc", html_url: "https://github.com/org/repo/pull/123" });
+    mockGitHubClient.getCommits.mockResolvedValue([]);
+    mockGitHubClient.getIssueComments.mockResolvedValue([]);
+    mockGitHubClient.getReviewComments.mockResolvedValue([]);
+
+    mockMeegleClient.filterWorkitemsAcrossProjects
+      .mockResolvedValueOnce([
+        { id: "123", name: "Bug Fix", type: "6932e40429d1cd8aac635c82", status: "open", fields: { project_key: "4c3fv6" } },
+      ])
+      .mockResolvedValueOnce([]);
+
+    const result = await controller.lookup("https://github.com/org/repo/pull/123", mockMeegleClient);
+
+    expect(result.workitems[0].type).toBe("production_bug");
+    expect(result.workitems[0].url).toContain("/production_bug/detail/123");
+  });
+
+  it("should resolve related workitem names for number field values", async () => {
     mockGitHubClient.parsePrUrl.mockReturnValue({ owner: "org", repo: "repo", pullNumber: 123 });
     mockGitHubClient.getPullRequest.mockResolvedValue({ title: "Fix m-11666660", body: "Desc", html_url: "https://github.com/org/repo/pull/123" });
     mockGitHubClient.getCommits.mockResolvedValue([]);
     mockGitHubClient.getIssueComments.mockResolvedValue([]);
     mockGitHubClient.getReviewComments.mockResolvedValue([]);
 
-    // Real API response format: fields.fields[] with number field_value
-    mockMeegleClient.filterWorkitemsAcrossProjects.mockResolvedValueOnce([
-      {
-        id: "11666660",
-        name: "Test Item",
-        type: "story",
-        status: "",
-        fields: {
-          project_key: "68a2ed80e4ff51e07a71a6f6",
-          fields: [
-            { field_key: "field_1b9eb0", field_value: 11510275, field_type_key: "work_item_related_select" },
-            { field_key: "field_feb079", field_value: 11498101, field_type_key: "work_item_related_select" },
-          ],
+    // 1st call: main query for story type
+    // 2nd call: main query for production_bug type (empty)
+    // 3rd call: related workitem name resolution
+    mockMeegleClient.filterWorkitemsAcrossProjects
+      .mockResolvedValueOnce([
+        {
+          id: "11666660",
+          name: "Test Item",
+          type: "story",
+          status: "",
+          fields: {
+            project_key: "68a2ed80e4ff51e07a71a6f6",
+            fields: [
+              { field_key: "field_1b9eb0", field_value: 11510275, field_type_key: "work_item_related_select" },
+              { field_key: "field_feb079", field_value: 11498101, field_type_key: "work_item_related_select" },
+            ],
+          },
         },
-      },
-    ]).mockResolvedValueOnce([]);
+      ])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        { id: "11510275", name: "v2.5.0", type: "version", status: "", fields: {} },
+        { id: "11498101", name: "Sprint 42", type: "sprint", status: "", fields: {} },
+      ]);
 
     const result = await controller.lookup("https://github.com/org/repo/pull/123", mockMeegleClient);
 
     expect(result.workitems).toHaveLength(1);
-    expect(result.workitems[0].plannedVersion).toBe("11510275");
-    expect(result.workitems[0].plannedSprint).toBe("11498101");
+    expect(result.workitems[0].plannedVersion).toBe("v2.5.0");
+    expect(result.workitems[0].plannedSprint).toBe("Sprint 42");
     expect(result.workitems[0].url).toContain("/story/detail/11666660");
+
+    // Verify related workitem IDs were passed to the 3rd call
+    const thirdCall = mockMeegleClient.filterWorkitemsAcrossProjects.mock.calls[2][0];
+    expect(thirdCall.workItemIds).toContain(11510275);
+    expect(thirdCall.workItemIds).toContain(11498101);
+  });
+
+  it("should fallback to raw IDs when related workitem name resolution fails", async () => {
+    mockGitHubClient.parsePrUrl.mockReturnValue({ owner: "org", repo: "repo", pullNumber: 123 });
+    mockGitHubClient.getPullRequest.mockResolvedValue({ title: "Fix m-11666660", body: "Desc", html_url: "https://github.com/org/repo/pull/123" });
+    mockGitHubClient.getCommits.mockResolvedValue([]);
+    mockGitHubClient.getIssueComments.mockResolvedValue([]);
+    mockGitHubClient.getReviewComments.mockResolvedValue([]);
+
+    mockMeegleClient.filterWorkitemsAcrossProjects
+      .mockResolvedValueOnce([
+        {
+          id: "11666660",
+          name: "Test Item",
+          type: "story",
+          status: "",
+          fields: {
+            project_key: "68a2ed80e4ff51e07a71a6f6",
+            fields: [
+              { field_key: "field_1b9eb0", field_value: 11510275, field_type_key: "work_item_related_select" },
+            ],
+          },
+        },
+      ])
+      .mockResolvedValueOnce([])
+      .mockRejectedValueOnce(new Error("Related query failed"));
+
+    const result = await controller.lookup("https://github.com/org/repo/pull/123", mockMeegleClient);
+
+    expect(result.workitems[0].plannedVersion).toBe("11510275");
   });
 
   it("should handle type query failures gracefully", async () => {
