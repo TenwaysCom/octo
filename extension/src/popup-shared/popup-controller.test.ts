@@ -220,6 +220,13 @@ describe("popup controller", () => {
     meegleAuthControllerMock.getLastAuth.mockReturnValue(undefined);
     kimiChatClientMock.sendMessage.mockReset();
 
+    vi.stubGlobal("chrome", {
+      runtime: {
+        sendMessage: vi.fn().mockResolvedValue(undefined),
+        getManifest: vi.fn().mockReturnValue({ version: "1.0.0" }),
+      },
+    });
+
     vi.mocked(globalThis.fetch).mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -511,6 +518,143 @@ describe("popup controller", () => {
 
     expect(controller.getState().activePage).toBe("chat");
     expect(controller.getState().settingsForm.SERVER_URL).toBe("http://localhost:3000");
+    controller.dispose();
+  });
+
+  it("initializes update state to null", async () => {
+    const controller = createPopupController();
+    expect(controller.getState().update).toBeNull();
+    controller.dispose();
+  });
+
+  it("populates update state when an update is available during initialize", async () => {
+    const sendMessageMock = vi.fn().mockResolvedValueOnce(undefined).mockResolvedValueOnce({
+      hasUpdate: true,
+      currentVersion: "1.0.0",
+      latestVersion: "1.1.0",
+      versionInfo: {
+        version: "1.1.0",
+        downloadUrl: "https://example.com/update.zip",
+        releaseNotes: "New features",
+        forceUpdate: false,
+        minVersion: "1.0.0",
+      },
+    });
+    vi.stubGlobal("chrome", {
+      runtime: {
+        sendMessage: sendMessageMock,
+        getManifest: vi.fn().mockReturnValue({ version: "1.0.0" }),
+      },
+    });
+
+    const controller = createPopupController();
+    await controller.initialize();
+
+    expect(sendMessageMock).toHaveBeenCalledWith({ action: "itdog.update.clearBadge" });
+    expect(sendMessageMock).toHaveBeenCalledWith({ action: "itdog.update.check" });
+    expect(controller.getState().update).toEqual({
+      hasUpdate: true,
+      currentVersion: "1.0.0",
+      latestVersion: "1.1.0",
+      releaseNotes: "New features",
+      downloadUrl: "https://example.com/update.zip",
+      forceUpdate: false,
+      ignoredVersion: null,
+      dismissedAt: null,
+    });
+    controller.dispose();
+  });
+
+  it("ignores update check failures silently", async () => {
+    const sendMessageMock = vi.fn().mockRejectedValueOnce(new Error("network error"));
+    vi.stubGlobal("chrome", {
+      runtime: {
+        sendMessage: sendMessageMock,
+        getManifest: vi.fn().mockReturnValue({ version: "1.0.0" }),
+      },
+    });
+
+    const controller = createPopupController();
+    await controller.initialize();
+
+    expect(controller.getState().update).toBeNull();
+    controller.dispose();
+  });
+
+  it("ignores update version and clears update state", async () => {
+    const sendMessageMock = vi.fn().mockResolvedValueOnce(undefined).mockResolvedValueOnce({
+      hasUpdate: true,
+      currentVersion: "1.0.0",
+      latestVersion: "1.1.0",
+      versionInfo: {
+        version: "1.1.0",
+        downloadUrl: "https://example.com/update.zip",
+        releaseNotes: "New features",
+        forceUpdate: false,
+        minVersion: "1.0.0",
+      },
+    }).mockResolvedValueOnce({ ok: true });
+    vi.stubGlobal("chrome", {
+      runtime: {
+        sendMessage: sendMessageMock,
+        getManifest: vi.fn().mockReturnValue({ version: "1.0.0" }),
+      },
+    });
+
+    const controller = createPopupController();
+    await controller.initialize();
+    expect(controller.getState().update).not.toBeNull();
+
+    await controller.ignoreUpdateVersion();
+
+    expect(sendMessageMock).toHaveBeenCalledWith({
+      action: "itdog.update.ignore",
+      payload: { version: "1.1.0" },
+    });
+    expect(controller.getState().update).toBeNull();
+    controller.dispose();
+  });
+
+  it("downloads update via runtime message", async () => {
+    const sendMessageMock = vi.fn().mockResolvedValueOnce(undefined).mockResolvedValueOnce({
+      hasUpdate: true,
+      currentVersion: "1.0.0",
+      latestVersion: "1.1.0",
+      versionInfo: {
+        version: "1.1.0",
+        downloadUrl: "https://example.com/update.zip",
+        releaseNotes: "New features",
+        forceUpdate: false,
+        minVersion: "1.0.0",
+      },
+    }).mockResolvedValueOnce({ ok: true });
+    vi.stubGlobal("chrome", {
+      runtime: {
+        sendMessage: sendMessageMock,
+        getManifest: vi.fn().mockReturnValue({ version: "1.0.0" }),
+      },
+    });
+
+    const controller = createPopupController();
+    await controller.initialize();
+
+    await controller.downloadUpdate();
+
+    expect(sendMessageMock).toHaveBeenCalledWith({
+      action: "itdog.update.download",
+      payload: {
+        versionInfo: {
+          hasUpdate: true,
+          currentVersion: "1.0.0",
+          latestVersion: "1.1.0",
+          releaseNotes: "New features",
+          downloadUrl: "https://example.com/update.zip",
+          forceUpdate: false,
+          ignoredVersion: null,
+          dismissedAt: null,
+        },
+      },
+    });
     controller.dispose();
   });
 

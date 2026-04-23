@@ -4,6 +4,7 @@
 
 import { createExtensionLogger } from "../logger.js";
 import type { KimiChatTranscriptEntry } from "../types/acp-kimi.js";
+import type { UpdateState } from "../types/update.js";
 
 const storageLogger = createExtensionLogger("background:storage");
 
@@ -38,6 +39,7 @@ const STORAGE_KEY = "itpm_assistant_auth";
 const RESOLVED_IDENTITY_STORAGE_KEY = "masterUserId";
 const RESOLVED_IDENTITY_BY_TAB_STORAGE_KEY = "resolvedIdentityByTab";
 const KIMI_CHAT_TRANSCRIPTS_STORAGE_KEY = "kimiChatTranscriptSnapshots";
+const UPDATE_STATE_STORAGE_KEY = "itpm_update_state";
 
 type ResolvedIdentityByTabState = Record<string, string>;
 type KimiChatTranscriptSnapshotsState = Record<string, KimiChatTranscriptSnapshot>;
@@ -419,5 +421,43 @@ export async function saveLastLarkAuthResult(result: {
   await saveAuthState({
     ...current,
     lastLarkAuthResult: result,
+  });
+}
+
+// ==================== Update State Storage ====================
+
+/**
+ * Get update state from storage
+ */
+export async function getUpdateState(): Promise<UpdateState | null> {
+  return new Promise((resolve) => {
+    chrome.storage.local.get([UPDATE_STATE_STORAGE_KEY], (result) => {
+      resolve((result[UPDATE_STATE_STORAGE_KEY] as UpdateState) || null);
+    });
+  });
+}
+
+/**
+ * Save update state to storage
+ */
+export async function saveUpdateState(state: UpdateState): Promise<void> {
+  return new Promise((resolve) => {
+    chrome.storage.local.set({ [UPDATE_STATE_STORAGE_KEY]: state }, resolve);
+  });
+}
+
+/**
+ * Clear ignored version and dismissed timestamp from update state
+ */
+export async function clearIgnoredVersion(): Promise<void> {
+  const state = await getUpdateState();
+  if (!state) {
+    return;
+  }
+
+  await saveUpdateState({
+    ...state,
+    ignoredVersion: null,
+    dismissedAt: null,
   });
 }

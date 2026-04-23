@@ -8,6 +8,7 @@ import type {
   KimiChatSessionSummary,
   KimiChatTranscriptEntry,
 } from "../types/acp-kimi.js";
+import type { UpdateState } from "../types/update.js";
 import {
   clearResolvedIdentity,
   clearResolvedIdentityForTab,
@@ -137,6 +138,7 @@ interface PopupAppStore {
   larkBulkCreateModal: LarkBulkCreateModalState;
   state: PopupAppState;
   settingsForm: PopupSettingsForm;
+  update: UpdateState | null;
 }
 
 export interface PopupControllerState {
@@ -165,6 +167,7 @@ export interface PopupControllerState {
   kimiChatHistoryOpen: boolean;
   kimiChatHistoryLoading: boolean;
   kimiChatHistoryItems: KimiChatSessionSummary[];
+  update: UpdateState | null;
 }
 
 type PopupIdentityCompatInput = Partial<PopupIdentityState>;
@@ -222,6 +225,7 @@ function createInitialStore(): PopupAppStore {
       larkAuth: undefined,
     },
     settingsForm: createDefaultSettingsForm(),
+    update: null,
   };
 }
 
@@ -846,7 +850,32 @@ export function createPopupController() {
         appendLog("warn", "Lark 或 Meegle 未授权，已切换到个人页面");
       }
 
+      // Clear update badge when popup opens
+      void chrome.runtime.sendMessage({ action: "itdog.update.clearBadge" });
+
       appendLog("success", "初始化完成");
+
+      // Check for extension updates
+      try {
+        const updateResult = await chrome.runtime.sendMessage({ action: "itdog.update.check" });
+        if (updateResult?.hasUpdate && updateResult?.versionInfo) {
+          updateStore((previous) => ({
+            ...previous,
+            update: {
+              hasUpdate: true,
+              currentVersion: updateResult.currentVersion,
+              latestVersion: updateResult.latestVersion,
+              releaseNotes: updateResult.versionInfo.releaseNotes,
+              downloadUrl: updateResult.versionInfo.downloadUrl,
+              forceUpdate: updateResult.versionInfo.forceUpdate,
+              ignoredVersion: null,
+              dismissedAt: null,
+            },
+          }));
+        }
+      } catch {
+        // Silently ignore update check failures
+      }
     } catch (error) {
       appendLog(
         "error",
@@ -1277,6 +1306,30 @@ export function createPopupController() {
     await controller.sendMessage(messageText);
   }
 
+  async function ignoreUpdateVersion(): Promise<void> {
+    const store = readStore();
+    if (store.update?.latestVersion) {
+      await chrome.runtime.sendMessage({
+        action: "itdog.update.ignore",
+        payload: { version: store.update.latestVersion },
+      });
+      updateStore((previous) => ({
+        ...previous,
+        update: null,
+      }));
+    }
+  }
+
+  async function downloadUpdate(): Promise<void> {
+    const store = readStore();
+    if (store.update?.downloadUrl) {
+      await chrome.runtime.sendMessage({
+        action: "itdog.update.download",
+        payload: { versionInfo: store.update },
+      });
+    }
+  }
+
   async function runFeatureAction(actionKey: string): Promise<void> {
     if (actionKey === "analyze") {
       if (readStore().showKimiChat) {
@@ -1486,6 +1539,7 @@ export function createPopupController() {
       kimiChatHistoryOpen: store.kimiChatHistoryOpen,
       kimiChatHistoryLoading: store.kimiChatHistoryLoading,
       kimiChatHistoryItems: store.kimiChatHistoryItems,
+      update: store.update,
       }),
     );
 
@@ -1541,6 +1595,8 @@ export function createPopupController() {
     updateKimiChatDraftMessage,
     sendKimiChatMessage,
     stopKimiChatGeneration,
+    ignoreUpdateVersion,
+    downloadUpdate,
   };
 }
 

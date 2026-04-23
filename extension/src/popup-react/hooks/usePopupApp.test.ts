@@ -224,6 +224,13 @@ describe("usePopupApp React hook", () => {
       },
     );
 
+    vi.stubGlobal("chrome", {
+      runtime: {
+        sendMessage: vi.fn().mockResolvedValue(undefined),
+        getManifest: vi.fn().mockReturnValue({ version: "1.0.0" }),
+      },
+    });
+
     vi.mocked(globalThis.fetch).mockResolvedValue({
       ok: true,
       json: async () => ({

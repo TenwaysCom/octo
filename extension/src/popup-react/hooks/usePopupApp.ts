@@ -45,5 +45,7 @@ export function usePopupApp() {
     updateKimiChatDraftMessage: controller.updateKimiChatDraftMessage,
     sendKimiChatMessage: controller.sendKimiChatMessage,
     stopKimiChatGeneration: controller.stopKimiChatGeneration,
+    ignoreUpdateVersion: controller.ignoreUpdateVersion,
+    downloadUpdate: controller.downloadUpdate,
   };
 }

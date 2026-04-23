@@ -384,6 +384,7 @@ async function renderPopupApp(
           kimiChatHistoryOpen: options.historyOpen ?? false,
           kimiChatHistoryLoading: false,
           kimiChatHistoryItems: options.historyItems ?? [],
+          update: null,
           initialize: vi.fn().mockResolvedValue(undefined),
           authorizeMeegle: vi.fn(),
           authorizeLark: vi.fn(),
@@ -438,6 +439,8 @@ async function renderPopupApp(
             setBusy(false);
             options.stopKimiChatGeneration?.();
           }) as PopupAppModel["stopKimiChatGeneration"],
+          ignoreUpdateVersion: vi.fn(),
+          downloadUpdate: vi.fn(),
         }),
         [activePage, busy, draftMessage, options, settingsForm, transcript],
       );

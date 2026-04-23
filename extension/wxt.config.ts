@@ -58,7 +58,7 @@ export default defineConfig({
       "48": "icons/icon-48.png",
       "128": "icons/icon-128.png",
     },
-    permissions: ["tabs", "activeTab", "scripting", "storage", "cookies"],
+    permissions: ["tabs", "activeTab", "scripting", "storage", "cookies", "alarms", "notifications", "downloads"],
     host_permissions: [
       "http://localhost/*",
       "https://*.feishu.cn/*",

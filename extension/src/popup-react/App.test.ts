@@ -174,6 +174,7 @@ function renderPopupApp(
           kimiChatHistoryOpen: false,
           kimiChatHistoryLoading: false,
           kimiChatHistoryItems: [],
+          update: null,
           initialize: vi.fn().mockResolvedValue(undefined),
           authorizeMeegle: vi.fn(),
           authorizeLark: vi.fn(),
@@ -213,6 +214,8 @@ function renderPopupApp(
           updateKimiChatDraftMessage: vi.fn(),
           sendKimiChatMessage: vi.fn(async () => undefined),
           stopKimiChatGeneration: vi.fn(),
+          ignoreUpdateVersion: vi.fn(),
+          downloadUpdate: vi.fn(),
         }),
         [activePage, bulkModal, options.pageType, options.showUnsupported, settingsForm],
       );

@@ -30,6 +30,12 @@ import {
 } from "./storage.js";
 import { getConfig } from "./config.js";
 import { createExtensionLogger } from "../logger.js";
+import {
+  checkForUpdate,
+  downloadUpdate,
+  clearUpdateBadge,
+  ignoreCurrentVersion,
+} from "./update-checker.js";
 
 const routerLogger = createExtensionLogger("background:router");
 
@@ -317,6 +323,82 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       });
 
     return true; // Keep channel open for async response
+  }
+
+  if (message.action === "itdog.update.check") {
+    getConfig()
+      .then((config) => checkForUpdate(config))
+      .then((result) => {
+        sendResponse(result);
+      })
+      .catch((err: unknown) => {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        routerLogger.error("Update check failed", { errorMessage });
+        sendResponse({
+          hasUpdate: false,
+          currentVersion: chrome.runtime.getManifest().version,
+          latestVersion: chrome.runtime.getManifest().version,
+          versionInfo: null,
+        });
+      });
+    return true;
+  }
+
+  if (message.action === "itdog.update.download") {
+    downloadUpdate(message.payload.versionInfo)
+      .then(() => {
+        sendResponse({ ok: true });
+      })
+      .catch((err: unknown) => {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        routerLogger.error("Update download failed", { errorMessage });
+        sendResponse({
+          ok: false,
+          error: {
+            errorCode: "BACKGROUND_ERROR",
+            errorMessage,
+          },
+        });
+      });
+    return true;
+  }
+
+  if (message.action === "itdog.update.ignore") {
+    ignoreCurrentVersion(message.payload.version)
+      .then(() => {
+        sendResponse({ ok: true });
+      })
+      .catch((err: unknown) => {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        routerLogger.error("Ignore update failed", { errorMessage });
+        sendResponse({
+          ok: false,
+          error: {
+            errorCode: "BACKGROUND_ERROR",
+            errorMessage,
+          },
+        });
+      });
+    return true;
+  }
+
+  if (message.action === "itdog.update.clearBadge") {
+    clearUpdateBadge()
+      .then(() => {
+        sendResponse({ ok: true });
+      })
+      .catch((err: unknown) => {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        routerLogger.error("Clear update badge failed", { errorMessage });
+        sendResponse({
+          ok: false,
+          error: {
+            errorCode: "BACKGROUND_ERROR",
+            errorMessage,
+          },
+        });
+      });
+    return true;
   }
 
   return false; // Not handled
