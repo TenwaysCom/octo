@@ -40,4 +40,68 @@ describe("GitHubClient", () => {
       );
     });
   });
+
+  describe("createBranch", () => {
+    it("should create a branch from main", async () => {
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            ref: "refs/heads/main",
+            object: { sha: "abc123", type: "commit", url: "" },
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            ref: "refs/heads/feat/test-branch",
+            object: { sha: "abc123", type: "commit", url: "" },
+          }),
+        });
+
+      const result = await client.createBranch("owner", "repo", "feat/test-branch");
+      expect(result.ref).toBe("refs/heads/feat/test-branch");
+
+      // First call: GET base branch ref
+      expect(mockFetch).toHaveBeenNthCalledWith(
+        1,
+        "https://api.github.com/repos/owner/repo/git/ref/heads/main",
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Authorization: "Bearer test-token",
+          }),
+        })
+      );
+
+      // Second call: POST new ref
+      expect(mockFetch).toHaveBeenNthCalledWith(
+        2,
+        "https://api.github.com/repos/owner/repo/git/refs",
+        expect.objectContaining({
+          method: "POST",
+          headers: expect.objectContaining({
+            Authorization: "Bearer test-token",
+            "Content-Type": "application/json",
+          }),
+          body: JSON.stringify({ ref: "refs/heads/feat/test-branch", sha: "abc123" }),
+        })
+      );
+    });
+
+    it("should throw on GitHub API error", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          ref: "refs/heads/main",
+          object: { sha: "abc123", type: "commit", url: "" },
+        }),
+      });
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        text: async () => "Reference already exists",
+      });
+
+      await expect(client.createBranch("owner", "repo", "existing-branch")).rejects.toThrow("GitHub API error");
+    });
+  });
 });

@@ -58,6 +58,9 @@ import { showPopupToast } from "../popup/toast.js";
 import type {
   GitHubLookupState,
 } from "./popup-github-lookup-controller.js";
+import type {
+  GitHubBranchCreateModalState,
+} from "./popup-github-branch-create-controller.js";
 
 const popupLogger = createExtensionLogger("popup:app");
 const LARK_BULK_CREATE_ACTION_KEY = "bulk-create-meegle-tickets";
@@ -93,6 +96,12 @@ type LazyMeeglePushController = {
 
 type LazyGitHubLookupController = {
   lookup: () => Promise<void>;
+};
+
+type LazyGitHubBranchCreateController = {
+  open: () => Promise<void>;
+  confirmCreate: () => Promise<void>;
+  resetModal: () => void;
 };
 
 export interface PopupIdentityState {
@@ -143,6 +152,7 @@ interface PopupAppStore {
   kimiChatHistoryLoading: boolean;
   kimiChatHistoryItems: KimiChatSessionSummary[];
   larkBulkCreateModal: LarkBulkCreateModalState;
+  githubBranchCreateModal: GitHubBranchCreateModalState;
   githubLookup: GitHubLookupState;
   state: PopupAppState;
   settingsForm: PopupSettingsForm;
@@ -167,6 +177,7 @@ export interface PopupControllerState {
   meegleActions: PopupFeatureAction[];
   githubActions: PopupFeatureAction[];
   larkBulkCreateModal: LarkBulkCreateModalState;
+  githubBranchCreateModal: GitHubBranchCreateModalState;
   showKimiChat: boolean;
   kimiChatTranscript: KimiChatTranscriptEntry[];
   kimiChatBusy: boolean;
@@ -211,6 +222,17 @@ function createInitialStore(): PopupAppStore {
       preview: null,
       result: null,
       bulkError: null,
+    },
+    githubBranchCreateModal: {
+      visible: false,
+      stage: "preview",
+      repo: "",
+      defaultBranchName: "",
+      editedBranchName: "",
+      workItemTitle: "",
+      systemLabel: "",
+      error: null,
+      result: null,
     },
     githubLookup: {
       isLoading: false,
@@ -259,6 +281,8 @@ export function createPopupController() {
   let meeglePushControllerPromise: Promise<LazyMeeglePushController> | null = null;
   let githubLookupController: LazyGitHubLookupController | null = null;
   let githubLookupControllerPromise: Promise<LazyGitHubLookupController> | null = null;
+  let githubBranchCreateController: LazyGitHubBranchCreateController | null = null;
+  let githubBranchCreateControllerPromise: Promise<LazyGitHubBranchCreateController> | null = null;
   let disposed = false;
 
   function updateStore(updater: (previous: PopupAppStore) => PopupAppStore): void {
@@ -312,6 +336,16 @@ export function createPopupController() {
     updateStore((previous) => ({
       ...previous,
       githubLookup: typeof next === "function" ? next(previous.githubLookup) : next,
+    }));
+  }
+
+  function setGitHubBranchCreateModal(
+    next: GitHubBranchCreateModalState | ((previous: GitHubBranchCreateModalState) => GitHubBranchCreateModalState),
+  ): void {
+    updateStore((previous) => ({
+      ...previous,
+      githubBranchCreateModal:
+        typeof next === "function" ? next(previous.githubBranchCreateModal) : next,
     }));
   }
 
@@ -418,6 +452,30 @@ export function createPopupController() {
     }
 
     return githubLookupControllerPromise;
+  }
+
+  async function loadGitHubBranchCreateController(): Promise<LazyGitHubBranchCreateController> {
+    if (githubBranchCreateController) {
+      return githubBranchCreateController;
+    }
+
+    if (!githubBranchCreateControllerPromise) {
+      githubBranchCreateControllerPromise = import(
+        "./popup-github-branch-create-controller.js"
+      ).then(({ createGitHubBranchCreateController }) => {
+        const controller = createGitHubBranchCreateController({
+          readStore,
+          appendLog,
+          showToast,
+          setModalState: setGitHubBranchCreateModal,
+        });
+
+        githubBranchCreateController = controller;
+        return controller;
+      });
+    }
+
+    return githubBranchCreateControllerPromise;
   }
 
   function preloadKimiChatController(): void {
@@ -1366,7 +1424,45 @@ export function createPopupController() {
       return;
     }
 
+    if (actionKey === "create-github-branch") {
+      const controller = await loadGitHubBranchCreateController();
+      await controller.open();
+      return;
+    }
+
     appendLog("warn", "功能开发中，请稍后");
+  }
+
+  async function confirmGitHubBranchCreate(): Promise<void> {
+    const controller = await loadGitHubBranchCreateController();
+    await controller.confirmCreate();
+  }
+
+  function closeGitHubBranchCreateModal(): void {
+    const controller = githubBranchCreateController;
+    if (controller) {
+      controller.resetModal();
+    } else {
+      // Fallback: directly reset store
+      setGitHubBranchCreateModal({
+        visible: false,
+        stage: "preview",
+        repo: "",
+        defaultBranchName: "",
+        editedBranchName: "",
+        workItemTitle: "",
+        systemLabel: "",
+        error: null,
+        result: null,
+      });
+    }
+  }
+
+  function updateGitHubBranchCreateName(value: string): void {
+    setGitHubBranchCreateModal((previous) => ({
+      ...previous,
+      editedBranchName: value.slice(0, 50),
+    }));
   }
 
   function exportLogs(): void {
@@ -1517,6 +1613,12 @@ export function createPopupController() {
         type: "primary",
         disabled: false,
       },
+      {
+        key: "create-github-branch",
+        label: "创建 GitHub 分支",
+        type: "default",
+        disabled: false,
+      },
     ];
     const githubActions: PopupFeatureAction[] = [
       {
@@ -1547,6 +1649,7 @@ export function createPopupController() {
       meegleActions,
       githubActions,
       larkBulkCreateModal: store.larkBulkCreateModal,
+      githubBranchCreateModal: store.githubBranchCreateModal,
       showKimiChat: store.showKimiChat,
       kimiChatTranscript: store.kimiChatTranscript,
       kimiChatBusy: store.kimiChatBusy,
@@ -1612,6 +1715,9 @@ export function createPopupController() {
     sendKimiChatMessage,
     stopKimiChatGeneration,
     lookupGitHubPr,
+    confirmGitHubBranchCreate,
+    closeGitHubBranchCreateModal,
+    updateGitHubBranchCreateName,
   };
 }
 

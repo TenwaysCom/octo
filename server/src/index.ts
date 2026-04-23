@@ -36,6 +36,10 @@ import { meegleLarkPushController } from "./modules/meegle-workitem/meegle-lark-
 import { createApiRequestLogger } from "./http/api-request-logger.js";
 import { createApiAuthMiddleware } from "./http/api-auth.js";
 import { prMeegleLookupController } from "./modules/github-pr-lookup/pr-meegle-lookup.controller.js";
+import {
+  githubBranchPreviewController,
+  githubBranchCreateController,
+} from "./modules/github-branch-create/github-branch-create.controller.js";
 import { createCorsMiddleware } from "./http/cors.js";
 import { createGitHubLookupRouter } from "./routes/github-lookup.js";
 
@@ -215,6 +219,10 @@ app.post("/api/meegle/workitem/update-lark-and-push", handleController(meegleLar
 
 // GitHub PR lookup routes
 app.post("/api/github/pr/lookup-meegle", handleController(prMeegleLookupController));
+
+// GitHub branch create routes
+app.post("/api/github/branch/preview", handleController(githubBranchPreviewController));
+app.post("/api/github/branch/create", handleController(githubBranchCreateController));
 
 // GitHub reverse lookup routes (requires GITHUB_TOKEN)
 if (process.env.GITHUB_TOKEN) {

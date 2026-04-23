@@ -23,3 +23,12 @@ export interface ParsedPrUrl {
   repo: string;
   pullNumber: number;
 }
+
+export interface GitHubRef {
+  ref: string;
+  object: {
+    sha: string;
+    type: string;
+    url: string;
+  };
+}

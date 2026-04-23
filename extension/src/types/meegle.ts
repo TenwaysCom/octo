@@ -68,3 +68,36 @@ export interface MeegleLarkPushResponse {
   meegleStatusUpdated?: boolean;
   error?: string;
 }
+
+export interface GitHubBranchPreviewRequest {
+  projectKey: string;
+  workItemTypeKey: string;
+  workItemId: string;
+  masterUserId: string;
+  baseUrl: string;
+}
+
+export interface GitHubBranchPreviewResponse {
+  ok: true;
+  repo: string;
+  defaultBranchName: string;
+  workItemTitle: string;
+  systemValue: string;
+  systemLabel: string;
+}
+
+export interface GitHubBranchCreateRequest {
+  projectKey: string;
+  workItemTypeKey: string;
+  workItemId: string;
+  masterUserId: string;
+  baseUrl: string;
+  branchName: string;
+}
+
+export interface GitHubBranchCreateResponse {
+  ok: true;
+  repo: string;
+  branchName: string;
+  branchUrl: string;
+}

@@ -1,5 +1,5 @@
 import { logger } from "../../logger.js";
-import type { GitHubPrDetails, GitHubCommit, GitHubComment, ParsedPrUrl } from "./github-types.js";
+import type { GitHubPrDetails, GitHubCommit, GitHubComment, ParsedPrUrl, GitHubRef } from "./github-types.js";
 
 const githubLogger = logger.child({ module: "github-client" });
 
@@ -69,5 +69,39 @@ export class GitHubClient {
 
   async getReviewComments(owner: string, repo: string, pullNumber: number): Promise<GitHubComment[]> {
     return this.request<GitHubComment[]>(`/repos/${owner}/${repo}/pulls/${pullNumber}/comments`);
+  }
+
+  async createBranch(owner: string, repo: string, branchName: string, baseBranch = "main"): Promise<GitHubRef> {
+    // 1. Get base branch SHA
+    const baseRef = await this.request<GitHubRef>(`/repos/${owner}/${repo}/git/ref/heads/${baseBranch}`);
+    const sha = baseRef.object.sha;
+
+    githubLogger.info({ owner, repo, branchName, baseBranch, sha }, "GitHub create branch");
+
+    // 2. Create new ref
+    const url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/git/refs`;
+    const response = await this.fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${this.token}`,
+        Accept: "application/vnd.github.v3+json",
+        "User-Agent": "Octo-Extension",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        ref: `refs/heads/${branchName}`,
+        sha,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text().catch(() => "unknown");
+      const error = new Error(`GitHub API error: ${response.status} - ${errorBody}`);
+      (error as Error & { code: string; status: number }).code = "GITHUB_API_ERROR";
+      (error as Error & { status: number }).status = response.status;
+      throw error;
+    }
+
+    return response.json() as Promise<GitHubRef>;
   }
 }

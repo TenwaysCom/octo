@@ -22,6 +22,12 @@ const LazyLarkBulkCreateModal = lazy(async () => {
   return { default: module.LarkBulkCreateModal };
 });
 
+const LazyGitHubBranchCreateModal = lazy(async () => {
+  const module = await import("./components/GitHubBranchCreateModal.js");
+
+  return { default: module.GitHubBranchCreateModal };
+});
+
 export function PopupAppView({ popupApp }: { popupApp: PopupAppModel }) {
   return (
     <div className="app-root">
@@ -40,6 +46,16 @@ export function PopupAppView({ popupApp }: { popupApp: PopupAppModel }) {
                 bulkError={popupApp.larkBulkCreateModal.bulkError}
                 onConfirm={popupApp.confirmLarkBulkCreate}
                 onClose={popupApp.closeLarkBulkCreateModal}
+              />
+            </Suspense>
+          ) : null}
+          {popupApp.githubBranchCreateModal.visible ? (
+            <Suspense fallback={<BulkCreateModalFallback />}>
+              <LazyGitHubBranchCreateModal
+                state={popupApp.githubBranchCreateModal}
+                onConfirm={popupApp.confirmGitHubBranchCreate}
+                onClose={popupApp.closeGitHubBranchCreateModal}
+                onBranchNameChange={popupApp.updateGitHubBranchCreateName}
               />
             </Suspense>
           ) : null}

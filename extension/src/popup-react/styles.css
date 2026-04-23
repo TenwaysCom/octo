@@ -729,3 +729,102 @@ body {
 [data-message-role="assistant"] .text-message-part {
   line-height: 1.6;
 }
+
+/* GitHub Branch Create Modal */
+.branch-modal__form {
+  display: grid;
+  gap: 14px;
+}
+
+.branch-modal__field {
+  display: grid;
+  gap: 6px;
+}
+
+.branch-modal__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.branch-modal__value {
+  font-size: 13px;
+  color: #0f172a;
+  word-break: break-all;
+}
+
+.branch-modal__link {
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.branch-modal__link:hover {
+  text-decoration: underline;
+}
+
+.branch-modal__input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #0f172a;
+  background: #ffffff;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.branch-modal__input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgb(37 99 235 / 12%);
+}
+
+.branch-modal__hint {
+  font-size: 12px;
+  color: #64748b;
+  text-align: right;
+}
+
+.branch-modal__center {
+  text-align: center;
+  padding: 20px 0;
+  color: #334155;
+}
+
+.branch-modal__success {
+  text-align: center;
+  padding: 12px 0;
+}
+
+.branch-modal__success-title {
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #15803d;
+}
+
+.branch-modal__success-detail {
+  margin: 0;
+  font-size: 13px;
+  color: #334155;
+  line-height: 1.5;
+}
+
+.branch-modal__error {
+  padding: 8px 0;
+}
+
+.branch-modal__error .branch-modal__error-title {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #b91c1c;
+}
+
+.branch-modal__error .branch-modal__error-message {
+  margin: 0;
+  color: #334155;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
