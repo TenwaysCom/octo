@@ -38,6 +38,9 @@ describe("GitHubReverseLookupController", () => {
 
     expect(result.extractedIds).toEqual(["123"]);
     expect(result.workitems).toHaveLength(1);
+    expect(result.workitems[0]).not.toHaveProperty("fields");
+    expect(result.workitems[0].plannedVersion).toBe("v1.2");
+    expect(result.workitems[0].plannedSprint).toBe("Sprint 3");
     expect(mockMeegleClient.filterWorkitemsAcrossProjects).toHaveBeenCalledTimes(2);
 
     // Verify workItemIds are passed as numbers

@@ -91,6 +91,16 @@ function extractFieldValue(fields: Record<string, unknown> | undefined | null, k
   return undefined;
 }
 
+export interface LookupWorkitem {
+  id: string;
+  name: string;
+  type: string;
+  status: string;
+  url: string;
+  plannedVersion?: string;
+  plannedSprint?: string;
+}
+
 export interface LookupResult {
   prInfo: {
     title: string;
@@ -98,7 +108,7 @@ export interface LookupResult {
     url: string;
   };
   extractedIds: string[];
-  workitems: Array<MeegleWorkitem & { url: string; plannedVersion?: string; plannedSprint?: string }>;
+  workitems: LookupWorkitem[];
   notFound: string[];
 }
 
@@ -178,13 +188,17 @@ export class GitHubReverseLookupController {
     const notFound = extractedIds.filter(id => !foundIds.has(id));
 
     // Enrich workitems with URL, Planned Version and Planned Sprint
-    const enrichedWorkitems = allWorkitems.map(w => {
+    // Only return fields the extension needs; drop the heavy raw `fields` blob.
+    const enrichedWorkitems: LookupWorkitem[] = allWorkitems.map(w => {
       const versionKey = PLANNED_VERSION_FIELD_MAP[w.type];
       const sprintKey = PLANNED_SPRINT_FIELD_MAP[w.type];
       const projectKey = String(w.fields.project_key || w.fields.projectKey || DEFAULT_PROJECT_KEY);
       const urlSlug = URL_SLUG_MAP[w.type] || w.type;
       return {
-        ...w,
+        id: w.id,
+        name: w.name,
+        type: w.type,
+        status: w.status,
         url: `${BASE_URL}/${projectKey}/${urlSlug}/detail/${w.id}`,
         plannedVersion: extractFieldValue(w.fields, versionKey || ""),
         plannedSprint: extractFieldValue(w.fields, sprintKey || ""),
