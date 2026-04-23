@@ -317,13 +317,28 @@ function parseUser(data: Record<string, unknown>): MeegleUser {
   };
 }
 
-function parseWorkitem(data: Record<string, unknown>): MeegleWorkitem {
+export function parseWorkitem(data: Record<string, unknown>): MeegleWorkitem {
   const id = String(data.id || data.work_item_id || "");
   const key = String(data.key || data.work_item_key || "");
   const name = String(data.name || data.title || "");
   const type = String(data.type || data.work_item_type_key || "");
-  const status = String(data.status || data.state || "");
   const assignee = (data.assignee || data.owner) as string | undefined;
+
+  // Extract status from multiple possible locations
+  // Priority: direct status > current_nodes[0].name (human-readable) > work_item_status.state_key
+  let status = String(data.status || data.state || "");
+
+  // Try current_nodes[0].name for human-readable status (e.g. "Server Launch")
+  if (!status && Array.isArray(data.current_nodes) && data.current_nodes.length > 0) {
+    const firstNode = data.current_nodes[0] as Record<string, unknown>;
+    status = String(firstNode.name || firstNode.id || "");
+  }
+
+  // Try work_item_status.state_key as fallback
+  if (!status && data.work_item_status && typeof data.work_item_status === "object") {
+    const wis = data.work_item_status as Record<string, unknown>;
+    status = String(wis.state_key || "");
+  }
 
   // Extract other fields
   const fields: Record<string, unknown> = {};

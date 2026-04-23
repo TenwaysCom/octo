@@ -89,6 +89,30 @@ describe("GitHubReverseLookupController", () => {
     expect(result.workitems[0].url).toContain("/production_bug/detail/123");
   });
 
+  it("should extract status from work_item_status and current_nodes", async () => {
+    mockGitHubClient.parsePrUrl.mockReturnValue({ owner: "org", repo: "repo", pullNumber: 123 });
+    mockGitHubClient.getPullRequest.mockResolvedValue({ title: "Fix m-123", body: "Desc", html_url: "https://github.com/org/repo/pull/123" });
+    mockGitHubClient.getCommits.mockResolvedValue([]);
+    mockGitHubClient.getIssueComments.mockResolvedValue([]);
+    mockGitHubClient.getReviewComments.mockResolvedValue([]);
+
+    mockMeegleClient.filterWorkitemsAcrossProjects
+      .mockResolvedValueOnce([
+        {
+          id: "123",
+          name: "Test Item",
+          type: "story",
+          status: "Server Launch",
+          fields: { project_key: "4c3fv6" },
+        },
+      ])
+      .mockResolvedValueOnce([]);
+
+    const result = await controller.lookup("https://github.com/org/repo/pull/123", mockMeegleClient);
+
+    expect(result.workitems[0].status).toBe("Server Launch");
+  });
+
   it("should resolve related workitem names for number field values", async () => {
     mockGitHubClient.parsePrUrl.mockReturnValue({ owner: "org", repo: "repo", pullNumber: 123 });
     mockGitHubClient.getPullRequest.mockResolvedValue({ title: "Fix m-11666660", body: "Desc", html_url: "https://github.com/org/repo/pull/123" });
