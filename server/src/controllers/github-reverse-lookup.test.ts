@@ -98,7 +98,8 @@ describe("GitHubReverseLookupController", () => {
 
     // 1st call: main query for story type
     // 2nd call: main query for production_bug type (empty)
-    // 3rd call: related workitem name resolution
+    // 3rd call: related version query
+    // 4th call: related sprint query
     mockMeegleClient.filterWorkitemsAcrossProjects
       .mockResolvedValueOnce([
         {
@@ -118,6 +119,8 @@ describe("GitHubReverseLookupController", () => {
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([
         { id: "11510275", name: "v2.5.0", type: "version", status: "", fields: {} },
+      ])
+      .mockResolvedValueOnce([
         { id: "11498101", name: "Sprint 42", type: "sprint", status: "", fields: {} },
       ]);
 
@@ -128,10 +131,15 @@ describe("GitHubReverseLookupController", () => {
     expect(result.workitems[0].plannedSprint).toBe("Sprint 42");
     expect(result.workitems[0].url).toContain("/story/detail/11666660");
 
-    // Verify related workitem IDs were passed to the 3rd call
-    const thirdCall = mockMeegleClient.filterWorkitemsAcrossProjects.mock.calls[2][0];
-    expect(thirdCall.workItemIds).toContain(11510275);
-    expect(thirdCall.workItemIds).toContain(11498101);
+    // Verify version IDs were passed to the 3rd call (with version type key)
+    const versionCall = mockMeegleClient.filterWorkitemsAcrossProjects.mock.calls[2][0];
+    expect(versionCall.workItemIds).toEqual([11510275]);
+    expect(versionCall.workitemTypeKey).toBe("642f8d55c7109143ec2eb478");
+
+    // Verify sprint IDs were passed to the 4th call (with sprint type key)
+    const sprintCall = mockMeegleClient.filterWorkitemsAcrossProjects.mock.calls[3][0];
+    expect(sprintCall.workItemIds).toEqual([11498101]);
+    expect(sprintCall.workitemTypeKey).toBe("642ebe04168eea39eeb0d34a");
   });
 
   it("should fallback to raw IDs when related workitem name resolution fails", async () => {
@@ -157,7 +165,7 @@ describe("GitHubReverseLookupController", () => {
         },
       ])
       .mockResolvedValueOnce([])
-      .mockRejectedValueOnce(new Error("Related query failed"));
+      .mockRejectedValueOnce(new Error("Version query failed"));
 
     const result = await controller.lookup("https://github.com/org/repo/pull/123", mockMeegleClient);
 

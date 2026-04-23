@@ -31,6 +31,10 @@ const TYPE_DISPLAY_MAP: Record<string, string> = {
   "6932e40429d1cd8aac635c82": "production_bug",
 };
 
+// 关联工作项（Version / Sprint）的 work_item_type_key
+const RELATED_TYPE_KEY_VERSION = process.env.MEEGLE_WORKITEM_TYPE_KEY_VERSION || "642f8d55c7109143ec2eb478";
+const RELATED_TYPE_KEY_SPRINT = process.env.MEEGLE_WORKITEM_TYPE_KEY_SPRINT || "642ebe04168eea39eeb0d34a";
+
 function extractFieldValue(fields: Record<string, unknown> | undefined | null, key: string): string | undefined {
   if (!key || !fields) return undefined;
 
@@ -187,8 +191,9 @@ export class GitHubReverseLookupController {
 
     const notFound = extractedIds.filter(id => !foundIds.has(id));
 
-    // Collect related workitem IDs (version & sprint) to resolve their names
-    const relatedIdSet = new Set<number>();
+    // Collect related workitem IDs (version & sprint) separately
+    const versionIdSet = new Set<number>();
+    const sprintIdSet = new Set<number>();
     for (const w of allWorkitems) {
       const versionKey = PLANNED_VERSION_FIELD_MAP[w.type];
       const sprintKey = PLANNED_SPRINT_FIELD_MAP[w.type];
@@ -196,31 +201,38 @@ export class GitHubReverseLookupController {
       const sprintRaw = extractFieldValue(w.fields, sprintKey || "");
       if (versionRaw) {
         const num = parseInt(versionRaw, 10);
-        if (!isNaN(num)) relatedIdSet.add(num);
+        if (!isNaN(num)) versionIdSet.add(num);
       }
       if (sprintRaw) {
         const num = parseInt(sprintRaw, 10);
-        if (!isNaN(num)) relatedIdSet.add(num);
+        if (!isNaN(num)) sprintIdSet.add(num);
       }
     }
 
-    // Resolve related workitem names (best-effort; fallback to raw ID on failure)
+    // Resolve related workitem names by type (best-effort; fallback to raw ID on failure)
     const relatedNameMap = new Map<string, string>();
-    if (relatedIdSet.size > 0) {
+    const relatedQueries: Array<{ label: string; typeKey: string; idSet: Set<number> }> = [
+      { label: "version", typeKey: RELATED_TYPE_KEY_VERSION, idSet: versionIdSet },
+      { label: "sprint", typeKey: RELATED_TYPE_KEY_SPRINT, idSet: sprintIdSet },
+    ];
+
+    for (const { label, typeKey, idSet } of relatedQueries) {
+      if (idSet.size === 0) continue;
       try {
-        const relatedItems = await meegleClient.filterWorkitemsAcrossProjects({
-          workItemIds: Array.from(relatedIdSet),
-          pageSize: relatedIdSet.size,
+        const items = await meegleClient.filterWorkitemsAcrossProjects({
+          workitemTypeKey: typeKey,
+          workItemIds: Array.from(idSet),
+          pageSize: idSet.size,
         });
-        for (const item of relatedItems) {
+        for (const item of items) {
           if (item.name) {
             relatedNameMap.set(item.id, item.name);
           }
         }
-        lookupLogger.info({ resolved: relatedNameMap.size, total: relatedIdSet.size }, "Resolved related workitem names");
+        lookupLogger.info({ label, resolved: items.length, total: idSet.size }, "Resolved related workitem names");
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
-        lookupLogger.warn({ error: msg, relatedCount: relatedIdSet.size }, "Failed to resolve related workitem names, falling back to IDs");
+        lookupLogger.warn({ label, typeKey, error: msg }, "Failed to resolve related workitem names, falling back to IDs");
       }
     }
 
