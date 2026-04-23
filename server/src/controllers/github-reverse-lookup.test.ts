@@ -66,6 +66,38 @@ describe("GitHubReverseLookupController", () => {
     expect(result.workitems).toHaveLength(1);
   });
 
+  it("should extract plannedVersion and plannedSprint from nested fields array with number values", async () => {
+    mockGitHubClient.parsePrUrl.mockReturnValue({ owner: "org", repo: "repo", pullNumber: 123 });
+    mockGitHubClient.getPullRequest.mockResolvedValue({ title: "Fix m-11666660", body: "Desc", html_url: "https://github.com/org/repo/pull/123" });
+    mockGitHubClient.getCommits.mockResolvedValue([]);
+    mockGitHubClient.getIssueComments.mockResolvedValue([]);
+    mockGitHubClient.getReviewComments.mockResolvedValue([]);
+
+    // Real API response format: fields.fields[] with number field_value
+    mockMeegleClient.filterWorkitemsAcrossProjects.mockResolvedValueOnce([
+      {
+        id: "11666660",
+        name: "Test Item",
+        type: "story",
+        status: "",
+        fields: {
+          project_key: "68a2ed80e4ff51e07a71a6f6",
+          fields: [
+            { field_key: "field_1b9eb0", field_value: 11510275, field_type_key: "work_item_related_select" },
+            { field_key: "field_feb079", field_value: 11498101, field_type_key: "work_item_related_select" },
+          ],
+        },
+      },
+    ]).mockResolvedValueOnce([]);
+
+    const result = await controller.lookup("https://github.com/org/repo/pull/123", mockMeegleClient);
+
+    expect(result.workitems).toHaveLength(1);
+    expect(result.workitems[0].plannedVersion).toBe("11510275");
+    expect(result.workitems[0].plannedSprint).toBe("11498101");
+    expect(result.workitems[0].url).toContain("/story/detail/11666660");
+  });
+
   it("should handle type query failures gracefully", async () => {
     mockGitHubClient.parsePrUrl.mockReturnValue({ owner: "org", repo: "repo", pullNumber: 123 });
     mockGitHubClient.getPullRequest.mockResolvedValue({ title: "Fix m-123", body: "Desc", html_url: "https://github.com/org/repo/pull/123" });

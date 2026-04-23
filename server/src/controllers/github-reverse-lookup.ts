@@ -41,11 +41,17 @@ function extractFieldValue(fields: Record<string, unknown> | undefined | null, k
     return value;
   }
 
+  // 直接是数字（如关联工作项 ID）
+  if (typeof value === "number") {
+    return String(value);
+  }
+
   // 对象形式：取 name / value / title
   if (value && typeof value === "object") {
     const obj = value as Record<string, unknown>;
     if (typeof obj.name === "string") return obj.name;
     if (typeof obj.value === "string") return obj.value;
+    if (typeof obj.value === "number") return String(obj.value);
     if (typeof obj.title === "string") return obj.title;
     if (Array.isArray(obj.value) && obj.value.length > 0) {
       return obj.value.map((v: unknown) =>
@@ -54,7 +60,7 @@ function extractFieldValue(fields: Record<string, unknown> | undefined | null, k
     }
   }
 
-  // field_value_pairs 格式（某些 API 返回的格式）
+  // field_value_pairs 格式（filter_across_project 返回的嵌套 fields 数组）
   const fieldValuePairs = fields.fields;
   if (Array.isArray(fieldValuePairs)) {
     const pair = fieldValuePairs.find(
@@ -67,10 +73,12 @@ function extractFieldValue(fields: Record<string, unknown> | undefined | null, k
     if (pair) {
       const fv = pair.field_value;
       if (typeof fv === "string") return fv;
+      if (typeof fv === "number") return String(fv);
       if (fv && typeof fv === "object") {
         const obj = fv as Record<string, unknown>;
         if (typeof obj.name === "string") return obj.name;
         if (typeof obj.value === "string") return obj.value;
+        if (typeof obj.value === "number") return String(obj.value);
         if (Array.isArray(obj.value) && obj.value.length > 0) {
           return obj.value.map((v: unknown) =>
             typeof v === "string" ? v : (v as Record<string, unknown>)?.name || String(v)
