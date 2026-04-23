@@ -1,12 +1,10 @@
-This file provides guidance to coding agents working in this repository.
-
 ## Project Overview
 
 Tenways Octo is a cross-platform coordination assistant for PMs and requirement owners.
 It consists of a browser extension plus a backend server that helps move work between Lark and Meegle, resolve identity and auth, and run PM analysis flows.
 
-- The extension is a thin client for page detection, context capture, auth triggers, and UI.
-- Business logic, workflow orchestration, identity resolution, and third-party API integration live on the server.
+The extension is a thin client for page detection, context capture, auth triggers, and UI.
+Business logic, workflow orchestration, identity resolution, and third-party API integration live on the server.
 
 ### Current terminology
 
@@ -29,7 +27,6 @@ tw-itdog/
 ├── extension/                  # WXT browser extension
 ├── server/                     # Express + TypeScript backend
 ├── docs/                       # Architecture docs and design specs
-├── experiments/                # Prompt and workflow experiments
 ├── Makefile                    # Root helper commands
 └── AGENTS.md
 ```
@@ -43,7 +40,6 @@ tw-itdog/
 - `server/src/application/services/` holds business orchestration and workflow services.
 - `server/src/adapters/` contains external integrations and persistence layers, including `lark/`, `meegle/`, `postgres/`, and legacy `sqlite/`.
 - `server/src/scripts/` contains migration and import utilities.
-- `server/tests/README.md` is the current test guide.
 
 **Extension**
 - `extension/src/entrypoints/` contains WXT entrypoints such as `background`, popup HTML, content entrypoints, and page bridge hooks.
@@ -53,30 +49,9 @@ tw-itdog/
 - `extension/src/popup-react/` is the current popup UI implementation.
 - `extension/src/popup/` and `extension/src/popup-shared/` contain shared popup runtime and legacy Vue-side pieces that still exist in the tree.
 
-**Docs**
-- `docs/tenways-octo/04-architecture.md` covers the current system architecture.
-- `docs/tenways-octo/11-extension-message-and-api-schema.md` documents the extension/server contract.
-- `docs/tenways-octo/13-code-structure-and-validation-design.md` explains code structure and validation decisions.
-- `docs/tenways-octo/14-v2-architecture-design.md` covers the newer ACP-oriented architecture direction.
-- `docs/tenways-octo/18-user-identity-design.md` is the current identity design reference.
-- `docs/superpowers/specs/` contains more recent implementation design docs for approved work.
-
 ## Development Commands
 
 Prefer package-scoped commands from the package you are changing.
-
-### Root helpers
-
-```bash
-make server-dev
-make test-server
-make ext-dev
-make ext-dev-profile
-make ext-dev-probe
-make ext-build
-make ext-test
-make ext-typecheck
-```
 
 ### Server
 
@@ -87,10 +62,22 @@ pnpm --dir server build
 pnpm --dir server start
 pnpm --dir server db:migrate
 pnpm --dir server db:reset
-pnpm --dir server db:import-sqlite -- --sqlite ./data/tenways-octo.sqlite
 pnpm --dir server kimi-acp:repl
 pnpm --dir server kimi-acp:validate
 ```
+
+### Server and extension logs
+
+- Add or adjust server debug logs in `server/src/**` with `logger.ts` when the existing logs are not enough.
+- Add or adjust extension debug logs in `extension/src/**` with `extension/src/logger.ts` when needed.
+- Read logs when debugging server or extension behavior. Default files:
+  - `server/logs/app.log` for module and service logs
+  - `server/logs/api.log` for HTTP request and response logs
+  - `server/logs/popup-client.log` for extension client debug logs when `CLIENT_DEBUG_LOG_UPLOAD_ENABLED=true`
+- Start the server with `pnpm --dir server dev`, use `tail -f` to watch the log files, and use `rg` to filter for module names or request markers such as `REQUEST_HANDLER_ERROR`, `API_REQUEST`, and extension events.
+- Use `LOG_LEVEL=debug` before `pnpm --dir server dev` when you need more detail.
+- Extension logs also live in the in-memory extension log buffer and can be exported from the popup when needed.
+- Keep using `logger.ts`; do not use `console.log`.
 
 ### Extension
 
@@ -137,28 +124,16 @@ Critical rules:
 ## Environment Variables
 
 ### Server
-
-```bash
-LARK_APP_ID=
-LARK_APP_SECRET=
-LARK_OAUTH_CALLBACK_URL=
-MEEGLE_PLUGIN_ID=
-MEEGLE_PLUGIN_SECRET=
-MEEGLE_BASE_URL=https://project.larksuite.com
-POSTGRES_URI=
-HOST=0.0.0.0
-PORT=3000
-```
+check .env.exmaple for format
 
 ## Key Patterns
 
-1. All creation flows use a `draft` then `apply` pattern.
-2. Validate API inputs with Zod DTO schemas.
-3. Keep services dependency-injected through explicit deps objects so they stay testable.
-4. Preserve the structured `{ ok, data, error }` error envelope where the module already uses it.
-5. Keep public route naming aligned with the newer `lark-bug` and `lark-user-story` vocabulary unless you are intentionally touching compatibility aliases.
-6. Do not use `console.log`; use the local `logger.ts` utilities.
-7. Keep the extension/server boundary clean. Do not move workflow logic into the extension.
+1. Validate API inputs with Zod DTO schemas.
+2. Keep services dependency-injected through explicit deps objects so they stay testable.
+3. Preserve the structured `{ ok, data, error }` error envelope where the module already uses it.
+4. Keep public route naming aligned with the newer `lark-bug` and `lark-user-story` vocabulary unless you are intentionally touching compatibility aliases.
+5. Do not use `console.log`; use the local `logger.ts` utilities.
+6. Keep the extension/server boundary clean. Do not move workflow logic into the extension.
 
 ## Testing
 
@@ -173,7 +148,6 @@ PORT=3000
 ## Documentation
 
 - Keep high-level design references in `docs/tenways-octo/`.
-- Keep implementation-specific, date-stamped design specs in `docs/superpowers/specs/`.
 - If behavior changes across both extension and server, update whichever architecture or protocol doc is actually affected instead of adding a new stray markdown file.
 
 ## Commit Messages
@@ -182,12 +156,10 @@ Write commit messages and PR descriptions as a humble but experienced engineer w
 
 Do not write robot copy, marketing fluff, or vague summaries.
 
-# Tips for Claude Code
+# Tips for AI Agent
 
 - Context7 MCP server available for library documentation lookup
-- use-gunshi-cli skill available for gunshi CLI framework documentation
 - do not use console.log. use logger.ts instead
-- **CRITICAL VITEST REMINDER**: Vitest globals are enabled - use `describe`, `it`, `expect` directly WITHOUT imports. NEVER use `await import()` dynamic imports in test blocks.
 
 # important-instruction-reminders
 
