@@ -2,6 +2,10 @@
 
 本文档面向日常使用 Tenways Octo 插件的 PM、需求负责人和协作同学，重点说明安装、授权、自动更新，以及目前已经落地的几个核心能力。
 
+最新版本：
+
+- Lark 文档: https://www.larksuite.com/wiki/OnS8wvjfQi6eNDkk3cflDIxLgMb
+
 ## 1. 插件能做什么
 
 Tenways Octo 是一个运行在浏览器里的协同插件，主要工作方式是：
