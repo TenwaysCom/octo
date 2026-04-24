@@ -31,6 +31,17 @@ export interface GitHubBranchCreateModalState {
 
 interface CreateGitHubBranchCreateControllerDeps {
   readStore: () => PopupStoreSnapshot;
+  queryCurrentTabContext: () => Promise<{
+    id: number | null;
+    url: string | null;
+    origin: string | null;
+    pageType: "meegle" | "lark" | "github" | "unsupported";
+  }>;
+  updateCurrentTabContext: (input: {
+    id: number | null;
+    url: string | null;
+    origin: string | null;
+  }) => void;
   appendLog: (level: PopupLogLevel, message: string) => void;
   showToast: (text: string, level?: PopupLogLevel) => void;
   setModalState: (
@@ -51,7 +62,14 @@ function resolveErrorMessage(errorCode: string, serverMessage?: string): string 
 }
 
 export function createGitHubBranchCreateController(deps: CreateGitHubBranchCreateControllerDeps) {
-  const { readStore, appendLog, showToast, setModalState } = deps;
+  const {
+    readStore,
+    queryCurrentTabContext,
+    updateCurrentTabContext,
+    appendLog,
+    showToast,
+    setModalState,
+  } = deps;
 
   function resetModal(): void {
     setModalState({
@@ -70,8 +88,14 @@ export function createGitHubBranchCreateController(deps: CreateGitHubBranchCreat
   async function open(): Promise<void> {
     appendLog("info", "[创建 GitHub 分支] 开始获取预览信息...");
 
+    const tabContext = await queryCurrentTabContext();
+    updateCurrentTabContext({
+      id: tabContext.id,
+      url: tabContext.url,
+      origin: tabContext.origin,
+    });
     const current = readStore();
-    const currentUrl = current.state.currentUrl;
+    const currentUrl = tabContext.url ?? current.state.currentUrl;
 
     if (!currentUrl) {
       appendLog("error", "当前页面 URL 为空");
@@ -160,8 +184,14 @@ export function createGitHubBranchCreateController(deps: CreateGitHubBranchCreat
   }
 
   async function confirmCreate(): Promise<void> {
+    const tabContext = await queryCurrentTabContext();
+    updateCurrentTabContext({
+      id: tabContext.id,
+      url: tabContext.url,
+      origin: tabContext.origin,
+    });
     const current = readStore();
-    const currentUrl = current.state.currentUrl;
+    const currentUrl = tabContext.url ?? current.state.currentUrl;
     if (!currentUrl) {
       appendLog("error", "当前页面 URL 为空");
       showToast("当前页面 URL 为空", "error");

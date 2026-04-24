@@ -18,14 +18,34 @@ import { logger } from "../../logger.js";
 const branchLogger = logger.child({ module: "github-branch-create-service" });
 
 // System field keys by work item type
-const FIELD_SYSTEM_STORY = "field_00f541";
+const FIELD_SYSTEM_STORY = "field_0dba3a";
+const FIELD_SYSTEM_STORY_LEGACY = "field_00f541";
 const FIELD_SYSTEM_BUG = "field_4976fc";
 
 // System sub-option value → GitHub repo mapping
 const SYSTEM_REPO_MAP: Record<string, string> = {
+  cyvssley1: "TenwaysCom/Tenways",     // Odoo (default to EU repo)
   ihib59zp4: "TenwaysCom/Tenways",      // Odoo EU
   wjuvtyuqx: "TenwaysCom/tenways-ukk",  // Odoo UK
   "76xrqgsmz": "TWS-lance/odoo_tenways", // Odoo US
+};
+
+const SYSTEM_LABEL_MAP: Record<string, string> = {
+  cyvssley1: "Odoo",
+  ihib59zp4: "Odoo EU",
+  wjuvtyuqx: "Odoo UK",
+  "76xrqgsmz": "Odoo US",
+  ebzvt6did: "Portal",
+  "9nvjyudq5": "Portal EU",
+  zxw12oyz6: "Portal UK",
+  "5ye2igmb5": "Portal US",
+  "2llp11l7n": "Tenways App",
+  iah8c3288: "Tenways App IOS",
+  h9op5g49a: "Tenways App Android",
+  o0wesage1: "Tenways Backend Platform",
+  "31j37nw9x": "Turbo App",
+  "2u3x4uhi0": "Turbo App IOS",
+  "07y3cfiw2": "Turbo App Android",
 };
 
 // Meegle api_name → type_key mapping (reused from meegle-lark-push.service)
@@ -57,8 +77,12 @@ function isBugType(workItemTypeKey: string): boolean {
   return bugApiNames.includes(workItemTypeKey);
 }
 
-function getSystemFieldKey(workItemTypeKey: string): string {
-  return isBugType(workItemTypeKey) ? FIELD_SYSTEM_BUG : FIELD_SYSTEM_STORY;
+function getSystemFieldKeys(workItemTypeKey: string): string[] {
+  if (isBugType(workItemTypeKey)) {
+    return [FIELD_SYSTEM_BUG];
+  }
+
+  return [FIELD_SYSTEM_STORY, FIELD_SYSTEM_STORY_LEGACY];
 }
 
 function getFieldValue(workitem: { fields: Record<string, unknown> }, key: string): string | undefined {
@@ -100,19 +124,38 @@ function getFieldValue(workitem: { fields: Record<string, unknown> }, key: strin
 }
 
 export function parseSystemValue(rawValue: string): { systemValue: string; systemLabel: string } | null {
+  const candidates = parseSystemCandidates(rawValue);
+  return candidates[0] ?? null;
+}
+
+function parseSystemCandidates(rawValue: string): Array<{ systemValue: string; systemLabel: string }> {
+  const trimmed = rawValue.trim();
+  if (!trimmed) {
+    return [];
+  }
+
+  if (!trimmed.startsWith("[")) {
+    return [{
+      systemValue: trimmed,
+      systemLabel: SYSTEM_LABEL_MAP[trimmed] || trimmed,
+    }];
+  }
+
   try {
-    const parsed = JSON.parse(rawValue) as Array<{ value: string; label: string }>;
+    const parsed = JSON.parse(trimmed) as Array<{ value: string; label: string }>;
     if (!Array.isArray(parsed) || parsed.length === 0) {
-      return null;
+      return [];
     }
-    // Take the last element as the child option
-    const last = parsed[parsed.length - 1];
-    if (!last?.value) {
-      return null;
-    }
-    return { systemValue: last.value, systemLabel: last.label || last.value };
+    return parsed
+      .slice()
+      .reverse()
+      .filter((item) => Boolean(item?.value))
+      .map((item) => ({
+        systemValue: item.value,
+        systemLabel: item.label || item.value,
+      }));
   } catch {
-    return null;
+    return [];
   }
 }
 
@@ -244,18 +287,38 @@ export async function previewBranchCreate(
   }
 
   const workitem = workitems[0];
-  const systemFieldKey = getSystemFieldKey(input.workItemTypeKey);
-  const rawSystemValue = getFieldValue(workitem, systemFieldKey);
+  const systemFieldKeys = getSystemFieldKeys(input.workItemTypeKey);
+  const systemField = systemFieldKeys
+    .map((key) => ({ key, value: getFieldValue(workitem, key) }))
+    .find((candidate) => Boolean(candidate.value));
+  const rawSystemValue = systemField?.value;
 
-  branchLogger.debug({ systemFieldKey, rawSystemValue }, "BRANCH_PREVIEW_SYSTEM_RAW");
+  branchLogger.debug(
+    {
+      systemFieldKeys,
+      systemFieldKey: systemField?.key,
+      rawSystemValue,
+    },
+    "BRANCH_PREVIEW_SYSTEM_RAW",
+  );
 
   if (!rawSystemValue) {
     throw new Error("该工作项未设置 System 字段，无法确定目标 GitHub 仓库。");
   }
 
-  const systemParsed = parseSystemValue(rawSystemValue);
-  if (!systemParsed) {
+  const systemCandidates = parseSystemCandidates(rawSystemValue);
+  if (systemCandidates.length === 0) {
     throw new Error(`无法解析 System 字段值: ${rawSystemValue}`);
+  }
+  const systemParsed = systemCandidates.find((candidate) => SYSTEM_REPO_MAP[candidate.systemValue]);
+  if (!systemParsed) {
+    const primaryCandidate = systemCandidates[0];
+    const knownSystems = Object.values(SYSTEM_REPO_MAP)
+      .map((r) => r.split("/")[1])
+      .join(", ");
+    throw new Error(
+      `System "${primaryCandidate.systemLabel}" (${primaryCandidate.systemValue}) 暂无对应的 GitHub 仓库。目前仅支持: ${knownSystems}`,
+    );
   }
 
   const { systemValue, systemLabel } = systemParsed;

@@ -96,6 +96,73 @@ describe("github-branch-create service", () => {
   });
 
   describe("previewBranchCreate", () => {
+    it("should return preview for production bug when system is the parent odoo option", async () => {
+      mockCreateMeegleClient.mockResolvedValue({
+        getWorkitemDetails: vi.fn(() =>
+          Promise.resolve([
+            {
+              id: "11237978",
+              key: "BUG-1",
+              name: "Production bug",
+              type: "production_bug",
+              status: "Open",
+              fields: {
+                field_4976fc: "cyvssley1",
+              },
+            },
+          ])
+        ),
+      } as unknown as Awaited<ReturnType<typeof createMeegleClient>>);
+
+      const result = await previewBranchCreate({
+        projectKey: "test",
+        workItemTypeKey: "production_bug",
+        workItemId: "11237978",
+        masterUserId: "user-1",
+        baseUrl: "https://project.larksuite.com",
+      });
+
+      expect(result.ok).toBe(true);
+      expect(result.repo).toBe("TenwaysCom/Tenways");
+      expect(result.systemValue).toBe("cyvssley1");
+      expect(result.systemLabel).toBe("Odoo");
+    });
+
+    it("should return preview for story using the current system field key", async () => {
+      mockCreateMeegleClient.mockResolvedValue({
+        getWorkitemDetails: vi.fn(() =>
+          Promise.resolve([
+            {
+              id: "12345",
+              key: "TEST-123",
+              name: "Test workitem",
+              type: "story",
+              status: "Open",
+              fields: {
+                field_0dba3a: JSON.stringify([
+                  { value: "cyvssley1", label: "Odoo" },
+                  { value: "ihib59zp4", label: "Odoo EU" },
+                ]),
+              },
+            },
+          ])
+        ),
+      } as unknown as Awaited<ReturnType<typeof createMeegleClient>>);
+
+      const result = await previewBranchCreate({
+        projectKey: "test",
+        workItemTypeKey: "story",
+        workItemId: "12345",
+        masterUserId: "user-1",
+        baseUrl: "https://project.larksuite.com",
+      });
+
+      expect(result.ok).toBe(true);
+      expect(result.repo).toBe("TenwaysCom/Tenways");
+      expect(result.systemValue).toBe("ihib59zp4");
+      expect(result.systemLabel).toBe("Odoo EU");
+    });
+
     it("should return preview for Odoo EU system", async () => {
       mockCreateMeegleClient.mockResolvedValue({
         getWorkitemDetails: vi.fn(() =>
@@ -131,6 +198,41 @@ describe("github-branch-create service", () => {
       expect(result.systemLabel).toBe("Odoo EU");
       expect(result.workItemTitle).toBe("Test workitem");
       expect(result.defaultBranchName.startsWith("feat/")).toBe(true);
+    });
+
+    it("should fall back from child to parent when the child option is not mapped", async () => {
+      mockCreateMeegleClient.mockResolvedValue({
+        getWorkitemDetails: vi.fn(() =>
+          Promise.resolve([
+            {
+              id: "12345",
+              key: "TEST-124",
+              name: "Odoo workitem",
+              type: "story",
+              status: "Open",
+              fields: {
+                field_0dba3a: JSON.stringify([
+                  { value: "cyvssley1", label: "Odoo" },
+                  { value: "child-not-mapped", label: "Odoo Unknown Child" },
+                ]),
+              },
+            },
+          ])
+        ),
+      } as unknown as Awaited<ReturnType<typeof createMeegleClient>>);
+
+      const result = await previewBranchCreate({
+        projectKey: "test",
+        workItemTypeKey: "story",
+        workItemId: "12345",
+        masterUserId: "user-1",
+        baseUrl: "https://project.larksuite.com",
+      });
+
+      expect(result.ok).toBe(true);
+      expect(result.repo).toBe("TenwaysCom/Tenways");
+      expect(result.systemValue).toBe("cyvssley1");
+      expect(result.systemLabel).toBe("Odoo");
     });
 
     it("should throw for unsupported system", async () => {

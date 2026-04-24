@@ -32,6 +32,8 @@ export interface GitHubLookupState {
 type PopupStoreSnapshot = {
   state: {
     currentUrl: string | null;
+    currentTabId: number | null;
+    currentTabOrigin: string | null;
     identity: {
       masterUserId: string | null;
     };
@@ -40,6 +42,17 @@ type PopupStoreSnapshot = {
 
 interface CreateGitHubLookupControllerDeps {
   readStore: () => PopupStoreSnapshot;
+  queryCurrentTabContext: () => Promise<{
+    id: number | null;
+    url: string | null;
+    origin: string | null;
+    pageType: "meegle" | "lark" | "github" | "unsupported";
+  }>;
+  updateCurrentTabContext: (input: {
+    id: number | null;
+    url: string | null;
+    origin: string | null;
+  }) => void;
   appendLog: (level: PopupLogLevel, message: string) => void;
   showToast: (text: string, level?: PopupLogLevel) => void;
   setState: (
@@ -66,7 +79,14 @@ function resolveErrorMessage(errorCode: string, serverMessage?: string): string 
 }
 
 export function createGitHubLookupController(deps: CreateGitHubLookupControllerDeps) {
-  const { readStore, appendLog, showToast, setState } = deps;
+  const {
+    readStore,
+    queryCurrentTabContext,
+    updateCurrentTabContext,
+    appendLog,
+    showToast,
+    setState,
+  } = deps;
 
   async function lookup(): Promise<void> {
     appendLog("info", "开始查询 GitHub PR 关联的 Meegle 工作项...");
@@ -77,8 +97,14 @@ export function createGitHubLookupController(deps: CreateGitHubLookupControllerD
       result: null,
     });
 
+    const tabContext = await queryCurrentTabContext();
+    updateCurrentTabContext({
+      id: tabContext.id,
+      url: tabContext.url,
+      origin: tabContext.origin,
+    });
     const current = readStore();
-    const prUrl = current.state.currentUrl;
+    const prUrl = tabContext.url ?? current.state.currentUrl;
     const masterUserId = current.state.identity.masterUserId;
 
     if (!prUrl) {

@@ -445,6 +445,18 @@ export function createPopupController() {
         ({ createGitHubLookupController }) => {
           const controller = createGitHubLookupController({
             readStore,
+            queryCurrentTabContext: queryActiveTabContext,
+            updateCurrentTabContext(input) {
+              updateStore((previous) => ({
+                ...previous,
+                state: {
+                  ...previous.state,
+                  currentTabId: input.id,
+                  currentUrl: input.url,
+                  currentTabOrigin: input.origin,
+                },
+              }));
+            },
             appendLog,
             showToast,
             setState: setGitHubLookupState,
@@ -470,6 +482,18 @@ export function createPopupController() {
       ).then(({ createGitHubBranchCreateController }) => {
         const controller = createGitHubBranchCreateController({
           readStore,
+          queryCurrentTabContext: queryActiveTabContext,
+          updateCurrentTabContext(input) {
+            updateStore((previous) => ({
+              ...previous,
+              state: {
+                ...previous.state,
+                currentTabId: input.id,
+                currentUrl: input.url,
+                currentTabOrigin: input.origin,
+              },
+            }));
+          },
           appendLog,
           showToast,
           setModalState: setGitHubBranchCreateModal,
