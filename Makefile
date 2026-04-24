@@ -5,7 +5,7 @@ EXT_PROFILE_DIR ?= $(HOME)/.config/octo-ext-profile
 
 .DEFAULT_GOAL := help
 
-.PHONY: help completion server-dev test-server test-client ext-dev ext-dev-manual ext-dev-profile ext-dev-probe ext-build ext-package ext-deploy-zip ext-test ext-typecheck deploy-test deploy-prod
+.PHONY: help completion server-dev test-server test-client db-backup db-restore ext-dev ext-dev-manual ext-dev-profile ext-dev-probe ext-build ext-package ext-deploy-zip ext-test ext-typecheck deploy-test deploy-prod
 
 help: ## Show available make targets
 	@awk 'BEGIN {FS = ":.*## "}; /^[a-zA-Z0-9_.-]+:.*## / {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -29,6 +29,18 @@ server-dev: ## Run the backend server in watch mode
 
 test-server: ## Run backend tests
 	npm --prefix $(SERVER_DIR) test
+
+db-backup: ## Backup a postgres database via server script (usage: make db-backup DB_NAME=tenways_octo)
+	@test -n "$(DB_NAME)" || (echo "Usage: make db-backup DB_NAME=<database>"; exit 1)
+	npx tsx $(SERVER_DIR)/src/scripts/postgres-backup-restore.ts backup $(DB_NAME)
+
+db-restore: ## Restore a postgres database via server script (usage: make db-restore DB_NAME=tenways_octo [FILE=path])
+	@test -n "$(DB_NAME)" || (echo "Usage: make db-restore DB_NAME=<database> [FILE=/path/to.dump]"; exit 1)
+	@if [ -n "$(FILE)" ]; then \
+		npx tsx $(SERVER_DIR)/src/scripts/postgres-backup-restore.ts restore $(DB_NAME) --file $(FILE); \
+	else \
+		npx tsx $(SERVER_DIR)/src/scripts/postgres-backup-restore.ts restore $(DB_NAME); \
+	fi
 
 test-client: ## Run extension tests
 	pnpm --dir $(EXT_DIR) test
