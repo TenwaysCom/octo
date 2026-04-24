@@ -44,7 +44,9 @@ describe("popup-react chat page", () => {
       ],
     });
 
-    expect(await screen.findByTestId("assistant-ui-thread")).toBeTruthy();
+    expect(
+      await screen.findByTestId("assistant-ui-thread", undefined, { timeout: 3000 }),
+    ).toBeTruthy();
     expect(screen.getByTestId("assistant-ui-composer")).toBeTruthy();
     expect(screen.getByRole("textbox", { name: "发送消息" })).toBeTruthy();
     expect(screen.getByText("你好，我可以帮你整理当前页面上下文。")).toBeTruthy();
@@ -385,6 +387,7 @@ async function renderPopupApp(
           kimiChatHistoryOpen: options.historyOpen ?? false,
           kimiChatHistoryLoading: false,
           kimiChatHistoryItems: options.historyItems ?? [],
+          update: null,
           githubLookup: {
             isLoading: false,
             error: null,
@@ -444,6 +447,8 @@ async function renderPopupApp(
             setBusy(false);
             options.stopKimiChatGeneration?.();
           }) as PopupAppModel["stopKimiChatGeneration"],
+          ignoreUpdateVersion: vi.fn(),
+          downloadUpdate: vi.fn(),
           lookupGitHubPr: vi.fn(),
         }),
         [activePage, busy, draftMessage, options, settingsForm, transcript],

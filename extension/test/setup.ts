@@ -46,6 +46,38 @@ globalThis.chrome = {
     onMessage: {
       addListener: vi.fn(),
     },
+    onInstalled: {
+      addListener: vi.fn(),
+    },
+    getManifest: vi.fn(() => ({ version: "0.6.1" })),
+  },
+  action: {
+    setBadgeText: vi.fn((_details, callback?) => {
+      callback?.();
+      return Promise.resolve();
+    }),
+    setBadgeBackgroundColor: vi.fn((_details, callback?) => {
+      callback?.();
+      return Promise.resolve();
+    }),
+  },
+  notifications: {
+    create: vi.fn((_options, callback?) => {
+      callback?.("notification-id");
+      return Promise.resolve("notification-id");
+    }),
+  },
+  downloads: {
+    download: vi.fn((_options, callback?) => {
+      callback?.(1);
+      return Promise.resolve(1);
+    }),
+  },
+  alarms: {
+    create: vi.fn(),
+    onAlarm: {
+      addListener: vi.fn(),
+    },
   },
 } as unknown as typeof chrome;
 

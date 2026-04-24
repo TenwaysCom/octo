@@ -45,6 +45,8 @@ export function usePopupApp() {
     updateKimiChatDraftMessage: controller.updateKimiChatDraftMessage,
     sendKimiChatMessage: controller.sendKimiChatMessage,
     stopKimiChatGeneration: controller.stopKimiChatGeneration,
+    ignoreUpdateVersion: controller.ignoreUpdateVersion,
+    downloadUpdate: controller.downloadUpdate,
     lookupGitHubPr: controller.lookupGitHubPr,
     confirmGitHubBranchCreate: controller.confirmGitHubBranchCreate,
     closeGitHubBranchCreateModal: controller.closeGitHubBranchCreateModal,

@@ -9,6 +9,7 @@ import { configureLarkAuthControllerDeps } from "./modules/lark-auth/lark-auth.c
 import { configureLarkAuthServiceDeps } from "./modules/lark-auth/lark-auth.service.js";
 import { configureMeegleAuthServiceDeps } from "./modules/meegle-auth/meegle-auth.service.js";
 import { configurePublicConfigController, getPublicConfigController } from "./modules/public-config/public-config.controller.js";
+import { getExtensionVersionController } from "./modules/public-config/extension-version.controller.js";
 import { createHttpMeegleAuthAdapter } from "./adapters/meegle/auth-adapter.js";
 import { ensureSharedDatabase } from "./adapters/postgres/database.js";
 import { getSharedMeegleTokenStore } from "./adapters/postgres/meegle-token-store.js";
@@ -178,6 +179,9 @@ app.post("/api/debug/client-log", async (req, res) => {
 // Public config route
 app.get("/api/config/public", async (_req, res) => {
   res.json(await getPublicConfigController());
+});
+app.get("/api/extension/version", async (_req, res) => {
+  res.json(await getExtensionVersionController(undefined));
 });
 
 // Meegle auth routes

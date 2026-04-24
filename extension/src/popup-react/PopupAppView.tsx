@@ -3,6 +3,7 @@ import { lazy, Suspense } from "react";
 import { BulkCreateModalFallback } from "./components/BulkCreateModalFallback.js";
 import { PageLoadingFallback } from "./components/PageLoadingFallback.js";
 import { PopupShell } from "./components/PopupShell.js";
+import { UpdateBanner } from "./components/UpdateBanner.js";
 import { VerticalTabBar } from "./components/VerticalTabBar.js";
 import { AutomationPage } from "./pages/AutomationPage.js";
 import { ProfilePage } from "./pages/ProfilePage.js";
@@ -34,6 +35,13 @@ export function PopupAppView({ popupApp }: { popupApp: PopupAppModel }) {
       <div className="app-layout">
         <div className="app-content">
           <PopupShell>
+            {popupApp.update ? (
+              <UpdateBanner
+                update={popupApp.update}
+                onDownload={popupApp.downloadUpdate}
+                onIgnore={popupApp.ignoreUpdateVersion}
+              />
+            ) : null}
             {renderActivePage(popupApp)}
           </PopupShell>
           {popupApp.larkBulkCreateModal.visible ? (

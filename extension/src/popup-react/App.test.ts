@@ -185,6 +185,7 @@ function renderPopupApp(
           kimiChatHistoryOpen: false,
           kimiChatHistoryLoading: false,
           kimiChatHistoryItems: [],
+          update: null,
           githubLookup: {
             isLoading: false,
             error: null,
@@ -229,6 +230,8 @@ function renderPopupApp(
           updateKimiChatDraftMessage: vi.fn(),
           sendKimiChatMessage: vi.fn(async () => undefined),
           stopKimiChatGeneration: vi.fn(),
+          ignoreUpdateVersion: vi.fn(),
+          downloadUpdate: vi.fn(),
           lookupGitHubPr: vi.fn(),
         }),
         [activePage, bulkModal, options.pageType, options.showUnsupported, settingsForm],

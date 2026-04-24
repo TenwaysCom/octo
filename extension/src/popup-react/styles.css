@@ -828,3 +828,49 @@ body {
   line-height: 1.5;
   white-space: pre-wrap;
 }
+
+/* Update Banner */
+.update-banner {
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 8px;
+  padding: 12px;
+  margin: 8px 0;
+}
+.update-banner-title {
+  font-weight: 600;
+  color: #92400e;
+  margin-bottom: 4px;
+}
+.update-banner-version {
+  font-size: 12px;
+  color: #78350f;
+  margin-bottom: 4px;
+}
+.update-banner-notes {
+  font-size: 12px;
+  color: #78350f;
+  margin-bottom: 8px;
+}
+.update-banner-actions {
+  display: flex;
+  gap: 8px;
+}
+.update-banner-btn-primary {
+  background: #f59e0b;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.update-banner-btn-secondary {
+  background: transparent;
+  color: #92400e;
+  border: 1px solid #f59e0b;
+  border-radius: 4px;
+  padding: 4px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
