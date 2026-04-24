@@ -32,7 +32,7 @@ import type {
 import type { PopupSettingsForm } from "./types.js";
 import { detectPopupPageType, type PopupPageType } from "./view-model.js";
 import { createExtensionLogger } from "../logger.js";
-import { createServerRequestHeaders } from "../server-request.js";
+import { fetchServerJson } from "../server-request.js";
 
 interface RuntimeErrorResponse {
   error?: {
@@ -124,11 +124,11 @@ export async function postClientDebugLog(input: {
 
   try {
     const masterUserId = await getStoredMasterUserId();
-    const response = await fetch(`${config.SERVER_URL}/api/debug/client-log`, {
-      method: "POST",
-      headers: createServerRequestHeaders({ masterUserId }),
+    const { response } = await fetchServerJson<{ ok: boolean }>({
+      url: `${config.SERVER_URL}/api/debug/client-log`,
+      masterUserId,
       keepalive: true,
-      body: JSON.stringify(input),
+      body: input,
     });
 
     return response.ok;
@@ -368,13 +368,12 @@ export async function runMeegleLarkPushRequest(
   const config = await getConfig();
   console.debug("[runMeegleLarkPushRequest] request:", request);
   try {
-    const response = await fetch(`${config.SERVER_URL}/api/meegle/workitem/update-lark-and-push`, {
-      method: "POST",
-      headers: createServerRequestHeaders({ masterUserId: request.masterUserId }),
-      body: JSON.stringify(request),
+    const { payload: result } = await fetchServerJson<MeegleLarkPushResponse>({
+      url: `${config.SERVER_URL}/api/meegle/workitem/update-lark-and-push`,
+      masterUserId: request.masterUserId,
+      body: request,
     });
 
-    const result = (await response.json()) as MeegleLarkPushResponse;
     console.debug("[runMeegleLarkPushRequest] response:", result);
     return result;
   } catch (error) {
@@ -408,19 +407,17 @@ export async function resolveIdentityRequest(input: {
     operatorLarkId: summarizeIdentifier(input.operatorLarkId),
     meegleUserKey: summarizeIdentifier(input.meegleUserKey),
   });
-  const response = await fetch(`${config.SERVER_URL}/api/identity/resolve`, {
-    method: "POST",
-    headers: createServerRequestHeaders({ masterUserId: input.masterUserId }),
-    body: JSON.stringify({
+  const { payload } = await fetchServerJson<IdentityResolveResponse>({
+    url: `${config.SERVER_URL}/api/identity/resolve`,
+    masterUserId: input.masterUserId,
+    body: {
       requestId: `req_${Date.now()}`,
       masterUserId: input.masterUserId,
       operatorLarkId: input.operatorLarkId,
       meegleUserKey: input.meegleUserKey,
       pageContext: input.pageContext,
-    }),
+    },
   });
-
-  const payload = (await response.json()) as IdentityResolveResponse;
   runtimeLogger.debug("resolveIdentityRequest.done", {
     ok: payload.ok,
     hasMasterUserId: Boolean(payload.data?.masterUserId),
@@ -441,13 +438,13 @@ export async function listKimiChatSessions(
   },
 ): Promise<KimiChatSessionListResponse> {
   const config = await getConfig();
-  const response = await fetch(`${config.SERVER_URL}/api/acp/kimi/sessions/list`, {
-    method: "POST",
-    headers: createServerRequestHeaders({ masterUserId: input.masterUserId }),
-    body: JSON.stringify(input),
+  const { payload } = await fetchServerJson<KimiChatSessionListResponse>({
+    url: `${config.SERVER_URL}/api/acp/kimi/sessions/list`,
+    masterUserId: input.masterUserId,
+    body: input,
   });
 
-  return await response.json() as KimiChatSessionListResponse;
+  return payload;
 }
 
 export async function loadKimiChatSession(
@@ -458,13 +455,13 @@ export async function loadKimiChatSession(
   },
 ): Promise<KimiChatSessionLoadResponse> {
   const config = await getConfig();
-  const response = await fetch(`${config.SERVER_URL}/api/acp/kimi/sessions/load`, {
-    method: "POST",
-    headers: createServerRequestHeaders({ masterUserId: input.masterUserId }),
-    body: JSON.stringify(input),
+  const { payload } = await fetchServerJson<KimiChatSessionLoadResponse>({
+    url: `${config.SERVER_URL}/api/acp/kimi/sessions/load`,
+    masterUserId: input.masterUserId,
+    body: input,
   });
 
-  return await response.json() as KimiChatSessionLoadResponse;
+  return payload;
 }
 
 export async function deleteKimiChatSession(
@@ -475,16 +472,16 @@ export async function deleteKimiChatSession(
   },
 ): Promise<{ ok: boolean; error?: { errorCode?: string; errorMessage?: string } }> {
   const config = await getConfig();
-  const response = await fetch(`${config.SERVER_URL}/api/acp/kimi/sessions/delete`, {
-    method: "POST",
-    headers: createServerRequestHeaders({ masterUserId: input.masterUserId }),
-    body: JSON.stringify(input),
-  });
-
-  return await response.json() as {
+  const { payload } = await fetchServerJson<{
     ok: boolean;
     error?: { errorCode?: string; errorMessage?: string };
-  };
+  }>({
+    url: `${config.SERVER_URL}/api/acp/kimi/sessions/delete`,
+    masterUserId: input.masterUserId,
+    body: input,
+  });
+
+  return payload;
 }
 
 export async function renameKimiChatSession(
@@ -496,17 +493,17 @@ export async function renameKimiChatSession(
   },
 ): Promise<{ ok: boolean; data?: { sessionId: string; title: string | null }; error?: { errorCode?: string; errorMessage?: string } }> {
   const config = await getConfig();
-  const response = await fetch(`${config.SERVER_URL}/api/acp/kimi/sessions/rename`, {
-    method: "POST",
-    headers: createServerRequestHeaders({ masterUserId: input.masterUserId }),
-    body: JSON.stringify(input),
-  });
-
-  return await response.json() as {
+  const { payload } = await fetchServerJson<{
     ok: boolean;
     data?: { sessionId: string; title: string | null };
     error?: { errorCode?: string; errorMessage?: string };
-  };
+  }>({
+    url: `${config.SERVER_URL}/api/acp/kimi/sessions/rename`,
+    masterUserId: input.masterUserId,
+    body: input,
+  });
+
+  return payload;
 }
 
 export async function loadKimiChatTranscriptSnapshot(input: {
@@ -652,16 +649,7 @@ export async function fetchLarkUserInfo(
   });
 
   try {
-    const response = await fetch(`${config.SERVER_URL}/api/lark/user-info`, {
-      method: "POST",
-      headers: createServerRequestHeaders({ masterUserId: input.masterUserId }),
-      body: JSON.stringify({
-        masterUserId: input.masterUserId,
-        baseUrl: input.baseUrl,
-      }),
-    });
-
-    const payload = (await response.json()) as
+    const { payload } = await fetchServerJson<
       | {
           ok: true;
           data: {
@@ -672,7 +660,15 @@ export async function fetchLarkUserInfo(
             avatarUrl?: string;
           };
         }
-      | { ok: false; error?: { errorCode?: string; errorMessage?: string } };
+      | { ok: false; error?: { errorCode?: string; errorMessage?: string } }
+    >({
+      url: `${config.SERVER_URL}/api/lark/user-info`,
+      masterUserId: input.masterUserId,
+      body: {
+        masterUserId: input.masterUserId,
+        baseUrl: input.baseUrl,
+      },
+    });
     runtimeLogger.debug("fetchLarkUserInfo.done", {
       masterUserId: summarizeIdentifier(input.masterUserId),
       ok: payload.ok,
@@ -721,13 +717,13 @@ export async function getLarkAuthStatus(
   });
 
   try {
-    const response = await fetch(`${config.SERVER_URL}/api/lark/auth/status`, {
-      method: "POST",
-      headers: createServerRequestHeaders({ masterUserId: input.masterUserId }),
-      body: JSON.stringify({
+    const { response, payload } = await fetchServerJson<LarkAuthStatusServerResponse>({
+      url: `${config.SERVER_URL}/api/lark/auth/status`,
+      masterUserId: input.masterUserId,
+      body: {
         masterUserId: input.masterUserId,
         baseUrl: input.baseUrl,
-      }),
+      },
     });
 
     if (!response.ok) {
@@ -744,8 +740,6 @@ export async function getLarkAuthStatus(
         errorMessage: `Auth status request failed with ${response.status}.`,
       };
     }
-
-    const payload = (await response.json()) as LarkAuthStatusServerResponse;
 
     if (!payload.ok || !payload.data) {
       runtimeLogger.warn("getLarkAuthStatus.invalid_payload", {
@@ -817,13 +811,13 @@ export async function refreshLarkAuthStatus(
   });
 
   try {
-    const response = await fetch(`${config.SERVER_URL}/api/lark/auth/refresh`, {
-      method: "POST",
-      headers: createServerRequestHeaders({ masterUserId: input.masterUserId }),
-      body: JSON.stringify({
+    const { response, payload } = await fetchServerJson<LarkAuthStatusServerResponse>({
+      url: `${config.SERVER_URL}/api/lark/auth/refresh`,
+      masterUserId: input.masterUserId,
+      body: {
         masterUserId: input.masterUserId,
         baseUrl: input.baseUrl,
-      }),
+      },
     });
 
     if (!response.ok) {
@@ -840,8 +834,6 @@ export async function refreshLarkAuthStatus(
         errorMessage: `Token refresh request failed with ${response.status}.`,
       };
     }
-
-    const payload = (await response.json()) as LarkAuthStatusServerResponse;
 
     if (!payload.ok || !payload.data) {
       runtimeLogger.warn("refreshLarkAuthStatus.invalid_payload", {

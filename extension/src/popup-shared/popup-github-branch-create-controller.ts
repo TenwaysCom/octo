@@ -1,5 +1,5 @@
 import { getConfig } from "../background/config.js";
-import { createServerRequestHeaders } from "../server-request.js";
+import { fetchServerJson } from "../server-request.js";
 import type { PopupLogLevel } from "../popup/types.js";
 import type {
   GitHubBranchPreviewResponse,
@@ -107,19 +107,7 @@ export function createGitHubBranchCreateController(deps: CreateGitHubBranchCreat
 
     try {
       const config = await getConfig();
-      const response = await fetch(`${config.SERVER_URL}/api/github/branch/preview`, {
-        method: "POST",
-        headers: createServerRequestHeaders({ masterUserId }),
-        body: JSON.stringify({
-          projectKey,
-          workItemTypeKey,
-          workItemId,
-          masterUserId,
-          baseUrl,
-        }),
-      });
-
-      const data = (await response.json()) as {
+      const { response, payload: data } = await fetchServerJson<{
         ok: boolean;
         repo?: string;
         defaultBranchName?: string;
@@ -127,7 +115,17 @@ export function createGitHubBranchCreateController(deps: CreateGitHubBranchCreat
         systemValue?: string;
         systemLabel?: string;
         error?: { errorCode: string; errorMessage: string };
-      };
+      }>({
+        url: `${config.SERVER_URL}/api/github/branch/preview`,
+        masterUserId,
+        body: {
+          projectKey,
+          workItemTypeKey,
+          workItemId,
+          masterUserId,
+          baseUrl,
+        },
+      });
 
       if (!response.ok || !data.ok) {
         const errorCode = data.error?.errorCode || "UNKNOWN_ERROR";
@@ -213,26 +211,24 @@ export function createGitHubBranchCreateController(deps: CreateGitHubBranchCreat
 
     try {
       const config = await getConfig();
-      const response = await fetch(`${config.SERVER_URL}/api/github/branch/create`, {
-        method: "POST",
-        headers: createServerRequestHeaders({ masterUserId }),
-        body: JSON.stringify({
+      const { response, payload: data } = await fetchServerJson<{
+        ok: boolean;
+        repo?: string;
+        branchName?: string;
+        branchUrl?: string;
+        error?: { errorCode: string; errorMessage: string };
+      }>({
+        url: `${config.SERVER_URL}/api/github/branch/create`,
+        masterUserId,
+        body: {
           projectKey,
           workItemTypeKey,
           workItemId,
           masterUserId,
           baseUrl,
           branchName,
-        }),
+        },
       });
-
-      const data = (await response.json()) as {
-        ok: boolean;
-        repo?: string;
-        branchName?: string;
-        branchUrl?: string;
-        error?: { errorCode: string; errorMessage: string };
-      };
 
       if (!response.ok || !data.ok) {
         const errorCode = data.error?.errorCode || "UNKNOWN_ERROR";

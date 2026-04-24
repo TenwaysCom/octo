@@ -54,7 +54,7 @@ import {
 } from "../platform-url.js";
 import { extractLarkBaseContextFromUrl } from "../lark-base-url.js";
 import { createExtensionLogger, exportLogsAsBlob } from "../logger.js";
-import { createServerRequestHeaders } from "../server-request.js";
+import { fetchServerJson } from "../server-request.js";
 import { showPopupToast } from "../popup/toast.js";
 import type {
   GitHubLookupState,
@@ -590,14 +590,16 @@ export function createPopupController() {
     }
 
     try {
-      const response = await fetch(`${config.SERVER_URL}/api/meegle/auth/status`, {
-        method: "POST",
-        headers: createServerRequestHeaders({ masterUserId }),
-        body: JSON.stringify({
+      const { response, payload: result } = await fetchServerJson<{
+        data?: MeegleAuthEnsureResponse;
+      }>({
+        url: `${config.SERVER_URL}/api/meegle/auth/status`,
+        masterUserId,
+        body: {
           masterUserId,
           meegleUserKey,
           baseUrl: authBaseUrl,
-        }),
+        },
       });
 
       if (!response.ok) {
@@ -608,11 +610,6 @@ export function createPopupController() {
           errorMessage: `Auth status request failed with ${response.status}.`,
         };
       }
-
-      const result = (await response.json()) as {
-        data?: MeegleAuthEnsureResponse;
-      };
-
       return (
         result.data || {
           status: "failed",

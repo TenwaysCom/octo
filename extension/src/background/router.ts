@@ -36,6 +36,7 @@ import {
   clearUpdateBadge,
   ignoreCurrentVersion,
 } from "./update-checker.js";
+import { fetchServerJson } from "../server-request.js";
 
 const routerLogger = createExtensionLogger("background:router");
 
@@ -81,20 +82,24 @@ async function postServerJson<TResponse>(
   path: string,
   body: unknown,
 ): Promise<TResponse> {
-  const response = await fetch(`${config.SERVER_URL}${path}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
-  const payload = await response.json() as TResponse & {
+  const masterUserId =
+    body != null
+    && typeof body === "object"
+    && "masterUserId" in body
+    && typeof body.masterUserId === "string"
+      ? body.masterUserId
+      : undefined;
+  const { response, payload } = await fetchServerJson<TResponse & {
     ok?: boolean;
     error?: {
       errorCode?: string;
       errorMessage?: string;
     };
-  };
+  }>({
+    url: `${config.SERVER_URL}${path}`,
+    masterUserId,
+    body,
+  });
 
   if (!response.ok || payload.ok === false) {
     throw new BackgroundActionError(

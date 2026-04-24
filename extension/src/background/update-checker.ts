@@ -1,7 +1,8 @@
 import { createExtensionLogger } from "../logger.js";
+import { fetchServerJson } from "../server-request.js";
 import type { ExtensionVersionInfo, UpdateCheckResult, UpdateState } from "../types/update.js";
 import type { ExtensionConfig } from "./config.js";
-import { getUpdateState, saveUpdateState } from "./storage.js";
+import { getStoredMasterUserId, getUpdateState, saveUpdateState } from "./storage.js";
 
 const updateLogger = createExtensionLogger("background:update-checker");
 
@@ -36,9 +37,14 @@ export async function checkForUpdate(config: ExtensionConfig): Promise<UpdateChe
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 2000);
-    const response = await fetch(`${config.SERVER_URL}/api/extension/version`, { signal: controller.signal });
+    const masterUserId = await getStoredMasterUserId();
+    const { payload } = await fetchServerJson<{ ok: boolean; data?: ExtensionVersionInfo }>({
+      url: `${config.SERVER_URL}/api/extension/version`,
+      method: "GET",
+      masterUserId,
+      signal: controller.signal,
+    });
     clearTimeout(timeoutId);
-    const payload = await response.json() as { ok: boolean; data?: ExtensionVersionInfo };
 
     if (!payload.ok || !payload.data) {
       return {

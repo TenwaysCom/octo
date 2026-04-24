@@ -1,5 +1,5 @@
 import { getConfig } from "../background/config.js";
-import { createServerRequestHeaders } from "../server-request.js";
+import { fetchServerJson } from "../server-request.js";
 import type { PopupLogLevel } from "../popup/types.js";
 
 export interface GitHubLookupWorkitem {
@@ -105,17 +105,15 @@ export function createGitHubLookupController(deps: CreateGitHubLookupControllerD
 
     try {
       const config = await getConfig();
-      const response = await fetch(`${config.SERVER_URL}/api/github/lookup-meegle`, {
-        method: "POST",
-        headers: createServerRequestHeaders({ masterUserId }),
-        body: JSON.stringify({ prUrl }),
-      });
-
-      const data = (await response.json()) as {
+      const { response, payload: data } = await fetchServerJson<{
         success: boolean;
         data?: GitHubLookupResult;
         error?: { code: string; message: string };
-      };
+      }>({
+        url: `${config.SERVER_URL}/api/github/lookup-meegle`,
+        masterUserId,
+        body: { prUrl },
+      });
 
       if (!response.ok || !data.success) {
         const errorCode = data.error?.code || "UNKNOWN_ERROR";

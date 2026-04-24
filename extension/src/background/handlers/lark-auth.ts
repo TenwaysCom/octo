@@ -11,7 +11,7 @@ import {
 } from "../../platform-url.js";
 import { getConfig } from "../config.js";
 import { createExtensionLogger } from "../../logger.js";
-import { createServerRequestHeaders } from "../../server-request.js";
+import { fetchServerJson } from "../../server-request.js";
 
 const larkAuthLogger = createExtensionLogger("background:lark-auth");
 
@@ -94,10 +94,10 @@ async function getAuthStatusFromServer(
   larkAuthLogger.info("Getting Lark auth status from server", { masterUserId: request.masterUserId, baseUrl: request.baseUrl });
 
   try {
-    const response = await fetch(`${config.SERVER_URL}/api/lark/auth/status`, {
-      method: "POST",
-      headers: createServerRequestHeaders({ masterUserId: request.masterUserId }),
-      body: JSON.stringify(request),
+    const { response, payload: result } = await fetchServerJson<LarkAuthStatusServerResponse>({
+      url: `${config.SERVER_URL}/api/lark/auth/status`,
+      masterUserId: request.masterUserId,
+      body: request,
     });
 
     if (!response.ok) {
@@ -111,7 +111,6 @@ async function getAuthStatusFromServer(
       };
     }
 
-    const result = await response.json() as LarkAuthStatusServerResponse;
     larkAuthLogger.info("Lark auth status received", { ok: result.ok, status: result.data?.status });
     return result;
   } catch (error) {
@@ -136,10 +135,10 @@ async function refreshLarkTokenOnServer(
   larkAuthLogger.info("Refreshing Lark token on server", { masterUserId: request.masterUserId, baseUrl: request.baseUrl });
 
   try {
-    const response = await fetch(`${config.SERVER_URL}/api/lark/auth/refresh`, {
-      method: "POST",
-      headers: createServerRequestHeaders({ masterUserId: request.masterUserId }),
-      body: JSON.stringify(request),
+    const { response, payload: result } = await fetchServerJson<LarkAuthStatusServerResponse>({
+      url: `${config.SERVER_URL}/api/lark/auth/refresh`,
+      masterUserId: request.masterUserId,
+      body: request,
     });
 
     if (!response.ok) {
@@ -153,7 +152,6 @@ async function refreshLarkTokenOnServer(
       };
     }
 
-    const result = await response.json() as LarkAuthStatusServerResponse;
     larkAuthLogger.info("Lark token refreshed", { ok: result.ok, status: result.data?.status });
     return result;
   } catch (error) {
@@ -179,10 +177,10 @@ async function createOauthSessionWithServer(
   larkAuthLogger.info("Creating Lark OAuth session", { masterUserId: request.masterUserId, baseUrl: request.baseUrl, state: request.state });
 
   try {
-    const response = await fetch(`${config.SERVER_URL}/api/lark/auth/session`, {
-      method: "POST",
-      headers: createServerRequestHeaders({ masterUserId: request.masterUserId }),
-      body: JSON.stringify(request),
+    const { response, payload: result } = await fetchServerJson<LarkAuthSessionServerResponse>({
+      url: `${config.SERVER_URL}/api/lark/auth/session`,
+      masterUserId: request.masterUserId,
+      body: request,
     });
 
     if (!response.ok) {
@@ -196,7 +194,6 @@ async function createOauthSessionWithServer(
       };
     }
 
-    const result = await response.json() as LarkAuthSessionServerResponse;
     larkAuthLogger.info("Lark OAuth session created", { ok: result.ok, state: result.data?.state });
     return result;
   } catch (error) {

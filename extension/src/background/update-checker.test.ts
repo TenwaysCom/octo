@@ -11,6 +11,7 @@ import { getUpdateState, saveUpdateState } from "./storage.js";
 vi.mock("./storage.js", () => ({
   getUpdateState: vi.fn(),
   saveUpdateState: vi.fn(),
+  getStoredMasterUserId: vi.fn(),
 }));
 
 const mockConfig = {
@@ -55,6 +56,8 @@ describe("checkForUpdate", () => {
   });
 
   it("detects a newer version and sets badge", async () => {
+    const { getStoredMasterUserId } = await import("./storage.js");
+    vi.mocked(getStoredMasterUserId).mockResolvedValue("usr_update");
     vi.mocked(getUpdateState).mockResolvedValue(null);
     vi.mocked(saveUpdateState).mockResolvedValue(undefined);
     vi.mocked(fetch).mockResolvedValueOnce({
@@ -97,6 +100,15 @@ describe("checkForUpdate", () => {
     expect(chrome.action.setBadgeText).toHaveBeenCalledWith({ text: "1" });
     expect(chrome.action.setBadgeBackgroundColor).toHaveBeenCalledWith({ color: "#FF0000" });
     expect(chrome.notifications.create).not.toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalledWith(
+      "https://example.com/api/extension/version",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          "Content-Type": "application/json",
+          "master-user-id": "usr_update",
+        }),
+      }),
+    );
   });
 
   it("shows notification when forceUpdate is true", async () => {

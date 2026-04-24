@@ -241,6 +241,49 @@ describe("background router lark_base workflow", () => {
     });
   });
 
+  it("sends master-user-id header when creating a meegle workitem", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: vi.fn().mockResolvedValue({
+        ok: true,
+        workitemId: "12345",
+        meegleLink: "https://project.larksuite.com/OPS/story/detail/12345",
+        recordId: "rec_base_001",
+      }),
+    } as unknown as Response);
+
+    await routeBackgroundAction(
+      {
+        action: "itdog.lark_base.create_workitem",
+        payload: {
+          masterUserId: "usr_header_expected",
+          pageType: "lark_base",
+          url: "https://tenant/base/app_xxx/table/tbl_xxx/record/rec_base_001",
+          baseId: "app_xxx",
+          tableId: "tbl_xxx",
+          recordId: "rec_base_001",
+          snapshot: {
+            title: "Base record",
+            fields: [],
+            larkUrl: "https://tenant/base/app_xxx/table/tbl_xxx/record/rec_base_001",
+          },
+        },
+      },
+      { senderTabId: 42 },
+    );
+
+    expect(fetch).toHaveBeenCalledWith(
+      "http://localhost:3000/api/lark-base/create-meegle-workitem",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          "Content-Type": "application/json",
+          "master-user-id": "usr_header_expected",
+        }),
+      }),
+    );
+  });
+
   it("forwards lark_base.bulk_preview_workitems to the preview endpoint and reads viewId from the tab url", async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,

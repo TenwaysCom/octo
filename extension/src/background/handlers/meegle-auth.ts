@@ -7,7 +7,7 @@ import type {
 import { normalizeMeegleAuthBaseUrl } from "../../platform-url.js";
 import { getConfig } from "../config.js";
 import { createExtensionLogger } from "../../logger.js";
-import { createServerRequestHeaders } from "../../server-request.js";
+import { fetchServerJson } from "../../server-request.js";
 
 const meegleAuthLogger = createExtensionLogger("background:meegle-auth");
 
@@ -148,30 +148,27 @@ async function exchangeAuthCodeWithServer(
 
     logBgFlow("SERVER_EXCHANGE", "START", { serverUrl, requestId: request.requestId, masterUserId: request.masterUserId, meegleUserKey: request.meegleUserKey, baseUrl: request.baseUrl });
 
-    const response = await fetch(`${config.SERVER_URL}/api/meegle/auth/exchange`, {
-      method: "POST",
-      headers: createServerRequestHeaders({ masterUserId: request.masterUserId }),
-      body: JSON.stringify({
-        requestId: request.requestId,
-        masterUserId: request.masterUserId,
-        meegleUserKey: request.meegleUserKey,
-        baseUrl: request.baseUrl,
-        authCode,
-        state: request.state,
-      }),
+    const requestBody = {
+      requestId: request.requestId,
+      masterUserId: request.masterUserId,
+      meegleUserKey: request.meegleUserKey,
+      baseUrl: request.baseUrl,
+      authCode,
+      state: request.state,
+    };
+    const { response, payload: result } = await fetchServerJson<MeegleAuthExchangeResponse>({
+      url: `${config.SERVER_URL}/api/meegle/auth/exchange`,
+      masterUserId: request.masterUserId,
+      body: requestBody,
     });
 
     const parseErrorResponse = async (): Promise<MeegleAuthExchangeResponse> => {
-      try {
-        const errorResult = (await response.json()) as MeegleAuthExchangeResponse;
-        if (errorResult?.error?.errorMessage) {
-          return errorResult;
-        }
-      } catch {
-        // Fall through to generic error body.
+      if (result?.error?.errorMessage) {
+        return result;
       }
 
       return {
+        requestId: request.requestId,
         ok: false,
         error: {
           errorCode: "MEEGLE_AUTH_CODE_EXCHANGE_FAILED",
@@ -193,7 +190,6 @@ async function exchangeAuthCodeWithServer(
       return errorResult;
     }
 
-    const result = (await response.json()) as MeegleAuthExchangeResponse;
     logBgFlow("SERVER_EXCHANGE", result?.ok ? "OK" : "FAIL", { serverUrl, requestId: request.requestId, baseUrl: request.baseUrl, responseOk: result?.ok, tokenStatus: result?.data?.tokenStatus, error: result?.error });
     return result;
   } catch (error) {

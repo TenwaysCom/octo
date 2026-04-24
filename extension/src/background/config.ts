@@ -5,6 +5,8 @@
  * Use chrome.storage.sync.set({ MEEGLE_PLUGIN_ID: 'xxx' }) to configure.
  */
 
+import { fetchServerJson } from "../server-request.js";
+
 export interface ExtensionConfig {
   MEEGLE_PLUGIN_ID: string;
   LARK_APP_ID: string;
@@ -66,12 +68,14 @@ export async function getConfig(): Promise<ExtensionConfig> {
   });
 
   try {
-    const response = await fetch(`${storedConfig.SERVER_URL}/api/config/public`);
+    const { response, payload } = await fetchServerJson<PublicConfigResponse>({
+      url: `${storedConfig.SERVER_URL}/api/config/public`,
+      method: "GET",
+    });
     if (!response.ok) {
       return storedConfig;
     }
 
-    const payload = await response.json() as PublicConfigResponse;
     if (!payload.ok) {
       return storedConfig;
     }
