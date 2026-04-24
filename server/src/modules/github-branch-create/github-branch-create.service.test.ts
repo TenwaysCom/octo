@@ -93,6 +93,14 @@ describe("github-branch-create service", () => {
       const name = generateDefaultBranchName("12345", longTitle, false);
       expect(name.length).toBeLessThanOrEqual(50);
     });
+
+    it("should keep meaningful slug content for chinese titles", () => {
+      const name = generateDefaultBranchName("8692984", "科目必录字段", false);
+      expect(name.startsWith("feat/")).toBe(true);
+      expect(name.includes("m-8692984")).toBe(true);
+      expect(name).not.toBe("feat/20260424-m-8692984");
+      expect(name.length).toBeLessThanOrEqual(50);
+    });
   });
 
   describe("previewBranchCreate", () => {

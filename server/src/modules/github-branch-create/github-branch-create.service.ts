@@ -14,6 +14,7 @@ import { refreshCredential } from "../../application/services/meegle-credential.
 import { getConfiguredMeegleAuthServiceDeps } from "../../modules/meegle-auth/meegle-auth.service.js";
 import { getResolvedUserStore } from "../../adapters/postgres/resolved-user-store.js";
 import { logger } from "../../logger.js";
+import { pinyin } from "pinyin-pro";
 
 const branchLogger = logger.child({ module: "github-branch-create-service" });
 
@@ -231,7 +232,13 @@ function parseSystemCandidates(rawValue: string): Array<{ systemValue: string; s
 }
 
 function slugifyTitle(title: string): string {
-  return title
+  const transliterated = pinyin(title, {
+    toneType: "none",
+    type: "array",
+    nonZh: "consecutive",
+  }).join(" ");
+
+  return transliterated
     .toLowerCase()
     .replace(/[^a-z0-9\s-]/g, "")
     .replace(/\s+/g, "-")
