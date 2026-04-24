@@ -128,6 +128,46 @@ describe("github-branch-create service", () => {
       expect(result.systemLabel).toBe("Odoo");
     });
 
+    it("should prefer the child option when production bug returns a tree_select object", async () => {
+      mockCreateMeegleClient.mockResolvedValue({
+        getWorkitemDetails: vi.fn(() =>
+          Promise.resolve([
+            {
+              id: "11237978",
+              key: "BUG-2",
+              name: "Production bug",
+              type: "production_bug",
+              status: "Open",
+              fields: {
+                field_4976fc: {
+                  value: "cyvssley1",
+                  label: "Odoo",
+                  children: {
+                    value: "76xrqgsmz",
+                    label: "Odoo US",
+                    children: null,
+                  },
+                },
+              },
+            },
+          ])
+        ),
+      } as unknown as Awaited<ReturnType<typeof createMeegleClient>>);
+
+      const result = await previewBranchCreate({
+        projectKey: "test",
+        workItemTypeKey: "production_bug",
+        workItemId: "11237978",
+        masterUserId: "user-1",
+        baseUrl: "https://project.larksuite.com",
+      });
+
+      expect(result.ok).toBe(true);
+      expect(result.repo).toBe("TWS-lance/odoo_tenways");
+      expect(result.systemValue).toBe("76xrqgsmz");
+      expect(result.systemLabel).toBe("Odoo US");
+    });
+
     it("should return preview for story using the current system field key", async () => {
       mockCreateMeegleClient.mockResolvedValue({
         getWorkitemDetails: vi.fn(() =>
@@ -161,6 +201,38 @@ describe("github-branch-create service", () => {
       expect(result.repo).toBe("TenwaysCom/Tenways");
       expect(result.systemValue).toBe("ihib59zp4");
       expect(result.systemLabel).toBe("Odoo EU");
+    });
+
+    it("should return preview for story using the new odoo us option id", async () => {
+      mockCreateMeegleClient.mockResolvedValue({
+        getWorkitemDetails: vi.fn(() =>
+          Promise.resolve([
+            {
+              id: "8692984",
+              key: "STORY-1",
+              name: "Story workitem",
+              type: "story",
+              status: "Open",
+              fields: {
+                field_0dba3a: "8h79nr2_o",
+              },
+            },
+          ])
+        ),
+      } as unknown as Awaited<ReturnType<typeof createMeegleClient>>);
+
+      const result = await previewBranchCreate({
+        projectKey: "test",
+        workItemTypeKey: "story",
+        workItemId: "8692984",
+        masterUserId: "user-1",
+        baseUrl: "https://project.larksuite.com",
+      });
+
+      expect(result.ok).toBe(true);
+      expect(result.repo).toBe("TWS-lance/odoo_tenways");
+      expect(result.systemValue).toBe("8h79nr2_o");
+      expect(result.systemLabel).toBe("Odoo US");
     });
 
     it("should return preview for Odoo EU system", async () => {

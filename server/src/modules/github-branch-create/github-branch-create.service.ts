@@ -28,6 +28,9 @@ const SYSTEM_REPO_MAP: Record<string, string> = {
   ihib59zp4: "TenwaysCom/Tenways",      // Odoo EU
   wjuvtyuqx: "TenwaysCom/tenways-ukk",  // Odoo UK
   "76xrqgsmz": "TWS-lance/odoo_tenways", // Odoo US
+  f9m7hf4o5: "TenwaysCom/Tenways",       // Odoo EU (new story field)
+  pbn35bnap: "TenwaysCom/tenways-ukk",   // Odoo UK (new story field)
+  "8h79nr2_o": "TWS-lance/odoo_tenways", // Odoo US (new story field)
 };
 
 const SYSTEM_LABEL_MAP: Record<string, string> = {
@@ -35,6 +38,9 @@ const SYSTEM_LABEL_MAP: Record<string, string> = {
   ihib59zp4: "Odoo EU",
   wjuvtyuqx: "Odoo UK",
   "76xrqgsmz": "Odoo US",
+  f9m7hf4o5: "Odoo EU",
+  pbn35bnap: "Odoo UK",
+  "8h79nr2_o": "Odoo US",
   ebzvt6did: "Portal",
   "9nvjyudq5": "Portal EU",
   zxw12oyz6: "Portal UK",
@@ -121,6 +127,71 @@ function getFieldValue(workitem: { fields: Record<string, unknown> }, key: strin
   }
 
   return undefined;
+}
+
+function parseSystemObjectCandidates(
+  value: unknown,
+): Array<{ systemValue: string; systemLabel: string }> {
+  if (!value || typeof value !== "object") {
+    return [];
+  }
+
+  const obj = value as Record<string, unknown>;
+  const childCandidates = parseSystemObjectCandidates(obj.children);
+  const currentValue = typeof obj.value === "string" ? obj.value : undefined;
+  const currentLabel =
+    typeof obj.label === "string"
+      ? obj.label
+      : currentValue
+        ? (SYSTEM_LABEL_MAP[currentValue] || currentValue)
+        : undefined;
+  const currentCandidate =
+    currentValue && currentLabel
+      ? [{ systemValue: currentValue, systemLabel: currentLabel }]
+      : [];
+
+  return [...childCandidates, ...currentCandidate];
+}
+
+function getFieldSystemCandidates(
+  workitem: { fields: Record<string, unknown> },
+  key: string,
+): Array<{ systemValue: string; systemLabel: string }> {
+  const directValue = workitem.fields[key];
+  if (typeof directValue === "string") {
+    return parseSystemCandidates(directValue);
+  }
+  if (directValue && typeof directValue === "object") {
+    const directCandidates = parseSystemObjectCandidates(directValue);
+    if (directCandidates.length > 0) {
+      return directCandidates;
+    }
+  }
+
+  const fieldValuePairs = workitem.fields.fields;
+  if (Array.isArray(fieldValuePairs)) {
+    const pair = fieldValuePairs.find(
+      (p: unknown) =>
+        p &&
+        typeof p === "object" &&
+        (p as Record<string, unknown>).field_key === key,
+    ) as Record<string, unknown> | undefined;
+
+    if (pair) {
+      const fv = pair.field_value;
+      if (typeof fv === "string") {
+        return parseSystemCandidates(fv);
+      }
+      if (fv && typeof fv === "object") {
+        const pairCandidates = parseSystemObjectCandidates(fv);
+        if (pairCandidates.length > 0) {
+          return pairCandidates;
+        }
+      }
+    }
+  }
+
+  return [];
 }
 
 export function parseSystemValue(rawValue: string): { systemValue: string; systemLabel: string } | null {
@@ -289,30 +360,39 @@ export async function previewBranchCreate(
   const workitem = workitems[0];
   const systemFieldKeys = getSystemFieldKeys(input.workItemTypeKey);
   const systemField = systemFieldKeys
-    .map((key) => ({ key, value: getFieldValue(workitem, key) }))
-    .find((candidate) => Boolean(candidate.value));
+    .map((key) => ({
+      key,
+      value: getFieldValue(workitem, key),
+      candidates: getFieldSystemCandidates(workitem, key),
+    }))
+    .find((candidate) => Boolean(candidate.value) || candidate.candidates.length > 0);
   const rawSystemValue = systemField?.value;
+  const systemCandidates = systemField?.candidates ?? [];
 
   branchLogger.debug(
     {
       systemFieldKeys,
       systemFieldKey: systemField?.key,
       rawSystemValue,
+      systemCandidates,
     },
     "BRANCH_PREVIEW_SYSTEM_RAW",
   );
 
-  if (!rawSystemValue) {
+  if (!rawSystemValue && systemCandidates.length === 0) {
     throw new Error("该工作项未设置 System 字段，无法确定目标 GitHub 仓库。");
   }
 
-  const systemCandidates = parseSystemCandidates(rawSystemValue);
-  if (systemCandidates.length === 0) {
+  const resolvedCandidates =
+    systemCandidates.length > 0
+      ? systemCandidates
+      : parseSystemCandidates(rawSystemValue || "");
+  if (resolvedCandidates.length === 0) {
     throw new Error(`无法解析 System 字段值: ${rawSystemValue}`);
   }
-  const systemParsed = systemCandidates.find((candidate) => SYSTEM_REPO_MAP[candidate.systemValue]);
+  const systemParsed = resolvedCandidates.find((candidate) => SYSTEM_REPO_MAP[candidate.systemValue]);
   if (!systemParsed) {
-    const primaryCandidate = systemCandidates[0];
+    const primaryCandidate = resolvedCandidates[0];
     const knownSystems = Object.values(SYSTEM_REPO_MAP)
       .map((r) => r.split("/")[1])
       .join(", ");
