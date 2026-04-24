@@ -150,6 +150,9 @@ export async function downloadUpdate(versionInfo: ExtensionVersionInfo): Promise
           reject(new Error("Download failed: no download ID returned"));
           return;
         }
+        chrome.tabs.create({
+          url: "chrome://extensions/",
+        });
         resolve();
       },
     );

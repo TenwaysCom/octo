@@ -60,6 +60,7 @@ vi.mock("../popup/kimi-chat-client.js", () => ({
   createKimiChatClient: vi.fn(() => kimiChatClientMock),
 }));
 
+import { createMeegleAuthController } from "../popup/meegle-auth.js";
 import { createPopupController } from "./popup-controller";
 
 describe("popup controller", () => {
@@ -481,6 +482,16 @@ describe("popup controller", () => {
     controller.dispose();
   });
 
+  it("wires meegle auth to check existing server status before reauthorizing", async () => {
+    createPopupController();
+
+    expect(vi.mocked(createMeegleAuthController)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        getExistingStatus: expect.any(Function),
+      }),
+    );
+  });
+
   it("keeps snapshots detached and updates settings only through controller methods", () => {
     const controller = createPopupController();
     const firstSnapshot = controller.getState();
@@ -645,14 +656,11 @@ describe("popup controller", () => {
       action: "itdog.update.download",
       payload: {
         versionInfo: {
-          hasUpdate: true,
-          currentVersion: "1.0.0",
-          latestVersion: "1.1.0",
+          version: "1.1.0",
           releaseNotes: "New features",
           downloadUrl: "https://example.com/update.zip",
           forceUpdate: false,
-          ignoredVersion: null,
-          dismissedAt: null,
+          minVersion: "1.0.0",
         },
       },
     });

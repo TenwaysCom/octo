@@ -276,6 +276,22 @@ describe("downloadUpdate", () => {
       expect.any(Function),
     );
   });
+
+  it("opens the extension install page after the download starts", async () => {
+    const versionInfo = {
+      version: "0.7.0",
+      downloadUrl: "https://example.com/tenways-octo-0.7.0-chrome.zip",
+      releaseNotes: "Bug fixes",
+      forceUpdate: false,
+      minVersion: "0.6.0",
+    };
+
+    await downloadUpdate(versionInfo);
+
+    expect(chrome.tabs.create).toHaveBeenCalledWith({
+      url: "chrome://extensions/",
+    });
+  });
 });
 
 describe("clearUpdateBadge", () => {

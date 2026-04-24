@@ -9,6 +9,7 @@ import type {
   KimiChatTranscriptEntry,
 } from "../types/acp-kimi.js";
 import type { UpdateState } from "../types/update.js";
+import type { ExtensionVersionInfo } from "../types/update.js";
 import {
   clearResolvedIdentity,
   clearResolvedIdentityForTab,
@@ -537,6 +538,7 @@ export function createPopupController() {
     };
 
     meegleAuthControllerRef.current = createMeegleAuthController({
+      getExistingStatus: checkMeegleAuth,
       sendMessage: runMeegleAuthRequest,
       setStatus: () => {
         // React derives status display from state.
@@ -1427,9 +1429,16 @@ export function createPopupController() {
   async function downloadUpdate(): Promise<void> {
     const store = readStore();
     if (store.update?.downloadUrl) {
+      const versionInfo: ExtensionVersionInfo = {
+        version: store.update.latestVersion,
+        releaseNotes: store.update.releaseNotes,
+        downloadUrl: store.update.downloadUrl,
+        forceUpdate: store.update.forceUpdate,
+        minVersion: store.update.currentVersion,
+      };
       await chrome.runtime.sendMessage({
         action: "itdog.update.download",
-        payload: { versionInfo: store.update },
+        payload: { versionInfo },
       });
     }
   }
