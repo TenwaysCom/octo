@@ -329,7 +329,13 @@ function initMeegleContentScript() {
   meegleCsLogger.info("Meegle content script initialized");
 
   // Inject floating sidebar trigger on Meegle pages
-  const meegleSidebar = injectSidebar();
+  const meegleIdentity = getMeegleUserIdentity();
+  const meegleSidebar = injectSidebar({
+    hostPageType: "meegle",
+    hostUrl: typeof window !== "undefined" ? window.location.href : undefined,
+    hostOrigin: typeof window !== "undefined" ? window.location.origin : undefined,
+    meegleUserKey: meegleIdentity.userKey ?? undefined,
+  });
 
   meegleTestingTarget.__TENWAYS_MEEGLE_TESTING__ = {
     getMeegleUserIdentity,

@@ -18,6 +18,7 @@ import {
   getConfig,
   getLarkAuthStatus,
   refreshLarkAuthStatus,
+  queryActiveTabContext,
   resolveIdentityRequest,
   runMeegleLarkPushRequest,
   loadPopupSettings,
@@ -129,6 +130,36 @@ describe("popup runtime settings", () => {
         }),
       ]),
     );
+  });
+
+  it("prefers injected sidebar host context while still using the runtime tab id", async () => {
+    vi.stubGlobal("location", {
+      href: "chrome-extension://test/sidebar-popup.html?hostPageType=lark&hostUrl=https%3A%2F%2Fnsghpcq7ar4z.sg.larksuite.com%2Frecord%2FJfrhrMSAHeNRowcqTTclnyteg0c&hostOrigin=https%3A%2F%2Fnsghpcq7ar4z.sg.larksuite.com&larkUserId=ou_sidebar_host",
+    });
+
+    vi.mocked(chrome.runtime.sendMessage).mockImplementation((...args) => {
+      const maybeCallback = args[args.length - 1] as
+        | ((response?: unknown) => void)
+        | undefined;
+      maybeCallback?.({
+        payload: {
+          id: 88,
+          url: "chrome-extension://popup/sidebar-popup.html",
+        },
+      });
+      return undefined as never;
+    });
+
+    await expect(queryActiveTabContext()).resolves.toEqual({
+      id: 88,
+      url: "https://nsghpcq7ar4z.sg.larksuite.com/record/JfrhrMSAHeNRowcqTTclnyteg0c",
+      origin: "https://nsghpcq7ar4z.sg.larksuite.com",
+      pageType: "lark",
+      larkUserId: "ou_sidebar_host",
+      meegleUserKey: undefined,
+    });
+
+    vi.unstubAllGlobals();
   });
 
   it("logs identity resolve requests and responses for diagnosis", async () => {

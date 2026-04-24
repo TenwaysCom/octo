@@ -29,6 +29,68 @@ describe("background router lark_base workflow", () => {
     vi.clearAllMocks();
   });
 
+  it("falls back to the current active tab when query_active_tab_context has no sender tab", async () => {
+    expect(runtimeMessageListener).toBeTypeOf("function");
+    vi.mocked(chrome.tabs.query).mockImplementation((queryInfo, callback) => {
+      expect(queryInfo).toEqual({ active: true, currentWindow: true });
+      callback?.([
+        {
+          id: 321,
+          url: "https://nsghpcq7ar4z.sg.larksuite.com/record/JfrhrMSAHeNRowcqTTclnyteg0c",
+        } as chrome.tabs.Tab,
+      ]);
+      return undefined as never;
+    });
+
+    await new Promise<void>((resolve) => {
+      runtimeMessageListener?.(
+        {
+          action: "itdog.query_active_tab_context",
+          payload: {},
+        },
+        {} as never,
+        (response: unknown) => {
+          expect(response).toEqual({
+            action: "itdog.query_active_tab_context",
+            payload: {
+              id: 321,
+              url: "https://nsghpcq7ar4z.sg.larksuite.com/record/JfrhrMSAHeNRowcqTTclnyteg0c",
+            },
+          });
+          resolve();
+        },
+      );
+    });
+  });
+
+  it("returns null tab context when query_active_tab_context cannot find an active tab", async () => {
+    expect(runtimeMessageListener).toBeTypeOf("function");
+    vi.mocked(chrome.tabs.query).mockImplementation((_queryInfo, callback) => {
+      callback?.([]);
+      return undefined as never;
+    });
+
+    await new Promise<void>((resolve) => {
+      runtimeMessageListener?.(
+        {
+          action: "itdog.query_active_tab_context",
+          payload: {},
+        },
+        {} as never,
+        (response: unknown) => {
+          expect(response).toEqual({
+            action: "itdog.query_active_tab_context",
+            payload: {
+              id: null,
+              url: null,
+            },
+          });
+          resolve();
+        },
+      );
+    });
+  });
+
   it("forwards lark_base.create_workitem to the server endpoint", async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,

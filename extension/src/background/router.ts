@@ -256,13 +256,28 @@ export async function routeBackgroundAction(
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "itdog.query_active_tab_context") {
     const tab = sender.tab;
-    sendResponse({
-      action: message.action,
-      payload: {
-        id: tab?.id ?? null,
-        url: tab?.url ?? null,
-      },
+    if (tab?.id != null || tab?.url) {
+      sendResponse({
+        action: message.action,
+        payload: {
+          id: tab?.id ?? null,
+          url: tab?.url ?? null,
+        },
+      });
+      return true;
+    }
+
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const activeTab = tabs?.[0];
+      sendResponse({
+        action: message.action,
+        payload: {
+          id: activeTab?.id ?? null,
+          url: activeTab?.url ?? null,
+        },
+      });
     });
+
     return true;
   }
 

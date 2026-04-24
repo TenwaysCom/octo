@@ -17,6 +17,9 @@ describe("sidebar-injector", () => {
     const panel = host?.shadowRoot?.querySelector(".octo-sidebar-panel");
     expect(panel).not.toBeNull();
 
+    const iframe = host?.shadowRoot?.querySelector(".octo-sidebar-iframe") as HTMLIFrameElement | null;
+    expect(iframe?.getAttribute("src")).toBe("sidebar-popup.html");
+
     const backdrop = host?.shadowRoot?.querySelector(".octo-sidebar-backdrop");
     expect(backdrop).not.toBeNull();
 
@@ -103,5 +106,25 @@ describe("sidebar-injector", () => {
     handle.destroy();
 
     expect(document.getElementById("tenways-octo-sidebar-host")).toBeNull();
+  });
+
+  it("passes host context into the sidebar popup url when provided", () => {
+    const handle = injectSidebar({
+      hostPageType: "lark",
+      hostUrl: "https://nsghpcq7ar4z.sg.larksuite.com/record/JfrhrMSAHeNRowcqTTclnyteg0c",
+      hostOrigin: "https://nsghpcq7ar4z.sg.larksuite.com",
+      larkUserId: "ou_sidebar_host",
+    });
+
+    const host = document.getElementById("tenways-octo-sidebar-host");
+    const iframe = host?.shadowRoot?.querySelector(".octo-sidebar-iframe") as HTMLIFrameElement | null;
+    const iframeUrl = iframe?.getAttribute("src");
+
+    expect(iframeUrl).toContain("sidebar-popup.html?");
+    expect(iframeUrl).toContain("hostPageType=lark");
+    expect(iframeUrl).toContain("hostOrigin=https%3A%2F%2Fnsghpcq7ar4z.sg.larksuite.com");
+    expect(iframeUrl).toContain("larkUserId=ou_sidebar_host");
+
+    handle.destroy();
   });
 });

@@ -262,6 +262,28 @@ describe("usePopupApp React hook", () => {
     expect(result.current.larkStatus.text).toContain("已授权");
   });
 
+  it("still resolves auth state when the current page is unsupported", async () => {
+    runtimeMock.queryActiveTabContext.mockResolvedValueOnce({
+      id: 12,
+      url: "https://example.com/unsupported",
+      origin: "https://example.com",
+      pageType: "unsupported",
+    });
+
+    const { result } = renderHook(() => usePopupApp());
+
+    await act(async () => {
+      await result.current.initialize();
+    });
+
+    expect(result.current.state.pageType).toBe("unsupported");
+    expect(result.current.state.identity.masterUserId).toBe("usr_resolved");
+    expect(result.current.state.isAuthed.lark).toBe(true);
+    expect(result.current.state.isAuthed.meegle).toBe(true);
+    expect(result.current.meegleStatus.text).toContain("已授权");
+    expect(result.current.larkStatus.text).toContain("已授权");
+  });
+
   it("opens Kimi chat on analyze and resets the active chat on a second analyze", async () => {
     const { result } = renderHook(() => usePopupApp());
 

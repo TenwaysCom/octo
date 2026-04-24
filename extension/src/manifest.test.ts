@@ -32,11 +32,13 @@ describe("extension manifest", () => {
   it("injects the GitHub content script and exposes popup resources on github.com", () => {
     const manifestPath = path.resolve(import.meta.dirname, "../manifest.json");
     const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8")) as {
+      action?: { default_popup?: string };
       host_permissions?: string[];
       content_scripts?: Array<{ matches?: string[] }>;
       web_accessible_resources?: Array<{ resources?: string[]; matches?: string[] }>;
     };
 
+    expect(manifest.action?.default_popup).toBe("popup.html");
     expect(manifest.host_permissions).toContain("https://github.com/*");
 
     const githubContentScript = manifest.content_scripts?.find((entry) =>
@@ -49,7 +51,7 @@ describe("extension manifest", () => {
       entry.resources?.includes("icons/*"),
     );
     const githubPopup = manifest.web_accessible_resources?.find((entry) =>
-      entry.resources?.includes("popup.html"),
+      entry.resources?.includes("sidebar-popup.html"),
     );
 
     expect(githubIcons?.matches).toContain("https://github.com/*");

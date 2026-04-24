@@ -13,5 +13,9 @@ export function isGitHubPullRequestPage(url: string): boolean {
 }
 
 if (typeof window !== "undefined" && isGitHubPullRequestPage(window.location.href)) {
-  injectSidebar();
+  injectSidebar({
+    hostPageType: "github",
+    hostUrl: window.location.href,
+    hostOrigin: window.location.origin,
+  });
 }

@@ -1,6 +1,14 @@
 const SIDEBAR_HOST_ID = "tenways-octo-sidebar-host";
 const SIDEBAR_Z_INDEX = "2147483646";
 
+export interface SidebarHostContext {
+  hostPageType?: "lark" | "meegle" | "github";
+  hostUrl?: string;
+  hostOrigin?: string;
+  larkUserId?: string;
+  meegleUserKey?: string;
+}
+
 export type SidebarInjectorHandle = {
   open(): void;
   close(): void;
@@ -34,11 +42,37 @@ function getIconUrl(): string {
   return "";
 }
 
-function getPopupUrl(): string {
-  if (typeof chrome !== "undefined" && chrome.runtime?.getURL) {
-    return chrome.runtime.getURL("popup.html");
+function getPopupUrl(context?: SidebarHostContext): string {
+  const target = "sidebar-popup.html";
+  const params = new URLSearchParams();
+
+  if (context?.hostPageType) {
+    params.set("hostPageType", context.hostPageType);
   }
-  return "popup.html";
+
+  if (context?.hostUrl) {
+    params.set("hostUrl", context.hostUrl);
+  }
+
+  if (context?.hostOrigin) {
+    params.set("hostOrigin", context.hostOrigin);
+  }
+
+  if (context?.larkUserId) {
+    params.set("larkUserId", context.larkUserId);
+  }
+
+  if (context?.meegleUserKey) {
+    params.set("meegleUserKey", context.meegleUserKey);
+  }
+
+  const search = params.toString();
+  const resolvedTarget = search ? `${target}?${search}` : target;
+
+  if (typeof chrome !== "undefined" && chrome.runtime?.getURL) {
+    return chrome.runtime.getURL(resolvedTarget);
+  }
+  return resolvedTarget;
 }
 
 function createStyles(): string {
@@ -210,7 +244,7 @@ function createTriggerButton(): HTMLButtonElement {
   return btn;
 }
 
-function createSidebarPanel(): { root: HTMLDivElement; backdrop: HTMLDivElement; panel: HTMLDivElement; iframe: HTMLIFrameElement; closeBtn: HTMLButtonElement } {
+function createSidebarPanel(context?: SidebarHostContext): { root: HTMLDivElement; backdrop: HTMLDivElement; panel: HTMLDivElement; iframe: HTMLIFrameElement; closeBtn: HTMLButtonElement } {
   const root = document.createElement("div");
   root.className = "octo-sidebar-root";
 
@@ -240,7 +274,7 @@ function createSidebarPanel(): { root: HTMLDivElement; backdrop: HTMLDivElement;
 
   const iframe = document.createElement("iframe");
   iframe.className = "octo-sidebar-iframe";
-  iframe.src = getPopupUrl();
+  iframe.src = getPopupUrl(context);
   iframe.setAttribute("allow", "clipboard-write");
   panel.appendChild(iframe);
 
@@ -249,7 +283,7 @@ function createSidebarPanel(): { root: HTMLDivElement; backdrop: HTMLDivElement;
   return { root, backdrop, panel, iframe, closeBtn };
 }
 
-export function injectSidebar(): SidebarInjectorHandle {
+export function injectSidebar(context?: SidebarHostContext): SidebarInjectorHandle {
   const host = ensureShadowHost();
   let shadow = host.shadowRoot;
   if (!shadow) {
@@ -264,7 +298,7 @@ export function injectSidebar(): SidebarInjectorHandle {
   shadow.appendChild(style);
 
   const trigger = createTriggerButton();
-  const { root: sidebarRoot, backdrop, panel, closeBtn } = createSidebarPanel();
+  const { root: sidebarRoot, backdrop, panel, closeBtn } = createSidebarPanel(context);
   shadow.appendChild(trigger);
   shadow.appendChild(sidebarRoot);
 

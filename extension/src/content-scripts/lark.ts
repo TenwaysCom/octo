@@ -24,7 +24,12 @@ const larkTestingTarget = globalThis as typeof globalThis & {
 runtime.initLarkContentScript();
 
 // Inject floating sidebar trigger on Lark pages
-const larkSidebar = injectSidebar();
+const larkSidebar = injectSidebar({
+  hostPageType: "lark",
+  hostUrl: typeof window !== "undefined" ? window.location.href : undefined,
+  hostOrigin: typeof window !== "undefined" ? window.location.origin : undefined,
+  larkUserId: runtime.getLarkUserId() ?? undefined,
+});
 
 larkTestingTarget.__TENWAYS_LARK_TESTING__ = {
   detectLarkPageContext: runtime.detectLarkPageContext,

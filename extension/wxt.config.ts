@@ -1,5 +1,11 @@
+import fs from "node:fs";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "wxt";
+
+const { version: extensionVersion } = JSON.parse(
+  fs.readFileSync(new URL("./package.json", import.meta.url), "utf8"),
+) as { version: string };
+const extensionName = `Tenways Octo ${extensionVersion}`;
 
 const chromiumProfile = process.env.WXT_CHROMIUM_PROFILE?.trim();
 const devPort = Number(process.env.WXT_DEV_PORT || 3000);
@@ -47,10 +53,10 @@ export default defineConfig({
       }
     : {
         disabled: true,
-      },
+  },
   manifest: {
-    name: "Tenways Octo 0.7.1",
-    version: "0.7.1",
+    name: extensionName,
+    version: extensionVersion,
     description: "跨平台协同助手 - Lark 到 Meegle 半自动建单工具",
     icons: {
       "16": "icons/icon-16.png",
@@ -87,7 +93,7 @@ export default defineConfig({
         ],
       },
       {
-        resources: ["popup.html"],
+        resources: ["sidebar-popup.html"],
         matches: [
           "https://*.feishu.cn/*",
           "https://*.larksuite.com/*",
