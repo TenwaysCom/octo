@@ -7,9 +7,9 @@
 
 // 配置凭据
 const config = {
+  ENV_NAME: 'prod',
   MEEGLE_PLUGIN_ID: 'MII_ABD86EEDB9E8CA36',
   LARK_APP_ID: 'cli_a9155c5fb1b99ed2',
-  SERVER_URL: 'https://octo.odoo.tenways.it:18443',
   MEEGLE_BASE_URL: 'https://project.larksuite.com',
 };
 

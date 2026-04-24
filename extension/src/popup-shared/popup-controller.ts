@@ -11,6 +11,10 @@ import type {
 import type { UpdateState } from "../types/update.js";
 import type { ExtensionVersionInfo } from "../types/update.js";
 import {
+  DEFAULT_CONFIG,
+  resolveServerUrl,
+} from "../background/config.js";
+import {
   clearResolvedIdentity,
   clearResolvedIdentityForTab,
   fetchLarkUserInfo,
@@ -197,7 +201,8 @@ type PopupIdentityCompatInput = Partial<PopupIdentityState>;
 
 function createDefaultSettingsForm(): PopupSettingsForm {
   return {
-    SERVER_URL: "https://octo.odoo.tenways.it:18443",
+    ENV_NAME: DEFAULT_CONFIG.ENV_NAME,
+    SERVER_URL: DEFAULT_CONFIG.SERVER_URL,
     MEEGLE_PLUGIN_ID: "",
     LARK_OAUTH_CALLBACK_URL: "http://localhost:3000/api/lark/auth/callback",
     meegleUserKey: "",
@@ -921,14 +926,29 @@ export function createPopupController() {
         },
       }));
 
+      if (tabContext.larkUserId || tabContext.meegleUserKey) {
+        updateStore((previous) => ({
+          ...previous,
+          state: {
+            ...previous.state,
+            identity: {
+              ...previous.state.identity,
+              larkId: tabContext.larkUserId ?? previous.state.identity.larkId,
+              meegleUserKey: tabContext.meegleUserKey ?? previous.state.identity.meegleUserKey,
+            },
+          },
+        }));
+      }
+
       appendLog(
         "info",
         `检测到页面: ${tabContext.url || "(空)"} · 类型: ${tabContext.pageType}`,
       );
 
-      if (tabContext.pageType === "unsupported") {
+      const isUnsupportedPage = tabContext.pageType === "unsupported";
+
+      if (isUnsupportedPage) {
         appendLog("warn", "当前页面不支持");
-        return;
       }
 
       if (tabContext.pageType === "lark" && tabContext.id != null) {
@@ -972,7 +992,10 @@ export function createPopupController() {
       await hydrateLarkIdentityIfReady();
 
       const current = readStore();
-      if (!current.state.isAuthed.lark || !current.state.isAuthed.meegle) {
+      if (
+        !isUnsupportedPage
+        && (!current.state.isAuthed.lark || !current.state.isAuthed.meegle)
+      ) {
         updateStore((previous) => ({
           ...previous,
           activePage: "profile",
@@ -1187,13 +1210,23 @@ export function createPopupController() {
     key: TKey,
     value: PopupSettingsForm[TKey],
   ): void {
-    updateStore((previous) => ({
-      ...previous,
-      settingsForm: {
+    updateStore((previous) => {
+      const nextSettings = {
         ...previous.settingsForm,
         [key]: value,
-      },
-    }));
+      };
+
+      if (key === "ENV_NAME") {
+        nextSettings.SERVER_URL = resolveServerUrl({
+          envName: value,
+        });
+      }
+
+      return {
+        ...previous,
+        settingsForm: nextSettings,
+      };
+    });
   }
 
   function syncLegacyIdentityState(nextIdentity: PopupIdentityCompatInput): void {

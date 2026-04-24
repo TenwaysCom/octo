@@ -43,12 +43,22 @@ export function SettingsPage({
     >
       <div className="settings-page__form" data-test="settings-page">
         <label className="settings-page__field">
+          <span className="settings-page__label">Environment</span>
+          <select
+            value={form.ENV_NAME || "prod"}
+            className="settings-page__input"
+            onChange={handleFieldChange("ENV_NAME", onFormFieldChange)}
+          >
+            <option value="prod">prod</option>
+            <option value="test">test</option>
+          </select>
+        </label>
+        <label className="settings-page__field">
           <span className="settings-page__label">Server URL</span>
           <input
             value={form.SERVER_URL}
             className="settings-page__input"
-            placeholder="https://octo.odoo.tenways.it:18443"
-            onChange={handleFieldChange("SERVER_URL", onFormFieldChange)}
+            readOnly
           />
         </label>
         <label className="settings-page__field">
@@ -79,7 +89,7 @@ function handleFieldChange<TKey extends keyof PopupSettingsForm>(
   key: TKey,
   onFormFieldChange: (key: TKey, value: PopupSettingsForm[TKey]) => void,
 ) {
-  return (event: ChangeEvent<HTMLInputElement>) => {
+  return (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     onFormFieldChange(key, event.target.value as PopupSettingsForm[TKey]);
   };
 }

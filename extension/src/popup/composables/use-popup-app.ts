@@ -14,6 +14,7 @@ function clonePopupAppState(state: ReturnType<
 
 function cloneSettingsForm(settings: PopupSettingsForm): PopupSettingsForm {
   return {
+    ENV_NAME: settings.ENV_NAME,
     SERVER_URL: settings.SERVER_URL,
     MEEGLE_PLUGIN_ID: settings.MEEGLE_PLUGIN_ID,
     LARK_OAUTH_CALLBACK_URL: settings.LARK_OAUTH_CALLBACK_URL,

@@ -171,6 +171,7 @@ describe("usePopupApp notebook state", () => {
     runtimeMock.saveKimiChatTranscriptSnapshot.mockResolvedValue(undefined);
     runtimeMock.deleteKimiChatTranscriptSnapshot.mockResolvedValue(undefined);
     runtimeMock.loadPopupSettings.mockResolvedValue({
+      ENV_NAME: "prod",
       SERVER_URL: "http://localhost:3000",
       MEEGLE_PLUGIN_ID: "MII_PLUGIN",
       LARK_OAUTH_CALLBACK_URL: "http://localhost:3000/api/lark/auth/callback",
@@ -329,7 +330,8 @@ describe("usePopupApp notebook state", () => {
     expect(popup.headerSubtitle.value).toBe("Lark");
     popup.openSettings();
     expect(popup.headerSubtitle.value).toBe("设置");
-    popup.settingsForm.SERVER_URL = "http://changed.local";
+    popup.settingsForm.ENV_NAME = "test";
+    popup.settingsForm.SERVER_URL = "https://octotest.odoo.tenways.it:18443";
 
     popup.closeSettings();
 
@@ -343,12 +345,14 @@ describe("usePopupApp notebook state", () => {
 
     await popup.initialize();
     popup.openSettings();
-    popup.settingsForm.SERVER_URL = "http://saved.local";
+    popup.settingsForm.ENV_NAME = "test";
+    popup.settingsForm.SERVER_URL = "https://octotest.odoo.tenways.it:18443";
 
     await popup.saveSettingsForm();
 
     expect(runtimeMock.savePopupSettings).toHaveBeenCalledWith({
-      SERVER_URL: "http://saved.local",
+      ENV_NAME: "test",
+      SERVER_URL: "https://octotest.odoo.tenways.it:18443",
       MEEGLE_PLUGIN_ID: "MII_PLUGIN",
       LARK_OAUTH_CALLBACK_URL: "http://localhost:3000/api/lark/auth/callback",
       meegleUserKey: "7538275242901291040",
@@ -362,6 +366,7 @@ describe("usePopupApp notebook state", () => {
   it("reloads the latest server callback url from settings", async () => {
     runtimeMock.loadPopupSettings
       .mockResolvedValueOnce({
+        ENV_NAME: "prod",
         SERVER_URL: "http://localhost:3000",
         MEEGLE_PLUGIN_ID: "MII_PLUGIN",
         LARK_OAUTH_CALLBACK_URL: "http://localhost:3000/api/lark/auth/callback",
@@ -369,6 +374,7 @@ describe("usePopupApp notebook state", () => {
         larkUserId: "ou_user",
       })
       .mockResolvedValueOnce({
+        ENV_NAME: "prod",
         SERVER_URL: "http://localhost:3000",
         MEEGLE_PLUGIN_ID: "MII_PLUGIN",
         LARK_OAUTH_CALLBACK_URL: "http://localhost:3000/api/lark/auth/callback",
@@ -376,6 +382,7 @@ describe("usePopupApp notebook state", () => {
         larkUserId: "ou_user",
       })
       .mockResolvedValueOnce({
+        ENV_NAME: "prod",
         SERVER_URL: "http://localhost:3000",
         MEEGLE_PLUGIN_ID: "MII_PLUGIN",
         LARK_OAUTH_CALLBACK_URL: "https://example.ngrok-free.app/api/lark/auth/callback",

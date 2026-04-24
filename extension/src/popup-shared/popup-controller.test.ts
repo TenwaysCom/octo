@@ -75,6 +75,7 @@ describe("popup controller", () => {
       LARK_OAUTH_CALLBACK_URL: "http://localhost:3000/api/lark/auth/callback",
     });
     runtimeMock.loadPopupSettings.mockResolvedValue({
+      ENV_NAME: "prod",
       SERVER_URL: "http://localhost:3000",
       MEEGLE_PLUGIN_ID: "MII_PLUGIN",
       LARK_OAUTH_CALLBACK_URL: "http://localhost:3000/api/lark/auth/callback",
@@ -523,8 +524,8 @@ describe("popup controller", () => {
     await controller.initialize();
 
     controller.openSettings();
-    controller.updateSettingsFormField("SERVER_URL", "http://unsaved.local");
-    expect(controller.getState().settingsForm.SERVER_URL).toBe("http://unsaved.local");
+    controller.updateSettingsFormField("ENV_NAME", "test");
+    expect(controller.getState().settingsForm.SERVER_URL).toBe("https://octotest.odoo.tenways.it:18443");
 
     controller.closeSettings();
 

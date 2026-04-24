@@ -1,4 +1,7 @@
-import { DEFAULT_CONFIG, getConfig } from "../background/config.js";
+import {
+  DEFAULT_CONFIG,
+  getConfig,
+} from "../background/config.js";
 import {
   clearResolvedIdentity as clearStoredResolvedIdentity,
   clearResolvedIdentityForTab as clearStoredResolvedIdentityForTab,
@@ -61,6 +64,8 @@ export interface PopupTabContext {
   url: string | null;
   origin: string | null;
   pageType: PopupPageType;
+  larkUserId?: string;
+  meegleUserKey?: string;
 }
 
 export interface IdentityResolveResponse {
@@ -190,7 +195,50 @@ async function sendTabMessage<TPayload>(
   });
 }
 
+function readInjectedSidebarHostContext(): Partial<PopupTabContext> {
+  const locationHref = globalThis.location?.href;
+  if (!locationHref) {
+    return {};
+  }
+
+  try {
+    const parsed = new URL(locationHref);
+    const hostUrl = parsed.searchParams.get("hostUrl");
+    const hostOrigin = parsed.searchParams.get("hostOrigin");
+    const hostPageType = parsed.searchParams.get("hostPageType");
+    const larkUserId = parsed.searchParams.get("larkUserId");
+    const meegleUserKey = parsed.searchParams.get("meegleUserKey");
+
+    if (!hostUrl && !hostOrigin && !hostPageType && !larkUserId && !meegleUserKey) {
+      return {};
+    }
+
+    let pageType: PopupPageType = "unsupported";
+    if (
+      hostPageType === "lark"
+      || hostPageType === "meegle"
+      || hostPageType === "github"
+      || hostPageType === "unsupported"
+    ) {
+      pageType = hostPageType;
+    } else if (hostUrl) {
+      pageType = detectPopupPageType(hostUrl);
+    }
+
+    return {
+      url: hostUrl ?? null,
+      origin: hostOrigin ?? null,
+      pageType,
+      larkUserId: larkUserId || undefined,
+      meegleUserKey: meegleUserKey || undefined,
+    };
+  } catch {
+    return {};
+  }
+}
+
 export async function queryActiveTabContext(): Promise<PopupTabContext> {
+  const injectedContext = readInjectedSidebarHostContext();
   const response = await sendRuntimeMessage<{
     payload?: { id: number | null; url: string | null };
   }>({
@@ -199,6 +247,17 @@ export async function queryActiveTabContext(): Promise<PopupTabContext> {
   });
 
   if (response.error || !response.payload) {
+    if (injectedContext.url || injectedContext.origin || injectedContext.larkUserId || injectedContext.meegleUserKey) {
+      return {
+        id: null,
+        url: injectedContext.url ?? null,
+        origin: injectedContext.origin ?? null,
+        pageType: injectedContext.pageType ?? "unsupported",
+        larkUserId: injectedContext.larkUserId,
+        meegleUserKey: injectedContext.meegleUserKey,
+      };
+    }
+
     return {
       id: null,
       url: null,
@@ -223,16 +282,20 @@ export async function queryActiveTabContext(): Promise<PopupTabContext> {
 
     return {
       id: tabId ?? null,
-      url,
-      origin: parsed.origin,
-      pageType: detectPopupPageType(url),
+      url: injectedContext.url ?? url,
+      origin: injectedContext.origin ?? parsed.origin,
+      pageType: injectedContext.pageType ?? detectPopupPageType(injectedContext.url ?? url),
+      larkUserId: injectedContext.larkUserId,
+      meegleUserKey: injectedContext.meegleUserKey,
     };
   } catch {
     return {
       id: tabId ?? null,
-      url,
-      origin: null,
-      pageType: "unsupported",
+      url: injectedContext.url ?? url,
+      origin: injectedContext.origin ?? null,
+      pageType: injectedContext.pageType ?? "unsupported",
+      larkUserId: injectedContext.larkUserId,
+      meegleUserKey: injectedContext.meegleUserKey,
     };
   }
 }
@@ -930,6 +993,7 @@ export async function loadPopupSettings(): Promise<PopupSettingsForm> {
   const config = await getConfig();
 
   return {
+    ENV_NAME: config.ENV_NAME,
     SERVER_URL: config.SERVER_URL || DEFAULT_CONFIG.SERVER_URL,
     MEEGLE_PLUGIN_ID: config.MEEGLE_PLUGIN_ID || "",
     LARK_OAUTH_CALLBACK_URL:
@@ -986,7 +1050,7 @@ export async function savePopupSettings(
   await new Promise<void>((resolve) => {
     chromeApi.storage.sync.set(
       {
-        SERVER_URL: settings.SERVER_URL || DEFAULT_CONFIG.SERVER_URL,
+        ENV_NAME: settings.ENV_NAME || DEFAULT_CONFIG.ENV_NAME,
         MEEGLE_PLUGIN_ID: settings.MEEGLE_PLUGIN_ID,
       },
       () => resolve(),

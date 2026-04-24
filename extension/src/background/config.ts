@@ -8,6 +8,7 @@
 import { fetchServerJson } from "../server-request.js";
 
 export interface ExtensionConfig {
+  ENV_NAME: "prod" | "test";
   MEEGLE_PLUGIN_ID: string;
   LARK_APP_ID: string;
   LARK_OAUTH_CALLBACK_URL: string;
@@ -22,15 +23,42 @@ interface PublicConfigResponse {
   data?: Partial<Pick<ExtensionConfig, "MEEGLE_PLUGIN_ID" | "LARK_APP_ID" | "LARK_OAUTH_CALLBACK_URL" | "MEEGLE_BASE_URL" | "LARK_OAUTH_SCOPE" | "CLIENT_DEBUG_LOG_UPLOAD_ENABLED">>;
 }
 
+export const SERVER_URLS = {
+  prod: "https://octo.odoo.tenways.it:18443",
+  test: "https://octotest.odoo.tenways.it:18443",
+} as const;
+
+export type EnvironmentName = keyof typeof SERVER_URLS;
+
 export const DEFAULT_CONFIG: ExtensionConfig = {
+  ENV_NAME: "prod",
   MEEGLE_PLUGIN_ID: '',
   LARK_APP_ID: 'cli_a4b5c6d7e8f9', // TODO: Set via chrome.storage.sync.set
   LARK_OAUTH_CALLBACK_URL: 'http://localhost:3000/api/lark/auth/callback',
   LARK_OAUTH_SCOPE: 'offline_access contact:user.base:readonly bitable:app base:record:retrieve im:message.send_as_user im:message.reactions:write_only im:chat:readonly im:message',
   CLIENT_DEBUG_LOG_UPLOAD_ENABLED: false,
-  SERVER_URL: 'https://octo.odoo.tenways.it:18443',
+  SERVER_URL: SERVER_URLS.prod,
   MEEGLE_BASE_URL: 'https://project.larksuite.com',
 };
+
+export function isEnvironmentName(value: unknown): value is EnvironmentName {
+  return value === "prod" || value === "test";
+}
+
+export function resolveServerUrl(input: {
+  envName?: unknown;
+  serverUrl?: unknown;
+}): string {
+  if (isEnvironmentName(input.envName)) {
+    return SERVER_URLS[input.envName];
+  }
+
+  if (typeof input.serverUrl === "string" && input.serverUrl.trim()) {
+    return input.serverUrl.trim();
+  }
+
+  return SERVER_URLS.prod;
+}
 
 function trimOrUndefined(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
@@ -61,26 +89,35 @@ function mergePublicConfig(
 }
 
 export async function getConfig(): Promise<ExtensionConfig> {
-  const storedConfig = await new Promise<ExtensionConfig>((resolve) => {
-    chrome.storage.sync.get(DEFAULT_CONFIG, (result) => {
-      resolve(result as ExtensionConfig);
+  const storedValues = await new Promise<Partial<ExtensionConfig>>((resolve) => {
+    chrome.storage.sync.get(null, (result) => {
+      resolve((result ?? {}) as Partial<ExtensionConfig>);
     });
   });
+  const resolvedStoredConfig: ExtensionConfig = {
+    ...DEFAULT_CONFIG,
+    ...storedValues,
+    ENV_NAME: isEnvironmentName(storedValues.ENV_NAME) ? storedValues.ENV_NAME : DEFAULT_CONFIG.ENV_NAME,
+    SERVER_URL: resolveServerUrl({
+      envName: storedValues.ENV_NAME,
+      serverUrl: storedValues.SERVER_URL,
+    }),
+  };
 
   try {
     const { response, payload } = await fetchServerJson<PublicConfigResponse>({
-      url: `${storedConfig.SERVER_URL}/api/config/public`,
+      url: `${resolvedStoredConfig.SERVER_URL}/api/config/public`,
       method: "GET",
     });
     if (!response.ok) {
-      return storedConfig;
+      return resolvedStoredConfig;
     }
 
     if (!payload.ok) {
-      return storedConfig;
+      return resolvedStoredConfig;
     }
 
-    const mergedConfig = mergePublicConfig(storedConfig, payload.data);
+    const mergedConfig = mergePublicConfig(resolvedStoredConfig, payload.data);
     const publicConfigUpdates = {
       MEEGLE_PLUGIN_ID: trimOrUndefined(payload.data?.MEEGLE_PLUGIN_ID),
       LARK_APP_ID: trimOrUndefined(payload.data?.LARK_APP_ID),
@@ -106,7 +143,7 @@ export async function getConfig(): Promise<ExtensionConfig> {
 
     return mergedConfig;
   } catch {
-    return storedConfig;
+    return resolvedStoredConfig;
   }
 }
 

@@ -70,6 +70,39 @@ describe("extension config", () => {
     });
   });
 
+  it("resolves SERVER_URL from ENV_NAME=test when configured", async () => {
+    vi.mocked(chrome.storage.sync.get).mockImplementation((defaults, callback) => {
+      const resolvedDefaults = defaults as Record<string, unknown>;
+      callback({
+        ...resolvedDefaults,
+        ENV_NAME: "test",
+      });
+    });
+
+    vi.mocked(fetch).mockRejectedValue(new Error("network down"));
+
+    await expect(getConfig()).resolves.toMatchObject({
+      ENV_NAME: "test",
+      SERVER_URL: "https://octotest.odoo.tenways.it:18443",
+    });
+  });
+
+  it("keeps backward compatibility with an explicitly stored SERVER_URL", async () => {
+    vi.mocked(chrome.storage.sync.get).mockImplementation((defaults, callback) => {
+      const resolvedDefaults = defaults as Record<string, unknown>;
+      callback({
+        ...resolvedDefaults,
+        SERVER_URL: "https://custom.example.com",
+      });
+    });
+
+    vi.mocked(fetch).mockRejectedValue(new Error("network down"));
+
+    await expect(getConfig()).resolves.toMatchObject({
+      SERVER_URL: "https://custom.example.com",
+    });
+  });
+
   it("uses the code default SERVER_URL when no override is stored", async () => {
     vi.mocked(chrome.storage.sync.get).mockImplementation((defaults, callback) => {
       callback(defaults as Record<string, unknown>);

@@ -62,11 +62,21 @@
         />
       </label>
       <label class="settings-page__field">
+        <span class="settings-page__label">Environment</span>
+        <select
+          v-model="form.ENV_NAME"
+          class="settings-page__input"
+        >
+          <option value="prod">prod</option>
+          <option value="test">test</option>
+        </select>
+      </label>
+      <label class="settings-page__field">
         <span class="settings-page__label">Server URL</span>
         <input
-          v-model="form.SERVER_URL"
+          :value="form.SERVER_URL"
           class="settings-page__input"
-          placeholder="https://octo.odoo.tenways.it:18443"
+          readonly
         />
       </label>
       <label class="settings-page__field">
