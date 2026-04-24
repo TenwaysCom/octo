@@ -10,7 +10,7 @@ set -e
 SSH_HOST="linyu@192.168.0.7"
 SSH_HOST="linyu@58.60.106.226"
 SSH_PORT="2233"
-PROJECT_DIR="~/projects/octo"
+PROJECT_DIR="~/projects/octo_test"
 
 echo "[DEPLOY-TEST] 连接到测试服务器更新代码..."
 
