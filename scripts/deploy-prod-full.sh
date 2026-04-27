@@ -1,33 +1,44 @@
 #!/bin/bash
 #
 # Octo 正式服务器部署脚本
-# 完整流程：git pull + 构建 + PM2 重启
+# 完整流程：git pull + 同步版本号 + 构建 + PM2 重启
 # 用法: ./scripts/deploy-prod-full.sh
 
 set -e
 
 # 服务器配置
-SSH_HOST="linyu@192.168.0.7"
-SSH_PORT="2222"
+SSH_HOST="linyu@58.60.106.226"
+SSH_PORT="2233"
 PROJECT_DIR="~/projects/octo"
+
+# 读取扩展当前版本号
+EXT_VERSION=$(node -p "require('./extension/package.json').version")
+echo "[DEPLOY-PROD] 扩展版本: $EXT_VERSION"
 
 echo "[DEPLOY-PROD] 连接到正式服务器执行部署..."
 
 ssh -p "$SSH_PORT" "$SSH_HOST" -t "
     set -e
+    export NVM_DIR=\"\$HOME/.nvm\"
+    [ -s \"\$NVM_DIR/nvm.sh\" ] && . \"\$NVM_DIR/nvm.sh\"
+    nvm use 22 >/dev/null
+    export PATH=\"\$HOME/.local/share/pnpm:\$PATH\"
     cd $PROJECT_DIR
     
-    echo '[1/4] 拉取最新代码...'
+    echo '[1/5] 拉取最新代码...'
     git pull
     
-    echo '[2/4] 安装依赖...'
+    echo '[2/5] 同步扩展版本号到服务器 .env...'
+    sed -i \"s/^EXTENSION_LATEST_VERSION=.*/EXTENSION_LATEST_VERSION=$EXT_VERSION/\" server/.env
+    
+    echo '[3/5] 安装依赖...'
     cd server
     pnpm install --frozen-lockfile
     
-    echo '[3/4] 构建服务端...'
+    echo '[4/5] 构建服务端...'
     pnpm run build
     
-    echo '[4/4] 重启 PM2 服务...'
+    echo '[5/5] 重启 PM2 服务...'
     pm2 reload octo-server --update-env || pm2 start dist/index.js --name octo-server
     pm2 save
     
