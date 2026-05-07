@@ -4,7 +4,7 @@
 
 ## 核心能力
 
-- `Lark Bug -> Meegle Product Bug` 半自动建单
+- `Lark Bug ->  Meegle Product Bug` 半自动建单
 - `Lark User Story -> Meegle User  Story` 半自动建单
 - PM 即时分析
 
