@@ -210,7 +210,7 @@ export function createGitHubBranchCreateController(deps: CreateGitHubBranchCreat
     const pathParts = pathname.split("/").filter(Boolean);
     if (pathParts.length < 4 || pathParts[2] !== "detail") {
       appendLog("error", "无法解析工作项信息");
-      showToast("无法解析工作项信息", "error");
+      showToast("请进入对应的需求界面再点击", "error");
       return;
     }
 
