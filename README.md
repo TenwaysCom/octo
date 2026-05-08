@@ -19,8 +19,8 @@
 
 说明：
 - 服务端公开 HTTP 路径已经切到新命名
-- 旧 `/api/a1/*`、`/api/a2/*` 仍保留为兼容别名
-- 插件内部消息 action 仍保留 `a1/a2/b1/b2` 命名，避免打断现有扩展协议
+- 旧 `/api/a1/*`、`/api/a2/*` 兼容别名已移除
+- 插件内部消息 action 不再使用 `a1/a2/b1/b2` 命名
 
 ## 项目结构
 
@@ -86,15 +86,6 @@ pnpm --dir extension build
 - `POST /api/lark-user-story/to-meegle-user-story/draft`
 - `POST /api/lark-user-story/to-meegle-user-story/apply`
 - `POST /api/pm/analysis/run`
-
-兼容别名：
-
-- `POST /api/a1/analyze`
-- `POST /api/a1/create-b2-draft`
-- `POST /api/a1/apply-b2`
-- `POST /api/a2/analyze`
-- `POST /api/a2/create-b1-draft`
-- `POST /api/a2/apply-b1`
 
 ## 当前状态
 

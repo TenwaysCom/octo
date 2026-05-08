@@ -17,8 +17,8 @@ Business logic, workflow orchestration, identity resolution, and third-party API
 
 Notes:
 - Public server HTTP routes use the new names such as `/api/lark-bug/*` and `/api/lark-user-story/*`.
-- Old `/api/a1/*` and `/api/a2/*` routes remain as compatibility aliases.
-- Extension message actions still use `a1/a2/b1/b2` naming in places to avoid breaking the existing protocol.
+- Old `/api/a1/*` and `/api/a2/*` compatibility alias routes have been removed.
+- Extension message actions no longer use `a1/a2/b1/b2` naming.
 
 ## Repository Layout
 
