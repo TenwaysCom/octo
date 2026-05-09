@@ -333,8 +333,12 @@ export async function generateDefaultBranchName(
 
     clearTimeout(timeoutId);
 
+    branchLogger.info({ status: response.status, ok: response.ok }, "DEEPSEEK_BRANCH_NAME_RESPONSE_RECEIVED");
+
     if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
+      const errorText = await response.text();
+      branchLogger.error({ status: response.status, errorText }, "DEEPSEEK_BRANCH_NAME_HTTP_ERROR");
+      throw new Error(`API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
@@ -345,10 +349,11 @@ export async function generateDefaultBranchName(
       return formatFinalBranchName(aiSuggestedSuffix);
     }
     
+    branchLogger.warn({ data }, "DEEPSEEK_BRANCH_NAME_EMPTY_RESPONSE");
     throw new Error("Empty AI response");
   } catch (error) {
     branchLogger.warn(
-      { error: error instanceof Error ? error.message : String(error) },
+      { error: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : undefined },
       "DEEPSEEK_BRANCH_NAME_FAILED_FALLBACK_TO_PINYIN"
     );
     return formatFinalBranchName(getPinyinSlug(workItemTitle));

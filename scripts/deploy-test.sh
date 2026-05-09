@@ -7,8 +7,8 @@
 set -e
 
 # 服务器配置
-SSH_HOST="linyu@192.168.0.7"
-SSH_HOST="linyu@58.60.106.226"
+SSH_HOST="deploy@192.168.0.7"
+SSH_HOST="deploy@58.60.106.226"
 SSH_PORT="2233"
 PROJECT_DIR="~/projects/octo_test"
 
