@@ -76,4 +76,7 @@ deploy-test: ## Deploy to test server (git pull only)
 	./scripts/deploy-test.sh
 
 deploy-prod: ## Deploy to production server (full build + pm2 restart)
+	./scripts/deploy-prod.sh
+
+deploy-prod-full: ## Deploy to production server with version in manifest (full build + pm2 restart)
 	./scripts/deploy-prod-full.sh

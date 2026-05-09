@@ -7,8 +7,8 @@
 set -e
 
 # 服务器配置
-SSH_HOST="linyu@192.168.0.7"
-SSH_PORT="2222"
+SSH_HOST="deploy@58.60.106.226"
+SSH_PORT="2233"
 PROJECT_DIR="~/projects/octo"
 
 echo "[DEPLOY-PROD] 连接到正式服务器执行部署..."
@@ -28,13 +28,13 @@ ssh -p "$SSH_PORT" "$SSH_HOST" -t "
     pnpm run build
     
     echo '[4/4] 重启 PM2 服务...'
-    pm2 reload octo-server --update-env || pm2 start dist/index.js --name octo-server
-    pm2 save
+    pnpm exec pm2 reload octo-server --update-env || pnpm exec pm2 start dist/index.js --name octo-server
+    pnpm exec pm2 save
     
     echo ''
     echo '✓ 正式服务器部署完成'
     echo ''
-    pm2 status
+    pnpm exec pm2 status
 "
 
 echo "[DEPLOY-PROD] 正式服务器部署完成!"
