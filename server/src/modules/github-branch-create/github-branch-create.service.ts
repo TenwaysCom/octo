@@ -306,16 +306,19 @@ export async function generateDefaultBranchName(
 5. 示例："user_login", "export_excel", "fix_null_pointer"。
 `;
 
-    branchLogger.info({ workItemId, workItemTitle }, "DEEPSEEK_BRANCH_NAME_REQUEST_START");
-
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+    const apiKey = process.env.DEEPSEEK_API_KEY;
+    if (!apiKey) {
+      throw new Error("DEEPSEEK_API_KEY environment variable is not set");
+    }
 
     const response = await fetch("https://api.deepseek.com/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": "Bearer sk-11cbd6c80cc34cff81652d48d06b72da"
+        "Authorization": `Bearer ${apiKey}`
       },
       body: JSON.stringify({
         model: "deepseek-chat",
