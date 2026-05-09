@@ -306,16 +306,19 @@ export async function generateDefaultBranchName(
 5. 示例："user_login", "export_excel", "fix_null_pointer"。
 `;
 
-    branchLogger.info({ workItemId, workItemTitle }, "DEEPSEEK_BRANCH_NAME_REQUEST_START");
-
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+    const apiKey = process.env.DEEPSEEK_API_KEY;
+    if (!apiKey) {
+      throw new Error("DEEPSEEK_API_KEY environment variable is not set");
+    }
 
     const response = await fetch("https://api.deepseek.com/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": "Bearer sk-11cbd6c80cc34cff81652d48d06b72da"
+        "Authorization": `Bearer ${apiKey}`
       },
       body: JSON.stringify({
         model: "deepseek-chat",
@@ -330,12 +333,8 @@ export async function generateDefaultBranchName(
 
     clearTimeout(timeoutId);
 
-    branchLogger.info({ status: response.status, ok: response.ok }, "DEEPSEEK_BRANCH_NAME_RESPONSE_RECEIVED");
-
     if (!response.ok) {
-      const errorText = await response.text();
-      branchLogger.error({ status: response.status, errorText }, "DEEPSEEK_BRANCH_NAME_HTTP_ERROR");
-      throw new Error(`API error: ${response.status} - ${errorText}`);
+      throw new Error(`API error: ${response.status}`);
     }
 
     const data = await response.json();
@@ -346,11 +345,10 @@ export async function generateDefaultBranchName(
       return formatFinalBranchName(aiSuggestedSuffix);
     }
     
-    branchLogger.warn({ data }, "DEEPSEEK_BRANCH_NAME_EMPTY_RESPONSE");
     throw new Error("Empty AI response");
   } catch (error) {
     branchLogger.warn(
-      { error: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : undefined },
+      { error: error instanceof Error ? error.message : String(error) },
       "DEEPSEEK_BRANCH_NAME_FAILED_FALLBACK_TO_PINYIN"
     );
     return formatFinalBranchName(getPinyinSlug(workItemTitle));
