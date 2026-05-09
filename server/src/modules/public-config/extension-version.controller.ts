@@ -11,7 +11,7 @@ export interface ExtensionVersionInfo {
 }
 
 export async function getExtensionVersionController(_input: unknown) {
-  const version = process.env.EXTENSION_LATEST_VERSION || "0.7.2";
+  const version = process.env.EXTENSION_LATEST_VERSION || "0.7.5";
   const downloadUrl = process.env.EXTENSION_DOWNLOAD_URL || "";
   const releaseNotes = process.env.EXTENSION_RELEASE_NOTES || "";
   const forceUpdate = process.env.EXTENSION_FORCE_UPDATE === "true";
