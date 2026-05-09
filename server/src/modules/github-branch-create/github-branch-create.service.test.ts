@@ -55,8 +55,8 @@ describe("github-branch-create service", () => {
       expect(result).toEqual({ systemValue: "ihib59zp4", systemLabel: "Odoo EU" });
     });
 
-    it("should return null for invalid JSON", () => {
-      const result = parseSystemValue("not-json");
+    it("should return null for invalid JSON array", () => {
+      const result = parseSystemValue("[invalid json");
       expect(result).toBeNull();
     });
 
@@ -84,7 +84,8 @@ describe("github-branch-create service", () => {
     it("should include slug when title is short enough", () => {
       // Use a very short title so it fits within 30 chars
       const name = generateDefaultBranchName("1", "X", false);
-      expect(name).toBe("feat/20260423-m-1-x");
+      const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+      expect(name).toBe(`feat/${today}-m-1-x`);
       expect(name.length).toBeLessThanOrEqual(50);
     });
 

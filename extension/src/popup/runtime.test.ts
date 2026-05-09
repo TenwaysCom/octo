@@ -8,6 +8,7 @@ vi.mock("../background/config.js", () => ({
     LARK_OAUTH_CALLBACK_URL: "http://localhost:3000/api/lark/auth/callback",
     LARK_OAUTH_SCOPE: "offline_access",
     CLIENT_DEBUG_LOG_UPLOAD_ENABLED: false,
+      ENV_NAME: "test",
     MEEGLE_BASE_URL: "https://project.larksuite.com",
   },
   getConfig: vi.fn(),
@@ -59,12 +60,14 @@ describe("popup runtime settings", () => {
       MEEGLE_BASE_URL: "https://project.larksuite.com",
       LARK_OAUTH_SCOPE: "offline_access",
       CLIENT_DEBUG_LOG_UPLOAD_ENABLED: false,
+      ENV_NAME: "test",
     });
 
     await expect(loadPopupSettings()).resolves.toEqual({
       SERVER_URL: "https://octo.odoo.tenways.it:18443",
       MEEGLE_PLUGIN_ID: "MII_SERVER_PLUGIN",
       LARK_OAUTH_CALLBACK_URL: "https://example.ngrok-free.app/api/lark/auth/callback",
+      ENV_NAME: "test",
       meegleUserKey: "user_test",
       larkUserId: "ou_test",
     });
@@ -171,6 +174,7 @@ describe("popup runtime settings", () => {
       MEEGLE_BASE_URL: "https://project.larksuite.com",
       LARK_OAUTH_SCOPE: "offline_access",
       CLIENT_DEBUG_LOG_UPLOAD_ENABLED: true,
+      ENV_NAME: "test",
     });
     vi.mocked(fetch).mockResolvedValue({
       ok: true,
@@ -287,6 +291,7 @@ describe("popup runtime settings", () => {
       MEEGLE_BASE_URL: "https://project.larksuite.com",
       LARK_OAUTH_SCOPE: "offline_access",
       CLIENT_DEBUG_LOG_UPLOAD_ENABLED: true,
+      ENV_NAME: "test",
     });
     vi.mocked(fetch).mockResolvedValue({
       ok: true,
@@ -326,6 +331,7 @@ describe("popup runtime settings", () => {
       MEEGLE_BASE_URL: "https://project.larksuite.com",
       LARK_OAUTH_SCOPE: "offline_access",
       CLIENT_DEBUG_LOG_UPLOAD_ENABLED: false,
+      ENV_NAME: "test",
     });
 
     await expect(
@@ -348,6 +354,7 @@ describe("popup runtime settings", () => {
       MEEGLE_BASE_URL: "https://project.larksuite.com",
       LARK_OAUTH_SCOPE: "offline_access",
       CLIENT_DEBUG_LOG_UPLOAD_ENABLED: false,
+      ENV_NAME: "test",
     });
     vi.mocked(fetch).mockResolvedValue({
       ok: true,
@@ -396,6 +403,7 @@ describe("popup runtime settings", () => {
       MEEGLE_BASE_URL: "https://project.larksuite.com",
       LARK_OAUTH_SCOPE: "offline_access",
       CLIENT_DEBUG_LOG_UPLOAD_ENABLED: false,
+      ENV_NAME: "test",
     });
     vi.mocked(fetch).mockResolvedValue({
       ok: true,
@@ -448,6 +456,7 @@ describe("popup runtime settings", () => {
       MEEGLE_BASE_URL: "https://project.larksuite.com",
       LARK_OAUTH_SCOPE: "offline_access",
       CLIENT_DEBUG_LOG_UPLOAD_ENABLED: false,
+      ENV_NAME: "test",
     });
     vi.mocked(fetch).mockResolvedValue({
       ok: true,
