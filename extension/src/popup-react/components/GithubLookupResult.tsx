@@ -46,7 +46,7 @@ export function GithubLookupResult({ state }: GithubLookupResultProps) {
           <div className="summary-row flex items-center gap-2 text-sm">
             <span>提取到 {extractedIds.length} 个 Meegle ID:</span>
             <span className="extracted-ids text-muted-foreground">
-              {extractedIds.join(", ")}
+              {extractedIds.map(id => `m-${id}`).join(", ")}
             </span>
           </div>
         </div>
