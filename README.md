@@ -4,9 +4,10 @@
 
 ## 核心能力
 
-- `Lark Bug -> Meegle Product Bug` 半自动建单
-- `Lark User Story -> Meegle User Story` 半自动建单
-- PM 即时分析
+- `Lark Ticket -> Meegle Workitem` 半自动建单（Bug / User Story / Tech Task）
+- PM 即时分析（含 SLA 统计）
+- Meegle Workitem AI 总结生成
+- GitHub 分支创建与 PR 关联
 
 术语映射：
 
@@ -79,13 +80,13 @@ pnpm --dir extension build
 - `POST /api/identity/resolve`
 - `POST /api/meegle/auth/exchange`
 - `POST /api/meegle/auth/status`
-- `POST /api/lark-bug/analyze`
-- `POST /api/lark-bug/to-meegle-product-bug/draft`
-- `POST /api/lark-bug/to-meegle-product-bug/apply`
-- `POST /api/lark-user-story/analyze`
-- `POST /api/lark-user-story/to-meegle-user-story/draft`
-- `POST /api/lark-user-story/to-meegle-user-story/apply`
+- `POST /api/lark-base/create-meegle-workitem`
+- `POST /api/lark-base/bulk-preview-meegle-workitems`
+- `POST /api/lark-base/bulk-create-meegle-workitems`
+- `POST /api/meegle/workitem/generate-summary`
+- `POST /api/meegle/workitem/apply-summary`
 - `POST /api/pm/analysis/run`
+- `POST /api/github-branch-create/create-branch`
 
 ## 当前状态
 
@@ -93,28 +94,35 @@ pnpm --dir extension build
 
 - 浏览器扩展主链路
 - 服务端身份解析与 Meegle 认证
-- 新公开 API 路径与旧路径兼容
+- Lark Ticket → Meegle Workitem 建单（单条 + 批量）
 - 真实 Meegle apply 建单链路
-- apply 侧 `idempotencyKey` 透传
+- PM 即时分析（真实 Meegle 数据 + SLA 计算）
+- Meegle Workitem AI 总结（规则驱动 + AI 生成双模式）
+- GitHub 分支创建
 - 主要单测、全量测试和 build 验证
 
 待补：
 
-- 真实 Lark API 集成
-- 真实 Meegle catalog / field 元数据映射
-- 数据库持久化增强
-- AI Agent 实现
-- GitHub API 集成
+- Lark Ticket 真实 loader（PM Analysis）
+- GitHub PR 真实 loader（PM Analysis）
 - 审计日志
 
 ## 开发命令
 
 ```bash
-pnpm --dir server test
-pnpm --dir server build
-pnpm --dir extension test
-pnpm --dir extension typecheck
-pnpm --dir extension build
+# Server
+make server-dev          # 仅启动主 server
+make server-acp-dev      # 同时启动 server + ACP AI 服务
+make test-server         # 运行服务端测试
+
+# Extension
+make ext-dev             # 扩展开发模式
+make ext-build           # 构建扩展
+make ext-test            # 扩展测试
+
+# 部署
+make deploy-test         # 测试环境部署
+make deploy-prod         # 生产环境部署（含 ACP 服务）
 ```
 
 ## 文档索引
