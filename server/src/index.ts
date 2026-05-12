@@ -34,6 +34,10 @@ import {
   previewLarkBaseBulkWorkflowController,
 } from "./modules/lark-base/lark-base-bulk-workflow.controller.js";
 import { meegleLarkPushController } from "./modules/meegle-workitem/meegle-lark-push.controller.js";
+import {
+  generateSummaryController,
+  applySummaryController,
+} from "./modules/meegle-summary/meegle-summary.controller.js";
 import { createApiRequestLogger } from "./http/api-request-logger.js";
 import { createApiAuthMiddleware } from "./http/api-auth.js";
 import {
@@ -219,6 +223,8 @@ app.post("/api/lark-base/bulk-create-meegle-workitems", handleController(createL
 
 // Meegle workitem routes
 app.post("/api/meegle/workitem/update-lark-and-push", handleController(meegleLarkPushController));
+app.post("/api/meegle/workitem/generate-summary", handleController(generateSummaryController));
+app.post("/api/meegle/workitem/apply-summary", handleController(applySummaryController));
 
 // GitHub branch create routes
 app.post("/api/github/branch/preview", handleController(githubBranchPreviewController));
