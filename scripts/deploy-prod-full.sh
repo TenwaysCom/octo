@@ -38,8 +38,12 @@ ssh -p "$SSH_PORT" "$SSH_HOST" -t "
     echo '[4/5] 构建服务端...'
     pnpm run build
     
-    echo '[5/5] 重启 PM2 服务...'
+    echo '[5/6] 重启 PM2 主服务...'
     pm2 reload octo-server --update-env || pm2 start dist/index.js --name octo-server
+    
+    echo '[6/6] 重启 PM2 ACP 服务...'
+    pm2 reload octo-acp-service --update-env || pm2 start dist/kimi-acp-service/index.js --name octo-acp-service
+    
     pm2 save
     
     echo ''

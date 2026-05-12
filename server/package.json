@@ -13,6 +13,9 @@
     "dev:serve": "nodemon --watch dist --ext js --delay 200ms dist/index.js",
     "kimi-acp:repl": "tsx ./examples/kimi-acp-client/repl.ts",
     "kimi-acp:validate": "tsx ./examples/kimi-acp-client/client.ts",
+    "acp-service:dev": "tsx src/kimi-acp-service/index.ts",
+    "acp-service:start": "node dist/kimi-acp-service/index.js",
+    "dev:all": "concurrently -k -n tsc,server,acp -c yellow,cyan,green \"npm:dev:watch\" \"npm:dev:serve\" \"npm:acp-service:dev\"",
     "test": "vitest run"
   },
   "dependencies": {
