@@ -13,9 +13,9 @@ import type {
   AcpKimiStreamEvent,
   AcpKimiSessionUpdateEvent,
 } from "../../modules/acp-kimi/event-stream.js";
-import { logger } from "../../logger.js";
+import { acpLogger } from "../../logger.js";
 
-const kimiAcpRuntimeLogger = logger.child({ module: "kimi-acp-runtime" });
+const kimiAcpRuntimeLogger = acpLogger.child({ module: "kimi-acp-runtime" });
 
 export interface KimiAcpConnection {
   initialize(): Promise<{

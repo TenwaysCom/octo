@@ -10,9 +10,9 @@ import {
   prepareAcpKimiEventStream,
   writeAcpKimiEvent,
 } from "./event-stream.js";
-import { logger } from "../../logger.js";
+import { acpLogger } from "../../logger.js";
 
-const acpKimiControllerLogger = logger.child({ module: "acp-kimi-controller" });
+const acpKimiControllerLogger = acpLogger.child({ module: "acp-kimi-controller" });
 
 export function createAcpKimiChatController(
   service: AcpKimiProxyService = acpKimiProxyService,
