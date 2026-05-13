@@ -96,7 +96,7 @@ function findLatestBackupFile(backupDir: string, databaseName: string): string {
   return files[0].path;
 }
 
-async function runCommand(
+export async function runCommand(
   command: string,
   args: string[],
   env: NodeJS.ProcessEnv,
@@ -119,7 +119,7 @@ async function runCommand(
   });
 }
 
-async function ensureDatabaseExists(adminUri: string, databaseName: string, env: NodeJS.ProcessEnv) {
+export async function ensureDatabaseExists(adminUri: string, databaseName: string, env: NodeJS.ProcessEnv) {
   const sql = `SELECT 1 FROM pg_database WHERE datname = '${databaseName.replace(/'/g, "''")}';`;
   let exists = false;
 
@@ -153,7 +153,7 @@ async function ensureDatabaseExists(adminUri: string, databaseName: string, env:
   }
 }
 
-async function backupDatabase(postgresUri: string, databaseName: string, backupDir: string) {
+export async function backupDatabase(postgresUri: string, databaseName: string, backupDir: string) {
   mkdirSync(backupDir, { recursive: true });
   const filePath = resolveBackupFilePath(backupDir, databaseName);
   const sourceUri = buildDatabaseUri(postgresUri, databaseName);
@@ -163,7 +163,7 @@ async function backupDatabase(postgresUri: string, databaseName: string, backupD
   console.log(`[db] backup completed: ${filePath}`);
 }
 
-async function restoreDatabase(
+export async function restoreDatabase(
   postgresUri: string,
   databaseName: string,
   filePath: string,

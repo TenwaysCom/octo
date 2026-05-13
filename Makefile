@@ -45,6 +45,11 @@ db-restore: ## Restore a postgres database via server script (usage: make db-res
 		npx tsx $(SERVER_DIR)/src/scripts/postgres-backup-restore.ts restore $(DB_NAME); \
 	fi
 
+db-copy: ## Copy a postgres database to a new database (usage: make db-copy SOURCE=tenways_octo_test TARGET=tenways_octo_ly_0509)
+	@test -n "$(SOURCE)" || (echo "Usage: make db-copy SOURCE=<source-db> TARGET=<target-db>"; exit 1)
+	@test -n "$(TARGET)" || (echo "Usage: make db-copy SOURCE=<source-db> TARGET=<target-db>"; exit 1)
+	npx tsx $(SERVER_DIR)/src/scripts/postgres-copy-database.ts $(SOURCE) $(TARGET)
+
 test-client: ## Run extension tests
 	pnpm --dir $(EXT_DIR) test
 

@@ -45,6 +45,7 @@ cd .. && make server-acp-dev
 ```bash
 pnpm --dir server db:migrate
 pnpm --dir server db:reset
+pnpm --dir server db:copy tenways_octo_test tenways_octo_ly_0509
 pnpm --dir server db:import-sqlite -- --sqlite ./data/tenways-octo.sqlite
 ```
 

@@ -71,6 +71,7 @@ pnpm --dir server db:migrate
 pnpm --dir server db:reset
 
 # ACP 调试
+pnpm --dir server db:copy <source-db> <target-db>
 pnpm --dir server kimi-acp:repl
 pnpm --dir server kimi-acp:validate
 ```
