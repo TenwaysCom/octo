@@ -526,6 +526,7 @@ describe("popup controller", () => {
     controller.openSettings();
     controller.updateSettingsFormField("ENV_NAME", "test");
     expect(controller.getState().settingsForm.SERVER_URL).toBe("https://octotest.odoo.tenways.it:18443");
+    expect(controller.getState().settingsForm.LARK_OAUTH_CALLBACK_URL).toBe("https://octotest.odoo.tenways.it:18443/api/lark/auth/callback");
 
     controller.closeSettings();
 

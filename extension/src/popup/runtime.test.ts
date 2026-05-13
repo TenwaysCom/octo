@@ -53,6 +53,7 @@ describe("popup runtime settings", () => {
     });
 
     vi.mocked(getConfig).mockResolvedValue({
+      ENV_NAME: "prod",
       SERVER_URL: "https://octo.odoo.tenways.it:18443",
       MEEGLE_PLUGIN_ID: "MII_SERVER_PLUGIN",
       LARK_APP_ID: "cli_server_public",
@@ -64,6 +65,7 @@ describe("popup runtime settings", () => {
     });
 
     await expect(loadPopupSettings()).resolves.toEqual({
+      ENV_NAME: "prod",
       SERVER_URL: "https://octo.odoo.tenways.it:18443",
       MEEGLE_PLUGIN_ID: "MII_SERVER_PLUGIN",
       LARK_OAUTH_CALLBACK_URL: "https://example.ngrok-free.app/api/lark/auth/callback",
@@ -167,6 +169,7 @@ describe("popup runtime settings", () => {
 
   it("logs identity resolve requests and responses for diagnosis", async () => {
     vi.mocked(getConfig).mockResolvedValue({
+      ENV_NAME: "prod",
       SERVER_URL: "http://localhost:3000",
       MEEGLE_PLUGIN_ID: "MII_SERVER_PLUGIN",
       LARK_APP_ID: "cli_server_public",
@@ -284,6 +287,7 @@ describe("popup runtime settings", () => {
 
   it("posts popup debug logs to the local debug endpoint", async () => {
     vi.mocked(getConfig).mockResolvedValue({
+      ENV_NAME: "prod",
       SERVER_URL: "http://localhost:3000",
       MEEGLE_PLUGIN_ID: "MII_SERVER_PLUGIN",
       LARK_APP_ID: "cli_server_public",
@@ -324,6 +328,7 @@ describe("popup runtime settings", () => {
 
   it("does not upload popup debug logs when client debug upload is disabled", async () => {
     vi.mocked(getConfig).mockResolvedValue({
+      ENV_NAME: "prod",
       SERVER_URL: "http://localhost:3000",
       MEEGLE_PLUGIN_ID: "MII_SERVER_PLUGIN",
       LARK_APP_ID: "cli_server_public",
@@ -347,6 +352,7 @@ describe("popup runtime settings", () => {
 
   it("requests lark auth status from the server without opening oauth", async () => {
     vi.mocked(getConfig).mockResolvedValue({
+      ENV_NAME: "prod",
       SERVER_URL: "http://localhost:3000",
       MEEGLE_PLUGIN_ID: "MII_SERVER_PLUGIN",
       LARK_APP_ID: "cli_server_public",
@@ -396,6 +402,7 @@ describe("popup runtime settings", () => {
 
   it("refreshes lark auth status through the server without opening oauth", async () => {
     vi.mocked(getConfig).mockResolvedValue({
+      ENV_NAME: "prod",
       SERVER_URL: "http://localhost:3000",
       MEEGLE_PLUGIN_ID: "MII_SERVER_PLUGIN",
       LARK_APP_ID: "cli_server_public",
@@ -449,6 +456,7 @@ describe("popup runtime settings", () => {
 
   it("sends master-user-id when pushing meegle updates through the server", async () => {
     vi.mocked(getConfig).mockResolvedValue({
+      ENV_NAME: "prod",
       SERVER_URL: "http://localhost:3000",
       MEEGLE_PLUGIN_ID: "MII_SERVER_PLUGIN",
       LARK_APP_ID: "cli_server_public",

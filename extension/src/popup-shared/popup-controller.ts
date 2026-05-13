@@ -1222,6 +1222,11 @@ export function createPopupController() {
         });
       }
 
+      if (key === "ENV_NAME" || key === "SERVER_URL") {
+        const baseUrl = nextSettings.SERVER_URL.replace(/\/$/, "");
+        nextSettings.LARK_OAUTH_CALLBACK_URL = `${baseUrl}/api/lark/auth/callback`;
+      }
+
       return {
         ...previous,
         settingsForm: nextSettings,
