@@ -24,6 +24,7 @@ import {
   acpKimiSessionLoadController,
   acpKimiSessionRenameController,
 } from "./modules/acp-kimi/acp-kimi-sessions.controller.js";
+import { acpKimiPermissionRespondController } from "./modules/acp-kimi/acp-kimi-permission.controller.js";
 import {
   getLarkRecordUrlController,
   updateLarkBaseMeegleLinkController,
@@ -210,6 +211,7 @@ app.post("/api/acp/kimi/sessions/list", handleController(acpKimiSessionListContr
 app.post("/api/acp/kimi/sessions/load", handleController(acpKimiSessionLoadController));
 app.post("/api/acp/kimi/sessions/rename", handleController(acpKimiSessionRenameController));
 app.post("/api/acp/kimi/sessions/delete", handleController(acpKimiSessionDeleteController));
+app.post("/api/acp/kimi/permission/respond", acpKimiPermissionRespondController);
 
 // PM Analysis routes
 app.post("/api/pm/analysis/run", handleController(runPMAnalysisController));

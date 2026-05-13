@@ -7,6 +7,11 @@ import type {
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { Readable, Writable } from "node:stream";
 import { buildKimiAcpRuntimeConfig, type KimiAcpSpawnConfig } from "./kimi-acp-config.js";
+import {
+  evaluatePermissionRequest,
+  selectAutoAllowOption,
+  selectAutoRejectOption,
+} from "../../application/services/acp-kimi-permission-policy.service.js";
 import { cleanupAgentProcess } from "./process-lifecycle.js";
 import type { AcpKimiChatRequest } from "../../modules/acp-kimi/acp-kimi.dto.js";
 import type {
@@ -513,17 +518,156 @@ function createProcessStartupGuard(
   };
 }
 
+// Module-level pending permission request registry
+interface PendingPermissionRequest {
+  resolve: (response: RequestPermissionResponse) => void;
+  reject: (error: Error) => void;
+  timeoutId: ReturnType<typeof setTimeout>;
+}
+
+const pendingPermissionRequests = new Map<string, PendingPermissionRequest>();
+
+const PERMISSION_PROMPT_TIMEOUT_MS = 30000;
+
+export function respondToPermissionRequest(
+  sessionId: string,
+  optionId: string,
+): boolean {
+  const pending = pendingPermissionRequests.get(sessionId);
+  if (!pending) {
+    return false;
+  }
+  clearTimeout(pending.timeoutId);
+  pendingPermissionRequests.delete(sessionId);
+  pending.resolve({
+    outcome: {
+      outcome: "selected" as const,
+      optionId,
+    },
+  });
+  return true;
+}
+
 class CollectingClient implements acp.Client {
   constructor(private readonly emit: (event: AcpKimiStreamEvent) => void) {}
 
   async requestPermission(
-    _params: RequestPermissionRequest,
+    params: RequestPermissionRequest,
   ): Promise<RequestPermissionResponse> {
-    return {
-      outcome: {
-        outcome: "cancelled" as const,
-      },
-    };
+    const policy = evaluatePermissionRequest(params);
+    const sessionId = params.sessionId;
+
+    // High risk: auto-reject
+    if (policy.action === "auto_reject") {
+      const rejectOption = selectAutoRejectOption(params.options);
+      if (rejectOption) {
+        kimiAcpRuntimeLogger.warn(
+          {
+            sessionId,
+            toolCallId: params.toolCall.toolCallId,
+            optionId: rejectOption.optionId,
+            reason: policy.reason,
+          },
+          "KIMI_ACP_CLIENT PERMISSION_AUTO_REJECTED",
+        );
+        return {
+          outcome: {
+            outcome: "selected" as const,
+            optionId: rejectOption.optionId,
+          },
+        };
+      }
+      kimiAcpRuntimeLogger.warn(
+        {
+          sessionId,
+          toolCallId: params.toolCall.toolCallId,
+          reason: policy.reason,
+        },
+        "KIMI_ACP_CLIENT PERMISSION_AUTO_REJECTED_NO_OPTION",
+      );
+      return {
+        outcome: {
+          outcome: "cancelled" as const,
+        },
+      };
+    }
+
+    // Low risk: auto-allow
+    if (policy.action === "auto_allow") {
+      const allowOption = selectAutoAllowOption(params.options);
+      if (allowOption) {
+        kimiAcpRuntimeLogger.info(
+          {
+            sessionId,
+            toolCallId: params.toolCall.toolCallId,
+            optionId: allowOption.optionId,
+            reason: policy.reason,
+          },
+          "KIMI_ACP_CLIENT PERMISSION_AUTO_ALLOWED",
+        );
+        return {
+          outcome: {
+            outcome: "selected" as const,
+            optionId: allowOption.optionId,
+          },
+        };
+      }
+    }
+
+    // Medium risk: prompt user via SSE
+    const requestId = `perm-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+    return new Promise((resolve, _reject) => {
+      const timeoutId = setTimeout(() => {
+        pendingPermissionRequests.delete(sessionId);
+        kimiAcpRuntimeLogger.warn(
+          {
+            sessionId,
+            requestId,
+            toolCallId: params.toolCall.toolCallId,
+          },
+          "KIMI_ACP_CLIENT PERMISSION_TIMEOUT",
+        );
+        resolve({
+          outcome: {
+            outcome: "cancelled" as const,
+          },
+        });
+      }, PERMISSION_PROMPT_TIMEOUT_MS);
+
+      pendingPermissionRequests.set(sessionId, { resolve, reject: _reject, timeoutId });
+
+      this.emit({
+        event: "acp.permission.request",
+        data: {
+          sessionId,
+          requestId,
+          toolCall: {
+            title: params.toolCall.title ?? "Unknown operation",
+            kind: params.toolCall.kind ?? "other",
+            rawInput: params.toolCall.rawInput,
+          },
+          options: params.options.map((o) => ({
+            optionId: o.optionId,
+            kind: o.kind,
+            name: o.name,
+          })),
+          riskLevel: policy.riskLevel,
+          reason: policy.reason,
+        },
+      });
+
+      kimiAcpRuntimeLogger.info(
+        {
+          sessionId,
+          requestId,
+          toolCallId: params.toolCall.toolCallId,
+          title: params.toolCall.title,
+          riskLevel: policy.riskLevel,
+        },
+        "KIMI_ACP_CLIENT PERMISSION_PROMPTED",
+      );
+    });
   }
 
   async sessionUpdate(params: SessionNotification): Promise<void> {
