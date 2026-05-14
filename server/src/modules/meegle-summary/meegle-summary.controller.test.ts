@@ -26,7 +26,8 @@ describe("meegle-summary.controller", () => {
     it("returns generated markdown successfully", async () => {
       generateWorkitemSummaryMock.mockResolvedValueOnce({
         ok: true,
-        markdown: "## ✅ 核心信息确认\n- [ ] 业务背景",
+        generatedSummary: "## ✅ 核心信息确认\n- [ ] 业务背景",
+        statusSummary: "⏳ 进行中 | 已耗时 1小时",
         workItemType: "story",
         prefilledSections: ["核心信息确认"],
         emptySections: ["产品结论"],
@@ -42,7 +43,8 @@ describe("meegle-summary.controller", () => {
 
       expect(result).toEqual({
         ok: true,
-        markdown: "## ✅ 核心信息确认\n- [ ] 业务背景",
+        generatedSummary: "## ✅ 核心信息确认\n- [ ] 业务背景",
+        statusSummary: "⏳ 进行中 | 已耗时 1小时",
         workItemType: "story",
         prefilledSections: ["核心信息确认"],
         emptySections: ["产品结论"],
@@ -106,7 +108,8 @@ describe("meegle-summary.controller", () => {
       applyWorkitemSummaryMock.mockResolvedValueOnce({
         ok: true,
         workItemId: "12345",
-        summaryFieldKey: "field_summary",
+        summaryFieldKey: "field_a5b617",
+        summaryStatusField: "field_e67b43",
       });
 
       const result = await applySummaryController({
@@ -115,14 +118,15 @@ describe("meegle-summary.controller", () => {
         workItemId: "12345",
         masterUserId: "usr_xxx",
         baseUrl: "https://project.larksuite.com",
-        summaryFieldKey: "field_summary",
-        summaryMarkdown: "## ✅ 核心信息确认\n- [x] 业务背景",
+        generatedSummary: "## ✅ 核心信息确认\n- [x] 业务背景",
+        statusSummary: "✅ 已完成 | 实际耗时 1小时 | 2026-01-29 完成",
       });
 
       expect(result).toEqual({
         ok: true,
         workItemId: "12345",
-        summaryFieldKey: "field_summary",
+        summaryFieldKey: "field_a5b617",
+        summaryStatusField: "field_e67b43",
       });
       expect(applyWorkitemSummaryMock).toHaveBeenCalledWith({
         projectKey: "PROJ1",
@@ -130,8 +134,8 @@ describe("meegle-summary.controller", () => {
         workItemId: "12345",
         masterUserId: "usr_xxx",
         baseUrl: "https://project.larksuite.com",
-        summaryFieldKey: "field_summary",
-        summaryMarkdown: "## ✅ 核心信息确认\n- [x] 业务背景",
+        generatedSummary: "## ✅ 核心信息确认\n- [x] 业务背景",
+        statusSummary: "✅ 已完成 | 实际耗时 1小时 | 2026-01-29 完成",
       });
     });
 
@@ -167,8 +171,8 @@ describe("meegle-summary.controller", () => {
         workItemId: "12345",
         masterUserId: "usr_xxx",
         baseUrl: "https://project.larksuite.com",
-        summaryFieldKey: "field_summary",
-        summaryMarkdown: "## ✅ 核心信息确认",
+        generatedSummary: "## ✅ 核心信息确认",
+        statusSummary: "⏳ 进行中 | 已耗时 1小时",
       });
 
       expect(result).toEqual({

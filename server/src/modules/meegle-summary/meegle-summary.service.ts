@@ -42,6 +42,26 @@ async function callKimiAcpService(message: string): Promise<string> {
   return data.text;
 }
 
+async function callKimiAcpServiceYolo(message: string): Promise<string> {
+  const res = await fetch(`${KIMI_ACP_SERVICE_URL}/prompt-yolo`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+    throw new Error(`ACP yolo service error: ${err.error || res.statusText}`);
+  }
+
+  const data = (await res.json()) as { ok: boolean; text?: string; error?: string };
+  if (!data.ok || !data.text) {
+    throw new Error(`ACP yolo service error: ${data.error || "empty response"}`);
+  }
+
+  return data.text;
+}
+
 const MAX_DESCRIPTION_LEN = 3000;
 
 function truncateText(text: string, maxLen: number): string {
@@ -429,6 +449,43 @@ function resolveWorkitemEndTime(stateTimes: unknown): number | undefined {
   return undefined;
 }
 
+function buildStatusSummary(
+  workitem: { name: string; fields: Record<string, unknown> },
+  meegleCreatedAt: number,
+): string {
+  const stateTimes = workitem.fields.state_times;
+  const endTime = resolveWorkitemEndTime(stateTimes);
+  const workItemStatus = workitem.fields.work_item_status as
+    | { state_key?: string; history?: Array<{ state_key: string; updated_at: number }> }
+    | undefined;
+
+  if (endTime) {
+    const elapsedMs = endTime - meegleCreatedAt;
+    const finishedDate = new Date(endTime).toISOString().slice(0, 10);
+    return `✅ 已完成 | 实际耗时 ${formatDurationMs(elapsedMs)} | ${finishedDate} 完成`;
+  }
+
+  const elapsedMs = Date.now() - meegleCreatedAt;
+  const elapsedStr = formatDurationMs(elapsedMs);
+
+  // Try to get the current state name from state_times
+  if (Array.isArray(stateTimes) && stateTimes.length > 0) {
+    const lastState = stateTimes[stateTimes.length - 1];
+    const stateName = typeof lastState?.name === "string" ? lastState.name : "";
+    if (stateName) {
+      return `⏳ ${stateName} | 已耗时 ${elapsedStr}`;
+    }
+  }
+
+  // Fallback to state_key from work_item_status
+  const currentStateKey = workItemStatus?.state_key;
+  if (currentStateKey) {
+    return `⏳ ${currentStateKey} | 已耗时 ${elapsedStr}`;
+  }
+
+  return `⏳ 进行中 | 已耗时 ${elapsedStr}`;
+}
+
 function buildSlaBlock(options: {
   createdTimeMs: number;
   larkRecord: { fields: Record<string, unknown>; created_time?: string } | null;
@@ -639,7 +696,8 @@ export interface MeegleSummaryDeps
 
 export interface GenerateSummaryResult {
   ok: true;
-  markdown: string;
+  generatedSummary: string;
+  statusSummary: string;
   workItemType: "story" | "bug" | "unknown";
   prefilledSections: string[];
   emptySections: string[];
@@ -649,6 +707,7 @@ export interface ApplySummaryResult {
   ok: true;
   workItemId: string;
   summaryFieldKey: string;
+  summaryStatusField: string;
 }
 
 export async function generateWorkitemSummary(
@@ -757,15 +816,15 @@ export async function generateWorkitemSummary(
     ? workitem.fields.created_at
     : Date.now();
 
-  // ── AI 生成分支 ──────────────────────────────────────────────────
-  let markdown: string;
+  // ── AI 生成分支（statusSummary = 完整 Markdown 总结）─────────────────
+  let fullMarkdown: string;
   let aiGenerated = false;
 
   if (KIMI_ACP_SERVICE_ENABLED) {
     try {
       const prompt = buildSummaryPrompt(workitem, larkRecord, isBug, meegleCreatedAt, chatHistory);
       const aiMarkdown = await callKimiAcpService(prompt);
-      markdown = aiMarkdown;
+      fullMarkdown = aiMarkdown;
       aiGenerated = true;
       summaryLogger.info(
         { workItemId: request.workItemId, aiMarkdownLength: aiMarkdown.length },
@@ -780,14 +839,38 @@ export async function generateWorkitemSummary(
         "SUMMARY_AI_GENERATE_FAIL_FALLBACK",
       );
       // fallback 到规则驱动
-      markdown = isBug
+      fullMarkdown = isBug
         ? generateBugMarkdown(workitem, larkRecord, meegleCreatedAt, chatHistory)
         : generateStoryMarkdown(workitem, larkRecord, meegleCreatedAt, chatHistory);
     }
   } else {
-    markdown = isBug
+    fullMarkdown = isBug
       ? generateBugMarkdown(workitem, larkRecord, meegleCreatedAt, chatHistory)
       : generateStoryMarkdown(workitem, larkRecord, meegleCreatedAt, chatHistory);
+  }
+
+  // ── generatedSummary 新逻辑 ────────────────────────────────────────
+  // Story: 留空
+  // Production Bug: 启动 yolo ACP Agent 深度分析
+  let generatedSummaryValue = "";
+  if (request.workItemTypeKey === "production_bug" && KIMI_ACP_SERVICE_ENABLED) {
+    try {
+      const yoloPrompt = `深度分析这个meegle production_bug/${request.workItemId}`;
+      generatedSummaryValue = await callKimiAcpServiceYolo(yoloPrompt);
+      summaryLogger.info(
+        { workItemId: request.workItemId, yoloLength: generatedSummaryValue.length },
+        "SUMMARY_YOLO_GENERATE_OK",
+      );
+    } catch (err) {
+      summaryLogger.warn(
+        {
+          workItemId: request.workItemId,
+          error: err instanceof Error ? err.message : String(err),
+        },
+        "SUMMARY_YOLO_GENERATE_FAIL",
+      );
+      generatedSummaryValue = "";
+    }
   }
 
   const prefilledSections = isBug
@@ -801,12 +884,15 @@ export async function generateWorkitemSummary(
   summaryLogger.info({
     workItemId: request.workItemId,
     isBug,
-    markdownLength: markdown.length,
+    workItemTypeKey: request.workItemTypeKey,
+    statusSummaryLength: fullMarkdown.length,
+    generatedSummaryLength: generatedSummaryValue.length,
   }, "SUMMARY_GENERATE_OK");
 
   return {
     ok: true,
-    markdown,
+    generatedSummary: generatedSummaryValue,
+    statusSummary: fullMarkdown,
     workItemType: isBug ? "bug" : "story",
     prefilledSections,
     emptySections,
@@ -821,8 +907,8 @@ export async function applyWorkitemSummary(
     projectKey: request.projectKey,
     workItemTypeKey: request.workItemTypeKey,
     workItemId: request.workItemId,
-    summaryFieldKey: request.summaryFieldKey,
-    markdownLength: request.summaryMarkdown.length,
+    generatedSummaryLength: request.generatedSummary.length,
+    statusSummary: request.statusSummary,
   }, "SUMMARY_APPLY_START");
 
   const resolvedUser = await getResolvedUserStore().getById(request.masterUserId);
@@ -859,27 +945,36 @@ export async function applyWorkitemSummary(
 
   const resolvedTypeKey = resolveMeegleTypeKey(request.workItemTypeKey);
 
+  const generatedSummaryField = "field_a5b617";
+  const summaryStatusField = "field_e67b43";
+
   await meegleClient.updateWorkitem(
     request.projectKey,
     resolvedTypeKey,
     request.workItemId,
     [
       {
-        fieldKey: request.summaryFieldKey,
-        fieldValue: request.summaryMarkdown,
+        fieldKey: generatedSummaryField,
+        fieldValue: request.generatedSummary,
+      },
+      {
+        fieldKey: summaryStatusField,
+        fieldValue: request.statusSummary,
       },
     ],
   );
 
   summaryLogger.info({
     workItemId: request.workItemId,
-    summaryFieldKey: request.summaryFieldKey,
+    generatedSummaryField,
+    summaryStatusField,
   }, "SUMMARY_APPLY_OK");
 
   return {
     ok: true,
     workItemId: request.workItemId,
-    summaryFieldKey: request.summaryFieldKey,
+    summaryFieldKey: generatedSummaryField,
+    summaryStatusField,
   };
 }
 

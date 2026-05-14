@@ -21,8 +21,8 @@ export const applySummaryRequestSchema = z.object({
   workItemId: z.string().min(1),
   masterUserId: z.string().min(1),
   baseUrl: z.string().min(1),
-  summaryFieldKey: z.string().min(1),
-  summaryMarkdown: z.string().min(1),
+  generatedSummary: z.string().min(1),
+  statusSummary: z.string().min(1),
 });
 
 export type ApplySummaryRequest = z.infer<typeof applySummaryRequestSchema>;

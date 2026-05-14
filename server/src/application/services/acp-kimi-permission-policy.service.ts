@@ -57,6 +57,7 @@ const LOW_RISK_COMMANDS = [
   /^uname\b/i,
   /^git\s+(status|log|diff|show)\b/i,
   /^git\s+branch\b/i,
+  /^meegle\s+auth\s+status\b/i,
 ];
 
 function isHighRisk(toolCall: ToolCallUpdate): { highRisk: boolean; reason: string } {

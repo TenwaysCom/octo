@@ -56,6 +56,7 @@ export interface KimiAcpConnectionFactoryInput {
   cwd: string;
   emit(event: AcpKimiStreamEvent): void;
   signal?: AbortSignal;
+  yolo?: boolean;
 }
 
 export interface KimiAcpRuntimeDeps {
@@ -69,6 +70,7 @@ export interface KimiAcpRuntimeDeps {
   emit?: (event: AcpKimiStreamEvent) => void;
   signal?: AbortSignal;
   sessionId?: string;
+  yolo?: boolean;
 }
 
 export interface KimiAcpSessionRuntime {
@@ -111,6 +113,7 @@ export async function createKimiAcpSessionRuntime(
           emit(event);
         },
         signal: deps.signal,
+        yolo: deps.yolo,
       })
     : createDefaultConnection(
         {
@@ -120,6 +123,7 @@ export async function createKimiAcpSessionRuntime(
             emit(event);
           },
           signal: deps.signal,
+          yolo: deps.yolo,
         },
         deps.spawnProcess,
       ));
@@ -316,7 +320,7 @@ async function createDefaultConnection(
   >[1];
 
   const connection = new acp.ClientSideConnection(
-    () => new CollectingClient(input.emit),
+    () => new CollectingClient(input.emit, input.yolo ?? false),
     stream,
   );
 
@@ -549,13 +553,38 @@ export function respondToPermissionRequest(
 }
 
 class CollectingClient implements acp.Client {
-  constructor(private readonly emit: (event: AcpKimiStreamEvent) => void) {}
+  constructor(
+    private readonly emit: (event: AcpKimiStreamEvent) => void,
+    private readonly yolo: boolean = false,
+  ) {}
 
   async requestPermission(
     params: RequestPermissionRequest,
   ): Promise<RequestPermissionResponse> {
     const policy = evaluatePermissionRequest(params);
     const sessionId = params.sessionId;
+
+    // Yolo mode: auto-allow everything except high-risk
+    if (this.yolo && policy.action !== "auto_reject") {
+      const allowOption = selectAutoAllowOption(params.options);
+      if (allowOption) {
+        kimiAcpRuntimeLogger.info(
+          {
+            sessionId,
+            toolCallId: params.toolCall.toolCallId,
+            optionId: allowOption.optionId,
+            reason: "yolo mode auto-allow",
+          },
+          "KIMI_ACP_CLIENT PERMISSION_YOLO_ALLOWED",
+        );
+        return {
+          outcome: {
+            outcome: "selected" as const,
+            optionId: allowOption.optionId,
+          },
+        };
+      }
+    }
 
     // High risk: auto-reject
     if (policy.action === "auto_reject") {

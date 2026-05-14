@@ -217,4 +217,109 @@ describe("kimi-acp-service", () => {
       expect(order).toEqual([0, 1]);
     });
   });
+
+  describe("POST /prompt-yolo", () => {
+    it("returns 400 when message is missing", async () => {
+      service = createAcpServiceApp({
+        createRuntime: async () => createMockRuntime(["hello"]),
+        createYoloRuntime: async () => createMockRuntime(["yolo"]),
+        port: 0,
+      });
+      const port = await service.start();
+
+      const res = await fetch(`http://localhost:${port}/prompt-yolo`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error).toBe("message is required");
+    });
+
+    it("returns generated text via yolo runtime", async () => {
+      service = createAcpServiceApp({
+        createRuntime: async () => createMockRuntime(["normal"]),
+        createYoloRuntime: async () => createMockRuntime(["yolo-result"]),
+        port: 0,
+      });
+      const port = await service.start();
+
+      const res = await fetch(`http://localhost:${port}/prompt-yolo`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: "test yolo" }),
+      });
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.ok).toBe(true);
+      expect(body.text).toBe("yolo-result");
+    });
+
+    it("isolates normal and yolo queues", async () => {
+      let normalCalls = 0;
+      let yoloCalls = 0;
+
+      const normalRuntime: KimiAcpSessionRuntime = {
+        sessionId: "normal-session",
+        async prompt({ emit }) {
+          normalCalls++;
+          emit({
+            event: "acp.session.update",
+            data: {
+              sessionId: "normal-session",
+              update: {
+                sessionUpdate: "agent_message_chunk",
+                content: { type: "text", text: "normal" },
+              },
+            },
+          } as never);
+          return { stopReason: "stop" };
+        },
+        async close() {},
+      };
+
+      const yoloOnlyRuntime: KimiAcpSessionRuntime = {
+        sessionId: "yolo-session",
+        async prompt({ emit }) {
+          yoloCalls++;
+          emit({
+            event: "acp.session.update",
+            data: {
+              sessionId: "yolo-session",
+              update: {
+                sessionUpdate: "agent_message_chunk",
+                content: { type: "text", text: "yolo" },
+              },
+            },
+          } as never);
+          return { stopReason: "stop" };
+        },
+        async close() {},
+      };
+
+      service = createAcpServiceApp({
+        createRuntime: async () => normalRuntime,
+        createYoloRuntime: async () => yoloOnlyRuntime,
+        port: 0,
+      });
+      const port = await service.start();
+
+      await Promise.all([
+        fetch(`http://localhost:${port}/prompt`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: "normal" }),
+        }).then((r) => r.json()),
+        fetch(`http://localhost:${port}/prompt-yolo`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: "yolo" }),
+        }).then((r) => r.json()),
+      ]);
+
+      expect(normalCalls).toBe(1);
+      expect(yoloCalls).toBe(1);
+    });
+  });
 });

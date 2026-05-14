@@ -1,9 +1,13 @@
 import { createAcpServiceApp } from "./acp-service.js";
+import { createKimiAcpSessionRuntime } from "../adapters/kimi-acp/kimi-acp-runtime.js";
 import { acpLogger } from "../logger.js";
 
 const serviceLogger = acpLogger.child({ module: "kimi-acp-service" });
 
-const service = createAcpServiceApp({ logger: serviceLogger });
+const service = createAcpServiceApp({
+  logger: serviceLogger,
+  createYoloRuntime: () => createKimiAcpSessionRuntime({ yolo: true }),
+});
 
 void service.start();
 
