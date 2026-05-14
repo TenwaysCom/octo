@@ -4,6 +4,7 @@ name: Kimi Code Review
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -13,10 +14,57 @@ permissions:
 jobs:
   kimi-review:
     runs-on: ubuntu-latest
+
+    # 避免 fork PR 拿不到 secret，还可能跑不可信代码
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+
+    env:
+      KIMI_API_KEY: ${{ secrets.KIMI_API_KEY }}
+      KIMI_BASE_URL: https://api.kimi.com/coding/v1
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
     steps:
       - uses: actions/checkout@v4
-      - uses: howardpen9/kimi-code-reviewer@main
         with:
-          kimi_api_key: ${{ secrets.MOONSHOT_API_KEY }}
-          language: zh-CN
-          fail_on: error
+          fetch-depth: 0
+
+      - name: Install Kimi Code CLI
+        run: |
+          curl -LsSf https://code.kimi.com/install.sh | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Check tools
+        run: |
+          kimi --version
+          gh --version
+          gh auth status
+
+      - name: Generate PR diff
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch origin "${{ github.base_ref }}"
+          git diff "origin/${{ github.base_ref }}...HEAD" > pr.diff
+          test -s pr.diff
+
+      - name: Run Kimi review
+        if: github.event_name == 'pull_request'
+        run: |
+          kimi --quiet --work-dir "$GITHUB_WORKSPACE" -p "$(cat <<'EOF'
+          Review this pull request diff.
+          Requirements:
+          - Focus on real bugs, security issues, regressions, and missing tests.
+          - Do not nitpick formatting unless it causes behavior or maintainability problems.
+          - Output concise Markdown with file paths and line references when possible.
+
+          Diff:
+          EOF
+          cat pr.diff
+          )" > kimi-review.md
+
+          test -s kimi-review.md
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        run: |
+          gh pr comment "${{ github.event.pull_request.number }}" \
+            --body-file kimi-review.md
