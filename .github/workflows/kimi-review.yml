@@ -22,6 +22,7 @@ jobs:
     env:
       KIMI_API_KEY: ${{ secrets.KIMI_API_KEY }}
       KIMI_BASE_URL: https://api.kimi.com/coding/v1
+      KIMI_MODEL_NAME: kimi-for-coding
       GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
     steps:
