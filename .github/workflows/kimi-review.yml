@@ -23,6 +23,7 @@ jobs:
       KIMI_API_KEY: ${{ secrets.KIMI_API_KEY }}
       KIMI_BASE_URL: https://api.kimi.com/coding/v1
       GH_TOKEN: ${{ secrets.GH_TOKEN }}
+      KIMI_SHARE_DIR: ${{ runner.temp }}/kimi
 
     steps:
       - uses: actions/checkout@v4
@@ -46,6 +47,12 @@ jobs:
           git fetch origin "${{ github.base_ref }}"
           git diff "origin/${{ github.base_ref }}...HEAD" > pr.diff
           test -s pr.diff
+      - name: Smoke test Kimi
+        run: |
+          echo "Say OK only." | kimi --print \
+            --input-format text \
+            --output-format text \
+            --final-message-only
 
       - name: Run Kimi review
         if: github.event_name == 'pull_request'
@@ -67,10 +74,24 @@ jobs:
           kimi --print \
             --input-format text \
             --output-format text \
+            --no-thinking \
             --final-message-only \
             --work-dir "$GITHUB_WORKSPACE" \
             < review-prompt.md \
-            > kimi-review.md
+            > kimi-review.md \
+            2> kimi-stderr.log
+          status=$?
+          set -e
+
+          if [ "$status" -ne 0 ]; then
+            echo "kimi exited with status $status"
+            echo "=== kimi stderr ==="
+            cat kimi-stderr.log || true
+            echo "=== kimi logs ==="
+            find "${KIMI_SHARE_DIR:-$HOME/.kimi}" -type f -maxdepth 4 2>/dev/null | sort || true
+            find "${KIMI_SHARE_DIR:-$HOME/.kimi}" -type f -name "*.log" -maxdepth 4 -print -exec tail -n 120 {} \; 2>/dev/null || true
+            exit "$status"
+          fi
 
           test -s kimi-review.md
 
