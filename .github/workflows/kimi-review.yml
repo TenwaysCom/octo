@@ -3,8 +3,9 @@ name: Kimi Code Review
 
 on:
   pull_request:
+    branches:
+      - 'uat*'
     types: [opened, synchronize, reopened]
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -21,7 +22,7 @@ jobs:
     env:
       KIMI_API_KEY: ${{ secrets.KIMI_API_KEY }}
       KIMI_BASE_URL: https://api.kimi.com/coding/v1
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
     steps:
       - uses: actions/checkout@v4
@@ -49,7 +50,7 @@ jobs:
       - name: Run Kimi review
         if: github.event_name == 'pull_request'
         run: |
-          kimi --quiet --work-dir "$GITHUB_WORKSPACE" -p "$(cat <<'EOF'
+          cat > review-prompt.md <<'EOF'
           Review this pull request diff.
           Requirements:
           - Focus on real bugs, security issues, regressions, and missing tests.
@@ -58,8 +59,18 @@ jobs:
 
           Diff:
           EOF
-          cat pr.diff
-          )" > kimi-review.md
+
+          head -c 200000 pr.diff >> review-prompt.md
+
+          wc -c review-prompt.md
+
+          kimi --print \
+            --input-format text \
+            --output-format text \
+            --final-message-only \
+            --work-dir "$GITHUB_WORKSPACE" \
+            < review-prompt.md \
+            > kimi-review.md
 
           test -s kimi-review.md
 
@@ -68,3 +79,4 @@ jobs:
         run: |
           gh pr comment "${{ github.event.pull_request.number }}" \
             --body-file kimi-review.md
+
