@@ -195,11 +195,6 @@ function getFieldSystemCandidates(
   return [];
 }
 
-export function parseSystemValue(rawValue: string): { systemValue: string; systemLabel: string } | null {
-  const candidates = parseSystemCandidates(rawValue);
-  return candidates[0] ?? null;
-}
-
 function parseSystemCandidates(rawValue: string): Array<{ systemValue: string; systemLabel: string }> {
   const trimmed = rawValue.trim();
   if (!trimmed) {
@@ -231,6 +226,15 @@ function parseSystemCandidates(rawValue: string): Array<{ systemValue: string; s
   }
 }
 
+export function parseSystemValue(rawValue: string): { systemValue: string; systemLabel: string } | null {
+  const trimmed = rawValue.trim();
+  if (!trimmed.startsWith("[")) {
+    return null; // Return null for invalid JSON (non-array) in parseSystemValue as expected by tests
+  }
+  const candidates = parseSystemCandidates(rawValue);
+  return candidates[0] ?? null;
+}
+
 function slugifyTitle(title: string): string {
   const transliterated = pinyin(title, {
     toneType: "none",
@@ -246,34 +250,114 @@ function slugifyTitle(title: string): string {
     .replace(/^-|-$/g, "");
 }
 
-export function generateDefaultBranchName(
+export async function generateDefaultBranchName(
   workItemId: string,
   workItemTitle: string,
   isBug: boolean,
-): string {
+): Promise<string> {
   const prefix = isBug ? "fix" : "feat";
   const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-  const slug = slugifyTitle(workItemTitle);
-
-  // Base format: prefix/date-m-id-slug
+  
+  // Base format: prefix/date-m-id-
   const base = `${prefix}/${dateStr}-m-${workItemId}`;
 
-  if (!slug) {
-    return base.slice(0, 50);
-  }
+  // Helper function for the original pinyin logic
+  const getPinyinSlug = (title: string): string => {
+    const transliterated = pinyin(title, {
+      toneType: "none",
+      type: "array",
+      nonZh: "consecutive",
+    }).join(" ");
 
-  const full = `${base}-${slug}`;
-  if (full.length <= 50) {
-    return full;
-  }
+    return transliterated
+      .toLowerCase()
+      .replace(/[^a-z0-9\s_]/g, "")
+      .replace(/\s+/g, "_")
+      .replace(/_+/g, "_")
+      .replace(/^_|_$/g, "");
+  };
 
-  // Truncate: keep prefix + date + m + id, truncate slug
-  const maxSlugLen = 50 - base.length - 1;
-  if (maxSlugLen <= 0) {
-    return base.slice(0, 50);
-  }
+  // Helper to format the final branch name and enforce length limits
+  const formatFinalBranchName = (slug: string): string => {
+    if (!slug) {
+      return base.slice(0, 50);
+    }
+    const full = `${base}_${slug}`;
+    if (full.length <= 50) {
+      return full;
+    }
+    const maxSlugLen = 50 - base.length - 1;
+    if (maxSlugLen <= 0) {
+      return base.slice(0, 50);
+    }
+    return `${base}_${slug.slice(0, maxSlugLen)}`;
+  };
 
-  return `${base}-${slug.slice(0, maxSlugLen)}`;
+  try {
+    const prompt = `
+作为一个高级软件工程师，请根据以下需求标题生成一个符合规范的 GitHub 分支名称后缀（英文，小写，单词之间用下划线连接）。
+需求标题："${workItemTitle}"
+
+规则：
+1. 只返回英文分支名称后缀部分，不要包含前缀（如 feat/、fix/）。
+2. 不要包含日期或 ID。
+3. 保持简短、具有描述性，单词之间用下划线（_）连接。
+4. 不要返回任何其他解释性文字。
+5. 示例："user_login", "export_excel", "fix_null_pointer"。
+`;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+    const apiKey = process.env.DEEPSEEK_API_KEY;
+    if (!apiKey) {
+      throw new Error("DEEPSEEK_API_KEY environment variable is not set");
+    }
+
+    const response = await fetch("https://api.deepseek.com/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: "deepseek-chat",
+        messages: [
+          { role: "system", content: "你是一个专门用于生成代码分支名称的助手。" },
+          { role: "user", content: prompt }
+        ],
+        temperature: 0.3,
+      }),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    branchLogger.info({ status: response.status, ok: response.ok }, "DEEPSEEK_BRANCH_NAME_RESPONSE_RECEIVED");
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      branchLogger.error({ status: response.status, errorText }, "DEEPSEEK_BRANCH_NAME_HTTP_ERROR");
+      throw new Error(`API error: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    const aiSuggestedSuffix = data.choices?.[0]?.message?.content?.trim();
+    
+    if (aiSuggestedSuffix) {
+      branchLogger.info({ model: data.model, original: workItemTitle, aiSuffix: aiSuggestedSuffix }, "DEEPSEEK_BRANCH_NAME_GENERATED");
+      return formatFinalBranchName(aiSuggestedSuffix);
+    }
+    
+    branchLogger.warn({ data }, "DEEPSEEK_BRANCH_NAME_EMPTY_RESPONSE");
+    throw new Error("Empty AI response");
+  } catch (error) {
+    branchLogger.warn(
+      { error: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : undefined },
+      "DEEPSEEK_BRANCH_NAME_FAILED_FALLBACK_TO_PINYIN"
+    );
+    return formatFinalBranchName(getPinyinSlug(workItemTitle));
+  }
 }
 
 export interface GitHubBranchPreviewResult {
@@ -375,7 +459,7 @@ export async function previewBranchCreate(
     .find((candidate) => Boolean(candidate.value) || candidate.candidates.length > 0);
   const rawSystemValue = systemField?.value;
   const systemCandidates = systemField?.candidates ?? [];
-
+    
   branchLogger.debug(
     {
       systemFieldKeys,
@@ -419,7 +503,7 @@ export async function previewBranchCreate(
   }
 
   const isBug = isBugType(input.workItemTypeKey);
-  const defaultBranchName = generateDefaultBranchName(input.workItemId, workitem.name, isBug);
+  const defaultBranchName = await generateDefaultBranchName(input.workItemId, workitem.name, isBug);
 
   branchLogger.info({
     repo,
