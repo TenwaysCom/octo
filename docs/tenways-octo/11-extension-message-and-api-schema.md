@@ -13,28 +13,32 @@
 
 ## 2. 适用范围
 
-一期主要覆盖 5 类动作：
+当前主要覆盖 6 类动作：
 
 1. 当前用户与身份映射校验
 2. Meegle `auth code` 申请与 token 兑换
-3. `Lark Bug -> Meegle Product Bug` 分析与半自动建单
-4. `Lark User Story -> Meegle User Story` 分析与半自动建单
-5. PM 即时分析
+3. `Lark Ticket -> Meegle Workitem` 创建与同步
+4. PM 即时分析（含 SLA 统计）
+5. Meegle Workitem 总结生成与回写
+6. GitHub 分支创建与 PR 关联
 
 补充说明：
 
-- 当前正式业务主链路仍是 `Lark Bug / Lark User Story + PM 即时分析`
+- Lark Base 侧为统一的 **Lark Ticket** 表，通过 `Issue 类型` 字段区分后映射到不同 Meegle workitem 类型
+- PM 分析已支持真实数据模式（从 Meegle 拉取 workitem）和 Mock 模式
 - ACP `V1` 只为 `PM 即时分析` 增加“可会话、可追问、可流式返回”的能力
-- ACP `V1` 不要求把 A1/A2 一起迁移到 ACP 协议
 
-术语映射：
+术语映射（历史参考）：
 
-- `A1` -> `Lark Bug`
-- `A2` -> `Lark User Story`
-- `B1` -> `Meegle User Story`
-- `B2` -> `Meegle Product Bug`
-- 插件内部 action 仍保留 `a1/a2/b1/b2`
-- 服务端公开 HTTP 路径使用新命名，并保留旧路径别名
+| 旧代号 | 当前名称 |
+|--------|---------|
+| `A1` | Lark Ticket（Issue 类型 = Bug） |
+| `A2` | Lark Ticket（Issue 类型 = User Story） |
+| `B1` | Meegle User Story |
+| `B2` | Meegle Product Bug |
+
+- 服务端公开 HTTP 路径已移除 `/api/a1/*` `/api/a2/*` 兼容别名
+- 代码内部不再使用 `a1/a2/b1/b2` 命名
 
 ## 3. 协议设计原则
 
@@ -397,119 +401,331 @@
 - `require_binding`
 - `expired`
 
-## 5.3 Lark Bug 业务接口
+## 5.3 Lark Ticket → Meegle Workitem 业务接口
 
-### 5.3.1 `POST /api/lark-bug/analyze`
+Lark Base 侧为统一的 **Lark Ticket** 表，通过 `Issue 类型` 字段区分后映射到不同的 Meegle workitem 类型：
 
-兼容别名：
+| Lark Issue 类型 | Meegle workitem 类型 | templateId |
+|----------------|---------------------|------------|
+| `User Story` / `feature` | `story` | `400329` |
+| `Tech Task` / `配置` / `数据维护` | `techtask` | `651452` / `690928` |
+| `Bug` / `Production Bug` | `production_bug` | `645025` |
 
-- `POST /api/a1/analyze`
+映射关系可通过 `server/config/lark-base-workflow.json` 配置，或环境变量 `LARK_BASE_ISSUE_TYPE_MAPPINGS` 覆盖。
 
-响应 data 建议：
+### 5.3.1 `POST /api/lark-base/create-meegle-workitem`
 
-```json
-{
-  "summary": "该工单更适合进入产线 Bug",
-  "decision": "to_b2",
-  "missingFields": ["environment", "repro_steps"],
-  "riskLevel": "medium",
-  "nextActions": ["补充环境信息", "生成 B2 草稿"]
-}
-```
-
-### 5.3.2 `POST /api/lark-bug/to-meegle-product-bug/draft`
-
-兼容别名：
-
-- `POST /api/a1/create-b2-draft`
-
-响应 data 建议：
-
-```json
-{
-  "draftId": "draft_b2_001",
-  "target": {
-    "projectKey": "PROJ1",
-    "workitemTypeKey": "bug"
-  },
-  "draft": {
-    "name": "支付页白屏",
-    "templateId": 123,
-    "fieldValuePairs": [
-      {
-        "fieldKey": "description",
-        "fieldValue": "..."
-      }
-    ]
-  },
-  "missingMeta": [],
-  "needConfirm": true
-}
-```
-
-### 5.3.3 `POST /api/lark-bug/to-meegle-product-bug/apply`
-
-兼容别名：
-
-- `POST /api/a1/apply-b2`
-
-请求应包含：
-
-- `draftId`
-- 可选 `masterUserId`
-- `operatorLarkId`
-- `sourceRecordId`
-- `idempotencyKey`
-- `confirmedDraft`
-
-成功响应应包含：
-
-- `status = created`
-- `workitemId`
-- `draft`
-
-失败响应应返回结构化 `errorCode / errorMessage`
-
-## 5.4 Lark User Story 业务接口
-
-### 5.4.1 `POST /api/lark-user-story/analyze`
-
-兼容别名：
-
-- `POST /api/a2/analyze`
-
-### 5.4.2 `POST /api/lark-user-story/to-meegle-user-story/draft`
-
-兼容别名：
-
-- `POST /api/a2/create-b1-draft`
-
-### 5.4.3 `POST /api/lark-user-story/to-meegle-user-story/apply`
-
-兼容别名：
-
-- `POST /api/a2/apply-b1`
-
-这三组接口的结构与 Lark Bug 路径保持一致，只是目标类型改为 Meegle User Story 对应的 `workitem_type_key`。
-
-## 5.5 PM 分析接口
-
-### 5.5.1 `POST /api/pm/analysis/run`
-
-这是当前保留的 legacy 一次性分析接口。
+单条 Lark Base 记录创建 Meegle workitem。
 
 请求：
 
 ```json
 {
-  "requestId": "req_20260320_001",
-  "operatorLarkId": "ou_xxx",
-  "scope": {
-    "projectKeys": ["PROJ1"],
-    "timeRange": {
-      "from": "2026-03-01",
-      "to": "2026-03-20"
+  "recordId": "rec_xxx",
+  "masterUserId": "usr_xxx",
+  "baseId": "base_xxx",
+  "tableId": "tbl_xxx",
+  "projectKey": "PROJ1"
+}
+```
+
+字段说明：
+
+- `recordId`: 必填，Lark Base 记录 ID
+- `masterUserId`: 必填，操作用户主身份 ID
+- `baseId`: 可选，默认从环境变量 `LARK_BASE_DEFAULT_BASE_ID` 读取
+- `tableId`: 可选，默认从环境变量 `LARK_BASE_DEFAULT_TABLE_ID` 读取
+- `projectKey`: 可选，默认从环境变量 `MEEGLE_PROJECT_KEY` 读取
+
+成功响应：
+
+```json
+{
+  "ok": true,
+  "workitemId": "12345",
+  "meegleLink": "https://project.larksuite.com/PROJ1/story/detail/12345",
+  "recordId": "rec_xxx",
+  "workitems": [
+    {
+      "workitemId": "12345",
+      "meegleLink": "https://project.larksuite.com/PROJ1/story/detail/12345"
     }
+  ]
+}
+```
+
+失败响应：
+
+```json
+{
+  "ok": false,
+  "error": {
+    "errorCode": "UNKNOWN_ISSUE_TYPE",
+    "errorMessage": "Unknown or unsupported Issue 类型: xxx"
+  }
+}
+```
+
+### 5.3.2 `POST /api/lark-base/bulk-preview-meegle-workitems`
+
+批量预览指定视图中可创建的 Lark Base 记录。
+
+请求：
+
+```json
+{
+  "baseId": "base_xxx",
+  "tableId": "tbl_xxx",
+  "viewId": "vew_xxx",
+  "masterUserId": "usr_xxx"
+}
+```
+
+成功响应：
+
+```json
+{
+  "ok": true,
+  "data": {
+    "eligible": [...],
+    "skipped": [...]
+  }
+}
+```
+
+### 5.3.3 `POST /api/lark-base/bulk-create-meegle-workitems`
+
+批量创建指定视图中的 Lark Base 记录对应的 Meegle workitem。
+
+请求参数与 `bulk-preview` 相同。
+
+成功响应：
+
+```json
+{
+  "ok": true,
+  "data": {
+    "summary": {
+      "created": 5,
+      "failed": 1,
+      "skipped": 3
+    },
+    "createdRecords": [...],
+    "failedRecords": [...],
+    "skippedRecords": [...]
+  }
+}
+```
+
+### 5.3.4 `POST /api/lark-base/update-meegle-link`
+
+手动回写 Meegle 链接到 Lark Base 记录的 `meegle链接` 字段。
+
+请求：
+
+```json
+{
+  "baseId": "base_xxx",
+  "tableId": "tbl_xxx",
+  "recordId": "rec_xxx",
+  "meegleLink": "https://project.larksuite.com/PROJ1/story/detail/12345",
+  "masterUserId": "usr_xxx"
+}
+```
+
+### 5.3.5 `POST /api/lark-base/get-record-url`
+
+获取 Lark Base 记录的共享 URL。
+
+请求：
+
+```json
+{
+  "baseId": "base_xxx",
+  "tableId": "tbl_xxx",
+  "recordId": "rec_xxx",
+  "masterUserId": "usr_xxx"
+}
+```
+
+成功响应：
+
+```json
+{
+  "ok": true,
+  "recordId": "rec_xxx",
+  "recordUrl": "https://base.larksuite.com/base/base_xxx/table/tbl_xxx/record/rec_xxx"
+}
+```
+
+### 5.3.6 `POST /api/meegle/workitem/update-lark-and-push`
+
+反向推送：当 Meegle workitem 状态变更后，更新关联的 Lark Base 记录状态并发送消息。
+
+请求：
+
+```json
+{
+  "projectKey": "PROJ1",
+  "workItemTypeKey": "story",
+  "workItemId": "12345",
+  "masterUserId": "usr_xxx",
+  "baseUrl": "https://project.larksuite.com",
+  "larkBaseUrl": "https://open.larksuite.com",
+  "larkStatusFieldName": "状态"
+}
+```
+
+成功响应：
+
+```json
+{
+  "ok": true,
+  "larkBaseUpdated": true,
+  "messageSent": true,
+  "reactionAdded": true,
+  "meegleStatusUpdated": true
+}
+```
+
+## 5.5 PM 分析接口
+
+### 5.5.1 `POST /api/pm/analysis/run`
+
+周期性项目健康度分析。聚合 Lark Ticket、Meegle Workitem、GitHub PR 三类数据，输出阻塞项、滞留项、SLA 超期统计和建议行动。
+
+支持两种模式：
+
+| 模式 | 条件 | 数据来源 |
+|------|------|---------|
+| **Mock** | 只传 `projectKeys` | 返回假数据，用于联调/演示 |
+| **真实数据** | 额外提供 `masterUserId` + `baseUrl` | 从 Meegle `filterWorkitems` 拉取真实数据 |
+
+请求：
+
+```json
+{
+  "projectKeys": ["PROJ1"],
+  "timeWindowDays": 14,
+  "masterUserId": "usr_xxx",
+  "baseUrl": "https://project.larksuite.com"
+}
+```
+
+字段说明：
+
+- `projectKeys`: `string[]` — 必填，要分析的项目 key 列表
+- `timeWindowDays`: `number` — 可选，分析时间窗口（天），默认 14
+- `masterUserId`: `string` — 可选，用户主身份 ID，提供则走真实数据模式
+- `baseUrl`: `string` — 可选，Meegle 实例地址，真实模式必填
+
+成功响应：
+
+```json
+{
+  "ok": true,
+  "summary": "本周期在 14 天窗口内发现 2 个阻塞项、3 个滞留事项、1 个 SLA 超期事项。",
+  "blockers": [
+    {
+      "id": "MeegleWI-blocked-1",
+      "projectKey": "PROJ1",
+      "status": "blocked",
+      "ageDays": 11,
+      "createdAt": 1715400000000,
+      "elapsedHours": 26,
+      "slaTargetHours": 24,
+      "slaBreached": true,
+      "name": "支付页白屏"
+    }
+  ],
+  "staleItems": [
+    {
+      "id": "LarkTicket-1",
+      "projectKey": "PROJ1",
+      "issueType": "Bug",
+      "status": "open",
+      "ageDays": 15
+    }
+  ],
+  "missingDescriptionItems": [
+    {
+      "id": "LarkTicket-story-1",
+      "projectKey": "PROJ1",
+      "reason": "需求已评审但描述仍待补全"
+    }
+  ],
+  "suggestedActions": [
+    "2 个阻塞项需要优先跟进",
+    "1 个 PR 需要补 review",
+    "1 个事项 SLA 已超期"
+  ],
+  "slaAnalysis": {
+    "total": 5,
+    "met": 4,
+    "breached": 1,
+    "breachedItems": [
+      {
+        "id": "MeegleWI-1",
+        "projectKey": "PROJ1",
+        "status": "in_progress",
+        "ageDays": 3,
+        "createdAt": 1715400000000,
+        "elapsedHours": 26,
+        "slaTargetHours": 24,
+        "slaBreached": true,
+        "name": "支付页白屏"
+      }
+    ]
+  },
+  "totals": {
+    "staleLarkTicketCount": 1,
+    "staleMeegleWorkitemCount": 2,
+    "pendingReviewLarkTicketCount": 1,
+    "reviewPendingPrCount": 1,
+    "slaBreachedCount": 1
+  },
+  "items": {
+    "staleLarkTickets": [...],
+    "staleMeegleWorkitems": [...],
+    "pendingReviewLarkTickets": [...],
+    "reviewPendingPrs": [...]
+  }
+}
+```
+
+响应字段说明：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `summary` | `string` | 一句话分析摘要 |
+| `blockers` | `MeegleWorkitem[]` | 状态为 `blocked` 的 workitem |
+| `staleItems` | `(LarkTicket \| MeegleWorkitem)[]` | 滞留项汇总 |
+| `missingDescriptionItems` | `{id, projectKey, reason}[]` | issueType 含 Story/需求 且 reviewed 的 Lark Ticket |
+| `suggestedActions` | `string[]` | 自动生成的行动建议 |
+| `slaAnalysis` | `object` | SLA 统计：total/met/breached/breachedItems |
+| `totals` | `object` | 各类指标计数 |
+| `items` | `object` | 各类明细列表（与 totals 对应） |
+
+失败响应：
+
+```json
+{
+  "ok": false,
+  "error": {
+    "errorCode": "INVALID_REQUEST",
+    "errorMessage": "..."
+  }
+}
+```
+
+认证过期时：
+
+```json
+{
+  "ok": false,
+  "error": {
+    "errorCode": "AUTH_EXPIRED",
+    "errorMessage": "Meegle 认证已过期或无效，请在插件中重新授权 Meegle 后再试。"
   }
 }
 ```
@@ -621,6 +837,282 @@ data: {"sessionId":"sess_pm_001"}
 }
 ```
 
+## 5.6 Meegle Workitem 总结接口
+
+### 5.6.1 `POST /api/meegle/workitem/generate-summary`
+
+用途：
+
+- 为单个 Meegle workitem 生成 Markdown 总结草稿
+- 自动从 Lark Base 记录、Meegle workitem 本体提取可预填信息
+- 返回分区块的 Markdown，人工只需补充结论部分
+
+请求：
+
+```json
+{
+  "projectKey": "PROJ1",
+  "workItemTypeKey": "story",
+  "workItemId": "12345",
+  "masterUserId": "usr_xxx",
+  "baseUrl": "https://project.larksuite.com",
+  "larkBaseUrl": "https://open.larksuite.com"
+}
+```
+
+字段说明：
+
+- `projectKey`: Meegle 项目 key
+- `workItemTypeKey`: workitem 类型 api_name（如 `story`, `production_bug`）
+- `workItemId`: workitem 数字 ID
+- `masterUserId`: 操作用户主身份 ID
+- `baseUrl`: Meegle 实例地址
+- `larkBaseUrl`: 可选，Lark OpenAPI 地址，默认 `https://open.larksuite.com`
+
+成功响应：
+
+```json
+{
+  "ok": true,
+  "markdown": "## ✅ 核心信息确认...\n## 🎯 产品结论...",
+  "workItemType": "story",
+  "prefilledSections": ["核心信息确认", "进度状态"],
+  "emptySections": ["产品结论", "开发总结", "测试总结"]
+}
+```
+
+响应字段：
+
+- `markdown`: 完整的 Markdown 总结草稿
+- `workItemType`: `story` | `bug` | `unknown`，用于前端决定渲染模板
+- `prefilledSections`: AI 已自动预填的区块标题列表
+- `emptySections`: 需要人工填写的区块标题列表
+
+失败响应：
+
+```json
+{
+  "ok": false,
+  "error": {
+    "errorCode": "INVALID_REQUEST",
+    "errorMessage": "..."
+  }
+}
+```
+
+或
+
+```json
+{
+  "ok": false,
+  "error": {
+    "errorCode": "AUTH_EXPIRED",
+    "errorMessage": "Meegle 认证已过期或无效，请在插件中重新授权 Meegle 后再试。"
+  }
+}
+```
+
+### 5.6.2 `POST /api/meegle/workitem/apply-summary`
+
+用途：
+
+- 将人工编辑后的 Markdown 总结写回 Meegle workitem 的指定字段
+- 典型的两步流程：先生成草稿（`generate-summary`），用户编辑后调用本接口保存
+
+请求：
+
+```json
+{
+  "projectKey": "PROJ1",
+  "workItemTypeKey": "story",
+  "workItemId": "12345",
+  "masterUserId": "usr_xxx",
+  "baseUrl": "https://project.larksuite.com",
+  "summaryFieldKey": "field_xxx",
+  "summaryMarkdown": "## ✅ 核心信息确认\n- [x] 业务背景..."
+}
+```
+
+字段说明：
+
+- `summaryFieldKey`: Meegle 上用于存储总结的自定义字段 key
+- `summaryMarkdown`: 完整的 Markdown 总结内容
+
+成功响应：
+
+```json
+{
+  "ok": true,
+  "workItemId": "12345",
+  "summaryFieldKey": "field_xxx"
+}
+```
+
+失败响应与 `generate-summary` 一致，错误码包含 `INVALID_REQUEST`、`AUTH_EXPIRED`、`SUMMARY_FAILED`。
+
+### 5.6.3 总结字段 Markdown 模板规范
+
+**需求 Story 模板结构**：
+
+```markdown
+## ✅ 核心信息确认（description 应包含以下内容，已包含的请打勾）
+- [x] 业务背景 & 目标
+- [ ] 影响范围
+- [x] 验收标准
+- [ ] 优先级原因
+- [ ] 明确不做范围
+- [x] 关联文档链接
+
+> 💡 原始描述信息请查看 workitem 的 description 字段，此处不放重复内容。
+> 关联文档：https://...
+
+## 🎯 产品结论（PM 填写 / 确认补充）
+- 影响范围（确认/补充）：
+- 验收标准（确认/补充）：
+- 优先级原因：
+- 明确不做：
+- 验收人：
+
+## ⚙️ 开发总结（开发填写）
+- 技术依赖：
+- 技术风险：
+- 关键设计决策：
+
+## 🧪 测试总结（测试填写）
+- 测试关注点：
+- 验证结果：
+
+## 🔗 关联 & 变更（AI 自动维护）
+- 关联 Bug：
+- 需求变更记录：
+
+## ⏱️ 进度状态（AI 自动计算）
+- 来源：xxx / 标签：xxx
+- 创建时间：2026-05-11Txx:xx:xx.xxxZ
+- 当前节点：见 workflow
+```
+
+**Production Bug 模板结构**：
+
+```markdown
+## ✅ 核心信息确认（description 应包含以下内容，已包含的请打勾）
+- [x] 问题现象
+- [ ] 发生环境
+- [x] 复现步骤
+- [ ] 期望结果
+- [x] 实际结果
+- [ ] 证据链接
+
+> 💡 原始描述信息请查看 workitem 的 description 字段，此处不放重复内容。
+> 关联链接：https://...
+
+## 🔍 测试结论（测试填写 / 确认补充）
+- 复现步骤（确认/补充）：
+- 期望结果：
+- 回归范围：
+
+## 🔧 开发总结（开发填写）
+- 根因分析：
+- 修复方案：
+- 技术影响面：
+- 预防措施：
+
+## 📢 产品评估（PM 填写）
+- 严重程度：
+- 客户影响判断：
+- 对外说明口径：
+
+## ⏱️ SLA 分析（AI 自动计算）
+- 创建时间：2026-05-11Txx:xx:xx.xxxZ
+- 当前已耗时：x天x小时
+- SLA 目标：24小时
+- SLA 状态：✅ 达标 / ❌ 超期 x小时
+```
+
+### 5.6.4 AI 生成模式与 ACP 服务
+
+`generate-summary` 支持两种生成模式，通过环境变量切换：
+
+| 模式 | 环境变量 | 说明 |
+|------|---------|------|
+| **规则驱动**（默认） | `KIMI_ACP_SERVICE_ENABLED=false` | 纯规则/模板拼接，无 LLM 调用，速度快（~200ms） |
+| **AI 生成** | `KIMI_ACP_SERVICE_ENABLED=true` | 调用独立 ACP 服务，由 Kimi AI 基于 workitem 描述生成结构化总结 |
+
+#### 架构
+
+```
+┌─────────────────────────────┐     ┌─────────────────────────────┐
+│   tenways-octo-server        │     │   kimi-acp-service          │
+│                              │     │   (独立进程, 单进程常驻)       │
+│  POST /generate-summary      │────►│                              │
+│    ├── 拉取 workitem          │     │  POST /prompt               │
+│    ├── 拉取 Lark 记录         │     │    ├── 请求队列（串行）       │
+│    ├── 构造 prompt            │     │    ├── kimi-cli (常驻)       │
+│    └── 调用 ACP 服务 ◄────────┘     │    └── 返回 Markdown         │
+│                              │     │                              │
+│  AI 失败时自动 fallback      │     │  GET /health                │
+│  到规则驱动模板               │     │                              │
+└─────────────────────────────┘     └─────────────────────────────┘
+```
+
+#### ACP 服务接口
+
+`POST http://localhost:3456/prompt`
+
+请求：
+
+```json
+{
+  "message": "【系统指令】...【任务】请根据以下信息生成总结..."
+}
+```
+
+响应：
+
+```json
+{
+  "ok": true,
+  "text": "## ✅ 核心信息确认\n...",
+  "stopReason": "stop"
+}
+```
+
+`GET http://localhost:3456/health`
+
+响应：
+
+```json
+{
+  "ok": true,
+  "status": "ready"
+}
+```
+
+#### 环境变量
+
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `KIMI_ACP_SERVICE_ENABLED` | `false` | 是否启用 AI 生成模式 |
+| `KIMI_ACP_SERVICE_URL` | `http://localhost:3456` | Server 调用 ACP 服务的地址 |
+| `KIMI_ACP_SERVICE_PORT` | `3456` | ACP 服务自身的监听端口 |
+
+#### 启动方式
+
+```bash
+# 开发（独立终端）
+pnpm --dir server acp-service:dev
+
+# 生产
+pnpm --dir server acp-service:start
+```
+
+#### 设计决策
+
+- **单进程串行**：一个 `kimi acp` 进程同一时间只能处理一个 prompt，请求自动排队
+- **常驻预热**：服务启动时立即初始化 runtime，请求时无冷启动
+- **自动 fallback**：AI 生成失败（ACP 服务未启动、超时、返回错误）时，自动回退到规则驱动模板，不阻断用户流程
+- **上下文隔离**：每个 prompt 开头自带 `【系统指令】请忽略之前的所有对话内容`，避免 Session 上下文污染
+
 ## 6. 错误码建议
 
 建议先统一一版跨层错误码：
@@ -640,6 +1132,8 @@ data: {"sessionId":"sess_pm_001"}
 - `ACP_SESSION_EXPIRED`
 - `ACP_UNSUPPORTED_FOLLOWUP`
 - `ACP_STREAM_INIT_FAILED`
+- `SUMMARY_FAILED`
+- `AUTH_EXPIRED`
 
 ## 7. 幂等与追踪建议
 

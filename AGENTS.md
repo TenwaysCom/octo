@@ -17,8 +17,8 @@ Business logic, workflow orchestration, identity resolution, and third-party API
 
 Notes:
 - Public server HTTP routes use the new names such as `/api/lark-bug/*` and `/api/lark-user-story/*`.
-- Old `/api/a1/*` and `/api/a2/*` routes remain as compatibility aliases.
-- Extension message actions still use `a1/a2/b1/b2` naming in places to avoid breaking the existing protocol.
+- Old `/api/a1/*` and `/api/a2/*` compatibility alias routes have been removed.
+- Extension message actions no longer use `a1/a2/b1/b2` naming.
 
 ## Repository Layout
 
@@ -36,7 +36,7 @@ tw-itdog/
 **Server**
 - `server/src/index.ts` wires the app, env, controllers, and routes.
 - `server/src/http/` contains HTTP route registration and request middleware.
-- `server/src/modules/` contains controller/service modules such as `identity`, `meegle-auth`, `meegle-workitem`, `lark-auth`, `lark-base`, `pm-analysis`, `acp-kimi`, and `debug-log`.
+- `server/src/modules/` contains controller/service modules such as `identity`, `meegle-auth`, `meegle-workitem`, `lark-auth`, `lark-base`, `pm-analysis`, `meegle-summary`, `acp-kimi`, and `debug-log`.
 - `server/src/application/services/` holds business orchestration and workflow services.
 - `server/src/adapters/` contains external integrations and persistence layers, including `lark/`, `meegle/`, `postgres/`, and legacy `sqlite/`.
 - `server/src/scripts/` contains migration and import utilities.
@@ -56,12 +56,22 @@ Prefer package-scoped commands from the package you are changing.
 ### Server
 
 ```bash
+# 主 server
 pnpm --dir server dev
 pnpm --dir server test
 pnpm --dir server build
 pnpm --dir server start
+
+# ACP AI 服务
+pnpm --dir server acp-service:dev     # 开发模式
+pnpm --dir server acp-service:start   # 生产模式
+
+# 数据库
 pnpm --dir server db:migrate
 pnpm --dir server db:reset
+
+# ACP 调试
+pnpm --dir server db:copy <source-db> <target-db>
 pnpm --dir server kimi-acp:repl
 pnpm --dir server kimi-acp:validate
 ```
@@ -73,8 +83,9 @@ pnpm --dir server kimi-acp:validate
 - Read logs when debugging server or extension behavior. Default files:
   - `server/logs/app.log` for module and service logs
   - `server/logs/api.log` for HTTP request and response logs
+  - `server/logs/acp.log` for ACP service and Kimi runtime logs
   - `server/logs/popup-client.log` for extension client debug logs when `CLIENT_DEBUG_LOG_UPLOAD_ENABLED=true`
-- Start the server with `pnpm --dir server dev`, use `tail -f` to watch the log files, and use `rg` to filter for module names or request markers such as `REQUEST_HANDLER_ERROR`, `API_REQUEST`, and extension events.
+- Start the server with `pnpm --dir server dev` (or `make server-acp-dev` to include ACP service), use `tail -f` to watch the log files, and use `rg` to filter for module names or request markers such as `REQUEST_HANDLER_ERROR`, `API_REQUEST`, `KIMI_ACP_SERVICE`, and extension events.
 - Use `LOG_LEVEL=debug` before `pnpm --dir server dev` when you need more detail.
 - Extension logs also live in the in-memory extension log buffer and can be exported from the popup when needed.
 - Keep using `logger.ts`; do not use `console.log`.

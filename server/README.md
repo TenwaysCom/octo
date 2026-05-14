@@ -1,6 +1,6 @@
 # Tenways Octo - 服务端
 
-服务端 API 负责身份解析、Meegle 认证、Lark 到 Meegle 建单编排，以及 PM 即时分析。
+服务端 API 负责身份解析、Meegle 认证、Lark 到 Meegle 建单编排、PM 即时分析、Meegle Workitem AI 总结，以及 GitHub 分支创建。
 
 ## 当前对外术语
 
@@ -12,21 +12,29 @@
 | `B2` | `Meegle Product Bug` |
 
 说明：
-- 服务端公开路径使用新命名
-- 旧 `/api/a1/*`、`/api/a2/*` 仍保留为兼容别名
+- 服务端公开路径已移除 `/api/a1/*`、`/api/a2/*` 兼容别名
+- Lark Base 侧统一为 **Lark Ticket** 表，通过 `Issue 类型` 字段区分后映射到不同 Meegle workitem 类型
 
 ## 开发
 
 ```bash
+# 主 server
 pnpm --dir server dev
 pnpm --dir server test
 pnpm --dir server build
-pnpm --dir server db:migrate
-pnpm --dir server db:import-sqlite
 pnpm --dir server start
+
+# ACP AI 服务（独立进程）
+pnpm --dir server acp-service:dev     # 开发模式
+pnpm --dir server acp-service:start   # 生产模式
+
+# 同时启动 server + ACP 服务
+cd .. && make server-acp-dev
 ```
 
-默认地址：`http://localhost:3000`
+默认地址：
+- 主 server：`http://localhost:3000`
+- ACP 服务：`http://localhost:3456`
 
 ## 数据库
 
@@ -37,6 +45,7 @@ pnpm --dir server start
 ```bash
 pnpm --dir server db:migrate
 pnpm --dir server db:reset
+pnpm --dir server db:copy tenways_octo_test tenways_octo_ly_0509
 pnpm --dir server db:import-sqlite -- --sqlite ./data/tenways-octo.sqlite
 ```
 
@@ -58,33 +67,22 @@ pnpm --dir server db:import-sqlite -- --sqlite ./data/tenways-octo.sqlite
 - `POST /api/meegle/auth/status`
 - `POST /api/pm/analysis/run`
 
-### Lark Bug -> Meegle Product Bug
+### Lark Ticket -> Meegle Workitem
 
-主路径：
+- `POST /api/lark-base/create-meegle-workitem` — 单条建单
+- `POST /api/lark-base/bulk-preview-meegle-workitems` — 批量预览
+- `POST /api/lark-base/bulk-create-meegle-workitems` — 批量建单
+- `POST /api/lark-base/update-meegle-link` — 回写 Meegle 链接
+- `POST /api/lark-base/get-record-url` — 获取记录 URL
 
-- `POST /api/lark-bug/analyze`
-- `POST /api/lark-bug/to-meegle-product-bug/draft`
-- `POST /api/lark-bug/to-meegle-product-bug/apply`
+### Meegle Workitem 总结
 
-兼容别名：
+- `POST /api/meegle/workitem/generate-summary` — 生成 Markdown 总结
+- `POST /api/meegle/workitem/apply-summary` — 回写总结到字段
 
-- `POST /api/a1/analyze`
-- `POST /api/a1/create-b2-draft`
-- `POST /api/a1/apply-b2`
+### GitHub
 
-### Lark User Story -> Meegle User Story
-
-主路径：
-
-- `POST /api/lark-user-story/analyze`
-- `POST /api/lark-user-story/to-meegle-user-story/draft`
-- `POST /api/lark-user-story/to-meegle-user-story/apply`
-
-兼容别名：
-
-- `POST /api/a2/analyze`
-- `POST /api/a2/create-b1-draft`
-- `POST /api/a2/apply-b1`
+- `POST /api/github-branch-create/create-branch` — 创建分支
 
 ## Apply 请求约定
 
@@ -147,6 +145,7 @@ pnpm --dir server db:import-sqlite -- --sqlite ./data/tenways-octo.sqlite
 | `MEEGLE_BINDING_REQUIRED` | 已解析用户缺少 `meegleUserKey` 或 `meegleBaseUrl` |
 | `MEEGLE_AUTH_REQUIRED` | Meegle 认证缺失、失效或不可刷新 |
 | `MEEGLE_WORKITEM_CREATE_FAILED` | Meegle workitem 创建失败 |
+| `SUMMARY_FAILED` | 总结生成失败 |
 | `INTERNAL_ERROR` | 未归类的服务端异常 |
 
 ## 模块划分
@@ -157,25 +156,51 @@ server/src/
 │   ├── lark/
 │   ├── meegle/
 │   ├── postgres/
-│   └── sqlite/
+│   ├── sqlite/
+│   └── kimi-acp/
 ├── application/services/
-│   ├── a1-workflow.service.ts
-│   ├── a2-workflow.service.ts
+│   ├── lark-base-workflow.service.ts
 │   ├── meegle-apply.service.ts
 │   ├── meegle-credential.service.ts
 │   ├── meegle-workitem.service.ts
-│   └── pm-analysis.service.ts
+│   ├── pm-analysis.service.ts
+│   └── acp-kimi-proxy.service.ts
 ├── http/
-│   └── lark-meegle-workflow-routes.ts
+│   └── api-request-logger.ts
 ├── modules/
-│   ├── a1/
-│   ├── a2/
 │   ├── identity/
 │   ├── meegle-auth/
-│   └── pm-analysis/
-└── validators/
+│   ├── meegle-workitem/
+│   ├── meegle-summary/
+│   ├── lark-base/
+│   ├── lark-auth/
+│   ├── pm-analysis/
+│   ├── acp-kimi/
+│   ├── github-branch-create/
+│   └── debug-log/
+├── kimi-acp-service/
+│   └── index.ts              # 独立 ACP HTTP 服务
+└── scripts/
+    └── database-migrate.ts
+```
+
+## 日志文件
+
+| 文件 | 内容 |
+|------|------|
+| `logs/app.log` | 业务模块和服务日志 |
+| `logs/api.log` | HTTP 请求和响应日志 |
+| `logs/acp.log` | ACP 服务和 Kimi runtime 日志 |
+
+通过环境变量自定义路径：
+
+```bash
+LOG_FILE=./logs/app.log
+API_LOG_FILE=./logs/api.log
+ACP_LOG_FILE=./logs/acp.log
 ```
 
 说明：
 - `adapters/postgres/` 是当前运行时存储实现
 - `adapters/sqlite/` 只保留给旧库读取和一次性数据导入
+- `kimi-acp-service/` 是独立 ACP 服务进程，生产环境由 pm2 单独管理

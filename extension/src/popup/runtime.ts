@@ -1047,14 +1047,17 @@ export async function savePopupSettings(
     );
   });
 
+  const syncData: Record<string, unknown> = {
+    ENV_NAME: settings.ENV_NAME || DEFAULT_CONFIG.ENV_NAME,
+    MEEGLE_PLUGIN_ID: settings.MEEGLE_PLUGIN_ID,
+  };
+
+  if (settings.ENV_NAME === "dev") {
+    syncData.SERVER_URL = settings.SERVER_URL;
+  }
+
   await new Promise<void>((resolve) => {
-    chromeApi.storage.sync.set(
-      {
-        ENV_NAME: settings.ENV_NAME || DEFAULT_CONFIG.ENV_NAME,
-        MEEGLE_PLUGIN_ID: settings.MEEGLE_PLUGIN_ID,
-      },
-      () => resolve(),
-    );
+    chromeApi.storage.sync.set(syncData, () => resolve());
   });
 }
 

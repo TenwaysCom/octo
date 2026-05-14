@@ -6,7 +6,7 @@ vi.mock("../background/config.js", () => ({
   }),
 }));
 
-import { createGitHubBranchCreateController } from "./popup-github-branch-create-controller.js";
+import { createGitHubBranchCreateController, type GitHubBranchCreateModalState } from "./popup-github-branch-create-controller.js";
 
 describe("popup github branch create controller", () => {
   beforeEach(() => {
@@ -26,7 +26,7 @@ describe("popup github branch create controller", () => {
       }),
     } as Response);
 
-    let state = {
+    let state: GitHubBranchCreateModalState = {
       visible: false,
       stage: "preview",
       repo: "",
@@ -36,7 +36,7 @@ describe("popup github branch create controller", () => {
       systemLabel: "",
       error: null,
       result: null,
-    } as const;
+    };
 
     const controller = createGitHubBranchCreateController({
       readStore: () => ({

@@ -31,7 +31,7 @@ describe("background router lark_base workflow", () => {
 
   it("falls back to the current active tab when query_active_tab_context has no sender tab", async () => {
     expect(runtimeMessageListener).toBeTypeOf("function");
-    vi.mocked(chrome.tabs.query).mockImplementation((queryInfo, callback) => {
+    vi.mocked(chrome.tabs.query).mockImplementation(((queryInfo: chrome.tabs.QueryInfo, callback: (tabs: chrome.tabs.Tab[]) => void) => {
       expect(queryInfo).toEqual({ active: true, currentWindow: true });
       callback?.([
         {
@@ -40,7 +40,7 @@ describe("background router lark_base workflow", () => {
         } as chrome.tabs.Tab,
       ]);
       return undefined as never;
-    });
+    }) as never);
 
     await new Promise<void>((resolve) => {
       runtimeMessageListener?.(
@@ -65,10 +65,10 @@ describe("background router lark_base workflow", () => {
 
   it("returns null tab context when query_active_tab_context cannot find an active tab", async () => {
     expect(runtimeMessageListener).toBeTypeOf("function");
-    vi.mocked(chrome.tabs.query).mockImplementation((_queryInfo, callback) => {
+    vi.mocked(chrome.tabs.query).mockImplementation(((_queryInfo: chrome.tabs.QueryInfo, callback: (tabs: chrome.tabs.Tab[]) => void) => {
       callback?.([]);
       return undefined as never;
-    });
+    }) as never);
 
     await new Promise<void>((resolve) => {
       runtimeMessageListener?.(

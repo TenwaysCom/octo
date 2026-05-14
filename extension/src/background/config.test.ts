@@ -87,6 +87,41 @@ describe("extension config", () => {
     });
   });
 
+  it("resolves SERVER_URL from ENV_NAME=dev when configured", async () => {
+    vi.mocked(chrome.storage.sync.get).mockImplementation((defaults, callback) => {
+      const resolvedDefaults = defaults as Record<string, unknown>;
+      callback({
+        ...resolvedDefaults,
+        ENV_NAME: "dev",
+      });
+    });
+
+    vi.mocked(fetch).mockRejectedValue(new Error("network down"));
+
+    await expect(getConfig()).resolves.toMatchObject({
+      ENV_NAME: "dev",
+      SERVER_URL: "https://octodevly.odoo.tenways.it:18443",
+    });
+  });
+
+  it("allows custom SERVER_URL override in dev environment", async () => {
+    vi.mocked(chrome.storage.sync.get).mockImplementation((defaults, callback) => {
+      const resolvedDefaults = defaults as Record<string, unknown>;
+      callback({
+        ...resolvedDefaults,
+        ENV_NAME: "dev",
+        SERVER_URL: "https://custom-dev.example.com",
+      });
+    });
+
+    vi.mocked(fetch).mockRejectedValue(new Error("network down"));
+
+    await expect(getConfig()).resolves.toMatchObject({
+      ENV_NAME: "dev",
+      SERVER_URL: "https://custom-dev.example.com",
+    });
+  });
+
   it("keeps backward compatibility with an explicitly stored SERVER_URL", async () => {
     vi.mocked(chrome.storage.sync.get).mockImplementation((defaults, callback) => {
       const resolvedDefaults = defaults as Record<string, unknown>;

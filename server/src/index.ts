@@ -24,6 +24,7 @@ import {
   acpKimiSessionLoadController,
   acpKimiSessionRenameController,
 } from "./modules/acp-kimi/acp-kimi-sessions.controller.js";
+import { acpKimiPermissionRespondController } from "./modules/acp-kimi/acp-kimi-permission.controller.js";
 import {
   getLarkRecordUrlController,
   updateLarkBaseMeegleLinkController,
@@ -34,6 +35,10 @@ import {
   previewLarkBaseBulkWorkflowController,
 } from "./modules/lark-base/lark-base-bulk-workflow.controller.js";
 import { meegleLarkPushController } from "./modules/meegle-workitem/meegle-lark-push.controller.js";
+import {
+  generateSummaryController,
+  applySummaryController,
+} from "./modules/meegle-summary/meegle-summary.controller.js";
 import { createApiRequestLogger } from "./http/api-request-logger.js";
 import { createApiAuthMiddleware } from "./http/api-auth.js";
 import {
@@ -206,6 +211,7 @@ app.post("/api/acp/kimi/sessions/list", handleController(acpKimiSessionListContr
 app.post("/api/acp/kimi/sessions/load", handleController(acpKimiSessionLoadController));
 app.post("/api/acp/kimi/sessions/rename", handleController(acpKimiSessionRenameController));
 app.post("/api/acp/kimi/sessions/delete", handleController(acpKimiSessionDeleteController));
+app.post("/api/acp/kimi/permission/respond", acpKimiPermissionRespondController);
 
 // PM Analysis routes
 app.post("/api/pm/analysis/run", handleController(runPMAnalysisController));
@@ -219,6 +225,8 @@ app.post("/api/lark-base/bulk-create-meegle-workitems", handleController(createL
 
 // Meegle workitem routes
 app.post("/api/meegle/workitem/update-lark-and-push", handleController(meegleLarkPushController));
+app.post("/api/meegle/workitem/generate-summary", handleController(generateSummaryController));
+app.post("/api/meegle/workitem/apply-summary", handleController(applySummaryController));
 
 // GitHub branch create routes
 app.post("/api/github/branch/preview", handleController(githubBranchPreviewController));
