@@ -1,5 +1,6 @@
 import type {
   KimiChatEvent,
+  KimiChatPermissionRequestState,
   KimiChatRenderState,
   KimiChatSessionSummary,
   KimiChatTranscriptEntry,
@@ -14,6 +15,7 @@ import {
   loadKimiChatSession,
   loadKimiChatTranscriptSnapshot,
   renameKimiChatSession,
+  respondKimiChatPermission,
   saveKimiChatTranscriptSnapshot,
 } from "../popup/runtime.js";
 
@@ -30,6 +32,7 @@ export interface PopupKimiChatStoreLike {
   kimiChatHistoryOpen: boolean;
   kimiChatHistoryLoading: boolean;
   kimiChatHistoryItems: KimiChatSessionSummary[];
+  kimiChatPendingPermissionRequest: KimiChatPermissionRequestState | null;
   settingsForm: {
     SERVER_URL: string;
     larkUserId: string;
@@ -688,6 +691,36 @@ export function createKimiChatController<TStore extends PopupKimiChatStoreLike>(
     }
   }
 
+  async function respondPermission(optionId: string): Promise<void> {
+    const current = deps.readStore();
+    const pending = current.kimiChatPendingPermissionRequest;
+    const masterUserId = current.state.identity.masterUserId;
+
+    if (!pending || !masterUserId) {
+      return;
+    }
+
+    deps.updateStore((previous) => ({
+      ...previous,
+      kimiChatPendingPermissionRequest: null,
+    }));
+
+    try {
+      await respondKimiChatPermission({
+        masterUserId,
+        sessionId: pending.sessionId,
+        requestId: pending.requestId,
+        optionId,
+      });
+      deps.appendLog("debug", `权限已响应: ${optionId}`);
+    } catch (error) {
+      deps.appendLog(
+        "error",
+        `权限响应失败: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
   function dispose(): void {
     cancelPendingRenderState();
     abortControllerRef.current?.abort();
@@ -702,6 +735,7 @@ export function createKimiChatController<TStore extends PopupKimiChatStoreLike>(
     renameSession,
     sendMessage,
     stopGeneration,
+    respondPermission,
     dispose,
   };
 }

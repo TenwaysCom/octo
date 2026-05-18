@@ -9,6 +9,11 @@ export interface KimiChatClient {
       signal?: AbortSignal;
     },
   ): Promise<void>;
+  respondPermission(input: {
+    sessionId: string;
+    requestId: string;
+    optionId: string;
+  }): Promise<void>;
 }
 
 export function createKimiChatClient(input: { baseUrl: string; masterUserId: string }): KimiChatClient {
@@ -56,6 +61,23 @@ export function createKimiChatClient(input: { baseUrl: string; masterUserId: str
       }
 
       await parseKimiChatEventStream(response.body, handlers?.onEvent);
+    },
+    async respondPermission(request) {
+      const response = await fetch(`${input.baseUrl}/api/acp/kimi/permission/respond`, {
+        method: "POST",
+        headers: createServerRequestHeaders({
+          masterUserId: input.masterUserId,
+        }),
+        body: JSON.stringify(request),
+      });
+
+      if (!response.ok) {
+        const payload = await readErrorPayload(response);
+        throw new Error(
+          payload?.error?.errorMessage ||
+            `Permission respond failed with ${response.status}`,
+        );
+      }
     },
   };
 }

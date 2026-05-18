@@ -301,6 +301,7 @@ async function renderPopupApp(
     closeKimiChatHistory?: PopupAppModel["closeKimiChatHistory"];
     loadKimiChatHistorySession?: PopupAppModel["loadKimiChatHistorySession"];
     deleteKimiChatHistorySession?: PopupAppModel["deleteKimiChatHistorySession"];
+    respondKimiChatPermission?: PopupAppModel["respondKimiChatPermission"];
     stopKimiChatGeneration?: PopupAppModel["stopKimiChatGeneration"];
   } = {},
 ) {
@@ -387,6 +388,7 @@ async function renderPopupApp(
           kimiChatHistoryOpen: options.historyOpen ?? false,
           kimiChatHistoryLoading: false,
           kimiChatHistoryItems: options.historyItems ?? [],
+          kimiChatPendingPermissionRequest: null,
           update: null,
           githubBranchCreateModal: {
             visible: false,
@@ -454,6 +456,9 @@ async function renderPopupApp(
             ]);
             await options.sendKimiChatMessage?.(message);
           }) as PopupAppModel["sendKimiChatMessage"],
+          respondKimiChatPermission: (async (optionId: string) => {
+            await options.respondKimiChatPermission?.(optionId);
+          }) as PopupAppModel["respondKimiChatPermission"],
           stopKimiChatGeneration: (() => {
             setBusy(false);
             options.stopKimiChatGeneration?.();

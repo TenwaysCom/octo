@@ -1,4 +1,5 @@
 import type {
+  KimiChatPermissionRequestState,
   KimiChatSessionSummary,
   KimiChatTranscriptEntry,
 } from "../../types/acp-kimi.js";
@@ -15,6 +16,7 @@ export function ChatPage({
   historyOpen,
   historyLoading,
   historyItems,
+  pendingPermissionRequest,
   onDraftMessageChange,
   onSendMessage,
   onResetSession,
@@ -23,6 +25,7 @@ export function ChatPage({
   onLoadHistorySession,
   onDeleteHistorySession,
   onStopGeneration,
+  onRespondPermission,
 }: {
   busy: boolean;
   sessionId: string | null;
@@ -31,6 +34,7 @@ export function ChatPage({
   historyOpen: boolean;
   historyLoading: boolean;
   historyItems: KimiChatSessionSummary[];
+  pendingPermissionRequest: KimiChatPermissionRequestState | null;
   onDraftMessageChange: (value: string) => void;
   onSendMessage: (value: string) => void | Promise<void>;
   onResetSession: () => void;
@@ -39,6 +43,7 @@ export function ChatPage({
   onLoadHistorySession: (sessionId: string) => void | Promise<void>;
   onDeleteHistorySession: (sessionId: string) => void | Promise<void>;
   onStopGeneration: () => void;
+  onRespondPermission: (optionId: string) => void | Promise<void>;
 }) {
   return (
     <PopupPage
@@ -47,7 +52,7 @@ export function ChatPage({
     >
       <div className="chat-placeholder" data-test="chat-page">
         {historyOpen ? (
-          <div className="flex flex-col gap-2 rounded-[22px] border border-slate-200/80 bg-white/92 p-3 shadow-sm">
+          <div className="flex min-w-0 flex-col gap-2 rounded-[22px] border border-slate-200/80 bg-white/92 p-3 shadow-sm">
             <div className="flex items-center justify-between px-1">
               <h3 className="text-sm font-semibold text-slate-900">历史会话</h3>
               <span className="text-[11px] text-slate-400">{historyItems.length} 个会话</span>
@@ -117,11 +122,13 @@ export function ChatPage({
           sessionId={sessionId}
           transcript={transcript}
           historyOpen={historyOpen}
+          pendingPermissionRequest={pendingPermissionRequest}
           onDraftMessageChange={onDraftMessageChange}
           onSendMessage={onSendMessage}
           onStopGeneration={onStopGeneration}
           onResetSession={onResetSession}
           onToggleHistory={() => (historyOpen ? onCloseHistory() : onOpenHistory())}
+          onRespondPermission={onRespondPermission}
         />
       </div>
     </PopupPage>

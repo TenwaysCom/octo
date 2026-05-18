@@ -245,6 +245,7 @@ function renderPopupApp(
           kimiChatHistoryOpen: false,
           kimiChatHistoryLoading: false,
           kimiChatHistoryItems: [],
+          kimiChatPendingPermissionRequest: null,
           update: null,
           githubBranchCreateModal: {
             visible: false,
@@ -301,6 +302,7 @@ function renderPopupApp(
           deleteKimiChatHistorySession: vi.fn(),
           updateKimiChatDraftMessage: vi.fn(),
           sendKimiChatMessage: vi.fn(async () => undefined),
+          respondKimiChatPermission: vi.fn(),
           stopKimiChatGeneration: vi.fn(),
           ignoreUpdateVersion: vi.fn(),
           downloadUpdate: vi.fn(),

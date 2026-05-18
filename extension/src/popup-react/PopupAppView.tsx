@@ -110,6 +110,7 @@ function renderActivePage(popupApp: PopupAppModel) {
             historyOpen={popupApp.kimiChatHistoryOpen}
             historyLoading={popupApp.kimiChatHistoryLoading}
             historyItems={popupApp.kimiChatHistoryItems}
+            pendingPermissionRequest={popupApp.kimiChatPendingPermissionRequest}
             onDraftMessageChange={popupApp.updateKimiChatDraftMessage}
             onSendMessage={popupApp.sendKimiChatMessage}
             onResetSession={popupApp.resetKimiChatSession}
@@ -118,6 +119,7 @@ function renderActivePage(popupApp: PopupAppModel) {
             onLoadHistorySession={popupApp.loadKimiChatHistorySession}
             onDeleteHistorySession={popupApp.deleteKimiChatHistorySession}
             onStopGeneration={popupApp.stopKimiChatGeneration}
+            onRespondPermission={popupApp.respondKimiChatPermission}
           />
         </Suspense>
       );

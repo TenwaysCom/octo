@@ -25,6 +25,9 @@ export function applyKimiChatEvent(
         state,
         normalizeSessionUpdateForRendering(event.data.update),
       );
+    case "acp.permission.request":
+      // Permission requests are handled at the controller level, not here.
+      return state;
     case "done":
       return {
         ...state,
@@ -34,6 +37,8 @@ export function applyKimiChatEvent(
           createStatusEntry(`本轮已完成 · ${event.data.stopReason}`),
         ],
       };
+    default:
+      return state;
   }
 }
 

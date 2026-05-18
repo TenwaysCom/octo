@@ -5,6 +5,7 @@ import type {
 } from "../types/lark.js";
 import type { MeegleAuthEnsureResponse } from "../types/meegle.js";
 import type {
+  KimiChatPermissionRequestState,
   KimiChatSessionSummary,
   KimiChatTranscriptEntry,
 } from "../types/acp-kimi.js";
@@ -88,6 +89,7 @@ type LazyKimiChatController = {
   deleteHistorySession: (sessionId: string) => Promise<void>;
   sendMessage: (messageText: string) => Promise<void>;
   stopGeneration: () => void;
+  respondPermission: (optionId: string) => Promise<void>;
   dispose: () => void;
 };
 
@@ -157,6 +159,7 @@ interface PopupAppStore {
   kimiChatHistoryOpen: boolean;
   kimiChatHistoryLoading: boolean;
   kimiChatHistoryItems: KimiChatSessionSummary[];
+  kimiChatPendingPermissionRequest: KimiChatPermissionRequestState | null;
   larkBulkCreateModal: LarkBulkCreateModalState;
   githubBranchCreateModal: GitHubBranchCreateModalState;
   githubLookup: GitHubLookupState;
@@ -193,6 +196,7 @@ export interface PopupControllerState {
   kimiChatHistoryOpen: boolean;
   kimiChatHistoryLoading: boolean;
   kimiChatHistoryItems: KimiChatSessionSummary[];
+  kimiChatPendingPermissionRequest: KimiChatPermissionRequestState | null;
   update: UpdateState | null;
   githubLookup: GitHubLookupState;
 }
@@ -225,6 +229,7 @@ function createInitialStore(): PopupAppStore {
     kimiChatHistoryOpen: false,
     kimiChatHistoryLoading: false,
     kimiChatHistoryItems: [],
+    kimiChatPendingPermissionRequest: null,
     larkBulkCreateModal: {
       visible: false,
       stage: "hidden",
@@ -1474,6 +1479,11 @@ export function createPopupController() {
     await controller.sendMessage(messageText);
   }
 
+  async function respondKimiChatPermission(optionId: string): Promise<void> {
+    const controller = await loadKimiChatController();
+    await controller.respondPermission(optionId);
+  }
+
   async function ignoreUpdateVersion(): Promise<void> {
     const store = readStore();
     if (store.update?.latestVersion) {
@@ -1779,6 +1789,7 @@ export function createPopupController() {
       kimiChatHistoryOpen: store.kimiChatHistoryOpen,
       kimiChatHistoryLoading: store.kimiChatHistoryLoading,
       kimiChatHistoryItems: store.kimiChatHistoryItems,
+      kimiChatPendingPermissionRequest: store.kimiChatPendingPermissionRequest,
       update: store.update,
       githubLookup: store.githubLookup,
       }),
@@ -1835,6 +1846,7 @@ export function createPopupController() {
     deleteKimiChatHistorySession,
     updateKimiChatDraftMessage,
     sendKimiChatMessage,
+    respondKimiChatPermission,
     stopKimiChatGeneration,
     ignoreUpdateVersion,
     downloadUpdate,

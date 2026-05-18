@@ -108,7 +108,7 @@ function createStyles(): string {
       top: 0;
       right: 0;
       bottom: 0;
-      width: 480px;
+      width: 560px;
       background: #fff;
       box-shadow: -8px 0 40px rgba(15, 23, 42, 0.18);
       transform: translateX(100%);

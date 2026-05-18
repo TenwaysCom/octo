@@ -15,8 +15,8 @@ import {
   type ThreadMessageLike,
   type ToolCallMessagePartProps,
 } from "@assistant-ui/react";
-import { History, RotateCcw, Square } from "lucide-react";
-import { type ReactNode, useEffect, useMemo } from "react";
+import { History, RotateCcw, Shield, ShieldAlert, ShieldCheck, Square } from "lucide-react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 
 import type {
   KimiChatToolCallEntry,
@@ -89,11 +89,13 @@ interface PopupAssistantThreadProps {
   sessionId: string | null;
   transcript: KimiChatTranscriptEntry[];
   historyOpen: boolean;
+  pendingPermissionRequest: import("../../../types/acp-kimi.js").KimiChatPermissionRequestState | null;
   onDraftMessageChange: (value: string) => void;
   onSendMessage: (value: string) => Promise<void> | void;
   onStopGeneration: () => void;
   onResetSession: () => void;
   onToggleHistory: () => void;
+  onRespondPermission: (optionId: string) => void | Promise<void>;
 }
 
 export function PopupAssistantThread({
@@ -102,11 +104,13 @@ export function PopupAssistantThread({
   sessionId,
   transcript,
   historyOpen,
+  pendingPermissionRequest,
   onDraftMessageChange,
   onSendMessage,
   onStopGeneration,
   onResetSession,
   onToggleHistory,
+  onRespondPermission,
 }: PopupAssistantThreadProps) {
   const adapter = useMemo<ExternalStoreAdapter<KimiChatTranscriptEntry>>(
     () => ({
@@ -132,13 +136,13 @@ export function PopupAssistantThread({
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <ThreadPrimitive.Root
-        className="flex min-h-0 flex-col gap-2 rounded-[22px] border border-slate-200/80 bg-white/92 p-3 shadow-sm"
+        className="flex min-h-0 min-w-0 flex-col gap-2 rounded-[22px] border border-slate-200/80 bg-white/92 p-3 shadow-sm"
         data-testid="assistant-ui-thread"
       >
         <div className="flex items-center justify-between gap-1 px-1">
-          <div className="flex items-center gap-2 text-[11px] text-slate-400">
-            <span>Session: {sessionId || "未创建"}</span>
-            <span>{busy ? "生成中…" : "空闲"}</span>
+          <div className="flex min-w-0 flex-1 items-center gap-2 text-[11px] text-slate-400">
+            <span className="min-w-0 truncate">Session: {sessionId || "未创建"}</span>
+            <span className="shrink-0">{busy ? "生成中…" : "空闲"}</span>
           </div>
           <div className="flex items-center gap-1">
             <Button
@@ -189,6 +193,13 @@ export function PopupAssistantThread({
           <ThreadPrimitive.Messages>
             {() => <PopupAssistantMessage />}
           </ThreadPrimitive.Messages>
+
+          {pendingPermissionRequest ? (
+            <PermissionRequestCard
+              request={pendingPermissionRequest}
+              onRespond={onRespondPermission}
+            />
+          ) : null}
         </ThreadPrimitive.Viewport>
 
         <div className="h-px bg-slate-200/80" />
@@ -552,7 +563,7 @@ function PopupToolCallPart(props: ToolCallMessagePartProps) {
           {statusLabel}
         </span>
       </div>
-      {detail ? <div className="mt-1 text-slate-500">{detail}</div> : null}
+      {detail ? <div className="mt-1 break-words text-slate-500">{detail}</div> : null}
     </div>
   );
 }
@@ -640,6 +651,118 @@ function normalizeToolCallArtifact(artifact: unknown): PopupToolCallArtifact {
       ? (artifact as PopupToolCallArtifact).status
       : undefined,
   };
+}
+
+function PermissionRequestCard({
+  request,
+  onRespond,
+}: {
+  request: import("../../../types/acp-kimi.js").KimiChatPermissionRequestState;
+  onRespond: (optionId: string) => void | Promise<void>;
+}) {
+  const [responded, setResponded] = useState(false);
+  const [selectedOption, setSelectedOption] = useState<string | null>(null);
+
+  const handleRespond = (optionId: string) => {
+    if (responded) return;
+    setResponded(true);
+    setSelectedOption(optionId);
+    void onRespond(optionId);
+  };
+
+  const riskColors = {
+    high: "text-red-600 border-red-200 bg-red-50",
+    medium: "text-amber-600 border-amber-200 bg-amber-50",
+    low: "text-emerald-600 border-emerald-200 bg-emerald-50",
+  };
+
+  const riskLabel = {
+    high: "高危",
+    medium: "中危",
+    low: "低危",
+  };
+
+  const riskIcon = {
+    high: <ShieldAlert size={16} />,
+    medium: <Shield size={16} />,
+    low: <ShieldCheck size={16} />,
+  };
+
+  const allowOnce = request.options.find((o) => o.kind === "allow_once");
+  const allowAlways = request.options.find((o) => o.kind === "allow_always");
+  const rejectOnce = request.options.find((o) => o.kind === "reject_once");
+  const rejectAlways = request.options.find((o) => o.kind === "reject_always");
+
+  return (
+    <div
+      className={cn(
+        "my-2 rounded-xl border p-3 shadow-sm",
+        riskColors[request.riskLevel],
+      )}
+    >
+      <div className="flex items-center gap-2 text-sm font-semibold">
+        {riskIcon[request.riskLevel]}
+        <span>权限请求 · {riskLabel[request.riskLevel]}</span>
+      </div>
+
+      <p className="mt-1.5 text-sm leading-5">
+        {request.toolCallTitle}
+      </p>
+
+      {request.reason ? (
+        <p className="mt-1 text-xs opacity-75">{request.reason}</p>
+      ) : null}
+
+      {!responded ? (
+        <div className="mt-2.5 flex flex-wrap gap-2">
+          {allowOnce ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 rounded-lg border-emerald-300 bg-white px-3 text-xs text-emerald-700 hover:bg-emerald-50"
+              onClick={() => handleRespond(allowOnce.optionId)}
+            >
+              允许一次
+            </Button>
+          ) : null}
+          {allowAlways ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 rounded-lg border-emerald-300 bg-white px-3 text-xs text-emerald-700 hover:bg-emerald-50"
+              onClick={() => handleRespond(allowAlways.optionId)}
+            >
+              始终允许
+            </Button>
+          ) : null}
+          {rejectOnce ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 rounded-lg border-red-300 bg-white px-3 text-xs text-red-700 hover:bg-red-50"
+              onClick={() => handleRespond(rejectOnce.optionId)}
+            >
+              拒绝一次
+            </Button>
+          ) : null}
+          {rejectAlways ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 rounded-lg border-red-300 bg-white px-3 text-xs text-red-700 hover:bg-red-50"
+              onClick={() => handleRespond(rejectAlways.optionId)}
+            >
+              始终拒绝
+            </Button>
+          ) : null}
+        </div>
+      ) : (
+        <p className="mt-2 text-xs opacity-60">
+          已选择: {request.options.find((o) => o.optionId === selectedOption)?.name ?? selectedOption}
+        </p>
+      )}
+    </div>
+  );
 }
 
 function normalizeCustomMetadata(custom: Record<string, unknown> | undefined): {

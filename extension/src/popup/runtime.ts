@@ -569,6 +569,39 @@ export async function renameKimiChatSession(
   return payload;
 }
 
+export async function respondKimiChatPermission(
+  input: {
+    masterUserId: string;
+    sessionId: string;
+    requestId: string;
+    optionId: string;
+  },
+): Promise<void> {
+  const config = await getConfig();
+  const response = await fetch(`${config.SERVER_URL}/api/acp/kimi/permission/respond`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "master-user-id": input.masterUserId,
+    },
+    body: JSON.stringify({
+      sessionId: input.sessionId,
+      requestId: input.requestId,
+      optionId: input.optionId,
+    }),
+  });
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null) as {
+      error?: { errorMessage?: string };
+    } | null;
+    throw new Error(
+      payload?.error?.errorMessage ||
+        `Permission respond failed with ${response.status}`,
+    );
+  }
+}
+
 export async function loadKimiChatTranscriptSnapshot(input: {
   operatorLarkId: string;
   sessionId: string;

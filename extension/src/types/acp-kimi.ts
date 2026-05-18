@@ -37,6 +37,31 @@ export interface KimiChatPlanEntry {
   status: "pending" | "in_progress" | "completed";
 }
 
+export interface KimiChatPermissionOption {
+  optionId: string;
+  kind: string;
+  name: string;
+}
+
+export interface KimiChatPermissionRequestUpdate {
+  sessionUpdate: "permission_request";
+  requestId: string;
+  toolCall: {
+    title: string;
+    kind: string;
+    rawInput?: unknown;
+  };
+  options: KimiChatPermissionOption[];
+  riskLevel: "high" | "medium" | "low";
+  reason: string;
+}
+
+export interface KimiChatPermissionResolvedUpdate {
+  sessionUpdate: "permission_resolved";
+  requestId: string;
+  outcome: "allowed" | "rejected";
+}
+
 export type KimiChatSessionUpdate =
   | {
       sessionUpdate: "user_message_chunk";
@@ -80,6 +105,8 @@ export type KimiChatSessionUpdate =
       title?: string | null;
       updatedAt?: string | null;
     }
+  | KimiChatPermissionRequestUpdate
+  | KimiChatPermissionResolvedUpdate
   | ({
       sessionUpdate: string;
     } & Record<string, unknown>);
@@ -137,7 +164,42 @@ export interface KimiChatDoneEvent {
   };
 }
 
+export interface KimiChatPermissionRequestState {
+  requestId: string;
+  sessionId: string;
+  toolCallTitle: string;
+  toolCallKind: string;
+  options: Array<{
+    optionId: string;
+    kind: string;
+    name: string;
+  }>;
+  riskLevel: "high" | "medium" | "low";
+  reason: string;
+}
+
+export interface KimiChatPermissionRequestEvent {
+  event: "acp.permission.request";
+  data: {
+    sessionId: string;
+    requestId: string;
+    toolCall: {
+      title: string;
+      kind: string;
+      rawInput?: unknown;
+    };
+    options: Array<{
+      optionId: string;
+      kind: string;
+      name: string;
+    }>;
+    riskLevel: "high" | "medium" | "low";
+    reason: string;
+  };
+}
+
 export type KimiChatEvent =
   | KimiChatSessionCreatedEvent
   | KimiChatSessionUpdateEvent
+  | KimiChatPermissionRequestEvent
   | KimiChatDoneEvent;
