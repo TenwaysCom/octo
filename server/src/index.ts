@@ -45,6 +45,10 @@ import {
   githubBranchPreviewController,
   githubBranchCreateController,
 } from "./modules/github-branch-create/github-branch-create.controller.js";
+import {
+  executeAutomationActionController,
+  listAutomationActionsController,
+} from "./modules/automation-actions/automation-actions.controller.js";
 import { createCorsMiddleware } from "./http/cors.js";
 import { createGitHubLookupRouter } from "./routes/github-lookup.js";
 
@@ -231,6 +235,10 @@ app.post("/api/meegle/workitem/apply-summary", handleController(applySummaryCont
 // GitHub branch create routes
 app.post("/api/github/branch/preview", handleController(githubBranchPreviewController));
 app.post("/api/github/branch/create", handleController(githubBranchCreateController));
+
+// Automation action routes
+app.post("/api/automation-actions/list", handleController(listAutomationActionsController));
+app.post("/api/automation-actions/execute", handleController(executeAutomationActionController));
 
 // GitHub reverse lookup routes (requires GITHUB_TOKEN)
 if (process.env.GITHUB_TOKEN) {

@@ -8,6 +8,7 @@
     "db:reset": "node dist/scripts/database-migrate.js --reset",
     "db:copy": "node dist/scripts/postgres-copy-database.js",
     "db:import-sqlite": "node dist/scripts/database-import-sqlite.js",
+    "automation-actions:seed": "tsx src/scripts/automation-actions-seed.ts",
     "start": "node dist/index.js",
     "dev": "concurrently -k -n tsc,server -c yellow,cyan \"npm:dev:watch\" \"npm:dev:serve\"",
     "dev:watch": "tsc --watch",
