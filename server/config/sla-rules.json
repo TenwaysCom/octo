@@ -1,0 +1,20 @@
+{
+  "defaultTargetHours": 168,
+  "rules": [
+    {
+      "matchFields": ["紧急度", "Priority", "Urgency"],
+      "matchValues": ["P0", "紧急"],
+      "targetHours": 4
+    },
+    {
+      "matchFields": ["紧急度", "Priority", "Urgency"],
+      "matchValues": ["P1", "高"],
+      "targetHours": 24
+    },
+    {
+      "matchFields": ["紧急度", "Priority", "Urgency"],
+      "matchValues": ["P2", "中"],
+      "targetHours": 72
+    }
+  ]
+}

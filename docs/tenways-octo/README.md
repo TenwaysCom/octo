@@ -24,6 +24,7 @@
 18. [ACP 设计](./17-acp-design.md)
 19. [ACP 与 PM Analysis / Skills 结合讨论草案](./18-acp-pm-analysis-skill-notes.md)
 20. [插件使用文档](./20-extension-user-guide.md)
+21. [自动化动作协议与实现设计](./21-automation-actions-protocol.md)
 
 ## 归档文档
 

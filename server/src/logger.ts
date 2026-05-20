@@ -65,3 +65,4 @@ function createFileLogger(destination: string) {
 
 export const logger = createFileLogger(process.env.LOG_FILE || "./logs/app.log");
 export const apiLogger = createFileLogger(process.env.API_LOG_FILE || "./logs/api.log");
+export const acpLogger = createFileLogger(process.env.ACP_LOG_FILE || "./logs/acp.log");

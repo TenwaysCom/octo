@@ -24,18 +24,17 @@ describe("runPMAnalysis", () => {
           timeWindowDays: 3,
         },
         {
-          loadA1Items: async () => [
-            { id: "A1-1", projectKey: "PROJ1", status: "open", ageDays: 4 },
+          loadLarkTicketItems: async () => [
+            { id: "LarkTicket-1", projectKey: "PROJ1", issueType: "Bug", status: "open", ageDays: 4 },
           ],
-          loadA2Items: async () => [],
-          loadBItems: async () => [
-            { id: "B2-1", projectKey: "PROJ1", status: "in_progress", ageDays: 2 },
+          loadMeegleWorkitemItems: async () => [
+            { id: "MeegleWI-1", projectKey: "PROJ1", status: "in_progress", ageDays: 2 },
           ],
           loadPRItems: async () => [],
         },
       ),
     ).resolves.toMatchObject({
-      staleItems: [expect.objectContaining({ id: "A1-1" })],
+      staleItems: [expect.objectContaining({ id: "LarkTicket-1" })],
     });
   });
 });

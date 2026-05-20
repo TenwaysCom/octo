@@ -7,8 +7,8 @@
 set -e
 
 # 服务器配置
-SSH_HOST="deploy@58.60.106.226"
-SSH_PORT="2233"
+SSH_HOST="linyu@192.168.0.7"
+SSH_PORT="2222"
 PROJECT_DIR="~/projects/octo"
 
 echo "[DEPLOY-PROD] 连接到正式服务器执行部署..."
@@ -27,14 +27,18 @@ ssh -p "$SSH_PORT" "$SSH_HOST" -t "
     echo '[3/4] 构建服务端...'
     pnpm run build
     
-    echo '[4/4] 重启 PM2 服务...'
-    pnpm exec pm2 reload octo-server --update-env || pnpm exec pm2 start dist/index.js --name octo-server
-    pnpm exec pm2 save
+    echo '[4/5] 重启 PM2 主服务...'
+    pm2 reload octo-server --update-env || pm2 start dist/index.js --name octo-server
+    
+    echo '[5/5] 重启 PM2 ACP 服务...'
+    pm2 reload octo-acp-service --update-env || pm2 start dist/kimi-acp-service/index.js --name octo-acp-service
+    
+    pm2 save
     
     echo ''
     echo '✓ 正式服务器部署完成'
     echo ''
-    pnpm exec pm2 status
+    pm2 status
 "
 
 echo "[DEPLOY-PROD] 正式服务器部署完成!"

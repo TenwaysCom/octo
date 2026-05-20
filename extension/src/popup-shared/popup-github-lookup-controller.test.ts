@@ -6,7 +6,7 @@ vi.mock("../background/config.js", () => ({
   }),
 }));
 
-import { createGitHubLookupController } from "./popup-github-lookup-controller.js";
+import { createGitHubLookupController, type GitHubLookupState } from "./popup-github-lookup-controller.js";
 
 describe("popup github lookup controller", () => {
   beforeEach(() => {
@@ -31,11 +31,11 @@ describe("popup github lookup controller", () => {
       }),
     } as Response);
 
-    let state = {
+    let state: GitHubLookupState = {
       isLoading: false,
       error: null,
       result: null,
-    } as const;
+    };
 
     const controller = createGitHubLookupController({
       readStore: () => ({

@@ -35,6 +35,25 @@ export function createPostgresDatabase(
 
 export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<void> {
   await db.schema
+    .createTable("automation_actions")
+    .ifNotExists()
+    .addColumn("id", "text", (column) => column.primaryKey())
+    .addColumn("key", "text", (column) => column.notNull().unique())
+    .addColumn("title", "text", (column) => column.notNull())
+    .addColumn("description", "text")
+    .addColumn("enabled", "boolean", (column) => column.notNull().defaultTo(true))
+    .addColumn("priority", "integer", (column) => column.notNull().defaultTo(100))
+    .addColumn("page_types", "jsonb", (column) => column.notNull().defaultTo(sql`'[]'::jsonb`))
+    .addColumn("url_regexes", "jsonb", (column) => column.notNull().defaultTo(sql`'[]'::jsonb`))
+    .addColumn("allowed_roles", "jsonb", (column) => column.notNull().defaultTo(sql`'[]'::jsonb`))
+    .addColumn("executor_type", "text", (column) => column.notNull())
+    .addColumn("executor_config", "jsonb", (column) => column.notNull().defaultTo(sql`'{}'::jsonb`))
+    .addColumn("presentation_type", "text")
+    .addColumn("created_at", "text", (column) => column.notNull())
+    .addColumn("updated_at", "text", (column) => column.notNull())
+    .execute();
+
+  await db.schema
     .createTable("acp_kimi_session_owners")
     .ifNotExists()
     .addColumn("session_id", "text", (column) => column.primaryKey())
@@ -106,6 +125,10 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .execute();
 
   await sql`
+    CREATE INDEX IF NOT EXISTS automation_actions_enabled_priority_idx
+    ON automation_actions(enabled, priority)
+  `.execute(db);
+  await sql`
     CREATE INDEX IF NOT EXISTS acp_kimi_session_owners_operator_idx
     ON acp_kimi_session_owners(operator_lark_id, updated_at)
   `.execute(db);
@@ -156,6 +179,7 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
 }
 
 export async function resetPostgresDatabase(db: Kysely<DatabaseSchema>): Promise<void> {
+  await sql`DROP TABLE IF EXISTS automation_actions`.execute(db);
   await sql`DROP TABLE IF EXISTS acp_kimi_session_owners`.execute(db);
   await sql`DROP TABLE IF EXISTS oauth_sessions`.execute(db);
   await sql`DROP TABLE IF EXISTS user_tokens`.execute(db);

@@ -1,4 +1,20 @@
 export interface DatabaseSchema {
+  automation_actions: {
+    id: string;
+    key: string;
+    title: string;
+    description: string | null;
+    enabled: boolean;
+    priority: number;
+    page_types: unknown;
+    url_regexes: unknown;
+    allowed_roles: unknown;
+    executor_type: string;
+    executor_config: unknown;
+    presentation_type: string | null;
+    created_at: string;
+    updated_at: string;
+  };
   acp_kimi_session_owners: {
     session_id: string;
     operator_lark_id: string;

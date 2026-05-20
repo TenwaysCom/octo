@@ -14,9 +14,9 @@ import {
   getAcpKimiSessionOwnershipStore,
   type AcpKimiSessionOwnershipStore,
 } from "../../adapters/postgres/acp-kimi-session-ownership-store.js";
-import { logger } from "../../logger.js";
+import { acpLogger } from "../../logger.js";
 
-const acpKimiProxyLogger = logger.child({ module: "acp-kimi-proxy" });
+const acpKimiProxyLogger = acpLogger.child({ module: "acp-kimi-proxy" });
 
 export interface AcpKimiProxyServiceDeps {
   createSessionRuntime?: (

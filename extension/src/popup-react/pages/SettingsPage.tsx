@@ -51,6 +51,7 @@ export function SettingsPage({
           >
             <option value="prod">prod</option>
             <option value="test">test</option>
+            <option value="dev">dev</option>
           </select>
         </label>
         <label className="settings-page__field">
@@ -58,7 +59,9 @@ export function SettingsPage({
           <input
             value={form.SERVER_URL}
             className="settings-page__input"
-            readOnly
+            readOnly={form.ENV_NAME !== "dev"}
+            onChange={form.ENV_NAME === "dev" ? handleFieldChange("SERVER_URL", onFormFieldChange) : undefined}
+            data-test="settings-server-url"
           />
         </label>
         <label className="settings-page__field">

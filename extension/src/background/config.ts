@@ -8,7 +8,7 @@
 import { fetchServerJson } from "../server-request.js";
 
 export interface ExtensionConfig {
-  ENV_NAME: "prod" | "test";
+  ENV_NAME: "prod" | "test" | "dev";
   MEEGLE_PLUGIN_ID: string;
   LARK_APP_ID: string;
   LARK_OAUTH_CALLBACK_URL: string;
@@ -26,6 +26,7 @@ interface PublicConfigResponse {
 export const SERVER_URLS = {
   prod: "https://octo.odoo.tenways.it:18443",
   test: "https://octotest.odoo.tenways.it:18443",
+  dev: "https://octodevly.odoo.tenways.it:18443",
 } as const;
 
 export type EnvironmentName = keyof typeof SERVER_URLS;
@@ -42,7 +43,7 @@ export const DEFAULT_CONFIG: ExtensionConfig = {
 };
 
 export function isEnvironmentName(value: unknown): value is EnvironmentName {
-  return value === "prod" || value === "test";
+  return value === "prod" || value === "test" || value === "dev";
 }
 
 export function resolveServerUrl(input: {
@@ -50,6 +51,10 @@ export function resolveServerUrl(input: {
   serverUrl?: unknown;
 }): string {
   if (isEnvironmentName(input.envName)) {
+    // dev environment allows custom serverUrl override
+    if (input.envName === "dev" && typeof input.serverUrl === "string" && input.serverUrl.trim()) {
+      return input.serverUrl.trim();
+    }
     return SERVER_URLS[input.envName];
   }
 

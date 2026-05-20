@@ -23,9 +23,40 @@ export type AcpKimiDoneEvent = {
   };
 };
 
+export type AcpKimiPermissionRequestEvent = {
+  event: "acp.permission.request";
+  data: {
+    sessionId: string;
+    requestId: string;
+    toolCall: {
+      title: string;
+      kind: string;
+      rawInput?: unknown;
+    };
+    options: Array<{
+      optionId: string;
+      kind: string;
+      name: string;
+    }>;
+    riskLevel: "high" | "medium" | "low";
+    reason: string;
+  };
+};
+
+export type AcpKimiPermissionResolvedEvent = {
+  event: "acp.permission.resolved";
+  data: {
+    sessionId: string;
+    requestId: string;
+    outcome: "allowed" | "rejected";
+  };
+};
+
 export type AcpKimiStreamEvent =
   | AcpKimiSessionCreatedEvent
   | AcpKimiSessionUpdateEvent
+  | AcpKimiPermissionRequestEvent
+  | AcpKimiPermissionResolvedEvent
   | AcpKimiDoneEvent;
 
 export function prepareAcpKimiEventStream(res: Response) {

@@ -15,7 +15,7 @@ afterEach(async () => {
 
 describe("debug-log.controller", () => {
   it("writes popup client logs to a local jsonl file", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "tw-itdog-debug-log-"));
+    const dir = await mkdtemp(join(tmpdir(), "tw-octo-debug-log-"));
     tempDirs.push(dir);
     const logFile = join(dir, "popup-client.log");
     process.env.CLIENT_DEBUG_LOG_FILE = logFile;
@@ -49,7 +49,7 @@ describe("debug-log.controller", () => {
   });
 
   it("persists masterUserId when provided", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "tw-itdog-debug-log-"));
+    const dir = await mkdtemp(join(tmpdir(), "tw-octo-debug-log-"));
     tempDirs.push(dir);
     const logFile = join(dir, "popup-client.log");
     process.env.CLIENT_DEBUG_LOG_FILE = logFile;

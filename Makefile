@@ -5,7 +5,7 @@ EXT_PROFILE_DIR ?= $(HOME)/.config/octo-ext-profile
 
 .DEFAULT_GOAL := help
 
-.PHONY: help completion server-dev test-server test-client db-backup db-restore ext-dev ext-dev-manual ext-dev-profile ext-dev-probe ext-build ext-package ext-deploy-zip ext-test ext-typecheck deploy-test deploy-prod
+.PHONY: help completion server-dev server-acp-dev test-server test-client db-backup db-restore ext-dev ext-dev-manual ext-dev-profile ext-dev-probe ext-build ext-package ext-deploy-zip ext-test ext-typecheck deploy-test deploy-prod
 
 help: ## Show available make targets
 	@awk 'BEGIN {FS = ":.*## "}; /^[a-zA-Z0-9_.-]+:.*## / {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -27,6 +27,9 @@ completion: ## Print shell completion script for make targets (bash/zsh)
 server-dev: ## Run the backend server in watch mode
 	npm --prefix $(SERVER_DIR) run dev
 
+server-acp-dev: ## Run the backend server + ACP service in watch mode
+	npm --prefix $(SERVER_DIR) run dev:all
+
 test-server: ## Run backend tests
 	npm --prefix $(SERVER_DIR) test
 
@@ -41,6 +44,11 @@ db-restore: ## Restore a postgres database via server script (usage: make db-res
 	else \
 		npx tsx $(SERVER_DIR)/src/scripts/postgres-backup-restore.ts restore $(DB_NAME); \
 	fi
+
+db-copy: ## Copy a postgres database to a new database (usage: make db-copy SOURCE=tenways_octo_test TARGET=tenways_octo_ly_0509)
+	@test -n "$(SOURCE)" || (echo "Usage: make db-copy SOURCE=<source-db> TARGET=<target-db>"; exit 1)
+	@test -n "$(TARGET)" || (echo "Usage: make db-copy SOURCE=<source-db> TARGET=<target-db>"; exit 1)
+	npx tsx $(SERVER_DIR)/src/scripts/postgres-copy-database.ts $(SOURCE) $(TARGET)
 
 test-client: ## Run extension tests
 	pnpm --dir $(EXT_DIR) test

@@ -133,3 +133,19 @@ export function validateAcpKimiSessionRenameRequest(
 ): AcpKimiSessionRenameRequest {
   return acpKimiSessionRenameRequestSchema.parse(input);
 }
+
+export const acpKimiPermissionRespondRequestSchema = z.object({
+  sessionId: z.string().min(1),
+  requestId: z.string().min(1),
+  optionId: z.string().min(1),
+});
+
+export type AcpKimiPermissionRespondRequest = z.infer<
+  typeof acpKimiPermissionRespondRequestSchema
+>;
+
+export function validateAcpKimiPermissionRespondRequest(
+  input: unknown,
+): AcpKimiPermissionRespondRequest {
+  return acpKimiPermissionRespondRequestSchema.parse(input);
+}
