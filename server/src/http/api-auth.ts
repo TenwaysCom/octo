@@ -2,6 +2,8 @@ import type { NextFunction, Request, Response } from "express";
 
 const DEFAULT_EXEMPT_PATHS = new Set([
   "/api/config/public",
+  "/api/config/page",
+  "/api/config/server-api-catalog",
   "/api/identity/resolve",
   "/api/debug/client-log",
   // OAuth callback is entered from Lark's redirect, so the browser will not

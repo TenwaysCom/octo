@@ -127,4 +127,19 @@ describe("sidebar-injector", () => {
 
     handle.destroy();
   });
+
+  it("can inject only the panel without the floating trigger", () => {
+    const handle = injectSidebar(undefined, { showTrigger: false });
+
+    const host = document.getElementById("tenways-octo-sidebar-host");
+    expect(host?.shadowRoot?.querySelector(".octo-trigger")).toBeNull();
+    expect(host?.shadowRoot?.querySelector(".octo-sidebar-panel")).not.toBeNull();
+
+    handle.open();
+    expect(
+      host?.shadowRoot?.querySelector(".octo-sidebar-panel")?.classList.contains("open"),
+    ).toBe(true);
+
+    handle.destroy();
+  });
 });

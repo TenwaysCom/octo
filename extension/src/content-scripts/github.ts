@@ -1,3 +1,4 @@
+import { fetchExtensionPageConfig } from "./shared/page-config";
 import { injectSidebar } from "./shared/sidebar-injector";
 
 const GITHUB_PULL_REQUEST_PATH_PATTERN = /^\/[^/]+\/[^/]+\/pull\/\d+(?:\/.*)?$/;
@@ -13,9 +14,26 @@ export function isGitHubPullRequestPage(url: string): boolean {
 }
 
 if (typeof window !== "undefined" && isGitHubPullRequestPage(window.location.href)) {
-  injectSidebar({
-    hostPageType: "github",
-    hostUrl: window.location.href,
-    hostOrigin: window.location.origin,
-  });
+  void (async () => {
+    const pageConfig = await fetchExtensionPageConfig({
+      url: window.location.href,
+      fallbackPlatform: "github",
+    });
+
+    if (!pageConfig.sidebar.injectPageElements) {
+      return;
+    }
+
+    injectSidebar(
+      {
+        hostPageType: "github",
+        hostUrl: window.location.href,
+        hostOrigin: window.location.origin,
+      },
+      {
+        showTrigger: pageConfig.sidebar.sidebarButtonEnabled,
+        enableKeyboardShortcut: pageConfig.sidebar.keyboardShortcutEnabled,
+      },
+    );
+  })();
 }

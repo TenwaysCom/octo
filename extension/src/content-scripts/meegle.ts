@@ -1,7 +1,8 @@
 // Meegle content script - handles auth code requests and user identity
 // Runs on https://*.meegle.com/* pages
 
-import { injectSidebar } from "./shared/sidebar-injector";
+import { fetchExtensionPageConfig } from "./shared/page-config";
+import { injectSidebar, type SidebarInjectorHandle } from "./shared/sidebar-injector";
 import { createExtensionLogger } from "../logger.js";
 
 const meegleCsLogger = createExtensionLogger("content-script:meegle");
@@ -50,6 +51,15 @@ interface TenwaysMeegleTestingApi {
   openSidebar: () => void;
   closeSidebar: () => void;
   toggleSidebar: () => void;
+}
+
+function createNoopSidebarHandle(): SidebarInjectorHandle {
+  return {
+    open() {},
+    close() {},
+    toggle() {},
+    destroy() {},
+  };
 }
 
 function logMcsFlow(node: string, phase: "START" | "OK" | "FAIL", detail: Record<string, unknown>): void {
@@ -328,22 +338,40 @@ async function requestAuthCode(
 function initMeegleContentScript() {
   meegleCsLogger.info("Meegle content script initialized");
 
-  // Inject floating sidebar trigger on Meegle pages
-  const meegleIdentity = getMeegleUserIdentity();
-  const meegleSidebar = injectSidebar({
-    hostPageType: "meegle",
-    hostUrl: typeof window !== "undefined" ? window.location.href : undefined,
-    hostOrigin: typeof window !== "undefined" ? window.location.origin : undefined,
-    meegleUserKey: meegleIdentity.userKey ?? undefined,
-  });
+  let meegleSidebar = createNoopSidebarHandle();
+
+  void (async () => {
+    const pageConfig = await fetchExtensionPageConfig({
+      url: typeof window !== "undefined" ? window.location.href : undefined,
+      fallbackPlatform: "meegle",
+    });
+
+    if (!pageConfig.sidebar.injectPageElements) {
+      return;
+    }
+
+    const meegleIdentity = getMeegleUserIdentity();
+    meegleSidebar = injectSidebar(
+      {
+        hostPageType: "meegle",
+        hostUrl: typeof window !== "undefined" ? window.location.href : undefined,
+        hostOrigin: typeof window !== "undefined" ? window.location.origin : undefined,
+        meegleUserKey: meegleIdentity.userKey ?? undefined,
+      },
+      {
+        showTrigger: pageConfig.sidebar.sidebarButtonEnabled,
+        enableKeyboardShortcut: pageConfig.sidebar.keyboardShortcutEnabled,
+      },
+    );
+  })();
 
   meegleTestingTarget.__TENWAYS_MEEGLE_TESTING__ = {
     getMeegleUserIdentity,
     getAuthCodeFromMeegleApi,
     initMeegleContentScript,
-    openSidebar: meegleSidebar.open,
-    closeSidebar: meegleSidebar.close,
-    toggleSidebar: meegleSidebar.toggle,
+    openSidebar: () => meegleSidebar.open(),
+    closeSidebar: () => meegleSidebar.close(),
+    toggleSidebar: () => meegleSidebar.toggle(),
   };
 
   // Listen for auth code requests from background

@@ -35,3 +35,24 @@ export async function meegleLarkPushController(input: unknown) {
     };
   }
 }
+
+export async function meegleBugTicketToSupportController(input: unknown) {
+  controllerLogger.info({ input }, "BUG_TICKET_TO_SUPPORT_RECEIVED_REQUEST");
+  try {
+    const validated = validateMeegleLarkPushRequest(input);
+    controllerLogger.debug({ validated }, "BUG_TICKET_TO_SUPPORT_VALIDATED_REQUEST");
+    return await executeMeegleLarkPush(validated);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return toInvalidRequest(error);
+    }
+
+    return {
+      ok: false as const,
+      error: {
+        errorCode: "BUG_TICKET_TO_SUPPORT_FAILED" as const,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      },
+    };
+  }
+}

@@ -9,6 +9,7 @@ const runtimeMock = vi.hoisted(() => ({
   deleteKimiChatTranscriptSnapshot: vi.fn(),
   fetchLarkUserInfo: vi.fn(),
   getConfig: vi.fn(),
+  getExtensionPageConfig: vi.fn(),
   getLarkAuthStatus: vi.fn(),
   refreshLarkAuthStatus: vi.fn(),
   listKimiChatSessions: vi.fn(),
@@ -73,6 +74,85 @@ describe("popup controller", () => {
       MEEGLE_BASE_URL: "https://project.larksuite.com",
       LARK_APP_ID: "cli_test",
       LARK_OAUTH_CALLBACK_URL: "http://localhost:3000/api/lark/auth/callback",
+    });
+    runtimeMock.getExtensionPageConfig.mockImplementation(async (url?: string | null) => {
+      if (url?.includes("view=vewMs17Tqk")) {
+        return {
+          platform: "lark",
+          pageType: "lark_base_bulk_create_view",
+          matchedRuleId: "lark.base.bulk-create-view",
+          sidebar: {
+            injectPageElements: true,
+            sidebarButtonEnabled: true,
+            keyboardShortcutEnabled: true,
+          },
+          automationActions: [
+            {
+              key: "analyze",
+              title: "分析当前页面",
+              style: "primary",
+              executor: { type: "frontend", actionKey: "analyze" },
+            },
+            {
+              key: "bulk-create-meegle-tickets",
+              title: "批量创建 MEEGLE TICKET",
+              style: "default",
+              executor: { type: "frontend", actionKey: "bulk-create-meegle-tickets" },
+            },
+          ],
+        };
+      }
+
+      if (url?.includes("/detail/")) {
+        return {
+          platform: "meegle",
+          pageType: "meegle_workitem_detail",
+          matchedRuleId: "meegle.workitem.detail",
+          sidebar: {
+            injectPageElements: true,
+            sidebarButtonEnabled: true,
+            keyboardShortcutEnabled: true,
+          },
+          automationActions: [
+            {
+              key: "update-lark-and-push",
+              title: "更新Lark及推送",
+              style: "primary",
+              executor: {
+                type: "backend_api",
+                operation: "meegle.workitem.update_lark_and_push",
+                method: "POST",
+                route: "/api/meegle/workitem/update-lark-and-push",
+              },
+            },
+            {
+              key: "create-github-branch",
+              title: "创建 GitHub 分支",
+              style: "default",
+              executor: { type: "frontend", actionKey: "create-github-branch" },
+            },
+          ],
+        };
+      }
+
+      return {
+        platform: "lark",
+        pageType: "lark",
+        matchedRuleId: "lark.any",
+        sidebar: {
+          injectPageElements: true,
+          sidebarButtonEnabled: true,
+          keyboardShortcutEnabled: true,
+        },
+        automationActions: [
+          {
+            key: "analyze",
+            title: "分析当前页面",
+            style: "primary",
+            executor: { type: "frontend", actionKey: "analyze" },
+          },
+        ],
+      };
     });
     runtimeMock.loadPopupSettings.mockResolvedValue({
       ENV_NAME: "prod",

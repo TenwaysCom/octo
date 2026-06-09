@@ -8,7 +8,12 @@ import { exchangeAuthCodeController as exchangeLarkAuthCodeController, refreshTo
 import { configureLarkAuthControllerDeps } from "./modules/lark-auth/lark-auth.controller.js";
 import { configureLarkAuthServiceDeps } from "./modules/lark-auth/lark-auth.service.js";
 import { configureMeegleAuthServiceDeps } from "./modules/meegle-auth/meegle-auth.service.js";
-import { configurePublicConfigController, getPublicConfigController } from "./modules/public-config/public-config.controller.js";
+import {
+  configurePublicConfigController,
+  getExtensionPageConfigController,
+  getPublicConfigController,
+  getServerApiCatalogController,
+} from "./modules/public-config/public-config.controller.js";
 import { getExtensionVersionController } from "./modules/public-config/extension-version.controller.js";
 import { createHttpMeegleAuthAdapter } from "./adapters/meegle/auth-adapter.js";
 import { ensureSharedDatabase } from "./adapters/postgres/database.js";
@@ -33,7 +38,10 @@ import {
   createLarkBaseBulkWorkflowController,
   previewLarkBaseBulkWorkflowController,
 } from "./modules/lark-base/lark-base-bulk-workflow.controller.js";
-import { meegleLarkPushController } from "./modules/meegle-workitem/meegle-lark-push.controller.js";
+import {
+  meegleBugTicketToSupportController,
+  meegleLarkPushController,
+} from "./modules/meegle-workitem/meegle-lark-push.controller.js";
 import { createApiRequestLogger } from "./http/api-request-logger.js";
 import { createApiAuthMiddleware } from "./http/api-auth.js";
 import {
@@ -179,6 +187,14 @@ app.post("/api/debug/client-log", async (req, res) => {
 app.get("/api/config/public", async (_req, res) => {
   res.json(await getPublicConfigController());
 });
+app.get("/api/config/page", async (req, res) => {
+  res.json(await getExtensionPageConfigController({
+    url: typeof req.query.url === "string" ? req.query.url : undefined,
+  }));
+});
+app.get("/api/config/server-api-catalog", async (_req, res) => {
+  res.json(await getServerApiCatalogController());
+});
 app.get("/api/extension/version", async (_req, res) => {
   res.json(await getExtensionVersionController(undefined));
 });
@@ -219,6 +235,7 @@ app.post("/api/lark-base/bulk-create-meegle-workitems", handleController(createL
 
 // Meegle workitem routes
 app.post("/api/meegle/workitem/update-lark-and-push", handleController(meegleLarkPushController));
+app.post("/api/meegle/workitem/bug-ticket-to-support", handleController(meegleBugTicketToSupportController));
 
 // GitHub branch create routes
 app.post("/api/github/branch/preview", handleController(githubBranchPreviewController));

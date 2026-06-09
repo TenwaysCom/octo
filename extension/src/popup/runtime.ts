@@ -36,6 +36,10 @@ import type { PopupSettingsForm } from "./types.js";
 import { detectPopupPageType, type PopupPageType } from "./view-model.js";
 import { createExtensionLogger } from "../logger.js";
 import { fetchServerJson } from "../server-request.js";
+import type {
+  ExtensionPageConfig,
+  ExtensionPageConfigResponse,
+} from "../types/automation-actions.js";
 
 interface RuntimeErrorResponse {
   error?: {
@@ -66,6 +70,41 @@ export interface PopupTabContext {
   pageType: PopupPageType;
   larkUserId?: string;
   meegleUserKey?: string;
+}
+
+export async function getExtensionPageConfig(
+  pageUrl?: string | null,
+): Promise<ExtensionPageConfig | null> {
+  if (!pageUrl) {
+    return null;
+  }
+
+  const config = await getConfig();
+  const url = new URL(`${config.SERVER_URL}/api/config/page`);
+  url.searchParams.set("url", pageUrl);
+
+  try {
+    const { response, payload } = await fetchServerJson<ExtensionPageConfigResponse>({
+      url: url.toString(),
+      method: "GET",
+    });
+
+    if (response.ok && payload.ok && payload.data?.pageConfig) {
+      return payload.data.pageConfig;
+    }
+
+    runtimeLogger.warn("getExtensionPageConfig.invalid_response", {
+      status: response.status,
+      ok: payload.ok,
+      errorCode: payload.error?.errorCode,
+    });
+  } catch (error) {
+    runtimeLogger.warn("getExtensionPageConfig.failed", {
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  return null;
 }
 
 export interface IdentityResolveResponse {
@@ -427,20 +466,34 @@ export async function runMeegleAuthRequest(
 
 export async function runMeegleLarkPushRequest(
   request: MeegleLarkPushRequest,
+  endpoint = "/api/meegle/workitem/update-lark-and-push",
 ): Promise<MeegleLarkPushResponse> {
   const config = await getConfig();
-  console.debug("[runMeegleLarkPushRequest] request:", request);
+  runtimeLogger.debug("runMeegleLarkPushRequest.start", {
+    projectKey: request.projectKey,
+    workItemTypeKey: request.workItemTypeKey,
+    workItemId: request.workItemId,
+    masterUserId: summarizeIdentifier(request.masterUserId),
+    endpoint,
+  });
   try {
     const { payload: result } = await fetchServerJson<MeegleLarkPushResponse>({
-      url: `${config.SERVER_URL}/api/meegle/workitem/update-lark-and-push`,
+      url: `${config.SERVER_URL}${endpoint}`,
       masterUserId: request.masterUserId,
       body: request,
     });
 
-    console.debug("[runMeegleLarkPushRequest] response:", result);
+    runtimeLogger.debug("runMeegleLarkPushRequest.done", {
+      ok: result.ok,
+      alreadyUpdated: result.alreadyUpdated,
+      endpoint,
+    });
     return result;
   } catch (error) {
-    console.debug("[runMeegleLarkPushRequest] error:", error);
+    runtimeLogger.warn("runMeegleLarkPushRequest.failed", {
+      endpoint,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
     return {
       ok: false,
       error: error instanceof Error ? error.message : String(error),
