@@ -1,59 +1,23 @@
 ## Project Overview
 
-Tenways Octo is a cross-platform coordination assistant for PMs and requirement owners.
-It consists of a browser extension plus a backend server that helps move work between Lark and Meegle, resolve identity and auth, and run PM analysis flows.
+Tenways Octo is a browser extension plus backend server for PM coordination across Lark, Meegle, GitHub, identity/auth, and PM analysis flows.
 
-The extension is a thin client for page detection, context capture, auth triggers, and UI.
-Business logic, workflow orchestration, identity resolution, and third-party API integration live on the server.
+Core split:
 
-### Current terminology
+- Extension stays thin: page detection, context capture, auth triggers, UI, and action dispatch.
+- Server owns page/action catalog, identity/auth, workflows, platform orchestration, persistence, and diagnostics.
+- Platform adapters own third-party API calls and error normalization.
 
-| Old term | Current external name |
-| --- | --- |
-| `A1` | `Lark Bug` |
-| `A2` | `Lark User Story` |
-| `B1` | `Meegle User Story` |
-| `B2` | `Meegle Product Bug` |
+## Route Naming
 
-Notes:
-- Public server HTTP routes use the new names such as `/api/lark-bug/*` and `/api/lark-user-story/*`.
-- Old `/api/a1/*` and `/api/a2/*` routes remain as compatibility aliases.
-- Extension message actions still use `a1/a2/b1/b2` naming in places to avoid breaking the existing protocol.
+- Public HTTP routes use current names such as `/api/lark-bug/*` and `/api/lark-user-story/*`.
+- Old `/api/a1/*` and `/api/a2/*` routes have been removed. Do not reintroduce them without an explicit compatibility plan.
 
-## Repository Layout
-
-```text
-tw-itdog/
-├── extension/                  # WXT browser extension
-├── server/                     # Express + TypeScript backend
-├── docs/                       # Architecture docs and design specs
-├── Makefile                    # Root helper commands
-└── AGENTS.md
-```
-
-### Key directories
-
-**Server**
-- `server/src/index.ts` wires the app, env, controllers, and routes.
-- `server/src/http/` contains HTTP route registration and request middleware.
-- `server/src/modules/` contains controller/service modules such as `identity`, `meegle-auth`, `meegle-workitem`, `lark-auth`, `lark-base`, `pm-analysis`, `acp-kimi`, and `debug-log`.
-- `server/src/application/services/` holds business orchestration and workflow services.
-- `server/src/adapters/` contains external integrations and persistence layers, including `lark/`, `meegle/`, `postgres/`, and legacy `sqlite/`.
-- `server/src/scripts/` contains migration and import utilities.
-
-**Extension**
-- `extension/src/entrypoints/` contains WXT entrypoints such as `background`, popup HTML, content entrypoints, and page bridge hooks.
-- `extension/src/background/` contains message routing, auth handlers, and config.
-- `extension/src/content-scripts/` contains platform-specific page probes and context extraction.
-- `extension/src/injection/` contains injected UI/bootstrap logic for Lark surfaces.
-- `extension/src/popup-react/` is the current popup UI implementation.
-- `extension/src/popup/` and `extension/src/popup-shared/` contain shared popup runtime and legacy Vue-side pieces that still exist in the tree.
-
-## Development Commands
+## Commands
 
 Prefer package-scoped commands from the package you are changing.
 
-### Server
+Server:
 
 ```bash
 pnpm --dir server dev
@@ -62,29 +26,12 @@ pnpm --dir server build
 pnpm --dir server start
 pnpm --dir server db:migrate
 pnpm --dir server db:reset
-pnpm --dir server kimi-acp:repl
-pnpm --dir server kimi-acp:validate
 ```
 
-### Server and extension logs
-
-- Add or adjust server debug logs in `server/src/**` with `logger.ts` when the existing logs are not enough.
-- Add or adjust extension debug logs in `extension/src/**` with `extension/src/logger.ts` when needed.
-- Read logs when debugging server or extension behavior. Default files:
-  - `server/logs/app.log` for module and service logs
-  - `server/logs/api.log` for HTTP request and response logs
-  - `server/logs/popup-client.log` for extension client debug logs when `CLIENT_DEBUG_LOG_UPLOAD_ENABLED=true`
-- Start the server with `pnpm --dir server dev`, use `tail -f` to watch the log files, and use `rg` to filter for module names or request markers such as `REQUEST_HANDLER_ERROR`, `API_REQUEST`, and extension events.
-- Use `LOG_LEVEL=debug` before `pnpm --dir server dev` when you need more detail.
-- Extension logs also live in the in-memory extension log buffer and can be exported from the popup when needed.
-- Keep using `logger.ts`; do not use `console.log`.
-
-### Extension
+Extension:
 
 ```bash
 pnpm --dir extension dev
-pnpm --dir extension run dev:manual
-pnpm --dir extension run dev:profile
 pnpm --dir extension test
 pnpm --dir extension typecheck
 pnpm --dir extension build
@@ -92,79 +39,51 @@ pnpm --dir extension package
 pnpm --dir extension test:e2e
 ```
 
-Build output for the extension is `extension/.output/chrome-mv3/`.
+## Hard Rules
 
-## Architecture Notes
+1. Keep workflow/business logic out of the extension.
+2. Backend actions should be driven by server `automationActions.executor`, not popup hardcoded backend routes.
+3. Cross-layer actions should carry `actionRunId` and return or log `layer`, `module`, `stage`, and `errorCode`.
+4. Do not scatter Meegle `field_*` keys in popup or workflow services; use a metadata resolver or documented fallback config.
+5. Validate API inputs with Zod DTO schemas.
+6. Keep services dependency-injected through explicit deps objects so they stay testable.
+7. Preserve structured `{ ok, data, error }` responses where the module already uses them.
+8. Do not use `console.log`; use server `logger.ts` or `extension/src/logger.ts`.
+9. Never send raw browser cookies to the server. Treat auth codes as one-time credentials.
+10. Dependencies should be added as devDependencies unless explicitly requested otherwise.
 
-### Runtime split
+## Agent Reading Rules
 
-- The extension should stay thin. It detects page state, gathers context, triggers auth, and renders the UI.
-- The server owns identity resolution, auth exchange, draft/apply workflows, API orchestration, persistence, and analysis.
+For non-trivial changes, agents must read the relevant docs before editing:
 
-### Auth and identity
-
-Meegle auth uses an auth-code bridge:
-
-```text
-Extension / page bridge -> Meegle page/BFF -> auth_code
-Extension background -> server /api/meegle/auth/exchange -> tokens
-```
-
-Critical rules:
-- Never send raw browser cookies to the server.
-- Treat auth codes as one-time-use credentials.
-- `apply` flows prefer `masterUserId`; if absent, the server may fall back to `operatorLarkId`.
-
-### Persistence
-
-- PostgreSQL is the current runtime store.
-- `POSTGRES_URI` must be set for migrations and normal runtime storage.
-- `server/src/adapters/sqlite/` exists for legacy reads and one-time import, not as the primary runtime database.
-
-## Environment Variables
-
-### Server
-check .env.exmaple for format
-
-## Key Patterns
-
-1. Validate API inputs with Zod DTO schemas.
-2. Keep services dependency-injected through explicit deps objects so they stay testable.
-3. Preserve the structured `{ ok, data, error }` error envelope where the module already uses it.
-4. Keep public route naming aligned with the newer `lark-bug` and `lark-user-story` vocabulary unless you are intentionally touching compatibility aliases.
-5. Do not use `console.log`; use the local `logger.ts` utilities.
-6. Keep the extension/server boundary clean. Do not move workflow logic into the extension.
+- Technical object lifecycle: `docs/ai-dev/lifecycle/current-system-technical-objects.md`
+- Cross-layer boundary rules: `docs/ai-dev/rules/system-boundaries-and-code-rules.md`
+- Extension code rules: `docs/ai-dev/rules/extension-code-rules.md`
+- Server code rules: `docs/ai-dev/rules/server-code-rules.md`
 
 ## Testing
 
-- Tests are colocated with source in both `server/src/**/*.test.ts` and `extension/src/**/*.test.ts`.
-- The server test guide lives at `server/tests/README.md`.
-- Server verification usually means `pnpm --dir server test` and often `pnpm --dir server build` for compile safety.
+- Server verification usually means `pnpm --dir server test` and often `pnpm --dir server build`.
 - Extension verification usually means `pnpm --dir extension test`, `pnpm --dir extension typecheck`, and `pnpm --dir extension build`.
-- Extension end-to-end coverage uses Playwright via `pnpm --dir extension test:e2e`.
-- Vitest globals are enabled here. Use `describe`, `it`, and `expect` directly without importing them.
+- Extension live E2E uses Playwright via `pnpm --dir extension test:e2e`.
+- Vitest globals are enabled. Use `describe`, `it`, and `expect` directly without importing them.
 - Do not introduce dynamic `await import()` patterns in tests.
+
+## Logs
+
+- Server logs: `server/logs/app.log`, `server/logs/api.log`.
+- Extension client upload logs: `server/logs/popup-client.log` when enabled.
+- Use `LOG_LEVEL=debug` for deeper server debugging.
 
 ## Documentation
 
-- Keep high-level design references in `docs/tenways-octo/`.
-- If behavior changes across both extension and server, update whichever architecture or protocol doc is actually affected instead of adding a new stray markdown file.
+- Keep high-level product/architecture references in `docs/tenways-octo/`.
+- Keep AI/dev governance, lifecycle, rules, execution plans, and issue maps in `docs/ai-dev/`.
+- If behavior changes across extension and server, update the affected architecture, lifecycle, protocol, or `docs/ai-dev` rule document instead of adding stray markdown files.
 
-## Commit Messages
+## Working Style
 
-Write commit messages and PR descriptions as a humble but experienced engineer would. Keep them casual and specific. Briefly describe what changed and call out non-obvious implementation choices when that context helps the next reader.
-
-Do not write robot copy, marketing fluff, or vague summaries.
-
-# Tips for AI Agent
-
-- Context7 MCP server available for library documentation lookup
-- do not use console.log. use logger.ts instead
-
-# important-instruction-reminders
-
-Do what has been asked; nothing more, nothing less.
-NEVER create files unless they're absolutely necessary for achieving your goal.
-ALWAYS prefer editing an existing file to creating a new one.
-NEVER proactively create documentation files (\*.md) or README files. Only create documentation files if explicitly requested by the User.
-Dependencies should always be added as devDependencies unless explicitly requested otherwise.
+- Do exactly what was asked, nothing speculative.
+- Keep changes surgical.
+- Prefer editing existing files over creating new files.
+- Write commit messages and PR descriptions casually and specifically; avoid robot copy and vague summaries.

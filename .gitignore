@@ -16,3 +16,4 @@ worktrees
 .env
 .codex
 .omx
+.DS_store
