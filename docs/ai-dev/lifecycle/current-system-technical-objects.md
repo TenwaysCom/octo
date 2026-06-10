@@ -192,7 +192,7 @@ server action definition
 
 - Popup should preserve executor and dispatch by executor, not by backend action key.
 - Backend action should not require adding a new popup branch.
-- Every action run should generate `actionRunId`.
+- New or refactored cross-layer action runs should generate `actionRunId`.
 
 ## 7. Identity And Auth Lifecycle
 
@@ -309,7 +309,7 @@ Lark Base record page or bulk view
 
 - New Lark field to Meegle field mapping should go through config or metadata resolver.
 - `ExecutionDraft` should move toward semantic field keys before Meegle payload creation.
-- Workitem creation and Lark writeback should log the same `actionRunId` and idempotency key.
+- When this workflow is refactored, workitem creation and Lark writeback should log the same `actionRunId` and idempotency key.
 - Partial success must be visible: workitem created but Lark writeback failed is not the same as create failed.
 
 ## 9. Meegle Workitem Lifecycle
@@ -447,7 +447,7 @@ Meegle workitem detail page
 
 - Field extraction must use metadata resolver or centralized semantic mapping.
 - Return flags should stay explicit: `larkBaseUpdated`, `messageSent`, `reactionAdded`, `meegleStatusUpdated`.
-- Partial success should include stage and actionRunId.
+- When this workflow is refactored, partial success should include stage and actionRunId.
 
 ## 12. GitHub Workitem Action Lifecycle
 
@@ -520,7 +520,7 @@ user clicks action
 
 ### Code rules
 
-- `actionRunId` should be generated once per user action.
+- For new or refactored cross-layer actions, `actionRunId` should be generated once per user action.
 - Every server workflow should accept/pass it, even if optional during migration.
 - Error response should identify one responsibility layer, not only a generic message.
 
@@ -542,6 +542,6 @@ When changing one of these objects:
 1. Identify the owner layer before editing.
 2. Confirm the object has a lifecycle state in this document.
 3. Add or update tests at the same lifecycle boundary.
-4. If crossing extension/server/adapter/platform, include `actionRunId`.
+4. If adding or refactoring a cross-layer flow across extension/server/adapter/platform, include `actionRunId`.
 5. If writing Meegle fields, resolve semantic field to `field_key` centrally.
 6. If partial success is possible, return typed stage and result flags.

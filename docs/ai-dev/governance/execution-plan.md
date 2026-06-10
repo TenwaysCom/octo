@@ -14,12 +14,12 @@ update_required_when:
 
 本文档是后续执行计划。问题清单见 `current-issue-map-2026-06-09.md`，系统对象生命周期见 `../lifecycle/current-system-technical-objects.md`，代码规则见 `../rules/system-boundaries-and-code-rules.md`。
 
-目标不是一次性重写，而是按风险顺序建立保护线：
+目标不是一次性重写，也不是先做一套横向 trace 基建，而是按具体 action 的 vertical slice 渐进建立保护线：
 
-1. 先让失败能定位到 `extension | server | adapter | platform`。
-2. 再让 server action catalog 成为真实执行来源。
+1. 先让 server action catalog 成为真实执行来源。
+2. 在重构具体 action 时补上 `actionRunId` 和分层错误诊断。
 3. 再处理 Meegle 动态字段和平台规则。
-4. 最后补齐 live E2E 和兼容策略。
+4. 最后补齐测试边界、page mapping 和 live E2E。
 
 ## 1. Success Criteria
 
@@ -28,7 +28,7 @@ update_required_when:
 | Area | Success criteria |
 | --- | --- |
 | Boundary | 新增 action 能明确 owner layer，不需要跨层猜测 |
-| Diagnostics | 任一 action 失败能看到 `actionRunId + layer + module + stage + errorCode` |
+| Diagnostics | 新增或重构 action 失败能看到 `actionRunId + layer + module + stage + errorCode` |
 | Action execution | backend action 由 server `executor` 驱动，popup 不再为每个 backend route 加硬编码分支 |
 | Page mapping | server/extension 对同一 URL 的 platform/pageType/action 预期一致 |
 | Meegle fields | Meegle 写入先走 metadata/semantic mapping，不再依赖运行时报错剥字段作为主路径 |
@@ -66,50 +66,43 @@ Exit criteria:
 
 - ai-dev 文档可以回答“先改哪里、为什么、怎么验收”。
 
-### Phase 1: Add Action Run Trace And Error Envelope
+### Phase 1: Refactor One Backend Action As A Vertical Slice
 
-目标：先解决失败无法定位的问题。
+目标：先选一条真实业务链路做小范围重构，不先做横向基础设施。
 
 Primary objects:
 
+- `update-lark-and-push`
+- `AutomationActionConfig`
 - `ActionRunTrace`
 - `OctoActionError`
 - workflow request/result
 
 Scope:
 
-- Extension action dispatcher / background request path
-- Server controllers and workflow entrypoints
-- Adapter error normalization
-- Popup error display/log export
+- Extension popup action dispatch for `update-lark-and-push`
+- Server executor contract for this action
+- Server controller/workflow logs for this action
+- Meegle/Lark adapter error path touched by this action
 
 Tasks:
 
-1. 定义共享 `actionRunId` 生成和传递规则。
-2. 定义 server error envelope 类型。
-3. 为关键 action 加阶段日志：
-   - `extension.action.clicked`
-   - `background.action.dispatch`
-   - `server.action.received`
-   - `server.identity.resolved`
-   - `server.auth.checked`
-   - `server.workflow.started`
-   - `adapter.*.request`
-   - `adapter.*.response`
-   - `server.workflow.completed`
-   - `extension.action.result`
-4. 先覆盖一个最小 backend action，例如 `update-lark-and-push`。
-5. 加单元测试证明 error envelope 保留 `layer/module/stage/actionRunId`。
+1. 让 `update-lark-and-push` 走 server 返回的 `backend_api` executor。
+2. 移除这条 action 在 popup 中的 backend route 硬编码。
+3. 在这条 action 上渐进引入 `actionRunId`。
+4. 为这条 action 的失败返回补 `layer/module/stage/errorCode`。
+5. 保持其它 action 不做大范围迁移。
 
 Verify:
 
 - `pnpm --dir server test` for touched server modules.
 - `pnpm --dir extension test` for touched extension dispatcher/popup modules.
-- 手动或 mock action 失败时能看到责任层级。
+- mock action 失败时能看到责任层级。
 
 Exit criteria:
 
-- 至少一个 backend action 的失败能定位到 extension/server/adapter/platform 中的一层。
+- `update-lark-and-push` 不再依赖 popup hardcoded backend route。
+- 这条 action 的失败能定位到 extension/server/adapter/platform 中的一层。
 
 ### Phase 2: Make Server Action Executor Real
 
@@ -231,14 +224,14 @@ Exit criteria:
 
 - 新增 Meegle 字段写入不需要直接改 workflow service 的 `field_*`。
 
-### Phase 5: Align Page Mapping And Route Policy
+### Phase 5: Align Page Mapping And Removed Legacy Route Policy
 
-目标：减少 page/action mapping 和 route 兼容策略漂移。
+目标：减少 page/action mapping 漂移，并保持 legacy route 已移除的策略不回流。
 
 Primary objects:
 
 - page rule fixture
-- route compatibility policy
+- removed legacy route policy
 
 Scope:
 
@@ -252,19 +245,19 @@ Tasks:
 
 1. 建立 URL fixture，覆盖 Lark Base、Meegle workitem、Meegle production bug、GitHub PR、unsupported。
 2. Server 和 extension 测试使用同组 fixture 或同名 snapshot。
-3. 明确 legacy `/api/a1/*`、`/api/a2/*` 是保留还是删除。
-4. 同步 `AGENTS.md`、docs、server route tests 的说法。
+3. 保持 legacy `/api/a1/*`、`/api/a2/*` 已移除。
+4. 防止新增 route/action/message 使用 A1/A2/B1/B2 旧命名。
 
 Verify:
 
 - Server page config tests pass.
 - Extension page/popup tests pass.
-- Route policy 在 docs/tests/AGENTS 中一致。
+- Removed legacy route policy 在 docs/tests/AGENTS 中一致。
 
 Exit criteria:
 
 - 同一 URL 在 server 和 extension 预期一致。
-- legacy route 状态没有文档和代码冲突。
+- legacy route 已移除状态没有文档和代码冲突。
 
 ### Phase 6: Add Live E2E Smoke
 
@@ -296,7 +289,7 @@ Tasks:
    - extension 读取 `/api/config/page`
    - 渲染 action
    - 点击 action
-   - 产生 `actionRunId`
+   - 对已重构 action，产生或透出 `actionRunId`
    - 失败时展示 layer/stage
 3. 默认不在 CI 强制跑 live E2E，除非授权和 seed data 可控。
 
@@ -313,8 +306,8 @@ Exit criteria:
 
 | Order | Phase | Why |
 | --- | --- | --- |
-| 1 | Phase 1: Action run trace | 后续所有修复都依赖可定位失败层 |
-| 2 | Phase 2: Server executor | 先消除 action 行为源不一致 |
+| 1 | Phase 1: `update-lark-and-push` vertical slice | 用真实 action 渐进落地 executor 和诊断 |
+| 2 | Phase 2: Server executor | 将 slice 中验证过的 executor 模式推广 |
 | 3 | Phase 3: Test boundaries | 让修改有可靠验证入口 |
 | 4 | Phase 4: Meegle metadata resolver | 解决平台字段动态 ID 和写入限制 |
 | 5 | Phase 5: Page mapping and route policy | 收敛重复 mapping 和兼容歧义 |
@@ -322,7 +315,7 @@ Exit criteria:
 
 ## 4. First Implementation Slice
 
-建议第一刀只做一个 action 的最小闭环：
+建议第一刀只做一个 action 的最小闭环，不先做独立 `actionRunId` 基建：
 
 Target action:
 
@@ -330,11 +323,11 @@ Target action:
 
 Change slice:
 
-1. Extension 点击 action 时生成 `actionRunId`。
-2. Popup/backend dispatcher 把 `actionRunId` 传给 server。
-3. Server controller/workflow 日志带 `actionRunId`。
-4. Meegle adapter error 转成带 `layer/module/stage/errorCode` 的 envelope。
-5. Popup 展示或日志导出能看到该 envelope。
+1. Popup 使用 server executor dispatch `update-lark-and-push`。
+2. 移除这条 action 的 popup backend route 硬编码。
+3. 为这条 action 增加 `actionRunId` 传递。
+4. Server controller/workflow 日志带 `actionRunId`。
+5. 失败返回逐步补齐 `layer/module/stage/errorCode`。
 
 Verification:
 
@@ -351,7 +344,7 @@ Exit criteria:
 遇到以下情况应先停下来补文档或测试，不继续扩大改动：
 
 1. 需要真实平台授权，但没有 seed data 或账号说明。
-2. 一个改动同时碰 extension、server、adapter、platform metadata，但没有 `actionRunId`。
+2. 一个新增或重构的跨层 action 同时碰 extension、server、adapter、platform metadata，但没有诊断字段或定位方式。
 3. 新增 Meegle 字段写入必须手查 `field_*`，但没有 metadata fixture。
 4. route 兼容策略与 `AGENTS.md`、server tests 冲突。
 5. 测试失败无法判断是入口坏、mock 假设错，还是真实平台失败。

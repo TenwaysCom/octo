@@ -39,6 +39,8 @@ Octo 由三层组成：
 
 | Task | Required context |
 | --- | --- |
+| 提需求或创建 AI/dev 任务 | `templates/ai-task-template.md` |
+| 做 PR review | `templates/pr-review-checklist.md` |
 | 判断下一步修复顺序 | `governance/execution-plan.md` |
 | 修改 extension popup/sidebar/content script | `rules/extension-code-rules.md`，跨层 action 再读 `rules/system-boundaries-and-code-rules.md` |
 | 修改 server action/page config/API workflow | `rules/server-code-rules.md`，跨层 action 再读 `rules/system-boundaries-and-code-rules.md` |
@@ -67,7 +69,7 @@ Octo 由三层组成：
 
 1. 这次改动属于 extension、server、adapter 还是 platform metadata？
 2. 是否新增或修改了用户可触发 action？如果是，server action config 是否是唯一行为来源？
-3. 是否跨层传递了 `actionRunId`，失败时能否看到 `layer/module/stage/errorCode`？
+3. 是否新增或重构跨层 action？如果是，是否传递 `actionRunId`，失败时能否看到 `layer/module/stage/errorCode`？
 4. 是否写入 Meegle 字段？如果是，是否通过 metadata resolver 或集中映射，而不是在 workflow 中散落 `field_*`？
 5. 是否依赖真实 Lark/Meegle 授权？如果是，测试名称是否明确区分 mock integration 和 live e2e？
 6. 是否修改公开 route 或术语？如果是，兼容策略是否同步到 docs/tests/AGENTS？
@@ -85,6 +87,8 @@ Octo 由三层组成：
 | `rules/system-boundaries-and-code-rules.md` | 当前系统边界和后续代码规范 |
 | `rules/extension-code-rules.md` | Extension 端代码规范 |
 | `rules/server-code-rules.md` | Server 端代码规范 |
+| `templates/ai-task-template.md` | 提需求或创建 AI/dev 任务的输入模板 |
+| `templates/pr-review-checklist.md` | PR review 检查模板 |
 
 后续如果继续完善，优先补齐：
 

@@ -111,7 +111,7 @@ Service should:
 1. Receive typed request.
 2. Resolve identity/auth through dedicated services.
 3. Call adapters through injected deps where practical.
-4. Pass `actionRunId` to downstream logs/services.
+4. For new or refactored cross-layer actions, pass `actionRunId` to downstream logs/services.
 5. Return typed result flags for partial success.
 6. Keep idempotency key visible for create/apply actions.
 
@@ -248,7 +248,7 @@ Server logs use `server/src/logger.ts`.
 Rules:
 
 1. Do not use `console.log`.
-2. Logs for action workflows include `actionRunId`.
+2. Logs for new or refactored action workflows include `actionRunId`.
 3. Logs include `operation`, `stage`, and key object ids.
 4. Logs do not include raw tokens, cookies, full auth codes, or full sensitive platform payloads.
 5. Platform raw response is summarized and truncated.
@@ -280,7 +280,7 @@ Before merging server changes:
 
 1. Is route/controller/service/adapter responsibility clean?
 2. Are inputs validated by DTO?
-3. Does the workflow accept/pass `actionRunId`?
+3. For new or refactored cross-layer actions, does the workflow accept/pass `actionRunId`?
 4. Are errors typed and layer/stage-specific?
 5. Are Meegle fields semantic or centrally resolved?
 6. Are platform errors preserved as safe summaries?

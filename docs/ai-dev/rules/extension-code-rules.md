@@ -136,8 +136,7 @@ Message action naming:
 
 1. 保持稳定 action string。
 2. 新增 message action 必须有明确 owner handler。
-3. 跨层 action 必须带 `actionRunId` 或能从 payload 上游继承。
-4. legacy `a1/a2/b1/b2` 命名只能作为兼容协议，不应扩散到新公开文档。
+3. 新增或重构跨层 action 必须带 `actionRunId` 或能从 payload 上游继承。
 
 ## 6. Auth Trigger Rules
 

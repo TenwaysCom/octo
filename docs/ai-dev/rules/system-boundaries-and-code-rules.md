@@ -25,7 +25,7 @@ update_required_when:
 2. Extension 是薄客户端，只负责页面上下文、授权触发、UI 和动作派发。
 3. Platform adapter 只负责外部 API 的技术封装和平台错误归一化。
 4. Meegle/Lark 的动态字段、权限、状态限制必须进入 metadata 或 adapter 层，不能散落在 workflow 和 popup 中。
-5. 每次跨层 action 都必须可以用 `actionRunId` 串起 extension、server、adapter 和 platform 日志。
+5. 新增或重构跨层 action 时，必须可以用 `actionRunId` 串起 extension、server、adapter 和 platform 日志。
 6. 测试必须明确是 unit、mock integration 还是 live e2e，不能用 mock integration 冒充真实授权 E2E。
 
 ## 2. Layer Boundary Rules
@@ -106,7 +106,7 @@ Extension popup 的执行规则：
 1. 渲染按钮时保留完整 executor，不只保留 `key/title/style`。
 2. `frontend` executor 只映射到少量本地能力，例如打开 modal、启动 chat、触发授权。
 3. `backend_api` executor 统一走 backend dispatcher，按 server 返回的 `method/route/operation` 调用。
-4. backend dispatcher 负责附带 `actionRunId`、页面 context、extension version 和 active account context。
+4. 新增或重构 backend dispatcher 时，负责附带 `actionRunId`、页面 context、extension version 和 active account context。
 5. popup 不为每个 backend action 增加新的硬编码分支。
 
 例外必须写清楚原因：如果某 action 必须在 extension 本地完成，应使用 `frontend` executor，并在 server catalog 中明确 operation。
@@ -151,7 +151,7 @@ Logging rules：
 
 - Server 使用本地 `logger.ts`，不使用 `console.log`。
 - Extension 使用 `extension/src/logger.ts`。
-- 日志必须带 `actionRunId`、`operation`、`layer`、`stage`。
+- 新增或重构跨层 action 的日志必须带 `actionRunId`、`operation`、`layer`、`stage`。
 - 平台响应只能记录安全摘要，不记录 raw token、cookie 或完整敏感 payload。
 - Platform auth failure、field not writable、field missing、state transition blocked 必须有不同 error code。
 
@@ -235,7 +235,7 @@ Live E2E smoke 最小覆盖：
 1. 打开目标 Lark 或 Meegle 页面。
 2. Extension 获取 `/api/config/page`。
 3. Popup/sidebar 渲染 matched action。
-4. 点击 action 后能产生 `actionRunId`。
+4. 新增或重构 action 后能产生 `actionRunId`。
 5. 失败时能定位到 extension、server、adapter 或 platform 某一层。
 
 ## 8. Route And Terminology Rules
@@ -267,7 +267,7 @@ legacy route 只允许两种状态：
 1. 这次业务逻辑是否放在 server，而不是 extension？
 2. 新 action 是否由 server catalog 驱动？
 3. popup 是否按 executor contract 执行？
-4. 失败响应是否包含 `layer/module/stage/errorCode/actionRunId`？
+4. 新增或重构跨层 action 的失败响应是否包含 `layer/module/stage/errorCode/actionRunId`？
 5. Meegle 字段是否通过 metadata resolver 或集中 mapping？
 6. 测试是否区分 unit、mock integration、live e2e？
 7. route 和 terminology 是否与 docs/tests/AGENTS 一致？

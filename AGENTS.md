@@ -43,7 +43,7 @@ pnpm --dir extension test:e2e
 
 1. Keep workflow/business logic out of the extension.
 2. Backend actions should be driven by server `automationActions.executor`, not popup hardcoded backend routes.
-3. Cross-layer actions should carry `actionRunId` and return or log `layer`, `module`, `stage`, and `errorCode`.
+3. New or refactored cross-layer actions should carry `actionRunId` and return or log `layer`, `module`, `stage`, and `errorCode`.
 4. Do not scatter Meegle `field_*` keys in popup or workflow services; use a metadata resolver or documented fallback config.
 5. Validate API inputs with Zod DTO schemas.
 6. Keep services dependency-injected through explicit deps objects so they stay testable.
