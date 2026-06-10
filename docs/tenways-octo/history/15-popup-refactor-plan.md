@@ -1,5 +1,9 @@
 # Popup 重构与功能验收计划
 
+> Status: historical implementation plan.
+>
+> This document records an earlier popup refactor plan and includes old action names such as `itdog.a1.*` / `itdog.a2.*`. It is not the current protocol or implementation source of truth. For current extension/server boundaries, read [`docs/ai-dev/rules/system-boundaries-and-code-rules.md`](../../ai-dev/rules/system-boundaries-and-code-rules.md) and [`11-extension-message-and-api-schema.md`](../11-extension-message-and-api-schema.md).
+
 ## 背景
 
 基于 `docs/tenways-octo` 文档，当前 popup 实现存在以下差距：

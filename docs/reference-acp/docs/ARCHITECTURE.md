@@ -1,5 +1,9 @@
 # ACP Coding Agent - 系统架构详解
 
+> Status: external reference snapshot.
+>
+> This document describes a reference ACP coding-agent architecture, not the current Octo runtime architecture. Use [`docs/tenways-octo/17-acp-design.md`](../../tenways-octo/17-acp-design.md) for Octo ACP V1 decisions.
+
 ## 概述
 
 ACP (Agent Client Protocol) Coding Agent 是一个基于 **Model Context Protocol (MCP)** [^89^] 扩展的 AI 编程助手系统。它采用客户端-服务器架构，标准化了编辑器/浏览器与 AI 编程 Agent 之间的通信。

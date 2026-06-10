@@ -1,5 +1,9 @@
 # ACP Coding Agent
 
+> Status: external reference snapshot.
+>
+> This folder records ACP reference material used during Octo design. It is not the current Octo architecture, implementation plan, or API contract. For Octo's current ACP boundary, read [`docs/tenways-octo/17-acp-design.md`](../../tenways-octo/17-acp-design.md). For current engineering rules, read [`docs/ai-dev/README.md`](../../ai-dev/README.md).
+
 基于 **ACP (Agent Client Protocol)** 协议的 AI 编程助手系统，支持多轮对话、文件上传、代码生成和 Diff 查看。
 
 ## 🌟 特性

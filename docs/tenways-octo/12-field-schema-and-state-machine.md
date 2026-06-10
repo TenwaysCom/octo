@@ -27,10 +27,10 @@
 ```json
 {
   "requestId": "req_20260320_001",
-  "action": "itdog.a1.create_b2_draft",
+  "action": "itdog.lark_bug.create_meegle_product_bug_draft",
   "payload": {},
   "meta": {
-    "pageType": "lark_a1",
+    "pageType": "lark_bug",
     "clientVersion": "0.1.0",
     "sentAt": "2026-03-20T12:00:00+08:00"
   }

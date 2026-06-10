@@ -1,5 +1,9 @@
 # ACP 设计
 
+> Current Octo ACP source of truth.
+>
+> `docs/reference-acp/` is external reference material only. This document defines the current Octo ACP V1 boundary together with the engineering rules under [`docs/ai-dev/`](../ai-dev/README.md).
+
 ## 1. 文档目标
 
 本文档集中描述 Tenways Octo 当前已经收敛下来的 ACP 设计，重点覆盖：
@@ -466,6 +470,6 @@ Client -> ACP Controller -> ACP Orchestrator -> Agents
 
 ## 15. 相关文档
 
-- [V2 Agent Platform / ACP 演进设计](./14-v2-architecture-design.md)
+- [V2 Agent Platform / ACP 演进设计](./history/14-v2-architecture-design.md)
 - [插件消息协议与 API Schema](./11-extension-message-and-api-schema.md)
 - [AI Agent / Skill 设计](./05-ai-agent-skill-design.md)

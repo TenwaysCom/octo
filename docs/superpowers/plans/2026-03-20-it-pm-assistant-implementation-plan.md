@@ -396,7 +396,7 @@ git commit -m "feat: add pm analysis workflow"
 - Create: `server/tests/pm-analysis.prompt-iteration.test.ts`
 - Create: `server/tests/fixtures/pm-analysis/cases.json`
 - Create: `docs/tenways-octo/14-pm-analysis-prompt-iteration-log.md`
-- Reference: `docs/tenways-octo/07-phase-1-rollout.md`
+- Reference: `docs/tenways-octo/history/07-phase-1-rollout.md`
 
 - [ ] **Step 1: Build the baseline test harness**
 
@@ -481,7 +481,7 @@ git commit -m "feat: optimize pm analysis prompts"
 - Create: `server/tests/e2e/a1-to-b2.test.ts`
 - Create: `server/tests/e2e/a2-to-b1.test.ts`
 - Create: `extension/tests/e2e/auth-bridge.test.ts`
-- Modify: `docs/tenways-octo/07-phase-1-rollout.md`
+- Modify: `docs/tenways-octo/history/07-phase-1-rollout.md`
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -515,7 +515,7 @@ Expected: PASS for the implemented suites
 - [ ] **Step 5: Commit**
 
 ```bash
-git add server/tests/e2e extension/tests/e2e docs/tenways-octo/07-phase-1-rollout.md
+git add server/tests/e2e extension/tests/e2e docs/tenways-octo/history/07-phase-1-rollout.md
 git commit -m "test: add end-to-end workflow validation"
 ```
 

@@ -25,16 +25,13 @@
 
 - 当前正式业务主链路仍是 `Lark Bug / Lark User Story + PM 即时分析`
 - ACP `V1` 只为 `PM 即时分析` 增加“可会话、可追问、可流式返回”的能力
-- ACP `V1` 不要求把 A1/A2 一起迁移到 ACP 协议
+- ACP `V1` 不要求把 Lark Bug / Lark User Story 一起迁移到 ACP 协议
 
-术语映射：
+命名规则：
 
-- `A1` -> `Lark Bug`
-- `A2` -> `Lark User Story`
-- `B1` -> `Meegle User Story`
-- `B2` -> `Meegle Product Bug`
-- 插件内部 action 仍保留 `a1/a2/b1/b2`
-- 服务端公开 HTTP 路径使用新命名，并保留旧路径别名
+- 新协议、服务端公开 HTTP 路径和新增 extension action 都使用当前业务名。
+- 旧 `A1/A2/B1/B2` 和 `/api/a1/*`、`/api/a2/*` 不再作为当前开发入口。
+- 历史文档或旧代码中出现旧命名时，应先确认是否属于归档内容；不要把旧命名复制到新接口。
 
 ## 3. 协议设计原则
 
@@ -56,7 +53,7 @@
   "action": "itdog.meegle.auth.ensure",
   "payload": {},
   "meta": {
-    "pageType": "lark_a1",
+    "pageType": "lark_bug",
     "sentAt": "2026-03-20T12:00:00+08:00"
   }
 }
@@ -112,7 +109,7 @@
 ```json
 {
   "pageContext": {
-    "pageType": "lark_a1",
+    "pageType": "lark_bug",
     "url": "https://example.feishu.cn/base/...",
     "detectedLarkId": "ou_xxx"
   }
@@ -164,56 +161,56 @@
 - `require_binding`
 - `failed`
 
-### 4.2.3 `itdog.a1.analyze`
+### 4.2.3 `itdog.lark_bug.analyze`
 
 用途：
 
-- 对当前 A1 记录做智能分析
-- 返回“直接处理 / 转 B2 / 转 A2”的判断和缺失信息
+- 对当前 Lark Bug 记录做智能分析
+- 返回“直接处理 / 转 Meegle Product Bug / 转 Lark User Story”的判断和缺失信息
 
 请求 payload：
 
 ```json
 {
   "operatorLarkId": "ou_xxx",
-  "recordId": "recA1_001",
+  "recordId": "rec_lark_bug_001",
   "pageContext": {
-    "pageType": "lark_a1",
+    "pageType": "lark_bug",
     "baseId": "app_xxx",
-    "tableId": "tbl_A1"
+    "tableId": "tbl_lark_bug"
   }
 }
 ```
 
-### 4.2.4 `itdog.a1.create_b2_draft`
+### 4.2.4 `itdog.lark_bug.create_meegle_product_bug_draft`
 
 用途：
 
-- 结合 A1 最新数据和 Meegle 元数据，生成可确认的 B2 草稿
+- 结合 Lark Bug 最新数据和 Meegle 元数据，生成可确认的 Meegle Product Bug 草稿
 
-### 4.2.5 `itdog.a1.apply_b2`
-
-用途：
-
-- 用户确认草稿后，正式创建 B2
-
-### 4.2.6 `itdog.a2.analyze`
+### 4.2.5 `itdog.lark_bug.apply_meegle_product_bug`
 
 用途：
 
-- 对 A2 需求做结构化分析与补全
+- 用户确认草稿后，正式创建 Meegle Product Bug
 
-### 4.2.7 `itdog.a2.create_b1_draft`
-
-用途：
-
-- 生成进入 B1 的可执行 workitem 草稿
-
-### 4.2.8 `itdog.a2.apply_b1`
+### 4.2.6 `itdog.lark_user_story.analyze`
 
 用途：
 
-- 用户确认后，正式创建 B1
+- 对 Lark User Story 做结构化分析与补全
+
+### 4.2.7 `itdog.lark_user_story.create_meegle_user_story_draft`
+
+用途：
+
+- 生成进入 Meegle User Story 的可执行 workitem 草稿
+
+### 4.2.8 `itdog.lark_user_story.apply_meegle_user_story`
+
+用途：
+
+- 用户确认后，正式创建 Meegle User Story
 
 ### 4.2.9 `itdog.pm.analysis.run`
 
@@ -401,33 +398,25 @@
 
 ### 5.3.1 `POST /api/lark-bug/analyze`
 
-兼容别名：
-
-- `POST /api/a1/analyze`
-
 响应 data 建议：
 
 ```json
 {
   "summary": "该工单更适合进入产线 Bug",
-  "decision": "to_b2",
+  "decision": "to_meegle_product_bug",
   "missingFields": ["environment", "repro_steps"],
   "riskLevel": "medium",
-  "nextActions": ["补充环境信息", "生成 B2 草稿"]
+  "nextActions": ["补充环境信息", "生成 Meegle Product Bug 草稿"]
 }
 ```
 
 ### 5.3.2 `POST /api/lark-bug/to-meegle-product-bug/draft`
 
-兼容别名：
-
-- `POST /api/a1/create-b2-draft`
-
 响应 data 建议：
 
 ```json
 {
-  "draftId": "draft_b2_001",
+  "draftId": "draft_meegle_product_bug_001",
   "target": {
     "projectKey": "PROJ1",
     "workitemTypeKey": "bug"
@@ -448,10 +437,6 @@
 ```
 
 ### 5.3.3 `POST /api/lark-bug/to-meegle-product-bug/apply`
-
-兼容别名：
-
-- `POST /api/a1/apply-b2`
 
 请求应包含：
 
@@ -474,21 +459,9 @@
 
 ### 5.4.1 `POST /api/lark-user-story/analyze`
 
-兼容别名：
-
-- `POST /api/a2/analyze`
-
 ### 5.4.2 `POST /api/lark-user-story/to-meegle-user-story/draft`
 
-兼容别名：
-
-- `POST /api/a2/create-b1-draft`
-
 ### 5.4.3 `POST /api/lark-user-story/to-meegle-user-story/apply`
-
-兼容别名：
-
-- `POST /api/a2/apply-b1`
 
 这三组接口的结构与 Lark Bug 路径保持一致，只是目标类型改为 Meegle User Story 对应的 `workitem_type_key`。
 
@@ -632,8 +605,8 @@ data: {"sessionId":"sess_pm_001"}
 - `MEEGLE_TOKEN_REFRESH_FAILED`
 - `MEEGLE_META_MISSING`
 - `MEEGLE_CREATE_FAILED`
-- `A1_RECORD_NOT_FOUND`
-- `A2_RECORD_NOT_FOUND`
+- `LARK_BUG_RECORD_NOT_FOUND`
+- `LARK_USER_STORY_RECORD_NOT_FOUND`
 - `SCHEMA_VALIDATION_FAILED`
 - `PARTIAL_DATA_UNAVAILABLE`
 - `ACP_SESSION_NOT_FOUND`
@@ -662,8 +635,8 @@ data: {"sessionId":"sess_pm_001"}
 建议实现顺序：
 
 1. 先固定插件内部 `action` 命名
-2. 先实现 `auth.exchange`、`a1.analyze`、`a1.create-b2-draft`
-3. 再补 `a2.*`
+2. 先实现 `auth.exchange`、`lark_bug.analyze`、`lark_bug.create_meegle_product_bug_draft`
+3. 再补 `lark_user_story.*`
 4. 最后补 `pm.analysis.run`
 
 如果要落 ACP `V1`，建议插入一个明确阶段：
@@ -671,4 +644,4 @@ data: {"sessionId":"sess_pm_001"}
 5. 保留 `pm.analysis.run` 作为 legacy baseline
 6. 新增 `POST /api/acp/pm-analysis/chat`，为 PM 分析提供 session + streaming + follow-up
 
-这样可以先跑通 A1 主链路，再逐步复制到 A2 和 PM 分析。
+这样可以先跑通 Lark Bug 主链路，再逐步复制到 Lark User Story 和 PM 分析。

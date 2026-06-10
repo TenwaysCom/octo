@@ -1,5 +1,9 @@
 # ACP Popup Frontend Design
 
+> Status: external reference / compatibility notes.
+>
+> This document captures ACP popup exploration notes. It should not override current Octo extension rules in [`docs/ai-dev/rules/extension-code-rules.md`](../../ai-dev/rules/extension-code-rules.md) or the current ACP V1 design in [`docs/tenways-octo/17-acp-design.md`](../../tenways-octo/17-acp-design.md).
+
 本设计文档分成两层：
 
 - 当前兼容方案：和现在已经完成的 ACP Task 1 / Task 2 实现保持一致

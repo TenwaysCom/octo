@@ -5,6 +5,8 @@
 **Branch:** feat/extension + feat/add-acp2
 **Status:** REVISED DRAFT
 
+> Status note: this is an evolution proposal. Current ACP V1 implementation boundaries are defined in [ACP 设计](../17-acp-design.md), and current engineering rules are defined under [`docs/ai-dev/`](../../ai-dev/README.md). Old A1/A2 wording in this draft should be treated as historical naming, not as the naming standard for new routes or actions.
+
 ## 0. 当前已批准方向：ACP V1 先落在 PM Analysis
 
 这份 V2 文档最初讨论的是较完整的 Agent Platform。结合后续 ACP 设计评审，当前已批准的落地方向需要先收窄：
@@ -20,7 +22,7 @@
 1. **当前要落地的 ACP V1**
 2. **后续如何从 V1 演进到通用 V2 Agent Platform**
 
-如果想看当前 ACP `V1` 的完整落地设计，请优先阅读 [ACP 设计](./17-acp-design.md)。
+如果想看当前 ACP `V1` 的完整落地设计，请优先阅读 [ACP 设计](../17-acp-design.md)。
 
 ### 0.1 ACP V1 当前架构
 
@@ -797,6 +799,6 @@ Phase 2.5: UI 实现
 
 ---
 
-**附录 A**: [Phase 1 设计文档](./04-architecture.md)
-**附录 B**: [AI Agent / Skill 设计](./05-ai-agent-skill-design.md)
+**附录 A**: [Phase 1 设计文档](../04-architecture.md)
+**附录 B**: [AI Agent / Skill 设计](../05-ai-agent-skill-design.md)
 **附录 C**: [一期实施路线](./07-phase-1-rollout.md)

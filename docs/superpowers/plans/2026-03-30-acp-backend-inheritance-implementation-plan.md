@@ -55,7 +55,7 @@ This plan intentionally stops at the backend checkpoint. It does not touch popup
   - Add ACP backend route and smoke-test instructions
 - `docs/tenways-octo/17-acp-design.md`
   - Sync the implementation order with the backend-first checkpoint
-- `docs/tenways-octo/14-v2-architecture-design.md`
+- `docs/tenways-octo/history/14-v2-architecture-design.md`
   - Sync the recommended rollout order with the backend-first checkpoint
 
 ## Task 1: Lock the ACP request/session/event contract

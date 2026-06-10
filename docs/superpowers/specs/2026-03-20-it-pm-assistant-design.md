@@ -49,7 +49,7 @@
 - [总体架构设计](../../tenways-octo/04-architecture.md)
 - [AI Agent / Skill 设计](../../tenways-octo/05-ai-agent-skill-design.md)
 - [数据与安全设计](../../tenways-octo/06-data-security.md)
-- [一期实施路线](../../tenways-octo/07-phase-1-rollout.md)
+- [一期实施路线](../../tenways-octo/history/07-phase-1-rollout.md)
 - [开放问题与待补设计](../../tenways-octo/08-open-questions.md)
 - [Meegle Adapter 适配设计](../../tenways-octo/09-meegle-adapter-design.md)
 - [Meegle 轻认证桥设计](../../tenways-octo/10-meegle-auth-bridge-design.md)
@@ -57,7 +57,7 @@
 - [字段 Schema 与状态机](../../tenways-octo/12-field-schema-and-state-machine.md)
 - [代码结构与校验设计](../../tenways-octo/13-code-structure-and-validation-design.md)
 - [PM 分析 Prompt 迭代记录模板](../../tenways-octo/14-pm-analysis-prompt-iteration-log.md)
-- [详细开发计划](../plans/2026-03-20-tenways-octo-implementation-plan.md)
+- [详细开发计划](../plans/2026-03-20-it-pm-assistant-implementation-plan.md)
 
 ## 待补说明
 

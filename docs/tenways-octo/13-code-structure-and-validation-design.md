@@ -141,23 +141,26 @@ flowchart LR
 - `meegle-auth.service.ts`
 - `meegle-auth.repository.ts`
 
-### `src/modules/a1/`
+### `src/modules/lark-bug/`
 
 职责：
 
 - `POST /api/lark-bug/analyze`
 - `POST /api/lark-bug/to-meegle-product-bug/draft`
 - `POST /api/lark-bug/to-meegle-product-bug/apply`
-- 兼容别名：`/api/a1/*`
 
-### `src/modules/a2/`
+### `src/modules/lark-user-story/`
 
 职责：
 
 - `POST /api/lark-user-story/analyze`
 - `POST /api/lark-user-story/to-meegle-user-story/draft`
 - `POST /api/lark-user-story/to-meegle-user-story/apply`
-- 兼容别名：`/api/a2/*`
+
+说明：
+
+- 当前设计文档不再使用旧 `/api/a1/*`、`/api/a2/*` 兼容入口。
+- 如果历史代码或归档文档中仍出现 `a1/a2`，不能直接复制到新模块；新增或重构代码应使用当前业务命名。
 
 ### `src/modules/pm-analysis/`
 
@@ -173,8 +176,8 @@ flowchart LR
 
 - `IdentityResolutionService`
 - `MeegleCredentialService`
-- `A1WorkflowService`
-- `A2WorkflowService`
+- `LarkBugWorkflowService`
+- `LarkUserStoryWorkflowService`
 - `PMAnalysisService`
 
 职责：
@@ -218,8 +221,8 @@ flowchart LR
 例如：
 
 - `MeegleAuthExchangeRequestDto`
-- `A1AnalyzeRequestDto`
-- `ApplyB2RequestDto`
+- `LarkBugAnalyzeRequestDto`
+- `ApplyMeegleProductBugRequestDto`
 
 ### 5.2 Domain Model
 

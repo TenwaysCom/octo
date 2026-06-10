@@ -1,5 +1,9 @@
 # ACP Coding Agent - API 文档
 
+> Status: external reference snapshot.
+>
+> This API document is reference material for ACP exploration. It is not Octo's current public API contract. Use [`docs/tenways-octo/11-extension-message-and-api-schema.md`](../../tenways-octo/11-extension-message-and-api-schema.md) and [`docs/tenways-octo/17-acp-design.md`](../../tenways-octo/17-acp-design.md) for current Octo API boundaries.
+
 完整的 RESTful API 接口说明，支持多轮对话、文件上传、代码生成等编程助手功能。
 
 **基础 URL**: `http://localhost:8000`

@@ -2,25 +2,20 @@
 
 跨平台协同助手，帮助用户在 Lark、Meegle、GitHub 之间更高效地推进建单、分析和协作。
 
+## README 与 AGENTS.md 的分工
+
+- `README.md` 面向项目成员：说明产品是什么、如何启动、主要能力、公开 API、当前状态和文档入口。
+- `AGENTS.md` 面向 AI agent / coding agent：说明修改代码前必须遵守的分层边界、读取规则、测试规则、日志规则和工作方式。
+- 业务背景、架构索引、运行命令放在 `README.md`；会影响 agent 如何改代码的硬规则放在 `AGENTS.md`。
+- 更细的工程治理、生命周期、代码规范、问题优先级和模板放在 `docs/ai-dev/`，由 `AGENTS.md` 路由给 agent 读取。
+
 ## 核心能力
 
 - `Lark Bug ->  Meegle Product Bug` 半自动建单
 - `Lark User Story -> Meegle User  Story` 半自动建单
 - PM 即时分析
 
-术语映射：
-
-| 旧术语 | 当前对外名称 |
-|------|------|
-| `A1` | `Lark Bug` |
-| `A2` | `Lark User Story` |
-| `B1` | `Meegle User Story` |
-| `B2` | `Meegle Product Bug` |
-
-说明：
-- 服务端公开 HTTP 路径已经切到新命名
-- 旧 `/api/a1/*`、`/api/a2/*` 仍保留为兼容别名
-- 插件内部消息 action 仍保留 `a1/a2/b1/b2` 命名，避免打断现有扩展协议
+当前公开命名使用 `Lark Bug`、`Lark User Story`、`Meegle Product Bug`、`Meegle User Story`。旧 `A1/A2/B1/B2` 命名和旧 `/api/a1/*`、`/api/a2/*` 路由不再作为新开发入口。
 
 ## 项目结构
 
@@ -28,8 +23,9 @@
 octo/
 ├── extension/              # 浏览器扩展
 ├── server/                 # 服务端 API
-├── meegle_clients/         # Meegle API 客户端参考
-└── docs/                   # 设计文档与实施计划
+├── docs/                   # 产品、架构、治理与实施文档
+├── AGENTS.md               # AI agent 开发规则入口
+└── README.md               # 项目入口说明
 ```
 
 ## 快速开始
@@ -87,22 +83,13 @@ pnpm --dir extension build
 - `POST /api/lark-user-story/to-meegle-user-story/apply`
 - `POST /api/pm/analysis/run`
 
-兼容别名：
-
-- `POST /api/a1/analyze`
-- `POST /api/a1/create-b2-draft`
-- `POST /api/a1/apply-b2`
-- `POST /api/a2/analyze`
-- `POST /api/a2/create-b1-draft`
-- `POST /api/a2/apply-b1`
-
 ## 当前状态
 
 已完成：
 
 - 浏览器扩展主链路
 - 服务端身份解析与 Meegle 认证
-- 新公开 API 路径与旧路径兼容
+- 当前公开 API 路径
 - 真实 Meegle apply 建单链路
 - apply 侧 `idempotencyKey` 透传
 - 主要单测、全量测试和 build 验证
@@ -133,3 +120,6 @@ pnpm --dir extension build
 - [总体架构](docs/tenways-octo/04-architecture.md)
 - [插件消息协议与 API Schema](docs/tenways-octo/11-extension-message-and-api-schema.md)
 - [代码结构与校验设计](docs/tenways-octo/13-code-structure-and-validation-design.md)
+- [AI Dev 治理入口](docs/ai-dev/README.md)
+- [当前系统技术对象生命周期](docs/ai-dev/lifecycle/current-system-technical-objects.md)
+- [系统边界与代码规范](docs/ai-dev/rules/system-boundaries-and-code-rules.md)
