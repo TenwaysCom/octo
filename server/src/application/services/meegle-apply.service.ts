@@ -17,6 +17,8 @@ import type { ExecutionDraft } from "../../validators/agent-output/execution-dra
 import { logger } from "../../logger.js";
 
 const applyLogger = logger.child({ module: "meegle-apply-service" });
+const CREATE_WORKITEM_FALLBACK_MESSAGE =
+  "创建 Meegle 工作项失败：Meegle 创建接口返回错误，请稍后重试或联系管理员查看服务端日志。";
 
 export type MeegleApplyErrorCode =
   | "IDENTITY_NOT_FOUND"
@@ -106,6 +108,63 @@ function ensureBinding(user: ResolvedUserRecord): void {
       "Resolved user is missing Meegle binding information",
     );
   }
+}
+
+function readStringField(
+  value: Record<string, unknown> | undefined,
+  fieldName: string,
+): string | undefined {
+  const raw = value?.[fieldName];
+  return typeof raw === "string" && raw.trim() ? raw.trim() : undefined;
+}
+
+function extractMeegleResponseMessage(
+  response: Record<string, unknown> | undefined,
+): string | undefined {
+  if (!response) {
+    return undefined;
+  }
+
+  const err = response.err;
+  if (err && typeof err === "object" && !Array.isArray(err)) {
+    const errRecord = err as Record<string, unknown>;
+    const nestedMessage =
+      readStringField(errRecord, "msg") ??
+      readStringField(errRecord, "message") ??
+      readStringField(errRecord, "err_msg");
+    if (nestedMessage) {
+      return nestedMessage;
+    }
+  }
+  if (typeof err === "string" && err.trim()) {
+    return err.trim();
+  }
+
+  return (
+    readStringField(response, "err_msg") ??
+    readStringField(response, "message") ??
+    readStringField(response, "msg") ??
+    readStringField(response, "error")
+  );
+}
+
+function formatCreateWorkitemErrorMessage(error: unknown): string {
+  const response = error && typeof error === "object" && "response" in error
+    ? (error as { response?: Record<string, unknown> }).response
+    : undefined;
+  const meegleMessage = extractMeegleResponseMessage(response);
+  if (meegleMessage) {
+    return `创建 Meegle 工作项失败：${meegleMessage}`;
+  }
+  if (response) {
+    return CREATE_WORKITEM_FALLBACK_MESSAGE;
+  }
+
+  if (error instanceof Error && error.message.trim()) {
+    return `创建 Meegle 工作项失败：${error.message}`;
+  }
+
+  return CREATE_WORKITEM_FALLBACK_MESSAGE;
 }
 
 async function buildClient(
@@ -223,7 +282,7 @@ export async function executeMeegleApply(
 
     throw new MeegleApplyError(
       "MEEGLE_WORKITEM_CREATE_FAILED",
-      error instanceof Error ? error.message : "Failed to create Meegle workitem",
+      formatCreateWorkitemErrorMessage(error),
     );
   }
 }

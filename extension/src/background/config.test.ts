@@ -87,6 +87,41 @@ describe("extension config", () => {
     });
   });
 
+  it("resolves SERVER_URL from ENV_NAME=dev when configured", async () => {
+    vi.mocked(chrome.storage.sync.get).mockImplementation((defaults, callback) => {
+      const resolvedDefaults = defaults as Record<string, unknown>;
+      callback({
+        ...resolvedDefaults,
+        ENV_NAME: "dev",
+      });
+    });
+
+    vi.mocked(fetch).mockRejectedValue(new Error("network down"));
+
+    await expect(getConfig()).resolves.toMatchObject({
+      ENV_NAME: "dev",
+      SERVER_URL: "http://localhost:3040",
+    });
+  });
+
+  it("keeps an explicitly customized SERVER_URL for a selected environment", async () => {
+    vi.mocked(chrome.storage.sync.get).mockImplementation((defaults, callback) => {
+      const resolvedDefaults = defaults as Record<string, unknown>;
+      callback({
+        ...resolvedDefaults,
+        ENV_NAME: "dev",
+        SERVER_URL: "http://localhost:3041",
+      });
+    });
+
+    vi.mocked(fetch).mockRejectedValue(new Error("network down"));
+
+    await expect(getConfig()).resolves.toMatchObject({
+      ENV_NAME: "dev",
+      SERVER_URL: "http://localhost:3041",
+    });
+  });
+
   it("keeps backward compatibility with an explicitly stored SERVER_URL", async () => {
     vi.mocked(chrome.storage.sync.get).mockImplementation((defaults, callback) => {
       const resolvedDefaults = defaults as Record<string, unknown>;

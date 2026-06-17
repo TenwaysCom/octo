@@ -1104,6 +1104,7 @@ export async function savePopupSettings(
     chromeApi.storage.sync.set(
       {
         ENV_NAME: settings.ENV_NAME || DEFAULT_CONFIG.ENV_NAME,
+        SERVER_URL: settings.SERVER_URL,
         MEEGLE_PLUGIN_ID: settings.MEEGLE_PLUGIN_ID,
       },
       () => resolve(),

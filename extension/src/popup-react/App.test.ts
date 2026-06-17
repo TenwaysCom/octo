@@ -33,6 +33,17 @@ describe("popup-react shell", () => {
     expect(container.querySelector('[data-test="settings-page"]')).toBeNull();
   });
 
+  it("allows editing the settings server URL", async () => {
+    const { user } = renderPopupApp();
+
+    await user.click(screen.getByRole("button", { name: "设置" }));
+    const serverUrlInput = screen.getByLabelText("Server URL");
+    await user.clear(serverUrlInput);
+    await user.type(serverUrlInput, "http://localhost:3041");
+
+    expect((serverUrlInput as HTMLInputElement).value).toBe("http://localhost:3041");
+  });
+
   it("renders unsupported UI when chat is opened on an unsupported page", async () => {
     const { container } = renderPopupApp({
       initialPage: "chat",
@@ -177,6 +188,17 @@ function renderPopupApp(
             },
           ],
           larkBulkCreateModal: bulkModal,
+          githubBranchCreateModal: {
+            visible: false,
+            stage: "preview",
+            repo: "",
+            defaultBranchName: "",
+            editedBranchName: "",
+            workItemTitle: "",
+            systemLabel: "",
+            error: null,
+            result: null,
+          },
           showKimiChat: false,
           kimiChatTranscript: [],
           kimiChatBusy: false,
@@ -233,6 +255,9 @@ function renderPopupApp(
           ignoreUpdateVersion: vi.fn(),
           downloadUpdate: vi.fn(),
           lookupGitHubPr: vi.fn(),
+          confirmGitHubBranchCreate: vi.fn(async () => undefined),
+          closeGitHubBranchCreateModal: vi.fn(),
+          updateGitHubBranchCreateName: vi.fn(),
         }),
         [activePage, bulkModal, options.pageType, options.showUnsupported, settingsForm],
       );

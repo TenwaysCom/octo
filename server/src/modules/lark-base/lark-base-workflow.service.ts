@@ -43,6 +43,7 @@ const DEFAULT_ISSUE_TYPE_FALLBACK = process.env.LARK_BASE_DEFAULT_ISSUE_TYPE_FAL
 // Meegle custom field keys for Lark link fields (must match meegle-lark-push.service.ts)
 const FIELD_LARK_RECORD_LINK = "field_e8ad0a";
 const FIELD_LARK_MESSAGE_LINK = "field_8d0341";
+const MEEGLE_VERSION_FIELD_NAME = "MeegleVersion";
 const LARK_MESSAGE_LINK_PATTERN = "https?:\\/\\/[^\\s\"<>]*(?:threadid|chatid|messageid)=[^\\s\"<>]*";
 const URL_IN_TEXT_PATTERN = /https?:\/\/[^\s"'<>)\]]+/i;
 const MARKDOWN_LINK_HREF_PATTERN = /\[[^\]]*]\((https?:\/\/[^\s"'<>)]*)\)/i;
@@ -189,6 +190,16 @@ function extractIssueTypes(fields: Record<string, unknown>): string[] {
     .filter(Boolean);
   workflowLogger.info({ extracted }, "EXTRACT_ISSUE_TYPES result");
   return extracted;
+}
+
+function extractMeegleVersion(fields: Record<string, unknown>): number {
+  const raw = stringifyLarkValue(fields[MEEGLE_VERSION_FIELD_NAME]).trim();
+  if (!raw) {
+    return 1;
+  }
+
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : 1;
 }
 
 // ==================== Record Parsing ====================
@@ -666,13 +677,14 @@ export async function executeLarkBaseWorkflow(
   }
 
   const workitems: Array<{ workitemId: string; meegleLink: string }> = [];
+  const meegleVersion = extractMeegleVersion(record.fields);
 
-  workflowLogger.info({ mappingCount: mappings.length }, "STARTING_WORKITEM_CREATION_LOOP");
+  workflowLogger.info({ mappingCount: mappings.length, meegleVersion }, "STARTING_WORKITEM_CREATION_LOOP");
 
   for (let i = 0; i < mappings.length; i++) {
     const mapping = mappings[i];
     const draft = buildExecutionDraft(record, projectKey, mapping, sourceContext, i);
-    const idempotencyKey = `idem_base_${request.recordId}_${mapping.workitemTypeKey}_${i}`;
+    const idempotencyKey = `idem_base_${request.recordId}_${mapping.workitemTypeKey}_${i}_v${meegleVersion}`;
 
     workflowLogger.info({ index: i, workitemTypeKey: mapping.workitemTypeKey, templateId: mapping.templateId, idempotencyKey }, "APPLYING_MAPPING");
 

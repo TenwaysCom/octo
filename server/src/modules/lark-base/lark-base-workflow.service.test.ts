@@ -33,16 +33,21 @@ describe("lark-base-workflow.service", () => {
     ]);
   });
 
-  function makeRecord(issueType: string | string[], tag = "urgent"): LarkBitableRecord {
+  function makeRecord(issueType: string | string[], tag = "urgent", meegleVersion?: unknown): LarkBitableRecord {
     const issueTypes = Array.isArray(issueType) ? issueType : [issueType];
+    const fields: LarkBitableRecord["fields"] = {
+      "Issue 类型": issueTypes.map((text) => ({ text, id: `opt_${text}` })),
+      "Issue Description": "Test issue description",
+      "Details Description": "Detailed info",
+      tag,
+    };
+    if (meegleVersion !== undefined) {
+      fields.MeegleVersion = meegleVersion;
+    }
+
     return {
       record_id: "rec_123",
-      fields: {
-        "Issue 类型": issueTypes.map((text) => ({ text, id: `opt_${text}` })),
-        "Issue Description": "Test issue description",
-        "Details Description": "Detailed info",
-        tag,
-      },
+      fields,
     };
   }
 
@@ -128,7 +133,7 @@ describe("lark-base-workflow.service", () => {
             }),
           ]),
         }),
-        idempotencyKey: "idem_base_rec_123_story_0",
+        idempotencyKey: "idem_base_rec_123_story_0_v1",
       }),
       {},
     );
@@ -167,7 +172,44 @@ describe("lark-base-workflow.service", () => {
     expect(result.ok).toBe(true);
 
     const applyArg = executeMeegleApplyMock.mock.calls[0]?.[0] as { idempotencyKey?: string };
-    expect(applyArg?.idempotencyKey).toBe("idem_base_rec_123_story_0");
+    expect(applyArg?.idempotencyKey).toBe("idem_base_rec_123_story_0_v1");
+    expect(applyArg?.idempotencyKey).toMatch(/^[\x00-\x7F]+$/);
+  });
+
+  it("uses MeegleVersion to version recreate idempotency keys", async () => {
+    const record = makeRecord("User Story", "集中处理", 2);
+    createLarkClientMock.mockReturnValueOnce({
+      getRecord: vi.fn().mockResolvedValueOnce(record),
+    });
+    getLarkTokenStoreMock.mockResolvedValueOnce({
+      userToken: "token_123",
+      userTokenExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
+      baseUrl: "https://open.larksuite.com",
+    });
+    executeMeegleApplyMock.mockResolvedValueOnce({
+      status: "created",
+      workitemId: "wi_recreate",
+      draft: {},
+    });
+    updateLarkBaseMeegleLinkMock.mockResolvedValueOnce({
+      ok: true,
+      recordId: "rec_123",
+    });
+
+    const result = await executeLarkBaseWorkflow(
+      {
+        recordId: "rec_123",
+        masterUserId: "usr_xxx",
+        baseId: "base_123",
+        tableId: "tbl_456",
+      },
+      deps,
+    );
+
+    expect(result.ok).toBe(true);
+
+    const applyArg = executeMeegleApplyMock.mock.calls[0]?.[0] as { idempotencyKey?: string };
+    expect(applyArg?.idempotencyKey).toBe("idem_base_rec_123_story_0_v2");
     expect(applyArg?.idempotencyKey).toMatch(/^[\x00-\x7F]+$/);
   });
 
@@ -220,7 +262,7 @@ describe("lark-base-workflow.service", () => {
             templateId: "645025",
           }),
         }),
-        idempotencyKey: "idem_base_rec_123_6932e40429d1cd8aac635c82_0",
+        idempotencyKey: "idem_base_rec_123_6932e40429d1cd8aac635c82_0_v1",
       }),
       {},
     );
@@ -325,7 +367,7 @@ describe("lark-base-workflow.service", () => {
             templateId: "400329",
           }),
         }),
-        idempotencyKey: "idem_base_rec_123_story_0",
+        idempotencyKey: "idem_base_rec_123_story_0_v1",
       }),
       {},
     );

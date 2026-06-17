@@ -15,7 +15,7 @@ export interface PopupStatusChip {
 }
 
 export interface PopupSettingsForm {
-  ENV_NAME?: "prod" | "test";
+  ENV_NAME?: "prod" | "test" | "dev";
   SERVER_URL: string;
   MEEGLE_PLUGIN_ID: string;
   LARK_OAUTH_CALLBACK_URL: string;

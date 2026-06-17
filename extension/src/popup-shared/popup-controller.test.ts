@@ -614,6 +614,17 @@ describe("popup controller", () => {
     controller.dispose();
   });
 
+  it("sets the local development server URL when dev environment is selected", async () => {
+    const controller = createPopupController();
+    await controller.initialize();
+
+    controller.openSettings();
+    controller.updateSettingsFormField("ENV_NAME", "dev");
+
+    expect(controller.getState().settingsForm.SERVER_URL).toBe("http://localhost:3040");
+    controller.dispose();
+  });
+
   it("initializes update state to null", async () => {
     const controller = createPopupController();
     expect(controller.getState().update).toBeNull();
