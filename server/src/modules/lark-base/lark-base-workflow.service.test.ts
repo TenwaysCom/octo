@@ -128,10 +128,47 @@ describe("lark-base-workflow.service", () => {
             }),
           ]),
         }),
-        idempotencyKey: "idem_base_rec_123_story_0_urgent",
+        idempotencyKey: "idem_base_rec_123_story_0",
       }),
       {},
     );
+  });
+
+  it("keeps the idempotency key ASCII-safe when tag contains Chinese text", async () => {
+    const record = makeRecord("User Story", "集中处理");
+    createLarkClientMock.mockReturnValueOnce({
+      getRecord: vi.fn().mockResolvedValueOnce(record),
+    });
+    getLarkTokenStoreMock.mockResolvedValueOnce({
+      userToken: "token_123",
+      userTokenExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
+      baseUrl: "https://open.larksuite.com",
+    });
+    executeMeegleApplyMock.mockResolvedValueOnce({
+      status: "created",
+      workitemId: "wi_chinese_tag",
+      draft: {},
+    });
+    updateLarkBaseMeegleLinkMock.mockResolvedValueOnce({
+      ok: true,
+      recordId: "rec_123",
+    });
+
+    const result = await executeLarkBaseWorkflow(
+      {
+        recordId: "rec_123",
+        masterUserId: "usr_xxx",
+        baseId: "base_123",
+        tableId: "tbl_456",
+      },
+      deps,
+    );
+
+    expect(result.ok).toBe(true);
+
+    const applyArg = executeMeegleApplyMock.mock.calls[0]?.[0] as { idempotencyKey?: string };
+    expect(applyArg?.idempotencyKey).toBe("idem_base_rec_123_story_0");
+    expect(applyArg?.idempotencyKey).toMatch(/^[\x00-\x7F]+$/);
   });
 
   it("creates a production bug for Issue 类型 = Production Bug", async () => {
@@ -183,7 +220,7 @@ describe("lark-base-workflow.service", () => {
             templateId: "645025",
           }),
         }),
-        idempotencyKey: "idem_base_rec_123_6932e40429d1cd8aac635c82_0_urgent",
+        idempotencyKey: "idem_base_rec_123_6932e40429d1cd8aac635c82_0",
       }),
       {},
     );
@@ -288,7 +325,7 @@ describe("lark-base-workflow.service", () => {
             templateId: "400329",
           }),
         }),
-        idempotencyKey: "idem_base_rec_123_story_0_",
+        idempotencyKey: "idem_base_rec_123_story_0",
       }),
       {},
     );

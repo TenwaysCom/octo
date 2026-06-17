@@ -667,14 +667,12 @@ export async function executeLarkBaseWorkflow(
 
   const workitems: Array<{ workitemId: string; meegleLink: string }> = [];
 
-  const recordTag = stringifyLarkValue(record.fields["tag"] ?? "").replace(/\s+/g, "_");
-
   workflowLogger.info({ mappingCount: mappings.length }, "STARTING_WORKITEM_CREATION_LOOP");
 
   for (let i = 0; i < mappings.length; i++) {
     const mapping = mappings[i];
     const draft = buildExecutionDraft(record, projectKey, mapping, sourceContext, i);
-    const idempotencyKey = `idem_base_${request.recordId}_${mapping.workitemTypeKey}_${i}_${recordTag}`;
+    const idempotencyKey = `idem_base_${request.recordId}_${mapping.workitemTypeKey}_${i}`;
 
     workflowLogger.info({ index: i, workitemTypeKey: mapping.workitemTypeKey, templateId: mapping.templateId, idempotencyKey }, "APPLYING_MAPPING");
 
