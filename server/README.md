@@ -1,19 +1,6 @@
 # Tenways Octo - 服务端
 
-服务端 API 负责身份解析、Meegle 认证、Lark 到 Meegle 建单编排，以及 PM 即时分析。
-
-## 当前对外术语
-
-| 旧术语 | 当前对外名称 |
-|------|------|
-| `A1` | `Lark Bug` |
-| `A2` | `Lark User Story` |
-| `B1` | `Meegle User Story` |
-| `B2` | `Meegle Product Bug` |
-
-说明：
-- 服务端公开路径使用新命名
-- 旧 `/api/a1/*`、`/api/a2/*` 仍保留为兼容别名
+服务端 API 负责身份解析、Lark / Meegle 授权、Lark Base 到 Meegle workitem 的建单编排、Lark 回写、GitHub 辅助操作，以及 PM 即时分析。
 
 ## 开发
 
@@ -50,74 +37,93 @@ pnpm --dir server db:import-sqlite -- --sqlite ./data/tenways-octo.sqlite
 
 ## 主要接口
 
-### 基础接口
+### 基础与配置
 
 - `GET /health`
+- `GET /api/config/public`
+- `GET /api/extension/version`
 - `POST /api/identity/resolve`
+- `POST /api/debug/client-log`
+
+### 授权
+
 - `POST /api/meegle/auth/exchange`
 - `POST /api/meegle/auth/status`
+- `POST /api/lark/auth/exchange`
+- `POST /api/lark/auth/refresh`
+- `POST /api/lark/auth/status`
+- `POST /api/lark/auth/session`
+- `GET /api/lark/auth/callback`
+- `POST /api/lark/user-info`
+
+### Lark Base 与 Meegle
+
+- `POST /api/lark-base/update-meegle-link`
+- `POST /api/lark-base/get-record-url`
+- `POST /api/lark-base/create-meegle-workitem`
+- `POST /api/lark-base/bulk-preview-meegle-workitems`
+- `POST /api/lark-base/bulk-create-meegle-workitems`
+- `POST /api/meegle/workitem/update-lark-and-push`
+
+### GitHub
+
+- `POST /api/github/branch/preview`
+- `POST /api/github/branch/create`
+- `POST /api/github/lookup-meegle`，仅在配置 `GITHUB_TOKEN` 时注册
+
+### PM Analysis / ACP
+
 - `POST /api/pm/analysis/run`
+- `POST /api/acp/kimi/chat`
+- `POST /api/acp/kimi/sessions/list`
+- `POST /api/acp/kimi/sessions/load`
+- `POST /api/acp/kimi/sessions/rename`
+- `POST /api/acp/kimi/sessions/delete`
 
-### Lark Bug -> Meegle Product Bug
+## Lark Base 建单请求约定
 
-主路径：
+单条建单接口 `POST /api/lark-base/create-meegle-workitem` 支持：
 
-- `POST /api/lark-bug/analyze`
-- `POST /api/lark-bug/to-meegle-product-bug/draft`
-- `POST /api/lark-bug/to-meegle-product-bug/apply`
+- `recordId`
+- `masterUserId`
+- 可选 `baseId`
+- 可选 `tableId`
+- 可选 `projectKey`
+- 可选 `wikiRecordId`
+- 可选 `pageType`，目前为 `lark_base` 或 `lark_wiki_record`
 
-兼容别名：
+批量预览和批量建单接口支持：
 
-- `POST /api/a1/analyze`
-- `POST /api/a1/create-b2-draft`
-- `POST /api/a1/apply-b2`
-
-### Lark User Story -> Meegle User Story
-
-主路径：
-
-- `POST /api/lark-user-story/analyze`
-- `POST /api/lark-user-story/to-meegle-user-story/draft`
-- `POST /api/lark-user-story/to-meegle-user-story/apply`
-
-兼容别名：
-
-- `POST /api/a2/analyze`
-- `POST /api/a2/create-b1-draft`
-- `POST /api/a2/apply-b1`
-
-## Apply 请求约定
-
-`apply` 请求目前支持：
-
-- `requestId`
-- 可选 `masterUserId`
-- `operatorLarkId`
-- `draftId`
-- `sourceRecordId`
-- `idempotencyKey`
-- `confirmedDraft`
+- `baseId`
+- `tableId`
+- `viewId`
+- `masterUserId`
 
 身份解析顺序：
 
-1. 优先使用 `masterUserId`
-2. 缺失时使用 `operatorLarkId` 反查
-3. 解析到用户后，读取 `meegleUserKey` 和 `meegleBaseUrl`
-4. 刷新 Meegle credential
-5. 创建 `MeegleClient`
-6. 调用 Meegle create workitem
+1. 使用 `masterUserId` 构建已认证的 Lark client。
+2. 读取 Lark Base 记录与字段。
+3. 根据 Issue 类型和 workflow config 解析 Meegle workitem type。
+4. 读取或刷新 Meegle credential。
+5. 创建 Meegle workitem。
+6. 回写 Lark Base 记录中的 Meegle 链接。
 
-## Apply 响应约定
+## Lark Base 建单响应约定
 
 成功响应：
 
 ```json
 {
-  "status": "created",
+  "ok": true,
   "workitemId": "1234567890",
-  "draft": {
-    "draftId": "draft_b2_rec_001"
-  }
+  "meegleLink": "https://project.larksuite.com/project/4c3fv6/story/detail/1234567890",
+  "recordId": "rec_123",
+  "workitems": [
+    {
+      "workitemId": "1234567890",
+      "meegleLink": "https://project.larksuite.com/project/4c3fv6/story/detail/1234567890"
+    }
+  ]
 }
 ```
 
@@ -134,19 +140,22 @@ pnpm --dir server db:import-sqlite -- --sqlite ./data/tenways-octo.sqlite
 ```
 
 说明：
-- 成功响应当前直接返回工作流结果对象
-- 业务失败返回结构化错误 envelope
-- `idempotencyKey` 会透传到 Meegle create 请求头，避免重复 apply 时重复建单
+- 业务失败返回结构化错误 envelope。
+- 输入校验失败返回 `INVALID_REQUEST`。
+- 建单成功但后续回写失败时，应保留已创建的 Meegle 信息，并在错误阶段中体现可重试动作。
 
 ## 主要错误码
 
 | 错误码 | 含义 |
 |------|------|
 | `INVALID_REQUEST` | 请求体校验失败 |
-| `IDENTITY_NOT_FOUND` | 无法根据 `masterUserId` / `operatorLarkId` 解析用户 |
+| `IDENTITY_NOT_FOUND` | 无法根据 `masterUserId` 解析用户 |
 | `MEEGLE_BINDING_REQUIRED` | 已解析用户缺少 `meegleUserKey` 或 `meegleBaseUrl` |
 | `MEEGLE_AUTH_REQUIRED` | Meegle 认证缺失、失效或不可刷新 |
+| `LARK_AUTH_REQUIRED` | Lark 认证缺失、失效或不可刷新 |
 | `MEEGLE_WORKITEM_CREATE_FAILED` | Meegle workitem 创建失败 |
+| `UPDATE_FAILED` | Lark Base 建单或回写工作流失败 |
+| `PUSH_FAILED` | Meegle workitem 到 Lark 的推送失败 |
 | `INTERNAL_ERROR` | 未归类的服务端异常 |
 
 ## 模块划分
@@ -159,20 +168,29 @@ server/src/
 │   ├── postgres/
 │   └── sqlite/
 ├── application/services/
-│   ├── a1-workflow.service.ts
-│   ├── a2-workflow.service.ts
+│   ├── identity-resolution.service.ts
+│   ├── lark-auth-client.factory.ts
+│   ├── lark-client.factory.ts
 │   ├── meegle-apply.service.ts
 │   ├── meegle-credential.service.ts
+│   ├── meegle-lark-push.service.ts
 │   ├── meegle-workitem.service.ts
 │   └── pm-analysis.service.ts
 ├── http/
 │   └── lark-meegle-workflow-routes.ts
 ├── modules/
-│   ├── a1/
-│   ├── a2/
+│   ├── acp-kimi/
+│   ├── debug-log/
+│   ├── github-branch-create/
 │   ├── identity/
+│   ├── lark-auth/
+│   ├── lark-base/
 │   ├── meegle-auth/
+│   ├── meegle-workitem/
+│   ├── public-config/
 │   └── pm-analysis/
+├── routes/
+│   └── github-lookup.ts
 └── validators/
 ```
 
