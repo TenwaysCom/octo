@@ -305,7 +305,9 @@ describe("popup controller Kimi lazy loading", () => {
     await controller.runFeatureAction("bulk-create-meegle-tickets");
 
     expect(bulkCreateModuleMock.createLarkBulkCreateController).toHaveBeenCalledTimes(1);
-    expect(bulkCreateControllerMock.openPreview).toHaveBeenCalledTimes(1);
+    expect(bulkCreateControllerMock.openPreview).toHaveBeenCalledWith({
+      actionRunId: expect.any(String),
+    });
     expect(meeglePushModuleMock.createMeeglePushController).not.toHaveBeenCalled();
 
     await controller.runFeatureAction("bulk-create-meegle-tickets");
@@ -332,7 +334,9 @@ describe("popup controller Kimi lazy loading", () => {
     await controller.runFeatureAction("update-lark-and-push");
 
     expect(meeglePushModuleMock.createMeeglePushController).toHaveBeenCalledTimes(1);
-    expect(meeglePushControllerMock.run).toHaveBeenCalledTimes(1);
+    expect(meeglePushControllerMock.run).toHaveBeenCalledWith({
+      actionRunId: expect.any(String),
+    });
     expect(bulkCreateModuleMock.createLarkBulkCreateController).not.toHaveBeenCalled();
 
     await controller.runFeatureAction("update-lark-and-push");
@@ -343,7 +347,7 @@ describe("popup controller Kimi lazy loading", () => {
       false,
     );
     expect(
-      controller.getState().logs.filter((entry) => entry.message === "更新 Lark 及推送中...")
+      controller.getState().logs.filter((entry) => entry.message.startsWith("更新 Lark 及推送中..."))
         .length,
     ).toBe(2);
     controller.dispose();

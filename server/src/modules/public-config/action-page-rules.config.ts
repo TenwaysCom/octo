@@ -59,7 +59,7 @@ export const ACTION_PAGE_RULES: ActionPageRule[] = [
       workItemTypeKey: "story",
     },
     sidebar: SIDEBAR_ENABLED,
-    actions: ["storyPrdToSimplified", "updateLarkAndPush", "createGithubBranch"],
+    actions: ["updateLarkAndPush", "createGithubBranch", "storyPrdToSimplified"],
   },
   {
     id: "meegle.workitem.detail",

@@ -66,7 +66,7 @@ describe("popup github branch create controller", () => {
       },
     });
 
-    await controller.open();
+    await controller.open({ actionRunId: "run_branch_001" });
 
     expect(fetch).toHaveBeenCalledWith(
       "http://localhost:3000/api/github/branch/preview",
@@ -77,6 +77,7 @@ describe("popup github branch create controller", () => {
           workItemId: "11237978",
           masterUserId: "usr_123",
           baseUrl: "https://project.larksuite.com",
+          actionRunId: "run_branch_001",
         }),
       }),
     );

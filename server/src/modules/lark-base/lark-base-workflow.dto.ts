@@ -8,6 +8,7 @@ export const createLarkBaseWorkflowSchema = z.object({
   projectKey: z.string().optional(),
   wikiRecordId: z.string().optional(),
   pageType: z.enum(["lark_base", "lark_wiki_record"]).optional(),
+  actionRunId: z.string().min(1).optional(),
 });
 
 export type CreateLarkBaseWorkflowRequest = z.infer<
@@ -19,6 +20,7 @@ export const previewLarkBaseBulkWorkflowSchema = z.object({
   tableId: z.string().min(1),
   viewId: z.string().min(1).optional(),
   masterUserId: z.string().min(1),
+  actionRunId: z.string().min(1).optional(),
 });
 
 export type PreviewLarkBaseBulkWorkflowRequest = z.infer<
@@ -30,6 +32,7 @@ export const createLarkBaseBulkWorkflowSchema = z.object({
   tableId: z.string().min(1),
   viewId: z.string().min(1).optional(),
   masterUserId: z.string().min(1),
+  actionRunId: z.string().min(1).optional(),
 });
 
 export type CreateLarkBaseBulkWorkflowRequest = z.infer<

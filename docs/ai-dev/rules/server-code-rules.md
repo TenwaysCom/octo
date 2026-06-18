@@ -1,7 +1,7 @@
 ---
 status: draft
 owner: TBD
-last_reviewed: 2026-06-09
+last_reviewed: 2026-06-18
 scope: Coding rules for Octo server routes, controllers, services, adapters, workflows, platform metadata, errors, logging, and tests
 update_required_when:
   - server route/controller/service layering changes
@@ -130,6 +130,31 @@ Partial success rules:
 | Lark updated but Meegle status update failed | include `larkBaseUpdated: true`, failed Meegle stage |
 | message sent but reaction failed | include separate result flags |
 
+### ACP-backed one-shot workflow rules
+
+ACP-backed action workflows that only need one model turn, such as Meegle Story 研发Review, should run as controlled one-shot tasks rather than reusable chat sessions.
+
+Rules:
+
+1. Use a one-shot ACP helper that creates a runtime, runs one prompt, and closes the runtime in `finally`.
+2. Do not register one-shot sessions in the reusable session registry.
+3. Do not claim one-shot sessions in the ACP session ownership store.
+4. Put workflow-specific concurrency limits in the owning application service, not in the extension.
+5. Enforce a workflow timeout with `AbortSignal`; timeout must return a typed error and must not write platform data.
+6. Limit rejection must happen before starting ACP and before platform writeback.
+7. Successful one-shot workflows may emit ACP session events internally, but the session id is diagnostic only and must not be presented as a resumable chat session.
+
+Recommended one-shot ACP error codes:
+
+| Error code | Stage | Meaning |
+| --- | --- | --- |
+| `ACP_CONCURRENCY_LIMITED` | `adapter.acp.queue` | workflow-specific ACP concurrency limit is full |
+| `ACP_ANALYSIS_TIMEOUT` | `adapter.acp.prompt` | ACP prompt exceeded workflow timeout |
+| `ACP_INITIALIZE_TIMEOUT` | `adapter.acp.initialize` | ACP process did not initialize in time |
+| `ACP_PROCESS_EXITED` | `adapter.acp.process` | ACP subprocess exited before or during an operation |
+
+Config defaults should be documented near the workflow service. For Meegle Story 研发Review, current defaults are `STORY_PRD_TO_SIMPLIFIED_ACP_CONCURRENCY_LIMIT=3` and `STORY_PRD_TO_SIMPLIFIED_ACP_TIMEOUT_MS=110000`.
+
 ## 6. DTO And Validation Rules
 
 1. Validate API inputs with Zod DTO schemas.
@@ -216,8 +241,8 @@ Semantic fields to standardize first:
 | `system` | GitHub repo/system mapping |
 | `plannedVersion` | GitHub lookup display |
 | `plannedSprint` | GitHub lookup display |
-| `storySummary` | Meegle Story 研发返讲输入 |
-| `techSummary` | Meegle Story 研发返讲覆盖写回 |
+| `storySummary` | Meegle Story 研发Review输入 |
+| `techSummary` | Meegle Story 研发Review覆盖写回 |
 
 ## 10. Config And Mapping Rules
 

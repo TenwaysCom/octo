@@ -562,7 +562,7 @@ function buildStoryPrdToSimplifiedPrompt(input: {
   storyTitle: string;
   storySummary: string;
 }): string {
-  return `你是一名技术项目经理。请根据下面的 Meegle Story Summary，生成一份简化的需求确认文档，用于研发返讲和评审。
+  return `你是一名技术项目经理。请根据下面的 Meegle Story Summary，生成一份简化的需求确认文档，用于研发Review和评审。
 
 输出要求：
 1. 使用中文。

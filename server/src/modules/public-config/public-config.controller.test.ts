@@ -149,7 +149,7 @@ describe("public-config.controller", () => {
           automationActions: expect.arrayContaining([
             expect.objectContaining({
               key: "story-prd-to-simplified",
-              title: "研发返讲 Story",
+              title: "研发Review Story",
               interaction: { type: "direct_execute" },
               executor: expect.objectContaining({
                 type: "backend_api",
@@ -162,9 +162,9 @@ describe("public-config.controller", () => {
       },
     });
     expect(actionKeys).toEqual([
-      "story-prd-to-simplified",
       "update-lark-and-push",
       "create-github-branch",
+      "story-prd-to-simplified",
     ]);
   });
 

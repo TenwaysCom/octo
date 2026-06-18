@@ -401,6 +401,7 @@ describe("usePopupApp React hook", () => {
       tableId: "tblUfu71xwdul3NH",
       viewId: "vewMs17Tqk",
       masterUserId: "usr_resolved",
+      actionRunId: expect.any(String),
     });
     expect(result.current.larkBulkCreateModal.visible).toBe(true);
     expect(result.current.larkBulkCreateModal.stage).toBe("preview");

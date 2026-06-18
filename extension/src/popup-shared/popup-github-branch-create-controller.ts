@@ -61,6 +61,10 @@ function resolveErrorMessage(errorCode: string, serverMessage?: string): string 
   return ERROR_CODE_MESSAGES[errorCode] || serverMessage || `错误: ${errorCode}`;
 }
 
+interface GitHubBranchCreateOptions {
+  actionRunId?: string;
+}
+
 export function createGitHubBranchCreateController(deps: CreateGitHubBranchCreateControllerDeps) {
   const {
     readStore,
@@ -70,6 +74,7 @@ export function createGitHubBranchCreateController(deps: CreateGitHubBranchCreat
     showToast,
     setModalState,
   } = deps;
+  let activeActionRunId: string | undefined;
 
   function resetModal(): void {
     setModalState({
@@ -85,8 +90,12 @@ export function createGitHubBranchCreateController(deps: CreateGitHubBranchCreat
     });
   }
 
-  async function open(): Promise<void> {
-    appendLog("info", "[创建 GitHub 分支] 开始获取预览信息...");
+  async function open(options: GitHubBranchCreateOptions = {}): Promise<void> {
+    activeActionRunId = options.actionRunId;
+    appendLog(
+      "info",
+      `[创建 GitHub 分支] 开始获取预览信息${activeActionRunId ? ` · actionRunId=${activeActionRunId}` : ""}...`,
+    );
 
     const tabContext = await queryCurrentTabContext();
     updateCurrentTabContext({
@@ -148,6 +157,7 @@ export function createGitHubBranchCreateController(deps: CreateGitHubBranchCreat
           workItemId,
           masterUserId,
           baseUrl,
+          actionRunId: activeActionRunId,
         },
       });
 
@@ -257,6 +267,7 @@ export function createGitHubBranchCreateController(deps: CreateGitHubBranchCreat
           masterUserId,
           baseUrl,
           branchName,
+          actionRunId: activeActionRunId,
         },
       });
 

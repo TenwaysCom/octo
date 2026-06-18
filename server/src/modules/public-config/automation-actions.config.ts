@@ -68,7 +68,7 @@ export const AUTOMATION_ACTIONS = {
   },
   storyPrdToSimplified: {
     key: "story-prd-to-simplified",
-    title: "研发返讲 Story",
+    title: "研发Review Story",
     description: "读取 Story Summary，经 Kimi ACP 生成简化需求确认并覆盖写入 Tech Summary。",
     style: "primary",
     interaction: {

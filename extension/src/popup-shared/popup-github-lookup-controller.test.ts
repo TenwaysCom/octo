@@ -65,13 +65,14 @@ describe("popup github lookup controller", () => {
       },
     });
 
-    await controller.lookup();
+    await controller.lookup({ actionRunId: "run_lookup_001" });
 
     expect(fetch).toHaveBeenCalledWith(
       "http://localhost:3000/api/github/lookup-meegle",
       expect.objectContaining({
         body: JSON.stringify({
           prUrl: "https://github.com/TenwaysCom/Tenways/pull/123",
+          actionRunId: "run_lookup_001",
         }),
       }),
     );

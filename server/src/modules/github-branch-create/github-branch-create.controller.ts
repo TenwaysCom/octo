@@ -30,7 +30,10 @@ export async function githubBranchPreviewController(input: unknown) {
   controllerLogger.info("RECEIVED_PREVIEW_REQUEST");
   try {
     const validated = validateGitHubBranchPreviewRequest(input);
-    controllerLogger.debug({ masterUserId: validated.masterUserId }, "VALIDATED_PREVIEW_REQUEST");
+    controllerLogger.debug({
+      masterUserId: validated.masterUserId,
+      actionRunId: validated.actionRunId,
+    }, "VALIDATED_PREVIEW_REQUEST");
     const result = await previewBranchCreate(validated);
     return result;
   } catch (error) {
@@ -52,7 +55,11 @@ export async function githubBranchCreateController(input: unknown) {
   controllerLogger.info("RECEIVED_CREATE_REQUEST");
   try {
     const validated = validateGitHubBranchCreateRequest(input);
-    controllerLogger.debug({ masterUserId: validated.masterUserId, branchName: validated.branchName }, "VALIDATED_CREATE_REQUEST");
+    controllerLogger.debug({
+      masterUserId: validated.masterUserId,
+      branchName: validated.branchName,
+      actionRunId: validated.actionRunId,
+    }, "VALIDATED_CREATE_REQUEST");
 
     const githubToken = process.env.GITHUB_TOKEN;
     if (!githubToken) {

@@ -33,8 +33,9 @@ export function createGitHubLookupRouter(options: GitHubLookupRouteOptions): Rou
 
   router.post("/lookup-meegle", async (req, res) => {
     try {
-      const { prUrl } = req.body;
+      const { prUrl, actionRunId } = req.body;
       const masterUserId = getMasterUserIdHeader(req);
+      routeLogger.info({ actionRunId }, "LOOKUP_MEEGLE_REQUEST");
 
       if (!prUrl || typeof prUrl !== "string") {
         return res.status(400).json({

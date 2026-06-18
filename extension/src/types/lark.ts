@@ -117,6 +117,7 @@ export interface LarkRecordSnapshot {
 
 export interface LarkBaseCreateWorkitemRequest extends LarkPageContext {
   snapshot?: LarkRecordSnapshot;
+  actionRunId?: string;
 }
 
 export interface LarkWikiRecordCreateWorkitemRequest {
@@ -141,6 +142,7 @@ export interface LarkBaseBulkWorkflowRequest {
   tableId?: string;
   viewId?: string;
   masterUserId?: string;
+  actionRunId?: string;
 }
 
 export interface LarkBaseBulkPreviewRecord {

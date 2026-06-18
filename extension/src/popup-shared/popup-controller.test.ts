@@ -138,7 +138,7 @@ describe("popup controller", () => {
           automationActions: [
             {
               key: "story-prd-to-simplified",
-              title: "研发返讲 Story",
+              title: "研发Review Story",
               style: "primary",
               executor: {
                 type: "backend_api",
@@ -403,6 +403,7 @@ describe("popup controller", () => {
       recordId: "KxOYr6CJKeWYktcI2GilrfRAgeg",
       wikiRecordId: "KxOYr6CJKeWYktcI2GilrfRAgeg",
       masterUserId: "usr_resolved",
+      actionRunId: expect.any(String),
     });
     controller.dispose();
   });
@@ -582,6 +583,7 @@ describe("popup controller", () => {
       tableId: "tblUfu71xwdul3NH",
       viewId: "vewMs17Tqk",
       masterUserId: "usr_resolved",
+      actionRunId: expect.any(String),
     });
     expect(controller.getState().larkBulkCreateModal.stage).toBe("result");
     expect(controller.getState().larkBulkCreateModal.result?.ok).toBe(true);
@@ -635,11 +637,14 @@ describe("popup controller", () => {
       baseId: "XO0cbnxMIaralRsbBEolboEFgZc",
       tableId: "tblUfu71xwdul3NH",
       masterUserId: "usr_resolved",
+      actionRunId: expect.any(String),
     });
+    const previewActionRunId = runtimeMock.runLarkBaseBulkPreviewRequest.mock.calls[0]?.[0].actionRunId;
     expect(runtimeMock.runLarkBaseBulkCreateRequest).toHaveBeenCalledWith({
       baseId: "XO0cbnxMIaralRsbBEolboEFgZc",
       tableId: "tblUfu71xwdul3NH",
       masterUserId: "usr_resolved",
+      actionRunId: previewActionRunId,
     });
     expect(controller.getState().larkBulkCreateModal.stage).toBe("result");
     controller.dispose();

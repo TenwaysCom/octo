@@ -10,6 +10,10 @@ import type {
   LarkBulkCreateModalState,
 } from "./popup-controller.js";
 
+interface ActionRunOptions {
+  actionRunId?: string;
+}
+
 type PopupStoreSnapshot = {
   state: {
     currentUrl: string | null;
@@ -38,9 +42,14 @@ export function createLarkBulkCreateController(
   deps: CreateLarkBulkCreateControllerDeps,
 ) {
   const { readStore, appendLog, showToast, setModalState, openErrorModal } = deps;
+  let activeActionRunId: string | undefined;
 
-  async function openPreview(): Promise<void> {
-    appendLog("info", "开始获取批量创建预览...");
+  async function openPreview(options: ActionRunOptions = {}): Promise<void> {
+    activeActionRunId = options.actionRunId;
+    appendLog(
+      "info",
+      `开始获取批量创建预览${activeActionRunId ? ` · actionRunId=${activeActionRunId}` : ""}...`,
+    );
 
     const current = readStore();
     const context = extractLarkBaseContextFromUrl(current.state.currentUrl ?? undefined);
@@ -62,6 +71,7 @@ export function createLarkBulkCreateController(
       tableId: context.tableId,
       ...(context.viewId ? { viewId: context.viewId } : {}),
       masterUserId,
+      actionRunId: activeActionRunId,
     });
 
     if (!preview.ok) {
@@ -83,7 +93,7 @@ export function createLarkBulkCreateController(
 
     appendLog(
       "info",
-      `批量预览完成，可创建 ${preview.eligibleRecords.length} 条，已跳过 ${preview.skippedRecords.length} 条`,
+      `批量预览完成，可创建 ${preview.eligibleRecords.length} 条，已跳过 ${preview.skippedRecords.length} 条${activeActionRunId ? ` · actionRunId=${activeActionRunId}` : ""}`,
     );
   }
 
@@ -102,6 +112,7 @@ export function createLarkBulkCreateController(
       tableId: preview.tableId,
       ...(preview.viewId ? { viewId: preview.viewId } : {}),
       masterUserId,
+      actionRunId: activeActionRunId,
     });
 
     setModalState((previous) => ({

@@ -16,6 +16,7 @@ interface MeeglePushRunOptions {
   endpoint?: string;
   logLabel?: string;
   successPrefix?: string;
+  actionRunId?: string;
 }
 
 interface CreateMeeglePushControllerDeps {
@@ -32,8 +33,9 @@ export function createMeeglePushController(deps: CreateMeeglePushControllerDeps)
   async function run(options: MeeglePushRunOptions = {}): Promise<void> {
     const logLabel = options.logLabel ?? "更新Lark及推送";
     const successPrefix = options.successPrefix ?? "推送完成";
+    const actionRunId = options.actionRunId;
 
-    appendLog("info", `[${logLabel}] 开始执行`);
+    appendLog("info", `[${logLabel}] 开始执行${actionRunId ? ` · actionRunId=${actionRunId}` : ""}`);
 
     const current = readStore();
     const currentUrl = current.state.currentUrl;
@@ -69,7 +71,7 @@ export function createMeeglePushController(deps: CreateMeeglePushControllerDeps)
     const baseUrl = current.state.currentTabOrigin || "https://project.larksuite.com";
     appendLog(
       "info",
-      `[${logLabel}] 准备调用服务端 API: project=${projectKey}, type=${workItemTypeKey}, id=${workItemId}, masterUserId=${masterUserId}`,
+      `[${logLabel}] 准备调用服务端 API: project=${projectKey}, type=${workItemTypeKey}, id=${workItemId}, masterUserId=${masterUserId}${actionRunId ? `, actionRunId=${actionRunId}` : ""}`,
     );
 
     const result = await runMeegleLarkPushRequest({
@@ -78,6 +80,7 @@ export function createMeeglePushController(deps: CreateMeeglePushControllerDeps)
       workItemId,
       masterUserId,
       baseUrl,
+      actionRunId,
     }, options.endpoint);
 
     appendLog(

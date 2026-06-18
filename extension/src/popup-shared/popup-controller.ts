@@ -96,7 +96,7 @@ type LazyKimiChatController = {
 };
 
 type LazyLarkBulkCreateController = {
-  openPreview: () => Promise<void>;
+  openPreview: (options?: { actionRunId?: string }) => Promise<void>;
   confirmCreate: () => Promise<void>;
 };
 
@@ -105,15 +105,16 @@ type LazyMeeglePushController = {
     endpoint?: string;
     logLabel?: string;
     successPrefix?: string;
+    actionRunId?: string;
   }) => Promise<void>;
 };
 
 type LazyGitHubLookupController = {
-  lookup: () => Promise<void>;
+  lookup: (options?: { actionRunId?: string }) => Promise<void>;
 };
 
 type LazyGitHubBranchCreateController = {
-  open: () => Promise<void>;
+  open: (options?: { actionRunId?: string }) => Promise<void>;
   confirmCreate: () => Promise<void>;
   resetModal: () => void;
 };
@@ -1564,15 +1565,17 @@ export function createPopupController() {
       return;
     }
 
+    const actionRunId = createActionRunId();
+
     if (actionKey === "analyze") {
       if (readStore().showKimiChat) {
         resetKimiChatSession();
-        appendLog("info", "已重置 Kimi ACP 会话");
+        appendLog("info", `已重置 Kimi ACP 会话 · actionRunId=${actionRunId}`);
         return;
       }
 
       openKimiChat();
-      appendLog("info", "已打开 Kimi ACP 聊天面板");
+      appendLog("info", `已打开 Kimi ACP 聊天面板 · actionRunId=${actionRunId}`);
       return;
     }
 
@@ -1588,7 +1591,12 @@ export function createPopupController() {
         return;
       }
 
-      appendLog("info", "创建 Meegle Item 中...");
+      appendLog("info", `创建 Meegle Item 中... · actionRunId=${actionRunId}`);
+      setActionStatus(actionKey, {
+        phase: "running",
+        actionRunId,
+        message: `执行中 · ${actionRunId}`,
+      });
       const result = await runLarkBaseCreateWorkitemRequest({
         pageType: context.wikiRecordId && !context.baseId ? "lark_wiki_record" : "lark_base",
         url: store.state.currentUrl ?? "",
@@ -1597,16 +1605,19 @@ export function createPopupController() {
         recordId,
         wikiRecordId: context.wikiRecordId,
         masterUserId: store.state.identity.masterUserId ?? undefined,
+        actionRunId,
       });
 
       if (!result.ok) {
         const message = `创建 Meegle Item 失败: ${result.error.errorMessage}`;
+        setActionStatus(actionKey, { phase: "error", actionRunId, message });
         appendLog("error", message);
         showPopupToast(message, "error");
         return;
       }
 
       const message = `创建 Meegle Item 完成: ${result.workitemId}`;
+      setActionStatus(actionKey, { phase: "success", actionRunId, message: "执行完成" });
       appendLog("success", message);
       showPopupToast(message, "success");
       return;
@@ -1614,7 +1625,7 @@ export function createPopupController() {
 
     if (actionKey === LARK_BULK_CREATE_ACTION_KEY) {
       const controller = await loadLarkBulkCreateController();
-      await controller.openPreview();
+      await controller.openPreview({ actionRunId });
       return;
     }
 
@@ -1624,14 +1635,14 @@ export function createPopupController() {
       apply: "确认创建...",
       "update-lark-and-push": "更新 Lark 及推送中...",
       "bug-ticket-to-support": "Bug Ticket to Support 执行中...",
-      "story-prd-to-simplified": "研发返讲 Story 中...",
+      "story-prd-to-simplified": "研发Review Story 中...",
     };
 
-    appendLog("info", labels[actionKey] || "执行操作中...");
+    appendLog("info", `${labels[actionKey] || "执行操作中..."} · actionRunId=${actionRunId}`);
 
     if (actionKey === "update-lark-and-push") {
       const controller = await loadMeeglePushController();
-      await controller.run();
+      await controller.run({ actionRunId });
       return;
     }
 
@@ -1641,24 +1652,25 @@ export function createPopupController() {
         endpoint: "/api/meegle/workitem/bug-ticket-to-support",
         logLabel: "Bug Ticket to Support",
         successPrefix: "Bug Ticket to Support 完成",
+        actionRunId,
       });
       return;
     }
 
     if (actionKey === "lookup-github-pr" || actionKey === "lookup-github-issue") {
       const controller = await loadGitHubLookupController();
-      await controller.lookup();
+      await controller.lookup({ actionRunId });
       return;
     }
 
     if (actionKey === "create-github-branch") {
       const controller = await loadGitHubBranchCreateController();
-      await controller.open();
+      await controller.open({ actionRunId });
       return;
     }
 
     if (configuredAction?.executor.type === "backend_api") {
-      await runBackendAutomationAction(configuredAction);
+      await runBackendAutomationAction(configuredAction, actionRunId);
       return;
     }
 
@@ -1667,6 +1679,7 @@ export function createPopupController() {
 
   async function runBackendAutomationAction(
     action: AutomationActionListItem,
+    actionRunId: string,
   ): Promise<void> {
     if (action.executor.type !== "backend_api" || !action.executor.route) {
       const message = `${action.title} 缺少服务端执行配置`;
@@ -1703,7 +1716,6 @@ export function createPopupController() {
       return;
     }
 
-    const actionRunId = createActionRunId();
     const config = await getConfig();
     const baseUrl = current.state.currentTabOrigin || new URL(currentUrl).origin;
     appendLog(

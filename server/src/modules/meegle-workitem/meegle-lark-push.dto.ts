@@ -8,6 +8,7 @@ export const meegleLarkPushSchema = z.object({
   baseUrl: z.string().min(1),
   larkBaseUrl: z.string().optional(),
   larkStatusFieldName: z.string().optional(),
+  actionRunId: z.string().min(1).optional(),
 });
 
 export type MeegleLarkPushControllerRequest = z.infer<typeof meegleLarkPushSchema>;

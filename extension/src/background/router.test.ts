@@ -120,6 +120,7 @@ describe("background router lark_base workflow", () => {
         baseId: "app_xxx",
         tableId: "tbl_xxx",
         recordId: "rec_base_001",
+        actionRunId: "run_create_001",
         snapshot: {
           title: "Base record",
           fields: [],
@@ -140,6 +141,7 @@ describe("background router lark_base workflow", () => {
       recordId: "rec_base_001",
       baseId: "app_xxx",
       tableId: "tbl_xxx",
+      actionRunId: "run_create_001",
     });
     expect(result).toEqual({
       action: "itdog.lark_base.create_workitem",
@@ -370,7 +372,7 @@ describe("background router lark_base workflow", () => {
     const result = await routeBackgroundAction(
       {
         action: "itdog.lark_base.bulk_preview_workitems",
-        payload: {},
+        payload: { actionRunId: "run_preview_001" },
       },
       {
         senderTabId: 42,
@@ -390,6 +392,7 @@ describe("background router lark_base workflow", () => {
       baseId: "app_xxx",
       tableId: "tbl_xxx",
       viewId: "vew_xxx",
+      actionRunId: "run_preview_001",
     });
     expect(result).toEqual({
       action: "itdog.lark_base.bulk_preview_workitems",
@@ -466,6 +469,7 @@ describe("background router lark_base workflow", () => {
           baseId: "app_xxx",
           tableId: "tbl_xxx",
           viewId: "vew_xxx",
+          actionRunId: "run_bulk_001",
         },
       },
       { senderTabId: 42 },
@@ -483,6 +487,7 @@ describe("background router lark_base workflow", () => {
       baseId: "app_xxx",
       tableId: "tbl_xxx",
       viewId: "vew_xxx",
+      actionRunId: "run_bulk_001",
     });
     expect(result).toEqual({
       action: "itdog.lark_base.bulk_create_workitems",

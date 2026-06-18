@@ -78,6 +78,10 @@ function resolveErrorMessage(errorCode: string, serverMessage?: string): string 
   return ERROR_CODE_MESSAGES[errorCode] || serverMessage || `错误: ${errorCode}`;
 }
 
+interface GitHubLookupOptions {
+  actionRunId?: string;
+}
+
 export function createGitHubLookupController(deps: CreateGitHubLookupControllerDeps) {
   const {
     readStore,
@@ -88,8 +92,12 @@ export function createGitHubLookupController(deps: CreateGitHubLookupControllerD
     setState,
   } = deps;
 
-  async function lookup(): Promise<void> {
-    appendLog("info", "开始查询 GitHub 关联的 Meegle 工作项...");
+  async function lookup(options: GitHubLookupOptions = {}): Promise<void> {
+    const { actionRunId } = options;
+    appendLog(
+      "info",
+      `开始查询 GitHub 关联的 Meegle 工作项${actionRunId ? ` · actionRunId=${actionRunId}` : ""}...`,
+    );
 
     setState({
       isLoading: true,
@@ -138,7 +146,7 @@ export function createGitHubLookupController(deps: CreateGitHubLookupControllerD
       }>({
         url: `${config.SERVER_URL}/api/github/lookup-meegle`,
         masterUserId,
-        body: { prUrl },
+        body: { prUrl, actionRunId },
       });
 
       if (!response.ok || !data.success) {
