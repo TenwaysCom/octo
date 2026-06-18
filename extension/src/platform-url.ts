@@ -50,10 +50,10 @@ function isGitHubHost(hostname: string): boolean {
   return hostname === "github.com" || hostname.endsWith(".github.com");
 }
 
-function isGitHubPrPage(url: string): boolean {
+function isGitHubActionPage(url: string): boolean {
   try {
     const pathname = new URL(url).pathname;
-    return /\/[^/]+\/[^/]+\/pull\/\d+/.test(pathname);
+    return /\/[^/]+\/[^/]+\/(?:pull|issues)\/\d+/.test(pathname);
   } catch {
     return false;
   }
@@ -89,7 +89,7 @@ export function resolvePlatformUrl(
     };
   }
 
-  if (isGitHubHost(hostname) && isGitHubPrPage(input || "")) {
+  if (isGitHubHost(hostname) && isGitHubActionPage(input || "")) {
     return {
       platform: "github",
       authBaseUrl: null,

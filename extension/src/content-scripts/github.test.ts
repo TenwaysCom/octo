@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { isGitHubPullRequestPage } from "./github.js";
+import {
+  isGitHubActionPage,
+  isGitHubIssuePage,
+  isGitHubPullRequestPage,
+} from "./github.js";
 
 describe("github content script", () => {
   it("recognizes GitHub pull request pages", () => {
@@ -13,5 +17,12 @@ describe("github content script", () => {
     expect(isGitHubPullRequestPage("https://github.com/tenways/tw-itdog/issues/12")).toBe(
       false,
     );
+  });
+
+  it("recognizes GitHub issue pages as action pages", () => {
+    const url = "https://github.com/TenwaysCom/octo/issues/35";
+
+    expect(isGitHubIssuePage(url)).toBe(true);
+    expect(isGitHubActionPage(url)).toBe(true);
   });
 });

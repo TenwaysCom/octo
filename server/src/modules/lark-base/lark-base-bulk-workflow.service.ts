@@ -48,7 +48,7 @@ export interface LarkBaseBulkPreviewResult {
   ok: true;
   baseId: string;
   tableId: string;
-  viewId: string;
+  viewId?: string;
   totalRecordsInView: number;
   eligibleRecords: LarkBaseBulkPreviewRecord[];
   skippedRecords: LarkBaseBulkSkippedRecord[];
@@ -58,7 +58,7 @@ export interface LarkBaseBulkExecuteResult {
   ok: true;
   baseId: string;
   tableId: string;
-  viewId: string;
+  viewId?: string;
   totalRecordsInView: number;
   summary: {
     created: number;
@@ -93,14 +93,14 @@ export async function previewLarkBaseBulkWorkflow(
   deps: LarkBaseBulkWorkflowDeps = {},
 ): Promise<LarkBaseBulkPreviewResult | LarkBaseBulkWorkflowError> {
   try {
-    const records = await listAllRecordsByView(input, deps);
+    const records = await listAllRecords(input, deps);
     const classified = classifyRecords(records);
 
     return {
       ok: true,
       baseId: input.baseId,
       tableId: input.tableId,
-      viewId: input.viewId,
+      ...(input.viewId ? { viewId: input.viewId } : {}),
       totalRecordsInView: records.length,
       eligibleRecords: classified.eligibleRecords,
       skippedRecords: classified.skippedRecords,
@@ -171,7 +171,7 @@ export async function executeLarkBaseBulkWorkflow(
     ok: true,
     baseId: input.baseId,
     tableId: input.tableId,
-    viewId: input.viewId,
+    ...(input.viewId ? { viewId: input.viewId } : {}),
     totalRecordsInView: preview.totalRecordsInView,
     summary: {
       created: createdRecords.length,
@@ -184,7 +184,7 @@ export async function executeLarkBaseBulkWorkflow(
   };
 }
 
-async function listAllRecordsByView(
+async function listAllRecords(
   input: PreviewLarkBaseBulkWorkflowRequest,
   deps: LarkBaseBulkWorkflowDeps,
 ): Promise<LarkBitableRecord[]> {
@@ -195,20 +195,33 @@ async function listAllRecordsByView(
   );
   const records: LarkBitableRecord[] = [];
   let pageToken: string | undefined;
+  let pageNum = 1;
+  let hasMore = false;
 
   do {
-    const page = await client.listRecordsByView(
-      input.baseId,
-      input.tableId,
-      input.viewId,
-      {
-        pageSize: DEFAULT_PAGE_SIZE,
-        pageToken,
-      },
-    );
+    const page = input.viewId
+      ? await client.listRecordsByView(
+          input.baseId,
+          input.tableId,
+          input.viewId,
+          {
+            pageSize: DEFAULT_PAGE_SIZE,
+            pageToken,
+          },
+        )
+      : await client.listRecords(
+          input.baseId,
+          input.tableId,
+          {
+            pageNum,
+            pageSize: DEFAULT_PAGE_SIZE,
+          },
+        );
     records.push(...page.records);
-    pageToken = page.hasMore ? page.nextPageToken : undefined;
-  } while (pageToken);
+    hasMore = page.hasMore;
+    pageToken = input.viewId && page.hasMore ? page.nextPageToken : undefined;
+    pageNum += 1;
+  } while (input.viewId ? pageToken : hasMore);
 
   return records;
 }

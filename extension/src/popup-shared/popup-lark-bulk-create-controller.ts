@@ -46,9 +46,9 @@ export function createLarkBulkCreateController(
     const context = extractLarkBaseContextFromUrl(current.state.currentUrl ?? undefined);
     const masterUserId = current.state.identity.masterUserId ?? undefined;
 
-    if (!context.baseId || !context.tableId || !context.viewId) {
+    if (!context.baseId || !context.tableId) {
       const message =
-        "当前页面缺少多维表格上下文（需要 URL 中的 base、table、view）。请在目标表格的指定视图中打开页面后重试。";
+        "当前页面缺少多维表格上下文（需要 URL 中的 base、table）。请在目标表格页面重试。";
       appendLog("error", message);
       openErrorModal({
         errorCode: "MISSING_LARK_BASE_CONTEXT",
@@ -60,7 +60,7 @@ export function createLarkBulkCreateController(
     const preview = await runLarkBaseBulkPreviewRequest({
       baseId: context.baseId,
       tableId: context.tableId,
-      viewId: context.viewId,
+      ...(context.viewId ? { viewId: context.viewId } : {}),
       masterUserId,
     });
 
@@ -100,7 +100,7 @@ export function createLarkBulkCreateController(
     const result = await runLarkBaseBulkCreateRequest({
       baseId: preview.baseId,
       tableId: preview.tableId,
-      viewId: preview.viewId,
+      ...(preview.viewId ? { viewId: preview.viewId } : {}),
       masterUserId,
     });
 

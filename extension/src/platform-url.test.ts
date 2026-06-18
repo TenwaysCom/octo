@@ -51,6 +51,18 @@ describe("platform url resolver", () => {
     });
   });
 
+  it("recognizes GitHub issue pages", () => {
+    expect(
+      resolvePlatformUrl("https://github.com/TenwaysCom/octo/issues/35", {
+        meegleAuthBaseUrl: "https://project.larksuite.com",
+      }),
+    ).toEqual({
+      platform: "github",
+      authBaseUrl: null,
+      pageOrigin: "https://github.com",
+    });
+  });
+
   it("marks unrelated pages as unsupported", () => {
     expect(
       resolvePlatformUrl("https://github.com/tenways/tw-itdog", {

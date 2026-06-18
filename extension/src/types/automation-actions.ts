@@ -18,6 +18,12 @@ export interface AutomationActionListItem {
   title: string;
   description?: string;
   style?: "primary" | "default";
+  interaction?:
+    | { type: "open_panel" }
+    | { type: "preview_confirm" }
+    | { type: "preview_form_confirm" }
+    | { type: "direct_execute" }
+    | { type: "direct_result" };
   executor: AutomationActionExecutor;
 }
 
@@ -26,12 +32,16 @@ export interface ExtensionPageConfig {
   pageType:
     | "lark"
     | "lark_base_bulk_create_view"
+    | "lark_base_create_meegle_item"
+    | "lark_record_create_meegle_item"
     | "meegle"
     | "meegle_workitem_detail"
     | "meegle_production_bug_detail"
     | "github_pr"
+    | "github_issue"
     | "unsupported";
   matchedRuleId: string;
+  matchedRuleIds?: string[];
   sidebar: {
     injectPageElements: boolean;
     sidebarButtonEnabled: boolean;

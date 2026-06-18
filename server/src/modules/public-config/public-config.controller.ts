@@ -1,3 +1,13 @@
+import {
+  ACTION_PAGE_RULES,
+  type ActionPageRule,
+} from "./action-page-rules.config.js";
+import {
+  AUTOMATION_ACTIONS,
+  type AutomationActionId,
+} from "./automation-actions.config.js";
+import { logger } from "../../logger.js";
+
 export interface PublicConfigResponse {
   ok: true;
   data: {
@@ -17,6 +27,12 @@ export interface AutomationActionConfig {
   title: string;
   description?: string;
   style?: "primary" | "default";
+  interaction:
+    | { type: "open_panel" }
+    | { type: "preview_confirm" }
+    | { type: "preview_form_confirm" }
+    | { type: "direct_execute" }
+    | { type: "direct_result" };
   executor:
     | {
         type: "frontend";
@@ -35,12 +51,16 @@ export interface ExtensionPageConfig {
   pageType:
     | "lark"
     | "lark_base_bulk_create_view"
+    | "lark_base_create_meegle_item"
+    | "lark_record_create_meegle_item"
     | "meegle"
     | "meegle_workitem_detail"
     | "meegle_production_bug_detail"
     | "github_pr"
+    | "github_issue"
     | "unsupported";
   matchedRuleId: string;
+  matchedRuleIds?: string[];
   sidebar: {
     injectPageElements: boolean;
     sidebarButtonEnabled: boolean;
@@ -89,87 +109,10 @@ let publicConfigDeps: PublicConfigControllerDeps = {
   CLIENT_DEBUG_LOG_UPLOAD_ENABLED: false,
 };
 
-const TARGET_LARK_BASE_ID = "XO0cbnxMIaralRsbBEolboEFgZc";
-const TARGET_LARK_TABLE_ID = "tblUfu71xwdul3NH";
-const TARGET_LARK_VIEW_ID = "vewMs17Tqk";
-const PRODUCTION_BUG_TYPE_API_NAME = "production_bug";
-const PRODUCTION_BUG_TYPE_KEY = "6932e40429d1cd8aac635c82";
-
-const SIDEBAR_ENABLED = {
-  injectPageElements: true,
-  sidebarButtonEnabled: true,
-  keyboardShortcutEnabled: true,
-};
-
 const SIDEBAR_DISABLED = {
   injectPageElements: false,
   sidebarButtonEnabled: false,
   keyboardShortcutEnabled: false,
-};
-
-const ANALYZE_ACTION: AutomationActionConfig = {
-  key: "analyze",
-  title: "分析当前页面",
-  style: "primary",
-  executor: {
-    type: "frontend",
-    actionKey: "analyze",
-  },
-};
-
-const LARK_BULK_CREATE_ACTION: AutomationActionConfig = {
-  key: "bulk-create-meegle-tickets",
-  title: "批量创建 MEEGLE TICKET",
-  style: "default",
-  executor: {
-    type: "frontend",
-    actionKey: "bulk-create-meegle-tickets",
-  },
-};
-
-const MEEGLE_UPDATE_LARK_AND_PUSH_ACTION: AutomationActionConfig = {
-  key: "update-lark-and-push",
-  title: "更新Lark及推送",
-  style: "primary",
-  executor: {
-    type: "backend_api",
-    operation: "meegle.workitem.update_lark_and_push",
-    method: "POST",
-    route: "/api/meegle/workitem/update-lark-and-push",
-  },
-};
-
-const BUG_TICKET_TO_SUPPORT_ACTION: AutomationActionConfig = {
-  key: "bug-ticket-to-support",
-  title: "Bug Ticket to Support",
-  description: "将 Meegle Production Bug 的 Lark ticket 推进到 support 处理流。",
-  style: "primary",
-  executor: {
-    type: "backend_api",
-    operation: "meegle.production_bug.bug_ticket_to_support",
-    method: "POST",
-    route: "/api/meegle/workitem/bug-ticket-to-support",
-  },
-};
-
-const CREATE_GITHUB_BRANCH_ACTION: AutomationActionConfig = {
-  key: "create-github-branch",
-  title: "创建 GitHub 分支",
-  style: "default",
-  executor: {
-    type: "frontend",
-    actionKey: "create-github-branch",
-  },
-};
-
-const GITHUB_LOOKUP_PR_ACTION: AutomationActionConfig = {
-  key: "lookup-github-pr",
-  title: "查询 PR 关联的 Meegle 工作项",
-  style: "primary",
-  executor: {
-    type: "frontend",
-    actionKey: "lookup-github-pr",
-  },
 };
 
 export function configurePublicConfigController(
@@ -232,49 +175,6 @@ function isGitHubHost(hostname: string): boolean {
   return hostname === "github.com" || hostname.endsWith(".github.com");
 }
 
-function isGitHubPrPath(pathname: string): boolean {
-  return /\/[^/]+\/[^/]+\/pull\/\d+/.test(pathname);
-}
-
-function getLarkBaseContext(url: URL): {
-  baseId?: string;
-  tableId?: string;
-  viewId?: string;
-} {
-  const segments = url.pathname.split("/").filter(Boolean);
-  const baseIndex = segments.indexOf("base");
-  const tableIndex = segments.indexOf("table");
-
-  return {
-    baseId:
-      (baseIndex >= 0 ? segments[baseIndex + 1] : undefined) ||
-      url.searchParams.get("base") ||
-      undefined,
-    tableId:
-      (tableIndex >= 0 ? segments[tableIndex + 1] : undefined) ||
-      url.searchParams.get("table") ||
-      undefined,
-    viewId: url.searchParams.get("view") || undefined,
-  };
-}
-
-function getMeegleWorkitemPath(url: URL): {
-  projectKey: string;
-  workItemTypeKey: string;
-  workItemId: string;
-} | null {
-  const segments = url.pathname.split("/").filter(Boolean);
-  if (segments.length < 4 || segments[2] !== "detail") {
-    return null;
-  }
-
-  return {
-    projectKey: segments[0],
-    workItemTypeKey: segments[1],
-    workItemId: segments[3],
-  };
-}
-
 function unsupportedPageConfig(): ExtensionPageConfig {
   return {
     platform: "unsupported",
@@ -285,94 +185,200 @@ function unsupportedPageConfig(): ExtensionPageConfig {
   };
 }
 
+function unmatchedPageConfig(
+  platform: Exclude<ExtensionPagePlatform, "unsupported">,
+): ExtensionPageConfig {
+  return {
+    platform,
+    pageType: platform === "github" ? "unsupported" : platform,
+    matchedRuleId: `${platform}.unmatched`,
+    matchedRuleIds: [],
+    sidebar: SIDEBAR_DISABLED,
+    automationActions: [],
+  };
+}
+
+function matchesHost(hostname: string, hostPattern: string): boolean {
+  if (hostPattern.startsWith("*.")) {
+    const suffix = hostPattern.slice(1);
+    return hostname.endsWith(suffix);
+  }
+
+  return hostname === hostPattern;
+}
+
+function matchPath(
+  pathname: string,
+  pattern: string,
+): { ok: true; params: Record<string, string> } | { ok: false } {
+  const pathSegments = pathname.split("/").filter(Boolean);
+  const patternSegments = pattern.split("/").filter(Boolean);
+
+  if (pathSegments.length !== patternSegments.length) {
+    return { ok: false };
+  }
+
+  const params: Record<string, string> = {};
+  for (let index = 0; index < patternSegments.length; index += 1) {
+    const patternSegment = patternSegments[index];
+    const pathSegment = pathSegments[index];
+
+    if (patternSegment.startsWith(":")) {
+      params[patternSegment.slice(1)] = pathSegment;
+      continue;
+    }
+
+    if (patternSegment !== pathSegment) {
+      return { ok: false };
+    }
+  }
+
+  return { ok: true, params };
+}
+
+function matchesParamRule(actual: string | undefined, expected: string | string[]): boolean {
+  const expectations = Array.isArray(expected) ? expected : [expected];
+
+  return expectations.every((value) => {
+    if (value.startsWith("!")) {
+      return actual !== value.slice(1);
+    }
+
+    return actual === value;
+  });
+}
+
+function matchesRule(url: URL, rule: ActionPageRule): boolean {
+  const hostPatterns = Array.isArray(rule.host) ? rule.host : [rule.host];
+  if (!hostPatterns.some((host) => matchesHost(url.hostname, host))) {
+    return false;
+  }
+
+  const pathMatch = matchPath(url.pathname, rule.path);
+  if (!pathMatch.ok) {
+    return false;
+  }
+
+  for (const [key, expected] of Object.entries(rule.params ?? {})) {
+    if (!matchesParamRule(pathMatch.params[key], expected)) {
+      return false;
+    }
+  }
+
+  for (const [key, expected] of Object.entries(rule.query ?? {})) {
+    if (url.searchParams.get(key) !== expected) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function resolveActionPageConfig(
+  url: URL,
+  platform: Exclude<ExtensionPagePlatform, "unsupported">,
+): ExtensionPageConfig {
+  const matchedRules = ACTION_PAGE_RULES.filter((rule) =>
+    rule.platform === platform && matchesRule(url, rule)
+  );
+
+  if (matchedRules.length === 0) {
+    return unmatchedPageConfig(platform);
+  }
+
+  const actionIds = new Set<AutomationActionId>();
+  for (const rule of matchedRules) {
+    for (const actionId of rule.actions) {
+      actionIds.add(actionId);
+    }
+  }
+
+  const primaryRule = matchedRules[0];
+
+  return {
+    platform,
+    pageType: primaryRule.pageType,
+    matchedRuleId: primaryRule.id,
+    matchedRuleIds: matchedRules.map((rule) => rule.id),
+    sidebar: primaryRule.sidebar,
+    automationActions: [...actionIds].map((actionId) => AUTOMATION_ACTIONS[actionId]),
+  };
+}
+
+function logPageConfigResolved(url: URL | null, pageConfig: ExtensionPageConfig): void {
+  logger.info(
+    {
+      event: "PAGE_CONFIG_RESOLVED",
+      module: "public-config",
+      urlHost: url?.hostname,
+      urlPath: url?.pathname,
+      platform: pageConfig.platform,
+      pageType: pageConfig.pageType,
+      matchedRuleId: pageConfig.matchedRuleId,
+      matchedRuleIds: pageConfig.matchedRuleIds ?? [],
+      actionKeys: pageConfig.automationActions.map((action) => action.key),
+      sidebarButtonEnabled: pageConfig.sidebar.sidebarButtonEnabled,
+      injectPageElements: pageConfig.sidebar.injectPageElements,
+    },
+    "Resolved extension page config",
+  );
+}
+
 export async function getExtensionPageConfigController(input: {
   url?: string;
 }): Promise<ExtensionPageConfigResponse> {
   const url = getUrl(input.url);
 
   if (!url) {
+    const pageConfig = unsupportedPageConfig();
+    logPageConfigResolved(null, pageConfig);
     return {
       ok: true,
       data: {
-        pageConfig: unsupportedPageConfig(),
+        pageConfig,
       },
     };
   }
 
   if (isLarkHost(url.hostname)) {
-    const context = getLarkBaseContext(url);
-    const isBulkCreateView =
-      context.baseId === TARGET_LARK_BASE_ID &&
-      context.tableId === TARGET_LARK_TABLE_ID &&
-      context.viewId === TARGET_LARK_VIEW_ID;
-
+    const pageConfig = resolveActionPageConfig(url, "lark");
+    logPageConfigResolved(url, pageConfig);
     return {
       ok: true,
       data: {
-        pageConfig: {
-          platform: "lark",
-          pageType: isBulkCreateView ? "lark_base_bulk_create_view" : "lark",
-          matchedRuleId: isBulkCreateView ? "lark.base.bulk-create-view" : "lark.any",
-          sidebar: SIDEBAR_ENABLED,
-          automationActions: isBulkCreateView
-            ? [ANALYZE_ACTION, LARK_BULK_CREATE_ACTION]
-            : [ANALYZE_ACTION],
-        },
+        pageConfig,
       },
     };
   }
 
   if (isMeegleHost(url.hostname)) {
-    const workitem = getMeegleWorkitemPath(url);
-    const isProductionBug =
-      workitem?.workItemTypeKey === PRODUCTION_BUG_TYPE_API_NAME ||
-      workitem?.workItemTypeKey === PRODUCTION_BUG_TYPE_KEY;
-
+    const pageConfig = resolveActionPageConfig(url, "meegle");
+    logPageConfigResolved(url, pageConfig);
     return {
       ok: true,
       data: {
-        pageConfig: {
-          platform: "meegle",
-          pageType: isProductionBug
-            ? "meegle_production_bug_detail"
-            : workitem
-              ? "meegle_workitem_detail"
-              : "meegle",
-          matchedRuleId: isProductionBug
-            ? "meegle.production-bug.detail"
-            : workitem
-              ? "meegle.workitem.detail"
-              : "meegle.any",
-          sidebar: SIDEBAR_ENABLED,
-          automationActions: isProductionBug
-            ? [BUG_TICKET_TO_SUPPORT_ACTION, CREATE_GITHUB_BRANCH_ACTION]
-            : workitem
-              ? [MEEGLE_UPDATE_LARK_AND_PUSH_ACTION, CREATE_GITHUB_BRANCH_ACTION]
-              : [],
-        },
+        pageConfig,
       },
     };
   }
 
-  if (isGitHubHost(url.hostname) && isGitHubPrPath(url.pathname)) {
+  if (isGitHubHost(url.hostname)) {
+    const pageConfig = resolveActionPageConfig(url, "github");
+    logPageConfigResolved(url, pageConfig);
     return {
       ok: true,
       data: {
-        pageConfig: {
-          platform: "github",
-          pageType: "github_pr",
-          matchedRuleId: "github.pr",
-          sidebar: SIDEBAR_ENABLED,
-          automationActions: [GITHUB_LOOKUP_PR_ACTION],
-        },
+        pageConfig,
       },
     };
   }
 
+  const pageConfig = unsupportedPageConfig();
+  logPageConfigResolved(url, pageConfig);
   return {
     ok: true,
     data: {
-      pageConfig: unsupportedPageConfig(),
+      pageConfig,
     },
   };
 }

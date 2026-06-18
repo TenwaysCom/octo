@@ -54,6 +54,37 @@ describe("lark-base-bulk-workflow.controller", () => {
     });
   });
 
+  it("validates and forwards preview requests without a view id", async () => {
+    previewLarkBaseBulkWorkflowMock.mockResolvedValueOnce({
+      ok: true,
+      baseId: "base_123",
+      tableId: "tbl_456",
+      totalRecordsInView: 1,
+      eligibleRecords: [],
+      skippedRecords: [],
+    });
+
+    const result = await previewLarkBaseBulkWorkflowController({
+      baseId: "base_123",
+      tableId: "tbl_456",
+      masterUserId: "usr_xxx",
+    });
+
+    expect(previewLarkBaseBulkWorkflowMock).toHaveBeenCalledWith({
+      baseId: "base_123",
+      tableId: "tbl_456",
+      masterUserId: "usr_xxx",
+    });
+    expect(result).toEqual({
+      ok: true,
+      baseId: "base_123",
+      tableId: "tbl_456",
+      totalRecordsInView: 1,
+      eligibleRecords: [],
+      skippedRecords: [],
+    });
+  });
+
   it("validates and forwards the execute request", async () => {
     executeLarkBaseBulkWorkflowMock.mockResolvedValueOnce({
       ok: true,

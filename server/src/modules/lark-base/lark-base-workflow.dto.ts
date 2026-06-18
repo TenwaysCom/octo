@@ -17,7 +17,7 @@ export type CreateLarkBaseWorkflowRequest = z.infer<
 export const previewLarkBaseBulkWorkflowSchema = z.object({
   baseId: z.string().min(1),
   tableId: z.string().min(1),
-  viewId: z.string().min(1),
+  viewId: z.string().min(1).optional(),
   masterUserId: z.string().min(1),
 });
 
@@ -28,7 +28,7 @@ export type PreviewLarkBaseBulkWorkflowRequest = z.infer<
 export const createLarkBaseBulkWorkflowSchema = z.object({
   baseId: z.string().min(1),
   tableId: z.string().min(1),
-  viewId: z.string().min(1),
+  viewId: z.string().min(1).optional(),
   masterUserId: z.string().min(1),
 });
 

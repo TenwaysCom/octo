@@ -17,6 +17,8 @@ import type {
   LarkAuthCallbackResult,
   LarkAuthEnsureResponse,
   LarkAuthStatusServerResponse,
+  LarkBaseCreateWorkitemRequest,
+  LarkBaseCreateWorkitemResultPayload,
   LarkBaseBulkWorkflowRequest,
   LarkBaseBulkPreviewResultPayload,
   LarkBaseBulkCreateResultPayload,
@@ -699,6 +701,30 @@ export async function runLarkBaseBulkPreviewRequest(
     payload?: LarkBaseBulkPreviewResultPayload;
   }>({
     action: "itdog.lark_base.bulk_preview_workitems",
+    payload: input,
+  });
+
+  if (response.payload) {
+    return response.payload;
+  }
+
+  return {
+    ok: false,
+    error: {
+      errorCode: response.error?.errorCode || "BACKGROUND_EMPTY_RESPONSE",
+      errorMessage:
+        response.error?.errorMessage || "Background returned an empty response.",
+    },
+  };
+}
+
+export async function runLarkBaseCreateWorkitemRequest(
+  input: LarkBaseCreateWorkitemRequest,
+): Promise<LarkBaseCreateWorkitemResultPayload | { ok: false; error: { errorCode: string; errorMessage: string } }> {
+  const response = await sendRuntimeMessage<{
+    payload?: LarkBaseCreateWorkitemResultPayload;
+  }>({
+    action: "itdog.lark_base.create_workitem",
     payload: input,
   });
 

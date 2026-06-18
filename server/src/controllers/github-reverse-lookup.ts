@@ -120,35 +120,27 @@ export class GitHubReverseLookupController {
   constructor(private githubClient: GitHubClient) {}
 
   async lookup(prUrl: string, meegleClient: MeegleClient): Promise<LookupResult> {
-    lookupLogger.info({ prUrl }, "Starting GitHub PR lookup");
+    lookupLogger.info({ prUrl }, "Starting GitHub workitem lookup");
 
-    // Parse PR URL
-    const { owner, repo, pullNumber } = this.githubClient.parsePrUrl(prUrl);
-    lookupLogger.debug({ owner, repo, pullNumber }, "Parsed PR URL");
+    const parsed = this.githubClient.parseWorkItemUrl(prUrl);
+    lookupLogger.debug(parsed, "Parsed GitHub workitem URL");
 
-    // Fetch all PR data
-    const [prDetails, commits, issueComments, reviewComments] = await Promise.all([
-      this.githubClient.getPullRequest(owner, repo, pullNumber),
-      this.githubClient.getCommits(owner, repo, pullNumber),
-      this.githubClient.getIssueComments(owner, repo, pullNumber),
-      this.githubClient.getReviewComments(owner, repo, pullNumber),
-    ]);
+    const source = parsed.kind === "pull"
+      ? await this.loadPullRequestSource(parsed.owner, parsed.repo, parsed.number)
+      : await this.loadIssueSource(parsed.owner, parsed.repo, parsed.number);
 
     // Extract Meegle IDs
     const extractedIds = extractMeegleIds({
-      title: prDetails.title,
-      description: prDetails.body,
-      commits: commits.map(c => ({ message: c.commit.message })),
-      comments: [
-        ...issueComments.map(c => ({ body: c.body })),
-        ...reviewComments.map(c => ({ body: c.body })),
-      ],
+      title: source.title,
+      description: source.description,
+      commits: source.commits,
+      comments: source.comments,
     });
 
     lookupLogger.info({ extractedIds }, "Extracted Meegle IDs");
 
     if (extractedIds.length === 0) {
-      const error = new Error("No Meegle IDs found in PR");
+      const error = new Error(`No Meegle IDs found in GitHub ${parsed.kind}`);
       (error as Error & { code: string }).code = "NO_MEEGLE_ID_FOUND";
       throw error;
     }
@@ -157,7 +149,7 @@ export class GitHubReverseLookupController {
     const workItemIds = extractedIds.map(id => parseInt(id, 10)).filter(n => !isNaN(n));
 
     if (workItemIds.length === 0) {
-      const error = new Error("No valid numeric Meegle IDs found in PR");
+      const error = new Error(`No valid numeric Meegle IDs found in GitHub ${parsed.kind}`);
       (error as Error & { code: string }).code = "NO_MEEGLE_ID_FOUND";
       throw error;
     }
@@ -258,13 +250,68 @@ export class GitHubReverseLookupController {
 
     return {
       prInfo: {
-        title: prDetails.title,
-        description: prDetails.body,
-        url: prDetails.html_url,
+        title: source.title,
+        description: source.description,
+        url: source.url,
       },
       extractedIds,
       workitems: enrichedWorkitems,
       notFound,
+    };
+  }
+
+  private async loadPullRequestSource(
+    owner: string,
+    repo: string,
+    pullNumber: number,
+  ): Promise<{
+    title: string;
+    description: string | null;
+    url: string;
+    commits: Array<{ message: string }>;
+    comments: Array<{ body: string }>;
+  }> {
+    const [prDetails, commits, issueComments, reviewComments] = await Promise.all([
+      this.githubClient.getPullRequest(owner, repo, pullNumber),
+      this.githubClient.getCommits(owner, repo, pullNumber),
+      this.githubClient.getIssueComments(owner, repo, pullNumber),
+      this.githubClient.getReviewComments(owner, repo, pullNumber),
+    ]);
+
+    return {
+      title: prDetails.title,
+      description: prDetails.body,
+      url: prDetails.html_url,
+      commits: commits.map(c => ({ message: c.commit.message })),
+      comments: [
+        ...issueComments.map(c => ({ body: c.body })),
+        ...reviewComments.map(c => ({ body: c.body })),
+      ],
+    };
+  }
+
+  private async loadIssueSource(
+    owner: string,
+    repo: string,
+    issueNumber: number,
+  ): Promise<{
+    title: string;
+    description: string | null;
+    url: string;
+    commits: Array<{ message: string }>;
+    comments: Array<{ body: string }>;
+  }> {
+    const [issueDetails, issueComments] = await Promise.all([
+      this.githubClient.getIssue(owner, repo, issueNumber),
+      this.githubClient.getIssueComments(owner, repo, issueNumber),
+    ]);
+
+    return {
+      title: issueDetails.title,
+      description: issueDetails.body,
+      url: issueDetails.html_url,
+      commits: [],
+      comments: issueComments.map(c => ({ body: c.body })),
     };
   }
 }

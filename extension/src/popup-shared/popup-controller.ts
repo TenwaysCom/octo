@@ -30,6 +30,7 @@ import {
   requestMeegleUserIdentity,
   resolveIdentityRequest,
   runLarkAuthRequest,
+  runLarkBaseCreateWorkitemRequest,
   runMeegleAuthRequest,
   savePopupSettings,
   saveResolvedIdentity,
@@ -71,8 +72,10 @@ import type {
   AutomationActionListItem,
   ExtensionPageConfig,
 } from "../types/automation-actions.js";
+import { extractLarkBaseContextFromUrl } from "../lark-base-url.js";
 
 const popupLogger = createExtensionLogger("popup:app");
+const LARK_CREATE_ACTION_KEY = "create-meegle-item";
 const LARK_BULK_CREATE_ACTION_KEY = "bulk-create-meegle-tickets";
 
 type LarkBulkCreateModalStage = "hidden" | "preview" | "executing" | "result" | "error";
@@ -1522,6 +1525,42 @@ export function createPopupController() {
       return;
     }
 
+    if (actionKey === LARK_CREATE_ACTION_KEY) {
+      const store = readStore();
+      const context = extractLarkBaseContextFromUrl(store.state.currentUrl ?? undefined);
+      const recordId = context.recordId ?? context.wikiRecordId;
+
+      if (!recordId) {
+        const message = "当前页面缺少 Lark 记录 ID，无法创建 Meegle Item。";
+        appendLog("error", message);
+        showPopupToast(message, "error");
+        return;
+      }
+
+      appendLog("info", "创建 Meegle Item 中...");
+      const result = await runLarkBaseCreateWorkitemRequest({
+        pageType: context.wikiRecordId && !context.baseId ? "lark_wiki_record" : "lark_base",
+        url: store.state.currentUrl ?? "",
+        baseId: context.baseId,
+        tableId: context.tableId,
+        recordId,
+        wikiRecordId: context.wikiRecordId,
+        masterUserId: store.state.identity.masterUserId ?? undefined,
+      });
+
+      if (!result.ok) {
+        const message = `创建 Meegle Item 失败: ${result.error.errorMessage}`;
+        appendLog("error", message);
+        showPopupToast(message, "error");
+        return;
+      }
+
+      const message = `创建 Meegle Item 完成: ${result.workitemId}`;
+      appendLog("success", message);
+      showPopupToast(message, "success");
+      return;
+    }
+
     if (actionKey === LARK_BULK_CREATE_ACTION_KEY) {
       const controller = await loadLarkBulkCreateController();
       await controller.openPreview();
@@ -1554,7 +1593,7 @@ export function createPopupController() {
       return;
     }
 
-    if (actionKey === "lookup-github-pr") {
+    if (actionKey === "lookup-github-pr" || actionKey === "lookup-github-issue") {
       const controller = await loadGitHubLookupController();
       await controller.lookup();
       return;

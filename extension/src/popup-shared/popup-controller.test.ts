@@ -24,6 +24,7 @@ const runtimeMock = vi.hoisted(() => ({
   requestMeegleUserIdentity: vi.fn(),
   resolveIdentityRequest: vi.fn(),
   runLarkAuthRequest: vi.fn(),
+  runLarkBaseCreateWorkitemRequest: vi.fn(),
   runLarkBaseBulkCreateRequest: vi.fn(),
   runLarkBaseBulkPreviewRequest: vi.fn(),
   runMeegleAuthRequest: vi.fn(),
@@ -76,11 +77,11 @@ describe("popup controller", () => {
       LARK_OAUTH_CALLBACK_URL: "http://localhost:3000/api/lark/auth/callback",
     });
     runtimeMock.getExtensionPageConfig.mockImplementation(async (url?: string | null) => {
-      if (url?.includes("view=vewMs17Tqk")) {
+      if (url?.includes("/base/XO0cbnxMIaralRsbBEolboEFgZc") && url.includes("table=tblUfu71xwdul3NH")) {
         return {
           platform: "lark",
-          pageType: "lark_base_bulk_create_view",
-          matchedRuleId: "lark.base.bulk-create-view",
+          pageType: "lark_base_create_meegle_item",
+          matchedRuleId: "lark.base.create-meegle-item",
           sidebar: {
             injectPageElements: true,
             sidebarButtonEnabled: true,
@@ -98,6 +99,27 @@ describe("popup controller", () => {
               title: "批量创建 MEEGLE TICKET",
               style: "default",
               executor: { type: "frontend", actionKey: "bulk-create-meegle-tickets" },
+            },
+          ],
+        };
+      }
+
+      if (url?.includes("/record/KxOYr6CJKeWYktcI2GilrfRAgeg")) {
+        return {
+          platform: "lark",
+          pageType: "lark_record_create_meegle_item",
+          matchedRuleId: "lark.record.create-meegle-item",
+          sidebar: {
+            injectPageElements: true,
+            sidebarButtonEnabled: true,
+            keyboardShortcutEnabled: true,
+          },
+          automationActions: [
+            {
+              key: "create-meegle-item",
+              title: "创建 Meegle Item",
+              style: "default",
+              executor: { type: "frontend", actionKey: "create-meegle-item" },
             },
           ],
         };
@@ -282,6 +304,18 @@ describe("popup controller", () => {
         },
       ],
     }));
+    runtimeMock.runLarkBaseCreateWorkitemRequest.mockResolvedValue({
+      ok: true,
+      workitemId: "WI-1",
+      meegleLink: "https://project.larksuite.com/OPS/story/detail/WI-1",
+      recordId: "rec_1",
+      workitems: [
+        {
+          workitemId: "WI-1",
+          meegleLink: "https://project.larksuite.com/OPS/story/detail/WI-1",
+        },
+      ],
+    });
     runtimeMock.runMeegleAuthRequest.mockResolvedValue({
       status: "ready",
       baseUrl: "https://project.larksuite.com",
@@ -320,6 +354,31 @@ describe("popup controller", () => {
         },
       }),
     } as Response);
+  });
+
+  it("creates a single Meegle item from a Lark record page without opening bulk preview", async () => {
+    runtimeMock.queryActiveTabContext.mockResolvedValueOnce({
+      id: 12,
+      url: "https://nsghpcq7ar4z.sg.larksuite.com/record/KxOYr6CJKeWYktcI2GilrfRAgeg",
+      origin: "https://nsghpcq7ar4z.sg.larksuite.com",
+      pageType: "lark",
+    });
+
+    const controller = createPopupController();
+    await controller.initialize();
+    await controller.runFeatureAction("create-meegle-item");
+
+    expect(runtimeMock.runLarkBaseBulkPreviewRequest).not.toHaveBeenCalled();
+    expect(runtimeMock.runLarkBaseCreateWorkitemRequest).toHaveBeenCalledWith({
+      pageType: "lark_wiki_record",
+      url: "https://nsghpcq7ar4z.sg.larksuite.com/record/KxOYr6CJKeWYktcI2GilrfRAgeg",
+      baseId: undefined,
+      tableId: undefined,
+      recordId: "KxOYr6CJKeWYktcI2GilrfRAgeg",
+      wikiRecordId: "KxOYr6CJKeWYktcI2GilrfRAgeg",
+      masterUserId: "usr_resolved",
+    });
+    controller.dispose();
   });
 
   it("transitions bulk-create modal from preview to executing to result", async () => {
@@ -393,6 +452,63 @@ describe("popup controller", () => {
     });
     expect(controller.getState().larkBulkCreateModal.stage).toBe("result");
     expect(controller.getState().larkBulkCreateModal.result?.ok).toBe(true);
+    controller.dispose();
+  });
+
+  it("previews and confirms bulk create from a table scoped Lark base URL", async () => {
+    runtimeMock.queryActiveTabContext.mockResolvedValueOnce({
+      id: 12,
+      url: "https://nsghpcq7ar4z.sg.larksuite.com/base/XO0cbnxMIaralRsbBEolboEFgZc?table=tblUfu71xwdul3NH",
+      origin: "https://nsghpcq7ar4z.sg.larksuite.com",
+      pageType: "lark",
+    });
+    runtimeMock.runLarkBaseBulkPreviewRequest.mockResolvedValueOnce({
+      ok: true,
+      baseId: "XO0cbnxMIaralRsbBEolboEFgZc",
+      tableId: "tblUfu71xwdul3NH",
+      totalRecordsInView: 1,
+      eligibleRecords: [
+        {
+          recordId: "rec_1",
+          issueNumber: "N-1",
+          issueType: "User Story",
+          title: "Record one",
+          priority: "P0",
+        },
+      ],
+      skippedRecords: [],
+    });
+    runtimeMock.runLarkBaseBulkCreateRequest.mockResolvedValueOnce({
+      ok: true,
+      baseId: "XO0cbnxMIaralRsbBEolboEFgZc",
+      tableId: "tblUfu71xwdul3NH",
+      totalRecordsInView: 1,
+      summary: {
+        created: 1,
+        failed: 0,
+        skipped: 0,
+      },
+      createdRecords: [],
+      failedRecords: [],
+      skippedRecords: [],
+    });
+
+    const controller = createPopupController();
+    await controller.initialize();
+    await controller.runFeatureAction("bulk-create-meegle-tickets");
+    await controller.confirmLarkBulkCreate();
+
+    expect(runtimeMock.runLarkBaseBulkPreviewRequest).toHaveBeenCalledWith({
+      baseId: "XO0cbnxMIaralRsbBEolboEFgZc",
+      tableId: "tblUfu71xwdul3NH",
+      masterUserId: "usr_resolved",
+    });
+    expect(runtimeMock.runLarkBaseBulkCreateRequest).toHaveBeenCalledWith({
+      baseId: "XO0cbnxMIaralRsbBEolboEFgZc",
+      tableId: "tblUfu71xwdul3NH",
+      masterUserId: "usr_resolved",
+    });
+    expect(controller.getState().larkBulkCreateModal.stage).toBe("result");
     controller.dispose();
   });
 

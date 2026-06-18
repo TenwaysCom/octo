@@ -89,7 +89,7 @@ export function createGitHubLookupController(deps: CreateGitHubLookupControllerD
   } = deps;
 
   async function lookup(): Promise<void> {
-    appendLog("info", "开始查询 GitHub PR 关联的 Meegle 工作项...");
+    appendLog("info", "开始查询 GitHub 关联的 Meegle 工作项...");
 
     setState({
       isLoading: true,

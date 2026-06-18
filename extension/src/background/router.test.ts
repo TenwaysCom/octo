@@ -405,6 +405,39 @@ describe("background router lark_base workflow", () => {
     });
   });
 
+  it("forwards lark_base.bulk_preview_workitems without viewId for table scoped pages", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: vi.fn().mockResolvedValue({
+        ok: true,
+        baseId: "app_xxx",
+        tableId: "tbl_xxx",
+        totalRecordsInView: 2,
+        eligibleRecords: [],
+        skippedRecords: [],
+      }),
+    } as unknown as Response);
+
+    await routeBackgroundAction(
+      {
+        action: "itdog.lark_base.bulk_preview_workitems",
+        payload: {},
+      },
+      {
+        senderTabId: 42,
+        tabUrl: "https://tenant/base/app_xxx?table=tbl_xxx",
+      },
+    );
+
+    const fetchBody = JSON.parse(vi.mocked(fetch).mock.calls[0]?.[1]?.body as string);
+    expect(fetchBody).toMatchObject({
+      baseId: "app_xxx",
+      tableId: "tbl_xxx",
+    });
+    expect(fetchBody).not.toHaveProperty("viewId");
+  });
+
   it("forwards lark_base.bulk_create_workitems to the create endpoint", async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,

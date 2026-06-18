@@ -180,7 +180,7 @@ export type LarkBaseBulkPreviewResultPayload =
       ok: true;
       baseId: string;
       tableId: string;
-      viewId: string;
+      viewId?: string;
       totalRecordsInView: number;
       eligibleRecords: LarkBaseBulkPreviewRecord[];
       skippedRecords: LarkBaseBulkSkippedRecord[];
@@ -192,7 +192,7 @@ export type LarkBaseBulkCreateResultPayload =
       ok: true;
       baseId: string;
       tableId: string;
-      viewId: string;
+      viewId?: string;
       totalRecordsInView: number;
       summary: {
         created: number;

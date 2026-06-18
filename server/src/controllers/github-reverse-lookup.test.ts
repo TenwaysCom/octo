@@ -9,7 +9,9 @@ describe("GitHubReverseLookupController", () => {
   beforeEach(() => {
     mockGitHubClient = {
       parsePrUrl: vi.fn(),
+      parseWorkItemUrl: vi.fn().mockReturnValue({ kind: "pull", owner: "org", repo: "repo", number: 123 }),
       getPullRequest: vi.fn(),
+      getIssue: vi.fn(),
       getCommits: vi.fn(),
       getIssueComments: vi.fn(),
       getReviewComments: vi.fn(),
@@ -47,6 +49,38 @@ describe("GitHubReverseLookupController", () => {
     // Verify workItemIds are passed as numbers
     const firstCall = mockMeegleClient.filterWorkitemsAcrossProjects.mock.calls[0][0];
     expect(firstCall.workItemIds).toEqual([123]);
+  });
+
+  it("should lookup Meegle workitems from GitHub issue title and comments", async () => {
+    mockGitHubClient.parseWorkItemUrl.mockReturnValueOnce({
+      kind: "issue",
+      owner: "TenwaysCom",
+      repo: "octo",
+      number: 35,
+    });
+    mockGitHubClient.getIssue.mockResolvedValue({
+      title: "Support issue m-35",
+      body: "Desc",
+      html_url: "https://github.com/TenwaysCom/octo/issues/35",
+    });
+    mockGitHubClient.getIssueComments.mockResolvedValue([
+      { body: "related m-36", user: { login: "bot" }, created_at: "2026-06-17T00:00:00Z" },
+    ]);
+    mockMeegleClient.filterWorkitemsAcrossProjects
+      .mockResolvedValueOnce([
+        { id: "35", name: "Issue Item", type: "story", status: "open", fields: { project_key: "4c3fv6" } },
+      ])
+      .mockResolvedValueOnce([]);
+
+    const result = await controller.lookup("https://github.com/TenwaysCom/octo/issues/35", mockMeegleClient);
+
+    expect(mockGitHubClient.getIssue).toHaveBeenCalledWith("TenwaysCom", "octo", 35);
+    expect(mockGitHubClient.getPullRequest).not.toHaveBeenCalled();
+    expect(mockGitHubClient.getCommits).not.toHaveBeenCalled();
+    expect(mockGitHubClient.getReviewComments).not.toHaveBeenCalled();
+    expect(result.extractedIds).toEqual(["35", "36"]);
+    expect(result.workitems).toHaveLength(1);
+    expect(result.workitems[0].id).toBe("35");
   });
 
   it("should deduplicate workitems across types", async () => {
