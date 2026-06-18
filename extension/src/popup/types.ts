@@ -28,4 +28,7 @@ export interface PopupFeatureAction {
   label: string;
   type?: "primary" | "default";
   disabled?: boolean;
+  loading?: boolean;
+  statusText?: string;
+  statusTone?: "running" | "success" | "error";
 }

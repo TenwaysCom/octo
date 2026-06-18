@@ -216,6 +216,8 @@ Semantic fields to standardize first:
 | `system` | GitHub repo/system mapping |
 | `plannedVersion` | GitHub lookup display |
 | `plannedSprint` | GitHub lookup display |
+| `storySummary` | Meegle Story 研发返讲输入 |
+| `techSummary` | Meegle Story 研发返讲覆盖写回 |
 
 ## 10. Config And Mapping Rules
 

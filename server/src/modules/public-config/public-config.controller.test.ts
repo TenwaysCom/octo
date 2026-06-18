@@ -132,6 +132,42 @@ describe("public-config.controller", () => {
     expect(actionKeys).not.toContain("bug-ticket-to-support");
   });
 
+  it("resolves Story detail page to story PRD simplified action", async () => {
+    const result = await getExtensionPageConfigController({
+      url: "https://project.larksuite.com/OPS/story/detail/123456",
+    });
+    const actionKeys = result.data.pageConfig.automationActions.map((action) => action.key);
+
+    expect(result).toMatchObject({
+      ok: true,
+      data: {
+        pageConfig: {
+          platform: "meegle",
+          pageType: "meegle_workitem_detail",
+          matchedRuleId: "meegle.story.detail",
+          matchedRuleIds: ["meegle.story.detail"],
+          automationActions: expect.arrayContaining([
+            expect.objectContaining({
+              key: "story-prd-to-simplified",
+              title: "研发返讲 Story",
+              interaction: { type: "direct_execute" },
+              executor: expect.objectContaining({
+                type: "backend_api",
+                operation: "meegle.story.prd_to_simplified",
+                route: "/api/meegle/workitem/story-prd-to-simplified",
+              }),
+            }),
+          ]),
+        },
+      },
+    });
+    expect(actionKeys).toEqual([
+      "story-prd-to-simplified",
+      "update-lark-and-push",
+      "create-github-branch",
+    ]);
+  });
+
   it("resolves numeric Production Bug pages with a unique rule id", async () => {
     const result = await getExtensionPageConfigController({
       url: "https://project.larksuite.com/OPS/6932e40429d1cd8aac635c82/detail/123456",
@@ -218,6 +254,10 @@ describe("public-config.controller", () => {
             expect.objectContaining({
               method: "POST",
               path: "/api/meegle/workitem/bug-ticket-to-support",
+            }),
+            expect.objectContaining({
+              method: "POST",
+              path: "/api/meegle/workitem/story-prd-to-simplified",
             }),
           ]),
         }),

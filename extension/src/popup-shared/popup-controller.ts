@@ -118,6 +118,31 @@ type LazyGitHubBranchCreateController = {
   resetModal: () => void;
 };
 
+type BackendAutomationResponse = {
+  ok: boolean;
+  data?: {
+    workItemId?: string;
+    updatedField?: string;
+    actionRunId?: string;
+    analysisSummary?: string;
+  };
+  error?: {
+    errorCode?: string;
+    errorMessage?: string;
+    stage?: string;
+    actionRunId?: string;
+  } | string;
+};
+
+const BACKEND_AUTOMATION_TIMEOUT_MS = 120_000;
+
+type PopupActionExecutionStatus = {
+  phase: "running" | "success" | "error";
+  message: string;
+  actionRunId?: string;
+  updatedAt: string;
+};
+
 export interface PopupIdentityState {
   masterUserId: string | null;
   larkId: string | null;
@@ -172,6 +197,7 @@ interface PopupAppStore {
   settingsForm: PopupSettingsForm;
   update: UpdateState | null;
   pageConfig: ExtensionPageConfig | null;
+  actionStatuses: Record<string, PopupActionExecutionStatus>;
 }
 
 export interface PopupControllerState {
@@ -280,6 +306,7 @@ function createInitialStore(): PopupAppStore {
     settingsForm: createDefaultSettingsForm(),
     update: null,
     pageConfig: null,
+    actionStatuses: {},
   };
 }
 
@@ -584,6 +611,22 @@ export function createPopupController() {
       },
       log: logAdapter,
     });
+  }
+
+  function setActionStatus(
+    actionKey: string,
+    next: Omit<PopupActionExecutionStatus, "updatedAt">,
+  ): void {
+    updateStore((previous) => ({
+      ...previous,
+      actionStatuses: {
+        ...previous.actionStatuses,
+        [actionKey]: {
+          ...next,
+          updatedAt: new Date().toISOString(),
+        },
+      },
+    }));
   }
 
   function syncSettingsForm(settings: PopupSettingsForm): void {
@@ -1513,6 +1556,14 @@ export function createPopupController() {
   }
 
   async function runFeatureAction(actionKey: string): Promise<void> {
+    const configuredAction = readStore().pageConfig?.automationActions.find(
+      (action) => action.key === actionKey,
+    );
+    if (readStore().actionStatuses[actionKey]?.phase === "running") {
+      appendLog("warn", "当前操作仍在执行中，请等待返回状态。");
+      return;
+    }
+
     if (actionKey === "analyze") {
       if (readStore().showKimiChat) {
         resetKimiChatSession();
@@ -1573,6 +1624,7 @@ export function createPopupController() {
       apply: "确认创建...",
       "update-lark-and-push": "更新 Lark 及推送中...",
       "bug-ticket-to-support": "Bug Ticket to Support 执行中...",
+      "story-prd-to-simplified": "研发返讲 Story 中...",
     };
 
     appendLog("info", labels[actionKey] || "执行操作中...");
@@ -1605,7 +1657,167 @@ export function createPopupController() {
       return;
     }
 
+    if (configuredAction?.executor.type === "backend_api") {
+      await runBackendAutomationAction(configuredAction);
+      return;
+    }
+
     appendLog("warn", "功能开发中，请稍后");
+  }
+
+  async function runBackendAutomationAction(
+    action: AutomationActionListItem,
+  ): Promise<void> {
+    if (action.executor.type !== "backend_api" || !action.executor.route) {
+      const message = `${action.title} 缺少服务端执行配置`;
+      setActionStatus(action.key, { phase: "error", message });
+      appendLog("error", message);
+      return;
+    }
+
+    const current = readStore();
+    const currentUrl = current.state.currentUrl;
+    if (!currentUrl) {
+      const message = `当前页面 URL 为空，无法执行${action.title}`;
+      setActionStatus(action.key, { phase: "error", message });
+      appendLog("error", message);
+      return;
+    }
+
+    const masterUserId = current.state.identity.masterUserId;
+    if (!masterUserId) {
+      const message = "未解析到主身份，无法执行服务端动作";
+      setActionStatus(action.key, { phase: "error", message });
+      appendLog("error", message);
+      return;
+    }
+
+    let ids: { projectKey: string; workItemTypeKey: string; workItemId: string };
+    try {
+      ids = parseMeegleWorkitemIds(currentUrl);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setActionStatus(action.key, { phase: "error", message });
+      appendLog("error", message);
+      showPopupToast(message, "error");
+      return;
+    }
+
+    const actionRunId = createActionRunId();
+    const config = await getConfig();
+    const baseUrl = current.state.currentTabOrigin || new URL(currentUrl).origin;
+    appendLog(
+      "info",
+      `[${action.title}] 调用服务端: operation=${action.executor.operation}, actionRunId=${actionRunId}`,
+    );
+    setActionStatus(action.key, {
+      phase: "running",
+      actionRunId,
+      message: `执行中 · ${actionRunId}`,
+    });
+
+    const abortController = new AbortController();
+    const timeoutId = globalThis.setTimeout(() => {
+      abortController.abort();
+    }, BACKEND_AUTOMATION_TIMEOUT_MS);
+    try {
+      const { payload } = await fetchServerJson<BackendAutomationResponse>({
+        url: `${config.SERVER_URL}${action.executor.route}`,
+        masterUserId,
+        signal: abortController.signal,
+        body: {
+          ...ids,
+          meegleUrl: currentUrl,
+          masterUserId,
+          baseUrl,
+          actionRunId,
+        },
+      });
+
+      if (!payload.ok) {
+        const errorMessage = getBackendAutomationErrorMessage(payload);
+        setActionStatus(action.key, {
+          phase: "error",
+          actionRunId:
+            payload.error && typeof payload.error === "object"
+              ? payload.error.actionRunId ?? actionRunId
+              : actionRunId,
+          message: errorMessage,
+        });
+        appendLog("error", `[${action.title}] 执行失败: ${errorMessage}`);
+        showPopupToast(errorMessage, "error");
+        return;
+      }
+
+      const message = `[${action.title}] 执行完成${payload.data?.updatedField ? `: 已更新 ${payload.data.updatedField}` : ""}`;
+      setActionStatus(action.key, {
+        phase: "success",
+        actionRunId: payload.data?.actionRunId ?? actionRunId,
+        message: payload.data?.updatedField
+          ? `已更新 ${payload.data.updatedField}`
+          : "执行完成",
+      });
+      appendLog("success", message);
+      showPopupToast(message, "success");
+    } catch (error) {
+      const isAbort = error instanceof DOMException && error.name === "AbortError";
+      const message = isAbort
+        ? "执行超时，服务端可能仍在处理，请稍后刷新 Meegle 或查看日志。"
+        : error instanceof Error
+          ? error.message
+          : String(error);
+      setActionStatus(action.key, {
+        phase: "error",
+        actionRunId,
+        message,
+      });
+      appendLog("error", `[${action.title}] 执行失败: ${message}`);
+      showPopupToast(message, "error");
+    } finally {
+      globalThis.clearTimeout(timeoutId);
+    }
+  }
+
+  function parseMeegleWorkitemIds(urlValue: string): {
+    projectKey: string;
+    workItemTypeKey: string;
+    workItemId: string;
+  } {
+    const url = new URL(urlValue);
+    const pathParts = url.pathname.split("/").filter(Boolean);
+    if (pathParts.length < 4 || pathParts[2] !== "detail") {
+      throw new Error(`无法从 URL 解析 Meegle 工作项信息: ${url.pathname}`);
+    }
+
+    return {
+      projectKey: pathParts[0],
+      workItemTypeKey: pathParts[1],
+      workItemId: pathParts[3],
+    };
+  }
+
+  function createActionRunId(): string {
+    if (globalThis.crypto?.randomUUID) {
+      return globalThis.crypto.randomUUID();
+    }
+
+    return `action_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  }
+
+  function getBackendAutomationErrorMessage(
+    response: BackendAutomationResponse,
+  ): string {
+    if (typeof response.error === "string") {
+      return response.error;
+    }
+
+    if (response.error?.errorMessage) {
+      return response.error.errorCode
+        ? `${response.error.errorCode}: ${response.error.errorMessage}`
+        : response.error.errorMessage;
+    }
+
+    return "未知错误";
   }
 
   async function confirmGitHubBranchCreate(): Promise<void> {
@@ -1655,13 +1867,19 @@ export function createPopupController() {
     action: AutomationActionListItem,
     input: {
       viewModel: ReturnType<typeof createPopupViewModel>;
+      status?: PopupActionExecutionStatus;
     },
   ): PopupFeatureAction {
+    const loading = input.status?.phase === "running";
     return {
       key: action.key,
       label: action.title,
       type: action.style ?? "default",
-      disabled: action.key === "analyze" ? !input.viewModel.canAnalyze : false,
+      disabled:
+        loading || (action.key === "analyze" ? !input.viewModel.canAnalyze : false),
+      loading,
+      statusText: input.status?.message,
+      statusTone: input.status?.phase,
     };
   }
 
@@ -1767,7 +1985,10 @@ export function createPopupController() {
     const topLarkButtonDisabled = false;
     const configuredActions = store.pageConfig?.automationActions ?? [];
     const actionsForCurrentPage = configuredActions.map((action) =>
-      toPopupFeatureAction(action, { viewModel }),
+      toPopupFeatureAction(action, {
+        viewModel,
+        status: store.actionStatuses[action.key],
+      }),
     );
     const larkActions: PopupFeatureAction[] =
       store.state.pageType === "lark" ? actionsForCurrentPage : [];

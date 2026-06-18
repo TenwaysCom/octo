@@ -125,6 +125,32 @@ describe("popup controller", () => {
         };
       }
 
+      if (url?.includes("/story/detail/")) {
+        return {
+          platform: "meegle",
+          pageType: "meegle_workitem_detail",
+          matchedRuleId: "meegle.story.detail",
+          sidebar: {
+            injectPageElements: true,
+            sidebarButtonEnabled: true,
+            keyboardShortcutEnabled: true,
+          },
+          automationActions: [
+            {
+              key: "story-prd-to-simplified",
+              title: "研发返讲 Story",
+              style: "primary",
+              executor: {
+                type: "backend_api",
+                operation: "meegle.story.prd_to_simplified",
+                method: "POST",
+                route: "/api/meegle/workitem/story-prd-to-simplified",
+              },
+            },
+          ],
+        };
+      }
+
       if (url?.includes("/detail/")) {
         return {
           platform: "meegle",
@@ -377,6 +403,113 @@ describe("popup controller", () => {
       recordId: "KxOYr6CJKeWYktcI2GilrfRAgeg",
       wikiRecordId: "KxOYr6CJKeWYktcI2GilrfRAgeg",
       masterUserId: "usr_resolved",
+    });
+    controller.dispose();
+  });
+
+  it("shows execution status while dispatching server-configured backend API actions", async () => {
+    runtimeMock.queryActiveTabContext.mockResolvedValueOnce({
+      id: 12,
+      url: "https://project.larksuite.com/OPS/story/detail/123456",
+      origin: "https://project.larksuite.com",
+      pageType: "meegle",
+    });
+
+    const controller = createPopupController();
+    await controller.initialize();
+    vi.mocked(globalThis.fetch).mockClear();
+    let resolveFetch: ((value: Response) => void) | null = null;
+    vi.mocked(globalThis.fetch).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveFetch = resolve;
+        }),
+    );
+
+    const runPromise = controller.runFeatureAction("story-prd-to-simplified");
+    await vi.waitFor(() => {
+      expect(globalThis.fetch).toHaveBeenCalled();
+    });
+
+    expect(controller.getState().meegleActions[0]).toMatchObject({
+      key: "story-prd-to-simplified",
+      disabled: true,
+      loading: true,
+      statusTone: "running",
+    });
+    expect(controller.getState().meegleActions[0]?.statusText).toContain("执行中");
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      "http://localhost:3000/api/meegle/workitem/story-prd-to-simplified",
+      expect.objectContaining({
+        method: "POST",
+        body: expect.any(String),
+      }),
+    );
+    const [, requestInit] = vi.mocked(globalThis.fetch).mock.calls[0];
+    expect(JSON.parse(String(requestInit?.body))).toMatchObject({
+      projectKey: "OPS",
+      workItemTypeKey: "story",
+      workItemId: "123456",
+      meegleUrl: "https://project.larksuite.com/OPS/story/detail/123456",
+      masterUserId: "usr_resolved",
+      baseUrl: "https://project.larksuite.com",
+      actionRunId: expect.any(String),
+    });
+    expect(resolveFetch).not.toBeNull();
+    resolveFetch!({
+      ok: true,
+      json: async () => ({
+        ok: true,
+        data: {
+          workItemId: "123456",
+          updatedField: "techSummary",
+          actionRunId: "run_1",
+          analysisSummary: "simplified",
+        },
+      }),
+    } as Response);
+    await runPromise;
+
+    expect(controller.getState().meegleActions[0]).toMatchObject({
+      disabled: false,
+      loading: false,
+      statusText: "已更新 techSummary",
+      statusTone: "success",
+    });
+    controller.dispose();
+  });
+
+  it("shows an error status when a backend API action fails", async () => {
+    runtimeMock.queryActiveTabContext.mockResolvedValueOnce({
+      id: 12,
+      url: "https://project.larksuite.com/OPS/story/detail/123456",
+      origin: "https://project.larksuite.com",
+      pageType: "meegle",
+    });
+
+    const controller = createPopupController();
+    await controller.initialize();
+    vi.mocked(globalThis.fetch).mockClear();
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        ok: false,
+        error: {
+          errorCode: "ACP_TIMEOUT",
+          errorMessage: "ACP 初始化超时",
+          actionRunId: "run_1",
+        },
+      }),
+    } as Response);
+
+    await controller.runFeatureAction("story-prd-to-simplified");
+
+    expect(controller.getState().meegleActions[0]).toMatchObject({
+      disabled: false,
+      loading: false,
+      statusText: "ACP_TIMEOUT: ACP 初始化超时",
+      statusTone: "error",
     });
     controller.dispose();
   });

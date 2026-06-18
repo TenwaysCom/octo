@@ -50,13 +50,25 @@ export const ACTION_PAGE_RULES: ActionPageRule[] = [
     actions: ["createMeegleItem"],
   },
   {
+    id: "meegle.story.detail",
+    platform: "meegle",
+    pageType: "meegle_workitem_detail",
+    host: "project.larksuite.com",
+    path: "/:projectKey/:workItemTypeKey/detail/:workItemId",
+    params: {
+      workItemTypeKey: "story",
+    },
+    sidebar: SIDEBAR_ENABLED,
+    actions: ["storyPrdToSimplified", "updateLarkAndPush", "createGithubBranch"],
+  },
+  {
     id: "meegle.workitem.detail",
     platform: "meegle",
     pageType: "meegle_workitem_detail",
     host: "project.larksuite.com",
     path: "/:projectKey/:workItemTypeKey/detail/:workItemId",
     params: {
-      workItemTypeKey: ["!production_bug", "!6932e40429d1cd8aac635c82"],
+      workItemTypeKey: ["!story", "!production_bug", "!6932e40429d1cd8aac635c82"],
     },
     sidebar: SIDEBAR_ENABLED,
     actions: ["updateLarkAndPush", "createGithubBranch"],

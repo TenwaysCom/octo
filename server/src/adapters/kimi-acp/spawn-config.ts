@@ -1,3 +1,5 @@
+import { delimiter } from "node:path";
+
 export interface KimiAcpSpawnConfig {
   command: string;
   args: string[];
@@ -36,11 +38,35 @@ export function buildKimiAcpSpawnConfig(
     ...env,
     ...envOverrides,
   };
+  const launchEnv = ensureDefaultKimiBinOnPath(mergedEnv, command);
 
   return {
     command,
     args,
-    env: normalizeProxySchemes(mergedEnv),
+    env: normalizeProxySchemes(launchEnv),
+  };
+}
+
+function ensureDefaultKimiBinOnPath(
+  env: NodeJS.ProcessEnv,
+  command: string,
+): NodeJS.ProcessEnv {
+  if (command !== ACP_CONFIG_DEFAULTS.command || !env.HOME) {
+    return env;
+  }
+
+  const defaultKimiBin = `${env.HOME}/.kimi-code/bin`;
+  const currentPath = env.PATH ?? "";
+  const pathEntries = currentPath.split(delimiter).filter(Boolean);
+  if (pathEntries.includes(defaultKimiBin)) {
+    return env;
+  }
+
+  return {
+    ...env,
+    PATH: currentPath
+      ? `${defaultKimiBin}${delimiter}${currentPath}`
+      : defaultKimiBin,
   };
 }
 

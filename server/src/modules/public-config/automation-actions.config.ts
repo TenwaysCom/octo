@@ -66,6 +66,21 @@ export const AUTOMATION_ACTIONS = {
       route: "/api/meegle/workitem/bug-ticket-to-support",
     },
   },
+  storyPrdToSimplified: {
+    key: "story-prd-to-simplified",
+    title: "研发返讲 Story",
+    description: "读取 Story Summary，经 Kimi ACP 生成简化需求确认并覆盖写入 Tech Summary。",
+    style: "primary",
+    interaction: {
+      type: "direct_execute",
+    },
+    executor: {
+      type: "backend_api",
+      operation: "meegle.story.prd_to_simplified",
+      method: "POST",
+      route: "/api/meegle/workitem/story-prd-to-simplified",
+    },
+  },
   createGithubBranch: {
     key: "create-github-branch",
     title: "创建 GitHub 分支",

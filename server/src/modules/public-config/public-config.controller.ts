@@ -427,6 +427,7 @@ export async function getServerApiCatalogController(): Promise<ServerApiCatalogR
             { method: "POST", path: "/api/lark-base/bulk-create-meegle-workitems", description: "批量创建 Meegle 工作项" },
             { method: "POST", path: "/api/meegle/workitem/update-lark-and-push", description: "Meegle 工作项更新 Lark 并推送消息" },
             { method: "POST", path: "/api/meegle/workitem/bug-ticket-to-support", description: "Production Bug ticket 推进到 support 处理流" },
+            { method: "POST", path: "/api/meegle/workitem/story-prd-to-simplified", description: "Story Summary 生成简化需求确认并覆盖写入 Tech Summary" },
           ],
         },
         {
