@@ -25,6 +25,11 @@ const storyLogger = logger.child({ module: "meegle-story-prd-to-simplified" });
 
 const STORY_WORKITEM_TYPE_KEY = "story";
 const DEFAULT_STORY_ACP_TIMEOUT_MS = 110_000;
+const DEFAULT_STORY_ACP_CONCURRENCY_LIMIT = 3;
+
+export interface StoryAcpLimiter {
+  run<T>(task: () => Promise<T>): Promise<T>;
+}
 
 export interface MeegleStoryPrdToSimplifiedResult {
   ok: true;
@@ -52,6 +57,7 @@ export interface MeegleStoryPrdToSimplifiedErrorResponse {
 export interface MeegleStoryPrdToSimplifiedDeps extends MeegleClientFactoryDeps {
   resolvedUserStore?: ResolvedUserStore;
   acpService?: AcpKimiProxyService;
+  acpLimiter?: StoryAcpLimiter;
   createMeegleClient?: (
     config: {
       masterUserId: string;
@@ -190,6 +196,7 @@ export async function executeMeegleStoryPrdToSimplified(
         storySummary,
       },
       deps.acpService ?? acpKimiProxyService,
+      deps.acpLimiter ?? defaultStoryAcpLimiter,
     );
 
     if (!analysisSummary) {
@@ -344,41 +351,97 @@ async function runStoryPrdToSimplifiedAnalysis(
     storySummary: string;
   },
   acpService: AcpKimiProxyService,
+  acpLimiter: StoryAcpLimiter,
 ): Promise<string> {
-  const chunks: string[] = [];
-  const timeoutMs = resolveStoryAcpTimeoutMs();
-  const abortController = new AbortController();
-  const timeoutId = globalThis.setTimeout(() => {
-    abortController.abort();
-  }, timeoutMs);
+  return acpLimiter.run(async () => {
+    const chunks: string[] = [];
+    const timeoutMs = resolveStoryAcpTimeoutMs();
+    const abortController = new AbortController();
+    const timeoutId = globalThis.setTimeout(() => {
+      abortController.abort();
+    }, timeoutMs);
 
-  try {
-    await acpService.chat(
-      {
-        operatorLarkId: input.operatorLarkId,
-        message: buildStoryPrdToSimplifiedPrompt(input),
-      },
-      (event) => {
-        const text = getAgentMessageText(event);
-        if (text) {
-          chunks.push(text);
-        }
-      },
-      {
-        signal: abortController.signal,
-      },
-    );
-  } catch (error) {
-    if (abortController.signal.aborted && isAbortError(error)) {
-      throw new StoryAcpTimeoutError(timeoutMs);
+    try {
+      await acpService.chatOneShot(
+        {
+          operatorLarkId: input.operatorLarkId,
+          message: buildStoryPrdToSimplifiedPrompt(input),
+        },
+        (event) => {
+          const text = getAgentMessageText(event);
+          if (text) {
+            chunks.push(text);
+          }
+        },
+        {
+          signal: abortController.signal,
+        },
+      );
+    } catch (error) {
+      if (abortController.signal.aborted && isAbortError(error)) {
+        throw new StoryAcpTimeoutError(timeoutMs);
+      }
+
+      throw error;
+    } finally {
+      globalThis.clearTimeout(timeoutId);
     }
 
-    throw error;
-  } finally {
-    globalThis.clearTimeout(timeoutId);
+    return chunks.join("").trim();
+  });
+}
+
+export function createStoryAcpLimiter(input?: {
+  limit?: number | (() => number);
+}): StoryAcpLimiter {
+  let active = 0;
+
+  return {
+    async run<T>(task: () => Promise<T>): Promise<T> {
+      const limit = resolveLimiterLimit(input?.limit);
+      if (active >= limit) {
+        throw new StoryAcpConcurrencyLimitError(limit);
+      }
+
+      active += 1;
+      try {
+        return await task();
+      } finally {
+        active -= 1;
+      }
+    },
+  };
+}
+
+const defaultStoryAcpLimiter = createStoryAcpLimiter({
+  limit: resolveStoryAcpConcurrencyLimit,
+});
+
+function resolveLimiterLimit(limit?: number | (() => number)): number {
+  const resolved = typeof limit === "function" ? limit() : limit;
+  if (resolved === undefined) {
+    return DEFAULT_STORY_ACP_CONCURRENCY_LIMIT;
   }
 
-  return chunks.join("").trim();
+  if (!Number.isFinite(resolved) || resolved < 0) {
+    return DEFAULT_STORY_ACP_CONCURRENCY_LIMIT;
+  }
+
+  return Math.floor(resolved);
+}
+
+class StoryAcpConcurrencyLimitError extends Error {
+  readonly code = "ACP_CONCURRENCY_LIMITED";
+  readonly stage = "adapter.acp.queue";
+
+  constructor(readonly limit: number) {
+    super(
+      limit > 0
+        ? `Kimi ACP story analysis is limited to ${limit} concurrent run(s).`
+        : "Kimi ACP story analysis is currently unavailable because the concurrency limit is 0.",
+    );
+    this.name = "StoryAcpConcurrencyLimitError";
+  }
 }
 
 class StoryAcpTimeoutError extends Error {
@@ -405,6 +468,20 @@ function resolveStoryAcpTimeoutMs(): number {
   return parsed;
 }
 
+function resolveStoryAcpConcurrencyLimit(): number {
+  const raw = process.env.STORY_PRD_TO_SIMPLIFIED_ACP_CONCURRENCY_LIMIT;
+  if (!raw) {
+    return DEFAULT_STORY_ACP_CONCURRENCY_LIMIT;
+  }
+
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return DEFAULT_STORY_ACP_CONCURRENCY_LIMIT;
+  }
+
+  return parsed;
+}
+
 function normalizeAcpError(error: unknown): {
   layer: "adapter";
   stage: string;
@@ -421,6 +498,15 @@ function normalizeAcpError(error: unknown): {
   }
 
   if (error instanceof StoryAcpTimeoutError) {
+    return {
+      layer: "adapter",
+      stage: error.stage,
+      errorCode: error.code,
+      errorMessage: error.message,
+    };
+  }
+
+  if (error instanceof StoryAcpConcurrencyLimitError) {
     return {
       layer: "adapter",
       stage: error.stage,

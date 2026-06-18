@@ -30,6 +30,13 @@ export interface AcpKimiProxyService {
   assertSessionAccess(
     input: Pick<AcpKimiChatRequest, "operatorLarkId" | "sessionId">,
   ): KimiSessionRecord | null | void | Promise<KimiSessionRecord | null | void>;
+  chatOneShot(
+    input: Pick<AcpKimiChatRequest, "operatorLarkId" | "message">,
+    emit: (event: AcpKimiStreamEvent) => void,
+    deps?: {
+      signal?: AbortSignal;
+    },
+  ): Promise<void>;
   chat(
     input: AcpKimiChatRequest,
     emit: (event: AcpKimiStreamEvent) => void,
@@ -86,6 +93,69 @@ export function createAcpKimiProxyService(
         sessionId: session.sessionId,
       }, "ACP_KIMI_ASSERT_SESSION_ACCESS OK");
       return session;
+    },
+    async chatOneShot(
+      input: Pick<AcpKimiChatRequest, "operatorLarkId" | "message">,
+      emit: (event: AcpKimiStreamEvent) => void,
+      deps?: {
+        signal?: AbortSignal;
+      },
+    ) {
+      acpKimiProxyLogger.info({
+        operatorLarkId: input.operatorLarkId,
+        messageLength: input.message.length,
+      }, "ACP_KIMI_ONESHOT START");
+
+      let runtime: KimiAcpSessionRuntime | undefined;
+      try {
+        runtime = await createSessionRuntime({
+          signal: deps?.signal,
+        });
+        acpKimiProxyLogger.info({
+          operatorLarkId: input.operatorLarkId,
+          sessionId: runtime.sessionId,
+        }, "ACP_KIMI_ONESHOT SESSION_READY");
+        emit({
+          event: "session.created",
+          data: {
+            sessionId: runtime.sessionId,
+          },
+        });
+
+        const promptResult = await runtime.prompt({
+          message: input.message,
+          emit,
+          signal: deps?.signal,
+        });
+
+        acpKimiProxyLogger.info({
+          operatorLarkId: input.operatorLarkId,
+          sessionId: runtime.sessionId,
+          stopReason: promptResult.stopReason,
+        }, "ACP_KIMI_ONESHOT PROMPT_DONE");
+        emit({
+          event: "done",
+          data: {
+            sessionId: runtime.sessionId,
+            stopReason: promptResult.stopReason,
+          },
+        });
+      } catch (error) {
+        acpKimiProxyLogger.error({
+          operatorLarkId: input.operatorLarkId,
+          sessionId: runtime?.sessionId,
+          errorMessage: error instanceof Error ? error.message : String(error),
+        }, "ACP_KIMI_ONESHOT ERROR");
+        throw error;
+      } finally {
+        if (runtime) {
+          acpKimiProxyLogger.info({
+            operatorLarkId: input.operatorLarkId,
+            sessionId: runtime.sessionId,
+          }, "ACP_KIMI_ONESHOT CLOSE");
+          await runtime.close();
+        }
+      }
     },
     async chat(
       input: AcpKimiChatRequest,
