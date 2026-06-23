@@ -29,6 +29,14 @@ export interface DatabaseSchema {
     created_at: string;
     updated_at: string;
   };
+  lark_contacts: {
+    open_id: string;
+    email: string | null;
+    name: string | null;
+    meegle_user_key: string | null;
+    created_at: string;
+    updated_at: string;
+  };
   user_tokens: {
     master_user_id: string;
     provider: string;

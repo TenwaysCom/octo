@@ -8,6 +8,7 @@
     "db:reset": "node dist/scripts/database-migrate.js --reset",
     "db:import-sqlite": "node dist/scripts/database-import-sqlite.js",
     "db:sync-user-tokens": "node dist/scripts/sync-user-tokens.js",
+    "lark:contacts:sync": "tsx ./src/scripts/sync-lark-contacts.ts",
     "start": "node dist/index.js",
     "dev": "concurrently -k -n tsc,server -c yellow,cyan \"npm:dev:watch\" \"npm:dev:serve\"",
     "dev:watch": "tsc --watch",

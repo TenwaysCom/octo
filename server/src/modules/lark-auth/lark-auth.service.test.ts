@@ -6,6 +6,7 @@ import {
   PostgresResolvedUserStore,
   configureResolvedUserStore,
 } from "../../adapters/postgres/resolved-user-store.js";
+import type { LarkContactStore } from "../../adapters/lark/contact-store.js";
 import type { DatabaseSchema } from "../../adapters/postgres/schema.js";
 import { createTestPostgresDatabase } from "../../adapters/postgres/test-db.js";
 import {
@@ -384,7 +385,7 @@ describe("lark-auth.service", () => {
       userToken: "expired_token",
       userTokenExpiresAt: "2026-04-18T00:00:00.000Z",
       refreshToken: "refresh_token_123",
-      refreshTokenExpiresAt: "2026-05-18T00:00:00.000Z",
+      refreshTokenExpiresAt: "2099-05-18T00:00:00.000Z",
       credentialStatus: "active",
     });
 
@@ -457,6 +458,72 @@ describe("lark-auth.service", () => {
     );
   });
 
+  it("caches fetched Lark contact details by open id", async () => {
+    const user = await resolvedUserStore.create({
+      status: "active",
+      larkTenantKey: "tenant_123",
+      larkId: "ou_123",
+    });
+    const contactStore: LarkContactStore = {
+      getByOpenId: vi.fn(),
+      getByEmail: vi.fn(),
+      getByMeegleUserKey: vi.fn(),
+      upsert: vi.fn().mockResolvedValue({
+        openId: "ou_123",
+        email: "user@example.com",
+        name: "Test User",
+        createdAt: "2026-04-18T00:00:00.000Z",
+        updatedAt: "2026-04-18T00:00:00.000Z",
+      }),
+    };
+
+    await tokenStore.save({
+      masterUserId: user.id,
+      tenantKey: "tenant_123",
+      larkUserId: "ou_123",
+      baseUrl: "https://open.larksuite.com",
+      userToken: "valid_token",
+      userTokenExpiresAt: "2026-07-18T00:00:00.000Z",
+      refreshToken: "refresh_token_123",
+      refreshTokenExpiresAt: "2026-07-18T00:00:00.000Z",
+      credentialStatus: "active",
+    });
+
+    const fetchImpl = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        code: 0,
+        data: {
+          user_id: "ou_123",
+          tenant_key: "tenant_123",
+          email: "user@example.com",
+          name: "Test User",
+        },
+      }),
+    });
+
+    await fetchLarkUserInfo(
+      {
+        masterUserId: user.id,
+        baseUrl: "https://open.larksuite.com",
+      },
+      {
+        appId: "cli_test",
+        appSecret: "secret_test",
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+        tokenStore,
+        resolvedUserStore,
+        contactStore,
+      },
+    );
+
+    expect(contactStore.upsert).toHaveBeenCalledWith({
+      openId: "ou_123",
+      email: "user@example.com",
+      name: "Test User",
+    });
+  });
+
   it("refreshes and retries when Lark user info rejects the stored token as invalid", async () => {
     const user = await resolvedUserStore.create({
       status: "active",
@@ -470,9 +537,9 @@ describe("lark-auth.service", () => {
       larkUserId: "ou_123",
       baseUrl: "https://open.larksuite.com",
       userToken: "stale_but_not_marked_expired",
-      userTokenExpiresAt: "2026-05-18T00:00:00.000Z",
+      userTokenExpiresAt: "2099-05-18T00:00:00.000Z",
       refreshToken: "refresh_token_123",
-      refreshTokenExpiresAt: "2026-06-18T00:00:00.000Z",
+      refreshTokenExpiresAt: "2099-06-18T00:00:00.000Z",
       credentialStatus: "active",
     });
 

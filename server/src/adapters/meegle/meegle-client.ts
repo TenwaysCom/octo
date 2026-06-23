@@ -308,11 +308,18 @@ export interface MeegleSpace {
 }
 
 function parseUser(data: Record<string, unknown>): MeegleUser {
+  const nameValue = data.name;
+  const localizedName = typeof nameValue === "object" && nameValue !== null
+    ? (nameValue as Record<string, unknown>).default ||
+      (nameValue as Record<string, unknown>).en_us ||
+      (nameValue as Record<string, unknown>).zh_cn
+    : nameValue;
+
   return {
     user_key: String(data.user_key || ""),
-    name: String(data.name || ""),
+    name: String(data.name_cn || data.name_en || localizedName || ""),
     email: String(data.email || ""),
-    avatar: data.avatar as string | undefined,
+    avatar: (data.avatar || data.avatar_url) as string | undefined,
     role: data.role as string | undefined,
   };
 }

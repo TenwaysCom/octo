@@ -78,6 +78,17 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .execute();
 
   await db.schema
+    .createTable("lark_contacts")
+    .ifNotExists()
+    .addColumn("open_id", "text", (column) => column.primaryKey())
+    .addColumn("email", "text")
+    .addColumn("name", "text")
+    .addColumn("meegle_user_key", "text")
+    .addColumn("created_at", "text", (column) => column.notNull())
+    .addColumn("updated_at", "text", (column) => column.notNull())
+    .execute();
+
+  await db.schema
     .createTable("user_tokens")
     .ifNotExists()
     .addColumn("master_user_id", "text", (column) => column.notNull())
@@ -140,6 +151,16 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     WHERE meegle_base_url IS NOT NULL AND meegle_user_key IS NOT NULL
   `.execute(db);
   await sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS lark_contacts_email_unique
+    ON lark_contacts(email)
+    WHERE email IS NOT NULL
+  `.execute(db);
+  await sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS lark_contacts_meegle_user_key_unique
+    ON lark_contacts(meegle_user_key)
+    WHERE meegle_user_key IS NOT NULL
+  `.execute(db);
+  await sql`
     CREATE INDEX IF NOT EXISTS user_tokens_provider_lookup_idx
     ON user_tokens(provider, master_user_id, provider_tenant_key, external_user_key)
   `.execute(db);
@@ -180,6 +201,18 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     ALTER TABLE users
     ADD COLUMN IF NOT EXISTS role text
   `.execute(db);
+  await sql`
+    ALTER TABLE lark_contacts
+    ADD COLUMN IF NOT EXISTS email text
+  `.execute(db);
+  await sql`
+    ALTER TABLE lark_contacts
+    ADD COLUMN IF NOT EXISTS name text
+  `.execute(db);
+  await sql`
+    ALTER TABLE lark_contacts
+    ADD COLUMN IF NOT EXISTS meegle_user_key text
+  `.execute(db);
 }
 
 export async function resetPostgresDatabase(db: Kysely<DatabaseSchema>): Promise<void> {
@@ -187,6 +220,7 @@ export async function resetPostgresDatabase(db: Kysely<DatabaseSchema>): Promise
   await sql`DROP TABLE IF EXISTS acp_kimi_session_owners`.execute(db);
   await sql`DROP TABLE IF EXISTS oauth_sessions`.execute(db);
   await sql`DROP TABLE IF EXISTS user_tokens`.execute(db);
+  await sql`DROP TABLE IF EXISTS lark_contacts`.execute(db);
   await sql`DROP TABLE IF EXISTS users`.execute(db);
   await ensurePostgresSchema(db);
 }

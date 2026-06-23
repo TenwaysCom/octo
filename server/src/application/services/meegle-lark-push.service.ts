@@ -14,7 +14,7 @@ import {
   createMeegleClient,
   type MeegleClientFactoryDeps,
 } from "./meegle-client.factory.js";
-import { MeegleAuthenticationError } from "../../adapters/meegle/meegle-client.js";
+import { MeegleAuthenticationError, type MeegleClient, type MeegleUser } from "../../adapters/meegle/meegle-client.js";
 import { refreshCredential } from "./meegle-credential.service.js";
 import { getConfiguredMeegleAuthServiceDeps } from "../../modules/meegle-auth/meegle-auth.service.js";
 import { logger } from "../../logger.js";
@@ -24,6 +24,14 @@ import {
   createActionErrorEnvelopeFromError,
   type ActionErrorEnvelope,
 } from "../action-error-envelope.js";
+import { LarkContactClient } from "../../adapters/lark/contact-client.js";
+import { getLarkContactStore } from "../../adapters/postgres/lark-contact-store.js";
+import {
+  resolveLarkContactsByEmails,
+  type LarkContactResolver,
+  type MeegleContactUser,
+  type ResolvedLarkContact,
+} from "./lark-contact-resolver.service.js";
 
 const pushLogger = logger.child({ module: "meegle-lark-push-service" });
 const MODULE = "meegle-lark-push";
@@ -82,7 +90,9 @@ export interface MeegleLarkPushResult {
 }
 
 export interface MeegleLarkPushDeps
-  extends AuthenticatedLarkClientFactoryDeps, MeegleClientFactoryDeps {}
+  extends AuthenticatedLarkClientFactoryDeps, MeegleClientFactoryDeps {
+  larkContactResolver?: LarkContactResolver;
+}
 
 function parseLarkRecordLink(
   link: string,
@@ -169,6 +179,203 @@ function getFieldValue(workitem: { fields: Record<string, unknown> }, key: strin
   }
 
   return undefined;
+}
+
+interface FollowerReferences {
+  emails: string[];
+  userKeys: string[];
+}
+
+function extractFollowerReferences(workitem: { fields: Record<string, unknown> }): FollowerReferences {
+  const emails: string[] = [];
+  const userKeys: string[] = [];
+  const fields = workitem.fields;
+
+  for (const key of ["followers", "follower", "watchers", "watcher"]) {
+    collectFollowerValue(fields[key], { emails, userKeys });
+  }
+
+  const fieldValuePairs = fields.fields;
+  if (Array.isArray(fieldValuePairs)) {
+    for (const pair of fieldValuePairs) {
+      if (!pair || typeof pair !== "object") {
+        continue;
+      }
+
+      const fieldPair = pair as Record<string, unknown>;
+      const label = [
+        fieldPair.field_key,
+        fieldPair.field_alias,
+        fieldPair.field_name,
+        fieldPair.name,
+      ].filter((value): value is string => typeof value === "string").join(" ").toLowerCase();
+
+      if (label.includes("follower") || label.includes("watcher")) {
+        collectFollowerValue(fieldPair.field_value, { emails, userKeys });
+      }
+    }
+  }
+
+  return {
+    emails: uniqueValues(emails.map((email) => email.toLowerCase())),
+    userKeys: uniqueValues(userKeys),
+  };
+}
+
+function collectFollowerValue(value: unknown, output: FollowerReferences): void {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (trimmed.includes("@")) {
+      output.emails.push(trimmed);
+    } else if (isLikelyMeegleUserKey(trimmed)) {
+      output.userKeys.push(trimmed);
+    }
+    return;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      collectFollowerValue(item, output);
+    }
+    return;
+  }
+
+  if (!value || typeof value !== "object") {
+    return;
+  }
+
+  const obj = value as Record<string, unknown>;
+  collectFollowerValue(obj.email, output);
+  collectFollowerValue(obj.enterprise_email, output);
+  collectFollowerValue(obj.enterpriseEmail, output);
+  collectFollowerValue(obj.user_key, output);
+  collectFollowerValue(obj.userKey, output);
+  collectFollowerValue(obj.username, output);
+  collectFollowerValue(obj.value, output);
+}
+
+function isLikelyMeegleUserKey(value: string): boolean {
+  return /^\d{10,}$/.test(value);
+}
+
+function uniqueValues(values: string[]): string[] {
+  return Array.from(new Set(values));
+}
+
+async function resolveMeegleFollowerUsers(input: {
+  userKeys: string[];
+  meegleClient?: Pick<MeegleClient, "getUsers">;
+}): Promise<MeegleContactUser[]> {
+  if (input.userKeys.length === 0 || !input.meegleClient) {
+    return [];
+  }
+
+  const users = await input.meegleClient.getUsers(input.userKeys);
+  return users.flatMap((user) => {
+    const contact = normalizeMeegleContactUser(user);
+    return contact ? [contact] : [];
+  });
+}
+
+function normalizeMeegleContactUser(user: MeegleUser): MeegleContactUser | undefined {
+  const userKey = user.user_key.trim();
+  const email = user.email.trim().toLowerCase();
+  if (!userKey) {
+    return undefined;
+  }
+
+  return {
+    userKey,
+    email: email.includes("@") ? email : null,
+    name: user.name || null,
+  };
+}
+
+async function buildMessageWithFollowerMentions(input: {
+  workitem: { fields: Record<string, unknown> };
+  message: string;
+  larkBaseUrl: string;
+  meegleClient?: Pick<MeegleClient, "getUsers">;
+  deps: MeegleLarkPushDeps;
+}): Promise<string> {
+  const followerReferences = extractFollowerReferences(input.workitem);
+  if (followerReferences.emails.length === 0 && followerReferences.userKeys.length === 0) {
+    return input.message;
+  }
+
+  const resolver = input.deps.larkContactResolver ?? getDefaultLarkContactResolver(input.larkBaseUrl);
+  if (!resolver) {
+    pushLogger.warn({
+      emailCount: followerReferences.emails.length,
+      userKeyCount: followerReferences.userKeys.length,
+    }, "PUSH_LARK_CONTACT_RESOLVER_UNAVAILABLE");
+    return input.message;
+  }
+
+  try {
+    const meegleUsers = await resolveMeegleFollowerUsers({
+      userKeys: followerReferences.userKeys,
+      meegleClient: input.meegleClient,
+    });
+    const emails = uniqueValues([
+      ...followerReferences.emails,
+      ...meegleUsers.flatMap((user) => user.email ? [user.email] : []),
+    ]);
+    if (emails.length === 0 && meegleUsers.length === 0) {
+      return input.message;
+    }
+
+    const contacts = await resolver.resolveByEmails(emails, { meegleUsers });
+    const mentions = formatLarkMentions(contacts);
+    return mentions ? `${mentions}\n${input.message}` : input.message;
+  } catch (error) {
+    pushLogger.warn({
+      emailCount: followerReferences.emails.length,
+      userKeyCount: followerReferences.userKeys.length,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    }, "PUSH_LARK_CONTACT_RESOLVE_FAILED");
+    return input.message;
+  }
+}
+
+function getDefaultLarkContactResolver(baseUrl: string): LarkContactResolver | undefined {
+  const appId = process.env.LARK_APP_ID;
+  const appSecret = process.env.LARK_APP_SECRET;
+  if (!appId || !appSecret) {
+    return undefined;
+  }
+
+  const lookupClient = new LarkContactClient({
+    appId,
+    appSecret,
+    baseUrl,
+  });
+
+  return {
+    resolveByEmails: (emails, options) => resolveLarkContactsByEmails({
+      emails,
+      store: getLarkContactStore(),
+      lookupClient,
+      meegleUsers: options?.meegleUsers,
+    }),
+  };
+}
+
+function formatLarkMentions(contacts: ResolvedLarkContact[]): string {
+  return contacts
+    .map((contact) => {
+      const label = contact.name || contact.email || contact.openId;
+      return `<at user_id="${escapeLarkText(contact.openId)}">${escapeLarkText(label)}</at>`;
+    })
+    .join(" ");
+}
+
+function escapeLarkText(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("\"", "&quot;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
 }
 
 export async function executeMeegleLarkPush(
@@ -301,6 +508,13 @@ export async function executeMeegleLarkPush(
     let messageSent = false;
     let reactionAdded = false;
     if (larkMessageLink && larkUpdateMessage) {
+      const larkMessageText = await buildMessageWithFollowerMentions({
+        workitem,
+        message: larkUpdateMessage,
+        larkBaseUrl: request.larkBaseUrl || "https://open.larksuite.com",
+        meegleClient,
+        deps,
+      });
       const messageInfo = parseLarkMessageLink(larkMessageLink);
       pushLogger.debug({ messageInfo }, "PUSH_PARSE_MESSAGE_LINK");
       if (messageInfo) {
@@ -331,7 +545,7 @@ export async function executeMeegleLarkPush(
             const sendResult = await larkClient.replyToMessage(
               rootMessageId,
               "text",
-              JSON.stringify({ text: larkUpdateMessage }),
+              JSON.stringify({ text: larkMessageText }),
               { reply_in_thread: true },
             );
             messageSent = true;
@@ -345,7 +559,7 @@ export async function executeMeegleLarkPush(
             "chat_id",
             messageInfo.chatId,
             "text",
-            JSON.stringify({ text: larkUpdateMessage }),
+            JSON.stringify({ text: larkMessageText }),
           );
           messageSent = true;
           pushLogger.info({ messageId: sendResult.message_id }, "PUSH_MESSAGE_OK");

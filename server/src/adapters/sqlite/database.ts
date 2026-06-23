@@ -279,6 +279,19 @@ function initOauthSessionsTable(db: DatabaseSync): void {
   `);
 }
 
+function initLarkContactsTable(db: DatabaseSync): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS lark_contacts (
+      open_id TEXT PRIMARY KEY,
+      email TEXT,
+      name TEXT,
+      meegle_user_key TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+  `);
+}
+
 function initSchema(db: DatabaseSync): void {
   db.exec(`
     PRAGMA journal_mode = WAL;
@@ -301,6 +314,7 @@ function initSchema(db: DatabaseSync): void {
   `);
 
   migrateUsersTable(db);
+  initLarkContactsTable(db);
   migrateTokenTable(db);
   initOauthSessionsTable(db);
   ensureColumn(db, "user_tokens", "plugin_token_expires_at", "TEXT");
@@ -312,6 +326,9 @@ function initSchema(db: DatabaseSync): void {
   ensureColumn(db, "users", "lark_avatar_url", "TEXT");
   ensureColumn(db, "users", "meegle_base_url", "TEXT");
   ensureColumn(db, "users", "role", "TEXT");
+  ensureColumn(db, "lark_contacts", "email", "TEXT");
+  ensureColumn(db, "lark_contacts", "name", "TEXT");
+  ensureColumn(db, "lark_contacts", "meegle_user_key", "TEXT");
   db.exec(`
     CREATE UNIQUE INDEX IF NOT EXISTS users_lark_identity_unique
     ON users(lark_tenant_key, lark_id)
@@ -325,6 +342,16 @@ function initSchema(db: DatabaseSync): void {
   db.exec(`
     CREATE INDEX IF NOT EXISTS user_tokens_provider_lookup_idx
     ON user_tokens(provider, master_user_id, provider_tenant_key, external_user_key)
+  `);
+  db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS lark_contacts_email_unique
+    ON lark_contacts(email)
+    WHERE email IS NOT NULL
+  `);
+  db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS lark_contacts_meegle_user_key_unique
+    ON lark_contacts(meegle_user_key)
+    WHERE meegle_user_key IS NOT NULL
   `);
   db.exec(`
     CREATE INDEX IF NOT EXISTS oauth_sessions_provider_state_idx
