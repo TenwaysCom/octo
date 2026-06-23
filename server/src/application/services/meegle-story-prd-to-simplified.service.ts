@@ -16,6 +16,15 @@ import {
   getResolvedUserStore,
   type ResolvedUserStore,
 } from "../../adapters/postgres/resolved-user-store.js";
+import {
+  getWorkflowPromptStore,
+  type WorkflowPromptStore,
+} from "../../adapters/postgres/workflow-prompt-store.js";
+import {
+  DEFAULT_STORY_PRD_TO_SIMPLIFIED_PROMPT_TEMPLATE,
+  renderWorkflowPromptTemplate,
+  STORY_PRD_TO_SIMPLIFIED_PROMPT_KEY,
+} from "../../domain/workflow-prompts.js";
 import { getConfiguredMeegleAuthServiceDeps } from "../../modules/meegle-auth/meegle-auth.service.js";
 import type { MeegleStoryPrdToSimplifiedControllerRequest } from "../../modules/meegle-workitem/meegle-story-prd-to-simplified.dto.js";
 import type { AcpKimiStreamEvent } from "../../modules/acp-kimi/event-stream.js";
@@ -56,6 +65,7 @@ export interface MeegleStoryPrdToSimplifiedErrorResponse {
 
 export interface MeegleStoryPrdToSimplifiedDeps extends MeegleClientFactoryDeps {
   resolvedUserStore?: ResolvedUserStore;
+  workflowPromptStore?: WorkflowPromptStore;
   acpService?: AcpKimiProxyService;
   acpLimiter?: StoryAcpLimiter;
   createMeegleClient?: (
@@ -189,11 +199,15 @@ export async function executeMeegleStoryPrdToSimplified(
       );
     }
 
+    const promptTemplate = await resolveStoryPrdToSimplifiedPromptTemplate(
+      deps.workflowPromptStore ?? getWorkflowPromptStore(),
+    );
     const analysisSummary = await runStoryPrdToSimplifiedAnalysis(
       {
         operatorLarkId: resolvedUser.larkId,
         storyTitle: workitem.name,
         storySummary,
+        promptTemplate,
       },
       deps.acpService ?? acpKimiProxyService,
       deps.acpLimiter ?? defaultStoryAcpLimiter,
@@ -349,6 +363,7 @@ async function runStoryPrdToSimplifiedAnalysis(
     operatorLarkId: string;
     storyTitle: string;
     storySummary: string;
+    promptTemplate: string;
   },
   acpService: AcpKimiProxyService,
   acpLimiter: StoryAcpLimiter,
@@ -482,6 +497,14 @@ function resolveStoryAcpConcurrencyLimit(): number {
   return parsed;
 }
 
+async function resolveStoryPrdToSimplifiedPromptTemplate(
+  store: WorkflowPromptStore,
+): Promise<string> {
+  const record = await store.getByKey(STORY_PRD_TO_SIMPLIFIED_PROMPT_KEY);
+  const prompt = record?.prompt.trim();
+  return prompt || DEFAULT_STORY_PRD_TO_SIMPLIFIED_PROMPT_TEMPLATE;
+}
+
 function normalizeAcpError(error: unknown): {
   layer: "adapter";
   stage: string;
@@ -561,27 +584,12 @@ function getAgentMessageText(event: AcpKimiStreamEvent): string {
 function buildStoryPrdToSimplifiedPrompt(input: {
   storyTitle: string;
   storySummary: string;
+  promptTemplate: string;
 }): string {
-  return `你是一名技术项目经理。请根据下面的 Meegle Story Summary，生成一份简化的需求确认文档，用于研发Review和评审。
-
-输出要求：
-1. 使用中文。
-2. 只描述需要做什么，不写具体代码实现方案。
-3. 不确定的信息标注“待确认”。
-4. 按以下结构输出：
-
-### A1. 需求概述
-### A2. 业务背景
-### A3. 用户故事与验收条件
-### A4. 主对象与生命周期（初步判断）
-### A5. 潜在风险分析
-### A6. 待澄清问题
-
-Story 标题：
-${input.storyTitle || "待确认"}
-
-Story Summary：
-${input.storySummary}`;
+  return renderWorkflowPromptTemplate(input.promptTemplate, {
+    storyTitle: input.storyTitle || "待确认",
+    storySummary: input.storySummary,
+  });
 }
 
 function toError(

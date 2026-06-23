@@ -99,6 +99,16 @@ describe("meegle story PRD to simplified service", () => {
           userToken: "token_1",
         }),
         createMeegleClient: vi.fn().mockResolvedValue(client),
+        workflowPromptStore: {
+          getByKey: vi.fn().mockResolvedValue({
+            key: "meegle.story.prd_to_simplified",
+            prompt: "自定义研发Review\n标题={{storyTitle}}\n需求={{storySummary}}",
+            note: "test prompt",
+            createdAt: "2026-06-18T00:00:00.000Z",
+            updatedAt: "2026-06-18T00:00:00.000Z",
+          }),
+          upsert: vi.fn(),
+        },
         acpService,
       },
     );
@@ -108,6 +118,16 @@ describe("meegle story PRD to simplified service", () => {
       expect(result.data.updatedField).toBe("techSummary");
       expect(result.data.analysisSummary).toContain("简化内容");
     }
+    expect(acpService.chatOneShot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operatorLarkId: "ou_1",
+        message: expect.stringContaining("自定义研发Review"),
+      }),
+      expect.any(Function),
+      expect.objectContaining({
+        signal: expect.any(AbortSignal),
+      }),
+    );
     expect(acpService.chatOneShot).toHaveBeenCalledWith(
       expect.objectContaining({
         operatorLarkId: "ou_1",
@@ -231,6 +251,10 @@ describe("meegle story PRD to simplified service", () => {
           userToken: "token_1",
         }),
         createMeegleClient: vi.fn().mockResolvedValue(client),
+        workflowPromptStore: {
+          getByKey: vi.fn().mockResolvedValue(undefined),
+          upsert: vi.fn(),
+        },
         acpService,
       },
     );
@@ -312,6 +336,10 @@ describe("meegle story PRD to simplified service", () => {
           userToken: "token_1",
         }),
         createMeegleClient: vi.fn().mockResolvedValue(client),
+        workflowPromptStore: {
+          getByKey: vi.fn().mockResolvedValue(undefined),
+          upsert: vi.fn(),
+        },
         acpService,
         acpLimiter: createStoryAcpLimiter({
           limit: 0,

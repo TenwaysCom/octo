@@ -1,4 +1,11 @@
 export interface DatabaseSchema {
+  workflow_prompts: {
+    key: string;
+    prompt: string;
+    note: string | null;
+    created_at: string;
+    updated_at: string;
+  };
   acp_kimi_session_owners: {
     session_id: string;
     operator_lark_id: string;

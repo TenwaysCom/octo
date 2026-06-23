@@ -198,6 +198,7 @@ Meegle Story 研发Review workflow 还应遵守：
 3. ACP execution is one-shot: create runtime, run one prompt, close runtime.
 4. One-shot ACP sessions are not reusable chat sessions and must not be written to reusable session ownership state.
 5. Concurrency and timeout failures return typed server responses and must happen before Meegle writeback.
+6. Prompt template lives in PostgreSQL `workflow_prompts` under key `meegle.story.prd_to_simplified`, with `note` describing the prompt owner/usage.
 
 允许硬编码 `field_*` 的位置：
 

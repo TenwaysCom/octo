@@ -39,6 +39,7 @@ update_required_when:
 | `LarkWriteback` | Server workflow / Lark adapter | `server/src/modules/lark-base/lark-base.service.ts`, `server/src/modules/lark-base/lark-base-workflow.service.ts` | Meegle link 回写到 Lark Base |
 | `MeegleLarkPushAction` | Server workflow | `server/src/application/services/meegle-lark-push.service.ts` | 从 Meegle 读 Lark 字段，更新 Lark Base、发消息、回写 Meegle 状态 |
 | `MeegleStoryBackBriefAction` | Server workflow | `server/src/application/services/meegle-story-prd-to-simplified.service.ts`, `server/src/modules/meegle-workitem/meegle-story-prd-to-simplified.controller.ts` | 从 Meegle Story Summary 生成 Tech Summary；使用 ACP one-shot、限流、超时和结构化错误 |
+| `WorkflowPrompt` | Server PostgreSQL store | `server/src/adapters/postgres/workflow-prompt-store.ts`, `server/src/domain/workflow-prompts.ts` | 按稳定 `key` 存储 workflow prompt 和 `note`；Story 研发Review 使用 `meegle.story.prd_to_simplified` |
 | `AcpKimiOneShotRuntime` | Server ACP proxy / adapter | `server/src/application/services/acp-kimi-proxy.service.ts`, `server/src/adapters/kimi-acp/kimi-acp-runtime.ts` | 一次性 ACP runtime；不进入 reusable session registry，prompt 后关闭 |
 | `GitHubWorkitemAction` | Extension modal + server workflow | `server/src/modules/github-branch-create/*`, `server/src/controllers/github-reverse-lookup.ts`, `extension/src/popup-shared/*github*` | 依赖 Meegle workitem 字段和 GitHub adapter |
 | `ActionRunTrace` | Should be cross-layer contract | docs issue/rules only | 规则已定义，代码尚未统一实现 |
@@ -50,7 +51,7 @@ update_required_when:
 | Layer | Technical objects | Layer responsibility | Should not own |
 | --- | --- | --- | --- |
 | `extension` | `PopupPageContext`, popup state, visible action button, auth trigger state, content-script identity probe, tab-scoped cached `masterUserId` | 采集页面上下文、渲染 UI、触发授权、派发 action、展示结果 | 业务 workflow、平台字段规则、跨平台 mapping、真实 token 持久化 |
-| `server` | `ExtensionPageConfig`, `AutomationActionConfig`, `ResolvedUser`, `ExecutionDraft`, `WorkitemMapping`, workflow request/result, `ActionRunTrace`, semantic field mapping, ACP one-shot limiter | action catalog、身份解析、授权检查、业务编排、错误归一化、测试契约、一次性 ACP 任务控制 | 浏览器 DOM 细节、平台原始字段 shape、直接依赖 extension UI 状态 |
+| `server` | `ExtensionPageConfig`, `AutomationActionConfig`, `ResolvedUser`, `ExecutionDraft`, `WorkitemMapping`, `WorkflowPrompt`, workflow request/result, `ActionRunTrace`, semantic field mapping, ACP one-shot limiter | action catalog、身份解析、授权检查、业务编排、workflow prompt、错误归一化、测试契约、一次性 ACP 任务控制 | 浏览器 DOM 细节、平台原始字段 shape、直接依赖 extension UI 状态 |
 | `adapter` | `MeegleClient` request/response, `LarkClient` request/response, `GitHubClient` request/response, token refresh wrapper, normalized platform error | 第三方 API 封装、请求/响应归一化、平台错误转换、安全日志摘要 | PM 业务决策、popup 行为、跨平台 workflow 编排 |
 | `platform` | Lark Base record, Lark message/thread/reaction, Meegle workitem, Meegle field metadata, Meegle auth code, GitHub PR/repo/branch | 外部真实状态、权限限制、字段限制、状态机限制、平台返回错误 | Octo 内部业务语义和错误契约 |
 

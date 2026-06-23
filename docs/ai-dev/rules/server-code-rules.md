@@ -143,6 +143,7 @@ Rules:
 5. Enforce a workflow timeout with `AbortSignal`; timeout must return a typed error and must not write platform data.
 6. Limit rejection must happen before starting ACP and before platform writeback.
 7. Successful one-shot workflows may emit ACP session events internally, but the session id is diagnostic only and must not be presented as a resumable chat session.
+8. Workflow prompts that need operational tuning should live in PostgreSQL `workflow_prompts`, keyed by a stable `key` and documented with `note`.
 
 Recommended one-shot ACP error codes:
 
@@ -154,6 +155,8 @@ Recommended one-shot ACP error codes:
 | `ACP_PROCESS_EXITED` | `adapter.acp.process` | ACP subprocess exited before or during an operation |
 
 Config defaults should be documented near the workflow service. For Meegle Story 研发Review, current defaults are `STORY_PRD_TO_SIMPLIFIED_ACP_CONCURRENCY_LIMIT=3` and `STORY_PRD_TO_SIMPLIFIED_ACP_TIMEOUT_MS=110000`.
+
+The Meegle Story 研发Review prompt key is `meegle.story.prd_to_simplified`; the table row should keep a human-readable `note` explaining ownership or usage.
 
 ## 6. DTO And Validation Rules
 
@@ -250,8 +253,10 @@ Semantic fields to standardize first:
 2. Lark issue type -> Meegle workitem type mapping belongs in server config.
 3. Workitem type/template mapping should be config-driven where possible.
 4. Environment defaults are allowed, but must be documented and testable.
-5. If mapping affects platform writes, add fixture or unit test.
-6. Do not duplicate the same mapping in extension and server.
+5. New database schema/store design is PostgreSQL-only; do not add new SQLite mirror schemas, stores, or compatibility branches.
+6. Existing SQLite import code is legacy migration tooling, not a design target for new persistence.
+7. If mapping affects platform writes, add fixture or unit test.
+8. Do not duplicate the same mapping in extension and server.
 
 ## 11. Error Envelope And Logging Rules
 
