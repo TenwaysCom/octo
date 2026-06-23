@@ -18,7 +18,7 @@
 
 **This plan supersedes**
 
-- The later frontend-facing intent of Task 3+ in [2026-03-31-kimi-acp-backend-bridge-implementation-plan.md](/home/uynil/projects/tw-itdog/docs/superpowers/plans/2026-03-31-kimi-acp-backend-bridge-implementation-plan.md)
+- The later frontend-facing intent of Task 3+ in [2026-03-31-kimi-acp-backend-bridge-implementation-plan.md](/Users/linyu/proj/octo/docs/superpowers/plans/2026-03-31-kimi-acp-backend-bridge-implementation-plan.md)
 - It does not replace the completed Task 1 / Task 2 work
 
 ## Task 1: Current-Compatible UX Polish

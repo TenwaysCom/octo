@@ -35,7 +35,7 @@
 - [ ] **Step 2: Implement `setUpdateBadge()` and `clearUpdateBadge()` using `chrome.action.setBadgeText/Color`**
 - [ ] **Step 3: Implement `showForceUpdateNotification(versionInfo)` using `chrome.notifications.create` (only when `forceUpdate === true`)**
 - [ ] **Step 4: Implement `downloadUpdate(versionInfo)` using `chrome.downloads.download` with `saveAs: false`**
-- [ ] **Step 5: Wire `itdog.update.check` and `itdog.update.download` actions into `background/router.ts`**
+- [ ] **Step 5: Wire `octo.update.check` and `octo.update.download` actions into `background/router.ts`**
 - [ ] **Step 6: Write tests for update-checker logic (version comparison, ignore logic, failure handling) and confirm they pass**
 
 ---
@@ -62,7 +62,7 @@
 - Modify: `extension/src/popup-shared/popup-controller.test.ts`
 
 - [ ] **Step 1: Add `update: UpdateState | null` to `PopupAppStore` and `PopupControllerState`**
-- [ ] **Step 2: On `initialize()`, call the background `itdog.update.check` action and populate store `update` field**
+- [ ] **Step 2: On `initialize()`, call the background `octo.update.check` action and populate store `update` field**
 - [ ] **Step 3: Add `ignoreUpdateVersion()`, `downloadUpdate()`, and `clearUpdateBadge()` controller methods exposed to the popup**
 - [ ] **Step 4: Ensure badge is cleared when popup opens (call `chrome.action.setBadgeText({ text: '' })`)**
 - [ ] **Step 5: Update controller tests to cover update state initialization and actions**

@@ -7,14 +7,14 @@ import {
 
 describe("github content script", () => {
   it("recognizes GitHub pull request pages", () => {
-    expect(isGitHubPullRequestPage("https://github.com/tenways/tw-itdog/pull/123")).toBe(
+    expect(isGitHubPullRequestPage("https://github.com/TenwaysCom/octo/pull/123")).toBe(
       true,
     );
   });
 
   it("ignores non-pull-request GitHub pages", () => {
-    expect(isGitHubPullRequestPage("https://github.com/tenways/tw-itdog")).toBe(false);
-    expect(isGitHubPullRequestPage("https://github.com/tenways/tw-itdog/issues/12")).toBe(
+    expect(isGitHubPullRequestPage("https://github.com/TenwaysCom/octo")).toBe(false);
+    expect(isGitHubPullRequestPage("https://github.com/TenwaysCom/octo/issues/12")).toBe(
       false,
     );
   });

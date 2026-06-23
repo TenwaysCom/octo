@@ -23,7 +23,7 @@ describe("lark auth callback content script", () => {
     await import("./lark-auth-callback.js");
 
     expect(sendMessage).toHaveBeenCalledWith({
-      action: "itdog.lark.auth.callback.detected",
+      action: "octo.lark.auth.callback.detected",
       payload: {
         state: "state_123",
         status: "ready",

@@ -27,7 +27,7 @@
 ```json
 {
   "requestId": "req_20260320_001",
-  "action": "itdog.lark_bug.create_meegle_product_bug_draft",
+  "action": "octo.lark_bug.create_meegle_product_bug_draft",
   "payload": {},
   "meta": {
     "pageType": "lark_bug",

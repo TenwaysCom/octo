@@ -376,7 +376,7 @@ function initMeegleContentScript() {
 
   // Listen for auth code requests from background
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    if (message.action === "itdog.page.meegle.auth_code.request") {
+    if (message.action === "octo.page.meegle.auth_code.request") {
       const { pluginId, state, baseUrl } = message.payload;
       logMcsFlow("MESSAGE_RECEIVED", "START", { action: message.action, baseUrl, state, pluginIdSuffix: typeof pluginId === "string" ? pluginId.slice(-6) : undefined, location: getPageLocation().href });
 

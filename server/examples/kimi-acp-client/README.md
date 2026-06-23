@@ -11,7 +11,7 @@ This experiment validates that a local Node/TypeScript ACP client can:
 
 ## Run
 
-From [`server/package.json`](/home/uynil/projects/tw-itdog/server/package.json):
+From [`server/package.json`](/Users/linyu/proj/octo/server/package.json):
 
 ```bash
 cd server

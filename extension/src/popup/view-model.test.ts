@@ -17,7 +17,7 @@ describe("popup view model", () => {
   });
 
   it("marks non-supported pages as unsupported", () => {
-    expect(detectPopupPageType("https://github.com/tenways/tw-itdog")).toBe("unsupported");
+    expect(detectPopupPageType("https://github.com/TenwaysCom/octo")).toBe("unsupported");
   });
 
   it("builds a compact header context from platform, module, task, and status", () => {

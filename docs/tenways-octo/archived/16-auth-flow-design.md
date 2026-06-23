@@ -37,7 +37,7 @@ sequenceDiagram
     participant LA as LarkAuthService
 
     U->>E: 点击"授权 Lark"
-    E->>B: itdog.lark.auth.ensure
+    E->>B: octo.lark.auth.ensure
     B->>B: 检查缓存 token
 
     alt 已有有效 token
@@ -173,13 +173,13 @@ sequenceDiagram
     participant M as Meegle BFF
 
     U->>E: 触发需要 Meegle 写入的动作
-    E->>B: itdog.meegle.auth.ensure
+    E->>B: octo.meegle.auth.ensure
 
     B->>S: POST /api/meegle/auth/status
     S-->>B: tokenStatus: require_auth_code
 
     B->>B: 查找 Meegle tab
-    B->>MCS: itdog.page.meegle.auth_code.request
+    B->>MCS: octo.page.meegle.auth_code.request
 
     MCS->>M: POST /bff/v2/authen/v1/auth_code
     Note over M: 使用当前页面 Cookie<br/>无需额外授权
@@ -335,7 +335,7 @@ flowchart TB
 | 对比项 | Lark | Meegle |
 |--------|------|--------|
 | 已实现能力 | `exchange`、`refresh`、Lark 用户 ID 检测 | `auth_code` 获取、`exchange`、`refresh`、token 存储、状态查询 |
-| 客户端入口 | `itdog.lark.auth.ensure` | `itdog.meegle.auth.ensure` |
+| 客户端入口 | `octo.lark.auth.ensure` | `octo.meegle.auth.ensure` |
 | 客户端当前实现状态 | 有 handler，但 OAuth 打开逻辑未启用，回调闭环未完成 | 已完成从 content script 到 background 再到 server 的闭环 |
 | 服务端当前实现状态 | 有 `/exchange`、`/refresh`、`/status`，但 `/callback` 缺失，`/status` 仍是占位实现 | `/status`、`/exchange`、refresh 流程和 token store 已可用 |
 | token 存储实现 | 还没有真正持久化存储 | 已有 `InMemoryMeegleTokenStore` |

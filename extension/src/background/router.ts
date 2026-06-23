@@ -133,7 +133,7 @@ export async function routeBackgroundAction(
 > {
   const config = await getConfig();
 
-  if (message.action === "itdog.meegle.auth.ensure") {
+  if (message.action === "octo.meegle.auth.ensure") {
     const deps: EnsureMeegleAuthDeps = {
       getCachedToken: () => cachedToken,
       getCachedPluginId: () => config.MEEGLE_PLUGIN_ID,
@@ -156,7 +156,7 @@ export async function routeBackgroundAction(
     };
   }
 
-  if (message.action === "itdog.lark.auth.ensure") {
+  if (message.action === "octo.lark.auth.ensure") {
     const deps: EnsureLarkAuthDeps = {
       getCachedLarkToken: () => cachedLarkToken,
       savePendingLarkOauthState,
@@ -170,7 +170,7 @@ export async function routeBackgroundAction(
     };
   }
 
-  if (message.action === "itdog.lark.auth.callback.detected") {
+  if (message.action === "octo.lark.auth.callback.detected") {
     await handleLarkAuthCallbackDetected(message.payload, {
       saveLastLarkAuthResult,
       clearPendingLarkOauthState,
@@ -178,7 +178,7 @@ export async function routeBackgroundAction(
     return { ok: true };
   }
 
-  if (message.action === "itdog.lark_base.create_workitem") {
+  if (message.action === "octo.lark_base.create_workitem") {
     const masterUserId =
       message.payload.masterUserId
       ?? (context.senderTabId != null
@@ -200,7 +200,7 @@ export async function routeBackgroundAction(
     };
   }
 
-  if (message.action === "itdog.lark_base.bulk_preview_workitems") {
+  if (message.action === "octo.lark_base.bulk_preview_workitems") {
     const masterUserId =
       message.payload.masterUserId
       ?? (context.senderTabId != null
@@ -225,7 +225,7 @@ export async function routeBackgroundAction(
     };
   }
 
-  if (message.action === "itdog.lark_base.bulk_create_workitems") {
+  if (message.action === "octo.lark_base.bulk_create_workitems") {
     const masterUserId =
       message.payload.masterUserId
       ?? (context.senderTabId != null
@@ -257,7 +257,7 @@ export async function routeBackgroundAction(
  * Handle extension messages
  */
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === "itdog.query_active_tab_context") {
+  if (message.action === "octo.query_active_tab_context") {
     const tab = sender.tab;
     if (tab?.id != null || tab?.url) {
       sendResponse({
@@ -284,7 +284,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  if (message.action === "itdog.meegle.identity.cookies") {
+  if (message.action === "octo.meegle.identity.cookies") {
     getMeegleIdentityFromCookies(message.payload.pageUrl)
       .then((identity) => {
         sendResponse({
@@ -306,12 +306,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (
-    message.action === "itdog.meegle.auth.ensure" ||
-    message.action === "itdog.lark.auth.ensure" ||
-    message.action === "itdog.lark.auth.callback.detected" ||
-    message.action === "itdog.lark_base.create_workitem" ||
-    message.action === "itdog.lark_base.bulk_preview_workitems" ||
-    message.action === "itdog.lark_base.bulk_create_workitems"
+    message.action === "octo.meegle.auth.ensure" ||
+    message.action === "octo.lark.auth.ensure" ||
+    message.action === "octo.lark.auth.callback.detected" ||
+    message.action === "octo.lark_base.create_workitem" ||
+    message.action === "octo.lark_base.bulk_preview_workitems" ||
+    message.action === "octo.lark_base.bulk_create_workitems"
   ) {
     routeBackgroundAction(
       message as
@@ -348,7 +348,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true; // Keep channel open for async response
   }
 
-  if (message.action === "itdog.update.check") {
+  if (message.action === "octo.update.check") {
     getConfig()
       .then((config) => checkForUpdate(config))
       .then((result) => {
@@ -367,7 +367,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  if (message.action === "itdog.update.download") {
+  if (message.action === "octo.update.download") {
     downloadUpdate(message.payload.versionInfo)
       .then(() => {
         sendResponse({ ok: true });
@@ -386,7 +386,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  if (message.action === "itdog.update.ignore") {
+  if (message.action === "octo.update.ignore") {
     ignoreCurrentVersion(message.payload.version)
       .then(() => {
         sendResponse({ ok: true });
@@ -405,7 +405,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  if (message.action === "itdog.update.clearBadge") {
+  if (message.action === "octo.update.clearBadge") {
     clearUpdateBadge()
       .then(() => {
         sendResponse({ ok: true });

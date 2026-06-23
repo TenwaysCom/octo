@@ -71,7 +71,7 @@ async function requestAuthCodeFromContentScript(
       chrome.tabs.sendMessage(
         tabId,
         {
-          action: "itdog.page.meegle.auth_code.request",
+          action: "octo.page.meegle.auth_code.request",
           payload: { pluginId, state, baseUrl },
         },
         (response) => {

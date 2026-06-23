@@ -152,16 +152,16 @@ docs/
 ```typescript
 // All internal extension message actions
 export type ProtocolAction =
-  | 'itdog.identity.resolve'
-  | 'itdog.meegle.auth.ensure'
-  | 'itdog.meegle.auth.exchange'
-  | 'itdog.a1.analyze'
-  | 'itdog.a1.create_b2_draft'
-  | 'itdog.a1.apply_b2'
-  | 'itdog.a2.analyze'
-  | 'itdog.a2.create_b1_draft'
-  | 'itdog.a2.apply_b1'
-  | 'itdog.pm.analysis.run';
+  | 'octo.identity.resolve'
+  | 'octo.meegle.auth.ensure'
+  | 'octo.meegle.auth.exchange'
+  | 'octo.a1.analyze'
+  | 'octo.a1.create_b2_draft'
+  | 'octo.a1.apply_b2'
+  | 'octo.a2.analyze'
+  | 'octo.a2.create_b1_draft'
+  | 'octo.a2.apply_b1'
+  | 'octo.pm.analysis.run';
 
 // Generic request envelope
 export interface RequestEnvelope<TPayload> {
@@ -426,13 +426,13 @@ export async function handleMessage(message: RequestEnvelope<any>): Promise<Resp
 
   try {
     switch (action) {
-      case 'itdog.identity.resolve':
+      case 'octo.identity.resolve':
         return await handleIdentityResolve(payload, requestId);
 
-      case 'itdog.meegle.auth.ensure':
+      case 'octo.meegle.auth.ensure':
         return await handleMeegleAuthEnsure(payload, requestId);
 
-      case 'itdog.a1.analyze':
+      case 'octo.a1.analyze':
         return await handleA1Analyze(payload, requestId, SERVER_BASE_URL);
 
       // TODO: Add more handlers as implemented

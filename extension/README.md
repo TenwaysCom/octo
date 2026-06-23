@@ -12,8 +12,8 @@
 | `B2` | `Meegle Product Bug` |
 
 说明：
-- 插件内部消息 action 为兼容现有实现，仍保留 `itdog.a1.*` / `itdog.a2.*`
-- 插件访问服务端时已经切到新公开 HTTP 路径
+- 插件内部消息 action 使用 `octo.*` 命名空间
+- 插件访问服务端使用当前公开 HTTP 路径
 
 ## 功能
 
@@ -66,19 +66,20 @@ pnpm --dir extension build
 
 | Action | 描述 |
 |------|------|
-| `itdog.identity.resolve` | 解析当前身份 |
-| `itdog.meegle.auth.ensure` | 确保 Meegle 认证状态 |
-| `itdog.lark.auth.ensure` | 确保 Lark 认证状态 |
-| `itdog.a1.create_b2_draft` | 生成 Meegle Product Bug 草稿 |
-| `itdog.a1.apply_b2` | 创建 Meegle Product Bug |
-| `itdog.a2.create_b1_draft` | 生成 Meegle User Story 草稿 |
-| `itdog.a2.apply_b1` | 创建 Meegle User Story |
+| `octo.identity.resolve` | 解析当前身份 |
+| `octo.meegle.auth.ensure` | 确保 Meegle 认证状态 |
+| `octo.lark.auth.ensure` | 确保 Lark 认证状态 |
+| `octo.lark.auth.callback.detected` | 接收 Lark OAuth 回调结果 |
+| `octo.lark_base.create_workitem` | 从 Lark Base 记录创建 Meegle 工作项 |
+| `octo.lark_base.bulk_preview_workitems` | 批量预览 Lark Base 到 Meegle 的创建结果 |
+| `octo.lark_base.bulk_create_workitems` | 批量创建 Meegle 工作项 |
+| `octo.pm.analysis.run` | 运行 PM 即时分析 |
 
 ### Background -> Page Bridge
 
 | Action | 描述 |
 |------|------|
-| `itdog.page.meegle.auth_code.request` | 请求 auth code |
+| `octo.page.meegle.auth_code.request` | 请求 auth code |
 
 ## 与服务端的主要接口
 

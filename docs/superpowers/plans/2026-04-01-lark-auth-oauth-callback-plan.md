@@ -109,7 +109,7 @@ Add a popup runtime test that locks the new runtime payload:
 
 ```ts
 expect(sendRuntimeMessage).toHaveBeenCalledWith({
-  action: "itdog.lark.auth.ensure",
+  action: "octo.lark.auth.ensure",
   payload: expect.objectContaining({
     masterUserId: "usr_resolved",
     baseUrl: "https://open.larksuite.com",
@@ -141,7 +141,7 @@ export interface LarkAuthEnsureRequest {
 Add a dedicated callback relay action:
 
 ```ts
-"itdog.lark.auth.callback.detected"
+"octo.lark.auth.callback.detected"
 ```
 
 And define a callback result shape the background can store:
@@ -413,7 +413,7 @@ lastLarkAuthResult?: LarkOauthCallbackResult;
 In `router.ts`, add a handler for:
 
 ```ts
-action: "itdog.lark.auth.callback.detected"
+action: "octo.lark.auth.callback.detected"
 ```
 
 That handler should persist the callback result and notify open popup views through the existing runtime channel or storage listener.
@@ -478,7 +478,7 @@ Minimal bridge:
 
 ```ts
 chrome.runtime.sendMessage({
-  action: "itdog.lark.auth.callback.detected",
+  action: "octo.lark.auth.callback.detected",
   payload: {
     state,
     status,

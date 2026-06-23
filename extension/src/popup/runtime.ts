@@ -283,7 +283,7 @@ export async function queryActiveTabContext(): Promise<PopupTabContext> {
   const response = await sendRuntimeMessage<{
     payload?: { id: number | null; url: string | null };
   }>({
-    action: "itdog.query_active_tab_context",
+    action: "octo.query_active_tab_context",
     payload: {},
   });
 
@@ -405,7 +405,7 @@ export async function requestMeegleUserIdentity(
   const cookieIdentity = await sendRuntimeMessage<{
     payload?: { userKey?: string; tenantKey?: string };
   }>({
-    action: "itdog.meegle.identity.cookies",
+    action: "octo.meegle.identity.cookies",
     payload: {
       pageUrl,
     },
@@ -436,7 +436,7 @@ export async function runMeegleAuthRequest(
   const response = await sendRuntimeMessage<{
     payload?: MeegleAuthEnsureResponse;
   }>({
-    action: "itdog.meegle.auth.ensure",
+    action: "octo.meegle.auth.ensure",
     payload: request,
   });
 
@@ -662,7 +662,7 @@ export async function runLarkAuthRequest(
   const response = await sendRuntimeMessage<{
     payload?: LarkAuthEnsureResponse;
   }>({
-    action: "itdog.lark.auth.ensure",
+    action: "octo.lark.auth.ensure",
     payload: {
       requestId: `req_${Date.now()}`,
       masterUserId: input.masterUserId,
@@ -703,7 +703,7 @@ export async function runLarkBaseBulkPreviewRequest(
   const response = await sendRuntimeMessage<{
     payload?: LarkBaseBulkPreviewResultPayload;
   }>({
-    action: "itdog.lark_base.bulk_preview_workitems",
+    action: "octo.lark_base.bulk_preview_workitems",
     payload: input,
   });
 
@@ -727,7 +727,7 @@ export async function runLarkBaseCreateWorkitemRequest(
   const response = await sendRuntimeMessage<{
     payload?: LarkBaseCreateWorkitemResultPayload;
   }>({
-    action: "itdog.lark_base.create_workitem",
+    action: "octo.lark_base.create_workitem",
     payload: input,
   });
 
@@ -751,7 +751,7 @@ export async function runLarkBaseBulkCreateRequest(
   const response = await sendRuntimeMessage<{
     payload?: LarkBaseBulkCreateResultPayload;
   }>({
-    action: "itdog.lark_base.bulk_create_workitems",
+    action: "octo.lark_base.bulk_create_workitems",
     payload: input,
   });
 

@@ -52,13 +52,13 @@ describe("background router lark_base workflow", () => {
     await new Promise<void>((resolve) => {
       runtimeMessageListener?.(
         {
-          action: "itdog.query_active_tab_context",
+          action: "octo.query_active_tab_context",
           payload: {},
         },
         {} as never,
         (response: unknown) => {
           expect(response).toEqual({
-            action: "itdog.query_active_tab_context",
+            action: "octo.query_active_tab_context",
             payload: {
               id: 321,
               url: "https://nsghpcq7ar4z.sg.larksuite.com/record/JfrhrMSAHeNRowcqTTclnyteg0c",
@@ -79,13 +79,13 @@ describe("background router lark_base workflow", () => {
     await new Promise<void>((resolve) => {
       runtimeMessageListener?.(
         {
-          action: "itdog.query_active_tab_context",
+          action: "octo.query_active_tab_context",
           payload: {},
         },
         {} as never,
         (response: unknown) => {
           expect(response).toEqual({
-            action: "itdog.query_active_tab_context",
+            action: "octo.query_active_tab_context",
             payload: {
               id: null,
               url: null,
@@ -113,7 +113,7 @@ describe("background router lark_base workflow", () => {
     } as unknown as Response);
 
     const result = await routeBackgroundAction({
-      action: "itdog.lark_base.create_workitem",
+      action: "octo.lark_base.create_workitem",
       payload: {
         pageType: "lark_base",
         url: "https://tenant/base/app_xxx/table/tbl_xxx/record/rec_base_001",
@@ -144,7 +144,7 @@ describe("background router lark_base workflow", () => {
       actionRunId: "run_create_001",
     });
     expect(result).toEqual({
-      action: "itdog.lark_base.create_workitem",
+      action: "octo.lark_base.create_workitem",
       payload: {
         ok: true,
         workitemId: "12345",
@@ -175,7 +175,7 @@ describe("background router lark_base workflow", () => {
     await new Promise<void>((resolve) => {
       runtimeMessageListener?.(
         {
-          action: "itdog.lark_base.create_workitem",
+          action: "octo.lark_base.create_workitem",
           payload: {
             pageType: "lark_base",
             url: "https://tenant/base/app_xxx/table/tbl_xxx/record/rec_base_001",
@@ -220,7 +220,7 @@ describe("background router lark_base workflow", () => {
 
     await routeBackgroundAction(
       {
-        action: "itdog.lark_base.create_workitem",
+        action: "octo.lark_base.create_workitem",
         payload: {
           pageType: "lark_base",
           url: "https://tenant/base/app_xxx/table/tbl_xxx/record/rec_base_002",
@@ -267,7 +267,7 @@ describe("background router lark_base workflow", () => {
     await new Promise<void>((resolve) => {
       runtimeMessageListener?.(
         {
-          action: "itdog.lark_base.create_workitem",
+          action: "octo.lark_base.create_workitem",
           payload: {
             pageType: "lark_base",
             url: "https://tenant/base/app_xxx/table/tbl_xxx/record/rec_base_001",
@@ -284,7 +284,7 @@ describe("background router lark_base workflow", () => {
         { tab: { id: 99 } } as never,
         (response: unknown) => {
           expect(response).toEqual({
-            action: "itdog.lark_base.create_workitem",
+            action: "octo.lark_base.create_workitem",
             payload: {
               ok: true,
               workitemId: "12345",
@@ -325,7 +325,7 @@ describe("background router lark_base workflow", () => {
 
     await routeBackgroundAction(
       {
-        action: "itdog.lark_base.create_workitem",
+        action: "octo.lark_base.create_workitem",
         payload: {
           masterUserId: "usr_header_expected",
           pageType: "lark_base",
@@ -371,7 +371,7 @@ describe("background router lark_base workflow", () => {
 
     const result = await routeBackgroundAction(
       {
-        action: "itdog.lark_base.bulk_preview_workitems",
+        action: "octo.lark_base.bulk_preview_workitems",
         payload: { actionRunId: "run_preview_001" },
       },
       {
@@ -395,7 +395,7 @@ describe("background router lark_base workflow", () => {
       actionRunId: "run_preview_001",
     });
     expect(result).toEqual({
-      action: "itdog.lark_base.bulk_preview_workitems",
+      action: "octo.lark_base.bulk_preview_workitems",
       payload: {
         ok: true,
         baseId: "app_xxx",
@@ -424,7 +424,7 @@ describe("background router lark_base workflow", () => {
 
     await routeBackgroundAction(
       {
-        action: "itdog.lark_base.bulk_preview_workitems",
+        action: "octo.lark_base.bulk_preview_workitems",
         payload: {},
       },
       {
@@ -464,7 +464,7 @@ describe("background router lark_base workflow", () => {
 
     const result = await routeBackgroundAction(
       {
-        action: "itdog.lark_base.bulk_create_workitems",
+        action: "octo.lark_base.bulk_create_workitems",
         payload: {
           baseId: "app_xxx",
           tableId: "tbl_xxx",
@@ -490,7 +490,7 @@ describe("background router lark_base workflow", () => {
       actionRunId: "run_bulk_001",
     });
     expect(result).toEqual({
-      action: "itdog.lark_base.bulk_create_workitems",
+      action: "octo.lark_base.bulk_create_workitems",
       payload: {
         ok: true,
         baseId: "app_xxx",

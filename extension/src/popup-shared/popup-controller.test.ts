@@ -908,8 +908,8 @@ describe("popup controller", () => {
     const controller = createPopupController();
     await controller.initialize();
 
-    expect(sendMessageMock).toHaveBeenCalledWith({ action: "itdog.update.clearBadge" });
-    expect(sendMessageMock).toHaveBeenCalledWith({ action: "itdog.update.check" });
+    expect(sendMessageMock).toHaveBeenCalledWith({ action: "octo.update.clearBadge" });
+    expect(sendMessageMock).toHaveBeenCalledWith({ action: "octo.update.check" });
     expect(controller.getState().update).toEqual({
       hasUpdate: true,
       currentVersion: "1.0.0",
@@ -966,7 +966,7 @@ describe("popup controller", () => {
     await controller.ignoreUpdateVersion();
 
     expect(sendMessageMock).toHaveBeenCalledWith({
-      action: "itdog.update.ignore",
+      action: "octo.update.ignore",
       payload: { version: "1.1.0" },
     });
     expect(controller.getState().update).toBeNull();
@@ -999,7 +999,7 @@ describe("popup controller", () => {
     await controller.downloadUpdate();
 
     expect(sendMessageMock).toHaveBeenCalledWith({
-      action: "itdog.update.download",
+      action: "octo.update.download",
       payload: {
         versionInfo: {
           version: "1.1.0",

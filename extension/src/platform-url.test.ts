@@ -41,7 +41,7 @@ describe("platform url resolver", () => {
 
   it("recognizes GitHub pull request pages", () => {
     expect(
-      resolvePlatformUrl("https://github.com/tenways/tw-itdog/pull/123", {
+      resolvePlatformUrl("https://github.com/TenwaysCom/octo/pull/123", {
         meegleAuthBaseUrl: "https://project.larksuite.com",
       }),
     ).toEqual({
@@ -65,7 +65,7 @@ describe("platform url resolver", () => {
 
   it("marks unrelated pages as unsupported", () => {
     expect(
-      resolvePlatformUrl("https://github.com/tenways/tw-itdog", {
+      resolvePlatformUrl("https://github.com/TenwaysCom/octo", {
         meegleAuthBaseUrl: "https://project.larksuite.com",
       }),
     ).toEqual({

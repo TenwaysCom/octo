@@ -1060,13 +1060,13 @@ export function createPopupController() {
       }
 
       // Clear update badge when popup opens
-      void chrome.runtime.sendMessage({ action: "itdog.update.clearBadge" });
+      void chrome.runtime.sendMessage({ action: "octo.update.clearBadge" });
 
       appendLog("success", "初始化完成");
 
       // Check for extension updates
       try {
-        const updateResult = await chrome.runtime.sendMessage({ action: "itdog.update.check" });
+        const updateResult = await chrome.runtime.sendMessage({ action: "octo.update.check" });
         if (updateResult?.hasUpdate && updateResult?.versionInfo) {
           updateStore((previous) => ({
             ...previous,
@@ -1529,7 +1529,7 @@ export function createPopupController() {
     const store = readStore();
     if (store.update?.latestVersion) {
       await chrome.runtime.sendMessage({
-        action: "itdog.update.ignore",
+        action: "octo.update.ignore",
         payload: { version: store.update.latestVersion },
       });
       updateStore((previous) => ({
@@ -1550,7 +1550,7 @@ export function createPopupController() {
         minVersion: store.update.currentVersion,
       };
       await chrome.runtime.sendMessage({
-        action: "itdog.update.download",
+        action: "octo.update.download",
         payload: { versionInfo },
       });
     }

@@ -176,7 +176,7 @@ async function defaultCreateWorkitem(request: LarkCreateWorkitemRequest): Promis
     masterUserId: request.masterUserId,
     snapshot: request.snapshot,
   };
-  const action: ProtocolAction = "itdog.lark_base.create_workitem";
+  const action: ProtocolAction = "octo.lark_base.create_workitem";
   const response = await sendRuntimeMessage<{ payload?: LarkBaseCreateWorkitemResultPayload }>({
     action,
     payload,

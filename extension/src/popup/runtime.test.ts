@@ -108,7 +108,7 @@ describe("popup runtime settings", () => {
         | ((response?: unknown) => void)
         | undefined;
       expect(message).toEqual({
-        action: "itdog.meegle.identity.cookies",
+        action: "octo.meegle.identity.cookies",
         payload: {
             pageUrl: "https://project.larksuite.com/4c3fv6/overview",
           },
@@ -293,7 +293,7 @@ describe("popup runtime settings", () => {
 
     expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
       {
-        action: "itdog.lark.auth.ensure",
+        action: "octo.lark.auth.ensure",
         payload: expect.objectContaining({
           masterUserId: "usr_resolved",
           baseUrl: "https://open.larksuite.com",
