@@ -14,8 +14,14 @@ import {
   type FieldMappingSourceConfig,
 } from "./lark-base-workflow-config.js";
 import { logger } from "../../logger.js";
+import {
+  createActionErrorEnvelope,
+  createActionErrorEnvelopeFromError,
+  type ActionErrorEnvelope,
+} from "../../application/action-error-envelope.js";
 
 const workflowLogger = logger.child({ module: "lark-base-workflow-service" });
+const MODULE = "lark-base-workflow";
 
 // ==================== Environment Defaults ====================
 
@@ -122,10 +128,7 @@ export interface LarkBaseWorkflowResult {
 
 export interface LarkBaseWorkflowError {
   ok: false;
-  error: {
-    errorCode: MeegleApplyErrorCode | "INVALID_REQUEST" | "LARK_API_ERROR" | "UNKNOWN_ISSUE_TYPE" | "UPDATE_FAILED";
-    errorMessage: string;
-  };
+  error: ActionErrorEnvelope;
 }
 
 export interface LarkBaseWorkflowDeps extends AuthenticatedLarkClientFactoryDeps {
@@ -573,24 +576,52 @@ function buildMeegleUrl(
   return `${base}/${projectKey}/${urlSlug}/detail/${workitemId}`;
 }
 
+function workflowFailed(
+  request: CreateLarkBaseWorkflowRequest,
+  error: ActionErrorEnvelope,
+): LarkBaseWorkflowError {
+  workflowLogger.error({
+    actionRunId: request.actionRunId,
+    recordId: request.recordId,
+    errorCode: error.errorCode,
+    errorMessage: error.errorMessage,
+    rawStatusCode: error.rawStatusCode,
+    rawResponseSummary: error.rawResponseSummary,
+  }, "server.workflow.failed");
+
+  return {
+    ok: false,
+    error,
+  };
+}
+
 // ==================== Orchestrator ====================
 
 export async function executeLarkBaseWorkflow(
   request: CreateLarkBaseWorkflowRequest,
   deps: LarkBaseWorkflowDeps = {},
 ): Promise<LarkBaseWorkflowResult | LarkBaseWorkflowError> {
+  workflowLogger.info({
+    actionRunId: request.actionRunId,
+    recordId: request.recordId,
+    masterUserId: request.masterUserId,
+  }, "server.workflow.started");
+
   const baseId = request.baseId || DEFAULT_BASE_ID;
   const tableId = request.tableId || DEFAULT_TABLE_ID;
   const projectKey = request.projectKey || DEFAULT_PROJECT_KEY;
 
   if (!baseId || !tableId) {
-    return {
-      ok: false,
-      error: {
+    return workflowFailed(
+      request,
+      createActionErrorEnvelope({
+        module: MODULE,
+        stage: "server.action.received",
         errorCode: "INVALID_REQUEST",
         errorMessage: "baseId and tableId are required (or must be configured via environment variables)",
-      },
-    };
+        actionRunId: request.actionRunId,
+      }),
+    );
   }
 
   const config = loadLarkBaseWorkflowConfig();
@@ -624,13 +655,15 @@ export async function executeLarkBaseWorkflow(
       message: error instanceof Error ? error.message : String(error),
       larkErrorResponse,
     }, "LARK_API_ERROR");
-    return {
-      ok: false,
-      error: {
+    return workflowFailed(
+      request,
+      createActionErrorEnvelopeFromError(error, {
+        module: MODULE,
+        stage: "server.workflow.failed",
         errorCode: "LARK_API_ERROR",
-        errorMessage: error instanceof Error ? error.message : String(error),
-      },
-    };
+        actionRunId: request.actionRunId,
+      }),
+    );
   }
 
   const issueTypes = extractIssueTypes(record.fields);
@@ -638,13 +671,15 @@ export async function executeLarkBaseWorkflow(
   try {
     mappings = resolveWorkitemMappings(issueTypes, config ?? undefined);
   } catch (error) {
-    return {
-      ok: false,
-      error: {
+    return workflowFailed(
+      request,
+      createActionErrorEnvelopeFromError(error, {
+        module: MODULE,
+        stage: "server.workflow.failed",
         errorCode: "UNKNOWN_ISSUE_TYPE",
-        errorMessage: error instanceof Error ? error.message : String(error),
-      },
-    };
+        actionRunId: request.actionRunId,
+      }),
+    );
   }
 
   const sourceContext: WorkflowSourceContext = {
@@ -666,13 +701,15 @@ export async function executeLarkBaseWorkflow(
       );
       sourceContext.larkSharedRecordUrl = sharedRecord.recordUrl;
     } catch (error) {
-      return {
-        ok: false,
-        error: {
+      return workflowFailed(
+        request,
+        createActionErrorEnvelopeFromError(error, {
+          module: MODULE,
+          stage: "server.workflow.failed",
           errorCode: "LARK_API_ERROR",
-          errorMessage: error instanceof Error ? error.message : String(error),
-        },
-      };
+          actionRunId: request.actionRunId,
+        }),
+      );
     }
   }
 
@@ -723,13 +760,15 @@ export async function executeLarkBaseWorkflow(
         message: error instanceof Error ? error.message : String(error),
       }, "WORKITEM_CREATION_FAILED");
 
-      return {
-        ok: false,
-        error: {
+      return workflowFailed(
+        request,
+        createActionErrorEnvelopeFromError(error, {
+          module: MODULE,
+          stage: "server.workflow.failed",
           errorCode,
-          errorMessage: error instanceof Error ? error.message : String(error),
-        },
-      };
+          actionRunId: request.actionRunId,
+        }),
+      );
     }
 
     const meegleLink = buildMeegleUrl(workitemId, projectKey, mapping.urlSlug);
@@ -762,17 +801,24 @@ export async function executeLarkBaseWorkflow(
       message: error instanceof Error ? error.message : String(error),
     }, "WRITE_BACK_TO_LARK_FAILED");
 
-    return {
-      ok: false,
-      error: {
+    return workflowFailed(
+      request,
+      createActionErrorEnvelopeFromError(error, {
+        module: MODULE,
+        stage: "server.workflow.failed",
         errorCode: "UPDATE_FAILED",
-        errorMessage: error instanceof Error ? error.message : String(error),
-      },
-    };
+        actionRunId: request.actionRunId,
+      }),
+    );
   }
 
   const primaryWorkitemId = workitems[0]?.workitemId ?? "";
-  workflowLogger.info({ recordId: request.recordId, workitemCount: workitems.length, primaryWorkitemId }, "WORKFLOW_COMPLETED");
+  workflowLogger.info({
+    actionRunId: request.actionRunId,
+    recordId: request.recordId,
+    workitemCount: workitems.length,
+    primaryWorkitemId,
+  }, "server.workflow.completed");
   return {
     ok: true,
     workitemId: primaryWorkitemId,

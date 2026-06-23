@@ -1,6 +1,11 @@
 import { logger } from "../logger.js";
 import type { GitHubClient } from "../adapters/github/github-client.js";
-import type { MeegleClient, MeegleWorkitem } from "../adapters/meegle/meegle-client.js";
+import {
+  MeegleAPIError,
+  MeegleNotFoundError,
+  type MeegleClient,
+  type MeegleWorkitem,
+} from "../adapters/meegle/meegle-client.js";
 import { extractMeegleIds } from "../domain/meegle-id-extractor.js";
 
 const lookupLogger = logger.child({ module: "github-reverse-lookup" });
@@ -34,6 +39,11 @@ const TYPE_DISPLAY_MAP: Record<string, string> = {
 // 关联工作项（Version / Sprint）的 work_item_type_key
 const RELATED_TYPE_KEY_VERSION = process.env.MEEGLE_WORKITEM_TYPE_KEY_VERSION || "642f8d55c7109143ec2eb478";
 const RELATED_TYPE_KEY_SPRINT = process.env.MEEGLE_WORKITEM_TYPE_KEY_SPRINT || "642ebe04168eea39eeb0d34a";
+
+function isMeegleNotFoundError(error: unknown): boolean {
+  return error instanceof MeegleNotFoundError ||
+    (error instanceof MeegleAPIError && error.statusCode === 404);
+}
 
 function extractFieldValue(fields: Record<string, unknown> | undefined | null, key: string): string | undefined {
   if (!key || !fields) return undefined;
@@ -175,7 +185,17 @@ export class GitHubReverseLookupController {
         }
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
-        lookupLogger.warn({ workitemTypeKey, error: msg }, "Meegle query failed for type, skipping");
+        if (isMeegleNotFoundError(error)) {
+          lookupLogger.warn({ workitemTypeKey, error: msg }, "Meegle type query returned not found, skipping type");
+          continue;
+        }
+
+        lookupLogger.error({
+          workitemTypeKey,
+          error: msg,
+          statusCode: error instanceof MeegleAPIError ? error.statusCode : undefined,
+        }, "Meegle query failed for type");
+        throw error;
       }
     }
 

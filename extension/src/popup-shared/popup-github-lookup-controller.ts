@@ -75,7 +75,7 @@ const ERROR_CODE_MESSAGES: Record<string, string> = {
 };
 
 function resolveErrorMessage(errorCode: string, serverMessage?: string): string {
-  return ERROR_CODE_MESSAGES[errorCode] || serverMessage || `错误: ${errorCode}`;
+  return serverMessage || ERROR_CODE_MESSAGES[errorCode] || `错误: ${errorCode}`;
 }
 
 interface GitHubLookupOptions {
@@ -142,7 +142,13 @@ export function createGitHubLookupController(deps: CreateGitHubLookupControllerD
       const { response, payload: data } = await fetchServerJson<{
         success: boolean;
         data?: GitHubLookupResult;
-        error?: { code: string; message: string };
+        error?: {
+          code?: string;
+          message?: string;
+          errorCode?: string;
+          errorMessage?: string;
+          actionRunId?: string;
+        };
       }>({
         url: `${config.SERVER_URL}/api/github/lookup-meegle`,
         masterUserId,
@@ -150,9 +156,13 @@ export function createGitHubLookupController(deps: CreateGitHubLookupControllerD
       });
 
       if (!response.ok || !data.success) {
-        const errorCode = data.error?.code || "UNKNOWN_ERROR";
-        const errorMessage = resolveErrorMessage(errorCode, data.error?.message);
-        appendLog("error", `查询失败: ${errorMessage}`);
+        const errorCode = data.error?.errorCode || data.error?.code || "UNKNOWN_ERROR";
+        const responseActionRunId = data.error?.actionRunId || actionRunId;
+        const errorMessage = resolveErrorMessage(
+          errorCode,
+          data.error?.errorMessage || data.error?.message,
+        );
+        appendLog("error", `查询失败: ${errorMessage}${responseActionRunId ? ` · actionRunId=${responseActionRunId}` : ""}`);
         setState({
           isLoading: false,
           error: { errorCode, errorMessage },

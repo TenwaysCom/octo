@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { GitHubReverseLookupController } from "./github-reverse-lookup.js";
+import {
+  MeegleAuthenticationError,
+  MeegleNotFoundError,
+} from "../adapters/meegle/meegle-client.js";
 
 describe("GitHubReverseLookupController", () => {
   let controller: GitHubReverseLookupController;
@@ -230,7 +234,7 @@ describe("GitHubReverseLookupController", () => {
     expect(result.workitems[0].plannedVersion).toBe("11510275");
   });
 
-  it("should handle type query failures gracefully", async () => {
+  it("should handle type not found responses gracefully", async () => {
     mockGitHubClient.parsePrUrl.mockReturnValue({ owner: "org", repo: "repo", pullNumber: 123 });
     mockGitHubClient.getPullRequest.mockResolvedValue({ title: "Fix m-123", body: "Desc", html_url: "https://github.com/org/repo/pull/123" });
     mockGitHubClient.getCommits.mockResolvedValue([]);
@@ -239,7 +243,7 @@ describe("GitHubReverseLookupController", () => {
 
     // First type throws, second type succeeds
     mockMeegleClient.filterWorkitemsAcrossProjects
-      .mockRejectedValueOnce(new Error("Invalid type"))
+      .mockRejectedValueOnce(new MeegleNotFoundError("Invalid type"))
       .mockResolvedValueOnce([
         { id: "123", name: "Test Item", type: "story", status: "open", fields: { project_key: "4c3fv6", field_1b9eb0: "v1.2", field_feb079: "Sprint 3" } },
       ]);
@@ -248,5 +252,25 @@ describe("GitHubReverseLookupController", () => {
 
     expect(result.workitems).toHaveLength(1);
     expect(mockMeegleClient.filterWorkitemsAcrossProjects).toHaveBeenCalledTimes(2);
+  });
+
+  it("should surface Meegle auth failures instead of returning notFound", async () => {
+    mockGitHubClient.parsePrUrl.mockReturnValue({ owner: "org", repo: "repo", pullNumber: 123 });
+    mockGitHubClient.getPullRequest.mockResolvedValue({ title: "Fix m-12562490", body: "Desc", html_url: "https://github.com/org/repo/pull/123" });
+    mockGitHubClient.getCommits.mockResolvedValue([]);
+    mockGitHubClient.getIssueComments.mockResolvedValue([]);
+    mockGitHubClient.getReviewComments.mockResolvedValue([]);
+
+    mockMeegleClient.filterWorkitemsAcrossProjects.mockRejectedValueOnce(
+      new MeegleAuthenticationError("Token Info Is Invalid", 403),
+    );
+
+    await expect(
+      controller.lookup("https://github.com/org/repo/pull/123", mockMeegleClient),
+    ).rejects.toMatchObject({
+      name: "MeegleAuthenticationError",
+      statusCode: 403,
+      message: "Token Info Is Invalid",
+    });
   });
 });

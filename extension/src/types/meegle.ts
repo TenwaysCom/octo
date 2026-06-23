@@ -67,7 +67,11 @@ export interface MeegleLarkPushResponse {
   messageSent?: boolean;
   reactionAdded?: boolean;
   meegleStatusUpdated?: boolean;
-  error?: string;
+  error?: string | {
+    errorCode?: string;
+    errorMessage?: string;
+    actionRunId?: string;
+  };
 }
 
 export interface GitHubBranchPreviewRequest {

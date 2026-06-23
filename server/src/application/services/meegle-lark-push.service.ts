@@ -19,8 +19,14 @@ import { refreshCredential } from "./meegle-credential.service.js";
 import { getConfiguredMeegleAuthServiceDeps } from "../../modules/meegle-auth/meegle-auth.service.js";
 import { logger } from "../../logger.js";
 import { getResolvedUserStore } from "../../adapters/postgres/resolved-user-store.js";
+import {
+  createActionErrorEnvelope,
+  createActionErrorEnvelopeFromError,
+  type ActionErrorEnvelope,
+} from "../action-error-envelope.js";
 
 const pushLogger = logger.child({ module: "meegle-lark-push-service" });
+const MODULE = "meegle-lark-push";
 
 // Meegle custom field keys (discovered via MCP)
 const FIELD_LARK_RECORD_LINK = "field_e8ad0a";
@@ -62,6 +68,7 @@ export interface MeegleLarkPushRequest {
   baseUrl: string;
   larkBaseUrl?: string;
   larkStatusFieldName?: string;
+  actionRunId?: string;
 }
 
 export interface MeegleLarkPushResult {
@@ -71,7 +78,7 @@ export interface MeegleLarkPushResult {
   messageSent?: boolean;
   reactionAdded?: boolean;
   meegleStatusUpdated?: boolean;
-  error?: string;
+  error?: string | ActionErrorEnvelope;
 }
 
 export interface MeegleLarkPushDeps
@@ -169,11 +176,12 @@ export async function executeMeegleLarkPush(
   deps: MeegleLarkPushDeps = {},
 ): Promise<MeegleLarkPushResult> {
   pushLogger.info({
+    actionRunId: request.actionRunId,
     projectKey: request.projectKey,
     workItemTypeKey: request.workItemTypeKey,
     workItemId: request.workItemId,
     masterUserId: request.masterUserId,
-  }, "PUSH_START");
+  }, "server.workflow.started");
 
   try {
     // 1. Resolve meegleUserKey and fetch workitem details
@@ -242,12 +250,19 @@ export async function executeMeegleLarkPush(
 
     if (larkUpdateStatus !== "updated" && !hasBaseAction && !hasMessageAction) {
       const errorMsg = `该工作项缺少必要的 Lark 字段，无法执行推送。缺少字段：${missingActionFields.join("、")}`;
-      pushLogger.warn({ workItemId: request.workItemId, missingActionFields }, "PUSH_MISSING_FIELDS");
-      return { ok: false, error: errorMsg };
+      const errorEnvelope = createActionErrorEnvelope({
+        module: MODULE,
+        stage: "server.workflow.failed",
+        errorCode: "MISSING_LARK_FIELDS",
+        errorMessage: errorMsg,
+        actionRunId: request.actionRunId,
+      });
+      pushLogger.warn({ ...errorEnvelope, workItemId: request.workItemId, missingActionFields }, "server.workflow.failed");
+      return { ok: false, error: errorEnvelope };
     }
 
     if (larkUpdateStatus === "updated") {
-      pushLogger.info({ workItemId: request.workItemId }, "PUSH_ALREADY_UPDATED");
+      pushLogger.info({ actionRunId: request.actionRunId, workItemId: request.workItemId }, "server.workflow.completed");
       return { ok: true, alreadyUpdated: true };
     }
 
@@ -370,7 +385,14 @@ export async function executeMeegleLarkPush(
       ],
     );
 
-    pushLogger.info({ workItemId: request.workItemId, larkBaseUpdated, messageSent, reactionAdded, meegleStatusUpdated: true }, "PUSH_OK");
+    pushLogger.info({
+      actionRunId: request.actionRunId,
+      workItemId: request.workItemId,
+      larkBaseUpdated,
+      messageSent,
+      reactionAdded,
+      meegleStatusUpdated: true,
+    }, "server.workflow.completed");
 
     return {
       ok: true,
@@ -381,21 +403,27 @@ export async function executeMeegleLarkPush(
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorEnvelope = createActionErrorEnvelopeFromError(error, {
+      module: MODULE,
+      stage: "server.workflow.failed",
+      errorCode: error instanceof MeegleAuthenticationError ? "MEEGLE_AUTH_ERROR" : "PUSH_FAILED",
+      errorMessage: error instanceof MeegleAuthenticationError
+        ? "Meegle 认证已过期或无效，请在插件中重新授权 Meegle 后再试。"
+        : errorMessage,
+      actionRunId: request.actionRunId,
+    });
     pushLogger.error({
+      actionRunId: request.actionRunId,
       workItemId: request.workItemId,
-      error: errorMessage,
-    }, "PUSH_FAIL");
-
-    if (error instanceof MeegleAuthenticationError) {
-      return {
-        ok: false,
-        error: "Meegle 认证已过期或无效，请在插件中重新授权 Meegle 后再试。",
-      };
-    }
+      error: errorEnvelope.errorMessage,
+      errorCode: errorEnvelope.errorCode,
+      rawStatusCode: errorEnvelope.rawStatusCode,
+      rawResponseSummary: errorEnvelope.rawResponseSummary,
+    }, "server.workflow.failed");
 
     return {
       ok: false,
-      error: errorMessage,
+      error: errorEnvelope,
     };
   }
 }

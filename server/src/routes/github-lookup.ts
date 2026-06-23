@@ -12,8 +12,15 @@ import { refreshCredential } from "../application/services/meegle-credential.ser
 import { getConfiguredMeegleAuthServiceDeps } from "../modules/meegle-auth/meegle-auth.service.js";
 import { createMeegleClient } from "../application/services/meegle-client.factory.js";
 import { logger } from "../logger.js";
+import {
+  createActionErrorEnvelope,
+  createActionErrorEnvelopeFromError,
+  getActionRunId,
+  type ActionErrorEnvelope,
+} from "../application/action-error-envelope.js";
 
 const routeLogger = logger.child({ module: "github-lookup-route" });
+const MODULE = "github-reverse-lookup";
 
 export interface GitHubLookupRouteOptions {
   githubToken: string;
@@ -26,28 +33,51 @@ function getMasterUserIdHeader(req: { headers: Record<string, unknown> }): strin
   return normalized.length > 0 ? normalized : undefined;
 }
 
+function withLegacyLookupErrorAliases(error: ActionErrorEnvelope) {
+  return {
+    ...error,
+    code: error.errorCode,
+    message: error.errorMessage,
+  };
+}
+
 export function createGitHubLookupRouter(options: GitHubLookupRouteOptions): Router {
   const router = Router();
   const githubClient = new GitHubClient({ token: options.githubToken });
   const controller = new GitHubReverseLookupController(githubClient);
 
   router.post("/lookup-meegle", async (req, res) => {
+    const actionRunId = getActionRunId(req.body);
     try {
-      const { prUrl, actionRunId } = req.body;
+      const { prUrl } = req.body;
       const masterUserId = getMasterUserIdHeader(req);
-      routeLogger.info({ actionRunId }, "LOOKUP_MEEGLE_REQUEST");
+      routeLogger.info({ actionRunId }, "server.action.received");
 
       if (!prUrl || typeof prUrl !== "string") {
+        const error = createActionErrorEnvelope({
+          module: MODULE,
+          stage: "server.action.received",
+          errorCode: "INVALID_REQUEST",
+          errorMessage: "prUrl is required",
+          actionRunId,
+        });
         return res.status(400).json({
           success: false,
-          error: { code: "INVALID_REQUEST", message: "prUrl is required" },
+          error: withLegacyLookupErrorAliases(error),
         });
       }
 
       if (!masterUserId) {
+        const error = createActionErrorEnvelope({
+          module: MODULE,
+          stage: "server.action.received",
+          errorCode: "UNAUTHORIZED",
+          errorMessage: "Missing master-user-id header",
+          actionRunId,
+        });
         return res.status(401).json({
           success: false,
-          error: { code: "UNAUTHORIZED", message: "Missing master-user-id header" },
+          error: withLegacyLookupErrorAliases(error),
         });
       }
 
@@ -56,12 +86,16 @@ export function createGitHubLookupRouter(options: GitHubLookupRouteOptions): Rou
       const meegleUserKey = resolvedUser?.meegleUserKey;
 
       if (!meegleUserKey) {
+        const error = createActionErrorEnvelope({
+          module: MODULE,
+          stage: "server.workflow.failed",
+          errorCode: "USER_NOT_RESOLVED",
+          errorMessage: "Meegle user key not found for master user",
+          actionRunId,
+        });
         return res.status(400).json({
           success: false,
-          error: {
-            code: "USER_NOT_RESOLVED",
-            message: "Meegle user key not found for master user",
-          },
+          error: withLegacyLookupErrorAliases(error),
         });
       }
 
@@ -78,14 +112,20 @@ export function createGitHubLookupRouter(options: GitHubLookupRouteOptions): Rou
       );
 
       if (refreshResult.tokenStatus !== "ready" || !refreshResult.userToken) {
+        const error = createActionErrorEnvelope({
+          module: MODULE,
+          stage: "server.workflow.failed",
+          errorCode: "AUTH_EXPIRED",
+          errorMessage: "Meegle 认证已过期或无效，请在插件中重新授权 Meegle 后再试。",
+          actionRunId,
+        });
         return res.status(401).json({
           success: false,
-          error: {
-            code: "AUTH_EXPIRED",
-            message: "Meegle 认证已过期或无效，请在插件中重新授权 Meegle 后再试。",
-          },
+          error: withLegacyLookupErrorAliases(error),
         });
       }
+
+      routeLogger.info({ actionRunId, prUrl }, "server.workflow.started");
 
       // Create user-level MeegleClient
       const meegleClient = await createMeegleClient(
@@ -94,6 +134,12 @@ export function createGitHubLookupRouter(options: GitHubLookupRouteOptions): Rou
       );
 
       const result = await controller.lookup(prUrl, meegleClient);
+      routeLogger.info({
+        actionRunId,
+        extractedCount: result.extractedIds.length,
+        foundCount: result.workitems.length,
+        notFoundCount: result.notFound.length,
+      }, "server.workflow.completed");
       res.json({ success: true, data: result });
     } catch (error) {
       let code = "UNKNOWN_ERROR";
@@ -120,11 +166,31 @@ export function createGitHubLookupRouter(options: GitHubLookupRouteOptions): Rou
         status = 400;
       }
 
-      routeLogger.warn({ code, status, message, originalError: error instanceof Error ? error.name : "unknown" }, "GitHub lookup error");
+      const envelope = createActionErrorEnvelopeFromError(error, {
+        layer: error instanceof MeegleAPIError ? "adapter" : "server",
+        module: MODULE,
+        stage: "server.workflow.failed",
+        errorCode: code,
+        errorMessage: message,
+        actionRunId,
+      });
+
+      routeLogger.warn({
+        actionRunId,
+        code,
+        status,
+        message,
+        layer: envelope.layer,
+        module: envelope.module,
+        stage: envelope.stage,
+        rawStatusCode: envelope.rawStatusCode,
+        rawResponseSummary: envelope.rawResponseSummary,
+        originalError: error instanceof Error ? error.name : "unknown",
+      }, "server.workflow.failed");
 
       res.status(status).json({
         success: false,
-        error: { code, message },
+        error: withLegacyLookupErrorAliases(envelope),
       });
     }
   });

@@ -39,6 +39,7 @@ describe("api-request-logger", () => {
       },
       body: {
         masterUserId: "usr_123",
+        actionRunId: "run_api_001",
         baseUrl: "https://open.larksuite.com",
         authCode: "auth_code_1234",
       },
@@ -73,6 +74,7 @@ describe("api-request-logger", () => {
         headerMasterUserId: "usr_header_123",
         body: expect.objectContaining({
           masterUserId: "usr_123",
+          actionRunId: "run_api_001",
           baseUrl: "https://open.larksuite.com",
           hasAuthCode: true,
           authCodeSuffix: "1234",
@@ -129,6 +131,10 @@ describe("api-request-logger", () => {
     res.json({
       ok: false,
       error: {
+        actionRunId: "run_fail_001",
+        layer: "server",
+        module: "test-module",
+        stage: "server.workflow.failed",
         errorCode: "INTERNAL_ERROR",
         errorMessage: "boom",
       },
@@ -154,6 +160,11 @@ describe("api-request-logger", () => {
           error: {
             errorCode: "INTERNAL_ERROR",
             errorMessage: "boom",
+            actionRunId: "run_fail_001",
+            layer: "server",
+            module: "test-module",
+            stage: "server.workflow.failed",
+            rawStatusCode: undefined,
           },
         },
       }),

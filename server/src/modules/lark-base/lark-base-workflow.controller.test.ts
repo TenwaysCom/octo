@@ -66,13 +66,18 @@ describe("lark-base-workflow.controller", () => {
   it("returns invalid request for missing required fields", async () => {
     const result = await createLarkBaseWorkflowController({
       baseId: "base_123",
+      actionRunId: "run_lark_invalid",
     });
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       ok: false,
       error: {
+        layer: "server",
+        module: "lark-base-workflow",
+        stage: "server.action.received",
         errorCode: "INVALID_REQUEST",
         errorMessage: expect.any(String),
+        actionRunId: "run_lark_invalid",
       },
     });
   });
@@ -85,13 +90,18 @@ describe("lark-base-workflow.controller", () => {
     const result = await createLarkBaseWorkflowController({
       recordId: "rec_abc",
       masterUserId: "usr_xxx",
+      actionRunId: "run_lark_failed",
     });
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       ok: false,
       error: {
+        layer: "server",
+        module: "lark-base-workflow",
+        stage: "server.workflow.failed",
         errorCode: "UPDATE_FAILED",
         errorMessage: "Unexpected error",
+        actionRunId: "run_lark_failed",
       },
     });
   });

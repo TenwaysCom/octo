@@ -117,13 +117,18 @@ describe("lark-base-bulk-workflow.controller", () => {
   it("returns invalid request when required fields are missing", async () => {
     const result = await previewLarkBaseBulkWorkflowController({
       baseId: "base_123",
+      actionRunId: "run_bulk_invalid",
     });
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       ok: false,
       error: {
+        layer: "server",
+        module: "lark-base-bulk-workflow",
+        stage: "server.action.received",
         errorCode: "INVALID_REQUEST",
         errorMessage: expect.any(String),
+        actionRunId: "run_bulk_invalid",
       },
     });
   });

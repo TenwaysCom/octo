@@ -476,6 +476,7 @@ export async function runMeegleLarkPushRequest(
     workItemTypeKey: request.workItemTypeKey,
     workItemId: request.workItemId,
     masterUserId: summarizeIdentifier(request.masterUserId),
+    actionRunId: request.actionRunId,
     endpoint,
   });
   try {
@@ -488,12 +489,14 @@ export async function runMeegleLarkPushRequest(
     runtimeLogger.debug("runMeegleLarkPushRequest.done", {
       ok: result.ok,
       alreadyUpdated: result.alreadyUpdated,
+      actionRunId: request.actionRunId,
       endpoint,
     });
     return result;
   } catch (error) {
     runtimeLogger.warn("runMeegleLarkPushRequest.failed", {
       endpoint,
+      actionRunId: request.actionRunId,
       errorMessage: error instanceof Error ? error.message : String(error),
     });
     return {

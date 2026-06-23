@@ -27,6 +27,24 @@ interface CreateMeeglePushControllerDeps {
   updateCurrentTabUrl: (tabId: number, url: string) => void;
 }
 
+function resolveServerErrorMessage(error: unknown): string {
+  if (!error) {
+    return "未知错误";
+  }
+  if (typeof error === "string") {
+    return error;
+  }
+  if (typeof error === "object" && !Array.isArray(error)) {
+    const record = error as Record<string, unknown>;
+    return typeof record.errorMessage === "string"
+      ? record.errorMessage
+      : typeof record.message === "string"
+        ? record.message
+        : "未知错误";
+  }
+  return String(error);
+}
+
 export function createMeeglePushController(deps: CreateMeeglePushControllerDeps) {
   const { readStore, appendLog, showToast, setActivePage, updateCurrentTabUrl } = deps;
 
@@ -89,9 +107,9 @@ export function createMeeglePushController(deps: CreateMeeglePushControllerDeps)
     );
 
     if (!result.ok) {
-      const errorMessage = `推送失败: ${result.error || "未知错误"}`;
+      const errorMessage = `推送失败: ${resolveServerErrorMessage(result.error)}`;
       showToast(errorMessage, "error");
-      appendLog("warn", errorMessage);
+      appendLog("warn", `${errorMessage}${actionRunId ? ` · actionRunId=${actionRunId}` : ""}`);
       return;
     }
 

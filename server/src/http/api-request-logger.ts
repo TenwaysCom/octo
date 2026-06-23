@@ -28,6 +28,7 @@ export function summarizeRequestPayload(payload: unknown): unknown {
 
   return {
     requestId: record.requestId,
+    actionRunId: record.actionRunId,
     masterUserId: record.masterUserId,
     operatorLarkId: record.operatorLarkId,
     meegleUserKey: record.meegleUserKey,
@@ -137,6 +138,11 @@ export function summarizeResponsePayload(payload: unknown): unknown {
     summary.error = {
       errorCode: error.errorCode ?? error.code,
       errorMessage: error.errorMessage ?? error.message,
+      actionRunId: error.actionRunId,
+      layer: error.layer,
+      module: error.module,
+      stage: error.stage,
+      rawStatusCode: error.rawStatusCode,
     };
   }
 

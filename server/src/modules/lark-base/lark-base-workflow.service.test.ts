@@ -62,9 +62,12 @@ describe("lark-base-workflow.service", () => {
       deps,
     );
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       ok: false,
       error: {
+        layer: "server",
+        module: "lark-base-workflow",
+        stage: "server.action.received",
         errorCode: "INVALID_REQUEST",
         errorMessage: expect.stringContaining("baseId and tableId are required"),
       },
@@ -496,9 +499,12 @@ describe("lark-base-workflow.service", () => {
       deps,
     );
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       ok: false,
       error: {
+        layer: "server",
+        module: "lark-base-workflow",
+        stage: "server.workflow.failed",
         errorCode: "LARK_API_ERROR",
         errorMessage: "Record not found",
       },
@@ -526,9 +532,12 @@ describe("lark-base-workflow.service", () => {
       deps,
     );
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       ok: false,
       error: {
+        layer: "server",
+        module: "lark-base-workflow",
+        stage: "server.workflow.failed",
         errorCode: "UNKNOWN_ISSUE_TYPE",
         errorMessage: expect.stringContaining("Unknown or unsupported Issue 类型"),
       },
@@ -559,9 +568,12 @@ describe("lark-base-workflow.service", () => {
       deps,
     );
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       ok: false,
       error: {
+        layer: "server",
+        module: "lark-base-workflow",
+        stage: "server.workflow.failed",
         errorCode: "MEEGLE_BINDING_REQUIRED",
         errorMessage: "Meegle binding required",
       },
@@ -597,9 +609,12 @@ describe("lark-base-workflow.service", () => {
       deps,
     );
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       ok: false,
       error: {
+        layer: "server",
+        module: "lark-base-workflow",
+        stage: "server.workflow.failed",
         errorCode: "UPDATE_FAILED",
         errorMessage: "Lark token not found for user",
       },
