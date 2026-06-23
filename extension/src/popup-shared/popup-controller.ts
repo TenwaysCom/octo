@@ -72,7 +72,7 @@ import type {
   AutomationActionListItem,
   ExtensionPageConfig,
 } from "../types/automation-actions.js";
-import { extractLarkBaseContextFromUrl } from "../lark-base-url.js";
+import { collectActionRuntimeContext } from "./action-runtime-context.js";
 
 const popupLogger = createExtensionLogger("popup:app");
 const LARK_CREATE_ACTION_KEY = "create-meegle-item";
@@ -1581,8 +1581,20 @@ export function createPopupController() {
 
     if (actionKey === LARK_CREATE_ACTION_KEY) {
       const store = readStore();
-      const context = extractLarkBaseContextFromUrl(store.state.currentUrl ?? undefined);
-      const recordId = context.recordId ?? context.wikiRecordId;
+      const actionContext = collectActionRuntimeContext({
+        actionRunId,
+        currentTab: {
+          id: store.state.currentTabId,
+          url: store.state.currentUrl,
+          origin: store.state.currentTabOrigin,
+          pageType: store.state.pageType,
+        },
+        identity: {
+          masterUserId: store.state.identity.masterUserId,
+        },
+      });
+      const larkContext = actionContext.pageContext.lark ?? {};
+      const recordId = larkContext.recordId ?? larkContext.wikiRecordId;
 
       if (!recordId) {
         const message = "当前页面缺少 Lark 记录 ID，无法创建 Meegle Item。";
@@ -1598,13 +1610,13 @@ export function createPopupController() {
         message: `执行中 · ${actionRunId}`,
       });
       const result = await runLarkBaseCreateWorkitemRequest({
-        pageType: context.wikiRecordId && !context.baseId ? "lark_wiki_record" : "lark_base",
-        url: store.state.currentUrl ?? "",
-        baseId: context.baseId,
-        tableId: context.tableId,
+        pageType: larkContext.wikiRecordId && !larkContext.baseId ? "lark_wiki_record" : "lark_base",
+        url: actionContext.currentTab.url ?? "",
+        baseId: larkContext.baseId,
+        tableId: larkContext.tableId,
         recordId,
-        wikiRecordId: context.wikiRecordId,
-        masterUserId: store.state.identity.masterUserId ?? undefined,
+        wikiRecordId: larkContext.wikiRecordId,
+        masterUserId: actionContext.identity.masterUserId ?? undefined,
         actionRunId,
       });
 
@@ -1634,7 +1646,6 @@ export function createPopupController() {
       draft: "生成草稿...",
       apply: "确认创建...",
       "update-lark-and-push": "更新 Lark 及推送中...",
-      "bug-ticket-to-support": "Bug Ticket to Support 执行中...",
       "story-prd-to-simplified": "研发Review Story 中...",
     };
 
@@ -1643,17 +1654,6 @@ export function createPopupController() {
     if (actionKey === "update-lark-and-push") {
       const controller = await loadMeeglePushController();
       await controller.run({ actionRunId });
-      return;
-    }
-
-    if (actionKey === "bug-ticket-to-support") {
-      const controller = await loadMeeglePushController();
-      await controller.run({
-        endpoint: "/api/meegle/workitem/bug-ticket-to-support",
-        logLabel: "Bug Ticket to Support",
-        successPrefix: "Bug Ticket to Support 完成",
-        actionRunId,
-      });
       return;
     }
 
@@ -1705,11 +1705,21 @@ export function createPopupController() {
       return;
     }
 
-    let ids: { projectKey: string; workItemTypeKey: string; workItemId: string };
-    try {
-      ids = parseMeegleWorkitemIds(currentUrl);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+    const actionContext = collectActionRuntimeContext({
+      actionRunId,
+      currentTab: {
+        id: current.state.currentTabId,
+        url: currentUrl,
+        origin: current.state.currentTabOrigin,
+        pageType: current.state.pageType,
+      },
+      identity: {
+        masterUserId,
+      },
+    });
+    const meegleContext = actionContext.pageContext.meegle;
+    if (!meegleContext) {
+      const message = `无法从 URL 解析 Meegle 工作项信息: ${currentUrl}`;
       setActionStatus(action.key, { phase: "error", message });
       appendLog("error", message);
       showPopupToast(message, "error");
@@ -1717,7 +1727,7 @@ export function createPopupController() {
     }
 
     const config = await getConfig();
-    const baseUrl = current.state.currentTabOrigin || new URL(currentUrl).origin;
+    const baseUrl = current.state.currentTabOrigin || meegleContext.baseUrl;
     appendLog(
       "info",
       `[${action.title}] 调用服务端: operation=${action.executor.operation}, actionRunId=${actionRunId}`,
@@ -1738,7 +1748,9 @@ export function createPopupController() {
         masterUserId,
         signal: abortController.signal,
         body: {
-          ...ids,
+          projectKey: meegleContext.projectKey,
+          workItemTypeKey: meegleContext.workItemTypeKey,
+          workItemId: meegleContext.workItemId,
           meegleUrl: currentUrl,
           masterUserId,
           baseUrl,
@@ -1788,24 +1800,6 @@ export function createPopupController() {
     } finally {
       globalThis.clearTimeout(timeoutId);
     }
-  }
-
-  function parseMeegleWorkitemIds(urlValue: string): {
-    projectKey: string;
-    workItemTypeKey: string;
-    workItemId: string;
-  } {
-    const url = new URL(urlValue);
-    const pathParts = url.pathname.split("/").filter(Boolean);
-    if (pathParts.length < 4 || pathParts[2] !== "detail") {
-      throw new Error(`无法从 URL 解析 Meegle 工作项信息: ${url.pathname}`);
-    }
-
-    return {
-      projectKey: pathParts[0],
-      workItemTypeKey: pathParts[1],
-      workItemId: pathParts[3],
-    };
   }
 
   function createActionRunId(): string {

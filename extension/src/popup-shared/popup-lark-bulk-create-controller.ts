@@ -1,10 +1,10 @@
-import { extractLarkBaseContextFromUrl } from "../lark-base-url.js";
 import {
   runLarkBaseBulkCreateRequest,
   runLarkBaseBulkPreviewRequest,
 } from "../popup/runtime.js";
 import type { PopupLogLevel } from "../popup/types.js";
 import type { LarkBaseBulkPreviewResultPayload } from "../types/lark.js";
+import { collectActionRuntimeContext } from "./action-runtime-context.js";
 import type {
   LarkBulkCreateModalError,
   LarkBulkCreateModalState,
@@ -17,6 +17,9 @@ interface ActionRunOptions {
 type PopupStoreSnapshot = {
   state: {
     currentUrl: string | null;
+    currentTabId?: number | null;
+    currentTabOrigin?: string | null;
+    pageType?: "meegle" | "lark" | "github" | "unsupported";
     identity: {
       masterUserId: string | null;
     };
@@ -52,7 +55,19 @@ export function createLarkBulkCreateController(
     );
 
     const current = readStore();
-    const context = extractLarkBaseContextFromUrl(current.state.currentUrl ?? undefined);
+    const actionContext = collectActionRuntimeContext({
+      actionRunId: activeActionRunId ?? "",
+      currentTab: {
+        id: current.state.currentTabId ?? null,
+        url: current.state.currentUrl,
+        origin: current.state.currentTabOrigin ?? null,
+        pageType: current.state.pageType ?? "lark",
+      },
+      identity: {
+        masterUserId: current.state.identity.masterUserId,
+      },
+    });
+    const context = actionContext.pageContext.lark ?? {};
     const masterUserId = current.state.identity.masterUserId ?? undefined;
 
     if (!context.baseId || !context.tableId) {

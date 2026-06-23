@@ -96,7 +96,7 @@ update_required_when:
 | `identity-and-auth.md` | `IdentityState`, `MeegleAuthCredential`, `LarkAuthCredential` | 改授权状态、token store、identity fallback 或 live E2E |
 | `meegle-field-metadata.md` | `MeegleFieldMetadata` | 开始实现 metadata resolver 或替换硬编码 `field_*` |
 | `lark-base-to-meegle-workitem.md` | `LarkBitableRecord`, `WorkitemMapping`, `ExecutionDraft`, `MeegleWorkitem`, `LarkWriteback` | 改 Lark Base 创建 Meegle 或批量创建流程 |
-| `meegle-to-lark-push.md` | `MeegleLarkPushAction` | 改 update-lark-and-push 或 bug-ticket-to-support |
+| `meegle-to-lark-push.md` | `MeegleLarkPushAction` | 改 update-lark-and-push |
 
 暂时不拆：
 
@@ -190,7 +190,7 @@ server action definition
 ### Current risks
 
 - Popup currently preserves only display fields when producing `PopupFeatureAction`.
-- `runFeatureAction(actionKey)` still hardcodes backend behavior, including `bug-ticket-to-support` endpoint.
+- `runFeatureAction(actionKey)` still keeps several frontend action branches while backend API actions are moving toward executor-driven dispatch.
 - Server `executor.operation` is not yet the true execution contract.
 
 ### Code rules

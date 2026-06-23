@@ -1,6 +1,7 @@
 import { getConfig } from "../background/config.js";
 import { fetchServerJson } from "../server-request.js";
 import type { PopupLogLevel } from "../popup/types.js";
+import { collectActionRuntimeContext } from "./action-runtime-context.js";
 
 export interface GitHubLookupWorkitem {
   id: string;
@@ -113,7 +114,19 @@ export function createGitHubLookupController(deps: CreateGitHubLookupControllerD
     });
     const current = readStore();
     const prUrl = tabContext.url ?? current.state.currentUrl;
-    const masterUserId = current.state.identity.masterUserId;
+    const actionContext = collectActionRuntimeContext({
+      actionRunId: actionRunId ?? "",
+      currentTab: {
+        id: tabContext.id ?? current.state.currentTabId,
+        url: prUrl,
+        origin: tabContext.origin ?? current.state.currentTabOrigin,
+        pageType: tabContext.pageType,
+      },
+      identity: {
+        masterUserId: current.state.identity.masterUserId,
+      },
+    });
+    const masterUserId = actionContext.identity.masterUserId;
 
     if (!prUrl) {
       const message = "当前页面 URL 为空，无法执行查询";
@@ -121,6 +134,17 @@ export function createGitHubLookupController(deps: CreateGitHubLookupControllerD
       setState({
         isLoading: false,
         error: { errorCode: "MISSING_PR_URL", errorMessage: message },
+        result: null,
+      });
+      return;
+    }
+
+    if (!actionContext.pageContext.github) {
+      const message = "当前页面不是可解析的 GitHub PR/Issue 页面，无法执行查询";
+      appendLog("error", message);
+      setState({
+        isLoading: false,
+        error: { errorCode: "MISSING_GITHUB_CONTEXT", errorMessage: message },
         result: null,
       });
       return;
@@ -152,7 +176,7 @@ export function createGitHubLookupController(deps: CreateGitHubLookupControllerD
       }>({
         url: `${config.SERVER_URL}/api/github/lookup-meegle`,
         masterUserId,
-        body: { prUrl, actionRunId },
+        body: { prUrl: actionContext.pageContext.github.url, actionRunId },
       });
 
       if (!response.ok || !data.success) {

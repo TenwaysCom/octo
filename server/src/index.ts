@@ -38,10 +38,7 @@ import {
   createLarkBaseBulkWorkflowController,
   previewLarkBaseBulkWorkflowController,
 } from "./modules/lark-base/lark-base-bulk-workflow.controller.js";
-import {
-  meegleBugTicketToSupportController,
-  meegleLarkPushController,
-} from "./modules/meegle-workitem/meegle-lark-push.controller.js";
+import { meegleLarkPushController } from "./modules/meegle-workitem/meegle-lark-push.controller.js";
 import { meegleStoryPrdToSimplifiedController } from "./modules/meegle-workitem/meegle-story-prd-to-simplified.controller.js";
 import { createApiRequestLogger } from "./http/api-request-logger.js";
 import { createApiAuthMiddleware } from "./http/api-auth.js";
@@ -236,7 +233,6 @@ app.post("/api/lark-base/bulk-create-meegle-workitems", handleController(createL
 
 // Meegle workitem routes
 app.post("/api/meegle/workitem/update-lark-and-push", handleController(meegleLarkPushController));
-app.post("/api/meegle/workitem/bug-ticket-to-support", handleController(meegleBugTicketToSupportController));
 app.post("/api/meegle/workitem/story-prd-to-simplified", handleController(meegleStoryPrdToSimplifiedController));
 
 // GitHub branch create routes

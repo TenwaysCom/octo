@@ -45,27 +45,3 @@ export async function meegleLarkPushController(input: unknown) {
     };
   }
 }
-
-export async function meegleBugTicketToSupportController(input: unknown) {
-  const actionRunId = getActionRunId(input);
-  controllerLogger.info({ actionRunId, input }, "server.action.received");
-  try {
-    const validated = validateMeegleLarkPushRequest(input);
-    controllerLogger.debug({ validated }, "BUG_TICKET_TO_SUPPORT_VALIDATED_REQUEST");
-    return await executeMeegleLarkPush(validated);
-  } catch (error) {
-    if (error instanceof ZodError) {
-      return toInvalidRequest(error, input);
-    }
-
-    return {
-      ok: false as const,
-      error: createActionErrorEnvelopeFromError(error, {
-        module: MODULE,
-        stage: "server.workflow.failed",
-        errorCode: "BUG_TICKET_TO_SUPPORT_FAILED" as const,
-        actionRunId,
-      }),
-    };
-  }
-}

@@ -245,6 +245,8 @@ describe("public-config.controller", () => {
 
   it("returns categorized server API catalog", async () => {
     const result = await getServerApiCatalogController();
+    const workflowRoutes = result.data.categories.find((category) => category.key === "workflows")?.routes ?? [];
+    const workflowPaths = workflowRoutes.map((route) => route.path);
 
     expect(result.data.categories).toEqual(
       expect.arrayContaining([
@@ -253,7 +255,7 @@ describe("public-config.controller", () => {
           routes: expect.arrayContaining([
             expect.objectContaining({
               method: "POST",
-              path: "/api/meegle/workitem/bug-ticket-to-support",
+              path: "/api/meegle/workitem/update-lark-and-push",
             }),
             expect.objectContaining({
               method: "POST",
@@ -263,5 +265,6 @@ describe("public-config.controller", () => {
         }),
       ]),
     );
+    expect(workflowPaths).not.toContain("/api/meegle/workitem/bug-ticket-to-support");
   });
 });

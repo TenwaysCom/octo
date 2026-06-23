@@ -51,21 +51,6 @@ export const AUTOMATION_ACTIONS = {
       route: "/api/meegle/workitem/update-lark-and-push",
     },
   },
-  bugTicketToSupport: {
-    key: "bug-ticket-to-support",
-    title: "Bug Ticket to Support",
-    description: "将 Meegle Production Bug 的 Lark ticket 推进到 support 处理流。",
-    style: "primary",
-    interaction: {
-      type: "direct_execute",
-    },
-    executor: {
-      type: "backend_api",
-      operation: "meegle.production_bug.bug_ticket_to_support",
-      method: "POST",
-      route: "/api/meegle/workitem/bug-ticket-to-support",
-    },
-  },
   storyPrdToSimplified: {
     key: "story-prd-to-simplified",
     title: "研发Review Story",

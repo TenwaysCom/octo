@@ -1,11 +1,13 @@
 import type { PopupLogLevel, PopupNotebookPage } from "../popup/types.js";
 import { runMeegleLarkPushRequest } from "../popup/runtime.js";
+import { collectActionRuntimeContext } from "./action-runtime-context.js";
 
 type PopupStoreSnapshot = {
   state: {
     currentUrl: string | null;
     currentTabId: number | null;
     currentTabOrigin: string | null;
+    pageType?: "meegle" | "lark" | "github" | "unsupported";
     identity: {
       masterUserId: string | null;
     };
@@ -56,37 +58,38 @@ export function createMeeglePushController(deps: CreateMeeglePushControllerDeps)
     appendLog("info", `[${logLabel}] 开始执行${actionRunId ? ` · actionRunId=${actionRunId}` : ""}`);
 
     const current = readStore();
-    const currentUrl = current.state.currentUrl;
+    const actionContext = collectActionRuntimeContext({
+      actionRunId: actionRunId ?? "",
+      currentTab: {
+        id: current.state.currentTabId,
+        url: current.state.currentUrl,
+        origin: current.state.currentTabOrigin,
+        pageType: current.state.pageType ?? "meegle",
+      },
+      identity: {
+        masterUserId: current.state.identity.masterUserId,
+      },
+    });
+    const currentUrl = actionContext.currentTab.url;
 
     if (!currentUrl) {
       appendLog("error", `当前页面 URL 为空，无法执行${logLabel}`);
       return;
     }
 
-    let pathname: string;
-    try {
-      pathname = new URL(currentUrl).pathname;
-      appendLog("info", `[${logLabel}] 解析 URL pathname: ${pathname}`);
-    } catch {
-      appendLog("error", "当前页面 URL 解析失败");
+    const meegleContext = actionContext.pageContext.meegle;
+    if (!meegleContext) {
+      appendLog("error", `无法从 URL 解析工作项信息: ${currentUrl}`);
       return;
     }
 
-    const pathParts = pathname.split("/").filter(Boolean);
-    appendLog("info", `[${logLabel}] 路径片段: ${pathParts.join(", ")}`);
-    if (pathParts.length < 4 || pathParts[2] !== "detail") {
-      appendLog("error", `无法从 URL 解析工作项信息: ${pathname}`);
-      return;
-    }
-
-    const [projectKey, workItemTypeKey, , workItemId] = pathParts;
-    const masterUserId = current.state.identity.masterUserId;
+    const { projectKey, workItemTypeKey, workItemId, baseUrl } = meegleContext;
+    const masterUserId = actionContext.identity.masterUserId;
     if (!masterUserId) {
       appendLog("error", "未解析到主身份，无法执行推送");
       return;
     }
 
-    const baseUrl = current.state.currentTabOrigin || "https://project.larksuite.com";
     appendLog(
       "info",
       `[${logLabel}] 准备调用服务端 API: project=${projectKey}, type=${workItemTypeKey}, id=${workItemId}, masterUserId=${masterUserId}${actionRunId ? `, actionRunId=${actionRunId}` : ""}`,
