@@ -7,11 +7,23 @@
       "urlSlug": "story",
       "fieldMappings": [
         {
+          "larkField": "Issue Description",
+          "fallbackLarkFields": ["fldaAzcMtg", "Details Description", "fldML66Cx1"],
+          "meegleField": "__title__",
+          "transform": "first_line"
+        },
+        {
           "larkField": "需求人",
           "meegleField": "description",
           "transform": "text",
           "prefix": true,
           "valuePrefix": "需求人:"
+        },
+        {
+          "larkField": "需求人",
+          "meegleField": "watchers",
+          "notes": "Meegle follower field: field_key=watchers, field_type_key=multi_user. Source value must resolve to Meegle user keys.",
+          "transform": "text"
         },
         {
           "larkField": "紧急度",
@@ -62,11 +74,23 @@
       "urlSlug": "techtask",
       "fieldMappings": [
         {
+          "larkField": "Issue Description",
+          "fallbackLarkFields": ["fldaAzcMtg", "Details Description", "fldML66Cx1"],
+          "meegleField": "__title__",
+          "transform": "first_line"
+        },
+        {
           "larkField": "需求人",
           "meegleField": "description",
           "transform": "text",
           "prefix": true,
           "valuePrefix": "需求人:"
+        },
+        {
+          "larkField": "需求人",
+          "meegleField": "watchers",
+          "notes": "Meegle follower field: field_key=watchers, field_type_key=multi_user. Source value must resolve to Meegle user keys.",
+          "transform": "text"
         },
         {
           "larkField": "Details Description",
@@ -111,11 +135,23 @@
       "urlSlug": "techtask",
       "fieldMappings": [
         {
+          "larkField": "Issue Description",
+          "fallbackLarkFields": ["fldaAzcMtg", "Details Description", "fldML66Cx1"],
+          "meegleField": "__title__",
+          "transform": "first_line"
+        },
+        {
           "larkField": "需求人",
           "meegleField": "description",
           "transform": "text",
           "prefix": true,
           "valuePrefix": "需求人:"
+        },
+        {
+          "larkField": "需求人",
+          "meegleField": "watchers",
+          "notes": "Meegle follower field: field_key=watchers, field_type_key=multi_user. Source value must resolve to Meegle user keys.",
+          "transform": "text"
         },
         {
           "larkField": "Details Description",
@@ -160,11 +196,23 @@
       "urlSlug": "production_bug",
       "fieldMappings": [
         {
+          "larkField": "Issue Description",
+          "fallbackLarkFields": ["fldaAzcMtg", "Details Description", "fldML66Cx1"],
+          "meegleField": "__title__",
+          "transform": "first_line"
+        },
+        {
           "larkField": "需求人",
           "meegleField": "description",
           "transform": "text",
           "prefix": true,
           "valuePrefix": "需求人:"
+        },
+        {
+          "larkField": "需求人",
+          "meegleField": "watchers",
+          "notes": "Meegle follower field: field_key=watchers, field_type_key=multi_user. Source value must resolve to Meegle user keys.",
+          "transform": "text"
         },
         {
           "larkField": "紧急度",
