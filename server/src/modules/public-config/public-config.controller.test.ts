@@ -30,11 +30,12 @@ describe("public-config.controller", () => {
   });
 
   it("resolves Lark base create Meegle item actions from base and table URL", async () => {
-    await expect(
-      getExtensionPageConfigController({
-        url: "https://nsghpcq7ar4z.sg.larksuite.com/base/XO0cbnxMIaralRsbBEolboEFgZc?table=tblUfu71xwdul3NH",
-      }),
-    ).resolves.toMatchObject({
+    const result = await getExtensionPageConfigController({
+      url: "https://nsghpcq7ar4z.sg.larksuite.com/base/XO0cbnxMIaralRsbBEolboEFgZc?table=tblUfu71xwdul3NH&view=vewMs17Tqk",
+    });
+    const actionKeys = result.data.pageConfig.automationActions.map((action) => action.key);
+
+    expect(result).toMatchObject({
       ok: true,
       data: {
         pageConfig: {
@@ -45,12 +46,60 @@ describe("public-config.controller", () => {
             injectPageElements: true,
             sidebarButtonEnabled: true,
           },
+        },
+      },
+    });
+    expect(result.data.pageConfig.automationActions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ key: "analyze" }),
+        expect.objectContaining({
+          key: "bulk-create-meegle-tickets",
+          title: "创建 Meegle Item",
+          interaction: { type: "preview_confirm" },
+          placements: expect.arrayContaining([
+            { surface: "popup" },
+            { surface: "sidebar" },
+          ]),
+        }),
+      ]),
+    );
+    expect(result.data.pageConfig.automationActions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: "create-meegle-item",
+          placements: [{ surface: "page_dom", target: "lark_detail_header" }],
+        }),
+      ]),
+    );
+    expect(actionKeys).toEqual([
+      "analyze",
+      "bulk-create-meegle-tickets",
+      "create-meegle-item",
+    ]);
+  });
+
+  it("resolves the configured Lark base root page to page DOM create Meegle item placement", async () => {
+    await expect(
+      getExtensionPageConfigController({
+        url: "https://nsghpcq7ar4z.sg.larksuite.com/base/XO0cbnxMIaralRsbBEolboEFgZc",
+      }),
+    ).resolves.toMatchObject({
+      ok: true,
+      data: {
+        pageConfig: {
+          platform: "lark",
+          pageType: "lark_base_create_meegle_item",
+          matchedRuleId: "lark.base.root.create-meegle-item",
+          sidebar: {
+            injectPageElements: true,
+            sidebarButtonEnabled: true,
+          },
           automationActions: [
-            { key: "analyze" },
             {
-              key: "bulk-create-meegle-tickets",
+              key: "create-meegle-item",
               title: "创建 Meegle Item",
-              interaction: { type: "preview_confirm" },
+              interaction: { type: "direct_execute" },
+              placements: [{ surface: "page_dom", target: "lark_detail_header" }],
             },
           ],
         },
@@ -75,6 +124,11 @@ describe("public-config.controller", () => {
               key: "create-meegle-item",
               title: "创建 Meegle Item",
               interaction: { type: "direct_execute" },
+              placements: expect.arrayContaining([
+                { surface: "popup" },
+                { surface: "sidebar" },
+                { surface: "page_dom", target: "lark_detail_header" },
+              ]),
             },
           ],
         },
@@ -94,6 +148,28 @@ describe("public-config.controller", () => {
           platform: "lark",
           pageType: "lark",
           matchedRuleId: "lark.unmatched",
+          automationActions: [],
+        },
+      },
+    });
+  });
+
+  it("does not return automation actions for Lark Developer app pages", async () => {
+    await expect(
+      getExtensionPageConfigController({
+        url: "https://open.larksuite.com/app/cli_a962f20501a15ed3/baseinfo",
+      }),
+    ).resolves.toMatchObject({
+      ok: true,
+      data: {
+        pageConfig: {
+          platform: "lark",
+          pageType: "lark",
+          matchedRuleId: "lark.unmatched",
+          sidebar: {
+            injectPageElements: false,
+            sidebarButtonEnabled: false,
+          },
           automationActions: [],
         },
       },
@@ -123,6 +199,10 @@ describe("public-config.controller", () => {
                 operation: "meegle.workitem.update_lark_and_push",
                 route: "/api/meegle/workitem/update-lark-and-push",
               }),
+              placements: expect.arrayContaining([
+                { surface: "popup" },
+                { surface: "sidebar" },
+              ]),
             }),
           ]),
         },
@@ -156,6 +236,10 @@ describe("public-config.controller", () => {
                 operation: "meegle.story.prd_to_simplified",
                 route: "/api/meegle/workitem/story-prd-to-simplified",
               }),
+              placements: expect.arrayContaining([
+                { surface: "popup" },
+                { surface: "sidebar" },
+              ]),
             }),
           ]),
         },

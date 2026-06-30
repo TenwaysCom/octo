@@ -13,11 +13,17 @@ export type AutomationActionExecutor =
       type: "prompt";
     };
 
+export type AutomationActionPlacement =
+  | { surface: "popup" }
+  | { surface: "sidebar" }
+  | { surface: "page_dom"; target: "lark_detail_header" };
+
 export interface AutomationActionListItem {
   key: string;
   title: string;
   description?: string;
   style?: "primary" | "default";
+  placements?: AutomationActionPlacement[];
   interaction?:
     | { type: "open_panel" }
     | { type: "preview_confirm" }

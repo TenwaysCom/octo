@@ -26,6 +26,65 @@ function getTestingApi() {
   }).__TENWAYS_LARK_TESTING__;
 }
 
+function createSupportedLarkPageConfig() {
+  return {
+    platform: "lark",
+    pageType: "lark_record_create_meegle_item",
+    matchedRuleId: "lark.record.create-meegle-item",
+    sidebar: {
+      injectPageElements: false,
+      sidebarButtonEnabled: false,
+      keyboardShortcutEnabled: false,
+    },
+    automationActions: [
+      {
+        key: "create-meegle-item",
+        title: "创建 Meegle Item",
+        interaction: { type: "direct_execute" },
+        executor: {
+          type: "frontend",
+          actionKey: "create-meegle-item",
+        },
+        placements: [
+          { surface: "popup" },
+          { surface: "page_dom", target: "lark_detail_header" },
+        ],
+      },
+    ],
+  };
+}
+
+function mockPageConfig(pageConfig: ReturnType<typeof createSupportedLarkPageConfig>) {
+  vi.doMock("./shared/page-config", () => ({
+    fetchExtensionPageConfig: vi.fn().mockResolvedValue(pageConfig),
+    pageConfigHasActionPlacement: vi.fn(
+      (
+        nextPageConfig: ReturnType<typeof createSupportedLarkPageConfig>,
+        surface: string,
+        target?: string,
+      ) =>
+        nextPageConfig.automationActions.some((action) =>
+          action.placements?.some((placement) => {
+            if (placement.surface !== surface) {
+              return false;
+            }
+
+            if (target === undefined) {
+              return true;
+            }
+
+            return "target" in placement && placement.target === target;
+          }),
+        ),
+    ),
+  }));
+}
+
+async function flushPromises(): Promise<void> {
+  await Promise.resolve();
+  await Promise.resolve();
+}
+
 async function getLoggerApi() {
   return import("../logger.js");
 }
@@ -33,6 +92,8 @@ async function getLoggerApi() {
 describe("lark content script probe overlay", () => {
   beforeEach(() => {
     vi.resetModules();
+    vi.doUnmock("./shared/page-config");
+    mockPageConfig(createSupportedLarkPageConfig());
     document.body.innerHTML = "";
   });
 
@@ -71,6 +132,42 @@ describe("lark content script probe overlay", () => {
 
     expect(document.querySelector('[data-tenways-octo-trigger="send-to-meegle"]')).not.toBeNull();
     expect(document.querySelector("[data-tenways-lark-probe-overlay]")).toBeNull();
+  });
+
+  it("does not mount the real injection runtime when server page config disables page elements", async () => {
+    mockPageConfig({
+        platform: "lark",
+        pageType: "lark",
+        matchedRuleId: "lark.unmatched",
+        sidebar: {
+          injectPageElements: false,
+          sidebarButtonEnabled: false,
+          keyboardShortcutEnabled: false,
+        },
+        automationActions: [],
+    });
+    window.history.replaceState({}, "", "/app/cli_a962f20501a15ed3/baseinfo");
+    document.body.innerHTML = `
+      <div id="app">
+        <main>
+          <section class="record-detail-panel">
+            <div class="detail-header">
+              <h2>Credentials</h2>
+            </div>
+            <section class="field-list">
+              <div class="field-row"><label>App ID</label><div>cli_a962f20501a15ed3</div></div>
+              <div class="field-row"><label>App Secret</label><div>********************************</div></div>
+            </section>
+          </section>
+        </main>
+      </div>
+    `;
+
+    await import("./lark");
+    await flushPromises();
+    getTestingApi()?.refreshProbeState();
+
+    expect(document.querySelector('[data-tenways-octo-trigger="send-to-meegle"]')).toBeNull();
   });
 
   it("renders the overlay when dev probe mode is enabled", async () => {

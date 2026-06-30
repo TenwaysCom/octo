@@ -2,6 +2,8 @@ import { getConfig } from "../../background/config.js";
 import { createExtensionLogger } from "../../logger.js";
 import { fetchServerJson } from "../../server-request.js";
 import type {
+  AutomationActionListItem,
+  AutomationActionPlacement,
   ExtensionPageConfig,
   ExtensionPageConfigResponse,
 } from "../../types/automation-actions.js";
@@ -29,6 +31,38 @@ export function createFallbackPageConfig(
     },
     automationActions: [],
   };
+}
+
+export function actionHasPlacement(
+  action: Pick<AutomationActionListItem, "placements">,
+  surface: AutomationActionPlacement["surface"],
+  target?: string,
+): boolean {
+  if (!action.placements) {
+    return surface === "popup";
+  }
+
+  return action.placements.some((placement) => {
+    if (placement.surface !== surface) {
+      return false;
+    }
+
+    if (target === undefined) {
+      return true;
+    }
+
+    return "target" in placement && placement.target === target;
+  });
+}
+
+export function pageConfigHasActionPlacement(
+  pageConfig: Pick<ExtensionPageConfig, "automationActions">,
+  surface: AutomationActionPlacement["surface"],
+  target?: string,
+): boolean {
+  return pageConfig.automationActions.some((action) =>
+    actionHasPlacement(action, surface, target)
+  );
 }
 
 export async function fetchExtensionPageConfig(input: {

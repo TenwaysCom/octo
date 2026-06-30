@@ -98,16 +98,18 @@ Action config 至少要表达：
 | `executor.operation` | 业务操作名，用于日志和诊断 |
 | `executor.method` | backend API method |
 | `executor.route` | backend API route |
+| `placements` | 允许展示 action 的 surface，例如 `popup`、`sidebar`、`page_dom` |
 | `requiredContext` | 需要的页面上下文字段 |
 | `authRequired` | 是否需要 Lark/Meegle 授权 |
 
 Extension popup 的执行规则：
 
 1. 渲染按钮时保留完整 executor，不只保留 `key/title/style`。
-2. `frontend` executor 只映射到少量本地能力，例如打开 modal、启动 chat、触发授权。
-3. `backend_api` executor 统一走 backend dispatcher，按 server 返回的 `method/route/operation` 调用。
-4. 新增或重构 backend dispatcher 时，负责附带 `actionRunId`、页面 context、extension version 和 active account context。
-5. popup 不为每个 backend action 增加新的硬编码分支。
+2. 渲染 popup/sidebar/page DOM 前必须检查 action-level `placements`，不能只依赖本地 DOM 探测或 page-level sidebar 开关。
+3. `frontend` executor 只映射到少量本地能力，例如打开 modal、启动 chat、触发授权。
+4. `backend_api` executor 统一走 backend dispatcher，按 server 返回的 `method/route/operation` 调用。
+5. 新增或重构 backend dispatcher 时，负责附带 `actionRunId`、页面 context、extension version 和 active account context。
+6. popup 不为每个 backend action 增加新的硬编码分支。
 
 例外必须写清楚原因：如果某 action 必须在 extension 本地完成，应使用 `frontend` executor，并在 server catalog 中明确 operation。
 
@@ -218,6 +220,8 @@ Meegle Story 研发Review workflow 还应遵守：
 Page/action 规则必须收敛到 server catalog：
 
 1. Server 判断目标 URL 对应的 platform、pageType、matchedRuleId 和 actions。
+2. Server action config 决定 action 可以出现在哪些 `placements`。
+3. Extension content script 只能按 server 返回的 `placements` 注入 sidebar 或 page DOM 按钮。
 2. Extension 可以保留基础 platform detection，但只能用于加载 server config 和展示保守 fallback。
 3. Server 不可达时，extension 不应默认启用完整业务 sidebar/action。
 4. URL 样例、pageType、expected actions 应沉淀为 contract fixture。

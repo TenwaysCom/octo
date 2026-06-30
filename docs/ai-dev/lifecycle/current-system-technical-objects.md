@@ -26,7 +26,7 @@ update_required_when:
 | Object | Owner | Main files | Current status |
 | --- | --- | --- | --- |
 | `ExtensionPageConfig` | Server catalog | `server/src/modules/public-config/public-config.controller.ts`, `extension/src/types/automation-actions.ts` | 已存在，但 extension fallback 和本地 action 分支仍会造成漂移 |
-| `AutomationActionConfig` / `AutomationActionListItem` | Server catalog, extension UI consumes | `server/src/modules/public-config/public-config.controller.ts`, `extension/src/popup-shared/popup-controller.ts` | server 返回 executor，但 popup 执行仍主要按 `actionKey` 本地分支 |
+| `AutomationActionConfig` / `AutomationActionListItem` | Server catalog, extension UI consumes | `server/src/modules/public-config/public-config.controller.ts`, `extension/src/popup-shared/popup-controller.ts` | server 返回 executor 和 `placements`；popup/sidebar/page DOM 应按 placement 渲染 |
 | `PopupPageContext` | Extension | `extension/src/popup-shared/popup-controller.ts`, `extension/src/content-scripts/*`, `extension/src/platform-url.ts` | 页面上下文由 extension 采集，page/action 规则与 server 有重复 |
 | `IdentityState` / `masterUserId` | Server identity store, extension cache | `extension/src/background/storage.ts`, `extension/src/popup/runtime.ts`, `server/src/adapters/postgres/resolved-user-store.ts` | 已支持 tab/global fallback，但 action trace 缺少统一身份阶段 |
 | `MeegleAuthCredential` | Server auth store, extension auth bridge triggers | `extension/src/content-scripts/meegle.ts`, `extension/src/background/handlers/meegle-auth.ts`, `server/src/modules/meegle-auth/*` | 使用 auth-code bridge；不能把 cookie 发给 server |
@@ -119,7 +119,7 @@ update_required_when:
   pageType;
   matchedRuleId;
   sidebar;
-  automationActions;
+  automationActions: Array<{ key; executor; placements; ... }>;
 }
 ```
 
@@ -168,7 +168,8 @@ browser tab URL
 ```text
 server action definition
   -> included in pageConfig.automationActions
-  -> popup maps action to visible button
+  -> extension filters actions by `placements` for popup/sidebar/page DOM surfaces
+  -> popup or page DOM renderer maps action to visible button
   -> user clicks action
   -> extension dispatches by executor
   -> frontend executor opens local UI, or backend_api executor calls server route
@@ -181,7 +182,7 @@ server action definition
 | State | Meaning |
 | --- | --- |
 | `cataloged` | server defines action key/title/executor |
-| `visible` | popup renders the action for current page |
+| `visible` | extension renders the action on a placement allowed by server config |
 | `blocked` | required auth/context missing |
 | `running` | user clicked and action is executing |
 | `succeeded` | action returned success result |
@@ -192,10 +193,12 @@ server action definition
 - Popup currently preserves only display fields when producing `PopupFeatureAction`.
 - `runFeatureAction(actionKey)` still keeps several frontend action branches while backend API actions are moving toward executor-driven dispatch.
 - Server `executor.operation` is not yet the true execution contract.
+- Page DOM injection must stay gated by action-level `placements`, not by local DOM guesses alone.
 
 ### Code rules
 
 - Popup should preserve executor and dispatch by executor, not by backend action key.
+- Popup/sidebar/page DOM should render only actions whose `placements` include that surface.
 - Backend action should not require adding a new popup branch.
 - New or refactored cross-layer action runs should generate `actionRunId`.
 

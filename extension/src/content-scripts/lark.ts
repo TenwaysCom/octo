@@ -1,6 +1,6 @@
 import { createLarkContentScriptRuntime, type LarkDetectedPageContext } from "../injection/platforms/lark/bootstrap";
 import type { ProbeOverlayState } from "../injection/core/overlay";
-import { fetchExtensionPageConfig } from "./shared/page-config";
+import { fetchExtensionPageConfig, pageConfigHasActionPlacement } from "./shared/page-config";
 import { injectSidebar, type SidebarInjectorHandle } from "./shared/sidebar-injector";
 
 function createNoopSidebarHandle(): SidebarInjectorHandle {
@@ -16,7 +16,7 @@ interface TenwaysLarkTestingApi {
   detectLarkPageContext: () => LarkDetectedPageContext | null;
   extractAuthCodeFromRedirect: () => { code: string; state: string } | null;
   getLarkUserId: () => string | null;
-  initLarkContentScript: () => void;
+  initLarkContentScript: (options?: { enablePageDomInjection?: boolean }) => void;
   refreshProbeState: () => void;
   getProbeState: () => ProbeOverlayState;
   openSidebar: () => void;
@@ -31,10 +31,10 @@ const larkTestingTarget = globalThis as typeof globalThis & {
   __TENWAYS_LARK_TESTING__?: TenwaysLarkTestingApi;
 };
 
-runtime.initLarkContentScript();
-
 let larkSidebar = createNoopSidebarHandle();
 let larkSidebarDestroyed = false;
+
+runtime.initLarkContentScript({ enablePageDomInjection: false });
 
 void (async () => {
   const pageConfig = await fetchExtensionPageConfig({
@@ -42,7 +42,15 @@ void (async () => {
     fallbackPlatform: "lark",
   });
 
-  if (larkSidebarDestroyed || !pageConfig.sidebar.injectPageElements) {
+  if (larkSidebarDestroyed) {
+    return;
+  }
+
+  if (pageConfigHasActionPlacement(pageConfig, "page_dom", "lark_detail_header")) {
+    runtime.initLarkContentScript({ enablePageDomInjection: true });
+  }
+
+  if (!pageConfigHasActionPlacement(pageConfig, "sidebar")) {
     return;
   }
 

@@ -1,7 +1,7 @@
 // Meegle content script - handles auth code requests and user identity
 // Runs on https://*.meegle.com/* pages
 
-import { fetchExtensionPageConfig } from "./shared/page-config";
+import { fetchExtensionPageConfig, pageConfigHasActionPlacement } from "./shared/page-config";
 import { injectSidebar, type SidebarInjectorHandle } from "./shared/sidebar-injector";
 import { createExtensionLogger } from "../logger.js";
 
@@ -346,7 +346,7 @@ function initMeegleContentScript() {
       fallbackPlatform: "meegle",
     });
 
-    if (!pageConfig.sidebar.injectPageElements) {
+    if (!pageConfigHasActionPlacement(pageConfig, "sidebar")) {
       return;
     }
 

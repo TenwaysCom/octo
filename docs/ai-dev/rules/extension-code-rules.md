@@ -81,21 +81,23 @@ Popup action 的来源是 server `pageConfig.automationActions`。
 规则：
 
 1. Popup 渲染 action 时保留完整 `executor`。
-2. `PopupFeatureAction` 不应丢掉执行所需信息。
-3. `frontend` executor 只允许映射到少量本地能力：
+2. Popup 只渲染 `placements` 包含 `popup` 的 action。
+3. Content script 只在 `placements` 包含 `sidebar` 时注入 sidebar，只在 `placements` 包含对应 `page_dom` target 时注入页面内按钮。
+4. `PopupFeatureAction` 不应丢掉执行所需信息。
+5. `frontend` executor 只允许映射到少量本地能力：
    - open chat
    - open bulk create modal
    - open GitHub preview/create modal
    - trigger auth
-4. `backend_api` executor 必须走统一 backend dispatcher。
-5. backend dispatcher 读取 server 返回的 `method/route/operation`。
-6. backend dispatcher 必须附带：
+6. `backend_api` executor 必须走统一 backend dispatcher。
+7. backend dispatcher 读取 server 返回的 `method/route/operation`。
+8. backend dispatcher 必须附带：
    - `actionRunId`
    - current URL
    - page context
    - `masterUserId`
    - extension version when available
-7. Popup 不为每个 backend action 写新的 route 分支。
+9. Popup 不为每个 backend action 写新的 route 分支。
 
 禁止模式：
 

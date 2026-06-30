@@ -1,4 +1,4 @@
-import { fetchExtensionPageConfig } from "./shared/page-config";
+import { fetchExtensionPageConfig, pageConfigHasActionPlacement } from "./shared/page-config";
 import { injectSidebar } from "./shared/sidebar-injector";
 
 const GITHUB_PULL_REQUEST_PATH_PATTERN = /^\/[^/]+\/[^/]+\/pull\/\d+(?:\/.*)?$/;
@@ -35,7 +35,7 @@ if (typeof window !== "undefined" && isGitHubActionPage(window.location.href)) {
       fallbackPlatform: "github",
     });
 
-    if (!pageConfig.sidebar.injectPageElements) {
+    if (!pageConfigHasActionPlacement(pageConfig, "sidebar")) {
       return;
     }
 

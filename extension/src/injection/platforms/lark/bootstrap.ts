@@ -29,7 +29,7 @@ export type LarkContentScriptRuntime = {
   detectLarkPageContext: () => LarkDetectedPageContext | null;
   extractAuthCodeFromRedirect: () => { code: string; state: string } | null;
   getLarkUserId: () => string | null;
-  initLarkContentScript: () => void;
+  initLarkContentScript: (options?: { enablePageDomInjection?: boolean }) => void;
   refreshProbeState: () => void;
   getProbeState: () => ProbeOverlayState;
   destroy: () => void;
@@ -392,11 +392,17 @@ export function createLarkContentScriptRuntime(): LarkContentScriptRuntime {
     return null;
   }
 
-  function initLarkContentScript(): void {
-    larkBootstrapLogger.info("Lark content script initialized");
+  function initLarkContentScript(
+    { enablePageDomInjection = true }: { enablePageDomInjection?: boolean } = {},
+  ): void {
+    if (!messageListenerInitialized) {
+      larkBootstrapLogger.info("Lark content script initialized");
+    }
 
-    initInjectionRuntime();
-    initProbeMode();
+    if (enablePageDomInjection) {
+      initInjectionRuntime();
+      initProbeMode();
+    }
 
     if (messageListenerInitialized) {
       return;

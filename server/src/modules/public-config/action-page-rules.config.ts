@@ -1,5 +1,6 @@
 import type { AutomationActionId } from "./automation-actions.config.js";
 import type {
+  AutomationActionPlacement,
   ExtensionPageConfig,
   ExtensionPagePlatform,
 } from "./public-config.controller.js";
@@ -14,8 +15,16 @@ export interface ActionPageRule {
   path: string;
   params?: Record<string, string | string[]>;
   query?: Record<string, string>;
+  queryEmpty?: boolean;
+  queryAbsent?: string[];
   sidebar: ExtensionPageConfig["sidebar"];
-  actions: AutomationActionId[];
+  actions: Array<
+    | AutomationActionId
+    | {
+        id: AutomationActionId;
+        placements: AutomationActionPlacement[];
+      }
+  >;
 }
 
 const SIDEBAR_ENABLED = {
@@ -25,6 +34,24 @@ const SIDEBAR_ENABLED = {
 };
 
 export const ACTION_PAGE_RULES: ActionPageRule[] = [
+  {
+    id: "lark.base.root.create-meegle-item",
+    platform: "lark",
+    pageType: "lark_base_create_meegle_item",
+    host: ["*.larksuite.com", "*.feishu.cn"],
+    path: "/base/:baseId",
+    params: {
+      baseId: "XO0cbnxMIaralRsbBEolboEFgZc",
+    },
+    queryEmpty: true,
+    sidebar: SIDEBAR_ENABLED,
+    actions: [
+      {
+        id: "createMeegleItem",
+        placements: [{ surface: "page_dom", target: "lark_detail_header" }],
+      },
+    ],
+  },
   {
     id: "lark.base.create-meegle-item",
     platform: "lark",
@@ -38,7 +65,14 @@ export const ACTION_PAGE_RULES: ActionPageRule[] = [
       table: "tblUfu71xwdul3NH",
     },
     sidebar: SIDEBAR_ENABLED,
-    actions: ["analyze", "bulkCreateMeegleTickets"],
+    actions: [
+      "analyze",
+      "bulkCreateMeegleTickets",
+      {
+        id: "createMeegleItem",
+        placements: [{ surface: "page_dom", target: "lark_detail_header" }],
+      },
+    ],
   },
   {
     id: "lark.record.create-meegle-item",
@@ -47,7 +81,16 @@ export const ACTION_PAGE_RULES: ActionPageRule[] = [
     host: ["*.larksuite.com", "*.feishu.cn"],
     path: "/record/:recordId",
     sidebar: SIDEBAR_ENABLED,
-    actions: ["createMeegleItem"],
+    actions: [
+      {
+        id: "createMeegleItem",
+        placements: [
+          { surface: "popup" },
+          { surface: "sidebar" },
+          { surface: "page_dom", target: "lark_detail_header" },
+        ],
+      },
+    ],
   },
   {
     id: "meegle.story.detail",

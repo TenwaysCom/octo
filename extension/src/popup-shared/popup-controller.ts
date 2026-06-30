@@ -78,6 +78,10 @@ const popupLogger = createExtensionLogger("popup:app");
 const LARK_CREATE_ACTION_KEY = "create-meegle-item";
 const LARK_BULK_CREATE_ACTION_KEY = "bulk-create-meegle-tickets";
 
+function actionHasPopupPlacement(action: AutomationActionListItem): boolean {
+  return action.placements?.some((placement) => placement.surface === "popup") ?? true;
+}
+
 type LarkBulkCreateModalStage = "hidden" | "preview" | "executing" | "result" | "error";
 
 export interface LarkBulkCreateModalError {
@@ -1989,7 +1993,9 @@ export function createPopupController() {
     const topLarkButtonText = store.state.isAuthed.lark ? "重新授权" : "授权";
     const topMeegleButtonDisabled = store.state.isAuthed.meegle;
     const topLarkButtonDisabled = false;
-    const configuredActions = store.pageConfig?.automationActions ?? [];
+    const configuredActions = (store.pageConfig?.automationActions ?? []).filter(
+      actionHasPopupPlacement,
+    );
     const actionsForCurrentPage = configuredActions.map((action) =>
       toPopupFeatureAction(action, {
         viewModel,

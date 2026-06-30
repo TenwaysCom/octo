@@ -5,6 +5,7 @@ export const AUTOMATION_ACTIONS = {
     key: "analyze",
     title: "分析当前页面",
     style: "primary",
+    placements: [{ surface: "popup" }, { surface: "sidebar" }],
     interaction: {
       type: "open_panel",
     },
@@ -17,6 +18,7 @@ export const AUTOMATION_ACTIONS = {
     key: "create-meegle-item",
     title: "创建 Meegle Item",
     style: "default",
+    placements: [{ surface: "popup" }, { surface: "sidebar" }],
     interaction: {
       type: "direct_execute",
     },
@@ -29,6 +31,7 @@ export const AUTOMATION_ACTIONS = {
     key: "bulk-create-meegle-tickets",
     title: "创建 Meegle Item",
     style: "default",
+    placements: [{ surface: "popup" }, { surface: "sidebar" }],
     interaction: {
       type: "preview_confirm",
     },
@@ -41,6 +44,7 @@ export const AUTOMATION_ACTIONS = {
     key: "update-lark-and-push",
     title: "更新 Lark 并推送",
     style: "primary",
+    placements: [{ surface: "popup" }, { surface: "sidebar" }],
     interaction: {
       type: "direct_execute",
     },
@@ -56,6 +60,7 @@ export const AUTOMATION_ACTIONS = {
     title: "研发Review Story",
     description: "读取 Story Summary，经 Kimi ACP 生成简化需求确认并覆盖写入 Tech Summary。",
     style: "primary",
+    placements: [{ surface: "popup" }, { surface: "sidebar" }],
     interaction: {
       type: "direct_execute",
     },
@@ -70,6 +75,7 @@ export const AUTOMATION_ACTIONS = {
     key: "create-github-branch",
     title: "创建 GitHub 分支",
     style: "default",
+    placements: [{ surface: "popup" }, { surface: "sidebar" }],
     interaction: {
       type: "preview_form_confirm",
     },
@@ -82,6 +88,7 @@ export const AUTOMATION_ACTIONS = {
     key: "lookup-github-pr",
     title: "查询 PR 关联的 Meegle 工作项",
     style: "primary",
+    placements: [{ surface: "popup" }, { surface: "sidebar" }],
     interaction: {
       type: "direct_result",
     },
@@ -94,6 +101,7 @@ export const AUTOMATION_ACTIONS = {
     key: "lookup-github-issue",
     title: "查询 Issue 关联的 Meegle 工作项",
     style: "primary",
+    placements: [{ surface: "popup" }, { surface: "sidebar" }],
     interaction: {
       type: "direct_result",
     },

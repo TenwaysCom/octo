@@ -22,11 +22,17 @@ export interface PublicConfigResponse {
 
 export type ExtensionPagePlatform = "lark" | "meegle" | "github" | "unsupported";
 
+export type AutomationActionPlacement =
+  | { surface: "popup" }
+  | { surface: "sidebar" }
+  | { surface: "page_dom"; target: "lark_detail_header" };
+
 export interface AutomationActionConfig {
   key: string;
   title: string;
   description?: string;
   style?: "primary" | "default";
+  placements: AutomationActionPlacement[];
   interaction:
     | { type: "open_panel" }
     | { type: "preview_confirm" }
@@ -271,7 +277,30 @@ function matchesRule(url: URL, rule: ActionPageRule): boolean {
     }
   }
 
+  if (rule.queryEmpty === true && url.search !== "") {
+    return false;
+  }
+
+  for (const key of rule.queryAbsent ?? []) {
+    if (url.searchParams.has(key)) {
+      return false;
+    }
+  }
+
   return true;
+}
+
+function resolveRuleAction(
+  action: ActionPageRule["actions"][number],
+): { actionId: AutomationActionId; placements?: AutomationActionConfig["placements"] } {
+  if (typeof action === "string") {
+    return { actionId: action };
+  }
+
+  return {
+    actionId: action.id,
+    placements: action.placements,
+  };
 }
 
 function resolveActionPageConfig(
@@ -286,10 +315,27 @@ function resolveActionPageConfig(
     return unmatchedPageConfig(platform);
   }
 
-  const actionIds = new Set<AutomationActionId>();
+  const actions = new Map<AutomationActionId, AutomationActionConfig>();
   for (const rule of matchedRules) {
-    for (const actionId of rule.actions) {
-      actionIds.add(actionId);
+    for (const action of rule.actions) {
+      const { actionId, placements } = resolveRuleAction(action);
+      const actionConfig = AUTOMATION_ACTIONS[actionId];
+      const existing = actions.get(actionId);
+      if (existing) {
+        actions.set(actionId, {
+          ...existing,
+          placements: [
+            ...existing.placements,
+            ...(placements ?? actionConfig.placements),
+          ],
+        });
+        continue;
+      }
+
+      actions.set(actionId, {
+        ...actionConfig,
+        placements: placements ?? actionConfig.placements,
+      });
     }
   }
 
@@ -301,7 +347,7 @@ function resolveActionPageConfig(
     matchedRuleId: primaryRule.id,
     matchedRuleIds: matchedRules.map((rule) => rule.id),
     sidebar: primaryRule.sidebar,
-    automationActions: [...actionIds].map((actionId) => AUTOMATION_ACTIONS[actionId]),
+    automationActions: [...actions.values()],
   };
 }
 
