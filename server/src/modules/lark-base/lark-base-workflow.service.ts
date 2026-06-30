@@ -120,6 +120,7 @@ interface WorkflowSourceContext {
 
 export interface LarkBaseWorkflowResult {
   ok: true;
+  actionRunId?: string;
   workitemId: string;
   meegleLink: string;
   recordId: string;
@@ -723,7 +724,13 @@ export async function executeLarkBaseWorkflow(
     const draft = buildExecutionDraft(record, projectKey, mapping, sourceContext, i);
     const idempotencyKey = `idem_base_${request.recordId}_${mapping.workitemTypeKey}_${i}_v${meegleVersion}`;
 
-    workflowLogger.info({ index: i, workitemTypeKey: mapping.workitemTypeKey, templateId: mapping.templateId, idempotencyKey }, "APPLYING_MAPPING");
+    workflowLogger.info({
+      actionRunId: request.actionRunId,
+      index: i,
+      workitemTypeKey: mapping.workitemTypeKey,
+      templateId: mapping.templateId,
+      idempotencyKey,
+    }, "APPLYING_MAPPING");
 
     let workitemId: string;
     try {
@@ -734,11 +741,16 @@ export async function executeLarkBaseWorkflow(
           operatorLarkId: "ou_system",
           masterUserId: request.masterUserId,
           idempotencyKey,
+          actionRunId: request.actionRunId,
         },
         {},
       );
       workitemId = applyResult.workitemId;
-      workflowLogger.info({ index: i, workitemId }, "WORKITEM_CREATED");
+      workflowLogger.info({
+        actionRunId: request.actionRunId,
+        index: i,
+        workitemId,
+      }, "WORKITEM_CREATED");
     } catch (error) {
       const errorCode =
         error && typeof error === "object" && "errorCode" in error
@@ -752,6 +764,7 @@ export async function executeLarkBaseWorkflow(
         : undefined;
 
       workflowLogger.error({
+        actionRunId: request.actionRunId,
         index: i,
         workitemTypeKey: mapping.workitemTypeKey,
         errorCode,
@@ -776,7 +789,11 @@ export async function executeLarkBaseWorkflow(
   }
 
   const meegleLinks = workitems.map((w) => w.meegleLink).join("\n");
-  workflowLogger.info({ recordId: request.recordId, meegleLinks }, "WRITING_MEEGLE_LINK_BACK");
+  workflowLogger.info({
+    actionRunId: request.actionRunId,
+    recordId: request.recordId,
+    meegleLinks,
+  }, "WRITING_MEEGLE_LINK_BACK");
 
   try {
     await (deps.updateLarkBaseMeegleLink ?? updateLarkBaseMeegleLink)({
@@ -821,6 +838,7 @@ export async function executeLarkBaseWorkflow(
   }, "server.workflow.completed");
   return {
     ok: true,
+    ...(request.actionRunId ? { actionRunId: request.actionRunId } : {}),
     workitemId: primaryWorkitemId,
     meegleLink: workitems[0]?.meegleLink ?? "",
     recordId: request.recordId,

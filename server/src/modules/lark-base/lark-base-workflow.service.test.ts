@@ -142,6 +142,50 @@ describe("lark-base-workflow.service", () => {
     );
   });
 
+  it("threads actionRunId through create apply and success result", async () => {
+    const record = makeRecord("User Story");
+    createLarkClientMock.mockReturnValueOnce({
+      getRecord: vi.fn().mockResolvedValueOnce(record),
+    });
+    getLarkTokenStoreMock.mockResolvedValueOnce({
+      userToken: "token_123",
+      userTokenExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
+      baseUrl: "https://open.larksuite.com",
+    });
+    executeMeegleApplyMock.mockResolvedValueOnce({
+      status: "created",
+      workitemId: "wi_run",
+      draft: {},
+    });
+    updateLarkBaseMeegleLinkMock.mockResolvedValueOnce({
+      ok: true,
+      recordId: "rec_123",
+    });
+
+    const result = await executeLarkBaseWorkflow(
+      {
+        recordId: "rec_123",
+        masterUserId: "usr_xxx",
+        baseId: "base_123",
+        tableId: "tbl_456",
+        actionRunId: "run_create_001",
+      },
+      deps,
+    );
+
+    expect(result).toMatchObject({
+      ok: true,
+      actionRunId: "run_create_001",
+      workitemId: "wi_run",
+    });
+    expect(executeMeegleApplyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actionRunId: "run_create_001",
+      }),
+      {},
+    );
+  });
+
   it("keeps the idempotency key ASCII-safe when tag contains Chinese text", async () => {
     const record = makeRecord("User Story", "集中处理");
     createLarkClientMock.mockReturnValueOnce({

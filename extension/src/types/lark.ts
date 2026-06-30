@@ -131,6 +131,7 @@ export interface LarkWikiRecordCreateWorkitemRequest {
 
 export interface LarkBaseCreateWorkitemResultPayload {
   ok: true;
+  actionRunId?: string;
   workitemId: string;
   meegleLink: string;
   recordId: string;
@@ -174,6 +175,7 @@ export type LarkBaseBulkWorkflowErrorPayload = {
   error: {
     errorCode: string;
     errorMessage: string;
+    actionRunId?: string;
   };
 };
 

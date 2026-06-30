@@ -1625,16 +1625,26 @@ export function createPopupController() {
       });
 
       if (!result.ok) {
+        const responseActionRunId = result.error.actionRunId ?? actionRunId;
         const message = `创建 Meegle Item 失败: ${result.error.errorMessage}`;
-        setActionStatus(actionKey, { phase: "error", actionRunId, message });
-        appendLog("error", message);
+        setActionStatus(actionKey, {
+          phase: "error",
+          actionRunId: responseActionRunId,
+          message: `${message} · ${responseActionRunId}`,
+        });
+        appendLog("error", `${message} · actionRunId=${responseActionRunId}`);
         showPopupToast(message, "error");
         return;
       }
 
+      const responseActionRunId = result.actionRunId ?? actionRunId;
       const message = `创建 Meegle Item 完成: ${result.workitemId}`;
-      setActionStatus(actionKey, { phase: "success", actionRunId, message: "执行完成" });
-      appendLog("success", message);
+      setActionStatus(actionKey, {
+        phase: "success",
+        actionRunId: responseActionRunId,
+        message: `执行完成 · ${responseActionRunId}`,
+      });
+      appendLog("success", `${message} · actionRunId=${responseActionRunId}`);
       showPopupToast(message, "success");
       return;
     }

@@ -61,6 +61,7 @@ export interface MeegleApplyInput {
   operatorLarkId?: string;
   masterUserId?: string;
   idempotencyKey: string;
+  actionRunId?: string;
 }
 
 export interface MeegleApplyResult {
@@ -273,6 +274,7 @@ export async function executeMeegleApply(
       : undefined;
 
     applyLogger.error({
+      actionRunId: input.actionRunId,
       requestId: input.requestId,
       workitemTypeKey: input.draft.target.workitemTypeKey,
       statusCode,

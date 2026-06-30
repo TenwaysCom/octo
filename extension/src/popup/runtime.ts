@@ -723,7 +723,7 @@ export async function runLarkBaseBulkPreviewRequest(
 
 export async function runLarkBaseCreateWorkitemRequest(
   input: LarkBaseCreateWorkitemRequest,
-): Promise<LarkBaseCreateWorkitemResultPayload | { ok: false; error: { errorCode: string; errorMessage: string } }> {
+): Promise<LarkBaseCreateWorkitemResultPayload | { ok: false; error: { errorCode: string; errorMessage: string; actionRunId?: string } }> {
   const response = await sendRuntimeMessage<{
     payload?: LarkBaseCreateWorkitemResultPayload;
   }>({

@@ -383,6 +383,19 @@ describe("popup controller", () => {
   });
 
   it("creates a single Meegle item from a Lark record page without opening bulk preview", async () => {
+    runtimeMock.runLarkBaseCreateWorkitemRequest.mockResolvedValueOnce({
+      ok: true,
+      actionRunId: "server_run_create_001",
+      workitemId: "WI-1",
+      meegleLink: "https://project.larksuite.com/OPS/story/detail/WI-1",
+      recordId: "rec_1",
+      workitems: [
+        {
+          workitemId: "WI-1",
+          meegleLink: "https://project.larksuite.com/OPS/story/detail/WI-1",
+        },
+      ],
+    });
     runtimeMock.queryActiveTabContext.mockResolvedValueOnce({
       id: 12,
       url: "https://nsghpcq7ar4z.sg.larksuite.com/record/KxOYr6CJKeWYktcI2GilrfRAgeg",
@@ -404,6 +417,10 @@ describe("popup controller", () => {
       wikiRecordId: "KxOYr6CJKeWYktcI2GilrfRAgeg",
       masterUserId: "usr_resolved",
       actionRunId: expect.any(String),
+    });
+    expect(controller.getState().larkActions[0]).toMatchObject({
+      statusText: "执行完成 · server_run_create_001",
+      statusTone: "success",
     });
     controller.dispose();
   });
