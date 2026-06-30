@@ -18,3 +18,4 @@ worktrees
 .omx
 .DS_store
 logs
+.pnpm-store
