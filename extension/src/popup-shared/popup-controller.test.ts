@@ -89,12 +89,6 @@ describe("popup controller", () => {
           },
           automationActions: [
             {
-              key: "analyze",
-              title: "分析当前页面",
-              style: "primary",
-              executor: { type: "frontend", actionKey: "analyze" },
-            },
-            {
               key: "lark-bug-analyze",
               title: "分析 bug",
               style: "primary",
@@ -240,14 +234,7 @@ describe("popup controller", () => {
           sidebarButtonEnabled: true,
           keyboardShortcutEnabled: true,
         },
-        automationActions: [
-          {
-            key: "analyze",
-            title: "分析当前页面",
-            style: "primary",
-            executor: { type: "frontend", actionKey: "analyze" },
-          },
-        ],
+        automationActions: [],
       };
     });
     runtimeMock.loadPopupSettings.mockResolvedValue({
@@ -688,7 +675,10 @@ describe("popup controller", () => {
       baseUrl: "https://nsghpcq7ar4z.sg.larksuite.com",
       actionRunId: expect.any(String),
     });
-    expect(controller.getState().larkActions[1]).toMatchObject({
+    const larkBugAnalyzeAction = controller.getState().larkActions.find(
+      (action) => action.key === "lark-bug-analyze",
+    );
+    expect(larkBugAnalyzeAction).toMatchObject({
       disabled: false,
       loading: false,
       statusText: "执行完成",
@@ -866,7 +856,10 @@ describe("popup controller", () => {
       baseUrl: "https://nsghpcq7ar4z.sg.larksuite.com",
       actionRunId: expect.any(String),
     });
-    expect(controller.getState().larkActions[1]).toMatchObject({
+    const larkBugAnalyzeAction = controller.getState().larkActions.find(
+      (action) => action.key === "lark-bug-analyze",
+    );
+    expect(larkBugAnalyzeAction).toMatchObject({
       disabled: false,
       loading: false,
       statusText: "LARK_RECORD_ID_REQUIRED: A real Lark Base recordId is required for bug analysis.",

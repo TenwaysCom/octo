@@ -51,7 +51,6 @@ describe("public-config.controller", () => {
     });
     expect(result.data.pageConfig.automationActions).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ key: "analyze" }),
         expect.objectContaining({
           key: "lark-bug-analyze",
           title: "分析 bug",
@@ -83,11 +82,11 @@ describe("public-config.controller", () => {
       ]),
     );
     expect(actionKeys).toEqual([
-      "analyze",
       "lark-bug-analyze",
       "bulk-create-meegle-tickets",
       "create-meegle-item",
     ]);
+    expect(actionKeys).not.toContain("analyze");
   });
 
   it("resolves the configured Lark base root page to page DOM create Meegle item placement", async () => {

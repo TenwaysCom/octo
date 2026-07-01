@@ -66,7 +66,6 @@ export const ACTION_PAGE_RULES: ActionPageRule[] = [
     },
     sidebar: SIDEBAR_ENABLED,
     actions: [
-      "analyze",
       "larkBugAnalyze",
       "bulkCreateMeegleTickets",
       {
