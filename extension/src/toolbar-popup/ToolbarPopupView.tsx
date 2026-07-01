@@ -1,7 +1,10 @@
 import { UiBadge } from "../popup-react/components/UiBadge.js";
 import { UiButton } from "../popup-react/components/UiButton.js";
 import { UiCard } from "../popup-react/components/UiCard.js";
+import type { PopupSettingsForm } from "../popup/types.js";
 import type { PopupPageType } from "../popup/view-model.js";
+
+type ToolbarEnvironmentName = NonNullable<PopupSettingsForm["ENV_NAME"]>;
 
 export function ToolbarPopupView({
   pageType,
@@ -9,6 +12,10 @@ export function ToolbarPopupView({
   larkStatusText,
   meegleAuthorized,
   larkAuthorized,
+  environmentName,
+  serverUrl,
+  onEnvironmentChange,
+  onSaveEnvironment,
   onAuthorizeMeegle,
   onAuthorizeLark,
 }: {
@@ -17,6 +24,10 @@ export function ToolbarPopupView({
   larkStatusText: string;
   meegleAuthorized: boolean;
   larkAuthorized: boolean;
+  environmentName: ToolbarEnvironmentName;
+  serverUrl: string;
+  onEnvironmentChange: (environmentName: ToolbarEnvironmentName) => void;
+  onSaveEnvironment: () => void | Promise<void>;
   onAuthorizeMeegle: () => void | Promise<void>;
   onAuthorizeLark: () => void | Promise<void>;
 }) {
@@ -52,6 +63,34 @@ export function ToolbarPopupView({
             authorized={larkAuthorized}
           />
         </div>
+      </UiCard>
+
+      <UiCard title="环境配置">
+        <div className="toolbar-popup__environment">
+          <label className="toolbar-popup__environment-field">
+            <span className="toolbar-popup__status-label">Environment</span>
+            <select
+              value={environmentName}
+              className="settings-page__input"
+              onChange={(event) =>
+                onEnvironmentChange(event.target.value as ToolbarEnvironmentName)
+              }
+            >
+              <option value="prod">prod</option>
+              <option value="test">test</option>
+              <option value="dev">dev</option>
+            </select>
+          </label>
+          <UiButton
+            size="sm"
+            variant="primary"
+            className="toolbar-popup__environment-save"
+            onClick={onSaveEnvironment}
+          >
+            保存
+          </UiButton>
+        </div>
+        <p className="toolbar-popup__server-url">Server URL: {serverUrl}</p>
       </UiCard>
 
       {showAuthActions ? (

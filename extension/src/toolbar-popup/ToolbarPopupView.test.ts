@@ -20,12 +20,20 @@ describe("ToolbarPopupView", () => {
         larkStatusText: "待授权",
         meegleAuthorized: false,
         larkAuthorized: false,
+        environmentName: "prod",
+        serverUrl: "https://octo.odoo.tenways.it:18443",
+        onEnvironmentChange: vi.fn(),
+        onSaveEnvironment: vi.fn(),
         onAuthorizeMeegle,
         onAuthorizeLark,
       }),
     );
 
     expect(screen.getByText("请使用页面悬浮 Icon")).toBeTruthy();
+    expect(
+      screen.getByText("授权状态").compareDocumentPosition(screen.getByText("环境配置")) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(screen.getByText("未授权时，请先授权 Meegle，再授权 Lark。")).toBeTruthy();
     expect(screen.queryByText("自动化")).toBeNull();
     expect(screen.queryByText("聊天")).toBeNull();
@@ -47,6 +55,10 @@ describe("ToolbarPopupView", () => {
         larkStatusText: "已授权",
         meegleAuthorized: true,
         larkAuthorized: true,
+        environmentName: "test",
+        serverUrl: "https://octotest.odoo.tenways.it:18443",
+        onEnvironmentChange: vi.fn(),
+        onSaveEnvironment: vi.fn(),
         onAuthorizeMeegle: vi.fn(),
         onAuthorizeLark: vi.fn(),
       }),
@@ -55,5 +67,36 @@ describe("ToolbarPopupView", () => {
     expect(screen.getByText("请使用页面悬浮 Icon")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "授权 Meegle" })).toBeNull();
     expect(screen.queryByRole("button", { name: "授权 Lark" })).toBeNull();
+  });
+
+  it("renders environment configuration and saves changes", async () => {
+    const user = userEvent.setup();
+    const onEnvironmentChange = vi.fn();
+    const onSaveEnvironment = vi.fn();
+
+    render(
+      React.createElement(ToolbarPopupView, {
+        pageType: "github",
+        meegleStatusText: "已授权",
+        larkStatusText: "已授权",
+        meegleAuthorized: true,
+        larkAuthorized: true,
+        environmentName: "prod",
+        serverUrl: "https://octo.odoo.tenways.it:18443",
+        onEnvironmentChange,
+        onSaveEnvironment,
+        onAuthorizeMeegle: vi.fn(),
+        onAuthorizeLark: vi.fn(),
+      }),
+    );
+
+    expect(screen.getByText("环境配置")).toBeTruthy();
+    expect(screen.getByText("Server URL: https://octo.odoo.tenways.it:18443")).toBeTruthy();
+
+    await user.selectOptions(screen.getByLabelText("Environment"), "dev");
+    expect(onEnvironmentChange).toHaveBeenCalledWith("dev");
+
+    await user.click(screen.getByRole("button", { name: "保存" }));
+    expect(onSaveEnvironment).toHaveBeenCalledTimes(1);
   });
 });
