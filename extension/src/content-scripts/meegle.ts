@@ -1,27 +1,201 @@
 // Meegle content script - handles auth code requests and user identity
 // Runs on https://*.meegle.com/* pages
 
-export interface MeegleAuthCodeResult {
+import { fetchExtensionPageConfig, pageConfigHasActionPlacement } from "./shared/page-config";
+import { injectSidebar, type SidebarInjectorHandle } from "./shared/sidebar-injector";
+import { createExtensionLogger } from "../logger.js";
+
+const meegleCsLogger = createExtensionLogger("content-script:meegle");
+
+function summarizeIdentifier(value: string | null | undefined): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  if (value.length <= 8) {
+    return value;
+  }
+
+  return `${value.slice(0, 4)}...${value.slice(-4)}`;
+}
+
+interface MeegleAuthCodeResult {
   authCode: string;
   state: string;
   issuedAt: string;
 }
 
-export interface MeegleUserIdentity {
+interface MeegleUserIdentity {
   userKey: string | null;
   userName: string | null;
   tenantKey: string | null;
 }
 
+type MeegleIdentitySource =
+  | "context"
+  | "meta"
+  | "data-attr"
+  | "storage"
+  | "cookie"
+  | "url"
+  | "not_found";
+
+interface TenwaysMeegleTestingApi {
+  getMeegleUserIdentity: () => MeegleUserIdentity;
+  getAuthCodeFromMeegleApi: (
+    pluginId: string,
+    state: string,
+    baseUrl?: string,
+  ) => Promise<MeegleAuthCodeResult | null>;
+  initMeegleContentScript: () => void;
+  refreshMeegleSidebar: () => Promise<void>;
+  openSidebar: () => void;
+  closeSidebar: () => void;
+  toggleSidebar: () => void;
+}
+
+type MeegleGlobalState = typeof globalThis & {
+  __TENWAYS_MEEGLE_TESTING__?: TenwaysMeegleTestingApi;
+  __TENWAYS_MEEGLE_ROUTE_WATCH_INSTALLED__?: boolean;
+};
+
+const SIDEBAR_HOST_ID = "tenways-octo-sidebar-host";
+const SIDEBAR_ROUTE_REFRESH_DELAY_MS = 100;
+
+let meegleSidebar = createNoopSidebarHandle();
+let lastSidebarUrl: string | undefined;
+let authMessageListenerRegistered = false;
+let routeRefreshTimer: ReturnType<typeof setTimeout> | undefined;
+
+function createNoopSidebarHandle(): SidebarInjectorHandle {
+  return {
+    open() {},
+    close() {},
+    toggle() {},
+    destroy() {},
+  };
+}
+
+function logMcsFlow(node: string, phase: "START" | "OK" | "FAIL", detail: Record<string, unknown>): void {
+  const message = `[MEEGLE_AUTH_FLOW][MCS][${node}][${phase}]`;
+  if (phase === "FAIL") {
+    meegleCsLogger.error(message, detail);
+  } else {
+    meegleCsLogger.info(message, detail);
+  }
+}
+
+function getPageLocation(): { href?: string; origin?: string } {
+  if (typeof window === "undefined") {
+    return {};
+  }
+
+  return {
+    href: window.location?.href,
+    origin: window.location?.origin,
+  };
+}
+
+function getCookieValue(name: string): string | null {
+  if (typeof document === "undefined" || !document.cookie) {
+    return null;
+  }
+
+  const cookies = document.cookie.split(";");
+
+  for (const cookie of cookies) {
+    const trimmed = cookie.trim();
+    if (!trimmed) {
+      continue;
+    }
+
+    const separatorIndex = trimmed.indexOf("=");
+    const cookieName =
+      separatorIndex >= 0 ? trimmed.slice(0, separatorIndex) : trimmed;
+
+    if (cookieName !== name) {
+      continue;
+    }
+
+    const rawValue =
+      separatorIndex >= 0 ? trimmed.slice(separatorIndex + 1) : "";
+
+    try {
+      return decodeURIComponent(rawValue);
+    } catch {
+      return rawValue;
+    }
+  }
+
+  return null;
+}
+
+function readStoredMeegleUser():
+  | {
+      userKey: string | null;
+      userName: string | null;
+      tenantKey: string | null;
+    }
+  | undefined {
+  const storageKeys = ["meegle_user", "meegle_user_profile"];
+  const sources = [localStorage, sessionStorage];
+
+  for (const storage of sources) {
+    for (const key of storageKeys) {
+      const raw = storage.getItem(key);
+      if (!raw) {
+        continue;
+      }
+
+      try {
+        const userData = JSON.parse(raw) as Record<string, unknown>;
+        return {
+          userKey:
+            (typeof userData.userKey === "string" && userData.userKey)
+            || (typeof userData.user_key === "string" && userData.user_key)
+            || null,
+          userName:
+            (typeof userData.name === "string" && userData.name)
+            || (typeof userData.userName === "string" && userData.userName)
+            || null,
+          tenantKey:
+            (typeof userData.tenantKey === "string" && userData.tenantKey)
+            || (typeof userData.tenant_key === "string" && userData.tenant_key)
+            || null,
+        };
+      } catch {
+        // Ignore parse errors and keep searching.
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function logIdentityResolution(
+  source: MeegleIdentitySource,
+  identity: MeegleUserIdentity,
+): void {
+  meegleCsLogger.debug("meegleIdentity.resolve", {
+    source,
+    hasUserKey: Boolean(identity.userKey),
+    userKey: summarizeIdentifier(identity.userKey),
+    tenantKey: summarizeIdentifier(identity.tenantKey),
+    hasUserName: Boolean(identity.userName),
+    location: getPageLocation().href,
+  });
+}
+
 /**
  * Get user identity from Meegle page
  */
-export function getMeegleUserIdentity(): MeegleUserIdentity {
+function getMeegleUserIdentity(): MeegleUserIdentity {
   const identity: MeegleUserIdentity = {
     userKey: null,
     userName: null,
     tenantKey: null,
   };
+  let source: MeegleIdentitySource = "not_found";
 
   // Try to extract from global variables or API responses
   try {
@@ -33,6 +207,9 @@ export function getMeegleUserIdentity(): MeegleUserIdentity {
       identity.userKey = user.userKey || user.user_key || user.id;
       identity.userName = user.name || user.userName;
       identity.tenantKey = user.tenantKey || user.tenant_key;
+      if (identity.userKey) {
+        source = "context";
+      }
     }
 
     // Try to find from meta tags
@@ -40,6 +217,9 @@ export function getMeegleUserIdentity(): MeegleUserIdentity {
       const metaUserKey = document.querySelector('meta[name="user-key"]') as HTMLMetaElement;
       if (metaUserKey) {
         identity.userKey = metaUserKey.content;
+        if (identity.userKey) {
+          source = "meta";
+        }
       }
     }
 
@@ -48,22 +228,30 @@ export function getMeegleUserIdentity(): MeegleUserIdentity {
       const userElement = document.querySelector('[data-user-key]') as HTMLElement;
       if (userElement?.dataset.userKey) {
         identity.userKey = userElement.dataset.userKey;
+        source = "data-attr";
       }
     }
 
-    // Try to get from URL or page context
+    // Try to get from storage snapshots
     if (!identity.userKey) {
-      // Check localStorage or sessionStorage
-      const storedUser = localStorage.getItem('meegle_user') || sessionStorage.getItem('meegle_user');
-      if (storedUser) {
-        try {
-          const userData = JSON.parse(storedUser);
-          identity.userKey = userData.userKey || userData.user_key;
-          identity.userName = userData.name || userData.userName;
-        } catch {
-          // Ignore parse errors
-        }
+      const storedUser = readStoredMeegleUser();
+      if (storedUser?.userKey) {
+        identity.userKey = storedUser.userKey;
+        identity.userName = storedUser.userName;
+        identity.tenantKey = storedUser.tenantKey;
+        source = "storage";
       }
+    }
+
+    if (!identity.userKey) {
+      identity.userKey = getCookieValue("meego_user_key");
+      if (identity.userKey) {
+        source = "cookie";
+      }
+    }
+
+    if (!identity.tenantKey) {
+      identity.tenantKey = getCookieValue("meego_tenant_key");
     }
 
     // Try to get tenant key from URL
@@ -71,11 +259,16 @@ export function getMeegleUserIdentity(): MeegleUserIdentity {
       const urlMatch = window.location.pathname.match(/\/tenant\/([^/]+)/);
       if (urlMatch) {
         identity.tenantKey = urlMatch[1];
+        if (source === "not_found") {
+          source = "url";
+        }
       }
     }
   } catch (err) {
-    console.error("[Tenways Octo] Error getting Meegle user identity:", err);
+    meegleCsLogger.error("Error getting Meegle user identity", { error: err instanceof Error ? err.message : String(err) });
   }
+
+  logIdentityResolution(source, identity);
 
   return identity;
 }
@@ -88,68 +281,61 @@ async function getAuthCodeFromMeegleApi(
   state: string,
   baseUrl: string = "https://project.larksuite.com",
 ): Promise<MeegleAuthCodeResult | null> {
-  try {
-    // Get current page cookie
-    const cookie = document.cookie;
+  logMcsFlow("AUTH_CODE_API", "START", { baseUrl, state, pluginIdSuffix: pluginId.slice(-6), location: getPageLocation().origin });
+  meegleCsLogger.info("Getting auth code from Meegle API...");
 
-    if (!cookie || cookie.length === 0) {
-      console.error("[Tenways Octo] No cookie found on current page");
-      return null;
-    }
+  // Call Meegle BFF auth code API
+  // Note: credentials 'include' ensures cookies are sent automatically
+  const response = await fetch(`${baseUrl}/bff/v2/authen/v1/auth_code`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify({
+      plugin_id: pluginId,
+      state: state,
+    }),
+  });
 
-    console.log("[Tenways Octo] Getting auth code from Meegle API...");
-
-    // Call Meegle BFF auth code API
-    const response = await fetch(`${baseUrl}/bff/v2/authen/v1/auth_code`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Cookie": cookie,
-      },
-      body: JSON.stringify({
-        plugin_id: pluginId,
-        state: state,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("[Tenways Octo] Auth code API error:", response.status, errorText);
-      return null;
-    }
-
-    const data = await response.json() as {
-      data?: { code?: string };
-      code?: string;
-      auth_code?: string;
-      error?: { code?: number; msg?: string };
-    };
-
-    // Check for error in response
-    if (data.error && data.error.code !== 0) {
-      console.error("[Tenways Octo] Auth code error:", data.error.msg);
-      return null;
-    }
-
-    // Extract auth code from response
-    const authCode = data.data?.code ?? data.code ?? data.auth_code;
-
-    if (typeof authCode !== "string" || authCode.length === 0) {
-      console.error("[Tenways Octo] Invalid auth code in response");
-      return null;
-    }
-
-    console.log("[Tenways Octo] Auth code obtained successfully");
-
-    return {
-      authCode,
-      state,
-      issuedAt: new Date().toISOString(),
-    };
-  } catch (err) {
-    console.error("[Tenways Octo] Failed to get auth code:", err);
-    return null;
+  if (!response.ok) {
+    const errorText = await response.text();
+    logMcsFlow("AUTH_CODE_API", "FAIL", { baseUrl, status: response.status, errorText });
+    meegleCsLogger.error("Auth code API error", { status: response.status, errorText });
+    throw new Error(`Auth code API error: ${response.status} ${errorText}`);
   }
+
+  const data = await response.json() as {
+    data?: { code?: string };
+    code?: string;
+    auth_code?: string;
+    error?: { code?: number; msg?: string };
+  };
+
+  // Check for error in response
+  if (data.error && data.error.code !== 0) {
+    logMcsFlow("AUTH_CODE_API", "FAIL", { baseUrl, errorCode: data.error.code, errorMessage: data.error.msg });
+    meegleCsLogger.error("Auth code error", { errorMessage: data.error.msg });
+    throw new Error(data.error.msg || "Auth code request failed");
+  }
+
+  // Extract auth code from response
+  const authCode = data.data?.code ?? data.code ?? data.auth_code;
+
+  if (typeof authCode !== "string" || authCode.length === 0) {
+    logMcsFlow("AUTH_CODE_API", "FAIL", { baseUrl, reason: "INVALID_AUTH_CODE_RESPONSE", keys: Object.keys(data) });
+    meegleCsLogger.error("Invalid auth code in response");
+    throw new Error("Invalid auth code in response");
+  }
+
+  logMcsFlow("AUTH_CODE_API", "OK", { baseUrl, state, authCodeSuffix: authCode.slice(-6) });
+  meegleCsLogger.info("Auth code obtained successfully");
+
+  return {
+    authCode,
+    state,
+    issuedAt: new Date().toISOString(),
+  };
 }
 
 /**
@@ -163,36 +349,127 @@ async function requestAuthCode(
   return getAuthCodeFromMeegleApi(pluginId, state, baseUrl);
 }
 
-export function initMeegleContentScript() {
-  console.log("[Tenways Octo] Meegle content script initialized");
+function getCurrentUrl(): string | undefined {
+  return typeof window !== "undefined" ? window.location.href : undefined;
+}
 
-  // Listen for auth code requests from background
+function getCurrentOrigin(): string | undefined {
+  return typeof window !== "undefined" ? window.location.origin : undefined;
+}
+
+function destroyMeegleSidebar(): void {
+  meegleSidebar.destroy();
+  meegleSidebar = createNoopSidebarHandle();
+  lastSidebarUrl = undefined;
+}
+
+async function refreshMeegleSidebar(): Promise<void> {
+  const currentUrl = getCurrentUrl();
+  const pageConfig = await fetchExtensionPageConfig({
+    url: currentUrl,
+    fallbackPlatform: "meegle",
+  });
+
+  if (
+    !pageConfig.sidebar.injectPageElements ||
+    !pageConfigHasActionPlacement(pageConfig, "sidebar")
+  ) {
+    if (document.getElementById(SIDEBAR_HOST_ID)) {
+      destroyMeegleSidebar();
+    }
+    return;
+  }
+
+  if (currentUrl && currentUrl === lastSidebarUrl && document.getElementById(SIDEBAR_HOST_ID)) {
+    return;
+  }
+
+  if (document.getElementById(SIDEBAR_HOST_ID)) {
+    destroyMeegleSidebar();
+  }
+
+  const meegleIdentity = getMeegleUserIdentity();
+  meegleSidebar = injectSidebar(
+    {
+      hostPageType: "meegle",
+      hostUrl: currentUrl,
+      hostOrigin: getCurrentOrigin(),
+      meegleUserKey: meegleIdentity.userKey ?? undefined,
+    },
+    {
+      showTrigger: pageConfig.sidebar.sidebarButtonEnabled,
+      enableKeyboardShortcut: pageConfig.sidebar.keyboardShortcutEnabled,
+    },
+  );
+  lastSidebarUrl = currentUrl;
+}
+
+function scheduleMeegleSidebarRefresh(): void {
+  if (routeRefreshTimer) {
+    clearTimeout(routeRefreshTimer);
+  }
+
+  routeRefreshTimer = setTimeout(() => {
+    routeRefreshTimer = undefined;
+    void refreshMeegleSidebar();
+  }, SIDEBAR_ROUTE_REFRESH_DELAY_MS);
+}
+
+function installMeegleRouteWatcher(): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  if (meegleTestingTarget.__TENWAYS_MEEGLE_ROUTE_WATCH_INSTALLED__) {
+    return;
+  }
+  meegleTestingTarget.__TENWAYS_MEEGLE_ROUTE_WATCH_INSTALLED__ = true;
+
+  const wrapHistoryMethod = (method: "pushState" | "replaceState") => {
+    const original = window.history[method];
+    window.history[method] = function wrappedHistoryMethod(
+      this: History,
+      ...args: Parameters<History[typeof method]>
+    ): ReturnType<History[typeof method]> {
+      const previousUrl = window.location.href;
+      const result = original.apply(this, args);
+      if (window.location.href !== previousUrl) {
+        scheduleMeegleSidebarRefresh();
+      }
+      return result;
+    };
+  };
+
+  wrapHistoryMethod("pushState");
+  wrapHistoryMethod("replaceState");
+  window.addEventListener("popstate", scheduleMeegleSidebarRefresh);
+}
+
+function registerMeegleMessageListener(): void {
+  if (authMessageListenerRegistered) {
+    return;
+  }
+  authMessageListenerRegistered = true;
+
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    if (message.action === "itdog.page.meegle.auth_code.request") {
+    if (message.action === "octo.page.meegle.auth_code.request") {
       const { pluginId, state, baseUrl } = message.payload;
+      logMcsFlow("MESSAGE_RECEIVED", "START", { action: message.action, baseUrl, state, pluginIdSuffix: typeof pluginId === "string" ? pluginId.slice(-6) : undefined, location: getPageLocation().href });
 
       requestAuthCode(pluginId, state, baseUrl)
         .then((result) => {
-          if (result) {
-            sendResponse({
-              ok: true,
-              data: result,
-            });
-          } else {
-            sendResponse({
-              ok: false,
-              error: {
-                errorCode: "AUTH_CODE_REQUEST_FAILED",
-                errorMessage: "Failed to obtain auth code from Meegle",
-              },
-            });
-          }
+          logMcsFlow("MESSAGE_RECEIVED", "OK", { action: message.action, state: result?.state, issuedAt: result?.issuedAt });
+          sendResponse({
+            ok: true,
+            data: result,
+          });
         })
         .catch((err: Error) => {
+          logMcsFlow("MESSAGE_RECEIVED", "FAIL", { action: message.action, errorMessage: err.message });
           sendResponse({
             ok: false,
             error: {
-              errorCode: "AUTH_CODE_ERROR",
+              errorCode: "AUTH_CODE_REQUEST_FAILED",
               errorMessage: err.message,
             },
           });
@@ -209,5 +486,29 @@ export function initMeegleContentScript() {
   });
 }
 
+function installTestingApi(): void {
+  meegleTestingTarget.__TENWAYS_MEEGLE_TESTING__ = {
+    getMeegleUserIdentity,
+    getAuthCodeFromMeegleApi,
+    initMeegleContentScript,
+    refreshMeegleSidebar,
+    openSidebar: () => meegleSidebar.open(),
+    closeSidebar: () => meegleSidebar.close(),
+    toggleSidebar: () => meegleSidebar.toggle(),
+  };
+}
+
+function initMeegleContentScript() {
+  meegleCsLogger.info("Meegle content script initialized");
+  installTestingApi();
+  registerMeegleMessageListener();
+  installMeegleRouteWatcher();
+  void refreshMeegleSidebar();
+}
+
+const meegleTestingTarget = globalThis as MeegleGlobalState;
+
 // Initialize when script loads
 initMeegleContentScript();
+
+export {};

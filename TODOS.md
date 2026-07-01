@@ -33,7 +33,7 @@
 
 **Cons**: Requires managing tab lifecycle, potential popup blockers, cross-tab messaging complexity.
 
-**Context**: Design doc [10-meegle-auth-bridge-design.md](docs/it-pm-assistant/10-meegle-auth-bridge-design.md) explicitly defers this to Phase 2. Current implementation only supports "从已有 Meegle tab 申请 auth_code". The helper tab approach requires:
+**Context**: Design doc [10-meegle-auth-bridge-design.md](docs/tenways-octo/10-meegle-auth-bridge-design.md) explicitly defers this to Phase 2. Current implementation only supports "从已有 Meegle tab 申请 auth_code". The helper tab approach requires:
 1. Detecting no active Meegle tab
 2. Opening new tab to Meegle login page
 3. Waiting for login + auth code request
@@ -52,7 +52,7 @@
 - `catalog-adapter.ts` - Project/space/type/field discovery
 - `execution-adapter.ts` - Workitem/workflow/task CRUD
 
-**Why**: The current single-adapter approach is acceptable for Phase 1 but will become unwieldy as Meegle API coverage grows. The design doc [04-architecture.md](docs/it-pm-assistant/04-architecture.md#8-meegle-适配设计更新) explicitly defines these three layers.
+**Why**: The current single-adapter approach is acceptable for Phase 1 but will become unwieldy as Meegle API coverage grows. The design doc [04-architecture.md](docs/tenways-octo/04-architecture.md#8-meegle-适配设计更新) explicitly defines these three layers.
 
 **Pros**: Clear responsibility boundaries, easier testing, parallel development, follows Single Responsibility Principle.
 
@@ -73,7 +73,7 @@
 
 **What**: Extend PM analysis service to aggregate data from Lark (A1/A2 records) and GitHub (PR status) in addition to Meegle.
 
-**Why**: The design doc [03-prd.md](docs/it-pm-assistant/03-prd.md) describes PM analysis as cross-platform analysis. Currently, the implementation only covers Meegle workitem data. Full PM analysis requires:
+**Why**: The design doc [03-prd.md](docs/tenways-octo/03-prd.md) describes PM analysis as cross-platform analysis. Currently, the implementation only covers Meegle workitem data. Full PM analysis requires:
 - Lark A1/A2 record correlation
 - GitHub PR status and review state
 - Unified analysis report
@@ -82,6 +82,6 @@
 
 **Cons**: Three API integrations, authentication complexity for each platform, data normalization overhead.
 
-**Context**: Design doc [05-ai-agent-skill-design.md](docs/it-pm-assistant/05-ai-agent-skill-design.md) describes the PM analysis agent that should aggregate all three sources. Phase 1 implementation focuses on Meegle-only as the primary execution platform.
+**Context**: Design doc [05-ai-agent-skill-design.md](docs/tenways-octo/05-ai-agent-skill-design.md) describes the PM analysis agent that should aggregate all three sources. Phase 1 implementation focuses on Meegle-only as the primary execution platform.
 
 **Depends on**: PM analysis service implementation (Task 7), Lark API adapter, GitHub API adapter.

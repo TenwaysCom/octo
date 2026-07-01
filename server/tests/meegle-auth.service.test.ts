@@ -14,7 +14,7 @@ describe("exchangeAuthCode", () => {
       exchangeAuthCode(
         {
           requestId: "req-1",
-          operatorLarkId: "ou_xxx",
+          masterUserId: "usr_xxx",
           meegleUserKey: "user_xxx",
           baseUrl: "https://project.larksuite.com",
           authCode: "auth-code",
@@ -23,61 +23,83 @@ describe("exchangeAuthCode", () => {
         {
           authAdapter: {
             async getPluginToken() {
-              return "plugin-token";
+              return {
+                token: "plugin-token",
+                expiresInSeconds: 7200,
+              };
             },
             async exchangeUserToken() {
               return {
                 userToken: "user-token",
                 refreshToken: "refresh-token",
+                expiresInSeconds: 3600,
+                refreshTokenExpiresInSeconds: 1209600,
               };
             },
             async refreshUserToken() {
               return {
                 userToken: "refreshed-user-token",
                 refreshToken: "refreshed-refresh-token",
+                expiresInSeconds: 3600,
+                refreshTokenExpiresInSeconds: 1209600,
               };
             },
           },
           tokenStore,
         },
       ),
-    ).resolves.toMatchObject({ tokenStatus: "ready", userToken: "user-token" });
+    ).resolves.toMatchObject({
+      tokenStatus: "ready",
+      credentialStatus: "active",
+      userToken: "user-token",
+    });
   });
 
   it("refreshes a stored token when refresh token exists", async () => {
     const tokenStore = new InMemoryMeegleTokenStore();
 
     await tokenStore.save({
-      operatorLarkId: "ou_xxx",
+      masterUserId: "usr_xxx",
       meegleUserKey: "user_xxx",
       baseUrl: "https://project.larksuite.com",
       pluginToken: "plugin-token",
+      pluginTokenExpiresAt: "2099-03-26T12:00:00.000Z",
       userToken: "stale-user-token",
+      userTokenExpiresAt: "2020-03-26T10:00:00.000Z",
       refreshToken: "refresh-token",
+      refreshTokenExpiresAt: "2099-04-09T10:00:00.000Z",
+      credentialStatus: "active",
     });
 
     await expect(
       refreshAuthToken(
         {
-          operatorLarkId: "ou_xxx",
+          masterUserId: "usr_xxx",
           meegleUserKey: "user_xxx",
           baseUrl: "https://project.larksuite.com",
         },
         {
           authAdapter: {
             async getPluginToken() {
-              return "plugin-token";
+              return {
+                token: "plugin-token",
+                expiresInSeconds: 7200,
+              };
             },
             async exchangeUserToken() {
               return {
                 userToken: "user-token",
                 refreshToken: "refresh-token",
+                expiresInSeconds: 3600,
+                refreshTokenExpiresInSeconds: 1209600,
               };
             },
             async refreshUserToken() {
               return {
                 userToken: "refreshed-user-token",
                 refreshToken: "refreshed-refresh-token",
+                expiresInSeconds: 3600,
+                refreshTokenExpiresInSeconds: 1209600,
               };
             },
           },
@@ -95,18 +117,25 @@ describe("exchangeAuthCode", () => {
     configureMeegleAuthServiceDeps({
       authAdapter: {
         async getPluginToken() {
-          return "plugin-token";
+          return {
+            token: "plugin-token",
+            expiresInSeconds: 7200,
+          };
         },
         async exchangeUserToken() {
           return {
             userToken: "user-token",
             refreshToken: "refresh-token",
+            expiresInSeconds: 3600,
+            refreshTokenExpiresInSeconds: 1209600,
           };
         },
         async refreshUserToken() {
           return {
             userToken: "refreshed-user-token",
             refreshToken: "refreshed-refresh-token",
+            expiresInSeconds: 3600,
+            refreshTokenExpiresInSeconds: 1209600,
           };
         },
       },
@@ -115,7 +144,7 @@ describe("exchangeAuthCode", () => {
 
     await exchangeAuthCode({
       requestId: "req-2",
-      operatorLarkId: "ou_xxx",
+      masterUserId: "usr_xxx",
       meegleUserKey: "user_xxx",
       baseUrl: "https://project.larksuite.com",
       authCode: "auth-code",
@@ -123,7 +152,7 @@ describe("exchangeAuthCode", () => {
 
     await expect(
       refreshAuthToken({
-        operatorLarkId: "ou_xxx",
+        masterUserId: "usr_xxx",
         meegleUserKey: "user_xxx",
         baseUrl: "https://project.larksuite.com",
       }),
@@ -137,30 +166,39 @@ describe("exchangeAuthCode", () => {
     const tokenStore = new InMemoryMeegleTokenStore();
 
     await tokenStore.save({
-      operatorLarkId: "ou_xxx",
+      masterUserId: "usr_xxx",
       meegleUserKey: "user_xxx",
       baseUrl: "https://project.larksuite.com",
       pluginToken: "plugin-token",
+      pluginTokenExpiresAt: "2099-03-26T12:00:00.000Z",
       userToken: "stale-user-token",
+      userTokenExpiresAt: "2020-03-26T10:00:00.000Z",
       refreshToken: "refresh-token",
+      refreshTokenExpiresAt: "2099-04-09T10:00:00.000Z",
+      credentialStatus: "active",
     });
 
     await expect(
       refreshAuthToken(
         {
-          operatorLarkId: "ou_xxx",
+          masterUserId: "usr_xxx",
           meegleUserKey: "user_xxx",
           baseUrl: "https://project.larksuite.com",
         },
         {
           authAdapter: {
             async getPluginToken() {
-              return "plugin-token";
+              return {
+                token: "plugin-token",
+                expiresInSeconds: 7200,
+              };
             },
             async exchangeUserToken() {
               return {
                 userToken: "user-token",
                 refreshToken: "refresh-token",
+                expiresInSeconds: 3600,
+                refreshTokenExpiresInSeconds: 1209600,
               };
             },
             async refreshUserToken() {
@@ -176,7 +214,7 @@ describe("exchangeAuthCode", () => {
 
     await expect(
       tokenStore.get({
-        operatorLarkId: "ou_xxx",
+        masterUserId: "usr_xxx",
         meegleUserKey: "user_xxx",
         baseUrl: "https://project.larksuite.com",
       }),

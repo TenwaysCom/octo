@@ -1,0 +1,1094 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { executeLarkBaseWorkflow } from "./lark-base-workflow.service.js";
+import type { LarkBitableRecord } from "../../adapters/lark/lark-client.js";
+
+describe("lark-base-workflow.service", () => {
+  const getLarkTokenStoreMock = vi.fn();
+  const refreshLarkTokenMock = vi.fn();
+  const createLarkClientMock = vi.fn();
+  const executeMeegleApplyMock = vi.fn();
+  const updateLarkBaseMeegleLinkMock = vi.fn();
+  const getLarkRecordUrlMock = vi.fn();
+
+  const deps = {
+    getLarkTokenStore: () => ({
+      get: getLarkTokenStoreMock,
+      save: vi.fn(),
+      delete: vi.fn(),
+    }),
+    refreshLarkToken: refreshLarkTokenMock,
+    createLarkClient: createLarkClientMock,
+    executeMeegleApply: executeMeegleApplyMock,
+    updateLarkBaseMeegleLink: updateLarkBaseMeegleLinkMock,
+    getLarkRecordUrl: getLarkRecordUrlMock,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.env.LARK_BASE_WORKFLOW_CONFIG_PATH = "/nonexistent/config.json";
+    process.env.LARK_BASE_ISSUE_TYPE_MAPPINGS = JSON.stringify([
+      { larkLabels: ["User Story"], workitemTypeKey: "story", templateId: "400329", urlSlug: "story" },
+      { larkLabels: ["Tech Task"], workitemTypeKey: "tech_task", templateId: "tpl_tech", urlSlug: "techtask" },
+      { larkLabels: ["Production Bug"], workitemTypeKey: "6932e40429d1cd8aac635c82", templateId: "645025", urlSlug: "production_bug" },
+    ]);
+  });
+
+  function makeRecord(issueType: string | string[], tag = "urgent", meegleVersion?: unknown): LarkBitableRecord {
+    const issueTypes = Array.isArray(issueType) ? issueType : [issueType];
+    const fields: LarkBitableRecord["fields"] = {
+      "Issue 类型": issueTypes.map((text) => ({ text, id: `opt_${text}` })),
+      "Issue Description": "Test issue description",
+      "Details Description": "Detailed info",
+      tag,
+    };
+    if (meegleVersion !== undefined) {
+      fields.MeegleVersion = meegleVersion;
+    }
+
+    return {
+      record_id: "rec_123",
+      fields,
+    };
+  }
+
+  it("returns INVALID_REQUEST when baseId and tableId are missing and env defaults are empty", async () => {
+    const originalBaseId = process.env.LARK_BASE_DEFAULT_BASE_ID;
+    const originalTableId = process.env.LARK_BASE_DEFAULT_TABLE_ID;
+    process.env.LARK_BASE_DEFAULT_BASE_ID = "";
+    process.env.LARK_BASE_DEFAULT_TABLE_ID = "";
+
+    const result = await executeLarkBaseWorkflow(
+      { recordId: "rec_123", masterUserId: "usr_xxx" },
+      deps,
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: {
+        layer: "server",
+        module: "lark-base-workflow",
+        stage: "server.action.received",
+        errorCode: "INVALID_REQUEST",
+        errorMessage: expect.stringContaining("baseId and tableId are required"),
+      },
+    });
+
+    process.env.LARK_BASE_DEFAULT_BASE_ID = originalBaseId;
+    process.env.LARK_BASE_DEFAULT_TABLE_ID = originalTableId;
+  });
+
+  it("creates a user story for Issue 类型 = User Story", async () => {
+    const record = makeRecord("User Story");
+    createLarkClientMock.mockReturnValueOnce({
+      getRecord: vi.fn().mockResolvedValueOnce(record),
+    });
+    getLarkTokenStoreMock.mockResolvedValueOnce({
+      userToken: "token_123",
+      userTokenExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
+      baseUrl: "https://open.larksuite.com",
+    });
+    executeMeegleApplyMock.mockResolvedValueOnce({
+      status: "created",
+      workitemId: "wi_111",
+      draft: {},
+    });
+    updateLarkBaseMeegleLinkMock.mockResolvedValueOnce({
+      ok: true,
+      recordId: "rec_123",
+    });
+
+    const result = await executeLarkBaseWorkflow(
+      {
+        recordId: "rec_123",
+        masterUserId: "usr_xxx",
+        baseId: "base_123",
+        tableId: "tbl_456",
+      },
+      deps,
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      workitemId: "wi_111",
+      meegleLink: expect.stringContaining("/detail/wi_111"),
+      recordId: "rec_123",
+      workitems: [
+        { workitemId: "wi_111", meegleLink: expect.stringContaining("/detail/wi_111") },
+      ],
+    });
+
+    expect(executeMeegleApplyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        draft: expect.objectContaining({
+          draftId: "draft_base_rec_123_story_0",
+          target: expect.objectContaining({
+            workitemTypeKey: "story",
+            templateId: "400329",
+          }),
+          fieldValuePairs: expect.arrayContaining([
+            expect.objectContaining({
+              fieldKey: "description",
+              fieldValue: expect.stringContaining("https://base.larksuite.com/base/base_123/table/tbl_456/record/rec_123"),
+            }),
+            expect.objectContaining({
+              fieldKey: "field_e8ad0a",
+              fieldValue: "https://base.larksuite.com/base/base_123/table/tbl_456/record/rec_123",
+            }),
+          ]),
+        }),
+        idempotencyKey: "idem_base_rec_123_story_0_v1",
+      }),
+      {},
+    );
+  });
+
+  it("threads actionRunId through create apply and success result", async () => {
+    const record = makeRecord("User Story");
+    createLarkClientMock.mockReturnValueOnce({
+      getRecord: vi.fn().mockResolvedValueOnce(record),
+    });
+    getLarkTokenStoreMock.mockResolvedValueOnce({
+      userToken: "token_123",
+      userTokenExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
+      baseUrl: "https://open.larksuite.com",
+    });
+    executeMeegleApplyMock.mockResolvedValueOnce({
+      status: "created",
+      workitemId: "wi_run",
+      draft: {},
+    });
+    updateLarkBaseMeegleLinkMock.mockResolvedValueOnce({
+      ok: true,
+      recordId: "rec_123",
+    });
+
+    const result = await executeLarkBaseWorkflow(
+      {
+        recordId: "rec_123",
+        masterUserId: "usr_xxx",
+        baseId: "base_123",
+        tableId: "tbl_456",
+        actionRunId: "run_create_001",
+      },
+      deps,
+    );
+
+    expect(result).toMatchObject({
+      ok: true,
+      actionRunId: "run_create_001",
+      workitemId: "wi_run",
+    });
+    expect(executeMeegleApplyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actionRunId: "run_create_001",
+      }),
+      {},
+    );
+  });
+
+  it("keeps the idempotency key ASCII-safe when tag contains Chinese text", async () => {
+    const record = makeRecord("User Story", "集中处理");
+    createLarkClientMock.mockReturnValueOnce({
+      getRecord: vi.fn().mockResolvedValueOnce(record),
+    });
+    getLarkTokenStoreMock.mockResolvedValueOnce({
+      userToken: "token_123",
+      userTokenExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
+      baseUrl: "https://open.larksuite.com",
+    });
+    executeMeegleApplyMock.mockResolvedValueOnce({
+      status: "created",
+      workitemId: "wi_chinese_tag",
+      draft: {},
+    });
+    updateLarkBaseMeegleLinkMock.mockResolvedValueOnce({
+      ok: true,
+      recordId: "rec_123",
+    });
+
+    const result = await executeLarkBaseWorkflow(
+      {
+        recordId: "rec_123",
+        masterUserId: "usr_xxx",
+        baseId: "base_123",
+        tableId: "tbl_456",
+      },
+      deps,
+    );
+
+    expect(result.ok).toBe(true);
+
+    const applyArg = executeMeegleApplyMock.mock.calls[0]?.[0] as { idempotencyKey?: string };
+    expect(applyArg?.idempotencyKey).toBe("idem_base_rec_123_story_0_v1");
+    expect(applyArg?.idempotencyKey).toMatch(/^[\x00-\x7F]+$/);
+  });
+
+  it("uses MeegleVersion to version recreate idempotency keys", async () => {
+    const record = makeRecord("User Story", "集中处理", 2);
+    createLarkClientMock.mockReturnValueOnce({
+      getRecord: vi.fn().mockResolvedValueOnce(record),
+    });
+    getLarkTokenStoreMock.mockResolvedValueOnce({
+      userToken: "token_123",
+      userTokenExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
+      baseUrl: "https://open.larksuite.com",
+    });
+    executeMeegleApplyMock.mockResolvedValueOnce({
+      status: "created",
+      workitemId: "wi_recreate",
+      draft: {},
+    });
+    updateLarkBaseMeegleLinkMock.mockResolvedValueOnce({
+      ok: true,
+      recordId: "rec_123",
+    });
+
+    const result = await executeLarkBaseWorkflow(
+      {
+        recordId: "rec_123",
+        masterUserId: "usr_xxx",
+        baseId: "base_123",
+        tableId: "tbl_456",
+      },
+      deps,
+    );
+
+    expect(result.ok).toBe(true);
+
+    const applyArg = executeMeegleApplyMock.mock.calls[0]?.[0] as { idempotencyKey?: string };
+    expect(applyArg?.idempotencyKey).toBe("idem_base_rec_123_story_0_v2");
+    expect(applyArg?.idempotencyKey).toMatch(/^[\x00-\x7F]+$/);
+  });
+
+  it("creates a production bug for Issue 类型 = Production Bug", async () => {
+    const record = makeRecord("Production Bug");
+    createLarkClientMock.mockReturnValueOnce({
+      getRecord: vi.fn().mockResolvedValueOnce(record),
+    });
+    getLarkTokenStoreMock.mockResolvedValueOnce({
+      userToken: "token_123",
+      userTokenExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
+      baseUrl: "https://open.larksuite.com",
+    });
+    executeMeegleApplyMock.mockResolvedValueOnce({
+      status: "created",
+      workitemId: "wi_222",
+      draft: {},
+    });
+    updateLarkBaseMeegleLinkMock.mockResolvedValueOnce({
+      ok: true,
+      recordId: "rec_123",
+    });
+
+    const result = await executeLarkBaseWorkflow(
+      {
+        recordId: "rec_123",
+        masterUserId: "usr_xxx",
+        baseId: "base_123",
+        tableId: "tbl_456",
+      },
+      deps,
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      workitemId: "wi_222",
+      meegleLink: expect.stringContaining("/detail/wi_222"),
+      recordId: "rec_123",
+      workitems: [
+        { workitemId: "wi_222", meegleLink: expect.stringContaining("/detail/wi_222") },
+      ],
+    });
+
+    expect(executeMeegleApplyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        draft: expect.objectContaining({
+          draftId: "draft_base_rec_123_6932e40429d1cd8aac635c82_0",
+          target: expect.objectContaining({
+            workitemTypeKey: "6932e40429d1cd8aac635c82",
+            templateId: "645025",
+          }),
+        }),
+        idempotencyKey: "idem_base_rec_123_6932e40429d1cd8aac635c82_0_v1",
+      }),
+      {},
+    );
+  });
+
+  it("falls back to default issue type when Issue 类型 is empty", async () => {
+    const record = makeRecord([]);
+    createLarkClientMock.mockReturnValueOnce({
+      getRecord: vi.fn().mockResolvedValueOnce(record),
+    });
+    getLarkTokenStoreMock.mockResolvedValueOnce({
+      userToken: "token_123",
+      userTokenExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
+      baseUrl: "https://open.larksuite.com",
+    });
+    executeMeegleApplyMock.mockResolvedValueOnce({
+      status: "created",
+      workitemId: "wi_fallback",
+      draft: {},
+    });
+    updateLarkBaseMeegleLinkMock.mockResolvedValueOnce({
+      ok: true,
+      recordId: "rec_123",
+    });
+
+    const result = await executeLarkBaseWorkflow(
+      {
+        recordId: "rec_123",
+        masterUserId: "usr_xxx",
+        baseId: "base_123",
+        tableId: "tbl_456",
+      },
+      deps,
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      workitemId: "wi_fallback",
+      meegleLink: expect.stringContaining("/detail/wi_fallback"),
+      recordId: "rec_123",
+      workitems: [
+        { workitemId: "wi_fallback", meegleLink: expect.stringContaining("/detail/wi_fallback") },
+      ],
+    });
+
+    expect(executeMeegleApplyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        draft: expect.objectContaining({
+          target: expect.objectContaining({
+            workitemTypeKey: "6932e40429d1cd8aac635c82",
+            templateId: "645025",
+          }),
+        }),
+      }),
+      {},
+    );
+  });
+
+  it("handles single-select Issue 类型 returned as an object", async () => {
+    const record: LarkBitableRecord = {
+      record_id: "rec_123",
+      fields: {
+        "Issue 类型": { text: "User Story", id: "opt_us" },
+        "Issue Description": "Single select title",
+        "Details Description": "Single select details",
+      },
+    };
+    createLarkClientMock.mockReturnValueOnce({
+      getRecord: vi.fn().mockResolvedValueOnce(record),
+    });
+    getLarkTokenStoreMock.mockResolvedValueOnce({
+      userToken: "token_123",
+      userTokenExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
+      baseUrl: "https://open.larksuite.com",
+    });
+    executeMeegleApplyMock.mockResolvedValueOnce({
+      status: "created",
+      workitemId: "wi_single",
+      draft: {},
+    });
+    updateLarkBaseMeegleLinkMock.mockResolvedValueOnce({
+      ok: true,
+      recordId: "rec_123",
+    });
+
+    const result = await executeLarkBaseWorkflow(
+      {
+        recordId: "rec_123",
+        masterUserId: "usr_xxx",
+        baseId: "base_123",
+        tableId: "tbl_456",
+      },
+      deps,
+    );
+
+    expect(result.ok).toBe(true);
+    expect(executeMeegleApplyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        draft: expect.objectContaining({
+          target: expect.objectContaining({
+            workitemTypeKey: "story",
+            templateId: "400329",
+          }),
+        }),
+        idempotencyKey: "idem_base_rec_123_story_0_v1",
+      }),
+      {},
+    );
+  });
+
+  it("creates multiple workitems when multiple Issue 类型 match", async () => {
+    const record = makeRecord(["User Story", "Production Bug"]);
+    createLarkClientMock.mockReturnValueOnce({
+      getRecord: vi.fn().mockResolvedValueOnce(record),
+    });
+    getLarkTokenStoreMock.mockResolvedValueOnce({
+      userToken: "token_123",
+      userTokenExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
+      baseUrl: "https://open.larksuite.com",
+    });
+    executeMeegleApplyMock
+      .mockResolvedValueOnce({
+        status: "created",
+        workitemId: "wi_story",
+        draft: {},
+      })
+      .mockResolvedValueOnce({
+        status: "created",
+        workitemId: "wi_bug",
+        draft: {},
+      });
+    updateLarkBaseMeegleLinkMock.mockResolvedValueOnce({
+      ok: true,
+      recordId: "rec_123",
+    });
+
+    const result = await executeLarkBaseWorkflow(
+      {
+        recordId: "rec_123",
+        masterUserId: "usr_xxx",
+        baseId: "base_123",
+        tableId: "tbl_456",
+      },
+      deps,
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      workitemId: "wi_story",
+      meegleLink: expect.stringContaining("/detail/wi_story"),
+      recordId: "rec_123",
+      workitems: [
+        { workitemId: "wi_story", meegleLink: expect.stringContaining("/detail/wi_story") },
+        { workitemId: "wi_bug", meegleLink: expect.stringContaining("/detail/wi_bug") },
+      ],
+    });
+
+    expect(executeMeegleApplyMock).toHaveBeenCalledTimes(2);
+    expect(updateLarkBaseMeegleLinkMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        meegleLink: expect.stringContaining("/detail/wi_story"),
+      }),
+    );
+    const updateCall = updateLarkBaseMeegleLinkMock.mock.calls[0]?.[0] as { meegleLink?: string };
+    expect(updateCall?.meegleLink).toContain("/detail/wi_story");
+    expect(updateCall?.meegleLink).toContain("/detail/wi_bug");
+  });
+
+  it("refreshes the Lark token when expired", async () => {
+    const record = makeRecord("User Story");
+    createLarkClientMock.mockReturnValueOnce({
+      getRecord: vi.fn().mockResolvedValueOnce(record),
+    });
+    getLarkTokenStoreMock.mockResolvedValueOnce({
+      userToken: "old_token",
+      userTokenExpiresAt: new Date(Date.now() - 1000).toISOString(),
+      refreshToken: "refresh_123",
+      baseUrl: "https://open.larksuite.com",
+    });
+    refreshLarkTokenMock.mockResolvedValueOnce({
+      accessToken: "new_token",
+    });
+    executeMeegleApplyMock.mockResolvedValueOnce({
+      status: "created",
+      workitemId: "wi_333",
+      draft: {},
+    });
+    updateLarkBaseMeegleLinkMock.mockResolvedValueOnce({
+      ok: true,
+      recordId: "rec_123",
+    });
+
+    await executeLarkBaseWorkflow(
+      {
+        recordId: "rec_123",
+        masterUserId: "usr_xxx",
+        baseId: "base_123",
+        tableId: "tbl_456",
+      },
+      deps,
+    );
+
+    expect(refreshLarkTokenMock).toHaveBeenCalledWith({
+      masterUserId: "usr_xxx",
+      baseUrl: "https://open.larksuite.com",
+      refreshToken: "refresh_123",
+    });
+    expect(createLarkClientMock).toHaveBeenCalledWith(
+      "new_token",
+      "https://open.larksuite.com",
+    );
+  });
+
+  it("returns LARK_API_ERROR when getRecord fails", async () => {
+    getLarkTokenStoreMock.mockResolvedValueOnce({
+      userToken: "token_123",
+      userTokenExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
+      baseUrl: "https://open.larksuite.com",
+    });
+    createLarkClientMock.mockReturnValueOnce({
+      getRecord: vi.fn().mockRejectedValueOnce(new Error("Record not found")),
+    });
+
+    const result = await executeLarkBaseWorkflow(
+      {
+        recordId: "rec_123",
+        masterUserId: "usr_xxx",
+        baseId: "base_123",
+        tableId: "tbl_456",
+      },
+      deps,
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: {
+        layer: "server",
+        module: "lark-base-workflow",
+        stage: "server.workflow.failed",
+        errorCode: "LARK_API_ERROR",
+        errorMessage: "Record not found",
+      },
+    });
+  });
+
+  it("returns UNKNOWN_ISSUE_TYPE when Issue 类型 is not recognized", async () => {
+    const record = makeRecord("Unknown Type");
+    createLarkClientMock.mockReturnValueOnce({
+      getRecord: vi.fn().mockResolvedValueOnce(record),
+    });
+    getLarkTokenStoreMock.mockResolvedValueOnce({
+      userToken: "token_123",
+      userTokenExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
+      baseUrl: "https://open.larksuite.com",
+    });
+
+    const result = await executeLarkBaseWorkflow(
+      {
+        recordId: "rec_123",
+        masterUserId: "usr_xxx",
+        baseId: "base_123",
+        tableId: "tbl_456",
+      },
+      deps,
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: {
+        layer: "server",
+        module: "lark-base-workflow",
+        stage: "server.workflow.failed",
+        errorCode: "UNKNOWN_ISSUE_TYPE",
+        errorMessage: expect.stringContaining("Unknown or unsupported Issue 类型"),
+      },
+    });
+  });
+
+  it("returns UPDATE_FAILED when Meegle apply fails", async () => {
+    const record = makeRecord("User Story");
+    createLarkClientMock.mockReturnValueOnce({
+      getRecord: vi.fn().mockResolvedValueOnce(record),
+    });
+    getLarkTokenStoreMock.mockResolvedValueOnce({
+      userToken: "token_123",
+      userTokenExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
+      baseUrl: "https://open.larksuite.com",
+    });
+    const meegleError = new Error("Meegle binding required");
+    (meegleError as Error & { errorCode: string }).errorCode = "MEEGLE_BINDING_REQUIRED";
+    executeMeegleApplyMock.mockRejectedValueOnce(meegleError);
+
+    const result = await executeLarkBaseWorkflow(
+      {
+        recordId: "rec_123",
+        masterUserId: "usr_xxx",
+        baseId: "base_123",
+        tableId: "tbl_456",
+      },
+      deps,
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: {
+        layer: "server",
+        module: "lark-base-workflow",
+        stage: "server.workflow.failed",
+        errorCode: "MEEGLE_BINDING_REQUIRED",
+        errorMessage: "Meegle binding required",
+      },
+    });
+  });
+
+  it("returns UPDATE_FAILED when writing back to Lark fails", async () => {
+    const record = makeRecord("User Story");
+    createLarkClientMock.mockReturnValueOnce({
+      getRecord: vi.fn().mockResolvedValueOnce(record),
+    });
+    getLarkTokenStoreMock.mockResolvedValueOnce({
+      userToken: "token_123",
+      userTokenExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
+      baseUrl: "https://open.larksuite.com",
+    });
+    executeMeegleApplyMock.mockResolvedValueOnce({
+      status: "created",
+      workitemId: "wi_444",
+      draft: {},
+    });
+    updateLarkBaseMeegleLinkMock.mockRejectedValueOnce(
+      new Error("Lark token not found for user"),
+    );
+
+    const result = await executeLarkBaseWorkflow(
+      {
+        recordId: "rec_123",
+        masterUserId: "usr_xxx",
+        baseId: "base_123",
+        tableId: "tbl_456",
+      },
+      deps,
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: {
+        layer: "server",
+        module: "lark-base-workflow",
+        stage: "server.workflow.failed",
+        errorCode: "UPDATE_FAILED",
+        errorMessage: "Lark token not found for user",
+      },
+    });
+  });
+
+  it("uses config-driven field mappings when config file is present", async () => {
+    process.env.LARK_BASE_WORKFLOW_CONFIG_PATH = "./src/modules/lark-base/fixtures/test-config.json";
+
+    const record: LarkBitableRecord = {
+      record_id: "rec_123",
+      fields: {
+        "Issue 类型": [{ text: "User Story", id: "opt_us" }],
+        "Issue Description": "Config-driven title\nSecond line",
+        "Details Description": "Config-driven details",
+      },
+    };
+
+    createLarkClientMock.mockReturnValueOnce({
+      getRecord: vi.fn().mockResolvedValueOnce(record),
+    });
+    getLarkTokenStoreMock.mockResolvedValueOnce({
+      userToken: "token_123",
+      userTokenExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
+      baseUrl: "https://open.larksuite.com",
+    });
+    executeMeegleApplyMock.mockResolvedValueOnce({
+      status: "created",
+      workitemId: "wi_cfg",
+      draft: {},
+    });
+    updateLarkBaseMeegleLinkMock.mockResolvedValueOnce({
+      ok: true,
+      recordId: "rec_123",
+    });
+
+    const result = await executeLarkBaseWorkflow(
+      {
+        recordId: "rec_123",
+        masterUserId: "usr_xxx",
+        baseId: "base_123",
+        tableId: "tbl_456",
+      },
+      deps,
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      workitemId: "wi_cfg",
+      meegleLink: expect.stringContaining("/detail/wi_cfg"),
+      recordId: "rec_123",
+      workitems: [
+        { workitemId: "wi_cfg", meegleLink: expect.stringContaining("/detail/wi_cfg") },
+      ],
+    });
+
+    const draftArg = executeMeegleApplyMock.mock.calls[0]?.[0] as { draft?: { name?: string; fieldValuePairs?: Array<{ fieldKey: string; fieldValue: string }> } };
+    expect(draftArg?.draft?.name).toBe("Config-driven title");
+    expect(draftArg?.draft?.fieldValuePairs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          fieldKey: "description",
+          fieldValue: expect.stringContaining("Config-driven details"),
+        }),
+      ]),
+    );
+
+    delete process.env.LARK_BASE_WORKFLOW_CONFIG_PATH;
+  });
+
+  it("maps select fields using options config", async () => {
+    process.env.LARK_BASE_WORKFLOW_CONFIG_PATH = "./src/modules/lark-base/fixtures/test-select-config.json";
+
+    const record: LarkBitableRecord = {
+      record_id: "rec_123",
+      fields: {
+        "Issue 类型": [{ text: "User Story", id: "opt_us" }],
+        "Issue Description": "Select mapping title",
+        "Details Description": "Details",
+        "紧急度": [{ text: "P0" }],
+      },
+    };
+
+    createLarkClientMock.mockReturnValueOnce({
+      getRecord: vi.fn().mockResolvedValueOnce(record),
+    });
+    getLarkTokenStoreMock.mockResolvedValueOnce({
+      userToken: "token_123",
+      userTokenExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
+      baseUrl: "https://open.larksuite.com",
+    });
+    executeMeegleApplyMock.mockResolvedValueOnce({
+      status: "created",
+      workitemId: "wi_select",
+      draft: {},
+    });
+    updateLarkBaseMeegleLinkMock.mockResolvedValueOnce({
+      ok: true,
+      recordId: "rec_123",
+    });
+
+    const result = await executeLarkBaseWorkflow(
+      {
+        recordId: "rec_123",
+        masterUserId: "usr_xxx",
+        baseId: "base_123",
+        tableId: "tbl_456",
+      },
+      deps,
+    );
+
+    expect(result.ok).toBe(true);
+
+    const draftArg = executeMeegleApplyMock.mock.calls[0]?.[0] as { draft?: { fieldValuePairs?: Array<{ fieldKey: string; fieldValue: string }> } };
+    expect(draftArg?.draft?.fieldValuePairs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          fieldKey: "priority",
+          fieldValue: "0",
+        }),
+      ]),
+    );
+
+    delete process.env.LARK_BASE_WORKFLOW_CONFIG_PATH;
+  });
+
+  it("maps fixed-value fields from config", async () => {
+    process.env.LARK_BASE_WORKFLOW_CONFIG_PATH = "./src/modules/lark-base/fixtures/test-fixed-source-config.json";
+
+    const record: LarkBitableRecord = {
+      record_id: "rec_123",
+      fields: {
+        "Issue 类型": [{ text: "数据维护", id: "opt_data_maintenance" }],
+        "Issue Description": "Fixed source title",
+        "Details Description": "Fixed source details",
+      },
+    };
+
+    createLarkClientMock.mockReturnValueOnce({
+      getRecord: vi.fn().mockResolvedValueOnce(record),
+    });
+    getLarkTokenStoreMock.mockResolvedValueOnce({
+      userToken: "token_123",
+      userTokenExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
+      baseUrl: "https://open.larksuite.com",
+    });
+    executeMeegleApplyMock.mockResolvedValueOnce({
+      status: "created",
+      workitemId: "wi_fixed",
+      draft: {},
+    });
+    updateLarkBaseMeegleLinkMock.mockResolvedValueOnce({
+      ok: true,
+      recordId: "rec_123",
+    });
+
+    const result = await executeLarkBaseWorkflow(
+      {
+        recordId: "rec_123",
+        masterUserId: "usr_xxx",
+        baseId: "base_123",
+        tableId: "tbl_456",
+      },
+      deps,
+    );
+
+    expect(result.ok).toBe(true);
+
+    const draftArg = executeMeegleApplyMock.mock.calls[0]?.[0] as { draft?: { fieldValuePairs?: Array<{ fieldKey: string; fieldValue: string }> } };
+    expect(draftArg?.draft?.fieldValuePairs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          fieldKey: "field_7c2f56",
+          fieldValue: "cmb9pif3i",
+        }),
+      ]),
+    );
+
+    delete process.env.LARK_BASE_WORKFLOW_CONFIG_PATH;
+  });
+  it("extracts lark_message_link from description when available", async () => {
+    const record: LarkBitableRecord = {
+      record_id: "rec_123",
+      fields: {
+        "Issue 类型": [{ text: "User Story", id: "opt_us" }],
+        "Issue Description": "Test title",
+        "Details Description": "Check this thread https://project.larksuite.com/im?threadid=7628922376503545567 for updates",
+      },
+    };
+
+    createLarkClientMock.mockReturnValueOnce({
+      getRecord: vi.fn().mockResolvedValueOnce(record),
+    });
+    getLarkTokenStoreMock.mockResolvedValueOnce({
+      userToken: "token_123",
+      userTokenExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
+      baseUrl: "https://open.larksuite.com",
+    });
+    executeMeegleApplyMock.mockResolvedValueOnce({
+      status: "created",
+      workitemId: "wi_msg",
+      draft: {},
+    });
+    updateLarkBaseMeegleLinkMock.mockResolvedValueOnce({
+      ok: true,
+      recordId: "rec_123",
+    });
+
+    const result = await executeLarkBaseWorkflow(
+      {
+        recordId: "rec_123",
+        masterUserId: "usr_xxx",
+        baseId: "base_123",
+        tableId: "tbl_456",
+      },
+      deps,
+    );
+
+    expect(result.ok).toBe(true);
+
+    const draftArg = executeMeegleApplyMock.mock.calls[0]?.[0] as { draft?: { fieldValuePairs?: Array<{ fieldKey: string; fieldValue: string }> } };
+    expect(draftArg?.draft?.fieldValuePairs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          fieldKey: "field_e8ad0a",
+          fieldValue: "https://base.larksuite.com/base/base_123/table/tbl_456/record/rec_123",
+        }),
+        expect.objectContaining({
+          fieldKey: "field_8d0341",
+          fieldValue: "https://project.larksuite.com/im?threadid=7628922376503545567",
+        }),
+      ]),
+    );
+  });
+
+  it("extracts a clean lark_message_link from markdown links in description", async () => {
+    const record: LarkBitableRecord = {
+      record_id: "rec_123",
+      fields: {
+        "Issue 类型": [{ text: "User Story", id: "opt_us" }],
+        "Issue Description": "Test title",
+        "Details Description": "[https://applink.larksuite.com/client/thread/open?threadid=7628922376503545567&chatid=7538726794547986470&thread_position=1Ticket](https://applink.larksuite.com/client/thread/open?threadid=7628922376503545567&chatid=7538726794547986470&thread_position=1Ticket) Record body",
+      },
+    };
+
+    createLarkClientMock.mockReturnValueOnce({
+      getRecord: vi.fn().mockResolvedValueOnce(record),
+    });
+    getLarkTokenStoreMock.mockResolvedValueOnce({
+      userToken: "token_123",
+      userTokenExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
+      baseUrl: "https://open.larksuite.com",
+    });
+    executeMeegleApplyMock.mockResolvedValueOnce({
+      status: "created",
+      workitemId: "wi_msg_markdown",
+      draft: {},
+    });
+    updateLarkBaseMeegleLinkMock.mockResolvedValueOnce({
+      ok: true,
+      recordId: "rec_123",
+    });
+
+    const result = await executeLarkBaseWorkflow(
+      {
+        recordId: "rec_123",
+        masterUserId: "usr_xxx",
+        baseId: "base_123",
+        tableId: "tbl_456",
+      },
+      deps,
+    );
+
+    expect(result.ok).toBe(true);
+
+    const draftArg = executeMeegleApplyMock.mock.calls[0]?.[0] as { draft?: { fieldValuePairs?: Array<{ fieldKey: string; fieldValue: string }> } };
+    expect(draftArg?.draft?.fieldValuePairs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          fieldKey: "field_8d0341",
+          fieldValue: "https://applink.larksuite.com/client/thread/open?threadid=7628922376503545567&chatid=7538726794547986470&thread_position=1Ticket",
+        }),
+      ]),
+    );
+  });
+
+  it("uses config-defined extractor sources for Lark link fields", async () => {
+    process.env.LARK_BASE_WORKFLOW_CONFIG_PATH = "./src/modules/lark-base/fixtures/test-extractor-config.json";
+
+    const record: LarkBitableRecord = {
+      record_id: "rec_123",
+      fields: {
+        "Issue 类型": [{ text: "User Story", id: "opt_us" }],
+        "Issue Description": "Config extractor title",
+        "Details Description": "See fallback thread https://project.larksuite.com/im?threadid=7628922376503545567",
+      },
+    };
+
+    createLarkClientMock.mockReturnValueOnce({
+      getRecord: vi.fn().mockResolvedValueOnce(record),
+    });
+    getLarkTokenStoreMock.mockResolvedValueOnce({
+      userToken: "token_123",
+      userTokenExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
+      baseUrl: "https://open.larksuite.com",
+    });
+    executeMeegleApplyMock.mockResolvedValueOnce({
+      status: "created",
+      workitemId: "wi_cfg_extractors",
+      draft: {},
+    });
+    getLarkRecordUrlMock.mockResolvedValueOnce({
+      ok: true,
+      recordId: "rec_123",
+      recordUrl: "https://base.larksuite.com/share/base_123/rec_123",
+    });
+    updateLarkBaseMeegleLinkMock.mockResolvedValueOnce({
+      ok: true,
+      recordId: "rec_123",
+    });
+
+    const result = await executeLarkBaseWorkflow(
+      {
+        recordId: "rec_123",
+        masterUserId: "usr_xxx",
+        baseId: "base_123",
+        tableId: "tbl_456",
+      },
+      deps,
+    );
+
+    expect(result.ok).toBe(true);
+
+    const draftArg = executeMeegleApplyMock.mock.calls[0]?.[0] as { draft?: { fieldValuePairs?: Array<{ fieldKey: string; fieldValue: string }> } };
+    expect(draftArg?.draft?.fieldValuePairs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          fieldKey: "field_e8ad0a",
+          fieldValue: "https://base.larksuite.com/base/base_123/table/tbl_456/record/rec_123",
+        }),
+        expect.objectContaining({
+          fieldKey: "field_8d0341",
+          fieldValue: "https://project.larksuite.com/im?threadid=7628922376503545567",
+        }),
+        expect.objectContaining({
+          fieldKey: "field_e7984b",
+          fieldValue: "https://base.larksuite.com/share/base_123/rec_123",
+        }),
+        expect.objectContaining({
+          fieldKey: "field_custom_record_link",
+          fieldValue: "https://base.larksuite.com/base/base_123/table/tbl_456/record/rec_123",
+        }),
+        expect.objectContaining({
+          fieldKey: "field_custom_message_link",
+          fieldValue: "https://project.larksuite.com/im?threadid=7628922376503545567",
+        }),
+      ]),
+    );
+    expect(
+      draftArg?.draft?.fieldValuePairs?.filter((pair) => pair.fieldKey === "field_e8ad0a"),
+    ).toHaveLength(1);
+    expect(
+      draftArg?.draft?.fieldValuePairs?.filter((pair) => pair.fieldKey === "field_8d0341"),
+    ).toHaveLength(1);
+    expect(getLarkRecordUrlMock).toHaveBeenCalledWith(
+      {
+        baseId: "base_123",
+        tableId: "tbl_456",
+        recordId: "rec_123",
+        masterUserId: "usr_xxx",
+      },
+      deps,
+    );
+
+    delete process.env.LARK_BASE_WORKFLOW_CONFIG_PATH;
+  });
+
+  it("prepends configured value prefixes before description prefix fields", async () => {
+    process.env.LARK_BASE_WORKFLOW_CONFIG_PATH = "./src/modules/lark-base/fixtures/test-value-prefix-config.json";
+
+    const record: LarkBitableRecord = {
+      record_id: "rec_123",
+      fields: {
+        "Issue 类型": [{ text: "配置", id: "opt_config" }],
+        "Issue Description": "Config title",
+        "Details Description": "Config details",
+        "需求人": [{ name: "August Zhong", id: "ou_august" }],
+      },
+    };
+
+    createLarkClientMock.mockReturnValueOnce({
+      getRecord: vi.fn().mockResolvedValueOnce(record),
+    });
+    getLarkTokenStoreMock.mockResolvedValueOnce({
+      userToken: "token_123",
+      userTokenExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
+      baseUrl: "https://open.larksuite.com",
+    });
+    executeMeegleApplyMock.mockResolvedValueOnce({
+      status: "created",
+      workitemId: "wi_value_prefix",
+      draft: {},
+    });
+    updateLarkBaseMeegleLinkMock.mockResolvedValueOnce({
+      ok: true,
+      recordId: "rec_123",
+    });
+
+    const result = await executeLarkBaseWorkflow(
+      {
+        recordId: "rec_123",
+        masterUserId: "usr_xxx",
+        baseId: "base_123",
+        tableId: "tbl_456",
+      },
+      deps,
+    );
+
+    expect(result.ok).toBe(true);
+
+    const draftArg = executeMeegleApplyMock.mock.calls[0]?.[0] as { draft?: { fieldValuePairs?: Array<{ fieldKey: string; fieldValue: string }> } };
+    expect(draftArg?.draft?.fieldValuePairs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          fieldKey: "description",
+          fieldValue: "需求人:August Zhong\n\nConfig details\n\nLark Base: https://base.larksuite.com/base/base_123/table/tbl_456/record/rec_123",
+        }),
+      ]),
+    );
+
+    delete process.env.LARK_BASE_WORKFLOW_CONFIG_PATH;
+  });
+});

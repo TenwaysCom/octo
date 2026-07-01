@@ -1,0 +1,65 @@
+{
+  "issueTypeMappings": [
+    {
+      "larkLabels": ["User Story"],
+      "workitemTypeKey": "story",
+      "templateId": "400329",
+      "urlSlug": "story",
+      "fieldMappings": [
+        {
+          "larkField": "Issue Description",
+          "meegleField": "__title__",
+          "transform": "first_line"
+        },
+        {
+          "larkField": "Details Description",
+          "meegleField": "description",
+          "transform": "text"
+        },
+        {
+          "meegleField": "field_e8ad0a",
+          "source": {
+            "sourceType": "record_url"
+          },
+          "transform": "text"
+        },
+        {
+          "meegleField": "field_8d0341",
+          "source": {
+            "sourceType": "field",
+            "sourceField": "Lark Message Link"
+          },
+          "fallbackSources": [
+            {
+              "sourceType": "description_regex",
+              "pattern": "https?:\\/\\/[^\\s\"<>]*(?:threadid|chatid|messageid)=[^\\s\"<>]*"
+            }
+          ],
+          "transform": "text"
+        },
+        {
+          "meegleField": "field_custom_record_link",
+          "source": {
+            "sourceType": "record_url"
+          },
+          "transform": "text"
+        },
+        {
+          "meegleField": "field_e7984b",
+          "source": {
+            "sourceType": "shared_record_url"
+          },
+          "transform": "text"
+        },
+        {
+          "meegleField": "field_custom_message_link",
+          "source": {
+            "sourceType": "description_regex",
+            "pattern": "https?:\\/\\/[^\\s\"<>]*(?:threadid|chatid|messageid)=[^\\s\"<>]*"
+          },
+          "transform": "text"
+        }
+      ]
+    }
+  ]
+}

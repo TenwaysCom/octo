@@ -1,0 +1,264 @@
+import { Kysely, PostgresDialect, sql } from "kysely";
+import { Pool } from "pg";
+import type { DatabaseSchema } from "./schema.js";
+import {
+  DEFAULT_LARK_BUG_ANALYZE_PROMPT_NOTE,
+  DEFAULT_LARK_BUG_ANALYZE_PROMPT_TEMPLATE,
+  DEFAULT_STORY_PRD_TO_SIMPLIFIED_PROMPT_NOTE,
+  DEFAULT_STORY_PRD_TO_SIMPLIFIED_PROMPT_TEMPLATE,
+  LARK_BUG_ANALYZE_PROMPT_KEY,
+  STORY_PRD_TO_SIMPLIFIED_PROMPT_KEY,
+} from "../../domain/workflow-prompts.js";
+
+function readPostgresUri(): string {
+  return process.env.POSTGRES_URI || process.env.DATABASE_URL || "";
+}
+
+export function getDefaultPostgresUri(): string {
+  return readPostgresUri();
+}
+
+function resolvePostgresUri(): string {
+  const postgresUri = readPostgresUri();
+  if (!postgresUri) {
+    throw new Error("POSTGRES_URI is not configured");
+  }
+
+  return postgresUri;
+}
+
+export function createPostgresDatabase(
+  connectionString: string = resolvePostgresUri(),
+): Kysely<DatabaseSchema> {
+  const pool = new Pool({
+    connectionString,
+  });
+
+  return new Kysely<DatabaseSchema>({
+    dialect: new PostgresDialect({
+      pool,
+    }),
+  });
+}
+
+export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<void> {
+  await db.schema
+    .createTable("workflow_prompts")
+    .ifNotExists()
+    .addColumn("key", "text", (column) => column.primaryKey())
+    .addColumn("prompt", "text", (column) => column.notNull())
+    .addColumn("note", "text")
+    .addColumn("created_at", "text", (column) => column.notNull())
+    .addColumn("updated_at", "text", (column) => column.notNull())
+    .execute();
+
+  await db.schema
+    .createTable("acp_kimi_session_owners")
+    .ifNotExists()
+    .addColumn("session_id", "text", (column) => column.primaryKey())
+    .addColumn("operator_lark_id", "text", (column) => column.notNull())
+    .addColumn("deleted_at", "text")
+    .addColumn("created_at", "text", (column) => column.notNull())
+    .addColumn("updated_at", "text", (column) => column.notNull())
+    .execute();
+
+  await db.schema
+    .createTable("users")
+    .ifNotExists()
+    .addColumn("id", "text", (column) => column.primaryKey())
+    .addColumn("status", "text", (column) => column.notNull())
+    .addColumn("lark_tenant_key", "text")
+    .addColumn("lark_id", "text")
+    .addColumn("lark_email", "text")
+    .addColumn("lark_name", "text")
+    .addColumn("lark_avatar_url", "text")
+    .addColumn("role", "text")
+    .addColumn("meegle_base_url", "text")
+    .addColumn("meegle_user_key", "text")
+    .addColumn("github_id", "text")
+    .addColumn("created_at", "text", (column) => column.notNull())
+    .addColumn("updated_at", "text", (column) => column.notNull())
+    .execute();
+
+  await db.schema
+    .createTable("lark_contacts")
+    .ifNotExists()
+    .addColumn("open_id", "text", (column) => column.primaryKey())
+    .addColumn("email", "text")
+    .addColumn("name", "text")
+    .addColumn("meegle_user_key", "text")
+    .addColumn("created_at", "text", (column) => column.notNull())
+    .addColumn("updated_at", "text", (column) => column.notNull())
+    .execute();
+
+  await db.schema
+    .createTable("user_tokens")
+    .ifNotExists()
+    .addColumn("master_user_id", "text", (column) => column.notNull())
+    .addColumn("provider", "text", (column) => column.notNull())
+    .addColumn("provider_tenant_key", "text", (column) => column.notNull())
+    .addColumn("external_user_key", "text", (column) => column.notNull())
+    .addColumn("base_url", "text", (column) => column.notNull())
+    .addColumn("plugin_token", "text")
+    .addColumn("plugin_token_expires_at", "text")
+    .addColumn("user_token", "text", (column) => column.notNull())
+    .addColumn("user_token_expires_at", "text")
+    .addColumn("refresh_token", "text")
+    .addColumn("refresh_token_expires_at", "text")
+    .addColumn("credential_status", "text", (column) => column.notNull())
+    .addColumn("last_auth_at", "text", (column) => column.notNull())
+    .addColumn("last_refresh_at", "text")
+    .addColumn("updated_at", "text", (column) => column.notNull())
+    .addPrimaryKeyConstraint("user_tokens_pkey", [
+      "master_user_id",
+      "provider",
+      "provider_tenant_key",
+      "external_user_key",
+      "base_url",
+    ])
+    .execute();
+
+  await db.schema
+    .createTable("oauth_sessions")
+    .ifNotExists()
+    .addColumn("state", "text", (column) => column.primaryKey())
+    .addColumn("provider", "text", (column) => column.notNull())
+    .addColumn("master_user_id", "text")
+    .addColumn("base_url", "text", (column) => column.notNull())
+    .addColumn("status", "text", (column) => column.notNull())
+    .addColumn("auth_code", "text")
+    .addColumn("external_user_key", "text")
+    .addColumn("error_code", "text")
+    .addColumn("expires_at", "text", (column) => column.notNull())
+    .addColumn("created_at", "text", (column) => column.notNull())
+    .addColumn("updated_at", "text", (column) => column.notNull())
+    .execute();
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS acp_kimi_session_owners_operator_idx
+    ON acp_kimi_session_owners(operator_lark_id, updated_at)
+  `.execute(db);
+  await sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS users_github_id_unique
+    ON users(github_id)
+    WHERE github_id IS NOT NULL
+  `.execute(db);
+  await sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS users_lark_identity_unique
+    ON users(lark_tenant_key, lark_id)
+    WHERE lark_tenant_key IS NOT NULL AND lark_id IS NOT NULL
+  `.execute(db);
+  await sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS users_meegle_binding_unique
+    ON users(meegle_base_url, meegle_user_key)
+    WHERE meegle_base_url IS NOT NULL AND meegle_user_key IS NOT NULL
+  `.execute(db);
+  await sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS lark_contacts_email_unique
+    ON lark_contacts(email)
+    WHERE email IS NOT NULL
+  `.execute(db);
+  await sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS lark_contacts_meegle_user_key_unique
+    ON lark_contacts(meegle_user_key)
+    WHERE meegle_user_key IS NOT NULL
+  `.execute(db);
+  await sql`
+    CREATE INDEX IF NOT EXISTS user_tokens_provider_lookup_idx
+    ON user_tokens(provider, master_user_id, provider_tenant_key, external_user_key)
+  `.execute(db);
+  await sql`
+    CREATE INDEX IF NOT EXISTS oauth_sessions_provider_state_idx
+    ON oauth_sessions(provider, state)
+  `.execute(db);
+
+  const now = new Date().toISOString();
+  await db.insertInto("workflow_prompts")
+    .values({
+      key: STORY_PRD_TO_SIMPLIFIED_PROMPT_KEY,
+      prompt: DEFAULT_STORY_PRD_TO_SIMPLIFIED_PROMPT_TEMPLATE,
+      note: DEFAULT_STORY_PRD_TO_SIMPLIFIED_PROMPT_NOTE,
+      created_at: now,
+      updated_at: now,
+    })
+    .onConflict((conflict) => conflict.column("key").doNothing())
+    .execute();
+
+  await db.insertInto("workflow_prompts")
+    .values({
+      key: LARK_BUG_ANALYZE_PROMPT_KEY,
+      prompt: DEFAULT_LARK_BUG_ANALYZE_PROMPT_TEMPLATE,
+      note: DEFAULT_LARK_BUG_ANALYZE_PROMPT_NOTE,
+      created_at: now,
+      updated_at: now,
+    })
+    .onConflict((conflict) => conflict.column("key").doNothing())
+    .execute();
+
+  await sql`
+    ALTER TABLE acp_kimi_session_owners
+    ADD COLUMN IF NOT EXISTS deleted_at text
+  `.execute(db);
+  await sql`
+    ALTER TABLE acp_kimi_session_owners
+    ADD COLUMN IF NOT EXISTS title text
+  `.execute(db);
+  await sql`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS lark_name text
+  `.execute(db);
+  await sql`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS lark_avatar_url text
+  `.execute(db);
+  await sql`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS role text
+  `.execute(db);
+  await sql`
+    ALTER TABLE lark_contacts
+    ADD COLUMN IF NOT EXISTS email text
+  `.execute(db);
+  await sql`
+    ALTER TABLE lark_contacts
+    ADD COLUMN IF NOT EXISTS name text
+  `.execute(db);
+  await sql`
+    ALTER TABLE lark_contacts
+    ADD COLUMN IF NOT EXISTS meegle_user_key text
+  `.execute(db);
+}
+
+export async function resetPostgresDatabase(db: Kysely<DatabaseSchema>): Promise<void> {
+  await sql`DROP TABLE IF EXISTS workflow_prompts`.execute(db);
+  await sql`DROP TABLE IF EXISTS acp_kimi_session_owners`.execute(db);
+  await sql`DROP TABLE IF EXISTS oauth_sessions`.execute(db);
+  await sql`DROP TABLE IF EXISTS user_tokens`.execute(db);
+  await sql`DROP TABLE IF EXISTS lark_contacts`.execute(db);
+  await sql`DROP TABLE IF EXISTS users`.execute(db);
+  await ensurePostgresSchema(db);
+}
+
+let sharedDatabase: Kysely<DatabaseSchema> | undefined;
+
+export function getSharedDatabase(): Kysely<DatabaseSchema> {
+  if (!sharedDatabase) {
+    sharedDatabase = createPostgresDatabase();
+  }
+
+  return sharedDatabase;
+}
+
+let sharedDatabaseReady: Promise<Kysely<DatabaseSchema>> | undefined;
+
+export async function ensureSharedDatabase(): Promise<Kysely<DatabaseSchema>> {
+  if (!sharedDatabaseReady) {
+    sharedDatabaseReady = (async () => {
+      const db = getSharedDatabase();
+      await ensurePostgresSchema(db);
+      return db;
+    })();
+  }
+
+  return sharedDatabaseReady;
+}

@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "declaration": false,
+    "declarationMap": false,
+    "rootDir": ".",
+    "sourceMap": false
+  },
+  "include": [
+    "src/**/*",
+    "vitest.config.ts",
+    "wxt.config.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "tests"
+  ]
+}

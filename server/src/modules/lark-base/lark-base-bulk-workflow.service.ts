@@ -1,0 +1,396 @@
+import { buildAuthenticatedLarkClient, type AuthenticatedLarkClientFactoryDeps } from "../../application/services/lark-auth-client.factory.js";
+import type { LarkBitableRecord } from "../../adapters/lark/lark-client.js";
+import {
+  executeLarkBaseWorkflow,
+  type LarkBaseWorkflowError,
+} from "./lark-base-workflow.service.js";
+import type {
+  CreateLarkBaseBulkWorkflowRequest,
+  PreviewLarkBaseBulkWorkflowRequest,
+} from "./lark-base-workflow.dto.js";
+import {
+  createActionErrorEnvelopeFromError,
+  type ActionErrorEnvelope,
+} from "../../application/action-error-envelope.js";
+import { logger } from "../../logger.js";
+
+const DEFAULT_PAGE_SIZE = 500;
+const MODULE = "lark-base-bulk-workflow";
+const bulkLogger = logger.child({ module: "lark-base-bulk-workflow-service" });
+const MEEGLE_LINK_FIELD_NAMES = ["meegle链接", "Meegle Link", "meegleLink"];
+const PRIORITY_FIELD_NAMES = ["Priority", "优先级"];
+const TITLE_FIELD_NAMES = ["Issue Description", "标题", "Title", "Details Description"];
+const ISSUE_NUMBER_FIELD_NAMES = [
+  "编号",
+  "No.",
+  "Issue Number",
+  "工单编号",
+  "Ticket ID",
+  "ticket_id",
+];
+
+export interface LarkBaseBulkPreviewRecord {
+  recordId: string;
+  issueNumber: string;
+  issueType: string;
+  title: string;
+  priority: string;
+}
+
+export interface LarkBaseBulkSkippedRecord extends LarkBaseBulkPreviewRecord {
+  reason: "ALREADY_LINKED";
+}
+
+export interface LarkBaseBulkCreatedRecord extends LarkBaseBulkPreviewRecord {
+  workitemId: string;
+  meegleLink: string;
+}
+
+export interface LarkBaseBulkFailedRecord extends LarkBaseBulkPreviewRecord {
+  errorCode: string;
+  errorMessage: string;
+}
+
+export interface LarkBaseBulkPreviewResult {
+  ok: true;
+  baseId: string;
+  tableId: string;
+  viewId?: string;
+  totalRecordsInView: number;
+  eligibleRecords: LarkBaseBulkPreviewRecord[];
+  skippedRecords: LarkBaseBulkSkippedRecord[];
+}
+
+export interface LarkBaseBulkExecuteResult {
+  ok: true;
+  baseId: string;
+  tableId: string;
+  viewId?: string;
+  totalRecordsInView: number;
+  summary: {
+    created: number;
+    failed: number;
+    skipped: number;
+  };
+  createdRecords: LarkBaseBulkCreatedRecord[];
+  failedRecords: LarkBaseBulkFailedRecord[];
+  skippedRecords: LarkBaseBulkSkippedRecord[];
+}
+
+export interface LarkBaseBulkWorkflowError {
+  ok: false;
+  error: ActionErrorEnvelope;
+}
+
+export interface LarkBaseBulkWorkflowDeps
+  extends AuthenticatedLarkClientFactoryDeps {
+  executeLarkBaseWorkflow?: typeof executeLarkBaseWorkflow;
+}
+
+interface ClassifiedRecords {
+  eligibleRecords: LarkBaseBulkPreviewRecord[];
+  skippedRecords: LarkBaseBulkSkippedRecord[];
+}
+
+export async function previewLarkBaseBulkWorkflow(
+  input: PreviewLarkBaseBulkWorkflowRequest,
+  deps: LarkBaseBulkWorkflowDeps = {},
+): Promise<LarkBaseBulkPreviewResult | LarkBaseBulkWorkflowError> {
+  bulkLogger.info({
+    actionRunId: input.actionRunId,
+    baseId: input.baseId,
+    tableId: input.tableId,
+    viewId: input.viewId,
+  }, "server.workflow.started");
+
+  try {
+    const records = await listAllRecords(input, deps);
+    const classified = classifyRecords(records);
+
+    bulkLogger.info({
+      actionRunId: input.actionRunId,
+      totalRecordsInView: records.length,
+      eligibleCount: classified.eligibleRecords.length,
+      skippedCount: classified.skippedRecords.length,
+    }, "server.workflow.completed");
+
+    return {
+      ok: true,
+      baseId: input.baseId,
+      tableId: input.tableId,
+      ...(input.viewId ? { viewId: input.viewId } : {}),
+      totalRecordsInView: records.length,
+      eligibleRecords: classified.eligibleRecords,
+      skippedRecords: classified.skippedRecords,
+    };
+  } catch (error) {
+    const errorEnvelope = createActionErrorEnvelopeFromError(error, {
+      module: MODULE,
+      stage: "server.workflow.failed",
+      errorCode: "LARK_API_ERROR",
+      actionRunId: input.actionRunId,
+    });
+    bulkLogger.error(errorEnvelope, "server.workflow.failed");
+    return {
+      ok: false,
+      error: errorEnvelope,
+    };
+  }
+}
+
+export async function executeLarkBaseBulkWorkflow(
+  input: CreateLarkBaseBulkWorkflowRequest,
+  deps: LarkBaseBulkWorkflowDeps = {},
+): Promise<LarkBaseBulkExecuteResult | LarkBaseBulkWorkflowError> {
+  bulkLogger.info({
+    actionRunId: input.actionRunId,
+    baseId: input.baseId,
+    tableId: input.tableId,
+    viewId: input.viewId,
+  }, "server.workflow.started");
+
+  const preview = await previewLarkBaseBulkWorkflow(input, deps);
+  if (!preview.ok) {
+    return preview;
+  }
+
+  const createdRecords: LarkBaseBulkCreatedRecord[] = [];
+  const failedRecords: LarkBaseBulkFailedRecord[] = [];
+
+  for (const record of preview.eligibleRecords) {
+    try {
+      const result = await (deps.executeLarkBaseWorkflow ?? executeLarkBaseWorkflow)(
+        {
+          baseId: input.baseId,
+          tableId: input.tableId,
+          recordId: record.recordId,
+          masterUserId: input.masterUserId,
+          ...(input.actionRunId ? { actionRunId: input.actionRunId } : {}),
+        },
+        deps,
+      );
+
+      if (result.ok) {
+        createdRecords.push({
+          recordId: record.recordId,
+          issueNumber: record.issueNumber,
+          issueType: record.issueType,
+          title: record.title,
+          priority: record.priority,
+          workitemId: result.workitemId,
+          meegleLink: result.meegleLink,
+        });
+        continue;
+      }
+
+      failedRecords.push(toFailedRecord(record, result));
+    } catch (error) {
+      failedRecords.push({
+        recordId: record.recordId,
+        issueNumber: record.issueNumber,
+        issueType: record.issueType,
+        title: record.title,
+        priority: record.priority,
+        errorCode: "UPDATE_FAILED",
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  bulkLogger.info({
+    actionRunId: input.actionRunId,
+    created: createdRecords.length,
+    failed: failedRecords.length,
+    skipped: preview.skippedRecords.length,
+  }, "server.workflow.completed");
+
+  return {
+    ok: true,
+    baseId: input.baseId,
+    tableId: input.tableId,
+    ...(input.viewId ? { viewId: input.viewId } : {}),
+    totalRecordsInView: preview.totalRecordsInView,
+    summary: {
+      created: createdRecords.length,
+      failed: failedRecords.length,
+      skipped: preview.skippedRecords.length,
+    },
+    createdRecords,
+    failedRecords,
+    skippedRecords: preview.skippedRecords,
+  };
+}
+
+async function listAllRecords(
+  input: PreviewLarkBaseBulkWorkflowRequest,
+  deps: LarkBaseBulkWorkflowDeps,
+): Promise<LarkBitableRecord[]> {
+  const { client } = await buildAuthenticatedLarkClient(
+    input.masterUserId,
+    "https://open.larksuite.com",
+    deps,
+  );
+  const records: LarkBitableRecord[] = [];
+  let pageToken: string | undefined;
+  let pageNum = 1;
+  let hasMore = false;
+
+  do {
+    const page = input.viewId
+      ? await client.listRecordsByView(
+          input.baseId,
+          input.tableId,
+          input.viewId,
+          {
+            pageSize: DEFAULT_PAGE_SIZE,
+            pageToken,
+          },
+        )
+      : await client.listRecords(
+          input.baseId,
+          input.tableId,
+          {
+            pageNum,
+            pageSize: DEFAULT_PAGE_SIZE,
+          },
+        );
+    records.push(...page.records);
+    hasMore = page.hasMore;
+    pageToken = input.viewId && page.hasMore ? page.nextPageToken : undefined;
+    pageNum += 1;
+  } while (input.viewId ? pageToken : hasMore);
+
+  return records;
+}
+
+function classifyRecords(records: LarkBitableRecord[]): ClassifiedRecords {
+  const eligibleRecords: LarkBaseBulkPreviewRecord[] = [];
+  const skippedRecords: LarkBaseBulkSkippedRecord[] = [];
+
+  for (const record of records) {
+    const previewRecord = {
+      recordId: record.record_id,
+      issueNumber: extractIssueNumber(record),
+      issueType: extractIssueTypeDisplay(record.fields),
+      title: extractTitle(record),
+      priority: extractPriority(record),
+    };
+
+    if (hasMeegleLink(record)) {
+      skippedRecords.push({
+        ...previewRecord,
+        reason: "ALREADY_LINKED",
+      });
+      continue;
+    }
+
+    eligibleRecords.push(previewRecord);
+  }
+
+  return { eligibleRecords, skippedRecords };
+}
+
+function hasMeegleLink(record: LarkBitableRecord): boolean {
+  return MEEGLE_LINK_FIELD_NAMES.some((fieldName) => {
+    const value = stringifyFieldValue(record.fields[fieldName]);
+    return value.trim().length > 0;
+  });
+}
+
+function extractTitle(record: LarkBitableRecord): string {
+  for (const fieldName of TITLE_FIELD_NAMES) {
+    const value = stringifyFieldValue(record.fields[fieldName]).trim();
+    if (value) {
+      return value.split("\n")[0].slice(0, 200);
+    }
+  }
+
+  return `Lark Base Record ${record.record_id}`;
+}
+
+function extractPriority(record: LarkBitableRecord): string {
+  for (const fieldName of PRIORITY_FIELD_NAMES) {
+    const value = stringifyFieldValue(record.fields[fieldName]).trim();
+    if (value) {
+      return value;
+    }
+  }
+
+  return "-";
+}
+
+function extractIssueNumber(record: LarkBitableRecord): string {
+  for (const fieldName of ISSUE_NUMBER_FIELD_NAMES) {
+    const value = stringifyFieldValue(record.fields[fieldName]).trim();
+    if (value) {
+      return value.slice(0, 120);
+    }
+  }
+
+  return "-";
+}
+
+function extractIssueTypeDisplay(fields: Record<string, unknown>): string {
+  const raw = fields["Issue 类型"] ?? fields["fldSQ1D6LG"];
+  if (raw == null || raw === "") {
+    return "-";
+  }
+
+  const items: unknown[] = Array.isArray(raw) ? raw : [raw];
+  const labels = items
+    .map((item) => {
+      if (typeof item === "string") {
+        return item.trim();
+      }
+      if (item && typeof item === "object") {
+        const o = item as Record<string, unknown>;
+        return String(o.text ?? o.name ?? "").trim();
+      }
+      return "";
+    })
+    .filter(Boolean);
+
+  return labels.length ? labels.join(", ") : "-";
+}
+
+function stringifyFieldValue(value: unknown): string {
+  if (value == null) {
+    return "";
+  }
+
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => stringifyFieldValue(item)).filter(Boolean).join(", ");
+  }
+
+  if (typeof value === "object") {
+    const recordValue = value as Record<string, unknown>;
+    return String(
+      recordValue.text ??
+        recordValue.name ??
+        recordValue.label ??
+        recordValue.value ??
+        "",
+    );
+  }
+
+  return "";
+}
+
+function toFailedRecord(
+  record: LarkBaseBulkPreviewRecord,
+  result: LarkBaseWorkflowError,
+): LarkBaseBulkFailedRecord {
+  return {
+    recordId: record.recordId,
+    issueNumber: record.issueNumber,
+    issueType: record.issueType,
+    title: record.title,
+    priority: record.priority,
+    errorCode: result.error.errorCode,
+    errorMessage: result.error.errorMessage,
+  };
+}

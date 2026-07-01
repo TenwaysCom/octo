@@ -1,0 +1,2345 @@
+import type {
+  LarkAuthEnsureResponse,
+  LarkBaseBulkCreateResultPayload,
+  LarkBaseBulkPreviewResultPayload,
+} from "../types/lark.js";
+import type { MeegleAuthEnsureResponse } from "../types/meegle.js";
+import type {
+  KimiChatSessionSummary,
+  KimiChatTranscriptEntry,
+} from "../types/acp-kimi.js";
+import type { UpdateState } from "../types/update.js";
+import type { ExtensionVersionInfo } from "../types/update.js";
+import {
+  DEFAULT_CONFIG,
+  resolveServerUrl,
+} from "../background/config.js";
+import {
+  clearResolvedIdentity,
+  clearResolvedIdentityForTab,
+  fetchLarkUserInfo,
+  getConfig,
+  getExtensionPageConfig,
+  getLarkAuthStatus,
+  refreshLarkAuthStatus,
+  loadPopupSettings,
+  loadResolvedIdentity,
+  postClientDebugLog,
+  queryActiveTabContext,
+  requestLarkUserId,
+  requestMeegleUserIdentity,
+  resolveIdentityRequest,
+  runLarkAuthRequest,
+  runLarkBaseCreateWorkitemRequest,
+  runMeegleAuthRequest,
+  savePopupSettings,
+  saveResolvedIdentity,
+  saveResolvedIdentityForTab,
+  watchLarkAuthCallbackResult,
+} from "../popup/runtime.js";
+import {
+  createMeegleAuthController,
+  resolveMeegleStatusDisplay,
+  type PopupMeegleAuthLog,
+} from "../popup/meegle-auth.js";
+import {
+  buildPopupHeaderContext,
+  createPopupViewModel,
+  type PopupPageType,
+} from "../popup/view-model.js";
+import type {
+  PopupFeatureAction,
+  PopupLogEntry,
+  PopupLogLevel,
+  PopupNotebookPage,
+  PopupSettingsForm,
+  PopupStatusChip,
+} from "../popup/types.js";
+import {
+  normalizeLarkAuthBaseUrl,
+  normalizeMeegleAuthBaseUrl,
+} from "../platform-url.js";
+import { createExtensionLogger, exportLogsAsBlob } from "../logger.js";
+import { fetchServerJson } from "../server-request.js";
+import { showPopupToast } from "../popup/toast.js";
+import type {
+  GitHubLookupState,
+} from "./popup-github-lookup-controller.js";
+import type {
+  GitHubBranchCreateModalState,
+} from "./popup-github-branch-create-controller.js";
+import type {
+  AutomationActionListItem,
+  ExtensionPageConfig,
+} from "../types/automation-actions.js";
+import type { LarkBaseUrlContext } from "../lark-base-url.js";
+import { collectActionRuntimeContext } from "./action-runtime-context.js";
+
+const popupLogger = createExtensionLogger("popup:app");
+const LARK_CREATE_ACTION_KEY = "create-meegle-item";
+const LARK_BULK_CREATE_ACTION_KEY = "bulk-create-meegle-tickets";
+
+function actionHasPopupPlacement(action: AutomationActionListItem): boolean {
+  return action.placements?.some((placement) => placement.surface === "popup") ?? true;
+}
+
+type LarkBulkCreateModalStage = "hidden" | "preview" | "executing" | "result" | "error";
+
+export interface LarkBulkCreateModalError {
+  errorCode?: string;
+  errorMessage: string;
+}
+
+type LazyKimiChatController = {
+  resetSession: () => void;
+  openHistory: () => Promise<void>;
+  loadHistorySession: (sessionId: string) => Promise<void>;
+  deleteHistorySession: (sessionId: string) => Promise<void>;
+  sendMessage: (messageText: string) => Promise<void>;
+  stopGeneration: () => void;
+  dispose: () => void;
+};
+
+type LazyLarkBulkCreateController = {
+  openPreview: (options?: { actionRunId?: string }) => Promise<void>;
+  confirmCreate: () => Promise<void>;
+};
+
+type LazyMeeglePushController = {
+  run: (options?: {
+    endpoint?: string;
+    logLabel?: string;
+    successPrefix?: string;
+    actionRunId?: string;
+  }) => Promise<void>;
+};
+
+type LazyGitHubLookupController = {
+  lookup: (options?: { actionRunId?: string }) => Promise<void>;
+};
+
+type LazyGitHubBranchCreateController = {
+  open: (options?: { actionRunId?: string }) => Promise<void>;
+  confirmCreate: () => Promise<void>;
+  resetModal: () => void;
+};
+
+type BackendAutomationResponse = {
+  ok: boolean;
+  data?: {
+    workItemId?: string;
+    updatedField?: string;
+    actionRunId?: string;
+    analysisSummary?: string;
+  };
+  error?: {
+    errorCode?: string;
+    errorMessage?: string;
+    stage?: string;
+    actionRunId?: string;
+  } | string;
+};
+
+const BACKEND_AUTOMATION_TIMEOUT_MS = 120_000;
+
+type PopupActionExecutionStatus = {
+  phase: "running" | "success" | "error";
+  message: string;
+  actionRunId?: string;
+  updatedAt: string;
+};
+
+export interface PopupIdentityState {
+  masterUserId: string | null;
+  larkId: string | null;
+  larkEmail: string | null;
+  larkName: string | null;
+  larkAvatar: string | null;
+  meegleUserKey: string | null;
+}
+
+export interface PopupAuthFlags {
+  lark: boolean;
+  meegle: boolean;
+}
+
+export interface LarkBulkCreateModalState {
+  visible: boolean;
+  stage: LarkBulkCreateModalStage;
+  preview: Extract<LarkBaseBulkPreviewResultPayload, { ok: true }> | null;
+  result: LarkBaseBulkCreateResultPayload | null;
+  bulkError: LarkBulkCreateModalError | null;
+}
+
+export interface PopupAppState {
+  pageType: PopupPageType;
+  currentTabId: number | null;
+  currentTabOrigin: string | null;
+  currentUrl: string | null;
+  currentLarkContext?: LarkBaseUrlContext | null;
+  identity: PopupIdentityState;
+  isAuthed: PopupAuthFlags;
+  meegleAuth: MeegleAuthEnsureResponse | undefined;
+  larkAuth: LarkAuthEnsureResponse | undefined;
+}
+
+interface PopupAppStore {
+  logs: PopupLogEntry[];
+  isLoading: boolean;
+  hasResolvedPageContext: boolean;
+  activePage: PopupNotebookPage;
+  showKimiChat: boolean;
+  kimiChatBusy: boolean;
+  kimiChatSessionId: string | null;
+  kimiChatDraftMessage: string;
+  kimiChatActiveAssistantEntryId: string | null;
+  kimiChatTranscript: KimiChatTranscriptEntry[];
+  kimiChatHistoryOpen: boolean;
+  kimiChatHistoryLoading: boolean;
+  kimiChatHistoryItems: KimiChatSessionSummary[];
+  larkBulkCreateModal: LarkBulkCreateModalState;
+  githubBranchCreateModal: GitHubBranchCreateModalState;
+  githubLookup: GitHubLookupState;
+  state: PopupAppState;
+  settingsForm: PopupSettingsForm;
+  update: UpdateState | null;
+  pageConfig: ExtensionPageConfig | null;
+  actionStatuses: Record<string, PopupActionExecutionStatus>;
+}
+
+export interface PopupControllerState {
+  state: PopupAppState;
+  logs: PopupLogEntry[];
+  isLoading: boolean;
+  activePage: PopupNotebookPage;
+  settingsOpen: boolean;
+  settingsForm: PopupSettingsForm;
+  viewModel: ReturnType<typeof createPopupViewModel>;
+  headerSubtitle: string | null;
+  meegleStatus: PopupStatusChip;
+  larkStatus: PopupStatusChip;
+  topMeegleButtonText: string;
+  topLarkButtonText: string;
+  topMeegleButtonDisabled: boolean;
+  topLarkButtonDisabled: boolean;
+  larkActions: PopupFeatureAction[];
+  meegleActions: PopupFeatureAction[];
+  githubActions: PopupFeatureAction[];
+  larkBulkCreateModal: LarkBulkCreateModalState;
+  githubBranchCreateModal: GitHubBranchCreateModalState;
+  showKimiChat: boolean;
+  kimiChatTranscript: KimiChatTranscriptEntry[];
+  kimiChatBusy: boolean;
+  kimiChatSessionId: string | null;
+  kimiChatDraftMessage: string;
+  kimiChatHistoryOpen: boolean;
+  kimiChatHistoryLoading: boolean;
+  kimiChatHistoryItems: KimiChatSessionSummary[];
+  update: UpdateState | null;
+  githubLookup: GitHubLookupState;
+}
+
+type PopupIdentityCompatInput = Partial<PopupIdentityState>;
+
+function createDefaultSettingsForm(): PopupSettingsForm {
+  return {
+    ENV_NAME: DEFAULT_CONFIG.ENV_NAME,
+    SERVER_URL: DEFAULT_CONFIG.SERVER_URL,
+    MEEGLE_PLUGIN_ID: "",
+    LARK_OAUTH_CALLBACK_URL: "http://localhost:3000/api/lark/auth/callback",
+    meegleUserKey: "",
+    larkUserId: "",
+  };
+}
+
+function createInitialStore(): PopupAppStore {
+  return {
+    logs: [],
+    isLoading: true,
+    hasResolvedPageContext: false,
+    activePage: "automation",
+    showKimiChat: false,
+    kimiChatBusy: false,
+    kimiChatSessionId: null,
+    kimiChatDraftMessage: "",
+    kimiChatActiveAssistantEntryId: null,
+    kimiChatTranscript: [],
+    kimiChatHistoryOpen: false,
+    kimiChatHistoryLoading: false,
+    kimiChatHistoryItems: [],
+    larkBulkCreateModal: {
+      visible: false,
+      stage: "hidden",
+      preview: null,
+      result: null,
+      bulkError: null,
+    },
+    githubBranchCreateModal: {
+      visible: false,
+      stage: "preview",
+      repo: "",
+      defaultBranchName: "",
+      editedBranchName: "",
+      workItemTitle: "",
+      systemLabel: "",
+      error: null,
+      result: null,
+    },
+    githubLookup: {
+      isLoading: false,
+      error: null,
+      result: null,
+    },
+    state: {
+      pageType: "unsupported",
+      currentTabId: null,
+      currentTabOrigin: null,
+      currentUrl: null,
+      currentLarkContext: null,
+      identity: {
+        masterUserId: null,
+        larkId: null,
+        larkEmail: null,
+        larkName: null,
+        larkAvatar: null,
+        meegleUserKey: null,
+      },
+      isAuthed: {
+        lark: false,
+        meegle: false,
+      },
+      meegleAuth: undefined,
+      larkAuth: undefined,
+    },
+    settingsForm: createDefaultSettingsForm(),
+    update: null,
+    pageConfig: null,
+    actionStatuses: {},
+  };
+}
+
+export function createPopupController() {
+  const storeRef = { current: createInitialStore() };
+  let cachedState: PopupControllerState | null = null;
+  const settingsSnapshotRef = { current: createDefaultSettingsForm() };
+  const meegleAuthControllerRef = { current: null as ReturnType<
+    typeof createMeegleAuthController
+  > | null };
+  const listeners = new Set<() => void>();
+  let kimiChatController: LazyKimiChatController | null = null;
+  let kimiChatControllerPromise: Promise<LazyKimiChatController> | null = null;
+  let larkBulkCreateController: LazyLarkBulkCreateController | null = null;
+  let larkBulkCreateControllerPromise: Promise<LazyLarkBulkCreateController> | null =
+    null;
+  let larkBulkCreateConfirmPromise: Promise<void> | null = null;
+  let meeglePushController: LazyMeeglePushController | null = null;
+  let meeglePushControllerPromise: Promise<LazyMeeglePushController> | null = null;
+  let githubLookupController: LazyGitHubLookupController | null = null;
+  let githubLookupControllerPromise: Promise<LazyGitHubLookupController> | null = null;
+  let githubBranchCreateController: LazyGitHubBranchCreateController | null = null;
+  let githubBranchCreateControllerPromise: Promise<LazyGitHubBranchCreateController> | null = null;
+  let disposed = false;
+
+  function updateStore(updater: (previous: PopupAppStore) => PopupAppStore): void {
+    const previous = storeRef.current;
+    const next = updater(previous);
+    storeRef.current = next;
+    cachedState = null;
+    if (previous.activePage !== next.activePage) {
+      popupLogger.info("activePage.changed", {
+        previousPage: previous.activePage,
+        nextPage: next.activePage,
+      });
+      void postClientDebugLog({
+        source: "popup:app",
+        level: "info",
+        event: "activePage.changed",
+        detail: {
+          previousPage: previous.activePage,
+          nextPage: next.activePage,
+        },
+      });
+    }
+    for (const listener of listeners) {
+      listener();
+    }
+  }
+
+  function readStore(): PopupAppStore {
+    return storeRef.current;
+  }
+
+  function showToast(text: string, level: PopupLogLevel = "info"): void {
+    showPopupToast(text, level);
+  }
+
+  function setLarkBulkCreateModal(
+    next:
+      | LarkBulkCreateModalState
+      | ((previous: LarkBulkCreateModalState) => LarkBulkCreateModalState),
+  ): void {
+    updateStore((previous) => ({
+      ...previous,
+      larkBulkCreateModal:
+        typeof next === "function" ? next(previous.larkBulkCreateModal) : next,
+    }));
+  }
+
+  function setGitHubLookupState(
+    next: GitHubLookupState | ((previous: GitHubLookupState) => GitHubLookupState),
+  ): void {
+    updateStore((previous) => ({
+      ...previous,
+      githubLookup: typeof next === "function" ? next(previous.githubLookup) : next,
+    }));
+  }
+
+  function setGitHubBranchCreateModal(
+    next: GitHubBranchCreateModalState | ((previous: GitHubBranchCreateModalState) => GitHubBranchCreateModalState),
+  ): void {
+    updateStore((previous) => ({
+      ...previous,
+      githubBranchCreateModal:
+        typeof next === "function" ? next(previous.githubBranchCreateModal) : next,
+    }));
+  }
+
+  async function loadKimiChatController(): Promise<LazyKimiChatController> {
+    if (kimiChatController) {
+      return kimiChatController;
+    }
+
+    if (!kimiChatControllerPromise) {
+      kimiChatControllerPromise = import("./popup-kimi-chat-controller.js").then(
+        ({ createKimiChatController }) => {
+          const controller = createKimiChatController({
+            readStore,
+            updateStore,
+            appendLog,
+            postClientDebugLog,
+          });
+
+          if (disposed) {
+            controller.dispose();
+          } else {
+            kimiChatController = controller;
+          }
+
+          return controller;
+        },
+      );
+    }
+
+    return kimiChatControllerPromise;
+  }
+
+  async function loadLarkBulkCreateController(): Promise<LazyLarkBulkCreateController> {
+    if (larkBulkCreateController) {
+      return larkBulkCreateController;
+    }
+
+    if (!larkBulkCreateControllerPromise) {
+      larkBulkCreateControllerPromise = import(
+        "./popup-lark-bulk-create-controller.js"
+      ).then(({ createLarkBulkCreateController }) => {
+        const controller = createLarkBulkCreateController({
+          readStore,
+          appendLog,
+          showToast,
+          setModalState: setLarkBulkCreateModal,
+          openErrorModal: openLarkBulkCreateErrorModal,
+        });
+
+        larkBulkCreateController = controller;
+        return controller;
+      });
+    }
+
+    return larkBulkCreateControllerPromise;
+  }
+
+  async function loadMeeglePushController(): Promise<LazyMeeglePushController> {
+    if (meeglePushController) {
+      return meeglePushController;
+    }
+
+    if (!meeglePushControllerPromise) {
+      meeglePushControllerPromise = import("./popup-meegle-push-controller.js").then(
+        ({ createMeeglePushController }) => {
+          const controller = createMeeglePushController({
+            readStore,
+            appendLog,
+            showToast,
+            setActivePage,
+            updateCurrentTabUrl(tabId, url) {
+              void chrome.tabs.update(tabId, { url });
+            },
+          });
+
+          meeglePushController = controller;
+          return controller;
+        },
+      );
+    }
+
+    return meeglePushControllerPromise;
+  }
+
+  async function loadGitHubLookupController(): Promise<LazyGitHubLookupController> {
+    if (githubLookupController) {
+      return githubLookupController;
+    }
+
+    if (!githubLookupControllerPromise) {
+      githubLookupControllerPromise = import("./popup-github-lookup-controller.js").then(
+        ({ createGitHubLookupController }) => {
+          const controller = createGitHubLookupController({
+            readStore,
+            queryCurrentTabContext: queryActiveTabContext,
+            updateCurrentTabContext(input) {
+              updateStore((previous) => ({
+                ...previous,
+                state: {
+                  ...previous.state,
+                  currentTabId: input.id,
+                  currentUrl: input.url,
+                  currentTabOrigin: input.origin,
+                },
+              }));
+            },
+            appendLog,
+            showToast,
+            setState: setGitHubLookupState,
+          });
+
+          githubLookupController = controller;
+          return controller;
+        },
+      );
+    }
+
+    return githubLookupControllerPromise;
+  }
+
+  async function loadGitHubBranchCreateController(): Promise<LazyGitHubBranchCreateController> {
+    if (githubBranchCreateController) {
+      return githubBranchCreateController;
+    }
+
+    if (!githubBranchCreateControllerPromise) {
+      githubBranchCreateControllerPromise = import(
+        "./popup-github-branch-create-controller.js"
+      ).then(({ createGitHubBranchCreateController }) => {
+        const controller = createGitHubBranchCreateController({
+          readStore,
+          queryCurrentTabContext: queryActiveTabContext,
+          updateCurrentTabContext(input) {
+            updateStore((previous) => ({
+              ...previous,
+              state: {
+                ...previous.state,
+                currentTabId: input.id,
+                currentUrl: input.url,
+                currentTabOrigin: input.origin,
+              },
+            }));
+          },
+          appendLog,
+          showToast,
+          setModalState: setGitHubBranchCreateModal,
+        });
+
+        githubBranchCreateController = controller;
+        return controller;
+      });
+    }
+
+    return githubBranchCreateControllerPromise;
+  }
+
+  function preloadKimiChatController(): void {
+    void loadKimiChatController();
+  }
+
+  function appendLog(level: PopupLogLevel, message: string): void {
+    updateStore((previous) => ({
+      ...previous,
+      logs: [
+        ...previous.logs,
+        {
+          id: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+          level,
+          message,
+          timestamp: new Date().toLocaleTimeString(),
+        },
+      ],
+    }));
+
+    const detail: Record<string, unknown> | undefined =
+      level === "error" || level === "warn" ? { popupLogLevel: level } : undefined;
+
+    switch (level) {
+      case "debug":
+        popupLogger.debug(message, detail);
+        break;
+      case "success":
+      case "info":
+        popupLogger.info(message, detail);
+        break;
+      case "warn":
+        popupLogger.warn(message, detail);
+        break;
+      case "error":
+        popupLogger.error(message, detail);
+        break;
+    }
+  }
+
+  if (!meegleAuthControllerRef.current) {
+    const logAdapter: PopupMeegleAuthLog = {
+      add(message) {
+        appendLog("info", message);
+      },
+      success(message) {
+        appendLog("success", message);
+      },
+      warn(message) {
+        appendLog("warn", message);
+      },
+      error(message) {
+        appendLog("error", message);
+      },
+    };
+
+    meegleAuthControllerRef.current = createMeegleAuthController({
+      getExistingStatus: checkMeegleAuth,
+      sendMessage: runMeegleAuthRequest,
+      setStatus: () => {
+        // React derives status display from state.
+      },
+      log: logAdapter,
+    });
+  }
+
+  function setActionStatus(
+    actionKey: string,
+    next: Omit<PopupActionExecutionStatus, "updatedAt">,
+  ): void {
+    updateStore((previous) => ({
+      ...previous,
+      actionStatuses: {
+        ...previous.actionStatuses,
+        [actionKey]: {
+          ...next,
+          updatedAt: new Date().toISOString(),
+        },
+      },
+    }));
+  }
+
+  function syncSettingsForm(settings: PopupSettingsForm): void {
+    updateStore((previous) => ({
+      ...previous,
+      settingsForm: {
+        ...settings,
+      },
+    }));
+  }
+
+  function hydrateIdentityFromSettings(settings: PopupSettingsForm): void {
+    updateStore((previous) => ({
+      ...previous,
+      state: {
+        ...previous.state,
+        identity: {
+          ...previous.state.identity,
+          meegleUserKey: settings.meegleUserKey || previous.state.identity.meegleUserKey,
+          larkId: settings.larkUserId || previous.state.identity.larkId,
+        },
+      },
+    }));
+  }
+
+  async function checkMeegleAuth(): Promise<MeegleAuthEnsureResponse> {
+    const current = readStore();
+    const config = await getConfig();
+    const settings = await loadPopupSettings();
+    const authBaseUrl = normalizeMeegleAuthBaseUrl(
+      current.state.currentTabOrigin,
+      config.MEEGLE_BASE_URL,
+    );
+    const meegleUserKey =
+      settings.meegleUserKey || current.state.identity.meegleUserKey || undefined;
+    const masterUserId = await ensureResolvedIdentity();
+
+    if (!masterUserId) {
+      return {
+        status: "failed",
+        baseUrl: authBaseUrl,
+        reason: "IDENTITY_RESOLUTION_FAILED",
+        errorMessage: "Unable to resolve master user identity for Meegle auth.",
+      };
+    }
+
+    try {
+      const { response, payload: result } = await fetchServerJson<{
+        data?: MeegleAuthEnsureResponse;
+      }>({
+        url: `${config.SERVER_URL}/api/meegle/auth/status`,
+        masterUserId,
+        body: {
+          masterUserId,
+          meegleUserKey,
+          baseUrl: authBaseUrl,
+        },
+      });
+
+      if (!response.ok) {
+        return {
+          status: "failed",
+          baseUrl: authBaseUrl,
+          reason: "STATUS_REQUEST_FAILED",
+          errorMessage: `Auth status request failed with ${response.status}.`,
+        };
+      }
+      return (
+        result.data || {
+          status: "failed",
+          baseUrl: authBaseUrl,
+          reason: "STATUS_REQUEST_FAILED",
+          errorMessage: "Meegle auth status response payload is missing.",
+        }
+      );
+    } catch (error) {
+      appendLog(
+        "warn",
+        `查询服务器授权状态失败: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+
+      return {
+        status: "failed",
+        baseUrl: authBaseUrl,
+        reason: "STATUS_REQUEST_FAILED",
+        errorMessage:
+          error instanceof Error ? error.message : "Unknown Meegle auth error.",
+      };
+    }
+  }
+
+  async function checkLarkAuth(): Promise<LarkAuthEnsureResponse> {
+    const current = readStore();
+    const status = await getLarkAuthStatus({
+      masterUserId: current.state.identity.masterUserId || undefined,
+      baseUrl: normalizeLarkAuthBaseUrl(current.state.currentTabOrigin),
+    });
+
+    if (status.status !== "require_refresh") {
+      return status;
+    }
+
+    return refreshLarkAuthStatus({
+      masterUserId: current.state.identity.masterUserId || undefined,
+      baseUrl: status.baseUrl,
+    });
+  }
+
+  async function refreshAuthStates(): Promise<void> {
+    await Promise.allSettled([
+      (async () => {
+        try {
+          const meegleAuth = await checkMeegleAuth();
+          updateStore((previous) => ({
+            ...previous,
+            state: {
+              ...previous.state,
+              meegleAuth,
+              isAuthed: {
+                ...previous.state.isAuthed,
+                meegle: meegleAuth.status === "ready",
+              },
+            },
+          }));
+        } catch (error) {
+          const current = readStore();
+          updateStore((previous) => ({
+            ...previous,
+            state: {
+              ...previous.state,
+              meegleAuth: {
+                status: "failed",
+                baseUrl:
+                  current.state.currentTabOrigin || "https://project.larksuite.com",
+                reason: "STATUS_REQUEST_FAILED",
+                errorMessage:
+                  error instanceof Error ? error.message : String(error),
+              },
+              isAuthed: {
+                ...previous.state.isAuthed,
+                meegle: false,
+              },
+            },
+          }));
+          appendLog(
+            "warn",
+            `查询服务器授权状态失败: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          );
+        }
+      })(),
+      (async () => {
+        try {
+          const larkAuth = await checkLarkAuth();
+          updateStore((previous) => ({
+            ...previous,
+            state: {
+              ...previous.state,
+              larkAuth,
+              isAuthed: {
+                ...previous.state.isAuthed,
+                lark: larkAuth.status === "ready",
+              },
+            },
+          }));
+        } catch (error) {
+          const current = readStore();
+          updateStore((previous) => ({
+            ...previous,
+            state: {
+              ...previous.state,
+              larkAuth: {
+                status: "failed",
+                baseUrl: current.state.currentTabOrigin || "https://open.larksuite.com",
+                reason: "BACKGROUND_ERROR",
+              },
+              isAuthed: {
+                ...previous.state.isAuthed,
+                lark: false,
+              },
+            },
+          }));
+          appendLog(
+            "warn",
+            `查询 Lark 授权状态失败: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          );
+        }
+      })(),
+    ]);
+  }
+
+  async function ensureResolvedIdentity(): Promise<string | undefined> {
+    const current = readStore();
+
+    if (!current.state.currentTabOrigin) {
+      return current.state.identity.masterUserId || undefined;
+    }
+
+    const pathname = current.state.currentUrl
+      ? new URL(current.state.currentUrl).pathname
+      : "/";
+
+    const resolved = await resolveIdentityRequest({
+      masterUserId: current.state.identity.masterUserId || undefined,
+      operatorLarkId: current.state.identity.larkId || undefined,
+      meegleUserKey: current.state.identity.meegleUserKey || undefined,
+      pageContext: {
+        platform:
+          current.state.pageType === "lark" || current.state.pageType === "meegle"
+            ? current.state.pageType
+            : "unknown",
+        baseUrl: current.state.currentTabOrigin,
+        pathname,
+      },
+    });
+
+    if (resolved.ok && resolved.data?.masterUserId) {
+      if (resolved.data.identityStatus === "conflict") {
+        updateStore((previous) => ({
+          ...previous,
+          state: {
+            ...previous.state,
+            identity: {
+              ...previous.state.identity,
+              masterUserId: null,
+            },
+          },
+        }));
+
+        await clearResolvedIdentity();
+        if (current.state.currentTabId != null) {
+          await clearResolvedIdentityForTab(current.state.currentTabId);
+        }
+        appendLog("error", "检测到 Lark 和 Meegle 账号冲突，已阻止继续授权");
+        return undefined;
+      }
+
+      updateStore((previous) => ({
+        ...previous,
+        state: {
+          ...previous.state,
+          identity: {
+            ...previous.state.identity,
+            masterUserId: resolved.data?.masterUserId ?? previous.state.identity.masterUserId,
+            larkId: resolved.data?.operatorLarkId ?? previous.state.identity.larkId,
+            larkEmail: resolved.data?.larkEmail ?? previous.state.identity.larkEmail,
+            larkName: resolved.data?.larkName ?? previous.state.identity.larkName,
+            larkAvatar: resolved.data?.larkAvatar ?? previous.state.identity.larkAvatar,
+            meegleUserKey:
+              resolved.data?.meegleUserKey ?? previous.state.identity.meegleUserKey,
+          },
+        },
+      }));
+
+      await saveResolvedIdentity(resolved.data.masterUserId);
+      if (current.state.currentTabId != null) {
+        await saveResolvedIdentityForTab(
+          current.state.currentTabId,
+          resolved.data.masterUserId,
+        );
+      }
+      return resolved.data.masterUserId;
+    }
+
+    return undefined;
+  }
+
+  async function hydrateLarkIdentityFromServer(
+    masterUserId: string,
+    baseUrl: string,
+  ): Promise<void> {
+    const userInfo = await fetchLarkUserInfo({
+      masterUserId,
+      baseUrl,
+    });
+
+    if (!userInfo.ok || !userInfo.data) {
+      return;
+    }
+
+    updateStore((previous) => ({
+      ...previous,
+      settingsForm: {
+        ...previous.settingsForm,
+        larkUserId: userInfo.data?.userId || previous.settingsForm.larkUserId,
+      },
+      state: {
+        ...previous.state,
+        identity: {
+          ...previous.state.identity,
+          larkId: userInfo.data?.userId || previous.state.identity.larkId,
+          larkEmail: previous.state.identity.larkEmail || userInfo.data.email || null,
+          larkName: previous.state.identity.larkName || userInfo.data.name || null,
+          larkAvatar:
+            previous.state.identity.larkAvatar || userInfo.data.avatarUrl || null,
+        },
+      },
+    }));
+  }
+
+  async function hydrateLarkIdentityIfReady(): Promise<void> {
+    const current = readStore();
+    const auth = current.state.larkAuth;
+
+    if (auth?.status !== "ready" || !auth.masterUserId || !auth.baseUrl) {
+      return;
+    }
+
+    await hydrateLarkIdentityFromServer(auth.masterUserId, auth.baseUrl);
+  }
+
+  async function initialize(): Promise<void> {
+    appendLog("info", "初始化...");
+
+    try {
+      const settings = await loadPopupSettings();
+      syncSettingsForm(settings);
+      settingsSnapshotRef.current = { ...settings };
+      hydrateIdentityFromSettings(settings);
+
+      const resolvedIdentity = await loadResolvedIdentity();
+      if (resolvedIdentity) {
+        updateStore((previous) => ({
+          ...previous,
+          state: {
+            ...previous.state,
+            identity: {
+              ...previous.state.identity,
+              masterUserId: resolvedIdentity,
+            },
+          },
+        }));
+      }
+
+      const tabContext = await queryActiveTabContext();
+      const pageConfig = await getExtensionPageConfig(tabContext.url);
+      updateStore((previous) => ({
+        ...previous,
+        hasResolvedPageContext: true,
+        pageConfig,
+        state: {
+          ...previous.state,
+          currentTabId: tabContext.id,
+          currentUrl: tabContext.url,
+          currentTabOrigin: tabContext.origin,
+          currentLarkContext: tabContext.larkContext ?? null,
+          pageType: pageConfig?.platform ?? tabContext.pageType,
+        },
+      }));
+
+      if (tabContext.larkUserId || tabContext.meegleUserKey) {
+        updateStore((previous) => ({
+          ...previous,
+          state: {
+            ...previous.state,
+            identity: {
+              ...previous.state.identity,
+              larkId: tabContext.larkUserId ?? previous.state.identity.larkId,
+              meegleUserKey: tabContext.meegleUserKey ?? previous.state.identity.meegleUserKey,
+            },
+          },
+        }));
+      }
+
+      appendLog(
+        "info",
+        `检测到页面: ${tabContext.url || "(空)"} · 类型: ${pageConfig?.pageType ?? tabContext.pageType}`,
+      );
+
+      const isUnsupportedPage = (pageConfig?.platform ?? tabContext.pageType) === "unsupported";
+
+      if (isUnsupportedPage) {
+        appendLog("warn", "当前页面不支持");
+      }
+
+      if ((pageConfig?.platform ?? tabContext.pageType) === "lark" && tabContext.id != null) {
+        const larkId = await requestLarkUserId(tabContext.id);
+        if (larkId) {
+          updateStore((previous) => ({
+            ...previous,
+            state: {
+              ...previous.state,
+              identity: {
+                ...previous.state.identity,
+                larkId,
+              },
+            },
+          }));
+        }
+      }
+
+      if ((pageConfig?.platform ?? tabContext.pageType) === "meegle" && tabContext.id != null) {
+        const identity = await requestMeegleUserIdentity(
+          tabContext.id,
+          tabContext.url ?? undefined,
+        );
+        if (identity?.userKey) {
+          const userKey = identity.userKey;
+          updateStore((previous) => ({
+            ...previous,
+            state: {
+              ...previous.state,
+              identity: {
+                ...previous.state.identity,
+                meegleUserKey: userKey,
+              },
+            },
+          }));
+        }
+      }
+
+      await ensureResolvedIdentity();
+      await refreshAuthStates();
+      await hydrateLarkIdentityIfReady();
+
+      const current = readStore();
+      if (
+        !isUnsupportedPage
+        && (!current.state.isAuthed.lark || !current.state.isAuthed.meegle)
+      ) {
+        updateStore((previous) => ({
+          ...previous,
+          activePage: "profile",
+        }));
+        appendLog("warn", "Lark 或 Meegle 未授权，已切换到个人页面");
+      }
+
+      // Clear update badge when popup opens
+      void chrome.runtime.sendMessage({ action: "octo.update.clearBadge" });
+
+      appendLog("success", "初始化完成");
+
+      // Check for extension updates
+      try {
+        const updateResult = await chrome.runtime.sendMessage({ action: "octo.update.check" });
+        if (updateResult?.hasUpdate && updateResult?.versionInfo) {
+          updateStore((previous) => ({
+            ...previous,
+            update: {
+              hasUpdate: true,
+              currentVersion: updateResult.currentVersion,
+              latestVersion: updateResult.latestVersion,
+              releaseNotes: updateResult.versionInfo.releaseNotes,
+              downloadUrl: updateResult.versionInfo.downloadUrl,
+              forceUpdate: updateResult.versionInfo.forceUpdate,
+              ignoredVersion: null,
+              dismissedAt: null,
+            },
+          }));
+        }
+      } catch {
+        // Silently ignore update check failures
+      }
+    } catch (error) {
+      appendLog(
+        "error",
+        `初始化失败: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    } finally {
+      updateStore((previous) => ({
+        ...previous,
+        isLoading: false,
+      }));
+    }
+  }
+
+  async function authorizeMeegle(): Promise<void> {
+    const current = readStore();
+    const config = await getConfig();
+
+    if (current.state.pageType === "meegle" && current.state.currentTabId != null) {
+      const identity = await requestMeegleUserIdentity(
+        current.state.currentTabId,
+        current.state.currentUrl ?? undefined,
+      );
+      if (identity?.userKey) {
+        const userKey = identity.userKey;
+        updateStore((previous) => ({
+          ...previous,
+          state: {
+            ...previous.state,
+            identity: {
+              ...previous.state.identity,
+              meegleUserKey: userKey,
+            },
+          },
+        }));
+      }
+    }
+
+    const masterUserId = await ensureResolvedIdentity();
+
+    if (!masterUserId) {
+      appendLog("error", "无法解析主身份，暂时不能发起 Meegle 授权");
+      updateStore((previous) => ({
+        ...previous,
+        state: {
+          ...previous.state,
+          isAuthed: {
+            ...previous.state.isAuthed,
+            meegle: false,
+          },
+        },
+      }));
+      return;
+    }
+
+    const success = await meegleAuthControllerRef.current!.run({
+      currentTabId: current.state.currentTabId ?? undefined,
+      currentTabOrigin: current.state.currentTabOrigin || undefined,
+      authBaseUrl: normalizeMeegleAuthBaseUrl(
+        current.state.currentTabOrigin,
+        config.MEEGLE_BASE_URL,
+      ),
+      currentPageType: current.state.pageType,
+      masterUserId,
+      meegleUserKey: readStore().state.identity.meegleUserKey || undefined,
+    });
+
+    updateStore((previous) => ({
+      ...previous,
+      state: {
+        ...previous.state,
+        meegleAuth:
+          meegleAuthControllerRef.current?.getLastAuth() || previous.state.meegleAuth,
+        isAuthed: {
+          ...previous.state.isAuthed,
+          meegle: success,
+        },
+      },
+    }));
+  }
+
+  async function authorizeLark(): Promise<void> {
+    appendLog("info", "检查 Lark 授权...");
+    const masterUserId = await ensureResolvedIdentity();
+
+    if (!masterUserId) {
+      appendLog("error", "无法解析主身份，暂时不能发起 Lark 授权");
+      updateStore((previous) => ({
+        ...previous,
+        state: {
+          ...previous.state,
+          isAuthed: {
+            ...previous.state.isAuthed,
+            lark: false,
+          },
+        },
+      }));
+      return;
+    }
+
+    const auth = await checkLarkAuth();
+    updateStore((previous) => ({
+      ...previous,
+      state: {
+        ...previous.state,
+        larkAuth: auth,
+        isAuthed: {
+          ...previous.state.isAuthed,
+          lark: auth.status === "ready",
+        },
+      },
+    }));
+
+    const current = readStore();
+    const force = auth.status === "ready";
+    if (force) {
+      appendLog("info", "重新发起 Lark 授权...");
+    }
+
+    const started = await runLarkAuthRequest({
+      masterUserId,
+      baseUrl: normalizeLarkAuthBaseUrl(current.state.currentTabOrigin),
+      force,
+    });
+
+    updateStore((previous) => ({
+      ...previous,
+      state: {
+        ...previous.state,
+        larkAuth: started,
+        isAuthed: {
+          ...previous.state.isAuthed,
+          lark: started.status === "ready",
+        },
+      },
+    }));
+
+    if (started.status === "ready") {
+      appendLog("success", "Lark 已授权");
+      return;
+    }
+
+    if (started.status === "in_progress") {
+      appendLog("info", "已打开 Lark 授权页，等待完成授权");
+      return;
+    }
+
+    appendLog("warn", started.errorMessage || started.reason || "需要登录 Lark");
+  }
+
+  function setActivePage(nextPage: PopupNotebookPage): void {
+    updateStore((previous) => ({
+      ...previous,
+      activePage: nextPage,
+    }));
+  }
+
+  function openSettings(): void {
+    setActivePage("settings");
+  }
+
+  function closeSettings(): void {
+    syncSettingsForm(settingsSnapshotRef.current);
+    setActivePage("chat");
+  }
+
+  function setSettingsForm(
+    next:
+      | PopupSettingsForm
+      | ((previous: PopupSettingsForm) => PopupSettingsForm),
+  ): void {
+    updateStore((previous) => ({
+      ...previous,
+      settingsForm:
+        typeof next === "function" ? next(previous.settingsForm) : { ...next },
+    }));
+  }
+
+  function updateSettingsFormField<TKey extends keyof PopupSettingsForm>(
+    key: TKey,
+    value: PopupSettingsForm[TKey],
+  ): void {
+    updateStore((previous) => {
+      const nextSettings = {
+        ...previous.settingsForm,
+        [key]: value,
+      };
+
+      if (key === "ENV_NAME") {
+        nextSettings.SERVER_URL = resolveServerUrl({
+          envName: value,
+        });
+      }
+
+      return {
+        ...previous,
+        settingsForm: nextSettings,
+      };
+    });
+  }
+
+  function syncLegacyIdentityState(nextIdentity: PopupIdentityCompatInput): void {
+    updateStore((previous) => {
+      const currentIdentity = previous.state.identity;
+      const normalizedIdentity: PopupIdentityState = {
+        masterUserId: normalizeIdentityField(
+          nextIdentity.masterUserId,
+          currentIdentity.masterUserId,
+        ),
+        larkId: normalizeIdentityField(nextIdentity.larkId, currentIdentity.larkId),
+        larkEmail: normalizeIdentityField(
+          nextIdentity.larkEmail,
+          currentIdentity.larkEmail,
+        ),
+        larkName: normalizeIdentityField(nextIdentity.larkName, currentIdentity.larkName),
+        larkAvatar: normalizeIdentityField(
+          nextIdentity.larkAvatar,
+          currentIdentity.larkAvatar,
+        ),
+        meegleUserKey: normalizeIdentityField(
+          nextIdentity.meegleUserKey,
+          currentIdentity.meegleUserKey,
+        ),
+      };
+
+      if (areIdentityStatesEqual(currentIdentity, normalizedIdentity)) {
+        return previous;
+      }
+
+      return {
+        ...previous,
+        state: {
+          ...previous.state,
+          identity: normalizedIdentity,
+        },
+      };
+    });
+  }
+
+  async function fetchMeegleUserKey(): Promise<void> {
+    const current = readStore();
+
+    if (current.state.pageType !== "meegle" || current.state.currentTabId == null) {
+      appendLog("warn", "当前标签页不是 Meegle 页面，无法自动获取 User Key");
+      return;
+    }
+
+    const identity = await requestMeegleUserIdentity(
+      current.state.currentTabId,
+      current.state.currentUrl ?? undefined,
+    );
+
+    if (!identity?.userKey) {
+      appendLog("warn", "未能从当前页面获取 Meegle User Key");
+      return;
+    }
+
+    const userKey = identity.userKey;
+    updateStore((previous) => ({
+      ...previous,
+      settingsForm: {
+        ...previous.settingsForm,
+        meegleUserKey: userKey,
+      },
+      state: {
+        ...previous.state,
+        identity: {
+          ...previous.state.identity,
+          meegleUserKey: userKey,
+        },
+      },
+    }));
+    appendLog("success", `已获取 Meegle User Key: ${userKey}`);
+  }
+
+  async function saveSettingsForm(): Promise<void> {
+    const currentSettings = readStore().settingsForm;
+    await savePopupSettings({ ...currentSettings });
+    const refreshedSettings = await loadPopupSettings();
+    syncSettingsForm(refreshedSettings);
+    settingsSnapshotRef.current = { ...refreshedSettings };
+    hydrateIdentityFromSettings(refreshedSettings);
+    appendLog("success", "设置已保存");
+    setActivePage("chat");
+    await refreshAuthStates();
+  }
+
+  async function refreshServerConfig(): Promise<void> {
+    const refreshedSettings = await loadPopupSettings();
+    syncSettingsForm(refreshedSettings);
+    settingsSnapshotRef.current = { ...refreshedSettings };
+    appendLog(
+      "success",
+      `已刷新服务端配置: ${refreshedSettings.LARK_OAUTH_CALLBACK_URL}`,
+    );
+  }
+
+  function clearLogs(): void {
+    updateStore((previous) => ({
+      ...previous,
+      logs: [],
+    }));
+  }
+
+  function openLarkBulkCreateErrorModal(error: LarkBulkCreateModalError): void {
+    setLarkBulkCreateModal({
+      visible: true,
+      stage: "error",
+      preview: null,
+      result: null,
+      bulkError: error,
+    });
+  }
+
+  function confirmLarkBulkCreate(): Promise<void> {
+    const currentModal = readStore().larkBulkCreateModal;
+
+    if (currentModal.stage !== "preview" || !currentModal.preview) {
+      return Promise.resolve();
+    }
+
+    if (larkBulkCreateConfirmPromise) {
+      return larkBulkCreateConfirmPromise;
+    }
+
+    setLarkBulkCreateModal((previous) => {
+      if (!previous.preview || previous.stage !== "preview") {
+        return previous;
+      }
+
+      return {
+        ...previous,
+        visible: true,
+        stage: "executing",
+        result: null,
+        bulkError: null,
+      };
+    });
+
+    larkBulkCreateConfirmPromise = loadLarkBulkCreateController()
+      .then((controller) => controller.confirmCreate())
+      .finally(() => {
+        larkBulkCreateConfirmPromise = null;
+      });
+
+    return larkBulkCreateConfirmPromise;
+  }
+
+  function closeLarkBulkCreateModal(): void {
+    updateStore((previous) => ({
+      ...previous,
+      larkBulkCreateModal: {
+        visible: false,
+        stage: "hidden",
+        preview: null,
+        result: null,
+        bulkError: null,
+      },
+    }));
+  }
+
+  function openKimiChat(): void {
+    setActivePage("chat");
+
+    if (readStore().showKimiChat) {
+      return;
+    }
+
+    updateStore((previous) => ({
+      ...previous,
+      showKimiChat: true,
+    }));
+    preloadKimiChatController();
+  }
+
+  function resetKimiChatSession(): void {
+    if (kimiChatController) {
+      kimiChatController.resetSession();
+      return;
+    }
+
+    void loadKimiChatController().then((controller) => {
+      controller.resetSession();
+    });
+  }
+
+  function updateKimiChatDraftMessage(message: string): void {
+    updateStore((previous) => ({
+      ...previous,
+      kimiChatDraftMessage: message,
+    }));
+  }
+
+  function stopKimiChatGeneration(): void {
+    if (!readStore().kimiChatBusy) {
+      return;
+    }
+
+    if (kimiChatController) {
+      kimiChatController.stopGeneration();
+      return;
+    }
+
+    void loadKimiChatController().then((controller) => {
+      controller.stopGeneration();
+    });
+  }
+
+  async function openKimiChatHistory(): Promise<void> {
+    const controller = await loadKimiChatController();
+    await controller.openHistory();
+  }
+
+  function closeKimiChatHistory(): void {
+    updateStore((previous) => ({
+      ...previous,
+      kimiChatHistoryOpen: false,
+    }));
+  }
+
+  async function loadKimiChatHistorySession(sessionId: string): Promise<void> {
+    const controller = await loadKimiChatController();
+    await controller.loadHistorySession(sessionId);
+  }
+
+  async function deleteKimiChatHistorySession(sessionId: string): Promise<void> {
+    const controller = await loadKimiChatController();
+    await controller.deleteHistorySession(sessionId);
+  }
+
+  async function sendKimiChatMessage(messageText: string): Promise<void> {
+    updateStore((previous) => ({
+      ...previous,
+      showKimiChat: true,
+      activePage: "chat",
+    }));
+
+    const controller = await loadKimiChatController();
+    await controller.sendMessage(messageText);
+  }
+
+  async function ignoreUpdateVersion(): Promise<void> {
+    const store = readStore();
+    if (store.update?.latestVersion) {
+      await chrome.runtime.sendMessage({
+        action: "octo.update.ignore",
+        payload: { version: store.update.latestVersion },
+      });
+      updateStore((previous) => ({
+        ...previous,
+        update: null,
+      }));
+    }
+  }
+
+  async function downloadUpdate(): Promise<void> {
+    const store = readStore();
+    if (store.update?.downloadUrl) {
+      const versionInfo: ExtensionVersionInfo = {
+        version: store.update.latestVersion,
+        releaseNotes: store.update.releaseNotes,
+        downloadUrl: store.update.downloadUrl,
+        forceUpdate: store.update.forceUpdate,
+        minVersion: store.update.currentVersion,
+      };
+      await chrome.runtime.sendMessage({
+        action: "octo.update.download",
+        payload: { versionInfo },
+      });
+    }
+  }
+
+  async function runFeatureAction(actionKey: string): Promise<void> {
+    const configuredAction = readStore().pageConfig?.automationActions.find(
+      (action) => action.key === actionKey,
+    );
+    if (readStore().actionStatuses[actionKey]?.phase === "running") {
+      appendLog("warn", "当前操作仍在执行中，请等待返回状态。");
+      return;
+    }
+
+    const actionRunId = createActionRunId();
+
+    if (actionKey === "analyze") {
+      if (readStore().showKimiChat) {
+        resetKimiChatSession();
+        appendLog("info", `已重置 Kimi ACP 会话 · actionRunId=${actionRunId}`);
+        return;
+      }
+
+      openKimiChat();
+      appendLog("info", `已打开 Kimi ACP 聊天面板 · actionRunId=${actionRunId}`);
+      return;
+    }
+
+    if (actionKey === LARK_CREATE_ACTION_KEY) {
+      const store = readStore();
+      const actionContext = collectActionRuntimeContext({
+        actionRunId,
+        currentTab: {
+          id: store.state.currentTabId,
+          url: store.state.currentUrl,
+          origin: store.state.currentTabOrigin,
+          pageType: store.state.pageType,
+          larkContext: store.state.currentLarkContext ?? undefined,
+        },
+        identity: {
+          masterUserId: store.state.identity.masterUserId,
+        },
+      });
+      const larkContext = actionContext.pageContext.lark ?? {};
+      const recordId = larkContext.recordId ?? larkContext.wikiRecordId;
+
+      if (!recordId) {
+        const message = "当前页面缺少 Lark 记录 ID，无法创建 Meegle Item。";
+        appendLog("error", message);
+        showPopupToast(message, "error");
+        return;
+      }
+
+      appendLog("info", `创建 Meegle Item 中... · actionRunId=${actionRunId}`);
+      setActionStatus(actionKey, {
+        phase: "running",
+        actionRunId,
+        message: `执行中 · ${actionRunId}`,
+      });
+      const result = await runLarkBaseCreateWorkitemRequest({
+        pageType: larkContext.wikiRecordId && !larkContext.baseId ? "lark_wiki_record" : "lark_base",
+        url: actionContext.currentTab.url ?? "",
+        baseId: larkContext.baseId,
+        tableId: larkContext.tableId,
+        recordId,
+        wikiRecordId: larkContext.wikiRecordId,
+        masterUserId: actionContext.identity.masterUserId ?? undefined,
+        actionRunId,
+      });
+
+      if (!result.ok) {
+        const responseActionRunId = result.error.actionRunId ?? actionRunId;
+        const message = `创建 Meegle Item 失败: ${result.error.errorMessage}`;
+        setActionStatus(actionKey, {
+          phase: "error",
+          actionRunId: responseActionRunId,
+          message: `${message} · ${responseActionRunId}`,
+        });
+        appendLog("error", `${message} · actionRunId=${responseActionRunId}`);
+        showPopupToast(message, "error");
+        return;
+      }
+
+      const responseActionRunId = result.actionRunId ?? actionRunId;
+      const message = `创建 Meegle Item 完成: ${result.workitemId}`;
+      setActionStatus(actionKey, {
+        phase: "success",
+        actionRunId: responseActionRunId,
+        message: `执行完成 · ${responseActionRunId}`,
+      });
+      appendLog("success", `${message} · actionRunId=${responseActionRunId}`);
+      showPopupToast(message, "success");
+      return;
+    }
+
+    if (actionKey === LARK_BULK_CREATE_ACTION_KEY) {
+      const controller = await loadLarkBulkCreateController();
+      await controller.openPreview({ actionRunId });
+      return;
+    }
+
+    const labels: Record<string, string> = {
+      analyze: "分析中...",
+      draft: "生成草稿...",
+      apply: "确认创建...",
+      "update-lark-and-push": "更新 Lark 及推送中...",
+      "story-prd-to-simplified": "研发Review Story 中...",
+      "lark-bug-analyze": "分析 bug 中...",
+    };
+
+    appendLog("info", `${labels[actionKey] || "执行操作中..."} · actionRunId=${actionRunId}`);
+
+    if (actionKey === "update-lark-and-push") {
+      const controller = await loadMeeglePushController();
+      await controller.run({ actionRunId });
+      return;
+    }
+
+    if (actionKey === "lookup-github-pr" || actionKey === "lookup-github-issue") {
+      const controller = await loadGitHubLookupController();
+      await controller.lookup({ actionRunId });
+      return;
+    }
+
+    if (actionKey === "create-github-branch") {
+      const controller = await loadGitHubBranchCreateController();
+      await controller.open({ actionRunId });
+      return;
+    }
+
+    if (configuredAction?.executor.type === "backend_api") {
+      await runBackendAutomationAction(configuredAction, actionRunId);
+      return;
+    }
+
+    appendLog("warn", "功能开发中，请稍后");
+  }
+
+  async function runBackendAutomationAction(
+    action: AutomationActionListItem,
+    actionRunId: string,
+  ): Promise<void> {
+    if (action.executor.type !== "backend_api" || !action.executor.route) {
+      const message = `${action.title} 缺少服务端执行配置`;
+      setActionStatus(action.key, { phase: "error", message });
+      appendLog("error", message);
+      return;
+    }
+
+    const current = readStore();
+    const currentUrl = current.state.currentUrl;
+    if (!currentUrl) {
+      const message = `当前页面 URL 为空，无法执行${action.title}`;
+      setActionStatus(action.key, { phase: "error", message });
+      appendLog("error", message);
+      return;
+    }
+
+    const masterUserId = current.state.identity.masterUserId;
+    if (!masterUserId) {
+      const message = "未解析到主身份，无法执行服务端动作";
+      setActionStatus(action.key, { phase: "error", message });
+      appendLog("error", message);
+      return;
+    }
+
+    let runtimeCurrentTab = {
+      id: current.state.currentTabId,
+      url: currentUrl,
+      origin: current.state.currentTabOrigin,
+      pageType: current.state.pageType,
+      larkContext: current.state.currentLarkContext ?? undefined,
+    };
+    let actionContext = collectActionRuntimeContext({
+      actionRunId,
+      currentTab: runtimeCurrentTab,
+      identity: {
+        masterUserId,
+      },
+    });
+
+    const isRealLarkRecordId = (recordId: string | undefined): recordId is string =>
+      typeof recordId === "string" && recordId.startsWith("rec");
+    const initialLarkContext = actionContext.pageContext.lark ?? {};
+    const shouldRefreshProductionBugLarkContext =
+      action.executor.operation === "lark.bug.analyze" &&
+      Boolean(initialLarkContext.baseId || initialLarkContext.tableId || initialLarkContext.wikiRecordId) &&
+      !isRealLarkRecordId(initialLarkContext.recordId);
+    if (
+      shouldRefreshProductionBugLarkContext
+    ) {
+      try {
+        const refreshedTab = await queryActiveTabContext();
+        if (refreshedTab.larkContext) {
+          runtimeCurrentTab = {
+            id: refreshedTab.id ?? runtimeCurrentTab.id,
+            url: refreshedTab.url ?? runtimeCurrentTab.url,
+            origin: refreshedTab.origin ?? runtimeCurrentTab.origin,
+            pageType: refreshedTab.pageType ?? runtimeCurrentTab.pageType,
+            larkContext: {
+              ...runtimeCurrentTab.larkContext,
+              ...refreshedTab.larkContext,
+            },
+          };
+          updateStore((store) => ({
+            ...store,
+            state: {
+              ...store.state,
+              currentTabId: runtimeCurrentTab.id,
+              currentUrl: runtimeCurrentTab.url,
+              currentTabOrigin: runtimeCurrentTab.origin,
+              pageType: runtimeCurrentTab.pageType,
+              currentLarkContext: runtimeCurrentTab.larkContext ?? null,
+            },
+          }));
+          actionContext = collectActionRuntimeContext({
+            actionRunId,
+            currentTab: runtimeCurrentTab,
+            identity: {
+              masterUserId,
+            },
+          });
+        }
+      } catch {
+        // Keep the original context; the server will return a structured missing-record error.
+      }
+    }
+
+    const meegleContext = actionContext.pageContext.meegle;
+    const larkContext = actionContext.pageContext.lark ?? {};
+    const effectiveCurrentUrl = runtimeCurrentTab.url ?? currentUrl;
+    const larkRecordId = isRealLarkRecordId(larkContext.recordId) ? larkContext.recordId : undefined;
+    const hasLarkBaseContext = Boolean(larkContext.baseId && larkContext.tableId);
+    const hasLarkRecordContext = Boolean(larkRecordId || larkContext.wikiRecordId);
+    const supportsLarkBaseContext = action.executor.operation === "lark.bug.analyze";
+    const larkPageType = hasLarkRecordContext || hasLarkBaseContext
+      ? larkContext.wikiRecordId && !larkContext.baseId
+        ? "lark_wiki_record"
+        : "lark_base"
+      : undefined;
+    if (!meegleContext && !larkRecordId && !(supportsLarkBaseContext && (hasLarkBaseContext || larkContext.wikiRecordId))) {
+      const message = `无法从当前 URL 解析 Meegle 工作项或 Lark 记录信息: ${effectiveCurrentUrl}`;
+      setActionStatus(action.key, { phase: "error", message });
+      appendLog("error", message);
+      showPopupToast(message, "error");
+      return;
+    }
+
+    const config = await getConfig();
+    const baseUrl = runtimeCurrentTab.origin || meegleContext?.baseUrl || config.MEEGLE_BASE_URL;
+    appendLog(
+      "info",
+      `[${action.title}] 调用服务端: operation=${action.executor.operation}, actionRunId=${actionRunId}`,
+    );
+    setActionStatus(action.key, {
+      phase: "running",
+      actionRunId,
+      message: `执行中 · ${actionRunId}`,
+    });
+
+    const abortController = new AbortController();
+    const timeoutId = globalThis.setTimeout(() => {
+      abortController.abort();
+    }, BACKEND_AUTOMATION_TIMEOUT_MS);
+    try {
+      const { payload } = await fetchServerJson<BackendAutomationResponse>({
+        url: `${config.SERVER_URL}${action.executor.route}`,
+        masterUserId,
+        signal: abortController.signal,
+        body: {
+          projectKey: meegleContext?.projectKey,
+          workItemTypeKey: meegleContext?.workItemTypeKey,
+          workItemId: meegleContext?.workItemId,
+          meegleUrl: effectiveCurrentUrl,
+          baseId: larkContext.baseId,
+          tableId: larkContext.tableId,
+          viewId: larkContext.viewId,
+          recordId: larkRecordId,
+          wikiRecordId: larkContext.wikiRecordId,
+          pageType: larkPageType,
+          masterUserId,
+          baseUrl,
+          actionRunId,
+        },
+      });
+
+      if (!payload.ok) {
+        const errorMessage = getBackendAutomationErrorMessage(payload);
+        setActionStatus(action.key, {
+          phase: "error",
+          actionRunId:
+            payload.error && typeof payload.error === "object"
+              ? payload.error.actionRunId ?? actionRunId
+              : actionRunId,
+          message: errorMessage,
+        });
+        appendLog("error", `[${action.title}] 执行失败: ${errorMessage}`);
+        showPopupToast(errorMessage, "error");
+        return;
+      }
+
+      const message = `[${action.title}] 执行完成${payload.data?.updatedField ? `: 已更新 ${payload.data.updatedField}` : ""}`;
+      setActionStatus(action.key, {
+        phase: "success",
+        actionRunId: payload.data?.actionRunId ?? actionRunId,
+        message: payload.data?.updatedField
+          ? `已更新 ${payload.data.updatedField}`
+          : "执行完成",
+      });
+      appendLog("success", message);
+      showPopupToast(message, "success");
+    } catch (error) {
+      const isAbort = error instanceof DOMException && error.name === "AbortError";
+      const message = isAbort
+        ? "执行超时，服务端可能仍在处理，请稍后刷新 Meegle 或查看日志。"
+        : error instanceof Error
+          ? error.message
+          : String(error);
+      setActionStatus(action.key, {
+        phase: "error",
+        actionRunId,
+        message,
+      });
+      appendLog("error", `[${action.title}] 执行失败: ${message}`);
+      showPopupToast(message, "error");
+    } finally {
+      globalThis.clearTimeout(timeoutId);
+    }
+  }
+
+  function createActionRunId(): string {
+    if (globalThis.crypto?.randomUUID) {
+      return globalThis.crypto.randomUUID();
+    }
+
+    return `action_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  }
+
+  function getBackendAutomationErrorMessage(
+    response: BackendAutomationResponse,
+  ): string {
+    if (typeof response.error === "string") {
+      return response.error;
+    }
+
+    if (response.error?.errorMessage) {
+      return response.error.errorCode
+        ? `${response.error.errorCode}: ${response.error.errorMessage}`
+        : response.error.errorMessage;
+    }
+
+    return "未知错误";
+  }
+
+  async function confirmGitHubBranchCreate(): Promise<void> {
+    const controller = await loadGitHubBranchCreateController();
+    await controller.confirmCreate();
+  }
+
+  function closeGitHubBranchCreateModal(): void {
+    const controller = githubBranchCreateController;
+    if (controller) {
+      controller.resetModal();
+    } else {
+      // Fallback: directly reset store
+      setGitHubBranchCreateModal({
+        visible: false,
+        stage: "preview",
+        repo: "",
+        defaultBranchName: "",
+        editedBranchName: "",
+        workItemTitle: "",
+        systemLabel: "",
+        error: null,
+        result: null,
+      });
+    }
+  }
+
+  function updateGitHubBranchCreateName(value: string): void {
+    setGitHubBranchCreateModal((previous) => ({
+      ...previous,
+      editedBranchName: value.slice(0, 50),
+    }));
+  }
+
+  function exportLogs(): void {
+    const blob = exportLogsAsBlob();
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `tenways-octo-logs-${new Date().toISOString()}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    appendLog("info", "日志已导出");
+  }
+
+  function toPopupFeatureAction(
+    action: AutomationActionListItem,
+    input: {
+      viewModel: ReturnType<typeof createPopupViewModel>;
+      status?: PopupActionExecutionStatus;
+    },
+  ): PopupFeatureAction {
+    const loading = input.status?.phase === "running";
+    return {
+      key: action.key,
+      label: action.title,
+      type: action.style ?? "default",
+      disabled:
+        loading || (action.key === "analyze" ? !input.viewModel.canAnalyze : false),
+      loading,
+      statusText: input.status?.message,
+      statusTone: input.status?.phase,
+    };
+  }
+
+  async function lookupGitHubPr(): Promise<void> {
+    const controller = await loadGitHubLookupController();
+    await controller.lookup();
+  }
+
+  const unsubscribeLarkAuthCallback = watchLarkAuthCallbackResult(async (result) => {
+    const current = readStore();
+
+    if (
+      result.masterUserId &&
+      result.masterUserId !== current.state.identity.masterUserId
+    ) {
+      updateStore((previous) => ({
+        ...previous,
+        state: {
+          ...previous.state,
+          identity: {
+            ...previous.state.identity,
+            masterUserId: result.masterUserId || null,
+          },
+        },
+      }));
+      await saveResolvedIdentity(result.masterUserId);
+      if (current.state.currentTabId != null) {
+        await saveResolvedIdentityForTab(
+          current.state.currentTabId,
+          result.masterUserId,
+        );
+      }
+    }
+
+    if (result.status === "ready") {
+      appendLog("success", "Lark 授权完成");
+      const auth = await checkLarkAuth();
+      updateStore((previous) => ({
+        ...previous,
+        state: {
+          ...previous.state,
+          larkAuth: auth,
+          isAuthed: {
+            ...previous.state.isAuthed,
+            lark: auth.status === "ready",
+          },
+        },
+      }));
+
+      if (auth.status === "ready" && auth.masterUserId && auth.baseUrl) {
+        await hydrateLarkIdentityFromServer(auth.masterUserId, auth.baseUrl);
+      }
+      return;
+    }
+
+    appendLog("error", `Lark 授权失败: ${result.reason || "Unknown error"}`);
+  });
+
+  function getState(): PopupControllerState {
+    if (cachedState) {
+      return cachedState;
+    }
+
+    const store = storeRef.current;
+    const settingsOpen = store.activePage === "settings";
+    const viewModel = createPopupViewModel({
+      pageType: store.state.pageType,
+      identity: store.state.identity,
+      isAuthed: store.state.isAuthed,
+    });
+    const headerSubtitle = (() => {
+    if (store.activePage === "settings") {
+      return "设置";
+    }
+
+    if (store.activePage === "profile") {
+      return "个人";
+    }
+
+    if (!store.hasResolvedPageContext) {
+      return store.isLoading ? "Scanning" : null;
+    }
+
+    if (store.state.pageType === "unsupported") {
+      return "Unsupported";
+    }
+
+    return buildPopupHeaderContext({
+      platform: store.state.pageType === "lark" ? "Lark" : "Meegle",
+    });
+    })();
+    const meegleStatus = resolveMeegleStatusChip(
+      store.state.meegleAuth,
+      store.state.identity.meegleUserKey,
+    );
+    const larkStatus = resolveLarkStatusChip(
+      store.state.larkAuth,
+      store.state.identity.larkId,
+    );
+    const topMeegleButtonText = store.state.isAuthed.meegle ? "已授权" : "授权";
+    const topLarkButtonText = store.state.isAuthed.lark ? "重新授权" : "授权";
+    const topMeegleButtonDisabled = store.state.isAuthed.meegle;
+    const topLarkButtonDisabled = false;
+    const configuredActions = (store.pageConfig?.automationActions ?? []).filter(
+      actionHasPopupPlacement,
+    );
+    const actionsForCurrentPage = configuredActions.map((action) =>
+      toPopupFeatureAction(action, {
+        viewModel,
+        status: store.actionStatuses[action.key],
+      }),
+    );
+    const larkActions: PopupFeatureAction[] =
+      store.state.pageType === "lark" ? actionsForCurrentPage : [];
+    const meegleActions: PopupFeatureAction[] =
+      store.state.pageType === "meegle" ? actionsForCurrentPage : [];
+    const githubActions: PopupFeatureAction[] =
+      store.state.pageType === "github" ? actionsForCurrentPage : [];
+
+    cachedState = freezeSnapshot(
+      cloneData({
+      state: store.state,
+      logs: store.logs,
+      isLoading: store.isLoading,
+      activePage: store.activePage,
+      settingsOpen,
+      settingsForm: store.settingsForm,
+      viewModel,
+      headerSubtitle,
+      meegleStatus,
+      larkStatus,
+      topMeegleButtonText,
+      topLarkButtonText,
+      topMeegleButtonDisabled,
+      topLarkButtonDisabled,
+      larkActions,
+      meegleActions,
+      githubActions,
+      larkBulkCreateModal: store.larkBulkCreateModal,
+      githubBranchCreateModal: store.githubBranchCreateModal,
+      showKimiChat: store.showKimiChat,
+      kimiChatTranscript: store.kimiChatTranscript,
+      kimiChatBusy: store.kimiChatBusy,
+      kimiChatSessionId: store.kimiChatSessionId,
+      kimiChatDraftMessage: store.kimiChatDraftMessage,
+      kimiChatHistoryOpen: store.kimiChatHistoryOpen,
+      kimiChatHistoryLoading: store.kimiChatHistoryLoading,
+      kimiChatHistoryItems: store.kimiChatHistoryItems,
+      update: store.update,
+      githubLookup: store.githubLookup,
+      }),
+    );
+
+    return cachedState;
+  }
+
+  function subscribe(listener: () => void): () => void {
+    listeners.add(listener);
+    return () => {
+      listeners.delete(listener);
+    };
+  }
+
+  function dispose(): void {
+    disposed = true;
+    unsubscribeLarkAuthCallback?.();
+    if (kimiChatController) {
+      kimiChatController.dispose();
+    } else if (kimiChatControllerPromise) {
+      void kimiChatControllerPromise.then((controller) => {
+        controller.dispose();
+      });
+    }
+    listeners.clear();
+  }
+
+  return {
+    getState,
+    subscribe,
+    dispose,
+    initialize,
+    authorizeMeegle,
+    authorizeLark,
+    setActivePage,
+    openSettings,
+    closeSettings,
+    setSettingsForm,
+    updateSettingsFormField,
+    syncLegacyIdentityState,
+    fetchMeegleUserKey,
+    saveSettingsForm,
+    refreshServerConfig,
+    clearLogs,
+    exportLogs,
+    runFeatureAction,
+    confirmLarkBulkCreate,
+    closeLarkBulkCreateModal,
+    resetKimiChatSession,
+    openKimiChatHistory,
+    closeKimiChatHistory,
+    loadKimiChatHistorySession,
+    deleteKimiChatHistorySession,
+    updateKimiChatDraftMessage,
+    sendKimiChatMessage,
+    stopKimiChatGeneration,
+    ignoreUpdateVersion,
+    downloadUpdate,
+    lookupGitHubPr,
+    confirmGitHubBranchCreate,
+    closeGitHubBranchCreateModal,
+    updateGitHubBranchCreateName,
+  };
+}
+
+function resolveStatusChip(
+  ready: boolean,
+  fallbackValue?: string | null,
+): PopupStatusChip {
+  if (ready) {
+    return {
+      tone: "success",
+      text: "已授权",
+    };
+  }
+
+  if (fallbackValue) {
+    return {
+      tone: "processing",
+      text: fallbackValue,
+    };
+  }
+
+  return {
+    tone: "default",
+    text: "-",
+  };
+}
+
+function formatExpiry(expiresAt?: string): string | undefined {
+  if (!expiresAt) {
+    return undefined;
+  }
+
+  const parsed = new Date(expiresAt);
+  if (Number.isNaN(parsed.getTime())) {
+    return undefined;
+  }
+
+  const month = `${parsed.getMonth() + 1}`.padStart(2, "0");
+  const day = `${parsed.getDate()}`.padStart(2, "0");
+  const hours = `${parsed.getHours()}`.padStart(2, "0");
+  const minutes = `${parsed.getMinutes()}`.padStart(2, "0");
+  return `${month}-${day} ${hours}:${minutes}`;
+}
+
+function resolveLarkStatusChip(
+  auth: LarkAuthEnsureResponse | undefined,
+  fallbackValue?: string | null,
+): PopupStatusChip {
+  if (auth?.status === "ready") {
+    const expiryText = formatExpiry(auth.expiresAt);
+    return {
+      tone: "success",
+      text: expiryText ? `已授权 · ${expiryText}` : "已授权",
+    };
+  }
+
+  return resolveStatusChip(false, fallbackValue);
+}
+
+function resolveMeegleStatusChip(
+  auth: MeegleAuthEnsureResponse | undefined,
+  meegleUserKey?: string | null,
+): PopupStatusChip {
+  const display = resolveMeegleStatusDisplay(auth, meegleUserKey || undefined);
+
+  if (display.status === "ready") {
+    return {
+      tone: "success",
+      text: display.text,
+    };
+  }
+
+  if (display.status === "error") {
+    return {
+      tone: "error",
+      text: display.text,
+    };
+  }
+
+  if (display.text !== "-") {
+    return {
+      tone: "processing",
+      text: display.text,
+    };
+  }
+
+  return {
+    tone: "default",
+    text: display.text,
+  };
+}
+
+function cloneData<T>(value: T): T {
+  if (typeof structuredClone === "function") {
+    return structuredClone(value);
+  }
+
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function freezeSnapshot<T>(value: T): T {
+  const seen = new WeakSet<object>();
+
+  function freezeNested(current: unknown): void {
+    if (!current || typeof current !== "object") {
+      return;
+    }
+
+    if (seen.has(current)) {
+      return;
+    }
+    seen.add(current);
+
+    Object.freeze(current);
+
+    if (Array.isArray(current)) {
+      for (const item of current) {
+        freezeNested(item);
+      }
+      return;
+    }
+
+    for (const nested of Object.values(current)) {
+      freezeNested(nested);
+    }
+  }
+
+  freezeNested(value);
+  return value;
+}
+
+function normalizeIdentityField(
+  nextValue: string | null | undefined,
+  fallbackValue: string | null,
+): string | null {
+  if (nextValue === undefined) {
+    return fallbackValue;
+  }
+
+  if (nextValue === "") {
+    return null;
+  }
+
+  return nextValue;
+}
+
+function areIdentityStatesEqual(
+  left: PopupIdentityState,
+  right: PopupIdentityState,
+): boolean {
+  return (
+    left.masterUserId === right.masterUserId &&
+    left.larkId === right.larkId &&
+    left.larkEmail === right.larkEmail &&
+    left.larkName === right.larkName &&
+    left.larkAvatar === right.larkAvatar &&
+    left.meegleUserKey === right.meegleUserKey
+  );
+}

@@ -2,7 +2,33 @@ import type {
   MeegleAuthCodeResponse,
   MeegleAuthEnsureRequest,
   MeegleAuthEnsureResponse,
+  MeegleAuthExchangeResponse,
 } from "../../types/meegle";
+import { normalizeMeegleAuthBaseUrl } from "../../platform-url.js";
+import { getConfig } from "../config.js";
+import { createExtensionLogger } from "../../logger.js";
+import { fetchServerJson } from "../../server-request.js";
+
+const meegleAuthLogger = createExtensionLogger("background:meegle-auth");
+
+class MeegleAuthCodeRequestError extends Error {
+  code: string;
+
+  constructor(code: string, message: string) {
+    super(message);
+    this.code = code;
+    this.name = "MeegleAuthCodeRequestError";
+  }
+}
+
+function logBgFlow(node: string, phase: "START" | "OK" | "FAIL", detail: Record<string, unknown>): void {
+  const message = `[MEEGLE_AUTH_FLOW][BG][${node}][${phase}]`;
+  if (phase === "FAIL") {
+    meegleAuthLogger.error(message, detail);
+  } else {
+    meegleAuthLogger.info(message, detail);
+  }
+}
 
 export interface EnsureMeegleAuthDeps {
   getCachedToken?: () => string | undefined;
@@ -12,8 +38,17 @@ export interface EnsureMeegleAuthDeps {
     pluginId: string,
     state: string,
     baseUrl: string,
+    tabId?: number,
   ) => Promise<MeegleAuthCodeResponse | undefined>;
   openMeegleLoginTab?: (baseUrl: string) => Promise<void>;
+  exchangeAuthCodeWithServer?: (
+    request: MeegleAuthEnsureRequest,
+    authCode: string,
+  ) => Promise<MeegleAuthExchangeResponse | undefined>;
+}
+
+function isConfiguredPluginId(pluginId?: string): pluginId is string {
+  return Boolean(pluginId && pluginId.trim() && pluginId !== "your-plugin-id");
 }
 
 /**
@@ -23,45 +58,61 @@ async function requestAuthCodeFromContentScript(
   pluginId: string,
   state: string,
   baseUrl: string,
+  tabId?: number,
 ): Promise<MeegleAuthCodeResponse | undefined> {
-  return new Promise((resolve) => {
-    // Find Meegle tab
-    chrome.tabs.query({ url: baseUrl + "/*" }, (tabs) => {
-      if (!tabs || tabs.length === 0) {
-        console.error("[Tenways Octo] No Meegle tab found");
-        resolve(undefined);
-        return;
-      }
+  return new Promise((resolve, reject) => {
+    if (!tabId) {
+      resolve(undefined);
+      return;
+    }
 
-      const meegleTab = tabs[0];
-
-      // Send message to content script
+    const sendRequest = () => {
+      logBgFlow("AUTH_CODE_REQUEST", "START", { tabId, baseUrl, state, pluginIdSuffix: pluginId.slice(-6) });
       chrome.tabs.sendMessage(
-        meegleTab.id!,
+        tabId,
         {
-          action: "itdog.page.meegle.auth_code.request",
+          action: "octo.page.meegle.auth_code.request",
           payload: { pluginId, state, baseUrl },
         },
         (response) => {
           if (chrome.runtime.lastError) {
-            console.error("[Tenways Octo] Failed to send message to content script:", chrome.runtime.lastError);
-            resolve(undefined);
+            const errorMessage = chrome.runtime.lastError.message ||
+              "Current tab is not a Meegle auth page";
+
+            meegleAuthLogger.error("Failed to send message to content script", {
+              error: chrome.runtime.lastError,
+            });
+            reject(
+              new MeegleAuthCodeRequestError(
+                "MEEGLE_PAGE_REQUIRED",
+                errorMessage,
+              ),
+            );
             return;
           }
 
           if (response?.ok && response?.data) {
+            logBgFlow("AUTH_CODE_REQUEST", "OK", { tabId, baseUrl, state: response.data.state, issuedAt: response.data.issuedAt });
             resolve({
               authCode: response.data.authCode,
               state: response.data.state,
               issuedAt: response.data.issuedAt,
             });
           } else {
-            console.error("[Tenways Octo] Auth code request failed:", response?.error);
-            resolve(undefined);
+            logBgFlow("AUTH_CODE_REQUEST", "FAIL", { tabId, baseUrl, state, error: response?.error });
+            meegleAuthLogger.error("Meegle Auth code request failed", { error: response?.error });
+            reject(
+              new MeegleAuthCodeRequestError(
+                response?.error?.errorCode || "AUTH_CODE_REQUEST_FAILED",
+                response?.error?.errorMessage || "Failed to obtain auth code from Meegle",
+              ),
+            );
           }
         },
       );
-    });
+    };
+
+    sendRequest();
   });
 }
 
@@ -82,24 +133,111 @@ async function openMeegleLoginTab(baseUrl: string): Promise<void> {
   });
 }
 
+/**
+ * Exchange auth code with server for user token
+ */
+async function exchangeAuthCodeWithServer(
+  request: MeegleAuthEnsureRequest,
+  authCode: string,
+): Promise<MeegleAuthExchangeResponse | undefined> {
+  let serverUrl = "unknown";
+
+  try {
+    const config = await getConfig();
+    serverUrl = config.SERVER_URL;
+
+    logBgFlow("SERVER_EXCHANGE", "START", { serverUrl, requestId: request.requestId, masterUserId: request.masterUserId, meegleUserKey: request.meegleUserKey, baseUrl: request.baseUrl });
+
+    const requestBody = {
+      requestId: request.requestId,
+      masterUserId: request.masterUserId,
+      meegleUserKey: request.meegleUserKey,
+      baseUrl: request.baseUrl,
+      authCode,
+      state: request.state,
+    };
+    const { response, payload: result } = await fetchServerJson<MeegleAuthExchangeResponse>({
+      url: `${config.SERVER_URL}/api/meegle/auth/exchange`,
+      masterUserId: request.masterUserId,
+      body: requestBody,
+    });
+
+    const parseErrorResponse = async (): Promise<MeegleAuthExchangeResponse> => {
+      if (result?.error?.errorMessage) {
+        return result;
+      }
+
+      return {
+        requestId: request.requestId,
+        ok: false,
+        error: {
+          errorCode: "MEEGLE_AUTH_CODE_EXCHANGE_FAILED",
+          errorMessage: `Server returned ${response.status} during auth code exchange`,
+        },
+      };
+    };
+
+    if (!response.ok) {
+      const errorResult = await parseErrorResponse();
+      meegleAuthLogger.error("Failed to exchange auth code", {
+        status: response.status,
+        requestId: request.requestId,
+        masterUserId: request.masterUserId,
+        meegleUserKey: request.meegleUserKey,
+        baseUrl: request.baseUrl,
+        error: errorResult.error,
+      });
+      return errorResult;
+    }
+
+    logBgFlow("SERVER_EXCHANGE", result?.ok ? "OK" : "FAIL", { serverUrl, requestId: request.requestId, baseUrl: request.baseUrl, responseOk: result?.ok, tokenStatus: result?.data?.tokenStatus, error: result?.error });
+    return result;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    meegleAuthLogger.error("Error exchanging auth code", {
+      serverUrl,
+      requestId: request.requestId,
+      masterUserId: request.masterUserId,
+      meegleUserKey: request.meegleUserKey,
+      baseUrl: request.baseUrl,
+      message,
+    });
+    return {
+      ok: false,
+      error: {
+        errorCode: "MEEGLE_AUTH_CODE_EXCHANGE_FAILED",
+        errorMessage: `Failed to reach ${serverUrl}: ${message}`,
+      },
+    };
+  }
+}
+
 export async function ensureMeegleAuth(
   request: Partial<MeegleAuthEnsureRequest> = {},
   deps: EnsureMeegleAuthDeps = {},
 ): Promise<MeegleAuthEnsureResponse> {
-  const baseUrl = request.baseUrl ?? "https://project.larksuite.com";
+  const config = await getConfig();
+  const baseUrl = normalizeMeegleAuthBaseUrl(
+    request.baseUrl ?? request.pageOrigin,
+    config.MEEGLE_BASE_URL,
+  );
   const state = request.state || `state_${Date.now()}`;
 
-  if (!request.requestId || !request.operatorLarkId) {
+  logBgFlow("ENSURE_AUTH", "START", { requestId: request.requestId, masterUserId: request.masterUserId, meegleUserKey: request.meegleUserKey, baseUrl, currentTabId: request.currentTabId, currentPageIsMeegle: request.currentPageIsMeegle });
+
+  // Validate required fields
+  if (!request.requestId || !request.masterUserId) {
     return {
       status: "failed",
       baseUrl,
-      reason: "MEEGLE_AUTH_REQUIRED",
+      reason: "MEEGLE_AUTH_REQUIRED_FIELDS_MISSING",
     };
   }
 
   const cachedToken = deps.getCachedToken?.();
 
   if (cachedToken) {
+    logBgFlow("ENSURE_AUTH", "OK", { requestId: request.requestId, baseUrl, source: "cached_token" });
     return {
       status: "ready",
       baseUrl,
@@ -110,8 +248,9 @@ export async function ensureMeegleAuth(
   // Try to get auth code from content script
   const pluginId = deps.getCachedPluginId?.();
 
-  if (!pluginId) {
-    console.error("[Tenways Octo] Plugin ID not configured");
+  if (!isConfiguredPluginId(pluginId)) {
+    logBgFlow("ENSURE_AUTH", "FAIL", { requestId: request.requestId, baseUrl, reason: "PLUGIN_ID_NOT_CONFIGURED" });
+    meegleAuthLogger.error("Plugin ID not configured");
     return {
       status: "failed",
       baseUrl,
@@ -121,9 +260,47 @@ export async function ensureMeegleAuth(
 
   const requestAuthCode = deps.requestAuthCodeFromContentScript ?? requestAuthCodeFromContentScript;
 
-  const authResult = await requestAuthCode(pluginId, state, baseUrl);
+  if (!request.currentPageIsMeegle || !request.currentTabId) {
+    logBgFlow("ENSURE_AUTH", "FAIL", { requestId: request.requestId, baseUrl, reason: "MEEGLE_PAGE_REQUIRED", currentTabId: request.currentTabId, currentPageIsMeegle: request.currentPageIsMeegle });
+    return {
+      status: "failed",
+      baseUrl,
+      state,
+      reason: "MEEGLE_PAGE_REQUIRED",
+    };
+  }
+
+  let authResult: MeegleAuthCodeResponse | undefined;
+
+  try {
+    authResult = await requestAuthCode(
+      pluginId,
+      state,
+      baseUrl,
+      request.currentTabId,
+    );
+  } catch (error) {
+    if (error instanceof MeegleAuthCodeRequestError) {
+      return {
+        status: "failed",
+        baseUrl,
+        state,
+        reason: error.code,
+        errorMessage: error.message,
+      };
+    }
+
+    return {
+      status: "failed",
+      baseUrl,
+      state,
+      reason: "AUTH_CODE_REQUEST_FAILED",
+      errorMessage: error instanceof Error ? error.message : String(error),
+    };
+  }
 
   if (authResult) {
+    logBgFlow("AUTH_CODE_RECEIVED", "OK", { requestId: request.requestId, baseUrl, authCodeSuffix: authResult.authCode.slice(-6), state: authResult.state, issuedAt: authResult.issuedAt });
     if (authResult.state !== state) {
       return {
         status: "failed",
@@ -133,15 +310,46 @@ export async function ensureMeegleAuth(
       };
     }
 
-    // Save auth code for later exchange
     await deps.saveAuthCode?.(authResult);
 
+    if (!request.meegleUserKey) {
+      return {
+        status: "failed",
+        baseUrl,
+        state: authResult.state,
+        authCode: authResult.authCode,
+        issuedAt: authResult.issuedAt,
+        credentialStatus: "auth_code_received",
+        reason: "MEEGLE_USER_KEY_REQUIRED",
+      };
+    }
+
+    // Exchange auth code with server for token
+    const exchangeWithServer = deps.exchangeAuthCodeWithServer ?? exchangeAuthCodeWithServer;
+    const exchangeResult = await exchangeWithServer(request as MeegleAuthEnsureRequest, authResult.authCode);
+
+    if (exchangeResult?.ok && exchangeResult.data?.tokenStatus === "ready") {
+      logBgFlow("ENSURE_AUTH", "OK", { requestId: request.requestId, baseUrl, source: "server_exchange", credentialStatus: exchangeResult.data.credentialStatus, expiresAt: exchangeResult.data.expiresAt });
+      return {
+        status: "ready",
+        baseUrl,
+        state: authResult.state,
+        authCode: authResult.authCode,
+        issuedAt: authResult.issuedAt,
+        credentialStatus: "token_ready",
+      };
+    }
+
+    // Exchange failed
+    logBgFlow("ENSURE_AUTH", "FAIL", { requestId: request.requestId, baseUrl, reason: "MEEGLE_AUTH_CODE_EXCHANGE_FAILED", error: exchangeResult?.error });
+    meegleAuthLogger.error("Auth code exchange failed", { error: exchangeResult?.error });
     return {
-      status: "ready",
+      status: "failed",
       baseUrl,
       state: authResult.state,
-      authCode: authResult.authCode,
-      issuedAt: authResult.issuedAt,
+      reason: "MEEGLE_AUTH_CODE_EXCHANGE_FAILED",
+      errorMessage:
+        exchangeResult?.error?.errorMessage || "Meegle auth code exchange failed on server",
     };
   }
 

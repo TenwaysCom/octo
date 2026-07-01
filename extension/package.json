@@ -1,24 +1,47 @@
 {
-  "name": "it-pm-assistant-extension",
-  "version": "0.1.0",
+  "name": "tenways-octo-extension",
+  "version": "0.8.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc && npm run copy-assets && npm run validate",
-    "copy-assets": "cp src/popup.html src/popup.js dist/ && cp manifest.json dist/ && cp -r icons dist/",
-    "dev": "tsc --watch",
-    "clean": "rm -rf dist",
-    "validate": "node scripts/validate.mjs",
-    "package": "npm run clean && npm run build && cd dist && zip -r ../it-pm-assistant-extension.zip .",
-    "test": "vitest run"
+    "dev": "wxt",
+    "dev:manual": "WXT_CHROMIUM_PROFILE= wxt",
+    "dev:profile": "sh ./scripts/dev-profile.sh",
+    "build": "wxt build",
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+    "clean": "wxt clean",
+    "package": "wxt zip",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "postinstall": "wxt prepare"
   },
   "dependencies": {
+    "@assistant-ui/react": "^0.12.25",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.8.0",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "tailwind-merge": "^3.5.0",
+    "vue": "^3.5.32",
     "webextension-polyfill": "^0.10.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@tailwindcss/vite": "^4.2.2",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/chrome": "^0.0.260",
+    "@types/node": "^24.12.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
     "@types/webextension-polyfill": "^0.10.7",
+    "@wxt-dev/module-react": "1.1.5",
+    "jsdom": "^29.0.1",
+    "tailwindcss": "^4.2.2",
     "typescript": "^5.9.2",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "wxt": "^0.20.20"
   }
 }

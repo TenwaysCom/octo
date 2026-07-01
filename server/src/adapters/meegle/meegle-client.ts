@@ -1,3 +1,7 @@
+import { logger } from "../../logger.js";
+
+const clientLogger = logger.child({ module: "meegle-client" });
+
 /**
  * Meegle OpenAPI Client
  *
@@ -126,6 +130,7 @@ export interface CreateWorkitemRequest {
   name: string;
   templateId?: number;
   fieldValuePairs?: FieldValuePair[];
+  idempotencyKey?: string;
 }
 
 function createWorkitemRequestBuilder(input: CreateWorkitemRequest): ApiReq {
@@ -303,22 +308,52 @@ export interface MeegleSpace {
 }
 
 function parseUser(data: Record<string, unknown>): MeegleUser {
+  const nameValue = data.name;
+  const localizedName = typeof nameValue === "object" && nameValue !== null
+    ? (nameValue as Record<string, unknown>).default ||
+      (nameValue as Record<string, unknown>).en_us ||
+      (nameValue as Record<string, unknown>).zh_cn
+    : nameValue;
+
   return {
     user_key: String(data.user_key || ""),
-    name: String(data.name || ""),
+    name: String(data.name_cn || data.name_en || localizedName || ""),
     email: String(data.email || ""),
-    avatar: data.avatar as string | undefined,
+    avatar: (data.avatar || data.avatar_url) as string | undefined,
     role: data.role as string | undefined,
   };
 }
 
-function parseWorkitem(data: Record<string, unknown>): MeegleWorkitem {
+export function parseWorkitem(data: Record<string, unknown>): MeegleWorkitem {
   const id = String(data.id || data.work_item_id || "");
   const key = String(data.key || data.work_item_key || "");
   const name = String(data.name || data.title || "");
   const type = String(data.type || data.work_item_type_key || "");
-  const status = String(data.status || data.state || "");
   const assignee = (data.assignee || data.owner) as string | undefined;
+
+  // current_nodes and work_item_status may be nested inside data.fields
+  const rawFields = data.fields as Record<string, unknown> | undefined;
+
+  // Extract status from multiple possible locations
+  // Priority: direct status/state > current_nodes[0].name > work_item_status.state_key
+  let status = String(data.status || data.state || "");
+
+  // Try current_nodes[0].name for human-readable status (e.g. "Server Launch")
+  if (!status) {
+    const currentNodes = (rawFields?.current_nodes ?? data.current_nodes) as unknown[] | undefined;
+    if (Array.isArray(currentNodes) && currentNodes.length > 0) {
+      const firstNode = currentNodes[0] as Record<string, unknown>;
+      status = String(firstNode.name || firstNode.id || "");
+    }
+  }
+
+  // Try work_item_status.state_key as fallback
+  if (!status) {
+    const workItemStatus = (rawFields?.work_item_status ?? data.work_item_status) as Record<string, unknown> | undefined;
+    if (workItemStatus && typeof workItemStatus === "object") {
+      status = String(workItemStatus.state_key || "");
+    }
+  }
 
   // Extract other fields
   const fields: Record<string, unknown> = {};
@@ -388,16 +423,19 @@ export class MeegleClient {
     };
   }
 
-  private getHeaders(idempotent = false): Record<string, string> {
+  private getHeaders(
+    idempotent = false,
+    idempotencyKey?: string,
+  ): Record<string, string> {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
       "Accept": "application/json",
-      "X-USER-TOKEN": this.config.userToken,
+      "X-PLUGIN-TOKEN": this.config.userToken,
       "X-USER-KEY": this.config.userKey,
     };
 
     if (idempotent) {
-      headers["X-IDEM-UUID"] = generateIdemUUID();
+      headers["X-IDEM-UUID"] = idempotencyKey ?? generateIdemUUID();
     }
 
     return headers;
@@ -421,21 +459,30 @@ export class MeegleClient {
     return joinUrl(this.config.baseUrl ?? "https://www.meegle.com", url);
   }
 
-  private async request(req: ApiReq, idempotent = false): Promise<Record<string, unknown>> {
+  private async request(
+    req: ApiReq,
+    idempotent = false,
+    idempotencyKey?: string,
+  ): Promise<Record<string, unknown>> {
     const url = this.buildUrl(req);
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
 
     try {
+      clientLogger.debug({ url: url.replace(/\?.*/, ""), method: req.httpMethod, apiPath: req.apiPath, body: req.body }, "MEEGLE_REQUEST_START");
       const response = await fetch(url, {
         method: req.httpMethod,
-        headers: this.getHeaders(idempotent),
+        headers: this.getHeaders(idempotent, idempotencyKey),
         body: req.body ? JSON.stringify(req.body) : undefined,
         signal: controller.signal,
       });
 
       clearTimeout(timeoutId);
       const data = await parseJson(response);
+      clientLogger.debug({ url: url.replace(/\?.*/, ""), statusCode: response.status, ok: response.ok }, "MEEGLE_REQUEST_RESPONSE");
+      if (!response.ok) {
+        clientLogger.warn({ url: url.replace(/\?.*/, ""), statusCode: response.status, response: data }, "MEEGLE_REQUEST_ERROR");
+      }
       return handleResponse(response, data);
     } catch (err) {
       clearTimeout(timeoutId);
@@ -502,8 +549,61 @@ export class MeegleClient {
 
   async createWorkitem(input: CreateWorkitemRequest): Promise<MeegleWorkitem> {
     const req = createWorkitemRequestBuilder(input);
-    const data = await this.request(req, true);
-    const workitemData = (data.data ?? data) as Record<string, unknown>;
+    clientLogger.info({ projectKey: input.projectKey, workItemTypeKey: input.workItemTypeKey, name: input.name, templateId: input.templateId, hasIdempotencyKey: Boolean(input.idempotencyKey) }, "CREATE_WORKITEM START");
+
+    let data: Record<string, unknown>;
+    try {
+      data = await this.request(req, true, input.idempotencyKey);
+    } catch (error) {
+      if (error instanceof MeegleRateLimitError) {
+        clientLogger.error({
+          projectKey: input.projectKey,
+          workItemTypeKey: input.workItemTypeKey,
+          statusCode: error.statusCode,
+          response: error.response,
+          message: error.message,
+        }, "CREATE_WORKITEM FAIL");
+      } else if (error instanceof MeegleAPIError) {
+        clientLogger.error({
+          projectKey: input.projectKey,
+          workItemTypeKey: input.workItemTypeKey,
+          statusCode: error.statusCode,
+          response: error.response,
+          message: error.message,
+        }, "CREATE_WORKITEM FAIL");
+      } else {
+        clientLogger.error({
+          projectKey: input.projectKey,
+          workItemTypeKey: input.workItemTypeKey,
+          message: error instanceof Error ? error.message : String(error),
+        }, "CREATE_WORKITEM FAIL");
+      }
+      throw error;
+    }
+
+    // The API returns either:
+    // - { data: <number_id> } for create responses (just the workitem ID)
+    // - { data: { full_workitem_object } } for other responses
+    const responseData = data.data ?? data;
+
+    // If response is just a number (the workitem ID), fetch full details
+    if (typeof responseData === "number" || typeof responseData === "string") {
+      const workitemId = String(responseData);
+      clientLogger.info({ workitemId }, "CREATE_WORKITEM OK numeric_id");
+      const workitems = await this.getWorkitemDetails(
+        input.projectKey,
+        input.workItemTypeKey,
+        [workitemId],
+      );
+      if (workitems.length === 0) {
+        throw new Error(`Failed to fetch created workitem ${workitemId}`);
+      }
+      return workitems[0];
+    }
+
+    // Otherwise, parse the full workitem object directly
+    const workitemData = responseData as Record<string, unknown>;
+    clientLogger.info({ workitemId: workitemData.id ?? workitemData.work_item_id }, "CREATE_WORKITEM OK full_object");
     return parseWorkitem(workitemData);
   }
 
@@ -684,14 +784,15 @@ export class MeegleClient {
   }
 
   async filterWorkitemsAcrossProjects(
-    workitemTypeKey: string,
     options?: {
+      workitemTypeKey?: string;
       simpleNames?: string[];
+      workItemIds?: number[];
       pageNum?: number;
       pageSize?: number;
     },
   ): Promise<MeegleWorkitem[]> {
-    const { simpleNames, pageNum = 1, pageSize = 50 } = options || {};
+    const { workitemTypeKey, simpleNames, workItemIds, pageNum = 1, pageSize = 50 } = options || {};
 
     const req: ApiReq = {
       httpMethod: "POST",
@@ -699,10 +800,11 @@ export class MeegleClient {
       pathParams: {},
       queryParams: {},
       body: {
-        work_item_type_key: workitemTypeKey,
+        ...(workitemTypeKey && { work_item_type_key: workitemTypeKey }),
+        ...(simpleNames && { simple_names: simpleNames }),
+        ...(workItemIds && workItemIds.length > 0 && { work_item_ids: workItemIds }),
         page_num: pageNum,
         page_size: pageSize,
-        ...(simpleNames && { simple_names: simpleNames }),
       },
     };
 

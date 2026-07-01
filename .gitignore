@@ -14,3 +14,8 @@ worktrees
 **/.env
 .pluginscecret
 .env
+.codex
+.omx
+.DS_store
+logs
+.pnpm-store

@@ -6,10 +6,14 @@
  */
 
 import {
+  MeegleAPIError,
   MeegleClient,
   type MeegleWorkitem,
 } from "../../adapters/meegle/meegle-client.js";
 import type { ExecutionDraft } from "../../validators/agent-output/execution-draft.js";
+import { logger } from "../../logger.js";
+
+const workitemLogger = logger.child({ module: "meegle-workitem-service" });
 
 export interface MeegleWorkitemServiceDeps {
   client: MeegleClient;
@@ -20,12 +24,85 @@ export interface CreateWorkitemResult {
   workitem: MeegleWorkitem;
 }
 
+export interface CreateWorkitemFromDraftOptions {
+  idempotencyKey?: string;
+}
+
+function normalizeTemplateId(
+  templateId: ExecutionDraft["target"]["templateId"],
+): number | undefined {
+  if (typeof templateId === "number") {
+    return Number.isFinite(templateId) ? templateId : undefined;
+  }
+
+  const parsedTemplateId = Number.parseInt(templateId, 10);
+  return Number.isFinite(parsedTemplateId) ? parsedTemplateId : undefined;
+}
+
+function extractIllegalField(error: unknown): string | undefined {
+  if (!(error instanceof MeegleAPIError) || !error.response) {
+    return undefined;
+  }
+  const errMsg =
+    (typeof error.response.err === "object" && error.response.err !== null &&
+      typeof (error.response.err as Record<string, unknown>).msg === "string")
+      ? (error.response.err as Record<string, string>).msg
+      : typeof error.response.err_msg === "string"
+      ? error.response.err_msg
+      : error.message;
+  const match = errMsg.match(/field \[([^\]]+)\] is illegal/);
+  return match?.[1];
+}
+
+async function updatePostCreateFields(
+  client: MeegleClient,
+  projectKey: string,
+  workitemTypeKey: string,
+  workitemId: string,
+  fields: Array<{ field_key: string; field_value: unknown }>,
+): Promise<void> {
+  const updateFields = [...fields];
+
+  for (let attempt = 0; attempt < fields.length + 1; attempt++) {
+    if (updateFields.length === 0) {
+      return;
+    }
+
+    try {
+      await client.updateWorkitem(
+        projectKey,
+        workitemTypeKey,
+        workitemId,
+        updateFields.map((p) => ({
+          fieldKey: p.field_key,
+          fieldValue: p.field_value,
+        })),
+      );
+      return;
+    } catch (error) {
+      const illegalField = extractIllegalField(error);
+      if (!illegalField) {
+        throw error;
+      }
+      const illegalIndex = updateFields.findIndex(
+        (f) => f.field_key === illegalField,
+      );
+      if (illegalIndex === -1) {
+        throw error;
+      }
+      updateFields.splice(illegalIndex, 1);
+      workitemLogger.warn({ illegalField }, "FIELD_ILLEGAL_UPDATE_SKIPPED");
+    }
+  }
+}
+
 /**
  * Create a workitem from an execution draft
  */
 export async function createWorkitemFromDraft(
   draft: ExecutionDraft,
   deps: MeegleWorkitemServiceDeps,
+  options: CreateWorkitemFromDraftOptions = {},
 ): Promise<CreateWorkitemResult> {
   const { client } = deps;
   const { projectKey, workitemTypeKey, templateId } = draft.target;
@@ -36,18 +113,59 @@ export async function createWorkitemFromDraft(
     field_value: pair.fieldValue,
   }));
 
-  const workitem = await client.createWorkitem({
-    projectKey,
-    workItemTypeKey: workitemTypeKey,
-    name: draft.name,
-    templateId: templateId ? parseInt(String(templateId), 10) : undefined,
-    fieldValuePairs,
-  });
+  let creatableFields = fieldValuePairs;
+  const postCreateUpdates: typeof fieldValuePairs = [];
 
-  return {
-    workitemId: workitem.id,
-    workitem,
-  };
+  // Some fields cannot be set during creation (e.g. priority on story).
+  // Retry without illegal fields and update them afterwards.
+  for (let attempt = 0; attempt < fieldValuePairs.length + 1; attempt++) {
+    const idempotencyKey = options.idempotencyKey
+      ? attempt === 0
+        ? options.idempotencyKey
+        : `${options.idempotencyKey}_retry${attempt}`
+      : undefined;
+    try {
+      const workitem = await client.createWorkitem({
+        projectKey,
+        workItemTypeKey: workitemTypeKey,
+        name: draft.name,
+        templateId: normalizeTemplateId(templateId),
+        fieldValuePairs: creatableFields,
+        idempotencyKey,
+      });
+
+      if (postCreateUpdates.length > 0) {
+        await updatePostCreateFields(
+          client,
+          projectKey,
+          workitemTypeKey,
+          workitem.id,
+          postCreateUpdates,
+        );
+      }
+
+      return {
+        workitemId: workitem.id,
+        workitem,
+      };
+    } catch (error) {
+      const illegalField = extractIllegalField(error);
+      if (!illegalField) {
+        throw error;
+      }
+      const illegalIndex = creatableFields.findIndex(
+        (f) => f.field_key === illegalField,
+      );
+      if (illegalIndex === -1) {
+        throw error;
+      }
+      workitemLogger.info({ illegalField }, "FIELD_ILLEGAL_RETRY");
+      postCreateUpdates.push(...creatableFields.splice(illegalIndex, 1));
+    }
+  }
+
+  // Should never reach here because the loop has enough iterations to strip all fields
+  throw new Error("Unexpected: exhausted retries for illegal fields during workitem creation");
 }
 
 /**

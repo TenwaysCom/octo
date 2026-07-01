@@ -1,0 +1,25 @@
+{
+  "issueTypeMappings": [
+    {
+      "larkLabels": ["配置"],
+      "workitemTypeKey": "66700acbf297a8f821b4b860",
+      "templateId": "651452",
+      "urlSlug": "techtask",
+      "fieldMappings": [
+        {
+          "larkField": "需求人",
+          "meegleField": "description",
+          "transform": "text",
+          "prefix": true,
+          "valuePrefix": "需求人:"
+        },
+        {
+          "larkField": "Details Description",
+          "fallbackLarkFields": ["fldML66Cx1", "Issue Description", "fldaAzcMtg"],
+          "meegleField": "description",
+          "transform": "text"
+        }
+      ]
+    }
+  ]
+}

@@ -6,20 +6,24 @@ import type {
 import type {
   LarkAuthEnsureRequest,
   LarkAuthEnsureResponse,
+  LarkAuthCallbackResult,
+  LarkBaseCreateWorkitemRequest,
+  LarkBaseCreateWorkitemResultPayload,
+  LarkBaseBulkWorkflowRequest,
+  LarkBaseBulkPreviewResultPayload,
+  LarkBaseBulkCreateResultPayload,
 } from "./lark";
 
 export const protocolActions = [
-  "itdog.identity.resolve",
-  "itdog.meegle.auth.ensure",
-  "itdog.lark.auth.ensure",
-  "itdog.a1.analyze",
-  "itdog.a1.create_b2_draft",
-  "itdog.a1.apply_b2",
-  "itdog.a2.analyze",
-  "itdog.a2.create_b1_draft",
-  "itdog.a2.apply_b1",
-  "itdog.pm.analysis.run",
-  "itdog.page.meegle.auth_code.request",
+  "octo.identity.resolve",
+  "octo.meegle.auth.ensure",
+  "octo.lark.auth.ensure",
+  "octo.lark.auth.callback.detected",
+  "octo.lark_base.create_workitem",
+  "octo.lark_base.bulk_preview_workitems",
+  "octo.lark_base.bulk_create_workitems",
+  "octo.pm.analysis.run",
+  "octo.page.meegle.auth_code.request",
 ] as const;
 
 export type ProtocolAction = (typeof protocolActions)[number];
@@ -30,7 +34,7 @@ export interface ProtocolEnvelope<TAction extends ProtocolAction, TPayload> {
 }
 
 export type IdentityResolveMessage = ProtocolEnvelope<
-  "itdog.identity.resolve",
+  "octo.identity.resolve",
   {
     requestId: string;
     pageContext: PageContext;
@@ -39,21 +43,56 @@ export type IdentityResolveMessage = ProtocolEnvelope<
 >;
 
 export type MeegleAuthEnsureMessage = ProtocolEnvelope<
-  "itdog.meegle.auth.ensure",
+  "octo.meegle.auth.ensure",
   MeegleAuthEnsureRequest
 >;
 
 export type MeegleAuthEnsureResult = ProtocolEnvelope<
-  "itdog.meegle.auth.ensure",
+  "octo.meegle.auth.ensure",
   MeegleAuthEnsureResponse
 >;
 
 export type LarkAuthEnsureMessage = ProtocolEnvelope<
-  "itdog.lark.auth.ensure",
+  "octo.lark.auth.ensure",
   LarkAuthEnsureRequest
 >;
 
 export type LarkAuthEnsureResult = ProtocolEnvelope<
-  "itdog.lark.auth.ensure",
+  "octo.lark.auth.ensure",
   LarkAuthEnsureResponse
+>;
+
+export type LarkAuthCallbackDetectedMessage = ProtocolEnvelope<
+  "octo.lark.auth.callback.detected",
+  LarkAuthCallbackResult
+>;
+
+export type LarkBaseCreateWorkitemMessage = ProtocolEnvelope<
+  "octo.lark_base.create_workitem",
+  LarkBaseCreateWorkitemRequest
+>;
+
+export type LarkBaseCreateWorkitemResult = ProtocolEnvelope<
+  "octo.lark_base.create_workitem",
+  LarkBaseCreateWorkitemResultPayload
+>;
+
+export type LarkBaseBulkPreviewWorkitemsMessage = ProtocolEnvelope<
+  "octo.lark_base.bulk_preview_workitems",
+  LarkBaseBulkWorkflowRequest
+>;
+
+export type LarkBaseBulkPreviewWorkitemsResult = ProtocolEnvelope<
+  "octo.lark_base.bulk_preview_workitems",
+  LarkBaseBulkPreviewResultPayload
+>;
+
+export type LarkBaseBulkCreateWorkitemsMessage = ProtocolEnvelope<
+  "octo.lark_base.bulk_create_workitems",
+  LarkBaseBulkWorkflowRequest
+>;
+
+export type LarkBaseBulkCreateWorkitemsResult = ProtocolEnvelope<
+  "octo.lark_base.bulk_create_workitems",
+  LarkBaseBulkCreateResultPayload
 >;

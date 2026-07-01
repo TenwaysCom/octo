@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4F46E5"/>
+      <stop offset="100%" style="stop-color:#7C3AED"/>
+    </linearGradient>
+  </defs>
+  <!-- Octagon background -->
+  <polygon points="64,4 100,20 116,56 116,72 100,108 64,124 28,108 12,72 12,56 28,20"
+           fill="url(#bg)" stroke="#312E81" stroke-width="2"/>
+  <!-- Inner design - connected nodes representing "Tenways" -->
+  <circle cx="64" cy="44" r="10" fill="#fff" opacity="0.95"/>
+  <circle cx="40" cy="68" r="8" fill="#fff" opacity="0.85"/>
+  <circle cx="88" cy="68" r="8" fill="#fff" opacity="0.85"/>
+  <circle cx="52" cy="92" r="6" fill="#fff" opacity="0.75"/>
+  <circle cx="76" cy="92" r="6" fill="#fff" opacity="0.75"/>
+  <!-- Connecting lines -->
+  <line x1="64" y1="44" x2="40" y2="68" stroke="#fff" stroke-width="3" opacity="0.7"/>
+  <line x1="64" y1="44" x2="88" y2="68" stroke="#fff" stroke-width="3" opacity="0.7"/>
+  <line x1="40" y1="68" x2="52" y2="92" stroke="#fff" stroke-width="2" opacity="0.6"/>
+  <line x1="88" y1="68" x2="76" y2="92" stroke="#fff" stroke-width="2" opacity="0.6"/>
+  <line x1="52" y1="92" x2="76" y2="92" stroke="#fff" stroke-width="2" opacity="0.6"/>
+  <line x1="40" y1="68" x2="88" y2="68" stroke="#fff" stroke-width="2" opacity="0.5"/>
+</svg>
