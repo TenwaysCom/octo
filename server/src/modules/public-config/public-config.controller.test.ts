@@ -342,6 +342,36 @@ describe("public-config.controller", () => {
     });
   });
 
+  it("resolves GitHub pull request tab pages to the PR lookup sidebar action", async () => {
+    await expect(
+      getExtensionPageConfigController({
+        url: "https://github.com/TenwaysCom/octo/pull/28/files",
+      }),
+    ).resolves.toMatchObject({
+      ok: true,
+      data: {
+        pageConfig: {
+          platform: "github",
+          pageType: "github_pr",
+          matchedRuleId: "github.pr",
+          sidebar: {
+            injectPageElements: true,
+            sidebarButtonEnabled: true,
+          },
+          automationActions: [
+            expect.objectContaining({
+              key: "lookup-github-pr",
+              placements: expect.arrayContaining([
+                { surface: "popup" },
+                { surface: "sidebar" },
+              ]),
+            }),
+          ],
+        },
+      },
+    });
+  });
+
   it("returns unsupported page config for unrelated URLs", async () => {
     await expect(
       getExtensionPageConfigController({

@@ -216,11 +216,16 @@ function matchesHost(hostname: string, hostPattern: string): boolean {
 function matchPath(
   pathname: string,
   pattern: string,
+  options: { allowSubpaths?: boolean } = {},
 ): { ok: true; params: Record<string, string> } | { ok: false } {
   const pathSegments = pathname.split("/").filter(Boolean);
   const patternSegments = pattern.split("/").filter(Boolean);
 
-  if (pathSegments.length !== patternSegments.length) {
+  if (options.allowSubpaths) {
+    if (pathSegments.length < patternSegments.length) {
+      return { ok: false };
+    }
+  } else if (pathSegments.length !== patternSegments.length) {
     return { ok: false };
   }
 
@@ -260,7 +265,9 @@ function matchesRule(url: URL, rule: ActionPageRule): boolean {
     return false;
   }
 
-  const pathMatch = matchPath(url.pathname, rule.path);
+  const pathMatch = matchPath(url.pathname, rule.path, {
+    allowSubpaths: rule.allowSubpaths,
+  });
   if (!pathMatch.ok) {
     return false;
   }

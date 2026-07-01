@@ -13,6 +13,7 @@ export interface ActionPageRule {
   pageType: Exclude<ExtensionPageType, "unsupported">;
   host: string | string[];
   path: string;
+  allowSubpaths?: boolean;
   params?: Record<string, string | string[]>;
   query?: Record<string, string>;
   queryEmpty?: boolean;
@@ -141,6 +142,7 @@ export const ACTION_PAGE_RULES: ActionPageRule[] = [
     pageType: "github_pr",
     host: "github.com",
     path: "/:owner/:repo/pull/:pullNumber",
+    allowSubpaths: true,
     sidebar: SIDEBAR_ENABLED,
     actions: ["lookupGithubPr"],
   },
@@ -150,6 +152,7 @@ export const ACTION_PAGE_RULES: ActionPageRule[] = [
     pageType: "github_issue",
     host: "github.com",
     path: "/:owner/:repo/issues/:issueNumber",
+    allowSubpaths: true,
     sidebar: SIDEBAR_ENABLED,
     actions: ["lookupGithubIssue"],
   },
