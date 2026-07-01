@@ -72,6 +72,7 @@ import type {
   AutomationActionListItem,
   ExtensionPageConfig,
 } from "../types/automation-actions.js";
+import type { LarkBaseUrlContext } from "../lark-base-url.js";
 import { collectActionRuntimeContext } from "./action-runtime-context.js";
 
 const popupLogger = createExtensionLogger("popup:app");
@@ -175,6 +176,7 @@ export interface PopupAppState {
   currentTabId: number | null;
   currentTabOrigin: string | null;
   currentUrl: string | null;
+  currentLarkContext?: LarkBaseUrlContext | null;
   identity: PopupIdentityState;
   isAuthed: PopupAuthFlags;
   meegleAuth: MeegleAuthEnsureResponse | undefined;
@@ -293,6 +295,7 @@ function createInitialStore(): PopupAppStore {
       currentTabId: null,
       currentTabOrigin: null,
       currentUrl: null,
+      currentLarkContext: null,
       identity: {
         masterUserId: null,
         larkId: null,
@@ -982,6 +985,7 @@ export function createPopupController() {
           currentTabId: tabContext.id,
           currentUrl: tabContext.url,
           currentTabOrigin: tabContext.origin,
+          currentLarkContext: tabContext.larkContext ?? null,
           pageType: pageConfig?.platform ?? tabContext.pageType,
         },
       }));
@@ -1592,6 +1596,7 @@ export function createPopupController() {
           url: store.state.currentUrl,
           origin: store.state.currentTabOrigin,
           pageType: store.state.pageType,
+          larkContext: store.state.currentLarkContext ?? undefined,
         },
         identity: {
           masterUserId: store.state.identity.masterUserId,
@@ -1661,6 +1666,7 @@ export function createPopupController() {
       apply: "确认创建...",
       "update-lark-and-push": "更新 Lark 及推送中...",
       "story-prd-to-simplified": "研发Review Story 中...",
+      "lark-bug-analyze": "分析 bug 中...",
     };
 
     appendLog("info", `${labels[actionKey] || "执行操作中..."} · actionRunId=${actionRunId}`);
@@ -1719,21 +1725,82 @@ export function createPopupController() {
       return;
     }
 
-    const actionContext = collectActionRuntimeContext({
+    let runtimeCurrentTab = {
+      id: current.state.currentTabId,
+      url: currentUrl,
+      origin: current.state.currentTabOrigin,
+      pageType: current.state.pageType,
+      larkContext: current.state.currentLarkContext ?? undefined,
+    };
+    let actionContext = collectActionRuntimeContext({
       actionRunId,
-      currentTab: {
-        id: current.state.currentTabId,
-        url: currentUrl,
-        origin: current.state.currentTabOrigin,
-        pageType: current.state.pageType,
-      },
+      currentTab: runtimeCurrentTab,
       identity: {
         masterUserId,
       },
     });
+
+    const isRealLarkRecordId = (recordId: string | undefined): recordId is string =>
+      typeof recordId === "string" && recordId.startsWith("rec");
+    const initialLarkContext = actionContext.pageContext.lark ?? {};
+    const shouldRefreshProductionBugLarkContext =
+      action.executor.operation === "lark.bug.analyze" &&
+      Boolean(initialLarkContext.baseId || initialLarkContext.tableId || initialLarkContext.wikiRecordId) &&
+      !isRealLarkRecordId(initialLarkContext.recordId);
+    if (
+      shouldRefreshProductionBugLarkContext
+    ) {
+      try {
+        const refreshedTab = await queryActiveTabContext();
+        if (refreshedTab.larkContext) {
+          runtimeCurrentTab = {
+            id: refreshedTab.id ?? runtimeCurrentTab.id,
+            url: refreshedTab.url ?? runtimeCurrentTab.url,
+            origin: refreshedTab.origin ?? runtimeCurrentTab.origin,
+            pageType: refreshedTab.pageType ?? runtimeCurrentTab.pageType,
+            larkContext: {
+              ...runtimeCurrentTab.larkContext,
+              ...refreshedTab.larkContext,
+            },
+          };
+          updateStore((store) => ({
+            ...store,
+            state: {
+              ...store.state,
+              currentTabId: runtimeCurrentTab.id,
+              currentUrl: runtimeCurrentTab.url,
+              currentTabOrigin: runtimeCurrentTab.origin,
+              pageType: runtimeCurrentTab.pageType,
+              currentLarkContext: runtimeCurrentTab.larkContext ?? null,
+            },
+          }));
+          actionContext = collectActionRuntimeContext({
+            actionRunId,
+            currentTab: runtimeCurrentTab,
+            identity: {
+              masterUserId,
+            },
+          });
+        }
+      } catch {
+        // Keep the original context; the server will return a structured missing-record error.
+      }
+    }
+
     const meegleContext = actionContext.pageContext.meegle;
-    if (!meegleContext) {
-      const message = `无法从 URL 解析 Meegle 工作项信息: ${currentUrl}`;
+    const larkContext = actionContext.pageContext.lark ?? {};
+    const effectiveCurrentUrl = runtimeCurrentTab.url ?? currentUrl;
+    const larkRecordId = isRealLarkRecordId(larkContext.recordId) ? larkContext.recordId : undefined;
+    const hasLarkBaseContext = Boolean(larkContext.baseId && larkContext.tableId);
+    const hasLarkRecordContext = Boolean(larkRecordId || larkContext.wikiRecordId);
+    const supportsLarkBaseContext = action.executor.operation === "lark.bug.analyze";
+    const larkPageType = hasLarkRecordContext || hasLarkBaseContext
+      ? larkContext.wikiRecordId && !larkContext.baseId
+        ? "lark_wiki_record"
+        : "lark_base"
+      : undefined;
+    if (!meegleContext && !larkRecordId && !(supportsLarkBaseContext && (hasLarkBaseContext || larkContext.wikiRecordId))) {
+      const message = `无法从当前 URL 解析 Meegle 工作项或 Lark 记录信息: ${effectiveCurrentUrl}`;
       setActionStatus(action.key, { phase: "error", message });
       appendLog("error", message);
       showPopupToast(message, "error");
@@ -1741,7 +1808,7 @@ export function createPopupController() {
     }
 
     const config = await getConfig();
-    const baseUrl = current.state.currentTabOrigin || meegleContext.baseUrl;
+    const baseUrl = runtimeCurrentTab.origin || meegleContext?.baseUrl || config.MEEGLE_BASE_URL;
     appendLog(
       "info",
       `[${action.title}] 调用服务端: operation=${action.executor.operation}, actionRunId=${actionRunId}`,
@@ -1762,10 +1829,16 @@ export function createPopupController() {
         masterUserId,
         signal: abortController.signal,
         body: {
-          projectKey: meegleContext.projectKey,
-          workItemTypeKey: meegleContext.workItemTypeKey,
-          workItemId: meegleContext.workItemId,
-          meegleUrl: currentUrl,
+          projectKey: meegleContext?.projectKey,
+          workItemTypeKey: meegleContext?.workItemTypeKey,
+          workItemId: meegleContext?.workItemId,
+          meegleUrl: effectiveCurrentUrl,
+          baseId: larkContext.baseId,
+          tableId: larkContext.tableId,
+          viewId: larkContext.viewId,
+          recordId: larkRecordId,
+          wikiRecordId: larkContext.wikiRecordId,
+          pageType: larkPageType,
           masterUserId,
           baseUrl,
           actionRunId,

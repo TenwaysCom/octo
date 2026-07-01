@@ -2,8 +2,11 @@ import { Kysely, PostgresDialect, sql } from "kysely";
 import { Pool } from "pg";
 import type { DatabaseSchema } from "./schema.js";
 import {
+  DEFAULT_LARK_BUG_ANALYZE_PROMPT_NOTE,
+  DEFAULT_LARK_BUG_ANALYZE_PROMPT_TEMPLATE,
   DEFAULT_STORY_PRD_TO_SIMPLIFIED_PROMPT_NOTE,
   DEFAULT_STORY_PRD_TO_SIMPLIFIED_PROMPT_TEMPLATE,
+  LARK_BUG_ANALYZE_PROMPT_KEY,
   STORY_PRD_TO_SIMPLIFIED_PROMPT_KEY,
 } from "../../domain/workflow-prompts.js";
 
@@ -175,6 +178,17 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
       key: STORY_PRD_TO_SIMPLIFIED_PROMPT_KEY,
       prompt: DEFAULT_STORY_PRD_TO_SIMPLIFIED_PROMPT_TEMPLATE,
       note: DEFAULT_STORY_PRD_TO_SIMPLIFIED_PROMPT_NOTE,
+      created_at: now,
+      updated_at: now,
+    })
+    .onConflict((conflict) => conflict.column("key").doNothing())
+    .execute();
+
+  await db.insertInto("workflow_prompts")
+    .values({
+      key: LARK_BUG_ANALYZE_PROMPT_KEY,
+      prompt: DEFAULT_LARK_BUG_ANALYZE_PROMPT_TEMPLATE,
+      note: DEFAULT_LARK_BUG_ANALYZE_PROMPT_NOTE,
       created_at: now,
       updated_at: now,
     })

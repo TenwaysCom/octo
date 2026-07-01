@@ -246,6 +246,7 @@ Semantic fields to standardize first:
 | `plannedSprint` | GitHub lookup display |
 | `storySummary` | Meegle Story 研发Review输入 |
 | `techSummary` | Meegle Story 研发Review覆盖写回 |
+| `analysisSummary` | Lark Bug 分析摘要写回，Meegle input 时写回 Meegle Production Bug 字段 |
 
 ## 10. Config And Mapping Rules
 

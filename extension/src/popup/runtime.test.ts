@@ -186,6 +186,46 @@ describe("popup runtime settings", () => {
     vi.unstubAllGlobals();
   });
 
+  it("merges Lark content-script page context for real Base record ids", async () => {
+    vi.mocked(chrome.runtime.sendMessage).mockImplementation((...args) => {
+      const maybeCallback = args[args.length - 1] as
+        | ((response?: unknown) => void)
+        | undefined;
+      maybeCallback?.({
+        payload: {
+          id: 88,
+          url: "https://tenant.larksuite.com/record/wiki_record_1",
+        },
+      });
+      return undefined as never;
+    });
+    vi.mocked(chrome.tabs.sendMessage).mockImplementation((...args) => {
+      const callback = args[2] as ((response?: unknown) => void) | undefined;
+      callback?.({
+        pageType: "lark_wiki_record",
+        url: "https://tenant.larksuite.com/record/wiki_record_1",
+        baseId: "base_1",
+        tableId: "tbl_1",
+        recordId: "rec_real_1",
+        wikiRecordId: "wiki_record_1",
+      });
+      return undefined as never;
+    });
+
+    await expect(queryActiveTabContext()).resolves.toMatchObject({
+      id: 88,
+      url: "https://tenant.larksuite.com/record/wiki_record_1",
+      origin: "https://tenant.larksuite.com",
+      pageType: "lark",
+      larkContext: {
+        baseId: "base_1",
+        tableId: "tbl_1",
+        recordId: "rec_real_1",
+        wikiRecordId: "wiki_record_1",
+      },
+    });
+  });
+
   it("logs identity resolve requests and responses for diagnosis", async () => {
     vi.mocked(getConfig).mockResolvedValue({
       ENV_NAME: "prod",

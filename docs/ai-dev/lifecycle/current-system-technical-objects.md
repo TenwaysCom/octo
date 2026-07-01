@@ -39,7 +39,8 @@ update_required_when:
 | `LarkWriteback` | Server workflow / Lark adapter | `server/src/modules/lark-base/lark-base.service.ts`, `server/src/modules/lark-base/lark-base-workflow.service.ts` | Meegle link 回写到 Lark Base |
 | `MeegleLarkPushAction` | Server workflow | `server/src/application/services/meegle-lark-push.service.ts` | 从 Meegle 读 Lark 字段，更新 Lark Base、发消息、回写 Meegle 状态 |
 | `MeegleStoryBackBriefAction` | Server workflow | `server/src/application/services/meegle-story-prd-to-simplified.service.ts`, `server/src/modules/meegle-workitem/meegle-story-prd-to-simplified.controller.ts` | 从 Meegle Story Summary 生成 Tech Summary；使用 ACP one-shot、限流、超时和结构化错误 |
-| `WorkflowPrompt` | Server PostgreSQL store | `server/src/adapters/postgres/workflow-prompt-store.ts`, `server/src/domain/workflow-prompts.ts` | 按稳定 `key` 存储 workflow prompt 和 `note`；Story 研发Review 使用 `meegle.story.prd_to_simplified` |
+| `LarkBugAnalyzeAction` | Server workflow | `server/src/application/services/lark-bug-analyze.service.ts`, `server/src/modules/lark-bug/lark-bug-analyze.controller.ts` | 从 Lark Bug 记录或 Meegle Production Bug 信息生成分析摘要；使用 ACP one-shot、限流、超时和结构化错误 |
+| `WorkflowPrompt` | Server PostgreSQL store | `server/src/adapters/postgres/workflow-prompt-store.ts`, `server/src/domain/workflow-prompts.ts` | 按稳定 `key` 存储 workflow prompt 和 `note`；Story 研发Review 使用 `meegle.story.prd_to_simplified`，Lark Bug 分析使用 `lark.bug.analyze` |
 | `AcpKimiOneShotRuntime` | Server ACP proxy / adapter | `server/src/application/services/acp-kimi-proxy.service.ts`, `server/src/adapters/kimi-acp/kimi-acp-runtime.ts` | 一次性 ACP runtime；不进入 reusable session registry，prompt 后关闭 |
 | `GitHubWorkitemAction` | Extension modal + server workflow | `server/src/modules/github-branch-create/*`, `server/src/controllers/github-reverse-lookup.ts`, `extension/src/popup-shared/*github*` | 依赖 Meegle workitem 字段和 GitHub adapter |
 | `ActionRunTrace` | Should be cross-layer contract | docs issue/rules only | 规则已定义，代码尚未统一实现 |
@@ -424,7 +425,47 @@ Meegle Story detail page
 - Prompt timeout is server-owned and configured by `STORY_PRD_TO_SIMPLIFIED_ACP_TIMEOUT_MS` with default `110000`.
 - Only successful, non-empty ACP output can be written to `techSummary`.
 
-## 11. Meegle Field Metadata Lifecycle
+## 11. Lark Bug Analyze Lifecycle
+
+### Objects
+
+- `LarkBugAnalyzeAction`
+- `AcpKimiOneShotRuntime`
+- Meegle Production Bug semantic field: `analysisSummary`
+
+### Lifecycle
+
+```text
+Meegle Production Bug detail page or Lark create-Meegle-item record page
+  -> server page config returns lark-bug-analyze action
+  -> extension dispatches backend_api executor with actionRunId and page context
+  -> server validates request and resolves masterUserId
+  -> server refreshes Meegle credential for Meegle input, or Lark credential for Lark record input
+  -> server fetches production bug workitem details or Lark Base record details
+  -> Lark record input reads bug_description from the Lark Message Link target message when available
+  -> workflow renders prompt from workflow_prompts key lark.bug.analyze
+  -> workflow acquires Lark Bug ACP concurrency slot
+  -> ACP proxy creates one-shot Kimi runtime
+  -> workflow collects agent_message_chunk text
+  -> ACP proxy closes runtime in finally
+  -> Meegle input writes collected text to analysisSummary semantic field
+  -> Lark record input appends collected text to Details Description
+  -> server returns result or structured error
+```
+
+### Code rules
+
+- Lark Bug analysis uses ACP one-shot, not reusable chat sessions.
+- One-shot sessions must not be written to reusable session ownership state.
+- Concurrency is server-owned and configured by `LARK_BUG_ANALYZE_ACP_CONCURRENCY_LIMIT` with default `3`.
+- Prompt timeout is server-owned and configured by `LARK_BUG_ANALYZE_ACP_TIMEOUT_MS` with default `110000`.
+- The prompt template lives in PostgreSQL `workflow_prompts` under key `lark.bug.analyze`.
+- For Meegle input, `analysisSummary` is resolved through production bug fallback config and currently writes to the field used by Lark push message content.
+- For Lark record input, the action requires a real Lark Base `recordId`; `wikiRecordId` must not be used as a Bitable record id.
+- For Lark record input, `bug_description` is sourced from the `Lark Message Link` target message when available, with record fields as fallback.
+- For Lark record input, the action appends the analysis to `Details Description` rather than replacing existing details.
+
+## 12. Meegle Field Metadata Lifecycle
 
 ### Object
 

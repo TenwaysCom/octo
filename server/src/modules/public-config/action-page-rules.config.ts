@@ -67,6 +67,7 @@ export const ACTION_PAGE_RULES: ActionPageRule[] = [
     sidebar: SIDEBAR_ENABLED,
     actions: [
       "analyze",
+      "larkBugAnalyze",
       "bulkCreateMeegleTickets",
       {
         id: "createMeegleItem",
@@ -90,6 +91,7 @@ export const ACTION_PAGE_RULES: ActionPageRule[] = [
           { surface: "page_dom", target: "lark_detail_header" },
         ],
       },
+      "larkBugAnalyze",
     ],
   },
   {
@@ -123,7 +125,7 @@ export const ACTION_PAGE_RULES: ActionPageRule[] = [
     host: "project.larksuite.com",
     path: "/:projectKey/production_bug/detail/:workItemId",
     sidebar: SIDEBAR_ENABLED,
-    actions: ["updateLarkAndPush", "createGithubBranch"],
+    actions: ["larkBugAnalyze", "updateLarkAndPush", "createGithubBranch"],
   },
   {
     id: "meegle.production-bug.detail-numeric",
@@ -132,7 +134,7 @@ export const ACTION_PAGE_RULES: ActionPageRule[] = [
     host: "project.larksuite.com",
     path: "/:projectKey/6932e40429d1cd8aac635c82/detail/:workItemId",
     sidebar: SIDEBAR_ENABLED,
-    actions: ["updateLarkAndPush", "createGithubBranch"],
+    actions: ["larkBugAnalyze", "updateLarkAndPush", "createGithubBranch"],
   },
   {
     id: "github.pr",

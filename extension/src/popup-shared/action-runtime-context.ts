@@ -8,6 +8,7 @@ export interface ActionRuntimeCurrentTab {
   url: string | null;
   origin: string | null;
   pageType: ActionPageType;
+  larkContext?: LarkBaseUrlContext;
 }
 
 export interface ActionRuntimeIdentity {
@@ -140,7 +141,10 @@ export function collectActionRuntimeContext(
     currentTab: input.currentTab,
     identity: input.identity,
     pageContext: {
-      lark: extractLarkBaseContextFromUrl(url ?? undefined),
+      lark: {
+        ...extractLarkBaseContextFromUrl(url ?? undefined),
+        ...input.currentTab.larkContext,
+      },
       meegle: parseMeegleWorkitemContext(url, origin ?? undefined),
       github: parseGitHubWorkitemContext(url),
     },

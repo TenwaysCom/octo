@@ -95,6 +95,17 @@ describe("popup controller", () => {
               executor: { type: "frontend", actionKey: "analyze" },
             },
             {
+              key: "lark-bug-analyze",
+              title: "分析 bug",
+              style: "primary",
+              executor: {
+                type: "backend_api",
+                operation: "lark.bug.analyze",
+                method: "POST",
+                route: "/api/lark-bug/analyze",
+              },
+            },
+            {
               key: "bulk-create-meegle-tickets",
               title: "批量创建 MEEGLE TICKET",
               style: "default",
@@ -121,6 +132,17 @@ describe("popup controller", () => {
               style: "default",
               executor: { type: "frontend", actionKey: "create-meegle-item" },
             },
+            {
+              key: "lark-bug-analyze",
+              title: "分析 bug",
+              style: "primary",
+              executor: {
+                type: "backend_api",
+                operation: "lark.bug.analyze",
+                method: "POST",
+                route: "/api/lark-bug/analyze",
+              },
+            },
           ],
         };
       }
@@ -145,6 +167,32 @@ describe("popup controller", () => {
                 operation: "meegle.story.prd_to_simplified",
                 method: "POST",
                 route: "/api/meegle/workitem/story-prd-to-simplified",
+              },
+            },
+          ],
+        };
+      }
+
+      if (url?.includes("/production_bug/detail/")) {
+        return {
+          platform: "meegle",
+          pageType: "meegle_production_bug_detail",
+          matchedRuleId: "meegle.production-bug.detail",
+          sidebar: {
+            injectPageElements: true,
+            sidebarButtonEnabled: true,
+            keyboardShortcutEnabled: true,
+          },
+          automationActions: [
+            {
+              key: "lark-bug-analyze",
+              title: "分析 bug",
+              style: "primary",
+              executor: {
+                type: "backend_api",
+                operation: "lark.bug.analyze",
+                method: "POST",
+                route: "/api/lark-bug/analyze",
               },
             },
           ],
@@ -401,6 +449,12 @@ describe("popup controller", () => {
       url: "https://nsghpcq7ar4z.sg.larksuite.com/record/KxOYr6CJKeWYktcI2GilrfRAgeg",
       origin: "https://nsghpcq7ar4z.sg.larksuite.com",
       pageType: "lark",
+      larkContext: {
+        baseId: "base_1",
+        tableId: "tbl_1",
+        recordId: "rec_real_1",
+        wikiRecordId: "KxOYr6CJKeWYktcI2GilrfRAgeg",
+      },
     });
 
     const controller = createPopupController();
@@ -409,11 +463,11 @@ describe("popup controller", () => {
 
     expect(runtimeMock.runLarkBaseBulkPreviewRequest).not.toHaveBeenCalled();
     expect(runtimeMock.runLarkBaseCreateWorkitemRequest).toHaveBeenCalledWith({
-      pageType: "lark_wiki_record",
+      pageType: "lark_base",
       url: "https://nsghpcq7ar4z.sg.larksuite.com/record/KxOYr6CJKeWYktcI2GilrfRAgeg",
-      baseId: undefined,
-      tableId: undefined,
-      recordId: "KxOYr6CJKeWYktcI2GilrfRAgeg",
+      baseId: "base_1",
+      tableId: "tbl_1",
+      recordId: "rec_real_1",
       wikiRecordId: "KxOYr6CJKeWYktcI2GilrfRAgeg",
       masterUserId: "usr_resolved",
       actionRunId: expect.any(String),
@@ -527,6 +581,295 @@ describe("popup controller", () => {
       disabled: false,
       loading: false,
       statusText: "ACP_TIMEOUT: ACP 初始化超时",
+      statusTone: "error",
+    });
+    controller.dispose();
+  });
+
+  it("dispatches the Lark Bug analysis backend API action from server config", async () => {
+    runtimeMock.queryActiveTabContext.mockResolvedValueOnce({
+      id: 12,
+      url: "https://project.larksuite.com/OPS/production_bug/detail/123456",
+      origin: "https://project.larksuite.com",
+      pageType: "meegle",
+    });
+
+    const controller = createPopupController();
+    await controller.initialize();
+    vi.mocked(globalThis.fetch).mockClear();
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        ok: true,
+        data: {
+          workItemId: "123456",
+          updatedField: "analysisSummary",
+          actionRunId: "run_1",
+          analysisSummary: "bug analysis",
+        },
+      }),
+    } as Response);
+
+    await controller.runFeatureAction("lark-bug-analyze");
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      "http://localhost:3000/api/lark-bug/analyze",
+      expect.objectContaining({
+        method: "POST",
+        body: expect.any(String),
+      }),
+    );
+    const [, requestInit] = vi.mocked(globalThis.fetch).mock.calls[0];
+    expect(JSON.parse(String(requestInit?.body))).toMatchObject({
+      projectKey: "OPS",
+      workItemTypeKey: "production_bug",
+      workItemId: "123456",
+      meegleUrl: "https://project.larksuite.com/OPS/production_bug/detail/123456",
+      masterUserId: "usr_resolved",
+      baseUrl: "https://project.larksuite.com",
+      actionRunId: expect.any(String),
+    });
+    expect(controller.getState().meegleActions[0]).toMatchObject({
+      disabled: false,
+      loading: false,
+      statusText: "已更新 analysisSummary",
+      statusTone: "success",
+    });
+    controller.dispose();
+  });
+
+  it("dispatches the bug analysis backend API action with Lark record context", async () => {
+    runtimeMock.queryActiveTabContext.mockResolvedValueOnce({
+      id: 12,
+      url: "https://nsghpcq7ar4z.sg.larksuite.com/record/KxOYr6CJKeWYktcI2GilrfRAgeg",
+      origin: "https://nsghpcq7ar4z.sg.larksuite.com",
+      pageType: "lark",
+      larkContext: {
+        baseId: "base_1",
+        tableId: "tbl_1",
+        recordId: "rec_real_1",
+        wikiRecordId: "KxOYr6CJKeWYktcI2GilrfRAgeg",
+      },
+    });
+
+    const controller = createPopupController();
+    await controller.initialize();
+    vi.mocked(globalThis.fetch).mockClear();
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        ok: true,
+        data: {
+          workItemId: "KxOYr6CJKeWYktcI2GilrfRAgeg",
+          workItemTypeKey: "lark_record",
+          actionRunId: "run_1",
+          analysisSummary: "bug analysis",
+        },
+      }),
+    } as Response);
+
+    await controller.runFeatureAction("lark-bug-analyze");
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      "http://localhost:3000/api/lark-bug/analyze",
+      expect.objectContaining({
+        method: "POST",
+        body: expect.any(String),
+      }),
+    );
+    const [, requestInit] = vi.mocked(globalThis.fetch).mock.calls[0];
+    expect(JSON.parse(String(requestInit?.body))).toMatchObject({
+      baseId: "base_1",
+      tableId: "tbl_1",
+      recordId: "rec_real_1",
+      wikiRecordId: "KxOYr6CJKeWYktcI2GilrfRAgeg",
+      pageType: "lark_base",
+      masterUserId: "usr_resolved",
+      baseUrl: "https://nsghpcq7ar4z.sg.larksuite.com",
+      actionRunId: expect.any(String),
+    });
+    expect(controller.getState().larkActions[1]).toMatchObject({
+      disabled: false,
+      loading: false,
+      statusText: "执行完成",
+      statusTone: "success",
+    });
+    controller.dispose();
+  });
+
+  it("refreshes Lark page context before bug analysis when the sidebar snapshot lacks record id", async () => {
+    runtimeMock.queryActiveTabContext
+      .mockResolvedValueOnce({
+        id: 12,
+        url: "https://nsghpcq7ar4z.sg.larksuite.com/base/XO0cbnxMIaralRsbBEolboEFgZc?table=tblUfu71xwdul3NH&view=vewMs17Tqk",
+        origin: "https://nsghpcq7ar4z.sg.larksuite.com",
+        pageType: "lark",
+        larkContext: {
+          baseId: "XO0cbnxMIaralRsbBEolboEFgZc",
+          tableId: "tblUfu71xwdul3NH",
+          viewId: "vewMs17Tqk",
+        },
+      })
+      .mockResolvedValueOnce({
+        id: 12,
+        url: "https://nsghpcq7ar4z.sg.larksuite.com/base/XO0cbnxMIaralRsbBEolboEFgZc?table=tblUfu71xwdul3NH&view=vewMs17Tqk",
+        origin: "https://nsghpcq7ar4z.sg.larksuite.com",
+        pageType: "lark",
+        larkContext: {
+          baseId: "XO0cbnxMIaralRsbBEolboEFgZc",
+          tableId: "tblUfu71xwdul3NH",
+          viewId: "vewMs17Tqk",
+          recordId: "rec_current_detail",
+        },
+      });
+
+    const controller = createPopupController();
+    await controller.initialize();
+    vi.mocked(globalThis.fetch).mockClear();
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        ok: true,
+        data: {
+          workItemId: "rec_current_detail",
+          workItemTypeKey: "lark_record",
+          actionRunId: "run_1",
+          analysisSummary: "bug analysis",
+        },
+      }),
+    } as Response);
+
+    await controller.runFeatureAction("lark-bug-analyze");
+
+    expect(runtimeMock.queryActiveTabContext).toHaveBeenCalledTimes(2);
+    const [, requestInit] = vi.mocked(globalThis.fetch).mock.calls[0];
+    expect(JSON.parse(String(requestInit?.body))).toMatchObject({
+      baseId: "XO0cbnxMIaralRsbBEolboEFgZc",
+      tableId: "tblUfu71xwdul3NH",
+      viewId: "vewMs17Tqk",
+      recordId: "rec_current_detail",
+      pageType: "lark_base",
+      masterUserId: "usr_resolved",
+      baseUrl: "https://nsghpcq7ar4z.sg.larksuite.com",
+      actionRunId: expect.any(String),
+    });
+    controller.dispose();
+  });
+
+  it("refreshes Lark record page context before bug analysis and uses the real record id", async () => {
+    runtimeMock.queryActiveTabContext
+      .mockResolvedValueOnce({
+        id: 12,
+        url: "https://nsghpcq7ar4z.sg.larksuite.com/record/KxOYr6CJKeWYktcI2GilrfRAgeg",
+        origin: "https://nsghpcq7ar4z.sg.larksuite.com",
+        pageType: "lark",
+        larkContext: {
+          wikiRecordId: "KxOYr6CJKeWYktcI2GilrfRAgeg",
+        },
+      })
+      .mockResolvedValueOnce({
+        id: 12,
+        url: "https://nsghpcq7ar4z.sg.larksuite.com/record/KxOYr6CJKeWYktcI2GilrfRAgeg",
+        origin: "https://nsghpcq7ar4z.sg.larksuite.com",
+        pageType: "lark",
+        larkContext: {
+          baseId: "base_1",
+          tableId: "tbl_1",
+          recordId: "rec_real_1",
+          wikiRecordId: "KxOYr6CJKeWYktcI2GilrfRAgeg",
+        },
+      });
+
+    const controller = createPopupController();
+    await controller.initialize();
+    vi.mocked(globalThis.fetch).mockClear();
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        ok: true,
+        data: {
+          workItemId: "rec_real_1",
+          workItemTypeKey: "lark_record",
+          actionRunId: "run_1",
+          analysisSummary: "bug analysis",
+        },
+      }),
+    } as Response);
+
+    await controller.runFeatureAction("lark-bug-analyze");
+
+    expect(runtimeMock.queryActiveTabContext).toHaveBeenCalledTimes(2);
+    const [, requestInit] = vi.mocked(globalThis.fetch).mock.calls[0];
+    expect(JSON.parse(String(requestInit?.body))).toMatchObject({
+      baseId: "base_1",
+      tableId: "tbl_1",
+      recordId: "rec_real_1",
+      wikiRecordId: "KxOYr6CJKeWYktcI2GilrfRAgeg",
+      pageType: "lark_base",
+      masterUserId: "usr_resolved",
+      baseUrl: "https://nsghpcq7ar4z.sg.larksuite.com",
+      actionRunId: expect.any(String),
+    });
+    controller.dispose();
+  });
+
+  it("dispatches bug analysis with Lark base context so the server can report a missing record id", async () => {
+    const baseOnlyContext = {
+      id: 12,
+      url: "https://nsghpcq7ar4z.sg.larksuite.com/base/XO0cbnxMIaralRsbBEolboEFgZc?table=tblUfu71xwdul3NH&view=vewMs17Tqk",
+      origin: "https://nsghpcq7ar4z.sg.larksuite.com",
+      pageType: "lark" as const,
+      larkContext: {
+        baseId: "XO0cbnxMIaralRsbBEolboEFgZc",
+        tableId: "tblUfu71xwdul3NH",
+        viewId: "vewMs17Tqk",
+      },
+    };
+    runtimeMock.queryActiveTabContext
+      .mockResolvedValueOnce(baseOnlyContext)
+      .mockResolvedValueOnce(baseOnlyContext);
+
+    const controller = createPopupController();
+    await controller.initialize();
+    vi.mocked(globalThis.fetch).mockClear();
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        ok: false,
+        error: {
+          layer: "server",
+          module: "lark-bug-analyze",
+          stage: "server.action.received",
+          errorCode: "LARK_RECORD_ID_REQUIRED",
+          errorMessage: "A real Lark Base recordId is required for bug analysis.",
+          actionRunId: "run_1",
+        },
+      }),
+    } as Response);
+
+    await controller.runFeatureAction("lark-bug-analyze");
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      "http://localhost:3000/api/lark-bug/analyze",
+      expect.objectContaining({
+        method: "POST",
+        body: expect.any(String),
+      }),
+    );
+    const [, requestInit] = vi.mocked(globalThis.fetch).mock.calls[0];
+    expect(JSON.parse(String(requestInit?.body))).toMatchObject({
+      baseId: "XO0cbnxMIaralRsbBEolboEFgZc",
+      tableId: "tblUfu71xwdul3NH",
+      viewId: "vewMs17Tqk",
+      pageType: "lark_base",
+      masterUserId: "usr_resolved",
+      baseUrl: "https://nsghpcq7ar4z.sg.larksuite.com",
+      actionRunId: expect.any(String),
+    });
+    expect(controller.getState().larkActions[1]).toMatchObject({
+      disabled: false,
+      loading: false,
+      statusText: "LARK_RECORD_ID_REQUIRED: A real Lark Base recordId is required for bug analysis.",
       statusTone: "error",
     });
     controller.dispose();

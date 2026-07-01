@@ -47,7 +47,8 @@ function extractRecordIdFromFields(context: LarkRecordContext | null): string | 
   const recordIdField = context.fields.find(
     (field) => field.label.trim().replace(/\s/g, "") === "记录ID",
   );
-  return recordIdField?.value.trim();
+  const recordId = recordIdField?.value.trim();
+  return recordId?.startsWith("rec") ? recordId : undefined;
 }
 
 function extractRecordIdFromDom(
@@ -236,8 +237,7 @@ export function createLarkContentScriptRuntime(): LarkContentScriptRuntime {
       wikiRecordId: routeContext.wikiRecordId,
       recordId: routeContext.recordId
         ?? extractRecordIdFromFields(parsedContext)
-        ?? extractRecordIdFromDom(detail.detailRoot)
-        ?? routeContext.wikiRecordId,
+        ?? extractRecordIdFromDom(detail.detailRoot),
     };
 
     const larkIdElement = document.querySelector('[data-user-id]') as HTMLElement;

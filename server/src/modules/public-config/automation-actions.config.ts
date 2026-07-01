@@ -71,6 +71,22 @@ export const AUTOMATION_ACTIONS = {
       route: "/api/meegle/workitem/story-prd-to-simplified",
     },
   },
+  larkBugAnalyze: {
+    key: "lark-bug-analyze",
+    title: "分析 bug",
+    description: "读取 Meegle Production Bug 或 Lark 记录，经 Kimi ACP 生成 Bug 分析。",
+    style: "primary",
+    placements: [{ surface: "popup" }, { surface: "sidebar" }],
+    interaction: {
+      type: "direct_execute",
+    },
+    executor: {
+      type: "backend_api",
+      operation: "lark.bug.analyze",
+      method: "POST",
+      route: "/api/lark-bug/analyze",
+    },
+  },
   createGithubBranch: {
     key: "create-github-branch",
     title: "创建 GitHub 分支",

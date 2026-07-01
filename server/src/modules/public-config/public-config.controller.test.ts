@@ -53,6 +53,17 @@ describe("public-config.controller", () => {
       expect.arrayContaining([
         expect.objectContaining({ key: "analyze" }),
         expect.objectContaining({
+          key: "lark-bug-analyze",
+          title: "分析 bug",
+          interaction: { type: "direct_execute" },
+          executor: expect.objectContaining({
+            type: "backend_api",
+            operation: "lark.bug.analyze",
+            route: "/api/lark-bug/analyze",
+          }),
+          placements: expect.arrayContaining([{ surface: "popup" }, { surface: "sidebar" }]),
+        }),
+        expect.objectContaining({
           key: "bulk-create-meegle-tickets",
           title: "创建 Meegle Item",
           interaction: { type: "preview_confirm" },
@@ -73,6 +84,7 @@ describe("public-config.controller", () => {
     );
     expect(actionKeys).toEqual([
       "analyze",
+      "lark-bug-analyze",
       "bulk-create-meegle-tickets",
       "create-meegle-item",
     ]);
@@ -94,14 +106,14 @@ describe("public-config.controller", () => {
             injectPageElements: true,
             sidebarButtonEnabled: true,
           },
-          automationActions: [
-            {
+          automationActions: expect.arrayContaining([
+            expect.objectContaining({
               key: "create-meegle-item",
               title: "创建 Meegle Item",
               interaction: { type: "direct_execute" },
               placements: [{ surface: "page_dom", target: "lark_detail_header" }],
-            },
-          ],
+            }),
+          ]),
         },
       },
     });
@@ -119,8 +131,8 @@ describe("public-config.controller", () => {
           platform: "lark",
           pageType: "lark_record_create_meegle_item",
           matchedRuleId: "lark.record.create-meegle-item",
-          automationActions: [
-            {
+          automationActions: expect.arrayContaining([
+            expect.objectContaining({
               key: "create-meegle-item",
               title: "创建 Meegle Item",
               interaction: { type: "direct_execute" },
@@ -129,8 +141,13 @@ describe("public-config.controller", () => {
                 { surface: "sidebar" },
                 { surface: "page_dom", target: "lark_detail_header" },
               ]),
-            },
-          ],
+            }),
+            expect.objectContaining({
+              key: "lark-bug-analyze",
+              title: "分析 bug",
+              interaction: { type: "direct_execute" },
+            }),
+          ]),
         },
       },
     });
@@ -176,7 +193,7 @@ describe("public-config.controller", () => {
     });
   });
 
-  it("resolves Production Bug detail page to the update Lark automation action", async () => {
+  it("resolves Production Bug detail page to the bug analysis automation action", async () => {
     const result = await getExtensionPageConfigController({
       url: "https://project.larksuite.com/OPS/production_bug/detail/123456",
     });
@@ -190,6 +207,20 @@ describe("public-config.controller", () => {
           pageType: "meegle_production_bug_detail",
           matchedRuleId: "meegle.production-bug.detail",
           automationActions: expect.arrayContaining([
+            expect.objectContaining({
+              key: "lark-bug-analyze",
+              title: "分析 bug",
+              interaction: { type: "direct_execute" },
+              executor: expect.objectContaining({
+                type: "backend_api",
+                operation: "lark.bug.analyze",
+                route: "/api/lark-bug/analyze",
+              }),
+              placements: expect.arrayContaining([
+                { surface: "popup" },
+                { surface: "sidebar" },
+              ]),
+            }),
             expect.objectContaining({
               key: "update-lark-and-push",
               title: "更新 Lark 并推送",
@@ -208,7 +239,7 @@ describe("public-config.controller", () => {
         },
       },
     });
-    expect(actionKeys).toEqual(["update-lark-and-push", "create-github-branch"]);
+    expect(actionKeys).toEqual(["lark-bug-analyze", "update-lark-and-push", "create-github-branch"]);
     expect(actionKeys).not.toContain("bug-ticket-to-support");
   });
 
@@ -268,6 +299,11 @@ describe("public-config.controller", () => {
           matchedRuleIds: ["meegle.production-bug.detail-numeric"],
           automationActions: expect.arrayContaining([
             expect.objectContaining({
+              key: "lark-bug-analyze",
+              title: "分析 bug",
+              interaction: { type: "direct_execute" },
+            }),
+            expect.objectContaining({
               key: "update-lark-and-push",
               title: "更新 Lark 并推送",
             }),
@@ -279,7 +315,7 @@ describe("public-config.controller", () => {
         },
       },
     });
-    expect(actionKeys).toEqual(["update-lark-and-push", "create-github-branch"]);
+    expect(actionKeys).toEqual(["lark-bug-analyze", "update-lark-and-push", "create-github-branch"]);
     expect(actionKeys).not.toContain("bug-ticket-to-support");
   });
 
@@ -344,6 +380,10 @@ describe("public-config.controller", () => {
             expect.objectContaining({
               method: "POST",
               path: "/api/meegle/workitem/story-prd-to-simplified",
+            }),
+            expect.objectContaining({
+              method: "POST",
+              path: "/api/lark-bug/analyze",
             }),
           ]),
         }),

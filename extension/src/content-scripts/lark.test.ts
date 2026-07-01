@@ -350,10 +350,34 @@ describe("lark content script probe overlay", () => {
       </div>
     `;
 
+    const context = getTestingApi()?.detectLarkPageContext();
+    expect(context).toMatchObject({
+      pageType: "lark_wiki_record",
+      wikiRecordId: "JfrhrMSAHeNRowcqTTclnyteg0c",
+    });
+    expect(context?.recordId).toBeUndefined();
+  });
+
+  it("extracts a real recordId from the '记录ID' field on a Lark record URL", async () => {
+    await import("./lark");
+
+    window.history.replaceState({}, "", "/record/JfrhrMSAHeNRowcqTTclnyteg0c");
+
+    document.body.innerHTML = `
+      <div id="app">
+        <main>
+          <article class="wiki-content">
+            <h1>Wiki Document Title</h1>
+            <div class="field-row"><label>记录 ID</label><div>rec_from_wiki_page</div></div>
+          </article>
+        </main>
+      </div>
+    `;
+
     expect(getTestingApi()?.detectLarkPageContext()).toMatchObject({
       pageType: "lark_wiki_record",
       wikiRecordId: "JfrhrMSAHeNRowcqTTclnyteg0c",
-      recordId: "JfrhrMSAHeNRowcqTTclnyteg0c",
+      recordId: "rec_from_wiki_page",
     });
   });
 

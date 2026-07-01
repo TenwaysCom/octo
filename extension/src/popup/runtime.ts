@@ -42,6 +42,7 @@ import type {
   ExtensionPageConfig,
   ExtensionPageConfigResponse,
 } from "../types/automation-actions.js";
+import type { LarkBaseUrlContext } from "../lark-base-url.js";
 
 interface RuntimeErrorResponse {
   error?: {
@@ -70,6 +71,7 @@ export interface PopupTabContext {
   url: string | null;
   origin: string | null;
   pageType: PopupPageType;
+  larkContext?: LarkBaseUrlContext;
   larkUserId?: string;
   meegleUserKey?: string;
 }
@@ -320,12 +322,16 @@ export async function queryActiveTabContext(): Promise<PopupTabContext> {
 
   try {
     const parsed = new URL(url);
+    const effectiveUrl = injectedContext.url ?? url;
+    const pageType = injectedContext.pageType ?? detectPopupPageType(effectiveUrl);
+    const larkContext = await queryLarkPageContext(tabId ?? null, pageType);
 
     return {
       id: tabId ?? null,
-      url: injectedContext.url ?? url,
+      url: effectiveUrl,
       origin: injectedContext.origin ?? parsed.origin,
-      pageType: injectedContext.pageType ?? detectPopupPageType(injectedContext.url ?? url),
+      pageType,
+      larkContext,
       larkUserId: injectedContext.larkUserId,
       meegleUserKey: injectedContext.meegleUserKey,
     };
@@ -338,6 +344,34 @@ export async function queryActiveTabContext(): Promise<PopupTabContext> {
       larkUserId: injectedContext.larkUserId,
       meegleUserKey: injectedContext.meegleUserKey,
     };
+  }
+}
+
+async function queryLarkPageContext(
+  tabId: number | null,
+  pageType: PopupPageType,
+): Promise<LarkBaseUrlContext | undefined> {
+  if (!tabId || pageType !== "lark") {
+    return undefined;
+  }
+
+  try {
+    const response = await sendTabMessage<LarkBaseUrlContext>(tabId, {
+      action: "getPageContext",
+    });
+    if (!response) {
+      return undefined;
+    }
+
+    return {
+      baseId: response.baseId,
+      tableId: response.tableId,
+      recordId: response.recordId,
+      viewId: response.viewId,
+      wikiRecordId: response.wikiRecordId,
+    };
+  } catch {
+    return undefined;
   }
 }
 
