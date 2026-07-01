@@ -107,13 +107,13 @@ function StatusRow({
 function resolvePageLabel(pageType: PopupPageType): string {
   if (pageType === "lark") return "Lark 页面";
   if (pageType === "meegle") return "Meegle 页面";
-  if (pageType === "github") return "GitHub PR 页面";
+  if (pageType === "github") return "GitHub PR / Issue 页面";
   return "非支持页面";
 }
 
 function resolveHint(pageType: PopupPageType): string {
   if (pageType === "unsupported") {
-    return "请切换到 Lark、Meegle 或 GitHub PR 页面，再使用页面悬浮 Icon。";
+    return "请切换到 Lark、Meegle 或 GitHub PR / Issue 页面，再使用页面悬浮 Icon。";
   }
 
   return "工具栏入口只负责提示和授权跳转，完整功能请使用页面内的悬浮 Icon。";

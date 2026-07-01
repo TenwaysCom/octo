@@ -13,55 +13,78 @@ import {
   previewBranchCreate,
   executeBranchCreate,
 } from "./github-branch-create.service.js";
+import {
+  createActionErrorEnvelopeFromError,
+  getActionRunId,
+} from "../../application/action-error-envelope.js";
 
 const controllerLogger = logger.child({ module: "github-branch-create-controller" });
+const MODULE = "github-branch-create";
 
-function toInvalidRequest(error: ZodError) {
+function toInvalidRequest(error: ZodError, input: unknown) {
   return {
     ok: false as const,
-    error: {
+    error: createActionErrorEnvelopeFromError(error, {
+      module: MODULE,
+      stage: "server.action.received",
       errorCode: "INVALID_REQUEST" as const,
-      errorMessage: error.message,
-    },
+      actionRunId: getActionRunId(input),
+    }),
   };
 }
 
 export async function githubBranchPreviewController(input: unknown) {
-  controllerLogger.info("RECEIVED_PREVIEW_REQUEST");
+  const actionRunId = getActionRunId(input);
+  controllerLogger.info({ actionRunId }, "server.action.received");
   try {
     const validated = validateGitHubBranchPreviewRequest(input);
-    controllerLogger.debug({ masterUserId: validated.masterUserId }, "VALIDATED_PREVIEW_REQUEST");
+    controllerLogger.debug({
+      masterUserId: validated.masterUserId,
+      actionRunId: validated.actionRunId,
+    }, "VALIDATED_PREVIEW_REQUEST");
     const result = await previewBranchCreate(validated);
     return result;
   } catch (error) {
     if (error instanceof ZodError) {
-      return toInvalidRequest(error);
+      return toInvalidRequest(error, input);
     }
     controllerLogger.warn({ error: error instanceof Error ? error.message : String(error) }, "PREVIEW_FAILED");
     return {
       ok: false as const,
-      error: {
+      error: createActionErrorEnvelopeFromError(error, {
+        module: MODULE,
+        stage: "server.workflow.failed",
         errorCode: "PREVIEW_FAILED" as const,
-        errorMessage: error instanceof Error ? error.message : String(error),
-      },
+        actionRunId,
+      }),
     };
   }
 }
 
 export async function githubBranchCreateController(input: unknown) {
-  controllerLogger.info("RECEIVED_CREATE_REQUEST");
+  const actionRunId = getActionRunId(input);
+  controllerLogger.info({ actionRunId }, "server.action.received");
   try {
     const validated = validateGitHubBranchCreateRequest(input);
-    controllerLogger.debug({ masterUserId: validated.masterUserId, branchName: validated.branchName }, "VALIDATED_CREATE_REQUEST");
+    controllerLogger.debug({
+      masterUserId: validated.masterUserId,
+      branchName: validated.branchName,
+      actionRunId: validated.actionRunId,
+    }, "VALIDATED_CREATE_REQUEST");
 
     const githubToken = process.env.GITHUB_TOKEN;
     if (!githubToken) {
       return {
         ok: false as const,
-        error: {
-          errorCode: "GITHUB_NOT_CONFIGURED" as const,
-          errorMessage: "GITHUB_TOKEN is not configured on the server",
-        },
+        error: createActionErrorEnvelopeFromError(
+          new Error("GITHUB_TOKEN is not configured on the server"),
+          {
+            module: MODULE,
+            stage: "server.workflow.failed",
+            errorCode: "GITHUB_NOT_CONFIGURED" as const,
+            actionRunId: validated.actionRunId,
+          },
+        ),
       };
     }
 
@@ -71,15 +94,17 @@ export async function githubBranchCreateController(input: unknown) {
     return result;
   } catch (error) {
     if (error instanceof ZodError) {
-      return toInvalidRequest(error);
+      return toInvalidRequest(error, input);
     }
     controllerLogger.warn({ error: error instanceof Error ? error.message : String(error) }, "CREATE_FAILED");
     return {
       ok: false as const,
-      error: {
+      error: createActionErrorEnvelopeFromError(error, {
+        module: MODULE,
+        stage: "server.workflow.failed",
         errorCode: "CREATE_FAILED" as const,
-        errorMessage: error instanceof Error ? error.message : String(error),
-      },
+        actionRunId,
+      }),
     };
   }
 }

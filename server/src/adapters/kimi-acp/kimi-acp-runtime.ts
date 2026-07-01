@@ -16,6 +16,23 @@ import type {
 import { logger } from "../../logger.js";
 
 const kimiAcpRuntimeLogger = logger.child({ module: "kimi-acp-runtime" });
+const DEFAULT_KIMI_ACP_STARTUP_TIMEOUT_MS = 30_000;
+
+export type KimiAcpRuntimeErrorCode =
+  | "ACP_INITIALIZE_TIMEOUT"
+  | "ACP_SESSION_START_TIMEOUT"
+  | "ACP_PROCESS_EXITED";
+
+export class KimiAcpRuntimeError extends Error {
+  constructor(
+    readonly code: KimiAcpRuntimeErrorCode,
+    readonly stage: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = "KimiAcpRuntimeError";
+  }
+}
 
 export interface KimiAcpConnection {
   initialize(): Promise<{
@@ -90,6 +107,7 @@ export async function createKimiAcpSessionRuntime(
   const env = deps.env ?? process.env;
   const spawnConfig =
     deps.buildSpawnConfig?.(env) ?? buildKimiAcpRuntimeConfig(env);
+  const startupTimeoutMs = resolveStartupTimeoutMs(env);
   let emit = deps.emit ?? (() => {});
 
   throwIfAborted(deps.signal);
@@ -122,7 +140,15 @@ export async function createKimiAcpSessionRuntime(
 
   try {
     throwIfAborted(deps.signal);
-    await connection.initialize();
+    await runWithTimeout({
+      operation: "initialize",
+      stage: "adapter.acp.initialize",
+      timeoutCode: "ACP_INITIALIZE_TIMEOUT",
+      timeoutMs: startupTimeoutMs,
+      signal: deps.signal,
+      onCancel: closeConnection,
+      task: () => connection.initialize(),
+    });
     kimiAcpRuntimeLogger.info({
       cwd,
       command: spawnConfig.command,
@@ -130,15 +156,31 @@ export async function createKimiAcpSessionRuntime(
     throwIfAborted(deps.signal);
 
     const session = deps.sessionId
-      ? {
-          sessionId: deps.sessionId,
-          ...(await connection.loadSession({
-            sessionId: deps.sessionId,
+      ? await runWithTimeout({
+          operation: "load session",
+          stage: "adapter.acp.session",
+          timeoutCode: "ACP_SESSION_START_TIMEOUT",
+          timeoutMs: startupTimeoutMs,
+          signal: deps.signal,
+          onCancel: closeConnection,
+          task: async () => ({
+            sessionId: deps.sessionId!,
+            ...(await connection.loadSession({
+              sessionId: deps.sessionId!,
+              cwd,
+            })),
+          }),
+        })
+      : await runWithTimeout({
+          operation: "new session",
+          stage: "adapter.acp.session",
+          timeoutCode: "ACP_SESSION_START_TIMEOUT",
+          timeoutMs: startupTimeoutMs,
+          signal: deps.signal,
+          onCancel: closeConnection,
+          task: () => connection.newSession({
             cwd,
-          })),
-        }
-      : await connection.newSession({
-          cwd,
+          }),
         });
     kimiAcpRuntimeLogger.info({
       cwd,
@@ -295,9 +337,13 @@ async function createDefaultConnection(
     args: input.spawnConfig.args,
   }, "KIMI_ACP_PROCESS SPAWNED");
   const ensureProcessStarted = createProcessStartupGuard(agentProcess);
+  const runWithProcessGuard = createProcessExitGuard(agentProcess);
 
   agentProcess.stderr.on("data", (chunk) => {
-    process.stderr.write(`[kimi-acp:stderr] ${String(chunk)}`);
+    kimiAcpRuntimeLogger.warn({
+      pid: agentProcess.pid,
+      stderr: truncateLogValue(String(chunk)),
+    }, "KIMI_ACP_PROCESS STDERR");
   });
 
   const inputStream = toBinaryWritableStream(
@@ -317,47 +363,55 @@ async function createDefaultConnection(
 
   return {
     async initialize() {
-      await ensureProcessStarted();
-      kimiAcpRuntimeLogger.info({
-        pid: agentProcess.pid,
-      }, "KIMI_ACP_CONNECTION INITIALIZE");
-      return connection.initialize({
-        protocolVersion: acp.PROTOCOL_VERSION,
-        clientInfo: {
-          name: "tenways-octo-kimi",
-          version: "0.1.0",
-        },
-        clientCapabilities: {},
+      return runWithProcessGuard("initialize", async () => {
+        await ensureProcessStarted();
+        kimiAcpRuntimeLogger.info({
+          pid: agentProcess.pid,
+        }, "KIMI_ACP_CONNECTION INITIALIZE");
+        return connection.initialize({
+          protocolVersion: acp.PROTOCOL_VERSION,
+          clientInfo: {
+            name: "tenways-octo-kimi",
+            version: "0.1.0",
+          },
+          clientCapabilities: {},
+        });
       });
     },
     async newSession({ cwd }: { cwd: string }) {
-      await ensureProcessStarted();
-      kimiAcpRuntimeLogger.info({
-        pid: agentProcess.pid,
-        cwd,
-      }, "KIMI_ACP_CONNECTION NEW_SESSION");
-      return connection.newSession({
-        cwd,
-        mcpServers: [],
+      return runWithProcessGuard("new session", async () => {
+        await ensureProcessStarted();
+        kimiAcpRuntimeLogger.info({
+          pid: agentProcess.pid,
+          cwd,
+        }, "KIMI_ACP_CONNECTION NEW_SESSION");
+        return connection.newSession({
+          cwd,
+          mcpServers: [],
+        });
       });
     },
     async listSessions(input: { cwd?: string; cursor?: string | null }) {
-      await ensureProcessStarted();
-      return (await connection.listSessions({
-        cwd: input.cwd,
-        cursor: input.cursor ?? undefined,
-      })) as {
-        sessions: Array<Record<string, unknown>>;
-        nextCursor?: string | null;
-      };
+      return runWithProcessGuard("list sessions", async () => {
+        await ensureProcessStarted();
+        return (await connection.listSessions({
+          cwd: input.cwd,
+          cursor: input.cursor ?? undefined,
+        })) as {
+          sessions: Array<Record<string, unknown>>;
+          nextCursor?: string | null;
+        };
+      });
     },
     async loadSession({ sessionId, cwd }: { sessionId: string; cwd: string }) {
-      await ensureProcessStarted();
-      return (await connection.loadSession({
-        sessionId,
-        cwd,
-        mcpServers: [],
-      })) as Record<string, unknown>;
+      return runWithProcessGuard("load session", async () => {
+        await ensureProcessStarted();
+        return (await connection.loadSession({
+          sessionId,
+          cwd,
+          mcpServers: [],
+        })) as Record<string, unknown>;
+      });
     },
     async prompt({
       sessionId,
@@ -366,20 +420,22 @@ async function createDefaultConnection(
       sessionId: string;
       prompt: string;
     }) {
-      await ensureProcessStarted();
-      kimiAcpRuntimeLogger.info({
-        pid: agentProcess.pid,
-        sessionId,
-        promptLength: prompt.length,
-      }, "KIMI_ACP_CONNECTION PROMPT");
-      return connection.prompt({
-        sessionId,
-        prompt: [
-          {
-            type: "text",
-            text: prompt,
-          },
-        ],
+      return runWithProcessGuard("prompt", async () => {
+        await ensureProcessStarted();
+        kimiAcpRuntimeLogger.info({
+          pid: agentProcess.pid,
+          sessionId,
+          promptLength: prompt.length,
+        }, "KIMI_ACP_CONNECTION PROMPT");
+        return connection.prompt({
+          sessionId,
+          prompt: [
+            {
+              type: "text",
+              text: prompt,
+            },
+          ],
+        });
       });
     },
     async close() {
@@ -442,6 +498,85 @@ function throwIfAborted(signal?: AbortSignal): void {
   if (signal?.aborted) {
     throw abortError();
   }
+}
+
+function resolveStartupTimeoutMs(env: NodeJS.ProcessEnv): number {
+  const raw = env.KIMI_ACP_STARTUP_TIMEOUT_MS;
+  if (!raw) {
+    return DEFAULT_KIMI_ACP_STARTUP_TIMEOUT_MS;
+  }
+
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return DEFAULT_KIMI_ACP_STARTUP_TIMEOUT_MS;
+  }
+
+  return parsed;
+}
+
+async function runWithTimeout<T>(input: {
+  operation: string;
+  stage: string;
+  timeoutCode: Extract<
+    KimiAcpRuntimeErrorCode,
+    "ACP_INITIALIZE_TIMEOUT" | "ACP_SESSION_START_TIMEOUT"
+  >;
+  timeoutMs: number;
+  signal?: AbortSignal;
+  onCancel?: () => Promise<void>;
+  task: () => Promise<T>;
+}): Promise<T> {
+  throwIfAborted(input.signal);
+
+  return await new Promise<T>((resolve, reject) => {
+    let settled = false;
+    const settle = (callback: () => void) => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      globalThis.clearTimeout(timeoutId);
+      input.signal?.removeEventListener("abort", handleAbort);
+      callback();
+    };
+    const cancel = () => {
+      void input.onCancel?.().catch((error) => {
+        kimiAcpRuntimeLogger.warn({
+          operation: input.operation,
+          errorMessage: error instanceof Error ? error.message : String(error),
+        }, "KIMI_ACP_RUNTIME CANCEL_ERROR");
+      });
+    };
+    const handleAbort = () => {
+      cancel();
+      settle(() => reject(abortError()));
+    };
+    const timeoutId = globalThis.setTimeout(() => {
+      kimiAcpRuntimeLogger.warn({
+        operation: input.operation,
+        stage: input.stage,
+        timeoutMs: input.timeoutMs,
+      }, "KIMI_ACP_RUNTIME TIMEOUT");
+      cancel();
+      settle(() =>
+        reject(
+          new KimiAcpRuntimeError(
+            input.timeoutCode,
+            input.stage,
+            `Kimi ACP ${input.operation} timed out after ${input.timeoutMs}ms.`,
+          ),
+        ),
+      );
+    }, input.timeoutMs);
+
+    input.signal?.addEventListener("abort", handleAbort, { once: true });
+
+    void Promise.resolve().then(input.task).then(
+      (result) => settle(() => resolve(result)),
+      (error) => settle(() => reject(error)),
+    );
+  });
 }
 
 function abortError(): Error {
@@ -511,6 +646,84 @@ function createProcessStartupGuard(
       throw startupError;
     }
   };
+}
+
+function createProcessExitGuard(
+  agentProcess: Pick<
+    ChildProcessWithoutNullStreams,
+    "exitCode" | "signalCode" | "once" | "off"
+  >,
+): <T>(operation: string, task: () => Promise<T>) => Promise<T> {
+  let exitInfo: { code: number | null; signal: NodeJS.Signals | null } | null =
+    null;
+  const exitListeners = new Set<() => void>();
+  const handleExit = (code: number | null, signal: NodeJS.Signals | null) => {
+    if (exitInfo) {
+      return;
+    }
+
+    exitInfo = { code, signal };
+    for (const listener of exitListeners) {
+      listener();
+    }
+  };
+
+  agentProcess.once("exit", handleExit);
+  agentProcess.once("close", handleExit);
+
+  return async function runWithProcessExitGuard<T>(
+    operation: string,
+    task: () => Promise<T>,
+  ): Promise<T> {
+    if (!exitInfo && (agentProcess.exitCode !== null || agentProcess.signalCode !== null)) {
+      exitInfo = {
+        code: agentProcess.exitCode,
+        signal: agentProcess.signalCode,
+      };
+    }
+
+    if (exitInfo) {
+      throw createProcessExitedError(operation, exitInfo);
+    }
+
+    return await new Promise<T>((resolve, reject) => {
+      const handleExitDuringOperation = () => {
+        exitListeners.delete(handleExitDuringOperation);
+        reject(createProcessExitedError(operation, exitInfo));
+      };
+      exitListeners.add(handleExitDuringOperation);
+
+      void Promise.resolve().then(task).then(
+        (result) => {
+          exitListeners.delete(handleExitDuringOperation);
+          resolve(result);
+        },
+        (error) => {
+          exitListeners.delete(handleExitDuringOperation);
+          reject(error);
+        },
+      );
+    });
+  };
+}
+
+function createProcessExitedError(
+  operation: string,
+  exitInfo: { code: number | null; signal: NodeJS.Signals | null } | null,
+): KimiAcpRuntimeError {
+  return new KimiAcpRuntimeError(
+    "ACP_PROCESS_EXITED",
+    "adapter.acp.process",
+    `Kimi ACP process exited during ${operation} with code=${exitInfo?.code ?? "null"} signal=${exitInfo?.signal ?? "null"}.`,
+  );
+}
+
+function truncateLogValue(value: string, maxLength = 1_000): string {
+  if (value.length <= maxLength) {
+    return value;
+  }
+
+  return `${value.slice(0, maxLength)}...`;
 }
 
 class CollectingClient implements acp.Client {

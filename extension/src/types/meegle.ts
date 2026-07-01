@@ -57,6 +57,7 @@ export interface MeegleLarkPushRequest {
   baseUrl: string;
   larkBaseUrl?: string;
   larkStatusFieldName?: string;
+  actionRunId?: string;
 }
 
 export interface MeegleLarkPushResponse {
@@ -66,7 +67,11 @@ export interface MeegleLarkPushResponse {
   messageSent?: boolean;
   reactionAdded?: boolean;
   meegleStatusUpdated?: boolean;
-  error?: string;
+  error?: string | {
+    errorCode?: string;
+    errorMessage?: string;
+    actionRunId?: string;
+  };
 }
 
 export interface GitHubBranchPreviewRequest {
@@ -75,6 +80,7 @@ export interface GitHubBranchPreviewRequest {
   workItemId: string;
   masterUserId: string;
   baseUrl: string;
+  actionRunId?: string;
 }
 
 export interface GitHubBranchPreviewResponse {
@@ -93,6 +99,7 @@ export interface GitHubBranchCreateRequest {
   masterUserId: string;
   baseUrl: string;
   branchName: string;
+  actionRunId?: string;
 }
 
 export interface GitHubBranchCreateResponse {

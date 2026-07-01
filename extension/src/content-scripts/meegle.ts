@@ -1,7 +1,8 @@
 // Meegle content script - handles auth code requests and user identity
 // Runs on https://*.meegle.com/* pages
 
-import { injectSidebar } from "./shared/sidebar-injector";
+import { fetchExtensionPageConfig, pageConfigHasActionPlacement } from "./shared/page-config";
+import { injectSidebar, type SidebarInjectorHandle } from "./shared/sidebar-injector";
 import { createExtensionLogger } from "../logger.js";
 
 const meegleCsLogger = createExtensionLogger("content-script:meegle");
@@ -47,9 +48,32 @@ interface TenwaysMeegleTestingApi {
     baseUrl?: string,
   ) => Promise<MeegleAuthCodeResult | null>;
   initMeegleContentScript: () => void;
+  refreshMeegleSidebar: () => Promise<void>;
   openSidebar: () => void;
   closeSidebar: () => void;
   toggleSidebar: () => void;
+}
+
+type MeegleGlobalState = typeof globalThis & {
+  __TENWAYS_MEEGLE_TESTING__?: TenwaysMeegleTestingApi;
+  __TENWAYS_MEEGLE_ROUTE_WATCH_INSTALLED__?: boolean;
+};
+
+const SIDEBAR_HOST_ID = "tenways-octo-sidebar-host";
+const SIDEBAR_ROUTE_REFRESH_DELAY_MS = 100;
+
+let meegleSidebar = createNoopSidebarHandle();
+let lastSidebarUrl: string | undefined;
+let authMessageListenerRegistered = false;
+let routeRefreshTimer: ReturnType<typeof setTimeout> | undefined;
+
+function createNoopSidebarHandle(): SidebarInjectorHandle {
+  return {
+    open() {},
+    close() {},
+    toggle() {},
+    destroy() {},
+  };
 }
 
 function logMcsFlow(node: string, phase: "START" | "OK" | "FAIL", detail: Record<string, unknown>): void {
@@ -325,30 +349,110 @@ async function requestAuthCode(
   return getAuthCodeFromMeegleApi(pluginId, state, baseUrl);
 }
 
-function initMeegleContentScript() {
-  meegleCsLogger.info("Meegle content script initialized");
+function getCurrentUrl(): string | undefined {
+  return typeof window !== "undefined" ? window.location.href : undefined;
+}
 
-  // Inject floating sidebar trigger on Meegle pages
-  const meegleIdentity = getMeegleUserIdentity();
-  const meegleSidebar = injectSidebar({
-    hostPageType: "meegle",
-    hostUrl: typeof window !== "undefined" ? window.location.href : undefined,
-    hostOrigin: typeof window !== "undefined" ? window.location.origin : undefined,
-    meegleUserKey: meegleIdentity.userKey ?? undefined,
+function getCurrentOrigin(): string | undefined {
+  return typeof window !== "undefined" ? window.location.origin : undefined;
+}
+
+function destroyMeegleSidebar(): void {
+  meegleSidebar.destroy();
+  meegleSidebar = createNoopSidebarHandle();
+  lastSidebarUrl = undefined;
+}
+
+async function refreshMeegleSidebar(): Promise<void> {
+  const currentUrl = getCurrentUrl();
+  const pageConfig = await fetchExtensionPageConfig({
+    url: currentUrl,
+    fallbackPlatform: "meegle",
   });
 
-  meegleTestingTarget.__TENWAYS_MEEGLE_TESTING__ = {
-    getMeegleUserIdentity,
-    getAuthCodeFromMeegleApi,
-    initMeegleContentScript,
-    openSidebar: meegleSidebar.open,
-    closeSidebar: meegleSidebar.close,
-    toggleSidebar: meegleSidebar.toggle,
+  if (
+    !pageConfig.sidebar.injectPageElements ||
+    !pageConfigHasActionPlacement(pageConfig, "sidebar")
+  ) {
+    if (document.getElementById(SIDEBAR_HOST_ID)) {
+      destroyMeegleSidebar();
+    }
+    return;
+  }
+
+  if (currentUrl && currentUrl === lastSidebarUrl && document.getElementById(SIDEBAR_HOST_ID)) {
+    return;
+  }
+
+  if (document.getElementById(SIDEBAR_HOST_ID)) {
+    destroyMeegleSidebar();
+  }
+
+  const meegleIdentity = getMeegleUserIdentity();
+  meegleSidebar = injectSidebar(
+    {
+      hostPageType: "meegle",
+      hostUrl: currentUrl,
+      hostOrigin: getCurrentOrigin(),
+      meegleUserKey: meegleIdentity.userKey ?? undefined,
+    },
+    {
+      showTrigger: pageConfig.sidebar.sidebarButtonEnabled,
+      enableKeyboardShortcut: pageConfig.sidebar.keyboardShortcutEnabled,
+    },
+  );
+  lastSidebarUrl = currentUrl;
+}
+
+function scheduleMeegleSidebarRefresh(): void {
+  if (routeRefreshTimer) {
+    clearTimeout(routeRefreshTimer);
+  }
+
+  routeRefreshTimer = setTimeout(() => {
+    routeRefreshTimer = undefined;
+    void refreshMeegleSidebar();
+  }, SIDEBAR_ROUTE_REFRESH_DELAY_MS);
+}
+
+function installMeegleRouteWatcher(): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  if (meegleTestingTarget.__TENWAYS_MEEGLE_ROUTE_WATCH_INSTALLED__) {
+    return;
+  }
+  meegleTestingTarget.__TENWAYS_MEEGLE_ROUTE_WATCH_INSTALLED__ = true;
+
+  const wrapHistoryMethod = (method: "pushState" | "replaceState") => {
+    const original = window.history[method];
+    window.history[method] = function wrappedHistoryMethod(
+      this: History,
+      ...args: Parameters<History[typeof method]>
+    ): ReturnType<History[typeof method]> {
+      const previousUrl = window.location.href;
+      const result = original.apply(this, args);
+      if (window.location.href !== previousUrl) {
+        scheduleMeegleSidebarRefresh();
+      }
+      return result;
+    };
   };
 
-  // Listen for auth code requests from background
+  wrapHistoryMethod("pushState");
+  wrapHistoryMethod("replaceState");
+  window.addEventListener("popstate", scheduleMeegleSidebarRefresh);
+}
+
+function registerMeegleMessageListener(): void {
+  if (authMessageListenerRegistered) {
+    return;
+  }
+  authMessageListenerRegistered = true;
+
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    if (message.action === "itdog.page.meegle.auth_code.request") {
+    if (message.action === "octo.page.meegle.auth_code.request") {
       const { pluginId, state, baseUrl } = message.payload;
       logMcsFlow("MESSAGE_RECEIVED", "START", { action: message.action, baseUrl, state, pluginIdSuffix: typeof pluginId === "string" ? pluginId.slice(-6) : undefined, location: getPageLocation().href });
 
@@ -382,9 +486,27 @@ function initMeegleContentScript() {
   });
 }
 
-const meegleTestingTarget = globalThis as typeof globalThis & {
-  __TENWAYS_MEEGLE_TESTING__?: TenwaysMeegleTestingApi;
-};
+function installTestingApi(): void {
+  meegleTestingTarget.__TENWAYS_MEEGLE_TESTING__ = {
+    getMeegleUserIdentity,
+    getAuthCodeFromMeegleApi,
+    initMeegleContentScript,
+    refreshMeegleSidebar,
+    openSidebar: () => meegleSidebar.open(),
+    closeSidebar: () => meegleSidebar.close(),
+    toggleSidebar: () => meegleSidebar.toggle(),
+  };
+}
+
+function initMeegleContentScript() {
+  meegleCsLogger.info("Meegle content script initialized");
+  installTestingApi();
+  registerMeegleMessageListener();
+  installMeegleRouteWatcher();
+  void refreshMeegleSidebar();
+}
+
+const meegleTestingTarget = globalThis as MeegleGlobalState;
 
 // Initialize when script loads
 initMeegleContentScript();

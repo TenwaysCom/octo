@@ -153,4 +153,83 @@ describe("meegle-workitem.service", () => {
       ],
     );
   });
+
+  it("keeps the created workitem when an illegal create-time field is also illegal on update", async () => {
+    const draft = validateExecutionDraft({
+      draftId: "draft_b2_003",
+      sourceRef: {
+        sourcePlatform: "lark_base",
+        sourceRecordId: "record_003",
+      },
+      target: {
+        projectKey: "OPS",
+        workitemTypeKey: "bug",
+        templateId: "645025",
+      },
+      name: "A production bug",
+      needConfirm: true,
+      fieldValuePairs: [
+        {
+          fieldKey: "description",
+          fieldValue: "Some description",
+        },
+        {
+          fieldKey: "watchers",
+          fieldValue: "",
+        },
+      ],
+      ownerUserKeys: [],
+      missingMeta: [],
+    });
+
+    const createdWorkitem = {
+      id: "WK-003",
+      key: "OPS-BUG-003",
+      name: "A production bug",
+      type: "bug",
+      status: "open",
+      fields: {},
+    };
+    const client = {
+      createWorkitem: vi.fn()
+        .mockRejectedValueOnce(
+          new MeegleAPIError("HTTP 400", 400, {
+            err_code: 20006,
+            err_msg: "Invalid Param",
+            err: { code: 20006, msg: "field [watchers] is illegal" },
+          }),
+        )
+        .mockResolvedValueOnce(createdWorkitem),
+      updateWorkitem: vi.fn().mockRejectedValueOnce(
+        new MeegleAPIError("HTTP 400", 400, {
+          err_code: 20006,
+          err_msg: "Invalid Param",
+          err: { code: 20006, msg: "field [watchers] is illegal" },
+        }),
+      ),
+    } as unknown as MeegleClient;
+
+    const result = await createWorkitemFromDraft(
+      draft,
+      { client },
+      { idempotencyKey: "idem_003" },
+    );
+
+    expect(result).toEqual({
+      workitemId: "WK-003",
+      workitem: createdWorkitem,
+    });
+    expect(client.createWorkitem).toHaveBeenCalledTimes(2);
+    expect(client.updateWorkitem).toHaveBeenCalledWith(
+      "OPS",
+      "bug",
+      "WK-003",
+      [
+        {
+          fieldKey: "watchers",
+          fieldValue: "",
+        },
+      ],
+    );
+  });
 });

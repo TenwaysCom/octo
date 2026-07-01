@@ -9,7 +9,9 @@ import {
 } from "../../adapters/postgres/lark-oauth-session-store.js";
 import { getSharedLarkTokenStore } from "../../adapters/postgres/lark-token-store.js";
 import type { OauthSessionStore } from "../../adapters/lark/oauth-session-store.js";
+import type { LarkContactStore } from "../../adapters/lark/contact-store.js";
 import type { LarkTokenStore, StoredLarkToken } from "../../adapters/lark/token-store.js";
+import { getLarkContactStore } from "../../adapters/postgres/lark-contact-store.js";
 import { getResolvedUserStore, type ResolvedUserStore } from "../../adapters/postgres/resolved-user-store.js";
 import type {
   LarkAuthCallbackPage,
@@ -35,6 +37,7 @@ export interface LarkAuthServiceDeps {
   tokenStore?: LarkTokenStore;
   oauthSessionStore?: OauthSessionStore;
   resolvedUserStore?: ResolvedUserStore;
+  contactStore?: LarkContactStore;
 }
 
 let defaultDeps: LarkAuthServiceDeps | undefined;
@@ -68,6 +71,10 @@ function getOauthSessionStore(deps: LarkAuthServiceDeps): OauthSessionStore {
 
 function getResolvedStore(deps: LarkAuthServiceDeps): ResolvedUserStore {
   return deps.resolvedUserStore ?? getResolvedUserStore();
+}
+
+function getContactStore(deps: LarkAuthServiceDeps): LarkContactStore {
+  return deps.contactStore ?? getLarkContactStore();
 }
 
 function toExpiresAt(expiresInSeconds?: number): string | undefined {
@@ -776,6 +783,24 @@ async function getLarkUserInfo(
   return { userId, tenantKey, email, name, avatarUrl };
 }
 
+async function cacheLarkContact(
+  deps: LarkAuthServiceDeps,
+  userInfo: { userId: string; email?: string; name?: string },
+): Promise<void> {
+  try {
+    await getContactStore(deps).upsert({
+      openId: userInfo.userId,
+      email: userInfo.email,
+      name: userInfo.name,
+    });
+  } catch (error) {
+    serviceLogger.warn({
+      larkUserId: userInfo.userId,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    }, "LARK_CONTACT_CACHE_FAILED");
+  }
+}
+
 export async function fetchLarkUserInfo(
   request: { masterUserId: string; baseUrl: string },
   overrides?: Partial<LarkAuthServiceDeps>,
@@ -863,6 +888,7 @@ export async function fetchLarkUserInfo(
       larkAvatarUrl: userInfo.avatarUrl ?? existingByUser.larkAvatarUrl,
     });
   }
+  await cacheLarkContact(deps, userInfo);
 
   return userInfo;
 }
@@ -905,6 +931,7 @@ export async function handleLarkAuthCallback(
       overrides,
     );
     const userInfo = await getLarkUserInfo(session.baseUrl, tokenPair.accessToken, fetchImpl);
+    await cacheLarkContact(deps, userInfo);
     const existingByUser = await resolvedUserStore.getById(session.masterUserId);
     const existingByLarkIdentity = await resolvedUserStore.getByLarkIdentity(
       userInfo.tenantKey,

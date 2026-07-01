@@ -5,6 +5,13 @@ export interface GitHubPrDetails {
   html_url: string;
 }
 
+export interface GitHubIssueDetails {
+  title: string;
+  body: string | null;
+  number: number;
+  html_url: string;
+}
+
 export interface GitHubCommit {
   commit: {
     message: string;
@@ -23,6 +30,20 @@ export interface ParsedPrUrl {
   repo: string;
   pullNumber: number;
 }
+
+export type ParsedGitHubWorkItemUrl =
+  | {
+      kind: "pull";
+      owner: string;
+      repo: string;
+      number: number;
+    }
+  | {
+      kind: "issue";
+      owner: string;
+      repo: string;
+      number: number;
+    };
 
 export interface GitHubRef {
   ref: string;

@@ -23,6 +23,14 @@ vi.mock("./storage.js", () => ({
 
 const { routeBackgroundAction } = await import("./router.js");
 const runtimeMessageListener = vi.mocked(chrome.runtime.onMessage.addListener).mock.calls[0]?.[0];
+const tabsQueryMock = vi.mocked(chrome.tabs.query) as unknown as {
+  mockImplementation: (
+    implementation: (
+      queryInfo: chrome.tabs.QueryInfo,
+      callback?: (result: chrome.tabs.Tab[]) => void,
+    ) => void,
+  ) => void;
+};
 
 describe("background router lark_base workflow", () => {
   beforeEach(() => {
@@ -31,7 +39,7 @@ describe("background router lark_base workflow", () => {
 
   it("falls back to the current active tab when query_active_tab_context has no sender tab", async () => {
     expect(runtimeMessageListener).toBeTypeOf("function");
-    vi.mocked(chrome.tabs.query).mockImplementation((queryInfo, callback) => {
+    tabsQueryMock.mockImplementation((queryInfo, callback) => {
       expect(queryInfo).toEqual({ active: true, currentWindow: true });
       callback?.([
         {
@@ -39,19 +47,18 @@ describe("background router lark_base workflow", () => {
           url: "https://nsghpcq7ar4z.sg.larksuite.com/record/JfrhrMSAHeNRowcqTTclnyteg0c",
         } as chrome.tabs.Tab,
       ]);
-      return undefined as never;
     });
 
     await new Promise<void>((resolve) => {
       runtimeMessageListener?.(
         {
-          action: "itdog.query_active_tab_context",
+          action: "octo.query_active_tab_context",
           payload: {},
         },
         {} as never,
         (response: unknown) => {
           expect(response).toEqual({
-            action: "itdog.query_active_tab_context",
+            action: "octo.query_active_tab_context",
             payload: {
               id: 321,
               url: "https://nsghpcq7ar4z.sg.larksuite.com/record/JfrhrMSAHeNRowcqTTclnyteg0c",
@@ -65,21 +72,20 @@ describe("background router lark_base workflow", () => {
 
   it("returns null tab context when query_active_tab_context cannot find an active tab", async () => {
     expect(runtimeMessageListener).toBeTypeOf("function");
-    vi.mocked(chrome.tabs.query).mockImplementation((_queryInfo, callback) => {
+    tabsQueryMock.mockImplementation((_queryInfo, callback) => {
       callback?.([]);
-      return undefined as never;
     });
 
     await new Promise<void>((resolve) => {
       runtimeMessageListener?.(
         {
-          action: "itdog.query_active_tab_context",
+          action: "octo.query_active_tab_context",
           payload: {},
         },
         {} as never,
         (response: unknown) => {
           expect(response).toEqual({
-            action: "itdog.query_active_tab_context",
+            action: "octo.query_active_tab_context",
             payload: {
               id: null,
               url: null,
@@ -107,13 +113,14 @@ describe("background router lark_base workflow", () => {
     } as unknown as Response);
 
     const result = await routeBackgroundAction({
-      action: "itdog.lark_base.create_workitem",
+      action: "octo.lark_base.create_workitem",
       payload: {
         pageType: "lark_base",
         url: "https://tenant/base/app_xxx/table/tbl_xxx/record/rec_base_001",
         baseId: "app_xxx",
         tableId: "tbl_xxx",
         recordId: "rec_base_001",
+        actionRunId: "run_create_001",
         snapshot: {
           title: "Base record",
           fields: [],
@@ -134,9 +141,10 @@ describe("background router lark_base workflow", () => {
       recordId: "rec_base_001",
       baseId: "app_xxx",
       tableId: "tbl_xxx",
+      actionRunId: "run_create_001",
     });
     expect(result).toEqual({
-      action: "itdog.lark_base.create_workitem",
+      action: "octo.lark_base.create_workitem",
       payload: {
         ok: true,
         workitemId: "12345",
@@ -167,7 +175,7 @@ describe("background router lark_base workflow", () => {
     await new Promise<void>((resolve) => {
       runtimeMessageListener?.(
         {
-          action: "itdog.lark_base.create_workitem",
+          action: "octo.lark_base.create_workitem",
           payload: {
             pageType: "lark_base",
             url: "https://tenant/base/app_xxx/table/tbl_xxx/record/rec_base_001",
@@ -212,7 +220,7 @@ describe("background router lark_base workflow", () => {
 
     await routeBackgroundAction(
       {
-        action: "itdog.lark_base.create_workitem",
+        action: "octo.lark_base.create_workitem",
         payload: {
           pageType: "lark_base",
           url: "https://tenant/base/app_xxx/table/tbl_xxx/record/rec_base_002",
@@ -259,7 +267,7 @@ describe("background router lark_base workflow", () => {
     await new Promise<void>((resolve) => {
       runtimeMessageListener?.(
         {
-          action: "itdog.lark_base.create_workitem",
+          action: "octo.lark_base.create_workitem",
           payload: {
             pageType: "lark_base",
             url: "https://tenant/base/app_xxx/table/tbl_xxx/record/rec_base_001",
@@ -276,7 +284,7 @@ describe("background router lark_base workflow", () => {
         { tab: { id: 99 } } as never,
         (response: unknown) => {
           expect(response).toEqual({
-            action: "itdog.lark_base.create_workitem",
+            action: "octo.lark_base.create_workitem",
             payload: {
               ok: true,
               workitemId: "12345",
@@ -317,7 +325,7 @@ describe("background router lark_base workflow", () => {
 
     await routeBackgroundAction(
       {
-        action: "itdog.lark_base.create_workitem",
+        action: "octo.lark_base.create_workitem",
         payload: {
           masterUserId: "usr_header_expected",
           pageType: "lark_base",
@@ -363,8 +371,8 @@ describe("background router lark_base workflow", () => {
 
     const result = await routeBackgroundAction(
       {
-        action: "itdog.lark_base.bulk_preview_workitems",
-        payload: {},
+        action: "octo.lark_base.bulk_preview_workitems",
+        payload: { actionRunId: "run_preview_001" },
       },
       {
         senderTabId: 42,
@@ -384,9 +392,10 @@ describe("background router lark_base workflow", () => {
       baseId: "app_xxx",
       tableId: "tbl_xxx",
       viewId: "vew_xxx",
+      actionRunId: "run_preview_001",
     });
     expect(result).toEqual({
-      action: "itdog.lark_base.bulk_preview_workitems",
+      action: "octo.lark_base.bulk_preview_workitems",
       payload: {
         ok: true,
         baseId: "app_xxx",
@@ -397,6 +406,39 @@ describe("background router lark_base workflow", () => {
         skippedRecords: [],
       },
     });
+  });
+
+  it("forwards lark_base.bulk_preview_workitems without viewId for table scoped pages", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: vi.fn().mockResolvedValue({
+        ok: true,
+        baseId: "app_xxx",
+        tableId: "tbl_xxx",
+        totalRecordsInView: 2,
+        eligibleRecords: [],
+        skippedRecords: [],
+      }),
+    } as unknown as Response);
+
+    await routeBackgroundAction(
+      {
+        action: "octo.lark_base.bulk_preview_workitems",
+        payload: {},
+      },
+      {
+        senderTabId: 42,
+        tabUrl: "https://tenant/base/app_xxx?table=tbl_xxx",
+      },
+    );
+
+    const fetchBody = JSON.parse(vi.mocked(fetch).mock.calls[0]?.[1]?.body as string);
+    expect(fetchBody).toMatchObject({
+      baseId: "app_xxx",
+      tableId: "tbl_xxx",
+    });
+    expect(fetchBody).not.toHaveProperty("viewId");
   });
 
   it("forwards lark_base.bulk_create_workitems to the create endpoint", async () => {
@@ -422,11 +464,12 @@ describe("background router lark_base workflow", () => {
 
     const result = await routeBackgroundAction(
       {
-        action: "itdog.lark_base.bulk_create_workitems",
+        action: "octo.lark_base.bulk_create_workitems",
         payload: {
           baseId: "app_xxx",
           tableId: "tbl_xxx",
           viewId: "vew_xxx",
+          actionRunId: "run_bulk_001",
         },
       },
       { senderTabId: 42 },
@@ -444,9 +487,10 @@ describe("background router lark_base workflow", () => {
       baseId: "app_xxx",
       tableId: "tbl_xxx",
       viewId: "vew_xxx",
+      actionRunId: "run_bulk_001",
     });
     expect(result).toEqual({
-      action: "itdog.lark_base.bulk_create_workitems",
+      action: "octo.lark_base.bulk_create_workitems",
       payload: {
         ok: true,
         baseId: "app_xxx",

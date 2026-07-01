@@ -1,7 +1,7 @@
 ---
 status: draft
 owner: TBD
-last_reviewed: 2026-06-09
+last_reviewed: 2026-06-18
 scope: Lifecycle map for current Octo technical objects across extension, server, adapters, and platforms
 update_required_when:
   - page/action config contract changes
@@ -26,7 +26,7 @@ update_required_when:
 | Object | Owner | Main files | Current status |
 | --- | --- | --- | --- |
 | `ExtensionPageConfig` | Server catalog | `server/src/modules/public-config/public-config.controller.ts`, `extension/src/types/automation-actions.ts` | 已存在，但 extension fallback 和本地 action 分支仍会造成漂移 |
-| `AutomationActionConfig` / `AutomationActionListItem` | Server catalog, extension UI consumes | `server/src/modules/public-config/public-config.controller.ts`, `extension/src/popup-shared/popup-controller.ts` | server 返回 executor，但 popup 执行仍主要按 `actionKey` 本地分支 |
+| `AutomationActionConfig` / `AutomationActionListItem` | Server catalog, extension UI consumes | `server/src/modules/public-config/public-config.controller.ts`, `extension/src/popup-shared/popup-controller.ts` | server 返回 executor 和 `placements`；popup/sidebar/page DOM 应按 placement 渲染 |
 | `PopupPageContext` | Extension | `extension/src/popup-shared/popup-controller.ts`, `extension/src/content-scripts/*`, `extension/src/platform-url.ts` | 页面上下文由 extension 采集，page/action 规则与 server 有重复 |
 | `IdentityState` / `masterUserId` | Server identity store, extension cache | `extension/src/background/storage.ts`, `extension/src/popup/runtime.ts`, `server/src/adapters/postgres/resolved-user-store.ts` | 已支持 tab/global fallback，但 action trace 缺少统一身份阶段 |
 | `MeegleAuthCredential` | Server auth store, extension auth bridge triggers | `extension/src/content-scripts/meegle.ts`, `extension/src/background/handlers/meegle-auth.ts`, `server/src/modules/meegle-auth/*` | 使用 auth-code bridge；不能把 cookie 发给 server |
@@ -38,6 +38,10 @@ update_required_when:
 | `MeegleFieldMetadata` | Should be server metadata resolver | `server/src/adapters/meegle/meegle-client.ts` | adapter 有 `getFields`/`getWorkitemMeta`，但 workflow 未集中使用 |
 | `LarkWriteback` | Server workflow / Lark adapter | `server/src/modules/lark-base/lark-base.service.ts`, `server/src/modules/lark-base/lark-base-workflow.service.ts` | Meegle link 回写到 Lark Base |
 | `MeegleLarkPushAction` | Server workflow | `server/src/application/services/meegle-lark-push.service.ts` | 从 Meegle 读 Lark 字段，更新 Lark Base、发消息、回写 Meegle 状态 |
+| `MeegleStoryBackBriefAction` | Server workflow | `server/src/application/services/meegle-story-prd-to-simplified.service.ts`, `server/src/modules/meegle-workitem/meegle-story-prd-to-simplified.controller.ts` | 从 Meegle Story Summary 生成 Tech Summary；使用 ACP one-shot、限流、超时和结构化错误 |
+| `LarkBugAnalyzeAction` | Server workflow | `server/src/application/services/lark-bug-analyze.service.ts`, `server/src/modules/lark-bug/lark-bug-analyze.controller.ts` | 从 Lark Bug 记录或 Meegle Production Bug 信息生成分析摘要；使用 ACP one-shot、限流、超时和结构化错误 |
+| `WorkflowPrompt` | Server PostgreSQL store | `server/src/adapters/postgres/workflow-prompt-store.ts`, `server/src/domain/workflow-prompts.ts` | 按稳定 `key` 存储 workflow prompt 和 `note`；Story 研发Review 使用 `meegle.story.prd_to_simplified`，Lark Bug 分析使用 `lark.bug.analyze` |
+| `AcpKimiOneShotRuntime` | Server ACP proxy / adapter | `server/src/application/services/acp-kimi-proxy.service.ts`, `server/src/adapters/kimi-acp/kimi-acp-runtime.ts` | 一次性 ACP runtime；不进入 reusable session registry，prompt 后关闭 |
 | `GitHubWorkitemAction` | Extension modal + server workflow | `server/src/modules/github-branch-create/*`, `server/src/controllers/github-reverse-lookup.ts`, `extension/src/popup-shared/*github*` | 依赖 Meegle workitem 字段和 GitHub adapter |
 | `ActionRunTrace` | Should be cross-layer contract | docs issue/rules only | 规则已定义，代码尚未统一实现 |
 
@@ -48,7 +52,7 @@ update_required_when:
 | Layer | Technical objects | Layer responsibility | Should not own |
 | --- | --- | --- | --- |
 | `extension` | `PopupPageContext`, popup state, visible action button, auth trigger state, content-script identity probe, tab-scoped cached `masterUserId` | 采集页面上下文、渲染 UI、触发授权、派发 action、展示结果 | 业务 workflow、平台字段规则、跨平台 mapping、真实 token 持久化 |
-| `server` | `ExtensionPageConfig`, `AutomationActionConfig`, `ResolvedUser`, `ExecutionDraft`, `WorkitemMapping`, workflow request/result, `ActionRunTrace`, semantic field mapping | action catalog、身份解析、授权检查、业务编排、错误归一化、测试契约 | 浏览器 DOM 细节、平台原始字段 shape、直接依赖 extension UI 状态 |
+| `server` | `ExtensionPageConfig`, `AutomationActionConfig`, `ResolvedUser`, `ExecutionDraft`, `WorkitemMapping`, `WorkflowPrompt`, workflow request/result, `ActionRunTrace`, semantic field mapping, ACP one-shot limiter | action catalog、身份解析、授权检查、业务编排、workflow prompt、错误归一化、测试契约、一次性 ACP 任务控制 | 浏览器 DOM 细节、平台原始字段 shape、直接依赖 extension UI 状态 |
 | `adapter` | `MeegleClient` request/response, `LarkClient` request/response, `GitHubClient` request/response, token refresh wrapper, normalized platform error | 第三方 API 封装、请求/响应归一化、平台错误转换、安全日志摘要 | PM 业务决策、popup 行为、跨平台 workflow 编排 |
 | `platform` | Lark Base record, Lark message/thread/reaction, Meegle workitem, Meegle field metadata, Meegle auth code, GitHub PR/repo/branch | 外部真实状态、权限限制、字段限制、状态机限制、平台返回错误 | Octo 内部业务语义和错误契约 |
 
@@ -71,6 +75,8 @@ update_required_when:
 | `MeegleFieldMetadata` | `platform` | `adapter` fetches, `server` resolver turns into semantic field map | platform metadata -> adapter raw response -> server resolver -> validated payload | workflow/popup 散落硬编码 `field_*` |
 | `LarkWriteback` | `server` workflow | `adapter` sends Lark update request | workflow result -> Lark adapter update -> platform record state | Meegle adapter 或 extension 直接决定 Lark Base 回写规则 |
 | `MeegleLarkPushAction` | `server` | `extension` triggers, adapters execute platform calls | Meegle page action -> server workflow -> Lark/Meegle adapters -> result flags | popup 自行编排 Lark update/message/reaction |
+| `MeegleStoryBackBriefAction` | `server` | `extension` triggers, Meegle/Kimi adapters execute platform and ACP calls | Meegle Story page action -> server workflow -> Meegle read -> ACP one-shot -> Meegle Tech Summary update -> result | popup 自行读取 Meegle fields 或调用 ACP |
+| `AcpKimiOneShotRuntime` | `server` | ACP adapter subprocess/runtime | workflow limiter -> ACP runtime initialize -> session/new -> prompt -> close runtime | 写入 reusable session registry 或 ownership store |
 | `GitHubWorkitemAction` | `server` for workflow, `extension` for modal UX | platform data via Meegle/GitHub adapters | page context -> modal -> server preview/create/lookup -> result | extension 直接解析 Meegle fields 或决定 repo mapping |
 | `ActionRunTrace` | `server` contract, initiated by `extension` | all layers append logs with same id | action click -> actionRunId -> server/adapter/platform result -> popup display | 某层吞掉错误，只返回普通 message |
 
@@ -91,7 +97,7 @@ update_required_when:
 | `identity-and-auth.md` | `IdentityState`, `MeegleAuthCredential`, `LarkAuthCredential` | 改授权状态、token store、identity fallback 或 live E2E |
 | `meegle-field-metadata.md` | `MeegleFieldMetadata` | 开始实现 metadata resolver 或替换硬编码 `field_*` |
 | `lark-base-to-meegle-workitem.md` | `LarkBitableRecord`, `WorkitemMapping`, `ExecutionDraft`, `MeegleWorkitem`, `LarkWriteback` | 改 Lark Base 创建 Meegle 或批量创建流程 |
-| `meegle-to-lark-push.md` | `MeegleLarkPushAction` | 改 update-lark-and-push 或 bug-ticket-to-support |
+| `meegle-to-lark-push.md` | `MeegleLarkPushAction` | 改 update-lark-and-push |
 
 暂时不拆：
 
@@ -114,7 +120,7 @@ update_required_when:
   pageType;
   matchedRuleId;
   sidebar;
-  automationActions;
+  automationActions: Array<{ key; executor; placements; ... }>;
 }
 ```
 
@@ -163,7 +169,8 @@ browser tab URL
 ```text
 server action definition
   -> included in pageConfig.automationActions
-  -> popup maps action to visible button
+  -> extension filters actions by `placements` for popup/sidebar/page DOM surfaces
+  -> popup or page DOM renderer maps action to visible button
   -> user clicks action
   -> extension dispatches by executor
   -> frontend executor opens local UI, or backend_api executor calls server route
@@ -176,7 +183,7 @@ server action definition
 | State | Meaning |
 | --- | --- |
 | `cataloged` | server defines action key/title/executor |
-| `visible` | popup renders the action for current page |
+| `visible` | extension renders the action on a placement allowed by server config |
 | `blocked` | required auth/context missing |
 | `running` | user clicked and action is executing |
 | `succeeded` | action returned success result |
@@ -185,12 +192,14 @@ server action definition
 ### Current risks
 
 - Popup currently preserves only display fields when producing `PopupFeatureAction`.
-- `runFeatureAction(actionKey)` still hardcodes backend behavior, including `bug-ticket-to-support` endpoint.
+- `runFeatureAction(actionKey)` still keeps several frontend action branches while backend API actions are moving toward executor-driven dispatch.
 - Server `executor.operation` is not yet the true execution contract.
+- Page DOM injection must stay gated by action-level `placements`, not by local DOM guesses alone.
 
 ### Code rules
 
 - Popup should preserve executor and dispatch by executor, not by backend action key.
+- Popup/sidebar/page DOM should render only actions whose `placements` include that surface.
 - Backend action should not require adding a new popup branch.
 - New or refactored cross-layer action runs should generate `actionRunId`.
 
@@ -354,7 +363,109 @@ ExecutionDraft
 - Adapter should normalize field access shape.
 - Metadata resolver should validate create/update payload before platform request.
 
-## 10. Meegle Field Metadata Lifecycle
+## 10. Meegle Story Back-Brief Lifecycle
+
+### Objects
+
+- `MeegleStoryBackBriefAction`
+- `AcpKimiOneShotRuntime`
+- Story semantic fields: `storySummary`, `techSummary`
+
+### Lifecycle
+
+```text
+Meegle Story detail page
+  -> server page config returns story-prd-to-simplified action
+  -> extension dispatches backend_api executor with actionRunId and page context
+  -> server validates request and resolves masterUserId
+  -> server refreshes Meegle credential
+  -> server fetches story workitem details
+  -> workflow reads storySummary semantic field
+  -> workflow acquires Story ACP concurrency slot
+  -> ACP proxy creates one-shot Kimi runtime
+  -> ACP runtime initialize -> session/new -> prompt
+  -> workflow collects agent_message_chunk text
+  -> ACP proxy closes runtime in finally
+  -> workflow writes collected text to techSummary semantic field
+  -> server returns result or structured error
+```
+
+### States
+
+| State | Meaning |
+| --- | --- |
+| `action_visible` | page config matched Meegle Story detail page |
+| `request_validated` | DTO accepted URL or project/type/id input |
+| `identity_resolved` | master user has Meegle and Lark identities |
+| `credential_ready` | Meegle credential refresh succeeded |
+| `story_loaded` | Meegle Story details fetched |
+| `summary_ready` | `storySummary` was found and non-empty |
+| `acp_slot_acquired` | Story ACP concurrency limiter accepted the run |
+| `acp_running` | one-shot ACP runtime is initialized and prompting |
+| `acp_closed` | one-shot runtime closed after prompt or failure |
+| `tech_summary_updated` | Meegle accepted `techSummary` overwrite |
+| `failed` | workflow returned typed error and did not continue unsafe steps |
+
+### Failure contract
+
+| Error code | Stage | Must not do |
+| --- | --- | --- |
+| `ACP_CONCURRENCY_LIMITED` | `adapter.acp.queue` | start ACP or update Meegle |
+| `ACP_ANALYSIS_TIMEOUT` | `adapter.acp.prompt` | update Meegle |
+| `ACP_INITIALIZE_TIMEOUT` | `adapter.acp.initialize` | update Meegle |
+| `ACP_PROCESS_EXITED` | `adapter.acp.process` | update Meegle |
+| `ACP_EMPTY_RESULT` | `server.workflow.completed` | update Meegle |
+
+### Code rules
+
+- Story back-brief uses ACP one-shot, not reusable chat sessions.
+- One-shot sessions must not be written to `KimiSessionRegistry` or `AcpKimiSessionOwnershipStore`.
+- `chatOneShot()` may emit `session.created` and `done` for diagnostics, but the emitted session id is not resumable.
+- Concurrency is server-owned and configured by `STORY_PRD_TO_SIMPLIFIED_ACP_CONCURRENCY_LIMIT` with default `3`.
+- Prompt timeout is server-owned and configured by `STORY_PRD_TO_SIMPLIFIED_ACP_TIMEOUT_MS` with default `110000`.
+- Only successful, non-empty ACP output can be written to `techSummary`.
+
+## 11. Lark Bug Analyze Lifecycle
+
+### Objects
+
+- `LarkBugAnalyzeAction`
+- `AcpKimiOneShotRuntime`
+- Meegle Production Bug semantic field: `analysisSummary`
+
+### Lifecycle
+
+```text
+Meegle Production Bug detail page or Lark create-Meegle-item record page
+  -> server page config returns lark-bug-analyze action
+  -> extension dispatches backend_api executor with actionRunId and page context
+  -> server validates request and resolves masterUserId
+  -> server refreshes Meegle credential for Meegle input, or Lark credential for Lark record input
+  -> server fetches production bug workitem details or Lark Base record details
+  -> Lark record input reads bug_description from the Lark Message Link target message when available
+  -> workflow renders prompt from workflow_prompts key lark.bug.analyze
+  -> workflow acquires Lark Bug ACP concurrency slot
+  -> ACP proxy creates one-shot Kimi runtime
+  -> workflow collects agent_message_chunk text
+  -> ACP proxy closes runtime in finally
+  -> Meegle input writes collected text to analysisSummary semantic field
+  -> Lark record input appends collected text to Details Description
+  -> server returns result or structured error
+```
+
+### Code rules
+
+- Lark Bug analysis uses ACP one-shot, not reusable chat sessions.
+- One-shot sessions must not be written to reusable session ownership state.
+- Concurrency is server-owned and configured by `LARK_BUG_ANALYZE_ACP_CONCURRENCY_LIMIT` with default `3`.
+- Prompt timeout is server-owned and configured by `LARK_BUG_ANALYZE_ACP_TIMEOUT_MS` with default `110000`.
+- The prompt template lives in PostgreSQL `workflow_prompts` under key `lark.bug.analyze`.
+- For Meegle input, `analysisSummary` is resolved through production bug fallback config and currently writes to the field used by Lark push message content.
+- For Lark record input, the action requires a real Lark Base `recordId`; `wikiRecordId` must not be used as a Bitable record id.
+- For Lark record input, `bug_description` is sourced from the `Lark Message Link` target message when available, with record fields as fallback.
+- For Lark record input, the action appends the analysis to `Details Description` rather than replacing existing details.
+
+## 12. Meegle Field Metadata Lifecycle
 
 ### Object
 
@@ -399,7 +510,7 @@ projectKey + workitemTypeKey
 - Introduce semantic names such as `larkRecordLink`, `larkMessageLink`, `larkUpdateMessage`, `larkUpdateStatus`, `system`, `plannedVersion`, `plannedSprint`.
 - Treat fallback hardcoded `field_*` as migration config, not business logic.
 
-## 11. Meegle To Lark Push Lifecycle
+## 12. Meegle To Lark Push Lifecycle
 
 ### Object
 
@@ -449,7 +560,7 @@ Meegle workitem detail page
 - Return flags should stay explicit: `larkBaseUpdated`, `messageSent`, `reactionAdded`, `meegleStatusUpdated`.
 - When this workflow is refactored, partial success should include stage and actionRunId.
 
-## 12. GitHub Workitem Action Lifecycle
+## 13. GitHub Workitem Action Lifecycle
 
 ### Objects
 
@@ -482,7 +593,7 @@ GitHub PR page or Meegle workitem page
 - Treat GitHub actions as frontend modal plus server workflow, not extension business logic.
 - Meegle field resolution should share the same metadata resolver as Lark workflows.
 
-## 13. Action Run Trace Lifecycle
+## 14. Action Run Trace Lifecycle
 
 ### Object
 
@@ -524,7 +635,7 @@ user clicks action
 - Every server workflow should accept/pass it, even if optional during migration.
 - Error response should identify one responsibility layer, not only a generic message.
 
-## 14. Recommended Fix Order
+## 15. Recommended Fix Order
 
 | Order | Object | Why |
 | --- | --- | --- |
@@ -535,7 +646,7 @@ user clicks action
 | 5 | `ExecutionDraft` semantic fields | Removes field IDs from workflow layer |
 | 6 | Live E2E auth smoke | Confirms real Lark/Meegle authorization path |
 
-## 15. Review Checklist
+## 16. Review Checklist
 
 When changing one of these objects:
 

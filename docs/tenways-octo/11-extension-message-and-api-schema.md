@@ -50,7 +50,7 @@
 ```json
 {
   "requestId": "req_20260320_001",
-  "action": "itdog.meegle.auth.ensure",
+  "action": "octo.meegle.auth.ensure",
   "payload": {},
   "meta": {
     "pageType": "lark_bug",
@@ -97,7 +97,7 @@
 
 ## 4.2 UI -> Background 动作
 
-### 4.2.1 `itdog.identity.resolve`
+### 4.2.1 `octo.identity.resolve`
 
 用途：
 
@@ -127,7 +127,7 @@
 }
 ```
 
-### 4.2.2 `itdog.meegle.auth.ensure`
+### 4.2.2 `octo.meegle.auth.ensure`
 
 用途：
 
@@ -161,7 +161,7 @@
 - `require_binding`
 - `failed`
 
-### 4.2.3 `itdog.lark_bug.analyze`
+### 4.2.3 `octo.lark_bug.analyze`
 
 用途：
 
@@ -182,37 +182,37 @@
 }
 ```
 
-### 4.2.4 `itdog.lark_bug.create_meegle_product_bug_draft`
+### 4.2.4 `octo.lark_bug.create_meegle_product_bug_draft`
 
 用途：
 
 - 结合 Lark Bug 最新数据和 Meegle 元数据，生成可确认的 Meegle Product Bug 草稿
 
-### 4.2.5 `itdog.lark_bug.apply_meegle_product_bug`
+### 4.2.5 `octo.lark_bug.apply_meegle_product_bug`
 
 用途：
 
 - 用户确认草稿后，正式创建 Meegle Product Bug
 
-### 4.2.6 `itdog.lark_user_story.analyze`
+### 4.2.6 `octo.lark_user_story.analyze`
 
 用途：
 
 - 对 Lark User Story 做结构化分析与补全
 
-### 4.2.7 `itdog.lark_user_story.create_meegle_user_story_draft`
+### 4.2.7 `octo.lark_user_story.create_meegle_user_story_draft`
 
 用途：
 
 - 生成进入 Meegle User Story 的可执行 workitem 草稿
 
-### 4.2.8 `itdog.lark_user_story.apply_meegle_user_story`
+### 4.2.8 `octo.lark_user_story.apply_meegle_user_story`
 
 用途：
 
 - 用户确认后，正式创建 Meegle User Story
 
-### 4.2.9 `itdog.pm.analysis.run`
+### 4.2.9 `octo.pm.analysis.run`
 
 用途：
 
@@ -247,7 +247,7 @@
 
 ## 4.3 Background -> Page Bridge 动作
 
-## 4.3.1 `itdog.page.meegle.auth_code.request`
+## 4.3.1 `octo.page.meegle.auth_code.request`
 
 这是 `方案 B` 的关键动作。
 

@@ -117,6 +117,7 @@ export interface LarkRecordSnapshot {
 
 export interface LarkBaseCreateWorkitemRequest extends LarkPageContext {
   snapshot?: LarkRecordSnapshot;
+  actionRunId?: string;
 }
 
 export interface LarkWikiRecordCreateWorkitemRequest {
@@ -130,6 +131,7 @@ export interface LarkWikiRecordCreateWorkitemRequest {
 
 export interface LarkBaseCreateWorkitemResultPayload {
   ok: true;
+  actionRunId?: string;
   workitemId: string;
   meegleLink: string;
   recordId: string;
@@ -141,6 +143,7 @@ export interface LarkBaseBulkWorkflowRequest {
   tableId?: string;
   viewId?: string;
   masterUserId?: string;
+  actionRunId?: string;
 }
 
 export interface LarkBaseBulkPreviewRecord {
@@ -172,6 +175,7 @@ export type LarkBaseBulkWorkflowErrorPayload = {
   error: {
     errorCode: string;
     errorMessage: string;
+    actionRunId?: string;
   };
 };
 
@@ -180,7 +184,7 @@ export type LarkBaseBulkPreviewResultPayload =
       ok: true;
       baseId: string;
       tableId: string;
-      viewId: string;
+      viewId?: string;
       totalRecordsInView: number;
       eligibleRecords: LarkBaseBulkPreviewRecord[];
       skippedRecords: LarkBaseBulkSkippedRecord[];
@@ -192,7 +196,7 @@ export type LarkBaseBulkCreateResultPayload =
       ok: true;
       baseId: string;
       tableId: string;
-      viewId: string;
+      viewId?: string;
       totalRecordsInView: number;
       summary: {
         created: number;

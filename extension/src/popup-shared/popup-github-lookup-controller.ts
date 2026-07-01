@@ -1,6 +1,7 @@
 import { getConfig } from "../background/config.js";
 import { fetchServerJson } from "../server-request.js";
 import type { PopupLogLevel } from "../popup/types.js";
+import { collectActionRuntimeContext } from "./action-runtime-context.js";
 
 export interface GitHubLookupWorkitem {
   id: string;
@@ -75,7 +76,11 @@ const ERROR_CODE_MESSAGES: Record<string, string> = {
 };
 
 function resolveErrorMessage(errorCode: string, serverMessage?: string): string {
-  return ERROR_CODE_MESSAGES[errorCode] || serverMessage || `错误: ${errorCode}`;
+  return serverMessage || ERROR_CODE_MESSAGES[errorCode] || `错误: ${errorCode}`;
+}
+
+interface GitHubLookupOptions {
+  actionRunId?: string;
 }
 
 export function createGitHubLookupController(deps: CreateGitHubLookupControllerDeps) {
@@ -88,8 +93,12 @@ export function createGitHubLookupController(deps: CreateGitHubLookupControllerD
     setState,
   } = deps;
 
-  async function lookup(): Promise<void> {
-    appendLog("info", "开始查询 GitHub PR 关联的 Meegle 工作项...");
+  async function lookup(options: GitHubLookupOptions = {}): Promise<void> {
+    const { actionRunId } = options;
+    appendLog(
+      "info",
+      `开始查询 GitHub 关联的 Meegle 工作项${actionRunId ? ` · actionRunId=${actionRunId}` : ""}...`,
+    );
 
     setState({
       isLoading: true,
@@ -105,7 +114,19 @@ export function createGitHubLookupController(deps: CreateGitHubLookupControllerD
     });
     const current = readStore();
     const prUrl = tabContext.url ?? current.state.currentUrl;
-    const masterUserId = current.state.identity.masterUserId;
+    const actionContext = collectActionRuntimeContext({
+      actionRunId: actionRunId ?? "",
+      currentTab: {
+        id: tabContext.id ?? current.state.currentTabId,
+        url: prUrl,
+        origin: tabContext.origin ?? current.state.currentTabOrigin,
+        pageType: tabContext.pageType,
+      },
+      identity: {
+        masterUserId: current.state.identity.masterUserId,
+      },
+    });
+    const masterUserId = actionContext.identity.masterUserId;
 
     if (!prUrl) {
       const message = "当前页面 URL 为空，无法执行查询";
@@ -113,6 +134,17 @@ export function createGitHubLookupController(deps: CreateGitHubLookupControllerD
       setState({
         isLoading: false,
         error: { errorCode: "MISSING_PR_URL", errorMessage: message },
+        result: null,
+      });
+      return;
+    }
+
+    if (!actionContext.pageContext.github) {
+      const message = "当前页面不是可解析的 GitHub PR/Issue 页面，无法执行查询";
+      appendLog("error", message);
+      setState({
+        isLoading: false,
+        error: { errorCode: "MISSING_GITHUB_CONTEXT", errorMessage: message },
         result: null,
       });
       return;
@@ -134,17 +166,27 @@ export function createGitHubLookupController(deps: CreateGitHubLookupControllerD
       const { response, payload: data } = await fetchServerJson<{
         success: boolean;
         data?: GitHubLookupResult;
-        error?: { code: string; message: string };
+        error?: {
+          code?: string;
+          message?: string;
+          errorCode?: string;
+          errorMessage?: string;
+          actionRunId?: string;
+        };
       }>({
         url: `${config.SERVER_URL}/api/github/lookup-meegle`,
         masterUserId,
-        body: { prUrl },
+        body: { prUrl: actionContext.pageContext.github.url, actionRunId },
       });
 
       if (!response.ok || !data.success) {
-        const errorCode = data.error?.code || "UNKNOWN_ERROR";
-        const errorMessage = resolveErrorMessage(errorCode, data.error?.message);
-        appendLog("error", `查询失败: ${errorMessage}`);
+        const errorCode = data.error?.errorCode || data.error?.code || "UNKNOWN_ERROR";
+        const responseActionRunId = data.error?.actionRunId || actionRunId;
+        const errorMessage = resolveErrorMessage(
+          errorCode,
+          data.error?.errorMessage || data.error?.message,
+        );
+        appendLog("error", `查询失败: ${errorMessage}${responseActionRunId ? ` · actionRunId=${responseActionRunId}` : ""}`);
         setState({
           isLoading: false,
           error: { errorCode, errorMessage },

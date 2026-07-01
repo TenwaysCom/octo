@@ -244,7 +244,7 @@ create table users (
 推荐流程：
 
 1. 用户点击 `授权 Lark`
-2. 插件走现有 `itdog.lark.auth.ensure`
+2. 插件走现有 `octo.lark.auth.ensure`
 3. 服务端完成 OAuth code exchange
 4. 服务端通过 Lark 用户信息接口拿到权威身份
    - `lark_tenant_key`
@@ -273,7 +273,7 @@ create table users (
 3. 插件先调用 `/api/identity/resolve`
 4. 如果已有用户，则返回既有 `master_user_id`
 5. 如果只有 Meegle 身份，则创建或返回 `pending_lark_identity` 用户
-6. 插件再调用现有 `itdog.meegle.auth.ensure`
+6. 插件再调用现有 `octo.meegle.auth.ensure`
 7. 后续 `/api/meegle/auth/exchange` 改为使用 `master_user_id`
 
 这意味着：
@@ -462,7 +462,7 @@ sequenceDiagram
     participant L as Lark OAuth
 
     U->>P: 点击“授权 Lark”
-    P->>B: itdog.lark.auth.ensure
+    P->>B: octo.lark.auth.ensure
     B->>S: POST /api/lark/auth/status(masterUserId?)
     S->>DB: 查 user_tokens(provider=lark)
     alt token active
@@ -616,7 +616,7 @@ flowchart TD
 | 对比项 | Lark | Meegle |
 |--------|------|--------|
 | 已实现能力 | `exchange`、`refresh`、页面 Lark ID 探测 | `auth_code` 获取、`exchange`、`refresh`、token 存储、状态查询 |
-| 客户端入口 | `itdog.lark.auth.ensure` | `itdog.meegle.auth.ensure` |
+| 客户端入口 | `octo.lark.auth.ensure` | `octo.meegle.auth.ensure` |
 | 客户端当前实现状态 | 有 handler，但 OAuth 打开逻辑未启用，回调闭环未完成 | 已完成从 content script 到 background 再到 server 的闭环 |
 | 服务端当前实现状态 | 有 `/exchange`、`/refresh`、`/status`，但 `/callback` 缺失，`/status` 仍是占位实现 | `/status`、`/exchange`、refresh 流程和 SQLite token store 已可用 |
 | token 存储实现 | 还没有真正接入 `provider=lark` 的持久化存储 | 已接入基于 SQLite 的 Meegle token store |

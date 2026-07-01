@@ -1,6 +1,11 @@
 import { logger } from "../logger.js";
 import type { GitHubClient } from "../adapters/github/github-client.js";
-import type { MeegleClient, MeegleWorkitem } from "../adapters/meegle/meegle-client.js";
+import {
+  MeegleAPIError,
+  MeegleNotFoundError,
+  type MeegleClient,
+  type MeegleWorkitem,
+} from "../adapters/meegle/meegle-client.js";
 import { extractMeegleIds } from "../domain/meegle-id-extractor.js";
 
 const lookupLogger = logger.child({ module: "github-reverse-lookup" });
@@ -34,6 +39,11 @@ const TYPE_DISPLAY_MAP: Record<string, string> = {
 // 关联工作项（Version / Sprint）的 work_item_type_key
 const RELATED_TYPE_KEY_VERSION = process.env.MEEGLE_WORKITEM_TYPE_KEY_VERSION || "642f8d55c7109143ec2eb478";
 const RELATED_TYPE_KEY_SPRINT = process.env.MEEGLE_WORKITEM_TYPE_KEY_SPRINT || "642ebe04168eea39eeb0d34a";
+
+function isMeegleNotFoundError(error: unknown): boolean {
+  return error instanceof MeegleNotFoundError ||
+    (error instanceof MeegleAPIError && error.statusCode === 404);
+}
 
 function extractFieldValue(fields: Record<string, unknown> | undefined | null, key: string): string | undefined {
   if (!key || !fields) return undefined;
@@ -120,35 +130,27 @@ export class GitHubReverseLookupController {
   constructor(private githubClient: GitHubClient) {}
 
   async lookup(prUrl: string, meegleClient: MeegleClient): Promise<LookupResult> {
-    lookupLogger.info({ prUrl }, "Starting GitHub PR lookup");
+    lookupLogger.info({ prUrl }, "Starting GitHub workitem lookup");
 
-    // Parse PR URL
-    const { owner, repo, pullNumber } = this.githubClient.parsePrUrl(prUrl);
-    lookupLogger.debug({ owner, repo, pullNumber }, "Parsed PR URL");
+    const parsed = this.githubClient.parseWorkItemUrl(prUrl);
+    lookupLogger.debug(parsed, "Parsed GitHub workitem URL");
 
-    // Fetch all PR data
-    const [prDetails, commits, issueComments, reviewComments] = await Promise.all([
-      this.githubClient.getPullRequest(owner, repo, pullNumber),
-      this.githubClient.getCommits(owner, repo, pullNumber),
-      this.githubClient.getIssueComments(owner, repo, pullNumber),
-      this.githubClient.getReviewComments(owner, repo, pullNumber),
-    ]);
+    const source = parsed.kind === "pull"
+      ? await this.loadPullRequestSource(parsed.owner, parsed.repo, parsed.number)
+      : await this.loadIssueSource(parsed.owner, parsed.repo, parsed.number);
 
     // Extract Meegle IDs
     const extractedIds = extractMeegleIds({
-      title: prDetails.title,
-      description: prDetails.body,
-      commits: commits.map(c => ({ message: c.commit.message })),
-      comments: [
-        ...issueComments.map(c => ({ body: c.body })),
-        ...reviewComments.map(c => ({ body: c.body })),
-      ],
+      title: source.title,
+      description: source.description,
+      commits: source.commits,
+      comments: source.comments,
     });
 
     lookupLogger.info({ extractedIds }, "Extracted Meegle IDs");
 
     if (extractedIds.length === 0) {
-      const error = new Error("No Meegle IDs found in PR");
+      const error = new Error(`No Meegle IDs found in GitHub ${parsed.kind}`);
       (error as Error & { code: string }).code = "NO_MEEGLE_ID_FOUND";
       throw error;
     }
@@ -157,7 +159,7 @@ export class GitHubReverseLookupController {
     const workItemIds = extractedIds.map(id => parseInt(id, 10)).filter(n => !isNaN(n));
 
     if (workItemIds.length === 0) {
-      const error = new Error("No valid numeric Meegle IDs found in PR");
+      const error = new Error(`No valid numeric Meegle IDs found in GitHub ${parsed.kind}`);
       (error as Error & { code: string }).code = "NO_MEEGLE_ID_FOUND";
       throw error;
     }
@@ -183,7 +185,17 @@ export class GitHubReverseLookupController {
         }
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
-        lookupLogger.warn({ workitemTypeKey, error: msg }, "Meegle query failed for type, skipping");
+        if (isMeegleNotFoundError(error)) {
+          lookupLogger.warn({ workitemTypeKey, error: msg }, "Meegle type query returned not found, skipping type");
+          continue;
+        }
+
+        lookupLogger.error({
+          workitemTypeKey,
+          error: msg,
+          statusCode: error instanceof MeegleAPIError ? error.statusCode : undefined,
+        }, "Meegle query failed for type");
+        throw error;
       }
     }
 
@@ -258,13 +270,68 @@ export class GitHubReverseLookupController {
 
     return {
       prInfo: {
-        title: prDetails.title,
-        description: prDetails.body,
-        url: prDetails.html_url,
+        title: source.title,
+        description: source.description,
+        url: source.url,
       },
       extractedIds,
       workitems: enrichedWorkitems,
       notFound,
+    };
+  }
+
+  private async loadPullRequestSource(
+    owner: string,
+    repo: string,
+    pullNumber: number,
+  ): Promise<{
+    title: string;
+    description: string | null;
+    url: string;
+    commits: Array<{ message: string }>;
+    comments: Array<{ body: string }>;
+  }> {
+    const [prDetails, commits, issueComments, reviewComments] = await Promise.all([
+      this.githubClient.getPullRequest(owner, repo, pullNumber),
+      this.githubClient.getCommits(owner, repo, pullNumber),
+      this.githubClient.getIssueComments(owner, repo, pullNumber),
+      this.githubClient.getReviewComments(owner, repo, pullNumber),
+    ]);
+
+    return {
+      title: prDetails.title,
+      description: prDetails.body,
+      url: prDetails.html_url,
+      commits: commits.map(c => ({ message: c.commit.message })),
+      comments: [
+        ...issueComments.map(c => ({ body: c.body })),
+        ...reviewComments.map(c => ({ body: c.body })),
+      ],
+    };
+  }
+
+  private async loadIssueSource(
+    owner: string,
+    repo: string,
+    issueNumber: number,
+  ): Promise<{
+    title: string;
+    description: string | null;
+    url: string;
+    commits: Array<{ message: string }>;
+    comments: Array<{ body: string }>;
+  }> {
+    const [issueDetails, issueComments] = await Promise.all([
+      this.githubClient.getIssue(owner, repo, issueNumber),
+      this.githubClient.getIssueComments(owner, repo, issueNumber),
+    ]);
+
+    return {
+      title: issueDetails.title,
+      description: issueDetails.body,
+      url: issueDetails.html_url,
+      commits: [],
+      comments: issueComments.map(c => ({ body: c.body })),
     };
   }
 }

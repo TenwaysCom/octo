@@ -257,6 +257,55 @@ body {
   transform: none;
 }
 
+.feature-action {
+  display: grid;
+  gap: 6px;
+}
+
+.feature-action__button-content {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.feature-action__spinner {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  border: 2px solid currentcolor;
+  border-right-color: transparent;
+  border-radius: 999px;
+  animation: feature-action-spin 720ms linear infinite;
+}
+
+.feature-action__status {
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #64748b;
+  overflow-wrap: anywhere;
+}
+
+.feature-action__status--running {
+  color: #2563eb;
+}
+
+.feature-action__status--success {
+  color: #047857;
+}
+
+.feature-action__status--error {
+  color: #dc2626;
+}
+
+@keyframes feature-action-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .ui-badge {
   display: inline-flex;
   align-items: center;

@@ -30,7 +30,7 @@ function relayLarkAuthCallbackResult(): void {
   }
 
   chrome.runtime.sendMessage({
-    action: "itdog.lark.auth.callback.detected",
+    action: "octo.lark.auth.callback.detected",
     payload: result,
   });
 

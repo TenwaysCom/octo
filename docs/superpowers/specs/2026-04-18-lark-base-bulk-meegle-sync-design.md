@@ -167,8 +167,8 @@ For failed records, show a compact list with:
 
 Add new actions:
 
-- `itdog.lark_base.bulk_preview_workitems`
-- `itdog.lark_base.bulk_create_workitems`
+- `octo.lark_base.bulk_preview_workitems`
+- `octo.lark_base.bulk_create_workitems`
 
 Payload should include:
 

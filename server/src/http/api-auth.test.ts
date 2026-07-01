@@ -64,6 +64,26 @@ describe("api auth middleware", () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
+  it("allows page config route before identity is resolved", () => {
+    const middleware = createApiAuthMiddleware();
+    const req = {
+      method: "GET",
+      path: "/api/config/page",
+      body: undefined,
+      query: {
+        url: "https://project.larksuite.com/OPS/production_bug/detail/1",
+      },
+      headers: {},
+    } as Partial<Request> as Request;
+    const res = createResponse();
+    const next = vi.fn() as unknown as NextFunction;
+
+    middleware(req, res, next);
+
+    expect(next).toHaveBeenCalledOnce();
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
   it("injects masterUserId from header into protected request bodies", () => {
     const middleware = createApiAuthMiddleware();
     const req = {

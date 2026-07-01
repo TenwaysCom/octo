@@ -382,6 +382,7 @@ export interface GitHubBranchPreviewInput {
   workItemId: string;
   masterUserId: string;
   baseUrl: string;
+  actionRunId?: string;
 }
 
 export interface GitHubBranchCreateInput extends GitHubBranchPreviewInput {
@@ -397,11 +398,12 @@ export async function previewBranchCreate(
   deps: GitHubBranchCreateDeps = {},
 ): Promise<GitHubBranchPreviewResult> {
   branchLogger.info({
+    actionRunId: input.actionRunId,
     projectKey: input.projectKey,
     workItemTypeKey: input.workItemTypeKey,
     workItemId: input.workItemId,
     masterUserId: input.masterUserId,
-  }, "BRANCH_PREVIEW_START");
+  }, "server.workflow.started");
 
   const resolvedUser = await getResolvedUserStore().getById(input.masterUserId);
   const meegleUserKey = resolvedUser?.meegleUserKey;
@@ -506,12 +508,13 @@ export async function previewBranchCreate(
   const defaultBranchName = await generateDefaultBranchName(input.workItemId, workitem.name, isBug);
 
   branchLogger.info({
+    actionRunId: input.actionRunId,
     repo,
     defaultBranchName,
     systemValue,
     systemLabel,
     isBug,
-  }, "BRANCH_PREVIEW_OK");
+  }, "server.workflow.completed");
 
   return {
     ok: true,
@@ -528,11 +531,12 @@ export async function executeBranchCreate(
   deps: GitHubBranchCreateDeps = {},
 ): Promise<GitHubBranchCreateResult> {
   branchLogger.info({
+    actionRunId: input.actionRunId,
     projectKey: input.projectKey,
     workItemTypeKey: input.workItemTypeKey,
     workItemId: input.workItemId,
     branchName: input.branchName,
-  }, "BRANCH_CREATE_START");
+  }, "server.workflow.started");
 
   // Validate preview first to ensure repo exists
   const preview = await previewBranchCreate(input, deps);
@@ -550,10 +554,11 @@ export async function executeBranchCreate(
   const result = await githubClient.createBranch(owner, repo, input.branchName, "main");
 
   branchLogger.info({
+    actionRunId: input.actionRunId,
     repo: preview.repo,
     branchName: input.branchName,
     ref: result.ref,
-  }, "BRANCH_CREATE_OK");
+  }, "server.workflow.completed");
 
   return {
     ok: true,

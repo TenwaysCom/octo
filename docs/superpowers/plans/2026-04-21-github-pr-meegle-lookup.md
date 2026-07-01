@@ -91,7 +91,7 @@ describe("GitHubClient", () => {
 ### Step 1.2: Run test to verify it fails
 
 ```bash
-cd /home/uynil/projects/tw-itdog/server
+cd /Users/linyu/proj/octo/server
 npm test -- src/adapters/github/github-client.test.ts
 ```
 
@@ -1128,11 +1128,11 @@ GITHUB_TOKEN=ghp_your_personal_access_token
 
 ```bash
 # Terminal 1: Start server
-cd /home/uynil/projects/tw-itdog/server
+cd /Users/linyu/proj/octo/server
 npm run dev
 
 # Terminal 2: Start extension
-cd /home/uynil/projects/tw-itdog/extension
+cd /Users/linyu/proj/octo/extension
 npm run dev
 ```
 

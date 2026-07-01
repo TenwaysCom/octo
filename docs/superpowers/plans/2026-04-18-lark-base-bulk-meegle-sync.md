@@ -336,11 +336,11 @@ Expected: FAIL because the action is not routed
 - [ ] **Step 3: Implement the route forwarding**
 
 ```ts
-if (message.action === "itdog.lark_base.bulk_preview_workitems") {
+if (message.action === "octo.lark_base.bulk_preview_workitems") {
   // forward preview to server
 }
 
-if (message.action === "itdog.lark_base.bulk_create_workitems") {
+if (message.action === "octo.lark_base.bulk_create_workitems") {
   // forward to server
 }
 ```

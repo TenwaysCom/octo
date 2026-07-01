@@ -6,7 +6,10 @@ vi.mock("../background/config.js", () => ({
   }),
 }));
 
-import { createGitHubLookupController } from "./popup-github-lookup-controller.js";
+import {
+  createGitHubLookupController,
+  type GitHubLookupState,
+} from "./popup-github-lookup-controller.js";
 
 describe("popup github lookup controller", () => {
   beforeEach(() => {
@@ -31,11 +34,11 @@ describe("popup github lookup controller", () => {
       }),
     } as Response);
 
-    let state = {
+    let state: GitHubLookupState = {
       isLoading: false,
       error: null,
       result: null,
-    } as const;
+    };
 
     const controller = createGitHubLookupController({
       readStore: () => ({
@@ -62,16 +65,80 @@ describe("popup github lookup controller", () => {
       },
     });
 
-    await controller.lookup();
+    await controller.lookup({ actionRunId: "run_lookup_001" });
 
     expect(fetch).toHaveBeenCalledWith(
       "http://localhost:3000/api/github/lookup-meegle",
       expect.objectContaining({
         body: JSON.stringify({
           prUrl: "https://github.com/TenwaysCom/Tenways/pull/123",
+          actionRunId: "run_lookup_001",
         }),
       }),
     );
     expect(state.result?.prInfo.url).toBe("https://github.com/TenwaysCom/Tenways/pull/123");
+  });
+
+  it("shows server envelope errors and preserves actionRunId in logs", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({
+        success: false,
+        error: {
+          layer: "adapter",
+          module: "github-reverse-lookup",
+          stage: "server.workflow.failed",
+          errorCode: "MEEGLE_AUTH_ERROR",
+          errorMessage: "Token Info Is Invalid",
+          actionRunId: "run_lookup_403",
+          rawStatusCode: 403,
+        },
+      }),
+    } as Response);
+
+    let state: GitHubLookupState = {
+      isLoading: false,
+      error: null,
+      result: null,
+    };
+    const appendLog = vi.fn();
+    const showToast = vi.fn();
+
+    const controller = createGitHubLookupController({
+      readStore: () => ({
+        state: {
+          currentUrl: "https://github.com/TenwaysCom/Tenways/pull/111",
+          currentTabId: 12,
+          currentTabOrigin: "https://github.com",
+          identity: {
+            masterUserId: "usr_123",
+          },
+        },
+      }),
+      queryCurrentTabContext: vi.fn().mockResolvedValue({
+        id: 12,
+        url: "https://github.com/TenwaysCom/Tenways/pull/123",
+        origin: "https://github.com",
+        pageType: "github",
+      }),
+      updateCurrentTabContext: vi.fn(),
+      appendLog,
+      showToast,
+      setState: (next) => {
+        state = typeof next === "function" ? next(state) : next;
+      },
+    });
+
+    await controller.lookup({ actionRunId: "run_lookup_403" });
+
+    expect(state.error).toEqual({
+      errorCode: "MEEGLE_AUTH_ERROR",
+      errorMessage: "Token Info Is Invalid",
+    });
+    expect(appendLog).toHaveBeenCalledWith(
+      "error",
+      "查询失败: Token Info Is Invalid · actionRunId=run_lookup_403",
+    );
+    expect(showToast).toHaveBeenCalledWith("Token Info Is Invalid", "error");
   });
 });

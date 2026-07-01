@@ -54,6 +54,48 @@ function extractIllegalField(error: unknown): string | undefined {
   return match?.[1];
 }
 
+async function updatePostCreateFields(
+  client: MeegleClient,
+  projectKey: string,
+  workitemTypeKey: string,
+  workitemId: string,
+  fields: Array<{ field_key: string; field_value: unknown }>,
+): Promise<void> {
+  const updateFields = [...fields];
+
+  for (let attempt = 0; attempt < fields.length + 1; attempt++) {
+    if (updateFields.length === 0) {
+      return;
+    }
+
+    try {
+      await client.updateWorkitem(
+        projectKey,
+        workitemTypeKey,
+        workitemId,
+        updateFields.map((p) => ({
+          fieldKey: p.field_key,
+          fieldValue: p.field_value,
+        })),
+      );
+      return;
+    } catch (error) {
+      const illegalField = extractIllegalField(error);
+      if (!illegalField) {
+        throw error;
+      }
+      const illegalIndex = updateFields.findIndex(
+        (f) => f.field_key === illegalField,
+      );
+      if (illegalIndex === -1) {
+        throw error;
+      }
+      updateFields.splice(illegalIndex, 1);
+      workitemLogger.warn({ illegalField }, "FIELD_ILLEGAL_UPDATE_SKIPPED");
+    }
+  }
+}
+
 /**
  * Create a workitem from an execution draft
  */
@@ -93,14 +135,12 @@ export async function createWorkitemFromDraft(
       });
 
       if (postCreateUpdates.length > 0) {
-        await client.updateWorkitem(
+        await updatePostCreateFields(
+          client,
           projectKey,
           workitemTypeKey,
           workitem.id,
-          postCreateUpdates.map((p) => ({
-            fieldKey: p.field_key,
-            fieldValue: p.field_value,
-          })),
+          postCreateUpdates,
         );
       }
 

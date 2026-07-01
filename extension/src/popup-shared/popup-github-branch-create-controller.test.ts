@@ -6,7 +6,10 @@ vi.mock("../background/config.js", () => ({
   }),
 }));
 
-import { createGitHubBranchCreateController } from "./popup-github-branch-create-controller.js";
+import {
+  createGitHubBranchCreateController,
+  type GitHubBranchCreateModalState,
+} from "./popup-github-branch-create-controller.js";
 
 describe("popup github branch create controller", () => {
   beforeEach(() => {
@@ -26,7 +29,7 @@ describe("popup github branch create controller", () => {
       }),
     } as Response);
 
-    let state = {
+    let state: GitHubBranchCreateModalState = {
       visible: false,
       stage: "preview",
       repo: "",
@@ -36,7 +39,7 @@ describe("popup github branch create controller", () => {
       systemLabel: "",
       error: null,
       result: null,
-    } as const;
+    };
 
     const controller = createGitHubBranchCreateController({
       readStore: () => ({
@@ -63,7 +66,7 @@ describe("popup github branch create controller", () => {
       },
     });
 
-    await controller.open();
+    await controller.open({ actionRunId: "run_branch_001" });
 
     expect(fetch).toHaveBeenCalledWith(
       "http://localhost:3000/api/github/branch/preview",
@@ -74,6 +77,7 @@ describe("popup github branch create controller", () => {
           workItemId: "11237978",
           masterUserId: "usr_123",
           baseUrl: "https://project.larksuite.com",
+          actionRunId: "run_branch_001",
         }),
       }),
     );

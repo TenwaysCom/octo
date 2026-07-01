@@ -21,6 +21,18 @@ describe("GitHubClient", () => {
     });
   });
 
+  describe("parseWorkItemUrl", () => {
+    it("should parse valid GitHub issue URL", () => {
+      const result = client.parseWorkItemUrl("https://github.com/TenwaysCom/octo/issues/35");
+      expect(result).toEqual({
+        kind: "issue",
+        owner: "TenwaysCom",
+        repo: "octo",
+        number: 35,
+      });
+    });
+  });
+
   describe("getPullRequest", () => {
     it("should fetch PR details", async () => {
       mockFetch.mockResolvedValueOnce({
@@ -32,6 +44,26 @@ describe("GitHubClient", () => {
       expect(result.title).toBe("Fix bug");
       expect(mockFetch).toHaveBeenCalledWith(
         "https://api.github.com/repos/owner/repo/pulls/123",
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Authorization: "Bearer test-token",
+          }),
+        })
+      );
+    });
+  });
+
+  describe("getIssue", () => {
+    it("should fetch issue details", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ title: "Issue m-35", body: "Description" }),
+      });
+
+      const result = await client.getIssue("owner", "repo", 35);
+      expect(result.title).toBe("Issue m-35");
+      expect(mockFetch).toHaveBeenCalledWith(
+        "https://api.github.com/repos/owner/repo/issues/35",
         expect.objectContaining({
           headers: expect.objectContaining({
             Authorization: "Bearer test-token",

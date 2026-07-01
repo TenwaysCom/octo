@@ -8,8 +8,15 @@ import type {
   CreateLarkBaseBulkWorkflowRequest,
   PreviewLarkBaseBulkWorkflowRequest,
 } from "./lark-base-workflow.dto.js";
+import {
+  createActionErrorEnvelopeFromError,
+  type ActionErrorEnvelope,
+} from "../../application/action-error-envelope.js";
+import { logger } from "../../logger.js";
 
 const DEFAULT_PAGE_SIZE = 500;
+const MODULE = "lark-base-bulk-workflow";
+const bulkLogger = logger.child({ module: "lark-base-bulk-workflow-service" });
 const MEEGLE_LINK_FIELD_NAMES = ["meegle链接", "Meegle Link", "meegleLink"];
 const PRIORITY_FIELD_NAMES = ["Priority", "优先级"];
 const TITLE_FIELD_NAMES = ["Issue Description", "标题", "Title", "Details Description"];
@@ -48,7 +55,7 @@ export interface LarkBaseBulkPreviewResult {
   ok: true;
   baseId: string;
   tableId: string;
-  viewId: string;
+  viewId?: string;
   totalRecordsInView: number;
   eligibleRecords: LarkBaseBulkPreviewRecord[];
   skippedRecords: LarkBaseBulkSkippedRecord[];
@@ -58,7 +65,7 @@ export interface LarkBaseBulkExecuteResult {
   ok: true;
   baseId: string;
   tableId: string;
-  viewId: string;
+  viewId?: string;
   totalRecordsInView: number;
   summary: {
     created: number;
@@ -72,10 +79,7 @@ export interface LarkBaseBulkExecuteResult {
 
 export interface LarkBaseBulkWorkflowError {
   ok: false;
-  error: {
-    errorCode: "INVALID_REQUEST" | "LARK_API_ERROR" | "UPDATE_FAILED";
-    errorMessage: string;
-  };
+  error: ActionErrorEnvelope;
 }
 
 export interface LarkBaseBulkWorkflowDeps
@@ -92,26 +96,44 @@ export async function previewLarkBaseBulkWorkflow(
   input: PreviewLarkBaseBulkWorkflowRequest,
   deps: LarkBaseBulkWorkflowDeps = {},
 ): Promise<LarkBaseBulkPreviewResult | LarkBaseBulkWorkflowError> {
+  bulkLogger.info({
+    actionRunId: input.actionRunId,
+    baseId: input.baseId,
+    tableId: input.tableId,
+    viewId: input.viewId,
+  }, "server.workflow.started");
+
   try {
-    const records = await listAllRecordsByView(input, deps);
+    const records = await listAllRecords(input, deps);
     const classified = classifyRecords(records);
+
+    bulkLogger.info({
+      actionRunId: input.actionRunId,
+      totalRecordsInView: records.length,
+      eligibleCount: classified.eligibleRecords.length,
+      skippedCount: classified.skippedRecords.length,
+    }, "server.workflow.completed");
 
     return {
       ok: true,
       baseId: input.baseId,
       tableId: input.tableId,
-      viewId: input.viewId,
+      ...(input.viewId ? { viewId: input.viewId } : {}),
       totalRecordsInView: records.length,
       eligibleRecords: classified.eligibleRecords,
       skippedRecords: classified.skippedRecords,
     };
   } catch (error) {
+    const errorEnvelope = createActionErrorEnvelopeFromError(error, {
+      module: MODULE,
+      stage: "server.workflow.failed",
+      errorCode: "LARK_API_ERROR",
+      actionRunId: input.actionRunId,
+    });
+    bulkLogger.error(errorEnvelope, "server.workflow.failed");
     return {
       ok: false,
-      error: {
-        errorCode: "LARK_API_ERROR",
-        errorMessage: error instanceof Error ? error.message : String(error),
-      },
+      error: errorEnvelope,
     };
   }
 }
@@ -120,6 +142,13 @@ export async function executeLarkBaseBulkWorkflow(
   input: CreateLarkBaseBulkWorkflowRequest,
   deps: LarkBaseBulkWorkflowDeps = {},
 ): Promise<LarkBaseBulkExecuteResult | LarkBaseBulkWorkflowError> {
+  bulkLogger.info({
+    actionRunId: input.actionRunId,
+    baseId: input.baseId,
+    tableId: input.tableId,
+    viewId: input.viewId,
+  }, "server.workflow.started");
+
   const preview = await previewLarkBaseBulkWorkflow(input, deps);
   if (!preview.ok) {
     return preview;
@@ -136,6 +165,7 @@ export async function executeLarkBaseBulkWorkflow(
           tableId: input.tableId,
           recordId: record.recordId,
           masterUserId: input.masterUserId,
+          ...(input.actionRunId ? { actionRunId: input.actionRunId } : {}),
         },
         deps,
       );
@@ -167,11 +197,18 @@ export async function executeLarkBaseBulkWorkflow(
     }
   }
 
+  bulkLogger.info({
+    actionRunId: input.actionRunId,
+    created: createdRecords.length,
+    failed: failedRecords.length,
+    skipped: preview.skippedRecords.length,
+  }, "server.workflow.completed");
+
   return {
     ok: true,
     baseId: input.baseId,
     tableId: input.tableId,
-    viewId: input.viewId,
+    ...(input.viewId ? { viewId: input.viewId } : {}),
     totalRecordsInView: preview.totalRecordsInView,
     summary: {
       created: createdRecords.length,
@@ -184,7 +221,7 @@ export async function executeLarkBaseBulkWorkflow(
   };
 }
 
-async function listAllRecordsByView(
+async function listAllRecords(
   input: PreviewLarkBaseBulkWorkflowRequest,
   deps: LarkBaseBulkWorkflowDeps,
 ): Promise<LarkBitableRecord[]> {
@@ -195,20 +232,33 @@ async function listAllRecordsByView(
   );
   const records: LarkBitableRecord[] = [];
   let pageToken: string | undefined;
+  let pageNum = 1;
+  let hasMore = false;
 
   do {
-    const page = await client.listRecordsByView(
-      input.baseId,
-      input.tableId,
-      input.viewId,
-      {
-        pageSize: DEFAULT_PAGE_SIZE,
-        pageToken,
-      },
-    );
+    const page = input.viewId
+      ? await client.listRecordsByView(
+          input.baseId,
+          input.tableId,
+          input.viewId,
+          {
+            pageSize: DEFAULT_PAGE_SIZE,
+            pageToken,
+          },
+        )
+      : await client.listRecords(
+          input.baseId,
+          input.tableId,
+          {
+            pageNum,
+            pageSize: DEFAULT_PAGE_SIZE,
+          },
+        );
     records.push(...page.records);
-    pageToken = page.hasMore ? page.nextPageToken : undefined;
-  } while (pageToken);
+    hasMore = page.hasMore;
+    pageToken = input.viewId && page.hasMore ? page.nextPageToken : undefined;
+    pageNum += 1;
+  } while (input.viewId ? pageToken : hasMore);
 
   return records;
 }

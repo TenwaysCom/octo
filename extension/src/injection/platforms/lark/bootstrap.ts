@@ -29,7 +29,7 @@ export type LarkContentScriptRuntime = {
   detectLarkPageContext: () => LarkDetectedPageContext | null;
   extractAuthCodeFromRedirect: () => { code: string; state: string } | null;
   getLarkUserId: () => string | null;
-  initLarkContentScript: () => void;
+  initLarkContentScript: (options?: { enablePageDomInjection?: boolean }) => void;
   refreshProbeState: () => void;
   getProbeState: () => ProbeOverlayState;
   destroy: () => void;
@@ -47,7 +47,8 @@ function extractRecordIdFromFields(context: LarkRecordContext | null): string | 
   const recordIdField = context.fields.find(
     (field) => field.label.trim().replace(/\s/g, "") === "记录ID",
   );
-  return recordIdField?.value.trim();
+  const recordId = recordIdField?.value.trim();
+  return recordId?.startsWith("rec") ? recordId : undefined;
 }
 
 function extractRecordIdFromDom(
@@ -236,8 +237,7 @@ export function createLarkContentScriptRuntime(): LarkContentScriptRuntime {
       wikiRecordId: routeContext.wikiRecordId,
       recordId: routeContext.recordId
         ?? extractRecordIdFromFields(parsedContext)
-        ?? extractRecordIdFromDom(detail.detailRoot)
-        ?? routeContext.wikiRecordId,
+        ?? extractRecordIdFromDom(detail.detailRoot),
     };
 
     const larkIdElement = document.querySelector('[data-user-id]') as HTMLElement;
@@ -392,11 +392,17 @@ export function createLarkContentScriptRuntime(): LarkContentScriptRuntime {
     return null;
   }
 
-  function initLarkContentScript(): void {
-    larkBootstrapLogger.info("Lark content script initialized");
+  function initLarkContentScript(
+    { enablePageDomInjection = true }: { enablePageDomInjection?: boolean } = {},
+  ): void {
+    if (!messageListenerInitialized) {
+      larkBootstrapLogger.info("Lark content script initialized");
+    }
 
-    initInjectionRuntime();
-    initProbeMode();
+    if (enablePageDomInjection) {
+      initInjectionRuntime();
+      initProbeMode();
+    }
 
     if (messageListenerInitialized) {
       return;

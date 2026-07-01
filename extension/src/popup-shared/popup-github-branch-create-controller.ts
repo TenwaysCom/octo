@@ -5,6 +5,7 @@ import type {
   GitHubBranchPreviewResponse,
   GitHubBranchCreateResponse,
 } from "../types/meegle.js";
+import { collectActionRuntimeContext } from "./action-runtime-context.js";
 
 type PopupStoreSnapshot = {
   state: {
@@ -61,6 +62,10 @@ function resolveErrorMessage(errorCode: string, serverMessage?: string): string 
   return ERROR_CODE_MESSAGES[errorCode] || serverMessage || `错误: ${errorCode}`;
 }
 
+interface GitHubBranchCreateOptions {
+  actionRunId?: string;
+}
+
 export function createGitHubBranchCreateController(deps: CreateGitHubBranchCreateControllerDeps) {
   const {
     readStore,
@@ -70,6 +75,7 @@ export function createGitHubBranchCreateController(deps: CreateGitHubBranchCreat
     showToast,
     setModalState,
   } = deps;
+  let activeActionRunId: string | undefined;
 
   function resetModal(): void {
     setModalState({
@@ -85,8 +91,12 @@ export function createGitHubBranchCreateController(deps: CreateGitHubBranchCreat
     });
   }
 
-  async function open(): Promise<void> {
-    appendLog("info", "[创建 GitHub 分支] 开始获取预览信息...");
+  async function open(options: GitHubBranchCreateOptions = {}): Promise<void> {
+    activeActionRunId = options.actionRunId;
+    appendLog(
+      "info",
+      `[创建 GitHub 分支] 开始获取预览信息${activeActionRunId ? ` · actionRunId=${activeActionRunId}` : ""}...`,
+    );
 
     const tabContext = await queryCurrentTabContext();
     updateCurrentTabContext({
@@ -103,31 +113,32 @@ export function createGitHubBranchCreateController(deps: CreateGitHubBranchCreat
       return;
     }
 
-    let pathname: string;
-    try {
-      pathname = new URL(currentUrl).pathname;
-    } catch {
-      appendLog("error", "当前页面 URL 解析失败");
-      showToast("URL 解析失败", "error");
-      return;
-    }
-
-    const pathParts = pathname.split("/").filter(Boolean);
-    if (pathParts.length < 4 || pathParts[2] !== "detail") {
-      appendLog("error", `无法从 URL 解析工作项信息: ${pathname}`);
+    const actionContext = collectActionRuntimeContext({
+      actionRunId: activeActionRunId ?? "",
+      currentTab: {
+        id: tabContext.id ?? current.state.currentTabId,
+        url: currentUrl,
+        origin: tabContext.origin ?? current.state.currentTabOrigin,
+        pageType: tabContext.pageType,
+      },
+      identity: {
+        masterUserId: current.state.identity.masterUserId,
+      },
+    });
+    const meegleContext = actionContext.pageContext.meegle;
+    if (!meegleContext) {
+      appendLog("error", `无法从 URL 解析工作项信息: ${currentUrl}`);
       showToast("无法解析工作项信息", "error");
       return;
     }
 
-    const [projectKey, workItemTypeKey, , workItemId] = pathParts;
-    const masterUserId = current.state.identity.masterUserId;
+    const { projectKey, workItemTypeKey, workItemId, baseUrl } = meegleContext;
+    const masterUserId = actionContext.identity.masterUserId;
     if (!masterUserId) {
       appendLog("error", "未解析到主身份");
       showToast("未解析到主身份", "error");
       return;
     }
-
-    const baseUrl = current.state.currentTabOrigin || "https://project.larksuite.com";
 
     try {
       const config = await getConfig();
@@ -148,6 +159,7 @@ export function createGitHubBranchCreateController(deps: CreateGitHubBranchCreat
           workItemId,
           masterUserId,
           baseUrl,
+          actionRunId: activeActionRunId,
         },
       });
 
@@ -198,31 +210,32 @@ export function createGitHubBranchCreateController(deps: CreateGitHubBranchCreat
       return;
     }
 
-    let pathname: string;
-    try {
-      pathname = new URL(currentUrl).pathname;
-    } catch {
-      appendLog("error", "URL 解析失败");
-      showToast("URL 解析失败", "error");
-      return;
-    }
-
-    const pathParts = pathname.split("/").filter(Boolean);
-    if (pathParts.length < 4 || pathParts[2] !== "detail") {
+    const actionContext = collectActionRuntimeContext({
+      actionRunId: activeActionRunId ?? "",
+      currentTab: {
+        id: tabContext.id ?? current.state.currentTabId,
+        url: currentUrl,
+        origin: tabContext.origin ?? current.state.currentTabOrigin,
+        pageType: tabContext.pageType,
+      },
+      identity: {
+        masterUserId: current.state.identity.masterUserId,
+      },
+    });
+    const meegleContext = actionContext.pageContext.meegle;
+    if (!meegleContext) {
       appendLog("error", "无法解析工作项信息");
       showToast("请进入对应的需求界面再点击", "error");
       return;
     }
 
-    const [projectKey, workItemTypeKey, , workItemId] = pathParts;
-    const masterUserId = current.state.identity.masterUserId;
+    const { projectKey, workItemTypeKey, workItemId, baseUrl } = meegleContext;
+    const masterUserId = actionContext.identity.masterUserId;
     if (!masterUserId) {
       appendLog("error", "未解析到主身份");
       showToast("未解析到主身份", "error");
       return;
     }
-
-    const baseUrl = current.state.currentTabOrigin || "https://project.larksuite.com";
 
     // Read the current edited branch name from store via a callback pattern
     // We need to capture it before we transition to creating state
@@ -238,6 +251,13 @@ export function createGitHubBranchCreateController(deps: CreateGitHubBranchCreat
       setModalState((prev) => ({ ...prev, stage: "preview" }));
       return;
     }
+
+    const submitContext = collectActionRuntimeContext({
+      actionRunId: activeActionRunId ?? "",
+      currentTab: actionContext.currentTab,
+      identity: actionContext.identity,
+      formValues: { branchName },
+    });
 
     try {
       const config = await getConfig();
@@ -256,7 +276,8 @@ export function createGitHubBranchCreateController(deps: CreateGitHubBranchCreat
           workItemId,
           masterUserId,
           baseUrl,
-          branchName,
+          branchName: String(submitContext.formValues.branchName),
+          actionRunId: activeActionRunId,
         },
       });
 

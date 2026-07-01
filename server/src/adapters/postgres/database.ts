@@ -1,6 +1,14 @@
 import { Kysely, PostgresDialect, sql } from "kysely";
 import { Pool } from "pg";
 import type { DatabaseSchema } from "./schema.js";
+import {
+  DEFAULT_LARK_BUG_ANALYZE_PROMPT_NOTE,
+  DEFAULT_LARK_BUG_ANALYZE_PROMPT_TEMPLATE,
+  DEFAULT_STORY_PRD_TO_SIMPLIFIED_PROMPT_NOTE,
+  DEFAULT_STORY_PRD_TO_SIMPLIFIED_PROMPT_TEMPLATE,
+  LARK_BUG_ANALYZE_PROMPT_KEY,
+  STORY_PRD_TO_SIMPLIFIED_PROMPT_KEY,
+} from "../../domain/workflow-prompts.js";
 
 function readPostgresUri(): string {
   return process.env.POSTGRES_URI || process.env.DATABASE_URL || "";
@@ -35,6 +43,16 @@ export function createPostgresDatabase(
 
 export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<void> {
   await db.schema
+    .createTable("workflow_prompts")
+    .ifNotExists()
+    .addColumn("key", "text", (column) => column.primaryKey())
+    .addColumn("prompt", "text", (column) => column.notNull())
+    .addColumn("note", "text")
+    .addColumn("created_at", "text", (column) => column.notNull())
+    .addColumn("updated_at", "text", (column) => column.notNull())
+    .execute();
+
+  await db.schema
     .createTable("acp_kimi_session_owners")
     .ifNotExists()
     .addColumn("session_id", "text", (column) => column.primaryKey())
@@ -58,6 +76,17 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .addColumn("meegle_base_url", "text")
     .addColumn("meegle_user_key", "text")
     .addColumn("github_id", "text")
+    .addColumn("created_at", "text", (column) => column.notNull())
+    .addColumn("updated_at", "text", (column) => column.notNull())
+    .execute();
+
+  await db.schema
+    .createTable("lark_contacts")
+    .ifNotExists()
+    .addColumn("open_id", "text", (column) => column.primaryKey())
+    .addColumn("email", "text")
+    .addColumn("name", "text")
+    .addColumn("meegle_user_key", "text")
     .addColumn("created_at", "text", (column) => column.notNull())
     .addColumn("updated_at", "text", (column) => column.notNull())
     .execute();
@@ -125,6 +154,16 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     WHERE meegle_base_url IS NOT NULL AND meegle_user_key IS NOT NULL
   `.execute(db);
   await sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS lark_contacts_email_unique
+    ON lark_contacts(email)
+    WHERE email IS NOT NULL
+  `.execute(db);
+  await sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS lark_contacts_meegle_user_key_unique
+    ON lark_contacts(meegle_user_key)
+    WHERE meegle_user_key IS NOT NULL
+  `.execute(db);
+  await sql`
     CREATE INDEX IF NOT EXISTS user_tokens_provider_lookup_idx
     ON user_tokens(provider, master_user_id, provider_tenant_key, external_user_key)
   `.execute(db);
@@ -132,6 +171,29 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     CREATE INDEX IF NOT EXISTS oauth_sessions_provider_state_idx
     ON oauth_sessions(provider, state)
   `.execute(db);
+
+  const now = new Date().toISOString();
+  await db.insertInto("workflow_prompts")
+    .values({
+      key: STORY_PRD_TO_SIMPLIFIED_PROMPT_KEY,
+      prompt: DEFAULT_STORY_PRD_TO_SIMPLIFIED_PROMPT_TEMPLATE,
+      note: DEFAULT_STORY_PRD_TO_SIMPLIFIED_PROMPT_NOTE,
+      created_at: now,
+      updated_at: now,
+    })
+    .onConflict((conflict) => conflict.column("key").doNothing())
+    .execute();
+
+  await db.insertInto("workflow_prompts")
+    .values({
+      key: LARK_BUG_ANALYZE_PROMPT_KEY,
+      prompt: DEFAULT_LARK_BUG_ANALYZE_PROMPT_TEMPLATE,
+      note: DEFAULT_LARK_BUG_ANALYZE_PROMPT_NOTE,
+      created_at: now,
+      updated_at: now,
+    })
+    .onConflict((conflict) => conflict.column("key").doNothing())
+    .execute();
 
   await sql`
     ALTER TABLE acp_kimi_session_owners
@@ -153,12 +215,26 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     ALTER TABLE users
     ADD COLUMN IF NOT EXISTS role text
   `.execute(db);
+  await sql`
+    ALTER TABLE lark_contacts
+    ADD COLUMN IF NOT EXISTS email text
+  `.execute(db);
+  await sql`
+    ALTER TABLE lark_contacts
+    ADD COLUMN IF NOT EXISTS name text
+  `.execute(db);
+  await sql`
+    ALTER TABLE lark_contacts
+    ADD COLUMN IF NOT EXISTS meegle_user_key text
+  `.execute(db);
 }
 
 export async function resetPostgresDatabase(db: Kysely<DatabaseSchema>): Promise<void> {
+  await sql`DROP TABLE IF EXISTS workflow_prompts`.execute(db);
   await sql`DROP TABLE IF EXISTS acp_kimi_session_owners`.execute(db);
   await sql`DROP TABLE IF EXISTS oauth_sessions`.execute(db);
   await sql`DROP TABLE IF EXISTS user_tokens`.execute(db);
+  await sql`DROP TABLE IF EXISTS lark_contacts`.execute(db);
   await sql`DROP TABLE IF EXISTS users`.execute(db);
   await ensurePostgresSchema(db);
 }

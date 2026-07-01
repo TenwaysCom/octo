@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../background/config.js", () => ({
   DEFAULT_CONFIG: {
+    ENV_NAME: "prod",
     SERVER_URL: "https://octo.odoo.tenways.it:18443",
     MEEGLE_PLUGIN_ID: "",
     LARK_APP_ID: "cli_test",
@@ -22,6 +23,7 @@ import {
   resolveIdentityRequest,
   runMeegleLarkPushRequest,
   loadPopupSettings,
+  savePopupSettings,
   runLarkAuthRequest,
   watchLarkAuthCallbackResult,
   requestMeegleUserIdentity,
@@ -52,6 +54,7 @@ describe("popup runtime settings", () => {
     });
 
     vi.mocked(getConfig).mockResolvedValue({
+      ENV_NAME: "prod",
       SERVER_URL: "https://octo.odoo.tenways.it:18443",
       MEEGLE_PLUGIN_ID: "MII_SERVER_PLUGIN",
       LARK_APP_ID: "cli_server_public",
@@ -62,12 +65,33 @@ describe("popup runtime settings", () => {
     });
 
     await expect(loadPopupSettings()).resolves.toEqual({
+      ENV_NAME: "prod",
       SERVER_URL: "https://octo.odoo.tenways.it:18443",
       MEEGLE_PLUGIN_ID: "MII_SERVER_PLUGIN",
       LARK_OAUTH_CALLBACK_URL: "https://example.ngrok-free.app/api/lark/auth/callback",
       meegleUserKey: "user_test",
       larkUserId: "ou_test",
     });
+  });
+
+  it("saves the editable server URL with popup settings", async () => {
+    await savePopupSettings({
+      ENV_NAME: "dev",
+      SERVER_URL: "http://localhost:3041",
+      MEEGLE_PLUGIN_ID: "MII_PLUGIN",
+      LARK_OAUTH_CALLBACK_URL: "http://localhost:3041/api/lark/auth/callback",
+      meegleUserKey: "user_test",
+      larkUserId: "ou_test",
+    });
+
+    expect(chrome.storage.sync.set).toHaveBeenCalledWith(
+      {
+        ENV_NAME: "dev",
+        SERVER_URL: "http://localhost:3041",
+        MEEGLE_PLUGIN_ID: "MII_PLUGIN",
+      },
+      expect.any(Function),
+    );
   });
 
   it("falls back to background cookie lookup when the content script cannot read meegle cookies", async () => {
@@ -84,7 +108,7 @@ describe("popup runtime settings", () => {
         | ((response?: unknown) => void)
         | undefined;
       expect(message).toEqual({
-        action: "itdog.meegle.identity.cookies",
+        action: "octo.meegle.identity.cookies",
         payload: {
             pageUrl: "https://project.larksuite.com/4c3fv6/overview",
           },
@@ -162,8 +186,49 @@ describe("popup runtime settings", () => {
     vi.unstubAllGlobals();
   });
 
+  it("merges Lark content-script page context for real Base record ids", async () => {
+    vi.mocked(chrome.runtime.sendMessage).mockImplementation((...args) => {
+      const maybeCallback = args[args.length - 1] as
+        | ((response?: unknown) => void)
+        | undefined;
+      maybeCallback?.({
+        payload: {
+          id: 88,
+          url: "https://tenant.larksuite.com/record/wiki_record_1",
+        },
+      });
+      return undefined as never;
+    });
+    vi.mocked(chrome.tabs.sendMessage).mockImplementation((...args) => {
+      const callback = args[2] as ((response?: unknown) => void) | undefined;
+      callback?.({
+        pageType: "lark_wiki_record",
+        url: "https://tenant.larksuite.com/record/wiki_record_1",
+        baseId: "base_1",
+        tableId: "tbl_1",
+        recordId: "rec_real_1",
+        wikiRecordId: "wiki_record_1",
+      });
+      return undefined as never;
+    });
+
+    await expect(queryActiveTabContext()).resolves.toMatchObject({
+      id: 88,
+      url: "https://tenant.larksuite.com/record/wiki_record_1",
+      origin: "https://tenant.larksuite.com",
+      pageType: "lark",
+      larkContext: {
+        baseId: "base_1",
+        tableId: "tbl_1",
+        recordId: "rec_real_1",
+        wikiRecordId: "wiki_record_1",
+      },
+    });
+  });
+
   it("logs identity resolve requests and responses for diagnosis", async () => {
     vi.mocked(getConfig).mockResolvedValue({
+      ENV_NAME: "prod",
       SERVER_URL: "http://localhost:3000",
       MEEGLE_PLUGIN_ID: "MII_SERVER_PLUGIN",
       LARK_APP_ID: "cli_server_public",
@@ -268,7 +333,7 @@ describe("popup runtime settings", () => {
 
     expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
       {
-        action: "itdog.lark.auth.ensure",
+        action: "octo.lark.auth.ensure",
         payload: expect.objectContaining({
           masterUserId: "usr_resolved",
           baseUrl: "https://open.larksuite.com",
@@ -280,6 +345,7 @@ describe("popup runtime settings", () => {
 
   it("posts popup debug logs to the local debug endpoint", async () => {
     vi.mocked(getConfig).mockResolvedValue({
+      ENV_NAME: "prod",
       SERVER_URL: "http://localhost:3000",
       MEEGLE_PLUGIN_ID: "MII_SERVER_PLUGIN",
       LARK_APP_ID: "cli_server_public",
@@ -319,6 +385,7 @@ describe("popup runtime settings", () => {
 
   it("does not upload popup debug logs when client debug upload is disabled", async () => {
     vi.mocked(getConfig).mockResolvedValue({
+      ENV_NAME: "prod",
       SERVER_URL: "http://localhost:3000",
       MEEGLE_PLUGIN_ID: "MII_SERVER_PLUGIN",
       LARK_APP_ID: "cli_server_public",
@@ -341,6 +408,7 @@ describe("popup runtime settings", () => {
 
   it("requests lark auth status from the server without opening oauth", async () => {
     vi.mocked(getConfig).mockResolvedValue({
+      ENV_NAME: "prod",
       SERVER_URL: "http://localhost:3000",
       MEEGLE_PLUGIN_ID: "MII_SERVER_PLUGIN",
       LARK_APP_ID: "cli_server_public",
@@ -389,6 +457,7 @@ describe("popup runtime settings", () => {
 
   it("refreshes lark auth status through the server without opening oauth", async () => {
     vi.mocked(getConfig).mockResolvedValue({
+      ENV_NAME: "prod",
       SERVER_URL: "http://localhost:3000",
       MEEGLE_PLUGIN_ID: "MII_SERVER_PLUGIN",
       LARK_APP_ID: "cli_server_public",
@@ -441,6 +510,7 @@ describe("popup runtime settings", () => {
 
   it("sends master-user-id when pushing meegle updates through the server", async () => {
     vi.mocked(getConfig).mockResolvedValue({
+      ENV_NAME: "prod",
       SERVER_URL: "http://localhost:3000",
       MEEGLE_PLUGIN_ID: "MII_SERVER_PLUGIN",
       LARK_APP_ID: "cli_server_public",

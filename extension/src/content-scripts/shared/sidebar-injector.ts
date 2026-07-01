@@ -16,6 +16,11 @@ export type SidebarInjectorHandle = {
   destroy(): void;
 };
 
+export interface SidebarInjectorOptions {
+  showTrigger?: boolean;
+  enableKeyboardShortcut?: boolean;
+}
+
 function ensureShadowHost(): HTMLElement {
   const existing = document.getElementById(SIDEBAR_HOST_ID);
   if (existing) {
@@ -283,7 +288,10 @@ function createSidebarPanel(context?: SidebarHostContext): { root: HTMLDivElemen
   return { root, backdrop, panel, iframe, closeBtn };
 }
 
-export function injectSidebar(context?: SidebarHostContext): SidebarInjectorHandle {
+export function injectSidebar(
+  context?: SidebarHostContext,
+  options: SidebarInjectorOptions = {},
+): SidebarInjectorHandle {
   const host = ensureShadowHost();
   let shadow = host.shadowRoot;
   if (!shadow) {
@@ -297,9 +305,13 @@ export function injectSidebar(context?: SidebarHostContext): SidebarInjectorHand
   style.textContent = createStyles();
   shadow.appendChild(style);
 
-  const trigger = createTriggerButton();
+  const showTrigger = options.showTrigger ?? true;
+  const enableKeyboardShortcut = options.enableKeyboardShortcut ?? true;
+  const trigger = showTrigger ? createTriggerButton() : null;
   const { root: sidebarRoot, backdrop, panel, closeBtn } = createSidebarPanel(context);
-  shadow.appendChild(trigger);
+  if (trigger) {
+    shadow.appendChild(trigger);
+  }
   shadow.appendChild(sidebarRoot);
 
   let isOpen = false;
@@ -338,6 +350,10 @@ export function injectSidebar(context?: SidebarHostContext): SidebarInjectorHand
   }
 
   function onKeyDown(e: KeyboardEvent) {
+    if (!enableKeyboardShortcut) {
+      return;
+    }
+
     // Ctrl+M or Cmd+M
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "m") {
       e.preventDefault();
@@ -349,13 +365,13 @@ export function injectSidebar(context?: SidebarHostContext): SidebarInjectorHand
     }
   }
 
-  trigger.addEventListener("click", onTriggerClick);
+  trigger?.addEventListener("click", onTriggerClick);
   backdrop.addEventListener("click", onBackdropClick);
   closeBtn.addEventListener("click", close);
   document.addEventListener("keydown", onKeyDown, true);
 
   function destroy() {
-    trigger.removeEventListener("click", onTriggerClick);
+    trigger?.removeEventListener("click", onTriggerClick);
     backdrop.removeEventListener("click", onBackdropClick);
     closeBtn.removeEventListener("click", close);
     document.removeEventListener("keydown", onKeyDown, true);

@@ -1,5 +1,13 @@
 import { logger } from "../../logger.js";
-import type { GitHubPrDetails, GitHubCommit, GitHubComment, ParsedPrUrl, GitHubRef } from "./github-types.js";
+import type {
+  GitHubPrDetails,
+  GitHubIssueDetails,
+  GitHubCommit,
+  GitHubComment,
+  ParsedPrUrl,
+  ParsedGitHubWorkItemUrl,
+  GitHubRef,
+} from "./github-types.js";
 
 const githubLogger = logger.child({ module: "github-client" });
 
@@ -33,6 +41,22 @@ export class GitHubClient {
     };
   }
 
+  parseWorkItemUrl(url: string): ParsedGitHubWorkItemUrl {
+    const match = url.match(/github\.com\/([^/]+)\/([^/]+)\/(pull|issues)\/(\d+)/);
+    if (!match) {
+      const error = new Error("INVALID_PR_URL");
+      (error as Error & { code: string }).code = "INVALID_PR_URL";
+      throw error;
+    }
+
+    return {
+      kind: match[3] === "pull" ? "pull" : "issue",
+      owner: match[1],
+      repo: match[2],
+      number: parseInt(match[4], 10),
+    };
+  }
+
   private async request<T>(path: string): Promise<T> {
     const url = `${GITHUB_API_BASE}${path}`;
     githubLogger.debug({ url }, "GitHub API request");
@@ -57,6 +81,10 @@ export class GitHubClient {
 
   async getPullRequest(owner: string, repo: string, pullNumber: number): Promise<GitHubPrDetails> {
     return this.request<GitHubPrDetails>(`/repos/${owner}/${repo}/pulls/${pullNumber}`);
+  }
+
+  async getIssue(owner: string, repo: string, issueNumber: number): Promise<GitHubIssueDetails> {
+    return this.request<GitHubIssueDetails>(`/repos/${owner}/${repo}/issues/${issueNumber}`);
   }
 
   async getCommits(owner: string, repo: string, pullNumber: number): Promise<GitHubCommit[]> {

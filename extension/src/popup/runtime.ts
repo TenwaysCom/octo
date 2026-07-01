@@ -17,6 +17,8 @@ import type {
   LarkAuthCallbackResult,
   LarkAuthEnsureResponse,
   LarkAuthStatusServerResponse,
+  LarkBaseCreateWorkitemRequest,
+  LarkBaseCreateWorkitemResultPayload,
   LarkBaseBulkWorkflowRequest,
   LarkBaseBulkPreviewResultPayload,
   LarkBaseBulkCreateResultPayload,
@@ -36,6 +38,11 @@ import type { PopupSettingsForm } from "./types.js";
 import { detectPopupPageType, type PopupPageType } from "./view-model.js";
 import { createExtensionLogger } from "../logger.js";
 import { fetchServerJson } from "../server-request.js";
+import type {
+  ExtensionPageConfig,
+  ExtensionPageConfigResponse,
+} from "../types/automation-actions.js";
+import type { LarkBaseUrlContext } from "../lark-base-url.js";
 
 interface RuntimeErrorResponse {
   error?: {
@@ -64,8 +71,44 @@ export interface PopupTabContext {
   url: string | null;
   origin: string | null;
   pageType: PopupPageType;
+  larkContext?: LarkBaseUrlContext;
   larkUserId?: string;
   meegleUserKey?: string;
+}
+
+export async function getExtensionPageConfig(
+  pageUrl?: string | null,
+): Promise<ExtensionPageConfig | null> {
+  if (!pageUrl) {
+    return null;
+  }
+
+  const config = await getConfig();
+  const url = new URL(`${config.SERVER_URL}/api/config/page`);
+  url.searchParams.set("url", pageUrl);
+
+  try {
+    const { response, payload } = await fetchServerJson<ExtensionPageConfigResponse>({
+      url: url.toString(),
+      method: "GET",
+    });
+
+    if (response.ok && payload.ok && payload.data?.pageConfig) {
+      return payload.data.pageConfig;
+    }
+
+    runtimeLogger.warn("getExtensionPageConfig.invalid_response", {
+      status: response.status,
+      ok: payload.ok,
+      errorCode: payload.error?.errorCode,
+    });
+  } catch (error) {
+    runtimeLogger.warn("getExtensionPageConfig.failed", {
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  return null;
 }
 
 export interface IdentityResolveResponse {
@@ -242,7 +285,7 @@ export async function queryActiveTabContext(): Promise<PopupTabContext> {
   const response = await sendRuntimeMessage<{
     payload?: { id: number | null; url: string | null };
   }>({
-    action: "itdog.query_active_tab_context",
+    action: "octo.query_active_tab_context",
     payload: {},
   });
 
@@ -279,12 +322,16 @@ export async function queryActiveTabContext(): Promise<PopupTabContext> {
 
   try {
     const parsed = new URL(url);
+    const effectiveUrl = injectedContext.url ?? url;
+    const pageType = injectedContext.pageType ?? detectPopupPageType(effectiveUrl);
+    const larkContext = await queryLarkPageContext(tabId ?? null, pageType);
 
     return {
       id: tabId ?? null,
-      url: injectedContext.url ?? url,
+      url: effectiveUrl,
       origin: injectedContext.origin ?? parsed.origin,
-      pageType: injectedContext.pageType ?? detectPopupPageType(injectedContext.url ?? url),
+      pageType,
+      larkContext,
       larkUserId: injectedContext.larkUserId,
       meegleUserKey: injectedContext.meegleUserKey,
     };
@@ -297,6 +344,34 @@ export async function queryActiveTabContext(): Promise<PopupTabContext> {
       larkUserId: injectedContext.larkUserId,
       meegleUserKey: injectedContext.meegleUserKey,
     };
+  }
+}
+
+async function queryLarkPageContext(
+  tabId: number | null,
+  pageType: PopupPageType,
+): Promise<LarkBaseUrlContext | undefined> {
+  if (!tabId || pageType !== "lark") {
+    return undefined;
+  }
+
+  try {
+    const response = await sendTabMessage<LarkBaseUrlContext>(tabId, {
+      action: "getPageContext",
+    });
+    if (!response) {
+      return undefined;
+    }
+
+    return {
+      baseId: response.baseId,
+      tableId: response.tableId,
+      recordId: response.recordId,
+      viewId: response.viewId,
+      wikiRecordId: response.wikiRecordId,
+    };
+  } catch {
+    return undefined;
   }
 }
 
@@ -364,7 +439,7 @@ export async function requestMeegleUserIdentity(
   const cookieIdentity = await sendRuntimeMessage<{
     payload?: { userKey?: string; tenantKey?: string };
   }>({
-    action: "itdog.meegle.identity.cookies",
+    action: "octo.meegle.identity.cookies",
     payload: {
       pageUrl,
     },
@@ -395,7 +470,7 @@ export async function runMeegleAuthRequest(
   const response = await sendRuntimeMessage<{
     payload?: MeegleAuthEnsureResponse;
   }>({
-    action: "itdog.meegle.auth.ensure",
+    action: "octo.meegle.auth.ensure",
     payload: request,
   });
 
@@ -427,20 +502,37 @@ export async function runMeegleAuthRequest(
 
 export async function runMeegleLarkPushRequest(
   request: MeegleLarkPushRequest,
+  endpoint = "/api/meegle/workitem/update-lark-and-push",
 ): Promise<MeegleLarkPushResponse> {
   const config = await getConfig();
-  console.debug("[runMeegleLarkPushRequest] request:", request);
+  runtimeLogger.debug("runMeegleLarkPushRequest.start", {
+    projectKey: request.projectKey,
+    workItemTypeKey: request.workItemTypeKey,
+    workItemId: request.workItemId,
+    masterUserId: summarizeIdentifier(request.masterUserId),
+    actionRunId: request.actionRunId,
+    endpoint,
+  });
   try {
     const { payload: result } = await fetchServerJson<MeegleLarkPushResponse>({
-      url: `${config.SERVER_URL}/api/meegle/workitem/update-lark-and-push`,
+      url: `${config.SERVER_URL}${endpoint}`,
       masterUserId: request.masterUserId,
       body: request,
     });
 
-    console.debug("[runMeegleLarkPushRequest] response:", result);
+    runtimeLogger.debug("runMeegleLarkPushRequest.done", {
+      ok: result.ok,
+      alreadyUpdated: result.alreadyUpdated,
+      actionRunId: request.actionRunId,
+      endpoint,
+    });
     return result;
   } catch (error) {
-    console.debug("[runMeegleLarkPushRequest] error:", error);
+    runtimeLogger.warn("runMeegleLarkPushRequest.failed", {
+      endpoint,
+      actionRunId: request.actionRunId,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
     return {
       ok: false,
       error: error instanceof Error ? error.message : String(error),
@@ -604,7 +696,7 @@ export async function runLarkAuthRequest(
   const response = await sendRuntimeMessage<{
     payload?: LarkAuthEnsureResponse;
   }>({
-    action: "itdog.lark.auth.ensure",
+    action: "octo.lark.auth.ensure",
     payload: {
       requestId: `req_${Date.now()}`,
       masterUserId: input.masterUserId,
@@ -645,7 +737,31 @@ export async function runLarkBaseBulkPreviewRequest(
   const response = await sendRuntimeMessage<{
     payload?: LarkBaseBulkPreviewResultPayload;
   }>({
-    action: "itdog.lark_base.bulk_preview_workitems",
+    action: "octo.lark_base.bulk_preview_workitems",
+    payload: input,
+  });
+
+  if (response.payload) {
+    return response.payload;
+  }
+
+  return {
+    ok: false,
+    error: {
+      errorCode: response.error?.errorCode || "BACKGROUND_EMPTY_RESPONSE",
+      errorMessage:
+        response.error?.errorMessage || "Background returned an empty response.",
+    },
+  };
+}
+
+export async function runLarkBaseCreateWorkitemRequest(
+  input: LarkBaseCreateWorkitemRequest,
+): Promise<LarkBaseCreateWorkitemResultPayload | { ok: false; error: { errorCode: string; errorMessage: string; actionRunId?: string } }> {
+  const response = await sendRuntimeMessage<{
+    payload?: LarkBaseCreateWorkitemResultPayload;
+  }>({
+    action: "octo.lark_base.create_workitem",
     payload: input,
   });
 
@@ -669,7 +785,7 @@ export async function runLarkBaseBulkCreateRequest(
   const response = await sendRuntimeMessage<{
     payload?: LarkBaseBulkCreateResultPayload;
   }>({
-    action: "itdog.lark_base.bulk_create_workitems",
+    action: "octo.lark_base.bulk_create_workitems",
     payload: input,
   });
 
@@ -1051,6 +1167,7 @@ export async function savePopupSettings(
     chromeApi.storage.sync.set(
       {
         ENV_NAME: settings.ENV_NAME || DEFAULT_CONFIG.ENV_NAME,
+        SERVER_URL: settings.SERVER_URL,
         MEEGLE_PLUGIN_ID: settings.MEEGLE_PLUGIN_ID,
       },
       () => resolve(),

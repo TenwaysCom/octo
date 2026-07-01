@@ -46,7 +46,7 @@ import { protocolActions } from "../src/types/protocol";
 
 describe("protocolActions", () => {
   it("includes the Meegle auth ensure action", () => {
-    expect(protocolActions).toContain("itdog.meegle.auth.ensure");
+    expect(protocolActions).toContain("octo.meegle.auth.ensure");
   });
 });
 ```
@@ -110,7 +110,7 @@ Expected: FAIL because handler does not exist yet
 
 Implement:
 - Background router action dispatch
-- `itdog.meegle.auth.ensure` handler
+- `octo.meegle.auth.ensure` handler
 - Page bridge method for requesting `auth_code`
 - A minimal in-memory auth flow result
 

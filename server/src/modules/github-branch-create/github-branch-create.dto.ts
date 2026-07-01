@@ -6,6 +6,7 @@ export const githubBranchPreviewSchema = z.object({
   workItemId: z.string().min(1),
   masterUserId: z.string().min(1),
   baseUrl: z.string().min(1),
+  actionRunId: z.string().min(1).optional(),
 });
 
 export const githubBranchCreateSchema = githubBranchPreviewSchema.extend({

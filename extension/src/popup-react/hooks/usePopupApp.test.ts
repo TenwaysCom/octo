@@ -10,6 +10,7 @@ const runtimeMock = vi.hoisted(() => ({
   deleteKimiChatTranscriptSnapshot: vi.fn(),
   fetchLarkUserInfo: vi.fn(),
   getConfig: vi.fn(),
+  getExtensionPageConfig: vi.fn(),
   getLarkAuthStatus: vi.fn(),
   listKimiChatSessions: vi.fn(),
   loadKimiChatSession: vi.fn(),
@@ -72,6 +73,67 @@ describe("usePopupApp React hook", () => {
       MEEGLE_BASE_URL: "https://project.larksuite.com",
       LARK_APP_ID: "cli_test",
       LARK_OAUTH_CALLBACK_URL: "http://localhost:3000/api/lark/auth/callback",
+    });
+    runtimeMock.getExtensionPageConfig.mockImplementation(async (url?: string | null) => {
+      if (url?.includes("example.com")) {
+        return {
+          platform: "unsupported",
+          pageType: "unsupported",
+          matchedRuleId: "unsupported",
+          sidebar: {
+            injectPageElements: false,
+            sidebarButtonEnabled: false,
+            keyboardShortcutEnabled: false,
+          },
+          automationActions: [],
+        };
+      }
+
+      if (url?.includes("view=vewMs17Tqk")) {
+        return {
+          platform: "lark",
+          pageType: "lark_base_bulk_create_view",
+          matchedRuleId: "lark.base.bulk-create-view",
+          sidebar: {
+            injectPageElements: true,
+            sidebarButtonEnabled: true,
+            keyboardShortcutEnabled: true,
+          },
+          automationActions: [
+            {
+              key: "analyze",
+              title: "分析当前页面",
+              style: "primary",
+              executor: { type: "frontend", actionKey: "analyze" },
+            },
+            {
+              key: "bulk-create-meegle-tickets",
+              title: "批量创建 MEEGLE TICKET",
+              style: "default",
+              executor: { type: "frontend", actionKey: "bulk-create-meegle-tickets" },
+            },
+          ],
+        };
+      }
+
+      return {
+        platform: "lark",
+        pageType: "lark",
+        matchedRuleId: "lark.any",
+        sidebar: {
+          injectPageElements: true,
+          sidebarButtonEnabled: true,
+          keyboardShortcutEnabled: true,
+        },
+        automationActions: [
+          {
+            key: "analyze",
+            title: "分析当前页面",
+            style: "primary",
+            executor: { type: "frontend", actionKey: "analyze" },
+          },
+        ],
+      };
     });
     runtimeMock.loadPopupSettings.mockResolvedValue({
       SERVER_URL: "http://localhost:3000",
@@ -339,6 +401,7 @@ describe("usePopupApp React hook", () => {
       tableId: "tblUfu71xwdul3NH",
       viewId: "vewMs17Tqk",
       masterUserId: "usr_resolved",
+      actionRunId: expect.any(String),
     });
     expect(result.current.larkBulkCreateModal.visible).toBe(true);
     expect(result.current.larkBulkCreateModal.stage).toBe("preview");

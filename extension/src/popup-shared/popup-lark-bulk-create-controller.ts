@@ -1,18 +1,25 @@
-import { extractLarkBaseContextFromUrl } from "../lark-base-url.js";
 import {
   runLarkBaseBulkCreateRequest,
   runLarkBaseBulkPreviewRequest,
 } from "../popup/runtime.js";
 import type { PopupLogLevel } from "../popup/types.js";
 import type { LarkBaseBulkPreviewResultPayload } from "../types/lark.js";
+import { collectActionRuntimeContext } from "./action-runtime-context.js";
 import type {
   LarkBulkCreateModalError,
   LarkBulkCreateModalState,
 } from "./popup-controller.js";
 
+interface ActionRunOptions {
+  actionRunId?: string;
+}
+
 type PopupStoreSnapshot = {
   state: {
     currentUrl: string | null;
+    currentTabId?: number | null;
+    currentTabOrigin?: string | null;
+    pageType?: "meegle" | "lark" | "github" | "unsupported";
     identity: {
       masterUserId: string | null;
     };
@@ -38,17 +45,34 @@ export function createLarkBulkCreateController(
   deps: CreateLarkBulkCreateControllerDeps,
 ) {
   const { readStore, appendLog, showToast, setModalState, openErrorModal } = deps;
+  let activeActionRunId: string | undefined;
 
-  async function openPreview(): Promise<void> {
-    appendLog("info", "开始获取批量创建预览...");
+  async function openPreview(options: ActionRunOptions = {}): Promise<void> {
+    activeActionRunId = options.actionRunId;
+    appendLog(
+      "info",
+      `开始获取批量创建预览${activeActionRunId ? ` · actionRunId=${activeActionRunId}` : ""}...`,
+    );
 
     const current = readStore();
-    const context = extractLarkBaseContextFromUrl(current.state.currentUrl ?? undefined);
+    const actionContext = collectActionRuntimeContext({
+      actionRunId: activeActionRunId ?? "",
+      currentTab: {
+        id: current.state.currentTabId ?? null,
+        url: current.state.currentUrl,
+        origin: current.state.currentTabOrigin ?? null,
+        pageType: current.state.pageType ?? "lark",
+      },
+      identity: {
+        masterUserId: current.state.identity.masterUserId,
+      },
+    });
+    const context = actionContext.pageContext.lark ?? {};
     const masterUserId = current.state.identity.masterUserId ?? undefined;
 
-    if (!context.baseId || !context.tableId || !context.viewId) {
+    if (!context.baseId || !context.tableId) {
       const message =
-        "当前页面缺少多维表格上下文（需要 URL 中的 base、table、view）。请在目标表格的指定视图中打开页面后重试。";
+        "当前页面缺少多维表格上下文（需要 URL 中的 base、table）。请在目标表格页面重试。";
       appendLog("error", message);
       openErrorModal({
         errorCode: "MISSING_LARK_BASE_CONTEXT",
@@ -60,8 +84,9 @@ export function createLarkBulkCreateController(
     const preview = await runLarkBaseBulkPreviewRequest({
       baseId: context.baseId,
       tableId: context.tableId,
-      viewId: context.viewId,
+      ...(context.viewId ? { viewId: context.viewId } : {}),
       masterUserId,
+      actionRunId: activeActionRunId,
     });
 
     if (!preview.ok) {
@@ -83,7 +108,7 @@ export function createLarkBulkCreateController(
 
     appendLog(
       "info",
-      `批量预览完成，可创建 ${preview.eligibleRecords.length} 条，已跳过 ${preview.skippedRecords.length} 条`,
+      `批量预览完成，可创建 ${preview.eligibleRecords.length} 条，已跳过 ${preview.skippedRecords.length} 条${activeActionRunId ? ` · actionRunId=${activeActionRunId}` : ""}`,
     );
   }
 
@@ -100,8 +125,9 @@ export function createLarkBulkCreateController(
     const result = await runLarkBaseBulkCreateRequest({
       baseId: preview.baseId,
       tableId: preview.tableId,
-      viewId: preview.viewId,
+      ...(preview.viewId ? { viewId: preview.viewId } : {}),
       masterUserId,
+      actionRunId: activeActionRunId,
     });
 
     setModalState((previous) => ({

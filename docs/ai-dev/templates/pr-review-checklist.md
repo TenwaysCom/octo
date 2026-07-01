@@ -1,133 +1,59 @@
 ---
 status: draft
 owner: TBD
-last_reviewed: 2026-06-10
-scope: PR review checklist for Octo extension/server/platform boundary, tests, Meegle metadata, diagnostics, and docs
+last_reviewed: 2026-06-08
+scope: PR review checklist for Odoo lifecycle, runtime, vendor, integration, and tests
 update_required_when:
-  - PR review expectations change
-  - extension/server/platform boundary rules change
-  - testing strategy changes
+  - 调整 PR Review 要求
+  - 新增治理规则或风险类型
 ---
 
 # PR Review Checklist
 
-Use this checklist for non-trivial PRs. Lead with blockers and correctness risks, then tests and documentation. Do not use it as a mechanical approval form; use it to find boundary violations and missing verification.
+涉及核心业务逻辑的 PR 应检查以下内容。
 
-## 1. PR Summary
+## 生命周期
 
-- PR title:
-- Reviewer:
-- Request / ticket:
-- Main changed layers:
-  - [ ] Extension
-  - [ ] Server
-  - [ ] Adapter
-  - [ ] Platform
-  - [ ] Docs only
-- Main changed workflows:
+- 是否查阅对应生命周期扩展地图。
+- 是否说明生命周期节点。
+- 是否说明 hook 放置理由。
+- 是否检查重复覆盖、交叉覆盖和 `super()` 顺序。
+- 是否列出相关 context flag。
 
-## 2. Boundary Review
+## 运行时行为
 
-- [ ] Extension remains thin: no workflow/business orchestration moved into popup/background/content script.
-- [ ] Server owns page/action catalog, identity/auth, workflow orchestration, and platform coordination.
-- [ ] Adapters own third-party API calls and platform error normalization.
-- [ ] Platform constraints are not hidden as generic workflow errors.
-- [ ] New or refactored cross-layer action carries or plans `actionRunId`.
+- 是否影响 server action、automation、cron、Studio。
+- 是否影响邮件模板、printout/PDF、QWeb report。
+- 是否影响权限、record rule、Portal 可见性。
+- 是否影响配置参数或关键主数据。
 
-Findings:
+## 事务与直接 SQL
 
-- 
+- 是否新增或修改 `env.cr.execute()`、`env.cr.commit()`、`env.cr.rollback()`、`savepoint()`、新 cursor 或批量 job。
+- 如果使用直接 SQL，是否说明为什么 ORM 不适合。
+- 如果使用手工 `commit()`，是否定义了独立更新单位、commit 边界、batch size、checkpoint 和重跑方式。
+- P0 财务/库存 SQL 修复是否默认提供 dry-run、影响行数、old/new 值、rollback 或补偿方案。
+- SVL/AML/account.move/account.move.line 修复是否检查 stock lock date、account lock date、tax lock、reconciled AML 和 posted AML review reset 策略。
+- 是否有幂等 key、状态 claim、`FOR UPDATE SKIP LOCKED` 或等价机制，避免并发重复处理。
+- SQL 后如果继续读取 ORM recordset，是否 invalidate cache 或重新 browse。
+- 是否有成功、失败、中途失败后重跑、重复执行、并发执行测试或演练记录。
 
-## 3. Action And Page Config
+## 第三方与集成
 
-- [ ] Backend actions are driven by server `automationActions.executor`.
-- [ ] Popup does not add new hardcoded backend route branches.
-- [ ] Server and extension action types are aligned.
-- [ ] Page/action mapping is not duplicated unnecessarily.
-- [ ] Server-unavailable fallback remains conservative.
+- 是否修改或依赖 vendor 模块。
+- 是否通过 adapter 管理 vendor 行为。
+- 是否影响外部系统。
+- 是否具备幂等、重试、失败状态和补偿。
 
-Findings:
+## 测试
 
-- 
+- 是否运行核心黄金测试。
+- 是否补充必要测试。
+- 未运行测试时是否说明原因和剩余风险。
 
-## 4. Server Review
+## 文档
 
-- [ ] Public inputs are validated with Zod DTOs.
-- [ ] Controller stays thin and delegates workflow to service.
-- [ ] Services use explicit deps where testability matters.
-- [ ] Responses preserve `{ ok, data, error }` where the module already uses it.
-- [ ] Errors include stable `errorCode`; new/refactored cross-layer flows include `layer/module/stage`.
-- [ ] No `console.log`; server code uses `logger.ts`.
-
-Findings:
-
-- 
-
-## 5. Extension Review
-
-- [ ] Extension only captures context, triggers auth, renders UI, and dispatches actions.
-- [ ] Auth bridge does not send raw browser cookies to server.
-- [ ] Popup displays useful error state instead of only generic failure.
-- [ ] Extension logs use `extension/src/logger.ts`.
-- [ ] No new legacy A1/A2/B1/B2 naming.
-
-Findings:
-
-- 
-
-## 6. Meegle / Lark / GitHub Platform Review
-
-- [ ] Meegle `field_*` values are not scattered through popup or workflow services.
-- [ ] New Meegle field usage is semantic, centralized, or explicitly documented as fallback config.
-- [ ] Create/update writability and option constraints are considered.
-- [ ] Auth missing, permission denied, field missing, and platform rejection are distinguishable.
-- [ ] Partial success states are explicit when multiple platform writes happen.
-
-Findings:
-
-- 
-
-## 7. Route And Naming Review
-
-- [ ] `/api/a1/*` and `/api/a2/*` are not restored.
-- [ ] New route/action/message names avoid A1/A2/B1/B2.
-- [ ] Public route names use current vocabulary or concrete workflow names.
-- [ ] Route tests and docs agree with runtime registration.
-
-Findings:
-
-- 
-
-## 8. Test Review
-
-- [ ] Unit tests cover changed pure logic, mappers, DTOs, resolver, or dispatcher.
-- [ ] Mock integration tests do not pretend to be live E2E.
-- [ ] Playwright tests are only used for live/browser extension E2E.
-- [ ] New Vitest tests use globals and avoid dynamic `await import()`.
-- [ ] Verification commands are recorded in the PR.
-
-Commands run:
-
-- 
-
-Unverified areas:
-
-- 
-
-## 9. Documentation Review
-
-- [ ] `AGENTS.md` remains short and does not absorb detailed rules.
-- [ ] Relevant `docs/ai-dev` rule/lifecycle/governance docs are updated if behavior changed.
-- [ ] No stray markdown file was added when an existing doc should be updated.
-- [ ] Follow-up work is recorded if the PR intentionally leaves known gaps.
-
-Findings:
-
-- 
-
-## 10. Review Decision
-
-- Decision: approve / request changes / comment only
-- Blocking issues:
-- Non-blocking follow-ups:
-- Residual risk:
+- 是否更新 `docs/ai-dev/lifecycle/`。
+- 是否更新 `docs/ai-dev/runtime/`。
+- 是否更新 vendor、migration 或 rules 文档。
+- 是否按 `docs/ai-dev/governance/runtime-map-usage-review-plan.md` 完成 owner、review 状态和必要签收。

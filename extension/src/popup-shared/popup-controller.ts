@@ -19,6 +19,7 @@ import {
   clearResolvedIdentityForTab,
   fetchLarkUserInfo,
   getConfig,
+  getExtensionPageConfig,
   getLarkAuthStatus,
   refreshLarkAuthStatus,
   loadPopupSettings,
@@ -29,6 +30,7 @@ import {
   requestMeegleUserIdentity,
   resolveIdentityRequest,
   runLarkAuthRequest,
+  runLarkBaseCreateWorkitemRequest,
   runMeegleAuthRequest,
   savePopupSettings,
   saveResolvedIdentity,
@@ -57,7 +59,6 @@ import {
   normalizeLarkAuthBaseUrl,
   normalizeMeegleAuthBaseUrl,
 } from "../platform-url.js";
-import { extractLarkBaseContextFromUrl } from "../lark-base-url.js";
 import { createExtensionLogger, exportLogsAsBlob } from "../logger.js";
 import { fetchServerJson } from "../server-request.js";
 import { showPopupToast } from "../popup/toast.js";
@@ -67,12 +68,20 @@ import type {
 import type {
   GitHubBranchCreateModalState,
 } from "./popup-github-branch-create-controller.js";
+import type {
+  AutomationActionListItem,
+  ExtensionPageConfig,
+} from "../types/automation-actions.js";
+import type { LarkBaseUrlContext } from "../lark-base-url.js";
+import { collectActionRuntimeContext } from "./action-runtime-context.js";
 
 const popupLogger = createExtensionLogger("popup:app");
+const LARK_CREATE_ACTION_KEY = "create-meegle-item";
 const LARK_BULK_CREATE_ACTION_KEY = "bulk-create-meegle-tickets";
-const TARGET_LARK_BASE_ID = "XO0cbnxMIaralRsbBEolboEFgZc";
-const TARGET_LARK_TABLE_ID = "tblUfu71xwdul3NH";
-const TARGET_LARK_VIEW_ID = "vewMs17Tqk";
+
+function actionHasPopupPlacement(action: AutomationActionListItem): boolean {
+  return action.placements?.some((placement) => placement.surface === "popup") ?? true;
+}
 
 type LarkBulkCreateModalStage = "hidden" | "preview" | "executing" | "result" | "error";
 
@@ -92,22 +101,52 @@ type LazyKimiChatController = {
 };
 
 type LazyLarkBulkCreateController = {
-  openPreview: () => Promise<void>;
+  openPreview: (options?: { actionRunId?: string }) => Promise<void>;
   confirmCreate: () => Promise<void>;
 };
 
 type LazyMeeglePushController = {
-  run: () => Promise<void>;
+  run: (options?: {
+    endpoint?: string;
+    logLabel?: string;
+    successPrefix?: string;
+    actionRunId?: string;
+  }) => Promise<void>;
 };
 
 type LazyGitHubLookupController = {
-  lookup: () => Promise<void>;
+  lookup: (options?: { actionRunId?: string }) => Promise<void>;
 };
 
 type LazyGitHubBranchCreateController = {
-  open: () => Promise<void>;
+  open: (options?: { actionRunId?: string }) => Promise<void>;
   confirmCreate: () => Promise<void>;
   resetModal: () => void;
+};
+
+type BackendAutomationResponse = {
+  ok: boolean;
+  data?: {
+    workItemId?: string;
+    updatedField?: string;
+    actionRunId?: string;
+    analysisSummary?: string;
+  };
+  error?: {
+    errorCode?: string;
+    errorMessage?: string;
+    stage?: string;
+    actionRunId?: string;
+  } | string;
+};
+
+const BACKEND_AUTOMATION_TIMEOUT_MS = 120_000;
+
+type PopupActionExecutionStatus = {
+  phase: "running" | "success" | "error";
+  message: string;
+  actionRunId?: string;
+  updatedAt: string;
 };
 
 export interface PopupIdentityState {
@@ -137,6 +176,7 @@ export interface PopupAppState {
   currentTabId: number | null;
   currentTabOrigin: string | null;
   currentUrl: string | null;
+  currentLarkContext?: LarkBaseUrlContext | null;
   identity: PopupIdentityState;
   isAuthed: PopupAuthFlags;
   meegleAuth: MeegleAuthEnsureResponse | undefined;
@@ -163,6 +203,8 @@ interface PopupAppStore {
   state: PopupAppState;
   settingsForm: PopupSettingsForm;
   update: UpdateState | null;
+  pageConfig: ExtensionPageConfig | null;
+  actionStatuses: Record<string, PopupActionExecutionStatus>;
 }
 
 export interface PopupControllerState {
@@ -253,6 +295,7 @@ function createInitialStore(): PopupAppStore {
       currentTabId: null,
       currentTabOrigin: null,
       currentUrl: null,
+      currentLarkContext: null,
       identity: {
         masterUserId: null,
         larkId: null,
@@ -270,6 +313,8 @@ function createInitialStore(): PopupAppStore {
     },
     settingsForm: createDefaultSettingsForm(),
     update: null,
+    pageConfig: null,
+    actionStatuses: {},
   };
 }
 
@@ -574,6 +619,22 @@ export function createPopupController() {
       },
       log: logAdapter,
     });
+  }
+
+  function setActionStatus(
+    actionKey: string,
+    next: Omit<PopupActionExecutionStatus, "updatedAt">,
+  ): void {
+    updateStore((previous) => ({
+      ...previous,
+      actionStatuses: {
+        ...previous.actionStatuses,
+        [actionKey]: {
+          ...next,
+          updatedAt: new Date().toISOString(),
+        },
+      },
+    }));
   }
 
   function syncSettingsForm(settings: PopupSettingsForm): void {
@@ -914,15 +975,18 @@ export function createPopupController() {
       }
 
       const tabContext = await queryActiveTabContext();
+      const pageConfig = await getExtensionPageConfig(tabContext.url);
       updateStore((previous) => ({
         ...previous,
         hasResolvedPageContext: true,
+        pageConfig,
         state: {
           ...previous.state,
           currentTabId: tabContext.id,
           currentUrl: tabContext.url,
           currentTabOrigin: tabContext.origin,
-          pageType: tabContext.pageType,
+          currentLarkContext: tabContext.larkContext ?? null,
+          pageType: pageConfig?.platform ?? tabContext.pageType,
         },
       }));
 
@@ -942,16 +1006,16 @@ export function createPopupController() {
 
       appendLog(
         "info",
-        `检测到页面: ${tabContext.url || "(空)"} · 类型: ${tabContext.pageType}`,
+        `检测到页面: ${tabContext.url || "(空)"} · 类型: ${pageConfig?.pageType ?? tabContext.pageType}`,
       );
 
-      const isUnsupportedPage = tabContext.pageType === "unsupported";
+      const isUnsupportedPage = (pageConfig?.platform ?? tabContext.pageType) === "unsupported";
 
       if (isUnsupportedPage) {
         appendLog("warn", "当前页面不支持");
       }
 
-      if (tabContext.pageType === "lark" && tabContext.id != null) {
+      if ((pageConfig?.platform ?? tabContext.pageType) === "lark" && tabContext.id != null) {
         const larkId = await requestLarkUserId(tabContext.id);
         if (larkId) {
           updateStore((previous) => ({
@@ -967,7 +1031,7 @@ export function createPopupController() {
         }
       }
 
-      if (tabContext.pageType === "meegle" && tabContext.id != null) {
+      if ((pageConfig?.platform ?? tabContext.pageType) === "meegle" && tabContext.id != null) {
         const identity = await requestMeegleUserIdentity(
           tabContext.id,
           tabContext.url ?? undefined,
@@ -1004,13 +1068,13 @@ export function createPopupController() {
       }
 
       // Clear update badge when popup opens
-      void chrome.runtime.sendMessage({ action: "itdog.update.clearBadge" });
+      void chrome.runtime.sendMessage({ action: "octo.update.clearBadge" });
 
       appendLog("success", "初始化完成");
 
       // Check for extension updates
       try {
-        const updateResult = await chrome.runtime.sendMessage({ action: "itdog.update.check" });
+        const updateResult = await chrome.runtime.sendMessage({ action: "octo.update.check" });
         if (updateResult?.hasUpdate && updateResult?.versionInfo) {
           updateStore((previous) => ({
             ...previous,
@@ -1473,7 +1537,7 @@ export function createPopupController() {
     const store = readStore();
     if (store.update?.latestVersion) {
       await chrome.runtime.sendMessage({
-        action: "itdog.update.ignore",
+        action: "octo.update.ignore",
         payload: { version: store.update.latestVersion },
       });
       updateStore((previous) => ({
@@ -1494,28 +1558,105 @@ export function createPopupController() {
         minVersion: store.update.currentVersion,
       };
       await chrome.runtime.sendMessage({
-        action: "itdog.update.download",
+        action: "octo.update.download",
         payload: { versionInfo },
       });
     }
   }
 
   async function runFeatureAction(actionKey: string): Promise<void> {
+    const configuredAction = readStore().pageConfig?.automationActions.find(
+      (action) => action.key === actionKey,
+    );
+    if (readStore().actionStatuses[actionKey]?.phase === "running") {
+      appendLog("warn", "当前操作仍在执行中，请等待返回状态。");
+      return;
+    }
+
+    const actionRunId = createActionRunId();
+
     if (actionKey === "analyze") {
       if (readStore().showKimiChat) {
         resetKimiChatSession();
-        appendLog("info", "已重置 Kimi ACP 会话");
+        appendLog("info", `已重置 Kimi ACP 会话 · actionRunId=${actionRunId}`);
         return;
       }
 
       openKimiChat();
-      appendLog("info", "已打开 Kimi ACP 聊天面板");
+      appendLog("info", `已打开 Kimi ACP 聊天面板 · actionRunId=${actionRunId}`);
+      return;
+    }
+
+    if (actionKey === LARK_CREATE_ACTION_KEY) {
+      const store = readStore();
+      const actionContext = collectActionRuntimeContext({
+        actionRunId,
+        currentTab: {
+          id: store.state.currentTabId,
+          url: store.state.currentUrl,
+          origin: store.state.currentTabOrigin,
+          pageType: store.state.pageType,
+          larkContext: store.state.currentLarkContext ?? undefined,
+        },
+        identity: {
+          masterUserId: store.state.identity.masterUserId,
+        },
+      });
+      const larkContext = actionContext.pageContext.lark ?? {};
+      const recordId = larkContext.recordId ?? larkContext.wikiRecordId;
+
+      if (!recordId) {
+        const message = "当前页面缺少 Lark 记录 ID，无法创建 Meegle Item。";
+        appendLog("error", message);
+        showPopupToast(message, "error");
+        return;
+      }
+
+      appendLog("info", `创建 Meegle Item 中... · actionRunId=${actionRunId}`);
+      setActionStatus(actionKey, {
+        phase: "running",
+        actionRunId,
+        message: `执行中 · ${actionRunId}`,
+      });
+      const result = await runLarkBaseCreateWorkitemRequest({
+        pageType: larkContext.wikiRecordId && !larkContext.baseId ? "lark_wiki_record" : "lark_base",
+        url: actionContext.currentTab.url ?? "",
+        baseId: larkContext.baseId,
+        tableId: larkContext.tableId,
+        recordId,
+        wikiRecordId: larkContext.wikiRecordId,
+        masterUserId: actionContext.identity.masterUserId ?? undefined,
+        actionRunId,
+      });
+
+      if (!result.ok) {
+        const responseActionRunId = result.error.actionRunId ?? actionRunId;
+        const message = `创建 Meegle Item 失败: ${result.error.errorMessage}`;
+        setActionStatus(actionKey, {
+          phase: "error",
+          actionRunId: responseActionRunId,
+          message: `${message} · ${responseActionRunId}`,
+        });
+        appendLog("error", `${message} · actionRunId=${responseActionRunId}`);
+        showPopupToast(message, "error");
+        return;
+      }
+
+      const responseActionRunId = result.actionRunId ?? actionRunId;
+      const message = `创建 Meegle Item 完成: ${result.workitemId}`;
+      setActionStatus(actionKey, {
+        phase: "success",
+        actionRunId: responseActionRunId,
+        message: `执行完成 · ${responseActionRunId}`,
+      });
+      appendLog("success", `${message} · actionRunId=${responseActionRunId}`);
+      showPopupToast(message, "success");
       return;
     }
 
     if (actionKey === LARK_BULK_CREATE_ACTION_KEY) {
       const controller = await loadLarkBulkCreateController();
-      await controller.openPreview();
+      await controller.openPreview({ actionRunId });
       return;
     }
 
@@ -1524,29 +1665,252 @@ export function createPopupController() {
       draft: "生成草稿...",
       apply: "确认创建...",
       "update-lark-and-push": "更新 Lark 及推送中...",
+      "story-prd-to-simplified": "研发Review Story 中...",
+      "lark-bug-analyze": "分析 bug 中...",
     };
 
-    appendLog("info", labels[actionKey] || "执行操作中...");
+    appendLog("info", `${labels[actionKey] || "执行操作中..."} · actionRunId=${actionRunId}`);
 
     if (actionKey === "update-lark-and-push") {
       const controller = await loadMeeglePushController();
-      await controller.run();
+      await controller.run({ actionRunId });
       return;
     }
 
-    if (actionKey === "lookup-github-pr") {
+    if (actionKey === "lookup-github-pr" || actionKey === "lookup-github-issue") {
       const controller = await loadGitHubLookupController();
-      await controller.lookup();
+      await controller.lookup({ actionRunId });
       return;
     }
 
     if (actionKey === "create-github-branch") {
       const controller = await loadGitHubBranchCreateController();
-      await controller.open();
+      await controller.open({ actionRunId });
+      return;
+    }
+
+    if (configuredAction?.executor.type === "backend_api") {
+      await runBackendAutomationAction(configuredAction, actionRunId);
       return;
     }
 
     appendLog("warn", "功能开发中，请稍后");
+  }
+
+  async function runBackendAutomationAction(
+    action: AutomationActionListItem,
+    actionRunId: string,
+  ): Promise<void> {
+    if (action.executor.type !== "backend_api" || !action.executor.route) {
+      const message = `${action.title} 缺少服务端执行配置`;
+      setActionStatus(action.key, { phase: "error", message });
+      appendLog("error", message);
+      return;
+    }
+
+    const current = readStore();
+    const currentUrl = current.state.currentUrl;
+    if (!currentUrl) {
+      const message = `当前页面 URL 为空，无法执行${action.title}`;
+      setActionStatus(action.key, { phase: "error", message });
+      appendLog("error", message);
+      return;
+    }
+
+    const masterUserId = current.state.identity.masterUserId;
+    if (!masterUserId) {
+      const message = "未解析到主身份，无法执行服务端动作";
+      setActionStatus(action.key, { phase: "error", message });
+      appendLog("error", message);
+      return;
+    }
+
+    let runtimeCurrentTab = {
+      id: current.state.currentTabId,
+      url: currentUrl,
+      origin: current.state.currentTabOrigin,
+      pageType: current.state.pageType,
+      larkContext: current.state.currentLarkContext ?? undefined,
+    };
+    let actionContext = collectActionRuntimeContext({
+      actionRunId,
+      currentTab: runtimeCurrentTab,
+      identity: {
+        masterUserId,
+      },
+    });
+
+    const isRealLarkRecordId = (recordId: string | undefined): recordId is string =>
+      typeof recordId === "string" && recordId.startsWith("rec");
+    const initialLarkContext = actionContext.pageContext.lark ?? {};
+    const shouldRefreshProductionBugLarkContext =
+      action.executor.operation === "lark.bug.analyze" &&
+      Boolean(initialLarkContext.baseId || initialLarkContext.tableId || initialLarkContext.wikiRecordId) &&
+      !isRealLarkRecordId(initialLarkContext.recordId);
+    if (
+      shouldRefreshProductionBugLarkContext
+    ) {
+      try {
+        const refreshedTab = await queryActiveTabContext();
+        if (refreshedTab.larkContext) {
+          runtimeCurrentTab = {
+            id: refreshedTab.id ?? runtimeCurrentTab.id,
+            url: refreshedTab.url ?? runtimeCurrentTab.url,
+            origin: refreshedTab.origin ?? runtimeCurrentTab.origin,
+            pageType: refreshedTab.pageType ?? runtimeCurrentTab.pageType,
+            larkContext: {
+              ...runtimeCurrentTab.larkContext,
+              ...refreshedTab.larkContext,
+            },
+          };
+          updateStore((store) => ({
+            ...store,
+            state: {
+              ...store.state,
+              currentTabId: runtimeCurrentTab.id,
+              currentUrl: runtimeCurrentTab.url,
+              currentTabOrigin: runtimeCurrentTab.origin,
+              pageType: runtimeCurrentTab.pageType,
+              currentLarkContext: runtimeCurrentTab.larkContext ?? null,
+            },
+          }));
+          actionContext = collectActionRuntimeContext({
+            actionRunId,
+            currentTab: runtimeCurrentTab,
+            identity: {
+              masterUserId,
+            },
+          });
+        }
+      } catch {
+        // Keep the original context; the server will return a structured missing-record error.
+      }
+    }
+
+    const meegleContext = actionContext.pageContext.meegle;
+    const larkContext = actionContext.pageContext.lark ?? {};
+    const effectiveCurrentUrl = runtimeCurrentTab.url ?? currentUrl;
+    const larkRecordId = isRealLarkRecordId(larkContext.recordId) ? larkContext.recordId : undefined;
+    const hasLarkBaseContext = Boolean(larkContext.baseId && larkContext.tableId);
+    const hasLarkRecordContext = Boolean(larkRecordId || larkContext.wikiRecordId);
+    const supportsLarkBaseContext = action.executor.operation === "lark.bug.analyze";
+    const larkPageType = hasLarkRecordContext || hasLarkBaseContext
+      ? larkContext.wikiRecordId && !larkContext.baseId
+        ? "lark_wiki_record"
+        : "lark_base"
+      : undefined;
+    if (!meegleContext && !larkRecordId && !(supportsLarkBaseContext && (hasLarkBaseContext || larkContext.wikiRecordId))) {
+      const message = `无法从当前 URL 解析 Meegle 工作项或 Lark 记录信息: ${effectiveCurrentUrl}`;
+      setActionStatus(action.key, { phase: "error", message });
+      appendLog("error", message);
+      showPopupToast(message, "error");
+      return;
+    }
+
+    const config = await getConfig();
+    const baseUrl = runtimeCurrentTab.origin || meegleContext?.baseUrl || config.MEEGLE_BASE_URL;
+    appendLog(
+      "info",
+      `[${action.title}] 调用服务端: operation=${action.executor.operation}, actionRunId=${actionRunId}`,
+    );
+    setActionStatus(action.key, {
+      phase: "running",
+      actionRunId,
+      message: `执行中 · ${actionRunId}`,
+    });
+
+    const abortController = new AbortController();
+    const timeoutId = globalThis.setTimeout(() => {
+      abortController.abort();
+    }, BACKEND_AUTOMATION_TIMEOUT_MS);
+    try {
+      const { payload } = await fetchServerJson<BackendAutomationResponse>({
+        url: `${config.SERVER_URL}${action.executor.route}`,
+        masterUserId,
+        signal: abortController.signal,
+        body: {
+          projectKey: meegleContext?.projectKey,
+          workItemTypeKey: meegleContext?.workItemTypeKey,
+          workItemId: meegleContext?.workItemId,
+          meegleUrl: effectiveCurrentUrl,
+          baseId: larkContext.baseId,
+          tableId: larkContext.tableId,
+          viewId: larkContext.viewId,
+          recordId: larkRecordId,
+          wikiRecordId: larkContext.wikiRecordId,
+          pageType: larkPageType,
+          masterUserId,
+          baseUrl,
+          actionRunId,
+        },
+      });
+
+      if (!payload.ok) {
+        const errorMessage = getBackendAutomationErrorMessage(payload);
+        setActionStatus(action.key, {
+          phase: "error",
+          actionRunId:
+            payload.error && typeof payload.error === "object"
+              ? payload.error.actionRunId ?? actionRunId
+              : actionRunId,
+          message: errorMessage,
+        });
+        appendLog("error", `[${action.title}] 执行失败: ${errorMessage}`);
+        showPopupToast(errorMessage, "error");
+        return;
+      }
+
+      const message = `[${action.title}] 执行完成${payload.data?.updatedField ? `: 已更新 ${payload.data.updatedField}` : ""}`;
+      setActionStatus(action.key, {
+        phase: "success",
+        actionRunId: payload.data?.actionRunId ?? actionRunId,
+        message: payload.data?.updatedField
+          ? `已更新 ${payload.data.updatedField}`
+          : "执行完成",
+      });
+      appendLog("success", message);
+      showPopupToast(message, "success");
+    } catch (error) {
+      const isAbort = error instanceof DOMException && error.name === "AbortError";
+      const message = isAbort
+        ? "执行超时，服务端可能仍在处理，请稍后刷新 Meegle 或查看日志。"
+        : error instanceof Error
+          ? error.message
+          : String(error);
+      setActionStatus(action.key, {
+        phase: "error",
+        actionRunId,
+        message,
+      });
+      appendLog("error", `[${action.title}] 执行失败: ${message}`);
+      showPopupToast(message, "error");
+    } finally {
+      globalThis.clearTimeout(timeoutId);
+    }
+  }
+
+  function createActionRunId(): string {
+    if (globalThis.crypto?.randomUUID) {
+      return globalThis.crypto.randomUUID();
+    }
+
+    return `action_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  }
+
+  function getBackendAutomationErrorMessage(
+    response: BackendAutomationResponse,
+  ): string {
+    if (typeof response.error === "string") {
+      return response.error;
+    }
+
+    if (response.error?.errorMessage) {
+      return response.error.errorCode
+        ? `${response.error.errorCode}: ${response.error.errorMessage}`
+        : response.error.errorMessage;
+    }
+
+    return "未知错误";
   }
 
   async function confirmGitHubBranchCreate(): Promise<void> {
@@ -1590,6 +1954,26 @@ export function createPopupController() {
     anchor.click();
     URL.revokeObjectURL(url);
     appendLog("info", "日志已导出");
+  }
+
+  function toPopupFeatureAction(
+    action: AutomationActionListItem,
+    input: {
+      viewModel: ReturnType<typeof createPopupViewModel>;
+      status?: PopupActionExecutionStatus;
+    },
+  ): PopupFeatureAction {
+    const loading = input.status?.phase === "running";
+    return {
+      key: action.key,
+      label: action.title,
+      type: action.style ?? "default",
+      disabled:
+        loading || (action.key === "analyze" ? !input.viewModel.canAnalyze : false),
+      loading,
+      statusText: input.status?.message,
+      statusTone: input.status?.phase,
+    };
   }
 
   async function lookupGitHubPr(): Promise<void> {
@@ -1692,58 +2076,21 @@ export function createPopupController() {
     const topLarkButtonText = store.state.isAuthed.lark ? "重新授权" : "授权";
     const topMeegleButtonDisabled = store.state.isAuthed.meegle;
     const topLarkButtonDisabled = false;
-    const currentLarkBaseContext = extractLarkBaseContextFromUrl(
-      store.state.currentUrl ?? undefined,
+    const configuredActions = (store.pageConfig?.automationActions ?? []).filter(
+      actionHasPopupPlacement,
     );
-    const showLarkBulkCreateAction =
-      store.state.pageType === "lark" &&
-      viewModel.showLarkFeatureBlock &&
-      currentLarkBaseContext.baseId === TARGET_LARK_BASE_ID &&
-      currentLarkBaseContext.tableId === TARGET_LARK_TABLE_ID &&
-      currentLarkBaseContext.viewId === TARGET_LARK_VIEW_ID;
-    const larkActions: PopupFeatureAction[] = (() => {
-    const actions: PopupFeatureAction[] = [
-      {
-        key: "analyze",
-        label: "分析当前页面",
-        type: "primary",
-        disabled: !viewModel.canAnalyze,
-      },
-    ];
-
-    if (showLarkBulkCreateAction) {
-      actions.push({
-        key: LARK_BULK_CREATE_ACTION_KEY,
-        label: "批量创建 MEEGLE TICKET",
-        type: "default",
-        disabled: false,
-      });
-    }
-
-    return actions;
-    })();
-    const meegleActions: PopupFeatureAction[] = [
-      {
-        key: "update-lark-and-push",
-        label: "更新Lark及推送",
-        type: "primary",
-        disabled: false,
-      },
-      {
-        key: "create-github-branch",
-        label: "创建 GitHub 分支",
-        type: "default",
-        disabled: false,
-      },
-    ];
-    const githubActions: PopupFeatureAction[] = [
-      {
-        key: "lookup-github-pr",
-        label: "查询 PR 关联的 Meegle 工作项",
-        type: "primary",
-        disabled: false,
-      },
-    ];
+    const actionsForCurrentPage = configuredActions.map((action) =>
+      toPopupFeatureAction(action, {
+        viewModel,
+        status: store.actionStatuses[action.key],
+      }),
+    );
+    const larkActions: PopupFeatureAction[] =
+      store.state.pageType === "lark" ? actionsForCurrentPage : [];
+    const meegleActions: PopupFeatureAction[] =
+      store.state.pageType === "meegle" ? actionsForCurrentPage : [];
+    const githubActions: PopupFeatureAction[] =
+      store.state.pageType === "github" ? actionsForCurrentPage : [];
 
     cachedState = freezeSnapshot(
       cloneData({

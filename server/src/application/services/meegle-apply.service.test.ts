@@ -4,6 +4,7 @@ import {
   InMemoryMeegleTokenStore,
   type StoredMeegleToken,
 } from "../../adapters/meegle/token-store.js";
+import { MeegleAPIError } from "../../adapters/meegle/meegle-client.js";
 import {
   PostgresResolvedUserStore,
   configureResolvedUserStore,
@@ -288,6 +289,92 @@ describe("meegle-apply.service", () => {
       ),
     ).rejects.toMatchObject({
       errorCode: "MEEGLE_WORKITEM_CREATE_FAILED",
+    });
+  });
+
+  it("includes the Meegle create API error message when workitem creation fails", async () => {
+    const user = await resolvedUserStore.create({
+      status: "active",
+      larkTenantKey: "tenant_a",
+      larkId: "ou_create_api_fail",
+      meegleBaseUrl: "https://project.larksuite.com",
+      meegleUserKey: "create_api_user_key",
+    });
+    await seedToken({
+      masterUserId: user.id,
+      meegleUserKey: "create_api_user_key",
+      baseUrl: "https://project.larksuite.com",
+      pluginToken: "plugin_token_123",
+      pluginTokenExpiresAt: "2099-03-26T12:00:00.000Z",
+      userToken: "ready_user_token",
+      userTokenExpiresAt: "2099-03-26T10:30:00.000Z",
+      refreshToken: "refresh_token_789",
+      refreshTokenExpiresAt: "2099-04-09T10:00:00.000Z",
+      credentialStatus: "active",
+    });
+    createWorkitemFromDraft.mockRejectedValueOnce(
+      new MeegleAPIError(
+        "HTTP 400",
+        400,
+        { err: { msg: "X-IDEM-UUID has already been used" } },
+      ),
+    );
+
+    await expect(
+      executeMeegleApply(
+        {
+          requestId: "req_009",
+          draft,
+          masterUserId: user.id,
+          operatorLarkId: "ou_create_api_fail",
+          idempotencyKey: "idem_009",
+        },
+        buildDeps(),
+      ),
+    ).rejects.toMatchObject({
+      errorCode: "MEEGLE_WORKITEM_CREATE_FAILED",
+      message: "创建 Meegle 工作项失败：X-IDEM-UUID has already been used",
+    });
+  });
+
+  it("uses a fallback message when the Meegle create API error has no readable message", async () => {
+    const user = await resolvedUserStore.create({
+      status: "active",
+      larkTenantKey: "tenant_a",
+      larkId: "ou_create_unreadable_fail",
+      meegleBaseUrl: "https://project.larksuite.com",
+      meegleUserKey: "create_unreadable_user_key",
+    });
+    await seedToken({
+      masterUserId: user.id,
+      meegleUserKey: "create_unreadable_user_key",
+      baseUrl: "https://project.larksuite.com",
+      pluginToken: "plugin_token_123",
+      pluginTokenExpiresAt: "2099-03-26T12:00:00.000Z",
+      userToken: "ready_user_token",
+      userTokenExpiresAt: "2099-03-26T10:30:00.000Z",
+      refreshToken: "refresh_token_789",
+      refreshTokenExpiresAt: "2099-04-09T10:00:00.000Z",
+      credentialStatus: "active",
+    });
+    createWorkitemFromDraft.mockRejectedValueOnce(
+      new MeegleAPIError("HTTP 500", 500, { request_id: "req_meegle_500" }),
+    );
+
+    await expect(
+      executeMeegleApply(
+        {
+          requestId: "req_010",
+          draft,
+          masterUserId: user.id,
+          operatorLarkId: "ou_create_unreadable_fail",
+          idempotencyKey: "idem_010",
+        },
+        buildDeps(),
+      ),
+    ).rejects.toMatchObject({
+      errorCode: "MEEGLE_WORKITEM_CREATE_FAILED",
+      message: "创建 Meegle 工作项失败：Meegle 创建接口返回错误，请稍后重试或联系管理员查看服务端日志。",
     });
   });
 

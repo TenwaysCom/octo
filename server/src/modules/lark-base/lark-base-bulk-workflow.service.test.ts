@@ -106,6 +106,55 @@ describe("lark-base-bulk-workflow.service", () => {
     });
   });
 
+  it("lists table records when preview does not include a view id", async () => {
+    const listRecordsMock = vi.fn().mockResolvedValueOnce({
+      records: [
+        makeRecord("rec_table_scope", {
+          编号: "ISS-201",
+          "Issue 类型": "User Story",
+          "Issue Description": "Table scoped preview",
+          Priority: "P1",
+          meegle链接: "",
+        }),
+      ],
+      hasMore: false,
+    });
+    createLarkClientMock.mockReturnValueOnce({
+      listRecords: listRecordsMock,
+      listRecordsByView: vi.fn(),
+    });
+
+    const result = await previewLarkBaseBulkWorkflow(
+      {
+        baseId: "base_123",
+        tableId: "tbl_456",
+        masterUserId: "usr_xxx",
+      },
+      deps,
+    );
+
+    expect(listRecordsMock).toHaveBeenCalledWith("base_123", "tbl_456", {
+      pageNum: 1,
+      pageSize: 500,
+    });
+    expect(result).toEqual({
+      ok: true,
+      baseId: "base_123",
+      tableId: "tbl_456",
+      totalRecordsInView: 1,
+      eligibleRecords: [
+        {
+          recordId: "rec_table_scope",
+          issueNumber: "ISS-201",
+          issueType: "User Story",
+          title: "Table scoped preview",
+          priority: "P1",
+        },
+      ],
+      skippedRecords: [],
+    });
+  });
+
   it("skips records with existing meegle链接 and creates workitems for the rest", async () => {
     createLarkClientMock.mockReturnValueOnce({
       listRecordsByView: vi

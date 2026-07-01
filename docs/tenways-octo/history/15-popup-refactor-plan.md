@@ -2,7 +2,7 @@
 
 > Status: historical implementation plan.
 >
-> This document records an earlier popup refactor plan and includes old action names such as `itdog.a1.*` / `itdog.a2.*`. It is not the current protocol or implementation source of truth. For current extension/server boundaries, read [`docs/ai-dev/rules/system-boundaries-and-code-rules.md`](../../ai-dev/rules/system-boundaries-and-code-rules.md) and [`11-extension-message-and-api-schema.md`](../11-extension-message-and-api-schema.md).
+> This document records an earlier popup refactor plan and includes old action names such as `octo.a1.*` / `octo.a2.*`. It is not the current protocol or implementation source of truth. For current extension/server boundaries, read [`docs/ai-dev/rules/system-boundaries-and-code-rules.md`](../../ai-dev/rules/system-boundaries-and-code-rules.md) and [`11-extension-message-and-api-schema.md`](../11-extension-message-and-api-schema.md).
 
 ## 背景
 
@@ -12,14 +12,14 @@
 
 | 功能 | 文档要求 | 当前状态 | 优先级 |
 |------|----------|----------|--------|
-| 身份解析 | `itdog.identity.resolve` | ❌ 未实现 | P1 |
-| Meegle 认证 | `itdog.meegle.auth.ensure` | ⚠️ 部分实现 | P1 |
-| Lark 认证 | `itdog.lark.auth.ensure` | ⚠️ 部分实现 | P1 |
-| A1 分析 | `itdog.a1.analyze` | ⚠️ Mock 实现 | P1 |
-| A1 B2 草稿 | `itdog.a1.create_b2_draft` | ⚠️ Mock 实现 | P1 |
-| A1 B2 确认 | `itdog.a1.apply_b2` | ⚠️ Mock 实现 | P1 |
+| 身份解析 | `octo.identity.resolve` | ❌ 未实现 | P1 |
+| Meegle 认证 | `octo.meegle.auth.ensure` | ⚠️ 部分实现 | P1 |
+| Lark 认证 | `octo.lark.auth.ensure` | ⚠️ 部分实现 | P1 |
+| A1 分析 | `octo.a1.analyze` | ⚠️ Mock 实现 | P1 |
+| A1 B2 草稿 | `octo.a1.create_b2_draft` | ⚠️ Mock 实现 | P1 |
+| A1 B2 确认 | `octo.a1.apply_b2` | ⚠️ Mock 实现 | P1 |
 | A2 流程 | A2 分析/B1 创建 | ❌ 未实现 | P2 |
-| PM 分析 | `itdog.pm.analysis.run` | ❌ 未实现 | P2 |
+| PM 分析 | `octo.pm.analysis.run` | ❌ 未实现 | P2 |
 | 身份映射 | Lark ID ↔ Meegle UserKey | ❌ 未实现 | P1 |
 
 ## 架构重构
@@ -66,7 +66,7 @@ popup/
 #### 1. Meegle 认证 (Meegle 页面)
 - [ ] 检测 Meegle 登录状态
 - [ ] 显示认证状态 (已认证/需登录/失败)
-- [ ] 点击"获取认证"→ 调用 `itdog.page.meegle.auth_code.request`
+- [ ] 点击"获取认证"→ 调用 `octo.page.meegle.auth_code.request`
 - [ ] 获取 authCode → 调用 `/api/meegle/auth/exchange`
 - [ ] 显示 token 交换结果
 - [ ] 处理错误: `MEEGLE_NOT_LOGGED_IN`, `AUTH_CODE_REQUEST_FAILED`
@@ -81,7 +81,7 @@ popup/
 - [ ] 按钮状态管理: 分析 → 草稿 → 确认
 
 #### 3. 身份解析
-- [ ] 实现 `itdog.identity.resolve`
+- [ ] 实现 `octo.identity.resolve`
 - [ ] 检测 Lark ID
 - [ ] 查询身份映射状态
 - [ ] 显示绑定状态
