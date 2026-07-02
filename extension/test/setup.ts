@@ -49,7 +49,7 @@ globalThis.chrome = {
     onInstalled: {
       addListener: vi.fn(),
     },
-    getManifest: vi.fn(() => ({ version: "0.8.0" })),
+    getManifest: vi.fn(() => ({ version: "0.8.1" })),
   },
   action: {
     setBadgeText: vi.fn((_details, callback?) => {
