@@ -79,6 +79,36 @@ const popupLogger = createExtensionLogger("popup:app");
 const LARK_CREATE_ACTION_KEY = "create-meegle-item";
 const LARK_BULK_CREATE_ACTION_KEY = "bulk-create-meegle-tickets";
 
+function summarizeIdentifier(value?: string | null): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  if (value.length <= 8) {
+    return value;
+  }
+
+  return `${value.slice(0, 4)}...${value.slice(-4)}`;
+}
+
+function summarizeLarkContextForDebug(context?: Partial<LarkBaseUrlContext>): Record<string, unknown> {
+  const recordId = context?.recordId;
+
+  return {
+    hasBaseId: Boolean(context?.baseId),
+    baseId: summarizeIdentifier(context?.baseId),
+    hasTableId: Boolean(context?.tableId),
+    tableId: summarizeIdentifier(context?.tableId),
+    hasViewId: Boolean(context?.viewId),
+    viewId: summarizeIdentifier(context?.viewId),
+    hasRecordId: Boolean(recordId),
+    recordId: summarizeIdentifier(recordId),
+    isRealRecordId: typeof recordId === "string" && recordId.startsWith("rec"),
+    hasWikiRecordId: Boolean(context?.wikiRecordId),
+    wikiRecordId: summarizeIdentifier(context?.wikiRecordId),
+  };
+}
+
 function actionHasPopupPlacement(action: AutomationActionListItem): boolean {
   return action.placements?.some((placement) => placement.surface === "popup") ?? true;
 }
@@ -1747,11 +1777,26 @@ export function createPopupController() {
       action.executor.operation === "lark.bug.analyze" &&
       Boolean(initialLarkContext.baseId || initialLarkContext.tableId || initialLarkContext.wikiRecordId) &&
       !isRealLarkRecordId(initialLarkContext.recordId);
+    if (action.executor.operation === "lark.bug.analyze") {
+      popupLogger.debug("larkBugContext.beforeRefresh", {
+        actionRunId,
+        shouldRefresh: shouldRefreshProductionBugLarkContext,
+        larkContext: summarizeLarkContextForDebug(initialLarkContext),
+      });
+    }
+
     if (
       shouldRefreshProductionBugLarkContext
     ) {
       try {
         const refreshedTab = await queryActiveTabContext();
+        popupLogger.debug("larkBugContext.refreshedTab", {
+          actionRunId,
+          pageType: refreshedTab.pageType,
+          hasLarkContext: Boolean(refreshedTab.larkContext),
+          larkContext: summarizeLarkContextForDebug(refreshedTab.larkContext),
+        });
+
         if (refreshedTab.larkContext) {
           runtimeCurrentTab = {
             id: refreshedTab.id ?? runtimeCurrentTab.id,
@@ -1781,8 +1826,16 @@ export function createPopupController() {
               masterUserId,
             },
           });
+          popupLogger.debug("larkBugContext.afterRefresh", {
+            actionRunId,
+            larkContext: summarizeLarkContextForDebug(actionContext.pageContext.lark),
+          });
         }
-      } catch {
+      } catch (error) {
+        popupLogger.warn("larkBugContext.refreshFailed", {
+          actionRunId,
+          errorMessage: error instanceof Error ? error.message : String(error),
+        });
         // Keep the original context; the server will return a structured missing-record error.
       }
     }
@@ -1799,6 +1852,19 @@ export function createPopupController() {
         ? "lark_wiki_record"
         : "lark_base"
       : undefined;
+    if (action.executor.operation === "lark.bug.analyze") {
+      popupLogger.debug("larkBugContext.payload", {
+        actionRunId,
+        route: action.executor.route,
+        hasMeegleContext: Boolean(meegleContext),
+        hasLarkBaseContext,
+        hasLarkRecordContext,
+        larkPageType,
+        larkRecordId: summarizeIdentifier(larkRecordId),
+        larkContext: summarizeLarkContextForDebug(larkContext),
+      });
+    }
+
     if (!meegleContext && !larkRecordId && !(supportsLarkBaseContext && (hasLarkBaseContext || larkContext.wikiRecordId))) {
       const message = `无法从当前 URL 解析 Meegle 工作项或 Lark 记录信息: ${effectiveCurrentUrl}`;
       setActionStatus(action.key, { phase: "error", message });

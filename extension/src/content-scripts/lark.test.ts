@@ -12,6 +12,7 @@ function getTestingApi() {
         tableId?: string;
         recordId?: string;
         viewId?: string;
+        wikiRecordId?: string;
       } | null;
       refreshProbeState: () => void;
       getProbeState: () => {
@@ -378,6 +379,64 @@ describe("lark content script probe overlay", () => {
       pageType: "lark_wiki_record",
       wikiRecordId: "JfrhrMSAHeNRowcqTTclnyteg0c",
       recordId: "rec_from_wiki_page",
+    });
+  });
+
+  it("extracts a real recordId from page DOM on the shared Lark record entry URL", async () => {
+    await import("./lark");
+
+    window.history.replaceState({}, "", "/record/UeDireV0Ue4I4TcwTkXlV3ESghc");
+
+    document.body.innerHTML = `
+      <div id="app">
+        <main>
+          <article class="wiki-content">
+            <h1>Production Bug</h1>
+            <div class="field-row"><label>记录ID</label><div>rec_from_shared_record_page</div></div>
+          </article>
+        </main>
+      </div>
+    `;
+
+    const context = getTestingApi()?.detectLarkPageContext();
+    expect(context).toMatchObject({
+      pageType: "lark_wiki_record",
+      wikiRecordId: "UeDireV0Ue4I4TcwTkXlV3ESghc",
+      recordId: "rec_from_shared_record_page",
+    });
+  });
+
+  it("extracts a real recordId from page DOM on the shared Lark Base entry URL", async () => {
+    await import("./lark");
+
+    window.history.replaceState(
+      {},
+      "",
+      "/base/XO0cbnxMIaralRsbBEolboEFgZc?table=tblUfu71xwdul3NH&view=vewMs17Tqk",
+    );
+
+    document.body.innerHTML = `
+      <div id="app">
+        <main>
+          <aside class="record-detail-panel">
+            <div class="detail-header">
+              <h2>Production Bug</h2>
+            </div>
+            <section class="field-list">
+              <div class="field-row"><label>记录ID</label><div>rec_from_shared_base_page</div></div>
+            </section>
+          </aside>
+        </main>
+      </div>
+    `;
+
+    const context = getTestingApi()?.detectLarkPageContext();
+    expect(context).toMatchObject({
+      pageType: "lark_base",
+      baseId: "XO0cbnxMIaralRsbBEolboEFgZc",
+      tableId: "tblUfu71xwdul3NH",
+      viewId: "vewMs17Tqk",
+      recordId: "rec_from_shared_base_page",
     });
   });
 

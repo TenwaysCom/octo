@@ -199,6 +199,15 @@ export async function executeMeegleStoryPrdToSimplified(
       );
     }
 
+    if (isLarkDocumentOnlySummary(storySummary)) {
+      return toError(
+        "server.workflow.started",
+        "LARK_STORY_SUMMARY_CONTENT_UNAVAILABLE",
+        "Story Summary only contains a Lark document link. Paste the actual PRD content into Story Summary before running PRD review.",
+        actionRunId,
+      );
+    }
+
     const promptTemplate = await resolveStoryPrdToSimplifiedPromptTemplate(
       deps.workflowPromptStore ?? getWorkflowPromptStore(),
     );
@@ -342,6 +351,49 @@ function extractTextValue(value: unknown): string {
   }
 
   return "";
+}
+
+function isLarkDocumentOnlySummary(text: string): boolean {
+  const linkMatches = Array.from(text.matchAll(/https?:\/\/[^\s"'<>）)]+/gi));
+  const larkDocumentLinks = linkMatches
+    .map((match) => match[0])
+    .filter(isLarkDocumentUrl);
+
+  if (larkDocumentLinks.length === 0) {
+    return false;
+  }
+
+  let residual = text;
+  for (const link of larkDocumentLinks) {
+    residual = residual.replaceAll(link, "");
+  }
+  residual = residual
+    .replace(/\[[^\]]{0,30}\]\(\s*\)/g, "")
+    .replace(/[\s\[\]()（）:：,，.。;；!！?？"'“”‘’`*_#\-]+/g, "");
+
+  return residual.length < 20;
+}
+
+function isLarkDocumentUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    const hostname = url.hostname.toLowerCase();
+    if (
+      hostname === "project.larksuite.com" ||
+      !(
+        hostname === "larksuite.com" ||
+        hostname.endsWith(".larksuite.com") ||
+        hostname === "feishu.cn" ||
+        hostname.endsWith(".feishu.cn")
+      )
+    ) {
+      return false;
+    }
+
+    return /^\/(?:wiki|docx?|docs)\//i.test(url.pathname);
+  } catch {
+    return false;
+  }
 }
 
 async function refreshDefaultMeegleCredential(input: {

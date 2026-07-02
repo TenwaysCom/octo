@@ -66,6 +66,24 @@ function summarizeIdentifier(value?: string | null): string | undefined {
   return `${value.slice(0, 4)}...${value.slice(-4)}`;
 }
 
+function summarizeLarkContextForDebug(context?: Partial<LarkBaseUrlContext>): Record<string, unknown> {
+  const recordId = context?.recordId;
+
+  return {
+    hasBaseId: Boolean(context?.baseId),
+    baseId: summarizeIdentifier(context?.baseId),
+    hasTableId: Boolean(context?.tableId),
+    tableId: summarizeIdentifier(context?.tableId),
+    hasViewId: Boolean(context?.viewId),
+    viewId: summarizeIdentifier(context?.viewId),
+    hasRecordId: Boolean(recordId),
+    recordId: summarizeIdentifier(recordId),
+    isRealRecordId: typeof recordId === "string" && recordId.startsWith("rec"),
+    hasWikiRecordId: Boolean(context?.wikiRecordId),
+    wikiRecordId: summarizeIdentifier(context?.wikiRecordId),
+  };
+}
+
 export interface PopupTabContext {
   id: number | null;
   url: string | null;
@@ -360,17 +378,34 @@ async function queryLarkPageContext(
       action: "getPageContext",
     });
     if (!response) {
+      runtimeLogger.debug("queryLarkPageContext.empty", {
+        tabId,
+        pageType,
+      });
       return undefined;
     }
 
-    return {
+    const context = {
       baseId: response.baseId,
       tableId: response.tableId,
       recordId: response.recordId,
       viewId: response.viewId,
       wikiRecordId: response.wikiRecordId,
     };
-  } catch {
+
+    runtimeLogger.debug("queryLarkPageContext.done", {
+      tabId,
+      pageType,
+      larkContext: summarizeLarkContextForDebug(context),
+    });
+
+    return context;
+  } catch (error) {
+    runtimeLogger.warn("queryLarkPageContext.failed", {
+      tabId,
+      pageType,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
     return undefined;
   }
 }

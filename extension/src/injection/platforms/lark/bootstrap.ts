@@ -40,20 +40,109 @@ type LarkIdentitySource =
   | "global"
   | "storage"
   | "not_found";
+
+type RecordIdDomScanResult = {
+  selector: string;
+  label: string | null;
+  value: string | null;
+};
+
+function isRealLarkRecordId(value: string | null | undefined): value is string {
+  return typeof value === "string" && value.startsWith("rec");
+}
+
+function normalizeRecordIdLabel(label: string | null | undefined): string | undefined {
+  const normalized = label?.trim().replace(/\s/g, "");
+  return normalized || undefined;
+}
+
+function summarizeValueShape(value: string | null | undefined): {
+  hasValue: boolean;
+  valuePrefix?: string;
+  valueLength?: number;
+  isRealRecordIdValue: boolean;
+} {
+  if (!value) {
+    return {
+      hasValue: false,
+      isRealRecordIdValue: false,
+    };
+  }
+
+  return {
+    hasValue: true,
+    valuePrefix: value.slice(0, 3),
+    valueLength: value.length,
+    isRealRecordIdValue: isRealLarkRecordId(value),
+  };
+}
+
+function summarizeParsedRecordIdField(context: LarkRecordContext | null): {
+  found: boolean;
+  valuePrefix?: string;
+  valueLength?: number;
+  isRealRecordIdValue: boolean;
+} {
+  const recordIdField = context?.fields.find(
+    (field) => normalizeRecordIdLabel(field.label) === "记录ID",
+  );
+  const valueShape = summarizeValueShape(recordIdField?.value.trim());
+
+  return {
+    found: Boolean(recordIdField),
+    valuePrefix: valueShape.valuePrefix,
+    valueLength: valueShape.valueLength,
+    isRealRecordIdValue: valueShape.isRealRecordIdValue,
+  };
+}
+
+function summarizeDomScanResultsForLog(results: RecordIdDomScanResult[]): Array<{
+  selector: string;
+  labelNormalized?: string;
+  hasValue: boolean;
+  valuePrefix?: string;
+  valueLength?: number;
+  isRecordIdLabel: boolean;
+  isRealRecordIdValue: boolean;
+}> {
+  return results.map((result) => {
+    const labelNormalized = normalizeRecordIdLabel(result.label);
+    const valueShape = summarizeValueShape(result.value);
+
+    return {
+      selector: result.selector,
+      labelNormalized,
+      hasValue: valueShape.hasValue,
+      valuePrefix: valueShape.valuePrefix,
+      valueLength: valueShape.valueLength,
+      isRecordIdLabel: labelNormalized === "记录ID",
+      isRealRecordIdValue: valueShape.isRealRecordIdValue,
+    };
+  });
+}
+
+function safeUrlPath(value: string): string | undefined {
+  try {
+    return new URL(value).pathname;
+  } catch {
+    return undefined;
+  }
+}
+
 function extractRecordIdFromFields(context: LarkRecordContext | null): string | undefined {
   if (!context) {
     return undefined;
   }
   const recordIdField = context.fields.find(
-    (field) => field.label.trim().replace(/\s/g, "") === "记录ID",
+    (field) => normalizeRecordIdLabel(field.label) === "记录ID",
   );
   const recordId = recordIdField?.value.trim();
-  return recordId?.startsWith("rec") ? recordId : undefined;
+  return isRealLarkRecordId(recordId) ? recordId : undefined;
 }
 
 function extractRecordIdFromDom(
   detailRoot: Element | null,
-  debugResults?: Array<{ selector: string; label: string | null; value: string | null }>,
+  debugResults?: RecordIdDomScanResult[],
 ): string | undefined {
   if (!detailRoot) {
     return undefined;
@@ -82,8 +171,8 @@ function extractRecordIdFromDom(
         debugResults.push({ selector, label, value });
       }
 
-      if (label?.replace(/\s/g, "") === "记录ID") {
-        if (value?.startsWith("rec")) {
+      if (normalizeRecordIdLabel(label) === "记录ID") {
+        if (isRealLarkRecordId(value)) {
           return value;
         }
       }
@@ -98,7 +187,7 @@ function buildDebugInfo(
   parsedContext: LarkRecordContext | null,
   url: string,
 ): ProbeDebugInfo {
-  const domScanResults: Array<{ selector: string; label: string | null; value: string | null }> = [];
+  const domScanResults: RecordIdDomScanResult[] = [];
   extractRecordIdFromDom(detail.detailRoot, domScanResults);
 
   const urlRecordId = typeof URL !== "undefined" && url
@@ -227,18 +316,68 @@ export function createLarkContentScriptRuntime(): LarkContentScriptRuntime {
     // Use appropriate probe based on page type
     const detail = isWikiRecord ? probeLarkWikiRecordContext() : probeLarkDetail();
     const parsedContext = detail.detailRoot ? probeLarkContext(detail.detailRoot) : null;
+    const fieldRecordId = extractRecordIdFromFields(parsedContext);
+    const domScanResults: RecordIdDomScanResult[] = [];
+    const domRecordId = extractRecordIdFromDom(detail.detailRoot, domScanResults);
+    const recordId = routeContext.recordId ?? fieldRecordId ?? domRecordId;
+    const pageType = inferPageTypeFromRecordContext(
+      parsedContext,
+      routeContext.baseId,
+      routeContext.tableId,
+      routeContext.wikiRecordId,
+    );
 
     const context: LarkDetectedPageContext = {
-      pageType: inferPageTypeFromRecordContext(parsedContext, routeContext.baseId, routeContext.tableId, routeContext.wikiRecordId),
+      pageType,
       url,
       baseId: routeContext.baseId,
       tableId: routeContext.tableId,
       viewId: routeContext.viewId,
       wikiRecordId: routeContext.wikiRecordId,
-      recordId: routeContext.recordId
-        ?? extractRecordIdFromFields(parsedContext)
-        ?? extractRecordIdFromDom(detail.detailRoot),
+      recordId,
     };
+
+    if (routeContext.baseId || routeContext.tableId || routeContext.recordId || routeContext.wikiRecordId) {
+      const parsedRecordIdField = summarizeParsedRecordIdField(parsedContext);
+      const domScanSummary = summarizeDomScanResultsForLog(domScanResults);
+      const source = routeContext.recordId
+        ? "url"
+        : fieldRecordId
+          ? "parsed_field"
+          : domRecordId
+            ? "dom"
+            : "missing";
+
+      larkBootstrapLogger.debug("larkRecordId.resolve", {
+        pageType,
+        urlPath: safeUrlPath(url),
+        source,
+        hasResolvedRecordId: Boolean(recordId),
+        resolvedRecordId: summarizeIdentifier(recordId),
+        hasDetailRoot: Boolean(detail.detailRoot),
+        isDetailOpen: detail.isOpen,
+        hasBaseId: Boolean(routeContext.baseId),
+        baseId: summarizeIdentifier(routeContext.baseId),
+        hasTableId: Boolean(routeContext.tableId),
+        tableId: summarizeIdentifier(routeContext.tableId),
+        hasViewId: Boolean(routeContext.viewId),
+        viewId: summarizeIdentifier(routeContext.viewId),
+        hasWikiRecordId: Boolean(routeContext.wikiRecordId),
+        wikiRecordId: summarizeIdentifier(routeContext.wikiRecordId),
+        routeRecordId: summarizeIdentifier(routeContext.recordId),
+        fieldRecordId: summarizeIdentifier(fieldRecordId),
+        domRecordId: summarizeIdentifier(domRecordId),
+        parsedFieldCount: parsedContext?.fields.length ?? 0,
+        parsedRecordIdFieldFound: parsedRecordIdField.found,
+        parsedRecordIdFieldValuePrefix: parsedRecordIdField.valuePrefix,
+        parsedRecordIdFieldValueLength: parsedRecordIdField.valueLength,
+        parsedRecordIdFieldIsRealRecordId: parsedRecordIdField.isRealRecordIdValue,
+        domCandidateCount: domScanSummary.length,
+        domRecordIdLabelCount: domScanSummary.filter((candidate) => candidate.isRecordIdLabel).length,
+        domRealRecordIdValueCount: domScanSummary.filter((candidate) => candidate.isRealRecordIdValue).length,
+        sampleDomCandidates: domScanSummary.slice(0, 8),
+      });
+    }
 
     const larkIdElement = document.querySelector('[data-user-id]') as HTMLElement;
     if (larkIdElement) {
