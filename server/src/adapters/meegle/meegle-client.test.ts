@@ -87,4 +87,70 @@ describe("parseWorkitem", () => {
     expect(result.fields.id).toBeUndefined();
     expect(result.fields.name).toBeUndefined();
   });
+
+  it("should flatten nested Meegle fields so field value pairs stay readable", () => {
+    const result = parseWorkitem({
+      id: "123",
+      name: "Production Bug",
+      type: "production_bug",
+      fields: {
+        fields: [
+          {
+            field_key: "field_8d0341",
+            field_value: "https://applink.larksuite.com/client/thread/open?threadid=thread_1",
+          },
+        ],
+        work_item_status: { state_key: "started" },
+      },
+    });
+
+    expect(result.fields.fields).toEqual([
+      {
+        field_key: "field_8d0341",
+        field_value: "https://applink.larksuite.com/client/thread/open?threadid=thread_1",
+      },
+    ]);
+    expect(result.fields.work_item_status).toEqual({ state_key: "started" });
+  });
+
+  it("should preserve top-level Meegle field pair arrays", () => {
+    const result = parseWorkitem({
+      id: "13290007",
+      name: "Production Bug",
+      work_item_type_key: "6932e40429d1cd8aac635c82",
+      fields: [
+        {
+          field_key: "field_c22a1a",
+          field_alias: "lark_update_message",
+          field_name: "Lark Update Message",
+          field_type_key: "text",
+          field_value: "Hello, your request has been released.",
+        },
+        {
+          field_key: "field_8d0341",
+          field_alias: "lark_message_link",
+          field_name: "Lark Message Link",
+          field_type_key: "text",
+          field_value: "https://applink.larksuite.com/client/thread/open?threadid=thread_1",
+        },
+      ],
+    });
+
+    expect(result.fields.fields).toEqual([
+      {
+        field_key: "field_c22a1a",
+        field_alias: "lark_update_message",
+        field_name: "Lark Update Message",
+        field_type_key: "text",
+        field_value: "Hello, your request has been released.",
+      },
+      {
+        field_key: "field_8d0341",
+        field_alias: "lark_message_link",
+        field_name: "Lark Message Link",
+        field_type_key: "text",
+        field_value: "https://applink.larksuite.com/client/thread/open?threadid=thread_1",
+      },
+    ]);
+  });
 });

@@ -78,6 +78,7 @@ import { collectActionRuntimeContext } from "./action-runtime-context.js";
 const popupLogger = createExtensionLogger("popup:app");
 const LARK_CREATE_ACTION_KEY = "create-meegle-item";
 const LARK_BULK_CREATE_ACTION_KEY = "bulk-create-meegle-tickets";
+const MEEGLE_LINK_ALREADY_EXISTS_ERROR_CODE = "MEEGLE_LINK_ALREADY_EXISTS";
 
 function summarizeIdentifier(value?: string | null): string | undefined {
   if (!value) {
@@ -501,6 +502,7 @@ export function createPopupController() {
             appendLog,
             showToast,
             setActivePage,
+            queryCurrentTabContext: queryActiveTabContext,
             updateCurrentTabUrl(tabId, url) {
               void chrome.tabs.update(tabId, { url });
             },
@@ -1661,7 +1663,9 @@ export function createPopupController() {
 
       if (!result.ok) {
         const responseActionRunId = result.error.actionRunId ?? actionRunId;
-        const message = `创建 Meegle Item 失败: ${result.error.errorMessage}`;
+        const message = result.error.errorCode === MEEGLE_LINK_ALREADY_EXISTS_ERROR_CODE
+          ? result.error.errorMessage
+          : `创建 Meegle Item 失败: ${result.error.errorMessage}`;
         setActionStatus(actionKey, {
           phase: "error",
           actionRunId: responseActionRunId,
@@ -1864,6 +1868,19 @@ export function createPopupController() {
         larkContext: summarizeLarkContextForDebug(larkContext),
       });
     }
+    popupLogger.debug("backendAction.payloadContext", {
+      actionRunId,
+      operation: action.executor.operation,
+      route: action.executor.route,
+      pageType: runtimeCurrentTab.pageType,
+      currentUrl: effectiveCurrentUrl,
+      projectKey: summarizeIdentifier(meegleContext?.projectKey),
+      workItemTypeKey: meegleContext?.workItemTypeKey,
+      workItemId: summarizeIdentifier(meegleContext?.workItemId),
+      hasMeegleContext: Boolean(meegleContext),
+      hasLarkBaseContext,
+      hasLarkRecordContext,
+    });
 
     if (!meegleContext && !larkRecordId && !(supportsLarkBaseContext && (hasLarkBaseContext || larkContext.wikiRecordId))) {
       const message = `无法从当前 URL 解析 Meegle 工作项或 Lark 记录信息: ${effectiveCurrentUrl}`;

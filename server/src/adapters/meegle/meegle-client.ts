@@ -355,10 +355,17 @@ export function parseWorkitem(data: Record<string, unknown>): MeegleWorkitem {
     }
   }
 
-  // Extract other fields
+  // Extract other fields. Meegle detail responses often nest custom fields in
+  // data.fields.fields; expose that nested object directly so workflow services
+  // can read the field-value-pair array consistently.
   const fields: Record<string, unknown> = {};
+  if (Array.isArray(rawFields)) {
+    fields.fields = rawFields;
+  } else if (rawFields && typeof rawFields === "object") {
+    Object.assign(fields, rawFields);
+  }
   for (const [k, v] of Object.entries(data)) {
-    if (!["id", "key", "name", "title", "type", "work_item_type_key", "status", "state", "assignee", "owner"].includes(k)) {
+    if (!["id", "key", "name", "title", "type", "work_item_type_key", "status", "state", "assignee", "owner", "fields"].includes(k)) {
       fields[k] = v;
     }
   }

@@ -40,7 +40,7 @@ function createSupportedLarkPageConfig() {
     automationActions: [
       {
         key: "create-meegle-item",
-        title: "创建 Meegle Item",
+        title: "批量创建 Meegle Item",
         interaction: { type: "direct_execute" },
         executor: {
           type: "frontend",

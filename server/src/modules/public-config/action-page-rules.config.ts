@@ -86,8 +86,6 @@ export const ACTION_PAGE_RULES: ActionPageRule[] = [
       {
         id: "createMeegleItem",
         placements: [
-          { surface: "popup" },
-          { surface: "sidebar" },
           { surface: "page_dom", target: "lark_detail_header" },
         ],
       },

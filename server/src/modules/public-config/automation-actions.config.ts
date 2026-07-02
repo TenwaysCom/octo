@@ -29,7 +29,7 @@ export const AUTOMATION_ACTIONS = {
   },
   bulkCreateMeegleTickets: {
     key: "bulk-create-meegle-tickets",
-    title: "创建 Meegle Item",
+    title: "批量创建 Meegle Item",
     style: "default",
     placements: [{ surface: "popup" }, { surface: "sidebar" }],
     interaction: {

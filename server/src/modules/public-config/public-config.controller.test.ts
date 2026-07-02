@@ -64,7 +64,7 @@ describe("public-config.controller", () => {
         }),
         expect.objectContaining({
           key: "bulk-create-meegle-tickets",
-          title: "创建 Meegle Item",
+          title: "批量创建 Meegle Item",
           interaction: { type: "preview_confirm" },
           placements: expect.arrayContaining([
             { surface: "popup" },
@@ -108,7 +108,7 @@ describe("public-config.controller", () => {
           automationActions: expect.arrayContaining([
             expect.objectContaining({
               key: "create-meegle-item",
-              title: "创建 Meegle Item",
+              title: "批量创建 Meegle Item",
               interaction: { type: "direct_execute" },
               placements: [{ surface: "page_dom", target: "lark_detail_header" }],
             }),
@@ -118,12 +118,14 @@ describe("public-config.controller", () => {
     });
   });
 
-  it("resolves Lark record pages to create Meegle item action", async () => {
-    await expect(
-      getExtensionPageConfigController({
-        url: "https://nsghpcq7ar4z.sg.larksuite.com/record/KxOYr6CJKeWYktcI2GilrfRAgeg",
-      }),
-    ).resolves.toMatchObject({
+  it("resolves Lark record pages with create Meegle item only in page DOM", async () => {
+    const result = await getExtensionPageConfigController({
+      url: "https://nsghpcq7ar4z.sg.larksuite.com/record/HxwPrJhcjeAR9wc3lZdlaQv0gFh",
+    });
+    const actionKeys = result.data.pageConfig.automationActions.map((action) => action.key);
+    const createAction = result.data.pageConfig.automationActions.find((action) => action.key === "create-meegle-item");
+
+    expect(result).toMatchObject({
       ok: true,
       data: {
         pageConfig: {
@@ -133,13 +135,11 @@ describe("public-config.controller", () => {
           automationActions: expect.arrayContaining([
             expect.objectContaining({
               key: "create-meegle-item",
-              title: "创建 Meegle Item",
+              title: "批量创建 Meegle Item",
               interaction: { type: "direct_execute" },
-              placements: expect.arrayContaining([
-                { surface: "popup" },
-                { surface: "sidebar" },
+              placements: [
                 { surface: "page_dom", target: "lark_detail_header" },
-              ]),
+              ],
             }),
             expect.objectContaining({
               key: "lark-bug-analyze",
@@ -150,6 +150,9 @@ describe("public-config.controller", () => {
         },
       },
     });
+    expect(actionKeys).toEqual(["create-meegle-item", "lark-bug-analyze"]);
+    expect(createAction?.placements).not.toContainEqual({ surface: "popup" });
+    expect(createAction?.placements).not.toContainEqual({ surface: "sidebar" });
   });
 
   it("does not return automation actions for unmatched Lark pages", async () => {
@@ -194,7 +197,7 @@ describe("public-config.controller", () => {
 
   it("resolves Production Bug detail page to the bug analysis automation action", async () => {
     const result = await getExtensionPageConfigController({
-      url: "https://project.larksuite.com/OPS/production_bug/detail/123456",
+      url: "https://project.larksuite.com/4c3fv6/production_bug/detail/13290007",
     });
     const actionKeys = result.data.pageConfig.automationActions.map((action) => action.key);
 
@@ -244,7 +247,7 @@ describe("public-config.controller", () => {
 
   it("resolves Story detail page to story PRD simplified action", async () => {
     const result = await getExtensionPageConfigController({
-      url: "https://project.larksuite.com/OPS/story/detail/123456",
+      url: "https://project.larksuite.com/4c3fv6/story/detail/13290007",
     });
     const actionKeys = result.data.pageConfig.automationActions.map((action) => action.key);
 

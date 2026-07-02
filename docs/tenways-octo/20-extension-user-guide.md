@@ -182,13 +182,13 @@ extension/.output/chrome-mv3/
 
 如果你打开的是插件当前配置好的目标 Base / Table / View，`自动化` 页签里会额外出现一个按钮：
 
-- `批量创建 MEEGLE TICKET`
+- `批量创建 Meegle Item`
 
 操作方式：
 
 1. 打开指定的 Lark Base 视图
 2. 打开插件，进入 `自动化`
-3. 点击 `批量创建 MEEGLE TICKET`
+3. 点击 `批量创建 Meegle Item`
 4. 先查看预览结果
 5. 再确认执行批量创建
 
