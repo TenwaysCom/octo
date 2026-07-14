@@ -142,7 +142,7 @@ export const ACTION_PAGE_RULES: ActionPageRule[] = [
     path: "/:owner/:repo/pull/:pullNumber",
     allowSubpaths: true,
     sidebar: SIDEBAR_ENABLED,
-    actions: ["lookupGithubPr"],
+    actions: ["lookupGithubPr", "githubQuickScan", "githubDeepReview"],
   },
   {
     id: "github.issue",

@@ -29,8 +29,8 @@ const redactPaths = [
   "responseBody.data.token",
 ];
 
-function createFileLogger(destination: string) {
-  return pino({
+function createLoggerOptions() {
+  return {
     level: process.env.LOG_LEVEL || "info",
     timestamp: () => {
       const date = new Date();
@@ -47,8 +47,18 @@ function createFileLogger(destination: string) {
       return `,"time":"${formatted}"`;
     },
     formatters: {
-      level: (label) => ({ level: label.toUpperCase() }),
+      level: (label: string) => ({ level: label.toUpperCase() }),
     },
+    redact: {
+      paths: redactPaths,
+      censor: "[Redacted]",
+    },
+  };
+}
+
+function createFileLogger(destination: string) {
+  return pino({
+    ...createLoggerOptions(),
     transport: {
       target: "pino/file",
       options: {
@@ -56,12 +66,15 @@ function createFileLogger(destination: string) {
         mkdir: true,
       },
     },
-    redact: {
-      paths: redactPaths,
-      censor: "[Redacted]",
-    },
   });
+}
+
+function createStreamLogger(destination: string) {
+  const stream = destination === "stdout" ? process.stdout : process.stderr;
+
+  return pino(createLoggerOptions(), stream);
 }
 
 export const logger = createFileLogger(process.env.LOG_FILE || "./logs/app.log");
 export const apiLogger = createFileLogger(process.env.API_LOG_FILE || "./logs/api.log");
+export const stdoutLogger = createStreamLogger("stdout");

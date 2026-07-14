@@ -345,7 +345,7 @@ describe("public-config.controller", () => {
     });
   });
 
-  it("resolves GitHub pull request tab pages to the PR lookup sidebar action", async () => {
+  it("resolves GitHub pull request tab pages to lookup and review sidebar actions", async () => {
     await expect(
       getExtensionPageConfigController({
         url: "https://github.com/TenwaysCom/octo/pull/28/files",
@@ -368,6 +368,49 @@ describe("public-config.controller", () => {
                 { surface: "popup" },
                 { surface: "sidebar" },
               ]),
+            }),
+            expect.objectContaining({
+              key: "github-quick-scan",
+              title: "Quick scan（后台执行）",
+              interaction: { type: "direct_execute" },
+              executor: {
+                type: "backend_api",
+                operation: "github.pr.quick_scan",
+                method: "POST",
+                route: "/api/github/pr/review",
+              },
+              execution: expect.objectContaining({
+                mode: "async",
+                submit: expect.objectContaining({
+                  message: expect.stringContaining("后台 Quick scan"),
+                }),
+                completion: expect.objectContaining({
+                  status: {
+                    method: "GET",
+                    route: "/api/github/pr/review/:actionRunId",
+                    pollIntervalMs: 5000,
+                  },
+                }),
+              }),
+            }),
+            expect.objectContaining({
+              key: "github-deep-review",
+              title: "Deep review（后台执行）",
+              interaction: { type: "direct_execute" },
+              executor: {
+                type: "backend_api",
+                operation: "github.pr.deep_review",
+                method: "POST",
+                route: "/api/github/pr/review",
+              },
+              execution: expect.objectContaining({
+                mode: "async",
+                completion: expect.objectContaining({
+                  success: expect.objectContaining({
+                    notification: expect.objectContaining({ title: "Deep review 已完成" }),
+                  }),
+                }),
+              }),
             }),
           ],
         },

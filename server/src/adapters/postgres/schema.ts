@@ -67,4 +67,20 @@ export interface DatabaseSchema {
     created_at: string;
     updated_at: string;
   };
+  github_pr_review_runs: {
+    action_run_id: string;
+    master_user_id: string;
+    operation: string;
+    pr_url: string;
+    status: string;
+    comment_url: string | null;
+    reviewed_files_json: string | null;
+    diff_truncated: boolean | null;
+    error_code: string | null;
+    error_message: string | null;
+    created_at: string;
+    started_at: string | null;
+    completed_at: string | null;
+    updated_at: string;
+  };
 }

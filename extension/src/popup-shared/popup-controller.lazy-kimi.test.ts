@@ -39,7 +39,7 @@ const kimiChatControllerMock = vi.hoisted(() => ({
   openHistory: vi.fn(async () => undefined),
   loadHistorySession: vi.fn(async (_sessionId: string) => undefined),
   deleteHistorySession: vi.fn(async (_sessionId: string) => undefined),
-  sendMessage: vi.fn(async (_message: string) => undefined),
+  sendMessage: vi.fn(async (_message: string, _options?: { actionRunId?: string }) => undefined),
   stopGeneration: vi.fn(),
   dispose: vi.fn(),
 }));
@@ -286,6 +286,57 @@ describe("popup controller Kimi lazy loading", () => {
     controller.dispose();
 
     expect(kimiChatControllerMock.dispose).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps GitHub reviews server-owned instead of loading the popup Kimi chat", async () => {
+    runtimeMock.queryActiveTabContext.mockResolvedValueOnce({
+      id: 12,
+      url: "https://github.com/TenwaysCom/octo/pull/28",
+      origin: "https://github.com",
+      pageType: "github",
+    });
+    runtimeMock.getExtensionPageConfig.mockResolvedValueOnce({
+      platform: "github",
+      pageType: "github_pr",
+      matchedRuleId: "github.pr",
+      sidebar: {
+        injectPageElements: true,
+        sidebarButtonEnabled: true,
+        keyboardShortcutEnabled: true,
+      },
+      automationActions: [
+        {
+          key: "github-quick-scan",
+          title: "Quick scan",
+          executor: {
+            type: "backend_api",
+            operation: "github.pr.quick_scan",
+            method: "POST",
+            route: "/api/github/pr/review",
+          },
+        },
+        {
+          key: "github-deep-review",
+          title: "Deep review",
+          executor: {
+            type: "backend_api",
+            operation: "github.pr.deep_review",
+            method: "POST",
+            route: "/api/github/pr/review",
+          },
+        },
+      ],
+    });
+
+    const controller = createPopupController();
+    await controller.initialize();
+
+    expect(controller.getState().githubActions.map((action) => action.key)).toEqual([
+      "github-quick-scan",
+      "github-deep-review",
+    ]);
+    expect(kimiChatModuleMock.createKimiChatController).not.toHaveBeenCalled();
+    controller.dispose();
   });
 
   it("loads the bulk-create handler only when the bulk action runs", async () => {

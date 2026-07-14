@@ -13,7 +13,7 @@ SSH_PORT="2233"
 REMOTE_DIR="/opt/project/static/octo"
 EXT_DIR="${REPO_ROOT}/extension"
 
-VERSION="$(node -p "require('${EXT_DIR}/package.json').version")"
+VERSION="$(node -p "require('${EXT_DIR}/manifest.json').version")"
 ZIP_PATH="${EXT_DIR}/.output/tenways-octo-extension-${VERSION}-chrome.zip"
 ZIP_BASENAME="$(basename "${ZIP_PATH}")"
 LATEST_BASENAME="tenways-octo-extension-latest-chrome.zip"

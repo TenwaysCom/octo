@@ -53,6 +53,32 @@ describe("GitHubClient", () => {
     });
   });
 
+  it("fetches paginated PR files and posts a PR comment", async () => {
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => [{ filename: "Tenways/tw_sale/models/sale.py", patch: "+pass" }],
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ id: 1, html_url: "https://github.com/owner/repo/pull/123#issuecomment-1" }),
+      });
+
+    await expect(client.getPullRequestFiles("owner", "repo", 123)).resolves.toHaveLength(1);
+    await expect(client.createPullRequestComment("owner", "repo", 123, "review")).resolves.toMatchObject({ id: 1 });
+
+    expect(mockFetch).toHaveBeenNthCalledWith(
+      1,
+      "https://api.github.com/repos/owner/repo/pulls/123/files?per_page=100&page=1",
+      expect.any(Object),
+    );
+    expect(mockFetch).toHaveBeenNthCalledWith(
+      2,
+      "https://api.github.com/repos/owner/repo/issues/123/comments",
+      expect.objectContaining({ method: "POST", body: JSON.stringify({ body: "review" }) }),
+    );
+  });
+
   describe("getIssue", () => {
     it("should fetch issue details", async () => {
       mockFetch.mockResolvedValueOnce({

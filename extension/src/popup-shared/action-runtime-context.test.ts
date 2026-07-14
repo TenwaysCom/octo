@@ -108,12 +108,12 @@ describe("action runtime context", () => {
         branchName: "feat/12562490-test",
       },
       clientContext: {
-        extensionVersion: "0.8.1",
+        extensionVersion: "test-extension-version",
       },
     });
 
     expect(context.formValues.branchName).toBe("feat/12562490-test");
-    expect(context.clientContext.extensionVersion).toBe("0.8.1");
+    expect(context.clientContext.extensionVersion).toBe("test-extension-version");
   });
 
   it("does not throw for unsupported URLs", () => {

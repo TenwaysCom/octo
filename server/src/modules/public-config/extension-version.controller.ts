@@ -1,4 +1,5 @@
 import { logger } from "../../logger.js";
+import { SERVER_VERSION } from "../../server-version.js";
 
 const versionLogger = logger.child({ module: "extension-version" });
 
@@ -11,7 +12,7 @@ export interface ExtensionVersionInfo {
 }
 
 export async function getExtensionVersionController(_input: unknown) {
-  const version = process.env.EXTENSION_LATEST_VERSION || "0.8.1";
+  const version = SERVER_VERSION;
   const downloadUrl = process.env.EXTENSION_DOWNLOAD_URL || "";
   const releaseNotes = process.env.EXTENSION_RELEASE_NOTES || "";
   const forceUpdate = process.env.EXTENSION_FORCE_UPDATE === "true";

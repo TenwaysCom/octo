@@ -40,6 +40,23 @@ describe("sync-user-tokens", () => {
     });
   });
 
+  it("accepts explicit source and target databases", () => {
+    expect(parseArgs([
+      "usr_1",
+      "--source-db",
+      "tenways_octo_test",
+      "--target-db",
+      "tenways_octo_ly_0509",
+      "--postgres-uri",
+      "postgres://u:p@localhost:5432/postgres",
+    ])).toEqual({
+      masterUserId: "usr_1",
+      sourceDatabase: "tenways_octo_test",
+      targetDatabase: "tenways_octo_ly_0509",
+      postgresUri: "postgres://u:p@localhost:5432/postgres",
+    });
+  });
+
   it("replaces target user_tokens with source rows for the master user", async () => {
     const source = await createTestPostgresDatabase();
     const target = await createTestPostgresDatabase();

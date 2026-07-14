@@ -235,13 +235,17 @@ extension/.output/chrome-mv3/
 当你打开 `GitHub Pull Request` 页面时，插件会把页面识别为 `GitHub` 平台，并在 `自动化` 页签里显示：
 
 - `查询 PR 关联的 Meegle 工作项`
+- `Quick scan（后台执行）`：提交 Tier 2 Odoo 结构性扫描；完成后回写 PR 评论并显示浏览器通知
+- `Deep review（后台执行）`：提交 Tier 3 深度审查；完成后回写 PR 评论并显示浏览器通知
 
 操作方式：
 
 1. 打开一个 GitHub PR 页面
 2. 打开插件，进入 `自动化`
 3. 点击 `查询 PR 关联的 Meegle 工作项`
-4. 等待结果返回
+4. 对于 PR 审查，点击后会立刻显示已提交的 `actionRunId`；可关闭插件，后台任务完成后会通知并回写 PR 评论
+
+`Quick scan` 和 `Deep review` 均由服务端读取数据库中的 workflow prompt、获取 GitHub PR diff，并将审查汇总回写为 PR 评论。它们使用持久化的后台任务状态：`queued`、`running`、`succeeded` 或 `failed`；插件的提交、轮询和通知文案由服务端 action catalog 配置下发。
 
 当前实现会从以下内容里提取 Meegle ID：
 

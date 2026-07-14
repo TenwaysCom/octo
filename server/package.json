@@ -1,5 +1,6 @@
 {
   "name": "tenways-octo-server",
+  "version": "0.8.2",
   "private": true,
   "type": "module",
   "scripts": {

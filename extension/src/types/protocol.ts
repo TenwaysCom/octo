@@ -22,6 +22,7 @@ export const protocolActions = [
   "octo.lark_base.create_workitem",
   "octo.lark_base.bulk_preview_workitems",
   "octo.lark_base.bulk_create_workitems",
+  "octo.async-action.track",
   "octo.pm.analysis.run",
   "octo.page.meegle.auth_code.request",
 ] as const;
@@ -95,4 +96,18 @@ export type LarkBaseBulkCreateWorkitemsMessage = ProtocolEnvelope<
 export type LarkBaseBulkCreateWorkitemsResult = ProtocolEnvelope<
   "octo.lark_base.bulk_create_workitems",
   LarkBaseBulkCreateResultPayload
+>;
+
+export type AsyncActionTrackMessage = ProtocolEnvelope<
+  "octo.async-action.track",
+  {
+    actionRunId: string;
+    masterUserId: string;
+    serverUrl: string;
+    statusRoute: string;
+    notification: {
+      title: string;
+      message: string;
+    };
+  }
 >;

@@ -2,10 +2,10 @@ import fs from "node:fs";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "wxt";
 
-const { version: extensionVersion } = JSON.parse(
-  fs.readFileSync(new URL("./package.json", import.meta.url), "utf8"),
-) as { version: string };
-const extensionName = `Tenways Octo ${extensionVersion}`;
+const { name: extensionBaseName, version: extensionVersion } = JSON.parse(
+  fs.readFileSync(new URL("./manifest.json", import.meta.url), "utf8"),
+) as { name: string; version: string };
+const extensionName = `${extensionBaseName} ${extensionVersion}`;
 
 const chromiumProfile = process.env.WXT_CHROMIUM_PROFILE?.trim();
 const devPort = Number(process.env.WXT_DEV_PORT || 3000);

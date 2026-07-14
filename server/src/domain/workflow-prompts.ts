@@ -4,11 +4,58 @@ export const STORY_PRD_TO_SIMPLIFIED_PROMPT_KEY =
 export const LARK_BUG_ANALYZE_PROMPT_KEY =
   "lark.bug.analyze";
 
+export const GITHUB_PR_QUICK_SCAN_PROMPT_KEY = "github.pr.quick_scan";
+export const GITHUB_PR_DEEP_REVIEW_PROMPT_KEY = "github.pr.deep_review";
+
 export const DEFAULT_STORY_PRD_TO_SIMPLIFIED_PROMPT_NOTE =
   "Meegle Story 研发Review workflow prompt";
 
 export const DEFAULT_LARK_BUG_ANALYZE_PROMPT_NOTE =
   "Lark Bug 分析 workflow prompt";
+
+export const DEFAULT_GITHUB_PR_QUICK_SCAN_PROMPT_NOTE =
+  "GitHub PR Tier 2 Odoo structural quick scan workflow prompt";
+
+export const DEFAULT_GITHUB_PR_DEEP_REVIEW_PROMPT_NOTE =
+  "GitHub PR Tier 3 Odoo deep review workflow prompt";
+
+export const DEFAULT_GITHUB_PR_QUICK_SCAN_PROMPT_TEMPLATE = `你是一名 Odoo 代码审查专家，正在进行 Tier 2 结构性快速扫描。你的任务是检查代码的结构性问题，不涉及业务逻辑正确性。
+
+仅审查下面 PR diff 中新增或修改的 Python 和 XML 代码，跳过迁移文件和翻译文件。逐条检查：onchange 是否承载核心业务规则；button action 是否超过 30 行业务逻辑；create/write/unlink 是否调用 super()；跨模块依赖是否写入 __manifest__.py；是否硬编码用户 ID、公司 ID 或固定 name；是否修改非 Tenways 自研模块；新增业务逻辑是否有 tests/ 测试文件；sudo() 是否有合理说明。
+
+按规则逐条输出，每条必须给出具体代码位置（文件名:行号）。
+
+PR URL：{{pr_url}}
+PR 标题：{{pr_title}}
+PR 描述：{{pr_description}}
+Diff 是否截断：{{diff_truncated}}
+
+PR diff：
+{{pr_diff}}`;
+
+export const DEFAULT_GITHUB_PR_DEEP_REVIEW_PROMPT_TEMPLATE = `你是一名 Odoo 资深开发专家，正在进行 Tier 3 深度代码审查。逐方法审查代码的业务逻辑正确性、生命周期安全、性能风险和测试质量。
+
+第一步提取 PR 全局信息：涉及的核心对象、P0/P1/P2 风险等级、生命周期节点（create/write/unlink/action/constraint/compute/onchange）和跨模块 override 链影响。
+
+第二步逐方法审查：
+1. 业务逻辑正确性：PR description 一致性、空值和分支、recordset/batch、ensure_one() 位置。
+2. 生命周期安全：super() 调用与时机、override 链冲突、create/write 递归、write 是否只在目标字段变化时执行。
+3. 逻辑放置：onchange 不做校验；action 拆成 _check/_prepare/_apply；create/write 不放按钮专属逻辑；constraint 无副作用；@api.depends 精确。
+4. 权限安全：sudo() 理由、record rule、后端权限控制。
+5. 事务和 SQL：ORM 必要性、cr.commit()、cache invalidation、并发保护。
+6. 性能：循环内 search、N+1、store=True compute、批量 write。
+
+第三步评估测试质量：成功路径、非法状态、权限边界、批量场景、异常路径、回归测试。
+
+输出必须依次包含：PR 概览表；每个方法的逻辑正确性、生命周期安全、逻辑放置与推荐写法；测试质量评估；风险汇总和 ISSUE 清单；仅 P0 时的关联模块影响；如有 ISSUE 则附 fix-up PR 追溯模板。所有发现必须附文件名:行号。
+
+PR URL：{{pr_url}}
+PR 标题：{{pr_title}}
+PR 描述：{{pr_description}}
+Diff 是否截断：{{diff_truncated}}
+
+PR diff：
+{{pr_diff}}`;
 
 export const DEFAULT_STORY_PRD_TO_SIMPLIFIED_PROMPT_TEMPLATE =
   `你是一名技术项目经理。请根据下面的 Meegle Story Summary，生成一份简化的需求确认文档，用于研发Review和评审。

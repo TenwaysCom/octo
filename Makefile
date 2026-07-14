@@ -3,10 +3,12 @@ EXT_DIR := extension
 EXT_DEV_PORT ?= 3011
 EXT_PROFILE_DIR ?= $(HOME)/.config/octo-ext-profile
 MASTER_USER_ID ?= a400632e-8d08-4ddf-977d-e8330b0adc5a
+TEST_DATABASE ?= tenways_octo_test
+DEV_DATABASE ?= tenways_octo_ly_0509
 
 .DEFAULT_GOAL := help
 
-.PHONY: help completion server-dev test-server test-client db-backup db-restore db-sync-user-tokens ext-dev ext-dev-manual ext-dev-profile ext-dev-probe ext-build ext-package ext-deploy-zip ext-test ext-typecheck deploy-test deploy-prod
+.PHONY: help completion server-dev test-server test-client db-backup db-restore db-sync-user-tokens db-sync-test-user-tokens ext-dev ext-dev-manual ext-dev-profile ext-dev-probe ext-build ext-package ext-deploy-zip ext-test ext-typecheck deploy-test deploy-prod
 
 help: ## Show available make targets
 	@awk 'BEGIN {FS = ":.*## "}; /^[a-zA-Z0-9_.-]+:.*## / {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -45,6 +47,9 @@ db-restore: ## Restore a postgres database via server script (usage: make db-res
 
 db-sync-user-tokens: ## Sync user_tokens from tenways_octo to tenways_octo_ly_0509 (override: MASTER_USER_ID=...)
 	npx tsx $(SERVER_DIR)/src/scripts/sync-user-tokens.ts $(MASTER_USER_ID)
+
+db-sync-test-user-tokens: ## Sync user_tokens from test to dev (override: MASTER_USER_ID=... TEST_DATABASE=... DEV_DATABASE=...)
+	npx tsx $(SERVER_DIR)/src/scripts/sync-user-tokens.ts $(MASTER_USER_ID) --source-db $(TEST_DATABASE) --target-db $(DEV_DATABASE)
 
 test-client: ## Run extension tests
 	pnpm --dir $(EXT_DIR) test

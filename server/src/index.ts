@@ -47,12 +47,18 @@ import {
   githubBranchPreviewController,
   githubBranchCreateController,
 } from "./modules/github-branch-create/github-branch-create.controller.js";
+import {
+  githubPrReviewController,
+  githubPrReviewStatusController,
+} from "./modules/github-pr-review/github-pr-review.controller.js";
 import { createCorsMiddleware } from "./http/cors.js";
 import { createGitHubLookupRouter } from "./routes/github-lookup.js";
+import { SERVER_VERSION } from "./server-version.js";
 
-import { logger } from "./logger.js";
+import { logger, stdoutLogger } from "./logger.js";
 
 const serverLogger = logger.child({ module: "server" });
+const stdoutServerLogger = stdoutLogger.child({ module: "server" });
 
 // Load environment variables
 const LARK_APP_ID = process.env.LARK_APP_ID || "";
@@ -242,6 +248,17 @@ app.post("/api/lark-bug/analyze", handleController(larkBugAnalyzeController));
 // GitHub branch create routes
 app.post("/api/github/branch/preview", handleController(githubBranchPreviewController));
 app.post("/api/github/branch/create", handleController(githubBranchCreateController));
+app.post("/api/github/pr/review", async (req, res) => {
+  const result = await githubPrReviewController(req.body);
+  res.status(result.ok && result.data.status === "queued" ? 202 : 200).json(result);
+});
+app.get("/api/github/pr/review/:actionRunId", async (req, res) => {
+  const result = await githubPrReviewStatusController({
+    actionRunId: req.params.actionRunId,
+    masterUserId: getMasterUserIdHeader(req),
+  });
+  res.json(result);
+});
 
 // GitHub reverse lookup routes (requires GITHUB_TOKEN)
 if (process.env.GITHUB_TOKEN) {
@@ -254,7 +271,9 @@ if (process.env.GITHUB_TOKEN) {
 if (process.env.NODE_ENV !== "test" && process.env.VITEST !== "true") {
   await ensureSharedDatabase();
   app.listen(PORT, HOST, () => {
-    serverLogger.info(`Tenways Octo Server running on http://${HOST}:${PORT}`);
+    const startupLog = { host: HOST, port: PORT, version: SERVER_VERSION };
+    serverLogger.info(startupLog, "Tenways Octo Server running");
+    stdoutServerLogger.info(startupLog, "Tenways Octo Server running");
     serverLogger.info(`Health check: http://${HOST}:${PORT}/health`);
     serverLogger.info(`Lark Base create workitem: http://${HOST}:${PORT}/api/lark-base/create-meegle-workitem`);
   });

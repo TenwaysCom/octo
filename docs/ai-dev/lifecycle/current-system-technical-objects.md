@@ -615,6 +615,20 @@ user clicks action
   -> popup displays or exports diagnostic result
 ```
 
+### Async backend action extension
+
+长时间 ACP workflow 可由 server action catalog 将 `execution.mode` 标为 `async`。extension 仅按 catalog 的提交、状态查询与通知文案执行：
+
+```text
+extension POST action
+  -> server persists queued run keyed by actionRunId
+  -> server returns queued immediately
+  -> server background workflow updates running/succeeded/failed
+  -> extension polls configured status route and presents configured completion notification
+```
+
+PR Quick scan / Deep review 的运行状态存于 PostgreSQL `github_pr_review_runs`；PR 评论只在任务成功时创建。
+
 ### Desired states
 
 | State | Meaning |
