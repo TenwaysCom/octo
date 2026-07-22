@@ -25,6 +25,9 @@ import {
 import type { AcpKimiStreamEvent } from "../../modules/acp-kimi/event-stream.js";
 import { logger } from "../../logger.js";
 import { randomUUID } from "node:crypto";
+import { access, stat } from "node:fs/promises";
+import { constants as fsConstants } from "node:fs";
+import { isAbsolute } from "node:path";
 
 const reviewLogger = logger.child({ module: "github-pr-review" });
 const MAX_DIFF_CHARS = 180_000;
@@ -36,6 +39,8 @@ export interface GitHubPrReviewServiceDeps {
   workflowPromptStore?: WorkflowPromptStore;
   acpService?: AcpKimiProxyService;
   reviewRunStore?: GitHubPrReviewRunStore;
+  euOdooGuideRoot?: string;
+  validateEuOdooGuideRoot?: (guideRoot: string) => Promise<void>;
 }
 
 export async function submitGitHubPrReview(
@@ -148,6 +153,7 @@ export async function executeGitHubPrReview(
   if (!resolvedUser?.larkId) {
     throw new Error("IDENTITY_NOT_FOUND: active Lark identity is required for PR review");
   }
+  const euOdooGuideRoot = await resolveEuOdooGuideRoot(deps);
 
   reviewLogger.info({ actionRunId, ...parsed, operation: request.operation }, "server.workflow.started");
   const [pr, files] = await Promise.all([
@@ -167,13 +173,14 @@ export async function executeGitHubPrReview(
     throw new Error(`WORKFLOW_PROMPT_NOT_FOUND: ${promptKey}`);
   }
 
-  const message = renderWorkflowPromptTemplate(prompt.prompt, {
+  const reviewPrompt = renderWorkflowPromptTemplate(prompt.prompt, {
     pr_url: pr.html_url || request.prUrl,
     pr_title: pr.title || "",
     pr_description: pr.body || "",
     pr_diff: diff.content,
     diff_truncated: diff.truncated ? "是，内容已按字符上限截断" : "否",
   });
+  const message = `${buildEuOdooGuideContext(euOdooGuideRoot)}\n\n${reviewPrompt}`;
   const analysis = await runOneShotAnalysis(
     resolvedUser.larkId,
     message,
@@ -210,6 +217,42 @@ export async function executeGitHubPrReview(
       diffTruncated: diff.truncated,
     },
   };
+}
+
+async function resolveEuOdooGuideRoot(
+  deps: Pick<GitHubPrReviewServiceDeps, "euOdooGuideRoot" | "validateEuOdooGuideRoot">,
+): Promise<string> {
+  const guideRoot = (deps.euOdooGuideRoot ?? process.env.EU_ODOO_GUIDE_ROOT ?? "").trim();
+  if (!guideRoot) {
+    throw new Error("EU_ODOO_GUIDE_ROOT_NOT_CONFIGURED: configure an absolute EU Odoo guide directory before running PR review");
+  }
+  if (!isAbsolute(guideRoot)) {
+    throw new Error("EU_ODOO_GUIDE_ROOT_INVALID: configured EU Odoo guide directory must be an absolute path");
+  }
+
+  await (deps.validateEuOdooGuideRoot ?? assertEuOdooGuideRootReadable)(guideRoot);
+  return guideRoot;
+}
+
+async function assertEuOdooGuideRootReadable(guideRoot: string): Promise<void> {
+  try {
+    const metadata = await stat(guideRoot);
+    if (!metadata.isDirectory()) {
+      throw new Error("configured path is not a directory");
+    }
+    await access(guideRoot, fsConstants.R_OK | fsConstants.X_OK);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    throw new Error(`EU_ODOO_GUIDE_ROOT_UNAVAILABLE: configured EU Odoo guide directory cannot be read (${reason})`);
+  }
+}
+
+function buildEuOdooGuideContext(guideRoot: string): string {
+  return [
+    "## 必须遵循的 EU Odoo 指南",
+    `在审查此 PR 前，必须读取并遵循以下目录中的指南文档：${guideRoot}`,
+    "该指南是项目级审查的权威基线；若其中规定了规则，不得以通用 Odoo 经验替代。",
+  ].join("\n");
 }
 
 function buildReviewDiff(files: GitHubPullRequestFile[]) {

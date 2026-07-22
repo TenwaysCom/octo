@@ -48,11 +48,16 @@ describe("github PR review service", () => {
       resolvedUserStore: { getById: vi.fn(async () => ({ larkId: "ou_1" })) } as never,
       workflowPromptStore,
       acpService: acpService as never,
+      euOdooGuideRoot: "/guides/eu-odoo",
+      validateEuOdooGuideRoot: vi.fn(async () => {}),
     });
 
     expect(acpService.chatOneShot).toHaveBeenCalledWith(
       expect.objectContaining({ operatorLarkId: "ou_1", message: expect.stringContaining("sale_order.py") }),
       expect.any(Function),
+    );
+    expect(acpService.chatOneShot.mock.calls[0]?.[0].message).toContain(
+      "在审查此 PR 前，必须读取并遵循以下目录中的指南文档：/guides/eu-odoo",
     );
     expect(acpService.chatOneShot.mock.calls[0]?.[0].message).not.toContain("zh_CN.po");
     expect(githubClient.createPullRequestComment).toHaveBeenCalledWith(
@@ -107,10 +112,40 @@ describe("github PR review service", () => {
       resolvedUserStore: { getById: vi.fn(async () => ({ larkId: "ou_1" })) } as never,
       workflowPromptStore: { getByKey: vi.fn(async () => ({ prompt: "{{pr_diff}}" })) } as never,
       acpService: { chatOneShot: vi.fn(async (_input, emit) => emit({ event: "acp.session.update", data: { update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "review" } } } })) } as never,
+      euOdooGuideRoot: "/guides/eu-odoo",
+      validateEuOdooGuideRoot: vi.fn(async () => {}),
     });
 
     expect(response).toEqual({ ok: true, data: { actionRunId: "queued_run", status: "queued" } });
     await vi.waitFor(() => expect(reviewRunStore.markSucceeded).toHaveBeenCalledWith(expect.objectContaining({ actionRunId: "queued_run" })));
     expect(runs.get("queued_run")).toMatchObject({ status: "succeeded" });
+  });
+
+  it("stops before reading the PR when the configured EU Odoo guide is unavailable", async () => {
+    const githubClient = {
+      parsePrUrl: vi.fn(() => ({ owner: "TenwaysCom", repo: "Tenways", pullNumber: 1036 })),
+      getPullRequest: vi.fn(),
+      getPullRequestFiles: vi.fn(),
+      createPullRequestComment: vi.fn(),
+    };
+    const acpService = { chatOneShot: vi.fn() };
+
+    await expect(executeGitHubPrReview({
+      prUrl: "https://github.com/TenwaysCom/Tenways/pull/1036",
+      masterUserId: "usr_1",
+      operation: "github.pr.quick_scan",
+    }, {
+      githubClient: githubClient as never,
+      resolvedUserStore: { getById: vi.fn(async () => ({ larkId: "ou_1" })) } as never,
+      acpService: acpService as never,
+      euOdooGuideRoot: "/guides/eu-odoo",
+      validateEuOdooGuideRoot: vi.fn(async () => {
+        throw new Error("EU_ODOO_GUIDE_ROOT_UNAVAILABLE: permission denied");
+      }),
+    })).rejects.toThrow("EU_ODOO_GUIDE_ROOT_UNAVAILABLE");
+
+    expect(githubClient.getPullRequest).not.toHaveBeenCalled();
+    expect(acpService.chatOneShot).not.toHaveBeenCalled();
+    expect(githubClient.createPullRequestComment).not.toHaveBeenCalled();
   });
 });
