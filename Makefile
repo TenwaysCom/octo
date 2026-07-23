@@ -81,7 +81,7 @@ ext-test: ## Run extension tests
 ext-typecheck: ## Type-check the extension
 	pnpm --dir $(EXT_DIR) typecheck
 
-deploy-test: ## Deploy to test server (git pull only)
+deploy-test: ## Deploy to test server (git pull, install dependencies, and build server)
 	./scripts/deploy-test.sh
 
 deploy-prod: ## Deploy to production server (full build + pm2 restart)
