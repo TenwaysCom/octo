@@ -29,9 +29,9 @@ const redactPaths = [
   "responseBody.data.token",
 ];
 
-function createLoggerOptions() {
+function createLoggerOptions(level = process.env.LOG_LEVEL || "info") {
   return {
-    level: process.env.LOG_LEVEL || "info",
+    level,
     timestamp: () => {
       const date = new Date();
       const formatted = date.toLocaleString("zh-CN", {
@@ -56,16 +56,22 @@ function createLoggerOptions() {
   };
 }
 
-function createFileLogger(destination: string) {
-  return pino({
-    ...createLoggerOptions(),
-    transport: {
-      target: "pino/file",
-      options: {
-        destination,
-        mkdir: true,
-      },
+export function createDailyRotatingFileTransport(destination: string) {
+  return {
+    target: "pino-roll",
+    options: {
+      file: destination,
+      frequency: "daily",
+      dateFormat: "yyyy-MM-dd",
+      mkdir: true,
     },
+  };
+}
+
+export function createFileLogger(destination: string, level?: string) {
+  return pino({
+    ...createLoggerOptions(level),
+    transport: createDailyRotatingFileTransport(destination),
   });
 }
 
