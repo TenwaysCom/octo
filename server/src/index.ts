@@ -49,6 +49,7 @@ import {
 } from "./modules/github-branch-create/github-branch-create.controller.js";
 import {
   githubPrReviewController,
+  githubPrCodeReviewFeedbackController,
   githubPrReviewStatusController,
 } from "./modules/github-pr-review/github-pr-review.controller.js";
 import { createCorsMiddleware } from "./http/cors.js";
@@ -252,7 +253,18 @@ app.post("/api/github/pr/review", async (req, res) => {
   const result = await githubPrReviewController(req.body);
   res.status(result.ok && result.data.status === "queued" ? 202 : 200).json(result);
 });
+app.post("/api/github/pr/code-review-feedback", async (req, res) => {
+  const result = await githubPrCodeReviewFeedbackController(req.body);
+  res.status(result.ok && result.data.status === "queued" ? 202 : 200).json(result);
+});
 app.get("/api/github/pr/review/:actionRunId", async (req, res) => {
+  const result = await githubPrReviewStatusController({
+    actionRunId: req.params.actionRunId,
+    masterUserId: getMasterUserIdHeader(req),
+  });
+  res.json(result);
+});
+app.get("/api/github/pr/code-review-feedback/:actionRunId", async (req, res) => {
   const result = await githubPrReviewStatusController({
     actionRunId: req.params.actionRunId,
     masterUserId: getMasterUserIdHeader(req),

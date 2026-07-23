@@ -148,4 +148,86 @@ describe("github PR review service", () => {
     expect(acpService.chatOneShot).not.toHaveBeenCalled();
     expect(githubClient.createPullRequestComment).not.toHaveBeenCalled();
   });
+
+  it("writes validated structured feedback to the configured Lark Base without commenting on the PR", async () => {
+    const githubClient = {
+      parsePrUrl: vi.fn(() => ({ owner: "TenwaysCom", repo: "Tenways", pullNumber: 1036 })),
+      getPullRequest: vi.fn(async () => ({ title: "Feedback", body: "", html_url: "https://github.com/TenwaysCom/Tenways/pull/1036" })),
+      getPullRequestFiles: vi.fn(async () => [{ filename: "Tenways/tw_sale/models/sale_order.py", patch: "+x" }]),
+      createPullRequestComment: vi.fn(),
+    };
+    const larkClient = {
+      getFields: vi.fn(async () => [
+        { field_id: "fldvsURKWT", field_name: "模版" },
+        { field_id: "fldqU2uAEV", field_name: "分类" },
+        { field_id: "fldEPHafyQ", field_name: "涉及文档" },
+        { field_id: "fld6Wv6V4G", field_name: "描述" },
+        { field_id: "fldiA7yaEV", field_name: "来源" },
+      ]),
+      batchCreateRecords: vi.fn(async () => [{ record_id: "rec_feedback_1" }]),
+    };
+
+    const result = await executeGitHubPrReview({
+      prUrl: "https://github.com/TenwaysCom/Tenways/pull/1036",
+      masterUserId: "usr_1",
+      actionRunId: "feedback_run",
+      operation: "github.pr.code_review_feedback",
+    }, {
+      githubClient: githubClient as never,
+      resolvedUserStore: { getById: vi.fn(async () => ({ larkId: "ou_1" })) } as never,
+      workflowPromptStore: { getByKey: vi.fn(async () => ({ prompt: "{{pr_diff}}" })) } as never,
+      acpService: { chatOneShot: vi.fn(async (_input, emit) => emit({ event: "acp.session.update", data: { update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text: JSON.stringify({ feedbacks: [{ category: "文档错误", files: "参考 addons/tw_sale/models/sale_order.py:42", description: "文档描述与实现不一致" }] }) } } } })) } as never,
+      createFeedbackLarkClient: vi.fn(async () => larkClient),
+      euOdooGuideRoot: "/guides/eu-odoo",
+      validateEuOdooGuideRoot: vi.fn(async () => {}),
+    });
+
+    expect(larkClient.batchCreateRecords).toHaveBeenCalledWith(
+      "PG0vb9fVpaguessj8Dul3UFOgbf",
+      "tblm3vvfbB8qv9HF",
+      [{
+        模版: "code-review",
+        分类: "文档错误",
+        涉及文档: "参考 addons/tw_sale/models/sale_order.py:42",
+        描述: "文档描述与实现不一致",
+        来源: "https://github.com/TenwaysCom/Tenways/pull/1036",
+      }],
+    );
+    expect(githubClient.createPullRequestComment).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      ok: true,
+      data: { feedbackCount: 1, feedbackRecordIds: ["rec_feedback_1"], commentUrl: null },
+    });
+  });
+
+  it("rejects unstructured feedback before writing to Lark", async () => {
+    const larkClient = {
+      getFields: vi.fn(async () => [
+        { field_id: "fldvsURKWT", field_name: "模版" },
+        { field_id: "fldqU2uAEV", field_name: "分类" },
+        { field_id: "fldEPHafyQ", field_name: "涉及文档" },
+        { field_id: "fld6Wv6V4G", field_name: "描述" },
+        { field_id: "fldiA7yaEV", field_name: "来源" },
+      ]),
+      batchCreateRecords: vi.fn(),
+    };
+    await expect(executeGitHubPrReview({
+      prUrl: "https://github.com/TenwaysCom/Tenways/pull/1036",
+      masterUserId: "usr_1",
+      operation: "github.pr.code_review_feedback",
+    }, {
+      githubClient: {
+        parsePrUrl: () => ({ owner: "TenwaysCom", repo: "Tenways", pullNumber: 1036 }),
+        getPullRequest: async () => ({ title: "Feedback", body: "", html_url: "https://github.com/TenwaysCom/Tenways/pull/1036" }),
+        getPullRequestFiles: async () => [{ filename: "Tenways/tw_sale/models/sale_order.py", patch: "+x" }],
+      } as never,
+      resolvedUserStore: { getById: vi.fn(async () => ({ larkId: "ou_1" })) } as never,
+      workflowPromptStore: { getByKey: vi.fn(async () => ({ prompt: "{{pr_diff}}" })) } as never,
+      acpService: { chatOneShot: vi.fn(async (_input, emit) => emit({ event: "acp.session.update", data: { update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "not json" } } } })) } as never,
+      createFeedbackLarkClient: vi.fn(async () => larkClient),
+      euOdooGuideRoot: "/guides/eu-odoo",
+      validateEuOdooGuideRoot: vi.fn(async () => {}),
+    })).rejects.toThrow("ACP_STRUCTURED_OUTPUT_INVALID");
+    expect(larkClient.batchCreateRecords).not.toHaveBeenCalled();
+  });
 });

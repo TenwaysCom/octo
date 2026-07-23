@@ -412,6 +412,25 @@ describe("public-config.controller", () => {
                 }),
               }),
             }),
+            expect.objectContaining({
+              key: "github-code-review-feedback",
+              title: "Code review feedback（后台执行）",
+              executor: {
+                type: "backend_api",
+                operation: "github.pr.code_review_feedback",
+                method: "POST",
+                route: "/api/github/pr/code-review-feedback",
+              },
+              execution: expect.objectContaining({
+                completion: expect.objectContaining({
+                  status: {
+                    method: "GET",
+                    route: "/api/github/pr/code-review-feedback/:actionRunId",
+                    pollIntervalMs: 5000,
+                  },
+                }),
+              }),
+            }),
           ],
         },
       },

@@ -6,6 +6,7 @@ export const LARK_BUG_ANALYZE_PROMPT_KEY =
 
 export const GITHUB_PR_QUICK_SCAN_PROMPT_KEY = "github.pr.quick_scan";
 export const GITHUB_PR_DEEP_REVIEW_PROMPT_KEY = "github.pr.deep_review";
+export const GITHUB_PR_CODE_REVIEW_FEEDBACK_PROMPT_KEY = "github.pr.code_review_feedback";
 
 export const DEFAULT_STORY_PRD_TO_SIMPLIFIED_PROMPT_NOTE =
   "Meegle Story 研发Review workflow prompt";
@@ -18,6 +19,9 @@ export const DEFAULT_GITHUB_PR_QUICK_SCAN_PROMPT_NOTE =
 
 export const DEFAULT_GITHUB_PR_DEEP_REVIEW_PROMPT_NOTE =
   "GitHub PR Tier 3 Odoo deep review workflow prompt";
+
+export const DEFAULT_GITHUB_PR_CODE_REVIEW_FEEDBACK_PROMPT_NOTE =
+  "GitHub PR structured code review feedback written to Lark Base";
 
 export const DEFAULT_GITHUB_PR_QUICK_SCAN_PROMPT_TEMPLATE = `你是一名 Odoo 代码审查专家，正在进行 Tier 2 结构性快速扫描。你的任务是检查代码的结构性问题，不涉及业务逻辑正确性。
 
@@ -48,6 +52,22 @@ export const DEFAULT_GITHUB_PR_DEEP_REVIEW_PROMPT_TEMPLATE = `你是一名 Odoo 
 第三步评估测试质量：成功路径、非法状态、权限边界、批量场景、异常路径、回归测试。
 
 输出必须依次包含：PR 概览表；每个方法的逻辑正确性、生命周期安全、逻辑放置与推荐写法；测试质量评估；风险汇总和 ISSUE 清单；仅 P0 时的关联模块影响；如有 ISSUE 则附 fix-up PR 追溯模板。所有发现必须附文件名:行号。
+
+PR URL：{{pr_url}}
+PR 标题：{{pr_title}}
+PR 描述：{{pr_description}}
+Diff 是否截断：{{diff_truncated}}
+
+PR diff：
+{{pr_diff}}`;
+
+export const DEFAULT_GITHUB_PR_CODE_REVIEW_FEEDBACK_PROMPT_TEMPLATE = `你是一名 Odoo 代码审查专家。仅审查下面 PR diff 中新增或修改的 Python 和 XML 代码，跳过迁移文件和翻译文件，并遵循提供的项目指南。
+
+只输出一个 JSON 对象，不要使用 Markdown 或代码围栏：
+{"feedbacks":[{"category":"文档缺失","files":"涉及文件路径及相关参考文档路径的文字说明","description":"具体问题、PR 中的证据位置和建议处理方式"}]}
+
+category 只能是：文档缺失、文档错误、ai 幻觉、不适用。
+files 必须是文字描述，不能是附件、二进制文件或上传指令。每项 description 必须包含明确的证据；没有可归类的问题时，输出一条 category 为“不适用”的记录。
 
 PR URL：{{pr_url}}
 PR 标题：{{pr_title}}

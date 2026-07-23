@@ -75,6 +75,8 @@ export interface DatabaseSchema {
     status: string;
     comment_url: string | null;
     reviewed_files_json: string | null;
+    feedback_count: number | null;
+    feedback_record_ids_json: string | null;
     diff_truncated: boolean | null;
     error_code: string | null;
     error_message: string | null;

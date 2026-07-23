@@ -197,6 +197,37 @@ export const AUTOMATION_ACTIONS = {
       },
     },
   },
+  githubCodeReviewFeedback: {
+    key: "github-code-review-feedback",
+    title: "Code review feedback（后台执行）",
+    description: "审查当前 PR，并将结构化反馈写入 Lark Base。",
+    style: "default",
+    placements: [{ surface: "popup" }, { surface: "sidebar" }],
+    interaction: { type: "direct_execute" },
+    executor: {
+      type: "backend_api",
+      operation: "github.pr.code_review_feedback",
+      method: "POST",
+      route: "/api/github/pr/code-review-feedback",
+    },
+    execution: {
+      mode: "async",
+      submit: { message: "已提交 Code review feedback；完成后会通知你。", style: "info" },
+      completion: {
+        status: {
+          method: "GET",
+          route: "/api/github/pr/code-review-feedback/:actionRunId",
+          pollIntervalMs: 5000,
+        },
+        success: {
+          message: "Code review feedback 已写入 Lark Base。",
+          style: "success",
+          notification: { title: "Code review feedback 已完成", message: "反馈已写入 Lark Base。" },
+        },
+        failure: { message: "Code review feedback 执行失败，请查看任务状态或日志。", style: "error" },
+      },
+    },
+  },
   lookupGithubIssue: {
     key: "lookup-github-issue",
     title: "查询 Issue 关联的 Meegle 工作项",

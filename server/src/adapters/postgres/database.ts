@@ -6,9 +6,12 @@ import {
   DEFAULT_LARK_BUG_ANALYZE_PROMPT_TEMPLATE,
   DEFAULT_GITHUB_PR_DEEP_REVIEW_PROMPT_NOTE,
   DEFAULT_GITHUB_PR_DEEP_REVIEW_PROMPT_TEMPLATE,
+  DEFAULT_GITHUB_PR_CODE_REVIEW_FEEDBACK_PROMPT_NOTE,
+  DEFAULT_GITHUB_PR_CODE_REVIEW_FEEDBACK_PROMPT_TEMPLATE,
   DEFAULT_GITHUB_PR_QUICK_SCAN_PROMPT_NOTE,
   DEFAULT_GITHUB_PR_QUICK_SCAN_PROMPT_TEMPLATE,
   GITHUB_PR_DEEP_REVIEW_PROMPT_KEY,
+  GITHUB_PR_CODE_REVIEW_FEEDBACK_PROMPT_KEY,
   GITHUB_PR_QUICK_SCAN_PROMPT_KEY,
   DEFAULT_STORY_PRD_TO_SIMPLIFIED_PROMPT_NOTE,
   DEFAULT_STORY_PRD_TO_SIMPLIFIED_PROMPT_TEMPLATE,
@@ -150,6 +153,8 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .addColumn("status", "text", (column) => column.notNull())
     .addColumn("comment_url", "text")
     .addColumn("reviewed_files_json", "text")
+    .addColumn("feedback_count", "integer")
+    .addColumn("feedback_record_ids_json", "text")
     .addColumn("diff_truncated", "boolean")
     .addColumn("error_code", "text")
     .addColumn("error_message", "text")
@@ -207,6 +212,17 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
       key: STORY_PRD_TO_SIMPLIFIED_PROMPT_KEY,
       prompt: DEFAULT_STORY_PRD_TO_SIMPLIFIED_PROMPT_TEMPLATE,
       note: DEFAULT_STORY_PRD_TO_SIMPLIFIED_PROMPT_NOTE,
+      created_at: now,
+      updated_at: now,
+    })
+    .onConflict((conflict) => conflict.column("key").doNothing())
+    .execute();
+
+  await db.insertInto("workflow_prompts")
+    .values({
+      key: GITHUB_PR_CODE_REVIEW_FEEDBACK_PROMPT_KEY,
+      prompt: DEFAULT_GITHUB_PR_CODE_REVIEW_FEEDBACK_PROMPT_TEMPLATE,
+      note: DEFAULT_GITHUB_PR_CODE_REVIEW_FEEDBACK_PROMPT_NOTE,
       created_at: now,
       updated_at: now,
     })
@@ -277,6 +293,14 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
   await sql`
     ALTER TABLE lark_contacts
     ADD COLUMN IF NOT EXISTS meegle_user_key text
+  `.execute(db);
+  await sql`
+    ALTER TABLE github_pr_review_runs
+    ADD COLUMN IF NOT EXISTS feedback_count integer
+  `.execute(db);
+  await sql`
+    ALTER TABLE github_pr_review_runs
+    ADD COLUMN IF NOT EXISTS feedback_record_ids_json text
   `.execute(db);
 }
 
