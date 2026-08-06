@@ -4,6 +4,7 @@ export const acpKimiChatRequestSchema = z.object({
   operatorLarkId: z.string().min(1),
   message: z.string().min(1),
   sessionId: z.string().min(1).optional(),
+  actionRunId: z.string().min(1).optional(),
 });
 
 export const acpKimiSessionLookupRequestSchema = z.object({

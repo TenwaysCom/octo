@@ -26,6 +26,27 @@ function getTestingApi() {
   }).__TENWAYS_MEEGLE_TESTING__;
 }
 
+function getSidebarHostUrl(): string | null {
+  const host = document.getElementById("tenways-octo-sidebar-host");
+  const iframe = host?.shadowRoot?.querySelector(".octo-sidebar-iframe") as HTMLIFrameElement | null;
+  const src = iframe?.getAttribute("src");
+  if (!src) {
+    return null;
+  }
+
+  return new URL(src, "chrome-extension://test").searchParams.get("hostUrl");
+}
+
+function replaceUrlWithoutRouteWatcher(path: string): void {
+  History.prototype.replaceState.call(window.history, {}, "", path);
+}
+
+function waitForRealTimer(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 describe("meegle content script auth code fetch", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -222,6 +243,29 @@ describe("meegle content script auth code fetch", () => {
     expect(iframe?.getAttribute("src")).toContain("meegleUserKey=user_from_storage");
   });
 
+  it("refreshes the sidebar when the Meegle URL changes without a history event", async () => {
+    mockMeeglePageConfig();
+    replaceUrlWithoutRouteWatcher("/4c3fv6/story/detail/10134234");
+    await getTestingApi()?.refreshMeegleSidebar();
+
+    expect(getSidebarHostUrl()).toContain("/4c3fv6/story/detail/10134234");
+
+    replaceUrlWithoutRouteWatcher("/4c3fv6/production_bug/detail/13290007");
+    await waitForRealTimer(850);
+
+    expect(getSidebarHostUrl()).toContain("/4c3fv6/production_bug/detail/13290007");
+  });
+
+  it("injects the sidebar on Meegle Production Bug detail routes", async () => {
+    mockMeeglePageConfig();
+    window.history.replaceState({}, "", "/4c3fv6/production_bug/detail/13290007");
+
+    await getTestingApi()?.refreshMeegleSidebar();
+
+    const host = document.getElementById("tenways-octo-sidebar-host");
+    expect(host?.shadowRoot?.querySelector(".octo-trigger")).not.toBeNull();
+  });
+
   it("removes the sidebar after Meegle SPA navigation back to an unmatched route", async () => {
     vi.useFakeTimers();
     mockMeeglePageConfig();
@@ -275,17 +319,29 @@ function mockMeeglePageConfig(): void {
     if (requestUrl.includes("/api/config/page")) {
       const parsed = new URL(requestUrl);
       const pageUrl = new URL(parsed.searchParams.get("url") || "https://project.larksuite.com/");
-      const isDetail = /^\/4c3fv6\/story\/detail\/\d+/.test(pageUrl.pathname);
+      const detailMatch = pageUrl.pathname.match(
+        /^\/4c3fv6\/(story|production_bug)\/detail\/\d+$/,
+      );
 
       return jsonResponse({
         ok: true,
         data: {
-          pageConfig: isDetail
+          pageConfig: detailMatch
             ? {
                 platform: "meegle",
-                pageType: "meegle_workitem_detail",
-                matchedRuleId: "meegle.story.detail",
-                matchedRuleIds: ["meegle.story.detail"],
+                pageType:
+                  detailMatch[1] === "production_bug"
+                    ? "meegle_production_bug_detail"
+                    : "meegle_workitem_detail",
+                matchedRuleId:
+                  detailMatch[1] === "production_bug"
+                    ? "meegle.production-bug.detail"
+                    : "meegle.story.detail",
+                matchedRuleIds: [
+                  detailMatch[1] === "production_bug"
+                    ? "meegle.production-bug.detail"
+                    : "meegle.story.detail",
+                ],
                 sidebar: {
                   injectPageElements: true,
                   sidebarButtonEnabled: true,

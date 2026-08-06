@@ -12,7 +12,7 @@ SSH_PORT="2233"
 PROJECT_DIR="~/projects/octo"
 
 # 读取扩展当前版本号
-EXT_VERSION=$(node -p "require('./extension/package.json').version")
+EXT_VERSION=$(node -p "require('./extension/manifest.json').version")
 echo "[DEPLOY-PROD] 扩展版本: $EXT_VERSION"
 
 echo "[DEPLOY-PROD] 连接到正式服务器执行部署..."

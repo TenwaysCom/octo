@@ -26,6 +26,11 @@ export interface LarkBitableTable {
   name: string;
 }
 
+export interface LarkBitableField {
+  field_id: string;
+  field_name: string;
+}
+
 export interface LarkBitableBase {
   base_id: string;
   name: string;
@@ -68,6 +73,16 @@ export class LarkNotFoundError extends LarkAPIError {
   ) {
     super(message, statusCode, response);
     this.name = "LarkNotFoundError";
+  }
+}
+
+export class LarkBatchCreateError extends Error {
+  constructor(
+    message: string,
+    readonly createdRecords: LarkBitableRecord[],
+  ) {
+    super(message);
+    this.name = "LarkBatchCreateError";
   }
 }
 
@@ -213,6 +228,16 @@ export class LarkClient {
     }));
   }
 
+  async getFields(baseId: string, tableId: string): Promise<LarkBitableField[]> {
+    const data = await this.request<{
+      items?: Array<{ field_id: string; field_name: string }>;
+    }>("GET", `/open-apis/bitable/v1/apps/${baseId}/tables/${tableId}/fields`);
+    return (data.items || []).map((field) => ({
+      field_id: field.field_id,
+      field_name: field.field_name,
+    }));
+  }
+
   // ==================== Bitable Record Methods ====================
 
   /**
@@ -329,6 +354,35 @@ export class LarkClient {
     });
 
     return this.mapRecord(data.record);
+  }
+
+  async batchCreateRecords(
+    baseId: string,
+    tableId: string,
+    records: Array<Record<string, unknown>>,
+  ): Promise<LarkBitableRecord[]> {
+    const created: LarkBitableRecord[] = [];
+    for (let index = 0; index < records.length; index += 200) {
+      const batch = records.slice(index, index + 200);
+      try {
+        const data = await this.request<{
+          records?: Array<{
+            record_id: string;
+            fields: Record<string, unknown>;
+            shared_url?: string;
+          }>;
+        }>("POST", `/open-apis/bitable/v1/apps/${baseId}/tables/${tableId}/records/batch_create`, {
+          records: batch.map((fields) => ({ fields })),
+        });
+        created.push(...(data.records || []).map((record) => this.mapRecord(record)));
+      } catch (error) {
+        throw new LarkBatchCreateError(
+          error instanceof Error ? error.message : String(error),
+          created,
+        );
+      }
+    }
+    return created;
   }
 
   /**

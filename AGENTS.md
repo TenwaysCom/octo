@@ -71,8 +71,8 @@ For non-trivial changes, agents must read the relevant docs before editing:
 
 ## Logs
 
-- Server logs: `server/logs/app.log`, `server/logs/api.log`.
-- Extension client upload logs: `server/logs/popup-client.log` when enabled.
+- Server logs: `server/logs/app.YYYY-MM-DD.N.log`, `server/logs/api.YYYY-MM-DD.N.log` (Pino daily rotation).
+- Extension client upload logs: `server/logs/popup-client.YYYY-MM-DD.N.log` when enabled (same Pino daily rotation).
 - Use `LOG_LEVEL=debug` for deeper server debugging.
 
 ## Documentation

@@ -37,6 +37,7 @@ import {
   ignoreCurrentVersion,
 } from "./update-checker.js";
 import { fetchServerJson } from "../server-request.js";
+import { trackAsyncAction } from "./async-action-notifier.js";
 
 const routerLogger = createExtensionLogger("background:router");
 
@@ -302,6 +303,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         });
       });
 
+    return true;
+  }
+
+  if (message.action === "octo.async-action.track") {
+    trackAsyncAction(message.payload)
+      .then(() => sendResponse({ ok: true }))
+      .catch((err: unknown) => {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        routerLogger.error("Async action tracking failed", { errorMessage });
+        sendResponse({
+          ok: false,
+          error: {
+            errorCode: "BACKGROUND_ERROR",
+            errorMessage,
+          },
+        });
+      });
     return true;
   }
 

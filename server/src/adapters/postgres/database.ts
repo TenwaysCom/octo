@@ -4,6 +4,15 @@ import type { DatabaseSchema } from "./schema.js";
 import {
   DEFAULT_LARK_BUG_ANALYZE_PROMPT_NOTE,
   DEFAULT_LARK_BUG_ANALYZE_PROMPT_TEMPLATE,
+  DEFAULT_GITHUB_PR_DEEP_REVIEW_PROMPT_NOTE,
+  DEFAULT_GITHUB_PR_DEEP_REVIEW_PROMPT_TEMPLATE,
+  DEFAULT_GITHUB_PR_CODE_REVIEW_FEEDBACK_PROMPT_NOTE,
+  DEFAULT_GITHUB_PR_CODE_REVIEW_FEEDBACK_PROMPT_TEMPLATE,
+  DEFAULT_GITHUB_PR_QUICK_SCAN_PROMPT_NOTE,
+  DEFAULT_GITHUB_PR_QUICK_SCAN_PROMPT_TEMPLATE,
+  GITHUB_PR_DEEP_REVIEW_PROMPT_KEY,
+  GITHUB_PR_CODE_REVIEW_FEEDBACK_PROMPT_KEY,
+  GITHUB_PR_QUICK_SCAN_PROMPT_KEY,
   DEFAULT_STORY_PRD_TO_SIMPLIFIED_PROMPT_NOTE,
   DEFAULT_STORY_PRD_TO_SIMPLIFIED_PROMPT_TEMPLATE,
   LARK_BUG_ANALYZE_PROMPT_KEY,
@@ -134,6 +143,27 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .addColumn("updated_at", "text", (column) => column.notNull())
     .execute();
 
+  await db.schema
+    .createTable("github_pr_review_runs")
+    .ifNotExists()
+    .addColumn("action_run_id", "text", (column) => column.primaryKey())
+    .addColumn("master_user_id", "text", (column) => column.notNull())
+    .addColumn("operation", "text", (column) => column.notNull())
+    .addColumn("pr_url", "text", (column) => column.notNull())
+    .addColumn("status", "text", (column) => column.notNull())
+    .addColumn("comment_url", "text")
+    .addColumn("reviewed_files_json", "text")
+    .addColumn("feedback_count", "integer")
+    .addColumn("feedback_record_ids_json", "text")
+    .addColumn("diff_truncated", "boolean")
+    .addColumn("error_code", "text")
+    .addColumn("error_message", "text")
+    .addColumn("created_at", "text", (column) => column.notNull())
+    .addColumn("started_at", "text")
+    .addColumn("completed_at", "text")
+    .addColumn("updated_at", "text", (column) => column.notNull())
+    .execute();
+
   await sql`
     CREATE INDEX IF NOT EXISTS acp_kimi_session_owners_operator_idx
     ON acp_kimi_session_owners(operator_lark_id, updated_at)
@@ -171,6 +201,10 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     CREATE INDEX IF NOT EXISTS oauth_sessions_provider_state_idx
     ON oauth_sessions(provider, state)
   `.execute(db);
+  await sql`
+    CREATE INDEX IF NOT EXISTS github_pr_review_runs_user_updated_idx
+    ON github_pr_review_runs(master_user_id, updated_at)
+  `.execute(db);
 
   const now = new Date().toISOString();
   await db.insertInto("workflow_prompts")
@@ -178,6 +212,39 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
       key: STORY_PRD_TO_SIMPLIFIED_PROMPT_KEY,
       prompt: DEFAULT_STORY_PRD_TO_SIMPLIFIED_PROMPT_TEMPLATE,
       note: DEFAULT_STORY_PRD_TO_SIMPLIFIED_PROMPT_NOTE,
+      created_at: now,
+      updated_at: now,
+    })
+    .onConflict((conflict) => conflict.column("key").doNothing())
+    .execute();
+
+  await db.insertInto("workflow_prompts")
+    .values({
+      key: GITHUB_PR_CODE_REVIEW_FEEDBACK_PROMPT_KEY,
+      prompt: DEFAULT_GITHUB_PR_CODE_REVIEW_FEEDBACK_PROMPT_TEMPLATE,
+      note: DEFAULT_GITHUB_PR_CODE_REVIEW_FEEDBACK_PROMPT_NOTE,
+      created_at: now,
+      updated_at: now,
+    })
+    .onConflict((conflict) => conflict.column("key").doNothing())
+    .execute();
+
+  await db.insertInto("workflow_prompts")
+    .values({
+      key: GITHUB_PR_QUICK_SCAN_PROMPT_KEY,
+      prompt: DEFAULT_GITHUB_PR_QUICK_SCAN_PROMPT_TEMPLATE,
+      note: DEFAULT_GITHUB_PR_QUICK_SCAN_PROMPT_NOTE,
+      created_at: now,
+      updated_at: now,
+    })
+    .onConflict((conflict) => conflict.column("key").doNothing())
+    .execute();
+
+  await db.insertInto("workflow_prompts")
+    .values({
+      key: GITHUB_PR_DEEP_REVIEW_PROMPT_KEY,
+      prompt: DEFAULT_GITHUB_PR_DEEP_REVIEW_PROMPT_TEMPLATE,
+      note: DEFAULT_GITHUB_PR_DEEP_REVIEW_PROMPT_NOTE,
       created_at: now,
       updated_at: now,
     })
@@ -227,9 +294,18 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     ALTER TABLE lark_contacts
     ADD COLUMN IF NOT EXISTS meegle_user_key text
   `.execute(db);
+  await sql`
+    ALTER TABLE github_pr_review_runs
+    ADD COLUMN IF NOT EXISTS feedback_count integer
+  `.execute(db);
+  await sql`
+    ALTER TABLE github_pr_review_runs
+    ADD COLUMN IF NOT EXISTS feedback_record_ids_json text
+  `.execute(db);
 }
 
 export async function resetPostgresDatabase(db: Kysely<DatabaseSchema>): Promise<void> {
+  await sql`DROP TABLE IF EXISTS github_pr_review_runs`.execute(db);
   await sql`DROP TABLE IF EXISTS workflow_prompts`.execute(db);
   await sql`DROP TABLE IF EXISTS acp_kimi_session_owners`.execute(db);
   await sql`DROP TABLE IF EXISTS oauth_sessions`.execute(db);

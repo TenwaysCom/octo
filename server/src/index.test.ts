@@ -44,6 +44,8 @@ describe("index routes", () => {
         "POST /api/lark-base/bulk-create-meegle-workitems",
         "POST /api/meegle/workitem/story-prd-to-simplified",
         "POST /api/lark-bug/analyze",
+        "POST /api/github/pr/code-review-feedback",
+        "GET /api/github/pr/code-review-feedback/:actionRunId",
       ]),
     );
   });

@@ -41,6 +41,7 @@ const PRODUCTION_BUG_API_NAME = "production_bug";
 const PRODUCTION_BUG_TYPE_KEY = "6932e40429d1cd8aac635c82";
 const DEFAULT_BUG_ACP_TIMEOUT_MS = 110_000;
 const DEFAULT_BUG_ACP_CONCURRENCY_LIMIT = 3;
+const LARK_THREAD_CONTEXT_MESSAGE_LIMIT = 50;
 const DEFAULT_LARK_BASE_ID = process.env.LARK_BASE_DEFAULT_BASE_ID || "";
 const DEFAULT_LARK_TABLE_ID = process.env.LARK_BASE_DEFAULT_TABLE_ID || "";
 
@@ -122,6 +123,11 @@ type LarkRecordAnalyzeClient = {
     pageToken?: string;
   }>;
 };
+
+interface LarkBugContext {
+  bugDescription: string;
+  larkThreadContext: string;
+}
 
 export type LarkBugAnalyzeResponse =
   | LarkBugAnalyzeResult
@@ -340,7 +346,8 @@ async function executeLarkRecordAnalyze(
     );
     const larkClient = client as LarkRecordAnalyzeClient;
     const record = await larkClient.getRecord(ids.baseId, ids.tableId, ids.recordId);
-    const bugDescription = await resolveLarkBugDescription(record, larkClient);
+    const bugContext = await resolveLarkBugContext(record, larkClient);
+    const bugDescription = bugContext.bugDescription;
     const bugFields = summarizeLarkRecord(record);
     if (!bugDescription && !bugFields) {
       return toError(
@@ -360,6 +367,7 @@ async function executeLarkRecordAnalyze(
         bugTitle: getLarkRecordTitle(record),
         bugFields,
         bugDescription: bugDescription || bugFields,
+        larkThreadContext: bugContext.larkThreadContext,
         promptTemplate,
       },
       deps.acpService ?? acpKimiProxyService,
@@ -519,20 +527,20 @@ function summarizeLarkRecord(record: LarkBitableRecord): string {
   return lines.join("\n").trim();
 }
 
-async function resolveLarkBugDescription(
+async function resolveLarkBugContext(
   record: LarkBitableRecord,
   client: LarkRecordAnalyzeClient,
-): Promise<string> {
+): Promise<LarkBugContext> {
   const messageLink = extractLarkMessageLink(record);
   const messageInfo = messageLink ? parseLarkMessageLink(messageLink) : null;
 
-  if (messageInfo?.threadId && client.getThreadMessages) {
-    const threadMessages = await client.getThreadMessages(messageInfo.threadId);
-    const messageText = threadMessages.items
-      .map((item) => extractLarkMessageContentText(item.content))
-      .find(Boolean);
-    if (messageText) {
-      return messageText;
+  if (messageInfo?.threadId) {
+    const threadContext = await resolveLarkThreadContext(messageInfo.threadId, client);
+    if (threadContext) {
+      return {
+        bugDescription: threadContext,
+        larkThreadContext: threadContext,
+      };
     }
   }
 
@@ -540,11 +548,55 @@ async function resolveLarkBugDescription(
     const message = await client.getMessage(messageInfo.messageId);
     const messageText = extractLarkMessageContentText(message.content);
     if (messageText) {
-      return messageText;
+      return {
+        bugDescription: messageText,
+        larkThreadContext: "",
+      };
     }
   }
 
-  return getLarkRecordBugDescription(record);
+  return {
+    bugDescription: getLarkRecordBugDescription(record),
+    larkThreadContext: "",
+  };
+}
+
+async function resolveLarkThreadContext(
+  threadId: string,
+  client: LarkRecordAnalyzeClient,
+): Promise<string> {
+  const sections: string[] = [];
+
+  if (client.getMessage) {
+    try {
+      const threadMessage = await client.getMessage(threadId);
+      const threadText = extractLarkMessageContentText(threadMessage.content);
+      if (threadText) {
+        sections.push(`Thread root message:\n${threadText}`);
+      }
+    } catch (error) {
+      bugLogger.warn({
+        threadId,
+        message: error instanceof Error ? error.message : String(error),
+      }, "LARK_BUG_THREAD_ROOT_MESSAGE_FETCH_FAILED");
+    }
+  }
+
+  if (client.getThreadMessages) {
+    const threadMessages = await client.getThreadMessages(threadId);
+    const threadTexts = threadMessages.items
+      .slice(0, LARK_THREAD_CONTEXT_MESSAGE_LIMIT)
+      .map((item, index) => {
+        const text = extractLarkMessageContentText(item.content);
+        return text ? `Thread message ${index + 1} (${item.message_id}):\n${text}` : "";
+      })
+      .filter(Boolean);
+    if (threadTexts.length > 0) {
+      sections.push(`Thread messages (first ${LARK_THREAD_CONTEXT_MESSAGE_LIMIT}):\n${threadTexts.join("\n\n")}`);
+    }
+  }
+
+  return sections.join("\n\n").trim();
 }
 
 function getLarkRecordBugDescription(record: LarkBitableRecord): string {
@@ -734,6 +786,7 @@ async function runProductionBugAnalysis(
     bugTitle: string;
     bugFields: string;
     bugDescription: string;
+    larkThreadContext?: string;
     promptTemplate: string;
   },
   acpService: AcpKimiProxyService,
@@ -755,9 +808,11 @@ async function runProductionBugAnalysis(
         bugTitleLength: input.bugTitle.length,
         bugFieldsLength: input.bugFields.length,
         bugDescriptionLength: input.bugDescription.length,
+        larkThreadContextLength: input.larkThreadContext?.length ?? 0,
         hasBugTitle: Boolean(input.bugTitle.trim()),
         hasBugFields: Boolean(input.bugFields.trim()),
         hasBugDescription: Boolean(input.bugDescription.trim()),
+        hasLarkThreadContext: Boolean(input.larkThreadContext?.trim()),
       }, "LARK_BUG_ANALYZE_RENDERED_PROMPT");
 
       await acpService.chatOneShot(
@@ -968,12 +1023,14 @@ function buildProductionBugAnalyzePrompt(input: {
   bugTitle: string;
   bugFields: string;
   bugDescription: string;
+  larkThreadContext?: string;
   promptTemplate: string;
 }): string {
   return renderWorkflowPromptTemplate(input.promptTemplate, {
     bugTitle: input.bugTitle || "待确认",
     bugFields: input.bugFields || "待确认",
     bug_description: input.bugDescription || "待确认",
+    lark_thread_context: input.larkThreadContext || "",
   });
 }
 

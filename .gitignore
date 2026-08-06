@@ -19,3 +19,4 @@ worktrees
 .DS_store
 logs
 .pnpm-store
+.workbuddy

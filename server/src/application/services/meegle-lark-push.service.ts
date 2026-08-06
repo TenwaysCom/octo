@@ -138,47 +138,70 @@ function parseLarkMessageLink(
   return null;
 }
 
-function getFieldValue(workitem: { fields: Record<string, unknown> }, key: string): string | undefined {
-  // Some APIs return fields as a flat Record<string, unknown>
-  const directValue = workitem.fields[key];
-  pushLogger.debug({ key, directValue}, "PUSH_RESOLVE_FIELD-10");
-  if (typeof directValue === "string") {
-    return directValue;
+function readStringValue(value: unknown): string | undefined {
+  if (typeof value === "string") {
+    return value;
   }
-  if (directValue && typeof directValue === "object") {
-    const obj = directValue as Record<string, unknown>;
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const obj = value as Record<string, unknown>;
     if (typeof obj.value === "string") {
       return obj.value;
     }
   }
+  return undefined;
+}
 
-  // Other APIs return field values inside a "field_value_pairs" array
-  const fieldValuePairs = workitem.fields.fields;
-  // pushLogger.debug({ key, fields: fieldValuePairs}, "PUSH_RESOLVE_FIELD-15");
-  if (Array.isArray(fieldValuePairs)) {
-    const pair = fieldValuePairs.find(
-      (p: unknown) =>
-        p &&
-      typeof p === "object" &&
-      (p as Record<string, unknown>).field_key === key,
-    ) as Record<string, unknown> | undefined;
-    
-    pushLogger.debug({ key, pair}, "PUSH_RESOLVE_FIELD-20");
-    if (pair) {
-      const fv = pair.field_value;
-      if (typeof fv === "string") {
-        return fv;
-      }
-      if (fv && typeof fv === "object") {
-        const obj = fv as Record<string, unknown>;
-        if (typeof obj.value === "string") {
-          return obj.value;
-        }
-      }
-    }
+function findFieldPair(container: unknown, key: string, depth = 0): Record<string, unknown> | undefined {
+  if (!container || depth > 5) {
+    return undefined;
   }
 
+  if (Array.isArray(container)) {
+    for (const item of container) {
+      const pair = findFieldPair(item, key, depth + 1);
+      if (pair) {
+        return pair;
+      }
+    }
+    return undefined;
+  }
+
+  if (typeof container !== "object") {
+    return undefined;
+  }
+
+  const obj = container as Record<string, unknown>;
+  if (obj.field_key === key) {
+    return obj;
+  }
+
+  for (const value of Object.values(obj)) {
+    const pair = findFieldPair(value, key, depth + 1);
+    if (pair) {
+      return pair;
+    }
+  }
   return undefined;
+}
+
+function getFieldValue(workitem: { fields: Record<string, unknown> }, key: string): string | undefined {
+  // Some APIs return fields as a flat Record<string, unknown>.
+  const directValue = workitem.fields[key];
+  pushLogger.debug({ key, hasDirectValue: directValue !== undefined }, "PUSH_RESOLVE_FIELD-10");
+  const directStringValue = readStringValue(directValue);
+  if (directStringValue) {
+    return directStringValue;
+  }
+
+  // Other APIs return field values inside nested field pair arrays, commonly
+  // fields.fields or fields.fields.fields depending on adapter/raw response shape.
+  const pair = findFieldPair(workitem.fields, key);
+  pushLogger.debug({ key, hasPair: Boolean(pair) }, "PUSH_RESOLVE_FIELD-20");
+  if (!pair) {
+    return undefined;
+  }
+
+  return readStringValue(pair.field_value);
 }
 
 interface FollowerReferences {
