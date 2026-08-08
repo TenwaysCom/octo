@@ -3,6 +3,13 @@ export interface GitHubPrDetails {
   body: string | null;
   number: number;
   html_url: string;
+  state: string;
+  merged_at: string | null;
+  updated_at: string;
+  draft: boolean;
+  user?: { login?: string };
+  head?: { ref?: string };
+  base?: { ref?: string };
 }
 
 export interface GitHubIssueDetails {

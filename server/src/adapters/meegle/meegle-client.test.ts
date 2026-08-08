@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { parseWorkitem } from "./meegle-client.js";
+import {
+  MeegleClient,
+  MeegleMinimumIntervalLimiter,
+  parseWorkitem,
+} from "./meegle-client.js";
 
 describe("parseWorkitem", () => {
   it("should parse basic fields", () => {
@@ -86,5 +90,65 @@ describe("parseWorkitem", () => {
     expect(result.fields.project_key).toBe("proj1");
     expect(result.fields.id).toBeUndefined();
     expect(result.fields.name).toBeUndefined();
+  });
+
+  it("serializes requests with the configured minimum interval", async () => {
+    const waits: number[] = [];
+    let now = 1_000;
+    const limiter = new MeegleMinimumIntervalLimiter(
+      250,
+      () => now,
+      async (waitMs) => {
+        waits.push(waitMs);
+        now += waitMs;
+      },
+    );
+
+    await Promise.all([limiter.wait(), limiter.wait(), limiter.wait()]);
+
+    expect(waits).toEqual([250, 250]);
+  });
+
+  it("retries HTTP 429 with Retry-After but does not retry commercial usage exhaustion", async () => {
+    const requestLimiter = { wait: vi.fn().mockResolvedValue(undefined) };
+    const sleep = vi.fn().mockResolvedValue(undefined);
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ err_msg: "too many requests" }), {
+        status: 429,
+        headers: { "Retry-After": "2" },
+      }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        data: { items: [{ user_key: "user-1", name_en: "User" }] },
+      }), { status: 200 }));
+    const client = new MeegleClient({ userToken: "token", userKey: "user" }, {
+      requestLimiter,
+      sleep,
+      fetch,
+      maxRateLimitRetries: 1,
+    });
+
+    await expect(client.getUsers(["user-1"])).resolves.toEqual([{
+      user_key: "user-1",
+      name: "User",
+      email: "",
+      avatar: undefined,
+      role: undefined,
+    }]);
+    expect(requestLimiter.wait).toHaveBeenCalledTimes(2);
+    expect(sleep).toHaveBeenCalledWith(2_000);
+
+    const quotaFetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      err_code: 1000051942,
+      err_msg: "Commercial Usage Exceeded",
+    }), { status: 400 }));
+    const quotaClient = new MeegleClient({ userToken: "token", userKey: "user" }, {
+      requestLimiter,
+      sleep,
+      fetch: quotaFetch,
+      maxRateLimitRetries: 1,
+    });
+
+    await expect(quotaClient.getUsers(["user-1"])).rejects.toThrow("Commercial Usage Exceeded");
+    expect(quotaFetch).toHaveBeenCalledTimes(1);
   });
 });

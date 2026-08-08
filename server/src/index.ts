@@ -49,6 +49,14 @@ import {
 } from "./modules/github-branch-create/github-branch-create.controller.js";
 import { createCorsMiddleware } from "./http/cors.js";
 import { createGitHubLookupRouter } from "./routes/github-lookup.js";
+import {
+  bulkSyncGitHubPullRequestsController,
+  bulkSyncLarkBaseTicketsController,
+  bulkSyncMeegleWorkitemsController,
+  syncGitHubPullRequestController,
+  syncLarkBaseTicketController,
+  syncMeegleWorkitemController,
+} from "./modules/platform-sync/platform-sync.controller.js";
 
 import { logger } from "./logger.js";
 
@@ -238,6 +246,14 @@ app.post("/api/meegle/workitem/story-prd-to-simplified", handleController(meegle
 
 // Lark Bug routes
 app.post("/api/lark-bug/analyze", handleController(larkBugAnalyzeController));
+
+// Platform snapshot sync routes
+app.post("/api/sync/meegle/workitem", handleController(syncMeegleWorkitemController));
+app.post("/api/sync/meegle/workitems", handleController(bulkSyncMeegleWorkitemsController));
+app.post("/api/sync/github/pull-request", handleController(syncGitHubPullRequestController));
+app.post("/api/sync/github/pull-requests", handleController(bulkSyncGitHubPullRequestsController));
+app.post("/api/sync/lark-base/ticket", handleController(syncLarkBaseTicketController));
+app.post("/api/sync/lark-base/tickets", handleController(bulkSyncLarkBaseTicketsController));
 
 // GitHub branch create routes
 app.post("/api/github/branch/preview", handleController(githubBranchPreviewController));

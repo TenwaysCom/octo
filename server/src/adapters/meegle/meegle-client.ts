@@ -235,7 +235,85 @@ export interface MeegleClientOptions {
   pluginId?: string;
 }
 
+export interface MeegleRequestLimiter {
+  wait(): Promise<void>;
+}
+
+export interface MeegleClientDeps {
+  requestLimiter?: MeegleRequestLimiter;
+  sleep?: (ms: number) => Promise<void>;
+  fetch?: typeof fetch;
+  maxRateLimitRetries?: number;
+}
+
+export class MeegleMinimumIntervalLimiter implements MeegleRequestLimiter {
+  private nextRequestAt = 0;
+  private queue = Promise.resolve();
+
+  constructor(
+    private readonly minimumIntervalMs: number,
+    private readonly now: () => number = Date.now,
+    private readonly waitFor: (ms: number) => Promise<void> = delay,
+  ) {}
+
+  wait(): Promise<void> {
+    const reservation = this.queue.then(async () => {
+      const currentTime = this.now();
+      const waitMs = Math.max(0, this.nextRequestAt - currentTime);
+      this.nextRequestAt = Math.max(this.nextRequestAt, currentTime) + this.minimumIntervalMs;
+      if (waitMs > 0) {
+        await this.waitFor(waitMs);
+      }
+    });
+    this.queue = reservation.catch(() => undefined);
+    return reservation;
+  }
+}
+
 // ==================== Utility Functions ====================
+
+const DEFAULT_MEEGLE_MIN_REQUEST_INTERVAL_MS = 1_000;
+const DEFAULT_MEEGLE_RATE_LIMIT_RETRY_COUNT = 2;
+const MAX_MEEGLE_RATE_LIMIT_RETRY_DELAY_MS = 30_000;
+let sharedRequestLimiter: MeegleRequestLimiter | undefined;
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getPositiveIntegerEnv(name: string, fallback: number): number {
+  const value = Number.parseInt(process.env[name] ?? "", 10);
+  return Number.isFinite(value) && value >= 0 ? value : fallback;
+}
+
+function getSharedRequestLimiter(): MeegleRequestLimiter {
+  sharedRequestLimiter ??= new MeegleMinimumIntervalLimiter(
+    getPositiveIntegerEnv("MEEGLE_MIN_REQUEST_INTERVAL_MS", DEFAULT_MEEGLE_MIN_REQUEST_INTERVAL_MS),
+  );
+  return sharedRequestLimiter;
+}
+
+function getRetryAfterMs(value: string | null): number | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const seconds = Number.parseInt(value, 10);
+  if (Number.isFinite(seconds) && seconds >= 0) {
+    return seconds * 1_000;
+  }
+  const timestamp = Date.parse(value);
+  return Number.isNaN(timestamp) ? undefined : Math.max(0, timestamp - Date.now());
+}
+
+function getRateLimitHeaders(headers: Headers): Record<string, string> {
+  return Object.fromEntries(
+    ["retry-after", "x-ratelimit-limit", "x-ratelimit-remaining", "x-ratelimit-reset"]
+      .flatMap((name) => {
+        const value = headers.get(name);
+        return value === null ? [] : [[name, value] as const];
+      }),
+  );
+}
 
 function joinUrl(baseUrl: string, path: string): string {
   return new URL(path, `${baseUrl.replace(/\/$/, "")}/`).toString();
@@ -255,7 +333,13 @@ async function parseJson(response: Response): Promise<Record<string, unknown>> {
 
 function handleResponse(response: Response, data: Record<string, unknown>): Record<string, unknown> {
   if (!response.ok) {
-    const error_msg = (data.message || data.error || `HTTP ${response.status}`) as string;
+    const nestedError = data.err;
+    const nestedErrorMessage = typeof nestedError === "object" && nestedError !== null
+      ? (nestedError as Record<string, unknown>).msg
+      : undefined;
+    const error_msg = String(
+      data.message ?? data.error ?? data.err_msg ?? nestedErrorMessage ?? `HTTP ${response.status}`,
+    );
 
     if (response.status === 401) {
       throw new MeegleAuthenticationError(error_msg, response.status, data);
@@ -289,9 +373,23 @@ export interface MeegleWorkitem {
   key: string;
   name: string;
   type: string;
+  workItemType?: string;
   status: string;
+  statusKey?: string;
+  subStage?: string;
+  subStageKey?: string;
   assignee?: string;
   fields: Record<string, unknown>;
+}
+
+export type MeegleSyncMappingKind = "workitem_type" | "status" | "sub_stage";
+
+export interface MeegleSyncMapping {
+  projectKey: string;
+  workItemTypeKey: string;
+  kind: MeegleSyncMappingKind;
+  sourceKey: string;
+  displayValue: string;
 }
 
 export interface MeegleComment {
@@ -413,14 +511,25 @@ function parseItemsList(data: unknown, keys: string[]): Record<string, unknown>[
 
 export class MeegleClient {
   private config: MeegleClientOptions;
+  private readonly requestLimiter: MeegleRequestLimiter;
+  private readonly sleep: (ms: number) => Promise<void>;
+  private readonly fetchFn: typeof fetch;
+  private readonly maxRateLimitRetries: number;
 
-  constructor(options: MeegleClientOptions) {
+  constructor(options: MeegleClientOptions, deps: MeegleClientDeps = {}) {
     this.config = {
       baseUrl: options.baseUrl || "https://www.meegle.com",
       timeout: options.timeout || 30000,
       userToken: options.userToken,
       userKey: options.userKey,
     };
+    this.requestLimiter = deps.requestLimiter ?? getSharedRequestLimiter();
+    this.sleep = deps.sleep ?? delay;
+    this.fetchFn = deps.fetch ?? fetch;
+    this.maxRateLimitRetries = deps.maxRateLimitRetries ?? getPositiveIntegerEnv(
+      "MEEGLE_RATE_LIMIT_RETRY_COUNT",
+      DEFAULT_MEEGLE_RATE_LIMIT_RETRY_COUNT,
+    );
   }
 
   private getHeaders(
@@ -465,31 +574,55 @@ export class MeegleClient {
     idempotencyKey?: string,
   ): Promise<Record<string, unknown>> {
     const url = this.buildUrl(req);
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
+    for (let attempt = 0; ; attempt += 1) {
+      await this.requestLimiter.wait();
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
 
-    try {
-      clientLogger.debug({ url: url.replace(/\?.*/, ""), method: req.httpMethod, apiPath: req.apiPath, body: req.body }, "MEEGLE_REQUEST_START");
-      const response = await fetch(url, {
-        method: req.httpMethod,
-        headers: this.getHeaders(idempotent, idempotencyKey),
-        body: req.body ? JSON.stringify(req.body) : undefined,
-        signal: controller.signal,
-      });
+      try {
+        clientLogger.debug({ url: url.replace(/\?.*/, ""), method: req.httpMethod, apiPath: req.apiPath, body: req.body, attempt }, "MEEGLE_REQUEST_START");
+        const response = await this.fetchFn(url, {
+          method: req.httpMethod,
+          headers: this.getHeaders(idempotent, idempotencyKey),
+          body: req.body ? JSON.stringify(req.body) : undefined,
+          signal: controller.signal,
+        });
 
-      clearTimeout(timeoutId);
-      const data = await parseJson(response);
-      clientLogger.debug({ url: url.replace(/\?.*/, ""), statusCode: response.status, ok: response.ok }, "MEEGLE_REQUEST_RESPONSE");
-      if (!response.ok) {
-        clientLogger.warn({ url: url.replace(/\?.*/, ""), statusCode: response.status, response: data }, "MEEGLE_REQUEST_ERROR");
+        const data = await parseJson(response);
+        clientLogger.debug({
+          url: url.replace(/\?.*/, ""),
+          statusCode: response.status,
+          ok: response.ok,
+          attempt,
+          rateLimit: getRateLimitHeaders(response.headers),
+        }, "MEEGLE_REQUEST_RESPONSE");
+        if (response.status === 429 && attempt < this.maxRateLimitRetries) {
+          const retryAfterMs = getRetryAfterMs(response.headers.get("retry-after"));
+          const waitMs = Math.min(
+            retryAfterMs ?? 1_000 * 2 ** attempt,
+            MAX_MEEGLE_RATE_LIMIT_RETRY_DELAY_MS,
+          );
+          clientLogger.warn({
+            url: url.replace(/\?.*/, ""),
+            apiPath: req.apiPath,
+            attempt,
+            waitMs,
+          }, "MEEGLE_RATE_LIMIT_RETRY");
+          await this.sleep(waitMs);
+          continue;
+        }
+        if (!response.ok) {
+          clientLogger.warn({ url: url.replace(/\?.*/, ""), statusCode: response.status, response: data }, "MEEGLE_REQUEST_ERROR");
+        }
+        return handleResponse(response, data);
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") {
+          throw new MeegleAPIError("Request timeout", 408);
+        }
+        throw err;
+      } finally {
+        clearTimeout(timeoutId);
       }
-      return handleResponse(response, data);
-    } catch (err) {
-      clearTimeout(timeoutId);
-      if (err instanceof Error && err.name === "AbortError") {
-        throw new MeegleAPIError("Request timeout", 408);
-      }
-      throw err;
     }
   }
 

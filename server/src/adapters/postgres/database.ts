@@ -134,6 +134,84 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .addColumn("updated_at", "text", (column) => column.notNull())
     .execute();
 
+  await db.schema
+    .createTable("meegle_workitem_syncs")
+    .ifNotExists()
+    .addColumn("project_key", "text", (column) => column.notNull())
+    .addColumn("work_item_type_key", "text", (column) => column.notNull())
+    .addColumn("work_item_id", "text", (column) => column.notNull())
+    .addColumn("work_item_key", "text")
+    .addColumn("title", "text", (column) => column.notNull())
+    .addColumn("work_item_type", "text")
+    .addColumn("status_key", "text")
+    .addColumn("status", "text")
+    .addColumn("sub_stage_key", "text")
+    .addColumn("sub_stage", "text")
+    .addColumn("assignee", "text")
+    .addColumn("payload_json", "text", (column) => column.notNull())
+    .addColumn("source_updated_at", "text")
+    .addColumn("synced_at", "text", (column) => column.notNull())
+    .addPrimaryKeyConstraint("meegle_workitem_syncs_pkey", [
+      "project_key",
+      "work_item_type_key",
+      "work_item_id",
+    ])
+    .execute();
+
+  await db.schema
+    .createTable("meegle_sync_mappings")
+    .ifNotExists()
+    .addColumn("project_key", "text", (column) => column.notNull())
+    .addColumn("work_item_type_key", "text", (column) => column.notNull())
+    .addColumn("mapping_kind", "text", (column) => column.notNull())
+    .addColumn("source_key", "text", (column) => column.notNull())
+    .addColumn("display_value", "text", (column) => column.notNull())
+    .addColumn("synced_at", "text", (column) => column.notNull())
+    .addPrimaryKeyConstraint("meegle_sync_mappings_pkey", [
+      "project_key",
+      "work_item_type_key",
+      "mapping_kind",
+      "source_key",
+    ])
+    .execute();
+
+  await db.schema
+    .createTable("github_pr_syncs")
+    .ifNotExists()
+    .addColumn("owner", "text", (column) => column.notNull())
+    .addColumn("repo", "text", (column) => column.notNull())
+    .addColumn("pull_number", "integer", (column) => column.notNull())
+    .addColumn("title", "text", (column) => column.notNull())
+    .addColumn("description", "text")
+    .addColumn("state", "text", (column) => column.notNull())
+    .addColumn("merged_at", "text")
+    .addColumn("html_url", "text", (column) => column.notNull())
+    .addColumn("author_login", "text")
+    .addColumn("head_ref", "text")
+    .addColumn("base_ref", "text")
+    .addColumn("is_draft", "boolean", (column) => column.notNull())
+    .addColumn("payload_json", "text", (column) => column.notNull())
+    .addColumn("source_updated_at", "text")
+    .addColumn("synced_at", "text", (column) => column.notNull())
+    .addPrimaryKeyConstraint("github_pr_syncs_pkey", ["owner", "repo", "pull_number"])
+    .execute();
+
+  await db.schema
+    .createTable("lark_base_ticket_syncs")
+    .ifNotExists()
+    .addColumn("base_id", "text", (column) => column.notNull())
+    .addColumn("table_id", "text", (column) => column.notNull())
+    .addColumn("record_id", "text", (column) => column.notNull())
+    .addColumn("title", "text", (column) => column.notNull())
+    .addColumn("ticket_status", "text")
+    .addColumn("fields_json", "text", (column) => column.notNull())
+    .addColumn("shared_url", "text")
+    .addColumn("created_time", "text")
+    .addColumn("source_updated_at", "text")
+    .addColumn("synced_at", "text", (column) => column.notNull())
+    .addPrimaryKeyConstraint("lark_base_ticket_syncs_pkey", ["base_id", "table_id", "record_id"])
+    .execute();
+
   await sql`
     CREATE INDEX IF NOT EXISTS acp_kimi_session_owners_operator_idx
     ON acp_kimi_session_owners(operator_lark_id, updated_at)
@@ -170,6 +248,18 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
   await sql`
     CREATE INDEX IF NOT EXISTS oauth_sessions_provider_state_idx
     ON oauth_sessions(provider, state)
+  `.execute(db);
+  await sql`
+    CREATE INDEX IF NOT EXISTS meegle_workitem_syncs_status_idx
+    ON meegle_workitem_syncs(project_key, status)
+  `.execute(db);
+  await sql`
+    CREATE INDEX IF NOT EXISTS github_pr_syncs_state_idx
+    ON github_pr_syncs(owner, repo, state)
+  `.execute(db);
+  await sql`
+    CREATE INDEX IF NOT EXISTS lark_base_ticket_syncs_status_idx
+    ON lark_base_ticket_syncs(base_id, table_id, ticket_status)
   `.execute(db);
 
   const now = new Date().toISOString();
@@ -227,9 +317,33 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     ALTER TABLE lark_contacts
     ADD COLUMN IF NOT EXISTS meegle_user_key text
   `.execute(db);
+  await sql`
+    ALTER TABLE github_pr_syncs
+    ADD COLUMN IF NOT EXISTS description text
+  `.execute(db);
+  await sql`
+    ALTER TABLE meegle_workitem_syncs
+    ADD COLUMN IF NOT EXISTS work_item_type text
+  `.execute(db);
+  await sql`
+    ALTER TABLE meegle_workitem_syncs
+    ADD COLUMN IF NOT EXISTS status_key text
+  `.execute(db);
+  await sql`
+    ALTER TABLE meegle_workitem_syncs
+    ADD COLUMN IF NOT EXISTS sub_stage_key text
+  `.execute(db);
+  await sql`
+    ALTER TABLE meegle_workitem_syncs
+    ADD COLUMN IF NOT EXISTS sub_stage text
+  `.execute(db);
 }
 
 export async function resetPostgresDatabase(db: Kysely<DatabaseSchema>): Promise<void> {
+  await sql`DROP TABLE IF EXISTS lark_base_ticket_syncs`.execute(db);
+  await sql`DROP TABLE IF EXISTS github_pr_syncs`.execute(db);
+  await sql`DROP TABLE IF EXISTS meegle_sync_mappings`.execute(db);
+  await sql`DROP TABLE IF EXISTS meegle_workitem_syncs`.execute(db);
   await sql`DROP TABLE IF EXISTS workflow_prompts`.execute(db);
   await sql`DROP TABLE IF EXISTS acp_kimi_session_owners`.execute(db);
   await sql`DROP TABLE IF EXISTS oauth_sessions`.execute(db);

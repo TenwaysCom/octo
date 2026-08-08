@@ -1,0 +1,22 @@
+{
+  "meegle": [
+    {
+      "projectKey": "4c3fv6",
+      "workItemTypeKeys": ["story"]
+    }
+  ],
+  "github": [
+    {
+      "owner": "TenwaysCom",
+      "repo": "octo"
+    }
+  ],
+  "larkBase": [
+    {
+      "baseId": "app_xxx",
+      "tableId": "tbl_xxx",
+      "titleFieldName": "Title",
+      "statusFieldName": "Status"
+    }
+  ]
+}

@@ -71,6 +71,92 @@ pnpm --dir server db:import-sqlite -- --sqlite ./data/tenways-octo.sqlite
 - `POST /api/github/branch/create`
 - `POST /api/github/lookup-meegle`，仅在配置 `GITHUB_TOKEN` 时注册
 
+### 平台数据同步
+
+服务端将每类外部对象分别持久化到 PostgreSQL：`meegle_workitem_syncs`、`github_pr_syncs`、`lark_base_ticket_syncs`。每行保留平台返回的完整 JSON 快照及源更新时间，重复同步按外部对象主键更新。Meegle 另使用 `meegle_sync_mappings` 保存 `workItemTypeKey`、status key 和 sub-stage key 到展示名称的映射；写入 work item 前会转换 `work_item_type`、`status`、`sub_stage`，同时保留原始 key。
+
+- `POST /api/sync/meegle/workitem`：按 `masterUserId`、`projectKey`、`workItemTypeKey`、`workItemId` 同步一条 Meegle work item。
+- `POST /api/sync/meegle/workitems`：按 `masterUserId`、`projectKey` 和可选 `workItemTypeKeys` 同步全部未结束 work item。
+- `POST /api/sync/github/pull-request`：按 `owner`、`repo`、`pullNumber` 同步一个 GitHub PR；需要服务端 `GITHUB_TOKEN`。
+- `POST /api/sync/github/pull-requests`：传入 `repositories: [{ owner, repo }]`，同步每个仓库的开放 PR；需要服务端 `GITHUB_TOKEN`。
+- `POST /api/sync/lark-base/ticket`：按 `masterUserId`、`baseId`、`tableId`、`recordId` 同步一个 Base ticket。
+- `POST /api/sync/lark-base/tickets`：按 `masterUserId`、`baseId`、`tableId` 全量同步未结束 Base ticket。
+
+以上接口都可携带 `actionRunId`。Base ticket 可选 `titleFieldName` 与 `statusFieldName`；未指定时会尝试 `Title`/`标题` 和 `Status`/`状态`。批量同步会跳过状态为 `terminated`、`cancelled`、`finish`、`finished`、`rejected`、`merged`、`closed` 或 Meegle 的 `end` 的记录（亦识别相应中文状态）；单条同步不做此过滤。
+
+#### 本地批量同步命令
+
+本地批量同步无需启动 HTTP server。先复制配置模板，并在本机配置目标 ID（该文件已被 Git 忽略）：
+
+```bash
+cp server/config/platform-sync.local.json.example server/config/platform-sync.local.json
+```
+
+```bash
+# 按配置依次同步 Meegle、GitHub、Lark Base
+pnpm --dir server platform:sync
+
+# Meegle：使用本机已登录的 meegle CLI profile
+pnpm --dir server platform:sync --only meegle
+
+# GitHub：使用本机 gh api，按配置同步仓库的开放 PR
+pnpm --dir server platform:sync --only github
+
+# Lark Base：使用 PostgreSQL 中该用户已保存的 Lark user token
+pnpm --dir server platform:sync --only lark --user-id a400632e-8d08-4ddf-977d-e8330b0adc5a
+
+# 指定用户或另一份目标配置
+pnpm --dir server platform:sync --only meegle --user-id USER_ID --config /absolute/path/platform-sync.json
+```
+
+默认用户为 `a400632e-8d08-4ddf-977d-e8330b0adc5a`。Meegle 同步通过本机 `meegle` CLI profile 读取，不使用 PostgreSQL 中的 Meegle token；先执行 `meegle auth login`，并可用 `meegle auth status` 验证授权。Lark 仍使用 PostgreSQL 中该用户已保存的凭据；GitHub PR 通过本地 `gh api` 读取，`GITHUB_TOKEN` 可作为 `gh` 的环境凭据。配置文件不得保存 token。所有平台会独立执行；任一平台失败后仍会尝试其余平台，但命令最终以非零状态退出。
+
+本地 Meegle 同步先读取 type/status 元数据，再读取活跃 work item 详情以补全 sub-stage 映射，最后写入已转换的数据。`+batch-get` 是本机 CLI 的逐条读取封装，因此首次同步大量 work item 会产生相应的 Meegle 读取调用。Meegle 请求在单个 server 进程内会串行限流，默认最小间隔为 1000ms。可在 `server/.env` 调整：
+
+```bash
+# 每次 Meegle 请求的最小间隔；0 表示关闭本进程限流
+MEEGLE_MIN_REQUEST_INTERVAL_MS=1000
+
+# 仅 HTTP 429 会重试；优先遵从 Retry-After，最多重试两次
+MEEGLE_RATE_LIMIT_RETRY_COUNT=2
+```
+
+`Commercial Usage Exceeded`（`1000051942`）代表商业调用额度耗尽，并非短时频率限制，客户端不会对它自动重试。
+
+#### 单条手工同步命令
+
+以下命令要求先启动 server；`HOST` 默认为 `http://127.0.0.1:3000`。单条同步不会因为状态为终态而拒绝执行。
+
+```bash
+export HOST="${HOST:-http://127.0.0.1:3000}"
+
+# Meegle work item
+curl -X POST "$HOST/api/sync/meegle/workitem" -H 'Content-Type: application/json' -d '{
+  "masterUserId": "USER_ID",
+  "projectKey": "PROJECT_KEY",
+  "workItemTypeKey": "WORK_ITEM_TYPE_KEY",
+  "workItemId": "WORK_ITEM_ID"
+}'
+
+# GitHub PR（服务端需要 GITHUB_TOKEN）
+curl -X POST "$HOST/api/sync/github/pull-request" -H 'Content-Type: application/json' -d '{
+  "owner": "OWNER",
+  "repo": "REPO",
+  "pullNumber": 123
+}'
+
+# Lark Base ticket
+curl -X POST "$HOST/api/sync/lark-base/ticket" -H 'Content-Type: application/json' -d '{
+  "masterUserId": "USER_ID",
+  "larkBaseUrl": "https://open.larksuite.com",
+  "baseId": "BASE_ID",
+  "tableId": "TABLE_ID",
+  "recordId": "RECORD_ID",
+  "titleFieldName": "Title",
+  "statusFieldName": "Status"
+}'
+```
+
 ### PM Analysis / ACP
 
 - `POST /api/pm/analysis/run`

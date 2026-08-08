@@ -83,6 +83,22 @@ export class GitHubClient {
     return this.request<GitHubPrDetails>(`/repos/${owner}/${repo}/pulls/${pullNumber}`);
   }
 
+  async listOpenPullRequests(owner: string, repo: string): Promise<GitHubPrDetails[]> {
+    const pullRequests: GitHubPrDetails[] = [];
+
+    for (let page = 1; page <= 100; page++) {
+      const items = await this.request<GitHubPrDetails[]>(
+        `/repos/${owner}/${repo}/pulls?state=open&per_page=100&page=${page}`,
+      );
+      pullRequests.push(...items);
+      if (items.length < 100) {
+        break;
+      }
+    }
+
+    return pullRequests;
+  }
+
   async getIssue(owner: string, repo: string, issueNumber: number): Promise<GitHubIssueDetails> {
     return this.request<GitHubIssueDetails>(`/repos/${owner}/${repo}/issues/${issueNumber}`);
   }

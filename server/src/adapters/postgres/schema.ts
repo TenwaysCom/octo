@@ -67,4 +67,57 @@ export interface DatabaseSchema {
     created_at: string;
     updated_at: string;
   };
+  meegle_workitem_syncs: {
+    project_key: string;
+    work_item_type_key: string;
+    work_item_id: string;
+    work_item_key: string | null;
+    title: string;
+    work_item_type: string | null;
+    status_key: string | null;
+    status: string | null;
+    sub_stage_key: string | null;
+    sub_stage: string | null;
+    assignee: string | null;
+    payload_json: string;
+    source_updated_at: string | null;
+    synced_at: string;
+  };
+  meegle_sync_mappings: {
+    project_key: string;
+    work_item_type_key: string;
+    mapping_kind: "workitem_type" | "status" | "sub_stage";
+    source_key: string;
+    display_value: string;
+    synced_at: string;
+  };
+  github_pr_syncs: {
+    owner: string;
+    repo: string;
+    pull_number: number;
+    title: string;
+    description: string | null;
+    state: string;
+    merged_at: string | null;
+    html_url: string;
+    author_login: string | null;
+    head_ref: string | null;
+    base_ref: string | null;
+    is_draft: boolean;
+    payload_json: string;
+    source_updated_at: string | null;
+    synced_at: string;
+  };
+  lark_base_ticket_syncs: {
+    base_id: string;
+    table_id: string;
+    record_id: string;
+    title: string;
+    ticket_status: string | null;
+    fields_json: string;
+    shared_url: string | null;
+    created_time: string | null;
+    source_updated_at: string | null;
+    synced_at: string;
+  };
 }

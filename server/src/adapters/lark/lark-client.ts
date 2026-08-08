@@ -243,6 +243,7 @@ export class LarkClient {
     options?: {
       pageNum?: number;
       pageSize?: number;
+      pageToken?: string;
       filter?: string;
       sort?: string;
     },
@@ -262,6 +263,7 @@ export class LarkClient {
     }>("GET", `/open-apis/bitable/v1/apps/${baseId}/tables/${tableId}/records`, undefined, {
       page_size: pageSize,
       page_num: pageNum,
+      page_token: options?.pageToken,
       filter: options?.filter,
       sort: options?.sort,
     });
