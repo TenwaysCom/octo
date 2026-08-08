@@ -1,6 +1,6 @@
 :root {
-  --octo-brand: #8470ff;
-  --octo-brand-hover: #755ff8;
+  --octo-brand: #b45309;
+  --octo-brand-hover: #92400e;
 
   --octo-canvas: #f9fafb;
   --octo-surface: #ffffff;
@@ -11,7 +11,7 @@
   --octo-text-muted: #6b7280;
 
   --octo-success: #239f52;
-  --octo-warning: #f0bb33;
+  --octo-warning: #c2410c;
   --octo-danger: #e63939;
 
   color: var(--octo-text);
@@ -416,7 +416,7 @@ h1 {
   align-items: flex-end;
   padding: clamp(44px, 8vw, 116px);
   color: #fff;
-  background: linear-gradient(140deg, #1f1d38 0%, #312a63 52%, #4b3d92 100%);
+  background: linear-gradient(140deg, #451a03 0%, #78350f 52%, #b45309 100%);
 }
 
 .visual-grid {
@@ -428,14 +428,14 @@ h1 {
   mask-image: linear-gradient(to bottom, black, transparent 77%);
 }
 .visual-orb { position: absolute; border-radius: 999px; filter: blur(3px); }
-.orb-one { top: -20%; right: -15%; width: 500px; height: 500px; background: rgba(143, 117, 255, 0.33); }
-.orb-two { right: 24%; bottom: -21%; width: 430px; height: 430px; background: rgba(83, 186, 255, 0.15); }
+.orb-one { top: -20%; right: -15%; width: 500px; height: 500px; background: rgba(245, 158, 11, 0.33); }
+.orb-two { right: 24%; bottom: -21%; width: 430px; height: 430px; background: rgba(251, 191, 36, 0.15); }
 
 .visual-content { position: relative; max-width: 480px; }
-.visual-label { display: flex; align-items: center; gap: 8px; margin-bottom: 22px; color: #d9d3ff; font-size: 11px; font-weight: 700; letter-spacing: .16em; }
-.visual-label span { display: block; width: 26px; height: 2px; background: #ad9dff; }
+.visual-label { display: flex; align-items: center; gap: 8px; margin-bottom: 22px; color: #fde68a; font-size: 11px; font-weight: 700; letter-spacing: .16em; }
+.visual-label span { display: block; width: 26px; height: 2px; background: #fbbf24; }
 .visual-content h2 { margin-bottom: 17px; font-size: clamp(38px, 4.2vw, 62px); line-height: 1.08; letter-spacing: -.055em; }
-.visual-content > p { max-width: 410px; margin-bottom: 38px; color: #c3bde8; font-size: 16px; line-height: 1.65; }
+.visual-content > p { max-width: 410px; margin-bottom: 38px; color: #fde7b5; font-size: 16px; line-height: 1.65; }
 
 .workflow-card {
   width: min(100%, 410px);
@@ -446,14 +446,14 @@ h1 {
   box-shadow: 0 26px 54px rgba(10, 8, 33, 0.24);
   backdrop-filter: blur(12px);
 }
-.workflow-topline { display: flex; align-items: center; justify-content: space-between; color: #eeecff; font-size: 13px; font-weight: 650; }
+.workflow-topline { display: flex; align-items: center; justify-content: space-between; color: #fffbeb; font-size: 13px; font-weight: 650; }
 .online-dot { width: 8px; height: 8px; border-radius: 999px; background: #65dfaf; box-shadow: 0 0 0 4px rgba(101,223,175,.14); }
 .workflow-progress { height: 7px; margin: 18px 0 20px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.15); }
-.workflow-progress span { display: block; width: 86%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #bcaeff, #82d5ff); }
+.workflow-progress span { display: block; width: 86%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #f59e0b, #fcd34d); }
 .workflow-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .workflow-stats div { display: grid; gap: 3px; }
 .workflow-stats strong { font-size: 20px; letter-spacing: -.03em; }
-.workflow-stats span { color: #c8c2ec; font-size: 10px; line-height: 1.3; }
+.workflow-stats span { color: #fdecc8; font-size: 10px; line-height: 1.3; }
 
 @media (max-width: 860px) {
   .auth-layout { grid-template-columns: 1fr; }
