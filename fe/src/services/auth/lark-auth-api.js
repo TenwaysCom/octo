@@ -1,4 +1,4 @@
-import { buildApiUrl } from "./runtime-config.js";
+import { buildApiUrl } from "../../app/runtime-config.js";
 
 async function readPayload(response) {
   return response.json().catch(() => undefined);

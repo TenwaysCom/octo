@@ -1,4 +1,4 @@
-import { buildApiUrl } from "./runtime-config.js";
+import { buildApiUrl } from "../../app/runtime-config.js";
 
 const PATH_BY_KIND = {
   "lark-tickets": "/web/platform-data/lark-tickets",
