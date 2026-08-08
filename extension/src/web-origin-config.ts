@@ -1,4 +1,5 @@
 import {
+  buildLarkOAuthCallbackContentMatches,
   buildOctoWebContentMatches,
   isOctoWebOriginAllowed,
   OCTO_SERVER_URLS,
@@ -10,6 +11,11 @@ export const OCTO_WEB_ALLOWED_ORIGINS = parseOctoWebAllowedOrigins(
 );
 
 export const OCTO_WEB_CONTENT_MATCHES = buildOctoWebContentMatches([
+  ...Object.values(OCTO_SERVER_URLS),
+  ...OCTO_WEB_ALLOWED_ORIGINS,
+]);
+
+export const LARK_OAUTH_CALLBACK_CONTENT_MATCHES = buildLarkOAuthCallbackContentMatches([
   ...Object.values(OCTO_SERVER_URLS),
   ...OCTO_WEB_ALLOWED_ORIGINS,
 ]);

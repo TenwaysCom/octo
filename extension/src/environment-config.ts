@@ -34,6 +34,17 @@ export function buildOctoWebContentMatches(origins: readonly string[]): string[]
   })));
 }
 
+/**
+ * Chrome match patterns cannot include a port. Keep the callback path exact
+ * while deriving its allowed hosts from the same Octo origin configuration.
+ */
+export function buildLarkOAuthCallbackContentMatches(origins: readonly string[]): string[] {
+  return Array.from(new Set(origins.map((origin) => {
+    const url = new URL(origin);
+    return `${url.protocol}//${url.hostname}/api/lark/auth/callback*`;
+  })));
+}
+
 export function isOctoWebOriginAllowed(input: {
   pageOrigin: string;
   serverUrl: string;

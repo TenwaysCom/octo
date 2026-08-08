@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildLarkOAuthCallbackContentMatches,
   buildOctoWebContentMatches,
   isOctoWebOriginAllowed,
   parseOctoWebAllowedOrigins,
@@ -49,5 +50,16 @@ describe("Octo web origin configuration", () => {
       "http://localhost:4173",
       "https://fe.example.com",
     ])).toEqual(["http://localhost/*", "https://fe.example.com/*"]);
+  });
+
+  it("builds exact Lark OAuth callback matches from configured Octo origins", () => {
+    expect(buildLarkOAuthCallbackContentMatches([
+      "http://localhost:3040",
+      "http://localhost:4173",
+      "https://fe.example.com",
+    ])).toEqual([
+      "http://localhost/api/lark/auth/callback*",
+      "https://fe.example.com/api/lark/auth/callback*",
+    ]);
   });
 });

@@ -37,7 +37,9 @@
   "content_scripts": [
     {
       "matches": [
-        "http://localhost/api/lark/auth/callback*"
+        "http://localhost/api/lark/auth/callback*",
+        "https://octo.odoo.tenways.it/api/lark/auth/callback*",
+        "https://octotest.odoo.tenways.it/api/lark/auth/callback*"
       ],
       "js": [
         "content-scripts/lark-auth-callback.js"

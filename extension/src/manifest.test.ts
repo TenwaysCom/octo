@@ -58,7 +58,7 @@ describe("extension manifest", () => {
     expect(githubPopup?.matches).toContain("https://github.com/*");
   });
 
-  it("uses a localhost match pattern without an explicit port for callback pages", () => {
+  it("supports configured Octo origins for Lark callback pages without explicit ports", () => {
     const manifestPath = path.resolve(import.meta.dirname, "../manifest.json");
     const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8")) as {
       host_permissions?: string[];
@@ -73,6 +73,8 @@ describe("extension manifest", () => {
     );
 
     expect(callbackContentScript?.matches).toContain("http://localhost/api/lark/auth/callback*");
+    expect(callbackContentScript?.matches).toContain("https://octo.odoo.tenways.it/api/lark/auth/callback*");
+    expect(callbackContentScript?.matches).toContain("https://octotest.odoo.tenways.it/api/lark/auth/callback*");
   });
 
   it("limits the Octo web content script to configured Octo origins", () => {

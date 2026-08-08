@@ -207,6 +207,25 @@ function isGitHubHost(hostname: string): boolean {
   return hostname === "github.com" || hostname.endsWith(".github.com");
 }
 
+function isConfiguredLarkOAuthCallback(url: URL): boolean {
+  const callbackUrl = getUrl(publicConfigDeps.LARK_OAUTH_CALLBACK_URL);
+  return Boolean(
+    callbackUrl
+    && url.origin === callbackUrl.origin
+    && url.pathname === callbackUrl.pathname,
+  );
+}
+
+function larkOAuthCallbackPageConfig(): ExtensionPageConfig {
+  return {
+    platform: "lark",
+    pageType: "lark",
+    matchedRuleId: "octo.lark.auth.callback",
+    sidebar: SIDEBAR_DISABLED,
+    automationActions: [],
+  };
+}
+
 function unsupportedPageConfig(): ExtensionPageConfig {
   return {
     platform: "unsupported",
@@ -411,6 +430,17 @@ export async function getExtensionPageConfigController(input: {
   if (!url) {
     const pageConfig = unsupportedPageConfig();
     logPageConfigResolved(null, pageConfig);
+    return {
+      ok: true,
+      data: {
+        pageConfig,
+      },
+    };
+  }
+
+  if (isConfiguredLarkOAuthCallback(url)) {
+    const pageConfig = larkOAuthCallbackPageConfig();
+    logPageConfigResolved(url, pageConfig);
     return {
       ok: true,
       data: {

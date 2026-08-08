@@ -30,6 +30,37 @@ describe("public-config.controller", () => {
     });
   });
 
+  it("treats the configured Lark OAuth callback as a supported no-action page", async () => {
+    await expect(getExtensionPageConfigController({
+      url: "https://example.ngrok-free.app/api/lark/auth/callback?code=redacted&state=redacted",
+    })).resolves.toEqual({
+      ok: true,
+      data: {
+        pageConfig: {
+          platform: "lark",
+          pageType: "lark",
+          matchedRuleId: "octo.lark.auth.callback",
+          sidebar: {
+            injectPageElements: false,
+            sidebarButtonEnabled: false,
+            keyboardShortcutEnabled: false,
+          },
+          automationActions: [],
+        },
+      },
+    });
+
+    await expect(getExtensionPageConfigController({
+      url: "https://example.ngrok-free.app/other-path",
+    })).resolves.toMatchObject({
+      data: {
+        pageConfig: {
+          platform: "unsupported",
+        },
+      },
+    });
+  });
+
   it("resolves Lark base create Meegle item actions from base and table URL", async () => {
     const result = await getExtensionPageConfigController({
       url: "https://nsghpcq7ar4z.sg.larksuite.com/base/XO0cbnxMIaralRsbBEolboEFgZc?table=tblUfu71xwdul3NH&view=vewMs17Tqk",

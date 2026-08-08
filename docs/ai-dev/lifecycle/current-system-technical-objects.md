@@ -244,6 +244,7 @@ popup 初始化
 popup 发起 Lark OAuth
   -> extension/background 保存待处理 OAuth 状态
   -> server 创建 OAuth session 并处理 callback
+  -> callback 的精确 origin + 路径被识别为支持页面，但不提供自动化动作或侧边栏
   -> callback 页面将结果暴露给 content script
   -> extension 存储 masterUserId 并刷新授权状态
   -> server 为 workflow 调用存储或刷新 Lark token
