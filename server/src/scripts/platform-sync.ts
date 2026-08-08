@@ -17,8 +17,10 @@ import {
   ensurePostgresSchema,
   getDefaultPostgresUri,
 } from "../adapters/postgres/database.js";
+import { preparePostgresConnection } from "../adapters/postgres/ssh-tunnel.js";
 
 const DEFAULT_MASTER_USER_ID = "a400632e-8d08-4ddf-977d-e8330b0adc5a";
+const DEFAULT_GITHUB_PR_LIMIT = 100;
 const execFileAsync = promisify(execFile);
 export const DEFAULT_PLATFORM_SYNC_CONFIG_PATH = fileURLToPath(
   new URL("../../config/platform-sync.local.json", import.meta.url),
@@ -26,6 +28,8 @@ export const DEFAULT_PLATFORM_SYNC_CONFIG_PATH = fileURLToPath(
 
 const platformNameSchema = z.enum(["meegle", "github", "lark"]);
 export type PlatformName = z.infer<typeof platformNameSchema>;
+const githubPullRequestStateSchema = z.enum(["closed", "merged"]);
+export type GitHubPullRequestState = z.infer<typeof githubPullRequestStateSchema>;
 
 const platformSyncConfigSchema = z.object({
   meegle: z.array(z.object({
@@ -58,6 +62,8 @@ export interface PlatformSyncScriptArgs {
   masterUserId: string;
   configPath: string;
   only?: PlatformName;
+  githubPullRequestState: GitHubPullRequestState;
+  githubPullRequestLimit: number;
   help: boolean;
 }
 
@@ -75,6 +81,8 @@ export interface PlatformSyncRunner {
   }): Promise<SyncCounts>;
   bulkSyncGitHubPullRequests(input: {
     repositories: Array<{ owner: string; repo: string }>;
+    state: GitHubPullRequestState;
+    limit: number;
   }): Promise<SyncCounts>;
   bulkSyncLarkBaseTickets(input: {
     masterUserId: string;
@@ -105,6 +113,8 @@ export function parsePlatformSyncArgs(argv: string[]): PlatformSyncScriptArgs {
   const args: PlatformSyncScriptArgs = {
     masterUserId: DEFAULT_MASTER_USER_ID,
     configPath: DEFAULT_PLATFORM_SYNC_CONFIG_PATH,
+    githubPullRequestState: "closed",
+    githubPullRequestLimit: DEFAULT_GITHUB_PR_LIMIT,
     help: false,
   };
 
@@ -126,6 +136,16 @@ export function parsePlatformSyncArgs(argv: string[]): PlatformSyncScriptArgs {
     }
     if (arg === "--only") {
       args.only = platformNameSchema.parse(readNextArg(argv, index, arg));
+      index += 1;
+      continue;
+    }
+    if (arg === "--github-pr-state") {
+      args.githubPullRequestState = githubPullRequestStateSchema.parse(readNextArg(argv, index, arg));
+      index += 1;
+      continue;
+    }
+    if (arg === "--github-pr-limit") {
+      args.githubPullRequestLimit = parseGitHubPullRequestLimit(readNextArg(argv, index, arg));
       index += 1;
       continue;
     }
@@ -179,7 +199,11 @@ export async function runPlatformSync(
     if (platform === "github") {
       for (const target of config.github) {
         entries.push(await runTarget("github", `${target.owner}/${target.repo}`, () => (
-          runner.bulkSyncGitHubPullRequests({ repositories: [target] })
+          runner.bulkSyncGitHubPullRequests({
+            repositories: [target],
+            state: args.githubPullRequestState,
+            limit: args.githubPullRequestLimit,
+          })
         )));
       }
       continue;
@@ -210,7 +234,11 @@ export async function runPlatformSync(
 }
 
 export async function syncGitHubPullRequestsWithGh(
-  input: { repositories: Array<{ owner: string; repo: string }> },
+  input: {
+    repositories: Array<{ owner: string; repo: string }>;
+    state: GitHubPullRequestState;
+    limit: number;
+  },
   store: PlatformSyncStore,
   runGh: RunGhCommand = runGhCommand,
 ): Promise<SyncCounts> {
@@ -218,14 +246,13 @@ export async function syncGitHubPullRequestsWithGh(
   let synced = 0;
 
   for (const repository of input.repositories) {
-    const pullRequests = parseGhPullRequestPages(await runGh([
-      "api",
-      "--paginate",
-      "--slurp",
-      "--method", "GET",
-      `repos/${repository.owner}/${repository.repo}/pulls`,
-      "-f", "state=open",
-      "-f", "per_page=100",
+    const pullRequests = parseGhPullRequestList(await runGh([
+      "pr",
+      "list",
+      "--repo", `${repository.owner}/${repository.repo}`,
+      "--state", input.state,
+      "--limit", String(input.limit),
+      "--json", "number",
     ]));
     listed += pullRequests.length;
 
@@ -236,6 +263,9 @@ export async function syncGitHubPullRequestsWithGh(
         "--method", "GET",
         `repos/${repository.owner}/${repository.repo}/pulls/${pullNumber}`,
       ]));
+      if (input.state === "closed" && pullRequest.merged_at) {
+        continue;
+      }
       await store.upsertGitHubPullRequest({
         owner: repository.owner,
         repo: repository.repo,
@@ -279,6 +309,8 @@ function printHelp(): void {
     "",
     "Options:",
     "  --only <meegle|github|lark>  Sync one configured platform only",
+    "  --github-pr-state <closed|merged>  GitHub PR state (default closed; excludes merged PRs)",
+    `  --github-pr-limit <1-${DEFAULT_GITHUB_PR_LIMIT}>  GitHub PRs per repository (default ${DEFAULT_GITHUB_PR_LIMIT})`,
     `  --user-id <id>               Lark identity (default ${DEFAULT_MASTER_USER_ID})`,
     `  --config <path>              Config file (default ${DEFAULT_PLATFORM_SYNC_CONFIG_PATH})`,
     "  --help, -h                   Show this help",
@@ -313,7 +345,8 @@ async function main(): Promise<void> {
   }
 
   const config = await readPlatformSyncConfig(args.configPath);
-  const db = createPostgresDatabase(postgresUri);
+  const connection = await preparePostgresConnection(postgresUri);
+  const db = createPostgresDatabase(connection.postgresUri);
   try {
     await ensurePostgresSchema(db);
     const larkTokenStore = new PostgresLarkTokenStore(db);
@@ -347,6 +380,7 @@ async function main(): Promise<void> {
     }
   } finally {
     await db.destroy();
+    await connection.close();
   }
 }
 
@@ -355,17 +389,23 @@ async function runGhCommand(args: string[]): Promise<string> {
   return stdout;
 }
 
-function parseGhPullRequestPages(stdout: string): Record<string, unknown>[] {
+function parseGitHubPullRequestLimit(value: string): number {
+  const limit = Number(value);
+  if (!Number.isInteger(limit) || limit < 1 || limit > DEFAULT_GITHUB_PR_LIMIT) {
+    throw new Error(`--github-pr-limit must be an integer from 1 to ${DEFAULT_GITHUB_PR_LIMIT}`);
+  }
+  return limit;
+}
+
+function parseGhPullRequestList(stdout: string): Record<string, unknown>[] {
   const parsed = JSON.parse(stdout) as unknown;
   if (!Array.isArray(parsed)) {
     throw new Error("gh returned an invalid pull request list");
   }
-  const pages = parsed.every(Array.isArray) ? parsed : [parsed];
-  const pullRequests = pages.flat();
-  if (!pullRequests.every(isRecord)) {
+  if (!parsed.every(isRecord)) {
     throw new Error("gh returned an invalid pull request entry");
   }
-  return pullRequests;
+  return parsed;
 }
 
 function parseGhPullRequest(stdout: string): GitHubPrDetails {

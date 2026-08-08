@@ -33,6 +33,8 @@ describe("platform-sync script", () => {
     expect(args.masterUserId).toBe("a400632e-8d08-4ddf-977d-e8330b0adc5a");
     expect(args.configPath).toBe(DEFAULT_PLATFORM_SYNC_CONFIG_PATH);
     expect(args.only).toBeUndefined();
+    expect(args.githubPullRequestState).toBe("closed");
+    expect(args.githubPullRequestLimit).toBe(100);
   });
 
   it("parses platform, user, and config overrides", () => {
@@ -40,13 +42,18 @@ describe("platform-sync script", () => {
       "--only", "lark",
       "--user-id", "user-2",
       "--config", "/tmp/sync.json",
+      "--github-pr-state", "merged",
+      "--github-pr-limit", "25",
     ])).toMatchObject({
       only: "lark",
       masterUserId: "user-2",
       configPath: "/tmp/sync.json",
+      githubPullRequestState: "merged",
+      githubPullRequestLimit: 25,
     });
     expect(() => parsePlatformSyncArgs(["--only", "unknown"])).toThrow();
     expect(() => parsePlatformSyncArgs(["--config"])).toThrow("Missing value for --config");
+    expect(() => parsePlatformSyncArgs(["--github-pr-limit", "101"])).toThrow("--github-pr-limit");
     expect(() => parsePlatformSyncArgs(["--unexpected"])).toThrow("Unknown argument");
   });
 
@@ -70,6 +77,8 @@ describe("platform-sync script", () => {
     });
     expect(syncRunner.bulkSyncGitHubPullRequests).toHaveBeenCalledWith({
       repositories: [{ owner: "acme", repo: "app" }],
+      state: "closed",
+      limit: 100,
     });
   });
 
@@ -103,9 +112,13 @@ describe("platform-sync script", () => {
     ]);
     expect(syncRunner.bulkSyncGitHubPullRequests).toHaveBeenNthCalledWith(1, {
       repositories: [{ owner: "acme", repo: "missing" }],
+      state: "closed",
+      limit: 100,
     });
     expect(syncRunner.bulkSyncGitHubPullRequests).toHaveBeenNthCalledWith(2, {
       repositories: [{ owner: "acme", repo: "app" }],
+      state: "closed",
+      limit: 100,
     });
   });
 
@@ -143,12 +156,12 @@ describe("platform-sync script", () => {
     });
   });
 
-  it("reads open pull requests through gh and stores detailed snapshots", async () => {
+  it("reads the requested recent PR state through gh and stores detailed snapshots", async () => {
     const store = {
       upsertGitHubPullRequest: vi.fn().mockResolvedValue(undefined),
     };
     const runGh = vi.fn()
-      .mockResolvedValueOnce(JSON.stringify([[{ number: 17 }]]))
+      .mockResolvedValueOnce(JSON.stringify([{ number: 17 }]))
       .mockResolvedValueOnce(JSON.stringify({
         number: 17,
         title: "Sync PR",
@@ -161,17 +174,49 @@ describe("platform-sync script", () => {
       }));
 
     await expect(syncGitHubPullRequestsWithGh(
-      { repositories: [{ owner: "acme", repo: "app" }] },
+      { repositories: [{ owner: "acme", repo: "app" }], state: "merged", limit: 100 },
       store as never,
       runGh,
     )).resolves.toEqual({ listed: 1, skippedInactive: 0, synced: 1 });
     expect(runGh).toHaveBeenNthCalledWith(1, expect.arrayContaining([
-      "api", "--paginate", "--slurp", "repos/acme/app/pulls",
+      "pr", "list", "--repo", "acme/app", "--state", "merged", "--limit", "100",
     ]));
     expect(store.upsertGitHubPullRequest).toHaveBeenCalledWith(expect.objectContaining({
       owner: "acme",
       repo: "app",
       pullRequest: expect.objectContaining({ number: 17 }),
+    }));
+  });
+
+  it("excludes merged PRs from the regular closed PR sync", async () => {
+    const store = {
+      upsertGitHubPullRequest: vi.fn().mockResolvedValue(undefined),
+    };
+    const runGh = vi.fn()
+      .mockResolvedValueOnce(JSON.stringify([{ number: 17 }, { number: 18 }]))
+      .mockResolvedValueOnce(JSON.stringify({
+        number: 17,
+        title: "Merged PR",
+        html_url: "https://github.com/acme/app/pull/17",
+        state: "closed",
+        merged_at: "2026-08-08T00:00:00.000Z",
+      }))
+      .mockResolvedValueOnce(JSON.stringify({
+        number: 18,
+        title: "Closed PR",
+        html_url: "https://github.com/acme/app/pull/18",
+        state: "closed",
+        merged_at: null,
+      }));
+
+    await expect(syncGitHubPullRequestsWithGh(
+      { repositories: [{ owner: "acme", repo: "app" }], state: "closed", limit: 100 },
+      store as never,
+      runGh,
+    )).resolves.toEqual({ listed: 2, skippedInactive: 1, synced: 1 });
+    expect(store.upsertGitHubPullRequest).toHaveBeenCalledTimes(1);
+    expect(store.upsertGitHubPullRequest).toHaveBeenCalledWith(expect.objectContaining({
+      pullRequest: expect.objectContaining({ number: 18 }),
     }));
   });
 });
