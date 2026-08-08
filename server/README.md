@@ -35,6 +35,28 @@ pnpm --dir server db:import-sqlite -- --sqlite ./data/tenways-octo.sqlite
 4. 如果要导入旧 SQLite 数据，运行 `pnpm --dir server db:import-sqlite -- --sqlite ./data/tenways-octo.sqlite`
 5. 启动服务，后续运行时只使用 PostgreSQL
 
+### 通过 SSH 连接 PostgreSQL
+
+默认直接使用 `POSTGRES_URI`。当数据库仅能从堡垒机访问时，在 `server/.env` 或进程环境中启用 tunnel：
+
+```env
+POSTGRES_URI=postgres://db_user:db_password@postgres.internal:5432/tenways_octo
+DATABASE_SSH_ENABLED=true
+DATABASE_SSH_HOST=bastion.example.com
+DATABASE_SSH_PORT=22
+DATABASE_SSH_USER=octo
+DATABASE_SSH_IDENTITY_FILE=/run/secrets/octo-postgres
+DATABASE_SSH_AUTH_SOCK=/run/user/1000/ssh-agent.sock
+DATABASE_SSH_KNOWN_HOSTS_FILE=/etc/octo/ssh_known_hosts
+DATABASE_SSH_REMOTE_HOST=postgres.internal
+DATABASE_SSH_REMOTE_PORT=5432
+DATABASE_SSH_CONNECT_TIMEOUT_MS=10000
+```
+
+运行时会以 `ssh -N -L` 建立仅绑定 `127.0.0.1` 的临时 tunnel，并让服务、迁移、导入、备份/恢复和 token 同步脚本复用它。SSH 固定使用 `BatchMode=yes`、`ExitOnForwardFailure=yes`、`StrictHostKeyChecking=yes`；未通过 `known_hosts` 校验、SSH Agent 不可用、缺少配置或 tunnel 超时都会拒绝启动。
+
+私钥口令必须由 SSH Agent 管理，不要写入 `.env`。私钥文件应为专用部署密钥且权限为 `600`，`DATABASE_SSH_KNOWN_HOSTS_FILE` 应由运维预先维护。在 PM2 下必须把相同的 `SSH_AUTH_SOCK` 传给服务进程；可先用 `ssh-add -l` 在该进程身份下确认 Agent 可见。
+
 ## 主要接口
 
 ### 基础与配置

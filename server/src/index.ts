@@ -16,7 +16,7 @@ import {
 } from "./modules/public-config/public-config.controller.js";
 import { getExtensionVersionController } from "./modules/public-config/extension-version.controller.js";
 import { createHttpMeegleAuthAdapter } from "./adapters/meegle/auth-adapter.js";
-import { ensureSharedDatabase } from "./adapters/postgres/database.js";
+import { closeSharedDatabase, ensureSharedDatabase } from "./adapters/postgres/database.js";
 import { getSharedMeegleTokenStore } from "./adapters/postgres/meegle-token-store.js";
 import { getSharedLarkTokenStore } from "./adapters/postgres/lark-token-store.js";
 import { getSharedOauthSessionStore } from "./adapters/postgres/lark-oauth-session-store.js";
@@ -379,13 +379,30 @@ if (process.env.GITHUB_TOKEN) {
 
 if (process.env.NODE_ENV !== "test" && process.env.VITEST !== "true") {
   await ensureSharedDatabase();
-  app.listen(PORT, HOST, () => {
+  const httpServer = app.listen(PORT, HOST, () => {
     const startupLog = { host: HOST, port: PORT, version: SERVER_VERSION };
     serverLogger.info(startupLog, "Tenways Octo Server running");
     stdoutServerLogger.info(startupLog, "Tenways Octo Server running");
     serverLogger.info(`Health check: http://${HOST}:${PORT}/health`);
     serverLogger.info(`Lark Base create workitem: http://${HOST}:${PORT}/api/lark-base/create-meegle-workitem`);
   });
+
+  let shuttingDown = false;
+  const shutdown = (signal: NodeJS.Signals) => {
+    if (shuttingDown) {
+      return;
+    }
+    shuttingDown = true;
+    serverLogger.info({ signal }, "Shutting down server and PostgreSQL connection");
+    const forceExit = setTimeout(() => process.exit(1), 10_000);
+    forceExit.unref();
+    httpServer.close(() => {
+      void closeSharedDatabase().finally(() => process.exit(0));
+    });
+  };
+
+  process.once("SIGINT", () => shutdown("SIGINT"));
+  process.once("SIGTERM", () => shutdown("SIGTERM"));
 }
 
 export default app;

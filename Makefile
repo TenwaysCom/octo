@@ -35,18 +35,18 @@ test-server: ## Run backend tests
 
 db-backup: ## Backup a postgres database via server script (usage: make db-backup DB_NAME=tenways_octo)
 	@test -n "$(DB_NAME)" || (echo "Usage: make db-backup DB_NAME=<database>"; exit 1)
-	npx tsx $(SERVER_DIR)/src/scripts/postgres-backup-restore.ts backup $(DB_NAME)
+	pnpm --dir $(SERVER_DIR) exec tsx src/scripts/postgres-backup-restore.ts backup $(DB_NAME)
 
 db-restore: ## Restore a postgres database via server script (usage: make db-restore DB_NAME=tenways_octo [FILE=path])
 	@test -n "$(DB_NAME)" || (echo "Usage: make db-restore DB_NAME=<database> [FILE=/path/to.dump]"; exit 1)
 	@if [ -n "$(FILE)" ]; then \
-		npx tsx $(SERVER_DIR)/src/scripts/postgres-backup-restore.ts restore $(DB_NAME) --file $(FILE); \
+		pnpm --dir $(SERVER_DIR) exec tsx src/scripts/postgres-backup-restore.ts restore $(DB_NAME) --file $(FILE); \
 	else \
-		npx tsx $(SERVER_DIR)/src/scripts/postgres-backup-restore.ts restore $(DB_NAME); \
+		pnpm --dir $(SERVER_DIR) exec tsx src/scripts/postgres-backup-restore.ts restore $(DB_NAME); \
 	fi
 
 db-sync-user-tokens: ## Sync user_tokens from tenways_octo to tenways_octo_ly_0509 (override: MASTER_USER_ID=...)
-	npx tsx $(SERVER_DIR)/src/scripts/sync-user-tokens.ts $(MASTER_USER_ID)
+	pnpm --dir $(SERVER_DIR) exec tsx src/scripts/sync-user-tokens.ts $(MASTER_USER_ID)
 
 db-sync-test-user-tokens: ## Sync user_tokens from test to dev (override: MASTER_USER_ID=... TEST_DATABASE=... DEV_DATABASE=...)
 	pnpm --dir $(SERVER_DIR) exec tsx src/scripts/sync-user-tokens.ts $(MASTER_USER_ID) --source-db $(TEST_DATABASE) --target-db $(DEV_DATABASE)

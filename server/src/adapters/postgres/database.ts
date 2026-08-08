@@ -1,5 +1,6 @@
 import { Kysely, PostgresDialect, sql } from "kysely";
 import { Pool } from "pg";
+import { preparePostgresConnection, type PreparedPostgresConnection } from "./ssh-tunnel.js";
 import type { DatabaseSchema } from "./schema.js";
 import {
   DEFAULT_LARK_BUG_ANALYZE_PROMPT_NOTE,
@@ -348,9 +349,13 @@ export async function resetPostgresDatabase(db: Kysely<DatabaseSchema>): Promise
 }
 
 let sharedDatabase: Kysely<DatabaseSchema> | undefined;
+let sharedConnection: PreparedPostgresConnection | undefined;
 
 export function getSharedDatabase(): Kysely<DatabaseSchema> {
   if (!sharedDatabase) {
+    if (process.env.DATABASE_SSH_ENABLED === "true" || process.env.DATABASE_SSH_ENABLED === "1") {
+      throw new Error("SSH tunnel is not ready; await ensureSharedDatabase() before using the shared database");
+    }
     sharedDatabase = createPostgresDatabase();
   }
 
@@ -362,11 +367,35 @@ let sharedDatabaseReady: Promise<Kysely<DatabaseSchema>> | undefined;
 export async function ensureSharedDatabase(): Promise<Kysely<DatabaseSchema>> {
   if (!sharedDatabaseReady) {
     sharedDatabaseReady = (async () => {
-      const db = getSharedDatabase();
+      const postgresUri = getDefaultPostgresUri();
+      if (!postgresUri) {
+        throw new Error("POSTGRES_URI is not configured");
+      }
+      sharedConnection = await preparePostgresConnection(postgresUri);
+      sharedDatabase = createPostgresDatabase(sharedConnection.postgresUri);
+      const db = sharedDatabase;
       await ensurePostgresSchema(db);
       return db;
-    })();
+    })().catch(async (error: unknown) => {
+      await sharedDatabase?.destroy();
+      sharedDatabase = undefined;
+      await sharedConnection?.close();
+      sharedConnection = undefined;
+      sharedDatabaseReady = undefined;
+      throw error;
+    });
   }
 
   return sharedDatabaseReady;
+}
+
+export async function closeSharedDatabase(): Promise<void> {
+  const db = sharedDatabase;
+  const connection = sharedConnection;
+  sharedDatabase = undefined;
+  sharedConnection = undefined;
+  sharedDatabaseReady = undefined;
+
+  await db?.destroy();
+  await connection?.close();
 }
