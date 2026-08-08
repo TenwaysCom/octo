@@ -350,11 +350,11 @@ function parseStringArray(value: string | null): string[] | undefined {
 export function extractMeegleIds(title: string, description: string | null): string[] {
   const ids: string[] = [];
   const seen = new Set<string>();
-  const pattern = /\b([mf]-\d+)\b/gi;
+  const pattern = /\b[mf]-(\d+)\b/gi;
 
   for (const text of [title, description ?? ""]) {
     for (const match of text.matchAll(pattern)) {
-      const id = match[1].toLowerCase();
+      const id = match[1];
       if (!seen.has(id)) {
         seen.add(id);
         ids.push(id);

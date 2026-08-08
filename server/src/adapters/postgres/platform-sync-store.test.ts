@@ -6,7 +6,7 @@ describe("PostgresPlatformSyncStore", () => {
     expect(extractMeegleIds(
       "M-123 implements F-456",
       "Follow-up: m-123, f-789. Ignore m-not-an-id and f-12x.",
-    )).toEqual(["m-123", "f-456", "f-789"]);
+    )).toEqual(["123", "456", "789"]);
   });
 
   it("upserts independent Meegle, GitHub and Lark snapshots", async () => {
@@ -78,7 +78,7 @@ describe("PostgresPlatformSyncStore", () => {
       .resolves.toEqual([expect.objectContaining({
         pull_number: 2,
         description: "PR description m-123 and f-789",
-        meegle_ids: JSON.stringify(["m-123", "f-456", "f-789"]),
+        meegle_ids: JSON.stringify(["123", "456", "789"]),
         state: "open",
       })]);
     await expect(db.selectFrom("lark_base_ticket_syncs").selectAll().execute())
@@ -94,7 +94,7 @@ describe("PostgresPlatformSyncStore", () => {
     await expect(store.listMeegleSprints()).resolves.toEqual(["Sprint 1"]);
     await expect(store.listGitHubPullRequests(10)).resolves.toEqual([expect.objectContaining({
       pullNumber: 2, title: "PR m-123 f-456", state: "open",
-      meegleIds: ["m-123", "f-456", "f-789"],
+      meegleIds: ["123", "456", "789"],
     })]);
     await expect(store.listLarkBaseTickets(10)).resolves.toEqual([expect.objectContaining({
       recordId: "rec-1", ticketStatus: "Open",
