@@ -49,7 +49,7 @@ db-sync-user-tokens: ## Sync user_tokens from tenways_octo to tenways_octo_ly_05
 	npx tsx $(SERVER_DIR)/src/scripts/sync-user-tokens.ts $(MASTER_USER_ID)
 
 db-sync-test-user-tokens: ## Sync user_tokens from test to dev (override: MASTER_USER_ID=... TEST_DATABASE=... DEV_DATABASE=...)
-	npx tsx $(SERVER_DIR)/src/scripts/sync-user-tokens.ts $(MASTER_USER_ID) --source-db $(TEST_DATABASE) --target-db $(DEV_DATABASE)
+	pnpm --dir $(SERVER_DIR) exec tsx src/scripts/sync-user-tokens.ts $(MASTER_USER_ID) --source-db $(TEST_DATABASE) --target-db $(DEV_DATABASE)
 
 test-client: ## Run extension tests
 	pnpm --dir $(EXT_DIR) test

@@ -13,7 +13,8 @@
     "tabs",
     "activeTab",
     "scripting",
-    "storage"
+    "storage",
+    "cookies"
   ],
   "host_permissions": [
     "http://localhost/*",
@@ -38,6 +39,14 @@
       ],
       "js": [
         "content-scripts/lark-auth-callback.js"
+      ]
+    },
+    {
+      "matches": [
+        "http://localhost/*"
+      ],
+      "js": [
+        "content-scripts/octo-web.js"
       ]
     },
     {

@@ -4,13 +4,16 @@
  * Handles token exchange and refresh with Lark OpenAPI
  */
 
+import { createHash, randomBytes } from "node:crypto";
 import {
   getSharedOauthSessionStore,
 } from "../../adapters/postgres/lark-oauth-session-store.js";
 import { getSharedLarkTokenStore } from "../../adapters/postgres/lark-token-store.js";
+import { getSharedWebSessionStore } from "../../adapters/postgres/web-session-store.js";
 import type { OauthSessionStore } from "../../adapters/lark/oauth-session-store.js";
 import type { LarkContactStore } from "../../adapters/lark/contact-store.js";
 import type { LarkTokenStore, StoredLarkToken } from "../../adapters/lark/token-store.js";
+import type { WebSessionStore } from "../../adapters/web/session-store.js";
 import { getLarkContactStore } from "../../adapters/postgres/lark-contact-store.js";
 import { getResolvedUserStore, type ResolvedUserStore } from "../../adapters/postgres/resolved-user-store.js";
 import type {
@@ -36,12 +39,14 @@ export interface LarkAuthServiceDeps {
   fetchImpl?: typeof fetch;
   tokenStore?: LarkTokenStore;
   oauthSessionStore?: OauthSessionStore;
+  webSessionStore?: WebSessionStore;
   resolvedUserStore?: ResolvedUserStore;
   contactStore?: LarkContactStore;
 }
 
 let defaultDeps: LarkAuthServiceDeps | undefined;
 const OAUTH_SESSION_TTL_MS = 10 * 60 * 1000;
+const WEB_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const EXPIRY_SAFETY_WINDOW_MS = 60_000;
 const DEFAULT_REFRESH_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
 
@@ -67,6 +72,10 @@ function getTokenStore(deps: LarkAuthServiceDeps): LarkTokenStore {
 
 function getOauthSessionStore(deps: LarkAuthServiceDeps): OauthSessionStore {
   return deps.oauthSessionStore ?? getSharedOauthSessionStore();
+}
+
+function getWebSessionStore(deps: LarkAuthServiceDeps): WebSessionStore {
+  return deps.webSessionStore ?? getSharedWebSessionStore();
 }
 
 function getResolvedStore(deps: LarkAuthServiceDeps): ResolvedUserStore {
@@ -268,8 +277,8 @@ async function getAppAccessToken(
 /**
  * Exchange authorization code for user access token
  */
-export async function exchangeLarkAuthCode(
-  request: LarkAuthCodeRequest,
+export async function exchangeLarkAuthorizationCode(
+  request: Omit<LarkAuthCodeRequest, "masterUserId">,
   overrides?: Partial<LarkAuthServiceDeps>,
 ): Promise<LarkTokenPair> {
   const deps = getDeps(overrides);
@@ -277,9 +286,7 @@ export async function exchangeLarkAuthCode(
   const authBaseUrl = normalizeLarkAuthBaseUrl(request.baseUrl);
 
   serviceLogger.info({
-    masterUserId: request.masterUserId,
     baseUrl: authBaseUrl,
-    codePrefix: request.code?.slice(0, 8),
   }, "LARK_EXCHANGE_API_REQUEST");
 
   // First get app access token
@@ -345,9 +352,25 @@ export async function exchangeLarkAuthCode(
     hasRefreshToken: Boolean(tokenPair.refreshToken),
     expiresIn: tokenPair.expiresIn,
     refreshTokenExpiresIn: tokenPair.refreshTokenExpiresIn,
-    accessTokenPrefix: tokenPair.accessToken?.slice(0, 8),
-    refreshTokenPrefix: tokenPair.refreshToken?.slice(0, 8),
   }, "LARK_EXCHANGE_API_OK");
+
+  return tokenPair;
+}
+
+export async function exchangeLarkAuthCode(
+  request: LarkAuthCodeRequest,
+  overrides?: Partial<LarkAuthServiceDeps>,
+): Promise<LarkTokenPair> {
+  const deps = getDeps(overrides);
+  const authBaseUrl = normalizeLarkAuthBaseUrl(request.baseUrl);
+  const tokenPair = await exchangeLarkAuthorizationCode(
+    {
+      baseUrl: authBaseUrl,
+      code: request.code,
+      grantType: request.grantType,
+    },
+    overrides,
+  );
 
   const user = await getResolvedStore(deps).getById(request.masterUserId);
   if (user?.larkId) {
@@ -390,7 +413,6 @@ export async function refreshLarkToken(
   serviceLogger.info({
     masterUserId: request.masterUserId,
     baseUrl: authBaseUrl,
-    refreshTokenPrefix: request.refreshToken?.slice(0, 8),
   }, "LARK_REFRESH_API_REQUEST");
 
   // First get app access token
@@ -456,8 +478,6 @@ export async function refreshLarkToken(
     hasRefreshToken: Boolean(result.refreshToken),
     expiresIn: result.expiresIn,
     refreshTokenExpiresIn: result.refreshTokenExpiresIn,
-    accessTokenPrefix: result.accessToken?.slice(0, 8),
-    refreshTokenPrefix: result.refreshToken?.slice(0, 8),
   }, "LARK_REFRESH_API_OK");
 
   return result;
@@ -646,6 +666,258 @@ export async function startLarkOauthSession(
     status: "pending",
     expiresAt: new Date(Date.now() + OAUTH_SESSION_TTL_MS).toISOString(),
   });
+}
+
+export interface LarkWebAuthUser {
+  larkName?: string;
+  larkEmail?: string;
+  larkAvatarUrl?: string;
+}
+
+export interface LarkWebProfile {
+  user: LarkWebAuthUser;
+  larkAuthorization: {
+    status: "ready" | "require_auth";
+    authorizedAt?: string;
+    expiresAt?: string;
+  };
+}
+
+export type LarkWebAuthCallbackResult =
+  | { kind: "not_web" }
+  | { kind: "ready"; sessionToken: string; user: LarkWebAuthUser }
+  | { kind: "failed"; page: LarkAuthCallbackPage };
+
+function hashWebSessionToken(sessionToken: string): string {
+  return createHash("sha256").update(sessionToken).digest("base64url");
+}
+
+async function upsertLarkWebUser(
+  resolvedUserStore: ResolvedUserStore,
+  userInfo: { userId: string; tenantKey: string; email?: string; name?: string; avatarUrl?: string },
+) {
+  const existing = await resolvedUserStore.getByLarkIdentity(userInfo.tenantKey, userInfo.userId);
+  if (existing) {
+    return resolvedUserStore.update({
+      ...existing,
+      status: "active",
+      larkEmail: userInfo.email ?? existing.larkEmail,
+      larkName: userInfo.name ?? existing.larkName,
+      larkAvatarUrl: userInfo.avatarUrl ?? existing.larkAvatarUrl,
+    });
+  }
+
+  try {
+    return await resolvedUserStore.create({
+      status: "active",
+      larkTenantKey: userInfo.tenantKey,
+      larkId: userInfo.userId,
+      larkEmail: userInfo.email,
+      larkName: userInfo.name,
+      larkAvatarUrl: userInfo.avatarUrl,
+    });
+  } catch (error) {
+    const concurrent = await resolvedUserStore.getByLarkIdentity(userInfo.tenantKey, userInfo.userId);
+    if (!concurrent) {
+      throw error;
+    }
+
+    return resolvedUserStore.update({
+      ...concurrent,
+      status: "active",
+      larkEmail: userInfo.email ?? concurrent.larkEmail,
+      larkName: userInfo.name ?? concurrent.larkName,
+      larkAvatarUrl: userInfo.avatarUrl ?? concurrent.larkAvatarUrl,
+    });
+  }
+}
+
+export async function handleLarkWebAuthCallback(
+  query: LarkAuthCallbackQuery,
+  overrides?: Partial<LarkAuthServiceDeps>,
+): Promise<LarkWebAuthCallbackResult> {
+  const deps = getDeps(overrides);
+  const oauthSessionStore = getOauthSessionStore(deps);
+  const session = await oauthSessionStore.get(query.state);
+
+  if (!session || session.masterUserId) {
+    return { kind: "not_web" };
+  }
+
+  if (session.provider !== "lark" || session.status !== "pending" || Date.parse(session.expiresAt) <= Date.now()) {
+    return {
+      kind: "failed",
+      page: renderCallbackPage({
+        statusCode: 400,
+        title: "Lark 登录失败",
+        message: "登录状态已失效，请返回登录页重新发起授权。",
+        state: query.state,
+        status: "failed",
+        reason: "LARK_OAUTH_STATE_INVALID",
+      }),
+    };
+  }
+
+  try {
+    const tokenPair = await exchangeLarkAuthorizationCode({
+      baseUrl: session.baseUrl,
+      code: query.code,
+      grantType: "authorization_code",
+    }, overrides);
+    const userInfo = await getLarkUserInfo(session.baseUrl, tokenPair.accessToken, deps.fetchImpl ?? fetch);
+    const resolvedUser = await upsertLarkWebUser(getResolvedStore(deps), userInfo);
+    await cacheLarkContact(deps, userInfo);
+
+    await getTokenStore(deps).save({
+      masterUserId: resolvedUser.id,
+      tenantKey: userInfo.tenantKey,
+      larkUserId: userInfo.userId,
+      baseUrl: session.baseUrl,
+      userToken: tokenPair.accessToken,
+      userTokenExpiresAt: toExpiresAt(tokenPair.expiresIn),
+      refreshToken: tokenPair.refreshToken,
+      refreshTokenExpiresAt: toRefreshTokenExpiresAt(tokenPair.refreshTokenExpiresIn),
+      credentialStatus: "active",
+      lastAuthAt: new Date().toISOString(),
+    });
+    await oauthSessionStore.markCompleted({
+      state: query.state,
+      authCode: query.code,
+      externalUserKey: userInfo.userId,
+      masterUserId: resolvedUser.id,
+    });
+
+    const sessionToken = randomBytes(32).toString("base64url");
+    await getWebSessionStore(deps).create({
+      sessionTokenHash: hashWebSessionToken(sessionToken),
+      masterUserId: resolvedUser.id,
+      baseUrl: session.baseUrl,
+      expiresAt: new Date(Date.now() + WEB_SESSION_TTL_MS).toISOString(),
+    });
+
+    return {
+      kind: "ready",
+      sessionToken,
+      user: {
+        larkName: resolvedUser.larkName ?? undefined,
+        larkEmail: resolvedUser.larkEmail ?? undefined,
+        larkAvatarUrl: resolvedUser.larkAvatarUrl ?? undefined,
+      },
+    };
+  } catch (error) {
+    await oauthSessionStore.markFailed({
+      state: query.state,
+      errorCode: error instanceof Error ? error.message : "LARK_WEB_AUTH_FAILED",
+    });
+    serviceLogger.error({
+      state: query.state,
+      baseUrl: session.baseUrl,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    }, "LARK_WEB_AUTH_CALLBACK_FAILED");
+    return {
+      kind: "failed",
+      page: renderCallbackPage({
+        statusCode: 500,
+        title: "Lark 登录失败",
+        message: "授权处理失败，请返回登录页重试。",
+        state: query.state,
+        status: "failed",
+        reason: error instanceof Error ? error.message : "LARK_WEB_AUTH_FAILED",
+      }),
+    };
+  }
+}
+
+async function resolveLarkWebSession(
+  sessionToken: string | undefined,
+  overrides?: Partial<LarkAuthServiceDeps>,
+): Promise<
+  | { ok: true; masterUserId: string; baseUrl: string; user: LarkWebAuthUser }
+  | { ok: false; errorCode: string; errorMessage: string }
+> {
+  if (!sessionToken) {
+    return { ok: false, errorCode: "UNAUTHENTICATED", errorMessage: "Missing web session." };
+  }
+
+  const deps = getDeps(overrides);
+  const session = await getWebSessionStore(deps).get(hashWebSessionToken(sessionToken));
+  if (!session || session.invalidatedAt || Date.parse(session.expiresAt) <= Date.now()) {
+    return { ok: false, errorCode: "UNAUTHENTICATED", errorMessage: "Web session is invalid or expired." };
+  }
+
+  const user = await getResolvedStore(deps).getById(session.masterUserId);
+  if (!user || user.status !== "active") {
+    return { ok: false, errorCode: "UNAUTHENTICATED", errorMessage: "User is unavailable." };
+  }
+
+  return {
+    ok: true,
+    masterUserId: session.masterUserId,
+    baseUrl: session.baseUrl,
+    user: {
+      larkName: user.larkName ?? undefined,
+      larkEmail: user.larkEmail ?? undefined,
+      larkAvatarUrl: user.larkAvatarUrl ?? undefined,
+    },
+  };
+}
+
+export async function ensureLarkWebSession(
+  sessionToken: string | undefined,
+  overrides?: Partial<LarkAuthServiceDeps>,
+): Promise<{ ok: true; user: LarkWebAuthUser } | { ok: false; errorCode: string; errorMessage: string }> {
+  const session = await resolveLarkWebSession(sessionToken, overrides);
+  if (!session.ok) {
+    return session;
+  }
+
+  return { ok: true, user: session.user };
+}
+
+export async function getLarkWebProfile(
+  sessionToken: string | undefined,
+  overrides?: Partial<LarkAuthServiceDeps>,
+): Promise<{ ok: true; profile: LarkWebProfile } | { ok: false; errorCode: string; errorMessage: string }> {
+  const session = await resolveLarkWebSession(sessionToken, overrides);
+  if (!session.ok) {
+    return session;
+  }
+
+  const initialStatus = await checkLarkAuthStatus({
+    masterUserId: session.masterUserId,
+    baseUrl: session.baseUrl,
+  }, overrides);
+  const status = initialStatus.status === "require_refresh"
+    ? await refreshLarkAuthStatus({ masterUserId: session.masterUserId, baseUrl: session.baseUrl }, overrides)
+    : initialStatus;
+  const stored = await getTokenStore(getDeps(overrides)).get({
+    masterUserId: session.masterUserId,
+    baseUrl: session.baseUrl,
+  });
+
+  return {
+    ok: true,
+    profile: {
+      user: session.user,
+      larkAuthorization: {
+        status: status.status === "ready" ? "ready" : "require_auth",
+        authorizedAt: stored?.lastAuthAt,
+        expiresAt: status.status === "ready" ? status.expiresAt : undefined,
+      },
+    },
+  };
+}
+
+export async function logoutLarkWebSession(
+  sessionToken: string | undefined,
+  overrides?: Partial<LarkAuthServiceDeps>,
+): Promise<void> {
+  if (!sessionToken) {
+    return;
+  }
+
+  const deps = getDeps(overrides);
+  await getWebSessionStore(deps).invalidate(hashWebSessionToken(sessionToken));
 }
 
 function escapeHtml(value: string): string {

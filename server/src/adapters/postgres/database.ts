@@ -144,6 +144,18 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .execute();
 
   await db.schema
+    .createTable("web_sessions")
+    .ifNotExists()
+    .addColumn("session_token_hash", "text", (column) => column.primaryKey())
+    .addColumn("master_user_id", "text", (column) => column.notNull())
+    .addColumn("base_url", "text", (column) => column.notNull())
+    .addColumn("expires_at", "text", (column) => column.notNull())
+    .addColumn("created_at", "text", (column) => column.notNull())
+    .addColumn("updated_at", "text", (column) => column.notNull())
+    .addColumn("invalidated_at", "text")
+    .execute();
+
+  await db.schema
     .createTable("github_pr_review_runs")
     .ifNotExists()
     .addColumn("action_run_id", "text", (column) => column.primaryKey())
@@ -200,6 +212,10 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
   await sql`
     CREATE INDEX IF NOT EXISTS oauth_sessions_provider_state_idx
     ON oauth_sessions(provider, state)
+  `.execute(db);
+  await sql`
+    CREATE INDEX IF NOT EXISTS web_sessions_user_expires_idx
+    ON web_sessions(master_user_id, expires_at)
   `.execute(db);
   await sql`
     CREATE INDEX IF NOT EXISTS github_pr_review_runs_user_updated_idx
@@ -306,6 +322,7 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
 
 export async function resetPostgresDatabase(db: Kysely<DatabaseSchema>): Promise<void> {
   await sql`DROP TABLE IF EXISTS github_pr_review_runs`.execute(db);
+  await sql`DROP TABLE IF EXISTS web_sessions`.execute(db);
   await sql`DROP TABLE IF EXISTS workflow_prompts`.execute(db);
   await sql`DROP TABLE IF EXISTS acp_kimi_session_owners`.execute(db);
   await sql`DROP TABLE IF EXISTS oauth_sessions`.execute(db);

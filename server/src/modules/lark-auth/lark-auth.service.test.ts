@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Kysely } from "kysely";
 import { PostgresOauthSessionStore } from "../../adapters/postgres/lark-oauth-session-store.js";
 import { PostgresLarkTokenStore } from "../../adapters/postgres/lark-token-store.js";
+import { PostgresWebSessionStore } from "../../adapters/postgres/web-session-store.js";
 import {
   PostgresResolvedUserStore,
   configureResolvedUserStore,
@@ -15,6 +16,10 @@ import {
   exchangeLarkAuthCode,
   fetchLarkUserInfo,
   handleLarkAuthCallback,
+  handleLarkWebAuthCallback,
+  getLarkWebProfile,
+  ensureLarkWebSession,
+  logoutLarkWebSession,
   refreshLarkToken,
   startLarkOauthSession,
 } from "./lark-auth.service.js";
@@ -24,12 +29,14 @@ describe("lark-auth.service", () => {
   let resolvedUserStore: PostgresResolvedUserStore;
   let tokenStore: PostgresLarkTokenStore;
   let oauthSessionStore: PostgresOauthSessionStore;
+  let webSessionStore: PostgresWebSessionStore;
 
   beforeEach(async () => {
     ({ db } = await createTestPostgresDatabase());
     resolvedUserStore = new PostgresResolvedUserStore(db);
     tokenStore = new PostgresLarkTokenStore(db);
     oauthSessionStore = new PostgresOauthSessionStore(db);
+    webSessionStore = new PostgresWebSessionStore(db);
     configureResolvedUserStore(resolvedUserStore);
     configureLarkAuthServiceDeps({
       appId: "cli_test",
@@ -38,6 +45,7 @@ describe("lark-auth.service", () => {
       resolvedUserStore,
       tokenStore,
       oauthSessionStore,
+      webSessionStore,
     });
   });
 
@@ -164,6 +172,130 @@ describe("lark-auth.service", () => {
       status: "pending",
       masterUserId: "usr_123",
     });
+  });
+
+  it("creates a user and opaque web session when a Lark callback has no master user", async () => {
+    await startLarkOauthSession({
+      state: "web_state_123",
+      baseUrl: "https://open.larksuite.com",
+    });
+
+    const result = await handleLarkWebAuthCallback(
+      { code: "web_code_123", state: "web_state_123" },
+      {
+        appId: "cli_test",
+        appSecret: "secret_test",
+        fetchImpl: vi
+          .fn()
+          .mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({ code: 0, app_access_token: "app_access_token_123" }),
+          })
+          .mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({
+              code: 0,
+              data: {
+                access_token: "user_access_token_456",
+                refresh_token: "refresh_token_789",
+                expires_in: 7200,
+                refresh_token_expires_in: 604800,
+                token_type: "Bearer",
+              },
+            }),
+          })
+          .mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({
+              code: 0,
+              data: {
+                user_id: "ou_web_user",
+                tenant_key: "tenant_web",
+                email: "web@example.com",
+                name: "Web User",
+              },
+            }),
+          }) as unknown as typeof fetch,
+        resolvedUserStore,
+        tokenStore,
+        oauthSessionStore,
+        webSessionStore,
+      },
+    );
+
+    expect(result.kind).toBe("ready");
+    if (result.kind !== "ready") {
+      throw new Error("Expected a ready web callback result");
+    }
+
+    await expect(ensureLarkWebSession(result.sessionToken, {
+      appId: "cli_test",
+      appSecret: "secret_test",
+      resolvedUserStore,
+      tokenStore,
+      oauthSessionStore,
+      webSessionStore,
+    })).resolves.toEqual({
+      ok: true,
+      user: { larkName: "Web User", larkEmail: "web@example.com", larkAvatarUrl: undefined },
+    });
+
+    await expect(getLarkWebProfile(result.sessionToken, {
+      appId: "cli_test",
+      appSecret: "secret_test",
+      resolvedUserStore,
+      tokenStore,
+      oauthSessionStore,
+      webSessionStore,
+    })).resolves.toMatchObject({
+      ok: true,
+      profile: {
+        user: { larkName: "Web User", larkEmail: "web@example.com" },
+        larkAuthorization: { status: "ready", authorizedAt: expect.any(String) },
+      },
+    });
+
+    const user = await resolvedUserStore.getByLarkIdentity("tenant_web", "ou_web_user");
+    const token = await tokenStore.get({
+      masterUserId: user!.id,
+      baseUrl: "https://open.larksuite.com",
+    });
+    await tokenStore.save({
+      ...token!,
+      userTokenExpiresAt: new Date(Date.now() - 60_000).toISOString(),
+      refreshToken: undefined,
+      refreshTokenExpiresAt: undefined,
+      credentialStatus: "expired",
+    });
+
+    await expect(ensureLarkWebSession(result.sessionToken, {
+      appId: "cli_test",
+      appSecret: "secret_test",
+      resolvedUserStore,
+      tokenStore,
+      webSessionStore,
+    })).resolves.toMatchObject({ ok: true });
+    await expect(getLarkWebProfile(result.sessionToken, {
+      appId: "cli_test",
+      appSecret: "secret_test",
+      resolvedUserStore,
+      tokenStore,
+      webSessionStore,
+    })).resolves.toMatchObject({
+      ok: true,
+      profile: { larkAuthorization: { status: "require_auth" } },
+    });
+
+    await logoutLarkWebSession(result.sessionToken, {
+      appId: "cli_test",
+      appSecret: "secret_test",
+      webSessionStore,
+    });
+    await expect(ensureLarkWebSession(result.sessionToken, {
+      appId: "cli_test",
+      appSecret: "secret_test",
+      webSessionStore,
+    })).resolves.toMatchObject({ ok: false, errorCode: "UNAUTHENTICATED" });
   });
 
   it("returns require_auth when no stored token exists", async () => {

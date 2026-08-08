@@ -84,6 +84,26 @@ describe("api auth middleware", () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
+  it("allows web profile and extension download routes without a master-user-id header", () => {
+    const middleware = createApiAuthMiddleware();
+    for (const path of ["/api/web/profile", "/api/extension/version"]) {
+      const req = {
+        method: "GET",
+        path,
+        body: undefined,
+        query: {},
+        headers: {},
+      } as Partial<Request> as Request;
+      const res = createResponse();
+      const next = vi.fn() as unknown as NextFunction;
+
+      middleware(req, res, next);
+
+      expect(next).toHaveBeenCalledOnce();
+      expect(res.status).not.toHaveBeenCalled();
+    }
+  });
+
   it("injects masterUserId from header into protected request bodies", () => {
     const middleware = createApiAuthMiddleware();
     const req = {

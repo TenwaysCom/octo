@@ -67,6 +67,15 @@ export interface DatabaseSchema {
     created_at: string;
     updated_at: string;
   };
+  web_sessions: {
+    session_token_hash: string;
+    master_user_id: string;
+    base_url: string;
+    expires_at: string;
+    created_at: string;
+    updated_at: string;
+    invalidated_at: string | null;
+  };
   github_pr_review_runs: {
     action_run_id: string;
     master_user_id: string;

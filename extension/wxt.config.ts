@@ -10,6 +10,11 @@ const extensionName = `${extensionBaseName} ${extensionVersion}`;
 const chromiumProfile = process.env.WXT_CHROMIUM_PROFILE?.trim();
 const devPort = Number(process.env.WXT_DEV_PORT || 3000);
 const devOrigin = process.env.WXT_DEV_ORIGIN?.trim() || `http://localhost:${devPort}`;
+const octoWebOrigin = process.env.WXT_PUBLIC_OCTO_WEB_ORIGIN?.trim() || "http://localhost:4173";
+const octoWebMatch = (() => {
+  const url = new URL(octoWebOrigin);
+  return `${url.protocol}//${url.hostname}/*`;
+})();
 const devHost = (() => {
   try {
     return new URL(devOrigin).hostname;
@@ -65,14 +70,15 @@ export default defineConfig({
       "128": "icons/icon-128.png",
     },
     permissions: ["tabs", "activeTab", "scripting", "storage", "cookies", "alarms", "notifications", "downloads"],
-    host_permissions: [
+    host_permissions: Array.from(new Set([
       "http://localhost/*",
       "https://*.feishu.cn/*",
       "https://*.larksuite.com/*",
       "https://meegle.com/*",
       "https://*.meegle.com/*",
       "https://github.com/*",
-    ],
+      octoWebMatch,
+    ])),
     web_accessible_resources: [
       {
         resources: ["page-bridge.js"],

@@ -4,6 +4,7 @@
 interface ImportMetaEnv {
   readonly DEV?: boolean;
   readonly WXT_PUBLIC_INJECTION_PROBE?: string;
+  readonly WXT_PUBLIC_OCTO_WEB_ORIGIN?: string;
 }
 
 interface ImportMeta {
