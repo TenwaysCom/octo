@@ -243,6 +243,7 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .addColumn("head_ref", "text")
     .addColumn("base_ref", "text")
     .addColumn("is_draft", "boolean", (column) => column.notNull())
+    .addColumn("meegle_ids", "text", (column) => column.notNull().defaultTo("[]"))
     .addColumn("payload_json", "text", (column) => column.notNull())
     .addColumn("source_updated_at", "text")
     .addColumn("synced_at", "text", (column) => column.notNull())
@@ -422,6 +423,10 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
   await sql`
     ALTER TABLE github_pr_syncs
     ADD COLUMN IF NOT EXISTS description text
+  `.execute(db);
+  await sql`
+    ALTER TABLE github_pr_syncs
+    ADD COLUMN IF NOT EXISTS meegle_ids text NOT NULL DEFAULT '[]'
   `.execute(db);
   await sql`
     ALTER TABLE meegle_workitem_syncs

@@ -61,6 +61,7 @@ export interface GitHubPullRequestSyncItem {
   headRef?: string;
   baseRef?: string;
   isDraft: boolean;
+  meegleIds: string[];
   sourceUpdatedAt?: string;
   syncedAt: string;
 }
@@ -152,6 +153,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
     pullRequest: GitHubPrDetails;
   }): Promise<void> {
     const now = new Date().toISOString();
+    const meegleIds = extractMeegleIds(input.pullRequest.title, input.pullRequest.body);
     await this.db.insertInto("github_pr_syncs").values({
       owner: input.owner,
       repo: input.repo,
@@ -165,6 +167,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
       head_ref: input.pullRequest.head?.ref ?? null,
       base_ref: input.pullRequest.base?.ref ?? null,
       is_draft: input.pullRequest.draft ?? false,
+      meegle_ids: JSON.stringify(meegleIds),
       payload_json: JSON.stringify(input.pullRequest),
       source_updated_at: input.pullRequest.updated_at ?? null,
       synced_at: now,
@@ -179,6 +182,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
         head_ref: input.pullRequest.head?.ref ?? null,
         base_ref: input.pullRequest.base?.ref ?? null,
         is_draft: input.pullRequest.draft ?? false,
+        meegle_ids: JSON.stringify(meegleIds),
         payload_json: JSON.stringify(input.pullRequest),
         source_updated_at: input.pullRequest.updated_at ?? null,
         synced_at: now,
@@ -255,7 +259,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
     const rows = await this.db.selectFrom("github_pr_syncs")
       .select([
         "owner", "repo", "pull_number", "title", "state", "html_url", "author_login",
-        "head_ref", "base_ref", "is_draft", "source_updated_at", "synced_at",
+        "head_ref", "base_ref", "is_draft", "meegle_ids", "source_updated_at", "synced_at",
       ])
       .orderBy("source_updated_at", "desc")
       .orderBy("synced_at", "desc")
@@ -273,6 +277,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
       headRef: row.head_ref ?? undefined,
       baseRef: row.base_ref ?? undefined,
       isDraft: row.is_draft,
+      meegleIds: parseStringArray(row.meegle_ids) ?? [],
       sourceUpdatedAt: row.source_updated_at ?? undefined,
       syncedAt: row.synced_at,
     }));
@@ -326,4 +331,22 @@ function parseStringArray(value: string | null): string[] | undefined {
   } catch {
     return undefined;
   }
+}
+
+export function extractMeegleIds(title: string, description: string | null): string[] {
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  const pattern = /\b([mf]-\d+)\b/gi;
+
+  for (const text of [title, description ?? ""]) {
+    for (const match of text.matchAll(pattern)) {
+      const id = match[1].toLowerCase();
+      if (!seen.has(id)) {
+        seen.add(id);
+        ids.push(id);
+      }
+    }
+  }
+
+  return ids;
 }

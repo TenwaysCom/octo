@@ -147,6 +147,7 @@ export interface DatabaseSchema {
     head_ref: string | null;
     base_ref: string | null;
     is_draft: boolean;
+    meegle_ids: string;
     payload_json: string;
     source_updated_at: string | null;
     synced_at: string;

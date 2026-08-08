@@ -1,7 +1,14 @@
 import { createTestPostgresDatabase } from "./test-db.js";
-import { PostgresPlatformSyncStore } from "./platform-sync-store.js";
+import { extractMeegleIds, PostgresPlatformSyncStore } from "./platform-sync-store.js";
 
 describe("PostgresPlatformSyncStore", () => {
+  it("extracts unique m- and f- Meegle IDs from a PR title and description", () => {
+    expect(extractMeegleIds(
+      "M-123 implements F-456",
+      "Follow-up: m-123, f-789. Ignore m-not-an-id and f-12x.",
+    )).toEqual(["m-123", "f-456", "f-789"]);
+  });
+
   it("upserts independent Meegle, GitHub and Lark snapshots", async () => {
     const { db, pool } = await createTestPostgresDatabase();
     const store = new PostgresPlatformSyncStore(db);
@@ -34,8 +41,8 @@ describe("PostgresPlatformSyncStore", () => {
       repo: "app",
       pullRequest: {
         number: 2,
-        title: "PR",
-        body: "PR description",
+        title: "PR m-123 f-456",
+        body: "PR description m-123 and f-789",
         html_url: "https://github.com/acme/app/pull/2",
         state: "open",
         merged_at: null,
@@ -70,7 +77,8 @@ describe("PostgresPlatformSyncStore", () => {
     await expect(db.selectFrom("github_pr_syncs").selectAll().execute())
       .resolves.toEqual([expect.objectContaining({
         pull_number: 2,
-        description: "PR description",
+        description: "PR description m-123 and f-789",
+        meegle_ids: JSON.stringify(["m-123", "f-456", "f-789"]),
         state: "open",
       })]);
     await expect(db.selectFrom("lark_base_ticket_syncs").selectAll().execute())
@@ -82,7 +90,8 @@ describe("PostgresPlatformSyncStore", () => {
       sprint: "Sprint 1", version: "Version 1", bugs: ["Bug 1"],
     })]);
     await expect(store.listGitHubPullRequests(10)).resolves.toEqual([expect.objectContaining({
-      pullNumber: 2, title: "PR", state: "open",
+      pullNumber: 2, title: "PR m-123 f-456", state: "open",
+      meegleIds: ["m-123", "f-456", "f-789"],
     })]);
     await expect(store.listLarkBaseTickets(10)).resolves.toEqual([expect.objectContaining({
       recordId: "rec-1", ticketStatus: "Open",
