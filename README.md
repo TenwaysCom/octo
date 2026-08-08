@@ -74,6 +74,9 @@ pnpm --dir extension build
 - `POST /api/lark/auth/refresh`
 - `POST /api/lark/auth/status`
 - `POST /api/lark/auth/session`
+- `GET /api/lark/auth/web/start`
+- `GET /api/lark/auth/web/ensure`
+- `POST /api/lark/auth/web/logout`
 - `GET /api/lark/auth/callback`
 - `POST /api/lark/user-info`
 - `POST /api/lark-base/update-meegle-link`

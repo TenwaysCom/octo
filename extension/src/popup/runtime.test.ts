@@ -186,6 +186,37 @@ describe("popup runtime settings", () => {
     vi.unstubAllGlobals();
   });
 
+  it("uses the real active tab URL when an injected sidebar host URL is stale", async () => {
+    vi.stubGlobal("location", {
+      href: "chrome-extension://test/sidebar-popup.html?hostPageType=meegle&hostUrl=https%3A%2F%2Fproject.larksuite.com%2F4c3fv6%2Fstory%2Fdetail%2F10435506&hostOrigin=https%3A%2F%2Fproject.larksuite.com&meegleUserKey=user_1",
+    });
+
+    vi.mocked(chrome.runtime.sendMessage).mockImplementation((...args) => {
+      const maybeCallback = args[args.length - 1] as
+        | ((response?: unknown) => void)
+        | undefined;
+      maybeCallback?.({
+        payload: {
+          id: 88,
+          url: "https://project.larksuite.com/4c3fv6/production_bug/detail/13290007",
+        },
+      });
+      return undefined as never;
+    });
+
+    await expect(queryActiveTabContext()).resolves.toEqual({
+      id: 88,
+      url: "https://project.larksuite.com/4c3fv6/production_bug/detail/13290007",
+      origin: "https://project.larksuite.com",
+      pageType: "meegle",
+      larkContext: undefined,
+      larkUserId: undefined,
+      meegleUserKey: "user_1",
+    });
+
+    vi.unstubAllGlobals();
+  });
+
   it("merges Lark content-script page context for real Base record ids", async () => {
     vi.mocked(chrome.runtime.sendMessage).mockImplementation((...args) => {
       const maybeCallback = args[args.length - 1] as

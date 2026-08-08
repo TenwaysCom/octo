@@ -221,4 +221,62 @@ describe("executeMeegleLarkPush", () => {
       }),
     );
   });
+
+  it("reads Lark fields from nested Meegle field pair envelopes", async () => {
+    const updateWorkitem = vi.fn().mockResolvedValue(undefined);
+    mocks.createMeegleClient.mockResolvedValue({
+      getWorkitemDetails: vi.fn().mockResolvedValue([
+        {
+          id: "13290007",
+          key: "PB-2",
+          name: "Production bug",
+          type: "production_bug",
+          status: "Open",
+          fields: {
+            fields: {
+              fields: [
+                {
+                  field_key: "field_c22a1a",
+                  field_value: "嵌套字段回复",
+                },
+                {
+                  field_key: "field_8d0341",
+                  field_value: "https://applink.larksuite.com/client/chat/chatter/add_by_link?chatid=oc_test",
+                },
+              ],
+            },
+          },
+        },
+      ]),
+      getUsers: vi.fn(),
+      updateWorkitem,
+    });
+
+    const sendMessage = vi.fn().mockResolvedValue({ message_id: "om_sent" });
+    mocks.buildAuthenticatedLarkClient.mockResolvedValue({
+      baseUrl: "https://open.larksuite.com",
+      client: {
+        sendMessage,
+        addMessageReaction: vi.fn(),
+      },
+    });
+
+    const result = await executeMeegleLarkPush({
+      projectKey: "4c3fv6",
+      workItemTypeKey: "production_bug",
+      workItemId: "13290007",
+      masterUserId: "master_1",
+      baseUrl: "https://project.larksuite.com",
+    });
+
+    expect(result).toMatchObject({ ok: true, messageSent: true });
+    expect(sendMessage).toHaveBeenCalledWith(
+      "chat_id",
+      "oc_test",
+      "text",
+      JSON.stringify({
+        text: "嵌套字段回复",
+      }),
+    );
+  });
 });

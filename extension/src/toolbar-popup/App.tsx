@@ -4,6 +4,7 @@ import { getConfig } from "../background/config.js";
 import { normalizeMeegleAuthBaseUrl } from "../platform-url.js";
 import { ToolbarPopupView } from "./ToolbarPopupView.js";
 import { usePopupApp } from "../popup-react/hooks/usePopupApp.js";
+import type { PopupSettingsForm } from "../popup/types.js";
 
 export default function App() {
   const popupApp = usePopupApp();
@@ -29,6 +30,9 @@ export default function App() {
       active: true,
     });
   };
+  const changeEnvironment = (environmentName: NonNullable<PopupSettingsForm["ENV_NAME"]>) => {
+    popupApp.updateSettingsFormField("ENV_NAME", environmentName);
+  };
 
   return (
     <ToolbarPopupView
@@ -37,6 +41,10 @@ export default function App() {
       larkStatusText={popupApp.larkStatus.text}
       meegleAuthorized={popupApp.state.isAuthed.meegle}
       larkAuthorized={popupApp.state.isAuthed.lark}
+      environmentName={popupApp.settingsForm.ENV_NAME || "prod"}
+      serverUrl={popupApp.settingsForm.SERVER_URL}
+      onEnvironmentChange={changeEnvironment}
+      onSaveEnvironment={popupApp.saveSettingsForm}
       onAuthorizeMeegle={openMeegleAuthPage}
       onAuthorizeLark={popupApp.authorizeLark}
     />

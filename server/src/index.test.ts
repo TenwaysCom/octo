@@ -36,6 +36,10 @@ describe("index routes", () => {
         "POST /api/lark/auth/refresh",
         "POST /api/lark/auth/status",
         "POST /api/lark/auth/session",
+        "GET /api/lark/auth/web/start",
+        "GET /api/lark/auth/web/ensure",
+        "GET /api/web/profile",
+        "POST /api/lark/auth/web/logout",
         "GET /api/lark/auth/callback",
         "POST /api/pm/analysis/run",
         "POST /api/lark-base/update-meegle-link",
@@ -44,6 +48,8 @@ describe("index routes", () => {
         "POST /api/lark-base/bulk-create-meegle-workitems",
         "POST /api/meegle/workitem/story-prd-to-simplified",
         "POST /api/lark-bug/analyze",
+        "POST /api/github/pr/code-review-feedback",
+        "GET /api/github/pr/code-review-feedback/:actionRunId",
       ]),
     );
   });

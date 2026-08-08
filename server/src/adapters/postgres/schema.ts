@@ -67,6 +67,44 @@ export interface DatabaseSchema {
     created_at: string;
     updated_at: string;
   };
+  web_sessions: {
+    session_token_hash: string;
+    master_user_id: string;
+    base_url: string;
+    expires_at: string;
+    created_at: string;
+    updated_at: string;
+    invalidated_at: string | null;
+  };
+  web_plugin_login_challenges: {
+    challenge_id_hash: string;
+    browser_proof_hash: string;
+    status: string;
+    master_user_id: string | null;
+    base_url: string | null;
+    expires_at: string;
+    created_at: string;
+    updated_at: string;
+    consumed_at: string | null;
+  };
+  github_pr_review_runs: {
+    action_run_id: string;
+    master_user_id: string;
+    operation: string;
+    pr_url: string;
+    status: string;
+    comment_url: string | null;
+    reviewed_files_json: string | null;
+    feedback_count: number | null;
+    feedback_record_ids_json: string | null;
+    diff_truncated: boolean | null;
+    error_code: string | null;
+    error_message: string | null;
+    created_at: string;
+    started_at: string | null;
+    completed_at: string | null;
+    updated_at: string;
+  };
   meegle_workitem_syncs: {
     project_key: string;
     work_item_type_key: string;

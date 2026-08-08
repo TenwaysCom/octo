@@ -10,6 +10,8 @@ import type {
   LarkBaseBulkPreviewWorkitemsResult,
   LarkBaseBulkCreateWorkitemsMessage,
   LarkBaseBulkCreateWorkitemsResult,
+  WebPluginLoginApprovalMessage,
+  WebPluginLoginApprovalResult,
 } from "../types/protocol";
 import { extractLarkBaseContextFromUrl } from "../lark-base-url.js";
 import type { EnsureMeegleAuthDeps } from "./handlers/meegle-auth";
@@ -29,6 +31,7 @@ import {
   getStoredMasterUserId,
 } from "./storage.js";
 import { getConfig } from "./config.js";
+import { isConfiguredOctoWebOriginAllowed } from "../web-origin-config.js";
 import { createExtensionLogger } from "../logger.js";
 import {
   checkForUpdate,
@@ -37,6 +40,7 @@ import {
   ignoreCurrentVersion,
 } from "./update-checker.js";
 import { fetchServerJson } from "../server-request.js";
+import { trackAsyncAction } from "./async-action-notifier.js";
 
 const routerLogger = createExtensionLogger("background:router");
 
@@ -118,7 +122,8 @@ export async function routeBackgroundAction(
     | LarkAuthCallbackDetectedMessage
     | LarkBaseCreateWorkitemMessage
     | LarkBaseBulkPreviewWorkitemsMessage
-    | LarkBaseBulkCreateWorkitemsMessage,
+    | LarkBaseBulkCreateWorkitemsMessage
+    | WebPluginLoginApprovalMessage,
   context: {
     senderTabId?: number;
     tabUrl?: string;
@@ -129,9 +134,47 @@ export async function routeBackgroundAction(
   | LarkBaseCreateWorkitemResult
   | LarkBaseBulkPreviewWorkitemsResult
   | LarkBaseBulkCreateWorkitemsResult
+  | WebPluginLoginApprovalResult
   | { ok: true }
 > {
   const config = await getConfig();
+
+  if (message.action === "octo.web.plugin-login.approve") {
+    if (!isConfiguredOctoWebOriginAllowed({
+      pageOrigin: message.payload.pageOrigin,
+      serverUrl: config.SERVER_URL,
+    })) {
+      return {
+        action: message.action,
+        payload: { status: "failed", errorCode: "ENVIRONMENT_MISMATCH" },
+      };
+    }
+
+    const masterUserId = await getStoredMasterUserId();
+    if (!masterUserId) {
+      return {
+        action: message.action,
+        payload: { status: "failed", errorCode: "PLUGIN_IDENTITY_REQUIRED" },
+      };
+    }
+
+    try {
+      await postServerJson(config, "/api/web/plugin-login/approve", {
+        challengeId: message.payload.challengeId,
+        masterUserId,
+      });
+      return { action: message.action, payload: { status: "approved" } };
+    } catch (error) {
+      const errorCode = error instanceof BackgroundActionError ? error.errorCode : "PLUGIN_LOGIN_FAILED";
+      return {
+        action: message.action,
+        payload: {
+          status: "failed",
+          errorCode,
+        },
+      };
+    }
+  }
 
   if (message.action === "octo.meegle.auth.ensure") {
     const deps: EnsureMeegleAuthDeps = {
@@ -305,10 +348,28 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.action === "octo.async-action.track") {
+    trackAsyncAction(message.payload)
+      .then(() => sendResponse({ ok: true }))
+      .catch((err: unknown) => {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        routerLogger.error("Async action tracking failed", { errorMessage });
+        sendResponse({
+          ok: false,
+          error: {
+            errorCode: "BACKGROUND_ERROR",
+            errorMessage,
+          },
+        });
+      });
+    return true;
+  }
+
   if (
     message.action === "octo.meegle.auth.ensure" ||
     message.action === "octo.lark.auth.ensure" ||
     message.action === "octo.lark.auth.callback.detected" ||
+    message.action === "octo.web.plugin-login.approve" ||
     message.action === "octo.lark_base.create_workitem" ||
     message.action === "octo.lark_base.bulk_preview_workitems" ||
     message.action === "octo.lark_base.bulk_create_workitems"
@@ -320,7 +381,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         | LarkAuthCallbackDetectedMessage
         | LarkBaseCreateWorkitemMessage
         | LarkBaseBulkPreviewWorkitemsMessage
-        | LarkBaseBulkCreateWorkitemsMessage,
+        | LarkBaseBulkCreateWorkitemsMessage
+        | WebPluginLoginApprovalMessage,
       {
         senderTabId: sender.tab?.id,
         tabUrl: sender.tab?.url,

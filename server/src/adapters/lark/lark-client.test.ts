@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { LarkClient } from "./lark-client.js";
+import { LarkBatchCreateError, LarkClient } from "./lark-client.js";
 
 describe("lark-client", () => {
   const requestMock = vi.fn();
@@ -134,6 +134,55 @@ describe("lark-client", () => {
       ],
       hasMore: true,
       nextPageToken: "next_page_token",
+    });
+  });
+
+  it("batchCreateRecords creates records in the bitable batch endpoint", async () => {
+    const client = new LarkClient({ accessToken: "token_123", baseUrl: "https://open.larksuite.com" });
+    (client as unknown as { client: { request: typeof requestMock } }).client = { request: requestMock };
+    requestMock.mockResolvedValueOnce({
+      code: 0,
+      data: { records: [{ record_id: "rec_1", fields: { 描述: "反馈" } }] },
+    });
+
+    await expect(client.batchCreateRecords("base_123", "tbl_456", [{ 描述: "反馈" }])).resolves.toEqual([
+      { record_id: "rec_1", fields: { 描述: "反馈" }, shared_url: undefined },
+    ]);
+    expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({
+      method: "POST",
+      url: "/open-apis/bitable/v1/apps/base_123/tables/tbl_456/records/batch_create",
+      data: { records: [{ fields: { 描述: "反馈" } }] },
+    }), expect.anything());
+  });
+
+  it("getFields returns field ids and names for schema validation", async () => {
+    const client = new LarkClient({ accessToken: "token_123", baseUrl: "https://open.larksuite.com" });
+    (client as unknown as { client: { request: typeof requestMock } }).client = { request: requestMock };
+    requestMock.mockResolvedValueOnce({
+      code: 0,
+      data: { items: [{ field_id: "fld_1", field_name: "来源" }] },
+    });
+
+    await expect(client.getFields("base_123", "tbl_456")).resolves.toEqual([
+      { field_id: "fld_1", field_name: "来源" },
+    ]);
+    expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({
+      method: "GET",
+      url: "/open-apis/bitable/v1/apps/base_123/tables/tbl_456/fields",
+    }), expect.anything());
+  });
+
+  it("preserves records created before a later batch fails", async () => {
+    const client = new LarkClient({ accessToken: "token_123", baseUrl: "https://open.larksuite.com" });
+    (client as unknown as { client: { request: typeof requestMock } }).client = { request: requestMock };
+    requestMock
+      .mockResolvedValueOnce({ code: 0, data: { records: [{ record_id: "rec_1", fields: {} }] } })
+      .mockRejectedValueOnce(new Error("rate limited"));
+
+    const records = Array.from({ length: 201 }, (_, index) => ({ 描述: String(index) }));
+    await expect(client.batchCreateRecords("base_123", "tbl_456", records)).rejects.toMatchObject({
+      name: "LarkBatchCreateError",
+      createdRecords: [expect.objectContaining({ record_id: "rec_1" })],
     });
   });
 });

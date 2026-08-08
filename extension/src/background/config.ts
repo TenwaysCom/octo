@@ -6,6 +6,7 @@
  */
 
 import { fetchServerJson } from "../server-request.js";
+import { OCTO_SERVER_URLS, type OctoEnvironmentName } from "../environment-config.js";
 
 export interface ExtensionConfig {
   ENV_NAME: "prod" | "test" | "dev";
@@ -23,13 +24,9 @@ interface PublicConfigResponse {
   data?: Partial<Pick<ExtensionConfig, "MEEGLE_PLUGIN_ID" | "LARK_APP_ID" | "LARK_OAUTH_CALLBACK_URL" | "MEEGLE_BASE_URL" | "LARK_OAUTH_SCOPE" | "CLIENT_DEBUG_LOG_UPLOAD_ENABLED">>;
 }
 
-export const SERVER_URLS = {
-  prod: "https://octo.odoo.tenways.it:18443",
-  test: "https://octotest.odoo.tenways.it:18443",
-  dev: "http://localhost:3040",
-} as const;
+export const SERVER_URLS = OCTO_SERVER_URLS;
 
-export type EnvironmentName = keyof typeof SERVER_URLS;
+export type EnvironmentName = OctoEnvironmentName;
 
 export const DEFAULT_CONFIG: ExtensionConfig = {
   ENV_NAME: "prod",

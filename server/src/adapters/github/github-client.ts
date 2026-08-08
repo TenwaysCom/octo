@@ -4,6 +4,8 @@ import type {
   GitHubIssueDetails,
   GitHubCommit,
   GitHubComment,
+  GitHubIssueCommentCreated,
+  GitHubPullRequestFile,
   ParsedPrUrl,
   ParsedGitHubWorkItemUrl,
   GitHubRef,
@@ -115,6 +117,35 @@ export class GitHubClient {
     return this.request<GitHubComment[]>(`/repos/${owner}/${repo}/pulls/${pullNumber}/comments`);
   }
 
+  async getPullRequestFiles(
+    owner: string,
+    repo: string,
+    pullNumber: number,
+  ): Promise<GitHubPullRequestFile[]> {
+    const files: GitHubPullRequestFile[] = [];
+    for (let page = 1; ; page += 1) {
+      const batch = await this.request<GitHubPullRequestFile[]>(
+        `/repos/${owner}/${repo}/pulls/${pullNumber}/files?per_page=100&page=${page}`,
+      );
+      files.push(...batch);
+      if (batch.length < 100) {
+        return files;
+      }
+    }
+  }
+
+  async createPullRequestComment(
+    owner: string,
+    repo: string,
+    pullNumber: number,
+    body: string,
+  ): Promise<GitHubIssueCommentCreated> {
+    return this.post<GitHubIssueCommentCreated>(
+      `/repos/${owner}/${repo}/issues/${pullNumber}/comments`,
+      { body },
+    );
+  }
+
   async createBranch(owner: string, repo: string, branchName: string, baseBranch = "main"): Promise<GitHubRef> {
     // 1. Get base branch SHA
     const baseRef = await this.request<GitHubRef>(`/repos/${owner}/${repo}/git/ref/heads/${baseBranch}`);
@@ -123,7 +154,14 @@ export class GitHubClient {
     githubLogger.info({ owner, repo, branchName, baseBranch, sha }, "GitHub create branch");
 
     // 2. Create new ref
-    const url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/git/refs`;
+    return this.post<GitHubRef>(`/repos/${owner}/${repo}/git/refs`, {
+      ref: `refs/heads/${branchName}`,
+      sha,
+    });
+  }
+
+  private async post<T>(path: string, body: unknown): Promise<T> {
+    const url = `${GITHUB_API_BASE}${path}`;
     const response = await this.fetch(url, {
       method: "POST",
       headers: {
@@ -132,10 +170,7 @@ export class GitHubClient {
         "User-Agent": "Octo-Extension",
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        ref: `refs/heads/${branchName}`,
-        sha,
-      }),
+      body: JSON.stringify(body),
     });
 
     if (!response.ok) {
@@ -146,6 +181,6 @@ export class GitHubClient {
       throw error;
     }
 
-    return response.json() as Promise<GitHubRef>;
+    return response.json() as Promise<T>;
   }
 }

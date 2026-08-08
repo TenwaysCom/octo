@@ -4,12 +4,19 @@ const DEFAULT_EXEMPT_PATHS = new Set([
   "/api/config/public",
   "/api/config/page",
   "/api/config/server-api-catalog",
+  "/api/extension/version",
   "/api/identity/resolve",
   "/api/debug/client-log",
   // OAuth callback is entered from Lark's redirect, so the browser will not
   // carry our custom master-user-id header here. This endpoint is still bound
   // to a user through the server-side OAuth session keyed by state.
   "/api/lark/auth/callback",
+  "/api/lark/auth/web/start",
+  "/api/lark/auth/web/ensure",
+  "/api/lark/auth/web/logout",
+  "/api/web/profile",
+  "/api/web/plugin-login/start",
+  "/api/web/plugin-login/complete",
 ]);
 
 function getMasterUserIdHeader(req: Request): string | undefined {

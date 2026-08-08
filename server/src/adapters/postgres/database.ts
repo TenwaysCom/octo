@@ -1,9 +1,19 @@
 import { Kysely, PostgresDialect, sql } from "kysely";
 import { Pool } from "pg";
+import { preparePostgresConnection, type PreparedPostgresConnection } from "./ssh-tunnel.js";
 import type { DatabaseSchema } from "./schema.js";
 import {
   DEFAULT_LARK_BUG_ANALYZE_PROMPT_NOTE,
   DEFAULT_LARK_BUG_ANALYZE_PROMPT_TEMPLATE,
+  DEFAULT_GITHUB_PR_DEEP_REVIEW_PROMPT_NOTE,
+  DEFAULT_GITHUB_PR_DEEP_REVIEW_PROMPT_TEMPLATE,
+  DEFAULT_GITHUB_PR_CODE_REVIEW_FEEDBACK_PROMPT_NOTE,
+  DEFAULT_GITHUB_PR_CODE_REVIEW_FEEDBACK_PROMPT_TEMPLATE,
+  DEFAULT_GITHUB_PR_QUICK_SCAN_PROMPT_NOTE,
+  DEFAULT_GITHUB_PR_QUICK_SCAN_PROMPT_TEMPLATE,
+  GITHUB_PR_DEEP_REVIEW_PROMPT_KEY,
+  GITHUB_PR_CODE_REVIEW_FEEDBACK_PROMPT_KEY,
+  GITHUB_PR_QUICK_SCAN_PROMPT_KEY,
   DEFAULT_STORY_PRD_TO_SIMPLIFIED_PROMPT_NOTE,
   DEFAULT_STORY_PRD_TO_SIMPLIFIED_PROMPT_TEMPLATE,
   LARK_BUG_ANALYZE_PROMPT_KEY,
@@ -135,6 +145,53 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .execute();
 
   await db.schema
+    .createTable("web_sessions")
+    .ifNotExists()
+    .addColumn("session_token_hash", "text", (column) => column.primaryKey())
+    .addColumn("master_user_id", "text", (column) => column.notNull())
+    .addColumn("base_url", "text", (column) => column.notNull())
+    .addColumn("expires_at", "text", (column) => column.notNull())
+    .addColumn("created_at", "text", (column) => column.notNull())
+    .addColumn("updated_at", "text", (column) => column.notNull())
+    .addColumn("invalidated_at", "text")
+    .execute();
+
+  await db.schema
+    .createTable("web_plugin_login_challenges")
+    .ifNotExists()
+    .addColumn("challenge_id_hash", "text", (column) => column.primaryKey())
+    .addColumn("browser_proof_hash", "text", (column) => column.notNull())
+    .addColumn("status", "text", (column) => column.notNull())
+    .addColumn("master_user_id", "text")
+    .addColumn("base_url", "text")
+    .addColumn("expires_at", "text", (column) => column.notNull())
+    .addColumn("created_at", "text", (column) => column.notNull())
+    .addColumn("updated_at", "text", (column) => column.notNull())
+    .addColumn("consumed_at", "text")
+    .execute();
+
+  await db.schema
+    .createTable("github_pr_review_runs")
+    .ifNotExists()
+    .addColumn("action_run_id", "text", (column) => column.primaryKey())
+    .addColumn("master_user_id", "text", (column) => column.notNull())
+    .addColumn("operation", "text", (column) => column.notNull())
+    .addColumn("pr_url", "text", (column) => column.notNull())
+    .addColumn("status", "text", (column) => column.notNull())
+    .addColumn("comment_url", "text")
+    .addColumn("reviewed_files_json", "text")
+    .addColumn("feedback_count", "integer")
+    .addColumn("feedback_record_ids_json", "text")
+    .addColumn("diff_truncated", "boolean")
+    .addColumn("error_code", "text")
+    .addColumn("error_message", "text")
+    .addColumn("created_at", "text", (column) => column.notNull())
+    .addColumn("started_at", "text")
+    .addColumn("completed_at", "text")
+    .addColumn("updated_at", "text", (column) => column.notNull())
+    .execute();
+
+  await db.schema
     .createTable("meegle_workitem_syncs")
     .ifNotExists()
     .addColumn("project_key", "text", (column) => column.notNull())
@@ -151,11 +208,7 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .addColumn("payload_json", "text", (column) => column.notNull())
     .addColumn("source_updated_at", "text")
     .addColumn("synced_at", "text", (column) => column.notNull())
-    .addPrimaryKeyConstraint("meegle_workitem_syncs_pkey", [
-      "project_key",
-      "work_item_type_key",
-      "work_item_id",
-    ])
+    .addPrimaryKeyConstraint("meegle_workitem_syncs_pkey", ["project_key", "work_item_type_key", "work_item_id"])
     .execute();
 
   await db.schema
@@ -167,12 +220,7 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .addColumn("source_key", "text", (column) => column.notNull())
     .addColumn("display_value", "text", (column) => column.notNull())
     .addColumn("synced_at", "text", (column) => column.notNull())
-    .addPrimaryKeyConstraint("meegle_sync_mappings_pkey", [
-      "project_key",
-      "work_item_type_key",
-      "mapping_kind",
-      "source_key",
-    ])
+    .addPrimaryKeyConstraint("meegle_sync_mappings_pkey", ["project_key", "work_item_type_key", "mapping_kind", "source_key"])
     .execute();
 
   await db.schema
@@ -250,6 +298,14 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     ON oauth_sessions(provider, state)
   `.execute(db);
   await sql`
+    CREATE INDEX IF NOT EXISTS web_sessions_user_expires_idx
+    ON web_sessions(master_user_id, expires_at)
+  `.execute(db);
+  await sql`
+    CREATE INDEX IF NOT EXISTS github_pr_review_runs_user_updated_idx
+    ON github_pr_review_runs(master_user_id, updated_at)
+  `.execute(db);
+  await sql`
     CREATE INDEX IF NOT EXISTS meegle_workitem_syncs_status_idx
     ON meegle_workitem_syncs(project_key, status)
   `.execute(db);
@@ -268,6 +324,39 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
       key: STORY_PRD_TO_SIMPLIFIED_PROMPT_KEY,
       prompt: DEFAULT_STORY_PRD_TO_SIMPLIFIED_PROMPT_TEMPLATE,
       note: DEFAULT_STORY_PRD_TO_SIMPLIFIED_PROMPT_NOTE,
+      created_at: now,
+      updated_at: now,
+    })
+    .onConflict((conflict) => conflict.column("key").doNothing())
+    .execute();
+
+  await db.insertInto("workflow_prompts")
+    .values({
+      key: GITHUB_PR_CODE_REVIEW_FEEDBACK_PROMPT_KEY,
+      prompt: DEFAULT_GITHUB_PR_CODE_REVIEW_FEEDBACK_PROMPT_TEMPLATE,
+      note: DEFAULT_GITHUB_PR_CODE_REVIEW_FEEDBACK_PROMPT_NOTE,
+      created_at: now,
+      updated_at: now,
+    })
+    .onConflict((conflict) => conflict.column("key").doNothing())
+    .execute();
+
+  await db.insertInto("workflow_prompts")
+    .values({
+      key: GITHUB_PR_QUICK_SCAN_PROMPT_KEY,
+      prompt: DEFAULT_GITHUB_PR_QUICK_SCAN_PROMPT_TEMPLATE,
+      note: DEFAULT_GITHUB_PR_QUICK_SCAN_PROMPT_NOTE,
+      created_at: now,
+      updated_at: now,
+    })
+    .onConflict((conflict) => conflict.column("key").doNothing())
+    .execute();
+
+  await db.insertInto("workflow_prompts")
+    .values({
+      key: GITHUB_PR_DEEP_REVIEW_PROMPT_KEY,
+      prompt: DEFAULT_GITHUB_PR_DEEP_REVIEW_PROMPT_TEMPLATE,
+      note: DEFAULT_GITHUB_PR_DEEP_REVIEW_PROMPT_NOTE,
       created_at: now,
       updated_at: now,
     })
@@ -318,6 +407,14 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     ADD COLUMN IF NOT EXISTS meegle_user_key text
   `.execute(db);
   await sql`
+    ALTER TABLE github_pr_review_runs
+    ADD COLUMN IF NOT EXISTS feedback_count integer
+  `.execute(db);
+  await sql`
+    ALTER TABLE github_pr_review_runs
+    ADD COLUMN IF NOT EXISTS feedback_record_ids_json text
+  `.execute(db);
+  await sql`
     ALTER TABLE github_pr_syncs
     ADD COLUMN IF NOT EXISTS description text
   `.execute(db);
@@ -344,6 +441,9 @@ export async function resetPostgresDatabase(db: Kysely<DatabaseSchema>): Promise
   await sql`DROP TABLE IF EXISTS github_pr_syncs`.execute(db);
   await sql`DROP TABLE IF EXISTS meegle_sync_mappings`.execute(db);
   await sql`DROP TABLE IF EXISTS meegle_workitem_syncs`.execute(db);
+  await sql`DROP TABLE IF EXISTS github_pr_review_runs`.execute(db);
+  await sql`DROP TABLE IF EXISTS web_plugin_login_challenges`.execute(db);
+  await sql`DROP TABLE IF EXISTS web_sessions`.execute(db);
   await sql`DROP TABLE IF EXISTS workflow_prompts`.execute(db);
   await sql`DROP TABLE IF EXISTS acp_kimi_session_owners`.execute(db);
   await sql`DROP TABLE IF EXISTS oauth_sessions`.execute(db);
@@ -354,9 +454,13 @@ export async function resetPostgresDatabase(db: Kysely<DatabaseSchema>): Promise
 }
 
 let sharedDatabase: Kysely<DatabaseSchema> | undefined;
+let sharedConnection: PreparedPostgresConnection | undefined;
 
 export function getSharedDatabase(): Kysely<DatabaseSchema> {
   if (!sharedDatabase) {
+    if (process.env.DATABASE_SSH_ENABLED === "true" || process.env.DATABASE_SSH_ENABLED === "1") {
+      throw new Error("SSH tunnel is not ready; await ensureSharedDatabase() before using the shared database");
+    }
     sharedDatabase = createPostgresDatabase();
   }
 
@@ -368,11 +472,35 @@ let sharedDatabaseReady: Promise<Kysely<DatabaseSchema>> | undefined;
 export async function ensureSharedDatabase(): Promise<Kysely<DatabaseSchema>> {
   if (!sharedDatabaseReady) {
     sharedDatabaseReady = (async () => {
-      const db = getSharedDatabase();
+      const postgresUri = getDefaultPostgresUri();
+      if (!postgresUri) {
+        throw new Error("POSTGRES_URI is not configured");
+      }
+      sharedConnection = await preparePostgresConnection(postgresUri);
+      sharedDatabase = createPostgresDatabase(sharedConnection.postgresUri);
+      const db = sharedDatabase;
       await ensurePostgresSchema(db);
       return db;
-    })();
+    })().catch(async (error: unknown) => {
+      await sharedDatabase?.destroy();
+      sharedDatabase = undefined;
+      await sharedConnection?.close();
+      sharedConnection = undefined;
+      sharedDatabaseReady = undefined;
+      throw error;
+    });
   }
 
   return sharedDatabaseReady;
+}
+
+export async function closeSharedDatabase(): Promise<void> {
+  const db = sharedDatabase;
+  const connection = sharedConnection;
+  sharedDatabase = undefined;
+  sharedConnection = undefined;
+  sharedDatabaseReady = undefined;
+
+  await db?.destroy();
+  await connection?.close();
 }

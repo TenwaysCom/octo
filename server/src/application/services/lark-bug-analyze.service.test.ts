@@ -54,7 +54,7 @@ describe("meegle production bug analyze service", () => {
     }
   });
 
-  it("reads bug description from Lark Message Link and appends analysis to Details Description", async () => {
+  it("reads bug description plus root and first 50 thread messages from Lark Message Link", async () => {
     const getRecord = vi.fn().mockResolvedValue({
       record_id: "rec_1",
       fields: {
@@ -65,13 +65,22 @@ describe("meegle production bug analyze service", () => {
     });
     const getThreadMessages = vi.fn().mockResolvedValue({
       items: [
-        {
-          message_id: "om_1",
+        ...Array.from({ length: 50 }, (_item, index) => ({
+          message_id: `om_${index + 1}`,
           root_id: "om_root",
-          content: JSON.stringify({ text: "Original bug from Lark message" }),
+          content: JSON.stringify({ text: `Thread reply ${index + 1}` }),
+        })),
+        {
+          message_id: "om_51",
+          root_id: "om_root",
+          content: JSON.stringify({ text: "Thread reply 51 should be truncated" }),
         },
       ],
       hasMore: false,
+    });
+    const getMessage = vi.fn().mockResolvedValue({
+      message_id: "thread_1",
+      content: JSON.stringify({ text: "Thread root message itself" }),
     });
     const updateRecord = vi.fn().mockResolvedValue({
       record_id: "rec_1",
@@ -123,6 +132,7 @@ describe("meegle production bug analyze service", () => {
         }),
         createLarkClient: vi.fn(() => ({
           getRecord,
+          getMessage,
           getThreadMessages,
           updateRecord,
         }) as never),
@@ -141,10 +151,32 @@ describe("meegle production bug analyze service", () => {
     );
 
     expect(result.ok).toBe(true);
+    expect(getMessage).toHaveBeenCalledWith("thread_1");
     expect(getThreadMessages).toHaveBeenCalledWith("thread_1");
     expect(acpService.chatOneShot).toHaveBeenCalledWith(
       expect.objectContaining({
-        message: expect.stringContaining("Original bug from Lark message"),
+        message: expect.stringContaining("Thread root message itself"),
+      }),
+      expect.any(Function),
+      expect.any(Object),
+    );
+    expect(acpService.chatOneShot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: expect.stringContaining("Thread reply 1"),
+      }),
+      expect.any(Function),
+      expect.any(Object),
+    );
+    expect(acpService.chatOneShot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: expect.stringContaining("Thread reply 50"),
+      }),
+      expect.any(Function),
+      expect.any(Object),
+    );
+    expect(acpService.chatOneShot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: expect.not.stringContaining("Thread reply 51 should be truncated"),
       }),
       expect.any(Function),
       expect.any(Object),

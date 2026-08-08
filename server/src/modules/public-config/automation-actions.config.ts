@@ -29,7 +29,7 @@ export const AUTOMATION_ACTIONS = {
   },
   bulkCreateMeegleTickets: {
     key: "bulk-create-meegle-tickets",
-    title: "创建 Meegle Item",
+    title: "批量创建 Meegle Item",
     style: "default",
     placements: [{ surface: "popup" }, { surface: "sidebar" }],
     interaction: {
@@ -111,6 +111,121 @@ export const AUTOMATION_ACTIONS = {
     executor: {
       type: "frontend",
       actionKey: "lookup-github-pr",
+    },
+  },
+  githubQuickScan: {
+    key: "github-quick-scan",
+    title: "Quick scan（后台执行）",
+    description: "后台扫描当前 PR 的结构性风险；完成后自动回写 PR 评论并通知你。",
+    style: "default",
+    placements: [{ surface: "popup" }, { surface: "sidebar" }],
+    interaction: {
+      type: "direct_execute",
+    },
+    executor: {
+      type: "backend_api",
+      operation: "github.pr.quick_scan",
+      method: "POST",
+      route: "/api/github/pr/review",
+    },
+    execution: {
+      mode: "async",
+      submit: {
+        message: "已提交后台 Quick scan；可关闭插件，完成后会通知你。",
+        style: "info",
+      },
+      completion: {
+        status: {
+          method: "GET",
+          route: "/api/github/pr/review/:actionRunId",
+          pollIntervalMs: 5000,
+        },
+        success: {
+          message: "Quick scan 已完成，审查结果已回写到 PR。",
+          style: "success",
+          notification: {
+            title: "Quick scan 已完成",
+            message: "PR 审查结果已回写到 GitHub。",
+          },
+        },
+        failure: {
+          message: "Quick scan 执行失败，请查看任务状态或日志。",
+          style: "error",
+        },
+      },
+    },
+  },
+  githubDeepReview: {
+    key: "github-deep-review",
+    title: "Deep review（后台执行）",
+    description: "后台执行当前 PR 的深度代码审查；完成后自动回写 PR 评论并通知你。",
+    style: "primary",
+    placements: [{ surface: "popup" }, { surface: "sidebar" }],
+    interaction: {
+      type: "direct_execute",
+    },
+    executor: {
+      type: "backend_api",
+      operation: "github.pr.deep_review",
+      method: "POST",
+      route: "/api/github/pr/review",
+    },
+    execution: {
+      mode: "async",
+      submit: {
+        message: "已提交后台 Deep review；可关闭插件，完成后会通知你。",
+        style: "info",
+      },
+      completion: {
+        status: {
+          method: "GET",
+          route: "/api/github/pr/review/:actionRunId",
+          pollIntervalMs: 5000,
+        },
+        success: {
+          message: "Deep review 已完成，审查结果已回写到 PR。",
+          style: "success",
+          notification: {
+            title: "Deep review 已完成",
+            message: "PR 深度审查结果已回写到 GitHub。",
+          },
+        },
+        failure: {
+          message: "Deep review 执行失败，请查看任务状态或日志。",
+          style: "error",
+        },
+      },
+    },
+  },
+  githubCodeReviewFeedback: {
+    key: "github-code-review-feedback",
+    title: "Code review feedback（后台执行）",
+    description: "审查当前 PR，并将结构化反馈写入 Lark Base。",
+    style: "default",
+    placements: [{ surface: "popup" }, { surface: "sidebar" }],
+    interaction: { type: "direct_execute" },
+    executor: {
+      type: "backend_api",
+      operation: "github.pr.code_review_feedback",
+      method: "POST",
+      route: "/api/github/pr/code-review-feedback",
+    },
+    execution: {
+      mode: "async",
+      submit: { message: "已提交 Code review feedback；完成后会通知你。", style: "info" },
+      completion: {
+        status: {
+          method: "GET",
+          route: "/api/github/pr/code-review-feedback/:actionRunId",
+          pollIntervalMs: 5000,
+        },
+        success: {
+          message: "Code review feedback 已写入 Lark Base。",
+          style: "success",
+          notification: { title: "Code review feedback 已完成", message: "反馈已写入 Lark Base。" },
+        },
+        failure: { message: "Code review feedback 执行失败，请查看任务状态或日志。", style: "error" },
+      },
     },
   },
   lookupGithubIssue: {

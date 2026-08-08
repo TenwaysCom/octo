@@ -2,10 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./config.js", () => ({
   getConfig: vi.fn().mockResolvedValue({
-    SERVER_URL: "http://localhost:3000",
+  SERVER_URL: "http://localhost:3000",
+  ENV_NAME: "dev",
     MEEGLE_PLUGIN_ID: "MEEGLE_PLUGIN_ID",
     LARK_APP_ID: "cli_test",
-    LARK_OAUTH_CALLBACK_URL: "http://localhost:3000/api/lark/auth/callback",
+  LARK_OAUTH_CALLBACK_URL: "http://localhost:3000/api/lark/auth/callback",
+  LARK_OAUTH_SCOPE: "offline_access",
+  CLIENT_DEBUG_LOG_UPLOAD_ENABLED: false,
     MEEGLE_BASE_URL: "https://project.larksuite.com",
   }),
 }));
@@ -95,6 +98,55 @@ describe("background router lark_base workflow", () => {
         },
       );
     });
+  });
+
+  it("approves a same-environment plugin login without sending browser credentials", async () => {
+    const { getConfig } = await import("./config.js");
+    const { getStoredMasterUserId } = await import("./storage.js");
+    vi.mocked(getConfig).mockResolvedValueOnce({
+      SERVER_URL: "https://octotest.odoo.tenways.it:18443",
+      ENV_NAME: "test",
+      MEEGLE_PLUGIN_ID: "MEEGLE_PLUGIN_ID",
+      LARK_APP_ID: "cli_test",
+      LARK_OAUTH_CALLBACK_URL: "https://octotest.odoo.tenways.it:18443/api/lark/auth/callback",
+      LARK_OAUTH_SCOPE: "offline_access",
+      CLIENT_DEBUG_LOG_UPLOAD_ENABLED: false,
+      MEEGLE_BASE_URL: "https://project.larksuite.com",
+    });
+    vi.mocked(getStoredMasterUserId).mockResolvedValueOnce("usr_plugin");
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: vi.fn().mockResolvedValue({ ok: true, data: { approved: true } }),
+    } as unknown as Response);
+
+    await expect(routeBackgroundAction({
+      action: "octo.web.plugin-login.approve",
+      payload: {
+        challengeId: "challenge_123",
+        pageOrigin: "https://octotest.odoo.tenways.it:18443",
+      },
+    })).resolves.toEqual({
+      action: "octo.web.plugin-login.approve",
+      payload: { status: "approved" },
+    });
+    expect(fetch).toHaveBeenCalledWith(
+      "https://octotest.odoo.tenways.it:18443/api/web/plugin-login/approve",
+      expect.objectContaining({ headers: expect.objectContaining({ "master-user-id": "usr_plugin" }) }),
+    );
+    const body = JSON.parse(vi.mocked(fetch).mock.calls[0]?.[1]?.body as string);
+    expect(body).toEqual({ challengeId: "challenge_123", masterUserId: "usr_plugin" });
+  });
+
+  it("does not approve plugin login when the current page is a different environment", async () => {
+    await expect(routeBackgroundAction({
+      action: "octo.web.plugin-login.approve",
+      payload: { challengeId: "challenge_123", pageOrigin: "https://octotest.odoo.tenways.it:18443" },
+    })).resolves.toEqual({
+      action: "octo.web.plugin-login.approve",
+      payload: { status: "failed", errorCode: "ENVIRONMENT_MISMATCH" },
+    });
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it("forwards lark_base.create_workitem to the server endpoint", async () => {

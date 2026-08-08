@@ -1,5 +1,5 @@
 import type { PopupLogLevel, PopupNotebookPage } from "../popup/types.js";
-import { runMeegleLarkPushRequest } from "../popup/runtime.js";
+import { runMeegleLarkPushRequest, type PopupTabContext } from "../popup/runtime.js";
 import { collectActionRuntimeContext } from "./action-runtime-context.js";
 
 type PopupStoreSnapshot = {
@@ -26,6 +26,7 @@ interface CreateMeeglePushControllerDeps {
   appendLog: (level: PopupLogLevel, message: string) => void;
   showToast: (text: string, level?: PopupLogLevel) => void;
   setActivePage: (page: PopupNotebookPage) => void;
+  queryCurrentTabContext?: () => Promise<PopupTabContext>;
   updateCurrentTabUrl: (tabId: number, url: string) => void;
 }
 
@@ -48,7 +49,14 @@ function resolveServerErrorMessage(error: unknown): string {
 }
 
 export function createMeeglePushController(deps: CreateMeeglePushControllerDeps) {
-  const { readStore, appendLog, showToast, setActivePage, updateCurrentTabUrl } = deps;
+  const {
+    readStore,
+    appendLog,
+    showToast,
+    setActivePage,
+    queryCurrentTabContext,
+    updateCurrentTabUrl,
+  } = deps;
 
   async function run(options: MeeglePushRunOptions = {}): Promise<void> {
     const logLabel = options.logLabel ?? "更新Lark及推送";
@@ -58,14 +66,30 @@ export function createMeeglePushController(deps: CreateMeeglePushControllerDeps)
     appendLog("info", `[${logLabel}] 开始执行${actionRunId ? ` · actionRunId=${actionRunId}` : ""}`);
 
     const current = readStore();
+    const currentTab = {
+      id: current.state.currentTabId,
+      url: current.state.currentUrl,
+      origin: current.state.currentTabOrigin,
+      pageType: current.state.pageType ?? "meegle",
+    };
+
+    if (queryCurrentTabContext) {
+      try {
+        const refreshedTab = await queryCurrentTabContext();
+        if (refreshedTab?.url || refreshedTab?.origin) {
+          currentTab.id = refreshedTab.id ?? currentTab.id;
+          currentTab.url = refreshedTab.url ?? currentTab.url;
+          currentTab.origin = refreshedTab.origin ?? currentTab.origin;
+          currentTab.pageType = refreshedTab.pageType ?? currentTab.pageType;
+        }
+      } catch {
+        appendLog("warn", `[${logLabel}] 刷新当前页面信息失败，继续使用已缓存页面信息`);
+      }
+    }
+
     const actionContext = collectActionRuntimeContext({
       actionRunId: actionRunId ?? "",
-      currentTab: {
-        id: current.state.currentTabId,
-        url: current.state.currentUrl,
-        origin: current.state.currentTabOrigin,
-        pageType: current.state.pageType ?? "meegle",
-      },
+      currentTab,
       identity: {
         masterUserId: current.state.identity.masterUserId,
       },
@@ -142,7 +166,7 @@ export function createMeeglePushController(deps: CreateMeeglePushControllerDeps)
     appendLog("success", successMessage);
 
     setActivePage("chat");
-    if (current.state.currentTabId == null) {
+    if (currentTab.id == null) {
       return;
     }
 
@@ -150,7 +174,7 @@ export function createMeeglePushController(deps: CreateMeeglePushControllerDeps)
       const url = new URL(currentUrl);
       url.searchParams.set("tabKey", "txHFa5L16");
       url.hash = "txHFa5L16";
-      updateCurrentTabUrl(current.state.currentTabId, url.toString());
+      updateCurrentTabUrl(currentTab.id, url.toString());
       appendLog("info", `[${logLabel}] 已跳转页面: ${url.toString()}`);
     } catch {
       appendLog("warn", `[${logLabel}] 页面跳转失败`);

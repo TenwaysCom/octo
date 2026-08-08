@@ -74,4 +74,21 @@ describe("extension manifest", () => {
 
     expect(callbackContentScript?.matches).toContain("http://localhost/api/lark/auth/callback*");
   });
+
+  it("limits the Octo web content script to configured Octo origins", () => {
+    const manifestPath = path.resolve(import.meta.dirname, "../manifest.json");
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8")) as {
+      host_permissions?: string[];
+      content_scripts?: Array<{ matches?: string[] }>;
+    };
+    const octoWebContentScript = manifest.content_scripts?.find((entry) =>
+      entry.matches?.includes("https://octo.odoo.tenways.it/*"),
+    );
+
+    expect(manifest.host_permissions).toContain("https://octo.odoo.tenways.it/*");
+    expect(manifest.host_permissions).toContain("https://octotest.odoo.tenways.it/*");
+    expect(manifest.host_permissions).not.toContain("<all_urls>");
+    expect(octoWebContentScript?.matches).toContain("http://localhost/*");
+    expect(octoWebContentScript?.matches).toContain("https://octotest.odoo.tenways.it/*");
+  });
 });

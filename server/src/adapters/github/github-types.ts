@@ -12,6 +12,20 @@ export interface GitHubPrDetails {
   base?: { ref?: string };
 }
 
+export interface GitHubPullRequestFile {
+  filename: string;
+  status: "added" | "modified" | "removed" | "renamed" | string;
+  additions: number;
+  deletions: number;
+  changes: number;
+  patch?: string;
+}
+
+export interface GitHubIssueCommentCreated {
+  id: number;
+  html_url: string;
+}
+
 export interface GitHubIssueDetails {
   title: string;
   body: string | null;

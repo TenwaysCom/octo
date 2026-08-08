@@ -19,4 +19,5 @@ worktrees
 .DS_store
 logs
 .pnpm-store
+.workbuddy
 server/config/platform-sync.local.json

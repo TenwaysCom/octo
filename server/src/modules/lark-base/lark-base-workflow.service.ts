@@ -50,6 +50,8 @@ const DEFAULT_ISSUE_TYPE_FALLBACK = process.env.LARK_BASE_DEFAULT_ISSUE_TYPE_FAL
 const FIELD_LARK_RECORD_LINK = "field_e8ad0a";
 const FIELD_LARK_MESSAGE_LINK = "field_8d0341";
 const MEEGLE_VERSION_FIELD_NAME = "MeegleVersion";
+const MEEGLE_LINK_FIELD_NAMES = ["meegle链接", "Meegle Link", "meegleLink"];
+const MEEGLE_LINK_ALREADY_EXISTS_MESSAGE = "Meegle 链接已经有记录。";
 const LARK_MESSAGE_LINK_PATTERN = "https?:\\/\\/[^\\s\"<>]*(?:threadid|chatid|messageid)=[^\\s\"<>]*";
 const URL_IN_TEXT_PATTERN = /https?:\/\/[^\s"'<>)\]]+/i;
 const MARKDOWN_LINK_HREF_PATTERN = /\[[^\]]*]\((https?:\/\/[^\s"'<>)]*)\)/i;
@@ -316,6 +318,25 @@ function stringifyLarkValue(raw: unknown): string {
     return String((raw as Record<string, unknown>).text ?? (raw as Record<string, unknown>).name ?? "");
   }
   return "";
+}
+
+function stringifyLarkLinkValue(raw: unknown): string {
+  if (typeof raw === "string") return raw;
+  if (typeof raw === "number" || typeof raw === "boolean") return String(raw);
+  if (Array.isArray(raw)) {
+    return raw.map((item) => stringifyLarkLinkValue(item)).filter(Boolean).join(", ");
+  }
+  if (raw && typeof raw === "object") {
+    const value = raw as Record<string, unknown>;
+    return stringifyLarkLinkValue(value.link ?? value.url ?? value.text ?? value.name ?? value.value);
+  }
+  return "";
+}
+
+function extractExistingMeegleLink(fields: Record<string, unknown>): string | undefined {
+  const raw = extractRawLarkValue(fields, MEEGLE_LINK_FIELD_NAMES);
+  const value = stringifyLarkLinkValue(raw).trim();
+  return value || undefined;
 }
 
 function applyTransform(value: string, transform: FieldMappingConfig["transform"], options?: Record<string, string>): string {
@@ -596,6 +617,23 @@ function workflowFailed(
   };
 }
 
+function workflowSkipped(
+  request: CreateLarkBaseWorkflowRequest,
+  error: ActionErrorEnvelope,
+): LarkBaseWorkflowError {
+  workflowLogger.info({
+    actionRunId: request.actionRunId,
+    recordId: request.recordId,
+    errorCode: error.errorCode,
+    errorMessage: error.errorMessage,
+  }, "server.workflow.skipped");
+
+  return {
+    ok: false,
+    error,
+  };
+}
+
 // ==================== Orchestrator ====================
 
 export async function executeLarkBaseWorkflow(
@@ -662,6 +700,20 @@ export async function executeLarkBaseWorkflow(
         module: MODULE,
         stage: "server.workflow.failed",
         errorCode: "LARK_API_ERROR",
+        actionRunId: request.actionRunId,
+      }),
+    );
+  }
+
+  const existingMeegleLink = extractExistingMeegleLink(record.fields);
+  if (existingMeegleLink) {
+    return workflowSkipped(
+      request,
+      createActionErrorEnvelope({
+        module: MODULE,
+        stage: "server.workflow.skipped",
+        errorCode: "MEEGLE_LINK_ALREADY_EXISTS",
+        errorMessage: MEEGLE_LINK_ALREADY_EXISTS_MESSAGE,
         actionRunId: request.actionRunId,
       }),
     );
