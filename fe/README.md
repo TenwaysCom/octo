@@ -28,7 +28,7 @@ must never contain credentials.
 
 For a production static deployment, serve `dist/` and reverse proxy `/api` to
 the Octo server. A separate API domain needs an explicit CORS policy; same
-origin is preferred.
+origin is preferred. See [deployment instructions](docs/deployment.md).
 
 ## Lark login boundary
 
@@ -48,17 +48,15 @@ the plugin on a Meegle page or obtains the package URL from
 `/api/extension/version`. Configure `EXTENSION_DOWNLOAD_URL` on the server for
 the latter.
 
-Configure the Octo server separately for the deployed FE origin:
+Configure the server callback with the shared FE/API origin:
 
 ```bash
-LARK_WEB_APP_URL=https://octo.example.com
-OCTO_WEB_ALLOWED_ORIGINS=https://octo.example.com
-LARK_OAUTH_CALLBACK_URL=https://api.example.com/api/lark/auth/callback
+LARK_OAUTH_CALLBACK_URL=https://octo.example.com/api/lark/auth/callback
 ```
 
-Register `LARK_OAUTH_CALLBACK_URL` in the Lark application. For a separate FE
-and API origin, the allowed-origin setting enables credentialed CORS; serving
-the API under the same `/api` origin is preferred.
+Register `LARK_OAUTH_CALLBACK_URL` in the Lark application. The server derives
+the Web redirect and credentialed-CORS origin from this URL; FE and API must be
+served on the same origin.
 
 When packaging the extension, configure the same exact FE origin:
 

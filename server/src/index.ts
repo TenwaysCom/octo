@@ -66,7 +66,7 @@ const stdoutServerLogger = stdoutLogger.child({ module: "server" });
 const LARK_APP_ID = process.env.LARK_APP_ID || "";
 const LARK_APP_SECRET = process.env.LARK_APP_SECRET || "";
 const LARK_OAUTH_CALLBACK_URL = process.env.LARK_OAUTH_CALLBACK_URL || "http://localhost:3000/api/lark/auth/callback";
-const LARK_WEB_APP_URL = process.env.LARK_WEB_APP_URL || "http://localhost:4173";
+const LARK_WEB_ORIGIN = new URL(LARK_OAUTH_CALLBACK_URL).origin;
 const LARK_AUTH_BASE_URL = process.env.LARK_AUTH_BASE_URL || "https://open.larksuite.com";
 const LARK_OAUTH_SCOPE = process.env.LARK_OAUTH_SCOPE || "offline_access contact:user.base:readonly bitable:app base:record:retrieve im:message.send_as_user im:message.reactions:write_only im:chat:readonly im:message";
 const MEEGLE_PLUGIN_ID = process.env.MEEGLE_PLUGIN_ID || "";
@@ -89,7 +89,7 @@ if (LARK_APP_ID && LARK_APP_SECRET) {
     appId: LARK_APP_ID,
     appSecret: LARK_APP_SECRET,
     oauthCallbackUrl: LARK_OAUTH_CALLBACK_URL,
-    webAppUrl: LARK_WEB_APP_URL,
+    webAppUrl: LARK_WEB_ORIGIN,
     oauthBaseUrl: LARK_AUTH_BASE_URL,
     oauthScope: LARK_OAUTH_SCOPE,
   });
@@ -125,10 +125,7 @@ if (MEEGLE_PLUGIN_ID && MEEGLE_PLUGIN_SECRET) {
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || "0.0.0.0";
-const WEB_ALLOWED_ORIGINS = (process.env.OCTO_WEB_ALLOWED_ORIGINS || LARK_WEB_APP_URL)
-  .split(",")
-  .map((origin) => origin.trim())
-  .filter(Boolean);
+const WEB_ALLOWED_ORIGINS = [LARK_WEB_ORIGIN];
 
 function getMasterUserIdHeader(req: Request): string | undefined {
   const headerValue = req.headers["master-user-id"];
