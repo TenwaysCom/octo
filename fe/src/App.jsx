@@ -250,6 +250,16 @@ function getMeegleWorkitemCategory(item) {
   return "other";
 }
 
+function getMeegleWorkitemDetailUrl(item) {
+  const urlSlugByCategory = {
+    story: "story",
+    "tech-task": "techtask",
+    bug: "production_bug",
+  };
+  const urlSlug = urlSlugByCategory[getMeegleWorkitemCategory(item)] || item.workItemTypeKey;
+  return `https://project.larksuite.com/${encodeURIComponent(item.projectKey)}/${encodeURIComponent(urlSlug)}/detail/${encodeURIComponent(item.workItemId)}`;
+}
+
 function matchesDateFilter(item, dateFilter) {
   if (dateFilter === "all-time") {
     return true;
@@ -334,7 +344,7 @@ function SyncedListTable({ kind, items, sort, onSort }) {
 
   if (kind === "meegle-workitems") {
     return <table className="data-table"><thead><tr><th><SortableColumnHeader label="工作项" sortKey="workitem" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="项目 / 类型" sortKey="projectType" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="状态" sortKey="status" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="Sprint / Version" sortKey="sprintVersion" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="System" sortKey="system" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="负责人" sortKey="assignee" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="更新时间" sortKey="updatedAt" sort={sort} onSort={onSort} /></th></tr></thead><tbody>
-      {items.map((item) => <tr key={`${item.projectKey}-${item.workItemTypeKey}-${item.workItemId}`}><td><strong>{item.workItemKey || item.workItemId}</strong><small>{item.title}</small></td><td>{item.projectName || item.projectKey}<small>{item.workItemType || item.workItemTypeKey}</small></td><td><StatusPill>{item.status}</StatusPill><small>{item.subStage || ""}</small></td><td>{item.sprint || "-"}<small>{item.version || "-"}</small></td><td>{item.system || "-"}</td><td>{item.assignee || "-"}</td><td>{formatDateTime(item.sourceUpdatedAt || item.syncedAt)}</td></tr>)}
+      {items.map((item) => <tr key={`${item.projectKey}-${item.workItemTypeKey}-${item.workItemId}`}><td><ExternalLink href={getMeegleWorkitemDetailUrl(item)}>{item.workItemKey || item.workItemId}</ExternalLink><small>{item.title}</small></td><td>{item.projectName || item.projectKey}<span className={`workitem-type-badge workitem-type-badge--${getMeegleWorkitemCategory(item)}`}>{item.workItemType || item.workItemTypeKey}</span></td><td><StatusPill>{item.status}</StatusPill><small>{item.subStage || ""}</small></td><td>{item.sprint || "-"}<small>{item.version || "-"}</small></td><td>{item.system || "-"}</td><td>{item.assignee || "-"}</td><td>{formatDateTime(item.sourceUpdatedAt || item.syncedAt)}</td></tr>)}
     </tbody></table>;
   }
 
@@ -354,10 +364,12 @@ function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy }) {
   const [filterOpen, setFilterOpen] = useState(false);
   const [pageIndex, setPageIndex] = useState(0);
   const statusFilters = [...new Set(state.items.map((item) => getPlatformItemStatus(page, item)))].sort((left, right) => left.localeCompare(right));
-  const filteredItems = filterPlatformItems(state.items, query)
-    .filter((item) => page !== "meegle-workitems" || workitemTypeFilter === "all" || getMeegleWorkitemCategory(item) === workitemTypeFilter)
+  const itemsBeforeTypeFilter = filterPlatformItems(state.items, query)
     .filter((item) => selectedStatuses === null || selectedStatuses.includes(getPlatformItemStatus(page, item)))
     .filter((item) => matchesDateFilter(item, dateFilter));
+  const workitemTypeCounts = Object.fromEntries(MEEGLE_WORKITEM_TYPE_FILTERS.map(([value]) => [value, value === "all" ? itemsBeforeTypeFilter.length : itemsBeforeTypeFilter.filter((item) => getMeegleWorkitemCategory(item) === value).length]));
+  const filteredItems = itemsBeforeTypeFilter
+    .filter((item) => page !== "meegle-workitems" || workitemTypeFilter === "all" || getMeegleWorkitemCategory(item) === workitemTypeFilter);
   const sortedItems = sortPlatformItems(filteredItems, page, sort);
   const pageCount = Math.max(1, Math.ceil(sortedItems.length / LIST_PAGE_SIZE));
   const currentPageIndex = Math.min(pageIndex, pageCount - 1);
@@ -399,7 +411,7 @@ function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy }) {
                 type="button"
                 key={value}
                 onClick={() => { setWorkitemTypeFilter(value); setPageIndex(0); }}
-              >{label}</button>)}
+              >{label} {workitemTypeCounts[value]}</button>)}
             </div> : null}
             <div className="list-toolbar__actions">
               {page === "meegle-workitems" ? <label className="list-date-filter list-sprint-filter">
