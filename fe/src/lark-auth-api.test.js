@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getExtensionDownloadInfo, getWebAuthSession, getWebProfile, logoutWebAuthSession, startLarkLogin } from "./lark-auth-api.js";
+import { completeOctoPluginLogin, getExtensionDownloadInfo, getWebAuthSession, getWebProfile, logoutWebAuthSession, startLarkLogin, startOctoPluginLogin } from "./lark-auth-api.js";
 
 test("loads the server-owned web session with browser credentials", async () => {
   let request;
@@ -74,4 +74,28 @@ test("starts and ends Lark login through the configured server", async () => {
   });
   assert.equal(request.url, "/api/lark/auth/web/logout");
   assert.equal(request.options.credentials, "include");
+});
+
+test("creates and completes plugin login with browser credentials only", async () => {
+  const requests = [];
+  const fetchImpl = async (url, options) => {
+    requests.push({ url, options });
+    return {
+      ok: true,
+      json: async () => url.endsWith("/start")
+        ? { ok: true, data: { challengeId: "challenge_123", expiresAt: "2026-08-08T00:05:00.000Z" } }
+        : { ok: true, data: { loggedIn: true } },
+    };
+  };
+
+  await assert.doesNotReject(async () => {
+    const challenge = await startOctoPluginLogin({ apiBaseUrl: "/api", fetchImpl });
+    assert.equal(challenge.challengeId, "challenge_123");
+    assert.equal(await completeOctoPluginLogin({ apiBaseUrl: "/api", challengeId: challenge.challengeId, fetchImpl }), true);
+  });
+  assert.equal(requests[0].url, "/api/web/plugin-login/start");
+  assert.equal(requests[0].options.credentials, "include");
+  assert.equal(requests[1].url, "/api/web/plugin-login/complete");
+  assert.equal(JSON.parse(requests[1].options.body).challengeId, "challenge_123");
+  assert.equal(requests[1].options.credentials, "include");
 });

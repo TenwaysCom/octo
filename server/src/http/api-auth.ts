@@ -15,6 +15,8 @@ const DEFAULT_EXEMPT_PATHS = new Set([
   "/api/lark/auth/web/ensure",
   "/api/lark/auth/web/logout",
   "/api/web/profile",
+  "/api/web/plugin-login/start",
+  "/api/web/plugin-login/complete",
 ]);
 
 function getMasterUserIdHeader(req: Request): string | undefined {

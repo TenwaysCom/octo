@@ -14,6 +14,8 @@ import {
   validateLarkTokenRefreshRequest,
   validateLarkAuthStatusRequest,
   validateLarkUserInfoRequest,
+  validateWebPluginLoginApprovalRequest,
+  validateWebPluginLoginCompletionRequest,
 } from "./lark-auth.dto.js";
 import {
   exchangeLarkAuthCode,
@@ -27,6 +29,9 @@ import {
   getLarkWebProfile,
   handleLarkWebAuthCallback,
   logoutLarkWebSession,
+  approveWebPluginLoginChallenge,
+  completeWebPluginLoginChallenge,
+  createWebPluginLoginChallenge,
 } from "./lark-auth.service.js";
 
 export interface LarkAuthControllerDeps {
@@ -39,6 +44,7 @@ export interface LarkAuthControllerDeps {
 }
 
 export const WEB_SESSION_COOKIE_NAME = "octo_web_session";
+export const WEB_PLUGIN_LOGIN_COOKIE_NAME = "octo_web_plugin_login";
 const DEFAULT_OAUTH_BASE_URL = "https://open.larksuite.com";
 const DEFAULT_OAUTH_SCOPE = "offline_access contact:user.base:readonly bitable:app base:record:retrieve im:message.send_as_user im:message.reactions:write_only im:chat:readonly im:message";
 
@@ -347,6 +353,86 @@ export async function logoutWebLarkAuthController(cookieHeader: string | undefin
     ok: true as const,
     data: { loggedOut: true },
   };
+}
+
+export async function startWebPluginLoginController() {
+  const challenge = await createWebPluginLoginChallenge();
+  return {
+    statusCode: 200,
+    browserProof: challenge.browserProof,
+    body: {
+      ok: true as const,
+      data: {
+        challengeId: challenge.challengeId,
+        expiresAt: challenge.expiresAt,
+      },
+    },
+  };
+}
+
+export async function approveWebPluginLoginController(request: unknown) {
+  try {
+    const validated = validateWebPluginLoginApprovalRequest(request);
+    const result = await approveWebPluginLoginChallenge(validated);
+    if (!result.ok) {
+      return {
+        statusCode: 409,
+        body: {
+          ok: false as const,
+          error: {
+            errorCode: result.errorCode,
+            errorMessage: result.errorMessage,
+          },
+        },
+      };
+    }
+
+    return {
+      statusCode: 200,
+      body: { ok: true as const, data: { approved: true } },
+    };
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return { statusCode: 400, body: toInvalidRequest(error) };
+    }
+    throw error;
+  }
+}
+
+export async function completeWebPluginLoginController(input: {
+  request: unknown;
+  cookieHeader: string | undefined;
+}) {
+  try {
+    const validated = validateWebPluginLoginCompletionRequest(input.request);
+    const result = await completeWebPluginLoginChallenge({
+      challengeId: validated.challengeId,
+      browserProof: readCookie(input.cookieHeader, WEB_PLUGIN_LOGIN_COOKIE_NAME),
+    });
+    if (!result.ok) {
+      return {
+        statusCode: 401,
+        body: {
+          ok: false as const,
+          error: {
+            errorCode: result.errorCode,
+            errorMessage: result.errorMessage,
+          },
+        },
+      };
+    }
+
+    return {
+      statusCode: 200,
+      webSessionToken: result.sessionToken,
+      body: { ok: true as const, data: { loggedIn: true } },
+    };
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return { statusCode: 400, body: toInvalidRequest(error) };
+    }
+    throw error;
+  }
 }
 
 export async function createOauthSessionController(request: unknown) {

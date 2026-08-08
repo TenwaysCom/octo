@@ -22,7 +22,9 @@
     "https://*.larksuite.com/*",
     "https://meegle.com/*",
     "https://*.meegle.com/*",
-    "https://github.com/*"
+    "https://github.com/*",
+    "https://octo.odoo.tenways.it/*",
+    "https://octotest.odoo.tenways.it/*"
   ],
   "background": {
     "service_worker": "background/router.js",
@@ -43,7 +45,9 @@
     },
     {
       "matches": [
-        "http://localhost/*"
+        "http://localhost/*",
+        "https://octo.odoo.tenways.it/*",
+        "https://octotest.odoo.tenways.it/*"
       ],
       "js": [
         "content-scripts/octo-web.js"

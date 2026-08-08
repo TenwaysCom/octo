@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import { detectOctoExtension } from "./extension-presence.js";
+import { approveOctoPluginLogin, detectOctoExtension } from "./extension-presence.js";
 import {
   getExtensionDownloadInfo,
   getWebProfile,
   logoutWebAuthSession,
+  completeOctoPluginLogin,
+  startOctoPluginLogin,
   startLarkLogin,
 } from "./lark-auth-api.js";
 
@@ -94,7 +96,8 @@ function ProfilePage({ profile, extension, onLogout, onReauthorize, onInstall, i
   </div>;
 }
 
-function LoginPage({ status, isBusy, onLogin }) {
+function LoginPage({ status, isBusy, extension, onLogin, onPluginLogin }) {
+  const extensionDetected = extension.status === "detected";
   return <div className="login-content">
     <p className="eyebrow">项目协作工作台</p>
     <h1 id="login-title">使用 Lark 继续</h1>
@@ -111,12 +114,20 @@ function LoginPage({ status, isBusy, onLogin }) {
       <span>使用 Lark 登录</span>
       <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 10h11m-4-4 4 4-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
     </button>
+    <button className="secondary-button login-plugin-button" type="button" disabled={isBusy || !extensionDetected} onClick={onPluginLogin}>
+      使用 Octo 插件登录
+    </button>
+    <p className="help-text">{extension.status === "checking"
+      ? "正在检测 Octo 插件…"
+      : extensionDetected
+        ? "将使用插件中已有的 Lark 授权完成登录。"
+        : "未检测到 Octo 插件；你仍可使用 Lark 登录。"}</p>
 
     <div className="security-note">
       <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 2.75 16 5v4.25c0 3.4-2.3 6.48-6 7.75-3.7-1.27-6-4.35-6-7.75V5l6-2.25Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /><path d="m7.6 9.9 1.55 1.55 3.3-3.3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
       <p>登录令牌仅保存在 Octo 服务端；浏览器只持有 HttpOnly 的工作台会话 Cookie。</p>
     </div>
-    <p className="help-text">无需安装浏览器扩展，也不会读取 Chrome 或 Meegle 的 Cookie。</p>
+    <p className="help-text">不会读取 Chrome 或 Meegle 的 Cookie。</p>
   </div>;
 }
 
@@ -143,10 +154,6 @@ export function App({ apiBaseUrl }) {
   }, [checkSession]);
 
   useEffect(() => {
-    if (!profile) {
-      return undefined;
-    }
-
     let active = true;
     void detectOctoExtension().then((result) => {
       if (active) {
@@ -154,7 +161,7 @@ export function App({ apiBaseUrl }) {
       }
     });
     return () => { active = false; };
-  }, [profile]);
+  }, []);
 
   const logout = useCallback(async () => {
     setIsBusy(true);
@@ -181,6 +188,46 @@ export function App({ apiBaseUrl }) {
     }
   }, [apiBaseUrl]);
 
+  const loginWithPlugin = useCallback(async () => {
+    if (extension.status !== "detected") {
+      return;
+    }
+
+    setIsBusy(true);
+    setStatus({ title: "正在通过插件登录", text: "正在确认插件中的 Lark 授权。" });
+    try {
+      const challenge = await startOctoPluginLogin({ apiBaseUrl });
+      const approval = await approveOctoPluginLogin({ challengeId: challenge.challengeId });
+      if (!approval.approved) {
+        const message = approval.errorCode === "LARK_AUTH_REQUIRED"
+          ? "插件尚未完成 Lark 授权，请在 Octo 插件中完成 Lark 授权后重试。"
+          : approval.errorCode === "ENVIRONMENT_MISMATCH"
+            ? "当前网页与插件所选环境不一致，请切换插件环境后重试。"
+            : "无法通过 Octo 插件登录，请确认插件已安装并重试。";
+        setStatus({ title: "插件登录未完成", text: message });
+        return;
+      }
+
+      const completed = await completeOctoPluginLogin({ apiBaseUrl, challengeId: challenge.challengeId });
+      if (!completed) {
+        setStatus({ title: "插件登录未完成", text: "登录确认已失效，请重新尝试。" });
+        return;
+      }
+
+      const result = await getWebProfile({ apiBaseUrl });
+      if (!result.authenticated) {
+        setStatus({ title: "插件登录未完成", text: "工作台会话创建失败，请重新尝试。" });
+        return;
+      }
+      setProfile(result.profile);
+      setStatus({ title: "登录成功", text: "正在进入你的 Tenways Octo 工作台。" });
+    } catch {
+      setStatus({ title: "插件登录未完成", text: "无法连接 Octo 服务，请稍后重试或使用 Lark 登录。" });
+    } finally {
+      setIsBusy(false);
+    }
+  }, [apiBaseUrl, extension.status]);
+
   return <main className="auth-layout">
     <section className="auth-panel" aria-label="Tenways Octo 工作台">
       <header className="brand-header">
@@ -191,7 +238,7 @@ export function App({ apiBaseUrl }) {
         <span className="environment-badge">Workspace</span>
       </header>
 
-      {profile ? <ProfilePage profile={profile} extension={extension} onLogout={() => void logout()} onReauthorize={() => startLarkLogin({ apiBaseUrl })} onInstall={() => void downloadExtension()} isBusy={isBusy} isInstalling={isInstalling} installError={installError} /> : <LoginPage status={status} isBusy={isBusy} onLogin={() => startLarkLogin({ apiBaseUrl })} />}
+      {profile ? <ProfilePage profile={profile} extension={extension} onLogout={() => void logout()} onReauthorize={() => startLarkLogin({ apiBaseUrl })} onInstall={() => void downloadExtension()} isBusy={isBusy} isInstalling={isInstalling} installError={installError} /> : <LoginPage status={status} isBusy={isBusy} extension={extension} onLogin={() => startLarkLogin({ apiBaseUrl })} onPluginLogin={() => void loginWithPlugin()} />}
 
       <footer className="auth-footer"><span>© Tenways</span><span className="footer-dot" aria-hidden="true">•</span><a href="mailto:tech@tenways.com">需要帮助？</a></footer>
     </section>

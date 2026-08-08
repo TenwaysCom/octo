@@ -4,6 +4,9 @@ import {
   detectOctoExtension,
   EXTENSION_PRESENCE_PROBE_EVENT,
   EXTENSION_PRESENCE_READY_EVENT,
+  approveOctoPluginLogin,
+  EXTENSION_PLUGIN_LOGIN_PROBE_EVENT,
+  EXTENSION_PLUGIN_LOGIN_READY_EVENT,
 } from "./extension-presence.js";
 
 function createWindowRef({ respond } = {}) {
@@ -27,6 +30,11 @@ function createWindowRef({ respond } = {}) {
           detail: { nonce: event.detail.nonce, version: "0.8.2" },
         });
       }
+      if (event.type === EXTENSION_PLUGIN_LOGIN_PROBE_EVENT && respond) {
+        listeners.get(EXTENSION_PLUGIN_LOGIN_READY_EVENT)?.({
+          detail: { nonce: event.detail.nonce, status: "approved" },
+        });
+      }
     },
     setTimeout(callback) {
       return setTimeout(callback, 0);
@@ -47,4 +55,12 @@ test("detects only a matching extension presence response", async () => {
 test("reports missing when no extension responds", async () => {
   const result = await detectOctoExtension({ windowRef: createWindowRef(), timeoutMs: 0 });
   assert.deepEqual(result, { detected: false });
+});
+
+test("approves plugin login with only the one-time challenge and nonce", async () => {
+  const result = await approveOctoPluginLogin({
+    challengeId: "challenge_123",
+    windowRef: createWindowRef({ respond: true }),
+  });
+  assert.deepEqual(result, { approved: true });
 });

@@ -10,6 +10,8 @@ import type {
   LarkBaseBulkPreviewWorkitemsResult,
   LarkBaseBulkCreateWorkitemsMessage,
   LarkBaseBulkCreateWorkitemsResult,
+  WebPluginLoginApprovalMessage,
+  WebPluginLoginApprovalResult,
 } from "../types/protocol";
 import { extractLarkBaseContextFromUrl } from "../lark-base-url.js";
 import type { EnsureMeegleAuthDeps } from "./handlers/meegle-auth";
@@ -119,7 +121,8 @@ export async function routeBackgroundAction(
     | LarkAuthCallbackDetectedMessage
     | LarkBaseCreateWorkitemMessage
     | LarkBaseBulkPreviewWorkitemsMessage
-    | LarkBaseBulkCreateWorkitemsMessage,
+    | LarkBaseBulkCreateWorkitemsMessage
+    | WebPluginLoginApprovalMessage,
   context: {
     senderTabId?: number;
     tabUrl?: string;
@@ -130,9 +133,52 @@ export async function routeBackgroundAction(
   | LarkBaseCreateWorkitemResult
   | LarkBaseBulkPreviewWorkitemsResult
   | LarkBaseBulkCreateWorkitemsResult
+  | WebPluginLoginApprovalResult
   | { ok: true }
 > {
   const config = await getConfig();
+
+  if (message.action === "octo.web.plugin-login.approve") {
+    let serverOrigin: string;
+    try {
+      serverOrigin = new URL(config.SERVER_URL).origin;
+    } catch {
+      return {
+        action: message.action,
+        payload: { status: "failed", errorCode: "ENVIRONMENT_MISMATCH" },
+      };
+    }
+    if (message.payload.pageOrigin !== serverOrigin) {
+      return {
+        action: message.action,
+        payload: { status: "failed", errorCode: "ENVIRONMENT_MISMATCH" },
+      };
+    }
+
+    const masterUserId = await getStoredMasterUserId();
+    if (!masterUserId) {
+      return {
+        action: message.action,
+        payload: { status: "failed", errorCode: "PLUGIN_IDENTITY_REQUIRED" },
+      };
+    }
+
+    try {
+      await postServerJson(config, "/api/web/plugin-login/approve", {
+        challengeId: message.payload.challengeId,
+        masterUserId,
+      });
+      return { action: message.action, payload: { status: "approved" } };
+    } catch (error) {
+      return {
+        action: message.action,
+        payload: {
+          status: "failed",
+          errorCode: error instanceof BackgroundActionError ? error.errorCode : "PLUGIN_LOGIN_FAILED",
+        },
+      };
+    }
+  }
 
   if (message.action === "octo.meegle.auth.ensure") {
     const deps: EnsureMeegleAuthDeps = {
@@ -327,6 +373,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     message.action === "octo.meegle.auth.ensure" ||
     message.action === "octo.lark.auth.ensure" ||
     message.action === "octo.lark.auth.callback.detected" ||
+    message.action === "octo.web.plugin-login.approve" ||
     message.action === "octo.lark_base.create_workitem" ||
     message.action === "octo.lark_base.bulk_preview_workitems" ||
     message.action === "octo.lark_base.bulk_create_workitems"
@@ -338,7 +385,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         | LarkAuthCallbackDetectedMessage
         | LarkBaseCreateWorkitemMessage
         | LarkBaseBulkPreviewWorkitemsMessage
-        | LarkBaseBulkCreateWorkitemsMessage,
+        | LarkBaseBulkCreateWorkitemsMessage
+        | WebPluginLoginApprovalMessage,
       {
         senderTabId: sender.tab?.id,
         tabUrl: sender.tab?.url,

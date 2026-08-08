@@ -3,6 +3,7 @@ import type { Kysely } from "kysely";
 import { PostgresOauthSessionStore } from "../../adapters/postgres/lark-oauth-session-store.js";
 import { PostgresLarkTokenStore } from "../../adapters/postgres/lark-token-store.js";
 import { PostgresWebSessionStore } from "../../adapters/postgres/web-session-store.js";
+import { PostgresWebPluginLoginChallengeStore } from "../../adapters/postgres/web-plugin-login-challenge-store.js";
 import {
   PostgresResolvedUserStore,
   configureResolvedUserStore,
@@ -20,6 +21,9 @@ import {
   getLarkWebProfile,
   ensureLarkWebSession,
   logoutLarkWebSession,
+  approveWebPluginLoginChallenge,
+  completeWebPluginLoginChallenge,
+  createWebPluginLoginChallenge,
   refreshLarkToken,
   startLarkOauthSession,
 } from "./lark-auth.service.js";
@@ -30,6 +34,7 @@ describe("lark-auth.service", () => {
   let tokenStore: PostgresLarkTokenStore;
   let oauthSessionStore: PostgresOauthSessionStore;
   let webSessionStore: PostgresWebSessionStore;
+  let webPluginLoginChallengeStore: PostgresWebPluginLoginChallengeStore;
 
   beforeEach(async () => {
     ({ db } = await createTestPostgresDatabase());
@@ -37,6 +42,7 @@ describe("lark-auth.service", () => {
     tokenStore = new PostgresLarkTokenStore(db);
     oauthSessionStore = new PostgresOauthSessionStore(db);
     webSessionStore = new PostgresWebSessionStore(db);
+    webPluginLoginChallengeStore = new PostgresWebPluginLoginChallengeStore(db);
     configureResolvedUserStore(resolvedUserStore);
     configureLarkAuthServiceDeps({
       appId: "cli_test",
@@ -46,7 +52,51 @@ describe("lark-auth.service", () => {
       tokenStore,
       oauthSessionStore,
       webSessionStore,
+      webPluginLoginChallengeStore,
     });
+  });
+
+  it("creates a web session from a one-time plugin approval without exposing the plugin identity", async () => {
+    const user = await resolvedUserStore.create({
+      status: "active",
+      larkTenantKey: "tenant_plugin",
+      larkId: "ou_plugin",
+    });
+    await tokenStore.save({
+      masterUserId: user.id,
+      tenantKey: "tenant_plugin",
+      larkUserId: "ou_plugin",
+      baseUrl: "https://open.larksuite.com",
+      userToken: "lark_user_token",
+      userTokenExpiresAt: "2099-01-01T00:00:00.000Z",
+      credentialStatus: "active",
+      lastAuthAt: "2026-08-08T00:00:00.000Z",
+    });
+
+    const challenge = await createWebPluginLoginChallenge();
+    await expect(approveWebPluginLoginChallenge({
+      challengeId: challenge.challengeId,
+      masterUserId: user.id,
+    })).resolves.toEqual({ ok: true });
+
+    await expect(completeWebPluginLoginChallenge({
+      challengeId: challenge.challengeId,
+      browserProof: "wrong_browser_proof",
+    })).resolves.toMatchObject({ ok: false, errorCode: "WEB_PLUGIN_LOGIN_INVALID" });
+
+    const completed = await completeWebPluginLoginChallenge({
+      challengeId: challenge.challengeId,
+      browserProof: challenge.browserProof,
+    });
+    expect(completed.ok).toBe(true);
+    if (!completed.ok) {
+      throw new Error("Expected plugin login completion to succeed");
+    }
+    await expect(ensureLarkWebSession(completed.sessionToken)).resolves.toMatchObject({ ok: true });
+    await expect(completeWebPluginLoginChallenge({
+      challengeId: challenge.challengeId,
+      browserProof: challenge.browserProof,
+    })).resolves.toMatchObject({ ok: false, errorCode: "WEB_PLUGIN_LOGIN_INVALID" });
   });
 
   it("normalizes lark page aliases to the canonical auth base during exchange", async () => {

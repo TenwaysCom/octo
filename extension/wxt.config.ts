@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "wxt";
+import { OCTO_WEB_CONTENT_MATCHES } from "./src/environment-config.js";
 
 const { name: extensionBaseName, version: extensionVersion } = JSON.parse(
   fs.readFileSync(new URL("./manifest.json", import.meta.url), "utf8"),
@@ -10,11 +11,6 @@ const extensionName = `${extensionBaseName} ${extensionVersion}`;
 const chromiumProfile = process.env.WXT_CHROMIUM_PROFILE?.trim();
 const devPort = Number(process.env.WXT_DEV_PORT || 3000);
 const devOrigin = process.env.WXT_DEV_ORIGIN?.trim() || `http://localhost:${devPort}`;
-const octoWebOrigin = process.env.WXT_PUBLIC_OCTO_WEB_ORIGIN?.trim() || "http://localhost:4173";
-const octoWebMatch = (() => {
-  const url = new URL(octoWebOrigin);
-  return `${url.protocol}//${url.hostname}/*`;
-})();
 const devHost = (() => {
   try {
     return new URL(devOrigin).hostname;
@@ -77,7 +73,7 @@ export default defineConfig({
       "https://meegle.com/*",
       "https://*.meegle.com/*",
       "https://github.com/*",
-      octoWebMatch,
+      ...OCTO_WEB_CONTENT_MATCHES,
     ])),
     web_accessible_resources: [
       {

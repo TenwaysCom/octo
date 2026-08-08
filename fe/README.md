@@ -58,11 +58,12 @@ Register `LARK_OAUTH_CALLBACK_URL` in the Lark application. The server derives
 the Web redirect and credentialed-CORS origin from this URL; FE and API must be
 served on the same origin.
 
-When packaging the extension, configure the same exact FE origin:
+The extension package has exact built-in matches for the current `prod`,
+`test`, and `dev` Octo server origins. Its active environment must match the
+current FE/API origin before it can approve a plugin login:
 
 ```bash
-WXT_PUBLIC_OCTO_WEB_ORIGIN=https://octo.example.com pnpm --dir extension build
+pnpm --dir extension build
 ```
 
-This grants the extension access only to the Octo FE origin; it does not add a
-broad web permission.
+This does not add a broad web permission or read any browser cookie.

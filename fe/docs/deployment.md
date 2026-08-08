@@ -70,9 +70,10 @@ nginx -t && systemctl reload nginx
 
 ## Extension package
 
-Package the extension with the same FE origin so its content script can provide
-the FE-only presence signal:
+Package the extension normally. The package includes only the repository's
+exact `prod`, `test`, and `dev` Octo server origins; select the matching
+environment in the plugin before using “使用 Octo 插件登录” on the FE:
 
 ```bash
-WXT_PUBLIC_OCTO_WEB_ORIGIN=https://octotest.odoo.tenways.it:18443 pnpm --dir extension build
+pnpm --dir extension build
 ```

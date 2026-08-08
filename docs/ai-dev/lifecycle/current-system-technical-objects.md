@@ -249,6 +249,20 @@ popup starts Lark OAuth
   -> server stores/refreshes Lark token for workflow calls
 ```
 
+### Standalone FE plugin-login lifecycle
+
+```text
+FE creates a five-minute one-time challenge and receives an HttpOnly browser proof cookie
+  -> same-origin Octo content script receives only challengeId + nonce through a DOM event
+  -> background verifies the page origin equals the selected SERVER_URL origin
+  -> background sends challengeId with its stored masterUserId to server approval endpoint
+  -> server verifies or refreshes the existing Lark authorization, then binds the challenge
+  -> content script returns only nonce + approved/failed status to FE
+  -> FE completes challenge with the HttpOnly browser proof and receives an opaque web session
+```
+
+The bridge never returns `masterUserId`, Lark/Meegle tokens, Meegle user keys, or cookies to page JavaScript. Meegle authorization is not checked by this login path.
+
 ### Failure points
 
 | Failure | Likely owner |
@@ -264,6 +278,7 @@ popup starts Lark OAuth
 
 - Extension may trigger auth, but token exchange and persistence stay on server.
 - Never send raw browser cookies to server.
+- Standalone FE plugin login must use one-time server challenges and an opaque HttpOnly web session; it may reuse existing server-side Lark authorization but must not read it in page JavaScript.
 - Action errors must distinguish identity missing, auth missing, token expired, and platform rejected.
 
 ## 8. Lark Base To Meegle Workitem Lifecycle

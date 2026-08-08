@@ -76,6 +76,17 @@ export interface DatabaseSchema {
     updated_at: string;
     invalidated_at: string | null;
   };
+  web_plugin_login_challenges: {
+    challenge_id_hash: string;
+    browser_proof_hash: string;
+    status: string;
+    master_user_id: string | null;
+    base_url: string | null;
+    expires_at: string;
+    created_at: string;
+    updated_at: string;
+    consumed_at: string | null;
+  };
   github_pr_review_runs: {
     action_run_id: string;
     master_user_id: string;

@@ -156,6 +156,20 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .execute();
 
   await db.schema
+    .createTable("web_plugin_login_challenges")
+    .ifNotExists()
+    .addColumn("challenge_id_hash", "text", (column) => column.primaryKey())
+    .addColumn("browser_proof_hash", "text", (column) => column.notNull())
+    .addColumn("status", "text", (column) => column.notNull())
+    .addColumn("master_user_id", "text")
+    .addColumn("base_url", "text")
+    .addColumn("expires_at", "text", (column) => column.notNull())
+    .addColumn("created_at", "text", (column) => column.notNull())
+    .addColumn("updated_at", "text", (column) => column.notNull())
+    .addColumn("consumed_at", "text")
+    .execute();
+
+  await db.schema
     .createTable("github_pr_review_runs")
     .ifNotExists()
     .addColumn("action_run_id", "text", (column) => column.primaryKey())
@@ -322,6 +336,7 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
 
 export async function resetPostgresDatabase(db: Kysely<DatabaseSchema>): Promise<void> {
   await sql`DROP TABLE IF EXISTS github_pr_review_runs`.execute(db);
+  await sql`DROP TABLE IF EXISTS web_plugin_login_challenges`.execute(db);
   await sql`DROP TABLE IF EXISTS web_sessions`.execute(db);
   await sql`DROP TABLE IF EXISTS workflow_prompts`.execute(db);
   await sql`DROP TABLE IF EXISTS acp_kimi_session_owners`.execute(db);

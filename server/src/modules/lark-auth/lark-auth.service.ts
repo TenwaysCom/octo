@@ -10,10 +10,12 @@ import {
 } from "../../adapters/postgres/lark-oauth-session-store.js";
 import { getSharedLarkTokenStore } from "../../adapters/postgres/lark-token-store.js";
 import { getSharedWebSessionStore } from "../../adapters/postgres/web-session-store.js";
+import { getSharedWebPluginLoginChallengeStore } from "../../adapters/postgres/web-plugin-login-challenge-store.js";
 import type { OauthSessionStore } from "../../adapters/lark/oauth-session-store.js";
 import type { LarkContactStore } from "../../adapters/lark/contact-store.js";
 import type { LarkTokenStore, StoredLarkToken } from "../../adapters/lark/token-store.js";
 import type { WebSessionStore } from "../../adapters/web/session-store.js";
+import type { WebPluginLoginChallengeStore } from "../../adapters/web/plugin-login-challenge-store.js";
 import { getLarkContactStore } from "../../adapters/postgres/lark-contact-store.js";
 import { getResolvedUserStore, type ResolvedUserStore } from "../../adapters/postgres/resolved-user-store.js";
 import type {
@@ -40,6 +42,7 @@ export interface LarkAuthServiceDeps {
   tokenStore?: LarkTokenStore;
   oauthSessionStore?: OauthSessionStore;
   webSessionStore?: WebSessionStore;
+  webPluginLoginChallengeStore?: WebPluginLoginChallengeStore;
   resolvedUserStore?: ResolvedUserStore;
   contactStore?: LarkContactStore;
 }
@@ -47,6 +50,7 @@ export interface LarkAuthServiceDeps {
 let defaultDeps: LarkAuthServiceDeps | undefined;
 const OAUTH_SESSION_TTL_MS = 10 * 60 * 1000;
 const WEB_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const WEB_PLUGIN_LOGIN_CHALLENGE_TTL_MS = 5 * 60 * 1000;
 const EXPIRY_SAFETY_WINDOW_MS = 60_000;
 const DEFAULT_REFRESH_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
 
@@ -76,6 +80,10 @@ function getOauthSessionStore(deps: LarkAuthServiceDeps): OauthSessionStore {
 
 function getWebSessionStore(deps: LarkAuthServiceDeps): WebSessionStore {
   return deps.webSessionStore ?? getSharedWebSessionStore();
+}
+
+function getWebPluginLoginChallengeStore(deps: LarkAuthServiceDeps): WebPluginLoginChallengeStore {
+  return deps.webPluginLoginChallengeStore ?? getSharedWebPluginLoginChallengeStore();
 }
 
 function getResolvedStore(deps: LarkAuthServiceDeps): ResolvedUserStore {
@@ -692,6 +700,24 @@ function hashWebSessionToken(sessionToken: string): string {
   return createHash("sha256").update(sessionToken).digest("base64url");
 }
 
+function hashWebPluginLoginValue(value: string): string {
+  return createHash("sha256").update(value).digest("base64url");
+}
+
+async function createLarkWebSession(input: {
+  masterUserId: string;
+  baseUrl: string;
+}, deps: LarkAuthServiceDeps): Promise<string> {
+  const sessionToken = randomBytes(32).toString("base64url");
+  await getWebSessionStore(deps).create({
+    sessionTokenHash: hashWebSessionToken(sessionToken),
+    masterUserId: input.masterUserId,
+    baseUrl: input.baseUrl,
+    expiresAt: new Date(Date.now() + WEB_SESSION_TTL_MS).toISOString(),
+  });
+  return sessionToken;
+}
+
 async function upsertLarkWebUser(
   resolvedUserStore: ResolvedUserStore,
   userInfo: { userId: string; tenantKey: string; email?: string; name?: string; avatarUrl?: string },
@@ -787,13 +813,10 @@ export async function handleLarkWebAuthCallback(
       masterUserId: resolvedUser.id,
     });
 
-    const sessionToken = randomBytes(32).toString("base64url");
-    await getWebSessionStore(deps).create({
-      sessionTokenHash: hashWebSessionToken(sessionToken),
+    const sessionToken = await createLarkWebSession({
       masterUserId: resolvedUser.id,
       baseUrl: session.baseUrl,
-      expiresAt: new Date(Date.now() + WEB_SESSION_TTL_MS).toISOString(),
-    });
+    }, deps);
 
     return {
       kind: "ready",
@@ -918,6 +941,98 @@ export async function logoutLarkWebSession(
 
   const deps = getDeps(overrides);
   await getWebSessionStore(deps).invalidate(hashWebSessionToken(sessionToken));
+}
+
+export async function createWebPluginLoginChallenge(
+  overrides?: Partial<LarkAuthServiceDeps>,
+): Promise<{ challengeId: string; browserProof: string; expiresAt: string }> {
+  const deps = getDeps(overrides);
+  const challengeId = randomBytes(32).toString("base64url");
+  const browserProof = randomBytes(32).toString("base64url");
+  const expiresAt = new Date(Date.now() + WEB_PLUGIN_LOGIN_CHALLENGE_TTL_MS).toISOString();
+  await getWebPluginLoginChallengeStore(deps).create({
+    challengeIdHash: hashWebPluginLoginValue(challengeId),
+    browserProofHash: hashWebPluginLoginValue(browserProof),
+    status: "pending",
+    expiresAt,
+  });
+  return { challengeId, browserProof, expiresAt };
+}
+
+export async function approveWebPluginLoginChallenge(
+  input: { challengeId: string; masterUserId: string },
+  overrides?: Partial<LarkAuthServiceDeps>,
+): Promise<{ ok: true } | { ok: false; errorCode: string; errorMessage: string }> {
+  const deps = getDeps(overrides);
+  const challengeIdHash = hashWebPluginLoginValue(input.challengeId);
+  const now = new Date().toISOString();
+  const challenge = await getWebPluginLoginChallengeStore(deps).get(challengeIdHash);
+  if (!challenge || challenge.status !== "pending" || challenge.expiresAt <= now) {
+    return { ok: false, errorCode: "WEB_PLUGIN_LOGIN_INVALID", errorMessage: "The plugin login challenge is invalid or expired." };
+  }
+
+  const user = await getResolvedStore(deps).getById(input.masterUserId);
+  if (!user || user.status !== "active") {
+    return { ok: false, errorCode: "IDENTITY_NOT_FOUND", errorMessage: "The Octo plugin identity is unavailable." };
+  }
+
+  const storedToken = await getTokenStore(deps).get({
+    masterUserId: input.masterUserId,
+    baseUrl: "",
+  });
+  if (!storedToken) {
+    return { ok: false, errorCode: "LARK_AUTH_REQUIRED", errorMessage: "The Octo plugin has no Lark authorization." };
+  }
+
+  const initialStatus = await checkLarkAuthStatus({
+    masterUserId: input.masterUserId,
+    baseUrl: storedToken.baseUrl,
+  }, deps);
+  const status = initialStatus.status === "require_refresh"
+    ? await refreshLarkAuthStatus({ masterUserId: input.masterUserId, baseUrl: storedToken.baseUrl }, deps)
+    : initialStatus;
+  if (status.status !== "ready") {
+    return { ok: false, errorCode: "LARK_AUTH_REQUIRED", errorMessage: "The Octo plugin Lark authorization needs to be renewed." };
+  }
+
+  const approved = await getWebPluginLoginChallengeStore(deps).approve({
+    challengeIdHash,
+    masterUserId: input.masterUserId,
+    baseUrl: storedToken.baseUrl,
+    now,
+  });
+  if (!approved) {
+    return { ok: false, errorCode: "WEB_PLUGIN_LOGIN_INVALID", errorMessage: "The plugin login challenge is no longer pending." };
+  }
+
+  return { ok: true };
+}
+
+export async function completeWebPluginLoginChallenge(
+  input: { challengeId: string; browserProof: string | undefined },
+  overrides?: Partial<LarkAuthServiceDeps>,
+): Promise<{ ok: true; sessionToken: string } | { ok: false; errorCode: string; errorMessage: string }> {
+  if (!input.browserProof) {
+    return { ok: false, errorCode: "WEB_PLUGIN_LOGIN_INVALID", errorMessage: "Missing browser login proof." };
+  }
+
+  const deps = getDeps(overrides);
+  const consumed = await getWebPluginLoginChallengeStore(deps).consume({
+    challengeIdHash: hashWebPluginLoginValue(input.challengeId),
+    browserProofHash: hashWebPluginLoginValue(input.browserProof),
+    now: new Date().toISOString(),
+  });
+  if (!consumed?.masterUserId || !consumed.baseUrl) {
+    return { ok: false, errorCode: "WEB_PLUGIN_LOGIN_INVALID", errorMessage: "The plugin login challenge is invalid, expired, or already consumed." };
+  }
+
+  return {
+    ok: true,
+    sessionToken: await createLarkWebSession({
+      masterUserId: consumed.masterUserId,
+      baseUrl: consumed.baseUrl,
+    }, deps),
+  };
 }
 
 function escapeHtml(value: string): string {

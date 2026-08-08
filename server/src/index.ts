@@ -4,7 +4,7 @@ import express, { type Request, type Response } from "express";
 import { resolveIdentityController } from "./modules/identity/identity.controller.js";
 import { writeClientDebugLogController } from "./modules/debug-log/debug-log.controller.js";
 import { exchangeAuthCodeController, getAuthStatusController } from "./modules/meegle-auth/meegle-auth.controller.js";
-import { exchangeAuthCodeController as exchangeLarkAuthCodeController, refreshTokenController as refreshLarkTokenController, getAuthStatusController as getLarkAuthStatusController, handleAuthCallbackController as handleLarkAuthCallbackController, createOauthSessionController as createLarkOauthSessionController, ensureWebLarkAuthController, getWebProfileController, getLarkUserInfoController as getLarkUserInfoController, logoutWebLarkAuthController, refreshLarkAuthStatusController, startWebLarkAuthController, WEB_SESSION_COOKIE_NAME } from "./modules/lark-auth/lark-auth.controller.js";
+import { exchangeAuthCodeController as exchangeLarkAuthCodeController, refreshTokenController as refreshLarkTokenController, getAuthStatusController as getLarkAuthStatusController, handleAuthCallbackController as handleLarkAuthCallbackController, createOauthSessionController as createLarkOauthSessionController, ensureWebLarkAuthController, getWebProfileController, getLarkUserInfoController as getLarkUserInfoController, logoutWebLarkAuthController, refreshLarkAuthStatusController, startWebLarkAuthController, approveWebPluginLoginController, completeWebPluginLoginController, startWebPluginLoginController, WEB_PLUGIN_LOGIN_COOKIE_NAME, WEB_SESSION_COOKIE_NAME } from "./modules/lark-auth/lark-auth.controller.js";
 import { configureLarkAuthControllerDeps } from "./modules/lark-auth/lark-auth.controller.js";
 import { configureLarkAuthServiceDeps } from "./modules/lark-auth/lark-auth.service.js";
 import { configureMeegleAuthServiceDeps } from "./modules/meegle-auth/meegle-auth.service.js";
@@ -21,6 +21,7 @@ import { getSharedMeegleTokenStore } from "./adapters/postgres/meegle-token-stor
 import { getSharedLarkTokenStore } from "./adapters/postgres/lark-token-store.js";
 import { getSharedOauthSessionStore } from "./adapters/postgres/lark-oauth-session-store.js";
 import { getSharedWebSessionStore } from "./adapters/postgres/web-session-store.js";
+import { getSharedWebPluginLoginChallengeStore } from "./adapters/postgres/web-plugin-login-challenge-store.js";
 import { registerLarkMeegleWorkflowRoutes } from "./http/lark-meegle-workflow-routes.js";
 import { runPMAnalysisController } from "./modules/pm-analysis/pm-analysis.controller.js";
 import { acpKimiChatController } from "./modules/acp-kimi/acp-kimi.controller.js";
@@ -99,6 +100,7 @@ if (LARK_APP_ID && LARK_APP_SECRET) {
     tokenStore: getSharedLarkTokenStore(),
     oauthSessionStore: getSharedOauthSessionStore(),
     webSessionStore: getSharedWebSessionStore(),
+    webPluginLoginChallengeStore: getSharedWebPluginLoginChallengeStore(),
   });
   serverLogger.info({ larkAppId: LARK_APP_ID }, "Lark auth configured");
 } else {
@@ -226,6 +228,52 @@ app.post("/api/lark/auth/refresh", handleController(refreshLarkAuthStatusControl
 app.post("/api/lark/auth/status", handleController(getLarkAuthStatusController));
 app.post("/api/lark/auth/session", handleController(createLarkOauthSessionController));
 app.post("/api/lark/user-info", handleController(getLarkUserInfoController));
+app.post("/api/web/plugin-login/start", async (_req, res) => {
+  const result = await startWebPluginLoginController();
+  const secure = LARK_OAUTH_CALLBACK_URL.startsWith("https://");
+  res.setHeader("Set-Cookie", [
+    `${WEB_PLUGIN_LOGIN_COOKIE_NAME}=${encodeURIComponent(result.browserProof)}`,
+    "Path=/api/web/plugin-login/complete",
+    "Max-Age=300",
+    "HttpOnly",
+    "SameSite=Lax",
+    secure ? "Secure" : "",
+  ].filter(Boolean).join("; "));
+  res.status(result.statusCode).json(result.body);
+});
+app.post("/api/web/plugin-login/approve", async (req, res) => {
+  const result = await approveWebPluginLoginController(req.body);
+  res.status(result.statusCode).json(result.body);
+});
+app.post("/api/web/plugin-login/complete", async (req, res) => {
+  const result = await completeWebPluginLoginController({
+    request: req.body,
+    cookieHeader: req.headers.cookie,
+  });
+  const secure = LARK_OAUTH_CALLBACK_URL.startsWith("https://");
+  const cookieAttributes = [
+    "HttpOnly",
+    "SameSite=Lax",
+    secure ? "Secure" : "",
+  ].filter(Boolean);
+  res.setHeader("Set-Cookie", [
+    [
+      `${WEB_PLUGIN_LOGIN_COOKIE_NAME}=`,
+      "Path=/api/web/plugin-login/complete",
+      "Max-Age=0",
+      ...cookieAttributes,
+    ].join("; "),
+    result.webSessionToken
+      ? [
+          `${WEB_SESSION_COOKIE_NAME}=${encodeURIComponent(result.webSessionToken)}`,
+          "Path=/",
+          "Max-Age=2592000",
+          ...cookieAttributes,
+        ].join("; ")
+      : undefined,
+  ].filter((value): value is string => typeof value === "string"));
+  res.status(result.statusCode).json(result.body);
+});
 app.get("/api/lark/auth/web/start", async (_req, res) => {
   const result = await startWebLarkAuthController();
   res.redirect(302, result.redirectUrl);

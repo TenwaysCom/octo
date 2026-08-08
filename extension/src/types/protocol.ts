@@ -25,6 +25,7 @@ export const protocolActions = [
   "octo.async-action.track",
   "octo.pm.analysis.run",
   "octo.page.meegle.auth_code.request",
+  "octo.web.plugin-login.approve",
 ] as const;
 
 export type ProtocolAction = (typeof protocolActions)[number];
@@ -110,4 +111,14 @@ export type AsyncActionTrackMessage = ProtocolEnvelope<
       message: string;
     };
   }
+>;
+
+export type WebPluginLoginApprovalMessage = ProtocolEnvelope<
+  "octo.web.plugin-login.approve",
+  { challengeId: string; pageOrigin: string }
+>;
+
+export type WebPluginLoginApprovalResult = ProtocolEnvelope<
+  "octo.web.plugin-login.approve",
+  { status: "approved" | "failed"; errorCode?: string }
 >;

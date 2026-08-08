@@ -50,6 +50,31 @@ export function startLarkLogin({ apiBaseUrl, locationRef = window.location }) {
   locationRef.assign(buildApiUrl(apiBaseUrl, "/lark/auth/web/start"));
 }
 
+export async function startOctoPluginLogin({ apiBaseUrl, fetchImpl = fetch }) {
+  const response = await fetchImpl(buildApiUrl(apiBaseUrl, "/web/plugin-login/start"), {
+    method: "POST",
+    credentials: "include",
+  });
+  const payload = await readPayload(response);
+  if (!response.ok || !payload?.ok || typeof payload.data?.challengeId !== "string") {
+    throw new Error(payload?.error?.errorCode || "PLUGIN_LOGIN_START_FAILED");
+  }
+
+  return payload.data;
+}
+
+export async function completeOctoPluginLogin({ apiBaseUrl, challengeId, fetchImpl = fetch }) {
+  const response = await fetchImpl(buildApiUrl(apiBaseUrl, "/web/plugin-login/complete"), {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ challengeId }),
+  });
+  const payload = await readPayload(response);
+
+  return Boolean(response.ok && payload?.ok && payload.data?.loggedIn);
+}
+
 export async function logoutWebAuthSession({ apiBaseUrl, fetchImpl = fetch }) {
   const response = await fetchImpl(buildApiUrl(apiBaseUrl, "/lark/auth/web/logout"), {
     method: "POST",
