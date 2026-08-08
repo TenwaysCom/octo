@@ -24,7 +24,8 @@ export interface PlatformSyncStore {
     title: string;
     status?: string;
   }): Promise<void>;
-  listMeegleWorkitems(limit: number): Promise<MeegleWorkitemSyncItem[]>;
+  listMeegleWorkitems(limit: number, sprint?: string): Promise<MeegleWorkitemSyncItem[]>;
+  listMeegleSprints(): Promise<string[]>;
   listGitHubPullRequests(limit: number): Promise<GitHubPullRequestSyncItem[]>;
   listLarkBaseTickets(limit: number): Promise<LarkBaseTicketSyncItem[]>;
 }
@@ -220,15 +221,18 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
       })).execute();
   }
 
-  async listMeegleWorkitems(limit: number): Promise<MeegleWorkitemSyncItem[]> {
-    const rows = await this.db.selectFrom("meegle_workitem_syncs")
+  async listMeegleWorkitems(limit: number, sprint?: string): Promise<MeegleWorkitemSyncItem[]> {
+    let query = this.db.selectFrom("meegle_workitem_syncs")
       .select([
         "project_key", "project_name", "work_item_type_key", "work_item_id", "work_item_key", "title",
         "work_item_type", "status_key", "status", "sub_stage_key", "sub_stage",
         "sprint", "version", "system", "bugs_json",
         "assignee", "source_updated_at", "synced_at",
-      ])
-      .orderBy("source_updated_at", "desc")
+      ]);
+    if (sprint) {
+      query = query.where("sprint", "=", sprint);
+    }
+    const rows = await query.orderBy("source_updated_at", "desc")
       .orderBy("synced_at", "desc")
       .limit(limit)
       .execute();
@@ -253,6 +257,16 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
       sourceUpdatedAt: row.source_updated_at ?? undefined,
       syncedAt: row.synced_at,
     }));
+  }
+
+  async listMeegleSprints(): Promise<string[]> {
+    const rows = await this.db.selectFrom("meegle_workitem_syncs")
+      .select("sprint")
+      .where("sprint", "is not", null)
+      .distinct()
+      .orderBy("sprint")
+      .execute();
+    return rows.map((row) => row.sprint).filter((sprint): sprint is string => sprint !== null);
   }
 
   async listGitHubPullRequests(limit: number): Promise<GitHubPullRequestSyncItem[]> {

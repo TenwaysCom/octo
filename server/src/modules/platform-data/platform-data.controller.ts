@@ -53,8 +53,15 @@ export function createWebPlatformDataController(deps: {
       throw error;
     }
 
+    if (input.kind !== "meegle-workitems" && query.sprint) {
+      return {
+        statusCode: 400,
+        body: { ok: false as const, error: { errorCode: "INVALID_REQUEST", errorMessage: "Sprint 筛选仅适用于 Meegle 工作项。" } },
+      };
+    }
+
     try {
-      const data = parsePlatformDataListResponse(input.kind, await service.list(input.kind, query.limit));
+      const data = parsePlatformDataListResponse(input.kind, await service.list(input.kind, query.limit, { sprint: query.sprint }));
       return { statusCode: 200, body: { ok: true as const, data } };
     } catch {
       return {

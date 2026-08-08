@@ -35,14 +35,14 @@ describe("web platform data controller", () => {
       system: "Odoo/Odoo UK",
       plannedSprint: "must not leak",
       syncedAt: "2026-08-09T00:00:00.000Z",
-    }] }) };
+    }], sprints: ["Odoo Sprint 20260806"] }) };
     const ensureSession = vi.fn().mockResolvedValue({ ok: true, user: {} });
     const controller = createWebPlatformDataController({ service, ensureSession });
 
     const result = await controller({
       kind: "meegle-workitems",
       cookieHeader: "octo_web_session=session-token",
-      query: { limit: "20" },
+      query: { limit: "20", sprint: "Odoo Sprint 20260806" },
     });
     expect(result).toEqual({
       statusCode: 200,
@@ -55,10 +55,10 @@ describe("web platform data controller", () => {
         version: "Od EU v2.9.0",
         bugs: ["Bug 1"],
         system: "Odoo/Odoo UK",
-      })] } },
+      })], sprints: ["Odoo Sprint 20260806"] } },
     });
     expect((result.body as { data: { items: Array<Record<string, unknown>> } }).data.items[0]).not.toHaveProperty("plannedSprint");
     expect(ensureSession).toHaveBeenCalledWith("session-token");
-    expect(service.list).toHaveBeenCalledWith("meegle-workitems", 20);
+    expect(service.list).toHaveBeenCalledWith("meegle-workitems", 20, { sprint: "Odoo Sprint 20260806" });
   });
 });

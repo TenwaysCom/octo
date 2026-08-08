@@ -29,13 +29,16 @@ const MEEGLE_OPTIONAL_STRING_FIELDS = [
   "sourceUpdatedAt",
 ];
 
-export async function getPlatformDataList({ apiBaseUrl, kind, fetchImpl = fetch }) {
+export async function getPlatformDataList({ apiBaseUrl, kind, sprint, fetchImpl = fetch }) {
   const path = PATH_BY_KIND[kind];
   if (!path) {
     throw new Error("UNKNOWN_PLATFORM_DATA_KIND");
   }
 
-  const response = await fetchImpl(buildApiUrl(apiBaseUrl, path), {
+  const requestUrl = sprint && kind === "meegle-workitems"
+    ? `${buildApiUrl(apiBaseUrl, path)}?${new URLSearchParams({ sprint })}`
+    : buildApiUrl(apiBaseUrl, path);
+  const response = await fetchImpl(requestUrl, {
     credentials: "include",
   });
   const payload = await response.json().catch(() => undefined);
@@ -43,9 +46,16 @@ export async function getPlatformDataList({ apiBaseUrl, kind, fetchImpl = fetch 
     throw new Error(payload?.error?.errorCode || "PLATFORM_DATA_LOAD_FAILED");
   }
 
-  return kind === "meegle-workitems"
-    ? payload.data.items.map(parseMeegleWorkitem)
-    : payload.data.items;
+  if (kind !== "meegle-workitems") {
+    return { items: payload.data.items };
+  }
+  if (!Array.isArray(payload.data.sprints) || payload.data.sprints.some((value) => typeof value !== "string")) {
+    throw new Error("INVALID_MEEGLE_WORKITEM_RESPONSE");
+  }
+  return {
+    items: payload.data.items.map(parseMeegleWorkitem),
+    sprints: payload.data.sprints,
+  };
 }
 
 function parseMeegleWorkitem(value) {

@@ -253,6 +253,8 @@ a { color: inherit; }
 .list-filter-tab--active { border-color: var(--octo-text); color: var(--octo-surface); background: var(--octo-text); }
 .list-toolbar__actions { display: flex; flex: 0 0 auto; align-items: center; gap: 10px; }
 .list-date-filter { position: relative; display: flex; height: 42px; align-items: center; min-width: 172px; padding: 0 36px 0 39px; border: 1px solid var(--octo-border); border-radius: 9px; color: var(--octo-text-muted); background: var(--octo-surface); }
+.list-sprint-filter { min-width: 194px; padding-left: 13px; }
+.list-date-filter.list-sprint-filter > .list-date-filter__chevron { left: auto; }
 .list-date-filter > svg:first-of-type { position: absolute; left: 13px; width: 18px; height: 18px; fill: currentColor; pointer-events: none; }
 .list-date-filter select { width: 100%; border: 0; color: var(--octo-text-muted); cursor: pointer; background: transparent; font-size: 13px; font-weight: 650; outline: 0; appearance: none; }
 .list-date-filter__chevron { position: absolute; right: 13px; width: 12px; height: 8px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; pointer-events: none; }
@@ -260,12 +262,23 @@ a { color: inherit; }
 .list-filter-button { display: grid; width: 42px; height: 42px; place-items: center; padding: 0; border: 1px solid var(--octo-border); border-radius: 9px; color: var(--octo-text-muted); cursor: pointer; background: var(--octo-surface); }
 .list-filter-button:hover, .list-date-filter:focus-within { border-color: var(--octo-brand); color: var(--octo-brand); }
 .list-filter-button svg { width: 20px; height: 20px; fill: currentColor; }
-.list-filter-menu__search { position: absolute; z-index: 2; top: calc(100% + 8px); right: 0; width: 220px; padding: 8px; border: 1px solid var(--octo-border); border-radius: 9px; background: var(--octo-surface); box-shadow: 0 10px 24px rgba(31, 41, 55, .12); }
+.list-filter-menu__panel { position: absolute; z-index: 2; top: calc(100% + 8px); right: 0; width: 220px; padding: 10px; border: 1px solid var(--octo-border); border-radius: 9px; background: var(--octo-surface); box-shadow: 0 10px 24px rgba(31, 41, 55, .12); }
+.list-filter-menu__search { display: block; }
 .list-filter-menu__search input { width: 100%; height: 36px; padding: 0 10px; border: 1px solid var(--octo-border); border-radius: 6px; color: var(--octo-text); background: var(--octo-surface); font-size: 13px; outline: none; }
 .list-filter-menu__search input:focus { border-color: var(--octo-brand); box-shadow: 0 0 0 3px color-mix(in srgb, var(--octo-brand) 18%, transparent); }
+.list-status-checkboxes { display: grid; gap: 8px; min-width: 0; margin: 12px 0 0; padding: 10px 0 0; border: 0; border-top: 1px solid var(--octo-border); }
+.list-status-checkboxes legend { padding: 0; color: var(--octo-text-muted); font-size: 12px; font-weight: 700; }
+.list-status-checkboxes label { display: flex; align-items: center; gap: 7px; color: var(--octo-text); font-size: 13px; }
+.list-status-checkboxes input { width: 14px; height: 14px; accent-color: var(--octo-brand); }
 .data-table-wrap { overflow-x: auto; border: 1px solid var(--octo-border); border-radius: 12px; background: var(--octo-surface); box-shadow: 0 1px 2px rgba(32, 37, 51, .02); }
 .data-table { width: 100%; min-width: 720px; border-collapse: collapse; color: var(--octo-text); font-size: 13px; text-align: left; }
 .data-table th { padding: 13px 18px; color: var(--octo-text-muted); background: var(--octo-surface-muted); font-size: 11px; font-weight: 700; letter-spacing: .03em; }
+.sortable-column-header { display: inline-flex; align-items: center; gap: 5px; padding: 0; border: 0; color: inherit; cursor: pointer; background: transparent; font: inherit; letter-spacing: inherit; text-align: left; }
+.sortable-column-header:hover { color: var(--octo-text); }
+.sortable-column-header__arrows { display: inline-flex; flex-direction: column; color: color-mix(in srgb, var(--octo-text-muted) 45%, transparent); }
+.sortable-column-header__arrows svg { display: block; width: 8px; height: 5px; fill: currentColor; }
+.sortable-column-header__arrows svg + svg { margin-top: -1px; }
+.sortable-column-header__arrow--active { color: var(--octo-brand); }
 .data-table td { max-width: 300px; padding: 15px 18px; border-top: 1px solid var(--octo-border); vertical-align: middle; }
 .data-table tr:hover td { background: var(--octo-surface-muted); }
 .data-table strong, .data-table td:first-child { color: var(--octo-text); font-weight: 650; }

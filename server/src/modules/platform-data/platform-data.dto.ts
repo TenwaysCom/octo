@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const platformDataListQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(200).optional().default(100),
+  sprint: z.string().trim().min(1).max(200).optional(),
 });
 
 export type PlatformDataListQuery = z.infer<typeof platformDataListQuerySchema>;
@@ -31,6 +32,7 @@ export const meegleWorkitemListResponseSchema = z.object({
     sourceUpdatedAt: z.string().optional(),
     syncedAt: z.string(),
   })),
+  sprints: z.array(z.string()),
 });
 
 export function parsePlatformDataListResponse(kind: "lark-tickets" | "meegle-workitems" | "github-pull-requests", data: unknown) {

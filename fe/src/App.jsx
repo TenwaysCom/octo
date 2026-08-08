@@ -59,6 +59,13 @@ const DATE_FILTERS = [
   ["last-month", "最近一个月"],
   ["last-12-months", "最近一年"],
 ];
+const MEEGLE_WORKITEM_TYPE_FILTERS = [
+  ["all", "全部"],
+  ["tech-task", "TechTask"],
+  ["story", "Story"],
+  ["bug", "Bug"],
+];
+const DEFAULT_SORT = { key: "updatedAt", direction: "desc" };
 
 function getWorkspacePage(hash) {
   return [...Object.entries(WORKSPACE_PAGES), ["settings", SETTINGS_PAGE]]
@@ -229,6 +236,20 @@ function getPlatformItemStatus(kind, item) {
   return item.isDraft ? "Draft" : item.state || "未设置";
 }
 
+function getMeegleWorkitemCategory(item) {
+  if (item.workItemTypeKey === "story") {
+    return "story";
+  }
+  const type = `${item.workItemType || ""} ${item.workItemTypeKey || ""}`.toLocaleLowerCase();
+  if (type.includes("tech task")) {
+    return "tech-task";
+  }
+  if (type.includes("bug")) {
+    return "bug";
+  }
+  return "other";
+}
+
 function matchesDateFilter(item, dateFilter) {
   if (dateFilter === "all-time") {
     return true;
@@ -253,58 +274,117 @@ function matchesDateFilter(item, dateFilter) {
   return updatedAt >= threshold;
 }
 
-function SyncedListTable({ kind, items }) {
+function readSortValue(kind, item, key) {
+  if (key === "updatedAt") {
+    return item.sourceUpdatedAt || item.syncedAt || "";
+  }
   if (kind === "lark-tickets") {
-    return <table className="data-table"><thead><tr><th>Ticket</th><th>状态</th><th>来源</th><th>更新时间</th></tr></thead><tbody>
+    return key === "status" ? item.ticketStatus || "" : key === "source" ? `${item.baseId || ""}/${item.tableId || ""}` : item.title || "";
+  }
+  if (kind === "meegle-workitems") {
+    const values = {
+      workitem: item.workItemKey || item.workItemId || item.title || "",
+      projectType: `${item.projectName || item.projectKey || ""} ${item.workItemType || item.workItemTypeKey || ""}`,
+      status: item.status || "",
+      sprintVersion: `${item.sprint || ""} ${item.version || ""}`,
+      system: item.system || "",
+      assignee: item.assignee || "",
+    };
+    return values[key] || "";
+  }
+  const values = {
+    pullRequest: item.pullNumber || item.title || "",
+    repo: `${item.owner || ""}/${item.repo || ""}`,
+    status: item.isDraft ? "Draft" : item.state || "",
+    branch: item.headRef || "",
+  };
+  return values[key] || "";
+}
+
+function sortPlatformItems(items, kind, sort) {
+  return [...items].sort((left, right) => {
+    const leftValue = readSortValue(kind, left, sort.key);
+    const rightValue = readSortValue(kind, right, sort.key);
+    if (!leftValue && rightValue) return 1;
+    if (leftValue && !rightValue) return -1;
+    const comparison = sort.key === "updatedAt"
+      ? new Date(leftValue).getTime() - new Date(rightValue).getTime()
+      : String(leftValue).localeCompare(String(rightValue), "zh-CN", { numeric: true, sensitivity: "base" });
+    return sort.direction === "asc" ? comparison : -comparison;
+  });
+}
+
+function SortableColumnHeader({ label, sortKey, sort, onSort }) {
+  const active = sort.key === sortKey;
+  return <button className="sortable-column-header" type="button" onClick={() => onSort(sortKey)}>
+    {label}
+    <span className="sortable-column-header__arrows" aria-hidden="true">
+      <svg className={active && sort.direction === "asc" ? "sortable-column-header__arrow--active" : ""} viewBox="0 0 8 5"><path d="M4 0 8 5H0z" /></svg>
+      <svg className={active && sort.direction === "desc" ? "sortable-column-header__arrow--active" : ""} viewBox="0 0 8 5"><path d="M4 5 0 0h8z" /></svg>
+    </span>
+  </button>;
+}
+
+function SyncedListTable({ kind, items, sort, onSort }) {
+  if (kind === "lark-tickets") {
+    return <table className="data-table"><thead><tr><th><SortableColumnHeader label="Ticket" sortKey="title" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="状态" sortKey="status" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="来源" sortKey="source" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="更新时间" sortKey="updatedAt" sort={sort} onSort={onSort} /></th></tr></thead><tbody>
       {items.map((item) => <tr key={`${item.baseId}-${item.tableId}-${item.recordId}`}><td><ExternalLink href={item.sharedUrl}>{item.title}</ExternalLink><small>{item.recordId}</small></td><td><StatusPill>{item.ticketStatus}</StatusPill></td><td>{item.baseId} / {item.tableId}</td><td>{formatDateTime(item.sourceUpdatedAt || item.syncedAt)}</td></tr>)}
     </tbody></table>;
   }
 
   if (kind === "meegle-workitems") {
-    return <table className="data-table"><thead><tr><th>工作项</th><th>项目 / 类型</th><th>状态</th><th>Sprint / Version</th><th>System</th><th>负责人</th><th>更新时间</th></tr></thead><tbody>
+    return <table className="data-table"><thead><tr><th><SortableColumnHeader label="工作项" sortKey="workitem" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="项目 / 类型" sortKey="projectType" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="状态" sortKey="status" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="Sprint / Version" sortKey="sprintVersion" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="System" sortKey="system" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="负责人" sortKey="assignee" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="更新时间" sortKey="updatedAt" sort={sort} onSort={onSort} /></th></tr></thead><tbody>
       {items.map((item) => <tr key={`${item.projectKey}-${item.workItemTypeKey}-${item.workItemId}`}><td><strong>{item.workItemKey || item.workItemId}</strong><small>{item.title}</small></td><td>{item.projectName || item.projectKey}<small>{item.workItemType || item.workItemTypeKey}</small></td><td><StatusPill>{item.status}</StatusPill><small>{item.subStage || ""}</small></td><td>{item.sprint || "-"}<small>{item.version || "-"}</small></td><td>{item.system || "-"}</td><td>{item.assignee || "-"}</td><td>{formatDateTime(item.sourceUpdatedAt || item.syncedAt)}</td></tr>)}
     </tbody></table>;
   }
 
-  return <table className="data-table"><thead><tr><th>Pull Request</th><th>仓库</th><th>状态</th><th>分支</th><th>更新时间</th></tr></thead><tbody>
+  return <table className="data-table"><thead><tr><th><SortableColumnHeader label="Pull Request" sortKey="pullRequest" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="仓库" sortKey="repo" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="状态" sortKey="status" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="分支" sortKey="branch" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="更新时间" sortKey="updatedAt" sort={sort} onSort={onSort} /></th></tr></thead><tbody>
     {items.map((item) => <tr key={`${item.owner}-${item.repo}-${item.pullNumber}`}><td><ExternalLink href={item.htmlUrl}>{item.title}</ExternalLink><small>#{item.pullNumber} {item.authorLogin ? `· ${item.authorLogin}` : ""}</small></td><td>{item.owner} / {item.repo}</td><td><StatusPill>{item.isDraft ? "Draft" : item.state}</StatusPill></td><td>{item.headRef || "-"}<small>{item.baseRef ? `→ ${item.baseRef}` : ""}</small></td><td>{formatDateTime(item.sourceUpdatedAt || item.syncedAt)}</td></tr>)}
   </tbody></table>;
 }
 
 function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy }) {
-  const [state, setState] = useState({ status: "loading", items: [] });
+  const [state, setState] = useState({ status: "loading", items: [], sprints: [] });
   const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [selectedStatuses, setSelectedStatuses] = useState(null);
   const [dateFilter, setDateFilter] = useState("all-time");
+  const [sprintFilter, setSprintFilter] = useState("");
+  const [workitemTypeFilter, setWorkitemTypeFilter] = useState("all");
+  const [sort, setSort] = useState(DEFAULT_SORT);
   const [filterOpen, setFilterOpen] = useState(false);
   const [pageIndex, setPageIndex] = useState(0);
   const statusFilters = [...new Set(state.items.map((item) => getPlatformItemStatus(page, item)))].sort((left, right) => left.localeCompare(right));
   const filteredItems = filterPlatformItems(state.items, query)
-    .filter((item) => statusFilter === "all" || getPlatformItemStatus(page, item) === statusFilter)
+    .filter((item) => page !== "meegle-workitems" || workitemTypeFilter === "all" || getMeegleWorkitemCategory(item) === workitemTypeFilter)
+    .filter((item) => selectedStatuses === null || selectedStatuses.includes(getPlatformItemStatus(page, item)))
     .filter((item) => matchesDateFilter(item, dateFilter));
-  const pageCount = Math.max(1, Math.ceil(filteredItems.length / LIST_PAGE_SIZE));
+  const sortedItems = sortPlatformItems(filteredItems, page, sort);
+  const pageCount = Math.max(1, Math.ceil(sortedItems.length / LIST_PAGE_SIZE));
   const currentPageIndex = Math.min(pageIndex, pageCount - 1);
-  const pageItems = filteredItems.slice(currentPageIndex * LIST_PAGE_SIZE, (currentPageIndex + 1) * LIST_PAGE_SIZE);
-  const firstResult = filteredItems.length === 0 ? 0 : currentPageIndex * LIST_PAGE_SIZE + 1;
-  const lastResult = Math.min((currentPageIndex + 1) * LIST_PAGE_SIZE, filteredItems.length);
+  const pageItems = sortedItems.slice(currentPageIndex * LIST_PAGE_SIZE, (currentPageIndex + 1) * LIST_PAGE_SIZE);
+  const firstResult = sortedItems.length === 0 ? 0 : currentPageIndex * LIST_PAGE_SIZE + 1;
+  const lastResult = Math.min((currentPageIndex + 1) * LIST_PAGE_SIZE, sortedItems.length);
 
   useEffect(() => {
     setQuery("");
-    setStatusFilter("all");
+    setSelectedStatuses(null);
     setDateFilter("all-time");
+    setSprintFilter("");
+    setWorkitemTypeFilter("all");
+    setSort(DEFAULT_SORT);
     setFilterOpen(false);
     setPageIndex(0);
   }, [page]);
 
   useEffect(() => {
     let active = true;
-    setState({ status: "loading", items: [] });
-    void getPlatformDataList({ apiBaseUrl, kind: page }).then(
-      (items) => { if (active) setState({ status: "ready", items }); },
-      () => { if (active) setState({ status: "error", items: [] }); },
+    setState((current) => ({ status: "loading", items: [], sprints: current.sprints }));
+    void getPlatformDataList({ apiBaseUrl, kind: page, sprint: sprintFilter || undefined }).then(
+      (result) => { if (active) setState({ status: "ready", items: result.items, sprints: result.sprints || [] }); },
+      () => { if (active) setState({ status: "error", items: [], sprints: [] }); },
     );
     return () => { active = false; };
-  }, [apiBaseUrl, page]);
+  }, [apiBaseUrl, page, sprintFilter]);
 
   return <WorkspaceShell user={profile.user ?? {}} activePage={page} onLogout={onLogout} isBusy={isBusy}>
       <section className="profile-main list-page">
@@ -313,11 +393,23 @@ function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy }) {
           {state.status === "error" ? <p className="list-message list-message--error">同步数据暂时无法读取，请稍后重试。</p> : null}
           {state.status === "ready" && state.items.length === 0 ? <p className="list-message">暂无已同步的数据。</p> : null}
           {state.status === "ready" && state.items.length > 0 ? <div className="list-toolbar">
-            <div className="list-filter-tabs" role="group" aria-label="按状态筛选">
-              <button className={`list-filter-tab ${statusFilter === "all" ? "list-filter-tab--active" : ""}`.trim()} type="button" onClick={() => { setStatusFilter("all"); setPageIndex(0); }}>全部</button>
-              {statusFilters.map((status) => <button className={`list-filter-tab ${statusFilter === status ? "list-filter-tab--active" : ""}`.trim()} type="button" key={status} onClick={() => { setStatusFilter(status); setPageIndex(0); }}>{status}</button>)}
-            </div>
+            {page === "meegle-workitems" ? <div className="list-filter-tabs" role="group" aria-label="按工作项类型筛选">
+              {MEEGLE_WORKITEM_TYPE_FILTERS.map(([value, label]) => <button
+                className={`list-filter-tab ${workitemTypeFilter === value ? "list-filter-tab--active" : ""}`.trim()}
+                type="button"
+                key={value}
+                onClick={() => { setWorkitemTypeFilter(value); setPageIndex(0); }}
+              >{label}</button>)}
+            </div> : null}
             <div className="list-toolbar__actions">
+              {page === "meegle-workitems" ? <label className="list-date-filter list-sprint-filter">
+                <span className="visually-hidden">按 Sprint 筛选</span>
+                <select value={sprintFilter} onChange={(event) => { setSprintFilter(event.target.value); setSelectedStatuses(null); setPageIndex(0); }}>
+                  <option value="">全部 Sprint</option>
+                  {state.sprints.map((sprint) => <option value={sprint} key={sprint}>{sprint}</option>)}
+                </select>
+                <svg className="list-date-filter__chevron" viewBox="0 0 12 8" aria-hidden="true"><path d="m1 1 5 5 5-5" /></svg>
+              </label> : null}
               <label className="list-date-filter">
                 <span className="visually-hidden">按更新时间筛选</span>
                 <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 0a1 1 0 0 1 1 1v1h6V1a1 1 0 1 1 2 0v1h1a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h1V1a1 1 0 0 1 1-1Zm10 6H2v8h12V6ZM2 4v1h12V4H2Z" /></svg>
@@ -327,21 +419,43 @@ function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy }) {
                 <svg className="list-date-filter__chevron" viewBox="0 0 12 8" aria-hidden="true"><path d="m1 1 5 5 5-5" /></svg>
               </label>
               <div className="list-filter-menu">
-                <button className="list-filter-button" type="button" aria-label="按关键字筛选" aria-expanded={filterOpen} onClick={() => setFilterOpen((open) => !open)}>
+                <button className="list-filter-button" type="button" aria-label="筛选" aria-expanded={filterOpen} onClick={() => setFilterOpen((open) => !open)}>
                   <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M0 3a1 1 0 0 1 1-1h14a1 1 0 1 1 0 2H1a1 1 0 0 1-1-1Zm3 5a1 1 0 0 1 1-1h8a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm4 4a1 1 0 1 0 0 2h2a1 1 0 1 0 0-2H7Z" /></svg>
                 </button>
-                {filterOpen ? <label className="list-filter-menu__search">
-                  <span className="visually-hidden">搜索当前列表</span>
-                  <input type="search" autoFocus value={query} onChange={(event) => { setQuery(event.target.value); setPageIndex(0); }} placeholder="搜索" />
-                </label> : null}
+                {filterOpen ? <div className="list-filter-menu__panel">
+                  <label className="list-filter-menu__search">
+                    <span className="visually-hidden">搜索当前列表</span>
+                    <input type="search" autoFocus value={query} onChange={(event) => { setQuery(event.target.value); setPageIndex(0); }} placeholder="搜索" />
+                  </label>
+                  <fieldset className="list-status-checkboxes">
+                    <legend>状态</legend>
+                    {statusFilters.map((status) => <label key={status}>
+                      <input
+                        type="checkbox"
+                        checked={selectedStatuses === null || selectedStatuses.includes(status)}
+                        onChange={() => {
+                          setSelectedStatuses((current) => {
+                            const selected = current ?? statusFilters;
+                            return selected.includes(status) ? selected.filter((item) => item !== status) : [...selected, status];
+                          });
+                          setPageIndex(0);
+                        }}
+                      />
+                      {status}
+                    </label>)}
+                  </fieldset>
+                </div> : null}
               </div>
             </div>
           </div> : null}
           {state.status === "ready" && state.items.length > 0 && filteredItems.length === 0 ? <p className="list-message">未找到匹配的数据。</p> : null}
           {state.status === "ready" && filteredItems.length > 0 ? <>
-            <div className="data-table-wrap"><SyncedListTable kind={page} items={pageItems} /></div>
+            <div className="data-table-wrap"><SyncedListTable kind={page} items={pageItems} sort={sort} onSort={(key) => {
+              setSort((current) => ({ key, direction: current.key === key && current.direction === "asc" ? "desc" : "asc" }));
+              setPageIndex(0);
+            }} /></div>
             <footer className="list-pagination">
-              <p className="list-results">显示 <strong>{firstResult}–{lastResult}</strong> / {filteredItems.length} 条结果</p>
+              <p className="list-results">显示 <strong>{firstResult}–{lastResult}</strong> / {sortedItems.length} 条结果</p>
               <div className="list-pagination__controls">
                 <button type="button" disabled={currentPageIndex === 0} onClick={() => setPageIndex((index) => Math.max(0, index - 1))}>上一页</button>
                 <span>{currentPageIndex + 1} / {pageCount}</span>

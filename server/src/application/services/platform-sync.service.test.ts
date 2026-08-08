@@ -34,6 +34,7 @@ function createStore(): PlatformSyncStore & {
       store.lark.push({ record: input.record, title: input.title, status: input.status });
     },
     async listMeegleWorkitems() { return []; },
+    async listMeegleSprints() { return []; },
     async listGitHubPullRequests() { return []; },
     async listLarkBaseTickets() { return []; },
   };
