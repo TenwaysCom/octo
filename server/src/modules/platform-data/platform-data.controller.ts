@@ -2,7 +2,7 @@ import { ZodError } from "zod";
 import { PlatformDataService, type PlatformDataKind } from "../../application/services/platform-data.service.js";
 import { ensureLarkWebSession } from "../lark-auth/lark-auth.service.js";
 import { WEB_SESSION_COOKIE_NAME } from "../lark-auth/lark-auth.controller.js";
-import { platformDataListQuerySchema } from "./platform-data.dto.js";
+import { parsePlatformDataListResponse, platformDataListQuerySchema } from "./platform-data.dto.js";
 
 type WebSessionResult = Awaited<ReturnType<typeof ensureLarkWebSession>>;
 
@@ -40,9 +40,9 @@ export function createWebPlatformDataController(deps: {
       };
     }
 
+    let query;
     try {
-      const query = platformDataListQuerySchema.parse(input.query);
-      return { statusCode: 200, body: { ok: true as const, data: await service.list(input.kind, query.limit) } };
+      query = platformDataListQuerySchema.parse(input.query);
     } catch (error) {
       if (error instanceof ZodError) {
         return {
@@ -50,6 +50,13 @@ export function createWebPlatformDataController(deps: {
           body: { ok: false as const, error: { errorCode: "INVALID_REQUEST", errorMessage: error.message } },
         };
       }
+      throw error;
+    }
+
+    try {
+      const data = parsePlatformDataListResponse(input.kind, await service.list(input.kind, query.limit));
+      return { statusCode: 200, body: { ok: true as const, data } };
+    } catch {
       return {
         statusCode: 500,
         body: { ok: false as const, error: { errorCode: "PLATFORM_DATA_READ_FAILED", errorMessage: "无法读取同步数据。" } },

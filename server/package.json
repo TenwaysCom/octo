@@ -11,6 +11,7 @@
     "db:sync-user-tokens": "node dist/scripts/sync-user-tokens.js",
     "lark:contacts:sync": "tsx ./src/scripts/sync-lark-contacts.ts",
     "platform:sync": "tsx ./src/scripts/platform-sync.ts",
+    "platform:clean-meegle": "tsx ./src/scripts/clean-meegle-sync-snapshots.ts",
     "start": "node dist/index.js",
     "dev": "concurrently -k -n tsc,server -c yellow,cyan \"npm:dev:watch\" \"npm:dev:serve\"",
     "dev:watch": "tsc --watch",

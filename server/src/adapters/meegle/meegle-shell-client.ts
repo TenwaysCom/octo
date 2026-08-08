@@ -28,6 +28,7 @@ export class MeegleShellClient {
     projectKey: string,
     workitemType: string,
     workitemIds: string[],
+    fieldKeys: string[] = [],
   ): Promise<MeegleWorkitem[]> {
     if (workitemIds.length === 0) {
       return [];
@@ -37,6 +38,7 @@ export class MeegleShellClient {
       "+batch-get",
       "--project-key", projectKey,
       "--work-item-ids", workitemIds.join(","),
+      ...fieldKeys.flatMap((fieldKey) => ["--fields", fieldKey]),
     ]), "meegle +batch-get response");
     const results = Array.isArray(data.results) ? data.results : [];
     return results.flatMap((result) => {

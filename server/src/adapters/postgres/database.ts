@@ -195,6 +195,7 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .createTable("meegle_workitem_syncs")
     .ifNotExists()
     .addColumn("project_key", "text", (column) => column.notNull())
+    .addColumn("project_name", "text")
     .addColumn("work_item_type_key", "text", (column) => column.notNull())
     .addColumn("work_item_id", "text", (column) => column.notNull())
     .addColumn("work_item_key", "text")
@@ -204,6 +205,10 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .addColumn("status", "text")
     .addColumn("sub_stage_key", "text")
     .addColumn("sub_stage", "text")
+    .addColumn("sprint", "text")
+    .addColumn("version", "text")
+    .addColumn("system", "text")
+    .addColumn("bugs_json", "text")
     .addColumn("assignee", "text")
     .addColumn("payload_json", "text", (column) => column.notNull())
     .addColumn("source_updated_at", "text")
@@ -424,6 +429,10 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
   `.execute(db);
   await sql`
     ALTER TABLE meegle_workitem_syncs
+    ADD COLUMN IF NOT EXISTS project_name text
+  `.execute(db);
+  await sql`
+    ALTER TABLE meegle_workitem_syncs
     ADD COLUMN IF NOT EXISTS status_key text
   `.execute(db);
   await sql`
@@ -434,6 +443,15 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     ALTER TABLE meegle_workitem_syncs
     ADD COLUMN IF NOT EXISTS sub_stage text
   `.execute(db);
+  for (const column of ["sprint", "version", "system", "bugs_json"]) {
+    await sql.raw(`ALTER TABLE meegle_workitem_syncs ADD COLUMN IF NOT EXISTS ${column} text`).execute(db);
+  }
+  for (const column of [
+    "planned_sprint", "planned_version", "linked_project", "linked_bugs_json", "relevant_system",
+    "linked_sprint", "linked_version", "associated_bugs_json", "linked_story",
+  ]) {
+    await sql.raw(`ALTER TABLE meegle_workitem_syncs DROP COLUMN IF EXISTS ${column}`).execute(db);
+  }
 }
 
 export async function resetPostgresDatabase(db: Kysely<DatabaseSchema>): Promise<void> {

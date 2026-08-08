@@ -261,8 +261,8 @@ function SyncedListTable({ kind, items }) {
   }
 
   if (kind === "meegle-workitems") {
-    return <table className="data-table"><thead><tr><th>工作项</th><th>项目 / 类型</th><th>状态</th><th>负责人</th><th>更新时间</th></tr></thead><tbody>
-      {items.map((item) => <tr key={`${item.projectKey}-${item.workItemTypeKey}-${item.workItemId}`}><td><strong>{item.workItemKey || item.workItemId}</strong><small>{item.title}</small></td><td>{item.projectKey}<small>{item.workItemType || item.workItemTypeKey}</small></td><td><StatusPill>{item.status}</StatusPill><small>{item.subStage || ""}</small></td><td>{item.assignee || "-"}</td><td>{formatDateTime(item.sourceUpdatedAt || item.syncedAt)}</td></tr>)}
+    return <table className="data-table"><thead><tr><th>工作项</th><th>项目 / 类型</th><th>状态</th><th>Sprint / Version</th><th>System</th><th>负责人</th><th>更新时间</th></tr></thead><tbody>
+      {items.map((item) => <tr key={`${item.projectKey}-${item.workItemTypeKey}-${item.workItemId}`}><td><strong>{item.workItemKey || item.workItemId}</strong><small>{item.title}</small></td><td>{item.projectName || item.projectKey}<small>{item.workItemType || item.workItemTypeKey}</small></td><td><StatusPill>{item.status}</StatusPill><small>{item.subStage || ""}</small></td><td>{item.sprint || "-"}<small>{item.version || "-"}</small></td><td>{item.system || "-"}</td><td>{item.assignee || "-"}</td><td>{formatDateTime(item.sourceUpdatedAt || item.syncedAt)}</td></tr>)}
     </tbody></table>;
   }
 

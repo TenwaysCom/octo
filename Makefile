@@ -9,7 +9,7 @@ DEV_DATABASE ?= tenways_octo_ly_0509
 
 .DEFAULT_GOAL := help
 
-.PHONY: help completion server-dev make-fe-dev make-fe-build test-server test-client db-backup db-restore db-sync-user-tokens db-sync-test-user-tokens ext-dev ext-dev-manual ext-dev-profile ext-dev-probe ext-build ext-package ext-deploy-zip ext-test ext-typecheck deploy-test deploy-prod
+.PHONY: help completion server-dev make-fe-dev make-fe-build test-server test-client db-backup db-restore db-sync-user-tokens db-sync-test-user-tokens platform-sync platform-clean-meegle ext-dev ext-dev-manual ext-dev-profile ext-dev-probe ext-build ext-package ext-deploy-zip ext-test ext-typecheck deploy-test deploy-prod
 
 help: ## Show available make targets
 	@awk 'BEGIN {FS = ":.*## "}; /^[a-zA-Z0-9_.-]+:.*## / {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -57,6 +57,16 @@ db-sync-user-tokens: ## Sync user_tokens from tenways_octo to tenways_octo_ly_05
 
 db-sync-test-user-tokens: ## Sync user_tokens from test to dev (override: MASTER_USER_ID=... TEST_DATABASE=... DEV_DATABASE=...)
 	pnpm --dir $(SERVER_DIR) exec tsx src/scripts/sync-user-tokens.ts $(MASTER_USER_ID) --source-db $(TEST_DATABASE) --target-db $(DEV_DATABASE)
+
+platform-sync: ## Sync configured Lark, Meegle, and GitHub platform data
+	pnpm --dir $(SERVER_DIR) platform:sync
+
+platform-clean-meegle: ## Validate historical Meegle cleanup (set APPLY=1 to update)
+	@if [ "$(APPLY)" = "1" ]; then \
+		pnpm --dir $(SERVER_DIR) platform:clean-meegle --apply; \
+	else \
+		pnpm --dir $(SERVER_DIR) platform:clean-meegle; \
+	fi
 
 test-client: ## Run extension tests
 	pnpm --dir $(EXT_DIR) test

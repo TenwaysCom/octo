@@ -79,6 +79,22 @@ describe("MeegleShellClient", () => {
     ]);
   });
 
+  it("requests only the specified related fields when enriching batch details", async () => {
+    const runCommand = vi.fn().mockResolvedValue(JSON.stringify({ results: [] }));
+    const client = new MeegleShellClient(runCommand);
+
+    await client.getWorkitemDetails("project", "story", ["123"], ["field_feb079", "field_1b9eb0"]);
+
+    expect(runCommand).toHaveBeenCalledWith([
+      "workitem",
+      "+batch-get",
+      "--project-key", "project",
+      "--work-item-ids", "123",
+      "--fields", "field_feb079",
+      "--fields", "field_1b9eb0",
+    ]);
+  });
+
   it("reads work item type and status mappings from CLI metadata", async () => {
     const runCommand = vi.fn()
       .mockResolvedValueOnce(JSON.stringify({

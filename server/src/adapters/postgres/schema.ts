@@ -107,6 +107,7 @@ export interface DatabaseSchema {
   };
   meegle_workitem_syncs: {
     project_key: string;
+    project_name: string | null;
     work_item_type_key: string;
     work_item_id: string;
     work_item_key: string | null;
@@ -116,6 +117,10 @@ export interface DatabaseSchema {
     status: string | null;
     sub_stage_key: string | null;
     sub_stage: string | null;
+    sprint: string | null;
+    version: string | null;
+    system: string | null;
+    bugs_json: string | null;
     assignee: string | null;
     payload_json: string;
     source_updated_at: string | null;

@@ -50,6 +50,11 @@ describe("PostgresPlatformSyncStore", () => {
       title: "Ticket",
       status: "Open",
     });
+    await db.updateTable("meegle_workitem_syncs").set({
+      sprint: "Sprint 1",
+      version: "Version 1",
+      bugs_json: JSON.stringify(["Bug 1"]),
+    }).where("work_item_id", "=", "1").execute();
 
     await expect(db.selectFrom("meegle_workitem_syncs").selectAll().execute())
       .resolves.toEqual([expect.objectContaining({
@@ -72,7 +77,9 @@ describe("PostgresPlatformSyncStore", () => {
       .resolves.toEqual([expect.objectContaining({ record_id: "rec-1", ticket_status: "Open" })]);
 
     await expect(store.listMeegleWorkitems(10)).resolves.toEqual([expect.objectContaining({
-      workItemId: "1", title: "Updated", status: "Finished",
+      workItemId: "1", title: "Updated", statusKey: "status_finished", status: "Finished",
+      subStageKey: "node_done", subStage: "Done",
+      sprint: "Sprint 1", version: "Version 1", bugs: ["Bug 1"],
     })]);
     await expect(store.listGitHubPullRequests(10)).resolves.toEqual([expect.objectContaining({
       pullNumber: 2, title: "PR", state: "open",

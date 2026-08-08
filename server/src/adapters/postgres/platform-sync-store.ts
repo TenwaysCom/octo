@@ -31,13 +31,20 @@ export interface PlatformSyncStore {
 
 export interface MeegleWorkitemSyncItem {
   projectKey: string;
+  projectName?: string;
   workItemTypeKey: string;
   workItemId: string;
   workItemKey?: string;
   title: string;
   workItemType?: string;
+  statusKey?: string;
   status?: string;
+  subStageKey?: string;
   subStage?: string;
+  sprint?: string;
+  version?: string;
+  system?: string;
+  bugs?: string[];
   assignee?: string;
   sourceUpdatedAt?: string;
   syncedAt: string;
@@ -212,8 +219,10 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
   async listMeegleWorkitems(limit: number): Promise<MeegleWorkitemSyncItem[]> {
     const rows = await this.db.selectFrom("meegle_workitem_syncs")
       .select([
-        "project_key", "work_item_type_key", "work_item_id", "work_item_key", "title",
-        "work_item_type", "status", "sub_stage", "assignee", "source_updated_at", "synced_at",
+        "project_key", "project_name", "work_item_type_key", "work_item_id", "work_item_key", "title",
+        "work_item_type", "status_key", "status", "sub_stage_key", "sub_stage",
+        "sprint", "version", "system", "bugs_json",
+        "assignee", "source_updated_at", "synced_at",
       ])
       .orderBy("source_updated_at", "desc")
       .orderBy("synced_at", "desc")
@@ -222,13 +231,20 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
 
     return rows.map((row) => ({
       projectKey: row.project_key,
+      projectName: row.project_name ?? undefined,
       workItemTypeKey: row.work_item_type_key,
       workItemId: row.work_item_id,
       workItemKey: row.work_item_key ?? undefined,
       title: row.title,
       workItemType: row.work_item_type ?? undefined,
+      statusKey: row.status_key ?? undefined,
       status: row.status ?? undefined,
+      subStageKey: row.sub_stage_key ?? undefined,
       subStage: row.sub_stage ?? undefined,
+      sprint: row.sprint ?? undefined,
+      version: row.version ?? undefined,
+      system: row.system ?? undefined,
+      bugs: parseStringArray(row.bugs_json),
       assignee: row.assignee ?? undefined,
       sourceUpdatedAt: row.source_updated_at ?? undefined,
       syncedAt: row.synced_at,
@@ -298,4 +314,16 @@ function findSourceUpdatedAt(fields: Record<string, unknown>): string | null {
     }
   }
   return null;
+}
+
+function parseStringArray(value: string | null): string[] | undefined {
+  if (!value) {
+    return undefined;
+  }
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return Array.isArray(parsed) && parsed.every((item) => typeof item === "string") ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
 }
