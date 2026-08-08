@@ -84,9 +84,15 @@ describe("api auth middleware", () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
-  it("allows web profile and extension download routes without a master-user-id header", () => {
+  it("allows web-session routes without a master-user-id header", () => {
     const middleware = createApiAuthMiddleware();
-    for (const path of ["/api/web/profile", "/api/extension/version"]) {
+    for (const path of [
+      "/api/web/profile",
+      "/api/web/platform-data/lark-tickets",
+      "/api/web/platform-data/meegle-workitems",
+      "/api/web/platform-data/github-pull-requests",
+      "/api/extension/version",
+    ]) {
       const req = {
         method: "GET",
         path,

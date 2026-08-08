@@ -71,6 +71,16 @@ describe("PostgresPlatformSyncStore", () => {
     await expect(db.selectFrom("lark_base_ticket_syncs").selectAll().execute())
       .resolves.toEqual([expect.objectContaining({ record_id: "rec-1", ticket_status: "Open" })]);
 
+    await expect(store.listMeegleWorkitems(10)).resolves.toEqual([expect.objectContaining({
+      workItemId: "1", title: "Updated", status: "Finished",
+    })]);
+    await expect(store.listGitHubPullRequests(10)).resolves.toEqual([expect.objectContaining({
+      pullNumber: 2, title: "PR", state: "open",
+    })]);
+    await expect(store.listLarkBaseTickets(10)).resolves.toEqual([expect.objectContaining({
+      recordId: "rec-1", ticketStatus: "Open",
+    })]);
+
     await db.destroy();
     await pool.end();
   });

@@ -24,6 +24,50 @@ export interface PlatformSyncStore {
     title: string;
     status?: string;
   }): Promise<void>;
+  listMeegleWorkitems(limit: number): Promise<MeegleWorkitemSyncItem[]>;
+  listGitHubPullRequests(limit: number): Promise<GitHubPullRequestSyncItem[]>;
+  listLarkBaseTickets(limit: number): Promise<LarkBaseTicketSyncItem[]>;
+}
+
+export interface MeegleWorkitemSyncItem {
+  projectKey: string;
+  workItemTypeKey: string;
+  workItemId: string;
+  workItemKey?: string;
+  title: string;
+  workItemType?: string;
+  status?: string;
+  subStage?: string;
+  assignee?: string;
+  sourceUpdatedAt?: string;
+  syncedAt: string;
+}
+
+export interface GitHubPullRequestSyncItem {
+  owner: string;
+  repo: string;
+  pullNumber: number;
+  title: string;
+  state: string;
+  htmlUrl: string;
+  authorLogin?: string;
+  headRef?: string;
+  baseRef?: string;
+  isDraft: boolean;
+  sourceUpdatedAt?: string;
+  syncedAt: string;
+}
+
+export interface LarkBaseTicketSyncItem {
+  baseId: string;
+  tableId: string;
+  recordId: string;
+  title: string;
+  ticketStatus?: string;
+  sharedUrl?: string;
+  createdTime?: string;
+  sourceUpdatedAt?: string;
+  syncedAt: string;
 }
 
 export class PostgresPlatformSyncStore implements PlatformSyncStore {
@@ -163,6 +207,83 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
         source_updated_at: input.record.updated_time ?? null,
         synced_at: now,
       })).execute();
+  }
+
+  async listMeegleWorkitems(limit: number): Promise<MeegleWorkitemSyncItem[]> {
+    const rows = await this.db.selectFrom("meegle_workitem_syncs")
+      .select([
+        "project_key", "work_item_type_key", "work_item_id", "work_item_key", "title",
+        "work_item_type", "status", "sub_stage", "assignee", "source_updated_at", "synced_at",
+      ])
+      .orderBy("source_updated_at", "desc")
+      .orderBy("synced_at", "desc")
+      .limit(limit)
+      .execute();
+
+    return rows.map((row) => ({
+      projectKey: row.project_key,
+      workItemTypeKey: row.work_item_type_key,
+      workItemId: row.work_item_id,
+      workItemKey: row.work_item_key ?? undefined,
+      title: row.title,
+      workItemType: row.work_item_type ?? undefined,
+      status: row.status ?? undefined,
+      subStage: row.sub_stage ?? undefined,
+      assignee: row.assignee ?? undefined,
+      sourceUpdatedAt: row.source_updated_at ?? undefined,
+      syncedAt: row.synced_at,
+    }));
+  }
+
+  async listGitHubPullRequests(limit: number): Promise<GitHubPullRequestSyncItem[]> {
+    const rows = await this.db.selectFrom("github_pr_syncs")
+      .select([
+        "owner", "repo", "pull_number", "title", "state", "html_url", "author_login",
+        "head_ref", "base_ref", "is_draft", "source_updated_at", "synced_at",
+      ])
+      .orderBy("source_updated_at", "desc")
+      .orderBy("synced_at", "desc")
+      .limit(limit)
+      .execute();
+
+    return rows.map((row) => ({
+      owner: row.owner,
+      repo: row.repo,
+      pullNumber: row.pull_number,
+      title: row.title,
+      state: row.state,
+      htmlUrl: row.html_url,
+      authorLogin: row.author_login ?? undefined,
+      headRef: row.head_ref ?? undefined,
+      baseRef: row.base_ref ?? undefined,
+      isDraft: row.is_draft,
+      sourceUpdatedAt: row.source_updated_at ?? undefined,
+      syncedAt: row.synced_at,
+    }));
+  }
+
+  async listLarkBaseTickets(limit: number): Promise<LarkBaseTicketSyncItem[]> {
+    const rows = await this.db.selectFrom("lark_base_ticket_syncs")
+      .select([
+        "base_id", "table_id", "record_id", "title", "ticket_status", "shared_url",
+        "created_time", "source_updated_at", "synced_at",
+      ])
+      .orderBy("source_updated_at", "desc")
+      .orderBy("synced_at", "desc")
+      .limit(limit)
+      .execute();
+
+    return rows.map((row) => ({
+      baseId: row.base_id,
+      tableId: row.table_id,
+      recordId: row.record_id,
+      title: row.title,
+      ticketStatus: row.ticket_status ?? undefined,
+      sharedUrl: row.shared_url ?? undefined,
+      createdTime: row.created_time ?? undefined,
+      sourceUpdatedAt: row.source_updated_at ?? undefined,
+      syncedAt: row.synced_at,
+    }));
   }
 }
 

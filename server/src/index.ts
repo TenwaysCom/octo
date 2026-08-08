@@ -65,6 +65,7 @@ import {
   syncLarkBaseTicketController,
   syncMeegleWorkitemController,
 } from "./modules/platform-sync/platform-sync.controller.js";
+import { createWebPlatformDataController } from "./modules/platform-data/platform-data.controller.js";
 
 import { logger, stdoutLogger } from "./logger.js";
 
@@ -137,6 +138,7 @@ const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || "0.0.0.0";
 const WEB_ALLOWED_ORIGINS = [LARK_WEB_ORIGIN];
+const listWebPlatformDataController = createWebPlatformDataController();
 
 function getMasterUserIdHeader(req: Request): string | undefined {
   const headerValue = req.headers["master-user-id"];
@@ -293,6 +295,24 @@ app.get("/api/lark/auth/web/ensure", async (req, res) => {
 });
 app.get("/api/web/profile", async (req, res) => {
   const result = await getWebProfileController(req.headers.cookie);
+  res.status(result.statusCode).json(result.body);
+});
+app.get("/api/web/platform-data/lark-tickets", async (req, res) => {
+  const result = await listWebPlatformDataController({
+    kind: "lark-tickets", cookieHeader: req.headers.cookie, query: req.query,
+  });
+  res.status(result.statusCode).json(result.body);
+});
+app.get("/api/web/platform-data/meegle-workitems", async (req, res) => {
+  const result = await listWebPlatformDataController({
+    kind: "meegle-workitems", cookieHeader: req.headers.cookie, query: req.query,
+  });
+  res.status(result.statusCode).json(result.body);
+});
+app.get("/api/web/platform-data/github-pull-requests", async (req, res) => {
+  const result = await listWebPlatformDataController({
+    kind: "github-pull-requests", cookieHeader: req.headers.cookie, query: req.query,
+  });
   res.status(result.statusCode).json(result.body);
 });
 app.post("/api/lark/auth/web/logout", async (req, res) => {

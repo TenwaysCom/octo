@@ -1,0 +1,59 @@
+import { ZodError } from "zod";
+import { PlatformDataService, type PlatformDataKind } from "../../application/services/platform-data.service.js";
+import { ensureLarkWebSession } from "../lark-auth/lark-auth.service.js";
+import { WEB_SESSION_COOKIE_NAME } from "../lark-auth/lark-auth.controller.js";
+import { platformDataListQuerySchema } from "./platform-data.dto.js";
+
+type WebSessionResult = Awaited<ReturnType<typeof ensureLarkWebSession>>;
+
+function readCookie(cookieHeader: string | undefined, name: string): string | undefined {
+  const prefix = `${name}=`;
+  const value = cookieHeader?.split(";").map((part) => part.trim()).find((part) => part.startsWith(prefix));
+  if (!value) {
+    return undefined;
+  }
+
+  try {
+    return decodeURIComponent(value.slice(prefix.length));
+  } catch {
+    return undefined;
+  }
+}
+
+export function createWebPlatformDataController(deps: {
+  service?: Pick<PlatformDataService, "list">;
+  ensureSession?: (sessionToken: string | undefined) => Promise<WebSessionResult>;
+} = {}) {
+  const service = deps.service ?? new PlatformDataService();
+  const ensureSession = deps.ensureSession ?? ensureLarkWebSession;
+
+  return async function listWebPlatformDataController(input: {
+    kind: PlatformDataKind;
+    cookieHeader: string | undefined;
+    query: unknown;
+  }) {
+    const session = await ensureSession(readCookie(input.cookieHeader, WEB_SESSION_COOKIE_NAME));
+    if (!session.ok) {
+      return {
+        statusCode: 401,
+        body: { ok: false as const, error: { errorCode: session.errorCode, errorMessage: session.errorMessage } },
+      };
+    }
+
+    try {
+      const query = platformDataListQuerySchema.parse(input.query);
+      return { statusCode: 200, body: { ok: true as const, data: await service.list(input.kind, query.limit) } };
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return {
+          statusCode: 400,
+          body: { ok: false as const, error: { errorCode: "INVALID_REQUEST", errorMessage: error.message } },
+        };
+      }
+      return {
+        statusCode: 500,
+        body: { ok: false as const, error: { errorCode: "PLATFORM_DATA_READ_FAILED", errorMessage: "无法读取同步数据。" } },
+      };
+    }
+  };
+}
