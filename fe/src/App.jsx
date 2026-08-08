@@ -1,18 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { approveOctoPluginLogin, detectOctoExtension } from "./extension-presence.js";
 import {
-  getExtensionDownloadInfo,
   getWebProfile,
   logoutWebAuthSession,
   completeOctoPluginLogin,
   startOctoPluginLogin,
   startLarkLogin,
 } from "./lark-auth-api.js";
-
-const initialStatus = {
-  title: "正在检查登录状态",
-  text: "正在验证你的 Tenways Octo 工作台会话。",
-};
 
 function formatDateTime(value) {
   if (!value) {
@@ -28,6 +22,20 @@ function formatDateTime(value) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
+}
+
+function Brand() {
+  return <a className="brand" href="/" aria-label="Tenways Octo 首页">
+    <span className="brand-mark" aria-hidden="true"><span /><span /><span /><span /></span>
+    <span>Tenways Octo</span>
+  </a>;
+}
+
+function ProfileAvatar({ user, className = "" }) {
+  const displayName = user.larkName || "Lark 用户";
+  return <div className={`profile-avatar ${className}`.trim()} aria-hidden="true">
+    {user.larkAvatarUrl ? <img src={user.larkAvatarUrl} alt="" /> : displayName.slice(0, 1)}
+  </div>;
 }
 
 function LarkAuthorizationCard({ authorization, onReauthorize }) {
@@ -47,97 +55,126 @@ function LarkAuthorizationCard({ authorization, onReauthorize }) {
   </section>;
 }
 
-function MeegleExtensionCard({ extension, onInstall, installError, isInstalling }) {
-  const detected = extension.status === "detected";
-  const checking = extension.status === "checking";
+function MeegleAuthorizationCard({ authorization }) {
+  const ready = authorization?.status === "ready";
   return <section className="profile-card">
     <div className="profile-card__heading">
-      <div><p className="profile-card__eyebrow">Meegle</p><h2>插件授权</h2></div>
-      <span className={`status-badge ${detected ? "status-badge--ready" : "status-badge--neutral"}`}>
-        <span />{checking ? "正在检测" : detected ? "插件已安装" : "未检测到插件"}
+      <div><p className="profile-card__eyebrow">Meegle</p><h2>Meegle 授权</h2></div>
+      <span className={`status-badge ${ready ? "status-badge--ready" : "status-badge--attention"}`}>
+        <span />{ready ? "已授权" : "需要授权"}
       </span>
     </div>
-    {detected ? <p className="profile-card__description">请在已登录的 Meegle 页面打开 Tenways Octo 插件，按插件内提示完成授权。</p> : <>
-      <p className="profile-card__description">安装插件后，可在 Meegle 页面使用现有的插件授权与协作能力。</p>
-      <button className="secondary-button" type="button" disabled={checking || isInstalling} onClick={onInstall}>
-        {isInstalling ? "正在获取安装包" : "下载插件"}
-      </button>
-      {installError ? <p className="profile-card__error" role="alert">{installError}</p> : null}
-    </>}
+    <p className="profile-card__description">{ready
+      ? "Meegle 授权已由 Octo 服务端保存。"
+      : "请在 Meegle 页面使用 Octo 插件完成授权后重试。"}</p>
   </section>;
 }
 
-function ProfilePage({ profile, extension, onLogout, onReauthorize, onInstall, isBusy, isInstalling, installError }) {
+function ProfilePage({ profile, onLogout, onReauthorize, isBusy }) {
   const user = profile.user ?? {};
   const displayName = user.larkName || "Lark 用户";
-  return <div className="profile-content">
-    <div className="profile-welcome">
-      <div className="profile-avatar" aria-hidden="true">
-        {user.larkAvatarUrl ? <img src={user.larkAvatarUrl} alt="" /> : displayName.slice(0, 1)}
+  const authorizationReady = profile.larkAuthorization?.status === "ready";
+  return <main className="workspace-layout">
+    <header className="workspace-header">
+      <Brand />
+      <div className="workspace-header__account">
+        <ProfileAvatar user={user} className="workspace-header__avatar" />
+        <div><strong>{displayName}</strong><span>个人工作台</span></div>
       </div>
-      <div><p className="eyebrow">个人工作台</p><h1>你好，{displayName}</h1><p className="intro">查看你的 Octo 工作台身份和授权状态。</p></div>
+    </header>
+
+    <div className="profile-workspace">
+      <aside className="profile-sidebar" aria-label="个人资料导航">
+        <div className="profile-sidebar__identity">
+          <ProfileAvatar user={user} />
+          <strong>{displayName}</strong>
+          <span>{user.larkEmail || "Lark 账户"}</span>
+        </div>
+        <nav className="profile-nav" aria-label="个人资料分区">
+          <a className="profile-nav__item profile-nav__item--active" href="#profile-general">
+            <span aria-hidden="true">◉</span>个人资料
+          </a>
+          <a className="profile-nav__item" href="#profile-authorization">
+            <span aria-hidden="true">◇</span>授权状态
+          </a>
+        </nav>
+        <button className="profile-logout" type="button" disabled={isBusy} onClick={onLogout}>
+          <span aria-hidden="true">↗</span>退出当前工作台
+        </button>
+      </aside>
+
+      <section className="profile-main">
+        <header className="profile-main__header">
+          <div>
+            <p className="eyebrow">个人工作台</p>
+            <h1>个人资料</h1>
+            <p>管理你的 Octo 工作台身份、Lark 与 Meegle 授权状态。</p>
+          </div>
+          <span className={`status-badge ${authorizationReady ? "status-badge--ready" : "status-badge--attention"}`}>
+            <span />{authorizationReady ? "Lark 已授权" : "需要重新授权"}
+          </span>
+        </header>
+
+        <nav className="profile-tabs" aria-label="个人资料标签">
+          <a className="profile-tabs__item profile-tabs__item--active" href="#profile-general">概览</a>
+          <a className="profile-tabs__item" href="#profile-authorization">授权状态</a>
+        </nav>
+
+        <section className="profile-section" id="profile-general">
+          <div className="profile-section__heading"><h2>账户信息</h2><p>由已登录的 Lark 账户提供。</p></div>
+          <dl className="profile-details">
+            <div><dt>姓名</dt><dd>{displayName}</dd></div>
+            <div><dt>邮箱</dt><dd>{user.larkEmail || "未提供"}</dd></div>
+          </dl>
+        </section>
+
+        <section className="profile-section" id="profile-authorization">
+          <div className="profile-section__heading"><h2>授权状态</h2><p>授权凭据仅由 Octo 服务端保管。</p></div>
+          <div className="profile-authorization-grid">
+            <LarkAuthorizationCard authorization={profile.larkAuthorization} onReauthorize={onReauthorize} />
+            <MeegleAuthorizationCard authorization={profile.meegleAuthorization} />
+          </div>
+        </section>
+      </section>
     </div>
-
-    <section className="profile-card profile-card--identity">
-      <p className="profile-card__eyebrow">账户信息</p>
-      <h2>个人资料</h2>
-      <dl className="identity-details">
-        <div><dt>姓名</dt><dd>{displayName}</dd></div>
-        <div><dt>邮箱</dt><dd>{user.larkEmail || "未提供"}</dd></div>
-      </dl>
-    </section>
-
-    <div className="authorization-grid">
-      <LarkAuthorizationCard authorization={profile.larkAuthorization} onReauthorize={onReauthorize} />
-      <MeegleExtensionCard extension={extension} onInstall={onInstall} isInstalling={isInstalling} installError={installError} />
-    </div>
-
-    <button className="text-button" type="button" disabled={isBusy} onClick={onLogout}>退出当前工作台</button>
-  </div>;
+  </main>;
 }
 
 function LoginPage({ status, isBusy, extension, onLogin, onPluginLogin }) {
   const extensionDetected = extension.status === "detected";
   return <div className="login-content">
-    <p className="eyebrow">项目协作工作台</p>
-    <h1 id="login-title">使用 Lark 继续</h1>
-    <p className="intro">登录后即可回到你的 Tenways Octo 工作区，继续管理项目、事项和协作流程。</p>
-
-    <section className="auth-card" aria-live="polite">
+    {status ? <section className="auth-card" aria-live="polite">
       <div className="auth-card-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none"><path d="M12 3a9 9 0 1 0 9 9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /><path d="M12 3v9h9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
       </div>
       <div><h2>{status.title}</h2><p>{status.text}</p></div>
-    </section>
+    </section> : null}
 
-    <button className="primary-button" type="button" disabled={isBusy} onClick={onLogin}>
-      <span>使用 Lark 登录</span>
-      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 10h11m-4-4 4 4-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
-    </button>
-    <button className="secondary-button login-plugin-button" type="button" disabled={isBusy || !extensionDetected} onClick={onPluginLogin}>
-      使用 Octo 插件登录
-    </button>
+    <div className="login-methods">
+      <button className="primary-button" type="button" disabled={isBusy} onClick={onLogin}>
+        <span>使用 Lark 登录</span>
+        <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 10h11m-4-4 4 4-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+      </button>
+      <div className="login-divider" aria-hidden="true"><span>或</span></div>
+      <button className="plugin-login-button" type="button" disabled={isBusy || !extensionDetected} onClick={onPluginLogin}>
+        <span className="plugin-login-button__mark" aria-hidden="true"><i /><i /><i /><i /></span>
+        <span>使用 Octo 插件登录</span>
+      </button>
+    </div>
     <p className="help-text">{extension.status === "checking"
       ? "正在检测 Octo 插件…"
       : extensionDetected
         ? "将使用插件中已有的 Lark 授权完成登录。"
         : "未检测到 Octo 插件；你仍可使用 Lark 登录。"}</p>
 
-    <div className="security-note">
-      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 2.75 16 5v4.25c0 3.4-2.3 6.48-6 7.75-3.7-1.27-6-4.35-6-7.75V5l6-2.25Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /><path d="m7.6 9.9 1.55 1.55 3.3-3.3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
-      <p>登录令牌仅保存在 Octo 服务端；浏览器只持有 HttpOnly 的工作台会话 Cookie。</p>
-    </div>
-    <p className="help-text">不会读取 Chrome 或 Meegle 的 Cookie。</p>
   </div>;
 }
 
 export function App({ apiBaseUrl }) {
-  const [status, setStatus] = useState(initialStatus);
+  const [status, setStatus] = useState();
   const [isBusy, setIsBusy] = useState(false);
   const [profile, setProfile] = useState();
   const [extension, setExtension] = useState({ status: "checking" });
-  const [isInstalling, setIsInstalling] = useState(false);
-  const [installError, setInstallError] = useState("");
 
   const checkSession = useCallback(async () => {
     setIsBusy(true);
@@ -145,7 +182,7 @@ export function App({ apiBaseUrl }) {
     setProfile(result.authenticated ? result.profile : undefined);
     setStatus(result.authenticated
       ? { title: "登录成功", text: "正在进入你的 Tenways Octo 工作台。" }
-      : { title: "请使用 Lark 登录", text: "通过 Lark 授权后即可进入你的 Tenways Octo 工作台。" });
+      : undefined);
     setIsBusy(false);
   }, [apiBaseUrl]);
 
@@ -154,6 +191,10 @@ export function App({ apiBaseUrl }) {
   }, [checkSession]);
 
   useEffect(() => {
+    if (profile) {
+      return undefined;
+    }
+
     let active = true;
     void detectOctoExtension().then((result) => {
       if (active) {
@@ -161,7 +202,7 @@ export function App({ apiBaseUrl }) {
       }
     });
     return () => { active = false; };
-  }, []);
+  }, [profile]);
 
   const logout = useCallback(async () => {
     setIsBusy(true);
@@ -169,23 +210,6 @@ export function App({ apiBaseUrl }) {
     setProfile(undefined);
     setStatus({ title: "已退出登录", text: "你的本工作台会话已结束。" });
     setIsBusy(false);
-  }, [apiBaseUrl]);
-
-  const downloadExtension = useCallback(async () => {
-    setIsInstalling(true);
-    setInstallError("");
-    try {
-      const { downloadUrl } = await getExtensionDownloadInfo({ apiBaseUrl });
-      if (!downloadUrl) {
-        setInstallError("当前未配置插件安装包，请联系管理员获取。");
-        return;
-      }
-      window.location.assign(downloadUrl);
-    } catch {
-      setInstallError("暂时无法获取插件安装包，请稍后重试。");
-    } finally {
-      setIsInstalling(false);
-    }
   }, [apiBaseUrl]);
 
   const loginWithPlugin = useCallback(async () => {
@@ -228,19 +252,20 @@ export function App({ apiBaseUrl }) {
     }
   }, [apiBaseUrl, extension.status]);
 
+  if (profile) {
+    return <ProfilePage profile={profile} onLogout={() => void logout()} onReauthorize={() => startLarkLogin({ apiBaseUrl })} isBusy={isBusy} />;
+  }
+
   return <main className="auth-layout">
     <section className="auth-panel" aria-label="Tenways Octo 工作台">
       <header className="brand-header">
-        <a className="brand" href="/" aria-label="Tenways Octo 首页">
-          <span className="brand-mark" aria-hidden="true"><span /><span /><span /><span /></span>
-          <span>Tenways Octo</span>
-        </a>
-        <span className="environment-badge">Workspace</span>
+        <Brand />
+        <span className="environment-badge">项目协作工作台</span>
       </header>
 
-      {profile ? <ProfilePage profile={profile} extension={extension} onLogout={() => void logout()} onReauthorize={() => startLarkLogin({ apiBaseUrl })} onInstall={() => void downloadExtension()} isBusy={isBusy} isInstalling={isInstalling} installError={installError} /> : <LoginPage status={status} isBusy={isBusy} extension={extension} onLogin={() => startLarkLogin({ apiBaseUrl })} onPluginLogin={() => void loginWithPlugin()} />}
+      <LoginPage status={status} isBusy={isBusy} extension={extension} onLogin={() => startLarkLogin({ apiBaseUrl })} onPluginLogin={() => void loginWithPlugin()} />
 
-      <footer className="auth-footer"><span>© Tenways</span><span className="footer-dot" aria-hidden="true">•</span><a href="mailto:tech@tenways.com">需要帮助？</a></footer>
+      <footer className="auth-footer"><span>© Tenways</span></footer>
     </section>
 
     <aside className="visual-panel" aria-label="Tenways Octo 产品介绍">

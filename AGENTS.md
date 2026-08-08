@@ -39,6 +39,27 @@ pnpm --dir extension package
 pnpm --dir extension test:e2e
 ```
 
+## 本地 FE 插件登录联调
+
+启动同一套本地环境：
+
+```bash
+make server-dev
+make ext-dev-profile
+make make-fe-dev
+```
+
+- FE 为 `http://localhost:4173`，Vite 将 `/api` 代理到 Server `http://localhost:3040`。
+- `ext-dev-profile` 使用 `~/.config/octo-ext-profile/Default`；真实 Lark 登录只保留在该专用 profile，不读取或导出其 cookie/token。
+- 成功判定必须同时看到 `start -> approve -> complete` 都返回 `2xx`，随后 `GET /api/web/profile` 为已登录状态。
+
+排查时只提取非敏感请求字段，不输出响应体、cookie、token 或用户资料：
+
+```bash
+rg '"path":"/api/web/plugin-login/(start|approve|complete)"' server/logs/api.$(date +%F).* \
+  | jq -r '[.time, .phase, .method, .path, (.statusCode // "")] | @tsv'
+```
+
 ## Hard Rules
 
 1. Keep workflow/business logic out of the extension.

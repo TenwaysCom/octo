@@ -16,6 +16,7 @@ import type { LarkContactStore } from "../../adapters/lark/contact-store.js";
 import type { LarkTokenStore, StoredLarkToken } from "../../adapters/lark/token-store.js";
 import type { WebSessionStore } from "../../adapters/web/session-store.js";
 import type { WebPluginLoginChallengeStore } from "../../adapters/web/plugin-login-challenge-store.js";
+import type { MeegleTokenStore, StoredMeegleToken } from "../../adapters/meegle/token-store.js";
 import { getLarkContactStore } from "../../adapters/postgres/lark-contact-store.js";
 import { getResolvedUserStore, type ResolvedUserStore } from "../../adapters/postgres/resolved-user-store.js";
 import type {
@@ -43,6 +44,7 @@ export interface LarkAuthServiceDeps {
   oauthSessionStore?: OauthSessionStore;
   webSessionStore?: WebSessionStore;
   webPluginLoginChallengeStore?: WebPluginLoginChallengeStore;
+  meegleTokenStore?: MeegleTokenStore;
   resolvedUserStore?: ResolvedUserStore;
   contactStore?: LarkContactStore;
 }
@@ -126,6 +128,17 @@ function isExpired(expiresAt?: string): boolean {
   }
 
   return expiresAtMs <= Date.now() + EXPIRY_SAFETY_WINDOW_MS;
+}
+
+function hasActiveMeegleToken(token: StoredMeegleToken | undefined): boolean {
+  if (!token?.userToken || token.credentialStatus === "expired") {
+    return false;
+  }
+  if (!token.userTokenExpiresAt) {
+    return true;
+  }
+  const expiresAt = Date.parse(token.userTokenExpiresAt);
+  return Number.isFinite(expiresAt) && expiresAt > Date.now();
 }
 
 function isInvalidAccessTokenError(error: unknown): boolean {
@@ -689,6 +702,9 @@ export interface LarkWebProfile {
     authorizedAt?: string;
     expiresAt?: string;
   };
+  meegleAuthorization: {
+    status: "ready" | "require_auth";
+  };
 }
 
 export type LarkWebAuthCallbackResult =
@@ -913,10 +929,19 @@ export async function getLarkWebProfile(
   const status = initialStatus.status === "require_refresh"
     ? await refreshLarkAuthStatus({ masterUserId: session.masterUserId, baseUrl: session.baseUrl }, overrides)
     : initialStatus;
-  const stored = await getTokenStore(getDeps(overrides)).get({
+  const deps = getDeps(overrides);
+  const stored = await getTokenStore(deps).get({
     masterUserId: session.masterUserId,
     baseUrl: session.baseUrl,
   });
+  const resolvedUser = await getResolvedStore(deps).getById(session.masterUserId);
+  const meegleToken = resolvedUser?.meegleUserKey && resolvedUser.meegleBaseUrl && deps.meegleTokenStore
+    ? await deps.meegleTokenStore.get({
+      masterUserId: session.masterUserId,
+      meegleUserKey: resolvedUser.meegleUserKey,
+      baseUrl: resolvedUser.meegleBaseUrl,
+    })
+    : undefined;
 
   return {
     ok: true,
@@ -926,6 +951,9 @@ export async function getLarkWebProfile(
         status: status.status === "ready" ? "ready" : "require_auth",
         authorizedAt: stored?.lastAuthAt,
         expiresAt: status.status === "ready" ? status.expiresAt : undefined,
+      },
+      meegleAuthorization: {
+        status: hasActiveMeegleToken(meegleToken) ? "ready" : "require_auth",
       },
     },
   };

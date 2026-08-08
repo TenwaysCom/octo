@@ -2,6 +2,7 @@ export const EXTENSION_PRESENCE_PROBE_EVENT = "tenways-octo:extension-presence-p
 export const EXTENSION_PRESENCE_READY_EVENT = "tenways-octo:extension-presence-ready";
 export const EXTENSION_PLUGIN_LOGIN_PROBE_EVENT = "tenways-octo:plugin-login-probe";
 export const EXTENSION_PLUGIN_LOGIN_READY_EVENT = "tenways-octo:plugin-login-ready";
+export const OCTO_WEB_BRIDGE_PROTOCOL_VERSION = 2;
 
 function createNonce() {
   if (globalThis.crypto?.randomUUID) {
@@ -40,7 +41,12 @@ export function detectOctoExtension({
     };
     const onReady = (event) => {
       const detail = event?.detail;
-      if (!detail || detail.nonce !== nonce || typeof detail.version !== "string") {
+      if (
+        !detail
+        || detail.nonce !== nonce
+        || typeof detail.version !== "string"
+        || detail.protocolVersion !== OCTO_WEB_BRIDGE_PROTOCOL_VERSION
+      ) {
         return;
       }
       finish({ detected: true, version: detail.version });
@@ -56,6 +62,7 @@ export function approveOctoPluginLogin({
   challengeId,
   windowRef = window,
   timeoutMs = 5_000,
+  failureGraceMs = 1_000,
 } = {}) {
   return new Promise((resolve) => {
     if (!challengeId || !windowRef?.addEventListener || !windowRef?.dispatchEvent) {
@@ -65,21 +72,43 @@ export function approveOctoPluginLogin({
 
     const nonce = createNonce();
     let timeoutId;
+    let failureTimeoutId;
+    let firstFailure;
     const finish = (result) => {
       windowRef.removeEventListener(EXTENSION_PLUGIN_LOGIN_READY_EVENT, onReady);
       if (timeoutId !== undefined) {
         windowRef.clearTimeout(timeoutId);
       }
+      if (failureTimeoutId !== undefined) {
+        windowRef.clearTimeout(failureTimeoutId);
+      }
       resolve(result);
     };
     const onReady = (event) => {
       const detail = event?.detail;
-      if (!detail || detail.nonce !== nonce || typeof detail.status !== "string") {
+      if (
+        !detail
+        || detail.nonce !== nonce
+        || typeof detail.status !== "string"
+        || detail.protocolVersion !== OCTO_WEB_BRIDGE_PROTOCOL_VERSION
+      ) {
         return;
       }
-      finish(detail.status === "approved"
-        ? { approved: true }
-        : { approved: false, errorCode: detail.errorCode || "PLUGIN_LOGIN_FAILED" });
+      if (detail.status === "approved") {
+        finish({ approved: true });
+        return;
+      }
+
+      firstFailure ??= {
+        approved: false,
+        errorCode: detail.errorCode || "PLUGIN_LOGIN_FAILED",
+      };
+      if (failureTimeoutId === undefined) {
+        failureTimeoutId = windowRef.setTimeout(
+          () => finish(firstFailure),
+          Math.min(failureGraceMs, timeoutMs),
+        );
+      }
     };
 
     windowRef.addEventListener(EXTENSION_PLUGIN_LOGIN_READY_EVENT, onReady);

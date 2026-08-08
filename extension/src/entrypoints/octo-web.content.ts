@@ -1,6 +1,6 @@
 import type { ContentScriptDefinition } from "wxt";
 import { defineContentScript } from "wxt/utils/define-content-script";
-import { OCTO_WEB_CONTENT_MATCHES } from "../environment-config.js";
+import { OCTO_WEB_CONTENT_MATCHES } from "../web-origin-config.js";
 import { installOctoWebPresenceBridge } from "../web-presence-bridge.js";
 
 const contentScript: ContentScriptDefinition = defineContentScript({

@@ -6,5 +6,13 @@ export default defineConfig({
   server: {
     port: 4173,
     strictPort: true,
+    // Keep browser cookies and plugin origin checks on the Vite origin while
+    // forwarding API traffic to the local Octo server.
+    proxy: {
+      "/api": {
+        target: "http://localhost:3040",
+        changeOrigin: true,
+      },
+    },
   },
 });

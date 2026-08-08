@@ -19,7 +19,7 @@ The FE chooses its own API base URL. It does not read the extension's
 
 | Environment | `VITE_API_BASE_URL` | Purpose |
 | --- | --- | --- |
-| development | `http://localhost:3040` | Local Octo API server |
+| development | `/api` | Vite proxies to local Octo API server on port `3040` |
 | production | `/api` | Same-origin reverse-proxied BFF/API |
 
 Copy `.env.example` to `.env.local` to override the value without committing
@@ -41,12 +41,11 @@ cookie; it never receives a `masterUserId`, Lark token, Meegle cookie, or
 Chrome extension data. A Lark token that cannot be refreshed is shown as
 "需要重新授权" on the personal page; it does not invalidate the Octo Web session.
 
-The Meegle card deliberately does not inspect or refresh any Meegle token. It
-uses a nonce-only browser event to detect whether the Octo extension is
-installed on the same origin, then either directs the user to authorize inside
-the plugin on a Meegle page or obtains the package URL from
-`/api/extension/version`. Configure `EXTENSION_DOWNLOAD_URL` on the server for
-the latter.
+The Meegle card reads only the sanitized `meegleAuthorization.status` from
+`/api/web/profile`. The server checks its stored Meegle credential without
+refreshing it; the FE never receives a Meegle token, cookie, user key, base URL,
+or authorization time. When authorization is required, users complete it in
+the Octo plugin on a Meegle page.
 
 Configure the server callback with the shared FE/API origin:
 
@@ -67,3 +66,24 @@ pnpm --dir extension build
 ```
 
 This does not add a broad web permission or read any browser cookie.
+
+## Local plugin-login verification
+
+For local browser verification, keep the browser-facing origin at
+`http://localhost:4173`. Vite proxies `/api/*` to the local Octo server at
+`http://localhost:3040`, so the FE and HttpOnly session cookies remain
+same-origin in the browser.
+
+```bash
+LARK_OAUTH_CALLBACK_URL=http://localhost:4173/api/lark/auth/callback PORT=3040 pnpm --dir server dev
+pnpm --dir fe dev
+```
+
+Reload the unpacked extension, choose `dev` in its settings, and set its
+custom `SERVER_URL` to `http://localhost:4173`. The extension accepts this as a
+custom dev URL and its localhost content-script match covers port `4173`.
+
+To exercise plugin login successfully, the local server database needs the
+current plugin user's active Lark authorization. Real Lark OAuth callback
+verification additionally requires that the Lark app accepts the localhost
+callback URL; otherwise use the test deployment for that E2E case.

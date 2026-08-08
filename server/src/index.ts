@@ -98,6 +98,7 @@ if (LARK_APP_ID && LARK_APP_SECRET) {
     appId: LARK_APP_ID,
     appSecret: LARK_APP_SECRET,
     tokenStore: getSharedLarkTokenStore(),
+    meegleTokenStore: getSharedMeegleTokenStore(),
     oauthSessionStore: getSharedOauthSessionStore(),
     webSessionStore: getSharedWebSessionStore(),
     webPluginLoginChallengeStore: getSharedWebPluginLoginChallengeStore(),

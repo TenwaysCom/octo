@@ -1,5 +1,6 @@
 SERVER_DIR := server
 EXT_DIR := extension
+FE_DIR := fe
 EXT_DEV_PORT ?= 3011
 EXT_PROFILE_DIR ?= $(HOME)/.config/octo-ext-profile
 MASTER_USER_ID ?= a400632e-8d08-4ddf-977d-e8330b0adc5a
@@ -8,7 +9,7 @@ DEV_DATABASE ?= tenways_octo_ly_0509
 
 .DEFAULT_GOAL := help
 
-.PHONY: help completion server-dev test-server test-client db-backup db-restore db-sync-user-tokens db-sync-test-user-tokens ext-dev ext-dev-manual ext-dev-profile ext-dev-probe ext-build ext-package ext-deploy-zip ext-test ext-typecheck deploy-test deploy-prod
+.PHONY: help completion server-dev make-fe-dev make-fe-build test-server test-client db-backup db-restore db-sync-user-tokens db-sync-test-user-tokens ext-dev ext-dev-manual ext-dev-profile ext-dev-probe ext-build ext-package ext-deploy-zip ext-test ext-typecheck deploy-test deploy-prod
 
 help: ## Show available make targets
 	@awk 'BEGIN {FS = ":.*## "}; /^[a-zA-Z0-9_.-]+:.*## / {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -29,6 +30,12 @@ completion: ## Print shell completion script for make targets (bash/zsh)
 
 server-dev: ## Run the backend server in watch mode
 	npm --prefix $(SERVER_DIR) run dev
+
+make-fe-dev: ## Run the FE Vite development server
+	pnpm --dir $(FE_DIR) dev
+
+make-fe-build: ## Build the FE into fe/dist
+	pnpm --dir $(FE_DIR) build
 
 test-server: ## Run backend tests
 	npm --prefix $(SERVER_DIR) test

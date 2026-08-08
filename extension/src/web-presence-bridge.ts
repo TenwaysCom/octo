@@ -2,6 +2,7 @@ export const OCTO_EXTENSION_PRESENCE_PROBE_EVENT = "tenways-octo:extension-prese
 export const OCTO_EXTENSION_PRESENCE_READY_EVENT = "tenways-octo:extension-presence-ready";
 export const OCTO_PLUGIN_LOGIN_PROBE_EVENT = "tenways-octo:plugin-login-probe";
 export const OCTO_PLUGIN_LOGIN_READY_EVENT = "tenways-octo:plugin-login-ready";
+export const OCTO_WEB_BRIDGE_PROTOCOL_VERSION = 2;
 
 interface PresenceProbeEvent extends Event {
   detail?: { nonce?: unknown };
@@ -30,7 +31,7 @@ export function installOctoWebPresenceBridge({
     }
 
     windowRef.dispatchEvent(new CustomEvent(OCTO_EXTENSION_PRESENCE_READY_EVENT, {
-      detail: { nonce, version },
+      detail: { nonce, version, protocolVersion: OCTO_WEB_BRIDGE_PROTOCOL_VERSION },
     }));
   };
 
@@ -49,6 +50,7 @@ export function installOctoWebPresenceBridge({
       detail: {
         nonce,
         status: result.status,
+        protocolVersion: OCTO_WEB_BRIDGE_PROTOCOL_VERSION,
         ...(result.status === "failed" && result.errorCode ? { errorCode: result.errorCode } : {}),
       },
     }));

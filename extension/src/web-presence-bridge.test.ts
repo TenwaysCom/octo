@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { installOctoWebPresenceBridge, OCTO_EXTENSION_PRESENCE_PROBE_EVENT, OCTO_EXTENSION_PRESENCE_READY_EVENT, OCTO_PLUGIN_LOGIN_PROBE_EVENT, OCTO_PLUGIN_LOGIN_READY_EVENT } from "./web-presence-bridge.js";
+import { installOctoWebPresenceBridge, OCTO_EXTENSION_PRESENCE_PROBE_EVENT, OCTO_EXTENSION_PRESENCE_READY_EVENT, OCTO_PLUGIN_LOGIN_PROBE_EVENT, OCTO_PLUGIN_LOGIN_READY_EVENT, OCTO_WEB_BRIDGE_PROTOCOL_VERSION } from "./web-presence-bridge.js";
 
 describe("installOctoWebPresenceBridge", () => {
-  it("returns only the nonce and extension version", () => {
+  it("returns only the nonce, extension version, and bridge protocol version", () => {
     const windowRef = new EventTarget() as unknown as Window;
-    const received: Array<{ nonce: string; version: string }> = [];
+    const received: Array<{ nonce: string; version: string; protocolVersion: number }> = [];
     const originalCustomEvent = globalThis.CustomEvent;
 
     if (!globalThis.CustomEvent) {
@@ -24,22 +24,26 @@ describe("installOctoWebPresenceBridge", () => {
     windowRef.addEventListener(OCTO_EXTENSION_PRESENCE_READY_EVENT, ((event: CustomEvent) => {
       received.push(event.detail);
     }) as EventListener);
-    const remove = installOctoWebPresenceBridge({ windowRef, version: "0.8.2" });
+    const remove = installOctoWebPresenceBridge({ windowRef, version: "0.9.0" });
 
     windowRef.dispatchEvent(new CustomEvent(OCTO_EXTENSION_PRESENCE_PROBE_EVENT, {
       detail: { nonce: "probe_nonce", ignored: "not-returned" },
     }));
 
-    expect(received).toEqual([{ nonce: "probe_nonce", version: "0.8.2" }]);
+    expect(received).toEqual([{
+      nonce: "probe_nonce",
+      version: "0.9.0",
+      protocolVersion: OCTO_WEB_BRIDGE_PROTOCOL_VERSION,
+    }]);
     remove();
     if (!originalCustomEvent) {
       delete (globalThis as { CustomEvent?: typeof CustomEvent }).CustomEvent;
     }
   });
 
-  it("returns only the nonce and plugin-login result", async () => {
+  it("returns only the nonce, plugin-login result, and bridge protocol version", async () => {
     const windowRef = new EventTarget() as unknown as Window;
-    const received: Array<{ nonce: string; status: string; errorCode?: string }> = [];
+    const received: Array<{ nonce: string; status: string; protocolVersion: number; errorCode?: string }> = [];
     const originalCustomEvent = globalThis.CustomEvent;
     if (!globalThis.CustomEvent) {
       Object.defineProperty(globalThis, "CustomEvent", {
@@ -59,7 +63,7 @@ describe("installOctoWebPresenceBridge", () => {
     }) as EventListener);
     const remove = installOctoWebPresenceBridge({
       windowRef,
-      version: "0.8.2",
+      version: "0.9.0",
       approvePluginLogin: async () => ({ status: "approved" }),
     });
     windowRef.dispatchEvent(new CustomEvent(OCTO_PLUGIN_LOGIN_PROBE_EVENT, {
@@ -67,7 +71,11 @@ describe("installOctoWebPresenceBridge", () => {
     }));
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    expect(received).toEqual([{ nonce: "probe_nonce", status: "approved" }]);
+    expect(received).toEqual([{
+      nonce: "probe_nonce",
+      status: "approved",
+      protocolVersion: OCTO_WEB_BRIDGE_PROTOCOL_VERSION,
+    }]);
     remove();
     if (!originalCustomEvent) {
       delete (globalThis as { CustomEvent?: typeof CustomEvent }).CustomEvent;

@@ -6,6 +6,8 @@ import { logger } from "../../logger.js";
 const DEFAULT_SSH_PORT = 22;
 const DEFAULT_POSTGRES_PORT = 5432;
 const DEFAULT_CONNECT_TIMEOUT_MS = 10_000;
+const DEFAULT_SERVER_ALIVE_INTERVAL_SECONDS = 30;
+const DEFAULT_SERVER_ALIVE_COUNT_MAX = 3;
 const LOOPBACK_HOST = "127.0.0.1";
 
 const tunnelLogger = logger.child({ module: "postgres-ssh-tunnel" });
@@ -21,6 +23,8 @@ export interface DatabaseSshConfig {
   remoteHost?: string;
   remotePort?: number;
   connectTimeoutMs?: number;
+  serverAliveIntervalSeconds?: number;
+  serverAliveCountMax?: number;
 }
 
 export interface PreparedPostgresConnection {
@@ -74,6 +78,18 @@ function readTimeout(value: string | undefined): number {
   return parsed;
 }
 
+function readNonNegativeInteger(value: string | undefined, name: string, fallback: number): number {
+  if (!value) {
+    return fallback;
+  }
+
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0 || parsed > 65_535) {
+    throw new Error(`${name} must be an integer from 0 to 65535`);
+  }
+  return parsed;
+}
+
 function readBoolean(value: string | undefined, name: string): boolean {
   if (!value) {
     return false;
@@ -108,6 +124,16 @@ export function readDatabaseSshConfig(env: NodeJS.ProcessEnv = process.env): Dat
       DEFAULT_POSTGRES_PORT,
     ),
     connectTimeoutMs: readTimeout(env.DATABASE_SSH_CONNECT_TIMEOUT_MS),
+    serverAliveIntervalSeconds: readNonNegativeInteger(
+      env.DATABASE_SSH_SERVER_ALIVE_INTERVAL_SECONDS,
+      "DATABASE_SSH_SERVER_ALIVE_INTERVAL_SECONDS",
+      DEFAULT_SERVER_ALIVE_INTERVAL_SECONDS,
+    ),
+    serverAliveCountMax: readNonNegativeInteger(
+      env.DATABASE_SSH_SERVER_ALIVE_COUNT_MAX,
+      "DATABASE_SSH_SERVER_ALIVE_COUNT_MAX",
+      DEFAULT_SERVER_ALIVE_COUNT_MAX,
+    ),
   };
 }
 
@@ -139,6 +165,8 @@ function requireEnabledConfig(config: DatabaseSshConfig): Required<Omit<Database
     remoteHost: config.remoteHost!,
     remotePort: config.remotePort ?? DEFAULT_POSTGRES_PORT,
     connectTimeoutMs: config.connectTimeoutMs ?? DEFAULT_CONNECT_TIMEOUT_MS,
+    serverAliveIntervalSeconds: config.serverAliveIntervalSeconds ?? DEFAULT_SERVER_ALIVE_INTERVAL_SECONDS,
+    serverAliveCountMax: config.serverAliveCountMax ?? DEFAULT_SERVER_ALIVE_COUNT_MAX,
   };
 }
 
@@ -152,6 +180,8 @@ export function buildSshTunnelArgs(config: DatabaseSshConfig, localPort: number)
     "-o", `UserKnownHostsFile=${enabled.knownHostsFile}`,
     "-o", "IdentitiesOnly=yes",
     "-o", `ConnectTimeout=${Math.max(1, Math.ceil(enabled.connectTimeoutMs / 1000))}`,
+    "-o", `ServerAliveInterval=${enabled.serverAliveIntervalSeconds}`,
+    "-o", `ServerAliveCountMax=${enabled.serverAliveCountMax}`,
     "-i", enabled.identityFile,
     "-p", String(enabled.port),
     "-L", `${LOOPBACK_HOST}:${localPort}:${enabled.remoteHost}:${enabled.remotePort}`,

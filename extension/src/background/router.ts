@@ -31,6 +31,7 @@ import {
   getStoredMasterUserId,
 } from "./storage.js";
 import { getConfig } from "./config.js";
+import { isConfiguredOctoWebOriginAllowed } from "../web-origin-config.js";
 import { createExtensionLogger } from "../logger.js";
 import {
   checkForUpdate,
@@ -139,16 +140,10 @@ export async function routeBackgroundAction(
   const config = await getConfig();
 
   if (message.action === "octo.web.plugin-login.approve") {
-    let serverOrigin: string;
-    try {
-      serverOrigin = new URL(config.SERVER_URL).origin;
-    } catch {
-      return {
-        action: message.action,
-        payload: { status: "failed", errorCode: "ENVIRONMENT_MISMATCH" },
-      };
-    }
-    if (message.payload.pageOrigin !== serverOrigin) {
+    if (!isConfiguredOctoWebOriginAllowed({
+      pageOrigin: message.payload.pageOrigin,
+      serverUrl: config.SERVER_URL,
+    })) {
       return {
         action: message.action,
         payload: { status: "failed", errorCode: "ENVIRONMENT_MISMATCH" },
@@ -170,11 +165,12 @@ export async function routeBackgroundAction(
       });
       return { action: message.action, payload: { status: "approved" } };
     } catch (error) {
+      const errorCode = error instanceof BackgroundActionError ? error.errorCode : "PLUGIN_LOGIN_FAILED";
       return {
         action: message.action,
         payload: {
           status: "failed",
-          errorCode: error instanceof BackgroundActionError ? error.errorCode : "PLUGIN_LOGIN_FAILED",
+          errorCode,
         },
       };
     }

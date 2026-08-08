@@ -30,6 +30,7 @@ test("loads the authenticated profile without exposing credentials", async () =>
           data: {
             user: { larkName: "Lin" },
             larkAuthorization: { status: "ready", authorizedAt: "2026-08-08T00:00:00.000Z" },
+            meegleAuthorization: { status: "ready" },
           },
         }),
       };
@@ -41,6 +42,7 @@ test("loads the authenticated profile without exposing credentials", async () =>
     profile: {
       user: { larkName: "Lin" },
       larkAuthorization: { status: "ready", authorizedAt: "2026-08-08T00:00:00.000Z" },
+      meegleAuthorization: { status: "ready" },
     },
   });
   assert.equal(request.url, "/api/web/profile");

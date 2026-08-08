@@ -48,6 +48,8 @@ describe("PostgreSQL SSH tunnel", () => {
       port: 22,
       remotePort: 5432,
       connectTimeoutMs: 10_000,
+      serverAliveIntervalSeconds: 30,
+      serverAliveCountMax: 3,
     });
   });
 
@@ -57,6 +59,8 @@ describe("PostgreSQL SSH tunnel", () => {
       DATABASE_SSH_PORT: "2202",
       DATABASE_SSH_REMOTE_PORT: "15432",
       DATABASE_SSH_CONNECT_TIMEOUT_MS: "1500",
+      DATABASE_SSH_SERVER_ALIVE_INTERVAL_SECONDS: "15",
+      DATABASE_SSH_SERVER_ALIVE_COUNT_MAX: "4",
     });
 
     expect(buildSshTunnelArgs(config, 43123)).toEqual(expect.arrayContaining([
@@ -66,6 +70,8 @@ describe("PostgreSQL SSH tunnel", () => {
       "StrictHostKeyChecking=yes",
       "UserKnownHostsFile=/etc/octo/known_hosts",
       "IdentitiesOnly=yes",
+      "ServerAliveInterval=15",
+      "ServerAliveCountMax=4",
       "-i",
       "/run/secrets/octo-db",
       "-p",
@@ -77,6 +83,17 @@ describe("PostgreSQL SSH tunnel", () => {
       "postgres://user:secret@db.example.com:5432/octo?sslmode=require",
       43123,
     )).toBe("postgres://user:secret@127.0.0.1:43123/octo?sslmode=require");
+  });
+
+  it("rejects invalid SSH keepalive configuration", () => {
+    expect(() => readDatabaseSshConfig({
+      ...enabledEnv,
+      DATABASE_SSH_SERVER_ALIVE_INTERVAL_SECONDS: "-1",
+    })).toThrow("DATABASE_SSH_SERVER_ALIVE_INTERVAL_SECONDS must be an integer from 0 to 65535");
+    expect(() => readDatabaseSshConfig({
+      ...enabledEnv,
+      DATABASE_SSH_SERVER_ALIVE_COUNT_MAX: "1.5",
+    })).toThrow("DATABASE_SSH_SERVER_ALIVE_COUNT_MAX must be an integer from 0 to 65535");
   });
 
   it("waits for the tunnel and terminates it during cleanup", async () => {

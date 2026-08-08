@@ -4,6 +4,7 @@ import { PostgresOauthSessionStore } from "../../adapters/postgres/lark-oauth-se
 import { PostgresLarkTokenStore } from "../../adapters/postgres/lark-token-store.js";
 import { PostgresWebSessionStore } from "../../adapters/postgres/web-session-store.js";
 import { PostgresWebPluginLoginChallengeStore } from "../../adapters/postgres/web-plugin-login-challenge-store.js";
+import { InMemoryMeegleTokenStore } from "../../adapters/meegle/token-store.js";
 import {
   PostgresResolvedUserStore,
   configureResolvedUserStore,
@@ -35,6 +36,7 @@ describe("lark-auth.service", () => {
   let oauthSessionStore: PostgresOauthSessionStore;
   let webSessionStore: PostgresWebSessionStore;
   let webPluginLoginChallengeStore: PostgresWebPluginLoginChallengeStore;
+  let meegleTokenStore: InMemoryMeegleTokenStore;
 
   beforeEach(async () => {
     ({ db } = await createTestPostgresDatabase());
@@ -43,6 +45,7 @@ describe("lark-auth.service", () => {
     oauthSessionStore = new PostgresOauthSessionStore(db);
     webSessionStore = new PostgresWebSessionStore(db);
     webPluginLoginChallengeStore = new PostgresWebPluginLoginChallengeStore(db);
+    meegleTokenStore = new InMemoryMeegleTokenStore();
     configureResolvedUserStore(resolvedUserStore);
     configureLarkAuthServiceDeps({
       appId: "cli_test",
@@ -53,6 +56,7 @@ describe("lark-auth.service", () => {
       oauthSessionStore,
       webSessionStore,
       webPluginLoginChallengeStore,
+      meegleTokenStore,
     });
   });
 
@@ -97,6 +101,72 @@ describe("lark-auth.service", () => {
       challengeId: challenge.challengeId,
       browserProof: challenge.browserProof,
     })).resolves.toMatchObject({ ok: false, errorCode: "WEB_PLUGIN_LOGIN_INVALID" });
+  });
+
+  it("returns a sanitized Meegle authorization status for the web profile", async () => {
+    const user = await resolvedUserStore.create({
+      status: "active",
+      larkTenantKey: "tenant_profile",
+      larkId: "ou_profile",
+      meegleBaseUrl: "https://project.larksuite.com",
+      meegleUserKey: "meegle_profile",
+    });
+    await tokenStore.save({
+      masterUserId: user.id,
+      tenantKey: "tenant_profile",
+      larkUserId: "ou_profile",
+      baseUrl: "https://open.larksuite.com",
+      userToken: "lark_user_token",
+      userTokenExpiresAt: "2099-01-01T00:00:00.000Z",
+      credentialStatus: "active",
+    });
+    await meegleTokenStore.save({
+      masterUserId: user.id,
+      meegleUserKey: "meegle_profile",
+      baseUrl: "https://project.larksuite.com",
+      pluginToken: "plugin_token",
+      userToken: "meegle_user_token",
+      userTokenExpiresAt: "2099-01-01T00:00:00.000Z",
+      credentialStatus: "active",
+    });
+
+    const challenge = await createWebPluginLoginChallenge();
+    await approveWebPluginLoginChallenge({ challengeId: challenge.challengeId, masterUserId: user.id });
+    const completed = await completeWebPluginLoginChallenge({
+      challengeId: challenge.challengeId,
+      browserProof: challenge.browserProof,
+    });
+    if (!completed.ok) {
+      throw new Error("Expected plugin login completion to succeed");
+    }
+
+    await expect(getLarkWebProfile(completed.sessionToken)).resolves.toMatchObject({
+      ok: true,
+      profile: {
+        larkAuthorization: { status: "ready" },
+        meegleAuthorization: { status: "ready" },
+      },
+    });
+    const profile = await getLarkWebProfile(completed.sessionToken);
+    if (!profile.ok) {
+      throw new Error("Expected web profile to be available");
+    }
+    expect(profile.profile).not.toHaveProperty("masterUserId");
+    expect(JSON.stringify(profile.profile)).not.toContain("meegle_user_token");
+
+    await meegleTokenStore.save({
+      masterUserId: user.id,
+      meegleUserKey: "meegle_profile",
+      baseUrl: "https://project.larksuite.com",
+      pluginToken: "plugin_token",
+      userToken: "meegle_user_token",
+      userTokenExpiresAt: "2000-01-01T00:00:00.000Z",
+      credentialStatus: "expired",
+    });
+    await expect(getLarkWebProfile(completed.sessionToken)).resolves.toMatchObject({
+      ok: true,
+      profile: { meegleAuthorization: { status: "require_auth" } },
+    });
   });
 
   it("normalizes lark page aliases to the canonical auth base during exchange", async () => {
