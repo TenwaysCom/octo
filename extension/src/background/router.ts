@@ -12,6 +12,8 @@ import type {
   LarkBaseBulkCreateWorkitemsResult,
   WebPluginLoginApprovalMessage,
   WebPluginLoginApprovalResult,
+  GitHubPrOdooDevopsBuildMessage,
+  GitHubPrOdooDevopsBuildResult,
 } from "../types/protocol";
 import { extractLarkBaseContextFromUrl } from "../lark-base-url.js";
 import type { EnsureMeegleAuthDeps } from "./handlers/meegle-auth";
@@ -123,7 +125,8 @@ export async function routeBackgroundAction(
     | LarkBaseCreateWorkitemMessage
     | LarkBaseBulkPreviewWorkitemsMessage
     | LarkBaseBulkCreateWorkitemsMessage
-    | WebPluginLoginApprovalMessage,
+    | WebPluginLoginApprovalMessage
+    | GitHubPrOdooDevopsBuildMessage,
   context: {
     senderTabId?: number;
     tabUrl?: string;
@@ -135,6 +138,7 @@ export async function routeBackgroundAction(
   | LarkBaseBulkPreviewWorkitemsResult
   | LarkBaseBulkCreateWorkitemsResult
   | WebPluginLoginApprovalResult
+  | GitHubPrOdooDevopsBuildResult
   | { ok: true }
 > {
   const config = await getConfig();
@@ -173,6 +177,36 @@ export async function routeBackgroundAction(
           errorCode,
         },
       };
+    }
+  }
+
+  if (message.action === "octo.github-pr.odoo-devops-build.read") {
+    const url = new URL(`${config.SERVER_URL}/api/web/github-pr-odoo-devops-build`);
+    url.searchParams.set("owner", message.payload.owner);
+    url.searchParams.set("repo", message.payload.repo);
+    url.searchParams.set("pullNumber", String(message.payload.pullNumber));
+    try {
+      const { response, payload } = await fetchServerJson<{
+        ok: boolean;
+        data?: GitHubPrOdooDevopsBuildResult["payload"]["data"];
+        error?: { errorCode?: string };
+      }>({
+        url: url.toString(),
+        method: "GET",
+        credentials: "include",
+      });
+      if (!response.ok || !payload.ok || !payload.data) {
+        return {
+          action: message.action,
+          payload: { status: "unavailable", errorCode: payload.error?.errorCode ?? "GITHUB_PR_BUILD_UNAVAILABLE" },
+        };
+      }
+      return { action: message.action, payload: { status: "ready", data: payload.data } };
+    } catch (error) {
+      routerLogger.warn("github_pr_odoo_devops_build.read_failed", {
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
+      return { action: message.action, payload: { status: "unavailable", errorCode: "GITHUB_PR_BUILD_UNAVAILABLE" } };
     }
   }
 
@@ -370,6 +404,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     message.action === "octo.lark.auth.ensure" ||
     message.action === "octo.lark.auth.callback.detected" ||
     message.action === "octo.web.plugin-login.approve" ||
+    message.action === "octo.github-pr.odoo-devops-build.read" ||
     message.action === "octo.lark_base.create_workitem" ||
     message.action === "octo.lark_base.bulk_preview_workitems" ||
     message.action === "octo.lark_base.bulk_create_workitems"
@@ -382,7 +417,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         | LarkBaseCreateWorkitemMessage
         | LarkBaseBulkPreviewWorkitemsMessage
         | LarkBaseBulkCreateWorkitemsMessage
-        | WebPluginLoginApprovalMessage,
+        | WebPluginLoginApprovalMessage
+        | GitHubPrOdooDevopsBuildMessage,
       {
         senderTabId: sender.tab?.id,
         tabUrl: sender.tab?.url,

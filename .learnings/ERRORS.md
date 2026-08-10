@@ -35,3 +35,35 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Error:** `ps`: `operation not permitted`.
 - **Fix:** Verify the active configuration contract from source and inspect only non-sensitive environment-variable presence and safe log markers; do not dump process environments because they may contain credentials.
 - **Status:** resolved with safe configuration evidence
+
+## [ERR-20260810-006] github-build-badge-test-runtime-and-union
+
+- **Summary:** The new DOM unit test initially ran in Node, and the background protocol union retained a duplicated branch after editing.
+- **Error:** `ReferenceError: document is not defined`; TypeScript `TS1109: Expression expected`.
+- **Fix:** Mark DOM-focused content-script tests with the jsdom environment and import Vitest globals explicitly for typecheck; keep each protocol union member exactly once.
+- **Status:** resolved; full server and extension suites passed.
+
+## [ERR-20260810-007] chrome-extension-origin-is-opaque-to-node-url
+
+- **Summary:** Node's `URL.origin` returns `null` for `chrome-extension://` URLs, unlike normal HTTP(S) origins.
+- **Fix:** Parse extension origins explicitly as a scheme plus exact extension ID, reject wildcards and paths, and preserve that exact value for the CORS allowlist.
+- **Status:** resolved with a CORS parser unit test.
+
+## [ERR-20260810-008] github-merge-panel-button-timing
+
+- **Summary:** A GitHub PR can render its merge container before any merge button is available to the current user or page state.
+- **Fix:** Anchor passive UI above stable merge containers first, and only use the merge button as a fallback; cover the container-only DOM in a unit test.
+- **Status:** resolved pending a live GitHub PR refresh.
+
+## [ERR-20260810-009] github-merge-button-semantic-selector
+
+- **Summary:** The current GitHub merge card may expose a plain `type="button"` control without the historical merge data attributes.
+- **Fix:** Fall back to the visible `Merge pull request` button text, then select the surrounding conflict/merge card before injecting the badge.
+- **Status:** resolved pending a live GitHub PR refresh.
+
+## [ERR-20260810-010] typescript-nodelist-iteration-target
+
+- **Summary:** The extension TypeScript target does not provide iterable `NodeList` typing.
+- **Error:** `TS2488: Type 'NodeListOf<Element>' must have a '[Symbol.iterator]()' method`.
+- **Fix:** Convert `querySelectorAll()` results with `Array.from()` before searching them.
+- **Status:** resolved.

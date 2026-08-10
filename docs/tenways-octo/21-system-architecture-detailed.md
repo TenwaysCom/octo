@@ -132,6 +132,7 @@ server/src/
 | **lark-bug** | `modules/lark-bug/` | Lark bug record → analysis summary via ACP |
 | **pm-analysis** | `modules/pm-analysis/` | Stale workitem detection, blocker analysis, PR review status |
 | **github-branch-create** | `modules/github-branch-create/` | Preview/create GitHub branch from Meegle workitem |
+| **github-pr-odoo-devops-build** | `modules/github-pr-odoo-devops-build/` | Resolves a PR head branch to its mapped Odoo.sh build status |
 | **acp-kimi** | `modules/acp-kimi/` | SSE-based chat proxy, session CRUD, event streaming |
 
 #### Application Services

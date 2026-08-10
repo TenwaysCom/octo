@@ -92,6 +92,15 @@ DATABASE_SSH_CONNECT_TIMEOUT_MS=10000
 - `POST /api/github/branch/preview`
 - `POST /api/github/branch/create`
 - `POST /api/github/lookup-meegle`，仅在配置 `GITHUB_TOKEN` 时注册
+- `GET /api/web/github-pr-odoo-devops-build?owner=...&repo=...&pullNumber=...`：供扩展在 GitHub PR 页面读取 Odoo.sh 构建状态；要求已有 `octo_web_session`、服务端 `GITHUB_TOKEN`，并且仓库已映射到 `eu`、`uk` 或 `us`。该接口不会接收 Odoo.sh cookie。
+
+扩展后台以浏览器自动附带的 HttpOnly Octo Web 会话访问该只读接口；部署时把已发布扩展的精确 origin 写入 `OCTO_EXTENSION_ORIGINS`（逗号分隔），例如：
+
+```bash
+OCTO_EXTENSION_ORIGINS=chrome-extension://EXTENSION_ID
+```
+
+不要使用 `*` 或把浏览器 cookie 复制到扩展配置中。
 
 ### 平台数据同步
 

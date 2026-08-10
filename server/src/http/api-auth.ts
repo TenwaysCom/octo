@@ -19,6 +19,7 @@ const DEFAULT_EXEMPT_PATHS = new Set([
   "/api/web/platform-data/meegle-workitems",
   "/api/web/platform-data/github-pull-requests",
   "/api/web/odoo-devops-branches",
+  "/api/web/github-pr-odoo-devops-build",
   "/api/web/plugin-login/start",
   "/api/web/plugin-login/complete",
 ]);

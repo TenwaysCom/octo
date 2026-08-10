@@ -54,7 +54,7 @@ import {
   githubPrCodeReviewFeedbackController,
   githubPrReviewStatusController,
 } from "./modules/github-pr-review/github-pr-review.controller.js";
-import { createCorsMiddleware } from "./http/cors.js";
+import { createCorsMiddleware, parseAllowedCredentialOrigins } from "./http/cors.js";
 import { createGitHubLookupRouter } from "./routes/github-lookup.js";
 import { SERVER_VERSION } from "./server-version.js";
 import {
@@ -71,6 +71,8 @@ import { createHttpOdooDevopsBranchesClient } from "./adapters/odoo-devops/odoo-
 import { OdooDevopsBranchesService } from "./application/services/odoo-devops-branches.service.js";
 import { createWebOdooDevopsBranchesController } from "./modules/odoo-devops-branches/odoo-devops-branches.controller.js";
 import { createRedisApiCache } from "./http/redis-cache.js";
+import { createWebGitHubPrOdooDevopsBuildController } from "./modules/github-pr-odoo-devops-build/github-pr-odoo-devops-build.controller.js";
+import { GitHubClient } from "./adapters/github/github-client.js";
 
 import { logger, stdoutLogger } from "./logger.js";
 
@@ -90,6 +92,7 @@ const MEEGLE_BASE_URL = process.env.MEEGLE_BASE_URL || "https://project.larksuit
 const ODOO_DEVOPS_BASE_URL = process.env.ODOO_DEVOPS_BASE_URL || "https://devops.odoo.tenways.it:18443";
 const ODOO_DEVOPS_SESSION = process.env.ODOO_DEVOPS_SESSION || "";
 const REDIS_URL = process.env.REDIS_URL || "";
+const OCTO_EXTENSION_ORIGINS = parseAllowedCredentialOrigins(process.env.OCTO_EXTENSION_ORIGINS);
 const ODOO_DEVOPS_BRANCHES_CACHE_TTL_SECONDS = readCacheTtlSeconds(
   process.env.ODOO_DEVOPS_BRANCHES_CACHE_TTL_SECONDS,
 );
@@ -148,7 +151,7 @@ if (MEEGLE_PLUGIN_ID && MEEGLE_PLUGIN_SECRET) {
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || "0.0.0.0";
-const WEB_ALLOWED_ORIGINS = [LARK_WEB_ORIGIN];
+const WEB_ALLOWED_ORIGINS = [LARK_WEB_ORIGIN, ...OCTO_EXTENSION_ORIGINS];
 const apiCache = createRedisApiCache(REDIS_URL);
 const odooDevopsBranchesService = new OdooDevopsBranchesService({
   client: createHttpOdooDevopsBranchesClient({
@@ -163,6 +166,10 @@ const getWebOdooDevopsBranchesController = createWebOdooDevopsBranchesController
 });
 const listWebPlatformDataController = createWebPlatformDataController({
   service: new PlatformDataService(undefined, odooDevopsBranchesService),
+});
+const getWebGitHubPrOdooDevopsBuildController = createWebGitHubPrOdooDevopsBuildController({
+  githubClient: process.env.GITHUB_TOKEN ? new GitHubClient({ token: process.env.GITHUB_TOKEN }) : undefined,
+  odooDevopsBranchesService,
 });
 
 function getMasterUserIdHeader(req: Request): string | undefined {
@@ -358,6 +365,13 @@ app.get("/api/web/platform-data/github-pull-requests", async (req, res) => {
 });
 app.get("/api/web/odoo-devops-branches", async (req, res) => {
   const result = await getWebOdooDevopsBranchesController({
+    cookieHeader: req.headers.cookie,
+    query: req.query,
+  });
+  res.status(result.statusCode).json(result.body);
+});
+app.get("/api/web/github-pr-odoo-devops-build", async (req, res) => {
+  const result = await getWebGitHubPrOdooDevopsBuildController({
     cookieHeader: req.headers.cookie,
     query: req.query,
   });

@@ -1,5 +1,32 @@
 import type { NextFunction, Request, Response } from "express";
 
+export function parseAllowedCredentialOrigins(value: string | undefined): string[] {
+  if (!value?.trim()) {
+    return [];
+  }
+
+  return Array.from(new Set(value.split(",").map((item) => {
+    const configuredOrigin = item.trim();
+    const url = new URL(configuredOrigin);
+    if (
+      url.protocol === "chrome-extension:"
+      && /^[a-p]{32}$/.test(url.hostname)
+      && (url.pathname === "" || url.pathname === "/")
+      && !url.search
+      && !url.hash
+    ) {
+      return `chrome-extension://${url.hostname}`;
+    }
+    if (url.origin === "null") {
+      throw new Error("Allowed credential origins must be explicit HTTP(S) or Chrome extension origins");
+    }
+    if (url.pathname !== "/" || url.search || url.hash) {
+      throw new Error("Allowed credential origins must not include a path, query, or hash");
+    }
+    return url.origin;
+  })));
+}
+
 export function createCorsMiddleware(options: { allowedCredentialOrigins?: readonly string[] } = {}) {
   const allowedCredentialOrigins = new Set(options.allowedCredentialOrigins ?? []);
   return (req: Request, res: Response, next: NextFunction) => {

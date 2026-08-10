@@ -26,6 +26,7 @@ export const protocolActions = [
   "octo.pm.analysis.run",
   "octo.page.meegle.auth_code.request",
   "octo.web.plugin-login.approve",
+  "octo.github-pr.odoo-devops-build.read",
 ] as const;
 
 export type ProtocolAction = (typeof protocolActions)[number];
@@ -121,4 +122,22 @@ export type WebPluginLoginApprovalMessage = ProtocolEnvelope<
 export type WebPluginLoginApprovalResult = ProtocolEnvelope<
   "octo.web.plugin-login.approve",
   { status: "approved" | "failed"; errorCode?: string }
+>;
+
+export type GitHubPrOdooDevopsBuildMessage = ProtocolEnvelope<
+  "octo.github-pr.odoo-devops-build.read",
+  { owner: string; repo: string; pullNumber: number }
+>;
+
+export type GitHubPrOdooDevopsBuildResult = ProtocolEnvelope<
+  "octo.github-pr.odoo-devops-build.read",
+  {
+    status: "ready" | "unavailable";
+    data?: {
+      environment: "eu" | "uk" | "us";
+      headRef: string;
+      build: { branch: string; status: string; result: string } | null;
+    };
+    errorCode?: string;
+  }
 >;

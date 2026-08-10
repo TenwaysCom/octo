@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { NextFunction, Request, Response } from "express";
-import { createCorsMiddleware } from "./cors.js";
+import { createCorsMiddleware, parseAllowedCredentialOrigins } from "./cors.js";
 
 describe("cors middleware", () => {
   beforeEach(() => {
@@ -67,5 +67,11 @@ describe("cors middleware", () => {
 
     expect(res.header).toHaveBeenCalledWith("Access-Control-Allow-Origin", "https://octo.example.test");
     expect(res.header).toHaveBeenCalledWith("Access-Control-Allow-Credentials", "true");
+  });
+
+  it("accepts exact Chrome extension origins but rejects wildcard-like values", () => {
+    expect(parseAllowedCredentialOrigins("chrome-extension://abcdefghijklmnopabcdefghijklmnop"))
+      .toEqual(["chrome-extension://abcdefghijklmnopabcdefghijklmnop"]);
+    expect(() => parseAllowedCredentialOrigins("chrome-extension://*/")).toThrow();
   });
 });

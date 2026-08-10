@@ -615,6 +615,7 @@ Meegle 工作项详情页
 - GitHub PR URL context
 - Meegle workitem lookup result
 - GitHub branch preview/create request
+- GitHub PR Odoo.sh build badge
 
 ### 生命周期
 
@@ -629,6 +630,19 @@ GitHub PR 页面或 Meegle 工作项页面
   -> server 预览或创建分支
   -> extension 展示结果
 ```
+
+GitHub PR 的只读 Odoo.sh 状态采用独立路径：
+
+```text
+GitHub PR 页面
+  -> content script 仅解析 owner/repo/pullNumber
+  -> background 以浏览器自动附带的 opaque HttpOnly Octo Web session 请求 server
+  -> server 用 GitHub adapter 获取当前 head ref
+  -> server 以 repo 映射唯一的 eu/uk/us 环境，并读取 Odoo DevOps Redis snapshot
+  -> extension 在状态标签旁和 Merge Button 上方渲染同一环境的只读 badge
+```
+
+此路径不读取、不持久化也不转发浏览器 cookie；服务端 CORS 只允许配置的 extension origin 使用凭据。
 
 ### 当前风险
 
