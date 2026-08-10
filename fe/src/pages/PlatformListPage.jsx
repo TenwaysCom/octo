@@ -19,11 +19,11 @@ const MEEGLE_WORKITEM_TYPE_FILTERS = [
 ];
 const DEFAULT_SORT = { key: "updatedAt", direction: "desc" };
 
-function ExternalLink({ href, children }) {
+function ExternalLink({ href, title, className, children }) {
   try {
     const url = new URL(href);
     if (url.protocol === "https:" || url.protocol === "http:") {
-      return <a className="table-link" href={url.toString()} target="_blank" rel="noreferrer">{children}</a>;
+      return <a className={`table-link ${className || ""}`.trim()} href={url.toString()} target="_blank" rel="noreferrer" title={title}>{children}</a>;
     }
   } catch {
     // Synced fields may be empty or a non-URL value; render plain text in that case.
@@ -33,6 +33,34 @@ function ExternalLink({ href, children }) {
 
 function StatusPill({ children }) {
   return <span className="list-status">{children || "-"}</span>;
+}
+
+function getMeegleStatusTone(status) {
+  const normalized = String(status || "").toLocaleLowerCase();
+  if (["done", "ended", "fixed", "launched"].includes(normalized)) return "completed";
+  if (["fe launch", "server launch"].includes(normalized)) return "release";
+  if (normalized.includes("design") || ["feature draft", "new", "to start"].includes(normalized)) return "planning";
+  if (normalized.includes("review") || normalized.includes("testing") || normalized.includes("check")) return "review";
+  if (normalized.includes("doing") || normalized.includes("ongoing") || normalized.includes("development")) return "active";
+  return "default";
+}
+
+function MeegleStatusPill({ status }) {
+  return <span className={`meegle-workitem-status meegle-workitem-status--${getMeegleStatusTone(status)}`}>{status || "未设置"}</span>;
+}
+
+function GitHubPullRequestStatus({ isDraft, state }) {
+  const status = isDraft ? "draft" : state || "closed";
+  return <span className={`github-pr-status github-pr-status--${status}`}>{status}</span>;
+}
+
+function GitHubPullRequestLinks({ pullRequests }) {
+  if (!pullRequests?.length) {
+    return "-";
+  }
+  return <div className="github-pr-links">{pullRequests.map((pullRequest) => <div className="github-pr-links__item" key={`${pullRequest.owner}-${pullRequest.repo}-${pullRequest.pullNumber}`}>
+    <ExternalLink className={`github-pr-link-badge github-pr-link-badge--${pullRequest.state}`} href={pullRequest.htmlUrl} title={`${pullRequest.owner}/${pullRequest.repo} #${pullRequest.pullNumber}\n${pullRequest.title}\n${pullRequest.state}`}>#{pullRequest.pullNumber}-{pullRequest.baseRef || "-"}</ExternalLink>
+  </div>)}</div>;
 }
 
 function filterPlatformItems(items, query) {
@@ -114,7 +142,7 @@ function readSortValue(kind, item, key) {
   if (kind === "meegle-workitems") {
     const values = {
       workitem: item.workItemKey || item.workItemId || item.title || "",
-      projectType: `${item.projectName || item.projectKey || ""} ${item.workItemType || item.workItemTypeKey || ""}`,
+      workitemType: item.workItemType || item.workItemTypeKey || "",
       status: item.status || "",
       sprintVersion: `${item.sprint || ""} ${item.version || ""}`,
       system: item.system || "",
@@ -163,13 +191,13 @@ function SyncedListTable({ kind, items, sort, onSort }) {
   }
 
   if (kind === "meegle-workitems") {
-    return <table className="data-table"><thead><tr><th><SortableColumnHeader label="工作项" sortKey="workitem" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="项目 / 类型" sortKey="projectType" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="状态" sortKey="status" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="Sprint / Version" sortKey="sprintVersion" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="System" sortKey="system" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="负责人" sortKey="assignee" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="更新时间" sortKey="updatedAt" sort={sort} onSort={onSort} /></th></tr></thead><tbody>
-      {items.map((item) => <tr key={`${item.projectKey}-${item.workItemTypeKey}-${item.workItemId}`}><td><ExternalLink href={getMeegleWorkitemDetailUrl(item)}>{item.workItemKey || item.workItemId}</ExternalLink><small>{item.title}</small></td><td>{item.projectName || item.projectKey}<span className={`workitem-type-badge workitem-type-badge--${getMeegleWorkitemCategory(item)}`}>{item.workItemType || item.workItemTypeKey}</span></td><td><StatusPill>{item.status}</StatusPill><small>{item.subStage || ""}</small></td><td>{item.sprint || "-"}<small>{item.version || "-"}</small></td><td>{item.system || "-"}</td><td>{item.assignee || "-"}</td><td>{formatDateTime(item.sourceUpdatedAt || item.syncedAt)}</td></tr>)}
+    return <table className="data-table"><thead><tr><th><SortableColumnHeader label="工作项" sortKey="workitem" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="类型" sortKey="workitemType" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="状态" sortKey="status" sort={sort} onSort={onSort} /></th><th>关联 PR</th><th><SortableColumnHeader label="Sprint / Version" sortKey="sprintVersion" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="System" sortKey="system" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="负责人" sortKey="assignee" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="更新时间" sortKey="updatedAt" sort={sort} onSort={onSort} /></th></tr></thead><tbody>
+      {items.map((item) => <tr key={`${item.projectKey}-${item.workItemTypeKey}-${item.workItemId}`}><td><ExternalLink href={getMeegleWorkitemDetailUrl(item)}>{item.workItemKey || item.workItemId}</ExternalLink><small>{item.title}</small></td><td><span className={`workitem-type-badge workitem-type-badge--${getMeegleWorkitemCategory(item)}`}>{item.workItemType || item.workItemTypeKey}</span></td><td><MeegleStatusPill status={item.status} /><small>{item.subStage || ""}</small></td><td><GitHubPullRequestLinks pullRequests={item.githubPullRequests} /></td><td>{item.sprint || "-"}<small>{item.version || "-"}</small></td><td>{item.system || "-"}</td><td>{item.assignee || "-"}</td><td>{formatDateTime(item.sourceUpdatedAt || item.syncedAt)}</td></tr>)}
     </tbody></table>;
   }
 
   return <table className="data-table"><thead><tr><th><SortableColumnHeader label="Pull Request" sortKey="pullRequest" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="仓库" sortKey="repo" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="状态" sortKey="status" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="分支" sortKey="branch" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="更新时间" sortKey="updatedAt" sort={sort} onSort={onSort} /></th></tr></thead><tbody>
-    {items.map((item) => <tr key={`${item.owner}-${item.repo}-${item.pullNumber}`}><td><ExternalLink href={item.htmlUrl}>{item.title}</ExternalLink><small>#{item.pullNumber} {item.authorLogin ? `· ${item.authorLogin}` : ""}</small></td><td>{item.owner} / {item.repo}</td><td><StatusPill>{item.isDraft ? "Draft" : item.state}</StatusPill></td><td>{item.headRef || "-"}<small>{item.baseRef ? `→ ${item.baseRef}` : ""}</small></td><td>{formatDateTime(item.sourceUpdatedAt || item.syncedAt)}</td></tr>)}
+    {items.map((item) => <tr key={`${item.owner}-${item.repo}-${item.pullNumber}`}><td><ExternalLink href={item.htmlUrl}>{item.title}</ExternalLink><small>#{item.pullNumber} {item.authorLogin ? `· ${item.authorLogin}` : ""}</small></td><td>{item.owner} / {item.repo}</td><td><GitHubPullRequestStatus isDraft={item.isDraft} state={item.state} /></td><td>{item.headRef || "-"}<small>{item.baseRef ? `→ ${item.baseRef}` : ""}</small></td><td>{formatDateTime(item.sourceUpdatedAt || item.syncedAt)}</td></tr>)}
   </tbody></table>;
 }
 
@@ -179,6 +207,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy }
   const [selectedStatuses, setSelectedStatuses] = useState(null);
   const [dateFilter, setDateFilter] = useState("all-time");
   const [sprintFilter, setSprintFilter] = useState("");
+  const [noSprintFilter, setNoSprintFilter] = useState(false);
   const [workitemTypeFilter, setWorkitemTypeFilter] = useState("all");
   const [sort, setSort] = useState(DEFAULT_SORT);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -189,6 +218,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy }
     .filter((item) => matchesDateFilter(item, dateFilter));
   const workitemTypeCounts = Object.fromEntries(MEEGLE_WORKITEM_TYPE_FILTERS.map(([value]) => [value, value === "all" ? itemsBeforeTypeFilter.length : itemsBeforeTypeFilter.filter((item) => getMeegleWorkitemCategory(item) === value).length]));
   const filteredItems = itemsBeforeTypeFilter
+    .filter((item) => page !== "meegle-workitems" || !noSprintFilter || !item.sprint)
     .filter((item) => page !== "meegle-workitems" || workitemTypeFilter === "all" || getMeegleWorkitemCategory(item) === workitemTypeFilter);
   const sortedItems = sortPlatformItems(filteredItems, page, sort);
   const pageCount = Math.max(1, Math.ceil(sortedItems.length / LIST_PAGE_SIZE));
@@ -202,6 +232,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy }
     setSelectedStatuses(null);
     setDateFilter("all-time");
     setSprintFilter("");
+    setNoSprintFilter(false);
     setWorkitemTypeFilter("all");
     setSort(DEFAULT_SORT);
     setFilterOpen(false);
@@ -232,11 +263,20 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy }
               key={value}
               onClick={() => { setWorkitemTypeFilter(value); setPageIndex(0); }}
             >{label} {workitemTypeCounts[value]}</button>)}
+            <button
+              className={`list-filter-tab ${noSprintFilter ? "list-filter-tab--active" : ""}`.trim()}
+              type="button"
+              onClick={() => {
+                setNoSprintFilter((enabled) => !enabled);
+                setSprintFilter("");
+                setPageIndex(0);
+              }}
+            >No Sprint</button>
           </div> : null}
           <div className="list-toolbar__actions">
             {page === "meegle-workitems" ? <label className="list-date-filter list-sprint-filter">
               <span className="visually-hidden">按 Sprint 筛选</span>
-              <select value={sprintFilter} onChange={(event) => { setSprintFilter(event.target.value); setSelectedStatuses(null); setPageIndex(0); }}>
+              <select value={sprintFilter} onChange={(event) => { setSprintFilter(event.target.value); setNoSprintFilter(false); setSelectedStatuses(null); setPageIndex(0); }}>
                 <option value="">全部 Sprint</option>
                 {state.sprints.map((sprint) => <option value={sprint} key={sprint}>{sprint}</option>)}
               </select>

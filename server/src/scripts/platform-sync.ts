@@ -28,8 +28,9 @@ export const DEFAULT_PLATFORM_SYNC_CONFIG_PATH = fileURLToPath(
 
 const platformNameSchema = z.enum(["meegle", "github", "lark"]);
 export type PlatformName = z.infer<typeof platformNameSchema>;
-const githubPullRequestStateSchema = z.enum(["closed", "merged"]);
+const githubPullRequestStateSchema = z.enum(["all", "closed", "merged"]);
 export type GitHubPullRequestState = z.infer<typeof githubPullRequestStateSchema>;
+type GitHubPullRequestSyncState = Exclude<GitHubPullRequestState, "all">;
 
 const platformSyncConfigSchema = z.object({
   meegle: z.array(z.object({
@@ -81,7 +82,7 @@ export interface PlatformSyncRunner {
   }): Promise<SyncCounts>;
   bulkSyncGitHubPullRequests(input: {
     repositories: Array<{ owner: string; repo: string }>;
-    state: GitHubPullRequestState;
+    state: GitHubPullRequestSyncState;
     limit: number;
   }): Promise<SyncCounts>;
   bulkSyncLarkBaseTickets(input: {
@@ -113,7 +114,7 @@ export function parsePlatformSyncArgs(argv: string[]): PlatformSyncScriptArgs {
   const args: PlatformSyncScriptArgs = {
     masterUserId: DEFAULT_MASTER_USER_ID,
     configPath: DEFAULT_PLATFORM_SYNC_CONFIG_PATH,
-    githubPullRequestState: "closed",
+    githubPullRequestState: "all",
     githubPullRequestLimit: DEFAULT_GITHUB_PR_LIMIT,
     help: false,
   };
@@ -198,13 +199,18 @@ export async function runPlatformSync(
 
     if (platform === "github") {
       for (const target of config.github) {
-        entries.push(await runTarget("github", `${target.owner}/${target.repo}`, () => (
-          runner.bulkSyncGitHubPullRequests({
-            repositories: [target],
-            state: args.githubPullRequestState,
-            limit: args.githubPullRequestLimit,
-          })
-        )));
+        const states: GitHubPullRequestSyncState[] = args.githubPullRequestState === "all"
+          ? ["closed", "merged"]
+          : [args.githubPullRequestState];
+        for (const state of states) {
+          entries.push(await runTarget("github", `${target.owner}/${target.repo} (${state})`, () => (
+            runner.bulkSyncGitHubPullRequests({
+              repositories: [target],
+              state,
+              limit: args.githubPullRequestLimit,
+            })
+          )));
+        }
       }
       continue;
     }
@@ -236,7 +242,7 @@ export async function runPlatformSync(
 export async function syncGitHubPullRequestsWithGh(
   input: {
     repositories: Array<{ owner: string; repo: string }>;
-    state: GitHubPullRequestState;
+    state: GitHubPullRequestSyncState;
     limit: number;
   },
   store: PlatformSyncStore,
@@ -309,7 +315,7 @@ function printHelp(): void {
     "",
     "Options:",
     "  --only <meegle|github|lark>  Sync one configured platform only",
-    "  --github-pr-state <closed|merged>  GitHub PR state (default closed; excludes merged PRs)",
+    "  --github-pr-state <all|closed|merged>  GitHub PR state (default all)",
     `  --github-pr-limit <1-${DEFAULT_GITHUB_PR_LIMIT}>  GitHub PRs per repository (default ${DEFAULT_GITHUB_PR_LIMIT})`,
     `  --user-id <id>               Lark identity (default ${DEFAULT_MASTER_USER_ID})`,
     `  --config <path>              Config file (default ${DEFAULT_PLATFORM_SYNC_CONFIG_PATH})`,

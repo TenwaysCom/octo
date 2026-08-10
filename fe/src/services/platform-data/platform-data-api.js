@@ -85,7 +85,33 @@ function parseMeegleWorkitem(value) {
     }
     item.bugs = value.bugs;
   }
+  if (!Array.isArray(value.githubPullRequests)) {
+    throw new Error("INVALID_MEEGLE_WORKITEM_RESPONSE");
+  }
+  item.githubPullRequests = value.githubPullRequests.map(parseGitHubPullRequest);
   return item;
+}
+
+function parseGitHubPullRequest(value) {
+  if (!isRecord(value)
+    || typeof value.owner !== "string"
+    || typeof value.repo !== "string"
+    || !Number.isInteger(value.pullNumber)
+    || typeof value.title !== "string"
+    || typeof value.htmlUrl !== "string"
+    || (value.baseRef !== undefined && typeof value.baseRef !== "string")
+    || typeof value.state !== "string") {
+    throw new Error("INVALID_MEEGLE_WORKITEM_RESPONSE");
+  }
+  return {
+    owner: value.owner,
+    repo: value.repo,
+    pullNumber: value.pullNumber,
+    title: value.title,
+    htmlUrl: value.htmlUrl,
+    ...(value.baseRef === undefined ? {} : { baseRef: value.baseRef }),
+    state: value.state,
+  };
 }
 
 function isRecord(value) {

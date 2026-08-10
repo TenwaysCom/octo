@@ -33,6 +33,15 @@ describe("web platform data controller", () => {
       version: "Od EU v2.9.0",
       bugs: ["Bug 1"],
       system: "Odoo/Odoo UK",
+      githubPullRequests: [{
+        owner: "TenwaysCom",
+        repo: "Tenways",
+        pullNumber: 1138,
+        title: "Linked PR",
+        htmlUrl: "https://github.com/TenwaysCom/Tenways/pull/1138",
+        baseRef: "main",
+        state: "merged",
+      }],
       plannedSprint: "must not leak",
       syncedAt: "2026-08-09T00:00:00.000Z",
     }], sprints: ["Odoo Sprint 20260806"] }) };
@@ -55,6 +64,7 @@ describe("web platform data controller", () => {
         version: "Od EU v2.9.0",
         bugs: ["Bug 1"],
         system: "Odoo/Odoo UK",
+        githubPullRequests: [expect.objectContaining({ pullNumber: 1138, baseRef: "main", state: "merged" })],
       })], sprints: ["Odoo Sprint 20260806"] } },
     });
     expect((result.body as { data: { items: Array<Record<string, unknown>> } }).data.items[0]).not.toHaveProperty("plannedSprint");

@@ -48,6 +48,7 @@ describe("PostgresPlatformSyncStore", () => {
         merged_at: null,
         updated_at: "2026-08-06T00:00:00.000Z",
         draft: false,
+        base: { ref: "main" },
       },
     });
     await store.upsertLarkBaseTicket({
@@ -96,9 +97,40 @@ describe("PostgresPlatformSyncStore", () => {
       pullNumber: 2, title: "PR m-123 f-456", state: "open",
       meegleIds: ["123", "456", "789"],
     })]);
+    await expect(store.listGitHubPullRequestLinks(["123", "456"])) .resolves.toEqual([
+      expect.objectContaining({ meegleId: "123", pullNumber: 2, baseRef: "main", state: "open" }),
+      expect.objectContaining({ meegleId: "456", pullNumber: 2, baseRef: "main", state: "open" }),
+    ]);
     await expect(store.listLarkBaseTickets(10)).resolves.toEqual([expect.objectContaining({
       recordId: "rec-1", ticketStatus: "Open",
     })]);
+
+    await db.destroy();
+    await pool.end();
+  });
+
+  it("reports merged GitHub PR snapshots separately from closed ones", async () => {
+    const { db, pool } = await createTestPostgresDatabase();
+    const store = new PostgresPlatformSyncStore(db);
+
+    await store.upsertGitHubPullRequest({
+      owner: "acme",
+      repo: "app",
+      pullRequest: {
+        number: 3,
+        title: "Merged PR",
+        body: null,
+        html_url: "https://github.com/acme/app/pull/3",
+        state: "closed",
+        merged_at: "2026-08-09T00:00:00.000Z",
+        updated_at: "2026-08-09T00:00:00.000Z",
+        draft: false,
+      },
+    });
+
+    await expect(store.listGitHubPullRequests(10)).resolves.toEqual([
+      expect.objectContaining({ pullNumber: 3, state: "merged" }),
+    ]);
 
     await db.destroy();
     await pool.end();

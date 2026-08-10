@@ -17,10 +17,23 @@ export class PlatformDataService {
       case "lark-tickets":
         return { items: await this.syncStore.listLarkBaseTickets(limit) };
       case "meegle-workitems":
+        {
+          const items = await this.syncStore.listMeegleWorkitems(limit, filters.sprint);
+          const links = await this.syncStore.listGitHubPullRequestLinks(items.map((item) => item.workItemId));
+          const linksByWorkItemId = new Map<string, typeof links>();
+          for (const link of links) {
+            const current = linksByWorkItemId.get(link.meegleId) ?? [];
+            current.push(link);
+            linksByWorkItemId.set(link.meegleId, current);
+          }
         return {
-          items: await this.syncStore.listMeegleWorkitems(limit, filters.sprint),
+            items: items.map((item) => ({
+              ...item,
+              githubPullRequests: linksByWorkItemId.get(item.workItemId) ?? [],
+            })),
           sprints: await this.syncStore.listMeegleSprints(),
         };
+        }
       case "github-pull-requests":
         return { items: await this.syncStore.listGitHubPullRequests(limit) };
     }

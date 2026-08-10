@@ -26,6 +26,7 @@ export interface PlatformSyncStore {
   }): Promise<void>;
   listMeegleWorkitems(limit: number, sprint?: string): Promise<MeegleWorkitemSyncItem[]>;
   listMeegleSprints(): Promise<string[]>;
+  listGitHubPullRequestLinks(meegleWorkItemIds: string[]): Promise<GitHubPullRequestLink[]>;
   listGitHubPullRequests(limit: number): Promise<GitHubPullRequestSyncItem[]>;
   listLarkBaseTickets(limit: number): Promise<LarkBaseTicketSyncItem[]>;
 }
@@ -65,6 +66,17 @@ export interface GitHubPullRequestSyncItem {
   meegleIds: string[];
   sourceUpdatedAt?: string;
   syncedAt: string;
+}
+
+export interface GitHubPullRequestLink {
+  meegleId: string;
+  owner: string;
+  repo: string;
+  pullNumber: number;
+  title: string;
+  htmlUrl: string;
+  baseRef?: string;
+  state: string;
 }
 
 export interface LarkBaseTicketSyncItem {
@@ -269,10 +281,37 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
     return rows.map((row) => row.sprint).filter((sprint): sprint is string => sprint !== null);
   }
 
+  async listGitHubPullRequestLinks(meegleWorkItemIds: string[]): Promise<GitHubPullRequestLink[]> {
+    const requestedIds = new Set(meegleWorkItemIds);
+    if (requestedIds.size === 0) {
+      return [];
+    }
+
+    const rows = await this.db.selectFrom("github_pr_syncs")
+      .select([
+        "owner", "repo", "pull_number", "title", "state", "merged_at", "html_url", "base_ref", "meegle_ids",
+      ])
+      .where("meegle_ids", "!=", "[]")
+      .execute();
+
+    return rows.flatMap((row) => (parseStringArray(row.meegle_ids) ?? [])
+      .filter((meegleId) => requestedIds.has(meegleId))
+      .map((meegleId) => ({
+        meegleId,
+        owner: row.owner,
+        repo: row.repo,
+        pullNumber: row.pull_number,
+        title: row.title,
+        htmlUrl: row.html_url,
+        baseRef: row.base_ref ?? undefined,
+        state: row.merged_at ? "merged" : row.state,
+      })));
+  }
+
   async listGitHubPullRequests(limit: number): Promise<GitHubPullRequestSyncItem[]> {
     const rows = await this.db.selectFrom("github_pr_syncs")
       .select([
-        "owner", "repo", "pull_number", "title", "state", "html_url", "author_login",
+        "owner", "repo", "pull_number", "title", "state", "merged_at", "html_url", "author_login",
         "head_ref", "base_ref", "is_draft", "meegle_ids", "source_updated_at", "synced_at",
       ])
       .orderBy("source_updated_at", "desc")
@@ -285,7 +324,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
       repo: row.repo,
       pullNumber: row.pull_number,
       title: row.title,
-      state: row.state,
+      state: row.merged_at ? "merged" : row.state,
       htmlUrl: row.html_url,
       authorLogin: row.author_login ?? undefined,
       headRef: row.head_ref ?? undefined,

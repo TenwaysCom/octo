@@ -289,7 +289,25 @@ a { color: inherit; }
 .workitem-type-badge--bug { color: #b45309; background: #fef3c7; }
 .table-link { color: var(--octo-brand); font-weight: 700; text-decoration: none; }
 .table-link:hover { color: var(--octo-brand-hover); text-decoration: underline; }
+.github-pr-links { display: grid; gap: 6px; min-width: 150px; }
+.github-pr-links__item { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+.github-pr-link-badge { padding: 3px 7px; border-radius: 999px; font-size: 11px; line-height: 1.2; }
+.github-pr-link-badge--open { color: #92400e; background: #fef3c7; }
+.github-pr-link-badge--merged { color: #166534; background: #dcfce7; }
+.github-pr-link-badge--closed { color: #475569; background: #e2e8f0; }
+.github-pr-status { display: inline-flex; padding: 2px 6px; border-radius: 999px; font-size: 10px; font-weight: 700; line-height: 1.2; }
+.github-pr-status--open { color: #92400e; background: #fef3c7; }
+.github-pr-status--merged { color: #166534; background: #dcfce7; }
+.github-pr-status--closed { color: #475569; background: #e2e8f0; }
+.github-pr-status--draft { color: #1d4ed8; background: #dbeafe; }
 .list-status { display: inline-flex; max-width: 150px; align-items: center; overflow: hidden; padding: 4px 8px; border-radius: 999px; color: var(--octo-brand); background: color-mix(in srgb, var(--octo-brand) 12%, var(--octo-surface)); font-size: 11px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.meegle-workitem-status { display: inline-flex; max-width: 150px; align-items: center; overflow: hidden; padding: 4px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.meegle-workitem-status--default, .meegle-workitem-status--planning { color: #6b7280; background: #f3f4f6; }
+.meegle-workitem-status--planning { color: #6d28d9; background: #ede9fe; }
+.meegle-workitem-status--active { color: #1d4ed8; background: #dbeafe; }
+.meegle-workitem-status--review { color: #92400e; background: #fef3c7; }
+.meegle-workitem-status--release { color: #0f766e; background: #ccfbf1; }
+.meegle-workitem-status--completed { color: #166534; background: #dcfce7; }
 .list-message { margin: 0; padding: 32px; border: 1px dashed var(--octo-border); border-radius: 12px; color: var(--octo-text-muted); background: var(--octo-surface); font-size: 13px; text-align: center; }
 .list-message--error { color: var(--octo-danger); border-color: color-mix(in srgb, var(--octo-danger) 35%, var(--octo-surface)); background: color-mix(in srgb, var(--octo-danger) 5%, var(--octo-surface)); }
 .list-pagination { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-top: 18px; }

@@ -33,7 +33,7 @@ describe("platform-sync script", () => {
     expect(args.masterUserId).toBe("a400632e-8d08-4ddf-977d-e8330b0adc5a");
     expect(args.configPath).toBe(DEFAULT_PLATFORM_SYNC_CONFIG_PATH);
     expect(args.only).toBeUndefined();
-    expect(args.githubPullRequestState).toBe("closed");
+    expect(args.githubPullRequestState).toBe("all");
     expect(args.githubPullRequestLimit).toBe(100);
   });
 
@@ -69,15 +69,20 @@ describe("platform-sync script", () => {
     const result = await runPlatformSync(parsePlatformSyncArgs([]), config(), syncRunner);
 
     expect(result).toMatchObject({ failed: false });
-    expect(result.entries.map((entry) => entry.platform)).toEqual(["meegle", "github", "lark"]);
+    expect(result.entries.map((entry) => entry.platform)).toEqual(["meegle", "github", "github", "lark"]);
     expect(syncRunner.bulkSyncMeegleWorkitems).toHaveBeenCalledWith({
       masterUserId: "a400632e-8d08-4ddf-977d-e8330b0adc5a",
       projectKey: "project",
       workItemTypeKeys: ["story"],
     });
-    expect(syncRunner.bulkSyncGitHubPullRequests).toHaveBeenCalledWith({
+    expect(syncRunner.bulkSyncGitHubPullRequests).toHaveBeenNthCalledWith(1, {
       repositories: [{ owner: "acme", repo: "app" }],
       state: "closed",
+      limit: 100,
+    });
+    expect(syncRunner.bulkSyncGitHubPullRequests).toHaveBeenNthCalledWith(2, {
+      repositories: [{ owner: "acme", repo: "app" }],
+      state: "merged",
       limit: 100,
     });
   });
@@ -88,7 +93,7 @@ describe("platform-sync script", () => {
 
     const result = await runPlatformSync(args, config(), syncRunner);
 
-    expect(result.entries.map((entry) => entry.platform)).toEqual(["github"]);
+    expect(result.entries.map((entry) => entry.platform)).toEqual(["github", "github"]);
     expect(syncRunner.bulkSyncMeegleWorkitems).not.toHaveBeenCalled();
     expect(syncRunner.bulkSyncLarkBaseTickets).not.toHaveBeenCalled();
   });
@@ -97,7 +102,7 @@ describe("platform-sync script", () => {
     const syncRunner = runner({
       bulkSyncGitHubPullRequests: vi.fn()
         .mockRejectedValueOnce(new Error("Repository unavailable"))
-        .mockResolvedValueOnce({ listed: 1, skippedInactive: 0, synced: 1 }),
+        .mockResolvedValue({ listed: 1, skippedInactive: 0, synced: 1 }),
     });
     const result = await runPlatformSync(
       parsePlatformSyncArgs(["--only", "github"]),
@@ -106,16 +111,21 @@ describe("platform-sync script", () => {
     );
 
     expect(result.failed).toBe(true);
-    expect(result.entries).toEqual([
-      expect.objectContaining({ platform: "github", target: "acme/missing", ok: false }),
-      expect.objectContaining({ platform: "github", target: "acme/app", ok: true }),
-    ]);
+    expect(result.entries).toEqual(expect.arrayContaining([
+      expect.objectContaining({ platform: "github", target: "acme/missing (closed)", ok: false }),
+      expect.objectContaining({ platform: "github", target: "acme/app (closed)", ok: true }),
+    ]));
     expect(syncRunner.bulkSyncGitHubPullRequests).toHaveBeenNthCalledWith(1, {
       repositories: [{ owner: "acme", repo: "missing" }],
       state: "closed",
       limit: 100,
     });
     expect(syncRunner.bulkSyncGitHubPullRequests).toHaveBeenNthCalledWith(2, {
+      repositories: [{ owner: "acme", repo: "missing" }],
+      state: "merged",
+      limit: 100,
+    });
+    expect(syncRunner.bulkSyncGitHubPullRequests).toHaveBeenNthCalledWith(3, {
       repositories: [{ owner: "acme", repo: "app" }],
       state: "closed",
       limit: 100,

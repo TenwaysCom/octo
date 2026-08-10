@@ -35,6 +35,7 @@ function createStore(): PlatformSyncStore & {
     },
     async listMeegleWorkitems() { return []; },
     async listMeegleSprints() { return []; },
+    async listGitHubPullRequestLinks() { return []; },
     async listGitHubPullRequests() { return []; },
     async listLarkBaseTickets() { return []; },
   };
