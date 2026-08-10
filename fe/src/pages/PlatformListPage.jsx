@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { WorkspaceShell } from "../components/layout/WorkspaceShell.jsx";
 import { formatDateTime } from "../lib/formatters.js";
+import { getOdooShBuildTone } from "../lib/odoo-sh-build-status.js";
 import { getPlatformDataList } from "../services/platform-data/platform-data-api.js";
 
 const LIST_PAGE_SIZE = 50;
@@ -54,12 +55,30 @@ function GitHubPullRequestStatus({ isDraft, state }) {
   return <span className={`github-pr-status github-pr-status--${status}`}>{status}</span>;
 }
 
+function OdooShBuildDots({ builds }) {
+  if (!builds?.length) {
+    return null;
+  }
+
+  return <span className="odoo-sh-build-dots" aria-label="Odoo.sh build 状态">{builds.map((build) => {
+    const tone = getOdooShBuildTone(build.result);
+    const environment = build.environment.toUpperCase();
+    return <span
+      aria-label={`${build.environment.toUpperCase()} Odoo.sh build：${build.result || build.status || "unknown"}`}
+      className="odoo-sh-build-indicator"
+      key={build.environment}
+      title={`${environment}：${build.result || build.status || "unknown"}`}
+    ><span className="odoo-sh-build-indicator__environment">{environment}</span><span aria-hidden="true" className={`odoo-sh-build-dot odoo-sh-build-dot--${tone}`} /></span>;
+  })}</span>;
+}
+
 function GitHubPullRequestLinks({ pullRequests }) {
   if (!pullRequests?.length) {
     return "-";
   }
   return <div className="github-pr-links">{pullRequests.map((pullRequest) => <div className="github-pr-links__item" key={`${pullRequest.owner}-${pullRequest.repo}-${pullRequest.pullNumber}`}>
     <ExternalLink className={`github-pr-link-badge github-pr-link-badge--${pullRequest.state}`} href={pullRequest.htmlUrl} title={`${pullRequest.owner}/${pullRequest.repo} #${pullRequest.pullNumber}\n${pullRequest.title}\n${pullRequest.state}`}>#{pullRequest.pullNumber}-{pullRequest.baseRef || "-"}</ExternalLink>
+    <OdooShBuildDots builds={pullRequest.odooShBuilds} />
   </div>)}</div>;
 }
 
@@ -197,7 +216,7 @@ function SyncedListTable({ kind, items, sort, onSort }) {
   }
 
   return <table className="data-table"><thead><tr><th><SortableColumnHeader label="Pull Request" sortKey="pullRequest" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="仓库" sortKey="repo" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="状态" sortKey="status" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="分支" sortKey="branch" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="更新时间" sortKey="updatedAt" sort={sort} onSort={onSort} /></th></tr></thead><tbody>
-    {items.map((item) => <tr key={`${item.owner}-${item.repo}-${item.pullNumber}`}><td><ExternalLink href={item.htmlUrl}>{item.title}</ExternalLink><small>#{item.pullNumber} {item.authorLogin ? `· ${item.authorLogin}` : ""}</small></td><td>{item.owner} / {item.repo}</td><td><GitHubPullRequestStatus isDraft={item.isDraft} state={item.state} /></td><td>{item.headRef || "-"}<small>{item.baseRef ? `→ ${item.baseRef}` : ""}</small></td><td>{formatDateTime(item.sourceUpdatedAt || item.syncedAt)}</td></tr>)}
+    {items.map((item) => <tr key={`${item.owner}-${item.repo}-${item.pullNumber}`}><td><ExternalLink href={item.htmlUrl}>{item.title}</ExternalLink><small>#{item.pullNumber} {item.authorLogin ? `· ${item.authorLogin}` : ""}</small></td><td>{item.owner} / {item.repo}</td><td><GitHubPullRequestStatus isDraft={item.isDraft} state={item.state} /></td><td><span className="github-pr-branch">{item.headRef || "-"}<OdooShBuildDots builds={item.odooShBuilds} /></span><small>{item.baseRef ? `→ ${item.baseRef}` : ""}</small></td><td>{formatDateTime(item.sourceUpdatedAt || item.syncedAt)}</td></tr>)}
   </tbody></table>;
 }
 

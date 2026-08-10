@@ -2,13 +2,30 @@ import {
   PostgresPlatformSyncStore,
   type PlatformSyncStore,
 } from "../../adapters/postgres/platform-sync-store.js";
+import type { OdooDevopsEnvironment } from "../../adapters/odoo-devops/odoo-devops-branches-client.js";
+import type { OdooDevopsBranchesService } from "./odoo-devops-branches.service.js";
+import { logger } from "../../logger.js";
+import {
+  resolveGitHubRepoEnvironment,
+  resolveMeegleSystemEnvironment,
+} from "./odoo-devops-environment-mapping.js";
 
 export type PlatformDataKind = "lark-tickets" | "meegle-workitems" | "github-pull-requests";
+export interface OdooShBuild {
+  environment: OdooDevopsEnvironment;
+  status: string;
+  result: string;
+}
+
+const serviceLogger = logger.child({ module: "platform-data-service" });
 
 export class PlatformDataService {
   private store?: PlatformSyncStore;
 
-  constructor(store?: PlatformSyncStore) {
+  constructor(
+    store?: PlatformSyncStore,
+    private readonly odooDevopsBranchesService?: Pick<OdooDevopsBranchesService, "list">,
+  ) {
     this.store = store;
   }
 
@@ -26,16 +43,57 @@ export class PlatformDataService {
             current.push(link);
             linksByWorkItemId.set(link.meegleId, current);
           }
+          const environmentByWorkItemId = new Map(
+            items.map((item) => [item.workItemId, resolveMeegleSystemEnvironment(item.system)]),
+          );
+          const environments = new Set<OdooDevopsEnvironment>();
+          for (const link of links) {
+            const environment = environmentByWorkItemId.get(link.meegleId);
+            if (link.headRef && environment) {
+              environments.add(environment);
+            }
+          }
+          const buildsByBranch = await this.listOdooShBuildsByBranch(environments);
         return {
             items: items.map((item) => ({
               ...item,
-              githubPullRequests: linksByWorkItemId.get(item.workItemId) ?? [],
+              githubPullRequests: (linksByWorkItemId.get(item.workItemId) ?? []).map((pullRequest) => ({
+                ...pullRequest,
+                odooShBuilds: selectOdooShBuilds(
+                  buildsByBranch,
+                  pullRequest.headRef,
+                  environmentByWorkItemId.get(item.workItemId),
+                ),
+              })),
             })),
           sprints: await this.syncStore.listMeegleSprints(),
         };
         }
       case "github-pull-requests":
-        return { items: await this.syncStore.listGitHubPullRequests(limit) };
+        {
+          const items = await this.syncStore.listGitHubPullRequests(limit);
+          const environmentByPullRequest = new Map(
+            items.map((item) => [item, resolveGitHubRepoEnvironment(item.repo)]),
+          );
+          const environments = new Set<OdooDevopsEnvironment>();
+          for (const item of items) {
+            const environment = environmentByPullRequest.get(item);
+            if (item.headRef && environment) {
+              environments.add(environment);
+            }
+          }
+          const buildsByBranch = await this.listOdooShBuildsByBranch(environments);
+          return {
+            items: items.map((item) => ({
+              ...item,
+              odooShBuilds: selectOdooShBuilds(
+                buildsByBranch,
+                item.headRef,
+                environmentByPullRequest.get(item),
+              ),
+            })),
+          };
+        }
     }
   }
 
@@ -43,4 +101,45 @@ export class PlatformDataService {
     this.store ??= new PostgresPlatformSyncStore();
     return this.store;
   }
+
+  private async listOdooShBuildsByBranch(
+    environments: Iterable<OdooDevopsEnvironment>,
+  ): Promise<Map<string, OdooShBuild[]>> {
+    const buildsByBranch = new Map<string, OdooShBuild[]>();
+    const odooDevopsBranchesService = this.odooDevopsBranchesService;
+    const requestedEnvironments = [...new Set(environments)];
+    if (!odooDevopsBranchesService || requestedEnvironments.length === 0) {
+      return buildsByBranch;
+    }
+
+    await Promise.all(requestedEnvironments.map(async (environment) => {
+      try {
+        const snapshot = await odooDevopsBranchesService.list(environment);
+        for (const branch of snapshot.items) {
+          const builds = buildsByBranch.get(branch.branch) ?? [];
+          builds.push({
+            environment,
+            status: branch.last_build_status,
+            result: branch.last_build_result,
+          });
+          buildsByBranch.set(branch.branch, builds);
+        }
+      } catch {
+        serviceLogger.warn({ environment }, "ODOO_DEVOPS_BRANCHES_UNAVAILABLE_FOR_PLATFORM_DATA");
+      }
+    }));
+
+    return buildsByBranch;
+  }
+}
+
+function selectOdooShBuilds(
+  buildsByBranch: Map<string, OdooShBuild[]>,
+  headRef: string | undefined,
+  environment: OdooDevopsEnvironment | undefined,
+): OdooShBuild[] {
+  if (!headRef || !environment) {
+    return [];
+  }
+  return (buildsByBranch.get(headRef) ?? []).filter((build) => build.environment === environment);
 }

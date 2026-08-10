@@ -20,7 +20,7 @@ test("loads a synced platform list with the browser session cookie", async () =>
         version: "Version 1",
         system: "Odoo EU",
         bugs: ["Bug 1"],
-        githubPullRequests: [{ owner: "TenwaysCom", repo: "Tenways", pullNumber: 1, title: "PR", htmlUrl: "https://github.com/TenwaysCom/Tenways/pull/1", baseRef: "main", state: "merged" }],
+        githubPullRequests: [{ owner: "TenwaysCom", repo: "Tenways", pullNumber: 1, title: "PR", htmlUrl: "https://github.com/TenwaysCom/Tenways/pull/1", headRef: "feature/m-1", baseRef: "main", state: "merged", odooShBuilds: [{ environment: "eu", status: "done", result: "success" }] }],
       }], sprints: ["Sprint 1"] } }) };
     },
   });
@@ -36,7 +36,7 @@ test("loads a synced platform list with the browser session cookie", async () =>
       version: "Version 1",
       system: "Odoo EU",
       bugs: ["Bug 1"],
-      githubPullRequests: [{ owner: "TenwaysCom", repo: "Tenways", pullNumber: 1, title: "PR", htmlUrl: "https://github.com/TenwaysCom/Tenways/pull/1", baseRef: "main", state: "merged" }],
+      githubPullRequests: [{ owner: "TenwaysCom", repo: "Tenways", pullNumber: 1, title: "PR", htmlUrl: "https://github.com/TenwaysCom/Tenways/pull/1", headRef: "feature/m-1", baseRef: "main", state: "merged", odooShBuilds: [{ environment: "eu", status: "done", result: "success" }] }],
     }],
     sprints: ["Sprint 1"],
   });
@@ -50,6 +50,47 @@ test("rejects unknown list kinds before making a request", async () => {
     { message: "UNKNOWN_PLATFORM_DATA_KIND" },
   );
 });
+
+test("loads Odoo.sh build data for GitHub PR rows", async () => {
+  const result = await getPlatformDataList({
+    apiBaseUrl: "/api",
+    kind: "github-pull-requests",
+    fetchImpl: async () => ({
+      ok: true,
+      json: async () => ({ ok: true, data: { items: [{
+        owner: "TenwaysCom",
+        repo: "Tenways",
+        pullNumber: 1138,
+        title: "PR",
+        state: "open",
+        htmlUrl: "https://github.com/TenwaysCom/Tenways/pull/1138",
+        headRef: "feature/m-1138",
+        baseRef: "main",
+        isDraft: false,
+        syncedAt: "2026-08-10T00:00:00.000Z",
+        odooShBuilds: [{ environment: "eu", status: "done", result: "warning" }],
+      }] } }),
+    }),
+  });
+
+  assert.deepEqual(result.items, [expectGitHubPullRequestWithBuild()]);
+});
+
+function expectGitHubPullRequestWithBuild() {
+  return {
+    owner: "TenwaysCom",
+    repo: "Tenways",
+    pullNumber: 1138,
+    title: "PR",
+    state: "open",
+    htmlUrl: "https://github.com/TenwaysCom/Tenways/pull/1138",
+    headRef: "feature/m-1138",
+    baseRef: "main",
+    isDraft: false,
+    syncedAt: "2026-08-10T00:00:00.000Z",
+    odooShBuilds: [{ environment: "eu", status: "done", result: "warning" }],
+  };
+}
 
 test("rejects an invalid Meegle four-field response", async () => {
   await assert.rejects(

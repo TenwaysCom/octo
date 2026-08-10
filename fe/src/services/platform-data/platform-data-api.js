@@ -46,8 +46,11 @@ export async function getPlatformDataList({ apiBaseUrl, kind, sprint, fetchImpl 
     throw new Error(payload?.error?.errorCode || "PLATFORM_DATA_LOAD_FAILED");
   }
 
-  if (kind !== "meegle-workitems") {
+  if (kind === "lark-tickets") {
     return { items: payload.data.items };
+  }
+  if (kind === "github-pull-requests") {
+    return { items: payload.data.items.map(parseSyncedGitHubPullRequest) };
   }
   if (!Array.isArray(payload.data.sprints) || payload.data.sprints.some((value) => typeof value !== "string")) {
     throw new Error("INVALID_MEEGLE_WORKITEM_RESPONSE");
@@ -99,8 +102,11 @@ function parseGitHubPullRequest(value) {
     || !Number.isInteger(value.pullNumber)
     || typeof value.title !== "string"
     || typeof value.htmlUrl !== "string"
+    || (value.headRef !== undefined && typeof value.headRef !== "string")
     || (value.baseRef !== undefined && typeof value.baseRef !== "string")
-    || typeof value.state !== "string") {
+    || typeof value.state !== "string"
+    || !Array.isArray(value.odooShBuilds)
+    || value.odooShBuilds.some((build) => !isOdooShBuild(build))) {
     throw new Error("INVALID_MEEGLE_WORKITEM_RESPONSE");
   }
   return {
@@ -109,9 +115,54 @@ function parseGitHubPullRequest(value) {
     pullNumber: value.pullNumber,
     title: value.title,
     htmlUrl: value.htmlUrl,
+    ...(value.headRef === undefined ? {} : { headRef: value.headRef }),
     ...(value.baseRef === undefined ? {} : { baseRef: value.baseRef }),
     state: value.state,
+    odooShBuilds: value.odooShBuilds,
   };
+}
+
+function parseSyncedGitHubPullRequest(value) {
+  if (!isRecord(value)
+    || typeof value.owner !== "string"
+    || typeof value.repo !== "string"
+    || !Number.isInteger(value.pullNumber)
+    || typeof value.title !== "string"
+    || typeof value.state !== "string"
+    || typeof value.htmlUrl !== "string"
+    || typeof value.isDraft !== "boolean"
+    || typeof value.syncedAt !== "string"
+    || (value.authorLogin !== undefined && typeof value.authorLogin !== "string")
+    || (value.headRef !== undefined && typeof value.headRef !== "string")
+    || (value.baseRef !== undefined && typeof value.baseRef !== "string")
+    || (value.sourceUpdatedAt !== undefined && typeof value.sourceUpdatedAt !== "string")
+    || !Array.isArray(value.odooShBuilds)
+    || value.odooShBuilds.some((build) => !isOdooShBuild(build))) {
+    throw new Error("INVALID_GITHUB_PULL_REQUEST_RESPONSE");
+  }
+
+  return {
+    owner: value.owner,
+    repo: value.repo,
+    pullNumber: value.pullNumber,
+    title: value.title,
+    state: value.state,
+    htmlUrl: value.htmlUrl,
+    isDraft: value.isDraft,
+    syncedAt: value.syncedAt,
+    ...(value.authorLogin === undefined ? {} : { authorLogin: value.authorLogin }),
+    ...(value.headRef === undefined ? {} : { headRef: value.headRef }),
+    ...(value.baseRef === undefined ? {} : { baseRef: value.baseRef }),
+    ...(value.sourceUpdatedAt === undefined ? {} : { sourceUpdatedAt: value.sourceUpdatedAt }),
+    odooShBuilds: value.odooShBuilds,
+  };
+}
+
+function isOdooShBuild(value) {
+  return isRecord(value)
+    && ["eu", "uk", "us"].includes(value.environment)
+    && typeof value.status === "string"
+    && typeof value.result === "string";
 }
 
 function isRecord(value) {

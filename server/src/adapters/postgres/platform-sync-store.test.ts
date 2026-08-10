@@ -48,6 +48,7 @@ describe("PostgresPlatformSyncStore", () => {
         merged_at: null,
         updated_at: "2026-08-06T00:00:00.000Z",
         draft: false,
+        head: { ref: "feature/m-123" },
         base: { ref: "main" },
       },
     });
@@ -98,8 +99,8 @@ describe("PostgresPlatformSyncStore", () => {
       meegleIds: ["123", "456", "789"],
     })]);
     await expect(store.listGitHubPullRequestLinks(["123", "456"])) .resolves.toEqual([
-      expect.objectContaining({ meegleId: "123", pullNumber: 2, baseRef: "main", state: "open" }),
-      expect.objectContaining({ meegleId: "456", pullNumber: 2, baseRef: "main", state: "open" }),
+      expect.objectContaining({ meegleId: "123", pullNumber: 2, headRef: "feature/m-123", baseRef: "main", state: "open" }),
+      expect.objectContaining({ meegleId: "456", pullNumber: 2, headRef: "feature/m-123", baseRef: "main", state: "open" }),
     ]);
     await expect(store.listLarkBaseTickets(10)).resolves.toEqual([expect.objectContaining({
       recordId: "rec-1", ticketStatus: "Open",

@@ -108,3 +108,9 @@ For non-trivial changes, agents must read the relevant docs before editing:
 - Keep changes surgical.
 - Prefer editing existing files over creating new files.
 - Write commit messages and PR descriptions casually and specifically; avoid robot copy and vague summaries.
+
+## Learning Ledger
+
+- Maintain concise, reusable learnings in `.learnings/LEARNINGS.md` and errors in `.learnings/ERRORS.md`; record failed commands, compiler/runtime errors, wrong assumptions, and the verified fix.
+- Do not record secrets, raw credentials, cookies, tokens, or large unredacted logs.
+- At the end of every complex task, review failures and near-misses, identify the root cause, and write back one durable rule when it will prevent a repeat.

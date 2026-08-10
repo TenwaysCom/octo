@@ -75,6 +75,7 @@ export interface GitHubPullRequestLink {
   pullNumber: number;
   title: string;
   htmlUrl: string;
+  headRef?: string;
   baseRef?: string;
   state: string;
 }
@@ -289,7 +290,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
 
     const rows = await this.db.selectFrom("github_pr_syncs")
       .select([
-        "owner", "repo", "pull_number", "title", "state", "merged_at", "html_url", "base_ref", "meegle_ids",
+        "owner", "repo", "pull_number", "title", "state", "merged_at", "html_url", "head_ref", "base_ref", "meegle_ids",
       ])
       .where("meegle_ids", "!=", "[]")
       .execute();
@@ -303,6 +304,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
         pullNumber: row.pull_number,
         title: row.title,
         htmlUrl: row.html_url,
+        headRef: row.head_ref ?? undefined,
         baseRef: row.base_ref ?? undefined,
         state: row.merged_at ? "merged" : row.state,
       })));

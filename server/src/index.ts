@@ -66,6 +66,11 @@ import {
   syncMeegleWorkitemController,
 } from "./modules/platform-sync/platform-sync.controller.js";
 import { createWebPlatformDataController } from "./modules/platform-data/platform-data.controller.js";
+import { PlatformDataService } from "./application/services/platform-data.service.js";
+import { createHttpOdooDevopsBranchesClient } from "./adapters/odoo-devops/odoo-devops-branches-client.js";
+import { OdooDevopsBranchesService } from "./application/services/odoo-devops-branches.service.js";
+import { createWebOdooDevopsBranchesController } from "./modules/odoo-devops-branches/odoo-devops-branches.controller.js";
+import { createRedisApiCache } from "./http/redis-cache.js";
 
 import { logger, stdoutLogger } from "./logger.js";
 
@@ -82,6 +87,12 @@ const LARK_OAUTH_SCOPE = process.env.LARK_OAUTH_SCOPE || "offline_access contact
 const MEEGLE_PLUGIN_ID = process.env.MEEGLE_PLUGIN_ID || "";
 const MEEGLE_PLUGIN_SECRET = process.env.MEEGLE_PLUGIN_SECRET || "";
 const MEEGLE_BASE_URL = process.env.MEEGLE_BASE_URL || "https://project.larksuite.com";
+const ODOO_DEVOPS_BASE_URL = process.env.ODOO_DEVOPS_BASE_URL || "https://devops.odoo.tenways.it:18443";
+const ODOO_DEVOPS_SESSION = process.env.ODOO_DEVOPS_SESSION || "";
+const REDIS_URL = process.env.REDIS_URL || "";
+const ODOO_DEVOPS_BRANCHES_CACHE_TTL_SECONDS = readCacheTtlSeconds(
+  process.env.ODOO_DEVOPS_BRANCHES_CACHE_TTL_SECONDS,
+);
 
 configurePublicConfigController({
   MEEGLE_PLUGIN_ID,
@@ -138,13 +149,43 @@ const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || "0.0.0.0";
 const WEB_ALLOWED_ORIGINS = [LARK_WEB_ORIGIN];
-const listWebPlatformDataController = createWebPlatformDataController();
+const apiCache = createRedisApiCache(REDIS_URL);
+const odooDevopsBranchesService = new OdooDevopsBranchesService({
+  client: createHttpOdooDevopsBranchesClient({
+    baseUrl: ODOO_DEVOPS_BASE_URL,
+    session: ODOO_DEVOPS_SESSION,
+  }),
+  cache: apiCache,
+  cacheTtlSeconds: ODOO_DEVOPS_BRANCHES_CACHE_TTL_SECONDS,
+});
+const getWebOdooDevopsBranchesController = createWebOdooDevopsBranchesController({
+  service: odooDevopsBranchesService,
+});
+const listWebPlatformDataController = createWebPlatformDataController({
+  service: new PlatformDataService(undefined, odooDevopsBranchesService),
+});
 
 function getMasterUserIdHeader(req: Request): string | undefined {
   const headerValue = req.headers["master-user-id"];
   const value = Array.isArray(headerValue) ? headerValue[0] : headerValue;
 
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function readCacheTtlSeconds(value: string | undefined): number {
+  const defaultTtlSeconds = 600;
+  if (!value?.trim()) {
+    return defaultTtlSeconds;
+  }
+  const parsed = Number(value);
+  if (Number.isInteger(parsed) && parsed >= 60 && parsed <= 3600) {
+    return parsed;
+  }
+  serverLogger.warn(
+    { name: "ODOO_DEVOPS_BRANCHES_CACHE_TTL_SECONDS" },
+    "INVALID_CACHE_TTL_USING_DEFAULT",
+  );
+  return defaultTtlSeconds;
 }
 
 app.use(createCorsMiddleware({ allowedCredentialOrigins: WEB_ALLOWED_ORIGINS }));
@@ -315,6 +356,13 @@ app.get("/api/web/platform-data/github-pull-requests", async (req, res) => {
   });
   res.status(result.statusCode).json(result.body);
 });
+app.get("/api/web/odoo-devops-branches", async (req, res) => {
+  const result = await getWebOdooDevopsBranchesController({
+    cookieHeader: req.headers.cookie,
+    query: req.query,
+  });
+  res.status(result.statusCode).json(result.body);
+});
 app.post("/api/lark/auth/web/logout", async (req, res) => {
   const result = await logoutWebLarkAuthController(req.headers.cookie);
   const secure = LARK_OAUTH_CALLBACK_URL.startsWith("https://");
@@ -433,7 +481,7 @@ if (process.env.NODE_ENV !== "test" && process.env.VITEST !== "true") {
     const forceExit = setTimeout(() => process.exit(1), 10_000);
     forceExit.unref();
     httpServer.close(() => {
-      void closeSharedDatabase().finally(() => process.exit(0));
+      void Promise.all([closeSharedDatabase(), apiCache.close()]).finally(() => process.exit(0));
     });
   };
 

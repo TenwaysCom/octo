@@ -11,6 +11,12 @@ const platformDataItemsSchema = z.object({
   items: z.array(z.unknown()),
 });
 
+const odooShBuildSchema = z.object({
+  environment: z.enum(["eu", "uk", "us"]),
+  status: z.string(),
+  result: z.string(),
+});
+
 export const meegleWorkitemListResponseSchema = z.object({
   items: z.array(z.object({
     projectKey: z.string(),
@@ -34,8 +40,10 @@ export const meegleWorkitemListResponseSchema = z.object({
       pullNumber: z.number().int().positive(),
       title: z.string(),
       htmlUrl: z.string().url(),
+      headRef: z.string().optional(),
       baseRef: z.string().optional(),
       state: z.string(),
+      odooShBuilds: z.array(odooShBuildSchema),
     })),
     assignee: z.string().optional(),
     sourceUpdatedAt: z.string().optional(),
@@ -44,9 +52,31 @@ export const meegleWorkitemListResponseSchema = z.object({
   sprints: z.array(z.string()),
 });
 
+export const githubPullRequestListResponseSchema = z.object({
+  items: z.array(z.object({
+    owner: z.string(),
+    repo: z.string(),
+    pullNumber: z.number().int().positive(),
+    title: z.string(),
+    state: z.string(),
+    htmlUrl: z.string().url(),
+    authorLogin: z.string().optional(),
+    headRef: z.string().optional(),
+    baseRef: z.string().optional(),
+    isDraft: z.boolean(),
+    meegleIds: z.array(z.string()),
+    sourceUpdatedAt: z.string().optional(),
+    syncedAt: z.string(),
+    odooShBuilds: z.array(odooShBuildSchema),
+  })),
+});
+
 export function parsePlatformDataListResponse(kind: "lark-tickets" | "meegle-workitems" | "github-pull-requests", data: unknown) {
   if (kind === "meegle-workitems") {
     return meegleWorkitemListResponseSchema.parse(data);
+  }
+  if (kind === "github-pull-requests") {
+    return githubPullRequestListResponseSchema.parse(data);
   }
   return platformDataItemsSchema.parse(data);
 }
