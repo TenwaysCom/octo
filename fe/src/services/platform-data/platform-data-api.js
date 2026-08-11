@@ -61,6 +61,24 @@ export async function getPlatformDataList({ apiBaseUrl, kind, sprint, fetchImpl 
   };
 }
 
+export async function resetAllOdooDevopsBranchesCache({
+  apiBaseUrl,
+  actionRunId,
+  fetchImpl = fetch,
+}) {
+  const response = await fetchImpl(buildApiUrl(apiBaseUrl, "/web/odoo-devops-branches/reset-cache"), {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ actionRunId }),
+  });
+  const payload = await response.json().catch(() => undefined);
+  if (!response.ok || !payload?.ok || JSON.stringify(payload.data?.environments) !== JSON.stringify(["eu", "uk", "us"])) {
+    throw new Error(payload?.error?.errorCode || "ODOO_DEVOPS_CACHE_RESET_FAILED");
+  }
+  return payload.data;
+}
+
 function parseMeegleWorkitem(value) {
   if (!isRecord(value)) {
     throw new Error("INVALID_MEEGLE_WORKITEM_RESPONSE");

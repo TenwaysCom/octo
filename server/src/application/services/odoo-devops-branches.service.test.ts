@@ -23,6 +23,7 @@ describe("OdooDevopsBranchesService", () => {
     const cache = {
       get: vi.fn().mockResolvedValue(JSON.stringify(snapshot)),
       set: vi.fn(),
+      delete: vi.fn().mockResolvedValue(true),
       close: vi.fn(),
     };
     const service = new OdooDevopsBranchesService({ client, cache });
@@ -32,11 +33,12 @@ describe("OdooDevopsBranchesService", () => {
     expect(client.listBranches).not.toHaveBeenCalled();
   });
 
-  it("fetches an environment-specific snapshot and caches it for ten minutes", async () => {
+  it("fetches an environment-specific snapshot and caches it for thirty minutes", async () => {
     const client = { listBranches: vi.fn().mockResolvedValue(snapshot) };
     const cache = {
       get: vi.fn().mockResolvedValue(null),
       set: vi.fn().mockResolvedValue(undefined),
+      delete: vi.fn().mockResolvedValue(true),
       close: vi.fn(),
     };
     const service = new OdooDevopsBranchesService({ client, cache });
@@ -48,7 +50,7 @@ describe("OdooDevopsBranchesService", () => {
       JSON.stringify(snapshot),
       CACHE_TTL_SECONDS,
     );
-    expect(CACHE_TTL_SECONDS).toBe(600);
+    expect(CACHE_TTL_SECONDS).toBe(1800);
   });
 
   it("uses the configured endpoint cache TTL", async () => {
@@ -56,6 +58,7 @@ describe("OdooDevopsBranchesService", () => {
     const cache = {
       get: vi.fn().mockResolvedValue(null),
       set: vi.fn().mockResolvedValue(undefined),
+      delete: vi.fn().mockResolvedValue(true),
       close: vi.fn(),
     };
     const service = new OdooDevopsBranchesService({ client, cache, cacheTtlSeconds: 120 });
@@ -70,12 +73,45 @@ describe("OdooDevopsBranchesService", () => {
     const cache = {
       get: vi.fn().mockResolvedValue("not-json"),
       set: vi.fn().mockResolvedValue(undefined),
+      delete: vi.fn().mockResolvedValue(true),
       close: vi.fn(),
     };
     const service = new OdooDevopsBranchesService({ client, cache });
 
     await expect(service.list("eu")).resolves.toEqual({ ...snapshot, cached: false });
     expect(client.listBranches).toHaveBeenCalledOnce();
-    expect(cache.set).toHaveBeenCalledWith(cacheKey("eu"), JSON.stringify(snapshot), 600);
+    expect(cache.set).toHaveBeenCalledWith(cacheKey("eu"), JSON.stringify(snapshot), 1800);
+  });
+
+  it("deletes only the requested environment snapshot", async () => {
+    const client = { listBranches: vi.fn() };
+    const cache = {
+      get: vi.fn(),
+      set: vi.fn(),
+      delete: vi.fn().mockResolvedValue(true),
+      close: vi.fn(),
+    };
+    const service = new OdooDevopsBranchesService({ client, cache });
+
+    await expect(service.invalidate("uk")).resolves.toBe(true);
+
+    expect(cache.delete).toHaveBeenCalledWith(cacheKey("uk"));
+    expect(client.listBranches).not.toHaveBeenCalled();
+  });
+
+  it("deletes the EU, UK, and US snapshots together", async () => {
+    const cache = {
+      get: vi.fn(),
+      set: vi.fn(),
+      delete: vi.fn().mockResolvedValue(true),
+      close: vi.fn(),
+    };
+    const service = new OdooDevopsBranchesService({ client: { listBranches: vi.fn() }, cache });
+
+    await expect(service.invalidateAll()).resolves.toBe(true);
+
+    expect(cache.delete).toHaveBeenCalledWith(cacheKey("eu"));
+    expect(cache.delete).toHaveBeenCalledWith(cacheKey("uk"));
+    expect(cache.delete).toHaveBeenCalledWith(cacheKey("us"));
   });
 });

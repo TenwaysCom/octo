@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getPlatformDataList } from "./platform-data-api.js";
+import { getPlatformDataList, resetAllOdooDevopsBranchesCache } from "./platform-data-api.js";
 
 test("loads a synced platform list with the browser session cookie", async () => {
   let request;
@@ -74,6 +74,24 @@ test("loads Odoo.sh build data for GitHub PR rows", async () => {
   });
 
   assert.deepEqual(result.items, [expectGitHubPullRequestWithBuild()]);
+});
+
+test("resets all Odoo DevOps branch caches with the web session", async () => {
+  let request;
+  const result = await resetAllOdooDevopsBranchesCache({
+    apiBaseUrl: "/api",
+    actionRunId: "reset_1138",
+    fetchImpl: async (url, options) => {
+      request = { url, options };
+      return { ok: true, json: async () => ({ ok: true, data: { environments: ["eu", "uk", "us"], actionRunId: "reset_1138" } }) };
+    },
+  });
+
+  assert.deepEqual(result, { environments: ["eu", "uk", "us"], actionRunId: "reset_1138" });
+  assert.equal(request.url, "/api/web/odoo-devops-branches/reset-cache");
+  assert.equal(request.options.method, "POST");
+  assert.equal(request.options.credentials, "include");
+  assert.deepEqual(JSON.parse(request.options.body), { actionRunId: "reset_1138" });
 });
 
 function expectGitHubPullRequestWithBuild() {

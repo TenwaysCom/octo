@@ -1,5 +1,5 @@
 import { OdooDevopsBranchesClientError } from "../../adapters/odoo-devops/odoo-devops-branches-client.js";
-import { createWebOdooDevopsBranchesController } from "./odoo-devops-branches.controller.js";
+import { createWebOdooDevopsBranchesCacheResetController, createWebOdooDevopsBranchesController } from "./odoo-devops-branches.controller.js";
 
 const snapshot = {
   environment: "uk" as const,
@@ -79,5 +79,34 @@ describe("web Odoo DevOps branches controller", () => {
           },
         },
       });
+  });
+
+  it("resets the EU, UK, and US caches with the opaque web session", async () => {
+    const service = { invalidateAll: vi.fn().mockResolvedValue(true) };
+    const controller = createWebOdooDevopsBranchesCacheResetController({
+      service,
+      ensureSession: vi.fn().mockResolvedValue({ ok: true, user: {} }),
+    });
+
+    await expect(controller({
+      cookieHeader: "octo_web_session=web-session",
+      body: { actionRunId: "reset_all" },
+    })).resolves.toEqual({
+      statusCode: 200,
+      body: { ok: true, data: { environments: ["eu", "uk", "us"], actionRunId: "reset_all" } },
+    });
+    expect(service.invalidateAll).toHaveBeenCalledOnce();
+  });
+
+  it("reports reset unavailability rather than claiming all caches were deleted", async () => {
+    const controller = createWebOdooDevopsBranchesCacheResetController({
+      service: { invalidateAll: vi.fn().mockResolvedValue(false) },
+      ensureSession: vi.fn().mockResolvedValue({ ok: true, user: {} }),
+    });
+
+    await expect(controller({
+      cookieHeader: "octo_web_session=web-session",
+      body: { actionRunId: "reset_all" },
+    })).resolves.toMatchObject({ statusCode: 503, body: { ok: false, error: { errorCode: "ODOO_DEVOPS_CACHE_RESET_UNAVAILABLE" } } });
   });
 });

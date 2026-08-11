@@ -8,6 +8,7 @@ const cacheLogger = logger.child({ module: "api-redis-cache" });
 export interface ApiCache {
   get(key: string): Promise<string | null>;
   set(key: string, value: string, ttlSeconds: number): Promise<void>;
+  delete(key: string): Promise<boolean>;
   close(): Promise<void>;
 }
 
@@ -39,6 +40,20 @@ class RedisApiCache implements ApiCache {
       await (await this.getClient())?.set(key, value, { EX: ttlSeconds });
     } catch {
       cacheLogger.warn({ operation: "set" }, "API_REDIS_CACHE_UNAVAILABLE");
+    }
+  }
+
+  async delete(key: string): Promise<boolean> {
+    try {
+      const client = await this.getClient();
+      if (!client) {
+        return false;
+      }
+      await client.del(key);
+      return true;
+    } catch {
+      cacheLogger.warn({ operation: "delete" }, "API_REDIS_CACHE_UNAVAILABLE");
+      return false;
     }
   }
 
@@ -79,5 +94,8 @@ const noOpCache: ApiCache = {
     return null;
   },
   async set() {},
+  async delete() {
+    return true;
+  },
   async close() {},
 };

@@ -4,9 +4,11 @@ import { OdooDevopsBranchesClientError } from "../../adapters/odoo-devops/odoo-d
 import { OdooDevopsBranchesService } from "../../application/services/odoo-devops-branches.service.js";
 import { ensureLarkWebSession } from "../lark-auth/lark-auth.service.js";
 import { WEB_SESSION_COOKIE_NAME } from "../lark-auth/lark-auth.controller.js";
-import { odooDevopsBranchesQuerySchema } from "./odoo-devops-branches.dto.js";
+import { logger } from "../../logger.js";
+import { odooDevopsBranchesCacheResetBodySchema, odooDevopsBranchesQuerySchema } from "./odoo-devops-branches.dto.js";
 
 type WebSessionResult = Awaited<ReturnType<typeof ensureLarkWebSession>>;
+const controllerLogger = logger.child({ module: "odoo-devops-branches" });
 
 function readCookie(cookieHeader: string | undefined, name: string): string | undefined {
   const prefix = `${name}=`;
@@ -63,6 +65,56 @@ export function createWebOdooDevopsBranchesController(deps: {
           ok: false as const,
           error: { errorCode: "ODOO_DEVOPS_INVALID_RESPONSE", errorMessage: "Odoo DevOps 返回了无效的分支状态。" },
         },
+      };
+    }
+  };
+}
+
+export function createWebOdooDevopsBranchesCacheResetController(deps: {
+  service: Pick<OdooDevopsBranchesService, "invalidateAll">;
+  ensureSession?: (sessionToken: string | undefined) => Promise<WebSessionResult>;
+}) {
+  const ensureSession = deps.ensureSession ?? ensureLarkWebSession;
+
+  return async function resetWebOdooDevopsBranchesCache(input: { cookieHeader: string | undefined; body: unknown }) {
+    const session = await ensureSession(readCookie(input.cookieHeader, WEB_SESSION_COOKIE_NAME));
+    if (!session.ok) {
+      return {
+        statusCode: 401,
+        body: { ok: false as const, error: { errorCode: session.errorCode, errorMessage: session.errorMessage } },
+      };
+    }
+
+    try {
+      const request = odooDevopsBranchesCacheResetBodySchema.parse(input.body);
+      const invalidated = await deps.service.invalidateAll();
+      if (!invalidated) {
+        return {
+          statusCode: 503,
+          body: { ok: false as const, error: { errorCode: "ODOO_DEVOPS_CACHE_RESET_UNAVAILABLE", errorMessage: "DevOps 缓存暂时无法重置。" } },
+        };
+      }
+      controllerLogger.info({
+        actionRunId: request.actionRunId,
+        operation: "odoo_devops_cache_reset",
+        layer: "server",
+        stage: "server.cache.invalidated",
+        environments: ["eu", "uk", "us"],
+      }, "ODOO_DEVOPS_CACHE_RESET");
+      return {
+        statusCode: 200,
+        body: { ok: true as const, data: { environments: ["eu", "uk", "us"], actionRunId: request.actionRunId } },
+      };
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return {
+          statusCode: 400,
+          body: { ok: false as const, error: { errorCode: "INVALID_REQUEST", errorMessage: error.message } },
+        };
+      }
+      return {
+        statusCode: 502,
+        body: { ok: false as const, error: { errorCode: "ODOO_DEVOPS_CACHE_RESET_FAILED", errorMessage: "无法重置 Odoo DevOps 缓存。" } },
       };
     }
   };

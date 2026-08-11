@@ -6,6 +6,10 @@ export const odooDevopsBranchesQuerySchema = z.object({
   environment: odooDevopsEnvironmentSchema,
 });
 
+export const odooDevopsBranchesCacheResetBodySchema = z.object({
+  actionRunId: z.string().trim().min(1).max(100),
+});
+
 export const odooDevopsBranchesSnapshotSchema = z.object({
   environment: odooDevopsEnvironmentSchema,
   project_name: z.string().nullable(),

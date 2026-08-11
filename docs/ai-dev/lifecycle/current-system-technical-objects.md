@@ -642,7 +642,9 @@ GitHub PR 页面
   -> extension 在状态标签旁和 Merge Button 上方渲染同一环境的只读 badge
 ```
 
-此路径不读取、不持久化也不转发浏览器 cookie；服务端 CORS 只允许配置的 extension origin 使用凭据。
+此读取路径不读取、不持久化也不转发浏览器 cookie；服务端 CORS 只允许配置的 extension origin 使用凭据。
+
+Octo FE 的 GitHub PR 列表表头可使用受 opaque HttpOnly Octo Web session 保护的重置接口；请求携带 `actionRunId`，服务端一次删除 EU、UK、US 三个 Odoo DevOps 分支缓存 key，随后列表刷新构建状态。
 
 ### 当前风险
 

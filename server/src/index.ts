@@ -69,7 +69,7 @@ import { createWebPlatformDataController } from "./modules/platform-data/platfor
 import { PlatformDataService } from "./application/services/platform-data.service.js";
 import { createHttpOdooDevopsBranchesClient } from "./adapters/odoo-devops/odoo-devops-branches-client.js";
 import { OdooDevopsBranchesService } from "./application/services/odoo-devops-branches.service.js";
-import { createWebOdooDevopsBranchesController } from "./modules/odoo-devops-branches/odoo-devops-branches.controller.js";
+import { createWebOdooDevopsBranchesCacheResetController, createWebOdooDevopsBranchesController } from "./modules/odoo-devops-branches/odoo-devops-branches.controller.js";
 import { createRedisApiCache } from "./http/redis-cache.js";
 import { createWebGitHubPrOdooDevopsBuildController } from "./modules/github-pr-odoo-devops-build/github-pr-odoo-devops-build.controller.js";
 import { GitHubClient } from "./adapters/github/github-client.js";
@@ -171,6 +171,9 @@ const getWebGitHubPrOdooDevopsBuildController = createWebGitHubPrOdooDevopsBuild
   githubClient: process.env.GITHUB_TOKEN ? new GitHubClient({ token: process.env.GITHUB_TOKEN }) : undefined,
   odooDevopsBranchesService,
 });
+const resetWebOdooDevopsBranchesCacheController = createWebOdooDevopsBranchesCacheResetController({
+  service: odooDevopsBranchesService,
+});
 
 function getMasterUserIdHeader(req: Request): string | undefined {
   const headerValue = req.headers["master-user-id"];
@@ -180,7 +183,7 @@ function getMasterUserIdHeader(req: Request): string | undefined {
 }
 
 function readCacheTtlSeconds(value: string | undefined): number {
-  const defaultTtlSeconds = 600;
+  const defaultTtlSeconds = 30 * 60;
   if (!value?.trim()) {
     return defaultTtlSeconds;
   }
@@ -374,6 +377,13 @@ app.get("/api/web/github-pr-odoo-devops-build", async (req, res) => {
   const result = await getWebGitHubPrOdooDevopsBuildController({
     cookieHeader: req.headers.cookie,
     query: req.query,
+  });
+  res.status(result.statusCode).json(result.body);
+});
+app.post("/api/web/odoo-devops-branches/reset-cache", async (req, res) => {
+  const result = await resetWebOdooDevopsBranchesCacheController({
+    cookieHeader: req.headers.cookie,
+    body: req.body,
   });
   res.status(result.statusCode).json(result.body);
 });

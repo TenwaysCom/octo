@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { WorkspaceShell } from "../components/layout/WorkspaceShell.jsx";
 import { formatDateTime } from "../lib/formatters.js";
 import { getOdooShBuildTone } from "../lib/odoo-sh-build-status.js";
-import { getPlatformDataList } from "../services/platform-data/platform-data-api.js";
+import { getPlatformDataList, resetAllOdooDevopsBranchesCache } from "../services/platform-data/platform-data-api.js";
 
 const LIST_PAGE_SIZE = 50;
 const DATE_FILTERS = [
@@ -250,6 +250,9 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy }
   const [sort, setSort] = useState(DEFAULT_SORT);
   const [filterOpen, setFilterOpen] = useState(false);
   const [pageIndex, setPageIndex] = useState(0);
+  const [reloadVersion, setReloadVersion] = useState(0);
+  const [resetError, setResetError] = useState("");
+  const [isResettingDevopsCache, setIsResettingDevopsCache] = useState(false);
   const statusFilters = [...new Set(state.items.map((item) => getPlatformItemStatus(page, item)))].sort((left, right) => left.localeCompare(right));
   const itemsBeforeTypeFilter = filterPlatformItems(state.items, query)
     .filter((item) => selectedStatuses === null || selectedStatuses.includes(getPlatformItemStatus(page, item)))
@@ -275,6 +278,8 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy }
     setSort(DEFAULT_SORT);
     setFilterOpen(false);
     setPageIndex(0);
+    setResetError("");
+    setIsResettingDevopsCache(false);
   }, [page]);
 
   useEffect(() => {
@@ -285,7 +290,23 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy }
       () => { if (active) setState({ status: "error", items: [], sprints: [] }); },
     );
     return () => { active = false; };
-  }, [apiBaseUrl, page, sprintFilter]);
+  }, [apiBaseUrl, page, reloadVersion, sprintFilter]);
+
+  async function resetAllDevopsCache() {
+    setResetError("");
+    setIsResettingDevopsCache(true);
+    try {
+      await resetAllOdooDevopsBranchesCache({
+        apiBaseUrl,
+        actionRunId: crypto.randomUUID(),
+      });
+      setReloadVersion((version) => version + 1);
+    } catch {
+      setResetError("DevOps 缓存重置失败，请稍后重试。");
+    } finally {
+      setIsResettingDevopsCache(false);
+    }
+  }
 
   return <WorkspaceShell user={profile.user ?? {}} activePage={page} onLogout={onLogout} isBusy={isBusy}>
     <section className="profile-main list-page">
@@ -293,6 +314,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy }
         {state.status === "loading" ? <p className="list-message">正在加载同步数据…</p> : null}
         {state.status === "error" ? <p className="list-message list-message--error">同步数据暂时无法读取，请稍后重试。</p> : null}
         {state.status === "ready" && state.items.length === 0 ? <p className="list-message">暂无已同步的数据。</p> : null}
+        {resetError ? <p className="list-message list-message--error">{resetError}</p> : null}
         {state.status === "ready" && state.items.length > 0 ? <div className="list-toolbar">
           {page === "meegle-workitems" ? <div className="list-filter-tabs" role="group" aria-label="按工作项类型筛选">
             {MEEGLE_WORKITEM_TYPE_FILTERS.map(([value, label]) => <button
@@ -312,6 +334,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy }
             >No Sprint</button>
           </div> : null}
           <div className="list-toolbar__actions">
+            {page === "github-pull-requests" ? <button className="secondary-button" type="button" disabled={isResettingDevopsCache} onClick={resetAllDevopsCache}>{isResettingDevopsCache ? "清除中…" : "清除 DevOps 缓存"}</button> : null}
             {page === "meegle-workitems" ? <label className="list-date-filter list-sprint-filter">
               <span className="visually-hidden">按 Sprint 筛选</span>
               <select value={sprintFilter} onChange={(event) => { setSprintFilter(event.target.value); setNoSprintFilter(false); setSelectedStatuses(null); setPageIndex(0); }}>

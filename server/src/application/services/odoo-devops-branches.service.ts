@@ -2,7 +2,8 @@ import type { OdooDevopsBranchesClient, OdooDevopsEnvironment } from "../../adap
 import type { ApiCache } from "../../http/redis-cache.js";
 import { odooDevopsBranchesSnapshotSchema, type OdooDevopsBranchesSnapshot } from "../../modules/odoo-devops-branches/odoo-devops-branches.dto.js";
 
-const CACHE_TTL_SECONDS = 600;
+const CACHE_TTL_SECONDS = 30 * 60;
+const ODOO_DEVOPS_ENVIRONMENTS: OdooDevopsEnvironment[] = ["eu", "uk", "us"];
 
 export class OdooDevopsBranchesService {
   constructor(private readonly deps: {
@@ -21,6 +22,15 @@ export class OdooDevopsBranchesService {
     const snapshot = odooDevopsBranchesSnapshotSchema.parse(await this.deps.client.listBranches(environment));
     await this.deps.cache.set(key, JSON.stringify(snapshot), this.deps.cacheTtlSeconds ?? CACHE_TTL_SECONDS);
     return { ...snapshot, cached: false };
+  }
+
+  async invalidate(environment: OdooDevopsEnvironment): Promise<boolean> {
+    return this.deps.cache.delete(cacheKey(environment));
+  }
+
+  async invalidateAll(): Promise<boolean> {
+    const results = await Promise.all(ODOO_DEVOPS_ENVIRONMENTS.map((environment) => this.invalidate(environment)));
+    return results.every(Boolean);
   }
 
   private async readCached(key: string): Promise<OdooDevopsBranchesSnapshot | undefined> {
