@@ -32,7 +32,7 @@ Octo 从 Lark Base、Meegle 与 GitHub 读取指定范围的对象，持久化�
 | Meegle | work item | `meegle_workitem_syncs` | `project_key + work_item_type_key + work_item_id` | UPSERT |
 | GitHub | pull request | `github_pr_syncs` | `owner + repo + pull_number` | UPSERT |
 
-每行保存用于展示的字段、原始 JSON 快照、`source_updated_at` 与 `synced_at`。重复同步会更新本轮实际拉到的对象；它不会清空表、删除本轮未出现的记录，也不会保护写入同一快照列的本地人工修改。
+每行保存用于展示的字段、原始 JSON 快照、`source_updated_at`、`synced_at`、`last_seen_at` 与 `stale`。重复同步会更新本轮实际拉到的对象并清除其 `stale` 标记；它不会清空表、物理删除本轮未出现的记录，也不会保护写入同一快照列的本地人工修改。
 
 ### 2.2 当前触发入口
 
@@ -75,7 +75,8 @@ HTTP 路由如下。所有请求都可携带 `actionRunId`；Base ticket 可指�
 | --- | --- | --- |
 | HTTP | `server/src/index.ts`、`server/src/modules/platform-sync/*` | 路由、DTO 校验、结构化响应 |
 | Service | `server/src/application/services/platform-sync.service.ts` | Lark/Meegle/GitHub 单条、多选、批量编排；终态过滤与三平台清洗 |
-| Store | `server/src/adapters/postgres/platform-sync-store.ts` | 三类快照 UPSERT、清洗输入读取与清洗字段更新 |
+| Store | `server/src/adapters/postgres/platform-sync-store.ts` | 三类快照 UPSERT、失联标记、清洗输入读取与清洗字段更新 |
+| Run audit | `server/src/adapters/postgres/platform-sync-run-store.ts` | scope 级运行开始、成功/失败、计数与安全错误摘要 |
 | Schema | `server/src/adapters/postgres/database.ts`、`schema.ts` | 表和索引 |
 | CLI | `server/src/scripts/platform-sync.ts` | 本地配置、平台顺序、`gh` 调用与运行结果 |
 | Meegle 历史清洗 | `server/src/scripts/clean-meegle-sync-snapshots.ts` | 项目 `4c3fv6` 的既有快照批量清洗；只写 `meegle_workitem_syncs` |
@@ -182,10 +183,10 @@ CLI clean               不同步，只清洗配置 scope 内已有快照
 1. 读取 scope 的 checkpoint。
 2. 使用 `watermark_updated_at - overlap` 拉取；默认重叠窗口建议 5 分钟。
 3. 按 `source_updated_at + 外部 ID` 稳定排序和分页；当前没有 `source_hash`，无可靠源端时间时必须拒绝推进 checkpoint。
-4. 将增量候选对象 UPSERT 到平台快照表。基于 hash 的未变化跳写和 `last_seen_at` 元数据仍待实现。
+4. 将增量候选对象 UPSERT 到平台快照表，并更新其 `last_seen_at`、清除 `stale`。基于 hash 的未变化跳写仍待实现。
 5. CLI 同步默认将本次同步成功对象传给对应平台的清洗函数，更新对应 `*_syncs` 表的清洗字段；`--mode clean` 只清洗已有快照，不读取源端。
 6. 所有枚举、快照写入和清洗成功后推进**该 scope** 的 checkpoint；任一对象清洗失败会使该 scope 不推进。一个 scope 失败不会中断同一命令后续 scope；命令会输出每个 scope 的结果并以非零状态退出。当前没有跨整轮的数据库事务。
-7. 目标：仅当某个 scope 完整枚举成功后，才把长期未见的记录标为 `stale`；不直接物理删除。`stale` 机制当前未实现。
+7. 仅当 full scope 的完整枚举和清洗都成功后，才把本次运行开始前仍未被重新看见的快照标为 `stale`；不直接物理删除。增量同步与单条/多选同步不做删除识别，因为它们不能证明源端集合完整。GitHub 仅在 `--github-pr-state all` 的 closed 与 merged 两段均成功后才标记失联记录。
 8. 读取范围必须包含终态变更。仅同步活跃对象会遗漏“活跃 -> 已关闭/已完成”的状态转换。
 
 首次同步是 scope 内全量初始化；其后使用增量读取并保留周期性全量校验，以处理 webhook 漏失、权限变化和删除。
@@ -200,12 +201,13 @@ platform_sync_checkpoints
 - watermark_updated_at, watermark_tiebreaker
 - last_success_at, last_error, updated_at
 
-计划中的 platform_sync_runs
+platform_sync_runs
 - run_id, platform, scope_key, mode, clean_after_sync
-- started_at, completed_at, listed, changed, cleaned, failed
+- started_at, completed_at, listed, skipped_inactive, synced, cleaned, stale
+- failed, error_message
 ```
 
-当前已实现 `platform_sync_checkpoints`；`platform_sync_runs`、`source_hash`、`last_seen_at` 与 `stale` 标记仍未实现，不能作为现有运行保证。`platform:init-checkpoints` 只从 GitHub/Meegle 既有快照建立水位：GitHub scope 为 `owner/repo`，Meegle 为 `project_key`。Lark 不从历史快照派生 checkpoint，必须使用 5.4 的 reset 命令切换到新的源端最后修改时间语义。若 GitHub/Meegle scope 任一历史快照缺少 `source_updated_at`，不写 watermark，并在 `last_error` 标记为“首次增量前必须全量同步”；这避免以本地 `synced_at` 冒充源端更新时间而漏数据。
+当前已实现 `platform_sync_checkpoints`、`platform_sync_runs`、`last_seen_at` 与 `stale`。CLI 的 full、incremental、clean 每个 scope 都会落一条运行审计；full 完整成功时才执行失联标记。`source_hash` 仍未实现。`platform:init-checkpoints` 只从 GitHub/Meegle 既有快照建立水位：GitHub scope 为 `owner/repo`，Meegle 为 `project_key`。Lark 不从历史快照派生 checkpoint，必须使用 5.4 的 reset 命令切换到新的源端最后修改时间语义。若 GitHub/Meegle scope 任一历史快照缺少 `source_updated_at`，不写 watermark，并在 `last_error` 标记为“首次增量前必须全量同步”；这避免以本地 `synced_at` 冒充源端更新时间而漏数据。
 
 ### 5.4 Lark 历史时间回填（不用于增量）
 

@@ -1,3 +1,5 @@
+import type { Generated } from "kysely";
+
 export interface DatabaseSchema {
   workflow_prompts: {
     key: string;
@@ -125,6 +127,8 @@ export interface DatabaseSchema {
     payload_json: string;
     source_updated_at: string | null;
     synced_at: string;
+    last_seen_at: Generated<string | null>;
+    stale: Generated<boolean>;
   };
   meegle_sync_mappings: {
     project_key: string;
@@ -155,6 +159,8 @@ export interface DatabaseSchema {
     payload_json: string;
     source_updated_at: string | null;
     synced_at: string;
+    last_seen_at: Generated<string | null>;
+    stale: Generated<boolean>;
   };
   lark_base_ticket_syncs: {
     base_id: string;
@@ -167,6 +173,8 @@ export interface DatabaseSchema {
     created_time: string | null;
     source_updated_at: string | null;
     synced_at: string;
+    last_seen_at: Generated<string | null>;
+    stale: Generated<boolean>;
     ticket_number: string | null;
     issue_type: string | null;
     responsible: string | null;
@@ -208,5 +216,21 @@ export interface DatabaseSchema {
     last_error: string | null;
     created_at: string;
     updated_at: string;
+  };
+  platform_sync_runs: {
+    run_id: string;
+    platform: "meegle" | "github" | "lark";
+    scope_key: string;
+    mode: "full" | "incremental" | "clean";
+    clean_after_sync: boolean;
+    started_at: string;
+    completed_at: string | null;
+    listed: number | null;
+    skipped_inactive: number | null;
+    synced: number | null;
+    cleaned: number | null;
+    stale: number | null;
+    failed: boolean | null;
+    error_message: string | null;
   };
 }

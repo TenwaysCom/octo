@@ -144,6 +144,25 @@ describe("PostgresPlatformSyncStore", () => {
     await pool.end();
   });
 
+  it("marks snapshots not seen by a completed full scope as stale without deleting them", async () => {
+    const { db, pool } = await createTestPostgresDatabase();
+    const store = new PostgresPlatformSyncStore(db);
+    await store.upsertGitHubPullRequest({
+      owner: "acme", repo: "app",
+      pullRequest: { number: 5, title: "Old", body: null, html_url: "https://github.com/acme/app/pull/5", state: "closed", merged_at: null, updated_at: "2026-08-01T00:00:00.000Z", draft: false },
+    });
+    await db.updateTable("github_pr_syncs").set({ last_seen_at: "2026-08-01T00:00:00.000Z" })
+      .where("owner", "=", "acme").where("repo", "=", "app").execute();
+
+    await expect(store.markGitHubPullRequestsUnseenStale("acme", "app", "2026-08-02T00:00:00.000Z")).resolves.toBe(1);
+    await expect(db.selectFrom("github_pr_syncs").select(["pull_number", "stale"]).execute()).resolves.toEqual([
+      { pull_number: 5, stale: true },
+    ]);
+
+    await db.destroy();
+    await pool.end();
+  });
+
   it("writes cleaned GitHub fields back to the source snapshot and skips an unchanged result", async () => {
     const { db, pool } = await createTestPostgresDatabase();
     const store = new PostgresPlatformSyncStore(db);

@@ -213,6 +213,8 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .addColumn("payload_json", "text", (column) => column.notNull())
     .addColumn("source_updated_at", "text")
     .addColumn("synced_at", "text", (column) => column.notNull())
+    .addColumn("last_seen_at", "text")
+    .addColumn("stale", "boolean", (column) => column.notNull().defaultTo(false))
     .addPrimaryKeyConstraint("meegle_workitem_syncs_pkey", ["project_key", "work_item_type_key", "work_item_id"])
     .execute();
 
@@ -251,6 +253,8 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .addColumn("payload_json", "text", (column) => column.notNull())
     .addColumn("source_updated_at", "text")
     .addColumn("synced_at", "text", (column) => column.notNull())
+    .addColumn("last_seen_at", "text")
+    .addColumn("stale", "boolean", (column) => column.notNull().defaultTo(false))
     .addPrimaryKeyConstraint("github_pr_syncs_pkey", ["owner", "repo", "pull_number"])
     .execute();
 
@@ -267,6 +271,8 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .addColumn("created_time", "text")
     .addColumn("source_updated_at", "text")
     .addColumn("synced_at", "text", (column) => column.notNull())
+    .addColumn("last_seen_at", "text")
+    .addColumn("stale", "boolean", (column) => column.notNull().defaultTo(false))
     .addColumn("ticket_number", "text")
     .addColumn("issue_type", "text")
     .addColumn("responsible", "text")
@@ -289,6 +295,25 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .addColumn("created_at", "text", (column) => column.notNull())
     .addColumn("updated_at", "text", (column) => column.notNull())
     .addPrimaryKeyConstraint("platform_sync_checkpoints_pkey", ["platform", "scope_key"])
+    .execute();
+
+  await db.schema
+    .createTable("platform_sync_runs")
+    .ifNotExists()
+    .addColumn("run_id", "text", (column) => column.notNull().primaryKey())
+    .addColumn("platform", "text", (column) => column.notNull())
+    .addColumn("scope_key", "text", (column) => column.notNull())
+    .addColumn("mode", "text", (column) => column.notNull())
+    .addColumn("clean_after_sync", "boolean", (column) => column.notNull())
+    .addColumn("started_at", "text", (column) => column.notNull())
+    .addColumn("completed_at", "text")
+    .addColumn("listed", "integer")
+    .addColumn("skipped_inactive", "integer")
+    .addColumn("synced", "integer")
+    .addColumn("cleaned", "integer")
+    .addColumn("stale", "integer")
+    .addColumn("failed", "boolean")
+    .addColumn("error_message", "text")
     .execute();
 
   await db.schema
@@ -383,6 +408,10 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
   await sql`
     CREATE INDEX IF NOT EXISTS lark_base_ticket_syncs_status_idx
     ON lark_base_ticket_syncs(base_id, table_id, ticket_status)
+  `.execute(db);
+  await sql`
+    CREATE INDEX IF NOT EXISTS platform_sync_runs_scope_started_idx
+    ON platform_sync_runs(platform, scope_key, started_at DESC)
   `.execute(db);
 
   const now = new Date().toISOString();
@@ -495,6 +524,10 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
   for (const column of ["ticket_number", "issue_type", "responsible", "priority", "detail_description", "meegle_link", "lark_message_link"]) {
     await sql.raw(`ALTER TABLE lark_base_ticket_syncs ADD COLUMN IF NOT EXISTS ${column} text`).execute(db);
   }
+  for (const table of ["meegle_workitem_syncs", "github_pr_syncs", "lark_base_ticket_syncs"]) {
+    await sql.raw(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS last_seen_at text`).execute(db);
+    await sql.raw(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS stale boolean NOT NULL DEFAULT false`).execute(db);
+  }
   for (const table of ["meegle_workitem_octo", "github_pr_octo", "lark_base_ticket_octo"]) {
     await sql.raw(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS local_json text NOT NULL DEFAULT '{}'`).execute(db);
     await sql.raw(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS created_at text`).execute(db);
@@ -535,6 +568,7 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
 }
 
 export async function resetPostgresDatabase(db: Kysely<DatabaseSchema>): Promise<void> {
+  await sql`DROP TABLE IF EXISTS platform_sync_runs`.execute(db);
   await sql`DROP TABLE IF EXISTS platform_sync_checkpoints`.execute(db);
   await sql`DROP TABLE IF EXISTS lark_base_ticket_octo`.execute(db);
   await sql`DROP TABLE IF EXISTS github_pr_octo`.execute(db);

@@ -180,6 +180,8 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
       payload_json: JSON.stringify(input.workitem),
       source_updated_at: sourceUpdatedAt,
       synced_at: now,
+      last_seen_at: now,
+      stale: false,
     }).onConflict((conflict) => conflict.columns([
       "project_key",
       "work_item_type_key",
@@ -196,6 +198,8 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
       payload_json: JSON.stringify(input.workitem),
       source_updated_at: sourceUpdatedAt,
       synced_at: now,
+      last_seen_at: now,
+      stale: false,
     })).execute();
   }
 
@@ -248,6 +252,8 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
       payload_json: JSON.stringify(input.pullRequest),
       source_updated_at: input.pullRequest.updated_at ?? null,
       synced_at: now,
+      last_seen_at: now,
+      stale: false,
     }).onConflict((conflict) => conflict.columns(["owner", "repo", "pull_number"])
       .doUpdateSet({
         title: input.pullRequest.title,
@@ -263,6 +269,8 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
         payload_json: JSON.stringify(input.pullRequest),
         source_updated_at: input.pullRequest.updated_at ?? null,
         synced_at: now,
+        last_seen_at: now,
+        stale: false,
       })).execute();
   }
 
@@ -285,6 +293,8 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
       created_time: input.record.created_time ?? null,
       source_updated_at: input.record.updated_time ?? null,
       synced_at: now,
+      last_seen_at: now,
+      stale: false,
     }).onConflict((conflict) => conflict.columns(["base_id", "table_id", "record_id"])
       .doUpdateSet({
         title: input.title,
@@ -294,6 +304,8 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
         created_time: input.record.created_time ?? null,
         source_updated_at: input.record.updated_time ?? null,
         synced_at: now,
+        last_seen_at: now,
+        stale: false,
     })).execute();
   }
 
@@ -420,6 +432,38 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
       .where("base_id", "=", input.baseId).where("table_id", "=", input.tableId).where("record_id", "=", input.recordId)
       .execute();
     return true;
+  }
+
+  async markMeegleWorkitemsUnseenStale(projectKey: string, seenSince: string): Promise<number> {
+    const result = await this.db.updateTable("meegle_workitem_syncs")
+      .set({ stale: true })
+      .where("project_key", "=", projectKey)
+      .where("stale", "=", false)
+      .where((eb) => eb.or([eb("last_seen_at", "is", null), eb("last_seen_at", "<", seenSince)]))
+      .executeTakeFirst();
+    return Number(result.numUpdatedRows);
+  }
+
+  async markGitHubPullRequestsUnseenStale(owner: string, repo: string, seenSince: string): Promise<number> {
+    const result = await this.db.updateTable("github_pr_syncs")
+      .set({ stale: true })
+      .where("owner", "=", owner)
+      .where("repo", "=", repo)
+      .where("stale", "=", false)
+      .where((eb) => eb.or([eb("last_seen_at", "is", null), eb("last_seen_at", "<", seenSince)]))
+      .executeTakeFirst();
+    return Number(result.numUpdatedRows);
+  }
+
+  async markLarkBaseTicketsUnseenStale(baseId: string, tableId: string, seenSince: string): Promise<number> {
+    const result = await this.db.updateTable("lark_base_ticket_syncs")
+      .set({ stale: true })
+      .where("base_id", "=", baseId)
+      .where("table_id", "=", tableId)
+      .where("stale", "=", false)
+      .where((eb) => eb.or([eb("last_seen_at", "is", null), eb("last_seen_at", "<", seenSince)]))
+      .executeTakeFirst();
+    return Number(result.numUpdatedRows);
   }
 
   async listMeegleWorkitems(limit: number, sprint?: string): Promise<MeegleWorkitemSyncItem[]> {

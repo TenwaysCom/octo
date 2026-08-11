@@ -14,6 +14,8 @@ import { PostgresPlatformSyncStore } from "../adapters/postgres/platform-sync-st
 import type { GitHubPullRequestSyncRef, PlatformSyncStore } from "../adapters/postgres/platform-sync-store.js";
 import { PostgresPlatformSyncCheckpointStore } from "../adapters/postgres/platform-sync-checkpoint-store.js";
 import type { PlatformSyncCheckpoint } from "../adapters/postgres/platform-sync-checkpoint-store.js";
+import { PostgresPlatformSyncRunStore } from "../adapters/postgres/platform-sync-run-store.js";
+import type { PlatformSyncRun, PlatformSyncRunCounts, PlatformSyncRunMode } from "../adapters/postgres/platform-sync-run-store.js";
 import type { GitHubPrDetails } from "../adapters/github/github-types.js";
 import type { DatabaseSchema } from "../adapters/postgres/schema.js";
 import {
@@ -86,6 +88,7 @@ export interface SyncCounts {
   skippedInactive: number;
   synced: number;
   cleaned?: number;
+  stale?: number;
 }
 
 export interface IncrementalSyncCounts extends SyncCounts {
@@ -562,6 +565,22 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+async function runWithAudit<T extends PlatformSyncRunCounts>(
+  store: PostgresPlatformSyncRunStore,
+  input: { platform: PlatformName; scopeKey: string; mode: PlatformSyncRunMode; cleanAfterSync: boolean },
+  operation: (startedAt: string) => Promise<T>,
+): Promise<T> {
+  const run = await store.start(input);
+  try {
+    const result = await operation(run.startedAt);
+    await store.completeSuccess(run.runId, result);
+    return result;
+  } catch (error) {
+    await store.completeFailure(run.runId, error);
+    throw error;
+  }
+}
+
 function readNextArg(argv: string[], index: number, flag: string): string {
   const value = argv[index + 1];
   if (!value || value.startsWith("--")) {
@@ -592,7 +611,7 @@ function printResult(result: PlatformSyncRunResult): void {
   for (const entry of result.entries) {
     if (entry.ok && entry.counts) {
       process.stdout.write(
-        `[platform-sync] platform=${entry.platform} target=${entry.target} listed=${entry.counts.listed} skipped_inactive=${entry.counts.skippedInactive} synced=${entry.counts.synced} cleaned=${entry.counts.cleaned ?? 0}${entry.watermarkUpdatedAt && entry.watermarkTiebreaker ? ` watermark=${entry.watermarkUpdatedAt}/${entry.watermarkTiebreaker}` : ""}\n`,
+        `[platform-sync] platform=${entry.platform} target=${entry.target} listed=${entry.counts.listed} skipped_inactive=${entry.counts.skippedInactive} synced=${entry.counts.synced} cleaned=${entry.counts.cleaned ?? 0} stale=${entry.counts.stale ?? 0}${entry.watermarkUpdatedAt && entry.watermarkTiebreaker ? ` watermark=${entry.watermarkUpdatedAt}/${entry.watermarkTiebreaker}` : ""}\n`,
       );
       continue;
     }
@@ -619,6 +638,7 @@ async function main(): Promise<void> {
   try {
     await ensurePostgresSchema(db);
     const syncStore = new PostgresPlatformSyncStore(db);
+    const runStore = new PostgresPlatformSyncRunStore(db);
     if (args.mode === "incremental" && args.only === "github") {
       const { owner, repo } = parseGitHubScope(args.scope!);
       const checkpointStore = new PostgresPlatformSyncCheckpointStore(db);
@@ -629,22 +649,29 @@ async function main(): Promise<void> {
       if (!checkpoint.watermarkUpdatedAt || !checkpoint.watermarkTiebreaker) {
         throw new Error(`GitHub checkpoint for ${args.scope} has no source watermark; run a full sync before incremental sync`);
       }
+      const watermarkUpdatedAt = checkpoint.watermarkUpdatedAt;
+      const watermarkTiebreaker = checkpoint.watermarkTiebreaker;
       try {
-        const result = await syncIncrementalGitHubPullRequestsWithGh({
-          owner,
-          repo,
-          watermarkUpdatedAt: checkpoint.watermarkUpdatedAt,
-          watermarkTiebreaker: checkpoint.watermarkTiebreaker,
-          limit: args.githubPullRequestLimit,
-        }, syncStore);
-        const cleaned = await new PlatformSyncService({ store: syncStore }).cleanGitHubPullRequests(result.refs);
-        await checkpointStore.markSuccess({
-          ...checkpoint,
-          watermarkUpdatedAt: result.watermarkUpdatedAt,
-          watermarkTiebreaker: result.watermarkTiebreaker,
+        const result = await runWithAudit(runStore, {
+          platform: "github", scopeKey: args.scope!, mode: "incremental", cleanAfterSync: args.cleanAfterSync,
+        }, async () => {
+          const next = await syncIncrementalGitHubPullRequestsWithGh({
+            owner,
+            repo,
+            watermarkUpdatedAt,
+            watermarkTiebreaker,
+            limit: args.githubPullRequestLimit,
+          }, syncStore);
+          const cleaned = await new PlatformSyncService({ store: syncStore }).cleanGitHubPullRequests(next.refs);
+          await checkpointStore.markSuccess({
+            ...checkpoint,
+            watermarkUpdatedAt: next.watermarkUpdatedAt,
+            watermarkTiebreaker: next.watermarkTiebreaker,
+          });
+          return { ...next, cleaned };
         });
         process.stdout.write(
-          `[platform-sync] mode=incremental platform=github scope=${args.scope} listed=${result.listed} synced=${result.synced} cleaned=${cleaned} watermark=${result.watermarkUpdatedAt}/${result.watermarkTiebreaker}\n`,
+          `[platform-sync] mode=incremental platform=github scope=${args.scope} listed=${result.listed} synced=${result.synced} cleaned=${result.cleaned ?? 0} watermark=${result.watermarkUpdatedAt}/${result.watermarkTiebreaker}\n`,
         );
       } catch (error) {
         await checkpointStore.markFailure("github", args.scope!, error);
@@ -656,7 +683,7 @@ async function main(): Promise<void> {
     const config = await readPlatformSyncConfig(args.configPath);
     if (args.mode === "clean") {
       const service = new PlatformSyncService({ store: syncStore });
-      const result = await runPlatformSyncCleaning(args, config, createPlatformSyncCleanRunner(db, service));
+      const result = await runPlatformSyncCleaning(args, config, createPlatformSyncCleanRunner(db, service, runStore));
       printResult(result);
       if (result.failed) process.exitCode = 1;
       return;
@@ -681,31 +708,79 @@ async function main(): Promise<void> {
     if (args.mode === "incremental" && (args.only === "meegle" || args.only === "lark")) {
       const checkpointStore = new PostgresPlatformSyncCheckpointStore(db);
       const config = await readPlatformSyncConfig(args.configPath);
+      const incrementalRuns = new Map<string, PlatformSyncRun>();
       const result = args.only === "meegle"
         ? await runIncrementalScopes("meegle", config.meegle.map((target) => ({ scope: target.projectKey, target })), {
           getCheckpoint: (scope) => checkpointStore.get("meegle", scope),
-          sync: (target, checkpoint) => service.incrementalSyncMeegleWorkitems({ masterUserId: args.masterUserId, projectKey: target.projectKey, workItemTypeKeys: target.workItemTypeKeys, sourceUpdatedAtMqlFieldNames: target.sourceUpdatedAtMqlFieldNames, cleanAfterSync: args.cleanAfterSync, ...checkpoint }),
-          markSuccess: (checkpoint, next) => checkpointStore.markSuccess({ ...checkpoint, watermarkUpdatedAt: next.watermarkUpdatedAt, watermarkTiebreaker: next.watermarkTiebreaker }),
-          markFailure: (scope, error) => checkpointStore.markFailure("meegle", scope, error),
+          sync: async (target, checkpoint) => {
+            incrementalRuns.set(target.projectKey, await runStore.start({ platform: "meegle", scopeKey: target.projectKey, mode: "incremental", cleanAfterSync: args.cleanAfterSync }));
+            return service.incrementalSyncMeegleWorkitems({ masterUserId: args.masterUserId, projectKey: target.projectKey, workItemTypeKeys: target.workItemTypeKeys, sourceUpdatedAtMqlFieldNames: target.sourceUpdatedAtMqlFieldNames, cleanAfterSync: args.cleanAfterSync, ...checkpoint });
+          },
+          markSuccess: async (checkpoint, next) => {
+            await checkpointStore.markSuccess({ ...checkpoint, watermarkUpdatedAt: next.watermarkUpdatedAt, watermarkTiebreaker: next.watermarkTiebreaker });
+            const run = incrementalRuns.get(checkpoint.scopeKey);
+            if (run) await runStore.completeSuccess(run.runId, next);
+          },
+          markFailure: async (scope, error) => {
+            await checkpointStore.markFailure("meegle", scope, error);
+            const run = incrementalRuns.get(scope) ?? await runStore.start({ platform: "meegle", scopeKey: scope, mode: "incremental", cleanAfterSync: args.cleanAfterSync });
+            await runStore.completeFailure(run.runId, error);
+          },
         })
         : await runIncrementalScopes("lark", config.larkBase.map((target) => ({ scope: `${target.baseId}/${target.tableId}`, target })), {
           getCheckpoint: (scope) => checkpointStore.get("lark", scope),
-          sync: (target, checkpoint) => service.incrementalSyncLarkBaseTickets({ masterUserId: args.masterUserId, ...target, cleanAfterSync: args.cleanAfterSync, ...checkpoint }),
-          markSuccess: (checkpoint, next) => checkpointStore.markSuccess({ ...checkpoint, watermarkUpdatedAt: next.watermarkUpdatedAt, watermarkTiebreaker: next.watermarkTiebreaker }),
-          markFailure: (scope, error) => checkpointStore.markFailure("lark", scope, error),
+          sync: async (target, checkpoint) => {
+            const scope = `${target.baseId}/${target.tableId}`;
+            incrementalRuns.set(scope, await runStore.start({ platform: "lark", scopeKey: scope, mode: "incremental", cleanAfterSync: args.cleanAfterSync }));
+            return service.incrementalSyncLarkBaseTickets({ masterUserId: args.masterUserId, ...target, cleanAfterSync: args.cleanAfterSync, ...checkpoint });
+          },
+          markSuccess: async (checkpoint, next) => {
+            await checkpointStore.markSuccess({ ...checkpoint, watermarkUpdatedAt: next.watermarkUpdatedAt, watermarkTiebreaker: next.watermarkTiebreaker });
+            const run = incrementalRuns.get(checkpoint.scopeKey);
+            if (run) await runStore.completeSuccess(run.runId, next);
+          },
+          markFailure: async (scope, error) => {
+            await checkpointStore.markFailure("lark", scope, error);
+            const run = incrementalRuns.get(scope) ?? await runStore.start({ platform: "lark", scopeKey: scope, mode: "incremental", cleanAfterSync: args.cleanAfterSync });
+            await runStore.completeFailure(run.runId, error);
+          },
         });
       printResult(result);
       if (result.failed) process.exitCode = 1;
       return;
     }
 
+    const githubFullScopeStartedAt = new Map<string, string>();
     const result = await runPlatformSync(args, config, {
-      bulkSyncMeegleWorkitems: (input) => service.bulkSyncMeegleWorkitems(input),
-      bulkSyncLarkBaseTickets: (input) => service.bulkSyncLarkBaseTickets(input),
+      bulkSyncMeegleWorkitems: (input) => runWithAudit(runStore, {
+        platform: "meegle", scopeKey: input.projectKey, mode: "full", cleanAfterSync: input.cleanAfterSync,
+      }, async (startedAt) => {
+        const counts = await service.bulkSyncMeegleWorkitems(input);
+        return { ...counts, stale: await syncStore.markMeegleWorkitemsUnseenStale(input.projectKey, startedAt) };
+      }),
+      bulkSyncLarkBaseTickets: (input) => runWithAudit(runStore, {
+        platform: "lark", scopeKey: `${input.baseId}/${input.tableId}`, mode: "full", cleanAfterSync: input.cleanAfterSync,
+      }, async (startedAt) => {
+        const counts = await service.bulkSyncLarkBaseTickets(input);
+        return { ...counts, stale: await syncStore.markLarkBaseTicketsUnseenStale(input.baseId, input.tableId, startedAt) };
+      }),
       bulkSyncGitHubPullRequests: async (input) => {
-        const result = await syncGitHubPullRequestsWithGh(input, syncStore);
-        const cleaned = await service.cleanGitHubPullRequests(result.refs);
-        return { ...result, cleaned };
+        const repository = input.repositories[0];
+        const scopeKey = `${repository.owner}/${repository.repo}`;
+        return runWithAudit(runStore, {
+          platform: "github", scopeKey, mode: "full", cleanAfterSync: input.cleanAfterSync,
+        }, async (startedAt) => {
+          const counts = await syncGitHubPullRequestsWithGh(input, syncStore);
+          const cleaned = await service.cleanGitHubPullRequests(counts.refs);
+          if (args.githubPullRequestState === "all" && input.state === "closed") {
+            githubFullScopeStartedAt.set(scopeKey, startedAt);
+          }
+          const fullScopeStartedAt = githubFullScopeStartedAt.get(scopeKey);
+          const stale = args.githubPullRequestState === "all" && input.state === "merged" && fullScopeStartedAt
+            ? await syncStore.markGitHubPullRequestsUnseenStale(repository.owner, repository.repo, fullScopeStartedAt)
+            : 0;
+          return { ...counts, cleaned, stale };
+        });
       },
     });
     printResult(result);
@@ -721,37 +796,44 @@ async function main(): Promise<void> {
 function createPlatformSyncCleanRunner(
   db: Kysely<DatabaseSchema>,
   service: PlatformSyncService,
+  runStore: PostgresPlatformSyncRunStore,
 ): PlatformSyncCleanRunner {
   return {
     async cleanMeegleProject(projectKey) {
-      const rows = await db.selectFrom("meegle_workitem_syncs")
-        .select(["project_key", "work_item_type_key", "work_item_id"])
-        .where("project_key", "=", projectKey)
-        .execute();
-      const cleaned = await service.cleanMeegleWorkitems(rows.map((row) => ({
-        projectKey: row.project_key, workItemTypeKey: row.work_item_type_key, workItemId: row.work_item_id,
-      })));
-      return { listed: rows.length, skippedInactive: 0, synced: 0, cleaned };
+      return runWithAudit(runStore, { platform: "meegle", scopeKey: projectKey, mode: "clean", cleanAfterSync: false }, async () => {
+        const rows = await db.selectFrom("meegle_workitem_syncs")
+          .select(["project_key", "work_item_type_key", "work_item_id"])
+          .where("project_key", "=", projectKey)
+          .execute();
+        const cleaned = await service.cleanMeegleWorkitems(rows.map((row) => ({
+          projectKey: row.project_key, workItemTypeKey: row.work_item_type_key, workItemId: row.work_item_id,
+        })));
+        return { listed: rows.length, skippedInactive: 0, synced: 0, cleaned };
+      });
     },
     async cleanGitHubRepository(owner, repo) {
-      const rows = await db.selectFrom("github_pr_syncs")
-        .select(["owner", "repo", "pull_number"])
-        .where("owner", "=", owner).where("repo", "=", repo)
-        .execute();
-      const cleaned = await service.cleanGitHubPullRequests(rows.map((row) => ({
-        owner: row.owner, repo: row.repo, pullNumber: row.pull_number,
-      })));
-      return { listed: rows.length, skippedInactive: 0, synced: 0, cleaned };
+      return runWithAudit(runStore, { platform: "github", scopeKey: `${owner}/${repo}`, mode: "clean", cleanAfterSync: false }, async () => {
+        const rows = await db.selectFrom("github_pr_syncs")
+          .select(["owner", "repo", "pull_number"])
+          .where("owner", "=", owner).where("repo", "=", repo)
+          .execute();
+        const cleaned = await service.cleanGitHubPullRequests(rows.map((row) => ({
+          owner: row.owner, repo: row.repo, pullNumber: row.pull_number,
+        })));
+        return { listed: rows.length, skippedInactive: 0, synced: 0, cleaned };
+      });
     },
     async cleanLarkBase(baseId, tableId) {
-      const rows = await db.selectFrom("lark_base_ticket_syncs")
-        .select(["base_id", "table_id", "record_id"])
-        .where("base_id", "=", baseId).where("table_id", "=", tableId)
-        .execute();
-      const cleaned = await service.cleanLarkBaseTickets(rows.map((row) => ({
-        baseId: row.base_id, tableId: row.table_id, recordId: row.record_id,
-      })));
-      return { listed: rows.length, skippedInactive: 0, synced: 0, cleaned };
+      return runWithAudit(runStore, { platform: "lark", scopeKey: `${baseId}/${tableId}`, mode: "clean", cleanAfterSync: false }, async () => {
+        const rows = await db.selectFrom("lark_base_ticket_syncs")
+          .select(["base_id", "table_id", "record_id"])
+          .where("base_id", "=", baseId).where("table_id", "=", tableId)
+          .execute();
+        const cleaned = await service.cleanLarkBaseTickets(rows.map((row) => ({
+          baseId: row.base_id, tableId: row.table_id, recordId: row.record_id,
+        })));
+        return { listed: rows.length, skippedInactive: 0, synced: 0, cleaned };
+      });
     },
   };
 }
