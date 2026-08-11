@@ -302,6 +302,13 @@ a { color: inherit; }
 .odoo-sh-build-dot--success { background: #16a34a; }
 .github-pr-link-badge--open { color: #92400e; background: #fef3c7; }
 .github-pr-link-badge--merged { color: #166534; background: #dcfce7; }
+.github-user-list { display: flex; flex-wrap: wrap; gap: 4px; }
+.github-user { display: inline-flex; align-items: center; gap: 5px; max-width: 150px; min-height: 24px; padding: 2px 6px 2px 3px; border-radius: 999px; color: var(--octo-text); background: var(--octo-surface-muted); font-size: 12px; font-weight: 600; line-height: 1.2; text-decoration: none; }
+.github-user:hover { color: var(--octo-brand); background: var(--octo-brand-soft); }
+.github-user img { width: 19px; height: 19px; flex: 0 0 auto; border-radius: 50%; background: var(--octo-border); }
+.github-user span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.github-pr-labels { display: flex; flex-wrap: wrap; gap: 4px; min-width: 96px; }
+.github-pr-label { max-width: 130px; overflow: hidden; padding: 3px 7px; border-radius: 999px; color: #6d28d9; background: #ede9fe; font-size: 11px; font-weight: 700; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
 .github-pr-link-badge--closed { color: #475569; background: #e2e8f0; }
 .github-pr-status { display: inline-flex; padding: 2px 6px; border-radius: 999px; font-size: 10px; font-weight: 700; line-height: 1.2; }
 .github-pr-status--open { color: #92400e; background: #fef3c7; }

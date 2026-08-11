@@ -57,6 +57,25 @@ function GitHubPullRequestStatus({ isDraft, state }) {
 
 function OdooShBuildDots({ builds }) {
   if (!builds?.length) {
+function GitHubUser({ login }) {
+  if (!login) {
+    return "-";
+  }
+  const encodedLogin = encodeURIComponent(login);
+  return <a className="github-user" href={`https://github.com/${encodedLogin}`} target="_blank" rel="noopener noreferrer">
+    <img src={`https://github.com/${encodedLogin}.png?size=48`} alt="" loading="lazy" />
+    <span>{login}</span>
+  </a>;
+}
+
+function GitHubPullRequestReviewers({ reviewers }) {
+  return reviewers?.length ? <span className="github-user-list">{reviewers.map((reviewer) => <GitHubUser key={reviewer} login={reviewer} />)}</span> : "-";
+}
+
+function GitHubPullRequestLabels({ labels }) {
+  return labels?.length ? <div className="github-pr-labels">{labels.map((label) => <span className="github-pr-label" key={label}>{label}</span>)}</div> : "-";
+}
+
     return null;
   }
 
@@ -215,8 +234,8 @@ function SyncedListTable({ kind, items, sort, onSort }) {
     </tbody></table>;
   }
 
-  return <table className="data-table"><thead><tr><th><SortableColumnHeader label="Pull Request" sortKey="pullRequest" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="仓库" sortKey="repo" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="状态" sortKey="status" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="分支" sortKey="branch" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="更新时间" sortKey="updatedAt" sort={sort} onSort={onSort} /></th></tr></thead><tbody>
-    {items.map((item) => <tr key={`${item.owner}-${item.repo}-${item.pullNumber}`}><td><ExternalLink href={item.htmlUrl}>{item.title}</ExternalLink><small>#{item.pullNumber} {item.authorLogin ? `· ${item.authorLogin}` : ""}</small></td><td>{item.owner} / {item.repo}</td><td><GitHubPullRequestStatus isDraft={item.isDraft} state={item.state} /></td><td><span className="github-pr-branch">{item.headRef || "-"}<OdooShBuildDots builds={item.odooShBuilds} /></span><small>{item.baseRef ? `→ ${item.baseRef}` : ""}</small></td><td>{formatDateTime(item.sourceUpdatedAt || item.syncedAt)}</td></tr>)}
+  return <table className="data-table"><thead><tr><th><SortableColumnHeader label="Pull Request" sortKey="pullRequest" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="仓库" sortKey="repo" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="状态" sortKey="status" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="分支" sortKey="branch" sort={sort} onSort={onSort} /></th><th>Author</th><th>Merged by</th><th>Reviewer</th><th>Label</th><th><SortableColumnHeader label="更新时间" sortKey="updatedAt" sort={sort} onSort={onSort} /></th></tr></thead><tbody>
+    {items.map((item) => <tr key={`${item.owner}-${item.repo}-${item.pullNumber}`}><td><ExternalLink href={item.htmlUrl}>{item.title}</ExternalLink><small>#{item.pullNumber}</small></td><td>{item.owner} / {item.repo}</td><td><GitHubPullRequestStatus isDraft={item.isDraft} state={item.state} /></td><td><span className="github-pr-branch">{item.headRef || "-"}<OdooShBuildDots builds={item.odooShBuilds} /></span><small>{item.baseRef ? `→ ${item.baseRef}` : ""}</small></td><td><GitHubUser login={item.authorLogin} /></td><td><GitHubUser login={item.mergedBy} /></td><td><GitHubPullRequestReviewers reviewers={item.reviewers} /></td><td><GitHubPullRequestLabels labels={item.labels} /></td><td>{formatDateTime(item.sourceUpdatedAt || item.syncedAt)}</td></tr>)}
   </tbody></table>;
 }
 
