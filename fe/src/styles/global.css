@@ -281,9 +281,9 @@ a { color: inherit; }
 .list-status-checkboxes legend { padding: 0; color: var(--octo-text-muted); font-size: 12px; font-weight: 700; }
 .list-status-checkboxes label { display: flex; align-items: center; gap: 7px; color: var(--octo-text); font-size: 13px; }
 .list-status-checkboxes input { width: 14px; height: 14px; accent-color: var(--octo-brand); }
-.data-table-wrap { overflow-x: auto; border: 1px solid var(--octo-border); border-radius: 12px; background: var(--octo-surface); box-shadow: 0 1px 2px rgba(32, 37, 51, .02); }
+.data-table-wrap { max-height: min(66dvh, 680px); overflow: auto; border: 1px solid var(--octo-border); border-radius: 12px; background: var(--octo-surface); box-shadow: 0 1px 2px rgba(32, 37, 51, .02); }
 .data-table { width: 100%; min-width: 720px; border-collapse: collapse; color: var(--octo-text); font-size: 13px; text-align: left; }
-.data-table th { padding: 13px 18px; color: var(--octo-text-muted); background: var(--octo-surface-muted); font-size: 11px; font-weight: 700; letter-spacing: .03em; }
+.data-table th { position: sticky; top: 0; z-index: 1; padding: 13px 18px; color: var(--octo-text-muted); background: var(--octo-surface-muted); box-shadow: inset 0 -1px var(--octo-border); font-size: 11px; font-weight: 700; letter-spacing: .03em; }
 .sortable-column-header { display: inline-flex; align-items: center; gap: 5px; padding: 0; border: 0; color: inherit; cursor: pointer; background: transparent; font: inherit; letter-spacing: inherit; text-align: left; }
 .sortable-column-header:hover { color: var(--octo-text); }
 .sortable-column-header__arrows { display: inline-flex; flex-direction: column; color: color-mix(in srgb, var(--octo-text-muted) 45%, transparent); }
