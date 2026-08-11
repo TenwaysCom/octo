@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { WorkspaceShell } from "../components/layout/WorkspaceShell.jsx";
+import { useKeyboardShortcut } from "../hooks/useKeyboardShortcut.js";
 import { formatDateTime } from "../lib/formatters.js";
 import { getOdooShBuildTone } from "../lib/odoo-sh-build-status.js";
 import { getPlatformDataList, resetAllOdooDevopsBranchesCache } from "../services/platform-data/platform-data-api.js";
@@ -250,6 +251,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy }
   const [sort, setSort] = useState(DEFAULT_SORT);
   const [filterOpen, setFilterOpen] = useState(false);
   const [pageIndex, setPageIndex] = useState(0);
+  const searchInputRef = useRef(null);
   const [reloadVersion, setReloadVersion] = useState(0);
   const [resetError, setResetError] = useState("");
   const [isResettingDevopsCache, setIsResettingDevopsCache] = useState(false);
@@ -291,6 +293,27 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy }
     );
     return () => { active = false; };
   }, [apiBaseUrl, page, reloadVersion, sprintFilter]);
+
+  useKeyboardShortcut({
+    key: "/",
+    enabled: state.status === "ready" && state.items.length > 0,
+    handler: (event) => {
+      event.preventDefault();
+      setFilterOpen(true);
+      requestAnimationFrame(() => searchInputRef.current?.focus());
+    },
+  });
+
+  useKeyboardShortcut({
+    key: "Escape",
+    enabled: filterOpen,
+    allowInEditableTarget: true,
+    handler: (event) => {
+      event.preventDefault();
+      searchInputRef.current?.blur();
+      setFilterOpen(false);
+    },
+  });
 
   async function resetAllDevopsCache() {
     setResetError("");
@@ -358,7 +381,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy }
               {filterOpen ? <div className="list-filter-menu__panel">
                 <label className="list-filter-menu__search">
                   <span className="visually-hidden">搜索当前列表</span>
-                  <input type="search" autoFocus value={query} onChange={(event) => { setQuery(event.target.value); setPageIndex(0); }} placeholder="搜索" />
+                  <input ref={searchInputRef} type="search" autoFocus value={query} onChange={(event) => { setQuery(event.target.value); setPageIndex(0); }} placeholder="搜索" />
                 </label>
                 <fieldset className="list-status-checkboxes">
                   <legend>状态</legend>

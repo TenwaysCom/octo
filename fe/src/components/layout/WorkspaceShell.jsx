@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { SETTINGS_ROUTE, WORKSPACE_NAVIGATION_ROUTES } from "../../app/routes/workspace-routes.js";
+import { SETTINGS_ROUTE, SETTINGS_SUBROUTES, WORKSPACE_NAVIGATION_ROUTES } from "../../app/routes/workspace-routes.js";
 
 export function Brand() {
   return <a className="brand" href="/" aria-label="Tenways Octo 首页">
@@ -16,13 +16,14 @@ export function ProfileAvatar({ user, className = "" }) {
 }
 
 function WorkspaceSidebar({ activePage, onLogout, isBusy }) {
-  const [settingsOpen, setSettingsOpen] = useState(activePage === "settings");
+  const isSettingsPage = SETTINGS_SUBROUTES.some((route) => route.page === activePage);
+  const [settingsOpen, setSettingsOpen] = useState(isSettingsPage);
 
   useEffect(() => {
-    if (activePage === "settings") {
+    if (isSettingsPage) {
       setSettingsOpen(true);
     }
-  }, [activePage]);
+  }, [isSettingsPage]);
 
   return <aside className="profile-sidebar" aria-label="工作台导航">
     <header className="profile-sidebar__header"><Brand /></header>
@@ -40,13 +41,17 @@ function WorkspaceSidebar({ activePage, onLogout, isBusy }) {
           className="profile-nav__item"
           href={SETTINGS_ROUTE.hash}
           aria-expanded={settingsOpen}
-          onClick={() => setSettingsOpen((open) => activePage === "settings" ? !open : true)}
+          onClick={() => setSettingsOpen((open) => isSettingsPage ? !open : true)}
         >
           <span className="profile-nav__item-label"><i aria-hidden="true">{SETTINGS_ROUTE.icon}</i>{SETTINGS_ROUTE.label}</span>
           <i className={`profile-nav__chevron ${settingsOpen ? "profile-nav__chevron--open" : ""}`.trim()} aria-hidden="true">⌄</i>
         </a>
         {settingsOpen ? <div className="profile-nav__subitems">
-          <a className="profile-nav__subitem profile-nav__subitem--active" href="#settings-integrations">Integrations</a>
+          {SETTINGS_SUBROUTES.map((route) => <a
+            className={`profile-nav__subitem ${activePage === route.page ? "profile-nav__subitem--active" : ""}`.trim()}
+            href={route.hash}
+            key={route.page}
+          >{route.label}</a>)}
         </div> : null}
       </div>
     </nav>

@@ -6,13 +6,16 @@ import {
   startLarkLogin,
 } from "../services/auth/lark-auth-api.js";
 import { usePluginLogin } from "../hooks/usePluginLogin.js";
+import { useKeyboardShortcut } from "../hooks/useKeyboardShortcut.js";
 import { UnauthenticatedPage, SessionLoadingPage } from "../pages/LoginPage.jsx";
+import { KeyboardShortcutsPage } from "../pages/KeyboardShortcutsPage.jsx";
 import { PlatformListPage } from "../pages/PlatformListPage.jsx";
 import { SettingsIntegrationsPage } from "../pages/SettingsIntegrationsPage.jsx";
 import { getWorkspaceRoute } from "./routes/workspace-routes.js";
 
 const WORKSPACE_PAGE_COMPONENTS = {
   settings: SettingsIntegrationsPage,
+  shortcuts: KeyboardShortcutsPage,
   "lark-tickets": PlatformListPage,
   "meegle-workitems": PlatformListPage,
   "github-pull-requests": PlatformListPage,
@@ -87,6 +90,15 @@ export function App({ apiBaseUrl }) {
     setIsBusy,
     setProfile,
     setStatus,
+  });
+
+  useKeyboardShortcut({
+    key: "?",
+    enabled: Boolean(profile),
+    handler: (event) => {
+      event.preventDefault();
+      window.location.hash = "#shortcuts";
+    },
   });
 
   if (sessionStatus === "checking") {

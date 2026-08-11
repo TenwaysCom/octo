@@ -235,6 +235,17 @@ a { color: inherit; }
 .integration-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 24px; }
 .integration-grid .profile-card { min-height: 190px; margin: 0; background: var(--octo-surface); box-shadow: 0 1px 2px rgba(32, 37, 51, .02); }
 
+.shortcuts-page { width: min(100%, 760px); }
+.shortcuts-page__header { margin-bottom: 24px; }
+.shortcuts-page__header h1 { margin-bottom: 8px; }
+.shortcuts-page__header > p:last-child { margin: 0; color: var(--octo-text-muted); font-size: 14px; line-height: 1.6; }
+.shortcuts-card { overflow: hidden; border: 1px solid var(--octo-border); border-radius: 14px; background: var(--octo-surface); }
+.shortcuts-card__item { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 18px; align-items: center; padding: 20px; }
+.shortcuts-card__item + .shortcuts-card__item { border-top: 1px solid var(--octo-border); }
+.shortcuts-card kbd { display: grid; min-height: 38px; place-items: center; border: 1px solid var(--octo-border); border-bottom-width: 3px; border-radius: 8px; color: var(--octo-text); background: var(--octo-surface-muted); font-family: inherit; font-size: 16px; font-weight: 750; }
+.shortcuts-card strong { color: var(--octo-text); font-size: 14px; }
+.shortcuts-card p { margin: 5px 0 0; color: var(--octo-text-muted); font-size: 12px; }
+
 .list-section { margin-top: 0; }
 .list-page { width: min(100%, 1220px); }
 .list-page__header { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
