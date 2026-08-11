@@ -24,6 +24,12 @@ export interface PlatformSyncStore {
     title: string;
     status?: string;
   }): Promise<void>;
+  getMeegleWorkitemsForCleaning(refs: MeegleWorkitemSyncRef[]): Promise<MeegleWorkitemSyncItem[]>;
+  getGitHubPullRequestsForCleaning(refs: GitHubPullRequestSyncRef[]): Promise<GitHubPullRequestSyncItem[]>;
+  getLarkBaseTicketsForCleaning(refs: LarkBaseTicketSyncRef[]): Promise<LarkBaseTicketSyncItem[]>;
+  applyMeegleWorkitemCleaning(input: MeegleWorkitemCleaningInput): Promise<boolean>;
+  applyGitHubPullRequestCleaning(input: GitHubPullRequestCleaningInput): Promise<boolean>;
+  applyLarkBaseTicketCleaning(input: LarkBaseTicketCleaningInput): Promise<boolean>;
   listMeegleWorkitems(limit: number, sprint?: string): Promise<MeegleWorkitemSyncItem[]>;
   listMeegleSprints(): Promise<string[]>;
   listGitHubPullRequestLinks(meegleWorkItemIds: string[]): Promise<GitHubPullRequestLink[]>;
@@ -48,8 +54,52 @@ export interface MeegleWorkitemSyncItem {
   system?: string;
   bugs?: string[];
   assignee?: string;
+  sourcePayload?: MeegleWorkitem;
   sourceUpdatedAt?: string;
   syncedAt: string;
+}
+
+export interface MeegleWorkitemSyncRef {
+  projectKey: string;
+  workItemTypeKey: string;
+  workItemId: string;
+}
+
+export interface GitHubPullRequestSyncRef {
+  owner: string;
+  repo: string;
+  pullNumber: number;
+}
+
+export interface LarkBaseTicketSyncRef {
+  baseId: string;
+  tableId: string;
+  recordId: string;
+}
+
+export interface MeegleWorkitemCleaningInput extends MeegleWorkitemSyncRef {
+  sprint?: string;
+  version?: string;
+  system?: string;
+  bugs: string[];
+}
+
+export interface GitHubPullRequestCleaningInput extends GitHubPullRequestSyncRef {
+  author?: string;
+  mergedBy?: string;
+  reviewers: string[];
+  labels: string[];
+  createdAt?: string;
+}
+
+export interface LarkBaseTicketCleaningInput extends LarkBaseTicketSyncRef {
+  ticketNumber?: string;
+  issueType?: string;
+  responsible?: string;
+  priority?: string;
+  detailDescription?: string;
+  meegleLink?: string;
+  larkMessageLink?: string;
 }
 
 export interface GitHubPullRequestSyncItem {
@@ -60,10 +110,15 @@ export interface GitHubPullRequestSyncItem {
   state: string;
   htmlUrl: string;
   authorLogin?: string;
+  mergedBy?: string;
   headRef?: string;
   baseRef?: string;
   isDraft: boolean;
   meegleIds: string[];
+  sourcePayload?: GitHubPrDetails;
+  reviewers?: string[];
+  labels?: string[];
+  createdAt?: string;
   sourceUpdatedAt?: string;
   syncedAt: string;
 }
@@ -88,6 +143,14 @@ export interface LarkBaseTicketSyncItem {
   ticketStatus?: string;
   sharedUrl?: string;
   createdTime?: string;
+  sourceFields?: Record<string, unknown>;
+  ticketNumber?: string;
+  issueType?: string;
+  responsible?: string;
+  priority?: string;
+  detailDescription?: string;
+  meegleLink?: string;
+  larkMessageLink?: string;
   sourceUpdatedAt?: string;
   syncedAt: string;
 }
@@ -101,7 +164,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
     workitem: MeegleWorkitem;
   }): Promise<void> {
     const now = new Date().toISOString();
-    const sourceUpdatedAt = findSourceUpdatedAt(input.workitem.fields);
+    const sourceUpdatedAt = input.workitem.updatedAt ?? null;
     await this.db.insertInto("meegle_workitem_syncs").values({
       project_key: input.projectKey,
       work_item_type_key: input.workItemTypeKey,
@@ -231,7 +294,132 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
         created_time: input.record.created_time ?? null,
         source_updated_at: input.record.updated_time ?? null,
         synced_at: now,
-      })).execute();
+    })).execute();
+  }
+
+  async getMeegleWorkitemsForCleaning(refs: MeegleWorkitemSyncRef[]): Promise<MeegleWorkitemSyncItem[]> {
+    const results: MeegleWorkitemSyncItem[] = [];
+    for (const ref of refs) {
+      const row = await this.db.selectFrom("meegle_workitem_syncs")
+        .select([
+          "project_key", "project_name", "work_item_type_key", "work_item_id", "work_item_key", "title",
+          "work_item_type", "status_key", "status", "sub_stage_key", "sub_stage", "sprint", "version",
+          "system", "bugs_json", "assignee", "source_updated_at", "synced_at", "payload_json",
+        ])
+        .where("project_key", "=", ref.projectKey)
+        .where("work_item_type_key", "=", ref.workItemTypeKey)
+        .where("work_item_id", "=", ref.workItemId)
+        .executeTakeFirst();
+      if (row) {
+        results.push(toMeegleWorkitemSyncItem(row));
+      }
+    }
+    return results;
+  }
+
+  async getGitHubPullRequestsForCleaning(refs: GitHubPullRequestSyncRef[]): Promise<GitHubPullRequestSyncItem[]> {
+    const results: GitHubPullRequestSyncItem[] = [];
+    for (const ref of refs) {
+      const row = await this.db.selectFrom("github_pr_syncs")
+        .select([
+          "owner", "repo", "pull_number", "title", "state", "merged_at", "html_url", "author_login", "merged_by_login",
+          "head_ref", "base_ref", "is_draft", "meegle_ids", "reviewers_json", "labels_json", "created_at",
+          "source_updated_at", "synced_at", "payload_json",
+        ])
+        .where("owner", "=", ref.owner)
+        .where("repo", "=", ref.repo)
+        .where("pull_number", "=", ref.pullNumber)
+        .executeTakeFirst();
+      if (row) {
+        results.push(toGitHubPullRequestSyncItem(row));
+      }
+    }
+    return results;
+  }
+
+  async getLarkBaseTicketsForCleaning(refs: LarkBaseTicketSyncRef[]): Promise<LarkBaseTicketSyncItem[]> {
+    const results: LarkBaseTicketSyncItem[] = [];
+    for (const ref of refs) {
+      const row = await this.db.selectFrom("lark_base_ticket_syncs")
+        .select([
+          "base_id", "table_id", "record_id", "title", "ticket_status", "shared_url", "created_time",
+          "ticket_number", "issue_type", "responsible", "priority", "detail_description", "meegle_link", "lark_message_link",
+          "source_updated_at", "synced_at", "fields_json",
+        ])
+        .where("base_id", "=", ref.baseId)
+        .where("table_id", "=", ref.tableId)
+        .where("record_id", "=", ref.recordId)
+        .executeTakeFirst();
+      if (row) {
+        results.push(toLarkBaseTicketSyncItem(row));
+      }
+    }
+    return results;
+  }
+
+  async applyMeegleWorkitemCleaning(input: MeegleWorkitemCleaningInput): Promise<boolean> {
+    const existing = await this.db.selectFrom("meegle_workitem_syncs")
+      .select(["sprint", "version", "system", "bugs_json"])
+      .where("project_key", "=", input.projectKey)
+      .where("work_item_type_key", "=", input.workItemTypeKey)
+      .where("work_item_id", "=", input.workItemId)
+      .executeTakeFirst();
+    const bugsJson = JSON.stringify(input.bugs);
+    if (existing && existing.sprint === input.sprint && existing.version === input.version
+      && existing.system === input.system && existing.bugs_json === bugsJson) return false;
+    await this.db.updateTable("meegle_workitem_syncs").set({
+      sprint: input.sprint ?? null,
+      version: input.version ?? null,
+      system: input.system ?? null,
+      bugs_json: bugsJson,
+    }).where("project_key", "=", input.projectKey)
+      .where("work_item_type_key", "=", input.workItemTypeKey)
+      .where("work_item_id", "=", input.workItemId)
+      .execute();
+    return true;
+  }
+
+  async applyGitHubPullRequestCleaning(input: GitHubPullRequestCleaningInput): Promise<boolean> {
+    const existing = await this.db.selectFrom("github_pr_syncs")
+      .select(["author_login", "merged_by_login", "reviewers_json", "labels_json", "created_at"])
+      .where("owner", "=", input.owner).where("repo", "=", input.repo).where("pull_number", "=", input.pullNumber)
+      .executeTakeFirst();
+    const reviewersJson = JSON.stringify(input.reviewers);
+    const labelsJson = JSON.stringify(input.labels);
+    if (existing && existing.author_login === input.author && existing.merged_by_login === input.mergedBy && existing.reviewers_json === reviewersJson
+      && existing.labels_json === labelsJson && existing.created_at === input.createdAt) return false;
+    await this.db.updateTable("github_pr_syncs").set({
+      author_login: input.author ?? null,
+      merged_by_login: input.mergedBy ?? null,
+      reviewers_json: reviewersJson,
+      labels_json: labelsJson,
+      created_at: input.createdAt ?? null,
+    }).where("owner", "=", input.owner).where("repo", "=", input.repo).where("pull_number", "=", input.pullNumber)
+      .execute();
+    return true;
+  }
+
+  async applyLarkBaseTicketCleaning(input: LarkBaseTicketCleaningInput): Promise<boolean> {
+    const existing = await this.db.selectFrom("lark_base_ticket_syncs")
+      .select(["ticket_number", "issue_type", "responsible", "priority", "detail_description", "meegle_link", "lark_message_link"])
+      .where("base_id", "=", input.baseId).where("table_id", "=", input.tableId).where("record_id", "=", input.recordId)
+      .executeTakeFirst();
+    const values = {
+      ticket_number: input.ticketNumber ?? null,
+      issue_type: input.issueType ?? null,
+      responsible: input.responsible ?? null,
+      priority: input.priority ?? null,
+      detail_description: input.detailDescription ?? null,
+      meegle_link: input.meegleLink ?? null,
+      lark_message_link: input.larkMessageLink ?? null,
+    };
+    if (existing && existing.ticket_number === values.ticket_number && existing.issue_type === values.issue_type
+      && existing.responsible === values.responsible && existing.priority === values.priority && existing.detail_description === values.detail_description
+      && existing.meegle_link === values.meegle_link && existing.lark_message_link === values.lark_message_link) return false;
+    await this.db.updateTable("lark_base_ticket_syncs").set(values)
+      .where("base_id", "=", input.baseId).where("table_id", "=", input.tableId).where("record_id", "=", input.recordId)
+      .execute();
+    return true;
   }
 
   async listMeegleWorkitems(limit: number, sprint?: string): Promise<MeegleWorkitemSyncItem[]> {
@@ -250,26 +438,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
       .limit(limit)
       .execute();
 
-    return rows.map((row) => ({
-      projectKey: row.project_key,
-      projectName: row.project_name ?? undefined,
-      workItemTypeKey: row.work_item_type_key,
-      workItemId: row.work_item_id,
-      workItemKey: row.work_item_key ?? undefined,
-      title: row.title,
-      workItemType: row.work_item_type ?? undefined,
-      statusKey: row.status_key ?? undefined,
-      status: row.status ?? undefined,
-      subStageKey: row.sub_stage_key ?? undefined,
-      subStage: row.sub_stage ?? undefined,
-      sprint: row.sprint ?? undefined,
-      version: row.version ?? undefined,
-      system: row.system ?? undefined,
-      bugs: parseStringArray(row.bugs_json),
-      assignee: row.assignee ?? undefined,
-      sourceUpdatedAt: row.source_updated_at ?? undefined,
-      syncedAt: row.synced_at,
-    }));
+    return rows.map(toMeegleWorkitemSyncItem);
   }
 
   async listMeegleSprints(): Promise<string[]> {
@@ -313,67 +482,197 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
   async listGitHubPullRequests(limit: number): Promise<GitHubPullRequestSyncItem[]> {
     const rows = await this.db.selectFrom("github_pr_syncs")
       .select([
-        "owner", "repo", "pull_number", "title", "state", "merged_at", "html_url", "author_login",
-        "head_ref", "base_ref", "is_draft", "meegle_ids", "source_updated_at", "synced_at",
+        "owner", "repo", "pull_number", "title", "state", "merged_at", "html_url", "author_login", "merged_by_login",
+        "head_ref", "base_ref", "is_draft", "meegle_ids", "reviewers_json", "labels_json", "created_at",
+        "source_updated_at", "synced_at",
       ])
       .orderBy("source_updated_at", "desc")
       .orderBy("synced_at", "desc")
       .limit(limit)
       .execute();
 
-    return rows.map((row) => ({
-      owner: row.owner,
-      repo: row.repo,
-      pullNumber: row.pull_number,
-      title: row.title,
-      state: row.merged_at ? "merged" : row.state,
-      htmlUrl: row.html_url,
-      authorLogin: row.author_login ?? undefined,
-      headRef: row.head_ref ?? undefined,
-      baseRef: row.base_ref ?? undefined,
-      isDraft: row.is_draft,
-      meegleIds: parseStringArray(row.meegle_ids) ?? [],
-      sourceUpdatedAt: row.source_updated_at ?? undefined,
-      syncedAt: row.synced_at,
-    }));
+    return rows.map(toGitHubPullRequestSyncItem);
   }
 
   async listLarkBaseTickets(limit: number): Promise<LarkBaseTicketSyncItem[]> {
     const rows = await this.db.selectFrom("lark_base_ticket_syncs")
       .select([
         "base_id", "table_id", "record_id", "title", "ticket_status", "shared_url",
-        "created_time", "source_updated_at", "synced_at",
+        "created_time", "ticket_number", "issue_type", "responsible", "priority", "detail_description", "meegle_link", "lark_message_link",
+        "source_updated_at", "synced_at",
       ])
       .orderBy("source_updated_at", "desc")
       .orderBy("synced_at", "desc")
       .limit(limit)
       .execute();
 
-    return rows.map((row) => ({
-      baseId: row.base_id,
-      tableId: row.table_id,
-      recordId: row.record_id,
-      title: row.title,
-      ticketStatus: row.ticket_status ?? undefined,
-      sharedUrl: row.shared_url ?? undefined,
-      createdTime: row.created_time ?? undefined,
-      sourceUpdatedAt: row.source_updated_at ?? undefined,
-      syncedAt: row.synced_at,
-    }));
+    return rows.map(toLarkBaseTicketSyncItem);
   }
 }
 
-function findSourceUpdatedAt(fields: Record<string, unknown>): string | null {
-  for (const key of ["updated_at", "updatedAt", "update_time", "updateTime"]) {
-    const value = fields[key];
-    if (typeof value === "string" && value.length > 0) {
-      return value;
-    }
-    if (typeof value === "number" && Number.isFinite(value)) {
-      return new Date(value).toISOString();
-    }
+type MeegleWorkitemSyncRow = {
+  project_key: string;
+  project_name: string | null;
+  work_item_type_key: string;
+  work_item_id: string;
+  work_item_key: string | null;
+  title: string;
+  work_item_type: string | null;
+  status_key: string | null;
+  status: string | null;
+  sub_stage_key: string | null;
+  sub_stage: string | null;
+  sprint: string | null;
+  version: string | null;
+  system: string | null;
+  bugs_json: string | null;
+  assignee: string | null;
+  source_updated_at: string | null;
+  synced_at: string;
+  payload_json?: string;
+};
+
+type GitHubPullRequestSyncRow = {
+  owner: string;
+  repo: string;
+  pull_number: number;
+  title: string;
+  state: string;
+  merged_at: string | null;
+  html_url: string;
+  author_login: string | null;
+  merged_by_login: string | null;
+  head_ref: string | null;
+  base_ref: string | null;
+  is_draft: boolean;
+  meegle_ids: string | null;
+  source_updated_at: string | null;
+  synced_at: string;
+  payload_json?: string;
+  reviewers_json: string | null;
+  labels_json: string | null;
+  created_at: string | null;
+};
+
+type LarkBaseTicketSyncRow = {
+  base_id: string;
+  table_id: string;
+  record_id: string;
+  title: string;
+  ticket_status: string | null;
+  shared_url: string | null;
+  created_time: string | null;
+  source_updated_at: string | null;
+  synced_at: string;
+  fields_json?: string;
+  ticket_number: string | null;
+  issue_type: string | null;
+  responsible: string | null;
+  priority: string | null;
+  detail_description: string | null;
+  meegle_link: string | null;
+  lark_message_link: string | null;
+};
+
+function toMeegleWorkitemSyncItem(row: MeegleWorkitemSyncRow): MeegleWorkitemSyncItem {
+  return {
+    projectKey: row.project_key,
+    projectName: row.project_name ?? undefined,
+    workItemTypeKey: row.work_item_type_key,
+    workItemId: row.work_item_id,
+    workItemKey: row.work_item_key ?? undefined,
+    title: row.title,
+    workItemType: row.work_item_type ?? undefined,
+    statusKey: row.status_key ?? undefined,
+    status: row.status ?? undefined,
+    subStageKey: row.sub_stage_key ?? undefined,
+    subStage: row.sub_stage ?? undefined,
+    sprint: row.sprint ?? undefined,
+    version: row.version ?? undefined,
+    system: row.system ?? undefined,
+    bugs: parseStringArray(row.bugs_json),
+    assignee: row.assignee ?? undefined,
+    sourcePayload: parseMeegleWorkitem(row.payload_json),
+    sourceUpdatedAt: row.source_updated_at ?? undefined,
+    syncedAt: row.synced_at,
+  };
+}
+
+function parseMeegleWorkitem(value: string | undefined): MeegleWorkitem | undefined {
+  if (!value) return undefined;
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return typeof parsed === "object" && parsed !== null ? parsed as MeegleWorkitem : undefined;
+  } catch {
+    return undefined;
   }
-  return null;
+}
+
+function toGitHubPullRequestSyncItem(row: GitHubPullRequestSyncRow): GitHubPullRequestSyncItem {
+  return {
+    owner: row.owner,
+    repo: row.repo,
+    pullNumber: row.pull_number,
+    title: row.title,
+    state: row.merged_at ? "merged" : row.state,
+    htmlUrl: row.html_url,
+    authorLogin: row.author_login ?? undefined,
+    mergedBy: row.merged_by_login ?? undefined,
+    headRef: row.head_ref ?? undefined,
+    baseRef: row.base_ref ?? undefined,
+    isDraft: row.is_draft,
+    meegleIds: parseStringArray(row.meegle_ids) ?? [],
+    sourcePayload: parseGitHubPullRequest(row.payload_json),
+    reviewers: parseStringArray(row.reviewers_json),
+    labels: parseStringArray(row.labels_json),
+    createdAt: row.created_at ?? undefined,
+    sourceUpdatedAt: row.source_updated_at ?? undefined,
+    syncedAt: row.synced_at,
+  };
+}
+
+function parseGitHubPullRequest(value: string | undefined): GitHubPrDetails | undefined {
+  if (!value) return undefined;
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return typeof parsed === "object" && parsed !== null ? parsed as GitHubPrDetails : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function toLarkBaseTicketSyncItem(row: LarkBaseTicketSyncRow): LarkBaseTicketSyncItem {
+  return {
+    baseId: row.base_id,
+    tableId: row.table_id,
+    recordId: row.record_id,
+    title: row.title,
+    ticketStatus: row.ticket_status ?? undefined,
+    sharedUrl: row.shared_url ?? undefined,
+    createdTime: row.created_time ?? undefined,
+    sourceFields: parseRecord(row.fields_json),
+    ticketNumber: row.ticket_number ?? undefined,
+    issueType: row.issue_type ?? undefined,
+    responsible: row.responsible ?? undefined,
+    priority: row.priority ?? undefined,
+    detailDescription: row.detail_description ?? undefined,
+    meegleLink: row.meegle_link ?? undefined,
+    larkMessageLink: row.lark_message_link ?? undefined,
+    sourceUpdatedAt: row.source_updated_at ?? undefined,
+    syncedAt: row.synced_at,
+  };
+}
+
+function parseRecord(value: string | undefined): Record<string, unknown> | undefined {
+  if (!value) return undefined;
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function parseStringArray(value: string | null): string[] | undefined {

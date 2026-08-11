@@ -4,14 +4,18 @@ import { readFile } from "node:fs/promises";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
+import type { Kysely } from "kysely";
 import { PlatformSyncService } from "../application/services/platform-sync.service.js";
 import { buildAuthenticatedLarkClient } from "../application/services/lark-auth-client.factory.js";
 import { configureLarkAuthServiceDeps } from "../modules/lark-auth/lark-auth.service.js";
 import { PostgresLarkTokenStore } from "../adapters/postgres/lark-token-store.js";
 import { MeegleShellClient } from "../adapters/meegle/meegle-shell-client.js";
 import { PostgresPlatformSyncStore } from "../adapters/postgres/platform-sync-store.js";
-import type { PlatformSyncStore } from "../adapters/postgres/platform-sync-store.js";
+import type { GitHubPullRequestSyncRef, PlatformSyncStore } from "../adapters/postgres/platform-sync-store.js";
+import { PostgresPlatformSyncCheckpointStore } from "../adapters/postgres/platform-sync-checkpoint-store.js";
+import type { PlatformSyncCheckpoint } from "../adapters/postgres/platform-sync-checkpoint-store.js";
 import type { GitHubPrDetails } from "../adapters/github/github-types.js";
+import type { DatabaseSchema } from "../adapters/postgres/schema.js";
 import {
   createPostgresDatabase,
   ensurePostgresSchema,
@@ -21,6 +25,8 @@ import { preparePostgresConnection } from "../adapters/postgres/ssh-tunnel.js";
 
 const DEFAULT_MASTER_USER_ID = "a400632e-8d08-4ddf-977d-e8330b0adc5a";
 const DEFAULT_GITHUB_PR_LIMIT = 100;
+const MAX_GITHUB_PR_LIMIT = 1000;
+const GITHUB_INCREMENTAL_OVERLAP_MS = 5 * 60 * 1000;
 const execFileAsync = promisify(execFile);
 export const DEFAULT_PLATFORM_SYNC_CONFIG_PATH = fileURLToPath(
   new URL("../../config/platform-sync.local.json", import.meta.url),
@@ -31,11 +37,14 @@ export type PlatformName = z.infer<typeof platformNameSchema>;
 const githubPullRequestStateSchema = z.enum(["all", "closed", "merged"]);
 export type GitHubPullRequestState = z.infer<typeof githubPullRequestStateSchema>;
 type GitHubPullRequestSyncState = Exclude<GitHubPullRequestState, "all">;
+const syncModeSchema = z.enum(["full", "incremental", "clean"]);
+export type PlatformSyncMode = z.infer<typeof syncModeSchema>;
 
 const platformSyncConfigSchema = z.object({
   meegle: z.array(z.object({
     projectKey: z.string().min(1),
     workItemTypeKeys: z.array(z.string().min(1)).min(1).optional(),
+    sourceUpdatedAtMqlFieldNames: z.record(z.string().min(1), z.string().min(1)).default({}),
   })).default([]),
   github: z.array(z.object({
     owner: z.string().min(1),
@@ -47,6 +56,7 @@ const platformSyncConfigSchema = z.object({
     larkBaseUrl: z.string().url().optional(),
     titleFieldName: z.string().min(1).optional(),
     statusFieldName: z.string().min(1).optional(),
+    sourceUpdatedAtFieldName: z.string().min(1).default("最后更新时间"),
   })).default([]),
 }).superRefine((value, context) => {
   if (value.meegle.length + value.github.length + value.larkBase.length === 0) {
@@ -65,6 +75,9 @@ export interface PlatformSyncScriptArgs {
   only?: PlatformName;
   githubPullRequestState: GitHubPullRequestState;
   githubPullRequestLimit: number;
+  mode: PlatformSyncMode;
+  scope?: string;
+  cleanAfterSync: boolean;
   help: boolean;
 }
 
@@ -72,6 +85,19 @@ export interface SyncCounts {
   listed: number;
   skippedInactive: number;
   synced: number;
+  cleaned?: number;
+}
+
+export interface IncrementalSyncCounts extends SyncCounts {
+  watermarkUpdatedAt: string;
+  watermarkTiebreaker: string;
+}
+
+export interface IncrementalScopeRunner<T> {
+  getCheckpoint(scope: string): Promise<PlatformSyncCheckpoint | undefined>;
+  sync(target: T, checkpoint: Required<Pick<PlatformSyncCheckpoint, "watermarkUpdatedAt" | "watermarkTiebreaker">>): Promise<IncrementalSyncCounts>;
+  markSuccess(checkpoint: PlatformSyncCheckpoint, result: IncrementalSyncCounts): Promise<void>;
+  markFailure(scope: string, error: unknown): Promise<void>;
 }
 
 export interface PlatformSyncRunner {
@@ -79,11 +105,14 @@ export interface PlatformSyncRunner {
     masterUserId: string;
     projectKey: string;
     workItemTypeKeys?: string[];
+    sourceUpdatedAtMqlFieldNames?: Record<string, string>;
+    cleanAfterSync: boolean;
   }): Promise<SyncCounts>;
   bulkSyncGitHubPullRequests(input: {
     repositories: Array<{ owner: string; repo: string }>;
     state: GitHubPullRequestSyncState;
     limit: number;
+    cleanAfterSync: boolean;
   }): Promise<SyncCounts>;
   bulkSyncLarkBaseTickets(input: {
     masterUserId: string;
@@ -92,7 +121,15 @@ export interface PlatformSyncRunner {
     larkBaseUrl?: string;
     titleFieldName?: string;
     statusFieldName?: string;
+    sourceUpdatedAtFieldName?: string;
+    cleanAfterSync: boolean;
   }): Promise<SyncCounts>;
+}
+
+export interface PlatformSyncCleanRunner {
+  cleanMeegleProject(projectKey: string): Promise<SyncCounts>;
+  cleanGitHubRepository(owner: string, repo: string): Promise<SyncCounts>;
+  cleanLarkBase(baseId: string, tableId: string): Promise<SyncCounts>;
 }
 
 export type RunGhCommand = (args: string[]) => Promise<string>;
@@ -102,6 +139,8 @@ export interface PlatformSyncRunEntry {
   target: string;
   ok: boolean;
   counts?: SyncCounts;
+  watermarkUpdatedAt?: string;
+  watermarkTiebreaker?: string;
   errorMessage?: string;
 }
 
@@ -116,6 +155,8 @@ export function parsePlatformSyncArgs(argv: string[]): PlatformSyncScriptArgs {
     configPath: DEFAULT_PLATFORM_SYNC_CONFIG_PATH,
     githubPullRequestState: "all",
     githubPullRequestLimit: DEFAULT_GITHUB_PR_LIMIT,
+    mode: "full",
+    cleanAfterSync: true,
     help: false,
   };
 
@@ -150,9 +191,38 @@ export function parsePlatformSyncArgs(argv: string[]): PlatformSyncScriptArgs {
       index += 1;
       continue;
     }
+    if (arg === "--mode") {
+      args.mode = syncModeSchema.parse(readNextArg(argv, index, arg));
+      index += 1;
+      continue;
+    }
+    if (arg === "--scope") {
+      args.scope = readNextArg(argv, index, arg);
+      index += 1;
+      continue;
+    }
+    if (arg === "--clean-after-sync") {
+      args.cleanAfterSync = true;
+      continue;
+    }
     throw new Error(`Unknown argument: ${arg}`);
   }
 
+  if (args.mode === "incremental" && !args.only) {
+    throw new Error("Incremental sync requires --only meegle|github|lark");
+  }
+  if (args.mode === "incremental" && args.only === "github" && !args.scope) {
+    throw new Error("GitHub incremental sync requires --scope <owner/repo>");
+  }
+  if (args.mode === "incremental" && args.only !== "github" && args.scope) {
+    throw new Error("--scope is only supported by GitHub incremental sync");
+  }
+  if (args.mode === "full" && args.scope) {
+    throw new Error("--scope is only supported by GitHub incremental sync");
+  }
+  if (args.mode === "clean" && args.scope) {
+    throw new Error("--scope is not supported by clean mode; use --only to choose a configured platform");
+  }
   return args;
 }
 
@@ -192,6 +262,7 @@ export async function runPlatformSync(
           masterUserId: args.masterUserId,
           projectKey: target.projectKey,
           workItemTypeKeys: target.workItemTypeKeys,
+          cleanAfterSync: args.cleanAfterSync,
         })));
       }
       continue;
@@ -208,6 +279,7 @@ export async function runPlatformSync(
               repositories: [target],
               state,
               limit: args.githubPullRequestLimit,
+              cleanAfterSync: args.cleanAfterSync,
             })
           )));
         }
@@ -223,6 +295,7 @@ export async function runPlatformSync(
         larkBaseUrl: target.larkBaseUrl,
         titleFieldName: target.titleFieldName,
         statusFieldName: target.statusFieldName,
+        cleanAfterSync: args.cleanAfterSync,
       })));
     }
   }
@@ -239,6 +312,80 @@ export async function runPlatformSync(
   return { entries, failed: entries.some((entry) => !entry.ok) };
 }
 
+export async function runPlatformSyncCleaning(
+  args: PlatformSyncScriptArgs,
+  config: PlatformSyncConfig,
+  runner: PlatformSyncCleanRunner,
+): Promise<PlatformSyncRunResult> {
+  const platforms: PlatformName[] = args.only ? [args.only] : ["meegle", "github", "lark"];
+  const entries: PlatformSyncRunEntry[] = [];
+
+  for (const platform of platforms) {
+    if (platform === "meegle") {
+      for (const target of config.meegle) {
+        entries.push(await runTarget("meegle", target.projectKey, () => runner.cleanMeegleProject(target.projectKey)));
+      }
+      continue;
+    }
+    if (platform === "github") {
+      for (const target of config.github) {
+        entries.push(await runTarget("github", `${target.owner}/${target.repo}`, () => runner.cleanGitHubRepository(target.owner, target.repo)));
+      }
+      continue;
+    }
+    for (const target of config.larkBase) {
+      entries.push(await runTarget("lark", `${target.baseId}/${target.tableId}`, () => runner.cleanLarkBase(target.baseId, target.tableId)));
+    }
+  }
+
+  if (args.only && entries.length === 0) {
+    entries.push({ platform: args.only, target: "configuration", ok: false, errorMessage: `No ${args.only} targets configured` });
+  }
+  return { entries, failed: entries.some((entry) => !entry.ok) };
+}
+
+export async function runIncrementalScopes<T>(
+  platform: Extract<PlatformName, "meegle" | "lark">,
+  targets: Array<{ scope: string; target: T }>,
+  runner: IncrementalScopeRunner<T>,
+): Promise<PlatformSyncRunResult> {
+  const entries: PlatformSyncRunEntry[] = [];
+  if (targets.length === 0) {
+    return {
+      entries: [{ platform, target: "configuration", ok: false, errorMessage: `No ${platform} targets configured` }],
+      failed: true,
+    };
+  }
+  for (const entry of targets) {
+    try {
+      const checkpoint = await runner.getCheckpoint(entry.scope);
+      if (!checkpoint?.watermarkUpdatedAt || !checkpoint.watermarkTiebreaker) {
+        throw new Error(`${platform} checkpoint has no source watermark for ${entry.scope}`);
+      }
+      const result = await runner.sync(entry.target, checkpoint as Required<Pick<PlatformSyncCheckpoint, "watermarkUpdatedAt" | "watermarkTiebreaker">>);
+      await runner.markSuccess(checkpoint, result);
+      entries.push({
+        platform,
+        target: entry.scope,
+        ok: true,
+        counts: result,
+        watermarkUpdatedAt: result.watermarkUpdatedAt,
+        watermarkTiebreaker: result.watermarkTiebreaker,
+      });
+    } catch (error) {
+      const syncErrorMessage = errorMessage(error);
+      let failureMessage = syncErrorMessage;
+      try {
+        await runner.markFailure(entry.scope, error);
+      } catch (checkpointError) {
+        failureMessage = `${syncErrorMessage}; failed to record checkpoint error: ${errorMessage(checkpointError)}`;
+      }
+      entries.push({ platform, target: entry.scope, ok: false, errorMessage: failureMessage });
+    }
+  }
+  return { entries, failed: entries.some((entry) => !entry.ok) };
+}
+
 export async function syncGitHubPullRequestsWithGh(
   input: {
     repositories: Array<{ owner: string; repo: string }>;
@@ -247,9 +394,10 @@ export async function syncGitHubPullRequestsWithGh(
   },
   store: PlatformSyncStore,
   runGh: RunGhCommand = runGhCommand,
-): Promise<SyncCounts> {
+): Promise<SyncCounts & { refs: GitHubPullRequestSyncRef[] }> {
   let listed = 0;
   let synced = 0;
+  const refs: GitHubPullRequestSyncRef[] = [];
 
   for (const repository of input.repositories) {
     const pullRequests = parseGhPullRequestList(await runGh([
@@ -278,10 +426,119 @@ export async function syncGitHubPullRequestsWithGh(
         pullRequest,
       });
       synced += 1;
+      refs.push({ owner: repository.owner, repo: repository.repo, pullNumber });
     }
   }
 
-  return { listed, skippedInactive: listed - synced, synced };
+  return { listed, skippedInactive: listed - synced, synced, refs };
+}
+
+export interface GitHubIncrementalSyncResult extends SyncCounts {
+  refs: GitHubPullRequestSyncRef[];
+  watermarkUpdatedAt: string;
+  watermarkTiebreaker: string;
+}
+
+export async function syncIncrementalGitHubPullRequestsWithGh(
+  input: {
+    owner: string;
+    repo: string;
+    watermarkUpdatedAt: string;
+    watermarkTiebreaker: string;
+    limit: number;
+  },
+  store: PlatformSyncStore,
+  runGh: RunGhCommand = runGhCommand,
+): Promise<GitHubIncrementalSyncResult> {
+  const searchSince = new Date(new Date(input.watermarkUpdatedAt).getTime() - GITHUB_INCREMENTAL_OVERLAP_MS);
+  if (Number.isNaN(searchSince.getTime())) {
+    throw new Error(`Invalid GitHub checkpoint watermark: ${input.watermarkUpdatedAt}`);
+  }
+  const listed = parseGhPullRequestList(await runGh([
+    "pr", "list",
+    "--repo", `${input.owner}/${input.repo}`,
+    "--state", "all",
+    "--search", `updated:>=${searchSince.toISOString()}`,
+    "--limit", String(input.limit),
+    "--json", "number",
+  ]));
+  if (listed.length >= input.limit) {
+    throw new Error(`GitHub incremental result reached --github-pr-limit=${input.limit}; increase the limit before advancing the checkpoint`);
+  }
+
+  const details = await Promise.all(listed.map(async (item) => {
+    const pullNumber = getPullNumber(item);
+    const pullRequest = parseGhPullRequest(await runGh([
+      "api", "--method", "GET",
+      `repos/${input.owner}/${input.repo}/pulls/${pullNumber}`,
+    ]));
+    if (!isValidTimestamp(pullRequest.updated_at)) {
+      throw new Error(`GitHub pull request #${pullNumber} is missing a valid updated_at`);
+    }
+    return pullRequest;
+  }));
+  const threshold = searchSince.getTime();
+  const changed = details.filter((pullRequest) => new Date(pullRequest.updated_at).getTime() >= threshold)
+    .sort(compareGitHubPullRequests);
+
+  for (const pullRequest of changed) {
+    await store.upsertGitHubPullRequest({ owner: input.owner, repo: input.repo, pullRequest });
+  }
+
+  const latest = changed.reduce((current, pullRequest) => {
+    if (!current) return currentGitHubWatermark(input);
+    return compareGitHubWatermarks(toGitHubWatermark(pullRequest), current) > 0
+      ? toGitHubWatermark(pullRequest)
+      : current;
+  }, currentGitHubWatermark(input));
+  return {
+    listed: listed.length,
+    skippedInactive: 0,
+    synced: changed.length,
+    refs: changed.map((pullRequest) => ({ owner: input.owner, repo: input.repo, pullNumber: pullRequest.number })),
+    watermarkUpdatedAt: latest.updatedAt,
+    watermarkTiebreaker: latest.tiebreaker,
+  };
+}
+
+type GitHubWatermark = {
+  updatedAt: string;
+  tiebreaker: string;
+};
+
+function currentGitHubWatermark(input: {
+  watermarkUpdatedAt: string;
+  watermarkTiebreaker: string;
+}): GitHubWatermark {
+  return { updatedAt: input.watermarkUpdatedAt, tiebreaker: input.watermarkTiebreaker };
+}
+
+function toGitHubWatermark(pullRequest: GitHubPrDetails): GitHubWatermark {
+  return {
+    updatedAt: pullRequest.updated_at,
+    tiebreaker: String(pullRequest.number).padStart(12, "0"),
+  };
+}
+
+function compareGitHubPullRequests(left: GitHubPrDetails, right: GitHubPrDetails): number {
+  return compareGitHubWatermarks(toGitHubWatermark(left), toGitHubWatermark(right));
+}
+
+function compareGitHubWatermarks(left: GitHubWatermark, right: GitHubWatermark): number {
+  const timestampOrder = new Date(left.updatedAt).getTime() - new Date(right.updatedAt).getTime();
+  return timestampOrder || left.tiebreaker.localeCompare(right.tiebreaker);
+}
+
+function isValidTimestamp(value: unknown): value is string {
+  return typeof value === "string" && !Number.isNaN(new Date(value).getTime());
+}
+
+function parseGitHubScope(scope: string): { owner: string; repo: string } {
+  const [owner, repo, ...rest] = scope.split("/");
+  if (!owner || !repo || rest.length > 0) {
+    throw new Error("--scope must be an exact GitHub owner/repo value");
+  }
+  return { owner, repo };
 }
 
 async function runTarget(
@@ -301,6 +558,10 @@ async function runTarget(
   }
 }
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 function readNextArg(argv: string[], index: number, flag: string): string {
   const value = argv[index + 1];
   if (!value || value.startsWith("--")) {
@@ -315,8 +576,11 @@ function printHelp(): void {
     "",
     "Options:",
     "  --only <meegle|github|lark>  Sync one configured platform only",
+    "  --mode <full|incremental|clean>  Full/incremental sync cleans by default; clean only reads local snapshots",
+    "  --scope <owner/repo>          GitHub checkpoint scope for incremental mode",
+    "  --clean-after-sync            Compatibility flag; cleaning is already enabled for every sync mode",
     "  --github-pr-state <all|closed|merged>  GitHub PR state (default all)",
-    `  --github-pr-limit <1-${DEFAULT_GITHUB_PR_LIMIT}>  GitHub PRs per repository (default ${DEFAULT_GITHUB_PR_LIMIT})`,
+    `  --github-pr-limit <1-${MAX_GITHUB_PR_LIMIT}>  GitHub PRs per repository (default ${DEFAULT_GITHUB_PR_LIMIT})`,
     `  --user-id <id>               Lark identity (default ${DEFAULT_MASTER_USER_ID})`,
     `  --config <path>              Config file (default ${DEFAULT_PLATFORM_SYNC_CONFIG_PATH})`,
     "  --help, -h                   Show this help",
@@ -328,7 +592,7 @@ function printResult(result: PlatformSyncRunResult): void {
   for (const entry of result.entries) {
     if (entry.ok && entry.counts) {
       process.stdout.write(
-        `[platform-sync] platform=${entry.platform} target=${entry.target} listed=${entry.counts.listed} skipped_inactive=${entry.counts.skippedInactive} synced=${entry.counts.synced}\n`,
+        `[platform-sync] platform=${entry.platform} target=${entry.target} listed=${entry.counts.listed} skipped_inactive=${entry.counts.skippedInactive} synced=${entry.counts.synced} cleaned=${entry.counts.cleaned ?? 0}${entry.watermarkUpdatedAt && entry.watermarkTiebreaker ? ` watermark=${entry.watermarkUpdatedAt}/${entry.watermarkTiebreaker}` : ""}\n`,
       );
       continue;
     }
@@ -350,17 +614,59 @@ async function main(): Promise<void> {
     throw new Error("POSTGRES_URI or DATABASE_URL is required");
   }
 
-  const config = await readPlatformSyncConfig(args.configPath);
   const connection = await preparePostgresConnection(postgresUri);
   const db = createPostgresDatabase(connection.postgresUri);
   try {
     await ensurePostgresSchema(db);
+    const syncStore = new PostgresPlatformSyncStore(db);
+    if (args.mode === "incremental" && args.only === "github") {
+      const { owner, repo } = parseGitHubScope(args.scope!);
+      const checkpointStore = new PostgresPlatformSyncCheckpointStore(db);
+      const checkpoint = await checkpointStore.get("github", args.scope!);
+      if (!checkpoint) {
+        throw new Error(`GitHub checkpoint not found for ${args.scope}; run platform:init-checkpoints --only github --apply first`);
+      }
+      if (!checkpoint.watermarkUpdatedAt || !checkpoint.watermarkTiebreaker) {
+        throw new Error(`GitHub checkpoint for ${args.scope} has no source watermark; run a full sync before incremental sync`);
+      }
+      try {
+        const result = await syncIncrementalGitHubPullRequestsWithGh({
+          owner,
+          repo,
+          watermarkUpdatedAt: checkpoint.watermarkUpdatedAt,
+          watermarkTiebreaker: checkpoint.watermarkTiebreaker,
+          limit: args.githubPullRequestLimit,
+        }, syncStore);
+        const cleaned = await new PlatformSyncService({ store: syncStore }).cleanGitHubPullRequests(result.refs);
+        await checkpointStore.markSuccess({
+          ...checkpoint,
+          watermarkUpdatedAt: result.watermarkUpdatedAt,
+          watermarkTiebreaker: result.watermarkTiebreaker,
+        });
+        process.stdout.write(
+          `[platform-sync] mode=incremental platform=github scope=${args.scope} listed=${result.listed} synced=${result.synced} cleaned=${cleaned} watermark=${result.watermarkUpdatedAt}/${result.watermarkTiebreaker}\n`,
+        );
+      } catch (error) {
+        await checkpointStore.markFailure("github", args.scope!, error);
+        throw error;
+      }
+      return;
+    }
+
+    const config = await readPlatformSyncConfig(args.configPath);
+    if (args.mode === "clean") {
+      const service = new PlatformSyncService({ store: syncStore });
+      const result = await runPlatformSyncCleaning(args, config, createPlatformSyncCleanRunner(db, service));
+      printResult(result);
+      if (result.failed) process.exitCode = 1;
+      return;
+    }
     const larkTokenStore = new PostgresLarkTokenStore(db);
     configureLocalLarkAuth(larkTokenStore);
     const meegleShellClient = new MeegleShellClient();
 
     const service = new PlatformSyncService({
-      store: new PostgresPlatformSyncStore(db),
+      store: syncStore,
       createMeegleClient: async () => meegleShellClient,
       createLarkClient: async ({ masterUserId, larkBaseUrl }) => {
         const { client } = await buildAuthenticatedLarkClient(
@@ -372,13 +678,35 @@ async function main(): Promise<void> {
       },
     });
 
+    if (args.mode === "incremental" && (args.only === "meegle" || args.only === "lark")) {
+      const checkpointStore = new PostgresPlatformSyncCheckpointStore(db);
+      const config = await readPlatformSyncConfig(args.configPath);
+      const result = args.only === "meegle"
+        ? await runIncrementalScopes("meegle", config.meegle.map((target) => ({ scope: target.projectKey, target })), {
+          getCheckpoint: (scope) => checkpointStore.get("meegle", scope),
+          sync: (target, checkpoint) => service.incrementalSyncMeegleWorkitems({ masterUserId: args.masterUserId, projectKey: target.projectKey, workItemTypeKeys: target.workItemTypeKeys, sourceUpdatedAtMqlFieldNames: target.sourceUpdatedAtMqlFieldNames, cleanAfterSync: args.cleanAfterSync, ...checkpoint }),
+          markSuccess: (checkpoint, next) => checkpointStore.markSuccess({ ...checkpoint, watermarkUpdatedAt: next.watermarkUpdatedAt, watermarkTiebreaker: next.watermarkTiebreaker }),
+          markFailure: (scope, error) => checkpointStore.markFailure("meegle", scope, error),
+        })
+        : await runIncrementalScopes("lark", config.larkBase.map((target) => ({ scope: `${target.baseId}/${target.tableId}`, target })), {
+          getCheckpoint: (scope) => checkpointStore.get("lark", scope),
+          sync: (target, checkpoint) => service.incrementalSyncLarkBaseTickets({ masterUserId: args.masterUserId, ...target, cleanAfterSync: args.cleanAfterSync, ...checkpoint }),
+          markSuccess: (checkpoint, next) => checkpointStore.markSuccess({ ...checkpoint, watermarkUpdatedAt: next.watermarkUpdatedAt, watermarkTiebreaker: next.watermarkTiebreaker }),
+          markFailure: (scope, error) => checkpointStore.markFailure("lark", scope, error),
+        });
+      printResult(result);
+      if (result.failed) process.exitCode = 1;
+      return;
+    }
+
     const result = await runPlatformSync(args, config, {
       bulkSyncMeegleWorkitems: (input) => service.bulkSyncMeegleWorkitems(input),
       bulkSyncLarkBaseTickets: (input) => service.bulkSyncLarkBaseTickets(input),
-      bulkSyncGitHubPullRequests: (input) => syncGitHubPullRequestsWithGh(
-        input,
-        new PostgresPlatformSyncStore(db),
-      ),
+      bulkSyncGitHubPullRequests: async (input) => {
+        const result = await syncGitHubPullRequestsWithGh(input, syncStore);
+        const cleaned = await service.cleanGitHubPullRequests(result.refs);
+        return { ...result, cleaned };
+      },
     });
     printResult(result);
     if (result.failed) {
@@ -390,6 +718,44 @@ async function main(): Promise<void> {
   }
 }
 
+function createPlatformSyncCleanRunner(
+  db: Kysely<DatabaseSchema>,
+  service: PlatformSyncService,
+): PlatformSyncCleanRunner {
+  return {
+    async cleanMeegleProject(projectKey) {
+      const rows = await db.selectFrom("meegle_workitem_syncs")
+        .select(["project_key", "work_item_type_key", "work_item_id"])
+        .where("project_key", "=", projectKey)
+        .execute();
+      const cleaned = await service.cleanMeegleWorkitems(rows.map((row) => ({
+        projectKey: row.project_key, workItemTypeKey: row.work_item_type_key, workItemId: row.work_item_id,
+      })));
+      return { listed: rows.length, skippedInactive: 0, synced: 0, cleaned };
+    },
+    async cleanGitHubRepository(owner, repo) {
+      const rows = await db.selectFrom("github_pr_syncs")
+        .select(["owner", "repo", "pull_number"])
+        .where("owner", "=", owner).where("repo", "=", repo)
+        .execute();
+      const cleaned = await service.cleanGitHubPullRequests(rows.map((row) => ({
+        owner: row.owner, repo: row.repo, pullNumber: row.pull_number,
+      })));
+      return { listed: rows.length, skippedInactive: 0, synced: 0, cleaned };
+    },
+    async cleanLarkBase(baseId, tableId) {
+      const rows = await db.selectFrom("lark_base_ticket_syncs")
+        .select(["base_id", "table_id", "record_id"])
+        .where("base_id", "=", baseId).where("table_id", "=", tableId)
+        .execute();
+      const cleaned = await service.cleanLarkBaseTickets(rows.map((row) => ({
+        baseId: row.base_id, tableId: row.table_id, recordId: row.record_id,
+      })));
+      return { listed: rows.length, skippedInactive: 0, synced: 0, cleaned };
+    },
+  };
+}
+
 async function runGhCommand(args: string[]): Promise<string> {
   const { stdout } = await execFileAsync("gh", args, { maxBuffer: 10 * 1024 * 1024 });
   return stdout;
@@ -397,8 +763,8 @@ async function runGhCommand(args: string[]): Promise<string> {
 
 function parseGitHubPullRequestLimit(value: string): number {
   const limit = Number(value);
-  if (!Number.isInteger(limit) || limit < 1 || limit > DEFAULT_GITHUB_PR_LIMIT) {
-    throw new Error(`--github-pr-limit must be an integer from 1 to ${DEFAULT_GITHUB_PR_LIMIT}`);
+  if (!Number.isInteger(limit) || limit < 1 || limit > MAX_GITHUB_PR_LIMIT) {
+    throw new Error(`--github-pr-limit must be an integer from 1 to ${MAX_GITHUB_PR_LIMIT}`);
   }
   return limit;
 }

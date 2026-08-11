@@ -2,7 +2,10 @@
   "meegle": [
     {
       "projectKey": "4c3fv6",
-      "workItemTypeKeys": ["story"]
+      "workItemTypeKeys": ["story"],
+      "sourceUpdatedAtMqlFieldNames": {
+        "story": "updated_at"
+      }
     }
   ],
   "github": [
@@ -15,6 +18,7 @@
     {
       "baseId": "app_xxx",
       "tableId": "tbl_xxx",
+      "sourceUpdatedAtFieldName": "最后更新时间",
       "titleFieldName": "Title",
       "statusFieldName": "Status"
     }

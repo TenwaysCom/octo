@@ -1,6 +1,8 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type { MeegleSyncMapping, MeegleWorkitem } from "./meegle-client.js";
+import { resolveMeegleSourceUpdatedAt } from "./meegle-source-updated-at.js";
+import { normalizeTimestamp } from "../../utils/normalize-timestamp.js";
 
 const execFileAsync = promisify(execFile);
 const MAX_MQL_PAGES = 100;
@@ -55,6 +57,8 @@ export class MeegleShellClient {
       pageNum?: number;
       pageSize?: number;
       autoPaginate?: boolean;
+      sourceUpdatedAfter?: string;
+      sourceUpdatedAtMqlFieldNames?: Record<string, string>;
     } = {},
   ): Promise<MeegleWorkitem[]> {
     const workitemTypeKeys = options.workitemTypeKeys;
@@ -76,13 +80,28 @@ export class MeegleShellClient {
       if (!workitemTypeName) {
         throw new Error(`MEEGLE_SHELL_WORK_ITEM_TYPE_NOT_FOUND:${workitemTypeKey}`);
       }
+      const sourceUpdatedAtMqlFieldName = options.sourceUpdatedAtMqlFieldNames?.[workitemTypeKey];
+      if (options.sourceUpdatedAfter && !sourceUpdatedAtMqlFieldName) {
+        throw new Error(`MEEGLE_SHELL_SOURCE_UPDATED_AT_FIELD_REQUIRED:${workitemTypeKey}`);
+      }
 
       for (let currentPage = pageNum; currentPage < pageNum + MAX_MQL_PAGES; currentPage += 1) {
         const offset = (currentPage - 1) * pageSize;
-        const records = await this.queryWorkitems(projectKey, projectName, workitemTypeName, offset, pageSize);
-        allWorkitems.push(...records.map((record) => toMqlWorkitem(record, workitemTypeKey)));
+        const records = await this.queryWorkitems({
+          projectKey,
+          projectName,
+          workitemTypeName,
+          offset,
+          pageSize,
+          sourceUpdatedAfter: options.sourceUpdatedAfter,
+          sourceUpdatedAtMqlFieldName,
+        });
+        allWorkitems.push(...records.map((record) => toMqlWorkitem(record, workitemTypeKey, sourceUpdatedAtMqlFieldName)));
         if (!options.autoPaginate || records.length < pageSize) {
           break;
+        }
+        if (currentPage === pageNum + MAX_MQL_PAGES - 1) {
+          throw new Error(`MEEGLE_SHELL_MQL_PAGE_LIMIT_REACHED:${workitemTypeKey}`);
         }
       }
     }
@@ -164,22 +183,30 @@ export class MeegleShellClient {
     return workitemTypes;
   }
 
-  private async queryWorkitems(
-    projectKey: string,
-    projectName: string,
-    workitemTypeName: string,
-    offset: number,
-    pageSize: number,
-  ): Promise<Record<string, unknown>[]> {
+  private async queryWorkitems(input: {
+    projectKey: string;
+    projectName: string;
+    workitemTypeName: string;
+    offset: number;
+    pageSize: number;
+    sourceUpdatedAfter?: string;
+    sourceUpdatedAtMqlFieldName?: string;
+  }): Promise<Record<string, unknown>[]> {
+    const columns = ["work_item_id", "name", "work_item_type_key", "work_item_status"];
+    if (input.sourceUpdatedAtMqlFieldName) columns.push(input.sourceUpdatedAtMqlFieldName);
     const mql = [
-      "SELECT `work_item_id`, `name`, `work_item_type_key`, `work_item_status`",
-      `FROM ${quoteMqlIdentifier(projectName)}.${quoteMqlIdentifier(workitemTypeName)}`,
-      `LIMIT ${offset}, ${pageSize}`,
-    ].join(" ");
+      `SELECT ${columns.map(quoteMqlIdentifier).join(", ")}`,
+      `FROM ${quoteMqlIdentifier(input.projectName)}.${quoteMqlIdentifier(input.workitemTypeName)}`,
+      input.sourceUpdatedAfter && input.sourceUpdatedAtMqlFieldName
+        ? `WHERE ${quoteMqlIdentifier(input.sourceUpdatedAtMqlFieldName)} >= ${quoteMqlString(input.sourceUpdatedAfter)}`
+        : "",
+      input.sourceUpdatedAtMqlFieldName ? `ORDER BY ${quoteMqlIdentifier(input.sourceUpdatedAtMqlFieldName)} ASC, \`work_item_id\` ASC` : "",
+      `LIMIT ${input.offset}, ${input.pageSize}`,
+    ].filter(Boolean).join(" ");
     const data = parseRecord(await this.runCommand([
       "workitem",
       "query",
-      "--project-key", projectKey,
+      "--project-key", input.projectKey,
       "--mql", mql,
     ]), "meegle workitem query response");
     const groups = asRecord(data.data);
@@ -199,7 +226,11 @@ async function runMeegleCommand(args: string[]): Promise<string> {
   return stdout;
 }
 
-function toMqlWorkitem(record: Record<string, unknown>, fallbackType: string): MeegleWorkitem {
+function toMqlWorkitem(
+  record: Record<string, unknown>,
+  fallbackType: string,
+  sourceUpdatedAtMqlFieldName?: string,
+): MeegleWorkitem {
   const fields = Array.isArray(record.moql_field_list) ? record.moql_field_list.map(asRecord).filter(isRecord) : [];
   const fieldValues = new Map(fields.map((field) => [field.key, getMqlValue(field.value)]));
   const id = fieldValues.get("work_item_id");
@@ -216,6 +247,9 @@ function toMqlWorkitem(record: Record<string, unknown>, fallbackType: string): M
     workItemType: type.label || undefined,
     status: status.label || stringValue(fieldValues.get("work_item_status")),
     statusKey: status.key || undefined,
+    updatedAt: sourceUpdatedAtMqlFieldName
+      ? normalizeTimestamp(fieldValues.get(sourceUpdatedAtMqlFieldName))
+      : undefined,
     fields: { mql: record },
   };
 }
@@ -235,17 +269,24 @@ function toDetailedWorkitem(data: Record<string, unknown>, fallbackType: string)
   const subStage = stringValue(nodes[0]?.name);
   const subStageKey = stringValue(nodes[0]?.id);
   const assignee = stringValue(owners[0]?.name);
+  const workItemTypeKey = stringValue(type?.key) || fallbackType;
+  const updatedAt = resolveMeegleSourceUpdatedAt({
+    workItemTypeKey,
+    fields: data,
+    updatedAt: data.updated_at ?? data.updatedAt,
+  });
   return {
     id,
     key: "",
     name: stringValue(attribute?.work_item_name),
-    type: stringValue(type?.key) || fallbackType,
+    type: workItemTypeKey,
     ...(workItemType ? { workItemType } : {}),
     status: stringValue(status?.name),
     ...(statusKey ? { statusKey } : {}),
     ...(subStage ? { subStage } : {}),
     ...(subStageKey ? { subStageKey } : {}),
     ...(assignee ? { assignee } : {}),
+    ...(updatedAt ? { updatedAt } : {}),
     fields: data,
   };
 }
@@ -283,6 +324,10 @@ function getMqlValue(value: unknown): string {
 
 function quoteMqlIdentifier(value: string): string {
   return `\`${value.replaceAll("`", "``")}\``;
+}
+
+function quoteMqlString(value: string): string {
+  return `'${value.replaceAll("'", "''")}'`;
 }
 
 function parseRecord(stdout: string, description: string): Record<string, unknown> {

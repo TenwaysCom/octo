@@ -1,4 +1,5 @@
 import { logger } from "../../logger.js";
+import { resolveMeegleSourceUpdatedAt } from "./meegle-source-updated-at.js";
 
 const clientLogger = logger.child({ module: "meegle-client" });
 
@@ -379,6 +380,7 @@ export interface MeegleWorkitem {
   subStage?: string;
   subStageKey?: string;
   assignee?: string;
+  updatedAt?: string;
   fields: Record<string, unknown>;
 }
 
@@ -428,7 +430,6 @@ export function parseWorkitem(data: Record<string, unknown>): MeegleWorkitem {
   const name = String(data.name || data.title || "");
   const type = String(data.type || data.work_item_type_key || "");
   const assignee = (data.assignee || data.owner) as string | undefined;
-
   // current_nodes and work_item_status may be nested inside data.fields
   const rawFields = data.fields as Record<string, unknown> | undefined;
 
@@ -468,7 +469,13 @@ export function parseWorkitem(data: Record<string, unknown>): MeegleWorkitem {
     }
   }
 
-  return { id, key, name, type, status, assignee, fields };
+  const updatedAt = resolveMeegleSourceUpdatedAt({
+    workItemTypeKey: type,
+    fields,
+    updatedAt: data.updated_at ?? data.updatedAt,
+  });
+
+  return { id, key, name, type, status, assignee, updatedAt, fields };
 }
 
 function parseComment(data: Record<string, unknown>): MeegleComment {
@@ -849,6 +856,8 @@ export class MeegleClient {
       pageNum?: number;
       pageSize?: number;
       autoPaginate?: boolean;
+      sourceUpdatedAfter?: string;
+      sourceUpdatedAtMqlFieldNames?: Record<string, string>;
     },
   ): Promise<MeegleWorkitem[]> {
     const {
@@ -857,6 +866,10 @@ export class MeegleClient {
       pageSize = 50,
       autoPaginate = false,
     } = options || {};
+
+    if (options?.sourceUpdatedAfter) {
+      throw new Error("MEEGLE_SOURCE_UPDATED_AT_FILTER_NOT_SUPPORTED");
+    }
 
     if (autoPaginate) {
       return this.filterWorkitemsPaginated(projectKey, workitemTypeKeys, pageSize);

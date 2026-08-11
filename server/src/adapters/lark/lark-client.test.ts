@@ -29,8 +29,8 @@ describe("lark-client", () => {
             record_id: "rec_1",
             fields: { Title: "One" },
             shared_url: "https://base.larksuite.com/rec_1",
-            created_time: "2026-04-16T10:00:00Z",
-            updated_time: "2026-04-16T10:05:00Z",
+            created_time: "2026-04-16T10:00:00.000Z",
+            last_modified_time: 1776333900000,
           },
         ],
         forbidden_record_ids: ["rec_forbidden"],
@@ -62,8 +62,8 @@ describe("lark-client", () => {
           record_id: "rec_1",
           fields: { Title: "One" },
           shared_url: "https://base.larksuite.com/rec_1",
-          created_time: "2026-04-16T10:00:00Z",
-          updated_time: "2026-04-16T10:05:00Z",
+          created_time: "2026-04-16T10:00:00.000Z",
+          updated_time: "2026-04-16T10:05:00.000Z",
         },
       ],
       forbidden_record_ids: ["rec_forbidden"],
@@ -127,14 +127,46 @@ describe("lark-client", () => {
         {
           record_id: "rec_view_1",
           fields: { Title: "Visible in view" },
-          created_time: "2026-04-18T10:00:00Z",
-          updated_time: "2026-04-18T10:05:00Z",
+          created_time: "2026-04-18T10:00:00.000Z",
+          updated_time: "2026-04-18T10:05:00.000Z",
           shared_url: undefined,
         },
       ],
       hasMore: true,
       nextPageToken: "next_page_token",
     });
+  });
+
+  it("listRecords forwards the source-side incremental filter and automatic fields", async () => {
+    const client = new LarkClient({
+      accessToken: "token_123",
+      baseUrl: "https://open.larksuite.com",
+    });
+    (client as unknown as { client: { request: typeof requestMock } }).client = { request: requestMock };
+    requestMock.mockResolvedValueOnce({
+      code: 0,
+      data: { items: [], has_more: false },
+    });
+
+    await client.listRecords("base_123", "tbl_456", {
+      pageSize: 100,
+      pageToken: "page_2",
+      filter: 'CurrentValue.[最后更新时间] >= TODATE("2026-08-11T00:00:00.000Z")',
+      automaticFields: true,
+    });
+
+    expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({
+      method: "GET",
+      url: "/open-apis/bitable/v1/apps/base_123/tables/tbl_456/records",
+      params: {
+        page_size: 100,
+        page_num: 1,
+        page_token: "page_2",
+        filter: 'CurrentValue.[最后更新时间] >= TODATE("2026-08-11T00:00:00.000Z")',
+        sort: undefined,
+        automatic_fields: true,
+      },
+    }), expect.anything());
   });
 
   it("batchCreateRecords creates records in the bitable batch endpoint", async () => {

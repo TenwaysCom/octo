@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { WorkspaceShell } from "../components/layout/WorkspaceShell.jsx";
 import { useKeyboardShortcut } from "../hooks/useKeyboardShortcut.js";
 import { formatDateTime } from "../lib/formatters.js";
+import { matchesGitHubPullRequestQuickFilter } from "../lib/github-pull-request-filters.js";
 import { getOdooShBuildTone } from "../lib/odoo-sh-build-status.js";
 import { getPlatformDataList, resetAllOdooDevopsBranchesCache } from "../services/platform-data/platform-data-api.js";
 
@@ -56,8 +57,6 @@ function GitHubPullRequestStatus({ isDraft, state }) {
   return <span className={`github-pr-status github-pr-status--${status}`}>{status}</span>;
 }
 
-function OdooShBuildDots({ builds }) {
-  if (!builds?.length) {
 function GitHubUser({ login }) {
   if (!login) {
     return "-";
@@ -77,6 +76,8 @@ function GitHubPullRequestLabels({ labels }) {
   return labels?.length ? <div className="github-pr-labels">{labels.map((label) => <span className="github-pr-label" key={label}>{label}</span>)}</div> : "-";
 }
 
+function OdooShBuildDots({ builds }) {
+  if (!builds?.length) {
     return null;
   }
 
@@ -176,7 +177,14 @@ function readSortValue(kind, item, key) {
     return item.sourceUpdatedAt || item.syncedAt || "";
   }
   if (kind === "lark-tickets") {
-    return key === "status" ? item.ticketStatus || "" : key === "source" ? `${item.baseId || ""}/${item.tableId || ""}` : item.title || "";
+    const values = {
+      title: item.title || "",
+      status: item.ticketStatus || "",
+      issueType: item.issueType || "",
+      responsible: item.responsible || "",
+      priority: item.priority || "",
+    };
+    return values[key] || "";
   }
   if (kind === "meegle-workitems") {
     const values = {
@@ -224,8 +232,8 @@ function SortableColumnHeader({ label, sortKey, sort, onSort }) {
 
 function SyncedListTable({ kind, items, sort, onSort }) {
   if (kind === "lark-tickets") {
-    return <table className="data-table"><thead><tr><th><SortableColumnHeader label="Ticket" sortKey="title" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="状态" sortKey="status" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="来源" sortKey="source" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="更新时间" sortKey="updatedAt" sort={sort} onSort={onSort} /></th></tr></thead><tbody>
-      {items.map((item) => <tr key={`${item.baseId}-${item.tableId}-${item.recordId}`}><td><ExternalLink href={item.sharedUrl}>{item.title}</ExternalLink><small>{item.recordId}</small></td><td><StatusPill>{item.ticketStatus}</StatusPill></td><td>{item.baseId} / {item.tableId}</td><td>{formatDateTime(item.sourceUpdatedAt || item.syncedAt)}</td></tr>)}
+    return <table className="data-table"><thead><tr><th><SortableColumnHeader label="Ticket" sortKey="title" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="状态" sortKey="status" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="Issue 类型" sortKey="issueType" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="负责人" sortKey="responsible" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="紧急度" sortKey="priority" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="更新时间" sortKey="updatedAt" sort={sort} onSort={onSort} /></th></tr></thead><tbody>
+      {items.map((item) => <tr key={`${item.baseId}-${item.tableId}-${item.recordId}`}><td><ExternalLink href={item.sharedUrl}>{item.title}</ExternalLink><small>{item.recordId}</small></td><td><StatusPill>{item.ticketStatus}</StatusPill></td><td>{item.issueType || "-"}</td><td>{item.responsible || "-"}</td><td><StatusPill>{item.priority}</StatusPill></td><td>{formatDateTime(item.sourceUpdatedAt || item.syncedAt)}</td></tr>)}
     </tbody></table>;
   }
 
@@ -247,20 +255,23 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy }
   const [dateFilter, setDateFilter] = useState("all-time");
   const [sprintFilter, setSprintFilter] = useState("");
   const [noSprintFilter, setNoSprintFilter] = useState(false);
+  const [githubQuickFilter, setGithubQuickFilter] = useState("all");
   const [workitemTypeFilter, setWorkitemTypeFilter] = useState("all");
   const [sort, setSort] = useState(DEFAULT_SORT);
   const [filterOpen, setFilterOpen] = useState(false);
   const [pageIndex, setPageIndex] = useState(0);
-  const searchInputRef = useRef(null);
   const [reloadVersion, setReloadVersion] = useState(0);
   const [resetError, setResetError] = useState("");
   const [isResettingDevopsCache, setIsResettingDevopsCache] = useState(false);
+  const searchInputRef = useRef(null);
   const statusFilters = [...new Set(state.items.map((item) => getPlatformItemStatus(page, item)))].sort((left, right) => left.localeCompare(right));
   const itemsBeforeTypeFilter = filterPlatformItems(state.items, query)
     .filter((item) => selectedStatuses === null || selectedStatuses.includes(getPlatformItemStatus(page, item)))
     .filter((item) => matchesDateFilter(item, dateFilter));
   const workitemTypeCounts = Object.fromEntries(MEEGLE_WORKITEM_TYPE_FILTERS.map(([value]) => [value, value === "all" ? itemsBeforeTypeFilter.length : itemsBeforeTypeFilter.filter((item) => getMeegleWorkitemCategory(item) === value).length]));
+  const githubId = profile.user?.githubId;
   const filteredItems = itemsBeforeTypeFilter
+    .filter((item) => page !== "github-pull-requests" || matchesGitHubPullRequestQuickFilter(item, githubQuickFilter, githubId))
     .filter((item) => page !== "meegle-workitems" || !noSprintFilter || !item.sprint)
     .filter((item) => page !== "meegle-workitems" || workitemTypeFilter === "all" || getMeegleWorkitemCategory(item) === workitemTypeFilter);
   const sortedItems = sortPlatformItems(filteredItems, page, sort);
@@ -276,6 +287,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy }
     setDateFilter("all-time");
     setSprintFilter("");
     setNoSprintFilter(false);
+    setGithubQuickFilter("all");
     setWorkitemTypeFilter("all");
     setSort(DEFAULT_SORT);
     setFilterOpen(false);
@@ -293,6 +305,22 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy }
     );
     return () => { active = false; };
   }, [apiBaseUrl, page, reloadVersion, sprintFilter]);
+
+  async function resetAllDevopsCache() {
+    setResetError("");
+    setIsResettingDevopsCache(true);
+    try {
+      await resetAllOdooDevopsBranchesCache({
+        apiBaseUrl,
+        actionRunId: crypto.randomUUID(),
+      });
+      setReloadVersion((version) => version + 1);
+    } catch {
+      setResetError("DevOps 缓存重置失败，请稍后重试。");
+    } finally {
+      setIsResettingDevopsCache(false);
+    }
+  }
 
   useKeyboardShortcut({
     key: "/",
@@ -315,29 +343,13 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy }
     },
   });
 
-  async function resetAllDevopsCache() {
-    setResetError("");
-    setIsResettingDevopsCache(true);
-    try {
-      await resetAllOdooDevopsBranchesCache({
-        apiBaseUrl,
-        actionRunId: crypto.randomUUID(),
-      });
-      setReloadVersion((version) => version + 1);
-    } catch {
-      setResetError("DevOps 缓存重置失败，请稍后重试。");
-    } finally {
-      setIsResettingDevopsCache(false);
-    }
-  }
-
   return <WorkspaceShell user={profile.user ?? {}} activePage={page} onLogout={onLogout} isBusy={isBusy}>
     <section className="profile-main list-page">
       <section className="list-section">
         {state.status === "loading" ? <p className="list-message">正在加载同步数据…</p> : null}
         {state.status === "error" ? <p className="list-message list-message--error">同步数据暂时无法读取，请稍后重试。</p> : null}
-        {state.status === "ready" && state.items.length === 0 ? <p className="list-message">暂无已同步的数据。</p> : null}
         {resetError ? <p className="list-message list-message--error">{resetError}</p> : null}
+        {state.status === "ready" && state.items.length === 0 ? <p className="list-message">暂无已同步的数据。</p> : null}
         {state.status === "ready" && state.items.length > 0 ? <div className="list-toolbar">
           {page === "meegle-workitems" ? <div className="list-filter-tabs" role="group" aria-label="按工作项类型筛选">
             {MEEGLE_WORKITEM_TYPE_FILTERS.map(([value, label]) => <button
@@ -355,6 +367,16 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy }
                 setPageIndex(0);
               }}
             >No Sprint</button>
+          </div> : null}
+          {page === "github-pull-requests" ? <div className="list-filter-tabs" role="group" aria-label="GitHub PR 快速筛选">
+            {["open", "mine"].map((filter) => <button
+              className={`list-filter-tab ${githubQuickFilter === filter ? "list-filter-tab--active" : ""}`.trim()}
+              type="button"
+              key={filter}
+              disabled={filter === "mine" && !githubId}
+              title={filter === "mine" && !githubId ? "请先在 Settings 关联 GitHub ID" : undefined}
+              onClick={() => { setGithubQuickFilter((current) => current === filter ? "all" : filter); setPageIndex(0); }}
+            >{filter === "open" ? "Open" : "Mine"}</button>)}
           </div> : null}
           <div className="list-toolbar__actions">
             {page === "github-pull-requests" ? <button className="secondary-button" type="button" disabled={isResettingDevopsCache} onClick={resetAllDevopsCache}>{isResettingDevopsCache ? "清除中…" : "清除 DevOps 缓存"}</button> : null}

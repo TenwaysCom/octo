@@ -7,24 +7,25 @@ import {
   type MeegleWorkitem,
 } from "../adapters/meegle/meegle-client.js";
 import { extractMeegleIds } from "../domain/meegle-id-extractor.js";
+import { MEEGLE_PRODUCTION_BUG_WORKITEM_TYPE_KEY } from "../domain/meegle-workitem-types.js";
 
 const lookupLogger = logger.child({ module: "github-reverse-lookup" });
 
 // 从环境变量获取需要轮询的 work_item_type_key 列表（排除 tech_task）
 const CANDIDATE_WORK_ITEM_TYPE_KEYS: string[] = [
   process.env.MEEGLE_WORKITEM_TYPE_KEY_STORY || "story",
-  process.env.MEEGLE_WORKITEM_TYPE_KEY_PROD_BUG || "6932e40429d1cd8aac635c82",
+  MEEGLE_PRODUCTION_BUG_WORKITEM_TYPE_KEY,
 ].filter((k): k is string => Boolean(k));
 
 // 字段映射：不同 work_item_type_key 对应的 Planned Version / Planned Sprint 字段 key
 const PLANNED_VERSION_FIELD_MAP: Record<string, string> = {
   story: "field_1b9eb0",
-  "6932e40429d1cd8aac635c82": "field_c6f6d0",
+  [MEEGLE_PRODUCTION_BUG_WORKITEM_TYPE_KEY]: "field_c6f6d0",
 };
 
 const PLANNED_SPRINT_FIELD_MAP: Record<string, string> = {
   story: "field_feb079",
-  "6932e40429d1cd8aac635c82": "field_ee999e",
+  [MEEGLE_PRODUCTION_BUG_WORKITEM_TYPE_KEY]: "field_ee999e",
 };
 
 const BASE_URL = process.env.MEEGLE_BASE_URL || "https://project.larksuite.com";
@@ -33,7 +34,7 @@ const DEFAULT_PROJECT_KEY = process.env.MEEGLE_PROJECT_KEY || "";
 // work_item_type_key → 可读类型名称 / URL slug 映射
 const TYPE_DISPLAY_MAP: Record<string, string> = {
   story: "story",
-  "6932e40429d1cd8aac635c82": "production_bug",
+  [MEEGLE_PRODUCTION_BUG_WORKITEM_TYPE_KEY]: "production_bug",
 };
 
 // 关联工作项（Version / Sprint）的 work_item_type_key

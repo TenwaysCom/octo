@@ -82,6 +82,10 @@ describe("web platform data controller", () => {
       title: "PR",
       state: "open",
       htmlUrl: "https://github.com/TenwaysCom/Tenways/pull/1138",
+      authorLogin: "octo",
+      mergedBy: "maintainer",
+      reviewers: ["reviewer"],
+      labels: ["bug"],
       headRef: "feature/m-1138",
       baseRef: "main",
       isDraft: false,
@@ -102,6 +106,10 @@ describe("web platform data controller", () => {
       statusCode: 200,
       body: { ok: true, data: { items: [expect.objectContaining({
         headRef: "feature/m-1138",
+        authorLogin: "octo",
+        mergedBy: "maintainer",
+        reviewers: ["reviewer"],
+        labels: ["bug"],
         odooShBuilds: [{ environment: "eu", status: "done", result: "success" }],
       })] } },
     });

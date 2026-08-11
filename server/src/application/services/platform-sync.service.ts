@@ -5,15 +5,25 @@ import type { MeegleClient, MeegleSyncMapping, MeegleWorkitem } from "../../adap
 import {
   PostgresPlatformSyncStore,
   type PlatformSyncStore,
+  type GitHubPullRequestSyncRef,
+  type LarkBaseTicketSyncRef,
+  type MeegleWorkitemSyncRef,
 } from "../../adapters/postgres/platform-sync-store.js";
 import { getResolvedUserStore, type ResolvedUserStore } from "../../adapters/postgres/resolved-user-store.js";
 import { createMeegleClient } from "./meegle-client.factory.js";
+import { extractMeegleCleaningRelations } from "./meegle-cleaning.config.js";
+import { buildGitHubPrCleaningProjection } from "./github-pr-cleaning.js";
+import { buildLarkTicketCleaningProjection } from "./lark-ticket-cleaning.js";
 import { buildAuthenticatedLarkClient } from "./lark-auth-client.factory.js";
 import { logger } from "../../logger.js";
+import { isMeegleProductionBugType } from "../../domain/meegle-workitem-types.js";
 import type {
   BulkSyncGitHubPullRequestsRequest,
   BulkSyncLarkBaseTicketsRequest,
   BulkSyncMeegleWorkitemsRequest,
+  SelectedSyncGitHubPullRequestsRequest,
+  SelectedSyncLarkBaseTicketsRequest,
+  SelectedSyncMeegleWorkitemsRequest,
   SyncGitHubPullRequestRequest,
   SyncLarkBaseTicketRequest,
   SyncMeegleWorkitemRequest,
@@ -27,6 +37,7 @@ const INACTIVE_STATUSES = new Set([
 ]);
 const STATUS_FIELD_CANDIDATES = ["Status", "状态", "Ticket Status", "ticket_status"];
 const TITLE_FIELD_CANDIDATES = ["Title", "标题", "名称", "name"];
+const INCREMENTAL_OVERLAP_MS = 5 * 60 * 1000;
 
 type MeegleSyncClient = Pick<MeegleClient, "getWorkitemDetails" | "filterWorkitems"> & {
   getSyncMappings?: (projectKey: string, workitemTypeKeys: string[]) => Promise<MeegleSyncMapping[]>;
@@ -78,7 +89,11 @@ export class PlatformSyncService {
       workItemTypeKey: request.workItemTypeKey,
       workitem: applyMeegleMappings(workitem, mappingIndex),
     });
-    return { synced: 1, workItemId: workitem.id, status: workitem.status };
+    return this.withOptionalMeegleCleaning(
+      request.cleanAfterSync,
+      [{ projectKey: request.projectKey, workItemTypeKey: request.workItemTypeKey, workItemId: workitem.id }],
+      { synced: 1, workItemId: workitem.id, status: workitem.status },
+    );
   }
 
   async bulkSyncMeegleWorkitems(request: BulkSyncMeegleWorkitemsRequest) {
@@ -102,6 +117,7 @@ export class PlatformSyncService {
     await this.syncStore.upsertMeegleMappings(mappings);
     const mappingIndex = new Map(mappings.map((mapping) => [mappingKey(mapping), mapping.displayValue]));
     let synced = 0;
+    const syncedRefs: MeegleWorkitemSyncRef[] = [];
 
     for (const workitem of detailed) {
       await this.syncStore.upsertMeegleWorkitem({
@@ -110,10 +126,91 @@ export class PlatformSyncService {
         workitem: applyMeegleMappings(workitem, mappingIndex),
       });
       synced++;
+      syncedRefs.push({
+        projectKey: request.projectKey,
+        workItemTypeKey: workitem.type,
+        workItemId: workitem.id,
+      });
     }
 
     syncLogger.info({ projectKey: request.projectKey, listed: listed.length, synced }, "MEEGLE_BULK_SYNC_COMPLETED");
-    return { listed: listed.length, skippedInactive: listed.length - active.length, synced };
+    return this.withOptionalMeegleCleaning(
+      request.cleanAfterSync,
+      syncedRefs,
+      { listed: listed.length, skippedInactive: listed.length - active.length, synced },
+    );
+  }
+
+  async incrementalSyncMeegleWorkitems(input: BulkSyncMeegleWorkitemsRequest & { watermarkUpdatedAt: string; watermarkTiebreaker: string }) {
+    const client = await this.getMeegleClient(input.masterUserId, input.projectKey);
+    const threshold = new Date(new Date(input.watermarkUpdatedAt).getTime() - INCREMENTAL_OVERLAP_MS).getTime();
+    if (Number.isNaN(threshold)) throw new Error(`Invalid Meegle checkpoint watermark: ${input.watermarkUpdatedAt}`);
+    const sourceUpdatedAfter = new Date(threshold).toISOString();
+    const listed = await client.filterWorkitems(input.projectKey, {
+      workitemTypeKeys: input.workItemTypeKeys,
+      pageSize: 50,
+      autoPaginate: true,
+      sourceUpdatedAfter,
+      sourceUpdatedAtMqlFieldNames: input.sourceUpdatedAtMqlFieldNames,
+    });
+    if (listed.some((item) => !isValidSourceTimestamp(item.updatedAt))) {
+      throw new Error("Meegle incremental MQL result is missing source_updated_at");
+    }
+    const detailed = await this.getDetailedMeegleWorkitems(client, input.projectKey, listed);
+    if (detailed.some((item) => !isValidSourceTimestamp(item.updatedAt))) {
+      throw new Error("Meegle incremental batch detail is missing source_updated_at");
+    }
+    const changed = detailed.filter((item) => new Date(item.updatedAt!).getTime() >= threshold);
+    const configuredTypes = input.workItemTypeKeys ?? [];
+    const metadataMappings = client.getSyncMappings
+      ? await client.getSyncMappings(input.projectKey, configuredTypes)
+      : [];
+    await this.syncStore.upsertMeegleMappings(metadataMappings);
+    const mappings = mergeMeegleMappings([
+      ...metadataMappings,
+      ...changed.flatMap((workitem) => getWorkitemMappings(input.projectKey, workitem)),
+    ]);
+    await this.syncStore.upsertMeegleMappings(mappings);
+    const mappingIndex = new Map(mappings.map((mapping) => [mappingKey(mapping), mapping.displayValue]));
+    const syncedRefs: MeegleWorkitemSyncRef[] = [];
+    for (const item of changed) {
+      await this.syncStore.upsertMeegleWorkitem({
+        projectKey: input.projectKey,
+        workItemTypeKey: item.type,
+        workitem: applyMeegleMappings(item, mappingIndex),
+      });
+      syncedRefs.push({ projectKey: input.projectKey, workItemTypeKey: item.type, workItemId: item.id });
+    }
+    const latest = latestWatermark(changed.map((item) => ({ updatedAt: item.updatedAt, tiebreaker: `${item.type}:${item.id}` })), input);
+    return this.withOptionalMeegleCleaning(input.cleanAfterSync, syncedRefs, {
+      listed: listed.length,
+      skippedInactive: 0,
+      synced: changed.length,
+      watermarkUpdatedAt: latest.updatedAt,
+      watermarkTiebreaker: latest.tiebreaker,
+    });
+  }
+
+  async selectedSyncMeegleWorkitems(request: SelectedSyncMeegleWorkitemsRequest) {
+    for (const workitem of request.workitems) {
+      await this.syncMeegleWorkitem({
+        masterUserId: request.masterUserId,
+        projectKey: request.projectKey,
+        workItemTypeKey: workitem.workItemTypeKey,
+        workItemId: workitem.workItemId,
+        actionRunId: request.actionRunId,
+      });
+    }
+    const refs = request.workitems.map((workitem) => ({
+      projectKey: request.projectKey,
+      workItemTypeKey: workitem.workItemTypeKey,
+      workItemId: workitem.workItemId,
+    }));
+    return this.withOptionalMeegleCleaning(
+      request.cleanAfterSync,
+      refs,
+      { selected: request.workitems.length, synced: request.workitems.length },
+    );
   }
 
   async syncGitHubPullRequest(request: SyncGitHubPullRequestRequest) {
@@ -124,13 +221,18 @@ export class PlatformSyncService {
       repo: request.repo,
       pullRequest,
     });
-    return { synced: 1, pullNumber: pullRequest.number, state: pullRequest.state };
+    return this.withOptionalGitHubCleaning(
+      request.cleanAfterSync,
+      [{ owner: request.owner, repo: request.repo, pullNumber: pullRequest.number }],
+      { synced: 1, pullNumber: pullRequest.number, state: pullRequest.state },
+    );
   }
 
   async bulkSyncGitHubPullRequests(request: BulkSyncGitHubPullRequestsRequest) {
     const client = this.getGitHubClient();
     let listed = 0;
     let synced = 0;
+    const syncedRefs: GitHubPullRequestSyncRef[] = [];
 
     for (const repository of request.repositories) {
       const pullRequests = await client.listOpenPullRequests(repository.owner, repository.repo);
@@ -153,22 +255,46 @@ export class PlatformSyncService {
           pullRequest,
         });
         synced++;
+        syncedRefs.push({
+          owner: repository.owner,
+          repo: repository.repo,
+          pullNumber: pullRequest.number,
+        });
       }
     }
 
     syncLogger.info({ repositories: request.repositories.length, listed, synced }, "GITHUB_BULK_SYNC_COMPLETED");
-    return { listed, skippedInactive: listed - synced, synced };
+    return this.withOptionalGitHubCleaning(
+      request.cleanAfterSync,
+      syncedRefs,
+      { listed, skippedInactive: listed - synced, synced },
+    );
+  }
+
+  async selectedSyncGitHubPullRequests(request: SelectedSyncGitHubPullRequestsRequest) {
+    for (const pullRequest of request.pullRequests) {
+      await this.syncGitHubPullRequest({ ...pullRequest, actionRunId: request.actionRunId });
+    }
+    return this.withOptionalGitHubCleaning(
+      request.cleanAfterSync,
+      request.pullRequests,
+      { selected: request.pullRequests.length, synced: request.pullRequests.length },
+    );
   }
 
   async syncLarkBaseTicket(request: SyncLarkBaseTicketRequest) {
     const client = await this.getLarkClient(request.masterUserId, request.larkBaseUrl);
     const record = await client.getRecord(request.baseId, request.tableId, request.recordId);
     await this.upsertLarkBaseTicket(request, record);
-    return {
+    return this.withOptionalLarkCleaning(request.cleanAfterSync, [{
+      baseId: request.baseId,
+      tableId: request.tableId,
+      recordId: record.record_id,
+    }], {
       synced: 1,
       recordId: record.record_id,
       status: getRecordFieldText(record, request.statusFieldName, STATUS_FIELD_CANDIDATES),
-    };
+    });
   }
 
   async bulkSyncLarkBaseTickets(request: BulkSyncLarkBaseTicketsRequest) {
@@ -177,6 +303,7 @@ export class PlatformSyncService {
     let listed = 0;
     let skippedInactive = 0;
     let synced = 0;
+    const syncedRefs: LarkBaseTicketSyncRef[] = [];
 
     do {
       const page = await client.listRecords(request.baseId, request.tableId, {
@@ -192,12 +319,182 @@ export class PlatformSyncService {
         }
         await this.upsertLarkBaseTicket(request, record);
         synced++;
+        syncedRefs.push({ baseId: request.baseId, tableId: request.tableId, recordId: record.record_id });
       }
       pageToken = page.hasMore ? page.nextPageToken : undefined;
     } while (pageToken);
 
     syncLogger.info({ baseId: request.baseId, tableId: request.tableId, listed, synced }, "LARK_BASE_BULK_SYNC_COMPLETED");
-    return { listed, skippedInactive, synced };
+    return this.withOptionalLarkCleaning(
+      request.cleanAfterSync,
+      syncedRefs,
+      { listed, skippedInactive, synced },
+    );
+  }
+
+  async incrementalSyncLarkBaseTickets(input: BulkSyncLarkBaseTicketsRequest & { watermarkUpdatedAt: string; watermarkTiebreaker: string }) {
+    const client = await this.getLarkClient(input.masterUserId, input.larkBaseUrl);
+    const records: LarkBitableRecord[] = [];
+    const threshold = new Date(new Date(input.watermarkUpdatedAt).getTime() - INCREMENTAL_OVERLAP_MS).getTime();
+    if (Number.isNaN(threshold)) throw new Error(`Invalid Lark checkpoint watermark: ${input.watermarkUpdatedAt}`);
+    if (!input.sourceUpdatedAtFieldName) {
+      throw new Error("Lark incremental sync requires sourceUpdatedAtFieldName (a Bitable last-modified-time field)");
+    }
+    const filter = buildLarkUpdatedSinceFilter(input.sourceUpdatedAtFieldName, threshold);
+    let pageToken: string | undefined;
+    do {
+      const page = await client.listRecords(input.baseId, input.tableId, {
+        pageSize: 100,
+        pageToken,
+        filter,
+        automaticFields: true,
+      });
+      records.push(...page.records);
+      pageToken = page.hasMore ? page.nextPageToken : undefined;
+    } while (pageToken);
+    if (records.some((record) => !record.updated_time || Number.isNaN(new Date(record.updated_time).getTime()))) throw new Error("Lark incremental record is missing updated_time");
+    const changed = records.filter((record) => new Date(record.updated_time!).getTime() >= threshold);
+    const syncedRefs: LarkBaseTicketSyncRef[] = [];
+    for (const record of changed) {
+      await this.syncLarkBaseTicket({
+      masterUserId: input.masterUserId, larkBaseUrl: input.larkBaseUrl, baseId: input.baseId, tableId: input.tableId, recordId: record.record_id,
+      titleFieldName: input.titleFieldName, statusFieldName: input.statusFieldName, cleanAfterSync: false,
+      });
+      syncedRefs.push({ baseId: input.baseId, tableId: input.tableId, recordId: record.record_id });
+    }
+    const latest = latestWatermark(records.map((record) => ({ updatedAt: record.updated_time, tiebreaker: record.record_id })), input);
+    return this.withOptionalLarkCleaning(input.cleanAfterSync, syncedRefs, {
+      listed: records.length,
+      skippedInactive: 0,
+      synced: changed.length,
+      watermarkUpdatedAt: latest.updatedAt,
+      watermarkTiebreaker: latest.tiebreaker,
+    });
+  }
+
+  async selectedSyncLarkBaseTickets(request: SelectedSyncLarkBaseTicketsRequest) {
+    for (const recordId of request.recordIds) {
+      await this.syncLarkBaseTicket({
+        masterUserId: request.masterUserId,
+        larkBaseUrl: request.larkBaseUrl,
+        baseId: request.baseId,
+        tableId: request.tableId,
+        recordId,
+        titleFieldName: request.titleFieldName,
+        statusFieldName: request.statusFieldName,
+        actionRunId: request.actionRunId,
+      });
+    }
+    const refs = request.recordIds.map((recordId) => ({
+      baseId: request.baseId,
+      tableId: request.tableId,
+      recordId,
+    }));
+    return this.withOptionalLarkCleaning(
+      request.cleanAfterSync,
+      refs,
+      { selected: request.recordIds.length, synced: request.recordIds.length },
+    );
+  }
+
+  async cleanMeegleWorkitems(refs: MeegleWorkitemSyncRef[]): Promise<number> {
+    const snapshots = await this.syncStore.getMeegleWorkitemsForCleaning(refs);
+    return this.cleanSnapshots("meegle", snapshots, (snapshot) => (
+      `${snapshot.projectKey}/${snapshot.workItemTypeKey}/${snapshot.workItemId}`
+    ), async (snapshot) => {
+      const relations = snapshot.sourcePayload ? extractMeegleCleaningRelations(snapshot.sourcePayload) : {};
+      return this.syncStore.applyMeegleWorkitemCleaning({
+        projectKey: snapshot.projectKey,
+        workItemTypeKey: snapshot.workItemTypeKey,
+        workItemId: snapshot.workItemId,
+        sprint: typeof relations.sprint === "string" ? relations.sprint : snapshot.sprint,
+        version: typeof relations.version === "string" ? relations.version : snapshot.version,
+        system: typeof relations.system === "string" ? relations.system : snapshot.system,
+        bugs: Array.isArray(relations.bugs) ? relations.bugs : snapshot.bugs ?? [],
+      });
+    });
+  }
+
+  async cleanGitHubPullRequests(refs: GitHubPullRequestSyncRef[]): Promise<number> {
+    const snapshots = await this.syncStore.getGitHubPullRequestsForCleaning(refs);
+    return this.cleanSnapshots("github", snapshots, (snapshot) => (
+      `${snapshot.owner}/${snapshot.repo}#${snapshot.pullNumber}`
+    ), async (snapshot) => {
+      const pullRequest = buildGitHubPrCleaningProjection(snapshot.sourcePayload, snapshot.authorLogin);
+      return this.syncStore.applyGitHubPullRequestCleaning({
+        owner: snapshot.owner,
+        repo: snapshot.repo,
+        pullNumber: snapshot.pullNumber,
+        author: pullRequest.author,
+        mergedBy: pullRequest.mergedBy,
+        reviewers: pullRequest.reviewers,
+        labels: pullRequest.labels,
+        createdAt: pullRequest.createdAt,
+      });
+    });
+  }
+
+  async cleanLarkBaseTickets(refs: LarkBaseTicketSyncRef[]): Promise<number> {
+    const snapshots = await this.syncStore.getLarkBaseTicketsForCleaning(refs);
+    return this.cleanSnapshots("lark", snapshots, (snapshot) => (
+      `${snapshot.baseId}/${snapshot.tableId}/${snapshot.recordId}`
+    ), async (snapshot) => {
+      const ticket = buildLarkTicketCleaningProjection(snapshot.sourceFields, snapshot.createdTime);
+      return this.syncStore.applyLarkBaseTicketCleaning({
+        baseId: snapshot.baseId,
+        tableId: snapshot.tableId,
+        recordId: snapshot.recordId,
+        ...ticket,
+      });
+    });
+  }
+
+  private async cleanSnapshots<T>(
+    platform: "meegle" | "github" | "lark",
+    snapshots: T[],
+    reference: (snapshot: T) => string,
+    clean: (snapshot: T) => Promise<boolean>,
+  ): Promise<number> {
+    let cleaned = 0;
+    const failures: string[] = [];
+    for (const snapshot of snapshots) {
+      const ref = reference(snapshot);
+      try {
+        if (await clean(snapshot)) cleaned++;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        failures.push(`${ref}: ${message}`);
+        syncLogger.warn({ platform, ref, errorMessage: message }, "PLATFORM_SYNC_CLEANING_ITEM_FAILED");
+      }
+    }
+    if (failures.length > 0) {
+      throw new Error(`PLATFORM_SYNC_CLEANING_FAILED:${platform}:${failures.length}/${snapshots.length}:${failures.join("; ")}`);
+    }
+    return cleaned;
+  }
+
+  private async withOptionalMeegleCleaning<T extends object>(
+    cleanAfterSync: boolean | undefined,
+    refs: MeegleWorkitemSyncRef[],
+    result: T,
+  ): Promise<T | (T & { cleaned: number })> {
+    return cleanAfterSync ? { ...result, cleaned: await this.cleanMeegleWorkitems(refs) } : result;
+  }
+
+  private async withOptionalGitHubCleaning<T extends object>(
+    cleanAfterSync: boolean | undefined,
+    refs: GitHubPullRequestSyncRef[],
+    result: T,
+  ): Promise<T | (T & { cleaned: number })> {
+    return cleanAfterSync ? { ...result, cleaned: await this.cleanGitHubPullRequests(refs) } : result;
+  }
+
+  private async withOptionalLarkCleaning<T extends object>(
+    cleanAfterSync: boolean | undefined,
+    refs: LarkBaseTicketSyncRef[],
+    result: T,
+  ): Promise<T | (T & { cleaned: number })> {
+    return cleanAfterSync ? { ...result, cleaned: await this.cleanLarkBaseTickets(refs) } : result;
   }
 
   private async getMeegleClient(masterUserId: string, projectKey: string): Promise<MeegleSyncClient> {
@@ -238,7 +535,15 @@ export class PlatformSyncService {
         }
       }
     }
-    return workitems.map((workitem) => byId.get(workitem.id) ?? workitem);
+    return workitems.map((candidate) => {
+      const detailed = byId.get(candidate.id) ?? candidate;
+      if (detailed.updatedAt || isMeegleProductionBugType(detailed.type)) {
+        return detailed;
+      }
+      // +batch-get omits updated_at for normal types; retain the MQL value that
+      // selected this exact candidate. Production Bug must use detail update_time.
+      return { ...detailed, updatedAt: candidate.updatedAt };
+    });
   }
 
   private get syncStore(): PlatformSyncStore {
@@ -280,6 +585,35 @@ export class PlatformSyncService {
       status: getRecordFieldText(record, request.statusFieldName, STATUS_FIELD_CANDIDATES) || undefined,
     });
   }
+}
+
+function latestWatermark(
+  entries: Array<{ updatedAt?: string; tiebreaker: string }>,
+  current: { watermarkUpdatedAt: string; watermarkTiebreaker: string },
+): { updatedAt: string; tiebreaker: string } {
+  let latest = { updatedAt: current.watermarkUpdatedAt, tiebreaker: current.watermarkTiebreaker };
+  for (const entry of entries) {
+    if (!entry.updatedAt) continue;
+    const compare = new Date(entry.updatedAt).getTime() - new Date(latest.updatedAt).getTime()
+      || entry.tiebreaker.localeCompare(latest.tiebreaker);
+    if (compare > 0) latest = { updatedAt: entry.updatedAt, tiebreaker: entry.tiebreaker };
+  }
+  return latest;
+}
+
+function isValidSourceTimestamp(value: string | undefined): value is string {
+  return !!value && !Number.isNaN(new Date(value).getTime());
+}
+
+export function buildLarkUpdatedSinceFilter(sourceUpdatedAtFieldName: string, threshold: number): string {
+  if (!sourceUpdatedAtFieldName.trim() || /[\[\]]/.test(sourceUpdatedAtFieldName)) {
+    throw new Error("Invalid Lark sourceUpdatedAtFieldName");
+  }
+  const date = new Date(threshold);
+  if (Number.isNaN(date.getTime())) throw new Error("Invalid Lark incremental threshold");
+  // Lark record filters use formula syntax. TODATE keeps the comparison in the
+  // Bitable date domain instead of comparing its rendered string value.
+  return `CurrentValue.[${sourceUpdatedAtFieldName}] >= TODATE(\"${date.toISOString()}\")`;
 }
 
 function getWorkitemMappings(projectKey: string, workitem: MeegleWorkitem): MeegleSyncMapping[] {

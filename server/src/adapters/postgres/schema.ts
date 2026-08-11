@@ -144,10 +144,14 @@ export interface DatabaseSchema {
     merged_at: string | null;
     html_url: string;
     author_login: string | null;
+    merged_by_login: string | null;
     head_ref: string | null;
     base_ref: string | null;
     is_draft: boolean;
     meegle_ids: string;
+    reviewers_json: string | null;
+    labels_json: string | null;
+    created_at: string | null;
     payload_json: string;
     source_updated_at: string | null;
     synced_at: string;
@@ -163,5 +167,46 @@ export interface DatabaseSchema {
     created_time: string | null;
     source_updated_at: string | null;
     synced_at: string;
+    ticket_number: string | null;
+    issue_type: string | null;
+    responsible: string | null;
+    priority: string | null;
+    detail_description: string | null;
+    meegle_link: string | null;
+    lark_message_link: string | null;
+  };
+  meegle_workitem_octo: {
+    project_key: string;
+    work_item_type_key: string;
+    work_item_id: string;
+    local_json: string;
+    created_at: string | null;
+    updated_at: string | null;
+  };
+  github_pr_octo: {
+    owner: string;
+    repo: string;
+    pull_number: number;
+    local_json: string;
+    created_at: string | null;
+    updated_at: string | null;
+  };
+  lark_base_ticket_octo: {
+    base_id: string;
+    table_id: string;
+    record_id: string;
+    local_json: string;
+    created_at: string | null;
+    updated_at: string | null;
+  };
+  platform_sync_checkpoints: {
+    platform: "meegle" | "github" | "lark";
+    scope_key: string;
+    watermark_updated_at: string | null;
+    watermark_tiebreaker: string | null;
+    last_success_at: string | null;
+    last_error: string | null;
+    created_at: string;
+    updated_at: string;
   };
 }

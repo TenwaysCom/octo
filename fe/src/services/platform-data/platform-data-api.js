@@ -151,6 +151,9 @@ function parseSyncedGitHubPullRequest(value) {
     || typeof value.isDraft !== "boolean"
     || typeof value.syncedAt !== "string"
     || (value.authorLogin !== undefined && typeof value.authorLogin !== "string")
+    || (value.mergedBy !== undefined && typeof value.mergedBy !== "string")
+    || (value.reviewers !== undefined && (!Array.isArray(value.reviewers) || value.reviewers.some((reviewer) => typeof reviewer !== "string")))
+    || (value.labels !== undefined && (!Array.isArray(value.labels) || value.labels.some((label) => typeof label !== "string")))
     || (value.headRef !== undefined && typeof value.headRef !== "string")
     || (value.baseRef !== undefined && typeof value.baseRef !== "string")
     || (value.sourceUpdatedAt !== undefined && typeof value.sourceUpdatedAt !== "string")
@@ -169,6 +172,9 @@ function parseSyncedGitHubPullRequest(value) {
     isDraft: value.isDraft,
     syncedAt: value.syncedAt,
     ...(value.authorLogin === undefined ? {} : { authorLogin: value.authorLogin }),
+    ...(value.mergedBy === undefined ? {} : { mergedBy: value.mergedBy }),
+    ...(value.reviewers === undefined ? {} : { reviewers: value.reviewers }),
+    ...(value.labels === undefined ? {} : { labels: value.labels }),
     ...(value.headRef === undefined ? {} : { headRef: value.headRef }),
     ...(value.baseRef === undefined ? {} : { baseRef: value.baseRef }),
     ...(value.sourceUpdatedAt === undefined ? {} : { sourceUpdatedAt: value.sourceUpdatedAt }),

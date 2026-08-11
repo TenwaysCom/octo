@@ -8,6 +8,7 @@
 
 import * as lark from "@larksuiteoapi/node-sdk";
 import { logger } from "../../logger.js";
+import { normalizeLarkTimestamp } from "./lark-timestamp.js";
 
 const clientLogger = logger.child({ module: "lark-client" });
 
@@ -20,6 +21,17 @@ export interface LarkBitableRecord {
   updated_time?: string;
   shared_url?: string;
 }
+
+type LarkRawBitableRecord = {
+  record_id?: string;
+  fields?: Record<string, unknown>;
+  created_time?: unknown;
+  /** Bitable's canonical record modification time. */
+  last_modified_time?: unknown;
+  /** Legacy compatibility for existing mocked/older responses. */
+  updated_time?: unknown;
+  shared_url?: string;
+};
 
 export interface LarkBitableTable {
   table_id: string;
@@ -245,14 +257,10 @@ export class LarkClient {
    */
   async getRecord(baseId: string, tableId: string, recordId: string): Promise<LarkBitableRecord> {
     const data = await this.request<{
-      record?: {
-        record_id: string;
-        fields: Record<string, unknown>;
-        created_time?: string;
-        updated_time?: string;
-        shared_url?: string;
-      };
-    }>("GET", `/open-apis/bitable/v1/apps/${baseId}/tables/${tableId}/records/${recordId}`);
+      record?: LarkRawBitableRecord;
+    }>("GET", `/open-apis/bitable/v1/apps/${baseId}/tables/${tableId}/records/${recordId}`, undefined, {
+      automatic_fields: true,
+    });
 
     clientLogger.debug({ baseId, tableId, recordId }, "GET_RECORD raw response");
 
@@ -271,18 +279,14 @@ export class LarkClient {
       pageToken?: string;
       filter?: string;
       sort?: string;
+      /** Include Bitable's created_time and last_modified_time system fields. */
+      automaticFields?: boolean;
     },
   ): Promise<{ records: LarkBitableRecord[]; hasMore: boolean; nextPageToken?: string }> {
     const { pageNum = 1, pageSize = 50 } = options || {};
 
     const data = await this.request<{
-      items: Array<{
-        record_id: string;
-        fields: Record<string, unknown>;
-        created_time?: string;
-        updated_time?: string;
-        shared_url?: string;
-      }>;
+      items: LarkRawBitableRecord[];
       has_more: boolean;
       page_token?: string;
     }>("GET", `/open-apis/bitable/v1/apps/${baseId}/tables/${tableId}/records`, undefined, {
@@ -291,6 +295,7 @@ export class LarkClient {
       page_token: options?.pageToken,
       filter: options?.filter,
       sort: options?.sort,
+      automatic_fields: options?.automaticFields ? true : undefined,
     });
 
     const records = (data.items || []).map((item) => this.mapRecord(item));
@@ -315,13 +320,7 @@ export class LarkClient {
     },
   ): Promise<{ records: LarkBitableRecord[]; hasMore: boolean; nextPageToken?: string }> {
     const data = await this.request<{
-      items: Array<{
-        record_id: string;
-        fields: Record<string, unknown>;
-        created_time?: string;
-        updated_time?: string;
-        shared_url?: string;
-      }>;
+      items: LarkRawBitableRecord[];
       has_more: boolean;
       page_token?: string;
     }>("GET", `/open-apis/bitable/v1/apps/${baseId}/tables/${tableId}/records`, undefined, {
@@ -429,13 +428,7 @@ export class LarkClient {
     options?: BatchGetRecordsOptions,
   ): Promise<BatchGetRecordsResult> {
     const data = await this.request<{
-      records?: Array<{
-        record_id: string;
-        fields: Record<string, unknown>;
-        created_time?: string;
-        updated_time?: string;
-        shared_url?: string;
-      }>;
+      records?: LarkRawBitableRecord[];
       forbidden_record_ids?: string[];
       absent_record_ids?: string[];
     }>(
@@ -610,20 +603,14 @@ export class LarkClient {
   }
 
   private mapRecord(
-    record?: {
-      record_id?: string;
-      fields?: Record<string, unknown>;
-      created_time?: string;
-      updated_time?: string;
-      shared_url?: string;
-    },
+    record?: LarkRawBitableRecord,
     fallbackRecordId = "",
   ): LarkBitableRecord {
     return {
       record_id: record?.record_id || fallbackRecordId,
       fields: record?.fields || {},
-      created_time: record?.created_time,
-      updated_time: record?.updated_time,
+      created_time: normalizeLarkTimestamp(record?.created_time),
+      updated_time: normalizeLarkTimestamp(record?.last_modified_time ?? record?.updated_time),
       shared_url: record?.shared_url,
     };
   }

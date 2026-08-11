@@ -8,6 +8,9 @@ import {
   bulkSyncGitHubPullRequestsSchema,
   bulkSyncLarkBaseTicketsSchema,
   bulkSyncMeegleWorkitemsSchema,
+  selectedSyncGitHubPullRequestsSchema,
+  selectedSyncLarkBaseTicketsSchema,
+  selectedSyncMeegleWorkitemsSchema,
   syncGitHubPullRequestSchema,
   syncLarkBaseTicketSchema,
   syncMeegleWorkitemSchema,
@@ -36,6 +39,10 @@ export function bulkSyncMeegleWorkitemsController(input: unknown) {
   return execute(input, () => service.bulkSyncMeegleWorkitems(bulkSyncMeegleWorkitemsSchema.parse(input)));
 }
 
+export function selectedSyncMeegleWorkitemsController(input: unknown) {
+  return execute(input, () => service.selectedSyncMeegleWorkitems(selectedSyncMeegleWorkitemsSchema.parse(input)));
+}
+
 export function syncGitHubPullRequestController(input: unknown) {
   return execute(input, () => service.syncGitHubPullRequest(syncGitHubPullRequestSchema.parse(input)));
 }
@@ -44,10 +51,18 @@ export function bulkSyncGitHubPullRequestsController(input: unknown) {
   return execute(input, () => service.bulkSyncGitHubPullRequests(bulkSyncGitHubPullRequestsSchema.parse(input)));
 }
 
+export function selectedSyncGitHubPullRequestsController(input: unknown) {
+  return execute(input, () => service.selectedSyncGitHubPullRequests(selectedSyncGitHubPullRequestsSchema.parse(input)));
+}
+
 export function syncLarkBaseTicketController(input: unknown) {
   return execute(input, () => service.syncLarkBaseTicket(syncLarkBaseTicketSchema.parse(input)));
 }
 
 export function bulkSyncLarkBaseTicketsController(input: unknown) {
   return execute(input, () => service.bulkSyncLarkBaseTickets(bulkSyncLarkBaseTicketsSchema.parse(input)));
+}
+
+export function selectedSyncLarkBaseTicketsController(input: unknown) {
+  return execute(input, () => service.selectedSyncLarkBaseTickets(selectedSyncLarkBaseTicketsSchema.parse(input)));
 }

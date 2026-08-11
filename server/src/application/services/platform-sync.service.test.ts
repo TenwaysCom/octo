@@ -2,19 +2,29 @@ import type { GitHubPrDetails } from "../../adapters/github/github-types.js";
 import type { LarkBitableRecord, LarkClient } from "../../adapters/lark/lark-client.js";
 import type { MeegleClient, MeegleSyncMapping, MeegleWorkitem } from "../../adapters/meegle/meegle-client.js";
 import type { PlatformSyncStore } from "../../adapters/postgres/platform-sync-store.js";
-import { PlatformSyncService, isInactiveSyncStatus } from "./platform-sync.service.js";
+import { buildLarkUpdatedSinceFilter, PlatformSyncService, isInactiveSyncStatus } from "./platform-sync.service.js";
 
 function createStore(): PlatformSyncStore & {
   meegle: Array<{ workitem: MeegleWorkitem }>;
   meegleMappings: MeegleSyncMapping[];
   github: Array<{ pullRequest: GitHubPrDetails }>;
   lark: Array<{ record: LarkBitableRecord; title: string; status?: string }>;
+  cleanedMeegle: string[];
+  cleanedGitHub: string[];
+  githubCleaning: Array<{ pullNumber: number; mergedBy?: string; reviewers: string[]; labels: string[]; createdAt?: string }>;
+  cleanedLark: string[];
+  larkCleaning: Array<{ recordId: string; detailDescription?: string; meegleLink?: string; larkMessageLink?: string }>;
 } {
   const store = {
     meegle: [] as Array<{ workitem: MeegleWorkitem }>,
     meegleMappings: [] as MeegleSyncMapping[],
     github: [] as Array<{ pullRequest: GitHubPrDetails }>,
     lark: [] as Array<{ record: LarkBitableRecord; title: string; status?: string }>,
+    cleanedMeegle: [] as string[],
+    cleanedGitHub: [] as string[],
+    githubCleaning: [] as Array<{ pullNumber: number; mergedBy?: string; reviewers: string[]; labels: string[]; createdAt?: string }>,
+    cleanedLark: [] as string[],
+    larkCleaning: [] as Array<{ recordId: string; detailDescription?: string; meegleLink?: string; larkMessageLink?: string }>,
     async upsertMeegleWorkitem(input: { projectKey: string; workItemTypeKey: string; workitem: MeegleWorkitem }) {
       store.meegle.push({ workitem: input.workitem });
     },
@@ -32,6 +42,47 @@ function createStore(): PlatformSyncStore & {
       status?: string;
     }) {
       store.lark.push({ record: input.record, title: input.title, status: input.status });
+    },
+    async getMeegleWorkitemsForCleaning(refs: Array<{ workItemId: string }>) {
+      return store.meegle
+        .filter(({ workitem }) => refs.some((ref) => ref.workItemId === workitem.id))
+        .map(({ workitem }) => ({
+          projectKey: "project", workItemTypeKey: workitem.type, workItemId: workitem.id,
+          title: workitem.name, workItemType: workitem.workItemType, status: workitem.status,
+          subStage: workitem.subStage, assignee: workitem.assignee, syncedAt: "2026-08-11T00:00:00Z",
+        }));
+    },
+    async getGitHubPullRequestsForCleaning(refs: Array<{ pullNumber: number }>) {
+      return store.github
+        .filter(({ pullRequest }) => refs.some((ref) => ref.pullNumber === pullRequest.number))
+        .map(({ pullRequest }) => ({
+          owner: "acme", repo: "app", pullNumber: pullRequest.number, title: pullRequest.title,
+          state: pullRequest.state, htmlUrl: pullRequest.html_url, isDraft: pullRequest.draft ?? false,
+          meegleIds: [], sourcePayload: pullRequest, syncedAt: "2026-08-11T00:00:00Z",
+        }));
+    },
+    async getLarkBaseTicketsForCleaning(refs: Array<{ recordId: string }>) {
+      return store.lark
+        .filter(({ record }) => refs.some((ref) => ref.recordId === record.record_id))
+        .map(({ record, title, status }) => ({
+          baseId: "base", tableId: "table", recordId: record.record_id, title,
+          ticketStatus: status, createdTime: record.created_time, sourceFields: record.fields,
+          syncedAt: "2026-08-11T00:00:00Z",
+        }));
+    },
+    async applyMeegleWorkitemCleaning(input: { workItemId: string }) {
+      store.cleanedMeegle.push(input.workItemId);
+      return true;
+    },
+    async applyGitHubPullRequestCleaning(input: { pullNumber: number; mergedBy?: string; reviewers: string[]; labels: string[]; createdAt?: string }) {
+      store.cleanedGitHub.push(String(input.pullNumber));
+      store.githubCleaning.push(input);
+      return true;
+    },
+    async applyLarkBaseTicketCleaning(input: { recordId: string; detailDescription?: string; meegleLink?: string; larkMessageLink?: string }) {
+      store.cleanedLark.push(input.recordId);
+      store.larkCleaning.push(input);
+      return true;
     },
     async listMeegleWorkitems() { return []; },
     async listMeegleSprints() { return []; },
@@ -68,6 +119,66 @@ describe("PlatformSyncService", () => {
     expect(store.meegle[0].workitem.status).toBe("Finished");
   });
 
+  it("cleans Meegle snapshots into the Octo projection only when requested", async () => {
+    const store = createStore();
+    const client = {
+      getWorkitemDetails: vi.fn().mockResolvedValue([workitem("1", "In Progress")]),
+    } as unknown as MeegleClient;
+    const service = new PlatformSyncService({ store, createMeegleClient: async () => client });
+
+    await expect(service.syncMeegleWorkitem({
+      masterUserId: "user-1",
+      projectKey: "project",
+      workItemTypeKey: "story",
+      workItemId: "1",
+      cleanAfterSync: true,
+    })).resolves.toMatchObject({ synced: 1, cleaned: 1 });
+    expect(store.cleanedMeegle).toEqual(["1"]);
+  });
+
+  it("cleans later snapshot objects after a cleaning failure, then reports the failed references", async () => {
+    const store = createStore();
+    store.meegle.push({ workitem: workitem("1", "In Progress") }, { workitem: workitem("2", "In Progress") });
+    store.github.push({ pullRequest: {
+      number: 1, title: "First", html_url: "https://github.com/acme/app/pull/1", state: "open", merged_at: null, draft: false,
+    } as GitHubPrDetails }, { pullRequest: {
+      number: 2, title: "Second", html_url: "https://github.com/acme/app/pull/2", state: "open", merged_at: null, draft: false,
+    } as GitHubPrDetails });
+    store.lark.push({ record: { record_id: "rec-1", fields: {} }, title: "First" }, { record: { record_id: "rec-2", fields: {} }, title: "Second" });
+    vi.spyOn(store, "applyMeegleWorkitemCleaning").mockImplementation(async ({ workItemId }) => {
+      if (workItemId === "1") throw new Error("Meegle cleaning failed");
+      store.cleanedMeegle.push(workItemId);
+      return true;
+    });
+    vi.spyOn(store, "applyGitHubPullRequestCleaning").mockImplementation(async ({ pullNumber }) => {
+      if (pullNumber === 1) throw new Error("GitHub cleaning failed");
+      store.cleanedGitHub.push(String(pullNumber));
+      return true;
+    });
+    vi.spyOn(store, "applyLarkBaseTicketCleaning").mockImplementation(async ({ recordId }) => {
+      if (recordId === "rec-1") throw new Error("Lark cleaning failed");
+      store.cleanedLark.push(recordId);
+      return true;
+    });
+    const service = new PlatformSyncService({ store });
+
+    await expect(service.cleanMeegleWorkitems([
+      { projectKey: "project", workItemTypeKey: "story", workItemId: "1" },
+      { projectKey: "project", workItemTypeKey: "story", workItemId: "2" },
+    ])).rejects.toThrow("PLATFORM_SYNC_CLEANING_FAILED:meegle:1/2");
+    await expect(service.cleanGitHubPullRequests([
+      { owner: "acme", repo: "app", pullNumber: 1 },
+      { owner: "acme", repo: "app", pullNumber: 2 },
+    ])).rejects.toThrow("PLATFORM_SYNC_CLEANING_FAILED:github:1/2");
+    await expect(service.cleanLarkBaseTickets([
+      { baseId: "base", tableId: "table", recordId: "rec-1" },
+      { baseId: "base", tableId: "table", recordId: "rec-2" },
+    ])).rejects.toThrow("PLATFORM_SYNC_CLEANING_FAILED:lark:1/2");
+    expect(store.cleanedMeegle).toEqual(["2"]);
+    expect(store.cleanedGitHub).toEqual(["2"]);
+    expect(store.cleanedLark).toEqual(["rec-2"]);
+  });
+
   it("skips inactive Meegle items during a bulk sync", async () => {
     const store = createStore();
     const client = {
@@ -86,6 +197,44 @@ describe("PlatformSyncService", () => {
       masterUserId: "user-1",
       projectKey: "project",
     })).resolves.toEqual({ listed: 2, skippedInactive: 1, synced: 1 });
+    expect(store.meegle).toHaveLength(1);
+  });
+
+  it("uses MQL source-time candidates then batch details to sync Meegle incrementally", async () => {
+    const store = createStore();
+    const candidate = {
+      ...workitem("1", "Finished"),
+      updatedAt: "2026-08-11T00:01:00.000Z",
+    };
+    const detailed = { ...candidate, updatedAt: undefined };
+    const client = {
+      filterWorkitems: vi.fn().mockResolvedValue([candidate]),
+      getWorkitemDetails: vi.fn().mockResolvedValue([detailed]),
+      getSyncMappings: vi.fn().mockResolvedValue([]),
+    } as unknown as MeegleClient;
+    const service = new PlatformSyncService({ store, createMeegleClient: async () => client });
+
+    await expect(service.incrementalSyncMeegleWorkitems({
+      masterUserId: "user-1",
+      projectKey: "project",
+      workItemTypeKeys: ["story"],
+      sourceUpdatedAtMqlFieldNames: { story: "updated_at" },
+      watermarkUpdatedAt: "2026-08-11T00:00:00.000Z",
+      watermarkTiebreaker: "story:0",
+    })).resolves.toMatchObject({
+      listed: 1,
+      synced: 1,
+      watermarkUpdatedAt: "2026-08-11T00:01:00.000Z",
+    });
+
+    expect(client.filterWorkitems).toHaveBeenCalledWith("project", {
+      workitemTypeKeys: ["story"],
+      pageSize: 50,
+      autoPaginate: true,
+      sourceUpdatedAfter: "2026-08-10T23:55:00.000Z",
+      sourceUpdatedAtMqlFieldNames: { story: "updated_at" },
+    });
+    expect(client.getWorkitemDetails).toHaveBeenCalledWith("project", "story", ["1"]);
     expect(store.meegle).toHaveLength(1);
   });
 
@@ -177,6 +326,41 @@ describe("PlatformSyncService", () => {
     expect(client.getPullRequest).toHaveBeenCalledWith("acme", "app", 12);
   });
 
+  it("cleans GitHub author, merger, requested reviewers, labels, and creation time into its Octo projection", async () => {
+    const store = createStore();
+    const pullRequest = {
+      number: 34,
+      title: "Clean PR metadata",
+      body: null,
+      html_url: "https://github.com/acme/app/pull/34",
+      state: "closed",
+      merged_at: "2026-08-10T07:00:00Z",
+      created_at: "2026-08-01T08:00:00Z",
+      updated_at: "2026-08-10T08:00:00Z",
+      draft: false,
+      user: { login: "author" },
+      merged_by: { login: "merger" },
+      requested_reviewers: [{ login: "reviewer-a" }, { login: "reviewer-b" }, { login: "reviewer-a" }],
+      labels: [{ name: "bug" }, { name: "P1" }, { name: "bug" }],
+    } as GitHubPrDetails;
+    const client = { getPullRequest: vi.fn().mockResolvedValue(pullRequest) } as unknown as import("../../adapters/github/github-client.js").GitHubClient;
+    const service = new PlatformSyncService({ store, createGitHubClient: () => client });
+
+    await expect(service.syncGitHubPullRequest({
+      owner: "acme",
+      repo: "app",
+      pullNumber: 34,
+      cleanAfterSync: true,
+    })).resolves.toMatchObject({ synced: 1, cleaned: 1 });
+
+    expect(store.githubCleaning[0]).toMatchObject({
+      mergedBy: "merger",
+      reviewers: ["reviewer-a", "reviewer-b"],
+      labels: ["bug", "P1"],
+      createdAt: "2026-08-01T08:00:00Z",
+    });
+  });
+
   it("paginates Lark tickets and skips closed records based on the configured status field", async () => {
     const store = createStore();
     const openRecord: LarkBitableRecord = {
@@ -206,6 +390,83 @@ describe("PlatformSyncService", () => {
     })).resolves.toEqual({ listed: 2, skippedInactive: 1, synced: 1 });
     expect(store.lark).toEqual([{ record: openRecord, title: "Open ticket", status: "In Progress" }]);
     expect(client.listRecords).toHaveBeenNthCalledWith(2, "base", "table", { pageSize: 100, pageToken: "next" });
+  });
+
+  it("retrieves Lark incremental candidates with a source-side last-modified filter", async () => {
+    const store = createStore();
+    const record: LarkBitableRecord = {
+      record_id: "rec-changed",
+      fields: { Ticket: "Changed ticket" },
+      updated_time: "2026-08-11T00:01:00.000Z",
+    };
+    const client = {
+      listRecords: vi.fn().mockResolvedValue({ records: [record], hasMore: false }),
+      getRecord: vi.fn().mockResolvedValue(record),
+    } as unknown as LarkClient;
+    const service = new PlatformSyncService({ store, createLarkClient: async () => client });
+
+    await expect(service.incrementalSyncLarkBaseTickets({
+      masterUserId: "user-1",
+      baseId: "base",
+      tableId: "table",
+      sourceUpdatedAtFieldName: "最后更新时间",
+      watermarkUpdatedAt: "2026-08-11T00:00:00.000Z",
+      watermarkTiebreaker: "rec-previous",
+    })).resolves.toMatchObject({ listed: 1, synced: 1 });
+
+    expect(client.listRecords).toHaveBeenCalledWith("base", "table", {
+      pageSize: 100,
+      pageToken: undefined,
+      filter: 'CurrentValue.[最后更新时间] >= TODATE("2026-08-10T23:55:00.000Z")',
+      automaticFields: true,
+    });
+  });
+
+  it("builds a Lark date filter with a configured source updated-at field", () => {
+    expect(buildLarkUpdatedSinceFilter("最后更新时间", Date.parse("2026-08-11T00:00:00.000Z")))
+      .toBe('CurrentValue.[最后更新时间] >= TODATE("2026-08-11T00:00:00.000Z")');
+  });
+
+  it("cleans the requested Lark ticket fields into its Octo projection", async () => {
+    const store = createStore();
+    const record: LarkBitableRecord = {
+      record_id: "rec-1",
+      created_time: "2026-08-01T08:00:00Z",
+      fields: {
+        Ticket: "Sync title",
+        Status: "Open",
+        "Ticket 编号": "SUP-101",
+        "Issue 类型": [{ text: "Production Bug" }],
+        负责人: [{ name: "Ada" }, { name: "Lin" }],
+        优先级: { text: "P0" },
+        紧急度: { text: "P1" },
+        "Details Description": "Investigate https://applink.larksuite.com/client/thread/open?threadid=thread_1&chatid=chat_1",
+        meegle链接: { url: "https://project.meegle.com/acme/story/detail/123" },
+      },
+    };
+    const client = { getRecord: vi.fn().mockResolvedValue(record) } as unknown as LarkClient;
+    const service = new PlatformSyncService({ store, createLarkClient: async () => client });
+
+    await expect(service.syncLarkBaseTicket({
+      masterUserId: "user-1",
+      baseId: "base",
+      tableId: "table",
+      recordId: "rec-1",
+      titleFieldName: "Ticket",
+      statusFieldName: "Status",
+      cleanAfterSync: true,
+    })).resolves.toMatchObject({ synced: 1, cleaned: 1 });
+
+    expect(store.larkCleaning[0]).toMatchObject({
+      ticketNumber: "SUP-101",
+      issueType: "Production Bug",
+      responsible: "Ada, Lin",
+      priority: "P1",
+      createdAt: "2026-08-01T08:00:00Z",
+      detailDescription: expect.stringContaining("threadid=thread_1"),
+      meegleLink: "https://project.meegle.com/acme/story/detail/123",
+      larkMessageLink: expect.stringContaining("threadid=thread_1"),
+    });
   });
 
   it("recognizes the requested terminal statuses", () => {

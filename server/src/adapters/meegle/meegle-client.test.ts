@@ -24,6 +24,38 @@ describe("parseWorkitem", () => {
     expect(result.assignee).toBe("user1");
   });
 
+  it("normalizes the source updated_at into the explicit snapshot version", () => {
+    expect(parseWorkitem({
+      id: "123",
+      name: "Test Item",
+      type: "story",
+      updated_at: 1786020656000,
+    }).updatedAt).toBe("2026-08-06T12:50:56.000Z");
+    expect(parseWorkitem({
+      id: "123",
+      name: "Test Item",
+      type: "story",
+      updated_at: "invalid",
+    }).updatedAt).toBeUndefined();
+  });
+
+  it("uses Production Bug work_item_attribute.update_time instead of root updated_at", () => {
+    expect(parseWorkitem({
+      id: "123",
+      name: "Production Bug",
+      work_item_type_key: "6932e40429d1cd8aac635c82",
+      updated_at: 1786020656000,
+      fields: { work_item_attribute: { update_time: "1785920000000" } },
+    }).updatedAt).toBe("2026-08-05T08:53:20.000Z");
+    expect(parseWorkitem({
+      id: "124",
+      name: "Production Bug",
+      type: "production_bug",
+      updated_at: 1786020656000,
+      fields: { work_item_attribute: { update_time: "1785920000000" } },
+    }).updatedAt).toBe("2026-08-05T08:53:20.000Z");
+  });
+
   it("should extract status from work_item_status.state_key when direct status is empty", () => {
     const result = parseWorkitem({
       id: "123",
