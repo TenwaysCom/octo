@@ -9,7 +9,7 @@ DEV_DATABASE ?= tenways_octo_ly_0509
 
 .DEFAULT_GOAL := help
 
-.PHONY: help completion server-dev make-fe-dev make-fe-build test-server test-client db-backup db-restore db-sync-user-tokens db-sync-test-user-tokens platform-sync platform-clean-meegle ext-dev ext-dev-manual ext-dev-profile ext-dev-probe ext-build ext-package ext-deploy-zip ext-test ext-typecheck deploy-test deploy-prod
+.PHONY: help completion server-dev make-fe-dev make-fe-build test-server test-client db-backup db-restore db-sync-user-tokens db-sync-test-user-tokens platform-sync platform-clean-meegle platform-clean-history platform-init-checkpoints ext-dev ext-dev-manual ext-dev-profile ext-dev-probe ext-build ext-package ext-deploy-zip ext-test ext-typecheck deploy-test deploy-prod
 
 help: ## Show available make targets
 	@awk 'BEGIN {FS = ":.*## "}; /^[a-zA-Z0-9_.-]+:.*## / {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -66,6 +66,20 @@ platform-clean-meegle: ## Validate historical Meegle cleanup (set APPLY=1 to upd
 		pnpm --dir $(SERVER_DIR) platform:clean-meegle --apply; \
 	else \
 		pnpm --dir $(SERVER_DIR) platform:clean-meegle; \
+	fi
+
+platform-clean-history: ## Clean historical GitHub and Lark snapshots into Octo projections (set APPLY=1 to update)
+	@if [ "$(APPLY)" = "1" ]; then \
+		pnpm --dir $(SERVER_DIR) platform:clean-history --apply; \
+	else \
+		pnpm --dir $(SERVER_DIR) platform:clean-history; \
+	fi
+
+platform-init-checkpoints: ## Preview historical snapshot checkpoint initialization (set APPLY=1 to create missing checkpoints)
+	@if [ "$(APPLY)" = "1" ]; then \
+		pnpm --dir $(SERVER_DIR) platform:init-checkpoints --apply; \
+	else \
+		pnpm --dir $(SERVER_DIR) platform:init-checkpoints; \
 	fi
 
 test-client: ## Run extension tests

@@ -61,6 +61,9 @@ import {
   bulkSyncGitHubPullRequestsController,
   bulkSyncLarkBaseTicketsController,
   bulkSyncMeegleWorkitemsController,
+  selectedSyncGitHubPullRequestsController,
+  selectedSyncLarkBaseTicketsController,
+  selectedSyncMeegleWorkitemsController,
   syncGitHubPullRequestController,
   syncLarkBaseTicketController,
   syncMeegleWorkitemController,
@@ -443,10 +446,13 @@ app.post("/api/meegle/workitem/story-prd-to-simplified", handleController(meegle
 
 app.post("/api/sync/meegle/workitem", handleController(syncMeegleWorkitemController));
 app.post("/api/sync/meegle/workitems", handleController(bulkSyncMeegleWorkitemsController));
+app.post("/api/sync/meegle/workitems/selected", handleController(selectedSyncMeegleWorkitemsController));
 app.post("/api/sync/github/pull-request", handleController(syncGitHubPullRequestController));
 app.post("/api/sync/github/pull-requests", handleController(bulkSyncGitHubPullRequestsController));
+app.post("/api/sync/github/pull-requests/selected", handleController(selectedSyncGitHubPullRequestsController));
 app.post("/api/sync/lark-base/ticket", handleController(syncLarkBaseTicketController));
 app.post("/api/sync/lark-base/tickets", handleController(bulkSyncLarkBaseTicketsController));
+app.post("/api/sync/lark-base/tickets/selected", handleController(selectedSyncLarkBaseTicketsController));
 
 // Lark Bug routes
 app.post("/api/lark-bug/analyze", handleController(larkBugAnalyzeController));
