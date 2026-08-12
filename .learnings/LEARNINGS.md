@@ -157,3 +157,15 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - **Context:** Settings needs manual single-source snapshot synchronization without exposing browser identity or local target configuration.
 - **Rule:** Keep the browser route behind the opaque Web session; resolve `masterUserId` only in a server helper, load targets from ignored `platform-sync.local.json`, and return only source labels/configured state. Do not broaden the existing public Web-session shape when an internal identity projection is needed.
 - **Verified outcome:** The Settings sync page lists independently actionable configured scopes, including separate GitHub repository sources, and triggers only the chosen source.
+
+## [LRN-20260812-002] ticket-ai-session-web-boundary
+
+- **Context:** Ticket detail reuses Kimi ACP chat while exposing ticket-scoped session history in the Web UI.
+- **Rule:** Bind sessions server-side to `(operator_lark_id, base_id, table_id, record_id)`. Authenticate Web routes through `octo_web_session`, source ticket context from snapshots, and never accept or return a master user ID, browser cookie, or ACP credential. Update typed test fakes when expanding ownership-store interfaces.
+- **Verified outcome:** Ticket session list, creation, reload, and follow-up flows are covered by service/controller tests without exposing an identity field to the client.
+
+## [LRN-20260812-003] ticket-ai-transcript-turn-boundary
+
+- **Context:** Real Kimi ACP streams can omit `messageId`, which previously caused a later reply to join the previous assistant block and rendered hundreds of individual thought-status rows.
+- **Rule:** Merge text, thoughts, and tool updates into the current assistant turn; when `messageId` is absent, a user message starts a new assistant turn. Render thoughts and tools as collapsed details, not one status row per stream chunk.
+- **Verified outcome:** A live Ticket session created and continued through Chrome persisted one session, reloaded as two user/assistant turns, and displayed each turn's merged thought detail.

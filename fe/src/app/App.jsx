@@ -113,8 +113,8 @@ export function App({ apiBaseUrl }) {
     const WorkspacePage = WORKSPACE_PAGE_COMPONENTS[workspaceRoute.page];
     return <WorkspacePage
       profile={profile}
-      ticketRecordId={workspaceRoute.ticketRecordId}
       page={workspaceRoute.page}
+      ticketRecordId={workspaceRoute.ticketRecordId}
       apiBaseUrl={apiBaseUrl}
       onLogout={() => void logout()}
       onReauthorize={() => startLarkLogin({ apiBaseUrl })}

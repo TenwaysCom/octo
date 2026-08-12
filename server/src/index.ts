@@ -439,6 +439,7 @@ app.get("/api/lark/auth/callback", async (req, res) => {
 });
 
 registerLarkMeegleWorkflowRoutes(app, handleController);
+registerWebLarkTicketAiRoutes(app);
 app.post("/api/acp/kimi/chat", acpKimiChatController);
 app.post("/api/acp/kimi/sessions/list", handleController(acpKimiSessionListController));
 app.post("/api/acp/kimi/sessions/load", handleController(acpKimiSessionLoadController));
@@ -448,7 +449,6 @@ app.post("/api/acp/kimi/sessions/delete", handleController(acpKimiSessionDeleteC
 // PM Analysis routes
 app.post("/api/pm/analysis/run", handleController(runPMAnalysisController));
 
-registerWebLarkTicketAiRoutes(app);
 // Lark Base routes
 app.post("/api/lark-base/update-meegle-link", handleController(updateLarkBaseMeegleLinkController));
 app.post("/api/lark-base/get-record-url", handleController(getLarkRecordUrlController));

@@ -375,7 +375,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy }
               type="button"
               key={filter}
               disabled={filter === "mine" && !githubId}
-              title={filter === "mine" && !githubId ? "请先在 Settings 关联 GitHub ID" : undefined}
+              title={filter === "mine" && !githubId ? "请先在 Integrations 关联 GitHub ID" : undefined}
               onClick={() => { setGithubQuickFilter((current) => current === filter ? "all" : filter); setPageIndex(0); }}
             >{filter === "open" ? "Open" : "Mine"}</button>)}
           </div> : null}
