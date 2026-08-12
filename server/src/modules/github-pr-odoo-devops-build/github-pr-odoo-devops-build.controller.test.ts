@@ -72,4 +72,5 @@ describe("web GitHub PR Odoo DevOps build controller", () => {
     expect(githubClient.getPullRequest).not.toHaveBeenCalled();
     expect(odooDevopsBranchesService.list).not.toHaveBeenCalled();
   });
+
 });
