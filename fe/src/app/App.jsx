@@ -9,6 +9,7 @@ import { usePluginLogin } from "../hooks/usePluginLogin.js";
 import { useKeyboardShortcut } from "../hooks/useKeyboardShortcut.js";
 import { UnauthenticatedPage, SessionLoadingPage } from "../pages/LoginPage.jsx";
 import { KeyboardShortcutsPage } from "../pages/KeyboardShortcutsPage.jsx";
+import { LarkTicketDetailPage } from "../pages/LarkTicketDetailPage.jsx";
 import { PlatformListPage } from "../pages/PlatformListPage.jsx";
 import { SettingsIntegrationsPage } from "../pages/SettingsIntegrationsPage.jsx";
 import { getWorkspaceRoute } from "./routes/workspace-routes.js";
@@ -16,6 +17,7 @@ import { getWorkspaceRoute } from "./routes/workspace-routes.js";
 const WORKSPACE_PAGE_COMPONENTS = {
   settings: SettingsIntegrationsPage,
   shortcuts: KeyboardShortcutsPage,
+  "lark-ticket-detail": LarkTicketDetailPage,
   "lark-tickets": PlatformListPage,
   "meegle-workitems": PlatformListPage,
   "github-pull-requests": PlatformListPage,
@@ -109,6 +111,7 @@ export function App({ apiBaseUrl }) {
     const WorkspacePage = WORKSPACE_PAGE_COMPONENTS[workspaceRoute.page];
     return <WorkspacePage
       profile={profile}
+      ticketRecordId={workspaceRoute.ticketRecordId}
       page={workspaceRoute.page}
       apiBaseUrl={apiBaseUrl}
       onLogout={() => void logout()}

@@ -76,6 +76,7 @@ import { createWebOdooDevopsBranchesCacheResetController, createWebOdooDevopsBra
 import { createRedisApiCache } from "./http/redis-cache.js";
 import { createWebGitHubPrOdooDevopsBuildController } from "./modules/github-pr-odoo-devops-build/github-pr-odoo-devops-build.controller.js";
 import { GitHubClient } from "./adapters/github/github-client.js";
+import { registerWebLarkTicketAiRoutes } from "./modules/lark-ticket-ai/lark-ticket-ai.controller.js";
 
 import { logger, stdoutLogger } from "./logger.js";
 
@@ -433,6 +434,7 @@ app.post("/api/acp/kimi/sessions/delete", handleController(acpKimiSessionDeleteC
 // PM Analysis routes
 app.post("/api/pm/analysis/run", handleController(runPMAnalysisController));
 
+registerWebLarkTicketAiRoutes(app);
 // Lark Base routes
 app.post("/api/lark-base/update-meegle-link", handleController(updateLarkBaseMeegleLinkController));
 app.post("/api/lark-base/get-record-url", handleController(getLarkRecordUrlController));

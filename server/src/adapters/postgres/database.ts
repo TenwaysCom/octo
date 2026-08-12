@@ -67,6 +67,10 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .ifNotExists()
     .addColumn("session_id", "text", (column) => column.primaryKey())
     .addColumn("operator_lark_id", "text", (column) => column.notNull())
+    .addColumn("title", "text")
+    .addColumn("ticket_base_id", "text")
+    .addColumn("ticket_table_id", "text")
+    .addColumn("ticket_record_id", "text")
     .addColumn("deleted_at", "text")
     .addColumn("created_at", "text", (column) => column.notNull())
     .addColumn("updated_at", "text", (column) => column.notNull())
@@ -477,6 +481,13 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
   await sql`
     ALTER TABLE acp_kimi_session_owners
     ADD COLUMN IF NOT EXISTS title text
+  `.execute(db);
+  for (const column of ["ticket_base_id", "ticket_table_id", "ticket_record_id"]) {
+    await sql.raw(`ALTER TABLE acp_kimi_session_owners ADD COLUMN IF NOT EXISTS ${column} text`).execute(db);
+  }
+  await sql`
+    CREATE INDEX IF NOT EXISTS acp_kimi_session_owners_ticket_idx
+    ON acp_kimi_session_owners(operator_lark_id, ticket_base_id, ticket_table_id, ticket_record_id, updated_at)
   `.execute(db);
   await sql`
     ALTER TABLE users

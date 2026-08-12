@@ -16,8 +16,11 @@ function createProxyDeps(): Required<
     ownershipStore: {
       getBySessionId: vi.fn(),
       listByOperatorLarkId: vi.fn(),
+      listByTicket: vi.fn(),
       claim: vi.fn(),
       rename: vi.fn(),
+      attachTicket: vi.fn(),
+      touch: vi.fn(),
       deleteForOperator: vi.fn(),
     },
   };

@@ -61,7 +61,7 @@ function upsertMasterUserId(
 
 export function createApiAuthMiddleware(exemptPaths: ReadonlySet<string> = DEFAULT_EXEMPT_PATHS) {
   return (req: Request, res: Response, next: NextFunction) => {
-    if (req.method === "OPTIONS" || !req.path.startsWith("/api/") || exemptPaths.has(req.path)) {
+    if (req.method === "OPTIONS" || !req.path.startsWith("/api/") || exemptPaths.has(req.path) || req.path.startsWith("/api/web/lark-tickets/")) {
       next();
       return;
     }

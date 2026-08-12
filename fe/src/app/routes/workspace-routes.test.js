@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  getLarkTicketDetailHash,
   getWorkspaceRoute,
   SETTINGS_ROUTE,
   SETTINGS_SUBROUTES,
@@ -16,6 +17,17 @@ test("resolves each workspace hash to its page route", () => {
 test("uses the settings route for empty and unsupported hashes", () => {
   assert.equal(getWorkspaceRoute("").page, "settings");
   assert.equal(getWorkspaceRoute("#settings-integrations"), SETTINGS_ROUTE);
+});
+
+test("resolves a Lark Ticket detail deep link", () => {
+  const hash = getLarkTicketDetailHash("rec ticket/1");
+  assert.equal(hash, "#lark-tickets/rec%20ticket%2F1");
+  assert.deepEqual(getWorkspaceRoute(hash), {
+    page: "lark-ticket-detail",
+    hash,
+    title: "Lark Ticket",
+    ticketRecordId: "rec ticket/1",
+  });
 });
 
 test("keeps shortcut help as a Settings subpage", () => {

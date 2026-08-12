@@ -1,7 +1,7 @@
 ---
 status: draft
 owner: TBD
-last_reviewed: 2026-08-11
+last_reviewed: 2026-08-12
 scope: Octo 对 Lark Base、Meegle Work Item、GitHub Pull Request 的只读快照同步与演进设计
 update_required_when:
   - 同步范围、触发方式或外部平台适配变更
@@ -58,7 +58,19 @@ HTTP 路由如下。所有请求都可携带 `actionRunId`；Base ticket 可指�
 
 本地 CLI 配置文件为 `server/config/platform-sync.local.json`，只提交 `.example`，不得保存 token。Lark 通过服务端保存的用户凭据读取；本地 Meegle 同步使用本机 `meegle` CLI profile；本地 GitHub 同步使用 `gh` CLI。HTTP GitHub 同步使用服务端 `GITHUB_TOKEN`。
 
-### 2.3 当前批量范围与限制
+### 2.3 Lark Ticket AI Sessions
+
+Lark Ticket 详情页可基于当前同步快照的标题、描述与资源创建 Kimi ACP AI Session。会话归属保存在 `acp_kimi_session_owners`：每条 Ticket Session 同时绑定 Lark `base_id + table_id + record_id` 与服务端解析出的 Lark 用户身份。它不向 Lark 回写消息或评论。
+
+| 路由 | 作用 |
+| --- | --- |
+| `GET /api/web/lark-tickets/:recordId/ai-sessions` | 列出当前 Web 用户在指定 Ticket 下的 AI Sessions |
+| `POST /api/web/lark-tickets/:recordId/ai-sessions` | 新建或继续 Kimi ACP 流式对话 |
+| `POST /api/web/lark-tickets/:recordId/ai-sessions/:sessionId/load` | 加载一个已归属该 Ticket 的会话历史 |
+
+三个路由都要求有效的 HttpOnly `octo_web_session`；浏览器只提交当前已加载 Ticket 的引用和用户输入，服务端解析用户身份、读取同步快照、校验会话归属并调用 Kimi ACP。浏览器不会接收 `masterUserId` 或 ACP 凭据。详情页按 ACP turn 合并流式 text chunk，并把同一回复的思考过程与工具调用收进可展开区块；无 `messageId` 的事件以用户消息作为新 turn 边界，避免跨轮回复拼接。
+
+### 2.4 当前批量范围与限制
 
 | 平台 | 当前批量读取 | 当前过滤/限制 | 需要注意 |
 | --- | --- | --- | --- |

@@ -92,6 +92,7 @@ describe("api auth middleware", () => {
       "/api/web/platform-data/meegle-workitems",
       "/api/web/platform-data/github-pull-requests",
       "/api/web/odoo-devops-branches",
+      "/api/web/lark-tickets/rec_1/ai-sessions",
       "/api/extension/version",
     ]) {
       const req = {

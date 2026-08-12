@@ -914,6 +914,13 @@ export async function ensureLarkWebSession(
   return { ok: true, user: session.user };
 }
 
+export async function resolveLarkWebSessionIdentity(
+  sessionToken: string | undefined,
+  overrides?: Partial<LarkAuthServiceDeps>,
+): Promise<{ ok: true; masterUserId: string; baseUrl: string; user: LarkWebAuthUser } | { ok: false; errorCode: string; errorMessage: string }> {
+  return resolveLarkWebSession(sessionToken, overrides);
+}
+
 export async function getLarkWebProfile(
   sessionToken: string | undefined,
   overrides?: Partial<LarkAuthServiceDeps>,

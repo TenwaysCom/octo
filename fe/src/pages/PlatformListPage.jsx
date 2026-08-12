@@ -5,6 +5,7 @@ import { formatDateTime } from "../lib/formatters.js";
 import { matchesGitHubPullRequestQuickFilter } from "../lib/github-pull-request-filters.js";
 import { getOdooShBuildTone } from "../lib/odoo-sh-build-status.js";
 import { getPlatformDataList, resetAllOdooDevopsBranchesCache } from "../services/platform-data/platform-data-api.js";
+import { getLarkTicketDetailHash } from "../app/routes/workspace-routes.js";
 
 const LIST_PAGE_SIZE = 50;
 const DATE_FILTERS = [
@@ -233,7 +234,7 @@ function SortableColumnHeader({ label, sortKey, sort, onSort }) {
 function SyncedListTable({ kind, items, sort, onSort }) {
   if (kind === "lark-tickets") {
     return <table className="data-table"><thead><tr><th><SortableColumnHeader label="Ticket" sortKey="title" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="状态" sortKey="status" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="Issue 类型" sortKey="issueType" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="负责人" sortKey="responsible" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="紧急度" sortKey="priority" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="更新时间" sortKey="updatedAt" sort={sort} onSort={onSort} /></th></tr></thead><tbody>
-      {items.map((item) => <tr key={`${item.baseId}-${item.tableId}-${item.recordId}`}><td><ExternalLink href={item.sharedUrl}>{item.title}</ExternalLink><small>{item.recordId}</small></td><td><StatusPill>{item.ticketStatus}</StatusPill></td><td>{item.issueType || "-"}</td><td>{item.responsible || "-"}</td><td><StatusPill>{item.priority}</StatusPill></td><td>{formatDateTime(item.sourceUpdatedAt || item.syncedAt)}</td></tr>)}
+      {items.map((item, index) => <tr key={item.recordId || `${item.baseId || "base"}-${item.tableId || "table"}-${index}`}><td><a className="table-link" href={getLarkTicketDetailHash(item.recordId)}>{item.title}</a><small>{item.ticketNumber || item.recordId}</small></td><td><StatusPill>{item.ticketStatus}</StatusPill></td><td>{item.issueType || "-"}</td><td>{item.responsible || "-"}</td><td><StatusPill>{item.priority}</StatusPill></td><td>{formatDateTime(item.sourceUpdatedAt || item.syncedAt)}</td></tr>)}
     </tbody></table>;
   }
 

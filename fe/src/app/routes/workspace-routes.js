@@ -10,6 +10,23 @@ export const WORKSPACE_NAVIGATION_ROUTES = WORKSPACE_ROUTES.filter((route) => ![
 export const SETTINGS_ROUTE = WORKSPACE_ROUTES.find((route) => route.page === "settings");
 export const SETTINGS_SUBROUTES = WORKSPACE_ROUTES.filter((route) => ["settings", "shortcuts"].includes(route.page));
 
+export function getLarkTicketDetailHash(recordId) {
+  return `#lark-tickets/${encodeURIComponent(recordId)}`;
+}
+
 export function getWorkspaceRoute(hash) {
+  const larkTicketDetailMatch = hash.match(/^#lark-tickets\/([^/?#]+)$/);
+  if (larkTicketDetailMatch) {
+    try {
+      return {
+        page: "lark-ticket-detail",
+        hash,
+        title: "Lark Ticket",
+        ticketRecordId: decodeURIComponent(larkTicketDetailMatch[1]),
+      };
+    } catch {
+      return SETTINGS_ROUTE;
+    }
+  }
   return WORKSPACE_ROUTES.find((route) => route.hash === hash) || SETTINGS_ROUTE;
 }

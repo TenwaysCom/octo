@@ -12,6 +12,9 @@ export interface DatabaseSchema {
     session_id: string;
     operator_lark_id: string;
     title: string | null;
+    ticket_base_id: string | null;
+    ticket_table_id: string | null;
+    ticket_record_id: string | null;
     deleted_at: string | null;
     created_at: string;
     updated_at: string;
