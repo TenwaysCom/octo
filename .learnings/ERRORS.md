@@ -67,3 +67,37 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Error:** `TS2488: Type 'NodeListOf<Element>' must have a '[Symbol.iterator]()' method`.
 - **Fix:** Convert `querySelectorAll()` results with `Array.from()` before searching them.
 - **Status:** resolved.
+
+## [ERR-20260811-001] tsx-sandbox-ipc-pipe
+
+- **Summary:** A read-only TypeScript diagnostic can fail before execution because `tsx` creates an IPC pipe in the system temporary directory.
+- **Error:** `listen EPERM: operation not permitted .../tsx-*/...pipe`.
+- **Fix:** Re-run the same non-mutating diagnostic with the required sandbox escalation; do not replace it with a command that exposes database configuration or raw snapshot payloads.
+- **Status:** resolved with a read-only aggregate query.
+
+## [ERR-20260811-005] github-user-chip-prop-regression
+
+- **Summary:** A broad JSX row replacement briefly changed the existing Odoo.sh build indicator prop while adding user chips.
+- **Fix:** Restore the original `item.odooShBuilds` prop immediately, then run the FE test suite and production build before handoff.
+- **Status:** resolved.
+
+## [ERR-20260811-002] incremental-cli-test-mode-scope
+
+- **Summary:** A CLI parser test combined `--mode incremental` with `--only lark` after the command was intentionally restricted to GitHub.
+- **Error:** `Incremental sync currently requires --only github --scope <owner/repo>`.
+- **Fix:** Keep the parser guard and test the documented GitHub `owner/repo` scope combination instead.
+- **Status:** resolved; targeted CLI tests pass.
+
+## [ERR-20260811-003] cache-delete-result-test-double
+
+- **Summary:** After making cache deletion report whether Redis was actually invalidated, one service test mock still returned `undefined` from the old void contract.
+- **Error:** `expected undefined to be true` in `OdooDevopsBranchesService` invalidation coverage.
+- **Fix:** Update every `ApiCache.delete` test double to resolve a boolean and assert a failed deletion is reported instead of claiming success.
+- **Status:** resolved with targeted service and controller tests.
+
+## [ERR-20260811-004] platform-api-test-anchor-drift
+
+- **Summary:** An initial FE test patch targeted an outdated test title.
+- **Error:** `apply_patch verification failed` for the platform-data API test anchor.
+- **Fix:** Read the current test file and add the cache-reset contract test beside its actual GitHub PR fixture.
+- **Status:** resolved; FE tests and production build pass.
