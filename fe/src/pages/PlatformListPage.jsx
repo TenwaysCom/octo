@@ -5,6 +5,7 @@ import { LarkTicketResponsible } from "../components/lark-ticket/LarkTicketRespo
 import { useKeyboardShortcut } from "../hooks/useKeyboardShortcut.js";
 import { formatDateTime } from "../lib/formatters.js";
 import { matchesGitHubPullRequestQuickFilter } from "../lib/github-pull-request-filters.js";
+import { matchesLarkTicketQuickFilter } from "../lib/lark-ticket-filters.js";
 import { getOdooShBuildTone } from "../lib/odoo-sh-build-status.js";
 import { getPlatformDataList, resetAllOdooDevopsBranchesCache } from "../services/platform-data/platform-data-api.js";
 import { getLarkTicketDetailHash } from "../app/routes/workspace-routes.js";
@@ -255,6 +256,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy }
   const [sprintFilter, setSprintFilter] = useState("");
   const [noSprintFilter, setNoSprintFilter] = useState(false);
   const [githubQuickFilter, setGithubQuickFilter] = useState("all");
+  const [larkTicketQuickFilter, setLarkTicketQuickFilter] = useState("all");
   const [workitemTypeFilter, setWorkitemTypeFilter] = useState("all");
   const [sort, setSort] = useState(DEFAULT_SORT);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -271,6 +273,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy }
   const githubId = profile.user?.githubId;
   const filteredItems = itemsBeforeTypeFilter
     .filter((item) => page !== "github-pull-requests" || matchesGitHubPullRequestQuickFilter(item, githubQuickFilter, githubId))
+    .filter((item) => page !== "lark-tickets" || matchesLarkTicketQuickFilter(item, larkTicketQuickFilter))
     .filter((item) => page !== "meegle-workitems" || !noSprintFilter || !item.sprint)
     .filter((item) => page !== "meegle-workitems" || workitemTypeFilter === "all" || getMeegleWorkitemCategory(item) === workitemTypeFilter);
   const sortedItems = sortPlatformItems(filteredItems, page, sort);
@@ -287,6 +290,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy }
     setSprintFilter("");
     setNoSprintFilter(false);
     setGithubQuickFilter("all");
+    setLarkTicketQuickFilter("all");
     setWorkitemTypeFilter("all");
     setSort(DEFAULT_SORT);
     setFilterOpen(false);
@@ -376,6 +380,14 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy }
               title={filter === "mine" && !githubId ? "请先在 Integrations 关联 GitHub ID" : undefined}
               onClick={() => { setGithubQuickFilter((current) => current === filter ? "all" : filter); setPageIndex(0); }}
             >{filter === "open" ? "Open" : "Mine"}</button>)}
+          </div> : null}
+          {page === "lark-tickets" ? <div className="list-filter-tabs" role="group" aria-label="Lark Ticket 快速筛选">
+            {["unclassified", "unsynced"].map((filter) => <button
+              className={`list-filter-tab ${larkTicketQuickFilter === filter ? "list-filter-tab--active" : ""}`.trim()}
+              type="button"
+              key={filter}
+              onClick={() => { setLarkTicketQuickFilter((current) => current === filter ? "all" : filter); setPageIndex(0); }}
+            >{filter === "unclassified" ? "未分类" : "未同步"}</button>)}
           </div> : null}
           <div className="list-toolbar__actions">
             {page === "github-pull-requests" ? <button className="secondary-button" type="button" disabled={isResettingDevopsCache} onClick={resetAllDevopsCache}>{isResettingDevopsCache ? "清除中…" : "清除 DevOps 缓存"}</button> : null}
