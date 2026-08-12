@@ -50,11 +50,11 @@ function GitHubIdentityCard({ githubId }) {
 
 export function SettingsIntegrationsPage({ profile, onLogout, onReauthorize, isBusy }) {
   const user = profile.user ?? {};
-  return <WorkspaceShell user={user} activePage="settings" onLogout={onLogout} isBusy={isBusy}>
+  return <WorkspaceShell user={user} activePage="integrations" onLogout={onLogout} isBusy={isBusy}>
     <section className="profile-main integrations-page">
       <header className="integrations-hero">
         <div>
-          <p className="eyebrow">SETTINGS</p>
+          <p className="eyebrow">INTEGRATIONS</p>
           <h1>Integrations</h1>
           <p>管理工作台的平台授权与账号关联。</p>
         </div>

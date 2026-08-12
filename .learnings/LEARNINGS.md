@@ -151,3 +151,9 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - **Context:** A failing Lark/Meegle incremental scope previously threw out of the CLI loop, while a failed snapshot-cleaning write stopped later objects from being cleaned.
 - **Rule:** Process each incremental scope independently, record its checkpoint failure, and continue later scopes before returning a nonzero overall result. Clean snapshots one at a time, log safe reference-level failures, finish all remaining objects, then fail that scope so its checkpoint is not advanced.
 - **Verified outcome:** Script tests prove a failed incremental scope does not prevent the next scope from syncing; service tests prove Meegle, GitHub, and Lark all continue cleaning the second object after the first fails.
+
+## [LRN-20260812-001] web-sync-session-identity-boundary
+
+- **Context:** Settings needs manual single-source snapshot synchronization without exposing browser identity or local target configuration.
+- **Rule:** Keep the browser route behind the opaque Web session; resolve `masterUserId` only in a server helper, load targets from ignored `platform-sync.local.json`, and return only source labels/configured state. Do not broaden the existing public Web-session shape when an internal identity projection is needed.
+- **Verified outcome:** The Settings sync page lists independently actionable configured scopes, including separate GitHub repository sources, and triggers only the chosen source.

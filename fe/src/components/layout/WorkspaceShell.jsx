@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { SETTINGS_ROUTE, SETTINGS_SUBROUTES, WORKSPACE_NAVIGATION_ROUTES } from "../../app/routes/workspace-routes.js";
+import { INTEGRATIONS_ROUTE, INTEGRATIONS_SUBROUTES, WORKSPACE_NAVIGATION_ROUTES } from "../../app/routes/workspace-routes.js";
 
 export function Brand() {
   return <a className="brand" href="/" aria-label="Tenways Octo 首页">
@@ -16,14 +16,14 @@ export function ProfileAvatar({ user, className = "" }) {
 }
 
 function WorkspaceSidebar({ activePage, onLogout, isBusy }) {
-  const isSettingsPage = SETTINGS_SUBROUTES.some((route) => route.page === activePage);
-  const [settingsOpen, setSettingsOpen] = useState(isSettingsPage);
+  const isIntegrationsPage = INTEGRATIONS_SUBROUTES.some((route) => route.page === activePage);
+  const [integrationsOpen, setIntegrationsOpen] = useState(isIntegrationsPage);
 
   useEffect(() => {
-    if (isSettingsPage) {
-      setSettingsOpen(true);
+    if (isIntegrationsPage) {
+      setIntegrationsOpen(true);
     }
-  }, [isSettingsPage]);
+  }, [isIntegrationsPage]);
 
   return <aside className="profile-sidebar" aria-label="工作台导航">
     <header className="profile-sidebar__header"><Brand /></header>
@@ -36,18 +36,18 @@ function WorkspaceSidebar({ activePage, onLogout, isBusy }) {
       >
         <span className="profile-nav__item-label"><i aria-hidden="true">{route.icon}</i>{route.label}</span>
       </a>)}
-      <div className={`profile-nav__group ${settingsOpen ? "profile-nav__group--active" : ""}`.trim()}>
+      <div className={`profile-nav__group ${integrationsOpen ? "profile-nav__group--active" : ""}`.trim()}>
         <a
           className="profile-nav__item"
-          href={SETTINGS_ROUTE.hash}
-          aria-expanded={settingsOpen}
-          onClick={() => setSettingsOpen((open) => isSettingsPage ? !open : true)}
+          href={INTEGRATIONS_ROUTE.hash}
+          aria-expanded={integrationsOpen}
+          onClick={() => setIntegrationsOpen((open) => isIntegrationsPage ? !open : true)}
         >
-          <span className="profile-nav__item-label"><i aria-hidden="true">{SETTINGS_ROUTE.icon}</i>{SETTINGS_ROUTE.label}</span>
-          <i className={`profile-nav__chevron ${settingsOpen ? "profile-nav__chevron--open" : ""}`.trim()} aria-hidden="true">⌄</i>
+          <span className="profile-nav__item-label"><i aria-hidden="true">{INTEGRATIONS_ROUTE.icon}</i>Settings</span>
+          <i className={`profile-nav__chevron ${integrationsOpen ? "profile-nav__chevron--open" : ""}`.trim()} aria-hidden="true">⌄</i>
         </a>
-        {settingsOpen ? <div className="profile-nav__subitems">
-          {SETTINGS_SUBROUTES.map((route) => <a
+        {integrationsOpen ? <div className="profile-nav__subitems">
+          {INTEGRATIONS_SUBROUTES.map((route) => <a
             className={`profile-nav__subitem ${activePage === route.page ? "profile-nav__subitem--active" : ""}`.trim()}
             href={route.hash}
             key={route.page}

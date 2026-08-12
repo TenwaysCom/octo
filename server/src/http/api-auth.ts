@@ -18,6 +18,7 @@ const DEFAULT_EXEMPT_PATHS = new Set([
   "/api/web/platform-data/lark-tickets",
   "/api/web/platform-data/meegle-workitems",
   "/api/web/platform-data/github-pull-requests",
+  "/api/web/platform-sync-sources",
   "/api/web/odoo-devops-branches",
   "/api/web/github-pr-odoo-devops-build",
   "/api/web/odoo-devops-branches/reset-cache",
@@ -61,7 +62,7 @@ function upsertMasterUserId(
 
 export function createApiAuthMiddleware(exemptPaths: ReadonlySet<string> = DEFAULT_EXEMPT_PATHS) {
   return (req: Request, res: Response, next: NextFunction) => {
-    if (req.method === "OPTIONS" || !req.path.startsWith("/api/") || exemptPaths.has(req.path) || req.path.startsWith("/api/web/lark-tickets/")) {
+    if (req.method === "OPTIONS" || !req.path.startsWith("/api/") || exemptPaths.has(req.path) || req.path.startsWith("/api/web/platform-sync-sources/") || req.path.startsWith("/api/web/lark-tickets/")) {
       next();
       return;
     }

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { getPlatformDataList, resetAllOdooDevopsBranchesCache } from "./platform-data-api.js";
+import { getPlatformSyncSources, syncPlatformSource } from "./platform-sync-api.js";
 
 test("loads a synced platform list with the browser session cookie", async () => {
   let request;
@@ -96,6 +97,32 @@ test("resets all Odoo DevOps branch caches with the web session", async () => {
   assert.equal(request.options.method, "POST");
   assert.equal(request.options.credentials, "include");
   assert.deepEqual(JSON.parse(request.options.body), { actionRunId: "reset_1138" });
+});
+
+test("loads and triggers a configured platform sync source with the web session", async () => {
+  const sources = await getPlatformSyncSources({
+    apiBaseUrl: "/api",
+    fetchImpl: async (url, options) => {
+      assert.equal(url, "/api/web/platform-sync-sources");
+      assert.equal(options.credentials, "include");
+      return { ok: true, json: async () => ({ ok: true, data: { sources: [{ id: "lark-tickets", label: "Lark Ticket", configured: true }] } }) };
+    },
+  });
+  assert.deepEqual(sources, [{ id: "lark-tickets", label: "Lark Ticket", configured: true }]);
+
+  let request;
+  await syncPlatformSource({
+    apiBaseUrl: "/api",
+    sourceId: "lark-tickets",
+    actionRunId: "sync_1",
+    fetchImpl: async (url, options) => {
+      request = { url, options };
+      return { ok: true, json: async () => ({ ok: true, data: { sourceId: "lark-tickets", synced: 1 } }) };
+    },
+  });
+  assert.equal(request.url, "/api/web/platform-sync-sources/lark-tickets");
+  assert.equal(request.options.method, "POST");
+  assert.deepEqual(JSON.parse(request.options.body), { actionRunId: "sync_1" });
 });
 
 function expectGitHubPullRequestWithBuild() {

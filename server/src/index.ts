@@ -69,6 +69,7 @@ import {
   syncMeegleWorkitemController,
 } from "./modules/platform-sync/platform-sync.controller.js";
 import { createWebPlatformDataController } from "./modules/platform-data/platform-data.controller.js";
+import { createWebPlatformSyncController } from "./modules/platform-sync/web-platform-sync.controller.js";
 import { PlatformDataService } from "./application/services/platform-data.service.js";
 import { createHttpOdooDevopsBranchesClient } from "./adapters/odoo-devops/odoo-devops-branches-client.js";
 import { OdooDevopsBranchesService } from "./application/services/odoo-devops-branches.service.js";
@@ -171,6 +172,7 @@ const getWebOdooDevopsBranchesController = createWebOdooDevopsBranchesController
 const listWebPlatformDataController = createWebPlatformDataController({
   service: new PlatformDataService(undefined, odooDevopsBranchesService),
 });
+const webPlatformSyncController = createWebPlatformSyncController();
 const getWebGitHubPrOdooDevopsBuildController = createWebGitHubPrOdooDevopsBuildController({
   githubClient: process.env.GITHUB_TOKEN ? new GitHubClient({ token: process.env.GITHUB_TOKEN }) : undefined,
   odooDevopsBranchesService,
@@ -367,6 +369,18 @@ app.get("/api/web/platform-data/meegle-workitems", async (req, res) => {
 app.get("/api/web/platform-data/github-pull-requests", async (req, res) => {
   const result = await listWebPlatformDataController({
     kind: "github-pull-requests", cookieHeader: req.headers.cookie, query: req.query,
+  });
+  res.status(result.statusCode).json(result.body);
+});
+app.get("/api/web/platform-sync-sources", async (req, res) => {
+  const result = await webPlatformSyncController.list({ cookieHeader: req.headers.cookie });
+  res.status(result.statusCode).json(result.body);
+});
+app.post("/api/web/platform-sync-sources/:sourceId", async (req, res) => {
+  const result = await webPlatformSyncController.sync({
+    cookieHeader: req.headers.cookie,
+    sourceId: req.params.sourceId,
+    body: req.body,
   });
   res.status(result.statusCode).json(result.body);
 });

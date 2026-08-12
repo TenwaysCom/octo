@@ -229,6 +229,13 @@ a { color: inherit; }
 .integration-grid .profile-card { display: flex; min-height: 194px; flex-direction: column; margin: 0; border-radius: 16px; background: var(--octo-surface); box-shadow: 0 1px 2px rgba(32, 37, 51, .02); }
 .integration-grid .secondary-button { margin-top: auto; }
 
+.sync-page { width: min(100%, 980px); }
+.sync-source-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.sync-source-card { display: flex; min-height: 188px; flex-direction: column; padding: 20px; border: 1px solid var(--octo-border); border-radius: 16px; background: var(--octo-surface); }
+.sync-source-card h2 { margin: 0; font-size: 16px; letter-spacing: -.02em; }
+.sync-source-card__heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.sync-source-card .secondary-button { margin-top: auto; }
+
 .shortcuts-page { width: min(100%, 760px); }
 .shortcuts-page__header { margin-bottom: 24px; }
 .shortcuts-page__header h1 { margin-bottom: 8px; }

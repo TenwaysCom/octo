@@ -12,10 +12,12 @@ import { KeyboardShortcutsPage } from "../pages/KeyboardShortcutsPage.jsx";
 import { LarkTicketDetailPage } from "../pages/LarkTicketDetailPage.jsx";
 import { PlatformListPage } from "../pages/PlatformListPage.jsx";
 import { SettingsIntegrationsPage } from "../pages/SettingsIntegrationsPage.jsx";
+import { SyncStatusPage } from "../pages/SyncStatusPage.jsx";
 import { getWorkspaceRoute } from "./routes/workspace-routes.js";
 
 const WORKSPACE_PAGE_COMPONENTS = {
-  settings: SettingsIntegrationsPage,
+  integrations: SettingsIntegrationsPage,
+  sync: SyncStatusPage,
   shortcuts: KeyboardShortcutsPage,
   "lark-ticket-detail": LarkTicketDetailPage,
   "lark-tickets": PlatformListPage,
