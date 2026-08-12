@@ -4,6 +4,13 @@ export const STORY_PRD_TO_SIMPLIFIED_PROMPT_KEY =
 export const LARK_BUG_ANALYZE_PROMPT_KEY =
   "lark.bug.analyze";
 
+export const LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_KEY =
+  "lark_ticket.support_qa.summarize";
+export const LARK_TICKET_SUPPORT_QA_ANSWER_PROMPT_KEY =
+  "lark_ticket.support_qa.answer";
+export const LARK_TICKET_SUPPORT_QA_DOCUMENT_PREVIEW_PROMPT_KEY =
+  "lark_ticket.support_qa.document_preview";
+
 export const GITHUB_PR_QUICK_SCAN_PROMPT_KEY = "github.pr.quick_scan";
 export const GITHUB_PR_DEEP_REVIEW_PROMPT_KEY = "github.pr.deep_review";
 export const GITHUB_PR_CODE_REVIEW_FEEDBACK_PROMPT_KEY = "github.pr.code_review_feedback";
@@ -13,6 +20,13 @@ export const DEFAULT_STORY_PRD_TO_SIMPLIFIED_PROMPT_NOTE =
 
 export const DEFAULT_LARK_BUG_ANALYZE_PROMPT_NOTE =
   "Lark Bug 分析 workflow prompt";
+
+export const DEFAULT_LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_NOTE =
+  "Lark Ticket Support-QA 问题总结 AI Session prompt";
+export const DEFAULT_LARK_TICKET_SUPPORT_QA_ANSWER_PROMPT_NOTE =
+  "Lark Ticket Support-QA 回答问题 AI Session prompt";
+export const DEFAULT_LARK_TICKET_SUPPORT_QA_DOCUMENT_PREVIEW_PROMPT_NOTE =
+  "Lark Ticket Support-QA 生成文档 AI Session prompt";
 
 export const DEFAULT_GITHUB_PR_QUICK_SCAN_PROMPT_NOTE =
   "GitHub PR Tier 2 Odoo structural quick scan workflow prompt";
@@ -202,6 +216,31 @@ export const DEFAULT_LARK_BUG_ANALYZE_PROMPT_TEMPLATE =
 """
 {{bug_description}}
 """`;
+
+const LARK_TICKET_SUPPORT_QA_PROMPT_PREFIX = `你正在处理一条 Lark Ticket。必须先阅读并严格遵循以下 Skill：
+{{skill_path}}
+
+当前 Ticket：
+{{ticket_context}}
+
+用户请求：
+{{user_message}}
+`;
+
+export const DEFAULT_LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_TEMPLATE = `${LARK_TICKET_SUPPORT_QA_PROMPT_PREFIX}
+请使用该 Skill 拉取所需证据，输出问题总结。事实和推断必须明确区分；不要写入外部系统。`;
+
+export const DEFAULT_LARK_TICKET_SUPPORT_QA_ANSWER_PROMPT_TEMPLATE = `${LARK_TICKET_SUPPORT_QA_PROMPT_PREFIX}
+请使用该 Skill 形成可直接回复的答案草稿。未确认事实必须标注待确认；不要写入外部系统。`;
+
+export const DEFAULT_LARK_TICKET_SUPPORT_QA_DOCUMENT_PREVIEW_PROMPT_TEMPLATE = `${LARK_TICKET_SUPPORT_QA_PROMPT_PREFIX}
+请按该 Skill 生成 Support-QA 文档草稿。仅在当前权限允许的范围内执行；不得宣称未被工具确认的写入。`;
+
+export const DEFAULT_LARK_TICKET_SUPPORT_QA_PROMPTS: Record<string, string> = {
+  [LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_KEY]: DEFAULT_LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_TEMPLATE,
+  [LARK_TICKET_SUPPORT_QA_ANSWER_PROMPT_KEY]: DEFAULT_LARK_TICKET_SUPPORT_QA_ANSWER_PROMPT_TEMPLATE,
+  [LARK_TICKET_SUPPORT_QA_DOCUMENT_PREVIEW_PROMPT_KEY]: DEFAULT_LARK_TICKET_SUPPORT_QA_DOCUMENT_PREVIEW_PROMPT_TEMPLATE,
+};
 
 export function renderWorkflowPromptTemplate(
   template: string,

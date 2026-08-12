@@ -1,6 +1,95 @@
-import type { AutomationActionConfig } from "./public-config.controller.js";
+import type {
+  AutomationActionConfig,
+  AutomationExecutionPolicy,
+} from "./public-config.controller.js";
+
+export interface AutomationSkillProfileConfig {
+  workspaceEnv: string;
+  skills: Record<string, string>;
+}
+
+/**
+ * Logical profiles are versioned with the action catalog. Deployment-specific
+ * workspace roots remain normal server environment variables, never browser
+ * configuration and never a second local JSON file.
+ */
+export const AUTOMATION_SKILL_PROFILES = {
+  support_qa_eu: {
+    workspaceEnv: "SUPPORT_QA_EU_WORKSPACE_DIR",
+    skills: {
+      support_qa_query: ".agents/skills/query-support-qa/SKILL.md",
+      support_qa_write: ".agents/skills/write-support-qa/SKILL.md",
+    },
+  },
+} as const satisfies Record<string, AutomationSkillProfileConfig>;
+
+export interface TicketAiAutomationActionConfig extends AutomationActionConfig {
+  executor: Extract<AutomationActionConfig["executor"], { type: "backend_api" }>;
+  promptKey: string;
+  skillProfile: keyof typeof AUTOMATION_SKILL_PROFILES;
+  skillId: string;
+  executionPolicy: AutomationExecutionPolicy;
+  requiresConfirmation: boolean;
+}
 
 export const AUTOMATION_ACTIONS = {
+  larkTicketSupportQaSummarize: {
+    key: "lark-ticket-support-qa-summarize",
+    title: "问题总结",
+    description: "读取当前 Ticket 和 Support-QA 知识库，生成问题总结。",
+    style: "default",
+    placements: [],
+    interaction: { type: "direct_execute" },
+    executor: {
+      type: "backend_api",
+      operation: "lark_ticket.ai.quick_action",
+      method: "POST",
+      route: "/api/web/lark-tickets/:recordId/ai-sessions",
+    },
+    promptKey: "lark_ticket.support_qa.summarize",
+    skillProfile: "support_qa_eu",
+    skillId: "support_qa_query",
+    executionPolicy: "shell",
+    requiresConfirmation: false,
+  },
+  larkTicketSupportQaAnswer: {
+    key: "lark-ticket-support-qa-answer",
+    title: "回答问题",
+    description: "读取当前 Ticket 和 Support-QA 知识库，生成可确认的回复草稿。",
+    style: "default",
+    placements: [],
+    interaction: { type: "direct_execute" },
+    executor: {
+      type: "backend_api",
+      operation: "lark_ticket.ai.quick_action",
+      method: "POST",
+      route: "/api/web/lark-tickets/:recordId/ai-sessions",
+    },
+    promptKey: "lark_ticket.support_qa.answer",
+    skillProfile: "support_qa_eu",
+    skillId: "support_qa_query",
+    executionPolicy: "shell",
+    requiresConfirmation: false,
+  },
+  larkTicketSupportQaDocumentPreview: {
+    key: "lark-ticket-support-qa-document-preview",
+    title: "生成文档",
+    description: "创建 AI Session，按 Support-QA 文档流程生成受限草稿。",
+    style: "default",
+    placements: [],
+    interaction: { type: "direct_execute" },
+    executor: {
+      type: "backend_api",
+      operation: "lark_ticket.ai.quick_action",
+      method: "POST",
+      route: "/api/web/lark-tickets/:recordId/ai-sessions",
+    },
+    promptKey: "lark_ticket.support_qa.document_preview",
+    skillProfile: "support_qa_eu",
+    skillId: "support_qa_write",
+    executionPolicy: "write+shell",
+    requiresConfirmation: false,
+  },
   analyze: {
     key: "analyze",
     title: "分析当前页面",
@@ -244,3 +333,21 @@ export const AUTOMATION_ACTIONS = {
 } satisfies Record<string, AutomationActionConfig>;
 
 export type AutomationActionId = keyof typeof AUTOMATION_ACTIONS;
+
+export function getTicketAiAutomationAction(
+  key: string,
+): TicketAiAutomationActionConfig | undefined {
+  const action = (Object.values(AUTOMATION_ACTIONS) as AutomationActionConfig[])
+    .find((candidate) => candidate.key === key);
+  if (!action
+    || !action.promptKey
+    || !action.skillProfile
+    || !action.skillId
+    || !action.executionPolicy
+    || action.requiresConfirmation === undefined
+    || action.executor.type !== "backend_api") {
+    return undefined;
+  }
+
+  return action as TicketAiAutomationActionConfig;
+}

@@ -169,3 +169,9 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - **Context:** Real Kimi ACP streams can omit `messageId`, which previously caused a later reply to join the previous assistant block and rendered hundreds of individual thought-status rows.
 - **Rule:** Merge text, thoughts, and tool updates into the current assistant turn; when `messageId` is absent, a user message starts a new assistant turn. Render thoughts and tools as collapsed details, not one status row per stream chunk.
 - **Verified outcome:** A live Ticket session created and continued through Chrome persisted one session, reloaded as two user/assistant turns, and displayed each turn's merged thought detail.
+
+## [LRN-20260812-004] ticket-ai-session-permission-snapshot
+
+- **Context:** Support-QA Ticket shortcuts need Kimi ACP tool access, while generic AI Sessions must retain the existing deny-by-default behavior.
+- **Rule:** Keep logical Skill/Profile/Policy bindings in `AUTOMATION_ACTIONS`, keep only deployment workspace roots in normal Server environment variables, persist the action and policy snapshot with the Session, and return only ACP `allow_once` after a strict per-call match. Never treat an `allow_always` option or a prompt instruction as the security boundary.
+- **Verified outcome:** Focused policy, proxy, Ticket Session, and ownership-store tests pass; server TypeScript build passes.

@@ -9,6 +9,14 @@ export interface AcpKimiSessionOwnershipRecord {
   ticketBaseId: string | null;
   ticketTableId: string | null;
   ticketRecordId: string | null;
+  ticketNumber: string | null;
+  runtimeHostName: string | null;
+  kimiWorkDir: string | null;
+  automationActionKey: string | null;
+  executionPolicy: string | null;
+  skillProfile: string | null;
+  skillId: string | null;
+  policyVersion: string | null;
   deletedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -23,11 +31,18 @@ export interface AcpKimiSessionOwnershipStore {
     tableId: string;
     recordId: string;
   }): Promise<AcpKimiSessionOwnershipRecord[]>;
-  claim(
-    sessionId: string,
-    operatorLarkId: string,
-    title?: string | null,
-  ): Promise<AcpKimiSessionOwnershipRecord>;
+  claim(input: {
+    sessionId: string;
+    operatorLarkId: string;
+    title?: string | null;
+    runtimeHostName?: string | null;
+    kimiWorkDir?: string | null;
+    automationActionKey?: string | null;
+    executionPolicy?: string | null;
+    skillProfile?: string | null;
+    skillId?: string | null;
+    policyVersion?: string | null;
+  }): Promise<AcpKimiSessionOwnershipRecord>;
   rename(
     sessionId: string,
     operatorLarkId: string,
@@ -40,6 +55,7 @@ export interface AcpKimiSessionOwnershipStore {
     baseId: string;
     tableId: string;
     recordId: string;
+    ticketNumber?: string | null;
   }): Promise<AcpKimiSessionOwnershipRecord | undefined>;
   touch(sessionId: string, operatorLarkId: string): Promise<void>;
   deleteForOperator(sessionId: string, operatorLarkId: string): Promise<boolean>;
@@ -59,6 +75,14 @@ function toRecord(
     ticketBaseId: row.ticket_base_id ?? null,
     ticketTableId: row.ticket_table_id ?? null,
     ticketRecordId: row.ticket_record_id ?? null,
+    ticketNumber: row.ticket_number ?? null,
+    runtimeHostName: row.runtime_host_name ?? null,
+    kimiWorkDir: row.kimi_work_dir ?? null,
+    automationActionKey: row.automation_action_key ?? null,
+    executionPolicy: row.execution_policy ?? null,
+    skillProfile: row.skill_profile ?? null,
+    skillId: row.skill_id ?? null,
+    policyVersion: row.policy_version ?? null,
     deletedAt: row.deleted_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -101,6 +125,7 @@ export class PostgresAcpKimiSessionOwnershipStore
     baseId: string;
     tableId: string;
     recordId: string;
+    ticketNumber?: string | null;
   }): Promise<AcpKimiSessionOwnershipRecord[]> {
     return (await this.database.selectFrom("acp_kimi_session_owners")
       .selectAll()
@@ -113,41 +138,45 @@ export class PostgresAcpKimiSessionOwnershipStore
       .execute()).map((row) => toRecord(row)!);
   }
 
-  async claim(
-    sessionId: string,
-    operatorLarkId: string,
-    title?: string | null,
-  ): Promise<AcpKimiSessionOwnershipRecord> {
+  async claim(input: {
+    sessionId: string;
+    operatorLarkId: string;
+    title?: string | null;
+    runtimeHostName?: string | null;
+    kimiWorkDir?: string | null;
+    automationActionKey?: string | null;
+    executionPolicy?: string | null;
+    skillProfile?: string | null;
+    skillId?: string | null;
+    policyVersion?: string | null;
+  }): Promise<AcpKimiSessionOwnershipRecord> {
     const now = new Date().toISOString();
 
     await this.database.insertInto("acp_kimi_session_owners")
       .values({
-        session_id: sessionId,
-        operator_lark_id: operatorLarkId,
-        title: title ?? null,
+        session_id: input.sessionId,
+        operator_lark_id: input.operatorLarkId,
+        title: input.title ?? null,
+        runtime_host_name: input.runtimeHostName ?? null,
+        kimi_work_dir: input.kimiWorkDir ?? null,
+        automation_action_key: input.automationActionKey ?? null,
+        execution_policy: input.executionPolicy ?? null,
+        skill_profile: input.skillProfile ?? null,
+        skill_id: input.skillId ?? null,
+        policy_version: input.policyVersion ?? null,
         deleted_at: null,
         created_at: now,
         updated_at: now,
       })
       .onConflict((conflict) =>
         conflict.column("session_id").doUpdateSet({
-          operator_lark_id: operatorLarkId,
+          operator_lark_id: input.operatorLarkId,
           deleted_at: null,
           updated_at: now,
         }))
       .execute();
 
-    return {
-      sessionId,
-      operatorLarkId,
-      title: title ?? null,
-      ticketBaseId: null,
-      ticketTableId: null,
-      ticketRecordId: null,
-      deletedAt: null,
-      createdAt: now,
-      updatedAt: now,
-    };
+    return (await this.getBySessionId(input.sessionId))!;
   }
 
   async rename(
@@ -180,6 +209,7 @@ export class PostgresAcpKimiSessionOwnershipStore
     baseId: string;
     tableId: string;
     recordId: string;
+    ticketNumber?: string | null;
   }): Promise<AcpKimiSessionOwnershipRecord | undefined> {
     const result = await this.database.updateTable("acp_kimi_session_owners")
       .set({
@@ -187,6 +217,7 @@ export class PostgresAcpKimiSessionOwnershipStore
         ticket_base_id: input.baseId,
         ticket_table_id: input.tableId,
         ticket_record_id: input.recordId,
+        ticket_number: input.ticketNumber ?? null,
         updated_at: new Date().toISOString(),
       })
       .where("session_id", "=", input.sessionId)

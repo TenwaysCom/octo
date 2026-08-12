@@ -15,6 +15,14 @@ export interface DatabaseSchema {
     ticket_base_id: string | null;
     ticket_table_id: string | null;
     ticket_record_id: string | null;
+    ticket_number: string | null;
+    runtime_host_name: string | null;
+    kimi_work_dir: string | null;
+    automation_action_key: string | null;
+    execution_policy: string | null;
+    skill_profile: string | null;
+    skill_id: string | null;
+    policy_version: string | null;
     deleted_at: string | null;
     created_at: string;
     updated_at: string;

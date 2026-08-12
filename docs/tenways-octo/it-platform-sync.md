@@ -64,6 +64,39 @@ Web Integrations 还提供受 Web 会话保护的同步状态页：展示 Lark T
 
 Lark Ticket 详情页可基于当前同步快照的标题、描述与资源创建 Kimi ACP AI Session。会话归属保存在 `acp_kimi_session_owners`：每条 Ticket Session 同时绑定 Lark `base_id + table_id + record_id` 与服务端解析出的 Lark 用户身份。它不向 Lark 回写消息或评论。
 
+#### 会话存储边界
+
+`acp_kimi_session_owners` 不是消息表。它只保存 `session_id`、Ticket 与用户归属、标题/时间，以及创建节点的 `runtime_host_name`、`kimi_work_dir`。后两个值仅由 Server 取得（分别为 `os.hostname()` 与传给 Kimi ACP 的工作目录），用于定位实际承载会话的运行节点；已有记录的这两个字段可为空。由快捷动作创建的 Session 还保存 `automation_action_key`、`execution_policy`、`skill_profile`、`skill_id`、`policy_version` 和 Ticket number，作为权限策略快照；旧会话这些字段为空时继续默认拒绝所有敏感 ACP 调用。
+
+#### Support-QA 快捷动作与 ACP 权限
+
+`server/src/modules/public-config/automation-actions.config.ts` 是 automation 的唯一逻辑定义：三个 Lark Ticket 快捷动作分别绑定稳定 `promptKey`、`skillProfile`、`skillId`、`executionPolicy` 和 `requiresConfirmation`。实际环境目录不写入 action，也不返回浏览器；统一由普通 Server 环境变量 `SUPPORT_QA_EU_WORKSPACE_DIR` 提供。该值在 `server/.env.example` 中说明，生产环境通过部署环境变量配置，不新增本地 JSON 配置文件。
+
+| `executionPolicy` | 当前行为 |
+| --- | --- |
+| `read_only` | 不批准敏感 ACP 工具调用；这是未绑定 action 的默认行为。 |
+| `shell` | 仅一次性批准当前 Ticket 的 Support-QA `fetch --json` 包装命令，以及指定 Skill/知识库目录的受限读取。 |
+| `write+shell` | 在 `shell` 基础上，仅允许 Support-QA 文档目录写入及受限 `update` 包装命令。 |
+| `full` | 预留给未来的逐次人工确认；当前没有确认桥接时仍拒绝，绝不自动放行。 |
+
+每次 Kimi 发起 ACP `session/request_permission`，Server 都基于 Session 快照重新判断并最多选择 Kimi 提供的 `allow_once` 选项；不会使用 `allow_always`。Shell 命令含控制操作符、路径越出 workspace、动作/Skill/Profile 不匹配，均拒绝。此策略是授权拦截层，不替代生产环境的专用运行账号、受限工作目录和最小 Lark CLI 身份。
+
+对话正文、思考过程和工具调用由 Kimi CLI 在运行 Server 的机器上持久化，默认目录结构如下：
+
+```text
+~/.kimi-code/
+├── session_index.jsonl
+├── workspaces.json
+└── sessions/wd_<workspace-hash>/session_<session-id>/
+    ├── agents/main/wire.jsonl   # 对话与 ACP 事件
+    ├── state.json               # 会话状态
+    └── logs/kimi-code.log       # 可选诊断日志
+```
+
+加载历史时，Octo 先根据数据库关联校验会话归属，再连接 Kimi 恢复会话；如果运行期没有重放完整转录，会使用 `kimi export` 读取 `wire.jsonl`，临时导出文件读取后删除。Octo PostgreSQL 不保存上述转录，也不向 Lark 回写 AI 消息或评论。
+
+单实例部署必须持久化该 Kimi 会话目录。多实例部署中，`runtime_host_name` 和 `kimi_work_dir` 只是诊断元数据，不能自动把请求路由回原节点；仍须共享/持久化 Kimi 会话目录、实现按节点路由，或将转录另行写入 Octo 的持久化存储。
+
 | 路由 | 作用 |
 | --- | --- |
 | `GET /api/web/lark-tickets/:recordId/ai-sessions` | 列出当前 Web 用户在指定 Ticket 下的 AI Sessions |

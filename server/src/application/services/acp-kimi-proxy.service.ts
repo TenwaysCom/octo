@@ -1,3 +1,4 @@
+import { hostname } from "node:os";
 import type { AcpKimiChatRequest } from "../../modules/acp-kimi/acp-kimi.dto.js";
 import type { AcpKimiStreamEvent } from "../../modules/acp-kimi/event-stream.js";
 import {
@@ -15,6 +16,10 @@ import {
   type AcpKimiSessionOwnershipStore,
 } from "../../adapters/postgres/acp-kimi-session-ownership-store.js";
 import { logger } from "../../logger.js";
+import {
+  createAcpKimiPermissionHandler,
+  type AcpKimiPermissionContext,
+} from "./acp-kimi-permission-policy.js";
 
 const acpKimiProxyLogger = logger.child({ module: "acp-kimi-proxy" });
 
@@ -24,6 +29,10 @@ export interface AcpKimiProxyServiceDeps {
   ) => Promise<KimiAcpSessionRuntime>;
   sessionRegistry?: KimiSessionRegistry;
   ownershipStore?: AcpKimiSessionOwnershipStore;
+  getRuntimeLocation?: () => {
+    runtimeHostName: string;
+    kimiWorkDir: string;
+  };
 }
 
 export interface AcpKimiProxyService {
@@ -38,7 +47,7 @@ export interface AcpKimiProxyService {
     },
   ): Promise<void>;
   chat(
-    input: AcpKimiChatRequest,
+    input: AcpKimiManagedChatRequest,
     emit: (event: AcpKimiStreamEvent) => void,
     deps?: {
       signal?: AbortSignal;
@@ -46,6 +55,10 @@ export interface AcpKimiProxyService {
     },
   ): Promise<void>;
 }
+
+export type AcpKimiManagedChatRequest = AcpKimiChatRequest & {
+  permissionContext?: AcpKimiPermissionContext;
+};
 
 export class AcpKimiProxyError extends Error {
   constructor(
@@ -65,6 +78,10 @@ export function createAcpKimiProxyService(
     deps.createSessionRuntime ?? createKimiAcpSessionRuntime;
   const sessionRegistry = deps.sessionRegistry ?? inMemoryKimiSessionRegistry;
   const ownershipStore = deps.ownershipStore ?? getAcpKimiSessionOwnershipStore();
+  const getRuntimeLocation = deps.getRuntimeLocation ?? (() => ({
+    runtimeHostName: hostname(),
+    kimiWorkDir: process.cwd(),
+  }));
 
   return {
     async assertSessionAccess(input) {
@@ -158,7 +175,7 @@ export function createAcpKimiProxyService(
       }
     },
     async chat(
-      input: AcpKimiChatRequest,
+      input: AcpKimiManagedChatRequest,
       emit: (event: AcpKimiStreamEvent) => void,
       deps?: {
         signal?: AbortSignal;
@@ -187,6 +204,8 @@ export function createAcpKimiProxyService(
             ownershipStore,
             createSessionRuntime,
             input.operatorLarkId,
+            getRuntimeLocation,
+            input.permissionContext,
             deps?.signal,
           );
 
@@ -283,22 +302,46 @@ async function createOwnedSession(
     deps?: KimiAcpRuntimeDeps,
   ) => Promise<KimiAcpSessionRuntime>,
   operatorLarkId: string,
+  getRuntimeLocation: () => {
+    runtimeHostName: string;
+    kimiWorkDir: string;
+  },
+  permissionContext: AcpKimiPermissionContext | undefined,
   signal?: AbortSignal,
 ): Promise<KimiSessionRecord> {
+  const runtimeLocation = getRuntimeLocation();
+  const workDir = permissionContext?.workspaceDir ?? runtimeLocation.kimiWorkDir;
   acpKimiProxyLogger.info({
     operatorLarkId,
-    cwd: process.cwd(),
+    cwd: workDir,
+    actionKey: permissionContext?.actionKey ?? null,
+    executionPolicy: permissionContext?.executionPolicy ?? "read_only",
   }, "ACP_KIMI_CREATE_SESSION START");
-  const runtime = await createSessionRuntime({ signal });
+  const runtime = await createSessionRuntime({
+    cwd: workDir,
+    permissionHandler: createAcpKimiPermissionHandler(permissionContext),
+    signal,
+  });
   const session = {
     sessionId: runtime.sessionId,
     operatorLarkId,
     runtime,
+    permissionContext,
     busy: false,
   } satisfies KimiSessionRecord;
 
   sessionRegistry.set(session);
-  await ownershipStore.claim(session.sessionId, operatorLarkId);
+  await ownershipStore.claim({
+    sessionId: session.sessionId,
+    operatorLarkId,
+    runtimeHostName: runtimeLocation.runtimeHostName,
+    kimiWorkDir: workDir,
+    automationActionKey: permissionContext?.actionKey ?? null,
+    executionPolicy: permissionContext?.executionPolicy ?? null,
+    skillProfile: permissionContext?.skillProfile ?? null,
+    skillId: permissionContext?.skillId ?? null,
+    policyVersion: permissionContext?.policyVersion ?? null,
+  });
   acpKimiProxyLogger.info({
     operatorLarkId,
     sessionId: session.sessionId,
@@ -369,13 +412,17 @@ async function getOwnedSession(
     );
   }
 
+  const permissionContext = toPermissionContext(ownership);
   const runtime = await createSessionRuntime({
     sessionId,
+    cwd: ownership.kimiWorkDir ?? process.cwd(),
+    permissionHandler: createAcpKimiPermissionHandler(permissionContext),
   });
   const restoredSession = {
     sessionId,
     operatorLarkId,
     runtime,
+    permissionContext,
     busy: false,
   } satisfies KimiSessionRecord;
   sessionRegistry.set(restoredSession);
@@ -386,6 +433,29 @@ async function getOwnedSession(
     busy: restoredSession.busy,
   }, "ACP_KIMI_GET_OWNED_SESSION OK");
   return restoredSession;
+}
+
+function toPermissionContext(
+  ownership: Awaited<ReturnType<AcpKimiSessionOwnershipStore["getBySessionId"]>>,
+): AcpKimiPermissionContext | undefined {
+  if (!ownership) {
+    return undefined;
+  }
+  return {
+    actionKey: ownership.automationActionKey,
+    executionPolicy: isExecutionPolicy(ownership.executionPolicy)
+      ? ownership.executionPolicy
+      : "read_only",
+    workspaceDir: ownership.kimiWorkDir,
+    skillProfile: ownership.skillProfile,
+    skillId: ownership.skillId,
+    ticketNumber: ownership.ticketNumber,
+    policyVersion: ownership.policyVersion,
+  };
+}
+
+function isExecutionPolicy(value: string | null): value is NonNullable<AcpKimiPermissionContext["executionPolicy"]> {
+  return value === "read_only" || value === "shell" || value === "write+shell" || value === "full";
 }
 
 function isAbortError(error: unknown): boolean {

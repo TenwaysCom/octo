@@ -5,6 +5,12 @@ import type { DatabaseSchema } from "./schema.js";
 import {
   DEFAULT_LARK_BUG_ANALYZE_PROMPT_NOTE,
   DEFAULT_LARK_BUG_ANALYZE_PROMPT_TEMPLATE,
+  DEFAULT_LARK_TICKET_SUPPORT_QA_ANSWER_PROMPT_NOTE,
+  DEFAULT_LARK_TICKET_SUPPORT_QA_DOCUMENT_PREVIEW_PROMPT_NOTE,
+  DEFAULT_LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_NOTE,
+  DEFAULT_LARK_TICKET_SUPPORT_QA_ANSWER_PROMPT_TEMPLATE,
+  DEFAULT_LARK_TICKET_SUPPORT_QA_DOCUMENT_PREVIEW_PROMPT_TEMPLATE,
+  DEFAULT_LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_TEMPLATE,
   DEFAULT_GITHUB_PR_DEEP_REVIEW_PROMPT_NOTE,
   DEFAULT_GITHUB_PR_DEEP_REVIEW_PROMPT_TEMPLATE,
   DEFAULT_GITHUB_PR_CODE_REVIEW_FEEDBACK_PROMPT_NOTE,
@@ -17,6 +23,9 @@ import {
   DEFAULT_STORY_PRD_TO_SIMPLIFIED_PROMPT_NOTE,
   DEFAULT_STORY_PRD_TO_SIMPLIFIED_PROMPT_TEMPLATE,
   LARK_BUG_ANALYZE_PROMPT_KEY,
+  LARK_TICKET_SUPPORT_QA_ANSWER_PROMPT_KEY,
+  LARK_TICKET_SUPPORT_QA_DOCUMENT_PREVIEW_PROMPT_KEY,
+  LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_KEY,
   STORY_PRD_TO_SIMPLIFIED_PROMPT_KEY,
 } from "../../domain/workflow-prompts.js";
 
@@ -71,6 +80,14 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .addColumn("ticket_base_id", "text")
     .addColumn("ticket_table_id", "text")
     .addColumn("ticket_record_id", "text")
+    .addColumn("ticket_number", "text")
+    .addColumn("runtime_host_name", "text")
+    .addColumn("kimi_work_dir", "text")
+    .addColumn("automation_action_key", "text")
+    .addColumn("execution_policy", "text")
+    .addColumn("skill_profile", "text")
+    .addColumn("skill_id", "text")
+    .addColumn("policy_version", "text")
     .addColumn("deleted_at", "text")
     .addColumn("created_at", "text", (column) => column.notNull())
     .addColumn("updated_at", "text", (column) => column.notNull())
@@ -430,6 +447,33 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .onConflict((conflict) => conflict.column("key").doNothing())
     .execute();
 
+  for (const prompt of [
+    {
+      key: LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_KEY,
+      prompt: DEFAULT_LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_TEMPLATE,
+      note: DEFAULT_LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_NOTE,
+    },
+    {
+      key: LARK_TICKET_SUPPORT_QA_ANSWER_PROMPT_KEY,
+      prompt: DEFAULT_LARK_TICKET_SUPPORT_QA_ANSWER_PROMPT_TEMPLATE,
+      note: DEFAULT_LARK_TICKET_SUPPORT_QA_ANSWER_PROMPT_NOTE,
+    },
+    {
+      key: LARK_TICKET_SUPPORT_QA_DOCUMENT_PREVIEW_PROMPT_KEY,
+      prompt: DEFAULT_LARK_TICKET_SUPPORT_QA_DOCUMENT_PREVIEW_PROMPT_TEMPLATE,
+      note: DEFAULT_LARK_TICKET_SUPPORT_QA_DOCUMENT_PREVIEW_PROMPT_NOTE,
+    },
+  ]) {
+    await db.insertInto("workflow_prompts")
+      .values({
+        ...prompt,
+        created_at: now,
+        updated_at: now,
+      })
+      .onConflict((conflict) => conflict.column("key").doNothing())
+      .execute();
+  }
+
   await db.insertInto("workflow_prompts")
     .values({
       key: GITHUB_PR_CODE_REVIEW_FEEDBACK_PROMPT_KEY,
@@ -482,7 +526,13 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     ALTER TABLE acp_kimi_session_owners
     ADD COLUMN IF NOT EXISTS title text
   `.execute(db);
-  for (const column of ["ticket_base_id", "ticket_table_id", "ticket_record_id"]) {
+  for (const column of ["ticket_base_id", "ticket_table_id", "ticket_record_id", "ticket_number"]) {
+    await sql.raw(`ALTER TABLE acp_kimi_session_owners ADD COLUMN IF NOT EXISTS ${column} text`).execute(db);
+  }
+  for (const column of ["runtime_host_name", "kimi_work_dir"]) {
+    await sql.raw(`ALTER TABLE acp_kimi_session_owners ADD COLUMN IF NOT EXISTS ${column} text`).execute(db);
+  }
+  for (const column of ["automation_action_key", "execution_policy", "skill_profile", "skill_id", "policy_version"]) {
     await sql.raw(`ALTER TABLE acp_kimi_session_owners ADD COLUMN IF NOT EXISTS ${column} text`).execute(db);
   }
   await sql`

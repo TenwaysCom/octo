@@ -27,6 +27,12 @@ export type AutomationActionPlacement =
   | { surface: "sidebar" }
   | { surface: "page_dom"; target: "lark_detail_header" };
 
+export type AutomationExecutionPolicy =
+  | "read_only"
+  | "shell"
+  | "write+shell"
+  | "full";
+
 export interface AutomationActionConfig {
   key: string;
   title: string;
@@ -76,6 +82,15 @@ export interface AutomationActionConfig {
       };
     };
   };
+  /**
+   * Server-owned AI execution metadata. The extension may use it for display,
+   * but it must never make an authorization decision from these fields.
+   */
+  promptKey?: string;
+  skillProfile?: string;
+  skillId?: string;
+  executionPolicy?: AutomationExecutionPolicy;
+  requiresConfirmation?: boolean;
 }
 
 export interface ExtensionPageConfig {

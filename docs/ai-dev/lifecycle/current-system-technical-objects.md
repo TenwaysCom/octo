@@ -42,6 +42,7 @@ update_required_when:
 | `LarkBugAnalyzeAction` | Server workflow | `server/src/application/services/lark-bug-analyze.service.ts`, `server/src/modules/lark-bug/lark-bug-analyze.controller.ts` | 从 Lark Bug 记录或 Meegle Production Bug 信息生成分析摘要；使用 ACP one-shot、限流、超时和结构化错误 |
 | `WorkflowPrompt` | Server PostgreSQL store | `server/src/adapters/postgres/workflow-prompt-store.ts`, `server/src/domain/workflow-prompts.ts` | 按稳定 `key` 存储 workflow prompt 和 `note`；Story 研发Review 使用 `meegle.story.prd_to_simplified`，Lark Bug 分析使用 `lark.bug.analyze` |
 | `AcpKimiOneShotRuntime` | Server ACP proxy / adapter | `server/src/application/services/acp-kimi-proxy.service.ts`, `server/src/adapters/kimi-acp/kimi-acp-runtime.ts` | 一次性 ACP runtime；不进入 reusable session registry，prompt 后关闭 |
+| `LarkTicketAcpPermissionContext` | Server automation catalog / ACP proxy | `server/src/modules/public-config/automation-actions.config.ts`, `server/src/application/services/acp-kimi-permission-policy.ts` | Ticket 快捷动作将 Profile、Skill 和四级执行策略绑定至 Session；每个 ACP 工具调用重新判定 |
 | `GitHubWorkitemAction` | Extension modal + server workflow | `server/src/modules/github-branch-create/*`, `server/src/controllers/github-reverse-lookup.ts`, `extension/src/popup-shared/*github*` | 依赖 Meegle workitem 字段和 GitHub adapter |
 | `ActionRunTrace` | Should be cross-layer contract | docs issue/rules only | 规则已定义，代码尚未统一实现 |
 

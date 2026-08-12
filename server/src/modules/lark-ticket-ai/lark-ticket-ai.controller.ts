@@ -24,6 +24,7 @@ const ticketSessionListQuerySchema = ticketRefSchema.omit({ recordId: true });
 const ticketSessionChatSchema = ticketRefSchema.omit({ recordId: true }).extend({
   message: z.string().trim().min(1).max(8000),
   sessionId: z.string().min(1).optional(),
+  actionKey: z.string().min(1).optional(),
   actionRunId: z.string().min(1).optional(),
 });
 const ticketSessionLoadSchema = ticketRefSchema.omit({ recordId: true });
@@ -46,7 +47,11 @@ function toErrorResponse(error: unknown) {
     return { statusCode: 400, body: { ok: false as const, error: { errorCode: "INVALID_REQUEST", errorMessage: error.message } } };
   }
   if (error instanceof LarkTicketAiSessionError) {
-    const statusCode = error.code === "LARK_TICKET_NOT_FOUND" || error.code === "SESSION_NOT_FOUND" ? 404 : 403;
+    const statusCode = error.code === "LARK_TICKET_NOT_FOUND" || error.code === "SESSION_NOT_FOUND"
+      ? 404
+      : error.code === "AI_ACTION_NOT_FOUND" || error.code === "SKILL_PROFILE_NOT_CONFIGURED"
+        ? 400
+        : 403;
     return { statusCode, body: { ok: false as const, error: { errorCode: error.code, errorMessage: error.message } } };
   }
   return { statusCode: 500, body: { ok: false as const, error: { errorCode: "AI_SESSION_FAILED", errorMessage: "AI Session 暂时不可用。" } } };
@@ -126,6 +131,7 @@ export function createWebLarkTicketAiController(deps: {
           ticket,
           message: request.message,
           sessionId: request.sessionId,
+          actionKey: request.actionKey,
           actionRunId: request.actionRunId,
           signal: abortController.signal,
         }, (event) => writeAcpKimiEvent(res, event));

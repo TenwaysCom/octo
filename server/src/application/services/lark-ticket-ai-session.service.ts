@@ -1,5 +1,6 @@
 import type { AcpKimiProxyService } from "./acp-kimi-proxy.service.js";
 import { acpKimiProxyService } from "./acp-kimi-proxy.service.js";
+import type { AcpKimiPermissionContext } from "./acp-kimi-permission-policy.js";
 import { acpKimiSessionHistoryService } from "./acp-kimi-session-history.service.js";
 import type { AcpKimiStreamEvent } from "../../modules/acp-kimi/event-stream.js";
 import {
@@ -12,6 +13,22 @@ import {
   type LarkBaseTicketSyncItem,
   type PlatformSyncStore,
 } from "../../adapters/postgres/platform-sync-store.js";
+import {
+  AUTOMATION_SKILL_PROFILES,
+  getTicketAiAutomationAction,
+  type TicketAiAutomationActionConfig,
+} from "../../modules/public-config/automation-actions.config.js";
+import {
+  getWorkflowPromptStore,
+  type WorkflowPromptStore,
+} from "../../adapters/postgres/workflow-prompt-store.js";
+import {
+  DEFAULT_LARK_TICKET_SUPPORT_QA_PROMPTS,
+  renderWorkflowPromptTemplate,
+} from "../../domain/workflow-prompts.js";
+import { access, realpath } from "node:fs/promises";
+import { constants } from "node:fs";
+import { relative, resolve } from "node:path";
 
 export interface LarkTicketAiSessionRef {
   baseId: string;
@@ -21,7 +38,7 @@ export interface LarkTicketAiSessionRef {
 
 export class LarkTicketAiSessionError extends Error {
   constructor(
-    readonly code: "LARK_TICKET_NOT_FOUND" | "SESSION_NOT_FOUND" | "SESSION_FORBIDDEN",
+    readonly code: "LARK_TICKET_NOT_FOUND" | "SESSION_NOT_FOUND" | "SESSION_FORBIDDEN" | "AI_ACTION_NOT_FOUND" | "SKILL_PROFILE_NOT_CONFIGURED",
     message: string,
   ) {
     super(message);
@@ -34,6 +51,14 @@ export interface LarkTicketAiSessionServiceDeps {
   ownershipStore?: AcpKimiSessionOwnershipStore;
   acpService?: Pick<AcpKimiProxyService, "assertSessionAccess" | "chat">;
   historyService?: Pick<typeof acpKimiSessionHistoryService, "loadSession">;
+  workflowPromptStore?: WorkflowPromptStore;
+  resolveAction?: (actionKey: string) => Promise<ResolvedTicketAiAction | undefined>;
+}
+
+interface ResolvedTicketAiAction {
+  action: TicketAiAutomationActionConfig;
+  workspaceDir: string;
+  skillPath: string;
 }
 
 export function createLarkTicketAiSessionService(
@@ -43,6 +68,8 @@ export function createLarkTicketAiSessionService(
   const ownershipStore = deps.ownershipStore ?? getAcpKimiSessionOwnershipStore();
   const acpService = deps.acpService ?? acpKimiProxyService;
   const historyService = deps.historyService ?? acpKimiSessionHistoryService;
+  const workflowPromptStore = deps.workflowPromptStore ?? getWorkflowPromptStore();
+  const resolveAction = deps.resolveAction ?? resolveTicketAiAction;
 
   return {
     async listSessions(input: {
@@ -76,6 +103,7 @@ export function createLarkTicketAiSessionService(
       ticket: LarkTicketAiSessionRef;
       message: string;
       sessionId?: string;
+      actionKey?: string;
       actionRunId?: string;
       signal?: AbortSignal;
     }, emit: (event: AcpKimiStreamEvent) => void) {
@@ -87,13 +115,29 @@ export function createLarkTicketAiSessionService(
           sessionId: input.sessionId,
         })
         : null;
+      if (input.sessionId && input.actionKey && session?.automationActionKey !== input.actionKey) {
+        throw new LarkTicketAiSessionError("SESSION_FORBIDDEN", "AI Session action cannot be changed after creation.");
+      }
+      const quickAction = input.sessionId || !input.actionKey
+        ? undefined
+        : await resolveAction(input.actionKey);
+      if (input.actionKey && !quickAction) {
+        throw new LarkTicketAiSessionError("AI_ACTION_NOT_FOUND", "Requested AI quick action is not configured.");
+      }
+      const permissionContext = quickAction
+        ? createPermissionContext(quickAction, ticket)
+        : undefined;
+      const prompt = quickAction
+        ? await buildQuickActionPrompt(workflowPromptStore, quickAction, ticket, input.message)
+        : input.sessionId ? input.message : buildTicketPrompt(ticket, input.message);
       let createdSessionId: string | undefined;
 
       await acpService.chat({
         operatorLarkId: input.operatorLarkId,
         sessionId: input.sessionId,
         actionRunId: input.actionRunId,
-        message: input.sessionId ? input.message : buildTicketPrompt(ticket, input.message),
+        message: prompt,
+        permissionContext,
       }, (event) => {
         if (event.event === "session.created") {
           createdSessionId = event.data.sessionId;
@@ -101,7 +145,7 @@ export function createLarkTicketAiSessionService(
         emit(event);
       }, {
         signal: input.signal,
-        session,
+        session: input.sessionId ? undefined : null,
       });
 
       const sessionId = input.sessionId ?? createdSessionId;
@@ -115,6 +159,7 @@ export function createLarkTicketAiSessionService(
           operatorLarkId: input.operatorLarkId,
           title: deriveSessionTitle(input.message),
           ...input.ticket,
+          ticketNumber: ticket.ticketNumber || ticket.recordId,
         });
         if (!claimed) {
           throw new LarkTicketAiSessionError("SESSION_NOT_FOUND", "Created AI session could not be associated with this Ticket.");
@@ -155,7 +200,7 @@ async function getTicketSession(
     || session.ticketRecordId !== input.ticket.recordId) {
     throw new LarkTicketAiSessionError("SESSION_FORBIDDEN", "AI Session does not belong to this Ticket.");
   }
-  return undefined;
+  return session;
 }
 
 function toSessionSummary(session: AcpKimiSessionOwnershipRecord) {
@@ -186,4 +231,62 @@ function buildTicketPrompt(ticket: LarkBaseTicketSyncItem, request: string): str
     `Resources:\n${resources || "(none)"}`,
     `User request:\n${request}`,
   ].join("\n\n");
+}
+
+async function resolveTicketAiAction(actionKey: string): Promise<ResolvedTicketAiAction | undefined> {
+  const action = getTicketAiAutomationAction(actionKey);
+  if (!action) {
+    return undefined;
+  }
+  const profile = AUTOMATION_SKILL_PROFILES[action.skillProfile];
+  const workspaceDir = process.env[profile.workspaceEnv]?.trim();
+  const skillRelativePath = (profile.skills as Record<string, string>)[action.skillId];
+  if (!workspaceDir || !skillRelativePath) {
+    throw new LarkTicketAiSessionError("SKILL_PROFILE_NOT_CONFIGURED", `Skill profile ${action.skillProfile} is not configured on this server.`);
+  }
+  const resolvedWorkspace = await realpath(workspaceDir);
+  const skillPath = await realpath(resolve(resolvedWorkspace, skillRelativePath));
+  const pathFromWorkspace = relative(resolvedWorkspace, skillPath);
+  if (!pathFromWorkspace
+    || pathFromWorkspace === ".."
+    || pathFromWorkspace.startsWith("../")
+    || pathFromWorkspace.startsWith("..\\")) {
+    throw new LarkTicketAiSessionError("SKILL_PROFILE_NOT_CONFIGURED", `Skill profile ${action.skillProfile} resolves outside its workspace.`);
+  }
+  await access(skillPath, constants.R_OK);
+  return { action, workspaceDir: resolvedWorkspace, skillPath };
+}
+
+function createPermissionContext(
+  quickAction: ResolvedTicketAiAction,
+  ticket: LarkBaseTicketSyncItem,
+): AcpKimiPermissionContext {
+  return {
+    actionKey: quickAction.action.key,
+    executionPolicy: quickAction.action.executionPolicy,
+    workspaceDir: quickAction.workspaceDir,
+    skillProfile: quickAction.action.skillProfile,
+    skillId: quickAction.action.skillId,
+    ticketNumber: ticket.ticketNumber || ticket.recordId,
+    policyVersion: "v1",
+  };
+}
+
+async function buildQuickActionPrompt(
+  promptStore: WorkflowPromptStore,
+  quickAction: ResolvedTicketAiAction,
+  ticket: LarkBaseTicketSyncItem,
+  message: string,
+): Promise<string> {
+  const storedPrompt = await promptStore.getByKey(quickAction.action.promptKey);
+  const template = storedPrompt?.prompt.trim()
+    || DEFAULT_LARK_TICKET_SUPPORT_QA_PROMPTS[quickAction.action.promptKey];
+  if (!template) {
+    throw new LarkTicketAiSessionError("AI_ACTION_NOT_FOUND", `Prompt ${quickAction.action.promptKey} is not configured.`);
+  }
+  return renderWorkflowPromptTemplate(template, {
+    skill_path: quickAction.skillPath,
+    ticket_context: buildTicketPrompt(ticket, "").replace(/\n\nUser request:\n$/, ""),
+    user_message: message,
+  });
 }

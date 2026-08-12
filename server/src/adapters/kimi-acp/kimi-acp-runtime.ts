@@ -14,6 +14,7 @@ import type {
   AcpKimiSessionUpdateEvent,
 } from "../../modules/acp-kimi/event-stream.js";
 import { logger } from "../../logger.js";
+import type { AcpKimiPermissionHandler } from "../../application/services/acp-kimi-permission-policy.js";
 
 const kimiAcpRuntimeLogger = logger.child({ module: "kimi-acp-runtime" });
 const DEFAULT_KIMI_ACP_STARTUP_TIMEOUT_MS = 30_000;
@@ -67,6 +68,7 @@ export interface KimiAcpConnectionFactoryInput {
   spawnConfig: KimiAcpSpawnConfig;
   cwd: string;
   emit(event: AcpKimiStreamEvent): void;
+  permissionHandler?: AcpKimiPermissionHandler;
   signal?: AbortSignal;
 }
 
@@ -79,6 +81,7 @@ export interface KimiAcpRuntimeDeps {
     input: KimiAcpConnectionFactoryInput,
   ) => Promise<KimiAcpConnection> | KimiAcpConnection;
   emit?: (event: AcpKimiStreamEvent) => void;
+  permissionHandler?: AcpKimiPermissionHandler;
   signal?: AbortSignal;
   sessionId?: string;
 }
@@ -123,6 +126,7 @@ export async function createKimiAcpSessionRuntime(
         emit(event) {
           emit(event);
         },
+        permissionHandler: deps.permissionHandler,
         signal: deps.signal,
       })
     : createDefaultConnection(
@@ -132,6 +136,7 @@ export async function createKimiAcpSessionRuntime(
           emit(event) {
             emit(event);
           },
+          permissionHandler: deps.permissionHandler,
           signal: deps.signal,
         },
         deps.spawnProcess,
@@ -246,6 +251,7 @@ export async function listKimiAcpSessions(
         spawnConfig,
         cwd,
         emit() {},
+        permissionHandler: undefined,
         signal: deps.signal,
       })
     : createDefaultConnection(
@@ -253,6 +259,7 @@ export async function listKimiAcpSessions(
           spawnConfig,
           cwd,
           emit() {},
+          permissionHandler: undefined,
           signal: deps.signal,
         },
         deps.spawnProcess,
@@ -357,7 +364,7 @@ async function createDefaultConnection(
   >[1];
 
   const connection = new acp.ClientSideConnection(
-    () => new CollectingClient(input.emit),
+    () => new CollectingClient(input.emit, input.permissionHandler),
     stream,
   );
 
@@ -727,11 +734,17 @@ function truncateLogValue(value: string, maxLength = 1_000): string {
 }
 
 class CollectingClient implements acp.Client {
-  constructor(private readonly emit: (event: AcpKimiStreamEvent) => void) {}
+  constructor(
+    private readonly emit: (event: AcpKimiStreamEvent) => void,
+    private readonly permissionHandler?: AcpKimiPermissionHandler,
+  ) {}
 
   async requestPermission(
-    _params: RequestPermissionRequest,
+    params: RequestPermissionRequest,
   ): Promise<RequestPermissionResponse> {
+    if (this.permissionHandler) {
+      return this.permissionHandler(params);
+    }
     return {
       outcome: {
         outcome: "cancelled" as const,
