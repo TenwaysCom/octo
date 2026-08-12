@@ -10,6 +10,7 @@ export const WORKSPACE_ROUTES = [
 export const WORKSPACE_NAVIGATION_ROUTES = WORKSPACE_ROUTES.filter((route) => !["integrations", "sync", "shortcuts"].includes(route.page));
 export const INTEGRATIONS_ROUTE = WORKSPACE_ROUTES.find((route) => route.page === "integrations");
 export const INTEGRATIONS_SUBROUTES = WORKSPACE_ROUTES.filter((route) => ["integrations", "sync", "shortcuts"].includes(route.page));
+export const WORKSPACE_BREADCRUMB_LIMIT = 5;
 
 export function getLarkTicketDetailHash(recordId) {
   return `#lark-tickets/${encodeURIComponent(recordId)}`;
@@ -30,4 +31,16 @@ export function getWorkspaceRoute(hash) {
     }
   }
   return WORKSPACE_ROUTES.find((route) => route.hash === hash) || INTEGRATIONS_ROUTE;
+}
+
+export function appendWorkspaceBreadcrumb(trail, route) {
+  const item = {
+    hash: route.hash,
+    label: route.page === "lark-ticket-detail" ? "Ticket 详情" : route.label || route.title,
+  };
+  const existingIndex = trail.findIndex((breadcrumb) => breadcrumb.hash === item.hash);
+  if (existingIndex >= 0) {
+    return trail.slice(0, existingIndex + 1);
+  }
+  return [...trail, item].slice(-WORKSPACE_BREADCRUMB_LIMIT);
 }

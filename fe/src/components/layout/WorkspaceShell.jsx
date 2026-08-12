@@ -71,11 +71,21 @@ function WorkspaceHeader({ user }) {
   </header>;
 }
 
-export function WorkspaceShell({ user, activePage, onLogout, isBusy, children }) {
+function WorkspaceBreadcrumbs({ items }) {
+  if (!items.length) return null;
+  return <nav className="workspace-breadcrumbs" aria-label="面包屑导航">
+    {items.map((item, index) => index === items.length - 1
+      ? <span aria-current="page" key={item.hash}>{item.label}</span>
+      : <a href={item.hash} key={item.hash}>{item.label}</a>)}
+  </nav>;
+}
+
+export function WorkspaceShell({ user, activePage, onLogout, isBusy, breadcrumbs = [], children }) {
   return <main className="workspace-layout">
     <WorkspaceSidebar activePage={activePage} onLogout={onLogout} isBusy={isBusy} />
     <div className="workspace-content">
       <WorkspaceHeader user={user} />
+      <WorkspaceBreadcrumbs items={breadcrumbs} />
       {children}
     </div>
   </main>;

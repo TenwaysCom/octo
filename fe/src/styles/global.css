@@ -194,6 +194,11 @@ a { color: inherit; }
 .workspace-header__account strong { overflow: hidden; color: var(--octo-text); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .workspace-header__account span { color: var(--octo-text-muted); font-size: 11px; }
 .workspace-header__avatar { width: 34px; height: 34px; border-radius: 50%; font-size: 13px; }
+.workspace-breadcrumbs { display: flex; align-items: center; gap: 8px; min-height: 42px; padding: 0 clamp(20px, 4vw, 54px); border-bottom: 1px solid var(--octo-border); color: var(--octo-text-muted); background: var(--octo-surface); font-size: 12px; font-weight: 650; }
+.workspace-breadcrumbs a { color: var(--octo-text-muted); text-decoration: none; }
+.workspace-breadcrumbs a:hover { color: var(--octo-brand); text-decoration: underline; }
+.workspace-breadcrumbs a::after { margin-left: 8px; color: var(--octo-border); content: "/"; }
+.workspace-breadcrumbs span { overflow: hidden; color: var(--octo-text); text-overflow: ellipsis; white-space: nowrap; }
 .profile-sidebar { position: sticky; top: 0; display: flex; height: 100vh; flex-direction: column; align-self: start; padding: 20px 16px 18px; border-right: 1px solid var(--octo-border); background: var(--octo-surface); }
 .profile-sidebar__header { display: flex; margin: 0 8px 31px; }
 .profile-sidebar__header .brand { gap: 9px; font-size: 20px; }

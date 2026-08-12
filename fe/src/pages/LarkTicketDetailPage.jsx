@@ -29,7 +29,7 @@ function TicketLoadingState({ children }) {
   return <section className="profile-main ticket-detail-page"><p className="list-message">{children}</p></section>;
 }
 
-export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLogout, isBusy }) {
+export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLogout, isBusy, breadcrumbs }) {
   const [state, setState] = useState({ status: "loading", ticket: undefined });
   const [aiSessions, setAiSessions] = useState({ status: "idle", items: [], error: "" });
   const [newSessionDraft, setNewSessionDraft] = useState("");
@@ -135,13 +135,13 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
   }
 
   if (state.status === "loading") {
-    return <WorkspaceShell user={profile.user ?? {}} activePage="lark-tickets" onLogout={onLogout} isBusy={isBusy}><TicketLoadingState>正在加载 Ticket 详情…</TicketLoadingState></WorkspaceShell>;
+    return <WorkspaceShell user={profile.user ?? {}} activePage="lark-tickets" onLogout={onLogout} isBusy={isBusy} breadcrumbs={breadcrumbs}><TicketLoadingState>正在加载 Ticket 详情…</TicketLoadingState></WorkspaceShell>;
   }
   if (state.status === "error") {
-    return <WorkspaceShell user={profile.user ?? {}} activePage="lark-tickets" onLogout={onLogout} isBusy={isBusy}><TicketLoadingState>Ticket 详情暂时无法读取，请稍后重试。</TicketLoadingState></WorkspaceShell>;
+    return <WorkspaceShell user={profile.user ?? {}} activePage="lark-tickets" onLogout={onLogout} isBusy={isBusy} breadcrumbs={breadcrumbs}><TicketLoadingState>Ticket 详情暂时无法读取，请稍后重试。</TicketLoadingState></WorkspaceShell>;
   }
   if (!state.ticket) {
-    return <WorkspaceShell user={profile.user ?? {}} activePage="lark-tickets" onLogout={onLogout} isBusy={isBusy}><TicketLoadingState>未在当前同步快照中找到该 Ticket。</TicketLoadingState></WorkspaceShell>;
+    return <WorkspaceShell user={profile.user ?? {}} activePage="lark-tickets" onLogout={onLogout} isBusy={isBusy} breadcrumbs={breadcrumbs}><TicketLoadingState>未在当前同步快照中找到该 Ticket。</TicketLoadingState></WorkspaceShell>;
   }
 
   const ticketNumber = ticket.ticketNumber || ticket.recordId;
@@ -151,7 +151,7 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
     [ticket.meegleLink, "关联 Meegle 工作项"],
   ].filter(([href]) => href);
 
-  return <WorkspaceShell user={profile.user ?? {}} activePage="lark-tickets" onLogout={onLogout} isBusy={isBusy}>
+  return <WorkspaceShell user={profile.user ?? {}} activePage="lark-tickets" onLogout={onLogout} isBusy={isBusy} breadcrumbs={breadcrumbs}>
     <main className="profile-main ticket-detail-page">
       <div className="ticket-detail__topline">
         <a className="ticket-back-link" href="#lark-tickets"><span aria-hidden="true">←</span>全部 Lark Ticket</a>

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  appendWorkspaceBreadcrumb,
   getLarkTicketDetailHash,
   getWorkspaceRoute,
   INTEGRATIONS_ROUTE,
@@ -36,4 +37,15 @@ test("keeps sync and shortcut help as Integrations subpages", () => {
   assert.deepEqual(INTEGRATIONS_SUBROUTES.map((route) => route.page), ["integrations", "sync", "shortcuts"]);
   assert.equal(WORKSPACE_NAVIGATION_ROUTES.some((route) => route.page === "sync"), false);
   assert.equal(WORKSPACE_NAVIGATION_ROUTES.some((route) => route.page === "shortcuts"), false);
+});
+
+test("keeps no more than five workspace breadcrumbs and truncates when returning", () => {
+  const trail = ["#lark-tickets", "#meegle-workitems", "#github-pull-requests", "#integrations", "#sync", "#shortcuts"]
+    .reduce((current, hash) => appendWorkspaceBreadcrumb(current, getWorkspaceRoute(hash)), []);
+
+  assert.deepEqual(trail.map((item) => item.hash), ["#meegle-workitems", "#github-pull-requests", "#integrations", "#sync", "#shortcuts"]);
+  assert.deepEqual(
+    appendWorkspaceBreadcrumb(trail, getWorkspaceRoute("#github-pull-requests")).map((item) => item.hash),
+    ["#meegle-workitems", "#github-pull-requests"],
+  );
 });

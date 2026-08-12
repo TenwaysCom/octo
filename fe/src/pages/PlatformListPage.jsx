@@ -248,23 +248,25 @@ function SyncedListTable({ kind, items, sort, onSort }) {
   </tbody></table>;
 }
 
-export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy }) {
+export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, breadcrumbs, platformListFilterState, onPlatformListFilterStateChange }) {
+  const restoredFilters = platformListFilterState || {};
   const [state, setState] = useState({ status: "loading", items: [], sprints: [] });
-  const [query, setQuery] = useState("");
-  const [selectedStatuses, setSelectedStatuses] = useState(null);
-  const [dateFilter, setDateFilter] = useState("all-time");
-  const [sprintFilter, setSprintFilter] = useState("");
-  const [noSprintFilter, setNoSprintFilter] = useState(false);
-  const [githubQuickFilter, setGithubQuickFilter] = useState("all");
-  const [larkTicketQuickFilter, setLarkTicketQuickFilter] = useState("all");
-  const [workitemTypeFilter, setWorkitemTypeFilter] = useState("all");
-  const [sort, setSort] = useState(DEFAULT_SORT);
+  const [query, setQuery] = useState(() => restoredFilters.query || "");
+  const [selectedStatuses, setSelectedStatuses] = useState(() => restoredFilters.selectedStatuses || null);
+  const [dateFilter, setDateFilter] = useState(() => restoredFilters.dateFilter || "all-time");
+  const [sprintFilter, setSprintFilter] = useState(() => restoredFilters.sprintFilter || "");
+  const [noSprintFilter, setNoSprintFilter] = useState(() => Boolean(restoredFilters.noSprintFilter));
+  const [githubQuickFilter, setGithubQuickFilter] = useState(() => restoredFilters.githubQuickFilter || "all");
+  const [larkTicketQuickFilter, setLarkTicketQuickFilter] = useState(() => restoredFilters.larkTicketQuickFilter || "all");
+  const [workitemTypeFilter, setWorkitemTypeFilter] = useState(() => restoredFilters.workitemTypeFilter || "all");
+  const [sort, setSort] = useState(() => restoredFilters.sort || DEFAULT_SORT);
   const [filterOpen, setFilterOpen] = useState(false);
-  const [pageIndex, setPageIndex] = useState(0);
+  const [pageIndex, setPageIndex] = useState(() => restoredFilters.pageIndex || 0);
   const [reloadVersion, setReloadVersion] = useState(0);
   const [resetError, setResetError] = useState("");
   const [isResettingDevopsCache, setIsResettingDevopsCache] = useState(false);
   const searchInputRef = useRef(null);
+  const filterStateRef = useRef(null);
   const statusFilters = [...new Set(state.items.map((item) => getPlatformItemStatus(page, item)))].sort((left, right) => left.localeCompare(right));
   const itemsBeforeTypeFilter = filterPlatformItems(state.items, query)
     .filter((item) => selectedStatuses === null || selectedStatuses.includes(getPlatformItemStatus(page, item)))
@@ -283,21 +285,9 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy }
   const firstResult = sortedItems.length === 0 ? 0 : currentPageIndex * LIST_PAGE_SIZE + 1;
   const lastResult = Math.min((currentPageIndex + 1) * LIST_PAGE_SIZE, sortedItems.length);
 
-  useEffect(() => {
-    setQuery("");
-    setSelectedStatuses(null);
-    setDateFilter("all-time");
-    setSprintFilter("");
-    setNoSprintFilter(false);
-    setGithubQuickFilter("all");
-    setLarkTicketQuickFilter("all");
-    setWorkitemTypeFilter("all");
-    setSort(DEFAULT_SORT);
-    setFilterOpen(false);
-    setPageIndex(0);
-    setResetError("");
-    setIsResettingDevopsCache(false);
-  }, [page]);
+  filterStateRef.current = { query, selectedStatuses, dateFilter, sprintFilter, noSprintFilter, githubQuickFilter, larkTicketQuickFilter, workitemTypeFilter, sort, pageIndex };
+
+  useEffect(() => () => onPlatformListFilterStateChange?.(page, filterStateRef.current), [onPlatformListFilterStateChange, page]);
 
   useEffect(() => {
     let active = true;
@@ -346,7 +336,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy }
     },
   });
 
-  return <WorkspaceShell user={profile.user ?? {}} activePage={page} onLogout={onLogout} isBusy={isBusy}>
+  return <WorkspaceShell user={profile.user ?? {}} activePage={page} onLogout={onLogout} isBusy={isBusy} breadcrumbs={breadcrumbs}>
     <section className="profile-main list-page">
       <section className="list-section">
         {state.status === "loading" ? <p className="list-message">正在加载同步数据…</p> : null}

@@ -13,7 +13,7 @@ import { LarkTicketDetailPage } from "../pages/LarkTicketDetailPage.jsx";
 import { PlatformListPage } from "../pages/PlatformListPage.jsx";
 import { SettingsIntegrationsPage } from "../pages/SettingsIntegrationsPage.jsx";
 import { SyncStatusPage } from "../pages/SyncStatusPage.jsx";
-import { getWorkspaceRoute } from "./routes/workspace-routes.js";
+import { appendWorkspaceBreadcrumb, getWorkspaceRoute } from "./routes/workspace-routes.js";
 
 const WORKSPACE_PAGE_COMPONENTS = {
   integrations: SettingsIntegrationsPage,
@@ -32,9 +32,15 @@ export function App({ apiBaseUrl }) {
   const [sessionStatus, setSessionStatus] = useState("checking");
   const [extension, setExtension] = useState({ status: "checking" });
   const [workspaceRoute, setWorkspaceRoute] = useState(() => getWorkspaceRoute(window.location.hash));
+  const [breadcrumbs, setBreadcrumbs] = useState(() => appendWorkspaceBreadcrumb([], getWorkspaceRoute(window.location.hash)));
+  const [platformListFilterStates, setPlatformListFilterStates] = useState({});
 
   useEffect(() => {
-    const onHashChange = () => setWorkspaceRoute(getWorkspaceRoute(window.location.hash));
+    const onHashChange = () => {
+      const nextRoute = getWorkspaceRoute(window.location.hash);
+      setWorkspaceRoute(nextRoute);
+      setBreadcrumbs((current) => appendWorkspaceBreadcrumb(current, nextRoute));
+    };
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
@@ -96,6 +102,10 @@ export function App({ apiBaseUrl }) {
     setStatus,
   });
 
+  const savePlatformListFilterState = useCallback((page, filterState) => {
+    setPlatformListFilterStates((current) => ({ ...current, [page]: filterState }));
+  }, []);
+
   useKeyboardShortcut({
     key: "?",
     enabled: Boolean(profile),
@@ -112,9 +122,13 @@ export function App({ apiBaseUrl }) {
   if (profile) {
     const WorkspacePage = WORKSPACE_PAGE_COMPONENTS[workspaceRoute.page];
     return <WorkspacePage
+      key={workspaceRoute.hash}
       profile={profile}
       page={workspaceRoute.page}
       ticketRecordId={workspaceRoute.ticketRecordId}
+      breadcrumbs={breadcrumbs}
+      platformListFilterState={platformListFilterStates[workspaceRoute.page]}
+      onPlatformListFilterStateChange={savePlatformListFilterState}
       apiBaseUrl={apiBaseUrl}
       onLogout={() => void logout()}
       onReauthorize={() => startLarkLogin({ apiBaseUrl })}

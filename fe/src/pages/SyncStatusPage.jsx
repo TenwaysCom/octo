@@ -42,7 +42,7 @@ function SyncSourceCard({ source, latest, running, error, onSync }) {
   </article>;
 }
 
-export function SyncStatusPage({ profile, apiBaseUrl, onLogout, isBusy }) {
+export function SyncStatusPage({ profile, apiBaseUrl, onLogout, isBusy, breadcrumbs }) {
   const [state, setState] = useState({ status: "loading", sources: [], latestBySource: {} });
   const [runningId, setRunningId] = useState("");
   const [errorBySource, setErrorBySource] = useState({});
@@ -91,7 +91,7 @@ export function SyncStatusPage({ profile, apiBaseUrl, onLogout, isBusy }) {
     }
   }
 
-  return <WorkspaceShell user={profile.user ?? {}} activePage="sync" onLogout={onLogout} isBusy={isBusy}>
+  return <WorkspaceShell user={profile.user ?? {}} activePage="sync" onLogout={onLogout} isBusy={isBusy} breadcrumbs={breadcrumbs}>
     <section className="profile-main sync-page" data-test="sync-status-page">
       <header className="shortcuts-page__header">
         <p className="eyebrow">INTEGRATIONS</p>
