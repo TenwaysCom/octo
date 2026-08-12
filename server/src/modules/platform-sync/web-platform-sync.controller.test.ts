@@ -63,6 +63,7 @@ describe("web platform sync controller", () => {
       masterUserId: "user_1",
       projectKey: "project",
       workItemTypeKeys: ["66700acbf297a8f821b4b860"],
+      cleanAfterSync: true,
       actionRunId: "run_1",
     });
   });
@@ -78,7 +79,26 @@ describe("web platform sync controller", () => {
     expect(result.statusCode).toBe(200);
     expect(service.bulkSyncGitHubPullRequests).toHaveBeenCalledWith({
       repositories: [{ owner: "TenwaysCom", repo: "tenways-ukk" }],
+      cleanAfterSync: true,
       actionRunId: "run_2",
+    });
+  });
+
+  it("always cleans Lark snapshots after a Web-triggered sync", async () => {
+    const { controller, service } = createController();
+    const result = await controller.sync({
+      cookieHeader: "octo_web_session=session",
+      sourceId: "lark-tickets",
+      body: { actionRunId: "run_3" },
+    });
+
+    expect(result.statusCode).toBe(200);
+    expect(service.bulkSyncLarkBaseTickets).toHaveBeenCalledWith({
+      masterUserId: "user_1",
+      baseId: "base",
+      tableId: "table",
+      cleanAfterSync: true,
+      actionRunId: "run_3",
     });
   });
 

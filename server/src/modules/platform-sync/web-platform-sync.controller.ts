@@ -142,7 +142,7 @@ async function syncSource(
   if (sourceId === "lark-tickets") {
     if (config.larkBase.length === 0) throw new Error("SYNC_SOURCE_NOT_CONFIGURED");
     return summarizeSyncResults(await Promise.all(config.larkBase.map((target) => (
-      service.bulkSyncLarkBaseTickets({ masterUserId, ...target, actionRunId })
+      service.bulkSyncLarkBaseTickets({ masterUserId, ...target, cleanAfterSync: true, actionRunId })
     ))));
   }
   const meegleSource = MEEGLE_SOURCES.find((item) => item.id === sourceId);
@@ -152,13 +152,14 @@ async function syncSource(
       masterUserId,
       projectKey: meegleTarget.projectKey,
       workItemTypeKeys: [meegleSource.workItemTypeKey],
+      cleanAfterSync: true,
       actionRunId,
     })]);
   }
   const source = GITHUB_SOURCES.find((item) => item.id === sourceId);
   const target = source && config.github.find((item) => item.owner === source.owner && item.repo === source.repo);
   if (!source || !target) throw new Error("SYNC_SOURCE_NOT_CONFIGURED");
-  return summarizeSyncResults([await service.bulkSyncGitHubPullRequests({ repositories: [target], actionRunId })]);
+  return summarizeSyncResults([await service.bulkSyncGitHubPullRequests({ repositories: [target], cleanAfterSync: true, actionRunId })]);
 }
 
 type SyncSummary = {
