@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { WorkspaceShell } from "../components/layout/WorkspaceShell.jsx";
+import { LarkTicketBadge } from "../components/lark-ticket/LarkTicketBadge.jsx";
+import { LarkTicketResponsible } from "../components/lark-ticket/LarkTicketResponsible.jsx";
 import { useKeyboardShortcut } from "../hooks/useKeyboardShortcut.js";
 import { formatDateTime } from "../lib/formatters.js";
 import { matchesGitHubPullRequestQuickFilter } from "../lib/github-pull-request-filters.js";
@@ -33,10 +35,6 @@ function ExternalLink({ href, title, className, children }) {
     // Synced fields may be empty or a non-URL value; render plain text in that case.
   }
   return children;
-}
-
-function StatusPill({ children }) {
-  return <span className="list-status">{children || "-"}</span>;
 }
 
 function getMeegleStatusTone(status) {
@@ -234,7 +232,7 @@ function SortableColumnHeader({ label, sortKey, sort, onSort }) {
 function SyncedListTable({ kind, items, sort, onSort }) {
   if (kind === "lark-tickets") {
     return <table className="data-table"><thead><tr><th><SortableColumnHeader label="Ticket" sortKey="title" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="状态" sortKey="status" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="Issue 类型" sortKey="issueType" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="负责人" sortKey="responsible" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="紧急度" sortKey="priority" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="更新时间" sortKey="updatedAt" sort={sort} onSort={onSort} /></th></tr></thead><tbody>
-      {items.map((item, index) => <tr key={item.recordId || `${item.baseId || "base"}-${item.tableId || "table"}-${index}`}><td><a className="table-link" href={getLarkTicketDetailHash(item.recordId)}>{item.title}</a><small>{item.ticketNumber || item.recordId}</small></td><td><StatusPill>{item.ticketStatus}</StatusPill></td><td>{item.issueType || "-"}</td><td>{item.responsible || "-"}</td><td><StatusPill>{item.priority}</StatusPill></td><td>{formatDateTime(item.sourceUpdatedAt || item.syncedAt)}</td></tr>)}
+      {items.map((item, index) => <tr key={item.recordId || `${item.baseId || "base"}-${item.tableId || "table"}-${index}`}><td><a className="table-link" href={getLarkTicketDetailHash(item.recordId)}>{item.title}</a><small>{item.ticketNumber || item.recordId}</small></td><td><LarkTicketBadge kind="status" value={item.ticketStatus} /></td><td><LarkTicketBadge kind="type" value={item.issueType} /></td><td><LarkTicketResponsible responsible={item.responsible} /></td><td><LarkTicketBadge kind="priority" value={item.priority} /></td><td>{formatDateTime(item.sourceUpdatedAt || item.syncedAt)}</td></tr>)}
     </tbody></table>;
   }
 

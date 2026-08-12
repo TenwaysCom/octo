@@ -214,9 +214,8 @@ a { color: inherit; }
 .profile-nav__subitem { padding: 6px 8px; border-radius: 6px; color: var(--octo-text-muted); font-size: 12px; font-weight: 650; text-decoration: none; }
 .profile-nav__subitem:hover { color: var(--octo-brand); background: var(--octo-surface-muted); }
 .profile-nav__subitem--active { color: var(--octo-brand); }
-.profile-logout { display: flex; align-items: center; gap: 9px; margin-top: auto; padding: 10px 12px; border: 0; border-radius: 8px; color: var(--octo-text-muted); cursor: pointer; background: transparent; font-size: 12px; font-weight: 650; text-align: left; }
-.profile-logout:hover { color: var(--octo-brand); background: var(--octo-surface-muted); }
-.profile-logout:disabled { cursor: wait; opacity: .6; }
+.profile-nav__subitem--button { border: 0; cursor: pointer; background: transparent; text-align: left; }
+.profile-nav__subitem--button:disabled { cursor: wait; opacity: .6; }
 .profile-main { width: min(100%, 1060px); margin: 0 auto; padding: clamp(32px, 5vw, 64px); }
 .profile-main__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
 .profile-main__header h1 { margin-bottom: 8px; font-size: clamp(29px, 3vw, 36px); }
@@ -314,6 +313,10 @@ a { color: inherit; }
 .github-user:hover { color: var(--octo-brand); background: var(--octo-brand-soft); }
 .github-user img { width: 19px; height: 19px; flex: 0 0 auto; border-radius: 50%; background: var(--octo-border); }
 .github-user span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.user-list { display: flex; flex-wrap: wrap; gap: 4px; }
+.user { display: inline-flex; max-width: 150px; align-items: center; gap: 5px; min-height: 24px; padding: 2px 6px 2px 3px; border-radius: 999px; color: var(--octo-text); background: var(--octo-surface-muted); font-size: 12px; font-weight: 600; line-height: 1.2; }
+.user__avatar { display: grid; width: 19px; height: 19px; flex: 0 0 auto; place-items: center; border-radius: 50%; color: #fff; background: var(--octo-brand); font-size: 10px; font-weight: 700; }
+.user__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .github-pr-labels { display: flex; flex-wrap: wrap; gap: 4px; min-width: 96px; }
 .github-pr-label { max-width: 130px; overflow: hidden; padding: 3px 7px; border-radius: 999px; color: #6d28d9; background: #ede9fe; font-size: 11px; font-weight: 700; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
 .odoo-sh-build-dot { width: 8px; height: 8px; border-radius: 999px; background: #94a3b8; }
@@ -328,7 +331,18 @@ a { color: inherit; }
 .github-pr-status--merged { color: #166534; background: #dcfce7; }
 .github-pr-status--closed { color: #475569; background: #e2e8f0; }
 .github-pr-status--draft { color: #1d4ed8; background: #dbeafe; }
-.list-status { display: inline-flex; max-width: 150px; align-items: center; overflow: hidden; padding: 4px 8px; border-radius: 999px; color: var(--octo-brand); background: color-mix(in srgb, var(--octo-brand) 12%, var(--octo-surface)); font-size: 11px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.lark-ticket-badge { display: inline-flex; max-width: 150px; align-items: center; overflow: hidden; padding: 4px 8px; border-radius: 999px; color: #475569; background: #e2e8f0; font-size: 11px; font-weight: 700; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
+.lark-ticket-badge--status.lark-ticket-badge--open { color: #92400e; background: #fef3c7; }
+.lark-ticket-badge--status.lark-ticket-badge--active { color: #1d4ed8; background: #dbeafe; }
+.lark-ticket-badge--status.lark-ticket-badge--review { color: #6d28d9; background: #ede9fe; }
+.lark-ticket-badge--status.lark-ticket-badge--completed { color: #166534; background: #dcfce7; }
+.lark-ticket-badge--type.lark-ticket-badge--bug { color: #b91c1c; background: #fee2e2; }
+.lark-ticket-badge--type.lark-ticket-badge--story { color: #6d28d9; background: #ede9fe; }
+.lark-ticket-badge--type.lark-ticket-badge--task { color: #0369a1; background: #e0f2fe; }
+.lark-ticket-badge--priority.lark-ticket-badge--critical { color: #b91c1c; background: #fee2e2; }
+.lark-ticket-badge--priority.lark-ticket-badge--high { color: #c2410c; background: #ffedd5; }
+.lark-ticket-badge--priority.lark-ticket-badge--medium { color: #a16207; background: #fef9c3; }
+.lark-ticket-badge--priority.lark-ticket-badge--low { color: #0f766e; background: #ccfbf1; }
 .meegle-workitem-status { display: inline-flex; max-width: 150px; align-items: center; overflow: hidden; padding: 4px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .meegle-workitem-status--default, .meegle-workitem-status--planning { color: #6b7280; background: #f3f4f6; }
 .meegle-workitem-status--planning { color: #6d28d9; background: #ede9fe; }
@@ -524,7 +538,6 @@ h1 {
 .ticket-detail-grid { display: grid; grid-template-columns: minmax(0, 1fr) 248px; gap: clamp(44px, 7vw, 92px); align-items: start; }
 .ticket-detail__content { min-width: 0; }
 .ticket-detail__identity { display: flex; align-items: center; gap: 7px; margin: 0 0 13px; color: var(--octo-text-muted); font-size: 13px; font-weight: 650; }
-.ticket-type-mark { color: var(--octo-brand); font-size: 16px; }
 .ticket-detail__content h1 { margin: 0; font-size: clamp(24px, 2.6vw, 32px); letter-spacing: -.035em; }
 .ticket-detail-section { padding: 28px 0; border-bottom: 1px solid var(--octo-border); }
 .ticket-detail-section h2, .ticket-detail__properties h2 { margin: 0 0 13px; color: var(--octo-text); font-size: 14px; letter-spacing: -.015em; }
@@ -596,13 +609,6 @@ h1 {
 .ticket-property { display: grid; gap: 6px; }
 .ticket-property dt { color: var(--octo-text-muted); font-size: 12px; }
 .ticket-property dd { margin: 0; }
-.ticket-property__value { display: inline-flex; align-items: center; gap: 6px; min-height: 24px; color: var(--octo-text); font-size: 13px; font-weight: 650; }
-.ticket-property__value::before { width: 8px; height: 8px; content: ""; border-radius: 50%; background: var(--octo-border); }
-.ticket-property__value--status::before { background: #eab308; }
-.ticket-property__value--priority::before { border-radius: 2px; background: #d97706; }
-.ticket-property__value--owner::before { background: var(--octo-success); }
-.ticket-property__value--label { padding: 2px 8px; border-radius: 999px; color: #0f766e; background: #ccfbf1; font-size: 11px; }
-.ticket-property__value--label::before { width: 6px; height: 6px; background: #14b8a6; }
 .ticket-detail__sync-time { margin: 34px 0 0; color: var(--octo-text-muted); font-size: 11px; line-height: 1.5; }
 
 @media (max-width: 860px) {
@@ -614,11 +620,11 @@ h1 {
   .profile-sidebar { position: relative; height: auto; }
   .profile-sidebar__header { margin: 0 0 16px; }
   .profile-nav { display: flex; gap: 8px; padding: 0; }
-  .profile-nav__label, .profile-nav__subitems { display: none; }
-  .profile-nav__group { display: contents; margin: 0; }
+  .profile-nav__label { display: none; }
+  .profile-nav__group { position: relative; display: block; margin: 0; }
   .profile-nav__item { padding: 10px 12px; }
   .profile-nav__chevron { display: none; }
-  .profile-logout { position: absolute; top: 13px; right: 20px; margin: 0; }
+  .profile-nav__subitems { position: absolute; z-index: 1; top: calc(100% + 4px); left: 0; min-width: 156px; padding: 6px; border: 1px solid var(--octo-border); border-radius: 8px; background: var(--octo-surface); box-shadow: 0 8px 20px rgba(32, 37, 51, .12); }
   .integration-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ticket-detail-grid { grid-template-columns: 1fr; gap: 32px; }
   .ticket-detail__properties { position: static; padding: 22px; border: 1px solid var(--octo-border); border-radius: 12px; background: var(--octo-surface); }
@@ -636,8 +642,6 @@ h1 {
   .workspace-header__account > div:last-child { display: none; }
   .profile-sidebar { padding: 12px 14px; }
   .profile-nav__item { padding: 8px 9px; font-size: 12px; }
-  .profile-logout { top: 10px; right: 14px; padding: 8px; font-size: 0; }
-  .profile-logout span { font-size: 15px; }
   .profile-main { padding: 28px 20px 42px; }
   .profile-main__header { display: grid; gap: 14px; }
   .profile-main__header .status-badge { justify-self: start; }

@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { WorkspaceShell } from "../components/layout/WorkspaceShell.jsx";
+import { LarkTicketBadge } from "../components/lark-ticket/LarkTicketBadge.jsx";
+import { LarkTicketResponsible } from "../components/lark-ticket/LarkTicketResponsible.jsx";
 import { appendAiSessionEvent, createAiUserMessage, transcriptFromAiSessionEvents } from "../lib/ai-session-transcript.js";
 import { formatDateTime } from "../lib/formatters.js";
 import { listLarkTicketAiSessions, loadLarkTicketAiSession, streamLarkTicketAiSession } from "../services/lark-ticket-ai/lark-ticket-ai-api.js";
@@ -16,10 +18,10 @@ function ExternalResource({ href, children }) {
   }
 }
 
-function TicketProperty({ label, tone, children }) {
+function TicketProperty({ label, children }) {
   return <div className="ticket-property">
     <dt>{label}</dt>
-    <dd><span className={tone ? `ticket-property__value ticket-property__value--${tone}` : "ticket-property__value"}>{children || "未设置"}</span></dd>
+    <dd>{children || "未设置"}</dd>
   </div>;
 }
 
@@ -157,7 +159,7 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
       </div>
       <div className="ticket-detail-grid">
         <article className="ticket-detail__content">
-          <p className="ticket-detail__identity"><span className="ticket-type-mark" aria-hidden="true">◫</span>{ticket.issueType || "Lark Ticket"}<span>·</span>{ticketNumber}</p>
+          <p className="ticket-detail__identity"><LarkTicketBadge kind="type" value={ticket.issueType} /><span>·</span>{ticketNumber}</p>
           <h1>{ticket.title}</h1>
 
           <section className="ticket-detail-section">
@@ -194,10 +196,10 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
         <aside className="ticket-detail__properties" aria-label="Ticket 属性">
           <h2>Properties</h2>
           <dl>
-            <TicketProperty label="状态" tone="status">{ticket.ticketStatus}</TicketProperty>
-            <TicketProperty label="紧急度" tone="priority">{ticket.priority}</TicketProperty>
-            <TicketProperty label="负责人" tone="owner">{ticket.responsible}</TicketProperty>
-            <TicketProperty label="标签" tone="label">{ticket.issueType}</TicketProperty>
+            <TicketProperty label="状态"><LarkTicketBadge kind="status" value={ticket.ticketStatus} /></TicketProperty>
+            <TicketProperty label="紧急度"><LarkTicketBadge kind="priority" value={ticket.priority} /></TicketProperty>
+            <TicketProperty label="负责人"><LarkTicketResponsible responsible={ticket.responsible} /></TicketProperty>
+            <TicketProperty label="类型"><LarkTicketBadge kind="type" value={ticket.issueType} /></TicketProperty>
           </dl>
           <p className="ticket-detail__sync-time">同步于 {formatDateTime(ticket.syncedAt)}</p>
         </aside>

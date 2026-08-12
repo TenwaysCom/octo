@@ -52,12 +52,12 @@ function WorkspaceSidebar({ activePage, onLogout, isBusy }) {
             href={route.hash}
             key={route.page}
           >{route.label}</a>)}
+          <button className="profile-nav__subitem profile-nav__subitem--button" type="button" disabled={isBusy} onClick={onLogout}>
+            退出当前工作台
+          </button>
         </div> : null}
       </div>
     </nav>
-    <button className="profile-logout" type="button" disabled={isBusy} onClick={onLogout}>
-      <span aria-hidden="true">↗</span>退出当前工作台
-    </button>
   </aside>;
 }
 
