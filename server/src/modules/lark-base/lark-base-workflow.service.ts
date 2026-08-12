@@ -19,6 +19,7 @@ import {
   createActionErrorEnvelopeFromError,
   type ActionErrorEnvelope,
 } from "../../application/action-error-envelope.js";
+import { MEEGLE_PRODUCTION_BUG_WORKITEM_TYPE_KEY } from "../../domain/meegle-workitem-types.js";
 
 const workflowLogger = logger.child({ module: "lark-base-workflow-service" });
 const MODULE = "lark-base-workflow";
@@ -40,7 +41,7 @@ const WORKITEM_TYPE_KEY_STORY = process.env.MEEGLE_WORKITEM_TYPE_KEY_STORY || "s
 const TEMPLATE_ID_STORY = process.env.MEEGLE_TEMPLATE_ID_STORY || "400329";
 const WORKITEM_TYPE_KEY_TECH_TASK = process.env.MEEGLE_WORKITEM_TYPE_KEY_TECH_TASK || "";
 const TEMPLATE_ID_TECH_TASK = process.env.MEEGLE_TEMPLATE_ID_TECH_TASK || "";
-const WORKITEM_TYPE_KEY_PROD_BUG = process.env.MEEGLE_WORKITEM_TYPE_KEY_PROD_BUG || "6932e40429d1cd8aac635c82";
+const WORKITEM_TYPE_KEY_PROD_BUG = MEEGLE_PRODUCTION_BUG_WORKITEM_TYPE_KEY;
 const TEMPLATE_ID_PROD_BUG = process.env.MEEGLE_TEMPLATE_ID_PROD_BUG || "645025";
 
 // Fallback when Issue 类型 is empty or unrecognized

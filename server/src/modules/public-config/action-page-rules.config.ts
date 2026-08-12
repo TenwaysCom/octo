@@ -1,4 +1,5 @@
 import type { AutomationActionId } from "./automation-actions.config.js";
+import { MEEGLE_PRODUCTION_BUG_WORKITEM_TYPE_KEY } from "../../domain/meegle-workitem-types.js";
 import type {
   AutomationActionPlacement,
   ExtensionPageConfig,
@@ -111,7 +112,7 @@ export const ACTION_PAGE_RULES: ActionPageRule[] = [
     host: "project.larksuite.com",
     path: "/:projectKey/:workItemTypeKey/detail/:workItemId",
     params: {
-      workItemTypeKey: ["!story", "!production_bug", "!6932e40429d1cd8aac635c82"],
+      workItemTypeKey: ["!story", "!production_bug", `!${MEEGLE_PRODUCTION_BUG_WORKITEM_TYPE_KEY}`],
     },
     sidebar: SIDEBAR_ENABLED,
     actions: ["updateLarkAndPush", "createGithubBranch"],
@@ -130,7 +131,7 @@ export const ACTION_PAGE_RULES: ActionPageRule[] = [
     platform: "meegle",
     pageType: "meegle_production_bug_detail",
     host: "project.larksuite.com",
-    path: "/:projectKey/6932e40429d1cd8aac635c82/detail/:workItemId",
+    path: `/:projectKey/${MEEGLE_PRODUCTION_BUG_WORKITEM_TYPE_KEY}/detail/:workItemId`,
     sidebar: SIDEBAR_ENABLED,
     actions: ["larkBugAnalyze", "updateLarkAndPush", "createGithubBranch"],
   },

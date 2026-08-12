@@ -30,6 +30,11 @@ import {
   LARK_BUG_ANALYZE_PROMPT_KEY,
   renderWorkflowPromptTemplate,
 } from "../../domain/workflow-prompts.js";
+import {
+  isMeegleProductionBugType,
+  MEEGLE_PRODUCTION_BUG_API_NAME,
+  MEEGLE_PRODUCTION_BUG_WORKITEM_TYPE_KEY,
+} from "../../domain/meegle-workitem-types.js";
 import { getConfiguredMeegleAuthServiceDeps } from "../../modules/meegle-auth/meegle-auth.service.js";
 import type { LarkBugAnalyzeControllerRequest } from "../../modules/lark-bug/lark-bug-analyze.dto.js";
 import type { AcpKimiStreamEvent } from "../../modules/acp-kimi/event-stream.js";
@@ -37,8 +42,6 @@ import { logger } from "../../logger.js";
 
 const bugLogger = logger.child({ module: "lark-bug-analyze" });
 
-const PRODUCTION_BUG_API_NAME = "production_bug";
-const PRODUCTION_BUG_TYPE_KEY = "6932e40429d1cd8aac635c82";
 const DEFAULT_BUG_ACP_TIMEOUT_MS = 110_000;
 const DEFAULT_BUG_ACP_CONCURRENCY_LIMIT = 3;
 const LARK_THREAD_CONTEXT_MESSAGE_LIMIT = 50;
@@ -472,12 +475,12 @@ function resolveLarkRecordIds(
 }
 
 function isProductionBugType(workItemTypeKey: string): boolean {
-  return workItemTypeKey === PRODUCTION_BUG_API_NAME || workItemTypeKey === PRODUCTION_BUG_TYPE_KEY;
+  return isMeegleProductionBugType(workItemTypeKey);
 }
 
 function normalizeProductionBugTypeKey(workItemTypeKey: string): string {
-  return workItemTypeKey === PRODUCTION_BUG_API_NAME
-    ? PRODUCTION_BUG_TYPE_KEY
+  return workItemTypeKey === MEEGLE_PRODUCTION_BUG_API_NAME
+    ? MEEGLE_PRODUCTION_BUG_WORKITEM_TYPE_KEY
     : workItemTypeKey;
 }
 

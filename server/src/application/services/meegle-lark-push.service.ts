@@ -32,6 +32,10 @@ import {
   type MeegleContactUser,
   type ResolvedLarkContact,
 } from "./lark-contact-resolver.service.js";
+import {
+  MEEGLE_PRODUCTION_BUG_API_NAME,
+  MEEGLE_PRODUCTION_BUG_WORKITEM_TYPE_KEY,
+} from "../../domain/meegle-workitem-types.js";
 
 const pushLogger = logger.child({ module: "meegle-lark-push-service" });
 const MODULE = "meegle-lark-push";
@@ -61,7 +65,7 @@ const MEEGLE_API_NAME_TO_TYPE_KEY: Record<string, string> = {
   voc: "6621e5b5be796e305e3a9229",
   techtask: "66700acbf297a8f821b4b860",
   changeapproval: "6819b8e43035408c4c94307d",
-  production_bug: "6932e40429d1cd8aac635c82",
+  [MEEGLE_PRODUCTION_BUG_API_NAME]: MEEGLE_PRODUCTION_BUG_WORKITEM_TYPE_KEY,
 };
 
 function resolveMeegleTypeKey(apiName: string): string {
