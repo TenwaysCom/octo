@@ -422,6 +422,79 @@ describe("lark-auth.service", () => {
     })).resolves.toMatchObject({ ok: false, errorCode: "UNAUTHENTICATED" });
   });
 
+  it("uses OAuth open_id and enriches a missing profile through the matching Contact identity type", async () => {
+    await startLarkOauthSession({
+      state: "web_open_id_state",
+      baseUrl: "https://open.larksuite.com",
+    });
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ code: 0, app_access_token: "app_access_token_123" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          code: 0,
+          data: {
+            access_token: "user_access_token_456",
+            refresh_token: "refresh_token_789",
+            expires_in: 7200,
+            refresh_token_expires_in: 604800,
+            token_type: "Bearer",
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          code: 0,
+          data: { open_id: "ou_open_id_user", tenant_key: "tenant_open_id" },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          code: 0,
+          data: {
+            user: {
+              name: "Open ID User",
+              enterprise_email: "open-id@example.com",
+              avatar: { avatar_240: "https://example.com/open-id-avatar.png" },
+            },
+          },
+        }),
+      });
+
+    const result = await handleLarkWebAuthCallback(
+      { code: "web_open_id_code", state: "web_open_id_state" },
+      {
+        appId: "cli_test",
+        appSecret: "secret_test",
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+        resolvedUserStore,
+        tokenStore,
+        oauthSessionStore,
+        webSessionStore,
+      },
+    );
+
+    expect(result.kind).toBe("ready");
+    expect(fetchImpl).toHaveBeenNthCalledWith(
+      4,
+      "https://open.larksuite.com/open-apis/contact/v3/users/ou_open_id_user?user_id_type=open_id",
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: "Bearer user_access_token_456" }),
+      }),
+    );
+    await expect(resolvedUserStore.getByLarkIdentity("tenant_open_id", "ou_open_id_user")).resolves.toMatchObject({
+      larkName: "Open ID User",
+      larkEmail: "open-id@example.com",
+      larkAvatarUrl: "https://example.com/open-id-avatar.png",
+    });
+  });
+
   it("returns require_auth when no stored token exists", async () => {
     await expect(
       checkLarkAuthStatus({

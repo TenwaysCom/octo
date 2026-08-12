@@ -1124,12 +1124,13 @@ function renderCallbackPage(input: {
 
 async function getLarkContactUserInfo(
   baseUrl: string,
-  userId: string,
+  identity: string,
+  identityType: "open_id" | "user_id" | "union_id",
   accessToken: string,
   fetchImpl: typeof fetch,
 ): Promise<{ email?: string; name?: string; avatarUrl?: string }> {
-  const url = new URL(`/open-apis/contact/v3/users/${encodeURIComponent(userId)}`, baseUrl);
-  url.searchParams.set("user_id_type", "user_id");
+  const url = new URL(`/open-apis/contact/v3/users/${encodeURIComponent(identity)}`, baseUrl);
+  url.searchParams.set("user_id_type", identityType);
 
   const response = await fetchImpl(url.toString(), {
     method: "GET",
@@ -1150,9 +1151,11 @@ async function getLarkContactUserInfo(
     return {};
   }
 
-  const contactData = (data.data as Record<string, unknown> | undefined)
-    ?? (data.data as Record<string, unknown> | undefined)?.user as Record<string, unknown> | undefined;
-  const email = (contactData?.email as string | undefined) || undefined;
+  const contactResponse = data.data as Record<string, unknown> | undefined;
+  const contactData = (contactResponse?.user as Record<string, unknown> | undefined) ?? contactResponse;
+  const email = (contactData?.email as string | undefined)
+    || (contactData?.enterprise_email as string | undefined)
+    || undefined;
   const name = (contactData?.name as string | undefined) || undefined;
   const avatar = contactData?.avatar as Record<string, unknown> | undefined;
   const avatarUrl = (avatar?.avatar_240 as string | undefined)
@@ -1189,7 +1192,12 @@ async function getLarkUserInfo(
   }
 
   const userData = data.data as Record<string, unknown> | undefined;
-  const userId = userData?.user_id as string | undefined;
+  // Open ID is app-scoped and is available even when the user is not visible
+  // through Contacts. Keep user_id and union_id only as compatibility fallbacks.
+  const identityType = (["open_id", "user_id", "union_id"] as const).find(
+    (candidate) => typeof userData?.[candidate] === "string" && userData[candidate],
+  );
+  const userId = identityType ? userData?.[identityType] as string : undefined;
   const tenantKey = userData?.tenant_key as string | undefined;
   const rawEmail = userData?.email as string | undefined;
   const enterpriseEmail = userData?.enterprise_email as string | undefined;
@@ -1204,7 +1212,7 @@ async function getLarkUserInfo(
   // Fall back to Contact API when email is missing, because the current
   // OAuth scope does not always grant email access through the authen API.
   if (!email) {
-    const contactInfo = await getLarkContactUserInfo(baseUrl, userId, accessToken, fetchImpl);
+    const contactInfo = await getLarkContactUserInfo(baseUrl, userId, identityType!, accessToken, fetchImpl);
     email = contactInfo.email ?? email;
     name = contactInfo.name ?? name;
     avatarUrl = contactInfo.avatarUrl ?? avatarUrl;

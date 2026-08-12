@@ -568,7 +568,7 @@ h1 {
 .ticket-ai-session-empty strong { display: block; color: var(--octo-text); font-size: 13px; }
 .ticket-ai-session-empty p { margin: 4px 0 0; font-size: 12px; line-height: 1.55; }
 .ticket-ai-session-error { margin: 0 0 12px; color: var(--octo-danger); font-size: 12px; }
-.ticket-ai-session-list { display: grid; gap: 8px; margin-bottom: 14px; }
+.ticket-ai-session-list { display: grid; gap: 8px; margin-bottom: 28px; }
 .ticket-ai-session-card { display: flex; width: 100%; align-items: center; gap: 11px; padding: 11px 12px; border: 1px solid var(--octo-border); border-radius: 10px; color: var(--octo-text); cursor: pointer; background: var(--octo-surface); text-align: left; transition: border-color 160ms ease, background 160ms ease; }
 .ticket-ai-session-card:hover { border-color: color-mix(in srgb, var(--octo-brand) 45%, var(--octo-border)); background: color-mix(in srgb, var(--octo-brand) 4%, var(--octo-surface)); }
 .ticket-ai-session-card__icon { display: grid; width: 27px; height: 27px; flex: 0 0 auto; place-items: center; border-radius: 8px; color: var(--octo-brand); background: color-mix(in srgb, var(--octo-brand) 11%, var(--octo-surface)); font-size: 14px; }
@@ -576,7 +576,13 @@ h1 {
 .ticket-ai-session-card__content strong { overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .ticket-ai-session-card__content small { color: var(--octo-text-muted); font-size: 11px; }
 .ticket-ai-session-card__open { color: var(--octo-text-muted); font-size: 21px; line-height: 1; }
-.ticket-ai-session-create { display: grid; overflow: hidden; margin-top: 15px; border: 1px solid var(--octo-border); border-radius: 10px; background: var(--octo-surface); }
+.ticket-ai-session-composer { display: grid; gap: 8px; }
+.ticket-ai-session-quick-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
+.ticket-ai-session-quick-actions button { display: inline-flex; min-height: 31px; align-items: center; gap: 6px; padding: 5px 11px; border: 1px solid var(--octo-border); border-radius: 999px; color: var(--octo-text-muted); cursor: pointer; background: var(--octo-surface); font-size: 12px; font-weight: 650; transition: border-color 160ms ease, color 160ms ease, background 160ms ease; }
+.ticket-ai-session-quick-actions button span { color: var(--octo-brand); font-size: 14px; line-height: 1; }
+.ticket-ai-session-quick-actions button:hover:not(:disabled) { border-color: color-mix(in srgb, var(--octo-brand) 45%, var(--octo-border)); color: var(--octo-brand); background: color-mix(in srgb, var(--octo-brand) 5%, var(--octo-surface)); }
+.ticket-ai-session-quick-actions button:disabled { cursor: wait; opacity: .55; }
+.ticket-ai-session-create { display: grid; overflow: hidden; margin: 0; border: 1px solid var(--octo-border); border-radius: 10px; background: var(--octo-surface); }
 .ticket-ai-session-create textarea, .ticket-ai-drawer__composer textarea { width: 100%; resize: vertical; border: 0; color: var(--octo-text); background: transparent; font: inherit; font-size: 13px; line-height: 1.55; outline: none; }
 .ticket-ai-session-create textarea { min-height: 82px; padding: 13px; }
 .ticket-ai-session-create textarea::placeholder, .ticket-ai-drawer__composer textarea::placeholder { color: #9ca3af; }
@@ -619,10 +625,10 @@ h1 {
 .ticket-ai-drawer__composer button { min-height: 37px; }
 .ticket-detail__properties { position: sticky; top: 92px; padding-top: 4px; }
 .ticket-detail__properties > h2 { margin-bottom: 18px; color: var(--octo-text-muted); font-size: 12px; font-weight: 650; text-transform: uppercase; letter-spacing: .06em; }
-.ticket-detail__properties dl { display: grid; gap: 21px; margin: 0; }
-.ticket-property { display: grid; gap: 6px; }
+.ticket-detail__properties dl { display: grid; gap: 14px; margin: 0; }
+.ticket-property { display: grid; grid-template-columns: 56px minmax(0, 1fr); align-items: center; column-gap: 12px; }
 .ticket-property dt { color: var(--octo-text-muted); font-size: 12px; }
-.ticket-property dd { margin: 0; }
+.ticket-property dd { min-width: 0; margin: 0; }
 .ticket-detail__sync-time { margin: 34px 0 0; color: var(--octo-text-muted); font-size: 11px; line-height: 1.5; }
 
 @media (max-width: 860px) {

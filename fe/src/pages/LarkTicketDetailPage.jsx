@@ -8,6 +8,12 @@ import { listLarkTicketAiSessions, loadLarkTicketAiSession, streamLarkTicketAiSe
 import { loadLarkTicketSharedUrl } from "../services/lark-ticket/lark-ticket-api.js";
 import { getPlatformDataList } from "../services/platform-data/platform-data-api.js";
 
+const TICKET_AI_QUICK_ACTIONS = [
+  { actionKey: "lark-ticket-support-qa-summarize", title: "问题总结", icon: "◌" },
+  { actionKey: "lark-ticket-support-qa-answer", title: "回答问题", icon: "↗" },
+  { actionKey: "lark-ticket-support-qa-document-preview", title: "生成文档", icon: "▤" },
+];
+
 function ExternalResource({ href, children }) {
   if (!href) return null;
   try {
@@ -106,7 +112,7 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
     }
   }
 
-  async function streamAiSession({ message, sessionId, title }) {
+  async function streamAiSession({ message, sessionId, title, actionKey }) {
     if (!ticket || !message.trim()) return;
     const trimmedMessage = message.trim();
     setIsStreaming(true);
@@ -124,6 +130,7 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
         ticket,
         message: trimmedMessage,
         sessionId,
+        actionKey,
         actionRunId: crypto.randomUUID(),
         onEvent: (event) => setDrawer((current) => current ? {
           ...current,
@@ -146,6 +153,15 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
     const request = newSessionDraft;
     setNewSessionDraft("");
     await streamAiSession({ message: request, title: request });
+  }
+
+  async function createQuickAiSession(action) {
+    if (isStreaming) return;
+    await streamAiSession({
+      message: action.title,
+      title: action.title,
+      actionKey: action.actionKey,
+    });
   }
 
   async function continueAiSession(event) {
@@ -207,11 +223,18 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
               <span className="ticket-ai-session-card__content"><strong>{session.title}</strong><small>{formatDateTime(session.updatedAt)}</small></span>
               <span className="ticket-ai-session-card__open" aria-hidden="true">›</span>
             </button>)}</div> : null}
-            <form className="ticket-ai-session-create" onSubmit={createAiSession}>
-              <label className="visually-hidden" htmlFor="ticket-ai-session-request">AI Session 请求</label>
-              <textarea id="ticket-ai-session-request" value={newSessionDraft} onChange={(event) => setNewSessionDraft(event.target.value)} placeholder="例如：为这个 Ticket 创建 PRD，并列出待确认的问题…" rows="3" disabled={isStreaming} />
-              <div><span>当前 Ticket 的标题、描述与资源会作为 AI 上下文。</span><button type="submit" disabled={!newSessionDraft.trim() || isStreaming}>{isStreaming ? "AI 正在回复…" : "新建 AI Session"}</button></div>
-            </form>
+            <div className="ticket-ai-session-composer">
+              <div className="ticket-ai-session-quick-actions" aria-label="AI Session 快捷操作">
+                {TICKET_AI_QUICK_ACTIONS.map((action) => <button type="button" key={action.actionKey} onClick={() => void createQuickAiSession(action)} disabled={isStreaming}>
+                  <span aria-hidden="true">{action.icon}</span>{action.title}
+                </button>)}
+              </div>
+              <form className="ticket-ai-session-create" onSubmit={createAiSession}>
+                <label className="visually-hidden" htmlFor="ticket-ai-session-request">AI Session 请求</label>
+                <textarea id="ticket-ai-session-request" value={newSessionDraft} onChange={(event) => setNewSessionDraft(event.target.value)} placeholder="例如：为这个 Ticket 创建 PRD，并列出待确认的问题…" rows="3" disabled={isStreaming} />
+                <div><span>当前 Ticket 的标题、描述与资源会作为 AI 上下文。</span><button type="submit" disabled={!newSessionDraft.trim() || isStreaming}>{isStreaming ? "AI 正在回复…" : "新建 AI Session"}</button></div>
+              </form>
+            </div>
           </section>
         </article>
 

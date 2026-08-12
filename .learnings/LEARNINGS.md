@@ -187,3 +187,15 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - **Context:** The Ticket detail page can open before an incremental snapshot contains `shared_url`.
 - **Rule:** Render the snapshot first, then request the ticket-scoped Web endpoint only when the link is absent. Resolve the opaque Web session server-side, use its Lark domain and user credential for `batch_get(with_shared_url)`, and persist only `_octo.shared_url` before returning the URL. Keep default Postgres stores lazy so unauthenticated controller branches require no database.
 - **Verified outcome:** Service, controller, route, persistence, and FE API tests pass; both server and FE production builds pass.
+
+## [LRN-20260812-007] ticket-ai-quick-action-ui-contract
+
+- **Context:** Ticket detail needs visible Support-QA shortcuts above the AI Session composer without moving prompt, skill, or permission decisions into the browser.
+- **Rule:** Render the three stable action keys as compact UI controls, and start a new Session with the selected `actionKey` plus a minimal user intent. The existing Server action catalog remains the authority for prompt, skill profile, and execution policy.
+- **Verified outcome:** FE API coverage asserts the quick-action request body; FE tests and production build pass.
+
+## [LRN-20260812-008] web-workspace-role-access
+
+- **Context:** Workspace navigation visibility must not become the only control for synchronized platform data or manual synchronization.
+- **Rule:** Resolve the role from the opaque Web session on the server, derive feature permissions once, return only those permissions in the Web Profile, and enforce the same permissions on the corresponding Web endpoints. `admin`, `devops`, and `pm` grant lists and sync; `dev` grants lists only.
+- **Verified outcome:** Role-policy and controller tests cover allow/deny cases; full server and FE tests plus both production builds pass.
