@@ -5,6 +5,7 @@ import { LarkTicketResponsible } from "../components/lark-ticket/LarkTicketRespo
 import { appendAiSessionEvent, createAiUserMessage, transcriptFromAiSessionEvents } from "../lib/ai-session-transcript.js";
 import { formatDateTime } from "../lib/formatters.js";
 import { listLarkTicketAiSessions, loadLarkTicketAiSession, streamLarkTicketAiSession } from "../services/lark-ticket-ai/lark-ticket-ai-api.js";
+import { loadLarkTicketSharedUrl } from "../services/lark-ticket/lark-ticket-api.js";
 import { getPlatformDataList } from "../services/platform-data/platform-data-api.js";
 
 function ExternalResource({ href, children }) {
@@ -31,6 +32,7 @@ function TicketLoadingState({ children }) {
 
 export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLogout, isBusy, breadcrumbs }) {
   const [state, setState] = useState({ status: "loading", ticket: undefined });
+  const [sharedUrlStatus, setSharedUrlStatus] = useState("idle");
   const [aiSessions, setAiSessions] = useState({ status: "idle", items: [], error: "" });
   const [newSessionDraft, setNewSessionDraft] = useState("");
   const [drawer, setDrawer] = useState(null);
@@ -49,6 +51,26 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
   }, [apiBaseUrl, ticketRecordId]);
 
   const ticket = state.ticket;
+
+  useEffect(() => {
+    if (!ticket || ticket.sharedUrl) {
+      setSharedUrlStatus(ticket?.sharedUrl ? "ready" : "idle");
+      return undefined;
+    }
+    let active = true;
+    setSharedUrlStatus("loading");
+    void loadLarkTicketSharedUrl({ apiBaseUrl, ticket }).then(
+      (sharedUrl) => {
+        if (!active) return;
+        setState((current) => current.ticket?.recordId === ticket.recordId
+          ? { ...current, ticket: { ...current.ticket, sharedUrl } }
+          : current);
+        setSharedUrlStatus("ready");
+      },
+      () => { if (active) setSharedUrlStatus("error"); },
+    );
+    return () => { active = false; };
+  }, [apiBaseUrl, ticket?.baseId, ticket?.recordId, ticket?.sharedUrl, ticket?.tableId]);
 
   async function refreshAiSessions() {
     if (!ticket) return;
@@ -169,7 +191,7 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
 
           <section className="ticket-detail-section">
             <h2>Resources</h2>
-            {resources.length ? <div className="ticket-resource-list">{resources.map(([href, label]) => <ExternalResource href={href} key={label}>{label}</ExternalResource>)}</div> : <p className="ticket-section-empty">暂无关联资源。</p>}
+            {resources.length ? <div className="ticket-resource-list">{resources.map(([href, label]) => <ExternalResource href={href} key={label}>{label}</ExternalResource>)}</div> : sharedUrlStatus === "loading" ? <p className="ticket-section-empty">正在获取 Lark Ticket 链接…</p> : <p className="ticket-section-empty">暂无关联资源。</p>}
           </section>
 
           <section className="ticket-detail-section ticket-ai-sessions">

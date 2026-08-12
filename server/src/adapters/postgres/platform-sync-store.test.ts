@@ -55,6 +55,17 @@ describe("PostgresPlatformSyncStore", () => {
     await store.upsertLarkBaseTicket({
       baseId: "base",
       tableId: "table",
+      record: {
+        record_id: "rec-1",
+        fields: { Title: "Ticket" },
+        shared_url: "https://example.larksuite.com/base/base?table=table&record=rec-1",
+      },
+      title: "Ticket",
+      status: "Open",
+    });
+    await store.upsertLarkBaseTicket({
+      baseId: "base",
+      tableId: "table",
       record: { record_id: "rec-1", fields: { Title: "Ticket" } },
       title: "Ticket",
       status: "Open",
@@ -111,6 +122,7 @@ describe("PostgresPlatformSyncStore", () => {
     ]);
     await expect(store.listLarkBaseTickets(10)).resolves.toEqual([expect.objectContaining({
       recordId: "rec-1", ticketStatus: "Open", priority: "P1",
+      sharedUrl: "https://example.larksuite.com/base/base?table=table&record=rec-1",
     })]);
 
     await db.destroy();

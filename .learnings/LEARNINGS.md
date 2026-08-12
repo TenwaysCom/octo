@@ -175,3 +175,15 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - **Context:** Support-QA Ticket shortcuts need Kimi ACP tool access, while generic AI Sessions must retain the existing deny-by-default behavior.
 - **Rule:** Keep logical Skill/Profile/Policy bindings in `AUTOMATION_ACTIONS`, keep only deployment workspace roots in normal Server environment variables, persist the action and policy snapshot with the Session, and return only ACP `allow_once` after a strict per-call match. Never treat an `allow_always` option or a prompt instruction as the security boundary.
 - **Verified outcome:** Focused policy, proxy, Ticket Session, and ownership-store tests pass; server TypeScript build passes.
+
+## [LRN-20260812-005] lark-ticket-shared-url-local-ownership
+
+- **Context:** Incremental Lark Ticket snapshots may omit `shared_url`, so persisting it in the platform snapshot could erase an existing detail link.
+- **Rule:** Store the retained Ticket detail link in `lark_base_ticket_octo.shared_url`, join it when reading Tickets, and only update it when the source explicitly supplies a non-empty link. Backfill old snapshot values with a `COALESCE` upsert so an already retained local link wins.
+- **Verified outcome:** The platform-sync store test proves a later snapshot without `shared_url` retains the previously stored link; server TypeScript build passes.
+
+## [LRN-20260812-006] lark-ticket-shared-url-on-demand-hydration
+
+- **Context:** The Ticket detail page can open before an incremental snapshot contains `shared_url`.
+- **Rule:** Render the snapshot first, then request the ticket-scoped Web endpoint only when the link is absent. Resolve the opaque Web session server-side, use its Lark domain and user credential for `batch_get(with_shared_url)`, and persist only `_octo.shared_url` before returning the URL. Keep default Postgres stores lazy so unauthenticated controller branches require no database.
+- **Verified outcome:** Service, controller, route, persistence, and FE API tests pass; both server and FE production builds pass.

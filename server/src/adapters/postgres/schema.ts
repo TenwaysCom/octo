@@ -214,6 +214,7 @@ export interface DatabaseSchema {
     base_id: string;
     table_id: string;
     record_id: string;
+    shared_url: string | null;
     local_json: string;
     created_at: string | null;
     updated_at: string | null;

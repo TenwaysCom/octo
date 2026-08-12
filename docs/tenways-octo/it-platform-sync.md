@@ -203,7 +203,7 @@ Octo 需要维护的数据一律放入对应的 `_octo` 表。每张表以同一
 | `meegle_workitem_syncs` | `meegle_workitem_octo` | `project_key + work_item_type_key + work_item_id` |
 | `lark_base_ticket_syncs` | `lark_base_ticket_octo` | `base_id + table_id + record_id` |
 
-`*_octo` 以复合主键与来源对象一对一关联，但只在 Octo 首次拥有本地数据时创建；本地字段与审计字段不能回写快照表。
+`*_octo` 以复合主键与来源对象一对一关联，但只在 Octo 首次拥有本地数据时创建；本地字段与审计字段不能回写快照表。例外是 `lark_base_ticket_octo.shared_url`：Server 显式取得或从旧快照迁移的 Lark Ticket 详情共享链接会保存在这里，增量同步缺少该字段时不得将其清空。Ticket 详情页发现链接缺失时，会以当前 Web 会话的 Lark 用户授权调用 `batch_get(with_shared_url)` 按需补全，并只写入该本地字段。
 
 展示或分析时：平台表提供源端事实，`*_octo` 表提供 Octo 自有数据；二者按外部主键关联。平台同步不会覆盖 `_octo` 表。
 

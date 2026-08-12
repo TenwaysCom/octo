@@ -24,6 +24,12 @@ export interface PlatformSyncStore {
     title: string;
     status?: string;
   }): Promise<void>;
+  setLarkBaseTicketSharedUrl(input: {
+    baseId: string;
+    tableId: string;
+    recordId: string;
+    sharedUrl: string;
+  }): Promise<void>;
   getMeegleWorkitemsForCleaning(refs: MeegleWorkitemSyncRef[]): Promise<MeegleWorkitemSyncItem[]>;
   getGitHubPullRequestsForCleaning(refs: GitHubPullRequestSyncRef[]): Promise<GitHubPullRequestSyncItem[]>;
   getLarkBaseTicketsForCleaning(refs: LarkBaseTicketSyncRef[]): Promise<LarkBaseTicketSyncItem[]>;
@@ -289,7 +295,6 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
       title: input.title,
       ticket_status: input.status ?? null,
       fields_json: JSON.stringify(input.record.fields),
-      shared_url: input.record.shared_url ?? null,
       created_time: input.record.created_time ?? null,
       source_updated_at: input.record.updated_time ?? null,
       synced_at: now,
@@ -300,13 +305,43 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
         title: input.title,
         ticket_status: input.status ?? null,
         fields_json: JSON.stringify(input.record.fields),
-        shared_url: input.record.shared_url ?? null,
         created_time: input.record.created_time ?? null,
         source_updated_at: input.record.updated_time ?? null,
         synced_at: now,
         last_seen_at: now,
         stale: false,
     })).execute();
+
+    if (input.record.shared_url) {
+      await this.setLarkBaseTicketSharedUrl({
+        baseId: input.baseId,
+        tableId: input.tableId,
+        recordId: input.record.record_id,
+        sharedUrl: input.record.shared_url,
+      });
+    }
+  }
+
+  async setLarkBaseTicketSharedUrl(input: {
+    baseId: string;
+    tableId: string;
+    recordId: string;
+    sharedUrl: string;
+  }): Promise<void> {
+    const now = new Date().toISOString();
+    await this.db.insertInto("lark_base_ticket_octo").values({
+      base_id: input.baseId,
+      table_id: input.tableId,
+      record_id: input.recordId,
+      shared_url: input.sharedUrl,
+      local_json: "{}",
+      created_at: now,
+      updated_at: now,
+    }).onConflict((conflict) => conflict.columns(["base_id", "table_id", "record_id"])
+      .doUpdateSet({
+        shared_url: input.sharedUrl,
+        updated_at: now,
+      })).execute();
   }
 
   async getMeegleWorkitemsForCleaning(refs: MeegleWorkitemSyncRef[]): Promise<MeegleWorkitemSyncItem[]> {
@@ -352,15 +387,19 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
   async getLarkBaseTicketsForCleaning(refs: LarkBaseTicketSyncRef[]): Promise<LarkBaseTicketSyncItem[]> {
     const results: LarkBaseTicketSyncItem[] = [];
     for (const ref of refs) {
-      const row = await this.db.selectFrom("lark_base_ticket_syncs")
+      const row = await this.db.selectFrom("lark_base_ticket_syncs as sync")
+        .leftJoin("lark_base_ticket_octo as octo", (join) => join
+          .onRef("octo.base_id", "=", "sync.base_id")
+          .onRef("octo.table_id", "=", "sync.table_id")
+          .onRef("octo.record_id", "=", "sync.record_id"))
         .select([
-          "base_id", "table_id", "record_id", "title", "ticket_status", "shared_url", "created_time",
-          "ticket_number", "issue_type", "responsible", "priority", "detail_description", "meegle_link", "lark_message_link",
-          "source_updated_at", "synced_at", "fields_json",
+          "sync.base_id", "sync.table_id", "sync.record_id", "sync.title", "sync.ticket_status", "sync.created_time",
+          "sync.ticket_number", "sync.issue_type", "sync.responsible", "sync.priority", "sync.detail_description", "sync.meegle_link", "sync.lark_message_link",
+          "sync.source_updated_at", "sync.synced_at", "sync.fields_json", "octo.shared_url as octo_shared_url",
         ])
-        .where("base_id", "=", ref.baseId)
-        .where("table_id", "=", ref.tableId)
-        .where("record_id", "=", ref.recordId)
+        .where("sync.base_id", "=", ref.baseId)
+        .where("sync.table_id", "=", ref.tableId)
+        .where("sync.record_id", "=", ref.recordId)
         .executeTakeFirst();
       if (row) {
         results.push(toLarkBaseTicketSyncItem(row));
@@ -539,14 +578,18 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
   }
 
   async listLarkBaseTickets(limit: number): Promise<LarkBaseTicketSyncItem[]> {
-    const rows = await this.db.selectFrom("lark_base_ticket_syncs")
+    const rows = await this.db.selectFrom("lark_base_ticket_syncs as sync")
+      .leftJoin("lark_base_ticket_octo as octo", (join) => join
+        .onRef("octo.base_id", "=", "sync.base_id")
+        .onRef("octo.table_id", "=", "sync.table_id")
+        .onRef("octo.record_id", "=", "sync.record_id"))
       .select([
-        "base_id", "table_id", "record_id", "title", "ticket_status", "shared_url",
-        "created_time", "ticket_number", "issue_type", "responsible", "priority", "detail_description", "meegle_link", "lark_message_link",
-        "source_updated_at", "synced_at",
+        "sync.base_id", "sync.table_id", "sync.record_id", "sync.title", "sync.ticket_status",
+        "sync.created_time", "sync.ticket_number", "sync.issue_type", "sync.responsible", "sync.priority", "sync.detail_description", "sync.meegle_link", "sync.lark_message_link",
+        "sync.source_updated_at", "sync.synced_at", "octo.shared_url as octo_shared_url",
       ])
-      .orderBy("source_updated_at", "desc")
-      .orderBy("synced_at", "desc")
+      .orderBy("sync.source_updated_at", "desc")
+      .orderBy("sync.synced_at", "desc")
       .limit(limit)
       .execute();
 
@@ -604,7 +647,7 @@ type LarkBaseTicketSyncRow = {
   record_id: string;
   title: string;
   ticket_status: string | null;
-  shared_url: string | null;
+  octo_shared_url: string | null;
   created_time: string | null;
   source_updated_at: string | null;
   synced_at: string;
@@ -692,7 +735,7 @@ function toLarkBaseTicketSyncItem(row: LarkBaseTicketSyncRow): LarkBaseTicketSyn
     recordId: row.record_id,
     title: row.title,
     ticketStatus: row.ticket_status ?? undefined,
-    sharedUrl: row.shared_url ?? undefined,
+    sharedUrl: row.octo_shared_url ?? undefined,
     createdTime: row.created_time ?? undefined,
     sourceFields: parseRecord(row.fields_json),
     ticketNumber: row.ticket_number ?? undefined,

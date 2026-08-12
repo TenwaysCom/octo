@@ -43,6 +43,7 @@ function createStore(): PlatformSyncStore & {
     }) {
       store.lark.push({ record: input.record, title: input.title, status: input.status });
     },
+    async setLarkBaseTicketSharedUrl() {},
     async getMeegleWorkitemsForCleaning(refs: Array<{ workItemId: string }>) {
       return store.meegle
         .filter(({ workitem }) => refs.some((ref) => ref.workItemId === workitem.id))

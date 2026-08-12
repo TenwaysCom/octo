@@ -367,6 +367,7 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .addColumn("base_id", "text", (column) => column.notNull())
     .addColumn("table_id", "text", (column) => column.notNull())
     .addColumn("record_id", "text", (column) => column.notNull())
+    .addColumn("shared_url", "text")
     .addColumn("local_json", "text", (column) => column.notNull().defaultTo("{}"))
     .addColumn("created_at", "text", (column) => column.notNull())
     .addColumn("updated_at", "text", (column) => column.notNull())
@@ -597,6 +598,20 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
       await sql.raw(`ALTER TABLE ${table} DROP COLUMN IF EXISTS ${column}`).execute(db);
     }
   }
+  await sql`
+    ALTER TABLE lark_base_ticket_octo
+    ADD COLUMN IF NOT EXISTS shared_url text
+  `.execute(db);
+  await sql`
+    INSERT INTO lark_base_ticket_octo (
+      base_id, table_id, record_id, shared_url, local_json, created_at, updated_at
+    )
+    SELECT base_id, table_id, record_id, shared_url, '{}', synced_at, synced_at
+    FROM lark_base_ticket_syncs
+    WHERE shared_url IS NOT NULL
+    ON CONFLICT (base_id, table_id, record_id) DO UPDATE
+    SET shared_url = COALESCE(lark_base_ticket_octo.shared_url, EXCLUDED.shared_url)
+  `.execute(db);
   await sql`
     ALTER TABLE meegle_workitem_syncs
     ADD COLUMN IF NOT EXISTS work_item_type text

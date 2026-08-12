@@ -101,3 +101,10 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Error:** `apply_patch verification failed` for the platform-data API test anchor.
 - **Fix:** Read the current test file and add the cache-reset contract test beside its actual GitHub PR fixture.
 - **Status:** resolved; FE tests and production build pass.
+
+## [ERR-20260812-005] ticket-shared-url-eager-store-initialization
+
+- **Summary:** The shared-URL controller constructed its default Postgres store before checking the opaque Web session.
+- **Error:** Unauthenticated controller tests failed without `POSTGRES_URI`; index route registration also required a ready SSH tunnel.
+- **Fix:** Instantiate the store lazily inside the authenticated `load` service method, after snapshot access is actually needed.
+- **Status:** resolved; unauthenticated requests return 401 without database access.

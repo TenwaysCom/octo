@@ -78,6 +78,7 @@ import { createRedisApiCache } from "./http/redis-cache.js";
 import { createWebGitHubPrOdooDevopsBuildController } from "./modules/github-pr-odoo-devops-build/github-pr-odoo-devops-build.controller.js";
 import { GitHubClient } from "./adapters/github/github-client.js";
 import { registerWebLarkTicketAiRoutes } from "./modules/lark-ticket-ai/lark-ticket-ai.controller.js";
+import { registerWebLarkTicketRoutes } from "./modules/lark-ticket/lark-ticket.controller.js";
 
 import { logger, stdoutLogger } from "./logger.js";
 
@@ -372,6 +373,7 @@ app.get("/api/web/platform-data/github-pull-requests", async (req, res) => {
   });
   res.status(result.statusCode).json(result.body);
 });
+registerWebLarkTicketRoutes(app);
 app.get("/api/web/platform-sync-sources", async (req, res) => {
   const result = await webPlatformSyncController.list({ cookieHeader: req.headers.cookie });
   res.status(result.statusCode).json(result.body);
