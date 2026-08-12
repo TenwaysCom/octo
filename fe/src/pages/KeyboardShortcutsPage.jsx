@@ -2,7 +2,7 @@ import { WorkspaceShell } from "../components/layout/WorkspaceShell.jsx";
 import { KEYBOARD_SHORTCUTS } from "../lib/keyboard-shortcuts.js";
 
 export function KeyboardShortcutsPage({ profile, onLogout, isBusy, breadcrumbs }) {
-  return <WorkspaceShell user={profile.user ?? {}} activePage="shortcuts" onLogout={onLogout} isBusy={isBusy} breadcrumbs={breadcrumbs}>
+  return <WorkspaceShell user={profile.user ?? {}} workspaceAccess={profile.workspaceAccess} activePage="shortcuts" onLogout={onLogout} isBusy={isBusy} breadcrumbs={breadcrumbs}>
     <section className="profile-main shortcuts-page">
       <header className="shortcuts-page__header">
         <p className="eyebrow">WORKSPACE</p>

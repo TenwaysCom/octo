@@ -91,7 +91,7 @@ export function SyncStatusPage({ profile, apiBaseUrl, onLogout, isBusy, breadcru
     }
   }
 
-  return <WorkspaceShell user={profile.user ?? {}} activePage="sync" onLogout={onLogout} isBusy={isBusy} breadcrumbs={breadcrumbs}>
+  return <WorkspaceShell user={profile.user ?? {}} workspaceAccess={profile.workspaceAccess} activePage="sync" onLogout={onLogout} isBusy={isBusy} breadcrumbs={breadcrumbs}>
     <section className="profile-main sync-page" data-test="sync-status-page">
       <header className="shortcuts-page__header">
         <p className="eyebrow">INTEGRATIONS</p>

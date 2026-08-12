@@ -50,7 +50,7 @@ function GitHubIdentityCard({ githubId }) {
 
 export function SettingsIntegrationsPage({ profile, onLogout, onReauthorize, isBusy, breadcrumbs }) {
   const user = profile.user ?? {};
-  return <WorkspaceShell user={user} activePage="integrations" onLogout={onLogout} isBusy={isBusy} breadcrumbs={breadcrumbs}>
+  return <WorkspaceShell user={user} workspaceAccess={profile.workspaceAccess} activePage="integrations" onLogout={onLogout} isBusy={isBusy} breadcrumbs={breadcrumbs}>
     <section className="profile-main integrations-page">
       <header className="integrations-hero">
         <div>

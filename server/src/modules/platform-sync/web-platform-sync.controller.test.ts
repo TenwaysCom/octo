@@ -20,7 +20,7 @@ function createController(service = {
     service,
     controller: createWebPlatformSyncController({
       service,
-      ensureSession: async () => ({ ok: true, masterUserId: "user_1", baseUrl: "https://open.larksuite.com", user: {} } as never),
+      ensureSession: async () => ({ ok: true, masterUserId: "user_1", baseUrl: "https://open.larksuite.com", role: "devops", user: {} } as never),
       loadConfig: async () => config,
     }),
   };
@@ -86,7 +86,7 @@ describe("web platform sync controller", () => {
     const { service } = createController();
     const controller = createWebPlatformSyncController({
       service,
-      ensureSession: async () => ({ ok: true, masterUserId: "user_1", baseUrl: "https://open.larksuite.com", user: {} } as never),
+      ensureSession: async () => ({ ok: true, masterUserId: "user_1", baseUrl: "https://open.larksuite.com", role: "devops", user: {} } as never),
       loadConfig: async () => ({ ...config, github: config.github.slice(0, 2) }),
     });
     const result = await controller.sync({
@@ -96,5 +96,28 @@ describe("web platform sync controller", () => {
     });
 
     expect(result).toMatchObject({ statusCode: 502, body: { error: { errorCode: "SYNC_SOURCE_NOT_CONFIGURED" } } });
+  });
+
+  it("rejects synchronization for roles without devops access", async () => {
+    const { service } = createController();
+    const controller = createWebPlatformSyncController({
+      service,
+      ensureSession: async () => ({ ok: true, masterUserId: "user_1", baseUrl: "https://open.larksuite.com", role: "dev", user: {} } as never),
+      loadConfig: async () => config,
+    });
+
+    await expect(controller.list({ cookieHeader: "octo_web_session=session" })).resolves.toMatchObject({
+      statusCode: 403,
+      body: { error: { errorCode: "WORKSPACE_ACCESS_DENIED" } },
+    });
+    await expect(controller.sync({
+      cookieHeader: "octo_web_session=session",
+      sourceId: "lark-tickets",
+      body: { actionRunId: "run_1" },
+    })).resolves.toMatchObject({
+      statusCode: 403,
+      body: { error: { errorCode: "WORKSPACE_ACCESS_DENIED" } },
+    });
+    expect(service.bulkSyncLarkBaseTickets).not.toHaveBeenCalled();
   });
 });

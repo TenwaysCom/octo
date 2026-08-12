@@ -4,6 +4,7 @@ import { z, ZodError } from "zod";
 import { PlatformSyncService } from "../../application/services/platform-sync.service.js";
 import { resolveLarkWebSessionIdentity } from "../lark-auth/lark-auth.service.js";
 import { WEB_SESSION_COOKIE_NAME } from "../lark-auth/lark-auth.controller.js";
+import { getWebWorkspaceAccess } from "../lark-auth/web-workspace-access.js";
 
 const DEFAULT_CONFIG_PATH = fileURLToPath(new URL("../../../config/platform-sync.local.json", import.meta.url));
 const sourceIdSchema = z.enum([
@@ -92,6 +93,7 @@ export function createWebPlatformSyncController(deps: {
     async list(input: { cookieHeader: string | undefined }) {
       const session = await sessionFor(input.cookieHeader);
       if (!session) return unauthorized();
+      if (!getWebWorkspaceAccess(session.role).platformSync) return forbidden();
       try {
         return { statusCode: 200, body: { ok: true as const, data: { sources: sourceDefinitions(await loadConfig()) } } };
       } catch {
@@ -102,6 +104,7 @@ export function createWebPlatformSyncController(deps: {
     async sync(input: { cookieHeader: string | undefined; sourceId: unknown; body: unknown }) {
       const session = await sessionFor(input.cookieHeader);
       if (!session) return unauthorized();
+      if (!getWebWorkspaceAccess(session.role).platformSync) return forbidden();
       try {
         const sourceId = sourceIdSchema.parse(input.sourceId);
         const request = requestSchema.parse(input.body);
@@ -123,6 +126,10 @@ export function createWebPlatformSyncController(deps: {
 
 function unauthorized() {
   return { statusCode: 401, body: { ok: false as const, error: { errorCode: "UNAUTHORIZED", errorMessage: "登录已失效，请重新登录。" } } };
+}
+
+function forbidden() {
+  return { statusCode: 403, body: { ok: false as const, error: { errorCode: "WORKSPACE_ACCESS_DENIED", errorMessage: "当前角色无权执行数据同步。" } } };
 }
 
 async function syncSource(

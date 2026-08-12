@@ -336,7 +336,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
     },
   });
 
-  return <WorkspaceShell user={profile.user ?? {}} activePage={page} onLogout={onLogout} isBusy={isBusy} breadcrumbs={breadcrumbs}>
+  return <WorkspaceShell user={profile.user ?? {}} workspaceAccess={profile.workspaceAccess} activePage={page} onLogout={onLogout} isBusy={isBusy} breadcrumbs={breadcrumbs}>
     <section className="profile-main list-page">
       <section className="list-section">
         {state.status === "loading" ? <p className="list-message">正在加载同步数据…</p> : null}

@@ -111,6 +111,7 @@ describe("lark-auth.service", () => {
       meegleBaseUrl: "https://project.larksuite.com",
       meegleUserKey: "meegle_profile",
       githubId: "octo",
+      role: "devops",
     });
     await tokenStore.save({
       masterUserId: user.id,
@@ -145,6 +146,7 @@ describe("lark-auth.service", () => {
       ok: true,
       profile: {
         user: { githubId: "octo" },
+        workspaceAccess: { platformLists: true, platformSync: true },
         larkAuthorization: { status: "ready" },
         meegleAuthorization: { status: "ready" },
       },

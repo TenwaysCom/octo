@@ -1,10 +1,11 @@
 import { ZodError } from "zod";
 import { PlatformDataService, type PlatformDataKind } from "../../application/services/platform-data.service.js";
-import { ensureLarkWebSession } from "../lark-auth/lark-auth.service.js";
+import { resolveLarkWebSessionIdentity } from "../lark-auth/lark-auth.service.js";
 import { WEB_SESSION_COOKIE_NAME } from "../lark-auth/lark-auth.controller.js";
+import { getWebWorkspaceAccess } from "../lark-auth/web-workspace-access.js";
 import { parsePlatformDataListResponse, platformDataListQuerySchema } from "./platform-data.dto.js";
 
-type WebSessionResult = Awaited<ReturnType<typeof ensureLarkWebSession>>;
+type WebSessionResult = Awaited<ReturnType<typeof resolveLarkWebSessionIdentity>>;
 
 function readCookie(cookieHeader: string | undefined, name: string): string | undefined {
   const prefix = `${name}=`;
@@ -25,7 +26,7 @@ export function createWebPlatformDataController(deps: {
   ensureSession?: (sessionToken: string | undefined) => Promise<WebSessionResult>;
 } = {}) {
   const service = deps.service ?? new PlatformDataService();
-  const ensureSession = deps.ensureSession ?? ensureLarkWebSession;
+  const ensureSession = deps.ensureSession ?? resolveLarkWebSessionIdentity;
 
   return async function listWebPlatformDataController(input: {
     kind: PlatformDataKind;
@@ -37,6 +38,12 @@ export function createWebPlatformDataController(deps: {
       return {
         statusCode: 401,
         body: { ok: false as const, error: { errorCode: session.errorCode, errorMessage: session.errorMessage } },
+      };
+    }
+    if (!getWebWorkspaceAccess(session.role).platformLists) {
+      return {
+        statusCode: 403,
+        body: { ok: false as const, error: { errorCode: "WORKSPACE_ACCESS_DENIED", errorMessage: "当前角色无权查看平台列表。" } },
       };
     }
 

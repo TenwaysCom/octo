@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   appendWorkspaceBreadcrumb,
+  canAccessWorkspaceRoute,
+  getIntegrationsSubroutes,
   getLarkTicketDetailHash,
+  getWorkspaceNavigationRoutes,
   getWorkspaceRoute,
   INTEGRATIONS_ROUTE,
   INTEGRATIONS_SUBROUTES,
@@ -37,6 +40,18 @@ test("keeps sync and shortcut help as Integrations subpages", () => {
   assert.deepEqual(INTEGRATIONS_SUBROUTES.map((route) => route.page), ["integrations", "sync", "shortcuts"]);
   assert.equal(WORKSPACE_NAVIGATION_ROUTES.some((route) => route.page === "sync"), false);
   assert.equal(WORKSPACE_NAVIGATION_ROUTES.some((route) => route.page === "shortcuts"), false);
+});
+
+test("limits workspace navigation to server-provided role permissions", () => {
+  const developerAccess = { platformLists: true, platformSync: false };
+  const devopsAccess = { platformLists: true, platformSync: true };
+  const restrictedAccess = { platformLists: false, platformSync: false };
+
+  assert.deepEqual(getWorkspaceNavigationRoutes(developerAccess).map((route) => route.page), ["lark-tickets", "meegle-workitems", "github-pull-requests"]);
+  assert.deepEqual(getIntegrationsSubroutes(developerAccess).map((route) => route.page), ["integrations", "shortcuts"]);
+  assert.equal(canAccessWorkspaceRoute(devopsAccess, getWorkspaceRoute("#sync")), true);
+  assert.equal(canAccessWorkspaceRoute(restrictedAccess, getWorkspaceRoute("#lark-tickets")), false);
+  assert.equal(canAccessWorkspaceRoute(restrictedAccess, getWorkspaceRoute("#integrations")), true);
 });
 
 test("keeps no more than five workspace breadcrumbs and truncates when returning", () => {

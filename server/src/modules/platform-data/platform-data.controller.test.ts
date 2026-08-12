@@ -47,7 +47,7 @@ describe("web platform data controller", () => {
       plannedSprint: "must not leak",
       syncedAt: "2026-08-09T00:00:00.000Z",
     }], sprints: ["Odoo Sprint 20260806"] }) };
-    const ensureSession = vi.fn().mockResolvedValue({ ok: true, user: {} });
+    const ensureSession = vi.fn().mockResolvedValue({ ok: true, role: "dev", user: {} });
     const controller = createWebPlatformDataController({ service, ensureSession });
 
     const result = await controller({
@@ -95,7 +95,7 @@ describe("web platform data controller", () => {
     }] }) };
     const controller = createWebPlatformDataController({
       service,
-      ensureSession: vi.fn().mockResolvedValue({ ok: true, user: {} }),
+      ensureSession: vi.fn().mockResolvedValue({ ok: true, role: "devops", user: {} }),
     });
 
     await expect(controller({
@@ -113,5 +113,23 @@ describe("web platform data controller", () => {
         odooShBuilds: [{ environment: "eu", status: "done", result: "success" }],
       })] } },
     });
+  });
+
+  it("rejects platform snapshot reads for roles without developer access", async () => {
+    const service = { list: vi.fn() };
+    const controller = createWebPlatformDataController({
+      service,
+      ensureSession: vi.fn().mockResolvedValue({ ok: true, role: "viewer", user: {} }),
+    });
+
+    await expect(controller({
+      kind: "lark-tickets",
+      cookieHeader: "octo_web_session=session-token",
+      query: {},
+    })).resolves.toEqual({
+      statusCode: 403,
+      body: { ok: false, error: { errorCode: "WORKSPACE_ACCESS_DENIED", errorMessage: "当前角色无权查看平台列表。" } },
+    });
+    expect(service.list).not.toHaveBeenCalled();
   });
 });

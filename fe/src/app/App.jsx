@@ -13,7 +13,7 @@ import { LarkTicketDetailPage } from "../pages/LarkTicketDetailPage.jsx";
 import { PlatformListPage } from "../pages/PlatformListPage.jsx";
 import { SettingsIntegrationsPage } from "../pages/SettingsIntegrationsPage.jsx";
 import { SyncStatusPage } from "../pages/SyncStatusPage.jsx";
-import { appendWorkspaceBreadcrumb, getWorkspaceRoute } from "./routes/workspace-routes.js";
+import { appendWorkspaceBreadcrumb, canAccessWorkspaceRoute, getWorkspaceRoute, INTEGRATIONS_ROUTE } from "./routes/workspace-routes.js";
 
 const WORKSPACE_PAGE_COMPONENTS = {
   integrations: SettingsIntegrationsPage,
@@ -115,19 +115,32 @@ export function App({ apiBaseUrl }) {
     },
   });
 
+  const activeWorkspaceRoute = profile && !canAccessWorkspaceRoute(profile.workspaceAccess, workspaceRoute)
+    ? INTEGRATIONS_ROUTE
+    : workspaceRoute;
+
+  useEffect(() => {
+    if (!profile || activeWorkspaceRoute === workspaceRoute) {
+      return;
+    }
+    window.history.replaceState(null, "", activeWorkspaceRoute.hash);
+    setWorkspaceRoute(activeWorkspaceRoute);
+    setBreadcrumbs((current) => appendWorkspaceBreadcrumb(current, activeWorkspaceRoute));
+  }, [activeWorkspaceRoute, profile, workspaceRoute]);
+
   if (sessionStatus === "checking") {
     return <SessionLoadingPage />;
   }
 
   if (profile) {
-    const WorkspacePage = WORKSPACE_PAGE_COMPONENTS[workspaceRoute.page];
+    const WorkspacePage = WORKSPACE_PAGE_COMPONENTS[activeWorkspaceRoute.page];
     return <WorkspacePage
-      key={workspaceRoute.hash}
+      key={activeWorkspaceRoute.hash}
       profile={profile}
-      page={workspaceRoute.page}
-      ticketRecordId={workspaceRoute.ticketRecordId}
+      page={activeWorkspaceRoute.page}
+      ticketRecordId={activeWorkspaceRoute.ticketRecordId}
       breadcrumbs={breadcrumbs}
-      platformListFilterState={platformListFilterStates[workspaceRoute.page]}
+      platformListFilterState={platformListFilterStates[activeWorkspaceRoute.page]}
       onPlatformListFilterStateChange={savePlatformListFilterState}
       apiBaseUrl={apiBaseUrl}
       onLogout={() => void logout()}

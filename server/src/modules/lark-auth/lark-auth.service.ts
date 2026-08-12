@@ -5,6 +5,7 @@
  */
 
 import { createHash, randomBytes } from "node:crypto";
+import { getWebWorkspaceAccess, type WebWorkspaceAccess } from "./web-workspace-access.js";
 import {
   getSharedOauthSessionStore,
 } from "../../adapters/postgres/lark-oauth-session-store.js";
@@ -698,6 +699,7 @@ export interface LarkWebAuthUser {
 
 export interface LarkWebProfile {
   user: LarkWebAuthUser;
+  workspaceAccess: WebWorkspaceAccess;
   larkAuthorization: {
     status: "ready" | "require_auth";
     authorizedAt?: string;
@@ -872,7 +874,7 @@ async function resolveLarkWebSession(
   sessionToken: string | undefined,
   overrides?: Partial<LarkAuthServiceDeps>,
 ): Promise<
-  | { ok: true; masterUserId: string; baseUrl: string; user: LarkWebAuthUser }
+  | { ok: true; masterUserId: string; baseUrl: string; role?: string; user: LarkWebAuthUser }
   | { ok: false; errorCode: string; errorMessage: string }
 > {
   if (!sessionToken) {
@@ -894,6 +896,7 @@ async function resolveLarkWebSession(
     ok: true,
     masterUserId: session.masterUserId,
     baseUrl: session.baseUrl,
+    role: user.role ?? undefined,
     user: {
       larkName: user.larkName ?? undefined,
       larkEmail: user.larkEmail ?? undefined,
@@ -917,7 +920,7 @@ export async function ensureLarkWebSession(
 export async function resolveLarkWebSessionIdentity(
   sessionToken: string | undefined,
   overrides?: Partial<LarkAuthServiceDeps>,
-): Promise<{ ok: true; masterUserId: string; baseUrl: string; user: LarkWebAuthUser } | { ok: false; errorCode: string; errorMessage: string }> {
+): Promise<{ ok: true; masterUserId: string; baseUrl: string; role?: string; user: LarkWebAuthUser } | { ok: false; errorCode: string; errorMessage: string }> {
   return resolveLarkWebSession(sessionToken, overrides);
 }
 
@@ -958,6 +961,7 @@ export async function getLarkWebProfile(
         ...session.user,
         githubId: resolvedUser?.githubId ?? undefined,
       },
+      workspaceAccess: getWebWorkspaceAccess(resolvedUser?.role ?? session.role),
       larkAuthorization: {
         status: status.status === "ready" ? "ready" : "require_auth",
         authorizedAt: stored?.lastAuthAt,

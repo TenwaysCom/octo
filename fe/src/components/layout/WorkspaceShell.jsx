@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { INTEGRATIONS_ROUTE, INTEGRATIONS_SUBROUTES, WORKSPACE_NAVIGATION_ROUTES } from "../../app/routes/workspace-routes.js";
+import { getIntegrationsSubroutes, getWorkspaceNavigationRoutes, INTEGRATIONS_ROUTE, INTEGRATIONS_SUBROUTES } from "../../app/routes/workspace-routes.js";
 
 export function Brand() {
   return <a className="brand" href="/" aria-label="Tenways Octo 首页">
@@ -15,8 +15,9 @@ export function ProfileAvatar({ user, className = "" }) {
   </div>;
 }
 
-function WorkspaceSidebar({ activePage, onLogout, isBusy }) {
+function WorkspaceSidebar({ activePage, workspaceAccess }) {
   const isIntegrationsPage = INTEGRATIONS_SUBROUTES.some((route) => route.page === activePage);
+  const integrationsSubroutes = getIntegrationsSubroutes(workspaceAccess);
   const [integrationsOpen, setIntegrationsOpen] = useState(isIntegrationsPage);
 
   useEffect(() => {
@@ -29,44 +30,55 @@ function WorkspaceSidebar({ activePage, onLogout, isBusy }) {
     <header className="profile-sidebar__header"><Brand /></header>
     <nav className="profile-nav" aria-label="工作台分区">
       <p className="profile-nav__label">WORKSPACE</p>
-      {WORKSPACE_NAVIGATION_ROUTES.map((route) => <a
+      {getWorkspaceNavigationRoutes(workspaceAccess).map((route) => <a
         className={`profile-nav__item ${activePage === route.page ? "profile-nav__item--active" : ""}`.trim()}
         href={route.hash}
         key={route.page}
       >
         <span className="profile-nav__item-label"><i aria-hidden="true">{route.icon}</i>{route.label}</span>
       </a>)}
-      <div className={`profile-nav__group ${integrationsOpen ? "profile-nav__group--active" : ""}`.trim()}>
+      <div className={`profile-nav__group profile-nav__group--settings ${integrationsOpen ? "profile-nav__group--active" : ""}`.trim()}>
         <a
           className="profile-nav__item"
           href={INTEGRATIONS_ROUTE.hash}
           aria-expanded={integrationsOpen}
           onClick={() => setIntegrationsOpen((open) => isIntegrationsPage ? !open : true)}
         >
-          <span className="profile-nav__item-label"><i aria-hidden="true">{INTEGRATIONS_ROUTE.icon}</i>Settings</span>
+          <span className="profile-nav__item-label"><i aria-hidden="true">{INTEGRATIONS_ROUTE.icon}</i>设置</span>
           <i className={`profile-nav__chevron ${integrationsOpen ? "profile-nav__chevron--open" : ""}`.trim()} aria-hidden="true">⌄</i>
         </a>
         {integrationsOpen ? <div className="profile-nav__subitems">
-          {INTEGRATIONS_SUBROUTES.map((route) => <a
+          {integrationsSubroutes.map((route) => <a
             className={`profile-nav__subitem ${activePage === route.page ? "profile-nav__subitem--active" : ""}`.trim()}
             href={route.hash}
             key={route.page}
           >{route.label}</a>)}
-          <button className="profile-nav__subitem profile-nav__subitem--button" type="button" disabled={isBusy} onClick={onLogout}>
-            退出当前工作台
-          </button>
         </div> : null}
       </div>
     </nav>
   </aside>;
 }
 
-function WorkspaceHeader({ user }) {
+function WorkspaceHeader({ user, workspaceAccess, onLogout, isBusy }) {
   const displayName = user.larkName || "Lark 用户";
+  const [menuOpen, setMenuOpen] = useState(false);
   return <header className="workspace-header">
-    <div className="workspace-header__account">
-      <ProfileAvatar user={user} className="workspace-header__avatar" />
-      <div><strong>{displayName}</strong><span>个人工作台</span></div>
+    <div className="workspace-header__account-menu">
+      <button
+        className="workspace-header__account"
+        type="button"
+        aria-expanded={menuOpen}
+        aria-haspopup="menu"
+        onClick={() => setMenuOpen((open) => !open)}
+      >
+        <ProfileAvatar user={user} className="workspace-header__avatar" />
+        <div className="workspace-header__account-details"><strong>{displayName}</strong><span>个人工作台</span></div>
+        <i className={menuOpen ? "workspace-header__chevron workspace-header__chevron--open" : "workspace-header__chevron"} aria-hidden="true">⌄</i>
+      </button>
+      {menuOpen ? <div className="workspace-header__account-menu-items" role="menu">
+        {workspaceAccess?.platformSync ? <a href="#sync" role="menuitem" onClick={() => setMenuOpen(false)}>数据同步</a> : null}
+        <button type="button" role="menuitem" disabled={isBusy} onClick={() => void onLogout()}>退出登录</button>
+      </div> : null}
     </div>
   </header>;
 }
@@ -80,11 +92,11 @@ function WorkspaceBreadcrumbs({ items }) {
   </nav>;
 }
 
-export function WorkspaceShell({ user, activePage, onLogout, isBusy, breadcrumbs = [], children }) {
+export function WorkspaceShell({ user, workspaceAccess, activePage, onLogout, isBusy, breadcrumbs = [], children }) {
   return <main className="workspace-layout">
-    <WorkspaceSidebar activePage={activePage} onLogout={onLogout} isBusy={isBusy} />
+    <WorkspaceSidebar activePage={activePage} workspaceAccess={workspaceAccess} />
     <div className="workspace-content">
-      <WorkspaceHeader user={user} />
+      <WorkspaceHeader user={user} workspaceAccess={workspaceAccess} onLogout={onLogout} isBusy={isBusy} />
       <WorkspaceBreadcrumbs items={breadcrumbs} />
       {children}
     </div>
