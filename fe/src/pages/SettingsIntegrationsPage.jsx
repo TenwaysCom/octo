@@ -5,7 +5,7 @@ function LarkAuthorizationCard({ authorization, onReauthorize }) {
   const ready = authorization?.status === "ready";
   return <section className="profile-card">
     <div className="profile-card__heading">
-      <div><p className="profile-card__eyebrow">Lark</p><h2>Lark 授权</h2></div>
+      <div><p className="profile-card__eyebrow">Authorization</p><h2>Lark</h2></div>
       <span className={`status-badge ${ready ? "status-badge--ready" : "status-badge--attention"}`}>
         <span />{ready ? "已授权" : "需要重新授权"}
       </span>
@@ -22,7 +22,7 @@ function MeegleAuthorizationCard({ authorization }) {
   const ready = authorization?.status === "ready";
   return <section className="profile-card">
     <div className="profile-card__heading">
-      <div><p className="profile-card__eyebrow">Meegle</p><h2>Meegle 授权</h2></div>
+      <div><p className="profile-card__eyebrow">Authorization</p><h2>Meegle</h2></div>
       <span className={`status-badge ${ready ? "status-badge--ready" : "status-badge--attention"}`}>
         <span />{ready ? "已授权" : "需要授权"}
       </span>
@@ -33,35 +33,38 @@ function MeegleAuthorizationCard({ authorization }) {
   </section>;
 }
 
+function GitHubIdentityCard({ githubId }) {
+  const linked = Boolean(githubId);
+  return <section className="profile-card">
+    <div className="profile-card__heading">
+      <div><p className="profile-card__eyebrow">Identity</p><h2>GitHub</h2></div>
+      <span className={`status-badge ${linked ? "status-badge--ready" : "status-badge--attention"}`}>
+        <span />{linked ? "已关联" : "未关联"}
+      </span>
+    </div>
+    <dl className="authorization-details">
+      <div><dt>GitHub ID</dt><dd>{githubId || "未关联"}</dd></div>
+    </dl>
+  </section>;
+}
+
 export function SettingsIntegrationsPage({ profile, onLogout, onReauthorize, isBusy }) {
   const user = profile.user ?? {};
   return <WorkspaceShell user={user} activePage="settings" onLogout={onLogout} isBusy={isBusy}>
-    <section className="profile-main">
-      <header className="profile-main__header">
+    <section className="profile-main integrations-page">
+      <header className="integrations-hero">
         <div>
-          <p className="eyebrow">WORKSPACE SETTINGS</p>
-          <h1>Settings</h1>
-          <p>管理 Octo 工作台已接入的平台与授权状态。</p>
+          <p className="eyebrow">SETTINGS</p>
+          <h1>Integrations</h1>
+          <p>管理工作台的平台授权与账号关联。</p>
         </div>
+        <p className="integrations-hero__hint">授权状态由 Octo 服务端安全管理。</p>
       </header>
 
-      <section className="settings-panel" id="settings-integrations">
-        <nav className="settings-panel__nav" aria-label="设置分区">
-          <p>WORKSPACE SETTINGS</p>
-          <a className="settings-panel__nav-item settings-panel__nav-item--active" href="#settings-integrations">
-            <span aria-hidden="true">◇</span>Integrations
-          </a>
-        </nav>
-        <div className="settings-panel__body">
-          <header className="settings-panel__heading">
-            <h2>Integrations</h2>
-            <p>查看已连接的平台与授权状态。</p>
-          </header>
-          <div className="integration-grid">
-            <LarkAuthorizationCard authorization={profile.larkAuthorization} onReauthorize={onReauthorize} />
-            <MeegleAuthorizationCard authorization={profile.meegleAuthorization} />
-          </div>
-        </div>
+      <section className="integration-grid" aria-label="平台集成">
+        <LarkAuthorizationCard authorization={profile.larkAuthorization} onReauthorize={onReauthorize} />
+        <MeegleAuthorizationCard authorization={profile.meegleAuthorization} />
+        <GitHubIdentityCard githubId={user.githubId} />
       </section>
     </section>
   </WorkspaceShell>;

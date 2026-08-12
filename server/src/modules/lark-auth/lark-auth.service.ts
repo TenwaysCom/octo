@@ -693,6 +693,7 @@ export interface LarkWebAuthUser {
   larkName?: string;
   larkEmail?: string;
   larkAvatarUrl?: string;
+  githubId?: string;
 }
 
 export interface LarkWebProfile {
@@ -946,7 +947,10 @@ export async function getLarkWebProfile(
   return {
     ok: true,
     profile: {
-      user: session.user,
+      user: {
+        ...session.user,
+        githubId: resolvedUser?.githubId ?? undefined,
+      },
       larkAuthorization: {
         status: status.status === "ready" ? "ready" : "require_auth",
         authorizedAt: stored?.lastAuthAt,

@@ -28,7 +28,7 @@ test("loads the authenticated profile without exposing credentials", async () =>
         json: async () => ({
           ok: true,
           data: {
-            user: { larkName: "Lin" },
+            user: { larkName: "Lin", githubId: "octo" },
             larkAuthorization: { status: "ready", authorizedAt: "2026-08-08T00:00:00.000Z" },
             meegleAuthorization: { status: "ready" },
           },
@@ -40,7 +40,7 @@ test("loads the authenticated profile without exposing credentials", async () =>
   assert.deepEqual(result, {
     authenticated: true,
     profile: {
-      user: { larkName: "Lin" },
+      user: { larkName: "Lin", githubId: "octo" },
       larkAuthorization: { status: "ready", authorizedAt: "2026-08-08T00:00:00.000Z" },
       meegleAuthorization: { status: "ready" },
     },

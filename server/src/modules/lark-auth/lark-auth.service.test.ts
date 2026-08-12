@@ -110,6 +110,7 @@ describe("lark-auth.service", () => {
       larkId: "ou_profile",
       meegleBaseUrl: "https://project.larksuite.com",
       meegleUserKey: "meegle_profile",
+      githubId: "octo",
     });
     await tokenStore.save({
       masterUserId: user.id,
@@ -143,6 +144,7 @@ describe("lark-auth.service", () => {
     await expect(getLarkWebProfile(completed.sessionToken)).resolves.toMatchObject({
       ok: true,
       profile: {
+        user: { githubId: "octo" },
         larkAuthorization: { status: "ready" },
         meegleAuthorization: { status: "ready" },
       },
