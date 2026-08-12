@@ -392,6 +392,22 @@ describe("PlatformSyncService", () => {
     expect(client.listRecords).toHaveBeenNthCalledWith(2, "base", "table", { pageSize: 100, pageToken: "next" });
   });
 
+  it("uses Issue Description as the Lark ticket title when no explicit title field is configured", async () => {
+    const store = createStore();
+    const record: LarkBitableRecord = {
+      record_id: "rec-issue-description",
+      fields: { "Issue Description": "Actual ticket title", 状态: "In Progress" },
+    };
+    const client = { getRecord: vi.fn().mockResolvedValue(record) } as unknown as LarkClient;
+    const service = new PlatformSyncService({ store, createLarkClient: async () => client });
+
+    await service.syncLarkBaseTicket({
+      masterUserId: "user-1", baseId: "base", tableId: "table", recordId: record.record_id,
+    });
+
+    expect(store.lark).toEqual([{ record, title: "Actual ticket title", status: "In Progress" }]);
+  });
+
   it("retrieves Lark incremental candidates with a source-side last-modified filter", async () => {
     const store = createStore();
     const record: LarkBitableRecord = {

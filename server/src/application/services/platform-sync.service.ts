@@ -36,7 +36,7 @@ const INACTIVE_STATUSES = new Set([
   "已终止", "已取消", "已完成", "已合并", "已关闭",
 ]);
 const STATUS_FIELD_CANDIDATES = ["Status", "状态", "Ticket Status", "ticket_status"];
-const TITLE_FIELD_CANDIDATES = ["Title", "标题", "名称", "name"];
+const TITLE_FIELD_CANDIDATES = ["Title", "标题", "名称", "name", "Issue Description", "问题描述", "问题"];
 const INCREMENTAL_OVERLAP_MS = 5 * 60 * 1000;
 
 type MeegleSyncClient = Pick<MeegleClient, "getWorkitemDetails" | "filterWorkitems"> & {

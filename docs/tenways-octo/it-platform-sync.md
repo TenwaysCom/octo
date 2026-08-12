@@ -103,6 +103,10 @@ pnpm --dir server platform:clean-meegle --apply
 pnpm --dir server platform:clean-history
 pnpm --dir server platform:clean-history --apply
 
+# 修复历史 Lark ticket title：仅从已有 fields_json 读取 Issue Description，不访问源端
+pnpm --dir server platform:backfill-lark-ticket-titles
+pnpm --dir server platform:backfill-lark-ticket-titles --apply
+
 # 从已有 GitHub/Meegle 快照回填缺失的增量 checkpoint：先预览，再写入
 pnpm --dir server platform:init-checkpoints
 pnpm --dir server platform:init-checkpoints --apply
@@ -120,6 +124,7 @@ pnpm --dir server platform:sync --only github --mode incremental --scope TWS-lan
   "larkBase": [{
     "baseId": "BASE_ID",
     "tableId": "TABLE_ID",
+    "titleFieldName": "Issue Description",
     "sourceUpdatedAtFieldName": "最后更新时间"
   }]
 }
