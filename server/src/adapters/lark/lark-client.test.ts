@@ -204,6 +204,29 @@ describe("lark-client", () => {
     }), expect.anything());
   });
 
+  it("sends a direct message with an open_id", async () => {
+    const client = new LarkClient({ accessToken: "token_123", baseUrl: "https://open.larksuite.com" });
+    (client as unknown as { client: { request: typeof requestMock } }).client = { request: requestMock };
+    requestMock.mockResolvedValueOnce({ code: 0, data: { message_id: "om_123" } });
+
+    await expect(client.sendMessage(
+      "open_id",
+      "ou_user_123",
+      "text",
+      JSON.stringify({ text: "Hello" }),
+    )).resolves.toEqual({ message_id: "om_123" });
+    expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({
+      method: "POST",
+      url: "/open-apis/im/v1/messages",
+      data: {
+        receive_id: "ou_user_123",
+        msg_type: "text",
+        content: JSON.stringify({ text: "Hello" }),
+      },
+      params: { receive_id_type: "open_id" },
+    }), expect.anything());
+  });
+
   it("preserves records created before a later batch fails", async () => {
     const client = new LarkClient({ accessToken: "token_123", baseUrl: "https://open.larksuite.com" });
     (client as unknown as { client: { request: typeof requestMock } }).client = { request: requestMock };

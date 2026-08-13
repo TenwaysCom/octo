@@ -739,9 +739,9 @@ async function createLarkWebSession(input: {
 
 async function upsertLarkWebUser(
   resolvedUserStore: ResolvedUserStore,
-  userInfo: { userId: string; tenantKey: string; email?: string; name?: string; avatarUrl?: string },
+  userInfo: { openId: string; tenantKey: string; email?: string; name?: string; avatarUrl?: string },
 ) {
-  const existing = await resolvedUserStore.getByLarkIdentity(userInfo.tenantKey, userInfo.userId);
+  const existing = await resolvedUserStore.getByLarkIdentity(userInfo.tenantKey, userInfo.openId);
   if (existing) {
     return resolvedUserStore.update({
       ...existing,
@@ -756,13 +756,13 @@ async function upsertLarkWebUser(
     return await resolvedUserStore.create({
       status: "active",
       larkTenantKey: userInfo.tenantKey,
-      larkId: userInfo.userId,
+      larkId: userInfo.openId,
       larkEmail: userInfo.email,
       larkName: userInfo.name,
       larkAvatarUrl: userInfo.avatarUrl,
     });
   } catch (error) {
-    const concurrent = await resolvedUserStore.getByLarkIdentity(userInfo.tenantKey, userInfo.userId);
+    const concurrent = await resolvedUserStore.getByLarkIdentity(userInfo.tenantKey, userInfo.openId);
     if (!concurrent) {
       throw error;
     }
@@ -816,7 +816,7 @@ export async function handleLarkWebAuthCallback(
     await getTokenStore(deps).save({
       masterUserId: resolvedUser.id,
       tenantKey: userInfo.tenantKey,
-      larkUserId: userInfo.userId,
+      larkUserId: userInfo.openId,
       baseUrl: session.baseUrl,
       userToken: tokenPair.accessToken,
       userTokenExpiresAt: toExpiresAt(tokenPair.expiresIn),
@@ -828,7 +828,7 @@ export async function handleLarkWebAuthCallback(
     await oauthSessionStore.markCompleted({
       state: query.state,
       authCode: query.code,
-      externalUserKey: userInfo.userId,
+      externalUserKey: userInfo.openId,
       masterUserId: resolvedUser.id,
     });
 
@@ -1124,13 +1124,12 @@ function renderCallbackPage(input: {
 
 async function getLarkContactUserInfo(
   baseUrl: string,
-  identity: string,
-  identityType: "open_id" | "user_id" | "union_id",
+  openId: string,
   accessToken: string,
   fetchImpl: typeof fetch,
 ): Promise<{ email?: string; name?: string; avatarUrl?: string }> {
-  const url = new URL(`/open-apis/contact/v3/users/${encodeURIComponent(identity)}`, baseUrl);
-  url.searchParams.set("user_id_type", identityType);
+  const url = new URL(`/open-apis/contact/v3/users/${encodeURIComponent(openId)}`, baseUrl);
+  url.searchParams.set("user_id_type", "open_id");
 
   const response = await fetchImpl(url.toString(), {
     method: "GET",
@@ -1171,7 +1170,7 @@ async function getLarkUserInfo(
   baseUrl: string,
   accessToken: string,
   fetchImpl: typeof fetch,
-): Promise<{ userId: string; tenantKey: string; email?: string; name?: string; avatarUrl?: string }> {
+): Promise<{ openId: string; tenantKey: string; email?: string; name?: string; avatarUrl?: string }> {
   const url = new URL("/open-apis/authen/v1/user_info", baseUrl);
   const response = await fetchImpl(url.toString(), {
     method: "GET",
@@ -1192,12 +1191,9 @@ async function getLarkUserInfo(
   }
 
   const userData = data.data as Record<string, unknown> | undefined;
-  // Open ID is app-scoped and is available even when the user is not visible
-  // through Contacts. Keep user_id and union_id only as compatibility fallbacks.
-  const identityType = (["open_id", "user_id", "union_id"] as const).find(
-    (candidate) => typeof userData?.[candidate] === "string" && userData[candidate],
-  );
-  const userId = identityType ? userData?.[identityType] as string : undefined;
+  const openId = typeof userData?.open_id === "string" && userData.open_id
+    ? userData.open_id
+    : undefined;
   const tenantKey = userData?.tenant_key as string | undefined;
   const rawEmail = userData?.email as string | undefined;
   const enterpriseEmail = userData?.enterprise_email as string | undefined;
@@ -1205,35 +1201,35 @@ async function getLarkUserInfo(
   let name = (userData?.name as string | undefined) || undefined;
   let avatarUrl = (userData?.avatar_url as string | undefined) || undefined;
 
-  if (!userId || !tenantKey) {
-    throw new Error("Lark user info response missing tenant identity");
+  if (!openId || !tenantKey) {
+    throw new Error("Lark user info response missing open_id or tenant identity");
   }
 
   // Fall back to Contact API when email is missing, because the current
   // OAuth scope does not always grant email access through the authen API.
   if (!email) {
-    const contactInfo = await getLarkContactUserInfo(baseUrl, userId, identityType!, accessToken, fetchImpl);
+    const contactInfo = await getLarkContactUserInfo(baseUrl, openId, accessToken, fetchImpl);
     email = contactInfo.email ?? email;
     name = contactInfo.name ?? name;
     avatarUrl = contactInfo.avatarUrl ?? avatarUrl;
   }
 
-  return { userId, tenantKey, email, name, avatarUrl };
+  return { openId, tenantKey, email, name, avatarUrl };
 }
 
 async function cacheLarkContact(
   deps: LarkAuthServiceDeps,
-  userInfo: { userId: string; email?: string; name?: string },
+  userInfo: { openId: string; email?: string; name?: string },
 ): Promise<void> {
   try {
     await getContactStore(deps).upsert({
-      openId: userInfo.userId,
+      openId: userInfo.openId,
       email: userInfo.email,
       name: userInfo.name,
     });
   } catch (error) {
     serviceLogger.warn({
-      larkUserId: userInfo.userId,
+      larkUserId: userInfo.openId,
       errorMessage: error instanceof Error ? error.message : String(error),
     }, "LARK_CONTACT_CACHE_FAILED");
   }
@@ -1242,7 +1238,7 @@ async function cacheLarkContact(
 export async function fetchLarkUserInfo(
   request: { masterUserId: string; baseUrl: string },
   overrides?: Partial<LarkAuthServiceDeps>,
-): Promise<{ userId: string; tenantKey: string; email?: string; name?: string; avatarUrl?: string }> {
+): Promise<{ openId: string; tenantKey: string; email?: string; name?: string; avatarUrl?: string }> {
   const deps = getDeps(overrides);
   const authBaseUrl = normalizeLarkAuthBaseUrl(request.baseUrl);
   const tokenStore = getTokenStore(deps);
@@ -1373,7 +1369,7 @@ export async function handleLarkAuthCallback(
     const existingByUser = await resolvedUserStore.getById(session.masterUserId);
     const existingByLarkIdentity = await resolvedUserStore.getByLarkIdentity(
       userInfo.tenantKey,
-      userInfo.userId,
+      userInfo.openId,
     );
 
     if (existingByLarkIdentity && existingByLarkIdentity.id !== session.masterUserId) {
@@ -1396,7 +1392,7 @@ export async function handleLarkAuthCallback(
       await resolvedUserStore.update({
         ...existingByUser,
         larkTenantKey: userInfo.tenantKey,
-        larkId: userInfo.userId,
+        larkId: userInfo.openId,
         larkEmail: userInfo.email ?? existingByUser.larkEmail,
         larkName: userInfo.name ?? existingByUser.larkName,
         larkAvatarUrl: userInfo.avatarUrl ?? existingByUser.larkAvatarUrl,
@@ -1407,7 +1403,7 @@ export async function handleLarkAuthCallback(
     const storedToken = {
       masterUserId: session.masterUserId,
       tenantKey: userInfo.tenantKey,
-      larkUserId: userInfo.userId,
+      larkUserId: userInfo.openId,
       baseUrl: session.baseUrl,
       userToken: tokenPair.accessToken,
       userTokenExpiresAt: toExpiresAt(tokenPair.expiresIn),
@@ -1419,7 +1415,7 @@ export async function handleLarkAuthCallback(
     serviceLogger.info({
       masterUserId: session.masterUserId,
       baseUrl: session.baseUrl,
-      larkUserId: userInfo.userId,
+      larkUserId: userInfo.openId,
       tenantKey: userInfo.tenantKey,
       hasRefreshToken: Boolean(storedToken.refreshToken),
       userTokenExpiresAt: storedToken.userTokenExpiresAt,
@@ -1429,7 +1425,7 @@ export async function handleLarkAuthCallback(
     await oauthSessionStore.markCompleted({
       state: query.state,
       authCode: query.code,
-      externalUserKey: userInfo.userId,
+      externalUserKey: userInfo.openId,
       masterUserId: session.masterUserId,
     });
 

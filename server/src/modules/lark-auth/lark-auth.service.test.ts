@@ -333,7 +333,7 @@ describe("lark-auth.service", () => {
             json: async () => ({
               code: 0,
               data: {
-                user_id: "ou_web_user",
+                open_id: "ou_web_user",
                 tenant_key: "tenant_web",
                 email: "web@example.com",
                 name: "Web User",
@@ -493,6 +493,54 @@ describe("lark-auth.service", () => {
       larkEmail: "open-id@example.com",
       larkAvatarUrl: "https://example.com/open-id-avatar.png",
     });
+  });
+
+  it("rejects an OAuth profile without an open_id", async () => {
+    await startLarkOauthSession({
+      state: "web_missing_open_id_state",
+      baseUrl: "https://open.larksuite.com",
+    });
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ code: 0, app_access_token: "app_access_token_123" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          code: 0,
+          data: {
+            access_token: "user_access_token_456",
+            expires_in: 7200,
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          code: 0,
+          data: { user_id: "legacy_user_id", tenant_key: "tenant_open_id" },
+        }),
+      });
+
+    const result = await handleLarkWebAuthCallback(
+      { code: "web_missing_open_id_code", state: "web_missing_open_id_state" },
+      {
+        appId: "cli_test",
+        appSecret: "secret_test",
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+        resolvedUserStore,
+        tokenStore,
+        oauthSessionStore,
+        webSessionStore,
+      },
+    );
+
+    expect(result).toMatchObject({ kind: "failed" });
+    if (result.kind === "failed") {
+      expect(result.page.body).toContain("missing open_id or tenant identity");
+    }
   });
 
   it("returns require_auth when no stored token exists", async () => {
@@ -660,7 +708,7 @@ describe("lark-auth.service", () => {
             json: async () => ({
               code: 0,
           data: {
-            user_id: "ou_123",
+            open_id: "ou_123",
             tenant_key: "tenant_123",
             email: "user@example.com",
           },
@@ -745,7 +793,7 @@ describe("lark-auth.service", () => {
         json: async () => ({
           code: 0,
           data: {
-            user_id: "ou_123",
+            open_id: "ou_123",
             tenant_key: "tenant_123",
             email: "user@example.com",
             name: "Test User",
@@ -769,7 +817,7 @@ describe("lark-auth.service", () => {
         },
       ),
     ).resolves.toEqual({
-      userId: "ou_123",
+      openId: "ou_123",
       tenantKey: "tenant_123",
       email: "user@example.com",
       name: "Test User",
@@ -823,7 +871,7 @@ describe("lark-auth.service", () => {
       json: async () => ({
         code: 0,
         data: {
-          user_id: "ou_123",
+          open_id: "ou_123",
           tenant_key: "tenant_123",
           email: "user@example.com",
           name: "Test User",
@@ -906,7 +954,7 @@ describe("lark-auth.service", () => {
         json: async () => ({
           code: 0,
           data: {
-            user_id: "ou_123",
+            open_id: "ou_123",
             tenant_key: "tenant_123",
             email: "user@example.com",
             name: "Test User",
@@ -930,7 +978,7 @@ describe("lark-auth.service", () => {
         },
       ),
     ).resolves.toEqual({
-      userId: "ou_123",
+      openId: "ou_123",
       tenantKey: "tenant_123",
       email: "user@example.com",
       name: "Test User",

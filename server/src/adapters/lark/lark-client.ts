@@ -105,6 +105,8 @@ export interface LarkClientOptions {
   baseUrl?: string;
 }
 
+type LarkMessageReceiveIdType = "open_id" | "chat_id";
+
 export interface BatchGetRecordsOptions {
   withSharedUrl?: boolean;
 }
@@ -449,11 +451,9 @@ export class LarkClient {
 
   // ==================== IM Message Methods ====================
 
-  /**
-   * Send a message to a chat
-   */
+  /** Send a message to a chat or an Open ID. */
   async sendMessage(
-    receiveIdType: "open_id" | "user_id" | "union_id" | "email" | "chat_id",
+    receiveIdType: LarkMessageReceiveIdType,
     receiveId: string,
     msgType: "text" | "post" | "image" | "file" | "interactive",
     content: string,

@@ -461,7 +461,7 @@ export async function getLarkUserInfoController(
   | {
       ok: true;
       data: {
-        userId: string;
+        openId: string;
         tenantKey: string;
         email?: string;
         name?: string;

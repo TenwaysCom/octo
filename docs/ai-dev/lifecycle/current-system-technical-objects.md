@@ -30,7 +30,7 @@ update_required_when:
 | `PopupPageContext` | Extension | `extension/src/popup-shared/popup-controller.ts`, `extension/src/content-scripts/*`, `extension/src/platform-url.ts` | 页面上下文由 extension 采集，page/action 规则与 server 有重复 |
 | `IdentityState` / `masterUserId` | Server identity store, extension cache | `extension/src/background/storage.ts`, `extension/src/popup/runtime.ts`, `server/src/adapters/postgres/resolved-user-store.ts` | 已支持 tab/global fallback，但 action trace 缺少统一身份阶段 |
 | `MeegleAuthCredential` | Server auth store, extension auth bridge triggers | `extension/src/content-scripts/meegle.ts`, `extension/src/background/handlers/meegle-auth.ts`, `server/src/modules/meegle-auth/*` | 使用 auth-code bridge；不能把 cookie 发给 server |
-| `LarkAuthCredential` | Server auth store, extension OAuth callback bridge | `extension/src/background/handlers/lark-auth.ts`, `extension/src/content-scripts/lark-auth-callback.ts`, `server/src/modules/lark-auth/*` | OAuth session/callback 已存在；live E2E 保护线不足 |
+| `LarkAuthCredential` | Server auth store, extension OAuth callback bridge | `extension/src/background/handlers/lark-auth.ts`, `extension/src/content-scripts/lark-auth-callback.ts`, `server/src/modules/lark-auth/*` | OAuth session/callback 已存在；以 `open_id` 作为唯一 Lark 外部用户标识；live E2E 保护线不足 |
 | `LarkBitableRecord` | Lark adapter / server workflow | `server/src/modules/lark-base/lark-base-workflow.service.ts`, `server/src/adapters/lark/lark-client.ts` | server 读取记录并构建 Meegle draft |
 | `WorkitemMapping` | Server workflow config | `server/src/modules/lark-base/lark-base-workflow.service.ts`, `server/src/modules/lark-base/lark-base-workflow-config.ts` | 支持 env/config 映射；仍有 hardcoded fallback |
 | `ExecutionDraft` | Server workflow | `server/src/validators/agent-output/execution-draft.ts`, `server/src/modules/lark-base/lark-base-workflow.service.ts` | Lark record 到 Meegle create 的中间对象 |
@@ -209,7 +209,7 @@ server 定义动作
 ### 技术对象
 
 - `masterUserId`
-- `operatorLarkId`
+- `operatorLarkId`（`open_id`）
 - `meegleUserKey`
 - Lark user token
 - Meegle user token
@@ -245,6 +245,7 @@ popup 初始化
 popup 发起 Lark OAuth
   -> extension/background 保存待处理 OAuth 状态
   -> server 创建 OAuth session 并处理 callback
+  -> server 从 OAuth user info 读取 `open_id`，并以 `(tenantKey, open_id)` 解析/保存身份和凭据
   -> callback 的精确 origin + 路径被识别为支持页面，但不提供自动化动作或侧边栏
   -> callback 页面将结果暴露给 content script
   -> extension 存储 masterUserId 并刷新授权状态
