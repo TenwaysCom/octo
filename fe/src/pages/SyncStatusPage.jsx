@@ -96,7 +96,7 @@ export function SyncStatusPage({ profile, apiBaseUrl, onLogout, isBusy, breadcru
       <header className="shortcuts-page__header">
         <p className="eyebrow">INTEGRATIONS</p>
         <h1>数据同步</h1>
-        <p>查看五个数据源的快照状态，并按需发起单个数据源同步。</p>
+        <p>查看数据源的快照状态，并按需发起单个数据源同步。</p>
       </header>
       {state.status === "loading" ? <p className="list-message">正在读取同步状态…</p> : null}
       {state.status === "error" ? <p className="list-message list-message--error">同步状态暂时无法读取，请稍后重试。</p> : null}

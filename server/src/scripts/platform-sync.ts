@@ -12,7 +12,10 @@ import { PostgresLarkTokenStore } from "../adapters/postgres/lark-token-store.js
 import { MeegleShellClient } from "../adapters/meegle/meegle-shell-client.js";
 import { PostgresPlatformSyncStore } from "../adapters/postgres/platform-sync-store.js";
 import type { GitHubPullRequestSyncRef, PlatformSyncStore } from "../adapters/postgres/platform-sync-store.js";
-import { PostgresPlatformSyncCheckpointStore } from "../adapters/postgres/platform-sync-checkpoint-store.js";
+import {
+  getMeegleWorkItemTypeCheckpointScope,
+  PostgresPlatformSyncCheckpointStore,
+} from "../adapters/postgres/platform-sync-checkpoint-store.js";
 import type { PlatformSyncCheckpoint } from "../adapters/postgres/platform-sync-checkpoint-store.js";
 import { PostgresPlatformSyncRunStore } from "../adapters/postgres/platform-sync-run-store.js";
 import type { PlatformSyncRun, PlatformSyncRunCounts, PlatformSyncRunMode } from "../adapters/postgres/platform-sync-run-store.js";
@@ -250,6 +253,27 @@ export function parsePlatformSyncConfig(input: unknown): PlatformSyncConfig {
   return platformSyncConfigSchema.parse(input);
 }
 
+export function getMeegleIncrementalScopes(config: PlatformSyncConfig): Array<{
+  scope: string;
+  target: {
+    projectKey: string;
+    workItemTypeKeys: string[];
+    sourceUpdatedAtMqlFieldNames: Record<string, string>;
+  };
+}> {
+  return config.meegle.flatMap((target) => (target.workItemTypeKeys ?? []).map((workItemTypeKey) => {
+    const sourceUpdatedAtMqlFieldName = target.sourceUpdatedAtMqlFieldNames[workItemTypeKey];
+    return {
+      scope: getMeegleWorkItemTypeCheckpointScope(target.projectKey, workItemTypeKey),
+      target: {
+        projectKey: target.projectKey,
+        workItemTypeKeys: [workItemTypeKey],
+        sourceUpdatedAtMqlFieldNames: sourceUpdatedAtMqlFieldName ? { [workItemTypeKey]: sourceUpdatedAtMqlFieldName } : {},
+      },
+    };
+  }));
+}
+
 export async function runPlatformSync(
   args: PlatformSyncScriptArgs,
   config: PlatformSyncConfig,
@@ -261,12 +285,25 @@ export async function runPlatformSync(
   for (const platform of platforms) {
     if (platform === "meegle") {
       for (const target of config.meegle) {
-        entries.push(await runTarget("meegle", target.projectKey, () => runner.bulkSyncMeegleWorkitems({
-          masterUserId: args.masterUserId,
-          projectKey: target.projectKey,
-          workItemTypeKeys: target.workItemTypeKeys,
-          cleanAfterSync: args.cleanAfterSync,
-        })));
+        const workItemTypeKeys = target.workItemTypeKeys ?? [];
+        if (workItemTypeKeys.length === 0) {
+          entries.push(await runTarget("meegle", target.projectKey, () => runner.bulkSyncMeegleWorkitems({
+            masterUserId: args.masterUserId,
+            projectKey: target.projectKey,
+            cleanAfterSync: args.cleanAfterSync,
+          })));
+          continue;
+        }
+        for (const workItemTypeKey of workItemTypeKeys) {
+          const sourceUpdatedAtMqlFieldName = target.sourceUpdatedAtMqlFieldNames[workItemTypeKey];
+          entries.push(await runTarget("meegle", getMeegleWorkItemTypeCheckpointScope(target.projectKey, workItemTypeKey), () => runner.bulkSyncMeegleWorkitems({
+            masterUserId: args.masterUserId,
+            projectKey: target.projectKey,
+            workItemTypeKeys: [workItemTypeKey],
+            sourceUpdatedAtMqlFieldNames: sourceUpdatedAtMqlFieldName ? { [workItemTypeKey]: sourceUpdatedAtMqlFieldName } : undefined,
+            cleanAfterSync: args.cleanAfterSync,
+          })));
+        }
       }
       continue;
     }
@@ -710,10 +747,11 @@ async function main(): Promise<void> {
       const config = await readPlatformSyncConfig(args.configPath);
       const incrementalRuns = new Map<string, PlatformSyncRun>();
       const result = args.only === "meegle"
-        ? await runIncrementalScopes("meegle", config.meegle.map((target) => ({ scope: target.projectKey, target })), {
+        ? await runIncrementalScopes("meegle", getMeegleIncrementalScopes(config), {
           getCheckpoint: (scope) => checkpointStore.get("meegle", scope),
           sync: async (target, checkpoint) => {
-            incrementalRuns.set(target.projectKey, await runStore.start({ platform: "meegle", scopeKey: target.projectKey, mode: "incremental", cleanAfterSync: args.cleanAfterSync }));
+            const scope = getMeegleWorkItemTypeCheckpointScope(target.projectKey, target.workItemTypeKeys[0]!);
+            incrementalRuns.set(scope, await runStore.start({ platform: "meegle", scopeKey: scope, mode: "incremental", cleanAfterSync: args.cleanAfterSync }));
             return service.incrementalSyncMeegleWorkitems({ masterUserId: args.masterUserId, projectKey: target.projectKey, workItemTypeKeys: target.workItemTypeKeys, sourceUpdatedAtMqlFieldNames: target.sourceUpdatedAtMqlFieldNames, cleanAfterSync: args.cleanAfterSync, ...checkpoint });
           },
           markSuccess: async (checkpoint, next) => {
@@ -753,10 +791,10 @@ async function main(): Promise<void> {
     const githubFullScopeStartedAt = new Map<string, string>();
     const result = await runPlatformSync(args, config, {
       bulkSyncMeegleWorkitems: (input) => runWithAudit(runStore, {
-        platform: "meegle", scopeKey: input.projectKey, mode: "full", cleanAfterSync: input.cleanAfterSync,
+        platform: "meegle", scopeKey: getMeegleWorkItemTypeCheckpointScope(input.projectKey, input.workItemTypeKeys?.[0] ?? "all"), mode: "full", cleanAfterSync: input.cleanAfterSync,
       }, async (startedAt) => {
         const counts = await service.bulkSyncMeegleWorkitems(input);
-        return { ...counts, stale: await syncStore.markMeegleWorkitemsUnseenStale(input.projectKey, startedAt) };
+        return { ...counts, stale: await syncStore.markMeegleWorkitemsUnseenStale(input.projectKey, startedAt, input.workItemTypeKeys?.[0]) };
       }),
       bulkSyncLarkBaseTickets: (input) => runWithAudit(runStore, {
         platform: "lark", scopeKey: `${input.baseId}/${input.tableId}`, mode: "full", cleanAfterSync: input.cleanAfterSync,

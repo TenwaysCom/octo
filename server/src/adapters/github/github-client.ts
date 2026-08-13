@@ -101,6 +101,35 @@ export class GitHubClient {
     return pullRequests;
   }
 
+  async listPullRequestsUpdatedSince(
+    owner: string,
+    repo: string,
+    updatedSince: string,
+  ): Promise<Array<Pick<GitHubPrDetails, "number" | "updated_at">>> {
+    const updatedAt = new Date(updatedSince);
+    if (Number.isNaN(updatedAt.getTime())) {
+      throw new Error(`Invalid GitHub incremental timestamp: ${updatedSince}`);
+    }
+
+    const pullRequests: Array<Pick<GitHubPrDetails, "number" | "updated_at">> = [];
+    const query = encodeURIComponent(`repo:${owner}/${repo} is:pr updated:>=${updatedAt.toISOString()}`);
+    for (let page = 1; page <= 10; page += 1) {
+      const result = await this.request<{
+        total_count: number;
+        incomplete_results: boolean;
+        items: Array<Pick<GitHubPrDetails, "number" | "updated_at">>;
+      }>(`/search/issues?q=${query}&sort=updated&order=asc&per_page=100&page=${page}`);
+      if (result.incomplete_results || result.total_count > 1000) {
+        throw new Error("GITHUB_INCREMENTAL_SEARCH_INCOMPLETE");
+      }
+      pullRequests.push(...result.items);
+      if (pullRequests.length >= result.total_count || result.items.length < 100) {
+        break;
+      }
+    }
+    return pullRequests;
+  }
+
   async getIssue(owner: string, repo: string, issueNumber: number): Promise<GitHubIssueDetails> {
     return this.request<GitHubIssueDetails>(`/repos/${owner}/${repo}/issues/${issueNumber}`);
   }

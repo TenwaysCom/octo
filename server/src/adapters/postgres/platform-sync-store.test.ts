@@ -175,6 +175,32 @@ describe("PostgresPlatformSyncStore", () => {
     await pool.end();
   });
 
+  it("marks stale Meegle snapshots only within the completed work-item type", async () => {
+    const { db, pool } = await createTestPostgresDatabase();
+    const store = new PostgresPlatformSyncStore(db);
+    await Promise.all([
+      store.upsertMeegleWorkitem({
+        projectKey: "project", workItemTypeKey: "story",
+        workitem: { id: "story-1", key: "story-1", name: "Story", type: "story", status: "Open", fields: {} },
+      }),
+      store.upsertMeegleWorkitem({
+        projectKey: "project", workItemTypeKey: "tech-task",
+        workitem: { id: "task-1", key: "task-1", name: "Task", type: "tech-task", status: "Open", fields: {} },
+      }),
+    ]);
+    await db.updateTable("meegle_workitem_syncs").set({ last_seen_at: "2026-08-01T00:00:00.000Z" })
+      .where("project_key", "=", "project").execute();
+
+    await expect(store.markMeegleWorkitemsUnseenStale("project", "2026-08-02T00:00:00.000Z", "story")).resolves.toBe(1);
+    await expect(db.selectFrom("meegle_workitem_syncs").select(["work_item_type_key", "stale"]).orderBy("work_item_type_key").execute()).resolves.toEqual([
+      { work_item_type_key: "story", stale: true },
+      { work_item_type_key: "tech-task", stale: false },
+    ]);
+
+    await db.destroy();
+    await pool.end();
+  });
+
   it("writes cleaned GitHub fields back to the source snapshot and skips an unchanged result", async () => {
     const { db, pool } = await createTestPostgresDatabase();
     const store = new PostgresPlatformSyncStore(db);

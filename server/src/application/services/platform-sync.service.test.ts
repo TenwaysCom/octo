@@ -235,8 +235,53 @@ describe("PlatformSyncService", () => {
       sourceUpdatedAfter: "2026-08-10T23:55:00.000Z",
       sourceUpdatedAtMqlFieldNames: { story: "updated_at" },
     });
-    expect(client.getWorkitemDetails).toHaveBeenCalledWith("project", "story", ["1"]);
+    expect(client.getWorkitemDetails).toHaveBeenCalledWith("project", "story", ["1"], [
+      "field_feb079",
+      "field_1b9eb0",
+      "field_00f541",
+      "field_9edc03",
+    ]);
     expect(store.meegle).toHaveLength(1);
+  });
+
+  it("requests Tech Task relation fields before cleaning incremental snapshots", async () => {
+    const store = createStore();
+    const techTaskType = "66700acbf297a8f821b4b860";
+    const candidate = {
+      ...workitem("tech-1", "In Progress"),
+      type: techTaskType,
+      updatedAt: "2026-08-11T00:01:00.000Z",
+    };
+    const client = {
+      filterWorkitems: vi.fn().mockResolvedValue([candidate]),
+      getWorkitemDetails: vi.fn().mockResolvedValue([{
+        ...candidate,
+        fields: {
+          work_item_fields: [
+            { key: "field_ecd063", value: { name: "Sprint 1" } },
+            { key: "field_5fab52", value: { name: "Version 1" } },
+          ],
+        },
+      }]),
+      getSyncMappings: vi.fn().mockResolvedValue([]),
+    } as unknown as MeegleClient;
+    const service = new PlatformSyncService({ store, createMeegleClient: async () => client });
+
+    await service.incrementalSyncMeegleWorkitems({
+      masterUserId: "user-1",
+      projectKey: "project",
+      workItemTypeKeys: [techTaskType],
+      sourceUpdatedAtMqlFieldNames: { [techTaskType]: "updated_at" },
+      watermarkUpdatedAt: "2026-08-11T00:00:00.000Z",
+      watermarkTiebreaker: `${techTaskType}:0`,
+      cleanAfterSync: true,
+    });
+
+    expect(client.getWorkitemDetails).toHaveBeenCalledWith("project", techTaskType, ["tech-1"], [
+      "field_ecd063",
+      "field_5fab52",
+      "field_3daed9",
+    ]);
   });
 
   it("synchronizes mappings before storing converted Meegle fields", async () => {
@@ -325,6 +370,41 @@ describe("PlatformSyncService", () => {
     })).resolves.toEqual({ listed: 1, skippedInactive: 0, synced: 1 });
     expect(store.github).toHaveLength(1);
     expect(client.getPullRequest).toHaveBeenCalledWith("acme", "app", 12);
+  });
+
+  it("syncs changed GitHub PRs incrementally, including terminal states", async () => {
+    const store = createStore();
+    const pullRequest = {
+      number: 12,
+      title: "Merged PR",
+      body: "details",
+      html_url: "https://github.com/acme/app/pull/12",
+      state: "closed",
+      merged_at: "2026-08-12T00:01:00Z",
+      updated_at: "2026-08-12T00:01:00Z",
+      draft: false,
+    } as GitHubPrDetails;
+    const client = {
+      listPullRequestsUpdatedSince: vi.fn().mockResolvedValue([{ number: 12, updated_at: pullRequest.updated_at }]),
+      getPullRequest: vi.fn().mockResolvedValue(pullRequest),
+    } as unknown as import("../../adapters/github/github-client.js").GitHubClient;
+    const service = new PlatformSyncService({ store, createGitHubClient: () => client });
+
+    await expect(service.incrementalSyncGitHubPullRequests({
+      owner: "acme",
+      repo: "app",
+      watermarkUpdatedAt: "2026-08-12T00:00:00Z",
+      watermarkTiebreaker: "000000000001",
+      cleanAfterSync: true,
+    })).resolves.toMatchObject({
+      listed: 1,
+      synced: 1,
+      cleaned: 1,
+      watermarkUpdatedAt: "2026-08-12T00:01:00Z",
+      watermarkTiebreaker: "000000000012",
+    });
+    expect(client.listPullRequestsUpdatedSince).toHaveBeenCalledWith("acme", "app", "2026-08-11T23:55:00.000Z");
+    expect(store.github).toHaveLength(1);
   });
 
   it("cleans GitHub author, merger, requested reviewers, labels, and creation time into its Octo projection", async () => {

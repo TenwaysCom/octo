@@ -23,11 +23,27 @@ describe("PostgresPlatformSyncCheckpointStore", () => {
       },
       {
         platform: "meegle",
-        scopeKey: "project",
+        scopeKey: "project/story",
         watermarkUpdatedAt: "2026-08-07T10:00:00.000Z",
         watermarkTiebreaker: "story:42",
         lastSuccessAt: "2026-08-08T10:00:00.000Z",
       },
+    ]);
+  });
+
+  it("backfills Meegle checkpoints independently for each work-item type", async () => {
+    const { db } = await createTestPostgresDatabase();
+    const store = new PostgresPlatformSyncCheckpointStore(db);
+    await db.insertInto("meegle_workitem_syncs").values([
+      meegleSnapshot({ work_item_type_key: "story", work_item_id: "story-1", source_updated_at: "2026-08-08T10:00:00.000Z" }),
+      meegleSnapshot({ work_item_type_key: "tech-task", work_item_id: "task-1", source_updated_at: "2026-08-09T10:00:00.000Z" }),
+      meegleSnapshot({ work_item_type_key: "production-bug", work_item_id: "bug-1", source_updated_at: "2026-08-10T10:00:00.000Z" }),
+    ]).execute();
+
+    await expect(store.listInitialCheckpoints()).resolves.toEqual([
+      expect.objectContaining({ platform: "meegle", scopeKey: "project/production-bug", watermarkTiebreaker: "production-bug:bug-1" }),
+      expect.objectContaining({ platform: "meegle", scopeKey: "project/story", watermarkTiebreaker: "story:story-1" }),
+      expect.objectContaining({ platform: "meegle", scopeKey: "project/tech-task", watermarkTiebreaker: "tech-task:task-1" }),
     ]);
   });
 
@@ -187,7 +203,12 @@ function larkSnapshot(overrides: Partial<{ source_updated_at: string | null }> =
   };
 }
 
-function meegleSnapshot() {
+function meegleSnapshot(overrides: Partial<{
+  work_item_type_key: string;
+  work_item_id: string;
+  source_updated_at: string | null;
+  synced_at: string;
+}> = {}) {
   return {
     project_key: "project",
     project_name: null,
@@ -208,5 +229,6 @@ function meegleSnapshot() {
     payload_json: "{}",
     source_updated_at: "2026-08-07T10:00:00.000Z",
     synced_at: "2026-08-08T10:00:00.000Z",
+    ...overrides,
   };
 }

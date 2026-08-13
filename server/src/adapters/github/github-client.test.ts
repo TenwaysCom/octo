@@ -53,6 +53,24 @@ describe("GitHubClient", () => {
     });
   });
 
+  it("searches incrementally updated pull requests in ascending update order", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        total_count: 1,
+        incomplete_results: false,
+        items: [{ number: 12, updated_at: "2026-08-12T00:01:00Z" }],
+      }),
+    });
+
+    await expect(client.listPullRequestsUpdatedSince("owner", "repo", "2026-08-12T00:00:00Z"))
+      .resolves.toEqual([{ number: 12, updated_at: "2026-08-12T00:01:00Z" }]);
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining("/search/issues?q=repo%3Aowner%2Frepo%20is%3Apr%20updated%3A%3E%3D2026-08-12T00%3A00%3A00.000Z&sort=updated&order=asc"),
+      expect.anything(),
+    );
+  });
+
   it("fetches paginated PR files and posts a PR comment", async () => {
     mockFetch
       .mockResolvedValueOnce({

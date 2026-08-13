@@ -11,7 +11,7 @@ import {
 } from "../../adapters/postgres/platform-sync-store.js";
 import { getResolvedUserStore, type ResolvedUserStore } from "../../adapters/postgres/resolved-user-store.js";
 import { createMeegleClient } from "./meegle-client.factory.js";
-import { extractMeegleCleaningRelations } from "./meegle-cleaning.config.js";
+import { extractMeegleCleaningRelations, getMeegleCleaningFieldKeys } from "./meegle-cleaning.config.js";
 import { buildGitHubPrCleaningProjection } from "./github-pr-cleaning.js";
 import { buildLarkTicketCleaningProjection } from "./lark-ticket-cleaning.js";
 import { buildAuthenticatedLarkClient } from "./lark-auth-client.factory.js";
@@ -39,7 +39,13 @@ const STATUS_FIELD_CANDIDATES = ["Status", "状态", "Ticket Status", "ticket_st
 const TITLE_FIELD_CANDIDATES = ["Title", "标题", "名称", "name", "Issue Description", "问题描述", "问题"];
 const INCREMENTAL_OVERLAP_MS = 5 * 60 * 1000;
 
-type MeegleSyncClient = Pick<MeegleClient, "getWorkitemDetails" | "filterWorkitems"> & {
+type MeegleSyncClient = Omit<Pick<MeegleClient, "getWorkitemDetails" | "filterWorkitems">, "getWorkitemDetails"> & {
+  getWorkitemDetails: (
+    projectKey: string,
+    workItemTypeKey: string,
+    workItemIds: string[],
+    fieldKeys?: string[],
+  ) => Promise<MeegleWorkitem[]>;
   getSyncMappings?: (projectKey: string, workitemTypeKeys: string[]) => Promise<MeegleSyncMapping[]>;
 };
 
@@ -269,6 +275,50 @@ export class PlatformSyncService {
       syncedRefs,
       { listed, skippedInactive: listed - synced, synced },
     );
+  }
+
+  async incrementalSyncGitHubPullRequests(input: {
+    owner: string;
+    repo: string;
+    watermarkUpdatedAt: string;
+    watermarkTiebreaker: string;
+    cleanAfterSync?: boolean;
+    actionRunId?: string;
+  }) {
+    const threshold = new Date(new Date(input.watermarkUpdatedAt).getTime() - INCREMENTAL_OVERLAP_MS).getTime();
+    if (Number.isNaN(threshold)) throw new Error(`Invalid GitHub checkpoint watermark: ${input.watermarkUpdatedAt}`);
+    const client = this.getGitHubClient();
+    const listed = await client.listPullRequestsUpdatedSince(input.owner, input.repo, new Date(threshold).toISOString());
+    if (listed.some((pullRequest) => !isValidSourceTimestamp(pullRequest.updated_at))) {
+      throw new Error("GitHub incremental result is missing updated_at");
+    }
+    const detailed = await Promise.all(listed.map((pullRequest) => (
+      client.getPullRequest(input.owner, input.repo, pullRequest.number)
+    )));
+    if (detailed.some((pullRequest) => !isValidSourceTimestamp(pullRequest.updated_at))) {
+      throw new Error("GitHub incremental detail is missing updated_at");
+    }
+    const changed = detailed.filter((pullRequest) => new Date(pullRequest.updated_at).getTime() >= threshold);
+    const syncedRefs: GitHubPullRequestSyncRef[] = [];
+    for (const pullRequest of changed) {
+      await this.syncStore.upsertGitHubPullRequest({
+        owner: input.owner,
+        repo: input.repo,
+        pullRequest,
+      });
+      syncedRefs.push({ owner: input.owner, repo: input.repo, pullNumber: pullRequest.number });
+    }
+    const latest = latestWatermark(changed.map((pullRequest) => ({
+      updatedAt: pullRequest.updated_at,
+      tiebreaker: String(pullRequest.number).padStart(12, "0"),
+    })), input);
+    return this.withOptionalGitHubCleaning(input.cleanAfterSync, syncedRefs, {
+      listed: listed.length,
+      skippedInactive: 0,
+      synced: changed.length,
+      watermarkUpdatedAt: latest.updatedAt,
+      watermarkTiebreaker: latest.tiebreaker,
+    });
   }
 
   async selectedSyncGitHubPullRequests(request: SelectedSyncGitHubPullRequestsRequest) {
@@ -529,7 +579,12 @@ export class PlatformSyncService {
     }
     for (const [workItemTypeKey, workitemIds] of byType) {
       for (const workitemIdChunk of chunk(workitemIds, 50)) {
-        const detailed = await client.getWorkitemDetails(projectKey, workItemTypeKey, workitemIdChunk);
+        const detailed = await client.getWorkitemDetails(
+          projectKey,
+          workItemTypeKey,
+          workitemIdChunk,
+          getMeegleCleaningFieldKeys(workItemTypeKey),
+        );
         for (const workitem of detailed) {
           byId.set(workitem.id, workitem);
         }

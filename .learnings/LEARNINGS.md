@@ -2,6 +2,12 @@
 
 Record concise, reusable lessons here. Include the context, the durable rule, and the verified outcome; never include secrets or raw credentials.
 
+## [LRN-20260813-001] web-platform-sync-incremental-scope
+
+- **Context:** Web「立即同步」错误地调用 bulk/full 服务；Meegle HTTP `filterWorkitems` 不能按源端更新时间过滤。
+- **Rule:** Web source actions must read the matching checkpoint and reject a missing/unsafe watermark rather than silently falling back to full sync. Use the source-side incremental adapter (Meegle CLI/MQL, Lark Bitable filter, GitHub updated search), clean successful snapshots, then advance the same scope only after success. If a checkpoint covers a whole Meegle project, a type card must sync every configured type before advancing it.
+- **Verified outcome:** Controller, service, and GitHub adapter tests cover success, missing-watermark rejection, failure recording, terminal PRs, and checkpoint advancement; Server test suite and TypeScript build pass.
+
 ## [LRN-20260810-001] external-read-proxy-boundary
 
 - **Context:** Octo proxies Odoo DevOps branch status with a server-held external credential.
@@ -199,3 +205,9 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - **Context:** Workspace navigation visibility must not become the only control for synchronized platform data or manual synchronization.
 - **Rule:** Resolve the role from the opaque Web session on the server, derive feature permissions once, return only those permissions in the Web Profile, and enforce the same permissions on the corresponding Web endpoints. `admin`, `devops`, and `pm` grant lists and sync; `dev` grants lists only.
 - **Verified outcome:** Role-policy and controller tests cover allow/deny cases; full server and FE tests plus both production builds pass.
+
+## [LRN-20260813-001] meegle-checkpoint-type-scope
+
+- **Context:** A project contains User Story, Tech Task, and Production Bug items with independent source-update timelines.
+- **Rule:** Key every Meegle incremental checkpoint and run audit by `projectKey/workItemTypeKey`; a Web or CLI run must send one type and its matching source-time field mapping. When splitting full runs, filter stale marking to the same type so another type cannot be marked stale.
+- **Verified outcome:** Controller, CLI scope, checkpoint initialization, and type-scoped stale tests pass; server TypeScript build passes.

@@ -221,7 +221,7 @@ Octo 需要维护的数据一律放入对应的 `_octo` 表。每张表以同一
 | 增量批量 | 一个 scope | 从 checkpoint 起拉取变更对象，批量 UPSERT，并清洗变更对象 |
 | 独立清洗 | 配置中的一个或多个 scope | 不访问源端，只从 `*_syncs` 快照重算清洗投影 |
 
-HTTP 单个/多选/批量接口保留可选的 `cleanAfterSync`；CLI 的 full 与 incremental 模式固定为“同步后清洗”，不提供跳过清洗的参数。`--clean-after-sync` 只为兼容旧命令而保留。
+HTTP 单个/多选接口保留可选的 `cleanAfterSync`。Web「立即同步」和 CLI incremental 固定为“同步后清洗”；Web 不会因为没有 checkpoint 而静默降级为全量。`--clean-after-sync` 只为兼容旧命令而保留。
 
 ```text
 CLI full / incremental  同步成功后，对本次成功写入的对象执行对应平台清洗
@@ -260,6 +260,18 @@ platform_sync_runs
 ```
 
 当前已实现 `platform_sync_checkpoints`、`platform_sync_runs`、`last_seen_at` 与 `stale`。CLI 的 full、incremental、clean 每个 scope 都会落一条运行审计；full 完整成功时才执行失联标记。`source_hash` 仍未实现。`platform:init-checkpoints` 只从 GitHub/Meegle 既有快照建立水位：GitHub scope 为 `owner/repo`，Meegle 为 `project_key`。Lark 不从历史快照派生 checkpoint，必须使用 5.4 的 reset 命令切换到新的源端最后修改时间语义。若 GitHub/Meegle scope 任一历史快照缺少 `source_updated_at`，不写 watermark，并在 `last_error` 标记为“首次增量前必须全量同步”；这避免以本地 `synced_at` 冒充源端更新时间而漏数据。
+
+### 5.3.1 Web「立即同步」
+
+Web 页面上的「立即同步」就是增量同步，不执行 full 初始化：读取相同 scope 的 checkpoint，源端过滤、UPSERT、清洗成功后才推进水位；失败会保留旧水位并写入 `last_error`。没有安全 watermark 时接口返回 `409 SYNC_CHECKPOINT_REQUIRED`，页面应提示先完成历史初始化，不能改为扫描全量。
+
+| Web 卡片 | checkpoint scope | 实际增量范围 |
+| --- | --- | --- |
+| Lark Ticket | `baseId/tableId` | 该 Base 表中 `最后修改时间` 在水位后的记录 |
+| Meegle 任一类型卡片 | `projectKey` | 该项目配置的**全部** work item types；这是为了避免单卡片推进项目共享水位后遗漏其他类型 |
+| GitHub repository | `owner/repo` | 该仓库 `updated_at` 在水位后的全部 PR（含 open、closed、merged） |
+
+Web Meegle 使用服务器上的 `meegle workitem query --mql` 与 `+batch-get`，而不是 HTTP `filterWorkitems`：后者不支持 `source_updated_at` 过滤。Web GitHub 使用 REST Search `updated:>=` 后再逐条读取 PR 详情。三种 Web 增量均默认清洗本轮成功快照。
 
 ### 5.4 Lark 历史时间回填（不用于增量）
 
@@ -386,10 +398,11 @@ pnpm --dir server platform:sync --mode clean --only lark
 
 ### 6.2 Meegle Work Item
 
-- checkpoint scope 为 `projectKey`；一个项目中配置的 work item type 集合共享同一水位。新增或移除类型时，必须先做该项目的历史初始化或重建 checkpoint，不能直接沿用旧水位。
+- checkpoint scope 为 `projectKey/workItemTypeKey`；User Story、Tech Task 与 Production Bug 分别维护和使用自己的水位。新增类型只需初始化该类型的 checkpoint，不得复用旧项目级 checkpoint。
 - 先读取类型/状态元数据，再读取 work item；动态 `field_*` 只可位于 metadata resolver 或明确的兼容映射层。
 - 增量先按 `sourceUpdatedAtMqlFieldNames[workItemTypeKey]` 的 MQL 字段 key 筛选、排序、分页，再分批读取 `+batch-get` 详情。普通 Meegle work item 使用 MQL `updated_at`（详情未返回该字段）；Production Bug（由 `MEEGLE_WORKITEM_TYPE_KEY_PROD_BUG` 配置）使用 `fields.work_item_attribute.update_time`。adapter 将秒/毫秒时间戳规范化为 ISO UTC 后写入 `source_updated_at`；缺失时保持为空，不能用 `synced_at` 或其他业务字段补齐。
 - 对历史空值可先预览、再回填并初始化空 checkpoint：`pnpm --dir server platform:backfill-meegle-source-time`，确认后追加 `--apply`。
+- 已有历史快照升级到类型级 checkpoint 后，执行 `pnpm --dir server platform:init-checkpoints --only meegle --apply` 创建缺失的 `projectKey/workItemTypeKey` 记录；旧项目级 checkpoint 保留但不再读取。
 - 若历史快照未返回 `updated_at`，该 project 的 checkpoint 仍不可作为安全增量水位；必须通过源端详情补拉取得 `updated_at` 后才可初始化。
 - 详情补拉应只针对增量候选对象，并保留限流、429 重试和商业额度错误的区分。
 - Sprint、Version、System、Bug 等展示关联字段属于清洗/投影层，不能覆盖原始源端 payload；现有 `field_*` 兼容映射集中在 `server/src/application/services/meegle-cleaning.config.ts`。
@@ -440,10 +453,10 @@ syncLark...    -> cleanLarkBaseTickets(...)
 
 ## 9. API、CLI 与调度
 
-- HTTP 接口使用 DTO 校验和 `{ ok, data, error }` 结构，当前提供单个、多选、批量同步和可选 `cleanAfterSync`；HTTP 增量 mode 与 `run_id` 尚未实现。
+- HTTP 接口使用 DTO 校验和 `{ ok, data, error }` 结构，提供单个、多选、批量同步和可选 `cleanAfterSync`；Web 平台同步卡片已接入基于 checkpoint 的增量模式。Web 运行审计 `platform_sync_runs` 仍待接入。
 - CLI 保留 `--only`、`--user-id`、`--config`，并提供 `--mode full|incremental|clean`：full/incremental 默认同步加清洗；clean 只清洗本地快照。GitHub incremental 额外要求 `--scope owner/repo`，clean mode 不接受 `--scope`。
 - 定时任务应调用与 CLI/HTTP 相同的 service，而非复制平台请求逻辑。
-- full 模式隔离各配置 target，某一 target 失败后仍会继续其它 target。Lark/Meegle incremental 的多 scope 失败后继续执行仍待实现；失败 scope 不得推进自身 checkpoint。
+- full 与 CLI incremental 模式均隔离各配置 target；某一 target/scope 失败后仍会继续其它 target。Web Lark 多 scope 同步会并行执行，每个 scope 独立记录 checkpoint 失败；失败 scope 不得推进自身 checkpoint。
 
 ## 10. 迁移、测试与验收
 
@@ -451,8 +464,8 @@ syncLark...    -> cleanLarkBaseTickets(...)
 
 1. 已完成：建立三个 `_octo` 表及一对一复合键；清洗结果只保存在同步表。
 2. 已完成：将 `cleanMeegleWorkitems`、`cleanGitHubPullRequests`、`cleanLarkBaseTickets` 收敛到 `PlatformSyncService`，并由 `cleanAfterSync` 触发。
-3. 已完成 HTTP：三个平台均有单个、多选、批量 DTO/API；HTTP 增量 mode 与运行审计仍待补齐。
-4. 已完成：建立 checkpoint schema，并接入三平台的 CLI 增量代码路径；GitHub/Meegle 可从历史快照初始化 checkpoint，Lark 必须使用显式 reset 命令建立新的增量起点。GitHub 已完成本地测试，Lark 依赖源端返回 `last_modified_time`，Meegle 仍待真实授权环境验证。
+3. 已完成 HTTP：三个平台均有单个、多选、批量 DTO/API；Web 立即同步已使用 checkpoint 增量读取并默认清洗，运行审计仍待补齐。
+4. 已完成：建立 checkpoint schema，并接入三平台的 CLI 增量代码路径；GitHub/Meegle 可从历史快照初始化 checkpoint，Lark 必须使用显式 reset 命令建立新的增量起点。Meegle 按 `projectKey/workItemTypeKey` 初始化三类独立 checkpoint；旧项目级 checkpoint 不再使用。GitHub 已完成本地测试，Lark 依赖源端返回 `last_modified_time`，Meegle 仍待真实授权环境验证。
 5. 已完成：CLI full/incremental 默认清洗，`--mode clean` 支持在不访问源端的情况下重算已配置 scope 的本地清洗投影。
 6. 待完成：run 审计、hash/seen/stale 元数据、scheduler/webhook 与周期性全量校验。
 

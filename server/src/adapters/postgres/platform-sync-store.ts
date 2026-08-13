@@ -473,13 +473,14 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
     return true;
   }
 
-  async markMeegleWorkitemsUnseenStale(projectKey: string, seenSince: string): Promise<number> {
-    const result = await this.db.updateTable("meegle_workitem_syncs")
+  async markMeegleWorkitemsUnseenStale(projectKey: string, seenSince: string, workItemTypeKey?: string): Promise<number> {
+    let query = this.db.updateTable("meegle_workitem_syncs")
       .set({ stale: true })
       .where("project_key", "=", projectKey)
       .where("stale", "=", false)
-      .where((eb) => eb.or([eb("last_seen_at", "is", null), eb("last_seen_at", "<", seenSince)]))
-      .executeTakeFirst();
+      .where((eb) => eb.or([eb("last_seen_at", "is", null), eb("last_seen_at", "<", seenSince)]));
+    if (workItemTypeKey) query = query.where("work_item_type_key", "=", workItemTypeKey);
+    const result = await query.executeTakeFirst();
     return Number(result.numUpdatedRows);
   }
 

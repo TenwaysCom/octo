@@ -1,5 +1,8 @@
 import { parseArgs } from "./clean-meegle-sync-snapshots.js";
-import { extractMeegleCleaningRelations } from "../application/services/meegle-cleaning.config.js";
+import {
+  extractMeegleCleaningRelations,
+  getMeegleCleaningFieldKeys,
+} from "../application/services/meegle-cleaning.config.js";
 
 describe("Meegle sync snapshot cleanup", () => {
   it("requires an explicit apply flag", () => {
@@ -29,5 +32,13 @@ describe("Meegle sync snapshot cleanup", () => {
       bugs: ["Bug 1", "Bug 2"],
       system: "Odoo/Odoo UK",
     });
+  });
+
+  it("requests the Tech Task relation fields needed for cleaning", () => {
+    expect(getMeegleCleaningFieldKeys("66700acbf297a8f821b4b860")).toEqual([
+      "field_ecd063",
+      "field_5fab52",
+      "field_3daed9",
+    ]);
   });
 });

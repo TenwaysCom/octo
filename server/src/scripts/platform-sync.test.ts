@@ -2,6 +2,7 @@ import {
   DEFAULT_PLATFORM_SYNC_CONFIG_PATH,
   parsePlatformSyncArgs,
   parsePlatformSyncConfig,
+  getMeegleIncrementalScopes,
   runIncrementalScopes,
   runPlatformSync,
   runPlatformSyncCleaning,
@@ -103,6 +104,46 @@ describe("platform-sync script", () => {
       repositories: [{ owner: "acme", repo: "app" }],
       state: "merged",
       limit: 100,
+      cleanAfterSync: true,
+    });
+  });
+
+  it("splits configured Meegle types into independent full and incremental scopes", async () => {
+    const meegle = [{
+      projectKey: "project",
+      workItemTypeKeys: ["story", "tech-task", "production-bug"],
+      sourceUpdatedAtMqlFieldNames: { story: "updated_at", "tech-task": "updated_at", "production-bug": "updated_at" },
+    }];
+    const syncRunner = runner();
+    const result = await runPlatformSync(parsePlatformSyncArgs(["--only", "meegle"]), config({ meegle }), syncRunner);
+
+    expect(result.entries.map((entry) => entry.target)).toEqual([
+      "project/story", "project/tech-task", "project/production-bug",
+    ]);
+    expect(syncRunner.bulkSyncMeegleWorkitems).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      projectKey: "project",
+      workItemTypeKeys: ["tech-task"],
+      sourceUpdatedAtMqlFieldNames: { "tech-task": "updated_at" },
+    }));
+    expect(getMeegleIncrementalScopes(config({ meegle }))).toEqual([
+      { scope: "project/story", target: { projectKey: "project", workItemTypeKeys: ["story"], sourceUpdatedAtMqlFieldNames: { story: "updated_at" } } },
+      { scope: "project/tech-task", target: { projectKey: "project", workItemTypeKeys: ["tech-task"], sourceUpdatedAtMqlFieldNames: { "tech-task": "updated_at" } } },
+      { scope: "project/production-bug", target: { projectKey: "project", workItemTypeKeys: ["production-bug"], sourceUpdatedAtMqlFieldNames: { "production-bug": "updated_at" } } },
+    ]);
+  });
+
+  it("keeps legacy Meegle full sync usable when no work-item types are configured", async () => {
+    const syncRunner = runner();
+
+    await runPlatformSync(
+      parsePlatformSyncArgs(["--only", "meegle"]),
+      config({ meegle: [{ projectKey: "project", sourceUpdatedAtMqlFieldNames: {} }] }),
+      syncRunner,
+    );
+
+    expect(syncRunner.bulkSyncMeegleWorkitems).toHaveBeenCalledWith({
+      masterUserId: "a400632e-8d08-4ddf-977d-e8330b0adc5a",
+      projectKey: "project",
       cleanAfterSync: true,
     });
   });

@@ -4,6 +4,10 @@ import type { DatabaseSchema } from "./schema.js";
 export const PLATFORM_SYNC_PLATFORMS = ["github", "lark", "meegle"] as const;
 export type PlatformSyncPlatform = typeof PLATFORM_SYNC_PLATFORMS[number];
 
+export function getMeegleWorkItemTypeCheckpointScope(projectKey: string, workItemTypeKey: string): string {
+  return `${projectKey}/${workItemTypeKey}`;
+}
+
 export interface PlatformSyncCheckpoint {
   platform: PlatformSyncPlatform;
   scopeKey: string;
@@ -170,7 +174,7 @@ export class PostgresPlatformSyncCheckpointStore {
       })),
       ...meegle.map((row): SnapshotMetadata => ({
         platform: "meegle",
-        scopeKey: row.project_key,
+        scopeKey: getMeegleWorkItemTypeCheckpointScope(row.project_key, row.work_item_type_key),
         sourceUpdatedAt: row.source_updated_at ?? undefined,
         tiebreaker: `${row.work_item_type_key}:${row.work_item_id}`,
         syncedAt: row.synced_at,

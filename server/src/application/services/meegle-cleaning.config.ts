@@ -38,6 +38,10 @@ export function extractMeegleCleaningRelations(workitem: MeegleWorkitem): Relati
   return values;
 }
 
+export function getMeegleCleaningFieldKeys(workItemTypeKey: string): string[] {
+  return Object.values(RELATION_FIELD_MAPPING[workItemTypeKey] ?? {});
+}
+
 function toDisplayValue(value: unknown): string | string[] | undefined {
   if (Array.isArray(value)) {
     const values = value.map(toSingleDisplayValue).filter((item): item is string => Boolean(item));
