@@ -211,3 +211,9 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - **Context:** A project contains User Story, Tech Task, and Production Bug items with independent source-update timelines.
 - **Rule:** Key every Meegle incremental checkpoint and run audit by `projectKey/workItemTypeKey`; a Web or CLI run must send one type and its matching source-time field mapping. When splitting full runs, filter stale marking to the same type so another type cannot be marked stale.
 - **Verified outcome:** Controller, CLI scope, checkpoint initialization, and type-scoped stale tests pass; server TypeScript build passes.
+
+## [LRN-20260813-002] meegle-web-sync-runtime-dependency
+
+- **Context:** Meegle auth status succeeded while every Web-triggered Meegle incremental sync returned HTTP 502 with the generic `SYNC_FAILED` response.
+- **Rule:** Diagnose the checkpoint `last_error` before asking users to reauthorize. Web incremental Meegle sync uses `MeegleShellClient`, so the Server runtime must have a working `meegle` executable on `PATH`; `spawn meegle ENOENT` is a runtime dependency failure, not a user credential failure.
+- **Verified outcome:** The failed User Story and Tech Task checkpoints both recorded `spawn meegle ENOENT`, while adjacent Meegle auth checks completed successfully.

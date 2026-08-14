@@ -58,7 +58,9 @@ HTTP 路由如下。所有请求都可携带 `actionRunId`；Base ticket 可指�
 
 Web Integrations 还提供受 Web 会话保护的同步状态页：展示 Lark Ticket、Meegle User Story、Meegle Tech Task、Meegle Production Bug，以及 GitHub Odoo EU、GitHub Odoo UK、GitHub Odoo US。每个 GitHub 卡片对应一个明确仓库，最近同步时间只从该仓库快照计算，单项同步也只读取该仓库。Web 的单项同步固定为“同步后清洗”：只清洗本次成功写入的快照。服务端从 `platform-sync.local.json` 解析实际 target，并从 HttpOnly Web session 获取 `masterUserId`；浏览器不会接收或传递用户 ID、平台 token、Base/Table ID 或仓库标识；未配置来源在页面明确显示为“未配置”。Web 的 Lark Ticket、Meegle 工作项和 GitHub PR 列表每次最多读取最新 500 条快照。
 
-Web Meegle 工作项列表默认按状态分组，也支持切换为按类型、Sprint、Version、System、负责人分组或不分组，并可配置排序字段、排序方向和显示字段；这些视图配置只保存在当前 Web 会话的页面状态中，不修改同步快照或外部平台数据。
+Web Lark Ticket 列表默认按状态分组并按状态升序排列，提供“进行中”“未分类”“未同步”快速过滤；“进行中”包含状态不是 `Finish`、`Cancelled`、`Rejected` 的 Ticket。列表也支持切换为按 Issue 类型、需求人、负责人、紧急度分组或不分组，并可配置排序字段、排序方向和显示字段。
+
+Web Meegle 工作项列表默认按状态分组，也支持切换为按类型、Sprint、Version、System、负责人分组或不分组，并可配置排序字段、排序方向和显示字段。两类列表的视图配置只保存在当前 Web 会话的页面状态中，不修改同步快照或外部平台数据。
 
 本地 CLI 配置文件为 `server/config/platform-sync.local.json`，只提交 `.example`，不得保存 token。Lark 通过服务端保存的用户凭据读取；本地 Meegle 同步使用本机 `meegle` CLI profile；本地 GitHub 同步使用 `gh` CLI。HTTP GitHub 同步使用服务端 `GITHUB_TOKEN`。
 

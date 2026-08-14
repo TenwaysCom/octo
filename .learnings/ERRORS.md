@@ -108,3 +108,17 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Error:** Unauthenticated controller tests failed without `POSTGRES_URI`; index route registration also required a ready SSH tunnel.
 - **Fix:** Instantiate the store lazily inside the authenticated `load` service method, after snapshot access is actually needed.
 - **Status:** resolved; unauthenticated requests return 401 without database access.
+
+## [ERR-20260813-002] tsx-eval-diagnostic-invocation
+
+- **Summary:** A read-only Meegle checkpoint diagnostic first combined `pnpm --dir server` with an already server-scoped working directory, then used top-level `await` in `tsx -e`.
+- **Error:** pnpm resolved a nonexistent `server/server` path; `tsx -e` compiled as CJS and rejected top-level `await`. The corrected async-IIFE invocation then hit the known sandbox IPC restriction.
+- **Fix:** Scope the command exactly once, wrap async eval bodies in an async IIFE, and rerun the same read-only `tsx` diagnostic with sandbox approval when IPC creation is denied.
+- **Status:** resolved; the checkpoint query completed and returned only redacted diagnostic fields.
+
+## [ERR-20260814-001] vitest-focused-file-invocation
+
+- **Summary:** Passing a focused test path after `pnpm --dir server test --` ran the full Vitest suite instead of only the requested file.
+- **Error:** Unrelated environment failures appeared for unavailable `node:sqlite` suites and the logger file timing test, even though the platform-data controller tests passed.
+- **Fix:** Use `pnpm --dir server exec vitest run <test-file>` for an exact focused run, then execute the Server build separately.
+- **Status:** resolved; all 5 platform-data controller tests and the Server TypeScript build pass.
