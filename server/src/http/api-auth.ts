@@ -15,6 +15,7 @@ const DEFAULT_EXEMPT_PATHS = new Set([
   "/api/lark/auth/web/ensure",
   "/api/lark/auth/web/logout",
   "/api/web/profile",
+  "/api/web/ssh-public-keys",
   "/api/web/platform-data/lark-tickets",
   "/api/web/platform-data/meegle-workitems",
   "/api/web/platform-data/github-pull-requests",

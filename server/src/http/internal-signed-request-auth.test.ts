@@ -1,6 +1,7 @@
 import {
   buildInternalSignedRequestMessage,
   createInternalSignedRequestAuth,
+  getSshPublicKeyFingerprint,
   getSshSigPublicKeyFingerprint,
 } from "./internal-signed-request-auth.js";
 
@@ -64,6 +65,14 @@ function signedHeaders(overrides: Record<string, string> = {}) {
 }
 
 describe("internal signed-request authentication", () => {
+  it("calculates the same OpenSSH fingerprint for a one-line public key", () => {
+    const encodedKey = publicKeyBlob.toString("base64");
+
+    expect(getSshPublicKeyFingerprint(`ssh-ed25519 ${encodedKey} octo@host`)).toBe(publicKeyFingerprint);
+    expect(getSshPublicKeyFingerprint(`ssh-ed25519 ${encodedKey}\nextra`)).toBeUndefined();
+    expect(getSshPublicKeyFingerprint("ssh-ed25519 invalid-base64")).toBeUndefined();
+  });
+
   it("identifies the signing key from the SSHSIG-embedded public key without a key-id header", async () => {
     const verifySignature = vi.fn().mockResolvedValue(true);
     const auth = createInternalSignedRequestAuth({ ...config, verifySignature });

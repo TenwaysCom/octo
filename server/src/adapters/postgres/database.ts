@@ -114,7 +114,7 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
   await db.schema
     .createTable("user_ssh_public_keys")
     .ifNotExists()
-    .addColumn("key_id", "text", (column) => column.primaryKey())
+    .addColumn("id", "text", (column) => column.primaryKey())
     .addColumn("master_user_id", "text", (column) => column.notNull())
     .addColumn("public_key", "text", (column) => column.notNull())
     .addColumn("public_key_fingerprint", "text", (column) => column.notNull())
@@ -122,6 +122,8 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .addColumn("created_at", "text", (column) => column.notNull())
     .addColumn("updated_at", "text", (column) => column.notNull())
     .execute();
+
+  await renameLegacyUserSshPublicKeyIdColumn(db);
 
   await db.schema
     .createTable("lark_contacts")
@@ -672,6 +674,19 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
   ]) {
     await sql.raw(`ALTER TABLE meegle_workitem_syncs DROP COLUMN IF EXISTS ${column}`).execute(db);
   }
+}
+
+export async function renameLegacyUserSshPublicKeyIdColumn(db: Kysely<DatabaseSchema>): Promise<void> {
+  try {
+    await sql`ALTER TABLE user_ssh_public_keys RENAME COLUMN key_id TO id`.execute(db);
+  } catch (error) {
+    if (!isUndefinedColumn(error, "key_id")) throw error;
+  }
+}
+
+function isUndefinedColumn(error: unknown, column: string): boolean {
+  return Boolean(error && typeof error === "object" && "code" in error && (error as { code?: unknown }).code === "42703")
+    || error instanceof Error && new RegExp(`column\\s+"?${column}"?\\s+(?:does not exist|not found)`, "i").test(error.message);
 }
 
 export async function resetPostgresDatabase(db: Kysely<DatabaseSchema>): Promise<void> {

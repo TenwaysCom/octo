@@ -115,6 +115,22 @@ function readSshString(buffer: Buffer, offset: number): { value: Buffer; nextOff
   };
 }
 
+function fingerprintSshPublicKeyBlob(publicKey: Buffer): string {
+  return `SHA256:${createHash("sha256").update(publicKey).digest("base64").replace(/=+$/, "")}`;
+}
+
+export function getSshPublicKeyFingerprint(publicKey: string): string | undefined {
+  const normalized = publicKey.trim();
+  if (!normalized || /[\r\n]/.test(normalized)) return undefined;
+  const [keyType, encodedKey] = normalized.split(/\s+/, 3);
+  if (!keyType || !encodedKey || !/^[A-Za-z0-9@._+-]+$/.test(keyType) || !/^[A-Za-z0-9+/]+={0,2}$/.test(encodedKey)) return undefined;
+  const keyBlob = Buffer.from(encodedKey, "base64");
+  if (!keyBlob.length || keyBlob.toString("base64").replace(/=+$/, "") !== encodedKey.replace(/=+$/, "")) return undefined;
+  const embeddedKeyType = readSshString(keyBlob, 0);
+  if (!embeddedKeyType || embeddedKeyType.nextOffset >= keyBlob.length || embeddedKeyType.value.toString("utf8") !== keyType) return undefined;
+  return fingerprintSshPublicKeyBlob(keyBlob);
+}
+
 function decodeArmoredSshSignature(signature: Buffer): Buffer | undefined {
   const text = signature.toString("utf8");
   if (!Buffer.from(text, "utf8").equals(signature)) return undefined;
@@ -142,7 +158,7 @@ export function getSshSigPublicKeyFingerprint(signature: Buffer): string | undef
     || publicKey.value.length === 0 || namespace.value.length === 0 || hashAlgorithm.value.length === 0 || rawSignature.value.length === 0
     || rawSignature.nextOffset !== payload.length) return undefined;
 
-  return `SHA256:${createHash("sha256").update(publicKey.value).digest("base64").replace(/=+$/, "")}`;
+  return fingerprintSshPublicKeyBlob(publicKey.value);
 }
 
 export function buildInternalSignedRequestMessage(input: {

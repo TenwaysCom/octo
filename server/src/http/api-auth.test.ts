@@ -88,6 +88,7 @@ describe("api auth middleware", () => {
     const middleware = createApiAuthMiddleware();
     for (const path of [
       "/api/web/profile",
+      "/api/web/ssh-public-keys",
       "/api/web/platform-data/lark-tickets",
       "/api/web/platform-data/meegle-workitems",
       "/api/web/platform-data/github-pull-requests",

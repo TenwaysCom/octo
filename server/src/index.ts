@@ -80,6 +80,7 @@ import { GitHubClient } from "./adapters/github/github-client.js";
 import { registerWebLarkTicketAiRoutes } from "./modules/lark-ticket-ai/lark-ticket-ai.controller.js";
 import { registerInternalLarkTicketAiWriteRoutes } from "./modules/lark-ticket-ai/internal-lark-ticket-ai.controller.js";
 import { registerWebLarkTicketRoutes } from "./modules/lark-ticket/lark-ticket.controller.js";
+import { createWebUserSshPublicKeysController } from "./modules/user-ssh-public-keys/user-ssh-public-keys.controller.js";
 
 import { logger, stdoutLogger } from "./logger.js";
 
@@ -182,6 +183,7 @@ const getWebGitHubPrOdooDevopsBuildController = createWebGitHubPrOdooDevopsBuild
 const resetWebOdooDevopsBranchesCacheController = createWebOdooDevopsBranchesCacheResetController({
   service: odooDevopsBranchesService,
 });
+const webUserSshPublicKeysController = createWebUserSshPublicKeysController();
 
 function getMasterUserIdHeader(req: Request): string | undefined {
   const headerValue = req.headers["master-user-id"];
@@ -358,6 +360,14 @@ app.get("/api/lark/auth/web/ensure", async (req, res) => {
 });
 app.get("/api/web/profile", async (req, res) => {
   const result = await getWebProfileController(req.headers.cookie);
+  res.status(result.statusCode).json(result.body);
+});
+app.get("/api/web/ssh-public-keys", async (req, res) => {
+  const result = await webUserSshPublicKeysController.list({ cookieHeader: req.headers.cookie });
+  res.status(result.statusCode).json(result.body);
+});
+app.post("/api/web/ssh-public-keys", async (req, res) => {
+  const result = await webUserSshPublicKeysController.register({ cookieHeader: req.headers.cookie, body: req.body });
   res.status(result.statusCode).json(result.body);
 });
 app.get("/api/web/platform-data/lark-tickets", async (req, res) => {

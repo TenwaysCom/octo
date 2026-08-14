@@ -43,7 +43,7 @@ export interface DatabaseSchema {
     updated_at: string;
   };
   user_ssh_public_keys: {
-    key_id: string;
+    id: string;
     master_user_id: string;
     public_key: string;
     public_key_fingerprint: string | null;

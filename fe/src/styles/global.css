@@ -242,6 +242,18 @@ a { color: inherit; }
 .integration-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 20px; }
 .integration-grid .profile-card { display: flex; min-height: 194px; flex-direction: column; margin: 0; border-radius: 16px; background: var(--octo-surface); box-shadow: 0 1px 2px rgba(32, 37, 51, .02); }
 .integration-grid .secondary-button { margin-top: auto; }
+.ssh-key-card { grid-column: span 2; }
+.ssh-key-card__list { display: grid; gap: 8px; max-height: 190px; margin: 0 0 15px; padding: 0; overflow: auto; list-style: none; }
+.ssh-key-card__list li { display: grid; gap: 5px; padding: 10px; border: 1px solid var(--octo-border); border-radius: 8px; background: var(--octo-surface-muted); }
+.ssh-key-card__list code { overflow: hidden; color: var(--octo-text); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.ssh-key-card__list span, .ssh-key-card__empty { margin: 0; color: var(--octo-text-muted); font-size: 11px; line-height: 1.45; }
+.ssh-key-card__form { display: grid; gap: 8px; margin-top: auto; }
+.ssh-key-card__form label { color: var(--octo-text-muted); font-size: 12px; font-weight: 700; }
+.ssh-key-card__form textarea { width: 100%; min-height: 72px; resize: vertical; padding: 10px; border: 1px solid var(--octo-border); border-radius: 8px; color: var(--octo-text); background: var(--octo-surface); font: inherit; font-size: 12px; line-height: 1.45; outline: none; }
+.ssh-key-card__form textarea:focus { border-color: var(--octo-brand); box-shadow: 0 0 0 3px color-mix(in srgb, var(--octo-brand) 15%, transparent); }
+.ssh-key-card__form textarea:disabled { cursor: wait; opacity: .65; }
+.ssh-key-card__form > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ssh-key-card__form > div > span { color: var(--octo-text-muted); font-size: 11px; line-height: 1.35; }
 
 .sync-page { width: min(100%, 980px); }
 .sync-source-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
@@ -690,6 +702,7 @@ h1 {
   .profile-nav__chevron { display: none; }
   .profile-nav__subitems { position: absolute; z-index: 1; top: calc(100% + 4px); left: 0; min-width: 156px; padding: 6px; border: 1px solid var(--octo-border); border-radius: 8px; background: var(--octo-surface); box-shadow: 0 8px 20px rgba(32, 37, 51, .12); }
   .integration-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ssh-key-card { grid-column: span 2; }
   .ticket-detail-grid { grid-template-columns: 1fr; gap: 32px; }
   .ticket-detail__properties { position: static; padding: 22px; border: 1px solid var(--octo-border); border-radius: 12px; background: var(--octo-surface); }
   .ticket-detail__properties dl { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
@@ -717,6 +730,9 @@ h1 {
   .integrations-hero { display: grid; gap: 14px; padding: 24px; }
   .integrations-hero__hint { max-width: none; text-align: left; }
   .integration-grid { grid-template-columns: 1fr; }
+  .ssh-key-card { grid-column: auto; }
+  .ssh-key-card__form > div { align-items: flex-start; flex-direction: column; }
+  .ssh-key-card__form .secondary-button { align-self: flex-end; }
   .ticket-detail__topline { align-items: flex-start; flex-direction: column; margin-bottom: 26px; }
   .ticket-detail__properties dl { grid-template-columns: 1fr; gap: 16px; }
   .ticket-ai-session-create > div { align-items: flex-start; flex-direction: column; }
