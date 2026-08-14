@@ -5,6 +5,7 @@ const PATH_BY_KIND = {
   "meegle-workitems": "/web/platform-data/meegle-workitems",
   "github-pull-requests": "/web/platform-data/github-pull-requests",
 };
+const PLATFORM_DATA_LIST_LIMIT = 500;
 
 const MEEGLE_REQUIRED_STRING_FIELDS = [
   "projectKey",
@@ -35,9 +36,11 @@ export async function getPlatformDataList({ apiBaseUrl, kind, sprint, fetchImpl 
     throw new Error("UNKNOWN_PLATFORM_DATA_KIND");
   }
 
-  const requestUrl = sprint && kind === "meegle-workitems"
-    ? `${buildApiUrl(apiBaseUrl, path)}?${new URLSearchParams({ sprint })}`
-    : buildApiUrl(apiBaseUrl, path);
+  const query = new URLSearchParams({ limit: String(PLATFORM_DATA_LIST_LIMIT) });
+  if (sprint && kind === "meegle-workitems") {
+    query.set("sprint", sprint);
+  }
+  const requestUrl = `${buildApiUrl(apiBaseUrl, path)}?${query}`;
   const response = await fetchImpl(requestUrl, {
     credentials: "include",
   });

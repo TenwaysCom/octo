@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const platformDataListQuerySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(200).optional().default(100),
+  limit: z.coerce.number().int().min(1).max(500).optional().default(500),
   sprint: z.string().trim().min(1).max(200).optional(),
 });
 

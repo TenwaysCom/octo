@@ -53,7 +53,7 @@ describe("web platform data controller", () => {
     const result = await controller({
       kind: "meegle-workitems",
       cookieHeader: "octo_web_session=session-token",
-      query: { limit: "20", sprint: "Odoo Sprint 20260806" },
+      query: { limit: "500", sprint: "Odoo Sprint 20260806" },
     });
     expect(result).toEqual({
       statusCode: 200,
@@ -71,7 +71,7 @@ describe("web platform data controller", () => {
     });
     expect((result.body as { data: { items: Array<Record<string, unknown>> } }).data.items[0]).not.toHaveProperty("plannedSprint");
     expect(ensureSession).toHaveBeenCalledWith("session-token");
-    expect(service.list).toHaveBeenCalledWith("meegle-workitems", 20, { sprint: "Odoo Sprint 20260806" });
+    expect(service.list).toHaveBeenCalledWith("meegle-workitems", 500, { sprint: "Odoo Sprint 20260806" });
   });
 
   it("returns validated Odoo.sh build data for GitHub PR rows", async () => {
@@ -113,6 +113,25 @@ describe("web platform data controller", () => {
         odooShBuilds: [{ environment: "eu", status: "done", result: "success" }],
       })] } },
     });
+    expect(service.list).toHaveBeenCalledWith("github-pull-requests", 500, { sprint: undefined });
+  });
+
+  it("rejects list limits above 500", async () => {
+    const service = { list: vi.fn() };
+    const controller = createWebPlatformDataController({
+      service,
+      ensureSession: vi.fn().mockResolvedValue({ ok: true, role: "dev", user: {} }),
+    });
+
+    await expect(controller({
+      kind: "lark-tickets",
+      cookieHeader: "octo_web_session=session-token",
+      query: { limit: "501" },
+    })).resolves.toMatchObject({
+      statusCode: 400,
+      body: { ok: false, error: { errorCode: "INVALID_REQUEST" } },
+    });
+    expect(service.list).not.toHaveBeenCalled();
   });
 
   it("rejects platform snapshot reads for roles without developer access", async () => {

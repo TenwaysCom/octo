@@ -41,8 +41,21 @@ test("loads a synced platform list with the browser session cookie", async () =>
     }],
     sprints: ["Sprint 1"],
   });
-  assert.equal(request.url, "/api/web/platform-data/meegle-workitems?sprint=Sprint+1");
+  assert.equal(request.url, "/api/web/platform-data/meegle-workitems?limit=500&sprint=Sprint+1");
   assert.equal(request.options.credentials, "include");
+});
+
+test("requests 500 rows for the Lark ticket list", async () => {
+  let requestUrl;
+  await getPlatformDataList({
+    apiBaseUrl: "/api",
+    kind: "lark-tickets",
+    fetchImpl: async (url) => {
+      requestUrl = url;
+      return { ok: true, json: async () => ({ ok: true, data: { items: [] } }) };
+    },
+  });
+  assert.equal(requestUrl, "/api/web/platform-data/lark-tickets?limit=500");
 });
 
 test("rejects unknown list kinds before making a request", async () => {
@@ -52,29 +65,32 @@ test("rejects unknown list kinds before making a request", async () => {
   );
 });
 
-test("loads Odoo.sh build data for GitHub PR rows", async () => {
+test("loads up to 500 GitHub PR rows with Odoo.sh build data", async () => {
   const result = await getPlatformDataList({
     apiBaseUrl: "/api",
     kind: "github-pull-requests",
-    fetchImpl: async () => ({
+    fetchImpl: async (url) => ({
       ok: true,
-      json: async () => ({ ok: true, data: { items: [{
-        owner: "TenwaysCom",
-        repo: "Tenways",
-        pullNumber: 1138,
-        title: "PR",
-        state: "open",
-        htmlUrl: "https://github.com/TenwaysCom/Tenways/pull/1138",
-        authorLogin: "octo",
-        mergedBy: "maintainer",
-        reviewers: ["reviewer"],
-        labels: ["bug"],
-        headRef: "feature/m-1138",
-        baseRef: "main",
-        isDraft: false,
-        syncedAt: "2026-08-10T00:00:00.000Z",
-        odooShBuilds: [{ environment: "eu", status: "done", result: "warning" }],
-      }] } }),
+      json: async () => {
+        assert.equal(url, "/api/web/platform-data/github-pull-requests?limit=500");
+        return { ok: true, data: { items: [{
+          owner: "TenwaysCom",
+          repo: "Tenways",
+          pullNumber: 1138,
+          title: "PR",
+          state: "open",
+          htmlUrl: "https://github.com/TenwaysCom/Tenways/pull/1138",
+          authorLogin: "octo",
+          mergedBy: "maintainer",
+          reviewers: ["reviewer"],
+          labels: ["bug"],
+          headRef: "feature/m-1138",
+          baseRef: "main",
+          isDraft: false,
+          syncedAt: "2026-08-10T00:00:00.000Z",
+          odooShBuilds: [{ environment: "eu", status: "done", result: "warning" }],
+        }] } };
+      },
     }),
   });
 
