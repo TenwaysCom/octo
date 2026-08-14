@@ -6,6 +6,16 @@ import { useKeyboardShortcut } from "../hooks/useKeyboardShortcut.js";
 import { formatDateTime } from "../lib/formatters.js";
 import { countMyOpenGitHubPullRequests, matchesGitHubPullRequestQuickFilter } from "../lib/github-pull-request-filters.js";
 import { matchesLarkTicketQuickFilter } from "../lib/lark-ticket-filters.js";
+import {
+  DEFAULT_MEEGLE_VISIBLE_COLUMNS,
+  groupMeegleWorkitems,
+  MEEGLE_GROUP_OPTIONS,
+  MEEGLE_VIEW_COLUMNS,
+  normalizeMeegleGroupBy,
+  normalizeMeegleSort,
+  normalizeMeegleVisibleColumns,
+  sortMeegleWorkitems,
+} from "../lib/meegle-view-config.js";
 import { getOdooShBuildTone } from "../lib/odoo-sh-build-status.js";
 import { getPlatformDataList, resetAllOdooDevopsBranchesCache } from "../services/platform-data/platform-data-api.js";
 import { getLarkTicketDetailHash } from "../app/routes/workspace-routes.js";
@@ -188,17 +198,6 @@ function readSortValue(kind, item, key) {
     };
     return values[key] || "";
   }
-  if (kind === "meegle-workitems") {
-    const values = {
-      workitem: item.workItemKey || item.workItemId || item.title || "",
-      workitemType: item.workItemType || item.workItemTypeKey || "",
-      status: item.status || "",
-      sprintVersion: `${item.sprint || ""} ${item.version || ""}`,
-      system: item.system || "",
-      assignee: item.assignee || "",
-    };
-    return values[key] || "";
-  }
   const values = {
     pullRequest: item.pullNumber || item.title || "",
     repo: `${item.owner || ""}/${item.repo || ""}`,
@@ -232,7 +231,101 @@ function SortableColumnHeader({ label, sortKey, sort, onSort }) {
   </button>;
 }
 
-function SyncedListTable({ kind, items, sort, onSort }) {
+function MeegleWorkitemCell({ columnKey, item }) {
+  if (columnKey === "workitem") {
+    return <><ExternalLink href={getMeegleWorkitemDetailUrl(item)}>{item.workItemKey || item.workItemId}</ExternalLink><small>{item.title}</small></>;
+  }
+  if (columnKey === "workitemType") {
+    return <span className={`workitem-type-badge workitem-type-badge--${getMeegleWorkitemCategory(item)}`}>{item.workItemType || item.workItemTypeKey || "-"}</span>;
+  }
+  if (columnKey === "status") {
+    return <><MeegleStatusPill status={item.status} /><small>{item.subStage || ""}</small></>;
+  }
+  if (columnKey === "pullRequests") {
+    return <GitHubPullRequestLinks pullRequests={item.githubPullRequests} />;
+  }
+  if (columnKey === "sprint") {
+    return item.sprint || "-";
+  }
+  if (columnKey === "version") {
+    return item.version || "-";
+  }
+  if (columnKey === "system") {
+    return item.system || "-";
+  }
+  if (columnKey === "assignee") {
+    return item.assignee || "-";
+  }
+  return formatDateTime(item.sourceUpdatedAt || item.syncedAt);
+}
+
+function MeegleWorkitemsTable({ items, sort, onSort, visibleColumns }) {
+  const columns = MEEGLE_VIEW_COLUMNS.filter(({ key }) => visibleColumns.includes(key));
+  return <table className="data-table data-table--meegle" style={{ minWidth: Math.max(360, columns.length * 145) }}><thead><tr>
+    {columns.map((column) => <th key={column.key}>{column.sortKey
+      ? <SortableColumnHeader label={column.label} sortKey={column.sortKey} sort={sort} onSort={onSort} />
+      : column.label}</th>)}
+  </tr></thead><tbody>
+    {items.map((item) => <tr key={`${item.projectKey}-${item.workItemTypeKey}-${item.workItemId}`}>
+      {columns.map((column) => <td key={column.key}><MeegleWorkitemCell columnKey={column.key} item={item} /></td>)}
+    </tr>)}
+  </tbody></table>;
+}
+
+function MeegleViewConfigPanel({ groupBy, onGroupByChange, sort, onSortChange, visibleColumns, onToggleColumn, onReset }) {
+  return <div className="meegle-view-config-panel">
+    <header className="meegle-view-config-panel__header">
+      <strong>视图配置</strong>
+      <button type="button" onClick={onReset}>重置</button>
+    </header>
+    <div className="meegle-view-config-section">
+      <label htmlFor="meegle-group-by">分组</label>
+      <select id="meegle-group-by" value={groupBy} onChange={(event) => onGroupByChange(event.target.value)}>
+        {MEEGLE_GROUP_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+      </select>
+    </div>
+    <div className="meegle-view-config-section meegle-view-config-section--ordering">
+      <label htmlFor="meegle-order-by">排序</label>
+      <select id="meegle-order-by" value={sort.key} onChange={(event) => onSortChange({ ...sort, key: event.target.value })}>
+        {MEEGLE_VIEW_COLUMNS.filter(({ sortKey }) => sortKey).map(({ label, sortKey }) => <option key={sortKey} value={sortKey}>{label}</option>)}
+      </select>
+      <div className="meegle-view-direction" role="group" aria-label="排序方向">
+        <button className={sort.direction === "asc" ? "meegle-view-direction--active" : ""} type="button" aria-label="升序" title="升序" onClick={() => onSortChange({ ...sort, direction: "asc" })}>↑</button>
+        <button className={sort.direction === "desc" ? "meegle-view-direction--active" : ""} type="button" aria-label="降序" title="降序" onClick={() => onSortChange({ ...sort, direction: "desc" })}>↓</button>
+      </div>
+    </div>
+    <fieldset className="meegle-view-fields">
+      <legend>显示字段</legend>
+      <div>
+        {MEEGLE_VIEW_COLUMNS.map((column) => <label className={visibleColumns.includes(column.key) ? "meegle-view-field--active" : ""} key={column.key}>
+          <input
+            type="checkbox"
+            checked={visibleColumns.includes(column.key)}
+            disabled={column.required}
+            onChange={() => onToggleColumn(column.key)}
+          />
+          {column.label}
+        </label>)}
+      </div>
+    </fieldset>
+  </div>;
+}
+
+function MeegleGroupedList({ groups, collapsedGroups, onToggleGroup, sort, onSort, visibleColumns }) {
+  return <div className="meegle-group-list">{groups.map((group) => {
+    const collapsed = collapsedGroups.includes(group.key);
+    return <section className="meegle-group" key={group.key}>
+      <button className="meegle-group__header" type="button" aria-expanded={!collapsed} onClick={() => onToggleGroup(group.key)}>
+        <svg className={collapsed ? "meegle-group__chevron--collapsed" : ""} viewBox="0 0 12 12" aria-hidden="true"><path d="m3 4 3 3 3-3" /></svg>
+        <strong>{group.label}</strong>
+        <span>{group.items.length}</span>
+      </button>
+      {!collapsed ? <div className="data-table-wrap"><MeegleWorkitemsTable items={group.items} sort={sort} onSort={onSort} visibleColumns={visibleColumns} /></div> : null}
+    </section>;
+  })}</div>;
+}
+
+function SyncedListTable({ kind, items, sort, onSort, meegleVisibleColumns = DEFAULT_MEEGLE_VISIBLE_COLUMNS }) {
   if (kind === "lark-tickets") {
     return <table className="data-table"><thead><tr><th><SortableColumnHeader label="Ticket" sortKey="title" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="状态" sortKey="status" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="Issue 类型" sortKey="issueType" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="需求人" sortKey="requester" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="负责人" sortKey="responsible" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="紧急度" sortKey="priority" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="更新时间" sortKey="updatedAt" sort={sort} onSort={onSort} /></th></tr></thead><tbody>
       {items.map((item, index) => <tr key={item.recordId || `${item.baseId || "base"}-${item.tableId || "table"}-${index}`}><td><a className="table-link" href={getLarkTicketDetailHash(item.recordId)}>{item.title}</a><small>{item.ticketNumber || item.recordId}</small></td><td><LarkTicketBadge kind="status" value={item.ticketStatus} /></td><td><LarkTicketBadge kind="type" value={item.issueType} /></td><td><LarkTicketResponsible responsible={item.requester} /></td><td><LarkTicketResponsible responsible={item.responsible} /></td><td><LarkTicketBadge kind="priority" value={item.priority} /></td><td>{formatDateTime(item.sourceUpdatedAt || item.syncedAt)}</td></tr>)}
@@ -240,9 +333,7 @@ function SyncedListTable({ kind, items, sort, onSort }) {
   }
 
   if (kind === "meegle-workitems") {
-    return <table className="data-table"><thead><tr><th><SortableColumnHeader label="工作项" sortKey="workitem" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="类型" sortKey="workitemType" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="状态" sortKey="status" sort={sort} onSort={onSort} /></th><th>关联 PR</th><th><SortableColumnHeader label="Sprint / Version" sortKey="sprintVersion" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="System" sortKey="system" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="负责人" sortKey="assignee" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="更新时间" sortKey="updatedAt" sort={sort} onSort={onSort} /></th></tr></thead><tbody>
-      {items.map((item) => <tr key={`${item.projectKey}-${item.workItemTypeKey}-${item.workItemId}`}><td><ExternalLink href={getMeegleWorkitemDetailUrl(item)}>{item.workItemKey || item.workItemId}</ExternalLink><small>{item.title}</small></td><td><span className={`workitem-type-badge workitem-type-badge--${getMeegleWorkitemCategory(item)}`}>{item.workItemType || item.workItemTypeKey}</span></td><td><MeegleStatusPill status={item.status} /><small>{item.subStage || ""}</small></td><td><GitHubPullRequestLinks pullRequests={item.githubPullRequests} /></td><td>{item.sprint || "-"}<small>{item.version || "-"}</small></td><td>{item.system || "-"}</td><td>{item.assignee || "-"}</td><td>{formatDateTime(item.sourceUpdatedAt || item.syncedAt)}</td></tr>)}
-    </tbody></table>;
+    return <MeegleWorkitemsTable items={items} sort={sort} onSort={onSort} visibleColumns={meegleVisibleColumns} />;
   }
 
   return <table className="data-table"><thead><tr><th><SortableColumnHeader label="Pull Request" sortKey="pullRequest" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="仓库" sortKey="repo" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="状态" sortKey="status" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="分支" sortKey="branch" sort={sort} onSort={onSort} /></th><th>Author</th><th>Merged by</th><th>Reviewer</th><th>Label</th><th><SortableColumnHeader label="更新时间" sortKey="updatedAt" sort={sort} onSort={onSort} /></th></tr></thead><tbody>
@@ -261,8 +352,14 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
   const [githubQuickFilter, setGithubQuickFilter] = useState(() => restoredFilters.githubQuickFilter || "all");
   const [larkTicketQuickFilter, setLarkTicketQuickFilter] = useState(() => restoredFilters.larkTicketQuickFilter || "all");
   const [workitemTypeFilter, setWorkitemTypeFilter] = useState(() => restoredFilters.workitemTypeFilter || "all");
-  const [sort, setSort] = useState(() => restoredFilters.sort || DEFAULT_SORT);
+  const [sort, setSort] = useState(() => page === "meegle-workitems" ? normalizeMeegleSort(restoredFilters.sort) : restoredFilters.sort || DEFAULT_SORT);
+  const [meegleGroupBy, setMeegleGroupBy] = useState(() => normalizeMeegleGroupBy(restoredFilters.meegleGroupBy));
+  const [meegleVisibleColumns, setMeegleVisibleColumns] = useState(() => normalizeMeegleVisibleColumns(restoredFilters.meegleVisibleColumns));
+  const [collapsedMeegleGroups, setCollapsedMeegleGroups] = useState(() => Array.isArray(restoredFilters.collapsedMeegleGroups)
+    ? [...new Set(restoredFilters.collapsedMeegleGroups.filter((key) => typeof key === "string"))]
+    : []);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [viewConfigOpen, setViewConfigOpen] = useState(false);
   const [pageIndex, setPageIndex] = useState(() => restoredFilters.pageIndex || 0);
   const [reloadVersion, setReloadVersion] = useState(0);
   const [resetError, setResetError] = useState("");
@@ -283,14 +380,32 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
     .filter((item) => page !== "lark-tickets" || matchesLarkTicketQuickFilter(item, larkTicketQuickFilter))
     .filter((item) => page !== "meegle-workitems" || !noSprintFilter || !item.sprint)
     .filter((item) => page !== "meegle-workitems" || workitemTypeFilter === "all" || getMeegleWorkitemCategory(item) === workitemTypeFilter);
-  const sortedItems = sortPlatformItems(filteredItems, page, sort);
+  const sortedItems = page === "meegle-workitems"
+    ? sortMeegleWorkitems(filteredItems, sort)
+    : sortPlatformItems(filteredItems, page, sort);
+  const meegleGroups = page === "meegle-workitems" ? groupMeegleWorkitems(sortedItems, meegleGroupBy) : [];
+  const isMeegleGrouped = page === "meegle-workitems" && meegleGroupBy !== "none";
   const pageCount = Math.max(1, Math.ceil(sortedItems.length / LIST_PAGE_SIZE));
   const currentPageIndex = Math.min(pageIndex, pageCount - 1);
   const pageItems = sortedItems.slice(currentPageIndex * LIST_PAGE_SIZE, (currentPageIndex + 1) * LIST_PAGE_SIZE);
   const firstResult = sortedItems.length === 0 ? 0 : currentPageIndex * LIST_PAGE_SIZE + 1;
   const lastResult = Math.min((currentPageIndex + 1) * LIST_PAGE_SIZE, sortedItems.length);
 
-  filterStateRef.current = { query, selectedStatuses, dateFilter, sprintFilter, noSprintFilter, githubQuickFilter, larkTicketQuickFilter, workitemTypeFilter, sort, pageIndex };
+  filterStateRef.current = {
+    query,
+    selectedStatuses,
+    dateFilter,
+    sprintFilter,
+    noSprintFilter,
+    githubQuickFilter,
+    larkTicketQuickFilter,
+    workitemTypeFilter,
+    sort,
+    meegleGroupBy,
+    meegleVisibleColumns,
+    collapsedMeegleGroups,
+    pageIndex,
+  };
 
   useEffect(() => () => onPlatformListFilterStateChange?.(page, filterStateRef.current), [onPlatformListFilterStateChange, page]);
 
@@ -325,6 +440,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
     enabled: state.status === "ready" && state.items.length > 0,
     handler: (event) => {
       event.preventDefault();
+      setViewConfigOpen(false);
       setFilterOpen(true);
       requestAnimationFrame(() => searchInputRef.current?.focus());
     },
@@ -332,14 +448,31 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
 
   useKeyboardShortcut({
     key: "Escape",
-    enabled: filterOpen,
+    enabled: filterOpen || viewConfigOpen,
     allowInEditableTarget: true,
     handler: (event) => {
       event.preventDefault();
       searchInputRef.current?.blur();
       setFilterOpen(false);
+      setViewConfigOpen(false);
     },
   });
+
+  function updateSort(key) {
+    setSort((current) => ({ key, direction: current.key === key && current.direction === "asc" ? "desc" : "asc" }));
+    setPageIndex(0);
+  }
+
+  function updateMeegleViewSort(nextSort) {
+    setSort(normalizeMeegleSort(nextSort));
+    setPageIndex(0);
+  }
+
+  function toggleMeegleColumn(key) {
+    setMeegleVisibleColumns((current) => normalizeMeegleVisibleColumns(current.includes(key)
+      ? current.filter((columnKey) => columnKey !== key)
+      : [...current, key]));
+  }
 
   return <WorkspaceShell user={profile.user ?? {}} workspaceAccess={profile.workspaceAccess} activePage={page} onLogout={onLogout} isBusy={isBusy} breadcrumbs={breadcrumbs}>
     <section className="profile-main list-page">
@@ -402,8 +535,44 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
               </select>
               <svg className="list-date-filter__chevron" viewBox="0 0 12 8" aria-hidden="true"><path d="m1 1 5 5 5-5" /></svg>
             </label>
+            {page === "meegle-workitems" ? <div className="meegle-view-menu">
+              <button
+                className={`list-filter-button ${viewConfigOpen ? "list-filter-button--active" : ""}`.trim()}
+                type="button"
+                aria-label="配置 Meegle 列表视图"
+                aria-expanded={viewConfigOpen}
+                onClick={() => {
+                  setFilterOpen(false);
+                  setViewConfigOpen((open) => !open);
+                }}
+              >
+                <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1a1 1 0 0 1 1 1v1h10a1 1 0 1 1 0 2H4v1a1 1 0 1 1-2 0V5H1a1 1 0 1 1 0-2h1V2a1 1 0 0 1 1-1Zm10 8a1 1 0 0 1 1 1v1h1a1 1 0 1 1 0 2h-1v1a1 1 0 1 1-2 0v-1H1a1 1 0 1 1 0-2h11v-1a1 1 0 0 1 1-1ZM8 5a1 1 0 0 1 1 1v1h6a1 1 0 1 1 0 2H9v1a1 1 0 1 1-2 0V9H1a1 1 0 1 1 0-2h6V6a1 1 0 0 1 1-1Z" /></svg>
+              </button>
+              {viewConfigOpen ? <MeegleViewConfigPanel
+                groupBy={meegleGroupBy}
+                onGroupByChange={(value) => {
+                  setMeegleGroupBy(normalizeMeegleGroupBy(value));
+                  setCollapsedMeegleGroups([]);
+                  setPageIndex(0);
+                }}
+                sort={sort}
+                onSortChange={updateMeegleViewSort}
+                visibleColumns={meegleVisibleColumns}
+                onToggleColumn={toggleMeegleColumn}
+                onReset={() => {
+                  setMeegleGroupBy("status");
+                  setSort(DEFAULT_SORT);
+                  setMeegleVisibleColumns([...DEFAULT_MEEGLE_VISIBLE_COLUMNS]);
+                  setCollapsedMeegleGroups([]);
+                  setPageIndex(0);
+                }}
+              /> : null}
+            </div> : null}
             <div className="list-filter-menu">
-              <button className="list-filter-button" type="button" aria-label="筛选" aria-expanded={filterOpen} onClick={() => setFilterOpen((open) => !open)}>
+              <button className="list-filter-button" type="button" aria-label="筛选" aria-expanded={filterOpen} onClick={() => {
+                setViewConfigOpen(false);
+                setFilterOpen((open) => !open);
+              }}>
                 <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M0 3a1 1 0 0 1 1-1h14a1 1 0 1 1 0 2H1a1 1 0 1 1 0-2H1a1 1 0 0 1-1-1Zm3 5a1 1 0 0 1 1-1h8a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm4 4a1 1 0 1 0 0 2h2a1 1 0 1 0 0-2H7Z" /></svg>
               </button>
               {filterOpen ? <div className="list-filter-menu__panel">
@@ -434,18 +603,31 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
         </div> : null}
         {state.status === "ready" && state.items.length > 0 && filteredItems.length === 0 ? <p className="list-message">未找到匹配的数据。</p> : null}
         {state.status === "ready" && filteredItems.length > 0 ? <>
-          <div className="data-table-wrap"><SyncedListTable kind={page} items={pageItems} sort={sort} onSort={(key) => {
-            setSort((current) => ({ key, direction: current.key === key && current.direction === "asc" ? "desc" : "asc" }));
-            setPageIndex(0);
-          }} /></div>
-          <footer className="list-pagination">
-            <p className="list-results">显示 <strong>{firstResult}–{lastResult}</strong> / {sortedItems.length} 条结果</p>
-            <div className="list-pagination__controls">
-              <button type="button" disabled={currentPageIndex === 0} onClick={() => setPageIndex((index) => Math.max(0, index - 1))}>上一页</button>
-              <span>{currentPageIndex + 1} / {pageCount}</span>
-              <button type="button" disabled={currentPageIndex >= pageCount - 1} onClick={() => setPageIndex((index) => Math.min(pageCount - 1, index + 1))}>下一页</button>
-            </div>
-          </footer>
+          {isMeegleGrouped ? <>
+            <MeegleGroupedList
+              groups={meegleGroups}
+              collapsedGroups={collapsedMeegleGroups}
+              onToggleGroup={(groupKey) => setCollapsedMeegleGroups((current) => current.includes(groupKey)
+                ? current.filter((key) => key !== groupKey)
+                : [...current, groupKey])}
+              sort={sort}
+              onSort={updateSort}
+              visibleColumns={meegleVisibleColumns}
+            />
+            <footer className="list-pagination">
+              <p className="list-results">共 <strong>{sortedItems.length}</strong> 条结果 · {meegleGroups.length} 个分组</p>
+            </footer>
+          </> : <>
+            <div className="data-table-wrap"><SyncedListTable kind={page} items={pageItems} sort={sort} onSort={updateSort} meegleVisibleColumns={meegleVisibleColumns} /></div>
+            <footer className="list-pagination">
+              <p className="list-results">显示 <strong>{firstResult}–{lastResult}</strong> / {sortedItems.length} 条结果</p>
+              <div className="list-pagination__controls">
+                <button type="button" disabled={currentPageIndex === 0} onClick={() => setPageIndex((index) => Math.max(0, index - 1))}>上一页</button>
+                <span>{currentPageIndex + 1} / {pageCount}</span>
+                <button type="button" disabled={currentPageIndex >= pageCount - 1} onClick={() => setPageIndex((index) => Math.min(pageCount - 1, index + 1))}>下一页</button>
+              </div>
+            </footer>
+          </>}
         </> : null}
       </section>
     </section>
