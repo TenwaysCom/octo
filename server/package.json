@@ -16,6 +16,7 @@
     "platform:init-checkpoints": "tsx ./src/scripts/backfill-platform-sync-checkpoints.ts",
     "platform:backfill-lark-source-time": "tsx ./src/scripts/backfill-lark-source-updated-at.ts",
     "platform:backfill-lark-ticket-titles": "tsx ./src/scripts/backfill-lark-ticket-titles.ts",
+    "platform:backfill-lark-ticket-ai": "tsx ./src/scripts/backfill-lark-ticket-ai.ts",
     "platform:reset-lark-incremental": "tsx ./src/scripts/reset-lark-incremental-checkpoint.ts",
     "platform:backfill-meegle-source-time": "tsx ./src/scripts/backfill-meegle-source-updated-at.ts",
     "start": "node dist/index.js",

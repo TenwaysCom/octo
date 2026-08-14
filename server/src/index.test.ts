@@ -53,6 +53,7 @@ describe("index routes", () => {
         "POST /api/lark-base/create-meegle-workitem",
         "POST /api/lark-base/bulk-preview-meegle-workitems",
         "POST /api/lark-base/bulk-create-meegle-workitems",
+        "POST /api/internal/lark-ticket-ai",
         "POST /api/meegle/workitem/story-prd-to-simplified",
         "POST /api/lark-bug/analyze",
         "POST /api/github/pr/code-review-feedback",

@@ -24,6 +24,8 @@ const DEFAULT_EXEMPT_PATHS = new Set([
   "/api/web/odoo-devops-branches/reset-cache",
   "/api/web/plugin-login/start",
   "/api/web/plugin-login/complete",
+  // This route uses its own internal-network and SSH-signature authentication.
+  "/api/internal/lark-ticket-ai",
 ]);
 
 function getMasterUserIdHeader(req: Request): string | undefined {

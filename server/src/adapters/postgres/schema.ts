@@ -42,6 +42,15 @@ export interface DatabaseSchema {
     created_at: string;
     updated_at: string;
   };
+  user_ssh_public_keys: {
+    key_id: string;
+    master_user_id: string;
+    public_key: string;
+    public_key_fingerprint: string | null;
+    status: string;
+    created_at: string;
+    updated_at: string;
+  };
   lark_contacts: {
     open_id: string;
     email: string | null;
@@ -216,6 +225,7 @@ export interface DatabaseSchema {
     table_id: string;
     record_id: string;
     shared_url: string | null;
+    ticket_ai: string;
     local_json: string;
     created_at: string | null;
     updated_at: string | null;

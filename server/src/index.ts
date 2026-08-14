@@ -78,6 +78,7 @@ import { createRedisApiCache } from "./http/redis-cache.js";
 import { createWebGitHubPrOdooDevopsBuildController } from "./modules/github-pr-odoo-devops-build/github-pr-odoo-devops-build.controller.js";
 import { GitHubClient } from "./adapters/github/github-client.js";
 import { registerWebLarkTicketAiRoutes } from "./modules/lark-ticket-ai/lark-ticket-ai.controller.js";
+import { registerInternalLarkTicketAiWriteRoutes } from "./modules/lark-ticket-ai/internal-lark-ticket-ai.controller.js";
 import { registerWebLarkTicketRoutes } from "./modules/lark-ticket/lark-ticket.controller.js";
 
 import { logger, stdoutLogger } from "./logger.js";
@@ -206,7 +207,11 @@ function readCacheTtlSeconds(value: string | undefined): number {
 }
 
 app.use(createCorsMiddleware({ allowedCredentialOrigins: WEB_ALLOWED_ORIGINS }));
-app.use(express.json());
+app.use(express.json({
+  verify: (req, _res, buffer) => {
+    (req as Request & { rawBody?: Buffer }).rawBody = Buffer.from(buffer);
+  },
+}));
 app.use(createApiRequestLogger());
 app.use(createApiAuthMiddleware());
 
@@ -442,6 +447,7 @@ app.get("/api/lark/auth/callback", async (req, res) => {
 
 registerLarkMeegleWorkflowRoutes(app, handleController);
 registerWebLarkTicketAiRoutes(app);
+registerInternalLarkTicketAiWriteRoutes(app);
 app.post("/api/acp/kimi/chat", acpKimiChatController);
 app.post("/api/acp/kimi/sessions/list", handleController(acpKimiSessionListController));
 app.post("/api/acp/kimi/sessions/load", handleController(acpKimiSessionLoadController));

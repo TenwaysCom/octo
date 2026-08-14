@@ -69,6 +69,15 @@ describe("platform-sync script", () => {
     expect(() => parsePlatformSyncArgs(["--mode", "incremental", "--only", "lark", "--scope", "base/table"])).toThrow("--scope is only supported");
     expect(() => parsePlatformSyncArgs(["--mode", "incremental", "--only", "github"])).toThrow("GitHub incremental");
     expect(parsePlatformSyncArgs(["--mode", "incremental", "--only", "lark"])).toMatchObject({ only: "lark", mode: "incremental" });
+    expect(parsePlatformSyncArgs([
+      "--mode", "incremental", "--only", "meegle", "--meegle-work-item-type", "tech-task",
+    ])).toMatchObject({ only: "meegle", mode: "incremental", meegleWorkItemTypeKey: "tech-task" });
+    expect(() => parsePlatformSyncArgs([
+      "--mode", "incremental", "--only", "lark", "--meegle-work-item-type", "tech-task",
+    ])).toThrow("--meegle-work-item-type is only supported");
+    expect(() => parsePlatformSyncArgs([
+      "--only", "meegle", "--meegle-work-item-type", "tech-task",
+    ])).toThrow("--meegle-work-item-type is only supported");
     expect(parsePlatformSyncArgs(["--mode", "full", "--clean-after-sync"])).toMatchObject({ mode: "full", cleanAfterSync: true });
     expect(parsePlatformSyncArgs(["--mode", "clean", "--only", "github"])).toMatchObject({ only: "github", mode: "clean", cleanAfterSync: true });
     expect(() => parsePlatformSyncArgs(["--mode", "clean", "--scope", "acme/app"])).toThrow("--scope is not supported");
@@ -129,6 +138,9 @@ describe("platform-sync script", () => {
       { scope: "project/story", target: { projectKey: "project", workItemTypeKeys: ["story"], sourceUpdatedAtMqlFieldNames: { story: "updated_at" } } },
       { scope: "project/tech-task", target: { projectKey: "project", workItemTypeKeys: ["tech-task"], sourceUpdatedAtMqlFieldNames: { "tech-task": "updated_at" } } },
       { scope: "project/production-bug", target: { projectKey: "project", workItemTypeKeys: ["production-bug"], sourceUpdatedAtMqlFieldNames: { "production-bug": "updated_at" } } },
+    ]);
+    expect(getMeegleIncrementalScopes(config({ meegle }), "tech-task")).toEqual([
+      { scope: "project/tech-task", target: { projectKey: "project", workItemTypeKeys: ["tech-task"], sourceUpdatedAtMqlFieldNames: { "tech-task": "updated_at" } } },
     ]);
   });
 

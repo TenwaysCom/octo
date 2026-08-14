@@ -4,6 +4,12 @@ import type { DatabaseSchema } from "./schema.js";
 import type { MeegleSyncMapping, MeegleWorkitem } from "../meegle/meegle-client.js";
 import type { GitHubPrDetails } from "../github/github-types.js";
 import type { LarkBitableRecord } from "../lark/lark-client.js";
+import {
+  parseLarkTicketAiData,
+  pickLarkTicketAiFields,
+  type LarkTicketAiData,
+  type LarkTicketAiFields,
+} from "../../domain/lark-ticket-ai.js";
 
 export interface PlatformSyncStore {
   upsertMeegleWorkitem(input: {
@@ -30,6 +36,8 @@ export interface PlatformSyncStore {
     recordId: string;
     sharedUrl: string;
   }): Promise<void>;
+  upsertLarkBaseTicketAi(input: LarkBaseTicketSyncRef & { fields: LarkTicketAiFields }): Promise<boolean>;
+  findLarkBaseTicketByRecordId(recordId: string): Promise<LarkBaseTicketSyncRef | undefined>;
   getMeegleWorkitemsForCleaning(refs: MeegleWorkitemSyncRef[]): Promise<MeegleWorkitemSyncItem[]>;
   getGitHubPullRequestsForCleaning(refs: GitHubPullRequestSyncRef[]): Promise<GitHubPullRequestSyncItem[]>;
   getLarkBaseTicketsForCleaning(refs: LarkBaseTicketSyncRef[]): Promise<LarkBaseTicketSyncItem[]>;
@@ -159,6 +167,7 @@ export interface LarkBaseTicketSyncItem {
   detailDescription?: string;
   meegleLink?: string;
   larkMessageLink?: string;
+  ticketAi?: LarkTicketAiData;
   sourceUpdatedAt?: string;
   syncedAt: string;
 }
@@ -336,6 +345,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
       table_id: input.tableId,
       record_id: input.recordId,
       shared_url: input.sharedUrl,
+      ticket_ai: "{}",
       local_json: "{}",
       created_at: now,
       updated_at: now,
@@ -344,6 +354,44 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
         shared_url: input.sharedUrl,
         updated_at: now,
       })).execute();
+  }
+
+  async upsertLarkBaseTicketAi(input: LarkBaseTicketSyncRef & { fields: LarkTicketAiFields }): Promise<boolean> {
+    const fields = pickLarkTicketAiFields(input.fields);
+    if (!Object.keys(fields).length) return false;
+    const existing = await this.db.selectFrom("lark_base_ticket_octo")
+      .select("ticket_ai")
+      .where("base_id", "=", input.baseId)
+      .where("table_id", "=", input.tableId)
+      .where("record_id", "=", input.recordId)
+      .executeTakeFirst();
+    const current = parseLarkTicketAiData(existing?.ticket_ai);
+    const mergedFields = { ...current?.fields, ...fields };
+    if (current && JSON.stringify(current.fields) === JSON.stringify(mergedFields)) return false;
+    const now = new Date().toISOString();
+    await this.db.insertInto("lark_base_ticket_octo").values({
+      base_id: input.baseId,
+      table_id: input.tableId,
+      record_id: input.recordId,
+      shared_url: null,
+      ticket_ai: JSON.stringify({ fields: mergedFields, updatedAt: now }),
+      local_json: "{}",
+      created_at: now,
+      updated_at: now,
+    }).onConflict((conflict) => conflict.columns(["base_id", "table_id", "record_id"])
+      .doUpdateSet({ ticket_ai: JSON.stringify({ fields: mergedFields, updatedAt: now }), updated_at: now }))
+      .execute();
+    return true;
+  }
+
+  async findLarkBaseTicketByRecordId(recordId: string): Promise<LarkBaseTicketSyncRef | undefined> {
+    const rows = await this.db.selectFrom("lark_base_ticket_syncs")
+      .select(["base_id", "table_id", "record_id"])
+      .where("record_id", "=", recordId)
+      .limit(2)
+      .execute();
+    if (rows.length !== 1) return undefined;
+    return { baseId: rows[0].base_id, tableId: rows[0].table_id, recordId: rows[0].record_id };
   }
 
   async getMeegleWorkitemsForCleaning(refs: MeegleWorkitemSyncRef[]): Promise<MeegleWorkitemSyncItem[]> {
@@ -397,7 +445,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
         .select([
           "sync.base_id", "sync.table_id", "sync.record_id", "sync.title", "sync.ticket_status", "sync.created_time",
           "sync.ticket_number", "sync.issue_type", "sync.requester", "sync.responsible", "sync.priority", "sync.detail_description", "sync.meegle_link", "sync.lark_message_link",
-          "sync.source_updated_at", "sync.synced_at", "sync.fields_json", "octo.shared_url as octo_shared_url",
+          "sync.source_updated_at", "sync.synced_at", "sync.fields_json", "octo.shared_url as octo_shared_url", "octo.ticket_ai as octo_ticket_ai",
         ])
         .where("sync.base_id", "=", ref.baseId)
         .where("sync.table_id", "=", ref.tableId)
@@ -590,7 +638,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
       .select([
         "sync.base_id", "sync.table_id", "sync.record_id", "sync.title", "sync.ticket_status",
         "sync.created_time", "sync.ticket_number", "sync.issue_type", "sync.requester", "sync.responsible", "sync.priority", "sync.detail_description", "sync.meegle_link", "sync.lark_message_link",
-        "sync.source_updated_at", "sync.synced_at", "sync.fields_json", "octo.shared_url as octo_shared_url",
+        "sync.source_updated_at", "sync.synced_at", "sync.fields_json", "octo.shared_url as octo_shared_url", "octo.ticket_ai as octo_ticket_ai",
       ])
       .orderBy("sync.source_updated_at", "desc")
       .orderBy("sync.synced_at", "desc")
@@ -652,6 +700,7 @@ type LarkBaseTicketSyncRow = {
   title: string;
   ticket_status: string | null;
   octo_shared_url: string | null;
+  octo_ticket_ai?: string | null;
   created_time: string | null;
   source_updated_at: string | null;
   synced_at: string;
@@ -751,6 +800,7 @@ function toLarkBaseTicketSyncItem(row: LarkBaseTicketSyncRow): LarkBaseTicketSyn
     detailDescription: row.detail_description ?? undefined,
     meegleLink: row.meegle_link ?? undefined,
     larkMessageLink: row.lark_message_link ?? undefined,
+    ticketAi: parseLarkTicketAiData(row.octo_ticket_ai),
     sourceUpdatedAt: row.source_updated_at ?? undefined,
     syncedAt: row.synced_at,
   };

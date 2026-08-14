@@ -375,11 +375,12 @@ export class PlatformSyncService {
     } while (pageToken);
 
     syncLogger.info({ baseId: request.baseId, tableId: request.tableId, listed, synced }, "LARK_BASE_BULK_SYNC_COMPLETED");
-    return this.withOptionalLarkCleaning(
+    const result = await this.withOptionalLarkCleaning(
       request.cleanAfterSync,
       syncedRefs,
       { listed, skippedInactive, synced },
     );
+    return result;
   }
 
   async incrementalSyncLarkBaseTickets(input: BulkSyncLarkBaseTicketsRequest & { watermarkUpdatedAt: string; watermarkTiebreaker: string }) {
@@ -413,13 +414,14 @@ export class PlatformSyncService {
       syncedRefs.push({ baseId: input.baseId, tableId: input.tableId, recordId: record.record_id });
     }
     const latest = latestWatermark(records.map((record) => ({ updatedAt: record.updated_time, tiebreaker: record.record_id })), input);
-    return this.withOptionalLarkCleaning(input.cleanAfterSync, syncedRefs, {
+    const result = await this.withOptionalLarkCleaning(input.cleanAfterSync, syncedRefs, {
       listed: records.length,
       skippedInactive: 0,
       synced: changed.length,
       watermarkUpdatedAt: latest.updatedAt,
       watermarkTiebreaker: latest.tiebreaker,
     });
+    return result;
   }
 
   async selectedSyncLarkBaseTickets(request: SelectedSyncLarkBaseTicketsRequest) {

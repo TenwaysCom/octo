@@ -158,6 +158,10 @@ pnpm --dir server platform:clean-history --apply
 pnpm --dir server platform:backfill-lark-ticket-titles
 pnpm --dir server platform:backfill-lark-ticket-titles --apply
 
+# 回填历史 Ticket AI：仅从已有 Lark 同步快照读取 AI 字段，写入 Octo 本地表，不访问源端
+pnpm --dir server platform:backfill-lark-ticket-ai
+pnpm --dir server platform:backfill-lark-ticket-ai --apply
+
 # 从已有 GitHub/Meegle 快照回填缺失的增量 checkpoint：先预览，再写入
 pnpm --dir server platform:init-checkpoints
 pnpm --dir server platform:init-checkpoints --apply
@@ -207,7 +211,21 @@ Octo 需要维护的数据一律放入对应的 `_octo` 表。每张表以同一
 | `meegle_workitem_syncs` | `meegle_workitem_octo` | `project_key + work_item_type_key + work_item_id` |
 | `lark_base_ticket_syncs` | `lark_base_ticket_octo` | `base_id + table_id + record_id` |
 
-`*_octo` 以复合主键与来源对象一对一关联，但只在 Octo 首次拥有本地数据时创建；本地字段与审计字段不能回写快照表。例外是 `lark_base_ticket_octo.shared_url`：Server 显式取得或从旧快照迁移的 Lark Ticket 详情共享链接会保存在这里，增量同步缺少该字段时不得将其清空。Ticket 详情页发现链接缺失时，会以当前 Web 会话的 Lark 用户授权调用 `batch_get(with_shared_url)` 按需补全，并只写入该本地字段。
+`*_octo` 以复合主键与来源对象一对一关联，但只在 Octo 首次拥有本地数据时创建；本地字段与审计字段不能回写快照表。`lark_base_ticket_octo.shared_url` 是本地缓存：Server 显式取得或从旧快照迁移的 Ticket 详情共享链接会保存在这里，增量同步缺少该字段时不得将其清空。Ticket 详情页发现链接缺失时，会以当前 Web 会话的 Lark 用户授权调用 `batch_get(with_shared_url)` 按需补全，并只写入该本地字段。
+
+`lark_base_ticket_octo.ticket_ai` 是唯一的 Ticket AI 写入入口，保存允许同步的 AI 字段和 Octo 写入时间。历史回填只从 `lark_base_ticket_syncs.fields_json` 提取这些字段，绝不修改 Lark。Support-QA Agent 产生新结果时只写入 `ticket_ai`；Web 和 CLI Lark Ticket 同步始终只读 Lark，不会反写任何 AI 字段。
+
+Support-QA Agent 通过 `POST /api/internal/lark-ticket-ai` 更新该字段，不允许直连 Octo 数据库。接口复用 `server/src/http/internal-signed-request-auth.ts`：调用方只需声明 SSH namespace、预期 HTTP 方法/路径、请求头前缀、CIDR 和按 SSH 公钥指纹查找绑定用户公钥的函数。Ticket AI 实例只接受来自 `OCTO_TICKET_AI_ALLOWED_CIDRS` 的直接 TCP 来源（不信任 `X-Forwarded-For`），并要求请求体 SHA-256、时间戳和唯一 request id 由数据库 `user_ssh_public_keys` 中的 SSH 公钥签名。调用方**不传 key-id 或用户 ID**：服务端从 SSHSIG 内嵌的公钥计算 OpenSSH `SHA256:` 指纹，以该指纹找到用户绑定的活跃公钥，并用该公钥验证签名。`key_id` 仅是数据库内的运维主键；`public_key_fingerprint` 是唯一认证索引，且 `master_user_id` 绑定 `users.id`。只有密钥和用户状态都为 `active` 时才会校验；五分钟内拒绝同一指纹/request id 重放。CIDR 或用户密钥绑定缺失时接口 fail closed。它只更新 allow-list 内的 AI 字段，绝不调用 Lark Base API。
+
+用户密钥由受控数据库管理流程写入，不提供匿名注册接口。录入前用 `ssh-keygen -lf /secure/path/user-key.pub -E sha256` 取得输出中的 `SHA256:...` 指纹。建议每个用户使用独立且稳定的 `key_id`，轮换时先新增新 key，再将旧 key 的 `status` 改为 `revoked`：
+
+```sql
+INSERT INTO user_ssh_public_keys (
+  key_id, master_user_id, public_key, public_key_fingerprint, status, created_at, updated_at
+) VALUES (
+  'support-qa', 'usr_xxx', 'ssh-ed25519 AAAA... user@host', 'SHA256:...', 'active', now()::text, now()::text
+);
+```
 
 展示或分析时：平台表提供源端事实，`*_octo` 表提供 Octo 自有数据；二者按外部主键关联。平台同步不会覆盖 `_octo` 表。
 
@@ -346,6 +364,10 @@ pnpm --dir server platform:sync \
 ```bash
 pnpm --dir server platform:sync --only lark --mode incremental
 pnpm --dir server platform:sync --only meegle --mode incremental
+
+# 只同步一个已配置的 Meegle work item type（例如 Tech Task）
+pnpm --dir server platform:sync --only meegle --mode incremental \
+  --meegle-work-item-type 66700acbf297a8f821b4b860
 ```
 
 Lark 增量先将 checkpoint 回退 5 分钟，再使用配置中 `sourceUpdatedAtFieldName` 生成 Bitable `filter`，**由源端筛选后再分页**。默认字段名是 `最后更新时间`；它必须是覆盖所有已同步业务字段的 Bitable「最后修改时间」字段。随后 adapter 同时请求 Bitable 自动字段，并以 record 的 `last_modified_time`（兼容旧响应 `updated_time`）进行本地复核和推进水位。字段名配置错误、源端拒绝筛选公式、或任何返回记录没有最后修改时间时，命令失败且不推进 checkpoint。
@@ -458,7 +480,7 @@ syncLark...    -> cleanLarkBaseTickets(...)
 ## 9. API、CLI 与调度
 
 - HTTP 接口使用 DTO 校验和 `{ ok, data, error }` 结构，提供单个、多选、批量同步和可选 `cleanAfterSync`；Web 平台同步卡片已接入基于 checkpoint 的增量模式。Web 运行审计 `platform_sync_runs` 仍待接入。
-- CLI 保留 `--only`、`--user-id`、`--config`，并提供 `--mode full|incremental|clean`：full/incremental 默认同步加清洗；clean 只清洗本地快照。GitHub incremental 额外要求 `--scope owner/repo`，clean mode 不接受 `--scope`。
+- CLI 保留 `--only`、`--user-id`、`--config`，并提供 `--mode full|incremental|clean`：full/incremental 默认同步加清洗；clean 只清洗本地快照。GitHub incremental 额外要求 `--scope owner/repo`；Meegle incremental 可选 `--meegle-work-item-type TYPE_KEY` 只运行该类型的独立 scope；clean mode 不接受 `--scope`。
 - 定时任务应调用与 CLI/HTTP 相同的 service，而非复制平台请求逻辑。
 - full 与 CLI incremental 模式均隔离各配置 target；某一 target/scope 失败后仍会继续其它 target。Web Lark 多 scope 同步会并行执行，每个 scope 独立记录 checkpoint 失败；失败 scope 不得推进自身 checkpoint。
 

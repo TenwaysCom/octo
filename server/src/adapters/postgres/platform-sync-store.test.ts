@@ -82,6 +82,10 @@ describe("PostgresPlatformSyncStore", () => {
       requester: "PM Ada",
       priority: "P1",
     });
+    await store.upsertLarkBaseTicketAi({
+      baseId: "base", tableId: "table", recordId: "rec-1",
+      fields: { "AI分析状态": "已分析", "Issue Description": "must not persist" },
+    });
 
     await expect(db.selectFrom("meegle_workitem_syncs").selectAll().execute())
       .resolves.toEqual([expect.objectContaining({
@@ -124,7 +128,9 @@ describe("PostgresPlatformSyncStore", () => {
     await expect(store.listLarkBaseTickets(10)).resolves.toEqual([expect.objectContaining({
       recordId: "rec-1", ticketStatus: "Open", requester: "PM Ada", priority: "P1",
       sharedUrl: "https://example.larksuite.com/base/base?table=table&record=rec-1",
+      ticketAi: expect.objectContaining({ fields: { "AI分析状态": "已分析" } }),
     })]);
+    await expect(store.findLarkBaseTicketByRecordId("rec-1")).resolves.toEqual({ baseId: "base", tableId: "table", recordId: "rec-1" });
 
     await db.destroy();
     await pool.end();

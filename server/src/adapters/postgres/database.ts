@@ -112,6 +112,18 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .execute();
 
   await db.schema
+    .createTable("user_ssh_public_keys")
+    .ifNotExists()
+    .addColumn("key_id", "text", (column) => column.primaryKey())
+    .addColumn("master_user_id", "text", (column) => column.notNull())
+    .addColumn("public_key", "text", (column) => column.notNull())
+    .addColumn("public_key_fingerprint", "text", (column) => column.notNull())
+    .addColumn("status", "text", (column) => column.notNull())
+    .addColumn("created_at", "text", (column) => column.notNull())
+    .addColumn("updated_at", "text", (column) => column.notNull())
+    .execute();
+
+  await db.schema
     .createTable("lark_contacts")
     .ifNotExists()
     .addColumn("open_id", "text", (column) => column.primaryKey())
@@ -369,6 +381,7 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .addColumn("table_id", "text", (column) => column.notNull())
     .addColumn("record_id", "text", (column) => column.notNull())
     .addColumn("shared_url", "text")
+    .addColumn("ticket_ai", "text", (column) => column.notNull().defaultTo("{}"))
     .addColumn("local_json", "text", (column) => column.notNull().defaultTo("{}"))
     .addColumn("created_at", "text", (column) => column.notNull())
     .addColumn("updated_at", "text", (column) => column.notNull())
@@ -393,6 +406,19 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     CREATE UNIQUE INDEX IF NOT EXISTS users_meegle_binding_unique
     ON users(meegle_base_url, meegle_user_key)
     WHERE meegle_base_url IS NOT NULL AND meegle_user_key IS NOT NULL
+  `.execute(db);
+  await sql`
+    CREATE INDEX IF NOT EXISTS user_ssh_public_keys_user_idx
+    ON user_ssh_public_keys(master_user_id, status)
+  `.execute(db);
+  await sql`
+    ALTER TABLE user_ssh_public_keys
+    ADD COLUMN IF NOT EXISTS public_key_fingerprint text
+  `.execute(db);
+  await sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS user_ssh_public_keys_fingerprint_unique
+    ON user_ssh_public_keys(public_key_fingerprint)
+    WHERE public_key_fingerprint IS NOT NULL
   `.execute(db);
   await sql`
     CREATE UNIQUE INDEX IF NOT EXISTS lark_contacts_email_unique
@@ -604,6 +630,10 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     ADD COLUMN IF NOT EXISTS shared_url text
   `.execute(db);
   await sql`
+    ALTER TABLE lark_base_ticket_octo
+    ADD COLUMN IF NOT EXISTS ticket_ai text NOT NULL DEFAULT '{}'
+  `.execute(db);
+  await sql`
     INSERT INTO lark_base_ticket_octo (
       base_id, table_id, record_id, shared_url, local_json, created_at, updated_at
     )
@@ -662,6 +692,7 @@ export async function resetPostgresDatabase(db: Kysely<DatabaseSchema>): Promise
   await sql`DROP TABLE IF EXISTS oauth_sessions`.execute(db);
   await sql`DROP TABLE IF EXISTS user_tokens`.execute(db);
   await sql`DROP TABLE IF EXISTS lark_contacts`.execute(db);
+  await sql`DROP TABLE IF EXISTS user_ssh_public_keys`.execute(db);
   await sql`DROP TABLE IF EXISTS users`.execute(db);
   await ensurePostgresSchema(db);
 }

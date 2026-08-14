@@ -596,6 +596,11 @@ h1 {
 .ticket-description { max-width: 720px; margin: 0; color: var(--octo-text); font-size: 14px; line-height: 1.75; white-space: pre-wrap; }
 .ticket-description--empty, .ticket-section-empty { color: var(--octo-text-muted); }
 .ticket-section-empty { margin: 0; font-size: 13px; }
+.ticket-ai-data__fields { display: grid; gap: 9px; margin: 0; }
+.ticket-ai-data__fields > div { display: grid; grid-template-columns: minmax(120px, 180px) minmax(0, 1fr); gap: 14px; padding: 10px 0; border-bottom: 1px solid color-mix(in srgb, var(--octo-border) 70%, transparent); }
+.ticket-ai-data__fields > div:last-child { border-bottom: 0; }
+.ticket-ai-data__fields dt { color: var(--octo-text-muted); font-size: 12px; font-weight: 650; }
+.ticket-ai-data__fields dd { min-width: 0; margin: 0; color: var(--octo-text); font-size: 13px; line-height: 1.55; white-space: pre-wrap; word-break: break-word; }
 .ticket-resource-list { display: flex; flex-wrap: wrap; gap: 9px; }
 .ticket-resource { display: inline-flex; align-items: center; gap: 6px; min-height: 31px; padding: 5px 10px; border: 1px solid var(--octo-border); border-radius: 7px; color: var(--octo-text); background: var(--octo-surface); font-size: 12px; font-weight: 650; text-decoration: none; }
 .ticket-resource:hover { border-color: var(--octo-brand); color: var(--octo-brand); background: color-mix(in srgb, var(--octo-brand) 5%, var(--octo-surface)); }

@@ -217,3 +217,10 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - **Context:** Meegle auth status succeeded while every Web-triggered Meegle incremental sync returned HTTP 502 with the generic `SYNC_FAILED` response.
 - **Rule:** Diagnose the checkpoint `last_error` before asking users to reauthorize. Web incremental Meegle sync uses `MeegleShellClient`, so the Server runtime must have a working `meegle` executable on `PATH`; `spawn meegle ENOENT` is a runtime dependency failure, not a user credential failure.
 - **Verified outcome:** The failed User Story and Tech Task checkpoints both recorded `spawn meegle ENOENT`, while adjacent Meegle auth checks completed successfully.
+
+
+## [LRN-20260814-001] lark-ticket-ai-octo-writeback
+
+- **Context:** Support-QA agents previously wrote AI analysis and eval fields straight to Lark Base, making local ownership and retry semantics unclear.
+- **Rule:** Store allow-listed Ticket AI fields only in `lark_base_ticket_octo.ticket_ai`; historical backfills read `lark_base_ticket_syncs.fields_json` without touching Lark. Agent updates must use Octo's internal API, which uses the reusable `internal-signed-request-auth` component and fail-closes unless the direct source IP is in the configured CIDR list and the body hash/timestamp/request id is signed by an active SSH key bound to an active Octo user. The caller sends no user ID or key ID: derive the signing public-key `SHA256:` fingerprint from SSHSIG, look it up in `user_ssh_public_keys`, then verify with that stored public key. Lark Ticket sync remains read-only and never writes AI fields to Base. Empty historic Base values are not backfilled.
+- **Verified outcome:** Historical preview scanned 1,698 snapshots, wrote 303 meaningful local Ticket AI records, and the post-write preview found 0 remaining candidates. The signed API tests, full Server test suite, build, and `ssh-keygen -Y sign/verify` smoke check pass.

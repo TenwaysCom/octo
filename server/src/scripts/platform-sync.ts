@@ -78,6 +78,7 @@ export interface PlatformSyncScriptArgs {
   masterUserId: string;
   configPath: string;
   only?: PlatformName;
+  meegleWorkItemTypeKey?: string;
   githubPullRequestState: GitHubPullRequestState;
   githubPullRequestLimit: number;
   mode: PlatformSyncMode;
@@ -187,6 +188,11 @@ export function parsePlatformSyncArgs(argv: string[]): PlatformSyncScriptArgs {
       index += 1;
       continue;
     }
+    if (arg === "--meegle-work-item-type") {
+      args.meegleWorkItemTypeKey = readNextArg(argv, index, arg);
+      index += 1;
+      continue;
+    }
     if (arg === "--github-pr-state") {
       args.githubPullRequestState = githubPullRequestStateSchema.parse(readNextArg(argv, index, arg));
       index += 1;
@@ -223,6 +229,9 @@ export function parsePlatformSyncArgs(argv: string[]): PlatformSyncScriptArgs {
   if (args.mode === "incremental" && args.only !== "github" && args.scope) {
     throw new Error("--scope is only supported by GitHub incremental sync");
   }
+  if (args.meegleWorkItemTypeKey && (args.mode !== "incremental" || args.only !== "meegle")) {
+    throw new Error("--meegle-work-item-type is only supported by Meegle incremental sync");
+  }
   if (args.mode === "full" && args.scope) {
     throw new Error("--scope is only supported by GitHub incremental sync");
   }
@@ -253,7 +262,10 @@ export function parsePlatformSyncConfig(input: unknown): PlatformSyncConfig {
   return platformSyncConfigSchema.parse(input);
 }
 
-export function getMeegleIncrementalScopes(config: PlatformSyncConfig): Array<{
+export function getMeegleIncrementalScopes(
+  config: PlatformSyncConfig,
+  workItemTypeKey?: string,
+): Array<{
   scope: string;
   target: {
     projectKey: string;
@@ -261,17 +273,19 @@ export function getMeegleIncrementalScopes(config: PlatformSyncConfig): Array<{
     sourceUpdatedAtMqlFieldNames: Record<string, string>;
   };
 }> {
-  return config.meegle.flatMap((target) => (target.workItemTypeKeys ?? []).map((workItemTypeKey) => {
-    const sourceUpdatedAtMqlFieldName = target.sourceUpdatedAtMqlFieldNames[workItemTypeKey];
-    return {
-      scope: getMeegleWorkItemTypeCheckpointScope(target.projectKey, workItemTypeKey),
-      target: {
-        projectKey: target.projectKey,
-        workItemTypeKeys: [workItemTypeKey],
-        sourceUpdatedAtMqlFieldNames: sourceUpdatedAtMqlFieldName ? { [workItemTypeKey]: sourceUpdatedAtMqlFieldName } : {},
-      },
-    };
-  }));
+  return config.meegle.flatMap((target) => (target.workItemTypeKeys ?? [])
+    .filter((configuredWorkItemTypeKey) => !workItemTypeKey || configuredWorkItemTypeKey === workItemTypeKey)
+    .map((configuredWorkItemTypeKey) => {
+      const sourceUpdatedAtMqlFieldName = target.sourceUpdatedAtMqlFieldNames[configuredWorkItemTypeKey];
+      return {
+        scope: getMeegleWorkItemTypeCheckpointScope(target.projectKey, configuredWorkItemTypeKey),
+        target: {
+          projectKey: target.projectKey,
+          workItemTypeKeys: [configuredWorkItemTypeKey],
+          sourceUpdatedAtMqlFieldNames: sourceUpdatedAtMqlFieldName ? { [configuredWorkItemTypeKey]: sourceUpdatedAtMqlFieldName } : {},
+        },
+      };
+    }));
 }
 
 export async function runPlatformSync(
@@ -633,6 +647,7 @@ function printHelp(): void {
     "Options:",
     "  --only <meegle|github|lark>  Sync one configured platform only",
     "  --mode <full|incremental|clean>  Full/incremental sync cleans by default; clean only reads local snapshots",
+    "  --meegle-work-item-type <type>  One Meegle type for incremental mode",
     "  --scope <owner/repo>          GitHub checkpoint scope for incremental mode",
     "  --clean-after-sync            Compatibility flag; cleaning is already enabled for every sync mode",
     "  --github-pr-state <all|closed|merged>  GitHub PR state (default all)",
@@ -747,7 +762,7 @@ async function main(): Promise<void> {
       const config = await readPlatformSyncConfig(args.configPath);
       const incrementalRuns = new Map<string, PlatformSyncRun>();
       const result = args.only === "meegle"
-        ? await runIncrementalScopes("meegle", getMeegleIncrementalScopes(config), {
+        ? await runIncrementalScopes("meegle", getMeegleIncrementalScopes(config, args.meegleWorkItemTypeKey), {
           getCheckpoint: (scope) => checkpointStore.get("meegle", scope),
           sync: async (target, checkpoint) => {
             const scope = getMeegleWorkItemTypeCheckpointScope(target.projectKey, target.workItemTypeKeys[0]!);

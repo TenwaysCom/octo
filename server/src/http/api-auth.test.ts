@@ -95,6 +95,7 @@ describe("api auth middleware", () => {
       "/api/web/platform-sync-sources/lark-tickets",
       "/api/web/lark-tickets/rec_1/ai-sessions",
       "/api/web/odoo-devops-branches",
+      "/api/internal/lark-ticket-ai",
       "/api/extension/version",
     ]) {
       const req = {

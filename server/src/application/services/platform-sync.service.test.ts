@@ -44,6 +44,8 @@ function createStore(): PlatformSyncStore & {
       store.lark.push({ record: input.record, title: input.title, status: input.status });
     },
     async setLarkBaseTicketSharedUrl() {},
+    async upsertLarkBaseTicketAi() { return false; },
+    async findLarkBaseTicketByRecordId() { return undefined; },
     async getMeegleWorkitemsForCleaning(refs: Array<{ workItemId: string }>) {
       return store.meegle
         .filter(({ workitem }) => refs.some((ref) => ref.workItemId === workitem.id))
@@ -178,6 +180,25 @@ describe("PlatformSyncService", () => {
     expect(store.cleanedMeegle).toEqual(["2"]);
     expect(store.cleanedGitHub).toEqual(["2"]);
     expect(store.cleanedLark).toEqual(["rec-2"]);
+  });
+
+  it("does not write Ticket AI fields back during a Lark snapshot sync", async () => {
+    const store = createStore();
+    const record: LarkBitableRecord = {
+      record_id: "rec-1",
+      fields: { Title: "Ticket", "AI分析状态": "已分析" },
+    };
+    const client = {
+      listRecords: vi.fn().mockResolvedValue({ records: [record], hasMore: false }),
+      updateRecord: vi.fn().mockResolvedValue({ record_id: "rec-1", fields: { "AI分析状态": "已分析" } }),
+    } as unknown as LarkClient;
+    const service = new PlatformSyncService({ store, createLarkClient: async () => client });
+
+    await expect(service.bulkSyncLarkBaseTickets({
+      masterUserId: "user-1", baseId: "base", tableId: "table",
+    })).resolves.toMatchObject({ listed: 1, synced: 1 });
+    expect(store.lark).toHaveLength(1);
+    expect(client.updateRecord).not.toHaveBeenCalled();
   });
 
   it("skips inactive Meegle items during a bulk sync", async () => {

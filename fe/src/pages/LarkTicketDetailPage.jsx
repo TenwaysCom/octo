@@ -36,6 +36,13 @@ function TicketLoadingState({ children }) {
   return <section className="profile-main ticket-detail-page"><p className="list-message">{children}</p></section>;
 }
 
+function formatTicketAiValue(value) {
+  if (value == null || value === "") return "未设置";
+  if (Array.isArray(value)) return value.map(formatTicketAiValue).join("、");
+  if (typeof value === "object") return value.text || value.name || JSON.stringify(value);
+  return String(value);
+}
+
 export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLogout, isBusy, breadcrumbs }) {
   const [state, setState] = useState({ status: "loading", ticket: undefined });
   const [sharedUrlStatus, setSharedUrlStatus] = useState("idle");
@@ -188,6 +195,7 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
     [ticket.larkMessageLink, "关联 Lark 消息"],
     [ticket.meegleLink, "关联 Meegle 工作项"],
   ].filter(([href]) => href);
+  const ticketAiFields = Object.entries(ticket.ticketAi?.fields || {});
 
   return <WorkspaceShell user={profile.user ?? {}} workspaceAccess={profile.workspaceAccess} activePage="lark-tickets" onLogout={onLogout} isBusy={isBusy} breadcrumbs={breadcrumbs}>
     <main className="profile-main ticket-detail-page">
@@ -208,6 +216,11 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
           <section className="ticket-detail-section">
             <h2>Resources</h2>
             {resources.length ? <div className="ticket-resource-list">{resources.map(([href, label]) => <ExternalResource href={href} key={label}>{label}</ExternalResource>)}</div> : sharedUrlStatus === "loading" ? <p className="ticket-section-empty">正在获取 Lark Ticket 链接…</p> : <p className="ticket-section-empty">暂无关联资源。</p>}
+          </section>
+
+          <section className="ticket-detail-section ticket-ai-data">
+            <div className="ticket-section-heading"><h2>Ticket AI</h2><span>{ticketAiFields.length ? "Octo 本地记录" : "暂无记录"}</span></div>
+            {ticketAiFields.length ? <dl className="ticket-ai-data__fields">{ticketAiFields.map(([name, value]) => <div key={name}><dt>{name}</dt><dd>{formatTicketAiValue(value)}</dd></div>)}</dl> : <p className="ticket-section-empty">历史 AI 数据回填或新的 AI 分析完成后会显示在这里。</p>}
           </section>
 
           <section className="ticket-detail-section ticket-ai-sessions">
