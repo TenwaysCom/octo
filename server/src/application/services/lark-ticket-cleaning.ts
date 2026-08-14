@@ -1,5 +1,6 @@
 const TICKET_NUMBER_FIELDS = ["Ticket 编号", "Ticket编号", "ticket编号", "Ticket Number", "Ticket No.", "编号"];
 const ISSUE_TYPE_FIELDS = ["Issue 类型", "Issue Type", "issue_type"];
+const REQUESTER_FIELDS = ["需求人", "Requester", "Requestor"];
 const RESPONSIBLE_FIELDS = ["Responsible", "负责人", "责任人", "Owner", "Assignee"];
 const URGENCY_FIELDS = ["紧急度"];
 const CREATED_AT_FIELDS = ["创建时间", "Created Time", "Created At"];
@@ -11,6 +12,7 @@ const LARK_MESSAGE_LINK_PATTERN = /https?:\/\/[^\s"'<>)\]]*(?:threadid|chatid|me
 export interface LarkTicketCleaningProjection {
   ticketNumber?: string;
   issueType?: string;
+  requester?: string;
   responsible?: string;
   priority?: string;
   createdAt?: string;
@@ -28,6 +30,7 @@ export function buildLarkTicketCleaningProjection(
   return omitEmpty({
     ticketNumber: readField(source, TICKET_NUMBER_FIELDS),
     issueType: readField(source, ISSUE_TYPE_FIELDS),
+    requester: readField(source, REQUESTER_FIELDS),
     responsible: readField(source, RESPONSIBLE_FIELDS),
     priority: readField(source, URGENCY_FIELDS),
     createdAt: createdTime ?? readField(source, CREATED_AT_FIELDS),

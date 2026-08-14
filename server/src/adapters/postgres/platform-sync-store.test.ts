@@ -79,6 +79,7 @@ describe("PostgresPlatformSyncStore", () => {
       baseId: "base",
       tableId: "table",
       recordId: "rec-1",
+      requester: "PM Ada",
       priority: "P1",
     });
 
@@ -121,7 +122,7 @@ describe("PostgresPlatformSyncStore", () => {
       expect.objectContaining({ meegleId: "456", pullNumber: 2, headRef: "feature/m-123", baseRef: "main", state: "open" }),
     ]);
     await expect(store.listLarkBaseTickets(10)).resolves.toEqual([expect.objectContaining({
-      recordId: "rec-1", ticketStatus: "Open", priority: "P1",
+      recordId: "rec-1", ticketStatus: "Open", requester: "PM Ada", priority: "P1",
       sharedUrl: "https://example.larksuite.com/base/base?table=table&record=rec-1",
     })]);
 

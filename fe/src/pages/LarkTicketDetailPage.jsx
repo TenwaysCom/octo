@@ -243,6 +243,7 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
           <dl>
             <TicketProperty label="状态"><LarkTicketBadge kind="status" value={ticket.ticketStatus} /></TicketProperty>
             <TicketProperty label="紧急度"><LarkTicketBadge kind="priority" value={ticket.priority} /></TicketProperty>
+            <TicketProperty label="需求人"><LarkTicketResponsible responsible={ticket.requester} /></TicketProperty>
             <TicketProperty label="负责人"><LarkTicketResponsible responsible={ticket.responsible} /></TicketProperty>
             <TicketProperty label="类型"><LarkTicketBadge kind="type" value={ticket.issueType} /></TicketProperty>
           </dl>

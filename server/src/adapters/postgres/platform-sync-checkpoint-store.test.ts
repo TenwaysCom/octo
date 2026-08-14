@@ -194,6 +194,7 @@ function larkSnapshot(overrides: Partial<{ source_updated_at: string | null }> =
     synced_at: "2026-08-08T10:00:00.000Z",
     ticket_number: null,
     issue_type: null,
+    requester: null,
     responsible: null,
     priority: null,
     detail_description: null,

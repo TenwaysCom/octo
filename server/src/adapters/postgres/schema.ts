@@ -188,6 +188,7 @@ export interface DatabaseSchema {
     stale: Generated<boolean>;
     ticket_number: string | null;
     issue_type: string | null;
+    requester: string | null;
     responsible: string | null;
     priority: string | null;
     detail_description: string | null;

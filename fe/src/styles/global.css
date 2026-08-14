@@ -216,6 +216,7 @@ a { color: inherit; }
 .profile-nav__item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border-radius: 8px; color: var(--octo-text-muted); font-size: 13px; font-weight: 650; text-decoration: none; }
 .profile-nav__item-label { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .profile-nav__item-label i { width: 14px; color: var(--octo-text-muted); font-size: 14px; font-style: normal; text-align: center; }
+.profile-nav__count { min-width: 20px; padding: 2px 6px; border-radius: 999px; color: var(--octo-brand); background: var(--octo-brand-soft); font-size: 10px; font-weight: 750; line-height: 1.4; text-align: center; }
 .profile-nav__item:hover { color: var(--octo-brand); background: var(--octo-surface-muted); }
 .profile-nav__item--active { color: var(--octo-brand); background: linear-gradient(90deg, color-mix(in srgb, var(--octo-brand) 14%, var(--octo-surface)), var(--octo-surface)); }
 .profile-nav__item--active .profile-nav__item-label i, .profile-nav__group--active .profile-nav__item-label i { color: var(--octo-brand); }

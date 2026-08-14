@@ -4,7 +4,7 @@ import { LarkTicketBadge } from "../components/lark-ticket/LarkTicketBadge.jsx";
 import { LarkTicketResponsible } from "../components/lark-ticket/LarkTicketResponsible.jsx";
 import { useKeyboardShortcut } from "../hooks/useKeyboardShortcut.js";
 import { formatDateTime } from "../lib/formatters.js";
-import { matchesGitHubPullRequestQuickFilter } from "../lib/github-pull-request-filters.js";
+import { countMyOpenGitHubPullRequests, matchesGitHubPullRequestQuickFilter } from "../lib/github-pull-request-filters.js";
 import { matchesLarkTicketQuickFilter } from "../lib/lark-ticket-filters.js";
 import { getOdooShBuildTone } from "../lib/odoo-sh-build-status.js";
 import { getPlatformDataList, resetAllOdooDevopsBranchesCache } from "../services/platform-data/platform-data-api.js";
@@ -99,6 +99,7 @@ function GitHubPullRequestLinks({ pullRequests }) {
   }
   return <div className="github-pr-links">{pullRequests.map((pullRequest) => <div className="github-pr-links__item" key={`${pullRequest.owner}-${pullRequest.repo}-${pullRequest.pullNumber}`}>
     <ExternalLink className={`github-pr-link-badge github-pr-link-badge--${pullRequest.state}`} href={pullRequest.htmlUrl} title={`${pullRequest.owner}/${pullRequest.repo} #${pullRequest.pullNumber}\n${pullRequest.title}\n${pullRequest.state}`}>#{pullRequest.pullNumber}-{pullRequest.baseRef || "-"}</ExternalLink>
+    <GitHubPullRequestStatus state={pullRequest.state} />
     <OdooShBuildDots builds={pullRequest.odooShBuilds} />
   </div>)}</div>;
 }
@@ -181,6 +182,7 @@ function readSortValue(kind, item, key) {
       title: item.title || "",
       status: item.ticketStatus || "",
       issueType: item.issueType || "",
+      requester: item.requester || "",
       responsible: item.responsible || "",
       priority: item.priority || "",
     };
@@ -232,8 +234,8 @@ function SortableColumnHeader({ label, sortKey, sort, onSort }) {
 
 function SyncedListTable({ kind, items, sort, onSort }) {
   if (kind === "lark-tickets") {
-    return <table className="data-table"><thead><tr><th><SortableColumnHeader label="Ticket" sortKey="title" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="状态" sortKey="status" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="Issue 类型" sortKey="issueType" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="负责人" sortKey="responsible" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="紧急度" sortKey="priority" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="更新时间" sortKey="updatedAt" sort={sort} onSort={onSort} /></th></tr></thead><tbody>
-      {items.map((item, index) => <tr key={item.recordId || `${item.baseId || "base"}-${item.tableId || "table"}-${index}`}><td><a className="table-link" href={getLarkTicketDetailHash(item.recordId)}>{item.title}</a><small>{item.ticketNumber || item.recordId}</small></td><td><LarkTicketBadge kind="status" value={item.ticketStatus} /></td><td><LarkTicketBadge kind="type" value={item.issueType} /></td><td><LarkTicketResponsible responsible={item.responsible} /></td><td><LarkTicketBadge kind="priority" value={item.priority} /></td><td>{formatDateTime(item.sourceUpdatedAt || item.syncedAt)}</td></tr>)}
+    return <table className="data-table"><thead><tr><th><SortableColumnHeader label="Ticket" sortKey="title" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="状态" sortKey="status" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="Issue 类型" sortKey="issueType" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="需求人" sortKey="requester" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="负责人" sortKey="responsible" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="紧急度" sortKey="priority" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="更新时间" sortKey="updatedAt" sort={sort} onSort={onSort} /></th></tr></thead><tbody>
+      {items.map((item, index) => <tr key={item.recordId || `${item.baseId || "base"}-${item.tableId || "table"}-${index}`}><td><a className="table-link" href={getLarkTicketDetailHash(item.recordId)}>{item.title}</a><small>{item.ticketNumber || item.recordId}</small></td><td><LarkTicketBadge kind="status" value={item.ticketStatus} /></td><td><LarkTicketBadge kind="type" value={item.issueType} /></td><td><LarkTicketResponsible responsible={item.requester} /></td><td><LarkTicketResponsible responsible={item.responsible} /></td><td><LarkTicketBadge kind="priority" value={item.priority} /></td><td>{formatDateTime(item.sourceUpdatedAt || item.syncedAt)}</td></tr>)}
     </tbody></table>;
   }
 
@@ -273,6 +275,9 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
     .filter((item) => matchesDateFilter(item, dateFilter));
   const workitemTypeCounts = Object.fromEntries(MEEGLE_WORKITEM_TYPE_FILTERS.map(([value]) => [value, value === "all" ? itemsBeforeTypeFilter.length : itemsBeforeTypeFilter.filter((item) => getMeegleWorkitemCategory(item) === value).length]));
   const githubId = profile.user?.githubId;
+  const myOpenPullRequestCount = page === "github-pull-requests"
+    ? countMyOpenGitHubPullRequests(state.items, githubId)
+    : 0;
   const filteredItems = itemsBeforeTypeFilter
     .filter((item) => page !== "github-pull-requests" || matchesGitHubPullRequestQuickFilter(item, githubQuickFilter, githubId))
     .filter((item) => page !== "lark-tickets" || matchesLarkTicketQuickFilter(item, larkTicketQuickFilter))
@@ -362,14 +367,14 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
             >No Sprint</button>
           </div> : null}
           {page === "github-pull-requests" ? <div className="list-filter-tabs" role="group" aria-label="GitHub PR 快速筛选">
-            {["open", "mine"].map((filter) => <button
+            {["open", "mine", "my-open"].map((filter) => <button
               className={`list-filter-tab ${githubQuickFilter === filter ? "list-filter-tab--active" : ""}`.trim()}
               type="button"
               key={filter}
-              disabled={filter === "mine" && !githubId}
-              title={filter === "mine" && !githubId ? "请先在 Integrations 关联 GitHub ID" : undefined}
+              disabled={filter !== "open" && !githubId}
+              title={filter !== "open" && !githubId ? "请先在 Integrations 关联 GitHub ID" : undefined}
               onClick={() => { setGithubQuickFilter((current) => current === filter ? "all" : filter); setPageIndex(0); }}
-            >{filter === "open" ? "Open" : "Mine"}</button>)}
+            >{filter === "open" ? "Open" : filter === "mine" ? "Mine" : `My Open ${myOpenPullRequestCount}`}</button>)}
           </div> : null}
           {page === "lark-tickets" ? <div className="list-filter-tabs" role="group" aria-label="Lark Ticket 快速筛选">
             {["unclassified", "unsynced"].map((filter) => <button

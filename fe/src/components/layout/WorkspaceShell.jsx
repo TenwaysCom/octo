@@ -1,5 +1,7 @@
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { getIntegrationsSubroutes, getWorkspaceNavigationRoutes, INTEGRATIONS_ROUTE, INTEGRATIONS_SUBROUTES } from "../../app/routes/workspace-routes.js";
+
+export const WorkspaceMetricsContext = createContext({ githubMyOpenCount: undefined });
 
 export function Brand() {
   return <a className="brand" href="/" aria-label="Tenways Octo 首页">
@@ -15,7 +17,7 @@ export function ProfileAvatar({ user, className = "" }) {
   </div>;
 }
 
-function WorkspaceSidebar({ activePage, workspaceAccess }) {
+function WorkspaceSidebar({ activePage, workspaceAccess, githubMyOpenCount }) {
   const isIntegrationsPage = INTEGRATIONS_SUBROUTES.some((route) => route.page === activePage);
   const integrationsSubroutes = getIntegrationsSubroutes(workspaceAccess);
   const [integrationsOpen, setIntegrationsOpen] = useState(isIntegrationsPage);
@@ -36,6 +38,9 @@ function WorkspaceSidebar({ activePage, workspaceAccess }) {
         key={route.page}
       >
         <span className="profile-nav__item-label"><i aria-hidden="true">{route.icon}</i>{route.label}</span>
+        {route.page === "github-pull-requests" && Number.isInteger(githubMyOpenCount)
+          ? <span className="profile-nav__count" aria-label={`${githubMyOpenCount} 个 My Open PR`} title="My Open PR">{githubMyOpenCount}</span>
+          : null}
       </a>)}
       <div className={`profile-nav__group profile-nav__group--settings ${integrationsOpen ? "profile-nav__group--active" : ""}`.trim()}>
         <a
@@ -93,8 +98,9 @@ function WorkspaceBreadcrumbs({ items }) {
 }
 
 export function WorkspaceShell({ user, workspaceAccess, activePage, onLogout, isBusy, breadcrumbs = [], children }) {
+  const { githubMyOpenCount } = useContext(WorkspaceMetricsContext);
   return <main className="workspace-layout">
-    <WorkspaceSidebar activePage={activePage} workspaceAccess={workspaceAccess} />
+    <WorkspaceSidebar activePage={activePage} workspaceAccess={workspaceAccess} githubMyOpenCount={githubMyOpenCount} />
     <div className="workspace-content">
       <WorkspaceHeader user={user} workspaceAccess={workspaceAccess} onLogout={onLogout} isBusy={isBusy} />
       <WorkspaceBreadcrumbs items={breadcrumbs} />

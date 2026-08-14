@@ -2,6 +2,32 @@ import type { PlatformSyncStore } from "../../adapters/postgres/platform-sync-st
 import { PlatformDataService } from "./platform-data.service.js";
 
 describe("PlatformDataService", () => {
+  it("returns the cleaned Lark requester and falls back to the existing source fields", async () => {
+    const store = {
+      listLarkBaseTickets: vi.fn().mockResolvedValue([
+        {
+          baseId: "base", tableId: "table", recordId: "rec-cleaned", title: "Cleaned",
+          requester: "PM Ada", sourceFields: { 需求人: [{ name: "Ignored" }] }, syncedAt: "2026-08-09T00:00:00.000Z",
+        },
+        {
+          baseId: "base", tableId: "table", recordId: "rec-legacy", title: "Legacy",
+          sourceFields: { 需求人: [{ name: "PM Lin" }] }, syncedAt: "2026-08-08T00:00:00.000Z",
+        },
+      ]),
+    } as unknown as PlatformSyncStore;
+    const service = new PlatformDataService(store);
+
+    const result = await service.list("lark-tickets", 50);
+    expect(result).toEqual({
+      items: [
+        expect.objectContaining({ recordId: "rec-cleaned", requester: "PM Ada" }),
+        expect.objectContaining({ recordId: "rec-legacy", requester: "PM Lin" }),
+      ],
+    });
+    expect(result.items[0]).not.toHaveProperty("sourceFields");
+    expect(result.items[1]).not.toHaveProperty("sourceFields");
+  });
+
   it("attaches linked GitHub PR summaries to the requested Meegle workitems", async () => {
     const store = {
       listMeegleWorkitems: vi.fn().mockResolvedValue([{

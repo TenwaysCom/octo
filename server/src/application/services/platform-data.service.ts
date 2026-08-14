@@ -9,6 +9,7 @@ import {
   resolveGitHubRepoEnvironment,
   resolveMeegleSystemEnvironment,
 } from "./odoo-devops-environment-mapping.js";
+import { buildLarkTicketCleaningProjection } from "./lark-ticket-cleaning.js";
 
 export type PlatformDataKind = "lark-tickets" | "meegle-workitems" | "github-pull-requests";
 export interface OdooShBuild {
@@ -32,7 +33,13 @@ export class PlatformDataService {
   async list(kind: PlatformDataKind, limit: number, filters: { sprint?: string } = {}) {
     switch (kind) {
       case "lark-tickets":
-        return { items: await this.syncStore.listLarkBaseTickets(limit) };
+        return {
+          items: (await this.syncStore.listLarkBaseTickets(limit)).map(({ sourceFields, ...item }) => {
+            const requester = item.requester
+              ?? buildLarkTicketCleaningProjection(sourceFields, item.createdTime).requester;
+            return { ...item, ...(requester ? { requester } : {}) };
+          }),
+        };
       case "meegle-workitems":
         {
           const items = await this.syncStore.listMeegleWorkitems(limit, filters.sprint);

@@ -296,6 +296,7 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .addColumn("stale", "boolean", (column) => column.notNull().defaultTo(false))
     .addColumn("ticket_number", "text")
     .addColumn("issue_type", "text")
+    .addColumn("requester", "text")
     .addColumn("responsible", "text")
     .addColumn("priority", "text")
     .addColumn("detail_description", "text")
@@ -583,7 +584,7 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
   for (const column of ["merged_by_login", "reviewers_json", "labels_json", "created_at"]) {
     await sql.raw(`ALTER TABLE github_pr_syncs ADD COLUMN IF NOT EXISTS ${column} text`).execute(db);
   }
-  for (const column of ["ticket_number", "issue_type", "responsible", "priority", "detail_description", "meegle_link", "lark_message_link"]) {
+  for (const column of ["ticket_number", "issue_type", "requester", "responsible", "priority", "detail_description", "meegle_link", "lark_message_link"]) {
     await sql.raw(`ALTER TABLE lark_base_ticket_syncs ADD COLUMN IF NOT EXISTS ${column} text`).execute(db);
   }
   for (const table of ["meegle_workitem_syncs", "github_pr_syncs", "lark_base_ticket_syncs"]) {

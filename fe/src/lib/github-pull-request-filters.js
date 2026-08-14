@@ -5,7 +5,14 @@ export function matchesGitHubPullRequestQuickFilter(item, filter, githubId) {
   if (filter === "mine") {
     return isMyGitHubPullRequest(item, githubId);
   }
+  if (filter === "my-open") {
+    return item.state === "open" && isMyGitHubPullRequest(item, githubId);
+  }
   return true;
+}
+
+export function countMyOpenGitHubPullRequests(items, githubId) {
+  return items.filter((item) => matchesGitHubPullRequestQuickFilter(item, "my-open", githubId)).length;
 }
 
 function isMyGitHubPullRequest(item, githubId) {

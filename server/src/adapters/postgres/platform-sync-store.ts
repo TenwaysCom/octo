@@ -101,6 +101,7 @@ export interface GitHubPullRequestCleaningInput extends GitHubPullRequestSyncRef
 export interface LarkBaseTicketCleaningInput extends LarkBaseTicketSyncRef {
   ticketNumber?: string;
   issueType?: string;
+  requester?: string;
   responsible?: string;
   priority?: string;
   detailDescription?: string;
@@ -152,6 +153,7 @@ export interface LarkBaseTicketSyncItem {
   sourceFields?: Record<string, unknown>;
   ticketNumber?: string;
   issueType?: string;
+  requester?: string;
   responsible?: string;
   priority?: string;
   detailDescription?: string;
@@ -394,7 +396,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
           .onRef("octo.record_id", "=", "sync.record_id"))
         .select([
           "sync.base_id", "sync.table_id", "sync.record_id", "sync.title", "sync.ticket_status", "sync.created_time",
-          "sync.ticket_number", "sync.issue_type", "sync.responsible", "sync.priority", "sync.detail_description", "sync.meegle_link", "sync.lark_message_link",
+          "sync.ticket_number", "sync.issue_type", "sync.requester", "sync.responsible", "sync.priority", "sync.detail_description", "sync.meegle_link", "sync.lark_message_link",
           "sync.source_updated_at", "sync.synced_at", "sync.fields_json", "octo.shared_url as octo_shared_url",
         ])
         .where("sync.base_id", "=", ref.baseId)
@@ -452,12 +454,13 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
 
   async applyLarkBaseTicketCleaning(input: LarkBaseTicketCleaningInput): Promise<boolean> {
     const existing = await this.db.selectFrom("lark_base_ticket_syncs")
-      .select(["ticket_number", "issue_type", "responsible", "priority", "detail_description", "meegle_link", "lark_message_link"])
+      .select(["ticket_number", "issue_type", "requester", "responsible", "priority", "detail_description", "meegle_link", "lark_message_link"])
       .where("base_id", "=", input.baseId).where("table_id", "=", input.tableId).where("record_id", "=", input.recordId)
       .executeTakeFirst();
     const values = {
       ticket_number: input.ticketNumber ?? null,
       issue_type: input.issueType ?? null,
+      requester: input.requester ?? null,
       responsible: input.responsible ?? null,
       priority: input.priority ?? null,
       detail_description: input.detailDescription ?? null,
@@ -465,7 +468,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
       lark_message_link: input.larkMessageLink ?? null,
     };
     if (existing && existing.ticket_number === values.ticket_number && existing.issue_type === values.issue_type
-      && existing.responsible === values.responsible && existing.priority === values.priority && existing.detail_description === values.detail_description
+      && existing.requester === values.requester && existing.responsible === values.responsible && existing.priority === values.priority && existing.detail_description === values.detail_description
       && existing.meegle_link === values.meegle_link && existing.lark_message_link === values.lark_message_link) return false;
     await this.db.updateTable("lark_base_ticket_syncs").set(values)
       .where("base_id", "=", input.baseId).where("table_id", "=", input.tableId).where("record_id", "=", input.recordId)
@@ -586,8 +589,8 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
         .onRef("octo.record_id", "=", "sync.record_id"))
       .select([
         "sync.base_id", "sync.table_id", "sync.record_id", "sync.title", "sync.ticket_status",
-        "sync.created_time", "sync.ticket_number", "sync.issue_type", "sync.responsible", "sync.priority", "sync.detail_description", "sync.meegle_link", "sync.lark_message_link",
-        "sync.source_updated_at", "sync.synced_at", "octo.shared_url as octo_shared_url",
+        "sync.created_time", "sync.ticket_number", "sync.issue_type", "sync.requester", "sync.responsible", "sync.priority", "sync.detail_description", "sync.meegle_link", "sync.lark_message_link",
+        "sync.source_updated_at", "sync.synced_at", "sync.fields_json", "octo.shared_url as octo_shared_url",
       ])
       .orderBy("sync.source_updated_at", "desc")
       .orderBy("sync.synced_at", "desc")
@@ -655,6 +658,7 @@ type LarkBaseTicketSyncRow = {
   fields_json?: string;
   ticket_number: string | null;
   issue_type: string | null;
+  requester: string | null;
   responsible: string | null;
   priority: string | null;
   detail_description: string | null;
@@ -741,6 +745,7 @@ function toLarkBaseTicketSyncItem(row: LarkBaseTicketSyncRow): LarkBaseTicketSyn
     sourceFields: parseRecord(row.fields_json),
     ticketNumber: row.ticket_number ?? undefined,
     issueType: row.issue_type ?? undefined,
+    requester: row.requester ?? undefined,
     responsible: row.responsible ?? undefined,
     priority: row.priority ?? undefined,
     detailDescription: row.detail_description ?? undefined,

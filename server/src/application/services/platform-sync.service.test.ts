@@ -534,6 +534,7 @@ describe("PlatformSyncService", () => {
         Status: "Open",
         "Ticket 编号": "SUP-101",
         "Issue 类型": [{ text: "Production Bug" }],
+        需求人: [{ name: "PM Ada" }],
         负责人: [{ name: "Ada" }, { name: "Lin" }],
         优先级: { text: "P0" },
         紧急度: { text: "P1" },
@@ -557,6 +558,7 @@ describe("PlatformSyncService", () => {
     expect(store.larkCleaning[0]).toMatchObject({
       ticketNumber: "SUP-101",
       issueType: "Production Bug",
+      requester: "PM Ada",
       responsible: "Ada, Lin",
       priority: "P1",
       createdAt: "2026-08-01T08:00:00Z",

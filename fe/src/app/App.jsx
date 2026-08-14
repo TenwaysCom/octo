@@ -7,12 +7,15 @@ import {
 } from "../services/auth/lark-auth-api.js";
 import { usePluginLogin } from "../hooks/usePluginLogin.js";
 import { useKeyboardShortcut } from "../hooks/useKeyboardShortcut.js";
+import { countMyOpenGitHubPullRequests } from "../lib/github-pull-request-filters.js";
 import { UnauthenticatedPage, SessionLoadingPage } from "../pages/LoginPage.jsx";
 import { KeyboardShortcutsPage } from "../pages/KeyboardShortcutsPage.jsx";
 import { LarkTicketDetailPage } from "../pages/LarkTicketDetailPage.jsx";
 import { PlatformListPage } from "../pages/PlatformListPage.jsx";
 import { SettingsIntegrationsPage } from "../pages/SettingsIntegrationsPage.jsx";
 import { SyncStatusPage } from "../pages/SyncStatusPage.jsx";
+import { WorkspaceMetricsContext } from "../components/layout/WorkspaceShell.jsx";
+import { getPlatformDataList } from "../services/platform-data/platform-data-api.js";
 import { appendWorkspaceBreadcrumb, canAccessWorkspaceRoute, getWorkspaceRoute, INTEGRATIONS_ROUTE } from "./routes/workspace-routes.js";
 
 const WORKSPACE_PAGE_COMPONENTS = {
@@ -34,6 +37,7 @@ export function App({ apiBaseUrl }) {
   const [workspaceRoute, setWorkspaceRoute] = useState(() => getWorkspaceRoute(window.location.hash));
   const [breadcrumbs, setBreadcrumbs] = useState(() => appendWorkspaceBreadcrumb([], getWorkspaceRoute(window.location.hash)));
   const [platformListFilterStates, setPlatformListFilterStates] = useState({});
+  const [githubMyOpenCount, setGithubMyOpenCount] = useState();
 
   useEffect(() => {
     const onHashChange = () => {
@@ -71,6 +75,21 @@ export function App({ apiBaseUrl }) {
   useEffect(() => {
     void checkSession();
   }, [checkSession]);
+
+  useEffect(() => {
+    const githubId = profile?.user?.githubId;
+    if (!githubId || !profile.workspaceAccess?.platformLists) {
+      setGithubMyOpenCount(undefined);
+      return undefined;
+    }
+
+    let active = true;
+    void getPlatformDataList({ apiBaseUrl, kind: "github-pull-requests" }).then(
+      ({ items }) => { if (active) setGithubMyOpenCount(countMyOpenGitHubPullRequests(items, githubId)); },
+      () => { if (active) setGithubMyOpenCount(undefined); },
+    );
+    return () => { active = false; };
+  }, [apiBaseUrl, profile, workspaceRoute.hash]);
 
   useEffect(() => {
     if (profile) {
@@ -134,19 +153,21 @@ export function App({ apiBaseUrl }) {
 
   if (profile) {
     const WorkspacePage = WORKSPACE_PAGE_COMPONENTS[activeWorkspaceRoute.page];
-    return <WorkspacePage
-      key={activeWorkspaceRoute.hash}
-      profile={profile}
-      page={activeWorkspaceRoute.page}
-      ticketRecordId={activeWorkspaceRoute.ticketRecordId}
-      breadcrumbs={breadcrumbs}
-      platformListFilterState={platformListFilterStates[activeWorkspaceRoute.page]}
-      onPlatformListFilterStateChange={savePlatformListFilterState}
-      apiBaseUrl={apiBaseUrl}
-      onLogout={() => void logout()}
-      onReauthorize={() => startLarkLogin({ apiBaseUrl })}
-      isBusy={isBusy}
-    />;
+    return <WorkspaceMetricsContext.Provider value={{ githubMyOpenCount }}>
+      <WorkspacePage
+        key={activeWorkspaceRoute.hash}
+        profile={profile}
+        page={activeWorkspaceRoute.page}
+        ticketRecordId={activeWorkspaceRoute.ticketRecordId}
+        breadcrumbs={breadcrumbs}
+        platformListFilterState={platformListFilterStates[activeWorkspaceRoute.page]}
+        onPlatformListFilterStateChange={savePlatformListFilterState}
+        apiBaseUrl={apiBaseUrl}
+        onLogout={() => void logout()}
+        onReauthorize={() => startLarkLogin({ apiBaseUrl })}
+        isBusy={isBusy}
+      />
+    </WorkspaceMetricsContext.Provider>;
   }
 
   return <UnauthenticatedPage
