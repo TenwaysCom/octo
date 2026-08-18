@@ -11,15 +11,17 @@ describe("UserSshPublicKeyService", () => {
     };
     const service = new UserSshPublicKeyService(store);
 
-    await expect(service.register({ masterUserId: "usr_1", publicKey: `  ${publicKey.replaceAll(" ", "\t")}  ` })).resolves.toMatchObject({
+    await expect(service.register({ masterUserId: "usr_1", publicKey: `  ${publicKey.replaceAll(" ", "\t")}  `, label: "  办公电脑  " })).resolves.toMatchObject({
       masterUserId: "usr_1",
       publicKey,
+      label: "办公电脑",
       publicKeyFingerprint: "SHA256:vaFtoqR78PmmsE06FLndG8DO/PazyV19x+9o1q0JLLU",
       status: "active",
     });
     expect(store.createForMasterUser).toHaveBeenCalledWith(expect.objectContaining({
       masterUserId: "usr_1",
       publicKey,
+      label: "办公电脑",
       publicKeyFingerprint: "SHA256:vaFtoqR78PmmsE06FLndG8DO/PazyV19x+9o1q0JLLU",
       status: "active",
     }));

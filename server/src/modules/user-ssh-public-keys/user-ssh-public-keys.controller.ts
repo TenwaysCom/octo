@@ -23,6 +23,7 @@ function readCookie(cookieHeader: string | undefined, name: string): string | un
 function toWebKey(record: UserSshPublicKeyRecord) {
   return {
     publicKey: record.publicKey,
+    label: record.label,
     publicKeyFingerprint: record.publicKeyFingerprint,
     status: record.status,
     createdAt: record.createdAt,
@@ -68,7 +69,7 @@ export function createWebUserSshPublicKeysController(deps: {
       if (!session.ok) return unauthorized(session);
       try {
         const request = registerUserSshPublicKeySchema.parse(input.body);
-        const key = await getService().register({ masterUserId: session.masterUserId, publicKey: request.publicKey });
+        const key = await getService().register({ masterUserId: session.masterUserId, publicKey: request.publicKey, label: request.label });
         controllerLogger.info({
           actionRunId: request.actionRunId,
           masterUserId: session.masterUserId,

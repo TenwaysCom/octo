@@ -19,8 +19,9 @@ export class UserSshPublicKeyService {
     return this.store.listForMasterUser(masterUserId);
   }
 
-  async register(input: { masterUserId: string; publicKey: string }): Promise<UserSshPublicKeyRecord> {
+  async register(input: { masterUserId: string; publicKey: string; label?: string }): Promise<UserSshPublicKeyRecord> {
     const publicKey = normalizePublicKey(input.publicKey);
+    const label = input.label?.trim() || null;
     const publicKeyFingerprint = getSshPublicKeyFingerprint(publicKey);
     if (!publicKeyFingerprint) {
       throw new UserSshPublicKeyServiceError("SSH_PUBLIC_KEY_INVALID");
@@ -30,6 +31,7 @@ export class UserSshPublicKeyService {
       id: `ssh-${randomUUID()}`,
       masterUserId: input.masterUserId,
       publicKey,
+      label,
       publicKeyFingerprint,
       status: "active",
     });

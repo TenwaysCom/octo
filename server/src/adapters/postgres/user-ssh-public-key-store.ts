@@ -6,6 +6,7 @@ export interface UserSshPublicKeyRecord {
   id: string;
   masterUserId: string;
   publicKey: string;
+  label: string | null;
   publicKeyFingerprint: string;
   status: string;
   createdAt: string;
@@ -23,7 +24,7 @@ export class PostgresUserSshPublicKeyStore implements UserSshPublicKeyStore {
   async getActiveByPublicKeyFingerprint(publicKeyFingerprint: string): Promise<UserSshPublicKeyRecord | undefined> {
     const row = await this.db.selectFrom("user_ssh_public_keys as ssh")
       .innerJoin("users as user", "user.id", "ssh.master_user_id")
-      .select(["ssh.id", "ssh.master_user_id", "ssh.public_key", "ssh.public_key_fingerprint", "ssh.status", "ssh.created_at"])
+      .select(["ssh.id", "ssh.master_user_id", "ssh.public_key", "ssh.label", "ssh.public_key_fingerprint", "ssh.status", "ssh.created_at"])
       .where("ssh.public_key_fingerprint", "=", publicKeyFingerprint)
       .where("ssh.status", "=", "active")
       .where("user.status", "=", "active")
@@ -34,7 +35,7 @@ export class PostgresUserSshPublicKeyStore implements UserSshPublicKeyStore {
 
   async listForMasterUser(masterUserId: string): Promise<UserSshPublicKeyRecord[]> {
     const rows = await this.db.selectFrom("user_ssh_public_keys")
-      .select(["id", "master_user_id", "public_key", "public_key_fingerprint", "status", "created_at"])
+      .select(["id", "master_user_id", "public_key", "label", "public_key_fingerprint", "status", "created_at"])
       .where("master_user_id", "=", masterUserId)
       .orderBy("created_at", "desc")
       .execute();
@@ -54,6 +55,7 @@ export class PostgresUserSshPublicKeyStore implements UserSshPublicKeyStore {
         id: input.id,
         master_user_id: input.masterUserId,
         public_key: input.publicKey,
+        label: input.label,
         public_key_fingerprint: input.publicKeyFingerprint,
         status: input.status,
         created_at: createdAt,
@@ -71,6 +73,7 @@ function toRecord(row: {
   id: string;
   master_user_id: string;
   public_key: string;
+  label: string | null;
   public_key_fingerprint: string | null;
   status: string;
   created_at: string;
@@ -80,6 +83,7 @@ function toRecord(row: {
     id: row.id,
     masterUserId: row.master_user_id,
     publicKey: row.public_key,
+    label: row.label,
     publicKeyFingerprint: row.public_key_fingerprint,
     status: row.status,
     createdAt: row.created_at,

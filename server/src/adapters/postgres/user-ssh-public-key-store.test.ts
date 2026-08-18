@@ -10,7 +10,7 @@ describe("PostgresUserSshPublicKeyStore", () => {
       created_at: "2026-08-14T00:00:00.000Z", updated_at: "2026-08-14T00:00:00.000Z",
     }).execute();
     await db.insertInto("user_ssh_public_keys").values({
-      id: "ssh_1", master_user_id: "usr_1", public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey support-qa",
+      id: "ssh_1", master_user_id: "usr_1", public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey support-qa", label: "Support QA",
       public_key_fingerprint: "SHA256:supportQaKey",
       status: "active", created_at: "2026-08-14T00:00:00.000Z", updated_at: "2026-08-14T00:00:00.000Z",
     }).execute();
@@ -20,6 +20,7 @@ describe("PostgresUserSshPublicKeyStore", () => {
       id: "ssh_1",
       masterUserId: "usr_1",
       publicKey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey support-qa",
+      label: "Support QA",
       publicKeyFingerprint: "SHA256:supportQaKey",
       status: "active",
       createdAt: "2026-08-14T00:00:00.000Z",
@@ -33,6 +34,7 @@ describe("PostgresUserSshPublicKeyStore", () => {
       id: "ssh_1",
       masterUserId: "usr_1",
       publicKey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey octo@host",
+      label: "办公电脑",
       publicKeyFingerprint: "SHA256:keyOne",
       status: "active",
     };
@@ -50,7 +52,7 @@ describe("PostgresUserSshPublicKeyStore", () => {
       created_at: "2026-08-14T00:00:00.000Z", updated_at: "2026-08-14T00:00:00.000Z",
     }).execute();
     await db.insertInto("user_ssh_public_keys").values({
-      id: "ssh_revoked", master_user_id: "usr_1", public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey revoked-key",
+      id: "ssh_revoked", master_user_id: "usr_1", public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey revoked-key", label: null,
       public_key_fingerprint: "SHA256:revokedKey",
       status: "revoked", created_at: "2026-08-14T00:00:00.000Z", updated_at: "2026-08-14T00:00:00.000Z",
     }).execute();
@@ -66,7 +68,7 @@ describe("PostgresUserSshPublicKeyStore", () => {
       created_at: "2026-08-14T00:00:00.000Z", updated_at: "2026-08-14T00:00:00.000Z",
     }).execute();
     await db.insertInto("user_ssh_public_keys").values({
-      id: "ssh_conflict", master_user_id: "usr_conflict", public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey conflict-user-key",
+      id: "ssh_conflict", master_user_id: "usr_conflict", public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey conflict-user-key", label: null,
       public_key_fingerprint: "SHA256:inactiveUserKey",
       status: "active", created_at: "2026-08-14T00:00:00.000Z", updated_at: "2026-08-14T00:00:00.000Z",
     }).execute();

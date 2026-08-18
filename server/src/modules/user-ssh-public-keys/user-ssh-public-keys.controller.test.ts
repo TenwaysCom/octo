@@ -5,6 +5,7 @@ const key = {
   id: "ssh_1",
   masterUserId: "usr_1",
   publicKey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcH octo@host",
+  label: "办公电脑",
   publicKeyFingerprint: "SHA256:vaFtoqR78PmmsE06FLndG8DO/PazyV19x+9o1q0JLLU",
   status: "active",
   createdAt: "2026-08-14T00:00:00.000Z",
@@ -22,7 +23,7 @@ describe("web user SSH public keys controller", () => {
       statusCode: 200,
       body: {
         ok: true,
-        data: { keys: [{ publicKey: key.publicKey, publicKeyFingerprint: key.publicKeyFingerprint, status: "active", createdAt: key.createdAt }] },
+        data: { keys: [{ publicKey: key.publicKey, label: "办公电脑", publicKeyFingerprint: key.publicKeyFingerprint, status: "active", createdAt: key.createdAt }] },
       },
     });
     expect(service.list).toHaveBeenCalledWith("usr_1");
@@ -34,13 +35,13 @@ describe("web user SSH public keys controller", () => {
       service,
       ensureSession: vi.fn().mockResolvedValue({ ok: true, masterUserId: "usr_1", baseUrl: "https://open.larksuite.com", user: {} }),
     });
-    const body = { publicKey: key.publicKey, actionRunId: "7a14aeec-8b94-4df2-9a58-1f7d2c2ab054" };
+    const body = { publicKey: key.publicKey, label: "办公电脑", actionRunId: "7a14aeec-8b94-4df2-9a58-1f7d2c2ab054" };
 
     await expect(controller.register({ cookieHeader: "octo_web_session=session_1", body })).resolves.toMatchObject({
       statusCode: 201,
       body: { ok: true, data: { key: { publicKey: key.publicKey }, actionRunId: body.actionRunId } },
     });
-    expect(service.register).toHaveBeenCalledWith({ masterUserId: "usr_1", publicKey: key.publicKey });
+    expect(service.register).toHaveBeenCalledWith({ masterUserId: "usr_1", publicKey: key.publicKey, label: "办公电脑" });
 
     service.register.mockRejectedValueOnce(new UserSshPublicKeyServiceError("SSH_PUBLIC_KEY_ALREADY_REGISTERED"));
     await expect(controller.register({ cookieHeader: "octo_web_session=session_1", body })).resolves.toMatchObject({

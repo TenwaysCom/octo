@@ -144,6 +144,12 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Fix:** Use the Server's redacted API diagnostics for this investigation; never print or borrow an existing service token for an ad hoc CLI command.
 - **Status:** contained; PR-specific endpoint status was verified from structured Server logs.
 
+## [ERR-20260817-004] tsx-eval-env-path-and-async-wrapper
+
+- **Summary:** A scoped PostgreSQL diagnostic run through `pnpm --dir server exec tsx -e` first used a repo-relative `server/.env` path and top-level `await`, so the environment was not loaded and `tsx` rejected the eval body.
+- **Fix:** Within the package-scoped command, load `.env` relative to `server`, wrap asynchronous code in an async IIFE, and rerun with sandbox approval when `tsx` requires its temporary IPC pipe.
+- **Status:** resolved; the read-only inventory and the scoped sync verification completed without exposing token values.
+
 ## [ERR-20260818-001] zsh-unmatched-diagnostic-glob
 
 - **Summary:** Two read-only searches included unmatched path globs in zsh, so the shell aborted before `rg` ran.

@@ -26,12 +26,12 @@ export async function listUserSshPublicKeys({ apiBaseUrl, fetchImpl = fetch }) {
   return data.keys;
 }
 
-export async function registerUserSshPublicKey({ apiBaseUrl, publicKey, actionRunId, fetchImpl = fetch }) {
+export async function registerUserSshPublicKey({ apiBaseUrl, publicKey, label, actionRunId, fetchImpl = fetch }) {
   const response = await fetchImpl(buildApiUrl(apiBaseUrl, "/web/ssh-public-keys"), {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ publicKey, actionRunId }),
+    body: JSON.stringify({ publicKey, ...(label ? { label } : {}), actionRunId }),
   });
   const data = requireSuccess(response, await readPayload(response), "SSH_PUBLIC_KEY_REGISTER_FAILED");
   if (!data?.key || typeof data.key.publicKey !== "string" || typeof data.key.publicKeyFingerprint !== "string") {

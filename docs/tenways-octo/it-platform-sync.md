@@ -217,7 +217,7 @@ Octo 需要维护的数据一律放入对应的 `_octo` 表。每张表以同一
 
 Support-QA Agent 通过 `POST /api/internal/lark-ticket-ai` 更新该字段，不允许直连 Octo 数据库。接口复用 `server/src/http/internal-signed-request-auth.ts`：调用方只需声明 SSH namespace、预期 HTTP 方法/路径、请求头前缀、CIDR 和按 SSH 公钥指纹查找绑定用户公钥的函数。Ticket AI 实例只接受来自 `OCTO_TICKET_AI_ALLOWED_CIDRS` 的直接 TCP 来源（不信任 `X-Forwarded-For`），并要求请求体 SHA-256、时间戳和唯一 request id 由数据库 `user_ssh_public_keys` 中的 SSH 公钥签名。调用方**不传内部 id 或用户 ID**：服务端从 SSHSIG 内嵌的公钥计算 OpenSSH `SHA256:` 指纹，以该指纹找到用户绑定的活跃公钥，并用该公钥验证签名。`id` 仅是服务端生成的内部主键；`public_key_fingerprint` 是唯一认证索引，且 `master_user_id` 绑定 `users.id`。只有密钥和用户状态都为 `active` 时才会校验；五分钟内拒绝同一指纹/request id 重放。CIDR 或用户密钥绑定缺失时接口 fail closed。它只更新 allow-list 内的 AI 字段，绝不调用 Lark Base API。
 
-`Integrations > SSH Key` 通过有效的 HttpOnly Web session 提供当前用户的公钥列表和新增操作；浏览器只提交单行公钥与 `actionRunId`，不能传入 `master_user_id`、内部 `id` 或任何私钥。服务端从 session 取得用户归属，计算公钥 `SHA256:` 指纹，并以数据库唯一索引做全局查重；重复绑定返回 `409 SSH_PUBLIC_KEY_ALREADY_REGISTERED`，不会泄露现有绑定人。该接口不允许匿名或替其他用户录入。`id` 为服务器生成的内部主键，数据库仍是授权来源。
+`Integrations > SSH Key` 通过有效的 HttpOnly Web session 提供当前用户的公钥列表和新增操作；浏览器只提交单行公钥、可选 `label` 与 `actionRunId`，不能传入 `master_user_id`、内部 `id` 或任何私钥。`label` 仅用于用户识别密钥来源（如办公电脑、CI），不参与认证。服务端从 session 取得用户归属，计算公钥 `SHA256:` 指纹，并以数据库唯一索引做全局查重；重复绑定返回 `409 SSH_PUBLIC_KEY_ALREADY_REGISTERED`，不会泄露现有绑定人。该接口不允许匿名或替其他用户录入。`id` 为服务器生成的内部主键，数据库仍是授权来源。
 
 录入前可用 `ssh-keygen -lf /secure/path/user-key.pub -E sha256` 核对输出中的 `SHA256:...` 指纹。建议每个用户使用独立 key；轮换时先从页面新增新 key，再由受控运维流程将旧 key 的 `status` 改为 `revoked`。下面 SQL 仅用于历史迁移、故障修复或撤销，不用于常规用户新增：
 

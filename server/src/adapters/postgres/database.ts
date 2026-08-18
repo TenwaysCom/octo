@@ -117,6 +117,7 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .addColumn("id", "text", (column) => column.primaryKey())
     .addColumn("master_user_id", "text", (column) => column.notNull())
     .addColumn("public_key", "text", (column) => column.notNull())
+    .addColumn("label", "text")
     .addColumn("public_key_fingerprint", "text", (column) => column.notNull())
     .addColumn("status", "text", (column) => column.notNull())
     .addColumn("created_at", "text", (column) => column.notNull())
@@ -124,6 +125,10 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .execute();
 
   await renameLegacyUserSshPublicKeyIdColumn(db);
+  await sql`
+    ALTER TABLE user_ssh_public_keys
+    ADD COLUMN IF NOT EXISTS label text
+  `.execute(db);
 
   await db.schema
     .createTable("lark_contacts")

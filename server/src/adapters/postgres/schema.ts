@@ -46,6 +46,7 @@ export interface DatabaseSchema {
     id: string;
     master_user_id: string;
     public_key: string;
+    label: string | null;
     public_key_fingerprint: string | null;
     status: string;
     created_at: string;

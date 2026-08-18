@@ -63,6 +63,7 @@ function newActionRunId() {
 function SshPublicKeyCard({ apiBaseUrl }) {
   const [keys, setKeys] = useState();
   const [publicKey, setPublicKey] = useState("");
+  const [label, setLabel] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -84,9 +85,10 @@ function SshPublicKeyCard({ apiBaseUrl }) {
     setSaving(true);
     setError("");
     try {
-      const key = await registerUserSshPublicKey({ apiBaseUrl, publicKey, actionRunId: newActionRunId() });
+      const key = await registerUserSshPublicKey({ apiBaseUrl, publicKey, label: label.trim() || undefined, actionRunId: newActionRunId() });
       setKeys((current) => [key, ...(current ?? [])]);
       setPublicKey("");
+      setLabel("");
     } catch (registerError) {
       setError(sshKeyErrorMessage(registerError));
     } finally {
@@ -105,11 +107,21 @@ function SshPublicKeyCard({ apiBaseUrl }) {
     <p className="profile-card__description">绑定给当前 Octo 用户。只保存公钥；私钥不会上传或保存。</p>
     {keys?.length ? <ul className="ssh-key-card__list" aria-label="当前 SSH 公钥">
       {keys.map((key) => <li key={key.publicKeyFingerprint}>
+        {key.label ? <strong className="ssh-key-card__label">{key.label}</strong> : null}
         <code>{key.publicKey}</code>
         <span>{key.publicKeyFingerprint} · {key.status === "active" ? "有效" : key.status} · {formatDateTime(key.createdAt)}</span>
       </li>)}
     </ul> : keys !== undefined ? <p className="ssh-key-card__empty">尚未添加 SSH 公钥。</p> : null}
     <form className="ssh-key-card__form" onSubmit={(event) => void submit(event)}>
+      <label htmlFor="ssh-key-label">标签（可选）</label>
+      <input
+        id="ssh-key-label"
+        value={label}
+        onChange={(event) => setLabel(event.target.value)}
+        placeholder="例如：办公电脑、CI"
+        maxLength="80"
+        disabled={saving}
+      />
       <label htmlFor="ssh-public-key">新增 SSH 公钥</label>
       <textarea
         id="ssh-public-key"
