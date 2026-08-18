@@ -1553,6 +1553,7 @@ export function createPopupController() {
         nextSettings.SERVER_URL = resolveServerUrl({
           envName: value,
         });
+        nextSettings.LARK_OAUTH_CALLBACK_URL = "";
       }
 
       return {

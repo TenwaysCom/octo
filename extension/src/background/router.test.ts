@@ -1,17 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("./config.js", () => ({
-  getConfig: vi.fn().mockResolvedValue({
-  SERVER_URL: "http://localhost:3000",
-  ENV_NAME: "dev",
-    MEEGLE_PLUGIN_ID: "MEEGLE_PLUGIN_ID",
-    LARK_APP_ID: "cli_test",
-  LARK_OAUTH_CALLBACK_URL: "http://localhost:3000/api/lark/auth/callback",
-  LARK_OAUTH_SCOPE: "offline_access",
-  CLIENT_DEBUG_LOG_UPLOAD_ENABLED: false,
-    MEEGLE_BASE_URL: "https://project.larksuite.com",
-  }),
-}));
+vi.mock("./config.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./config.js")>();
+  return {
+    ...actual,
+    getConfig: vi.fn().mockResolvedValue({
+      SERVER_URL: "http://localhost:3000",
+      ENV_NAME: "dev",
+      MEEGLE_PLUGIN_ID: "MEEGLE_PLUGIN_ID",
+      LARK_APP_ID: "cli_test",
+      LARK_OAUTH_CALLBACK_URL: "http://localhost:3000/api/lark/auth/callback",
+      LARK_OAUTH_SCOPE: "offline_access",
+      CLIENT_DEBUG_LOG_UPLOAD_ENABLED: false,
+      MEEGLE_BASE_URL: "https://project.larksuite.com",
+    }),
+  };
+});
 
 vi.mock("./storage.js", () => ({
   getCachedUserToken: vi.fn().mockResolvedValue(undefined),
@@ -147,6 +151,40 @@ describe("background router lark_base workflow", () => {
       payload: { status: "failed", errorCode: "ENVIRONMENT_MISMATCH" },
     });
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("does not start Lark OAuth when the callback belongs to another environment", async () => {
+    const { getConfig } = await import("./config.js");
+    vi.mocked(getConfig).mockResolvedValueOnce({
+      SERVER_URL: "https://octotest.odoo.tenways.it:18443",
+      ENV_NAME: "test",
+      MEEGLE_PLUGIN_ID: "MEEGLE_PLUGIN_ID",
+      LARK_APP_ID: "cli_test",
+      LARK_OAUTH_CALLBACK_URL: "https://octo.odoo.tenways.it:18443/api/lark/auth/callback",
+      LARK_OAUTH_SCOPE: "offline_access",
+      CLIENT_DEBUG_LOG_UPLOAD_ENABLED: false,
+      MEEGLE_BASE_URL: "https://project.larksuite.com",
+    });
+
+    await expect(routeBackgroundAction({
+      action: "octo.lark.auth.ensure",
+      payload: {
+        requestId: "req_env_mismatch",
+        masterUserId: "usr_plugin",
+        baseUrl: "https://open.larksuite.com",
+      },
+    })).resolves.toEqual({
+      action: "octo.lark.auth.ensure",
+      payload: {
+        status: "failed",
+        baseUrl: "https://open.larksuite.com",
+        masterUserId: "usr_plugin",
+        reason: "LARK_OAUTH_CONFIG_ENVIRONMENT_MISMATCH",
+        errorMessage: "Lark OAuth callback does not match the selected Octo environment. Save and refresh the environment configuration before retrying.",
+      },
+    });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(chrome.tabs.create).not.toHaveBeenCalled();
   });
 
   it("forwards lark_base.create_workitem to the server endpoint", async () => {

@@ -243,6 +243,8 @@ popup 初始化
 
 ```text
 popup 发起 Lark OAuth
+  -> extension 将所选 ENV_NAME/SERVER_URL 保存后，从该 Server 的 /api/config/public 刷新整套公开配置
+  -> extension 只复用来源 Server origin 与当前 SERVER_URL 一致的缓存，并校验 callback 的精确 origin + 路径
   -> extension/background 保存待处理 OAuth 状态
   -> server 创建 OAuth session 并处理 callback
   -> server 从 OAuth user info 读取 `open_id`，并以 `(tenantKey, open_id)` 解析/保存身份和凭据
@@ -306,6 +308,7 @@ sequenceDiagram
 | 无法解析 `masterUserId` | server identity |
 | 缺少 Meegle 绑定 | server identity store |
 | 无法获得 auth code | extension 的 Meegle 页面桥接或平台 |
+| Lark callback 与所选环境不一致 | extension public-config 缓存来源或 server `LARK_OAUTH_CALLBACK_URL` 配置 |
 | token 已过期或刷新失败 | server auth service 或平台 |
 | 动作调用时缺少 `masterUserId` | extension dispatcher |
 

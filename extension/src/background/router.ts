@@ -32,8 +32,12 @@ import {
   savePendingLarkOauthState,
   getStoredMasterUserId,
 } from "./storage.js";
-import { getConfig } from "./config.js";
+import {
+  getConfig,
+  isLarkOAuthCallbackCompatibleWithServer,
+} from "./config.js";
 import { isConfiguredOctoWebOriginAllowed } from "../web-origin-config.js";
+import { normalizeLarkAuthBaseUrl } from "../platform-url.js";
 import { createExtensionLogger } from "../logger.js";
 import {
   checkForUpdate,
@@ -234,6 +238,39 @@ export async function routeBackgroundAction(
   }
 
   if (message.action === "octo.lark.auth.ensure") {
+    const hasRequiredLarkOauthConfig = Boolean(
+      config.LARK_APP_ID && config.LARK_OAUTH_CALLBACK_URL,
+    );
+    const callbackMatchesServer = hasRequiredLarkOauthConfig
+      && isLarkOAuthCallbackCompatibleWithServer({
+        serverUrl: config.SERVER_URL,
+        callbackUrl: config.LARK_OAUTH_CALLBACK_URL,
+      });
+    if (!callbackMatchesServer) {
+      const reason = hasRequiredLarkOauthConfig
+        ? "LARK_OAUTH_CONFIG_ENVIRONMENT_MISMATCH"
+        : "LARK_PUBLIC_CONFIG_UNAVAILABLE";
+      routerLogger.warn("Lark OAuth blocked by invalid environment config", {
+        environmentName: config.ENV_NAME,
+        serverUrl: config.SERVER_URL,
+        reason,
+      });
+      return {
+        action: message.action,
+        payload: {
+          status: "failed",
+          baseUrl: normalizeLarkAuthBaseUrl(
+            message.payload.baseUrl ?? message.payload.pageOrigin,
+          ),
+          masterUserId: message.payload.masterUserId,
+          reason,
+          errorMessage: hasRequiredLarkOauthConfig
+            ? "Lark OAuth callback does not match the selected Octo environment. Save and refresh the environment configuration before retrying."
+            : "Lark OAuth public configuration is unavailable. Refresh the selected Octo environment before retrying.",
+        },
+      };
+    }
+
     const deps: EnsureLarkAuthDeps = {
       getCachedLarkToken: () => cachedLarkToken,
       savePendingLarkOauthState,

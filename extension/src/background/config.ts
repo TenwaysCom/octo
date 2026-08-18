@@ -24,9 +24,15 @@ interface PublicConfigResponse {
   data?: Partial<Pick<ExtensionConfig, "MEEGLE_PLUGIN_ID" | "LARK_APP_ID" | "LARK_OAUTH_CALLBACK_URL" | "MEEGLE_BASE_URL" | "LARK_OAUTH_SCOPE" | "CLIENT_DEBUG_LOG_UPLOAD_ENABLED">>;
 }
 
+interface StoredExtensionConfig extends Partial<ExtensionConfig> {
+  PUBLIC_CONFIG_SOURCE_SERVER_ORIGIN?: string;
+}
+
 export const SERVER_URLS = OCTO_SERVER_URLS;
 
 export type EnvironmentName = OctoEnvironmentName;
+
+const LARK_OAUTH_CALLBACK_PATH = "/api/lark/auth/callback";
 
 export const DEFAULT_CONFIG: ExtensionConfig = {
   ENV_NAME: "prod",
@@ -45,6 +51,36 @@ export function isEnvironmentName(value: unknown): value is EnvironmentName {
 
 function isDefaultServerUrl(value: string): boolean {
   return Object.values(SERVER_URLS).includes(value as (typeof SERVER_URLS)[EnvironmentName]);
+}
+
+function getServerOrigin(value: string | undefined): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  try {
+    return new URL(value).origin;
+  } catch {
+    return undefined;
+  }
+}
+
+export function isLarkOAuthCallbackCompatibleWithServer(input: {
+  serverUrl: string;
+  callbackUrl: string;
+}): boolean {
+  try {
+    const serverUrl = new URL(input.serverUrl);
+    const callbackUrl = new URL(input.callbackUrl);
+    return (
+      callbackUrl.origin === serverUrl.origin
+      && callbackUrl.pathname === LARK_OAUTH_CALLBACK_PATH
+      && callbackUrl.search === ""
+      && callbackUrl.hash === ""
+    );
+  } catch {
+    return false;
+  }
 }
 
 export function resolveServerUrl(input: {
@@ -94,19 +130,41 @@ function mergePublicConfig(
 }
 
 export async function getConfig(): Promise<ExtensionConfig> {
-  const storedValues = await new Promise<Partial<ExtensionConfig>>((resolve) => {
+  const storedValues = await new Promise<StoredExtensionConfig>((resolve) => {
     chrome.storage.sync.get(null, (result) => {
-      resolve((result ?? {}) as Partial<ExtensionConfig>);
+      resolve((result ?? {}) as StoredExtensionConfig);
     });
   });
+  const resolvedServerUrl = resolveServerUrl({
+    envName: storedValues.ENV_NAME,
+    serverUrl: storedValues.SERVER_URL,
+  });
+  const resolvedServerOrigin = getServerOrigin(resolvedServerUrl);
+  const storedPublicConfigMatchesServer = storedValues.PUBLIC_CONFIG_SOURCE_SERVER_ORIGIN
+    ? storedValues.PUBLIC_CONFIG_SOURCE_SERVER_ORIGIN === resolvedServerOrigin
+    : isLarkOAuthCallbackCompatibleWithServer({
+        serverUrl: resolvedServerUrl,
+        callbackUrl: storedValues.LARK_OAUTH_CALLBACK_URL ?? "",
+      });
+  const {
+    PUBLIC_CONFIG_SOURCE_SERVER_ORIGIN: _storedPublicConfigSourceServerOrigin,
+    ...storedExtensionConfig
+  } = storedValues;
   const resolvedStoredConfig: ExtensionConfig = {
     ...DEFAULT_CONFIG,
-    ...storedValues,
+    ...storedExtensionConfig,
+    ...(!storedPublicConfigMatchesServer
+      ? {
+          MEEGLE_PLUGIN_ID: "",
+          LARK_APP_ID: "",
+          LARK_OAUTH_CALLBACK_URL: "",
+          LARK_OAUTH_SCOPE: DEFAULT_CONFIG.LARK_OAUTH_SCOPE,
+          CLIENT_DEBUG_LOG_UPLOAD_ENABLED: false,
+          MEEGLE_BASE_URL: DEFAULT_CONFIG.MEEGLE_BASE_URL,
+        }
+      : {}),
     ENV_NAME: isEnvironmentName(storedValues.ENV_NAME) ? storedValues.ENV_NAME : DEFAULT_CONFIG.ENV_NAME,
-    SERVER_URL: resolveServerUrl({
-      envName: storedValues.ENV_NAME,
-      serverUrl: storedValues.SERVER_URL,
-    }),
+    SERVER_URL: resolvedServerUrl,
   };
 
   try {
@@ -123,6 +181,15 @@ export async function getConfig(): Promise<ExtensionConfig> {
     }
 
     const mergedConfig = mergePublicConfig(resolvedStoredConfig, payload.data);
+    if (
+      !mergedConfig.LARK_APP_ID
+      || !isLarkOAuthCallbackCompatibleWithServer({
+        serverUrl: mergedConfig.SERVER_URL,
+        callbackUrl: mergedConfig.LARK_OAUTH_CALLBACK_URL,
+      })
+    ) {
+      return resolvedStoredConfig;
+    }
     const publicConfigUpdates = {
       MEEGLE_PLUGIN_ID: trimOrUndefined(payload.data?.MEEGLE_PLUGIN_ID),
       LARK_APP_ID: trimOrUndefined(payload.data?.LARK_APP_ID),
@@ -133,6 +200,7 @@ export async function getConfig(): Promise<ExtensionConfig> {
           ? payload.data.CLIENT_DEBUG_LOG_UPLOAD_ENABLED
           : undefined,
       MEEGLE_BASE_URL: trimOrUndefined(payload.data?.MEEGLE_BASE_URL),
+      PUBLIC_CONFIG_SOURCE_SERVER_ORIGIN: resolvedServerOrigin,
     };
 
     if (
