@@ -611,11 +611,29 @@ h1 {
 .ticket-description { max-width: 720px; margin: 0; color: var(--octo-text); font-size: 14px; line-height: 1.75; white-space: pre-wrap; }
 .ticket-description--empty, .ticket-section-empty { color: var(--octo-text-muted); }
 .ticket-section-empty { margin: 0; font-size: 13px; }
-.ticket-ai-data__fields { display: grid; gap: 9px; margin: 0; }
-.ticket-ai-data__fields > div { display: grid; grid-template-columns: minmax(120px, 180px) minmax(0, 1fr); gap: 14px; padding: 10px 0; border-bottom: 1px solid color-mix(in srgb, var(--octo-border) 70%, transparent); }
-.ticket-ai-data__fields > div:last-child { border-bottom: 0; }
-.ticket-ai-data__fields dt { color: var(--octo-text-muted); font-size: 12px; font-weight: 650; }
-.ticket-ai-data__fields dd { min-width: 0; margin: 0; color: var(--octo-text); font-size: 13px; line-height: 1.55; white-space: pre-wrap; word-break: break-word; }
+.ticket-ai-overview { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.ticket-ai-overview-card { display: grid; min-height: 122px; grid-template-rows: auto minmax(0, 1fr) auto; gap: 8px; padding: 14px; border: 1px solid var(--octo-border); border-radius: 10px; cursor: pointer; text-align: left; transition: border-color 160ms ease, background 160ms ease; }
+.ticket-ai-overview-card--filled { border-color: #a8d6bc; background: #f2fbf5; }
+.ticket-ai-overview-card--filled:hover, .ticket-ai-overview-card--filled[aria-expanded="true"] { border-color: #5da977; background: #eaf8ef; }
+.ticket-ai-overview-card--empty { color: var(--octo-text-muted); background: var(--octo-surface-muted); }
+.ticket-ai-overview-card--empty:hover, .ticket-ai-overview-card--empty[aria-expanded="true"] { border-color: #aeb8c5; background: #f3f5f7; }
+.ticket-ai-overview-card__heading { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.ticket-ai-overview-card__heading strong { color: var(--octo-text); font-size: 13px; }
+.ticket-ai-overview-card__heading small { color: inherit; font-size: 11px; font-weight: 650; }
+.ticket-ai-overview-card--filled .ticket-ai-overview-card__heading small { color: #267340; }
+.ticket-ai-overview-card__summary { display: -webkit-box; overflow: hidden; color: var(--octo-text-muted); font-size: 12px; line-height: 1.5; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.ticket-ai-overview-card--filled .ticket-ai-overview-card__summary { color: #355244; }
+.ticket-ai-overview-card__toggle { color: inherit; font-size: 11px; font-weight: 700; }
+.ticket-ai-overview-card--filled .ticket-ai-overview-card__toggle { color: #267340; }
+.ticket-ai-section-detail { margin-top: 12px; padding: 16px; border: 1px solid var(--octo-border); border-radius: 10px; background: var(--octo-surface); }
+.ticket-ai-section-detail__heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.ticket-ai-section-detail__heading h3 { margin: 0; color: var(--octo-text); font-size: 13px; }
+.ticket-ai-section-detail__heading span { color: var(--octo-text-muted); font-size: 11px; }
+.ticket-ai-section-detail__fields { display: grid; gap: 9px; margin: 0; }
+.ticket-ai-section-detail__fields > div { display: grid; grid-template-columns: minmax(120px, 180px) minmax(0, 1fr); gap: 14px; padding: 10px 0; border-bottom: 1px solid color-mix(in srgb, var(--octo-border) 70%, transparent); }
+.ticket-ai-section-detail__fields > div:last-child { border-bottom: 0; }
+.ticket-ai-section-detail__fields dt { color: var(--octo-text-muted); font-size: 12px; font-weight: 650; }
+.ticket-ai-section-detail__fields dd { min-width: 0; margin: 0; color: var(--octo-text); font-size: 13px; line-height: 1.55; white-space: pre-wrap; word-break: break-word; }
 .ticket-resource-list { display: flex; flex-wrap: wrap; gap: 9px; }
 .ticket-resource { display: inline-flex; align-items: center; gap: 6px; min-height: 31px; padding: 5px 10px; border: 1px solid var(--octo-border); border-radius: 7px; color: var(--octo-text); background: var(--octo-surface); font-size: 12px; font-weight: 650; text-decoration: none; }
 .ticket-resource:hover { border-color: var(--octo-brand); color: var(--octo-brand); background: color-mix(in srgb, var(--octo-brand) 5%, var(--octo-surface)); }
@@ -710,6 +728,7 @@ h1 {
   .ticket-detail__properties { position: static; padding: 22px; border: 1px solid var(--octo-border); border-radius: 12px; background: var(--octo-surface); }
   .ticket-detail__properties dl { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
   .ticket-ai-drawer { width: min(100%, 510px); }
+  .ticket-ai-overview { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 480px) {

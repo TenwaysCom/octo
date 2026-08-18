@@ -4,6 +4,7 @@ import { LarkTicketBadge } from "../components/lark-ticket/LarkTicketBadge.jsx";
 import { LarkTicketResponsible } from "../components/lark-ticket/LarkTicketResponsible.jsx";
 import { appendAiSessionEvent, createAiUserMessage, transcriptFromAiSessionEvents } from "../lib/ai-session-transcript.js";
 import { formatDateTime } from "../lib/formatters.js";
+import { getTicketAiSections } from "../lib/ticket-ai-sections.js";
 import { listLarkTicketAiSessions, loadLarkTicketAiSession, streamLarkTicketAiSession } from "../services/lark-ticket-ai/lark-ticket-ai-api.js";
 import { loadLarkTicketSharedUrl } from "../services/lark-ticket/lark-ticket-api.js";
 import { getPlatformDataList } from "../services/platform-data/platform-data-api.js";
@@ -51,6 +52,7 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
   const [drawer, setDrawer] = useState(null);
   const [drawerDraft, setDrawerDraft] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
+  const [expandedTicketAiSectionId, setExpandedTicketAiSectionId] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -195,7 +197,8 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
     [ticket.larkMessageLink, "关联 Lark 消息"],
     [ticket.meegleLink, "关联 Meegle 工作项"],
   ].filter(([href]) => href);
-  const ticketAiFields = Object.entries(ticket.ticketAi?.fields || {});
+  const ticketAiSections = getTicketAiSections(ticket.ticketAi?.fields);
+  const hasTicketAiData = ticketAiSections.some((section) => section.hasData);
 
   return <WorkspaceShell user={profile.user ?? {}} workspaceAccess={profile.workspaceAccess} activePage="lark-tickets" onLogout={onLogout} isBusy={isBusy} breadcrumbs={breadcrumbs}>
     <main className="profile-main ticket-detail-page">
@@ -219,8 +222,28 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
           </section>
 
           <section className="ticket-detail-section ticket-ai-data">
-            <div className="ticket-section-heading"><h2>Ticket AI</h2><span>{ticketAiFields.length ? "Octo 本地记录" : "暂无记录"}</span></div>
-            {ticketAiFields.length ? <dl className="ticket-ai-data__fields">{ticketAiFields.map(([name, value]) => <div key={name}><dt>{name}</dt><dd>{formatTicketAiValue(value)}</dd></div>)}</dl> : <p className="ticket-section-empty">历史 AI 数据回填或新的 AI 分析完成后会显示在这里。</p>}
+            <div className="ticket-section-heading"><h2>Ticket AI</h2><span>{hasTicketAiData ? "Octo 本地记录" : "暂无记录"}</span></div>
+            <div className="ticket-ai-overview" aria-label="Ticket AI 概览">
+              {ticketAiSections.map((section) => {
+                const expanded = expandedTicketAiSectionId === section.id;
+                return <button
+                  className={`ticket-ai-overview-card ${section.hasData ? "ticket-ai-overview-card--filled" : "ticket-ai-overview-card--empty"}`}
+                  type="button"
+                  key={section.id}
+                  aria-expanded={expanded}
+                  aria-controls={`ticket-ai-section-${section.id}`}
+                  onClick={() => setExpandedTicketAiSectionId((current) => current === section.id ? null : section.id)}
+                >
+                  <span className="ticket-ai-overview-card__heading"><strong>{section.title}</strong><small>{section.hasData ? "已生成" : "暂无数据"}</small></span>
+                  <span className="ticket-ai-overview-card__summary">{section.summary.length ? section.summary.map((item) => formatTicketAiValue(item.value)).join(" · ") : section.emptyMessage}</span>
+                  <span className="ticket-ai-overview-card__toggle" aria-hidden="true">{expanded ? "收起" : "查看"}</span>
+                </button>;
+              })}
+            </div>
+            {ticketAiSections.map((section) => expandedTicketAiSectionId === section.id ? <div className="ticket-ai-section-detail" id={`ticket-ai-section-${section.id}`} key={section.id}>
+              <div className="ticket-ai-section-detail__heading"><h3>{section.title}</h3><span>{section.hasData ? `${section.items.length} 项信息` : "暂无数据"}</span></div>
+              {section.hasData ? <dl className="ticket-ai-section-detail__fields">{section.items.map((item) => <div key={item.name}><dt>{item.name}</dt><dd>{formatTicketAiValue(item.value)}</dd></div>)}</dl> : <p className="ticket-section-empty">{section.emptyMessage}</p>}
+            </div> : null)}
           </section>
 
           <section className="ticket-detail-section ticket-ai-sessions">
