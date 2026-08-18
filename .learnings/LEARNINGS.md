@@ -230,3 +230,21 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - **Context:** Ticket AI internal SSHSIG authentication needed a usable way for the authenticated owner to register a signing public key without reviving client-supplied user or key identifiers.
 - **Rule:** Expose only a Web-session-scoped key list and create endpoint. Derive the owner from the opaque session, normalize and fingerprint the one-line public key server-side, and enforce a global fingerprint uniqueness constraint with an insert-time race fallback. Return public key metadata only; never accept, store, return, or log private material, the internal `id`, or another user's identity. Keep `id` as a server-generated row primary key only; it has no authentication or caller-visible meaning, and migrate the legacy `key_id` column in place.
 - **Verified outcome:** Store, service, controller, internal fingerprint, API-auth exemption, and FE API tests cover session ownership, malformed input, typed duplicate rejection, browser-cookie requests, and the legacy primary-key rename; 516 server tests plus FE tests and both builds pass.
+
+## [LRN-20260817-001] lark-list-record-reuse
+
+- **Context:** Lark incremental sync already received complete candidate records from List but then serially called Get for every record, causing 40 redundant reads and a proxy timeout.
+- **Rule:** When a paginated Lark response has the same canonical `record_id`, accessible `fields`, and required automatic timestamps as Get, write and clean that record directly. Keep optional resources such as `shared_url` in their explicit Batch Get/on-demand path; do not retain an N+1 read to obtain data it does not guarantee.
+- **Verified outcome:** Official contracts, SDK 1.63.1 types, existing full-sync behavior, and a redacted three-record live comparison agree; all three samples had the same 68 fields and timestamps, while neither List nor the current Get returned a shared URL.
+
+## [LRN-20260817-002] github-pr-odoo-web-session-boundary
+
+- **Context:** A plugin user could have ready Lark and Meegle platform authorization while the GitHub PR Odoo.sh badge endpoint returned `401 UNAUTHENTICATED`.
+- **Rule:** Diagnose `/api/web/github-pr-odoo-devops-build` through its opaque `octo_web_session` cookie. The endpoint does not use the extension's `master-user-id` identity and does not check a per-user Odoo.sh role; upstream GitHub and Odoo DevOps access use Server-wide credentials after the Web session succeeds.
+- **Verified outcome:** PR 1163 requests repeatedly returned immediate `401 UNAUTHENTICATED`; an authenticated request later returned `200`, proving the upstream services were configured and reachable.
+
+## [LRN-20260818-001] extension-environment-config-coherence
+
+- **Context:** The extension can display `ENV_NAME=test` and use the test `SERVER_URL` while retaining a separately persisted production `LARK_OAUTH_CALLBACK_URL`.
+- **Rule:** Treat environment-scoped public configuration as one coherent snapshot. Do not persist callback/app/scope values without environment or server-origin provenance, and fail closed before OAuth when the callback origin does not match the selected server origin.
+- **Verified outcome:** The extension now invalidates cross-environment public config, refreshes and records the selected Server origin after save, and blocks OAuth on a mismatched callback. All 280 Extension tests, typecheck, and the production build pass.

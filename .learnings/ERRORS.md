@@ -122,3 +122,51 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Error:** Unrelated environment failures appeared for unavailable `node:sqlite` suites and the logger file timing test, even though the platform-data controller tests passed.
 - **Fix:** Use `pnpm --dir server exec vitest run <test-file>` for an exact focused run, then execute the Server build separately.
 - **Status:** resolved; all 5 platform-data controller tests and the Server TypeScript build pass.
+
+## [ERR-20260817-001] list-get-diagnostic-tsx-entrypoint
+
+- **Summary:** The first read-only List/Get comparison used top-level `await` in `tsx -e`, which is compiled as CJS in this project.
+- **Error:** `Top-level await is currently not supported with the "cjs" output format`.
+- **Fix:** Invoke an async function and attach `.catch(...)`; do not use top-level `await` in `tsx -e` diagnostics.
+- **Status:** resolved; the corrected diagnostic compared three records without exposing payloads or credentials.
+
+## [ERR-20260817-002] hv-pdf-python-environment
+
+- **Summary:** The report conversion check assumed a `python` alias and preinstalled WeasyPrint dependencies.
+- **Error:** `python: command not found`, followed by `ModuleNotFoundError: No module named 'weasyprint'` under `python3`.
+- **Fix:** Use `python3` and install report-only dependencies under `/tmp`, then pass that directory through `PYTHONPATH`; do not add them to project dependencies.
+- **Status:** resolved; the 12-page A4 PDF rendered successfully and its wide comparison table was visually corrected.
+
+## [ERR-20260817-003] private-pr-gh-cli-auth
+
+- **Summary:** A read-only attempt to inspect a private GitHub PR with `gh pr view` assumed the local CLI had GitHub credentials.
+- **Error:** `gh` requested `gh auth login` or a `GH_TOKEN`.
+- **Fix:** Use the Server's redacted API diagnostics for this investigation; never print or borrow an existing service token for an ad hoc CLI command.
+- **Status:** contained; PR-specific endpoint status was verified from structured Server logs.
+
+## [ERR-20260818-001] zsh-unmatched-diagnostic-glob
+
+- **Summary:** Two read-only searches included unmatched path globs in zsh, so the shell aborted before `rg` ran.
+- **Error:** `zsh: no matches found` for `.env*` and `docker-compose*`.
+- **Fix:** Search known directories directly or enumerate optional files with `find`; do not pass optional unmatched globs to zsh diagnostics.
+- **Status:** resolved with explicit paths and `find`.
+
+## [ERR-20260818-002] auth-log-overbroad-search
+
+- **Summary:** An auth diagnostic searched raw application logs broadly and surfaced user-profile fields that were not needed for callback routing analysis.
+- **Fix:** Restrict auth-flow diagnostics to structured API logs and extract only time, phase, method, path, and status with `jq`; never print application response payloads or user-profile fields.
+- **Status:** contained; subsequent diagnostics used the documented non-sensitive request-field filter only.
+
+## [ERR-20260818-003] extension-verification-dependencies-missing
+
+- **Summary:** Extension test and typecheck commands could not start because `extension/node_modules` was absent; borrowing Server binaries also failed because Vite resolved config dependencies and temp paths from the wrong package.
+- **Error:** `Command "vitest" not found`, `tsc: not found`, Vite `.vite-temp` `ENOENT`, and missing `vitest/config`.
+- **Fix:** Install the Extension's existing frozen lockfile with approval, then run package-scoped `typecheck`, `test`, and `build` commands normally.
+- **Status:** resolved; the lockfile stayed unchanged and all Extension verification passed.
+
+## [ERR-20260818-004] router-config-whole-module-mock
+
+- **Summary:** The first router regression run failed because its whole-module config mock did not expose the new callback compatibility function.
+- **Error:** Vitest reported no `isLarkOAuthCallbackCompatibleWithServer` export on the `./config.js` mock.
+- **Fix:** Use a partial mock that preserves actual config exports and replaces only `getConfig`.
+- **Status:** resolved; focused and full test suites pass.
