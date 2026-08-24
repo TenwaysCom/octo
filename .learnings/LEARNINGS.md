@@ -248,3 +248,9 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - **Context:** The extension can display `ENV_NAME=test` and use the test `SERVER_URL` while retaining a separately persisted production `LARK_OAUTH_CALLBACK_URL`.
 - **Rule:** Treat environment-scoped public configuration as one coherent snapshot. Do not persist callback/app/scope values without environment or server-origin provenance, and fail closed before OAuth when the callback origin does not match the selected server origin.
 - **Verified outcome:** The extension now invalidates cross-environment public config, refreshes and records the selected Server origin after save, and blocks OAuth on a mismatched callback. All 280 Extension tests, typecheck, and the production build pass.
+
+## [LRN-20260824-001] acp-permission-real-wire-contract
+
+- **Context:** Ticket quick actions had the correct `shell` or `write+shell` Session snapshot but Kimi ACP 0.22 permission requests omitted `rawInput` and used current tool titles, so the old matcher denied them.
+- **Rule:** Treat the observed ACP permission payload as a versioned security contract. Parse only exact known command text and diff path shapes, preserve legacy `rawInput` compatibility, match current and legacy tool names, and keep a real-shape fixture in policy tests. A prompt, policy enum, or synthetic `rawInput` test alone does not prove runtime permission compatibility.
+- **Verified outcome:** Focused action-catalog, Session, proxy, and permission tests pass for Kimi `Shell` and file diff requests, including fail-closed mismatch and `/tmp/support-qa/` path traversal/symlink cases; Server build passes.

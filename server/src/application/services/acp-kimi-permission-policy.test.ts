@@ -1,24 +1,52 @@
 import type { RequestPermissionRequest } from "@agentclientprotocol/sdk";
+import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { createAcpKimiPermissionHandler } from "./acp-kimi-permission-policy.js";
 
 function permissionRequest(input: {
   title?: string;
   rawInput?: unknown;
+  content?: RequestPermissionRequest["toolCall"]["content"];
+  options?: RequestPermissionRequest["options"];
 } = {}): RequestPermissionRequest {
+  const rawInput = Object.prototype.hasOwnProperty.call(input, "rawInput")
+    ? input.rawInput
+    : {
+        command: "bash .agents/skills/write-support-qa/scripts/write-support-qa.sh fetch LT-10 --json",
+      };
   return {
     sessionId: "session_1",
-    options: [
+    options: input.options ?? [
       { optionId: "allow-once", name: "Allow once", kind: "allow_once" },
       { optionId: "deny", name: "Deny", kind: "reject_once" },
     ],
     toolCall: {
       toolCallId: "tool_1",
       title: input.title ?? "Bash",
-      rawInput: input.rawInput ?? {
-        command: "bash .agents/skills/write-support-qa/scripts/write-support-qa.sh fetch LT-10 --json",
-      },
+      rawInput,
+      ...(input.content ? { content: input.content } : {}),
     },
   } as RequestPermissionRequest;
+}
+
+function kimiCommandPermissionRequest(command: string): RequestPermissionRequest {
+  return permissionRequest({
+    title: "Shell: write-support-qa.sh",
+    rawInput: null,
+    content: [{
+      type: "content",
+      content: {
+        type: "text",
+        text: `Requesting approval to perform: Run command \`${command}\``,
+      },
+    }],
+    options: [
+      { optionId: "approve", name: "Approve once", kind: "allow_once" },
+      { optionId: "approve_for_session", name: "Approve for this session", kind: "allow_always" },
+      { optionId: "reject", name: "Reject", kind: "reject_once" },
+    ],
+  });
 }
 
 describe("acp kimi permission policy", () => {
@@ -46,6 +74,18 @@ describe("acp kimi permission policy", () => {
     }))).resolves.toEqual({ outcome: { outcome: "cancelled" } });
   });
 
+  it("reads the command from the real Kimi ACP permission content shape", async () => {
+    const handler = createAcpKimiPermissionHandler(shellContext);
+    const command = "bash .agents/skills/write-support-qa/scripts/write-support-qa.sh fetch LT-10 --json";
+
+    await expect(handler(kimiCommandPermissionRequest(command))).resolves.toEqual({
+      outcome: { outcome: "selected", optionId: "approve" },
+    });
+    await expect(handler(kimiCommandPermissionRequest(`${command}; pwd`))).resolves.toEqual({
+      outcome: { outcome: "cancelled" },
+    });
+  });
+
   it("allows only Support-QA document writes for write+shell policy", async () => {
     const handler = createAcpKimiPermissionHandler({
       ...shellContext,
@@ -63,6 +103,67 @@ describe("acp kimi permission policy", () => {
       title: "Write",
       rawInput: { path: "../../.ssh/config", content: "draft" },
     }))).resolves.toEqual({ outcome: { outcome: "cancelled" } });
+  });
+
+  it("allows only direct, regular JSON files in the Support-QA temp directory", async () => {
+    const testRoot = await mkdtemp(join(tmpdir(), "octo-acp-permission-"));
+    const supportQaTempDir = join(testRoot, "support-qa");
+    await mkdir(supportQaTempDir);
+    const updatePath = join(supportQaTempDir, "support-qa-LT-10-update.json");
+    const symlinkPath = join(supportQaTempDir, "linked-update.json");
+    const outsidePath = join(testRoot, "outside.json");
+    await writeFile(outsidePath, "{}\n");
+    await symlink(outsidePath, symlinkPath);
+
+    try {
+      const handler = createAcpKimiPermissionHandler({
+        ...shellContext,
+        executionPolicy: "write+shell",
+        skillId: "support_qa_write",
+      }, { supportQaTempDir });
+
+      await expect(handler(permissionRequest({
+        title: "WriteFile: support-qa-LT-10-update.json",
+        rawInput: null,
+        content: [{ type: "diff", path: updatePath, oldText: "", newText: "{}" }],
+      }))).resolves.toEqual({ outcome: { outcome: "selected", optionId: "allow-once" } });
+      await expect(handler(permissionRequest({
+        title: "Write",
+        rawInput: { path: join(supportQaTempDir, "update.txt"), content: "{}" },
+      }))).resolves.toEqual({ outcome: { outcome: "cancelled" } });
+      await expect(handler(permissionRequest({
+        title: "Write",
+        rawInput: { path: join(supportQaTempDir, "nested", "update.json"), content: "{}" },
+      }))).resolves.toEqual({ outcome: { outcome: "cancelled" } });
+      await expect(handler(permissionRequest({
+        title: "Write",
+        rawInput: { path: symlinkPath, content: "{}" },
+      }))).resolves.toEqual({ outcome: { outcome: "cancelled" } });
+
+      await writeFile(updatePath, "{}\n");
+      await expect(handler(permissionRequest({
+        rawInput: { command: `cat ${updatePath}` },
+      }))).resolves.toEqual({ outcome: { outcome: "selected", optionId: "allow-once" } });
+      await expect(handler(permissionRequest({
+        title: "Shell",
+        rawInput: null,
+        content: [{
+          type: "content",
+          content: {
+            type: "text",
+            text: `Requesting approval to perform: Run command \`bash .agents/skills/write-support-qa/scripts/write-support-qa.sh update ${updatePath} --dry-run --json\``,
+          },
+        }],
+      }))).resolves.toEqual({ outcome: { outcome: "selected", optionId: "allow-once" } });
+      await expect(handler(permissionRequest({
+        rawInput: { command: `bash .agents/skills/write-support-qa/scripts/write-support-qa.sh update ${symlinkPath} --json` },
+      }))).resolves.toEqual({ outcome: { outcome: "cancelled" } });
+      await expect(handler(permissionRequest({
+        rawInput: { command: `bash .agents/skills/write-support-qa/scripts/write-support-qa.sh update ${outsidePath} --json` },
+      }))).resolves.toEqual({ outcome: { outcome: "cancelled" } });
+    } finally {
+      await rm(testRoot, { recursive: true, force: true });
+    }
   });
 
   it("keeps read_only, full, and missing contexts fail-closed", async () => {

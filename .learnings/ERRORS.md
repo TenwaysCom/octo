@@ -183,3 +183,9 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Error:** Vitest reported no `isLarkOAuthCallbackCompatibleWithServer` export on the `./config.js` mock.
 - **Fix:** Use a partial mock that preserves actual config exports and replaces only `getConfig`.
 - **Status:** resolved; focused and full test suites pass.
+
+## [ERR-20260824-001] acp-wire-log-sensitive-output
+
+- **Summary:** A broad diagnostic over a raw ACP wire/script context printed a credential-bearing command argument that was not needed to diagnose permission routing.
+- **Fix:** Never print raw ACP wire lines, response bodies, or complete tool commands during permission diagnostics. Parse only an allow-list of safe fields such as event type, normalized tool name, policy, decision, and offered option kinds; redact command arguments before output.
+- **Status:** contained; later policy logging records only the normalized tool name and option kinds, without the command or full title.

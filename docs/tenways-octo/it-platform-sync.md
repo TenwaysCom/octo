@@ -79,11 +79,13 @@ Lark Ticket 详情页可基于当前同步快照的标题、描述与资源创�
 | `executionPolicy` | 当前行为 |
 | --- | --- |
 | `read_only` | 不批准敏感 ACP 工具调用；这是未绑定 action 的默认行为。 |
-| `shell` | 仅一次性批准当前 Ticket 的 Support-QA `fetch --json` 包装命令，以及指定 Skill/知识库目录的受限读取。 |
-| `write+shell` | 在 `shell` 基础上，仅允许 Support-QA 文档目录写入及受限 `update` 包装命令。 |
+| `shell` | 仅一次性批准当前 Ticket 的 Support-QA `fetch --json` 包装命令，以及指定 Skill/知识库目录和 `/tmp/support-qa/` 直接子级 JSON 的受限读取。 |
+| `write+shell` | 在 `shell` 基础上，仅允许 Support-QA 文档目录写入、`/tmp/support-qa/` 直接子级 JSON 写入及使用该 JSON 的受限 `update` 包装命令。 |
 | `full` | 预留给未来的逐次人工确认；当前没有确认桥接时仍拒绝，绝不自动放行。 |
 
-每次 Kimi 发起 ACP `session/request_permission`，Server 都基于 Session 快照重新判断并最多选择 Kimi 提供的 `allow_once` 选项；不会使用 `allow_always`。Shell 命令含控制操作符、路径越出 workspace、动作/Skill/Profile 不匹配，均拒绝。此策略是授权拦截层，不替代生产环境的专用运行账号、受限工作目录和最小 Lark CLI 身份。
+每次 Kimi 发起 ACP `session/request_permission`，Server 都基于 Session 快照重新判断并最多选择 Kimi 提供的 `allow_once` 选项；不会使用 `allow_always`。Shell 命令含控制操作符、路径越出 workspace、动作/Skill/Profile 不匹配，均拒绝。临时 JSON 只允许位于 `/tmp/support-qa/` 第一层，扩展名必须为 `.json`；目录或目标文件是符号链接、文件越过该目录、嵌套子目录或 update 目标不是已有普通文件时均拒绝。此策略是授权拦截层，不替代生产环境的专用运行账号、受限工作目录和最小 Lark CLI 身份。
+
+权限匹配必须兼容 Kimi ACP 的真实 `ToolCallUpdate`：新版 Kimi 可能不提供 `rawInput`，Shell 命令位于严格格式的 text `content`，文件写入目标位于 diff `content.path`；Server 只从这些已知结构提取命令或路径，并同时兼容旧版 `rawInput`。测试必须保留一组真实 Kimi permission shape fixture，不能只用人为构造的 `rawInput` 证明策略可用。
 
 对话正文、思考过程和工具调用由 Kimi CLI 在运行 Server 的机器上持久化，默认目录结构如下：
 

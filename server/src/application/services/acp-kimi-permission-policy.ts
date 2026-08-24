@@ -2,7 +2,8 @@ import type {
   RequestPermissionRequest,
   RequestPermissionResponse,
 } from "@agentclientprotocol/sdk";
-import { isAbsolute, relative, resolve } from "node:path";
+import { lstat } from "node:fs/promises";
+import { dirname, extname, isAbsolute, relative, resolve } from "node:path";
 import type { AutomationExecutionPolicy } from "../../modules/public-config/public-config.controller.js";
 import { logger } from "../../logger.js";
 
@@ -22,19 +23,27 @@ export type AcpKimiPermissionHandler = (
   params: RequestPermissionRequest,
 ) => Promise<RequestPermissionResponse>;
 
+interface AcpKimiPermissionPolicyDeps {
+  supportQaTempDir?: string;
+}
+
 const CANCELLED: RequestPermissionResponse = {
   outcome: { outcome: "cancelled" },
 };
+const SUPPORT_QA_TEMP_DIR = "/tmp/support-qa";
 
 export function createAcpKimiPermissionHandler(
   context: AcpKimiPermissionContext | undefined,
+  deps: AcpKimiPermissionPolicyDeps = {},
 ): AcpKimiPermissionHandler {
+  const supportQaTempDir = deps.supportQaTempDir ?? SUPPORT_QA_TEMP_DIR;
   return async (params) => {
     const policy = context?.executionPolicy ?? "read_only";
     const allowed = policy === "shell"
-      ? allowsReadOnlyShell(params, context)
+      ? await allowsReadOnlyShell(params, context, supportQaTempDir)
       : policy === "write+shell"
-        ? allowsReadOnlyShell(params, context) || allowsRestrictedWrite(params, context)
+        ? await allowsReadOnlyShell(params, context, supportQaTempDir)
+          || await allowsRestrictedWrite(params, context, supportQaTempDir)
         : false;
     const allowOnce = allowed
       ? params.options.find((option) => option.kind === "allow_once")
@@ -44,9 +53,16 @@ export function createAcpKimiPermissionHandler(
       sessionId: params.sessionId,
       actionKey: context?.actionKey ?? null,
       executionPolicy: policy,
-      toolTitle: params.toolCall.title,
+      toolName: getToolName(params.toolCall.title),
       decision: allowOnce ? "allow_once" : "cancelled",
-      reason: allowOnce ? "policy_match" : policy === "full" ? "interactive_confirmation_required" : "policy_denied",
+      reason: allowOnce
+        ? "policy_match"
+        : allowed
+          ? "allow_once_not_offered"
+          : policy === "full"
+            ? "interactive_confirmation_required"
+            : "policy_denied",
+      offeredOptionKinds: params.options.map((option) => option.kind),
     }, "ACP_KIMI_PERMISSION DECISION");
 
     return allowOnce
@@ -55,44 +71,43 @@ export function createAcpKimiPermissionHandler(
   };
 }
 
-function allowsReadOnlyShell(
+async function allowsReadOnlyShell(
   params: RequestPermissionRequest,
   context: AcpKimiPermissionContext | undefined,
-): boolean {
-  if (params.toolCall.title !== "Bash") {
+  supportQaTempDir: string,
+): Promise<boolean> {
+  if (!isShellTool(params.toolCall.title)) {
     return false;
   }
-  const command = getCommand(params.toolCall.rawInput);
+  const command = getToolCommand(params.toolCall);
   if (!command || hasShellControlOperator(command) || !context?.workspaceDir) {
     return false;
   }
   const tokens = command.trim().split(/\s+/);
   return allowsFetch(tokens, context)
-    || allowsReadFile(tokens, context);
+    || await allowsReadFile(tokens, context, supportQaTempDir);
 }
 
-function allowsRestrictedWrite(
+async function allowsRestrictedWrite(
   params: RequestPermissionRequest,
   context: AcpKimiPermissionContext | undefined,
-): boolean {
-  const command = getCommand(params.toolCall.rawInput);
-  if (params.toolCall.title === "Bash") {
+  supportQaTempDir: string,
+): Promise<boolean> {
+  const command = getToolCommand(params.toolCall);
+  if (isShellTool(params.toolCall.title)) {
     if (!command || hasShellControlOperator(command) || !context?.workspaceDir) {
       return false;
     }
-    return allowsUpdate(command.trim().split(/\s+/), context);
+    return allowsUpdate(command.trim().split(/\s+/), context, supportQaTempDir);
   }
 
-  const raw = asRecord(params.toolCall.rawInput);
-  const path = typeof raw?.path === "string"
-    ? raw.path
-    : typeof raw?.filePath === "string"
-      ? raw.filePath
-      : undefined;
-  return Boolean(path
-    && isWriteTool(params.toolCall.title ?? "")
-    && context?.workspaceDir
-    && isAllowedPath(path, context.workspaceDir, ["docs/support-qa/"]));
+  const path = getWritePath(params.toolCall);
+  if (!path || !isWriteTool(params.toolCall.title ?? "") || !context?.workspaceDir) {
+    return false;
+  }
+  return isAllowedPath(path, context.workspaceDir, ["docs/support-qa/"])
+    || context.skillId === "support_qa_write"
+      && await isAllowedSupportQaTempJson(path, supportQaTempDir, false);
 }
 
 function allowsFetch(tokens: string[], context: AcpKimiPermissionContext): boolean {
@@ -106,13 +121,18 @@ function allowsFetch(tokens: string[], context: AcpKimiPermissionContext): boole
     && tokens.length === 5;
 }
 
-function allowsUpdate(tokens: string[], context: AcpKimiPermissionContext): boolean {
+async function allowsUpdate(
+  tokens: string[],
+  context: AcpKimiPermissionContext,
+  supportQaTempDir: string,
+): Promise<boolean> {
   const [shell, script, operation, updateFile, ...options] = tokens;
   if (shell !== "bash"
     || script !== ".agents/skills/write-support-qa/scripts/write-support-qa.sh"
     || operation !== "update"
     || !updateFile
-    || !isAllowedPath(updateFile, context.workspaceDir!, [".octo/support-qa-sessions/"])) {
+    || context.skillId !== "support_qa_write"
+    || !await isAllowedSupportQaTempJson(updateFile, supportQaTempDir, true)) {
     return false;
   }
   return options.length > 0
@@ -120,25 +140,39 @@ function allowsUpdate(tokens: string[], context: AcpKimiPermissionContext): bool
     && options.includes("--json");
 }
 
-function allowsReadFile(tokens: string[], context: AcpKimiPermissionContext): boolean {
+async function allowsReadFile(
+  tokens: string[],
+  context: AcpKimiPermissionContext,
+  supportQaTempDir: string,
+): Promise<boolean> {
   const [program, ...args] = tokens;
   if (!program || args.length === 0) {
     return false;
   }
   if (program === "cat" || program === "head" || program === "tail") {
-    return args.length === 1 && isAllowedPath(args[0], context.workspaceDir!, readRoots(context));
+    return args.length === 1
+      && await isAllowedReadPath(args[0], context, supportQaTempDir);
   }
   if (program === "sed") {
     return args.length === 3
       && args[0] === "-n"
       && /^\d+(,\d+)?p$/.test(args[1])
-      && isAllowedPath(args[2], context.workspaceDir!, readRoots(context));
+      && await isAllowedReadPath(args[2], context, supportQaTempDir);
   }
   if (program === "rg") {
     const path = args.at(-1);
-    return Boolean(path && isAllowedPath(path, context.workspaceDir!, readRoots(context)));
+    return Boolean(path && await isAllowedReadPath(path, context, supportQaTempDir));
   }
   return false;
+}
+
+async function isAllowedReadPath(
+  path: string,
+  context: AcpKimiPermissionContext,
+  supportQaTempDir: string,
+): Promise<boolean> {
+  return isAllowedPath(path, context.workspaceDir!, readRoots(context))
+    || await isAllowedSupportQaTempJson(path, supportQaTempDir, true);
 }
 
 function readRoots(context: AcpKimiPermissionContext): string[] {
@@ -152,7 +186,29 @@ function readRoots(context: AcpKimiPermissionContext): string[] {
     : roots;
 }
 
-function getCommand(rawInput: unknown): string | undefined {
+function getToolCommand(toolCall: RequestPermissionRequest["toolCall"]): string | undefined {
+  const rawCommand = getRawCommand(toolCall.rawInput);
+  const contentCommands = (toolCall.content ?? []).flatMap((item) => {
+    const record = asRecord(item);
+    const content = asRecord(record?.content);
+    const text = record?.type === "content" && content?.type === "text"
+      ? content.text
+      : undefined;
+    if (typeof text !== "string") {
+      return [];
+    }
+    const match = text.match(/^Requesting approval to perform: Run command `([^`\r\n]+)`$/);
+    return match ? [match[1]] : [];
+  });
+  const uniqueContentCommands = [...new Set(contentCommands)];
+  if (uniqueContentCommands.length > 1
+    || rawCommand && uniqueContentCommands.length === 1 && rawCommand !== uniqueContentCommands[0]) {
+    return undefined;
+  }
+  return rawCommand ?? uniqueContentCommands[0];
+}
+
+function getRawCommand(rawInput: unknown): string | undefined {
   if (typeof rawInput === "string") {
     return rawInput;
   }
@@ -161,6 +217,28 @@ function getCommand(rawInput: unknown): string | undefined {
     ? raw.command
     : typeof raw?.input === "string"
       ? raw.input
+      : undefined;
+}
+
+function getWritePath(toolCall: RequestPermissionRequest["toolCall"]): string | undefined {
+  const contentPaths = (toolCall.content ?? []).flatMap((item) => {
+    const record = asRecord(item);
+    return record?.type === "diff" && typeof record.path === "string"
+      ? [record.path]
+      : [];
+  });
+  const uniqueContentPaths = [...new Set(contentPaths)];
+  if (uniqueContentPaths.length > 1) {
+    return undefined;
+  }
+  if (uniqueContentPaths.length === 1) {
+    return uniqueContentPaths[0];
+  }
+  const raw = asRecord(toolCall.rawInput);
+  return typeof raw?.path === "string"
+    ? raw.path
+    : typeof raw?.filePath === "string"
+      ? raw.filePath
       : undefined;
 }
 
@@ -174,8 +252,16 @@ function hasShellControlOperator(command: string): boolean {
   return /[;&|><`$()\n\\]/.test(command) || /['"]/.test(command);
 }
 
-function isWriteTool(title: string): boolean {
-  return /^(write|write_file|apply_patch)$/i.test(title);
+function getToolName(title: string | null | undefined): string {
+  return title?.split(":", 1)[0]?.trim() ?? "";
+}
+
+function isShellTool(title: string | null | undefined): boolean {
+  return /^(bash|shell)$/i.test(getToolName(title));
+}
+
+function isWriteTool(title: string | null | undefined): boolean {
+  return /^(write|writefile|write_file|applypatch|apply_patch|strreplacefile)$/i.test(getToolName(title));
 }
 
 function isAllowedPath(path: string, workspaceDir: string, roots: string[]): boolean {
@@ -186,4 +272,39 @@ function isAllowedPath(path: string, workspaceDir: string, roots: string[]): boo
     && !relativePath.startsWith("../")
     && !isAbsolute(relativePath)
     && roots.some((root) => relativePath.startsWith(root));
+}
+
+async function isAllowedSupportQaTempJson(
+  path: string,
+  supportQaTempDir: string,
+  requireExisting: boolean,
+): Promise<boolean> {
+  if (!isAbsolute(path) || extname(path) !== ".json") {
+    return false;
+  }
+  const root = resolve(supportQaTempDir);
+  const candidate = resolve(path);
+  if (dirname(candidate) !== root) {
+    return false;
+  }
+  try {
+    const rootStat = await lstat(root);
+    if (!rootStat.isDirectory() || rootStat.isSymbolicLink()) {
+      return false;
+    }
+    try {
+      const candidateStat = await lstat(candidate);
+      return candidateStat.isFile() && !candidateStat.isSymbolicLink();
+    } catch (error) {
+      return !requireExisting && isMissingPathError(error);
+    }
+  } catch {
+    return false;
+  }
+}
+
+function isMissingPathError(error: unknown): boolean {
+  return error instanceof Error
+    && "code" in error
+    && error.code === "ENOENT";
 }
