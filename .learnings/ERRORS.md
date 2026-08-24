@@ -2,6 +2,13 @@
 
 Record concise compiler/runtime errors, failed commands, wrong assumptions, and their verified fixes here. Redact secrets, cookies, tokens, and sensitive payloads.
 
+## [ERR-20260821-001] python-pycache-global-cache-permission
+
+- **Summary:** The system `python3 -m py_compile` attempted to write bytecode under the macOS global Python cache, which is outside the workspace sandbox.
+- **Error:** `PermissionError: [Errno 1] Operation not permitted` while creating `/Users/linyu/Library/Caches/com.apple.python/...`.
+- **Fix:** Set `PYTHONPYCACHEPREFIX` to a writable temporary directory for syntax-only verification; compilation then passed.
+- **Status:** resolved; no application file writes were needed.
+
 ## [ERR-20260810-001] vitest-matcher-generic-argument
 
 - **Summary:** `toMatchObject<T>()` is not a generic Vitest matcher in this project.
