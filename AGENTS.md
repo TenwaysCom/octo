@@ -114,3 +114,9 @@ For non-trivial changes, agents must read the relevant docs before editing:
 - Maintain concise, reusable learnings in `.learnings/LEARNINGS.md` and errors in `.learnings/ERRORS.md`; record failed commands, compiler/runtime errors, wrong assumptions, and the verified fix.
 - Do not record secrets, raw credentials, cookies, tokens, or large unredacted logs.
 - At the end of every complex task, review failures and near-misses, identify the root cause, and write back one durable rule when it will prevent a repeat.
+
+## Tasks Ledger
+
+- Record each independent task in `docs/tasks/<module>/YYYY-MM-DD-brief-kebab-case.md`; use the template and update an existing record instead of duplicating it.
+- Keep its status, progress, evidence, and verification boundary current; never record secrets or sensitive payloads.
+- Review closed tasks monthly: archive confirmed records older than 90 days; review stale open records, never auto-archive them.
