@@ -206,7 +206,7 @@ describe("PlatformSyncService", () => {
     };
     const client = {
       listRecords: vi.fn().mockResolvedValue({ records: [record], hasMore: false }),
-      batchGetRecords: vi.fn().mockResolvedValue({ records: [record], forbidden_record_ids: [], absent_record_ids: [] }),
+      batchGetRecords: vi.fn(),
       updateRecord: vi.fn().mockResolvedValue({ record_id: "rec-1", fields: { "AI分析状态": "已分析" } }),
     } as unknown as LarkClient;
     const service = new PlatformSyncService({ store, createLarkClient: async () => client });
@@ -215,6 +215,7 @@ describe("PlatformSyncService", () => {
       masterUserId: "user-1", baseId: "base", tableId: "table",
     })).resolves.toMatchObject({ listed: 1, synced: 1 });
     expect(store.lark).toHaveLength(1);
+    expect(client.batchGetRecords).not.toHaveBeenCalled();
     expect(client.updateRecord).not.toHaveBeenCalled();
   });
 
@@ -494,8 +495,7 @@ describe("PlatformSyncService", () => {
       listRecords: vi.fn()
         .mockResolvedValueOnce({ records: [openRecord], hasMore: true, nextPageToken: "next" })
         .mockResolvedValueOnce({ records: [closedRecord], hasMore: false }),
-      batchGetRecords: vi.fn()
-        .mockResolvedValueOnce({ records: [openRecord, closedRecord], forbidden_record_ids: [], absent_record_ids: [] }),
+      batchGetRecords: vi.fn(),
     } as unknown as LarkClient;
     const service = new PlatformSyncService({
       store,
@@ -510,10 +510,17 @@ describe("PlatformSyncService", () => {
       statusFieldName: "Status",
     })).resolves.toEqual({ listed: 2, skippedInactive: 1, synced: 1 });
     expect(store.lark).toEqual([{ record: openRecord, title: "Open ticket", status: "In Progress" }]);
-    expect(client.listRecords).toHaveBeenNthCalledWith(2, "base", "table", { pageSize: 100, pageToken: "next" });
-    expect(client.batchGetRecords).toHaveBeenCalledWith("base", "table", ["rec-open", "rec-closed"], {
+    expect(client.listRecords).toHaveBeenNthCalledWith(1, "base", "table", {
+      pageSize: 100,
+      pageToken: undefined,
       automaticFields: true,
     });
+    expect(client.listRecords).toHaveBeenNthCalledWith(2, "base", "table", {
+      pageSize: 100,
+      pageToken: "next",
+      automaticFields: true,
+    });
+    expect(client.batchGetRecords).not.toHaveBeenCalled();
   });
 
   it("uses Issue Description as the Lark ticket title when no explicit title field is configured", async () => {
@@ -541,9 +548,61 @@ describe("PlatformSyncService", () => {
       fields: { Ticket: "Changed ticket" },
       updated_time: "2026-08-11T00:01:00.000Z",
     };
+    const laterRecord: LarkBitableRecord = {
+      record_id: "rec-later",
+      fields: { Ticket: "Later ticket" },
+      updated_time: "2026-08-11T00:02:00.000Z",
+    };
     const client = {
-      listRecords: vi.fn().mockResolvedValue({ records: [record], hasMore: false }),
-      batchGetRecords: vi.fn().mockResolvedValue({ records: [record], forbidden_record_ids: [], absent_record_ids: [] }),
+      listRecords: vi.fn()
+        .mockResolvedValueOnce({ records: [record], hasMore: true, nextPageToken: "next" })
+        .mockResolvedValueOnce({ records: [laterRecord], hasMore: false }),
+      batchGetRecords: vi.fn(),
+    } as unknown as LarkClient;
+    const service = new PlatformSyncService({ store, createLarkClient: async () => client });
+
+    await expect(service.incrementalSyncLarkBaseTickets({
+      masterUserId: "user-1",
+      baseId: "base",
+      tableId: "table",
+      titleFieldName: "Ticket",
+      sourceUpdatedAtFieldName: "最后更新时间",
+      watermarkUpdatedAt: "2026-08-11T00:00:00.000Z",
+      watermarkTiebreaker: "rec-previous",
+    })).resolves.toMatchObject({
+      listed: 2,
+      synced: 2,
+      watermarkUpdatedAt: "2026-08-11T00:02:00.000Z",
+      watermarkTiebreaker: "rec-later",
+    });
+
+    expect(client.listRecords).toHaveBeenNthCalledWith(1, "base", "table", {
+      pageSize: 100,
+      pageToken: undefined,
+      filter: 'CurrentValue.[最后更新时间] >= TODATE("2026-08-10T23:55:00.000Z")',
+      automaticFields: true,
+    });
+    expect(client.listRecords).toHaveBeenNthCalledWith(2, "base", "table", {
+      pageSize: 100,
+      pageToken: "next",
+      filter: 'CurrentValue.[最后更新时间] >= TODATE("2026-08-10T23:55:00.000Z")',
+      automaticFields: true,
+    });
+    expect(client.batchGetRecords).not.toHaveBeenCalled();
+    expect(store.lark).toEqual([
+      { record, title: "Changed ticket", status: undefined },
+      { record: laterRecord, title: "Later ticket", status: undefined },
+    ]);
+  });
+
+  it("fails Lark incremental sync when a List record is missing updated_time", async () => {
+    const store = createStore();
+    const client = {
+      listRecords: vi.fn().mockResolvedValue({
+        records: [{ record_id: "rec-missing-time", fields: { Ticket: "Missing time" } }],
+        hasMore: false,
+      }),
+      batchGetRecords: vi.fn(),
     } as unknown as LarkClient;
     const service = new PlatformSyncService({ store, createLarkClient: async () => client });
 
@@ -554,17 +613,10 @@ describe("PlatformSyncService", () => {
       sourceUpdatedAtFieldName: "最后更新时间",
       watermarkUpdatedAt: "2026-08-11T00:00:00.000Z",
       watermarkTiebreaker: "rec-previous",
-    })).resolves.toMatchObject({ listed: 1, synced: 1 });
+    })).rejects.toThrow("Lark incremental list record is missing updated_time");
 
-    expect(client.listRecords).toHaveBeenCalledWith("base", "table", {
-      pageSize: 100,
-      pageToken: undefined,
-      filter: 'CurrentValue.[最后更新时间] >= TODATE("2026-08-10T23:55:00.000Z")',
-      automaticFields: true,
-    });
-    expect(client.batchGetRecords).toHaveBeenCalledWith("base", "table", ["rec-changed"], {
-      automaticFields: true,
-    });
+    expect(client.batchGetRecords).not.toHaveBeenCalled();
+    expect(store.lark).toEqual([]);
   });
 
   it("fetches selected Lark tickets in batches of 100 and writes one snapshot batch", async () => {

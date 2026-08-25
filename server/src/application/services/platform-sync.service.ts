@@ -357,18 +357,18 @@ export class PlatformSyncService {
   async bulkSyncLarkBaseTickets(request: BulkSyncLarkBaseTicketsRequest) {
     const client = await this.getLarkClient(request.masterUserId, request.larkBaseUrl);
     let pageToken: string | undefined;
-    const recordIds: string[] = [];
+    const records: LarkBitableRecord[] = [];
 
     do {
       const page = await client.listRecords(request.baseId, request.tableId, {
         pageSize: 100,
         pageToken,
+        automaticFields: true,
       });
-      recordIds.push(...page.records.map((record) => record.record_id));
+      records.push(...page.records);
       pageToken = page.hasMore ? page.nextPageToken : undefined;
     } while (pageToken);
 
-    const records = await this.getLarkRecordsInBatches(client, request.baseId, request.tableId, recordIds);
     const activeRecords = records.filter((record) => !isInactiveSyncStatus(
       getRecordFieldText(record, request.statusFieldName, STATUS_FIELD_CANDIDATES),
     ));
@@ -378,7 +378,7 @@ export class PlatformSyncService {
       tableId: request.tableId,
       recordId: record.record_id,
     }));
-    const listed = recordIds.length;
+    const listed = records.length;
     const synced = activeRecords.length;
     const skippedInactive = records.length - activeRecords.length;
     syncLogger.info({ baseId: request.baseId, tableId: request.tableId, listed, synced }, "LARK_BASE_BULK_SYNC_COMPLETED");
@@ -410,23 +410,17 @@ export class PlatformSyncService {
       records.push(...page.records);
       pageToken = page.hasMore ? page.nextPageToken : undefined;
     } while (pageToken);
-    const detailedRecords = await this.getLarkRecordsInBatches(
-      client,
-      input.baseId,
-      input.tableId,
-      records.map((record) => record.record_id),
-    );
-    if (detailedRecords.some((record) => !isValidSourceTimestamp(record.updated_time))) {
-      throw new Error("Lark incremental batch record is missing updated_time");
+    if (records.some((record) => !isValidSourceTimestamp(record.updated_time))) {
+      throw new Error("Lark incremental list record is missing updated_time");
     }
-    const changed = detailedRecords.filter((record) => new Date(record.updated_time!).getTime() >= threshold);
+    const changed = records.filter((record) => new Date(record.updated_time!).getTime() >= threshold);
     await this.upsertLarkBaseTickets(input, changed);
     const syncedRefs = changed.map((record) => ({
       baseId: input.baseId,
       tableId: input.tableId,
       recordId: record.record_id,
     }));
-    const latest = latestWatermark(detailedRecords.map((record) => ({ updatedAt: record.updated_time, tiebreaker: record.record_id })), input);
+    const latest = latestWatermark(records.map((record) => ({ updatedAt: record.updated_time, tiebreaker: record.record_id })), input);
     const result = await this.withOptionalLarkCleaning(input.cleanAfterSync, syncedRefs, {
       listed: records.length,
       skippedInactive: 0,

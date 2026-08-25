@@ -115,7 +115,7 @@ Lark Ticket 详情页可基于当前同步快照的标题、描述与资源创�
 
 | 平台 | 当前批量读取 | 当前过滤/限制 | 需要注意 |
 | --- | --- | --- | --- |
-| Lark | List 枚举/过滤 ID 后按 100 条调用 `batch_get(automatic_fields=true)` | 全量初始化跳过终态；增量包含终态 | 增量依赖配置的 Bitable 最后修改时间字段；批量详情必须完整返回 |
+| Lark | full/incremental 直接消费 List records；单条/多选按 ID 使用 `batch_get(automatic_fields=true)` | 全量初始化跳过终态；增量包含终态 | List 与 Batch Get 均通过统一 mapper；增量依赖配置的 Bitable 最后修改时间字段 |
 | Meegle | 全量初始化按 project/type 枚举；增量以 MQL 时间过滤后分页，再 `+batch-get` 详情 | 全量初始化跳过终态；增量包含终态 | 每个 type 必须配置 MQL 时间字段；详情时间才是 checkpoint 权威值 |
 | GitHub HTTP | 读取 open PR | 跳过终态 | 只能覆盖开放 PR |
 | GitHub CLI | `all` 依次读取 `closed` 与 `merged`，每类最多 100 | `closed` 结果会排除已合并 PR | 当前 `all` 不包含 open；命名与范围需在新版设计中统一 |
@@ -374,7 +374,7 @@ pnpm --dir server platform:sync --only meegle --mode incremental \
   --meegle-work-item-type 66700acbf297a8f821b4b860
 ```
 
-Lark 增量先将 checkpoint 回退 5 分钟，再使用配置中 `sourceUpdatedAtFieldName` 生成 Bitable `filter`，**由源端筛选后再分页枚举候选 ID**。默认字段名是 `最后更新时间`；它必须是覆盖所有已同步业务字段的 Bitable「最后修改时间」字段。候选 ID 随后按每批最多 100 条调用 `batch_get(automatic_fields=true)`；批量详情中的 `last_modified_time`（兼容旧响应 `updated_time`）用于本地复核和推进水位。字段名配置错误、源端拒绝筛选公式、任何批量详情缺少最后修改时间，或出现 forbidden、absent、漏返回记录时，命令失败且不推进 checkpoint。Full 同步同样先用 List 枚举全表 ID，再通过 `batch_get` 拉取权威快照。
+Lark 增量先将 checkpoint 回退 5 分钟，再使用配置中 `sourceUpdatedAtFieldName` 生成 Bitable `filter`，**由源端筛选后分页读取完整 records**。默认字段名是 `最后更新时间`；它必须是覆盖所有已同步业务字段的 Bitable「最后修改时间」字段。List 请求传 `automatic_fields=true`，返回 record 的 `last_modified_time`（兼容旧响应 `updated_time`）用于本地复核和推进水位；records 随后直接批量 UPSERT，不再按 ID 重复读取。字段名配置错误、源端拒绝筛选公式，或任何 List record 缺少最后修改时间时，命令失败且不推进 checkpoint。Full 同步同样直接消费分页 List records，并在写入前过滤终态。单条和多选同步因输入是明确 record ID，仍按每批最多 100 条调用 `batch_get(automatic_fields=true)`；forbidden、absent 或漏返回记录会使当前操作失败。
 
 ```json
 {

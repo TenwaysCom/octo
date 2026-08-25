@@ -1,7 +1,7 @@
 ---
 status: active
 owner: TBD
-last_reviewed: 2026-08-24
+last_reviewed: 2026-08-25
 scope: Octo 工作任务台账的记录、检索与归档规则
 review_cadence: monthly
 ---
@@ -20,6 +20,7 @@ docs/tasks/
 ├── acp/                 # ACP runtime、server、skill、权限与调用链
 ├── platform-sync/       # Lark、Meegle、GitHub 等平台同步与回写
 ├── platform-auth/       # 身份解析、OAuth、auth-code bridge、授权问题
+├── platform-data/       # Meegle Workitem、Lark Ticket、GitHub PR 的本地管理能力
 ├── ai-tasks/            # AI 工作流、prompt、评测、自动化任务
 ├── ai-ticket/           # Lark Ticket/工单 AI 分析、分流与反馈闭环
 ├── engineering-ops/     # 测试、CI/CD、运行稳定性、技术债与研发治理

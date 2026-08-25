@@ -2,6 +2,12 @@
 
 Record concise, reusable lessons here. Include the context, the durable rule, and the verified outcome; never include secrets or raw credentials.
 
+## [LRN-20260818-001] dynamic-web-session-route-auth
+
+- **Context:** A new parameterized `/api/web/*` route can be rejected by the legacy `master-user-id` middleware even when its controller correctly expects an opaque HttpOnly Web Session.
+- **Rule:** Allow only the exact dynamic Web route prefixes that own session authentication, then require every allowed controller to validate the Web Session and workspace permission itself. Test both the allowed paths and an adjacent protected path; never exempt all `/api/web/*` routes implicitly.
+- **Verified outcome:** The Meegle workitem detail PRD now makes the middleware boundary, controller fail-closed behavior, and route/auth contract tests explicit before implementation.
+
 ## [LRN-20260813-001] web-platform-sync-incremental-scope
 
 - **Context:** Web「立即同步」错误地调用 bulk/full 服务；Meegle HTTP `filterWorkitems` 不能按源端更新时间过滤。
@@ -255,8 +261,8 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - **Rule:** Treat the observed ACP permission payload as a versioned security contract. Parse only exact known command text and diff path shapes, preserve legacy `rawInput` compatibility, match current and legacy tool names, and keep a real-shape fixture in policy tests. A prompt, policy enum, or synthetic `rawInput` test alone does not prove runtime permission compatibility.
 - **Verified outcome:** Focused action-catalog, Session, proxy, and permission tests pass for Kimi `Shell` and file diff requests, including fail-closed mismatch and `/tmp/support-qa/` path traversal/symlink cases; Server build passes.
 
-## [LRN-20260825-001] lark-ticket-batch-sync-boundary
+## [LRN-20260825-001] lark-ticket-list-and-batch-boundary
 
-- **Context:** Lark Ticket full/incremental sync and local cleaning needed a batch contract instead of per-record platform and database round trips.
-- **Rule:** Use List only to enumerate or source-filter record IDs, then call Bitable `batch_get(automatic_fields=true)` in chunks of 100 and treat its records as the snapshot source. Fail the scope on forbidden, absent, missing, or invalid-time details. Batch PostgreSQL snapshot UPSERT, cleaning reads, and cleaning updates separately; do not replace N+1 platform reads with N+1 database operations.
-- **Verified outcome:** 58 focused tests and Server build pass. A live full sync listed 1,878 records, batch-synced 169 active records, changed 147 cleaning projections, and completed successfully without exposing record payloads.
+- **Context:** Lark Ticket List already returns the complete record fields and automatic timestamps needed by full/incremental sync; treating it only as an ID enumerator introduced a redundant Batch Get pass.
+- **Rule:** Directly consume List records for enumerated or source-filtered full/incremental flows, with `automatic_fields=true` and fail-closed timestamp validation. Use `batch_get` only when the workflow starts from explicit record IDs or needs Batch Get-specific fields. Batch PostgreSQL snapshot UPSERT, cleaning reads, and cleaning updates independently of the platform read strategy.
+- **Verified outcome:** 59 focused tests and Server build pass. Full/incremental tests assert no Batch Get call; single/selected sync still covers 100-ID batching and incomplete-result failure. The corrected List-direct path has not yet been run against real authorization.

@@ -203,3 +203,17 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Error:** `listen EPERM: operation not permitted /tmp/tsx-1007/14.pipe`.
 - **Fix:** Rerun the same scoped `pnpm --dir server platform:sync --only lark --mode full` command with sandbox escalation; do not replace the project entrypoint or expose credentials through an ad hoc command.
 - **Status:** resolved; the escalated full sync exited 0 and reported only safe scope counts.
+
+## [ERR-20260825-003] lark-list-records-redundant-batch-get
+
+- **Summary:** The first Lark batch refactor treated List as an ID-only enumerator and added Batch Get for every full/incremental record, despite the interface analysis showing that List already returns the required snapshot fields and timestamps.
+- **Impact:** Incremental sync used two platform requests where one List page was sufficient; full sync repeated every List page through Batch Get and fetched terminal records before filtering them.
+- **Fix:** Full/incremental now consume List records directly with automatic fields. Batch Get remains only for single/selected ID-based sync; database UPSERT and cleaning stay batched.
+- **Status:** resolved; 59 focused tests and Server build pass. Real-authorization verification of the corrected List-direct path remains pending.
+
+## [ERR-20260825-004] pnpm-vitest-file-filter-forwarding
+
+- **Summary:** `pnpm --dir server test -- <files>` passed an extra `--` to Vitest and unexpectedly ran the full Server suite instead of only the requested files.
+- **Error:** The run surfaced the known Node 22 `node:sqlite` suite-load failures and logger timing failure, plus one local fixture assertion that was then corrected.
+- **Fix:** Use `pnpm --dir server exec vitest run <files>` for deterministic focused test selection.
+- **Status:** resolved; the corrected focused command ran exactly 5 files and all 59 tests passed.
