@@ -43,6 +43,17 @@ function createStore(): PlatformSyncStore & {
     }) {
       store.lark.push({ record: input.record, title: input.title, status: input.status });
     },
+    async upsertLarkBaseTickets(inputs: Array<{
+      record: LarkBitableRecord;
+      title: string;
+      status?: string;
+    }>) {
+      store.lark.push(...inputs.map((input) => ({
+        record: input.record,
+        title: input.title,
+        status: input.status,
+      })));
+    },
     async setLarkBaseTicketSharedUrl() {},
     async upsertLarkBaseTicketAi() { return false; },
     async findLarkBaseTicketByRecordId() { return undefined; },
@@ -86,6 +97,11 @@ function createStore(): PlatformSyncStore & {
       store.cleanedLark.push(input.recordId);
       store.larkCleaning.push(input);
       return true;
+    },
+    async applyLarkBaseTicketCleanings(inputs: Array<{ recordId: string; detailDescription?: string; meegleLink?: string; larkMessageLink?: string }>) {
+      store.cleanedLark.push(...inputs.map((input) => input.recordId));
+      store.larkCleaning.push(...inputs);
+      return inputs.length;
     },
     async listMeegleWorkitems() { return []; },
     async listMeegleSprints() { return []; },
@@ -158,11 +174,8 @@ describe("PlatformSyncService", () => {
       store.cleanedGitHub.push(String(pullNumber));
       return true;
     });
-    vi.spyOn(store, "applyLarkBaseTicketCleaning").mockImplementation(async ({ recordId }) => {
-      if (recordId === "rec-1") throw new Error("Lark cleaning failed");
-      store.cleanedLark.push(recordId);
-      return true;
-    });
+    const larkCleaning = vi.spyOn(store, "applyLarkBaseTicketCleanings")
+      .mockRejectedValue(new Error("Lark batch cleaning failed"));
     const service = new PlatformSyncService({ store });
 
     await expect(service.cleanMeegleWorkitems([
@@ -176,10 +189,13 @@ describe("PlatformSyncService", () => {
     await expect(service.cleanLarkBaseTickets([
       { baseId: "base", tableId: "table", recordId: "rec-1" },
       { baseId: "base", tableId: "table", recordId: "rec-2" },
-    ])).rejects.toThrow("PLATFORM_SYNC_CLEANING_FAILED:lark:1/2");
+    ])).rejects.toThrow("PLATFORM_SYNC_CLEANING_FAILED:lark:2");
     expect(store.cleanedMeegle).toEqual(["2"]);
     expect(store.cleanedGitHub).toEqual(["2"]);
-    expect(store.cleanedLark).toEqual(["rec-2"]);
+    expect(larkCleaning).toHaveBeenCalledWith([
+      expect.objectContaining({ recordId: "rec-1" }),
+      expect.objectContaining({ recordId: "rec-2" }),
+    ]);
   });
 
   it("does not write Ticket AI fields back during a Lark snapshot sync", async () => {
@@ -190,6 +206,7 @@ describe("PlatformSyncService", () => {
     };
     const client = {
       listRecords: vi.fn().mockResolvedValue({ records: [record], hasMore: false }),
+      batchGetRecords: vi.fn().mockResolvedValue({ records: [record], forbidden_record_ids: [], absent_record_ids: [] }),
       updateRecord: vi.fn().mockResolvedValue({ record_id: "rec-1", fields: { "AI分析状态": "已分析" } }),
     } as unknown as LarkClient;
     const service = new PlatformSyncService({ store, createLarkClient: async () => client });
@@ -477,6 +494,8 @@ describe("PlatformSyncService", () => {
       listRecords: vi.fn()
         .mockResolvedValueOnce({ records: [openRecord], hasMore: true, nextPageToken: "next" })
         .mockResolvedValueOnce({ records: [closedRecord], hasMore: false }),
+      batchGetRecords: vi.fn()
+        .mockResolvedValueOnce({ records: [openRecord, closedRecord], forbidden_record_ids: [], absent_record_ids: [] }),
     } as unknown as LarkClient;
     const service = new PlatformSyncService({
       store,
@@ -492,6 +511,9 @@ describe("PlatformSyncService", () => {
     })).resolves.toEqual({ listed: 2, skippedInactive: 1, synced: 1 });
     expect(store.lark).toEqual([{ record: openRecord, title: "Open ticket", status: "In Progress" }]);
     expect(client.listRecords).toHaveBeenNthCalledWith(2, "base", "table", { pageSize: 100, pageToken: "next" });
+    expect(client.batchGetRecords).toHaveBeenCalledWith("base", "table", ["rec-open", "rec-closed"], {
+      automaticFields: true,
+    });
   });
 
   it("uses Issue Description as the Lark ticket title when no explicit title field is configured", async () => {
@@ -500,7 +522,9 @@ describe("PlatformSyncService", () => {
       record_id: "rec-issue-description",
       fields: { "Issue Description": "Actual ticket title", 状态: "In Progress" },
     };
-    const client = { getRecord: vi.fn().mockResolvedValue(record) } as unknown as LarkClient;
+    const client = {
+      batchGetRecords: vi.fn().mockResolvedValue({ records: [record], forbidden_record_ids: [], absent_record_ids: [] }),
+    } as unknown as LarkClient;
     const service = new PlatformSyncService({ store, createLarkClient: async () => client });
 
     await service.syncLarkBaseTicket({
@@ -519,7 +543,7 @@ describe("PlatformSyncService", () => {
     };
     const client = {
       listRecords: vi.fn().mockResolvedValue({ records: [record], hasMore: false }),
-      getRecord: vi.fn().mockResolvedValue(record),
+      batchGetRecords: vi.fn().mockResolvedValue({ records: [record], forbidden_record_ids: [], absent_record_ids: [] }),
     } as unknown as LarkClient;
     const service = new PlatformSyncService({ store, createLarkClient: async () => client });
 
@@ -538,6 +562,69 @@ describe("PlatformSyncService", () => {
       filter: 'CurrentValue.[最后更新时间] >= TODATE("2026-08-10T23:55:00.000Z")',
       automaticFields: true,
     });
+    expect(client.batchGetRecords).toHaveBeenCalledWith("base", "table", ["rec-changed"], {
+      automaticFields: true,
+    });
+  });
+
+  it("fetches selected Lark tickets in batches of 100 and writes one snapshot batch", async () => {
+    const store = createStore();
+    const records = Array.from({ length: 101 }, (_, index): LarkBitableRecord => ({
+      record_id: `rec-${index + 1}`,
+      fields: { Title: `Ticket ${index + 1}` },
+    }));
+    const client = {
+      batchGetRecords: vi.fn()
+        .mockResolvedValueOnce({ records: records.slice(0, 100), forbidden_record_ids: [], absent_record_ids: [] })
+        .mockResolvedValueOnce({ records: records.slice(100), forbidden_record_ids: [], absent_record_ids: [] }),
+    } as unknown as LarkClient;
+    const upsertBatch = vi.spyOn(store, "upsertLarkBaseTickets");
+    const service = new PlatformSyncService({ store, createLarkClient: async () => client });
+
+    await expect(service.selectedSyncLarkBaseTickets({
+      masterUserId: "user-1",
+      baseId: "base",
+      tableId: "table",
+      recordIds: records.map((record) => record.record_id),
+    })).resolves.toEqual({ selected: 101, synced: 101 });
+
+    expect(client.batchGetRecords).toHaveBeenCalledTimes(2);
+    expect(client.batchGetRecords).toHaveBeenNthCalledWith(
+      1,
+      "base",
+      "table",
+      records.slice(0, 100).map((record) => record.record_id),
+      { automaticFields: true },
+    );
+    expect(client.batchGetRecords).toHaveBeenNthCalledWith(
+      2,
+      "base",
+      "table",
+      ["rec-101"],
+      { automaticFields: true },
+    );
+    expect(upsertBatch).toHaveBeenCalledTimes(1);
+    expect(store.lark).toHaveLength(101);
+  });
+
+  it("fails a Lark batch before writing snapshots when records are incomplete", async () => {
+    const store = createStore();
+    const client = {
+      batchGetRecords: vi.fn().mockResolvedValue({
+        records: [{ record_id: "rec-1", fields: { Title: "One" } }],
+        forbidden_record_ids: ["rec-2"],
+        absent_record_ids: [],
+      }),
+    } as unknown as LarkClient;
+    const service = new PlatformSyncService({ store, createLarkClient: async () => client });
+
+    await expect(service.selectedSyncLarkBaseTickets({
+      masterUserId: "user-1",
+      baseId: "base",
+      tableId: "table",
+      recordIds: ["rec-1", "rec-2"],
+    })).rejects.toThrow("LARK_BATCH_GET_INCOMPLETE:requested=2:forbidden=1:absent=0:missing=1");
+    expect(store.lark).toEqual([]);
   });
 
   it("builds a Lark date filter with a configured source updated-at field", () => {
@@ -563,7 +650,9 @@ describe("PlatformSyncService", () => {
         meegle链接: { url: "https://project.meegle.com/acme/story/detail/123" },
       },
     };
-    const client = { getRecord: vi.fn().mockResolvedValue(record) } as unknown as LarkClient;
+    const client = {
+      batchGetRecords: vi.fn().mockResolvedValue({ records: [record], forbidden_record_ids: [], absent_record_ids: [] }),
+    } as unknown as LarkClient;
     const service = new PlatformSyncService({ store, createLarkClient: async () => client });
 
     await expect(service.syncLarkBaseTicket({

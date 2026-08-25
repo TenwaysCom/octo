@@ -7,6 +7,7 @@ import {
   type PlatformSyncStore,
   type GitHubPullRequestSyncRef,
   type LarkBaseTicketSyncRef,
+  type LarkBaseTicketUpsertInput,
   type MeegleWorkitemSyncRef,
 } from "../../adapters/postgres/platform-sync-store.js";
 import { getResolvedUserStore, type ResolvedUserStore } from "../../adapters/postgres/resolved-user-store.js";
@@ -38,6 +39,7 @@ const INACTIVE_STATUSES = new Set([
 const STATUS_FIELD_CANDIDATES = ["Status", "状态", "Ticket Status", "ticket_status"];
 const TITLE_FIELD_CANDIDATES = ["Title", "标题", "名称", "name", "Issue Description", "问题描述", "问题"];
 const INCREMENTAL_OVERLAP_MS = 5 * 60 * 1000;
+const LARK_BATCH_GET_SIZE = 100;
 
 type MeegleSyncClient = Omit<Pick<MeegleClient, "getWorkitemDetails" | "filterWorkitems">, "getWorkitemDetails"> & {
   getWorkitemDetails: (
@@ -334,8 +336,13 @@ export class PlatformSyncService {
 
   async syncLarkBaseTicket(request: SyncLarkBaseTicketRequest) {
     const client = await this.getLarkClient(request.masterUserId, request.larkBaseUrl);
-    const record = await client.getRecord(request.baseId, request.tableId, request.recordId);
-    await this.upsertLarkBaseTicket(request, record);
+    const [record] = await this.getLarkRecordsInBatches(
+      client,
+      request.baseId,
+      request.tableId,
+      [request.recordId],
+    );
+    await this.upsertLarkBaseTickets(request, [record]);
     return this.withOptionalLarkCleaning(request.cleanAfterSync, [{
       baseId: request.baseId,
       tableId: request.tableId,
@@ -350,30 +357,30 @@ export class PlatformSyncService {
   async bulkSyncLarkBaseTickets(request: BulkSyncLarkBaseTicketsRequest) {
     const client = await this.getLarkClient(request.masterUserId, request.larkBaseUrl);
     let pageToken: string | undefined;
-    let listed = 0;
-    let skippedInactive = 0;
-    let synced = 0;
-    const syncedRefs: LarkBaseTicketSyncRef[] = [];
+    const recordIds: string[] = [];
 
     do {
       const page = await client.listRecords(request.baseId, request.tableId, {
         pageSize: 100,
         pageToken,
       });
-      listed += page.records.length;
-      for (const record of page.records) {
-        const status = getRecordFieldText(record, request.statusFieldName, STATUS_FIELD_CANDIDATES);
-        if (isInactiveSyncStatus(status)) {
-          skippedInactive++;
-          continue;
-        }
-        await this.upsertLarkBaseTicket(request, record);
-        synced++;
-        syncedRefs.push({ baseId: request.baseId, tableId: request.tableId, recordId: record.record_id });
-      }
+      recordIds.push(...page.records.map((record) => record.record_id));
       pageToken = page.hasMore ? page.nextPageToken : undefined;
     } while (pageToken);
 
+    const records = await this.getLarkRecordsInBatches(client, request.baseId, request.tableId, recordIds);
+    const activeRecords = records.filter((record) => !isInactiveSyncStatus(
+      getRecordFieldText(record, request.statusFieldName, STATUS_FIELD_CANDIDATES),
+    ));
+    await this.upsertLarkBaseTickets(request, activeRecords);
+    const syncedRefs = activeRecords.map((record) => ({
+      baseId: request.baseId,
+      tableId: request.tableId,
+      recordId: record.record_id,
+    }));
+    const listed = recordIds.length;
+    const synced = activeRecords.length;
+    const skippedInactive = records.length - activeRecords.length;
     syncLogger.info({ baseId: request.baseId, tableId: request.tableId, listed, synced }, "LARK_BASE_BULK_SYNC_COMPLETED");
     const result = await this.withOptionalLarkCleaning(
       request.cleanAfterSync,
@@ -403,17 +410,23 @@ export class PlatformSyncService {
       records.push(...page.records);
       pageToken = page.hasMore ? page.nextPageToken : undefined;
     } while (pageToken);
-    if (records.some((record) => !record.updated_time || Number.isNaN(new Date(record.updated_time).getTime()))) throw new Error("Lark incremental record is missing updated_time");
-    const changed = records.filter((record) => new Date(record.updated_time!).getTime() >= threshold);
-    const syncedRefs: LarkBaseTicketSyncRef[] = [];
-    for (const record of changed) {
-      await this.syncLarkBaseTicket({
-      masterUserId: input.masterUserId, larkBaseUrl: input.larkBaseUrl, baseId: input.baseId, tableId: input.tableId, recordId: record.record_id,
-      titleFieldName: input.titleFieldName, statusFieldName: input.statusFieldName, cleanAfterSync: false,
-      });
-      syncedRefs.push({ baseId: input.baseId, tableId: input.tableId, recordId: record.record_id });
+    const detailedRecords = await this.getLarkRecordsInBatches(
+      client,
+      input.baseId,
+      input.tableId,
+      records.map((record) => record.record_id),
+    );
+    if (detailedRecords.some((record) => !isValidSourceTimestamp(record.updated_time))) {
+      throw new Error("Lark incremental batch record is missing updated_time");
     }
-    const latest = latestWatermark(records.map((record) => ({ updatedAt: record.updated_time, tiebreaker: record.record_id })), input);
+    const changed = detailedRecords.filter((record) => new Date(record.updated_time!).getTime() >= threshold);
+    await this.upsertLarkBaseTickets(input, changed);
+    const syncedRefs = changed.map((record) => ({
+      baseId: input.baseId,
+      tableId: input.tableId,
+      recordId: record.record_id,
+    }));
+    const latest = latestWatermark(detailedRecords.map((record) => ({ updatedAt: record.updated_time, tiebreaker: record.record_id })), input);
     const result = await this.withOptionalLarkCleaning(input.cleanAfterSync, syncedRefs, {
       listed: records.length,
       skippedInactive: 0,
@@ -425,22 +438,18 @@ export class PlatformSyncService {
   }
 
   async selectedSyncLarkBaseTickets(request: SelectedSyncLarkBaseTicketsRequest) {
-    for (const recordId of request.recordIds) {
-      await this.syncLarkBaseTicket({
-        masterUserId: request.masterUserId,
-        larkBaseUrl: request.larkBaseUrl,
-        baseId: request.baseId,
-        tableId: request.tableId,
-        recordId,
-        titleFieldName: request.titleFieldName,
-        statusFieldName: request.statusFieldName,
-        actionRunId: request.actionRunId,
-      });
-    }
-    const refs = request.recordIds.map((recordId) => ({
+    const client = await this.getLarkClient(request.masterUserId, request.larkBaseUrl);
+    const records = await this.getLarkRecordsInBatches(
+      client,
+      request.baseId,
+      request.tableId,
+      request.recordIds,
+    );
+    await this.upsertLarkBaseTickets(request, records);
+    const refs = records.map((record) => ({
       baseId: request.baseId,
       tableId: request.tableId,
-      recordId,
+      recordId: record.record_id,
     }));
     return this.withOptionalLarkCleaning(
       request.cleanAfterSync,
@@ -488,17 +497,21 @@ export class PlatformSyncService {
 
   async cleanLarkBaseTickets(refs: LarkBaseTicketSyncRef[]): Promise<number> {
     const snapshots = await this.syncStore.getLarkBaseTicketsForCleaning(refs);
-    return this.cleanSnapshots("lark", snapshots, (snapshot) => (
-      `${snapshot.baseId}/${snapshot.tableId}/${snapshot.recordId}`
-    ), async (snapshot) => {
+    const inputs = snapshots.map((snapshot) => {
       const ticket = buildLarkTicketCleaningProjection(snapshot.sourceFields, snapshot.createdTime);
-      return this.syncStore.applyLarkBaseTicketCleaning({
+      return {
         baseId: snapshot.baseId,
         tableId: snapshot.tableId,
         recordId: snapshot.recordId,
         ...ticket,
-      });
+      };
     });
+    try {
+      return await this.syncStore.applyLarkBaseTicketCleanings(inputs);
+    } catch (error) {
+      syncLogger.warn({ platform: "lark", batchSize: inputs.length }, "PLATFORM_SYNC_CLEANING_BATCH_FAILED");
+      throw new Error(`PLATFORM_SYNC_CLEANING_FAILED:lark:${inputs.length}`, { cause: error });
+    }
   }
 
   private async cleanSnapshots<T>(
@@ -630,17 +643,45 @@ export class PlatformSyncService {
     return new GitHubClient({ token });
   }
 
-  private async upsertLarkBaseTicket(
+  private async upsertLarkBaseTickets(
     request: Pick<SyncLarkBaseTicketRequest, "baseId" | "tableId" | "titleFieldName" | "statusFieldName">,
-    record: LarkBitableRecord,
+    records: LarkBitableRecord[],
   ): Promise<void> {
-    await this.syncStore.upsertLarkBaseTicket({
+    const inputs: LarkBaseTicketUpsertInput[] = records.map((record) => ({
       baseId: request.baseId,
       tableId: request.tableId,
       record,
       title: getRecordFieldText(record, request.titleFieldName, TITLE_FIELD_CANDIDATES) || record.record_id,
       status: getRecordFieldText(record, request.statusFieldName, STATUS_FIELD_CANDIDATES) || undefined,
-    });
+    }));
+    await this.syncStore.upsertLarkBaseTickets(inputs);
+  }
+
+  private async getLarkRecordsInBatches(
+    client: LarkClient,
+    baseId: string,
+    tableId: string,
+    recordIds: string[],
+  ): Promise<LarkBitableRecord[]> {
+    const uniqueRecordIds = [...new Set(recordIds)];
+    const recordsById = new Map<string, LarkBitableRecord>();
+    let forbidden = 0;
+    let absent = 0;
+    for (const recordIdBatch of chunk(uniqueRecordIds, LARK_BATCH_GET_SIZE)) {
+      const result = await client.batchGetRecords(baseId, tableId, recordIdBatch, {
+        automaticFields: true,
+      });
+      for (const record of result.records) recordsById.set(record.record_id, record);
+      forbidden += result.forbidden_record_ids.length;
+      absent += result.absent_record_ids.length;
+    }
+    const missing = uniqueRecordIds.filter((recordId) => !recordsById.has(recordId)).length;
+    if (forbidden > 0 || absent > 0 || missing > 0) {
+      throw new Error(
+        `LARK_BATCH_GET_INCOMPLETE:requested=${uniqueRecordIds.length}:forbidden=${forbidden}:absent=${absent}:missing=${missing}`,
+      );
+    }
+    return uniqueRecordIds.map((recordId) => recordsById.get(recordId)!);
   }
 }
 

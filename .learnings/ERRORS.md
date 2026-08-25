@@ -189,3 +189,17 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Summary:** A broad diagnostic over a raw ACP wire/script context printed a credential-bearing command argument that was not needed to diagnose permission routing.
 - **Fix:** Never print raw ACP wire lines, response bodies, or complete tool commands during permission diagnostics. Parse only an allow-list of safe fields such as event type, normalized tool name, policy, decision, and offered option kinds; redact command arguments before output.
 - **Status:** contained; later policy logging records only the normalized tool name and option kinds, without the command or full title.
+
+## [ERR-20260825-001] lark-batch-cleaning-pg-mem-sql-compatibility
+
+- **Summary:** The first batch cleaning `UPDATE ... FROM VALUES` used PostgreSQL `IS DISTINCT FROM` and a target-table alias that pg-mem could not execute.
+- **Error:** pg-mem first rejected `IS DISTINCT FROM`, then reported `Unknown alias "lark_base_ticket_syncs"` for the aliased update target.
+- **Fix:** Keep the single batch update, express null-safe differences with explicit NULL/value comparisons, and reference the unaliased target table. Do not fall back to per-record SELECT/UPDATE just to accommodate the test database.
+- **Status:** resolved; the two-record batch update and idempotent second run pass in the Postgres store test, all 58 focused tests pass, and Server build passes.
+
+## [ERR-20260825-002] lark-platform-sync-tsx-sandbox-ipc
+
+- **Summary:** The first live Lark sync attempt could not start because tsx was not allowed to create its IPC socket inside the sandbox.
+- **Error:** `listen EPERM: operation not permitted /tmp/tsx-1007/14.pipe`.
+- **Fix:** Rerun the same scoped `pnpm --dir server platform:sync --only lark --mode full` command with sandbox escalation; do not replace the project entrypoint or expose credentials through an ad hoc command.
+- **Status:** resolved; the escalated full sync exited 0 and reported only safe scope counts.

@@ -109,6 +109,8 @@ type LarkMessageReceiveIdType = "open_id" | "chat_id";
 
 export interface BatchGetRecordsOptions {
   withSharedUrl?: boolean;
+  /** Include Bitable's created_time and last_modified_time system fields. */
+  automaticFields?: boolean;
 }
 
 export interface BatchGetRecordsResult {
@@ -439,6 +441,7 @@ export class LarkClient {
       {
         record_ids: recordIds,
         with_shared_url: options?.withSharedUrl,
+        automatic_fields: options?.automaticFields,
       },
     );
 

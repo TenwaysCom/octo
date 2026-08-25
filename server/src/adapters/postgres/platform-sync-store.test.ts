@@ -163,6 +163,35 @@ describe("PostgresPlatformSyncStore", () => {
     await pool.end();
   });
 
+  it("batch upserts and batch cleans Lark ticket snapshots idempotently", async () => {
+    const { db, pool } = await createTestPostgresDatabase();
+    const store = new PostgresPlatformSyncStore(db);
+    await store.upsertLarkBaseTickets([
+      {
+        baseId: "base", tableId: "table", title: "One", status: "Open",
+        record: { record_id: "rec-1", fields: { "Ticket 编号": "SUP-1", 紧急度: "P1" } },
+      },
+      {
+        baseId: "base", tableId: "table", title: "Two", status: "Open",
+        record: { record_id: "rec-2", fields: { "Ticket 编号": "SUP-2", 紧急度: "P2" } },
+      },
+    ]);
+
+    const cleaning = [
+      { baseId: "base", tableId: "table", recordId: "rec-1", ticketNumber: "SUP-1", priority: "P1" },
+      { baseId: "base", tableId: "table", recordId: "rec-2", ticketNumber: "SUP-2", priority: "P2" },
+    ];
+    await expect(store.applyLarkBaseTicketCleanings(cleaning)).resolves.toBe(2);
+    await expect(store.applyLarkBaseTicketCleanings(cleaning)).resolves.toBe(0);
+    await expect(store.getLarkBaseTicketsForCleaning(cleaning)).resolves.toEqual([
+      expect.objectContaining({ recordId: "rec-1", ticketNumber: "SUP-1", priority: "P1" }),
+      expect.objectContaining({ recordId: "rec-2", ticketNumber: "SUP-2", priority: "P2" }),
+    ]);
+
+    await db.destroy();
+    await pool.end();
+  });
+
   it("marks snapshots not seen by a completed full scope as stale without deleting them", async () => {
     const { db, pool } = await createTestPostgresDatabase();
     const store = new PostgresPlatformSyncStore(db);

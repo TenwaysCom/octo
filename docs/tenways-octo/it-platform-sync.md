@@ -115,7 +115,7 @@ Lark Ticket 详情页可基于当前同步快照的标题、描述与资源创�
 
 | 平台 | 当前批量读取 | 当前过滤/限制 | 需要注意 |
 | --- | --- | --- | --- |
-| Lark | 全量初始化为全表分页；增量为源端时间过滤后分页，单页 100 | 全量初始化跳过终态；增量包含终态 | 增量依赖配置的 Bitable 最后修改时间字段 |
+| Lark | List 枚举/过滤 ID 后按 100 条调用 `batch_get(automatic_fields=true)` | 全量初始化跳过终态；增量包含终态 | 增量依赖配置的 Bitable 最后修改时间字段；批量详情必须完整返回 |
 | Meegle | 全量初始化按 project/type 枚举；增量以 MQL 时间过滤后分页，再 `+batch-get` 详情 | 全量初始化跳过终态；增量包含终态 | 每个 type 必须配置 MQL 时间字段；详情时间才是 checkpoint 权威值 |
 | GitHub HTTP | 读取 open PR | 跳过终态 | 只能覆盖开放 PR |
 | GitHub CLI | `all` 依次读取 `closed` 与 `merged`，每类最多 100 | `closed` 结果会排除已合并 PR | 当前 `all` 不包含 open；命名与范围需在新版设计中统一 |
@@ -128,7 +128,7 @@ Lark Ticket 详情页可基于当前同步快照的标题、描述与资源创�
 | --- | --- | --- |
 | HTTP | `server/src/index.ts`、`server/src/modules/platform-sync/*` | 路由、DTO 校验、结构化响应 |
 | Service | `server/src/application/services/platform-sync.service.ts` | Lark/Meegle/GitHub 单条、多选、批量编排；终态过滤与三平台清洗 |
-| Store | `server/src/adapters/postgres/platform-sync-store.ts` | 三类快照 UPSERT、失联标记、清洗输入读取与清洗字段更新 |
+| Store | `server/src/adapters/postgres/platform-sync-store.ts` | 三类快照 UPSERT、失联标记、清洗输入读取与清洗字段更新；Lark 快照和清洗按批写入 |
 | Run audit | `server/src/adapters/postgres/platform-sync-run-store.ts` | scope 级运行开始、成功/失败、计数与安全错误摘要 |
 | Schema | `server/src/adapters/postgres/database.ts`、`schema.ts` | 表和索引 |
 | CLI | `server/src/scripts/platform-sync.ts` | 本地配置、平台顺序、`gh` 调用与运行结果 |
@@ -242,7 +242,7 @@ INSERT INTO user_ssh_public_keys (
 | 模式 | 输入 | 处理范围 |
 | --- | --- | --- |
 | 单个更新 | 一个外部对象键 | 拉取一个对象，写入一个平台快照，按开关清洗该对象 |
-| 多选更新 | 一组外部对象键 | 拉取选中的对象，逐项 UPSERT，按开关清洗成功对象 |
+| 多选更新 | 一组外部对象键 | 拉取选中的对象；Lark 按 100 条批量读取并批量 UPSERT，按开关清洗成功对象 |
 | full 批量 | 配置中的一个或多个 scope | 历史初始化；列举范围内对象、UPSERT，并清洗成功对象 |
 | 增量批量 | 一个 scope | 从 checkpoint 起拉取变更对象，批量 UPSERT，并清洗变更对象 |
 | 独立清洗 | 配置中的一个或多个 scope | 不访问源端，只从 `*_syncs` 快照重算清洗投影 |
@@ -254,14 +254,14 @@ CLI full / incremental  同步成功后，对本次成功写入的对象执行�
 CLI clean               不同步，只清洗配置 scope 内已有快照
 ```
 
-清洗失败不得回滚已经成功的源端快照。清洗按对象隔离：一个对象的投影写入失败时，记录该对象的安全错误摘要并继续处理其余对象；本 scope 全部对象尝试完成后才汇总失败。只要存在清洗失败，该 scope 仍标记为失败、checkpoint 不推进，以便下次从旧水位幂等重试。
+清洗失败不得回滚已经成功的源端快照。Meegle/GitHub 清洗按对象隔离并在 scope 末尾汇总失败；Lark 清洗按最多 500 条组成一个数据库批次，任一批次失败会使当前 scope 失败。两种情况下 checkpoint 都不推进，以便下次从旧水位幂等重试。
 
 ### 5.2 增量同步算法
 
 1. 读取 scope 的 checkpoint。
 2. 使用 `watermark_updated_at - overlap` 拉取；默认重叠窗口建议 5 分钟。
 3. 按 `source_updated_at + 外部 ID` 稳定排序和分页；当前没有 `source_hash`，无可靠源端时间时必须拒绝推进 checkpoint。
-4. 将增量候选对象 UPSERT 到平台快照表，并更新其 `last_seen_at`、清除 `stale`。基于 hash 的未变化跳写仍待实现。
+4. 将增量候选对象 UPSERT 到平台快照表，并更新其 `last_seen_at`、清除 `stale`。Lark 使用批量 UPSERT；基于 hash 的未变化跳写仍待实现。
 5. CLI 同步默认将本次同步成功对象传给对应平台的清洗函数，更新对应 `*_syncs` 表的清洗字段；`--mode clean` 只清洗已有快照，不读取源端。
 6. 所有枚举、快照写入和清洗成功后推进**该 scope** 的 checkpoint；任一对象清洗失败会使该 scope 不推进。一个 scope 失败不会中断同一命令后续 scope；命令会输出每个 scope 的结果并以非零状态退出。当前没有跨整轮的数据库事务。
 7. 仅当 full scope 的完整枚举和清洗都成功后，才把本次运行开始前仍未被重新看见的快照标为 `stale`；不直接物理删除。增量同步与单条/多选同步不做删除识别，因为它们不能证明源端集合完整。GitHub 仅在 `--github-pr-state all` 的 closed 与 merged 两段均成功后才标记失联记录。
@@ -374,7 +374,7 @@ pnpm --dir server platform:sync --only meegle --mode incremental \
   --meegle-work-item-type 66700acbf297a8f821b4b860
 ```
 
-Lark 增量先将 checkpoint 回退 5 分钟，再使用配置中 `sourceUpdatedAtFieldName` 生成 Bitable `filter`，**由源端筛选后再分页**。默认字段名是 `最后更新时间`；它必须是覆盖所有已同步业务字段的 Bitable「最后修改时间」字段。随后 adapter 同时请求 Bitable 自动字段，并以 record 的 `last_modified_time`（兼容旧响应 `updated_time`）进行本地复核和推进水位。字段名配置错误、源端拒绝筛选公式、或任何返回记录没有最后修改时间时，命令失败且不推进 checkpoint。
+Lark 增量先将 checkpoint 回退 5 分钟，再使用配置中 `sourceUpdatedAtFieldName` 生成 Bitable `filter`，**由源端筛选后再分页枚举候选 ID**。默认字段名是 `最后更新时间`；它必须是覆盖所有已同步业务字段的 Bitable「最后修改时间」字段。候选 ID 随后按每批最多 100 条调用 `batch_get(automatic_fields=true)`；批量详情中的 `last_modified_time`（兼容旧响应 `updated_time`）用于本地复核和推进水位。字段名配置错误、源端拒绝筛选公式、任何批量详情缺少最后修改时间，或出现 forbidden、absent、漏返回记录时，命令失败且不推进 checkpoint。Full 同步同样先用 List 枚举全表 ID，再通过 `batch_get` 拉取权威快照。
 
 ```json
 {
@@ -461,7 +461,8 @@ syncLark...    -> cleanLarkBaseTickets(...)
 - 只写入对应 `*_syncs` 表的专用清洗列；不得改写原始 `payload_json` 或覆盖未经清洗的源端字段。
 - 接受单个对象键或对象键列表，因此与单个更新、多选更新、增量批量共用。
 - 比较目标清洗列与本轮计算结果，未变化时跳过更新，支持幂等重跑。
-- 当前实现中，清洗错误会使当前 platform/scope 命令失败；增量模式不会推进 checkpoint。逐条容错并汇总失败对象是待实现优化，不能作为当前行为假设。
+- Lark 清洗输入按复合键批量读取，投影按最多 500 条执行一次 `UPDATE ... FROM VALUES`，不逐条 SELECT/UPDATE。
+- 清洗错误会使当前 platform/scope 命令失败，增量模式不会推进 checkpoint；Meegle/GitHub 会继续尝试后续对象，Lark 的当前数据库批次则整体失败。
 
 `clean-meegle-sync-snapshots.ts` 仅保留为项目 `4c3fv6` 的旧历史清洗入口；日常使用 `pnpm --dir server platform:sync --mode clean --only meegle`。两者都只更新 `meegle_workitem_syncs` 的清洗字段，保留原始 payload。
 

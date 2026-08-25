@@ -1,4 +1,4 @@
-import type { Kysely } from "kysely";
+import { sql, type Kysely } from "kysely";
 import { getSharedDatabase } from "./database.js";
 import type { DatabaseSchema } from "./schema.js";
 import type { MeegleSyncMapping, MeegleWorkitem } from "../meegle/meegle-client.js";
@@ -30,6 +30,7 @@ export interface PlatformSyncStore {
     title: string;
     status?: string;
   }): Promise<void>;
+  upsertLarkBaseTickets(inputs: LarkBaseTicketUpsertInput[]): Promise<void>;
   setLarkBaseTicketSharedUrl(input: {
     baseId: string;
     tableId: string;
@@ -44,6 +45,7 @@ export interface PlatformSyncStore {
   applyMeegleWorkitemCleaning(input: MeegleWorkitemCleaningInput): Promise<boolean>;
   applyGitHubPullRequestCleaning(input: GitHubPullRequestCleaningInput): Promise<boolean>;
   applyLarkBaseTicketCleaning(input: LarkBaseTicketCleaningInput): Promise<boolean>;
+  applyLarkBaseTicketCleanings(inputs: LarkBaseTicketCleaningInput[]): Promise<number>;
   listMeegleWorkitems(limit: number, sprint?: string): Promise<MeegleWorkitemSyncItem[]>;
   listMeegleSprints(): Promise<string[]>;
   listGitHubPullRequestLinks(meegleWorkItemIds: string[]): Promise<GitHubPullRequestLink[]>;
@@ -89,6 +91,14 @@ export interface LarkBaseTicketSyncRef {
   baseId: string;
   tableId: string;
   recordId: string;
+}
+
+export interface LarkBaseTicketUpsertInput {
+  baseId: string;
+  tableId: string;
+  record: LarkBitableRecord;
+  title: string;
+  status?: string;
 }
 
 export interface MeegleWorkitemCleaningInput extends MeegleWorkitemSyncRef {
@@ -291,28 +301,17 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
       })).execute();
   }
 
-  async upsertLarkBaseTicket(input: {
-    baseId: string;
-    tableId: string;
-    record: LarkBitableRecord;
-    title: string;
-    status?: string;
-  }): Promise<void> {
-    const now = new Date().toISOString();
-    await this.db.insertInto("lark_base_ticket_syncs").values({
-      base_id: input.baseId,
-      table_id: input.tableId,
-      record_id: input.record.record_id,
-      title: input.title,
-      ticket_status: input.status ?? null,
-      fields_json: JSON.stringify(input.record.fields),
-      created_time: input.record.created_time ?? null,
-      source_updated_at: input.record.updated_time ?? null,
-      synced_at: now,
-      last_seen_at: now,
-      stale: false,
-    }).onConflict((conflict) => conflict.columns(["base_id", "table_id", "record_id"])
-      .doUpdateSet({
+  async upsertLarkBaseTicket(input: LarkBaseTicketUpsertInput): Promise<void> {
+    await this.upsertLarkBaseTickets([input]);
+  }
+
+  async upsertLarkBaseTickets(inputs: LarkBaseTicketUpsertInput[]): Promise<void> {
+    for (const batch of chunks(inputs, 500)) {
+      const now = new Date().toISOString();
+      await this.db.insertInto("lark_base_ticket_syncs").values(batch.map((input) => ({
+        base_id: input.baseId,
+        table_id: input.tableId,
+        record_id: input.record.record_id,
         title: input.title,
         ticket_status: input.status ?? null,
         fields_json: JSON.stringify(input.record.fields),
@@ -321,15 +320,35 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
         synced_at: now,
         last_seen_at: now,
         stale: false,
-    })).execute();
+      }))).onConflict((conflict) => conflict.columns(["base_id", "table_id", "record_id"])
+        .doUpdateSet((eb) => ({
+          title: eb.ref("excluded.title"),
+          ticket_status: eb.ref("excluded.ticket_status"),
+          fields_json: eb.ref("excluded.fields_json"),
+          created_time: eb.ref("excluded.created_time"),
+          source_updated_at: eb.ref("excluded.source_updated_at"),
+          synced_at: eb.ref("excluded.synced_at"),
+          last_seen_at: eb.ref("excluded.last_seen_at"),
+          stale: false,
+        }))).execute();
 
-    if (input.record.shared_url) {
-      await this.setLarkBaseTicketSharedUrl({
-        baseId: input.baseId,
-        tableId: input.tableId,
-        recordId: input.record.record_id,
-        sharedUrl: input.record.shared_url,
-      });
+      const sharedUrls = batch.filter((input) => input.record.shared_url);
+      if (sharedUrls.length > 0) {
+        await this.db.insertInto("lark_base_ticket_octo").values(sharedUrls.map((input) => ({
+          base_id: input.baseId,
+          table_id: input.tableId,
+          record_id: input.record.record_id,
+          shared_url: input.record.shared_url!,
+          ticket_ai: "{}",
+          local_json: "{}",
+          created_at: now,
+          updated_at: now,
+        }))).onConflict((conflict) => conflict.columns(["base_id", "table_id", "record_id"])
+          .doUpdateSet((eb) => ({
+            shared_url: eb.ref("excluded.shared_url"),
+            updated_at: eb.ref("excluded.updated_at"),
+          }))).execute();
+      }
     }
   }
 
@@ -436,8 +455,9 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
 
   async getLarkBaseTicketsForCleaning(refs: LarkBaseTicketSyncRef[]): Promise<LarkBaseTicketSyncItem[]> {
     const results: LarkBaseTicketSyncItem[] = [];
-    for (const ref of refs) {
-      const row = await this.db.selectFrom("lark_base_ticket_syncs as sync")
+    for (const batch of chunks(uniqueLarkRefs(refs), 500)) {
+      if (batch.length === 0) continue;
+      const rows = await this.db.selectFrom("lark_base_ticket_syncs as sync")
         .leftJoin("lark_base_ticket_octo as octo", (join) => join
           .onRef("octo.base_id", "=", "sync.base_id")
           .onRef("octo.table_id", "=", "sync.table_id")
@@ -447,13 +467,13 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
           "sync.ticket_number", "sync.issue_type", "sync.requester", "sync.responsible", "sync.priority", "sync.detail_description", "sync.meegle_link", "sync.lark_message_link",
           "sync.source_updated_at", "sync.synced_at", "sync.fields_json", "octo.shared_url as octo_shared_url", "octo.ticket_ai as octo_ticket_ai",
         ])
-        .where("sync.base_id", "=", ref.baseId)
-        .where("sync.table_id", "=", ref.tableId)
-        .where("sync.record_id", "=", ref.recordId)
-        .executeTakeFirst();
-      if (row) {
-        results.push(toLarkBaseTicketSyncItem(row));
-      }
+        .where((eb) => eb.or(batch.map((ref) => eb.and([
+          eb("sync.base_id", "=", ref.baseId),
+          eb("sync.table_id", "=", ref.tableId),
+          eb("sync.record_id", "=", ref.recordId),
+        ]))))
+        .execute();
+      results.push(...rows.map(toLarkBaseTicketSyncItem));
     }
     return results;
   }
@@ -501,27 +521,73 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
   }
 
   async applyLarkBaseTicketCleaning(input: LarkBaseTicketCleaningInput): Promise<boolean> {
-    const existing = await this.db.selectFrom("lark_base_ticket_syncs")
-      .select(["ticket_number", "issue_type", "requester", "responsible", "priority", "detail_description", "meegle_link", "lark_message_link"])
-      .where("base_id", "=", input.baseId).where("table_id", "=", input.tableId).where("record_id", "=", input.recordId)
-      .executeTakeFirst();
-    const values = {
-      ticket_number: input.ticketNumber ?? null,
-      issue_type: input.issueType ?? null,
-      requester: input.requester ?? null,
-      responsible: input.responsible ?? null,
-      priority: input.priority ?? null,
-      detail_description: input.detailDescription ?? null,
-      meegle_link: input.meegleLink ?? null,
-      lark_message_link: input.larkMessageLink ?? null,
-    };
-    if (existing && existing.ticket_number === values.ticket_number && existing.issue_type === values.issue_type
-      && existing.requester === values.requester && existing.responsible === values.responsible && existing.priority === values.priority && existing.detail_description === values.detail_description
-      && existing.meegle_link === values.meegle_link && existing.lark_message_link === values.lark_message_link) return false;
-    await this.db.updateTable("lark_base_ticket_syncs").set(values)
-      .where("base_id", "=", input.baseId).where("table_id", "=", input.tableId).where("record_id", "=", input.recordId)
-      .execute();
-    return true;
+    return (await this.applyLarkBaseTicketCleanings([input])) > 0;
+  }
+
+  async applyLarkBaseTicketCleanings(inputs: LarkBaseTicketCleaningInput[]): Promise<number> {
+    let cleaned = 0;
+    for (const batch of chunks(inputs, 500)) {
+      const values = batch.map((input) => sql`(
+        ${input.baseId}::text,
+        ${input.tableId}::text,
+        ${input.recordId}::text,
+        ${input.ticketNumber ?? null}::text,
+        ${input.issueType ?? null}::text,
+        ${input.requester ?? null}::text,
+        ${input.responsible ?? null}::text,
+        ${input.priority ?? null}::text,
+        ${input.detailDescription ?? null}::text,
+        ${input.meegleLink ?? null}::text,
+        ${input.larkMessageLink ?? null}::text
+      )`);
+      const result = await sql`
+        UPDATE lark_base_ticket_syncs
+        SET
+          ticket_number = source.ticket_number,
+          issue_type = source.issue_type,
+          requester = source.requester,
+          responsible = source.responsible,
+          priority = source.priority,
+          detail_description = source.detail_description,
+          meegle_link = source.meegle_link,
+          lark_message_link = source.lark_message_link
+        FROM (VALUES ${sql.join(values)}) AS source(
+          base_id, table_id, record_id, ticket_number, issue_type, requester,
+          responsible, priority, detail_description, meegle_link, lark_message_link
+        )
+        WHERE lark_base_ticket_syncs.base_id = source.base_id
+          AND lark_base_ticket_syncs.table_id = source.table_id
+          AND lark_base_ticket_syncs.record_id = source.record_id
+          AND (
+            lark_base_ticket_syncs.ticket_number <> source.ticket_number
+            OR (lark_base_ticket_syncs.ticket_number IS NULL AND source.ticket_number IS NOT NULL)
+            OR (lark_base_ticket_syncs.ticket_number IS NOT NULL AND source.ticket_number IS NULL)
+            OR lark_base_ticket_syncs.issue_type <> source.issue_type
+            OR (lark_base_ticket_syncs.issue_type IS NULL AND source.issue_type IS NOT NULL)
+            OR (lark_base_ticket_syncs.issue_type IS NOT NULL AND source.issue_type IS NULL)
+            OR lark_base_ticket_syncs.requester <> source.requester
+            OR (lark_base_ticket_syncs.requester IS NULL AND source.requester IS NOT NULL)
+            OR (lark_base_ticket_syncs.requester IS NOT NULL AND source.requester IS NULL)
+            OR lark_base_ticket_syncs.responsible <> source.responsible
+            OR (lark_base_ticket_syncs.responsible IS NULL AND source.responsible IS NOT NULL)
+            OR (lark_base_ticket_syncs.responsible IS NOT NULL AND source.responsible IS NULL)
+            OR lark_base_ticket_syncs.priority <> source.priority
+            OR (lark_base_ticket_syncs.priority IS NULL AND source.priority IS NOT NULL)
+            OR (lark_base_ticket_syncs.priority IS NOT NULL AND source.priority IS NULL)
+            OR lark_base_ticket_syncs.detail_description <> source.detail_description
+            OR (lark_base_ticket_syncs.detail_description IS NULL AND source.detail_description IS NOT NULL)
+            OR (lark_base_ticket_syncs.detail_description IS NOT NULL AND source.detail_description IS NULL)
+            OR lark_base_ticket_syncs.meegle_link <> source.meegle_link
+            OR (lark_base_ticket_syncs.meegle_link IS NULL AND source.meegle_link IS NOT NULL)
+            OR (lark_base_ticket_syncs.meegle_link IS NOT NULL AND source.meegle_link IS NULL)
+            OR lark_base_ticket_syncs.lark_message_link <> source.lark_message_link
+            OR (lark_base_ticket_syncs.lark_message_link IS NULL AND source.lark_message_link IS NOT NULL)
+            OR (lark_base_ticket_syncs.lark_message_link IS NOT NULL AND source.lark_message_link IS NULL)
+          )
+      `.execute(this.db);
+      cleaned += Number(result.numAffectedRows ?? 0);
+    }
+    return cleaned;
   }
 
   async markMeegleWorkitemsUnseenStale(projectKey: string, seenSince: string, workItemTypeKey?: string): Promise<number> {
@@ -828,6 +894,22 @@ function parseStringArray(value: string | null): string[] | undefined {
   } catch {
     return undefined;
   }
+}
+
+function chunks<T>(items: T[], size: number): T[][] {
+  const result: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    result.push(items.slice(index, index + size));
+  }
+  return result;
+}
+
+function uniqueLarkRefs(refs: LarkBaseTicketSyncRef[]): LarkBaseTicketSyncRef[] {
+  const unique = new Map<string, LarkBaseTicketSyncRef>();
+  for (const ref of refs) {
+    unique.set(`${ref.baseId}\u0000${ref.tableId}\u0000${ref.recordId}`, ref);
+  }
+  return [...unique.values()];
 }
 
 export function extractMeegleIds(title: string, description: string | null): string[] {

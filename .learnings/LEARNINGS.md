@@ -254,3 +254,9 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - **Context:** Ticket quick actions had the correct `shell` or `write+shell` Session snapshot but Kimi ACP 0.22 permission requests omitted `rawInput` and used current tool titles, so the old matcher denied them.
 - **Rule:** Treat the observed ACP permission payload as a versioned security contract. Parse only exact known command text and diff path shapes, preserve legacy `rawInput` compatibility, match current and legacy tool names, and keep a real-shape fixture in policy tests. A prompt, policy enum, or synthetic `rawInput` test alone does not prove runtime permission compatibility.
 - **Verified outcome:** Focused action-catalog, Session, proxy, and permission tests pass for Kimi `Shell` and file diff requests, including fail-closed mismatch and `/tmp/support-qa/` path traversal/symlink cases; Server build passes.
+
+## [LRN-20260825-001] lark-ticket-batch-sync-boundary
+
+- **Context:** Lark Ticket full/incremental sync and local cleaning needed a batch contract instead of per-record platform and database round trips.
+- **Rule:** Use List only to enumerate or source-filter record IDs, then call Bitable `batch_get(automatic_fields=true)` in chunks of 100 and treat its records as the snapshot source. Fail the scope on forbidden, absent, missing, or invalid-time details. Batch PostgreSQL snapshot UPSERT, cleaning reads, and cleaning updates separately; do not replace N+1 platform reads with N+1 database operations.
+- **Verified outcome:** 58 focused tests and Server build pass. A live full sync listed 1,878 records, batch-synced 169 active records, changed 147 cleaning projections, and completed successfully without exposing record payloads.

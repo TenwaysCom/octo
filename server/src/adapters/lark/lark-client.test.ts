@@ -42,7 +42,7 @@ describe("lark-client", () => {
       "base_123",
       "tbl_456",
       ["rec_1", "rec_forbidden", "rec_missing"],
-      { withSharedUrl: true },
+      { withSharedUrl: true, automaticFields: true },
     );
 
     expect(requestMock).toHaveBeenCalledWith(
@@ -52,6 +52,7 @@ describe("lark-client", () => {
         data: {
           record_ids: ["rec_1", "rec_forbidden", "rec_missing"],
           with_shared_url: true,
+          automatic_fields: true,
         },
       }),
       expect.anything(),
