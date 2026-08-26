@@ -25,6 +25,8 @@ related:
 - [x] Web 可看到后台运行、调度和失败状态；后台运行时禁用“立即同步”，竞态请求由 Server 返回 409。
 - [x] 同步与清洗成功后才推进 checkpoint；失败保留旧水位并记录安全错误。
 - [x] 任务状态、触发来源、计数、心跳和错误可在 `platform_sync_runs` 审计。
+- [x] Worker 为每次定时任务输出成对的开始/结束结构化日志，结束日志包含结果和耗时。
+- [x] 本地 PM2 ecosystem 配置统一维护 API Server 和定时同步 Worker，仅从 `server/.env` 解析 `NODE_ENV` 作为同机环境名称后缀，不加载其他敏感变量。
 - [x] Server 相关单测与 TypeScript build 通过。
 
 ## 背景与范围
@@ -45,6 +47,8 @@ related:
 | --- | --- | --- | --- |
 | 2026-08-26 | in_progress | 已确认现有 Service、checkpoint、run audit、Web 手动同步和 PM2 部署边界。 | 实现 store、协调器、Worker、测试与部署入口。 |
 | 2026-08-26 | done | 已实现 schedule/run/lease 持久化、checkpoint CAS、Web/CLI/Worker 统一协调器、退避/阻塞、FE 状态轮询与运行中禁用、PM2 Worker 与配置文档；78 个聚焦测试和 Server/FE build 通过。 | 未启用真实 schedule，也未做外部平台授权运行验证；周期性 reconcile 另做。 |
+| 2026-08-26 | done | 新增 `ecosystem.config.cjs`，统一定义单实例 API Server 与 Worker；进程名使用 `NODE_ENV` 后缀，只读取该字段，不把 `.env` 密钥载入 PM2 配置环境。 | 当前环境未安装 PM2，未实际启动进程。 |
+| 2026-08-26 | done | 修复 PM2 fork 入口识别以及 enabled polling、disabled wait 的事件循环保活；重建后 Worker 跨多个轮询保持同一 PID、`online`、`restartTime=0`，并完成真实三平台 schedule。 | 后续按 app 日志和 FE 状态持续观察定时运行。 |
 
 ## 验证
 
@@ -55,7 +59,7 @@ related:
 | FE check | 通过 | 19 tests passed；`pnpm --dir fe build` | 未做真实浏览器联调 |
 | Diff / 部署脚本 | 通过 | `git diff --check`；两个生产部署脚本 `bash -n` | 未实际执行 PM2 部署 |
 | Server 全量测试 | 有既有环境失败 | 520 passed；6 个 SQLite suite 缺 `node:sqlite`；1 个 logger 文件时序断言失败 | 新增与相关同步测试全部通过 |
-| Worker 真实运行 | 未执行 | scheduler 默认关闭，未修改本机私有配置 | 未验证真实 Lark/Meegle/GitHub 授权与生产节流 |
+| Worker 真实运行 | 通过 | PM2 Worker 保持 `online`、同一 PID、`restartTime=0`；结构化日志记录 Lark、Meegle、GitHub schedule 成功 | 仅验证当前 staging 配置，仍需持续观察生产节流 |
 
 ## 关联
 

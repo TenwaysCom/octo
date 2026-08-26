@@ -272,3 +272,9 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - **Context:** Web, CLI, and a scheduled Worker can all start sync work for the same checkpoint scope; UPSERT makes replay safe but does not prevent duplicated platform reads or an older run overwriting a newer watermark.
 - **Rule:** Every sync entrypoint must acquire the same PostgreSQL `(platform, scope_key)` lease before touching the source. Renew the lease with an unforgeable token, guard checkpoint advancement with a version CAS, and treat a scheduled collision as coalesced rather than consuming retry attempts. If a lease is lost, keep successful snapshot UPSERTs but do not advance the checkpoint. User-facing status must derive “currently running” from a non-expired lease, not merely the newest run row: a newer skipped collision must not hide its active owner, and an orphaned stale run must not disable the UI forever.
 - **Verified outcome:** Store and coordinator tests prove expired-owner fencing, cross-mode exclusion, checkpoint CAS, collision coalescing, active-run status priority, run audit, and lease cleanup; 78 focused tests and Server build pass.
+
+## [LRN-20260826-002] pm2-worker-entrypoint-lifecycle
+
+- **Context:** A dedicated ESM Worker ran normally through direct `node` execution but entered a clean-exit restart loop under PM2 fork mode.
+- **Rule:** Do not identify a PM2-managed ESM entrypoint from `process.argv[1]` alone because it may point to `ProcessContainerFork.js`; also accept PM2's explicit `pm_exec_path` and compare paths through `pathToFileURL`. Every timer or wait that owns a long-running process lifecycle must stay referenced; only auxiliary timers may call `unref()`.
+- **Verified outcome:** Direct-Node and PM2-path tests plus enabled/disabled lifecycle tests pass. The real Worker stayed online with restart count zero across multiple polls and completed schedules for all three platforms.

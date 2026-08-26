@@ -238,3 +238,10 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Error:** `fatal: cannot create .git/index.lock: Read-only file system`.
 - **Fix:** Retry the same explicit-path `git add` and commit with approved Git-index access; keep the unrelated staged deletion outside the commit.
 - **Status:** resolved after the scoped escalated commit operation.
+
+## [ERR-20260826-004] scheduled-worker-unref-poll-delay
+
+- **Summary:** The scheduled Worker entered a clean-exit PM2 restart loop even though direct foreground execution was stable.
+- **Error:** PM2 fork mode sets `process.argv[1]` to its container script, so the Worker's direct-entry guard never invoked `runPlatformSyncWorker`; PM2 repeatedly observed a zero-code/SIGINT exit. Separately, both the polling delay and scheduler-disabled wait could release the event loop too early.
+- **Fix:** Recognize PM2's explicit `pm_exec_path` as an executable entrypoint, keep the main polling delay referenced, and use a referenced keep-alive interval while scheduling is disabled. Only auxiliary timers such as lease heartbeats may be unreferenced. Cover direct Node, PM2 fork mode, enabled polling, and disabled waiting in regression tests.
+- **Status:** resolved; 6 focused tests and Server build pass, and the rebuilt PM2 Worker remained `online` with the same PID and `restartTime=0` across more than one 30-second poll while completing real Lark, Meegle, and GitHub schedules.

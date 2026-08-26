@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { pathToFileURL } from "node:url";
 import { PlatformSyncCoordinator } from "../application/services/platform-sync-coordinator.js";
 import { PlatformSyncService } from "../application/services/platform-sync.service.js";
 import {
@@ -110,12 +111,35 @@ function configureLocalLarkAuth(tokenStore: PostgresLarkTokenStore): void {
   if (appId && appSecret) configureLarkAuthServiceDeps({ appId, appSecret, tokenStore });
 }
 
-function waitUntilAborted(signal: AbortSignal): Promise<void> {
+export function waitUntilAborted(signal: AbortSignal): Promise<void> {
   if (signal.aborted) return Promise.resolve();
-  return new Promise((resolve) => signal.addEventListener("abort", () => resolve(), { once: true }));
+  return new Promise((resolve) => {
+    const keepAlive = setInterval(() => undefined, 60_000);
+    signal.addEventListener("abort", done, { once: true });
+    function done() {
+      clearInterval(keepAlive);
+      signal.removeEventListener("abort", done);
+      resolve();
+    }
+  });
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+export function isPlatformSyncWorkerEntrypoint(
+  moduleUrl = import.meta.url,
+  argvPath = process.argv[1],
+  pmExecPath = process.env.pm_exec_path,
+): boolean {
+  return [argvPath, pmExecPath].some((candidate) => {
+    if (!candidate) return false;
+    try {
+      return pathToFileURL(candidate).href === moduleUrl;
+    } catch {
+      return false;
+    }
+  });
+}
+
+if (isPlatformSyncWorkerEntrypoint()) {
   void runPlatformSyncWorker().catch((error) => {
     workerLogger.error({
       operation: "platform_sync_scheduler",

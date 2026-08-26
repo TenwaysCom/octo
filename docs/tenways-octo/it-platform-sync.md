@@ -179,6 +179,11 @@ pnpm --dir server platform:sync --only github --mode incremental --scope TWS-lan
 # 生产 Worker 使用已构建的 dist；scheduler.enabled=false 时保持空闲
 pnpm --dir server build
 pnpm --dir server platform:sync:worker
+
+# 本地 PM2 同时维护 API Server 与 Worker；进程名以后缀区分 server/.env 的 NODE_ENV
+# ecosystem 只解析 NODE_ENV，应用运行时环境仍由 Server 自行从 server/.env 加载
+pnpm --dir server exec pm2 startOrReload ../ecosystem.config.cjs --update-env
+pnpm --dir server exec pm2 save
 ```
 
 本地配置只包含同步目标，例如：
@@ -512,7 +517,7 @@ syncLark...    -> cleanLarkBaseTickets(...)
 
 - 浏览器永不向 server 发送原始 cookie；授权码只能一次性使用。
 - token 只保存在 server 受保护的存储中；本地 JSON 配置不得包含 token、cookie、密码或私钥。
-- 当前 CLI/Worker 输出或记录 `listed`、`skipped_inactive`、`synced`、`cleaned` 与安全失败摘要，不记录原始敏感 payload。
+- 当前 CLI/Worker 输出或记录 `listed`、`skipped_inactive`、`synced`、`cleaned` 与安全失败摘要，不记录原始敏感 payload。Worker 每次领取 schedule 时记录 `PLATFORM_SYNC_SCHEDULE_STARTED`，并在所有结果分支记录 `PLATFORM_SYNC_SCHEDULE_FINISHED`；结束日志包含 `status`、`durationMs` 和可选 `errorCode`，两条日志共享同一 `actionRunId`。
 - `run_id`、运行状态、触发来源、心跳和 `stale` 已持久化；`changed`/`unchanged`、精确耗时和统一平台错误码仍待完善。
 - 失败重试、速率限制、认证过期与权限拒绝必须使用可区分的错误码。
 

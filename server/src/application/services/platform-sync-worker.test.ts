@@ -7,7 +7,21 @@ import {
   PlatformSyncWorker,
 } from "./platform-sync-worker.js";
 
+const workerLog = vi.hoisted(() => ({
+  info: vi.fn(),
+  warn: vi.fn(),
+  error: vi.fn(),
+}));
+
+vi.mock("../../logger.js", () => ({
+  logger: { child: () => workerLog },
+}));
+
 describe("PlatformSyncWorker", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("builds one incremental schedule per configured platform scope", () => {
     const config = parsePlatformSyncConfig({
       scheduler: { enabled: true },
@@ -71,6 +85,24 @@ describe("PlatformSyncWorker", () => {
       cleanAfterSync: true,
     }));
     expect(scheduleStore.markSuccess).toHaveBeenCalledWith(schedule.scheduleId);
+    const startedLog = workerLog.info.mock.calls.find(([, event]) => event === "PLATFORM_SYNC_SCHEDULE_STARTED");
+    const finishedLog = workerLog.info.mock.calls.find(([, event]) => event === "PLATFORM_SYNC_SCHEDULE_FINISHED");
+    expect(startedLog?.[0]).toEqual(expect.objectContaining({
+      stage: "server.sync.schedule_started",
+      scheduleId: schedule.scheduleId,
+      platform: "github",
+      scopeKey: "acme/app",
+      trigger: "scheduled",
+      attempt: 1,
+      actionRunId: expect.any(String),
+    }));
+    expect(finishedLog?.[0]).toEqual(expect.objectContaining({
+      stage: "server.sync.schedule_finished",
+      scheduleId: schedule.scheduleId,
+      status: "succeeded",
+      durationMs: expect.any(Number),
+      actionRunId: startedLog?.[0].actionRunId,
+    }));
   });
 
   it("retries transient failures and blocks permanent checkpoint failures", async () => {
@@ -126,6 +158,44 @@ describe("PlatformSyncWorker", () => {
       expect.objectContaining({ status: "coalesced", errorCode: "SYNC_ALREADY_RUNNING" }),
     ]);
     expect(scheduleStore.markCoalesced).toHaveBeenCalledWith(schedule.scheduleId);
+    expect(workerLog.info).toHaveBeenCalledWith(expect.objectContaining({
+      stage: "server.sync.schedule_finished",
+      status: "coalesced",
+      errorCode: "SYNC_ALREADY_RUNNING",
+    }), "PLATFORM_SYNC_SCHEDULE_FINISHED");
+  });
+
+  it("keeps the polling delay referenced so the Worker process stays alive", async () => {
+    const abortController = new AbortController();
+    const delayTimer = setTimeout(() => undefined, 60_000);
+    const unref = vi.spyOn(delayTimer, "unref");
+    const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout").mockReturnValue(delayTimer);
+    const worker = new PlatformSyncWorker({
+      scheduleStore: {
+        reconcileConfigSchedules: vi.fn(),
+        claimDue: vi.fn().mockResolvedValue([]),
+        markSuccess: vi.fn(),
+        markCoalesced: vi.fn(),
+        markTransientFailure: vi.fn(),
+        markBlocked: vi.fn(),
+      },
+      coordinator: { runIncremental: vi.fn() },
+      service: {
+        incrementalSyncGitHubPullRequests: vi.fn(),
+        incrementalSyncLarkBaseTickets: vi.fn(),
+        incrementalSyncMeegleWorkitems: vi.fn(),
+      },
+      concurrency: 1,
+      pollIntervalMs: 30_000,
+    });
+
+    const running = worker.run(abortController.signal);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 30_000);
+    expect(unref).not.toHaveBeenCalled();
+    abortController.abort();
+    await expect(running).resolves.toBeUndefined();
+    setTimeoutSpy.mockRestore();
   });
 });
 

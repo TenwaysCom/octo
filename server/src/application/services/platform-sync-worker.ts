@@ -71,14 +71,29 @@ export class PlatformSyncWorker {
 
   private async runSchedule(schedule: PlatformSyncSchedule): Promise<PlatformSyncWorkerRunResult> {
     const actionRunId = randomUUID();
+    const attempt = schedule.retryCount + 1;
+    const trigger = schedule.retryCount > 0 ? "retry" : "scheduled";
+    const startedAtMs = Date.now();
+    let outcome: PlatformSyncWorkerRunResult | undefined;
+    workerLogger.info({
+      operation: "platform_sync",
+      layer: "server",
+      stage: "server.sync.schedule_started",
+      actionRunId,
+      scheduleId: schedule.scheduleId,
+      platform: schedule.platform,
+      scopeKey: schedule.scopeKey,
+      trigger,
+      attempt,
+    }, "PLATFORM_SYNC_SCHEDULE_STARTED");
     try {
       const result = await this.deps.coordinator.runIncremental({
         platform: schedule.platform,
         scopeKey: schedule.scopeKey,
-        trigger: schedule.retryCount > 0 ? "retry" : "scheduled",
+        trigger,
         actionRunId,
         scheduleId: schedule.scheduleId,
-        attempt: schedule.retryCount + 1,
+        attempt,
         execute: (checkpoint, context) => executeIncrementalPlatformSyncTarget(this.deps.service, {
           target: schedule.target,
           masterUserId: schedule.masterUserId,
@@ -99,12 +114,13 @@ export class PlatformSyncWorker {
         synced: result.synced,
         cleaned: result.cleaned ?? 0,
       }, "PLATFORM_SYNC_SCHEDULED_COMPLETED");
-      return {
+      outcome = {
         scheduleId: schedule.scheduleId,
         platform: schedule.platform,
         scopeKey: schedule.scopeKey,
         status: "succeeded",
       };
+      return outcome;
     } catch (error) {
       const errorCode = platformSyncErrorCode(error);
       if (errorCode === "SYNC_ALREADY_RUNNING") {
@@ -119,13 +135,14 @@ export class PlatformSyncWorker {
           scopeKey: schedule.scopeKey,
           scheduleId: schedule.scheduleId,
         }, "PLATFORM_SYNC_SCHEDULE_COALESCED");
-        return {
+        outcome = {
           scheduleId: schedule.scheduleId,
           platform: schedule.platform,
           scopeKey: schedule.scopeKey,
           status: "coalesced",
           errorCode,
         };
+        return outcome;
       }
       const retryable = isRetryablePlatformSyncError(error);
       const status = retryable
@@ -142,13 +159,29 @@ export class PlatformSyncWorker {
         scheduleId: schedule.scheduleId,
         retryCount: schedule.retryCount,
       }, retryable ? "PLATFORM_SYNC_RETRY_SCHEDULED" : "PLATFORM_SYNC_SCHEDULE_BLOCKED");
-      return {
+      outcome = {
         scheduleId: schedule.scheduleId,
         platform: schedule.platform,
         scopeKey: schedule.scopeKey,
         status,
         errorCode,
       };
+      return outcome;
+    } finally {
+      workerLogger.info({
+        operation: "platform_sync",
+        layer: "server",
+        stage: "server.sync.schedule_finished",
+        actionRunId,
+        scheduleId: schedule.scheduleId,
+        platform: schedule.platform,
+        scopeKey: schedule.scopeKey,
+        trigger,
+        attempt,
+        status: outcome?.status ?? "failed",
+        errorCode: outcome?.errorCode,
+        durationMs: Math.max(0, Date.now() - startedAtMs),
+      }, "PLATFORM_SYNC_SCHEDULE_FINISHED");
     }
   }
 }
@@ -258,7 +291,6 @@ function abortableDelay(durationMs: number, signal: AbortSignal): Promise<void> 
   if (signal.aborted) return Promise.resolve();
   return new Promise((resolve) => {
     const timeout = setTimeout(done, durationMs);
-    timeout.unref();
     signal.addEventListener("abort", done, { once: true });
     function done() {
       clearTimeout(timeout);
