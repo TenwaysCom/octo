@@ -333,10 +333,16 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .addColumn("watermark_tiebreaker", "text")
     .addColumn("last_success_at", "text")
     .addColumn("last_error", "text")
+    .addColumn("version", "integer", (column) => column.notNull().defaultTo(0))
     .addColumn("created_at", "text", (column) => column.notNull())
     .addColumn("updated_at", "text", (column) => column.notNull())
     .addPrimaryKeyConstraint("platform_sync_checkpoints_pkey", ["platform", "scope_key"])
     .execute();
+
+  await sql`
+    ALTER TABLE platform_sync_checkpoints
+    ADD COLUMN IF NOT EXISTS version integer NOT NULL DEFAULT 0
+  `.execute(db);
 
   await db.schema
     .createTable("platform_sync_runs")
@@ -355,6 +361,54 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .addColumn("stale", "integer")
     .addColumn("failed", "boolean")
     .addColumn("error_message", "text")
+    .addColumn("status", "text", (column) => column.notNull().defaultTo("running"))
+    .addColumn("trigger", "text", (column) => column.notNull().defaultTo("cli"))
+    .addColumn("action_run_id", "text", (column) => column.notNull().defaultTo("legacy"))
+    .addColumn("schedule_id", "text")
+    .addColumn("attempt", "integer", (column) => column.notNull().defaultTo(1))
+    .addColumn("heartbeat_at", "text")
+    .addColumn("error_code", "text")
+    .execute();
+
+  await sql`ALTER TABLE platform_sync_runs ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'running'`.execute(db);
+  await sql`ALTER TABLE platform_sync_runs ADD COLUMN IF NOT EXISTS trigger text NOT NULL DEFAULT 'cli'`.execute(db);
+  await sql`ALTER TABLE platform_sync_runs ADD COLUMN IF NOT EXISTS action_run_id text NOT NULL DEFAULT 'legacy'`.execute(db);
+  await sql`ALTER TABLE platform_sync_runs ADD COLUMN IF NOT EXISTS schedule_id text`.execute(db);
+  await sql`ALTER TABLE platform_sync_runs ADD COLUMN IF NOT EXISTS attempt integer NOT NULL DEFAULT 1`.execute(db);
+  await sql`ALTER TABLE platform_sync_runs ADD COLUMN IF NOT EXISTS heartbeat_at text`.execute(db);
+  await sql`ALTER TABLE platform_sync_runs ADD COLUMN IF NOT EXISTS error_code text`.execute(db);
+
+  await db.schema
+    .createTable("platform_sync_schedules")
+    .ifNotExists()
+    .addColumn("schedule_id", "text", (column) => column.primaryKey())
+    .addColumn("platform", "text", (column) => column.notNull())
+    .addColumn("scope_key", "text", (column) => column.notNull())
+    .addColumn("interval_seconds", "integer", (column) => column.notNull())
+    .addColumn("enabled", "boolean", (column) => column.notNull())
+    .addColumn("managed_by", "text", (column) => column.notNull())
+    .addColumn("master_user_id", "text")
+    .addColumn("target_json", "text", (column) => column.notNull())
+    .addColumn("next_run_at", "text", (column) => column.notNull())
+    .addColumn("retry_count", "integer", (column) => column.notNull().defaultTo(0))
+    .addColumn("blocked_reason", "text")
+    .addColumn("last_enqueued_at", "text")
+    .addColumn("created_at", "text", (column) => column.notNull())
+    .addColumn("updated_at", "text", (column) => column.notNull())
+    .execute();
+
+  await db.schema
+    .createTable("platform_sync_leases")
+    .ifNotExists()
+    .addColumn("platform", "text", (column) => column.notNull())
+    .addColumn("scope_key", "text", (column) => column.notNull())
+    .addColumn("run_id", "text", (column) => column.notNull())
+    .addColumn("lease_token", "text", (column) => column.notNull())
+    .addColumn("lease_expires_at", "text", (column) => column.notNull())
+    .addColumn("heartbeat_at", "text", (column) => column.notNull())
+    .addColumn("created_at", "text", (column) => column.notNull())
+    .addColumn("updated_at", "text", (column) => column.notNull())
+    .addPrimaryKeyConstraint("platform_sync_leases_pkey", ["platform", "scope_key"])
     .execute();
 
   await db.schema
@@ -468,6 +522,14 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
   await sql`
     CREATE INDEX IF NOT EXISTS platform_sync_runs_scope_started_idx
     ON platform_sync_runs(platform, scope_key, started_at DESC)
+  `.execute(db);
+  await sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS platform_sync_schedules_scope_unique
+    ON platform_sync_schedules(platform, scope_key)
+  `.execute(db);
+  await sql`
+    CREATE INDEX IF NOT EXISTS platform_sync_schedules_due_idx
+    ON platform_sync_schedules(enabled, next_run_at)
   `.execute(db);
 
   const now = new Date().toISOString();
@@ -695,6 +757,8 @@ function isUndefinedColumn(error: unknown, column: string): boolean {
 }
 
 export async function resetPostgresDatabase(db: Kysely<DatabaseSchema>): Promise<void> {
+  await sql`DROP TABLE IF EXISTS platform_sync_leases`.execute(db);
+  await sql`DROP TABLE IF EXISTS platform_sync_schedules`.execute(db);
   await sql`DROP TABLE IF EXISTS platform_sync_runs`.execute(db);
   await sql`DROP TABLE IF EXISTS platform_sync_checkpoints`.execute(db);
   await sql`DROP TABLE IF EXISTS lark_base_ticket_octo`.execute(db);

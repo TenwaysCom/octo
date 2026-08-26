@@ -40,6 +40,7 @@ ssh -p "$SSH_PORT" "$SSH_HOST" -t "
     
     echo '[5/5] 重启 PM2 服务...'
     pnpm exec pm2 reload octo-server --update-env || pnpm exec pm2 start dist/index.js --name octo-server
+    pnpm exec pm2 reload octo-platform-sync-worker --update-env || pnpm exec pm2 start dist/scripts/platform-sync-worker.js --name octo-platform-sync-worker
     pnpm exec pm2 save
     
     echo ''

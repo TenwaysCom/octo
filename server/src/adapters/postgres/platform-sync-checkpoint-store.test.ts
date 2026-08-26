@@ -67,6 +67,7 @@ describe("PostgresPlatformSyncCheckpointStore", () => {
       watermark_tiebreaker: "000000000012",
       last_success_at: "2026-08-11T10:00:00.000Z",
       last_error: null,
+      version: 0,
       created_at: "2026-08-11T12:00:00.000Z",
       updated_at: "2026-08-11T12:00:00.000Z",
     }]);
@@ -99,6 +100,7 @@ describe("PostgresPlatformSyncCheckpointStore", () => {
       watermarkUpdatedAt: "2026-08-11T08:02:00.000Z",
       watermarkTiebreaker: "000000000012",
       lastSuccessAt: "2026-08-11T09:02:00.000Z",
+      version: 1,
     });
   });
 
@@ -117,6 +119,7 @@ describe("PostgresPlatformSyncCheckpointStore", () => {
       watermarkUpdatedAt: "2026-08-06T12:50:56.000Z",
       watermarkTiebreaker: "rec_9",
       lastSuccessAt: "2026-08-07T01:48:09.505Z",
+      version: 1,
     };
     await expect(store.initializeMissingWatermark(checkpoint, "2026-08-11T10:00:00.000Z")).resolves.toBe(true);
     await expect(store.initializeMissingWatermark(checkpoint, "2026-08-11T11:00:00.000Z")).resolves.toBe(false);
@@ -126,6 +129,8 @@ describe("PostgresPlatformSyncCheckpointStore", () => {
       watermarkUpdatedAt: "2026-08-06T12:50:56.000Z",
       watermarkTiebreaker: "rec_9",
       lastSuccessAt: "2026-08-07T01:48:09.505Z",
+      lastError: undefined,
+      version: 1,
     });
   });
 
@@ -146,6 +151,7 @@ describe("PostgresPlatformSyncCheckpointStore", () => {
       scopeKey: "base/table",
       watermarkUpdatedAt: "2026-08-11T09:55:00.000Z",
       watermarkTiebreaker: "",
+      version: 1,
     });
   });
 });

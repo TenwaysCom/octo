@@ -238,6 +238,7 @@ export interface DatabaseSchema {
     watermark_tiebreaker: string | null;
     last_success_at: string | null;
     last_error: string | null;
+    version: number;
     created_at: string;
     updated_at: string;
   };
@@ -256,5 +257,38 @@ export interface DatabaseSchema {
     stale: number | null;
     failed: boolean | null;
     error_message: string | null;
+    status: "queued" | "running" | "succeeded" | "failed" | "skipped";
+    trigger: "scheduled" | "manual" | "cli" | "retry";
+    action_run_id: string;
+    schedule_id: string | null;
+    attempt: number;
+    heartbeat_at: string | null;
+    error_code: string | null;
+  };
+  platform_sync_schedules: {
+    schedule_id: string;
+    platform: "meegle" | "github" | "lark";
+    scope_key: string;
+    interval_seconds: number;
+    enabled: boolean;
+    managed_by: "config";
+    master_user_id: string | null;
+    target_json: string;
+    next_run_at: string;
+    retry_count: number;
+    blocked_reason: string | null;
+    last_enqueued_at: string | null;
+    created_at: string;
+    updated_at: string;
+  };
+  platform_sync_leases: {
+    platform: "meegle" | "github" | "lark";
+    scope_key: string;
+    run_id: string;
+    lease_token: string;
+    lease_expires_at: string;
+    heartbeat_at: string;
+    created_at: string;
+    updated_at: string;
   };
 }

@@ -1,7 +1,7 @@
 ---
 status: draft
 owner: TBD
-last_reviewed: 2026-08-12
+last_reviewed: 2026-08-26
 scope: Octo 对 Lark Base、Meegle Work Item、GitHub Pull Request 的只读快照同步与演进设计
 update_required_when:
   - 同步范围、触发方式或外部平台适配变更
@@ -40,6 +40,7 @@ Octo 从 Lark Base、Meegle 与 GitHub 读取指定范围的对象，持久化�
 | --- | --- | --- | --- |
 | `POST /api/sync/*` | 单条或批量同步 | 否 | 是 |
 | `pnpm --dir server platform:sync` | 按本地配置批量同步 | 否 | 是 |
+| `pnpm --dir server platform:sync:worker` | 独立 Worker 按持久化 schedule 增量同步 | 否 | 是 |
 | `pnpm --dir server platform:clean-meegle --apply` | 清洗历史 Meegle 快照 | 否 | 是 |
 
 HTTP 路由如下。所有请求都可携带 `actionRunId`；Base ticket 可指定 `titleFieldName` 与 `statusFieldName`，未指定时才使用候选字段回退。
@@ -57,6 +58,8 @@ HTTP 路由如下。所有请求都可携带 `actionRunId`；Base ticket 可指�
 | `POST /api/sync/lark-base/tickets/selected` | 同步多选 Lark Base record |
 
 Web Integrations 还提供受 Web 会话保护的同步状态页：展示 Lark Ticket、Meegle User Story、Meegle Tech Task、Meegle Production Bug，以及 GitHub Odoo EU、GitHub Odoo UK、GitHub Odoo US。每个 GitHub 卡片对应一个明确仓库，最近同步时间只从该仓库快照计算，单项同步也只读取该仓库。Web 的单项同步固定为“同步后清洗”：只清洗本次成功写入的快照。服务端从 `platform-sync.local.json` 解析实际 target，并从 HttpOnly Web session 获取 `masterUserId`；浏览器不会接收或传递用户 ID、平台 token、Base/Table ID 或仓库标识；未配置来源在页面明确显示为“未配置”。Web 的 Lark Ticket、Meegle 工作项和 GitHub PR 列表每次最多读取最新 500 条快照。
+
+同步来源接口同时投影持久化 schedule、有效 scope lease 与 run audit。页面首次加载时读取任务状态，之后每 10 秒轻量轮询一次；若后台任务持有有效 lease，卡片显示“同步中”并禁用“立即同步”。轮询间隙即使发起重复请求，服务端仍以相同 scope lease 拒绝并返回 `409 SYNC_ALREADY_RUNNING`。查询状态时有效 lease 对应的运行优先于更晚的 skipped 审计，过期 lease 不会让按钮永久禁用。
 
 Web Lark Ticket 列表默认按状态分组并按状态升序排列，提供“进行中”“未分类”“未同步”快速过滤；“进行中”包含状态不是 `Finish`、`Cancelled`、`Rejected` 的 Ticket。列表也支持切换为按 Issue 类型、需求人、负责人、紧急度分组或不分组，并可配置排序字段、排序方向和显示字段。
 
@@ -120,7 +123,7 @@ Lark Ticket 详情页可基于当前同步快照的标题、描述与资源创�
 | GitHub HTTP | 读取 open PR | 跳过终态 | 只能覆盖开放 PR |
 | GitHub CLI | `all` 依次读取 `closed` 与 `merged`，每类最多 100 | `closed` 结果会排除已合并 PR | 当前 `all` 不包含 open；命名与范围需在新版设计中统一 |
 
-当前没有 scheduler 或 webhook 消费器。GitHub、Lark 和 Meegle CLI 均支持按 checkpoint 的源端增量拉取；Meegle 依赖每个 work item type 的 MQL 时间字段配置。
+当前已有独立 scheduler Worker，但没有 webhook 消费器。Worker、Web 手动同步和 CLI 均基于相同 scope checkpoint，并通过 PostgreSQL scope lease 防止同一来源并发执行。GitHub、Lark 和 Meegle 均支持按 checkpoint 的源端增量拉取；Meegle 依赖每个 work item type 的 MQL 时间字段配置。
 
 ## 3. 代码与运行入口
 
@@ -130,6 +133,8 @@ Lark Ticket 详情页可基于当前同步快照的标题、描述与资源创�
 | Service | `server/src/application/services/platform-sync.service.ts` | Lark/Meegle/GitHub 单条、多选、批量编排；终态过滤与三平台清洗 |
 | Store | `server/src/adapters/postgres/platform-sync-store.ts` | 三类快照 UPSERT、失联标记、清洗输入读取与清洗字段更新；Lark 快照和清洗按批写入 |
 | Run audit | `server/src/adapters/postgres/platform-sync-run-store.ts` | scope 级运行开始、成功/失败、计数与安全错误摘要 |
+| Scheduler | `server/src/application/services/platform-sync-worker.ts`、`server/src/scripts/platform-sync-worker.ts` | 到期 schedule 领取、受限并发、重试/阻塞与独立进程生命周期 |
+| Coordination | `server/src/application/services/platform-sync-coordinator.ts` | lease、checkpoint CAS、run audit 与统一增量执行边界 |
 | Schema | `server/src/adapters/postgres/database.ts`、`schema.ts` | 表和索引 |
 | CLI | `server/src/scripts/platform-sync.ts` | 本地配置、平台顺序、`gh` 调用与运行结果 |
 | Meegle 历史清洗 | `server/src/scripts/clean-meegle-sync-snapshots.ts` | 项目 `4c3fv6` 的既有快照批量清洗；只写 `meegle_workitem_syncs` |
@@ -170,6 +175,10 @@ pnpm --dir server platform:init-checkpoints --apply
 
 # GitHub 真增量：scope 必须已存在 checkpoint；同步后默认清洗本轮 PR
 pnpm --dir server platform:sync --only github --mode incremental --scope TWS-lance/odoo_tenways
+
+# 生产 Worker 使用已构建的 dist；scheduler.enabled=false 时保持空闲
+pnpm --dir server build
+pnpm --dir server platform:sync:worker
 ```
 
 本地配置只包含同步目标，例如：
@@ -186,6 +195,22 @@ pnpm --dir server platform:sync --only github --mode incremental --scope TWS-lan
   }]
 }
 ```
+
+定时同步在同一文件增加非敏感调度配置；Lark/Meegle 的凭据归属由 Server 环境变量 `PLATFORM_SYNC_MASTER_USER_ID` 显式提供，不写入配置文件：
+
+```json
+{
+  "scheduler": {
+    "enabled": true,
+    "pollIntervalSeconds": 30,
+    "concurrency": 2,
+    "leaseSeconds": 1200,
+    "intervalsMinutes": { "lark": 10, "meegle": 15, "github": 10 }
+  }
+}
+```
+
+Worker 启动时把当前配置 scope 收敛到 `platform_sync_schedules`；删除的配置 scope 会被禁用。错过的多个周期合并成一次，同 scope 已由手动或 CLI 运行占用时也直接合并到下一周期。临时网络、429 与 5xx 按 1/5/15 分钟退避，超过三次或遇到 checkpoint、授权、权限、配置错误时禁用该 schedule 并保存安全的 `blocked_reason`；修复配置或授权后重启 Worker 会按配置重新启用。
 
 Meegle 的本进程读取限流由 `MEEGLE_MIN_REQUEST_INTERVAL_MS` 控制，HTTP 429 的重试次数由 `MEEGLE_RATE_LIMIT_RETRY_COUNT` 控制。`Commercial Usage Exceeded` 是调用额度耗尽，不应按短时频率限制自动重试。
 
@@ -277,15 +302,24 @@ CLI clean               不同步，只清洗配置 scope 内已有快照
 platform_sync_checkpoints
 - platform, scope_key                              # 唯一键
 - watermark_updated_at, watermark_tiebreaker
-- last_success_at, last_error, updated_at
+- last_success_at, last_error, version, updated_at
 
 platform_sync_runs
 - run_id, platform, scope_key, mode, clean_after_sync
+- status, trigger, action_run_id, schedule_id, attempt, heartbeat_at
 - started_at, completed_at, listed, skipped_inactive, synced, cleaned, stale
-- failed, error_message
+- failed, error_code, error_message
+
+platform_sync_schedules
+- schedule_id, platform, scope_key, interval_seconds, enabled, next_run_at
+- target_json, master_user_id, retry_count, blocked_reason, last_enqueued_at
+
+platform_sync_leases
+- platform, scope_key                              # 唯一键
+- run_id, lease_token, lease_expires_at, heartbeat_at
 ```
 
-当前已实现 `platform_sync_checkpoints`、`platform_sync_runs`、`last_seen_at` 与 `stale`。CLI 的 full、incremental、clean 每个 scope 都会落一条运行审计；full 完整成功时才执行失联标记。`source_hash` 仍未实现。`platform:init-checkpoints` 只从 GitHub/Meegle 既有快照建立水位：GitHub scope 为 `owner/repo`，Meegle 为 `project_key`。Lark 不从历史快照派生 checkpoint，必须使用 5.4 的 reset 命令切换到新的源端最后修改时间语义。若 GitHub/Meegle scope 任一历史快照缺少 `source_updated_at`，不写 watermark，并在 `last_error` 标记为“首次增量前必须全量同步”；这避免以本地 `synced_at` 冒充源端更新时间而漏数据。
+当前已实现 `platform_sync_checkpoints`、`platform_sync_runs`、`platform_sync_schedules`、`platform_sync_leases`、`last_seen_at` 与 `stale`。Web 与 Worker 的 incremental 每个 scope 都会落一条运行审计；checkpoint 使用 version CAS，lease 使用不可复用的 token，旧运行不能覆盖新水位或释放新租约。CLI 的 full、incremental、clean 保留现有运行审计；full 完整成功时才执行失联标记。`source_hash` 仍未实现。
 
 ### 5.3.1 Web「立即同步」
 
@@ -478,15 +512,15 @@ syncLark...    -> cleanLarkBaseTickets(...)
 
 - 浏览器永不向 server 发送原始 cookie；授权码只能一次性使用。
 - token 只保存在 server 受保护的存储中；本地 JSON 配置不得包含 token、cookie、密码或私钥。
-- 当前 CLI 输出 `listed`、`skipped_inactive`、`synced`、`cleaned` 与失败摘要，不记录原始敏感 payload。
-- `run_id`、`changed`/`unchanged`、`stale`、耗时持久化和统一安全错误码仍待实现。
+- 当前 CLI/Worker 输出或记录 `listed`、`skipped_inactive`、`synced`、`cleaned` 与安全失败摘要，不记录原始敏感 payload。
+- `run_id`、运行状态、触发来源、心跳和 `stale` 已持久化；`changed`/`unchanged`、精确耗时和统一平台错误码仍待完善。
 - 失败重试、速率限制、认证过期与权限拒绝必须使用可区分的错误码。
 
 ## 9. API、CLI 与调度
 
-- HTTP 接口使用 DTO 校验和 `{ ok, data, error }` 结构，提供单个、多选、批量同步和可选 `cleanAfterSync`；Web 平台同步卡片已接入基于 checkpoint 的增量模式。Web 运行审计 `platform_sync_runs` 仍待接入。
+- HTTP 接口使用 DTO 校验和 `{ ok, data, error }` 结构，提供单个、多选、批量同步和可选 `cleanAfterSync`；Web 平台同步卡片已接入基于 checkpoint 的增量模式、scope lease 与 `platform_sync_runs` 审计。
 - CLI 保留 `--only`、`--user-id`、`--config`，并提供 `--mode full|incremental|clean`：full/incremental 默认同步加清洗；clean 只清洗本地快照。GitHub incremental 额外要求 `--scope owner/repo`；Meegle incremental 可选 `--meegle-work-item-type TYPE_KEY` 只运行该类型的独立 scope；clean mode 不接受 `--scope`。
-- 定时任务应调用与 CLI/HTTP 相同的 service，而非复制平台请求逻辑。
+- 定时 Worker、Web 与 CLI 调用相同的 coordinator/service，不复制平台请求逻辑；Server HTTP 进程不运行业务 `setInterval`。
 - full 与 CLI incremental 模式均隔离各配置 target；某一 target/scope 失败后仍会继续其它 target。Web Lark 多 scope 同步会并行执行，每个 scope 独立记录 checkpoint 失败；失败 scope 不得推进自身 checkpoint。
 
 ## 10. 迁移、测试与验收
@@ -495,10 +529,11 @@ syncLark...    -> cleanLarkBaseTickets(...)
 
 1. 已完成：建立三个 `_octo` 表及一对一复合键；清洗结果只保存在同步表。
 2. 已完成：将 `cleanMeegleWorkitems`、`cleanGitHubPullRequests`、`cleanLarkBaseTickets` 收敛到 `PlatformSyncService`，并由 `cleanAfterSync` 触发。
-3. 已完成 HTTP：三个平台均有单个、多选、批量 DTO/API；Web 立即同步已使用 checkpoint 增量读取并默认清洗，运行审计仍待补齐。
+3. 已完成 HTTP：三个平台均有单个、多选、批量 DTO/API；Web 立即同步已使用 checkpoint 增量读取并默认清洗，运行审计和 scope lease 已接入。
 4. 已完成：建立 checkpoint schema，并接入三平台的 CLI 增量代码路径；GitHub/Meegle 可从历史快照初始化 checkpoint，Lark 必须使用显式 reset 命令建立新的增量起点。Meegle 按 `projectKey/workItemTypeKey` 初始化三类独立 checkpoint；旧项目级 checkpoint 不再使用。GitHub 已完成本地测试，Lark 依赖源端返回 `last_modified_time`，Meegle 仍待真实授权环境验证。
 5. 已完成：CLI full/incremental 默认清洗，`--mode clean` 支持在不访问源端的情况下重算已配置 scope 的本地清洗投影。
-6. 待完成：run 审计、hash/seen/stale 元数据、scheduler/webhook 与周期性全量校验。
+6. 已完成：独立 scheduler Worker、配置 schedule、scope lease、Web/CLI/Worker run audit、临时失败退避和 PM2 独立进程部署。
+7. 待完成：source hash、webhook、blocked schedule 管理 UI 与安全的周期性 full/reconcile。当前 full 范围仍不完整，不进入定时调度。
 
 验收至少覆盖：
 

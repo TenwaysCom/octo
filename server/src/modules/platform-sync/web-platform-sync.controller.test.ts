@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { PlatformSyncCoordinatorError } from "../../application/services/platform-sync-coordinator.js";
 import { createWebPlatformSyncController } from "./web-platform-sync.controller.js";
 
 const config = {
@@ -20,22 +21,25 @@ function createController(service = {
   incrementalSyncLarkBaseTickets: vi.fn().mockResolvedValue({ listed: 1, skippedInactive: 0, synced: 1, watermarkUpdatedAt: "2026-08-12T00:01:00.000Z", watermarkTiebreaker: "rec-1" }),
   incrementalSyncGitHubPullRequests: vi.fn().mockResolvedValue({ listed: 1, skippedInactive: 0, synced: 1, watermarkUpdatedAt: "2026-08-12T00:01:00.000Z", watermarkTiebreaker: "000000000001" }),
 }) {
-  const checkpointStore = {
-    get: vi.fn().mockImplementation(async (platform: string, scopeKey: string) => ({
-      platform,
-      scopeKey,
-      watermarkUpdatedAt: "2026-08-12T00:00:00.000Z",
-      watermarkTiebreaker: "initial",
+  const coordinator = {
+    runIncremental: vi.fn().mockImplementation(async (input) => ({
+      ...await input.execute({
+        watermarkUpdatedAt: "2026-08-12T00:00:00.000Z",
+        watermarkTiebreaker: "initial",
+      }, { actionRunId: input.actionRunId, runId: "db_run" }),
+      runId: "db_run",
+      actionRunId: input.actionRunId,
     })),
-    markSuccess: vi.fn().mockResolvedValue(undefined),
-    markFailure: vi.fn().mockResolvedValue(undefined),
   };
+  const statusStore = { list: vi.fn().mockResolvedValue([]) };
   return {
     service,
-    checkpointStore,
+    coordinator,
+    statusStore,
     controller: createWebPlatformSyncController({
       service,
-      checkpointStore,
+      coordinator,
+      statusStore,
       ensureSession: async () => ({ ok: true, masterUserId: "user_1", baseUrl: "https://open.larksuite.com", role: "devops", user: {} } as never),
       loadConfig: async () => config,
     }),
@@ -44,7 +48,18 @@ function createController(service = {
 
 describe("web platform sync controller", () => {
   it("lists Meegle types and the three GitHub repositories as independent sync sources", async () => {
-    const { controller } = createController();
+    const { controller, statusStore } = createController();
+    statusStore.list.mockResolvedValueOnce([{
+      platform: "github",
+      scopeKey: "TenwaysCom/Tenways",
+      scheduled: true,
+      nextRunAt: "2026-08-26T00:10:00.000Z",
+      runStatus: "failed",
+      runTrigger: "scheduled",
+      lastRunAt: "2026-08-26T00:00:00.000Z",
+      lastCompletedAt: "2026-08-26T00:01:00.000Z",
+      lastErrorCode: "PLATFORM_RATE_LIMITED",
+    }]);
     const result = await controller.list({ cookieHeader: "octo_web_session=session" });
 
     expect(result).toEqual({
@@ -53,13 +68,20 @@ describe("web platform sync controller", () => {
         ok: true,
         data: {
           sources: expect.arrayContaining([
-            { id: "lark-tickets", label: "Lark Ticket", configured: true },
-            { id: "meegle-user-stories", label: "Meegle User Story", configured: true },
-            { id: "meegle-tech-tasks", label: "Meegle Tech Task", configured: true },
-            { id: "meegle-production-bugs", label: "Meegle Production Bug", configured: true },
-            { id: "github-odoo-eu", label: "GitHub · Odoo EU", configured: true },
-            { id: "github-odoo-uk", label: "GitHub · Odoo UK", configured: true },
-            { id: "github-odoo-us", label: "GitHub · Odoo US", configured: true },
+            expect.objectContaining({ id: "lark-tickets", label: "Lark Ticket", configured: true }),
+            expect.objectContaining({ id: "meegle-user-stories", label: "Meegle User Story", configured: true }),
+            expect.objectContaining({ id: "meegle-tech-tasks", label: "Meegle Tech Task", configured: true }),
+            expect.objectContaining({ id: "meegle-production-bugs", label: "Meegle Production Bug", configured: true }),
+            expect.objectContaining({
+              id: "github-odoo-eu",
+              label: "GitHub · Odoo EU",
+              configured: true,
+              scheduled: true,
+              runStatus: "failed",
+              lastErrorCode: "PLATFORM_RATE_LIMITED",
+            }),
+            expect.objectContaining({ id: "github-odoo-uk", label: "GitHub · Odoo UK", configured: true }),
+            expect.objectContaining({ id: "github-odoo-us", label: "GitHub · Odoo US", configured: true }),
           ]),
         },
       },
@@ -67,7 +89,7 @@ describe("web platform sync controller", () => {
   });
 
   it("runs the requested Meegle type incrementally across its own checkpoint scope", async () => {
-    const { controller, service, checkpointStore } = createController();
+    const { controller, service, coordinator } = createController();
     const result = await controller.sync({
       cookieHeader: "octo_web_session=session",
       sourceId: "meegle-tech-tasks",
@@ -85,10 +107,11 @@ describe("web platform sync controller", () => {
       watermarkUpdatedAt: "2026-08-12T00:00:00.000Z",
       watermarkTiebreaker: "initial",
     });
-    expect(checkpointStore.markSuccess).toHaveBeenCalledWith(expect.objectContaining({
+    expect(coordinator.runIncremental).toHaveBeenCalledWith(expect.objectContaining({
       platform: "meegle",
       scopeKey: "project/66700acbf297a8f821b4b860",
-      watermarkUpdatedAt: "2026-08-12T00:01:00.000Z",
+      trigger: "manual",
+      actionRunId: "run_1",
     }));
   });
 
@@ -133,10 +156,10 @@ describe("web platform sync controller", () => {
   });
 
   it("rejects synchronization for a source omitted from local configuration", async () => {
-    const { service, checkpointStore } = createController();
+    const { service, coordinator } = createController();
     const controller = createWebPlatformSyncController({
       service,
-      checkpointStore,
+      coordinator,
       ensureSession: async () => ({ ok: true, masterUserId: "user_1", baseUrl: "https://open.larksuite.com", role: "devops", user: {} } as never),
       loadConfig: async () => ({ ...config, github: config.github.slice(0, 2) }),
     });
@@ -173,11 +196,14 @@ describe("web platform sync controller", () => {
   });
 
   it("rejects a Web sync without a safe checkpoint instead of falling back to full sync", async () => {
-    const { service, checkpointStore } = createController();
-    checkpointStore.get.mockResolvedValue(undefined);
+    const { service, coordinator } = createController();
+    coordinator.runIncremental.mockRejectedValueOnce(new PlatformSyncCoordinatorError(
+      "SYNC_CHECKPOINT_REQUIRED",
+      "checkpoint required",
+    ));
     const controller = createWebPlatformSyncController({
       service,
-      checkpointStore,
+      coordinator,
       ensureSession: async () => ({ ok: true, masterUserId: "user_1", baseUrl: "https://open.larksuite.com", role: "devops", user: {} } as never),
       loadConfig: async () => config,
     });
@@ -193,8 +219,31 @@ describe("web platform sync controller", () => {
     expect(service.incrementalSyncMeegleWorkitems).not.toHaveBeenCalled();
   });
 
-  it("records checkpoint failure when a Web incremental source fails", async () => {
-    const { controller, service, checkpointStore } = createController();
+  it("rejects a duplicate Web sync while the scope is already running", async () => {
+    const { controller, coordinator } = createController();
+    coordinator.runIncremental.mockRejectedValueOnce(new PlatformSyncCoordinatorError(
+      "SYNC_ALREADY_RUNNING",
+      "already running",
+    ));
+
+    await expect(controller.sync({
+      cookieHeader: "octo_web_session=session",
+      sourceId: "github-odoo-eu",
+      body: { actionRunId: "run_duplicate" },
+    })).resolves.toMatchObject({
+      statusCode: 409,
+      body: {
+        error: {
+          errorCode: "SYNC_ALREADY_RUNNING",
+          stage: "server.sync.lease_acquire",
+          actionRunId: "run_duplicate",
+        },
+      },
+    });
+  });
+
+  it("maps a coordinated incremental source failure", async () => {
+    const { controller, service, coordinator } = createController();
     service.incrementalSyncGitHubPullRequests.mockRejectedValueOnce(new Error("GitHub unavailable"));
 
     await expect(controller.sync({
@@ -202,6 +251,9 @@ describe("web platform sync controller", () => {
       sourceId: "github-odoo-eu",
       body: { actionRunId: "run_5" },
     })).resolves.toMatchObject({ statusCode: 502, body: { error: { errorCode: "SYNC_FAILED" } } });
-    expect(checkpointStore.markFailure).toHaveBeenCalledWith("github", "TenwaysCom/Tenways", expect.any(Error));
+    expect(coordinator.runIncremental).toHaveBeenCalledWith(expect.objectContaining({
+      platform: "github",
+      scopeKey: "TenwaysCom/Tenways",
+    }));
   });
 });

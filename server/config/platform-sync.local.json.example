@@ -22,5 +22,16 @@
       "titleFieldName": "Title",
       "statusFieldName": "Status"
     }
-  ]
+  ],
+  "scheduler": {
+    "enabled": false,
+    "pollIntervalSeconds": 30,
+    "concurrency": 2,
+    "leaseSeconds": 1200,
+    "intervalsMinutes": {
+      "lark": 10,
+      "meegle": 15,
+      "github": 10
+    }
+  }
 }

@@ -1,4 +1,5 @@
 import type { Kysely } from "kysely";
+import { sql } from "kysely";
 import type { DatabaseSchema } from "./schema.js";
 
 export const PLATFORM_SYNC_PLATFORMS = ["github", "lark", "meegle"] as const;
@@ -15,6 +16,7 @@ export interface PlatformSyncCheckpoint {
   watermarkTiebreaker?: string;
   lastSuccessAt?: string;
   lastError?: string;
+  version?: number;
 }
 
 type SnapshotMetadata = {
@@ -59,6 +61,7 @@ export class PostgresPlatformSyncCheckpointStore {
       watermark_tiebreaker: checkpoint.watermarkTiebreaker ?? null,
       last_success_at: checkpoint.lastSuccessAt ?? null,
       last_error: checkpoint.lastError ?? null,
+      version: checkpoint.version ?? 0,
       created_at: now,
       updated_at: now,
     }).execute();
@@ -79,6 +82,7 @@ export class PostgresPlatformSyncCheckpointStore {
       watermark_tiebreaker: checkpoint.watermarkTiebreaker,
       last_success_at: existing.lastSuccessAt ?? checkpoint.lastSuccessAt ?? null,
       last_error: null,
+      version: sql<number>`version + 1`,
       updated_at: now,
     }).where("platform", "=", checkpoint.platform)
       .where("scope_key", "=", checkpoint.scopeKey)
@@ -108,6 +112,7 @@ export class PostgresPlatformSyncCheckpointStore {
       watermark_tiebreaker: watermarkTiebreaker,
       last_success_at: null,
       last_error: null,
+      version: sql<number>`version + 1`,
       updated_at: now,
     }).where("platform", "=", platform)
       .where("scope_key", "=", scopeKey)
@@ -117,7 +122,7 @@ export class PostgresPlatformSyncCheckpointStore {
   async get(platform: PlatformSyncPlatform, scopeKey: string): Promise<PlatformSyncCheckpoint | undefined> {
     const row = await this.db.selectFrom("platform_sync_checkpoints")
       .select([
-        "platform", "scope_key", "watermark_updated_at", "watermark_tiebreaker", "last_success_at", "last_error",
+        "platform", "scope_key", "watermark_updated_at", "watermark_tiebreaker", "last_success_at", "last_error", "version",
       ])
       .where("platform", "=", platform)
       .where("scope_key", "=", scopeKey)
@@ -129,6 +134,7 @@ export class PostgresPlatformSyncCheckpointStore {
       watermarkTiebreaker: row.watermark_tiebreaker ?? undefined,
       lastSuccessAt: row.last_success_at ?? undefined,
       lastError: row.last_error ?? undefined,
+      version: row.version,
     } : undefined;
   }
 
@@ -138,10 +144,30 @@ export class PostgresPlatformSyncCheckpointStore {
       watermark_tiebreaker: checkpoint.watermarkTiebreaker ?? null,
       last_success_at: now,
       last_error: null,
+      version: sql<number>`version + 1`,
       updated_at: now,
     }).where("platform", "=", checkpoint.platform)
       .where("scope_key", "=", checkpoint.scopeKey)
       .execute();
+  }
+
+  async markSuccessIfVersion(
+    checkpoint: PlatformSyncCheckpoint,
+    expectedVersion: number,
+    now = new Date().toISOString(),
+  ): Promise<boolean> {
+    const result = await this.db.updateTable("platform_sync_checkpoints").set({
+      watermark_updated_at: checkpoint.watermarkUpdatedAt ?? null,
+      watermark_tiebreaker: checkpoint.watermarkTiebreaker ?? null,
+      last_success_at: now,
+      last_error: null,
+      version: sql<number>`version + 1`,
+      updated_at: now,
+    }).where("platform", "=", checkpoint.platform)
+      .where("scope_key", "=", checkpoint.scopeKey)
+      .where("version", "=", expectedVersion)
+      .executeTakeFirst();
+    return result.numUpdatedRows === 1n;
   }
 
   async markFailure(platform: PlatformSyncPlatform, scopeKey: string, error: unknown, now = new Date().toISOString()): Promise<void> {

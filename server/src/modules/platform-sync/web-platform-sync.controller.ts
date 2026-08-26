@@ -1,15 +1,27 @@
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { z, ZodError } from "zod";
+import { createActionErrorEnvelope, getActionRunId } from "../../application/action-error-envelope.js";
+import {
+  executeIncrementalPlatformSyncTarget,
+  PlatformSyncCoordinator,
+  PlatformSyncCoordinatorError,
+} from "../../application/services/platform-sync-coordinator.js";
+import {
+  platformSyncScopeKey,
+  type IncrementalPlatformSyncTarget,
+} from "../../domain/platform-sync.js";
 import { PlatformSyncService } from "../../application/services/platform-sync.service.js";
 import { MeegleShellClient } from "../../adapters/meegle/meegle-shell-client.js";
-import {
-  getMeegleWorkItemTypeCheckpointScope,
-  PostgresPlatformSyncCheckpointStore,
-  type PlatformSyncCheckpoint,
-  type PlatformSyncPlatform,
-} from "../../adapters/postgres/platform-sync-checkpoint-store.js";
+import { PostgresPlatformSyncCheckpointStore } from "../../adapters/postgres/platform-sync-checkpoint-store.js";
 import { getSharedDatabase } from "../../adapters/postgres/database.js";
+import { PostgresPlatformSyncLeaseStore } from "../../adapters/postgres/platform-sync-lease-store.js";
+import { PostgresPlatformSyncRunStore } from "../../adapters/postgres/platform-sync-run-store.js";
+import {
+  PostgresPlatformSyncStatusStore,
+  type PlatformSyncScopeRef,
+  type PlatformSyncScopeStatus,
+} from "../../adapters/postgres/platform-sync-status-store.js";
 import { resolveLarkWebSessionIdentity } from "../lark-auth/lark-auth.service.js";
 import { WEB_SESSION_COOKIE_NAME } from "../lark-auth/lark-auth.controller.js";
 import { getWebWorkspaceAccess } from "../lark-auth/web-workspace-access.js";
@@ -47,7 +59,14 @@ type WebSessionResult = Awaited<ReturnType<typeof resolveLarkWebSessionIdentity>
 type WebPlatformSyncService = Pick<PlatformSyncService,
   "incrementalSyncMeegleWorkitems" | "incrementalSyncLarkBaseTickets" | "incrementalSyncGitHubPullRequests"
 >;
-type PlatformSyncCheckpointStore = Pick<PostgresPlatformSyncCheckpointStore, "get" | "markSuccess" | "markFailure">;
+type WebPlatformSyncCoordinator = Pick<PlatformSyncCoordinator, "runIncremental">;
+type WebPlatformSyncStatusStore = Pick<PostgresPlatformSyncStatusStore, "list">;
+type PlatformSyncSourceDefinition = {
+  id: z.infer<typeof sourceIdSchema>;
+  label: string;
+  configured: boolean;
+  scopes: PlatformSyncScopeRef[];
+};
 
 const GITHUB_SOURCES = [
   { id: "github-odoo-eu", label: "GitHub · Odoo EU", owner: "TenwaysCom", repo: "Tenways" },
@@ -76,25 +95,35 @@ async function loadPlatformSyncConfig(path = DEFAULT_CONFIG_PATH): Promise<Platf
   return configSchema.parse(JSON.parse(await readFile(path, "utf8")));
 }
 
-function sourceDefinitions(config: PlatformSyncConfig) {
+function sourceDefinitions(config: PlatformSyncConfig): PlatformSyncSourceDefinition[] {
   return [
-    { id: "lark-tickets", label: "Lark Ticket", configured: config.larkBase.length > 0 },
+    {
+      id: "lark-tickets",
+      label: "Lark Ticket",
+      configured: config.larkBase.length > 0,
+      scopes: config.larkBase.map((target) => ({ platform: "lark" as const, scopeKey: `${target.baseId}/${target.tableId}` })),
+    },
     ...MEEGLE_SOURCES.map((source) => ({
       id: source.id,
       label: source.label,
       configured: config.meegle.some((target) => target.workItemTypeKeys.includes(source.workItemTypeKey)),
+      scopes: config.meegle.filter((target) => target.workItemTypeKeys.includes(source.workItemTypeKey))
+        .map((target) => ({ platform: "meegle" as const, scopeKey: `${target.projectKey}/${source.workItemTypeKey}` })),
     })),
     ...GITHUB_SOURCES.map((source) => ({
       id: source.id,
       label: source.label,
       configured: config.github.some((target) => target.owner === source.owner && target.repo === source.repo),
+      scopes: config.github.filter((target) => target.owner === source.owner && target.repo === source.repo)
+        .map((target) => ({ platform: "github" as const, scopeKey: `${target.owner}/${target.repo}` })),
     })),
   ];
 }
 
 export function createWebPlatformSyncController(deps: {
   service?: WebPlatformSyncService;
-  checkpointStore?: PlatformSyncCheckpointStore;
+  coordinator?: WebPlatformSyncCoordinator;
+  statusStore?: WebPlatformSyncStatusStore;
   ensureSession?: (sessionToken: string | undefined) => Promise<WebSessionResult>;
   loadConfig?: () => Promise<PlatformSyncConfig>;
 } = {}) {
@@ -103,13 +132,24 @@ export function createWebPlatformSyncController(deps: {
   const service = deps.service ?? new PlatformSyncService({
     createMeegleClient: async () => new MeegleShellClient(),
   });
-  let checkpointStore = deps.checkpointStore;
-  const getCheckpointStore = () => {
-    checkpointStore ??= new PostgresPlatformSyncCheckpointStore(getSharedDatabase());
-    return checkpointStore;
+  let coordinator = deps.coordinator;
+  const getCoordinator = () => {
+    if (coordinator) return coordinator;
+    const db = getSharedDatabase();
+    coordinator = new PlatformSyncCoordinator({
+      checkpointStore: new PostgresPlatformSyncCheckpointStore(db),
+      runStore: new PostgresPlatformSyncRunStore(db),
+      leaseStore: new PostgresPlatformSyncLeaseStore(db),
+    });
+    return coordinator;
   };
   const ensureSession = deps.ensureSession ?? resolveLarkWebSessionIdentity;
   const loadConfig = deps.loadConfig ?? loadPlatformSyncConfig;
+  let statusStore = deps.statusStore;
+  const getStatusStore = () => {
+    statusStore ??= new PostgresPlatformSyncStatusStore(getSharedDatabase());
+    return statusStore;
+  };
 
   async function sessionFor(cookieHeader: string | undefined) {
     const session = await ensureSession(readCookie(cookieHeader, WEB_SESSION_COOKIE_NAME));
@@ -122,7 +162,9 @@ export function createWebPlatformSyncController(deps: {
       if (!session) return unauthorized();
       if (!getWebWorkspaceAccess(session.role).platformSync) return forbidden();
       try {
-        return { statusCode: 200, body: { ok: true as const, data: { sources: sourceDefinitions(await loadConfig()) } } };
+        const definitions = sourceDefinitions(await loadConfig());
+        const statuses = await getStatusStore().list(uniqueScopes(definitions.flatMap((source) => source.scopes)));
+        return { statusCode: 200, body: { ok: true as const, data: { sources: projectSourceStatuses(definitions, statuses) } } };
       } catch {
         return { statusCode: 503, body: { ok: false as const, error: { errorCode: "SYNC_CONFIGURATION_UNAVAILABLE", errorMessage: "同步配置暂时不可用。" } } };
       }
@@ -136,27 +178,96 @@ export function createWebPlatformSyncController(deps: {
         const sourceId = sourceIdSchema.parse(input.sourceId);
         const request = requestSchema.parse(input.body);
         const config = await loadConfig();
-        const data = await syncSource(service, getCheckpointStore(), config, session.masterUserId, sourceId, request.actionRunId);
-        return { statusCode: 200, body: { ok: true as const, data: { sourceId, ...data } } };
+        const data = await syncSource(service, getCoordinator(), config, session.masterUserId, sourceId, request.actionRunId);
+        return { statusCode: 200, body: { ok: true as const, data: { sourceId, actionRunId: request.actionRunId, ...data } } };
       } catch (error) {
         if (error instanceof ZodError) {
-          return { statusCode: 400, body: { ok: false as const, error: { errorCode: "INVALID_REQUEST", errorMessage: error.message } } };
+          return {
+            statusCode: 400,
+            body: {
+              ok: false as const,
+              error: createActionErrorEnvelope({
+                module: "platform-sync",
+                stage: "server.action.received",
+                errorCode: "INVALID_REQUEST",
+                errorMessage: error.message,
+                actionRunId: getActionRunId(input.body),
+              }),
+            },
+          };
         }
         const code = error instanceof Error && error.message === "SYNC_SOURCE_NOT_CONFIGURED"
           ? "SYNC_SOURCE_NOT_CONFIGURED"
-          : error instanceof Error && error.message === "SYNC_CHECKPOINT_REQUIRED"
+          : error instanceof PlatformSyncCoordinatorError && error.code === "SYNC_CHECKPOINT_REQUIRED"
             ? "SYNC_CHECKPOINT_REQUIRED"
-            : "SYNC_FAILED";
-        const statusCode = code === "SYNC_CHECKPOINT_REQUIRED" ? 409 : 502;
+            : error instanceof PlatformSyncCoordinatorError && error.code === "SYNC_ALREADY_RUNNING"
+              ? "SYNC_ALREADY_RUNNING"
+              : "SYNC_FAILED";
+        const statusCode = code === "SYNC_CHECKPOINT_REQUIRED" || code === "SYNC_ALREADY_RUNNING" ? 409 : 502;
         const errorMessage = code === "SYNC_SOURCE_NOT_CONFIGURED"
           ? "该数据源尚未配置。"
           : code === "SYNC_CHECKPOINT_REQUIRED"
             ? "尚未建立安全的增量水位，请先执行历史初始化。"
-            : "同步失败，请稍后重试。";
-        return { statusCode, body: { ok: false as const, error: { errorCode: code, errorMessage } } };
+            : code === "SYNC_ALREADY_RUNNING"
+              ? "该数据源正在同步，请稍后查看结果。"
+              : "同步失败，请稍后重试。";
+        const stage = code === "SYNC_ALREADY_RUNNING"
+          ? "server.sync.lease_acquire"
+          : code === "SYNC_CHECKPOINT_REQUIRED"
+            ? "server.sync.checkpoint"
+            : code === "SYNC_SOURCE_NOT_CONFIGURED"
+              ? "server.sync.configuration"
+              : "server.workflow.failed";
+        return {
+          statusCode,
+          body: {
+            ok: false as const,
+            error: createActionErrorEnvelope({
+              module: "platform-sync",
+              stage,
+              errorCode: code,
+              errorMessage,
+              actionRunId: getActionRunId(input.body),
+            }),
+          },
+        };
       }
     },
   };
+}
+
+function uniqueScopes(scopes: PlatformSyncScopeRef[]): PlatformSyncScopeRef[] {
+  return [...new Map(scopes.map((scope) => [`${scope.platform}:${scope.scopeKey}`, scope])).values()];
+}
+
+function projectSourceStatuses(
+  definitions: ReturnType<typeof sourceDefinitions>,
+  statuses: PlatformSyncScopeStatus[],
+) {
+  const byScope = new Map(statuses.map((status) => [`${status.platform}:${status.scopeKey}`, status]));
+  return definitions.map(({ scopes, ...source }) => {
+    const sourceStatuses = scopes.map((scope) => byScope.get(`${scope.platform}:${scope.scopeKey}`)).filter(Boolean) as PlatformSyncScopeStatus[];
+    const latest = sourceStatuses.reduce<PlatformSyncScopeStatus | undefined>((current, candidate) => {
+      if (!candidate.lastRunAt) return current;
+      if (!current?.lastRunAt || candidate.lastRunAt > current.lastRunAt) return candidate;
+      return current;
+    }, undefined);
+    const running = sourceStatuses.find((status) => status.runStatus === "running");
+    const nextRunAt = sourceStatuses.filter((status) => status.scheduled && status.nextRunAt)
+      .map((status) => status.nextRunAt!)
+      .sort()[0];
+    return {
+      ...source,
+      scheduled: sourceStatuses.some((status) => status.scheduled),
+      nextRunAt,
+      blockedReason: sourceStatuses.find((status) => status.blockedReason)?.blockedReason,
+      runStatus: running?.runStatus ?? latest?.runStatus,
+      runTrigger: running?.runTrigger ?? latest?.runTrigger,
+      lastRunAt: latest?.lastRunAt,
+      lastCompletedAt: latest?.lastCompletedAt,
+      lastErrorCode: latest?.lastErrorCode,
+    };
+  });
 }
 
 function unauthorized() {
@@ -169,7 +280,7 @@ function forbidden() {
 
 async function syncSource(
   service: WebPlatformSyncService,
-  checkpointStore: PlatformSyncCheckpointStore,
+  coordinator: WebPlatformSyncCoordinator,
   config: PlatformSyncConfig,
   masterUserId: string,
   sourceId: z.infer<typeof sourceIdSchema>,
@@ -178,10 +289,12 @@ async function syncSource(
   if (sourceId === "lark-tickets") {
     if (config.larkBase.length === 0) throw new Error("SYNC_SOURCE_NOT_CONFIGURED");
     return summarizeSyncResults(await Promise.all(config.larkBase.map(async (target) => {
-      const scopeKey = `${target.baseId}/${target.tableId}`;
-      return syncFromCheckpoint(checkpointStore, "lark", scopeKey, (checkpoint) => (
-        service.incrementalSyncLarkBaseTickets({ masterUserId, ...target, cleanAfterSync: true, actionRunId, ...checkpoint })
-      ));
+      const scheduledTarget: IncrementalPlatformSyncTarget = {
+        platform: "lark",
+        ...target,
+        sourceUpdatedAtFieldName: target.sourceUpdatedAtFieldName ?? "最后更新时间",
+      };
+      return runTarget(coordinator, service, scheduledTarget, masterUserId, actionRunId);
     })));
   }
   const meegleSource = MEEGLE_SOURCES.find((item) => item.id === sourceId);
@@ -189,60 +302,42 @@ async function syncSource(
   if (meegleSource && meegleTarget) {
     const workItemTypeKey = meegleSource.workItemTypeKey;
     const sourceUpdatedAtMqlFieldName = meegleTarget.sourceUpdatedAtMqlFieldNames?.[workItemTypeKey];
-    const scopeKey = getMeegleWorkItemTypeCheckpointScope(meegleTarget.projectKey, workItemTypeKey);
-    return summarizeSyncResults([await syncFromCheckpoint(checkpointStore, "meegle", scopeKey, (checkpoint) => (
-      service.incrementalSyncMeegleWorkitems({
-        masterUserId,
+    return summarizeSyncResults([await runTarget(coordinator, service, {
+        platform: "meegle",
         projectKey: meegleTarget.projectKey,
-        workItemTypeKeys: [workItemTypeKey],
-        sourceUpdatedAtMqlFieldNames: sourceUpdatedAtMqlFieldName ? { [workItemTypeKey]: sourceUpdatedAtMqlFieldName } : undefined,
-        cleanAfterSync: true,
-        actionRunId,
-        ...checkpoint,
-      })
-    ))]);
+        workItemTypeKey,
+        sourceUpdatedAtMqlFieldName,
+      }, masterUserId, actionRunId)]);
   }
   const source = GITHUB_SOURCES.find((item) => item.id === sourceId);
   const target = source && config.github.find((item) => item.owner === source.owner && item.repo === source.repo);
   if (!source || !target) throw new Error("SYNC_SOURCE_NOT_CONFIGURED");
-  const scopeKey = `${target.owner}/${target.repo}`;
-  return summarizeSyncResults([await syncFromCheckpoint(checkpointStore, "github", scopeKey, (checkpoint) => (
-    service.incrementalSyncGitHubPullRequests({
+  return summarizeSyncResults([await runTarget(coordinator, service, {
+      platform: "github",
       owner: target.owner,
       repo: target.repo,
-      cleanAfterSync: true,
-      actionRunId,
-      ...checkpoint,
-    })
-  ))]);
+    }, undefined, actionRunId)]);
 }
 
-async function syncFromCheckpoint<T extends { watermarkUpdatedAt: string; watermarkTiebreaker: string }>(
-  checkpointStore: PlatformSyncCheckpointStore,
-  platform: PlatformSyncPlatform,
-  scopeKey: string,
-  sync: (checkpoint: Required<Pick<PlatformSyncCheckpoint, "watermarkUpdatedAt" | "watermarkTiebreaker">>) => Promise<T>,
-): Promise<T> {
-  const current = await checkpointStore.get(platform, scopeKey);
-  if (!current?.watermarkUpdatedAt || !current.watermarkTiebreaker) {
-    throw new Error("SYNC_CHECKPOINT_REQUIRED");
-  }
-  const checkpoint = {
-    watermarkUpdatedAt: current.watermarkUpdatedAt,
-    watermarkTiebreaker: current.watermarkTiebreaker,
-  };
-  try {
-    const result = await sync(checkpoint);
-    await checkpointStore.markSuccess({
-      ...current,
-      watermarkUpdatedAt: result.watermarkUpdatedAt,
-      watermarkTiebreaker: result.watermarkTiebreaker,
-    });
-    return result;
-  } catch (error) {
-    await checkpointStore.markFailure(platform, scopeKey, error).catch(() => undefined);
-    throw error;
-  }
+function runTarget(
+  coordinator: WebPlatformSyncCoordinator,
+  service: WebPlatformSyncService,
+  target: IncrementalPlatformSyncTarget,
+  masterUserId: string | undefined,
+  actionRunId: string,
+) {
+  return coordinator.runIncremental({
+    platform: target.platform,
+    scopeKey: platformSyncScopeKey(target),
+    trigger: "manual",
+    actionRunId,
+    execute: (checkpoint, context) => executeIncrementalPlatformSyncTarget(service, {
+      target,
+      masterUserId,
+      checkpoint,
+      actionRunId: context.actionRunId,
+    }),
+  });
 }
 
 type SyncSummary = {

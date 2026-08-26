@@ -217,3 +217,24 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Error:** The run surfaced the known Node 22 `node:sqlite` suite-load failures and logger timing failure, plus one local fixture assertion that was then corrected.
 - **Fix:** Use `pnpm --dir server exec vitest run <files>` for deterministic focused test selection.
 - **Status:** resolved; the corrected focused command ran exactly 5 files and all 59 tests passed.
+
+## [ERR-20260826-001] scheduled-sync-integration-verification
+
+- **Summary:** The first scheduled-sync build still passed the removed `checkpointStore` test dependency into the Web controller; the first focused run also trusted `ON CONFLICT DO NOTHING ... RETURNING` to identify the lease owner under pg-mem, a later CLI refactor left a trailing comma after a TypeScript cast, and the heterogeneous Web source list initially relied on an unsafe `flatMap` union inference.
+- **Errors:** TypeScript rejected the obsolete controller option, the second same-scope run incorrectly acquired the lease in pg-mem, `tsc` reported `TS1109: Expression expected` in `platform-sync.ts`, and later rejected the mixed Lark/Meegle/GitHub scope arrays.
+- **Fix:** Update Web tests to inject the coordinator contract; after a conflict, read the stored lease token and only conditionally replace an expired row; remove the invalid cast-expression commas; explicitly type the normalized source-definition boundary before flattening scopes. Keep the real lease token check even though PostgreSQL's `RETURNING` behavior is stronger than pg-mem's emulation.
+- **Status:** resolved; 78 focused tests, 19 FE tests, both builds, diff check, and deploy-script syntax checks pass.
+
+## [ERR-20260826-002] scheduled-sync-full-suite-environment
+
+- **Summary:** The full Server suite completed the scheduled-sync coverage but retained known environment/timing failures outside this change.
+- **Errors:** Six legacy SQLite suites cannot load `node:sqlite` in the current Node runtime, and one rotating logger test did not observe its dated file before asserting.
+- **Fix:** Use the focused platform-sync suite for deterministic change verification and report the full-suite boundary explicitly; do not alter legacy SQLite or logger behavior as part of the scheduler task.
+- **Status:** contained; full run reported 520 passing tests, 6 suite-load failures, and 1 unrelated logger timing failure.
+
+## [ERR-20260826-003] git-index-readonly-during-commit
+
+- **Summary:** The first attempt to stage the scheduled-sync change ran inside a workspace sandbox where `.git/index` was read-only.
+- **Error:** `fatal: cannot create .git/index.lock: Read-only file system`.
+- **Fix:** Retry the same explicit-path `git add` and commit with approved Git-index access; keep the unrelated staged deletion outside the commit.
+- **Status:** resolved after the scoped escalated commit operation.

@@ -1,0 +1,153 @@
+import { parsePlatformSyncConfig } from "../../scripts/platform-sync.js";
+import { PlatformSyncCoordinatorError } from "./platform-sync-coordinator.js";
+import {
+  buildPlatformSyncScheduleDefinitions,
+  isRetryablePlatformSyncError,
+  platformSyncErrorCode,
+  PlatformSyncWorker,
+} from "./platform-sync-worker.js";
+
+describe("PlatformSyncWorker", () => {
+  it("builds one incremental schedule per configured platform scope", () => {
+    const config = parsePlatformSyncConfig({
+      scheduler: { enabled: true },
+      larkBase: [{ baseId: "base", tableId: "table" }],
+      meegle: [{
+        projectKey: "project",
+        workItemTypeKeys: ["story", "task"],
+        sourceUpdatedAtMqlFieldNames: { story: "updated_at", task: "updated_at" },
+      }],
+      github: [{ owner: "acme", repo: "app" }],
+    });
+
+    expect(buildPlatformSyncScheduleDefinitions(config, "user-1").map((entry) => entry.scheduleId)).toEqual([
+      "lark:base/table",
+      "meegle:project/story",
+      "meegle:project/task",
+      "github:acme/app",
+    ]);
+    expect(() => buildPlatformSyncScheduleDefinitions(config, undefined)).toThrow("PLATFORM_SYNC_MASTER_USER_ID");
+  });
+
+  it("runs a claimed schedule and records success", async () => {
+    const schedule = githubSchedule();
+    const scheduleStore = {
+      reconcileConfigSchedules: vi.fn(),
+      claimDue: vi.fn().mockResolvedValue([schedule]),
+      markSuccess: vi.fn().mockResolvedValue(undefined),
+      markCoalesced: vi.fn().mockResolvedValue(undefined),
+      markTransientFailure: vi.fn(),
+      markBlocked: vi.fn(),
+    };
+    const coordinator = {
+      runIncremental: vi.fn().mockImplementation(async (input) => ({
+        ...await input.execute({ watermarkUpdatedAt: "2026-08-26T00:00:00.000Z", watermarkTiebreaker: "1" }, {
+          actionRunId: input.actionRunId,
+          runId: "run-1",
+        }),
+        runId: "run-1",
+        actionRunId: input.actionRunId,
+      })),
+    };
+    const service = {
+      incrementalSyncGitHubPullRequests: vi.fn().mockResolvedValue(syncResult()),
+      incrementalSyncLarkBaseTickets: vi.fn(),
+      incrementalSyncMeegleWorkitems: vi.fn(),
+    };
+    const worker = new PlatformSyncWorker({
+      scheduleStore,
+      coordinator,
+      service,
+      concurrency: 2,
+      pollIntervalMs: 30_000,
+    });
+
+    await expect(worker.runOnce("2026-08-26T00:00:00.000Z")).resolves.toEqual([
+      expect.objectContaining({ status: "succeeded", scheduleId: schedule.scheduleId }),
+    ]);
+    expect(service.incrementalSyncGitHubPullRequests).toHaveBeenCalledWith(expect.objectContaining({
+      owner: "acme",
+      repo: "app",
+      cleanAfterSync: true,
+    }));
+    expect(scheduleStore.markSuccess).toHaveBeenCalledWith(schedule.scheduleId);
+  });
+
+  it("retries transient failures and blocks permanent checkpoint failures", async () => {
+    expect(isRetryablePlatformSyncError(new Error("fetch failed with 503"))).toBe(true);
+    expect(isRetryablePlatformSyncError(new PlatformSyncCoordinatorError(
+      "SYNC_CHECKPOINT_REQUIRED",
+      "checkpoint required",
+    ))).toBe(false);
+    expect(platformSyncErrorCode(new PlatformSyncCoordinatorError(
+      "SYNC_FAILED",
+      "LARK_AUTH_REQUIRED",
+      { cause: new Error("LARK_AUTH_REQUIRED") },
+    ))).toBe("LARK_AUTH_REQUIRED");
+    const schedule = githubSchedule();
+    const scheduleStore = {
+      reconcileConfigSchedules: vi.fn(),
+      claimDue: vi.fn()
+        .mockResolvedValueOnce([schedule])
+        .mockResolvedValueOnce([schedule])
+        .mockResolvedValueOnce([schedule]),
+      markSuccess: vi.fn(),
+      markCoalesced: vi.fn().mockResolvedValue(undefined),
+      markTransientFailure: vi.fn().mockResolvedValue("retry_scheduled"),
+      markBlocked: vi.fn().mockResolvedValue(undefined),
+    };
+    const coordinator = {
+      runIncremental: vi.fn()
+        .mockRejectedValueOnce(new Error("fetch failed with 503"))
+        .mockRejectedValueOnce(new PlatformSyncCoordinatorError("SYNC_CHECKPOINT_REQUIRED", "checkpoint required"))
+        .mockRejectedValueOnce(new PlatformSyncCoordinatorError("SYNC_ALREADY_RUNNING", "already running")),
+    };
+    const worker = new PlatformSyncWorker({
+      scheduleStore,
+      coordinator,
+      service: {
+        incrementalSyncGitHubPullRequests: vi.fn(),
+        incrementalSyncLarkBaseTickets: vi.fn(),
+        incrementalSyncMeegleWorkitems: vi.fn(),
+      },
+      concurrency: 1,
+      pollIntervalMs: 30_000,
+    });
+
+    await expect(worker.runOnce()).resolves.toEqual([
+      expect.objectContaining({ status: "retry_scheduled" }),
+    ]);
+    await expect(worker.runOnce()).resolves.toEqual([
+      expect.objectContaining({ status: "blocked", errorCode: "SYNC_CHECKPOINT_REQUIRED" }),
+    ]);
+    expect(scheduleStore.markTransientFailure).toHaveBeenCalled();
+    expect(scheduleStore.markBlocked).toHaveBeenCalledWith(schedule.scheduleId, "SYNC_CHECKPOINT_REQUIRED");
+    await expect(worker.runOnce()).resolves.toEqual([
+      expect.objectContaining({ status: "coalesced", errorCode: "SYNC_ALREADY_RUNNING" }),
+    ]);
+    expect(scheduleStore.markCoalesced).toHaveBeenCalledWith(schedule.scheduleId);
+  });
+});
+
+function githubSchedule() {
+  return {
+    scheduleId: "github:acme/app",
+    platform: "github" as const,
+    scopeKey: "acme/app",
+    intervalSeconds: 600,
+    target: { platform: "github" as const, owner: "acme", repo: "app" },
+    nextRunAt: "2026-08-26T00:10:00.000Z",
+    retryCount: 0,
+  };
+}
+
+function syncResult() {
+  return {
+    listed: 1,
+    skippedInactive: 0,
+    synced: 1,
+    cleaned: 1,
+    watermarkUpdatedAt: "2026-08-26T00:01:00.000Z",
+    watermarkTiebreaker: "2",
+  };
+}

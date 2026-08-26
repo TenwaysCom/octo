@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import type { Kysely } from "kysely";
 import { PlatformSyncService } from "../application/services/platform-sync.service.js";
+import { PlatformSyncCoordinator } from "../application/services/platform-sync-coordinator.js";
 import { buildAuthenticatedLarkClient } from "../application/services/lark-auth-client.factory.js";
 import { configureLarkAuthServiceDeps } from "../modules/lark-auth/lark-auth.service.js";
 import { PostgresLarkTokenStore } from "../adapters/postgres/lark-token-store.js";
@@ -18,7 +19,7 @@ import {
 } from "../adapters/postgres/platform-sync-checkpoint-store.js";
 import type { PlatformSyncCheckpoint } from "../adapters/postgres/platform-sync-checkpoint-store.js";
 import { PostgresPlatformSyncRunStore } from "../adapters/postgres/platform-sync-run-store.js";
-import type { PlatformSyncRun, PlatformSyncRunCounts, PlatformSyncRunMode } from "../adapters/postgres/platform-sync-run-store.js";
+import { PostgresPlatformSyncLeaseStore } from "../adapters/postgres/platform-sync-lease-store.js";
 import type { GitHubPrDetails } from "../adapters/github/github-types.js";
 import type { DatabaseSchema } from "../adapters/postgres/schema.js";
 import {
@@ -44,6 +45,23 @@ export type GitHubPullRequestState = z.infer<typeof githubPullRequestStateSchema
 type GitHubPullRequestSyncState = Exclude<GitHubPullRequestState, "all">;
 const syncModeSchema = z.enum(["full", "incremental", "clean"]);
 export type PlatformSyncMode = z.infer<typeof syncModeSchema>;
+const platformSyncSchedulerSchema = z.object({
+  enabled: z.boolean().default(false),
+  pollIntervalSeconds: z.number().int().min(5).max(300).default(30),
+  concurrency: z.number().int().min(1).max(8).default(2),
+  leaseSeconds: z.number().int().min(60).max(3600).default(1200),
+  intervalsMinutes: z.object({
+    lark: z.number().int().min(1).max(1440).default(10),
+    meegle: z.number().int().min(1).max(1440).default(15),
+    github: z.number().int().min(1).max(1440).default(10),
+  }).default({ lark: 10, meegle: 15, github: 10 }),
+}).default({
+  enabled: false,
+  pollIntervalSeconds: 30,
+  concurrency: 2,
+  leaseSeconds: 1200,
+  intervalsMinutes: { lark: 10, meegle: 15, github: 10 },
+});
 
 const platformSyncConfigSchema = z.object({
   meegle: z.array(z.object({
@@ -63,6 +81,7 @@ const platformSyncConfigSchema = z.object({
     statusFieldName: z.string().min(1).optional(),
     sourceUpdatedAtFieldName: z.string().min(1).default("最后更新时间"),
   })).default([]),
+  scheduler: platformSyncSchedulerSchema,
 }).superRefine((value, context) => {
   if (value.meegle.length + value.github.length + value.larkBase.length === 0) {
     context.addIssue({
@@ -440,6 +459,36 @@ export async function runIncrementalScopes<T>(
   return { entries, failed: entries.some((entry) => !entry.ok) };
 }
 
+async function runCoordinatedIncrementalScopes<T>(
+  platform: Extract<PlatformName, "meegle" | "lark">,
+  targets: Array<{ scope: string; target: T }>,
+  run: (entry: { scope: string; target: T }) => Promise<IncrementalSyncCounts>,
+): Promise<PlatformSyncRunResult> {
+  if (targets.length === 0) {
+    return {
+      entries: [{ platform, target: "configuration", ok: false, errorMessage: `No ${platform} targets configured` }],
+      failed: true,
+    };
+  }
+  const entries: PlatformSyncRunEntry[] = [];
+  for (const entry of targets) {
+    try {
+      const result = await run(entry);
+      entries.push({
+        platform,
+        target: entry.scope,
+        ok: true,
+        counts: result,
+        watermarkUpdatedAt: result.watermarkUpdatedAt,
+        watermarkTiebreaker: result.watermarkTiebreaker,
+      });
+    } catch (error) {
+      entries.push({ platform, target: entry.scope, ok: false, errorMessage: errorMessage(error) });
+    }
+  }
+  return { entries, failed: entries.some((entry) => !entry.ok) };
+}
+
 export async function syncGitHubPullRequestsWithGh(
   input: {
     repositories: Array<{ owner: string; repo: string }>;
@@ -616,22 +665,6 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-async function runWithAudit<T extends PlatformSyncRunCounts>(
-  store: PostgresPlatformSyncRunStore,
-  input: { platform: PlatformName; scopeKey: string; mode: PlatformSyncRunMode; cleanAfterSync: boolean },
-  operation: (startedAt: string) => Promise<T>,
-): Promise<T> {
-  const run = await store.start(input);
-  try {
-    const result = await operation(run.startedAt);
-    await store.completeSuccess(run.runId, result);
-    return result;
-  } catch (error) {
-    await store.completeFailure(run.runId, error);
-    throw error;
-  }
-}
-
 function readNextArg(argv: string[], index: number, flag: string): string {
   const value = argv[index + 1];
   if (!value || value.startsWith("--")) {
@@ -691,51 +724,41 @@ async function main(): Promise<void> {
     await ensurePostgresSchema(db);
     const syncStore = new PostgresPlatformSyncStore(db);
     const runStore = new PostgresPlatformSyncRunStore(db);
+    const checkpointStore = new PostgresPlatformSyncCheckpointStore(db);
+    const coordinator = new PlatformSyncCoordinator({
+      checkpointStore,
+      runStore,
+      leaseStore: new PostgresPlatformSyncLeaseStore(db),
+    });
     if (args.mode === "incremental" && args.only === "github") {
       const { owner, repo } = parseGitHubScope(args.scope!);
-      const checkpointStore = new PostgresPlatformSyncCheckpointStore(db);
-      const checkpoint = await checkpointStore.get("github", args.scope!);
-      if (!checkpoint) {
-        throw new Error(`GitHub checkpoint not found for ${args.scope}; run platform:init-checkpoints --only github --apply first`);
-      }
-      if (!checkpoint.watermarkUpdatedAt || !checkpoint.watermarkTiebreaker) {
-        throw new Error(`GitHub checkpoint for ${args.scope} has no source watermark; run a full sync before incremental sync`);
-      }
-      const watermarkUpdatedAt = checkpoint.watermarkUpdatedAt;
-      const watermarkTiebreaker = checkpoint.watermarkTiebreaker;
-      try {
-        const result = await runWithAudit(runStore, {
-          platform: "github", scopeKey: args.scope!, mode: "incremental", cleanAfterSync: args.cleanAfterSync,
-        }, async () => {
+      const cleaningService = new PlatformSyncService({ store: syncStore });
+      const result = await coordinator.runIncremental({
+        platform: "github",
+        scopeKey: args.scope!,
+        trigger: "cli",
+        execute: async (checkpoint) => {
           const next = await syncIncrementalGitHubPullRequestsWithGh({
             owner,
             repo,
-            watermarkUpdatedAt,
-            watermarkTiebreaker,
+            watermarkUpdatedAt: checkpoint.watermarkUpdatedAt,
+            watermarkTiebreaker: checkpoint.watermarkTiebreaker,
             limit: args.githubPullRequestLimit,
           }, syncStore);
-          const cleaned = await new PlatformSyncService({ store: syncStore }).cleanGitHubPullRequests(next.refs);
-          await checkpointStore.markSuccess({
-            ...checkpoint,
-            watermarkUpdatedAt: next.watermarkUpdatedAt,
-            watermarkTiebreaker: next.watermarkTiebreaker,
-          });
+          const cleaned = await cleaningService.cleanGitHubPullRequests(next.refs);
           return { ...next, cleaned };
-        });
-        process.stdout.write(
-          `[platform-sync] mode=incremental platform=github scope=${args.scope} listed=${result.listed} synced=${result.synced} cleaned=${result.cleaned ?? 0} watermark=${result.watermarkUpdatedAt}/${result.watermarkTiebreaker}\n`,
-        );
-      } catch (error) {
-        await checkpointStore.markFailure("github", args.scope!, error);
-        throw error;
-      }
+        },
+      });
+      process.stdout.write(
+        `[platform-sync] mode=incremental platform=github scope=${args.scope} listed=${result.listed} synced=${result.synced} cleaned=${result.cleaned ?? 0} watermark=${result.watermarkUpdatedAt}/${result.watermarkTiebreaker}\n`,
+      );
       return;
     }
 
     const config = await readPlatformSyncConfig(args.configPath);
     if (args.mode === "clean") {
       const service = new PlatformSyncService({ store: syncStore });
-      const result = await runPlatformSyncCleaning(args, config, createPlatformSyncCleanRunner(db, service, runStore));
+      const result = await runPlatformSyncCleaning(args, config, createPlatformSyncCleanRunner(db, service, coordinator));
       printResult(result);
       if (result.failed) process.exitCode = 1;
       return;
@@ -758,46 +781,42 @@ async function main(): Promise<void> {
     });
 
     if (args.mode === "incremental" && (args.only === "meegle" || args.only === "lark")) {
-      const checkpointStore = new PostgresPlatformSyncCheckpointStore(db);
       const config = await readPlatformSyncConfig(args.configPath);
-      const incrementalRuns = new Map<string, PlatformSyncRun>();
       const result = args.only === "meegle"
-        ? await runIncrementalScopes("meegle", getMeegleIncrementalScopes(config, args.meegleWorkItemTypeKey), {
-          getCheckpoint: (scope) => checkpointStore.get("meegle", scope),
-          sync: async (target, checkpoint) => {
-            const scope = getMeegleWorkItemTypeCheckpointScope(target.projectKey, target.workItemTypeKeys[0]!);
-            incrementalRuns.set(scope, await runStore.start({ platform: "meegle", scopeKey: scope, mode: "incremental", cleanAfterSync: args.cleanAfterSync }));
-            return service.incrementalSyncMeegleWorkitems({ masterUserId: args.masterUserId, projectKey: target.projectKey, workItemTypeKeys: target.workItemTypeKeys, sourceUpdatedAtMqlFieldNames: target.sourceUpdatedAtMqlFieldNames, cleanAfterSync: args.cleanAfterSync, ...checkpoint });
-          },
-          markSuccess: async (checkpoint, next) => {
-            await checkpointStore.markSuccess({ ...checkpoint, watermarkUpdatedAt: next.watermarkUpdatedAt, watermarkTiebreaker: next.watermarkTiebreaker });
-            const run = incrementalRuns.get(checkpoint.scopeKey);
-            if (run) await runStore.completeSuccess(run.runId, next);
-          },
-          markFailure: async (scope, error) => {
-            await checkpointStore.markFailure("meegle", scope, error);
-            const run = incrementalRuns.get(scope) ?? await runStore.start({ platform: "meegle", scopeKey: scope, mode: "incremental", cleanAfterSync: args.cleanAfterSync });
-            await runStore.completeFailure(run.runId, error);
-          },
-        })
-        : await runIncrementalScopes("lark", config.larkBase.map((target) => ({ scope: `${target.baseId}/${target.tableId}`, target })), {
-          getCheckpoint: (scope) => checkpointStore.get("lark", scope),
-          sync: async (target, checkpoint) => {
-            const scope = `${target.baseId}/${target.tableId}`;
-            incrementalRuns.set(scope, await runStore.start({ platform: "lark", scopeKey: scope, mode: "incremental", cleanAfterSync: args.cleanAfterSync }));
-            return service.incrementalSyncLarkBaseTickets({ masterUserId: args.masterUserId, ...target, cleanAfterSync: args.cleanAfterSync, ...checkpoint });
-          },
-          markSuccess: async (checkpoint, next) => {
-            await checkpointStore.markSuccess({ ...checkpoint, watermarkUpdatedAt: next.watermarkUpdatedAt, watermarkTiebreaker: next.watermarkTiebreaker });
-            const run = incrementalRuns.get(checkpoint.scopeKey);
-            if (run) await runStore.completeSuccess(run.runId, next);
-          },
-          markFailure: async (scope, error) => {
-            await checkpointStore.markFailure("lark", scope, error);
-            const run = incrementalRuns.get(scope) ?? await runStore.start({ platform: "lark", scopeKey: scope, mode: "incremental", cleanAfterSync: args.cleanAfterSync });
-            await runStore.completeFailure(run.runId, error);
-          },
-        });
+        ? await runCoordinatedIncrementalScopes(
+          "meegle",
+          getMeegleIncrementalScopes(config, args.meegleWorkItemTypeKey),
+          async ({ scope, target }) => coordinator.runIncremental({
+            platform: "meegle",
+            scopeKey: scope,
+            trigger: "cli",
+            execute: (checkpoint, context) => service.incrementalSyncMeegleWorkitems({
+              masterUserId: args.masterUserId,
+              projectKey: target.projectKey,
+              workItemTypeKeys: target.workItemTypeKeys,
+              sourceUpdatedAtMqlFieldNames: target.sourceUpdatedAtMqlFieldNames,
+              cleanAfterSync: args.cleanAfterSync,
+              actionRunId: context.actionRunId,
+              ...checkpoint,
+            }),
+          }) as Promise<IncrementalSyncCounts>,
+        )
+        : await runCoordinatedIncrementalScopes(
+          "lark",
+          config.larkBase.map((target) => ({ scope: `${target.baseId}/${target.tableId}`, target })),
+          async ({ scope, target }) => coordinator.runIncremental({
+            platform: "lark",
+            scopeKey: scope,
+            trigger: "cli",
+            execute: (checkpoint, context) => service.incrementalSyncLarkBaseTickets({
+              masterUserId: args.masterUserId,
+              ...target,
+              cleanAfterSync: args.cleanAfterSync,
+              actionRunId: context.actionRunId,
+              ...checkpoint,
+            }),
+          }) as Promise<IncrementalSyncCounts>,
+        );
       printResult(result);
       if (result.failed) process.exitCode = 1;
       return;
@@ -805,34 +824,49 @@ async function main(): Promise<void> {
 
     const githubFullScopeStartedAt = new Map<string, string>();
     const result = await runPlatformSync(args, config, {
-      bulkSyncMeegleWorkitems: (input) => runWithAudit(runStore, {
-        platform: "meegle", scopeKey: getMeegleWorkItemTypeCheckpointScope(input.projectKey, input.workItemTypeKeys?.[0] ?? "all"), mode: "full", cleanAfterSync: input.cleanAfterSync,
-      }, async (startedAt) => {
-        const counts = await service.bulkSyncMeegleWorkitems(input);
-        return { ...counts, stale: await syncStore.markMeegleWorkitemsUnseenStale(input.projectKey, startedAt, input.workItemTypeKeys?.[0]) };
+      bulkSyncMeegleWorkitems: (input) => coordinator.runExclusive({
+        platform: "meegle",
+        scopeKey: getMeegleWorkItemTypeCheckpointScope(input.projectKey, input.workItemTypeKeys?.[0] ?? "all"),
+        mode: "full",
+        cleanAfterSync: input.cleanAfterSync,
+        trigger: "cli",
+        execute: async ({ startedAt }) => {
+          const counts = await service.bulkSyncMeegleWorkitems(input);
+          return { ...counts, stale: await syncStore.markMeegleWorkitemsUnseenStale(input.projectKey, startedAt, input.workItemTypeKeys?.[0]) };
+        },
       }),
-      bulkSyncLarkBaseTickets: (input) => runWithAudit(runStore, {
-        platform: "lark", scopeKey: `${input.baseId}/${input.tableId}`, mode: "full", cleanAfterSync: input.cleanAfterSync,
-      }, async (startedAt) => {
-        const counts = await service.bulkSyncLarkBaseTickets(input);
-        return { ...counts, stale: await syncStore.markLarkBaseTicketsUnseenStale(input.baseId, input.tableId, startedAt) };
+      bulkSyncLarkBaseTickets: (input) => coordinator.runExclusive({
+        platform: "lark",
+        scopeKey: `${input.baseId}/${input.tableId}`,
+        mode: "full",
+        cleanAfterSync: input.cleanAfterSync,
+        trigger: "cli",
+        execute: async ({ startedAt }) => {
+          const counts = await service.bulkSyncLarkBaseTickets(input);
+          return { ...counts, stale: await syncStore.markLarkBaseTicketsUnseenStale(input.baseId, input.tableId, startedAt) };
+        },
       }),
       bulkSyncGitHubPullRequests: async (input) => {
         const repository = input.repositories[0];
         const scopeKey = `${repository.owner}/${repository.repo}`;
-        return runWithAudit(runStore, {
-          platform: "github", scopeKey, mode: "full", cleanAfterSync: input.cleanAfterSync,
-        }, async (startedAt) => {
-          const counts = await syncGitHubPullRequestsWithGh(input, syncStore);
-          const cleaned = await service.cleanGitHubPullRequests(counts.refs);
-          if (args.githubPullRequestState === "all" && input.state === "closed") {
-            githubFullScopeStartedAt.set(scopeKey, startedAt);
-          }
-          const fullScopeStartedAt = githubFullScopeStartedAt.get(scopeKey);
-          const stale = args.githubPullRequestState === "all" && input.state === "merged" && fullScopeStartedAt
-            ? await syncStore.markGitHubPullRequestsUnseenStale(repository.owner, repository.repo, fullScopeStartedAt)
-            : 0;
-          return { ...counts, cleaned, stale };
+        return coordinator.runExclusive({
+          platform: "github",
+          scopeKey,
+          mode: "full",
+          cleanAfterSync: input.cleanAfterSync,
+          trigger: "cli",
+          execute: async ({ startedAt }) => {
+            const counts = await syncGitHubPullRequestsWithGh(input, syncStore);
+            const cleaned = await service.cleanGitHubPullRequests(counts.refs);
+            if (args.githubPullRequestState === "all" && input.state === "closed") {
+              githubFullScopeStartedAt.set(scopeKey, startedAt);
+            }
+            const fullScopeStartedAt = githubFullScopeStartedAt.get(scopeKey);
+            const stale = args.githubPullRequestState === "all" && input.state === "merged" && fullScopeStartedAt
+              ? await syncStore.markGitHubPullRequestsUnseenStale(repository.owner, repository.repo, fullScopeStartedAt)
+              : 0;
+            return { ...counts, cleaned, stale };
+          },
         });
       },
     });
@@ -849,43 +883,64 @@ async function main(): Promise<void> {
 function createPlatformSyncCleanRunner(
   db: Kysely<DatabaseSchema>,
   service: PlatformSyncService,
-  runStore: PostgresPlatformSyncRunStore,
+  coordinator: PlatformSyncCoordinator,
 ): PlatformSyncCleanRunner {
   return {
     async cleanMeegleProject(projectKey) {
-      return runWithAudit(runStore, { platform: "meegle", scopeKey: projectKey, mode: "clean", cleanAfterSync: false }, async () => {
-        const rows = await db.selectFrom("meegle_workitem_syncs")
-          .select(["project_key", "work_item_type_key", "work_item_id"])
-          .where("project_key", "=", projectKey)
-          .execute();
-        const cleaned = await service.cleanMeegleWorkitems(rows.map((row) => ({
-          projectKey: row.project_key, workItemTypeKey: row.work_item_type_key, workItemId: row.work_item_id,
-        })));
-        return { listed: rows.length, skippedInactive: 0, synced: 0, cleaned };
+      return coordinator.runExclusive({
+        platform: "meegle",
+        scopeKey: projectKey,
+        mode: "clean",
+        cleanAfterSync: false,
+        trigger: "cli",
+        execute: async () => {
+          const rows = await db.selectFrom("meegle_workitem_syncs")
+            .select(["project_key", "work_item_type_key", "work_item_id"])
+            .where("project_key", "=", projectKey)
+            .execute();
+          const cleaned = await service.cleanMeegleWorkitems(rows.map((row) => ({
+            projectKey: row.project_key, workItemTypeKey: row.work_item_type_key, workItemId: row.work_item_id,
+          })));
+          return { listed: rows.length, skippedInactive: 0, synced: 0, cleaned };
+        },
       });
     },
     async cleanGitHubRepository(owner, repo) {
-      return runWithAudit(runStore, { platform: "github", scopeKey: `${owner}/${repo}`, mode: "clean", cleanAfterSync: false }, async () => {
-        const rows = await db.selectFrom("github_pr_syncs")
-          .select(["owner", "repo", "pull_number"])
-          .where("owner", "=", owner).where("repo", "=", repo)
-          .execute();
-        const cleaned = await service.cleanGitHubPullRequests(rows.map((row) => ({
-          owner: row.owner, repo: row.repo, pullNumber: row.pull_number,
-        })));
-        return { listed: rows.length, skippedInactive: 0, synced: 0, cleaned };
+      return coordinator.runExclusive({
+        platform: "github",
+        scopeKey: `${owner}/${repo}`,
+        mode: "clean",
+        cleanAfterSync: false,
+        trigger: "cli",
+        execute: async () => {
+          const rows = await db.selectFrom("github_pr_syncs")
+            .select(["owner", "repo", "pull_number"])
+            .where("owner", "=", owner).where("repo", "=", repo)
+            .execute();
+          const cleaned = await service.cleanGitHubPullRequests(rows.map((row) => ({
+            owner: row.owner, repo: row.repo, pullNumber: row.pull_number,
+          })));
+          return { listed: rows.length, skippedInactive: 0, synced: 0, cleaned };
+        },
       });
     },
     async cleanLarkBase(baseId, tableId) {
-      return runWithAudit(runStore, { platform: "lark", scopeKey: `${baseId}/${tableId}`, mode: "clean", cleanAfterSync: false }, async () => {
-        const rows = await db.selectFrom("lark_base_ticket_syncs")
-          .select(["base_id", "table_id", "record_id"])
-          .where("base_id", "=", baseId).where("table_id", "=", tableId)
-          .execute();
-        const cleaned = await service.cleanLarkBaseTickets(rows.map((row) => ({
-          baseId: row.base_id, tableId: row.table_id, recordId: row.record_id,
-        })));
-        return { listed: rows.length, skippedInactive: 0, synced: 0, cleaned };
+      return coordinator.runExclusive({
+        platform: "lark",
+        scopeKey: `${baseId}/${tableId}`,
+        mode: "clean",
+        cleanAfterSync: false,
+        trigger: "cli",
+        execute: async () => {
+          const rows = await db.selectFrom("lark_base_ticket_syncs")
+            .select(["base_id", "table_id", "record_id"])
+            .where("base_id", "=", baseId).where("table_id", "=", tableId)
+            .execute();
+          const cleaned = await service.cleanLarkBaseTickets(rows.map((row) => ({
+            baseId: row.base_id, tableId: row.table_id, recordId: row.record_id,
+          })));
+          return { listed: rows.length, skippedInactive: 0, synced: 0, cleaned };
+        },
       });
     },
   };
