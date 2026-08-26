@@ -48,6 +48,80 @@ export interface LarkBitableBase {
   name: string;
 }
 
+export interface LarkThreadMessage {
+  message_id: string;
+  root_id?: string;
+  parent_id?: string;
+  thread_id?: string;
+  msg_type?: string;
+  create_time?: string;
+  update_time?: string;
+  deleted?: boolean;
+  updated?: boolean;
+  sender?: {
+    id?: string;
+    id_type?: string;
+    sender_type?: string;
+  };
+  content?: string;
+}
+
+export interface ListLarkThreadMessagesOptions {
+  pageSize?: number;
+  pageToken?: string;
+  startTime?: string;
+  endTime?: string;
+  sortType?: "ByCreateTimeAsc" | "ByCreateTimeDesc";
+}
+
+type RawLarkMessage = {
+  message_id?: string;
+  root_id?: string;
+  parent_id?: string;
+  thread_id?: string;
+  msg_type?: string;
+  create_time?: unknown;
+  update_time?: unknown;
+  deleted?: boolean;
+  updated?: boolean;
+  sender?: {
+    id?: string;
+    id_type?: string;
+    sender_type?: string;
+  };
+  body?: { content?: string };
+  content?: string;
+};
+
+function normalizeMessageTime(value: unknown): string | undefined {
+  if (typeof value !== "string" && typeof value !== "number") return undefined;
+  const text = String(value).trim();
+  if (!text) return undefined;
+  if (/^\d+$/.test(text)) {
+    const numeric = Number(text);
+    const milliseconds = text.length <= 10 ? numeric * 1000 : numeric;
+    return Number.isFinite(milliseconds) ? new Date(milliseconds).toISOString() : undefined;
+  }
+  const parsed = Date.parse(text);
+  return Number.isNaN(parsed) ? undefined : new Date(parsed).toISOString();
+}
+
+function normalizeMessage(item: RawLarkMessage): LarkThreadMessage {
+  return {
+    message_id: item.message_id || "",
+    root_id: item.root_id,
+    parent_id: item.parent_id,
+    thread_id: item.thread_id,
+    msg_type: item.msg_type,
+    create_time: normalizeMessageTime(item.create_time),
+    update_time: normalizeMessageTime(item.update_time),
+    deleted: item.deleted,
+    updated: item.updated,
+    sender: item.sender,
+    content: item.body?.content ?? item.content,
+  };
+}
+
 // ==================== Error Types ====================
 
 export class LarkAPIError extends Error {
@@ -501,50 +575,38 @@ export class LarkClient {
   /**
    * Get a message by ID
    */
-  async getMessage(messageId: string): Promise<{ message_id: string; content?: string }> {
-    const data = await this.request<{
-      message_id?: string;
-      content?: string;
-    }>("GET", `/open-apis/im/v1/messages/${messageId}`);
-
-    return {
-      message_id: data.message_id || "",
-      content: data.content,
-    };
+  async getMessage(messageId: string): Promise<LarkThreadMessage> {
+    const data = await this.request<RawLarkMessage & { items?: RawLarkMessage[] }>(
+      "GET",
+      `/open-apis/im/v1/messages/${messageId}`,
+    );
+    return normalizeMessage(data.items?.[0] ?? data);
   }
 
   /**
    * Get messages in a thread
    */
-  async getThreadMessages(threadId: string): Promise<{
-    items: Array<{
-      message_id: string;
-      root_id?: string;
-      content?: string;
-    }>;
+  async getThreadMessages(threadId: string, options: ListLarkThreadMessagesOptions = {}): Promise<{
+    items: LarkThreadMessage[];
     hasMore: boolean;
     pageToken?: string;
   }> {
     const data = await this.request<{
-      items?: Array<{
-        message_id?: string;
-        root_id?: string;
-        body?: { content?: string };
-      }>;
+      items?: RawLarkMessage[];
       has_more?: boolean;
       page_token?: string;
     }>("GET", "/open-apis/im/v1/messages", undefined, {
       container_id_type: "thread",
       container_id: threadId,
-      page_size: 50,
+      page_size: Math.min(Math.max(options.pageSize ?? 50, 1), 50),
+      page_token: options.pageToken,
+      start_time: options.startTime,
+      end_time: options.endTime,
+      sort_type: options.sortType,
     });
 
     return {
-      items: (data.items || []).map((item) => ({
-        message_id: item.message_id || "",
-        root_id: item.root_id,
-        content: item.body?.content,
-      })),
+      items: (data.items || []).map(normalizeMessage),
       hasMore: data.has_more ?? false,
       pageToken: data.page_token,
     };

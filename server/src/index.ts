@@ -79,6 +79,7 @@ import { createWebGitHubPrOdooDevopsBuildController } from "./modules/github-pr-
 import { GitHubClient } from "./adapters/github/github-client.js";
 import { registerWebLarkTicketAiRoutes } from "./modules/lark-ticket-ai/lark-ticket-ai.controller.js";
 import { registerInternalLarkTicketAiWriteRoutes } from "./modules/lark-ticket-ai/internal-lark-ticket-ai.controller.js";
+import { registerInternalAcpTicketContextRoutes } from "./modules/lark-ticket-ai/internal-acp-ticket-context.controller.js";
 import { registerWebLarkTicketRoutes } from "./modules/lark-ticket/lark-ticket.controller.js";
 import { createWebUserSshPublicKeysController } from "./modules/user-ssh-public-keys/user-ssh-public-keys.controller.js";
 
@@ -458,6 +459,7 @@ app.get("/api/lark/auth/callback", async (req, res) => {
 registerLarkMeegleWorkflowRoutes(app, handleController);
 registerWebLarkTicketAiRoutes(app);
 registerInternalLarkTicketAiWriteRoutes(app);
+registerInternalAcpTicketContextRoutes(app);
 app.post("/api/acp/kimi/chat", acpKimiChatController);
 app.post("/api/acp/kimi/sessions/list", handleController(acpKimiSessionListController));
 app.post("/api/acp/kimi/sessions/load", handleController(acpKimiSessionLoadController));

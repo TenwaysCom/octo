@@ -23,6 +23,9 @@ export interface DatabaseSchema {
     skill_profile: string | null;
     skill_id: string | null;
     policy_version: string | null;
+    thread_id: string | null;
+    thread_snapshot_version: number | null;
+    thread_context_synced_at: string | null;
     deleted_at: string | null;
     created_at: string;
     updated_at: string;
@@ -204,6 +207,27 @@ export interface DatabaseSchema {
     detail_description: string | null;
     meegle_link: string | null;
     lark_message_link: string | null;
+  };
+  lark_ticket_thread_syncs: {
+    base_id: string;
+    table_id: string;
+    record_id: string;
+    message_link: string;
+    thread_id: string;
+    messages_json: string;
+    snapshot_version: Generated<number>;
+    history_complete: Generated<boolean>;
+    watermark_created_at: string | null;
+    watermark_message_id: string | null;
+    last_checked_at: string | null;
+    last_successful_sync_at: string | null;
+    last_full_reconciled_at: string | null;
+    dirty: Generated<boolean>;
+    frozen_at: string | null;
+    frozen_status: string | null;
+    last_error: string | null;
+    created_at: string;
+    updated_at: string;
   };
   meegle_workitem_octo: {
     project_key: string;

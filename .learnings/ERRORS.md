@@ -2,6 +2,27 @@
 
 Record concise compiler/runtime errors, failed commands, wrong assumptions, and their verified fixes here. Redact secrets, cookies, tokens, and sensitive payloads.
 
+## [ERR-20260826-001] server-full-suite-runtime-boundaries
+
+- **Summary:** Lark thread 功能的全量 Server test 命令触发了与本次改动无关的运行环境失败。
+- **Error:** Node v22.12.0 无法加载 `node:sqlite`，导致 6 个既有 SQLite suites 失败；`src/logger.test.ts` 的 dated log 文件断言在全量和独立运行中都失败。
+- **Fix:** 使用 `pnpm --dir server exec vitest run <files...>` 精确验证相关 10 个文件（37 tests 全通过），并单独执行 `pnpm --dir server build`。全量套件需在提供 `node:sqlite` 的项目标准 Node runtime 运行，并另行修复既有 logger 落盘时序/兼容性。
+- **Status:** 本功能验证完成；全量环境问题未在本任务中修改。
+
+## [ERR-20260826-002] postgres-migration-sandbox-network
+
+- **Summary:** PostgreSQL schema migration could not reach the configured private database address from the default sandbox.
+- **Error:** `connect EPERM` during `pnpm --dir server db:migrate`; no schema statement acquired a connection.
+- **Fix:** Re-ran the exact package-scoped migration with approved database network access; it completed with `[db] ensured postgres schema`.
+- **Status:** resolved; migration succeeded.
+
+## [ERR-20260826-003] git-index-workspace-read-only
+
+- **Summary:** The default workspace sandbox allowed source edits but mounted `.git/index` read-only during the requested commit.
+- **Error:** `git add` failed with `cannot create .git/index.lock: Read-only file system`.
+- **Fix:** Re-ran the explicit file-scoped `git add` with approved Git metadata access, then committed normally.
+- **Status:** resolved; no source file was lost or staged unintentionally.
+
 ## [ERR-20260821-001] python-pycache-global-cache-permission
 
 - **Summary:** The system `python3 -m py_compile` attempted to write bytecode under the macOS global Python cache, which is outside the workspace sandbox.

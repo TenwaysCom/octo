@@ -71,9 +71,32 @@ Web Meegle 工作项列表默认按状态分组，也支持切换为按类型、
 
 Lark Ticket 详情页可基于当前同步快照的标题、描述与资源创建 Kimi ACP AI Session。会话归属保存在 `acp_kimi_session_owners`：每条 Ticket Session 同时绑定 Lark `base_id + table_id + record_id` 与服务端解析出的 Lark 用户身份。它不向 Lark 回写消息或评论。
 
+#### Thread 消息按需同步
+
+Lark Ticket full/incremental 同步只维护 Ticket 字段和 `lark_message_link`，不会逐条请求 IM thread。AI 新建 Session 或受控内部调用真正需要上下文时，Server 才执行 `ensure`，并把结果保存到独立的 `lark_ticket_thread_syncs`；FE 不默认读取、轮询或展示 thread 消息。
+
+该表按 `base_id + table_id + record_id` 保存一个 `schemaVersion=1` 的消息 JSON 文档，并单独记录 `thread_id`、`snapshot_version`、创建时间 watermark、完整性、最近检查/成功/完整对账时间、dirty 与冻结状态。增量读取使用创建时间 watermark 减 60 秒重叠窗口，按创建时间升序遍历全部分页，再按 `message_id` 合并并覆盖完整 JSON；旧消息编辑或撤回由默认 24 小时一次的完整对账修正。图片不下载二进制，只保留 image resource key；已有完整快照在 Lark 临时失败时可作为 stale cache 使用，首次读取失败则明确终止分析，不能用空上下文冒充成功。
+
+`ensure` 的默认决策如下：
+
+| 条件 | 数据来源 |
+| --- | --- |
+| 没有 thread link | 不请求 Lark，返回空上下文 |
+| 活跃 Ticket 无完整成功快照、thread 已变化 | Lark 全量分页 |
+| 活跃 Ticket 快照在 10 分钟 TTL 内且非 dirty | PostgreSQL 快照 |
+| 活跃 Ticket 超过 TTL 或 dirty | Lark 增量分页 |
+| 距上次完整对账超过 24 小时 | Lark 全量分页 |
+| `Finish` / `Cancelled` / `Rejected` 已有完整成功快照 | PostgreSQL 快照并冻结，不再请求 Lark |
+| 上述终态还没有完整成功快照 | Lark 全量一次，成功后冻结 |
+| 已冻结 Ticket 重新进入活跃状态 | 恢复增量/完整对账策略 |
+
+同一 Server 进程内，对同一用户和 Ticket 的并发 ensure 会合并为一个 Lark 请求。Kimi 新 Session 的首轮 prompt 包含本次快照，并把 `thread_id`、`thread_snapshot_version` 和同步时间写入 `acp_kimi_session_owners`；同一 Session 的后续 turn 依赖会话内已注入上下文，不再次 ensure，保证一次分析使用固定上下文。
+
+`POST /api/internal/acp/ticket-context/messages` 为 Kimi/受控 Skill 提供同一 ensure 能力。请求使用 `ticket-thread-context-v1` DTO，不能提交 `masterUserId`；Server 通过独立 `octo-acp-ticket-context` SSHSIG namespace、`x-octo-acp-context-*` headers、直接 TCP 来源 CIDR 和 `user_ssh_public_keys` 解析用户。允许网段由 `OCTO_ACP_TICKET_CONTEXT_ALLOWED_CIDRS` 配置，未设置时沿用 `OCTO_TICKET_AI_ALLOWED_CIDRS`。响应包含 decision/source、快照版本、完整性、冻结状态和规范化消息，不返回 Lark token 或图片二进制。
+
 #### 会话存储边界
 
-`acp_kimi_session_owners` 不是消息表。它只保存 `session_id`、Ticket 与用户归属、标题/时间，以及创建节点的 `runtime_host_name`、`kimi_work_dir`。后两个值仅由 Server 取得（分别为 `os.hostname()` 与传给 Kimi ACP 的工作目录），用于定位实际承载会话的运行节点；已有记录的这两个字段可为空。由快捷动作创建的 Session 还保存 `automation_action_key`、`execution_policy`、`skill_profile`、`skill_id`、`policy_version` 和 Ticket number，作为权限策略快照；旧会话这些字段为空时继续默认拒绝所有敏感 ACP 调用。
+`acp_kimi_session_owners` 不是消息表。它只保存 `session_id`、Ticket 与用户归属、标题/时间、首轮 thread 快照引用，以及创建节点的 `runtime_host_name`、`kimi_work_dir`。thread 引用仅包含 `thread_id`、`thread_snapshot_version`、`thread_context_synced_at`，消息正文仍在 `lark_ticket_thread_syncs`。后两个运行节点值仅由 Server 取得（分别为 `os.hostname()` 与传给 Kimi ACP 的工作目录），用于定位实际承载会话的运行节点；已有记录的这些字段可为空。由快捷动作创建的 Session 还保存 `automation_action_key`、`execution_policy`、`skill_profile`、`skill_id`、`policy_version` 和 Ticket number，作为权限策略快照；旧会话这些字段为空时继续默认拒绝所有敏感 ACP 调用。
 
 #### Support-QA 快捷动作与 ACP 权限
 
@@ -111,6 +134,7 @@ Lark Ticket 详情页可基于当前同步快照的标题、描述与资源创�
 | `GET /api/web/lark-tickets/:recordId/ai-sessions` | 列出当前 Web 用户在指定 Ticket 下的 AI Sessions |
 | `POST /api/web/lark-tickets/:recordId/ai-sessions` | 新建或继续 Kimi ACP 流式对话 |
 | `POST /api/web/lark-tickets/:recordId/ai-sessions/:sessionId/load` | 加载一个已归属该 Ticket 的会话历史 |
+| `POST /api/internal/acp/ticket-context/messages` | 通过 SSH 签名身份按需 ensure 并返回 Ticket thread 快照 |
 
 三个路由都要求有效的 HttpOnly `octo_web_session`；浏览器只提交当前已加载 Ticket 的引用和用户输入，服务端解析用户身份、读取同步快照、校验会话归属并调用 Kimi ACP。浏览器不会接收 `masterUserId` 或 ACP 凭据。详情页按 ACP turn 合并流式 text chunk，并把同一回复的思考过程与工具调用收进可展开区块；无 `messageId` 的事件以用户消息作为新 turn 边界，避免跨轮回复拼接。
 
@@ -224,6 +248,8 @@ Meegle 的本进程读取限流由 `MEEGLE_MIN_REQUEST_INTERVAL_MS` 控制，HTT
 ### 4.1 平台快照表：只保存源端事实
 
 `github_pr_syncs`、`meegle_workitem_syncs`、`lark_base_ticket_syncs` 是平台同步的原始记录和源端变更记录。它们保存外部对象的最新快照、源端更新时间和原始 payload。
+
+`lark_ticket_thread_syncs` 是独立的源端派生缓存：它不属于 Ticket 批量 checkpoint，也不保存 Octo 人工/AI 业务结果。它只在 thread 上下文被实际使用时更新自己的消息快照和 watermark，避免把高成本的一对多 IM 请求放大到每次 Ticket 批量同步。
 
 Octo 不得把自身业务数据、人工备注、AI 结果或本地状态写入这三张表，更不会通过同步把它们写回外部平台。同步程序对平台表唯一允许的本地写入是：
 

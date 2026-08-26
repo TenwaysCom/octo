@@ -25,5 +25,21 @@ describe("PostgresAcpKimiSessionOwnershipStore", () => {
       runtimeHostName: "octo-server-1",
       kimiWorkDir: "/srv/octo/server",
     });
+
+    await expect(store.attachTicket({
+      sessionId: "sess_1",
+      operatorLarkId: "ou_1",
+      title: "Analyze Ticket",
+      baseId: "app_1",
+      tableId: "tbl_1",
+      recordId: "rec_1",
+      threadId: "thread_1",
+      threadSnapshotVersion: 3,
+      threadContextSyncedAt: "2026-08-26T12:00:00.000Z",
+    })).resolves.toMatchObject({
+      threadId: "thread_1",
+      threadSnapshotVersion: 3,
+      threadContextSyncedAt: "2026-08-26T12:00:00.000Z",
+    });
   });
 });

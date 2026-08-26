@@ -38,6 +38,8 @@ describe("Lark Ticket AI Session service", () => {
 
     await service.chat({
       operatorLarkId: "ou_1",
+      masterUserId: "usr_1",
+      larkBaseUrl: "https://open.larksuite.com",
       ticket,
       message: "Please create a PRD",
       actionRunId: "run_1",
@@ -128,6 +130,8 @@ describe("Lark Ticket AI Session service", () => {
 
     await service.chat({
       operatorLarkId: "ou_1",
+      masterUserId: "usr_1",
+      larkBaseUrl: "https://open.larksuite.com",
       ticket,
       message: "请总结问题",
       actionKey: "lark-ticket-support-qa-summarize",
@@ -142,5 +146,78 @@ describe("Lark Ticket AI Session service", () => {
       }),
     }), expect.any(Function), expect.any(Object));
     expect(ownershipStore.attachTicket).toHaveBeenCalledWith(expect.objectContaining({ ticketNumber: "LT-10" }));
+  });
+
+  it("ensures thread context only for a new Session and pins its snapshot metadata", async () => {
+    const ownershipStore = {
+      getBySessionId: vi.fn().mockResolvedValue({
+        sessionId: "sess_3",
+        operatorLarkId: "ou_1",
+        ticketBaseId: ticket.baseId,
+        ticketTableId: ticket.tableId,
+        ticketRecordId: ticket.recordId,
+        deletedAt: null,
+      }),
+      listByTicket: vi.fn(),
+      attachTicket: vi.fn().mockResolvedValue({ sessionId: "sess_3" }),
+      touch: vi.fn(),
+    };
+    const acpService = {
+      assertSessionAccess: vi.fn(),
+      chat: vi.fn(async (input, emit) => {
+        if (!input.sessionId) emit({ event: "session.created", data: { sessionId: "sess_3" } });
+        emit({ event: "done", data: { sessionId: input.sessionId ?? "sess_3", stopReason: "end_turn" } });
+      }),
+    };
+    const threadContextService = {
+      ensure: vi.fn().mockResolvedValue({
+        decision: "full",
+        source: "lark",
+        threadId: "thread_1",
+        snapshot: {
+          ...ticket,
+          messageLink: "https://applink.larksuite.com/client/thread/open?threadid=thread_1",
+          threadId: "thread_1",
+          messages: [{ messageId: "om_1", content: "Thread reply" }],
+          snapshotVersion: 4,
+          historyComplete: true,
+          dirty: false,
+          lastSuccessfulSyncAt: "2026-08-26T12:00:00.000Z",
+          createdAt: "2026-08-26T11:00:00.000Z",
+          updatedAt: "2026-08-26T12:00:00.000Z",
+        },
+      }),
+    };
+    const service = createLarkTicketAiSessionService({
+      syncStore: {
+        getLarkBaseTicketsForCleaning: vi.fn().mockResolvedValue([{
+          ...ticket,
+          title: "Ticket with thread",
+          larkMessageLink: "https://applink.larksuite.com/client/thread/open?threadid=thread_1",
+          syncedAt: "2026-08-26T10:00:00.000Z",
+        }]),
+      } as never,
+      ownershipStore: ownershipStore as never,
+      acpService: acpService as never,
+      threadContextService: threadContextService as never,
+    });
+    const identity = {
+      operatorLarkId: "ou_1",
+      masterUserId: "usr_1",
+      larkBaseUrl: "https://open.larksuite.com",
+      ticket,
+    };
+
+    await service.chat({ ...identity, message: "Analyze it" }, vi.fn());
+    await service.chat({ ...identity, message: "Continue", sessionId: "sess_3" }, vi.fn());
+
+    expect(threadContextService.ensure).toHaveBeenCalledTimes(1);
+    expect(acpService.chat.mock.calls[0][0].message).toContain("Thread reply");
+    expect(acpService.chat.mock.calls[1][0].message).toBe("Continue");
+    expect(ownershipStore.attachTicket).toHaveBeenCalledWith(expect.objectContaining({
+      threadId: "thread_1",
+      threadSnapshotVersion: 4,
+      threadContextSyncedAt: "2026-08-26T12:00:00.000Z",
+    }));
   });
 });

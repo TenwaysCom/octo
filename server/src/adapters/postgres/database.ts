@@ -88,6 +88,9 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .addColumn("skill_profile", "text")
     .addColumn("skill_id", "text")
     .addColumn("policy_version", "text")
+    .addColumn("thread_id", "text")
+    .addColumn("thread_snapshot_version", "integer")
+    .addColumn("thread_context_synced_at", "text")
     .addColumn("deleted_at", "text")
     .addColumn("created_at", "text", (column) => column.notNull())
     .addColumn("updated_at", "text", (column) => column.notNull())
@@ -322,6 +325,31 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .addColumn("meegle_link", "text")
     .addColumn("lark_message_link", "text")
     .addPrimaryKeyConstraint("lark_base_ticket_syncs_pkey", ["base_id", "table_id", "record_id"])
+    .execute();
+
+  await db.schema
+    .createTable("lark_ticket_thread_syncs")
+    .ifNotExists()
+    .addColumn("base_id", "text", (column) => column.notNull())
+    .addColumn("table_id", "text", (column) => column.notNull())
+    .addColumn("record_id", "text", (column) => column.notNull())
+    .addColumn("message_link", "text", (column) => column.notNull())
+    .addColumn("thread_id", "text", (column) => column.notNull())
+    .addColumn("messages_json", "text", (column) => column.notNull().defaultTo('{"schemaVersion":1,"messages":[]}'))
+    .addColumn("snapshot_version", "integer", (column) => column.notNull().defaultTo(0))
+    .addColumn("history_complete", "boolean", (column) => column.notNull().defaultTo(false))
+    .addColumn("watermark_created_at", "text")
+    .addColumn("watermark_message_id", "text")
+    .addColumn("last_checked_at", "text")
+    .addColumn("last_successful_sync_at", "text")
+    .addColumn("last_full_reconciled_at", "text")
+    .addColumn("dirty", "boolean", (column) => column.notNull().defaultTo(false))
+    .addColumn("frozen_at", "text")
+    .addColumn("frozen_status", "text")
+    .addColumn("last_error", "text")
+    .addColumn("created_at", "text", (column) => column.notNull())
+    .addColumn("updated_at", "text", (column) => column.notNull())
+    .addPrimaryKeyConstraint("lark_ticket_thread_syncs_pkey", ["base_id", "table_id", "record_id"])
     .execute();
 
   await db.schema
@@ -632,6 +660,13 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
   for (const column of ["automation_action_key", "execution_policy", "skill_profile", "skill_id", "policy_version"]) {
     await sql.raw(`ALTER TABLE acp_kimi_session_owners ADD COLUMN IF NOT EXISTS ${column} text`).execute(db);
   }
+  for (const column of ["thread_id", "thread_context_synced_at"]) {
+    await sql.raw(`ALTER TABLE acp_kimi_session_owners ADD COLUMN IF NOT EXISTS ${column} text`).execute(db);
+  }
+  await sql`
+    ALTER TABLE acp_kimi_session_owners
+    ADD COLUMN IF NOT EXISTS thread_snapshot_version integer
+  `.execute(db);
   await sql`
     CREATE INDEX IF NOT EXISTS acp_kimi_session_owners_ticket_idx
     ON acp_kimi_session_owners(operator_lark_id, ticket_base_id, ticket_table_id, ticket_record_id, updated_at)
@@ -764,6 +799,7 @@ export async function resetPostgresDatabase(db: Kysely<DatabaseSchema>): Promise
   await sql`DROP TABLE IF EXISTS lark_base_ticket_octo`.execute(db);
   await sql`DROP TABLE IF EXISTS github_pr_octo`.execute(db);
   await sql`DROP TABLE IF EXISTS meegle_workitem_octo`.execute(db);
+  await sql`DROP TABLE IF EXISTS lark_ticket_thread_syncs`.execute(db);
   await sql`DROP TABLE IF EXISTS lark_base_ticket_syncs`.execute(db);
   await sql`DROP TABLE IF EXISTS github_pr_syncs`.execute(db);
   await sql`DROP TABLE IF EXISTS meegle_sync_mappings`.execute(db);

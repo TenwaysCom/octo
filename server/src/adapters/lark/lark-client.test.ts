@@ -228,6 +228,75 @@ describe("lark-client", () => {
     }), expect.anything());
   });
 
+  it("paginates thread messages with a creation-time watermark and normalizes message metadata", async () => {
+    const client = new LarkClient({ accessToken: "token_123", baseUrl: "https://open.larksuite.com" });
+    (client as unknown as { client: { request: typeof requestMock } }).client = { request: requestMock };
+    requestMock.mockResolvedValueOnce({
+      code: 0,
+      data: {
+        items: [{
+          message_id: "om_1",
+          root_id: "root_1",
+          msg_type: "text",
+          create_time: "1787731200",
+          update_time: "1787731260000",
+          sender: { id: "ou_1", sender_type: "user" },
+          body: { content: JSON.stringify({ text: "hello" }) },
+        }],
+        has_more: true,
+        page_token: "page_2",
+      },
+    });
+
+    await expect(client.getThreadMessages("thread_1", {
+      startTime: "1787731140",
+      pageToken: "page_1",
+      sortType: "ByCreateTimeAsc",
+    })).resolves.toEqual({
+      items: [{
+        message_id: "om_1",
+        root_id: "root_1",
+        parent_id: undefined,
+        thread_id: undefined,
+        msg_type: "text",
+        create_time: "2026-08-26T08:00:00.000Z",
+        update_time: "2026-08-26T08:01:00.000Z",
+        deleted: undefined,
+        updated: undefined,
+        sender: { id: "ou_1", sender_type: "user" },
+        content: JSON.stringify({ text: "hello" }),
+      }],
+      hasMore: true,
+      pageToken: "page_2",
+    });
+    expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({
+      method: "GET",
+      url: "/open-apis/im/v1/messages",
+      params: expect.objectContaining({
+        container_id_type: "thread",
+        container_id: "thread_1",
+        start_time: "1787731140",
+        page_token: "page_1",
+        sort_type: "ByCreateTimeAsc",
+      }),
+    }), expect.anything());
+  });
+
+  it("reads the root message from the get-message items envelope", async () => {
+    const client = new LarkClient({ accessToken: "token_123", baseUrl: "https://open.larksuite.com" });
+    (client as unknown as { client: { request: typeof requestMock } }).client = { request: requestMock };
+    requestMock.mockResolvedValueOnce({
+      code: 0,
+      data: { items: [{ message_id: "root_1", msg_type: "text", body: { content: "root" } }] },
+    });
+
+    await expect(client.getMessage("root_1")).resolves.toMatchObject({
+      message_id: "root_1",
+      msg_type: "text",
+      content: "root",
+    });
+  });
+
   it("preserves records created before a later batch fails", async () => {
     const client = new LarkClient({ accessToken: "token_123", baseUrl: "https://open.larksuite.com" });
     (client as unknown as { client: { request: typeof requestMock } }).client = { request: requestMock };

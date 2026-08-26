@@ -27,6 +27,7 @@ const DEFAULT_EXEMPT_PATHS = new Set([
   "/api/web/plugin-login/complete",
   // This route uses its own internal-network and SSH-signature authentication.
   "/api/internal/lark-ticket-ai",
+  "/api/internal/acp/ticket-context/messages",
 ]);
 
 function getMasterUserIdHeader(req: Request): string | undefined {

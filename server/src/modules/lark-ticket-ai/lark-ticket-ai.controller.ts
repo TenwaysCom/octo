@@ -47,8 +47,10 @@ function toErrorResponse(error: unknown) {
     return { statusCode: 400, body: { ok: false as const, error: { errorCode: "INVALID_REQUEST", errorMessage: error.message } } };
   }
   if (error instanceof LarkTicketAiSessionError) {
-    const statusCode = error.code === "LARK_TICKET_NOT_FOUND" || error.code === "SESSION_NOT_FOUND"
-      ? 404
+    const statusCode = error.code === "LARK_THREAD_CONTEXT_UNAVAILABLE"
+      ? 503
+      : error.code === "LARK_TICKET_NOT_FOUND" || error.code === "SESSION_NOT_FOUND"
+        ? 404
       : error.code === "AI_ACTION_NOT_FOUND" || error.code === "SKILL_PROFILE_NOT_CONFIGURED"
         ? 400
         : 403;
@@ -75,7 +77,12 @@ export function createWebLarkTicketAiController(deps: {
     if (!operatorLarkId) {
       return { ok: false as const, statusCode: 403, errorCode: "IDENTITY_NOT_FOUND", errorMessage: "当前 Web 会话没有可用的 Lark 身份。" };
     }
-    return { ok: true as const, operatorLarkId };
+    return {
+      ok: true as const,
+      operatorLarkId,
+      masterUserId: session.masterUserId,
+      larkBaseUrl: session.baseUrl,
+    };
   }
 
   return {
@@ -128,6 +135,8 @@ export function createWebLarkTicketAiController(deps: {
       try {
         await service.chat({
           operatorLarkId: identity.operatorLarkId,
+          masterUserId: identity.masterUserId,
+          larkBaseUrl: identity.larkBaseUrl,
           ticket,
           message: request.message,
           sessionId: request.sessionId,

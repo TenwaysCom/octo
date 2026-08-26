@@ -17,6 +17,9 @@ export interface AcpKimiSessionOwnershipRecord {
   skillProfile: string | null;
   skillId: string | null;
   policyVersion: string | null;
+  threadId: string | null;
+  threadSnapshotVersion: number | null;
+  threadContextSyncedAt: string | null;
   deletedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -56,6 +59,9 @@ export interface AcpKimiSessionOwnershipStore {
     tableId: string;
     recordId: string;
     ticketNumber?: string | null;
+    threadId?: string | null;
+    threadSnapshotVersion?: number | null;
+    threadContextSyncedAt?: string | null;
   }): Promise<AcpKimiSessionOwnershipRecord | undefined>;
   touch(sessionId: string, operatorLarkId: string): Promise<void>;
   deleteForOperator(sessionId: string, operatorLarkId: string): Promise<boolean>;
@@ -83,6 +89,9 @@ function toRecord(
     skillProfile: row.skill_profile ?? null,
     skillId: row.skill_id ?? null,
     policyVersion: row.policy_version ?? null,
+    threadId: row.thread_id ?? null,
+    threadSnapshotVersion: row.thread_snapshot_version ?? null,
+    threadContextSyncedAt: row.thread_context_synced_at ?? null,
     deletedAt: row.deleted_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -126,6 +135,9 @@ export class PostgresAcpKimiSessionOwnershipStore
     tableId: string;
     recordId: string;
     ticketNumber?: string | null;
+    threadId?: string | null;
+    threadSnapshotVersion?: number | null;
+    threadContextSyncedAt?: string | null;
   }): Promise<AcpKimiSessionOwnershipRecord[]> {
     return (await this.database.selectFrom("acp_kimi_session_owners")
       .selectAll()
@@ -210,6 +222,9 @@ export class PostgresAcpKimiSessionOwnershipStore
     tableId: string;
     recordId: string;
     ticketNumber?: string | null;
+    threadId?: string | null;
+    threadSnapshotVersion?: number | null;
+    threadContextSyncedAt?: string | null;
   }): Promise<AcpKimiSessionOwnershipRecord | undefined> {
     const result = await this.database.updateTable("acp_kimi_session_owners")
       .set({
@@ -218,6 +233,9 @@ export class PostgresAcpKimiSessionOwnershipStore
         ticket_table_id: input.tableId,
         ticket_record_id: input.recordId,
         ticket_number: input.ticketNumber ?? null,
+        thread_id: input.threadId ?? null,
+        thread_snapshot_version: input.threadSnapshotVersion ?? null,
+        thread_context_synced_at: input.threadContextSyncedAt ?? null,
         updated_at: new Date().toISOString(),
       })
       .where("session_id", "=", input.sessionId)

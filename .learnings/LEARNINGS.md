@@ -2,6 +2,12 @@
 
 Record concise, reusable lessons here. Include the context, the durable rule, and the verified outcome; never include secrets or raw credentials.
 
+## [LRN-20260826-001] lazy-child-resource-sync
+
+- **Context:** Lark Ticket 是批量同步对象，但其 IM thread 是一对多、独立变化且 API 成本更高的子资源，主要只在 AI 分析时使用。
+- **Rule:** 不要把高成本子资源读取挂到父对象批量 checkpoint。为子资源建立独立快照、完整性和 watermark；使用时执行 TTL/dirty/低频全量 ensure，终态只在完整成功后冻结，同一 AI Session 固定首次快照。
+- **Verified outcome:** Ticket 批量同步仍只保存 message link；定向测试覆盖缓存命中、增量重叠、分页、终态一次同步、重开和 Kimi 续聊不重复请求。
+
 ## [LRN-20260818-001] dynamic-web-session-route-auth
 
 - **Context:** A new parameterized `/api/web/*` route can be rejected by the legacy `master-user-id` middleware even when its controller correctly expects an opaque HttpOnly Web Session.

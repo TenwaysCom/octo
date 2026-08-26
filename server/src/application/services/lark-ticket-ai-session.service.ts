@@ -29,6 +29,12 @@ import {
 import { access, realpath } from "node:fs/promises";
 import { constants } from "node:fs";
 import { relative, resolve } from "node:path";
+import {
+  createLarkTicketThreadContextService,
+  LarkTicketThreadContextError,
+  type LarkTicketThreadContextResult,
+  type LarkTicketThreadContextService,
+} from "./lark-ticket-thread-context.service.js";
 
 export interface LarkTicketAiSessionRef {
   baseId: string;
@@ -38,7 +44,7 @@ export interface LarkTicketAiSessionRef {
 
 export class LarkTicketAiSessionError extends Error {
   constructor(
-    readonly code: "LARK_TICKET_NOT_FOUND" | "SESSION_NOT_FOUND" | "SESSION_FORBIDDEN" | "AI_ACTION_NOT_FOUND" | "SKILL_PROFILE_NOT_CONFIGURED",
+    readonly code: "LARK_TICKET_NOT_FOUND" | "SESSION_NOT_FOUND" | "SESSION_FORBIDDEN" | "AI_ACTION_NOT_FOUND" | "SKILL_PROFILE_NOT_CONFIGURED" | "LARK_THREAD_CONTEXT_UNAVAILABLE",
     message: string,
   ) {
     super(message);
@@ -52,6 +58,7 @@ export interface LarkTicketAiSessionServiceDeps {
   acpService?: Pick<AcpKimiProxyService, "assertSessionAccess" | "chat">;
   historyService?: Pick<typeof acpKimiSessionHistoryService, "loadSession">;
   workflowPromptStore?: WorkflowPromptStore;
+  threadContextService?: Pick<LarkTicketThreadContextService, "ensure">;
   resolveAction?: (actionKey: string) => Promise<ResolvedTicketAiAction | undefined>;
 }
 
@@ -69,6 +76,7 @@ export function createLarkTicketAiSessionService(
   const acpService = deps.acpService ?? acpKimiProxyService;
   const historyService = deps.historyService ?? acpKimiSessionHistoryService;
   const workflowPromptStore = deps.workflowPromptStore ?? getWorkflowPromptStore();
+  const threadContextService = deps.threadContextService ?? createLarkTicketThreadContextService();
   const resolveAction = deps.resolveAction ?? resolveTicketAiAction;
 
   return {
@@ -100,6 +108,8 @@ export function createLarkTicketAiSessionService(
 
     async chat(input: {
       operatorLarkId: string;
+      masterUserId: string;
+      larkBaseUrl: string;
       ticket: LarkTicketAiSessionRef;
       message: string;
       sessionId?: string;
@@ -127,9 +137,24 @@ export function createLarkTicketAiSessionService(
       const permissionContext = quickAction
         ? createPermissionContext(quickAction, ticket)
         : undefined;
+      let threadContext: LarkTicketThreadContextResult | undefined;
+      if (!input.sessionId) {
+        try {
+          threadContext = await threadContextService.ensure({
+            masterUserId: input.masterUserId,
+            larkBaseUrl: input.larkBaseUrl,
+            ticket,
+          });
+        } catch (error) {
+          if (error instanceof LarkTicketThreadContextError) {
+            throw new LarkTicketAiSessionError(error.code, error.message);
+          }
+          throw error;
+        }
+      }
       const prompt = quickAction
-        ? await buildQuickActionPrompt(workflowPromptStore, quickAction, ticket, input.message)
-        : input.sessionId ? input.message : buildTicketPrompt(ticket, input.message);
+        ? await buildQuickActionPrompt(workflowPromptStore, quickAction, ticket, input.message, threadContext)
+        : input.sessionId ? input.message : buildTicketPrompt(ticket, input.message, threadContext);
       let createdSessionId: string | undefined;
 
       await acpService.chat({
@@ -154,12 +179,18 @@ export function createLarkTicketAiSessionService(
       }
 
       if (createdSessionId) {
+        const snapshot = threadContext?.snapshot;
         const claimed = await ownershipStore.attachTicket({
           sessionId,
           operatorLarkId: input.operatorLarkId,
           title: deriveSessionTitle(input.message),
           ...input.ticket,
           ticketNumber: ticket.ticketNumber || ticket.recordId,
+          ...(snapshot ? {
+            threadId: snapshot.threadId,
+            threadSnapshotVersion: snapshot.snapshotVersion,
+            threadContextSyncedAt: snapshot.lastSuccessfulSyncAt ?? snapshot.updatedAt,
+          } : {}),
         });
         if (!claimed) {
           throw new LarkTicketAiSessionError("SESSION_NOT_FOUND", "Created AI session could not be associated with this Ticket.");
@@ -216,7 +247,26 @@ function deriveSessionTitle(message: string): string {
   return normalized.length > 56 ? `${normalized.slice(0, 56)}…` : normalized;
 }
 
-function buildTicketPrompt(ticket: LarkBaseTicketSyncItem, request: string): string {
+function formatThreadContext(context: LarkTicketThreadContextResult | undefined): string {
+  const snapshot = context?.snapshot;
+  if (!snapshot) return "(none)";
+  const rendered = snapshot.messages.map((message, index) => [
+    `Message ${index + 1} (${message.messageId})`,
+    message.createdAt && `Time: ${message.createdAt}`,
+    message.senderId && `Sender: ${message.senderId}`,
+    message.deleted ? "[deleted]" : message.content || `[${message.messageType || "unsupported"} message omitted]`,
+  ].filter(Boolean).join("\n")).join("\n\n");
+  const maxChars = 60_000;
+  if (rendered.length <= maxChars) return rendered || "(empty thread)";
+  const headChars = 10_000;
+  return `${rendered.slice(0, headChars)}\n\n[older middle messages truncated for AI input]\n\n${rendered.slice(-(maxChars - headChars))}`;
+}
+
+function buildTicketPrompt(
+  ticket: LarkBaseTicketSyncItem,
+  request: string,
+  threadContext?: LarkTicketThreadContextResult,
+): string {
   const resources = [
     ticket.sharedUrl && `Lark Base: ${ticket.sharedUrl}`,
     ticket.larkMessageLink && `Lark message: ${ticket.larkMessageLink}`,
@@ -229,6 +279,7 @@ function buildTicketPrompt(ticket: LarkBaseTicketSyncItem, request: string): str
     `Title: ${ticket.title}`,
     `Description:\n${ticket.detailDescription || "(none)"}`,
     `Resources:\n${resources || "(none)"}`,
+    `Lark thread context (snapshot version ${threadContext?.snapshot?.snapshotVersion ?? "none"}):\n${formatThreadContext(threadContext)}`,
     `User request:\n${request}`,
   ].join("\n\n");
 }
@@ -277,6 +328,7 @@ async function buildQuickActionPrompt(
   quickAction: ResolvedTicketAiAction,
   ticket: LarkBaseTicketSyncItem,
   message: string,
+  threadContext?: LarkTicketThreadContextResult,
 ): Promise<string> {
   const storedPrompt = await promptStore.getByKey(quickAction.action.promptKey);
   const template = storedPrompt?.prompt.trim()
@@ -286,7 +338,7 @@ async function buildQuickActionPrompt(
   }
   return renderWorkflowPromptTemplate(template, {
     skill_path: quickAction.skillPath,
-    ticket_context: buildTicketPrompt(ticket, "").replace(/\n\nUser request:\n$/, ""),
+    ticket_context: buildTicketPrompt(ticket, "", threadContext).replace(/\n\nUser request:\n$/, ""),
     user_message: message,
   });
 }
