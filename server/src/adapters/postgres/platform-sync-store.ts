@@ -49,9 +49,11 @@ export interface PlatformSyncStore {
   listMeegleWorkitems(limit: number, filters?: MeegleWorkitemListFilters): Promise<MeegleWorkitemSyncItem[]>;
   countMeegleWorkitems(filters?: MeegleWorkitemListFilters): Promise<number>;
   listMeegleSprints(): Promise<string[]>;
+  listMeegleWorkitemsByIds(workItemIds: string[]): Promise<MeegleWorkitemSyncItem[]>;
   listGitHubPullRequestLinks(meegleWorkItemIds: string[]): Promise<GitHubPullRequestLink[]>;
-  listGitHubPullRequests(limit: number): Promise<GitHubPullRequestSyncItem[]>;
-  countGitHubPullRequests(): Promise<number>;
+  findGitHubPullRequest(ref: GitHubPullRequestSyncRef): Promise<GitHubPullRequestSyncItem | undefined>;
+  listGitHubPullRequests(limit: number, filters?: GitHubPullRequestListFilters): Promise<GitHubPullRequestSyncItem[]>;
+  countGitHubPullRequests(filters?: GitHubPullRequestListFilters): Promise<number>;
   listLarkBaseTickets(limit: number, filters?: LarkBaseTicketListFilters): Promise<LarkBaseTicketSyncItem[]>;
   countLarkBaseTickets(filters?: LarkBaseTicketListFilters): Promise<number>;
 }
@@ -136,6 +138,7 @@ export interface GitHubPullRequestSyncItem {
   repo: string;
   pullNumber: number;
   title: string;
+  description?: string;
   state: string;
   htmlUrl: string;
   authorLogin?: string;
@@ -206,6 +209,16 @@ export interface MeegleWorkitemListFilters {
   priorities?: string[];
   workitemTypes?: string[];
   withoutSprint?: boolean;
+  sourceUpdatedAtAfter?: string;
+  sourceUpdatedAtBefore?: string;
+  offset?: number;
+}
+
+export interface GitHubPullRequestListFilters {
+  statuses?: string[];
+  repositories?: string[];
+  labels?: string[];
+  reviewers?: string[];
   sourceUpdatedAtAfter?: string;
   sourceUpdatedAtBefore?: string;
   offset?: number;
@@ -469,7 +482,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
     for (const ref of refs) {
       const row = await this.db.selectFrom("github_pr_syncs")
         .select([
-          "owner", "repo", "pull_number", "title", "state", "merged_at", "html_url", "author_login", "merged_by_login",
+          "owner", "repo", "pull_number", "title", "description", "state", "merged_at", "html_url", "author_login", "merged_by_login",
           "head_ref", "base_ref", "is_draft", "meegle_ids", "reviewers_json", "labels_json", "created_at",
           "source_updated_at", "synced_at", "payload_json",
         ])
@@ -716,6 +729,23 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
     return rows.map((row) => row.sprint).filter((sprint): sprint is string => sprint !== null);
   }
 
+  async listMeegleWorkitemsByIds(workItemIds: string[]): Promise<MeegleWorkitemSyncItem[]> {
+    const results: MeegleWorkitemSyncItem[] = [];
+    for (const batch of chunks([...new Set(workItemIds)], 500)) {
+      if (batch.length === 0) continue;
+      const rows = await this.db.selectFrom("meegle_workitem_syncs")
+        .select([
+          "project_key", "project_name", "work_item_type_key", "work_item_id", "work_item_key", "title",
+          "work_item_type", "status_key", "status", "sub_stage_key", "sub_stage",
+          "sprint", "version", "system", "bugs_json", "assignee", "priority", "source_updated_at", "synced_at",
+        ])
+        .where("work_item_id", "in", batch)
+        .execute();
+      results.push(...rows.map(toMeegleWorkitemSyncItem));
+    }
+    return results;
+  }
+
   async listGitHubPullRequestLinks(meegleWorkItemIds: string[]): Promise<GitHubPullRequestLink[]> {
     const requestedIds = new Set(meegleWorkItemIds);
     if (requestedIds.size === 0) {
@@ -744,8 +774,22 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
       })));
   }
 
-  async listGitHubPullRequests(limit: number): Promise<GitHubPullRequestSyncItem[]> {
-    const rows = await this.db.selectFrom("github_pr_syncs")
+  async findGitHubPullRequest(ref: GitHubPullRequestSyncRef): Promise<GitHubPullRequestSyncItem | undefined> {
+    const row = await this.db.selectFrom("github_pr_syncs")
+      .select([
+        "owner", "repo", "pull_number", "title", "description", "state", "merged_at", "html_url", "author_login", "merged_by_login",
+        "head_ref", "base_ref", "is_draft", "meegle_ids", "reviewers_json", "labels_json", "created_at",
+        "source_updated_at", "synced_at",
+      ])
+      .where("owner", "=", ref.owner)
+      .where("repo", "=", ref.repo)
+      .where("pull_number", "=", ref.pullNumber)
+      .executeTakeFirst();
+    return row ? toGitHubPullRequestSyncItem(row) : undefined;
+  }
+
+  async listGitHubPullRequests(limit: number, filters: GitHubPullRequestListFilters = {}): Promise<GitHubPullRequestSyncItem[]> {
+    const rows = await this.filteredGitHubPullRequests(filters)
       .select([
         "owner", "repo", "pull_number", "title", "state", "merged_at", "html_url", "author_login", "merged_by_login",
         "head_ref", "base_ref", "is_draft", "meegle_ids", "reviewers_json", "labels_json", "created_at",
@@ -753,17 +797,46 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
       ])
       .orderBy("source_updated_at", "desc")
       .orderBy("synced_at", "desc")
+      .offset(filters.offset ?? 0)
       .limit(limit)
       .execute();
 
     return rows.map(toGitHubPullRequestSyncItem);
   }
 
-  async countGitHubPullRequests(): Promise<number> {
-    const row = await this.db.selectFrom("github_pr_syncs")
+  async countGitHubPullRequests(filters: GitHubPullRequestListFilters = {}): Promise<number> {
+    const row = await this.filteredGitHubPullRequests(filters)
       .select((eb) => eb.fn.countAll<number>().as("total"))
       .executeTakeFirstOrThrow();
     return Number(row.total);
+  }
+
+  private filteredGitHubPullRequests(filters: GitHubPullRequestListFilters) {
+    let query = this.db.selectFrom("github_pr_syncs");
+    if (filters.statuses?.length) {
+      query = query.where((eb) => eb.or(filters.statuses!.map((rawStatus) => {
+        const status = rawStatus.toLocaleLowerCase();
+        if (status === "draft") return eb("is_draft", "=", true);
+        if (status === "merged") return eb.and([eb("is_draft", "=", false), eb("merged_at", "is not", null)]);
+        return eb.and([
+          eb("is_draft", "=", false),
+          eb("state", "=", status),
+          ...(status === "closed" ? [eb("merged_at", "is", null)] : []),
+        ]);
+      })));
+    }
+    if (filters.repositories?.length) {
+      query = query.where(sql<string>`owner || ' / ' || repo`, "in", filters.repositories);
+    }
+    if (filters.labels?.length) {
+      query = query.where((eb) => eb.or(filters.labels!.map((label) => sql<boolean>`coalesce(labels_json, '') like ${`%${JSON.stringify(label)}%`}`)));
+    }
+    if (filters.reviewers?.length) {
+      query = query.where((eb) => eb.or(filters.reviewers!.map((reviewer) => sql<boolean>`coalesce(reviewers_json, '') like ${`%${JSON.stringify(reviewer)}%`}`)));
+    }
+    if (filters.sourceUpdatedAtAfter) query = query.where("source_updated_at", ">=", filters.sourceUpdatedAtAfter);
+    if (filters.sourceUpdatedAtBefore) query = query.where("source_updated_at", "<=", filters.sourceUpdatedAtBefore);
+    return query;
   }
 
   async listLarkBaseTickets(limit: number, filters: LarkBaseTicketListFilters = {}): Promise<LarkBaseTicketSyncItem[]> {
@@ -848,6 +921,7 @@ type GitHubPullRequestSyncRow = {
   repo: string;
   pull_number: number;
   title: string;
+  description?: string | null;
   state: string;
   merged_at: string | null;
   html_url: string;
@@ -928,6 +1002,7 @@ function toGitHubPullRequestSyncItem(row: GitHubPullRequestSyncRow): GitHubPullR
     repo: row.repo,
     pullNumber: row.pull_number,
     title: row.title,
+    description: row.description ?? undefined,
     state: row.merged_at ? "merged" : row.state,
     htmlUrl: row.html_url,
     authorLogin: row.author_login ?? undefined,

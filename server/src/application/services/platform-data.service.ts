@@ -1,5 +1,7 @@
 import {
   PostgresPlatformSyncStore,
+  type GitHubPullRequestSyncRef,
+  type GitHubPullRequestListFilters,
   type LarkBaseTicketListFilters,
   type MeegleWorkitemListFilters,
   type PlatformSyncStore,
@@ -32,7 +34,7 @@ export class PlatformDataService {
     this.store = store;
   }
 
-  async list(kind: PlatformDataKind, limit: number, filters: { larkTickets?: LarkBaseTicketListFilters; meegleWorkitems?: MeegleWorkitemListFilters } = {}) {
+  async list(kind: PlatformDataKind, limit: number, filters: { larkTickets?: LarkBaseTicketListFilters; meegleWorkitems?: MeegleWorkitemListFilters; githubPullRequests?: GitHubPullRequestListFilters } = {}) {
     switch (kind) {
       case "lark-tickets":
         {
@@ -92,8 +94,8 @@ export class PlatformDataService {
       case "github-pull-requests":
         {
           const [items, total] = await Promise.all([
-            this.syncStore.listGitHubPullRequests(limit),
-            this.syncStore.countGitHubPullRequests(),
+            this.syncStore.listGitHubPullRequests(limit, filters.githubPullRequests),
+            this.syncStore.countGitHubPullRequests(filters.githubPullRequests),
           ]);
           const environmentByPullRequest = new Map(
             items.map((item) => [item, resolveGitHubRepoEnvironment(item.repo)]),
@@ -107,18 +109,51 @@ export class PlatformDataService {
           }
           const buildsByBranch = await this.listOdooShBuildsByBranch(environments);
           return {
-            items: items.map((item) => ({
-              ...item,
-              odooShBuilds: selectOdooShBuilds(
-                buildsByBranch,
-                item.headRef,
-                environmentByPullRequest.get(item),
-              ),
-            })),
+            items: items.map((item) => {
+              const { description: _description, ...listItem } = item;
+              return {
+                ...listItem,
+                odooShBuilds: selectOdooShBuilds(
+                  buildsByBranch,
+                  item.headRef,
+                  environmentByPullRequest.get(item),
+                ),
+              };
+            }),
             total,
           };
         }
     }
+  }
+
+  async getGitHubPullRequestPreview(ref: GitHubPullRequestSyncRef) {
+    const pullRequest = await this.syncStore.findGitHubPullRequest(ref);
+    if (!pullRequest) return undefined;
+
+    const meegleWorkitems = await this.syncStore.listMeegleWorkitemsByIds(pullRequest.meegleIds);
+    const linkedIds = new Set(pullRequest.meegleIds);
+    const environment = resolveGitHubRepoEnvironment(pullRequest.repo);
+    const buildsByBranch = await this.listOdooShBuildsByBranch(
+      pullRequest.headRef && environment ? [environment] : [],
+    );
+    return {
+      ...pullRequest,
+      meegleWorkitems: meegleWorkitems
+        .filter((workitem) => linkedIds.has(workitem.workItemId))
+        .map((workitem) => ({
+          projectKey: workitem.projectKey,
+          ...(workitem.projectName ? { projectName: workitem.projectName } : {}),
+          workItemTypeKey: workitem.workItemTypeKey,
+          workItemId: workitem.workItemId,
+          ...(workitem.workItemKey ? { workItemKey: workitem.workItemKey } : {}),
+          title: workitem.title,
+          ...(workitem.workItemType ? { workItemType: workitem.workItemType } : {}),
+          ...(workitem.status ? { status: workitem.status } : {}),
+          ...(workitem.sprint ? { sprint: workitem.sprint } : {}),
+          ...(workitem.version ? { version: workitem.version } : {}),
+        })),
+      odooShBuilds: selectOdooShBuilds(buildsByBranch, pullRequest.headRef, environment),
+    };
   }
 
   private get syncStore(): PlatformSyncStore {

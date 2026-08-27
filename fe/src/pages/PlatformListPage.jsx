@@ -5,6 +5,19 @@ import { LarkTicketResponsible } from "../components/lark-ticket/LarkTicketRespo
 import { useKeyboardShortcut } from "../hooks/useKeyboardShortcut.js";
 import { formatDateTime } from "../lib/formatters.js";
 import { countMyOpenGitHubPullRequests, matchesGitHubPullRequestQuickFilter } from "../lib/github-pull-request-filters.js";
+import {
+  DEFAULT_GITHUB_PULL_REQUEST_SORT,
+  DEFAULT_GITHUB_PULL_REQUEST_VISIBLE_COLUMNS,
+  GITHUB_PULL_REQUEST_GROUP_OPTIONS,
+  GITHUB_PULL_REQUEST_VIEW_COLUMNS,
+  groupGitHubPullRequests,
+  normalizeGitHubPullRequestGroupBy,
+  normalizeGitHubPullRequestSort,
+  normalizeGitHubPullRequestSubGroupBy,
+  normalizeGitHubPullRequestViewMode,
+  normalizeGitHubPullRequestVisibleColumns,
+  sortGitHubPullRequests,
+} from "../lib/github-pull-request-view-config.js";
 import { DATE_FILTERS, countFilterValues, normalizeFilterValues, toggleFilterValue } from "../lib/platform-list-filters.js";
 import {
   DEFAULT_LARK_TICKET_SORT,
@@ -32,7 +45,11 @@ import {
   sortMeegleWorkitems,
 } from "../lib/meegle-view-config.js";
 import { getOdooShBuildTone } from "../lib/odoo-sh-build-status.js";
-import { getPlatformDataListPage, resetAllOdooDevopsBranchesCache } from "../services/platform-data/platform-data-api.js";
+import {
+  getGitHubPullRequestPreview,
+  getPlatformDataListPage,
+  resetAllOdooDevopsBranchesCache,
+} from "../services/platform-data/platform-data-api.js";
 import { getLarkTicketDetailHash } from "../app/routes/workspace-routes.js";
 
 const LIST_PAGE_SIZE = 50;
@@ -94,6 +111,15 @@ function GitHubPullRequestLabels({ labels }) {
   return labels?.length ? <div className="github-pr-labels">{labels.map((label) => <span className="github-pr-label" key={label}>{label}</span>)}</div> : "-";
 }
 
+function GitHubMeegleWorkitems({ pullRequest }) {
+  if (!pullRequest.meegleIds?.length) return "-";
+  return <div className="meegle-link-list">
+    {pullRequest.meegleIds.map((workItemId) => <div className="meegle-link-list__item" key={workItemId}>
+      <span>{workItemId}</span>
+    </div>)}
+  </div>;
+}
+
 function OdooShBuildDots({ builds }) {
   if (!builds?.length) {
     return null;
@@ -109,6 +135,15 @@ function OdooShBuildDots({ builds }) {
       title={`${environment}：${build.result || build.status || "unknown"}`}
     ><span className="odoo-sh-build-indicator__environment">{environment}</span><span aria-hidden="true" className={`odoo-sh-build-dot odoo-sh-build-dot--${tone}`} /></span>;
   })}</span>;
+}
+
+function OdooShBuildStatusList({ builds }) {
+  if (!builds?.length) return <p className="pr-preview-empty">暂无关联的 Odoo.sh 构建状态。</p>;
+  return <div className="pr-preview-builds">{builds.map((build) => <div key={build.environment}>
+    <strong>{build.environment.toUpperCase()}</strong>
+    <span className={`odoo-sh-build-dot odoo-sh-build-dot--${getOdooShBuildTone(build.result)}`} aria-hidden="true" />
+    <span>{build.status || "unknown"}{build.result ? ` · ${build.result}` : ""}</span>
+  </div>)}</div>;
 }
 
 function GitHubPullRequestLinks({ pullRequests }) {
@@ -182,7 +217,13 @@ function getPlatformListFilters({
       ...(noSprintFilter ? { withoutSprint: true } : {}),
     };
   }
-  return {};
+  return {
+    ...(selectedStatuses ? { status: selectedStatuses } : {}),
+    ...(sourceUpdatedAtAfter ? { sourceUpdatedAtAfter } : {}),
+    ...(selectedTagFilters.repo?.length ? { repo: selectedTagFilters.repo } : {}),
+    ...(selectedTagFilters.label?.length ? { label: selectedTagFilters.label } : {}),
+    ...(selectedTagFilters.reviewer?.length ? { reviewer: selectedTagFilters.reviewer } : {}),
+  };
 }
 
 function getEarliestSelectedDate(selectedDateFilters, now = new Date()) {
@@ -216,32 +257,6 @@ function getMeegleWorkitemDetailUrl(item) {
   };
   const urlSlug = urlSlugByCategory[getMeegleWorkitemCategory(item)] || item.workItemTypeKey;
   return `https://project.larksuite.com/${encodeURIComponent(item.projectKey)}/${encodeURIComponent(urlSlug)}/detail/${encodeURIComponent(item.workItemId)}`;
-}
-
-function readSortValue(kind, item, key) {
-  if (key === "updatedAt") {
-    return item.sourceUpdatedAt || item.syncedAt || "";
-  }
-  const values = {
-    pullRequest: item.pullNumber || item.title || "",
-    repo: `${item.owner || ""}/${item.repo || ""}`,
-    status: item.isDraft ? "Draft" : item.state || "",
-    branch: item.headRef || "",
-  };
-  return values[key] || "";
-}
-
-function sortPlatformItems(items, kind, sort) {
-  return [...items].sort((left, right) => {
-    const leftValue = readSortValue(kind, left, sort.key);
-    const rightValue = readSortValue(kind, right, sort.key);
-    if (!leftValue && rightValue) return 1;
-    if (leftValue && !rightValue) return -1;
-    const comparison = sort.key === "updatedAt"
-      ? new Date(leftValue).getTime() - new Date(rightValue).getTime()
-      : String(leftValue).localeCompare(String(rightValue), "zh-CN", { numeric: true, sensitivity: "base" });
-    return sort.direction === "asc" ? comparison : -comparison;
-  });
 }
 
 function SortableColumnHeader({ label, sortKey, sort, onSort }) {
@@ -325,6 +340,58 @@ function MeegleWorkitemsTable({ items, sort, onSort, visibleColumns }) {
   </tr></thead><tbody>
     {items.map((item) => <tr key={`${item.projectKey}-${item.workItemTypeKey}-${item.workItemId}`}>
       {columns.map((column) => <td key={column.key}><MeegleWorkitemCell columnKey={column.key} item={item} /></td>)}
+    </tr>)}
+  </tbody></table>;
+}
+
+function GitHubPullRequestCell({ columnKey, item }) {
+  if (columnKey === "pullRequest") {
+    return <><ExternalLink href={item.htmlUrl}>{item.title}</ExternalLink><small>#{item.pullNumber}</small></>;
+  }
+  if (columnKey === "repo") {
+    return `${item.owner} / ${item.repo}`;
+  }
+  if (columnKey === "status") {
+    return <GitHubPullRequestStatus isDraft={item.isDraft} state={item.state} />;
+  }
+  if (columnKey === "branch") {
+    return <><span className="github-pr-branch">{item.headRef || "-"}<OdooShBuildDots builds={item.odooShBuilds} /></span><small>{item.baseRef ? `→ ${item.baseRef}` : ""}</small></>;
+  }
+  if (columnKey === "author") {
+    return <GitHubUser login={item.authorLogin} />;
+  }
+  if (columnKey === "mergedBy") {
+    return <GitHubUser login={item.mergedBy} />;
+  }
+  if (columnKey === "reviewers") {
+    return <GitHubPullRequestReviewers reviewers={item.reviewers} />;
+  }
+  if (columnKey === "labels") {
+    return <GitHubPullRequestLabels labels={item.labels} />;
+  }
+  if (columnKey === "meegleWorkitems") {
+    return <GitHubMeegleWorkitems pullRequest={item} />;
+  }
+  return formatDateTime(item.sourceUpdatedAt || item.syncedAt);
+}
+
+function GitHubPullRequestsTable({ items, sort, onSort, visibleColumns, onPreviewCandidateChange }) {
+  const columns = GITHUB_PULL_REQUEST_VIEW_COLUMNS.filter(({ key }) => visibleColumns.includes(key));
+  return <table className="data-table" style={{ minWidth: Math.max(360, columns.length * 145) }}><thead><tr>
+    {columns.map((column) => <th key={column.key}>{column.sortKey
+      ? <SortableColumnHeader label={column.label} sortKey={column.sortKey} sort={sort} onSort={onSort} />
+      : column.label}</th>)}
+  </tr></thead><tbody>
+    {items.map((item) => <tr
+      aria-label={`${item.title}，按空格预览`}
+      key={`${item.owner}-${item.repo}-${item.pullNumber}`}
+      tabIndex={0}
+      onMouseEnter={() => onPreviewCandidateChange?.(item)}
+      onMouseLeave={(event) => { if (!event.currentTarget.contains(document.activeElement)) onPreviewCandidateChange?.(null); }}
+      onFocusCapture={() => onPreviewCandidateChange?.(item)}
+      onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) onPreviewCandidateChange?.(null); }}
+    >
+      {columns.map((column) => <td key={column.key}><GitHubPullRequestCell columnKey={column.key} item={item} /></td>)}
     </tr>)}
   </tbody></table>;
 }
@@ -510,6 +577,23 @@ function MeegleWorkitemCard({ item, visibleColumns }) {
   </article>;
 }
 
+function GitHubPullRequestCard({ item, visibleColumns, onPreviewCandidateChange }) {
+  const columns = GITHUB_PULL_REQUEST_VIEW_COLUMNS.filter(({ key }) => key !== "pullRequest" && visibleColumns.includes(key));
+  return <article
+    aria-label={`${item.title}，按空格预览`}
+    className="kanban-card"
+    tabIndex={0}
+    onMouseEnter={() => onPreviewCandidateChange?.(item)}
+    onMouseLeave={(event) => { if (!event.currentTarget.contains(document.activeElement)) onPreviewCandidateChange?.(null); }}
+    onFocusCapture={() => onPreviewCandidateChange?.(item)}
+    onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) onPreviewCandidateChange?.(null); }}
+  >
+    <ExternalLink className="table-link kanban-card__title" href={item.htmlUrl}>{item.title || `#${item.pullNumber}`}</ExternalLink>
+    <small>#{item.pullNumber}</small>
+    {columns.length ? <dl>{columns.map((column) => <div key={column.key}><dt>{column.label}</dt><dd><GitHubPullRequestCell columnKey={column.key} item={item} /></dd></div>)}</dl> : null}
+  </article>;
+}
+
 function KanbanBoard({ groups, collapsedSubgroups, onToggleSubgroup, renderCard }) {
   const hasSubgroups = groups.some((group) => group.subgroups?.length);
   if (!hasSubgroups) {
@@ -559,7 +643,7 @@ function getDefaultCollapsedSubgroupKeys(groups) {
   ])))];
 }
 
-function SyncedListTable({ kind, items, sort, onSort, larkVisibleColumns = DEFAULT_LARK_TICKET_VISIBLE_COLUMNS, meegleVisibleColumns = DEFAULT_MEEGLE_VISIBLE_COLUMNS }) {
+function SyncedListTable({ kind, items, sort, onSort, larkVisibleColumns = DEFAULT_LARK_TICKET_VISIBLE_COLUMNS, meegleVisibleColumns = DEFAULT_MEEGLE_VISIBLE_COLUMNS, githubVisibleColumns = DEFAULT_GITHUB_PULL_REQUEST_VISIBLE_COLUMNS, onGitHubPreviewCandidateChange }) {
   if (kind === "lark-tickets") {
     return <LarkTicketsTable items={items} sort={sort} onSort={onSort} visibleColumns={larkVisibleColumns} />;
   }
@@ -568,9 +652,7 @@ function SyncedListTable({ kind, items, sort, onSort, larkVisibleColumns = DEFAU
     return <MeegleWorkitemsTable items={items} sort={sort} onSort={onSort} visibleColumns={meegleVisibleColumns} />;
   }
 
-  return <table className="data-table"><thead><tr><th><SortableColumnHeader label="Pull Request" sortKey="pullRequest" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="仓库" sortKey="repo" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="状态" sortKey="status" sort={sort} onSort={onSort} /></th><th><SortableColumnHeader label="分支" sortKey="branch" sort={sort} onSort={onSort} /></th><th>Author</th><th>Merged by</th><th>Reviewer</th><th>Label</th><th><SortableColumnHeader label="更新时间" sortKey="updatedAt" sort={sort} onSort={onSort} /></th></tr></thead><tbody>
-    {items.map((item) => <tr key={`${item.owner}-${item.repo}-${item.pullNumber}`}><td><ExternalLink href={item.htmlUrl}>{item.title}</ExternalLink><small>#{item.pullNumber}</small></td><td>{item.owner} / {item.repo}</td><td><GitHubPullRequestStatus isDraft={item.isDraft} state={item.state} /></td><td><span className="github-pr-branch">{item.headRef || "-"}<OdooShBuildDots builds={item.odooShBuilds} /></span><small>{item.baseRef ? `→ ${item.baseRef}` : ""}</small></td><td><GitHubUser login={item.authorLogin} /></td><td><GitHubUser login={item.mergedBy} /></td><td><GitHubPullRequestReviewers reviewers={item.reviewers} /></td><td><GitHubPullRequestLabels labels={item.labels} /></td><td>{formatDateTime(item.sourceUpdatedAt || item.syncedAt)}</td></tr>)}
-  </tbody></table>;
+  return <GitHubPullRequestsTable items={items} sort={sort} onSort={onSort} visibleColumns={githubVisibleColumns} onPreviewCandidateChange={onGitHubPreviewCandidateChange} />;
 }
 
 function LoadMoreResults({ pager, loaded, isLoading, onLoadMore }) {
@@ -579,6 +661,54 @@ function LoadMoreResults({ pager, loaded, isLoading, onLoadMore }) {
     <p>已加载 <strong>{loaded}</strong> / {pager.total} 条结果 · 还有 {pager.total - loaded} 条</p>
     <button type="button" disabled={isLoading} onClick={onLoadMore}>{isLoading ? "加载中…" : "加载更多"}</button>
   </footer>;
+}
+
+function GitHubPullRequestPreviewModal({ preview, onClose, onRetry }) {
+  const { pullRequest } = preview;
+  const linkedIds = new Set((pullRequest.meegleWorkitems || []).map((workitem) => workitem.workItemId));
+  const unresolvedIds = (pullRequest.meegleIds || []).filter((workItemId) => !linkedIds.has(workItemId));
+  return <div className="pr-preview-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+    <section aria-busy={preview.status === "loading"} aria-labelledby="github-pr-preview-title" aria-modal="true" className="pr-preview-modal" role="dialog">
+      <header>
+        <div>
+          <small>{pullRequest.owner} / {pullRequest.repo} · #{pullRequest.pullNumber}</small>
+          <h2 id="github-pr-preview-title"><ExternalLink href={pullRequest.htmlUrl}>{pullRequest.title}</ExternalLink></h2>
+        </div>
+        <button aria-label="关闭 PR 预览" autoFocus type="button" onClick={onClose}>×</button>
+      </header>
+      {preview.status === "loading" ? <div className="pr-preview-section"><p className="pr-preview-empty">正在获取 PR 与关联 Meegle 工作项信息…</p></div> : null}
+      {preview.status === "error" ? <div className="pr-preview-section pr-preview-error">
+        <p>预览信息暂时无法读取，请稍后重试。</p>
+        <button type="button" onClick={onRetry}>重新获取</button>
+      </div> : null}
+      {preview.status === "ready" ? <>
+      <div className="pr-preview-section">
+        <h3>Odoo.sh 状态</h3>
+        <OdooShBuildStatusList builds={pullRequest.odooShBuilds} />
+      </div>
+      <div className="pr-preview-section">
+        <h3>描述</h3>
+        <p className="pr-preview-description">{pullRequest.description || "暂无描述。"}</p>
+      </div>
+      <div className="pr-preview-section">
+        <h3>关联 Meegle Work Item</h3>
+        {pullRequest.meegleWorkitems?.length ? <div className="pr-preview-workitems">{pullRequest.meegleWorkitems.map((workitem) => <article key={`${workitem.projectKey}-${workitem.workItemTypeKey}-${workitem.workItemId}`}>
+          <div className="pr-preview-workitem__identity">
+            <ExternalLink href={getMeegleWorkitemDetailUrl(workitem)}>{workitem.workItemId}</ExternalLink>
+            <span title={workitem.title}>{workitem.title}</span>
+          </div>
+          <div className="pr-preview-workitem__badges">
+            <span className={`pr-preview-workitem-badge pr-preview-workitem-badge--${getMeegleStatusTone(workitem.status)}`} title={`Status: ${workitem.status || "-"}`}><small>Status</small><span>{workitem.status || "-"}</span></span>
+            <span className="pr-preview-workitem-badge pr-preview-workitem-badge--sprint" title={`Sprint: ${workitem.sprint || "-"}`}><small>Sprint</small><span>{workitem.sprint || "-"}</span></span>
+            <span className="pr-preview-workitem-badge pr-preview-workitem-badge--version" title={`Version: ${workitem.version || "-"}`}><small>Version</small><span>{workitem.version || "-"}</span></span>
+          </div>
+        </article>)}</div> : null}
+        {unresolvedIds.length ? <div className="pr-preview-unresolved"><strong>尚未同步到 Octo</strong>{unresolvedIds.map((workItemId) => <span key={workItemId}>{workItemId}</span>)}</div> : null}
+        {!pullRequest.meegleWorkitems?.length && !unresolvedIds.length ? <p className="pr-preview-empty">暂无关联的 Meegle 工作项。</p> : null}
+      </div>
+      </> : null}
+    </section>
+  </div>;
 }
 
 export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, breadcrumbs, platformListFilterState, onPlatformListFilterStateChange }) {
@@ -603,7 +733,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
   const [sort, setSort] = useState(() => {
     if (page === "lark-tickets") return normalizeLarkTicketSort(restoredFilters.sort);
     if (page === "meegle-workitems") return normalizeMeegleSort(restoredFilters.sort);
-    return restoredFilters.sort || DEFAULT_SORT;
+    return normalizeGitHubPullRequestSort(restoredFilters.sort);
   });
   const [larkGroupBy, setLarkGroupBy] = useState(() => normalizeLarkTicketGroupBy(restoredFilters.larkGroupBy));
   const [larkSubGroupBy, setLarkSubGroupBy] = useState(() => normalizeLarkTicketSubGroupBy(restoredFilters.larkSubGroupBy, normalizeLarkTicketGroupBy(restoredFilters.larkGroupBy)));
@@ -627,6 +757,17 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
   const [collapsedMeegleSubgroups, setCollapsedMeegleSubgroups] = useState(() => Array.isArray(restoredFilters.collapsedMeegleSubgroups)
     ? [...new Set(restoredFilters.collapsedMeegleSubgroups.filter((key) => typeof key === "string"))]
     : []);
+  const [githubGroupBy, setGitHubGroupBy] = useState(() => normalizeGitHubPullRequestGroupBy(restoredFilters.githubGroupBy));
+  const [githubSubGroupBy, setGitHubSubGroupBy] = useState(() => normalizeGitHubPullRequestSubGroupBy(restoredFilters.githubSubGroupBy, normalizeGitHubPullRequestGroupBy(restoredFilters.githubGroupBy)));
+  const [githubViewMode, setGitHubViewMode] = useState(() => normalizeGitHubPullRequestViewMode(restoredFilters.githubViewMode));
+  const [githubShowEmptyGroups, setGitHubShowEmptyGroups] = useState(() => Boolean(restoredFilters.githubShowEmptyGroups));
+  const [githubVisibleColumns, setGitHubVisibleColumns] = useState(() => normalizeGitHubPullRequestVisibleColumns(restoredFilters.githubVisibleColumns));
+  const [collapsedGitHubGroups, setCollapsedGitHubGroups] = useState(() => Array.isArray(restoredFilters.collapsedGitHubGroups)
+    ? [...new Set(restoredFilters.collapsedGitHubGroups.filter((key) => typeof key === "string"))]
+    : []);
+  const [collapsedGitHubSubgroups, setCollapsedGitHubSubgroups] = useState(() => Array.isArray(restoredFilters.collapsedGitHubSubgroups)
+    ? [...new Set(restoredFilters.collapsedGitHubSubgroups.filter((key) => typeof key === "string"))]
+    : []);
   const [filterOpen, setFilterOpen] = useState(false);
   const [activeFilterField, setActiveFilterField] = useState(null);
   const [filterFieldQuery, setFilterFieldQuery] = useState("");
@@ -638,10 +779,15 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
   const [reloadVersion, setReloadVersion] = useState(0);
   const [resetError, setResetError] = useState("");
   const [isResettingDevopsCache, setIsResettingDevopsCache] = useState(false);
+  const [githubPreviewCandidate, setGitHubPreviewCandidate] = useState(null);
+  const [githubPreview, setGitHubPreview] = useState(null);
+  const githubPreviewCacheRef = useRef(new Map());
+  const githubPreviewRequestVersionRef = useRef(0);
   const filterStateRef = useRef(null);
   const dataRequestVersionRef = useRef(0);
   const larkSubgroupDefaultsRef = useRef(Array.isArray(restoredFilters.collapsedLarkSubgroups) ? "restored" : null);
   const meegleSubgroupDefaultsRef = useRef(Array.isArray(restoredFilters.collapsedMeegleSubgroups) ? "restored" : null);
+  const githubSubgroupDefaultsRef = useRef(Array.isArray(restoredFilters.collapsedGitHubSubgroups) ? "restored" : null);
   const statusFilters = [...new Set(state.filterItems.map((item) => getPlatformItemStatus(page, item)))].sort((left, right) => left.localeCompare(right));
   const itemsBeforeTypeFilter = state.items;
   const workitemTypeCounts = Object.fromEntries(MEEGLE_WORKITEM_TYPE_FILTERS.map(([value]) => [value, value === "all" ? state.items.length : state.items.filter((item) => getMeegleWorkitemCategory(item) === value).length]));
@@ -660,7 +806,11 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
     { key: "sprint", label: "Sprint", getValues: (item) => [item.sprint] },
     { key: "project", label: "项目", getValues: (item) => [item.projectName || item.projectKey] },
     { key: "priority", label: "优先级", getValues: (item) => [item.priority] },
-  ] : [];
+  ] : [
+    { key: "repo", label: "仓库", getValues: (item) => [[item.owner, item.repo].filter(Boolean).join(" / ")] },
+    { key: "label", label: "Label", getValues: (item) => item.labels || [] },
+    { key: "reviewer", label: "Reviewer", getValues: (item) => item.reviewers || [] },
+  ];
   const tagFilterFieldsWithCounts = tagFilterFields.map((field) => ({
     ...field,
     values: mergeKnownFilterValues(
@@ -673,7 +823,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
     ? sortLarkTickets(filteredItems, sort)
     : page === "meegle-workitems"
       ? sortMeegleWorkitems(filteredItems, sort)
-      : sortPlatformItems(filteredItems, page, sort);
+      : sortGitHubPullRequests(filteredItems, sort);
   const larkGroups = page === "lark-tickets" ? groupLarkTickets(sortedItems, larkGroupBy, {
     subGroupBy: larkSubGroupBy,
     showEmptyGroups: larkShowEmptyGroups,
@@ -686,12 +836,21 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
     groupValues: state.items,
     subGroupValues: state.items,
   }) : [];
+  const githubGroups = page === "github-pull-requests" ? groupGitHubPullRequests(sortedItems, githubGroupBy, {
+    subGroupBy: githubSubGroupBy,
+    showEmptyGroups: githubShowEmptyGroups,
+    groupValues: state.items,
+    subGroupValues: state.items,
+  }) : [];
   const isLarkBoard = page === "lark-tickets" && larkViewMode === "board";
   const isMeegleBoard = page === "meegle-workitems" && meegleViewMode === "board";
+  const isGitHubBoard = page === "github-pull-requests" && githubViewMode === "board";
   const isLarkGrouped = page === "lark-tickets" && larkViewMode === "list" && larkGroupBy !== "none";
   const isMeegleGrouped = page === "meegle-workitems" && meegleViewMode === "list" && meegleGroupBy !== "none";
+  const isGitHubGrouped = page === "github-pull-requests" && githubViewMode === "list" && githubGroupBy !== "none";
   const canShowConfiguredEmptyGroups = (page === "lark-tickets" && larkShowEmptyGroups && larkGroupBy !== "none" && larkGroups.length > 0)
-    || (page === "meegle-workitems" && meegleShowEmptyGroups && meegleGroupBy !== "none" && meegleGroups.length > 0);
+    || (page === "meegle-workitems" && meegleShowEmptyGroups && meegleGroupBy !== "none" && meegleGroups.length > 0)
+    || (page === "github-pull-requests" && githubShowEmptyGroups && githubGroupBy !== "none" && githubGroups.length > 0);
   const pageCount = Math.max(1, Math.ceil(sortedItems.length / LIST_PAGE_SIZE));
   const currentPageIndex = Math.min(pageIndex, pageCount - 1);
   const pageItems = sortedItems.slice(currentPageIndex * LIST_PAGE_SIZE, (currentPageIndex + 1) * LIST_PAGE_SIZE);
@@ -724,6 +883,13 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
     meegleVisibleColumns,
     collapsedMeegleGroups,
     collapsedMeegleSubgroups,
+    githubGroupBy,
+    githubSubGroupBy,
+    githubViewMode,
+    githubShowEmptyGroups,
+    githubVisibleColumns,
+    collapsedGitHubGroups,
+    collapsedGitHubSubgroups,
     pageIndex,
   };
 
@@ -835,6 +1001,22 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
     setCollapsedMeegleSubgroups(getDefaultCollapsedSubgroupKeys(meegleGroups));
   }, [meegleGroupBy, meegleGroups, meegleShowEmptyGroups, meegleSubGroupBy, page]);
 
+  useEffect(() => {
+    if (page !== "github-pull-requests" || !githubGroups.some((group) => group.subgroups?.length)) {
+      return;
+    }
+    const configKey = `${githubGroupBy}:${githubSubGroupBy}:${githubShowEmptyGroups}`;
+    if (githubSubgroupDefaultsRef.current === "restored") {
+      githubSubgroupDefaultsRef.current = configKey;
+      return;
+    }
+    if (githubSubgroupDefaultsRef.current === configKey) {
+      return;
+    }
+    githubSubgroupDefaultsRef.current = configKey;
+    setCollapsedGitHubSubgroups(getDefaultCollapsedSubgroupKeys(githubGroups));
+  }, [githubGroupBy, githubGroups, githubShowEmptyGroups, githubSubGroupBy, page]);
+
   async function resetAllDevopsCache() {
     setResetError("");
     setIsResettingDevopsCache(true);
@@ -851,15 +1033,58 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
     }
   }
 
+  async function openGitHubPullRequestPreview(candidate, { force = false } = {}) {
+    const key = `${apiBaseUrl}:${candidate.owner}/${candidate.repo}#${candidate.pullNumber}`;
+    const cached = force ? undefined : githubPreviewCacheRef.current.get(key);
+    if (cached) {
+      setGitHubPreview({ key, status: "ready", pullRequest: cached });
+      return;
+    }
+
+    const requestVersion = ++githubPreviewRequestVersionRef.current;
+    setGitHubPreview({ key, status: "loading", pullRequest: candidate });
+    try {
+      const pullRequest = await getGitHubPullRequestPreview({
+        apiBaseUrl,
+        owner: candidate.owner,
+        repo: candidate.repo,
+        pullNumber: candidate.pullNumber,
+      });
+      githubPreviewCacheRef.current.set(key, pullRequest);
+      if (requestVersion === githubPreviewRequestVersionRef.current) {
+        setGitHubPreview({ key, status: "ready", pullRequest });
+      }
+    } catch {
+      if (requestVersion === githubPreviewRequestVersionRef.current) {
+        setGitHubPreview({ key, status: "error", pullRequest: candidate });
+      }
+    }
+  }
+
+  function closeGitHubPullRequestPreview() {
+    githubPreviewRequestVersionRef.current += 1;
+    setGitHubPreview(null);
+  }
+
   useKeyboardShortcut({
     key: "Escape",
-    enabled: filterOpen || viewConfigOpen,
+    enabled: filterOpen || viewConfigOpen || Boolean(githubPreview),
     allowInEditableTarget: true,
     handler: (event) => {
       event.preventDefault();
       setFilterOpen(false);
       setActiveFilterField(null);
       setViewConfigOpen(false);
+      closeGitHubPullRequestPreview();
+    },
+  });
+
+  useKeyboardShortcut({
+    key: " ",
+    enabled: page === "github-pull-requests" && Boolean(githubPreviewCandidate) && !githubPreview,
+    handler: (event) => {
+      event.preventDefault();
+      void openGitHubPullRequestPreview(githubPreviewCandidate);
     },
   });
 
@@ -878,6 +1103,11 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
     setPageIndex(0);
   }
 
+  function updateGitHubViewSort(nextSort) {
+    setSort(normalizeGitHubPullRequestSort(nextSort));
+    setPageIndex(0);
+  }
+
   function toggleLarkColumn(key) {
     setLarkVisibleColumns((current) => normalizeLarkTicketVisibleColumns(current.includes(key)
       ? current.filter((columnKey) => columnKey !== key)
@@ -886,6 +1116,12 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
 
   function toggleMeegleColumn(key) {
     setMeegleVisibleColumns((current) => normalizeMeegleVisibleColumns(current.includes(key)
+      ? current.filter((columnKey) => columnKey !== key)
+      : [...current, key]));
+  }
+
+  function toggleGitHubColumn(key) {
+    setGitHubVisibleColumns((current) => normalizeGitHubPullRequestVisibleColumns(current.includes(key)
       ? current.filter((columnKey) => columnKey !== key)
       : [...current, key]));
   }
@@ -998,11 +1234,11 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
           </div> : null}
           <div className="list-toolbar__actions">
             {page === "github-pull-requests" ? <button className="secondary-button" type="button" disabled={isResettingDevopsCache} onClick={resetAllDevopsCache}>{isResettingDevopsCache ? "清除中…" : "清除 DevOps 缓存"}</button> : null}
-            {["lark-tickets", "meegle-workitems"].includes(page) ? <div className="list-view-menu">
+            <div className="list-view-menu">
               <button
                 className={`list-filter-button ${viewConfigOpen ? "list-filter-button--active" : ""}`.trim()}
                 type="button"
-                aria-label={`配置${page === "lark-tickets" ? " Lark Ticket" : " Meegle"}列表视图`}
+                aria-label={`配置${page === "lark-tickets" ? " Lark Ticket" : page === "meegle-workitems" ? " Meegle" : " GitHub PR"}列表视图`}
                 aria-expanded={viewConfigOpen}
                 onClick={() => {
                   setFilterOpen(false);
@@ -1049,7 +1285,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
                   setCollapsedLarkSubgroups([]);
                   setPageIndex(0);
                 }}
-              /> : <ListViewConfigPanel
+              /> : page === "meegle-workitems" ? <ListViewConfigPanel
                 idPrefix="meegle"
                 columns={MEEGLE_VIEW_COLUMNS}
                 groupOptions={MEEGLE_GROUP_OPTIONS}
@@ -1087,8 +1323,46 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
                   setCollapsedMeegleSubgroups([]);
                   setPageIndex(0);
                 }}
+              /> : <ListViewConfigPanel
+                idPrefix="github-pull-request"
+                columns={GITHUB_PULL_REQUEST_VIEW_COLUMNS}
+                groupOptions={GITHUB_PULL_REQUEST_GROUP_OPTIONS}
+                viewMode={githubViewMode}
+                onViewModeChange={setGitHubViewMode}
+                groupBy={githubGroupBy}
+                onGroupByChange={(value) => {
+                  const nextGroupBy = normalizeGitHubPullRequestGroupBy(value);
+                  setGitHubGroupBy(nextGroupBy);
+                  setGitHubSubGroupBy((current) => normalizeGitHubPullRequestSubGroupBy(current, nextGroupBy));
+                  setCollapsedGitHubGroups([]);
+                  setCollapsedGitHubSubgroups([]);
+                  setPageIndex(0);
+                }}
+                subGroupBy={githubSubGroupBy}
+                onSubGroupByChange={(value) => {
+                  setGitHubSubGroupBy(normalizeGitHubPullRequestSubGroupBy(value, githubGroupBy));
+                  setCollapsedGitHubGroups([]);
+                  setCollapsedGitHubSubgroups([]);
+                }}
+                showEmptyGroups={githubShowEmptyGroups}
+                onShowEmptyGroupsChange={setGitHubShowEmptyGroups}
+                sort={sort}
+                onSortChange={updateGitHubViewSort}
+                visibleColumns={githubVisibleColumns}
+                onToggleColumn={toggleGitHubColumn}
+                onReset={() => {
+                  setGitHubViewMode("list");
+                  setGitHubGroupBy("status");
+                  setGitHubSubGroupBy("none");
+                  setGitHubShowEmptyGroups(false);
+                  setSort({ ...DEFAULT_GITHUB_PULL_REQUEST_SORT });
+                  setGitHubVisibleColumns([...DEFAULT_GITHUB_PULL_REQUEST_VISIBLE_COLUMNS]);
+                  setCollapsedGitHubGroups([]);
+                  setCollapsedGitHubSubgroups([]);
+                  setPageIndex(0);
+                }}
               /> : null}
-            </div> : null}
+            </div>
             <div className="list-filter-menu">
               <button className={`list-filter-button ${filterOpen ? "list-filter-button--active" : ""}`.trim()} type="button" aria-label="筛选" aria-expanded={filterOpen} onClick={() => {
                 setViewConfigOpen(false);
@@ -1151,6 +1425,18 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
             <footer className="list-pagination">
               <p className="list-results">已加载 <strong>{sortedItems.length}</strong> / {totalItems} 条结果 · {meegleGroups.length} 个分组</p>
             </footer>
+          </> : isGitHubBoard ? <>
+            <KanbanBoard
+              groups={githubGroups}
+              collapsedSubgroups={collapsedGitHubSubgroups}
+              onToggleSubgroup={(subgroupKey) => setCollapsedGitHubSubgroups((current) => current.includes(subgroupKey)
+                ? current.filter((key) => key !== subgroupKey)
+                : [...current, subgroupKey])}
+              renderCard={(item) => <GitHubPullRequestCard item={item} visibleColumns={githubVisibleColumns} onPreviewCandidateChange={setGitHubPreviewCandidate} key={`${item.owner}-${item.repo}-${item.pullNumber}`} />}
+            />
+            <footer className="list-pagination">
+              <p className="list-results">已加载 <strong>{sortedItems.length}</strong> / {totalItems} 条结果 · {githubGroups.length} 个分组</p>
+            </footer>
           </> : isLarkGrouped ? <>
             <GroupedList
               groups={larkGroups}
@@ -1183,8 +1469,24 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
             <footer className="list-pagination">
               <p className="list-results">已加载 <strong>{sortedItems.length}</strong> / {totalItems} 条结果 · {meegleGroups.length} 个分组</p>
             </footer>
+          </> : isGitHubGrouped ? <>
+            <GroupedList
+              groups={githubGroups}
+              collapsedGroups={collapsedGitHubGroups}
+              onToggleGroup={(groupKey) => setCollapsedGitHubGroups((current) => current.includes(groupKey)
+                ? current.filter((key) => key !== groupKey)
+                : [...current, groupKey])}
+              collapsedSubgroups={collapsedGitHubSubgroups}
+              onToggleSubgroup={(subgroupKey) => setCollapsedGitHubSubgroups((current) => current.includes(subgroupKey)
+                ? current.filter((key) => key !== subgroupKey)
+                : [...current, subgroupKey])}
+              renderTable={(items) => <GitHubPullRequestsTable items={items} sort={sort} onSort={updateSort} visibleColumns={githubVisibleColumns} onPreviewCandidateChange={setGitHubPreviewCandidate} />}
+            />
+            <footer className="list-pagination">
+              <p className="list-results">已加载 <strong>{sortedItems.length}</strong> / {totalItems} 条结果 · {githubGroups.length} 个分组</p>
+            </footer>
           </> : <>
-            <div className="data-table-wrap"><SyncedListTable kind={page} items={pageItems} sort={sort} onSort={updateSort} larkVisibleColumns={larkVisibleColumns} meegleVisibleColumns={meegleVisibleColumns} /></div>
+            <div className="data-table-wrap"><SyncedListTable kind={page} items={pageItems} sort={sort} onSort={updateSort} larkVisibleColumns={larkVisibleColumns} meegleVisibleColumns={meegleVisibleColumns} githubVisibleColumns={githubVisibleColumns} onGitHubPreviewCandidateChange={setGitHubPreviewCandidate} /></div>
             <footer className="list-pagination">
               <p className="list-results">显示 <strong>{firstResult}–{lastResult}</strong> / 已加载 {sortedItems.length}（共 {totalItems}）条结果</p>
               <div className="list-pagination__controls">
@@ -1210,6 +1512,11 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
           /> : null}
         </div> : null}
       </section>
+      {githubPreview ? <GitHubPullRequestPreviewModal
+        preview={githubPreview}
+        onClose={closeGitHubPullRequestPreview}
+        onRetry={() => { void openGitHubPullRequestPreview(githubPreview.pullRequest, { force: true }); }}
+      /> : null}
     </section>
   </WorkspaceShell>;
 }

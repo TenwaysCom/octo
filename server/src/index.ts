@@ -68,7 +68,10 @@ import {
   syncLarkBaseTicketController,
   syncMeegleWorkitemController,
 } from "./modules/platform-sync/platform-sync.controller.js";
-import { createWebPlatformDataController } from "./modules/platform-data/platform-data.controller.js";
+import {
+  createWebGitHubPullRequestPreviewController,
+  createWebPlatformDataController,
+} from "./modules/platform-data/platform-data.controller.js";
 import { createWebPlatformSyncController } from "./modules/platform-sync/web-platform-sync.controller.js";
 import { PlatformDataService } from "./application/services/platform-data.service.js";
 import { createHttpOdooDevopsBranchesClient } from "./adapters/odoo-devops/odoo-devops-branches-client.js";
@@ -173,9 +176,9 @@ const odooDevopsBranchesService = new OdooDevopsBranchesService({
 const getWebOdooDevopsBranchesController = createWebOdooDevopsBranchesController({
   service: odooDevopsBranchesService,
 });
-const listWebPlatformDataController = createWebPlatformDataController({
-  service: new PlatformDataService(undefined, odooDevopsBranchesService),
-});
+const platformDataService = new PlatformDataService(undefined, odooDevopsBranchesService);
+const listWebPlatformDataController = createWebPlatformDataController({ service: platformDataService });
+const getWebGitHubPullRequestPreviewController = createWebGitHubPullRequestPreviewController({ service: platformDataService });
 const webPlatformSyncController = createWebPlatformSyncController();
 const getWebGitHubPrOdooDevopsBuildController = createWebGitHubPrOdooDevopsBuildController({
   githubClient: process.env.GITHUB_TOKEN ? new GitHubClient({ token: process.env.GITHUB_TOKEN }) : undefined,
@@ -386,6 +389,13 @@ app.get("/api/web/platform-data/meegle-workitems", async (req, res) => {
 app.get("/api/web/platform-data/github-pull-requests", async (req, res) => {
   const result = await listWebPlatformDataController({
     kind: "github-pull-requests", cookieHeader: req.headers.cookie, query: req.query,
+  });
+  res.status(result.statusCode).json(result.body);
+});
+app.get("/api/web/platform-data/github-pull-request-preview", async (req, res) => {
+  const result = await getWebGitHubPullRequestPreviewController({
+    cookieHeader: req.headers.cookie,
+    query: req.query,
   });
   res.status(result.statusCode).json(result.body);
 });

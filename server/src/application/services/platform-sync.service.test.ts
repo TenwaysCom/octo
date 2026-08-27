@@ -57,6 +57,7 @@ function createStore(): PlatformSyncStore & {
     async setLarkBaseTicketSharedUrl() {},
     async upsertLarkBaseTicketAi() { return false; },
     async findLarkBaseTicketByRecordId() { return undefined; },
+    async findGitHubPullRequest() { return undefined; },
     async getMeegleWorkitemsForCleaning(refs: Array<{ workItemId: string }>) {
       return store.meegle
         .filter(({ workitem }) => refs.some((ref) => ref.workItemId === workitem.id))
@@ -106,6 +107,7 @@ function createStore(): PlatformSyncStore & {
     async listMeegleWorkitems() { return []; },
     async countMeegleWorkitems() { return 0; },
     async listMeegleSprints() { return []; },
+    async listMeegleWorkitemsByIds() { return []; },
     async listGitHubPullRequestLinks() { return []; },
     async listGitHubPullRequests() { return []; },
     async countGitHubPullRequests() { return 0; },

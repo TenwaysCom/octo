@@ -14,7 +14,7 @@ related:
 
 ## 目标
 
-让 Lark Ticket 与 Meegle 工作项同步列表支持列表/看板切换、主分组、子分组、排序和显示空分组；保留既有可见字段配置。
+让 Lark Ticket、Meegle 工作项与 GitHub PR 同步列表支持列表/看板切换、主分组、子分组、排序和显示空分组；保留既有可见字段配置，并统一 Filter、Group by 与 Label 三个入口。
 
 ## 验收标准
 
@@ -32,6 +32,11 @@ related:
 - [x] Lark Ticket 与 Meegle 工作项显示带数量的右侧标签筛选栏，并支持指定字段的多选筛选。
 - [x] Meegle `priority` 已进入同步快照与 Web 列表投影。
 - [x] 平台列表 API 返回真实分页信息，列表/看板按需“加载更多”。
+- [x] GitHub PR 支持 Filter、Group by 与 Label 三个入口及对应的状态保存、重置和视图渲染。
+- [x] GitHub PR 列表在 Author 后显示关联 Meegle ID，不在列表展示 Meegle Status、Sprint、Version。
+- [x] 悬停或聚焦具体 GitHub PR 后按 Space 打开预览，展示 PR 标题、描述、Odoo.sh 状态及关联工作项的 ID、标题、Status、Sprint、Version；Esc 可关闭。
+- [x] PR 预览首次打开时按该 PR 的全部关联 ID 批量读取本地 Meegle 快照，成功结果在当前 FE 会话缓存。
+- [x] PR 预览中的 Meegle 工作项使用单行紧凑布局：左侧 ID 与标题，右侧 Status、Sprint、Version badge。
 
 ## 背景与范围
 
@@ -70,6 +75,13 @@ Lark Ticket API 接受 `createdAfter`、`createdBefore`、`sourceUpdatedAtAfter`
 | 2026-08-27 | completed | 筛选改为 Server 先筛选结果集、API 以 500 条分页、FE 自动拉取全部匹配页；List/Kanban 的排序、分组、折叠和数量仍由 FE 基于完整匹配集合处理。Lark 与 Meegle 的现有筛选控件均已下推。 | `show empty groups` 仍基于当前匹配集合的已知值；未连接真实已登录数据做视觉和大数据量验收。 |
 | 2026-08-27 | completed | 保留 React StrictMode，并在 Web profile 与平台列表 API 层合并相同的并发请求；开发模式的重复挂载不再让 Lark 分页、Meegle/GitHub 列表或 profile 对 Server 发起两次请求。 | 未在真实浏览器 Network 面板复验。 |
 | 2026-08-27 | completed | 平台列表接口新增真实 `pager`，PostgreSQL 用同筛选条件返回 total；List/Kanban 首屏仅请求 500 条，在内容底部显示“已加载 X / Y”与“加载更多”，点击后才请求下一页。旧 Server 缺少 pager 时 FE 按单页结束，避免 offset 无限累加。 | 需将 Server 与 FE 部署到正式环境后，在真实 Network 面板验证首屏仅一条平台数据请求、点击后才出现 `offset=500`。 |
+| 2026-08-27 | completed | 按用户确认，将同一套 Filter、Group by、Label 三个工具栏入口扩展到 GitHub PR。 | 未做登录态浏览器视觉验收。 |
+| 2026-08-27 | completed | GitHub PR 已支持状态/更新时间 Filter、列表/看板 Group by、仓库/Label/Reviewer 侧栏筛选，以及视图字段、折叠和状态恢复；筛选条件下推至同一 PostgreSQL list/count 查询。 | 未做登录态浏览器视觉验收。 |
+| 2026-08-27 | completed | 最初按当前页 `meegleIds` 批量关联本地 Meegle 快照；后续根据交互确认，已由 PR 预览按需查询替代。 | 历史方案，不再用于列表接口。 |
+| 2026-08-27 | completed | GitHub PR 行和看板卡片支持悬停/焦点候选，Space 打开详情弹层；展示标题、描述、Odoo.sh status/result 和关联工作项完整字段，Esc 或遮罩关闭。 | 未做登录态浏览器视觉验收。 |
+| 2026-08-27 | completed | 真实 FE 请求返回 200/304，但旧 Server 响应尚无新增的关联 Meegle 字段，FE 严格校验导致整页进入错误态；现已将缺失字段归一化为空数组。 | 新 Server 生效前不显示关联详情，但页面其余数据可正常读取。 |
+| 2026-08-27 | completed | GitHub 列表仅保留关联 ID，并将“关联 Meegle”移动到 Author 后；Space 预览通过专用 Web 接口读取单个 PR，再按其全部 ID 一次批量查询本地 Meegle 快照。FE 显示加载/重试状态并缓存成功结果。 | 未做登录态浏览器视觉与真实快照验收。 |
+| 2026-08-27 | completed | Popup 的 Meegle 工作项改为单行紧凑卡片：左侧 ID/标题截断，右侧 Status/Sprint/Version 统一 badge 展示。 | 未做不同长度真实字段的浏览器视觉验收。 |
 
 ## 验证
 
@@ -84,10 +96,18 @@ Lark Ticket API 接受 `createdAfter`、`createdBefore`、`sourceUpdatedAtAfter`
 | 服务端结果集筛选与 FE 全量分页 | 通过（定向） | `pnpm --dir server exec vitest run src/modules/platform-data/platform-data.controller.test.ts src/application/services/platform-data.service.test.ts src/adapters/postgres/platform-sync-store.test.ts`：20/20 passed；`pnpm --dir fe check`：58/58 passed；两端构建通过。 | 完整 Server suite 有 553 个测试通过；`src/index.test.ts` 仍因当前 SSH 数据库隧道未就绪无法加载，非本改动引起。 |
 | FE API 重复请求合并 | 通过 | `pnpm --dir fe check`：60/60 passed，包含 profile 与平台列表并发去重测试及 Vite build。 | 未在真实浏览器 Network 面板复验。 |
 | Pager 与按需加载 | 通过（定向） | `pnpm --dir fe check`：62/62 passed；分页相关 Server 定向测试 21/21 passed，Server build passed。 | 完整 Server suite 为 556/557；唯一失败为既有 `src/logger.test.ts` 轮转日志文件时序断言，非本改动。 |
+| GitHub 三个列表控制 | 通过 | `pnpm --dir fe test` 与 `pnpm --dir fe build` 通过；平台数据 Server 定向测试 22/22 通过；`pnpm --dir server build` 通过。全量 Server 相关测试均通过，总计 547 passed。 | 全量 Server 仍有当前 Node runtime 缺少 `node:sqlite` 的 6 个既有 suite-load failures，以及既有 logger 轮转文件时序失败；未做登录态浏览器视觉验收。 |
+| GitHub PR 关联 Meegle 与 Space 预览 | 通过（定向） | `pnpm --dir fe check`：21/21 test files passed，Vite build passed；Platform Data/Sync Server 定向测试 42/42 passed；`pnpm --dir server build` 通过。 | 未连接真实已登录数据做浏览器视觉验收；未同步到本地的 Meegle ID 仅显示原始 ID。 |
+| GitHub PR 新旧响应兼容 | 通过 | `pnpm --dir fe check`：21/21 test files passed，包含缺少 `meegleIds`/`meegleWorkitems` 的旧响应回归用例；Vite build passed。 | 旧 Server 响应无法提供新增关联详情，需更新 Server 后显示。 |
+| GitHub PR 按需预览 | 通过（定向） | `pnpm --dir fe check`：21/21 test files passed，Vite build passed；预览接口、Service、Store、权限与路由 Server 定向测试 55/55 passed；`pnpm --dir server build` 通过。 | 未在真实登录态浏览器中验证首次请求与二次缓存命中。 |
 
 ## 关联
 
 - `fe/src/pages/PlatformListPage.jsx`
 - `fe/src/lib/lark-ticket-view-config.js`
 - `fe/src/lib/meegle-view-config.js`
+- `fe/src/lib/github-pull-request-view-config.js`
 - `fe/src/lib/platform-list-filters.js`
+- `server/src/modules/platform-data/platform-data.controller.ts`
+- `server/src/application/services/platform-data.service.ts`
+- `server/src/adapters/postgres/platform-sync-store.ts`

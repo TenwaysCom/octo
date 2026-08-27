@@ -33,4 +33,9 @@ export const KEYBOARD_SHORTCUTS = [
     description: "关闭当前列表的筛选搜索",
     pages: ["Lark Ticket", "Meegle", "GitHub PR"],
   },
+  {
+    key: "Space",
+    description: "预览当前悬停或聚焦的 GitHub PR",
+    pages: ["GitHub PR"],
+  },
 ];

@@ -52,6 +52,18 @@ export function getPlatformDataListPage({ apiBaseUrl, kind, filters = {}, offset
   return getSharedPlatformDataRequest(requestKey, () => loadPlatformDataListPage({ apiBaseUrl, kind, filters, offset, fetchImpl, path }));
 }
 
+export async function getGitHubPullRequestPreview({ apiBaseUrl, owner, repo, pullNumber, fetchImpl = fetch }) {
+  const query = new URLSearchParams({ owner, repo, pullNumber: String(pullNumber) });
+  const response = await fetchImpl(`${buildApiUrl(apiBaseUrl, "/web/platform-data/github-pull-request-preview")}?${query}`, {
+    credentials: "include",
+  });
+  const payload = await response.json().catch(() => undefined);
+  if (!response.ok || !payload?.ok) {
+    throw new Error(payload?.error?.errorCode || "GITHUB_PULL_REQUEST_PREVIEW_FAILED");
+  }
+  return parseSyncedGitHubPullRequest(payload.data);
+}
+
 function getSharedPlatformDataRequest(requestKey, load) {
   const pending = pendingPlatformDataRequests.get(requestKey);
   if (pending) return pending;
@@ -227,6 +239,7 @@ function parseSyncedGitHubPullRequest(value) {
     || typeof value.htmlUrl !== "string"
     || typeof value.isDraft !== "boolean"
     || typeof value.syncedAt !== "string"
+    || (value.description !== undefined && typeof value.description !== "string")
     || (value.authorLogin !== undefined && typeof value.authorLogin !== "string")
     || (value.mergedBy !== undefined && typeof value.mergedBy !== "string")
     || (value.reviewers !== undefined && (!Array.isArray(value.reviewers) || value.reviewers.some((reviewer) => typeof reviewer !== "string")))
@@ -234,6 +247,8 @@ function parseSyncedGitHubPullRequest(value) {
     || (value.headRef !== undefined && typeof value.headRef !== "string")
     || (value.baseRef !== undefined && typeof value.baseRef !== "string")
     || (value.sourceUpdatedAt !== undefined && typeof value.sourceUpdatedAt !== "string")
+    || (value.meegleIds !== undefined && (!Array.isArray(value.meegleIds) || value.meegleIds.some((workItemId) => typeof workItemId !== "string")))
+    || (value.meegleWorkitems !== undefined && !Array.isArray(value.meegleWorkitems))
     || !Array.isArray(value.odooShBuilds)
     || value.odooShBuilds.some((build) => !isOdooShBuild(build))) {
     throw new Error("INVALID_GITHUB_PULL_REQUEST_RESPONSE");
@@ -248,6 +263,9 @@ function parseSyncedGitHubPullRequest(value) {
     htmlUrl: value.htmlUrl,
     isDraft: value.isDraft,
     syncedAt: value.syncedAt,
+    meegleIds: value.meegleIds || [],
+    meegleWorkitems: (value.meegleWorkitems || []).map(parseGitHubLinkedMeegleWorkitem),
+    ...(value.description === undefined ? {} : { description: value.description }),
     ...(value.authorLogin === undefined ? {} : { authorLogin: value.authorLogin }),
     ...(value.mergedBy === undefined ? {} : { mergedBy: value.mergedBy }),
     ...(value.reviewers === undefined ? {} : { reviewers: value.reviewers }),
@@ -256,6 +274,34 @@ function parseSyncedGitHubPullRequest(value) {
     ...(value.baseRef === undefined ? {} : { baseRef: value.baseRef }),
     ...(value.sourceUpdatedAt === undefined ? {} : { sourceUpdatedAt: value.sourceUpdatedAt }),
     odooShBuilds: value.odooShBuilds,
+  };
+}
+
+function parseGitHubLinkedMeegleWorkitem(value) {
+  if (!isRecord(value)
+    || typeof value.projectKey !== "string"
+    || typeof value.workItemTypeKey !== "string"
+    || typeof value.workItemId !== "string"
+    || typeof value.title !== "string"
+    || (value.projectName !== undefined && typeof value.projectName !== "string")
+    || (value.workItemKey !== undefined && typeof value.workItemKey !== "string")
+    || (value.workItemType !== undefined && typeof value.workItemType !== "string")
+    || (value.status !== undefined && typeof value.status !== "string")
+    || (value.sprint !== undefined && typeof value.sprint !== "string")
+    || (value.version !== undefined && typeof value.version !== "string")) {
+    throw new Error("INVALID_GITHUB_PULL_REQUEST_RESPONSE");
+  }
+  return {
+    projectKey: value.projectKey,
+    workItemTypeKey: value.workItemTypeKey,
+    workItemId: value.workItemId,
+    title: value.title,
+    ...(value.projectName === undefined ? {} : { projectName: value.projectName }),
+    ...(value.workItemKey === undefined ? {} : { workItemKey: value.workItemKey }),
+    ...(value.workItemType === undefined ? {} : { workItemType: value.workItemType }),
+    ...(value.status === undefined ? {} : { status: value.status }),
+    ...(value.sprint === undefined ? {} : { sprint: value.sprint }),
+    ...(value.version === undefined ? {} : { version: value.version }),
   };
 }
 

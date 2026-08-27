@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getPlatformDataList, getPlatformDataListPage, resetAllOdooDevopsBranchesCache } from "./platform-data-api.js";
+import {
+  getGitHubPullRequestPreview,
+  getPlatformDataList,
+  getPlatformDataListPage,
+  resetAllOdooDevopsBranchesCache,
+} from "./platform-data-api.js";
 import { getPlatformSyncSources, syncPlatformSource } from "./platform-sync-api.js";
 
 test("loads a synced platform list with the browser session cookie", async () => {
@@ -158,6 +163,7 @@ test("loads up to 500 GitHub PR rows with Odoo.sh build data", async () => {
           repo: "Tenways",
           pullNumber: 1138,
           title: "PR",
+          description: "PR description",
           state: "open",
           htmlUrl: "https://github.com/TenwaysCom/Tenways/pull/1138",
           authorLogin: "octo",
@@ -167,6 +173,19 @@ test("loads up to 500 GitHub PR rows with Odoo.sh build data", async () => {
           headRef: "feature/m-1138",
           baseRef: "main",
           isDraft: false,
+          meegleIds: ["13802503"],
+          meegleWorkitems: [{
+            projectKey: "project",
+            projectName: "Tenways",
+            workItemTypeKey: "story",
+            workItemId: "13802503",
+            workItemKey: "M-13802503",
+            title: "Linked story",
+            workItemType: "Feature",
+            status: "Doing",
+            sprint: "Sprint 1",
+            version: "Version 1",
+          }],
           syncedAt: "2026-08-10T00:00:00.000Z",
           odooShBuilds: [{ environment: "eu", status: "done", result: "warning" }],
         }] } };
@@ -175,6 +194,48 @@ test("loads up to 500 GitHub PR rows with Odoo.sh build data", async () => {
   });
 
   assert.deepEqual(result.items, [expectGitHubPullRequestWithBuild()]);
+});
+
+test("accepts a GitHub PR response from before linked Meegle fields were added", async () => {
+  const result = await getPlatformDataList({
+    apiBaseUrl: "/api",
+    kind: "github-pull-requests",
+    fetchImpl: async () => ({
+      ok: true,
+      json: async () => ({ ok: true, data: { items: [{
+        owner: "TenwaysCom",
+        repo: "Tenways",
+        pullNumber: 1138,
+        title: "PR",
+        state: "open",
+        htmlUrl: "https://github.com/TenwaysCom/Tenways/pull/1138",
+        isDraft: false,
+        syncedAt: "2026-08-10T00:00:00.000Z",
+        odooShBuilds: [],
+      }] } }),
+    }),
+  });
+
+  assert.deepEqual(result.items[0].meegleIds, []);
+  assert.deepEqual(result.items[0].meegleWorkitems, []);
+});
+
+test("loads a GitHub PR preview with linked Meegle details on demand", async () => {
+  let request;
+  const result = await getGitHubPullRequestPreview({
+    apiBaseUrl: "/api",
+    owner: "TenwaysCom",
+    repo: "Tenways Web",
+    pullNumber: 1138,
+    fetchImpl: async (url, options) => {
+      request = { url, options };
+      return { ok: true, json: async () => ({ ok: true, data: expectGitHubPullRequestWithBuild() }) };
+    },
+  });
+
+  assert.deepEqual(result, expectGitHubPullRequestWithBuild());
+  assert.equal(request.url, "/api/web/platform-data/github-pull-request-preview?owner=TenwaysCom&repo=Tenways+Web&pullNumber=1138");
+  assert.equal(request.options.credentials, "include");
 });
 
 test("resets all Odoo DevOps branch caches with the web session", async () => {
@@ -227,6 +288,7 @@ function expectGitHubPullRequestWithBuild() {
     repo: "Tenways",
     pullNumber: 1138,
     title: "PR",
+    description: "PR description",
     state: "open",
     htmlUrl: "https://github.com/TenwaysCom/Tenways/pull/1138",
     authorLogin: "octo",
@@ -236,6 +298,19 @@ function expectGitHubPullRequestWithBuild() {
     headRef: "feature/m-1138",
     baseRef: "main",
     isDraft: false,
+    meegleIds: ["13802503"],
+    meegleWorkitems: [{
+      projectKey: "project",
+      projectName: "Tenways",
+      workItemTypeKey: "story",
+      workItemId: "13802503",
+      workItemKey: "M-13802503",
+      title: "Linked story",
+      workItemType: "Feature",
+      status: "Doing",
+      sprint: "Sprint 1",
+      version: "Version 1",
+    }],
     syncedAt: "2026-08-10T00:00:00.000Z",
     odooShBuilds: [{ environment: "eu", status: "done", result: "warning" }],
   };

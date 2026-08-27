@@ -1,4 +1,7 @@
-import { createWebPlatformDataController } from "./platform-data.controller.js";
+import {
+  createWebGitHubPullRequestPreviewController,
+  createWebPlatformDataController,
+} from "./platform-data.controller.js";
 
 describe("web platform data controller", () => {
   it("requires the opaque web session before reading snapshots", async () => {
@@ -179,6 +182,7 @@ describe("web platform data controller", () => {
       repo: "Tenways",
       pullNumber: 1138,
       title: "PR",
+      description: "PR description",
       state: "open",
       htmlUrl: "https://github.com/TenwaysCom/Tenways/pull/1138",
       authorLogin: "octo",
@@ -189,6 +193,18 @@ describe("web platform data controller", () => {
       baseRef: "main",
       isDraft: false,
       meegleIds: ["13802503"],
+      meegleWorkitems: [{
+        projectKey: "project",
+        projectName: "Tenways",
+        workItemTypeKey: "story",
+        workItemId: "13802503",
+        workItemKey: "M-13802503",
+        title: "Linked story",
+        workItemType: "Feature",
+        status: "Doing",
+        sprint: "Sprint 1",
+        version: "Version 1",
+      }],
       syncedAt: "2026-08-10T00:00:00.000Z",
       odooShBuilds: [{ environment: "eu", status: "done", result: "success" }],
     }], total: 1 }) };
@@ -200,7 +216,14 @@ describe("web platform data controller", () => {
     await expect(controller({
       kind: "github-pull-requests",
       cookieHeader: "octo_web_session=session-token",
-      query: {},
+      query: {
+        status: ["Draft", "open"],
+        repo: "TenwaysCom / Tenways",
+        label: "bug",
+        reviewer: "reviewer",
+        sourceUpdatedAtAfter: "2026-08-01T00:00:00Z",
+        offset: "500",
+      },
     })).resolves.toEqual({
       statusCode: 200,
       body: { ok: true, data: { items: [expect.objectContaining({
@@ -209,10 +232,55 @@ describe("web platform data controller", () => {
         mergedBy: "maintainer",
         reviewers: ["reviewer"],
         labels: ["bug"],
+        meegleIds: ["13802503"],
         odooShBuilds: [{ environment: "eu", status: "done", result: "success" }],
-      })], pager: { offset: 0, limit: 500, total: 1, hasMore: false } } },
+      })], pager: { offset: 500, limit: 500, total: 1, hasMore: false } } },
     });
-    expect(service.list).toHaveBeenCalledWith("github-pull-requests", 500, { sprint: undefined });
+    expect(service.list).toHaveBeenCalledWith("github-pull-requests", 500, { githubPullRequests: {
+      statuses: ["Draft", "open"],
+      repositories: ["TenwaysCom / Tenways"],
+      labels: ["bug"],
+      reviewers: ["reviewer"],
+      sourceUpdatedAtAfter: "2026-08-01T00:00:00.000Z",
+      offset: 500,
+    } });
+  });
+
+  it("returns linked Meegle details from the on-demand GitHub PR preview", async () => {
+    const preview = {
+      owner: "TenwaysCom", repo: "Tenways", pullNumber: 1138, title: "PR", description: "PR description",
+      state: "open", htmlUrl: "https://github.com/TenwaysCom/Tenways/pull/1138", isDraft: false,
+      meegleIds: ["13802503"], syncedAt: "2026-08-10T00:00:00.000Z",
+      meegleWorkitems: [{
+        projectKey: "project", workItemTypeKey: "story", workItemId: "13802503", title: "Linked story",
+        status: "Doing", sprint: "Sprint 1", version: "Version 1",
+      }],
+      odooShBuilds: [{ environment: "eu", status: "done", result: "success" }],
+    };
+    const service = { getGitHubPullRequestPreview: vi.fn().mockResolvedValue(preview) };
+    const controller = createWebGitHubPullRequestPreviewController({
+      service,
+      ensureSession: vi.fn().mockResolvedValue({ ok: true, role: "dev", user: {} }),
+    });
+
+    await expect(controller({
+      cookieHeader: "octo_web_session=session-token",
+      query: { owner: "TenwaysCom", repo: "Tenways", pullNumber: "1138" },
+    })).resolves.toEqual({ statusCode: 200, body: { ok: true, data: preview } });
+    expect(service.getGitHubPullRequestPreview).toHaveBeenCalledWith({ owner: "TenwaysCom", repo: "Tenways", pullNumber: 1138 });
+  });
+
+  it("validates GitHub PR preview identity and returns 404 for a missing snapshot", async () => {
+    const service = { getGitHubPullRequestPreview: vi.fn().mockResolvedValue(undefined) };
+    const controller = createWebGitHubPullRequestPreviewController({
+      service,
+      ensureSession: vi.fn().mockResolvedValue({ ok: true, role: "dev", user: {} }),
+    });
+
+    await expect(controller({ cookieHeader: "octo_web_session=session-token", query: { owner: "bad/owner", repo: "repo", pullNumber: "1" } }))
+      .resolves.toMatchObject({ statusCode: 400, body: { error: { errorCode: "INVALID_REQUEST" } } });
+    await expect(controller({ cookieHeader: "octo_web_session=session-token", query: { owner: "acme", repo: "repo", pullNumber: "404" } }))
+      .resolves.toMatchObject({ statusCode: 404, body: { error: { errorCode: "GITHUB_PULL_REQUEST_NOT_FOUND" } } });
   });
 
   it("rejects list limits above 500", async () => {

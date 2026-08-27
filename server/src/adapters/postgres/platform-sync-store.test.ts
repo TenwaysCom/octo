@@ -118,10 +118,17 @@ describe("PostgresPlatformSyncStore", () => {
     await expect(store.countMeegleWorkitems({ sprints: ["Sprint 1"] })).resolves.toBe(1);
     await expect(store.listMeegleWorkitems(10, { sprints: ["Sprint 2"] })).resolves.toEqual([]);
     await expect(store.listMeegleSprints()).resolves.toEqual(["Sprint 1"]);
+    await expect(store.listMeegleWorkitemsByIds(["1", "missing", "1"])).resolves.toEqual([
+      expect.objectContaining({ workItemId: "1", title: "Updated", status: "Finished", sprint: "Sprint 1", version: "Version 1" }),
+    ]);
     await expect(store.listGitHubPullRequests(10)).resolves.toEqual([expect.objectContaining({
       pullNumber: 2, title: "PR m-123 f-456", state: "open",
       meegleIds: ["123", "456", "789"],
     })]);
+    await expect(store.findGitHubPullRequest({ owner: "acme", repo: "app", pullNumber: 2 })).resolves.toEqual(expect.objectContaining({
+      pullNumber: 2, description: "PR description m-123 and f-789", meegleIds: ["123", "456", "789"],
+    }));
+    await expect(store.findGitHubPullRequest({ owner: "acme", repo: "app", pullNumber: 404 })).resolves.toBeUndefined();
     await expect(store.countGitHubPullRequests()).resolves.toBe(1);
     await expect(store.listGitHubPullRequestLinks(["123", "456"])) .resolves.toEqual([
       expect.objectContaining({ meegleId: "123", pullNumber: 2, headRef: "feature/m-123", baseRef: "main", state: "open" }),
@@ -201,6 +208,58 @@ describe("PostgresPlatformSyncStore", () => {
     await expect(store.listGitHubPullRequests(10)).resolves.toEqual([
       expect.objectContaining({ pullNumber: 3, state: "merged" }),
     ]);
+
+    await db.destroy();
+    await pool.end();
+  });
+
+  it("filters GitHub PR snapshots before applying pagination", async () => {
+    const { db, pool } = await createTestPostgresDatabase();
+    const store = new PostgresPlatformSyncStore(db);
+    const pullRequests = [
+      { number: 1, repo: "app", state: "open", draft: false, labels: ["bug"], reviewers: ["ada"], updatedAt: "2026-08-12T00:00:00.000Z" },
+      { number: 2, repo: "app", state: "open", draft: true, labels: ["feature"], reviewers: ["bob"], updatedAt: "2026-08-11T00:00:00.000Z" },
+      { number: 3, repo: "api", state: "closed", draft: false, labels: ["bug"], reviewers: ["ada"], updatedAt: "2026-08-10T00:00:00.000Z" },
+    ];
+    for (const pullRequest of pullRequests) {
+      await store.upsertGitHubPullRequest({
+        owner: "acme",
+        repo: pullRequest.repo,
+        pullRequest: {
+          number: pullRequest.number,
+          title: `PR ${pullRequest.number}`,
+          body: null,
+          html_url: `https://github.com/acme/${pullRequest.repo}/pull/${pullRequest.number}`,
+          state: pullRequest.state,
+          merged_at: null,
+          updated_at: pullRequest.updatedAt,
+          draft: pullRequest.draft,
+        },
+      });
+      await store.applyGitHubPullRequestCleaning({
+        owner: "acme",
+        repo: pullRequest.repo,
+        pullNumber: pullRequest.number,
+        labels: pullRequest.labels,
+        reviewers: pullRequest.reviewers,
+      });
+    }
+
+    const filters = {
+      statuses: ["open"],
+      repositories: ["acme / app"],
+      labels: ["bug"],
+      reviewers: ["ada"],
+      sourceUpdatedAtAfter: "2026-08-11T12:00:00.000Z",
+    };
+    await expect(store.listGitHubPullRequests(1, filters)).resolves.toEqual([
+      expect.objectContaining({ pullNumber: 1, repo: "app", state: "open", isDraft: false }),
+    ]);
+    await expect(store.countGitHubPullRequests(filters)).resolves.toBe(1);
+    await expect(store.listGitHubPullRequests(10, { statuses: ["Draft"] })).resolves.toEqual([
+      expect.objectContaining({ pullNumber: 2, isDraft: true }),
+    ]);
+    await expect(store.listGitHubPullRequests(1, { offset: 1 })).resolves.toHaveLength(1);
 
     await db.destroy();
     await pool.end();

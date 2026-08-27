@@ -20,3 +20,8 @@ test("allows an explicit escape action to run from an editable element", () => {
     { allowInEditableTarget: true },
   ), true);
 });
+
+test("handles Space for a focused PR but leaves text editing alone", () => {
+  assert.equal(shouldHandleKeyboardShortcut({ key: " ", target: { tagName: "TR" } }, " "), true);
+  assert.equal(shouldHandleKeyboardShortcut({ key: " ", target: { tagName: "TEXTAREA" } }, " "), false);
+});

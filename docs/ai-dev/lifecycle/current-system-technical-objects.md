@@ -1,7 +1,7 @@
 ---
 status: draft
 owner: TBD
-last_reviewed: 2026-06-18
+last_reviewed: 2026-08-27
 scope: 当前 Octo 技术对象在 extension、server、adapter 与平台间的生命周期图谱
 update_required_when:
   - 页面或动作配置契约变更
@@ -621,6 +621,7 @@ Meegle 工作项详情页
 - Meegle workitem lookup result
 - GitHub branch preview/create request
 - GitHub PR Odoo.sh build badge
+- GitHub PR 列表预览与关联 Meegle 快照投影
 
 ### 生命周期
 
@@ -651,6 +652,8 @@ GitHub PR 页面
 
 Octo FE 的 GitHub PR 列表表头可使用受 opaque HttpOnly Octo Web session 保护的重置接口；请求携带 `actionRunId`，服务端一次删除 EU、UK、US 三个 Odoo DevOps 分支缓存 key，随后列表刷新构建状态。
 
+GitHub PR 同步快照会从标题与描述中保留 `meegleIds`。Web 列表只投影这些关联 ID，并在 Author 后显示“关联 Meegle”列，不读取 Status、Sprint 或 Version。用户悬停或聚焦某条 PR 后按 Space，FE 调用 PR 专用预览接口；Server 读取该 PR 快照，再用其全部 `meegleIds` 一次批量查询本地 `meegle_workitem_syncs`，返回工作项标题、Status、Sprint 与 Version。未在本地找到的原始 ID 仍会显示；FE 在当前会话按 PR 缓存成功的预览结果。PR 描述来自 GitHub 同步快照，Odoo.sh 状态来自现有 DevOps 缓存投影。
+
 ### 当前风险
 
 - GitHub actions also hardcode Meegle field IDs for system/version/sprint.
@@ -661,6 +664,7 @@ Octo FE 的 GitHub PR 列表表头可使用受 opaque HttpOnly Octo Web session 
 
 - Treat GitHub actions as frontend modal plus server workflow, not extension business logic.
 - Meegle field resolution should share the same metadata resolver as Lark workflows.
+- GitHub PR 列表只读取关联 ID；完整 Meegle 字段应在预览边界按单个 PR 的全部 ID 批量读取本地快照，并保留无法解析的原始 ID。不要逐 ID 查询或为列表预加载全部工作项详情。
 
 ## 15. 动作运行追踪生命周期
 

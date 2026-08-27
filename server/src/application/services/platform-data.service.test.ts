@@ -146,11 +146,12 @@ describe("PlatformDataService", () => {
     expect(odooDevopsBranchesService.list).toHaveBeenCalledWith("uk");
   });
 
-  it("attaches exact Odoo.sh build matches to GitHub PR list rows", async () => {
+  it("keeps linked Meegle details out of GitHub PR list rows", async () => {
     const store = {
       listGitHubPullRequests: vi.fn().mockResolvedValue([
         {
           owner: "TenwaysCom", repo: "tenways-ukk", pullNumber: 1138, title: "Exact branch",
+          description: "PR description",
           state: "open", htmlUrl: "https://github.com/TenwaysCom/tenways-ukk/pull/1138",
           headRef: "feature/m-123", baseRef: "main", isDraft: false, meegleIds: ["123"],
           syncedAt: "2026-08-10T00:00:00.000Z",
@@ -163,6 +164,7 @@ describe("PlatformDataService", () => {
         },
       ]),
       countGitHubPullRequests: vi.fn().mockResolvedValue(2),
+      listMeegleWorkitemsByIds: vi.fn(),
     } as unknown as PlatformSyncStore;
     const odooDevopsBranchesService = {
       list: vi.fn(async (environment: "eu" | "uk" | "us") => ({
@@ -181,17 +183,58 @@ describe("PlatformDataService", () => {
     };
     const service = new PlatformDataService(store, odooDevopsBranchesService);
 
-    await expect(service.list("github-pull-requests", 50)).resolves.toMatchObject({
+    const githubPullRequests = { statuses: ["open"], labels: ["bug"], offset: 50 };
+    await expect(service.list("github-pull-requests", 50, { githubPullRequests })).resolves.toMatchObject({
       items: [
         expect.objectContaining({
           pullNumber: 1138,
+          meegleIds: ["123"],
           odooShBuilds: [
             { environment: "uk", status: "done", result: "success" },
           ],
         }),
-        expect.objectContaining({ pullNumber: 1139, odooShBuilds: [] }),
+        expect.objectContaining({ pullNumber: 1139, meegleIds: [], odooShBuilds: [] }),
       ],
     });
+    const result = await service.list("github-pull-requests", 50, { githubPullRequests });
+    expect(result.items[0]).not.toHaveProperty("description");
+    expect(result.items[0]).not.toHaveProperty("meegleWorkitems");
+    expect(store.listGitHubPullRequests).toHaveBeenCalledWith(50, githubPullRequests);
+    expect(store.countGitHubPullRequests).toHaveBeenCalledWith(githubPullRequests);
+    expect(store.listMeegleWorkitemsByIds).not.toHaveBeenCalled();
     expect(odooDevopsBranchesService.list).toHaveBeenCalledWith("uk");
+  });
+
+  it("loads linked Meegle details only for the requested GitHub PR preview", async () => {
+    const pullRequest = {
+      owner: "TenwaysCom", repo: "tenways-ukk", pullNumber: 1138, title: "Exact branch",
+      description: "PR description", state: "open", htmlUrl: "https://github.com/TenwaysCom/tenways-ukk/pull/1138",
+      headRef: "feature/m-123", baseRef: "main", isDraft: false, meegleIds: ["123", "missing"],
+      syncedAt: "2026-08-10T00:00:00.000Z",
+    };
+    const store = {
+      findGitHubPullRequest: vi.fn().mockResolvedValue(pullRequest),
+      listMeegleWorkitemsByIds: vi.fn().mockResolvedValue([{
+        projectKey: "project", projectName: "Tenways", workItemTypeKey: "story", workItemId: "123",
+        workItemKey: "M-123", title: "Linked story", workItemType: "Feature", status: "Doing",
+        sprint: "Sprint 1", version: "Version 1", syncedAt: "2026-08-09T00:00:00.000Z",
+      }]),
+    } as unknown as PlatformSyncStore;
+    const odooDevopsBranchesService = {
+      list: vi.fn().mockResolvedValue({
+        environment: "uk", project_name: "Odoo", total: 1,
+        items: [{ branch: "feature/m-123", stage: "dev", last_build_status: "done", last_build_result: "success", odoo_branch: "17.0" }],
+        cached: true,
+      }),
+    };
+    const service = new PlatformDataService(store, odooDevopsBranchesService);
+
+    await expect(service.getGitHubPullRequestPreview({ owner: "TenwaysCom", repo: "tenways-ukk", pullNumber: 1138 })).resolves.toMatchObject({
+      description: "PR description",
+      meegleIds: ["123", "missing"],
+      meegleWorkitems: [{ workItemId: "123", title: "Linked story", status: "Doing", sprint: "Sprint 1", version: "Version 1" }],
+      odooShBuilds: [{ environment: "uk", status: "done", result: "success" }],
+    });
+    expect(store.listMeegleWorkitemsByIds).toHaveBeenCalledWith(["123", "missing"]);
   });
 });

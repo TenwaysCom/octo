@@ -27,6 +27,9 @@ export const platformDataListQuerySchema = z.object({
   sourceUpdatedAtAfter: timestampQuerySchema.optional(),
   sourceUpdatedAtBefore: timestampQuerySchema.optional(),
   issueType: stringListQuerySchema,
+  repo: stringListQuerySchema,
+  label: stringListQuerySchema,
+  reviewer: stringListQuerySchema,
 }).superRefine((value, context) => {
   if (value.createdAfter && value.createdBefore && value.createdAfter > value.createdBefore) {
     context.addIssue({ code: "custom", message: "createdAfter must not be later than createdBefore.", path: ["createdAfter"] });
@@ -37,6 +40,12 @@ export const platformDataListQuerySchema = z.object({
 });
 
 export type PlatformDataListQuery = z.infer<typeof platformDataListQuerySchema>;
+
+export const githubPullRequestPreviewQuerySchema = z.object({
+  owner: z.string().trim().min(1).max(100).regex(/^[A-Za-z0-9_.-]+$/),
+  repo: z.string().trim().min(1).max(100).regex(/^[A-Za-z0-9_.-]+$/),
+  pullNumber: z.coerce.number().int().positive(),
+});
 
 const platformDataPagerSchema = z.object({
   offset: z.number().int().nonnegative(),
@@ -55,6 +64,19 @@ const odooShBuildSchema = z.object({
   environment: z.enum(["eu", "uk", "us"]),
   status: z.string(),
   result: z.string(),
+});
+
+const githubLinkedMeegleWorkitemSchema = z.object({
+  projectKey: z.string(),
+  projectName: z.string().optional(),
+  workItemTypeKey: z.string(),
+  workItemId: z.string(),
+  workItemKey: z.string().optional(),
+  title: z.string(),
+  workItemType: z.string().optional(),
+  status: z.string().optional(),
+  sprint: z.string().optional(),
+  version: z.string().optional(),
 });
 
 export const meegleWorkitemListResponseSchema = z.object({
@@ -115,6 +137,28 @@ export const githubPullRequestListResponseSchema = z.object({
     odooShBuilds: z.array(odooShBuildSchema),
   })),
   pager: platformDataPagerSchema,
+});
+
+export const githubPullRequestPreviewResponseSchema = z.object({
+  owner: z.string(),
+  repo: z.string(),
+  pullNumber: z.number().int().positive(),
+  title: z.string(),
+  description: z.string().optional(),
+  state: z.string(),
+  htmlUrl: z.string().url(),
+  authorLogin: z.string().optional(),
+  mergedBy: z.string().optional(),
+  reviewers: z.array(z.string()).optional(),
+  labels: z.array(z.string()).optional(),
+  headRef: z.string().optional(),
+  baseRef: z.string().optional(),
+  isDraft: z.boolean(),
+  meegleIds: z.array(z.string()),
+  meegleWorkitems: z.array(githubLinkedMeegleWorkitemSchema),
+  sourceUpdatedAt: z.string().optional(),
+  syncedAt: z.string(),
+  odooShBuilds: z.array(odooShBuildSchema),
 });
 
 export function parsePlatformDataListResponse(kind: "lark-tickets" | "meegle-workitems" | "github-pull-requests", data: unknown) {

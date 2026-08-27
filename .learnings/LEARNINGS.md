@@ -302,3 +302,21 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - **Context:** A FE that inferred “has next page” from a full 500-row response kept incrementing `offset` when an independently deployed Server ignored offset and repeatedly returned the first page.
 - **Rule:** Return an explicit pager from the Server using the same filtered query for `total`; the list/board UI must load only the initial page and request `nextOffset` only after an explicit user action. During staged deployment, a missing pager must fail safe as a completed single page rather than infer another offset.
 - **Verified outcome:** Store, service, controller, and FE API tests cover total/count filtering, a valid next offset, one-page loading, and old responses without pager; both builds pass.
+
+## [LRN-20260827-004] platform-list-control-parity
+
+- **Context:** GitHub PR displayed the shared Filter control but had no GitHub filter mapping, Group by configuration, or Label sidebar, so the common toolbar implied capabilities the page did not implement.
+- **Rule:** Adding a shared platform-list control to another platform requires the complete vertical slice: normalized/restorable FE state, table and card projections, grouping behavior, tag fields, validated query DTOs, and the same filtered store query for rows and `total`. Do not expose a common icon with a no-op platform branch.
+- **Verified outcome:** GitHub PR now supports status/time Filter, list/board Group by, repository/Label/Reviewer sidebar filtering, restored view state, and filtered pagination; FE checks, 22 focused Server tests, and the Server build pass.
+
+## [LRN-20260827-005] denormalized-link-snapshot-projection
+
+- **Context:** GitHub PR snapshots retain extracted Meegle IDs, while only the popup—not the list—needs the separately synchronized Meegle details.
+- **Rule:** Keep denormalized IDs in the list projection. At the preview boundary, read one PR and resolve all its IDs in one local snapshot query; preserve unresolved raw IDs and cache successful preview results in the FE session. Do not preload every work item or query one ID at a time.
+- **Verified outcome:** Store, service, controller, route, auth, and FE API tests cover on-demand batch lookup, list omission, resolved fields, unresolved IDs, and PR descriptions; 55 focused Server tests, FE checks, and both builds pass.
+
+## [LRN-20260827-006] additive-response-staged-deployment
+
+- **Context:** The FE was hot-updated before the running Server and rejected otherwise valid GitHub PR rows because newly added association arrays were absent.
+- **Rule:** For additive response fields that have a safe empty meaning, validate malformed supplied values strictly but normalize an absent field to that empty value at the FE API boundary. This keeps independently restarted FE and Server processes compatible without weakening the new contract once fields are present.
+- **Verified outcome:** A regression fixture without `meegleIds` or `meegleWorkitems` parses to empty arrays; all FE tests and the production build pass.

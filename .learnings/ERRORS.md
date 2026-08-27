@@ -179,6 +179,20 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Fix:** Use the Server's redacted API diagnostics for this investigation; never print or borrow an existing service token for an ad hoc CLI command.
 - **Status:** contained; PR-specific endpoint status was verified from structured Server logs.
 
+## [ERR-20260827-003] github-platform-filter-controller-fixture
+
+- **Summary:** Extending GitHub platform-list filters changed the controller's service dependency envelope, while the existing GitHub fixture still asserted a stale placeholder object.
+- **Error:** The focused controller test expected `{ sprint: undefined }` but received the new `{ githubPullRequests: {} }` contract.
+- **Fix:** Replace the stale placeholder with an explicit GitHub filter fixture and assert the validated status, repository, label, reviewer, update-time, and offset mapping.
+- **Status:** resolved; covered by the focused platform-data controller test.
+
+## [ERR-20260827-004] platform-sync-store-test-double-contract
+
+- **Summary:** Adding the read-only `listMeegleWorkitemsByIds` store method for GitHub PR projections left a structurally typed Platform Sync test double incomplete.
+- **Error:** Server build failed with `TS2322` because the test store no longer satisfied `PlatformSyncStore`.
+- **Fix:** Add the new read method to the shared test double with an empty result; production behavior remains covered by Postgres store and Platform Data service tests.
+- **Status:** resolved; Server build passes.
+
 ## [ERR-20260817-004] tsx-eval-env-path-and-async-wrapper
 
 - **Summary:** A scoped PostgreSQL diagnostic run through `pnpm --dir server exec tsx -e` first used a repo-relative `server/.env` path and top-level `await`, so the environment was not loaded and `tsx` rejected the eval body.
@@ -301,3 +315,24 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Error:** `pnpm --dir fe test -- platform-data-api.test.js` reported that it could not find the file.
 - **Fix:** Use the package-standard `pnpm --dir fe check`, which runs all Node tests and the Vite production build.
 - **Status:** resolved; 62 FE tests and the build passed.
+
+## [ERR-20260827-006] platform-sync-store-test-double-contract
+
+- **Summary:** Adding the batch Meegle lookup to `PlatformSyncStore` initially left one structurally typed platform-sync test double without the new method.
+- **Error:** TypeScript rejected the fake store with `TS2322` because `listMeegleWorkitemsByIds` was missing.
+- **Fix:** Update every explicit `PlatformSyncStore` test double when extending the interface, even if the tested service path does not call the new method.
+- **Status:** resolved; the focused Platform Sync tests and Server TypeScript build pass.
+
+## [ERR-20260827-007] github-pr-additive-response-rollout
+
+- **Summary:** The GitHub PR page entered its generic read-error state even though the backend request returned 200/304.
+- **Error:** The updated FE required `meegleIds` and `meegleWorkitems`, while the still-running pre-change Server response did not include the newly added fields.
+- **Fix:** Keep invalid supplied values fail-closed, but default absent additive association arrays to `[]` in the FE parser and cover the old response shape.
+- **Status:** resolved; FE tests and the Vite production build pass.
+
+## [ERR-20260827-008] github-list-object-identity-map
+
+- **Summary:** The first list-detail split removed `description` by destructuring each PR before looking up its precomputed Odoo.sh environment in an object-keyed `Map`.
+- **Error:** The focused service test received an empty Odoo.sh build list because the destructured object had a different identity from the original map key.
+- **Fix:** Use the original PR object for all identity-keyed lookups, then construct the reduced list projection only after dependent values are resolved.
+- **Status:** resolved; 55 focused Server tests and the Server TypeScript build pass.
