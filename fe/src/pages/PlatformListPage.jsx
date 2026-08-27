@@ -698,6 +698,16 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
   const firstResult = sortedItems.length === 0 ? 0 : currentPageIndex * LIST_PAGE_SIZE + 1;
   const lastResult = Math.min((currentPageIndex + 1) * LIST_PAGE_SIZE, sortedItems.length);
   const totalItems = state.pager?.total ?? sortedItems.length;
+  const hasActiveServerFilters = Object.keys(getPlatformListFilters({
+    page,
+    selectedStatuses,
+    selectedDateFilters,
+    selectedSprints,
+    selectedTagFilters,
+    larkTicketQuickFilter,
+    workitemTypeFilter,
+    noSprintFilter,
+  })).length > 0;
 
   filterStateRef.current = {
     selectedStatuses,
@@ -959,8 +969,8 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
         {state.status === "loading" ? <p className="list-message">正在加载同步数据…</p> : null}
         {state.status === "error" ? <p className="list-message list-message--error">同步数据暂时无法读取，请稍后重试。</p> : null}
         {resetError ? <p className="list-message list-message--error">{resetError}</p> : null}
-        {state.status === "ready" && state.items.length === 0 ? <p className="list-message">暂无已同步的数据。</p> : null}
-        {state.status === "ready" && state.items.length > 0 ? <div className="list-toolbar">
+        {state.status === "ready" && state.items.length === 0 ? <p className="list-message">{hasActiveServerFilters ? "未找到匹配的数据，请调整筛选条件。" : "暂无已同步的数据。"}</p> : null}
+        {state.status === "ready" ? <div className="list-toolbar">
           {page === "meegle-workitems" ? <div className="list-filter-tabs" role="group" aria-label="按工作项类型筛选">
             {MEEGLE_WORKITEM_TYPE_FILTERS.map(([value, label]) => <button
               className={`list-filter-tab ${workitemTypeFilter === value ? "list-filter-tab--active" : ""}`.trim()}

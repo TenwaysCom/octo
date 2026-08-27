@@ -2,6 +2,7 @@ import { PostgresPlatformSyncLeaseStore } from "./platform-sync-lease-store.js";
 import { PostgresPlatformSyncRunStore } from "./platform-sync-run-store.js";
 import { PostgresPlatformSyncScheduleStore } from "./platform-sync-schedule-store.js";
 import { PostgresPlatformSyncStatusStore } from "./platform-sync-status-store.js";
+import { PostgresPlatformSyncStore } from "./platform-sync-store.js";
 import { createTestPostgresDatabase } from "./test-db.js";
 
 describe("PostgresPlatformSyncStatusStore", () => {
@@ -16,6 +17,20 @@ describe("PostgresPlatformSyncStatusStore", () => {
       target: { platform: "github", owner: "acme", repo: "app" },
     }], "2026-08-26T00:00:00.000Z");
     const runStore = new PostgresPlatformSyncRunStore(db);
+    await new PostgresPlatformSyncStore(db).upsertGitHubPullRequest({
+      owner: "acme",
+      repo: "app",
+      pullRequest: {
+        number: 1,
+        title: "Synced PR",
+        body: null,
+        html_url: "https://github.com/acme/app/pull/1",
+        state: "open",
+        merged_at: null,
+        updated_at: "2026-08-25T00:01:00.000Z",
+        draft: false,
+      },
+    });
     const run = await runStore.start({
       platform: "github",
       scopeKey: "acme/app",
@@ -34,6 +49,7 @@ describe("PostgresPlatformSyncStatusStore", () => {
       nextRunAt: "2026-08-26T00:00:00.000Z",
       runStatus: "failed",
       runTrigger: "scheduled",
+      lastSyncedAt: expect.any(String),
       lastErrorCode: "PLATFORM_RATE_LIMITED",
     })]);
 

@@ -2,6 +2,12 @@
 
 Record concise compiler/runtime errors, failed commands, wrong assumptions, and their verified fixes here. Redact secrets, cookies, tokens, and sensitive payloads.
 
+## [ERR-20260827-006] sync-run-history-is-not-snapshot-state
+
+- **Summary:** `#sync` 的“最近同步”曾改为读取 `platform_sync_runs` 的成功记录，导致旧流程已经写入快照、但没有对应 run 历史的数据源显示为空。
+- **Fix:** 状态接口按配置 scope 直接读取 Lark、Meegle、GitHub 快照表中最新的 `synced_at`，再由 Server 汇总为 source 级 `lastSyncedAt`；FE 仍只请求一次状态接口。
+- **Status:** resolved；定向 Server 测试 11/11、Server build 与 FE check 62/62 均通过。
+
 ## [ERR-20260826-001] server-full-suite-runtime-boundaries
 
 - **Summary:** Lark thread 功能的全量 Server test 命令触发了与本次改动无关的运行环境失败。

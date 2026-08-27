@@ -70,6 +70,9 @@ Lark Ticket API 接受 `createdAfter`、`createdBefore`、`sourceUpdatedAtAfter`
 | 2026-08-27 | completed | 筛选改为 Server 先筛选结果集、API 以 500 条分页、FE 自动拉取全部匹配页；List/Kanban 的排序、分组、折叠和数量仍由 FE 基于完整匹配集合处理。Lark 与 Meegle 的现有筛选控件均已下推。 | `show empty groups` 仍基于当前匹配集合的已知值；未连接真实已登录数据做视觉和大数据量验收。 |
 | 2026-08-27 | completed | 保留 React StrictMode，并在 Web profile 与平台列表 API 层合并相同的并发请求；开发模式的重复挂载不再让 Lark 分页、Meegle/GitHub 列表或 profile 对 Server 发起两次请求。 | 未在真实浏览器 Network 面板复验。 |
 | 2026-08-27 | completed | 平台列表接口新增真实 `pager`，PostgreSQL 用同筛选条件返回 total；List/Kanban 首屏仅请求 500 条，在内容底部显示“已加载 X / Y”与“加载更多”，点击后才请求下一页。旧 Server 缺少 pager 时 FE 按单页结束，避免 offset 无限累加。 | 需将 Server 与 FE 部署到正式环境后，在真实 Network 面板验证首屏仅一条平台数据请求、点击后才出现 `offset=500`。 |
+| 2026-08-27 | completed | `#sync` 改为只读取同步状态接口；Server 从各平台快照表汇总每个 source 的最近 `synced_at`，FE 不再加载 Lark/Meegle/GitHub 列表后自行汇总。 | 需在真实 Network 面板确认进入 `#sync` 时只有 `/web/platform-sync-sources` 请求。 |
+| 2026-08-27 | completed | 移除 `#sync` 的 10 秒状态轮询，增加“刷新状态”手动按钮；单源“立即同步”完成后仍刷新一次状态。 | 未做登录态浏览器交互验收。 |
+| 2026-08-27 | completed | Quick Filter 保持为后端查询参数；当后端筛选结果为 0 时，筛选工具栏仍显示，用户可再次点击已激活的 Quick Filter 取消筛选。 | 未做真实数据下的筛选组合浏览器验收。 |
 
 ## 验证
 
@@ -84,6 +87,10 @@ Lark Ticket API 接受 `createdAfter`、`createdBefore`、`sourceUpdatedAtAfter`
 | 服务端结果集筛选与 FE 全量分页 | 通过（定向） | `pnpm --dir server exec vitest run src/modules/platform-data/platform-data.controller.test.ts src/application/services/platform-data.service.test.ts src/adapters/postgres/platform-sync-store.test.ts`：20/20 passed；`pnpm --dir fe check`：58/58 passed；两端构建通过。 | 完整 Server suite 有 553 个测试通过；`src/index.test.ts` 仍因当前 SSH 数据库隧道未就绪无法加载，非本改动引起。 |
 | FE API 重复请求合并 | 通过 | `pnpm --dir fe check`：60/60 passed，包含 profile 与平台列表并发去重测试及 Vite build。 | 未在真实浏览器 Network 面板复验。 |
 | Pager 与按需加载 | 通过（定向） | `pnpm --dir fe check`：62/62 passed；分页相关 Server 定向测试 21/21 passed，Server build passed。 | 完整 Server suite 为 556/557；唯一失败为既有 `src/logger.test.ts` 轮转日志文件时序断言，非本改动。 |
+| 同步状态汇总 | 通过（定向） | `pnpm --dir server exec vitest run src/adapters/postgres/platform-sync-status-store.test.ts src/modules/platform-sync/web-platform-sync.controller.test.ts`：11/11 passed；`pnpm --dir server build` 和 `pnpm --dir fe check` 通过。 | 未做已登录浏览器 Network 面板验收。 |
+| 同步时间快照来源修正 | 通过（定向） | 状态 Store 测试覆盖“存在旧快照、最新 run 失败”仍返回 `lastSyncedAt`；Server 11/11、FE 62/62 与两端构建通过。 | 未连接正式环境数据库核对各 source 当前快照数量。 |
+| 手动刷新同步状态 | 通过 | `pnpm --dir fe check`：62/62 passed，Vite build passed；源码确认 `SyncStatusPage` 无 `setInterval`。 | 未做已登录浏览器交互验收。 |
+| 空结果 Quick Filter 可恢复 | 通过 | `pnpm --dir fe check`：62/62 passed，Vite build passed；现有 API 测试覆盖 `quickFilter` 参数序列化。 | 未做已登录浏览器 Network 面板验收。 |
 
 ## 关联
 

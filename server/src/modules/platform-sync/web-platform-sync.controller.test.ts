@@ -58,6 +58,7 @@ describe("web platform sync controller", () => {
       runTrigger: "scheduled",
       lastRunAt: "2026-08-26T00:00:00.000Z",
       lastCompletedAt: "2026-08-26T00:01:00.000Z",
+      lastSyncedAt: "2026-08-25T00:01:00.000Z",
       lastErrorCode: "PLATFORM_RATE_LIMITED",
     }]);
     const result = await controller.list({ cookieHeader: "octo_web_session=session" });
@@ -78,6 +79,7 @@ describe("web platform sync controller", () => {
               configured: true,
               scheduled: true,
               runStatus: "failed",
+              lastSyncedAt: "2026-08-25T00:01:00.000Z",
               lastErrorCode: "PLATFORM_RATE_LIMITED",
             }),
             expect.objectContaining({ id: "github-odoo-uk", label: "GitHub · Odoo UK", configured: true }),

@@ -302,3 +302,21 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - **Context:** A FE that inferred “has next page” from a full 500-row response kept incrementing `offset` when an independently deployed Server ignored offset and repeatedly returned the first page.
 - **Rule:** Return an explicit pager from the Server using the same filtered query for `total`; the list/board UI must load only the initial page and request `nextOffset` only after an explicit user action. During staged deployment, a missing pager must fail safe as a completed single page rather than infer another offset.
 - **Verified outcome:** Store, service, controller, and FE API tests cover total/count filtering, a valid next offset, one-page loading, and old responses without pager; both builds pass.
+
+## [LRN-20260827-004] sync-status-summary-boundary
+
+- **Context:** The Sync status page loaded each entire platform list merely to derive a source card's latest successful sync timestamp.
+- **Rule:** A status page must read one server-owned status summary, not browser-side snapshot lists. The source-status projection returns the latest snapshot `synced_at` per configured scope, while the browser renders it directly; run history cannot stand in for snapshot state because historical snapshots may predate run tracking.
+- **Verified outcome:** The Web source endpoint exposes `lastSyncedAt` from the platform snapshot tables; `#sync` no longer imports or requests platform lists. Status/controller tests and FE checks pass.
+
+## [LRN-20260827-005] sync-status-manual-refresh
+
+- **Context:** A 10-second status poll kept producing background network traffic after the Sync page had been reduced to one status API.
+- **Rule:** For operator-driven sync pages, use initial load, explicit refresh, and a post-action refresh; do not continuously poll unless live progress is a stated product requirement.
+- **Verified outcome:** `#sync` has no interval timer and exposes a disabled-while-loading refresh button; FE checks pass.
+
+## [LRN-20260827-006] server-filter-empty-state-control
+
+- **Context:** Moving Quick Filters to the Server made a zero-result response replace the list data, and the prior UI hid the very toolbar required to clear that filter.
+- **Rule:** Keep filter controls mounted whenever a list request is ready, including an empty server-filtered result; distinguish “no synced data” from “no matching data” in the empty state.
+- **Verified outcome:** Lark and Meegle Quick Filter state remains available after an empty response; FE checks pass.
