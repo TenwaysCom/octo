@@ -380,6 +380,7 @@ export interface MeegleWorkitem {
   subStage?: string;
   subStageKey?: string;
   assignee?: string;
+  priority?: string;
   updatedAt?: string;
   fields: Record<string, unknown>;
 }
@@ -430,6 +431,7 @@ export function parseWorkitem(data: Record<string, unknown>): MeegleWorkitem {
   const name = String(data.name || data.title || "");
   const type = String(data.type || data.work_item_type_key || "");
   const assignee = (data.assignee || data.owner) as string | undefined;
+  const priority = typeof data.priority === "string" ? data.priority : undefined;
   // current_nodes and work_item_status may be nested inside data.fields
   const rawFields = data.fields as Record<string, unknown> | undefined;
 
@@ -475,7 +477,7 @@ export function parseWorkitem(data: Record<string, unknown>): MeegleWorkitem {
     updatedAt: data.updated_at ?? data.updatedAt,
   });
 
-  return { id, key, name, type, status, assignee, updatedAt, fields };
+  return { id, key, name, type, status, assignee, priority, updatedAt, fields };
 }
 
 function parseComment(data: Record<string, unknown>): MeegleComment {

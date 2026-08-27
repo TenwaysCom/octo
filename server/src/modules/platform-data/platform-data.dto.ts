@@ -69,6 +69,7 @@ export const meegleWorkitemListResponseSchema = z.object({
       odooShBuilds: z.array(odooShBuildSchema),
     })),
     assignee: z.string().optional(),
+    priority: z.string().optional(),
     sourceUpdatedAt: z.string().optional(),
     syncedAt: z.string(),
   })),

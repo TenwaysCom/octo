@@ -6,6 +6,7 @@ import { useKeyboardShortcut } from "../hooks/useKeyboardShortcut.js";
 import { formatDateTime } from "../lib/formatters.js";
 import { countMyOpenGitHubPullRequests, matchesGitHubPullRequestQuickFilter } from "../lib/github-pull-request-filters.js";
 import { matchesLarkTicketQuickFilter } from "../lib/lark-ticket-filters.js";
+import { DATE_FILTERS, countFilterValues, matchesSelectedDateFilters, matchesSelectedSprints, matchesSelectedTagFilters, normalizeFilterValues, toggleFilterValue } from "../lib/platform-list-filters.js";
 import {
   DEFAULT_LARK_TICKET_SORT,
   DEFAULT_LARK_TICKET_VISIBLE_COLUMNS,
@@ -14,7 +15,9 @@ import {
   LARK_TICKET_VIEW_COLUMNS,
   normalizeLarkTicketGroupBy,
   normalizeLarkTicketSort,
+  normalizeLarkTicketSubGroupBy,
   normalizeLarkTicketVisibleColumns,
+  normalizeLarkTicketViewMode,
   sortLarkTickets,
 } from "../lib/lark-ticket-view-config.js";
 import {
@@ -24,7 +27,9 @@ import {
   MEEGLE_VIEW_COLUMNS,
   normalizeMeegleGroupBy,
   normalizeMeegleSort,
+  normalizeMeegleSubGroupBy,
   normalizeMeegleVisibleColumns,
+  normalizeMeegleViewMode,
   sortMeegleWorkitems,
 } from "../lib/meegle-view-config.js";
 import { getOdooShBuildTone } from "../lib/odoo-sh-build-status.js";
@@ -32,13 +37,6 @@ import { getPlatformDataList, resetAllOdooDevopsBranchesCache } from "../service
 import { getLarkTicketDetailHash } from "../app/routes/workspace-routes.js";
 
 const LIST_PAGE_SIZE = 50;
-const DATE_FILTERS = [
-  ["all-time", "全部时间"],
-  ["today", "今天"],
-  ["last-7-days", "最近 7 天"],
-  ["last-month", "最近一个月"],
-  ["last-12-months", "最近一年"],
-];
 const MEEGLE_WORKITEM_TYPE_FILTERS = [
   ["all", "全部"],
   ["tech-task", "TechTask"],
@@ -125,17 +123,6 @@ function GitHubPullRequestLinks({ pullRequests }) {
   </div>)}</div>;
 }
 
-function filterPlatformItems(items, query) {
-  const normalizedQuery = query.trim().toLocaleLowerCase();
-  if (!normalizedQuery) {
-    return items;
-  }
-
-  return items.filter((item) => Object.values(item).some((value) => String(value ?? "")
-    .toLocaleLowerCase()
-    .includes(normalizedQuery)));
-}
-
 function getPlatformItemStatus(kind, item) {
   if (kind === "lark-tickets") {
     return item.ticketStatus || "未设置";
@@ -168,30 +155,6 @@ function getMeegleWorkitemDetailUrl(item) {
   };
   const urlSlug = urlSlugByCategory[getMeegleWorkitemCategory(item)] || item.workItemTypeKey;
   return `https://project.larksuite.com/${encodeURIComponent(item.projectKey)}/${encodeURIComponent(urlSlug)}/detail/${encodeURIComponent(item.workItemId)}`;
-}
-
-function matchesDateFilter(item, dateFilter) {
-  if (dateFilter === "all-time") {
-    return true;
-  }
-
-  const updatedAt = new Date(item.sourceUpdatedAt || item.syncedAt || "");
-  if (Number.isNaN(updatedAt.getTime())) {
-    return false;
-  }
-
-  const now = new Date();
-  const threshold = new Date(now);
-  if (dateFilter === "today") {
-    threshold.setHours(0, 0, 0, 0);
-  } else if (dateFilter === "last-7-days") {
-    threshold.setDate(now.getDate() - 7);
-  } else if (dateFilter === "last-month") {
-    threshold.setMonth(now.getMonth() - 1);
-  } else {
-    threshold.setFullYear(now.getFullYear() - 1);
-  }
-  return updatedAt >= threshold;
 }
 
 function readSortValue(kind, item, key) {
@@ -305,16 +268,114 @@ function MeegleWorkitemsTable({ items, sort, onSort, visibleColumns }) {
   </tbody></table>;
 }
 
-function ListViewConfigPanel({ idPrefix, columns, groupOptions, groupBy, onGroupByChange, sort, onSortChange, visibleColumns, onToggleColumn, onReset }) {
+function ListFilterPanel({ fields, activeFieldKey, onActiveFieldChange, fieldQuery, onFieldQueryChange, valueQuery, onValueQueryChange, onReset }) {
+  const activeField = fields.find(({ key }) => key === activeFieldKey);
+  const visibleFields = fields.filter(({ label }) => label.toLocaleLowerCase().includes(fieldQuery.trim().toLocaleLowerCase()));
+  const visibleValues = activeField?.values.filter(({ label }) => label.toLocaleLowerCase().includes(valueQuery.trim().toLocaleLowerCase())) || [];
+
+  return <div className="list-filter-menu__panel" onMouseLeave={() => onActiveFieldChange(null)}>
+    <header className="list-filter-menu__header">
+      <strong>筛选</strong>
+      <button type="button" onClick={onReset}>清空</button>
+    </header>
+    <div className="list-filter-menu__columns">
+      <nav className="list-filter-fields" aria-label="过滤字段">
+        <label className="list-filter-menu__field-search">
+          <span className="visually-hidden">筛选字段</span>
+          <input type="search" value={fieldQuery} onChange={(event) => onFieldQueryChange(event.target.value)} placeholder="添加筛选条件…" />
+        </label>
+        <div className="list-filter-menu__field-list">
+          {visibleFields.map((field) => <button
+            className={field.key === activeField?.key ? "list-filter-field--active" : ""}
+            type="button"
+            key={field.key}
+            onMouseEnter={() => {
+              onActiveFieldChange(field.key);
+              onValueQueryChange("");
+            }}
+            onFocus={() => {
+              onActiveFieldChange(field.key);
+              onValueQueryChange("");
+            }}
+            onClick={() => {
+              onActiveFieldChange(field.key);
+              onValueQueryChange("");
+            }}
+          >
+            <span>{field.label}</span>
+            {field.isFiltered ? <small>{field.selectedValues.length}</small> : null}
+            <span aria-hidden="true">›</span>
+          </button>)}
+          {!visibleFields.length ? <p>没有匹配的字段</p> : null}
+        </div>
+      </nav>
+      {activeField ? <section className="list-filter-values" aria-label={`${activeField.label} 的可选值`}>
+        <label className="list-filter-menu__value-search">
+          <span className="visually-hidden">筛选 {activeField.label} 的值</span>
+          <input type="search" value={valueQuery} onChange={(event) => onValueQueryChange(event.target.value)} placeholder="筛选值…" />
+        </label>
+        <div className="list-filter-menu__value-list">
+          {visibleValues.map(({ value, label }) => <label key={value}>
+            <input type="checkbox" checked={activeField.selectedValues.includes(value)} onChange={() => activeField.onToggle(value)} />
+            <span>{label}</span>
+          </label>)}
+          {!visibleValues.length ? <p>没有匹配的值</p> : null}
+        </div>
+      </section> : null}
+    </div>
+  </div>;
+}
+
+function TagFilterSidebar({ fields, activeFieldKey, selectedValues, onActiveFieldChange, onToggle, onReset }) {
+  const activeField = fields.find(({ key }) => key === activeFieldKey) || fields[0];
+  return <aside className="list-tag-sidebar" aria-label="标签筛选">
+    <header>
+      <strong>标签筛选</strong>
+      <button type="button" onClick={onReset}>清空</button>
+    </header>
+    <div className="list-tag-sidebar__tabs" role="tablist" aria-label="标签字段">
+      {fields.map((field) => <button
+        type="button"
+        role="tab"
+        aria-selected={field.key === activeField?.key}
+        className={field.key === activeField?.key ? "list-tag-sidebar__tab--active" : ""}
+        key={field.key}
+        onClick={() => onActiveFieldChange(field.key)}
+      >{field.label}</button>)}
+    </div>
+    <div className="list-tag-sidebar__values" role="group" aria-label={activeField?.label}>
+      {activeField?.values.map((tag) => <button
+        type="button"
+        aria-pressed={selectedValues[activeField.key]?.includes(tag.value) || false}
+        className={selectedValues[activeField.key]?.includes(tag.value) ? "list-tag-sidebar__value--active" : ""}
+        key={tag.value}
+        onClick={() => onToggle(activeField.key, tag.value)}
+      ><span><i aria-hidden="true" />{tag.label}</span><small>{tag.count}</small></button>)}
+      {!activeField?.values.length ? <p>暂无可筛选的标签</p> : null}
+    </div>
+  </aside>;
+}
+
+function ListViewConfigPanel({ idPrefix, columns, groupOptions, viewMode, onViewModeChange, groupBy, onGroupByChange, subGroupBy, onSubGroupByChange, showEmptyGroups, onShowEmptyGroupsChange, sort, onSortChange, visibleColumns, onToggleColumn, onReset }) {
   return <div className="list-view-config-panel">
     <header className="list-view-config-panel__header">
       <strong>视图配置</strong>
       <button type="button" onClick={onReset}>重置</button>
     </header>
+    <div className="list-view-mode" role="group" aria-label="视图类型">
+      <button className={viewMode === "list" ? "list-view-mode--active" : ""} type="button" onClick={() => onViewModeChange("list")}>☰ 列表</button>
+      <button className={viewMode === "board" ? "list-view-mode--active" : ""} type="button" onClick={() => onViewModeChange("board")}>▦ 看板</button>
+    </div>
     <div className="list-view-config-section">
       <label htmlFor={`${idPrefix}-group-by`}>分组</label>
       <select id={`${idPrefix}-group-by`} value={groupBy} onChange={(event) => onGroupByChange(event.target.value)}>
         {groupOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+      </select>
+    </div>
+    <div className="list-view-config-section">
+      <label htmlFor={`${idPrefix}-sub-group-by`}>子分组</label>
+      <select id={`${idPrefix}-sub-group-by`} value={subGroupBy} disabled={groupBy === "none"} onChange={(event) => onSubGroupByChange(event.target.value)}>
+        {groupOptions.filter(([value]) => value === "none" || value !== groupBy).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
       </select>
     </div>
     <div className="list-view-config-section list-view-config-section--ordering">
@@ -327,6 +388,11 @@ function ListViewConfigPanel({ idPrefix, columns, groupOptions, groupBy, onGroup
         <button className={sort.direction === "desc" ? "list-view-direction--active" : ""} type="button" aria-label="降序" title="降序" onClick={() => onSortChange({ ...sort, direction: "desc" })}>↓</button>
       </div>
     </div>
+    <label className="list-view-toggle">
+      <span>显示空分组</span>
+      <input type="checkbox" checked={showEmptyGroups} disabled={groupBy === "none"} onChange={(event) => onShowEmptyGroupsChange(event.target.checked)} />
+      <i aria-hidden="true" />
+    </label>
     <fieldset className="list-view-fields">
       <legend>显示字段</legend>
       <div>
@@ -344,18 +410,92 @@ function ListViewConfigPanel({ idPrefix, columns, groupOptions, groupBy, onGroup
   </div>;
 }
 
-function GroupedList({ groups, collapsedGroups, onToggleGroup, renderTable }) {
+function GroupedList({ groups, collapsedGroups, onToggleGroup, collapsedSubgroups, onToggleSubgroup, renderTable }) {
   return <div className="grouped-list">{groups.map((group) => {
     const collapsed = collapsedGroups.includes(group.key);
     return <section className="grouped-list__section" key={group.key}>
       <button className="grouped-list__header" type="button" aria-expanded={!collapsed} onClick={() => onToggleGroup(group.key)}>
         <svg className={collapsed ? "grouped-list__chevron--collapsed" : ""} viewBox="0 0 12 12" aria-hidden="true"><path d="m3 4 3 3 3-3" /></svg>
         <strong>{group.label}</strong>
-        <span>{group.items.length}</span>
+        <span>{group.items.length} 条</span>
       </button>
-      {!collapsed ? <div className="data-table-wrap">{renderTable(group.items)}</div> : null}
+      {!collapsed ? group.subgroups?.length ? <div className="grouped-list__subgroups">{group.subgroups.map((subgroup) => <section className="grouped-list__subgroup" key={subgroup.key}>
+        <button className="grouped-list__subgroup-header" type="button" aria-expanded={!collapsedSubgroups.includes(subgroup.key)} onClick={() => onToggleSubgroup(subgroup.key)}>
+          <svg className={collapsedSubgroups.includes(subgroup.key) ? "grouped-list__chevron--collapsed" : ""} viewBox="0 0 12 12" aria-hidden="true"><path d="m3 4 3 3 3-3" /></svg>
+          <strong>{subgroup.label}</strong>
+          <span>{subgroup.items.length} 条</span>
+        </button>
+        {!collapsedSubgroups.includes(subgroup.key) ? <div className="data-table-wrap">{renderTable(subgroup.items)}</div> : null}
+      </section>)}</div> : <div className="data-table-wrap">{renderTable(group.items)}</div> : null}
     </section>;
   })}</div>;
+}
+
+function LarkTicketCard({ item, visibleColumns }) {
+  const columns = LARK_TICKET_VIEW_COLUMNS.filter(({ key }) => key !== "title" && visibleColumns.includes(key));
+  return <article className="kanban-card">
+    <a className="table-link kanban-card__title" href={getLarkTicketDetailHash(item.recordId)}>{item.title || item.ticketNumber || item.recordId}</a>
+    <small>{item.ticketNumber || item.recordId}</small>
+    {columns.length ? <dl>{columns.map((column) => <div key={column.key}><dt>{column.label}</dt><dd><LarkTicketCell columnKey={column.key} item={item} /></dd></div>)}</dl> : null}
+  </article>;
+}
+
+function MeegleWorkitemCard({ item, visibleColumns }) {
+  const columns = MEEGLE_VIEW_COLUMNS.filter(({ key }) => key !== "workitem" && visibleColumns.includes(key));
+  return <article className="kanban-card">
+    <ExternalLink className="table-link kanban-card__title" href={getMeegleWorkitemDetailUrl(item)}>{item.workItemKey || item.workItemId || item.title}</ExternalLink>
+    <small>{item.title}</small>
+    {columns.length ? <dl>{columns.map((column) => <div key={column.key}><dt>{column.label}</dt><dd><MeegleWorkitemCell columnKey={column.key} item={item} /></dd></div>)}</dl> : null}
+  </article>;
+}
+
+function KanbanBoard({ groups, collapsedSubgroups, onToggleSubgroup, renderCard }) {
+  const hasSubgroups = groups.some((group) => group.subgroups?.length);
+  if (!hasSubgroups) {
+    return <div className="kanban-board">{groups.map((group) => <section className="kanban-board__column" key={group.key}>
+      <header><strong>{group.label}</strong><span>{group.items.length} 条</span></header>
+      <div>{group.items.map(renderCard)}</div>
+    </section>)}</div>;
+  }
+
+  const swimlanes = [];
+  const seen = new Set();
+  for (const group of groups) {
+    for (const subgroup of group.subgroups || []) {
+      const key = subgroup.subgroupKey || subgroup.key;
+      if (!seen.has(key)) {
+        seen.add(key);
+        swimlanes.push({ key, label: subgroup.label });
+      }
+    }
+  }
+  const gridStyle = { gridTemplateColumns: `repeat(${groups.length}, minmax(220px, 260px))` };
+
+  return <div className="kanban-board kanban-board--swimlanes">
+    <div className="kanban-board__group-headers" style={gridStyle}>{groups.map((group) => <header key={group.key}><strong>{group.label}</strong><span>{group.items.length} 条</span></header>)}</div>
+    {swimlanes.map((lane) => {
+      const collapseKey = `kanban:${lane.key}`;
+      const collapsed = collapsedSubgroups.includes(collapseKey);
+      return <section className="kanban-swimlane" key={lane.key}>
+        <button className="kanban-swimlane__header" type="button" aria-expanded={!collapsed} onClick={() => onToggleSubgroup(collapseKey)}>
+          <svg className={collapsed ? "grouped-list__chevron--collapsed" : ""} viewBox="0 0 12 12" aria-hidden="true"><path d="m3 4 3 3 3-3" /></svg>
+          <strong>{lane.label}</strong>
+          <span>{groups.reduce((count, group) => count + ((group.subgroups || []).find((subgroup) => (subgroup.subgroupKey || subgroup.key) === lane.key)?.items.length || 0), 0)} 条</span>
+        </button>
+        {!collapsed ? <div className="kanban-swimlane__content" style={gridStyle}>{groups.map((group) => {
+          const subgroup = (group.subgroups || []).find((candidate) => (candidate.subgroupKey || candidate.key) === lane.key);
+          return <div className="kanban-swimlane__cell" key={group.key}>{subgroup?.items.map(renderCard)}</div>;
+        })}</div> : null}
+      </section>;
+    })}
+  </div>;
+}
+
+function getDefaultCollapsedSubgroupKeys(groups) {
+  return [...new Set(groups.flatMap((group) => (group.subgroups || []).flatMap((subgroup) => [
+    subgroup.key,
+    `kanban:${subgroup.subgroupKey || subgroup.key}`,
+  ])))];
 }
 
 function SyncedListTable({ kind, items, sort, onSort, larkVisibleColumns = DEFAULT_LARK_TICKET_VISIBLE_COLUMNS, meegleVisibleColumns = DEFAULT_MEEGLE_VISIBLE_COLUMNS }) {
@@ -375,11 +515,19 @@ function SyncedListTable({ kind, items, sort, onSort, larkVisibleColumns = DEFAU
 export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, breadcrumbs, platformListFilterState, onPlatformListFilterStateChange }) {
   const restoredFilters = platformListFilterState || {};
   const [state, setState] = useState({ status: "loading", items: [], sprints: [] });
-  const [query, setQuery] = useState(() => restoredFilters.query || "");
   const [selectedStatuses, setSelectedStatuses] = useState(() => restoredFilters.selectedStatuses || null);
-  const [dateFilter, setDateFilter] = useState(() => restoredFilters.dateFilter || "all-time");
-  const [sprintFilter, setSprintFilter] = useState(() => restoredFilters.sprintFilter || "");
+  const [selectedDateFilters, setSelectedDateFilters] = useState(() => normalizeFilterValues(
+    restoredFilters.selectedDateFilters,
+    restoredFilters.dateFilter && restoredFilters.dateFilter !== "all-time" ? [restoredFilters.dateFilter] : [],
+  ));
+  const [selectedSprints, setSelectedSprints] = useState(() => normalizeFilterValues(
+    restoredFilters.selectedSprints,
+    restoredFilters.sprintFilter ? [restoredFilters.sprintFilter] : [],
+  ));
   const [noSprintFilter, setNoSprintFilter] = useState(() => Boolean(restoredFilters.noSprintFilter));
+  const [selectedTagFilters, setSelectedTagFilters] = useState(() => Object.fromEntries(Object.entries(restoredFilters.selectedTagFilters || {})
+    .filter(([, values]) => Array.isArray(values))
+    .map(([key, values]) => [key, normalizeFilterValues(values)])));
   const [githubQuickFilter, setGithubQuickFilter] = useState(() => restoredFilters.githubQuickFilter || "all");
   const [larkTicketQuickFilter, setLarkTicketQuickFilter] = useState(() => restoredFilters.larkTicketQuickFilter || "all");
   const [workitemTypeFilter, setWorkitemTypeFilter] = useState(() => restoredFilters.workitemTypeFilter || "all");
@@ -389,46 +537,94 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
     return restoredFilters.sort || DEFAULT_SORT;
   });
   const [larkGroupBy, setLarkGroupBy] = useState(() => normalizeLarkTicketGroupBy(restoredFilters.larkGroupBy));
+  const [larkSubGroupBy, setLarkSubGroupBy] = useState(() => normalizeLarkTicketSubGroupBy(restoredFilters.larkSubGroupBy, normalizeLarkTicketGroupBy(restoredFilters.larkGroupBy)));
+  const [larkViewMode, setLarkViewMode] = useState(() => normalizeLarkTicketViewMode(restoredFilters.larkViewMode));
+  const [larkShowEmptyGroups, setLarkShowEmptyGroups] = useState(() => Boolean(restoredFilters.larkShowEmptyGroups));
   const [larkVisibleColumns, setLarkVisibleColumns] = useState(() => normalizeLarkTicketVisibleColumns(restoredFilters.larkVisibleColumns));
   const [collapsedLarkGroups, setCollapsedLarkGroups] = useState(() => Array.isArray(restoredFilters.collapsedLarkGroups)
     ? [...new Set(restoredFilters.collapsedLarkGroups.filter((key) => typeof key === "string"))]
     : []);
+  const [collapsedLarkSubgroups, setCollapsedLarkSubgroups] = useState(() => Array.isArray(restoredFilters.collapsedLarkSubgroups)
+    ? [...new Set(restoredFilters.collapsedLarkSubgroups.filter((key) => typeof key === "string"))]
+    : []);
   const [meegleGroupBy, setMeegleGroupBy] = useState(() => normalizeMeegleGroupBy(restoredFilters.meegleGroupBy));
+  const [meegleSubGroupBy, setMeegleSubGroupBy] = useState(() => normalizeMeegleSubGroupBy(restoredFilters.meegleSubGroupBy, normalizeMeegleGroupBy(restoredFilters.meegleGroupBy)));
+  const [meegleViewMode, setMeegleViewMode] = useState(() => normalizeMeegleViewMode(restoredFilters.meegleViewMode));
+  const [meegleShowEmptyGroups, setMeegleShowEmptyGroups] = useState(() => Boolean(restoredFilters.meegleShowEmptyGroups));
   const [meegleVisibleColumns, setMeegleVisibleColumns] = useState(() => normalizeMeegleVisibleColumns(restoredFilters.meegleVisibleColumns));
   const [collapsedMeegleGroups, setCollapsedMeegleGroups] = useState(() => Array.isArray(restoredFilters.collapsedMeegleGroups)
     ? [...new Set(restoredFilters.collapsedMeegleGroups.filter((key) => typeof key === "string"))]
     : []);
+  const [collapsedMeegleSubgroups, setCollapsedMeegleSubgroups] = useState(() => Array.isArray(restoredFilters.collapsedMeegleSubgroups)
+    ? [...new Set(restoredFilters.collapsedMeegleSubgroups.filter((key) => typeof key === "string"))]
+    : []);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [activeFilterField, setActiveFilterField] = useState(null);
+  const [filterFieldQuery, setFilterFieldQuery] = useState("");
+  const [filterValueQuery, setFilterValueQuery] = useState("");
+  const [activeTagFilterField, setActiveTagFilterField] = useState(null);
+  const [tagSidebarOpen, setTagSidebarOpen] = useState(() => restoredFilters.tagSidebarOpen !== false);
   const [viewConfigOpen, setViewConfigOpen] = useState(false);
   const [pageIndex, setPageIndex] = useState(() => restoredFilters.pageIndex || 0);
   const [reloadVersion, setReloadVersion] = useState(0);
   const [resetError, setResetError] = useState("");
   const [isResettingDevopsCache, setIsResettingDevopsCache] = useState(false);
-  const searchInputRef = useRef(null);
   const filterStateRef = useRef(null);
+  const larkSubgroupDefaultsRef = useRef(Array.isArray(restoredFilters.collapsedLarkSubgroups) ? "restored" : null);
+  const meegleSubgroupDefaultsRef = useRef(Array.isArray(restoredFilters.collapsedMeegleSubgroups) ? "restored" : null);
   const statusFilters = [...new Set(state.items.map((item) => getPlatformItemStatus(page, item)))].sort((left, right) => left.localeCompare(right));
-  const itemsBeforeTypeFilter = filterPlatformItems(state.items, query)
+  const itemsBeforeTypeFilter = state.items
     .filter((item) => selectedStatuses === null || selectedStatuses.includes(getPlatformItemStatus(page, item)))
-    .filter((item) => matchesDateFilter(item, dateFilter));
+    .filter((item) => matchesSelectedDateFilters(item, selectedDateFilters))
+    .filter((item) => page !== "meegle-workitems" || matchesSelectedSprints(item, selectedSprints));
   const workitemTypeCounts = Object.fromEntries(MEEGLE_WORKITEM_TYPE_FILTERS.map(([value]) => [value, value === "all" ? itemsBeforeTypeFilter.length : itemsBeforeTypeFilter.filter((item) => getMeegleWorkitemCategory(item) === value).length]));
   const githubId = profile.user?.githubId;
   const myOpenPullRequestCount = page === "github-pull-requests"
     ? countMyOpenGitHubPullRequests(state.items, githubId)
     : 0;
-  const filteredItems = itemsBeforeTypeFilter
+  const itemsAfterQuickFilters = itemsBeforeTypeFilter
     .filter((item) => page !== "github-pull-requests" || matchesGitHubPullRequestQuickFilter(item, githubQuickFilter, githubId))
     .filter((item) => page !== "lark-tickets" || matchesLarkTicketQuickFilter(item, larkTicketQuickFilter))
     .filter((item) => page !== "meegle-workitems" || !noSprintFilter || !item.sprint)
     .filter((item) => page !== "meegle-workitems" || workitemTypeFilter === "all" || getMeegleWorkitemCategory(item) === workitemTypeFilter);
+  const tagFilterFields = page === "lark-tickets" ? [
+    { key: "issueType", label: "Issue 类型", getValues: (item) => [item.issueType] },
+    { key: "priority", label: "紧急度", getValues: (item) => [item.priority] },
+    { key: "responsible", label: "负责人", getValues: (item) => String(item.responsible || "").split(/[,，]/) },
+  ] : page === "meegle-workitems" ? [
+    { key: "sprint", label: "Sprint", getValues: (item) => [item.sprint] },
+    { key: "project", label: "项目", getValues: (item) => [item.projectName || item.projectKey] },
+    { key: "priority", label: "优先级", getValues: (item) => [item.priority] },
+  ] : [];
+  const tagFilterFieldsWithCounts = tagFilterFields.map((field) => ({
+    ...field,
+    values: countFilterValues(itemsAfterQuickFilters, field.getValues),
+  }));
+  const filteredItems = itemsAfterQuickFilters
+    .filter((item) => matchesSelectedTagFilters(item, tagFilterFields, selectedTagFilters));
   const sortedItems = page === "lark-tickets"
     ? sortLarkTickets(filteredItems, sort)
     : page === "meegle-workitems"
       ? sortMeegleWorkitems(filteredItems, sort)
       : sortPlatformItems(filteredItems, page, sort);
-  const larkGroups = page === "lark-tickets" ? groupLarkTickets(sortedItems, larkGroupBy) : [];
-  const meegleGroups = page === "meegle-workitems" ? groupMeegleWorkitems(sortedItems, meegleGroupBy) : [];
-  const isLarkGrouped = page === "lark-tickets" && larkGroupBy !== "none";
-  const isMeegleGrouped = page === "meegle-workitems" && meegleGroupBy !== "none";
+  const larkGroups = page === "lark-tickets" ? groupLarkTickets(sortedItems, larkGroupBy, {
+    subGroupBy: larkSubGroupBy,
+    showEmptyGroups: larkShowEmptyGroups,
+    groupValues: state.items,
+    subGroupValues: state.items,
+  }) : [];
+  const meegleGroups = page === "meegle-workitems" ? groupMeegleWorkitems(sortedItems, meegleGroupBy, {
+    subGroupBy: meegleSubGroupBy,
+    showEmptyGroups: meegleShowEmptyGroups,
+    groupValues: state.items,
+    subGroupValues: state.items,
+  }) : [];
+  const isLarkBoard = page === "lark-tickets" && larkViewMode === "board";
+  const isMeegleBoard = page === "meegle-workitems" && meegleViewMode === "board";
+  const isLarkGrouped = page === "lark-tickets" && larkViewMode === "list" && larkGroupBy !== "none";
+  const isMeegleGrouped = page === "meegle-workitems" && meegleViewMode === "list" && meegleGroupBy !== "none";
+  const canShowConfiguredEmptyGroups = (page === "lark-tickets" && larkShowEmptyGroups && larkGroupBy !== "none" && larkGroups.length > 0)
+    || (page === "meegle-workitems" && meegleShowEmptyGroups && meegleGroupBy !== "none" && meegleGroups.length > 0);
   const pageCount = Math.max(1, Math.ceil(sortedItems.length / LIST_PAGE_SIZE));
   const currentPageIndex = Math.min(pageIndex, pageCount - 1);
   const pageItems = sortedItems.slice(currentPageIndex * LIST_PAGE_SIZE, (currentPageIndex + 1) * LIST_PAGE_SIZE);
@@ -436,21 +632,30 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
   const lastResult = Math.min((currentPageIndex + 1) * LIST_PAGE_SIZE, sortedItems.length);
 
   filterStateRef.current = {
-    query,
     selectedStatuses,
-    dateFilter,
-    sprintFilter,
+    selectedDateFilters,
+    selectedSprints,
     noSprintFilter,
+    selectedTagFilters,
+    tagSidebarOpen,
     githubQuickFilter,
     larkTicketQuickFilter,
     workitemTypeFilter,
     sort,
     larkGroupBy,
+    larkSubGroupBy,
+    larkViewMode,
+    larkShowEmptyGroups,
     larkVisibleColumns,
     collapsedLarkGroups,
+    collapsedLarkSubgroups,
     meegleGroupBy,
+    meegleSubGroupBy,
+    meegleViewMode,
+    meegleShowEmptyGroups,
     meegleVisibleColumns,
     collapsedMeegleGroups,
+    collapsedMeegleSubgroups,
     pageIndex,
   };
 
@@ -459,12 +664,44 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
   useEffect(() => {
     let active = true;
     setState((current) => ({ status: "loading", items: [], sprints: current.sprints }));
-    void getPlatformDataList({ apiBaseUrl, kind: page, sprint: sprintFilter || undefined }).then(
+    void getPlatformDataList({ apiBaseUrl, kind: page }).then(
       (result) => { if (active) setState({ status: "ready", items: result.items, sprints: result.sprints || [] }); },
       () => { if (active) setState({ status: "error", items: [], sprints: [] }); },
     );
     return () => { active = false; };
-  }, [apiBaseUrl, page, reloadVersion, sprintFilter]);
+  }, [apiBaseUrl, page, reloadVersion]);
+
+  useEffect(() => {
+    if (page !== "lark-tickets" || !larkGroups.some((group) => group.subgroups?.length)) {
+      return;
+    }
+    const configKey = `${larkGroupBy}:${larkSubGroupBy}:${larkShowEmptyGroups}`;
+    if (larkSubgroupDefaultsRef.current === "restored") {
+      larkSubgroupDefaultsRef.current = configKey;
+      return;
+    }
+    if (larkSubgroupDefaultsRef.current === configKey) {
+      return;
+    }
+    larkSubgroupDefaultsRef.current = configKey;
+    setCollapsedLarkSubgroups(getDefaultCollapsedSubgroupKeys(larkGroups));
+  }, [larkGroupBy, larkGroups, larkShowEmptyGroups, larkSubGroupBy, page]);
+
+  useEffect(() => {
+    if (page !== "meegle-workitems" || !meegleGroups.some((group) => group.subgroups?.length)) {
+      return;
+    }
+    const configKey = `${meegleGroupBy}:${meegleSubGroupBy}:${meegleShowEmptyGroups}`;
+    if (meegleSubgroupDefaultsRef.current === "restored") {
+      meegleSubgroupDefaultsRef.current = configKey;
+      return;
+    }
+    if (meegleSubgroupDefaultsRef.current === configKey) {
+      return;
+    }
+    meegleSubgroupDefaultsRef.current = configKey;
+    setCollapsedMeegleSubgroups(getDefaultCollapsedSubgroupKeys(meegleGroups));
+  }, [meegleGroupBy, meegleGroups, meegleShowEmptyGroups, meegleSubGroupBy, page]);
 
   async function resetAllDevopsCache() {
     setResetError("");
@@ -483,24 +720,13 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
   }
 
   useKeyboardShortcut({
-    key: "/",
-    enabled: state.status === "ready" && state.items.length > 0,
-    handler: (event) => {
-      event.preventDefault();
-      setViewConfigOpen(false);
-      setFilterOpen(true);
-      requestAnimationFrame(() => searchInputRef.current?.focus());
-    },
-  });
-
-  useKeyboardShortcut({
     key: "Escape",
     enabled: filterOpen || viewConfigOpen,
     allowInEditableTarget: true,
     handler: (event) => {
       event.preventDefault();
-      searchInputRef.current?.blur();
       setFilterOpen(false);
+      setActiveFilterField(null);
       setViewConfigOpen(false);
     },
   });
@@ -532,6 +758,69 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
       : [...current, key]));
   }
 
+  function toggleStatusFilter(status) {
+    setSelectedStatuses((current) => {
+      const selected = current ?? statusFilters;
+      return selected.includes(status) ? selected.filter((item) => item !== status) : [...selected, status];
+    });
+    setPageIndex(0);
+  }
+
+  function resetListFilters() {
+    setSelectedStatuses(null);
+    setSelectedDateFilters([]);
+    setSelectedSprints([]);
+    setNoSprintFilter(false);
+    setSelectedTagFilters({});
+    setGithubQuickFilter("all");
+    setLarkTicketQuickFilter("all");
+    setWorkitemTypeFilter("all");
+    setPageIndex(0);
+  }
+
+  function toggleTagFilter(fieldKey, value) {
+    setSelectedTagFilters((current) => ({
+      ...current,
+      [fieldKey]: toggleFilterValue(current[fieldKey] || [], value),
+    }));
+    setPageIndex(0);
+  }
+
+  const listFilterFields = [
+    {
+      key: "status",
+      label: "状态",
+      values: statusFilters.map((status) => ({ value: status, label: status })),
+      selectedValues: selectedStatuses ?? statusFilters,
+      isFiltered: selectedStatuses !== null,
+      onToggle: toggleStatusFilter,
+    },
+    {
+      key: "updated-at",
+      label: "更新时间",
+      values: DATE_FILTERS.map(([value, label]) => ({ value, label })),
+      selectedValues: selectedDateFilters,
+      isFiltered: selectedDateFilters.length > 0,
+      onToggle: (value) => {
+        setSelectedDateFilters((current) => toggleFilterValue(current, value));
+        setPageIndex(0);
+      },
+    },
+    ...(page === "meegle-workitems" ? [{
+      key: "sprint",
+      label: "Sprint",
+      values: state.sprints.map((sprint) => ({ value: sprint, label: sprint })),
+      selectedValues: selectedSprints,
+      isFiltered: selectedSprints.length > 0,
+      onToggle: (value) => {
+        setSelectedSprints((current) => toggleFilterValue(current, value));
+        setNoSprintFilter(false);
+        setSelectedStatuses(null);
+        setPageIndex(0);
+      },
+    }] : []),
+  ];
+
   return <WorkspaceShell user={profile.user ?? {}} workspaceAccess={profile.workspaceAccess} activePage={page} onLogout={onLogout} isBusy={isBusy} breadcrumbs={breadcrumbs}>
     <section className="profile-main list-page">
       <section className="list-section">
@@ -552,7 +841,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
               type="button"
               onClick={() => {
                 setNoSprintFilter((enabled) => !enabled);
-                setSprintFilter("");
+                setSelectedSprints([]);
                 setPageIndex(0);
               }}
             >No Sprint</button>
@@ -577,22 +866,6 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
           </div> : null}
           <div className="list-toolbar__actions">
             {page === "github-pull-requests" ? <button className="secondary-button" type="button" disabled={isResettingDevopsCache} onClick={resetAllDevopsCache}>{isResettingDevopsCache ? "清除中…" : "清除 DevOps 缓存"}</button> : null}
-            {page === "meegle-workitems" ? <label className="list-date-filter list-sprint-filter">
-              <span className="visually-hidden">按 Sprint 筛选</span>
-              <select value={sprintFilter} onChange={(event) => { setSprintFilter(event.target.value); setNoSprintFilter(false); setSelectedStatuses(null); setPageIndex(0); }}>
-                <option value="">全部 Sprint</option>
-                {state.sprints.map((sprint) => <option value={sprint} key={sprint}>{sprint}</option>)}
-              </select>
-              <svg className="list-date-filter__chevron" viewBox="0 0 12 8" aria-hidden="true"><path d="m1 1 5 5 5-5" /></svg>
-            </label> : null}
-            <label className="list-date-filter">
-              <span className="visually-hidden">按更新时间筛选</span>
-              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 0a1 1 0 0 1 1 1v1h6V1a1 1 0 1 1 2 0v1h1a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h1V1a1 1 0 0 1 1-1Zm10 6H2v8h12V6ZM2 4v1h12V4H2Z" /></svg>
-              <select value={dateFilter} onChange={(event) => { setDateFilter(event.target.value); setPageIndex(0); }}>
-                {DATE_FILTERS.map(([value, label]) => <option value={value} key={value}>{label}</option>)}
-              </select>
-              <svg className="list-date-filter__chevron" viewBox="0 0 12 8" aria-hidden="true"><path d="m1 1 5 5 5-5" /></svg>
-            </label>
             {["lark-tickets", "meegle-workitems"].includes(page) ? <div className="list-view-menu">
               <button
                 className={`list-filter-button ${viewConfigOpen ? "list-filter-button--active" : ""}`.trim()}
@@ -610,88 +883,153 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
                 idPrefix="lark-ticket"
                 columns={LARK_TICKET_VIEW_COLUMNS}
                 groupOptions={LARK_TICKET_GROUP_OPTIONS}
+                viewMode={larkViewMode}
+                onViewModeChange={setLarkViewMode}
                 groupBy={larkGroupBy}
                 onGroupByChange={(value) => {
-                  setLarkGroupBy(normalizeLarkTicketGroupBy(value));
+                  const nextGroupBy = normalizeLarkTicketGroupBy(value);
+                  setLarkGroupBy(nextGroupBy);
+                  setLarkSubGroupBy((current) => normalizeLarkTicketSubGroupBy(current, nextGroupBy));
                   setCollapsedLarkGroups([]);
+                  setCollapsedLarkSubgroups([]);
                   setPageIndex(0);
                 }}
+                subGroupBy={larkSubGroupBy}
+                onSubGroupByChange={(value) => {
+                  setLarkSubGroupBy(normalizeLarkTicketSubGroupBy(value, larkGroupBy));
+                  setCollapsedLarkGroups([]);
+                  setCollapsedLarkSubgroups([]);
+                }}
+                showEmptyGroups={larkShowEmptyGroups}
+                onShowEmptyGroupsChange={setLarkShowEmptyGroups}
                 sort={sort}
                 onSortChange={updateLarkViewSort}
                 visibleColumns={larkVisibleColumns}
                 onToggleColumn={toggleLarkColumn}
                 onReset={() => {
+                  setLarkViewMode("list");
                   setLarkGroupBy("status");
+                  setLarkSubGroupBy("none");
+                  setLarkShowEmptyGroups(false);
                   setSort({ ...DEFAULT_LARK_TICKET_SORT });
                   setLarkVisibleColumns([...DEFAULT_LARK_TICKET_VISIBLE_COLUMNS]);
                   setCollapsedLarkGroups([]);
+                  setCollapsedLarkSubgroups([]);
                   setPageIndex(0);
                 }}
               /> : <ListViewConfigPanel
                 idPrefix="meegle"
                 columns={MEEGLE_VIEW_COLUMNS}
                 groupOptions={MEEGLE_GROUP_OPTIONS}
+                viewMode={meegleViewMode}
+                onViewModeChange={setMeegleViewMode}
                 groupBy={meegleGroupBy}
                 onGroupByChange={(value) => {
-                  setMeegleGroupBy(normalizeMeegleGroupBy(value));
+                  const nextGroupBy = normalizeMeegleGroupBy(value);
+                  setMeegleGroupBy(nextGroupBy);
+                  setMeegleSubGroupBy((current) => normalizeMeegleSubGroupBy(current, nextGroupBy));
                   setCollapsedMeegleGroups([]);
+                  setCollapsedMeegleSubgroups([]);
                   setPageIndex(0);
                 }}
+                subGroupBy={meegleSubGroupBy}
+                onSubGroupByChange={(value) => {
+                  setMeegleSubGroupBy(normalizeMeegleSubGroupBy(value, meegleGroupBy));
+                  setCollapsedMeegleGroups([]);
+                  setCollapsedMeegleSubgroups([]);
+                }}
+                showEmptyGroups={meegleShowEmptyGroups}
+                onShowEmptyGroupsChange={setMeegleShowEmptyGroups}
                 sort={sort}
                 onSortChange={updateMeegleViewSort}
                 visibleColumns={meegleVisibleColumns}
                 onToggleColumn={toggleMeegleColumn}
                 onReset={() => {
+                  setMeegleViewMode("list");
                   setMeegleGroupBy("status");
+                  setMeegleSubGroupBy("none");
+                  setMeegleShowEmptyGroups(false);
                   setSort(DEFAULT_SORT);
                   setMeegleVisibleColumns([...DEFAULT_MEEGLE_VISIBLE_COLUMNS]);
                   setCollapsedMeegleGroups([]);
+                  setCollapsedMeegleSubgroups([]);
                   setPageIndex(0);
                 }}
               /> : null}
             </div> : null}
             <div className="list-filter-menu">
-              <button className="list-filter-button" type="button" aria-label="筛选" aria-expanded={filterOpen} onClick={() => {
+              <button className={`list-filter-button ${filterOpen ? "list-filter-button--active" : ""}`.trim()} type="button" aria-label="筛选" aria-expanded={filterOpen} onClick={() => {
                 setViewConfigOpen(false);
-                setFilterOpen((open) => !open);
+                setFilterOpen((open) => {
+                  const next = !open;
+                  if (next) setActiveFilterField(null);
+                  return next;
+                });
               }}>
                 <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M0 3a1 1 0 0 1 1-1h14a1 1 0 1 1 0 2H1a1 1 0 1 1 0-2H1a1 1 0 0 1-1-1Zm3 5a1 1 0 0 1 1-1h8a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm4 4a1 1 0 1 0 0 2h2a1 1 0 1 0 0-2H7Z" /></svg>
               </button>
-              {filterOpen ? <div className="list-filter-menu__panel">
-                <label className="list-filter-menu__search">
-                  <span className="visually-hidden">搜索当前列表</span>
-                  <input ref={searchInputRef} type="search" autoFocus value={query} onChange={(event) => { setQuery(event.target.value); setPageIndex(0); }} placeholder="搜索" />
-                </label>
-                <fieldset className="list-status-checkboxes">
-                  <legend>状态</legend>
-                  {statusFilters.map((status) => <label key={status}>
-                    <input
-                      type="checkbox"
-                      checked={selectedStatuses === null || selectedStatuses.includes(status)}
-                      onChange={() => {
-                        setSelectedStatuses((current) => {
-                          const selected = current ?? statusFilters;
-                          return selected.includes(status) ? selected.filter((item) => item !== status) : [...selected, status];
-                        });
-                        setPageIndex(0);
-                      }}
-                    />
-                    {status}
-                  </label>)}
-                </fieldset>
-              </div> : null}
+              {filterOpen ? <ListFilterPanel
+                fields={listFilterFields}
+                activeFieldKey={activeFilterField}
+                onActiveFieldChange={setActiveFilterField}
+                fieldQuery={filterFieldQuery}
+                onFieldQueryChange={setFilterFieldQuery}
+                valueQuery={filterValueQuery}
+                onValueQueryChange={setFilterValueQuery}
+                onReset={resetListFilters}
+              /> : null}
             </div>
+            {tagFilterFields.length ? <button
+              className={`list-filter-button ${tagSidebarOpen ? "list-filter-button--active" : ""}`.trim()}
+              type="button"
+              aria-label="显示标签筛选侧栏"
+              aria-expanded={tagSidebarOpen}
+              title="显示标签筛选侧栏"
+              onClick={() => setTagSidebarOpen((open) => !open)}
+            >
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 2h12v12H2V2Zm2 2v8h4V4H4Zm6 0v8h2V4h-2Z" /></svg>
+            </button> : null}
           </div>
         </div> : null}
-        {state.status === "ready" && state.items.length > 0 && filteredItems.length === 0 ? <p className="list-message">未找到匹配的数据。</p> : null}
-        {state.status === "ready" && filteredItems.length > 0 ? <>
-          {isLarkGrouped ? <>
+        {state.status === "ready" && state.items.length > 0 && filteredItems.length === 0 && !canShowConfiguredEmptyGroups ? <p className="list-message">未找到匹配的数据。</p> : null}
+        {state.status === "ready" && state.items.length > 0 ? <div className={`list-results-layout ${tagSidebarOpen && tagFilterFieldsWithCounts.length ? "list-results-layout--with-sidebar" : ""}`.trim()}>
+          <div className="list-results-layout__main">
+          {filteredItems.length > 0 || canShowConfiguredEmptyGroups ? <>
+          {isLarkBoard ? <>
+            <KanbanBoard
+              groups={larkGroups}
+              collapsedSubgroups={collapsedLarkSubgroups}
+              onToggleSubgroup={(subgroupKey) => setCollapsedLarkSubgroups((current) => current.includes(subgroupKey)
+                ? current.filter((key) => key !== subgroupKey)
+                : [...current, subgroupKey])}
+              renderCard={(item, index) => <LarkTicketCard item={item} visibleColumns={larkVisibleColumns} key={item.recordId || `${item.baseId || "base"}-${item.tableId || "table"}-${index}`} />}
+            />
+            <footer className="list-pagination">
+              <p className="list-results">共 <strong>{sortedItems.length}</strong> 条结果 · {larkGroups.length} 个分组</p>
+            </footer>
+          </> : isMeegleBoard ? <>
+            <KanbanBoard
+              groups={meegleGroups}
+              collapsedSubgroups={collapsedMeegleSubgroups}
+              onToggleSubgroup={(subgroupKey) => setCollapsedMeegleSubgroups((current) => current.includes(subgroupKey)
+                ? current.filter((key) => key !== subgroupKey)
+                : [...current, subgroupKey])}
+              renderCard={(item) => <MeegleWorkitemCard item={item} visibleColumns={meegleVisibleColumns} key={`${item.projectKey}-${item.workItemTypeKey}-${item.workItemId}`} />}
+            />
+            <footer className="list-pagination">
+              <p className="list-results">共 <strong>{sortedItems.length}</strong> 条结果 · {meegleGroups.length} 个分组</p>
+            </footer>
+          </> : isLarkGrouped ? <>
             <GroupedList
               groups={larkGroups}
               collapsedGroups={collapsedLarkGroups}
               onToggleGroup={(groupKey) => setCollapsedLarkGroups((current) => current.includes(groupKey)
                 ? current.filter((key) => key !== groupKey)
                 : [...current, groupKey])}
+              collapsedSubgroups={collapsedLarkSubgroups}
+              onToggleSubgroup={(subgroupKey) => setCollapsedLarkSubgroups((current) => current.includes(subgroupKey)
+                ? current.filter((key) => key !== subgroupKey)
+                : [...current, subgroupKey])}
               renderTable={(items) => <LarkTicketsTable items={items} sort={sort} onSort={updateSort} visibleColumns={larkVisibleColumns} />}
             />
             <footer className="list-pagination">
@@ -704,6 +1042,10 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
               onToggleGroup={(groupKey) => setCollapsedMeegleGroups((current) => current.includes(groupKey)
                 ? current.filter((key) => key !== groupKey)
                 : [...current, groupKey])}
+              collapsedSubgroups={collapsedMeegleSubgroups}
+              onToggleSubgroup={(subgroupKey) => setCollapsedMeegleSubgroups((current) => current.includes(subgroupKey)
+                ? current.filter((key) => key !== subgroupKey)
+                : [...current, subgroupKey])}
               renderTable={(items) => <MeegleWorkitemsTable items={items} sort={sort} onSort={updateSort} visibleColumns={meegleVisibleColumns} />}
             />
             <footer className="list-pagination">
@@ -720,7 +1062,20 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
               </div>
             </footer>
           </>}
-        </> : null}
+          </> : null}
+          </div>
+          {tagSidebarOpen && tagFilterFieldsWithCounts.length ? <TagFilterSidebar
+            fields={tagFilterFieldsWithCounts}
+            activeFieldKey={activeTagFilterField}
+            selectedValues={selectedTagFilters}
+            onActiveFieldChange={setActiveTagFilterField}
+            onToggle={toggleTagFilter}
+            onReset={() => {
+              setSelectedTagFilters({});
+              setPageIndex(0);
+            }}
+          /> : null}
+        </div> : null}
       </section>
     </section>
   </WorkspaceShell>;

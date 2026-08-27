@@ -21,6 +21,7 @@ export const MEEGLE_GROUP_OPTIONS = [
 ];
 
 export const DEFAULT_MEEGLE_VISIBLE_COLUMNS = MEEGLE_VIEW_COLUMNS.map(({ key }) => key);
+export const DEFAULT_MEEGLE_VIEW_MODE = "list";
 
 const COLUMN_KEYS = new Set(DEFAULT_MEEGLE_VISIBLE_COLUMNS);
 const GROUP_KEYS = new Set(MEEGLE_GROUP_OPTIONS.map(([key]) => key));
@@ -36,6 +37,17 @@ export function normalizeMeegleVisibleColumns(value) {
 
 export function normalizeMeegleGroupBy(value) {
   return GROUP_KEYS.has(value) ? value : "status";
+}
+
+export function normalizeMeegleSubGroupBy(value, groupBy) {
+  if (groupBy === "none" || value === groupBy || !GROUP_KEYS.has(value)) {
+    return "none";
+  }
+  return value;
+}
+
+export function normalizeMeegleViewMode(value) {
+  return value === "board" ? "board" : DEFAULT_MEEGLE_VIEW_MODE;
 }
 
 export function normalizeMeegleSort(value) {
@@ -78,17 +90,48 @@ export function sortMeegleWorkitems(items, sort) {
   });
 }
 
-export function groupMeegleWorkitems(items, groupBy) {
-  if (groupBy === "none") {
-    return [];
-  }
+function getGroupDescriptor(value) {
+  return value ? { key: value, label: value } : { key: "__unset__", label: "未设置" };
+}
+
+function getConfiguredGroupValues(groupValues, groupBy) {
+  return [...new Set((groupValues || [])
+    .map((item) => getMeegleWorkitemViewValue(item, groupBy))
+    .map((value) => getGroupDescriptor(value).key))];
+}
+
+function createGroups(items, groupBy, groupValues, includeEmptyGroups) {
   const grouped = new Map();
+  if (includeEmptyGroups) {
+    for (const key of getConfiguredGroupValues(groupValues, groupBy)) {
+      const descriptor = key === "__unset__" ? getGroupDescriptor("") : getGroupDescriptor(key);
+      grouped.set(descriptor.key, { ...descriptor, items: [] });
+    }
+  }
   for (const item of items) {
     const value = getMeegleWorkitemViewValue(item, groupBy);
-    const key = value || "__unset__";
-    const group = grouped.get(key) || { key, label: value || "未设置", items: [] };
+    const descriptor = getGroupDescriptor(value);
+    const group = grouped.get(descriptor.key) || { ...descriptor, items: [] };
     group.items.push(item);
-    grouped.set(key, group);
+    grouped.set(descriptor.key, group);
   }
   return [...grouped.values()];
+}
+
+export function groupMeegleWorkitems(items, groupBy, options = {}) {
+  const normalizedGroupBy = normalizeMeegleGroupBy(groupBy);
+  const subGroupBy = normalizeMeegleSubGroupBy(options.subGroupBy, normalizedGroupBy);
+  const primaryGroups = normalizedGroupBy === "none"
+    ? [{ key: "__all__", label: "全部", items: items }]
+    : createGroups(items, normalizedGroupBy, options.groupValues, options.showEmptyGroups);
+
+  if (subGroupBy === "none") {
+    return primaryGroups;
+  }
+
+  return primaryGroups.map((group) => ({
+    ...group,
+    subgroups: createGroups(group.items, subGroupBy, options.subGroupValues, options.showEmptyGroups)
+      .map((subgroup) => ({ ...subgroup, subgroupKey: subgroup.key, key: `${group.key}::${subgroup.key}` })),
+  }));
 }

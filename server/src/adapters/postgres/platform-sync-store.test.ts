@@ -18,7 +18,7 @@ describe("PostgresPlatformSyncStore", () => {
       workItemTypeKey: "story",
       workitem: {
         id: "1", key: "S-1", name: "Original", type: "story", workItemType: "Feature",
-        status: "In Progress", statusKey: "status_started", subStage: "Development", subStageKey: "node_dev", updatedAt: "2026-08-01T00:00:00.000Z", fields: {},
+        status: "In Progress", statusKey: "status_started", subStage: "Development", subStageKey: "node_dev", priority: "P1", updatedAt: "2026-08-01T00:00:00.000Z", fields: {},
       },
     });
     await store.upsertMeegleWorkitem({
@@ -26,7 +26,7 @@ describe("PostgresPlatformSyncStore", () => {
       workItemTypeKey: "story",
       workitem: {
         id: "1", key: "S-1", name: "Updated", type: "story", workItemType: "Feature",
-        status: "Finished", statusKey: "status_finished", subStage: "Done", subStageKey: "node_done", updatedAt: "2026-08-02T00:00:00.000Z", fields: {},
+        status: "Finished", statusKey: "status_finished", subStage: "Done", subStageKey: "node_done", priority: "P0", updatedAt: "2026-08-02T00:00:00.000Z", fields: {},
       },
     });
     await store.upsertMeegleMappings([{
@@ -112,7 +112,7 @@ describe("PostgresPlatformSyncStore", () => {
     await expect(store.listMeegleWorkitems(10)).resolves.toEqual([expect.objectContaining({
       workItemId: "1", title: "Updated", statusKey: "status_finished", status: "Finished",
       subStageKey: "node_done", subStage: "Done",
-      sprint: "Sprint 1", version: "Version 1", bugs: ["Bug 1"],
+      sprint: "Sprint 1", version: "Version 1", bugs: ["Bug 1"], priority: "P0",
     })]);
     await expect(store.listMeegleWorkitems(10, "Sprint 1")).resolves.toHaveLength(1);
     await expect(store.listMeegleWorkitems(10, "Sprint 2")).resolves.toEqual([]);

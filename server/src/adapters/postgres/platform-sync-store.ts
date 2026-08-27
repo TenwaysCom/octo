@@ -70,6 +70,7 @@ export interface MeegleWorkitemSyncItem {
   system?: string;
   bugs?: string[];
   assignee?: string;
+  priority?: string;
   sourcePayload?: MeegleWorkitem;
   sourceUpdatedAt?: string;
   syncedAt: string;
@@ -212,6 +213,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
       sub_stage_key: input.workitem.subStageKey ?? null,
       sub_stage: input.workitem.subStage ?? null,
       assignee: input.workitem.assignee ?? null,
+      priority: input.workitem.priority ?? null,
       payload_json: JSON.stringify(input.workitem),
       source_updated_at: sourceUpdatedAt,
       synced_at: now,
@@ -230,6 +232,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
       sub_stage_key: input.workitem.subStageKey ?? null,
       sub_stage: input.workitem.subStage ?? null,
       assignee: input.workitem.assignee ?? null,
+      priority: input.workitem.priority ?? null,
       payload_json: JSON.stringify(input.workitem),
       source_updated_at: sourceUpdatedAt,
       synced_at: now,
@@ -428,7 +431,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
         .select([
           "project_key", "project_name", "work_item_type_key", "work_item_id", "work_item_key", "title",
           "work_item_type", "status_key", "status", "sub_stage_key", "sub_stage", "sprint", "version",
-          "system", "bugs_json", "assignee", "source_updated_at", "synced_at", "payload_json",
+          "system", "bugs_json", "assignee", "priority", "source_updated_at", "synced_at", "payload_json",
         ])
         .where("project_key", "=", ref.projectKey)
         .where("work_item_type_key", "=", ref.workItemTypeKey)
@@ -637,7 +640,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
         "project_key", "project_name", "work_item_type_key", "work_item_id", "work_item_key", "title",
         "work_item_type", "status_key", "status", "sub_stage_key", "sub_stage",
         "sprint", "version", "system", "bugs_json",
-        "assignee", "source_updated_at", "synced_at",
+        "assignee", "priority", "source_updated_at", "synced_at",
       ]);
     if (sprint) {
       query = query.where("sprint", "=", sprint);
@@ -746,6 +749,7 @@ type MeegleWorkitemSyncRow = {
   system: string | null;
   bugs_json: string | null;
   assignee: string | null;
+  priority: string | null;
   source_updated_at: string | null;
   synced_at: string;
   payload_json?: string;
@@ -813,6 +817,7 @@ function toMeegleWorkitemSyncItem(row: MeegleWorkitemSyncRow): MeegleWorkitemSyn
     system: row.system ?? undefined,
     bugs: parseStringArray(row.bugs_json),
     assignee: row.assignee ?? undefined,
+    priority: row.priority ?? undefined,
     sourcePayload: parseMeegleWorkitem(row.payload_json),
     sourceUpdatedAt: row.source_updated_at ?? undefined,
     syncedAt: row.synced_at,

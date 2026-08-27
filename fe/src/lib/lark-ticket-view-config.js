@@ -19,6 +19,7 @@ export const LARK_TICKET_GROUP_OPTIONS = [
 
 export const DEFAULT_LARK_TICKET_SORT = { key: "status", direction: "asc" };
 export const DEFAULT_LARK_TICKET_VISIBLE_COLUMNS = LARK_TICKET_VIEW_COLUMNS.map(({ key }) => key);
+export const DEFAULT_LARK_TICKET_VIEW_MODE = "list";
 
 const COLUMN_KEYS = new Set(DEFAULT_LARK_TICKET_VISIBLE_COLUMNS);
 const GROUP_KEYS = new Set(LARK_TICKET_GROUP_OPTIONS.map(([key]) => key));
@@ -34,6 +35,17 @@ export function normalizeLarkTicketVisibleColumns(value) {
 
 export function normalizeLarkTicketGroupBy(value) {
   return GROUP_KEYS.has(value) ? value : "status";
+}
+
+export function normalizeLarkTicketSubGroupBy(value, groupBy) {
+  if (groupBy === "none" || value === groupBy || !GROUP_KEYS.has(value)) {
+    return "none";
+  }
+  return value;
+}
+
+export function normalizeLarkTicketViewMode(value) {
+  return value === "board" ? "board" : DEFAULT_LARK_TICKET_VIEW_MODE;
 }
 
 export function normalizeLarkTicketSort(value) {
@@ -75,17 +87,48 @@ export function sortLarkTickets(items, sort) {
   });
 }
 
-export function groupLarkTickets(items, groupBy) {
-  if (groupBy === "none") {
-    return [];
-  }
+function getGroupDescriptor(value) {
+  return value ? { key: value, label: value } : { key: "__unset__", label: "未设置" };
+}
+
+function getConfiguredGroupValues(groupValues, groupBy) {
+  return [...new Set((groupValues || [])
+    .map((item) => getLarkTicketViewValue(item, groupBy))
+    .map((value) => getGroupDescriptor(value).key))];
+}
+
+function createGroups(items, groupBy, groupValues, includeEmptyGroups) {
   const grouped = new Map();
+  if (includeEmptyGroups) {
+    for (const key of getConfiguredGroupValues(groupValues, groupBy)) {
+      const descriptor = key === "__unset__" ? getGroupDescriptor("") : getGroupDescriptor(key);
+      grouped.set(descriptor.key, { ...descriptor, items: [] });
+    }
+  }
   for (const item of items) {
     const value = getLarkTicketViewValue(item, groupBy);
-    const key = value || "__unset__";
-    const group = grouped.get(key) || { key, label: value || "未设置", items: [] };
+    const descriptor = getGroupDescriptor(value);
+    const group = grouped.get(descriptor.key) || { ...descriptor, items: [] };
     group.items.push(item);
-    grouped.set(key, group);
+    grouped.set(descriptor.key, group);
   }
   return [...grouped.values()];
+}
+
+export function groupLarkTickets(items, groupBy, options = {}) {
+  const normalizedGroupBy = normalizeLarkTicketGroupBy(groupBy);
+  const subGroupBy = normalizeLarkTicketSubGroupBy(options.subGroupBy, normalizedGroupBy);
+  const primaryGroups = normalizedGroupBy === "none"
+    ? [{ key: "__all__", label: "全部", items: items }]
+    : createGroups(items, normalizedGroupBy, options.groupValues, options.showEmptyGroups);
+
+  if (subGroupBy === "none") {
+    return primaryGroups;
+  }
+
+  return primaryGroups.map((group) => ({
+    ...group,
+    subgroups: createGroups(group.items, subGroupBy, options.subGroupValues, options.showEmptyGroups)
+      .map((subgroup) => ({ ...subgroup, subgroupKey: subgroup.key, key: `${group.key}::${subgroup.key}` })),
+  }));
 }

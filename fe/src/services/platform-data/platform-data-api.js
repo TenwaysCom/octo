@@ -27,6 +27,7 @@ const MEEGLE_OPTIONAL_STRING_FIELDS = [
   "version",
   "system",
   "assignee",
+  "priority",
   "sourceUpdatedAt",
 ];
 

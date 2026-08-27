@@ -23,6 +23,13 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Fix:** Re-ran the explicit file-scoped `git add` with approved Git metadata access, then committed normally.
 - **Status:** resolved; no source file was lost or staged unintentionally.
 
+## [ERR-20260827-001] fe-node-test-globals
+
+- **Summary:** A new FE unit test used Vitest-style globals, but this package runs `node --test`.
+- **Error:** `ReferenceError: test is not defined` in `platform-list-filters.test.js`.
+- **Fix:** Import `test` from `node:test` and assertions from `node:assert/strict`, matching existing FE tests.
+- **Status:** resolved; `pnpm --dir fe check` passed 56/56 tests and the production build.
+
 ## [ERR-20260821-001] python-pycache-global-cache-permission
 
 - **Summary:** The system `python3 -m py_compile` attempted to write bytecode under the macOS global Python cache, which is outside the workspace sandbox.
@@ -266,3 +273,10 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Error:** PM2 fork mode sets `process.argv[1]` to its container script, so the Worker's direct-entry guard never invoked `runPlatformSyncWorker`; PM2 repeatedly observed a zero-code/SIGINT exit. Separately, both the polling delay and scheduler-disabled wait could release the event loop too early.
 - **Fix:** Recognize PM2's explicit `pm_exec_path` as an executable entrypoint, keep the main polling delay referenced, and use a referenced keep-alive interval while scheduling is disabled. Only auxiliary timers such as lease heartbeats may be unreferenced. Cover direct Node, PM2 fork mode, enabled polling, and disabled waiting in regression tests.
 - **Status:** resolved; 6 focused tests and Server build pass, and the rebuilt PM2 Worker remained `online` with the same PID and `restartTime=0` across more than one 30-second poll while completing real Lark, Meegle, and GitHub schedules.
+
+## [ERR-20260827-002] meegle-priority-projection-incomplete-select
+
+- **Summary:** Adding Meegle priority to the snapshot row type and list projection initially omitted it from the cleaning snapshot query.
+- **Error:** TypeScript reported that the selected row could not satisfy `MeegleWorkitemSyncRow` because `priority` was missing.
+- **Fix:** Add `priority` to every typed Meegle snapshot select that is converted through `toMeegleWorkitemSyncItem`.
+- **Status:** resolved; server build passed after the projection was made consistent.

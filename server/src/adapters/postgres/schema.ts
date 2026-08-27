@@ -148,6 +148,7 @@ export interface DatabaseSchema {
     system: string | null;
     bugs_json: string | null;
     assignee: string | null;
+    priority: string | null;
     payload_json: string;
     source_updated_at: string | null;
     synced_at: string;

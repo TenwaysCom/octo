@@ -14,6 +14,7 @@ describe("parseWorkitem", () => {
       type: "story",
       status: "open",
       assignee: "user1",
+      priority: "P1",
     });
 
     expect(result.id).toBe("123");
@@ -22,6 +23,7 @@ describe("parseWorkitem", () => {
     expect(result.type).toBe("story");
     expect(result.status).toBe("open");
     expect(result.assignee).toBe("user1");
+    expect(result.priority).toBe("P1");
   });
 
   it("normalizes the source updated_at into the explicit snapshot version", () => {

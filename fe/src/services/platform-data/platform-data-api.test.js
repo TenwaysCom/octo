@@ -21,6 +21,7 @@ test("loads a synced platform list with the browser session cookie", async () =>
         version: "Version 1",
         system: "Odoo EU",
         bugs: ["Bug 1"],
+        priority: "P1",
         githubPullRequests: [{ owner: "TenwaysCom", repo: "Tenways", pullNumber: 1, title: "PR", htmlUrl: "https://github.com/TenwaysCom/Tenways/pull/1", headRef: "feature/m-1", baseRef: "main", state: "merged", odooShBuilds: [{ environment: "eu", status: "done", result: "success" }] }],
       }], sprints: ["Sprint 1"] } }) };
     },
@@ -37,6 +38,7 @@ test("loads a synced platform list with the browser session cookie", async () =>
       version: "Version 1",
       system: "Odoo EU",
       bugs: ["Bug 1"],
+      priority: "P1",
       githubPullRequests: [{ owner: "TenwaysCom", repo: "Tenways", pullNumber: 1, title: "PR", htmlUrl: "https://github.com/TenwaysCom/Tenways/pull/1", headRef: "feature/m-1", baseRef: "main", state: "merged", odooShBuilds: [{ environment: "eu", status: "done", result: "success" }] }],
     }],
     sprints: ["Sprint 1"],

@@ -32,6 +32,7 @@ describe("web platform data controller", () => {
       sprint: "Odoo Sprint 20260806",
       version: "Od EU v2.9.0",
       bugs: ["Bug 1"],
+      priority: "P1",
       system: "Odoo/Odoo UK",
       githubPullRequests: [{
         owner: "TenwaysCom",
@@ -65,6 +66,7 @@ describe("web platform data controller", () => {
         sprint: "Odoo Sprint 20260806",
         version: "Od EU v2.9.0",
         bugs: ["Bug 1"],
+        priority: "P1",
         system: "Odoo/Odoo UK",
         githubPullRequests: [expect.objectContaining({ pullNumber: 1138, headRef: "feature/m-1138", baseRef: "main", state: "merged", odooShBuilds: [{ environment: "eu", status: "done", result: "success" }] })],
       })], sprints: ["Odoo Sprint 20260806"] } },

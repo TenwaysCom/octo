@@ -5,7 +5,9 @@ import {
   groupMeegleWorkitems,
   normalizeMeegleGroupBy,
   normalizeMeegleSort,
+  normalizeMeegleSubGroupBy,
   normalizeMeegleVisibleColumns,
+  normalizeMeegleViewMode,
   sortMeegleWorkitems,
 } from "./meegle-view-config.js";
 
@@ -15,6 +17,11 @@ test("normalizes Meegle view configuration without allowing the workitem column 
   assert.equal(normalizeMeegleGroupBy("sprint"), "sprint");
   assert.equal(normalizeMeegleGroupBy("none"), "none");
   assert.equal(normalizeMeegleGroupBy("unknown"), "status");
+  assert.equal(normalizeMeegleSubGroupBy("sprint", "status"), "sprint");
+  assert.equal(normalizeMeegleSubGroupBy("status", "status"), "none");
+  assert.equal(normalizeMeegleSubGroupBy("sprint", "none"), "none");
+  assert.equal(normalizeMeegleViewMode("board"), "board");
+  assert.equal(normalizeMeegleViewMode("unknown"), "list");
   assert.deepEqual(normalizeMeegleSort({ key: "sprint", direction: "asc" }), { key: "sprint", direction: "asc" });
   assert.deepEqual(normalizeMeegleSort({ key: "sprintVersion", direction: "asc" }), { key: "updatedAt", direction: "desc" });
 });
@@ -40,5 +47,26 @@ test("groups sorted Meegle workitems by configured display value", () => {
   assert.deepEqual(groups.map((group) => ({ label: group.label, ids: group.items.map((item) => item.workItemId) })), [
     { label: "Doing", ids: ["1", "3"] },
     { label: "未设置", ids: ["2"] },
+  ]);
+});
+
+test("supports Meegle sub-groups and keeps empty configured groups when requested", () => {
+  const allItems = [
+    { workItemId: "1", status: "Doing", sprint: "Sprint 1" },
+    { workItemId: "2", status: "Todo", sprint: "Sprint 2" },
+  ];
+  const groups = groupMeegleWorkitems([allItems[0]], "status", {
+    subGroupBy: "sprint",
+    showEmptyGroups: true,
+    groupValues: allItems,
+    subGroupValues: allItems,
+  });
+  assert.deepEqual(groups.map((group) => ({
+    label: group.label,
+    ids: group.items.map((item) => item.workItemId),
+    subgroups: group.subgroups.map((subgroup) => ({ key: subgroup.key, subgroupKey: subgroup.subgroupKey, label: subgroup.label, ids: subgroup.items.map((item) => item.workItemId) })),
+  })), [
+    { label: "Doing", ids: ["1"], subgroups: [{ key: "Doing::Sprint 1", subgroupKey: "Sprint 1", label: "Sprint 1", ids: ["1"] }, { key: "Doing::Sprint 2", subgroupKey: "Sprint 2", label: "Sprint 2", ids: [] }] },
+    { label: "Todo", ids: [], subgroups: [{ key: "Todo::Sprint 1", subgroupKey: "Sprint 1", label: "Sprint 1", ids: [] }, { key: "Todo::Sprint 2", subgroupKey: "Sprint 2", label: "Sprint 2", ids: [] }] },
   ]);
 });

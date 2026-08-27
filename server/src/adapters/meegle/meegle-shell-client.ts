@@ -269,6 +269,7 @@ function toDetailedWorkitem(data: Record<string, unknown>, fallbackType: string)
   const subStage = stringValue(nodes[0]?.name);
   const subStageKey = stringValue(nodes[0]?.id);
   const assignee = stringValue(owners[0]?.name);
+  const priority = stringValue(data.priority);
   const workItemTypeKey = stringValue(type?.key) || fallbackType;
   const updatedAt = resolveMeegleSourceUpdatedAt({
     workItemTypeKey,
@@ -286,6 +287,7 @@ function toDetailedWorkitem(data: Record<string, unknown>, fallbackType: string)
     ...(subStage ? { subStage } : {}),
     ...(subStageKey ? { subStageKey } : {}),
     ...(assignee ? { assignee } : {}),
+    ...(priority ? { priority } : {}),
     ...(updatedAt ? { updatedAt } : {}),
     fields: data,
   };
