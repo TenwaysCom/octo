@@ -47,10 +47,13 @@ export interface PlatformSyncStore {
   applyLarkBaseTicketCleaning(input: LarkBaseTicketCleaningInput): Promise<boolean>;
   applyLarkBaseTicketCleanings(inputs: LarkBaseTicketCleaningInput[]): Promise<number>;
   listMeegleWorkitems(limit: number, filters?: MeegleWorkitemListFilters): Promise<MeegleWorkitemSyncItem[]>;
+  countMeegleWorkitems(filters?: MeegleWorkitemListFilters): Promise<number>;
   listMeegleSprints(): Promise<string[]>;
   listGitHubPullRequestLinks(meegleWorkItemIds: string[]): Promise<GitHubPullRequestLink[]>;
   listGitHubPullRequests(limit: number): Promise<GitHubPullRequestSyncItem[]>;
+  countGitHubPullRequests(): Promise<number>;
   listLarkBaseTickets(limit: number, filters?: LarkBaseTicketListFilters): Promise<LarkBaseTicketSyncItem[]>;
+  countLarkBaseTickets(filters?: LarkBaseTicketListFilters): Promise<number>;
 }
 
 export interface MeegleWorkitemSyncItem {
@@ -652,13 +655,31 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
   }
 
   async listMeegleWorkitems(limit: number, filters: MeegleWorkitemListFilters = {}): Promise<MeegleWorkitemSyncItem[]> {
-    let query = this.db.selectFrom("meegle_workitem_syncs")
+    const rows = await this.filteredMeegleWorkitems(filters)
       .select([
         "project_key", "project_name", "work_item_type_key", "work_item_id", "work_item_key", "title",
         "work_item_type", "status_key", "status", "sub_stage_key", "sub_stage",
         "sprint", "version", "system", "bugs_json",
         "assignee", "priority", "source_updated_at", "synced_at",
-      ]);
+      ])
+      .orderBy("source_updated_at", "desc")
+      .orderBy("synced_at", "desc")
+      .offset(filters.offset ?? 0)
+      .limit(limit)
+      .execute();
+
+    return rows.map(toMeegleWorkitemSyncItem);
+  }
+
+  async countMeegleWorkitems(filters: MeegleWorkitemListFilters = {}): Promise<number> {
+    const row = await this.filteredMeegleWorkitems(filters)
+      .select((eb) => eb.fn.countAll<number>().as("total"))
+      .executeTakeFirstOrThrow();
+    return Number(row.total);
+  }
+
+  private filteredMeegleWorkitems(filters: MeegleWorkitemListFilters) {
+    let query = this.db.selectFrom("meegle_workitem_syncs");
     if (filters.sprints?.length) query = query.where("sprint", "in", filters.sprints);
     if (filters.statuses?.length) {
       const configuredStatuses = filters.statuses.filter((status) => status !== "未设置");
@@ -682,13 +703,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
         return sql<boolean>`lower(coalesce(work_item_type, '') || ' ' || work_item_type_key) like '%tech task%'`;
       })));
     }
-    const rows = await query.orderBy("source_updated_at", "desc")
-      .orderBy("synced_at", "desc")
-      .offset(filters.offset ?? 0)
-      .limit(limit)
-      .execute();
-
-    return rows.map(toMeegleWorkitemSyncItem);
+    return query;
   }
 
   async listMeegleSprints(): Promise<string[]> {
@@ -744,17 +759,42 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
     return rows.map(toGitHubPullRequestSyncItem);
   }
 
+  async countGitHubPullRequests(): Promise<number> {
+    const row = await this.db.selectFrom("github_pr_syncs")
+      .select((eb) => eb.fn.countAll<number>().as("total"))
+      .executeTakeFirstOrThrow();
+    return Number(row.total);
+  }
+
   async listLarkBaseTickets(limit: number, filters: LarkBaseTicketListFilters = {}): Promise<LarkBaseTicketSyncItem[]> {
-    let query = this.db.selectFrom("lark_base_ticket_syncs as sync")
-      .leftJoin("lark_base_ticket_octo as octo", (join) => join
-        .onRef("octo.base_id", "=", "sync.base_id")
-        .onRef("octo.table_id", "=", "sync.table_id")
-        .onRef("octo.record_id", "=", "sync.record_id"))
+    const rows = await this.filteredLarkBaseTickets(filters)
       .select([
         "sync.base_id", "sync.table_id", "sync.record_id", "sync.title", "sync.ticket_status",
         "sync.created_time", "sync.ticket_number", "sync.issue_type", "sync.requester", "sync.responsible", "sync.priority", "sync.detail_description", "sync.meegle_link", "sync.lark_message_link",
         "sync.source_updated_at", "sync.synced_at", "sync.fields_json", "octo.shared_url as octo_shared_url", "octo.ticket_ai as octo_ticket_ai",
-      ]);
+      ])
+      .orderBy("sync.source_updated_at", "desc")
+      .orderBy("sync.synced_at", "desc")
+      .offset(filters.offset ?? 0)
+      .limit(limit)
+      .execute();
+
+    return rows.map(toLarkBaseTicketSyncItem);
+  }
+
+  async countLarkBaseTickets(filters: LarkBaseTicketListFilters = {}): Promise<number> {
+    const row = await this.filteredLarkBaseTickets(filters)
+      .select((eb) => eb.fn.countAll<number>().as("total"))
+      .executeTakeFirstOrThrow();
+    return Number(row.total);
+  }
+
+  private filteredLarkBaseTickets(filters: LarkBaseTicketListFilters) {
+    let query = this.db.selectFrom("lark_base_ticket_syncs as sync")
+      .leftJoin("lark_base_ticket_octo as octo", (join) => join
+        .onRef("octo.base_id", "=", "sync.base_id")
+        .onRef("octo.table_id", "=", "sync.table_id")
+        .onRef("octo.record_id", "=", "sync.record_id"));
     if (filters.createdAfter) query = query.where("sync.created_time", ">=", filters.createdAfter);
     if (filters.createdBefore) query = query.where("sync.created_time", "<=", filters.createdBefore);
     if (filters.sourceUpdatedAtAfter) query = query.where("sync.source_updated_at", ">=", filters.sourceUpdatedAtAfter);
@@ -776,14 +816,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
     if (filters.quickFilter === "unsynced") query = query
       .where(sql<boolean>`lower(coalesce(sync.issue_type, '')) = 'feature'`)
       .where(sql<boolean>`coalesce(sync.meegle_link, '') = ''`);
-    const rows = await query
-      .orderBy("sync.source_updated_at", "desc")
-      .orderBy("sync.synced_at", "desc")
-      .offset(filters.offset ?? 0)
-      .limit(limit)
-      .execute();
-
-    return rows.map(toLarkBaseTicketSyncItem);
+    return query;
   }
 }
 

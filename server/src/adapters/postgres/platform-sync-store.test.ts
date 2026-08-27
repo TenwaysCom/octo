@@ -115,12 +115,14 @@ describe("PostgresPlatformSyncStore", () => {
       sprint: "Sprint 1", version: "Version 1", bugs: ["Bug 1"], priority: "P0",
     })]);
     await expect(store.listMeegleWorkitems(10, { sprints: ["Sprint 1"] })).resolves.toHaveLength(1);
+    await expect(store.countMeegleWorkitems({ sprints: ["Sprint 1"] })).resolves.toBe(1);
     await expect(store.listMeegleWorkitems(10, { sprints: ["Sprint 2"] })).resolves.toEqual([]);
     await expect(store.listMeegleSprints()).resolves.toEqual(["Sprint 1"]);
     await expect(store.listGitHubPullRequests(10)).resolves.toEqual([expect.objectContaining({
       pullNumber: 2, title: "PR m-123 f-456", state: "open",
       meegleIds: ["123", "456", "789"],
     })]);
+    await expect(store.countGitHubPullRequests()).resolves.toBe(1);
     await expect(store.listGitHubPullRequestLinks(["123", "456"])) .resolves.toEqual([
       expect.objectContaining({ meegleId: "123", pullNumber: 2, headRef: "feature/m-123", baseRef: "main", state: "open" }),
       expect.objectContaining({ meegleId: "456", pullNumber: 2, headRef: "feature/m-123", baseRef: "main", state: "open" }),
@@ -130,6 +132,7 @@ describe("PostgresPlatformSyncStore", () => {
       sharedUrl: "https://example.larksuite.com/base/base?table=table&record=rec-1",
       ticketAi: expect.objectContaining({ fields: { "AI分析状态": "已分析" } }),
     })]);
+    await expect(store.countLarkBaseTickets({ statuses: ["Open"] })).resolves.toBe(1);
     await expect(store.findLarkBaseTicketByRecordId("rec-1")).resolves.toEqual({ baseId: "base", tableId: "table", recordId: "rec-1" });
 
     await db.destroy();
@@ -167,6 +170,7 @@ describe("PostgresPlatformSyncStore", () => {
       expect.objectContaining({ recordId: "rec-feature-old" }),
       expect.objectContaining({ recordId: "rec-feature-current" }),
     ]);
+    await expect(store.countLarkBaseTickets({ issueTypes: ["Feature"] })).resolves.toBe(2);
     await expect(store.listLarkBaseTickets(10, {
       statuses: ["Open"], priorities: ["P1"], responsibles: ["Ada"], quickFilter: "unsynced",
     })).resolves.toEqual([expect.objectContaining({ recordId: "rec-feature-current" })]);

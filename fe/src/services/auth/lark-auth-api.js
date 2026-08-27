@@ -1,5 +1,7 @@
 import { buildApiUrl } from "../../app/runtime-config.js";
 
+const pendingWebProfileRequests = new Map();
+
 async function readPayload(response) {
   return response.json().catch(() => undefined);
 }
@@ -20,8 +22,22 @@ export async function getWebAuthSession({ apiBaseUrl, fetchImpl = fetch }) {
   };
 }
 
-export async function getWebProfile({ apiBaseUrl, fetchImpl = fetch }) {
-  const response = await fetchImpl(buildApiUrl(apiBaseUrl, "/web/profile"), {
+export function getWebProfile({ apiBaseUrl, fetchImpl = fetch }) {
+  const requestUrl = buildApiUrl(apiBaseUrl, "/web/profile");
+  const pending = pendingWebProfileRequests.get(requestUrl);
+  if (pending) return pending;
+
+  const request = loadWebProfile({ requestUrl, fetchImpl });
+  pendingWebProfileRequests.set(requestUrl, request);
+  void request.then(
+    () => { if (pendingWebProfileRequests.get(requestUrl) === request) pendingWebProfileRequests.delete(requestUrl); },
+    () => { if (pendingWebProfileRequests.get(requestUrl) === request) pendingWebProfileRequests.delete(requestUrl); },
+  );
+  return request;
+}
+
+async function loadWebProfile({ requestUrl, fetchImpl }) {
+  const response = await fetchImpl(requestUrl, {
     credentials: "include",
   });
   const payload = await readPayload(response);

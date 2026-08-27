@@ -38,8 +38,17 @@ export const platformDataListQuerySchema = z.object({
 
 export type PlatformDataListQuery = z.infer<typeof platformDataListQuerySchema>;
 
+const platformDataPagerSchema = z.object({
+  offset: z.number().int().nonnegative(),
+  limit: z.number().int().positive(),
+  total: z.number().int().nonnegative(),
+  hasMore: z.boolean(),
+  nextOffset: z.number().int().nonnegative().optional(),
+});
+
 const platformDataItemsSchema = z.object({
   items: z.array(z.unknown()),
+  pager: platformDataPagerSchema,
 });
 
 const odooShBuildSchema = z.object({
@@ -82,6 +91,7 @@ export const meegleWorkitemListResponseSchema = z.object({
     syncedAt: z.string(),
   })),
   sprints: z.array(z.string()),
+  pager: platformDataPagerSchema,
 });
 
 export const githubPullRequestListResponseSchema = z.object({
@@ -104,6 +114,7 @@ export const githubPullRequestListResponseSchema = z.object({
     syncedAt: z.string(),
     odooShBuilds: z.array(odooShBuildSchema),
   })),
+  pager: platformDataPagerSchema,
 });
 
 export function parsePlatformDataListResponse(kind: "lark-tickets" | "meegle-workitems" | "github-pull-requests", data: unknown) {

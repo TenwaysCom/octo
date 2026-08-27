@@ -49,6 +49,25 @@ test("loads the authenticated profile without exposing credentials", async () =>
   assert.equal(request.options.credentials, "include");
 });
 
+test("shares an in-flight profile request across duplicate mounts", async () => {
+  let requestCount = 0;
+  let releaseResponse;
+  const responseReady = new Promise((resolve) => { releaseResponse = resolve; });
+  const fetchImpl = async () => {
+    requestCount += 1;
+    await responseReady;
+    return { ok: true, json: async () => ({ ok: true, data: { user: {} } }) };
+  };
+
+  const first = getWebProfile({ apiBaseUrl: "/dedup-api", fetchImpl });
+  const second = getWebProfile({ apiBaseUrl: "/dedup-api", fetchImpl });
+  assert.strictEqual(first, second);
+  assert.equal(requestCount, 1);
+
+  releaseResponse();
+  await assert.doesNotReject(first);
+});
+
 test("loads the configured extension download URL", async () => {
   const result = await getExtensionDownloadInfo({
     apiBaseUrl: "/api",

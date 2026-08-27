@@ -290,3 +290,15 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - **Context:** Registering the internal ACP Ticket context route eagerly constructed `PostgresPlatformSyncStore` before the Server startup path established its optional SSH database tunnel.
 - **Rule:** Route/controller construction must not instantiate database-backed services when their database can require asynchronous startup. Keep service creation lazy until the first authorized request, and cover module initialization independently from request execution.
 - **Verified outcome:** The controller no longer reaches `getSharedDatabase()` during route registration; controller/index tests and a real `pnpm --dir server start` reached the listening state.
+
+## [LRN-20260827-002] strict-mode-read-request-deduplication
+
+- **Context:** React StrictMode deliberately reruns mount Effects in the local FE, making each platform list request—and therefore each page in a Lark pagination chain—hit Server twice.
+- **Rule:** Keep StrictMode enabled; coalesce identical concurrent read requests in the API client and release the in-flight entry after either completion or failure. Apply the same boundary to shared bootstrap reads such as Web profile.
+- **Verified outcome:** API tests prove concurrent profile and Lark list callers share one Promise; FE test/build pass.
+
+## [LRN-20260827-003] explicit-platform-list-pager
+
+- **Context:** A FE that inferred “has next page” from a full 500-row response kept incrementing `offset` when an independently deployed Server ignored offset and repeatedly returned the first page.
+- **Rule:** Return an explicit pager from the Server using the same filtered query for `total`; the list/board UI must load only the initial page and request `nextOffset` only after an explicit user action. During staged deployment, a missing pager must fail safe as a completed single page rather than infer another offset.
+- **Verified outcome:** Store, service, controller, and FE API tests cover total/count filtering, a valid next offset, one-page loading, and old responses without pager; both builds pass.

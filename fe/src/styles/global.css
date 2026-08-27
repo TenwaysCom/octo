@@ -506,6 +506,12 @@ a { color: inherit; }
 .list-pagination__controls button:hover:not(:disabled) { border-color: var(--octo-brand); color: var(--octo-brand); }
 .list-pagination__controls button:disabled { color: var(--octo-text-muted); cursor: not-allowed; background: var(--octo-surface-muted); opacity: .65; }
 .list-pagination__controls span { min-width: 44px; color: var(--octo-text-muted); font-size: 12px; text-align: center; }
+.list-load-more { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 18px; padding: 16px; border: 1px dashed color-mix(in srgb, var(--octo-brand) 28%, var(--octo-border)); border-radius: 10px; color: var(--octo-text-muted); background: color-mix(in srgb, var(--octo-brand) 3%, var(--octo-surface)); font-size: 12px; text-align: center; }
+.list-load-more p { margin: 0; }
+.list-load-more strong { color: var(--octo-text); }
+.list-load-more button { min-height: 32px; padding: 0 14px; border: 1px solid var(--octo-border); border-radius: 7px; color: var(--octo-text); cursor: pointer; background: var(--octo-surface); font-size: 12px; font-weight: 650; }
+.list-load-more button:hover:not(:disabled) { border-color: var(--octo-brand); color: var(--octo-brand); }
+.list-load-more button:disabled { color: var(--octo-text-muted); cursor: wait; background: var(--octo-surface-muted); }
 .secondary-button {
   min-height: 35px;
   padding: 0 12px;

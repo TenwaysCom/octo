@@ -14,6 +14,7 @@ describe("PlatformDataService", () => {
           sourceFields: { 需求人: [{ name: "PM Lin" }] }, syncedAt: "2026-08-08T00:00:00.000Z",
         },
       ]),
+      countLarkBaseTickets: vi.fn().mockResolvedValue(2),
     } as unknown as PlatformSyncStore;
     const service = new PlatformDataService(store);
 
@@ -23,6 +24,7 @@ describe("PlatformDataService", () => {
         expect.objectContaining({ recordId: "rec-cleaned", requester: "PM Ada" }),
         expect.objectContaining({ recordId: "rec-legacy", requester: "PM Lin" }),
       ],
+      total: 2,
     });
     expect(result.items[0]).not.toHaveProperty("sourceFields");
     expect(result.items[1]).not.toHaveProperty("sourceFields");
@@ -31,6 +33,7 @@ describe("PlatformDataService", () => {
   it("passes Lark Ticket filters to the snapshot store before projecting fields", async () => {
     const store = {
       listLarkBaseTickets: vi.fn().mockResolvedValue([]),
+      countLarkBaseTickets: vi.fn().mockResolvedValue(0),
     } as unknown as PlatformSyncStore;
     const service = new PlatformDataService(store);
     const larkTickets = {
@@ -39,7 +42,7 @@ describe("PlatformDataService", () => {
       issueTypes: ["Feature"],
     };
 
-    await expect(service.list("lark-tickets", 50, { larkTickets })).resolves.toEqual({ items: [] });
+    await expect(service.list("lark-tickets", 50, { larkTickets })).resolves.toEqual({ items: [], total: 0 });
     expect(store.listLarkBaseTickets).toHaveBeenCalledWith(50, larkTickets);
   });
 
@@ -52,6 +55,7 @@ describe("PlatformDataService", () => {
         title: "Story",
         syncedAt: "2026-08-09T00:00:00.000Z",
       }]),
+      countMeegleWorkitems: vi.fn().mockResolvedValue(1),
       listMeegleSprints: vi.fn().mockResolvedValue(["Sprint 1"]),
       listGitHubPullRequestLinks: vi.fn().mockResolvedValue([{
         meegleId: "123",
@@ -73,6 +77,7 @@ describe("PlatformDataService", () => {
         githubPullRequests: [expect.objectContaining({ pullNumber: 1138, headRef: "feature/m-123", baseRef: "main", state: "merged", odooShBuilds: [] })],
       })],
       sprints: ["Sprint 1"],
+      total: 1,
     });
     expect(store.listMeegleWorkitems).toHaveBeenCalledWith(50, { sprints: ["Sprint 1"] });
     expect(store.listGitHubPullRequestLinks).toHaveBeenCalledWith(["123"]);
@@ -88,6 +93,7 @@ describe("PlatformDataService", () => {
         system: "Odoo UK",
         syncedAt: "2026-08-09T00:00:00.000Z",
       }]),
+      countMeegleWorkitems: vi.fn().mockResolvedValue(1),
       listMeegleSprints: vi.fn().mockResolvedValue([]),
       listGitHubPullRequestLinks: vi.fn().mockResolvedValue([
         {
@@ -156,6 +162,7 @@ describe("PlatformDataService", () => {
           syncedAt: "2026-08-10T00:00:00.000Z",
         },
       ]),
+      countGitHubPullRequests: vi.fn().mockResolvedValue(2),
     } as unknown as PlatformSyncStore;
     const odooDevopsBranchesService = {
       list: vi.fn(async (environment: "eu" | "uk" | "us") => ({

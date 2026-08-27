@@ -104,10 +104,13 @@ function createStore(): PlatformSyncStore & {
       return inputs.length;
     },
     async listMeegleWorkitems() { return []; },
+    async countMeegleWorkitems() { return 0; },
     async listMeegleSprints() { return []; },
     async listGitHubPullRequestLinks() { return []; },
     async listGitHubPullRequests() { return []; },
+    async countGitHubPullRequests() { return 0; },
     async listLarkBaseTickets() { return []; },
+    async countLarkBaseTickets() { return 0; },
   };
   return store;
 }

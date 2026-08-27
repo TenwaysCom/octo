@@ -294,3 +294,10 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Error:** `getSharedDatabase()` rejected with `SSH tunnel is not ready` while importing `server/src/index.ts`.
 - **Fix:** Defer the controller's default service factory until an authorized request calls `getMessages`.
 - **Status:** resolved; targeted controller/index tests, TypeScript build, and an actual Server startup reached the listening state.
+
+## [ERR-20260827-005] fe-test-script-argument-forwarding
+
+- **Summary:** The FE package test script is `node --test` and does not accept a bare source filename through `pnpm test -- <file>`.
+- **Error:** `pnpm --dir fe test -- platform-data-api.test.js` reported that it could not find the file.
+- **Fix:** Use the package-standard `pnpm --dir fe check`, which runs all Node tests and the Vite production build.
+- **Status:** resolved; 62 FE tests and the build passed.

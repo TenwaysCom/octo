@@ -112,7 +112,18 @@ export function createWebPlatformDataController(deps: {
           sourceUpdatedAtBefore: query.sourceUpdatedAtBefore,
           offset: query.offset || undefined,
         }) } : {};
-      const data = parsePlatformDataListResponse(input.kind, await service.list(input.kind, query.limit, filters));
+      const result = await service.list(input.kind, query.limit, filters);
+      const hasMore = result.items.length > 0 && query.offset + result.items.length < result.total;
+      const data = parsePlatformDataListResponse(input.kind, {
+        ...result,
+        pager: {
+          offset: query.offset,
+          limit: query.limit,
+          total: result.total,
+          hasMore,
+          ...(hasMore ? { nextOffset: query.offset + result.items.length } : {}),
+        },
+      });
       return { statusCode: 200, body: { ok: true as const, data } };
     } catch {
       return {

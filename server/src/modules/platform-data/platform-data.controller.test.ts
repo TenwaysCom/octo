@@ -47,7 +47,7 @@ describe("web platform data controller", () => {
       }],
       plannedSprint: "must not leak",
       syncedAt: "2026-08-09T00:00:00.000Z",
-    }], sprints: ["Odoo Sprint 20260806"] }) };
+    }], sprints: ["Odoo Sprint 20260806"], total: 1 }) };
     const ensureSession = vi.fn().mockResolvedValue({ ok: true, role: "dev", user: {} });
     const controller = createWebPlatformDataController({ service, ensureSession });
 
@@ -72,7 +72,7 @@ describe("web platform data controller", () => {
         priority: "P1",
         system: "Odoo/Odoo UK",
         githubPullRequests: [expect.objectContaining({ pullNumber: 1138, headRef: "feature/m-1138", baseRef: "main", state: "merged", odooShBuilds: [{ environment: "eu", status: "done", result: "success" }] })],
-      })], sprints: ["Odoo Sprint 20260806"] } },
+      })], sprints: ["Odoo Sprint 20260806"], pager: { offset: 500, limit: 500, total: 1, hasMore: false } } },
     });
     expect((result.body as { data: { items: Array<Record<string, unknown>> } }).data.items[0]).not.toHaveProperty("plannedSprint");
     expect(ensureSession).toHaveBeenCalledWith("session-token");
@@ -83,7 +83,7 @@ describe("web platform data controller", () => {
   });
 
   it("passes validated Lark Ticket time ranges and issue types to the service", async () => {
-    const service = { list: vi.fn().mockResolvedValue({ items: [] }) };
+    const service = { list: vi.fn().mockResolvedValue({ items: [], total: 0 }) };
     const controller = createWebPlatformDataController({
       service,
       ensureSession: vi.fn().mockResolvedValue({ ok: true, role: "dev", user: {} }),
@@ -104,7 +104,7 @@ describe("web platform data controller", () => {
         quickFilter: "unsynced",
         offset: "500",
       },
-    })).resolves.toEqual({ statusCode: 200, body: { ok: true, data: { items: [] } } });
+    })).resolves.toEqual({ statusCode: 200, body: { ok: true, data: { items: [], pager: { offset: 500, limit: 500, total: 0, hasMore: false } } } });
     expect(service.list).toHaveBeenCalledWith("lark-tickets", 500, {
       larkTickets: {
         createdAfter: "2026-08-01T00:00:00.000Z",
@@ -118,6 +118,38 @@ describe("web platform data controller", () => {
         quickFilter: "unsynced",
         offset: 500,
       },
+    });
+  });
+
+  it("returns a pager with the next offset when matching rows remain", async () => {
+    const service = { list: vi.fn().mockResolvedValue({ items: [{ recordId: "rec-1" }], total: 2 }) };
+    const controller = createWebPlatformDataController({
+      service,
+      ensureSession: vi.fn().mockResolvedValue({ ok: true, role: "dev", user: {} }),
+    });
+
+    await expect(controller({
+      kind: "lark-tickets",
+      cookieHeader: "octo_web_session=session-token",
+      query: { limit: "1", offset: "1" },
+    })).resolves.toEqual({
+      statusCode: 200,
+      body: { ok: true, data: {
+        items: [{ recordId: "rec-1" }],
+        pager: { offset: 1, limit: 1, total: 2, hasMore: false },
+      } },
+    });
+
+    await expect(controller({
+      kind: "lark-tickets",
+      cookieHeader: "octo_web_session=session-token",
+      query: { limit: "1" },
+    })).resolves.toEqual({
+      statusCode: 200,
+      body: { ok: true, data: {
+        items: [{ recordId: "rec-1" }],
+        pager: { offset: 0, limit: 1, total: 2, hasMore: true, nextOffset: 1 },
+      } },
     });
   });
 
@@ -159,7 +191,7 @@ describe("web platform data controller", () => {
       meegleIds: ["13802503"],
       syncedAt: "2026-08-10T00:00:00.000Z",
       odooShBuilds: [{ environment: "eu", status: "done", result: "success" }],
-    }] }) };
+    }], total: 1 }) };
     const controller = createWebPlatformDataController({
       service,
       ensureSession: vi.fn().mockResolvedValue({ ok: true, role: "devops", user: {} }),
@@ -178,7 +210,7 @@ describe("web platform data controller", () => {
         reviewers: ["reviewer"],
         labels: ["bug"],
         odooShBuilds: [{ environment: "eu", status: "done", result: "success" }],
-      })] } },
+      })], pager: { offset: 0, limit: 500, total: 1, hasMore: false } } },
     });
     expect(service.list).toHaveBeenCalledWith("github-pull-requests", 500, { sprint: undefined });
   });

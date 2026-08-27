@@ -31,6 +31,7 @@ related:
 - [x] FE 测试和构建通过。
 - [x] Lark Ticket 与 Meegle 工作项显示带数量的右侧标签筛选栏，并支持指定字段的多选筛选。
 - [x] Meegle `priority` 已进入同步快照与 Web 列表投影。
+- [x] 平台列表 API 返回真实分页信息，列表/看板按需“加载更多”。
 
 ## 背景与范围
 
@@ -42,7 +43,7 @@ related:
 
 Lark Ticket API 接受 `createdAfter`、`createdBefore`、`sourceUpdatedAtAfter`、`sourceUpdatedAtBefore` 和可重复或逗号分隔的 `issueType`；时间会规范化为 UTC ISO-8601，再于 PostgreSQL 查询、排序和 `limit` 前过滤。
 
-筛选结果集由 Server 决定，Web API 使用受限的 `limit`/`offset` 分页；FE 会连续拉取所有匹配页，再在本地完成排序、List/Kanban 分组、折叠与组数量计算。这样分组配置的修改仍是纯前端交互，数量始终来自完整的匹配结果而不是单页或后端聚合。Lark Ticket 下推状态、更新时间、Issue 类型、紧急度、负责人及快捷条件；Meegle 下推状态、更新时间、Sprint、项目、优先级、类型和无 Sprint 条件。
+筛选结果集由 Server 决定，Web API 返回 `pager`（offset、limit、total、hasMore、nextOffset）。平台列表首屏只请求一页；用户点击内容区底部的“加载更多”后才请求 `nextOffset`。这样不会根据“本页刚好 500 条”猜测下一页，也避免同一分组被传统页码 UI 割裂。FE 仍在已加载集合上完成排序、List/Kanban 分组、折叠与组数量计算；分组配置修改保持纯前端交互。Lark Ticket 下推状态、更新时间、Issue 类型、紧急度、负责人及快捷条件；Meegle 下推状态、更新时间、Sprint、项目、优先级、类型和无 Sprint 条件。
 
 右侧标签筛选栏在同一字段内按“任一标签”匹配、跨字段按“同时满足”匹配，并显示当前快捷筛选后的每个标签数量。Meegle 的 priority 仅使用平台返回的标准 `priority` 字段；已有快照会在下一次 Meegle 同步后获得该值。
 
@@ -67,6 +68,8 @@ Lark Ticket API 接受 `createdAfter`、`createdBefore`、`sourceUpdatedAtAfter`
 | 2026-08-27 | completed | 增加右侧标签筛选栏：Meegle 支持 Sprint、项目、优先级，Lark Ticket 支持 Issue 类型、紧急度、负责人；标签带数量、支持多选，并提供高亮的侧栏开关图标。Meegle priority 已从标准平台字段透传至快照/API；FE 57/57、Server 定向 31/31 测试及 Server 构建通过。 | 已有 Meegle 快照需下一次同步才会填充 priority；未做登录态浏览器视觉验收。 |
 | 2026-08-27 | completed | 标签侧栏关闭时取消 280px 的预留列，列表/看板恢复完整内容宽度；开启时才使用双列布局。 | 未做登录态浏览器视觉验收。 |
 | 2026-08-27 | completed | 筛选改为 Server 先筛选结果集、API 以 500 条分页、FE 自动拉取全部匹配页；List/Kanban 的排序、分组、折叠和数量仍由 FE 基于完整匹配集合处理。Lark 与 Meegle 的现有筛选控件均已下推。 | `show empty groups` 仍基于当前匹配集合的已知值；未连接真实已登录数据做视觉和大数据量验收。 |
+| 2026-08-27 | completed | 保留 React StrictMode，并在 Web profile 与平台列表 API 层合并相同的并发请求；开发模式的重复挂载不再让 Lark 分页、Meegle/GitHub 列表或 profile 对 Server 发起两次请求。 | 未在真实浏览器 Network 面板复验。 |
+| 2026-08-27 | completed | 平台列表接口新增真实 `pager`，PostgreSQL 用同筛选条件返回 total；List/Kanban 首屏仅请求 500 条，在内容底部显示“已加载 X / Y”与“加载更多”，点击后才请求下一页。旧 Server 缺少 pager 时 FE 按单页结束，避免 offset 无限累加。 | 需将 Server 与 FE 部署到正式环境后，在真实 Network 面板验证首屏仅一条平台数据请求、点击后才出现 `offset=500`。 |
 
 ## 验证
 
@@ -79,6 +82,8 @@ Lark Ticket API 接受 `createdAfter`、`createdBefore`、`sourceUpdatedAtAfter`
 | FE 单元测试 / 构建 | 通过 | `pnpm --dir fe check`：56/56 passed，Vite build passed。 | 未连接真实已登录 FE 数据或做浏览器视觉验收。 |
 | 标签侧栏与 Meegle priority 投影 | 通过 | `pnpm --dir fe check`：57/57 passed，Vite build passed；`pnpm --dir server test`：522/522 passed；`pnpm --dir server build` 通过。 | 未连接真实已登录 FE 数据；已有 Meegle priority 需同步后验证。 |
 | 服务端结果集筛选与 FE 全量分页 | 通过（定向） | `pnpm --dir server exec vitest run src/modules/platform-data/platform-data.controller.test.ts src/application/services/platform-data.service.test.ts src/adapters/postgres/platform-sync-store.test.ts`：20/20 passed；`pnpm --dir fe check`：58/58 passed；两端构建通过。 | 完整 Server suite 有 553 个测试通过；`src/index.test.ts` 仍因当前 SSH 数据库隧道未就绪无法加载，非本改动引起。 |
+| FE API 重复请求合并 | 通过 | `pnpm --dir fe check`：60/60 passed，包含 profile 与平台列表并发去重测试及 Vite build。 | 未在真实浏览器 Network 面板复验。 |
+| Pager 与按需加载 | 通过（定向） | `pnpm --dir fe check`：62/62 passed；分页相关 Server 定向测试 21/21 passed，Server build passed。 | 完整 Server suite 为 556/557；唯一失败为既有 `src/logger.test.ts` 轮转日志文件时序断言，非本改动。 |
 
 ## 关联
 

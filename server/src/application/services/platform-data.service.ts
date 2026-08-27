@@ -35,16 +35,26 @@ export class PlatformDataService {
   async list(kind: PlatformDataKind, limit: number, filters: { larkTickets?: LarkBaseTicketListFilters; meegleWorkitems?: MeegleWorkitemListFilters } = {}) {
     switch (kind) {
       case "lark-tickets":
-        return {
-          items: (await this.syncStore.listLarkBaseTickets(limit, filters.larkTickets)).map(({ sourceFields, ...item }) => {
-            const requester = item.requester
-              ?? buildLarkTicketCleaningProjection(sourceFields, item.createdTime).requester;
-            return { ...item, ...(requester ? { requester } : {}) };
-          }),
-        };
+        {
+          const [items, total] = await Promise.all([
+            this.syncStore.listLarkBaseTickets(limit, filters.larkTickets),
+            this.syncStore.countLarkBaseTickets(filters.larkTickets),
+          ]);
+          return {
+            items: items.map(({ sourceFields, ...item }) => {
+              const requester = item.requester
+                ?? buildLarkTicketCleaningProjection(sourceFields, item.createdTime).requester;
+              return { ...item, ...(requester ? { requester } : {}) };
+            }),
+            total,
+          };
+        }
       case "meegle-workitems":
         {
-          const items = await this.syncStore.listMeegleWorkitems(limit, filters.meegleWorkitems);
+          const [items, total] = await Promise.all([
+            this.syncStore.listMeegleWorkitems(limit, filters.meegleWorkitems),
+            this.syncStore.countMeegleWorkitems(filters.meegleWorkitems),
+          ]);
           const links = await this.syncStore.listGitHubPullRequestLinks(items.map((item) => item.workItemId));
           const linksByWorkItemId = new Map<string, typeof links>();
           for (const link of links) {
@@ -63,7 +73,7 @@ export class PlatformDataService {
             }
           }
           const buildsByBranch = await this.listOdooShBuildsByBranch(environments);
-        return {
+          return {
             items: items.map((item) => ({
               ...item,
               githubPullRequests: (linksByWorkItemId.get(item.workItemId) ?? []).map((pullRequest) => ({
@@ -75,12 +85,16 @@ export class PlatformDataService {
                 ),
               })),
             })),
-          sprints: await this.syncStore.listMeegleSprints(),
-        };
+            sprints: await this.syncStore.listMeegleSprints(),
+            total,
+          };
         }
       case "github-pull-requests":
         {
-          const items = await this.syncStore.listGitHubPullRequests(limit);
+          const [items, total] = await Promise.all([
+            this.syncStore.listGitHubPullRequests(limit),
+            this.syncStore.countGitHubPullRequests(),
+          ]);
           const environmentByPullRequest = new Map(
             items.map((item) => [item, resolveGitHubRepoEnvironment(item.repo)]),
           );
@@ -101,6 +115,7 @@ export class PlatformDataService {
                 environmentByPullRequest.get(item),
               ),
             })),
+            total,
           };
         }
     }

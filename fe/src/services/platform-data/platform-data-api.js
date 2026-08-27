@@ -6,6 +6,7 @@ const PATH_BY_KIND = {
   "github-pull-requests": "/web/platform-data/github-pull-requests",
 };
 const PLATFORM_DATA_LIST_LIMIT = 500;
+const pendingPlatformDataRequests = new Map();
 
 const MEEGLE_REQUIRED_STRING_FIELDS = [
   "projectKey",
@@ -31,44 +32,93 @@ const MEEGLE_OPTIONAL_STRING_FIELDS = [
   "sourceUpdatedAt",
 ];
 
-export async function getPlatformDataList({ apiBaseUrl, kind, filters = {}, fetchImpl = fetch }) {
+export function getPlatformDataList({ apiBaseUrl, kind, filters = {}, fetchImpl = fetch }) {
   const path = PATH_BY_KIND[kind];
   if (!path) {
-    throw new Error("UNKNOWN_PLATFORM_DATA_KIND");
+    return Promise.reject(new Error("UNKNOWN_PLATFORM_DATA_KIND"));
   }
 
-  const items = [];
-  let sprints = [];
-  let offset = 0;
-  while (true) {
-    const response = await fetchImpl(`${buildApiUrl(apiBaseUrl, path)}?${buildListQuery(filters, offset)}`, {
-      credentials: "include",
-    });
-    const payload = await response.json().catch(() => undefined);
-    if (!response.ok || !payload?.ok || !Array.isArray(payload.data?.items)) {
-      throw new Error(payload?.error?.errorCode || "PLATFORM_DATA_LOAD_FAILED");
-    }
-    items.push(...payload.data.items);
-    if (kind === "meegle-workitems") {
-      if (!Array.isArray(payload.data.sprints) || payload.data.sprints.some((value) => typeof value !== "string")) {
-        throw new Error("INVALID_MEEGLE_WORKITEM_RESPONSE");
-      }
-      sprints = payload.data.sprints;
-    }
-    if (payload.data.items.length < PLATFORM_DATA_LIST_LIMIT) break;
-    offset += payload.data.items.length;
+  const requestKey = `${buildApiUrl(apiBaseUrl, path)}?${buildListQuery(filters, 0)}&all=true`;
+  return getSharedPlatformDataRequest(requestKey, () => loadPlatformDataList({ apiBaseUrl, kind, filters, fetchImpl }));
+}
+
+export function getPlatformDataListPage({ apiBaseUrl, kind, filters = {}, offset = 0, fetchImpl = fetch }) {
+  const path = PATH_BY_KIND[kind];
+  if (!path) {
+    return Promise.reject(new Error("UNKNOWN_PLATFORM_DATA_KIND"));
   }
 
+  const requestKey = `${buildApiUrl(apiBaseUrl, path)}?${buildListQuery(filters, offset)}`;
+  return getSharedPlatformDataRequest(requestKey, () => loadPlatformDataListPage({ apiBaseUrl, kind, filters, offset, fetchImpl, path }));
+}
+
+function getSharedPlatformDataRequest(requestKey, load) {
+  const pending = pendingPlatformDataRequests.get(requestKey);
+  if (pending) return pending;
+
+  const request = load();
+  pendingPlatformDataRequests.set(requestKey, request);
+  void request.then(
+    () => { if (pendingPlatformDataRequests.get(requestKey) === request) pendingPlatformDataRequests.delete(requestKey); },
+    () => { if (pendingPlatformDataRequests.get(requestKey) === request) pendingPlatformDataRequests.delete(requestKey); },
+  );
+  return request;
+}
+
+async function loadPlatformDataList({ apiBaseUrl, kind, filters, fetchImpl }) {
+  const firstPage = await getPlatformDataListPage({ apiBaseUrl, kind, filters, fetchImpl });
+  const items = [...firstPage.items];
+  let sprints = firstPage.sprints || [];
+  let pager = firstPage.pager;
+  while (pager.hasMore) {
+    const page = await getPlatformDataListPage({ apiBaseUrl, kind, filters, offset: pager.nextOffset, fetchImpl });
+    items.push(...page.items);
+    sprints = page.sprints || sprints;
+    pager = page.pager;
+  }
+  return { items, ...(kind === "meegle-workitems" ? { sprints } : {}), pager };
+}
+
+async function loadPlatformDataListPage({ apiBaseUrl, kind, filters, offset, fetchImpl, path }) {
+  const response = await fetchImpl(`${buildApiUrl(apiBaseUrl, path)}?${buildListQuery(filters, offset)}`, {
+    credentials: "include",
+  });
+  const payload = await response.json().catch(() => undefined);
+  if (!response.ok || !payload?.ok || !Array.isArray(payload.data?.items)) {
+    throw new Error(payload?.error?.errorCode || "PLATFORM_DATA_LOAD_FAILED");
+  }
+  const pager = parsePlatformDataPager(payload.data.pager, { offset, itemCount: payload.data.items.length });
   if (kind === "lark-tickets") {
-    return { items };
+    return { items: payload.data.items, pager };
   }
   if (kind === "github-pull-requests") {
-    return { items: items.map(parseSyncedGitHubPullRequest) };
+    return { items: payload.data.items.map(parseSyncedGitHubPullRequest), pager };
   }
-  return {
-    items: items.map(parseMeegleWorkitem),
-    sprints,
-  };
+  if (!Array.isArray(payload.data.sprints) || payload.data.sprints.some((value) => typeof value !== "string")) {
+    throw new Error("INVALID_MEEGLE_WORKITEM_RESPONSE");
+  }
+  return { items: payload.data.items.map(parseMeegleWorkitem), sprints: payload.data.sprints, pager };
+}
+
+function parsePlatformDataPager(value, { offset, itemCount }) {
+  if (value === undefined) {
+    return { offset, limit: PLATFORM_DATA_LIST_LIMIT, total: offset + itemCount, hasMore: false };
+  }
+  if (!isRecord(value)
+    || value.offset !== offset
+    || value.limit !== PLATFORM_DATA_LIST_LIMIT
+    || !Number.isInteger(value.total)
+    || value.total < offset + itemCount
+    || typeof value.hasMore !== "boolean") {
+    throw new Error("INVALID_PLATFORM_DATA_PAGINATION");
+  }
+  if (!value.hasMore) {
+    return { offset, limit: value.limit, total: value.total, hasMore: false };
+  }
+  if (!Number.isInteger(value.nextOffset) || value.nextOffset <= offset || value.nextOffset > value.total) {
+    throw new Error("INVALID_PLATFORM_DATA_PAGINATION");
+  }
+  return { offset, limit: value.limit, total: value.total, hasMore: true, nextOffset: value.nextOffset };
 }
 
 function buildListQuery(filters, offset) {

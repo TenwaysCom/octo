@@ -32,7 +32,7 @@ import {
   sortMeegleWorkitems,
 } from "../lib/meegle-view-config.js";
 import { getOdooShBuildTone } from "../lib/odoo-sh-build-status.js";
-import { getPlatformDataList, resetAllOdooDevopsBranchesCache } from "../services/platform-data/platform-data-api.js";
+import { getPlatformDataListPage, resetAllOdooDevopsBranchesCache } from "../services/platform-data/platform-data-api.js";
 import { getLarkTicketDetailHash } from "../app/routes/workspace-routes.js";
 
 const LIST_PAGE_SIZE = 50;
@@ -573,9 +573,17 @@ function SyncedListTable({ kind, items, sort, onSort, larkVisibleColumns = DEFAU
   </tbody></table>;
 }
 
+function LoadMoreResults({ pager, loaded, isLoading, onLoadMore }) {
+  if (!pager?.hasMore) return null;
+  return <footer className="list-load-more">
+    <p>已加载 <strong>{loaded}</strong> / {pager.total} 条结果 · 还有 {pager.total - loaded} 条</p>
+    <button type="button" disabled={isLoading} onClick={onLoadMore}>{isLoading ? "加载中…" : "加载更多"}</button>
+  </footer>;
+}
+
 export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, breadcrumbs, platformListFilterState, onPlatformListFilterStateChange }) {
   const restoredFilters = platformListFilterState || {};
-  const [state, setState] = useState({ status: "loading", items: [], filterItems: [], filterItemsPage: page, sprints: [] });
+  const [state, setState] = useState({ status: "loading", items: [], filterItems: [], filterItemsPage: page, sprints: [], pager: null, isLoadingMore: false });
   const [selectedStatuses, setSelectedStatuses] = useState(() => restoredFilters.selectedStatuses || null);
   const [selectedDateFilters, setSelectedDateFilters] = useState(() => normalizeFilterValues(
     restoredFilters.selectedDateFilters,
@@ -631,6 +639,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
   const [resetError, setResetError] = useState("");
   const [isResettingDevopsCache, setIsResettingDevopsCache] = useState(false);
   const filterStateRef = useRef(null);
+  const dataRequestVersionRef = useRef(0);
   const larkSubgroupDefaultsRef = useRef(Array.isArray(restoredFilters.collapsedLarkSubgroups) ? "restored" : null);
   const meegleSubgroupDefaultsRef = useRef(Array.isArray(restoredFilters.collapsedMeegleSubgroups) ? "restored" : null);
   const statusFilters = [...new Set(state.filterItems.map((item) => getPlatformItemStatus(page, item)))].sort((left, right) => left.localeCompare(right));
@@ -688,6 +697,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
   const pageItems = sortedItems.slice(currentPageIndex * LIST_PAGE_SIZE, (currentPageIndex + 1) * LIST_PAGE_SIZE);
   const firstResult = sortedItems.length === 0 ? 0 : currentPageIndex * LIST_PAGE_SIZE + 1;
   const lastResult = Math.min((currentPageIndex + 1) * LIST_PAGE_SIZE, sortedItems.length);
+  const totalItems = state.pager?.total ?? sortedItems.length;
 
   filterStateRef.current = {
     selectedStatuses,
@@ -721,12 +731,15 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
 
   useEffect(() => {
     let active = true;
+    const requestVersion = ++dataRequestVersionRef.current;
     setState((current) => ({
       status: "loading",
       items: [],
       filterItems: current.filterItemsPage === page ? current.filterItems : [],
       filterItemsPage: page,
       sprints: current.sprints,
+      pager: null,
+      isLoadingMore: false,
     }));
     const filters = getPlatformListFilters({
       page,
@@ -739,21 +752,56 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
       noSprintFilter,
     });
     const isFiltered = Object.keys(filters).length > 0;
-    void getPlatformDataList({ apiBaseUrl, kind: page, filters }).then(
+    void getPlatformDataListPage({ apiBaseUrl, kind: page, filters }).then(
       (result) => {
-        if (!active) return;
+        if (!active || dataRequestVersionRef.current !== requestVersion) return;
         setState((current) => ({
           status: "ready",
           items: result.items,
           filterItems: isFiltered && current.filterItemsPage === page && current.filterItems.length ? current.filterItems : result.items,
           filterItemsPage: page,
           sprints: result.sprints || [],
+          pager: result.pager,
+          isLoadingMore: false,
         }));
       },
-      () => { if (active) setState((current) => ({ status: "error", items: [], filterItems: current.filterItems, filterItemsPage: current.filterItemsPage, sprints: [] })); },
+      () => { if (active && dataRequestVersionRef.current === requestVersion) setState((current) => ({ status: "error", items: [], filterItems: current.filterItems, filterItemsPage: current.filterItemsPage, sprints: [], pager: null, isLoadingMore: false })); },
     );
     return () => { active = false; };
   }, [apiBaseUrl, larkTicketQuickFilter, noSprintFilter, page, reloadVersion, selectedDateFilters, selectedSprints, selectedStatuses, selectedTagFilters, workitemTypeFilter]);
+
+  async function loadMorePlatformItems() {
+    const pager = state.pager;
+    if (!pager?.hasMore || state.isLoadingMore || !Number.isInteger(pager.nextOffset)) return;
+    const requestVersion = dataRequestVersionRef.current;
+    const nextOffset = pager.nextOffset;
+    setState((current) => ({ ...current, isLoadingMore: true }));
+    const filters = getPlatformListFilters({
+      page,
+      selectedStatuses,
+      selectedDateFilters,
+      selectedSprints,
+      selectedTagFilters,
+      larkTicketQuickFilter,
+      workitemTypeFilter,
+      noSprintFilter,
+    });
+    try {
+      const result = await getPlatformDataListPage({ apiBaseUrl, kind: page, filters, offset: nextOffset });
+      if (dataRequestVersionRef.current !== requestVersion) return;
+      setState((current) => current.pager?.nextOffset !== nextOffset ? current : {
+        ...current,
+        items: [...current.items, ...result.items],
+        sprints: result.sprints || current.sprints,
+        pager: result.pager,
+        isLoadingMore: false,
+      });
+    } catch {
+      if (dataRequestVersionRef.current === requestVersion) {
+        setState((current) => ({ ...current, isLoadingMore: false }));
+      }
+    }
+  }
 
   useEffect(() => {
     if (page !== "lark-tickets" || !larkGroups.some((group) => group.subgroups?.length)) {
@@ -1089,7 +1137,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
               renderCard={(item, index) => <LarkTicketCard item={item} visibleColumns={larkVisibleColumns} key={item.recordId || `${item.baseId || "base"}-${item.tableId || "table"}-${index}`} />}
             />
             <footer className="list-pagination">
-              <p className="list-results">共 <strong>{sortedItems.length}</strong> 条结果 · {larkGroups.length} 个分组</p>
+              <p className="list-results">已加载 <strong>{sortedItems.length}</strong> / {totalItems} 条结果 · {larkGroups.length} 个分组</p>
             </footer>
           </> : isMeegleBoard ? <>
             <KanbanBoard
@@ -1101,7 +1149,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
               renderCard={(item) => <MeegleWorkitemCard item={item} visibleColumns={meegleVisibleColumns} key={`${item.projectKey}-${item.workItemTypeKey}-${item.workItemId}`} />}
             />
             <footer className="list-pagination">
-              <p className="list-results">共 <strong>{sortedItems.length}</strong> 条结果 · {meegleGroups.length} 个分组</p>
+              <p className="list-results">已加载 <strong>{sortedItems.length}</strong> / {totalItems} 条结果 · {meegleGroups.length} 个分组</p>
             </footer>
           </> : isLarkGrouped ? <>
             <GroupedList
@@ -1117,7 +1165,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
               renderTable={(items) => <LarkTicketsTable items={items} sort={sort} onSort={updateSort} visibleColumns={larkVisibleColumns} />}
             />
             <footer className="list-pagination">
-              <p className="list-results">共 <strong>{sortedItems.length}</strong> 条结果 · {larkGroups.length} 个分组</p>
+              <p className="list-results">已加载 <strong>{sortedItems.length}</strong> / {totalItems} 条结果 · {larkGroups.length} 个分组</p>
             </footer>
           </> : isMeegleGrouped ? <>
             <GroupedList
@@ -1133,12 +1181,12 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
               renderTable={(items) => <MeegleWorkitemsTable items={items} sort={sort} onSort={updateSort} visibleColumns={meegleVisibleColumns} />}
             />
             <footer className="list-pagination">
-              <p className="list-results">共 <strong>{sortedItems.length}</strong> 条结果 · {meegleGroups.length} 个分组</p>
+              <p className="list-results">已加载 <strong>{sortedItems.length}</strong> / {totalItems} 条结果 · {meegleGroups.length} 个分组</p>
             </footer>
           </> : <>
             <div className="data-table-wrap"><SyncedListTable kind={page} items={pageItems} sort={sort} onSort={updateSort} larkVisibleColumns={larkVisibleColumns} meegleVisibleColumns={meegleVisibleColumns} /></div>
             <footer className="list-pagination">
-              <p className="list-results">显示 <strong>{firstResult}–{lastResult}</strong> / {sortedItems.length} 条结果</p>
+              <p className="list-results">显示 <strong>{firstResult}–{lastResult}</strong> / 已加载 {sortedItems.length}（共 {totalItems}）条结果</p>
               <div className="list-pagination__controls">
                 <button type="button" disabled={currentPageIndex === 0} onClick={() => setPageIndex((index) => Math.max(0, index - 1))}>上一页</button>
                 <span>{currentPageIndex + 1} / {pageCount}</span>
@@ -1147,6 +1195,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
             </footer>
           </>}
           </> : null}
+          <LoadMoreResults pager={state.pager} loaded={state.items.length} isLoading={state.isLoadingMore} onLoadMore={loadMorePlatformItems} />
           </div>
           {tagSidebarOpen && tagFilterFieldsWithCounts.length ? <TagFilterSidebar
             fields={tagFilterFieldsWithCounts}

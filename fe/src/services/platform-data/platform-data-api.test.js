@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getPlatformDataList, resetAllOdooDevopsBranchesCache } from "./platform-data-api.js";
+import { getPlatformDataList, getPlatformDataListPage, resetAllOdooDevopsBranchesCache } from "./platform-data-api.js";
 import { getPlatformSyncSources, syncPlatformSource } from "./platform-sync-api.js";
 
 test("loads a synced platform list with the browser session cookie", async () => {
@@ -42,6 +42,7 @@ test("loads a synced platform list with the browser session cookie", async () =>
       githubPullRequests: [{ owner: "TenwaysCom", repo: "Tenways", pullNumber: 1, title: "PR", htmlUrl: "https://github.com/TenwaysCom/Tenways/pull/1", headRef: "feature/m-1", baseRef: "main", state: "merged", odooShBuilds: [{ environment: "eu", status: "done", result: "success" }] }],
     }],
     sprints: ["Sprint 1"],
+    pager: { offset: 0, limit: 500, total: 1, hasMore: false },
   });
   assert.equal(request.url, "/api/web/platform-data/meegle-workitems?limit=500&sprint=Sprint+1");
   assert.equal(request.options.credentials, "include");
@@ -60,6 +61,25 @@ test("requests 500 rows for the Lark ticket list", async () => {
   assert.equal(requestUrl, "/api/web/platform-data/lark-tickets?limit=500");
 });
 
+test("shares an in-flight list request across duplicate mounts", async () => {
+  let requestCount = 0;
+  let releaseResponse;
+  const responseReady = new Promise((resolve) => { releaseResponse = resolve; });
+  const fetchImpl = async () => {
+    requestCount += 1;
+    await responseReady;
+    return { ok: true, json: async () => ({ ok: true, data: { items: [] } }) };
+  };
+
+  const first = getPlatformDataList({ apiBaseUrl: "/dedup-api", kind: "lark-tickets", fetchImpl });
+  const second = getPlatformDataList({ apiBaseUrl: "/dedup-api", kind: "lark-tickets", fetchImpl });
+  assert.strictEqual(first, second);
+  assert.equal(requestCount, 1);
+
+  releaseResponse();
+  await assert.doesNotReject(first);
+});
+
 test("requests every matching page while preserving multi-value server filters", async () => {
   const requests = [];
   const firstPage = Array.from({ length: 500 }, (_, index) => ({ recordId: `rec-${index}` }));
@@ -76,7 +96,7 @@ test("requests every matching page while preserving multi-value server filters",
       requests.push(url);
       return {
         ok: true,
-        json: async () => ({ ok: true, data: { items: requests.length === 1 ? firstPage : [{ recordId: "rec-500" }] } }),
+        json: async () => ({ ok: true, data: { items: requests.length === 1 ? firstPage : [{ recordId: "rec-500" }], ...(requests.length === 1 ? { pager: { offset: 0, limit: 500, total: 501, hasMore: true, nextOffset: 500 } } : { pager: { offset: 500, limit: 500, total: 501, hasMore: false } }) } }),
       };
     },
   });
@@ -84,6 +104,38 @@ test("requests every matching page while preserving multi-value server filters",
   assert.equal(result.items.length, 501);
   assert.equal(requests[0], "/api/web/platform-data/lark-tickets?limit=500&status=Open&status=In+progress&issueType=Feature&priority=P0&quickFilter=unsynced");
   assert.equal(requests[1], "/api/web/platform-data/lark-tickets?limit=500&offset=500&status=Open&status=In+progress&issueType=Feature&priority=P0&quickFilter=unsynced");
+});
+
+test("loads one page only until the list view requests the next offset", async () => {
+  const requests = [];
+  const firstPage = Array.from({ length: 500 }, (_, index) => ({ recordId: `rec-${index}` }));
+  const result = await getPlatformDataListPage({
+    apiBaseUrl: "/api",
+    kind: "lark-tickets",
+    fetchImpl: async (url) => {
+      requests.push(url);
+      return { ok: true, json: async () => ({ ok: true, data: { items: firstPage, pager: { offset: 0, limit: 500, total: 501, hasMore: true, nextOffset: 500 } } }) };
+    },
+  });
+
+  assert.equal(result.items.length, 500);
+  assert.deepEqual(result.pager, { offset: 0, limit: 500, total: 501, hasMore: true, nextOffset: 500 });
+  assert.deepEqual(requests, ["/api/web/platform-data/lark-tickets?limit=500"]);
+});
+
+test("treats an old server response without pager as one complete page", async () => {
+  const requests = [];
+  const result = await getPlatformDataList({
+    apiBaseUrl: "/api",
+    kind: "lark-tickets",
+    fetchImpl: async (url) => {
+      requests.push(url);
+      return { ok: true, json: async () => ({ ok: true, data: { items: Array.from({ length: 500 }, (_, index) => ({ recordId: `rec-${index}` })) } }) };
+    },
+  });
+
+  assert.equal(result.items.length, 500);
+  assert.equal(requests.length, 1);
 });
 
 test("rejects unknown list kinds before making a request", async () => {
