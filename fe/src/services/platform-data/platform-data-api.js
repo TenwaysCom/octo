@@ -31,38 +31,61 @@ const MEEGLE_OPTIONAL_STRING_FIELDS = [
   "sourceUpdatedAt",
 ];
 
-export async function getPlatformDataList({ apiBaseUrl, kind, sprint, fetchImpl = fetch }) {
+export async function getPlatformDataList({ apiBaseUrl, kind, filters = {}, fetchImpl = fetch }) {
   const path = PATH_BY_KIND[kind];
   if (!path) {
     throw new Error("UNKNOWN_PLATFORM_DATA_KIND");
   }
 
-  const query = new URLSearchParams({ limit: String(PLATFORM_DATA_LIST_LIMIT) });
-  if (sprint && kind === "meegle-workitems") {
-    query.set("sprint", sprint);
-  }
-  const requestUrl = `${buildApiUrl(apiBaseUrl, path)}?${query}`;
-  const response = await fetchImpl(requestUrl, {
-    credentials: "include",
-  });
-  const payload = await response.json().catch(() => undefined);
-  if (!response.ok || !payload?.ok || !Array.isArray(payload.data?.items)) {
-    throw new Error(payload?.error?.errorCode || "PLATFORM_DATA_LOAD_FAILED");
+  const items = [];
+  let sprints = [];
+  let offset = 0;
+  while (true) {
+    const response = await fetchImpl(`${buildApiUrl(apiBaseUrl, path)}?${buildListQuery(filters, offset)}`, {
+      credentials: "include",
+    });
+    const payload = await response.json().catch(() => undefined);
+    if (!response.ok || !payload?.ok || !Array.isArray(payload.data?.items)) {
+      throw new Error(payload?.error?.errorCode || "PLATFORM_DATA_LOAD_FAILED");
+    }
+    items.push(...payload.data.items);
+    if (kind === "meegle-workitems") {
+      if (!Array.isArray(payload.data.sprints) || payload.data.sprints.some((value) => typeof value !== "string")) {
+        throw new Error("INVALID_MEEGLE_WORKITEM_RESPONSE");
+      }
+      sprints = payload.data.sprints;
+    }
+    if (payload.data.items.length < PLATFORM_DATA_LIST_LIMIT) break;
+    offset += payload.data.items.length;
   }
 
   if (kind === "lark-tickets") {
-    return { items: payload.data.items };
+    return { items };
   }
   if (kind === "github-pull-requests") {
-    return { items: payload.data.items.map(parseSyncedGitHubPullRequest) };
-  }
-  if (!Array.isArray(payload.data.sprints) || payload.data.sprints.some((value) => typeof value !== "string")) {
-    throw new Error("INVALID_MEEGLE_WORKITEM_RESPONSE");
+    return { items: items.map(parseSyncedGitHubPullRequest) };
   }
   return {
-    items: payload.data.items.map(parseMeegleWorkitem),
-    sprints: payload.data.sprints,
+    items: items.map(parseMeegleWorkitem),
+    sprints,
   };
+}
+
+function buildListQuery(filters, offset) {
+  const query = new URLSearchParams({ limit: String(PLATFORM_DATA_LIST_LIMIT) });
+  if (offset) query.set("offset", String(offset));
+  for (const [key, value] of Object.entries(filters)) {
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        if (typeof item === "string" && item) query.append(key, item);
+      }
+    } else if (value === true) {
+      query.set(key, "true");
+    } else if (typeof value === "string" && value) {
+      query.set(key, value);
+    }
+  }
+  return query;
 }
 
 export async function resetAllOdooDevopsBranchesCache({

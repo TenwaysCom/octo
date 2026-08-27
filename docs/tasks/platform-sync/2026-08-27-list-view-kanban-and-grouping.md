@@ -42,6 +42,8 @@ related:
 
 Lark Ticket API 接受 `createdAfter`、`createdBefore`、`sourceUpdatedAtAfter`、`sourceUpdatedAtBefore` 和可重复或逗号分隔的 `issueType`；时间会规范化为 UTC ISO-8601，再于 PostgreSQL 查询、排序和 `limit` 前过滤。
 
+筛选结果集由 Server 决定，Web API 使用受限的 `limit`/`offset` 分页；FE 会连续拉取所有匹配页，再在本地完成排序、List/Kanban 分组、折叠与组数量计算。这样分组配置的修改仍是纯前端交互，数量始终来自完整的匹配结果而不是单页或后端聚合。Lark Ticket 下推状态、更新时间、Issue 类型、紧急度、负责人及快捷条件；Meegle 下推状态、更新时间、Sprint、项目、优先级、类型和无 Sprint 条件。
+
 右侧标签筛选栏在同一字段内按“任一标签”匹配、跨字段按“同时满足”匹配，并显示当前快捷筛选后的每个标签数量。Meegle 的 priority 仅使用平台返回的标准 `priority` 字段；已有快照会在下一次 Meegle 同步后获得该值。
 
 ## 进展记录
@@ -64,6 +66,7 @@ Lark Ticket API 接受 `createdAfter`、`createdBefore`、`sourceUpdatedAtAfter`
 | 2026-08-27 | completed | Ticket 与 Meegle Kanban 卡片标题统一为普通正文规格（13px、常规字重）；`pnpm --dir fe check` 通过 56/56 测试和 Vite 构建。 | 未做登录态浏览器视觉验收。 |
 | 2026-08-27 | completed | 增加右侧标签筛选栏：Meegle 支持 Sprint、项目、优先级，Lark Ticket 支持 Issue 类型、紧急度、负责人；标签带数量、支持多选，并提供高亮的侧栏开关图标。Meegle priority 已从标准平台字段透传至快照/API；FE 57/57、Server 定向 31/31 测试及 Server 构建通过。 | 已有 Meegle 快照需下一次同步才会填充 priority；未做登录态浏览器视觉验收。 |
 | 2026-08-27 | completed | 标签侧栏关闭时取消 280px 的预留列，列表/看板恢复完整内容宽度；开启时才使用双列布局。 | 未做登录态浏览器视觉验收。 |
+| 2026-08-27 | completed | 筛选改为 Server 先筛选结果集、API 以 500 条分页、FE 自动拉取全部匹配页；List/Kanban 的排序、分组、折叠和数量仍由 FE 基于完整匹配集合处理。Lark 与 Meegle 的现有筛选控件均已下推。 | `show empty groups` 仍基于当前匹配集合的已知值；未连接真实已登录数据做视觉和大数据量验收。 |
 
 ## 验证
 
@@ -75,6 +78,7 @@ Lark Ticket API 接受 `createdAfter`、`createdBefore`、`sourceUpdatedAtAfter`
 | FE 单元测试 / 构建 | 通过 | `pnpm --dir fe check`：56/56 passed，Vite build passed。 | 未连接真实已登录 FE 数据或做浏览器视觉验收。 |
 | FE 单元测试 / 构建 | 通过 | `pnpm --dir fe check`：56/56 passed，Vite build passed。 | 未连接真实已登录 FE 数据或做浏览器视觉验收。 |
 | 标签侧栏与 Meegle priority 投影 | 通过 | `pnpm --dir fe check`：57/57 passed，Vite build passed；`pnpm --dir server test`：522/522 passed；`pnpm --dir server build` 通过。 | 未连接真实已登录 FE 数据；已有 Meegle priority 需同步后验证。 |
+| 服务端结果集筛选与 FE 全量分页 | 通过（定向） | `pnpm --dir server exec vitest run src/modules/platform-data/platform-data.controller.test.ts src/application/services/platform-data.service.test.ts src/adapters/postgres/platform-sync-store.test.ts`：20/20 passed；`pnpm --dir fe check`：58/58 passed；两端构建通过。 | 完整 Server suite 有 553 个测试通过；`src/index.test.ts` 仍因当前 SSH 数据库隧道未就绪无法加载，非本改动引起。 |
 
 ## 关联
 

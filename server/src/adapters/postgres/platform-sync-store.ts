@@ -46,7 +46,7 @@ export interface PlatformSyncStore {
   applyGitHubPullRequestCleaning(input: GitHubPullRequestCleaningInput): Promise<boolean>;
   applyLarkBaseTicketCleaning(input: LarkBaseTicketCleaningInput): Promise<boolean>;
   applyLarkBaseTicketCleanings(inputs: LarkBaseTicketCleaningInput[]): Promise<number>;
-  listMeegleWorkitems(limit: number, sprint?: string): Promise<MeegleWorkitemSyncItem[]>;
+  listMeegleWorkitems(limit: number, filters?: MeegleWorkitemListFilters): Promise<MeegleWorkitemSyncItem[]>;
   listMeegleSprints(): Promise<string[]>;
   listGitHubPullRequestLinks(meegleWorkItemIds: string[]): Promise<GitHubPullRequestLink[]>;
   listGitHubPullRequests(limit: number): Promise<GitHubPullRequestSyncItem[]>;
@@ -189,6 +189,23 @@ export interface LarkBaseTicketListFilters {
   sourceUpdatedAtAfter?: string;
   sourceUpdatedAtBefore?: string;
   issueTypes?: string[];
+  statuses?: string[];
+  priorities?: string[];
+  responsibles?: string[];
+  quickFilter?: "in-progress" | "unclassified" | "unsynced";
+  offset?: number;
+}
+
+export interface MeegleWorkitemListFilters {
+  sprints?: string[];
+  statuses?: string[];
+  projects?: string[];
+  priorities?: string[];
+  workitemTypes?: string[];
+  withoutSprint?: boolean;
+  sourceUpdatedAtAfter?: string;
+  sourceUpdatedAtBefore?: string;
+  offset?: number;
 }
 
 export class PostgresPlatformSyncStore implements PlatformSyncStore {
@@ -634,7 +651,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
     return Number(result.numUpdatedRows);
   }
 
-  async listMeegleWorkitems(limit: number, sprint?: string): Promise<MeegleWorkitemSyncItem[]> {
+  async listMeegleWorkitems(limit: number, filters: MeegleWorkitemListFilters = {}): Promise<MeegleWorkitemSyncItem[]> {
     let query = this.db.selectFrom("meegle_workitem_syncs")
       .select([
         "project_key", "project_name", "work_item_type_key", "work_item_id", "work_item_key", "title",
@@ -642,11 +659,32 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
         "sprint", "version", "system", "bugs_json",
         "assignee", "priority", "source_updated_at", "synced_at",
       ]);
-    if (sprint) {
-      query = query.where("sprint", "=", sprint);
+    if (filters.sprints?.length) query = query.where("sprint", "in", filters.sprints);
+    if (filters.statuses?.length) {
+      const configuredStatuses = filters.statuses.filter((status) => status !== "未设置");
+      query = query.where((eb) => eb.or([
+        ...(configuredStatuses.length ? [eb("status", "in", configuredStatuses)] : []),
+        ...(filters.statuses!.includes("未设置") ? [eb("status", "is", null), eb("status", "=", "")] : []),
+      ]));
+    }
+    if (filters.projects?.length) query = query.where((eb) => eb.or([
+      eb("project_key", "in", filters.projects!),
+      eb("project_name", "in", filters.projects!),
+    ]));
+    if (filters.priorities?.length) query = query.where("priority", "in", filters.priorities);
+    if (filters.sourceUpdatedAtAfter) query = query.where("source_updated_at", ">=", filters.sourceUpdatedAtAfter);
+    if (filters.sourceUpdatedAtBefore) query = query.where("source_updated_at", "<=", filters.sourceUpdatedAtBefore);
+    if (filters.withoutSprint) query = query.where((eb) => eb.or([eb("sprint", "is", null), eb("sprint", "=", "")]));
+    if (filters.workitemTypes?.length) {
+      query = query.where((eb) => eb.or(filters.workitemTypes!.map((type) => {
+        if (type === "story") return eb("work_item_type_key", "=", "story");
+        if (type === "bug") return sql<boolean>`lower(coalesce(work_item_type, '') || ' ' || work_item_type_key) like '%bug%'`;
+        return sql<boolean>`lower(coalesce(work_item_type, '') || ' ' || work_item_type_key) like '%tech task%'`;
+      })));
     }
     const rows = await query.orderBy("source_updated_at", "desc")
       .orderBy("synced_at", "desc")
+      .offset(filters.offset ?? 0)
       .limit(limit)
       .execute();
 
@@ -722,9 +760,26 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
     if (filters.sourceUpdatedAtAfter) query = query.where("sync.source_updated_at", ">=", filters.sourceUpdatedAtAfter);
     if (filters.sourceUpdatedAtBefore) query = query.where("sync.source_updated_at", "<=", filters.sourceUpdatedAtBefore);
     if (filters.issueTypes?.length) query = query.where("sync.issue_type", "in", filters.issueTypes);
+    if (filters.statuses?.length) {
+      const configuredStatuses = filters.statuses.filter((status) => status !== "未设置");
+      query = query.where((eb) => eb.or([
+        ...(configuredStatuses.length ? [eb("sync.ticket_status", "in", configuredStatuses)] : []),
+        ...(filters.statuses!.includes("未设置") ? [eb("sync.ticket_status", "is", null), eb("sync.ticket_status", "=", "")] : []),
+      ]));
+    }
+    if (filters.priorities?.length) query = query.where("sync.priority", "in", filters.priorities);
+    if (filters.responsibles?.length) query = query.where((eb) => eb.or(filters.responsibles!.map((responsible) =>
+      eb("sync.responsible", "like", `%${responsible}%`),
+    )));
+    if (filters.quickFilter === "in-progress") query = query.where(sql<boolean>`coalesce(lower(sync.ticket_status), '') not in ('finish', 'cancelled', 'rejected')`);
+    if (filters.quickFilter === "unclassified") query = query.where(sql<boolean>`coalesce(sync.issue_type, '') = ''`);
+    if (filters.quickFilter === "unsynced") query = query
+      .where(sql<boolean>`lower(coalesce(sync.issue_type, '')) = 'feature'`)
+      .where(sql<boolean>`coalesce(sync.meegle_link, '') = ''`);
     const rows = await query
       .orderBy("sync.source_updated_at", "desc")
       .orderBy("sync.synced_at", "desc")
+      .offset(filters.offset ?? 0)
       .limit(limit)
       .execute();
 

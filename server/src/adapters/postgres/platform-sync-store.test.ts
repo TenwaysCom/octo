@@ -114,8 +114,8 @@ describe("PostgresPlatformSyncStore", () => {
       subStageKey: "node_done", subStage: "Done",
       sprint: "Sprint 1", version: "Version 1", bugs: ["Bug 1"], priority: "P0",
     })]);
-    await expect(store.listMeegleWorkitems(10, "Sprint 1")).resolves.toHaveLength(1);
-    await expect(store.listMeegleWorkitems(10, "Sprint 2")).resolves.toEqual([]);
+    await expect(store.listMeegleWorkitems(10, { sprints: ["Sprint 1"] })).resolves.toHaveLength(1);
+    await expect(store.listMeegleWorkitems(10, { sprints: ["Sprint 2"] })).resolves.toEqual([]);
     await expect(store.listMeegleSprints()).resolves.toEqual(["Sprint 1"]);
     await expect(store.listGitHubPullRequests(10)).resolves.toEqual([expect.objectContaining({
       pullNumber: 2, title: "PR m-123 f-456", state: "open",
@@ -140,18 +140,19 @@ describe("PostgresPlatformSyncStore", () => {
     const { db, pool } = await createTestPostgresDatabase();
     const store = new PostgresPlatformSyncStore(db);
     const records = [
-      { recordId: "rec-feature-current", createdTime: "2026-08-05T00:00:00.000Z", updatedTime: "2026-08-10T00:00:00.000Z", issueType: "Feature" },
-      { recordId: "rec-bug-current", createdTime: "2026-08-06T00:00:00.000Z", updatedTime: "2026-08-11T00:00:00.000Z", issueType: "Bug" },
-      { recordId: "rec-feature-old", createdTime: "2026-08-01T00:00:00.000Z", updatedTime: "2026-08-12T00:00:00.000Z", issueType: "Feature" },
+      { recordId: "rec-feature-current", createdTime: "2026-08-05T00:00:00.000Z", updatedTime: "2026-08-10T00:00:00.000Z", issueType: "Feature", status: "Open", priority: "P1", responsible: "Ada" },
+      { recordId: "rec-bug-current", createdTime: "2026-08-06T00:00:00.000Z", updatedTime: "2026-08-11T00:00:00.000Z", issueType: "Bug", status: "Finish", priority: "P0", responsible: "Bob" },
+      { recordId: "rec-feature-old", createdTime: "2026-08-01T00:00:00.000Z", updatedTime: "2026-08-12T00:00:00.000Z", issueType: "Feature", status: "Open", priority: "P2", responsible: "Ada" },
     ];
     for (const record of records) {
       await store.upsertLarkBaseTicket({
         baseId: "base", tableId: "table",
         record: { record_id: record.recordId, fields: { Title: record.recordId }, created_time: record.createdTime, updated_time: record.updatedTime },
-        title: record.recordId,
+        title: record.recordId, status: record.status,
       });
       await store.applyLarkBaseTicketCleaning({
         baseId: "base", tableId: "table", recordId: record.recordId, issueType: record.issueType,
+        priority: record.priority, responsible: record.responsible,
       });
     }
 
@@ -166,6 +167,9 @@ describe("PostgresPlatformSyncStore", () => {
       expect.objectContaining({ recordId: "rec-feature-old" }),
       expect.objectContaining({ recordId: "rec-feature-current" }),
     ]);
+    await expect(store.listLarkBaseTickets(10, {
+      statuses: ["Open"], priorities: ["P1"], responsibles: ["Ada"], quickFilter: "unsynced",
+    })).resolves.toEqual([expect.objectContaining({ recordId: "rec-feature-current" })]);
 
     await db.destroy();
     await pool.end();

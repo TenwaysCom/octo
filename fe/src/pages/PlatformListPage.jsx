@@ -5,8 +5,7 @@ import { LarkTicketResponsible } from "../components/lark-ticket/LarkTicketRespo
 import { useKeyboardShortcut } from "../hooks/useKeyboardShortcut.js";
 import { formatDateTime } from "../lib/formatters.js";
 import { countMyOpenGitHubPullRequests, matchesGitHubPullRequestQuickFilter } from "../lib/github-pull-request-filters.js";
-import { matchesLarkTicketQuickFilter } from "../lib/lark-ticket-filters.js";
-import { DATE_FILTERS, countFilterValues, matchesSelectedDateFilters, matchesSelectedSprints, matchesSelectedTagFilters, normalizeFilterValues, toggleFilterValue } from "../lib/platform-list-filters.js";
+import { DATE_FILTERS, countFilterValues, normalizeFilterValues, toggleFilterValue } from "../lib/platform-list-filters.js";
 import {
   DEFAULT_LARK_TICKET_SORT,
   DEFAULT_LARK_TICKET_VISIBLE_COLUMNS,
@@ -145,6 +144,68 @@ function getMeegleWorkitemCategory(item) {
     return "bug";
   }
   return "other";
+}
+
+function getPlatformListFilters({
+  page,
+  selectedStatuses,
+  selectedDateFilters,
+  selectedSprints,
+  selectedTagFilters,
+  larkTicketQuickFilter,
+  workitemTypeFilter,
+  noSprintFilter,
+}) {
+  const sourceUpdatedAtAfter = getEarliestSelectedDate(selectedDateFilters);
+  if (page === "lark-tickets") {
+    return {
+      ...(selectedStatuses ? { status: selectedStatuses } : {}),
+      ...(sourceUpdatedAtAfter ? { sourceUpdatedAtAfter } : {}),
+      ...(selectedTagFilters.issueType?.length ? { issueType: selectedTagFilters.issueType } : {}),
+      ...(selectedTagFilters.priority?.length ? { priority: selectedTagFilters.priority } : {}),
+      ...(selectedTagFilters.responsible?.length ? { responsible: selectedTagFilters.responsible } : {}),
+      ...(larkTicketQuickFilter !== "all" ? { quickFilter: larkTicketQuickFilter } : {}),
+    };
+  }
+  if (page === "meegle-workitems") {
+    const sprints = noSprintFilter ? [] : [...new Set([
+      ...selectedSprints,
+      ...(selectedTagFilters.sprint || []),
+    ])];
+    return {
+      ...(selectedStatuses ? { status: selectedStatuses } : {}),
+      ...(sourceUpdatedAtAfter ? { sourceUpdatedAtAfter } : {}),
+      ...(sprints.length ? { sprint: sprints } : {}),
+      ...(selectedTagFilters.project?.length ? { project: selectedTagFilters.project } : {}),
+      ...(selectedTagFilters.priority?.length ? { priority: selectedTagFilters.priority } : {}),
+      ...(workitemTypeFilter !== "all" ? { workitemType: workitemTypeFilter } : {}),
+      ...(noSprintFilter ? { withoutSprint: true } : {}),
+    };
+  }
+  return {};
+}
+
+function getEarliestSelectedDate(selectedDateFilters, now = new Date()) {
+  if (!selectedDateFilters.length) return undefined;
+  const dates = selectedDateFilters.flatMap((dateFilter) => {
+    const threshold = new Date(now);
+    if (dateFilter === "today") threshold.setHours(0, 0, 0, 0);
+    else if (dateFilter === "last-7-days") threshold.setDate(now.getDate() - 7);
+    else if (dateFilter === "last-month") threshold.setMonth(now.getMonth() - 1);
+    else if (dateFilter === "last-12-months") threshold.setFullYear(now.getFullYear() - 1);
+    else return [];
+    return [threshold];
+  });
+  if (!dates.length) return undefined;
+  return new Date(Math.min(...dates.map((value) => value.getTime()))).toISOString();
+}
+
+function mergeKnownFilterValues(values, knownValues) {
+  const merged = new Map(values.map((value) => [value.value, value]));
+  for (const value of knownValues) {
+    if (!merged.has(value.value)) merged.set(value.value, { ...value, count: 0 });
+  }
+  return [...merged.values()].sort((left, right) => right.count - left.count || left.label.localeCompare(right.label, "zh-CN", { numeric: true }));
 }
 
 function getMeegleWorkitemDetailUrl(item) {
@@ -514,7 +575,7 @@ function SyncedListTable({ kind, items, sort, onSort, larkVisibleColumns = DEFAU
 
 export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, breadcrumbs, platformListFilterState, onPlatformListFilterStateChange }) {
   const restoredFilters = platformListFilterState || {};
-  const [state, setState] = useState({ status: "loading", items: [], sprints: [] });
+  const [state, setState] = useState({ status: "loading", items: [], filterItems: [], filterItemsPage: page, sprints: [] });
   const [selectedStatuses, setSelectedStatuses] = useState(() => restoredFilters.selectedStatuses || null);
   const [selectedDateFilters, setSelectedDateFilters] = useState(() => normalizeFilterValues(
     restoredFilters.selectedDateFilters,
@@ -572,21 +633,16 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
   const filterStateRef = useRef(null);
   const larkSubgroupDefaultsRef = useRef(Array.isArray(restoredFilters.collapsedLarkSubgroups) ? "restored" : null);
   const meegleSubgroupDefaultsRef = useRef(Array.isArray(restoredFilters.collapsedMeegleSubgroups) ? "restored" : null);
-  const statusFilters = [...new Set(state.items.map((item) => getPlatformItemStatus(page, item)))].sort((left, right) => left.localeCompare(right));
-  const itemsBeforeTypeFilter = state.items
-    .filter((item) => selectedStatuses === null || selectedStatuses.includes(getPlatformItemStatus(page, item)))
-    .filter((item) => matchesSelectedDateFilters(item, selectedDateFilters))
-    .filter((item) => page !== "meegle-workitems" || matchesSelectedSprints(item, selectedSprints));
-  const workitemTypeCounts = Object.fromEntries(MEEGLE_WORKITEM_TYPE_FILTERS.map(([value]) => [value, value === "all" ? itemsBeforeTypeFilter.length : itemsBeforeTypeFilter.filter((item) => getMeegleWorkitemCategory(item) === value).length]));
+  const statusFilters = [...new Set(state.filterItems.map((item) => getPlatformItemStatus(page, item)))].sort((left, right) => left.localeCompare(right));
+  const itemsBeforeTypeFilter = state.items;
+  const workitemTypeCounts = Object.fromEntries(MEEGLE_WORKITEM_TYPE_FILTERS.map(([value]) => [value, value === "all" ? state.items.length : state.items.filter((item) => getMeegleWorkitemCategory(item) === value).length]));
   const githubId = profile.user?.githubId;
   const myOpenPullRequestCount = page === "github-pull-requests"
     ? countMyOpenGitHubPullRequests(state.items, githubId)
     : 0;
-  const itemsAfterQuickFilters = itemsBeforeTypeFilter
-    .filter((item) => page !== "github-pull-requests" || matchesGitHubPullRequestQuickFilter(item, githubQuickFilter, githubId))
-    .filter((item) => page !== "lark-tickets" || matchesLarkTicketQuickFilter(item, larkTicketQuickFilter))
-    .filter((item) => page !== "meegle-workitems" || !noSprintFilter || !item.sprint)
-    .filter((item) => page !== "meegle-workitems" || workitemTypeFilter === "all" || getMeegleWorkitemCategory(item) === workitemTypeFilter);
+  const itemsAfterQuickFilters = page === "github-pull-requests"
+    ? state.items.filter((item) => matchesGitHubPullRequestQuickFilter(item, githubQuickFilter, githubId))
+    : state.items;
   const tagFilterFields = page === "lark-tickets" ? [
     { key: "issueType", label: "Issue 类型", getValues: (item) => [item.issueType] },
     { key: "priority", label: "紧急度", getValues: (item) => [item.priority] },
@@ -598,10 +654,12 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
   ] : [];
   const tagFilterFieldsWithCounts = tagFilterFields.map((field) => ({
     ...field,
-    values: countFilterValues(itemsAfterQuickFilters, field.getValues),
+    values: mergeKnownFilterValues(
+      countFilterValues(itemsAfterQuickFilters, field.getValues),
+      countFilterValues(state.filterItems, field.getValues),
+    ),
   }));
-  const filteredItems = itemsAfterQuickFilters
-    .filter((item) => matchesSelectedTagFilters(item, tagFilterFields, selectedTagFilters));
+  const filteredItems = itemsAfterQuickFilters;
   const sortedItems = page === "lark-tickets"
     ? sortLarkTickets(filteredItems, sort)
     : page === "meegle-workitems"
@@ -663,13 +721,39 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
 
   useEffect(() => {
     let active = true;
-    setState((current) => ({ status: "loading", items: [], sprints: current.sprints }));
-    void getPlatformDataList({ apiBaseUrl, kind: page }).then(
-      (result) => { if (active) setState({ status: "ready", items: result.items, sprints: result.sprints || [] }); },
-      () => { if (active) setState({ status: "error", items: [], sprints: [] }); },
+    setState((current) => ({
+      status: "loading",
+      items: [],
+      filterItems: current.filterItemsPage === page ? current.filterItems : [],
+      filterItemsPage: page,
+      sprints: current.sprints,
+    }));
+    const filters = getPlatformListFilters({
+      page,
+      selectedStatuses,
+      selectedDateFilters,
+      selectedSprints,
+      selectedTagFilters,
+      larkTicketQuickFilter,
+      workitemTypeFilter,
+      noSprintFilter,
+    });
+    const isFiltered = Object.keys(filters).length > 0;
+    void getPlatformDataList({ apiBaseUrl, kind: page, filters }).then(
+      (result) => {
+        if (!active) return;
+        setState((current) => ({
+          status: "ready",
+          items: result.items,
+          filterItems: isFiltered && current.filterItemsPage === page && current.filterItems.length ? current.filterItems : result.items,
+          filterItemsPage: page,
+          sprints: result.sprints || [],
+        }));
+      },
+      () => { if (active) setState((current) => ({ status: "error", items: [], filterItems: current.filterItems, filterItemsPage: current.filterItemsPage, sprints: [] })); },
     );
     return () => { active = false; };
-  }, [apiBaseUrl, page, reloadVersion]);
+  }, [apiBaseUrl, larkTicketQuickFilter, noSprintFilter, page, reloadVersion, selectedDateFilters, selectedSprints, selectedStatuses, selectedTagFilters, workitemTypeFilter]);
 
   useEffect(() => {
     if (page !== "lark-tickets" || !larkGroups.some((group) => group.subgroups?.length)) {

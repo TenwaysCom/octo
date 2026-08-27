@@ -1,6 +1,7 @@
 import {
   PostgresPlatformSyncStore,
   type LarkBaseTicketListFilters,
+  type MeegleWorkitemListFilters,
   type PlatformSyncStore,
 } from "../../adapters/postgres/platform-sync-store.js";
 import type { OdooDevopsEnvironment } from "../../adapters/odoo-devops/odoo-devops-branches-client.js";
@@ -31,7 +32,7 @@ export class PlatformDataService {
     this.store = store;
   }
 
-  async list(kind: PlatformDataKind, limit: number, filters: { sprint?: string; larkTickets?: LarkBaseTicketListFilters } = {}) {
+  async list(kind: PlatformDataKind, limit: number, filters: { larkTickets?: LarkBaseTicketListFilters; meegleWorkitems?: MeegleWorkitemListFilters } = {}) {
     switch (kind) {
       case "lark-tickets":
         return {
@@ -43,7 +44,7 @@ export class PlatformDataService {
         };
       case "meegle-workitems":
         {
-          const items = await this.syncStore.listMeegleWorkitems(limit, filters.sprint);
+          const items = await this.syncStore.listMeegleWorkitems(limit, filters.meegleWorkitems);
           const links = await this.syncStore.listGitHubPullRequestLinks(items.map((item) => item.workItemId));
           const linksByWorkItemId = new Map<string, typeof links>();
           for (const link of links) {

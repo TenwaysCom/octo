@@ -280,3 +280,10 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Error:** TypeScript reported that the selected row could not satisfy `MeegleWorkitemSyncRow` because `priority` was missing.
 - **Fix:** Add `priority` to every typed Meegle snapshot select that is converted through `toMeegleWorkitemSyncItem`.
 - **Status:** resolved; server build passed after the projection was made consistent.
+
+## [ERR-20260827-003] platform-data-filter-pgmem-trim
+
+- **Summary:** The new Lark Ticket quick-filter predicates initially used PostgreSQL `trim()` calls.
+- **Error:** The pg-mem-backed snapshot-store test failed because its SQL function set does not implement `trim(text)`.
+- **Fix:** Use the existing normalized snapshot values directly with `coalesce` and `lower`; this preserves the stored-field semantics and keeps the PostgreSQL query testable in pg-mem.
+- **Status:** resolved; the snapshot-store, controller, service, FE, and TypeScript checks pass.

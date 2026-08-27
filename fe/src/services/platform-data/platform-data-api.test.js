@@ -8,7 +8,7 @@ test("loads a synced platform list with the browser session cookie", async () =>
   const result = await getPlatformDataList({
     apiBaseUrl: "/api",
     kind: "meegle-workitems",
-    sprint: "Sprint 1",
+    filters: { sprint: ["Sprint 1"] },
     fetchImpl: async (url, options) => {
       request = { url, options };
       return { ok: true, json: async () => ({ ok: true, data: { items: [{
@@ -58,6 +58,32 @@ test("requests 500 rows for the Lark ticket list", async () => {
     },
   });
   assert.equal(requestUrl, "/api/web/platform-data/lark-tickets?limit=500");
+});
+
+test("requests every matching page while preserving multi-value server filters", async () => {
+  const requests = [];
+  const firstPage = Array.from({ length: 500 }, (_, index) => ({ recordId: `rec-${index}` }));
+  const result = await getPlatformDataList({
+    apiBaseUrl: "/api",
+    kind: "lark-tickets",
+    filters: {
+      status: ["Open", "In progress"],
+      issueType: ["Feature"],
+      priority: ["P0"],
+      quickFilter: "unsynced",
+    },
+    fetchImpl: async (url) => {
+      requests.push(url);
+      return {
+        ok: true,
+        json: async () => ({ ok: true, data: { items: requests.length === 1 ? firstPage : [{ recordId: "rec-500" }] } }),
+      };
+    },
+  });
+
+  assert.equal(result.items.length, 501);
+  assert.equal(requests[0], "/api/web/platform-data/lark-tickets?limit=500&status=Open&status=In+progress&issueType=Feature&priority=P0&quickFilter=unsynced");
+  assert.equal(requests[1], "/api/web/platform-data/lark-tickets?limit=500&offset=500&status=Open&status=In+progress&issueType=Feature&priority=P0&quickFilter=unsynced");
 });
 
 test("rejects unknown list kinds before making a request", async () => {

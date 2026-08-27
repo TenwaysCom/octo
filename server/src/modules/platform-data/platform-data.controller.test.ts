@@ -54,7 +54,10 @@ describe("web platform data controller", () => {
     const result = await controller({
       kind: "meegle-workitems",
       cookieHeader: "octo_web_session=session-token",
-      query: { limit: "500", sprint: "Odoo Sprint 20260806" },
+      query: {
+        limit: "500", offset: "500", sprint: "Odoo Sprint 20260806", status: "Launched,New",
+        project: "4c3fv6", priority: "P1", workitemType: "story", sourceUpdatedAtAfter: "2026-08-01T00:00:00Z",
+      },
     });
     expect(result).toEqual({
       statusCode: 200,
@@ -73,7 +76,10 @@ describe("web platform data controller", () => {
     });
     expect((result.body as { data: { items: Array<Record<string, unknown>> } }).data.items[0]).not.toHaveProperty("plannedSprint");
     expect(ensureSession).toHaveBeenCalledWith("session-token");
-    expect(service.list).toHaveBeenCalledWith("meegle-workitems", 500, { sprint: "Odoo Sprint 20260806" });
+    expect(service.list).toHaveBeenCalledWith("meegle-workitems", 500, { meegleWorkitems: {
+      sprints: ["Odoo Sprint 20260806"], statuses: ["Launched", "New"], projects: ["4c3fv6"], priorities: ["P1"],
+      workitemTypes: ["story"], sourceUpdatedAtAfter: "2026-08-01T00:00:00.000Z", offset: 500,
+    } });
   });
 
   it("passes validated Lark Ticket time ranges and issue types to the service", async () => {
@@ -92,6 +98,11 @@ describe("web platform data controller", () => {
         sourceUpdatedAtAfter: "2026-08-10T00:00:00+08:00",
         sourceUpdatedAtBefore: "2026-08-20T00:00:00Z",
         issueType: "Feature,Bug",
+        status: ["Open", "In Progress"],
+        priority: "P0",
+        responsible: "Ada",
+        quickFilter: "unsynced",
+        offset: "500",
       },
     })).resolves.toEqual({ statusCode: 200, body: { ok: true, data: { items: [] } } });
     expect(service.list).toHaveBeenCalledWith("lark-tickets", 500, {
@@ -101,6 +112,11 @@ describe("web platform data controller", () => {
         sourceUpdatedAtAfter: "2026-08-09T16:00:00.000Z",
         sourceUpdatedAtBefore: "2026-08-20T00:00:00.000Z",
         issueTypes: ["Feature", "Bug"],
+        statuses: ["Open", "In Progress"],
+        priorities: ["P0"],
+        responsibles: ["Ada"],
+        quickFilter: "unsynced",
+        offset: 500,
       },
     });
   });

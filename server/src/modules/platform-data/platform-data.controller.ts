@@ -7,6 +7,10 @@ import { parsePlatformDataListResponse, platformDataListQuerySchema } from "./pl
 
 type WebSessionResult = Awaited<ReturnType<typeof resolveLarkWebSessionIdentity>>;
 
+function omitUndefined<T extends Record<string, unknown>>(value: T): T {
+  return Object.fromEntries(Object.entries(value).filter(([, field]) => field !== undefined)) as T;
+}
+
 function readCookie(cookieHeader: string | undefined, name: string): string | undefined {
   const prefix = `${name}=`;
   const value = cookieHeader?.split(";").map((part) => part.trim()).find((part) => part.startsWith(prefix));
@@ -60,31 +64,54 @@ export function createWebPlatformDataController(deps: {
       throw error;
     }
 
-    if (input.kind !== "meegle-workitems" && query.sprint) {
+    const hasMeegleWorkitemFilters = query.sprint || query.project || query.workitemType || query.withoutSprint;
+    if (input.kind !== "meegle-workitems" && hasMeegleWorkitemFilters) {
       return {
         statusCode: 400,
-        body: { ok: false as const, error: { errorCode: "INVALID_REQUEST", errorMessage: "Sprint 筛选仅适用于 Meegle 工作项。" } },
+        body: { ok: false as const, error: { errorCode: "INVALID_REQUEST", errorMessage: "Meegle 工作项筛选仅适用于 Meegle 工作项列表。" } },
       };
     }
 
-    const hasLarkTicketFilters = query.createdAfter || query.createdBefore || query.sourceUpdatedAtAfter || query.sourceUpdatedAtBefore || query.issueType;
+    const hasLarkTicketFilters = query.createdAfter || query.createdBefore || query.issueType || query.responsible || query.quickFilter;
     if (input.kind !== "lark-tickets" && hasLarkTicketFilters) {
       return {
         statusCode: 400,
         body: { ok: false as const, error: { errorCode: "INVALID_REQUEST", errorMessage: "Lark Ticket 筛选仅适用于 Lark Ticket 列表。" } },
       };
     }
+    const hasSharedSnapshotFilters = query.status || query.priority || query.sourceUpdatedAtAfter || query.sourceUpdatedAtBefore;
+    if (input.kind === "github-pull-requests" && hasSharedSnapshotFilters) {
+      return {
+        statusCode: 400,
+        body: { ok: false as const, error: { errorCode: "INVALID_REQUEST", errorMessage: "该筛选不适用于 GitHub PR 列表。" } },
+      };
+    }
 
     try {
       const filters = input.kind === "lark-tickets"
-        ? { larkTickets: {
+        ? { larkTickets: omitUndefined({
           createdAfter: query.createdAfter,
           createdBefore: query.createdBefore,
           sourceUpdatedAtAfter: query.sourceUpdatedAtAfter,
           sourceUpdatedAtBefore: query.sourceUpdatedAtBefore,
           issueTypes: query.issueType,
-        } }
-        : { sprint: query.sprint };
+          statuses: query.status,
+          priorities: query.priority,
+          responsibles: query.responsible,
+          quickFilter: query.quickFilter,
+          offset: query.offset || undefined,
+        }) }
+        : input.kind === "meegle-workitems" ? { meegleWorkitems: omitUndefined({
+          sprints: query.sprint,
+          statuses: query.status,
+          projects: query.project,
+          priorities: query.priority,
+          workitemTypes: query.workitemType,
+          withoutSprint: query.withoutSprint || undefined,
+          sourceUpdatedAtAfter: query.sourceUpdatedAtAfter,
+          sourceUpdatedAtBefore: query.sourceUpdatedAtBefore,
+          offset: query.offset || undefined,
+        }) } : {};
       const data = parsePlatformDataListResponse(input.kind, await service.list(input.kind, query.limit, filters));
       return { statusCode: 200, body: { ok: true as const, data } };
     } catch {

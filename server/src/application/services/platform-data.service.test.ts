@@ -67,14 +67,14 @@ describe("PlatformDataService", () => {
     } as unknown as PlatformSyncStore;
     const service = new PlatformDataService(store);
 
-    await expect(service.list("meegle-workitems", 50, { sprint: "Sprint 1" })).resolves.toEqual({
+    await expect(service.list("meegle-workitems", 50, { meegleWorkitems: { sprints: ["Sprint 1"] } })).resolves.toEqual({
       items: [expect.objectContaining({
         workItemId: "123",
         githubPullRequests: [expect.objectContaining({ pullNumber: 1138, headRef: "feature/m-123", baseRef: "main", state: "merged", odooShBuilds: [] })],
       })],
       sprints: ["Sprint 1"],
     });
-    expect(store.listMeegleWorkitems).toHaveBeenCalledWith(50, "Sprint 1");
+    expect(store.listMeegleWorkitems).toHaveBeenCalledWith(50, { sprints: ["Sprint 1"] });
     expect(store.listGitHubPullRequestLinks).toHaveBeenCalledWith(["123"]);
   });
 

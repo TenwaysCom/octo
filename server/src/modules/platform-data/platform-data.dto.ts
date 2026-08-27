@@ -4,7 +4,7 @@ const timestampQuerySchema = z.string().trim().min(1).max(80)
   .refine((value) => !Number.isNaN(Date.parse(value)), "Expected an ISO-8601 timestamp.")
   .transform((value) => new Date(value).toISOString());
 
-const issueTypesQuerySchema = z.preprocess((value) => {
+const stringListQuerySchema = z.preprocess((value) => {
   if (value === undefined) return undefined;
   const values = Array.isArray(value) ? value : [value];
   return values.flatMap((item) => typeof item === "string" ? item.split(",") : [item]);
@@ -13,12 +13,20 @@ const issueTypesQuerySchema = z.preprocess((value) => {
 
 export const platformDataListQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(500).optional().default(500),
-  sprint: z.string().trim().min(1).max(200).optional(),
+  offset: z.coerce.number().int().min(0).max(1_000_000).optional().default(0),
+  status: stringListQuerySchema,
+  sprint: stringListQuerySchema,
+  project: stringListQuerySchema,
+  priority: stringListQuerySchema,
+  responsible: stringListQuerySchema,
+  workitemType: stringListQuerySchema,
+  quickFilter: z.enum(["in-progress", "unclassified", "unsynced"]).optional(),
+  withoutSprint: z.enum(["true"]).optional().transform((value) => value === "true"),
   createdAfter: timestampQuerySchema.optional(),
   createdBefore: timestampQuerySchema.optional(),
   sourceUpdatedAtAfter: timestampQuerySchema.optional(),
   sourceUpdatedAtBefore: timestampQuerySchema.optional(),
-  issueType: issueTypesQuerySchema,
+  issueType: stringListQuerySchema,
 }).superRefine((value, context) => {
   if (value.createdAfter && value.createdBefore && value.createdAfter > value.createdBefore) {
     context.addIssue({ code: "custom", message: "createdAfter must not be later than createdBefore.", path: ["createdAfter"] });
