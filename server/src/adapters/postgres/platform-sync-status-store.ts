@@ -16,6 +16,7 @@ export interface PlatformSyncScopeStatus extends PlatformSyncScopeRef {
   runTrigger?: PlatformSyncRunTrigger;
   lastRunAt?: string;
   lastCompletedAt?: string;
+  lastSyncedAt?: string;
   lastErrorCode?: string;
 }
 
@@ -24,7 +25,7 @@ export class PostgresPlatformSyncStatusStore {
 
   async list(scopes: PlatformSyncScopeRef[]): Promise<PlatformSyncScopeStatus[]> {
     return Promise.all(scopes.map(async (scope) => {
-      const [schedule, activeRun, latestRun] = await Promise.all([
+      const [schedule, activeRun, latestRun, lastSyncedAt] = await Promise.all([
         this.db.selectFrom("platform_sync_schedules")
           .select(["enabled", "next_run_at", "blocked_reason"])
           .where("platform", "=", scope.platform)
@@ -50,6 +51,7 @@ export class PostgresPlatformSyncStatusStore {
           .orderBy("started_at", "desc")
           .limit(1)
           .executeTakeFirst(),
+        this.latestSnapshotAt(scope),
       ]);
       const visibleRun = activeRun ?? latestRun;
       return {
@@ -61,8 +63,41 @@ export class PostgresPlatformSyncStatusStore {
         runTrigger: visibleRun?.trigger ?? undefined,
         lastRunAt: visibleRun?.started_at ?? undefined,
         lastCompletedAt: visibleRun?.completed_at ?? undefined,
+        lastSyncedAt,
         lastErrorCode: visibleRun?.error_code ?? undefined,
       };
     }));
+  }
+
+  private async latestSnapshotAt(scope: PlatformSyncScopeRef): Promise<string | undefined> {
+    const [primaryKey = "", secondaryKey = ""] = scope.scopeKey.split("/", 2);
+    if (scope.platform === "lark") {
+      const latest = await this.db.selectFrom("lark_base_ticket_syncs")
+        .select("synced_at")
+        .where("base_id", "=", primaryKey)
+        .where("table_id", "=", secondaryKey)
+        .orderBy("synced_at", "desc")
+        .limit(1)
+        .executeTakeFirst();
+      return latest?.synced_at ?? undefined;
+    }
+    if (scope.platform === "meegle") {
+      const latest = await this.db.selectFrom("meegle_workitem_syncs")
+        .select("synced_at")
+        .where("project_key", "=", primaryKey)
+        .where("work_item_type_key", "=", secondaryKey)
+        .orderBy("synced_at", "desc")
+        .limit(1)
+        .executeTakeFirst();
+      return latest?.synced_at ?? undefined;
+    }
+    const latest = await this.db.selectFrom("github_pr_syncs")
+      .select("synced_at")
+      .where("owner", "=", primaryKey)
+      .where("repo", "=", secondaryKey)
+      .orderBy("synced_at", "desc")
+      .limit(1)
+      .executeTakeFirst();
+    return latest?.synced_at ?? undefined;
   }
 }

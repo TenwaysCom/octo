@@ -82,6 +82,9 @@ Lark Ticket API 接受 `createdAfter`、`createdBefore`、`sourceUpdatedAtAfter`
 | 2026-08-27 | completed | 真实 FE 请求返回 200/304，但旧 Server 响应尚无新增的关联 Meegle 字段，FE 严格校验导致整页进入错误态；现已将缺失字段归一化为空数组。 | 新 Server 生效前不显示关联详情，但页面其余数据可正常读取。 |
 | 2026-08-27 | completed | GitHub 列表仅保留关联 ID，并将“关联 Meegle”移动到 Author 后；Space 预览通过专用 Web 接口读取单个 PR，再按其全部 ID 一次批量查询本地 Meegle 快照。FE 显示加载/重试状态并缓存成功结果。 | 未做登录态浏览器视觉与真实快照验收。 |
 | 2026-08-27 | completed | Popup 的 Meegle 工作项改为单行紧凑卡片：左侧 ID/标题截断，右侧 Status/Sprint/Version 统一 badge 展示。 | 未做不同长度真实字段的浏览器视觉验收。 |
+| 2026-08-27 | completed | `#sync` 改为只读取同步状态接口；Server 从各平台快照表汇总每个 source 的最近 `synced_at`，FE 不再加载 Lark/Meegle/GitHub 列表后自行汇总。 | 需在真实 Network 面板确认进入 `#sync` 时只有 `/web/platform-sync-sources` 请求。 |
+| 2026-08-27 | completed | 移除 `#sync` 的 10 秒状态轮询，增加“刷新状态”手动按钮；单源“立即同步”完成后仍刷新一次状态。 | 未做登录态浏览器交互验收。 |
+| 2026-08-27 | completed | Quick Filter 保持为后端查询参数；当后端筛选结果为 0 时，筛选工具栏仍显示，用户可再次点击已激活的 Quick Filter 取消筛选。 | 未做真实数据下的筛选组合浏览器验收。 |
 
 ## 验证
 
@@ -100,6 +103,10 @@ Lark Ticket API 接受 `createdAfter`、`createdBefore`、`sourceUpdatedAtAfter`
 | GitHub PR 关联 Meegle 与 Space 预览 | 通过（定向） | `pnpm --dir fe check`：21/21 test files passed，Vite build passed；Platform Data/Sync Server 定向测试 42/42 passed；`pnpm --dir server build` 通过。 | 未连接真实已登录数据做浏览器视觉验收；未同步到本地的 Meegle ID 仅显示原始 ID。 |
 | GitHub PR 新旧响应兼容 | 通过 | `pnpm --dir fe check`：21/21 test files passed，包含缺少 `meegleIds`/`meegleWorkitems` 的旧响应回归用例；Vite build passed。 | 旧 Server 响应无法提供新增关联详情，需更新 Server 后显示。 |
 | GitHub PR 按需预览 | 通过（定向） | `pnpm --dir fe check`：21/21 test files passed，Vite build passed；预览接口、Service、Store、权限与路由 Server 定向测试 55/55 passed；`pnpm --dir server build` 通过。 | 未在真实登录态浏览器中验证首次请求与二次缓存命中。 |
+| 同步状态汇总 | 通过（定向） | `pnpm --dir server exec vitest run src/adapters/postgres/platform-sync-status-store.test.ts src/modules/platform-sync/web-platform-sync.controller.test.ts`：11/11 passed；`pnpm --dir server build` 和 `pnpm --dir fe check` 通过。 | 未做已登录浏览器 Network 面板验收。 |
+| 同步时间快照来源修正 | 通过（定向） | 状态 Store 测试覆盖“存在旧快照、最新 run 失败”仍返回 `lastSyncedAt`；Server 11/11、FE 62/62 与两端构建通过。 | 未连接正式环境数据库核对各 source 当前快照数量。 |
+| 手动刷新同步状态 | 通过 | `pnpm --dir fe check`：62/62 passed，Vite build passed；源码确认 `SyncStatusPage` 无 `setInterval`。 | 未做已登录浏览器交互验收。 |
+| 空结果 Quick Filter 可恢复 | 通过 | `pnpm --dir fe check`：62/62 passed，Vite build passed；现有 API 测试覆盖 `quickFilter` 参数序列化。 | 未做已登录浏览器 Network 面板验收。 |
 
 ## 关联
 

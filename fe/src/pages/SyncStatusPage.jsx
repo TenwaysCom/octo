@@ -1,18 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { WorkspaceShell } from "../components/layout/WorkspaceShell.jsx";
 import { formatDateTime } from "../lib/formatters.js";
-import { getPlatformDataList } from "../services/platform-data/platform-data-api.js";
 import { getPlatformSyncSources, syncPlatformSource } from "../services/platform-data/platform-sync-api.js";
-
-const SOURCE_MATCHERS = {
-  "lark-tickets": (items) => items,
-  "meegle-user-stories": (items) => items.filter((item) => item.workItemTypeKey === "story"),
-  "meegle-tech-tasks": (items) => items.filter((item) => item.workItemTypeKey === "66700acbf297a8f821b4b860"),
-  "meegle-production-bugs": (items) => items.filter((item) => item.workItemTypeKey === "6932e40429d1cd8aac635c82"),
-  "github-odoo-eu": (items) => items.filter((item) => item.owner === "TenwaysCom" && item.repo === "Tenways"),
-  "github-odoo-uk": (items) => items.filter((item) => item.owner === "TenwaysCom" && item.repo === "tenways-ukk"),
-  "github-odoo-us": (items) => items.filter((item) => item.owner === "TWS-lance" && item.repo === "odoo_tenways"),
-};
 
 const RUN_STATUS_LABELS = {
   queued: "排队中",
@@ -21,13 +10,6 @@ const RUN_STATUS_LABELS = {
   failed: "失败",
   skipped: "已合并",
 };
-
-function latestSync(items) {
-  return items.reduce((latest, item) => {
-    if (!latest || new Date(item.syncedAt).getTime() > new Date(latest).getTime()) return item.syncedAt;
-    return latest;
-  }, undefined);
-}
 
 function SyncSourceCard({ source, latest, running, error, onSync }) {
   const ready = Boolean(latest);
@@ -59,54 +41,34 @@ function SyncSourceCard({ source, latest, running, error, onSync }) {
 }
 
 export function SyncStatusPage({ profile, apiBaseUrl, onLogout, isBusy, breadcrumbs }) {
-  const [state, setState] = useState({ status: "loading", sources: [], latestBySource: {} });
+  const [state, setState] = useState({ status: "loading", sources: [] });
   const [runningId, setRunningId] = useState("");
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorBySource, setErrorBySource] = useState({});
 
   const load = useCallback(async () => {
-    const [sources, lark, meegle, github] = await Promise.all([
-      getPlatformSyncSources({ apiBaseUrl }),
-      getPlatformDataList({ apiBaseUrl, kind: "lark-tickets" }),
-      getPlatformDataList({ apiBaseUrl, kind: "meegle-workitems" }),
-      getPlatformDataList({ apiBaseUrl, kind: "github-pull-requests" }),
-    ]);
-    const platformItems = {
-      "lark-tickets": lark.items,
-      "meegle-user-stories": meegle.items,
-      "meegle-tech-tasks": meegle.items,
-      "meegle-production-bugs": meegle.items,
-      "github-odoo-eu": github.items,
-      "github-odoo-uk": github.items,
-      "github-odoo-us": github.items,
-    };
-    setState({
-      status: "ready",
-      sources,
-      latestBySource: Object.fromEntries(sources.map((source) => [source.id, latestSync(SOURCE_MATCHERS[source.id]?.(platformItems[source.id] ?? []) ?? [])])),
-    });
+    const sources = await getPlatformSyncSources({ apiBaseUrl });
+    setState({ status: "ready", sources });
   }, [apiBaseUrl]);
 
   useEffect(() => {
     let active = true;
     void load().catch(() => {
-      if (active) setState({ status: "error", sources: [], latestBySource: {} });
+      if (active) setState({ status: "error", sources: [] });
     });
     return () => { active = false; };
   }, [load]);
 
-  useEffect(() => {
-    let active = true;
-    const timer = window.setInterval(() => {
-      void getPlatformSyncSources({ apiBaseUrl }).then((sources) => {
-        if (!active) return;
-        setState((current) => current.status === "ready" ? { ...current, sources } : current);
-      }).catch(() => undefined);
-    }, 10_000);
-    return () => {
-      active = false;
-      window.clearInterval(timer);
-    };
-  }, [apiBaseUrl]);
+  async function refresh() {
+    setIsRefreshing(true);
+    try {
+      await load();
+    } catch {
+      setState({ status: "error", sources: [] });
+    } finally {
+      setIsRefreshing(false);
+    }
+  }
 
   async function sync(sourceId) {
     setRunningId(sourceId);
@@ -127,6 +89,7 @@ export function SyncStatusPage({ profile, apiBaseUrl, onLogout, isBusy, breadcru
         <p className="eyebrow">INTEGRATIONS</p>
         <h1>数据同步</h1>
         <p>查看数据源的快照状态，并按需发起单个数据源同步。</p>
+        <button className="secondary-button" type="button" disabled={isRefreshing} onClick={() => void refresh()}>{isRefreshing ? "刷新中…" : "刷新状态"}</button>
       </header>
       {state.status === "loading" ? <p className="list-message">正在读取同步状态…</p> : null}
       {state.status === "error" ? <p className="list-message list-message--error">同步状态暂时无法读取，请稍后重试。</p> : null}
@@ -134,7 +97,7 @@ export function SyncStatusPage({ profile, apiBaseUrl, onLogout, isBusy, breadcru
         {state.sources.map((source) => <SyncSourceCard
           key={source.id}
           source={source}
-          latest={state.latestBySource[source.id]}
+          latest={source.lastSyncedAt}
           running={runningId === source.id}
           error={errorBySource[source.id]}
           onSync={() => void sync(source.id)}

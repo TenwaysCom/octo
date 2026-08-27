@@ -256,6 +256,8 @@ function projectSourceStatuses(
     const nextRunAt = sourceStatuses.filter((status) => status.scheduled && status.nextRunAt)
       .map((status) => status.nextRunAt!)
       .sort()[0];
+    const lastSyncedAt = sourceStatuses.map((status) => status.lastSyncedAt).filter(Boolean)
+      .sort().at(-1);
     return {
       ...source,
       scheduled: sourceStatuses.some((status) => status.scheduled),
@@ -265,6 +267,7 @@ function projectSourceStatuses(
       runTrigger: running?.runTrigger ?? latest?.runTrigger,
       lastRunAt: latest?.lastRunAt,
       lastCompletedAt: latest?.lastCompletedAt,
+      lastSyncedAt,
       lastErrorCode: latest?.lastErrorCode,
     };
   });

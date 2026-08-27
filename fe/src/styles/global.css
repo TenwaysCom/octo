@@ -269,6 +269,7 @@ a { color: inherit; }
 .shortcuts-page__header { margin-bottom: 24px; }
 .shortcuts-page__header h1 { margin-bottom: 8px; }
 .shortcuts-page__header > p:last-child { margin: 0; color: var(--octo-text-muted); font-size: 14px; line-height: 1.6; }
+.sync-page .shortcuts-page__header > .secondary-button { margin-top: 12px; }
 .shortcuts-card { overflow: hidden; border: 1px solid var(--octo-border); border-radius: 14px; background: var(--octo-surface); }
 .shortcuts-card__item { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 18px; align-items: center; padding: 20px; }
 .shortcuts-card__item + .shortcuts-card__item { border-top: 1px solid var(--octo-border); }

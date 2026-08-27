@@ -320,3 +320,21 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - **Context:** The FE was hot-updated before the running Server and rejected otherwise valid GitHub PR rows because newly added association arrays were absent.
 - **Rule:** For additive response fields that have a safe empty meaning, validate malformed supplied values strictly but normalize an absent field to that empty value at the FE API boundary. This keeps independently restarted FE and Server processes compatible without weakening the new contract once fields are present.
 - **Verified outcome:** A regression fixture without `meegleIds` or `meegleWorkitems` parses to empty arrays; all FE tests and the production build pass.
+
+## [LRN-20260827-007] sync-status-summary-boundary
+
+- **Context:** The Sync status page loaded each entire platform list merely to derive a source card's latest successful sync timestamp.
+- **Rule:** A status page must read one server-owned status summary, not browser-side snapshot lists. The source-status projection returns the latest snapshot `synced_at` per configured scope, while the browser renders it directly; run history cannot stand in for snapshot state because historical snapshots may predate run tracking.
+- **Verified outcome:** The Web source endpoint exposes `lastSyncedAt` from the platform snapshot tables; `#sync` no longer imports or requests platform lists. Status/controller tests and FE checks pass.
+
+## [LRN-20260827-008] sync-status-manual-refresh
+
+- **Context:** A 10-second status poll kept producing background network traffic after the Sync page had been reduced to one status API.
+- **Rule:** For operator-driven sync pages, use initial load, explicit refresh, and a post-action refresh; do not continuously poll unless live progress is a stated product requirement.
+- **Verified outcome:** `#sync` has no interval timer and exposes a disabled-while-loading refresh button; FE checks pass.
+
+## [LRN-20260827-009] server-filter-empty-state-control
+
+- **Context:** Moving Quick Filters to the Server made a zero-result response replace the list data, and the prior UI hid the very toolbar required to clear that filter.
+- **Rule:** Keep filter controls mounted whenever a list request is ready, including an empty server-filtered result; distinguish “no synced data” from “no matching data” in the empty state.
+- **Verified outcome:** Lark and Meegle Quick Filter state remains available after an empty response; FE checks pass.
