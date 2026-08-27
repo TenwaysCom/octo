@@ -50,7 +50,16 @@ describe("web platform data controller", () => {
       }],
       plannedSprint: "must not leak",
       syncedAt: "2026-08-09T00:00:00.000Z",
-    }], sprints: ["Odoo Sprint 20260806"], total: 1 }) };
+    }], sprints: ["Odoo Sprint 20260806"], sprintDetails: [{
+      projectKey: "4c3fv6",
+      sprintId: "13100779",
+      name: "Odoo Sprint 20260806",
+      status: "Ended",
+      description: "Sprint 说明",
+      startAt: "2026-08-06T00:00:00.000Z",
+      endAt: "2026-08-20T00:00:00.000Z",
+      syncedAt: "2026-08-09T00:00:00.000Z",
+    }], total: 1 }) };
     const ensureSession = vi.fn().mockResolvedValue({ ok: true, role: "dev", user: {} });
     const controller = createWebPlatformDataController({ service, ensureSession });
 
@@ -75,7 +84,12 @@ describe("web platform data controller", () => {
         priority: "P1",
         system: "Odoo/Odoo UK",
         githubPullRequests: [expect.objectContaining({ pullNumber: 1138, headRef: "feature/m-1138", baseRef: "main", state: "merged", odooShBuilds: [{ environment: "eu", status: "done", result: "success" }] })],
-      })], sprints: ["Odoo Sprint 20260806"], pager: { offset: 500, limit: 500, total: 1, hasMore: false } } },
+      })], sprints: ["Odoo Sprint 20260806"], sprintDetails: [expect.objectContaining({
+        sprintId: "13100779",
+        description: "Sprint 说明",
+        startAt: "2026-08-06T00:00:00.000Z",
+        endAt: "2026-08-20T00:00:00.000Z",
+      })], pager: { offset: 500, limit: 500, total: 1, hasMore: false } } },
     });
     expect((result.body as { data: { items: Array<Record<string, unknown>> } }).data.items[0]).not.toHaveProperty("plannedSprint");
     expect(ensureSession).toHaveBeenCalledWith("session-token");

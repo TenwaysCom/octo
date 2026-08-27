@@ -28,7 +28,16 @@ test("loads a synced platform list with the browser session cookie", async () =>
         bugs: ["Bug 1"],
         priority: "P1",
         githubPullRequests: [{ owner: "TenwaysCom", repo: "Tenways", pullNumber: 1, title: "PR", htmlUrl: "https://github.com/TenwaysCom/Tenways/pull/1", headRef: "feature/m-1", baseRef: "main", state: "merged", odooShBuilds: [{ environment: "eu", status: "done", result: "success" }] }],
-      }], sprints: ["Sprint 1"] } }) };
+      }], sprints: ["Sprint 1"], sprintDetails: [{
+        projectKey: "4c3fv6",
+        sprintId: "sprint-1",
+        name: "Sprint 1",
+        status: "In progress",
+        description: "Sprint 说明",
+        startAt: "2026-08-06T00:00:00.000Z",
+        endAt: "2026-08-20T00:00:00.000Z",
+        syncedAt: "2026-08-09T00:00:00.000Z",
+      }] } }) };
     },
   });
 
@@ -47,6 +56,16 @@ test("loads a synced platform list with the browser session cookie", async () =>
       githubPullRequests: [{ owner: "TenwaysCom", repo: "Tenways", pullNumber: 1, title: "PR", htmlUrl: "https://github.com/TenwaysCom/Tenways/pull/1", headRef: "feature/m-1", baseRef: "main", state: "merged", odooShBuilds: [{ environment: "eu", status: "done", result: "success" }] }],
     }],
     sprints: ["Sprint 1"],
+    sprintDetails: [{
+      projectKey: "4c3fv6",
+      sprintId: "sprint-1",
+      name: "Sprint 1",
+      status: "In progress",
+      description: "Sprint 说明",
+      startAt: "2026-08-06T00:00:00.000Z",
+      endAt: "2026-08-20T00:00:00.000Z",
+      syncedAt: "2026-08-09T00:00:00.000Z",
+    }],
     pager: { offset: 0, limit: 500, total: 1, hasMore: false },
   });
   assert.equal(request.url, "/api/web/platform-data/meegle-workitems?limit=500&sprint=Sprint+1");

@@ -17,7 +17,8 @@ import { buildGitHubPrCleaningProjection } from "./github-pr-cleaning.js";
 import { buildLarkTicketCleaningProjection } from "./lark-ticket-cleaning.js";
 import { buildAuthenticatedLarkClient } from "./lark-auth-client.factory.js";
 import { logger } from "../../logger.js";
-import { isMeegleProductionBugType } from "../../domain/meegle-workitem-types.js";
+import { isMeegleProductionBugType, isMeegleSprintType } from "../../domain/meegle-workitem-types.js";
+import { getMeegleSprintDetailFieldKeys } from "./meegle-sprint-snapshot.js";
 import type {
   BulkSyncGitHubPullRequestsRequest,
   BulkSyncLarkBaseTicketsRequest,
@@ -116,7 +117,7 @@ export class PlatformSyncService {
       pageSize: 100,
       autoPaginate: true,
     });
-    const active = listed.filter((item) => !isInactiveSyncStatus(item.status));
+    const active = listed.filter((item) => isMeegleSprintType(item.type) || !isInactiveSyncStatus(item.status));
     const detailed = await this.getDetailedMeegleWorkitems(client, request.projectKey, active);
     const mappings = mergeMeegleMappings([
       ...metadataMappings,
@@ -592,7 +593,10 @@ export class PlatformSyncService {
           projectKey,
           workItemTypeKey,
           workitemIdChunk,
-          getMeegleCleaningFieldKeys(workItemTypeKey),
+          [...new Set([
+            ...getMeegleCleaningFieldKeys(workItemTypeKey),
+            ...getMeegleSprintDetailFieldKeys(workItemTypeKey),
+          ])],
         );
         for (const workitem of detailed) {
           byId.set(workitem.id, workitem);

@@ -342,3 +342,10 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Error:** The focused service test received an empty Odoo.sh build list because the destructured object had a different identity from the original map key.
 - **Fix:** Use the original PR object for all identity-keyed lookups, then construct the reduced list projection only after dependent values are resolved.
 - **Status:** resolved; 55 focused Server tests and the Server TypeScript build pass.
+
+## [ERR-20260827-009] worktree-server-dependency-registry-timeout
+
+- **Summary:** The new feature worktree had no Server `node_modules`, so `pnpm --dir server exec vitest` first attempted a full dependency install and stalled on npm registry connection retries.
+- **Error:** Registry requests for TypeScript and type packages timed out; using a symlink through pnpm then triggered its non-TTY modules purge guard.
+- **Fix:** Reuse the already installed sibling checkout dependencies only for local verification by invoking its Vitest and TypeScript binaries directly with the feature worktree Server as cwd. Do not treat dependency-install failure as a test failure.
+- **Status:** resolved; focused 45/45 and full 561/561 Server tests passed, and TypeScript build passed.

@@ -5,6 +5,7 @@ import {
   canAccessWorkspaceRoute,
   getIntegrationsSubroutes,
   getLarkTicketDetailHash,
+  getMeegleSprintDetailHash,
   getWorkspaceNavigationRoutes,
   getWorkspaceRoute,
   INTEGRATIONS_ROUTE,
@@ -14,6 +15,7 @@ import {
 
 test("resolves each workspace hash to its page route", () => {
   assert.equal(getWorkspaceRoute("#meegle-workitems").page, "meegle-workitems");
+  assert.equal(getWorkspaceRoute("#meegle-sprints").page, "meegle-sprints");
   assert.equal(getWorkspaceRoute("#github-pull-requests").title, "GitHub PR");
   assert.equal(getWorkspaceRoute("#shortcuts").page, "shortcuts");
   assert.equal(getWorkspaceRoute("#sync").page, "sync");
@@ -36,6 +38,22 @@ test("resolves a Lark Ticket detail deep link", () => {
   });
 });
 
+test("resolves a Meegle Sprint detail deep link with its parent breadcrumb", () => {
+  const hash = getMeegleSprintDetailHash("Odoo Sprint / 20260827");
+  assert.equal(hash, "#meegle-sprints/Odoo%20Sprint%20%2F%2020260827");
+  const route = getWorkspaceRoute(hash);
+  assert.deepEqual(route, {
+    page: "meegle-sprint-detail",
+    hash,
+    title: "Odoo Sprint / 20260827",
+    sprintName: "Odoo Sprint / 20260827",
+  });
+  assert.deepEqual(appendWorkspaceBreadcrumb([], route).map(({ hash: itemHash, label }) => [itemHash, label]), [
+    ["#meegle-sprints", "Meegle Sprint"],
+    [hash, "Odoo Sprint / 20260827"],
+  ]);
+});
+
 test("keeps sync and shortcut help as Integrations subpages", () => {
   assert.deepEqual(INTEGRATIONS_SUBROUTES.map((route) => route.page), ["integrations", "sync", "shortcuts"]);
   assert.equal(WORKSPACE_NAVIGATION_ROUTES.some((route) => route.page === "sync"), false);
@@ -47,7 +65,7 @@ test("limits workspace navigation to server-provided role permissions", () => {
   const devopsAccess = { platformLists: true, platformSync: true };
   const restrictedAccess = { platformLists: false, platformSync: false };
 
-  assert.deepEqual(getWorkspaceNavigationRoutes(developerAccess).map((route) => route.page), ["lark-tickets", "meegle-workitems", "github-pull-requests"]);
+  assert.deepEqual(getWorkspaceNavigationRoutes(developerAccess).map((route) => route.page), ["lark-tickets", "meegle-workitems", "meegle-sprints", "github-pull-requests"]);
   assert.deepEqual(getIntegrationsSubroutes(developerAccess).map((route) => route.page), ["integrations", "shortcuts"]);
   assert.equal(canAccessWorkspaceRoute(devopsAccess, getWorkspaceRoute("#sync")), true);
   assert.equal(canAccessWorkspaceRoute(restrictedAccess, getWorkspaceRoute("#lark-tickets")), false);
@@ -55,12 +73,12 @@ test("limits workspace navigation to server-provided role permissions", () => {
 });
 
 test("keeps no more than five workspace breadcrumbs and truncates when returning", () => {
-  const trail = ["#lark-tickets", "#meegle-workitems", "#github-pull-requests", "#integrations", "#sync", "#shortcuts"]
+  const trail = ["#lark-tickets", "#meegle-workitems", "#meegle-sprints", "#github-pull-requests", "#integrations", "#sync", "#shortcuts"]
     .reduce((current, hash) => appendWorkspaceBreadcrumb(current, getWorkspaceRoute(hash)), []);
 
-  assert.deepEqual(trail.map((item) => item.hash), ["#meegle-workitems", "#github-pull-requests", "#integrations", "#sync", "#shortcuts"]);
+  assert.deepEqual(trail.map((item) => item.hash), ["#meegle-sprints", "#github-pull-requests", "#integrations", "#sync", "#shortcuts"]);
   assert.deepEqual(
     appendWorkspaceBreadcrumb(trail, getWorkspaceRoute("#github-pull-requests")).map((item) => item.hash),
-    ["#meegle-workitems", "#github-pull-requests"],
+    ["#meegle-sprints", "#github-pull-requests"],
   );
 });

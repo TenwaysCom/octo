@@ -113,6 +113,19 @@ export const meegleWorkitemListResponseSchema = z.object({
     syncedAt: z.string(),
   })),
   sprints: z.array(z.string()),
+  sprintDetails: z.array(z.object({
+    projectKey: z.string(),
+    projectName: z.string().optional(),
+    sprintId: z.string(),
+    name: z.string(),
+    statusKey: z.string().optional(),
+    status: z.string().optional(),
+    description: z.string().optional(),
+    startAt: z.string().datetime().optional(),
+    endAt: z.string().datetime().optional(),
+    sourceUpdatedAt: z.string().datetime().optional(),
+    syncedAt: z.string().datetime(),
+  })),
   pager: platformDataPagerSchema,
 });
 

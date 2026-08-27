@@ -338,3 +338,9 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - **Context:** Moving Quick Filters to the Server made a zero-result response replace the list data, and the prior UI hid the very toolbar required to clear that filter.
 - **Rule:** Keep filter controls mounted whenever a list request is ready, including an empty server-filtered result; distinguish “no synced data” from “no matching data” in the empty state.
 - **Verified outcome:** Lark and Meegle Quick Filter state remains available after an empty response; FE checks pass.
+
+## [LRN-20260827-007] sprint-projection-fact-boundary
+
+- **Context:** A Sprint history UI needed description, dates, capacity, and progress, while the existing Meegle workitem snapshot only retained the related Sprint name and workitem fields.
+- **Rule:** Keep Sprint facts and workitem-derived analytics separate. Sync the Sprint object itself before showing platform status, description, dates, or empty future Sprints; derive scope and label counts only from related workitems. Exclude Sprint objects from the ordinary workitem list and retain ended Sprints for history.
+- **Verified outcome:** Real metadata and batch detail reads confirmed description plus schedule start/end. Server projects Sprint snapshots separately while FE merges them with workitem statistics; 561 Server tests, 67 FE tests, and both builds pass.

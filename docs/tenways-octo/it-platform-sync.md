@@ -470,6 +470,8 @@ Meegle 增量同样回退 checkpoint 5 分钟，但执行分为两层：先用 `
 
 即使两个类型在页面上都显示为“更新时间”，也必须分别配置各自的 MQL 字段 key；Production Bug 的最终水位仍来自其专用 `update_time`。
 
+Octo FE 的 Meegle Sprint 历史使用同一 `meegle_workitem_syncs` 快照链路。需要在 Meegle target 中加入 Sprint type key（Tenways Software R&D 当前为 `642ebe04168eea39eeb0d34a`）及其 `updated_at` 水位字段。Sprint 快照会额外读取语义字段 `description` 与 schedule；Server 将 Sprint 对象从普通工作项列表排除，仅通过 `sprintDetails` 投影描述、状态、起止时间。终态 Sprint 仍保留用于历史页，不能按普通终态工作项清除。
+
 ### 5.7 独立清洗 CLI
 
 `--mode clean` 不读取任何外部平台，只针对本地 `*_syncs` 表中配置的 scope 重算清洗投影。可用于补跑历史数据或修复清洗规则后回填：

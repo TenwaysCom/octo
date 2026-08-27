@@ -108,6 +108,7 @@ function createStore(): PlatformSyncStore & {
     async countMeegleWorkitems() { return 0; },
     async listMeegleSprints() { return []; },
     async listMeegleWorkitemsByIds() { return []; },
+    async listMeegleSprintSnapshots() { return []; },
     async listGitHubPullRequestLinks() { return []; },
     async listGitHubPullRequests() { return []; },
     async countGitHubPullRequests() { return 0; },
@@ -242,6 +243,32 @@ describe("PlatformSyncService", () => {
       masterUserId: "user-1",
       projectKey: "project",
     })).resolves.toEqual({ listed: 2, skippedInactive: 1, synced: 1 });
+    expect(store.meegle).toHaveLength(1);
+  });
+
+  it("keeps ended Sprint objects and requests their metadata fields during a bulk sync", async () => {
+    const store = createStore();
+    const sprint = {
+      ...workitem("sprint-1", "Ended"),
+      type: "642ebe04168eea39eeb0d34a",
+      workItemType: "Sprint",
+    };
+    const client = {
+      filterWorkitems: vi.fn().mockResolvedValue([sprint]),
+      getWorkitemDetails: vi.fn().mockResolvedValue([sprint]),
+      getSyncMappings: vi.fn().mockResolvedValue([]),
+    } as unknown as MeegleClient;
+    const service = new PlatformSyncService({ store, createMeegleClient: async () => client });
+
+    await expect(service.bulkSyncMeegleWorkitems({
+      masterUserId: "user-1",
+      projectKey: "project",
+      workItemTypeKeys: [sprint.type],
+    })).resolves.toEqual({ listed: 1, skippedInactive: 0, synced: 1 });
+    expect(client.getWorkitemDetails).toHaveBeenCalledWith("project", sprint.type, ["sprint-1"], [
+      "description",
+      "field_3729d1",
+    ]);
     expect(store.meegle).toHaveLength(1);
   });
 

@@ -146,6 +146,36 @@ describe("PostgresPlatformSyncStore", () => {
     await pool.end();
   });
 
+  it("stores Sprint objects as metadata without leaking them into the Meegle workitem list", async () => {
+    const { db, pool } = await createTestPostgresDatabase();
+    const store = new PostgresPlatformSyncStore(db);
+    await store.upsertMeegleWorkitem({
+      projectKey: "project",
+      workItemTypeKey: "642ebe04168eea39eeb0d34a",
+      workitem: {
+        id: "sprint-1", key: "", name: "Sprint 2", type: "642ebe04168eea39eeb0d34a",
+        workItemType: "Sprint", status: "Ended", updatedAt: "2026-08-27T00:00:00.000Z",
+        fields: { work_item_fields: [{ key: "description", value: "Sprint 说明" }] },
+      },
+    });
+    await store.upsertMeegleWorkitem({
+      projectKey: "project",
+      workItemTypeKey: "story",
+      workitem: { id: "story-1", key: "", name: "Story", type: "story", status: "New", fields: {} },
+    });
+    await db.updateTable("meegle_workitem_syncs").set({ sprint: "Sprint 1" }).where("work_item_id", "=", "story-1").execute();
+
+    await expect(store.listMeegleWorkitems(10)).resolves.toEqual([expect.objectContaining({ workItemId: "story-1" })]);
+    await expect(store.countMeegleWorkitems()).resolves.toBe(1);
+    await expect(store.listMeegleSprints()).resolves.toEqual(["Sprint 1", "Sprint 2"]);
+    await expect(store.listMeegleSprintSnapshots()).resolves.toEqual([
+      expect.objectContaining({ workItemId: "sprint-1", title: "Sprint 2", status: "Ended", sourcePayload: expect.any(Object) }),
+    ]);
+
+    await db.destroy();
+    await pool.end();
+  });
+
   it("filters Lark Ticket snapshots by created time, source update time, and issue type before applying the limit", async () => {
     const { db, pool } = await createTestPostgresDatabase();
     const store = new PostgresPlatformSyncStore(db);

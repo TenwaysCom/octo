@@ -57,6 +57,18 @@ describe("PlatformDataService", () => {
       }]),
       countMeegleWorkitems: vi.fn().mockResolvedValue(1),
       listMeegleSprints: vi.fn().mockResolvedValue(["Sprint 1"]),
+      listMeegleSprintSnapshots: vi.fn().mockResolvedValue([{
+        projectKey: "project",
+        workItemTypeKey: "642ebe04168eea39eeb0d34a",
+        workItemId: "sprint-1",
+        title: "Sprint 1",
+        status: "In progress",
+        syncedAt: "2026-08-09T00:00:00.000Z",
+        sourcePayload: {
+          id: "sprint-1", key: "", name: "Sprint 1", type: "642ebe04168eea39eeb0d34a", status: "In progress",
+          fields: { work_item_fields: [{ key: "description", value: "交付 Sprint" }] },
+        },
+      }]),
       listGitHubPullRequestLinks: vi.fn().mockResolvedValue([{
         meegleId: "123",
         owner: "TenwaysCom",
@@ -77,6 +89,7 @@ describe("PlatformDataService", () => {
         githubPullRequests: [expect.objectContaining({ pullNumber: 1138, headRef: "feature/m-123", baseRef: "main", state: "merged", odooShBuilds: [] })],
       })],
       sprints: ["Sprint 1"],
+      sprintDetails: [expect.objectContaining({ sprintId: "sprint-1", name: "Sprint 1", description: "交付 Sprint" })],
       total: 1,
     });
     expect(store.listMeegleWorkitems).toHaveBeenCalledWith(50, { sprints: ["Sprint 1"] });
@@ -95,6 +108,7 @@ describe("PlatformDataService", () => {
       }]),
       countMeegleWorkitems: vi.fn().mockResolvedValue(1),
       listMeegleSprints: vi.fn().mockResolvedValue([]),
+      listMeegleSprintSnapshots: vi.fn().mockResolvedValue([]),
       listGitHubPullRequestLinks: vi.fn().mockResolvedValue([
         {
           meegleId: "123", owner: "TenwaysCom", repo: "Tenways", pullNumber: 1138,

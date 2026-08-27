@@ -10,6 +10,9 @@ import {
   type LarkTicketAiData,
   type LarkTicketAiFields,
 } from "../../domain/lark-ticket-ai.js";
+import { MEEGLE_SPRINT_API_NAME, MEEGLE_SPRINT_WORKITEM_TYPE_KEY } from "../../domain/meegle-workitem-types.js";
+
+const MEEGLE_SPRINT_TYPE_KEYS = [MEEGLE_SPRINT_API_NAME, MEEGLE_SPRINT_WORKITEM_TYPE_KEY];
 
 export interface PlatformSyncStore {
   upsertMeegleWorkitem(input: {
@@ -50,6 +53,7 @@ export interface PlatformSyncStore {
   countMeegleWorkitems(filters?: MeegleWorkitemListFilters): Promise<number>;
   listMeegleSprints(): Promise<string[]>;
   listMeegleWorkitemsByIds(workItemIds: string[]): Promise<MeegleWorkitemSyncItem[]>;
+  listMeegleSprintSnapshots(): Promise<MeegleWorkitemSyncItem[]>;
   listGitHubPullRequestLinks(meegleWorkItemIds: string[]): Promise<GitHubPullRequestLink[]>;
   findGitHubPullRequest(ref: GitHubPullRequestSyncRef): Promise<GitHubPullRequestSyncItem | undefined>;
   listGitHubPullRequests(limit: number, filters?: GitHubPullRequestListFilters): Promise<GitHubPullRequestSyncItem[]>;
@@ -692,7 +696,8 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
   }
 
   private filteredMeegleWorkitems(filters: MeegleWorkitemListFilters) {
-    let query = this.db.selectFrom("meegle_workitem_syncs");
+    let query = this.db.selectFrom("meegle_workitem_syncs")
+      .where("work_item_type_key", "not in", MEEGLE_SPRINT_TYPE_KEYS);
     if (filters.sprints?.length) query = query.where("sprint", "in", filters.sprints);
     if (filters.statuses?.length) {
       const configuredStatuses = filters.statuses.filter((status) => status !== "未设置");
@@ -720,13 +725,36 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
   }
 
   async listMeegleSprints(): Promise<string[]> {
+    const [relationRows, sprintRows] = await Promise.all([
+      this.db.selectFrom("meegle_workitem_syncs")
+        .select("sprint")
+        .where("sprint", "is not", null)
+        .distinct()
+        .execute(),
+      this.db.selectFrom("meegle_workitem_syncs")
+        .select("title")
+        .where("work_item_type_key", "in", MEEGLE_SPRINT_TYPE_KEYS)
+        .execute(),
+    ]);
+    return [...new Set([
+      ...relationRows.map((row) => row.sprint).filter((sprint): sprint is string => sprint !== null),
+      ...sprintRows.map((row) => row.title),
+    ])].sort((left, right) => left.localeCompare(right, "zh-CN", { numeric: true }));
+  }
+
+  async listMeegleSprintSnapshots(): Promise<MeegleWorkitemSyncItem[]> {
     const rows = await this.db.selectFrom("meegle_workitem_syncs")
-      .select("sprint")
-      .where("sprint", "is not", null)
-      .distinct()
-      .orderBy("sprint")
+      .select([
+        "project_key", "project_name", "work_item_type_key", "work_item_id", "work_item_key", "title",
+        "work_item_type", "status_key", "status", "sub_stage_key", "sub_stage",
+        "sprint", "version", "system", "bugs_json", "assignee", "priority",
+        "source_updated_at", "synced_at", "payload_json",
+      ])
+      .where("work_item_type_key", "in", MEEGLE_SPRINT_TYPE_KEYS)
+      .orderBy("source_updated_at", "desc")
+      .orderBy("synced_at", "desc")
       .execute();
-    return rows.map((row) => row.sprint).filter((sprint): sprint is string => sprint !== null);
+    return rows.map(toMeegleWorkitemSyncItem);
   }
 
   async listMeegleWorkitemsByIds(workItemIds: string[]): Promise<MeegleWorkitemSyncItem[]> {

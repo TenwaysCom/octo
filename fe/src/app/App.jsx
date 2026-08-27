@@ -12,6 +12,7 @@ import { UnauthenticatedPage, SessionLoadingPage } from "../pages/LoginPage.jsx"
 import { KeyboardShortcutsPage } from "../pages/KeyboardShortcutsPage.jsx";
 import { LarkTicketDetailPage } from "../pages/LarkTicketDetailPage.jsx";
 import { PlatformListPage } from "../pages/PlatformListPage.jsx";
+import { MeegleSprintDetailPage, MeegleSprintHistoryPage } from "../pages/MeegleSprintPages.jsx";
 import { SettingsIntegrationsPage } from "../pages/SettingsIntegrationsPage.jsx";
 import { SyncStatusPage } from "../pages/SyncStatusPage.jsx";
 import { WorkspaceMetricsContext } from "../components/layout/WorkspaceShell.jsx";
@@ -25,6 +26,8 @@ const WORKSPACE_PAGE_COMPONENTS = {
   "lark-ticket-detail": LarkTicketDetailPage,
   "lark-tickets": PlatformListPage,
   "meegle-workitems": PlatformListPage,
+  "meegle-sprints": MeegleSprintHistoryPage,
+  "meegle-sprint-detail": MeegleSprintDetailPage,
   "github-pull-requests": PlatformListPage,
 };
 
@@ -159,6 +162,7 @@ export function App({ apiBaseUrl }) {
         profile={profile}
         page={activeWorkspaceRoute.page}
         ticketRecordId={activeWorkspaceRoute.ticketRecordId}
+        sprintName={activeWorkspaceRoute.sprintName}
         breadcrumbs={breadcrumbs}
         platformListFilterState={platformListFilterStates[activeWorkspaceRoute.page]}
         onPlatformListFilterStateChange={savePlatformListFilterState}

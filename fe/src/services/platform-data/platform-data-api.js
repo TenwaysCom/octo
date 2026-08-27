@@ -81,14 +81,16 @@ async function loadPlatformDataList({ apiBaseUrl, kind, filters, fetchImpl }) {
   const firstPage = await getPlatformDataListPage({ apiBaseUrl, kind, filters, fetchImpl });
   const items = [...firstPage.items];
   let sprints = firstPage.sprints || [];
+  let sprintDetails = firstPage.sprintDetails || [];
   let pager = firstPage.pager;
   while (pager.hasMore) {
     const page = await getPlatformDataListPage({ apiBaseUrl, kind, filters, offset: pager.nextOffset, fetchImpl });
     items.push(...page.items);
     sprints = page.sprints || sprints;
+    sprintDetails = page.sprintDetails || sprintDetails;
     pager = page.pager;
   }
-  return { items, ...(kind === "meegle-workitems" ? { sprints } : {}), pager };
+  return { items, ...(kind === "meegle-workitems" ? { sprints, sprintDetails } : {}), pager };
 }
 
 async function loadPlatformDataListPage({ apiBaseUrl, kind, filters, offset, fetchImpl, path }) {
@@ -109,7 +111,15 @@ async function loadPlatformDataListPage({ apiBaseUrl, kind, filters, offset, fet
   if (!Array.isArray(payload.data.sprints) || payload.data.sprints.some((value) => typeof value !== "string")) {
     throw new Error("INVALID_MEEGLE_WORKITEM_RESPONSE");
   }
-  return { items: payload.data.items.map(parseMeegleWorkitem), sprints: payload.data.sprints, pager };
+  if (payload.data.sprintDetails !== undefined && !Array.isArray(payload.data.sprintDetails)) {
+    throw new Error("INVALID_MEEGLE_WORKITEM_RESPONSE");
+  }
+  return {
+    items: payload.data.items.map(parseMeegleWorkitem),
+    sprints: payload.data.sprints,
+    sprintDetails: (payload.data.sprintDetails || []).map(parseMeegleSprint),
+    pager,
+  };
 }
 
 function parsePlatformDataPager(value, { offset, itemCount }) {
@@ -200,6 +210,26 @@ function parseMeegleWorkitem(value) {
   }
   item.githubPullRequests = value.githubPullRequests.map(parseGitHubPullRequest);
   return item;
+}
+
+function parseMeegleSprint(value) {
+  if (!isRecord(value)
+    || typeof value.projectKey !== "string"
+    || typeof value.sprintId !== "string"
+    || typeof value.name !== "string"
+    || typeof value.syncedAt !== "string"
+    || ["projectName", "statusKey", "status", "description", "startAt", "endAt", "sourceUpdatedAt"]
+      .some((field) => value[field] !== undefined && typeof value[field] !== "string")) {
+    throw new Error("INVALID_MEEGLE_SPRINT_RESPONSE");
+  }
+  return {
+    projectKey: value.projectKey,
+    sprintId: value.sprintId,
+    name: value.name,
+    syncedAt: value.syncedAt,
+    ...Object.fromEntries(["projectName", "statusKey", "status", "description", "startAt", "endAt", "sourceUpdatedAt"]
+      .flatMap((field) => value[field] === undefined ? [] : [[field, value[field]]])),
+  };
 }
 
 function parseGitHubPullRequest(value) {

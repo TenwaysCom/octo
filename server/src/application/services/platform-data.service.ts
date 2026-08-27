@@ -14,6 +14,7 @@ import {
   resolveMeegleSystemEnvironment,
 } from "./odoo-devops-environment-mapping.js";
 import { buildLarkTicketCleaningProjection } from "./lark-ticket-cleaning.js";
+import { buildMeegleSprintSnapshot } from "./meegle-sprint-snapshot.js";
 
 export type PlatformDataKind = "lark-tickets" | "meegle-workitems" | "github-pull-requests";
 export interface OdooShBuild {
@@ -53,9 +54,11 @@ export class PlatformDataService {
         }
       case "meegle-workitems":
         {
-          const [items, total] = await Promise.all([
+          const [items, total, sprints, sprintSnapshots] = await Promise.all([
             this.syncStore.listMeegleWorkitems(limit, filters.meegleWorkitems),
             this.syncStore.countMeegleWorkitems(filters.meegleWorkitems),
+            this.syncStore.listMeegleSprints(),
+            this.syncStore.listMeegleSprintSnapshots(),
           ]);
           const links = await this.syncStore.listGitHubPullRequestLinks(items.map((item) => item.workItemId));
           const linksByWorkItemId = new Map<string, typeof links>();
@@ -87,7 +90,11 @@ export class PlatformDataService {
                 ),
               })),
             })),
-            sprints: await this.syncStore.listMeegleSprints(),
+            sprints,
+            sprintDetails: sprintSnapshots.flatMap((item) => {
+              const sprint = buildMeegleSprintSnapshot(item);
+              return sprint ? [sprint] : [];
+            }),
             total,
           };
         }

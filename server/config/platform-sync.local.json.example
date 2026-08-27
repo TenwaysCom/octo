@@ -2,9 +2,10 @@
   "meegle": [
     {
       "projectKey": "4c3fv6",
-      "workItemTypeKeys": ["story"],
+      "workItemTypeKeys": ["story", "642ebe04168eea39eeb0d34a"],
       "sourceUpdatedAtMqlFieldNames": {
-        "story": "updated_at"
+        "story": "updated_at",
+        "642ebe04168eea39eeb0d34a": "updated_at"
       }
     }
   ],
