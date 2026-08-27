@@ -50,7 +50,7 @@ export interface PlatformSyncStore {
   listMeegleSprints(): Promise<string[]>;
   listGitHubPullRequestLinks(meegleWorkItemIds: string[]): Promise<GitHubPullRequestLink[]>;
   listGitHubPullRequests(limit: number): Promise<GitHubPullRequestSyncItem[]>;
-  listLarkBaseTickets(limit: number): Promise<LarkBaseTicketSyncItem[]>;
+  listLarkBaseTickets(limit: number, filters?: LarkBaseTicketListFilters): Promise<LarkBaseTicketSyncItem[]>;
 }
 
 export interface MeegleWorkitemSyncItem {
@@ -180,6 +180,14 @@ export interface LarkBaseTicketSyncItem {
   ticketAi?: LarkTicketAiData;
   sourceUpdatedAt?: string;
   syncedAt: string;
+}
+
+export interface LarkBaseTicketListFilters {
+  createdAfter?: string;
+  createdBefore?: string;
+  sourceUpdatedAtAfter?: string;
+  sourceUpdatedAtBefore?: string;
+  issueTypes?: string[];
 }
 
 export class PostgresPlatformSyncStore implements PlatformSyncStore {
@@ -695,8 +703,8 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
     return rows.map(toGitHubPullRequestSyncItem);
   }
 
-  async listLarkBaseTickets(limit: number): Promise<LarkBaseTicketSyncItem[]> {
-    const rows = await this.db.selectFrom("lark_base_ticket_syncs as sync")
+  async listLarkBaseTickets(limit: number, filters: LarkBaseTicketListFilters = {}): Promise<LarkBaseTicketSyncItem[]> {
+    let query = this.db.selectFrom("lark_base_ticket_syncs as sync")
       .leftJoin("lark_base_ticket_octo as octo", (join) => join
         .onRef("octo.base_id", "=", "sync.base_id")
         .onRef("octo.table_id", "=", "sync.table_id")
@@ -705,7 +713,13 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
         "sync.base_id", "sync.table_id", "sync.record_id", "sync.title", "sync.ticket_status",
         "sync.created_time", "sync.ticket_number", "sync.issue_type", "sync.requester", "sync.responsible", "sync.priority", "sync.detail_description", "sync.meegle_link", "sync.lark_message_link",
         "sync.source_updated_at", "sync.synced_at", "sync.fields_json", "octo.shared_url as octo_shared_url", "octo.ticket_ai as octo_ticket_ai",
-      ])
+      ]);
+    if (filters.createdAfter) query = query.where("sync.created_time", ">=", filters.createdAfter);
+    if (filters.createdBefore) query = query.where("sync.created_time", "<=", filters.createdBefore);
+    if (filters.sourceUpdatedAtAfter) query = query.where("sync.source_updated_at", ">=", filters.sourceUpdatedAtAfter);
+    if (filters.sourceUpdatedAtBefore) query = query.where("sync.source_updated_at", "<=", filters.sourceUpdatedAtBefore);
+    if (filters.issueTypes?.length) query = query.where("sync.issue_type", "in", filters.issueTypes);
+    const rows = await query
       .orderBy("sync.source_updated_at", "desc")
       .orderBy("sync.synced_at", "desc")
       .limit(limit)

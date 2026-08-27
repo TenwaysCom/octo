@@ -74,6 +74,55 @@ describe("web platform data controller", () => {
     expect(service.list).toHaveBeenCalledWith("meegle-workitems", 500, { sprint: "Odoo Sprint 20260806" });
   });
 
+  it("passes validated Lark Ticket time ranges and issue types to the service", async () => {
+    const service = { list: vi.fn().mockResolvedValue({ items: [] }) };
+    const controller = createWebPlatformDataController({
+      service,
+      ensureSession: vi.fn().mockResolvedValue({ ok: true, role: "dev", user: {} }),
+    });
+
+    await expect(controller({
+      kind: "lark-tickets",
+      cookieHeader: "octo_web_session=session-token",
+      query: {
+        createdAfter: "2026-08-01",
+        createdBefore: "2026-08-31T23:59:59Z",
+        sourceUpdatedAtAfter: "2026-08-10T00:00:00+08:00",
+        sourceUpdatedAtBefore: "2026-08-20T00:00:00Z",
+        issueType: "Feature,Bug",
+      },
+    })).resolves.toEqual({ statusCode: 200, body: { ok: true, data: { items: [] } } });
+    expect(service.list).toHaveBeenCalledWith("lark-tickets", 500, {
+      larkTickets: {
+        createdAfter: "2026-08-01T00:00:00.000Z",
+        createdBefore: "2026-08-31T23:59:59.000Z",
+        sourceUpdatedAtAfter: "2026-08-09T16:00:00.000Z",
+        sourceUpdatedAtBefore: "2026-08-20T00:00:00.000Z",
+        issueTypes: ["Feature", "Bug"],
+      },
+    });
+  });
+
+  it("rejects Lark Ticket filters on another platform or an invalid time range", async () => {
+    const service = { list: vi.fn() };
+    const controller = createWebPlatformDataController({
+      service,
+      ensureSession: vi.fn().mockResolvedValue({ ok: true, role: "dev", user: {} }),
+    });
+
+    await expect(controller({
+      kind: "meegle-workitems",
+      cookieHeader: "octo_web_session=session-token",
+      query: { issueType: "Feature" },
+    })).resolves.toMatchObject({ statusCode: 400, body: { error: { errorCode: "INVALID_REQUEST" } } });
+    await expect(controller({
+      kind: "lark-tickets",
+      cookieHeader: "octo_web_session=session-token",
+      query: { createdAfter: "2026-08-02T00:00:00Z", createdBefore: "2026-08-01T00:00:00Z" },
+    })).resolves.toMatchObject({ statusCode: 400, body: { error: { errorCode: "INVALID_REQUEST" } } });
+    expect(service.list).not.toHaveBeenCalled();
+  });
+
   it("returns validated Odoo.sh build data for GitHub PR rows", async () => {
     const service = { list: vi.fn().mockResolvedValue({ items: [{
       owner: "TenwaysCom",

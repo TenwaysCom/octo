@@ -548,6 +548,18 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     ON lark_base_ticket_syncs(base_id, table_id, ticket_status)
   `.execute(db);
   await sql`
+    CREATE INDEX IF NOT EXISTS lark_base_ticket_syncs_created_time_idx
+    ON lark_base_ticket_syncs(created_time)
+  `.execute(db);
+  await sql`
+    CREATE INDEX IF NOT EXISTS lark_base_ticket_syncs_source_updated_at_idx
+    ON lark_base_ticket_syncs(source_updated_at)
+  `.execute(db);
+  await sql`
+    CREATE INDEX IF NOT EXISTS lark_base_ticket_syncs_issue_type_idx
+    ON lark_base_ticket_syncs(issue_type)
+  `.execute(db);
+  await sql`
     CREATE INDEX IF NOT EXISTS platform_sync_runs_scope_started_idx
     ON platform_sync_runs(platform, scope_key, started_at DESC)
   `.execute(db);

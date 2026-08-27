@@ -67,8 +67,25 @@ export function createWebPlatformDataController(deps: {
       };
     }
 
+    const hasLarkTicketFilters = query.createdAfter || query.createdBefore || query.sourceUpdatedAtAfter || query.sourceUpdatedAtBefore || query.issueType;
+    if (input.kind !== "lark-tickets" && hasLarkTicketFilters) {
+      return {
+        statusCode: 400,
+        body: { ok: false as const, error: { errorCode: "INVALID_REQUEST", errorMessage: "Lark Ticket 筛选仅适用于 Lark Ticket 列表。" } },
+      };
+    }
+
     try {
-      const data = parsePlatformDataListResponse(input.kind, await service.list(input.kind, query.limit, { sprint: query.sprint }));
+      const filters = input.kind === "lark-tickets"
+        ? { larkTickets: {
+          createdAfter: query.createdAfter,
+          createdBefore: query.createdBefore,
+          sourceUpdatedAtAfter: query.sourceUpdatedAtAfter,
+          sourceUpdatedAtBefore: query.sourceUpdatedAtBefore,
+          issueTypes: query.issueType,
+        } }
+        : { sprint: query.sprint };
+      const data = parsePlatformDataListResponse(input.kind, await service.list(input.kind, query.limit, filters));
       return { statusCode: 200, body: { ok: true as const, data } };
     } catch {
       return {

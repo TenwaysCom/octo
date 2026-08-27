@@ -28,6 +28,21 @@ describe("PlatformDataService", () => {
     expect(result.items[1]).not.toHaveProperty("sourceFields");
   });
 
+  it("passes Lark Ticket filters to the snapshot store before projecting fields", async () => {
+    const store = {
+      listLarkBaseTickets: vi.fn().mockResolvedValue([]),
+    } as unknown as PlatformSyncStore;
+    const service = new PlatformDataService(store);
+    const larkTickets = {
+      createdAfter: "2026-08-01T00:00:00.000Z",
+      sourceUpdatedAtBefore: "2026-08-31T23:59:59.999Z",
+      issueTypes: ["Feature"],
+    };
+
+    await expect(service.list("lark-tickets", 50, { larkTickets })).resolves.toEqual({ items: [] });
+    expect(store.listLarkBaseTickets).toHaveBeenCalledWith(50, larkTickets);
+  });
+
   it("attaches linked GitHub PR summaries to the requested Meegle workitems", async () => {
     const store = {
       listMeegleWorkitems: vi.fn().mockResolvedValue([{

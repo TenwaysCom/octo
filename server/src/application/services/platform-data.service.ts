@@ -1,5 +1,6 @@
 import {
   PostgresPlatformSyncStore,
+  type LarkBaseTicketListFilters,
   type PlatformSyncStore,
 } from "../../adapters/postgres/platform-sync-store.js";
 import type { OdooDevopsEnvironment } from "../../adapters/odoo-devops/odoo-devops-branches-client.js";
@@ -30,11 +31,11 @@ export class PlatformDataService {
     this.store = store;
   }
 
-  async list(kind: PlatformDataKind, limit: number, filters: { sprint?: string } = {}) {
+  async list(kind: PlatformDataKind, limit: number, filters: { sprint?: string; larkTickets?: LarkBaseTicketListFilters } = {}) {
     switch (kind) {
       case "lark-tickets":
         return {
-          items: (await this.syncStore.listLarkBaseTickets(limit)).map(({ sourceFields, ...item }) => {
+          items: (await this.syncStore.listLarkBaseTickets(limit, filters.larkTickets)).map(({ sourceFields, ...item }) => {
             const requester = item.requester
               ?? buildLarkTicketCleaningProjection(sourceFields, item.createdTime).requester;
             return { ...item, ...(requester ? { requester } : {}) };

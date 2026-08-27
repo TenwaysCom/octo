@@ -1,8 +1,31 @@
 import { z } from "zod";
 
+const timestampQuerySchema = z.string().trim().min(1).max(80)
+  .refine((value) => !Number.isNaN(Date.parse(value)), "Expected an ISO-8601 timestamp.")
+  .transform((value) => new Date(value).toISOString());
+
+const issueTypesQuerySchema = z.preprocess((value) => {
+  if (value === undefined) return undefined;
+  const values = Array.isArray(value) ? value : [value];
+  return values.flatMap((item) => typeof item === "string" ? item.split(",") : [item]);
+}, z.array(z.string().trim().min(1).max(200)).min(1).max(50).optional())
+  .transform((values) => values && [...new Set(values)]);
+
 export const platformDataListQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(500).optional().default(500),
   sprint: z.string().trim().min(1).max(200).optional(),
+  createdAfter: timestampQuerySchema.optional(),
+  createdBefore: timestampQuerySchema.optional(),
+  sourceUpdatedAtAfter: timestampQuerySchema.optional(),
+  sourceUpdatedAtBefore: timestampQuerySchema.optional(),
+  issueType: issueTypesQuerySchema,
+}).superRefine((value, context) => {
+  if (value.createdAfter && value.createdBefore && value.createdAfter > value.createdBefore) {
+    context.addIssue({ code: "custom", message: "createdAfter must not be later than createdBefore.", path: ["createdAfter"] });
+  }
+  if (value.sourceUpdatedAtAfter && value.sourceUpdatedAtBefore && value.sourceUpdatedAtAfter > value.sourceUpdatedAtBefore) {
+    context.addIssue({ code: "custom", message: "sourceUpdatedAtAfter must not be later than sourceUpdatedAtBefore.", path: ["sourceUpdatedAtAfter"] });
+  }
 });
 
 export type PlatformDataListQuery = z.infer<typeof platformDataListQuerySchema>;

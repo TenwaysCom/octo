@@ -136,6 +136,41 @@ describe("PostgresPlatformSyncStore", () => {
     await pool.end();
   });
 
+  it("filters Lark Ticket snapshots by created time, source update time, and issue type before applying the limit", async () => {
+    const { db, pool } = await createTestPostgresDatabase();
+    const store = new PostgresPlatformSyncStore(db);
+    const records = [
+      { recordId: "rec-feature-current", createdTime: "2026-08-05T00:00:00.000Z", updatedTime: "2026-08-10T00:00:00.000Z", issueType: "Feature" },
+      { recordId: "rec-bug-current", createdTime: "2026-08-06T00:00:00.000Z", updatedTime: "2026-08-11T00:00:00.000Z", issueType: "Bug" },
+      { recordId: "rec-feature-old", createdTime: "2026-08-01T00:00:00.000Z", updatedTime: "2026-08-12T00:00:00.000Z", issueType: "Feature" },
+    ];
+    for (const record of records) {
+      await store.upsertLarkBaseTicket({
+        baseId: "base", tableId: "table",
+        record: { record_id: record.recordId, fields: { Title: record.recordId }, created_time: record.createdTime, updated_time: record.updatedTime },
+        title: record.recordId,
+      });
+      await store.applyLarkBaseTicketCleaning({
+        baseId: "base", tableId: "table", recordId: record.recordId, issueType: record.issueType,
+      });
+    }
+
+    await expect(store.listLarkBaseTickets(1, {
+      createdAfter: "2026-08-03T00:00:00.000Z",
+      createdBefore: "2026-08-07T00:00:00.000Z",
+      sourceUpdatedAtAfter: "2026-08-09T00:00:00.000Z",
+      sourceUpdatedAtBefore: "2026-08-10T00:00:00.000Z",
+      issueTypes: ["Feature"],
+    })).resolves.toEqual([expect.objectContaining({ recordId: "rec-feature-current" })]);
+    await expect(store.listLarkBaseTickets(10, { issueTypes: ["Feature"] })).resolves.toEqual([
+      expect.objectContaining({ recordId: "rec-feature-old" }),
+      expect.objectContaining({ recordId: "rec-feature-current" }),
+    ]);
+
+    await db.destroy();
+    await pool.end();
+  });
+
   it("reports merged GitHub PR snapshots separately from closed ones", async () => {
     const { db, pool } = await createTestPostgresDatabase();
     const store = new PostgresPlatformSyncStore(db);
