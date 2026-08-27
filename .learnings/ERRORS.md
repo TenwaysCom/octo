@@ -287,3 +287,10 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Error:** The pg-mem-backed snapshot-store test failed because its SQL function set does not implement `trim(text)`.
 - **Fix:** Use the existing normalized snapshot values directly with `coalesce` and `lower`; this preserves the stored-field semantics and keeps the PostgreSQL query testable in pg-mem.
 - **Status:** resolved; the snapshot-store, controller, service, FE, and TypeScript checks pass.
+
+## [ERR-20260827-004] acp-ticket-context-eager-database-store
+
+- **Summary:** Server startup crashed before `ensureSharedDatabase()` completed because route registration eagerly created the ACP Ticket context service and its PostgreSQL store.
+- **Error:** `getSharedDatabase()` rejected with `SSH tunnel is not ready` while importing `server/src/index.ts`.
+- **Fix:** Defer the controller's default service factory until an authorized request calls `getMessages`.
+- **Status:** resolved; targeted controller/index tests, TypeScript build, and an actual Server startup reached the listening state.

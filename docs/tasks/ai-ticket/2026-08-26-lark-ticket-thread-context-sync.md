@@ -46,6 +46,7 @@ related:
 | --- | --- | --- | --- |
 | 2026-08-26 | in_progress | 已确认现有 Ticket sync、Lark adapter、Kimi Session ownership 与内部路由边界。 | 实现 schema/store、ensure、ACP 接入与测试。 |
 | 2026-08-26 | completed | 新增 thread sync store、分页/增量 ensure、终态冻结、Kimi 首轮快照、签名内部接口；定向 37 tests 与 Server build 通过。 | 未对真实 Lark tenant 做在线调用；全量套件仍受本机 `node:sqlite` 缺失与既有 logger 文件测试影响。 |
+| 2026-08-27 | completed | 内部 ACP Ticket 上下文 controller 改为按首次已授权请求懒创建数据库服务，避免路由注册先于 `ensureSharedDatabase()` 访问 SSH PostgreSQL；controller/index 定向 5/5、Server build 与实际 `server start` 启动通过。 | 未发起真实签名 Ticket 上下文请求。 |
 
 ## 验证
 

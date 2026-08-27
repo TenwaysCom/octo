@@ -77,6 +77,7 @@ function toErrorResponse(error: unknown, actionRunId?: string) {
 export function createInternalAcpTicketContextController(deps: {
   authorizer?: Pick<Authorizer, "authorize">;
   service?: Pick<AcpTicketThreadContextService, "getMessages">;
+  createService?: () => Pick<AcpTicketThreadContextService, "getMessages">;
   userSshPublicKeyStore?: UserSshPublicKeyStore;
 } = {}) {
   const getUserSshPublicKeyStore = () => deps.userSshPublicKeyStore ?? new PostgresUserSshPublicKeyStore();
@@ -93,7 +94,11 @@ export function createInternalAcpTicketContextController(deps: {
         : undefined;
     },
   });
-  const service = deps.service ?? createAcpTicketThreadContextService();
+  let service = deps.service;
+  const getService = () => {
+    service ??= deps.createService?.() ?? createAcpTicketThreadContextService();
+    return service;
+  };
 
   return {
     async getMessages(req: Request) {
@@ -105,7 +110,7 @@ export function createInternalAcpTicketContextController(deps: {
           rawBody: getRawBody(req),
         });
         request = requestSchema.parse(req.body);
-        const data = await service.getMessages({
+        const data = await getService().getMessages({
           masterUserId: authorization.principalId,
           larkBaseUrl: request.lark_base_url,
           ticket: {

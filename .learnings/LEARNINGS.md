@@ -284,3 +284,9 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - **Context:** A dedicated ESM Worker ran normally through direct `node` execution but entered a clean-exit restart loop under PM2 fork mode.
 - **Rule:** Do not identify a PM2-managed ESM entrypoint from `process.argv[1]` alone because it may point to `ProcessContainerFork.js`; also accept PM2's explicit `pm_exec_path` and compare paths through `pathToFileURL`. Every timer or wait that owns a long-running process lifecycle must stay referenced; only auxiliary timers may call `unref()`.
 - **Verified outcome:** Direct-Node and PM2-path tests plus enabled/disabled lifecycle tests pass. The real Worker stayed online with restart count zero across multiple polls and completed schedules for all three platforms.
+
+## [LRN-20260827-001] database-backed-route-initialization
+
+- **Context:** Registering the internal ACP Ticket context route eagerly constructed `PostgresPlatformSyncStore` before the Server startup path established its optional SSH database tunnel.
+- **Rule:** Route/controller construction must not instantiate database-backed services when their database can require asynchronous startup. Keep service creation lazy until the first authorized request, and cover module initialization independently from request execution.
+- **Verified outcome:** The controller no longer reaches `getSharedDatabase()` during route registration; controller/index tests and a real `pnpm --dir server start` reached the listening state.

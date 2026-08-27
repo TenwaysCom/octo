@@ -65,4 +65,14 @@ describe("internal ACP Ticket context controller", () => {
       },
     });
   });
+
+  it("defers the database-backed service until an authorized request needs it", async () => {
+    const createService = vi.fn(() => ({ getMessages: vi.fn() }));
+    createInternalAcpTicketContextController({
+      authorizer: { authorize: vi.fn() },
+      createService,
+    });
+
+    expect(createService).not.toHaveBeenCalled();
+  });
 });

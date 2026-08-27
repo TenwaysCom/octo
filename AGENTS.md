@@ -46,7 +46,7 @@ pnpm --dir extension test:e2e
 ```bash
 make server-dev
 make ext-dev-profile
-make make-fe-dev
+make fe-dev
 ```
 
 - FE 为 `http://localhost:4173`，Vite 将 `/api` 代理到 Server `http://localhost:3040`。
