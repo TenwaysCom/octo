@@ -35,6 +35,7 @@ update_required_when:
 | `WorkitemMapping` | Server workflow config | `server/src/modules/lark-base/lark-base-workflow.service.ts`, `server/src/modules/lark-base/lark-base-workflow-config.ts` | 支持 env/config 映射；仍有 hardcoded fallback |
 | `ExecutionDraft` | Server workflow | `server/src/validators/agent-output/execution-draft.ts`, `server/src/modules/lark-base/lark-base-workflow.service.ts` | Lark record 到 Meegle create 的中间对象 |
 | `MeegleWorkitem` | Meegle platform, adapter wraps | `server/src/adapters/meegle/meegle-client.ts`, `server/src/application/services/meegle-workitem.service.ts` | create/update 已封装；字段可写性主要靠失败后重试 |
+| `MeegleWorkitemLifecycleSnapshot` | Server projection / PostgreSQL | `server/src/application/services/meegle-workitem-lifecycle.ts`, `server/src/adapters/postgres/platform-sync-store.ts`, `fe/src/lib/meegle-sprint-history.js` | 从 operation records 投影当前 Sprint 的 add/start/finish 时间；供 Sprint 历史和详情按日统计 |
 | `MeegleFieldMetadata` | Should be server metadata resolver | `server/src/adapters/meegle/meegle-client.ts` | adapter 有 `getFields`/`getWorkitemMeta`，但 workflow 未集中使用 |
 | `LarkWriteback` | Server workflow / Lark adapter | `server/src/modules/lark-base/lark-base.service.ts`, `server/src/modules/lark-base/lark-base-workflow.service.ts` | Meegle link 回写到 Lark Base |
 | `MeegleLarkPushAction` | Server workflow | `server/src/application/services/meegle-lark-push.service.ts` | 从 Meegle 读 Lark 字段，更新 Lark Base、发消息、回写 Meegle 状态 |
@@ -73,6 +74,7 @@ update_required_when:
 | `WorkitemMapping` | `server` | config/env may provide mapping source | Lark issue type -> server mapping -> `ExecutionDraft` target | adapter 或 extension 决定 workitem type/template |
 | `ExecutionDraft` | `server` | adapter consumes converted payload | Lark record -> draft -> Meegle apply -> workitem create | draft 长期承载平台动态 `field_*` 作为业务语义 |
 | `MeegleWorkitem` | `platform` | `adapter` normalizes, `server` reads/writes by workflow | Meegle API -> adapter workitem -> workflow decision/update | extension 直接读写 Meegle workitem 业务字段 |
+| `MeegleWorkitemLifecycleSnapshot` | `server` | PostgreSQL stores scalar projection, FE aggregates by day | Meegle operation records -> adapter normalization -> server lifecycle projection -> API -> Sprint chart | FE 猜测 `updatedAt` 为 add/start/finish，或在 UI 散落 Sprint `field_*` |
 | `MeegleFieldMetadata` | `platform` | `adapter` fetches, `server` resolver turns into semantic field map | platform metadata -> adapter raw response -> server resolver -> validated payload | workflow/popup 散落硬编码 `field_*` |
 | `LarkWriteback` | `server` workflow | `adapter` sends Lark update request | workflow result -> Lark adapter update -> platform record state | Meegle adapter 或 extension 直接决定 Lark Base 回写规则 |
 | `MeegleLarkPushAction` | `server` | `extension` triggers, adapters execute platform calls | Meegle page action -> server workflow -> Lark/Meegle adapters -> result flags | popup 自行编排 Lark update/message/reaction |
@@ -415,6 +417,8 @@ ExecutionDraft
 - Workflows should not hardcode `field_*`.
 - Adapter should normalize field access shape.
 - Metadata resolver should validate create/update payload before platform request.
+- Sprint lifecycle timing must come from operation records: cycle-field assignment, status transitions, and work-item creation fallback; `updatedAt` is not a lifecycle timestamp.
+- Persist only the current-cycle projection (`item_cycle_tag`, `add_to_cycle_time`, `item_start_time`, `item_finish_time`); mirrored status records must be deduplicated before projection.
 
 ## 10. Meegle Story 研发Review 生命周期
 

@@ -344,3 +344,9 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - **Context:** A Sprint history UI needed description, dates, capacity, and progress, while the existing Meegle workitem snapshot only retained the related Sprint name and workitem fields.
 - **Rule:** Keep Sprint facts and workitem-derived analytics separate. Sync the Sprint object itself before showing platform status, description, dates, or empty future Sprints; derive scope and label counts only from related workitems. Exclude Sprint objects from the ordinary workitem list and retain ended Sprints for history.
 - **Verified outcome:** Real metadata and batch detail reads confirmed description plus schedule start/end. Server projects Sprint snapshots separately while FE merges them with workitem statistics; 561 Server tests, 67 FE tests, and both builds pass.
+
+## [LRN-20260827-008] sprint-calendar-lifecycle-boundary
+
+- **Context:** Meegle Sprint status labels and workitem completion can disagree with whether a dated Sprint is past, current, or upcoming.
+- **Rule:** Derive Sprint calendar lifecycle only from normalized start/end dates with inclusive boundary days. Do not infer Current from platform status or workitem progress when the date interval is incomplete; show an explicit unknown state, and default expansion only to a date-derived Current Sprint.
+- **Verified outcome:** Pure FE tests cover past, both inclusive Current boundaries, upcoming, incomplete/reversed dates, and Current default selection; all 72 FE tests and the production build pass.

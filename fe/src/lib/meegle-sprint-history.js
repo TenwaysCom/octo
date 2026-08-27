@@ -1,5 +1,5 @@
-const COMPLETED_STATUS_MARKERS = ["done", "ended", "fixed", "launched", "completed", "closed"];
-const NOT_STARTED_STATUS_MARKERS = ["new", "to start", "feature draft", "planned", "backlog"];
+const COMPLETED_STATUS_MARKERS = ["done", "ended", "fixed", "launched", "completed", "finished"];
+const NOT_STARTED_STATUS_MARKERS = ["new", "start", "to start", "feature draft", "planned", "backlog"];
 
 function normalizeText(value) {
   return typeof value === "string" ? value.trim() : "";
@@ -7,7 +7,7 @@ function normalizeText(value) {
 
 function includesStatusMarker(status, markers) {
   const normalized = normalizeText(status).toLocaleLowerCase();
-  return markers.some((marker) => normalized === marker || normalized.includes(marker));
+  return markers.includes(normalized);
 }
 
 function getWorkitemProgress(item) {
@@ -44,17 +44,34 @@ function compareTimestampDesc(leftValue, rightValue) {
   return right - left;
 }
 
-function getSprintActivity(status, progress) {
-  const normalized = normalizeText(status).toLocaleLowerCase();
-  if (["ended", "finished", "done", "terminated", "completed"].some((value) => normalized.includes(value))) return "completed";
-  if (normalized.includes("progress") || normalized.includes("current") || normalized.includes("ongoing")) return "active";
-  if (normalized) return "planned";
-  return progress.scope > 0 && progress.completed === progress.scope
-    ? "completed"
-    : progress.started + progress.completed > 0 ? "active" : "planned";
+function getCalendarDate(value) {
+  if (typeof value === "string") {
+    const literalDate = value.match(/^(\d{4}-\d{2}-\d{2})/u)?.[1];
+    if (literalDate && !Number.isNaN(Date.parse(`${literalDate}T00:00:00.000Z`))) return literalDate;
+  }
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return undefined;
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
-export function summarizeMeegleSprint(name, items, metadata) {
+export function getMeegleSprintLifecycle(sprint, now = new Date()) {
+  const startDate = getCalendarDate(sprint?.startAt);
+  const endDate = getCalendarDate(sprint?.endAt);
+  const today = getCalendarDate(now);
+  if (!today || (startDate && endDate && endDate < startDate)) return "unknown";
+  if (startDate && today < startDate) return "upcoming";
+  if (endDate && today > endDate) return "past";
+  return startDate && endDate ? "current" : "unknown";
+}
+
+export function getDefaultOpenMeegleSprint(sprints) {
+  return (sprints || []).find((sprint) => sprint.lifecycle === "current")?.name;
+}
+
+export function summarizeMeegleSprint(name, items, metadata, now = new Date()) {
   const progress = { scope: items.length, started: 0, completed: 0, notStarted: 0 };
   for (const item of items) {
     const state = getWorkitemProgress(item);
@@ -68,24 +85,74 @@ export function summarizeMeegleSprint(name, items, metadata) {
     metadata ? 1 : 0,
     new Set(items.map((item) => normalizeText(item.projectName || item.projectKey)).filter(Boolean)).size,
   );
-  const activity = getSprintActivity(metadata?.status, progress);
-  return {
+  const sprint = {
     items,
     ...(metadata || {}),
     name,
     progress: { ...progress, completionPercent },
     latestActivityAt: metadata?.sourceUpdatedAt || (latestTimestamp ? new Date(latestTimestamp).toISOString() : undefined),
     projectCount,
-    activity,
     labels: {
       sprint: countValues(items, (item) => item.sprint),
       project: countValues(items, (item) => item.projectName || item.projectKey),
       priority: countValues(items, (item) => item.priority),
     },
   };
+  return {
+    ...sprint,
+    lifecycle: getMeegleSprintLifecycle(sprint, now),
+    timeline: buildMeegleSprintTimeline(sprint, now),
+  };
 }
 
-export function buildMeegleSprintHistory(items, sprintDetails = []) {
+export function buildMeegleSprintTimeline(sprint, now = new Date()) {
+  const items = sprint?.items || [];
+  const lifecycleTimes = items.flatMap((item) => [item.addToCycleTime, item.itemStartTime, item.itemFinishTime])
+    .map(parseTimestamp)
+    .filter((value) => value !== undefined);
+  const configuredStart = parseTimestamp(sprint?.startAt);
+  const configuredEnd = parseTimestamp(sprint?.endAt);
+  const nowTime = now instanceof Date ? now.getTime() : parseTimestamp(now);
+  const start = startOfUtcDay(configuredStart ?? (lifecycleTimes.length ? Math.min(...lifecycleTimes) : nowTime ?? Date.now()));
+  const today = startOfUtcDay(nowTime ?? Date.now());
+  const scheduledEnd = startOfUtcDay(configuredEnd ?? today);
+  const end = Math.max(start, Math.min(scheduledEnd, today));
+  const points = [];
+  for (let day = start; day <= end; day += 24 * 60 * 60 * 1000) {
+    const cutoff = day + 24 * 60 * 60 * 1000 - 1;
+    let scope = 0;
+    let started = 0;
+    let completed = 0;
+    for (const item of items) {
+      const addedAt = parseTimestamp(item.addToCycleTime);
+      if (addedAt === undefined || addedAt > cutoff) continue;
+      scope += 1;
+      const startedAt = parseTimestamp(item.itemStartTime);
+      const finishedAt = parseTimestamp(item.itemFinishTime);
+      if (finishedAt !== undefined && finishedAt <= cutoff) completed += 1;
+      else if (startedAt !== undefined && startedAt <= cutoff) started += 1;
+    }
+    points.push({ date: new Date(day).toISOString().slice(0, 10), scope, started, completed });
+  }
+  return {
+    points,
+    coverageCount: items.filter((item) => parseTimestamp(item.addToCycleTime) !== undefined).length,
+    startAt: new Date(start).toISOString(),
+    endAt: new Date(end).toISOString(),
+  };
+}
+
+function parseTimestamp(value) {
+  const parsed = Date.parse(value || "");
+  return Number.isNaN(parsed) ? undefined : parsed;
+}
+
+function startOfUtcDay(value) {
+  const date = new Date(value);
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+}
+
+export function buildMeegleSprintHistory(items, sprintDetails = [], now = new Date()) {
   const grouped = new Map();
   for (const item of items || []) {
     const sprint = normalizeText(item.sprint);
@@ -105,7 +172,7 @@ export function buildMeegleSprintHistory(items, sprintDetails = []) {
   }
   const names = new Set([...grouped.keys(), ...metadataByName.keys()]);
   return [...names]
-    .map((name) => summarizeMeegleSprint(name, grouped.get(name) || [], metadataByName.get(name)))
+    .map((name) => summarizeMeegleSprint(name, grouped.get(name) || [], metadataByName.get(name), now))
     .sort((left, right) => {
       const startComparison = compareTimestampDesc(left.startAt, right.startAt);
       if (startComparison !== 0) return startComparison;

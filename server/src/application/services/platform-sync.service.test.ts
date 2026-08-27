@@ -1,11 +1,11 @@
 import type { GitHubPrDetails } from "../../adapters/github/github-types.js";
 import type { LarkBitableRecord, LarkClient } from "../../adapters/lark/lark-client.js";
 import type { MeegleClient, MeegleSyncMapping, MeegleWorkitem } from "../../adapters/meegle/meegle-client.js";
-import type { PlatformSyncStore } from "../../adapters/postgres/platform-sync-store.js";
+import type { MeegleWorkitemLifecycleFields, PlatformSyncStore } from "../../adapters/postgres/platform-sync-store.js";
 import { buildLarkUpdatedSinceFilter, PlatformSyncService, isInactiveSyncStatus } from "./platform-sync.service.js";
 
 function createStore(): PlatformSyncStore & {
-  meegle: Array<{ workitem: MeegleWorkitem }>;
+  meegle: Array<{ workitem: MeegleWorkitem; lifecycle?: MeegleWorkitemLifecycleFields }>;
   meegleMappings: MeegleSyncMapping[];
   github: Array<{ pullRequest: GitHubPrDetails }>;
   lark: Array<{ record: LarkBitableRecord; title: string; status?: string }>;
@@ -16,7 +16,7 @@ function createStore(): PlatformSyncStore & {
   larkCleaning: Array<{ recordId: string; detailDescription?: string; meegleLink?: string; larkMessageLink?: string }>;
 } {
   const store = {
-    meegle: [] as Array<{ workitem: MeegleWorkitem }>,
+    meegle: [] as Array<{ workitem: MeegleWorkitem; lifecycle?: MeegleWorkitemLifecycleFields }>,
     meegleMappings: [] as MeegleSyncMapping[],
     github: [] as Array<{ pullRequest: GitHubPrDetails }>,
     lark: [] as Array<{ record: LarkBitableRecord; title: string; status?: string }>,
@@ -25,8 +25,8 @@ function createStore(): PlatformSyncStore & {
     githubCleaning: [] as Array<{ pullNumber: number; mergedBy?: string; reviewers: string[]; labels: string[]; createdAt?: string }>,
     cleanedLark: [] as string[],
     larkCleaning: [] as Array<{ recordId: string; detailDescription?: string; meegleLink?: string; larkMessageLink?: string }>,
-    async upsertMeegleWorkitem(input: { projectKey: string; workItemTypeKey: string; workitem: MeegleWorkitem }) {
-      store.meegle.push({ workitem: input.workitem });
+    async upsertMeegleWorkitem(input: { projectKey: string; workItemTypeKey: string; workitem: MeegleWorkitem; lifecycle?: MeegleWorkitemLifecycleFields }) {
+      store.meegle.push({ workitem: input.workitem, lifecycle: input.lifecycle });
     },
     async upsertMeegleMappings(mappings: MeegleSyncMapping[]) {
       store.meegleMappings.push(...mappings);
@@ -415,6 +415,50 @@ describe("PlatformSyncService", () => {
       statusKey: "status_new",
       subStage: "Triage",
       subStageKey: "node_triage",
+    });
+  });
+
+  it("stores the lifecycle projected from the current Sprint and operation records", async () => {
+    const store = createStore();
+    const client = {
+      getWorkitemDetails: vi.fn().mockResolvedValue([{
+        ...workitem("1", "Done"),
+        statusKey: "done",
+        fields: { work_item_fields: [{ key: "field_feb079", value: [{ id: "cycle-1", name: "Sprint 1" }] }] },
+      }]),
+      getSyncMappings: vi.fn().mockResolvedValue([
+        { projectKey: "project", workItemTypeKey: "story", kind: "status", sourceKey: "started", displayValue: "Start" },
+        { projectKey: "project", workItemTypeKey: "story", kind: "status", sourceKey: "doing", displayValue: "In Progress" },
+        { projectKey: "project", workItemTypeKey: "story", kind: "status", sourceKey: "done", displayValue: "Done" },
+      ]),
+      listWorkitemOperationRecords: vi.fn().mockResolvedValue([{
+        workItemId: "1", workItemTypeKey: "story", operationType: "create",
+        operationTime: "2026-08-20T00:00:00.000Z", module: "work_item_mod", recordContents: [],
+      }, {
+        workItemId: "1", workItemTypeKey: "story", operationType: "modify",
+        operationTime: "2026-08-21T00:00:00.000Z", module: "field_mod",
+        recordContents: [{ objectValue: "field_feb079", oldValues: [], newValues: ["cycle-1"] }],
+      }, {
+        workItemId: "1", workItemTypeKey: "story", operationType: "modify",
+        operationTime: "2026-08-22T00:00:00.000Z", module: "field_mod",
+        recordContents: [{ objectValue: "work_item_status", objectProperty: "workitem_status", oldValues: ["started"], newValues: ["doing"] }],
+      }, {
+        workItemId: "1", workItemTypeKey: "story", operationType: "modify",
+        operationTime: "2026-08-23T00:00:00.000Z", module: "field_mod",
+        recordContents: [{ objectValue: "work_item_status", objectProperty: "workitem_status", oldValues: ["doing"], newValues: ["done"] }],
+      }]),
+    } as unknown as MeegleClient;
+    const service = new PlatformSyncService({ store, createMeegleClient: async () => client });
+
+    await service.syncMeegleWorkitem({
+      masterUserId: "user-1", projectKey: "project", workItemTypeKey: "story", workItemId: "1",
+    });
+
+    expect(store.meegle[0].lifecycle).toEqual({
+      itemCycleTag: "cycle-1",
+      addToCycleTime: "2026-08-21T00:00:00.000Z",
+      itemStartTime: "2026-08-22T00:00:00.000Z",
+      itemFinishTime: "2026-08-23T00:00:00.000Z",
     });
   });
 

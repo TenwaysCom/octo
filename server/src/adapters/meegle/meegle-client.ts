@@ -47,6 +47,7 @@ const API_PATH_GET_FIELDS = "/open_api/:project_key/field/all";
 const API_PATH_GET_WORKFLOW_TEMPLATES = "/open_api/:project_key/template_list/:work_item_type";
 const API_PATH_GET_BUSINESS_LINES = "/open_api/:project_key/business/all";
 const API_PATH_GET_WORKITEM_TYPES = "/open_api/:project_key/work_item/all-types";
+const API_PATH_LIST_WORKITEM_OPERATION_RECORDS = "/open_api/op_record/work_item/list";
 
 // Auth API paths
 const API_PATH_GET_AUTH_CODE = "/bff/v2/authen/v1/auth_code";
@@ -385,6 +386,23 @@ export interface MeegleWorkitem {
   fields: Record<string, unknown>;
 }
 
+export interface MeegleOperationRecordContent {
+  objectType?: string;
+  objectValue?: string;
+  objectProperty?: string;
+  oldValues: string[];
+  newValues: string[];
+}
+
+export interface MeegleWorkitemOperationRecord {
+  workItemId: string;
+  workItemTypeKey: string;
+  operationType: string;
+  operationTime: string;
+  module: string;
+  recordContents: MeegleOperationRecordContent[];
+}
+
 export type MeegleSyncMappingKind = "workitem_type" | "status" | "sub_stage";
 
 export interface MeegleSyncMapping {
@@ -520,6 +538,50 @@ function parseItemsList(data: unknown, keys: string[]): Record<string, unknown>[
     }
   }
   return [];
+}
+
+export function parseWorkitemOperationRecord(data: Record<string, unknown>): MeegleWorkitemOperationRecord | undefined {
+  const timestamp = normalizeOperationTime(data.operation_time);
+  if (!timestamp) return undefined;
+  const contents = Array.isArray(data.record_contents) ? data.record_contents : [];
+  return {
+    workItemId: String(data.work_item_id ?? ""),
+    workItemTypeKey: String(data.work_item_type_key ?? ""),
+    operationType: String(data.operation_type ?? ""),
+    operationTime: timestamp,
+    module: String(data.op_record_module ?? ""),
+    recordContents: contents.flatMap((content) => {
+      if (typeof content !== "object" || content === null || Array.isArray(content)) return [];
+      const record = content as Record<string, unknown>;
+      const object = typeof record.object === "object" && record.object !== null && !Array.isArray(record.object)
+        ? record.object as Record<string, unknown>
+        : undefined;
+      return [{
+        objectType: stringOrUndefined(object?.object_type),
+        objectValue: stringOrUndefined(object?.object_value),
+        objectProperty: stringOrUndefined(record.object_property),
+        oldValues: stringArray(record.old),
+        newValues: stringArray(record.new),
+      }];
+    }),
+  };
+}
+
+function normalizeOperationTime(value: unknown): string | undefined {
+  const timestamp = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(timestamp)) return undefined;
+  const date = new Date(timestamp);
+  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
+}
+
+function stringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.flatMap((item) => typeof item === "string" || typeof item === "number" ? [String(item)] : [])
+    : [];
+}
+
+function stringOrUndefined(value: unknown): string | undefined {
+  return typeof value === "string" || typeof value === "number" ? String(value) : undefined;
 }
 
 // ==================== MeegleClient Class ====================
@@ -849,6 +911,45 @@ export class MeegleClient {
     const data = await this.request(req);
     const items = parseItemsList(data.data ?? data, ["items"]);
     return items.map(parseWorkitem);
+  }
+
+  async listWorkitemOperationRecords(
+    projectKey: string,
+    workitemIds: string[],
+  ): Promise<MeegleWorkitemOperationRecord[]> {
+    if (workitemIds.length === 0) return [];
+    const numericWorkitemIds = workitemIds.map((workitemId) => Number(workitemId));
+    if (numericWorkitemIds.some((workitemId) => !Number.isSafeInteger(workitemId))) {
+      throw new Error("MEEGLE_OPERATION_RECORD_WORK_ITEM_ID_INVALID");
+    }
+    const records: MeegleWorkitemOperationRecord[] = [];
+    let startFrom: string | undefined;
+    for (let page = 0; page < 100; page += 1) {
+      const data = await this.request({
+        httpMethod: "POST",
+        apiPath: API_PATH_LIST_WORKITEM_OPERATION_RECORDS,
+        pathParams: {},
+        queryParams: {},
+        body: {
+          project_key: projectKey,
+          work_item_ids: numericWorkitemIds,
+          op_record_module: ["field_mod", "work_item_mod"],
+          page_size: 100,
+          ...(startFrom ? { start_from: startFrom } : {}),
+        },
+      });
+      const pageData = (data.data ?? data) as Record<string, unknown>;
+      const pageRecords = parseItemsList(pageData, ["op_records"])
+        .flatMap((record) => {
+          const parsed = parseWorkitemOperationRecord(record);
+          return parsed ? [parsed] : [];
+        });
+      records.push(...pageRecords);
+      if (pageData.has_more !== true) return records;
+      startFrom = stringOrUndefined(pageData.start_from);
+      if (!startFrom) throw new Error("MEEGLE_OPERATION_RECORD_CURSOR_MISSING");
+    }
+    throw new Error("MEEGLE_OPERATION_RECORD_PAGE_LIMIT_REACHED");
   }
 
   async filterWorkitems(

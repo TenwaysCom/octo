@@ -254,6 +254,10 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .addColumn("bugs_json", "text")
     .addColumn("assignee", "text")
     .addColumn("priority", "text")
+    .addColumn("item_cycle_tag", "text")
+    .addColumn("add_to_cycle_time", "text")
+    .addColumn("item_start_time", "text")
+    .addColumn("item_finish_time", "text")
     .addColumn("payload_json", "text", (column) => column.notNull())
     .addColumn("source_updated_at", "text")
     .addColumn("synced_at", "text", (column) => column.notNull())
@@ -781,6 +785,9 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     ADD COLUMN IF NOT EXISTS sub_stage text
   `.execute(db);
   for (const column of ["sprint", "version", "system", "bugs_json", "priority"]) {
+    await sql.raw(`ALTER TABLE meegle_workitem_syncs ADD COLUMN IF NOT EXISTS ${column} text`).execute(db);
+  }
+  for (const column of ["item_cycle_tag", "add_to_cycle_time", "item_start_time", "item_finish_time"]) {
     await sql.raw(`ALTER TABLE meegle_workitem_syncs ADD COLUMN IF NOT EXISTS ${column} text`).execute(db);
   }
   for (const column of [

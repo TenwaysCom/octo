@@ -19,6 +19,7 @@ export interface PlatformSyncStore {
     projectKey: string;
     workItemTypeKey: string;
     workitem: MeegleWorkitem;
+    lifecycle?: MeegleWorkitemLifecycleFields;
   }): Promise<void>;
   upsertMeegleMappings(mappings: MeegleSyncMapping[]): Promise<void>;
   upsertGitHubPullRequest(input: {
@@ -80,9 +81,20 @@ export interface MeegleWorkitemSyncItem {
   bugs?: string[];
   assignee?: string;
   priority?: string;
+  itemCycleTag?: string;
+  addToCycleTime?: string;
+  itemStartTime?: string;
+  itemFinishTime?: string;
   sourcePayload?: MeegleWorkitem;
   sourceUpdatedAt?: string;
   syncedAt: string;
+}
+
+export interface MeegleWorkitemLifecycleFields {
+  itemCycleTag?: string;
+  addToCycleTime?: string;
+  itemStartTime?: string;
+  itemFinishTime?: string;
 }
 
 export interface MeegleWorkitemSyncRef {
@@ -235,6 +247,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
     projectKey: string;
     workItemTypeKey: string;
     workitem: MeegleWorkitem;
+    lifecycle?: MeegleWorkitemLifecycleFields;
   }): Promise<void> {
     const now = new Date().toISOString();
     const sourceUpdatedAt = input.workitem.updatedAt ?? null;
@@ -251,6 +264,10 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
       sub_stage: input.workitem.subStage ?? null,
       assignee: input.workitem.assignee ?? null,
       priority: input.workitem.priority ?? null,
+      item_cycle_tag: input.lifecycle?.itemCycleTag ?? null,
+      add_to_cycle_time: input.lifecycle?.addToCycleTime ?? null,
+      item_start_time: input.lifecycle?.itemStartTime ?? null,
+      item_finish_time: input.lifecycle?.itemFinishTime ?? null,
       payload_json: JSON.stringify(input.workitem),
       source_updated_at: sourceUpdatedAt,
       synced_at: now,
@@ -270,6 +287,10 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
       sub_stage: input.workitem.subStage ?? null,
       assignee: input.workitem.assignee ?? null,
       priority: input.workitem.priority ?? null,
+      item_cycle_tag: input.lifecycle?.itemCycleTag ?? null,
+      add_to_cycle_time: input.lifecycle?.addToCycleTime ?? null,
+      item_start_time: input.lifecycle?.itemStartTime ?? null,
+      item_finish_time: input.lifecycle?.itemFinishTime ?? null,
       payload_json: JSON.stringify(input.workitem),
       source_updated_at: sourceUpdatedAt,
       synced_at: now,
@@ -469,6 +490,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
           "project_key", "project_name", "work_item_type_key", "work_item_id", "work_item_key", "title",
           "work_item_type", "status_key", "status", "sub_stage_key", "sub_stage", "sprint", "version",
           "system", "bugs_json", "assignee", "priority", "source_updated_at", "synced_at", "payload_json",
+          "item_cycle_tag", "add_to_cycle_time", "item_start_time", "item_finish_time",
         ])
         .where("project_key", "=", ref.projectKey)
         .where("work_item_type_key", "=", ref.workItemTypeKey)
@@ -678,6 +700,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
         "work_item_type", "status_key", "status", "sub_stage_key", "sub_stage",
         "sprint", "version", "system", "bugs_json",
         "assignee", "priority", "source_updated_at", "synced_at",
+        "item_cycle_tag", "add_to_cycle_time", "item_start_time", "item_finish_time",
       ])
       .orderBy("source_updated_at", "desc")
       .orderBy("synced_at", "desc")
@@ -749,6 +772,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
         "work_item_type", "status_key", "status", "sub_stage_key", "sub_stage",
         "sprint", "version", "system", "bugs_json", "assignee", "priority",
         "source_updated_at", "synced_at", "payload_json",
+        "item_cycle_tag", "add_to_cycle_time", "item_start_time", "item_finish_time",
       ])
       .where("work_item_type_key", "in", MEEGLE_SPRINT_TYPE_KEYS)
       .orderBy("source_updated_at", "desc")
@@ -939,6 +963,10 @@ type MeegleWorkitemSyncRow = {
   bugs_json: string | null;
   assignee: string | null;
   priority: string | null;
+  item_cycle_tag: string | null;
+  add_to_cycle_time: string | null;
+  item_start_time: string | null;
+  item_finish_time: string | null;
   source_updated_at: string | null;
   synced_at: string;
   payload_json?: string;
@@ -1008,6 +1036,10 @@ function toMeegleWorkitemSyncItem(row: MeegleWorkitemSyncRow): MeegleWorkitemSyn
     bugs: parseStringArray(row.bugs_json),
     assignee: row.assignee ?? undefined,
     priority: row.priority ?? undefined,
+    itemCycleTag: row.item_cycle_tag ?? undefined,
+    addToCycleTime: row.add_to_cycle_time ?? undefined,
+    itemStartTime: row.item_start_time ?? undefined,
+    itemFinishTime: row.item_finish_time ?? undefined,
     sourcePayload: parseMeegleWorkitem(row.payload_json),
     sourceUpdatedAt: row.source_updated_at ?? undefined,
     syncedAt: row.synced_at,

@@ -42,6 +42,23 @@ export function getMeegleCleaningFieldKeys(workItemTypeKey: string): string[] {
   return Object.values(RELATION_FIELD_MAPPING[workItemTypeKey] ?? {});
 }
 
+export function getMeegleRelationFieldKey(workItemTypeKey: string, field: RelationField): string | undefined {
+  return RELATION_FIELD_MAPPING[workItemTypeKey]?.[field];
+}
+
+export function extractMeegleSprintTag(workitem: MeegleWorkitem): string | undefined {
+  const fieldKey = getMeegleRelationFieldKey(workitem.type, "sprint");
+  if (!fieldKey) return undefined;
+  const container = asRecord(workitem.fields);
+  const rawFields = container?.work_item_fields ?? container?.fields;
+  const fields = Array.isArray(rawFields) ? rawFields.map(asRecord).filter(isRecord) : [];
+  const field = fields.find((candidate) => stringValue(candidate.key ?? candidate.field_key) === fieldKey);
+  const value = field?.value ?? field?.field_value;
+  const first = Array.isArray(value) ? value[0] : value;
+  const record = asRecord(first);
+  return stringValue(record?.id ?? record?.key) || undefined;
+}
+
 function toDisplayValue(value: unknown): string | string[] | undefined {
   if (Array.isArray(value)) {
     const values = value.map(toSingleDisplayValue).filter((item): item is string => Boolean(item));

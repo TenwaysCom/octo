@@ -349,3 +349,45 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Error:** Registry requests for TypeScript and type packages timed out; using a symlink through pnpm then triggered its non-TTY modules purge guard.
 - **Fix:** Reuse the already installed sibling checkout dependencies only for local verification by invoking its Vitest and TypeScript binaries directly with the feature worktree Server as cwd. Do not treat dependency-install failure as a test failure.
 - **Status:** resolved; focused 45/45 and full 561/561 Server tests passed, and TypeScript build passed.
+
+## [ERR-20260827-007] meegle-mql-shell-backtick-expansion
+
+- **Summary:** A read-only MQL command initially wrapped an expression containing backticks in double quotes.
+- **Error:** zsh executed the backtick identifiers as commands before Meegle received the MQL, producing command-not-found messages and invalid MQL syntax.
+- **Fix:** Wrap the complete MQL expression in single quotes so identifier backticks reach the CLI literally; avoid constructing shell command strings with JSON double-quoted MQL.
+- **Status:** resolved; the corrected query returned projected work item, status, Sprint, and update fields.
+### ERR-20260827-008 — Worktree test dependency link used a duplicated `server/` prefix
+
+- **Symptom:** Focused Vitest failed to load because `vitest` could not be resolved; the preceding link command reported `ln: server/node_modules: No such file or directory`.
+- **Root cause:** The command already ran with `workdir=.../server` but tried to create `server/node_modules` instead of `node_modules`.
+- **Verified fix:** Create `node_modules` from the server package directory, then rerun the focused tests.
+
+### ERR-20260827-009 — Operation timestamp fixture had the wrong UTC expectation
+
+- **Symptom:** The operation-record parser test expected `03:25:48.711Z`, while JavaScript correctly normalized the supplied epoch to `07:25:48.711Z`.
+- **Root cause:** The hand-calculated fixture timestamp was wrong; the parser output matched the epoch value.
+- **Verified fix:** Correct the expected ISO timestamp and keep epoch normalization covered by the test.
+
+### ERR-20260827-010 — pnpm refused to purge a linked worktree dependency directory without a TTY
+
+- **Symptom:** `pnpm test && pnpm build` stopped before tests with `ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY`.
+- **Root cause:** The worktree reuses the main checkout's `server/node_modules` through a symlink, which pnpm considered eligible for reinstall/purge.
+- **Verified fix:** Run the linked package binaries directly (`vitest run` and `tsc`) for equivalent full test and build checks without mutating dependencies.
+
+### ERR-20260827-011 — zsh expanded an unquoted GitHub API query URL
+
+- **Symptom:** A read-only curl command failed with `zsh: no matches found` before making the request.
+- **Root cause:** The URL contained `?recursive=1` and was not quoted, so zsh treated it as a glob.
+- **Verified fix:** Quote URLs containing query strings as one shell argument.
+
+### ERR-20260827-012 — Implement-task skill path was resolved relative to the worktree
+
+- **Symptom:** Reading `.codex/skills/implement-task/SKILL.md` failed because that directory is not present in the feature worktree.
+- **Root cause:** The skill catalog points to the main checkout path, not a path relative to every linked worktree.
+- **Verified fix:** Read the skill from `/Users/linyu/proj/octo/.codex/skills/implement-task/SKILL.md`.
+
+### ERR-20260827-013 — zsh expanded an optional `.env*` search glob
+
+- **Symptom:** A read-only configuration search stopped with `zsh: no matches found: .env*`.
+- **Root cause:** zsh rejected an unmatched path glob before `rg` could run.
+- **Verified fix:** Search explicit directories with `rg --hidden` and exclusion globs instead of passing an optional shell glob.

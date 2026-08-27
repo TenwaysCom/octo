@@ -2,8 +2,41 @@ import { describe, it, expect, vi } from "vitest";
 import {
   MeegleClient,
   MeegleMinimumIntervalLimiter,
+  parseWorkitemOperationRecord,
   parseWorkitem,
 } from "./meegle-client.js";
+
+describe("parseWorkitemOperationRecord", () => {
+  it("normalizes operation records without retaining operator data", () => {
+    expect(parseWorkitemOperationRecord({
+      work_item_id: 14366398,
+      work_item_type_key: "task",
+      operation_type: "modify",
+      operation_time: 1787815548711,
+      op_record_module: "field_mod",
+      operator: "user-secret",
+      record_contents: [{
+        object: { object_type: "field", object_value: "field_cycle" },
+        object_property: null,
+        old: [],
+        new: [13658870],
+      }],
+    })).toEqual({
+      workItemId: "14366398",
+      workItemTypeKey: "task",
+      operationType: "modify",
+      operationTime: "2026-08-27T07:25:48.711Z",
+      module: "field_mod",
+      recordContents: [{
+        objectType: "field",
+        objectValue: "field_cycle",
+        objectProperty: undefined,
+        oldValues: [],
+        newValues: ["13658870"],
+      }],
+    });
+  });
+});
 
 describe("parseWorkitem", () => {
   it("should parse basic fields", () => {
@@ -250,5 +283,40 @@ describe("parseWorkitem", () => {
 
     await expect(quotaClient.getUsers(["user-1"])).rejects.toThrow("Commercial Usage Exceeded");
     expect(quotaFetch).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("MeegleClient operation records", () => {
+  it("paginates operation records with the returned cursor", async () => {
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        data: {
+          has_more: true,
+          start_from: "cursor-2",
+          op_records: [{
+            work_item_id: 1,
+            work_item_type_key: "story",
+            operation_type: "create",
+            operation_time: 1787815256465,
+            op_record_module: "work_item_mod",
+            record_contents: [],
+          }],
+        },
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        data: { has_more: false, start_from: "", op_records: [] },
+      }), { status: 200 }));
+    const client = new MeegleClient({ userToken: "token", userKey: "user" }, {
+      fetch,
+      requestLimiter: { wait: vi.fn().mockResolvedValue(undefined) },
+    });
+
+    await expect(client.listWorkitemOperationRecords("project", ["1"])).resolves.toHaveLength(1);
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).toMatchObject({
+      project_key: "project",
+      work_item_ids: [1],
+      op_record_module: ["field_mod", "work_item_mod"],
+    });
+    expect(JSON.parse(fetch.mock.calls[1][1].body)).toMatchObject({ start_from: "cursor-2" });
   });
 });

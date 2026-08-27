@@ -20,6 +20,12 @@ describe("PostgresPlatformSyncStore", () => {
         id: "1", key: "S-1", name: "Original", type: "story", workItemType: "Feature",
         status: "In Progress", statusKey: "status_started", subStage: "Development", subStageKey: "node_dev", priority: "P1", updatedAt: "2026-08-01T00:00:00.000Z", fields: {},
       },
+      lifecycle: {
+        itemCycleTag: "cycle-1",
+        addToCycleTime: "2026-08-01T01:00:00.000Z",
+        itemStartTime: "2026-08-01T02:00:00.000Z",
+        itemFinishTime: "2026-08-02T00:00:00.000Z",
+      },
     });
     await store.upsertMeegleWorkitem({
       projectKey: "project",
@@ -27,6 +33,12 @@ describe("PostgresPlatformSyncStore", () => {
       workitem: {
         id: "1", key: "S-1", name: "Updated", type: "story", workItemType: "Feature",
         status: "Finished", statusKey: "status_finished", subStage: "Done", subStageKey: "node_done", priority: "P0", updatedAt: "2026-08-02T00:00:00.000Z", fields: {},
+      },
+      lifecycle: {
+        itemCycleTag: "cycle-1",
+        addToCycleTime: "2026-08-01T01:00:00.000Z",
+        itemStartTime: "2026-08-01T02:00:00.000Z",
+        itemFinishTime: "2026-08-02T00:00:00.000Z",
       },
     });
     await store.upsertMeegleMappings([{
@@ -96,6 +108,8 @@ describe("PostgresPlatformSyncStore", () => {
         sub_stage_key: "node_done",
         sub_stage: "Done",
         source_updated_at: "2026-08-02T00:00:00.000Z",
+        item_cycle_tag: "cycle-1",
+        item_finish_time: "2026-08-02T00:00:00.000Z",
       })]);
     await expect(db.selectFrom("meegle_sync_mappings").selectAll().execute())
       .resolves.toEqual([expect.objectContaining({ source_key: "story", display_value: "Feature" })]);
@@ -113,6 +127,7 @@ describe("PostgresPlatformSyncStore", () => {
       workItemId: "1", title: "Updated", statusKey: "status_finished", status: "Finished",
       subStageKey: "node_done", subStage: "Done",
       sprint: "Sprint 1", version: "Version 1", bugs: ["Bug 1"], priority: "P0",
+      itemCycleTag: "cycle-1", itemFinishTime: "2026-08-02T00:00:00.000Z",
     })]);
     await expect(store.listMeegleWorkitems(10, { sprints: ["Sprint 1"] })).resolves.toHaveLength(1);
     await expect(store.countMeegleWorkitems({ sprints: ["Sprint 1"] })).resolves.toBe(1);

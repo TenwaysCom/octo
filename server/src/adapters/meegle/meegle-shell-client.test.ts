@@ -242,4 +242,34 @@ describe("MeegleShellClient", () => {
       },
     ]);
   });
+
+  it("reads and paginates work item operation records", async () => {
+    const runCommand = vi.fn()
+      .mockResolvedValueOnce(JSON.stringify({
+        has_more: true,
+        start_from: "next",
+        op_records: [{
+          work_item_id: 123,
+          work_item_type_key: "story",
+          operation_type: "modify",
+          operation_time: 1787815548711,
+          op_record_module: "field_mod",
+          record_contents: [{ object: { object_type: "field", object_value: "field_cycle" }, old: [], new: ["cycle-1"] }],
+        }],
+      }))
+      .mockResolvedValueOnce(JSON.stringify({ has_more: false, start_from: "", op_records: [] }));
+    const client = new MeegleShellClient(runCommand);
+
+    await expect(client.listWorkitemOperationRecords("project", ["123"])).resolves.toMatchObject([
+      { workItemId: "123", recordContents: [{ objectValue: "field_cycle", newValues: ["cycle-1"] }] },
+    ]);
+    expect(runCommand).toHaveBeenNthCalledWith(1, [
+      "workitem", "list-op-records", "--project-key", "project", "--work-item-id", "123",
+      "--op-record-module", "field_mod", "--op-record-module", "work_item_mod",
+    ]);
+    expect(runCommand).toHaveBeenNthCalledWith(2, [
+      "workitem", "list-op-records", "--project-key", "project", "--work-item-id", "123",
+      "--op-record-module", "field_mod", "--op-record-module", "work_item_mod", "--start-from", "next",
+    ]);
+  });
 });

@@ -149,6 +149,10 @@ export interface DatabaseSchema {
     bugs_json: string | null;
     assignee: string | null;
     priority: string | null;
+    item_cycle_tag: string | null;
+    add_to_cycle_time: string | null;
+    item_start_time: string | null;
+    item_finish_time: string | null;
     payload_json: string;
     source_updated_at: string | null;
     synced_at: string;

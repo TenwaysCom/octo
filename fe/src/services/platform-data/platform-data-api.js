@@ -30,6 +30,10 @@ const MEEGLE_OPTIONAL_STRING_FIELDS = [
   "assignee",
   "priority",
   "sourceUpdatedAt",
+  "itemCycleTag",
+  "addToCycleTime",
+  "itemStartTime",
+  "itemFinishTime",
 ];
 
 export function getPlatformDataList({ apiBaseUrl, kind, filters = {}, fetchImpl = fetch }) {

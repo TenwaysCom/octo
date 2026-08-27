@@ -1,12 +1,13 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import type { MeegleSyncMapping, MeegleWorkitem } from "./meegle-client.js";
+import { parseWorkitemOperationRecord, type MeegleSyncMapping, type MeegleWorkitem, type MeegleWorkitemOperationRecord } from "./meegle-client.js";
 import { resolveMeegleSourceUpdatedAt } from "./meegle-source-updated-at.js";
 import { normalizeTimestamp } from "../../utils/normalize-timestamp.js";
 
 const execFileAsync = promisify(execFile);
 const MAX_MQL_PAGES = 100;
 const MAX_MQL_PAGE_SIZE = 50;
+const MAX_OPERATION_RECORD_PAGES = 100;
 
 export type RunMeegleCommand = (args: string[]) => Promise<string>;
 
@@ -143,6 +144,32 @@ export class MeegleShellClient {
       }
     }
     return mappings;
+  }
+
+  async listWorkitemOperationRecords(projectKey: string, workitemIds: string[]): Promise<MeegleWorkitemOperationRecord[]> {
+    if (workitemIds.length === 0) return [];
+    const records: MeegleWorkitemOperationRecord[] = [];
+    let startFrom: string | undefined;
+    for (let page = 0; page < MAX_OPERATION_RECORD_PAGES; page += 1) {
+      const data = parseRecord(await this.runCommand([
+        "workitem",
+        "list-op-records",
+        "--project-key", projectKey,
+        "--work-item-id", workitemIds.join(","),
+        "--op-record-module", "field_mod",
+        "--op-record-module", "work_item_mod",
+        ...(startFrom ? ["--start-from", startFrom] : []),
+      ]), "meegle workitem list-op-records response");
+      const pageRecords = Array.isArray(data.op_records) ? data.op_records.map(asRecord).filter(isRecord) : [];
+      records.push(...pageRecords.flatMap((record) => {
+        const parsed = parseWorkitemOperationRecord(record);
+        return parsed ? [parsed] : [];
+      }));
+      if (data.has_more !== true) return records;
+      startFrom = stringValue(data.start_from) || undefined;
+      if (!startFrom) throw new Error("MEEGLE_OPERATION_RECORD_CURSOR_MISSING");
+    }
+    throw new Error("MEEGLE_OPERATION_RECORD_PAGE_LIMIT_REACHED");
   }
 
   private getProjectName(projectKey: string): Promise<string> {
