@@ -246,6 +246,7 @@ export function createLarkTicketAiSessionService(
 
 function createSupportQaEvidenceTracker(context: AcpKimiPermissionContext) {
   const fetchToolCallIds = new Set<string>();
+  const conflictingToolCallIds = new Set<string>();
   let completed = false;
   return {
     get completed() {
@@ -262,22 +263,30 @@ function createSupportQaEvidenceTracker(context: AcpKimiPermissionContext) {
       if (!toolCallId) {
         return;
       }
-      if (update.sessionUpdate === "tool_call") {
+      if ((update.sessionUpdate === "tool_call" || update.sessionUpdate === "tool_call_update")
+        && update.rawInput !== undefined && update.rawInput !== null) {
         const command = extractAcpKimiRawCommand(update.rawInput);
         if (command && isAcpKimiSupportQaFetchCommand(command, context)) {
-          fetchToolCallIds.add(toolCallId);
+          if (!conflictingToolCallIds.has(toolCallId)) {
+            fetchToolCallIds.add(toolCallId);
+          }
+        } else if (fetchToolCallIds.has(toolCallId)) {
+          fetchToolCallIds.delete(toolCallId);
+          conflictingToolCallIds.add(toolCallId);
         }
+      }
+      if (update.sessionUpdate === "tool_call") {
         return;
       }
-      if (update.sessionUpdate !== "tool_call_update" || !fetchToolCallIds.has(toolCallId)) {
+      if (update.sessionUpdate !== "tool_call_update"
+        || (update.status !== "completed" && update.status !== "failed")) {
         return;
       }
-      if (update.status === "completed") {
+      if (update.status === "completed" && fetchToolCallIds.has(toolCallId)) {
         completed = true;
       }
-      if (update.status === "completed" || update.status === "failed") {
-        fetchToolCallIds.delete(toolCallId);
-      }
+      fetchToolCallIds.delete(toolCallId);
+      conflictingToolCallIds.delete(toolCallId);
     },
   };
 }

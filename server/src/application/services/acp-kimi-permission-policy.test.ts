@@ -86,6 +86,45 @@ describe("acp kimi permission policy", () => {
     });
   });
 
+  it("allows path-scoped ls and quoted grep while rejecting unsafe variants", async () => {
+    const handler = createAcpKimiPermissionHandler(shellContext);
+
+    await expect(handler(permissionRequest({
+      rawInput: { command: "ls docs/support-qa/" },
+    }))).resolves.toEqual({ outcome: { outcome: "selected", optionId: "allow-once" } });
+    await expect(handler(permissionRequest({
+      rawInput: { command: "grep '\"ticket_no\":\"LT-10\"' docs/support-qa/knowledge-index.jsonl" },
+    }))).resolves.toEqual({ outcome: { outcome: "selected", optionId: "allow-once" } });
+    await expect(handler(permissionRequest({
+      rawInput: { command: "grep -E 'Return in transit|Customer Return' docs/support-qa/knowledge-index.jsonl" },
+    }))).resolves.toEqual({ outcome: { outcome: "selected", optionId: "allow-once" } });
+    await expect(handler(permissionRequest({
+      rawInput: { command: "rg 'ticket_no' docs/support-qa/knowledge-index.jsonl" },
+    }))).resolves.toEqual({ outcome: { outcome: "selected", optionId: "allow-once" } });
+
+    await expect(handler(permissionRequest({
+      rawInput: { command: "ls /etc" },
+    }))).resolves.toEqual({ outcome: { outcome: "cancelled" } });
+    await expect(handler(permissionRequest({
+      rawInput: { command: "ls docs/support-qa-private/" },
+    }))).resolves.toEqual({ outcome: { outcome: "cancelled" } });
+    await expect(handler(permissionRequest({
+      rawInput: { command: "grep 'root' /etc/passwd" },
+    }))).resolves.toEqual({ outcome: { outcome: "cancelled" } });
+    await expect(handler(permissionRequest({
+      rawInput: { command: "grep -r 'ticket_no' docs/support-qa/" },
+    }))).resolves.toEqual({ outcome: { outcome: "cancelled" } });
+    await expect(handler(permissionRequest({
+      rawInput: { command: "grep 'ticket_no' docs/support-qa/knowledge-index.jsonl | cat" },
+    }))).resolves.toEqual({ outcome: { outcome: "cancelled" } });
+    await expect(handler(permissionRequest({
+      rawInput: { command: "grep \"$(id)\" docs/support-qa/knowledge-index.jsonl" },
+    }))).resolves.toEqual({ outcome: { outcome: "cancelled" } });
+    await expect(handler(permissionRequest({
+      rawInput: { command: "rg --pre 'cat /etc/passwd' 'root' docs/support-qa/knowledge-index.jsonl" },
+    }))).resolves.toEqual({ outcome: { outcome: "cancelled" } });
+  });
+
   it("allows only Support-QA document writes for write+shell policy", async () => {
     const handler = createAcpKimiPermissionHandler({
       ...shellContext,

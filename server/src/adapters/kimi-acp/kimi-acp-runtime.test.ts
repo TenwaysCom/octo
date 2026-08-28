@@ -66,6 +66,17 @@ describe("kimi acp runtime", () => {
       update: {
         sessionUpdate: "tool_call",
         toolCallId,
+        title: "Bash",
+        kind: "execute",
+        status: "pending",
+        content: [{ type: "content", content: { type: "text", text: "{\"command\":\"bash .agents/" } }],
+      },
+    } as SessionNotification);
+    await client.sessionUpdate({
+      sessionId: "session_1",
+      update: {
+        sessionUpdate: "tool_call_update",
+        toolCallId,
         title: "Running: bash .agents/skills/write-support-qa/scripts/write-…",
         kind: "execute",
         status: "in_progress",

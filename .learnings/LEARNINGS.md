@@ -365,6 +365,12 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 
 ## [LRN-20260828-001] acp-permission-event-correlation
 
-- **Context:** Kimi ACP 0.38 retained the exact Bash arguments on the initial `tool_call.rawInput`, while the later permission request exposed only a truncated human-readable action summary.
-- **Rule:** Authorize from structured tool-call evidence, correlated by `sessionId + toolCallId` and consumed once. Never reconstruct a command from a truncated display string; reject ambiguous, cross-ID, or conflicting evidence. For evidence-required workflows, independently require the expected tool call to reach a successful terminal state before emitting success.
-- **Verified outcome:** Runtime fixtures reproduce the 0.38 event order and prove exact fetch approval plus single-use, cross-ID, and mismatch denial; the Ticket workflow rejects a failed or missing fetch without emitting `done`.
+- **Context:** Kimi ACP 0.38 exposes exact Bash arguments on `tool_call.rawInput` for direct starts, but its streamed-argument path first lazy-creates a tool call without raw input and supplies parsed arguments on a canonical `tool_call_update.rawInput`; the later permission request exposes only a truncated human-readable action summary.
+- **Rule:** Authorize from structured tool-call evidence found on either the direct create or canonical upgrade, correlated by `sessionId + toolCallId` and consumed once. Never reconstruct a command from a truncated display string; reject ambiguous, cross-ID, or conflicting evidence. For evidence-required workflows, independently require the expected tool call to reach a successful terminal state before emitting success.
+- **Verified outcome:** Runtime fixtures reproduce the 0.38 lazy-create/upgrade/permission order and prove exact fetch approval plus single-use, cross-ID, and mismatch denial; the Ticket workflow recognizes the canonical upgrade but rejects a failed or missing fetch without emitting `done`.
+
+## [LRN-20260828-002] path-scoped-read-only-shell-tools
+
+- **Context:** Kimi ACP could not use its native terminal-backed Grep/Glob capability and fell back to Bash `ls` and `grep` while following the Support-QA retrieval workflow.
+- **Rule:** Permit read-only shell fallbacks by command grammar and resolved policy path, not by executable name alone. Parse quotes without evaluating them, allow only non-recursive display/search options and a single allowed target, and reject shell control, substitution, escaping, and unquoted expansion syntax before authorization.
+- **Verified outcome:** Policy tests approve the observed Support-QA directory listing and quoted ticket-index search, while denying `/etc`, recursive grep, pipes, and command substitution.

@@ -829,33 +829,37 @@ class CollectingClient implements acp.Client {
       return;
     }
     const key = permissionEvidenceKey(params.sessionId, toolCallId);
-    if (sessionUpdate === "tool_call" && hasRawInput(update.rawInput)) {
-      const fingerprint = permissionEvidenceFingerprint(update.rawInput);
-      const existing = this.pendingPermissionEvidence.get(key);
-      if (existing) {
-        existing.ambiguous = existing.ambiguous
-          || !fingerprint
-          || !existing.fingerprint
-          || existing.fingerprint !== fingerprint;
-        return;
-      }
-      if (this.pendingPermissionEvidence.size >= MAX_PENDING_PERMISSION_EVIDENCE) {
-        const oldestKey = this.pendingPermissionEvidence.keys().next().value;
-        if (typeof oldestKey === "string") {
-          this.pendingPermissionEvidence.delete(oldestKey);
-        }
-      }
-      this.pendingPermissionEvidence.set(key, {
-        rawInput: update.rawInput,
-        fingerprint,
-        ambiguous: false,
-      });
-      return;
+    if ((sessionUpdate === "tool_call" || sessionUpdate === "tool_call_update")
+      && hasRawInput(update.rawInput)) {
+      this.rememberPermissionEvidence(key, update.rawInput);
     }
     if (sessionUpdate === "tool_call_update"
       && (update.status === "completed" || update.status === "failed")) {
       this.pendingPermissionEvidence.delete(key);
     }
+  }
+
+  private rememberPermissionEvidence(key: string, rawInput: unknown): void {
+    const fingerprint = permissionEvidenceFingerprint(rawInput);
+    const existing = this.pendingPermissionEvidence.get(key);
+    if (existing) {
+      existing.ambiguous = existing.ambiguous
+        || !fingerprint
+        || !existing.fingerprint
+        || existing.fingerprint !== fingerprint;
+      return;
+    }
+    if (this.pendingPermissionEvidence.size >= MAX_PENDING_PERMISSION_EVIDENCE) {
+      const oldestKey = this.pendingPermissionEvidence.keys().next().value;
+      if (typeof oldestKey === "string") {
+        this.pendingPermissionEvidence.delete(oldestKey);
+      }
+    }
+    this.pendingPermissionEvidence.set(key, {
+      rawInput,
+      fingerprint,
+      ambiguous: false,
+    });
   }
 }
 

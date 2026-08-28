@@ -80,11 +80,11 @@ async function allowsReadOnlyShell(
     return false;
   }
   const command = getToolCommand(params.toolCall);
-  if (!command || hasShellControlOperator(command) || !context?.workspaceDir) {
+  const tokens = command ? parseShellTokens(command) : undefined;
+  if (!tokens || !context?.workspaceDir) {
     return false;
   }
-  const tokens = command.trim().split(/\s+/);
-  return isAcpKimiSupportQaFetchCommand(command, context)
+  return isSupportQaFetchTokens(tokens, context)
     || await allowsReadFile(tokens, context, supportQaTempDir);
 }
 
@@ -95,10 +95,11 @@ async function allowsRestrictedWrite(
 ): Promise<boolean> {
   const command = getToolCommand(params.toolCall);
   if (isShellTool(params.toolCall.title)) {
-    if (!command || hasShellControlOperator(command) || !context?.workspaceDir) {
+    const tokens = command ? parseShellTokens(command) : undefined;
+    if (!tokens || !context?.workspaceDir) {
       return false;
     }
-    return allowsUpdate(command.trim().split(/\s+/), context, supportQaTempDir);
+    return allowsUpdate(tokens, context, supportQaTempDir);
   }
 
   const path = getWritePath(params.toolCall);
@@ -114,10 +115,14 @@ export function isAcpKimiSupportQaFetchCommand(
   command: string,
   context: Pick<AcpKimiPermissionContext, "ticketNumber">,
 ): boolean {
-  if (hasShellControlOperator(command)) {
-    return false;
-  }
-  const tokens = command.trim().split(/\s+/);
+  const tokens = parseShellTokens(command);
+  return Boolean(tokens && isSupportQaFetchTokens(tokens, context));
+}
+
+function isSupportQaFetchTokens(
+  tokens: string[],
+  context: Pick<AcpKimiPermissionContext, "ticketNumber">,
+): boolean {
   const [shell, script, operation, ticketNumber, output] = tokens;
   return shell === "bash"
     && script === ".agents/skills/write-support-qa/scripts/write-support-qa.sh"
@@ -166,9 +171,32 @@ async function allowsReadFile(
       && /^\d+(,\d+)?p$/.test(args[1])
       && await isAllowedReadPath(args[2], context, supportQaTempDir);
   }
-  if (program === "rg") {
+  if (program === "ls") {
     const path = args.at(-1);
-    return Boolean(path && await isAllowedReadPath(path, context, supportQaTempDir));
+    const options = args.slice(0, -1);
+    return path !== undefined
+      && options.every(isAllowedLsOption)
+      && await isAllowedReadPath(path, context, supportQaTempDir);
+  }
+  if (program === "grep") {
+    const pattern = args.at(-2);
+    const path = args.at(-1);
+    const options = args.slice(0, -2);
+    if (!pattern || !path || pattern.startsWith("-")
+      || !options.every((option) => ALLOWED_GREP_OPTIONS.has(option))) {
+      return false;
+    }
+    return isAllowedReadPath(path, context, supportQaTempDir);
+  }
+  if (program === "rg") {
+    const pattern = args.at(-2);
+    const path = args.at(-1);
+    const options = args.slice(0, -2);
+    if (!pattern || !path || pattern.startsWith("-")
+      || !options.every((option) => ALLOWED_RG_OPTIONS.has(option))) {
+      return false;
+    }
+    return isAllowedReadPath(path, context, supportQaTempDir);
   }
   return false;
 }
@@ -255,8 +283,97 @@ function asRecord(value: unknown): Record<string, unknown> | undefined {
     : undefined;
 }
 
-function hasShellControlOperator(command: string): boolean {
-  return /[;&|><`$()\n\\]/.test(command) || /['"]/.test(command);
+const ALLOWED_GREP_OPTIONS = new Set([
+  "-E",
+  "-F",
+  "-i",
+  "-n",
+  "-s",
+  "-w",
+  "-x",
+  "--extended-regexp",
+  "--fixed-strings",
+  "--ignore-case",
+  "--line-number",
+  "--line-regexp",
+  "--no-messages",
+  "--word-regexp",
+]);
+
+const ALLOWED_RG_OPTIONS = new Set([
+  "-F",
+  "-i",
+  "-n",
+  "-s",
+  "-w",
+  "-x",
+  "--case-sensitive",
+  "--fixed-strings",
+  "--hidden",
+  "--ignore-case",
+  "--line-number",
+  "--line-regexp",
+  "--no-filename",
+  "--no-heading",
+  "--with-filename",
+  "--word-regexp",
+]);
+
+function isAllowedLsOption(option: string): boolean {
+  return /^-[1aAlh]+$/.test(option)
+    || option === "--all"
+    || option === "--almost-all"
+    || option === "--human-readable";
+}
+
+function parseShellTokens(command: string): string[] | undefined {
+  const tokens: string[] = [];
+  let current = "";
+  let quote: "'" | "\"" | undefined;
+  let tokenStarted = false;
+
+  for (const character of command) {
+    if (character === "\n" || character === "\r" || character === "\0") {
+      return undefined;
+    }
+    if (quote) {
+      if (character === quote) {
+        quote = undefined;
+        continue;
+      }
+      if (quote === "\"" && /[`$\\]/.test(character)) {
+        return undefined;
+      }
+      current += character;
+      continue;
+    }
+    if (character === "'" || character === "\"") {
+      quote = character;
+      tokenStarted = true;
+      continue;
+    }
+    if (/\s/.test(character)) {
+      if (tokenStarted) {
+        tokens.push(current);
+        current = "";
+        tokenStarted = false;
+      }
+      continue;
+    }
+    if (/[;&|><`$()\\*?\[\]{}~#]/.test(character)) {
+      return undefined;
+    }
+    current += character;
+    tokenStarted = true;
+  }
+
+  if (quote) {
+    return undefined;
+  }
+  if (tokenStarted) {
+    tokens.push(current);
+  }
+  return tokens.length > 0 ? tokens : undefined;
 }
 
 function getToolName(title: string | null | undefined): string {
@@ -278,7 +395,11 @@ function isAllowedPath(path: string, workspaceDir: string, roots: string[]): boo
   return relativePath !== ""
     && !relativePath.startsWith("../")
     && !isAbsolute(relativePath)
-    && roots.some((root) => relativePath.startsWith(root));
+    && roots.some((root) => {
+      const normalizedRoot = root.replace(/\/+$/, "");
+      return relativePath === normalizedRoot
+        || relativePath.startsWith(`${normalizedRoot}/`);
+    });
 }
 
 async function isAllowedSupportQaTempJson(

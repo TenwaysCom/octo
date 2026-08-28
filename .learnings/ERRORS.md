@@ -440,3 +440,15 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Symptom:** `pnpm --dir server test -- acp-kimi-permission-policy.test.ts` ran every Server test instead of only the named file.
 - **Root cause:** The package script already expands to `vitest run`, and this invocation did not provide the intended focused file routing in this workspace.
 - **Verified fix:** Use `pnpm --dir server exec vitest run <test paths>` for focused verification; keep `pnpm --dir server test` as the explicit full-suite command.
+
+### ERR-20260828-003 — Kimi ACP fixture covered only the non-streaming tool-call path
+
+- **Symptom:** Unit tests approved an exact Support-QA fetch, but the real Kimi 0.38 session still cancelled that same command and then attempted disallowed `ls`/`grep` fallbacks.
+- **Root cause:** The fixture put parsed arguments on the initial `tool_call.rawInput`. The real provider streamed arguments, so Kimi lazy-created a `tool_call` without raw input and supplied parsed arguments later on a canonical `tool_call_update`; both the permission cache and workflow evidence tracker ignored that update.
+- **Verified fix:** Track structured raw input on both create and update events using the same Session/tool-call key, retain conflict denial, and model the lazy-create/upgrade sequence in runtime and workflow tests.
+
+### ERR-20260828-004 — Allowed read-root directory lost its trailing slash
+
+- **Symptom:** The new `ls docs/support-qa/` policy test was cancelled even though files below that directory were allowed.
+- **Root cause:** `path.resolve` normalized the target to `docs/support-qa`, while the allowlist compared only against the trailing-slash prefix `docs/support-qa/`.
+- **Verified fix:** Normalize each configured root and accept either exact root equality or a slash-delimited descendant; similarly named sibling paths remain outside the boundary.
