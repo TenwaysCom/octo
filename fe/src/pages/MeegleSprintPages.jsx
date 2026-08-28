@@ -1,15 +1,25 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { getMeegleSprintDetailHash } from "../app/routes/workspace-routes.js";
 import { WorkspaceShell } from "../components/layout/WorkspaceShell.jsx";
 import { useKeyboardShortcut } from "../hooks/useKeyboardShortcut.js";
 import { formatDateTime } from "../lib/formatters.js";
 import {
+  DEFAULT_SPRINT_WORKITEM_VISIBLE_COLUMNS,
+  groupSprintWorkitems,
+  normalizeSprintWorkitemGroupBy,
+  normalizeSprintWorkitemSort,
+  normalizeSprintWorkitemSubGroupBy,
+  normalizeSprintWorkitemVisibleColumns,
+  sortSprintWorkitems,
+  SPRINT_WORKITEM_GROUP_OPTIONS,
+  SPRINT_WORKITEM_VIEW_COLUMNS,
+} from "../lib/meegle-sprint-workitem-view.js";
+import {
   buildMeegleSprintHistory,
-  filterMeegleSprintHistory,
   filterMeegleSprintItems,
   getDefaultOpenMeegleSprint,
-  groupMeegleSprintHistory,
 } from "../lib/meegle-sprint-history.js";
+import { countFilterValues, toggleFilterValue } from "../lib/platform-list-filters.js";
 import { getPlatformDataList } from "../services/platform-data/platform-data-api.js";
 
 const ACTIVITY_LABELS = {
@@ -19,12 +29,12 @@ const ACTIVITY_LABELS = {
   unknown: "日期未同步",
 };
 
-const SPRINT_LIFECYCLE_FILTERS = ["current", "upcoming", "past", "unknown"];
-
-const LABEL_FIELDS = [
-  { key: "sprint", label: "Sprint" },
-  { key: "project", label: "项目" },
-  { key: "priority", label: "优先级" },
+const SPRINT_WORKITEM_FILTER_FIELDS = [
+  { key: "workitemType", label: "类型", getValues: (item) => [item.workItemType || item.workItemTypeKey || "未设置"] },
+  { key: "status", label: "状态", getValues: (item) => [item.status || "未设置"] },
+  { key: "project", label: "项目", getValues: (item) => [item.projectName || item.projectKey || "未设置"] },
+  { key: "priority", label: "优先级", getValues: (item) => [item.priority || "未设置"] },
+  { key: "assignee", label: "负责人", getValues: (item) => [item.assignee || "未设置"] },
 ];
 
 function getMeegleWorkitemCategory(item) {
@@ -104,42 +114,7 @@ function SprintTimelineChart({ sprint, compact = false }) {
   </section>;
 }
 
-function SprintLabelFilters({ sprint, activeFieldKey, selectedLabels, onActiveFieldChange, onToggle, onReset }) {
-  const activeField = LABEL_FIELDS.find(({ key }) => key === activeFieldKey) || LABEL_FIELDS[0];
-  const values = sprint.labels[activeField.key] || [];
-  return <section className="sprint-panel__labels" aria-label="Sprint 标签筛选">
-    <header><strong>标签筛选</strong><button type="button" onClick={onReset}>清空</button></header>
-    <div className="list-tag-sidebar__tabs" role="tablist" aria-label="标签字段">
-      {LABEL_FIELDS.map((field) => <button
-        type="button"
-        role="tab"
-        aria-selected={field.key === activeField.key}
-        className={field.key === activeField.key ? "list-tag-sidebar__tab--active" : ""}
-        key={field.key}
-        onClick={() => onActiveFieldChange(field.key)}
-      >{field.label}</button>)}
-    </div>
-    <div className="list-tag-sidebar__values" role="group" aria-label={activeField.label}>
-      {values.map((tag) => <button
-        type="button"
-        aria-pressed={selectedLabels[activeField.key]?.includes(tag.value) || false}
-        className={selectedLabels[activeField.key]?.includes(tag.value) ? "list-tag-sidebar__value--active" : ""}
-        key={tag.value}
-        onClick={() => onToggle(activeField.key, tag.value)}
-      ><span><i aria-hidden="true" />{tag.label}</span><small>{tag.count}</small></button>)}
-      {!values.length ? <p>暂无可筛选的标签</p> : null}
-    </div>
-  </section>;
-}
-
-function SprintPanel({ sprint, selectedLabels, onSelectedLabelsChange }) {
-  const [activeFieldKey, setActiveFieldKey] = useState("project");
-  function toggleLabel(fieldKey, value) {
-    onSelectedLabelsChange((current) => {
-      const values = current[fieldKey] || [];
-      return { ...current, [fieldKey]: values.includes(value) ? values.filter((item) => item !== value) : [...values, value] };
-    });
-  }
+function SprintPanel({ sprint }) {
   return <aside className="sprint-detail-panel" aria-label="Sprint 详情">
     <section className="sprint-panel__overview">
       <div className="sprint-panel__badges"><SprintActivityBadge lifecycle={sprint.lifecycle} /><span>{sprint.sprintId ? "Sprint 快照" : "元数据未同步"}</span></div>
@@ -152,61 +127,91 @@ function SprintPanel({ sprint, selectedLabels, onSelectedLabelsChange }) {
       <p className="sprint-panel__sync-note">Sprint 最近更新：{formatDateTime(sprint.sourceUpdatedAt || sprint.syncedAt || sprint.latestActivityAt)}</p>
     </section>
     <SprintTimelineChart sprint={sprint} />
-    <SprintLabelFilters
-      sprint={sprint}
-      activeFieldKey={activeFieldKey}
-      selectedLabels={selectedLabels}
-      onActiveFieldChange={setActiveFieldKey}
-      onToggle={toggleLabel}
-      onReset={() => onSelectedLabelsChange({})}
-    />
   </aside>;
 }
 
-function SprintWorkitemList({ items }) {
-  return <div className="data-table-wrap"><table className="data-table data-table--sprint-workitems">
-    <thead><tr><th>工作项</th><th>类型</th><th>状态</th><th>项目</th><th>优先级</th><th>负责人</th><th>更新时间</th></tr></thead>
-    <tbody>{items.map((item) => <tr key={`${item.projectKey}-${item.workItemTypeKey}-${item.workItemId}`}>
-      <td><a className="table-link" href={getMeegleWorkitemUrl(item)} target="_blank" rel="noreferrer">{item.workItemKey || item.workItemId}</a><small>{item.title}</small></td>
-      <td><span className={`workitem-type-badge workitem-type-badge--${getMeegleWorkitemCategory(item)}`}>{item.workItemType || item.workItemTypeKey || "-"}</span></td>
-      <td>{item.status || "未设置"}<small>{item.subStage || ""}</small></td>
-      <td>{item.projectName || item.projectKey || "未设置"}</td>
-      <td>{item.priority || "未设置"}</td>
-      <td>{item.assignee || "未设置"}</td>
-      <td>{formatDateTime(item.sourceUpdatedAt || item.syncedAt)}</td>
-    </tr>)}</tbody>
+function SprintWorkitemCell({ columnKey, item }) {
+  if (columnKey === "workitem") return <><a className="table-link" href={getMeegleWorkitemUrl(item)} target="_blank" rel="noreferrer">{item.workItemKey || item.workItemId}</a><small>{item.title}</small></>;
+  if (columnKey === "workitemType") return <span className={`workitem-type-badge workitem-type-badge--${getMeegleWorkitemCategory(item)}`}>{item.workItemType || item.workItemTypeKey || "-"}</span>;
+  if (columnKey === "status") return <>{item.status || "未设置"}<small>{item.subStage || ""}</small></>;
+  if (columnKey === "project") return item.projectName || item.projectKey || "未设置";
+  if (columnKey === "priority") return item.priority || "未设置";
+  if (columnKey === "assignee") return item.assignee || "未设置";
+  return formatDateTime(item.sourceUpdatedAt || item.syncedAt);
+}
+
+function SprintWorkitemList({ items, sort, visibleColumns, onSort }) {
+  const columns = SPRINT_WORKITEM_VIEW_COLUMNS.filter(({ key }) => visibleColumns.includes(key));
+  return <div className="data-table-wrap"><table className="data-table data-table--sprint-workitems" style={{ minWidth: Math.max(720, columns.length * 145) }}>
+    <thead><tr>{columns.map((column) => <th key={column.key}><button className="sortable-column-header" type="button" onClick={() => onSort(column.sortKey)}>{column.label}<span className="sortable-column-header__arrows" aria-hidden="true">{sort.key === column.sortKey ? sort.direction === "asc" ? "↑" : "↓" : "↕"}</span></button></th>)}</tr></thead>
+    <tbody>{items.map((item) => <tr key={`${item.projectKey}-${item.workItemTypeKey}-${item.workItemId}`}>{columns.map((column) => <td key={column.key}><SprintWorkitemCell columnKey={column.key} item={item} /></td>)}</tr>)}</tbody>
   </table></div>;
 }
 
-function SprintHistoryFilterPanel({ selectedLifecycles, lifecycleCounts, onToggle, onReset }) {
-  return <div className="list-filter-menu__panel sprint-history-filter-panel">
+function SprintWorkitemGroupedList({ groups, collapsedGroups, collapsedSubgroups, onToggleGroup, onToggleSubgroup, sort, visibleColumns, onSort }) {
+  return <div className="grouped-list">{groups.map((group) => {
+    const collapsed = collapsedGroups.includes(group.key);
+    return <section className="grouped-list__section" key={group.key}>
+      <button className="grouped-list__header" type="button" aria-expanded={!collapsed} onClick={() => onToggleGroup(group.key)}>
+        <svg className={collapsed ? "grouped-list__chevron--collapsed" : ""} viewBox="0 0 12 12" aria-hidden="true"><path d="m3 4 3 3 3-3" /></svg><strong>{group.label}</strong><span>{group.items.length} 条</span>
+      </button>
+      {!collapsed ? group.subgroups?.length ? <div className="grouped-list__subgroups">{group.subgroups.map((subgroup) => {
+        const subgroupCollapsed = collapsedSubgroups.includes(subgroup.key);
+        return <section className="grouped-list__subgroup" key={subgroup.key}>
+          <button className="grouped-list__subgroup-header" type="button" aria-expanded={!subgroupCollapsed} onClick={() => onToggleSubgroup(subgroup.key)}>
+            <svg className={subgroupCollapsed ? "grouped-list__chevron--collapsed" : ""} viewBox="0 0 12 12" aria-hidden="true"><path d="m3 4 3 3 3-3" /></svg><strong>{subgroup.label}</strong><span>{subgroup.items.length} 条</span>
+          </button>
+          {!subgroupCollapsed ? <SprintWorkitemList items={subgroup.items} sort={sort} visibleColumns={visibleColumns} onSort={onSort} /> : null}
+        </section>;
+      })}</div> : <SprintWorkitemList items={group.items} sort={sort} visibleColumns={visibleColumns} onSort={onSort} /> : null}
+    </section>;
+  })}</div>;
+}
+
+function SprintWorkitemFilterPanel({ fields, activeFieldKey, onActiveFieldChange, onToggle, onReset }) {
+  const activeField = fields.find(({ key }) => key === activeFieldKey) || fields[0];
+  return <div className="list-filter-menu__panel sprint-workitem-filter-panel">
     <header className="list-filter-menu__header">
       <strong>筛选</strong>
       <button type="button" onClick={onReset}>清空</button>
     </header>
-    <div className="sprint-history-filter-panel__values" role="group" aria-label="Sprint 生命周期">
-      {SPRINT_LIFECYCLE_FILTERS.map((lifecycle) => <label key={lifecycle}>
-        <input type="checkbox" checked={selectedLifecycles.includes(lifecycle)} onChange={() => onToggle(lifecycle)} />
-        <span>{ACTIVITY_LABELS[lifecycle]}</span>
-        <small>{lifecycleCounts[lifecycle] || 0}</small>
-      </label>)}
+    <div className="list-filter-menu__columns">
+      <nav className="list-filter-fields" aria-label="工作项筛选字段">
+        <div className="list-filter-menu__field-list">
+          {fields.map((field) => <button className={field.key === activeField?.key ? "list-filter-field--active" : ""} type="button" key={field.key} onClick={() => onActiveFieldChange(field.key)}><span>{field.label}</span>{field.selectedValues.length ? <small>{field.selectedValues.length}</small> : null}<span aria-hidden="true">›</span></button>)}
+        </div>
+      </nav>
+      {activeField ? <section className="list-filter-values" aria-label={`${activeField.label} 的可选值`}><div className="list-filter-menu__value-list">{activeField.values.map(({ value, label }) => <label key={value}><input type="checkbox" checked={activeField.selectedValues.includes(value)} onChange={() => onToggle(activeField.key, value)} /><span>{label}</span></label>)}{!activeField.values.length ? <p>暂无可筛选的值</p> : null}</div></section> : null}
     </div>
   </div>;
 }
 
-function SprintHistoryGroupPanel({ groupBy, onGroupByChange, onReset }) {
-  return <div className="list-view-config-panel sprint-history-group-panel">
+function SprintWorkitemViewConfigPanel({ groupBy, subGroupBy, sort, visibleColumns, onGroupByChange, onSubGroupByChange, onSortChange, onToggleColumn, onReset }) {
+  return <div className="list-view-config-panel sprint-workitem-view-config-panel">
     <header className="list-view-config-panel__header">
       <strong>视图配置</strong>
       <button type="button" onClick={onReset}>重置</button>
     </header>
     <div className="list-view-config-section">
-      <label htmlFor="meegle-sprint-group-by">分组</label>
-      <select id="meegle-sprint-group-by" value={groupBy} onChange={(event) => onGroupByChange(event.target.value)}>
-        <option value="date">按时间线</option>
-        <option value="lifecycle">按生命周期</option>
+      <label htmlFor="meegle-sprint-workitem-group-by">Group by</label>
+      <select id="meegle-sprint-workitem-group-by" value={groupBy} onChange={(event) => onGroupByChange(event.target.value)}>
+        {SPRINT_WORKITEM_GROUP_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
       </select>
     </div>
+    <div className="list-view-config-section">
+      <label htmlFor="meegle-sprint-workitem-sub-group-by">Sub group by</label>
+      <select id="meegle-sprint-workitem-sub-group-by" value={subGroupBy} disabled={groupBy === "none"} onChange={(event) => onSubGroupByChange(event.target.value)}>
+        {SPRINT_WORKITEM_GROUP_OPTIONS.filter(([value]) => value === "none" || value !== groupBy).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+      </select>
+    </div>
+    <div className="list-view-config-section list-view-config-section--ordering">
+      <label htmlFor="meegle-sprint-workitem-order-by">排序</label>
+      <select id="meegle-sprint-workitem-order-by" value={sort.key} onChange={(event) => onSortChange({ ...sort, key: event.target.value })}>
+        {SPRINT_WORKITEM_VIEW_COLUMNS.map(({ label, sortKey }) => <option key={sortKey} value={sortKey}>{label}</option>)}
+      </select>
+      <div className="list-view-direction" role="group" aria-label="排序方向"><button className={sort.direction === "asc" ? "list-view-direction--active" : ""} type="button" aria-label="升序" title="升序" onClick={() => onSortChange({ ...sort, direction: "asc" })}>↑</button><button className={sort.direction === "desc" ? "list-view-direction--active" : ""} type="button" aria-label="降序" title="降序" onClick={() => onSortChange({ ...sort, direction: "desc" })}>↓</button></div>
+    </div>
+    <fieldset className="list-view-fields"><legend>显示字段</legend><div>{SPRINT_WORKITEM_VIEW_COLUMNS.map((column) => <label className={visibleColumns.includes(column.key) ? "list-view-field--active" : ""} key={column.key}><input type="checkbox" checked={visibleColumns.includes(column.key)} disabled={column.required} onChange={() => onToggleColumn(column.key)} />{column.label}</label>)}</div></fieldset>
   </div>;
 }
 
@@ -239,97 +244,23 @@ function SprintHistoryList({ sprints, expandedSprintKey, onToggleSprint, idPrefi
 export function MeegleSprintHistoryPage({ profile, apiBaseUrl, onLogout, isBusy, breadcrumbs }) {
   const state = useMeegleSprintHistory(apiBaseUrl);
   const [expandedSprintKey, setExpandedSprintKey] = useState();
-  const [filterOpen, setFilterOpen] = useState(false);
-  const [groupOpen, setGroupOpen] = useState(false);
-  const [selectedLifecycles, setSelectedLifecycles] = useState([]);
-  const [groupBy, setGroupBy] = useState("date");
-  const visibleSprints = useMemo(
-    () => filterMeegleSprintHistory(state.sprints, selectedLifecycles),
-    [selectedLifecycles, state.sprints],
-  );
-  const sprintGroups = useMemo(() => groupMeegleSprintHistory(visibleSprints, groupBy), [groupBy, visibleSprints]);
-  const lifecycleCounts = Object.fromEntries(SPRINT_LIFECYCLE_FILTERS.map((lifecycle) => [
-    lifecycle,
-    state.sprints.filter((sprint) => sprint.lifecycle === lifecycle).length,
-  ]));
   useEffect(() => {
     if (state.status !== "ready") return;
     setExpandedSprintKey((current) => {
       if (current === null) return null;
-      if (current && visibleSprints.some((sprint) => sprint.identity === current)) return current;
-      return getDefaultOpenMeegleSprint(visibleSprints);
+      if (current && state.sprints.some((sprint) => sprint.identity === current)) return current;
+      return getDefaultOpenMeegleSprint(state.sprints);
     });
-  }, [state.status, visibleSprints]);
-  useKeyboardShortcut({
-    key: "Escape",
-    enabled: filterOpen || groupOpen,
-    allowInEditableTarget: true,
-    handler: (event) => {
-      event.preventDefault();
-      setFilterOpen(false);
-      setGroupOpen(false);
-    },
-  });
-  function toggleLifecycle(lifecycle) {
-    setSelectedLifecycles((current) => current.includes(lifecycle)
-      ? current.filter((value) => value !== lifecycle)
-      : [...current, lifecycle]);
-  }
+  }, [state.sprints, state.status]);
   return <WorkspaceShell user={profile.user ?? {}} workspaceAccess={profile.workspaceAccess} activePage="meegle-sprints" onLogout={onLogout} isBusy={isBusy} breadcrumbs={breadcrumbs}>
     <section className="profile-main list-page sprint-history-page">
       <header className="list-page__header">
         <div><h1>Sprint 历史</h1><p>按起止日期区分 Past、Current 和 Upcoming；默认展开 Current Sprint。</p></div>
-        {state.status === "ready" ? <div className="list-toolbar__actions">
-          <div className="list-view-menu">
-            <button
-              className={`list-filter-button ${groupOpen ? "list-filter-button--active" : ""}`.trim()}
-              type="button"
-              aria-label="配置 Sprint 列表分组"
-              aria-expanded={groupOpen}
-              title="分组"
-              onClick={() => {
-                setFilterOpen(false);
-                setGroupOpen((open) => !open);
-              }}
-            ><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1a1 1 0 0 1 1 1v1h10a1 1 0 1 1 0 2H4v1a1 1 0 1 1-2 0V5H1a1 1 0 1 1 0-2h1V2a1 1 0 0 1 1-1Zm10 8a1 1 0 0 1 1 1v1h1a1 1 0 1 1 0 2h-1v1a1 1 0 1 1-2 0v-1H1a1 1 0 1 1 0-2h11v-1a1 1 0 0 1 1-1ZM8 5a1 1 0 0 1 1 1v1h6a1 1 0 1 1 0 2H9v1a1 1 0 1 1-2 0V9H1a1 1 0 1 1 0-2h6V6a1 1 0 0 1 1-1Z" /></svg></button>
-            {groupOpen ? <SprintHistoryGroupPanel groupBy={groupBy} onGroupByChange={setGroupBy} onReset={() => setGroupBy("date")} /> : null}
-          </div>
-          <div className="list-filter-menu">
-            <button
-              className={`list-filter-button ${filterOpen ? "list-filter-button--active" : ""}`.trim()}
-              type="button"
-              aria-label="筛选 Sprint"
-              aria-expanded={filterOpen}
-              title="筛选"
-              onClick={() => {
-                setGroupOpen(false);
-                setFilterOpen((open) => !open);
-              }}
-            ><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M0 3a1 1 0 0 1 1-1h14a1 1 0 1 1 0 2H1a1 1 0 1 1 0-2H1a1 1 0 0 1-1-1Zm3 5a1 1 0 0 1 1-1h8a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm4 4a1 1 0 1 0 0 2h2a1 1 0 1 0 0-2H7Z" /></svg></button>
-            {filterOpen ? <SprintHistoryFilterPanel
-              selectedLifecycles={selectedLifecycles}
-              lifecycleCounts={lifecycleCounts}
-              onToggle={toggleLifecycle}
-              onReset={() => setSelectedLifecycles([])}
-            /> : null}
-          </div>
-        </div> : null}
       </header>
       {state.status === "loading" ? <p className="list-message">正在加载 Sprint 历史…</p> : null}
       {state.status === "error" ? <p className="list-message list-message--error">Sprint 历史暂时无法读取，请稍后重试。</p> : null}
       {state.status === "ready" && !state.sprints.length ? <p className="list-message">暂无已同步 Sprint。</p> : null}
-      {state.status === "ready" && state.sprints.length > 0 && !visibleSprints.length ? <p className="list-message">当前筛选条件下没有 Sprint。</p> : null}
-      {state.status === "ready" && visibleSprints.length ? <div className={`sprint-history-groups ${groupBy === "lifecycle" ? "sprint-history-groups--grouped" : ""}`.trim()}>
-        {sprintGroups.map((group) => <section className="sprint-history-group" key={group.key}>
-          {groupBy === "lifecycle" ? <header className="sprint-history-group__header"><strong>{ACTIVITY_LABELS[group.key]}</strong><span>{group.sprints.length} 个 Sprint</span></header> : null}
-          <SprintHistoryList
-            sprints={group.sprints}
-            expandedSprintKey={expandedSprintKey}
-            onToggleSprint={(identity) => setExpandedSprintKey((current) => current === identity ? null : identity)}
-            idPrefix={`sprint-history-${group.key}`}
-          />
-        </section>)}
-      </div> : null}
+      {state.status === "ready" && state.sprints.length ? <div className="sprint-history-groups"><SprintHistoryList sprints={state.sprints} expandedSprintKey={expandedSprintKey} onToggleSprint={(identity) => setExpandedSprintKey((current) => current === identity ? null : identity)} idPrefix="sprint-history" /></div> : null}
     </section>
   </WorkspaceShell>;
 }
@@ -337,9 +268,58 @@ export function MeegleSprintHistoryPage({ profile, apiBaseUrl, onLogout, isBusy,
 export function MeegleSprintDetailPage({ profile, sprintName, apiBaseUrl, onLogout, isBusy, breadcrumbs }) {
   const state = useMeegleSprintHistory(apiBaseUrl);
   const [panelOpen, setPanelOpen] = useState(true);
-  const [selectedLabels, setSelectedLabels] = useState({});
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [viewConfigOpen, setViewConfigOpen] = useState(false);
+  const [activeFilterFieldKey, setActiveFilterFieldKey] = useState("status");
+  const [selectedWorkitemFilters, setSelectedWorkitemFilters] = useState({});
+  const [groupBy, setGroupBy] = useState(() => normalizeSprintWorkitemGroupBy());
+  const [subGroupBy, setSubGroupBy] = useState(() => normalizeSprintWorkitemSubGroupBy(undefined, normalizeSprintWorkitemGroupBy()));
+  const [sort, setSort] = useState(() => normalizeSprintWorkitemSort());
+  const [visibleColumns, setVisibleColumns] = useState(() => normalizeSprintWorkitemVisibleColumns());
+  const [collapsedGroups, setCollapsedGroups] = useState([]);
+  const [collapsedSubgroups, setCollapsedSubgroups] = useState([]);
   const sprint = state.sprints.find((item) => item.sprintId === sprintName || item.name === sprintName);
-  const visibleItems = sprint ? filterMeegleSprintItems(sprint.items, selectedLabels) : [];
+  const filterFields = sprint ? SPRINT_WORKITEM_FILTER_FIELDS.map((field) => ({
+    ...field,
+    values: countFilterValues(sprint.items, field.getValues),
+    selectedValues: selectedWorkitemFilters[field.key] || [],
+  })) : [];
+  const visibleItems = sprint ? filterMeegleSprintItems(sprint.items, selectedWorkitemFilters) : [];
+  const sortedItems = sortSprintWorkitems(visibleItems, sort);
+  const workitemGroups = groupSprintWorkitems(sortedItems, groupBy, { subGroupBy });
+  useKeyboardShortcut({
+    key: "Escape",
+    enabled: filterOpen || viewConfigOpen,
+    allowInEditableTarget: true,
+    handler: (event) => {
+      event.preventDefault();
+      setFilterOpen(false);
+      setViewConfigOpen(false);
+    },
+  });
+  function toggleWorkitemFilter(fieldKey, value) {
+    setSelectedWorkitemFilters((current) => ({ ...current, [fieldKey]: toggleFilterValue(current[fieldKey] || [], value) }));
+  }
+  function toggleColumn(key) {
+    setVisibleColumns((current) => normalizeSprintWorkitemVisibleColumns(current.includes(key)
+      ? current.filter((columnKey) => columnKey !== key)
+      : [...current, key]));
+  }
+  function updateSort(nextSort) {
+    setSort(normalizeSprintWorkitemSort(nextSort));
+  }
+  function updateGroupBy(value) {
+    const nextGroupBy = normalizeSprintWorkitemGroupBy(value);
+    setGroupBy(nextGroupBy);
+    setSubGroupBy((current) => normalizeSprintWorkitemSubGroupBy(current, nextGroupBy));
+    setCollapsedGroups([]);
+    setCollapsedSubgroups([]);
+  }
+  function updateSubGroupBy(value) {
+    setSubGroupBy(normalizeSprintWorkitemSubGroupBy(value, groupBy));
+    setCollapsedGroups([]);
+    setCollapsedSubgroups([]);
+  }
   return <WorkspaceShell user={profile.user ?? {}} workspaceAccess={profile.workspaceAccess} activePage="meegle-sprints" onLogout={onLogout} isBusy={isBusy} breadcrumbs={breadcrumbs}>
     <section className="profile-main list-page sprint-detail-page">
       {state.status === "loading" ? <p className="list-message">正在加载 Sprint 详情…</p> : null}
@@ -348,6 +328,9 @@ export function MeegleSprintDetailPage({ profile, sprintName, apiBaseUrl, onLogo
       {state.status === "ready" && sprint ? <>
         <div className="sprint-detail-toolbar">
           <div><strong>{sprint.items.length} 个工作项</strong>{visibleItems.length !== sprint.items.length ? <span> · 当前显示 {visibleItems.length}</span> : null}</div>
+          <div className="list-toolbar__actions">
+          <div className="list-view-menu"><button className={`list-filter-button ${viewConfigOpen ? "list-filter-button--active" : ""}`.trim()} type="button" aria-label="配置 Sprint 工作项视图" aria-expanded={viewConfigOpen} title="视图配置" onClick={() => { setFilterOpen(false); setViewConfigOpen((open) => !open); }}><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1a1 1 0 0 1 1 1v1h10a1 1 0 1 1 0 2H4v1a1 1 0 1 1-2 0V5H1a1 1 0 1 1 0-2h1V2a1 1 0 0 1 1-1Zm10 8a1 1 0 0 1 1 1v1h1a1 1 0 1 1 0 2h-1v1a1 1 0 1 1-2 0v-1H1a1 1 0 1 1 0-2h11v-1a1 1 0 0 1 1-1ZM8 5a1 1 0 0 1 1 1v1h6a1 1 0 1 1 0 2H9v1a1 1 0 1 1-2 0V9H1a1 1 0 1 1 0-2h6V6a1 1 0 0 1 1-1Z" /></svg></button>{viewConfigOpen ? <SprintWorkitemViewConfigPanel groupBy={groupBy} subGroupBy={subGroupBy} sort={sort} visibleColumns={visibleColumns} onGroupByChange={updateGroupBy} onSubGroupByChange={updateSubGroupBy} onSortChange={updateSort} onToggleColumn={toggleColumn} onReset={() => { setGroupBy("none"); setSubGroupBy("none"); setSort(normalizeSprintWorkitemSort()); setVisibleColumns([...DEFAULT_SPRINT_WORKITEM_VISIBLE_COLUMNS]); setCollapsedGroups([]); setCollapsedSubgroups([]); }} /> : null}</div>
+          <div className="list-filter-menu"><button className={`list-filter-button ${filterOpen ? "list-filter-button--active" : ""}`.trim()} type="button" aria-label="筛选 Sprint 工作项" aria-expanded={filterOpen} title="筛选" onClick={() => { setViewConfigOpen(false); setFilterOpen((open) => !open); }}><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M0 3a1 1 0 0 1 1-1h14a1 1 0 1 1 0 2H1a1 1 0 1 1 0-2H1a1 1 0 0 1-1-1Zm3 5a1 1 0 0 1 1-1h8a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm4 4a1 1 0 1 0 0 2h2a1 1 0 1 0 0-2H7Z" /></svg></button>{filterOpen ? <SprintWorkitemFilterPanel fields={filterFields} activeFieldKey={activeFilterFieldKey} onActiveFieldChange={setActiveFilterFieldKey} onToggle={toggleWorkitemFilter} onReset={() => setSelectedWorkitemFilters({})} /> : null}</div>
           <button
             className={`list-filter-button ${panelOpen ? "list-filter-button--active" : ""}`.trim()}
             type="button"
@@ -356,12 +339,13 @@ export function MeegleSprintDetailPage({ profile, sprintName, apiBaseUrl, onLogo
             title="显示 Sprint 详情"
             onClick={() => setPanelOpen((open) => !open)}
           ><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 2h12v12H2V2Zm2 2v8h6V4H4Zm8 0v8h1V4h-1Z" /></svg></button>
+          </div>
         </div>
         <div className={`sprint-detail-layout ${panelOpen ? "sprint-detail-layout--with-panel" : ""}`.trim()}>
           <div className="sprint-detail-layout__main">
-            {visibleItems.length ? <SprintWorkitemList items={visibleItems} /> : <p className="list-message">当前标签条件下没有工作项。</p>}
+            {sortedItems.length ? groupBy === "none" ? <SprintWorkitemList items={sortedItems} sort={sort} visibleColumns={visibleColumns} onSort={(key) => updateSort({ key, direction: sort.key === key && sort.direction === "asc" ? "desc" : "asc" })} /> : <SprintWorkitemGroupedList groups={workitemGroups} collapsedGroups={collapsedGroups} collapsedSubgroups={collapsedSubgroups} onToggleGroup={(key) => setCollapsedGroups((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key])} onToggleSubgroup={(key) => setCollapsedSubgroups((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key])} sort={sort} visibleColumns={visibleColumns} onSort={(key) => updateSort({ key, direction: sort.key === key && sort.direction === "asc" ? "desc" : "asc" })} /> : <p className="list-message">当前筛选条件下没有工作项。</p>}
           </div>
-          {panelOpen ? <SprintPanel sprint={sprint} selectedLabels={selectedLabels} onSelectedLabelsChange={setSelectedLabels} /> : null}
+          {panelOpen ? <SprintPanel sprint={sprint} /> : null}
         </div>
       </> : null}
     </section>

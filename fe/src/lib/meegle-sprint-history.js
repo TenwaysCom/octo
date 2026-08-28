@@ -233,8 +233,11 @@ export function filterMeegleSprintItems(items, selectedLabels) {
   return (items || []).filter((item) => {
     const values = {
       sprint: normalizeText(item.sprint) || "未设置",
+      workitemType: normalizeText(item.workItemType || item.workItemTypeKey) || "未设置",
+      status: normalizeText(item.status) || "未设置",
       project: normalizeText(item.projectName || item.projectKey) || "未设置",
       priority: normalizeText(item.priority) || "未设置",
+      assignee: normalizeText(item.assignee) || "未设置",
     };
     return Object.entries(selectedLabels || {}).every(([key, selected]) => !selected?.length || selected.includes(values[key]));
   });

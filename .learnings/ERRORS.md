@@ -2,6 +2,13 @@
 
 Record concise compiler/runtime errors, failed commands, wrong assumptions, and their verified fixes here. Redact secrets, cookies, tokens, and sensitive payloads.
 
+## [ERR-20260828-001] fe-focused-node-test-arguments
+
+- **Summary:** The FE package's `test` script is a bare `node --test`, so passing two focused file paths through `pnpm --dir fe test --` produced one unresolved comma-separated target.
+- **Error:** `Could not find 'meegle-sprint-history.test.js, meegle-sprint-workitem-view.test.js'`.
+- **Fix:** Run focused files with `pnpm --dir fe exec node --test src/lib/<file>.test.js ...`; this executed the intended 14 tests successfully.
+- **Status:** resolved; use package `check` for the full FE suite.
+
 ## [ERR-20260827-009] sync-run-history-is-not-snapshot-state
 
 - **Summary:** `#sync` 的“最近同步”曾改为读取 `platform_sync_runs` 的成功记录，导致旧流程已经写入快照、但没有对应 run 历史的数据源显示为空。
