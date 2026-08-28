@@ -36,6 +36,17 @@ function readPostgresUri(): string {
   return process.env.POSTGRES_URI || process.env.DATABASE_URL || "";
 }
 
+const LEGACY_MEEGLE_SPRINT_RELEASE_NOTES_PROMPT_TEMPLATE = `你正在为公司内部同事生成 Sprint Release Notes。必须先阅读并严格遵循以下 Skill：
+{{skill_path}}
+
+当前 Sprint 上下文：
+{{sprint_context}}
+
+用户请求：
+{{user_message}}
+
+只使用 Sprint 上下文中明确提供的信息。不要调用外部系统、不要写入任何系统、不要编造功能、影响范围、根因、上线状态或指标。输出简明中文 Markdown；省略没有可靠内容的章节。`;
+
 export function getDefaultPostgresUri(): string {
   return readPostgresUri();
 }
@@ -632,7 +643,6 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     })
     .onConflict((conflict) => conflict.column("key").doNothing())
     .execute();
-
   for (const prompt of [
     {
       key: LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_KEY,
@@ -728,6 +738,15 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
       updated_at: now,
     })
     .onConflict((conflict) => conflict.column("key").doNothing())
+    .execute();
+  await db.updateTable("workflow_prompts")
+    .set({
+      prompt: DEFAULT_MEEGLE_SPRINT_RELEASE_NOTES_PROMPT_TEMPLATE,
+      note: DEFAULT_MEEGLE_SPRINT_RELEASE_NOTES_PROMPT_NOTE,
+      updated_at: now,
+    })
+    .where("key", "=", MEEGLE_SPRINT_RELEASE_NOTES_PROMPT_KEY)
+    .where("prompt", "=", LEGACY_MEEGLE_SPRINT_RELEASE_NOTES_PROMPT_TEMPLATE)
     .execute();
   for (const column of ["runtime_host_name", "kimi_work_dir"]) {
     await sql.raw(`ALTER TABLE acp_kimi_session_owners ADD COLUMN IF NOT EXISTS ${column} text`).execute(db);

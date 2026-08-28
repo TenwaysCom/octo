@@ -1,9 +1,11 @@
 import { createTestPostgresDatabase } from "./test-db.js";
 import { PostgresWorkflowPromptStore } from "./workflow-prompt-store.js";
 import {
+  DEFAULT_MEEGLE_SPRINT_RELEASE_NOTES_PROMPT_TEMPLATE,
   DEFAULT_LARK_BUG_ANALYZE_PROMPT_NOTE,
   DEFAULT_STORY_PRD_TO_SIMPLIFIED_PROMPT_NOTE,
   LARK_BUG_ANALYZE_PROMPT_KEY,
+  MEEGLE_SPRINT_RELEASE_NOTES_PROMPT_KEY,
   STORY_PRD_TO_SIMPLIFIED_PROMPT_KEY,
 } from "../../domain/workflow-prompts.js";
 
@@ -51,5 +53,12 @@ describe("PostgresWorkflowPromptStore", () => {
       prompt: "custom {{storyTitle}}",
       note: "custom note",
     });
+  });
+
+  it("seeds the Sprint Release Notes prompt without a local Skill reference", async () => {
+    const { db } = await createTestPostgresDatabase();
+    const prompt = await new PostgresWorkflowPromptStore(db).getByKey(MEEGLE_SPRINT_RELEASE_NOTES_PROMPT_KEY);
+    expect(prompt?.prompt).toBe(DEFAULT_MEEGLE_SPRINT_RELEASE_NOTES_PROMPT_TEMPLATE);
+    expect(prompt?.prompt).not.toContain("{{skill_path}}");
   });
 });

@@ -16,6 +16,13 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Fix:** Use `rg --files -g '.env*'` for optional environment-file discovery; never expand unquoted optional globs.
 - **Status:** resolved; no environment content was read.
 
+## [ERR-20260828-015] pg-mem-repeated-schema-bootstrap
+
+- **Summary:** A database compatibility test called `ensurePostgresSchema` twice on the same `pg-mem` database.
+- **Error:** `pg-mem` rejected the repeated `CREATE TABLE IF NOT EXISTS` statement because its planner does not fully support that AST shape.
+- **Fix:** Keep the compatibility update in the idempotent production schema bootstrap, but test the initial Sprint Prompt seed with `pg-mem`; verify the upgrade path against PostgreSQL when running the authorized migration.
+- **Status:** resolved; no live database was accessed.
+
 ## [ERR-20260828-001] fe-focused-node-test-arguments
 
 - **Summary:** The FE package's `test` script is a bare `node --test`, so passing two focused file paths through `pnpm --dir fe test --` produced one unresolved comma-separated target.
