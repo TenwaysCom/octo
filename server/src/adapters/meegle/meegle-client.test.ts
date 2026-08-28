@@ -59,6 +59,33 @@ describe("parseWorkitem", () => {
     expect(result.priority).toBe("P1");
   });
 
+  it("uses the multi-user Current owner field as the assignee projection", () => {
+    expect(parseWorkitem({
+      id: "123",
+      name: "Test Item",
+      type: "story",
+      assignee: "Legacy node owner",
+      fields: {
+        work_item_fields: [{
+          key: "current_status_operator",
+          value: [{ name: "Ada" }, { name: "Lin" }, { name: "Ada" }],
+        }],
+      },
+    }).assignee).toBe("Ada, Lin");
+  });
+
+  it("does not fall back to a legacy assignee when Current owner is explicitly empty", () => {
+    expect(parseWorkitem({
+      id: "123",
+      name: "Test Item",
+      type: "story",
+      assignee: "Legacy node owner",
+      fields: {
+        work_item_fields: [{ key: "current_status_operator", value: [] }],
+      },
+    }).assignee).toBeUndefined();
+  });
+
   it("normalizes the source updated_at into the explicit snapshot version", () => {
     expect(parseWorkitem({
       id: "123",

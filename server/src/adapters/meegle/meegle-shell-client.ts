@@ -1,6 +1,8 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import {
+  formatMeegleCurrentOwners,
+  MEEGLE_CURRENT_OWNER_FIELD_KEY,
   parseWorkitemOperationRecord,
   type MeegleSyncMapping,
   type MeegleWorkitem,
@@ -224,7 +226,13 @@ export class MeegleShellClient {
     sourceUpdatedAfter?: string;
     sourceUpdatedAtMqlFieldName?: string;
   }): Promise<Record<string, unknown>[]> {
-    const columns = ["work_item_id", "name", "work_item_type_key", "work_item_status"];
+    const columns = [
+      "work_item_id",
+      "name",
+      "work_item_type_key",
+      "work_item_status",
+      MEEGLE_CURRENT_OWNER_FIELD_KEY,
+    ];
     if (input.sourceUpdatedAtMqlFieldName) columns.push(input.sourceUpdatedAtMqlFieldName);
     const mql = [
       `SELECT ${columns.map(quoteMqlIdentifier).join(", ")}`,
@@ -271,6 +279,9 @@ function toMqlWorkitem(
   }
   const type = getMqlKeyLabel(fields.find((field) => field.key === "work_item_type_key")?.value);
   const status = getMqlKeyLabel(fields.find((field) => field.key === "work_item_status")?.value);
+  const assignee = formatMeegleCurrentOwners(
+    fields.find((field) => field.key === MEEGLE_CURRENT_OWNER_FIELD_KEY)?.value,
+  );
   return {
     id,
     key: "",
@@ -279,6 +290,7 @@ function toMqlWorkitem(
     workItemType: type.label || undefined,
     status: status.label || stringValue(fieldValues.get("work_item_status")),
     statusKey: status.key || undefined,
+    ...(assignee ? { assignee } : {}),
     updatedAt: sourceUpdatedAtMqlFieldName
       ? normalizeTimestamp(fieldValues.get(sourceUpdatedAtMqlFieldName))
       : undefined,
@@ -291,7 +303,12 @@ function toDetailedWorkitem(data: Record<string, unknown>, fallbackType: string)
   const type = asRecord(attribute?.work_item_type);
   const status = asRecord(attribute?.work_item_status);
   const nodes = Array.isArray(data.work_item_current_node) ? data.work_item_current_node.map(asRecord).filter(isRecord) : [];
-  const owners = Array.isArray(nodes[0]?.owners) ? nodes[0].owners.map(asRecord).filter(isRecord) : [];
+  const workitemFields = Array.isArray(data.work_item_fields)
+    ? data.work_item_fields.map(asRecord).filter(isRecord)
+    : [];
+  const currentOwnerField = workitemFields.find((field) => (
+    field.key === MEEGLE_CURRENT_OWNER_FIELD_KEY || field.field_key === MEEGLE_CURRENT_OWNER_FIELD_KEY
+  ));
   const id = stringValue(attribute?.work_item_id);
   if (!id) {
     throw new Error("MEEGLE_SHELL_WORK_ITEM_ID_MISSING");
@@ -300,7 +317,13 @@ function toDetailedWorkitem(data: Record<string, unknown>, fallbackType: string)
   const statusKey = stringValue(status?.key);
   const subStage = stringValue(nodes[0]?.name);
   const subStageKey = stringValue(nodes[0]?.id);
-  const assignee = stringValue(owners[0]?.name);
+  const assignee = formatMeegleCurrentOwners(
+    currentOwnerField
+      ? (Object.prototype.hasOwnProperty.call(currentOwnerField, "value")
+          ? currentOwnerField.value
+          : currentOwnerField.field_value)
+      : data[MEEGLE_CURRENT_OWNER_FIELD_KEY],
+  );
   const priority = stringValue(data.priority);
   const workItemTypeKey = stringValue(type?.key) || fallbackType;
   const updatedAt = resolveMeegleSourceUpdatedAt({

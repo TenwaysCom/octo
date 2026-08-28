@@ -17,6 +17,9 @@ describe("MeegleShellClient", () => {
               { key: "name", value: { string_value: "A bug" } },
               { key: "work_item_type_key", value: { key_label_value: { key: "production_bug" } } },
               { key: "work_item_status", value: { key_label_value_list: [{ label: "New" }] } },
+              { key: "current_status_operator", value: { user_value_list: [
+                { name_cn: "Ada" }, { name_en: "Lin" }, { name_cn: "Ada" },
+              ] } },
             ],
           }],
         },
@@ -33,6 +36,7 @@ describe("MeegleShellClient", () => {
       name: "A bug",
       type: "production_bug",
       status: "New",
+      assignee: "Ada, Lin",
       fields: expect.any(Object),
     }]);
     expect(runCommand).toHaveBeenNthCalledWith(3, [
@@ -40,7 +44,7 @@ describe("MeegleShellClient", () => {
       "query",
       "--project-key", "4c3fv6",
       "--mql",
-      "SELECT `work_item_id`, `name`, `work_item_type_key`, `work_item_status` FROM `Tenways Software R&D`.`Production Bug` LIMIT 0, 50",
+      "SELECT `work_item_id`, `name`, `work_item_type_key`, `work_item_status`, `current_status_operator` FROM `Tenways Software R&D`.`Production Bug` LIMIT 0, 50",
     ]);
   });
 
@@ -60,6 +64,7 @@ describe("MeegleShellClient", () => {
               { key: "name", value: { string_value: "Changed story" } },
               { key: "work_item_type_key", value: { key_label_value: { key: "story" } } },
               { key: "work_item_status", value: { key_label_value_list: [{ label: "Done" }] } },
+              { key: "current_status_operator", value: { user_value_list: [{ name_en: "Current Owner" }] } },
               { key: "updated_at", value: { long_value: 1786020656000 } },
             ],
           }],
@@ -75,6 +80,7 @@ describe("MeegleShellClient", () => {
       sourceUpdatedAtMqlFieldNames: { story: "updated_at" },
     })).resolves.toMatchObject([{
       id: "123",
+      assignee: "Current Owner",
       updatedAt: "2026-08-06T12:50:56.000Z",
     }]);
     expect(runCommand).toHaveBeenNthCalledWith(3, [
@@ -82,7 +88,7 @@ describe("MeegleShellClient", () => {
       "query",
       "--project-key", "4c3fv6",
       "--mql",
-      "SELECT `work_item_id`, `name`, `work_item_type_key`, `work_item_status`, `updated_at` FROM `Tenways Software R&D`.`Story` WHERE `updated_at` >= '2026-08-06T12:45:56.000Z' ORDER BY `updated_at` ASC, `work_item_id` ASC LIMIT 0, 50",
+      "SELECT `work_item_id`, `name`, `work_item_type_key`, `work_item_status`, `current_status_operator`, `updated_at` FROM `Tenways Software R&D`.`Story` WHERE `updated_at` >= '2026-08-06T12:45:56.000Z' ORDER BY `updated_at` ASC, `work_item_id` ASC LIMIT 0, 50",
     ]);
   });
 
@@ -148,8 +154,13 @@ describe("MeegleShellClient", () => {
             work_item_type: { key: "production_bug", name: "Production Bug" },
             work_item_status: { name: "QA Review" },
           },
-          work_item_current_node: [{ owners: [{ name: "Owner" }] }],
-          work_item_fields: [{ key: "description", value: "Details" }],
+          work_item_current_node: [{ owners: [{ name: "Legacy node owner" }] }],
+          work_item_fields: [
+            { key: "description", value: "Details" },
+            { key: "current_status_operator", value: [
+              { name: "Ada" }, { name: "Lin" }, { name: "Ada" },
+            ] },
+          ],
         },
       }],
     }));
@@ -162,7 +173,7 @@ describe("MeegleShellClient", () => {
       type: "production_bug",
       workItemType: "Production Bug",
       status: "QA Review",
-      assignee: "Owner",
+      assignee: "Ada, Lin",
       fields: expect.any(Object),
     }]);
     expect(runCommand).toHaveBeenCalledWith([
@@ -171,6 +182,27 @@ describe("MeegleShellClient", () => {
       "--project-key", "project",
       "--work-item-ids", "123",
     ]);
+  });
+
+  it("does not use current workflow-node owners when Current owner is empty", async () => {
+    const runCommand = vi.fn().mockResolvedValue(JSON.stringify({
+      results: [{
+        data: {
+          work_item_attribute: {
+            work_item_id: "123",
+            work_item_name: "A bug",
+            work_item_type: { key: "production_bug", name: "Production Bug" },
+            work_item_status: { name: "QA Review" },
+          },
+          work_item_current_node: [{ owners: [{ name: "Legacy node owner" }] }],
+          work_item_fields: [{ key: "current_status_operator", value: [] }],
+        },
+      }],
+    }));
+    const client = new MeegleShellClient(runCommand);
+
+    await expect(client.getWorkitemDetails("project", "production_bug", ["123"]))
+      .resolves.not.toHaveProperty("0.assignee");
   });
 
   it("uses Production Bug update_time from batch details as the canonical source timestamp", async () => {

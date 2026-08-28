@@ -63,7 +63,7 @@ Web Integrations 还提供受 Web 会话保护的同步状态页：展示 Lark T
 
 Web Lark Ticket 列表默认按状态分组并按状态升序排列，提供“进行中”“未分类”“未同步”快速过滤；“进行中”包含状态不是 `Finish`、`Cancelled`、`Rejected` 的 Ticket。列表也支持切换为按 Issue 类型、需求人、负责人、紧急度分组或不分组，并可配置排序字段、排序方向和显示字段。
 
-Web Meegle 工作项列表默认按状态分组，也支持切换为按类型、Sprint、Version、System、负责人分组或不分组，并可配置排序字段、排序方向和显示字段。两类列表的视图配置只保存在当前 Web 会话的页面状态中，不修改同步快照或外部平台数据。
+Web Meegle 工作项列表默认按状态分组，也支持切换为按类型、Sprint、Version、System、负责人分组或不分组，并可配置排序字段、排序方向和显示字段。Meegle“负责人”严格取系统字段 `current_status_operator`（Current owner）；多人按源端顺序去重并以逗号展示，空值不回退到当前节点 owner、Task Owner、Product Owner 或其他角色。两类列表的视图配置只保存在当前 Web 会话的页面状态中，不修改同步快照或外部平台数据。
 
 本地 CLI 配置文件为 `server/config/platform-sync.local.json`，只提交 `.example`，不得保存 token。Lark 通过服务端保存的用户凭据读取；本地 Meegle 同步使用本机 `meegle` CLI profile；本地 GitHub 同步使用 `gh` CLI。HTTP GitHub 同步使用服务端 `GITHUB_TOKEN`。
 
@@ -542,7 +542,7 @@ syncLark...    -> cleanLarkBaseTickets(...)
 | 平台 | 清洗输入 | 写入 `*_syncs` 表的清洗内容 |
 | --- | --- | --- |
 | Lark | 标题、状态、共享链接、创建/更新时间与原始字段 JSON | 基础展示投影，以及 Ticket 编号、Issue 类型、需求人、负责人、紧急度、创建时间、详情描述、Meegle 链接、Lark 消息链接；需求人读取 Lark 字段 `需求人`，紧急度只读取 Lark 字段 `紧急度` |
-| Meegle | 标题、类型/状态、子阶段、Sprint、Version、System、Bug、负责人 | 基础展示投影 |
+| Meegle | 标题、类型/状态、子阶段、Sprint、Version、System、Bug、Current owner | 基础展示投影；负责人只读取 `current_status_operator`，不从节点或角色推断 |
 | GitHub | PR 标题、状态、分支、Meegle ID、作者、合并人、requested reviewers、labels、创建时间 | 基础展示投影；合并人只读取 GitHub `merged_by.login`，`reviewers` 表示当前请求评审人，不推断已完成评审人 |
 
 ## 8. 认证、安全与可观测性

@@ -374,3 +374,9 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - **Context:** Kimi ACP could not use its native terminal-backed Grep/Glob capability and fell back to Bash `ls` and `grep` while following the Support-QA retrieval workflow.
 - **Rule:** Permit read-only shell fallbacks by command grammar and resolved policy path, not by executable name alone. Parse quotes without evaluating them, allow only non-recursive display/search options and a single allowed target, and reject shell control, substitution, escaping, and unquoted expansion syntax before authorization.
 - **Verified outcome:** Policy tests approve the observed Support-QA directory listing and quoted ticket-index search, while denying `/etc`, recursive grep, pipes, and command substitution.
+
+## [LRN-20260828-003] meegle-current-owner-projection
+
+- **Context:** Octo 的 Meegle `assignee` 曾读取当前流程节点的第一个 owner，但 Meegle 的真实“Current owner”是独立的 multi-user 系统字段 `current_status_operator`。
+- **Rule:** 负责人投影必须在 MQL 和 batch detail 中显式读取 `current_status_operator`，分别兼容 `user_value_list` 与人员数组形态，按源顺序去重保留所有姓名；显式空值是权威结果，不得回退到节点 owner 或类型角色。
+- **Verified outcome:** 49 个定向用例和 Server build 通过；全量回填后 1,209 条活动快照中 159 条保留 Current owner，其中 25 条正确保留多人值。

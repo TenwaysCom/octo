@@ -464,3 +464,15 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Symptom:** Current Sprint charts ended today and Upcoming Sprint charts collapsed to their start day instead of reaching the configured Sprint end date.
 - **Root cause:** The FE timeline used `min(configured end, today)`, treating today as an axis limit even though the chart contract covers the full configured Sprint range.
 - **Verified fix:** Use the configured end date whenever present, fall back to today only when it is missing, and cover both Current and Upcoming timelines with explicit end-date assertions.
+
+### ERR-20260828-007 — Meegle MQL diagnostic assumed an unsupported cardinality function
+
+- **Symptom:** A read-only Current owner coverage query was rejected when it used `array_cardinality(current_status_operator)`.
+- **Root cause:** Meegle MQL does not expose that PostgreSQL-style array helper for the multi-user field.
+- **Verified fix:** Select `current_status_operator` directly, parse its `user_value_list` client-side, and use the normal paginated sync path for authoritative coverage.
+
+### ERR-20260828-008 — Kysely parameter was wrapped in PostgreSQL dollar quotes
+
+- **Symptom:** The first escalated read-only coverage query reached PostgreSQL but failed with a syntax error near `$`.
+- **Root cause:** A Kysely SQL-tag parameter interpolation was unnecessarily surrounded by PostgreSQL dollar quotes, producing invalid SQL after parameterization.
+- **Verified fix:** Interpolate the project key directly as `${projectKey}` and reserve dollar quotes only for literal text; the corrected aggregate query completed without writes or personal data output.

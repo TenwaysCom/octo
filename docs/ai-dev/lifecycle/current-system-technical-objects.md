@@ -418,6 +418,7 @@ ExecutionDraft
 
 - Workflows should not hardcode `field_*`.
 - Adapter should normalize field access shape.
+- Meegle snapshot `assignee` is the display projection of the system `current_status_operator` (Current owner) field. Preserve all current owners in source order, and do not infer this value from workflow-node owners or type-specific roles.
 - Metadata resolver should validate create/update payload before platform request.
 - Persist the Sprint relation as stable `sprint_id` plus display-only `sprint` name. Do not use the mutable name as the join identity.
 - Historical lifecycle cleaning is PostgreSQL-only: use persisted workitem fields/current or embedded nodes plus persisted Sprint snapshots, never operation records or an extra workflow-node request. Missing evidence stays null. Incremental sync uses only the workitem detail already fetched, preserves the earliest known start across active-node changes, clears finish when reopened, and clears both times when returned to New. `updatedAt` is not a lifecycle timestamp.

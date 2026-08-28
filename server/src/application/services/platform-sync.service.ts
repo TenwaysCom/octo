@@ -2,6 +2,7 @@ import { GitHubClient } from "../../adapters/github/github-client.js";
 import type { GitHubPrDetails } from "../../adapters/github/github-types.js";
 import type { LarkBitableRecord, LarkClient } from "../../adapters/lark/lark-client.js";
 import type { MeegleClient, MeegleSyncMapping, MeegleWorkitem } from "../../adapters/meegle/meegle-client.js";
+import { MEEGLE_CURRENT_OWNER_FIELD_KEY } from "../../adapters/meegle/meegle-client.js";
 import {
   PostgresPlatformSyncStore,
   type PlatformSyncStore,
@@ -81,6 +82,7 @@ export class PlatformSyncService {
       request.workItemTypeKey,
       [request.workItemId],
       [...new Set([
+        MEEGLE_CURRENT_OWNER_FIELD_KEY,
         ...getMeegleCleaningFieldKeys(request.workItemTypeKey),
         ...getMeegleWorkitemLifecycleFieldKeys(request.workItemTypeKey),
         ...getMeegleSprintDetailFieldKeys(request.workItemTypeKey),
@@ -624,6 +626,7 @@ export class PlatformSyncService {
           workItemTypeKey,
           workitemIdChunk,
           [...new Set([
+            MEEGLE_CURRENT_OWNER_FIELD_KEY,
             ...getMeegleCleaningFieldKeys(workItemTypeKey),
             ...getMeegleWorkitemLifecycleFieldKeys(workItemTypeKey),
             ...getMeegleSprintDetailFieldKeys(workItemTypeKey),
@@ -636,12 +639,15 @@ export class PlatformSyncService {
     }
     return workitems.map((candidate) => {
       const detailed = byId.get(candidate.id) ?? candidate;
-      if (detailed.updatedAt || isMeegleProductionBugType(detailed.type)) {
-        return detailed;
+      const withCurrentOwner = detailed.assignee || !candidate.assignee
+        ? detailed
+        : { ...detailed, assignee: candidate.assignee };
+      if (withCurrentOwner.updatedAt || isMeegleProductionBugType(withCurrentOwner.type)) {
+        return withCurrentOwner;
       }
       // +batch-get omits updated_at for normal types; retain the MQL value that
       // selected this exact candidate. Production Bug must use detail update_time.
-      return { ...detailed, updatedAt: candidate.updatedAt };
+      return { ...withCurrentOwner, updatedAt: candidate.updatedAt };
     });
   }
 

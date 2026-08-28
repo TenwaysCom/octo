@@ -151,6 +151,15 @@ describe("PlatformSyncService", () => {
 
     expect(store.meegle).toHaveLength(1);
     expect(store.meegle[0].workitem.status).toBe("Finished");
+    expect(client.getWorkitemDetails).toHaveBeenCalledWith("project", "story", ["1"], [
+      "current_status_operator",
+      "field_feb079",
+      "field_1b9eb0",
+      "field_00f541",
+      "field_9edc03",
+      "start_time",
+      "finish_time",
+    ]);
   });
 
   it("cleans Meegle snapshots into the Octo projection only when requested", async () => {
@@ -300,6 +309,7 @@ describe("PlatformSyncService", () => {
       workItemTypeKeys: [sprint.type],
     })).resolves.toEqual({ listed: 1, skippedInactive: 0, synced: 1 });
     expect(client.getWorkitemDetails).toHaveBeenCalledWith("project", sprint.type, ["sprint-1"], [
+      "current_status_operator",
       "description",
       "field_3729d1",
     ]);
@@ -310,9 +320,10 @@ describe("PlatformSyncService", () => {
     const store = createStore();
     const candidate = {
       ...workitem("1", "Finished"),
+      assignee: "MQL Current Owner",
       updatedAt: "2026-08-11T00:01:00.000Z",
     };
-    const detailed = { ...candidate, updatedAt: undefined };
+    const detailed = { ...candidate, assignee: undefined, updatedAt: undefined };
     const client = {
       filterWorkitems: vi.fn().mockResolvedValue([candidate]),
       getWorkitemDetails: vi.fn().mockResolvedValue([detailed]),
@@ -341,6 +352,7 @@ describe("PlatformSyncService", () => {
       sourceUpdatedAtMqlFieldNames: { story: "updated_at" },
     });
     expect(client.getWorkitemDetails).toHaveBeenCalledWith("project", "story", ["1"], [
+      "current_status_operator",
       "field_feb079",
       "field_1b9eb0",
       "field_00f541",
@@ -349,6 +361,7 @@ describe("PlatformSyncService", () => {
       "finish_time",
     ]);
     expect(store.meegle).toHaveLength(1);
+    expect(store.meegle[0]?.workitem.assignee).toBe("MQL Current Owner");
     expect(store.meegle[0]?.sprintObservedAt).toEqual(expect.any(String));
   });
 
@@ -386,6 +399,7 @@ describe("PlatformSyncService", () => {
     });
 
     expect(client.getWorkitemDetails).toHaveBeenCalledWith("project", techTaskType, ["tech-1"], [
+      "current_status_operator",
       "field_ecd063",
       "field_5fab52",
       "field_3daed9",

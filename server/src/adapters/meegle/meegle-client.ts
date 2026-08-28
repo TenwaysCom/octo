@@ -386,6 +386,8 @@ export interface MeegleWorkitem {
   fields: Record<string, unknown>;
 }
 
+export const MEEGLE_CURRENT_OWNER_FIELD_KEY = "current_status_operator";
+
 export interface MeegleOperationRecordContent {
   objectType?: string;
   objectValue?: string;
@@ -443,15 +445,99 @@ function parseUser(data: Record<string, unknown>): MeegleUser {
   };
 }
 
+export function formatMeegleCurrentOwners(value: unknown): string | undefined {
+  const record = asRecordValue(value);
+  const owners = Array.isArray(value)
+    ? value
+    : Array.isArray(record?.user_value_list)
+      ? record.user_value_list
+      : Array.isArray(record?.value)
+        ? record.value
+        : value === undefined || value === null
+          ? []
+          : [value];
+  const names = owners
+    .map(getMeegleUserDisplayName)
+    .filter((name): name is string => Boolean(name));
+  const uniqueNames = [...new Set(names)];
+  return uniqueNames.length > 0 ? uniqueNames.join(", ") : undefined;
+}
+
+function getMeegleUserDisplayName(value: unknown): string | undefined {
+  if (typeof value === "string" || typeof value === "number") {
+    return String(value).trim() || undefined;
+  }
+  const record = asRecordValue(value);
+  if (!record) return undefined;
+  for (const candidate of [record.name_cn, record.name_en, record.display_name, record.label]) {
+    if (typeof candidate === "string" && candidate.trim()) return candidate.trim();
+  }
+  if (typeof record.name === "string" && record.name.trim()) return record.name.trim();
+  const localizedName = asRecordValue(record.name);
+  for (const candidate of [localizedName?.default, localizedName?.zh_cn, localizedName?.en_us]) {
+    if (typeof candidate === "string" && candidate.trim()) return candidate.trim();
+  }
+  return undefined;
+}
+
+function findMeegleCurrentOwnerValue(
+  data: Record<string, unknown>,
+  rawFields: unknown,
+): { present: boolean; value?: unknown } {
+  const direct = findRecordProperty(data, MEEGLE_CURRENT_OWNER_FIELD_KEY);
+  if (direct.present) return direct;
+
+  const rawFieldsRecord = asRecordValue(rawFields);
+  if (rawFieldsRecord) {
+    const nestedDirect = findRecordProperty(rawFieldsRecord, MEEGLE_CURRENT_OWNER_FIELD_KEY);
+    if (nestedDirect.present) return nestedDirect;
+  }
+
+  for (const fields of [
+    rawFields,
+    data.work_item_fields,
+    rawFieldsRecord?.work_item_fields,
+    rawFieldsRecord?.fields,
+  ]) {
+    if (!Array.isArray(fields)) continue;
+    const field = fields.map(asRecordValue).find((candidate) => (
+      candidate?.key === MEEGLE_CURRENT_OWNER_FIELD_KEY
+      || candidate?.field_key === MEEGLE_CURRENT_OWNER_FIELD_KEY
+    ));
+    if (!field) continue;
+    return {
+      present: true,
+      value: Object.prototype.hasOwnProperty.call(field, "value") ? field.value : field.field_value,
+    };
+  }
+  return { present: false };
+}
+
+function findRecordProperty(record: Record<string, unknown>, key: string): { present: boolean; value?: unknown } {
+  return Object.prototype.hasOwnProperty.call(record, key)
+    ? { present: true, value: record[key] }
+    : { present: false };
+}
+
+function asRecordValue(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : undefined;
+}
+
 export function parseWorkitem(data: Record<string, unknown>): MeegleWorkitem {
   const id = String(data.id || data.work_item_id || "");
   const key = String(data.key || data.work_item_key || "");
   const name = String(data.name || data.title || "");
   const type = String(data.type || data.work_item_type_key || "");
-  const assignee = (data.assignee || data.owner) as string | undefined;
   const priority = typeof data.priority === "string" ? data.priority : undefined;
   // current_nodes and work_item_status may be nested inside data.fields
-  const rawFields = data.fields as Record<string, unknown> | undefined;
+  const rawFields = data.fields;
+  const rawFieldsRecord = asRecordValue(rawFields);
+  const currentOwner = findMeegleCurrentOwnerValue(data, rawFields);
+  const assignee = currentOwner.present
+    ? formatMeegleCurrentOwners(currentOwner.value)
+    : formatMeegleCurrentOwners(data.assignee ?? data.owner);
 
   // Extract status from multiple possible locations
   // Priority: direct status/state > current_nodes[0].name > work_item_status.state_key
@@ -459,7 +545,7 @@ export function parseWorkitem(data: Record<string, unknown>): MeegleWorkitem {
 
   // Try current_nodes[0].name for human-readable status (e.g. "Server Launch")
   if (!status) {
-    const currentNodes = (rawFields?.current_nodes ?? data.current_nodes) as unknown[] | undefined;
+    const currentNodes = (rawFieldsRecord?.current_nodes ?? data.current_nodes) as unknown[] | undefined;
     if (Array.isArray(currentNodes) && currentNodes.length > 0) {
       const firstNode = currentNodes[0] as Record<string, unknown>;
       status = String(firstNode.name || firstNode.id || "");
@@ -468,7 +554,7 @@ export function parseWorkitem(data: Record<string, unknown>): MeegleWorkitem {
 
   // Try work_item_status.state_key as fallback
   if (!status) {
-    const workItemStatus = (rawFields?.work_item_status ?? data.work_item_status) as Record<string, unknown> | undefined;
+    const workItemStatus = (rawFieldsRecord?.work_item_status ?? data.work_item_status) as Record<string, unknown> | undefined;
     if (workItemStatus && typeof workItemStatus === "object") {
       status = String(workItemStatus.state_key || "");
     }
@@ -480,8 +566,8 @@ export function parseWorkitem(data: Record<string, unknown>): MeegleWorkitem {
   const fields: Record<string, unknown> = {};
   if (Array.isArray(rawFields)) {
     fields.fields = rawFields;
-  } else if (rawFields && typeof rawFields === "object") {
-    Object.assign(fields, rawFields);
+  } else if (rawFieldsRecord) {
+    Object.assign(fields, rawFieldsRecord);
   }
   for (const [k, v] of Object.entries(data)) {
     if (!["id", "key", "name", "title", "type", "work_item_type_key", "status", "state", "assignee", "owner", "fields"].includes(k)) {
