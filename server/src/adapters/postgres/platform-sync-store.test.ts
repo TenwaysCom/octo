@@ -134,7 +134,10 @@ describe("PostgresPlatformSyncStore", () => {
     await expect(store.listMeegleWorkitems(10, { sprints: ["Sprint 2"] })).resolves.toEqual([]);
     await expect(store.listMeegleSprints()).resolves.toEqual(["Sprint 1"]);
     await expect(store.listMeegleWorkitemsByIds(["1", "missing", "1"])).resolves.toEqual([
-      expect.objectContaining({ workItemId: "1", title: "Updated", status: "Finished", sprint: "Sprint 1", version: "Version 1" }),
+      expect.objectContaining({
+        workItemId: "1", title: "Updated", status: "Finished", sprintId: "cycle-1", sprint: "Sprint 1", version: "Version 1",
+        addToCycleTime: "2026-08-01T01:00:00.000Z", itemStartTime: "2026-08-01T02:00:00.000Z", itemFinishTime: "2026-08-02T00:00:00.000Z",
+      }),
     ]);
     await expect(store.listGitHubPullRequests(10)).resolves.toEqual([expect.objectContaining({
       pullNumber: 2, title: "PR m-123 f-456", state: "open",

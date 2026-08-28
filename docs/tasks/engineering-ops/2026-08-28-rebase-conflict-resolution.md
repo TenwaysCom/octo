@@ -36,6 +36,7 @@ related:
 | --- | --- | --- | --- |
 | 2026-08-28 | in_progress | 三个冲突已完成文本合并；尚未暂存或继续 rebase。 | 运行受影响测试和 TypeScript 构建。 |
 | 2026-08-28 | done | 3 个冲突已暂存并继续 rebase；其余 2 个提交无新增冲突，rebase 成功完成。 | 无。 |
+| 2026-08-28 | done | 后续构建发现 `listMeegleWorkitemsByIds` 的列投影落后于 mapper 契约；已补齐 4 个 Sprint 生命周期列并增加返回值断言。 | 无。 |
 
 ## 验证
 
@@ -44,6 +45,7 @@ related:
 | 静态检查 | 通过 | `git diff --check` 与最终 `git diff 35e7b9e..HEAD --check` 均无输出。 | 不替代运行时验证。 |
 | Server 单测 | 通过 | `pnpm --dir server test -- platform-sync.service.test.ts platform-sync-store.test.ts meegle-sprint-snapshot.test.ts platform-data.service.test.ts platform-data.controller.test.ts`：127 个文件、565 项测试通过。 | Vitest 本次按项目配置运行了完整套件。 |
 | Server TypeScript 构建 | 通过 | `pnpm --dir server build`。 | 未做外部平台运行时验证。 |
+| 修复后 Server 单测 / 构建 | 通过 | `pnpm --dir server build`；完整 Vitest：129 个文件、587 项测试通过。 | 未做外部平台运行时验证。 |
 
 ## 关联
 

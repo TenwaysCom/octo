@@ -920,7 +920,8 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
         .select([
           "project_key", "project_name", "work_item_type_key", "work_item_id", "work_item_key", "title",
           "work_item_type", "status_key", "status", "sub_stage_key", "sub_stage",
-          "sprint", "version", "system", "bugs_json", "assignee", "priority", "source_updated_at", "synced_at",
+          "sprint_id", "sprint", "version", "system", "bugs_json", "assignee", "priority",
+          "source_updated_at", "synced_at", "add_to_cycle_time", "item_start_time", "item_finish_time",
         ])
         .where("work_item_id", "in", batch)
         .execute();
