@@ -11,6 +11,7 @@ import {
   platformSyncScopeKey,
   type IncrementalPlatformSyncTarget,
 } from "../../domain/platform-sync.js";
+import { MEEGLE_SPRINT_WORKITEM_TYPE_KEY } from "../../domain/meegle-workitem-types.js";
 import { PlatformSyncService } from "../../application/services/platform-sync.service.js";
 import { MeegleShellClient } from "../../adapters/meegle/meegle-shell-client.js";
 import { PostgresPlatformSyncCheckpointStore } from "../../adapters/postgres/platform-sync-checkpoint-store.js";
@@ -32,6 +33,7 @@ const sourceIdSchema = z.enum([
   "meegle-user-stories",
   "meegle-tech-tasks",
   "meegle-production-bugs",
+  "meegle-sprints",
   "github-odoo-eu",
   "github-odoo-uk",
   "github-odoo-us",
@@ -78,6 +80,7 @@ const MEEGLE_SOURCES = [
   { id: "meegle-user-stories", label: "Meegle User Story", workItemTypeKey: "story" },
   { id: "meegle-tech-tasks", label: "Meegle Tech Task", workItemTypeKey: "66700acbf297a8f821b4b860" },
   { id: "meegle-production-bugs", label: "Meegle Production Bug", workItemTypeKey: "6932e40429d1cd8aac635c82" },
+  { id: "meegle-sprints", label: "Meegle Sprint", workItemTypeKey: MEEGLE_SPRINT_WORKITEM_TYPE_KEY },
 ] as const;
 
 function readCookie(cookieHeader: string | undefined, name: string): string | undefined {

@@ -1,12 +1,18 @@
 import { describe, expect, it, vi } from "vitest";
 import { PlatformSyncCoordinatorError } from "../../application/services/platform-sync-coordinator.js";
+import { MEEGLE_SPRINT_WORKITEM_TYPE_KEY } from "../../domain/meegle-workitem-types.js";
 import { createWebPlatformSyncController } from "./web-platform-sync.controller.js";
 
 const config = {
   meegle: [{
     projectKey: "project",
-    workItemTypeKeys: ["story", "66700acbf297a8f821b4b860", "6932e40429d1cd8aac635c82"],
-    sourceUpdatedAtMqlFieldNames: { story: "updated_at", "66700acbf297a8f821b4b860": "updated_at", "6932e40429d1cd8aac635c82": "updated_at" },
+    workItemTypeKeys: ["story", "66700acbf297a8f821b4b860", "6932e40429d1cd8aac635c82", MEEGLE_SPRINT_WORKITEM_TYPE_KEY],
+    sourceUpdatedAtMqlFieldNames: {
+      story: "updated_at",
+      "66700acbf297a8f821b4b860": "updated_at",
+      "6932e40429d1cd8aac635c82": "updated_at",
+      [MEEGLE_SPRINT_WORKITEM_TYPE_KEY]: "updated_at",
+    },
   }],
   github: [
     { owner: "TenwaysCom", repo: "Tenways" },
@@ -49,18 +55,31 @@ function createController(service = {
 describe("web platform sync controller", () => {
   it("lists Meegle types and the three GitHub repositories as independent sync sources", async () => {
     const { controller, statusStore } = createController();
-    statusStore.list.mockResolvedValueOnce([{
-      platform: "github",
-      scopeKey: "TenwaysCom/Tenways",
-      scheduled: true,
-      nextRunAt: "2026-08-26T00:10:00.000Z",
-      runStatus: "failed",
-      runTrigger: "scheduled",
-      lastRunAt: "2026-08-26T00:00:00.000Z",
-      lastCompletedAt: "2026-08-26T00:01:00.000Z",
-      lastSyncedAt: "2026-08-25T00:01:00.000Z",
-      lastErrorCode: "PLATFORM_RATE_LIMITED",
-    }]);
+    statusStore.list.mockResolvedValueOnce([
+      {
+        platform: "meegle",
+        scopeKey: `project/${MEEGLE_SPRINT_WORKITEM_TYPE_KEY}`,
+        scheduled: true,
+        nextRunAt: "2026-08-26T00:10:00.000Z",
+        runStatus: "succeeded",
+        runTrigger: "scheduled",
+        lastRunAt: "2026-08-26T00:00:00.000Z",
+        lastCompletedAt: "2026-08-26T00:01:00.000Z",
+        lastSyncedAt: "2026-08-26T00:00:30.000Z",
+      },
+      {
+        platform: "github",
+        scopeKey: "TenwaysCom/Tenways",
+        scheduled: true,
+        nextRunAt: "2026-08-26T00:10:00.000Z",
+        runStatus: "failed",
+        runTrigger: "scheduled",
+        lastRunAt: "2026-08-26T00:00:00.000Z",
+        lastCompletedAt: "2026-08-26T00:01:00.000Z",
+        lastSyncedAt: "2026-08-25T00:01:00.000Z",
+        lastErrorCode: "PLATFORM_RATE_LIMITED",
+      },
+    ]);
     const result = await controller.list({ cookieHeader: "octo_web_session=session" });
 
     expect(result).toEqual({
@@ -73,6 +92,14 @@ describe("web platform sync controller", () => {
             expect.objectContaining({ id: "meegle-user-stories", label: "Meegle User Story", configured: true }),
             expect.objectContaining({ id: "meegle-tech-tasks", label: "Meegle Tech Task", configured: true }),
             expect.objectContaining({ id: "meegle-production-bugs", label: "Meegle Production Bug", configured: true }),
+            expect.objectContaining({
+              id: "meegle-sprints",
+              label: "Meegle Sprint",
+              configured: true,
+              scheduled: true,
+              runStatus: "succeeded",
+              lastSyncedAt: "2026-08-26T00:00:30.000Z",
+            }),
             expect.objectContaining({
               id: "github-odoo-eu",
               label: "GitHub · Odoo EU",
@@ -88,6 +115,9 @@ describe("web platform sync controller", () => {
         },
       },
     });
+    expect(statusStore.list).toHaveBeenCalledWith(expect.arrayContaining([
+      { platform: "meegle", scopeKey: `project/${MEEGLE_SPRINT_WORKITEM_TYPE_KEY}` },
+    ]));
   });
 
   it("runs the requested Meegle type incrementally across its own checkpoint scope", async () => {
@@ -115,6 +145,70 @@ describe("web platform sync controller", () => {
       trigger: "manual",
       actionRunId: "run_1",
     }));
+  });
+
+  it("runs the Meegle Sprint source incrementally across the Sprint checkpoint scope", async () => {
+    const { controller, service, coordinator } = createController();
+    const result = await controller.sync({
+      cookieHeader: "octo_web_session=session",
+      sourceId: "meegle-sprints",
+      body: { actionRunId: "run_sprint" },
+    });
+
+    expect(result.statusCode).toBe(200);
+    expect(service.incrementalSyncMeegleWorkitems).toHaveBeenCalledWith({
+      masterUserId: "user_1",
+      projectKey: "project",
+      workItemTypeKeys: [MEEGLE_SPRINT_WORKITEM_TYPE_KEY],
+      sourceUpdatedAtMqlFieldNames: { [MEEGLE_SPRINT_WORKITEM_TYPE_KEY]: "updated_at" },
+      cleanAfterSync: true,
+      actionRunId: "run_sprint",
+      watermarkUpdatedAt: "2026-08-12T00:00:00.000Z",
+      watermarkTiebreaker: "initial",
+    });
+    expect(coordinator.runIncremental).toHaveBeenCalledWith(expect.objectContaining({
+      platform: "meegle",
+      scopeKey: `project/${MEEGLE_SPRINT_WORKITEM_TYPE_KEY}`,
+      trigger: "manual",
+      actionRunId: "run_sprint",
+    }));
+  });
+
+  it("keeps the Meegle Sprint source visible but unavailable when its type is not configured", async () => {
+    const { service, coordinator, statusStore } = createController();
+    const controller = createWebPlatformSyncController({
+      service,
+      coordinator,
+      statusStore,
+      ensureSession: async () => ({ ok: true, masterUserId: "user_1", baseUrl: "https://open.larksuite.com", role: "devops", user: {} } as never),
+      loadConfig: async () => ({
+        ...config,
+        meegle: config.meegle.map((target) => ({
+          ...target,
+          workItemTypeKeys: target.workItemTypeKeys.filter((key) => key !== MEEGLE_SPRINT_WORKITEM_TYPE_KEY),
+        })),
+      }),
+    });
+
+    await expect(controller.list({ cookieHeader: "octo_web_session=session" })).resolves.toMatchObject({
+      statusCode: 200,
+      body: {
+        data: {
+          sources: expect.arrayContaining([
+            expect.objectContaining({ id: "meegle-sprints", configured: false }),
+          ]),
+        },
+      },
+    });
+    await expect(controller.sync({
+      cookieHeader: "octo_web_session=session",
+      sourceId: "meegle-sprints",
+      body: { actionRunId: "run_unconfigured_sprint" },
+    })).resolves.toMatchObject({
+      statusCode: 502,
+      body: { error: { errorCode: "SYNC_SOURCE_NOT_CONFIGURED" } },
+    });
+    expect(service.incrementalSyncMeegleWorkitems).not.toHaveBeenCalled();
   });
 
   it("runs only the selected GitHub repository", async () => {
