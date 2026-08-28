@@ -109,6 +109,14 @@ For non-trivial changes, agents must read the relevant docs before editing:
 - Prefer editing existing files over creating new files.
 - Write commit messages and PR descriptions casually and specifically; avoid robot copy and vague summaries.
 
+## Scope Discipline
+
+Interpret requests narrowly. Do not infer new capabilities, dependencies,
+configuration, or architectural patterns from examples or similar features.
+
+If an implementation choice expands the requested scope, treat it as an
+assumption: state it and obtain confirmation before proceeding.
+
 ## Learning Ledger
 
 - Maintain concise, reusable learnings in `.learnings/LEARNINGS.md` and errors in `.learnings/ERRORS.md`; record failed commands, compiler/runtime errors, wrong assumptions, and the verified fix.
