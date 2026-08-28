@@ -42,9 +42,10 @@ update_required_when:
 | `MeegleLarkPushAction` | Server workflow | `server/src/application/services/meegle-lark-push.service.ts` | 从 Meegle 读 Lark 字段，更新 Lark Base、发消息、回写 Meegle 状态 |
 | `MeegleStoryBackBriefAction` | Server workflow | `server/src/application/services/meegle-story-prd-to-simplified.service.ts`, `server/src/modules/meegle-workitem/meegle-story-prd-to-simplified.controller.ts` | 从 Meegle Story Summary 生成 Tech Summary；使用 ACP one-shot、限流、超时和结构化错误 |
 | `LarkBugAnalyzeAction` | Server workflow | `server/src/application/services/lark-bug-analyze.service.ts`, `server/src/modules/lark-bug/lark-bug-analyze.controller.ts` | 从 Lark Bug 记录或 Meegle Production Bug 信息生成分析摘要；使用 ACP one-shot、限流、超时和结构化错误 |
-| `WorkflowPrompt` | Server PostgreSQL store | `server/src/adapters/postgres/workflow-prompt-store.ts`, `server/src/domain/workflow-prompts.ts` | 按稳定 `key` 存储 workflow prompt 和 `note`；Story 研发Review 使用 `meegle.story.prd_to_simplified`，Lark Bug 分析使用 `lark.bug.analyze` |
+| `WorkflowPrompt` | Server PostgreSQL store | `server/src/adapters/postgres/workflow-prompt-store.ts`, `server/src/domain/workflow-prompts.ts` | 按稳定 `key` 存储 workflow prompt 和 `note`；Story 研发Review 使用 `meegle.story.prd_to_simplified`，Sprint Release Notes 使用 `meegle.sprint.release_notes` |
 | `AcpKimiOneShotRuntime` | Server ACP proxy / adapter | `server/src/application/services/acp-kimi-proxy.service.ts`, `server/src/adapters/kimi-acp/kimi-acp-runtime.ts` | 一次性 ACP runtime；不进入 reusable session registry，prompt 后关闭 |
 | `LarkTicketAcpPermissionContext` | Server automation catalog / ACP proxy | `server/src/modules/public-config/automation-actions.config.ts`, `server/src/application/services/acp-kimi-permission-policy.ts`, `server/src/adapters/kimi-acp/kimi-acp-runtime.ts` | Ticket 快捷动作将 Profile、Skill 和四级执行策略绑定至 Session；每个 ACP 工具调用重新判定；Kimi 0.38 的完整参数按 `sessionId + toolCallId` 从直接 `tool_call` 或 lazy-create 后的 canonical `tool_call_update` 单次关联，Support-QA fetch 未完成时 workflow 不接受结果 |
+| `MeegleSprintAiSession` | Server workflow / PostgreSQL | `server/src/application/services/meegle-sprint-ai-session.service.ts`, `server/src/adapters/postgres/acp-kimi-sprint-session-store.ts` | 每个会话由用户、`projectKey + sprintId` 和创建时清洗后的完成项上下文绑定；只读 Sprint 快照与归属历史，不调用或写入 Meegle |
 | `GitHubWorkitemAction` | Extension modal + server workflow | `server/src/modules/github-branch-create/*`, `server/src/controllers/github-reverse-lookup.ts`, `extension/src/popup-shared/*github*` | 依赖 Meegle workitem 字段和 GitHub adapter |
 | `ActionRunTrace` | Should be cross-layer contract | docs issue/rules only | 规则已定义，代码尚未统一实现 |
 
@@ -55,7 +56,7 @@ update_required_when:
 | 层级 | 技术对象 | 层级职责 | 不应负责 |
 | --- | --- | --- | --- |
 | `extension` | `PopupPageContext`, popup state, visible action button, auth trigger state, content-script identity probe, tab-scoped cached `masterUserId` | 采集页面上下文、渲染 UI、触发授权、派发 action、展示结果 | 业务 workflow、平台字段规则、跨平台 mapping、真实 token 持久化 |
-| `server` | `ExtensionPageConfig`, `AutomationActionConfig`, `ResolvedUser`, `ExecutionDraft`, `WorkitemMapping`, `WorkflowPrompt`, `MeegleWorkitemSprintMembership`, workflow request/result, `ActionRunTrace`, semantic field mapping, ACP one-shot limiter | action catalog、身份解析、授权检查、业务编排、Sprint 归属转换、workflow prompt、错误归一化、测试契约、一次性 ACP 任务控制 | 浏览器 DOM 细节、平台原始字段 shape、直接依赖 extension UI 状态 |
+| `server` | `ExtensionPageConfig`, `AutomationActionConfig`, `ResolvedUser`, `ExecutionDraft`, `WorkitemMapping`, `WorkflowPrompt`, `MeegleWorkitemSprintMembership`, `MeegleSprintAiSession`, workflow request/result, `ActionRunTrace`, semantic field mapping, ACP one-shot limiter | action catalog、身份解析、授权检查、业务编排、Sprint 归属转换、workflow prompt、错误归一化、测试契约、可续聊 Sprint 会话控制 | 浏览器 DOM 细节、平台原始字段 shape、直接依赖 extension UI 状态 |
 | `adapter` | `MeegleClient` request/response, `LarkClient` request/response, `GitHubClient` request/response, token refresh wrapper, normalized platform error | 第三方 API 封装、请求/响应归一化、平台错误转换、安全日志摘要 | PM 业务决策、popup 行为、跨平台 workflow 编排 |
 | `platform` | Lark Base record, Lark message/thread/reaction, Meegle workitem, Meegle field metadata, Meegle auth code, GitHub PR/repo/branch | 外部真实状态、权限限制、字段限制、状态机限制、平台返回错误 | Octo 内部业务语义和错误契约 |
 

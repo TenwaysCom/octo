@@ -2,6 +2,12 @@
 
 Record concise, reusable lessons here. Include the context, the durable rule, and the verified outcome; never include secrets or raw credentials.
 
+## [LRN-20260828-005] sprint-ai-session-snapshot-boundary
+
+- **Context:** Sprint Release Notes needs resumable AI Sessions, but Ticket sessions are structurally bound to a Lark Base record and browser-side Sprint filters cannot be trusted as generation input.
+- **Rule:** Bind each reusable Sprint session to `operatorLarkId + projectKey + sprintId` in a dedicated local reference table. On creation, rebuild its context server-side from the Sprint snapshot and membership intervals, include only supported work-item types with `itemFinishTime`, and store a context hash. Reuse the ACP runtime and SSE transport, not the Ticket resource reference or its APIs.
+- **Verified outcome:** Server service/controller tests cover completed-only context, Sprint-scoped listing and Web identity; FE API tests cover scoped requests and `actionRunId`; Server build and FE check pass without external calls.
+
 ## [LRN-20260826-001] lazy-child-resource-sync
 
 - **Context:** Lark Ticket 是批量同步对象，但其 IM thread 是一对多、独立变化且 API 成本更高的子资源，主要只在 AI 分析时使用。

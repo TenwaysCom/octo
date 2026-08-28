@@ -67,7 +67,7 @@ function upsertMasterUserId(
 
 export function createApiAuthMiddleware(exemptPaths: ReadonlySet<string> = DEFAULT_EXEMPT_PATHS) {
   return (req: Request, res: Response, next: NextFunction) => {
-    if (req.method === "OPTIONS" || !req.path.startsWith("/api/") || exemptPaths.has(req.path) || req.path.startsWith("/api/web/platform-sync-sources/") || req.path.startsWith("/api/web/lark-tickets/")) {
+    if (req.method === "OPTIONS" || !req.path.startsWith("/api/") || exemptPaths.has(req.path) || req.path.startsWith("/api/web/platform-sync-sources/") || req.path.startsWith("/api/web/lark-tickets/") || req.path.startsWith("/api/web/meegle-sprints/")) {
       next();
       return;
     }

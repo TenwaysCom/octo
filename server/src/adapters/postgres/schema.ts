@@ -30,6 +30,15 @@ export interface DatabaseSchema {
     created_at: string;
     updated_at: string;
   };
+  acp_kimi_sprint_session_refs: {
+    session_id: string;
+    operator_lark_id: string;
+    project_key: string;
+    sprint_id: string;
+    context_hash: string;
+    created_at: string;
+    updated_at: string;
+  };
   users: {
     id: string;
     status: string;

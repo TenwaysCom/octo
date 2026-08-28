@@ -903,6 +903,9 @@ h1 {
 .sprint-timeline__dates { position: absolute; right: 0; bottom: 0; left: 0; height: 12px; color: var(--octo-text-muted); font-size: 9px; }
 .sprint-timeline__dates span { position: absolute; white-space: nowrap; }
 .sprint-timeline__coverage { display: block; margin-top: 5px; color: #a16207; font-size: 9px; line-height: 1.4; }
+.sprint-ai-sessions { display: grid; gap: 12px; padding: 15px 16px 17px; border-top: 1px solid var(--octo-border); }
+.sprint-ai-sessions .ticket-ai-session-list { margin-bottom: 0; }
+.sprint-ai-sessions .ticket-ai-session-create textarea { min-height: 72px; }
 @media (max-width: 860px) {
   .auth-layout { grid-template-columns: 1fr; }
   .visual-panel { display: none; }

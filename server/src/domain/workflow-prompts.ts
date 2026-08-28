@@ -10,6 +10,8 @@ export const LARK_TICKET_SUPPORT_QA_ANSWER_PROMPT_KEY =
   "lark_ticket.support_qa.answer";
 export const LARK_TICKET_SUPPORT_QA_DOCUMENT_PREVIEW_PROMPT_KEY =
   "lark_ticket.support_qa.document_preview";
+export const MEEGLE_SPRINT_RELEASE_NOTES_PROMPT_KEY =
+  "meegle.sprint.release_notes";
 
 export const GITHUB_PR_QUICK_SCAN_PROMPT_KEY = "github.pr.quick_scan";
 export const GITHUB_PR_DEEP_REVIEW_PROMPT_KEY = "github.pr.deep_review";
@@ -27,6 +29,8 @@ export const DEFAULT_LARK_TICKET_SUPPORT_QA_ANSWER_PROMPT_NOTE =
   "Lark Ticket Support-QA 回答问题 AI Session prompt";
 export const DEFAULT_LARK_TICKET_SUPPORT_QA_DOCUMENT_PREVIEW_PROMPT_NOTE =
   "Lark Ticket Support-QA 生成文档 AI Session prompt";
+export const DEFAULT_MEEGLE_SPRINT_RELEASE_NOTES_PROMPT_NOTE =
+  "Meegle Sprint Release Notes AI Session prompt";
 
 export const DEFAULT_GITHUB_PR_QUICK_SCAN_PROMPT_NOTE =
   "GitHub PR Tier 2 Odoo structural quick scan workflow prompt";
@@ -241,6 +245,17 @@ export const DEFAULT_LARK_TICKET_SUPPORT_QA_PROMPTS: Record<string, string> = {
   [LARK_TICKET_SUPPORT_QA_ANSWER_PROMPT_KEY]: DEFAULT_LARK_TICKET_SUPPORT_QA_ANSWER_PROMPT_TEMPLATE,
   [LARK_TICKET_SUPPORT_QA_DOCUMENT_PREVIEW_PROMPT_KEY]: DEFAULT_LARK_TICKET_SUPPORT_QA_DOCUMENT_PREVIEW_PROMPT_TEMPLATE,
 };
+
+export const DEFAULT_MEEGLE_SPRINT_RELEASE_NOTES_PROMPT_TEMPLATE = `你正在为公司内部同事生成 Sprint Release Notes。必须先阅读并严格遵循以下 Skill：
+{{skill_path}}
+
+当前 Sprint 上下文：
+{{sprint_context}}
+
+用户请求：
+{{user_message}}
+
+只使用 Sprint 上下文中明确提供的信息。不要调用外部系统、不要写入任何系统、不要编造功能、影响范围、根因、上线状态或指标。输出简明中文 Markdown；省略没有可靠内容的章节。`;
 
 export function renderWorkflowPromptTemplate(
   template: string,

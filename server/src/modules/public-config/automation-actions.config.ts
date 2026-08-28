@@ -21,6 +21,12 @@ export const AUTOMATION_SKILL_PROFILES = {
       support_qa_write: ".agents/skills/write-support-qa/SKILL.md",
     },
   },
+  octo_sprint_release_notes: {
+    workspaceEnv: "OCTO_SPRINT_RELEASE_NOTES_WORKSPACE_DIR",
+    skills: {
+      sprint_release_notes: ".agents/skills/sprint-release-notes/SKILL.md",
+    },
+  },
 } as const satisfies Record<string, AutomationSkillProfileConfig>;
 
 export interface TicketAiAutomationActionConfig extends AutomationActionConfig {
@@ -32,7 +38,73 @@ export interface TicketAiAutomationActionConfig extends AutomationActionConfig {
   requiresConfirmation: boolean;
 }
 
+export interface SprintAiAutomationActionConfig extends AutomationActionConfig {
+  executor: Extract<AutomationActionConfig["executor"], { type: "backend_api" }>;
+  promptKey: string;
+  skillProfile: keyof typeof AUTOMATION_SKILL_PROFILES;
+  skillId: string;
+  executionPolicy: AutomationExecutionPolicy;
+  requiresConfirmation: boolean;
+}
+
 export const AUTOMATION_ACTIONS = {
+  meegleSprintReleaseNotes: {
+    key: "meegle-sprint-release-notes",
+    title: "生成 Release Notes",
+    description: "基于已完成的 Sprint 工作项生成内部 Release Notes 草稿。",
+    style: "default",
+    placements: [],
+    interaction: { type: "direct_execute" },
+    executor: {
+      type: "backend_api",
+      operation: "meegle_sprint.ai.release_notes",
+      method: "POST",
+      route: "/api/web/meegle-sprints/:sprintId/ai-sessions",
+    },
+    promptKey: "meegle.sprint.release_notes",
+    skillProfile: "octo_sprint_release_notes",
+    skillId: "sprint_release_notes",
+    executionPolicy: "read_only",
+    requiresConfirmation: false,
+  },
+  meegleSprintInternalSummary: {
+    key: "meegle-sprint-internal-summary",
+    title: "生成内部摘要",
+    description: "基于已完成的 Sprint 工作项生成简短内部更新摘要。",
+    style: "default",
+    placements: [],
+    interaction: { type: "direct_execute" },
+    executor: {
+      type: "backend_api",
+      operation: "meegle_sprint.ai.internal_summary",
+      method: "POST",
+      route: "/api/web/meegle-sprints/:sprintId/ai-sessions",
+    },
+    promptKey: "meegle.sprint.release_notes",
+    skillProfile: "octo_sprint_release_notes",
+    skillId: "sprint_release_notes",
+    executionPolicy: "read_only",
+    requiresConfirmation: false,
+  },
+  meegleSprintConfirmGaps: {
+    key: "meegle-sprint-confirm-gaps",
+    title: "检查待确认项",
+    description: "找出已完成 Sprint 工作项中无法可靠形成 Release Notes 的信息缺口。",
+    style: "default",
+    placements: [],
+    interaction: { type: "direct_execute" },
+    executor: {
+      type: "backend_api",
+      operation: "meegle_sprint.ai.confirm_gaps",
+      method: "POST",
+      route: "/api/web/meegle-sprints/:sprintId/ai-sessions",
+    },
+    promptKey: "meegle.sprint.release_notes",
+    skillProfile: "octo_sprint_release_notes",
+    skillId: "sprint_release_notes",
+    executionPolicy: "read_only",
+    requiresConfirmation: false,
+  },
   larkTicketSupportQaSummarize: {
     key: "lark-ticket-support-qa-summarize",
     title: "问题总结",
@@ -350,4 +422,22 @@ export function getTicketAiAutomationAction(
   }
 
   return action as TicketAiAutomationActionConfig;
+}
+
+export function getSprintAiAutomationAction(
+  key: string,
+): SprintAiAutomationActionConfig | undefined {
+  const action = (Object.values(AUTOMATION_ACTIONS) as AutomationActionConfig[])
+    .find((candidate) => candidate.key === key);
+  if (!action
+    || !action.key.startsWith("meegle-sprint-")
+    || !action.promptKey
+    || !action.skillProfile
+    || !action.skillId
+    || !action.executionPolicy
+    || action.requiresConfirmation === undefined
+    || action.executor.type !== "backend_api") {
+    return undefined;
+  }
+  return action as SprintAiAutomationActionConfig;
 }

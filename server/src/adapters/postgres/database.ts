@@ -11,6 +11,8 @@ import {
   DEFAULT_LARK_TICKET_SUPPORT_QA_ANSWER_PROMPT_TEMPLATE,
   DEFAULT_LARK_TICKET_SUPPORT_QA_DOCUMENT_PREVIEW_PROMPT_TEMPLATE,
   DEFAULT_LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_TEMPLATE,
+  DEFAULT_MEEGLE_SPRINT_RELEASE_NOTES_PROMPT_NOTE,
+  DEFAULT_MEEGLE_SPRINT_RELEASE_NOTES_PROMPT_TEMPLATE,
   DEFAULT_GITHUB_PR_DEEP_REVIEW_PROMPT_NOTE,
   DEFAULT_GITHUB_PR_DEEP_REVIEW_PROMPT_TEMPLATE,
   DEFAULT_GITHUB_PR_CODE_REVIEW_FEEDBACK_PROMPT_NOTE,
@@ -26,6 +28,7 @@ import {
   LARK_TICKET_SUPPORT_QA_ANSWER_PROMPT_KEY,
   LARK_TICKET_SUPPORT_QA_DOCUMENT_PREVIEW_PROMPT_KEY,
   LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_KEY,
+  MEEGLE_SPRINT_RELEASE_NOTES_PROMPT_KEY,
   STORY_PRD_TO_SIMPLIFIED_PROMPT_KEY,
 } from "../../domain/workflow-prompts.js";
 
@@ -92,6 +95,18 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .addColumn("thread_snapshot_version", "integer")
     .addColumn("thread_context_synced_at", "text")
     .addColumn("deleted_at", "text")
+    .addColumn("created_at", "text", (column) => column.notNull())
+    .addColumn("updated_at", "text", (column) => column.notNull())
+    .execute();
+
+  await db.schema
+    .createTable("acp_kimi_sprint_session_refs")
+    .ifNotExists()
+    .addColumn("session_id", "text", (column) => column.primaryKey())
+    .addColumn("operator_lark_id", "text", (column) => column.notNull())
+    .addColumn("project_key", "text", (column) => column.notNull())
+    .addColumn("sprint_id", "text", (column) => column.notNull())
+    .addColumn("context_hash", "text", (column) => column.notNull())
     .addColumn("created_at", "text", (column) => column.notNull())
     .addColumn("updated_at", "text", (column) => column.notNull())
     .execute();
@@ -700,6 +715,20 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
   for (const column of ["ticket_base_id", "ticket_table_id", "ticket_record_id", "ticket_number"]) {
     await sql.raw(`ALTER TABLE acp_kimi_session_owners ADD COLUMN IF NOT EXISTS ${column} text`).execute(db);
   }
+  await sql`
+    CREATE INDEX IF NOT EXISTS acp_kimi_sprint_session_refs_lookup_idx
+    ON acp_kimi_sprint_session_refs(operator_lark_id, project_key, sprint_id, updated_at)
+  `.execute(db);
+  await db.insertInto("workflow_prompts")
+    .values({
+      key: MEEGLE_SPRINT_RELEASE_NOTES_PROMPT_KEY,
+      prompt: DEFAULT_MEEGLE_SPRINT_RELEASE_NOTES_PROMPT_TEMPLATE,
+      note: DEFAULT_MEEGLE_SPRINT_RELEASE_NOTES_PROMPT_NOTE,
+      created_at: now,
+      updated_at: now,
+    })
+    .onConflict((conflict) => conflict.column("key").doNothing())
+    .execute();
   for (const column of ["runtime_host_name", "kimi_work_dir"]) {
     await sql.raw(`ALTER TABLE acp_kimi_session_owners ADD COLUMN IF NOT EXISTS ${column} text`).execute(db);
   }
@@ -859,6 +888,7 @@ export async function resetPostgresDatabase(db: Kysely<DatabaseSchema>): Promise
   await sql`DROP TABLE IF EXISTS web_plugin_login_challenges`.execute(db);
   await sql`DROP TABLE IF EXISTS web_sessions`.execute(db);
   await sql`DROP TABLE IF EXISTS workflow_prompts`.execute(db);
+  await sql`DROP TABLE IF EXISTS acp_kimi_sprint_session_refs`.execute(db);
   await sql`DROP TABLE IF EXISTS acp_kimi_session_owners`.execute(db);
   await sql`DROP TABLE IF EXISTS oauth_sessions`.execute(db);
   await sql`DROP TABLE IF EXISTS user_tokens`.execute(db);
