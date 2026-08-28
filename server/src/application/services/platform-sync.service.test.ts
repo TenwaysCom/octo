@@ -118,6 +118,7 @@ function createStore(): PlatformSyncStore & {
     async listMeegleSprints() { return []; },
     async listMeegleWorkitemsByIds() { return []; },
     async listMeegleSprintSnapshots() { return []; },
+    async listMeegleSprintMemberships() { return []; },
     async listGitHubPullRequestLinks() { return []; },
     async listGitHubPullRequests() { return []; },
     async countGitHubPullRequests() { return 0; },

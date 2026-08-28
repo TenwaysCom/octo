@@ -60,6 +60,18 @@ describe("web platform data controller", () => {
       startAt: "2026-08-06T00:00:00.000Z",
       endAt: "2026-08-20T00:00:00.000Z",
       syncedAt: "2026-08-09T00:00:00.000Z",
+    }], sprintWorkitems: [{
+      projectKey: "4c3fv6",
+      workItemTypeKey: "story",
+      workItemId: "13802503",
+      title: "Story",
+      sprintId: "13100779",
+      sprint: "Odoo Sprint 20260806",
+      membershipSource: "incremental_observed",
+      carryoverToSprintId: "next-sprint",
+      carryoverToSprintName: "Odoo Sprint 20260820",
+      githubPullRequests: [],
+      syncedAt: "2026-08-09T00:00:00.000Z",
     }], total: 1 }) };
     const ensureSession = vi.fn().mockResolvedValue({ ok: true, role: "dev", user: {} });
     const controller = createWebPlatformDataController({ service, ensureSession });
@@ -91,6 +103,12 @@ describe("web platform data controller", () => {
         description: "Sprint 说明",
         startAt: "2026-08-06T00:00:00.000Z",
         endAt: "2026-08-20T00:00:00.000Z",
+      })], sprintWorkitems: [expect.objectContaining({
+        workItemId: "13802503",
+        sprintId: "13100779",
+        sprint: "Odoo Sprint 20260806",
+        carryoverToSprintId: "next-sprint",
+        carryoverToSprintName: "Odoo Sprint 20260820",
       })], pager: { offset: 500, limit: 500, total: 1, hasMore: false } } },
     });
     expect((result.body as { data: { items: Array<Record<string, unknown>> } }).data.items[0]).not.toHaveProperty("plannedSprint");

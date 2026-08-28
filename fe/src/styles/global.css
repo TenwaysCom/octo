@@ -866,6 +866,7 @@ h1 {
 .sprint-detail-layout__main { min-width: 0; }
 .data-table--sprint-workitems { min-width: 980px; }
 .data-table--sprint-workitems td:first-child { min-width: 250px; }
+.sprint-carryover-badge { display: inline-flex; width: fit-content; margin-top: 6px; padding: 3px 7px; border-radius: 999px; color: #9a3412; background: #ffedd5; font-size: 10px; font-weight: 650; line-height: 1.2; }
 .sprint-detail-panel { position: sticky; top: 18px; overflow: hidden; border: 1px solid var(--octo-border); border-radius: 12px; background: var(--octo-surface); box-shadow: 0 4px 14px rgba(32, 37, 51, .06); }
 .sprint-panel__overview { padding: 16px 17px 17px; }
 .sprint-panel__badges { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; }

@@ -380,3 +380,9 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - **Context:** Octo 的 Meegle `assignee` 曾读取当前流程节点的第一个 owner，但 Meegle 的真实“Current owner”是独立的 multi-user 系统字段 `current_status_operator`。
 - **Rule:** 负责人投影必须在 MQL 和 batch detail 中显式读取 `current_status_operator`，分别兼容 `user_value_list` 与人员数组形态，按源顺序去重保留所有姓名；显式空值是权威结果，不得回退到节点 owner 或类型角色。
 - **Verified outcome:** 49 个定向用例和 Server build 通过；全量回填后 1,209 条活动快照中 159 条保留 Current owner，其中 25 条正确保留多人值。
+
+## [LRN-20260828-004] sprint-history-membership-read-boundary
+
+- **Context:** 工作项从 Sprint A 切到 B 后，当前快照只保留 B；如果 Sprint 页面继续按当前 `sprint_id` 分组，A 的未完成工作项、Scope 和结转信息都会消失。
+- **Rule:** Sprint 历史、详情和图表必须读取 Server 按连续归属区间展开的工作项投影。当前快照只服务普通列表和兼容接口；结转目标由 Server 根据观察来源、稳定 Sprint ID、日期范围和 A 的完成时间派生，FE 不从当前 Sprint 或状态反推历史。缺少持久化区间的当前关系只能作为 `historical_inferred` fallback，不能显示确定结转。
+- **Verified outcome:** Store/API/FE 测试覆盖原 Sprint 保留、A → B 未完成结转、已完成或推定关系不误标、提前移出 Scope，以及 Related PR 附着；定向 Server 34/34、FE check 和 Server build 通过。

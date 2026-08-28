@@ -56,7 +56,7 @@ function useMeegleSprintHistory(apiBaseUrl) {
   useEffect(() => {
     let active = true;
     void getPlatformDataList({ apiBaseUrl, kind: "meegle-workitems" }).then(
-      ({ items, sprintDetails }) => { if (active) setState({ status: "ready", sprints: buildMeegleSprintHistory(items, sprintDetails) }); },
+      ({ sprintWorkitems, sprintDetails }) => { if (active) setState({ status: "ready", sprints: buildMeegleSprintHistory(sprintWorkitems, sprintDetails) }); },
       () => { if (active) setState({ status: "error", sprints: [] }); },
     );
     return () => { active = false; };
@@ -143,7 +143,7 @@ function SprintRelatedPullRequests({ pullRequests }) {
 }
 
 function SprintWorkitemCell({ columnKey, item }) {
-  if (columnKey === "workitem") return <><a className="table-link" href={getMeegleWorkitemUrl(item)} target="_blank" rel="noreferrer">{item.workItemKey || item.workItemId}</a><small>{item.title}</small></>;
+  if (columnKey === "workitem") return <><a className="table-link" href={getMeegleWorkitemUrl(item)} target="_blank" rel="noreferrer">{item.workItemKey || item.workItemId}</a><small>{item.title}</small>{item.carryoverToSprintName ? <span className="sprint-carryover-badge">结转至 {item.carryoverToSprintName}</span> : null}</>;
   if (columnKey === "workitemType") return <span className={`workitem-type-badge workitem-type-badge--${getMeegleWorkitemCategory(item)}`}>{item.workItemType || item.workItemTypeKey || "-"}</span>;
   if (columnKey === "status") return <>{item.status || "未设置"}<small>{item.subStage || ""}</small></>;
   if (columnKey === "project") return item.projectName || item.projectKey || "未设置";
@@ -160,7 +160,7 @@ function SprintWorkitemList({ items, sort, visibleColumns, onSort }) {
     <thead><tr>{columns.map((column) => <th key={column.key}>{column.sortKey
       ? <button className="sortable-column-header" type="button" onClick={() => onSort(column.sortKey)}>{column.label}<span className="sortable-column-header__arrows" aria-hidden="true">{sort.key === column.sortKey ? sort.direction === "asc" ? "↑" : "↓" : "↕"}</span></button>
       : column.label}</th>)}</tr></thead>
-    <tbody>{items.map((item) => <tr key={`${item.projectKey}-${item.workItemTypeKey}-${item.workItemId}`}>{columns.map((column) => <td key={column.key}><SprintWorkitemCell columnKey={column.key} item={item} /></td>)}</tr>)}</tbody>
+    <tbody>{items.map((item) => <tr key={`${item.projectKey}-${item.workItemTypeKey}-${item.workItemId}-${item.sprintId}-${item.addToCycleTime || "unknown"}`}>{columns.map((column) => <td key={column.key}><SprintWorkitemCell columnKey={column.key} item={item} /></td>)}</tr>)}</tbody>
   </table></div>;
 }
 
@@ -246,7 +246,7 @@ function SprintHistoryList({ sprints, expandedSprintKey, onToggleSprint, idPrefi
           aria-controls={chartId}
           onClick={() => onToggleSprint(sprint.identity)}
         ><svg viewBox="0 0 8 12" aria-hidden="true"><path d="m1 1 5 5-5 5" /></svg><span className={`sprint-history-row__marker sprint-history-row__marker--${sprint.lifecycle}`} aria-hidden="true" /></button>
-        <div className="sprint-history-row__summary"><a href={getMeegleSprintDetailHash(sprint.sprintId || sprint.name)}><strong>{sprint.name}</strong></a><small>{sprint.projectCount} 个项目 · 最近工作项活动</small></div>
+        <div className="sprint-history-row__summary"><a href={getMeegleSprintDetailHash(sprint.sprintId || sprint.name)}><strong>{sprint.name}</strong></a><small>{sprint.projectCount} 个项目{sprint.carryoverCount ? ` · ${sprint.carryoverCount} 个工作项结转` : " · 最近工作项活动"}</small></div>
         <SprintActivityBadge lifecycle={sprint.lifecycle} />
         <span className="sprint-history-row__metric"><strong>{sprint.progress.completionPercent}%</strong><small>完成</small></span>
         <span className="sprint-history-row__metric"><strong>{sprint.progress.completed}</strong><small>已完成</small></span>

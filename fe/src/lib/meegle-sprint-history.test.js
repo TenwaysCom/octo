@@ -61,6 +61,32 @@ test("groups workitems by stable Sprint ID even when names collide", () => {
   assert.deepEqual(history.map((sprint) => [sprint.sprintId, sprint.items.length]).sort(), [["a", 1], ["b", 1]]);
 });
 
+test("keeps membership-projected workitems in the original Sprint and exposes carryover counts", () => {
+  const history = buildMeegleSprintHistory([{
+    projectKey: "project", workItemTypeKey: "story", workItemId: "1", title: "Story",
+    sprintId: "a", sprint: "Sprint A", status: "Done", membershipSource: "incremental_observed",
+    addToCycleTime: "2026-08-01T00:00:00.000Z", itemStartTime: "2026-08-02T00:00:00.000Z",
+    membershipRemovedAt: "2026-08-16T00:00:00.000Z",
+    carryoverToSprintId: "b", carryoverToSprintName: "Sprint B",
+  }, {
+    projectKey: "project", workItemTypeKey: "story", workItemId: "1", title: "Story",
+    sprintId: "b", sprint: "Sprint B", status: "Done", membershipSource: "incremental_observed",
+    addToCycleTime: "2026-08-16T00:00:00.000Z", itemFinishTime: "2026-08-20T00:00:00.000Z",
+  }], [{
+    projectKey: "project", sprintId: "a", name: "Sprint A",
+    startAt: "2026-08-01T00:00:00.000Z", endAt: "2026-08-14T00:00:00.000Z", syncedAt: "2026-08-28T00:00:00.000Z",
+  }, {
+    projectKey: "project", sprintId: "b", name: "Sprint B",
+    startAt: "2026-08-15T00:00:00.000Z", endAt: "2026-08-28T00:00:00.000Z", syncedAt: "2026-08-28T00:00:00.000Z",
+  }], new Date("2026-08-28T12:00:00.000Z"));
+
+  const original = history.find((sprint) => sprint.sprintId === "a");
+  assert.equal(original.items.length, 1);
+  assert.equal(original.items[0].carryoverToSprintName, "Sprint B");
+  assert.equal(original.carryoverCount, 1);
+  assert.deepEqual(original.progress, { scope: 1, started: 1, completed: 0, notStarted: 0, completionPercent: 0 });
+});
+
 test("builds label counts without guessing lifecycle from workitem progress", () => {
   const sprint = summarizeMeegleSprint("Sprint X", [items[0]]);
   assert.equal(sprint.lifecycle, "unknown");
@@ -177,4 +203,23 @@ test("counts items added before the sprint start in opening-day scope", () => {
     items: [{ addToCycleTime: "2026-08-18T00:00:00.000Z" }],
   }, new Date("2026-08-20T12:00:00.000Z"));
   assert.deepEqual(timeline.points[0], { date: "2026-08-20", scope: 1, started: 0, completed: 0 });
+});
+
+test("removes a membership from Scope after its observed removal time", () => {
+  const timeline = buildMeegleSprintTimeline({
+    startAt: "2026-08-20T00:00:00.000Z",
+    endAt: "2026-08-22T00:00:00.000Z",
+    items: [{
+      addToCycleTime: "2026-08-20T00:00:00.000Z",
+      membershipRemovedAt: "2026-08-22T00:00:00.000Z",
+    }],
+  }, new Date("2026-08-22T12:00:00.000Z"));
+  assert.deepEqual(timeline.points.map(({ scope }) => scope), [1, 1, 0]);
+  const summary = summarizeMeegleSprint("Sprint", [{
+    membershipSource: "incremental_observed",
+    addToCycleTime: "2026-08-20T00:00:00.000Z",
+    membershipRemovedAt: "2026-08-22T00:00:00.000Z",
+  }], { endAt: "2026-08-22T00:00:00.000Z" });
+  assert.equal(summary.items.length, 1);
+  assert.equal(summary.progress.scope, 0);
 });

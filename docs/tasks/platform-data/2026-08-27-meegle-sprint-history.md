@@ -2,7 +2,7 @@
 title: "Meegle Sprint 历史与详情"
 module: "platform-data"
 status: in_progress
-requirement_version: 7
+requirement_version: 8
 created_on: 2026-08-27
 updated_on: 2026-08-28
 closed_on: null
@@ -30,6 +30,7 @@ related:
 - v4 的当前工作项 PG-only 历史清洗需求保持有效且不变；v5 在其结果之上新增 Sprint 归属历史。
 - v6 保留 v4、v5 的全部有效要求，只为 Sprint 归属增加证据来源和准确性边界。
 - v7 保留 v6 的全部有效要求，并要求 Current、Upcoming 和 Past 图表横轴都使用 Sprint 配置的完整起止日期；仅在结束日期缺失时回退到今天。
+- v8 保留 v7 的全部有效要求，并要求工作项切换到后续 Sprint 后仍出现在原 Sprint；对于可由观察关系和日期证明的未完成迁移，在原 Sprint 标记“结转至目标 Sprint”。
 - 新增 PostgreSQL Sprint 归属历史，供 Sprint 列表、详情、图表和分类使用。
 - 当前工作项快照仍保存当前 `sprint_id`、`sprint`、`add_to_cycle_time`、`item_start_time`、`item_finish_time`，供普通列表和兼容接口使用。
 - Server 负责归属转换和分类；FE 只消费投影结果，不从当前 `sprint_id` 猜历史。
@@ -114,7 +115,7 @@ API 应返回关系来源；FE 对包含 `historical_inferred` 关系的历史�
 - [x] A → B 切换后，A 的 added/started/finished 不再变化；B 使用独立的 added/started/finished。
 - [x] 明确移除、同 Sprint 状态变化、完成、重开、回到 New 和同 Sprint 重入均符合行为契约。
 - [x] Current 与 Upcoming 图表结束于 Sprint 配置结束日，不再被今天截断；缺失结束日时仍安全回退到今天。
-- [ ] Sprint 列表、详情工作项和 Scope/Started/Completed 图表改为读取 Sprint 归属历史，而不是只按当前 `sprint_id` 聚合。
+- [x] Sprint 列表、详情工作项和 Scope/Started/Completed 图表改为读取 Sprint 归属历史，而不是只按当前 `sprint_id` 聚合。
 - [ ] Carryover、Planned、After cycle 按上述规则派生，`item_cycle_tag` 和 carryover 标志不落库。
 - [ ] API/FE 区分推定与观察数据：推定历史的 Carryover 为 Unknown，基于推定时间计算的 Planned/After cycle 标记为 estimated。
 - [ ] PG-only 初始化幂等，只生成当前可证明的开放归属；旧关系证据不足时保持未知。
@@ -152,6 +153,7 @@ v4 已完成 Sprint 页面、稳定 `sprint_id`、当前生命周期投影和 PG
 | 2026-08-27 | v5 | in_progress | 已新增连续 Sprint 归属 schema 和增量状态转换；正常增量 UPSERT 在同一事务中冻结 A、创建 B，并处理明确移除、同 Sprint 完成/重开/New 及重入。 | PG-only 批量初始化、API/FE 改用归属历史、派生分类和目标数据库迁移尚未实施。 |
 | 2026-08-27 | v6 | in_progress | 关系保存 `historical_inferred` / `incremental_observed`；已有当前快照首次进入新逻辑时惰性创建推定开放区间，同 Sprint 后续同步不升级来源。 | 历史批量初始化、准确性 API/FE 提示和目标数据库验证尚未实施。 |
 | 2026-08-28 | v7 | done | 修正 FE 图表横轴结束日：移除对今天的上限，Current 与 Upcoming 均延伸到 Sprint 配置结束日；结束日缺失时继续回退今天。 | 未执行登录态浏览器视觉验收。 |
+| 2026-08-28 | v8 | done | Platform-data API 新增按 Sprint 归属区间展开的 `sprintWorkitems` 投影；FE 列表、详情和图表改读该投影。A → B 后 A 仍保留工作项，且仅在 observed 关系、A/B 日期完整并确认 A 在结束日未完成时显示“结转至 B”；缺少已持久化关系的当前 Sprint 由 Server 以 `historical_inferred` 兼容投影。 | 未执行登录态浏览器视觉验收；Planned/After cycle 和推定准确性提示仍未实现。 |
 
 ## 验证
 
@@ -159,9 +161,11 @@ v4 已完成 Sprint 页面、稳定 `sprint_id`、当前生命周期投影和 PG
 | --- | --- | --- | --- |
 | FE 单测 / 构建 | 通过（v3 基线） | `pnpm --dir fe check`：73/73 tests passed；Vite build passed。 | 未覆盖 v5 关系历史数据源和 Carryover 展示。 |
 | FE 单测 / 构建（v7） | 通过 | `pnpm --dir fe check`：23/23 test files passed；Vite production build passed。覆盖 Current 与 Upcoming 的配置结束日。 | 未执行登录态浏览器视觉验收。 |
+| FE 单测 / 构建（v8） | 通过 | `pnpm --dir fe check`：23/23 test files passed；Vite production build passed。覆盖原 Sprint 保留、结转计数、归属完成状态及移出后 Scope 下降。 | 未执行登录态浏览器视觉验收。 |
 | Server 生命周期定向测试 | 通过（v4，有效前置） | 5 个文件共 54 项全部通过；覆盖当前快照的最早 start、完成、重开、New 清空及外部 client 调用为 0。 | 当前清洗需求已验证；尚未覆盖 v5 新增的多 Sprint 归属区间。 |
 | Server 全量测试 | 通过（v4，有效前置） | `pnpm --dir server test`：128 个文件、576 项全部通过。 | 测试使用本地 mock / 测试存储；只能证明 v4 清洗，不能证明 v5 新增功能。 |
 | Server build | 通过（v6 本地实现） | `pnpm --dir server build`。 | schema 尚未应用到目标 PostgreSQL。 |
+| Server API/归属投影（v8） | 通过（本地定向） | `pnpm --dir server exec vitest run ...`：4 个文件、34 项通过；`pnpm --dir server build` 通过。覆盖关系读取、当前推定 fallback、A → B 未完成标记、已完成/推定不误标、DTO 和关联 PR。 | 全量测试受当前 Node 缺少 `node:sqlite` 及 logger 文件时序用例影响；这些失败与本改动无关。 |
 | 增量 Sprint 归属状态转换 | 通过（本地定向） | domain、生命周期、增量编排、PostgreSQL schema/store 共 50 项测试通过；覆盖首次观察、惰性推定、同 Sprint、A → B、完成、重开、New、明确移除和同 Sprint 重入。 | API/FE 尚未读取关系表；PG-only 批量初始化未实现。 |
 | Server 全量测试 | 通过（v6 本地实现） | `pnpm --dir server test`：129 个文件、583 项全部通过。 | 未执行真实增量同步或目标数据库迁移。 |
 | 数据迁移 / Sprint 同步 | 已执行 | 旧 schema migration 与 Sprint-only full sync 已完成。 | 后续误执行的通用 full sync 只更新了 PostgreSQL 快照；不作为 v5 验证证据。 |
@@ -174,11 +178,11 @@ v4 已完成 Sprint 页面、稳定 `sprint_id`、当前生命周期投影和 PG
 
 ## 风险与后续
 
-- 增量同步只能记录观察时间，无法声称是 Meegle 中实际发生切换的精确时间；API/UI 应按观察时间解释。
+- 增量同步只能记录观察时间，无法声称是 Meegle 中实际发生切换的精确时间；API/UI 按观察时间解释，并且只有 `incremental_observed` 关系才显示确定的结转目标。
 - 当前 PostgreSQL 快照已覆盖的旧 Sprint 关系无法在 PG-only 边界内恢复，不能为了提高覆盖率静默扩大到 API 或 operation records。
 - 当前快照与关系历史必须在同一数据库事务中更新；并发或重试不能产生两个开放归属。
 - Sprint 起止日期缺失时 Carryover 必须为 Unknown，不能按状态或名称猜测。
-- 实现完成后更新 `docs/ai-dev/lifecycle/current-system-technical-objects.md`，将当前单行生命周期对象改为当前投影加关系历史。
+- Planned/After cycle 和推定关系的准确性提示仍需补齐；当前 v8 只交付原 Sprint 保留与确定的 outgoing carryover 标记。
 
 ## 关联
 

@@ -14,7 +14,10 @@ import {
   resolveMeegleSystemEnvironment,
 } from "./odoo-devops-environment-mapping.js";
 import { buildLarkTicketCleaningProjection } from "./lark-ticket-cleaning.js";
-import { buildMeegleSprintSnapshot } from "./meegle-sprint-snapshot.js";
+import {
+  buildMeegleSprintSnapshot,
+  buildMeegleSprintWorkitemProjections,
+} from "./meegle-sprint-snapshot.js";
 
 export type PlatformDataKind = "lark-tickets" | "meegle-workitems" | "github-pull-requests";
 export interface OdooShBuild {
@@ -54,13 +57,20 @@ export class PlatformDataService {
         }
       case "meegle-workitems":
         {
-          const [items, total, sprints, sprintSnapshots] = await Promise.all([
+          const [items, total, sprints, sprintSnapshots, sprintMemberships] = await Promise.all([
             this.syncStore.listMeegleWorkitems(limit, filters.meegleWorkitems),
             this.syncStore.countMeegleWorkitems(filters.meegleWorkitems),
             this.syncStore.listMeegleSprints(),
             this.syncStore.listMeegleSprintSnapshots(),
+            this.syncStore.listMeegleSprintMemberships(),
           ]);
-          const links = await this.syncStore.listGitHubPullRequestLinks(items.map((item) => item.workItemId));
+          const sprintDetails = sprintSnapshots.flatMap((item) => {
+            const sprint = buildMeegleSprintSnapshot(item);
+            return sprint ? [sprint] : [];
+          });
+          const sprintWorkitems = buildMeegleSprintWorkitemProjections(sprintMemberships, sprintDetails);
+          const allWorkitems = [...items, ...sprintWorkitems];
+          const links = await this.syncStore.listGitHubPullRequestLinks([...new Set(allWorkitems.map((item) => item.workItemId))]);
           const linksByWorkItemId = new Map<string, typeof links>();
           for (const link of links) {
             const current = linksByWorkItemId.get(link.meegleId) ?? [];
@@ -68,7 +78,7 @@ export class PlatformDataService {
             linksByWorkItemId.set(link.meegleId, current);
           }
           const environmentByWorkItemId = new Map(
-            items.map((item) => [item.workItemId, resolveMeegleSystemEnvironment(item.system)]),
+            allWorkitems.map((item) => [item.workItemId, resolveMeegleSystemEnvironment(item.system)]),
           );
           const environments = new Set<OdooDevopsEnvironment>();
           for (const link of links) {
@@ -78,23 +88,22 @@ export class PlatformDataService {
             }
           }
           const buildsByBranch = await this.listOdooShBuildsByBranch(environments);
-          return {
-            items: items.map((item) => ({
-              ...item,
-              githubPullRequests: (linksByWorkItemId.get(item.workItemId) ?? []).map((pullRequest) => ({
-                ...pullRequest,
-                odooShBuilds: selectOdooShBuilds(
-                  buildsByBranch,
-                  pullRequest.headRef,
-                  environmentByWorkItemId.get(item.workItemId),
-                ),
-              })),
+          const attachPullRequests = <T extends typeof allWorkitems[number]>(item: T) => ({
+            ...item,
+            githubPullRequests: (linksByWorkItemId.get(item.workItemId) ?? []).map((pullRequest) => ({
+              ...pullRequest,
+              odooShBuilds: selectOdooShBuilds(
+                buildsByBranch,
+                pullRequest.headRef,
+                environmentByWorkItemId.get(item.workItemId),
+              ),
             })),
+          });
+          return {
+            items: items.map(attachPullRequests),
             sprints,
-            sprintDetails: sprintSnapshots.flatMap((item) => {
-              const sprint = buildMeegleSprintSnapshot(item);
-              return sprint ? [sprint] : [];
-            }),
+            sprintDetails,
+            sprintWorkitems: sprintWorkitems.map(attachPullRequests),
             total,
           };
         }

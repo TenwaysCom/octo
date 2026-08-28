@@ -218,6 +218,15 @@ describe("PostgresPlatformSyncStore", () => {
       sprintRelation: { present: true, sprintId: "sprint-a", sprintName: "Sprint A renamed" },
       lifecycle: { addToCycleTime: "2026-08-02T00:00:00.000Z" },
     });
+    await expect(store.listMeegleSprintMemberships()).resolves.toEqual([
+      expect.objectContaining({
+        workItemId: "story-1",
+        sprintId: "sprint-a",
+        sprint: "Sprint A renamed",
+        membershipSource: "historical_inferred",
+        addToCycleTime: "2026-08-01T00:00:00.000Z",
+      }),
+    ]);
     await store.upsertMeegleWorkitem({
       projectKey: "project",
       workItemTypeKey: "story",
@@ -425,6 +434,11 @@ describe("PostgresPlatformSyncStore", () => {
         addToCycleTime: "2026-08-11T00:00:00.000Z",
         itemStartTime: "2026-08-11T01:00:00.000Z",
       }),
+    ]);
+    await expect(store.listMeegleSprintMemberships()).resolves.toEqual([
+      expect.objectContaining({ sprintId: "a", membershipRemovedAt: "2026-08-08T00:00:00.000Z", membershipSource: "incremental_observed" }),
+      expect.objectContaining({ sprintId: "b", addToCycleTime: "2026-08-08T00:00:00.000Z", membershipRemovedAt: "2026-08-10T00:00:00.000Z" }),
+      expect.objectContaining({ sprintId: "b", addToCycleTime: "2026-08-11T00:00:00.000Z" }),
     ]);
 
     await db.destroy();

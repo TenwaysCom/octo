@@ -41,6 +41,19 @@ test("loads a synced platform list with the browser session cookie", async () =>
         startAt: "2026-08-06T00:00:00.000Z",
         endAt: "2026-08-20T00:00:00.000Z",
         syncedAt: "2026-08-09T00:00:00.000Z",
+      }], sprintWorkitems: [{
+        projectKey: "4c3fv6",
+        workItemTypeKey: "story",
+        workItemId: "1",
+        title: "Story",
+        sprintId: "sprint-1",
+        sprint: "Sprint 1",
+        membershipSource: "incremental_observed",
+        membershipRemovedAt: "2026-08-21T00:00:00.000Z",
+        carryoverToSprintId: "sprint-2",
+        carryoverToSprintName: "Sprint 2",
+        githubPullRequests: [],
+        syncedAt: "2026-08-09T00:00:00.000Z",
       }] } }) };
     },
   });
@@ -74,6 +87,20 @@ test("loads a synced platform list with the browser session cookie", async () =>
       endAt: "2026-08-20T00:00:00.000Z",
       syncedAt: "2026-08-09T00:00:00.000Z",
     }],
+    sprintWorkitems: [{
+      projectKey: "4c3fv6",
+      workItemTypeKey: "story",
+      workItemId: "1",
+      title: "Story",
+      sprintId: "sprint-1",
+      sprint: "Sprint 1",
+      membershipSource: "incremental_observed",
+      membershipRemovedAt: "2026-08-21T00:00:00.000Z",
+      carryoverToSprintId: "sprint-2",
+      carryoverToSprintName: "Sprint 2",
+      githubPullRequests: [],
+      syncedAt: "2026-08-09T00:00:00.000Z",
+    }],
     pager: { offset: 0, limit: 500, total: 1, hasMore: false },
   });
   assert.equal(request.url, "/api/web/platform-data/meegle-workitems?limit=500&sprint=Sprint+1");
@@ -91,6 +118,25 @@ test("requests 500 rows for the Lark ticket list", async () => {
     },
   });
   assert.equal(requestUrl, "/api/web/platform-data/lark-tickets?limit=500");
+});
+
+test("falls back to current Meegle items when an older Server omits sprintWorkitems", async () => {
+  const result = await getPlatformDataList({
+    apiBaseUrl: "/api",
+    kind: "meegle-workitems",
+    fetchImpl: async () => ({
+      ok: true,
+      json: async () => ({ ok: true, data: {
+        items: [{
+          projectKey: "project", workItemTypeKey: "story", workItemId: "1", title: "Story",
+          sprintId: "sprint-1", sprint: "Sprint 1", githubPullRequests: [], syncedAt: "2026-08-09T00:00:00.000Z",
+        }],
+        sprints: ["Sprint 1"],
+      } }),
+    }),
+  });
+
+  assert.deepEqual(result.sprintWorkitems, result.items);
 });
 
 test("shares an in-flight list request across duplicate mounts", async () => {
@@ -357,7 +403,7 @@ test("rejects an invalid Meegle four-field response", async () => {
           title: "Story",
           syncedAt: "2026-08-09T00:00:00.000Z",
           bugs: "Bug 1",
-        }], sprints: [] } }),
+        }], sprints: [], sprintWorkitems: [] } }),
       }),
     }),
     { message: "INVALID_MEEGLE_WORKITEM_RESPONSE" },

@@ -58,6 +58,7 @@ export interface PlatformSyncStore {
   listMeegleSprints(): Promise<string[]>;
   listMeegleWorkitemsByIds(workItemIds: string[]): Promise<MeegleWorkitemSyncItem[]>;
   listMeegleSprintSnapshots(): Promise<MeegleWorkitemSyncItem[]>;
+  listMeegleSprintMemberships(): Promise<MeegleSprintMembershipSyncItem[]>;
   listGitHubPullRequestLinks(meegleWorkItemIds: string[]): Promise<GitHubPullRequestLink[]>;
   findGitHubPullRequest(ref: GitHubPullRequestSyncRef): Promise<GitHubPullRequestSyncItem | undefined>;
   listGitHubPullRequests(limit: number, filters?: GitHubPullRequestListFilters): Promise<GitHubPullRequestSyncItem[]>;
@@ -100,6 +101,12 @@ export interface MeegleWorkitemLifecycleFields {
   currentNodeStartTime?: string | null;
   itemStartTime?: string | null;
   itemFinishTime?: string | null;
+}
+
+export interface MeegleSprintMembershipSyncItem extends MeegleWorkitemSyncItem {
+  sprintId: string;
+  membershipRemovedAt?: string;
+  membershipSource: "historical_inferred" | "incremental_observed";
 }
 
 export interface MeegleSprintRelationFields {
@@ -924,6 +931,75 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
     return rows.map(toMeegleWorkitemSyncItem);
   }
 
+  async listMeegleSprintMemberships(): Promise<MeegleSprintMembershipSyncItem[]> {
+    const [rows, currentRows] = await Promise.all([
+      this.db.selectFrom("meegle_workitem_sprint_memberships as membership")
+        .innerJoin("meegle_workitem_syncs as workitem", (join) => join
+          .onRef("workitem.project_key", "=", "membership.project_key")
+          .onRef("workitem.work_item_type_key", "=", "membership.work_item_type_key")
+          .onRef("workitem.work_item_id", "=", "membership.work_item_id"))
+        .select([
+          "workitem.project_key as project_key", "workitem.project_name as project_name",
+          "workitem.work_item_type_key as work_item_type_key", "workitem.work_item_id as work_item_id",
+          "workitem.work_item_key as work_item_key", "workitem.title as title",
+          "workitem.work_item_type as work_item_type", "workitem.status_key as status_key",
+          "workitem.status as status", "workitem.sub_stage_key as sub_stage_key",
+          "workitem.sub_stage as sub_stage", "workitem.sprint_id as sprint_id",
+          "workitem.sprint as sprint", "workitem.version as version", "workitem.system as system",
+          "workitem.bugs_json as bugs_json", "workitem.assignee as assignee",
+          "workitem.priority as priority", "workitem.add_to_cycle_time as add_to_cycle_time",
+          "workitem.current_node_start_time as current_node_start_time",
+          "workitem.item_start_time as item_start_time", "workitem.item_finish_time as item_finish_time",
+          "workitem.source_updated_at as source_updated_at", "workitem.synced_at as synced_at",
+          "membership.sprint_id as membership_sprint_id", "membership.added_at as membership_added_at",
+          "membership.started_at as membership_started_at", "membership.finished_at as membership_finished_at",
+          "membership.removed_at as membership_removed_at", "membership.source as membership_source",
+        ])
+        .where("workitem.work_item_type_key", "not in", MEEGLE_SPRINT_TYPE_KEYS)
+        .orderBy("membership.project_key")
+        .orderBy("membership.work_item_type_key")
+        .orderBy("membership.work_item_id")
+        .orderBy("membership.added_at")
+        .execute(),
+      this.db.selectFrom("meegle_workitem_syncs")
+        .select([
+          "project_key", "project_name", "work_item_type_key", "work_item_id", "work_item_key", "title",
+          "work_item_type", "status_key", "status", "sub_stage_key", "sub_stage",
+          "sprint_id", "sprint", "version", "system", "bugs_json", "assignee", "priority",
+          "source_updated_at", "synced_at", "add_to_cycle_time", "current_node_start_time",
+          "item_start_time", "item_finish_time",
+        ])
+        .where("work_item_type_key", "not in", MEEGLE_SPRINT_TYPE_KEYS)
+        .where("sprint_id", "is not", null)
+        .execute(),
+    ]);
+
+    const memberships = rows.map((row) => {
+      const current = toMeegleWorkitemSyncItem(row);
+      const { sprintId: _currentSprintId, sprint: _currentSprint, addToCycleTime: _currentAddedAt,
+        itemStartTime: _currentStartedAt, itemFinishTime: _currentFinishedAt, ...workitem } = current;
+      return {
+        ...workitem,
+        sprintId: row.membership_sprint_id,
+        addToCycleTime: row.membership_added_at,
+        ...(row.membership_started_at ? { itemStartTime: row.membership_started_at } : {}),
+        ...(row.membership_finished_at ? { itemFinishTime: row.membership_finished_at } : {}),
+        ...(row.membership_removed_at ? { membershipRemovedAt: row.membership_removed_at } : {}),
+        membershipSource: row.membership_source,
+      };
+    });
+    const openMembershipKeys = new Set(memberships
+      .filter((membership) => !membership.membershipRemovedAt)
+      .map((membership) => meegleSprintMembershipKey(membership)));
+    const inferredCurrentMemberships = currentRows.flatMap((row) => {
+      const current = toMeegleWorkitemSyncItem(row);
+      const sprintId = current.sprintId;
+      if (!sprintId || openMembershipKeys.has(meegleSprintMembershipKey(current))) return [];
+      return [{ ...current, sprintId, membershipSource: "historical_inferred" as const }];
+    });
+    return [...memberships, ...inferredCurrentMemberships];
+  }
+
   async listMeegleWorkitemsByIds(workItemIds: string[]): Promise<MeegleWorkitemSyncItem[]> {
     const results: MeegleWorkitemSyncItem[] = [];
     for (const batch of chunks([...new Set(workItemIds)], 500)) {
@@ -1094,6 +1170,10 @@ type ExistingMeegleSprintMembership = {
   sprint: string | null;
   add_to_cycle_time: string | null;
 } | undefined;
+
+function meegleSprintMembershipKey(item: Pick<MeegleWorkitemSyncItem, "projectKey" | "workItemTypeKey" | "workItemId" | "sprintId">): string {
+  return `${item.projectKey}\u0000${item.workItemTypeKey}\u0000${item.workItemId}\u0000${item.sprintId ?? ""}`;
+}
 
 type ExistingMeegleLifecycle = {
   current_node_start_time: string | null;

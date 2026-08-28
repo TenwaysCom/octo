@@ -11,7 +11,15 @@ function includesStatusMarker(status, markers) {
   return markers.includes(normalized);
 }
 
-function getWorkitemProgress(item) {
+function getWorkitemProgress(item, cutoffAt) {
+  if (item.membershipSource) {
+    const cutoff = typeof cutoffAt === "number" ? cutoffAt : parseTimestamp(cutoffAt);
+    const finishedAt = parseTimestamp(item.itemFinishTime);
+    if (finishedAt !== undefined && (cutoff === undefined || finishedAt <= cutoff)) return "completed";
+    const startedAt = parseTimestamp(item.itemStartTime);
+    if (startedAt !== undefined && (cutoff === undefined || startedAt <= cutoff)) return "started";
+    return "not-started";
+  }
   if (includesStatusMarker(item.status, COMPLETED_STATUS_MARKERS)) return "completed";
   if (!normalizeText(item.status) || includesStatusMarker(item.status, NOT_STARTED_STATUS_MARKERS)) return "not-started";
   return "started";
@@ -88,9 +96,11 @@ export function groupMeegleSprintHistory(sprints, groupBy = "date") {
 }
 
 export function summarizeMeegleSprint(name, items, metadata, now = new Date()) {
-  const progress = { scope: items.length, started: 0, completed: 0, notStarted: 0 };
-  for (const item of items) {
-    const state = getWorkitemProgress(item);
+  const cutoffAt = metadata?.endAt ? endOfUtcDay(metadata.endAt) : undefined;
+  const progressItems = items.filter((item) => isMembershipInScopeAt(item, cutoffAt));
+  const progress = { scope: progressItems.length, started: 0, completed: 0, notStarted: 0 };
+  for (const item of progressItems) {
+    const state = getWorkitemProgress(item, cutoffAt);
     if (state === "completed") progress.completed += 1;
     else if (state === "started") progress.started += 1;
     else progress.notStarted += 1;
@@ -108,6 +118,7 @@ export function summarizeMeegleSprint(name, items, metadata, now = new Date()) {
     progress: { ...progress, completionPercent },
     latestActivityAt: metadata?.sourceUpdatedAt || (latestTimestamp ? new Date(latestTimestamp).toISOString() : undefined),
     projectCount,
+    carryoverCount: items.filter((item) => item.carryoverToSprintId).length,
     labels: {
       sprint: countValues(items, (item) => item.sprint),
       project: countValues(items, (item) => item.projectName || item.projectKey),
@@ -119,6 +130,13 @@ export function summarizeMeegleSprint(name, items, metadata, now = new Date()) {
     lifecycle: getMeegleSprintLifecycle(sprint, now),
     timeline: buildMeegleSprintTimeline(sprint, now),
   };
+}
+
+function isMembershipInScopeAt(item, cutoffAt) {
+  if (!item.membershipSource || cutoffAt === undefined) return true;
+  const addedAt = parseTimestamp(item.addToCycleTime);
+  const removedAt = parseTimestamp(item.membershipRemovedAt);
+  return addedAt !== undefined && addedAt <= cutoffAt && (removedAt === undefined || removedAt > cutoffAt);
 }
 
 export function buildMeegleSprintTimeline(sprint, now = new Date()) {
@@ -141,7 +159,8 @@ export function buildMeegleSprintTimeline(sprint, now = new Date()) {
     let completed = 0;
     for (const item of items) {
       const addedAt = parseTimestamp(item.addToCycleTime);
-      if (addedAt === undefined || addedAt > cutoff) continue;
+      const removedAt = parseTimestamp(item.membershipRemovedAt);
+      if (addedAt === undefined || addedAt > cutoff || (removedAt !== undefined && removedAt <= cutoff)) continue;
       scope += 1;
       const startedAt = parseTimestamp(item.itemStartTime);
       const finishedAt = parseTimestamp(item.itemFinishTime);
@@ -166,6 +185,11 @@ function parseTimestamp(value) {
 function startOfUtcDay(value) {
   const date = new Date(value);
   return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+}
+
+function endOfUtcDay(value) {
+  const parsed = parseTimestamp(value);
+  return parsed === undefined ? undefined : startOfUtcDay(parsed) + 24 * 60 * 60 * 1000 - 1;
 }
 
 export function buildMeegleSprintHistory(items, sprintDetails = [], now = new Date()) {

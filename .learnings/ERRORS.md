@@ -482,3 +482,21 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Symptom:** The Server build failed after adding `current_node_start_time` because `getMeegleWorkitemsForCleaning()` returned a row without the required property.
 - **Root cause:** The new persisted column was added to the write path and public list projections but missed one typed internal selection used to read source payloads for PG-only cleaning.
 - **Verified fix:** Add every new snapshot projection to all typed row selections and run `pnpm --dir server build` after focused tests.
+
+### ERR-20260828-010 — Sprint fallback spread lost the narrowed Sprint ID type
+
+- **Symptom:** Server build rejected the inferred current-membership fallback because spreading a workitem left `sprintId` typed as `string | undefined`, although the branch had already checked it.
+- **Root cause:** The narrowed optional property was not reintroduced explicitly after the object spread, so the resulting structural type no longer satisfied the required membership `sprintId: string` contract.
+- **Verified fix:** Capture the narrowed ID in a local constant and set `sprintId` explicitly after the spread; Server build then passed.
+
+### ERR-20260828-011 — Extra Vitest separator ran the full Server suite
+
+- **Symptom:** `pnpm --dir server test -- --run <paths>` unexpectedly ran all Server tests, exposing unrelated `node:sqlite` availability and logger timing failures.
+- **Root cause:** The package script already invokes `vitest run`; the extra separator/flag did not route the requested files as intended.
+- **Verified fix:** Use `pnpm --dir server exec vitest run <paths>` for focused verification; the four affected files passed 34/34 tests.
+
+### ERR-20260828-012 — Sandbox blocked Git index writes
+
+- **Symptom:** `git commit` failed with `.git/index.lock: read-only file system` even though the task files were writable.
+- **Root cause:** The managed workspace exposes `.git` read-only to sandboxed commands.
+- **Verified fix:** Run the scoped `git add` and `git commit` commands with approved elevated filesystem access; do not change repository permissions.

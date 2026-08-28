@@ -86,15 +86,17 @@ async function loadPlatformDataList({ apiBaseUrl, kind, filters, fetchImpl }) {
   const items = [...firstPage.items];
   let sprints = firstPage.sprints || [];
   let sprintDetails = firstPage.sprintDetails || [];
+  let sprintWorkitems = firstPage.sprintWorkitems || [];
   let pager = firstPage.pager;
   while (pager.hasMore) {
     const page = await getPlatformDataListPage({ apiBaseUrl, kind, filters, offset: pager.nextOffset, fetchImpl });
     items.push(...page.items);
     sprints = page.sprints || sprints;
     sprintDetails = page.sprintDetails || sprintDetails;
+    sprintWorkitems = page.sprintWorkitems || sprintWorkitems;
     pager = page.pager;
   }
-  return { items, ...(kind === "meegle-workitems" ? { sprints, sprintDetails } : {}), pager };
+  return { items, ...(kind === "meegle-workitems" ? { sprints, sprintDetails, sprintWorkitems } : {}), pager };
 }
 
 async function loadPlatformDataListPage({ apiBaseUrl, kind, filters, offset, fetchImpl, path }) {
@@ -118,10 +120,17 @@ async function loadPlatformDataListPage({ apiBaseUrl, kind, filters, offset, fet
   if (payload.data.sprintDetails !== undefined && !Array.isArray(payload.data.sprintDetails)) {
     throw new Error("INVALID_MEEGLE_WORKITEM_RESPONSE");
   }
+  if (payload.data.sprintWorkitems !== undefined && !Array.isArray(payload.data.sprintWorkitems)) {
+    throw new Error("INVALID_MEEGLE_WORKITEM_RESPONSE");
+  }
+  const items = payload.data.items.map(parseMeegleWorkitem);
   return {
-    items: payload.data.items.map(parseMeegleWorkitem),
+    items,
     sprints: payload.data.sprints,
     sprintDetails: (payload.data.sprintDetails || []).map(parseMeegleSprint),
+    sprintWorkitems: payload.data.sprintWorkitems === undefined
+      ? items
+      : payload.data.sprintWorkitems.map(parseMeegleSprintWorkitem),
     pager,
   };
 }
@@ -214,6 +223,23 @@ function parseMeegleWorkitem(value) {
   }
   item.githubPullRequests = value.githubPullRequests.map(parseGitHubPullRequest);
   return item;
+}
+
+function parseMeegleSprintWorkitem(value) {
+  const item = parseMeegleWorkitem(value);
+  if (typeof value.sprintId !== "string"
+    || typeof value.sprint !== "string"
+    || !["historical_inferred", "incremental_observed"].includes(value.membershipSource)
+    || ["membershipRemovedAt", "carryoverToSprintId", "carryoverToSprintName"]
+      .some((field) => value[field] !== undefined && typeof value[field] !== "string")) {
+    throw new Error("INVALID_MEEGLE_WORKITEM_RESPONSE");
+  }
+  return {
+    ...item,
+    membershipSource: value.membershipSource,
+    ...Object.fromEntries(["membershipRemovedAt", "carryoverToSprintId", "carryoverToSprintName"]
+      .flatMap((field) => value[field] === undefined ? [] : [[field, value[field]]])),
+  };
 }
 
 function parseMeegleSprint(value) {

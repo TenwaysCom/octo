@@ -69,6 +69,16 @@ describe("PlatformDataService", () => {
           fields: { work_item_fields: [{ key: "description", value: "交付 Sprint" }] },
         },
       }]),
+      listMeegleSprintMemberships: vi.fn().mockResolvedValue([{
+        projectKey: "project",
+        workItemTypeKey: "story",
+        workItemId: "123",
+        title: "Story",
+        sprintId: "sprint-1",
+        addToCycleTime: "2026-08-01T00:00:00.000Z",
+        membershipSource: "incremental_observed",
+        syncedAt: "2026-08-09T00:00:00.000Z",
+      }]),
       listGitHubPullRequestLinks: vi.fn().mockResolvedValue([{
         meegleId: "123",
         owner: "TenwaysCom",
@@ -90,6 +100,13 @@ describe("PlatformDataService", () => {
       })],
       sprints: ["Sprint 1"],
       sprintDetails: [expect.objectContaining({ sprintId: "sprint-1", name: "Sprint 1", description: "交付 Sprint" })],
+      sprintWorkitems: [expect.objectContaining({
+        workItemId: "123",
+        sprintId: "sprint-1",
+        sprint: "Sprint 1",
+        membershipSource: "incremental_observed",
+        githubPullRequests: [expect.objectContaining({ pullNumber: 1138 })],
+      })],
       total: 1,
     });
     expect(store.listMeegleWorkitems).toHaveBeenCalledWith(50, { sprints: ["Sprint 1"] });
@@ -109,6 +126,7 @@ describe("PlatformDataService", () => {
       countMeegleWorkitems: vi.fn().mockResolvedValue(1),
       listMeegleSprints: vi.fn().mockResolvedValue([]),
       listMeegleSprintSnapshots: vi.fn().mockResolvedValue([]),
+      listMeegleSprintMemberships: vi.fn().mockResolvedValue([]),
       listGitHubPullRequestLinks: vi.fn().mockResolvedValue([
         {
           meegleId: "123", owner: "TenwaysCom", repo: "Tenways", pullNumber: 1138,
