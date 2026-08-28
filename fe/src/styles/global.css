@@ -803,6 +803,14 @@ h1 {
 .ticket-ai-message--assistant { align-self: flex-start; border: 1px solid var(--octo-border); border-bottom-left-radius: 3px; color: var(--octo-text); background: #f8fafc; }
 .ticket-ai-message--status { align-self: center; max-width: 100%; padding: 3px 8px; color: var(--octo-text-muted); background: transparent; font-size: 11px; }
 .ticket-ai-message__text { white-space: pre-wrap; }
+.ticket-ai-message__actions { display: flex; justify-content: flex-end; margin: 7px -4px -4px; }
+.ticket-ai-message__copy { display: grid; width: 27px; height: 27px; place-items: center; padding: 0; border: 0; border-radius: 6px; color: var(--octo-text-muted); cursor: pointer; background: transparent; transition: color 150ms ease, background 150ms ease; }
+.ticket-ai-message__copy:hover:not(:disabled) { color: var(--octo-text); background: var(--octo-surface-muted); }
+.ticket-ai-message__copy:focus-visible { outline: 2px solid color-mix(in srgb, var(--octo-brand) 55%, transparent); outline-offset: 1px; }
+.ticket-ai-message__copy:disabled { cursor: wait; opacity: .55; }
+.ticket-ai-message__copy--copied { color: #16803c; background: #e8f7ed; }
+.ticket-ai-message__copy--failed { color: var(--octo-danger); background: color-mix(in srgb, var(--octo-danger) 8%, transparent); }
+.ticket-ai-message__copy svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.6; }
 .ticket-ai-message__details { margin: 0 0 8px; border: 1px solid #dfe5ec; border-radius: 8px; background: #fff; color: #5f6b7a; font-size: 12px; }
 .ticket-ai-message__details summary { display: flex; cursor: pointer; align-items: center; justify-content: space-between; padding: 7px 9px; color: #445064; font-weight: 650; list-style: none; }
 .ticket-ai-message__details summary::-webkit-details-marker { display: none; }

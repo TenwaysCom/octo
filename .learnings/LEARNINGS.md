@@ -2,6 +2,12 @@
 
 Record concise, reusable lessons here. Include the context, the durable rule, and the verified outcome; never include secrets or raw credentials.
 
+## [LRN-20260828-007] ai-session-message-control-scope
+
+- **Context:** Ticket 与 Sprint AI Session 使用相同的消息视觉语言，但由两个页面入口渲染；复制动作只适用于助手正文，不适用于用户输入、状态或思考/工具诊断。
+- **Rule:** 把通用消息控件做成 FE 共享组件，并按规范化 transcript 的语义 `kind` 与非空正文决定是否渲染；复制反馈应有图标、tooltip 和动态无障碍标签，不能依赖服务端或 Session 协议变化。
+- **Verified outcome:** 两个 AI Session 入口复用同一 Copy 控件，FE 24 项测试与生产构建通过。
+
 ## [LRN-20260828-005] sprint-ai-session-snapshot-boundary
 
 - **Context:** Sprint Release Notes needs resumable AI Sessions, but Ticket sessions are structurally bound to a Lark Base record and browser-side Sprint filters cannot be trusted as generation input.
