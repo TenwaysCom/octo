@@ -948,6 +948,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
           "workitem.sprint as sprint", "workitem.version as version", "workitem.system as system",
           "workitem.bugs_json as bugs_json", "workitem.assignee as assignee",
           "workitem.priority as priority", "workitem.add_to_cycle_time as add_to_cycle_time",
+          "workitem.payload_json as payload_json",
           "workitem.current_node_start_time as current_node_start_time",
           "workitem.item_start_time as item_start_time", "workitem.item_finish_time as item_finish_time",
           "workitem.source_updated_at as source_updated_at", "workitem.synced_at as synced_at",
@@ -966,6 +967,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
           "project_key", "project_name", "work_item_type_key", "work_item_id", "work_item_key", "title",
           "work_item_type", "status_key", "status", "sub_stage_key", "sub_stage",
           "sprint_id", "sprint", "version", "system", "bugs_json", "assignee", "priority",
+          "payload_json",
           "source_updated_at", "synced_at", "add_to_cycle_time", "current_node_start_time",
           "item_start_time", "item_finish_time",
         ])

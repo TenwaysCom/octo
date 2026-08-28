@@ -2,6 +2,20 @@
 
 Record concise compiler/runtime errors, failed commands, wrong assumptions, and their verified fixes here. Redact secrets, cookies, tokens, and sensitive payloads.
 
+## [ERR-20260828-013] sprint-ai-controller-unknown-query-spread
+
+- **Summary:** The initial Sprint AI Session list controller spread a raw `unknown` query value while adding the route parameter.
+- **Error:** Server TypeScript build failed with `TS2698: Spread types may only be created from object types`.
+- **Fix:** Parse the query with the Sprint reference Zod schema before composing the validated `{ projectKey, sprintId }` reference.
+- **Status:** resolved; Server and FE builds pass.
+
+## [ERR-20260828-014] zsh-unmatched-env-style-glob
+
+- **Summary:** A diagnostic command used the unquoted `.env*` glob in zsh when no matching file existed.
+- **Error:** zsh reported `no matches found`.
+- **Fix:** Use `rg --files -g '.env*'` for optional environment-file discovery; never expand unquoted optional globs.
+- **Status:** resolved; no environment content was read.
+
 ## [ERR-20260828-001] fe-focused-node-test-arguments
 
 - **Summary:** The FE package's `test` script is a bare `node --test`, so passing two focused file paths through `pnpm --dir fe test --` produced one unresolved comma-separated target.

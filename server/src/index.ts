@@ -81,6 +81,7 @@ import { createRedisApiCache } from "./http/redis-cache.js";
 import { createWebGitHubPrOdooDevopsBuildController } from "./modules/github-pr-odoo-devops-build/github-pr-odoo-devops-build.controller.js";
 import { GitHubClient } from "./adapters/github/github-client.js";
 import { registerWebLarkTicketAiRoutes } from "./modules/lark-ticket-ai/lark-ticket-ai.controller.js";
+import { registerWebMeegleSprintAiRoutes } from "./modules/meegle-sprint-ai/meegle-sprint-ai.controller.js";
 import { registerInternalLarkTicketAiWriteRoutes } from "./modules/lark-ticket-ai/internal-lark-ticket-ai.controller.js";
 import { registerInternalAcpTicketContextRoutes } from "./modules/lark-ticket-ai/internal-acp-ticket-context.controller.js";
 import { registerWebLarkTicketRoutes } from "./modules/lark-ticket/lark-ticket.controller.js";
@@ -468,6 +469,7 @@ app.get("/api/lark/auth/callback", async (req, res) => {
 
 registerLarkMeegleWorkflowRoutes(app, handleController);
 registerWebLarkTicketAiRoutes(app);
+registerWebMeegleSprintAiRoutes(app);
 registerInternalLarkTicketAiWriteRoutes(app);
 registerInternalAcpTicketContextRoutes(app);
 app.post("/api/acp/kimi/chat", acpKimiChatController);

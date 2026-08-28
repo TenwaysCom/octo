@@ -96,6 +96,7 @@ describe("api auth middleware", () => {
       "/api/web/platform-sync-sources",
       "/api/web/platform-sync-sources/lark-tickets",
       "/api/web/lark-tickets/rec_1/ai-sessions",
+      "/api/web/meegle-sprints/sprint_1/ai-sessions",
       "/api/web/odoo-devops-branches",
       "/api/internal/lark-ticket-ai",
       "/api/internal/acp/ticket-context/messages",
