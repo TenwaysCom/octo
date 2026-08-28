@@ -452,3 +452,9 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Symptom:** The new `ls docs/support-qa/` policy test was cancelled even though files below that directory were allowed.
 - **Root cause:** `path.resolve` normalized the target to `docs/support-qa`, while the allowlist compared only against the trailing-slash prefix `docs/support-qa/`.
 - **Verified fix:** Normalize each configured root and accept either exact root equality or a slash-delimited descendant; similarly named sibling paths remain outside the boundary.
+
+### ERR-20260828-005 — Multi-hunk task-ledger closeout used a brittle verification anchor
+
+- **Symptom:** The first closeout patch failed while matching an unchanged historical verification row.
+- **Root cause:** One multi-hunk patch unnecessarily anchored the new v4 evidence to an old v3 row.
+- **Verified fix:** Anchor the new evidence immediately before the stable `外部资源` row and keep unrelated historical evidence out of the patch context.

@@ -3,6 +3,7 @@ export const SPRINT_WORKITEM_VIEW_COLUMNS = [
   { key: "workitemType", label: "类型", sortKey: "workitemType" },
   { key: "status", label: "状态", sortKey: "status" },
   { key: "project", label: "项目", sortKey: "project" },
+  { key: "version", label: "Version", sortKey: "version" },
   { key: "priority", label: "优先级", sortKey: "priority" },
   { key: "assignee", label: "负责人", sortKey: "assignee" },
   { key: "updatedAt", label: "更新时间", sortKey: "updatedAt" },
@@ -13,6 +14,7 @@ export const SPRINT_WORKITEM_GROUP_OPTIONS = [
   ["workitemType", "类型"],
   ["status", "状态"],
   ["project", "项目"],
+  ["version", "Version"],
   ["priority", "优先级"],
   ["assignee", "负责人"],
 ];
@@ -49,6 +51,7 @@ export function getSprintWorkitemViewValue(item, key) {
     workitemType: item.workItemType || item.workItemTypeKey || "",
     status: item.status || "",
     project: item.projectName || item.projectKey || "",
+    version: item.version || "",
     priority: item.priority || "",
     assignee: item.assignee || "",
     updatedAt: item.sourceUpdatedAt || item.syncedAt || "",

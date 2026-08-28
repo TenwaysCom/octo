@@ -135,6 +135,7 @@ function SprintWorkitemCell({ columnKey, item }) {
   if (columnKey === "workitemType") return <span className={`workitem-type-badge workitem-type-badge--${getMeegleWorkitemCategory(item)}`}>{item.workItemType || item.workItemTypeKey || "-"}</span>;
   if (columnKey === "status") return <>{item.status || "未设置"}<small>{item.subStage || ""}</small></>;
   if (columnKey === "project") return item.projectName || item.projectKey || "未设置";
+  if (columnKey === "version") return item.version || "未设置";
   if (columnKey === "priority") return item.priority || "未设置";
   if (columnKey === "assignee") return item.assignee || "未设置";
   return formatDateTime(item.sourceUpdatedAt || item.syncedAt);

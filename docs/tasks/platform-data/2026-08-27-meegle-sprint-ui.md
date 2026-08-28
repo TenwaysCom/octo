@@ -2,7 +2,7 @@
 title: "Meegle Sprint 历史与详情 UI"
 module: "platform-data"
 status: done
-requirement_version: 3
+requirement_version: 5
 created_on: 2026-08-27
 updated_on: 2026-08-28
 closed_on: 2026-08-28
@@ -23,6 +23,8 @@ Sprint 历史列表不再提供视图配置或筛选；Sprint 详情页提供视
 - [x] Sprint 历史页不展示视图配置、分组或筛选控件，并保持日期倒序和默认展开 Current Sprint。
 - [x] Sprint 详情工具栏展示互斥的“视图配置”和“筛选”模块，并支持 Escape 关闭。
 - [x] 视图配置只影响当前 Sprint 工作项的分组、子分组、列和排序，不影响 Sprint 概览或图表。
+- [x] Group by 与 Sub group by 均支持 Version，未设置 Version 的工作项归入“未设置”。
+- [x] Sprint 工作项表格默认显示 Version 列，并支持列配置与排序。
 - [x] 筛选仅根据当前 Sprint 工作项的类型、状态、项目、优先级和负责人匹配，支持多选和清空。
 - [x] FE 单元测试和 production build 通过。
 
@@ -32,7 +34,7 @@ Sprint 历史与详情页面已经存在。需求已从“在历史列表提供�
 
 ## 方案与决策
 
-v1 的历史列表筛选/分组决策已 superseded。v2 的列/排序视图配置由 v3 扩展为 Group by、Sub group by、列和排序；筛选控制类型、状态、项目、优先级和负责人。二者均在当前 Sprint 的已加载 work item 集合上执行。配置归一化、排序与分组保持在独立纯函数中，便于单测。
+v1 的历史列表筛选/分组决策已 superseded。v2 的列/排序视图配置由 v3 扩展为 Group by、Sub group by、列和排序；v4 在两级分组选项中加入 Version；v5 将 Version 同时加入默认展示列与排序配置。筛选控制类型、状态、项目、优先级和负责人。二者均在当前 Sprint 的已加载 work item 集合上执行。配置归一化、排序与分组保持在独立纯函数中，便于单测。
 
 ## 进展记录
 
@@ -43,6 +45,10 @@ v1 的历史列表筛选/分组决策已 superseded。v2 的列/排序视图配�
 | 2026-08-28 | v2 | done | 列表页移除视图配置与筛选；详情页新增只作用于当前 Sprint work item 的列/排序配置和类型、状态、项目、优先级、负责人筛选。 | 未执行已登录浏览器视觉验收。 |
 | 2026-08-28 | v3 | in_progress | 视图配置补充 Group by 与 Sub group by，作用域保持为当前 Sprint 的 work item。 | 待完成 FE 验证。 |
 | 2026-08-28 | v3 | done | 详情页视图配置支持按类型、状态、项目、优先级或负责人主分组与子分组；子分组不允许重复主分组，分组可折叠。 | 未执行已登录浏览器视觉验收。 |
+| 2026-08-28 | v4 | in_progress | Group by 与 Sub group by 增加 Version，复用已同步 work item 的 `version` 投影。 | 待完成 FE 验证。 |
+| 2026-08-28 | v4 | done | Group by 与 Sub group by 均支持 Version；空 Version 归入“未设置”，并覆盖主分组和子分组回归测试。 | 未执行已登录浏览器视觉验收。 |
+| 2026-08-28 | v5 | in_progress | Sprint 工作项表格增加默认可见的 Version 列，并接入现有列配置与排序。 | 待完成 FE 验证。 |
+| 2026-08-28 | v5 | done | Sprint 工作项表格默认显示 Version；空值显示“未设置”，并可通过列配置开关和按 Version 排序。 | 未执行已登录浏览器视觉验收。 |
 
 ## 验证
 
@@ -51,6 +57,8 @@ v1 的历史列表筛选/分组决策已 superseded。v2 的列/排序视图配�
 | FE 单测 / 构建（v1，历史） | 通过 | `pnpm --dir fe check`：75/75 tests passed；Vite production build passed。 | 该证据不覆盖 v2 要求。 |
 | FE 单测 / 构建（v2） | 通过 | `pnpm --dir fe check`：83/83 tests passed；Vite production build passed。新增 Sprint work item 视图配置归一化与排序覆盖。 | 未执行登录态浏览器视觉验收。 |
 | FE 单测 / 构建（v3） | 通过 | `pnpm --dir fe check`：84/84 tests passed；Vite production build passed。新增主分组/子分组组合和非法配置归一化覆盖。 | 未执行登录态浏览器视觉验收。 |
+| FE 单测 / 构建（v4） | 通过 | `pnpm --dir fe check`：23/23 test files passed；Vite production build passed。新增 Version 主分组、子分组与空值覆盖。 | 未执行已登录浏览器视觉验收。 |
+| FE 单测 / 构建（v5） | 通过 | `pnpm --dir fe check`：23/23 test files passed；Vite production build passed。新增 Version 默认列和排序覆盖。 | 未执行已登录浏览器视觉验收。 |
 | 外部资源 | 未使用 | 本次只修改 FE、纯函数测试和任务文档。 | 没有 PostgreSQL 或 Meegle 运行时证据。 |
 
 ## 关联
