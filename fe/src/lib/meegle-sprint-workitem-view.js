@@ -4,6 +4,7 @@ export const SPRINT_WORKITEM_VIEW_COLUMNS = [
   { key: "status", label: "状态", sortKey: "status" },
   { key: "project", label: "项目", sortKey: "project" },
   { key: "version", label: "Version", sortKey: "version" },
+  { key: "pullRequests", label: "Related PR" },
   { key: "priority", label: "优先级", sortKey: "priority" },
   { key: "assignee", label: "负责人", sortKey: "assignee" },
   { key: "updatedAt", label: "更新时间", sortKey: "updatedAt" },
@@ -23,7 +24,7 @@ export const DEFAULT_SPRINT_WORKITEM_VISIBLE_COLUMNS = SPRINT_WORKITEM_VIEW_COLU
 
 const COLUMN_KEYS = new Set(DEFAULT_SPRINT_WORKITEM_VISIBLE_COLUMNS);
 const GROUP_KEYS = new Set(SPRINT_WORKITEM_GROUP_OPTIONS.map(([key]) => key));
-const SORT_KEYS = new Set(SPRINT_WORKITEM_VIEW_COLUMNS.map(({ sortKey }) => sortKey));
+const SORT_KEYS = new Set(SPRINT_WORKITEM_VIEW_COLUMNS.flatMap(({ sortKey }) => sortKey ? [sortKey] : []));
 
 export function normalizeSprintWorkitemVisibleColumns(value) {
   if (!Array.isArray(value)) return [...DEFAULT_SPRINT_WORKITEM_VISIBLE_COLUMNS];

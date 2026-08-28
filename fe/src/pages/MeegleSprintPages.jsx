@@ -130,12 +130,25 @@ function SprintPanel({ sprint }) {
   </aside>;
 }
 
+function SprintRelatedPullRequests({ pullRequests }) {
+  if (!pullRequests?.length) return "-";
+  return <div className="github-pr-links">{pullRequests.map((pullRequest) => {
+    const status = pullRequest.state || "closed";
+    const label = `#${pullRequest.pullNumber}-${pullRequest.baseRef || "-"}`;
+    return <div className="github-pr-links__item" key={`${pullRequest.owner}-${pullRequest.repo}-${pullRequest.pullNumber}`}>
+      <a className={`table-link github-pr-link-badge github-pr-link-badge--${status}`} href={pullRequest.htmlUrl} target="_blank" rel="noreferrer" title={`${pullRequest.owner}/${pullRequest.repo} #${pullRequest.pullNumber}\n${pullRequest.title}\n${status}`}>{label}</a>
+      <span className={`github-pr-status github-pr-status--${status}`}>{status}</span>
+    </div>;
+  })}</div>;
+}
+
 function SprintWorkitemCell({ columnKey, item }) {
   if (columnKey === "workitem") return <><a className="table-link" href={getMeegleWorkitemUrl(item)} target="_blank" rel="noreferrer">{item.workItemKey || item.workItemId}</a><small>{item.title}</small></>;
   if (columnKey === "workitemType") return <span className={`workitem-type-badge workitem-type-badge--${getMeegleWorkitemCategory(item)}`}>{item.workItemType || item.workItemTypeKey || "-"}</span>;
   if (columnKey === "status") return <>{item.status || "未设置"}<small>{item.subStage || ""}</small></>;
   if (columnKey === "project") return item.projectName || item.projectKey || "未设置";
   if (columnKey === "version") return item.version || "未设置";
+  if (columnKey === "pullRequests") return <SprintRelatedPullRequests pullRequests={item.githubPullRequests} />;
   if (columnKey === "priority") return item.priority || "未设置";
   if (columnKey === "assignee") return item.assignee || "未设置";
   return formatDateTime(item.sourceUpdatedAt || item.syncedAt);
@@ -144,7 +157,9 @@ function SprintWorkitemCell({ columnKey, item }) {
 function SprintWorkitemList({ items, sort, visibleColumns, onSort }) {
   const columns = SPRINT_WORKITEM_VIEW_COLUMNS.filter(({ key }) => visibleColumns.includes(key));
   return <div className="data-table-wrap"><table className="data-table data-table--sprint-workitems" style={{ minWidth: Math.max(720, columns.length * 145) }}>
-    <thead><tr>{columns.map((column) => <th key={column.key}><button className="sortable-column-header" type="button" onClick={() => onSort(column.sortKey)}>{column.label}<span className="sortable-column-header__arrows" aria-hidden="true">{sort.key === column.sortKey ? sort.direction === "asc" ? "↑" : "↓" : "↕"}</span></button></th>)}</tr></thead>
+    <thead><tr>{columns.map((column) => <th key={column.key}>{column.sortKey
+      ? <button className="sortable-column-header" type="button" onClick={() => onSort(column.sortKey)}>{column.label}<span className="sortable-column-header__arrows" aria-hidden="true">{sort.key === column.sortKey ? sort.direction === "asc" ? "↑" : "↓" : "↕"}</span></button>
+      : column.label}</th>)}</tr></thead>
     <tbody>{items.map((item) => <tr key={`${item.projectKey}-${item.workItemTypeKey}-${item.workItemId}`}>{columns.map((column) => <td key={column.key}><SprintWorkitemCell columnKey={column.key} item={item} /></td>)}</tr>)}</tbody>
   </table></div>;
 }
