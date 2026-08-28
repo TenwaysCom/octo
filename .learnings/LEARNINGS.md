@@ -350,3 +350,15 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - **Context:** Meegle Sprint status labels and workitem completion can disagree with whether a dated Sprint is past, current, or upcoming.
 - **Rule:** Derive Sprint calendar lifecycle only from normalized start/end dates with inclusive boundary days. Do not infer Current from platform status or workitem progress when the date interval is incomplete; show an explicit unknown state, and default expansion only to a date-derived Current Sprint.
 - **Verified outcome:** Pure FE tests cover past, both inclusive Current boundaries, upcoming, incomplete/reversed dates, and Current default selection; all 72 FE tests and the production build pass.
+
+## [LRN-20260827-009] meegle-sprint-stable-relation-boundary
+
+- **Context:** Sprint history needed reliable grouping and lifecycle timestamps, but Sprint names are mutable and operation records are not required for the accepted historical approximation.
+- **Rule:** Persist the platform Sprint ID separately from its display name and use project plus Sprint ID as the analytical identity. Historical cleaning is a replaceable projection from persisted PostgreSQL facts and must overwrite stale lifecycle values, including with `null`; incremental sync is a phase-aware merge that preserves the earliest known start, clears finish on reopen, and clears both timestamps on New. Missing persisted evidence must not trigger operation-record, all-nodes, or other API backfills. Keep `item_cycle_tag` derived instead of storing it.
+- **Verified outcome:** Relation extraction, PG-only lifecycle projection, phase-aware incremental transitions, stable-ID FE grouping, 576 Server tests, 73 FE tests, and both builds pass; the target PostgreSQL historical clean remains a separate unexecuted step.
+
+## [LRN-20260827-010] meegle-sprint-membership-interval-boundary
+
+- **Context:** A single current Sprint projection could calculate current add/start/finish values, but an A to B change overwrote A and made Carryover or historical charts impossible to reproduce.
+- **Rule:** Model each continuous Sprint membership as an immutable interval. Incremental sync must close the current interval before opening a new one, update only the open interval for same-Sprint status changes, clamp a new interval's lifecycle times to its observed `added_at`, and write the interval plus compatibility snapshot in one PostgreSQL transaction. A lazily inferred existing interval stays `historical_inferred`; later observations must not upgrade its source.
+- **Verified outcome:** Pure transition and pg-mem store tests cover first observation, inferred current state, A to B, explicit removal, completion, reopen, New, and same-Sprint re-entry; Server full tests and TypeScript build pass without adding platform requests.

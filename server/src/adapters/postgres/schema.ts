@@ -143,13 +143,13 @@ export interface DatabaseSchema {
     status: string | null;
     sub_stage_key: string | null;
     sub_stage: string | null;
+    sprint_id: string | null;
     sprint: string | null;
     version: string | null;
     system: string | null;
     bugs_json: string | null;
     assignee: string | null;
     priority: string | null;
-    item_cycle_tag: string | null;
     add_to_cycle_time: string | null;
     item_start_time: string | null;
     item_finish_time: string | null;
@@ -158,6 +158,19 @@ export interface DatabaseSchema {
     synced_at: string;
     last_seen_at: Generated<string | null>;
     stale: Generated<boolean>;
+  };
+  meegle_workitem_sprint_memberships: {
+    project_key: string;
+    work_item_type_key: string;
+    work_item_id: string;
+    sprint_id: string;
+    added_at: string;
+    started_at: string | null;
+    finished_at: string | null;
+    removed_at: string | null;
+    source: "historical_inferred" | "incremental_observed";
+    created_at: string;
+    updated_at: string;
   };
   meegle_sync_mappings: {
     project_key: string;

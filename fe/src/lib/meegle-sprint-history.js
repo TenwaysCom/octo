@@ -1,5 +1,6 @@
 const COMPLETED_STATUS_MARKERS = ["done", "ended", "fixed", "launched", "completed", "finished"];
 const NOT_STARTED_STATUS_MARKERS = ["new", "start", "to start", "feature draft", "planned", "backlog"];
+const SPRINT_LIFECYCLE_ORDER = ["current", "upcoming", "past", "unknown"];
 
 function normalizeText(value) {
   return typeof value === "string" ? value.trim() : "";
@@ -68,7 +69,22 @@ export function getMeegleSprintLifecycle(sprint, now = new Date()) {
 }
 
 export function getDefaultOpenMeegleSprint(sprints) {
-  return (sprints || []).find((sprint) => sprint.lifecycle === "current")?.name;
+  const sprint = (sprints || []).find((candidate) => candidate.lifecycle === "current");
+  return sprint ? sprint.identity || sprint.sprintId || sprint.name : undefined;
+}
+
+export function filterMeegleSprintHistory(sprints, selectedLifecycles) {
+  const selected = selectedLifecycles || [];
+  if (!selected.length) return [...(sprints || [])];
+  return (sprints || []).filter((sprint) => selected.includes(sprint.lifecycle));
+}
+
+export function groupMeegleSprintHistory(sprints, groupBy = "date") {
+  const visibleSprints = [...(sprints || [])];
+  if (groupBy !== "lifecycle") return [{ key: "timeline", sprints: visibleSprints }];
+  return SPRINT_LIFECYCLE_ORDER
+    .map((lifecycle) => ({ key: lifecycle, sprints: visibleSprints.filter((sprint) => sprint.lifecycle === lifecycle) }))
+    .filter((group) => group.sprints.length > 0);
 }
 
 export function summarizeMeegleSprint(name, items, metadata, now = new Date()) {
@@ -153,26 +169,49 @@ function startOfUtcDay(value) {
 }
 
 export function buildMeegleSprintHistory(items, sprintDetails = [], now = new Date()) {
-  const grouped = new Map();
-  for (const item of items || []) {
-    const sprint = normalizeText(item.sprint);
-    if (!sprint) continue;
-    const sprintItems = grouped.get(sprint) || [];
-    sprintItems.push(item);
-    grouped.set(sprint, sprintItems);
-  }
+  const metadataById = new Map();
   const metadataByName = new Map();
   for (const sprint of sprintDetails || []) {
     const name = normalizeText(sprint?.name);
     if (!name) continue;
-    const current = metadataByName.get(name);
+    const idKey = getSprintIdKey(sprint.projectKey, sprint.sprintId);
+    const nameKey = getSprintNameKey(sprint.projectKey, name);
+    const current = metadataById.get(idKey);
     if (!current || Date.parse(sprint.sourceUpdatedAt || sprint.syncedAt || "") > Date.parse(current.sourceUpdatedAt || current.syncedAt || "")) {
-      metadataByName.set(name, sprint);
+      metadataById.set(idKey, sprint);
+      metadataByName.set(nameKey, sprint);
     }
   }
-  const names = new Set([...grouped.keys(), ...metadataByName.keys()]);
-  return [...names]
-    .map((name) => summarizeMeegleSprint(name, grouped.get(name) || [], metadataByName.get(name), now))
+  const grouped = new Map();
+  for (const item of items || []) {
+    const name = normalizeText(item.sprint);
+    if (!name) continue;
+    const projectKey = normalizeText(item.projectKey);
+    const sprintId = normalizeText(item.sprintId);
+    const metadata = sprintId
+      ? metadataById.get(getSprintIdKey(projectKey, sprintId))
+      : metadataByName.get(getSprintNameKey(projectKey, name));
+    const identity = sprintId || metadata?.sprintId
+      ? getSprintIdKey(projectKey, sprintId || metadata.sprintId)
+      : getSprintNameKey(projectKey, name);
+    const sprintItems = grouped.get(identity) || [];
+    sprintItems.push(item);
+    grouped.set(identity, sprintItems);
+  }
+  const identities = new Set([...grouped.keys(), ...metadataById.keys()]);
+  return [...identities]
+    .map((identity) => {
+      const sprintItems = grouped.get(identity) || [];
+      const metadata = metadataById.get(identity);
+      const first = sprintItems[0];
+      const name = normalizeText(metadata?.name || first?.sprint);
+      const fallbackMetadata = metadata || (first?.sprintId ? {
+        projectKey: first.projectKey,
+        sprintId: first.sprintId,
+        name,
+      } : undefined);
+      return { ...summarizeMeegleSprint(name, sprintItems, fallbackMetadata, now), identity };
+    })
     .sort((left, right) => {
       const startComparison = compareTimestampDesc(left.startAt, right.startAt);
       if (startComparison !== 0) return startComparison;
@@ -180,6 +219,14 @@ export function buildMeegleSprintHistory(items, sprintDetails = [], now = new Da
       if (activityComparison !== 0) return activityComparison;
       return right.name.localeCompare(left.name, "zh-CN", { numeric: true });
     });
+}
+
+function getSprintIdKey(projectKey, sprintId) {
+  return `id:${normalizeText(projectKey)}:${normalizeText(sprintId)}`;
+}
+
+function getSprintNameKey(projectKey, sprintName) {
+  return `name:${normalizeText(projectKey)}:${normalizeText(sprintName)}`;
 }
 
 export function filterMeegleSprintItems(items, selectedLabels) {

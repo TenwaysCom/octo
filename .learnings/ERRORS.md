@@ -391,3 +391,33 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Symptom:** A read-only configuration search stopped with `zsh: no matches found: .env*`.
 - **Root cause:** zsh rejected an unmatched path glob before `rg` could run.
 - **Verified fix:** Search explicit directories with `rg --hidden` and exclusion globs instead of passing an optional shell glob.
+
+### ERR-20260827-014 — Incremental observation assertion landed in the bulk-sync test
+
+- **Symptom:** A focused service test expected `sprintObservedAt` during historical bulk sync and failed with `undefined`.
+- **Root cause:** A context-light patch matched the first identical `expect(store.meegle).toHaveLength(1)` assertion instead of the incremental-sync test block.
+- **Verified fix:** Move the assertion under the incremental-sync request and keep bulk sync free to use the historical add-time approximation.
+
+### ERR-20260827-015 — Historical overwrite semantics were reused for incremental lifecycle updates
+
+- **Symptom:** Directly writing each observed lifecycle could replace the original start with a later activity node, while preserving old values on `null` would prevent historical cleaning from clearing incorrect data.
+- **Root cause:** Historical replay and incremental observation were treated as one update operation even though one must overwrite the projection and the other must merge state transitions.
+- **Verified fix:** Keep historical cleaning as a full overwrite, add phase-aware incremental merging, and cover earliest start, missing evidence, finish, reopen, New, and zero external-client calls in tests.
+
+### ERR-20260827-016 — Parameterized fallback text broke a grouped PostgreSQL diagnostic
+
+- **Symptom:** A read-only aggregate query failed first because separate parameters in `SELECT` and `GROUP BY` were not the same expression, then a shell-quoted SQL fallback was parsed as a column name.
+- **Root cause:** The diagnostic mixed parameterized fallback text with a repeated grouped expression and then tried to repair it inside a shell single-quoted inline script.
+- **Verified fix:** Remove the unnecessary fallback from the grouping and group directly by nullable `status`; the corrected read-only query completed without writes.
+
+### ERR-20260827-017 — Membership insert union lost the `removedAt` type
+
+- **Symptom:** Server TypeScript build rejected the Sprint membership insert because checking `"removedAt" in membership` narrowed the property to `unknown` after open and closed records were combined in one array.
+- **Root cause:** The two mutation variants were passed directly to the Kysely value expression without first normalizing their discriminating field.
+- **Verified fix:** Normalize both variants to a common `{ removedAt: string | null }` shape before inserting; the subsequent Server build passed.
+
+### ERR-20260827-018 — Null lifecycle values fell back across Sprint boundaries
+
+- **Symptom:** During final diff review, a new Sprint membership with `startedAt=null` or `finishedAt=null` would have used `??` and fallen back to the previous current-snapshot value, leaking Sprint A lifecycle times into Sprint B.
+- **Root cause:** Null was treated as missing data even though it is an intentional state transition result for a new or reopened membership.
+- **Verified fix:** When a current membership projection exists, copy its lifecycle values including intentional nulls; fall back to the legacy current projection only when no membership projection exists. Within a still-Finished interval, treat a missing new finish timestamp as absent evidence and preserve the earlier known finish. Regression assertions cover both B returning to New and a repeated Finished observation without a new finish timestamp.

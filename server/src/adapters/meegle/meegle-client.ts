@@ -584,6 +584,12 @@ function stringOrUndefined(value: unknown): string | undefined {
   return typeof value === "string" || typeof value === "number" ? String(value) : undefined;
 }
 
+function recordOrUndefined(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : undefined;
+}
+
 // ==================== MeegleClient Class ====================
 // Based on project-oapi-sdk-golang/client.go pattern
 

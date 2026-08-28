@@ -35,7 +35,8 @@ update_required_when:
 | `WorkitemMapping` | Server workflow config | `server/src/modules/lark-base/lark-base-workflow.service.ts`, `server/src/modules/lark-base/lark-base-workflow-config.ts` | 支持 env/config 映射；仍有 hardcoded fallback |
 | `ExecutionDraft` | Server workflow | `server/src/validators/agent-output/execution-draft.ts`, `server/src/modules/lark-base/lark-base-workflow.service.ts` | Lark record 到 Meegle create 的中间对象 |
 | `MeegleWorkitem` | Meegle platform, adapter wraps | `server/src/adapters/meegle/meegle-client.ts`, `server/src/application/services/meegle-workitem.service.ts` | create/update 已封装；字段可写性主要靠失败后重试 |
-| `MeegleWorkitemLifecycleSnapshot` | Server projection / PostgreSQL | `server/src/application/services/meegle-workitem-lifecycle.ts`, `server/src/adapters/postgres/platform-sync-store.ts`, `fe/src/lib/meegle-sprint-history.js` | 从 operation records 投影当前 Sprint 的 add/start/finish 时间；供 Sprint 历史和详情按日统计 |
+| `MeegleWorkitemLifecycleSnapshot` | Server projection / PostgreSQL | `server/src/application/services/meegle-workitem-lifecycle.ts`, `server/src/adapters/postgres/platform-sync-store.ts` | 保存工作项当前 Sprint 和兼容用 add/start/finish 投影；增量同步按阶段合并当前值 |
+| `MeegleWorkitemSprintMembership` | Server domain / PostgreSQL | `server/src/domain/meegle-sprint-membership.ts`, `server/src/adapters/postgres/platform-sync-store.ts` | 每段连续 Sprint 归属一条记录；增量同步原子关闭旧区间、创建或更新当前区间，并保留推定/观察来源 |
 | `MeegleFieldMetadata` | Should be server metadata resolver | `server/src/adapters/meegle/meegle-client.ts` | adapter 有 `getFields`/`getWorkitemMeta`，但 workflow 未集中使用 |
 | `LarkWriteback` | Server workflow / Lark adapter | `server/src/modules/lark-base/lark-base.service.ts`, `server/src/modules/lark-base/lark-base-workflow.service.ts` | Meegle link 回写到 Lark Base |
 | `MeegleLarkPushAction` | Server workflow | `server/src/application/services/meegle-lark-push.service.ts` | 从 Meegle 读 Lark 字段，更新 Lark Base、发消息、回写 Meegle 状态 |
@@ -54,7 +55,7 @@ update_required_when:
 | 层级 | 技术对象 | 层级职责 | 不应负责 |
 | --- | --- | --- | --- |
 | `extension` | `PopupPageContext`, popup state, visible action button, auth trigger state, content-script identity probe, tab-scoped cached `masterUserId` | 采集页面上下文、渲染 UI、触发授权、派发 action、展示结果 | 业务 workflow、平台字段规则、跨平台 mapping、真实 token 持久化 |
-| `server` | `ExtensionPageConfig`, `AutomationActionConfig`, `ResolvedUser`, `ExecutionDraft`, `WorkitemMapping`, `WorkflowPrompt`, workflow request/result, `ActionRunTrace`, semantic field mapping, ACP one-shot limiter | action catalog、身份解析、授权检查、业务编排、workflow prompt、错误归一化、测试契约、一次性 ACP 任务控制 | 浏览器 DOM 细节、平台原始字段 shape、直接依赖 extension UI 状态 |
+| `server` | `ExtensionPageConfig`, `AutomationActionConfig`, `ResolvedUser`, `ExecutionDraft`, `WorkitemMapping`, `WorkflowPrompt`, `MeegleWorkitemSprintMembership`, workflow request/result, `ActionRunTrace`, semantic field mapping, ACP one-shot limiter | action catalog、身份解析、授权检查、业务编排、Sprint 归属转换、workflow prompt、错误归一化、测试契约、一次性 ACP 任务控制 | 浏览器 DOM 细节、平台原始字段 shape、直接依赖 extension UI 状态 |
 | `adapter` | `MeegleClient` request/response, `LarkClient` request/response, `GitHubClient` request/response, token refresh wrapper, normalized platform error | 第三方 API 封装、请求/响应归一化、平台错误转换、安全日志摘要 | PM 业务决策、popup 行为、跨平台 workflow 编排 |
 | `platform` | Lark Base record, Lark message/thread/reaction, Meegle workitem, Meegle field metadata, Meegle auth code, GitHub PR/repo/branch | 外部真实状态、权限限制、字段限制、状态机限制、平台返回错误 | Octo 内部业务语义和错误契约 |
 
@@ -74,7 +75,8 @@ update_required_when:
 | `WorkitemMapping` | `server` | config/env may provide mapping source | Lark issue type -> server mapping -> `ExecutionDraft` target | adapter 或 extension 决定 workitem type/template |
 | `ExecutionDraft` | `server` | adapter consumes converted payload | Lark record -> draft -> Meegle apply -> workitem create | draft 长期承载平台动态 `field_*` 作为业务语义 |
 | `MeegleWorkitem` | `platform` | `adapter` normalizes, `server` reads/writes by workflow | Meegle API -> adapter workitem -> workflow decision/update | extension 直接读写 Meegle workitem 业务字段 |
-| `MeegleWorkitemLifecycleSnapshot` | `server` | PostgreSQL stores scalar projection, FE aggregates by day | Meegle operation records -> adapter normalization -> server lifecycle projection -> API -> Sprint chart | FE 猜测 `updatedAt` 为 add/start/finish，或在 UI 散落 Sprint `field_*` |
+| `MeegleWorkitemLifecycleSnapshot` | `server` | PostgreSQL stores stable Sprint relation and scalar lifecycle projection, FE aggregates by day | persisted workitem payload + persisted Sprint snapshot -> server lifecycle projection -> API -> Sprint chart | 历史清洗请求 operation records/all nodes、FE 猜测 `updatedAt` 为生命周期时间，或按可变 Sprint 名称关联 |
+| `MeegleWorkitemSprintMembership` | `server` | PostgreSQL stores one row per continuous Sprint membership | incremental workitem detail + current snapshot -> domain transition -> transactional close/update/create | 用新 Sprint 状态改写已关闭区间、把推定关系升级为观察关系，或以 Sprint 名称作为身份 |
 | `MeegleFieldMetadata` | `platform` | `adapter` fetches, `server` resolver turns into semantic field map | platform metadata -> adapter raw response -> server resolver -> validated payload | workflow/popup 散落硬编码 `field_*` |
 | `LarkWriteback` | `server` workflow | `adapter` sends Lark update request | workflow result -> Lark adapter update -> platform record state | Meegle adapter 或 extension 直接决定 Lark Base 回写规则 |
 | `MeegleLarkPushAction` | `server` | `extension` triggers, adapters execute platform calls | Meegle page action -> server workflow -> Lark/Meegle adapters -> result flags | popup 自行编排 Lark update/message/reaction |
@@ -417,8 +419,10 @@ ExecutionDraft
 - Workflows should not hardcode `field_*`.
 - Adapter should normalize field access shape.
 - Metadata resolver should validate create/update payload before platform request.
-- Sprint lifecycle timing must come from operation records: cycle-field assignment, status transitions, and work-item creation fallback; `updatedAt` is not a lifecycle timestamp.
-- Persist only the current-cycle projection (`item_cycle_tag`, `add_to_cycle_time`, `item_start_time`, `item_finish_time`); mirrored status records must be deduplicated before projection.
+- Persist the Sprint relation as stable `sprint_id` plus display-only `sprint` name. Do not use the mutable name as the join identity.
+- Historical lifecycle cleaning is PostgreSQL-only: use persisted workitem fields/current or embedded nodes plus persisted Sprint snapshots, never operation records or an extra workflow-node request. Missing evidence stays null. Incremental sync uses only the workitem detail already fetched, preserves the earliest known start across active-node changes, clears finish when reopened, and clears both times when returned to New. `updatedAt` is not a lifecycle timestamp.
+- Keep the current Sprint relation and lifecycle facts (`sprint_id`, `sprint`, `add_to_cycle_time`, `item_start_time`, `item_finish_time`) as the compatibility snapshot. In addition, persist one `MeegleWorkitemSprintMembership` row per continuous Sprint interval, identified by stable `sprint_id`; close the old interval before opening a new one in the same PostgreSQL transaction. Historical inference stays `historical_inferred`, while genuinely new incremental intervals use `incremental_observed`.
+- `item_cycle_tag` and Carryover remain derived classifications and are not stored.
 
 ## 10. Meegle Story 研发Review 生命周期
 

@@ -1,7 +1,7 @@
 import { GitHubClient } from "../../adapters/github/github-client.js";
 import type { GitHubPrDetails } from "../../adapters/github/github-types.js";
 import type { LarkBitableRecord, LarkClient } from "../../adapters/lark/lark-client.js";
-import type { MeegleClient, MeegleSyncMapping, MeegleWorkitem, MeegleWorkitemOperationRecord } from "../../adapters/meegle/meegle-client.js";
+import type { MeegleClient, MeegleSyncMapping, MeegleWorkitem } from "../../adapters/meegle/meegle-client.js";
 import {
   PostgresPlatformSyncStore,
   type PlatformSyncStore,
@@ -12,14 +12,14 @@ import {
 } from "../../adapters/postgres/platform-sync-store.js";
 import { getResolvedUserStore, type ResolvedUserStore } from "../../adapters/postgres/resolved-user-store.js";
 import { createMeegleClient } from "./meegle-client.factory.js";
-import { extractMeegleCleaningRelations, extractMeegleSprintTag, getMeegleCleaningFieldKeys } from "./meegle-cleaning.config.js";
-import { buildMeegleWorkitemLifecycle, type MeegleWorkitemLifecycle } from "./meegle-workitem-lifecycle.js";
+import { extractMeegleCleaningRelations, extractMeegleSprintRelation, getMeegleCleaningFieldKeys } from "./meegle-cleaning.config.js";
+import { buildMeegleWorkitemLifecycle, getMeegleWorkitemLifecycleFieldKeys, type MeegleWorkitemLifecycle } from "./meegle-workitem-lifecycle.js";
 import { buildGitHubPrCleaningProjection } from "./github-pr-cleaning.js";
 import { buildLarkTicketCleaningProjection } from "./lark-ticket-cleaning.js";
 import { buildAuthenticatedLarkClient } from "./lark-auth-client.factory.js";
 import { logger } from "../../logger.js";
 import { isMeegleProductionBugType, isMeegleSprintType } from "../../domain/meegle-workitem-types.js";
-import { getMeegleSprintDetailFieldKeys } from "./meegle-sprint-snapshot.js";
+import { buildMeegleSprintSnapshot, getMeegleSprintDetailFieldKeys } from "./meegle-sprint-snapshot.js";
 import type {
   BulkSyncGitHubPullRequestsRequest,
   BulkSyncLarkBaseTicketsRequest,
@@ -51,7 +51,6 @@ type MeegleSyncClient = Omit<Pick<MeegleClient, "getWorkitemDetails" | "filterWo
     fieldKeys?: string[],
   ) => Promise<MeegleWorkitem[]>;
   getSyncMappings?: (projectKey: string, workitemTypeKeys: string[]) => Promise<MeegleSyncMapping[]>;
-  listWorkitemOperationRecords?: (projectKey: string, workitemIds: string[]) => Promise<MeegleWorkitemOperationRecord[]>;
 };
 
 export interface PlatformSyncServiceDeps {
@@ -83,6 +82,7 @@ export class PlatformSyncService {
       [request.workItemId],
       [...new Set([
         ...getMeegleCleaningFieldKeys(request.workItemTypeKey),
+        ...getMeegleWorkitemLifecycleFieldKeys(request.workItemTypeKey),
         ...getMeegleSprintDetailFieldKeys(request.workItemTypeKey),
       ])],
     );
@@ -100,11 +100,12 @@ export class PlatformSyncService {
     await this.syncStore.upsertMeegleMappings(mappings);
     const mappingIndex = new Map(mappings.map((mapping) => [mappingKey(mapping), mapping.displayValue]));
     const mappedWorkitem = applyMeegleMappings(workitem, mappingIndex);
-    const lifecycleByRef = await this.getMeegleLifecycleByRef(client, request.projectKey, [mappedWorkitem], mappings);
+    const lifecycleByRef = await this.getMeegleLifecycleByRef(request.projectKey, [mappedWorkitem]);
     await this.syncStore.upsertMeegleWorkitem({
       projectKey: request.projectKey,
       workItemTypeKey: request.workItemTypeKey,
       workitem: mappedWorkitem,
+      sprintRelation: extractMeegleSprintRelation(mappedWorkitem),
       lifecycle: lifecycleByRef.get(meegleWorkitemRef(mappedWorkitem)),
     });
     return this.withOptionalMeegleCleaning(
@@ -135,7 +136,7 @@ export class PlatformSyncService {
     await this.syncStore.upsertMeegleMappings(mappings);
     const mappingIndex = new Map(mappings.map((mapping) => [mappingKey(mapping), mapping.displayValue]));
     const mappedDetailed = detailed.map((workitem) => applyMeegleMappings(workitem, mappingIndex));
-    const lifecycleByRef = await this.getMeegleLifecycleByRef(client, request.projectKey, mappedDetailed, mappings);
+    const lifecycleByRef = await this.getMeegleLifecycleByRef(request.projectKey, mappedDetailed);
     let synced = 0;
     const syncedRefs: MeegleWorkitemSyncRef[] = [];
 
@@ -144,6 +145,7 @@ export class PlatformSyncService {
         projectKey: request.projectKey,
         workItemTypeKey: workitem.type,
         workitem,
+        sprintRelation: extractMeegleSprintRelation(workitem),
         lifecycle: lifecycleByRef.get(meegleWorkitemRef(workitem)),
       });
       synced++;
@@ -194,13 +196,16 @@ export class PlatformSyncService {
     await this.syncStore.upsertMeegleMappings(mappings);
     const mappingIndex = new Map(mappings.map((mapping) => [mappingKey(mapping), mapping.displayValue]));
     const mappedChanged = changed.map((workitem) => applyMeegleMappings(workitem, mappingIndex));
-    const lifecycleByRef = await this.getMeegleLifecycleByRef(client, input.projectKey, mappedChanged, mappings);
+    const lifecycleByRef = await this.getMeegleLifecycleByRef(input.projectKey, mappedChanged);
+    const sprintObservedAt = new Date().toISOString();
     const syncedRefs: MeegleWorkitemSyncRef[] = [];
     for (const item of mappedChanged) {
       await this.syncStore.upsertMeegleWorkitem({
         projectKey: input.projectKey,
         workItemTypeKey: item.type,
         workitem: item,
+        sprintRelation: extractMeegleSprintRelation(item),
+        sprintObservedAt,
         lifecycle: lifecycleByRef.get(meegleWorkitemRef(item)),
       });
       syncedRefs.push({ projectKey: input.projectKey, workItemTypeKey: item.type, workItemId: item.id });
@@ -470,15 +475,25 @@ export class PlatformSyncService {
 
   async cleanMeegleWorkitems(refs: MeegleWorkitemSyncRef[]): Promise<number> {
     const snapshots = await this.syncStore.getMeegleWorkitemsForCleaning(refs);
+    const sprintStarts = await this.getMeegleSprintStartsById();
     return this.cleanSnapshots("meegle", snapshots, (snapshot) => (
       `${snapshot.projectKey}/${snapshot.workItemTypeKey}/${snapshot.workItemId}`
     ), async (snapshot) => {
       const relations = snapshot.sourcePayload ? extractMeegleCleaningRelations(snapshot.sourcePayload) : {};
+      const sprintRelation = snapshot.sourcePayload ? extractMeegleSprintRelation(snapshot.sourcePayload) : undefined;
+      const lifecycle = snapshot.sourcePayload ? buildMeegleWorkitemLifecycle({
+        workitem: snapshot.sourcePayload,
+        sprintStartAt: sprintRelation?.sprintId
+          ? sprintStarts.get(meegleSprintRef(snapshot.projectKey, sprintRelation.sprintId))
+          : undefined,
+      }) : undefined;
       return this.syncStore.applyMeegleWorkitemCleaning({
         projectKey: snapshot.projectKey,
         workItemTypeKey: snapshot.workItemTypeKey,
         workItemId: snapshot.workItemId,
-        sprint: typeof relations.sprint === "string" ? relations.sprint : snapshot.sprint,
+        sprintRelation,
+        lifecycle,
+        observedAt: snapshot.syncedAt,
         version: typeof relations.version === "string" ? relations.version : snapshot.version,
         system: typeof relations.system === "string" ? relations.system : snapshot.system,
         bugs: Array.isArray(relations.bugs) ? relations.bugs : snapshot.bugs ?? [],
@@ -610,6 +625,7 @@ export class PlatformSyncService {
           workitemIdChunk,
           [...new Set([
             ...getMeegleCleaningFieldKeys(workItemTypeKey),
+            ...getMeegleWorkitemLifecycleFieldKeys(workItemTypeKey),
             ...getMeegleSprintDetailFieldKeys(workItemTypeKey),
           ])],
         );
@@ -630,33 +646,46 @@ export class PlatformSyncService {
   }
 
   private async getMeegleLifecycleByRef(
-    client: MeegleSyncClient,
     projectKey: string,
     workitems: MeegleWorkitem[],
-    mappings: MeegleSyncMapping[],
   ): Promise<Map<string, MeegleWorkitemLifecycle>> {
-    const candidates = workitems.filter((workitem) => !isMeegleSprintType(workitem.type) && extractMeegleSprintTag(workitem));
-    if (!client.listWorkitemOperationRecords || candidates.length === 0) return new Map();
-    const records: MeegleWorkitemOperationRecord[] = [];
-    for (const batch of chunk(candidates.map((workitem) => workitem.id), 50)) {
-      records.push(...await client.listWorkitemOperationRecords(projectKey, batch));
-    }
-    const recordsByItemId = new Map<string, MeegleWorkitemOperationRecord[]>();
-    for (const record of records) {
-      const current = recordsByItemId.get(record.workItemId) ?? [];
-      current.push(record);
-      recordsByItemId.set(record.workItemId, current);
-    }
+    const candidates = workitems.filter((workitem) => (
+      !isMeegleSprintType(workitem.type) && extractMeegleSprintRelation(workitem).sprintId
+    ));
+    if (candidates.length === 0) return new Map();
+    const sprintStarts = await this.getMeegleSprintStartsById(projectKey, workitems);
     const result = new Map<string, MeegleWorkitemLifecycle>();
     for (const workitem of candidates) {
-      const statusLabels = new Map(mappings
-        .filter((mapping) => mapping.workItemTypeKey === workitem.type && mapping.kind === "status")
-        .map((mapping) => [mapping.sourceKey, mapping.displayValue]));
+      const sprintId = extractMeegleSprintRelation(workitem).sprintId;
       result.set(meegleWorkitemRef(workitem), buildMeegleWorkitemLifecycle({
         workitem,
-        operationRecords: recordsByItemId.get(workitem.id) ?? [],
-        statusLabels,
+        sprintStartAt: sprintId ? sprintStarts.get(meegleSprintRef(projectKey, sprintId)) : undefined,
       }));
+    }
+    return result;
+  }
+
+  private async getMeegleSprintStartsById(
+    projectKey?: string,
+    workitems: MeegleWorkitem[] = [],
+  ): Promise<Map<string, string>> {
+    const stored = await this.syncStore.listMeegleSprintSnapshots();
+    const candidates = [
+      ...stored,
+      ...workitems.filter((workitem) => isMeegleSprintType(workitem.type)).map((workitem) => ({
+        projectKey: projectKey ?? "",
+        workItemTypeKey: workitem.type,
+        workItemId: workitem.id,
+        title: workitem.name,
+        status: workitem.status,
+        sourcePayload: workitem,
+        syncedAt: new Date().toISOString(),
+      })),
+    ];
+    const result = new Map<string, string>();
+    for (const candidate of candidates) {
+      const sprint = buildMeegleSprintSnapshot(candidate);
+      if (sprint?.startAt) result.set(meegleSprintRef(sprint.projectKey, sprint.sprintId), sprint.startAt);
     }
     return result;
   }
@@ -826,6 +855,10 @@ function mappingKey(mapping: Pick<MeegleSyncMapping, "workItemTypeKey" | "kind" 
 
 function meegleWorkitemRef(workitem: Pick<MeegleWorkitem, "type" | "id">): string {
   return `${workitem.type}\u0000${workitem.id}`;
+}
+
+function meegleSprintRef(projectKey: string, sprintId: string): string {
+  return `${projectKey}\u0000${sprintId}`;
 }
 
 function chunk<T>(items: T[], size: number): T[][] {

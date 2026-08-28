@@ -1,5 +1,11 @@
-import type { MeegleWorkitem, MeegleWorkitemOperationRecord } from "../../adapters/meegle/meegle-client.js";
+import type { MeegleWorkitem } from "../../adapters/meegle/meegle-client.js";
 import { buildMeegleWorkitemLifecycle, classifyMeegleLifecycleStatus } from "./meegle-workitem-lifecycle.js";
+
+const workitemFields = [
+  { key: "field_ecd063", value: [{ id: "cycle-1", name: "Sprint 1" }] },
+  { key: "start_time", value: { iso_time: "2026-08-20T00:00:00Z" } },
+  { key: "finish_time", value: { iso_time: "2026-08-24T08:00:00Z" } },
+];
 
 const workitem: MeegleWorkitem = {
   id: "10",
@@ -7,77 +13,93 @@ const workitem: MeegleWorkitem = {
   name: "Lifecycle",
   type: "66700acbf297a8f821b4b860",
   status: "Done",
-  fields: { work_item_fields: [{ key: "field_ecd063", value: [{ id: "cycle-1", name: "Sprint 1" }] }] },
-};
-
-function record(time: string, statusKey: string, oldStatusKey: string): MeegleWorkitemOperationRecord {
-  return {
-    workItemId: "10",
-    workItemTypeKey: workitem.type,
-    operationType: "modify",
-    operationTime: time,
-    module: "field_mod",
-    recordContents: [{
-      objectType: "field",
-      objectValue: "work_item_status",
-      objectProperty: "workitem_status",
-      oldValues: [oldStatusKey],
-      newValues: [statusKey],
+  fields: {
+    work_item_fields: workitemFields,
+    workflow_nodes: [{
+      basic: { name: "Doing" },
+      schedule: { actual_begin_time: "2026-08-22T08:00:00Z", actual_finish_time: "2026-08-24T07:59:59Z" },
+    }, {
+      basic: { name: "Done" },
+      schedule: { actual_begin_time: "2026-08-24T08:00:00Z", actual_finish_time: "2026-08-24T08:00:00Z" },
+    }, {
+      basic: { name: "To Start" },
+      schedule: { actual_begin_time: "2026-08-20T08:00:00Z", actual_finish_time: "2026-08-22T08:00:00Z" },
     }],
-  };
-}
+  },
+};
 
 describe("Meegle work item lifecycle", () => {
   it("classifies New and successful terminal states without treating Terminated as completed", () => {
     expect(classifyMeegleLifecycleStatus("New")).toBe("new");
     expect(classifyMeegleLifecycleStatus("In Progress")).toBe("started");
     expect(classifyMeegleLifecycleStatus("Done")).toBe("finished");
+    expect(classifyMeegleLifecycleStatus("Launched")).toBe("started");
     expect(classifyMeegleLifecycleStatus("Terminated")).toBe("started");
   });
 
-  it("projects add, start and finish timestamps and deduplicates mirrored status records", () => {
-    const create: MeegleWorkitemOperationRecord = {
-      workItemId: "10", workItemTypeKey: workitem.type, operationType: "create",
-      operationTime: "2026-08-20T08:00:00.000Z", module: "work_item_mod", recordContents: [],
-    };
-    const cycle: MeegleWorkitemOperationRecord = {
-      workItemId: "10", workItemTypeKey: workitem.type, operationType: "modify",
-      operationTime: "2026-08-21T08:00:00.000Z", module: "field_mod",
-      recordContents: [{ objectType: "field", objectValue: "field_ecd063", oldValues: [], newValues: ["cycle-1"] }],
-    };
-    const start = record("2026-08-22T08:00:00.000Z", "doing", "started");
-    const finish = record("2026-08-24T08:00:00.000Z", "done", "doing");
+  it("projects historical times from Sprint dates and nodes already stored in the workitem payload", () => {
     expect(buildMeegleWorkitemLifecycle({
       workitem,
-      operationRecords: [create, cycle, start, { ...start, module: "work_item_mod" }, finish],
-      statusLabels: new Map([["started", "Start"], ["doing", "In Progress"], ["done", "Done"]]),
+      sprintStartAt: "2026-08-21T00:00:00.000Z",
     })).toEqual({
-      itemCycleTag: "cycle-1",
-      addToCycleTime: "2026-08-21T08:00:00.000Z",
+      phase: "finished",
+      addToCycleTime: "2026-08-21T00:00:00.000Z",
       itemStartTime: "2026-08-22T08:00:00.000Z",
       itemFinishTime: "2026-08-24T08:00:00.000Z",
     });
   });
 
-  it("uses creation time when a work item is created with the current cycle", () => {
+  it("uses creation time for an item created after the Sprint started", () => {
     expect(buildMeegleWorkitemLifecycle({
-      workitem: { ...workitem, status: "Start" },
-      operationRecords: [{
-        workItemId: "10", workItemTypeKey: workitem.type, operationType: "create",
-        operationTime: "2026-08-20T08:00:00.000Z", module: "work_item_mod", recordContents: [],
-      }],
-    })).toEqual({ itemCycleTag: "cycle-1", addToCycleTime: "2026-08-20T08:00:00.000Z", itemStartTime: undefined, itemFinishTime: undefined });
+      workitem: { ...workitem, status: "Start", fields: {
+        ...workitem.fields,
+        work_item_current_node: [{ name: "Start" }],
+      } },
+      sprintStartAt: "2026-08-19T00:00:00.000Z",
+    })).toEqual({
+      phase: "new",
+      addToCycleTime: "2026-08-20T00:00:00.000Z",
+      itemStartTime: null,
+      itemFinishTime: null,
+    });
   });
 
-  it("resets finish time when a finished item is reopened", () => {
+  it("uses current-node evidence from the stored payload without fetching all nodes", () => {
     expect(buildMeegleWorkitemLifecycle({
-      workitem: { ...workitem, status: "In Progress" },
-      operationRecords: [
-        record("2026-08-22T08:00:00.000Z", "doing", "started"),
-        record("2026-08-24T08:00:00.000Z", "done", "doing"),
-        record("2026-08-25T08:00:00.000Z", "doing", "done"),
-      ],
-      statusLabels: new Map([["started", "Start"], ["doing", "In Progress"], ["done", "Done"]]),
-    })).toMatchObject({ itemStartTime: "2026-08-25T08:00:00.000Z", itemFinishTime: undefined });
+      workitem: { ...workitem, status: "Launched", subStage: "Go-Live check", fields: {
+        work_item_fields: workitemFields,
+        work_item_current_node: [{
+          name: "Go-Live check",
+          schedule: { actual_begin_time: "2026-08-25T08:00:00Z" },
+        }],
+      } },
+    })).toMatchObject({ itemStartTime: "2026-08-25T08:00:00.000Z", itemFinishTime: null });
+  });
+
+  it("uses a terminal node start when the stored history contains no separate active node", () => {
+    expect(buildMeegleWorkitemLifecycle({
+      workitem: { ...workitem, fields: {
+        work_item_fields: workitemFields.slice(0, 2),
+        work_item_current_node: [{
+          name: "Done",
+          schedule: {
+            actual_begin_time: "2026-08-24T08:00:00Z",
+            actual_finish_time: "2026-08-24T09:00:00Z",
+          },
+        }],
+      } },
+    })).toMatchObject({
+      phase: "finished",
+      itemStartTime: "2026-08-24T08:00:00.000Z",
+      itemFinishTime: "2026-08-24T09:00:00.000Z",
+    });
+  });
+
+  it("leaves lifecycle times empty when the PostgreSQL snapshot has no node or finish evidence", () => {
+    expect(buildMeegleWorkitemLifecycle({
+      workitem: { ...workitem, status: "In Progress", fields: {
+        work_item_fields: workitemFields.slice(0, 2),
+      } },
+    })).toMatchObject({ itemStartTime: null, itemFinishTime: null });
   });
 });

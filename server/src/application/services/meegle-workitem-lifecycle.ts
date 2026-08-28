@@ -1,19 +1,25 @@
-import type { MeegleWorkitem, MeegleWorkitemOperationRecord } from "../../adapters/meegle/meegle-client.js";
-import { extractMeegleSprintTag, getMeegleRelationFieldKey } from "./meegle-cleaning.config.js";
+import type { MeegleWorkitem } from "../../adapters/meegle/meegle-client.js";
+import { isMeegleSprintType } from "../../domain/meegle-workitem-types.js";
+import { normalizeTimestamp } from "../../utils/normalize-timestamp.js";
 
 export interface MeegleWorkitemLifecycle {
-  itemCycleTag?: string;
+  phase: MeegleLifecyclePhase;
   addToCycleTime?: string;
-  itemStartTime?: string;
-  itemFinishTime?: string;
+  itemStartTime?: string | null;
+  itemFinishTime?: string | null;
 }
 
-type LifecyclePhase = "new" | "started" | "finished";
+export type MeegleLifecyclePhase = "new" | "started" | "finished";
 
 const NEW_STATUS_MARKERS = ["new", "start", "to start", "planned", "backlog", "feature draft"];
-const FINISHED_STATUS_MARKERS = ["done", "fixed", "launched", "ended", "finished", "completed"];
+const FINISHED_STATUS_MARKERS = ["done", "fixed", "ended", "finished", "completed"];
+const LIFECYCLE_FIELD_KEYS = ["start_time", "finish_time"];
 
-export function classifyMeegleLifecycleStatus(status: string | undefined): LifecyclePhase {
+export function getMeegleWorkitemLifecycleFieldKeys(workItemTypeKey: string): string[] {
+  return isMeegleSprintType(workItemTypeKey) ? [] : [...LIFECYCLE_FIELD_KEYS];
+}
+
+export function classifyMeegleLifecycleStatus(status: string | undefined): MeegleLifecyclePhase {
   const value = status?.trim().toLocaleLowerCase() ?? "";
   if (FINISHED_STATUS_MARKERS.includes(value)) return "finished";
   if (!value || NEW_STATUS_MARKERS.includes(value)) return "new";
@@ -22,72 +28,121 @@ export function classifyMeegleLifecycleStatus(status: string | undefined): Lifec
 
 export function buildMeegleWorkitemLifecycle(input: {
   workitem: MeegleWorkitem;
-  operationRecords: MeegleWorkitemOperationRecord[];
-  statusLabels?: Map<string, string>;
+  sprintStartAt?: string;
 }): MeegleWorkitemLifecycle {
-  const itemCycleTag = extractMeegleSprintTag(input.workitem);
-  if (!itemCycleTag) return {};
-
-  const records = input.operationRecords
-    .filter((record) => record.workItemId === input.workitem.id)
-    .sort((left, right) => Date.parse(left.operationTime) - Date.parse(right.operationTime));
-  const createdAt = records.find((record) => record.operationType === "create")?.operationTime;
-  const cycleFieldKey = getMeegleRelationFieldKey(input.workitem.type, "sprint");
-  const addToCycleTime = records.flatMap((record) => record.recordContents.map((content) => ({ record, content })))
-    .filter(({ content }) => content.objectValue === cycleFieldKey
-      && content.newValues.includes(itemCycleTag)
-      && !content.oldValues.includes(itemCycleTag))
-    .at(-1)?.record.operationTime ?? createdAt;
-
-  const statusEvents = uniqueStatusEvents(records.flatMap((record) => record.recordContents.flatMap((content) => {
-    const isStatus = content.objectProperty === "workitem_status" || content.objectValue === "work_item_status";
-    const statusKey = isStatus ? content.newValues[0] : undefined;
-    if (!statusKey) return [];
-    return [{
-      time: record.operationTime,
-      oldStatusKey: content.oldValues[0],
-      statusKey,
-    }];
-  })));
-  const statusLabel = (key: string | undefined) => key ? input.statusLabels?.get(key) ?? key : undefined;
-  const initialPhase = statusEvents[0]?.oldStatusKey
-    ? classifyMeegleLifecycleStatus(statusLabel(statusEvents[0].oldStatusKey))
-    : classifyMeegleLifecycleStatus(input.workitem.status);
-  let phase = initialPhase;
-  let itemStartTime = phase === "started" || phase === "finished" ? createdAt : undefined;
-  let itemFinishTime = phase === "finished" ? createdAt : undefined;
-
-  for (const event of statusEvents) {
-    const nextPhase = classifyMeegleLifecycleStatus(statusLabel(event.statusKey));
-    if (nextPhase === "new") {
-      itemStartTime = undefined;
-      itemFinishTime = undefined;
-    } else if (nextPhase === "started") {
-      if (phase !== "started") itemStartTime = event.time;
-      itemFinishTime = undefined;
-    } else {
-      if (!itemStartTime) itemStartTime = event.time;
-      itemFinishTime = event.time;
-    }
-    phase = nextPhase;
-  }
-
-  const currentPhase = classifyMeegleLifecycleStatus(input.workitem.status);
+  const createdAt = extractMeegleWorkitemFieldTime(input.workitem, "start_time");
+  const sprintStartAt = normalizeTimestamp(input.sprintStartAt);
+  const addToCycleTime = latestTimestamp([createdAt, sprintStartAt]);
+  const storedNodes = extractStoredWorkflowNodes(input.workitem);
+  const currentNodes = extractCurrentWorkflowNodes(input.workitem);
+  const currentNodeName = input.workitem.subStage || currentNodes[0]?.name;
+  const storedFinishTime = extractMeegleWorkitemFieldTime(input.workitem, "finish_time");
+  const currentPhase = currentNodeName
+    ? classifyMeegleLifecycleStatus(currentNodeName)
+    : storedFinishTime
+      ? "finished"
+      : classifyMeegleLifecycleStatus(input.workitem.status);
   if (currentPhase === "new") {
-    itemStartTime = undefined;
-    itemFinishTime = undefined;
-  } else if (currentPhase === "started") {
-    itemStartTime ??= statusEvents.at(-1)?.time ?? createdAt;
-    itemFinishTime = undefined;
-  } else {
-    itemStartTime ??= createdAt;
-    itemFinishTime ??= statusEvents.at(-1)?.time ?? createdAt;
+    return { phase: currentPhase, addToCycleTime, itemStartTime: null, itemFinishTime: null };
   }
 
-  return { itemCycleTag, addToCycleTime, itemStartTime, itemFinishTime };
+  const nonNewNodes = storedNodes.filter((node) => classifyMeegleLifecycleStatus(node.name) !== "new");
+  const itemStartTime = earliestTimestamp(nonNewNodes.map((node) => node.actualBeginTime));
+  if (currentPhase === "started") {
+    return { phase: currentPhase, addToCycleTime, itemStartTime: itemStartTime ?? null, itemFinishTime: null };
+  }
+
+  const terminalFinishTime = latestTimestamp(storedNodes
+    .filter((node) => classifyMeegleLifecycleStatus(node.name) === "finished")
+    .map((node) => node.actualFinishTime ?? node.actualBeginTime));
+  return {
+    phase: currentPhase,
+    addToCycleTime,
+    itemStartTime: itemStartTime ?? null,
+    itemFinishTime: storedFinishTime ?? terminalFinishTime ?? null,
+  };
 }
 
-function uniqueStatusEvents<T extends { time: string; statusKey: string }>(events: T[]): T[] {
-  const sorted = events.sort((left, right) => Date.parse(left.time) - Date.parse(right.time));
-  return [...new Map(sorted.map((event) => [`${event.time}\u0000${event.statusKey}`, event])).values()];
+interface StoredWorkflowNode {
+  name: string;
+  actualBeginTime?: string;
+  actualFinishTime?: string;
+}
+
+function extractStoredWorkflowNodes(workitem: MeegleWorkitem): StoredWorkflowNode[] {
+  const container = asRecord(workitem.fields);
+  if (!container) return [];
+  const candidates = [
+    container.workflow_nodes,
+    container.workflowNodes,
+    container.nodes,
+    container.list,
+    container.work_item_current_node,
+  ];
+  return candidates.flatMap((value) => parseStoredWorkflowNodes(value));
+}
+
+function extractCurrentWorkflowNodes(workitem: MeegleWorkitem): StoredWorkflowNode[] {
+  return parseStoredWorkflowNodes(asRecord(workitem.fields)?.work_item_current_node);
+}
+
+function parseStoredWorkflowNodes(value: unknown): StoredWorkflowNode[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((candidate) => {
+    const node = asRecord(candidate);
+    if (!node) return [];
+    const basic = asRecord(node.basic) ?? node;
+    const schedule = asRecord(node.schedule) ?? node;
+    const name = stringValue(basic.name ?? node.name);
+    if (!name) return [];
+    const actualBeginTime = normalizeTimestamp(schedule.actual_begin_time ?? schedule.actualBeginTime);
+    const actualFinishTime = normalizeTimestamp(schedule.actual_finish_time ?? schedule.actualFinishTime);
+    return [{
+      name,
+      ...(actualBeginTime ? { actualBeginTime } : {}),
+      ...(actualFinishTime ? { actualFinishTime } : {}),
+    }];
+  });
+}
+
+export function extractMeegleWorkitemFieldTime(
+  workitem: MeegleWorkitem,
+  fieldKey: "start_time" | "finish_time",
+): string | undefined {
+  const container = asRecord(workitem.fields);
+  const rawFields = container?.work_item_fields ?? container?.fields;
+  const fields = Array.isArray(rawFields) ? rawFields.map(asRecord).filter(isRecord) : [];
+  const field = fields.find((candidate) => stringValue(candidate.key ?? candidate.field_key) === fieldKey);
+  const value = field?.value ?? field?.field_value;
+  const record = asRecord(value);
+  const normalized = normalizeTimestamp(record?.iso_time ?? record?.timestamp ?? record?.time ?? value);
+  if (normalized) return normalized;
+
+  if (fieldKey === "start_time") {
+    const attributes = asRecord(container?.work_item_attribute);
+    return normalizeTimestamp(attributes?.create_time ?? attributes?.created_at ?? container?.created_at);
+  }
+  return undefined;
+}
+
+function earliestTimestamp(values: Array<string | undefined>): string | undefined {
+  const normalized = values.map(normalizeTimestamp).filter((value): value is string => value !== undefined);
+  return normalized.length ? normalized.sort()[0] : undefined;
+}
+
+function latestTimestamp(values: Array<string | undefined>): string | undefined {
+  const normalized = values.map(normalizeTimestamp).filter((value): value is string => value !== undefined);
+  return normalized.length ? normalized.sort().at(-1) : undefined;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : undefined;
+}
+
+function isRecord(value: Record<string, unknown> | undefined): value is Record<string, unknown> {
+  return value !== undefined;
+}
+
+function stringValue(value: unknown): string {
+  return typeof value === "string" || typeof value === "number" ? String(value) : "";
 }

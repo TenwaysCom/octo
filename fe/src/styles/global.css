@@ -832,6 +832,16 @@ h1 {
 
 .sprint-history-page .list-page__header { margin-bottom: 24px; }
 .sprint-history-page .list-page__header h1 { font-size: clamp(27px, 2.3vw, 34px); }
+.sprint-history-filter-panel__values { display: grid; gap: 2px; padding: 6px; }
+.sprint-history-filter-panel__values label { display: grid; min-height: 36px; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 9px; padding: 5px 8px; border-radius: 7px; color: var(--octo-text); cursor: pointer; font-size: 13px; }
+.sprint-history-filter-panel__values label:hover { background: var(--octo-surface-muted); }
+.sprint-history-filter-panel__values input { width: 15px; height: 15px; margin: 0; accent-color: var(--octo-brand); }
+.sprint-history-filter-panel__values small { color: var(--octo-text-muted); font-size: 11px; }
+.sprint-history-group-panel .list-view-config-section { padding-bottom: 14px; }
+.sprint-history-groups--grouped { display: grid; gap: 26px; }
+.sprint-history-group__header { display: flex; min-height: 38px; align-items: center; gap: 9px; margin-left: 92px; padding: 8px 12px; border-radius: 8px 8px 0 0; color: var(--octo-text); background: var(--octo-surface-muted); }
+.sprint-history-group__header strong { font-size: 13px; }
+.sprint-history-group__header span { color: var(--octo-text-muted); font-size: 11px; }
 .sprint-history-list { position: relative; display: grid; padding-left: 92px; }
 .sprint-history-list::before { position: absolute; top: 0; bottom: 0; left: 67px; width: 1px; background: var(--octo-border); content: ""; }
 .sprint-history-row { position: relative; min-width: 0; border-bottom: 1px solid var(--octo-border); }
@@ -970,6 +980,7 @@ h1 {
   .ticket-ai-session-create button { align-self: flex-end; }
   .ticket-ai-drawer { width: 100%; }
   .sprint-history-list { padding-left: 0; }
+  .sprint-history-group__header { margin-left: 0; }
   .sprint-history-list::before, .sprint-history-row__date { display: none; }
   .sprint-history-row__content { grid-template-columns: 30px minmax(0, 1fr) auto; gap: 9px; }
   .sprint-history-row__metric { display: none; }

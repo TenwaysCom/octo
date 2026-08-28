@@ -10,6 +10,7 @@ import {
   type LarkTicketAiData,
   type LarkTicketAiFields,
 } from "../../domain/lark-ticket-ai.js";
+import { projectMeegleSprintMembershipTransition } from "../../domain/meegle-sprint-membership.js";
 import { MEEGLE_SPRINT_API_NAME, MEEGLE_SPRINT_WORKITEM_TYPE_KEY } from "../../domain/meegle-workitem-types.js";
 
 const MEEGLE_SPRINT_TYPE_KEYS = [MEEGLE_SPRINT_API_NAME, MEEGLE_SPRINT_WORKITEM_TYPE_KEY];
@@ -19,6 +20,8 @@ export interface PlatformSyncStore {
     projectKey: string;
     workItemTypeKey: string;
     workitem: MeegleWorkitem;
+    sprintRelation?: MeegleSprintRelationFields;
+    sprintObservedAt?: string;
     lifecycle?: MeegleWorkitemLifecycleFields;
   }): Promise<void>;
   upsertMeegleMappings(mappings: MeegleSyncMapping[]): Promise<void>;
@@ -75,13 +78,13 @@ export interface MeegleWorkitemSyncItem {
   status?: string;
   subStageKey?: string;
   subStage?: string;
+  sprintId?: string;
   sprint?: string;
   version?: string;
   system?: string;
   bugs?: string[];
   assignee?: string;
   priority?: string;
-  itemCycleTag?: string;
   addToCycleTime?: string;
   itemStartTime?: string;
   itemFinishTime?: string;
@@ -91,10 +94,16 @@ export interface MeegleWorkitemSyncItem {
 }
 
 export interface MeegleWorkitemLifecycleFields {
-  itemCycleTag?: string;
+  phase?: "new" | "started" | "finished";
   addToCycleTime?: string;
-  itemStartTime?: string;
-  itemFinishTime?: string;
+  itemStartTime?: string | null;
+  itemFinishTime?: string | null;
+}
+
+export interface MeegleSprintRelationFields {
+  present: boolean;
+  sprintId?: string;
+  sprintName?: string;
 }
 
 export interface MeegleWorkitemSyncRef {
@@ -124,7 +133,9 @@ export interface LarkBaseTicketUpsertInput {
 }
 
 export interface MeegleWorkitemCleaningInput extends MeegleWorkitemSyncRef {
-  sprint?: string;
+  sprintRelation?: MeegleSprintRelationFields;
+  lifecycle?: MeegleWorkitemLifecycleFields;
+  observedAt: string;
   version?: string;
   system?: string;
   bugs: string[];
@@ -247,56 +258,163 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
     projectKey: string;
     workItemTypeKey: string;
     workitem: MeegleWorkitem;
+    sprintRelation?: MeegleSprintRelationFields;
+    sprintObservedAt?: string;
     lifecycle?: MeegleWorkitemLifecycleFields;
   }): Promise<void> {
     const now = new Date().toISOString();
     const sourceUpdatedAt = input.workitem.updatedAt ?? null;
-    await this.db.insertInto("meegle_workitem_syncs").values({
-      project_key: input.projectKey,
-      work_item_type_key: input.workItemTypeKey,
-      work_item_id: input.workitem.id,
-      work_item_key: input.workitem.key || null,
-      title: input.workitem.name,
-      work_item_type: input.workitem.workItemType ?? null,
-      status_key: input.workitem.statusKey ?? null,
-      status: input.workitem.status || null,
-      sub_stage_key: input.workitem.subStageKey ?? null,
-      sub_stage: input.workitem.subStage ?? null,
-      assignee: input.workitem.assignee ?? null,
-      priority: input.workitem.priority ?? null,
-      item_cycle_tag: input.lifecycle?.itemCycleTag ?? null,
-      add_to_cycle_time: input.lifecycle?.addToCycleTime ?? null,
-      item_start_time: input.lifecycle?.itemStartTime ?? null,
-      item_finish_time: input.lifecycle?.itemFinishTime ?? null,
-      payload_json: JSON.stringify(input.workitem),
-      source_updated_at: sourceUpdatedAt,
-      synced_at: now,
-      last_seen_at: now,
-      stale: false,
-    }).onConflict((conflict) => conflict.columns([
-      "project_key",
-      "work_item_type_key",
-      "work_item_id",
-    ]).doUpdateSet({
-      work_item_key: input.workitem.key || null,
-      title: input.workitem.name,
-      work_item_type: input.workitem.workItemType ?? null,
-      status_key: input.workitem.statusKey ?? null,
-      status: input.workitem.status || null,
-      sub_stage_key: input.workitem.subStageKey ?? null,
-      sub_stage: input.workitem.subStage ?? null,
-      assignee: input.workitem.assignee ?? null,
-      priority: input.workitem.priority ?? null,
-      item_cycle_tag: input.lifecycle?.itemCycleTag ?? null,
-      add_to_cycle_time: input.lifecycle?.addToCycleTime ?? null,
-      item_start_time: input.lifecycle?.itemStartTime ?? null,
-      item_finish_time: input.lifecycle?.itemFinishTime ?? null,
-      payload_json: JSON.stringify(input.workitem),
-      source_updated_at: sourceUpdatedAt,
-      synced_at: now,
-      last_seen_at: now,
-      stale: false,
-    })).execute();
+    await this.db.transaction().execute(async (trx) => {
+      const existing = await trx.selectFrom("meegle_workitem_syncs")
+        .select(["sprint_id", "sprint", "add_to_cycle_time", "item_start_time", "item_finish_time"])
+        .where("project_key", "=", input.projectKey)
+        .where("work_item_type_key", "=", input.workItemTypeKey)
+        .where("work_item_id", "=", input.workitem.id)
+        .forUpdate()
+        .executeTakeFirst();
+      const openMembership = input.sprintObservedAt
+        ? await trx.selectFrom("meegle_workitem_sprint_memberships")
+          .select(["sprint_id", "added_at", "started_at", "finished_at", "source"])
+          .where("project_key", "=", input.projectKey)
+          .where("work_item_type_key", "=", input.workItemTypeKey)
+          .where("work_item_id", "=", input.workitem.id)
+          .where("removed_at", "is", null)
+          .forUpdate()
+          .executeTakeFirst()
+        : undefined;
+      const membershipTransition = input.sprintObservedAt
+        ? projectMeegleSprintMembershipTransition({
+          currentSnapshot: existing ? {
+            sprintId: existing.sprint_id,
+            sprintName: existing.sprint,
+            addToCycleTime: existing.add_to_cycle_time,
+            itemStartTime: existing.item_start_time,
+            itemFinishTime: existing.item_finish_time,
+          } : undefined,
+          openMembership: openMembership ? {
+            sprintId: openMembership.sprint_id,
+            addedAt: openMembership.added_at,
+            startedAt: openMembership.started_at,
+            finishedAt: openMembership.finished_at,
+            source: openMembership.source,
+          } : undefined,
+          relation: input.sprintRelation,
+          lifecycle: input.lifecycle,
+          observedAt: input.sprintObservedAt,
+        })
+        : undefined;
+      const sprint = projectMeegleSprintMembership(
+        existing,
+        input.sprintRelation,
+        input.lifecycle?.addToCycleTime,
+        now,
+        input.sprintObservedAt,
+      );
+      const projectedLifecycle = projectMeegleIncrementalLifecycle(existing, input.lifecycle);
+      const itemStartTime = membershipTransition?.currentOpen
+        ? membershipTransition.currentOpen.startedAt
+        : projectedLifecycle.itemStartTime;
+      const itemFinishTime = membershipTransition?.currentOpen
+        ? membershipTransition.currentOpen.finishedAt
+        : projectedLifecycle.itemFinishTime;
+
+      if (membershipTransition?.closeOpenAt) {
+        await trx.updateTable("meegle_workitem_sprint_memberships").set({
+          removed_at: membershipTransition.closeOpenAt,
+          updated_at: now,
+        }).where("project_key", "=", input.projectKey)
+          .where("work_item_type_key", "=", input.workItemTypeKey)
+          .where("work_item_id", "=", input.workitem.id)
+          .where("removed_at", "is", null)
+          .execute();
+      }
+      if (membershipTransition?.updateOpen) {
+        await trx.updateTable("meegle_workitem_sprint_memberships").set({
+          started_at: membershipTransition.updateOpen.startedAt,
+          finished_at: membershipTransition.updateOpen.finishedAt,
+          updated_at: now,
+        }).where("project_key", "=", input.projectKey)
+          .where("work_item_type_key", "=", input.workItemTypeKey)
+          .where("work_item_id", "=", input.workitem.id)
+          .where("sprint_id", "=", membershipTransition.updateOpen.sprintId)
+          .where("added_at", "=", membershipTransition.updateOpen.addedAt)
+          .where("removed_at", "is", null)
+          .execute();
+      }
+      const membershipsToCreate = [
+        membershipTransition?.createClosed
+          ? { ...membershipTransition.createClosed, removedAt: membershipTransition.createClosed.removedAt }
+          : undefined,
+        membershipTransition?.createOpen
+          ? { ...membershipTransition.createOpen, removedAt: null }
+          : undefined,
+      ];
+      for (const membership of membershipsToCreate) {
+        if (!membership) continue;
+        await trx.insertInto("meegle_workitem_sprint_memberships").values({
+          project_key: input.projectKey,
+          work_item_type_key: input.workItemTypeKey,
+          work_item_id: input.workitem.id,
+          sprint_id: membership.sprintId,
+          added_at: membership.addedAt,
+          started_at: membership.startedAt,
+          finished_at: membership.finishedAt,
+          removed_at: membership.removedAt,
+          source: membership.source,
+          created_at: now,
+          updated_at: now,
+        }).execute();
+      }
+
+      await trx.insertInto("meegle_workitem_syncs").values({
+        project_key: input.projectKey,
+        work_item_type_key: input.workItemTypeKey,
+        work_item_id: input.workitem.id,
+        work_item_key: input.workitem.key || null,
+        title: input.workitem.name,
+        work_item_type: input.workitem.workItemType ?? null,
+        status_key: input.workitem.statusKey ?? null,
+        status: input.workitem.status || null,
+        sub_stage_key: input.workitem.subStageKey ?? null,
+        sub_stage: input.workitem.subStage ?? null,
+        assignee: input.workitem.assignee ?? null,
+        priority: input.workitem.priority ?? null,
+        sprint_id: sprint.sprintId,
+        sprint: sprint.sprintName,
+        add_to_cycle_time: membershipTransition?.currentOpen?.addedAt ?? sprint.addToCycleTime,
+        item_start_time: itemStartTime,
+        item_finish_time: itemFinishTime,
+        payload_json: JSON.stringify(input.workitem),
+        source_updated_at: sourceUpdatedAt,
+        synced_at: now,
+        last_seen_at: now,
+        stale: false,
+      }).onConflict((conflict) => conflict.columns([
+        "project_key",
+        "work_item_type_key",
+        "work_item_id",
+      ]).doUpdateSet({
+        work_item_key: input.workitem.key || null,
+        title: input.workitem.name,
+        work_item_type: input.workitem.workItemType ?? null,
+        status_key: input.workitem.statusKey ?? null,
+        status: input.workitem.status || null,
+        sub_stage_key: input.workitem.subStageKey ?? null,
+        sub_stage: input.workitem.subStage ?? null,
+        assignee: input.workitem.assignee ?? null,
+        priority: input.workitem.priority ?? null,
+        sprint_id: sprint.sprintId,
+        sprint: sprint.sprintName,
+        add_to_cycle_time: membershipTransition?.currentOpen?.addedAt ?? sprint.addToCycleTime,
+        item_start_time: itemStartTime,
+        item_finish_time: itemFinishTime,
+        payload_json: JSON.stringify(input.workitem),
+        source_updated_at: sourceUpdatedAt,
+        synced_at: now,
+        last_seen_at: now,
+        stale: false,
+      })).execute();
+    });
   }
 
   async upsertMeegleMappings(mappings: MeegleSyncMapping[]): Promise<void> {
@@ -488,9 +606,9 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
       const row = await this.db.selectFrom("meegle_workitem_syncs")
         .select([
           "project_key", "project_name", "work_item_type_key", "work_item_id", "work_item_key", "title",
-          "work_item_type", "status_key", "status", "sub_stage_key", "sub_stage", "sprint", "version",
+          "work_item_type", "status_key", "status", "sub_stage_key", "sub_stage", "sprint_id", "sprint", "version",
           "system", "bugs_json", "assignee", "priority", "source_updated_at", "synced_at", "payload_json",
-          "item_cycle_tag", "add_to_cycle_time", "item_start_time", "item_finish_time",
+          "add_to_cycle_time", "item_start_time", "item_finish_time",
         ])
         .where("project_key", "=", ref.projectKey)
         .where("work_item_type_key", "=", ref.workItemTypeKey)
@@ -550,16 +668,29 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
 
   async applyMeegleWorkitemCleaning(input: MeegleWorkitemCleaningInput): Promise<boolean> {
     const existing = await this.db.selectFrom("meegle_workitem_syncs")
-      .select(["sprint", "version", "system", "bugs_json"])
+      .select(["sprint_id", "sprint", "version", "system", "bugs_json", "add_to_cycle_time", "item_start_time", "item_finish_time"])
       .where("project_key", "=", input.projectKey)
       .where("work_item_type_key", "=", input.workItemTypeKey)
       .where("work_item_id", "=", input.workItemId)
       .executeTakeFirst();
+    const sprint = projectMeegleSprintMembership(existing, input.sprintRelation, input.lifecycle?.addToCycleTime, input.observedAt);
+    const itemStartTime = input.lifecycle?.itemStartTime === undefined
+      ? existing?.item_start_time ?? null
+      : input.lifecycle.itemStartTime;
+    const itemFinishTime = input.lifecycle?.itemFinishTime === undefined
+      ? existing?.item_finish_time ?? null
+      : input.lifecycle.itemFinishTime;
     const bugsJson = JSON.stringify(input.bugs);
-    if (existing && existing.sprint === input.sprint && existing.version === input.version
+    if (existing && existing.sprint_id === sprint.sprintId && existing.sprint === sprint.sprintName
+      && existing.add_to_cycle_time === sprint.addToCycleTime && existing.item_start_time === itemStartTime
+      && existing.item_finish_time === itemFinishTime && existing.version === input.version
       && existing.system === input.system && existing.bugs_json === bugsJson) return false;
     await this.db.updateTable("meegle_workitem_syncs").set({
-      sprint: input.sprint ?? null,
+      sprint_id: sprint.sprintId,
+      sprint: sprint.sprintName,
+      add_to_cycle_time: sprint.addToCycleTime,
+      item_start_time: itemStartTime,
+      item_finish_time: itemFinishTime,
       version: input.version ?? null,
       system: input.system ?? null,
       bugs_json: bugsJson,
@@ -698,9 +829,9 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
       .select([
         "project_key", "project_name", "work_item_type_key", "work_item_id", "work_item_key", "title",
         "work_item_type", "status_key", "status", "sub_stage_key", "sub_stage",
-        "sprint", "version", "system", "bugs_json",
+        "sprint_id", "sprint", "version", "system", "bugs_json",
         "assignee", "priority", "source_updated_at", "synced_at",
-        "item_cycle_tag", "add_to_cycle_time", "item_start_time", "item_finish_time",
+        "add_to_cycle_time", "item_start_time", "item_finish_time",
       ])
       .orderBy("source_updated_at", "desc")
       .orderBy("synced_at", "desc")
@@ -770,9 +901,9 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
       .select([
         "project_key", "project_name", "work_item_type_key", "work_item_id", "work_item_key", "title",
         "work_item_type", "status_key", "status", "sub_stage_key", "sub_stage",
-        "sprint", "version", "system", "bugs_json", "assignee", "priority",
+        "sprint_id", "sprint", "version", "system", "bugs_json", "assignee", "priority",
         "source_updated_at", "synced_at", "payload_json",
-        "item_cycle_tag", "add_to_cycle_time", "item_start_time", "item_finish_time",
+        "add_to_cycle_time", "item_start_time", "item_finish_time",
       ])
       .where("work_item_type_key", "in", MEEGLE_SPRINT_TYPE_KEYS)
       .orderBy("source_updated_at", "desc")
@@ -945,6 +1076,105 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
   }
 }
 
+type ExistingMeegleSprintMembership = {
+  sprint_id: string | null;
+  sprint: string | null;
+  add_to_cycle_time: string | null;
+} | undefined;
+
+type ExistingMeegleLifecycle = {
+  item_start_time: string | null;
+  item_finish_time: string | null;
+} | undefined;
+
+function projectMeegleIncrementalLifecycle(
+  existing: ExistingMeegleLifecycle,
+  lifecycle: MeegleWorkitemLifecycleFields | undefined,
+): { itemStartTime: string | null; itemFinishTime: string | null } {
+  if (!lifecycle) {
+    return {
+      itemStartTime: existing?.item_start_time ?? null,
+      itemFinishTime: existing?.item_finish_time ?? null,
+    };
+  }
+
+  if (!lifecycle.phase) {
+    return {
+      itemStartTime: lifecycle.itemStartTime === undefined
+        ? existing?.item_start_time ?? null
+        : lifecycle.itemStartTime,
+      itemFinishTime: lifecycle.itemFinishTime === undefined
+        ? existing?.item_finish_time ?? null
+        : lifecycle.itemFinishTime,
+    };
+  }
+
+  if (lifecycle.phase === "new") {
+    return { itemStartTime: null, itemFinishTime: null };
+  }
+
+  const itemStartTime = earliestLifecycleTimestamp(existing?.item_start_time, lifecycle.itemStartTime);
+  if (lifecycle.phase === "started") {
+    return { itemStartTime, itemFinishTime: null };
+  }
+
+  return {
+    itemStartTime,
+    itemFinishTime: lifecycle.itemFinishTime ?? existing?.item_finish_time ?? null,
+  };
+}
+
+function earliestLifecycleTimestamp(
+  existing: string | null | undefined,
+  observed: string | null | undefined,
+): string | null {
+  const candidates = [existing, observed].filter((value): value is string => Boolean(value));
+  return candidates.length ? candidates.sort()[0] : null;
+}
+
+function projectMeegleSprintMembership(
+  existing: ExistingMeegleSprintMembership,
+  relation: MeegleSprintRelationFields | undefined,
+  historicalAddToCycleTime: string | undefined,
+  observedAt: string,
+  newMembershipObservedAt?: string,
+): { sprintId: string | null; sprintName: string | null; addToCycleTime: string | null } {
+  if (!relation?.present) {
+    return {
+      sprintId: existing?.sprint_id ?? null,
+      sprintName: existing?.sprint ?? null,
+      addToCycleTime: existing?.add_to_cycle_time ?? null,
+    };
+  }
+  if (!relation.sprintId) {
+    return { sprintId: null, sprintName: null, addToCycleTime: null };
+  }
+
+  const sameSprint = existing?.sprint_id === relation.sprintId;
+  if (sameSprint) {
+    return {
+      sprintId: relation.sprintId,
+      sprintName: relation.sprintName ?? existing?.sprint ?? null,
+      addToCycleTime: existing?.add_to_cycle_time ?? historicalAddToCycleTime ?? observedAt,
+    };
+  }
+
+  const legacyBackfill = Boolean(
+    existing
+    && !existing.sprint_id
+    && existing.sprint
+    && relation.sprintName
+    && existing.sprint === relation.sprintName,
+  );
+  return {
+    sprintId: relation.sprintId,
+    sprintName: relation.sprintName ?? null,
+    addToCycleTime: !existing || legacyBackfill
+      ? newMembershipObservedAt ?? historicalAddToCycleTime ?? observedAt
+      : observedAt,
+  };
+}
+
 type MeegleWorkitemSyncRow = {
   project_key: string;
   project_name: string | null;
@@ -957,13 +1187,13 @@ type MeegleWorkitemSyncRow = {
   status: string | null;
   sub_stage_key: string | null;
   sub_stage: string | null;
+  sprint_id: string | null;
   sprint: string | null;
   version: string | null;
   system: string | null;
   bugs_json: string | null;
   assignee: string | null;
   priority: string | null;
-  item_cycle_tag: string | null;
   add_to_cycle_time: string | null;
   item_start_time: string | null;
   item_finish_time: string | null;
@@ -1030,13 +1260,13 @@ function toMeegleWorkitemSyncItem(row: MeegleWorkitemSyncRow): MeegleWorkitemSyn
     status: row.status ?? undefined,
     subStageKey: row.sub_stage_key ?? undefined,
     subStage: row.sub_stage ?? undefined,
+    sprintId: row.sprint_id ?? undefined,
     sprint: row.sprint ?? undefined,
     version: row.version ?? undefined,
     system: row.system ?? undefined,
     bugs: parseStringArray(row.bugs_json),
     assignee: row.assignee ?? undefined,
     priority: row.priority ?? undefined,
-    itemCycleTag: row.item_cycle_tag ?? undefined,
     addToCycleTime: row.add_to_cycle_time ?? undefined,
     itemStartTime: row.item_start_time ?? undefined,
     itemFinishTime: row.item_finish_time ?? undefined,

@@ -20,8 +20,8 @@ describe("PostgresPlatformSyncStore", () => {
         id: "1", key: "S-1", name: "Original", type: "story", workItemType: "Feature",
         status: "In Progress", statusKey: "status_started", subStage: "Development", subStageKey: "node_dev", priority: "P1", updatedAt: "2026-08-01T00:00:00.000Z", fields: {},
       },
+      sprintRelation: { present: true, sprintId: "cycle-1", sprintName: "Sprint 1" },
       lifecycle: {
-        itemCycleTag: "cycle-1",
         addToCycleTime: "2026-08-01T01:00:00.000Z",
         itemStartTime: "2026-08-01T02:00:00.000Z",
         itemFinishTime: "2026-08-02T00:00:00.000Z",
@@ -34,8 +34,8 @@ describe("PostgresPlatformSyncStore", () => {
         id: "1", key: "S-1", name: "Updated", type: "story", workItemType: "Feature",
         status: "Finished", statusKey: "status_finished", subStage: "Done", subStageKey: "node_done", priority: "P0", updatedAt: "2026-08-02T00:00:00.000Z", fields: {},
       },
+      sprintRelation: { present: true, sprintId: "cycle-1", sprintName: "Sprint 1" },
       lifecycle: {
-        itemCycleTag: "cycle-1",
         addToCycleTime: "2026-08-01T01:00:00.000Z",
         itemStartTime: "2026-08-01T02:00:00.000Z",
         itemFinishTime: "2026-08-02T00:00:00.000Z",
@@ -108,7 +108,7 @@ describe("PostgresPlatformSyncStore", () => {
         sub_stage_key: "node_done",
         sub_stage: "Done",
         source_updated_at: "2026-08-02T00:00:00.000Z",
-        item_cycle_tag: "cycle-1",
+        sprint_id: "cycle-1",
         item_finish_time: "2026-08-02T00:00:00.000Z",
       })]);
     await expect(db.selectFrom("meegle_sync_mappings").selectAll().execute())
@@ -127,7 +127,7 @@ describe("PostgresPlatformSyncStore", () => {
       workItemId: "1", title: "Updated", statusKey: "status_finished", status: "Finished",
       subStageKey: "node_done", subStage: "Done",
       sprint: "Sprint 1", version: "Version 1", bugs: ["Bug 1"], priority: "P0",
-      itemCycleTag: "cycle-1", itemFinishTime: "2026-08-02T00:00:00.000Z",
+      sprintId: "cycle-1", itemFinishTime: "2026-08-02T00:00:00.000Z",
     })]);
     await expect(store.listMeegleWorkitems(10, { sprints: ["Sprint 1"] })).resolves.toHaveLength(1);
     await expect(store.countMeegleWorkitems({ sprints: ["Sprint 1"] })).resolves.toBe(1);
@@ -185,6 +185,284 @@ describe("PostgresPlatformSyncStore", () => {
     await expect(store.listMeegleSprints()).resolves.toEqual(["Sprint 1", "Sprint 2"]);
     await expect(store.listMeegleSprintSnapshots()).resolves.toEqual([
       expect.objectContaining({ workItemId: "sprint-1", title: "Sprint 2", status: "Ended", sourcePayload: expect.any(Object) }),
+    ]);
+
+    await db.destroy();
+    await pool.end();
+  });
+
+  it("preserves, changes, and clears Sprint membership using the observed relation", async () => {
+    const { db, pool } = await createTestPostgresDatabase();
+    const store = new PostgresPlatformSyncStore(db);
+    const workitem = {
+      id: "story-1", key: "S-1", name: "Story", type: "story", status: "Start", fields: {},
+    };
+
+    await store.upsertMeegleWorkitem({
+      projectKey: "project",
+      workItemTypeKey: "story",
+      workitem,
+      sprintRelation: { present: true, sprintId: "sprint-a", sprintName: "Sprint A" },
+      lifecycle: { addToCycleTime: "2026-08-01T00:00:00.000Z" },
+    });
+    await store.upsertMeegleWorkitem({
+      projectKey: "project",
+      workItemTypeKey: "story",
+      workitem,
+      sprintRelation: { present: true, sprintId: "sprint-a", sprintName: "Sprint A renamed" },
+      lifecycle: { addToCycleTime: "2026-08-02T00:00:00.000Z" },
+    });
+    await store.upsertMeegleWorkitem({
+      projectKey: "project",
+      workItemTypeKey: "story",
+      workitem,
+      sprintRelation: { present: false },
+    });
+    await expect(store.listMeegleWorkitems(10)).resolves.toEqual([
+      expect.objectContaining({
+        sprintId: "sprint-a",
+        sprint: "Sprint A renamed",
+        addToCycleTime: "2026-08-01T00:00:00.000Z",
+      }),
+    ]);
+
+    const observedBefore = Date.now();
+    await store.upsertMeegleWorkitem({
+      projectKey: "project",
+      workItemTypeKey: "story",
+      workitem,
+      sprintRelation: { present: true, sprintId: "sprint-b", sprintName: "Sprint B" },
+      lifecycle: { addToCycleTime: "2026-07-01T00:00:00.000Z" },
+    });
+    const [changed] = await store.listMeegleWorkitems(10);
+    const changedAt = Date.parse(changed?.addToCycleTime || "");
+    expect(changed).toEqual(expect.objectContaining({ sprintId: "sprint-b", sprint: "Sprint B" }));
+    expect(changedAt).toBeGreaterThanOrEqual(observedBefore);
+    expect(changedAt).toBeLessThanOrEqual(Date.now());
+
+    await store.upsertMeegleWorkitem({
+      projectKey: "project",
+      workItemTypeKey: "story",
+      workitem,
+      sprintRelation: { present: true },
+    });
+    await expect(store.listMeegleWorkitems(10)).resolves.toEqual([
+      expect.objectContaining({ sprintId: undefined, sprint: undefined, addToCycleTime: undefined }),
+    ]);
+
+    await store.upsertMeegleWorkitem({
+      projectKey: "project",
+      workItemTypeKey: "story",
+      workitem: { ...workitem, id: "story-2", key: "S-2" },
+      sprintRelation: { present: true, sprintId: "sprint-c", sprintName: "Sprint C" },
+      sprintObservedAt: "2026-08-27T12:00:00.000Z",
+      lifecycle: { addToCycleTime: "2026-07-01T00:00:00.000Z" },
+    });
+    await expect(store.listMeegleWorkitems(10)).resolves.toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        workItemId: "story-2",
+        sprintId: "sprint-c",
+        addToCycleTime: "2026-08-27T12:00:00.000Z",
+      }),
+    ]));
+
+    await db.destroy();
+    await pool.end();
+  });
+
+  it("merges incremental lifecycle observations without losing the earliest start", async () => {
+    const { db, pool } = await createTestPostgresDatabase();
+    const store = new PostgresPlatformSyncStore(db);
+    const baseWorkitem = {
+      id: "story-lifecycle", key: "S-LIFE", name: "Lifecycle", type: "story", status: "In Progress", fields: {},
+    };
+    const upsertLifecycle = async (lifecycle: {
+      phase: "new" | "started" | "finished";
+      itemStartTime: string | null;
+      itemFinishTime: string | null;
+    }) => store.upsertMeegleWorkitem({
+      projectKey: "project",
+      workItemTypeKey: "story",
+      workitem: { ...baseWorkitem, status: lifecycle.phase === "new" ? "New" : lifecycle.phase === "finished" ? "Done" : "In Progress" },
+      lifecycle,
+    });
+
+    await upsertLifecycle({
+      phase: "started",
+      itemStartTime: "2026-08-22T00:00:00.000Z",
+      itemFinishTime: null,
+    });
+    await upsertLifecycle({
+      phase: "started",
+      itemStartTime: "2026-08-25T00:00:00.000Z",
+      itemFinishTime: null,
+    });
+    await upsertLifecycle({ phase: "started", itemStartTime: null, itemFinishTime: null });
+    await expect(store.listMeegleWorkitems(10)).resolves.toEqual([
+      expect.objectContaining({
+        itemStartTime: "2026-08-22T00:00:00.000Z",
+        itemFinishTime: undefined,
+      }),
+    ]);
+
+    await upsertLifecycle({
+      phase: "finished",
+      itemStartTime: null,
+      itemFinishTime: "2026-08-26T00:00:00.000Z",
+    });
+    await expect(store.listMeegleWorkitems(10)).resolves.toEqual([
+      expect.objectContaining({
+        itemStartTime: "2026-08-22T00:00:00.000Z",
+        itemFinishTime: "2026-08-26T00:00:00.000Z",
+      }),
+    ]);
+
+    await upsertLifecycle({ phase: "started", itemStartTime: null, itemFinishTime: null });
+    await expect(store.listMeegleWorkitems(10)).resolves.toEqual([
+      expect.objectContaining({
+        itemStartTime: "2026-08-22T00:00:00.000Z",
+        itemFinishTime: undefined,
+      }),
+    ]);
+
+    await upsertLifecycle({ phase: "new", itemStartTime: null, itemFinishTime: null });
+    await expect(store.listMeegleWorkitems(10)).resolves.toEqual([
+      expect.objectContaining({ itemStartTime: undefined, itemFinishTime: undefined }),
+    ]);
+
+    await db.destroy();
+    await pool.end();
+  });
+
+  it("records independent Sprint membership segments across change, removal, and re-entry", async () => {
+    const { db, pool } = await createTestPostgresDatabase();
+    const store = new PostgresPlatformSyncStore(db);
+    const workitem = {
+      id: "story-history", key: "S-HISTORY", name: "History", type: "story", status: "In Progress", fields: {},
+    };
+    const observe = async (input: {
+      at: string;
+      sprintId?: string;
+      phase: "new" | "started" | "finished";
+      start?: string | null;
+      finish?: string | null;
+    }) => store.upsertMeegleWorkitem({
+      projectKey: "project",
+      workItemTypeKey: "story",
+      workitem,
+      sprintRelation: { present: true, ...(input.sprintId ? { sprintId: input.sprintId, sprintName: `Sprint ${input.sprintId}` } : {}) },
+      sprintObservedAt: input.at,
+      lifecycle: {
+        phase: input.phase,
+        itemStartTime: input.start,
+        itemFinishTime: input.finish,
+      },
+    });
+
+    await observe({ at: "2026-08-01T00:00:00.000Z", sprintId: "a", phase: "started", start: "2026-07-20T00:00:00.000Z" });
+    await observe({ at: "2026-08-05T00:00:00.000Z", sprintId: "a", phase: "finished", finish: "2026-08-05T00:00:00.000Z" });
+    await observe({ at: "2026-08-06T00:00:00.000Z", sprintId: "a", phase: "started" });
+    await observe({ at: "2026-08-07T00:00:00.000Z", sprintId: "a", phase: "finished", finish: "2026-08-07T00:00:00.000Z" });
+    await observe({ at: "2026-08-08T00:00:00.000Z", sprintId: "b", phase: "started", start: "2026-08-02T00:00:00.000Z" });
+    await observe({ at: "2026-08-09T00:00:00.000Z", sprintId: "b", phase: "new" });
+    await expect(store.listMeegleWorkitems(10)).resolves.toEqual([
+      expect.objectContaining({
+        sprintId: "b",
+        addToCycleTime: "2026-08-08T00:00:00.000Z",
+        itemStartTime: undefined,
+        itemFinishTime: undefined,
+      }),
+    ]);
+    await observe({ at: "2026-08-10T00:00:00.000Z", phase: "new" });
+    await observe({ at: "2026-08-11T00:00:00.000Z", sprintId: "b", phase: "started", start: "2026-08-11T01:00:00.000Z" });
+
+    await expect(db.selectFrom("meegle_workitem_sprint_memberships")
+      .selectAll()
+      .where("work_item_id", "=", workitem.id)
+      .orderBy("added_at")
+      .execute()).resolves.toEqual([
+      expect.objectContaining({
+        sprint_id: "a",
+        added_at: "2026-08-01T00:00:00.000Z",
+        started_at: "2026-08-01T00:00:00.000Z",
+        finished_at: "2026-08-07T00:00:00.000Z",
+        removed_at: "2026-08-08T00:00:00.000Z",
+        source: "incremental_observed",
+      }),
+      expect.objectContaining({
+        sprint_id: "b",
+        added_at: "2026-08-08T00:00:00.000Z",
+        started_at: null,
+        finished_at: null,
+        removed_at: "2026-08-10T00:00:00.000Z",
+        source: "incremental_observed",
+      }),
+      expect.objectContaining({
+        sprint_id: "b",
+        added_at: "2026-08-11T00:00:00.000Z",
+        started_at: "2026-08-11T01:00:00.000Z",
+        finished_at: null,
+        removed_at: null,
+        source: "incremental_observed",
+      }),
+    ]);
+    await expect(store.listMeegleWorkitems(10)).resolves.toEqual([
+      expect.objectContaining({
+        sprintId: "b",
+        addToCycleTime: "2026-08-11T00:00:00.000Z",
+        itemStartTime: "2026-08-11T01:00:00.000Z",
+      }),
+    ]);
+
+    await db.destroy();
+    await pool.end();
+  });
+
+  it("lazily initializes an existing current Sprint as inferred without upgrading its source", async () => {
+    const { db, pool } = await createTestPostgresDatabase();
+    const store = new PostgresPlatformSyncStore(db);
+    const workitem = {
+      id: "story-inferred", key: "S-INFERRED", name: "Inferred", type: "story", status: "In Progress", fields: {},
+    };
+    await store.upsertMeegleWorkitem({
+      projectKey: "project",
+      workItemTypeKey: "story",
+      workitem,
+      sprintRelation: { present: true, sprintId: "a", sprintName: "Sprint A" },
+      lifecycle: {
+        addToCycleTime: "2026-08-01T00:00:00.000Z",
+        itemStartTime: "2026-08-03T00:00:00.000Z",
+      },
+    });
+    await store.upsertMeegleWorkitem({
+      projectKey: "project",
+      workItemTypeKey: "story",
+      workitem,
+      sprintRelation: { present: true, sprintId: "a", sprintName: "Sprint A" },
+      sprintObservedAt: "2026-08-10T00:00:00.000Z",
+      lifecycle: { phase: "finished", itemFinishTime: "2026-08-09T00:00:00.000Z" },
+    });
+    await store.upsertMeegleWorkitem({
+      projectKey: "project",
+      workItemTypeKey: "story",
+      workitem,
+      sprintRelation: { present: false },
+      sprintObservedAt: "2026-08-11T00:00:00.000Z",
+      lifecycle: { phase: "started" },
+    });
+
+    await expect(db.selectFrom("meegle_workitem_sprint_memberships")
+      .selectAll()
+      .where("work_item_id", "=", workitem.id)
+      .execute()).resolves.toEqual([
+      expect.objectContaining({
+        sprint_id: "a",
+        added_at: "2026-08-01T00:00:00.000Z",
+        started_at: "2026-08-03T00:00:00.000Z",
+        finished_at: null,
+        removed_at: null,
+        source: "historical_inferred",
+      }),
     ]);
 
     await db.destroy();

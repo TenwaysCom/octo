@@ -2,6 +2,7 @@
 title: "<任务标题>"
 module: "<acp | platform-sync | platform-auth | ai-tasks | ai-ticket | engineering-ops>"
 status: planned
+requirement_version: 1
 created_on: YYYY-MM-DD
 updated_on: YYYY-MM-DD
 closed_on: null
@@ -26,13 +27,13 @@ related:
 
 ## 方案与决策
 
-<!-- 记录已选择的方案、关键取舍和需要确认的假设。 -->
+<!-- 只保留当前有效方案。需求变化时递增 requirement_version，标记被替代决策，并重新打开受影响的验收项。 -->
 
 ## 进展记录
 
-| 日期 | 状态 | 结果与证据 | 未验证边界 / 下一步 |
-| --- | --- | --- | --- |
-| YYYY-MM-DD | planned | 已建档 | <下一步> |
+| 日期 | 需求版本 | 状态 | 结果与证据 | 未验证边界 / 下一步 |
+| --- | --- | --- | --- | --- |
+| YYYY-MM-DD | v1 | planned | 已建档 | <下一步> |
 
 ## 验证
 

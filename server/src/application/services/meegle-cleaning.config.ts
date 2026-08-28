@@ -4,6 +4,12 @@ import { MEEGLE_PRODUCTION_BUG_WORKITEM_TYPE_KEY } from "../../domain/meegle-wor
 type RelationField = "sprint" | "version" | "system" | "bugs";
 type RelationValues = Partial<Record<RelationField, string | string[]>>;
 
+export interface MeegleSprintRelation {
+  present: boolean;
+  sprintId?: string;
+  sprintName?: string;
+}
+
 const RELATION_FIELD_MAPPING: Record<string, Partial<Record<RelationField, string>>> = {
   story: {
     sprint: "field_feb079",
@@ -46,17 +52,25 @@ export function getMeegleRelationFieldKey(workItemTypeKey: string, field: Relati
   return RELATION_FIELD_MAPPING[workItemTypeKey]?.[field];
 }
 
-export function extractMeegleSprintTag(workitem: MeegleWorkitem): string | undefined {
+export function extractMeegleSprintRelation(workitem: MeegleWorkitem): MeegleSprintRelation {
   const fieldKey = getMeegleRelationFieldKey(workitem.type, "sprint");
-  if (!fieldKey) return undefined;
+  if (!fieldKey) return { present: false };
   const container = asRecord(workitem.fields);
   const rawFields = container?.work_item_fields ?? container?.fields;
-  const fields = Array.isArray(rawFields) ? rawFields.map(asRecord).filter(isRecord) : [];
+  if (!Array.isArray(rawFields)) return { present: false };
+  const fields = rawFields.map(asRecord).filter(isRecord);
   const field = fields.find((candidate) => stringValue(candidate.key ?? candidate.field_key) === fieldKey);
+  if (!field) return { present: true };
   const value = field?.value ?? field?.field_value;
   const first = Array.isArray(value) ? value[0] : value;
   const record = asRecord(first);
-  return stringValue(record?.id ?? record?.key) || undefined;
+  const sprintId = stringValue(record?.id ?? record?.key) || undefined;
+  const sprintName = stringValue(record?.name ?? record?.label) || undefined;
+  return {
+    present: true,
+    ...(sprintId ? { sprintId } : {}),
+    ...(sprintName ? { sprintName } : {}),
+  };
 }
 
 function toDisplayValue(value: unknown): string | string[] | undefined {

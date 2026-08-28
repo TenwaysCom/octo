@@ -1,32 +1,39 @@
 import type { GitHubPrDetails } from "../../adapters/github/github-types.js";
 import type { LarkBitableRecord, LarkClient } from "../../adapters/lark/lark-client.js";
 import type { MeegleClient, MeegleSyncMapping, MeegleWorkitem } from "../../adapters/meegle/meegle-client.js";
-import type { MeegleWorkitemLifecycleFields, PlatformSyncStore } from "../../adapters/postgres/platform-sync-store.js";
+import type { MeegleSprintRelationFields, MeegleWorkitemLifecycleFields, PlatformSyncStore } from "../../adapters/postgres/platform-sync-store.js";
 import { buildLarkUpdatedSinceFilter, PlatformSyncService, isInactiveSyncStatus } from "./platform-sync.service.js";
 
 function createStore(): PlatformSyncStore & {
-  meegle: Array<{ workitem: MeegleWorkitem; lifecycle?: MeegleWorkitemLifecycleFields }>;
+  meegle: Array<{ workitem: MeegleWorkitem; sprintRelation?: MeegleSprintRelationFields; sprintObservedAt?: string; lifecycle?: MeegleWorkitemLifecycleFields }>;
   meegleMappings: MeegleSyncMapping[];
   github: Array<{ pullRequest: GitHubPrDetails }>;
   lark: Array<{ record: LarkBitableRecord; title: string; status?: string }>;
   cleanedMeegle: string[];
+  meegleCleaning: Array<{ workItemId: string; lifecycle?: MeegleWorkitemLifecycleFields }>;
   cleanedGitHub: string[];
   githubCleaning: Array<{ pullNumber: number; mergedBy?: string; reviewers: string[]; labels: string[]; createdAt?: string }>;
   cleanedLark: string[];
   larkCleaning: Array<{ recordId: string; detailDescription?: string; meegleLink?: string; larkMessageLink?: string }>;
 } {
   const store = {
-    meegle: [] as Array<{ workitem: MeegleWorkitem; lifecycle?: MeegleWorkitemLifecycleFields }>,
+    meegle: [] as Array<{ workitem: MeegleWorkitem; sprintRelation?: MeegleSprintRelationFields; sprintObservedAt?: string; lifecycle?: MeegleWorkitemLifecycleFields }>,
     meegleMappings: [] as MeegleSyncMapping[],
     github: [] as Array<{ pullRequest: GitHubPrDetails }>,
     lark: [] as Array<{ record: LarkBitableRecord; title: string; status?: string }>,
     cleanedMeegle: [] as string[],
+    meegleCleaning: [] as Array<{ workItemId: string; lifecycle?: MeegleWorkitemLifecycleFields }>,
     cleanedGitHub: [] as string[],
     githubCleaning: [] as Array<{ pullNumber: number; mergedBy?: string; reviewers: string[]; labels: string[]; createdAt?: string }>,
     cleanedLark: [] as string[],
     larkCleaning: [] as Array<{ recordId: string; detailDescription?: string; meegleLink?: string; larkMessageLink?: string }>,
-    async upsertMeegleWorkitem(input: { projectKey: string; workItemTypeKey: string; workitem: MeegleWorkitem; lifecycle?: MeegleWorkitemLifecycleFields }) {
-      store.meegle.push({ workitem: input.workitem, lifecycle: input.lifecycle });
+    async upsertMeegleWorkitem(input: { projectKey: string; workItemTypeKey: string; workitem: MeegleWorkitem; sprintRelation?: MeegleSprintRelationFields; sprintObservedAt?: string; lifecycle?: MeegleWorkitemLifecycleFields }) {
+      store.meegle.push({
+        workitem: input.workitem,
+        sprintRelation: input.sprintRelation,
+        sprintObservedAt: input.sprintObservedAt,
+        lifecycle: input.lifecycle,
+      });
     },
     async upsertMeegleMappings(mappings: MeegleSyncMapping[]) {
       store.meegleMappings.push(...mappings);
@@ -64,7 +71,8 @@ function createStore(): PlatformSyncStore & {
         .map(({ workitem }) => ({
           projectKey: "project", workItemTypeKey: workitem.type, workItemId: workitem.id,
           title: workitem.name, workItemType: workitem.workItemType, status: workitem.status,
-          subStage: workitem.subStage, assignee: workitem.assignee, syncedAt: "2026-08-11T00:00:00Z",
+          subStage: workitem.subStage, assignee: workitem.assignee, sourcePayload: workitem,
+          syncedAt: "2026-08-11T00:00:00Z",
         }));
     },
     async getGitHubPullRequestsForCleaning(refs: Array<{ pullNumber: number }>) {
@@ -85,8 +93,9 @@ function createStore(): PlatformSyncStore & {
           syncedAt: "2026-08-11T00:00:00Z",
         }));
     },
-    async applyMeegleWorkitemCleaning(input: { workItemId: string }) {
+    async applyMeegleWorkitemCleaning(input: { workItemId: string; lifecycle?: MeegleWorkitemLifecycleFields }) {
       store.cleanedMeegle.push(input.workItemId);
+      store.meegleCleaning.push(input);
       return true;
     },
     async applyGitHubPullRequestCleaning(input: { pullNumber: number; mergedBy?: string; reviewers: string[]; labels: string[]; createdAt?: string }) {
@@ -159,6 +168,31 @@ describe("PlatformSyncService", () => {
       cleanAfterSync: true,
     })).resolves.toMatchObject({ synced: 1, cleaned: 1 });
     expect(store.cleanedMeegle).toEqual(["1"]);
+  });
+
+  it("cleans stored Meegle snapshots without constructing an external client", async () => {
+    const store = createStore();
+    store.meegle.push({ workitem: {
+      ...workitem("1", "In Progress"),
+      fields: { work_item_fields: [
+        { key: "field_feb079", value: [{ id: "cycle-1", name: "Sprint 1" }] },
+        { key: "start_time", value: { iso_time: "2026-08-21T00:00:00Z" } },
+      ] },
+    } });
+    const createMeegleClient = vi.fn();
+    const service = new PlatformSyncService({ store, createMeegleClient });
+
+    await expect(service.cleanMeegleWorkitems([
+      { projectKey: "project", workItemTypeKey: "story", workItemId: "1" },
+    ])).resolves.toBe(1);
+
+    expect(createMeegleClient).not.toHaveBeenCalled();
+    expect(store.meegleCleaning[0]?.lifecycle).toEqual({
+      phase: "started",
+      addToCycleTime: "2026-08-21T00:00:00.000Z",
+      itemStartTime: null,
+      itemFinishTime: null,
+    });
   });
 
   it("cleans later snapshot objects after a cleaning failure, then reports the failed references", async () => {
@@ -311,8 +345,11 @@ describe("PlatformSyncService", () => {
       "field_1b9eb0",
       "field_00f541",
       "field_9edc03",
+      "start_time",
+      "finish_time",
     ]);
     expect(store.meegle).toHaveLength(1);
+    expect(store.meegle[0]?.sprintObservedAt).toEqual(expect.any(String));
   });
 
   it("requests Tech Task relation fields before cleaning incremental snapshots", async () => {
@@ -352,6 +389,8 @@ describe("PlatformSyncService", () => {
       "field_ecd063",
       "field_5fab52",
       "field_3daed9",
+      "start_time",
+      "finish_time",
     ]);
   });
 
@@ -418,35 +457,31 @@ describe("PlatformSyncService", () => {
     });
   });
 
-  it("stores the lifecycle projected from the current Sprint and operation records", async () => {
+  it("stores Sprint identity and lifecycle times from the workitem payload without requesting workflow nodes", async () => {
     const store = createStore();
+    const listWorkflowNodes = vi.fn();
     const client = {
       getWorkitemDetails: vi.fn().mockResolvedValue([{
         ...workitem("1", "Done"),
         statusKey: "done",
-        fields: { work_item_fields: [{ key: "field_feb079", value: [{ id: "cycle-1", name: "Sprint 1" }] }] },
+        fields: {
+          work_item_fields: [
+            { key: "field_feb079", value: [{ id: "cycle-1", name: "Sprint 1" }] },
+            { key: "start_time", value: { iso_time: "2026-08-21T00:00:00Z" } },
+            { key: "finish_time", value: { iso_time: "2026-08-23T00:00:00Z" } },
+          ],
+          workflow_nodes: [
+            { basic: { name: "Doing" }, schedule: { actual_begin_time: "2026-08-22T00:00:00Z" } },
+            { basic: { name: "Done" }, schedule: { actual_begin_time: "2026-08-23T00:00:00Z" } },
+          ],
+        },
       }]),
       getSyncMappings: vi.fn().mockResolvedValue([
         { projectKey: "project", workItemTypeKey: "story", kind: "status", sourceKey: "started", displayValue: "Start" },
         { projectKey: "project", workItemTypeKey: "story", kind: "status", sourceKey: "doing", displayValue: "In Progress" },
         { projectKey: "project", workItemTypeKey: "story", kind: "status", sourceKey: "done", displayValue: "Done" },
       ]),
-      listWorkitemOperationRecords: vi.fn().mockResolvedValue([{
-        workItemId: "1", workItemTypeKey: "story", operationType: "create",
-        operationTime: "2026-08-20T00:00:00.000Z", module: "work_item_mod", recordContents: [],
-      }, {
-        workItemId: "1", workItemTypeKey: "story", operationType: "modify",
-        operationTime: "2026-08-21T00:00:00.000Z", module: "field_mod",
-        recordContents: [{ objectValue: "field_feb079", oldValues: [], newValues: ["cycle-1"] }],
-      }, {
-        workItemId: "1", workItemTypeKey: "story", operationType: "modify",
-        operationTime: "2026-08-22T00:00:00.000Z", module: "field_mod",
-        recordContents: [{ objectValue: "work_item_status", objectProperty: "workitem_status", oldValues: ["started"], newValues: ["doing"] }],
-      }, {
-        workItemId: "1", workItemTypeKey: "story", operationType: "modify",
-        operationTime: "2026-08-23T00:00:00.000Z", module: "field_mod",
-        recordContents: [{ objectValue: "work_item_status", objectProperty: "workitem_status", oldValues: ["doing"], newValues: ["done"] }],
-      }]),
+      listWorkflowNodes,
     } as unknown as MeegleClient;
     const service = new PlatformSyncService({ store, createMeegleClient: async () => client });
 
@@ -454,12 +489,16 @@ describe("PlatformSyncService", () => {
       masterUserId: "user-1", projectKey: "project", workItemTypeKey: "story", workItemId: "1",
     });
 
-    expect(store.meegle[0].lifecycle).toEqual({
-      itemCycleTag: "cycle-1",
-      addToCycleTime: "2026-08-21T00:00:00.000Z",
-      itemStartTime: "2026-08-22T00:00:00.000Z",
-      itemFinishTime: "2026-08-23T00:00:00.000Z",
+    expect(store.meegle[0]).toMatchObject({
+      sprintRelation: { present: true, sprintId: "cycle-1", sprintName: "Sprint 1" },
+      lifecycle: {
+        phase: "finished",
+        addToCycleTime: "2026-08-21T00:00:00.000Z",
+        itemStartTime: "2026-08-22T00:00:00.000Z",
+        itemFinishTime: "2026-08-23T00:00:00.000Z",
+      },
     });
+    expect(listWorkflowNodes).not.toHaveBeenCalled();
   });
 
   it("syncs only open GitHub PRs and preserves their detailed snapshot", async () => {

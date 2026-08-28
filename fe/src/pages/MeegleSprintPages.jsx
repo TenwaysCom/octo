@@ -1,8 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getMeegleSprintDetailHash } from "../app/routes/workspace-routes.js";
 import { WorkspaceShell } from "../components/layout/WorkspaceShell.jsx";
+import { useKeyboardShortcut } from "../hooks/useKeyboardShortcut.js";
 import { formatDateTime } from "../lib/formatters.js";
-import { buildMeegleSprintHistory, filterMeegleSprintItems, getDefaultOpenMeegleSprint } from "../lib/meegle-sprint-history.js";
+import {
+  buildMeegleSprintHistory,
+  filterMeegleSprintHistory,
+  filterMeegleSprintItems,
+  getDefaultOpenMeegleSprint,
+  groupMeegleSprintHistory,
+} from "../lib/meegle-sprint-history.js";
 import { getPlatformDataList } from "../services/platform-data/platform-data-api.js";
 
 const ACTIVITY_LABELS = {
@@ -11,6 +18,8 @@ const ACTIVITY_LABELS = {
   upcoming: "Upcoming",
   unknown: "日期未同步",
 };
+
+const SPRINT_LIFECYCLE_FILTERS = ["current", "upcoming", "past", "unknown"];
 
 const LABEL_FIELDS = [
   { key: "sprint", label: "Sprint" },
@@ -169,46 +178,158 @@ function SprintWorkitemList({ items }) {
   </table></div>;
 }
 
+function SprintHistoryFilterPanel({ selectedLifecycles, lifecycleCounts, onToggle, onReset }) {
+  return <div className="list-filter-menu__panel sprint-history-filter-panel">
+    <header className="list-filter-menu__header">
+      <strong>筛选</strong>
+      <button type="button" onClick={onReset}>清空</button>
+    </header>
+    <div className="sprint-history-filter-panel__values" role="group" aria-label="Sprint 生命周期">
+      {SPRINT_LIFECYCLE_FILTERS.map((lifecycle) => <label key={lifecycle}>
+        <input type="checkbox" checked={selectedLifecycles.includes(lifecycle)} onChange={() => onToggle(lifecycle)} />
+        <span>{ACTIVITY_LABELS[lifecycle]}</span>
+        <small>{lifecycleCounts[lifecycle] || 0}</small>
+      </label>)}
+    </div>
+  </div>;
+}
+
+function SprintHistoryGroupPanel({ groupBy, onGroupByChange, onReset }) {
+  return <div className="list-view-config-panel sprint-history-group-panel">
+    <header className="list-view-config-panel__header">
+      <strong>视图配置</strong>
+      <button type="button" onClick={onReset}>重置</button>
+    </header>
+    <div className="list-view-config-section">
+      <label htmlFor="meegle-sprint-group-by">分组</label>
+      <select id="meegle-sprint-group-by" value={groupBy} onChange={(event) => onGroupByChange(event.target.value)}>
+        <option value="date">按时间线</option>
+        <option value="lifecycle">按生命周期</option>
+      </select>
+    </div>
+  </div>;
+}
+
+function SprintHistoryList({ sprints, expandedSprintKey, onToggleSprint, idPrefix }) {
+  return <div className="sprint-history-list">{sprints.map((sprint, index) => {
+    const expanded = expandedSprintKey === sprint.identity;
+    const chartId = `${idPrefix}-chart-${index}`;
+    return <article className={`sprint-history-row ${expanded ? "sprint-history-row--expanded" : ""}`.trim()} key={sprint.identity}>
+      <div className="sprint-history-row__date"><span>{formatDateTime(sprint.startAt || sprint.latestActivityAt)}</span><i aria-hidden="true" /></div>
+      <div className="sprint-history-row__content">
+        <button
+          className={`sprint-history-row__toggle ${expanded ? "sprint-history-row__toggle--open" : ""}`.trim()}
+          type="button"
+          aria-label={`${expanded ? "收起" : "展开"} ${sprint.name} 图表`}
+          aria-expanded={expanded}
+          aria-controls={chartId}
+          onClick={() => onToggleSprint(sprint.identity)}
+        ><svg viewBox="0 0 8 12" aria-hidden="true"><path d="m1 1 5 5-5 5" /></svg><span className={`sprint-history-row__marker sprint-history-row__marker--${sprint.lifecycle}`} aria-hidden="true" /></button>
+        <div className="sprint-history-row__summary"><a href={getMeegleSprintDetailHash(sprint.sprintId || sprint.name)}><strong>{sprint.name}</strong></a><small>{sprint.projectCount} 个项目 · 最近工作项活动</small></div>
+        <SprintActivityBadge lifecycle={sprint.lifecycle} />
+        <span className="sprint-history-row__metric"><strong>{sprint.progress.completionPercent}%</strong><small>完成</small></span>
+        <span className="sprint-history-row__metric"><strong>{sprint.progress.completed}</strong><small>已完成</small></span>
+        <span className="sprint-history-row__metric"><strong>{sprint.progress.scope}</strong><small>Scope</small></span>
+      </div>
+      {expanded ? <div id={chartId}><SprintTimelineChart sprint={sprint} compact /></div> : null}
+    </article>;
+  })}</div>;
+}
+
 export function MeegleSprintHistoryPage({ profile, apiBaseUrl, onLogout, isBusy, breadcrumbs }) {
   const state = useMeegleSprintHistory(apiBaseUrl);
-  const [expandedSprintName, setExpandedSprintName] = useState();
+  const [expandedSprintKey, setExpandedSprintKey] = useState();
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [groupOpen, setGroupOpen] = useState(false);
+  const [selectedLifecycles, setSelectedLifecycles] = useState([]);
+  const [groupBy, setGroupBy] = useState("date");
+  const visibleSprints = useMemo(
+    () => filterMeegleSprintHistory(state.sprints, selectedLifecycles),
+    [selectedLifecycles, state.sprints],
+  );
+  const sprintGroups = useMemo(() => groupMeegleSprintHistory(visibleSprints, groupBy), [groupBy, visibleSprints]);
+  const lifecycleCounts = Object.fromEntries(SPRINT_LIFECYCLE_FILTERS.map((lifecycle) => [
+    lifecycle,
+    state.sprints.filter((sprint) => sprint.lifecycle === lifecycle).length,
+  ]));
   useEffect(() => {
     if (state.status !== "ready") return;
-    setExpandedSprintName((current) => {
+    setExpandedSprintKey((current) => {
       if (current === null) return null;
-      if (current && state.sprints.some((sprint) => sprint.name === current)) return current;
-      return getDefaultOpenMeegleSprint(state.sprints);
+      if (current && visibleSprints.some((sprint) => sprint.identity === current)) return current;
+      return getDefaultOpenMeegleSprint(visibleSprints);
     });
-  }, [state.status, state.sprints]);
+  }, [state.status, visibleSprints]);
+  useKeyboardShortcut({
+    key: "Escape",
+    enabled: filterOpen || groupOpen,
+    allowInEditableTarget: true,
+    handler: (event) => {
+      event.preventDefault();
+      setFilterOpen(false);
+      setGroupOpen(false);
+    },
+  });
+  function toggleLifecycle(lifecycle) {
+    setSelectedLifecycles((current) => current.includes(lifecycle)
+      ? current.filter((value) => value !== lifecycle)
+      : [...current, lifecycle]);
+  }
   return <WorkspaceShell user={profile.user ?? {}} workspaceAccess={profile.workspaceAccess} activePage="meegle-sprints" onLogout={onLogout} isBusy={isBusy} breadcrumbs={breadcrumbs}>
     <section className="profile-main list-page sprint-history-page">
-      <header className="list-page__header"><div><h1>Sprint 历史</h1><p>按起止日期区分 Past、Current 和 Upcoming；默认展开 Current Sprint。</p></div></header>
+      <header className="list-page__header">
+        <div><h1>Sprint 历史</h1><p>按起止日期区分 Past、Current 和 Upcoming；默认展开 Current Sprint。</p></div>
+        {state.status === "ready" ? <div className="list-toolbar__actions">
+          <div className="list-view-menu">
+            <button
+              className={`list-filter-button ${groupOpen ? "list-filter-button--active" : ""}`.trim()}
+              type="button"
+              aria-label="配置 Sprint 列表分组"
+              aria-expanded={groupOpen}
+              title="分组"
+              onClick={() => {
+                setFilterOpen(false);
+                setGroupOpen((open) => !open);
+              }}
+            ><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1a1 1 0 0 1 1 1v1h10a1 1 0 1 1 0 2H4v1a1 1 0 1 1-2 0V5H1a1 1 0 1 1 0-2h1V2a1 1 0 0 1 1-1Zm10 8a1 1 0 0 1 1 1v1h1a1 1 0 1 1 0 2h-1v1a1 1 0 1 1-2 0v-1H1a1 1 0 1 1 0-2h11v-1a1 1 0 0 1 1-1ZM8 5a1 1 0 0 1 1 1v1h6a1 1 0 1 1 0 2H9v1a1 1 0 1 1-2 0V9H1a1 1 0 1 1 0-2h6V6a1 1 0 0 1 1-1Z" /></svg></button>
+            {groupOpen ? <SprintHistoryGroupPanel groupBy={groupBy} onGroupByChange={setGroupBy} onReset={() => setGroupBy("date")} /> : null}
+          </div>
+          <div className="list-filter-menu">
+            <button
+              className={`list-filter-button ${filterOpen ? "list-filter-button--active" : ""}`.trim()}
+              type="button"
+              aria-label="筛选 Sprint"
+              aria-expanded={filterOpen}
+              title="筛选"
+              onClick={() => {
+                setGroupOpen(false);
+                setFilterOpen((open) => !open);
+              }}
+            ><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M0 3a1 1 0 0 1 1-1h14a1 1 0 1 1 0 2H1a1 1 0 1 1 0-2H1a1 1 0 0 1-1-1Zm3 5a1 1 0 0 1 1-1h8a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm4 4a1 1 0 1 0 0 2h2a1 1 0 1 0 0-2H7Z" /></svg></button>
+            {filterOpen ? <SprintHistoryFilterPanel
+              selectedLifecycles={selectedLifecycles}
+              lifecycleCounts={lifecycleCounts}
+              onToggle={toggleLifecycle}
+              onReset={() => setSelectedLifecycles([])}
+            /> : null}
+          </div>
+        </div> : null}
+      </header>
       {state.status === "loading" ? <p className="list-message">正在加载 Sprint 历史…</p> : null}
       {state.status === "error" ? <p className="list-message list-message--error">Sprint 历史暂时无法读取，请稍后重试。</p> : null}
       {state.status === "ready" && !state.sprints.length ? <p className="list-message">暂无已同步 Sprint。</p> : null}
-      {state.status === "ready" && state.sprints.length ? <div className="sprint-history-list">{state.sprints.map((sprint, index) => {
-        const expanded = expandedSprintName === sprint.name;
-        const chartId = `sprint-history-chart-${index}`;
-        return <article className={`sprint-history-row ${expanded ? "sprint-history-row--expanded" : ""}`.trim()} key={sprint.name}>
-        <div className="sprint-history-row__date"><span>{formatDateTime(sprint.startAt || sprint.latestActivityAt)}</span><i aria-hidden="true" /></div>
-        <div className="sprint-history-row__content">
-          <button
-            className={`sprint-history-row__toggle ${expanded ? "sprint-history-row__toggle--open" : ""}`.trim()}
-            type="button"
-            aria-label={`${expanded ? "收起" : "展开"} ${sprint.name} 图表`}
-            aria-expanded={expanded}
-            aria-controls={chartId}
-            onClick={() => setExpandedSprintName((current) => current === sprint.name ? null : sprint.name)}
-          ><svg viewBox="0 0 8 12" aria-hidden="true"><path d="m1 1 5 5-5 5" /></svg><span className={`sprint-history-row__marker sprint-history-row__marker--${sprint.lifecycle}`} aria-hidden="true" /></button>
-          <div className="sprint-history-row__summary"><a href={getMeegleSprintDetailHash(sprint.name)}><strong>{sprint.name}</strong></a><small>{sprint.projectCount} 个项目 · 最近工作项活动</small></div>
-          <SprintActivityBadge lifecycle={sprint.lifecycle} />
-          <span className="sprint-history-row__metric"><strong>{sprint.progress.completionPercent}%</strong><small>完成</small></span>
-          <span className="sprint-history-row__metric"><strong>{sprint.progress.completed}</strong><small>已完成</small></span>
-          <span className="sprint-history-row__metric"><strong>{sprint.progress.scope}</strong><small>Scope</small></span>
-        </div>
-        {expanded ? <div id={chartId}><SprintTimelineChart sprint={sprint} compact /></div> : null}
-      </article>;
-      })}</div> : null}
+      {state.status === "ready" && state.sprints.length > 0 && !visibleSprints.length ? <p className="list-message">当前筛选条件下没有 Sprint。</p> : null}
+      {state.status === "ready" && visibleSprints.length ? <div className={`sprint-history-groups ${groupBy === "lifecycle" ? "sprint-history-groups--grouped" : ""}`.trim()}>
+        {sprintGroups.map((group) => <section className="sprint-history-group" key={group.key}>
+          {groupBy === "lifecycle" ? <header className="sprint-history-group__header"><strong>{ACTIVITY_LABELS[group.key]}</strong><span>{group.sprints.length} 个 Sprint</span></header> : null}
+          <SprintHistoryList
+            sprints={group.sprints}
+            expandedSprintKey={expandedSprintKey}
+            onToggleSprint={(identity) => setExpandedSprintKey((current) => current === identity ? null : identity)}
+            idPrefix={`sprint-history-${group.key}`}
+          />
+        </section>)}
+      </div> : null}
     </section>
   </WorkspaceShell>;
 }
@@ -217,7 +338,7 @@ export function MeegleSprintDetailPage({ profile, sprintName, apiBaseUrl, onLogo
   const state = useMeegleSprintHistory(apiBaseUrl);
   const [panelOpen, setPanelOpen] = useState(true);
   const [selectedLabels, setSelectedLabels] = useState({});
-  const sprint = state.sprints.find((item) => item.name === sprintName);
+  const sprint = state.sprints.find((item) => item.sprintId === sprintName || item.name === sprintName);
   const visibleItems = sprint ? filterMeegleSprintItems(sprint.items, selectedLabels) : [];
   return <WorkspaceShell user={profile.user ?? {}} workspaceAccess={profile.workspaceAccess} activePage="meegle-sprints" onLogout={onLogout} isBusy={isBusy} breadcrumbs={breadcrumbs}>
     <section className="profile-main list-page sprint-detail-page">

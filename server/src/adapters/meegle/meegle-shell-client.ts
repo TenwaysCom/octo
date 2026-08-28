@@ -1,6 +1,11 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { parseWorkitemOperationRecord, type MeegleSyncMapping, type MeegleWorkitem, type MeegleWorkitemOperationRecord } from "./meegle-client.js";
+import {
+  parseWorkitemOperationRecord,
+  type MeegleSyncMapping,
+  type MeegleWorkitem,
+  type MeegleWorkitemOperationRecord,
+} from "./meegle-client.js";
 import { resolveMeegleSourceUpdatedAt } from "./meegle-source-updated-at.js";
 import { normalizeTimestamp } from "../../utils/normalize-timestamp.js";
 

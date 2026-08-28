@@ -3,17 +3,19 @@ import test from "node:test";
 import {
   buildMeegleSprintHistory,
   buildMeegleSprintTimeline,
+  filterMeegleSprintHistory,
   filterMeegleSprintItems,
   getDefaultOpenMeegleSprint,
   getMeegleSprintLifecycle,
+  groupMeegleSprintHistory,
   summarizeMeegleSprint,
 } from "./meegle-sprint-history.js";
 
 const items = [
-  { workItemId: "1", sprint: "Sprint 2", status: "Done", projectName: "Octo", priority: "P1", sourceUpdatedAt: "2026-08-27T09:00:00.000Z" },
-  { workItemId: "2", sprint: "Sprint 2", status: "Doing", projectName: "Octo", priority: "P2", sourceUpdatedAt: "2026-08-27T08:00:00.000Z" },
-  { workItemId: "3", sprint: "Sprint 1", status: "New", projectName: "Odoo", priority: "P1", sourceUpdatedAt: "2026-08-20T08:00:00.000Z" },
-  { workItemId: "4", sprint: " ", status: "Done", projectName: "Octo", priority: "P1", sourceUpdatedAt: "2026-08-28T08:00:00.000Z" },
+  { projectKey: "project", workItemId: "1", sprintId: "current", sprint: "Sprint 2", status: "Done", projectName: "Octo", priority: "P1", sourceUpdatedAt: "2026-08-27T09:00:00.000Z" },
+  { projectKey: "project", workItemId: "2", sprintId: "current", sprint: "Sprint 2", status: "Doing", projectName: "Octo", priority: "P2", sourceUpdatedAt: "2026-08-27T08:00:00.000Z" },
+  { projectKey: "project", workItemId: "3", sprintId: "past", sprint: "Sprint 1", status: "New", projectName: "Odoo", priority: "P1", sourceUpdatedAt: "2026-08-20T08:00:00.000Z" },
+  { projectKey: "project", workItemId: "4", sprint: " ", status: "Done", projectName: "Octo", priority: "P1", sourceUpdatedAt: "2026-08-28T08:00:00.000Z" },
 ];
 
 test("builds sprint history from synced workitems and sorts by latest activity", () => {
@@ -48,6 +50,15 @@ test("includes Sprint metadata without linked workitems and derives lifecycle fr
   assert.equal(history[0].description, "Future delivery");
   assert.equal(history[0].lifecycle, "upcoming");
   assert.equal(history.find((sprint) => sprint.name === "Sprint 2").lifecycle, "current");
+});
+
+test("groups workitems by stable Sprint ID even when names collide", () => {
+  const history = buildMeegleSprintHistory([
+    { projectKey: "project", workItemId: "1", sprintId: "a", sprint: "Sprint", status: "New" },
+    { projectKey: "project", workItemId: "2", sprintId: "b", sprint: "Sprint", status: "New" },
+  ], [{ projectKey: "project", sprintId: "a", name: "Sprint A", syncedAt: "2026-08-27T00:00:00.000Z" },
+    { projectKey: "project", sprintId: "b", name: "Sprint B", syncedAt: "2026-08-27T00:00:00.000Z" }]);
+  assert.deepEqual(history.map((sprint) => [sprint.sprintId, sprint.items.length]).sort(), [["a", 1], ["b", 1]]);
 });
 
 test("builds label counts without guessing lifecycle from workitem progress", () => {
@@ -87,6 +98,30 @@ test("treats Start as new and Terminated as started under the requested three-wa
 test("filters sprint workitems with OR inside one label and AND across labels", () => {
   assert.deepEqual(filterMeegleSprintItems(items, { project: ["Octo"], priority: ["P1", "P2"] }).map((item) => item.workItemId), ["1", "2", "4"]);
   assert.deepEqual(filterMeegleSprintItems(items, { project: ["Octo"], sprint: ["Sprint 2"] }).map((item) => item.workItemId), ["1", "2"]);
+});
+
+test("filters Sprint history by one or more lifecycle values", () => {
+  const sprints = [
+    { name: "Current", lifecycle: "current" },
+    { name: "Upcoming", lifecycle: "upcoming" },
+    { name: "Past", lifecycle: "past" },
+  ];
+  assert.deepEqual(filterMeegleSprintHistory(sprints, []).map((sprint) => sprint.name), ["Current", "Upcoming", "Past"]);
+  assert.deepEqual(filterMeegleSprintHistory(sprints, ["current", "past"]).map((sprint) => sprint.name), ["Current", "Past"]);
+});
+
+test("groups Sprint history by lifecycle in a stable order and omits empty groups", () => {
+  const groups = groupMeegleSprintHistory([
+    { name: "Past", lifecycle: "past" },
+    { name: "Unknown", lifecycle: "unknown" },
+    { name: "Current", lifecycle: "current" },
+  ], "lifecycle");
+  assert.deepEqual(groups.map((group) => [group.key, group.sprints.map((sprint) => sprint.name)]), [
+    ["current", ["Current"]],
+    ["past", ["Past"]],
+    ["unknown", ["Unknown"]],
+  ]);
+  assert.deepEqual(groupMeegleSprintHistory([{ name: "Past", lifecycle: "past" }], "date").map((group) => group.key), ["timeline"]);
 });
 
 test("builds daily scope, active-started and completed counts from lifecycle timestamps", () => {

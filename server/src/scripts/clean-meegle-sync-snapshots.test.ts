@@ -1,6 +1,7 @@
 import { parseArgs } from "./clean-meegle-sync-snapshots.js";
 import {
   extractMeegleCleaningRelations,
+  extractMeegleSprintRelation,
   getMeegleCleaningFieldKeys,
 } from "../application/services/meegle-cleaning.config.js";
 
@@ -40,5 +41,32 @@ describe("Meegle sync snapshot cleanup", () => {
       "field_5fab52",
       "field_3daed9",
     ]);
+  });
+
+  it("extracts the stable Sprint id separately from its display name", () => {
+    expect(extractMeegleSprintRelation({
+      id: "1",
+      key: "",
+      name: "Story",
+      type: "story",
+      status: "Start",
+      fields: {
+        work_item_fields: [
+          { key: "field_feb079", value: [{ id: "sprint-1", name: "Sprint 1" }] },
+        ],
+      },
+    })).toEqual({ present: true, sprintId: "sprint-1", sprintName: "Sprint 1" });
+  });
+
+  it("distinguishes an unavailable Sprint field from an explicitly empty relation", () => {
+    const workitem = {
+      id: "1",
+      key: "",
+      name: "Story",
+      type: "story",
+      status: "Start",
+    };
+    expect(extractMeegleSprintRelation({ ...workitem, fields: {} })).toEqual({ present: false });
+    expect(extractMeegleSprintRelation({ ...workitem, fields: { work_item_fields: [] } })).toEqual({ present: true });
   });
 });

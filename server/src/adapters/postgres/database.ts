@@ -248,13 +248,13 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .addColumn("status", "text")
     .addColumn("sub_stage_key", "text")
     .addColumn("sub_stage", "text")
+    .addColumn("sprint_id", "text")
     .addColumn("sprint", "text")
     .addColumn("version", "text")
     .addColumn("system", "text")
     .addColumn("bugs_json", "text")
     .addColumn("assignee", "text")
     .addColumn("priority", "text")
-    .addColumn("item_cycle_tag", "text")
     .addColumn("add_to_cycle_time", "text")
     .addColumn("item_start_time", "text")
     .addColumn("item_finish_time", "text")
@@ -265,6 +265,34 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .addColumn("stale", "boolean", (column) => column.notNull().defaultTo(false))
     .addPrimaryKeyConstraint("meegle_workitem_syncs_pkey", ["project_key", "work_item_type_key", "work_item_id"])
     .execute();
+
+  await db.schema
+    .createTable("meegle_workitem_sprint_memberships")
+    .ifNotExists()
+    .addColumn("project_key", "text", (column) => column.notNull())
+    .addColumn("work_item_type_key", "text", (column) => column.notNull())
+    .addColumn("work_item_id", "text", (column) => column.notNull())
+    .addColumn("sprint_id", "text", (column) => column.notNull())
+    .addColumn("added_at", "text", (column) => column.notNull())
+    .addColumn("started_at", "text")
+    .addColumn("finished_at", "text")
+    .addColumn("removed_at", "text")
+    .addColumn("source", "text", (column) => column.notNull())
+    .addColumn("created_at", "text", (column) => column.notNull())
+    .addColumn("updated_at", "text", (column) => column.notNull())
+    .addPrimaryKeyConstraint("meegle_workitem_sprint_memberships_pkey", [
+      "project_key", "work_item_type_key", "work_item_id", "sprint_id", "added_at",
+    ])
+    .execute();
+  await sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS meegle_workitem_sprint_memberships_open_unique
+    ON meegle_workitem_sprint_memberships (project_key, work_item_type_key, work_item_id)
+    WHERE removed_at IS NULL
+  `.execute(db);
+  await sql`
+    CREATE INDEX IF NOT EXISTS meegle_workitem_sprint_memberships_sprint_timeline
+    ON meegle_workitem_sprint_memberships (project_key, sprint_id, added_at)
+  `.execute(db);
 
   await db.schema
     .createTable("meegle_sync_mappings")
@@ -784,12 +812,13 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     ALTER TABLE meegle_workitem_syncs
     ADD COLUMN IF NOT EXISTS sub_stage text
   `.execute(db);
-  for (const column of ["sprint", "version", "system", "bugs_json", "priority"]) {
+  for (const column of ["sprint_id", "sprint", "version", "system", "bugs_json", "priority"]) {
     await sql.raw(`ALTER TABLE meegle_workitem_syncs ADD COLUMN IF NOT EXISTS ${column} text`).execute(db);
   }
-  for (const column of ["item_cycle_tag", "add_to_cycle_time", "item_start_time", "item_finish_time"]) {
+  for (const column of ["add_to_cycle_time", "item_start_time", "item_finish_time"]) {
     await sql.raw(`ALTER TABLE meegle_workitem_syncs ADD COLUMN IF NOT EXISTS ${column} text`).execute(db);
   }
+  await sql`ALTER TABLE meegle_workitem_syncs DROP COLUMN IF EXISTS item_cycle_tag`.execute(db);
   for (const column of [
     "planned_sprint", "planned_version", "linked_project", "linked_bugs_json", "relevant_system",
     "linked_sprint", "linked_version", "associated_bugs_json", "linked_story",
@@ -823,6 +852,7 @@ export async function resetPostgresDatabase(db: Kysely<DatabaseSchema>): Promise
   await sql`DROP TABLE IF EXISTS lark_base_ticket_syncs`.execute(db);
   await sql`DROP TABLE IF EXISTS github_pr_syncs`.execute(db);
   await sql`DROP TABLE IF EXISTS meegle_sync_mappings`.execute(db);
+  await sql`DROP TABLE IF EXISTS meegle_workitem_sprint_memberships`.execute(db);
   await sql`DROP TABLE IF EXISTS meegle_workitem_syncs`.execute(db);
   await sql`DROP TABLE IF EXISTS github_pr_review_runs`.execute(db);
   await sql`DROP TABLE IF EXISTS web_plugin_login_challenges`.execute(db);
