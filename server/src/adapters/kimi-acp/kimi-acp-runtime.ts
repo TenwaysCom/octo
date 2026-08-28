@@ -14,7 +14,10 @@ import type {
   AcpKimiSessionUpdateEvent,
 } from "../../modules/acp-kimi/event-stream.js";
 import { logger } from "../../logger.js";
-import type { AcpKimiPermissionHandler } from "../../application/services/acp-kimi-permission-policy.js";
+import {
+  extractAcpKimiRawCommand,
+  type AcpKimiPermissionHandler,
+} from "../../application/services/acp-kimi-permission-policy.js";
 
 const kimiAcpRuntimeLogger = logger.child({ module: "kimi-acp-runtime" });
 const DEFAULT_KIMI_ACP_STARTUP_TIMEOUT_MS = 30_000;
@@ -364,7 +367,7 @@ async function createDefaultConnection(
   >[1];
 
   const connection = new acp.ClientSideConnection(
-    () => new CollectingClient(input.emit, input.permissionHandler),
+    () => createKimiAcpCollectingClient(input.emit, input.permissionHandler),
     stream,
   );
 
@@ -733,7 +736,24 @@ function truncateLogValue(value: string, maxLength = 1_000): string {
   return `${value.slice(0, maxLength)}...`;
 }
 
+const MAX_PENDING_PERMISSION_EVIDENCE = 128;
+
+interface PendingPermissionEvidence {
+  rawInput: unknown;
+  fingerprint?: string;
+  ambiguous: boolean;
+}
+
+export function createKimiAcpCollectingClient(
+  emit: (event: AcpKimiStreamEvent) => void,
+  permissionHandler?: AcpKimiPermissionHandler,
+): acp.Client {
+  return new CollectingClient(emit, permissionHandler);
+}
+
 class CollectingClient implements acp.Client {
+  private readonly pendingPermissionEvidence = new Map<string, PendingPermissionEvidence>();
+
   constructor(
     private readonly emit: (event: AcpKimiStreamEvent) => void,
     private readonly permissionHandler?: AcpKimiPermissionHandler,
@@ -742,8 +762,34 @@ class CollectingClient implements acp.Client {
   async requestPermission(
     params: RequestPermissionRequest,
   ): Promise<RequestPermissionResponse> {
+    const evidenceKey = permissionEvidenceKey(params.sessionId, params.toolCall.toolCallId);
+    const evidence = this.pendingPermissionEvidence.get(evidenceKey);
+    this.pendingPermissionEvidence.delete(evidenceKey);
+
+    if (evidence?.ambiguous || hasPermissionEvidenceMismatch(params.toolCall.rawInput, evidence)) {
+      kimiAcpRuntimeLogger.warn({
+        sessionId: params.sessionId,
+        toolCallId: params.toolCall.toolCallId,
+        toolName: params.toolCall.title?.split(":", 1)[0]?.trim() ?? "",
+      }, "KIMI_ACP_PERMISSION EVIDENCE_MISMATCH");
+      return {
+        outcome: {
+          outcome: "cancelled" as const,
+        },
+      };
+    }
+
+    const request = evidence && !hasRawInput(params.toolCall.rawInput)
+      ? {
+          ...params,
+          toolCall: {
+            ...params.toolCall,
+            rawInput: evidence.rawInput,
+          },
+        }
+      : params;
     if (this.permissionHandler) {
-      return this.permissionHandler(params);
+      return this.permissionHandler(request);
     }
     return {
       outcome: {
@@ -753,6 +799,7 @@ class CollectingClient implements acp.Client {
   }
 
   async sessionUpdate(params: SessionNotification): Promise<void> {
+    this.trackPermissionEvidence(params);
     kimiAcpRuntimeLogger.info({
       sessionId: params.sessionId,
       sessionUpdate:
@@ -770,6 +817,80 @@ class CollectingClient implements acp.Client {
       },
     } satisfies AcpKimiSessionUpdateEvent);
   }
+
+  private trackPermissionEvidence(params: SessionNotification): void {
+    const update = asRecord(params.update);
+    if (!update) {
+      return;
+    }
+    const sessionUpdate = update?.sessionUpdate;
+    const toolCallId = update?.toolCallId;
+    if (typeof toolCallId !== "string") {
+      return;
+    }
+    const key = permissionEvidenceKey(params.sessionId, toolCallId);
+    if (sessionUpdate === "tool_call" && hasRawInput(update.rawInput)) {
+      const fingerprint = permissionEvidenceFingerprint(update.rawInput);
+      const existing = this.pendingPermissionEvidence.get(key);
+      if (existing) {
+        existing.ambiguous = existing.ambiguous
+          || !fingerprint
+          || !existing.fingerprint
+          || existing.fingerprint !== fingerprint;
+        return;
+      }
+      if (this.pendingPermissionEvidence.size >= MAX_PENDING_PERMISSION_EVIDENCE) {
+        const oldestKey = this.pendingPermissionEvidence.keys().next().value;
+        if (typeof oldestKey === "string") {
+          this.pendingPermissionEvidence.delete(oldestKey);
+        }
+      }
+      this.pendingPermissionEvidence.set(key, {
+        rawInput: update.rawInput,
+        fingerprint,
+        ambiguous: false,
+      });
+      return;
+    }
+    if (sessionUpdate === "tool_call_update"
+      && (update.status === "completed" || update.status === "failed")) {
+      this.pendingPermissionEvidence.delete(key);
+    }
+  }
+}
+
+function permissionEvidenceKey(sessionId: string, toolCallId: string): string {
+  return `${sessionId}\0${toolCallId}`;
+}
+
+function hasRawInput(value: unknown): boolean {
+  return value !== undefined && value !== null;
+}
+
+function hasPermissionEvidenceMismatch(
+  requestRawInput: unknown,
+  evidence: PendingPermissionEvidence | undefined,
+): boolean {
+  if (!evidence || !hasRawInput(requestRawInput)) {
+    return false;
+  }
+  const requestFingerprint = permissionEvidenceFingerprint(requestRawInput);
+  return !requestFingerprint
+    || !evidence.fingerprint
+    || requestFingerprint !== evidence.fingerprint;
+}
+
+function permissionEvidenceFingerprint(rawInput: unknown): string | undefined {
+  const command = extractAcpKimiRawCommand(rawInput);
+  if (command) {
+    return `command:${command}`;
+  }
+  try {
+    const serialized = JSON.stringify(rawInput);
+    return serialized === undefined ? undefined : `json:${serialized}`;
+  } catch {
+    return undefined;
+  }
 }
 
 function normalizeSessionUpdate(update: unknown): Record<string, unknown> {
@@ -778,6 +899,12 @@ function normalizeSessionUpdate(update: unknown): Record<string, unknown> {
   }
 
   return update as Record<string, unknown>;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : undefined;
 }
 
 function normalizeSessionSummary(session: Record<string, unknown>): KimiAcpSessionSummary {

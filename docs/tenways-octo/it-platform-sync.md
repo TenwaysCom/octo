@@ -111,7 +111,9 @@ Lark Ticket full/incremental 同步只维护 Ticket 字段和 `lark_message_link
 
 每次 Kimi 发起 ACP `session/request_permission`，Server 都基于 Session 快照重新判断并最多选择 Kimi 提供的 `allow_once` 选项；不会使用 `allow_always`。Shell 命令含控制操作符、路径越出 workspace、动作/Skill/Profile 不匹配，均拒绝。临时 JSON 只允许位于 `/tmp/support-qa/` 第一层，扩展名必须为 `.json`；目录或目标文件是符号链接、文件越过该目录、嵌套子目录或 update 目标不是已有普通文件时均拒绝。此策略是授权拦截层，不替代生产环境的专用运行账号、受限工作目录和最小 Lark CLI 身份。
 
-权限匹配必须兼容 Kimi ACP 的真实 `ToolCallUpdate`：新版 Kimi 可能不提供 `rawInput`，Shell 命令位于严格格式的 text `content`，文件写入目标位于 diff `content.path`；Server 只从这些已知结构提取命令或路径，并同时兼容旧版 `rawInput`。测试必须保留一组真实 Kimi permission shape fixture，不能只用人为构造的 `rawInput` 证明策略可用。
+权限匹配必须兼容 Kimi ACP 的真实事件顺序。Kimi 0.38 的 permission request 不再携带完整 Shell 命令，只保留截断的动作摘要；完整结构化参数仍位于先到达的 `tool_call.rawInput`。ACP client 仅按相同 `sessionId + toolCallId` 单次关联该参数，再交给既有精确白名单判断；证据缺失、ID 不匹配、重复证据冲突或 permission 自带参数与关联参数不一致时全部拒绝。旧版 permission `rawInput`、Kimi 0.22 严格 text content 和文件 diff `content.path` 继续兼容，但不得根据 0.38 的截断摘要猜测命令。测试必须保留真实 0.38 事件顺序 fixture，不能只用人为构造的 permission `rawInput` 证明策略可用。
+
+Support-QA 快捷动作还会在 workflow 完成前核对当前 Ticket 的 `fetch --json` tool call 是否以 `completed` 结束。没有匹配 fetch、权限被拒绝或 fetch 失败时，Server 不发送成功 `done`，而是返回 `SUPPORT_QA_EVIDENCE_NOT_FETCHED`，并带 `layer`、`module`、`stage` 和可用时的 `actionRunId`；模型仅依赖 Ticket 快照生成的降级答案不再被当作成功结果。
 
 对话正文、思考过程和工具调用由 Kimi CLI 在运行 Server 的机器上持久化，默认目录结构如下：
 

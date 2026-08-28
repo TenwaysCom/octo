@@ -428,3 +428,15 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Symptom:** During final diff review, a new Sprint membership with `startedAt=null` or `finishedAt=null` would have used `??` and fallen back to the previous current-snapshot value, leaking Sprint A lifecycle times into Sprint B.
 - **Root cause:** Null was treated as missing data even though it is an intentional state transition result for a new or reopened membership.
 - **Verified fix:** When a current membership projection exists, copy its lifecycle values including intentional nulls; fall back to the legacy current projection only when no membership projection exists. Within a still-Finished interval, treat a missing new finish timestamp as absent evidence and preserve the earlier known finish. Regression assertions cover both B returning to New and a repeated Finished observation without a new finish timestamp.
+
+### ERR-20260828-001 — Focused Vitest did not catch an optional ACP update type
+
+- **Symptom:** The focused runtime and workflow tests passed, but `pnpm --dir server build` failed with `TS18048` because `SessionNotification.update` can be undefined.
+- **Root cause:** Vitest transpilation exercised the runtime branch without performing the full TypeScript check.
+- **Verified fix:** Narrow the update through an explicit record guard before reading it, then require both focused tests and the Server build for ACP event-shape changes.
+
+### ERR-20260828-002 — Package test argument unexpectedly ran the full suite
+
+- **Symptom:** `pnpm --dir server test -- acp-kimi-permission-policy.test.ts` ran every Server test instead of only the named file.
+- **Root cause:** The package script already expands to `vitest run`, and this invocation did not provide the intended focused file routing in this workspace.
+- **Verified fix:** Use `pnpm --dir server exec vitest run <test paths>` for focused verification; keep `pnpm --dir server test` as the explicit full-suite command.

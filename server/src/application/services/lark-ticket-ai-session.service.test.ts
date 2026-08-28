@@ -98,6 +98,30 @@ describe("Lark Ticket AI Session service", () => {
       assertSessionAccess: vi.fn(),
       chat: vi.fn(async (_input, emit) => {
         emit({ event: "session.created", data: { sessionId: "sess_2" } });
+        emit({
+          event: "acp.session.update",
+          data: {
+            sessionId: "sess_2",
+            update: {
+              sessionUpdate: "tool_call",
+              toolCallId: "12:fetch_1",
+              rawInput: {
+                command: "bash .agents/skills/write-support-qa/scripts/write-support-qa.sh fetch LT-10 --json",
+              },
+            },
+          },
+        });
+        emit({
+          event: "acp.session.update",
+          data: {
+            sessionId: "sess_2",
+            update: {
+              sessionUpdate: "tool_call_update",
+              toolCallId: "12:fetch_1",
+              status: "completed",
+            },
+          },
+        });
         emit({ event: "done", data: { sessionId: "sess_2", stopReason: "end_turn" } });
       }),
     };
@@ -143,9 +167,97 @@ describe("Lark Ticket AI Session service", () => {
         executionPolicy: "shell",
         workspaceDir: "/srv/odoo/eu",
         ticketNumber: "LT-10",
+        policyVersion: "v2",
       }),
     }), expect.any(Function), expect.any(Object));
     expect(ownershipStore.attachTicket).toHaveBeenCalledWith(expect.objectContaining({ ticketNumber: "LT-10" }));
+  });
+
+  it("rejects a Support-QA quick action that ends without a completed Ticket fetch", async () => {
+    const ownershipStore = {
+      getBySessionId: vi.fn(),
+      listByTicket: vi.fn(),
+      attachTicket: vi.fn(),
+      touch: vi.fn(),
+    };
+    const acpService = {
+      assertSessionAccess: vi.fn(),
+      chat: vi.fn(async (_input, emit) => {
+        emit({ event: "session.created", data: { sessionId: "sess_failed" } });
+        emit({
+          event: "acp.session.update",
+          data: {
+            sessionId: "sess_failed",
+            update: {
+              sessionUpdate: "tool_call",
+              toolCallId: "12:fetch_failed",
+              rawInput: {
+                command: "bash .agents/skills/write-support-qa/scripts/write-support-qa.sh fetch LT-10 --json",
+              },
+            },
+          },
+        });
+        emit({
+          event: "acp.session.update",
+          data: {
+            sessionId: "sess_failed",
+            update: {
+              sessionUpdate: "tool_call_update",
+              toolCallId: "12:fetch_failed",
+              status: "failed",
+            },
+          },
+        });
+        emit({ event: "done", data: { sessionId: "sess_failed", stopReason: "end_turn" } });
+      }),
+    };
+    const service = createLarkTicketAiSessionService({
+      syncStore: {
+        getLarkBaseTicketsForCleaning: vi.fn().mockResolvedValue([{
+          ...ticket,
+          title: "Ticket title",
+          ticketNumber: "LT-10",
+          syncedAt: "2026-08-12T00:00:00.000Z",
+        }]),
+      } as never,
+      ownershipStore: ownershipStore as never,
+      acpService: acpService as never,
+      workflowPromptStore: {
+        getByKey: vi.fn().mockResolvedValue({ prompt: "Skill: {{skill_path}}\n{{ticket_context}}\n{{user_message}}" }),
+      } as never,
+      resolveAction: vi.fn().mockResolvedValue({
+        action: {
+          key: "lark-ticket-support-qa-summarize",
+          promptKey: "lark_ticket.support_qa.summarize",
+          skillProfile: "support_qa_eu",
+          skillId: "support_qa_query",
+          executionPolicy: "shell",
+        },
+        workspaceDir: "/srv/odoo/eu",
+        skillPath: "/srv/odoo/eu/.agents/skills/query-support-qa/SKILL.md",
+      }),
+    });
+    const events: Array<{ event: string }> = [];
+
+    await expect(service.chat({
+      operatorLarkId: "ou_1",
+      masterUserId: "usr_1",
+      larkBaseUrl: "https://open.larksuite.com",
+      ticket,
+      message: "请总结问题",
+      actionKey: "lark-ticket-support-qa-summarize",
+      actionRunId: "run_1",
+    }, (event) => events.push(event))).rejects.toMatchObject({
+      code: "SUPPORT_QA_EVIDENCE_NOT_FETCHED",
+      diagnostic: {
+        layer: "server",
+        module: "lark-ticket-ai-session",
+        stage: "server.workflow.completed",
+        actionRunId: "run_1",
+      },
+    });
+    expect(events.some((event) => event.event === "done")).toBe(false);
+    expect(ownershipStore.attachTicket).not.toHaveBeenCalled();
   });
 
   it("ensures thread context only for a new Session and pins its snapshot metadata", async () => {

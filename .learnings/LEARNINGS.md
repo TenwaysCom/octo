@@ -362,3 +362,9 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - **Context:** A single current Sprint projection could calculate current add/start/finish values, but an A to B change overwrote A and made Carryover or historical charts impossible to reproduce.
 - **Rule:** Model each continuous Sprint membership as an immutable interval. Incremental sync must close the current interval before opening a new one, update only the open interval for same-Sprint status changes, clamp a new interval's lifecycle times to its observed `added_at`, and write the interval plus compatibility snapshot in one PostgreSQL transaction. A lazily inferred existing interval stays `historical_inferred`; later observations must not upgrade its source.
 - **Verified outcome:** Pure transition and pg-mem store tests cover first observation, inferred current state, A to B, explicit removal, completion, reopen, New, and same-Sprint re-entry; Server full tests and TypeScript build pass without adding platform requests.
+
+## [LRN-20260828-001] acp-permission-event-correlation
+
+- **Context:** Kimi ACP 0.38 retained the exact Bash arguments on the initial `tool_call.rawInput`, while the later permission request exposed only a truncated human-readable action summary.
+- **Rule:** Authorize from structured tool-call evidence, correlated by `sessionId + toolCallId` and consumed once. Never reconstruct a command from a truncated display string; reject ambiguous, cross-ID, or conflicting evidence. For evidence-required workflows, independently require the expected tool call to reach a successful terminal state before emitting success.
+- **Verified outcome:** Runtime fixtures reproduce the 0.38 event order and prove exact fetch approval plus single-use, cross-ID, and mismatch denial; the Ticket workflow rejects a failed or missing fetch without emitting `done`.

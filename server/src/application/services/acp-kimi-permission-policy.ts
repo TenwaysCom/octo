@@ -84,7 +84,7 @@ async function allowsReadOnlyShell(
     return false;
   }
   const tokens = command.trim().split(/\s+/);
-  return allowsFetch(tokens, context)
+  return isAcpKimiSupportQaFetchCommand(command, context)
     || await allowsReadFile(tokens, context, supportQaTempDir);
 }
 
@@ -110,7 +110,14 @@ async function allowsRestrictedWrite(
       && await isAllowedSupportQaTempJson(path, supportQaTempDir, false);
 }
 
-function allowsFetch(tokens: string[], context: AcpKimiPermissionContext): boolean {
+export function isAcpKimiSupportQaFetchCommand(
+  command: string,
+  context: Pick<AcpKimiPermissionContext, "ticketNumber">,
+): boolean {
+  if (hasShellControlOperator(command)) {
+    return false;
+  }
+  const tokens = command.trim().split(/\s+/);
   const [shell, script, operation, ticketNumber, output] = tokens;
   return shell === "bash"
     && script === ".agents/skills/write-support-qa/scripts/write-support-qa.sh"
@@ -187,7 +194,7 @@ function readRoots(context: AcpKimiPermissionContext): string[] {
 }
 
 function getToolCommand(toolCall: RequestPermissionRequest["toolCall"]): string | undefined {
-  const rawCommand = getRawCommand(toolCall.rawInput);
+  const rawCommand = extractAcpKimiRawCommand(toolCall.rawInput);
   const contentCommands = (toolCall.content ?? []).flatMap((item) => {
     const record = asRecord(item);
     const content = asRecord(record?.content);
@@ -208,7 +215,7 @@ function getToolCommand(toolCall: RequestPermissionRequest["toolCall"]): string 
   return rawCommand ?? uniqueContentCommands[0];
 }
 
-function getRawCommand(rawInput: unknown): string | undefined {
+export function extractAcpKimiRawCommand(rawInput: unknown): string | undefined {
   if (typeof rawInput === "string") {
     return rawInput;
   }

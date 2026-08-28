@@ -1,6 +1,10 @@
 import type { AcpKimiProxyService } from "./acp-kimi-proxy.service.js";
 import { acpKimiProxyService } from "./acp-kimi-proxy.service.js";
-import type { AcpKimiPermissionContext } from "./acp-kimi-permission-policy.js";
+import {
+  extractAcpKimiRawCommand,
+  isAcpKimiSupportQaFetchCommand,
+  type AcpKimiPermissionContext,
+} from "./acp-kimi-permission-policy.js";
 import { acpKimiSessionHistoryService } from "./acp-kimi-session-history.service.js";
 import type { AcpKimiStreamEvent } from "../../modules/acp-kimi/event-stream.js";
 import {
@@ -44,8 +48,21 @@ export interface LarkTicketAiSessionRef {
 
 export class LarkTicketAiSessionError extends Error {
   constructor(
-    readonly code: "LARK_TICKET_NOT_FOUND" | "SESSION_NOT_FOUND" | "SESSION_FORBIDDEN" | "AI_ACTION_NOT_FOUND" | "SKILL_PROFILE_NOT_CONFIGURED" | "LARK_THREAD_CONTEXT_UNAVAILABLE",
+    readonly code:
+      | "LARK_TICKET_NOT_FOUND"
+      | "SESSION_NOT_FOUND"
+      | "SESSION_FORBIDDEN"
+      | "AI_ACTION_NOT_FOUND"
+      | "SKILL_PROFILE_NOT_CONFIGURED"
+      | "LARK_THREAD_CONTEXT_UNAVAILABLE"
+      | "SUPPORT_QA_EVIDENCE_NOT_FETCHED",
     message: string,
+    readonly diagnostic?: {
+      layer: "server" | "adapter";
+      module: string;
+      stage: string;
+      actionRunId?: string;
+    },
   ) {
     super(message);
     this.name = "LarkTicketAiSessionError";
@@ -156,6 +173,10 @@ export function createLarkTicketAiSessionService(
         ? await buildQuickActionPrompt(workflowPromptStore, quickAction, ticket, input.message, threadContext)
         : input.sessionId ? input.message : buildTicketPrompt(ticket, input.message, threadContext);
       let createdSessionId: string | undefined;
+      let doneEvent: Extract<AcpKimiStreamEvent, { event: "done" }> | undefined;
+      const evidenceTracker = quickAction && permissionContext
+        ? createSupportQaEvidenceTracker(permissionContext)
+        : undefined;
 
       await acpService.chat({
         operatorLarkId: input.operatorLarkId,
@@ -167,11 +188,32 @@ export function createLarkTicketAiSessionService(
         if (event.event === "session.created") {
           createdSessionId = event.data.sessionId;
         }
+        evidenceTracker?.observe(event);
+        if (event.event === "done" && evidenceTracker) {
+          doneEvent = event;
+          return;
+        }
         emit(event);
       }, {
         signal: input.signal,
         session: input.sessionId ? undefined : null,
       });
+
+      if (evidenceTracker && !evidenceTracker.completed) {
+        throw new LarkTicketAiSessionError(
+          "SUPPORT_QA_EVIDENCE_NOT_FETCHED",
+          "Support-QA evidence fetch did not complete; the AI result was not accepted.",
+          {
+            layer: "server",
+            module: "lark-ticket-ai-session",
+            stage: "server.workflow.completed",
+            ...(input.actionRunId ? { actionRunId: input.actionRunId } : {}),
+          },
+        );
+      }
+      if (doneEvent) {
+        emit(doneEvent);
+      }
 
       const sessionId = input.sessionId ?? createdSessionId;
       if (!sessionId) {
@@ -197,6 +239,44 @@ export function createLarkTicketAiSessionService(
         }
       } else {
         await ownershipStore.touch(sessionId, input.operatorLarkId);
+      }
+    },
+  };
+}
+
+function createSupportQaEvidenceTracker(context: AcpKimiPermissionContext) {
+  const fetchToolCallIds = new Set<string>();
+  let completed = false;
+  return {
+    get completed() {
+      return completed;
+    },
+    observe(event: AcpKimiStreamEvent) {
+      if (event.event !== "acp.session.update") {
+        return;
+      }
+      const update = event.data.update;
+      const toolCallId = typeof update.toolCallId === "string"
+        ? update.toolCallId
+        : undefined;
+      if (!toolCallId) {
+        return;
+      }
+      if (update.sessionUpdate === "tool_call") {
+        const command = extractAcpKimiRawCommand(update.rawInput);
+        if (command && isAcpKimiSupportQaFetchCommand(command, context)) {
+          fetchToolCallIds.add(toolCallId);
+        }
+        return;
+      }
+      if (update.sessionUpdate !== "tool_call_update" || !fetchToolCallIds.has(toolCallId)) {
+        return;
+      }
+      if (update.status === "completed") {
+        completed = true;
+      }
+      if (update.status === "completed" || update.status === "failed") {
+        fetchToolCallIds.delete(toolCallId);
       }
     },
   };
@@ -319,7 +399,7 @@ function createPermissionContext(
     skillProfile: quickAction.action.skillProfile,
     skillId: quickAction.action.skillId,
     ticketNumber: ticket.ticketNumber || ticket.recordId,
-    policyVersion: "v1",
+    policyVersion: "v2",
   };
 }
 
