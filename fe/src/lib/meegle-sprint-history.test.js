@@ -150,6 +150,26 @@ test("builds daily scope, active-started and completed counts from lifecycle tim
   assert.equal(timeline.coverageCount, 2);
 });
 
+test("uses the configured Sprint end date for current and upcoming timelines", () => {
+  const now = new Date("2026-08-28T12:00:00.000Z");
+  const current = buildMeegleSprintTimeline({
+    startAt: "2026-08-20T00:00:00.000Z",
+    endAt: "2026-09-03T00:00:00.000Z",
+    items: [],
+  }, now);
+  const upcoming = buildMeegleSprintTimeline({
+    startAt: "2026-09-10T00:00:00.000Z",
+    endAt: "2026-09-24T00:00:00.000Z",
+    items: [],
+  }, now);
+
+  assert.equal(current.points.at(-1).date, "2026-09-03");
+  assert.equal(current.endAt, "2026-09-03T00:00:00.000Z");
+  assert.equal(upcoming.points[0].date, "2026-09-10");
+  assert.equal(upcoming.points.at(-1).date, "2026-09-24");
+  assert.equal(upcoming.endAt, "2026-09-24T00:00:00.000Z");
+});
+
 test("counts items added before the sprint start in opening-day scope", () => {
   const timeline = buildMeegleSprintTimeline({
     startAt: "2026-08-20T00:00:00.000Z",

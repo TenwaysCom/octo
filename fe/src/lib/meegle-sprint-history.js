@@ -132,7 +132,7 @@ export function buildMeegleSprintTimeline(sprint, now = new Date()) {
   const start = startOfUtcDay(configuredStart ?? (lifecycleTimes.length ? Math.min(...lifecycleTimes) : nowTime ?? Date.now()));
   const today = startOfUtcDay(nowTime ?? Date.now());
   const scheduledEnd = startOfUtcDay(configuredEnd ?? today);
-  const end = Math.max(start, Math.min(scheduledEnd, today));
+  const end = Math.max(start, scheduledEnd);
   const points = [];
   for (let day = start; day <= end; day += 24 * 60 * 60 * 1000) {
     const cutoff = day + 24 * 60 * 60 * 1000 - 1;

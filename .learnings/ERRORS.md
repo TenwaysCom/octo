@@ -458,3 +458,9 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Symptom:** The first closeout patch failed while matching an unchanged historical verification row.
 - **Root cause:** One multi-hunk patch unnecessarily anchored the new v4 evidence to an old v3 row.
 - **Verified fix:** Anchor the new evidence immediately before the stable `外部资源` row and keep unrelated historical evidence out of the patch context.
+
+### ERR-20260828-006 — Sprint timeline capped planned ranges at today
+
+- **Symptom:** Current Sprint charts ended today and Upcoming Sprint charts collapsed to their start day instead of reaching the configured Sprint end date.
+- **Root cause:** The FE timeline used `min(configured end, today)`, treating today as an axis limit even though the chart contract covers the full configured Sprint range.
+- **Verified fix:** Use the configured end date whenever present, fall back to today only when it is missing, and cover both Current and Upcoming timelines with explicit end-date assertions.

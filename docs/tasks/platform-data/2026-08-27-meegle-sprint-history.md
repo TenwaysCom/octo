@@ -2,9 +2,9 @@
 title: "Meegle Sprint 历史与详情"
 module: "platform-data"
 status: in_progress
-requirement_version: 6
+requirement_version: 7
 created_on: 2026-08-27
-updated_on: 2026-08-27
+updated_on: 2026-08-28
 closed_on: null
 owner: Codex
 related:
@@ -23,12 +23,13 @@ related:
 - 因此旧 Sprint 的工作项、Scope 和完成率会随之后的同步变化，B 也无法区分临时新增与从 A 延期进入。
 - start/finish 在重开、回到 New 或切换 Sprint 后还会继续变化；只保存 Sprint 关系的 added/removed 仍不足以稳定旧 Sprint 图表。
 
-## 当前有效需求（v6）
+## 当前有效需求（v7）
 
 ### 范围
 
 - v4 的当前工作项 PG-only 历史清洗需求保持有效且不变；v5 在其结果之上新增 Sprint 归属历史。
 - v6 保留 v4、v5 的全部有效要求，只为 Sprint 归属增加证据来源和准确性边界。
+- v7 保留 v6 的全部有效要求，并要求 Current、Upcoming 和 Past 图表横轴都使用 Sprint 配置的完整起止日期；仅在结束日期缺失时回退到今天。
 - 新增 PostgreSQL Sprint 归属历史，供 Sprint 列表、详情、图表和分类使用。
 - 当前工作项快照仍保存当前 `sprint_id`、`sprint`、`add_to_cycle_time`、`item_start_time`、`item_finish_time`，供普通列表和兼容接口使用。
 - Server 负责归属转换和分类；FE 只消费投影结果，不从当前 `sprint_id` 猜历史。
@@ -104,7 +105,7 @@ API 应返回关系来源；FE 对包含 `historical_inferred` 关系的历史�
 - 分类优先级为 `Carryover > Planned / After cycle`，只在 API/FE 投影时计算，不落库。
 - 对 `historical_inferred` 关系不推导历史 Carryover；结果为 Unknown。Planned/After cycle 可以基于推定 `added_at` 计算，但必须同时标记为 estimated。
 
-## 验收标准（v6）
+## 验收标准（v7）
 
 - [x] v4 当前工作项 PG-only 历史清洗代码、定向测试、Server 全量测试和 build 已完成，且外部 client 调用为 0；该规则继续有效。
 - [x] 已在目标 PostgreSQL 执行 v4 PG-only 当前工作项历史清洗并完成只读聚合核对；未调用 Meegle。
@@ -112,6 +113,7 @@ API 应返回关系来源；FE 对包含 `historical_inferred` 关系的历史�
 - [x] 每条关系保存 `historical_inferred` 或 `incremental_observed` 来源；同一推定区间后续同步不能被错误升级为 observed。
 - [x] A → B 切换后，A 的 added/started/finished 不再变化；B 使用独立的 added/started/finished。
 - [x] 明确移除、同 Sprint 状态变化、完成、重开、回到 New 和同 Sprint 重入均符合行为契约。
+- [x] Current 与 Upcoming 图表结束于 Sprint 配置结束日，不再被今天截断；缺失结束日时仍安全回退到今天。
 - [ ] Sprint 列表、详情工作项和 Scope/Started/Completed 图表改为读取 Sprint 归属历史，而不是只按当前 `sprint_id` 聚合。
 - [ ] Carryover、Planned、After cycle 按上述规则派生，`item_cycle_tag` 和 carryover 标志不落库。
 - [ ] API/FE 区分推定与观察数据：推定历史的 Carryover 为 Unknown，基于推定时间计算的 Planned/After cycle 标记为 estimated。
@@ -149,12 +151,14 @@ v4 已完成 Sprint 页面、稳定 `sprint_id`、当前生命周期投影和 PG
 | 2026-08-27 | v4 | done | 当前工作项历史覆盖与增量合并实现已完成；定向测试 54/54、Server 全量测试 576/576、Server build 通过。随后在确认范围后对项目 `4c3fv6` 执行 PG-only 清洗：1215 条候选、1215 条更新，未调用 Meegle。 | 只读核对：458 条当前 Sprint 关联均有 add，180 条有 start、959 条有 finish，start 晚于 finish 为 0；23 条 add 晚于全局 start 属于先开始后进入当前 Sprint，需由 v5/v6 关系历史表达。 |
 | 2026-08-27 | v5 | in_progress | 已新增连续 Sprint 归属 schema 和增量状态转换；正常增量 UPSERT 在同一事务中冻结 A、创建 B，并处理明确移除、同 Sprint 完成/重开/New 及重入。 | PG-only 批量初始化、API/FE 改用归属历史、派生分类和目标数据库迁移尚未实施。 |
 | 2026-08-27 | v6 | in_progress | 关系保存 `historical_inferred` / `incremental_observed`；已有当前快照首次进入新逻辑时惰性创建推定开放区间，同 Sprint 后续同步不升级来源。 | 历史批量初始化、准确性 API/FE 提示和目标数据库验证尚未实施。 |
+| 2026-08-28 | v7 | done | 修正 FE 图表横轴结束日：移除对今天的上限，Current 与 Upcoming 均延伸到 Sprint 配置结束日；结束日缺失时继续回退今天。 | 未执行登录态浏览器视觉验收。 |
 
 ## 验证
 
 | 类型 | 结果 | 证据 | 边界 |
 | --- | --- | --- | --- |
 | FE 单测 / 构建 | 通过（v3 基线） | `pnpm --dir fe check`：73/73 tests passed；Vite build passed。 | 未覆盖 v5 关系历史数据源和 Carryover 展示。 |
+| FE 单测 / 构建（v7） | 通过 | `pnpm --dir fe check`：23/23 test files passed；Vite production build passed。覆盖 Current 与 Upcoming 的配置结束日。 | 未执行登录态浏览器视觉验收。 |
 | Server 生命周期定向测试 | 通过（v4，有效前置） | 5 个文件共 54 项全部通过；覆盖当前快照的最早 start、完成、重开、New 清空及外部 client 调用为 0。 | 当前清洗需求已验证；尚未覆盖 v5 新增的多 Sprint 归属区间。 |
 | Server 全量测试 | 通过（v4，有效前置） | `pnpm --dir server test`：128 个文件、576 项全部通过。 | 测试使用本地 mock / 测试存储；只能证明 v4 清洗，不能证明 v5 新增功能。 |
 | Server build | 通过（v6 本地实现） | `pnpm --dir server build`。 | schema 尚未应用到目标 PostgreSQL。 |
