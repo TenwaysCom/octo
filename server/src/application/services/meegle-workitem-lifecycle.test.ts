@@ -44,6 +44,7 @@ describe("Meegle work item lifecycle", () => {
     })).toEqual({
       phase: "finished",
       addToCycleTime: "2026-08-21T00:00:00.000Z",
+      currentNodeStartTime: null,
       itemStartTime: "2026-08-22T08:00:00.000Z",
       itemFinishTime: "2026-08-24T08:00:00.000Z",
     });
@@ -59,6 +60,7 @@ describe("Meegle work item lifecycle", () => {
     })).toEqual({
       phase: "new",
       addToCycleTime: "2026-08-20T00:00:00.000Z",
+      currentNodeStartTime: null,
       itemStartTime: null,
       itemFinishTime: null,
     });
@@ -73,7 +75,34 @@ describe("Meegle work item lifecycle", () => {
           schedule: { actual_begin_time: "2026-08-25T08:00:00Z" },
         }],
       } },
-    })).toMatchObject({ itemStartTime: "2026-08-25T08:00:00.000Z", itemFinishTime: null });
+    })).toMatchObject({
+      currentNodeStartTime: "2026-08-25T08:00:00.000Z",
+      itemStartTime: "2026-08-25T08:00:00.000Z",
+      itemFinishTime: null,
+    });
+  });
+
+  it.each([
+    ["Feature", "story"],
+    ["Tech Task", "66700acbf297a8f821b4b860"],
+    ["Production Bug", "6932e40429d1cd8aac635c82"],
+  ])("projects the %s current node's direct actual_begin_time", (_workItemType, type) => {
+    expect(buildMeegleWorkitemLifecycle({
+      workitem: {
+        ...workitem,
+        type,
+        status: "In Progress",
+        fields: {
+          work_item_fields: workitemFields,
+          work_item_current_node: [{
+            name: "Doing",
+            actual_begin_time: "2026-08-25T08:00:00Z",
+          }],
+        },
+      },
+    })).toMatchObject({
+      currentNodeStartTime: "2026-08-25T08:00:00.000Z",
+    });
   });
 
   it("uses a terminal node start when the stored history contains no separate active node", () => {

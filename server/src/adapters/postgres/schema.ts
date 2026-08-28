@@ -151,6 +151,7 @@ export interface DatabaseSchema {
     assignee: string | null;
     priority: string | null;
     add_to_cycle_time: string | null;
+    current_node_start_time: string | null;
     item_start_time: string | null;
     item_finish_time: string | null;
     payload_json: string;

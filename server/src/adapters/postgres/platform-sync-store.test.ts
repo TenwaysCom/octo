@@ -23,6 +23,7 @@ describe("PostgresPlatformSyncStore", () => {
       sprintRelation: { present: true, sprintId: "cycle-1", sprintName: "Sprint 1" },
       lifecycle: {
         addToCycleTime: "2026-08-01T01:00:00.000Z",
+        currentNodeStartTime: "2026-08-02T01:00:00.000Z",
         itemStartTime: "2026-08-01T02:00:00.000Z",
         itemFinishTime: "2026-08-02T00:00:00.000Z",
       },
@@ -37,6 +38,7 @@ describe("PostgresPlatformSyncStore", () => {
       sprintRelation: { present: true, sprintId: "cycle-1", sprintName: "Sprint 1" },
       lifecycle: {
         addToCycleTime: "2026-08-01T01:00:00.000Z",
+        currentNodeStartTime: "2026-08-02T01:00:00.000Z",
         itemStartTime: "2026-08-01T02:00:00.000Z",
         itemFinishTime: "2026-08-02T00:00:00.000Z",
       },
@@ -109,6 +111,7 @@ describe("PostgresPlatformSyncStore", () => {
         sub_stage: "Done",
         source_updated_at: "2026-08-02T00:00:00.000Z",
         sprint_id: "cycle-1",
+        current_node_start_time: "2026-08-02T01:00:00.000Z",
         item_finish_time: "2026-08-02T00:00:00.000Z",
       })]);
     await expect(db.selectFrom("meegle_sync_mappings").selectAll().execute())
@@ -127,7 +130,7 @@ describe("PostgresPlatformSyncStore", () => {
       workItemId: "1", title: "Updated", statusKey: "status_finished", status: "Finished",
       subStageKey: "node_done", subStage: "Done",
       sprint: "Sprint 1", version: "Version 1", bugs: ["Bug 1"], priority: "P0",
-      sprintId: "cycle-1", itemFinishTime: "2026-08-02T00:00:00.000Z",
+      sprintId: "cycle-1", currentNodeStartTime: "2026-08-02T01:00:00.000Z", itemFinishTime: "2026-08-02T00:00:00.000Z",
     })]);
     await expect(store.listMeegleWorkitems(10, { sprints: ["Sprint 1"] })).resolves.toHaveLength(1);
     await expect(store.countMeegleWorkitems({ sprints: ["Sprint 1"] })).resolves.toBe(1);
@@ -136,7 +139,7 @@ describe("PostgresPlatformSyncStore", () => {
     await expect(store.listMeegleWorkitemsByIds(["1", "missing", "1"])).resolves.toEqual([
       expect.objectContaining({
         workItemId: "1", title: "Updated", status: "Finished", sprintId: "cycle-1", sprint: "Sprint 1", version: "Version 1",
-        addToCycleTime: "2026-08-01T01:00:00.000Z", itemStartTime: "2026-08-01T02:00:00.000Z", itemFinishTime: "2026-08-02T00:00:00.000Z",
+        addToCycleTime: "2026-08-01T01:00:00.000Z", currentNodeStartTime: "2026-08-02T01:00:00.000Z", itemStartTime: "2026-08-01T02:00:00.000Z", itemFinishTime: "2026-08-02T00:00:00.000Z",
       }),
     ]);
     await expect(store.listGitHubPullRequests(10)).resolves.toEqual([expect.objectContaining({
@@ -281,6 +284,7 @@ describe("PostgresPlatformSyncStore", () => {
     };
     const upsertLifecycle = async (lifecycle: {
       phase: "new" | "started" | "finished";
+      currentNodeStartTime: string | null;
       itemStartTime: string | null;
       itemFinishTime: string | null;
     }) => store.upsertMeegleWorkitem({
@@ -292,45 +296,51 @@ describe("PostgresPlatformSyncStore", () => {
 
     await upsertLifecycle({
       phase: "started",
+      currentNodeStartTime: "2026-08-22T00:00:00.000Z",
       itemStartTime: "2026-08-22T00:00:00.000Z",
       itemFinishTime: null,
     });
     await upsertLifecycle({
       phase: "started",
+      currentNodeStartTime: "2026-08-25T00:00:00.000Z",
       itemStartTime: "2026-08-25T00:00:00.000Z",
       itemFinishTime: null,
     });
-    await upsertLifecycle({ phase: "started", itemStartTime: null, itemFinishTime: null });
+    await upsertLifecycle({ phase: "started", currentNodeStartTime: null, itemStartTime: null, itemFinishTime: null });
     await expect(store.listMeegleWorkitems(10)).resolves.toEqual([
       expect.objectContaining({
         itemStartTime: "2026-08-22T00:00:00.000Z",
+        currentNodeStartTime: undefined,
         itemFinishTime: undefined,
       }),
     ]);
 
     await upsertLifecycle({
       phase: "finished",
+      currentNodeStartTime: "2026-08-26T00:00:00.000Z",
       itemStartTime: null,
       itemFinishTime: "2026-08-26T00:00:00.000Z",
     });
     await expect(store.listMeegleWorkitems(10)).resolves.toEqual([
       expect.objectContaining({
         itemStartTime: "2026-08-22T00:00:00.000Z",
+        currentNodeStartTime: "2026-08-26T00:00:00.000Z",
         itemFinishTime: "2026-08-26T00:00:00.000Z",
       }),
     ]);
 
-    await upsertLifecycle({ phase: "started", itemStartTime: null, itemFinishTime: null });
+    await upsertLifecycle({ phase: "started", currentNodeStartTime: "2026-08-27T00:00:00.000Z", itemStartTime: null, itemFinishTime: null });
     await expect(store.listMeegleWorkitems(10)).resolves.toEqual([
       expect.objectContaining({
         itemStartTime: "2026-08-22T00:00:00.000Z",
+        currentNodeStartTime: "2026-08-27T00:00:00.000Z",
         itemFinishTime: undefined,
       }),
     ]);
 
-    await upsertLifecycle({ phase: "new", itemStartTime: null, itemFinishTime: null });
+    await upsertLifecycle({ phase: "new", currentNodeStartTime: null, itemStartTime: null, itemFinishTime: null });
     await expect(store.listMeegleWorkitems(10)).resolves.toEqual([
-      expect.objectContaining({ itemStartTime: undefined, itemFinishTime: undefined }),
+      expect.objectContaining({ currentNodeStartTime: undefined, itemStartTime: undefined, itemFinishTime: undefined }),
     ]);
 
     await db.destroy();

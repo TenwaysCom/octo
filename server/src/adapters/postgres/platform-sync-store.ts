@@ -86,6 +86,7 @@ export interface MeegleWorkitemSyncItem {
   assignee?: string;
   priority?: string;
   addToCycleTime?: string;
+  currentNodeStartTime?: string;
   itemStartTime?: string;
   itemFinishTime?: string;
   sourcePayload?: MeegleWorkitem;
@@ -96,6 +97,7 @@ export interface MeegleWorkitemSyncItem {
 export interface MeegleWorkitemLifecycleFields {
   phase?: "new" | "started" | "finished";
   addToCycleTime?: string;
+  currentNodeStartTime?: string | null;
   itemStartTime?: string | null;
   itemFinishTime?: string | null;
 }
@@ -266,7 +268,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
     const sourceUpdatedAt = input.workitem.updatedAt ?? null;
     await this.db.transaction().execute(async (trx) => {
       const existing = await trx.selectFrom("meegle_workitem_syncs")
-        .select(["sprint_id", "sprint", "add_to_cycle_time", "item_start_time", "item_finish_time"])
+        .select(["sprint_id", "sprint", "add_to_cycle_time", "current_node_start_time", "item_start_time", "item_finish_time"])
         .where("project_key", "=", input.projectKey)
         .where("work_item_type_key", "=", input.workItemTypeKey)
         .where("work_item_id", "=", input.workitem.id)
@@ -311,6 +313,9 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
         input.sprintObservedAt,
       );
       const projectedLifecycle = projectMeegleIncrementalLifecycle(existing, input.lifecycle);
+      const currentNodeStartTime = input.lifecycle?.currentNodeStartTime === undefined
+        ? existing?.current_node_start_time ?? null
+        : input.lifecycle.currentNodeStartTime;
       const itemStartTime = membershipTransition?.currentOpen
         ? membershipTransition.currentOpen.startedAt
         : projectedLifecycle.itemStartTime;
@@ -382,6 +387,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
         sprint_id: sprint.sprintId,
         sprint: sprint.sprintName,
         add_to_cycle_time: membershipTransition?.currentOpen?.addedAt ?? sprint.addToCycleTime,
+        current_node_start_time: currentNodeStartTime,
         item_start_time: itemStartTime,
         item_finish_time: itemFinishTime,
         payload_json: JSON.stringify(input.workitem),
@@ -406,6 +412,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
         sprint_id: sprint.sprintId,
         sprint: sprint.sprintName,
         add_to_cycle_time: membershipTransition?.currentOpen?.addedAt ?? sprint.addToCycleTime,
+        current_node_start_time: currentNodeStartTime,
         item_start_time: itemStartTime,
         item_finish_time: itemFinishTime,
         payload_json: JSON.stringify(input.workitem),
@@ -608,7 +615,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
           "project_key", "project_name", "work_item_type_key", "work_item_id", "work_item_key", "title",
           "work_item_type", "status_key", "status", "sub_stage_key", "sub_stage", "sprint_id", "sprint", "version",
           "system", "bugs_json", "assignee", "priority", "source_updated_at", "synced_at", "payload_json",
-          "add_to_cycle_time", "item_start_time", "item_finish_time",
+          "add_to_cycle_time", "current_node_start_time", "item_start_time", "item_finish_time",
         ])
         .where("project_key", "=", ref.projectKey)
         .where("work_item_type_key", "=", ref.workItemTypeKey)
@@ -668,7 +675,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
 
   async applyMeegleWorkitemCleaning(input: MeegleWorkitemCleaningInput): Promise<boolean> {
     const existing = await this.db.selectFrom("meegle_workitem_syncs")
-      .select(["sprint_id", "sprint", "version", "system", "bugs_json", "add_to_cycle_time", "item_start_time", "item_finish_time"])
+      .select(["sprint_id", "sprint", "version", "system", "bugs_json", "add_to_cycle_time", "current_node_start_time", "item_start_time", "item_finish_time"])
       .where("project_key", "=", input.projectKey)
       .where("work_item_type_key", "=", input.workItemTypeKey)
       .where("work_item_id", "=", input.workItemId)
@@ -680,15 +687,20 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
     const itemFinishTime = input.lifecycle?.itemFinishTime === undefined
       ? existing?.item_finish_time ?? null
       : input.lifecycle.itemFinishTime;
+    const currentNodeStartTime = input.lifecycle?.currentNodeStartTime === undefined
+      ? existing?.current_node_start_time ?? null
+      : input.lifecycle.currentNodeStartTime;
     const bugsJson = JSON.stringify(input.bugs);
     if (existing && existing.sprint_id === sprint.sprintId && existing.sprint === sprint.sprintName
       && existing.add_to_cycle_time === sprint.addToCycleTime && existing.item_start_time === itemStartTime
-      && existing.item_finish_time === itemFinishTime && existing.version === input.version
+      && existing.item_finish_time === itemFinishTime && existing.current_node_start_time === currentNodeStartTime
+      && existing.version === input.version
       && existing.system === input.system && existing.bugs_json === bugsJson) return false;
     await this.db.updateTable("meegle_workitem_syncs").set({
       sprint_id: sprint.sprintId,
       sprint: sprint.sprintName,
       add_to_cycle_time: sprint.addToCycleTime,
+      current_node_start_time: currentNodeStartTime,
       item_start_time: itemStartTime,
       item_finish_time: itemFinishTime,
       version: input.version ?? null,
@@ -831,7 +843,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
         "work_item_type", "status_key", "status", "sub_stage_key", "sub_stage",
         "sprint_id", "sprint", "version", "system", "bugs_json",
         "assignee", "priority", "source_updated_at", "synced_at",
-        "add_to_cycle_time", "item_start_time", "item_finish_time",
+        "add_to_cycle_time", "current_node_start_time", "item_start_time", "item_finish_time",
       ])
       .orderBy("source_updated_at", "desc")
       .orderBy("synced_at", "desc")
@@ -903,7 +915,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
         "work_item_type", "status_key", "status", "sub_stage_key", "sub_stage",
         "sprint_id", "sprint", "version", "system", "bugs_json", "assignee", "priority",
         "source_updated_at", "synced_at", "payload_json",
-        "add_to_cycle_time", "item_start_time", "item_finish_time",
+        "add_to_cycle_time", "current_node_start_time", "item_start_time", "item_finish_time",
       ])
       .where("work_item_type_key", "in", MEEGLE_SPRINT_TYPE_KEYS)
       .orderBy("source_updated_at", "desc")
@@ -921,7 +933,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
           "project_key", "project_name", "work_item_type_key", "work_item_id", "work_item_key", "title",
           "work_item_type", "status_key", "status", "sub_stage_key", "sub_stage",
           "sprint_id", "sprint", "version", "system", "bugs_json", "assignee", "priority",
-          "source_updated_at", "synced_at", "add_to_cycle_time", "item_start_time", "item_finish_time",
+          "source_updated_at", "synced_at", "add_to_cycle_time", "current_node_start_time", "item_start_time", "item_finish_time",
         ])
         .where("work_item_id", "in", batch)
         .execute();
@@ -1084,6 +1096,7 @@ type ExistingMeegleSprintMembership = {
 } | undefined;
 
 type ExistingMeegleLifecycle = {
+  current_node_start_time: string | null;
   item_start_time: string | null;
   item_finish_time: string | null;
 } | undefined;
@@ -1196,6 +1209,7 @@ type MeegleWorkitemSyncRow = {
   assignee: string | null;
   priority: string | null;
   add_to_cycle_time: string | null;
+  current_node_start_time: string | null;
   item_start_time: string | null;
   item_finish_time: string | null;
   source_updated_at: string | null;
@@ -1269,6 +1283,7 @@ function toMeegleWorkitemSyncItem(row: MeegleWorkitemSyncRow): MeegleWorkitemSyn
     assignee: row.assignee ?? undefined,
     priority: row.priority ?? undefined,
     addToCycleTime: row.add_to_cycle_time ?? undefined,
+    currentNodeStartTime: row.current_node_start_time ?? undefined,
     itemStartTime: row.item_start_time ?? undefined,
     itemFinishTime: row.item_finish_time ?? undefined,
     sourcePayload: parseMeegleWorkitem(row.payload_json),

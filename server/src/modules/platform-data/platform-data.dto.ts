@@ -111,6 +111,7 @@ export const meegleWorkitemListResponseSchema = z.object({
     assignee: z.string().optional(),
     priority: z.string().optional(),
     addToCycleTime: z.string().datetime().optional(),
+    currentNodeStartTime: z.string().datetime().optional(),
     itemStartTime: z.string().datetime().optional(),
     itemFinishTime: z.string().datetime().optional(),
     sourceUpdatedAt: z.string().optional(),

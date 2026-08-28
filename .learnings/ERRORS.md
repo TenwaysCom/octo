@@ -476,3 +476,9 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Symptom:** The first escalated read-only coverage query reached PostgreSQL but failed with a syntax error near `$`.
 - **Root cause:** A Kysely SQL-tag parameter interpolation was unnecessarily surrounded by PostgreSQL dollar quotes, producing invalid SQL after parameterization.
 - **Verified fix:** Interpolate the project key directly as `${projectKey}` and reserve dollar quotes only for literal text; the corrected aggregate query completed without writes or personal data output.
+
+### ERR-20260828-009 — New snapshot projection was omitted from a source-payload read query
+
+- **Symptom:** The Server build failed after adding `current_node_start_time` because `getMeegleWorkitemsForCleaning()` returned a row without the required property.
+- **Root cause:** The new persisted column was added to the write path and public list projections but missed one typed internal selection used to read source payloads for PG-only cleaning.
+- **Verified fix:** Add every new snapshot projection to all typed row selections and run `pnpm --dir server build` after focused tests.

@@ -1,7 +1,7 @@
 ---
 status: draft
 owner: TBD
-last_reviewed: 2026-08-27
+last_reviewed: 2026-08-28
 scope: 当前 Octo 技术对象在 extension、server、adapter 与平台间的生命周期图谱
 update_required_when:
   - 页面或动作配置契约变更
@@ -422,7 +422,7 @@ ExecutionDraft
 - Metadata resolver should validate create/update payload before platform request.
 - Persist the Sprint relation as stable `sprint_id` plus display-only `sprint` name. Do not use the mutable name as the join identity.
 - Historical lifecycle cleaning is PostgreSQL-only: use persisted workitem fields/current or embedded nodes plus persisted Sprint snapshots, never operation records or an extra workflow-node request. Missing evidence stays null. Incremental sync uses only the workitem detail already fetched, preserves the earliest known start across active-node changes, clears finish when reopened, and clears both times when returned to New. `updatedAt` is not a lifecycle timestamp.
-- Keep the current Sprint relation and lifecycle facts (`sprint_id`, `sprint`, `add_to_cycle_time`, `item_start_time`, `item_finish_time`) as the compatibility snapshot. In addition, persist one `MeegleWorkitemSprintMembership` row per continuous Sprint interval, identified by stable `sprint_id`; close the old interval before opening a new one in the same PostgreSQL transaction. Historical inference stays `historical_inferred`, while genuinely new incremental intervals use `incremental_observed`.
+- Keep the current Sprint relation and lifecycle facts (`sprint_id`, `sprint`, `add_to_cycle_time`, `current_node_start_time`, `item_start_time`, `item_finish_time`) as the compatibility snapshot. `current_node_start_time` is the source current node's `actual_begin_time`, not the work item lifecycle start. In addition, persist one `MeegleWorkitemSprintMembership` row per continuous Sprint interval, identified by stable `sprint_id`; close the old interval before opening a new one in the same PostgreSQL transaction. Historical inference stays `historical_inferred`, while genuinely new incremental intervals use `incremental_observed`.
 - `item_cycle_tag` and Carryover remain derived classifications and are not stored.
 
 ## 10. Meegle Story 研发Review 生命周期

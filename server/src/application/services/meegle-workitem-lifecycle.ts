@@ -5,6 +5,7 @@ import { normalizeTimestamp } from "../../utils/normalize-timestamp.js";
 export interface MeegleWorkitemLifecycle {
   phase: MeegleLifecyclePhase;
   addToCycleTime?: string;
+  currentNodeStartTime?: string | null;
   itemStartTime?: string | null;
   itemFinishTime?: string | null;
 }
@@ -35,6 +36,7 @@ export function buildMeegleWorkitemLifecycle(input: {
   const addToCycleTime = latestTimestamp([createdAt, sprintStartAt]);
   const storedNodes = extractStoredWorkflowNodes(input.workitem);
   const currentNodes = extractCurrentWorkflowNodes(input.workitem);
+  const currentNodeStartTime = currentNodes[0]?.actualBeginTime ?? null;
   const currentNodeName = input.workitem.subStage || currentNodes[0]?.name;
   const storedFinishTime = extractMeegleWorkitemFieldTime(input.workitem, "finish_time");
   const currentPhase = currentNodeName
@@ -43,13 +45,13 @@ export function buildMeegleWorkitemLifecycle(input: {
       ? "finished"
       : classifyMeegleLifecycleStatus(input.workitem.status);
   if (currentPhase === "new") {
-    return { phase: currentPhase, addToCycleTime, itemStartTime: null, itemFinishTime: null };
+    return { phase: currentPhase, addToCycleTime, currentNodeStartTime, itemStartTime: null, itemFinishTime: null };
   }
 
   const nonNewNodes = storedNodes.filter((node) => classifyMeegleLifecycleStatus(node.name) !== "new");
   const itemStartTime = earliestTimestamp(nonNewNodes.map((node) => node.actualBeginTime));
   if (currentPhase === "started") {
-    return { phase: currentPhase, addToCycleTime, itemStartTime: itemStartTime ?? null, itemFinishTime: null };
+    return { phase: currentPhase, addToCycleTime, currentNodeStartTime, itemStartTime: itemStartTime ?? null, itemFinishTime: null };
   }
 
   const terminalFinishTime = latestTimestamp(storedNodes
@@ -58,6 +60,7 @@ export function buildMeegleWorkitemLifecycle(input: {
   return {
     phase: currentPhase,
     addToCycleTime,
+    currentNodeStartTime,
     itemStartTime: itemStartTime ?? null,
     itemFinishTime: storedFinishTime ?? terminalFinishTime ?? null,
   };

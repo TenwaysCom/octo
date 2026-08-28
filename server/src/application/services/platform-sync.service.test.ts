@@ -199,6 +199,7 @@ describe("PlatformSyncService", () => {
     expect(store.meegleCleaning[0]?.lifecycle).toEqual({
       phase: "started",
       addToCycleTime: "2026-08-21T00:00:00.000Z",
+      currentNodeStartTime: null,
       itemStartTime: null,
       itemFinishTime: null,
     });
@@ -508,6 +509,7 @@ describe("PlatformSyncService", () => {
       lifecycle: {
         phase: "finished",
         addToCycleTime: "2026-08-21T00:00:00.000Z",
+        currentNodeStartTime: null,
         itemStartTime: "2026-08-22T00:00:00.000Z",
         itemFinishTime: "2026-08-23T00:00:00.000Z",
       },
