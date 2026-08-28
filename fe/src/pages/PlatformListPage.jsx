@@ -1225,14 +1225,17 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
             >No Sprint</button>
           </div> : null}
           {page === "github-pull-requests" ? <div className="list-filter-tabs" role="group" aria-label="GitHub PR 快速筛选">
-            {["open", "mine", "my-open"].map((filter) => <button
-              className={`list-filter-tab ${githubQuickFilter === filter ? "list-filter-tab--active" : ""}`.trim()}
-              type="button"
-              key={filter}
-              disabled={filter !== "open" && !githubId}
-              title={filter !== "open" && !githubId ? "请先在 Integrations 关联 GitHub ID" : undefined}
-              onClick={() => { setGithubQuickFilter((current) => current === filter ? "all" : filter); setPageIndex(0); }}
-            >{filter === "open" ? "Open" : filter === "mine" ? "Mine" : `My Open ${myOpenPullRequestCount}`}</button>)}
+            {["open", "mine", "my-open", "main"].map((filter) => {
+              const requiresGitHubId = filter === "mine" || filter === "my-open";
+              return <button
+                className={`list-filter-tab ${githubQuickFilter === filter ? "list-filter-tab--active" : ""}`.trim()}
+                type="button"
+                key={filter}
+                disabled={requiresGitHubId && !githubId}
+                title={requiresGitHubId && !githubId ? "请先在 Integrations 关联 GitHub ID" : undefined}
+                onClick={() => { setGithubQuickFilter((current) => current === filter ? "all" : filter); setPageIndex(0); }}
+              >{filter === "open" ? "Open" : filter === "mine" ? "Mine" : filter === "my-open" ? `My Open ${myOpenPullRequestCount}` : "main"}</button>;
+            })}
           </div> : null}
           {page === "lark-tickets" ? <div className="list-filter-tabs" role="group" aria-label="Lark Ticket 快速筛选">
             {["in-progress", "unclassified", "unsynced"].map((filter) => <button

@@ -8,6 +8,9 @@ export function matchesGitHubPullRequestQuickFilter(item, filter, githubId) {
   if (filter === "my-open") {
     return item.state === "open" && isMyGitHubPullRequest(item, githubId);
   }
+  if (filter === "main") {
+    return item.baseRef === "main";
+  }
   return true;
 }
 
