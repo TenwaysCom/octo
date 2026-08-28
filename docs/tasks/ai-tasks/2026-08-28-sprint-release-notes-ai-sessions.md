@@ -23,7 +23,7 @@ related:
 - [x] 服务端按 `projectKey + sprintId` 绑定会话，用户和 Sprint 间不可越权读取。
 - [x] 生成上下文只包含完成项三类工作项；生成时不调用或写入 Meegle。
 - [x] 快捷动作与普通会话均携带 `actionRunId` 并使用 SSE。
-- [ ] 已配置运行时 Skill Profile 后，受控真实 ACP 会话验证通过。
+- [ ] 已配置既有 AI 服务后，受控真实 ACP 会话验证通过。
 
 ## 背景与范围
 
@@ -31,13 +31,13 @@ related:
 
 ## 方案与决策
 
-`acp_kimi_sprint_session_refs` 保存用户、稳定 Sprint 身份和创建时上下文哈希。服务端以 Sprint 归属区间的 `itemFinishTime` 选取完成项，并以类型投影筛选三类工作项；前端不能提交工作项内容或改变完成项范围。Quick Actions 是生成 Release Notes、生成内部摘要、检查待确认项，均为 `read_only` Skill。
+`acp_kimi_sprint_session_refs` 保存用户、稳定 Sprint 身份和创建时上下文哈希。服务端以 Sprint 归属区间的 `itemFinishTime` 选取完成项，并以类型投影筛选三类工作项；前端不能提交工作项内容或改变完成项范围。所有新建会话从 `workflow_prompts.meegle.sprint.release_notes` 渲染 Prompt；Quick Actions 仅指定用户意图，均为 `read_only`。
 
 ## 进展记录
 
 | 日期 | 需求版本 | 状态 | 结果与证据 | 未验证边界 / 下一步 |
 | --- | --- | --- | --- | --- |
-| 2026-08-28 | v1 | in_progress | 已完成 Server 会话归属、Sprint 上下文、SSE API、趋势图下前端会话 UI、Quick Actions 和 Skill 提示词；定向测试与两端构建通过。 | 运行时需要设置 `OCTO_SPRINT_RELEASE_NOTES_WORKSPACE_DIR` 指向含 `.agents/skills/sprint-release-notes/SKILL.md` 的工作区；未启动真实 ACP。 |
+| 2026-08-28 | v2 | in_progress | 已完成 Server 会话归属、Sprint 上下文、SSE API、趋势图下前端会话 UI、Quick Actions；Prompt 统一由 `workflow_prompts.meegle.sprint.release_notes` 提供。 | 无额外 workspace/Skill 配置；未启动真实 ACP。 |
 
 ## 验证
 

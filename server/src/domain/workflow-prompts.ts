@@ -246,8 +246,7 @@ export const DEFAULT_LARK_TICKET_SUPPORT_QA_PROMPTS: Record<string, string> = {
   [LARK_TICKET_SUPPORT_QA_DOCUMENT_PREVIEW_PROMPT_KEY]: DEFAULT_LARK_TICKET_SUPPORT_QA_DOCUMENT_PREVIEW_PROMPT_TEMPLATE,
 };
 
-export const DEFAULT_MEEGLE_SPRINT_RELEASE_NOTES_PROMPT_TEMPLATE = `你正在为公司内部同事生成 Sprint Release Notes。必须先阅读并严格遵循以下 Skill：
-{{skill_path}}
+export const DEFAULT_MEEGLE_SPRINT_RELEASE_NOTES_PROMPT_TEMPLATE = `你正在为公司内部同事生成 Sprint Release Notes。
 
 当前 Sprint 上下文：
 {{sprint_context}}

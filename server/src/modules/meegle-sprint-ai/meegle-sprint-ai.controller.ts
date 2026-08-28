@@ -33,7 +33,7 @@ function toErrorResponse(error: unknown) {
   if (error instanceof ZodError) return { statusCode: 400, body: { ok: false as const, error: { errorCode: "INVALID_REQUEST", errorMessage: error.message } } };
   if (error instanceof MeegleSprintAiSessionError) {
     const statusCode = error.code === "SPRINT_NOT_FOUND" || error.code === "SESSION_NOT_FOUND" ? 404
-      : error.code === "AI_ACTION_NOT_FOUND" || error.code === "SKILL_PROFILE_NOT_CONFIGURED" ? 400 : 403;
+      : error.code === "AI_ACTION_NOT_FOUND" ? 400 : 403;
     return { statusCode, body: { ok: false as const, error: { errorCode: error.code, errorMessage: error.message, ...(error.diagnostic ?? {}) } } };
   }
   return { statusCode: 500, body: { ok: false as const, error: { errorCode: "AI_SESSION_FAILED", errorMessage: "Sprint AI Session 暂时不可用。" } } };

@@ -21,12 +21,6 @@ export const AUTOMATION_SKILL_PROFILES = {
       support_qa_write: ".agents/skills/write-support-qa/SKILL.md",
     },
   },
-  octo_sprint_release_notes: {
-    workspaceEnv: "OCTO_SPRINT_RELEASE_NOTES_WORKSPACE_DIR",
-    skills: {
-      sprint_release_notes: ".agents/skills/sprint-release-notes/SKILL.md",
-    },
-  },
 } as const satisfies Record<string, AutomationSkillProfileConfig>;
 
 export interface TicketAiAutomationActionConfig extends AutomationActionConfig {
@@ -41,8 +35,6 @@ export interface TicketAiAutomationActionConfig extends AutomationActionConfig {
 export interface SprintAiAutomationActionConfig extends AutomationActionConfig {
   executor: Extract<AutomationActionConfig["executor"], { type: "backend_api" }>;
   promptKey: string;
-  skillProfile: keyof typeof AUTOMATION_SKILL_PROFILES;
-  skillId: string;
   executionPolicy: AutomationExecutionPolicy;
   requiresConfirmation: boolean;
 }
@@ -62,8 +54,6 @@ export const AUTOMATION_ACTIONS = {
       route: "/api/web/meegle-sprints/:sprintId/ai-sessions",
     },
     promptKey: "meegle.sprint.release_notes",
-    skillProfile: "octo_sprint_release_notes",
-    skillId: "sprint_release_notes",
     executionPolicy: "read_only",
     requiresConfirmation: false,
   },
@@ -81,8 +71,6 @@ export const AUTOMATION_ACTIONS = {
       route: "/api/web/meegle-sprints/:sprintId/ai-sessions",
     },
     promptKey: "meegle.sprint.release_notes",
-    skillProfile: "octo_sprint_release_notes",
-    skillId: "sprint_release_notes",
     executionPolicy: "read_only",
     requiresConfirmation: false,
   },
@@ -100,8 +88,6 @@ export const AUTOMATION_ACTIONS = {
       route: "/api/web/meegle-sprints/:sprintId/ai-sessions",
     },
     promptKey: "meegle.sprint.release_notes",
-    skillProfile: "octo_sprint_release_notes",
-    skillId: "sprint_release_notes",
     executionPolicy: "read_only",
     requiresConfirmation: false,
   },
@@ -432,8 +418,6 @@ export function getSprintAiAutomationAction(
   if (!action
     || !action.key.startsWith("meegle-sprint-")
     || !action.promptKey
-    || !action.skillProfile
-    || !action.skillId
     || !action.executionPolicy
     || action.requiresConfirmation === undefined
     || action.executor.type !== "backend_api") {

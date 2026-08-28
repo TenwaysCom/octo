@@ -8,6 +8,12 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - **Rule:** Bind each reusable Sprint session to `operatorLarkId + projectKey + sprintId` in a dedicated local reference table. On creation, rebuild its context server-side from the Sprint snapshot and membership intervals, include only supported work-item types with `itemFinishTime`, and store a context hash. Reuse the ACP runtime and SSE transport, not the Ticket resource reference or its APIs.
 - **Verified outcome:** Server service/controller tests cover completed-only context, Sprint-scoped listing and Web identity; FE API tests cover scoped requests and `actionRunId`; Server build and FE check pass without external calls.
 
+## [LRN-20260828-006] prompt-content-runtime-boundary
+
+- **Context:** Sprint Release Notes needs a concise, editable AI instruction but does not need repository or tool access.
+- **Rule:** Keep prompt-only behavior in `workflow_prompts`; do not turn a prompt or Skill-content request into a runtime workspace, file-path, or permission-profile dependency unless the workflow explicitly requires local tools or files.
+- **Verified outcome:** New Sprint sessions render `meegle.sprint.release_notes` directly, while `read_only` ACP policy denies tool calls without a Sprint-specific workspace configuration.
+
 ## [LRN-20260826-001] lazy-child-resource-sync
 
 - **Context:** Lark Ticket 是批量同步对象，但其 IM thread 是一对多、独立变化且 API 成本更高的子资源，主要只在 AI 分析时使用。
