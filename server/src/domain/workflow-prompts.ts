@@ -12,6 +12,10 @@ export const LARK_TICKET_SUPPORT_QA_DOCUMENT_PREVIEW_PROMPT_KEY =
   "lark_ticket.support_qa.document_preview";
 export const MEEGLE_SPRINT_RELEASE_NOTES_PROMPT_KEY =
   "meegle.sprint.release_notes";
+export const MEEGLE_SPRINT_INTERNAL_SUMMARY_PROMPT_KEY =
+  "meegle.sprint.internal_summary";
+export const MEEGLE_SPRINT_CONFIRM_GAPS_PROMPT_KEY =
+  "meegle.sprint.confirm_gaps";
 
 export const GITHUB_PR_QUICK_SCAN_PROMPT_KEY = "github.pr.quick_scan";
 export const GITHUB_PR_DEEP_REVIEW_PROMPT_KEY = "github.pr.deep_review";
@@ -31,6 +35,10 @@ export const DEFAULT_LARK_TICKET_SUPPORT_QA_DOCUMENT_PREVIEW_PROMPT_NOTE =
   "Lark Ticket Support-QA 生成文档 AI Session prompt";
 export const DEFAULT_MEEGLE_SPRINT_RELEASE_NOTES_PROMPT_NOTE =
   "Meegle Sprint Release Notes AI Session prompt";
+export const DEFAULT_MEEGLE_SPRINT_INTERNAL_SUMMARY_PROMPT_NOTE =
+  "Meegle Sprint internal summary AI Session prompt";
+export const DEFAULT_MEEGLE_SPRINT_CONFIRM_GAPS_PROMPT_NOTE =
+  "Meegle Sprint confirmation gaps AI Session prompt";
 
 export const DEFAULT_GITHUB_PR_QUICK_SCAN_PROMPT_NOTE =
   "GitHub PR Tier 2 Odoo structural quick scan workflow prompt";
@@ -255,6 +263,38 @@ export const DEFAULT_MEEGLE_SPRINT_RELEASE_NOTES_PROMPT_TEMPLATE = `你正在为
 {{user_message}}
 
 只使用 Sprint 上下文中明确提供的信息。不要调用外部系统、不要写入任何系统、不要编造功能、影响范围、根因、上线状态或指标。输出简明中文 Markdown；省略没有可靠内容的章节。`;
+
+export const DEFAULT_MEEGLE_SPRINT_INTERNAL_SUMMARY_PROMPT_TEMPLATE = `你正在为公司内部同事生成当前 Sprint 的内部进展摘要。
+
+当前 Sprint 上下文：
+{{sprint_context}}
+
+用户请求：
+{{user_message}}
+
+只使用上下文中明确提供的信息，不调用或写入外部系统，不编造影响、根因、上线状态、日期或指标。
+
+输出简明中文 Markdown：
+- 本 Sprint 完成：按功能、问题修复、内部改进归纳，3–6 条。
+- 需要关注：仅列出上下文明确支持的风险、依赖或待跟进事项；没有则省略。
+
+每条最多两句。不要输出工作项 ID、人员、优先级、状态流转、原始链接、字段名、源码细节或原始 JSON。`;
+
+export const DEFAULT_MEEGLE_SPRINT_CONFIRM_GAPS_PROMPT_TEMPLATE = `你正在检查当前 Sprint 已完成工作项中，哪些内容不足以可靠形成内部 Release Notes。
+
+当前 Sprint 上下文：
+{{sprint_context}}
+
+用户请求：
+{{user_message}}
+
+只使用上下文中明确提供的信息，不调用或写入外部系统，不推测或补全缺失事实。
+
+输出简明中文 Markdown：
+- 待确认项：逐条说明缺少什么业务信息，以及建议向谁确认什么内容。
+- 可直接纳入：仅列出信息已经足够、可直接写入 Release Notes 的事项数量和类型概览。
+
+不要输出工作项 ID、人员、优先级、状态流转、原始链接、字段名、源码细节或原始 JSON。若没有待确认项，明确写“无待确认项”。`;
 
 export function renderWorkflowPromptTemplate(
   template: string,

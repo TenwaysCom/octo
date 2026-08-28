@@ -36,6 +36,12 @@ describe("Sprint AI automation actions", () => {
       executionPolicy: "read_only",
       requiresConfirmation: false,
     }));
+    expect(getSprintAiAutomationAction("meegle-sprint-internal-summary")).toEqual(expect.objectContaining({
+      promptKey: "meegle.sprint.internal_summary",
+    }));
+    expect(getSprintAiAutomationAction("meegle-sprint-confirm-gaps")).toEqual(expect.objectContaining({
+      promptKey: "meegle.sprint.confirm_gaps",
+    }));
     expect(AUTOMATION_SKILL_PROFILES).not.toHaveProperty("octo_sprint_release_notes");
   });
 });

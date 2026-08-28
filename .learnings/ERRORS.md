@@ -23,6 +23,12 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Fix:** Keep the compatibility update in the idempotent production schema bootstrap, but test the initial Sprint Prompt seed with `pg-mem`; verify the upgrade path against PostgreSQL when running the authorized migration.
 - **Status:** resolved; no live database was accessed.
 
+## [ERR-20260828-016] sprint-quick-action-prompt-key-order
+
+- **Summary:** A broad text replacement assigned the three Sprint Quick Action Prompt keys in the wrong order.
+- **Fix:** Match each action by its stable `key`, then assert all three Action Config to Prompt key mappings in the catalog test.
+- **Status:** resolved before commit; the focused action-config tests pass.
+
 ## [ERR-20260828-001] fe-focused-node-test-arguments
 
 - **Summary:** The FE package's `test` script is a bare `node --test`, so passing two focused file paths through `pnpm --dir fe test --` produced one unresolved comma-separated target.

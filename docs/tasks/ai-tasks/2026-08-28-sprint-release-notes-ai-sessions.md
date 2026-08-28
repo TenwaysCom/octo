@@ -31,13 +31,13 @@ related:
 
 ## 方案与决策
 
-`acp_kimi_sprint_session_refs` 保存用户、稳定 Sprint 身份和创建时上下文哈希。服务端以 Sprint 归属区间的 `itemFinishTime` 选取完成项，并以类型投影筛选三类工作项；前端不能提交工作项内容或改变完成项范围。所有新建会话从 `workflow_prompts.meegle.sprint.release_notes` 渲染 Prompt；Quick Actions 仅指定用户意图，均为 `read_only`。
+`acp_kimi_sprint_session_refs` 保存用户、稳定 Sprint 身份和创建时上下文哈希。服务端以 Sprint 归属区间的 `itemFinishTime` 选取完成项，并以类型投影筛选三类工作项；前端不能提交工作项内容或改变完成项范围。Quick Actions 分别从 `workflow_prompts.meegle.sprint.release_notes`、`meegle.sprint.internal_summary` 和 `meegle.sprint.confirm_gaps` 渲染 Prompt，均为 `read_only`。
 
 ## 进展记录
 
 | 日期 | 需求版本 | 状态 | 结果与证据 | 未验证边界 / 下一步 |
 | --- | --- | --- | --- | --- |
-| 2026-08-28 | v2 | in_progress | 已完成 Server 会话归属、Sprint 上下文、SSE API、趋势图下前端会话 UI、Quick Actions；Prompt 统一由 `workflow_prompts.meegle.sprint.release_notes` 提供。 | 无额外 workspace/Skill 配置；未启动真实 ACP。 |
+| 2026-08-28 | v3 | in_progress | 已完成 Server 会话归属、Sprint 上下文、SSE API、趋势图下前端会话 UI、Quick Actions；三个 Quick Action 分别使用独立的数据库 Prompt。 | 无额外 workspace/Skill 配置；未启动真实 ACP。 |
 
 ## 验证
 
