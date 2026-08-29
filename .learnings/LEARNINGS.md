@@ -2,6 +2,12 @@
 
 Record concise, reusable lessons here. Include the context, the durable rule, and the verified outcome; never include secrets or raw credentials.
 
+## [LRN-20260829-002] meegle-page-external-enrichment-boundary
+
+- **Context:** Meegle workitem and Sprint first-load routes were coupling local snapshot reads to a slow Odoo DevOps full-environment branch snapshot.
+- **Rule:** Keep list and history endpoints to their local data contracts. Trigger costly PR enrichment only from the explicit PR interaction, and cache/refresh it by the upstream provider's real snapshot unit (`eu`/`uk`/`us`), never by a downstream repo or PR when the source cannot filter that way.
+- **Verified outcome:** Targeted Server tests cover the split workitem/Sprint routes and environment singleflight refresh; FE API tests cover the dedicated Sprint endpoint and 202 refresh response.
+
 ## [LRN-20260829-001] fe-css-variable-definition-and-badge-palette
 
 - **Context:** FE `global.css` 的 badge/状态色是十几处重复的硬编码色对,且 `--octo-brand-soft` 被两处引用却从未在 `:root` 定义(静默失效)。

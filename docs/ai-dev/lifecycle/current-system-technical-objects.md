@@ -661,9 +661,28 @@ GitHub PR 页面
 
 此读取路径不读取、不持久化也不转发浏览器 cookie；服务端 CORS 只允许配置的 extension origin 使用凭据。
 
+Meegle Web 页面不把 Odoo.sh 快照放在首屏读取路径：
+
+```text
+#meegle-workitems
+  -> 当前筛选下的一页本地工作项（最大 500 条）+ Sprint 筛选项 + 本地 PR 摘要
+  -> 不读取 Sprint 归属历史，也不请求 Odoo DevOps
+
+#meegle-sprints
+  -> /api/web/meegle-sprints 读取本地 Sprint 快照和归属历史
+  -> 不受工作项普通列表分页影响，也不请求 Odoo DevOps
+
+关联 PR 状态组件挂载后异步读取
+  -> repo 仅用于映射 eu/uk/us
+  -> server 返回该环境的已有快照，或 202 refreshing 并合并后台刷新
+  -> 刷新和 Redis/in-process TTL 缓存均以 eu/uk/us 为单位，绝不以 repo 或单条 PR 为单位
+```
+
+冷缓存的 202 响应可由 FE 轮询；已有但过期的环境快照可以立即标为旧数据，同时在后台刷新，用户下次打开可获取新状态。Redis 不可用时保留进程内 30 分钟 TTL 兜底；这不是跨重启持久化保证。
+
 Octo FE 的 GitHub PR 列表表头可使用受 opaque HttpOnly Octo Web session 保护的重置接口；请求携带 `actionRunId`，服务端一次删除 EU、UK、US 三个 Odoo DevOps 分支缓存 key，随后列表刷新构建状态。
 
-GitHub PR 同步快照会从标题与描述中保留 `meegleIds`。Web 列表只投影这些关联 ID，并在 Author 后显示“关联 Meegle”列，不读取 Status、Sprint 或 Version。用户悬停或聚焦某条 PR 后按 Space，FE 调用 PR 专用预览接口；Server 读取该 PR 快照，再用其全部 `meegleIds` 一次批量查询本地 `meegle_workitem_syncs`，返回工作项标题、Status、Sprint 与 Version。未在本地找到的原始 ID 仍会显示；FE 在当前会话按 PR 缓存成功的预览结果。PR 描述来自 GitHub 同步快照，Odoo.sh 状态来自现有 DevOps 缓存投影。
+GitHub PR 同步快照会从标题与描述中保留 `meegleIds`。Web 列表只投影这些关联 ID，并在 Author 后显示“关联 Meegle”列，不读取 Status、Sprint 或 Version。用户悬停或聚焦某条 PR 后按 Space，FE 调用 PR 专用预览接口；Server 读取该 PR 快照，再用其全部 `meegleIds` 一次批量查询本地 `meegle_workitem_syncs`，返回工作项标题、Status、Sprint 与 Version。未在本地找到的原始 ID 仍会显示；FE 在当前会话按 PR 缓存成功的预览结果。PR 描述来自 GitHub 同步快照，Odoo.sh 状态来自环境级 DevOps 缓存投影。
 
 ### 当前风险
 

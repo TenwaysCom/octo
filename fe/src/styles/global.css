@@ -477,6 +477,8 @@ a { color: inherit; }
 .odoo-sh-build-dots { display: inline-flex; align-items: center; gap: 4px; }
 .odoo-sh-build-indicator { display: inline-flex; align-items: center; gap: 3px; color: var(--octo-text-muted); font-size: 10px; font-weight: 700; line-height: 1; }
 .odoo-sh-build-indicator__environment { letter-spacing: .02em; }
+.odoo-sh-build-status { display: inline-flex; align-items: center; gap: 4px; color: var(--octo-text-muted); font-size: 11px; }
+.odoo-sh-build-status--loading, .odoo-sh-build-status__empty { color: var(--octo-text-muted); font-size: 10px; }
 .github-pr-branch { display: inline-flex; align-items: center; gap: 6px; }
 .github-user-list { display: flex; flex-wrap: wrap; gap: 4px; }
 .github-user { display: inline-flex; align-items: center; gap: 5px; max-width: 150px; min-height: 24px; padding: 2px 6px 2px 3px; border-radius: 999px; color: var(--octo-text); background: var(--octo-surface-muted); font-size: 12px; font-weight: 600; line-height: 1.2; text-decoration: none; }

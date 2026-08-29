@@ -68,6 +68,30 @@ describe("OdooDevopsBranchesService", () => {
     expect(cache.set).toHaveBeenCalledWith(cacheKey("eu"), JSON.stringify(snapshot), 120);
   });
 
+  it("starts one environment-scoped refresh and returns immediately to concurrent callers", async () => {
+    let releaseRefresh: ((value: typeof snapshot) => void) | undefined;
+    const refresh = new Promise<typeof snapshot>((resolve) => { releaseRefresh = resolve; });
+    const client = { listBranches: vi.fn().mockReturnValue(refresh) };
+    const cache = {
+      get: vi.fn().mockResolvedValue(null),
+      set: vi.fn().mockResolvedValue(undefined),
+      delete: vi.fn().mockResolvedValue(true),
+      close: vi.fn(),
+    };
+    const service = new OdooDevopsBranchesService({ client, cache });
+
+    await expect(Promise.all([service.getOrStartRefresh("eu"), service.getOrStartRefresh("eu")]))
+      .resolves.toEqual([{ state: "refreshing" }, { state: "refreshing" }]);
+    expect(client.listBranches).toHaveBeenCalledOnce();
+
+    releaseRefresh!(snapshot);
+    await vi.waitFor(async () => {
+      await expect(service.getOrStartRefresh("eu")).resolves.toEqual({
+        state: "ready", snapshot, cached: true, stale: false,
+      });
+    });
+  });
+
   it("bypasses an invalid cache value and replaces it with the remote snapshot", async () => {
     const client = { listBranches: vi.fn().mockResolvedValue(snapshot) };
     const cache = {

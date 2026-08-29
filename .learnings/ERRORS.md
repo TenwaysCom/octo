@@ -2,6 +2,13 @@
 
 Record concise compiler/runtime errors, failed commands, wrong assumptions, and their verified fixes here. Redact secrets, cookies, tokens, and sensitive payloads.
 
+## [ERR-20260829-001] meegle-sprint-history-list-fallback
+
+- **Summary:** A FE API test still expected the normal Meegle workitem list to synthesize Sprint history from the current page.
+- **Error:** The targeted Node test failed because the split list contract correctly returns an empty `sprintWorkitems` collection when that field is absent.
+- **Fix:** Move Sprint history to `/api/web/meegle-sprints` and update the list test to assert that it no longer invents historical membership.
+- **Status:** resolved; targeted Server and FE API tests pass.
+
 ## [ERR-20260828-013] sprint-ai-controller-unknown-query-spread
 
 - **Summary:** The initial Sprint AI Session list controller spread a raw `unknown` query value while adding the route parameter.

@@ -93,6 +93,7 @@ describe("api auth middleware", () => {
       "/api/web/platform-data/meegle-workitems",
       "/api/web/platform-data/github-pull-requests",
       "/api/web/platform-data/github-pull-request-preview",
+      "/api/web/meegle-sprints",
       "/api/web/platform-sync-sources",
       "/api/web/platform-sync-sources/lark-tickets",
       "/api/web/lark-tickets/rec_1/ai-sessions",

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { WorkspaceShell } from "../components/layout/WorkspaceShell.jsx";
+import { OdooShBuildStatus } from "../components/platform/OdooShBuildStatus.jsx";
 import { LarkTicketBadge } from "../components/lark-ticket/LarkTicketBadge.jsx";
 import { LarkTicketResponsible } from "../components/lark-ticket/LarkTicketResponsible.jsx";
 import { useKeyboardShortcut } from "../hooks/useKeyboardShortcut.js";
@@ -146,14 +147,14 @@ function OdooShBuildStatusList({ builds }) {
   </div>)}</div>;
 }
 
-function GitHubPullRequestLinks({ pullRequests }) {
+function GitHubPullRequestLinks({ pullRequests, apiBaseUrl }) {
   if (!pullRequests?.length) {
     return "-";
   }
   return <div className="github-pr-links">{pullRequests.map((pullRequest) => <div className="github-pr-links__item" key={`${pullRequest.owner}-${pullRequest.repo}-${pullRequest.pullNumber}`}>
     <ExternalLink className={`github-pr-link-badge github-pr-link-badge--${pullRequest.state}`} href={pullRequest.htmlUrl} title={`${pullRequest.owner}/${pullRequest.repo} #${pullRequest.pullNumber}\n${pullRequest.title}\n${pullRequest.state}`}>#{pullRequest.pullNumber}-{pullRequest.baseRef || "-"}</ExternalLink>
     <GitHubPullRequestStatus state={pullRequest.state} />
-    <OdooShBuildDots builds={pullRequest.odooShBuilds} />
+    {pullRequest.odooShBuilds?.length ? <OdooShBuildDots builds={pullRequest.odooShBuilds} /> : <OdooShBuildStatus apiBaseUrl={apiBaseUrl} pullRequest={pullRequest} />}
   </div>)}</div>;
 }
 
@@ -303,7 +304,7 @@ function LarkTicketsTable({ items, sort, onSort, visibleColumns }) {
   </tbody></table>;
 }
 
-function MeegleWorkitemCell({ columnKey, item }) {
+function MeegleWorkitemCell({ columnKey, item, apiBaseUrl }) {
   if (columnKey === "workitem") {
     return <><ExternalLink href={getMeegleWorkitemDetailUrl(item)}>{item.workItemKey || item.workItemId}</ExternalLink><small>{item.title}</small></>;
   }
@@ -314,7 +315,7 @@ function MeegleWorkitemCell({ columnKey, item }) {
     return <><MeegleStatusPill status={item.status} /><small>{item.subStage || ""}</small></>;
   }
   if (columnKey === "pullRequests") {
-    return <GitHubPullRequestLinks pullRequests={item.githubPullRequests} />;
+    return <GitHubPullRequestLinks apiBaseUrl={apiBaseUrl} pullRequests={item.githubPullRequests} />;
   }
   if (columnKey === "sprint") {
     return item.sprint || "-";
@@ -331,7 +332,7 @@ function MeegleWorkitemCell({ columnKey, item }) {
   return formatDateTime(item.sourceUpdatedAt || item.syncedAt);
 }
 
-function MeegleWorkitemsTable({ items, sort, onSort, visibleColumns }) {
+function MeegleWorkitemsTable({ items, sort, onSort, visibleColumns, apiBaseUrl }) {
   const columns = MEEGLE_VIEW_COLUMNS.filter(({ key }) => visibleColumns.includes(key));
   return <table className="data-table data-table--meegle" style={{ minWidth: Math.max(360, columns.length * 145) }}><thead><tr>
     {columns.map((column) => <th key={column.key}>{column.sortKey
@@ -339,7 +340,7 @@ function MeegleWorkitemsTable({ items, sort, onSort, visibleColumns }) {
       : column.label}</th>)}
   </tr></thead><tbody>
     {items.map((item) => <tr key={`${item.projectKey}-${item.workItemTypeKey}-${item.workItemId}`}>
-      {columns.map((column) => <td key={column.key}><MeegleWorkitemCell columnKey={column.key} item={item} /></td>)}
+      {columns.map((column) => <td key={column.key}><MeegleWorkitemCell apiBaseUrl={apiBaseUrl} columnKey={column.key} item={item} /></td>)}
     </tr>)}
   </tbody></table>;
 }
@@ -568,12 +569,12 @@ function LarkTicketCard({ item, visibleColumns }) {
   </article>;
 }
 
-function MeegleWorkitemCard({ item, visibleColumns }) {
+function MeegleWorkitemCard({ item, visibleColumns, apiBaseUrl }) {
   const columns = MEEGLE_VIEW_COLUMNS.filter(({ key }) => key !== "workitem" && visibleColumns.includes(key));
   return <article className="kanban-card">
     <ExternalLink className="table-link kanban-card__title" href={getMeegleWorkitemDetailUrl(item)}>{item.workItemKey || item.workItemId || item.title}</ExternalLink>
     <small>{item.title}</small>
-    {columns.length ? <dl>{columns.map((column) => <div key={column.key}><dt>{column.label}</dt><dd><MeegleWorkitemCell columnKey={column.key} item={item} /></dd></div>)}</dl> : null}
+    {columns.length ? <dl>{columns.map((column) => <div key={column.key}><dt>{column.label}</dt><dd><MeegleWorkitemCell apiBaseUrl={apiBaseUrl} columnKey={column.key} item={item} /></dd></div>)}</dl> : null}
   </article>;
 }
 
@@ -643,13 +644,17 @@ function getDefaultCollapsedSubgroupKeys(groups) {
   ])))];
 }
 
-function SyncedListTable({ kind, items, sort, onSort, larkVisibleColumns = DEFAULT_LARK_TICKET_VISIBLE_COLUMNS, meegleVisibleColumns = DEFAULT_MEEGLE_VISIBLE_COLUMNS, githubVisibleColumns = DEFAULT_GITHUB_PULL_REQUEST_VISIBLE_COLUMNS, onGitHubPreviewCandidateChange }) {
+function getDefaultCollapsedGroupKeys(groups) {
+  return [...new Set(groups.map((group) => group.key))];
+}
+
+function SyncedListTable({ kind, items, sort, onSort, larkVisibleColumns = DEFAULT_LARK_TICKET_VISIBLE_COLUMNS, meegleVisibleColumns = DEFAULT_MEEGLE_VISIBLE_COLUMNS, githubVisibleColumns = DEFAULT_GITHUB_PULL_REQUEST_VISIBLE_COLUMNS, onGitHubPreviewCandidateChange, apiBaseUrl }) {
   if (kind === "lark-tickets") {
     return <LarkTicketsTable items={items} sort={sort} onSort={onSort} visibleColumns={larkVisibleColumns} />;
   }
 
   if (kind === "meegle-workitems") {
-    return <MeegleWorkitemsTable items={items} sort={sort} onSort={onSort} visibleColumns={meegleVisibleColumns} />;
+    return <MeegleWorkitemsTable apiBaseUrl={apiBaseUrl} items={items} sort={sort} onSort={onSort} visibleColumns={meegleVisibleColumns} />;
   }
 
   return <GitHubPullRequestsTable items={items} sort={sort} onSort={onSort} visibleColumns={githubVisibleColumns} onPreviewCandidateChange={onGitHubPreviewCandidateChange} />;
@@ -786,6 +791,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
   const filterStateRef = useRef(null);
   const dataRequestVersionRef = useRef(0);
   const larkSubgroupDefaultsRef = useRef(Array.isArray(restoredFilters.collapsedLarkSubgroups) ? "restored" : null);
+  const meegleGroupDefaultsRef = useRef(Array.isArray(restoredFilters.collapsedMeegleGroups) ? "restored" : null);
   const meegleSubgroupDefaultsRef = useRef(Array.isArray(restoredFilters.collapsedMeegleSubgroups) ? "restored" : null);
   const githubSubgroupDefaultsRef = useRef(Array.isArray(restoredFilters.collapsedGitHubSubgroups) ? "restored" : null);
   const statusFilters = [...new Set(state.filterItems.map((item) => getPlatformItemStatus(page, item)))].sort((left, right) => left.localeCompare(right));
@@ -994,6 +1000,22 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
     larkSubgroupDefaultsRef.current = configKey;
     setCollapsedLarkSubgroups(getDefaultCollapsedSubgroupKeys(larkGroups));
   }, [larkGroupBy, larkGroups, larkShowEmptyGroups, larkSubGroupBy, page]);
+
+  useEffect(() => {
+    if (page !== "meegle-workitems") return;
+    if (meegleGroupBy === "none") {
+      meegleGroupDefaultsRef.current = null;
+      return;
+    }
+    const configKey = `${meegleGroupBy}:${meegleSubGroupBy}`;
+    if (meegleGroupDefaultsRef.current === "restored") {
+      meegleGroupDefaultsRef.current = configKey;
+      return;
+    }
+    if (meegleGroupDefaultsRef.current === configKey) return;
+    meegleGroupDefaultsRef.current = configKey;
+    setCollapsedMeegleGroups(getDefaultCollapsedGroupKeys(meegleGroups));
+  }, [meegleGroupBy, meegleGroups, meegleSubGroupBy, page]);
 
   useEffect(() => {
     if (page !== "meegle-workitems" || !meegleGroups.some((group) => group.subgroups?.length)) {
@@ -1433,7 +1455,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
               onToggleSubgroup={(subgroupKey) => setCollapsedMeegleSubgroups((current) => current.includes(subgroupKey)
                 ? current.filter((key) => key !== subgroupKey)
                 : [...current, subgroupKey])}
-              renderCard={(item) => <MeegleWorkitemCard item={item} visibleColumns={meegleVisibleColumns} key={`${item.projectKey}-${item.workItemTypeKey}-${item.workItemId}`} />}
+              renderCard={(item) => <MeegleWorkitemCard apiBaseUrl={apiBaseUrl} item={item} visibleColumns={meegleVisibleColumns} key={`${item.projectKey}-${item.workItemTypeKey}-${item.workItemId}`} />}
             />
             <footer className="list-pagination">
               <p className="list-results">已加载 <strong>{sortedItems.length}</strong> / {totalItems} 条结果 · {meegleGroups.length} 个分组</p>
@@ -1477,7 +1499,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
               onToggleSubgroup={(subgroupKey) => setCollapsedMeegleSubgroups((current) => current.includes(subgroupKey)
                 ? current.filter((key) => key !== subgroupKey)
                 : [...current, subgroupKey])}
-              renderTable={(items) => <MeegleWorkitemsTable items={items} sort={sort} onSort={updateSort} visibleColumns={meegleVisibleColumns} />}
+              renderTable={(items) => <MeegleWorkitemsTable apiBaseUrl={apiBaseUrl} items={items} sort={sort} onSort={updateSort} visibleColumns={meegleVisibleColumns} />}
             />
             <footer className="list-pagination">
               <p className="list-results">已加载 <strong>{sortedItems.length}</strong> / {totalItems} 条结果 · {meegleGroups.length} 个分组</p>
@@ -1499,7 +1521,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
               <p className="list-results">已加载 <strong>{sortedItems.length}</strong> / {totalItems} 条结果 · {githubGroups.length} 个分组</p>
             </footer>
           </> : <>
-            <div className="data-table-wrap"><SyncedListTable kind={page} items={pageItems} sort={sort} onSort={updateSort} larkVisibleColumns={larkVisibleColumns} meegleVisibleColumns={meegleVisibleColumns} githubVisibleColumns={githubVisibleColumns} onGitHubPreviewCandidateChange={setGitHubPreviewCandidate} /></div>
+            <div className="data-table-wrap"><SyncedListTable apiBaseUrl={apiBaseUrl} kind={page} items={pageItems} sort={sort} onSort={updateSort} larkVisibleColumns={larkVisibleColumns} meegleVisibleColumns={meegleVisibleColumns} githubVisibleColumns={githubVisibleColumns} onGitHubPreviewCandidateChange={setGitHubPreviewCandidate} /></div>
             <footer className="list-pagination">
               <p className="list-results">显示 <strong>{firstResult}–{lastResult}</strong> / 已加载 {sortedItems.length}（共 {totalItems}）条结果</p>
               <div className="list-pagination__controls">

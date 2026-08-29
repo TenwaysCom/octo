@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getMeegleSprintDetailHash } from "../app/routes/workspace-routes.js";
 import { WorkspaceShell } from "../components/layout/WorkspaceShell.jsx";
+import { OdooShBuildStatus } from "../components/platform/OdooShBuildStatus.jsx";
 import { useKeyboardShortcut } from "../hooks/useKeyboardShortcut.js";
 import { formatDateTime } from "../lib/formatters.js";
 import { appendAiSessionEvent, createAiUserMessage, transcriptFromAiSessionEvents } from "../lib/ai-session-transcript.js";
@@ -21,7 +22,7 @@ import {
   getDefaultOpenMeegleSprint,
 } from "../lib/meegle-sprint-history.js";
 import { countFilterValues, toggleFilterValue } from "../lib/platform-list-filters.js";
-import { getPlatformDataList } from "../services/platform-data/platform-data-api.js";
+import { getMeegleSprintHistory } from "../services/platform-data/platform-data-api.js";
 import { listMeegleSprintAiSessions, loadMeegleSprintAiSession, streamMeegleSprintAiSession } from "../services/meegle-sprint-ai/meegle-sprint-ai-api.js";
 
 const ACTIVITY_LABELS = {
@@ -78,7 +79,7 @@ function useMeegleSprintHistory(apiBaseUrl) {
   const [state, setState] = useState({ status: "loading", sprints: [] });
   useEffect(() => {
     let active = true;
-    void getPlatformDataList({ apiBaseUrl, kind: "meegle-workitems" }).then(
+    void getMeegleSprintHistory({ apiBaseUrl }).then(
       ({ sprintWorkitems, sprintDetails }) => { if (active) setState({ status: "ready", sprints: buildMeegleSprintHistory(sprintWorkitems, sprintDetails) }); },
       () => { if (active) setState({ status: "error", sprints: [] }); },
     );
@@ -224,7 +225,7 @@ function SprintPanel({ sprint, apiBaseUrl }) {
   </aside>;
 }
 
-function SprintRelatedPullRequests({ pullRequests }) {
+function SprintRelatedPullRequests({ pullRequests, apiBaseUrl }) {
   if (!pullRequests?.length) return "-";
   return <div className="github-pr-links">{pullRequests.map((pullRequest) => {
     const status = pullRequest.state || "closed";
@@ -232,33 +233,34 @@ function SprintRelatedPullRequests({ pullRequests }) {
     return <div className="github-pr-links__item" key={`${pullRequest.owner}-${pullRequest.repo}-${pullRequest.pullNumber}`}>
       <a className={`table-link github-pr-link-badge github-pr-link-badge--${status}`} href={pullRequest.htmlUrl} target="_blank" rel="noreferrer" title={`${pullRequest.owner}/${pullRequest.repo} #${pullRequest.pullNumber}\n${pullRequest.title}\n${status}`}>{label}</a>
       <span className={`github-pr-status github-pr-status--${status}`}>{status}</span>
+      <OdooShBuildStatus apiBaseUrl={apiBaseUrl} pullRequest={pullRequest} />
     </div>;
   })}</div>;
 }
 
-function SprintWorkitemCell({ columnKey, item }) {
+function SprintWorkitemCell({ columnKey, item, apiBaseUrl }) {
   if (columnKey === "workitem") return <><a className="table-link" href={getMeegleWorkitemUrl(item)} target="_blank" rel="noreferrer">{item.workItemKey || item.workItemId}</a><small>{item.title}</small>{item.carryoverToSprintName ? <span className="sprint-carryover-badge">结转至 {item.carryoverToSprintName}</span> : null}</>;
   if (columnKey === "workitemType") return <span className={`workitem-type-badge workitem-type-badge--${getMeegleWorkitemCategory(item)}`}>{item.workItemType || item.workItemTypeKey || "-"}</span>;
   if (columnKey === "status") return <>{item.status || "未设置"}<small>{item.subStage || ""}</small></>;
   if (columnKey === "project") return item.projectName || item.projectKey || "未设置";
   if (columnKey === "version") return item.version || "未设置";
-  if (columnKey === "pullRequests") return <SprintRelatedPullRequests pullRequests={item.githubPullRequests} />;
+  if (columnKey === "pullRequests") return <SprintRelatedPullRequests apiBaseUrl={apiBaseUrl} pullRequests={item.githubPullRequests} />;
   if (columnKey === "priority") return item.priority || "未设置";
   if (columnKey === "assignee") return item.assignee || "未设置";
   return formatDateTime(item.sourceUpdatedAt || item.syncedAt);
 }
 
-function SprintWorkitemList({ items, sort, visibleColumns, onSort }) {
+function SprintWorkitemList({ items, sort, visibleColumns, onSort, apiBaseUrl }) {
   const columns = SPRINT_WORKITEM_VIEW_COLUMNS.filter(({ key }) => visibleColumns.includes(key));
   return <div className="data-table-wrap"><table className="data-table data-table--sprint-workitems" style={{ minWidth: Math.max(720, columns.length * 145) }}>
     <thead><tr>{columns.map((column) => <th key={column.key}>{column.sortKey
       ? <button className="sortable-column-header" type="button" onClick={() => onSort(column.sortKey)}>{column.label}<span className="sortable-column-header__arrows" aria-hidden="true">{sort.key === column.sortKey ? sort.direction === "asc" ? "↑" : "↓" : "↕"}</span></button>
       : column.label}</th>)}</tr></thead>
-    <tbody>{items.map((item) => <tr key={`${item.projectKey}-${item.workItemTypeKey}-${item.workItemId}-${item.sprintId}-${item.addToCycleTime || "unknown"}`}>{columns.map((column) => <td key={column.key}><SprintWorkitemCell columnKey={column.key} item={item} /></td>)}</tr>)}</tbody>
+    <tbody>{items.map((item) => <tr key={`${item.projectKey}-${item.workItemTypeKey}-${item.workItemId}-${item.sprintId}-${item.addToCycleTime || "unknown"}`}>{columns.map((column) => <td key={column.key}><SprintWorkitemCell apiBaseUrl={apiBaseUrl} columnKey={column.key} item={item} /></td>)}</tr>)}</tbody>
   </table></div>;
 }
 
-function SprintWorkitemGroupedList({ groups, collapsedGroups, collapsedSubgroups, onToggleGroup, onToggleSubgroup, sort, visibleColumns, onSort }) {
+function SprintWorkitemGroupedList({ groups, collapsedGroups, collapsedSubgroups, onToggleGroup, onToggleSubgroup, sort, visibleColumns, onSort, apiBaseUrl }) {
   return <div className="grouped-list">{groups.map((group) => {
     const collapsed = collapsedGroups.includes(group.key);
     return <section className="grouped-list__section" key={group.key}>
@@ -271,9 +273,9 @@ function SprintWorkitemGroupedList({ groups, collapsedGroups, collapsedSubgroups
           <button className="grouped-list__subgroup-header" type="button" aria-expanded={!subgroupCollapsed} onClick={() => onToggleSubgroup(subgroup.key)}>
             <svg className={subgroupCollapsed ? "grouped-list__chevron--collapsed" : ""} viewBox="0 0 12 12" aria-hidden="true"><path d="m3 4 3 3 3-3" /></svg><strong>{subgroup.label}</strong><span>{subgroup.items.length} 条</span>
           </button>
-          {!subgroupCollapsed ? <SprintWorkitemList items={subgroup.items} sort={sort} visibleColumns={visibleColumns} onSort={onSort} /> : null}
+          {!subgroupCollapsed ? <SprintWorkitemList apiBaseUrl={apiBaseUrl} items={subgroup.items} sort={sort} visibleColumns={visibleColumns} onSort={onSort} /> : null}
         </section>;
-      })}</div> : <SprintWorkitemList items={group.items} sort={sort} visibleColumns={visibleColumns} onSort={onSort} /> : null}
+      })}</div> : <SprintWorkitemList apiBaseUrl={apiBaseUrl} items={group.items} sort={sort} visibleColumns={visibleColumns} onSort={onSort} /> : null}
     </section>;
   })}</div>;
 }
@@ -390,6 +392,7 @@ export function MeegleSprintDetailPage({ profile, sprintName, apiBaseUrl, onLogo
   const [visibleColumns, setVisibleColumns] = useState(() => normalizeSprintWorkitemVisibleColumns());
   const [collapsedGroups, setCollapsedGroups] = useState([]);
   const [collapsedSubgroups, setCollapsedSubgroups] = useState([]);
+  const groupingDefaultsRef = useRef(null);
   const sprint = state.sprints.find((item) => item.sprintId === sprintName || item.name === sprintName);
   const filterFields = sprint ? SPRINT_WORKITEM_FILTER_FIELDS.map((field) => ({
     ...field,
@@ -399,6 +402,17 @@ export function MeegleSprintDetailPage({ profile, sprintName, apiBaseUrl, onLogo
   const visibleItems = sprint ? filterMeegleSprintItems(sprint.items, selectedWorkitemFilters) : [];
   const sortedItems = sortSprintWorkitems(visibleItems, sort);
   const workitemGroups = groupSprintWorkitems(sortedItems, groupBy, { subGroupBy });
+  useEffect(() => {
+    if (groupBy === "none") {
+      groupingDefaultsRef.current = null;
+      return;
+    }
+    const configKey = `${groupBy}:${subGroupBy}`;
+    if (groupingDefaultsRef.current === configKey) return;
+    groupingDefaultsRef.current = configKey;
+    setCollapsedGroups([...new Set(workitemGroups.map((group) => group.key))]);
+    setCollapsedSubgroups([...new Set(workitemGroups.flatMap((group) => (group.subgroups || []).map((subgroup) => subgroup.key)))]);
+  }, [groupBy, subGroupBy, workitemGroups]);
   useKeyboardShortcut({
     key: "Escape",
     enabled: filterOpen || viewConfigOpen,
@@ -455,7 +469,7 @@ export function MeegleSprintDetailPage({ profile, sprintName, apiBaseUrl, onLogo
         </div>
         <div className={`sprint-detail-layout ${panelOpen ? "sprint-detail-layout--with-panel" : ""}`.trim()}>
           <div className="sprint-detail-layout__main">
-            {sortedItems.length ? groupBy === "none" ? <SprintWorkitemList items={sortedItems} sort={sort} visibleColumns={visibleColumns} onSort={(key) => updateSort({ key, direction: sort.key === key && sort.direction === "asc" ? "desc" : "asc" })} /> : <SprintWorkitemGroupedList groups={workitemGroups} collapsedGroups={collapsedGroups} collapsedSubgroups={collapsedSubgroups} onToggleGroup={(key) => setCollapsedGroups((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key])} onToggleSubgroup={(key) => setCollapsedSubgroups((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key])} sort={sort} visibleColumns={visibleColumns} onSort={(key) => updateSort({ key, direction: sort.key === key && sort.direction === "asc" ? "desc" : "asc" })} /> : <p className="list-message">当前筛选条件下没有工作项。</p>}
+            {sortedItems.length ? groupBy === "none" ? <SprintWorkitemList apiBaseUrl={apiBaseUrl} items={sortedItems} sort={sort} visibleColumns={visibleColumns} onSort={(key) => updateSort({ key, direction: sort.key === key && sort.direction === "asc" ? "desc" : "asc" })} /> : <SprintWorkitemGroupedList apiBaseUrl={apiBaseUrl} groups={workitemGroups} collapsedGroups={collapsedGroups} collapsedSubgroups={collapsedSubgroups} onToggleGroup={(key) => setCollapsedGroups((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key])} onToggleSubgroup={(key) => setCollapsedSubgroups((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key])} sort={sort} visibleColumns={visibleColumns} onSort={(key) => updateSort({ key, direction: sort.key === key && sort.direction === "asc" ? "desc" : "asc" })} /> : <p className="list-message">当前筛选条件下没有工作项。</p>}
           </div>
           {panelOpen ? <SprintPanel sprint={sprint} apiBaseUrl={apiBaseUrl} /> : null}
         </div>

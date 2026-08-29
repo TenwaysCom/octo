@@ -17,7 +17,7 @@ describe("web GitHub PR Odoo DevOps build controller", () => {
 
   it("requires the opaque Octo web session", async () => {
     const githubClient = { getPullRequest: vi.fn() };
-    const odooDevopsBranchesService = { list: vi.fn() };
+    const odooDevopsBranchesService = { getOrStartRefresh: vi.fn() };
     const controller = createWebGitHubPrOdooDevopsBuildController({
       githubClient,
       odooDevopsBranchesService,
@@ -31,7 +31,12 @@ describe("web GitHub PR Odoo DevOps build controller", () => {
 
   it("maps the repository to EU and matches the current GitHub head ref only", async () => {
     const githubClient = { getPullRequest: vi.fn().mockResolvedValue({ head: { ref: "feature/m-1140" } }) };
-    const odooDevopsBranchesService = { list: vi.fn().mockResolvedValue(snapshot) };
+    const odooDevopsBranchesService = { getOrStartRefresh: vi.fn().mockResolvedValue({
+      state: "ready",
+      snapshot,
+      cached: true,
+      stale: false,
+    }) };
     const controller = createWebGitHubPrOdooDevopsBuildController({
       githubClient,
       odooDevopsBranchesService,
@@ -46,19 +51,43 @@ describe("web GitHub PR Odoo DevOps build controller", () => {
       body: {
         ok: true,
         data: {
+          state: "ready",
           environment: "eu",
           headRef: "feature/m-1140",
           build: { branch: "feature/m-1140", status: "done", result: "success" },
+          stale: false,
         },
       },
     });
     expect(githubClient.getPullRequest).toHaveBeenCalledWith("TenwaysCom", "Tenways", 1140);
-    expect(odooDevopsBranchesService.list).toHaveBeenCalledWith("eu");
+    expect(odooDevopsBranchesService.getOrStartRefresh).toHaveBeenCalledWith("eu");
+  });
+
+  it("returns 202 while an environment snapshot is refreshing", async () => {
+    const githubClient = { getPullRequest: vi.fn() };
+    const odooDevopsBranchesService = { getOrStartRefresh: vi.fn().mockResolvedValue({ state: "refreshing" }) };
+    const controller = createWebGitHubPrOdooDevopsBuildController({
+      githubClient,
+      odooDevopsBranchesService,
+      ensureSession: vi.fn().mockResolvedValue({ ok: true, user: {} }),
+    });
+
+    await expect(controller({
+      cookieHeader: "octo_web_session=web-session",
+      query: { owner: "TenwaysCom", repo: "Tenways", pullNumber: "1140", headRef: "feature/m-1140" },
+    })).resolves.toEqual({
+      statusCode: 202,
+      body: { ok: true, data: {
+        state: "refreshing", environment: "eu", headRef: "feature/m-1140", build: null, retryAfterMs: 1000,
+      } },
+    });
+    expect(githubClient.getPullRequest).not.toHaveBeenCalled();
+    expect(odooDevopsBranchesService.getOrStartRefresh).toHaveBeenCalledWith("eu");
   });
 
   it("does not query GitHub or Odoo DevOps for an unmapped repository", async () => {
     const githubClient = { getPullRequest: vi.fn() };
-    const odooDevopsBranchesService = { list: vi.fn() };
+    const odooDevopsBranchesService = { getOrStartRefresh: vi.fn() };
     const controller = createWebGitHubPrOdooDevopsBuildController({
       githubClient,
       odooDevopsBranchesService,
@@ -70,7 +99,7 @@ describe("web GitHub PR Odoo DevOps build controller", () => {
       query: { owner: "TenwaysCom", repo: "unmapped", pullNumber: "1140" },
     })).resolves.toMatchObject({ statusCode: 404, body: { ok: false, error: { errorCode: "ODOO_DEVOPS_REPO_UNMAPPED" } } });
     expect(githubClient.getPullRequest).not.toHaveBeenCalled();
-    expect(odooDevopsBranchesService.list).not.toHaveBeenCalled();
+    expect(odooDevopsBranchesService.getOrStartRefresh).not.toHaveBeenCalled();
   });
 
 });
