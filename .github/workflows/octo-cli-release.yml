@@ -1,0 +1,101 @@
+name: octo-cli private release
+
+on:
+  push:
+    tags:
+      - "octo-cli-v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: octo-cli-release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    runs-on: ubuntu-22.04
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      source_sha: ${{ steps.release.outputs.source_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.1.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: octo-cli/pnpm-lock.yaml
+      - name: Validate protected tag, version, and source branch
+        id: release
+        env:
+          REF_PROTECTED: ${{ github.ref_protected }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          [[ "$REF_PROTECTED" == "true" ]] || { echo "Release tag must be protected." >&2; exit 1; }
+          pnpm --dir octo-cli run release:check -- --tag "$TAG" > release-preflight.json
+          git fetch --no-tags origin main
+          source_sha="$(git rev-parse --verify "refs/tags/${TAG}^{commit}")"
+          [[ "$source_sha" == "$(git rev-parse --verify 'HEAD^{commit}')" ]] || { echo "Tag does not resolve to the checked-out commit." >&2; exit 1; }
+          git merge-base --is-ancestor "$source_sha" FETCH_HEAD || { echo "Stable release source must be contained in origin/main." >&2; exit 1; }
+          version="$(node -e 'const value=require("./release-preflight.json"); if (!value.ok) process.exit(1); process.stdout.write(value.data.version)')"
+          printf 'version=%s\nsource_sha=%s\n' "$version" "$source_sha" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: preflight
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.preflight.outputs.source_sha }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.1.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: octo-cli/pnpm-lock.yaml
+      - run: pnpm --dir octo-cli install --frozen-lockfile
+      - name: Build verified release candidate
+        env:
+          OCTO_CLI_RELEASE_BASE_URL: ${{ vars.OCTO_CLI_RELEASE_BASE_URL }}
+        run: |
+          set -euo pipefail
+          [[ -n "$OCTO_CLI_RELEASE_BASE_URL" ]] || { echo "OCTO_CLI_RELEASE_BASE_URL is not configured." >&2; exit 1; }
+          pnpm --dir octo-cli run release:prepare -- --base-url "$OCTO_CLI_RELEASE_BASE_URL"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: octo-cli-release-${{ needs.preflight.outputs.version }}
+          path: octo-cli/release/
+          if-no-files-found: error
+          overwrite: true
+
+  deploy:
+    needs: [preflight, build]
+    runs-on: ubuntu-22.04
+    environment: octo-cli-private-release
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.preflight.outputs.source_sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: octo-cli-release-${{ needs.preflight.outputs.version }}
+          path: release-artifact
+      - name: Publish verified candidate to the private static host
+        env:
+          OCTO_CLI_RELEASE_BASE_URL: ${{ vars.OCTO_CLI_RELEASE_BASE_URL }}
+          OCTO_CLI_RELEASE_HOST: ${{ vars.OCTO_CLI_RELEASE_HOST }}
+          OCTO_CLI_RELEASE_PORT: ${{ vars.OCTO_CLI_RELEASE_PORT }}
+          OCTO_CLI_RELEASE_DIR: ${{ vars.OCTO_CLI_RELEASE_DIR }}
+          OCTO_CLI_RELEASE_VERIFY_TOKEN: ${{ secrets.OCTO_CLI_RELEASE_VERIFY_TOKEN }}
+        run: bash octo-cli/scripts/publish-release.sh --artifacts-dir release-artifact
