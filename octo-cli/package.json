@@ -1,0 +1,23 @@
+{
+  "name": "@tenways/octo-cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local agent CLI for read-only Octo platform data.",
+  "bin": {
+    "octo-cli": "dist/src/index.js"
+  },
+  "files": [
+    "dist",
+    "skills",
+    "USAGE.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "pnpm run build && node --test dist/test/**/*.test.js"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.0",
+    "typescript": "^5.9.2"
+  }
+}

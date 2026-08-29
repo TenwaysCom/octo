@@ -13,6 +13,7 @@
 
 ```text
 octo/
+├── octo-cli/            # 本地 agent CLI 与随包 skills
 ├── extension/              # 浏览器扩展
 ├── server/                 # 服务端 API
 ├── docs/                   # 产品、架构、治理与实施文档
