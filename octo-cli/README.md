@@ -16,7 +16,7 @@ octo-cli odoo branches --environment eu
 octo-cli agent install --destination ~/.codex/skills
 ```
 
-The CLI stores only `serverUrl` and the Octo agent API token in `~/.octo-cli/config.json` (or `OCTO_CLI_HOME/config.json`). Environment variables `OCTO_SERVER_URL` and `OCTO_API_TOKEN` override that file.
+The CLI stores only `serverUrl` and the Octo agent API token in `~/.octo-cli/config.json` (or `OCTO_CLI_HOME/config.json`) with owner-only file permissions. Environment variables `OCTO_SERVER_URL` and `OCTO_API_TOKEN` override that file, unless the selected Profile has strict mode enabled. Server URLs must use HTTPS except for loopback demo URLs.
 
 ## Local demo
 

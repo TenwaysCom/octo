@@ -5,6 +5,7 @@ import { dirname, join } from "node:path";
 export interface OctoCliConfig {
   serverUrl?: string;
   apiToken?: string;
+  strictMode?: "host";
 }
 
 interface OctoCliConfigFile {
@@ -66,6 +67,31 @@ export async function removeProfile(profile: string, configPath = getConfigPath(
   await saveConfigFile({ ...configFile, profiles }, configPath);
 }
 
+export async function setProfileStrictMode(
+  profile: string,
+  strictMode: "host" | "off",
+  configPath = getConfigPath(),
+): Promise<void> {
+  const normalizedProfile = normalizeProfileName(profile);
+  const configFile = await loadConfigFile(configPath);
+  const current = configFile.profiles?.[normalizedProfile];
+  if (!current) throw new Error(`Profile \"${normalizedProfile}\" does not exist.`);
+  if (strictMode === "host" && !current.serverUrl) {
+    throw new Error("A server URL is required before enabling strict mode.");
+  }
+  const { strictMode: _currentStrictMode, ...configWithoutStrictMode } = current;
+  await saveConfigFile({
+    ...configFile,
+    profiles: {
+      ...configFile.profiles,
+      [normalizedProfile]: {
+        ...configWithoutStrictMode,
+        ...(strictMode === "host" ? { strictMode } : {}),
+      },
+    },
+  }, configPath);
+}
+
 export async function loadConfigFile(configPath = getConfigPath()): Promise<Required<OctoCliConfigFile>> {
   try {
     const raw = await readFile(configPath, "utf8");
@@ -122,8 +148,9 @@ function sanitizeConfig(value: unknown): OctoCliConfig {
     ? value as Record<string, unknown>
     : {};
   return {
-    serverUrl: typeof config.serverUrl === "string" ? config.serverUrl : undefined,
+    serverUrl: typeof config.serverUrl === "string" ? normalizeServerUrl(config.serverUrl) : undefined,
     apiToken: typeof config.apiToken === "string" ? config.apiToken : undefined,
+    ...(config.strictMode === "host" ? { strictMode: "host" as const } : {}),
   };
 }
 
@@ -136,9 +163,16 @@ export function normalizeProfileName(value: string): string {
 }
 
 export function resolveServerUrl(config: OctoCliConfig, environment: NodeJS.ProcessEnv = process.env): string {
-  const serverUrl = environment.OCTO_SERVER_URL?.trim() || config.serverUrl?.trim();
+  const configuredServerUrl = config.serverUrl ? normalizeServerUrl(config.serverUrl) : undefined;
+  const environmentServerUrl = environment.OCTO_SERVER_URL?.trim()
+    ? normalizeServerUrl(environment.OCTO_SERVER_URL)
+    : undefined;
+  if (config.strictMode === "host" && configuredServerUrl && environmentServerUrl && environmentServerUrl !== configuredServerUrl) {
+    throw new Error("STRICT_PROFILE_SERVER_MISMATCH: OCTO_SERVER_URL does not match the strict Profile server URL.");
+  }
+  const serverUrl = environmentServerUrl || configuredServerUrl;
   if (!serverUrl) throw new Error("Octo server URL is not configured. Run: octo-cli config set --server-url <url>");
-  return serverUrl.replace(/\/$/, "");
+  return serverUrl;
 }
 
 export function resolveApiToken(config: OctoCliConfig, environment: NodeJS.ProcessEnv = process.env): string {
@@ -148,5 +182,29 @@ export function resolveApiToken(config: OctoCliConfig, environment: NodeJS.Proce
 }
 
 export function redactConfig(config: OctoCliConfig): Record<string, string | undefined> {
-  return { serverUrl: config.serverUrl, apiToken: config.apiToken ? "********" : undefined };
+  return {
+    serverUrl: config.serverUrl,
+    apiToken: config.apiToken ? "********" : undefined,
+    strictMode: config.strictMode ?? "off",
+  };
+}
+
+export function normalizeServerUrl(value: string): string {
+  let url: URL;
+  try {
+    url = new URL(value.trim());
+  } catch {
+    throw new Error("Octo server URL must be an absolute HTTP(S) URL.");
+  }
+  if (url.username || url.password) throw new Error("Octo server URL must not include credentials.");
+  if (url.search || url.hash || (url.pathname !== "/" && url.pathname !== "")) {
+    throw new Error("Octo server URL must not include a path, query, or fragment.");
+  }
+  if (url.protocol === "https:") return url.origin;
+  if (url.protocol === "http:" && isLoopbackHost(url.hostname)) return url.origin;
+  throw new Error("Octo server URL must use HTTPS; HTTP is allowed only for localhost demo servers.");
+}
+
+function isLoopbackHost(hostname: string): boolean {
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
 }

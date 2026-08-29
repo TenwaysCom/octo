@@ -9,6 +9,7 @@ import {
   removeProfile,
   saveConfig,
   setActiveProfile,
+  setProfileStrictMode,
 } from "./config.js";
 import { createDemoServer, DEMO_API_TOKEN, DEMO_SPRINT_ID } from "./demo.js";
 import { runDoctor } from "./doctor.js";
@@ -30,6 +31,7 @@ Usage:
   octo-cli config set [--server-url <url>] [--api-token <token>]
   octo-cli config show
   octo-cli profile list | add --name <name> | use --name <name> | remove --name <name>
+  octo-cli profile strict-mode [on|off] [--name <name>]
   octo-cli doctor [--offline]
   octo-cli schema [<name>]
   octo-cli sprint burndown --project-key <key> --sprint-id <id>
@@ -53,7 +55,7 @@ export async function run(argv: readonly string[], stdout: (value: string) => vo
     return;
   }
   const { positionals, flags } = parseArgs(argv, ["offline"]);
-  const [command, subcommand] = positionals;
+  const [command, subcommand, operation] = positionals;
 
   if (!command || command === "help" || command === "--help") {
     stdout(HELP);
@@ -61,7 +63,7 @@ export async function run(argv: readonly string[], stdout: (value: string) => vo
   }
   const profile = flags.get("profile") || process.env.OCTO_CLI_PROFILE || await getActiveProfile();
   if (command === "config") return runConfig(subcommand, flags, profile, stdout);
-  if (command === "profile") return runProfile(subcommand, flags, stdout);
+  if (command === "profile") return runProfile(subcommand, operation, flags, profile, stdout);
   if (command === "schema") return runSchema(subcommand, stdout);
   if (command === "doctor") return runDoctorCommand(profile, flags, stdout);
   if (command === "skills") return runSkills(subcommand, positionals[2], stdout);
@@ -117,14 +119,20 @@ async function runConfig(
   }
   if (subcommand !== "set") throw new Error(`Unsupported config command.\n\n${HELP}`);
   const current = await loadConfig(undefined, profile);
-  const serverUrl = flags.get("server-url")?.replace(/\/$/, "") || current.serverUrl;
+  const serverUrl = flags.get("server-url") || current.serverUrl;
   const apiToken = flags.get("api-token") || current.apiToken;
   if (!serverUrl && !apiToken) throw new Error("Provide --server-url and/or --api-token.");
-  await saveConfig({ serverUrl, apiToken }, undefined, profile);
+  await saveConfig({ serverUrl, apiToken, strictMode: current.strictMode }, undefined, profile);
   printSuccess({ configPath: getConfigPath(), profile, serverUrl, apiToken: apiToken ? "********" : undefined }, stdout, { profile });
 }
 
-async function runProfile(subcommand: string | undefined, flags: ReadonlyMap<string, string>, stdout: (value: string) => void): Promise<void> {
+async function runProfile(
+  subcommand: string | undefined,
+  operation: string | undefined,
+  flags: ReadonlyMap<string, string>,
+  profile: string,
+  stdout: (value: string) => void,
+): Promise<void> {
   if (subcommand === "list") {
     const profiles = await listProfiles();
     printSuccess(profiles, stdout, { count: profiles.length });
@@ -133,10 +141,21 @@ async function runProfile(subcommand: string | undefined, flags: ReadonlyMap<str
   const name = requiredFlag(flags, "name");
   if (subcommand === "add") {
     await saveConfig({
-      serverUrl: flags.get("server-url")?.replace(/\/$/, ""),
+      serverUrl: flags.get("server-url"),
       apiToken: flags.get("api-token"),
     }, undefined, name);
     printSuccess({ name, created: true }, stdout);
+    return;
+  }
+  if (subcommand === "strict-mode") {
+    const targetProfile = flags.get("name") || profile;
+    if (!operation) {
+      printSuccess({ name: targetProfile, strictMode: (await loadConfig(undefined, targetProfile)).strictMode ?? "off" }, stdout);
+      return;
+    }
+    if (operation !== "on" && operation !== "off") throw new Error("strict-mode must be on or off.");
+    await setProfileStrictMode(targetProfile, operation === "on" ? "host" : "off");
+    printSuccess({ name: targetProfile, strictMode: operation }, stdout);
     return;
   }
   if (subcommand === "use") {

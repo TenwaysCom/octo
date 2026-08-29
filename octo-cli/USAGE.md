@@ -73,6 +73,15 @@ octo-cli profile list
 
 `profile use` 会切换默认 Profile。单条命令可用 `--profile <name>` 或 `OCTO_CLI_PROFILE=<name>` 覆盖它；切换或删除 Profile 是本地状态变更，应由操作者显式执行。
 
+对生产 Profile 可开启严格主机绑定：
+
+```bash
+octo-cli profile strict-mode on --name prod
+octo-cli profile strict-mode --name prod
+```
+
+严格模式会拒绝 `OCTO_SERVER_URL` 将请求导向与该 Profile 配置不同的服务器。关闭时使用 `octo-cli profile strict-mode off --name prod`。服务地址必须为 HTTPS；仅 `localhost`、`127.0.0.1` 和 `::1` 可用于本地 demo 的 HTTP 地址。URL 不能包含凭据、路径、查询参数或 fragment。
+
 > 当前仓库中的真实 Agent API 仍在迁移计划中。若服务端尚未部署 `/api/agent/v1` 和 token middleware，真实查询会失败；可先按第 5 节运行本地 demo。
 
 ## 3. 查询命令

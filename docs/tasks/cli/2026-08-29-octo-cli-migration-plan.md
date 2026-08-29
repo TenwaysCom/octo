@@ -74,7 +74,7 @@ The Agent control plane follows the safe parts of `lark-cli`: `skills list/read`
 ### Phase 3 — production Agent readiness
 
 - Extend `doctor` from local configuration/public health to server-authenticated effective identity, token scopes and snapshot freshness.
-- Keep named profiles (`local`, `test`, `prod`) local-only; do not switch them implicitly.
+- Keep named profiles (`local`, `test`, `prod`) local-only; do not switch them implicitly. A strict production Profile binds the configured server URL and rejects a conflicting environment override.
 - Extend `schema` only when the server DTO and required scope are deployed; include each route's risk classification.
 - For future writes, add preview and explicit confirmation gates before exposing a command.
 - Package and publish only after a target environment read-back proves all four commands with a least-privilege token.
