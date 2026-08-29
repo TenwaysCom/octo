@@ -31,6 +31,21 @@ const ACTIVITY_LABELS = {
   unknown: "日期未同步",
 };
 
+function formatSprintShortDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "--/--";
+  return `${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function getSprintDateRangeLabel(sprint) {
+  const startAt = sprint.startAt || sprint.latestActivityAt;
+  const endAt = sprint.endAt;
+  if (!startAt) return { short: "--/--", full: "日期未同步" };
+  const short = endAt ? `${formatSprintShortDate(startAt)}–${formatSprintShortDate(endAt)}` : formatSprintShortDate(startAt);
+  const full = endAt ? `${formatDateTime(startAt)} – ${formatDateTime(endAt)}` : formatDateTime(startAt);
+  return { short, full };
+}
+
 const SPRINT_WORKITEM_FILTER_FIELDS = [
   { key: "workitemType", label: "类型", getValues: (item) => [item.workItemType || item.workItemTypeKey || "未设置"] },
   { key: "status", label: "状态", getValues: (item) => [item.status || "未设置"] },
@@ -314,8 +329,10 @@ function SprintHistoryList({ sprints, expandedSprintKey, onToggleSprint, idPrefi
   return <div className="sprint-history-list">{sprints.map((sprint, index) => {
     const expanded = expandedSprintKey === sprint.identity;
     const chartId = `${idPrefix}-chart-${index}`;
+    const dateRange = getSprintDateRangeLabel(sprint);
+    const completionPercent = Math.min(100, Math.max(0, sprint.progress.completionPercent));
     return <article className={`sprint-history-row ${expanded ? "sprint-history-row--expanded" : ""}`.trim()} key={sprint.identity}>
-      <div className="sprint-history-row__date"><span>{formatDateTime(sprint.startAt || sprint.latestActivityAt)}</span><i aria-hidden="true" /></div>
+      <div className="sprint-history-row__date" title={dateRange.full}><span aria-hidden="true">{dateRange.short}</span><span className="visually-hidden">{dateRange.full}</span><i aria-hidden="true" /></div>
       <div className="sprint-history-row__content">
         <button
           className={`sprint-history-row__toggle ${expanded ? "sprint-history-row__toggle--open" : ""}`.trim()}
@@ -327,7 +344,7 @@ function SprintHistoryList({ sprints, expandedSprintKey, onToggleSprint, idPrefi
         ><svg viewBox="0 0 8 12" aria-hidden="true"><path d="m1 1 5 5-5 5" /></svg><span className={`sprint-history-row__marker sprint-history-row__marker--${sprint.lifecycle}`} aria-hidden="true" /></button>
         <div className="sprint-history-row__summary"><a href={getMeegleSprintDetailHash(sprint.sprintId || sprint.name)}><strong>{sprint.name}</strong></a><small>{sprint.projectCount} 个项目{sprint.carryoverCount ? ` · ${sprint.carryoverCount} 个工作项结转` : " · 最近工作项活动"}</small></div>
         <SprintActivityBadge lifecycle={sprint.lifecycle} />
-        <span className="sprint-history-row__metric"><strong>{sprint.progress.completionPercent}%</strong><small>完成</small></span>
+        <span className="sprint-history-row__metric"><strong>{sprint.progress.completionPercent}%</strong><span className="sprint-completion-bar" role="progressbar" aria-valuenow={completionPercent} aria-valuemin={0} aria-valuemax={100} aria-label={`${sprint.name} 完成率`}><i style={{ width: `${completionPercent}%` }} /></span><small>完成</small></span>
         <span className="sprint-history-row__metric"><strong>{sprint.progress.completed}</strong><small>已完成</small></span>
         <span className="sprint-history-row__metric"><strong>{sprint.progress.scope}</strong><small>Scope</small></span>
       </div>

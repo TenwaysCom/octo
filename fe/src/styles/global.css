@@ -877,6 +877,8 @@ h1 {
 .sprint-history-row__summary small, .sprint-history-row__metric small { color: var(--octo-text-muted); font-size: 10px; }
 .sprint-history-row__metric { display: grid; gap: 3px; color: var(--octo-text-muted); text-align: right; }
 .sprint-history-row__metric strong { color: var(--octo-text); font-size: 12px; font-weight: 650; }
+.sprint-completion-bar { display: block; height: 3px; overflow: hidden; border-radius: 999px; background: var(--octo-border); }
+.sprint-completion-bar i { display: block; height: 100%; border-radius: inherit; background: var(--octo-brand); }
 .sprint-activity-badge { display: inline-flex; min-height: 23px; align-items: center; padding: 3px 8px; border-radius: 5px; color: var(--octo-badge-neutral-text); background: var(--octo-badge-neutral-bg); font-size: 11px; white-space: nowrap; }
 .sprint-activity-badge--current { color: var(--octo-badge-active-text); background: var(--octo-badge-active-bg); }
 .sprint-activity-badge--past { color: var(--octo-badge-success-text); background: var(--octo-badge-success-bg); }
@@ -909,20 +911,21 @@ h1 {
 .sprint-timeline > header span { color: var(--octo-text-muted); font-size: 10px; }
 .sprint-progress-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; margin-top: 14px; }
 .sprint-timeline--compact .sprint-progress-metrics { max-width: 360px; margin: 0 0 4px auto; }
-.sprint-progress-metrics > div { display: grid; grid-template-columns: 7px minmax(0, 1fr); gap: 4px 6px; align-items: center; color: var(--octo-text-muted); font-size: 10px; }
+.sprint-progress-metrics > div { display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 4px 6px; align-items: center; color: var(--octo-text-muted); font-size: 10px; }
 .sprint-progress-metrics strong { grid-column: 2; color: var(--octo-text); font-size: 14px; }
 .sprint-progress-metrics small { grid-column: 2; color: var(--octo-text-muted); font-size: 9px; }
-.sprint-progress-key { width: 6px; height: 6px; border-radius: 1px; background: #94a3b8; }
-.sprint-progress-key--started { background: #eab308; }
-.sprint-progress-key--completed { background: var(--octo-brand); }
+.sprint-progress-key { width: 14px; height: 0; border-top: 2px solid #94a3b8; }
+.sprint-progress-key--scope { border-top-style: dashed; }
+.sprint-progress-key--started { border-top-color: #eab308; }
+.sprint-progress-key--completed { border-top-color: var(--octo-brand); }
 .sprint-timeline__plot { position: relative; height: 132px; margin-top: 9px; }
 .sprint-timeline--compact .sprint-timeline__plot { height: 155px; }
 .sprint-timeline__plot svg { display: block; width: 100%; height: calc(100% - 18px); overflow: visible; }
 .sprint-timeline__grid { stroke: var(--octo-border); stroke-width: 1; }
 .sprint-timeline__line { fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2; vector-effect: non-scaling-stroke; }
-.sprint-timeline__line--scope { stroke: #94a3b8; }
+.sprint-timeline__line--scope { stroke: #94a3b8; stroke-dasharray: 4 3; }
 .sprint-timeline__line--started { stroke: #eab308; }
-.sprint-timeline__line--completed { stroke: var(--octo-brand); stroke-dasharray: 3 3; }
+.sprint-timeline__line--completed { stroke: var(--octo-brand); }
 .sprint-timeline__dates { position: absolute; right: 0; bottom: 0; left: 0; height: 12px; color: var(--octo-text-muted); font-size: 9px; }
 .sprint-timeline__dates span { position: absolute; white-space: nowrap; }
 .sprint-timeline__coverage { display: block; margin-top: 5px; color: #a16207; font-size: 9px; line-height: 1.4; }

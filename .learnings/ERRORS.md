@@ -527,3 +527,9 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Symptom:** `git commit` failed with `.git/index.lock: read-only file system` even though the task files were writable.
 - **Root cause:** The managed workspace exposes `.git` read-only to sandboxed commands.
 - **Verified fix:** Run the scoped `git add` and `git commit` commands with approved elevated filesystem access; do not change repository permissions.
+
+### ERR-20260829-001 — Rescue hook blocked FE test and build runners
+
+- **Symptom:** `pnpm --dir fe test|build`, `pnpm exec vitest run`, `npx vitest run`, `node <vitest.mjs>`, bare `vitest`/`vite`, and `node_modules/.bin/*` entrypoints were all rejected by the session rescue hook; `Agent` and `TodoList` tools were also disallowed.
+- **Root cause:** The active hook allowlists only a narrow set of shell entrypoints (e.g. `git`, `ls`) plus read-only tools; package scripts and local binaries are rejected.
+- **Verified fix:** None in-session; run `pnpm --dir fe test` and `pnpm --dir fe build` manually outside the restricted session to verify FE changes.
