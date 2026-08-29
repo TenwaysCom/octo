@@ -8,13 +8,18 @@
     "octo-cli": "dist/src/index.js"
   },
   "files": [
-    "dist",
+    "dist/src",
     "skills",
     "USAGE.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "pnpm run build && node --test dist/test/**/*.test.js"
+    "test": "pnpm run build && node --test dist/test/**/*.test.js test/**/*.test.mjs",
+    "release:check": "node scripts/release-preflight.mjs",
+    "release:verify": "pnpm run release:check && pnpm run test && node scripts/verify-package.mjs",
+    "release:prepare": "pnpm run release:verify && node scripts/prepare-release.mjs",
+    "release:publish": "bash scripts/publish-release.sh",
+    "release:deploy": "bash scripts/deploy-release.sh"
   },
   "devDependencies": {
     "@types/node": "^24.12.0",

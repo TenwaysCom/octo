@@ -8,6 +8,7 @@ package-lock.json
 worktrees
 **/node_modules
 octo-client/dist
+octo-cli/release
 .superpowers
 .gstack
 .pnpm-lock.yaml

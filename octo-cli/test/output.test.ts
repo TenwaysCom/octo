@@ -16,3 +16,13 @@ test("uses a structured error envelope without copying sensitive values", () => 
     error: { errorCode: "UNAUTHORIZED", errorMessage: "UNAUTHORIZED token rejected" },
   });
 });
+
+test("keeps colon-delimited operational error codes", () => {
+  assert.deepEqual(failure(new Error("UPGRADE_MANIFEST_REQUEST_FAILED: 401 Unauthorized")), {
+    ok: false,
+    error: {
+      errorCode: "UPGRADE_MANIFEST_REQUEST_FAILED",
+      errorMessage: "UPGRADE_MANIFEST_REQUEST_FAILED: 401 Unauthorized",
+    },
+  });
+});

@@ -195,3 +195,35 @@ pnpm --dir octo-cli pack --dry-run
 ```
 
 测试会先编译 TypeScript，再执行 `octo-cli/test/` 中的 Node 测试。
+
+## 10. 客户端升级
+
+升级不依赖 Octo Server，也不会复用 Profile 的服务地址。客户端只信任 `@tenways/octo-cli`、稳定语义版本、HTTPS 制品 URL、SHA-256 和文件大小。
+
+### 客户端检查和升级
+
+```bash
+octo-cli upgrade --check \
+  --manifest-url https://releases.example.internal/octo-cli/latest.json
+
+# 这是全局包变更：只有明确确认后才执行
+octo-cli upgrade --apply --yes \
+  --manifest-url https://releases.example.internal/octo-cli/latest.json
+```
+
+也可将更新地址只放在运行环境中：
+
+```bash
+OCTO_CLI_UPDATE_URL=https://releases.example.internal/octo-cli/latest.json \
+  octo-cli upgrade
+```
+
+若静态环境要求 bearer auth，请只通过环境变量传入发布读取 token：
+
+```bash
+OCTO_CLI_UPDATE_URL=https://releases.example.internal/octo-cli/latest.json \
+OCTO_CLI_UPDATE_TOKEN=<release-read-token> \
+  octo-cli upgrade
+```
+
+该 token 只用于下载清单与 tarball，不会写入 Profile、配置文件或输出，也不会复用 Octo Data API token。不带 `--apply --yes` 时只读取清单，不下载 tarball，也不修改本机。安装时 CLI 会先完整下载、校验 SHA-256 与大小，再使用 `npm install --global --ignore-scripts <verified-tarball>`。如果校验失败，`npm` 不会被调用。

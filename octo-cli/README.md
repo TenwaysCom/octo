@@ -2,7 +2,7 @@
 
 `octo-cli` 是面向人和本地 Agent 的 Octo 只读命令行工具。它读取 Octo 已同步的 Sprint、GitHub PR、Lark Ticket 与 Odoo DevOps 投影；不携带浏览器 Cookie，也不直接调用第三方平台或 Odoo 数据库。
 
-[快速开始](#快速开始) · [Agent 快速开始](#agent-快速开始) · [能力](#能力) · [Skills](#agent-skills) · [命令模型](#命令模型) · [安全边界](#安全边界) · [完整使用说明](./USAGE.md)
+[快速开始](#快速开始) · [Agent 快速开始](#agent-快速开始) · [能力](#能力) · [Skills](#agent-skills) · [升级](#升级) · [安全边界](#安全边界) · [完整使用说明](./USAGE.md)
 
 ## 为什么使用 octo-cli？
 
@@ -140,6 +140,17 @@ octo-cli odoo branches --environment eu
 ```
 
 Agent 应使用 `ok == true` 或进程退出码判断成功。`SNAPSHOT_NOT_FOUND` 仅说明 Octo 没有匹配投影，不代表源平台中的记录不存在。
+
+## 升级
+
+私有发布环境提供一个 HTTPS `latest.json` 清单和对应的 `.tgz` 制品。更新检查不会使用配置中的 Octo Server URL，必须显式提供清单地址或设置 `OCTO_CLI_UPDATE_URL`：
+
+```bash
+octo-cli upgrade --manifest-url https://releases.example.internal/octo-cli/latest.json
+octo-cli upgrade --apply --yes --manifest-url https://releases.example.internal/octo-cli/latest.json
+```
+
+受保护的私有发布环境将读取 token 放入 `OCTO_CLI_UPDATE_TOKEN`，不会存入 Profile、配置文件或输出。`--apply --yes` 才会执行全局安装。CLI 会先下载制品、校验清单中的 SHA-256 与字节数，然后以 `npm install --global --ignore-scripts` 安装。
 
 ## 安全边界
 

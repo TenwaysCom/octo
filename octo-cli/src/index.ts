@@ -17,6 +17,7 @@ import { OctoApiClient } from "./http.js";
 import { failure, success } from "./output.js";
 import { getApiSchema, listApiSchemas } from "./schema.js";
 import { defaultCodexSkillsRoot, installBundledSkills, listBundledSkills, readBundledSkill } from "./skills.js";
+import { applyUpgrade, checkForUpgrade, resolveManifestUrl, resolveUpdateToken } from "./upgrade.js";
 
 const HELP = `octo-cli — local agent CLI for read-only Octo platform data.
 
@@ -33,6 +34,8 @@ Usage:
   octo-cli profile list | add --name <name> | use --name <name> | remove --name <name>
   octo-cli profile strict-mode [on|off] [--name <name>]
   octo-cli doctor [--offline]
+  octo-cli upgrade [--check] --manifest-url <https-url>
+  octo-cli upgrade --apply --yes --manifest-url <https-url>
   octo-cli schema [<name>]
   octo-cli sprint burndown --project-key <key> --sprint-id <id>
   octo-cli sprint tasks --project-key <key> --sprint-id <id>
@@ -54,7 +57,7 @@ export async function run(argv: readonly string[], stdout: (value: string) => vo
     stdout(HELP);
     return;
   }
-  const { positionals, flags } = parseArgs(argv, ["offline"]);
+  const { positionals, flags } = parseArgs(argv, ["offline", "check", "apply", "yes"]);
   const [command, subcommand, operation] = positionals;
 
   if (!command || command === "help" || command === "--help") {
@@ -66,6 +69,7 @@ export async function run(argv: readonly string[], stdout: (value: string) => vo
   if (command === "profile") return runProfile(subcommand, operation, flags, profile, stdout);
   if (command === "schema") return runSchema(subcommand, stdout);
   if (command === "doctor") return runDoctorCommand(profile, flags, stdout);
+  if (command === "upgrade") return runUpgrade(flags, stdout);
   if (command === "skills") return runSkills(subcommand, positionals[2], stdout);
   if (command === "agent" && subcommand === "install") return runAgentInstall(flags, stdout);
   if (command === "demo" && subcommand === "serve") return runDemoServer(flags, stdout);
@@ -183,6 +187,23 @@ function runSchema(name: string | undefined, stdout: (value: string) => void): v
 async function runDoctorCommand(profile: string, flags: ReadonlyMap<string, string>, stdout: (value: string) => void): Promise<void> {
   const report = await runDoctor(await loadConfig(undefined, profile), { offline: flags.get("offline") === "true" });
   printSuccess({ profile, ...report }, stdout, { profile });
+}
+
+async function runUpgrade(flags: ReadonlyMap<string, string>, stdout: (value: string) => void): Promise<void> {
+  if (flags.get("yes") === "true" && flags.get("apply") !== "true") {
+    throw new Error("--yes is only valid together with upgrade --apply.");
+  }
+  const dependencies = { updateToken: resolveUpdateToken() };
+  const check = await checkForUpgrade(resolveManifestUrl(flags.get("manifest-url")), dependencies);
+  if (flags.get("apply") !== "true") {
+    printSuccess(check, stdout);
+    return;
+  }
+  if (flags.get("yes") !== "true") {
+    throw new Error("UPGRADE_CONFIRMATION_REQUIRED: re-run with upgrade --apply --yes to install the verified release globally.");
+  }
+  const result = await applyUpgrade(check, dependencies);
+  printSuccess({ ...check, ...result }, stdout);
 }
 
 async function runSkills(subcommand: string | undefined, name: string | undefined, stdout: (value: string) => void): Promise<void> {
