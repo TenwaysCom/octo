@@ -2,6 +2,12 @@
 
 Record concise, reusable lessons here. Include the context, the durable rule, and the verified outcome; never include secrets or raw credentials.
 
+## [LRN-20260829-001] fe-css-variable-definition-and-badge-palette
+
+- **Context:** FE `global.css` 的 badge/状态色是十几处重复的硬编码色对,且 `--octo-brand-soft` 被两处引用却从未在 `:root` 定义(静默失效)。
+- **Rule:** 新增或调整 FE 状态色时,统一走 `:root` 的 `--octo-badge-{tone}-{text,bg}` 变量,不再新写硬编码色对;引用任何 CSS 变量前先确认它已在 `:root` 定义(可 grep `var(--x)` 与定义对照)。
+- **Verified outcome:** 所有 badge 修饰类改用变量后 FE 91 测试与 Vite production build 通过；功能样式改动仅在 `fe/src/styles/global.css`，任务/学习记录另行维护。
+
 ## [LRN-20260828-005] sprint-ai-session-snapshot-boundary
 
 - **Context:** Sprint Release Notes needs resumable AI Sessions, but Ticket sessions are structurally bound to a Lark Base record and browser-side Sprint filters cannot be trusted as generation input.
