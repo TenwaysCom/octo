@@ -117,10 +117,7 @@ const meegleWorkitemSchema = z.object({
   syncedAt: z.string(),
 });
 
-export const meegleWorkitemListResponseSchema = z.object({
-  items: z.array(meegleWorkitemSchema),
-  sprints: z.array(z.string()),
-  sprintDetails: z.array(z.object({
+const meegleSprintDetailsSchema = z.array(z.object({
     projectKey: z.string(),
     projectName: z.string().optional(),
     sprintId: z.string(),
@@ -132,16 +129,26 @@ export const meegleWorkitemListResponseSchema = z.object({
     endAt: z.string().datetime().optional(),
     sourceUpdatedAt: z.string().datetime().optional(),
     syncedAt: z.string().datetime(),
-  })),
-  sprintWorkitems: z.array(meegleWorkitemSchema.extend({
+  }));
+
+const meegleSprintWorkitemsSchema = z.array(meegleWorkitemSchema.extend({
     sprintId: z.string(),
     sprint: z.string(),
     membershipRemovedAt: z.string().datetime().optional(),
     membershipSource: z.enum(["historical_inferred", "incremental_observed"]),
     carryoverToSprintId: z.string().optional(),
     carryoverToSprintName: z.string().optional(),
-  })),
+  }));
+
+export const meegleWorkitemListResponseSchema = z.object({
+  items: z.array(meegleWorkitemSchema),
+  sprints: z.array(z.string()),
   pager: platformDataPagerSchema,
+});
+
+export const meegleSprintHistoryResponseSchema = z.object({
+  sprintDetails: meegleSprintDetailsSchema,
+  sprintWorkitems: meegleSprintWorkitemsSchema,
 });
 
 export const githubPullRequestListResponseSchema = z.object({

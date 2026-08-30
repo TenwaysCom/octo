@@ -56,6 +56,34 @@ export function getPlatformDataListPage({ apiBaseUrl, kind, filters = {}, offset
   return getSharedPlatformDataRequest(requestKey, () => loadPlatformDataListPage({ apiBaseUrl, kind, filters, offset, fetchImpl, path }));
 }
 
+export async function getMeegleSprintHistory({ apiBaseUrl, fetchImpl = fetch }) {
+  const response = await fetchImpl(buildApiUrl(apiBaseUrl, "/web/meegle-sprints"), { credentials: "include" });
+  const payload = await response.json().catch(() => undefined);
+  if (!response.ok || !payload?.ok) {
+    throw new Error(payload?.error?.errorCode || "MEEGLE_SPRINT_HISTORY_LOAD_FAILED");
+  }
+  if (!Array.isArray(payload.data?.sprintDetails) || !Array.isArray(payload.data?.sprintWorkitems)) {
+    throw new Error("INVALID_MEEGLE_SPRINT_HISTORY_RESPONSE");
+  }
+  return {
+    sprintDetails: payload.data.sprintDetails.map(parseMeegleSprint),
+    sprintWorkitems: payload.data.sprintWorkitems.map(parseMeegleSprintWorkitem),
+  };
+}
+
+export async function getGitHubPullRequestOdooShBuild({ apiBaseUrl, owner, repo, pullNumber, headRef, fetchImpl = fetch }) {
+  const query = new URLSearchParams({ owner, repo, pullNumber: String(pullNumber) });
+  if (headRef) query.set("headRef", headRef);
+  const response = await fetchImpl(`${buildApiUrl(apiBaseUrl, "/web/github-pr-odoo-devops-build")}?${query}`, {
+    credentials: "include",
+  });
+  const payload = await response.json().catch(() => undefined);
+  if ((!response.ok && response.status !== 202) || !payload?.ok) {
+    throw new Error(payload?.error?.errorCode || "ODOO_DEVOPS_BUILD_LOAD_FAILED");
+  }
+  return parseGitHubPullRequestOdooShBuild(payload.data);
+}
+
 export async function getGitHubPullRequestPreview({ apiBaseUrl, owner, repo, pullNumber, fetchImpl = fetch }) {
   const query = new URLSearchParams({ owner, repo, pullNumber: String(pullNumber) });
   const response = await fetchImpl(`${buildApiUrl(apiBaseUrl, "/web/platform-data/github-pull-request-preview")}?${query}`, {
@@ -128,9 +156,7 @@ async function loadPlatformDataListPage({ apiBaseUrl, kind, filters, offset, fet
     items,
     sprints: payload.data.sprints,
     sprintDetails: (payload.data.sprintDetails || []).map(parseMeegleSprint),
-    sprintWorkitems: payload.data.sprintWorkitems === undefined
-      ? items
-      : payload.data.sprintWorkitems.map(parseMeegleSprintWorkitem),
+    sprintWorkitems: payload.data.sprintWorkitems === undefined ? [] : payload.data.sprintWorkitems.map(parseMeegleSprintWorkitem),
     pager,
   };
 }
@@ -362,6 +388,29 @@ function parseGitHubLinkedMeegleWorkitem(value) {
     ...(value.status === undefined ? {} : { status: value.status }),
     ...(value.sprint === undefined ? {} : { sprint: value.sprint }),
     ...(value.version === undefined ? {} : { version: value.version }),
+  };
+}
+
+function parseGitHubPullRequestOdooShBuild(value) {
+  if (!isRecord(value)
+    || !["ready", "refreshing"].includes(value.state)
+    || !["eu", "uk", "us"].includes(value.environment)
+    || typeof value.headRef !== "string"
+    || (value.stale !== undefined && typeof value.stale !== "boolean")
+    || (value.retryAfterMs !== undefined && (!Number.isInteger(value.retryAfterMs) || value.retryAfterMs < 1))
+    || (value.build !== null && (!isRecord(value.build)
+      || typeof value.build.branch !== "string"
+      || typeof value.build.status !== "string"
+      || typeof value.build.result !== "string"))) {
+    throw new Error("INVALID_ODOO_DEVOPS_BUILD_RESPONSE");
+  }
+  return {
+    state: value.state,
+    environment: value.environment,
+    headRef: value.headRef,
+    build: value.build,
+    ...(value.stale === undefined ? {} : { stale: value.stale }),
+    ...(value.retryAfterMs === undefined ? {} : { retryAfterMs: value.retryAfterMs }),
   };
 }
 

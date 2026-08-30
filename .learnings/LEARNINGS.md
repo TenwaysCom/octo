@@ -8,6 +8,24 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - **Rule:** 把通用消息控件做成 FE 共享组件，并按规范化 transcript 的语义 `kind` 与非空正文决定是否渲染；复制反馈应有图标、tooltip 和动态无障碍标签，不能依赖服务端或 Session 协议变化。
 - **Verified outcome:** 两个 AI Session 入口复用同一 Copy 控件，FE 24 项测试与生产构建通过。
 
+## [LRN-20260830-001] fe-kanban-popover-overflow-and-test-pattern
+
+- **Context:** Kanban 卡片需要字段详情浮层，但 `.kanban-board__column` / `.kanban-swimlane` 带 `overflow: hidden/auto`，绝对定位浮层会被裁剪；FE 测试只有 `node --test`，无 DOM 渲染器。
+- **Rule:** 卡片级浮层用 `position: fixed` + 触发元素 `getBoundingClientRect()` 定位来绕开祖先 overflow 裁剪，DOM 仍挂在触发容器内以保证 blur 关闭与焦点管理成立。FE 交互组件的新逻辑（如字段降级解析）抽成 `fe/src/lib/` 纯函数，用 node:test 覆盖；组件层靠构建与人工验证。卡片时间必须使用来源对象的业务时间：Meegle 优先 `itemStartTime`，再回退 `addToCycleTime`，不得用 `sourceUpdatedAt` 冒充生命周期时间。
+- **Verified outcome:** 人员、描述、布局与 Meegle 时间优先级单测通过；FE 全量 116 个测试与 Vite production build 通过。浏览器实机交互仍待单独验证。
+
+## [LRN-20260829-002] meegle-page-external-enrichment-boundary
+
+- **Context:** Meegle workitem and Sprint first-load routes were coupling local snapshot reads to a slow Odoo DevOps full-environment branch snapshot.
+- **Rule:** Keep list and history endpoints to their local data contracts. Trigger costly PR enrichment only from the explicit PR interaction, and cache/refresh it by the upstream provider's real snapshot unit (`eu`/`uk`/`us`), never by a downstream repo or PR when the source cannot filter that way.
+- **Verified outcome:** Targeted Server tests cover the split workitem/Sprint routes and environment singleflight refresh; FE API tests cover the dedicated Sprint endpoint and 202 refresh response.
+
+## [LRN-20260829-001] fe-css-variable-definition-and-badge-palette
+
+- **Context:** FE `global.css` 的 badge/状态色是十几处重复的硬编码色对,且 `--octo-brand-soft` 被两处引用却从未在 `:root` 定义(静默失效)。
+- **Rule:** 新增或调整 FE 状态色时,统一走 `:root` 的 `--octo-badge-{tone}-{text,bg}` 变量,不再新写硬编码色对;引用任何 CSS 变量前先确认它已在 `:root` 定义(可 grep `var(--x)` 与定义对照)。
+- **Verified outcome:** 所有 badge 修饰类改用变量后 FE 91 测试与 Vite production build 通过；功能样式改动仅在 `fe/src/styles/global.css`，任务/学习记录另行维护。
+
 ## [LRN-20260828-005] sprint-ai-session-snapshot-boundary
 
 - **Context:** Sprint Release Notes needs resumable AI Sessions, but Ticket sessions are structurally bound to a Lark Base record and browser-side Sprint filters cannot be trusted as generation input.
@@ -386,6 +404,12 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - **Context:** Kimi ACP 0.38 exposes exact Bash arguments on `tool_call.rawInput` for direct starts, but its streamed-argument path first lazy-creates a tool call without raw input and supplies parsed arguments on a canonical `tool_call_update.rawInput`; the later permission request exposes only a truncated human-readable action summary.
 - **Rule:** Authorize from structured tool-call evidence found on either the direct create or canonical upgrade, correlated by `sessionId + toolCallId` and consumed once. Never reconstruct a command from a truncated display string; reject ambiguous, cross-ID, or conflicting evidence. For evidence-required workflows, independently require the expected tool call to reach a successful terminal state before emitting success.
 - **Verified outcome:** Runtime fixtures reproduce the 0.38 lazy-create/upgrade/permission order and prove exact fetch approval plus single-use, cross-ID, and mismatch denial; the Ticket workflow recognizes the canonical upgrade but rejects a failed or missing fetch without emitting `done`.
+
+## [LRN-20260830-001] platform-list-linear-row-boundary
+
+- **Context:** The synchronized Lark Ticket, Meegle Workitem, and GitHub Pull Request pages needed to replace tables without becoming card grids.
+- **Rule:** Keep one compact horizontal row per item: leading type/priority/status, identifier and title on the left; related PRs, labels, people and date on the right. Preserve filtering, grouping, pagination, sorting and route behavior outside the renderer. When a related collection is longer than the inline limit, show `+N` and keep every value in a keyboard-accessible popover.
+- **Verified outcome:** Shared row builders cover all three platform list types; focused row tests and the full FE test/build checks pass. Logged-in browser visual verification remains separate.
 
 ## [LRN-20260828-002] path-scoped-read-only-shell-tools
 

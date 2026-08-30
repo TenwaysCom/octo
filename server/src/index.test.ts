@@ -43,6 +43,7 @@ describe("index routes", () => {
         "GET /api/web/platform-data/meegle-workitems",
         "GET /api/web/platform-data/github-pull-requests",
         "GET /api/web/platform-data/github-pull-request-preview",
+        "GET /api/web/meegle-sprints",
         "GET /api/web/lark-tickets/:recordId/shared-url",
         "GET /api/web/lark-tickets/:recordId/ai-sessions",
         "POST /api/web/lark-tickets/:recordId/ai-sessions",

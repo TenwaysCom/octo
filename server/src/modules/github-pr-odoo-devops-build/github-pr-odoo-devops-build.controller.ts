@@ -29,7 +29,7 @@ function readCookie(cookieHeader: string | undefined, name: string): string | un
 
 export function createWebGitHubPrOdooDevopsBuildController(deps: {
   githubClient?: Pick<GitHubClient, "getPullRequest">;
-  odooDevopsBranchesService: Pick<OdooDevopsBranchesService, "list">;
+  odooDevopsBranchesService: Pick<OdooDevopsBranchesService, "getOrStartRefresh">;
   ensureSession?: (sessionToken: string | undefined) => Promise<WebSessionResult>;
 }) {
   const ensureSession = deps.ensureSession ?? ensureLarkWebSession;
@@ -52,26 +52,39 @@ export function createWebGitHubPrOdooDevopsBuildController(deps: {
           body: { ok: false as const, error: { errorCode: "ODOO_DEVOPS_REPO_UNMAPPED", errorMessage: "当前仓库未配置 Odoo.sh 环境。" } },
         };
       }
-      if (!deps.githubClient) {
+      if (!query.headRef && !deps.githubClient) {
         return {
           statusCode: 503,
           body: { ok: false as const, error: { errorCode: "GITHUB_NOT_CONFIGURED", errorMessage: "GitHub PR 查询暂时不可用。" } },
         };
       }
 
-      const [pullRequest, snapshot] = await Promise.all([
-        deps.githubClient.getPullRequest(query.owner, query.repo, query.pullNumber),
-        deps.odooDevopsBranchesService.list(environment),
-      ]);
-      const headRef = pullRequest.head?.ref;
+      const pullRequest = query.headRef ? undefined : await deps.githubClient!.getPullRequest(query.owner, query.repo, query.pullNumber);
+      const headRef = query.headRef ?? pullRequest?.head?.ref;
       if (!headRef) {
         return {
           statusCode: 502,
           body: { ok: false as const, error: { errorCode: "GITHUB_PR_HEAD_MISSING", errorMessage: "无法读取 GitHub PR 的 head branch。" } },
         };
       }
-      const matchedBuild = snapshot.items.find((item) => item.branch === headRef);
+      const result = await deps.odooDevopsBranchesService.getOrStartRefresh(environment);
+      if (result.state === "refreshing") {
+        return {
+          statusCode: 202,
+          body: { ok: true as const, data: githubPrOdooDevopsBuildResponseSchema.parse({
+            state: "refreshing", environment, headRef, build: null, retryAfterMs: 1_000,
+          }) },
+        };
+      }
+      if (result.state === "unavailable") {
+        return {
+          statusCode: 503,
+          body: { ok: false as const, error: { errorCode: "ODOO_DEVOPS_UNAVAILABLE", errorMessage: "Odoo DevOps 分支状态暂时不可用。" } },
+        };
+      }
+      const matchedBuild = result.snapshot.items.find((item) => item.branch === headRef);
       const data = githubPrOdooDevopsBuildResponseSchema.parse({
+        state: "ready",
         environment,
         headRef,
         build: matchedBuild ? {
@@ -79,6 +92,7 @@ export function createWebGitHubPrOdooDevopsBuildController(deps: {
           status: matchedBuild.last_build_status,
           result: matchedBuild.last_build_result,
         } : null,
+        stale: result.stale,
       });
       return { statusCode: 200, body: { ok: true as const, data } };
     } catch (error) {

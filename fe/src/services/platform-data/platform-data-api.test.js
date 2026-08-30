@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  getGitHubPullRequestOdooShBuild,
+  getMeegleSprintHistory,
   getGitHubPullRequestPreview,
   getPlatformDataList,
   getPlatformDataListPage,
@@ -120,7 +122,7 @@ test("requests 500 rows for the Lark ticket list", async () => {
   assert.equal(requestUrl, "/api/web/platform-data/lark-tickets?limit=500");
 });
 
-test("falls back to current Meegle items when an older Server omits sprintWorkitems", async () => {
+test("does not make the workitem list synthesize Sprint history", async () => {
   const result = await getPlatformDataList({
     apiBaseUrl: "/api",
     kind: "meegle-workitems",
@@ -136,7 +138,52 @@ test("falls back to current Meegle items when an older Server omits sprintWorkit
     }),
   });
 
-  assert.deepEqual(result.sprintWorkitems, result.items);
+  assert.deepEqual(result.sprintDetails, []);
+  assert.deepEqual(result.sprintWorkitems, []);
+});
+
+test("loads Meegle Sprint history from its dedicated endpoint", async () => {
+  let request;
+  const result = await getMeegleSprintHistory({
+    apiBaseUrl: "/api",
+    fetchImpl: async (url, options) => {
+      request = { url, options };
+      return { ok: true, json: async () => ({ ok: true, data: {
+        sprintDetails: [{ projectKey: "project", sprintId: "sprint-1", name: "Sprint 1", syncedAt: "2026-08-09T00:00:00.000Z" }],
+        sprintWorkitems: [{
+          projectKey: "project", workItemTypeKey: "story", workItemId: "1", title: "Story",
+          sprintId: "sprint-1", sprint: "Sprint 1", membershipSource: "incremental_observed",
+          githubPullRequests: [], syncedAt: "2026-08-09T00:00:00.000Z",
+        }],
+      } }) };
+    },
+  });
+
+  assert.equal(request.url, "/api/web/meegle-sprints");
+  assert.equal(request.options.credentials, "include");
+  assert.equal(result.sprintDetails[0].name, "Sprint 1");
+  assert.equal(result.sprintWorkitems[0].sprint, "Sprint 1");
+});
+
+test("accepts an asynchronous Odoo.sh build refresh response", async () => {
+  let request;
+  const result = await getGitHubPullRequestOdooShBuild({
+    apiBaseUrl: "/api",
+    owner: "TenwaysCom",
+    repo: "Tenways",
+    pullNumber: 1138,
+    headRef: "feature/m-1138",
+    fetchImpl: async (url, options) => {
+      request = { url, options };
+      return { ok: false, status: 202, json: async () => ({ ok: true, data: {
+        state: "refreshing", environment: "eu", headRef: "feature/m-1138", build: null, retryAfterMs: 1000,
+      } }) };
+    },
+  });
+
+  assert.equal(request.url, "/api/web/github-pr-odoo-devops-build?owner=TenwaysCom&repo=Tenways&pullNumber=1138&headRef=feature%2Fm-1138");
+  assert.equal(request.options.credentials, "include");
+  assert.deepEqual(result, { state: "refreshing", environment: "eu", headRef: "feature/m-1138", build: null, retryAfterMs: 1000 });
 });
 
 test("shares an in-flight list request across duplicate mounts", async () => {

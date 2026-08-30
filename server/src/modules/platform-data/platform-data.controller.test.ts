@@ -1,5 +1,6 @@
 import {
   createWebGitHubPullRequestPreviewController,
+  createWebMeegleSprintHistoryController,
   createWebPlatformDataController,
 } from "./platform-data.controller.js";
 
@@ -20,6 +21,28 @@ describe("web platform data controller", () => {
       body: { ok: false, error: { errorCode: "UNAUTHENTICATED", errorMessage: "Missing web session." } },
     });
     expect(service.list).not.toHaveBeenCalled();
+  });
+
+  it("returns Sprint history from the dedicated web endpoint", async () => {
+    const history = {
+      sprintDetails: [{ projectKey: "project", sprintId: "sprint-1", name: "Sprint 1", syncedAt: "2026-08-09T00:00:00.000Z" }],
+      sprintWorkitems: [{
+        projectKey: "project", workItemTypeKey: "story", workItemId: "1", title: "Story",
+        sprintId: "sprint-1", sprint: "Sprint 1", membershipSource: "incremental_observed",
+        githubPullRequests: [], syncedAt: "2026-08-09T00:00:00.000Z",
+      }],
+    };
+    const service = { listMeegleSprintHistory: vi.fn().mockResolvedValue(history) };
+    const controller = createWebMeegleSprintHistoryController({
+      service,
+      ensureSession: vi.fn().mockResolvedValue({ ok: true, role: "dev", user: {} }),
+    });
+
+    await expect(controller({ cookieHeader: "octo_web_session=session-token" })).resolves.toEqual({
+      statusCode: 200,
+      body: { ok: true, data: history },
+    });
+    expect(service.listMeegleSprintHistory).toHaveBeenCalledOnce();
   });
 
   it("returns a validated, bounded Meegle snapshot including mapping fields", async () => {
@@ -98,18 +121,7 @@ describe("web platform data controller", () => {
         system: "Odoo/Odoo UK",
         currentNodeStartTime: "2026-08-09T02:00:00.000Z",
         githubPullRequests: [expect.objectContaining({ pullNumber: 1138, headRef: "feature/m-1138", baseRef: "main", state: "merged", odooShBuilds: [{ environment: "eu", status: "done", result: "success" }] })],
-      })], sprints: ["Odoo Sprint 20260806"], sprintDetails: [expect.objectContaining({
-        sprintId: "13100779",
-        description: "Sprint 说明",
-        startAt: "2026-08-06T00:00:00.000Z",
-        endAt: "2026-08-20T00:00:00.000Z",
-      })], sprintWorkitems: [expect.objectContaining({
-        workItemId: "13802503",
-        sprintId: "13100779",
-        sprint: "Odoo Sprint 20260806",
-        carryoverToSprintId: "next-sprint",
-        carryoverToSprintName: "Odoo Sprint 20260820",
-      })], pager: { offset: 500, limit: 500, total: 1, hasMore: false } } },
+      })], sprints: ["Odoo Sprint 20260806"], pager: { offset: 500, limit: 500, total: 1, hasMore: false } } },
     });
     expect((result.body as { data: { items: Array<Record<string, unknown>> } }).data.items[0]).not.toHaveProperty("plannedSprint");
     expect(ensureSession).toHaveBeenCalledWith("session-token");

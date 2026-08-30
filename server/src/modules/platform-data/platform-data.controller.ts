@@ -6,6 +6,7 @@ import { getWebWorkspaceAccess } from "../lark-auth/web-workspace-access.js";
 import {
   githubPullRequestPreviewQuerySchema,
   githubPullRequestPreviewResponseSchema,
+  meegleSprintHistoryResponseSchema,
   parsePlatformDataListResponse,
   platformDataListQuerySchema,
 } from "./platform-data.dto.js";
@@ -148,6 +149,40 @@ export function createWebPlatformDataController(deps: {
       return {
         statusCode: 500,
         body: { ok: false as const, error: { errorCode: "PLATFORM_DATA_READ_FAILED", errorMessage: "无法读取同步数据。" } },
+      };
+    }
+  };
+}
+
+export function createWebMeegleSprintHistoryController(deps: {
+  service?: Pick<PlatformDataService, "listMeegleSprintHistory">;
+  ensureSession?: (sessionToken: string | undefined) => Promise<WebSessionResult>;
+} = {}) {
+  const service = deps.service ?? new PlatformDataService();
+  const ensureSession = deps.ensureSession ?? resolveLarkWebSessionIdentity;
+
+  return async function listWebMeegleSprintHistoryController(input: { cookieHeader: string | undefined }) {
+    const session = await ensureSession(readCookie(input.cookieHeader, WEB_SESSION_COOKIE_NAME));
+    if (!session.ok) {
+      return {
+        statusCode: 401,
+        body: { ok: false as const, error: { errorCode: session.errorCode, errorMessage: session.errorMessage } },
+      };
+    }
+    if (!getWebWorkspaceAccess(session.role).platformLists) {
+      return {
+        statusCode: 403,
+        body: { ok: false as const, error: { errorCode: "WORKSPACE_ACCESS_DENIED", errorMessage: "当前角色无权查看平台列表。" } },
+      };
+    }
+
+    try {
+      const data = meegleSprintHistoryResponseSchema.parse(await service.listMeegleSprintHistory());
+      return { statusCode: 200, body: { ok: true as const, data } };
+    } catch {
+      return {
+        statusCode: 500,
+        body: { ok: false as const, error: { errorCode: "MEEGLE_SPRINT_HISTORY_READ_FAILED", errorMessage: "无法读取 Sprint 历史。" } },
       };
     }
   };

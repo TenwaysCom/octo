@@ -99,6 +99,12 @@ describe("PlatformDataService", () => {
         githubPullRequests: [expect.objectContaining({ pullNumber: 1138, headRef: "feature/m-123", baseRef: "main", state: "merged", odooShBuilds: [] })],
       })],
       sprints: ["Sprint 1"],
+      total: 1,
+    });
+    expect(store.listMeegleSprintSnapshots).not.toHaveBeenCalled();
+    expect(store.listMeegleSprintMemberships).not.toHaveBeenCalled();
+
+    await expect(service.listMeegleSprintHistory()).resolves.toEqual({
       sprintDetails: [expect.objectContaining({ sprintId: "sprint-1", name: "Sprint 1", description: "交付 Sprint" })],
       sprintWorkitems: [expect.objectContaining({
         workItemId: "123",
@@ -107,13 +113,12 @@ describe("PlatformDataService", () => {
         membershipSource: "incremental_observed",
         githubPullRequests: [expect.objectContaining({ pullNumber: 1138 })],
       })],
-      total: 1,
     });
     expect(store.listMeegleWorkitems).toHaveBeenCalledWith(50, { sprints: ["Sprint 1"] });
     expect(store.listGitHubPullRequestLinks).toHaveBeenCalledWith(["123"]);
   });
 
-  it("matches Odoo.sh builds only against the linked PR head ref", async () => {
+  it("keeps Odoo.sh build lookups out of the Meegle workitem list", async () => {
     const store = {
       listMeegleWorkitems: vi.fn().mockResolvedValue([{
         projectKey: "project",
@@ -167,15 +172,13 @@ describe("PlatformDataService", () => {
         githubPullRequests: [
           expect.objectContaining({
             pullNumber: 1138,
-            odooShBuilds: [
-              { environment: "uk", status: "done", result: "warning" },
-            ],
+            odooShBuilds: [],
           }),
           expect.objectContaining({ pullNumber: 1139, odooShBuilds: [] }),
         ],
       })],
     });
-    expect(odooDevopsBranchesService.list).toHaveBeenCalledWith("uk");
+    expect(odooDevopsBranchesService.list).not.toHaveBeenCalled();
   });
 
   it("keeps linked Meegle details out of GitHub PR list rows", async () => {

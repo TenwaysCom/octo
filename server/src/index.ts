@@ -70,6 +70,7 @@ import {
 } from "./modules/platform-sync/platform-sync.controller.js";
 import {
   createWebGitHubPullRequestPreviewController,
+  createWebMeegleSprintHistoryController,
   createWebPlatformDataController,
 } from "./modules/platform-data/platform-data.controller.js";
 import { createWebPlatformSyncController } from "./modules/platform-sync/web-platform-sync.controller.js";
@@ -179,6 +180,7 @@ const getWebOdooDevopsBranchesController = createWebOdooDevopsBranchesController
 });
 const platformDataService = new PlatformDataService(undefined, odooDevopsBranchesService);
 const listWebPlatformDataController = createWebPlatformDataController({ service: platformDataService });
+const listWebMeegleSprintHistoryController = createWebMeegleSprintHistoryController({ service: platformDataService });
 const getWebGitHubPullRequestPreviewController = createWebGitHubPullRequestPreviewController({ service: platformDataService });
 const webPlatformSyncController = createWebPlatformSyncController();
 const getWebGitHubPrOdooDevopsBuildController = createWebGitHubPrOdooDevopsBuildController({
@@ -385,6 +387,10 @@ app.get("/api/web/platform-data/meegle-workitems", async (req, res) => {
   const result = await listWebPlatformDataController({
     kind: "meegle-workitems", cookieHeader: req.headers.cookie, query: req.query,
   });
+  res.status(result.statusCode).json(result.body);
+});
+app.get("/api/web/meegle-sprints", async (req, res) => {
+  const result = await listWebMeegleSprintHistoryController({ cookieHeader: req.headers.cookie });
   res.status(result.statusCode).json(result.body);
 });
 app.get("/api/web/platform-data/github-pull-requests", async (req, res) => {

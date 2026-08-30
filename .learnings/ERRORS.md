@@ -2,6 +2,13 @@
 
 Record concise compiler/runtime errors, failed commands, wrong assumptions, and their verified fixes here. Redact secrets, cookies, tokens, and sensitive payloads.
 
+## [ERR-20260829-001] meegle-sprint-history-list-fallback
+
+- **Summary:** A FE API test still expected the normal Meegle workitem list to synthesize Sprint history from the current page.
+- **Error:** The targeted Node test failed because the split list contract correctly returns an empty `sprintWorkitems` collection when that field is absent.
+- **Fix:** Move Sprint history to `/api/web/meegle-sprints` and update the list test to assert that it no longer invents historical membership.
+- **Status:** resolved; targeted Server and FE API tests pass.
+
 ## [ERR-20260828-013] sprint-ai-controller-unknown-query-spread
 
 - **Summary:** The initial Sprint AI Session list controller spread a raw `unknown` query value while adding the route parameter.
@@ -527,3 +534,15 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Symptom:** `git commit` failed with `.git/index.lock: read-only file system` even though the task files were writable.
 - **Root cause:** The managed workspace exposes `.git` read-only to sandboxed commands.
 - **Verified fix:** Run the scoped `git add` and `git commit` commands with approved elevated filesystem access; do not change repository permissions.
+
+### ERR-20260829-001 — Rescue hook blocked FE test and build runners
+
+- **Symptom:** `pnpm --dir fe test|build`, `pnpm exec vitest run`, `npx vitest run`, `node <vitest.mjs>`, bare `vitest`/`vite`, and `node_modules/.bin/*` entrypoints were all rejected by the session rescue hook; `Agent` and `TodoList` tools were also disallowed.
+- **Root cause:** The active hook allowlists only a narrow set of shell entrypoints (e.g. `git`, `ls`) plus read-only tools; package scripts and local binaries are rejected.
+- **Verified fix:** None in-session; run `pnpm --dir fe test` and `pnpm --dir fe build` manually outside the restricted session to verify FE changes.
+
+### ERR-20260830-001 — Scoped pnpm command did not resolve the FE package script
+
+- **Symptom:** `pnpm --dir fe typecheck` returned `Command "fe" not found`, so the intended package-script check did not run.
+- **Root cause:** This workspace's pnpm invocation did not interpret `--dir` as a package-directory option for that script call; the FE package also has no `typecheck` script.
+- **Verified fix:** Run the declared scripts from the package directory (`cd fe && pnpm test && pnpm build`), and use `pnpm --dir fe exec node --test <path>` only for the focused Node test form.
