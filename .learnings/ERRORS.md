@@ -540,3 +540,9 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Symptom:** `pnpm --dir fe test|build`, `pnpm exec vitest run`, `npx vitest run`, `node <vitest.mjs>`, bare `vitest`/`vite`, and `node_modules/.bin/*` entrypoints were all rejected by the session rescue hook; `Agent` and `TodoList` tools were also disallowed.
 - **Root cause:** The active hook allowlists only a narrow set of shell entrypoints (e.g. `git`, `ls`) plus read-only tools; package scripts and local binaries are rejected.
 - **Verified fix:** None in-session; run `pnpm --dir fe test` and `pnpm --dir fe build` manually outside the restricted session to verify FE changes.
+
+### ERR-20260830-001 — Scoped pnpm command did not resolve the FE package script
+
+- **Symptom:** `pnpm --dir fe typecheck` returned `Command "fe" not found`, so the intended package-script check did not run.
+- **Root cause:** This workspace's pnpm invocation did not interpret `--dir` as a package-directory option for that script call; the FE package also has no `typecheck` script.
+- **Verified fix:** Run the declared scripts from the package directory (`cd fe && pnpm test && pnpm build`), and use `pnpm --dir fe exec node --test <path>` only for the focused Node test form.

@@ -52,6 +52,14 @@ import {
   resetAllOdooDevopsBranchesCache,
 } from "../services/platform-data/platform-data-api.js";
 import { getLarkTicketDetailHash } from "../app/routes/workspace-routes.js";
+import {
+  buildGitHubPullRequestRow,
+  buildLarkTicketRow,
+  buildMeegleWorkitemRow,
+  getMeegleWorkitemCategory,
+  getMeegleWorkitemDetailUrl,
+  splitOverflowItems,
+} from "../lib/platform-list-rows.js";
 
 const LIST_PAGE_SIZE = 50;
 const MEEGLE_WORKITEM_TYPE_FILTERS = [
@@ -168,20 +176,6 @@ function getPlatformItemStatus(kind, item) {
   return item.isDraft ? "Draft" : item.state || "未设置";
 }
 
-function getMeegleWorkitemCategory(item) {
-  if (item.workItemTypeKey === "story") {
-    return "story";
-  }
-  const type = `${item.workItemType || ""} ${item.workItemTypeKey || ""}`.toLocaleLowerCase();
-  if (type.includes("tech task")) {
-    return "tech-task";
-  }
-  if (type.includes("bug")) {
-    return "bug";
-  }
-  return "other";
-}
-
 function getPlatformListFilters({
   page,
   selectedStatuses,
@@ -250,27 +244,6 @@ function mergeKnownFilterValues(values, knownValues) {
   return [...merged.values()].sort((left, right) => right.count - left.count || left.label.localeCompare(right.label, "zh-CN", { numeric: true }));
 }
 
-function getMeegleWorkitemDetailUrl(item) {
-  const urlSlugByCategory = {
-    story: "story",
-    "tech-task": "techtask",
-    bug: "production_bug",
-  };
-  const urlSlug = urlSlugByCategory[getMeegleWorkitemCategory(item)] || item.workItemTypeKey;
-  return `https://project.larksuite.com/${encodeURIComponent(item.projectKey)}/${encodeURIComponent(urlSlug)}/detail/${encodeURIComponent(item.workItemId)}`;
-}
-
-function SortableColumnHeader({ label, sortKey, sort, onSort }) {
-  const active = sort.key === sortKey;
-  return <button className="sortable-column-header" type="button" onClick={() => onSort(sortKey)}>
-    {label}
-    <span className="sortable-column-header__arrows" aria-hidden="true">
-      <svg className={active && sort.direction === "asc" ? "sortable-column-header__arrow--active" : ""} viewBox="0 0 8 5"><path d="M4 0 8 5H0z" /></svg>
-      <svg className={active && sort.direction === "desc" ? "sortable-column-header__arrow--active" : ""} viewBox="0 0 8 5"><path d="M4 5 0 0h8z" /></svg>
-    </span>
-  </button>;
-}
-
 function LarkTicketCell({ columnKey, item }) {
   if (columnKey === "title") {
     return <><a className="table-link" href={getLarkTicketDetailHash(item.recordId)}>{item.title}</a><small>{item.ticketNumber || item.recordId}</small></>;
@@ -293,15 +266,118 @@ function LarkTicketCell({ columnKey, item }) {
   return formatDateTime(item.sourceUpdatedAt || item.syncedAt);
 }
 
-function LarkTicketsTable({ items, sort, onSort, visibleColumns }) {
-  const columns = LARK_TICKET_VIEW_COLUMNS.filter(({ key }) => visibleColumns.includes(key));
-  return <table className="data-table" style={{ minWidth: Math.max(360, columns.length * 145) }}><thead><tr>
-    {columns.map((column) => <th key={column.key}><SortableColumnHeader label={column.label} sortKey={column.sortKey} sort={sort} onSort={onSort} /></th>)}
-  </tr></thead><tbody>
-    {items.map((item, index) => <tr key={item.recordId || `${item.baseId || "base"}-${item.tableId || "table"}-${index}`}>
-      {columns.map((column) => <td key={column.key}><LarkTicketCell columnKey={column.key} item={item} /></td>)}
-    </tr>)}
-  </tbody></table>;
+// Linear-style single-line rows: one continuous horizontal flow per item,
+// leading identification on the left, secondary metadata right-aligned.
+function RowOverflowGroup({ items, ariaLabel, renderItem, limit }) {
+  const [open, setOpen] = useState(false);
+  const { visible, overflow } = splitOverflowItems(items, limit);
+  const renderEntries = (entries) => entries.map((entry, index) => <span className="workitem-row__overflow-item" key={index}>{renderItem(entry)}</span>);
+  if (!overflow.length) {
+    return <span className="workitem-row__overflow">{renderEntries(visible)}</span>;
+  }
+  return <span
+    className="workitem-row__overflow"
+    onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}
+    onKeyDown={(event) => { if (event.key === "Escape") { event.stopPropagation(); setOpen(false); } }}
+  >
+    {renderEntries(visible)}
+    <button
+      aria-expanded={open}
+      aria-label={`${ariaLabel}共 ${items.length} 项，展开查看全部`}
+      className="workitem-row__overflow-toggle"
+      type="button"
+      onClick={() => setOpen((value) => !value)}
+    >+{overflow.length}</button>
+    {open ? <span className="workitem-row__overflow-popover" role="group" aria-label={`全部${ariaLabel}`}>{renderEntries(items)}</span> : null}
+  </span>;
+}
+
+function RowPullRequestLink({ pullRequest, apiBaseUrl }) {
+  return <span className="workitem-row__pr-link">
+    <ExternalLink className={`github-pr-link-badge github-pr-link-badge--${pullRequest.state}`} href={pullRequest.htmlUrl} title={`${pullRequest.owner}/${pullRequest.repo} #${pullRequest.pullNumber}\n${pullRequest.title}\n${pullRequest.state}`}>#{pullRequest.pullNumber}-{pullRequest.baseRef || "-"}</ExternalLink>
+    <GitHubPullRequestStatus state={pullRequest.state} />
+    {pullRequest.odooShBuilds?.length ? <OdooShBuildDots builds={pullRequest.odooShBuilds} /> : <OdooShBuildStatus apiBaseUrl={apiBaseUrl} pullRequest={pullRequest} />}
+  </span>;
+}
+
+function WorkitemRowMeta({ meta, apiBaseUrl }) {
+  const className = `workitem-row__meta ${meta.hideOnSmall ? "workitem-row__meta--small-hidden" : ""}`.trim();
+  let content;
+  if (meta.type === "lark-badge") {
+    content = <LarkTicketBadge kind={meta.kind} value={meta.value} />;
+  } else if (meta.type === "meegle-status") {
+    content = <MeegleStatusPill status={meta.value} />;
+  } else if (meta.type === "workitem-type") {
+    content = <span className={`workitem-type-badge workitem-type-badge--${meta.category}`}>{meta.label}</span>;
+  } else if (meta.type === "github-pr-status") {
+    content = <GitHubPullRequestStatus isDraft={meta.isDraft} state={meta.state} />;
+  } else if (meta.type === "pr-links") {
+    content = <RowOverflowGroup ariaLabel="关联 PR" items={meta.pullRequests} renderItem={(pullRequest) => <RowPullRequestLink apiBaseUrl={apiBaseUrl} pullRequest={pullRequest} />} />;
+  } else if (meta.type === "github-labels") {
+    content = <RowOverflowGroup ariaLabel="Label" items={meta.labels} renderItem={(label) => <span className="github-pr-label">{label}</span>} />;
+  } else if (meta.type === "github-users") {
+    content = <RowOverflowGroup ariaLabel="Reviewer" items={meta.logins} renderItem={(login) => <GitHubUser login={login} />} />;
+  } else if (meta.type === "meegle-ids") {
+    content = <RowOverflowGroup ariaLabel="关联 Meegle" items={meta.ids} renderItem={(id) => <span className="workitem-row__meta-text">{id}</span>} />;
+  } else if (meta.type === "github-user") {
+    content = <GitHubUser login={meta.login} />;
+  } else if (meta.type === "lark-users") {
+    content = <LarkTicketResponsible responsible={meta.value} />;
+  } else if (meta.type === "date") {
+    content = <span className="workitem-row__date">{meta.text}</span>;
+  } else {
+    content = <span className="workitem-row__meta-text">{meta.text}</span>;
+  }
+  return <span className={className} title={meta.type === "meegle-status" && meta.subStage ? meta.subStage : undefined}>{content}</span>;
+}
+
+function WorkitemRow({ row, item, apiBaseUrl, onPreviewCandidateChange }) {
+  const previewProps = onPreviewCandidateChange ? {
+    "aria-label": `${row.title}，按空格预览`,
+    tabIndex: 0,
+    onMouseEnter: () => onPreviewCandidateChange(item),
+    onMouseLeave: (event) => { if (!event.currentTarget.contains(document.activeElement)) onPreviewCandidateChange(null); },
+    onFocusCapture: () => onPreviewCandidateChange(item),
+    onBlurCapture: (event) => { if (!event.currentTarget.contains(event.relatedTarget)) onPreviewCandidateChange(null); },
+  } : {};
+  const title = row.href
+    ? row.external
+      ? <ExternalLink className="workitem-row__title" href={row.href} title={row.title}>{row.title}</ExternalLink>
+      : <a className="workitem-row__title" href={row.href} title={row.title}>{row.title}</a>
+    : <span className="workitem-row__title" title={row.title}>{row.title}</span>;
+  return <div className="workitem-row" role="listitem" {...previewProps}>
+    {row.leading.length ? <span className="workitem-row__leading">{row.leading.map((meta) => <WorkitemRowMeta apiBaseUrl={apiBaseUrl} key={meta.key} meta={meta} />)}</span> : null}
+    {row.identifier ? <span className="workitem-row__id">{row.identifier}</span> : null}
+    {title}
+    {row.trailing.length ? <span className="workitem-row__trailing">{row.trailing.map((meta) => <WorkitemRowMeta apiBaseUrl={apiBaseUrl} key={meta.key} meta={meta} />)}</span> : null}
+  </div>;
+}
+
+const WORKITEM_ROW_BUILDERS = {
+  "lark-tickets": buildLarkTicketRow,
+  "meegle-workitems": buildMeegleWorkitemRow,
+  "github-pull-requests": buildGitHubPullRequestRow,
+};
+
+function getWorkitemRowKey(kind, item, index) {
+  if (kind === "lark-tickets") {
+    return item.recordId || `${item.baseId || "base"}-${item.tableId || "table"}-${index}`;
+  }
+  if (kind === "meegle-workitems") {
+    return `${item.projectKey}-${item.workItemTypeKey}-${item.workItemId}`;
+  }
+  return `${item.owner}-${item.repo}-${item.pullNumber}`;
+}
+
+function SyncedRowList({ kind, items, visibleColumns, apiBaseUrl, onGitHubPreviewCandidateChange }) {
+  const buildRow = WORKITEM_ROW_BUILDERS[kind] || buildGitHubPullRequestRow;
+  return <div className="workitem-rows" role="list">{items.map((item, index) => <WorkitemRow
+    apiBaseUrl={apiBaseUrl}
+    item={item}
+    key={getWorkitemRowKey(kind, item, index)}
+    onPreviewCandidateChange={kind === "github-pull-requests" ? onGitHubPreviewCandidateChange : undefined}
+    row={buildRow(item, visibleColumns)}
+  />)}</div>;
 }
 
 function MeegleWorkitemCell({ columnKey, item, apiBaseUrl }) {
@@ -330,19 +406,6 @@ function MeegleWorkitemCell({ columnKey, item, apiBaseUrl }) {
     return item.assignee || "-";
   }
   return formatDateTime(item.sourceUpdatedAt || item.syncedAt);
-}
-
-function MeegleWorkitemsTable({ items, sort, onSort, visibleColumns, apiBaseUrl }) {
-  const columns = MEEGLE_VIEW_COLUMNS.filter(({ key }) => visibleColumns.includes(key));
-  return <table className="data-table data-table--meegle" style={{ minWidth: Math.max(360, columns.length * 145) }}><thead><tr>
-    {columns.map((column) => <th key={column.key}>{column.sortKey
-      ? <SortableColumnHeader label={column.label} sortKey={column.sortKey} sort={sort} onSort={onSort} />
-      : column.label}</th>)}
-  </tr></thead><tbody>
-    {items.map((item) => <tr key={`${item.projectKey}-${item.workItemTypeKey}-${item.workItemId}`}>
-      {columns.map((column) => <td key={column.key}><MeegleWorkitemCell apiBaseUrl={apiBaseUrl} columnKey={column.key} item={item} /></td>)}
-    </tr>)}
-  </tbody></table>;
 }
 
 function GitHubPullRequestCell({ columnKey, item }) {
@@ -374,27 +437,6 @@ function GitHubPullRequestCell({ columnKey, item }) {
     return <GitHubMeegleWorkitems pullRequest={item} />;
   }
   return formatDateTime(item.sourceUpdatedAt || item.syncedAt);
-}
-
-function GitHubPullRequestsTable({ items, sort, onSort, visibleColumns, onPreviewCandidateChange }) {
-  const columns = GITHUB_PULL_REQUEST_VIEW_COLUMNS.filter(({ key }) => visibleColumns.includes(key));
-  return <table className="data-table" style={{ minWidth: Math.max(360, columns.length * 145) }}><thead><tr>
-    {columns.map((column) => <th key={column.key}>{column.sortKey
-      ? <SortableColumnHeader label={column.label} sortKey={column.sortKey} sort={sort} onSort={onSort} />
-      : column.label}</th>)}
-  </tr></thead><tbody>
-    {items.map((item) => <tr
-      aria-label={`${item.title}，按空格预览`}
-      key={`${item.owner}-${item.repo}-${item.pullNumber}`}
-      tabIndex={0}
-      onMouseEnter={() => onPreviewCandidateChange?.(item)}
-      onMouseLeave={(event) => { if (!event.currentTarget.contains(document.activeElement)) onPreviewCandidateChange?.(null); }}
-      onFocusCapture={() => onPreviewCandidateChange?.(item)}
-      onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) onPreviewCandidateChange?.(null); }}
-    >
-      {columns.map((column) => <td key={column.key}><GitHubPullRequestCell columnKey={column.key} item={item} /></td>)}
-    </tr>)}
-  </tbody></table>;
 }
 
 function ListFilterPanel({ fields, activeFieldKey, onActiveFieldChange, fieldQuery, onFieldQueryChange, valueQuery, onValueQueryChange, onReset }) {
@@ -539,7 +581,7 @@ function ListViewConfigPanel({ idPrefix, columns, groupOptions, viewMode, onView
   </div>;
 }
 
-function GroupedList({ groups, collapsedGroups, onToggleGroup, collapsedSubgroups, onToggleSubgroup, renderTable }) {
+function GroupedList({ groups, collapsedGroups, onToggleGroup, collapsedSubgroups, onToggleSubgroup, renderRows }) {
   return <div className="grouped-list">{groups.map((group) => {
     const collapsed = collapsedGroups.includes(group.key);
     return <section className="grouped-list__section" key={group.key}>
@@ -554,8 +596,8 @@ function GroupedList({ groups, collapsedGroups, onToggleGroup, collapsedSubgroup
           <strong>{subgroup.label}</strong>
           <span>{subgroup.items.length} 条</span>
         </button>
-        {!collapsedSubgroups.includes(subgroup.key) ? <div className="data-table-wrap">{renderTable(subgroup.items)}</div> : null}
-      </section>)}</div> : <div className="data-table-wrap">{renderTable(group.items)}</div> : null}
+        {!collapsedSubgroups.includes(subgroup.key) ? renderRows(subgroup.items) : null}
+      </section>)}</div> : renderRows(group.items) : null}
     </section>;
   })}</div>;
 }
@@ -646,18 +688,6 @@ function getDefaultCollapsedSubgroupKeys(groups) {
 
 function getDefaultCollapsedGroupKeys(groups) {
   return [...new Set(groups.map((group) => group.key))];
-}
-
-function SyncedListTable({ kind, items, sort, onSort, larkVisibleColumns = DEFAULT_LARK_TICKET_VISIBLE_COLUMNS, meegleVisibleColumns = DEFAULT_MEEGLE_VISIBLE_COLUMNS, githubVisibleColumns = DEFAULT_GITHUB_PULL_REQUEST_VISIBLE_COLUMNS, onGitHubPreviewCandidateChange, apiBaseUrl }) {
-  if (kind === "lark-tickets") {
-    return <LarkTicketsTable items={items} sort={sort} onSort={onSort} visibleColumns={larkVisibleColumns} />;
-  }
-
-  if (kind === "meegle-workitems") {
-    return <MeegleWorkitemsTable apiBaseUrl={apiBaseUrl} items={items} sort={sort} onSort={onSort} visibleColumns={meegleVisibleColumns} />;
-  }
-
-  return <GitHubPullRequestsTable items={items} sort={sort} onSort={onSort} visibleColumns={githubVisibleColumns} onPreviewCandidateChange={onGitHubPreviewCandidateChange} />;
 }
 
 function LoadMoreResults({ pager, loaded, isLoading, onLoadMore }) {
@@ -1120,11 +1150,6 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
     },
   });
 
-  function updateSort(key) {
-    setSort((current) => ({ key, direction: current.key === key && current.direction === "asc" ? "desc" : "asc" }));
-    setPageIndex(0);
-  }
-
   function updateMeegleViewSort(nextSort) {
     setSort(normalizeMeegleSort(nextSort));
     setPageIndex(0);
@@ -1483,7 +1508,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
               onToggleSubgroup={(subgroupKey) => setCollapsedLarkSubgroups((current) => current.includes(subgroupKey)
                 ? current.filter((key) => key !== subgroupKey)
                 : [...current, subgroupKey])}
-              renderTable={(items) => <LarkTicketsTable items={items} sort={sort} onSort={updateSort} visibleColumns={larkVisibleColumns} />}
+              renderRows={(items) => <SyncedRowList kind="lark-tickets" items={items} visibleColumns={larkVisibleColumns} />}
             />
             <footer className="list-pagination">
               <p className="list-results">已加载 <strong>{sortedItems.length}</strong> / {totalItems} 条结果 · {larkGroups.length} 个分组</p>
@@ -1499,7 +1524,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
               onToggleSubgroup={(subgroupKey) => setCollapsedMeegleSubgroups((current) => current.includes(subgroupKey)
                 ? current.filter((key) => key !== subgroupKey)
                 : [...current, subgroupKey])}
-              renderTable={(items) => <MeegleWorkitemsTable apiBaseUrl={apiBaseUrl} items={items} sort={sort} onSort={updateSort} visibleColumns={meegleVisibleColumns} />}
+              renderRows={(items) => <SyncedRowList apiBaseUrl={apiBaseUrl} kind="meegle-workitems" items={items} visibleColumns={meegleVisibleColumns} />}
             />
             <footer className="list-pagination">
               <p className="list-results">已加载 <strong>{sortedItems.length}</strong> / {totalItems} 条结果 · {meegleGroups.length} 个分组</p>
@@ -1515,13 +1540,13 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
               onToggleSubgroup={(subgroupKey) => setCollapsedGitHubSubgroups((current) => current.includes(subgroupKey)
                 ? current.filter((key) => key !== subgroupKey)
                 : [...current, subgroupKey])}
-              renderTable={(items) => <GitHubPullRequestsTable items={items} sort={sort} onSort={updateSort} visibleColumns={githubVisibleColumns} onPreviewCandidateChange={setGitHubPreviewCandidate} />}
+              renderRows={(items) => <SyncedRowList kind="github-pull-requests" items={items} onGitHubPreviewCandidateChange={setGitHubPreviewCandidate} visibleColumns={githubVisibleColumns} />}
             />
             <footer className="list-pagination">
               <p className="list-results">已加载 <strong>{sortedItems.length}</strong> / {totalItems} 条结果 · {githubGroups.length} 个分组</p>
             </footer>
           </> : <>
-            <div className="data-table-wrap"><SyncedListTable apiBaseUrl={apiBaseUrl} kind={page} items={pageItems} sort={sort} onSort={updateSort} larkVisibleColumns={larkVisibleColumns} meegleVisibleColumns={meegleVisibleColumns} githubVisibleColumns={githubVisibleColumns} onGitHubPreviewCandidateChange={setGitHubPreviewCandidate} /></div>
+            <SyncedRowList apiBaseUrl={apiBaseUrl} kind={page} items={pageItems} onGitHubPreviewCandidateChange={setGitHubPreviewCandidate} visibleColumns={page === "lark-tickets" ? larkVisibleColumns : page === "meegle-workitems" ? meegleVisibleColumns : githubVisibleColumns} />
             <footer className="list-pagination">
               <p className="list-results">显示 <strong>{firstResult}–{lastResult}</strong> / 已加载 {sortedItems.length}（共 {totalItems}）条结果</p>
               <div className="list-pagination__controls">

@@ -393,6 +393,12 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - **Rule:** Authorize from structured tool-call evidence found on either the direct create or canonical upgrade, correlated by `sessionId + toolCallId` and consumed once. Never reconstruct a command from a truncated display string; reject ambiguous, cross-ID, or conflicting evidence. For evidence-required workflows, independently require the expected tool call to reach a successful terminal state before emitting success.
 - **Verified outcome:** Runtime fixtures reproduce the 0.38 lazy-create/upgrade/permission order and prove exact fetch approval plus single-use, cross-ID, and mismatch denial; the Ticket workflow recognizes the canonical upgrade but rejects a failed or missing fetch without emitting `done`.
 
+## [LRN-20260830-001] platform-list-linear-row-boundary
+
+- **Context:** The synchronized Lark Ticket, Meegle Workitem, and GitHub Pull Request pages needed to replace tables without becoming card grids.
+- **Rule:** Keep one compact horizontal row per item: leading type/priority/status, identifier and title on the left; related PRs, labels, people and date on the right. Preserve filtering, grouping, pagination, sorting and route behavior outside the renderer. When a related collection is longer than the inline limit, show `+N` and keep every value in a keyboard-accessible popover.
+- **Verified outcome:** Shared row builders cover all three platform list types; focused row tests and the full FE test/build checks pass. Logged-in browser visual verification remains separate.
+
 ## [LRN-20260828-002] path-scoped-read-only-shell-tools
 
 - **Context:** Kimi ACP could not use its native terminal-backed Grep/Glob capability and fell back to Bash `ls` and `grep` while following the Support-QA retrieval workflow.
