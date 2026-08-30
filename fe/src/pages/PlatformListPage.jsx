@@ -52,7 +52,7 @@ import {
   resetAllOdooDevopsBranchesCache,
 } from "../services/platform-data/platform-data-api.js";
 import { getLarkTicketDetailHash } from "../app/routes/workspace-routes.js";
-import { formatKanbanCardTime, getKanbanCardDescription, getKanbanCardLayout, getKanbanCardPeople } from "../lib/kanban-card-person.js";
+import { formatKanbanCardTime, getKanbanCardDescription, getKanbanCardLayout, getKanbanCardPeople, getKanbanCardTime } from "../lib/kanban-card-person.js";
 import {
   buildGitHubPullRequestRow,
   buildLarkTicketRow,
@@ -640,11 +640,11 @@ function KanbanCardDetails({ id, children }) {
   </div>;
 }
 
-function KanbanCardSecondLine({ identifier, statusColumn, timeValue, renderCell }) {
+function KanbanCardSecondLine({ identifier, statusColumn, time, renderCell }) {
   return <div className="kanban-card__second-line">
     <small className="kanban-card__identifier">{identifier}</small>
     {statusColumn ? <span className="kanban-card__status">{renderCell(statusColumn)}</span> : null}
-    {timeValue ? <time className="kanban-card__time" dateTime={timeValue} title={timeValue}>{formatKanbanCardTime(timeValue)}</time> : null}
+    {time ? <time aria-label={`${time.label}：${time.value}`} className="kanban-card__time" dateTime={time.value} title={`${time.label}：${time.value}`}>{formatKanbanCardTime(time.value)}</time> : null}
   </div>;
 }
 
@@ -669,7 +669,7 @@ function LarkTicketCard({ item, visibleColumns }) {
       <a className="table-link kanban-card__title" href={getLarkTicketDetailHash(item.recordId)}>{item.title || item.ticketNumber || item.recordId}</a>
       <KanbanCardPeople item={item} kind="lark-tickets" />
     </div>
-    <KanbanCardSecondLine identifier={item.ticketNumber || item.recordId} statusColumn={columns.find(({ key }) => key === layout.statusKey)} timeValue={layout.updatedAtKey ? item.sourceUpdatedAt || item.syncedAt : ""} renderCell={(column) => <LarkTicketCell columnKey={column.key} item={item} />} />
+    <KanbanCardSecondLine identifier={item.ticketNumber || item.recordId} statusColumn={columns.find(({ key }) => key === layout.statusKey)} time={layout.updatedAtKey ? getKanbanCardTime("lark-tickets", item) : null} renderCell={(column) => <LarkTicketCell columnKey={column.key} item={item} />} />
     <KanbanCardFloatingMeta columns={floatingColumns} description={description} detailsId={`kanban-card-details-lark-${item.recordId}`} renderCell={(column) => <LarkTicketCell columnKey={column.key} item={item} />} />
   </article>;
 }
@@ -683,7 +683,7 @@ function MeegleWorkitemCard({ item, visibleColumns, apiBaseUrl }) {
       <ExternalLink className="table-link kanban-card__title" href={getMeegleWorkitemDetailUrl(item)}>{item.workItemKey || item.workItemId || item.title}</ExternalLink>
       <KanbanCardPeople item={item} kind="meegle-workitems" />
     </div>
-    <KanbanCardSecondLine identifier={item.workItemKey || item.workItemId || item.title} statusColumn={columns.find(({ key }) => key === layout.statusKey)} timeValue={layout.updatedAtKey ? item.sourceUpdatedAt || item.syncedAt : ""} renderCell={(column) => <MeegleWorkitemCell apiBaseUrl={apiBaseUrl} columnKey={column.key} item={item} />} />
+    <KanbanCardSecondLine identifier={item.workItemKey || item.workItemId || item.title} statusColumn={columns.find(({ key }) => key === layout.statusKey)} time={layout.updatedAtKey ? getKanbanCardTime("meegle-workitems", item) : null} renderCell={(column) => <MeegleWorkitemCell apiBaseUrl={apiBaseUrl} columnKey={column.key} item={item} />} />
     <KanbanCardFloatingMeta columns={floatingColumns} detailsId={`kanban-card-details-meegle-${item.projectKey}-${item.workItemId}`} renderCell={(column) => <MeegleWorkitemCell apiBaseUrl={apiBaseUrl} columnKey={column.key} item={item} />} />
   </article>;
 }
@@ -706,7 +706,7 @@ function GitHubPullRequestCard({ item, visibleColumns, onPreviewCandidateChange 
       <ExternalLink className="table-link kanban-card__title" href={item.htmlUrl}>{item.title || `#${item.pullNumber}`}</ExternalLink>
       <KanbanCardPeople item={item} kind="github-pull-requests" />
     </div>
-    <KanbanCardSecondLine identifier={`#${item.pullNumber}`} statusColumn={columns.find(({ key }) => key === layout.statusKey)} timeValue={layout.updatedAtKey ? item.sourceUpdatedAt || item.syncedAt : ""} renderCell={(column) => <GitHubPullRequestCell columnKey={column.key} item={item} />} />
+    <KanbanCardSecondLine identifier={`#${item.pullNumber}`} statusColumn={columns.find(({ key }) => key === layout.statusKey)} time={layout.updatedAtKey ? getKanbanCardTime("github-pull-requests", item) : null} renderCell={(column) => <GitHubPullRequestCell columnKey={column.key} item={item} />} />
     <KanbanCardFloatingMeta columns={floatingColumns} description={description} detailsId={`kanban-card-details-github-${item.owner}-${item.repo}-${item.pullNumber}`} renderCell={(column) => <GitHubPullRequestCell columnKey={column.key} item={item} />} />
   </article>;
 }

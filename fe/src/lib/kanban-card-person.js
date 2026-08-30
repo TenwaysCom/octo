@@ -40,6 +40,17 @@ export function getKanbanCardDescription(kind, item) {
   return text || null;
 }
 
+export function getKanbanCardTime(kind, item) {
+  if (!item || typeof item !== "object") return null;
+  if (kind === "meegle-workitems") {
+    if (item.itemStartTime) return { value: item.itemStartTime, label: "开始时间" };
+    if (item.addToCycleTime) return { value: item.addToCycleTime, label: "加入 Cycle 时间" };
+    return null;
+  }
+  const value = item.sourceUpdatedAt || item.syncedAt;
+  return value ? { value, label: "更新时间" } : null;
+}
+
 const KANBAN_PERSON_FIELD_KEYS = {
   "lark-tickets": new Set(["responsible", "requester"]),
   "meegle-workitems": new Set(["assignee"]),
@@ -55,7 +66,7 @@ const KANBAN_IDENTIFIER_FIELD_KEYS = {
 export function getKanbanCardLayout(kind, visibleColumns, item) {
   const visible = Array.isArray(visibleColumns) ? visibleColumns : [];
   const hasStatus = Boolean(item?.ticketStatus || item?.status || item?.state);
-  const hasUpdatedAt = Boolean(item?.sourceUpdatedAt || item?.syncedAt);
+  const hasUpdatedAt = Boolean(getKanbanCardTime(kind, item));
   const personKeys = KANBAN_PERSON_FIELD_KEYS[kind] || new Set();
   const identifierKey = KANBAN_IDENTIFIER_FIELD_KEYS[kind];
   return {

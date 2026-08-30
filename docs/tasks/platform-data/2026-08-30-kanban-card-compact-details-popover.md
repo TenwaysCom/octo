@@ -2,7 +2,7 @@
 title: "Kanban 卡片紧凑化与可访问详情浮层"
 module: "platform-data"
 status: done
-requirement_version: 2
+requirement_version: 3
 created_on: 2026-08-30
 updated_on: 2026-08-30
 closed_on: 2026-08-30
@@ -21,6 +21,7 @@ related:
 
 - [x] 看板列宽为 300–360px，适合标题与三行信息结构
 - [x] 第二行按可用字段显示 ID、状态与短日期（`M/D`）
+- [x] Meegle 第二行时间优先使用 `itemStartTime`，缺失时回退 `addToCycleTime`，不回退到同步更新时间
 - [x] 第三行显示其余已选字段的可换行 metadata，描述以浮层展示
 - [x] 右上角人员字段映射：Lark responsible 与 requester；Meegle assignee；GitHub authorLogin
 - [x] 字段缺失时不渲染 avatar，不显示无语义字段
@@ -35,6 +36,7 @@ related:
 
 - 人员、描述与卡片布局解析抽为纯函数 `getKanbanCardPeople(kind, item)` / `getKanbanCardDescription(kind, item)` / `getKanbanCardLayout(kind, visibleColumns, item)`，便于 node:test 覆盖并保证降级逻辑集中。
 - 第三行用 `flex-wrap` 实现视觉上的浮动标签，避免传统 CSS `float` 破坏卡片高度与响应式布局。
+- Meegle 业务时间直接使用列表 DTO 已有的 `itemStartTime` / `addToCycleTime`；显示为短日期，完整时间和来源放在 `title` / `aria-label`。
 - 浮层用 `position: fixed` + 触发按钮 getBoundingClientRect 定位，绕开 `.kanban-board__column` / `.kanban-swimlane` 的 overflow 裁剪；失焦（blur 出容器）自动关闭，Escape stopPropagation 避免触发页面快捷键。
 
 ## 进展记录
@@ -43,12 +45,13 @@ related:
 | --- | --- | --- | --- | --- |
 | 2026-08-30 | v1 | done | `pnpm --dir fe test` 112/112 通过；`pnpm --dir fe build` 通过 | 未做浏览器实机交互验证 |
 | 2026-08-30 | v2 | done | 三行布局、300–360px 列宽、短日期与动态 metadata 已落地；`pnpm --dir fe test` 114/114 通过，构建通过 | 未做浏览器实机交互验证 |
+| 2026-08-30 | v3 | done | Meegle `itemStartTime` → `addToCycleTime` 时间优先级已落地；定向 15/15、FE 全量 116/116、构建通过 | 未做浏览器实机交互验证 |
 
 ## 验证
 
 | 类型 | 结果 | 证据 | 边界 |
 | --- | --- | --- | --- |
-| 单测（node --test） | 通过 | `pnpm --dir fe test`：114/114 passed | 未覆盖浏览器实机交互 |
+| 单测（node --test） | 通过 | `pnpm --dir fe test`：116/116 passed；Kanban 定向测试 15/15 passed | 未覆盖浏览器实机交互 |
 | 构建（vite build） | 通过 | `pnpm --dir fe build` | 未覆盖浏览器实机交互 |
 | 静态审查 | 通过 | `git diff --check` 通过；JSX/CSS 逐块复核 | 未覆盖浏览器实机交互 |
 

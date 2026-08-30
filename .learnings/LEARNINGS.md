@@ -5,8 +5,8 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 ## [LRN-20260830-001] fe-kanban-popover-overflow-and-test-pattern
 
 - **Context:** Kanban 卡片需要字段详情浮层，但 `.kanban-board__column` / `.kanban-swimlane` 带 `overflow: hidden/auto`，绝对定位浮层会被裁剪；FE 测试只有 `node --test`，无 DOM 渲染器。
-- **Rule:** 卡片级浮层用 `position: fixed` + 触发元素 `getBoundingClientRect()` 定位来绕开祖先 overflow 裁剪，DOM 仍挂在触发容器内以保证 blur 关闭与焦点管理成立。FE 交互组件的新逻辑（如字段降级解析）抽成 `fe/src/lib/` 纯函数，用 node:test 覆盖；组件层靠构建与人工验证。
-- **Verified outcome:** 人员与描述解析单测通过；FE 全量 112 个测试与 Vite production build 通过。浏览器实机交互仍待单独验证。
+- **Rule:** 卡片级浮层用 `position: fixed` + 触发元素 `getBoundingClientRect()` 定位来绕开祖先 overflow 裁剪，DOM 仍挂在触发容器内以保证 blur 关闭与焦点管理成立。FE 交互组件的新逻辑（如字段降级解析）抽成 `fe/src/lib/` 纯函数，用 node:test 覆盖；组件层靠构建与人工验证。卡片时间必须使用来源对象的业务时间：Meegle 优先 `itemStartTime`，再回退 `addToCycleTime`，不得用 `sourceUpdatedAt` 冒充生命周期时间。
+- **Verified outcome:** 人员、描述、布局与 Meegle 时间优先级单测通过；FE 全量 116 个测试与 Vite production build 通过。浏览器实机交互仍待单独验证。
 
 ## [LRN-20260829-002] meegle-page-external-enrichment-boundary
 

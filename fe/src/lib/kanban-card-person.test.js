@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { formatKanbanCardTime, getKanbanCardDescription, getKanbanCardLayout, getKanbanCardPeople, getKanbanCardPerson } from "./kanban-card-person.js";
+import { formatKanbanCardTime, getKanbanCardDescription, getKanbanCardLayout, getKanbanCardPeople, getKanbanCardPerson, getKanbanCardTime } from "./kanban-card-person.js";
 
 test("lark ticket prefers responsible over requester", () => {
   assert.deepEqual(getKanbanCardPerson("lark-tickets", { responsible: "张三", requester: "李四" }), {
@@ -90,4 +90,23 @@ test("kanban layout omits unavailable second-line values and formats a short dat
   });
   assert.equal(formatKanbanCardTime("2026-08-30T09:00:00+08:00"), "8/30");
   assert.equal(formatKanbanCardTime("not-a-date"), "");
+});
+
+test("meegle card time prefers item start and falls back to cycle add time", () => {
+  assert.deepEqual(getKanbanCardTime("meegle-workitems", {
+    itemStartTime: "2026-08-30T09:00:00+08:00",
+    addToCycleTime: "2026-08-29T09:00:00+08:00",
+    sourceUpdatedAt: "2026-08-31T09:00:00+08:00",
+  }), { value: "2026-08-30T09:00:00+08:00", label: "开始时间" });
+  assert.deepEqual(getKanbanCardTime("meegle-workitems", {
+    addToCycleTime: "2026-08-29T09:00:00+08:00",
+    sourceUpdatedAt: "2026-08-31T09:00:00+08:00",
+  }), { value: "2026-08-29T09:00:00+08:00", label: "加入 Cycle 时间" });
+  assert.equal(getKanbanCardTime("meegle-workitems", { sourceUpdatedAt: "2026-08-31T09:00:00+08:00" }), null);
+});
+
+test("meegle layout exposes its lifecycle time when the time column is visible", () => {
+  assert.equal(getKanbanCardLayout("meegle-workitems", ["workitem", "updatedAt"], {
+    addToCycleTime: "2026-08-29T09:00:00+08:00",
+  }).updatedAtKey, "updatedAt");
 });
