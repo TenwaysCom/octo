@@ -2,6 +2,12 @@
 
 Record concise, reusable lessons here. Include the context, the durable rule, and the verified outcome; never include secrets or raw credentials.
 
+## [LRN-20260830-001] fe-kanban-popover-overflow-and-test-pattern
+
+- **Context:** Kanban 卡片需要字段详情浮层，但 `.kanban-board__column` / `.kanban-swimlane` 带 `overflow: hidden/auto`，绝对定位浮层会被裁剪；FE 测试只有 `node --test`，无 DOM 渲染器。
+- **Rule:** 卡片级浮层用 `position: fixed` + 触发元素 `getBoundingClientRect()` 定位来绕开祖先 overflow 裁剪，DOM 仍挂在触发容器内以保证 blur 关闭与焦点管理成立。FE 交互组件的新逻辑（如字段降级解析）抽成 `fe/src/lib/` 纯函数，用 node:test 覆盖；组件层靠构建与人工验证。
+- **Verified outcome:** 人员与描述解析单测通过；FE 全量 112 个测试与 Vite production build 通过。浏览器实机交互仍待单独验证。
+
 ## [LRN-20260829-002] meegle-page-external-enrichment-boundary
 
 - **Context:** Meegle workitem and Sprint first-load routes were coupling local snapshot reads to a slow Odoo DevOps full-environment branch snapshot.

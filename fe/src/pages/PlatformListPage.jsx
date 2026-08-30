@@ -52,6 +52,7 @@ import {
   resetAllOdooDevopsBranchesCache,
 } from "../services/platform-data/platform-data-api.js";
 import { getLarkTicketDetailHash } from "../app/routes/workspace-routes.js";
+import { formatKanbanCardTime, getKanbanCardDescription, getKanbanCardLayout, getKanbanCardPeople } from "../lib/kanban-card-person.js";
 import {
   buildGitHubPullRequestRow,
   buildLarkTicketRow,
@@ -602,26 +603,96 @@ function GroupedList({ groups, collapsedGroups, onToggleGroup, collapsedSubgroup
   })}</div>;
 }
 
+function KanbanCardPeople({ kind, item }) {
+  const people = getKanbanCardPeople(kind, item);
+  if (!people) return null;
+  const label = people.map((person) => `${person.role}：${person.names.join("、")}`).join("；");
+  const seenNames = new Set();
+  const avatars = people.flatMap((person) => person.names.slice(0, 2).map((name) => ({ ...person, name })))
+    .filter(({ name }) => (seenNames.has(name) ? false : (seenNames.add(name), true)));
+  return <span aria-label={label} className="kanban-card__person" role="img" title={label}>
+    {avatars.map(({ avatar, name, role }) => avatar === "github"
+      ? <img alt="" className="kanban-card__person-avatar" key={`${role}:${name}`} loading="lazy" src={`https://github.com/${encodeURIComponent(name)}.png?size=48`} />
+      : <span aria-hidden="true" className="kanban-card__person-avatar" key={`${role}:${name}`}>{name.slice(0, 1)}</span>)}
+  </span>;
+}
+
+// The popover is fixed-positioned so it escapes the overflow clipping of
+// kanban columns and swimlanes; Escape closes it and returns focus.
+function KanbanCardDetails({ id, children }) {
+  const [open, setOpen] = useState(false);
+  const buttonRef = useRef(null);
+  const [position, setPosition] = useState(null);
+  const onToggle = () => {
+    if (!open && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setPosition({ left: Math.max(8, Math.min(rect.left, window.innerWidth - 296)), top: rect.bottom + 4 });
+    }
+    setOpen((value) => !value);
+  };
+  return <div
+    className="kanban-card__details"
+    onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}
+    onKeyDown={(event) => { if (event.key === "Escape" && open) { event.stopPropagation(); setOpen(false); buttonRef.current?.focus(); } }}
+  >
+    <button aria-controls={open ? id : undefined} aria-expanded={open} aria-label="展开卡片详情字段" className="kanban-card__details-toggle" ref={buttonRef} type="button" onClick={onToggle}>详情</button>
+    {open ? <div aria-label="卡片详情字段" className="kanban-card-details-popover" id={id} role="group" style={position}>{children}</div> : null}
+  </div>;
+}
+
+function KanbanCardSecondLine({ identifier, statusColumn, timeValue, renderCell }) {
+  return <div className="kanban-card__second-line">
+    <small className="kanban-card__identifier">{identifier}</small>
+    {statusColumn ? <span className="kanban-card__status">{renderCell(statusColumn)}</span> : null}
+    {timeValue ? <time className="kanban-card__time" dateTime={timeValue} title={timeValue}>{formatKanbanCardTime(timeValue)}</time> : null}
+  </div>;
+}
+
+function KanbanCardFloatingMeta({ columns, description, detailsId, renderCell }) {
+  if (!columns.length && !description) return null;
+  return <div className="kanban-card__floating-meta">
+    {columns.map((column) => <div className={`kanban-card__meta-item kanban-card__meta-item--${column.key}`} key={column.key}>
+      <span className="kanban-card__meta-label">{column.label}</span>
+      {renderCell(column)}
+    </div>)}
+    {description ? <KanbanCardDetails id={detailsId}><p className="kanban-card__description">{description}</p></KanbanCardDetails> : null}
+  </div>;
+}
+
 function LarkTicketCard({ item, visibleColumns }) {
   const columns = LARK_TICKET_VIEW_COLUMNS.filter(({ key }) => key !== "title" && visibleColumns.includes(key));
+  const layout = getKanbanCardLayout("lark-tickets", visibleColumns, item);
+  const description = getKanbanCardDescription("lark-tickets", item);
+  const floatingColumns = columns.filter(({ key }) => layout.floatingKeys.includes(key));
   return <article className="kanban-card">
-    <a className="table-link kanban-card__title" href={getLarkTicketDetailHash(item.recordId)}>{item.title || item.ticketNumber || item.recordId}</a>
-    <small>{item.ticketNumber || item.recordId}</small>
-    {columns.length ? <dl>{columns.map((column) => <div key={column.key}><dt>{column.label}</dt><dd><LarkTicketCell columnKey={column.key} item={item} /></dd></div>)}</dl> : null}
+    <div className="kanban-card__header">
+      <a className="table-link kanban-card__title" href={getLarkTicketDetailHash(item.recordId)}>{item.title || item.ticketNumber || item.recordId}</a>
+      <KanbanCardPeople item={item} kind="lark-tickets" />
+    </div>
+    <KanbanCardSecondLine identifier={item.ticketNumber || item.recordId} statusColumn={columns.find(({ key }) => key === layout.statusKey)} timeValue={layout.updatedAtKey ? item.sourceUpdatedAt || item.syncedAt : ""} renderCell={(column) => <LarkTicketCell columnKey={column.key} item={item} />} />
+    <KanbanCardFloatingMeta columns={floatingColumns} description={description} detailsId={`kanban-card-details-lark-${item.recordId}`} renderCell={(column) => <LarkTicketCell columnKey={column.key} item={item} />} />
   </article>;
 }
 
 function MeegleWorkitemCard({ item, visibleColumns, apiBaseUrl }) {
   const columns = MEEGLE_VIEW_COLUMNS.filter(({ key }) => key !== "workitem" && visibleColumns.includes(key));
+  const layout = getKanbanCardLayout("meegle-workitems", visibleColumns, item);
+  const floatingColumns = columns.filter(({ key }) => layout.floatingKeys.includes(key));
   return <article className="kanban-card">
-    <ExternalLink className="table-link kanban-card__title" href={getMeegleWorkitemDetailUrl(item)}>{item.workItemKey || item.workItemId || item.title}</ExternalLink>
-    <small>{item.title}</small>
-    {columns.length ? <dl>{columns.map((column) => <div key={column.key}><dt>{column.label}</dt><dd><MeegleWorkitemCell apiBaseUrl={apiBaseUrl} columnKey={column.key} item={item} /></dd></div>)}</dl> : null}
+    <div className="kanban-card__header">
+      <ExternalLink className="table-link kanban-card__title" href={getMeegleWorkitemDetailUrl(item)}>{item.workItemKey || item.workItemId || item.title}</ExternalLink>
+      <KanbanCardPeople item={item} kind="meegle-workitems" />
+    </div>
+    <KanbanCardSecondLine identifier={item.workItemKey || item.workItemId || item.title} statusColumn={columns.find(({ key }) => key === layout.statusKey)} timeValue={layout.updatedAtKey ? item.sourceUpdatedAt || item.syncedAt : ""} renderCell={(column) => <MeegleWorkitemCell apiBaseUrl={apiBaseUrl} columnKey={column.key} item={item} />} />
+    <KanbanCardFloatingMeta columns={floatingColumns} detailsId={`kanban-card-details-meegle-${item.projectKey}-${item.workItemId}`} renderCell={(column) => <MeegleWorkitemCell apiBaseUrl={apiBaseUrl} columnKey={column.key} item={item} />} />
   </article>;
 }
 
 function GitHubPullRequestCard({ item, visibleColumns, onPreviewCandidateChange }) {
   const columns = GITHUB_PULL_REQUEST_VIEW_COLUMNS.filter(({ key }) => key !== "pullRequest" && visibleColumns.includes(key));
+  const layout = getKanbanCardLayout("github-pull-requests", visibleColumns, item);
+  const description = getKanbanCardDescription("github-pull-requests", item);
+  const floatingColumns = columns.filter(({ key }) => layout.floatingKeys.includes(key));
   return <article
     aria-label={`${item.title}，按空格预览`}
     className="kanban-card"
@@ -631,9 +702,12 @@ function GitHubPullRequestCard({ item, visibleColumns, onPreviewCandidateChange 
     onFocusCapture={() => onPreviewCandidateChange?.(item)}
     onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) onPreviewCandidateChange?.(null); }}
   >
-    <ExternalLink className="table-link kanban-card__title" href={item.htmlUrl}>{item.title || `#${item.pullNumber}`}</ExternalLink>
-    <small>#{item.pullNumber}</small>
-    {columns.length ? <dl>{columns.map((column) => <div key={column.key}><dt>{column.label}</dt><dd><GitHubPullRequestCell columnKey={column.key} item={item} /></dd></div>)}</dl> : null}
+    <div className="kanban-card__header">
+      <ExternalLink className="table-link kanban-card__title" href={item.htmlUrl}>{item.title || `#${item.pullNumber}`}</ExternalLink>
+      <KanbanCardPeople item={item} kind="github-pull-requests" />
+    </div>
+    <KanbanCardSecondLine identifier={`#${item.pullNumber}`} statusColumn={columns.find(({ key }) => key === layout.statusKey)} timeValue={layout.updatedAtKey ? item.sourceUpdatedAt || item.syncedAt : ""} renderCell={(column) => <GitHubPullRequestCell columnKey={column.key} item={item} />} />
+    <KanbanCardFloatingMeta columns={floatingColumns} description={description} detailsId={`kanban-card-details-github-${item.owner}-${item.repo}-${item.pullNumber}`} renderCell={(column) => <GitHubPullRequestCell columnKey={column.key} item={item} />} />
   </article>;
 }
 
@@ -657,7 +731,7 @@ function KanbanBoard({ groups, collapsedSubgroups, onToggleSubgroup, renderCard 
       }
     }
   }
-  const gridStyle = { gridTemplateColumns: `repeat(${groups.length}, minmax(220px, 260px))` };
+  const gridStyle = { gridTemplateColumns: `repeat(${groups.length}, minmax(300px, 360px))` };
 
   return <div className="kanban-board kanban-board--swimlanes">
     <div className="kanban-board__group-headers" style={gridStyle}>{groups.map((group) => <header key={group.key}><strong>{group.label}</strong><span>{group.items.length} 条</span></header>)}</div>
