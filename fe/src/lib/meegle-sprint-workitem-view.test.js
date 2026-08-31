@@ -13,14 +13,17 @@ import {
 test("normalizes Sprint workitem view settings without hiding the workitem column", () => {
   assert.deepEqual(normalizeSprintWorkitemVisibleColumns(undefined), DEFAULT_SPRINT_WORKITEM_VISIBLE_COLUMNS);
   assert.equal(DEFAULT_SPRINT_WORKITEM_VISIBLE_COLUMNS.includes("version"), true);
+  assert.equal(DEFAULT_SPRINT_WORKITEM_VISIBLE_COLUMNS.includes("system"), true);
   assert.equal(DEFAULT_SPRINT_WORKITEM_VISIBLE_COLUMNS.includes("pullRequests"), true);
   assert.deepEqual(normalizeSprintWorkitemVisibleColumns(["pullRequests"]), ["workitem", "pullRequests"]);
   assert.deepEqual(normalizeSprintWorkitemVisibleColumns(["status", "unknown", "status"]), ["workitem", "status"]);
   assert.deepEqual(normalizeSprintWorkitemSort({ key: "version", direction: "asc" }), { key: "version", direction: "asc" });
+  assert.deepEqual(normalizeSprintWorkitemSort({ key: "system", direction: "asc" }), { key: "system", direction: "asc" });
   assert.deepEqual(normalizeSprintWorkitemSort({ key: "priority", direction: "asc" }), { key: "priority", direction: "asc" });
   assert.deepEqual(normalizeSprintWorkitemSort({ key: "sprint", direction: "asc" }), { key: "updatedAt", direction: "desc" });
   assert.equal(normalizeSprintWorkitemGroupBy("status"), "status");
   assert.equal(normalizeSprintWorkitemGroupBy("version"), "version");
+  assert.equal(normalizeSprintWorkitemGroupBy("system"), "system");
   assert.equal(normalizeSprintWorkitemGroupBy("sprint"), "none");
   assert.equal(normalizeSprintWorkitemSubGroupBy("project", "status"), "project");
   assert.equal(normalizeSprintWorkitemSubGroupBy("status", "status"), "none");
@@ -50,6 +53,23 @@ test("groups Sprint workitems by Version as a primary or secondary field", () =>
   })), [
     { label: "Doing", subgroups: [{ label: "2.11.0", ids: ["1"] }, { label: "未设置", ids: ["3"] }] },
     { label: "Done", subgroups: [{ label: "2.11.0", ids: ["2"] }] },
+  ]);
+});
+
+test("groups Sprint workitems by System", () => {
+  const groups = groupSprintWorkitems([
+    { workItemId: "1", system: "Odoo/Odoo UK" },
+    { workItemId: "2", system: "Odoo/Odoo EU" },
+    { workItemId: "3", system: "" },
+  ], "system");
+
+  assert.deepEqual(groups.map((group) => ({
+    label: group.label,
+    ids: group.items.map((item) => item.workItemId),
+  })), [
+    { label: "Odoo/Odoo UK", ids: ["1"] },
+    { label: "Odoo/Odoo EU", ids: ["2"] },
+    { label: "未设置", ids: ["3"] },
   ]);
 });
 

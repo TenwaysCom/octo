@@ -446,3 +446,9 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - **Context:** Sprint、Version、System、Bugs 与 `start_time`/`finish_time` 都能被 MQL 显式 SELECT，但现有 adapter 只解析基础字段、Priority、负责人和更新时间，cleaner 则读取 batch-get 的 `work_item_fields` 结构。
 - **Rule:** “MQL 能返回字段”不能直接等同于“可删除 batch-get”。替换前必须验证每类关系值结构、时间精度、adapter 投影，以及 workflow node 等 MQL 未提供完整详情的数据依赖。
 - **Verified outcome:** 三类限 1 条只读抽样均接受这些字段；MQL 起止时间为日粒度 `string_value`，Production Bug System 返回嵌套 `cascade_key_label_value`，现有 batch-get 仍有明确职责。
+
+## [LRN-20260831-004] semantic-field-multi-view-presentation
+
+- **Context:** Meegle `system` 已存在于 Server DTO、Sprint membership 投影和 FE parser，但普通紧凑行会在窄屏隐藏，Sprint 详情的独立视图配置也未声明该字段。
+- **Rule:** 已投影语义字段要跨多个 FE 工作项视图可见时，需要逐一核对列注册、取值函数、单元格、筛选/排序/分组和响应式隐藏规则；API 已有字段不代表每个页面已经展示。
+- **Verified outcome:** 普通列表在窄屏保留 System，Sprint 详情提供 System 列、筛选、排序和两级分组；26/26 个 FE 测试文件及 production build 通过。

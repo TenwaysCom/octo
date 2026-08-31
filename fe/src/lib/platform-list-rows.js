@@ -81,7 +81,7 @@ export function buildMeegleWorkitemRow(item, visibleColumns = []) {
   const textColumns = [
     ["sprint", item.sprint, false],
     ["version", item.version, true],
-    ["system", item.system, true],
+    ["system", item.system, false],
     ["assignee", item.assignee, false],
   ];
   for (const [columnKey, value, hideOnSmall] of textColumns) {

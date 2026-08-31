@@ -570,3 +570,9 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Symptom:** The first Story field-capability probe returned metadata code 3007 because type `Story` was not found.
 - **Root cause:** MQL resolves the FROM type by exact type name or type key, while this project uses a different display name for the `story` type.
 - **Verified fix:** Use the metadata-backed type key `story`; the same read-only query then returned all requested field slots.
+
+### ERR-20260831-005 — Multi-file System patch used duplicated JSX context
+
+- **Symptom:** The first System display patch failed verification before changing files.
+- **Root cause:** Its expected Sprint cell context accidentally repeated the `assignee` branch, while the source contains it once.
+- **Verified fix:** Inspect the exact JSX block and apply smaller configuration/test and page patches; FE check then passed.

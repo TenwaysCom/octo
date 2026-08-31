@@ -52,6 +52,7 @@ const SPRINT_WORKITEM_FILTER_FIELDS = [
   { key: "workitemType", label: "类型", getValues: (item) => [item.workItemType || item.workItemTypeKey || "未设置"] },
   { key: "status", label: "状态", getValues: (item) => [item.status || "未设置"] },
   { key: "project", label: "项目", getValues: (item) => [item.projectName || item.projectKey || "未设置"] },
+  { key: "system", label: "System", getValues: (item) => [item.system || "未设置"] },
   { key: "priority", label: "优先级", getValues: (item) => [item.priority || "未设置"] },
   { key: "assignee", label: "负责人", getValues: (item) => [item.assignee || "未设置"] },
 ];
@@ -245,6 +246,7 @@ function SprintWorkitemCell({ columnKey, item, apiBaseUrl }) {
   if (columnKey === "status") return <>{item.status || "未设置"}<small>{item.subStage || ""}</small></>;
   if (columnKey === "project") return item.projectName || item.projectKey || "未设置";
   if (columnKey === "version") return item.version || "未设置";
+  if (columnKey === "system") return item.system || "未设置";
   if (columnKey === "pullRequests") return <SprintRelatedPullRequests apiBaseUrl={apiBaseUrl} pullRequests={item.githubPullRequests} />;
   if (columnKey === "priority") return item.priority || "未设置";
   if (columnKey === "assignee") return item.assignee || "未设置";
