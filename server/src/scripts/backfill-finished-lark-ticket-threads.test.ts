@@ -13,6 +13,7 @@ describe("backfill finished Lark ticket threads", () => {
       masterUserId: undefined,
       larkBaseUrl: undefined,
       concurrency: 3,
+      limit: undefined,
     });
     expect(parseArgs([
       "--base-id", "base", "--table-id", "table", "--apply",
@@ -21,6 +22,14 @@ describe("backfill finished Lark ticket threads", () => {
     expect(() => parseArgs(["--base-id", "base"])).toThrow("--base-id and --table-id");
     expect(() => parseArgs(["--base-id", "base", "--table-id", "table", "--apply"])).toThrow("--apply requires");
     expect(() => parseArgs(["--base-id", "base", "--table-id", "table", "--concurrency", "6"])).toThrow("--concurrency");
+    expect(() => parseArgs(["--base-id", "base", "--table-id", "table", "--limit", "0"])).toThrow("--limit");
+  });
+
+  it("accepts a positive candidate limit", () => {
+    expect(parseArgs(["--base-id", "base", "--table-id", "table", "--limit", "10"])).toMatchObject({
+      apply: false,
+      limit: 10,
+    });
   });
 
   it("selects only unfinished snapshots for Finish tickets", () => {

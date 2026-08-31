@@ -19,6 +19,7 @@ export interface BackfillFinishedLarkTicketThreadsArgs {
   masterUserId?: string;
   larkBaseUrl?: string;
   concurrency: number;
+  limit?: number;
 }
 
 type FinishedTicketThreadRow = {
@@ -39,7 +40,7 @@ export interface FinishedTicketThreadBackfillCandidates {
 }
 
 function usage(): string {
-  return "Usage: pnpm --dir server platform:backfill-finished-lark-ticket-threads -- --base-id <baseId> --table-id <tableId> [--apply --master-user-id <masterUserId> --lark-base-url <https://...> --concurrency 1-5]";
+  return "Usage: pnpm --dir server platform:backfill-finished-lark-ticket-threads -- --base-id <baseId> --table-id <tableId> [--limit <positiveInteger>] [--apply --master-user-id <masterUserId> --lark-base-url <https://...> --concurrency 1-5]";
 }
 
 function requireValue(argv: string[], index: number, name: string): string {
@@ -54,6 +55,14 @@ function parseConcurrency(value: string): number {
     throw new Error(`--concurrency must be an integer from 1 to ${MAX_CONCURRENCY}.\n${usage()}`);
   }
   return concurrency;
+}
+
+function parseLimit(value: string): number {
+  const limit = Number(value);
+  if (!Number.isSafeInteger(limit) || limit < 1) {
+    throw new Error(`--limit must be a positive integer.\n${usage()}`);
+  }
+  return limit;
 }
 
 function validateHttpsUrl(value: string): string {
@@ -72,6 +81,7 @@ export function parseArgs(argv: string[]): BackfillFinishedLarkTicketThreadsArgs
   let masterUserId: string | undefined;
   let larkBaseUrl: string | undefined;
   let concurrency = DEFAULT_CONCURRENCY;
+  let limit: number | undefined;
 
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
@@ -92,6 +102,9 @@ export function parseArgs(argv: string[]): BackfillFinishedLarkTicketThreadsArgs
     } else if (argument === "--concurrency") {
       concurrency = parseConcurrency(requireValue(argv, index, argument));
       index += 1;
+    } else if (argument === "--limit") {
+      limit = parseLimit(requireValue(argv, index, argument));
+      index += 1;
     } else {
       throw new Error(`Unknown argument: ${argument}.\n${usage()}`);
     }
@@ -101,7 +114,7 @@ export function parseArgs(argv: string[]): BackfillFinishedLarkTicketThreadsArgs
   if (apply && (!masterUserId || !larkBaseUrl)) {
     throw new Error(`--apply requires --master-user-id and --lark-base-url.\n${usage()}`);
   }
-  return { apply, baseId, tableId, masterUserId, larkBaseUrl, concurrency };
+  return { apply, baseId, tableId, masterUserId, larkBaseUrl, concurrency, limit };
 }
 
 export function findFinishedTicketThreadBackfillCandidates(
@@ -177,12 +190,17 @@ async function main(): Promise<void> {
       .where(sql<boolean>`lower(coalesce(ticket.ticket_status, '')) = 'finish'`)
       .execute();
     const selection = findFinishedTicketThreadBackfillCandidates(rows);
+    const candidates = args.limit === undefined
+      ? selection.candidates
+      : selection.candidates.slice(0, args.limit);
     const summary = {
       apply: args.apply,
       baseId: args.baseId,
       tableId: args.tableId,
       scanned: rows.length,
       candidates: selection.candidates.length,
+      limitedCandidates: candidates.length,
+      limit: args.limit,
       alreadyComplete: selection.alreadyComplete,
       missingThreadLink: selection.missingThreadLink,
       ignoredNonFinished: selection.ignoredNonFinished,
@@ -193,10 +211,10 @@ async function main(): Promise<void> {
     }
 
     const syncStore = new PostgresPlatformSyncStore(db);
-    const tickets = await syncStore.getLarkBaseTicketsForCleaning(selection.candidates);
+    const tickets = await syncStore.getLarkBaseTicketsForCleaning(candidates);
     const ticketByRecord = new Map(tickets.map((ticket) => [ticket.recordId, ticket]));
     const threadContextService = createLarkTicketThreadContextService();
-    const results = await mapWithConcurrency(selection.candidates, args.concurrency, async (candidate) => {
+    const results = await mapWithConcurrency(candidates, args.concurrency, async (candidate) => {
       const ticket = ticketByRecord.get(candidate.recordId);
       if (!ticket) return { recordId: candidate.recordId, outcome: "failed" as const, error: "SYNCHRONIZED_TICKET_NOT_FOUND" };
       try {
