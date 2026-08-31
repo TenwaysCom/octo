@@ -464,3 +464,9 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - **Context:** FE 需要从已持久化的 `current_node_start_time` 与 `add_to_cycle_time` 中选择依据，展示工作项的 `current_working_time`；Sprint 历史投影又可能携带工作项当前快照的节点时间。
 - **Rule:** 当前节点工作时长只能从 `current_node_start_time` 开始，未完成时截止当前时间、已完成时截止 `item_finish_time`；不得回退到 Cycle/Sprint 加入时间或更新时间。已关闭的 Sprint membership 没有历史节点开始事实时应留空，不能用当前工作项快照污染历史。
 - **Verified outcome:** 普通列表与 Sprint 详情默认显示派生时长并每分钟刷新；测试覆盖完成、缺失、非法、倒序、无 Cycle fallback 和已移出 Sprint，27/27 个 FE 测试文件与 production build 通过。
+
+## [LRN-20260831-007] lark-thread-root-id-boundary
+
+- **Context:** A Lark Ticket link provides a `threadid`, while the single-message endpoint requires a message ID. Treating them as interchangeable caused HTTP 400 and marked reply-only snapshots complete.
+- **Rule:** Fetch a thread with `thread_id`, derive the root message ID from a reply's `root_id`, then fetch the root message by that ID. A historical snapshot containing replies but no stored corresponding root must be selected for a forced full repair before it can be treated as complete.
+- **Verified outcome:** Thread-context and backfill tests cover root-ID lookup, reject `thread_id` as the message request ID, and reselect reply-only snapshots; Server TypeScript build passes.
