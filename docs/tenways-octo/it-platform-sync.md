@@ -455,7 +455,7 @@ Lark 增量先将 checkpoint 回退 5 分钟，再使用配置中 `sourceUpdated
 }
 ```
 
-Meegle 增量同样回退 checkpoint 5 分钟，但执行分为两层：先用 `meegle workitem query --mql` 对每个 work item type 的配置字段执行 `WHERE / ORDER BY / LIMIT`；再只对候选 ID 分批（50 条）执行 `meegle workitem +batch-get`。普通类型以 MQL 返回的 `updated_at` 作为源端时间：该字段在真实 `+batch-get` 详情中会缺失。Production Bug 则以详情 `work_item_attribute.update_time` 为唯一权威时间。
+Meegle 增量同样回退 checkpoint 5 分钟，但执行分为两层：先用 `meegle workitem query --mql` 对每个 work item type 的配置字段执行 `WHERE / ORDER BY / LIMIT`；再只对候选 ID 分批（50 条）执行 `meegle workitem +batch-get`。MQL 同时选择系统字段 `priority`，adapter 读取其 `key_label_value.label`；batch detail 缺少 Priority 时保留同一候选的 MQL 值。batch-get 还按类型显式请求 Tech Team：Tech Task 使用 `field_7c2f56`，Production Bug 使用 `field_26ef68`，Story 不请求 Team；该字段当前只保存在 payload，不投影到独立数据库列或 Web API。普通类型以 MQL 返回的 `updated_at` 作为源端时间：该字段在真实 `+batch-get` 详情中会缺失。Production Bug 则以详情 `work_item_attribute.update_time` 为唯一权威时间。
 
 `sourceUpdatedAtMqlFieldNames` 必须为配置中的每个 type 指定可在 MQL 中查询的时间字段 key（从该 type 的元数据 `field_key` 取得，不是页面显示名）；缺少映射、MQL 返回时间为空、或 `+batch-get` 详情缺少规范源端时间，命令失败且不推进 checkpoint。例如：
 
@@ -501,7 +501,7 @@ pnpm --dir server platform:sync --mode clean --only lark
 
 - checkpoint scope 为 `projectKey/workItemTypeKey`；User Story、Tech Task 与 Production Bug 分别维护和使用自己的水位。新增类型只需初始化该类型的 checkpoint，不得复用旧项目级 checkpoint。
 - 先读取类型/状态元数据，再读取 work item；动态 `field_*` 只可位于 metadata resolver 或明确的兼容映射层。
-- 增量先按 `sourceUpdatedAtMqlFieldNames[workItemTypeKey]` 的 MQL 字段 key 筛选、排序、分页，再分批读取 `+batch-get` 详情。普通 Meegle work item 使用 MQL `updated_at`（详情未返回该字段）；Production Bug（由 `MEEGLE_WORKITEM_TYPE_KEY_PROD_BUG` 配置）使用 `fields.work_item_attribute.update_time`。adapter 将秒/毫秒时间戳规范化为 ISO UTC 后写入 `source_updated_at`；缺失时保持为空，不能用 `synced_at` 或其他业务字段补齐。
+- 增量先按 `sourceUpdatedAtMqlFieldNames[workItemTypeKey]` 的 MQL 字段 key 筛选、排序、分页，同时选择 `priority`，再分批读取 `+batch-get` 详情。Priority 取 MQL 枚举 label；详情缺少该值时保留 MQL 投影，普通 upsert 在可选清洗之前写入，清洗不重算或清空它。普通 Meegle work item 使用 MQL `updated_at`（详情未返回该字段）；Production Bug（由 `MEEGLE_WORKITEM_TYPE_KEY_PROD_BUG` 配置）使用 `fields.work_item_attribute.update_time`。adapter 将秒/毫秒时间戳规范化为 ISO UTC 后写入 `source_updated_at`；缺失时保持为空，不能用 `synced_at` 或其他业务字段补齐。
 - 对历史空值可先预览、再回填并初始化空 checkpoint：`pnpm --dir server platform:backfill-meegle-source-time`，确认后追加 `--apply`。
 - 已有历史快照升级到类型级 checkpoint 后，执行 `pnpm --dir server platform:init-checkpoints --only meegle --apply` 创建缺失的 `projectKey/workItemTypeKey` 记录；旧项目级 checkpoint 保留但不再读取。
 - 若历史快照未返回 `updated_at`，该 project 的 checkpoint 仍不可作为安全增量水位；必须通过源端详情补拉取得 `updated_at` 后才可初始化。
@@ -542,7 +542,7 @@ syncLark...    -> cleanLarkBaseTickets(...)
 | 平台 | 清洗输入 | 写入 `*_syncs` 表的清洗内容 |
 | --- | --- | --- |
 | Lark | 标题、状态、共享链接、创建/更新时间与原始字段 JSON | 基础展示投影，以及 Ticket 编号、Issue 类型、需求人、负责人、紧急度、创建时间、详情描述、Meegle 链接、Lark 消息链接；需求人读取 Lark 字段 `需求人`，紧急度只读取 Lark 字段 `紧急度` |
-| Meegle | 标题、类型/状态、子阶段、Sprint、Version、System、Bug、Current owner | 基础展示投影；负责人只读取 `current_status_operator`，不从节点或角色推断 |
+| Meegle | 标题、类型/状态、Priority、子阶段、Sprint、Version、System、Bug、Current owner | 基础展示投影；Priority 读取 MQL 系统字段 label，负责人只读取 `current_status_operator`，不从节点或角色推断 |
 | GitHub | PR 标题、状态、分支、Meegle ID、作者、合并人、requested reviewers、labels、创建时间 | 基础展示投影；合并人只读取 GitHub `merged_by.login`，`reviewers` 表示当前请求评审人，不推断已完成评审人 |
 
 ## 8. 认证、安全与可观测性

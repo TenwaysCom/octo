@@ -1,5 +1,8 @@
 import type { MeegleWorkitem } from "../../adapters/meegle/meegle-client.js";
-import { MEEGLE_PRODUCTION_BUG_WORKITEM_TYPE_KEY } from "../../domain/meegle-workitem-types.js";
+import {
+  MEEGLE_PRODUCTION_BUG_API_NAME,
+  MEEGLE_PRODUCTION_BUG_WORKITEM_TYPE_KEY,
+} from "../../domain/meegle-workitem-types.js";
 
 type RelationField = "sprint" | "version" | "system" | "bugs";
 type RelationValues = Partial<Record<RelationField, string | string[]>>;
@@ -29,6 +32,13 @@ const RELATION_FIELD_MAPPING: Record<string, Partial<Record<RelationField, strin
   },
 };
 
+const TEAM_FIELD_MAPPING: Record<string, string> = {
+  techtask: "field_7c2f56",
+  "66700acbf297a8f821b4b860": "field_7c2f56",
+  [MEEGLE_PRODUCTION_BUG_API_NAME]: "field_26ef68",
+  [MEEGLE_PRODUCTION_BUG_WORKITEM_TYPE_KEY]: "field_26ef68",
+};
+
 export function extractMeegleCleaningRelations(workitem: MeegleWorkitem): RelationValues {
   const mapping = RELATION_FIELD_MAPPING[workitem.type];
   if (!mapping) return {};
@@ -45,7 +55,11 @@ export function extractMeegleCleaningRelations(workitem: MeegleWorkitem): Relati
 }
 
 export function getMeegleCleaningFieldKeys(workItemTypeKey: string): string[] {
-  return Object.values(RELATION_FIELD_MAPPING[workItemTypeKey] ?? {});
+  const teamFieldKey = TEAM_FIELD_MAPPING[workItemTypeKey];
+  return [...new Set([
+    ...Object.values(RELATION_FIELD_MAPPING[workItemTypeKey] ?? {}),
+    ...(teamFieldKey ? [teamFieldKey] : []),
+  ])];
 }
 
 export function getMeegleRelationFieldKey(workItemTypeKey: string, field: RelationField): string | undefined {

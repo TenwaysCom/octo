@@ -546,3 +546,27 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Symptom:** `pnpm --dir fe typecheck` returned `Command "fe" not found`, so the intended package-script check did not run.
 - **Root cause:** This workspace's pnpm invocation did not interpret `--dir` as a package-directory option for that script call; the FE package also has no `typecheck` script.
 - **Verified fix:** Run the declared scripts from the package directory (`cd fe && pnpm test && pnpm build`), and use `pnpm --dir fe exec node --test <path>` only for the focused Node test form.
+
+### ERR-20260831-001 — Sandbox blocked the PostgreSQL diagnostic connection
+
+- **Symptom:** The first read-only payload coverage query failed with `connect EPERM` before reaching PostgreSQL.
+- **Root cause:** The managed sandbox blocked the configured database network connection.
+- **Verified fix:** Re-run the same scoped, parameterized diagnostic with approved elevated network access; keep connection strings and payload contents out of output.
+
+### ERR-20260831-002 — Multi-hunk Priority patch used reverse source order
+
+- **Symptom:** The first Priority implementation patch failed verification before changing files even though each target context existed.
+- **Root cause:** Multiple hunks for the same source file were ordered from a later function back to an earlier function, which made the patch context progression invalid.
+- **Verified fix:** Reorder hunks by source position and apply the query-column, parser, merge, and test changes in scoped patches; focused tests and the Server build then passed.
+
+### ERR-20260831-003 — Task-ledger patch used an inexact context line
+
+- **Symptom:** The first documentation closeout patch failed verification before changing files.
+- **Root cause:** The expected context omitted the space in `PostgreSQL 快照`, so it did not match the task record.
+- **Verified fix:** Inspect the exact task record and apply smaller, scoped documentation patches.
+
+### ERR-20260831-004 — MQL probe used a non-existent exact type name
+
+- **Symptom:** The first Story field-capability probe returned metadata code 3007 because type `Story` was not found.
+- **Root cause:** MQL resolves the FROM type by exact type name or type key, while this project uses a different display name for the `story` type.
+- **Verified fix:** Use the metadata-backed type key `story`; the same read-only query then returned all requested field slots.

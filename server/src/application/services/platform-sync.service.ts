@@ -642,12 +642,15 @@ export class PlatformSyncService {
       const withCurrentOwner = detailed.assignee || !candidate.assignee
         ? detailed
         : { ...detailed, assignee: candidate.assignee };
-      if (withCurrentOwner.updatedAt || isMeegleProductionBugType(withCurrentOwner.type)) {
-        return withCurrentOwner;
+      const withPriority = withCurrentOwner.priority || !candidate.priority
+        ? withCurrentOwner
+        : { ...withCurrentOwner, priority: candidate.priority };
+      if (withPriority.updatedAt || isMeegleProductionBugType(withPriority.type)) {
+        return withPriority;
       }
       // +batch-get omits updated_at for normal types; retain the MQL value that
       // selected this exact candidate. Production Bug must use detail update_time.
-      return { ...withCurrentOwner, updatedAt: candidate.updatedAt };
+      return { ...withPriority, updatedAt: candidate.updatedAt };
     });
   }
 

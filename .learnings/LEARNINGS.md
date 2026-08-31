@@ -428,3 +428,21 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - **Context:** 工作项从 Sprint A 切到 B 后，当前快照只保留 B；如果 Sprint 页面继续按当前 `sprint_id` 分组，A 的未完成工作项、Scope 和结转信息都会消失。
 - **Rule:** Sprint 历史、详情和图表必须读取 Server 按连续归属区间展开的工作项投影。当前快照只服务普通列表和兼容接口；结转目标由 Server 根据观察来源、稳定 Sprint ID、日期范围和 A 的完成时间派生，FE 不从当前 Sprint 或状态反推历史。缺少持久化区间的当前关系只能作为 `historical_inferred` fallback，不能显示确定结转。
 - **Verified outcome:** Store/API/FE 测试覆盖原 Sprint 保留、A → B 未完成结转、已完成或推定关系不误标、提前移出 Scope，以及 Related PR 附着；定向 Server 34/34、FE check 和 Server build 通过。
+
+## [LRN-20260831-001] meegle-priority-payload-coverage-boundary
+
+- **Context:** Meegle 快照已有独立 `priority` 投影，但同步详情未稳定请求该字段，且 Story/Tech Task 与 Production Bug 把它放在不同的嵌套响应路径；因此 1,203 条历史 payload 中只有 10 条可恢复 Priority。
+- **Rule:** 从持久化 payload 清洗枚举投影时，只使用明确保存的字段和值，不把缺失解释为默认值。Meegle 同步若要保证投影覆盖，列表选择、枚举 label 解析、详情覆盖时的 fallback 和数据库写入必须作为一个完整链路验证。
+- **Verified outcome:** 事务仅从两个已验证嵌套路径回填 10 条标准 P0/P1/P2，其余 1,193 条保持 `NULL`；后续 MQL 同步显式选择 Priority 并在 detail 缺值时保留 label，33 个定向用例和 Server build 通过。
+
+## [LRN-20260831-002] meegle-type-scoped-detail-field-capture
+
+- **Context:** Meegle 中同一语义的 Tech Team 在 Tech Task 与 Production Bug 上使用不同的动态 field key，Story 则没有该字段；历史 payload 的 Team 覆盖也不足。
+- **Rule:** 类型专属自定义字段必须按 work item type key/API alias 集中映射，并由单条、全量和增量详情请求复用；不存在该字段的类型不得猜测或请求其他类型的 key。把字段捕获到 payload 不等于新增数据库或 API 投影。
+- **Verified outcome:** batch-get 对 Tech Task 请求 `field_7c2f56`、对 Production Bug 请求 `field_26ef68`，Story 保持不变；29 个定向用例和 Server build 通过。
+
+## [LRN-20260831-003] meegle-mql-field-capability-is-not-projection-readiness
+
+- **Context:** Sprint、Version、System、Bugs 与 `start_time`/`finish_time` 都能被 MQL 显式 SELECT，但现有 adapter 只解析基础字段、Priority、负责人和更新时间，cleaner 则读取 batch-get 的 `work_item_fields` 结构。
+- **Rule:** “MQL 能返回字段”不能直接等同于“可删除 batch-get”。替换前必须验证每类关系值结构、时间精度、adapter 投影，以及 workflow node 等 MQL 未提供完整详情的数据依赖。
+- **Verified outcome:** 三类限 1 条只读抽样均接受这些字段；MQL 起止时间为日粒度 `string_value`，Production Bug System 返回嵌套 `cascade_key_label_value`，现有 batch-get 仍有明确职责。

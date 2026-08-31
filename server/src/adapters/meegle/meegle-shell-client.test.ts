@@ -17,6 +17,7 @@ describe("MeegleShellClient", () => {
               { key: "name", value: { string_value: "A bug" } },
               { key: "work_item_type_key", value: { key_label_value: { key: "production_bug" } } },
               { key: "work_item_status", value: { key_label_value_list: [{ label: "New" }] } },
+              { key: "priority", value: { key_label_value: { key: "option_2", label: "P1" } } },
               { key: "current_status_operator", value: { user_value_list: [
                 { name_cn: "Ada" }, { name_en: "Lin" }, { name_cn: "Ada" },
               ] } },
@@ -37,6 +38,7 @@ describe("MeegleShellClient", () => {
       type: "production_bug",
       status: "New",
       assignee: "Ada, Lin",
+      priority: "P1",
       fields: expect.any(Object),
     }]);
     expect(runCommand).toHaveBeenNthCalledWith(3, [
@@ -44,7 +46,7 @@ describe("MeegleShellClient", () => {
       "query",
       "--project-key", "4c3fv6",
       "--mql",
-      "SELECT `work_item_id`, `name`, `work_item_type_key`, `work_item_status`, `current_status_operator` FROM `Tenways Software R&D`.`Production Bug` LIMIT 0, 50",
+      "SELECT `work_item_id`, `name`, `work_item_type_key`, `work_item_status`, `priority`, `current_status_operator` FROM `Tenways Software R&D`.`Production Bug` LIMIT 0, 50",
     ]);
   });
 
@@ -64,6 +66,7 @@ describe("MeegleShellClient", () => {
               { key: "name", value: { string_value: "Changed story" } },
               { key: "work_item_type_key", value: { key_label_value: { key: "story" } } },
               { key: "work_item_status", value: { key_label_value_list: [{ label: "Done" }] } },
+              { key: "priority", value: { key_label_value_list: [{ key: "1", label: "P1" }] } },
               { key: "current_status_operator", value: { user_value_list: [{ name_en: "Current Owner" }] } },
               { key: "updated_at", value: { long_value: 1786020656000 } },
             ],
@@ -81,6 +84,7 @@ describe("MeegleShellClient", () => {
     })).resolves.toMatchObject([{
       id: "123",
       assignee: "Current Owner",
+      priority: "P1",
       updatedAt: "2026-08-06T12:50:56.000Z",
     }]);
     expect(runCommand).toHaveBeenNthCalledWith(3, [
@@ -88,7 +92,7 @@ describe("MeegleShellClient", () => {
       "query",
       "--project-key", "4c3fv6",
       "--mql",
-      "SELECT `work_item_id`, `name`, `work_item_type_key`, `work_item_status`, `current_status_operator`, `updated_at` FROM `Tenways Software R&D`.`Story` WHERE `updated_at` >= '2026-08-06T12:45:56.000Z' ORDER BY `updated_at` ASC, `work_item_id` ASC LIMIT 0, 50",
+      "SELECT `work_item_id`, `name`, `work_item_type_key`, `work_item_status`, `priority`, `current_status_operator`, `updated_at` FROM `Tenways Software R&D`.`Story` WHERE `updated_at` >= '2026-08-06T12:45:56.000Z' ORDER BY `updated_at` ASC, `work_item_id` ASC LIMIT 0, 50",
     ]);
   });
 

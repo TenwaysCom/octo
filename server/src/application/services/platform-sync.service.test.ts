@@ -323,9 +323,10 @@ describe("PlatformSyncService", () => {
     const candidate = {
       ...workitem("1", "Finished"),
       assignee: "MQL Current Owner",
+      priority: "P1",
       updatedAt: "2026-08-11T00:01:00.000Z",
     };
-    const detailed = { ...candidate, assignee: undefined, updatedAt: undefined };
+    const detailed = { ...candidate, assignee: undefined, priority: undefined, updatedAt: undefined };
     const client = {
       filterWorkitems: vi.fn().mockResolvedValue([candidate]),
       getWorkitemDetails: vi.fn().mockResolvedValue([detailed]),
@@ -340,9 +341,11 @@ describe("PlatformSyncService", () => {
       sourceUpdatedAtMqlFieldNames: { story: "updated_at" },
       watermarkUpdatedAt: "2026-08-11T00:00:00.000Z",
       watermarkTiebreaker: "story:0",
+      cleanAfterSync: true,
     })).resolves.toMatchObject({
       listed: 1,
       synced: 1,
+      cleaned: 1,
       watermarkUpdatedAt: "2026-08-11T00:01:00.000Z",
     });
 
@@ -364,6 +367,8 @@ describe("PlatformSyncService", () => {
     ]);
     expect(store.meegle).toHaveLength(1);
     expect(store.meegle[0]?.workitem.assignee).toBe("MQL Current Owner");
+    expect(store.meegle[0]?.workitem.priority).toBe("P1");
+    expect(store.cleanedMeegle).toEqual(["1"]);
     expect(store.meegle[0]?.sprintObservedAt).toEqual(expect.any(String));
   });
 
@@ -405,6 +410,7 @@ describe("PlatformSyncService", () => {
       "field_ecd063",
       "field_5fab52",
       "field_3daed9",
+      "field_7c2f56",
       "start_time",
       "finish_time",
     ]);
@@ -459,6 +465,12 @@ describe("PlatformSyncService", () => {
       workItemTypeKeys: ["production_bug"],
     });
 
+    expect(client.getWorkitemDetails).toHaveBeenCalledWith("project", "production_bug", ["1"], [
+      "current_status_operator",
+      "field_26ef68",
+      "start_time",
+      "finish_time",
+    ]);
     expect(store.meegleMappings).toEqual(expect.arrayContaining([
       expect.objectContaining({ kind: "workitem_type", sourceKey: "production_bug", displayValue: "Production Bug" }),
       expect.objectContaining({ kind: "status", sourceKey: "status_new", displayValue: "New" }),

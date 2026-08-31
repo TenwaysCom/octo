@@ -231,6 +231,7 @@ export class MeegleShellClient {
       "name",
       "work_item_type_key",
       "work_item_status",
+      "priority",
       MEEGLE_CURRENT_OWNER_FIELD_KEY,
     ];
     if (input.sourceUpdatedAtMqlFieldName) columns.push(input.sourceUpdatedAtMqlFieldName);
@@ -279,6 +280,7 @@ function toMqlWorkitem(
   }
   const type = getMqlKeyLabel(fields.find((field) => field.key === "work_item_type_key")?.value);
   const status = getMqlKeyLabel(fields.find((field) => field.key === "work_item_status")?.value);
+  const priority = getMqlKeyLabel(fields.find((field) => field.key === "priority")?.value).label;
   const assignee = formatMeegleCurrentOwners(
     fields.find((field) => field.key === MEEGLE_CURRENT_OWNER_FIELD_KEY)?.value,
   );
@@ -291,6 +293,7 @@ function toMqlWorkitem(
     status: status.label || stringValue(fieldValues.get("work_item_status")),
     statusKey: status.key || undefined,
     ...(assignee ? { assignee } : {}),
+    ...(priority ? { priority } : {}),
     updatedAt: sourceUpdatedAtMqlFieldName
       ? normalizeTimestamp(fieldValues.get(sourceUpdatedAtMqlFieldName))
       : undefined,

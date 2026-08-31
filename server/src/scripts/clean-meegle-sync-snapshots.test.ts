@@ -35,11 +35,21 @@ describe("Meegle sync snapshot cleanup", () => {
     });
   });
 
-  it("requests the Tech Task relation fields needed for cleaning", () => {
+  it("requests the Tech Task relation and Team fields needed for snapshot cleaning", () => {
     expect(getMeegleCleaningFieldKeys("66700acbf297a8f821b4b860")).toEqual([
       "field_ecd063",
       "field_5fab52",
       "field_3daed9",
+      "field_7c2f56",
+    ]);
+  });
+
+  it("requests the Production Bug relation and Team fields needed for snapshot cleaning", () => {
+    expect(getMeegleCleaningFieldKeys("6932e40429d1cd8aac635c82")).toEqual([
+      "field_ee999e",
+      "field_c6f6d0",
+      "field_4976fc",
+      "field_26ef68",
     ]);
   });
 
