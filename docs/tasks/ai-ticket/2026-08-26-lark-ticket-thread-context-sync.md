@@ -2,7 +2,7 @@
 title: "Lark Ticket Thread 上下文按需同步"
 module: "ai-ticket"
 status: completed
-requirement_version: 3
+requirement_version: 5
 created_on: 2026-08-26
 updated_on: 2026-08-31
 closed_on: 2026-08-31
@@ -30,6 +30,7 @@ related:
 - [x] Server 相关单测和 build 通过。
 - [x] 提供只限定单个 Base/Table 的 Finish Ticket thread 历史补齐脚本，默认 dry-run，`--apply` 才访问 Lark 并写入 Octo。
 - [x] 支持 `--limit` 限制本次实际尝试的候选数量，便于小批试跑。
+- [x] 从 thread 回复的 `root_id` 读取根消息，不再将 `thread_id` 作为 `message_id` 请求；旧快照缺 root 时会重新纳入补齐候选。
 
 ## 背景与范围
 
@@ -53,6 +54,7 @@ related:
 | 2026-08-27 | completed | 内部 ACP Ticket 上下文 controller 改为按首次已授权请求懒创建数据库服务，避免路由注册先于 `ensureSharedDatabase()` 访问 SSH PostgreSQL；controller/index 定向 5/5、Server build 与实际 `server start` 启动通过。 | 未发起真实签名 Ticket 上下文请求。 |
 | 2026-08-31 | completed | v2：新增 Finish Ticket 历史 thread 补齐脚本和单测；默认预检不访问 Lark，`--apply` 要求显式授权身份和 HTTPS 域名，并复用既有 `ensure()` 保存/冻结逻辑。 | 未执行真实 Lark 批量调用；需先对目标 Base/Table dry-run 确认数量。 |
 | 2026-08-31 | completed | v3：新增 `--limit`，仅限制本轮实际尝试的候选数，保留完整预检统计以便分批执行。 | 未执行真实 Lark 批量调用；需先对目标 Base/Table dry-run 确认数量。 |
+| 2026-08-31 | completed | v5：根消息改由 thread 回复中的 `root_id` 拉取；补齐脚本检测到旧快照有回复却缺 root 时，会强制全量重拉。 | 未执行真实 Lark 批量调用；需先部署到远端后对 3 条已补齐记录做受控验证。 |
 
 ## 验证
 
@@ -60,6 +62,7 @@ related:
 | --- | --- | --- | --- |
 | Server 定向单测 | 通过 | `pnpm --dir server exec vitest run ...`：10 files / 37 tests | 覆盖 adapter、store、ownership、ensure、Kimi Session、内部 controller、auth 和 route catalog。 |
 | v2/v3 批量补齐脚本单测 | 通过 | `pnpm --dir server exec vitest run src/scripts/backfill-finished-lark-ticket-threads.test.ts src/application/services/lark-ticket-thread-context.service.test.ts`：2 files / 11 tests | 覆盖参数保护、候选筛选、`--limit`、限并发与复用的 thread ensure 决策；未调用 Lark。 |
+| v5 根消息补齐定向测试 | 通过 | `pnpm --dir server exec vitest run src/scripts/backfill-finished-lark-ticket-threads.test.ts src/application/services/lark-ticket-thread-context.service.test.ts`：2 files / 13 tests | 覆盖 root ID 与 thread ID 分离、旧快照缺 root 重试和 pnpm 参数分隔符；未调用 Lark。 |
 | Server build | 通过 | `pnpm --dir server build` | TypeScript 编译通过。 |
 | PostgreSQL schema migration | 通过 | `pnpm --dir server db:migrate`：`[db] ensured postgres schema` | 已对当前配置的数据库执行幂等建表/加列。 |
 | Server 全量单测 | 非本功能失败 | 116 files / 533 tests 通过；`node:sqlite` 6 suites 无法加载，既有 logger 文件落盘测试失败 | Node v22.12.0 运行时未提供 `node:sqlite`；logger 失败可独立复现。 |

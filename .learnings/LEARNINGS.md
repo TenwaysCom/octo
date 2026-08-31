@@ -452,3 +452,9 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - **Context:** Meegle `system` 已存在于 Server DTO、Sprint membership 投影和 FE parser，但普通紧凑行会在窄屏隐藏，Sprint 详情的独立视图配置也未声明该字段。
 - **Rule:** 已投影语义字段要跨多个 FE 工作项视图可见时，需要逐一核对列注册、取值函数、单元格、筛选/排序/分组和响应式隐藏规则；API 已有字段不代表每个页面已经展示。
 - **Verified outcome:** 普通列表在窄屏保留 System，Sprint 详情提供 System 列、筛选、排序和两级分组；26/26 个 FE 测试文件及 production build 通过。
+
+## [LRN-20260831-006] lark-thread-root-id-boundary
+
+- **Context:** A Lark Ticket link provides a `threadid`, while the single-message endpoint requires a message ID. Treating them as interchangeable caused HTTP 400 and marked reply-only snapshots complete.
+- **Rule:** Fetch a thread with `thread_id`, derive the root message ID from a reply's `root_id`, then fetch the root message by that ID. A historical snapshot containing replies but no stored corresponding root must be selected for a forced full repair before it can be treated as complete.
+- **Verified outcome:** Thread-context and backfill tests cover root-ID lookup, reject `thread_id` as the message request ID, and reselect reply-only snapshots; Server TypeScript build passes.

@@ -30,6 +30,7 @@ type FinishedTicketThreadRow = {
   lark_message_link: string | null;
   snapshot_thread_id: string | null;
   history_complete: boolean | null;
+  messages_json: string | null;
 };
 
 export interface FinishedTicketThreadBackfillCandidates {
@@ -74,7 +75,23 @@ function validateHttpsUrl(value: string): string {
   }
 }
 
+function hasStoredRootMessage(messagesJson: string | null): boolean {
+  if (!messagesJson) return false;
+  try {
+    const parsed = JSON.parse(messagesJson) as { messages?: Array<{ messageId?: unknown; rootId?: unknown }> };
+    const messages = parsed.messages;
+    if (!Array.isArray(messages)) return false;
+    const rootIds = messages
+      .map((message) => typeof message.rootId === "string" ? message.rootId.trim() : "")
+      .filter(Boolean);
+    return rootIds.length === 0 || rootIds.every((rootId) => messages.some((message) => message.messageId === rootId));
+  } catch {
+    return false;
+  }
+}
+
 export function parseArgs(argv: string[]): BackfillFinishedLarkTicketThreadsArgs {
+  const argumentsToParse = argv[0] === "--" ? argv.slice(1) : argv;
   let apply = false;
   let baseId: string | undefined;
   let tableId: string | undefined;
@@ -83,27 +100,27 @@ export function parseArgs(argv: string[]): BackfillFinishedLarkTicketThreadsArgs
   let concurrency = DEFAULT_CONCURRENCY;
   let limit: number | undefined;
 
-  for (let index = 0; index < argv.length; index += 1) {
-    const argument = argv[index];
+  for (let index = 0; index < argumentsToParse.length; index += 1) {
+    const argument = argumentsToParse[index];
     if (argument === "--apply") {
       apply = true;
     } else if (argument === "--base-id") {
-      baseId = requireValue(argv, index, argument);
+      baseId = requireValue(argumentsToParse, index, argument);
       index += 1;
     } else if (argument === "--table-id") {
-      tableId = requireValue(argv, index, argument);
+      tableId = requireValue(argumentsToParse, index, argument);
       index += 1;
     } else if (argument === "--master-user-id") {
-      masterUserId = requireValue(argv, index, argument);
+      masterUserId = requireValue(argumentsToParse, index, argument);
       index += 1;
     } else if (argument === "--lark-base-url") {
-      larkBaseUrl = validateHttpsUrl(requireValue(argv, index, argument));
+      larkBaseUrl = validateHttpsUrl(requireValue(argumentsToParse, index, argument));
       index += 1;
     } else if (argument === "--concurrency") {
-      concurrency = parseConcurrency(requireValue(argv, index, argument));
+      concurrency = parseConcurrency(requireValue(argumentsToParse, index, argument));
       index += 1;
     } else if (argument === "--limit") {
-      limit = parseLimit(requireValue(argv, index, argument));
+      limit = parseLimit(requireValue(argumentsToParse, index, argument));
       index += 1;
     } else {
       throw new Error(`Unknown argument: ${argument}.\n${usage()}`);
@@ -136,7 +153,9 @@ export function findFinishedTicketThreadBackfillCandidates(
       result.missingThreadLink += 1;
       continue;
     }
-    if (row.history_complete === true && row.snapshot_thread_id === threadId) {
+    if (row.history_complete === true
+      && row.snapshot_thread_id === threadId
+      && hasStoredRootMessage(row.messages_json)) {
       result.alreadyComplete += 1;
       continue;
     }
@@ -184,6 +203,7 @@ async function main(): Promise<void> {
         "ticket.lark_message_link",
         "thread.thread_id as snapshot_thread_id",
         "thread.history_complete",
+        "thread.messages_json",
       ])
       .where("ticket.base_id", "=", args.baseId)
       .where("ticket.table_id", "=", args.tableId)
@@ -222,6 +242,7 @@ async function main(): Promise<void> {
           masterUserId: args.masterUserId!,
           larkBaseUrl: args.larkBaseUrl!,
           ticket,
+          forceFull: true,
         });
         return { recordId: candidate.recordId, outcome: "succeeded" as const, source: ensured.source };
       } catch (error) {

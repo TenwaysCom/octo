@@ -37,26 +37,27 @@ describe("backfill finished Lark ticket threads", () => {
       {
         base_id: "base", table_id: "table", record_id: "rec-sync", ticket_status: "Finish",
         lark_message_link: "https://example.larksuite.com/client/thread/open?threadid=thread-sync",
-        snapshot_thread_id: null, history_complete: null,
+        snapshot_thread_id: null, history_complete: null, messages_json: null,
       },
       {
         base_id: "base", table_id: "table", record_id: "rec-complete", ticket_status: "finish",
         lark_message_link: "https://example.larksuite.com/client/thread/open?threadid=thread-complete",
         snapshot_thread_id: "thread-complete", history_complete: true,
+        messages_json: JSON.stringify({ messages: [{ messageId: "root-complete" }, { messageId: "reply-complete", rootId: "root-complete" }] }),
       },
       {
         base_id: "base", table_id: "table", record_id: "rec-link-changed", ticket_status: "finish",
         lark_message_link: "https://example.larksuite.com/client/thread/open?threadid=thread-new",
-        snapshot_thread_id: "thread-old", history_complete: true,
+        snapshot_thread_id: "thread-old", history_complete: true, messages_json: null,
       },
       {
         base_id: "base", table_id: "table", record_id: "rec-no-link", ticket_status: "finish",
-        lark_message_link: null, snapshot_thread_id: null, history_complete: null,
+        lark_message_link: null, snapshot_thread_id: null, history_complete: null, messages_json: null,
       },
       {
         base_id: "base", table_id: "table", record_id: "rec-active", ticket_status: "In Progress",
         lark_message_link: "https://example.larksuite.com/client/thread/open?threadid=thread-active",
-        snapshot_thread_id: null, history_complete: null,
+        snapshot_thread_id: null, history_complete: null, messages_json: null,
       },
     ]);
     expect(result).toEqual({
@@ -67,6 +68,24 @@ describe("backfill finished Lark ticket threads", () => {
       alreadyComplete: 1,
       missingThreadLink: 1,
       ignoredNonFinished: 1,
+    });
+  });
+
+  it("retries an old complete snapshot that contains replies but no root message", () => {
+    const result = findFinishedTicketThreadBackfillCandidates([{
+      base_id: "base", table_id: "table", record_id: "rec-missing-root", ticket_status: "Finish",
+      lark_message_link: "https://example.larksuite.com/client/thread/open?threadid=thread-1",
+      snapshot_thread_id: "thread-1", history_complete: true,
+      messages_json: JSON.stringify({ messages: [{ messageId: "reply-1", rootId: "root-1" }] }),
+    }]);
+    expect(result.candidates).toEqual([{ baseId: "base", tableId: "table", recordId: "rec-missing-root" }]);
+  });
+
+  it("accepts pnpm's leading argument separator", () => {
+    expect(parseArgs(["--", "--base-id", "base", "--table-id", "table", "--limit", "10"])).toMatchObject({
+      baseId: "base",
+      tableId: "table",
+      limit: 10,
     });
   });
 

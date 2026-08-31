@@ -154,6 +154,8 @@ describe("Lark Ticket thread context ensure", () => {
     expect(second).toMatchObject({ decision: "cache", source: "cache" });
     expect(buildClient).toHaveBeenCalledTimes(1);
     expect(client.getThreadMessages).toHaveBeenCalledTimes(1);
+    expect(client.getMessage).toHaveBeenCalledWith("root_1");
+    expect(client.getMessage).not.toHaveBeenCalledWith("thread_1");
   });
 
   it("uses the watermark overlap for an expired active snapshot and merges incrementally", async () => {

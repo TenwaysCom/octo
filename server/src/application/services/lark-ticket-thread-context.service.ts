@@ -183,6 +183,10 @@ function toIncrementalStartTime(watermark: string | undefined, overlapSeconds: n
   return String(Math.max(0, Math.floor(parsed / 1000) - overlapSeconds));
 }
 
+function findRootMessageId(messages: LarkApiThreadMessage[]): string | undefined {
+  return messages.find((message) => typeof message.root_id === "string" && message.root_id.trim())?.root_id?.trim();
+}
+
 async function listAllThreadMessages(
   client: LarkThreadClient,
   threadId: string,
@@ -236,6 +240,7 @@ export function createLarkTicketThreadContextService(
     masterUserId: string;
     larkBaseUrl: string;
     ticket: LarkBaseTicketSyncItem;
+    forceFull?: boolean;
   }): Promise<LarkTicketThreadContextResult> {
     const ref = {
       baseId: input.ticket.baseId,
@@ -246,14 +251,16 @@ export function createLarkTicketThreadContextService(
     if (!threadId) return { decision: "none", source: "none" };
     const current = await store.get(ref);
     const checkedAt = now();
-    const decision = decideLarkTicketThreadSync({
-      threadId,
-      ticketStatus: input.ticket.ticketStatus,
-      snapshot: current,
-      now: checkedAt,
-      maxAgeMs,
-      fullReconcileAgeMs,
-    });
+    const decision = input.forceFull
+      ? "full"
+      : decideLarkTicketThreadSync({
+        threadId,
+        ticketStatus: input.ticket.ticketStatus,
+        snapshot: current,
+        now: checkedAt,
+        maxAgeMs,
+        fullReconcileAgeMs,
+      });
     if (decision === "cache") {
       if (isTerminalLarkTicketStatus(input.ticket.ticketStatus) && current && !current.frozenAt) {
         const frozen = await store.markFrozen(ref, input.ticket.ticketStatus!, checkedAt.toISOString());
@@ -268,17 +275,12 @@ export function createLarkTicketThreadContextService(
       const startTime = isFull
         ? undefined
         : toIncrementalStartTime(current?.watermarkCreatedAt, overlapSeconds);
-      const repliesPromise = listAllThreadMessages(client, threadId, startTime);
-      const rootPromise = isFull
-        ? client.getMessage(threadId).catch((error) => {
-          threadLogger.warn({
-            threadId,
-            error: error instanceof Error ? error.message : String(error),
-          }, "LARK_TICKET_THREAD_ROOT_FETCH_FAILED");
-          return undefined;
-        })
-        : Promise.resolve(undefined);
-      const [replies, root] = await Promise.all([repliesPromise, rootPromise]);
+      const replies = await listAllThreadMessages(client, threadId, startTime);
+      const rootMessageId = isFull ? findRootMessageId(replies) : undefined;
+      if (isFull && !rootMessageId && replies.length > 0) {
+        throw new Error("Lark thread replies did not include a root message ID.");
+      }
+      const root = rootMessageId ? await client.getMessage(rootMessageId) : undefined;
       const normalized = [...(root ? [root] : []), ...replies]
         .map(normalizeMessage)
         .filter((message): message is LarkTicketThreadMessage => Boolean(message));
@@ -329,6 +331,7 @@ export function createLarkTicketThreadContextService(
       masterUserId: string;
       larkBaseUrl: string;
       ticket: LarkBaseTicketSyncItem;
+      forceFull?: boolean;
     }): Promise<LarkTicketThreadContextResult> {
       const threadId = parseLarkThreadId(input.ticket.larkMessageLink);
       const key = [
