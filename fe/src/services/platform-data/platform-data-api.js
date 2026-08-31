@@ -32,6 +32,7 @@ const MEEGLE_OPTIONAL_STRING_FIELDS = [
   "priority",
   "sourceUpdatedAt",
   "addToCycleTime",
+  "currentNodeStartTime",
   "itemStartTime",
   "itemFinishTime",
 ];

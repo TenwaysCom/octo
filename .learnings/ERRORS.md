@@ -546,6 +546,7 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Symptom:** `pnpm --dir fe typecheck` returned `Command "fe" not found`, so the intended package-script check did not run.
 - **Root cause:** This workspace's pnpm invocation did not interpret `--dir` as a package-directory option for that script call; the FE package also has no `typecheck` script.
 - **Verified fix:** Run the declared scripts from the package directory (`cd fe && pnpm test && pnpm build`), and use `pnpm --dir fe exec node --test <path>` only for the focused Node test form.
+- **Recurrence (2026-08-31):** `pnpm --dir fe test -- <files>` again forwarded the filenames into the package script incorrectly; switching immediately to the documented `pnpm --dir fe exec node --test <paths>` form passed all five targeted files.
 
 ### ERR-20260831-001 — Sandbox blocked the PostgreSQL diagnostic connection
 
@@ -576,3 +577,4 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Symptom:** The first System display patch failed verification before changing files.
 - **Root cause:** Its expected Sprint cell context accidentally repeated the `assignee` branch, while the source contains it once.
 - **Verified fix:** Inspect the exact JSX block and apply smaller configuration/test and page patches; FE check then passed.
+- **Recurrence (2026-08-31):** A broad current-working-time patch spanning two large JSX pages again failed context verification without changing files; splitting imports, cells, cards, and call sites into small ordered patches applied cleanly.

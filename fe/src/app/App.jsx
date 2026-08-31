@@ -8,6 +8,7 @@ import {
 import { usePluginLogin } from "../hooks/usePluginLogin.js";
 import { useKeyboardShortcut } from "../hooks/useKeyboardShortcut.js";
 import { countMyOpenGitHubPullRequests } from "../lib/github-pull-request-filters.js";
+import { rememberSprintWorkitemPageState } from "../lib/meegle-sprint-workitem-view.js";
 import { UnauthenticatedPage, SessionLoadingPage } from "../pages/LoginPage.jsx";
 import { KeyboardShortcutsPage } from "../pages/KeyboardShortcutsPage.jsx";
 import { LarkTicketDetailPage } from "../pages/LarkTicketDetailPage.jsx";
@@ -40,6 +41,7 @@ export function App({ apiBaseUrl }) {
   const [workspaceRoute, setWorkspaceRoute] = useState(() => getWorkspaceRoute(window.location.hash));
   const [breadcrumbs, setBreadcrumbs] = useState(() => appendWorkspaceBreadcrumb([], getWorkspaceRoute(window.location.hash)));
   const [platformListFilterStates, setPlatformListFilterStates] = useState({});
+  const [meegleSprintDetailStates, setMeegleSprintDetailStates] = useState({});
   const [githubMyOpenCount, setGithubMyOpenCount] = useState();
 
   useEffect(() => {
@@ -128,6 +130,10 @@ export function App({ apiBaseUrl }) {
     setPlatformListFilterStates((current) => ({ ...current, [page]: filterState }));
   }, []);
 
+  const saveMeegleSprintDetailState = useCallback((sprintName, detailState) => {
+    setMeegleSprintDetailStates((current) => rememberSprintWorkitemPageState(current, sprintName, detailState));
+  }, []);
+
   useKeyboardShortcut({
     key: "?",
     enabled: Boolean(profile),
@@ -166,6 +172,8 @@ export function App({ apiBaseUrl }) {
         breadcrumbs={breadcrumbs}
         platformListFilterState={platformListFilterStates[activeWorkspaceRoute.page]}
         onPlatformListFilterStateChange={savePlatformListFilterState}
+        meegleSprintDetailState={meegleSprintDetailStates[activeWorkspaceRoute.sprintName]}
+        onMeegleSprintDetailStateChange={saveMeegleSprintDetailState}
         apiBaseUrl={apiBaseUrl}
         onLogout={() => void logout()}
         onReauthorize={() => startLarkLogin({ apiBaseUrl })}

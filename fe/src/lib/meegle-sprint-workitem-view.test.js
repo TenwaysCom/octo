@@ -4,9 +4,11 @@ import {
   DEFAULT_SPRINT_WORKITEM_VISIBLE_COLUMNS,
   groupSprintWorkitems,
   normalizeSprintWorkitemGroupBy,
+  normalizeSprintWorkitemPageState,
   normalizeSprintWorkitemSort,
   normalizeSprintWorkitemSubGroupBy,
   normalizeSprintWorkitemVisibleColumns,
+  rememberSprintWorkitemPageState,
   sortSprintWorkitems,
 } from "./meegle-sprint-workitem-view.js";
 
@@ -15,6 +17,7 @@ test("normalizes Sprint workitem view settings without hiding the workitem colum
   assert.equal(DEFAULT_SPRINT_WORKITEM_VISIBLE_COLUMNS.includes("version"), true);
   assert.equal(DEFAULT_SPRINT_WORKITEM_VISIBLE_COLUMNS.includes("system"), true);
   assert.equal(DEFAULT_SPRINT_WORKITEM_VISIBLE_COLUMNS.includes("pullRequests"), true);
+  assert.equal(DEFAULT_SPRINT_WORKITEM_VISIBLE_COLUMNS.includes("currentWorkingTime"), true);
   assert.deepEqual(normalizeSprintWorkitemVisibleColumns(["pullRequests"]), ["workitem", "pullRequests"]);
   assert.deepEqual(normalizeSprintWorkitemVisibleColumns(["status", "unknown", "status"]), ["workitem", "status"]);
   assert.deepEqual(normalizeSprintWorkitemSort({ key: "version", direction: "asc" }), { key: "version", direction: "asc" });
@@ -28,6 +31,44 @@ test("normalizes Sprint workitem view settings without hiding the workitem colum
   assert.equal(normalizeSprintWorkitemSubGroupBy("project", "status"), "project");
   assert.equal(normalizeSprintWorkitemSubGroupBy("status", "status"), "none");
   assert.equal(normalizeSprintWorkitemSubGroupBy("project", "none"), "none");
+});
+
+test("normalizes the remembered Sprint detail filters and view configuration", () => {
+  assert.deepEqual(normalizeSprintWorkitemPageState({
+    selectedWorkitemFilters: {
+      status: ["Doing", "Doing", ""],
+      system: ["Odoo/Odoo UK"],
+      unknown: ["ignored"],
+      priority: "P1",
+    },
+    groupBy: "system",
+    subGroupBy: "status",
+    sort: { key: "priority", direction: "asc" },
+    visibleColumns: ["status", "system", "unknown"],
+  }), {
+    selectedWorkitemFilters: { status: ["Doing"], system: ["Odoo/Odoo UK"] },
+    groupBy: "system",
+    subGroupBy: "status",
+    sort: { key: "priority", direction: "asc" },
+    visibleColumns: ["workitem", "status", "system"],
+  });
+  assert.equal(normalizeSprintWorkitemPageState({ groupBy: "none", subGroupBy: "status" }).subGroupBy, "none");
+});
+
+test("remembers Sprint detail state independently for each Sprint ref", () => {
+  const sprintA = rememberSprintWorkitemPageState({}, "sprint-a", {
+    selectedWorkitemFilters: { status: ["Doing"] },
+    groupBy: "status",
+  });
+  const both = rememberSprintWorkitemPageState(sprintA, "sprint-b", {
+    selectedWorkitemFilters: { system: ["Odoo/Odoo UK"] },
+    groupBy: "system",
+  });
+
+  assert.deepEqual(both["sprint-a"].selectedWorkitemFilters, { status: ["Doing"] });
+  assert.deepEqual(both["sprint-b"].selectedWorkitemFilters, { system: ["Odoo/Odoo UK"] });
+  assert.equal(both["sprint-a"].groupBy, "status");
+  assert.equal(both["sprint-b"].groupBy, "system");
 });
 
 test("groups Sprint workitems by Version as a primary or secondary field", () => {

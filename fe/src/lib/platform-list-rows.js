@@ -1,5 +1,6 @@
 import { getLarkTicketDetailHash } from "../app/routes/workspace-routes.js";
 import { formatDateTime } from "./formatters.js";
+import { formatMeegleCurrentWorkingTime } from "./meegle-current-working-time.js";
 
 // Row models for the compact single-line list rendering on platform list pages.
 // Builders are pure: they respect the page's visible-column config and reuse the
@@ -69,7 +70,7 @@ export function buildLarkTicketRow(item, visibleColumns = []) {
   };
 }
 
-export function buildMeegleWorkitemRow(item, visibleColumns = []) {
+export function buildMeegleWorkitemRow(item, visibleColumns = [], nowTime = Date.now()) {
   const visible = new Set(visibleColumns);
   const leading = [];
   if (visible.has("workitemType")) leading.push({ key: "workitemType", type: "workitem-type", category: getMeegleWorkitemCategory(item), label: item.workItemType || item.workItemTypeKey || "-" });
@@ -86,6 +87,15 @@ export function buildMeegleWorkitemRow(item, visibleColumns = []) {
   ];
   for (const [columnKey, value, hideOnSmall] of textColumns) {
     if (visible.has(columnKey) && value) trailing.push({ key: columnKey, type: "text", text: value, hideOnSmall });
+  }
+  const currentWorkingTime = formatMeegleCurrentWorkingTime(item, nowTime);
+  if (visible.has("currentWorkingTime") && currentWorkingTime) {
+    trailing.push({
+      key: "currentWorkingTime",
+      type: "text",
+      text: `工作 ${currentWorkingTime}`,
+      title: `当前节点开始：${formatDateTime(item.currentNodeStartTime)}`,
+    });
   }
   if (visible.has("updatedAt")) trailing.push(dateMeta(item));
   return {

@@ -63,12 +63,13 @@ test("buildMeegleWorkitemRow links externally and carries collapsible PR data", 
     sprint: "Sprint 12",
     system: "Odoo/Odoo UK",
     assignee: "王五",
+    currentNodeStartTime: "2026-08-02T08:30:00.000Z",
     githubPullRequests: [
       { owner: "tenways", repo: "octo", pullNumber: 1, htmlUrl: "https://github.com/tenways/octo/pull/1", state: "open" },
     ],
     sourceUpdatedAt: "2026-08-02T10:00:00.000Z",
   };
-  const row = buildMeegleWorkitemRow(item, ["workitem", "workitemType", "status", "pullRequests", "sprint", "system", "assignee", "updatedAt"]);
+  const row = buildMeegleWorkitemRow(item, ["workitem", "workitemType", "status", "pullRequests", "sprint", "system", "assignee", "currentWorkingTime", "updatedAt"], Date.parse("2026-08-02T10:00:00.000Z"));
   assert.equal(row.kind, "meegle-workitems");
   assert.equal(row.identifier, "OCTO-666");
   assert.equal(row.external, true);
@@ -78,8 +79,9 @@ test("buildMeegleWorkitemRow links externally and carries collapsible PR data", 
   const prMeta = row.trailing.find((meta) => meta.key === "pullRequests");
   assert.equal(prMeta.type, "pr-links");
   assert.equal(prMeta.pullRequests.length, 1);
-  assert.deepEqual(row.trailing.map((meta) => meta.key), ["pullRequests", "sprint", "system", "assignee", "updatedAt"]);
+  assert.deepEqual(row.trailing.map((meta) => meta.key), ["pullRequests", "sprint", "system", "assignee", "currentWorkingTime", "updatedAt"]);
   assert.equal(row.trailing.find((meta) => meta.key === "system").hideOnSmall, false);
+  assert.equal(row.trailing.find((meta) => meta.key === "currentWorkingTime").text, "工作 1小时 30分钟");
 });
 
 test("buildMeegleWorkitemRow omits empty optional trailing metadata", () => {

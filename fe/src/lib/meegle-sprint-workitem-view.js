@@ -8,6 +8,7 @@ export const SPRINT_WORKITEM_VIEW_COLUMNS = [
   { key: "pullRequests", label: "Related PR" },
   { key: "priority", label: "优先级", sortKey: "priority" },
   { key: "assignee", label: "负责人", sortKey: "assignee" },
+  { key: "currentWorkingTime", label: "当前工作时长" },
   { key: "updatedAt", label: "更新时间", sortKey: "updatedAt" },
 ];
 
@@ -27,6 +28,7 @@ export const DEFAULT_SPRINT_WORKITEM_VISIBLE_COLUMNS = SPRINT_WORKITEM_VIEW_COLU
 const COLUMN_KEYS = new Set(DEFAULT_SPRINT_WORKITEM_VISIBLE_COLUMNS);
 const GROUP_KEYS = new Set(SPRINT_WORKITEM_GROUP_OPTIONS.map(([key]) => key));
 const SORT_KEYS = new Set(SPRINT_WORKITEM_VIEW_COLUMNS.flatMap(({ sortKey }) => sortKey ? [sortKey] : []));
+const FILTER_KEYS = new Set(["workitemType", "status", "project", "system", "priority", "assignee"]);
 
 export function normalizeSprintWorkitemVisibleColumns(value) {
   if (!Array.isArray(value)) return [...DEFAULT_SPRINT_WORKITEM_VISIBLE_COLUMNS];
@@ -46,6 +48,28 @@ export function normalizeSprintWorkitemGroupBy(value) {
 export function normalizeSprintWorkitemSubGroupBy(value, groupBy) {
   if (groupBy === "none" || value === groupBy || !GROUP_KEYS.has(value)) return "none";
   return value;
+}
+
+export function normalizeSprintWorkitemPageState(value) {
+  const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const groupBy = normalizeSprintWorkitemGroupBy(source.groupBy);
+  const selectedWorkitemFilters = Object.fromEntries(Object.entries(source.selectedWorkitemFilters || {})
+    .filter(([key, values]) => FILTER_KEYS.has(key) && Array.isArray(values))
+    .map(([key, values]) => [key, [...new Set(values.filter((item) => typeof item === "string" && item))]])
+    .filter(([, values]) => values.length));
+  return {
+    selectedWorkitemFilters,
+    groupBy,
+    subGroupBy: normalizeSprintWorkitemSubGroupBy(source.subGroupBy, groupBy),
+    sort: normalizeSprintWorkitemSort(source.sort),
+    visibleColumns: normalizeSprintWorkitemVisibleColumns(source.visibleColumns),
+  };
+}
+
+export function rememberSprintWorkitemPageState(currentStates, sprintRef, pageState) {
+  if (typeof sprintRef !== "string" || !sprintRef) return currentStates;
+  const current = currentStates && typeof currentStates === "object" && !Array.isArray(currentStates) ? currentStates : {};
+  return { ...current, [sprintRef]: normalizeSprintWorkitemPageState(pageState) };
 }
 
 export function getSprintWorkitemViewValue(item, key) {

@@ -4,7 +4,9 @@ import { OdooShBuildStatus } from "../components/platform/OdooShBuildStatus.jsx"
 import { LarkTicketBadge } from "../components/lark-ticket/LarkTicketBadge.jsx";
 import { LarkTicketResponsible } from "../components/lark-ticket/LarkTicketResponsible.jsx";
 import { useKeyboardShortcut } from "../hooks/useKeyboardShortcut.js";
+import { useMinuteNow } from "../hooks/useMinuteNow.js";
 import { formatDateTime } from "../lib/formatters.js";
+import { formatMeegleCurrentWorkingTime } from "../lib/meegle-current-working-time.js";
 import { countMyOpenGitHubPullRequests, matchesGitHubPullRequestQuickFilter } from "../lib/github-pull-request-filters.js";
 import {
   DEFAULT_GITHUB_PULL_REQUEST_SORT,
@@ -329,7 +331,7 @@ function WorkitemRowMeta({ meta, apiBaseUrl }) {
   } else {
     content = <span className="workitem-row__meta-text">{meta.text}</span>;
   }
-  return <span className={className} title={meta.type === "meegle-status" && meta.subStage ? meta.subStage : undefined}>{content}</span>;
+  return <span className={className} title={meta.title || (meta.type === "meegle-status" && meta.subStage ? meta.subStage : undefined)}>{content}</span>;
 }
 
 function WorkitemRow({ row, item, apiBaseUrl, onPreviewCandidateChange }) {
@@ -370,18 +372,18 @@ function getWorkitemRowKey(kind, item, index) {
   return `${item.owner}-${item.repo}-${item.pullNumber}`;
 }
 
-function SyncedRowList({ kind, items, visibleColumns, apiBaseUrl, onGitHubPreviewCandidateChange }) {
+function SyncedRowList({ kind, items, visibleColumns, apiBaseUrl, nowTime, onGitHubPreviewCandidateChange }) {
   const buildRow = WORKITEM_ROW_BUILDERS[kind] || buildGitHubPullRequestRow;
   return <div className="workitem-rows" role="list">{items.map((item, index) => <WorkitemRow
     apiBaseUrl={apiBaseUrl}
     item={item}
     key={getWorkitemRowKey(kind, item, index)}
     onPreviewCandidateChange={kind === "github-pull-requests" ? onGitHubPreviewCandidateChange : undefined}
-    row={buildRow(item, visibleColumns)}
+    row={buildRow(item, visibleColumns, nowTime)}
   />)}</div>;
 }
 
-function MeegleWorkitemCell({ columnKey, item, apiBaseUrl }) {
+function MeegleWorkitemCell({ columnKey, item, apiBaseUrl, nowTime }) {
   if (columnKey === "workitem") {
     return <><ExternalLink href={getMeegleWorkitemDetailUrl(item)}>{item.workItemKey || item.workItemId}</ExternalLink><small>{item.title}</small></>;
   }
@@ -405,6 +407,10 @@ function MeegleWorkitemCell({ columnKey, item, apiBaseUrl }) {
   }
   if (columnKey === "assignee") {
     return item.assignee || "-";
+  }
+  if (columnKey === "currentWorkingTime") {
+    const value = formatMeegleCurrentWorkingTime(item, nowTime);
+    return value ? <span title={`当前节点开始：${formatDateTime(item.currentNodeStartTime)}`}>{value}</span> : "-";
   }
   return formatDateTime(item.sourceUpdatedAt || item.syncedAt);
 }
@@ -674,7 +680,7 @@ function LarkTicketCard({ item, visibleColumns }) {
   </article>;
 }
 
-function MeegleWorkitemCard({ item, visibleColumns, apiBaseUrl }) {
+function MeegleWorkitemCard({ item, visibleColumns, apiBaseUrl, nowTime }) {
   const columns = MEEGLE_VIEW_COLUMNS.filter(({ key }) => key !== "workitem" && visibleColumns.includes(key));
   const layout = getKanbanCardLayout("meegle-workitems", visibleColumns, item);
   const floatingColumns = columns.filter(({ key }) => layout.floatingKeys.includes(key));
@@ -683,8 +689,8 @@ function MeegleWorkitemCard({ item, visibleColumns, apiBaseUrl }) {
       <ExternalLink className="table-link kanban-card__title" href={getMeegleWorkitemDetailUrl(item)}>{item.workItemKey || item.workItemId || item.title}</ExternalLink>
       <KanbanCardPeople item={item} kind="meegle-workitems" />
     </div>
-    <KanbanCardSecondLine identifier={item.workItemKey || item.workItemId || item.title} statusColumn={columns.find(({ key }) => key === layout.statusKey)} time={layout.updatedAtKey ? getKanbanCardTime("meegle-workitems", item) : null} renderCell={(column) => <MeegleWorkitemCell apiBaseUrl={apiBaseUrl} columnKey={column.key} item={item} />} />
-    <KanbanCardFloatingMeta columns={floatingColumns} detailsId={`kanban-card-details-meegle-${item.projectKey}-${item.workItemId}`} renderCell={(column) => <MeegleWorkitemCell apiBaseUrl={apiBaseUrl} columnKey={column.key} item={item} />} />
+    <KanbanCardSecondLine identifier={item.workItemKey || item.workItemId || item.title} statusColumn={columns.find(({ key }) => key === layout.statusKey)} time={layout.updatedAtKey ? getKanbanCardTime("meegle-workitems", item) : null} renderCell={(column) => <MeegleWorkitemCell apiBaseUrl={apiBaseUrl} columnKey={column.key} item={item} nowTime={nowTime} />} />
+    <KanbanCardFloatingMeta columns={floatingColumns} detailsId={`kanban-card-details-meegle-${item.projectKey}-${item.workItemId}`} renderCell={(column) => <MeegleWorkitemCell apiBaseUrl={apiBaseUrl} columnKey={column.key} item={item} nowTime={nowTime} />} />
   </article>;
 }
 
@@ -898,6 +904,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
   const meegleGroupDefaultsRef = useRef(Array.isArray(restoredFilters.collapsedMeegleGroups) ? "restored" : null);
   const meegleSubgroupDefaultsRef = useRef(Array.isArray(restoredFilters.collapsedMeegleSubgroups) ? "restored" : null);
   const githubSubgroupDefaultsRef = useRef(Array.isArray(restoredFilters.collapsedGitHubSubgroups) ? "restored" : null);
+  const workingTimeNow = useMinuteNow(page === "meegle-workitems" && meegleVisibleColumns.includes("currentWorkingTime"));
   const statusFilters = [...new Set(state.filterItems.map((item) => getPlatformItemStatus(page, item)))].sort((left, right) => left.localeCompare(right));
   const itemsBeforeTypeFilter = state.items;
   const workitemTypeCounts = Object.fromEntries(MEEGLE_WORKITEM_TYPE_FILTERS.map(([value]) => [value, value === "all" ? state.items.length : state.items.filter((item) => getMeegleWorkitemCategory(item) === value).length]));
@@ -1554,7 +1561,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
               onToggleSubgroup={(subgroupKey) => setCollapsedMeegleSubgroups((current) => current.includes(subgroupKey)
                 ? current.filter((key) => key !== subgroupKey)
                 : [...current, subgroupKey])}
-              renderCard={(item) => <MeegleWorkitemCard apiBaseUrl={apiBaseUrl} item={item} visibleColumns={meegleVisibleColumns} key={`${item.projectKey}-${item.workItemTypeKey}-${item.workItemId}`} />}
+              renderCard={(item) => <MeegleWorkitemCard apiBaseUrl={apiBaseUrl} item={item} nowTime={workingTimeNow} visibleColumns={meegleVisibleColumns} key={`${item.projectKey}-${item.workItemTypeKey}-${item.workItemId}`} />}
             />
             <footer className="list-pagination">
               <p className="list-results">已加载 <strong>{sortedItems.length}</strong> / {totalItems} 条结果 · {meegleGroups.length} 个分组</p>
@@ -1598,7 +1605,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
               onToggleSubgroup={(subgroupKey) => setCollapsedMeegleSubgroups((current) => current.includes(subgroupKey)
                 ? current.filter((key) => key !== subgroupKey)
                 : [...current, subgroupKey])}
-              renderRows={(items) => <SyncedRowList apiBaseUrl={apiBaseUrl} kind="meegle-workitems" items={items} visibleColumns={meegleVisibleColumns} />}
+              renderRows={(items) => <SyncedRowList apiBaseUrl={apiBaseUrl} kind="meegle-workitems" items={items} nowTime={workingTimeNow} visibleColumns={meegleVisibleColumns} />}
             />
             <footer className="list-pagination">
               <p className="list-results">已加载 <strong>{sortedItems.length}</strong> / {totalItems} 条结果 · {meegleGroups.length} 个分组</p>
@@ -1620,7 +1627,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
               <p className="list-results">已加载 <strong>{sortedItems.length}</strong> / {totalItems} 条结果 · {githubGroups.length} 个分组</p>
             </footer>
           </> : <>
-            <SyncedRowList apiBaseUrl={apiBaseUrl} kind={page} items={pageItems} onGitHubPreviewCandidateChange={setGitHubPreviewCandidate} visibleColumns={page === "lark-tickets" ? larkVisibleColumns : page === "meegle-workitems" ? meegleVisibleColumns : githubVisibleColumns} />
+            <SyncedRowList apiBaseUrl={apiBaseUrl} kind={page} items={pageItems} nowTime={workingTimeNow} onGitHubPreviewCandidateChange={setGitHubPreviewCandidate} visibleColumns={page === "lark-tickets" ? larkVisibleColumns : page === "meegle-workitems" ? meegleVisibleColumns : githubVisibleColumns} />
             <footer className="list-pagination">
               <p className="list-results">显示 <strong>{firstResult}–{lastResult}</strong> / 已加载 {sortedItems.length}（共 {totalItems}）条结果</p>
               <div className="list-pagination__controls">

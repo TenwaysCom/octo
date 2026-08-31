@@ -452,3 +452,15 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - **Context:** Meegle `system` 已存在于 Server DTO、Sprint membership 投影和 FE parser，但普通紧凑行会在窄屏隐藏，Sprint 详情的独立视图配置也未声明该字段。
 - **Rule:** 已投影语义字段要跨多个 FE 工作项视图可见时，需要逐一核对列注册、取值函数、单元格、筛选/排序/分组和响应式隐藏规则；API 已有字段不代表每个页面已经展示。
 - **Verified outcome:** 普通列表在窄屏保留 System，Sprint 详情提供 System 列、筛选、排序和两级分组；26/26 个 FE 测试文件及 production build 通过。
+
+## [LRN-20260831-005] route-scoped-session-view-state
+
+- **Context:** Sprint 详情组件以 route hash 为 key 挂载，离开页面就会丢失本地过滤和视图 state；不同 Sprint 的可选值又不能安全共用同一份过滤条件。
+- **Rule:** 会话内详情页偏好应由不会随详情路由卸载的 App 层持有，以稳定 route ref 分区；详情页卸载时回传，只恢复白名单过滤字段和归一化后的分组、排序、显示列。菜单开关等瞬时 UI state 不应混入配置。
+- **Verified outcome:** Sprint A/B 各自保留过滤和视图配置，未知字段与非法值被丢弃；26/26 个 FE 测试文件和 production build 通过。
+
+## [LRN-20260831-006] meegle-current-node-duration-boundary
+
+- **Context:** FE 需要从已持久化的 `current_node_start_time` 与 `add_to_cycle_time` 中选择依据，展示工作项的 `current_working_time`；Sprint 历史投影又可能携带工作项当前快照的节点时间。
+- **Rule:** 当前节点工作时长只能从 `current_node_start_time` 开始，未完成时截止当前时间、已完成时截止 `item_finish_time`；不得回退到 Cycle/Sprint 加入时间或更新时间。已关闭的 Sprint membership 没有历史节点开始事实时应留空，不能用当前工作项快照污染历史。
+- **Verified outcome:** 普通列表与 Sprint 详情默认显示派生时长并每分钟刷新；测试覆盖完成、缺失、非法、倒序、无 Cycle fallback 和已移出 Sprint，27/27 个 FE 测试文件与 production build 通过。

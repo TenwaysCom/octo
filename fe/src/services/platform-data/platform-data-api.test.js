@@ -31,6 +31,7 @@ test("loads a synced platform list with the browser session cookie", async () =>
         bugs: ["Bug 1"],
         priority: "P1",
         addToCycleTime: "2026-08-06T01:00:00.000Z",
+        currentNodeStartTime: "2026-08-08T00:00:00.000Z",
         itemStartTime: "2026-08-07T01:00:00.000Z",
         itemFinishTime: "2026-08-08T01:00:00.000Z",
         githubPullRequests: [{ owner: "TenwaysCom", repo: "Tenways", pullNumber: 1, title: "PR", htmlUrl: "https://github.com/TenwaysCom/Tenways/pull/1", headRef: "feature/m-1", baseRef: "main", state: "merged", odooShBuilds: [{ environment: "eu", status: "done", result: "success" }] }],
@@ -74,6 +75,7 @@ test("loads a synced platform list with the browser session cookie", async () =>
       bugs: ["Bug 1"],
       priority: "P1",
       addToCycleTime: "2026-08-06T01:00:00.000Z",
+      currentNodeStartTime: "2026-08-08T00:00:00.000Z",
       itemStartTime: "2026-08-07T01:00:00.000Z",
       itemFinishTime: "2026-08-08T01:00:00.000Z",
       githubPullRequests: [{ owner: "TenwaysCom", repo: "Tenways", pullNumber: 1, title: "PR", htmlUrl: "https://github.com/TenwaysCom/Tenways/pull/1", headRef: "feature/m-1", baseRef: "main", state: "merged", odooShBuilds: [{ environment: "eu", status: "done", result: "success" }] }],
@@ -153,6 +155,7 @@ test("loads Meegle Sprint history from its dedicated endpoint", async () => {
         sprintWorkitems: [{
           projectKey: "project", workItemTypeKey: "story", workItemId: "1", title: "Story",
           sprintId: "sprint-1", sprint: "Sprint 1", membershipSource: "incremental_observed",
+          currentNodeStartTime: "2026-08-08T00:00:00.000Z",
           githubPullRequests: [], syncedAt: "2026-08-09T00:00:00.000Z",
         }],
       } }) };
@@ -163,6 +166,7 @@ test("loads Meegle Sprint history from its dedicated endpoint", async () => {
   assert.equal(request.options.credentials, "include");
   assert.equal(result.sprintDetails[0].name, "Sprint 1");
   assert.equal(result.sprintWorkitems[0].sprint, "Sprint 1");
+  assert.equal(result.sprintWorkitems[0].currentNodeStartTime, "2026-08-08T00:00:00.000Z");
 });
 
 test("accepts an asynchronous Odoo.sh build refresh response", async () => {
