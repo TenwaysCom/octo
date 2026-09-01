@@ -181,6 +181,7 @@ async function loadPlatformDataList({ apiBaseUrl, kind, filters, fetchImpl }) {
   const firstPage = await getPlatformDataListPage({ apiBaseUrl, kind, filters, fetchImpl });
   const items = [...firstPage.items];
   let sprints = firstPage.sprints || [];
+  let relatedPersonOptions = firstPage.relatedPersonOptions || [];
   let sprintDetails = firstPage.sprintDetails || [];
   let sprintWorkitems = firstPage.sprintWorkitems || [];
   let pager = firstPage.pager;
@@ -188,11 +189,12 @@ async function loadPlatformDataList({ apiBaseUrl, kind, filters, fetchImpl }) {
     const page = await getPlatformDataListPage({ apiBaseUrl, kind, filters, offset: pager.nextOffset, fetchImpl });
     items.push(...page.items);
     sprints = page.sprints || sprints;
+    relatedPersonOptions = page.relatedPersonOptions || relatedPersonOptions;
     sprintDetails = page.sprintDetails || sprintDetails;
     sprintWorkitems = page.sprintWorkitems || sprintWorkitems;
     pager = page.pager;
   }
-  return { items, ...(kind === "meegle-workitems" ? { sprints, sprintDetails, sprintWorkitems } : {}), pager };
+  return { items, ...(kind === "meegle-workitems" ? { sprints, relatedPersonOptions, sprintDetails, sprintWorkitems } : {}), pager };
 }
 
 async function loadPlatformDataListPage({ apiBaseUrl, kind, filters, offset, fetchImpl, path }) {
@@ -213,6 +215,9 @@ async function loadPlatformDataListPage({ apiBaseUrl, kind, filters, offset, fet
   if (!Array.isArray(payload.data.sprints) || payload.data.sprints.some((value) => typeof value !== "string")) {
     throw new Error("INVALID_MEEGLE_WORKITEM_RESPONSE");
   }
+  if (payload.data.relatedPersonOptions !== undefined && !Array.isArray(payload.data.relatedPersonOptions)) {
+    throw new Error("INVALID_MEEGLE_WORKITEM_RESPONSE");
+  }
   if (payload.data.sprintDetails !== undefined && !Array.isArray(payload.data.sprintDetails)) {
     throw new Error("INVALID_MEEGLE_WORKITEM_RESPONSE");
   }
@@ -223,6 +228,7 @@ async function loadPlatformDataListPage({ apiBaseUrl, kind, filters, offset, fet
   return {
     items,
     sprints: payload.data.sprints,
+    relatedPersonOptions: (payload.data.relatedPersonOptions || []).map(parseMeegleRelatedPersonOption),
     sprintDetails: (payload.data.sprintDetails || []).map(parseMeegleSprint),
     sprintWorkitems: payload.data.sprintWorkitems === undefined ? [] : payload.data.sprintWorkitems.map(parseMeegleSprintWorkitem),
     pager,
@@ -316,7 +322,41 @@ function parseMeegleWorkitem(value) {
     throw new Error("INVALID_MEEGLE_WORKITEM_RESPONSE");
   }
   item.githubPullRequests = value.githubPullRequests.map(parseGitHubPullRequest);
+  if (value.relatedPeople !== undefined && !Array.isArray(value.relatedPeople)) {
+    throw new Error("INVALID_MEEGLE_WORKITEM_RESPONSE");
+  }
+  item.relatedPeople = (value.relatedPeople || []).map(parseMeegleRelatedPeopleRole);
   return item;
+}
+
+function parseMeegleRelatedPeopleRole(value) {
+  if (!isRecord(value)
+    || typeof value.roleKey !== "string"
+    || typeof value.roleName !== "string"
+    || !Array.isArray(value.members)) {
+    throw new Error("INVALID_MEEGLE_WORKITEM_RESPONSE");
+  }
+  return {
+    roleKey: value.roleKey,
+    roleName: value.roleName,
+    members: value.members.map((member) => {
+      if (!isRecord(member) || typeof member.memberKey !== "string" || typeof member.name !== "string") {
+        throw new Error("INVALID_MEEGLE_WORKITEM_RESPONSE");
+      }
+      return { memberKey: member.memberKey, name: member.name };
+    }),
+  };
+}
+
+function parseMeegleRelatedPersonOption(value) {
+  if (!isRecord(value)
+    || typeof value.memberKey !== "string"
+    || typeof value.name !== "string"
+    || !Array.isArray(value.roleNames)
+    || value.roleNames.some((roleName) => typeof roleName !== "string")) {
+    throw new Error("INVALID_MEEGLE_WORKITEM_RESPONSE");
+  }
+  return { memberKey: value.memberKey, name: value.name, roleNames: value.roleNames };
 }
 
 function parseMeegleSprintWorkitem(value) {

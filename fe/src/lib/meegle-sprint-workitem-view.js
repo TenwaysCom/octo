@@ -8,6 +8,7 @@ export const SPRINT_WORKITEM_VIEW_COLUMNS = [
   { key: "pullRequests", label: "Related PR" },
   { key: "priority", label: "优先级", sortKey: "priority" },
   { key: "assignee", label: "负责人", sortKey: "assignee" },
+  { key: "relatedPeople", label: "当前相关人" },
   { key: "currentWorkingTime", label: "当前工作时长" },
   { key: "updatedAt", label: "更新时间", sortKey: "updatedAt" },
 ];

@@ -168,6 +168,106 @@ describe("PostgresPlatformSyncStore", () => {
     await pool.end();
   });
 
+  it("replaces related people transactionally and supports batched and reverse lookup", async () => {
+    const { db, pool } = await createTestPostgresDatabase();
+    const store = new PostgresPlatformSyncStore(db);
+    for (const id of ["1", "2", "3"]) {
+      await store.upsertMeegleWorkitem({
+        projectKey: "project",
+        workItemTypeKey: "story",
+        workitem: { id, key: `S-${id}`, name: `Story ${id}`, type: "story", status: "Open", fields: {} },
+      });
+    }
+    const firstProjection = {
+      present: true,
+      members: [
+        { roleKey: "developer", roleName: "Developer", memberKey: "u-1", memberName: "Ada", roleOrder: 0, memberOrder: 0 },
+        { roleKey: "reviewer", roleName: "Reviewer", memberKey: "u-1", memberName: "Ada", roleOrder: 1, memberOrder: 0 },
+      ],
+    };
+    const cleaningInput = {
+      projectKey: "project",
+      workItemTypeKey: "story",
+      workItemId: "1",
+      observedAt: "2026-09-01T00:00:00.000Z",
+      roleMembers: firstProjection,
+      version: "Version 1",
+      bugs: [],
+    };
+
+    await expect(store.applyMeegleWorkitemCleaning(cleaningInput)).resolves.toBe(true);
+    await expect(store.applyMeegleWorkitemCleaning(cleaningInput)).resolves.toBe(false);
+    await expect(store.listMeegleWorkitemRoleMembers([
+      { projectKey: "project", workItemTypeKey: "story", workItemId: "1" },
+      { projectKey: "project", workItemTypeKey: "story", workItemId: "1" },
+    ])).resolves.toEqual([
+      expect.objectContaining({ roleKey: "developer", memberKey: "u-1", roleOrder: 0, memberOrder: 0 }),
+      expect.objectContaining({ roleKey: "reviewer", memberKey: "u-1", roleOrder: 1, memberOrder: 0 }),
+    ]);
+
+    await expect(store.applyMeegleWorkitemCleaning({
+      ...cleaningInput,
+      roleMembers: { present: false, members: [] },
+    })).resolves.toBe(false);
+    await expect(store.listMeegleWorkitemRoleMembers([{ projectKey: "project", workItemTypeKey: "story", workItemId: "1" }])).resolves.toHaveLength(2);
+
+    await store.applyMeegleWorkitemCleaning({
+      ...cleaningInput,
+      workItemId: "2",
+      observedAt: "2026-09-02T00:00:00.000Z",
+      roleMembers: {
+        present: true,
+        members: [{ roleKey: "developer", roleName: "Developer", memberKey: "u-2", memberName: "Bob", roleOrder: 0, memberOrder: 0 }],
+      },
+    });
+    await expect(store.listMeegleWorkitems(10, { relatedPersonMemberKeys: ["u-1"] })).resolves.toEqual([
+      expect.objectContaining({ workItemId: "1" }),
+    ]);
+    await expect(store.countMeegleWorkitems({ relatedPersonMemberKeys: ["u-1", "u-2"] })).resolves.toBe(2);
+    await expect(store.listMeegleRelatedPersonOptions()).resolves.toEqual([
+      { memberKey: "u-1", name: "Ada", roleNames: ["Developer", "Reviewer"] },
+      { memberKey: "u-2", name: "Bob", roleNames: ["Developer"] },
+    ]);
+
+    await store.applyMeegleWorkitemCleaning({
+      ...cleaningInput,
+      workItemId: "3",
+      observedAt: "2026-09-03T00:00:00.000Z",
+      roleMembers: {
+        present: true,
+        members: [
+          { roleKey: "developer", roleName: "Developer", memberKey: "u-1", memberName: "Ada", roleOrder: 0, memberOrder: 0 },
+          { roleKey: "reviewer", roleName: "Reviewer", memberKey: "u-2", memberName: "Bob", roleOrder: 1, memberOrder: 0 },
+        ],
+      },
+    });
+    const combinedFilters = { relatedPersonMemberKeys: ["u-1"], subscribedMemberKey: "u-2" };
+    await expect(store.listMeegleWorkitems(10, combinedFilters)).resolves.toEqual([
+      expect.objectContaining({ workItemId: "3" }),
+    ]);
+    await expect(store.countMeegleWorkitems(combinedFilters)).resolves.toBe(1);
+
+    await expect(store.applyMeegleWorkitemCleaning({
+      ...cleaningInput,
+      version: "must-roll-back",
+      roleMembers: {
+        present: true,
+        members: [firstProjection.members[0], firstProjection.members[0]],
+      },
+    })).rejects.toThrow();
+    await expect(db.selectFrom("meegle_workitem_syncs").select("version").where("work_item_id", "=", "1").executeTakeFirst()).resolves.toEqual({ version: "Version 1" });
+    await expect(store.listMeegleWorkitemRoleMembers([{ projectKey: "project", workItemTypeKey: "story", workItemId: "1" }])).resolves.toHaveLength(2);
+
+    await expect(store.applyMeegleWorkitemCleaning({
+      ...cleaningInput,
+      roleMembers: { present: true, members: [] },
+    })).resolves.toBe(true);
+    await expect(store.listMeegleWorkitemRoleMembers([{ projectKey: "project", workItemTypeKey: "story", workItemId: "1" }])).resolves.toEqual([]);
+
+    await db.destroy();
+    await pool.end();
+  });
+
   it("stores Sprint objects as metadata without leaking them into the Meegle workitem list", async () => {
     const { db, pool } = await createTestPostgresDatabase();
     const store = new PostgresPlatformSyncStore(db);

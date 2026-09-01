@@ -15,6 +15,7 @@ test("normalizes Meegle view configuration without allowing the workitem column 
   assert.deepEqual(normalizeMeegleVisibleColumns(undefined), DEFAULT_MEEGLE_VISIBLE_COLUMNS);
   assert.equal(DEFAULT_MEEGLE_VISIBLE_COLUMNS.includes("currentWorkingTime"), true);
   assert.equal(DEFAULT_MEEGLE_VISIBLE_COLUMNS.includes("createdAt"), true);
+  assert.equal(DEFAULT_MEEGLE_VISIBLE_COLUMNS.includes("relatedPeople"), true);
   assert.deepEqual(normalizeMeegleVisibleColumns(["status", "unknown", "status"]), ["workitem", "status"]);
   assert.equal(normalizeMeegleGroupBy("sprint"), "sprint");
   assert.equal(normalizeMeegleGroupBy("none"), "none");

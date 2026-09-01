@@ -3,6 +3,7 @@ import { getMeegleSprintDetailHash } from "../app/routes/workspace-routes.js";
 import { AiSessionCopyButton } from "../components/ai-session/AiSessionCopyButton.jsx";
 import { WorkspaceShell } from "../components/layout/WorkspaceShell.jsx";
 import { OdooShBuildStatus } from "../components/platform/OdooShBuildStatus.jsx";
+import { MeegleRelatedPeople } from "../components/platform/MeegleRelatedPeople.jsx";
 import { useKeyboardShortcut } from "../hooks/useKeyboardShortcut.js";
 import { useMinuteNow } from "../hooks/useMinuteNow.js";
 import { formatDateTime } from "../lib/formatters.js";
@@ -253,6 +254,7 @@ function SprintWorkitemCell({ columnKey, item, apiBaseUrl, nowTime }) {
   if (columnKey === "pullRequests") return <SprintRelatedPullRequests apiBaseUrl={apiBaseUrl} pullRequests={item.githubPullRequests} />;
   if (columnKey === "priority") return item.priority || "未设置";
   if (columnKey === "assignee") return item.assignee || "未设置";
+  if (columnKey === "relatedPeople") return <MeegleRelatedPeople relatedPeople={item.relatedPeople} />;
   if (columnKey === "currentWorkingTime") {
     const value = formatMeegleCurrentWorkingTime(item, nowTime);
     return value ? <span title={`当前节点开始：${formatDateTime(item.currentNodeStartTime)}`}>{value}</span> : "-";

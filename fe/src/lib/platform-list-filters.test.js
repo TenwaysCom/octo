@@ -2,12 +2,40 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   countFilterValues,
+  getPlatformListFilters,
   matchesSelectedDateFilters,
   matchesSelectedSprints,
   matchesSelectedTagFilters,
   normalizeFilterValues,
   toggleFilterValue,
 } from "./platform-list-filters.js";
+
+test("combines Meegle Subscribed with custom and tag filters", () => {
+  assert.deepEqual(getPlatformListFilters({
+    page: "meegle-workitems",
+    selectedStatuses: ["Doing"],
+    selectedDateFilters: [],
+    selectedSprints: ["Sprint A"],
+    selectedTagFilters: {
+      sprint: ["Sprint B"],
+      project: ["Octo"],
+      priority: ["P1"],
+      relatedPerson: ["member-2", "member-3"],
+    },
+    larkTicketQuickFilter: "all",
+    meegleQuickFilter: "subscribed",
+    workitemTypeFilter: "story",
+    noSprintFilter: false,
+  }), {
+    status: ["Doing"],
+    sprint: ["Sprint A", "Sprint B"],
+    project: ["Octo"],
+    priority: ["P1"],
+    relatedPerson: ["member-2", "member-3"],
+    subscribed: true,
+    workitemType: "story",
+  });
+});
 
 test("normalizes persisted filter values and toggles multiple selections", () => {
   assert.deepEqual(normalizeFilterValues(["today", "today", 3, ""]), ["today"]);

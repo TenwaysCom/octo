@@ -12,6 +12,10 @@ import {
 } from "../../domain/lark-ticket-ai.js";
 import { projectMeegleSprintMembershipTransition } from "../../domain/meegle-sprint-membership.js";
 import { MEEGLE_SPRINT_API_NAME, MEEGLE_SPRINT_WORKITEM_TYPE_KEY } from "../../domain/meegle-workitem-types.js";
+import type {
+  MeegleWorkitemRoleMember,
+  MeegleWorkitemRoleMembersProjection,
+} from "../../domain/meegle-workitem-role-members.js";
 
 const MEEGLE_SPRINT_TYPE_KEYS = [MEEGLE_SPRINT_API_NAME, MEEGLE_SPRINT_WORKITEM_TYPE_KEY];
 
@@ -55,6 +59,8 @@ export interface PlatformSyncStore {
   applyLarkBaseTicketCleanings(inputs: LarkBaseTicketCleaningInput[]): Promise<number>;
   listMeegleWorkitems(limit: number, filters?: MeegleWorkitemListFilters): Promise<MeegleWorkitemSyncItem[]>;
   countMeegleWorkitems(filters?: MeegleWorkitemListFilters): Promise<number>;
+  listMeegleWorkitemRoleMembers(refs: MeegleWorkitemSyncRef[]): Promise<MeegleWorkitemRoleMemberSyncItem[]>;
+  listMeegleRelatedPersonOptions(): Promise<MeegleRelatedPersonOption[]>;
   listMeegleSprints(): Promise<string[]>;
   listMeegleWorkitemsByIds(workItemIds: string[]): Promise<MeegleWorkitemSyncItem[]>;
   listMeegleSprintSnapshots(): Promise<MeegleWorkitemSyncItem[]>;
@@ -122,6 +128,16 @@ export interface MeegleWorkitemSyncRef {
   workItemId: string;
 }
 
+export interface MeegleWorkitemRoleMemberSyncItem extends MeegleWorkitemSyncRef, MeegleWorkitemRoleMember {
+  syncedAt: string;
+}
+
+export interface MeegleRelatedPersonOption {
+  memberKey: string;
+  name: string;
+  roleNames: string[];
+}
+
 export interface GitHubPullRequestSyncRef {
   owner: string;
   repo: string;
@@ -145,6 +161,7 @@ export interface LarkBaseTicketUpsertInput {
 export interface MeegleWorkitemCleaningInput extends MeegleWorkitemSyncRef {
   sprintRelation?: MeegleSprintRelationFields;
   lifecycle?: MeegleWorkitemLifecycleFields;
+  roleMembers: MeegleWorkitemRoleMembersProjection;
   observedAt: string;
   version?: string;
   system?: string;
@@ -246,6 +263,8 @@ export interface MeegleWorkitemListFilters {
   projects?: string[];
   priorities?: string[];
   workitemTypes?: string[];
+  relatedPersonMemberKeys?: string[];
+  subscribedMemberKey?: string;
   withoutSprint?: boolean;
   sourceUpdatedAtAfter?: string;
   sourceUpdatedAtBefore?: string;
@@ -685,43 +704,94 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
   }
 
   async applyMeegleWorkitemCleaning(input: MeegleWorkitemCleaningInput): Promise<boolean> {
-    const existing = await this.db.selectFrom("meegle_workitem_syncs")
-      .select(["sprint_id", "sprint", "version", "system", "bugs_json", "add_to_cycle_time", "current_node_start_time", "item_start_time", "item_finish_time"])
-      .where("project_key", "=", input.projectKey)
-      .where("work_item_type_key", "=", input.workItemTypeKey)
-      .where("work_item_id", "=", input.workItemId)
-      .executeTakeFirst();
-    const sprint = projectMeegleSprintMembership(existing, input.sprintRelation, input.lifecycle?.addToCycleTime, input.observedAt);
-    const itemStartTime = input.lifecycle?.itemStartTime === undefined
-      ? existing?.item_start_time ?? null
-      : input.lifecycle.itemStartTime;
-    const itemFinishTime = input.lifecycle?.itemFinishTime === undefined
-      ? existing?.item_finish_time ?? null
-      : input.lifecycle.itemFinishTime;
-    const currentNodeStartTime = input.lifecycle?.currentNodeStartTime === undefined
-      ? existing?.current_node_start_time ?? null
-      : input.lifecycle.currentNodeStartTime;
-    const bugsJson = JSON.stringify(input.bugs);
-    if (existing && existing.sprint_id === sprint.sprintId && existing.sprint === sprint.sprintName
-      && existing.add_to_cycle_time === sprint.addToCycleTime && existing.item_start_time === itemStartTime
-      && existing.item_finish_time === itemFinishTime && existing.current_node_start_time === currentNodeStartTime
-      && existing.version === input.version
-      && existing.system === input.system && existing.bugs_json === bugsJson) return false;
-    await this.db.updateTable("meegle_workitem_syncs").set({
-      sprint_id: sprint.sprintId,
-      sprint: sprint.sprintName,
-      add_to_cycle_time: sprint.addToCycleTime,
-      current_node_start_time: currentNodeStartTime,
-      item_start_time: itemStartTime,
-      item_finish_time: itemFinishTime,
-      version: input.version ?? null,
-      system: input.system ?? null,
-      bugs_json: bugsJson,
-    }).where("project_key", "=", input.projectKey)
-      .where("work_item_type_key", "=", input.workItemTypeKey)
-      .where("work_item_id", "=", input.workItemId)
-      .execute();
-    return true;
+    assertUniqueMeegleRoleMembers(input.roleMembers);
+    return this.db.transaction().execute(async (trx) => {
+      const existing = await trx.selectFrom("meegle_workitem_syncs")
+        .select(["sprint_id", "sprint", "version", "system", "bugs_json", "add_to_cycle_time", "current_node_start_time", "item_start_time", "item_finish_time"])
+        .where("project_key", "=", input.projectKey)
+        .where("work_item_type_key", "=", input.workItemTypeKey)
+        .where("work_item_id", "=", input.workItemId)
+        .forUpdate()
+        .executeTakeFirst();
+      if (!existing) throw new Error("MEEGLE_WORKITEM_SNAPSHOT_NOT_FOUND");
+
+      const sprint = projectMeegleSprintMembership(existing, input.sprintRelation, input.lifecycle?.addToCycleTime, input.observedAt);
+      const itemStartTime = input.lifecycle?.itemStartTime === undefined
+        ? existing.item_start_time
+        : input.lifecycle.itemStartTime;
+      const itemFinishTime = input.lifecycle?.itemFinishTime === undefined
+        ? existing.item_finish_time
+        : input.lifecycle.itemFinishTime;
+      const currentNodeStartTime = input.lifecycle?.currentNodeStartTime === undefined
+        ? existing.current_node_start_time
+        : input.lifecycle.currentNodeStartTime;
+      const bugsJson = JSON.stringify(input.bugs);
+      const scalarChanged = existing.sprint_id !== sprint.sprintId
+        || existing.sprint !== sprint.sprintName
+        || existing.add_to_cycle_time !== sprint.addToCycleTime
+        || existing.item_start_time !== itemStartTime
+        || existing.item_finish_time !== itemFinishTime
+        || existing.current_node_start_time !== currentNodeStartTime
+        || existing.version !== (input.version ?? null)
+        || existing.system !== (input.system ?? null)
+        || existing.bugs_json !== bugsJson;
+
+      const existingRoleMembers = input.roleMembers.present
+        ? await trx.selectFrom("meegle_workitem_role_members")
+          .select(["role_key", "role_name", "member_key", "member_name", "role_order", "member_order"])
+          .where("project_key", "=", input.projectKey)
+          .where("work_item_type_key", "=", input.workItemTypeKey)
+          .where("work_item_id", "=", input.workItemId)
+          .orderBy("role_order")
+          .orderBy("member_order")
+          .orderBy("role_key")
+          .orderBy("member_key")
+          .execute()
+        : [];
+      const roleMembersChanged = input.roleMembers.present
+        && !sameMeegleRoleMembers(existingRoleMembers, input.roleMembers.members);
+      if (!scalarChanged && !roleMembersChanged) return false;
+
+      if (scalarChanged) {
+        await trx.updateTable("meegle_workitem_syncs").set({
+          sprint_id: sprint.sprintId,
+          sprint: sprint.sprintName,
+          add_to_cycle_time: sprint.addToCycleTime,
+          current_node_start_time: currentNodeStartTime,
+          item_start_time: itemStartTime,
+          item_finish_time: itemFinishTime,
+          version: input.version ?? null,
+          system: input.system ?? null,
+          bugs_json: bugsJson,
+        }).where("project_key", "=", input.projectKey)
+          .where("work_item_type_key", "=", input.workItemTypeKey)
+          .where("work_item_id", "=", input.workItemId)
+          .execute();
+      }
+
+      if (roleMembersChanged) {
+        await trx.deleteFrom("meegle_workitem_role_members")
+          .where("project_key", "=", input.projectKey)
+          .where("work_item_type_key", "=", input.workItemTypeKey)
+          .where("work_item_id", "=", input.workItemId)
+          .execute();
+        if (input.roleMembers.members.length > 0) {
+          await trx.insertInto("meegle_workitem_role_members").values(input.roleMembers.members.map((member) => ({
+            project_key: input.projectKey,
+            work_item_type_key: input.workItemTypeKey,
+            work_item_id: input.workItemId,
+            role_key: member.roleKey,
+            role_name: member.roleName,
+            member_key: member.memberKey,
+            member_name: member.memberName,
+            role_order: member.roleOrder,
+            member_order: member.memberOrder,
+            synced_at: input.observedAt,
+          }))).execute();
+        }
+      }
+      return true;
+    });
   }
 
   async applyGitHubPullRequestCleaning(input: GitHubPullRequestCleaningInput): Promise<boolean> {
@@ -872,9 +942,70 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
     return Number(row.total);
   }
 
+  async listMeegleWorkitemRoleMembers(refs: MeegleWorkitemSyncRef[]): Promise<MeegleWorkitemRoleMemberSyncItem[]> {
+    const results: MeegleWorkitemRoleMemberSyncItem[] = [];
+    for (const batch of chunks(uniqueMeegleRefs(refs), 500)) {
+      if (batch.length === 0) continue;
+      const rows = await this.db.selectFrom("meegle_workitem_role_members")
+        .selectAll()
+        .where((eb) => eb.or(batch.map((ref) => eb.and([
+          eb("project_key", "=", ref.projectKey),
+          eb("work_item_type_key", "=", ref.workItemTypeKey),
+          eb("work_item_id", "=", ref.workItemId),
+        ]))))
+        .orderBy("project_key")
+        .orderBy("work_item_type_key")
+        .orderBy("work_item_id")
+        .orderBy("role_order")
+        .orderBy("member_order")
+        .orderBy("role_key")
+        .orderBy("member_key")
+        .execute();
+      results.push(...rows.map((row) => ({
+        projectKey: row.project_key,
+        workItemTypeKey: row.work_item_type_key,
+        workItemId: row.work_item_id,
+        roleKey: row.role_key,
+        roleName: row.role_name,
+        memberKey: row.member_key,
+        memberName: row.member_name,
+        roleOrder: row.role_order,
+        memberOrder: row.member_order,
+        syncedAt: row.synced_at,
+      })));
+    }
+    return results;
+  }
+
+  async listMeegleRelatedPersonOptions(): Promise<MeegleRelatedPersonOption[]> {
+    const rows = await this.db.selectFrom("meegle_workitem_role_members")
+      .select(["member_key", "member_name", "role_name", "synced_at"])
+      .where("work_item_type_key", "not in", MEEGLE_SPRINT_TYPE_KEYS)
+      .orderBy("synced_at", "desc")
+      .orderBy("member_name")
+      .orderBy("member_key")
+      .orderBy("role_name")
+      .execute();
+    const byMember = new Map<string, MeegleRelatedPersonOption & { roles: Set<string> }>();
+    for (const row of rows) {
+      const option = byMember.get(row.member_key) ?? {
+        memberKey: row.member_key,
+        name: row.member_name,
+        roleNames: [],
+        roles: new Set<string>(),
+      };
+      option.roles.add(row.role_name);
+      byMember.set(row.member_key, option);
+    }
+    return [...byMember.values()].map(({ roles, ...option }) => ({
+      ...option,
+      roleNames: [...roles].sort(compareChineseText),
+    })).sort((left, right) => compareChineseText(left.name, right.name) || left.memberKey.localeCompare(right.memberKey));
+  }
+
   private filteredMeegleWorkitems(filters: MeegleWorkitemListFilters) {
-    let query = this.db.selectFrom("meegle_workitem_syncs")
-      .where("work_item_type_key", "not in", MEEGLE_SPRINT_TYPE_KEYS);
+    let query = this.db.selectFrom("meegle_workitem_syncs as workitem")
+      .where("workitem.work_item_type_key", "not in", MEEGLE_SPRINT_TYPE_KEYS);
     if (filters.sprints?.length) query = query.where("sprint", "in", filters.sprints);
     if (filters.statuses?.length) {
       const configuredStatuses = filters.statuses.filter((status) => status !== "未设置");
@@ -888,6 +1019,27 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
       eb("project_name", "in", filters.projects!),
     ]));
     if (filters.priorities?.length) query = query.where("priority", "in", filters.priorities);
+    const relatedPersonMemberKeyGroups = [
+      filters.relatedPersonMemberKeys,
+      filters.subscribedMemberKey ? [filters.subscribedMemberKey] : undefined,
+    ];
+    for (const memberKeys of relatedPersonMemberKeyGroups) {
+      if (!memberKeys?.length) continue;
+      const matchedWorkitems = this.db.selectFrom("meegle_workitem_role_members")
+        .select(sql<string>`
+          length(project_key)::text || ':' || project_key ||
+          length(work_item_type_key)::text || ':' || work_item_type_key ||
+          length(work_item_id)::text || ':' || work_item_id
+        `.as("workitem_ref"))
+        .where("member_key", "in", memberKeys)
+        .distinct();
+      query = query.where(sql<boolean>`
+        length(workitem.project_key)::text || ':' || workitem.project_key ||
+        length(workitem.work_item_type_key)::text || ':' || workitem.work_item_type_key ||
+        length(workitem.work_item_id)::text || ':' || workitem.work_item_id
+        in (${matchedWorkitems})
+      `);
+    }
     if (filters.sourceUpdatedAtAfter) query = query.where("source_updated_at", ">=", filters.sourceUpdatedAtAfter);
     if (filters.sourceUpdatedAtBefore) query = query.where("source_updated_at", "<=", filters.sourceUpdatedAtBefore);
     if (filters.withoutSprint) query = query.where((eb) => eb.or([eb("sprint", "is", null), eb("sprint", "=", "")]));
@@ -1480,6 +1632,59 @@ function chunks<T>(items: T[], size: number): T[][] {
     result.push(items.slice(index, index + size));
   }
   return result;
+}
+
+function uniqueMeegleRefs(refs: MeegleWorkitemSyncRef[]): MeegleWorkitemSyncRef[] {
+  const unique = new Map<string, MeegleWorkitemSyncRef>();
+  for (const ref of refs) {
+    unique.set(`${ref.projectKey}\u0000${ref.workItemTypeKey}\u0000${ref.workItemId}`, ref);
+  }
+  return [...unique.values()];
+}
+
+function sameMeegleRoleMembers(
+  existing: Array<{
+    role_key: string;
+    role_name: string;
+    member_key: string;
+    member_name: string;
+    role_order: number;
+    member_order: number;
+  }>,
+  expected: MeegleWorkitemRoleMember[],
+): boolean {
+  if (existing.length !== expected.length) return false;
+  const orderedExpected = [...expected].sort(compareMeegleRoleMembers);
+  return existing.every((row, index) => {
+    const member = orderedExpected[index];
+    return row.role_key === member.roleKey
+      && row.role_name === member.roleName
+      && row.member_key === member.memberKey
+      && row.member_name === member.memberName
+      && row.role_order === member.roleOrder
+      && row.member_order === member.memberOrder;
+  });
+}
+
+function assertUniqueMeegleRoleMembers(projection: MeegleWorkitemRoleMembersProjection): void {
+  if (!projection.present) return;
+  const identities = new Set<string>();
+  for (const member of projection.members) {
+    const identity = JSON.stringify([member.roleKey, member.memberKey]);
+    if (identities.has(identity)) throw new Error("MEEGLE_ROLE_MEMBERS_DUPLICATE");
+    identities.add(identity);
+  }
+}
+
+function compareMeegleRoleMembers(left: MeegleWorkitemRoleMember, right: MeegleWorkitemRoleMember): number {
+  return left.roleOrder - right.roleOrder
+    || left.memberOrder - right.memberOrder
+    || left.roleKey.localeCompare(right.roleKey)
+    || left.memberKey.localeCompare(right.memberKey);
+}
+
+function compareChineseText(left: string, right: string): number {
+  return left.localeCompare(right, "zh-CN", { numeric: true, sensitivity: "base" });
 }
 
 function uniqueLarkRefs(refs: LarkBaseTicketSyncRef[]): LarkBaseTicketSyncRef[] {

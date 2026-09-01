@@ -30,12 +30,17 @@ async function main(): Promise<void> {
         workItemId: row.work_item_id,
       })))
       : 0;
+    const relatedPeopleCount = await db.selectFrom("meegle_workitem_role_members")
+      .select((eb) => eb.fn.countAll<number>().as("total"))
+      .where("project_key", "=", PROJECT_KEY)
+      .executeTakeFirstOrThrow();
     process.stdout.write(`[meegle-cleanup] ${JSON.stringify({
       project_key: PROJECT_KEY,
       candidate_rows: refs.length,
       apply,
       cleaned,
-      target_table: "meegle_workitem_syncs",
+      related_people_rows: Number(relatedPeopleCount.total),
+      target_tables: ["meegle_workitem_syncs", "meegle_workitem_role_members"],
     })}\n`);
   } finally {
     await closeSharedDatabase();

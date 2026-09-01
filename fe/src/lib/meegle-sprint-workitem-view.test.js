@@ -18,6 +18,7 @@ test("normalizes Sprint workitem view settings without hiding the workitem colum
   assert.equal(DEFAULT_SPRINT_WORKITEM_VISIBLE_COLUMNS.includes("system"), true);
   assert.equal(DEFAULT_SPRINT_WORKITEM_VISIBLE_COLUMNS.includes("pullRequests"), true);
   assert.equal(DEFAULT_SPRINT_WORKITEM_VISIBLE_COLUMNS.includes("currentWorkingTime"), true);
+  assert.equal(DEFAULT_SPRINT_WORKITEM_VISIBLE_COLUMNS.includes("relatedPeople"), true);
   assert.deepEqual(normalizeSprintWorkitemVisibleColumns(["pullRequests"]), ["workitem", "pullRequests"]);
   assert.deepEqual(normalizeSprintWorkitemVisibleColumns(["status", "unknown", "status"]), ["workitem", "status"]);
   assert.deepEqual(normalizeSprintWorkitemSort({ key: "version", direction: "asc" }), { key: "version", direction: "asc" });

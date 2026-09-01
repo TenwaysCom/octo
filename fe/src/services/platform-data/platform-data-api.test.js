@@ -17,7 +17,7 @@ test("loads a synced platform list with the browser session cookie", async () =>
   const result = await getPlatformDataList({
     apiBaseUrl: "/api",
     kind: "meegle-workitems",
-    filters: { sprint: ["Sprint 1"] },
+    filters: { sprint: ["Sprint 1"], relatedPerson: ["member-1", "member-2"], subscribed: true },
     fetchImpl: async (url, options) => {
       request = { url, options };
       return { ok: true, json: async () => ({ ok: true, data: { items: [{
@@ -37,8 +37,9 @@ test("loads a synced platform list with the browser session cookie", async () =>
         itemStartTime: "2026-08-07T01:00:00.000Z",
         itemFinishTime: "2026-08-08T01:00:00.000Z",
         createdAt: "2026-08-01T00:00:00.000Z",
+        relatedPeople: [{ roleKey: "developer", roleName: "Developer", members: [{ memberKey: "member-1", name: "Ada" }] }],
         githubPullRequests: [{ owner: "TenwaysCom", repo: "Tenways", pullNumber: 1, title: "PR", htmlUrl: "https://github.com/TenwaysCom/Tenways/pull/1", headRef: "feature/m-1", baseRef: "main", state: "merged", isDraft: false, odooShBuilds: [{ environment: "eu", status: "done", result: "success" }] }],
-      }], sprints: ["Sprint 1"], sprintDetails: [{
+      }], sprints: ["Sprint 1"], relatedPersonOptions: [{ memberKey: "member-1", name: "Ada", roleNames: ["Developer"] }], sprintDetails: [{
         projectKey: "4c3fv6",
         sprintId: "sprint-1",
         name: "Sprint 1",
@@ -58,6 +59,7 @@ test("loads a synced platform list with the browser session cookie", async () =>
         membershipRemovedAt: "2026-08-21T00:00:00.000Z",
         carryoverToSprintId: "sprint-2",
         carryoverToSprintName: "Sprint 2",
+        relatedPeople: [{ roleKey: "developer", roleName: "Developer", members: [{ memberKey: "member-1", name: "Ada" }] }],
         githubPullRequests: [],
         syncedAt: "2026-08-09T00:00:00.000Z",
       }] } }) };
@@ -82,9 +84,11 @@ test("loads a synced platform list with the browser session cookie", async () =>
       itemStartTime: "2026-08-07T01:00:00.000Z",
       itemFinishTime: "2026-08-08T01:00:00.000Z",
       createdAt: "2026-08-01T00:00:00.000Z",
+      relatedPeople: [{ roleKey: "developer", roleName: "Developer", members: [{ memberKey: "member-1", name: "Ada" }] }],
       githubPullRequests: [{ owner: "TenwaysCom", repo: "Tenways", pullNumber: 1, title: "PR", htmlUrl: "https://github.com/TenwaysCom/Tenways/pull/1", headRef: "feature/m-1", baseRef: "main", state: "merged", isDraft: false, odooShBuilds: [{ environment: "eu", status: "done", result: "success" }] }],
     }],
     sprints: ["Sprint 1"],
+    relatedPersonOptions: [{ memberKey: "member-1", name: "Ada", roleNames: ["Developer"] }],
     sprintDetails: [{
       projectKey: "4c3fv6",
       sprintId: "sprint-1",
@@ -106,12 +110,13 @@ test("loads a synced platform list with the browser session cookie", async () =>
       membershipRemovedAt: "2026-08-21T00:00:00.000Z",
       carryoverToSprintId: "sprint-2",
       carryoverToSprintName: "Sprint 2",
+      relatedPeople: [{ roleKey: "developer", roleName: "Developer", members: [{ memberKey: "member-1", name: "Ada" }] }],
       githubPullRequests: [],
       syncedAt: "2026-08-09T00:00:00.000Z",
     }],
     pager: { offset: 0, limit: 500, total: 1, hasMore: false },
   });
-  assert.equal(request.url, "/api/web/platform-data/meegle-workitems?limit=500&sprint=Sprint+1");
+  assert.equal(request.url, "/api/web/platform-data/meegle-workitems?limit=500&sprint=Sprint+1&relatedPerson=member-1&relatedPerson=member-2&subscribed=true");
   assert.equal(request.options.credentials, "include");
 });
 

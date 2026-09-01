@@ -56,14 +56,16 @@ export class PlatformDataService {
         }
       case "meegle-workitems":
         {
-          const [items, total, sprints] = await Promise.all([
+          const [items, total, sprints, relatedPersonOptions] = await Promise.all([
             this.syncStore.listMeegleWorkitems(limit, filters.meegleWorkitems),
             this.syncStore.countMeegleWorkitems(filters.meegleWorkitems),
             this.syncStore.listMeegleSprints(),
+            this.syncStore.listMeegleRelatedPersonOptions(),
           ]);
           return {
-            items: await this.attachMeeglePullRequestSummaries(items),
+            items: await this.attachMeegleRelations(items),
             sprints,
+            relatedPersonOptions,
             total,
           };
         }
@@ -114,7 +116,7 @@ export class PlatformDataService {
     const sprintWorkitems = buildMeegleSprintWorkitemProjections(sprintMemberships, sprintDetails);
     return {
       sprintDetails,
-      sprintWorkitems: await this.attachMeeglePullRequestSummaries(sprintWorkitems),
+      sprintWorkitems: await this.attachMeegleRelations(sprintWorkitems),
     };
   }
 
@@ -153,13 +155,32 @@ export class PlatformDataService {
     return this.store;
   }
 
-  private async attachMeeglePullRequestSummaries<T extends { workItemId: string }>(items: T[]) {
-    const links = await this.syncStore.listGitHubPullRequestLinks([...new Set(items.map((item) => item.workItemId))]);
+  private async attachMeegleRelations<T extends { projectKey: string; workItemTypeKey: string; workItemId: string }>(items: T[]) {
+    const [links, roleMembers] = await Promise.all([
+      this.syncStore.listGitHubPullRequestLinks([...new Set(items.map((item) => item.workItemId))]),
+      this.syncStore.listMeegleWorkitemRoleMembers(items),
+    ]);
     const linksByWorkItemId = new Map<string, typeof links>();
     for (const link of links) {
       const current = linksByWorkItemId.get(link.meegleId) ?? [];
       current.push(link);
       linksByWorkItemId.set(link.meegleId, current);
+    }
+    const rolesByWorkitem = new Map<string, Array<{
+      roleKey: string;
+      roleName: string;
+      members: Array<{ memberKey: string; name: string }>;
+    }>>();
+    for (const member of roleMembers) {
+      const key = meegleWorkitemIdentity(member);
+      const roles = rolesByWorkitem.get(key) ?? [];
+      let role = roles.find((candidate) => candidate.roleKey === member.roleKey);
+      if (!role) {
+        role = { roleKey: member.roleKey, roleName: member.roleName, members: [] };
+        roles.push(role);
+      }
+      role.members.push({ memberKey: member.memberKey, name: member.memberName });
+      rolesByWorkitem.set(key, roles);
     }
     return items.map((item) => ({
       ...item,
@@ -167,6 +188,7 @@ export class PlatformDataService {
         ...pullRequest,
         odooShBuilds: [],
       })),
+      relatedPeople: rolesByWorkitem.get(meegleWorkitemIdentity(item)) ?? [],
     }));
   }
 
@@ -199,6 +221,10 @@ export class PlatformDataService {
 
     return buildsByBranch;
   }
+}
+
+function meegleWorkitemIdentity(item: { projectKey: string; workItemTypeKey: string; workItemId: string }): string {
+  return `${item.projectKey}\u0000${item.workItemTypeKey}\u0000${item.workItemId}`;
 }
 
 function selectOdooShBuilds(

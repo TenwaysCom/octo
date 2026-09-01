@@ -63,6 +63,7 @@ test("buildMeegleWorkitemRow links externally and carries collapsible PR data", 
     sprint: "Sprint 12",
     system: "Odoo/Odoo UK",
     assignee: "王五",
+    relatedPeople: [{ roleKey: "developer", roleName: "Developer", members: [{ memberKey: "user-1", name: "赵六" }] }],
     currentNodeStartTime: "2026-08-02T08:30:00.000Z",
     createdAt: "2026-08-01T09:00:00.000Z",
     githubPullRequests: [
@@ -70,7 +71,7 @@ test("buildMeegleWorkitemRow links externally and carries collapsible PR data", 
     ],
     sourceUpdatedAt: "2026-08-02T10:00:00.000Z",
   };
-  const row = buildMeegleWorkitemRow(item, ["workitem", "workitemType", "status", "pullRequests", "sprint", "system", "assignee", "currentWorkingTime", "createdAt", "updatedAt"], Date.parse("2026-08-02T10:00:00.000Z"));
+  const row = buildMeegleWorkitemRow(item, ["workitem", "workitemType", "status", "pullRequests", "sprint", "system", "assignee", "relatedPeople", "currentWorkingTime", "createdAt", "updatedAt"], Date.parse("2026-08-02T10:00:00.000Z"));
   assert.equal(row.kind, "meegle-workitems");
   assert.equal(row.identifier, "OCTO-666");
   assert.equal(row.external, true);
@@ -80,7 +81,8 @@ test("buildMeegleWorkitemRow links externally and carries collapsible PR data", 
   const prMeta = row.trailing.find((meta) => meta.key === "pullRequests");
   assert.equal(prMeta.type, "pr-links");
   assert.equal(prMeta.pullRequests.length, 1);
-  assert.deepEqual(row.trailing.map((meta) => meta.key), ["pullRequests", "sprint", "system", "assignee", "currentWorkingTime", "createdAt", "updatedAt"]);
+  assert.deepEqual(row.trailing.map((meta) => meta.key), ["pullRequests", "sprint", "system", "assignee", "relatedPeople", "currentWorkingTime", "createdAt", "updatedAt"]);
+  assert.deepEqual(row.trailing.find((meta) => meta.key === "relatedPeople").relatedPeople, item.relatedPeople);
   assert.equal(row.trailing.find((meta) => meta.key === "system").hideOnSmall, false);
   assert.equal(row.trailing.find((meta) => meta.key === "currentWorkingTime").text, "工作 1小时 30分钟");
 });

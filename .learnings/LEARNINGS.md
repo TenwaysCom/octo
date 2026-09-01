@@ -476,3 +476,9 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - **Context:** Meegle 工作项列表需要从 System 对应仓库快速选择 PR，同时关联关系仍由 GitHub 标题/描述标记的同步快照投影。
 - **Rule:** 候选列表读取本地 open/draft 快照并由 Server 映射仓库；选择后必须重新读取远端最新 PR、幂等追加精确 `m-<workItemId>` 标记，并用 GitHub 返回值立即 UPSERT 本地快照。远端写入后的本地失败要作为可重试的 partial success 明示。
 - **Verified outcome:** Service/controller/adapter/store 测试覆盖仓库约束、draft 摘要、标题只追加一次、结构化错误和即时快照刷新；8 个定向 Server 文件 76/76、FE 27/27 与两端 build 通过。
+
+## [LRN-20260901-002] meegle-role-members-current-relation-boundary
+
+- **Context:** Meegle 工作项 payload 的 `work_item_attribute.role_members` 同时包含角色定义、稳定人员 key、显示名和 email；许多角色没有成员，旧快照也可能完全缺失这段证据。
+- **Rule:** 把当前角色成员清洗为以 workitem ref、role key 和 member key 标识的关系投影，保留角色/成员源顺序并区分“字段缺失”和“明确为空”。负责人 `current_status_operator` 继续独立；列表读取不解析 payload、不拼接姓名作为查询键，也不复制未使用的 email。`Subscribed` 之类“与我相关”过滤必须由 Server 会话解析稳定人员 key，并作为独立 AND 条件与手选人员组及其他过滤组合，不能把当前用户追加进组内 OR 数组。
+- **Verified outcome:** 关系表、member-leading 索引、事务清洗、memberKey API 筛选和 FE 普通列表/看板/Sprint 展示已落地；本地回填写入 2,515 条关系，空字段、重复和孤儿均为 0，二次回填为 0 变更。后续 `Subscribed` 快速过滤在不暴露会话 Meegle key 的前提下完成独立 AND 查询，Store/controller/session 共 44 个聚焦测试、FE 全量测试和两端 build 通过。

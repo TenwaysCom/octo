@@ -301,6 +301,37 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .execute();
 
   await db.schema
+    .createTable("meegle_workitem_role_members")
+    .ifNotExists()
+    .addColumn("project_key", "text", (column) => column.notNull())
+    .addColumn("work_item_type_key", "text", (column) => column.notNull())
+    .addColumn("work_item_id", "text", (column) => column.notNull())
+    .addColumn("role_key", "text", (column) => column.notNull())
+    .addColumn("role_name", "text", (column) => column.notNull())
+    .addColumn("member_key", "text", (column) => column.notNull())
+    .addColumn("member_name", "text", (column) => column.notNull())
+    .addColumn("role_order", "integer", (column) => column.notNull())
+    .addColumn("member_order", "integer", (column) => column.notNull())
+    .addColumn("synced_at", "text", (column) => column.notNull())
+    .addPrimaryKeyConstraint("meegle_workitem_role_members_pkey", [
+      "project_key", "work_item_type_key", "work_item_id", "role_key", "member_key",
+    ])
+    .addForeignKeyConstraint(
+      "meegle_workitem_role_members_workitem_fkey",
+      ["project_key", "work_item_type_key", "work_item_id"],
+      "meegle_workitem_syncs",
+      ["project_key", "work_item_type_key", "work_item_id"],
+      (constraint) => constraint.onDelete("cascade"),
+    )
+    .addCheckConstraint("meegle_workitem_role_members_role_order_check", sql`role_order >= 0`)
+    .addCheckConstraint("meegle_workitem_role_members_member_order_check", sql`member_order >= 0`)
+    .execute();
+  await sql`
+    CREATE INDEX IF NOT EXISTS meegle_workitem_role_members_member_idx
+    ON meegle_workitem_role_members (member_key, project_key, work_item_type_key, work_item_id)
+  `.execute(db);
+
+  await db.schema
     .createTable("meegle_workitem_sprint_memberships")
     .ifNotExists()
     .addColumn("project_key", "text", (column) => column.notNull())
@@ -927,6 +958,7 @@ export async function resetPostgresDatabase(db: Kysely<DatabaseSchema>): Promise
   await sql`DROP TABLE IF EXISTS github_pr_syncs`.execute(db);
   await sql`DROP TABLE IF EXISTS meegle_sync_mappings`.execute(db);
   await sql`DROP TABLE IF EXISTS meegle_workitem_sprint_memberships`.execute(db);
+  await sql`DROP TABLE IF EXISTS meegle_workitem_role_members`.execute(db);
   await sql`DROP TABLE IF EXISTS meegle_workitem_syncs`.execute(db);
   await sql`DROP TABLE IF EXISTS github_pr_review_runs`.execute(db);
   await sql`DROP TABLE IF EXISTS web_plugin_login_challenges`.execute(db);

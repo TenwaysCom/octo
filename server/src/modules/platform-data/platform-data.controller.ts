@@ -81,7 +81,7 @@ export function createWebPlatformDataController(deps: {
       throw error;
     }
 
-    const hasMeegleWorkitemFilters = query.sprint || query.project || query.workitemType || query.withoutSprint;
+    const hasMeegleWorkitemFilters = query.sprint || query.project || query.workitemType || query.relatedPerson || query.subscribed || query.withoutSprint;
     if (input.kind !== "meegle-workitems" && hasMeegleWorkitemFilters) {
       return {
         statusCode: 400,
@@ -109,6 +109,12 @@ export function createWebPlatformDataController(deps: {
         body: { ok: false as const, error: { errorCode: "INVALID_REQUEST", errorMessage: "优先级筛选不适用于 GitHub PR 列表。" } },
       };
     }
+    if (input.kind === "meegle-workitems" && query.subscribed && !session.meegleUserKey) {
+      return {
+        statusCode: 409,
+        body: { ok: false as const, error: { errorCode: "MEEGLE_BINDING_REQUIRED", errorMessage: "请先绑定 Meegle 账号。" } },
+      };
+    }
 
     try {
       const filters = input.kind === "lark-tickets"
@@ -130,6 +136,8 @@ export function createWebPlatformDataController(deps: {
           projects: query.project,
           priorities: query.priority,
           workitemTypes: query.workitemType,
+          relatedPersonMemberKeys: query.relatedPerson,
+          subscribedMemberKey: query.subscribed ? session.meegleUserKey : undefined,
           withoutSprint: query.withoutSprint || undefined,
           sourceUpdatedAtAfter: query.sourceUpdatedAtAfter,
           sourceUpdatedAtBefore: query.sourceUpdatedAtBefore,

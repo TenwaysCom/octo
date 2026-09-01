@@ -19,8 +19,10 @@ export const platformDataListQuerySchema = z.object({
   project: stringListQuerySchema,
   priority: stringListQuerySchema,
   responsible: stringListQuerySchema,
+  relatedPerson: stringListQuerySchema,
   workitemType: stringListQuerySchema,
   quickFilter: z.enum(["in-progress", "unclassified", "unsynced"]).optional(),
+  subscribed: z.enum(["true"]).optional().transform((value) => value === "true"),
   withoutSprint: z.enum(["true"]).optional().transform((value) => value === "true"),
   createdAfter: timestampQuerySchema.optional(),
   createdBefore: timestampQuerySchema.optional(),
@@ -119,6 +121,21 @@ const githubLinkedMeegleWorkitemSchema = z.object({
   version: z.string().optional(),
 });
 
+const meegleRelatedPeopleSchema = z.array(z.object({
+  roleKey: z.string(),
+  roleName: z.string(),
+  members: z.array(z.object({
+    memberKey: z.string(),
+    name: z.string(),
+  })),
+}));
+
+const meegleRelatedPersonOptionsSchema = z.array(z.object({
+  memberKey: z.string(),
+  name: z.string(),
+  roleNames: z.array(z.string()),
+}));
+
 const meegleWorkitemSchema = z.object({
   projectKey: z.string(),
   projectName: z.string().optional(),
@@ -136,6 +153,7 @@ const meegleWorkitemSchema = z.object({
   version: z.string().optional(),
   system: z.string().optional(),
   bugs: z.array(z.string()).optional(),
+  relatedPeople: meegleRelatedPeopleSchema.default([]),
   githubPullRequests: z.array(z.object({
     owner: z.string(),
     repo: z.string(),
@@ -185,6 +203,7 @@ const meegleSprintWorkitemsSchema = z.array(meegleWorkitemSchema.extend({
 export const meegleWorkitemListResponseSchema = z.object({
   items: z.array(meegleWorkitemSchema),
   sprints: z.array(z.string()),
+  relatedPersonOptions: meegleRelatedPersonOptionsSchema.default([]),
   pager: platformDataPagerSchema,
 });
 

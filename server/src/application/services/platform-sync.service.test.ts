@@ -2,6 +2,7 @@ import type { GitHubPrDetails } from "../../adapters/github/github-types.js";
 import type { LarkBitableRecord, LarkClient } from "../../adapters/lark/lark-client.js";
 import type { MeegleClient, MeegleSyncMapping, MeegleWorkitem } from "../../adapters/meegle/meegle-client.js";
 import type { MeegleSprintRelationFields, MeegleWorkitemLifecycleFields, PlatformSyncStore } from "../../adapters/postgres/platform-sync-store.js";
+import type { MeegleWorkitemRoleMembersProjection } from "../../domain/meegle-workitem-role-members.js";
 import { buildLarkUpdatedSinceFilter, PlatformSyncService, isInactiveSyncStatus } from "./platform-sync.service.js";
 
 function createStore(): PlatformSyncStore & {
@@ -10,7 +11,7 @@ function createStore(): PlatformSyncStore & {
   github: Array<{ pullRequest: GitHubPrDetails }>;
   lark: Array<{ record: LarkBitableRecord; title: string; status?: string }>;
   cleanedMeegle: string[];
-  meegleCleaning: Array<{ workItemId: string; lifecycle?: MeegleWorkitemLifecycleFields }>;
+  meegleCleaning: Array<{ workItemId: string; lifecycle?: MeegleWorkitemLifecycleFields; roleMembers: MeegleWorkitemRoleMembersProjection }>;
   cleanedGitHub: string[];
   githubCleaning: Array<{ pullNumber: number; mergedBy?: string; reviewers: string[]; labels: string[]; createdAt?: string }>;
   cleanedLark: string[];
@@ -22,7 +23,7 @@ function createStore(): PlatformSyncStore & {
     github: [] as Array<{ pullRequest: GitHubPrDetails }>,
     lark: [] as Array<{ record: LarkBitableRecord; title: string; status?: string }>,
     cleanedMeegle: [] as string[],
-    meegleCleaning: [] as Array<{ workItemId: string; lifecycle?: MeegleWorkitemLifecycleFields }>,
+    meegleCleaning: [] as Array<{ workItemId: string; lifecycle?: MeegleWorkitemLifecycleFields; roleMembers: MeegleWorkitemRoleMembersProjection }>,
     cleanedGitHub: [] as string[],
     githubCleaning: [] as Array<{ pullNumber: number; mergedBy?: string; reviewers: string[]; labels: string[]; createdAt?: string }>,
     cleanedLark: [] as string[],
@@ -93,7 +94,7 @@ function createStore(): PlatformSyncStore & {
           syncedAt: "2026-08-11T00:00:00Z",
         }));
     },
-    async applyMeegleWorkitemCleaning(input: { workItemId: string; lifecycle?: MeegleWorkitemLifecycleFields }) {
+    async applyMeegleWorkitemCleaning(input: { workItemId: string; lifecycle?: MeegleWorkitemLifecycleFields; roleMembers: MeegleWorkitemRoleMembersProjection }) {
       store.cleanedMeegle.push(input.workItemId);
       store.meegleCleaning.push(input);
       return true;
@@ -115,6 +116,8 @@ function createStore(): PlatformSyncStore & {
     },
     async listMeegleWorkitems() { return []; },
     async countMeegleWorkitems() { return 0; },
+    async listMeegleWorkitemRoleMembers() { return []; },
+    async listMeegleRelatedPersonOptions() { return []; },
     async listMeegleSprints() { return []; },
     async listMeegleWorkitemsByIds() { return []; },
     async listMeegleSprintSnapshots() { return []; },
@@ -184,10 +187,15 @@ describe("PlatformSyncService", () => {
     const store = createStore();
     store.meegle.push({ workitem: {
       ...workitem("1", "In Progress"),
-      fields: { work_item_fields: [
-        { key: "field_feb079", value: [{ id: "cycle-1", name: "Sprint 1" }] },
-        { key: "start_time", value: { iso_time: "2026-08-21T00:00:00Z" } },
-      ] },
+      fields: {
+        work_item_fields: [
+          { key: "field_feb079", value: [{ id: "cycle-1", name: "Sprint 1" }] },
+          { key: "start_time", value: { iso_time: "2026-08-21T00:00:00Z" } },
+        ],
+        work_item_attribute: {
+          role_members: [{ key: "developer", name: " Developer ", members: [{ key: "u-1", name: " Ada " }] }],
+        },
+      },
     } });
     const createMeegleClient = vi.fn();
     const service = new PlatformSyncService({ store, createMeegleClient });
@@ -204,6 +212,42 @@ describe("PlatformSyncService", () => {
       itemStartTime: null,
       itemFinishTime: null,
     });
+    expect(store.meegleCleaning[0]?.roleMembers).toEqual({
+      present: true,
+      members: [{
+        roleKey: "developer", roleName: "Developer", memberKey: "u-1", memberName: "Ada", roleOrder: 0, memberOrder: 0,
+      }],
+    });
+  });
+
+  it("keeps an existing related-person projection when role_members is absent", async () => {
+    const store = createStore();
+    store.meegle.push({ workitem: workitem("1", "In Progress") });
+    const service = new PlatformSyncService({ store });
+
+    await expect(service.cleanMeegleWorkitems([
+      { projectKey: "project", workItemTypeKey: "story", workItemId: "1" },
+    ])).resolves.toBe(1);
+
+    expect(store.meegleCleaning[0]?.roleMembers).toEqual({ present: false, members: [] });
+  });
+
+  it("rejects an invalid role_members observation before writing that workitem projection", async () => {
+    const store = createStore();
+    store.meegle.push({ workitem: {
+      ...workitem("1", "In Progress"),
+      fields: { work_item_attribute: { role_members: null } },
+    } }, { workitem: workitem("2", "In Progress") });
+    const service = new PlatformSyncService({ store });
+
+    await expect(service.cleanMeegleWorkitems([
+      { projectKey: "project", workItemTypeKey: "story", workItemId: "1" },
+      { projectKey: "project", workItemTypeKey: "story", workItemId: "2" },
+    ])).rejects.toThrow("PLATFORM_SYNC_CLEANING_FAILED:meegle:1/2");
+
+    expect(store.meegleCleaning).toEqual([
+      expect.objectContaining({ workItemId: "2", roleMembers: { present: false, members: [] } }),
+    ]);
   });
 
   it("cleans later snapshot objects after a cleaning failure, then reports the failed references", async () => {

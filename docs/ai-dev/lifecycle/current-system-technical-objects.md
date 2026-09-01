@@ -36,6 +36,7 @@ update_required_when:
 | `ExecutionDraft` | Server workflow | `server/src/validators/agent-output/execution-draft.ts`, `server/src/modules/lark-base/lark-base-workflow.service.ts` | Lark record 到 Meegle create 的中间对象 |
 | `MeegleWorkitem` | Meegle platform, adapter wraps | `server/src/adapters/meegle/meegle-client.ts`, `server/src/application/services/meegle-workitem.service.ts` | create/update 已封装；字段可写性主要靠失败后重试 |
 | `MeegleWorkitemLifecycleSnapshot` | Server projection / PostgreSQL | `server/src/application/services/meegle-workitem-lifecycle.ts`, `server/src/adapters/postgres/platform-sync-store.ts` | 保存工作项当前 Sprint 和兼容用 add/start/finish 投影；增量同步按阶段合并当前值 |
+| `MeegleWorkitemRoleMember` | Server projection / PostgreSQL | `server/src/domain/meegle-workitem-role-members.ts`, `server/src/adapters/postgres/platform-sync-store.ts` | 从精确的 `fields.work_item_attribute.role_members` 清洗当前角色成员关系；支持按工作项批量读取和按稳定 `memberKey` 反查，不保存 email 或角色历史 |
 | `MeegleWorkitemSprintMembership` | Server domain / PostgreSQL | `server/src/domain/meegle-sprint-membership.ts`, `server/src/adapters/postgres/platform-sync-store.ts` | 每段连续 Sprint 归属一条记录；增量同步原子关闭旧区间、创建或更新当前区间，并保留推定/观察来源 |
 | `MeegleFieldMetadata` | Should be server metadata resolver | `server/src/adapters/meegle/meegle-client.ts` | adapter 有 `getFields`/`getWorkitemMeta`，但 workflow 未集中使用 |
 | `LarkWriteback` | Server workflow / Lark adapter | `server/src/modules/lark-base/lark-base.service.ts`, `server/src/modules/lark-base/lark-base-workflow.service.ts` | Meegle link 回写到 Lark Base |
@@ -57,7 +58,7 @@ update_required_when:
 | 层级 | 技术对象 | 层级职责 | 不应负责 |
 | --- | --- | --- | --- |
 | `extension` | `PopupPageContext`, popup state, visible action button, auth trigger state, content-script identity probe, tab-scoped cached `masterUserId` | 采集页面上下文、渲染 UI、触发授权、派发 action、展示结果 | 业务 workflow、平台字段规则、跨平台 mapping、真实 token 持久化 |
-| `server` | `ExtensionPageConfig`, `AutomationActionConfig`, `ResolvedUser`, `ExecutionDraft`, `WorkitemMapping`, `WorkflowPrompt`, `MeegleWorkitemSprintMembership`, `MeegleSprintAiSession`, workflow request/result, `ActionRunTrace`, semantic field mapping, ACP one-shot limiter | action catalog、身份解析、授权检查、业务编排、Sprint 归属转换、workflow prompt、错误归一化、测试契约、可续聊 Sprint 会话控制 | 浏览器 DOM 细节、平台原始字段 shape、直接依赖 extension UI 状态 |
+| `server` | `ExtensionPageConfig`, `AutomationActionConfig`, `ResolvedUser`, `ExecutionDraft`, `WorkitemMapping`, `WorkflowPrompt`, `MeegleWorkitemRoleMember`, `MeegleWorkitemSprintMembership`, `MeegleSprintAiSession`, workflow request/result, `ActionRunTrace`, semantic field mapping, ACP one-shot limiter | action catalog、身份解析、授权检查、业务编排、相关人清洗、Sprint 归属转换、workflow prompt、错误归一化、测试契约、可续聊 Sprint 会话控制 | 浏览器 DOM 细节、平台原始字段 shape、直接依赖 extension UI 状态 |
 | `adapter` | `MeegleClient` request/response, `LarkClient` request/response, `GitHubClient` request/response, token refresh wrapper, normalized platform error | 第三方 API 封装、请求/响应归一化、平台错误转换、安全日志摘要 | PM 业务决策、popup 行为、跨平台 workflow 编排 |
 | `platform` | Lark Base record, Lark message/thread/reaction, Meegle workitem, Meegle field metadata, Meegle auth code, GitHub PR/repo/branch | 外部真实状态、权限限制、字段限制、状态机限制、平台返回错误 | Octo 内部业务语义和错误契约 |
 
@@ -78,6 +79,7 @@ update_required_when:
 | `ExecutionDraft` | `server` | adapter consumes converted payload | Lark record -> draft -> Meegle apply -> workitem create | draft 长期承载平台动态 `field_*` 作为业务语义 |
 | `MeegleWorkitem` | `platform` | `adapter` normalizes, `server` reads/writes by workflow | Meegle API -> adapter workitem -> workflow decision/update | extension 直接读写 Meegle workitem 业务字段 |
 | `MeegleWorkitemLifecycleSnapshot` | `server` | PostgreSQL stores stable Sprint relation and scalar lifecycle projection, FE aggregates by day | persisted workitem payload + persisted Sprint snapshot -> server lifecycle projection -> API -> Sprint chart | 历史清洗请求 operation records/all nodes、FE 猜测 `updatedAt` 为生命周期时间，或按可变 Sprint 名称关联 |
+| `MeegleWorkitemRoleMember` | `server` | PostgreSQL stores one current row per workitem/role/member; FE receives role-grouped DTO | persisted workitem payload -> exact-path cleaner -> transactional relation replacement -> batched API projection | FE/Store 解析原始 payload、按姓名查询、把相关人回退为负责人，或把当前关系误称为历史关系 |
 | `MeegleWorkitemSprintMembership` | `server` | PostgreSQL stores one row per continuous Sprint membership | incremental workitem detail + current snapshot -> domain transition -> transactional close/update/create | 用新 Sprint 状态改写已关闭区间、把推定关系升级为观察关系，或以 Sprint 名称作为身份 |
 | `MeegleFieldMetadata` | `platform` | `adapter` fetches, `server` resolver turns into semantic field map | platform metadata -> adapter raw response -> server resolver -> validated payload | workflow/popup 散落硬编码 `field_*` |
 | `LarkWriteback` | `server` workflow | `adapter` sends Lark update request | workflow result -> Lark adapter update -> platform record state | Meegle adapter 或 extension 直接决定 Lark Base 回写规则 |
@@ -385,7 +387,8 @@ Lark Base 记录页或批量视图
 
 ### 技术对象
 
-`MeegleWorkitem`
+- `MeegleWorkitem`
+- `MeegleWorkitemRoleMember`
 
 ### 生命周期
 
@@ -422,6 +425,8 @@ ExecutionDraft
 - Workflows should not hardcode `field_*`.
 - Adapter should normalize field access shape.
 - Meegle snapshot `assignee` is the display projection of the system `current_status_operator` (Current owner) field. Preserve all current owners in source order, and do not infer this value from workflow-node owners or type-specific roles.
+- Current related people come only from `fields.work_item_attribute.role_members`. The cleaner requires stable role/member keys, trims display names, deduplicates only within the same role, and never persists member email. A missing path means “evidence unavailable” and preserves the existing relation projection; an observed empty array means “confirmed empty” and clears it; malformed observed data fails that workitem cleaning.
+- Persist current related people in `meegle_workitem_role_members` under the full workitem composite key. Scalar cleaning and relation replacement share one transaction. API reads relations in batches and filters by stable `memberKey`; the Meegle `Subscribed` quick filter resolves the current user's key from the authenticated Server session and applies it as an independent AND group beside manual related-person and other list filters. FE must not receive that session identity key and displays related people separately from `assignee`. Sprint views must label this projection “当前相关人” because no role-member history is retained.
 - Meegle source creation time is normalized by the adapter and persisted as the dedicated nullable `created_at` snapshot projection; list APIs must not reopen `payload_json` to display or sort it.
 - Metadata resolver should validate create/update payload before platform request.
 - Persist the Sprint relation as stable `sprint_id` plus display-only `sprint` name. Do not use the mutable name as the join identity.

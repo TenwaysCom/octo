@@ -874,7 +874,7 @@ async function resolveLarkWebSession(
   sessionToken: string | undefined,
   overrides?: Partial<LarkAuthServiceDeps>,
 ): Promise<
-  | { ok: true; masterUserId: string; baseUrl: string; role?: string; user: LarkWebAuthUser }
+  | { ok: true; masterUserId: string; baseUrl: string; role?: string; meegleUserKey?: string; user: LarkWebAuthUser }
   | { ok: false; errorCode: string; errorMessage: string }
 > {
   if (!sessionToken) {
@@ -897,6 +897,7 @@ async function resolveLarkWebSession(
     masterUserId: session.masterUserId,
     baseUrl: session.baseUrl,
     role: user.role ?? undefined,
+    meegleUserKey: user.meegleUserKey ?? undefined,
     user: {
       larkName: user.larkName ?? undefined,
       larkEmail: user.larkEmail ?? undefined,
@@ -920,7 +921,7 @@ export async function ensureLarkWebSession(
 export async function resolveLarkWebSessionIdentity(
   sessionToken: string | undefined,
   overrides?: Partial<LarkAuthServiceDeps>,
-): Promise<{ ok: true; masterUserId: string; baseUrl: string; role?: string; user: LarkWebAuthUser } | { ok: false; errorCode: string; errorMessage: string }> {
+): Promise<{ ok: true; masterUserId: string; baseUrl: string; role?: string; meegleUserKey?: string; user: LarkWebAuthUser } | { ok: false; errorCode: string; errorMessage: string }> {
   return resolveLarkWebSession(sessionToken, overrides);
 }
 

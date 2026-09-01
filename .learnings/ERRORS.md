@@ -580,3 +580,39 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Root cause:** Its expected Sprint cell context accidentally repeated the `assignee` branch, while the source contains it once.
 - **Verified fix:** Inspect the exact JSX block and apply smaller configuration/test and page patches; FE check then passed.
 - **Recurrence (2026-08-31):** A broad current-working-time patch spanning two large JSX pages again failed context verification without changing files; splitting imports, cells, cards, and call sites into small ordered patches applied cleanly.
+
+### ERR-20260901-001 — PostgreSQL shape probe bypassed the configured SSH connection path
+
+- **Symptom:** Direct `psql` returned an empty connection error; follow-up `tsx -e` attempts also failed on relative env-file resolution, top-level await, and sandbox IPC permissions before reaching the database.
+- **Root cause:** The target database requires the project's `preparePostgresConnection()` SSH-tunnel path. The eval runner needed an absolute env-file path and async IIFE, while the managed sandbox blocked its IPC/tunnel setup.
+- **Verified fix:** Run the aggregate-only probe through `preparePostgresConnection()` with an absolute `server/.env` path, wrap eval code in an async IIFE, and use approved elevated execution. The query returned only JSON keys/types/counts and no connection string or person values.
+
+### ERR-20260901-002 — Strict JSONPath aborted on heterogeneous Meegle payloads
+
+- **Symptom:** An aggregate path-coverage query failed when one payload lacked `work_item_attribute`.
+- **Root cause:** `strict` JSONPath treats a missing intermediate object key as an error, while historical Meegle payload shapes are intentionally heterogeneous.
+- **Verified fix:** Use `lax` JSONPath for optional path-existence coverage. It confirmed all observed `role_members` values are under `fields.work_item_attribute.role_members` without exposing payload contents.
+
+### ERR-20260901-003 — pg-mem could not execute PostgreSQL correlated relation filtering
+
+- **Symptom:** The new related-person Store test rejected both an outer-reference `EXISTS` query and a multi-column row-value `IN` query; pg-mem also lacked PostgreSQL's built-in `length(text)` function used by the compatible composite identity expression.
+- **Root cause:** pg-mem does not implement these PostgreSQL correlation/row-value paths or the full native function set.
+- **Verified fix:** Keep the member-indexed, non-JSON semi-match query, encode the full composite identity with length prefixes, and register PostgreSQL `length(text)` in the shared pg-mem test harness. The Store test and the real PostgreSQL migration/backfill both passed.
+
+### ERR-20260901-004 — Ad-hoc database verification omitted dotenv initialization
+
+- **Symptom:** The first post-backfill aggregate verification exited with `POSTGRES_URI is not configured`.
+- **Root cause:** Unlike package scripts, the direct Node eval did not import `dotenv/config` before initializing the shared database.
+- **Verified fix:** Import `dotenv/config` first and rerun the same aggregate-only query with approved database access; it returned only counts and no person values.
+
+### ERR-20260901-005 — Markdown backticks executed inside a shell search command
+
+- **Symptom:** A documentation `rg` command printed `command not found: meegle_workitem_syncs` before completing its remaining reads.
+- **Root cause:** Markdown backticks were placed inside the shell command string, so zsh treated them as command substitution.
+- **Verified fix:** Put the search pattern in single quotes without executable backticks and rerun the read-only check; no file or database state changed.
+
+### ERR-20260901-006 — Vitest file arguments were forwarded after an extra separator
+
+- **Symptom:** `pnpm test -- --run <files>` executed the full Server suite instead of only the requested files; the run surfaced the already-known `node:sqlite` availability failures and logger rotation race.
+- **Root cause:** The package script already expands to `vitest run`; the extra `-- --run` was treated as forwarded arguments rather than a scoped Vitest invocation.
+- **Verified fix:** Run `pnpm exec vitest run <files>` from `server/`. The intended Store, platform-data controller, and Lark auth service files then passed 44/44 tests.

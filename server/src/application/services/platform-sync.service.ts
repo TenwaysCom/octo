@@ -21,6 +21,7 @@ import { buildAuthenticatedLarkClient } from "./lark-auth-client.factory.js";
 import { logger } from "../../logger.js";
 import { isMeegleProductionBugType, isMeegleSprintType } from "../../domain/meegle-workitem-types.js";
 import { buildMeegleSprintSnapshot, getMeegleSprintDetailFieldKeys } from "./meegle-sprint-snapshot.js";
+import { extractMeegleWorkitemRoleMembers } from "../../domain/meegle-workitem-role-members.js";
 import type {
   BulkSyncGitHubPullRequestsRequest,
   BulkSyncLarkBaseTicketsRequest,
@@ -482,6 +483,7 @@ export class PlatformSyncService {
       `${snapshot.projectKey}/${snapshot.workItemTypeKey}/${snapshot.workItemId}`
     ), async (snapshot) => {
       const relations = snapshot.sourcePayload ? extractMeegleCleaningRelations(snapshot.sourcePayload) : {};
+      const roleMembers = extractMeegleWorkitemRoleMembers(snapshot.sourcePayload);
       const sprintRelation = snapshot.sourcePayload ? extractMeegleSprintRelation(snapshot.sourcePayload) : undefined;
       const lifecycle = snapshot.sourcePayload ? buildMeegleWorkitemLifecycle({
         workitem: snapshot.sourcePayload,
@@ -495,6 +497,7 @@ export class PlatformSyncService {
         workItemId: snapshot.workItemId,
         sprintRelation,
         lifecycle,
+        roleMembers,
         observedAt: snapshot.syncedAt,
         version: typeof relations.version === "string" ? relations.version : snapshot.version,
         system: typeof relations.system === "string" ? relations.system : snapshot.system,
@@ -555,8 +558,18 @@ export class PlatformSyncService {
         if (await clean(snapshot)) cleaned++;
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
+        const errorCode = typeof error === "object" && error !== null && "errorCode" in error
+          ? String(error.errorCode)
+          : "PLATFORM_SYNC_CLEANING_ITEM_FAILED";
         failures.push(`${ref}: ${message}`);
-        syncLogger.warn({ platform, ref, errorMessage: message }, "PLATFORM_SYNC_CLEANING_ITEM_FAILED");
+        syncLogger.warn({
+          platform,
+          ref,
+          layer: "server",
+          stage: "server.workflow.cleaning",
+          errorCode,
+          errorMessage: message,
+        }, "PLATFORM_SYNC_CLEANING_ITEM_FAILED");
       }
     }
     if (failures.length > 0) {

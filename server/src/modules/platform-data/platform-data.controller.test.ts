@@ -144,7 +144,10 @@ describe("web platform data controller", () => {
 
     await expect(controller({ cookieHeader: "octo_web_session=session-token" })).resolves.toEqual({
       statusCode: 200,
-      body: { ok: true, data: history },
+      body: { ok: true, data: {
+        ...history,
+        sprintWorkitems: history.sprintWorkitems.map((item) => ({ ...item, relatedPeople: [] })),
+      } },
     });
     expect(service.listMeegleSprintHistory).toHaveBeenCalledOnce();
   });
@@ -201,7 +204,7 @@ describe("web platform data controller", () => {
       githubPullRequests: [],
       syncedAt: "2026-08-09T00:00:00.000Z",
     }], total: 1 }) };
-    const ensureSession = vi.fn().mockResolvedValue({ ok: true, role: "dev", user: {} });
+    const ensureSession = vi.fn().mockResolvedValue({ ok: true, role: "dev", meegleUserKey: "member-me", user: {} });
     const controller = createWebPlatformDataController({ service, ensureSession });
 
     const result = await controller({
@@ -209,7 +212,9 @@ describe("web platform data controller", () => {
       cookieHeader: "octo_web_session=session-token",
       query: {
         limit: "500", offset: "500", sprint: "Odoo Sprint 20260806", status: "Launched,New",
-        project: "4c3fv6", priority: "P1", workitemType: "story", sourceUpdatedAtAfter: "2026-08-01T00:00:00Z",
+        project: "4c3fv6", priority: "P1", workitemType: "story", relatedPerson: ["member-1", "member-2"],
+        subscribed: "true",
+        sourceUpdatedAtAfter: "2026-08-01T00:00:00Z",
       },
     });
     expect(result).toEqual({
@@ -226,14 +231,34 @@ describe("web platform data controller", () => {
         system: "Odoo/Odoo UK",
         currentNodeStartTime: "2026-08-09T02:00:00.000Z",
         githubPullRequests: [expect.objectContaining({ pullNumber: 1138, headRef: "feature/m-1138", baseRef: "main", state: "merged", odooShBuilds: [{ environment: "eu", status: "done", result: "success" }] })],
-      })], sprints: ["Odoo Sprint 20260806"], pager: { offset: 500, limit: 500, total: 1, hasMore: false } } },
+      })], sprints: ["Odoo Sprint 20260806"], relatedPersonOptions: [], pager: { offset: 500, limit: 500, total: 1, hasMore: false } } },
     });
     expect((result.body as { data: { items: Array<Record<string, unknown>> } }).data.items[0]).not.toHaveProperty("plannedSprint");
     expect(ensureSession).toHaveBeenCalledWith("session-token");
     expect(service.list).toHaveBeenCalledWith("meegle-workitems", 500, { meegleWorkitems: {
       sprints: ["Odoo Sprint 20260806"], statuses: ["Launched", "New"], projects: ["4c3fv6"], priorities: ["P1"],
-      workitemTypes: ["story"], sourceUpdatedAtAfter: "2026-08-01T00:00:00.000Z", offset: 500,
+      workitemTypes: ["story"], relatedPersonMemberKeys: ["member-1", "member-2"],
+      subscribedMemberKey: "member-me",
+      sourceUpdatedAtAfter: "2026-08-01T00:00:00.000Z", offset: 500,
     } });
+  });
+
+  it("requires a Meegle binding for the Subscribed quick filter", async () => {
+    const service = { list: vi.fn() };
+    const controller = createWebPlatformDataController({
+      service,
+      ensureSession: vi.fn().mockResolvedValue({ ok: true, role: "dev", user: {} }),
+    });
+
+    await expect(controller({
+      kind: "meegle-workitems",
+      cookieHeader: "octo_web_session=session-token",
+      query: { subscribed: "true" },
+    })).resolves.toEqual({
+      statusCode: 409,
+      body: { ok: false, error: { errorCode: "MEEGLE_BINDING_REQUIRED", errorMessage: "请先绑定 Meegle 账号。" } },
+    });
+    expect(service.list).not.toHaveBeenCalled();
   });
 
   it("passes validated Lark Ticket time ranges and issue types to the service", async () => {
@@ -318,6 +343,16 @@ describe("web platform data controller", () => {
       kind: "meegle-workitems",
       cookieHeader: "octo_web_session=session-token",
       query: { issueType: "Feature" },
+    })).resolves.toMatchObject({ statusCode: 400, body: { error: { errorCode: "INVALID_REQUEST" } } });
+    await expect(controller({
+      kind: "lark-tickets",
+      cookieHeader: "octo_web_session=session-token",
+      query: { relatedPerson: "member-1" },
+    })).resolves.toMatchObject({ statusCode: 400, body: { error: { errorCode: "INVALID_REQUEST" } } });
+    await expect(controller({
+      kind: "github-pull-requests",
+      cookieHeader: "octo_web_session=session-token",
+      query: { subscribed: "true" },
     })).resolves.toMatchObject({ statusCode: 400, body: { error: { errorCode: "INVALID_REQUEST" } } });
     await expect(controller({
       kind: "lark-tickets",

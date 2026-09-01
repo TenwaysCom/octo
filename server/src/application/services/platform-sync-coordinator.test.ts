@@ -56,6 +56,40 @@ describe("PlatformSyncCoordinator", () => {
     await pool.end();
   });
 
+  it("keeps the previous checkpoint when incremental cleaning fails", async () => {
+    const { db, pool } = await createTestPostgresDatabase();
+    const checkpointStore = new PostgresPlatformSyncCheckpointStore(db);
+    const coordinator = new PlatformSyncCoordinator({
+      checkpointStore,
+      runStore: new PostgresPlatformSyncRunStore(db),
+      leaseStore: new PostgresPlatformSyncLeaseStore(db),
+    });
+    await checkpointStore.createIfMissing({
+      platform: "meegle",
+      scopeKey: "project/story",
+      watermarkUpdatedAt: "2026-08-26T00:00:00.000Z",
+      watermarkTiebreaker: "story:1",
+    });
+
+    await expect(coordinator.runIncremental({
+      platform: "meegle",
+      scopeKey: "project/story",
+      trigger: "manual",
+      execute: async () => { throw new Error("PLATFORM_SYNC_CLEANING_FAILED:meegle:1/1"); },
+    })).rejects.toMatchObject({ code: "SYNC_FAILED" });
+
+    await expect(checkpointStore.get("meegle", "project/story")).resolves.toEqual(expect.objectContaining({
+      watermarkUpdatedAt: "2026-08-26T00:00:00.000Z",
+      watermarkTiebreaker: "story:1",
+      version: 0,
+    }));
+    await expect(db.selectFrom("platform_sync_runs").select("status").executeTakeFirst())
+      .resolves.toEqual({ status: "failed" });
+
+    await db.destroy();
+    await pool.end();
+  });
+
   it("skips a second run while the same scope is leased", async () => {
     const { db, pool } = await createTestPostgresDatabase();
     const checkpointStore = new PostgresPlatformSyncCheckpointStore(db);

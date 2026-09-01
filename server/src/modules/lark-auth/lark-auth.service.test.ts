@@ -21,6 +21,7 @@ import {
   handleLarkWebAuthCallback,
   getLarkWebProfile,
   ensureLarkWebSession,
+  resolveLarkWebSessionIdentity,
   logoutLarkWebSession,
   approveWebPluginLoginChallenge,
   completeWebPluginLoginChallenge,
@@ -151,11 +152,16 @@ describe("lark-auth.service", () => {
         meegleAuthorization: { status: "ready" },
       },
     });
+    await expect(resolveLarkWebSessionIdentity(completed.sessionToken)).resolves.toMatchObject({
+      ok: true,
+      meegleUserKey: "meegle_profile",
+    });
     const profile = await getLarkWebProfile(completed.sessionToken);
     if (!profile.ok) {
       throw new Error("Expected web profile to be available");
     }
     expect(profile.profile).not.toHaveProperty("masterUserId");
+    expect(JSON.stringify(profile.profile)).not.toContain("meegle_profile");
     expect(JSON.stringify(profile.profile)).not.toContain("meegle_user_token");
 
     await meegleTokenStore.save({

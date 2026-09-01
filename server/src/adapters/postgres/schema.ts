@@ -170,6 +170,18 @@ export interface DatabaseSchema {
     last_seen_at: Generated<string | null>;
     stale: Generated<boolean>;
   };
+  meegle_workitem_role_members: {
+    project_key: string;
+    work_item_type_key: string;
+    work_item_id: string;
+    role_key: string;
+    role_name: string;
+    member_key: string;
+    member_name: string;
+    role_order: number;
+    member_order: number;
+    synced_at: string;
+  };
   meegle_workitem_sprint_memberships: {
     project_key: string;
     work_item_type_key: string;

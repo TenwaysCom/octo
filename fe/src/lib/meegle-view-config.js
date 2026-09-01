@@ -7,6 +7,7 @@ export const MEEGLE_VIEW_COLUMNS = [
   { key: "version", label: "Version", sortKey: "version" },
   { key: "system", label: "System", sortKey: "system" },
   { key: "assignee", label: "负责人", sortKey: "assignee" },
+  { key: "relatedPeople", label: "相关人" },
   { key: "currentWorkingTime", label: "当前工作时长" },
   { key: "createdAt", label: "创建时间", sortKey: "createdAt" },
   { key: "updatedAt", label: "更新时间", sortKey: "updatedAt" },

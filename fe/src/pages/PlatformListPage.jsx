@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { WorkspaceShell } from "../components/layout/WorkspaceShell.jsx";
 import { OdooShBuildStatus } from "../components/platform/OdooShBuildStatus.jsx";
+import { MeegleRelatedPeople } from "../components/platform/MeegleRelatedPeople.jsx";
 import { LarkTicketBadge } from "../components/lark-ticket/LarkTicketBadge.jsx";
 import { LarkTicketResponsible } from "../components/lark-ticket/LarkTicketResponsible.jsx";
 import { useKeyboardShortcut } from "../hooks/useKeyboardShortcut.js";
@@ -21,7 +22,7 @@ import {
   normalizeGitHubPullRequestVisibleColumns,
   sortGitHubPullRequests,
 } from "../lib/github-pull-request-view-config.js";
-import { DATE_FILTERS, countFilterValues, normalizeFilterValues, toggleFilterValue } from "../lib/platform-list-filters.js";
+import { DATE_FILTERS, countFilterValues, getPlatformListFilters, normalizeFilterValues, toggleFilterValue } from "../lib/platform-list-filters.js";
 import {
   DEFAULT_LARK_TICKET_SORT,
   DEFAULT_LARK_TICKET_VISIBLE_COLUMNS,
@@ -197,66 +198,6 @@ function getPlatformItemStatus(kind, item) {
   return item.isDraft ? "Draft" : item.state || "未设置";
 }
 
-function getPlatformListFilters({
-  page,
-  selectedStatuses,
-  selectedDateFilters,
-  selectedSprints,
-  selectedTagFilters,
-  larkTicketQuickFilter,
-  workitemTypeFilter,
-  noSprintFilter,
-}) {
-  const sourceUpdatedAtAfter = getEarliestSelectedDate(selectedDateFilters);
-  if (page === "lark-tickets") {
-    return {
-      ...(selectedStatuses ? { status: selectedStatuses } : {}),
-      ...(sourceUpdatedAtAfter ? { sourceUpdatedAtAfter } : {}),
-      ...(selectedTagFilters.issueType?.length ? { issueType: selectedTagFilters.issueType } : {}),
-      ...(selectedTagFilters.priority?.length ? { priority: selectedTagFilters.priority } : {}),
-      ...(selectedTagFilters.responsible?.length ? { responsible: selectedTagFilters.responsible } : {}),
-      ...(larkTicketQuickFilter !== "all" ? { quickFilter: larkTicketQuickFilter } : {}),
-    };
-  }
-  if (page === "meegle-workitems") {
-    const sprints = noSprintFilter ? [] : [...new Set([
-      ...selectedSprints,
-      ...(selectedTagFilters.sprint || []),
-    ])];
-    return {
-      ...(selectedStatuses ? { status: selectedStatuses } : {}),
-      ...(sourceUpdatedAtAfter ? { sourceUpdatedAtAfter } : {}),
-      ...(sprints.length ? { sprint: sprints } : {}),
-      ...(selectedTagFilters.project?.length ? { project: selectedTagFilters.project } : {}),
-      ...(selectedTagFilters.priority?.length ? { priority: selectedTagFilters.priority } : {}),
-      ...(workitemTypeFilter !== "all" ? { workitemType: workitemTypeFilter } : {}),
-      ...(noSprintFilter ? { withoutSprint: true } : {}),
-    };
-  }
-  return {
-    ...(selectedStatuses ? { status: selectedStatuses } : {}),
-    ...(sourceUpdatedAtAfter ? { sourceUpdatedAtAfter } : {}),
-    ...(selectedTagFilters.repo?.length ? { repo: selectedTagFilters.repo } : {}),
-    ...(selectedTagFilters.label?.length ? { label: selectedTagFilters.label } : {}),
-    ...(selectedTagFilters.reviewer?.length ? { reviewer: selectedTagFilters.reviewer } : {}),
-  };
-}
-
-function getEarliestSelectedDate(selectedDateFilters, now = new Date()) {
-  if (!selectedDateFilters.length) return undefined;
-  const dates = selectedDateFilters.flatMap((dateFilter) => {
-    const threshold = new Date(now);
-    if (dateFilter === "today") threshold.setHours(0, 0, 0, 0);
-    else if (dateFilter === "last-7-days") threshold.setDate(now.getDate() - 7);
-    else if (dateFilter === "last-month") threshold.setMonth(now.getMonth() - 1);
-    else if (dateFilter === "last-12-months") threshold.setFullYear(now.getFullYear() - 1);
-    else return [];
-    return [threshold];
-  });
-  if (!dates.length) return undefined;
-  return new Date(Math.min(...dates.map((value) => value.getTime()))).toISOString();
-}
-
 function mergeKnownFilterValues(values, knownValues) {
   const merged = new Map(values.map((value) => [value.value, value]));
   for (const value of knownValues) {
@@ -346,6 +287,8 @@ function WorkitemRowMeta({ meta, apiBaseUrl, onPickPullRequest }) {
     content = <GitHubUser login={meta.login} />;
   } else if (meta.type === "lark-users") {
     content = <LarkTicketResponsible responsible={meta.value} />;
+  } else if (meta.type === "related-people") {
+    content = <MeegleRelatedPeople relatedPeople={meta.relatedPeople} />;
   } else if (meta.type === "date") {
     content = <span className="workitem-row__date">{meta.text}</span>;
   } else {
@@ -436,6 +379,9 @@ function MeegleWorkitemCell({ columnKey, item, apiBaseUrl, nowTime, onPickPullRe
   }
   if (columnKey === "assignee") {
     return item.assignee || "-";
+  }
+  if (columnKey === "relatedPeople") {
+    return <MeegleRelatedPeople relatedPeople={item.relatedPeople} />;
   }
   if (columnKey === "currentWorkingTime") {
     const value = formatMeegleCurrentWorkingTime(item, nowTime);
@@ -929,7 +875,7 @@ function MeeglePullRequestPicker({ picker, onClose, onSelect }) {
 
 export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, breadcrumbs, platformListFilterState, onPlatformListFilterStateChange }) {
   const restoredFilters = platformListFilterState || {};
-  const [state, setState] = useState({ status: "loading", items: [], filterItems: [], filterItemsPage: page, sprints: [], pager: null, isLoadingMore: false });
+  const [state, setState] = useState({ status: "loading", items: [], filterItems: [], filterItemsPage: page, sprints: [], relatedPersonOptions: [], pager: null, isLoadingMore: false });
   const [selectedStatuses, setSelectedStatuses] = useState(() => restoredFilters.selectedStatuses || null);
   const [selectedDateFilters, setSelectedDateFilters] = useState(() => normalizeFilterValues(
     restoredFilters.selectedDateFilters,
@@ -945,6 +891,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
     .map(([key, values]) => [key, normalizeFilterValues(values)])));
   const [githubQuickFilter, setGithubQuickFilter] = useState(() => restoredFilters.githubQuickFilter || "all");
   const [larkTicketQuickFilter, setLarkTicketQuickFilter] = useState(() => restoredFilters.larkTicketQuickFilter || "all");
+  const [meegleQuickFilter, setMeegleQuickFilter] = useState(() => restoredFilters.meegleQuickFilter || "all");
   const [workitemTypeFilter, setWorkitemTypeFilter] = useState(() => restoredFilters.workitemTypeFilter || "all");
   const [sort, setSort] = useState(() => {
     if (page === "lark-tickets") return normalizeLarkTicketSort(restoredFilters.sort);
@@ -1085,6 +1032,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
     selectedSprints,
     selectedTagFilters,
     larkTicketQuickFilter,
+    meegleQuickFilter,
     workitemTypeFilter,
     noSprintFilter,
   })).length > 0;
@@ -1098,6 +1046,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
     tagSidebarOpen,
     githubQuickFilter,
     larkTicketQuickFilter,
+    meegleQuickFilter,
     workitemTypeFilter,
     sort,
     larkGroupBy,
@@ -1135,6 +1084,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
       filterItems: current.filterItemsPage === page ? current.filterItems : [],
       filterItemsPage: page,
       sprints: current.sprints,
+      relatedPersonOptions: current.relatedPersonOptions,
       pager: null,
       isLoadingMore: false,
     }));
@@ -1145,6 +1095,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
       selectedSprints,
       selectedTagFilters,
       larkTicketQuickFilter,
+      meegleQuickFilter,
       workitemTypeFilter,
       noSprintFilter,
     });
@@ -1158,14 +1109,15 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
           filterItems: isFiltered && current.filterItemsPage === page && current.filterItems.length ? current.filterItems : result.items,
           filterItemsPage: page,
           sprints: result.sprints || [],
+          relatedPersonOptions: result.relatedPersonOptions || [],
           pager: result.pager,
           isLoadingMore: false,
         }));
       },
-      () => { if (active && dataRequestVersionRef.current === requestVersion) setState((current) => ({ status: "error", items: [], filterItems: current.filterItems, filterItemsPage: current.filterItemsPage, sprints: [], pager: null, isLoadingMore: false })); },
+      () => { if (active && dataRequestVersionRef.current === requestVersion) setState((current) => ({ status: "error", items: [], filterItems: current.filterItems, filterItemsPage: current.filterItemsPage, sprints: [], relatedPersonOptions: [], pager: null, isLoadingMore: false })); },
     );
     return () => { active = false; };
-  }, [apiBaseUrl, larkTicketQuickFilter, noSprintFilter, page, reloadVersion, selectedDateFilters, selectedSprints, selectedStatuses, selectedTagFilters, workitemTypeFilter]);
+  }, [apiBaseUrl, larkTicketQuickFilter, meegleQuickFilter, noSprintFilter, page, reloadVersion, selectedDateFilters, selectedSprints, selectedStatuses, selectedTagFilters, workitemTypeFilter]);
 
   async function loadMorePlatformItems() {
     const pager = state.pager;
@@ -1180,6 +1132,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
       selectedSprints,
       selectedTagFilters,
       larkTicketQuickFilter,
+      meegleQuickFilter,
       workitemTypeFilter,
       noSprintFilter,
     });
@@ -1190,6 +1143,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
         ...current,
         items: [...current.items, ...result.items],
         sprints: result.sprints || current.sprints,
+        relatedPersonOptions: result.relatedPersonOptions || current.relatedPersonOptions,
         pager: result.pager,
         isLoadingMore: false,
       });
@@ -1481,6 +1435,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
     setSelectedTagFilters({});
     setGithubQuickFilter("all");
     setLarkTicketQuickFilter("all");
+    setMeegleQuickFilter("all");
     setWorkitemTypeFilter("all");
     setPageIndex(0);
   }
@@ -1513,19 +1468,32 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
         setPageIndex(0);
       },
     },
-    ...(page === "meegle-workitems" ? [{
-      key: "sprint",
-      label: "Sprint",
-      values: state.sprints.map((sprint) => ({ value: sprint, label: sprint })),
-      selectedValues: selectedSprints,
-      isFiltered: selectedSprints.length > 0,
-      onToggle: (value) => {
-        setSelectedSprints((current) => toggleFilterValue(current, value));
-        setNoSprintFilter(false);
-        setSelectedStatuses(null);
-        setPageIndex(0);
+    ...(page === "meegle-workitems" ? [
+      {
+        key: "sprint",
+        label: "Sprint",
+        values: state.sprints.map((sprint) => ({ value: sprint, label: sprint })),
+        selectedValues: selectedSprints,
+        isFiltered: selectedSprints.length > 0,
+        onToggle: (value) => {
+          setSelectedSprints((current) => toggleFilterValue(current, value));
+          setNoSprintFilter(false);
+          setSelectedStatuses(null);
+          setPageIndex(0);
+        },
       },
-    }] : []),
+      {
+        key: "related-person",
+        label: "相关人",
+        values: state.relatedPersonOptions.map((option) => ({
+          value: option.memberKey,
+          label: option.roleNames.length ? `${option.name} · ${option.roleNames.join(" / ")}` : option.name,
+        })),
+        selectedValues: selectedTagFilters.relatedPerson || [],
+        isFiltered: Boolean(selectedTagFilters.relatedPerson?.length),
+        onToggle: (value) => toggleTagFilter("relatedPerson", value),
+      },
+    ] : []),
   ];
 
   return <WorkspaceShell user={profile.user ?? {}} workspaceAccess={profile.workspaceAccess} activePage={page} onLogout={onLogout} isBusy={isBusy} breadcrumbs={breadcrumbs}>
@@ -1552,6 +1520,14 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
                 setPageIndex(0);
               }}
             >No Sprint</button>
+            <button
+              className={`list-filter-tab ${meegleQuickFilter === "subscribed" ? "list-filter-tab--active" : ""}`.trim()}
+              type="button"
+              onClick={() => {
+                setMeegleQuickFilter((current) => current === "subscribed" ? "all" : "subscribed");
+                setPageIndex(0);
+              }}
+            >Subscribed</button>
           </div> : null}
           {page === "github-pull-requests" ? <div className="list-filter-tabs" role="group" aria-label="GitHub PR 快速筛选">
             {["open", "mine", "my-open", "main"].map((filter) => {

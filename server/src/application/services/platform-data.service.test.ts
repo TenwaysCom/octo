@@ -57,6 +57,14 @@ describe("PlatformDataService", () => {
       }]),
       countMeegleWorkitems: vi.fn().mockResolvedValue(1),
       listMeegleSprints: vi.fn().mockResolvedValue(["Sprint 1"]),
+      listMeegleRelatedPersonOptions: vi.fn().mockResolvedValue([{
+        memberKey: "u-1", name: "Ada", roleNames: ["Developer"],
+      }]),
+      listMeegleWorkitemRoleMembers: vi.fn().mockResolvedValue([{
+        projectKey: "project", workItemTypeKey: "story", workItemId: "123",
+        roleKey: "developer", roleName: "Developer", memberKey: "u-1", memberName: "Ada",
+        roleOrder: 0, memberOrder: 0, syncedAt: "2026-08-09T00:00:00.000Z",
+      }]),
       listMeegleSprintSnapshots: vi.fn().mockResolvedValue([{
         projectKey: "project",
         workItemTypeKey: "642ebe04168eea39eeb0d34a",
@@ -98,8 +106,10 @@ describe("PlatformDataService", () => {
       items: [expect.objectContaining({
         workItemId: "123",
         githubPullRequests: [expect.objectContaining({ pullNumber: 1138, headRef: "feature/m-123", baseRef: "main", state: "merged", odooShBuilds: [] })],
+        relatedPeople: [{ roleKey: "developer", roleName: "Developer", members: [{ memberKey: "u-1", name: "Ada" }] }],
       })],
       sprints: ["Sprint 1"],
+      relatedPersonOptions: [{ memberKey: "u-1", name: "Ada", roleNames: ["Developer"] }],
       total: 1,
     });
     expect(store.listMeegleSprintSnapshots).not.toHaveBeenCalled();
@@ -113,6 +123,7 @@ describe("PlatformDataService", () => {
         sprint: "Sprint 1",
         membershipSource: "incremental_observed",
         githubPullRequests: [expect.objectContaining({ pullNumber: 1138 })],
+        relatedPeople: [{ roleKey: "developer", roleName: "Developer", members: [{ memberKey: "u-1", name: "Ada" }] }],
       })],
     });
     expect(store.listMeegleWorkitems).toHaveBeenCalledWith(50, { sprints: ["Sprint 1"] });
@@ -131,6 +142,8 @@ describe("PlatformDataService", () => {
       }]),
       countMeegleWorkitems: vi.fn().mockResolvedValue(1),
       listMeegleSprints: vi.fn().mockResolvedValue([]),
+      listMeegleRelatedPersonOptions: vi.fn().mockResolvedValue([]),
+      listMeegleWorkitemRoleMembers: vi.fn().mockResolvedValue([]),
       listMeegleSprintSnapshots: vi.fn().mockResolvedValue([]),
       listMeegleSprintMemberships: vi.fn().mockResolvedValue([]),
       listGitHubPullRequestLinks: vi.fn().mockResolvedValue([

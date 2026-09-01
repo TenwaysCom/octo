@@ -95,6 +95,9 @@ export function buildMeegleWorkitemRow(item, visibleColumns = [], nowTime = Date
   for (const [columnKey, value, hideOnSmall] of textColumns) {
     if (visible.has(columnKey) && value) trailing.push({ key: columnKey, type: "text", text: value, hideOnSmall });
   }
+  if (visible.has("relatedPeople") && item.relatedPeople?.length) {
+    trailing.push({ key: "relatedPeople", type: "related-people", relatedPeople: item.relatedPeople });
+  }
   const currentWorkingTime = formatMeegleCurrentWorkingTime(item, nowTime);
   if (visible.has("currentWorkingTime") && currentWorkingTime) {
     trailing.push({

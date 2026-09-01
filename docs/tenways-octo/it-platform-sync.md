@@ -1,7 +1,7 @@
 ---
 status: draft
 owner: TBD
-last_reviewed: 2026-08-26
+last_reviewed: 2026-09-01
 scope: Octo 对 Lark Base、Meegle Work Item、GitHub Pull Request 的只读快照同步与演进设计
 update_required_when:
   - 同步范围、触发方式或外部平台适配变更
@@ -22,7 +22,7 @@ Octo 从 Lark Base、Meegle 与 GitHub 读取指定范围的对象，持久化�
 - 创建 Meegle 工作项、更新 Lark Base、创建 GitHub 分支等业务动作属于独立 workflow，不是本同步任务的副作用。
 - 不建立通用双向同步或自动状态推进；若未来需要写回，必须另立双向同步设计与冲突策略。
 
-## 2. 当前实现（截至 2026-08-11）
+## 2. 当前实现（截至 2026-09-01）
 
 ### 2.1 对象、主键与写入方式
 
@@ -30,6 +30,7 @@ Octo 从 Lark Base、Meegle 与 GitHub 读取指定范围的对象，持久化�
 | --- | --- | --- | --- | --- |
 | Lark | Base record / ticket | `lark_base_ticket_syncs` | `base_id + table_id + record_id` | UPSERT |
 | Meegle | work item | `meegle_workitem_syncs` | `project_key + work_item_type_key + work_item_id` | UPSERT |
+| Meegle | current role member relation | `meegle_workitem_role_members` | work item 复合键 + `role_key + member_key` | 清洗时原子替换 |
 | GitHub | pull request | `github_pr_syncs` | `owner + repo + pull_number` | UPSERT |
 
 每行保存用于展示的字段、原始 JSON 快照、`source_updated_at`、`synced_at`、`last_seen_at` 与 `stale`。重复同步会更新本轮实际拉到的对象并清除其 `stale` 标记；它不会清空表、物理删除本轮未出现的记录，也不会保护写入同一快照列的本地人工修改。
@@ -159,13 +160,13 @@ Support-QA 快捷动作还会在 workflow 完成前核对当前 Ticket 的 `fetc
 | --- | --- | --- |
 | HTTP | `server/src/index.ts`、`server/src/modules/platform-sync/*` | 路由、DTO 校验、结构化响应 |
 | Service | `server/src/application/services/platform-sync.service.ts` | Lark/Meegle/GitHub 单条、多选、批量编排；终态过滤与三平台清洗 |
-| Store | `server/src/adapters/postgres/platform-sync-store.ts` | 三类快照 UPSERT、失联标记、清洗输入读取与清洗字段更新；Lark 快照和清洗按批写入 |
+| Store | `server/src/adapters/postgres/platform-sync-store.ts` | 三类快照 UPSERT、失联标记、清洗输入读取与清洗投影更新；Meegle 相关人按工作项事务替换、按列表批量读取，Lark 快照和清洗按批写入 |
 | Run audit | `server/src/adapters/postgres/platform-sync-run-store.ts` | scope 级运行开始、成功/失败、计数与安全错误摘要 |
 | Scheduler | `server/src/application/services/platform-sync-worker.ts`、`server/src/scripts/platform-sync-worker.ts` | 到期 schedule 领取、受限并发、重试/阻塞与独立进程生命周期 |
 | Coordination | `server/src/application/services/platform-sync-coordinator.ts` | lease、checkpoint CAS、run audit 与统一增量执行边界 |
 | Schema | `server/src/adapters/postgres/database.ts`、`schema.ts` | 表和索引 |
 | CLI | `server/src/scripts/platform-sync.ts` | 本地配置、平台顺序、`gh` 调用与运行结果 |
-| Meegle 历史清洗 | `server/src/scripts/clean-meegle-sync-snapshots.ts` | 项目 `4c3fv6` 的既有快照批量清洗；只写 `meegle_workitem_syncs` |
+| Meegle 历史清洗 | `server/src/scripts/clean-meegle-sync-snapshots.ts` | 项目 `4c3fv6` 的既有快照批量清洗；更新 `meegle_workitem_syncs` 标量投影和 `meegle_workitem_role_members` 当前关系投影 |
 
 常用命令：
 
@@ -181,7 +182,7 @@ pnpm --dir server platform:sync --only lark --user-id USER_ID
 pnpm --dir server platform:sync --only meegle --user-id USER_ID
 pnpm --dir server platform:sync --only github
 
-# Meegle 历史快照：先预览，再明确写入同步表清洗字段
+# Meegle 历史快照：先预览，再明确写入标量和相关人清洗投影
 pnpm --dir server platform:clean-meegle
 pnpm --dir server platform:clean-meegle --apply
 
@@ -253,6 +254,8 @@ Meegle 的本进程读取限流由 `MEEGLE_MIN_REQUEST_INTERVAL_MS` 控制，HTT
 
 `github_pr_syncs`、`meegle_workitem_syncs`、`lark_base_ticket_syncs` 是平台同步的原始记录和源端变更记录。它们保存外部对象的最新快照、源端更新时间和原始 payload。
 
+`meegle_workitem_role_members` 是 `meegle_workitem_syncs` 的规范化当前关系投影：内容仍来自源端 payload，只为稳定按工作项/人员查询而拆行，不是 Octo 人工或 AI 业务数据。它通过复合外键随父快照维护，主键为工作项复合键加 `role_key + member_key`；反向索引以 `member_key` 开头。
+
 `lark_ticket_thread_syncs` 是独立的源端派生缓存：它不属于 Ticket 批量 checkpoint，也不保存 Octo 人工/AI 业务结果。它只在 thread 上下文被实际使用时更新自己的消息快照和 watermark，避免把高成本的一对多 IM 请求放大到每次 Ticket 批量同步。
 
 Octo 不得把自身业务数据、人工备注、AI 结果或本地状态写入这三张表，更不会通过同步把它们写回外部平台。同步程序对平台表唯一允许的本地写入是：
@@ -265,7 +268,7 @@ Octo 不得把自身业务数据、人工备注、AI 结果或本地状态写入
 
 ### 4.2 Octo 自有表：独立维护、与源端一对一关联
 
-Octo 需要维护的数据一律放入对应的 `_octo` 表。每张表以同一组外部主键关联其平台快照，只保存 Octo 自有的关联结果、AI 结果、人工备注和本地业务状态；不得保存从 `*_syncs` 复制出的平台字段或清洗结果。
+Octo 需要维护的人工、AI 和本地业务数据一律放入对应的 `_octo` 表。每张表以同一组外部主键关联其平台快照，只保存 Octo 自有的关联结果、AI 结果、人工备注和本地业务状态；不得保存从 `*_syncs` 复制出的平台字段或清洗结果。规范化源端一对多投影（当前只有 Meegle 相关人）不属于 `_octo` 数据，必须保持可从 payload 幂等重建。
 
 | 平台快照表 | Octo 自有表 | 关联键 |
 | --- | --- | --- |
@@ -322,7 +325,7 @@ CLI clean               不同步，只清洗配置 scope 内已有快照
 2. 使用 `watermark_updated_at - overlap` 拉取；默认重叠窗口建议 5 分钟。
 3. 按 `source_updated_at + 外部 ID` 稳定排序和分页；当前没有 `source_hash`，无可靠源端时间时必须拒绝推进 checkpoint。
 4. 将增量候选对象 UPSERT 到平台快照表，并更新其 `last_seen_at`、清除 `stale`。Lark 使用批量 UPSERT；基于 hash 的未变化跳写仍待实现。
-5. CLI 同步默认将本次同步成功对象传给对应平台的清洗函数，更新对应 `*_syncs` 表的清洗字段；`--mode clean` 只清洗已有快照，不读取源端。
+5. CLI 同步默认将本次同步成功对象传给对应平台的清洗函数，更新清洗投影；Meegle 同时维护 `meegle_workitem_syncs` 标量列和 `meegle_workitem_role_members` 当前关系。`--mode clean` 只清洗已有快照，不读取源端。
 6. 所有枚举、快照写入和清洗成功后推进**该 scope** 的 checkpoint；任一对象清洗失败会使该 scope 不推进。一个 scope 失败不会中断同一命令后续 scope；命令会输出每个 scope 的结果并以非零状态退出。当前没有跨整轮的数据库事务。
 7. 仅当 full scope 的完整枚举和清洗都成功后，才把本次运行开始前仍未被重新看见的快照标为 `stale`；不直接物理删除。增量同步与单条/多选同步不做删除识别，因为它们不能证明源端集合完整。GitHub 仅在 `--github-pr-state all` 的 closed 与 merged 两段均成功后才标记失联记录。
 8. 读取范围必须包含终态变更。仅同步活跃对象会遗漏“活跃 -> 已关闭/已完成”的状态转换。
@@ -507,6 +510,10 @@ pnpm --dir server platform:sync --mode clean --only lark
 - 若历史快照未返回 `updated_at`，该 project 的 checkpoint 仍不可作为安全增量水位；必须通过源端详情补拉取得 `updated_at` 后才可初始化。
 - 详情补拉应只针对增量候选对象，并保留限流、429 重试和商业额度错误的区分。
 - Sprint、Version、System、Bug 等展示关联字段属于清洗/投影层，不能覆盖原始源端 payload；现有 `field_*` 兼容映射集中在 `server/src/application/services/meegle-cleaning.config.ts`。
+- 当前相关人只从详情 payload 的精确路径 `fields.work_item_attribute.role_members` 清洗到 `meegle_workitem_role_members`。稳定身份使用 role/member key，display name 做 trim，email 不持久化。同一成员跨角色分别保留；同一角色内重复成员只保留第一次出现的位置。
+- 增量详情缺少 `role_members` 路径时保留已有关系；明确返回空数组时清空；观察到非法结构时该工作项清洗失败，当前 scope checkpoint 不推进。标量清洗和关系替换在一个 PostgreSQL 事务内完成。
+- Platform Data API 按当前页完整工作项复合键批量读取相关人，返回按角色分组的 `relatedPeople` 和 `{ memberKey, name, roleNames }` 筛选选项。`relatedPerson` 多选按任一稳定 member key 匹配；`subscribed=true` 只在 Server 内从 Web 会话解析当前用户的 `meegleUserKey`，不把该 key 返回 FE。两个人员条件使用独立半连接，因此手选相关人组内 OR、与 Subscribed 按 AND 组合；查询使用 member-leading 索引，不解析 `payload_json`。
+- FE 把“负责人”与“相关人”分列展示；普通列表/看板显示当前角色成员，Sprint 工作项列明确命名为“当前相关人”。Meegle 列表的 `Subscribed` 快速过滤与右侧状态/日期自定义过滤以及 Sprint、项目、优先级、相关人标签过滤在同一服务端请求中组合。空关系显示 `-`，不回退到负责人，也不提供相关人排序或分组。
 
 ### 6.3 GitHub Pull Request
 
@@ -529,20 +536,21 @@ syncLark...    -> cleanLarkBaseTickets(...)
 清洗函数规则：
 
 - 只读取对应的 `*_syncs` 平台快照表。
-- 只写入对应 `*_syncs` 表的专用清洗列；不得改写原始 `payload_json` 或覆盖未经清洗的源端字段。
+- 只写入专用清洗投影；Meegle 可写 `meegle_workitem_syncs` 的标量清洗列和其规范化子表 `meegle_workitem_role_members`，不得改写原始 `payload_json` 或覆盖未经清洗的源端字段。
 - 接受单个对象键或对象键列表，因此与单个更新、多选更新、增量批量共用。
 - 比较目标清洗列与本轮计算结果，未变化时跳过更新，支持幂等重跑。
 - Lark 清洗输入按复合键批量读取，投影按最多 500 条执行一次 `UPDATE ... FROM VALUES`，不逐条 SELECT/UPDATE。
+- Meegle 标量清洗和同一工作项的相关人删除/插入共用事务；未观察到 `role_members` 时不触碰旧关系，明确空关系时原子清空。
 - 清洗错误会使当前 platform/scope 命令失败，增量模式不会推进 checkpoint；Meegle/GitHub 会继续尝试后续对象，Lark 的当前数据库批次则整体失败。
 
-`clean-meegle-sync-snapshots.ts` 仅保留为项目 `4c3fv6` 的旧历史清洗入口；日常使用 `pnpm --dir server platform:sync --mode clean --only meegle`。两者都只更新 `meegle_workitem_syncs` 的清洗字段，保留原始 payload。
+`clean-meegle-sync-snapshots.ts` 仅保留为项目 `4c3fv6` 的旧历史清洗入口；日常使用 `pnpm --dir server platform:sync --mode clean --only meegle`。两者都保留原始 payload，并从本地快照重算 Meegle 标量字段和当前相关人关系，不访问 Meegle。
 
 三平台清洗的初始职责：
 
-| 平台 | 清洗输入 | 写入 `*_syncs` 表的清洗内容 |
+| 平台 | 清洗输入 | 写入的清洗内容 |
 | --- | --- | --- |
 | Lark | 标题、状态、共享链接、创建/更新时间与原始字段 JSON | 基础展示投影，以及 Ticket 编号、Issue 类型、需求人、负责人、紧急度、创建时间、详情描述、Meegle 链接、Lark 消息链接；需求人读取 Lark 字段 `需求人`，紧急度只读取 Lark 字段 `紧急度` |
-| Meegle | 标题、类型/状态、Priority、子阶段、Sprint、Version、System、Bug、Current owner | 基础展示投影；Priority 读取 MQL 系统字段 label，负责人只读取 `current_status_operator`，不从节点或角色推断 |
+| Meegle | 标题、类型/状态、Priority、子阶段、Sprint、Version、System、Bug、Current owner、`role_members` | 基础展示投影；Priority 读取 MQL 系统字段 label，负责人只读取 `current_status_operator`；相关人规范化到独立当前关系表，不从相关人推断负责人 |
 | GitHub | PR 标题、状态、分支、Meegle ID、作者、合并人、requested reviewers、labels、创建时间 | 基础展示投影；合并人只读取 GitHub `merged_by.login`，`reviewers` 表示当前请求评审人，不推断已完成评审人 |
 
 ## 8. 认证、安全与可观测性
@@ -570,7 +578,8 @@ syncLark...    -> cleanLarkBaseTickets(...)
 4. 已完成：建立 checkpoint schema，并接入三平台的 CLI 增量代码路径；GitHub/Meegle 可从历史快照初始化 checkpoint，Lark 必须使用显式 reset 命令建立新的增量起点。Meegle 按 `projectKey/workItemTypeKey` 初始化三类独立 checkpoint；旧项目级 checkpoint 不再使用。GitHub 已完成本地测试，Lark 依赖源端返回 `last_modified_time`，Meegle 仍待真实授权环境验证。
 5. 已完成：CLI full/incremental 默认清洗，`--mode clean` 支持在不访问源端的情况下重算已配置 scope 的本地清洗投影。
 6. 已完成：独立 scheduler Worker、配置 schedule、scope lease、Web/CLI/Worker run audit、临时失败退避和 PM2 独立进程部署。
-7. 待完成：source hash、webhook、blocked schedule 管理 UI 与安全的周期性 full/reconcile。当前 full 范围仍不完整，不进入定时调度。
+7. 已完成：Meegle 当前相关人规范化关系表、事务化增量清洗、memberKey 筛选、Platform Data API 与 FE 普通列表/看板/Sprint 当前关系展示；历史数据可由 PostgreSQL-only clean 入口重建。
+8. 待完成：source hash、webhook、blocked schedule 管理 UI 与安全的周期性 full/reconcile。当前 full 范围仍不完整，不进入定时调度。
 
 验收至少覆盖：
 
