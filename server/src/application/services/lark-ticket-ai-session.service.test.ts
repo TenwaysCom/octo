@@ -284,6 +284,90 @@ describe("Lark Ticket AI Session service", () => {
     expect(ownershipStore.attachTicket).not.toHaveBeenCalled();
   });
 
+  it("adds only approved knowledge citations to a new Answer quick-action prompt", async () => {
+    const ownershipStore = {
+      getBySessionId: vi.fn(),
+      listByTicket: vi.fn(),
+      attachTicket: vi.fn().mockResolvedValue({ sessionId: "sess_answer" }),
+      touch: vi.fn(),
+    };
+    const acpService = {
+      assertSessionAccess: vi.fn(),
+      chat: vi.fn(async (_input, emit) => {
+        emit({ event: "session.created", data: { sessionId: "sess_answer" } });
+        emit({
+          event: "acp.session.update",
+          data: { sessionId: "sess_answer", update: {
+            sessionUpdate: "tool_call_update", toolCallId: "fetch_answer", status: "in_progress",
+            rawInput: { command: "bash .agents/skills/write-support-qa/scripts/write-support-qa.sh fetch LT-10 --json" },
+          } },
+        });
+        emit({
+          event: "acp.session.update",
+          data: { sessionId: "sess_answer", update: {
+            sessionUpdate: "tool_call_update", toolCallId: "fetch_answer", status: "completed",
+          } },
+        });
+        emit({ event: "done", data: { sessionId: "sess_answer", stopReason: "end_turn" } });
+      }),
+    };
+    const knowledgeRetriever = {
+      searchApproved: vi.fn().mockResolvedValue([{
+        documentId: "doc_1",
+        chunkId: "chunk_1",
+        sourceKind: "approved_case",
+        sourceRef: "case:LT-9:segment-2",
+        title: "VPN certificate reset",
+        redactedContent: "Reset the certificate and ask the requester to reconnect.",
+        tags: ["VPN"],
+        approvedAt: "2026-09-01T09:00:00.000Z",
+        score: 6,
+      }]),
+    };
+    const service = createLarkTicketAiSessionService({
+      syncStore: {
+        getLarkBaseTicketsForCleaning: vi.fn().mockResolvedValue([{
+          ...ticket,
+          title: "VPN failed for person@example.com",
+          ticketNumber: "LT-10",
+          detailDescription: "VPN certificate error",
+          syncedAt: "2026-08-12T00:00:00.000Z",
+        }]),
+      } as never,
+      ownershipStore: ownershipStore as never,
+      acpService: acpService as never,
+      knowledgeRetriever,
+      workflowPromptStore: { getByKey: vi.fn().mockResolvedValue({ prompt: "{{ticket_context}}" }) } as never,
+      resolveAction: vi.fn().mockResolvedValue({
+        action: {
+          key: "lark-ticket-support-qa-answer",
+          promptKey: "lark_ticket.support_qa.answer",
+          skillProfile: "support_qa_eu",
+          skillId: "support_qa_query",
+          executionPolicy: "shell",
+        },
+        workspaceDir: "/srv/odoo/eu",
+        skillPath: "/srv/odoo/eu/.agents/skills/query-support-qa/SKILL.md",
+      }),
+      threadContextService: { ensure: vi.fn().mockResolvedValue({ decision: "cached", source: "postgres" }) } as never,
+    });
+
+    await service.chat({
+      operatorLarkId: "ou_1",
+      masterUserId: "usr_1",
+      larkBaseUrl: "https://open.larksuite.com",
+      ticket,
+      message: "VPN cannot connect",
+      actionKey: "lark-ticket-support-qa-answer",
+    }, vi.fn());
+
+    expect(knowledgeRetriever.searchApproved).toHaveBeenCalledWith(expect.objectContaining({ query: expect.stringContaining("VPN") }));
+    expect(acpService.chat).toHaveBeenCalledWith(expect.objectContaining({
+      message: expect.stringContaining("source_ref=case:LT-9:segment-2"),
+    }), expect.any(Function), expect.any(Object));
+    expect(acpService.chat.mock.calls[0][0].message).not.toContain("person@example.com");
+  });
+
   it("ensures thread context only for a new Session and pins its snapshot metadata", async () => {
     const ownershipStore = {
       getBySessionId: vi.fn().mockResolvedValue({

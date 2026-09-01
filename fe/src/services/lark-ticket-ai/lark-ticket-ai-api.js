@@ -85,6 +85,14 @@ export async function streamLarkTicketAiSession({
   await parseEventStream(response.body, onEvent);
 }
 
+export async function confirmLarkTicketAiDraft({ apiBaseUrl, ticket, sessionId, draft, actionRunId, fetchImpl = fetch }) {
+  const response = await fetchImpl(buildApiUrl(apiBaseUrl, `/web/lark-tickets/${encodeURIComponent(ticket.recordId)}/reply-drafts/confirm`), {
+    method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ baseId: ticket.baseId, tableId: ticket.tableId, sessionId, draft, confirmed: true, actionRunId }),
+  });
+  return requireSuccess(response, await readJson(response), "AI_DRAFT_SEND_FAILED");
+}
+
 async function parseEventStream(stream, onEvent) {
   const reader = stream.getReader();
   const decoder = new TextDecoder();

@@ -7,6 +7,7 @@ import {
   decideLarkTicketThreadSync,
   parseLarkThreadId,
 } from "./lark-ticket-thread-context.service.js";
+import { prepareTicketThread } from "../../domain/support-ticket-analysis.js";
 
 const ref = { baseId: "app_1", tableId: "tbl_1", recordId: "rec_1" };
 const messageLink = "https://applink.larksuite.com/client/thread/open?threadid=thread_1&chatid=chat_1";
@@ -18,6 +19,7 @@ function createSnapshot(overrides: Partial<LarkTicketThreadSnapshot> = {}): Lark
     messageLink,
     threadId: "thread_1",
     messages: [{ messageId: "root_1", createdAt: "2026-08-26T09:00:00.000Z", content: "Root" }],
+    preparedMessages: [{ messageId: "root_1", createdAt: "2026-08-26T09:00:00.000Z", senderRole: "unknown", text: "Root", hasArtifact: true }],
     snapshotVersion: 1,
     historyComplete: true,
     watermarkCreatedAt: "2026-08-26T09:00:00.000Z",
@@ -42,6 +44,7 @@ function createStore(initial?: LarkTicketThreadSnapshot) {
         messageLink: input.messageLink,
         threadId: input.threadId,
         messages: input.messages,
+        preparedMessages: prepareTicketThread(input.messages),
         snapshotVersion: snapshot ? snapshot.snapshotVersion + (changed ? 1 : 0) : 1,
         historyComplete: input.historyComplete,
         watermarkCreatedAt: input.watermarkCreatedAt,

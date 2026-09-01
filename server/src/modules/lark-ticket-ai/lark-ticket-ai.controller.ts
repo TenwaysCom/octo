@@ -12,6 +12,7 @@ import {
 import { WEB_SESSION_COOKIE_NAME } from "../lark-auth/lark-auth.controller.js";
 import { prepareAcpKimiEventStream, writeAcpKimiEvent } from "../acp-kimi/event-stream.js";
 import { logger } from "../../logger.js";
+import { createSupportTicketReplyService, SupportTicketReplyError } from "../../application/services/support-ticket-reply.service.js";
 
 const controllerLogger = logger.child({ module: "lark-ticket-ai-controller" });
 
@@ -28,6 +29,7 @@ const ticketSessionChatSchema = ticketRefSchema.omit({ recordId: true }).extend(
   actionRunId: z.string().min(1).optional(),
 });
 const ticketSessionLoadSchema = ticketRefSchema.omit({ recordId: true });
+const ticketDraftConfirmSchema = ticketSessionChatSchema.pick({ baseId: true, tableId: true, actionRunId: true }).extend({ sessionId: z.string().min(1), draft: z.string().trim().min(1).max(8000), confirmed: z.literal(true) });
 
 type WebIdentity = Awaited<ReturnType<typeof resolveLarkWebSessionIdentity>>;
 
@@ -79,6 +81,7 @@ export function createWebLarkTicketAiController(deps: {
   const service = deps.service ?? createLarkTicketAiSessionService();
   const resolveSession = deps.resolveSession ?? resolveLarkWebSessionIdentity;
   const resolveOperatorLarkId = deps.resolveOperatorLarkId ?? (async (masterUserId) => (await getResolvedUserStore().getById(masterUserId))?.larkId ?? undefined);
+  const replyService = createSupportTicketReplyService();
 
   async function resolveIdentity(cookieHeader: string | undefined) {
     const session = await resolveSession(readCookie(cookieHeader, WEB_SESSION_COOKIE_NAME));
@@ -118,6 +121,19 @@ export function createWebLarkTicketAiController(deps: {
         const ticket = ticketRefSchema.parse({ ...body, recordId: input.recordId });
         return { statusCode: 200, body: { ok: true as const, data: await service.loadSession({ operatorLarkId: identity.operatorLarkId, ticket, sessionId: input.sessionId }) } };
       } catch (error) {
+        return toErrorResponse(error);
+      }
+    },
+
+    async confirmDraft(input: { cookieHeader: string | undefined; recordId: string; body: unknown }) {
+      const identity = await resolveIdentity(input.cookieHeader);
+      if (!identity.ok) return { statusCode: identity.statusCode, body: { ok: false as const, error: { errorCode: identity.errorCode, errorMessage: identity.errorMessage } } };
+      try {
+        const body = ticketDraftConfirmSchema.parse(input.body);
+        const data = await replyService.confirmAndSend({ ...body, operatorLarkId: identity.operatorLarkId, masterUserId: identity.masterUserId, larkBaseUrl: identity.larkBaseUrl, recordId: input.recordId });
+        return { statusCode: 200, body: { ok: true as const, data } };
+      } catch (error) {
+        if (error instanceof SupportTicketReplyError) return { statusCode: error.code === "DRAFT_ALREADY_SENT" ? 409 : 403, body: { ok: false as const, error: { errorCode: error.code, errorMessage: error.message } } };
         return toErrorResponse(error);
       }
     },
@@ -180,6 +196,10 @@ export function registerWebLarkTicketAiRoutes(app: Express) {
   app.post("/api/web/lark-tickets/:recordId/ai-sessions", (req, res) => controller.chat(req, res));
   app.post("/api/web/lark-tickets/:recordId/ai-sessions/:sessionId/load", async (req, res) => {
     const result = await controller.load({ cookieHeader: req.headers.cookie, recordId: req.params.recordId, sessionId: req.params.sessionId, body: req.body });
+    res.status(result.statusCode).json(result.body);
+  });
+  app.post("/api/web/lark-tickets/:recordId/reply-drafts/confirm", async (req, res) => {
+    const result = await controller.confirmDraft({ cookieHeader: req.headers.cookie, recordId: req.params.recordId, body: req.body });
     res.status(result.statusCode).json(result.body);
   });
 }

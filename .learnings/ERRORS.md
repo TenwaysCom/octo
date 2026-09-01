@@ -2,6 +2,20 @@
 
 Record concise compiler/runtime errors, failed commands, wrong assumptions, and their verified fixes here. Redact secrets, cookies, tokens, and sensitive payloads.
 
+## [ERR-20260901-008] prepared-thread-snapshot-test-fixture
+
+- **Summary:** Making `preparedMessages` a required thread snapshot projection left one typed in-memory Store fixture on the old shape.
+- **Error:** Server build failed with `PreparedTicketMessage[] | undefined` not assignable to `PreparedTicketMessage[]`.
+- **Fix:** Add deterministic prepared messages to the fixture and regenerate them from the fake Store's synchronized raw input.
+- **Status:** resolved; 4 focused files / 16 tests and Server build pass.
+
+## [ERR-20260901-007] prompt-template-unescaped-backticks
+
+- **Summary:** A Support-QA prompt update embedded Markdown backticks inside a TypeScript template literal.
+- **Error:** Vite/esbuild stopped test collection with `Expected ";" but found "Approved"`.
+- **Fix:** Use Chinese quotation marks in the prompt text unless the backticks are escaped; rerun the focused tests and Server TypeScript build.
+- **Status:** resolved; 3 focused files / 10 tests and Server build pass.
+
 ## [ERR-20260829-001] meegle-sprint-history-list-fallback
 
 - **Summary:** A FE API test still expected the normal Meegle workitem list to synthesize Sprint history from the current page.
@@ -580,7 +594,6 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Root cause:** Its expected Sprint cell context accidentally repeated the `assignee` branch, while the source contains it once.
 - **Verified fix:** Inspect the exact JSX block and apply smaller configuration/test and page patches; FE check then passed.
 - **Recurrence (2026-08-31):** A broad current-working-time patch spanning two large JSX pages again failed context verification without changing files; splitting imports, cells, cards, and call sites into small ordered patches applied cleanly.
-
 ### ERR-20260901-001 — PostgreSQL shape probe bypassed the configured SSH connection path
 
 - **Symptom:** Direct `psql` returned an empty connection error; follow-up `tsx -e` attempts also failed on relative env-file resolution, top-level await, and sandbox IPC permissions before reaching the database.
@@ -616,3 +629,7 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Symptom:** `pnpm test -- --run <files>` executed the full Server suite instead of only the requested files; the run surfaced the already-known `node:sqlite` availability failures and logger rotation race.
 - **Root cause:** The package script already expands to `vitest run`; the extra `-- --run` was treated as forwarded arguments rather than a scoped Vitest invocation.
 - **Verified fix:** Run `pnpm exec vitest run <files>` from `server/`. The intended Store, platform-data controller, and Lark auth service files then passed 44/44 tests.
+# 2026-09-01 — tsx inline top-level await
+
+- Symptom: `pnpm exec tsx -e` rejected a diagnostic command using top-level `await` because it emitted CommonJS.
+- Fix: wrap inline diagnostics in an async IIFE; do not treat the command failure as a database or schema failure.

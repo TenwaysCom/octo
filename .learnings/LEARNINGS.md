@@ -2,6 +2,18 @@
 
 Record concise, reusable lessons here. Include the context, the durable rule, and the verified outcome; never include secrets or raw credentials.
 
+## [LRN-20260901-005] prepared-thread-local-backfill-boundary
+
+- **Context:** Historical Ticket threads already have `messages_json`, so generating their Prepared projection does not require Lark credentials or another external fetch.
+- **Rule:** Scope the backfill by `baseId + tableId`, default to dry-run, derive only from local raw JSON, require `--apply` for writes, and update with the scanned `snapshot_version` as an optimistic concurrency guard.
+- **Verified outcome:** Script tests prove redaction, current/stale selection, local PostgreSQL writes, and rejection of Lark credential arguments.
+
+## [LRN-20260901-004] support-knowledge-approval-and-redaction-boundary
+
+- **Context:** Ticket Answer needs controlled documents and resolved historical cases, but the thread-sync snapshot is raw source data and the existing Support-QA fetch gate proves Ticket evidence rather than knowledge approval.
+- **Rule:** Store searchable knowledge separately as redacted chunks, require explicit human approval before indexing or retrieval, return `source_ref` with every hit, and keep the existing completed `fetch --json` gate mandatory for every Support-QA result.
+- **Verified outcome:** PostgreSQL-store and Ticket AI Session tests prove revoked cases are excluded, email text is redacted, and Answer prompts receive approved citations only.
+
 ## [LRN-20260828-007] ai-session-message-control-scope
 
 - **Context:** Ticket 与 Sprint AI Session 使用相同的消息视觉语言，但由两个页面入口渲染；复制动作只适用于助手正文，不适用于用户输入、状态或思考/工具诊断。
@@ -482,3 +494,9 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - **Context:** Meegle 工作项 payload 的 `work_item_attribute.role_members` 同时包含角色定义、稳定人员 key、显示名和 email；许多角色没有成员，旧快照也可能完全缺失这段证据。
 - **Rule:** 把当前角色成员清洗为以 workitem ref、role key 和 member key 标识的关系投影，保留角色/成员源顺序并区分“字段缺失”和“明确为空”。负责人 `current_status_operator` 继续独立；列表读取不解析 payload、不拼接姓名作为查询键，也不复制未使用的 email。`Subscribed` 之类“与我相关”过滤必须由 Server 会话解析稳定人员 key，并作为独立 AND 条件与手选人员组及其他过滤组合，不能把当前用户追加进组内 OR 数组。
 - **Verified outcome:** 关系表、member-leading 索引、事务清洗、memberKey API 筛选和 FE 普通列表/看板/Sprint 展示已落地；本地回填写入 2,515 条关系，空字段、重复和孤儿均为 0，二次回填为 0 变更。后续 `Subscribed` 快速过滤在不暴露会话 Meegle key 的前提下完成独立 AND 查询，Store/controller/session 共 44 个聚焦测试、FE 全量测试和两端 build 通过。
+
+## [LRN-20260901-003] ticket-reply-requires-session-and-root-proof
+
+- **Context:** Support-QA Answer 的文本本身不是发送授权；历史 thread 同步保存的是 reply 消息，Lark 回复 API 需要 root message ID。
+- **Rule:** 发送前必须校验当前用户、Ticket 复合键、Answer action session 归属和固定 thread 上下文；从 reply 的 `root_id` 派生发送目标，并以 Ticket/Session/draft hash 去重。不能把模型输出或 `thread_id` 直接当作发送授权。
+- **Verified outcome:** 新服务仅在该校验后调用 Lark `replyToMessage(..., reply_in_thread=true)`；脱敏/证据单测、Server build、FE test/build 通过，未进行真实发送。

@@ -27,9 +27,15 @@ import {
   type WorkflowPromptStore,
 } from "../../adapters/postgres/workflow-prompt-store.js";
 import {
+  getSupportKnowledgeStore,
+  type SupportKnowledgeRetriever,
+  type SupportKnowledgeSearchHit,
+} from "../../adapters/postgres/support-knowledge-store.js";
+import {
   DEFAULT_LARK_TICKET_SUPPORT_QA_PROMPTS,
   renderWorkflowPromptTemplate,
 } from "../../domain/workflow-prompts.js";
+import { prepareTicketThread, redactSupportText } from "../../domain/support-ticket-analysis.js";
 import { access, realpath } from "node:fs/promises";
 import { constants } from "node:fs";
 import { relative, resolve } from "node:path";
@@ -76,6 +82,7 @@ export interface LarkTicketAiSessionServiceDeps {
   historyService?: Pick<typeof acpKimiSessionHistoryService, "loadSession">;
   workflowPromptStore?: WorkflowPromptStore;
   threadContextService?: Pick<LarkTicketThreadContextService, "ensure">;
+  knowledgeRetriever?: SupportKnowledgeRetriever;
   resolveAction?: (actionKey: string) => Promise<ResolvedTicketAiAction | undefined>;
 }
 
@@ -94,6 +101,7 @@ export function createLarkTicketAiSessionService(
   const historyService = deps.historyService ?? acpKimiSessionHistoryService;
   const workflowPromptStore = deps.workflowPromptStore ?? getWorkflowPromptStore();
   const threadContextService = deps.threadContextService ?? createLarkTicketThreadContextService();
+  const knowledgeRetriever = deps.knowledgeRetriever ?? getSupportKnowledgeStore();
   const resolveAction = deps.resolveAction ?? resolveTicketAiAction;
 
   return {
@@ -169,8 +177,14 @@ export function createLarkTicketAiSessionService(
           throw error;
         }
       }
+      const knowledgeEvidence = quickAction?.action.key === "lark-ticket-support-qa-answer"
+        ? await knowledgeRetriever.searchApproved({
+          query: buildKnowledgeQuery(ticket, input.message),
+          limit: 5,
+        })
+        : [];
       const prompt = quickAction
-        ? await buildQuickActionPrompt(workflowPromptStore, quickAction, ticket, input.message, threadContext)
+        ? await buildQuickActionPrompt(workflowPromptStore, quickAction, ticket, input.message, threadContext, knowledgeEvidence)
         : input.sessionId ? input.message : buildTicketPrompt(ticket, input.message, threadContext);
       let createdSessionId: string | undefined;
       let doneEvent: Extract<AcpKimiStreamEvent, { event: "done" }> | undefined;
@@ -339,11 +353,12 @@ function deriveSessionTitle(message: string): string {
 function formatThreadContext(context: LarkTicketThreadContextResult | undefined): string {
   const snapshot = context?.snapshot;
   if (!snapshot) return "(none)";
-  const rendered = snapshot.messages.map((message, index) => [
+  const rendered = (snapshot.preparedMessages ?? prepareTicketThread(snapshot.messages)).map((message, index) => [
     `Message ${index + 1} (${message.messageId})`,
     message.createdAt && `Time: ${message.createdAt}`,
-    message.senderId && `Sender: ${message.senderId}`,
-    message.deleted ? "[deleted]" : message.content || `[${message.messageType || "unsupported"} message omitted]`,
+    `Sender role: ${message.senderRole}`,
+    message.replyTo && `Reply to: ${message.replyTo}`,
+    message.text,
   ].filter(Boolean).join("\n")).join("\n\n");
   const maxChars = 60_000;
   if (rendered.length <= maxChars) return rendered || "(empty thread)";
@@ -365,8 +380,8 @@ function buildTicketPrompt(
     "You are assisting with a Lark Ticket. Use the following ticket context, state assumptions clearly, and do not claim to have changed external systems unless a tool confirms it.",
     `Type: ${ticket.issueType || "Lark Ticket"}`,
     `Number: ${ticket.ticketNumber || ticket.recordId}`,
-    `Title: ${ticket.title}`,
-    `Description:\n${ticket.detailDescription || "(none)"}`,
+    `Title: ${redactSupportText(ticket.title)}`,
+    `Description:\n${redactSupportText(ticket.detailDescription) || "(none)"}`,
     `Resources:\n${resources || "(none)"}`,
     `Lark thread context (snapshot version ${threadContext?.snapshot?.snapshotVersion ?? "none"}):\n${formatThreadContext(threadContext)}`,
     `User request:\n${request}`,
@@ -418,6 +433,7 @@ async function buildQuickActionPrompt(
   ticket: LarkBaseTicketSyncItem,
   message: string,
   threadContext?: LarkTicketThreadContextResult,
+  knowledgeEvidence: SupportKnowledgeSearchHit[] = [],
 ): Promise<string> {
   const storedPrompt = await promptStore.getByKey(quickAction.action.promptKey);
   const template = storedPrompt?.prompt.trim()
@@ -427,7 +443,31 @@ async function buildQuickActionPrompt(
   }
   return renderWorkflowPromptTemplate(template, {
     skill_path: quickAction.skillPath,
-    ticket_context: buildTicketPrompt(ticket, "", threadContext).replace(/\n\nUser request:\n$/, ""),
+    ticket_context: [
+      buildTicketPrompt(ticket, "", threadContext).replace(/\n\nUser request:\n$/, ""),
+      formatKnowledgeEvidence(knowledgeEvidence),
+    ].join("\n\n"),
+    knowledge_evidence: formatKnowledgeEvidence(knowledgeEvidence),
     user_message: message,
   });
+}
+
+function buildKnowledgeQuery(ticket: LarkBaseTicketSyncItem, message: string): string {
+  return [ticket.title, ticket.issueType, ticket.detailDescription, message]
+    .map(redactSupportText)
+    .filter(Boolean)
+    .join("\n");
+}
+
+function formatKnowledgeEvidence(hits: SupportKnowledgeSearchHit[]): string {
+  if (!hits.length) {
+    return "Approved internal knowledge evidence: (none found; do not invent a document or historical case citation).";
+  }
+  return ["Approved internal knowledge evidence (cite source_ref; do not treat it as a platform write):", ...hits.map((hit, index) => [
+    `[${index + 1}] kind=${hit.sourceKind}`,
+    `source_ref=${hit.sourceRef}`,
+    `title=${hit.title}`,
+    `approved_at=${hit.approvedAt}`,
+    `content=${hit.redactedContent}`,
+  ].join("\n"))].join("\n\n");
 }
