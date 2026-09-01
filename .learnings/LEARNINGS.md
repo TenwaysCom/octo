@@ -2,6 +2,12 @@
 
 Record concise, reusable lessons here. Include the context, the durable rule, and the verified outcome; never include secrets or raw credentials.
 
+## [LRN-20260901-006] support-analysis-shared-write-boundary
+
+- **Context:** Ticket 人工审核接口与 Summary Quick Action 都要更新 intent、result、quality，但 Quick Action 的实际执行者是外部 ACP Skill，已有 SSH 签名 internal API 通道。
+- **Rule:** Web PUT 仅服务 FE human review；ACP 通过受限 wrapper 调签名 internal API。两个 Controller 共用分析应用服务，服务必须核对 Ticket、精确 snapshot version 和 prepared-message evidence，再脱敏并事务 upsert。Summary 只允许写 actionRunId 绑定的临时 JSON，且 fetch/update 两步都完成才接受结果。
+- **Verified outcome:** 定向测试覆盖 Web/Internal 分流、Zod、快照/证据拒绝、脱敏、原子更新、精确 ACP 权限和双门禁；Support-QA wrapper 语法及 analysis-update dry-run 通过。
+
 ## [LRN-20260901-005] prepared-thread-local-backfill-boundary
 
 - **Context:** Historical Ticket threads already have `messages_json`, so generating their Prepared projection does not require Lark credentials or another external fetch.

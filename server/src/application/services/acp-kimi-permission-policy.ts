@@ -2,6 +2,7 @@ import type {
   RequestPermissionRequest,
   RequestPermissionResponse,
 } from "@agentclientprotocol/sdk";
+import { createHash } from "node:crypto";
 import { lstat } from "node:fs/promises";
 import { dirname, extname, isAbsolute, relative, resolve } from "node:path";
 import type { AutomationExecutionPolicy } from "../../modules/public-config/public-config.controller.js";
@@ -16,6 +17,8 @@ export interface AcpKimiPermissionContext {
   skillProfile?: string | null;
   skillId?: string | null;
   ticketNumber?: string | null;
+  ticketRecordId?: string | null;
+  actionRunId?: string | null;
   policyVersion?: string | null;
 }
 
@@ -99,15 +102,19 @@ async function allowsRestrictedWrite(
     if (!tokens || !context?.workspaceDir) {
       return false;
     }
-    return allowsUpdate(tokens, context, supportQaTempDir);
+    return await allowsUpdate(tokens, context, supportQaTempDir)
+      || await allowsAnalysisUpdate(tokens, context, supportQaTempDir);
   }
 
   const path = getWritePath(params.toolCall);
   if (!path || !isWriteTool(params.toolCall.title ?? "") || !context?.workspaceDir) {
     return false;
   }
-  return isAllowedPath(path, context.workspaceDir, ["docs/support-qa/"])
-    || context.skillId === "support_qa_write"
+  return context.skillId === "support_qa_write"
+    && (isAllowedPath(path, context.workspaceDir, ["docs/support-qa/"])
+      || await isAllowedSupportQaTempJson(path, supportQaTempDir, false))
+    || isSummaryAnalysisContext(context)
+      && path === buildSupportAnalysisUpdatePath(context, supportQaTempDir)
       && await isAllowedSupportQaTempJson(path, supportQaTempDir, false);
 }
 
@@ -117,6 +124,27 @@ export function isAcpKimiSupportQaFetchCommand(
 ): boolean {
   const tokens = parseShellTokens(command);
   return Boolean(tokens && isSupportQaFetchTokens(tokens, context));
+}
+
+export function isAcpKimiSupportAnalysisUpdateCommand(
+  command: string,
+  context: Pick<AcpKimiPermissionContext, "actionKey" | "skillId" | "ticketRecordId" | "actionRunId">,
+  supportQaTempDir = SUPPORT_QA_TEMP_DIR,
+): boolean {
+  const tokens = parseShellTokens(command);
+  return Boolean(tokens && isSupportAnalysisUpdateTokens(tokens, context, supportQaTempDir));
+}
+
+export function buildSupportAnalysisUpdatePath(
+  context: Pick<AcpKimiPermissionContext, "ticketRecordId" | "actionRunId">,
+  supportQaTempDir = SUPPORT_QA_TEMP_DIR,
+): string | undefined {
+  if (!context.ticketRecordId || !context.actionRunId) return undefined;
+  const key = createHash("sha256")
+    .update(`${context.ticketRecordId}:${context.actionRunId}`)
+    .digest("hex")
+    .slice(0, 24);
+  return resolve(supportQaTempDir, `support-analysis-${key}.json`);
 }
 
 function isSupportQaFetchTokens(
@@ -150,6 +178,40 @@ async function allowsUpdate(
   return options.length > 0
     && options.every((option) => option === "--json" || option === "--dry-run")
     && options.includes("--json");
+}
+
+async function allowsAnalysisUpdate(
+  tokens: string[],
+  context: AcpKimiPermissionContext,
+  supportQaTempDir: string,
+): Promise<boolean> {
+  if (!isSupportAnalysisUpdateTokens(tokens, context, supportQaTempDir)) return false;
+  const updateFile = tokens[3];
+  return Boolean(updateFile && await isAllowedSupportQaTempJson(updateFile, supportQaTempDir, true));
+}
+
+function isSupportAnalysisUpdateTokens(
+  tokens: string[],
+  context: Pick<AcpKimiPermissionContext, "actionKey" | "skillId" | "ticketRecordId" | "actionRunId">,
+  supportQaTempDir: string,
+): boolean {
+  const [shell, script, operation, updateFile, output] = tokens;
+  return shell === "bash"
+    && script === ".agents/skills/write-support-qa/scripts/write-support-qa.sh"
+    && operation === "analysis-update"
+    && updateFile === buildSupportAnalysisUpdatePath(context, supportQaTempDir)
+    && output === "--json"
+    && tokens.length === 5
+    && isSummaryAnalysisContext(context);
+}
+
+function isSummaryAnalysisContext(
+  context: Pick<AcpKimiPermissionContext, "actionKey" | "skillId" | "ticketRecordId" | "actionRunId">,
+): boolean {
+  return context.actionKey === "lark-ticket-support-qa-summarize"
+    && context.skillId === "support_qa_query"
+    && Boolean(context.ticketRecordId)
+    && Boolean(context.actionRunId);
 }
 
 async function allowsReadFile(

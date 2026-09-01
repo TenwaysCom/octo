@@ -458,6 +458,7 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
 
   await db.schema.createTable("support_analysis_runs").ifNotExists()
     .addColumn("id", "text", (column) => column.primaryKey())
+    .addColumn("action_run_id", "text", (column) => column.notNull().defaultTo("legacy"))
     .addColumn("source_name", "text", (column) => column.notNull())
     .addColumn("status", "text", (column) => column.notNull())
     .addColumn("taxonomy_version", "text", (column) => column.notNull())
@@ -465,6 +466,10 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .addColumn("created_at", "text", (column) => column.notNull())
     .addColumn("updated_at", "text", (column) => column.notNull())
     .execute();
+  await sql`
+    ALTER TABLE support_analysis_runs
+    ADD COLUMN IF NOT EXISTS action_run_id text NOT NULL DEFAULT 'legacy'
+  `.execute(db);
   await db.schema.createTable("support_thread_intent_segments").ifNotExists()
     .addColumn("id", "text", (column) => column.primaryKey())
     .addColumn("analysis_run_id", "text", (column) => column.notNull())

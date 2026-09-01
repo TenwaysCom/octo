@@ -1,7 +1,9 @@
 import type { AcpKimiProxyService } from "./acp-kimi-proxy.service.js";
 import { acpKimiProxyService } from "./acp-kimi-proxy.service.js";
 import {
+  buildSupportAnalysisUpdatePath,
   extractAcpKimiRawCommand,
+  isAcpKimiSupportAnalysisUpdateCommand,
   isAcpKimiSupportQaFetchCommand,
   type AcpKimiPermissionContext,
 } from "./acp-kimi-permission-policy.js";
@@ -36,6 +38,8 @@ import {
   renderWorkflowPromptTemplate,
 } from "../../domain/workflow-prompts.js";
 import { prepareTicketThread, redactSupportText } from "../../domain/support-ticket-analysis.js";
+import { buildSupportAnalysisUpdateInstruction } from "../../domain/support-ticket-analysis-update.js";
+import { randomUUID } from "node:crypto";
 import { access, realpath } from "node:fs/promises";
 import { constants } from "node:fs";
 import { relative, resolve } from "node:path";
@@ -61,7 +65,8 @@ export class LarkTicketAiSessionError extends Error {
       | "AI_ACTION_NOT_FOUND"
       | "SKILL_PROFILE_NOT_CONFIGURED"
       | "LARK_THREAD_CONTEXT_UNAVAILABLE"
-      | "SUPPORT_QA_EVIDENCE_NOT_FETCHED",
+      | "SUPPORT_QA_EVIDENCE_NOT_FETCHED"
+      | "SUPPORT_ANALYSIS_NOT_UPDATED",
     message: string,
     readonly diagnostic?: {
       layer: "server" | "adapter";
@@ -159,8 +164,9 @@ export function createLarkTicketAiSessionService(
       if (input.actionKey && !quickAction) {
         throw new LarkTicketAiSessionError("AI_ACTION_NOT_FOUND", "Requested AI quick action is not configured.");
       }
+      const actionRunId = input.actionRunId ?? (quickAction ? randomUUID() : undefined);
       const permissionContext = quickAction
-        ? createPermissionContext(quickAction, ticket)
+        ? createPermissionContext(quickAction, ticket, actionRunId)
         : undefined;
       let threadContext: LarkTicketThreadContextResult | undefined;
       if (!input.sessionId) {
@@ -183,19 +189,29 @@ export function createLarkTicketAiSessionService(
           limit: 5,
         })
         : [];
+      const analysisUpdatePath = quickAction?.action.key === "lark-ticket-support-qa-summarize"
+        ? buildSupportAnalysisUpdatePath(permissionContext ?? {})
+        : undefined;
+      if (quickAction?.action.key === "lark-ticket-support-qa-summarize"
+        && (!actionRunId || !analysisUpdatePath || !threadContext?.snapshot)) {
+        throw new LarkTicketAiSessionError(
+          "LARK_THREAD_CONTEXT_UNAVAILABLE",
+          "Support-QA summary requires a fixed Ticket snapshot and analysis update context.",
+        );
+      }
       const prompt = quickAction
-        ? await buildQuickActionPrompt(workflowPromptStore, quickAction, ticket, input.message, threadContext, knowledgeEvidence)
+        ? await buildQuickActionPrompt(workflowPromptStore, quickAction, ticket, input.message, threadContext, knowledgeEvidence, actionRunId, analysisUpdatePath)
         : input.sessionId ? input.message : buildTicketPrompt(ticket, input.message, threadContext);
       let createdSessionId: string | undefined;
       let doneEvent: Extract<AcpKimiStreamEvent, { event: "done" }> | undefined;
       const evidenceTracker = quickAction && permissionContext
-        ? createSupportQaEvidenceTracker(permissionContext)
+        ? createSupportQaEvidenceTracker(permissionContext, quickAction.action.key === "lark-ticket-support-qa-summarize")
         : undefined;
 
       await acpService.chat({
         operatorLarkId: input.operatorLarkId,
         sessionId: input.sessionId,
-        actionRunId: input.actionRunId,
+        actionRunId,
         message: prompt,
         permissionContext,
       }, (event) => {
@@ -213,7 +229,7 @@ export function createLarkTicketAiSessionService(
         session: input.sessionId ? undefined : null,
       });
 
-      if (evidenceTracker && !evidenceTracker.completed) {
+      if (evidenceTracker && !evidenceTracker.fetchCompleted) {
         throw new LarkTicketAiSessionError(
           "SUPPORT_QA_EVIDENCE_NOT_FETCHED",
           "Support-QA evidence fetch did not complete; the AI result was not accepted.",
@@ -221,7 +237,19 @@ export function createLarkTicketAiSessionService(
             layer: "server",
             module: "lark-ticket-ai-session",
             stage: "server.workflow.completed",
-            ...(input.actionRunId ? { actionRunId: input.actionRunId } : {}),
+            ...(actionRunId ? { actionRunId } : {}),
+          },
+        );
+      }
+      if (evidenceTracker?.analysisUpdateRequired && !evidenceTracker.analysisUpdated) {
+        throw new LarkTicketAiSessionError(
+          "SUPPORT_ANALYSIS_NOT_UPDATED",
+          "Support-QA analysis update did not complete; the AI result was not accepted.",
+          {
+            layer: "server",
+            module: "lark-ticket-ai-session",
+            stage: "server.analysis.update",
+            ...(actionRunId ? { actionRunId } : {}),
           },
         );
       }
@@ -258,14 +286,19 @@ export function createLarkTicketAiSessionService(
   };
 }
 
-function createSupportQaEvidenceTracker(context: AcpKimiPermissionContext) {
-  const fetchToolCallIds = new Set<string>();
+function createSupportQaEvidenceTracker(context: AcpKimiPermissionContext, analysisUpdateRequired: boolean) {
+  const toolCallKinds = new Map<string, "fetch" | "analysis-update">();
   const conflictingToolCallIds = new Set<string>();
-  let completed = false;
+  let fetchCompleted = false;
+  let analysisUpdated = false;
   return {
-    get completed() {
-      return completed;
+    get fetchCompleted() {
+      return fetchCompleted;
     },
+    get analysisUpdated() {
+      return analysisUpdated;
+    },
+    analysisUpdateRequired,
     observe(event: AcpKimiStreamEvent) {
       if (event.event !== "acp.session.update") {
         return;
@@ -280,12 +313,23 @@ function createSupportQaEvidenceTracker(context: AcpKimiPermissionContext) {
       if ((update.sessionUpdate === "tool_call" || update.sessionUpdate === "tool_call_update")
         && update.rawInput !== undefined && update.rawInput !== null) {
         const command = extractAcpKimiRawCommand(update.rawInput);
-        if (command && isAcpKimiSupportQaFetchCommand(command, context)) {
+        const kind = command && isAcpKimiSupportQaFetchCommand(command, context)
+          ? "fetch"
+          : command && isAcpKimiSupportAnalysisUpdateCommand(command, context)
+            ? "analysis-update"
+            : undefined;
+        if (kind) {
           if (!conflictingToolCallIds.has(toolCallId)) {
-            fetchToolCallIds.add(toolCallId);
+            const currentKind = toolCallKinds.get(toolCallId);
+            if (!currentKind || currentKind === kind) {
+              toolCallKinds.set(toolCallId, kind);
+            } else {
+              toolCallKinds.delete(toolCallId);
+              conflictingToolCallIds.add(toolCallId);
+            }
           }
-        } else if (fetchToolCallIds.has(toolCallId)) {
-          fetchToolCallIds.delete(toolCallId);
+        } else if (toolCallKinds.has(toolCallId)) {
+          toolCallKinds.delete(toolCallId);
           conflictingToolCallIds.add(toolCallId);
         }
       }
@@ -296,10 +340,14 @@ function createSupportQaEvidenceTracker(context: AcpKimiPermissionContext) {
         || (update.status !== "completed" && update.status !== "failed")) {
         return;
       }
-      if (update.status === "completed" && fetchToolCallIds.has(toolCallId)) {
-        completed = true;
+      const kind = toolCallKinds.get(toolCallId);
+      if (update.status === "completed" && kind === "fetch") {
+        fetchCompleted = true;
       }
-      fetchToolCallIds.delete(toolCallId);
+      if (update.status === "completed" && kind === "analysis-update") {
+        analysisUpdated = true;
+      }
+      toolCallKinds.delete(toolCallId);
       conflictingToolCallIds.delete(toolCallId);
     },
   };
@@ -415,6 +463,7 @@ async function resolveTicketAiAction(actionKey: string): Promise<ResolvedTicketA
 function createPermissionContext(
   quickAction: ResolvedTicketAiAction,
   ticket: LarkBaseTicketSyncItem,
+  actionRunId?: string,
 ): AcpKimiPermissionContext {
   return {
     actionKey: quickAction.action.key,
@@ -423,6 +472,8 @@ function createPermissionContext(
     skillProfile: quickAction.action.skillProfile,
     skillId: quickAction.action.skillId,
     ticketNumber: ticket.ticketNumber || ticket.recordId,
+    ticketRecordId: ticket.recordId,
+    actionRunId,
     policyVersion: "v2",
   };
 }
@@ -434,6 +485,8 @@ async function buildQuickActionPrompt(
   message: string,
   threadContext?: LarkTicketThreadContextResult,
   knowledgeEvidence: SupportKnowledgeSearchHit[] = [],
+  actionRunId?: string,
+  analysisUpdatePath?: string,
 ): Promise<string> {
   const storedPrompt = await promptStore.getByKey(quickAction.action.promptKey);
   const template = storedPrompt?.prompt.trim()
@@ -441,7 +494,7 @@ async function buildQuickActionPrompt(
   if (!template) {
     throw new LarkTicketAiSessionError("AI_ACTION_NOT_FOUND", `Prompt ${quickAction.action.promptKey} is not configured.`);
   }
-  return renderWorkflowPromptTemplate(template, {
+  const prompt = renderWorkflowPromptTemplate(template, {
     skill_path: quickAction.skillPath,
     ticket_context: [
       buildTicketPrompt(ticket, "", threadContext).replace(/\n\nUser request:\n$/, ""),
@@ -450,6 +503,18 @@ async function buildQuickActionPrompt(
     knowledge_evidence: formatKnowledgeEvidence(knowledgeEvidence),
     user_message: message,
   });
+  const snapshot = threadContext?.snapshot;
+  return quickAction.action.key === "lark-ticket-support-qa-summarize"
+    && snapshot && actionRunId && analysisUpdatePath
+    ? `${prompt}\n\n${buildSupportAnalysisUpdateInstruction({
+      baseId: ticket.baseId,
+      tableId: ticket.tableId,
+      recordId: ticket.recordId,
+      snapshotVersion: snapshot.snapshotVersion,
+      actionRunId,
+      updatePath: analysisUpdatePath,
+    })}`
+    : prompt;
 }
 
 function buildKnowledgeQuery(ticket: LarkBaseTicketSyncItem, message: string): string {

@@ -2,6 +2,20 @@
 
 Record concise compiler/runtime errors, failed commands, wrong assumptions, and their verified fixes here. Redact secrets, cookies, tokens, and sensitive payloads.
 
+## [ERR-20260901-010] async-permission-branch-short-circuit
+
+- **Summary:** 在受限 shell policy 中并列加入 `analysis-update` 后，旧 `allowsUpdate()` 的 Promise 被直接用于 `||`，导致新分支永远不会执行。
+- **Error:** ACP permission 定向测试拒绝了本应允许的精确 Summary analysis-update 命令。
+- **Fix:** 对两个异步权限判断分别显式 `await`，并保留精确 action、Skill、临时路径和命令匹配。
+- **Status:** resolved；ACP policy 7/7、整体相关测试 31/31 通过。
+
+## [ERR-20260901-009] optional-analysis-service-eager-database-init
+
+- **Summary:** 首版把仅 Summary Quick Action 使用的分析服务在 Ticket Controller/Session service 构造时立即创建，导致无关测试也尝试连接 PostgreSQL。
+- **Error:** 7-file 定向测试中 8 个既有用例失败，报错 `POSTGRES_URI is not configured`；另有一个新断言错误地要求不存在的 `actionRunId` Store 字段。
+- **Fix:** 把分析服务改为仅在更新/summary 持久化分支中按需创建，并修正 Store 入参断言。
+- **Status:** resolved；相同 7 files / 18 tests 和 Server build 全部通过。
+
 ## [ERR-20260901-008] prepared-thread-snapshot-test-fixture
 
 - **Summary:** Making `preparedMessages` a required thread snapshot projection left one typed in-memory Store fixture on the old shape.

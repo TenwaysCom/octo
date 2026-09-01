@@ -51,7 +51,7 @@ function toErrorResponse(error: unknown) {
   if (error instanceof LarkTicketAiSessionError) {
     const statusCode = error.code === "LARK_THREAD_CONTEXT_UNAVAILABLE"
       ? 503
-      : error.code === "SUPPORT_QA_EVIDENCE_NOT_FETCHED"
+      : error.code === "SUPPORT_QA_EVIDENCE_NOT_FETCHED" || error.code === "SUPPORT_ANALYSIS_NOT_UPDATED"
         ? 502
         : error.code === "LARK_TICKET_NOT_FOUND" || error.code === "SESSION_NOT_FOUND"
           ? 404

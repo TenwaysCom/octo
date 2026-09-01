@@ -273,6 +273,7 @@ export interface DatabaseSchema {
   };
   support_analysis_runs: {
     id: string;
+    action_run_id: string;
     source_name: string;
     status: string;
     taxonomy_version: string;

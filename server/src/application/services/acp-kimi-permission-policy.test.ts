@@ -2,7 +2,10 @@ import type { RequestPermissionRequest } from "@agentclientprotocol/sdk";
 import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createAcpKimiPermissionHandler } from "./acp-kimi-permission-policy.js";
+import {
+  buildSupportAnalysisUpdatePath,
+  createAcpKimiPermissionHandler,
+} from "./acp-kimi-permission-policy.js";
 
 function permissionRequest(input: {
   title?: string;
@@ -57,6 +60,8 @@ describe("acp kimi permission policy", () => {
     skillProfile: "support_qa_eu",
     skillId: "support_qa_query",
     ticketNumber: "LT-10",
+    ticketRecordId: "rec_1",
+    actionRunId: "action_1",
     policyVersion: "v1",
   };
 
@@ -199,6 +204,41 @@ describe("acp kimi permission policy", () => {
       }))).resolves.toEqual({ outcome: { outcome: "cancelled" } });
       await expect(handler(permissionRequest({
         rawInput: { command: `bash .agents/skills/write-support-qa/scripts/write-support-qa.sh update ${outsidePath} --json` },
+      }))).resolves.toEqual({ outcome: { outcome: "cancelled" } });
+    } finally {
+      await rm(testRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("allows Summary to write and submit only its exact signed analysis payload", async () => {
+    const testRoot = await mkdtemp(join(tmpdir(), "octo-acp-analysis-permission-"));
+    const supportQaTempDir = join(testRoot, "support-qa");
+    await mkdir(supportQaTempDir);
+    const context = { ...shellContext, executionPolicy: "write+shell" as const };
+    const updatePath = buildSupportAnalysisUpdatePath(context, supportQaTempDir)!;
+    const otherPath = join(supportQaTempDir, "support-analysis-other.json");
+    const handler = createAcpKimiPermissionHandler(context, { supportQaTempDir });
+
+    try {
+      await expect(handler(permissionRequest({
+        title: "Write",
+        rawInput: { path: updatePath, content: "{}" },
+      }))).resolves.toEqual({ outcome: { outcome: "selected", optionId: "allow-once" } });
+      await expect(handler(permissionRequest({
+        title: "Write",
+        rawInput: { path: "docs/support-qa/qa-cards/LT-10.md", content: "draft" },
+      }))).resolves.toEqual({ outcome: { outcome: "cancelled" } });
+      await expect(handler(permissionRequest({
+        title: "Write",
+        rawInput: { path: otherPath, content: "{}" },
+      }))).resolves.toEqual({ outcome: { outcome: "cancelled" } });
+
+      await writeFile(updatePath, "{}\n");
+      await expect(handler(permissionRequest({
+        rawInput: { command: `bash .agents/skills/write-support-qa/scripts/write-support-qa.sh analysis-update ${updatePath} --json` },
+      }))).resolves.toEqual({ outcome: { outcome: "selected", optionId: "allow-once" } });
+      await expect(handler(permissionRequest({
+        rawInput: { command: `bash .agents/skills/write-support-qa/scripts/write-support-qa.sh analysis-update ${otherPath} --json` },
       }))).resolves.toEqual({ outcome: { outcome: "cancelled" } });
     } finally {
       await rm(testRoot, { recursive: true, force: true });
