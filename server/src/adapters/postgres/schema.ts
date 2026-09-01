@@ -312,6 +312,22 @@ export interface DatabaseSchema {
     created_at: string;
     updated_at: string;
   };
+  lark_ticket_eval_samples: {
+    id: string;
+    base_id: string;
+    table_id: string;
+    record_id: string;
+    ticket_title: string;
+    snapshot_version: number;
+    ai_output_json: string;
+    dataset_status: "draft" | "eval" | "badcase";
+    manual_intent: string | null;
+    expected_outcome: string | null;
+    notes: string | null;
+    failure_labels_json: string;
+    created_at: string;
+    updated_at: string;
+  };
   support_ticket_reply_drafts: {
     id: string;
     base_id: string;

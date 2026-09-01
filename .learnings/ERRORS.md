@@ -647,3 +647,15 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 
 - Symptom: `pnpm exec tsx -e` rejected a diagnostic command using top-level `await` because it emitted CommonJS.
 - Fix: wrap inline diagnostics in an async IIFE; do not treat the command failure as a database or schema failure.
+
+### ERR-20260901-007 — Eval service fixture omitted a nested object close
+
+- **Symptom:** The first focused Eval service test could not transform because its mocked Ticket AI object had an unmatched bracket.
+- **Root cause:** A dense one-line nested fixture made the outer Ticket object closing brace easy to omit.
+- **Verified fix:** Expand nested test fixtures across lines before running Vitest; the focused service, controller, and route tests then passed.
+
+### ERR-20260901-008 — Eval list was intercepted by header authentication
+
+- **Symptom:** `GET /api/web/lark-ticket-eval-samples` returned `UNAUTHORIZED: Missing master-user-id header` while `GET /api/web/profile` succeeded with the same browser session.
+- **Root cause:** The Eval list endpoint was a Web Session route but absent from `DEFAULT_EXEMPT_PATHS` in the generic header-auth middleware.
+- **Verified fix:** Exempt that exact path and cover it in the Web Session route regression test; never solve this by forwarding a browser-supplied `master-user-id`.

@@ -16,7 +16,6 @@ config({ path: new URL("../../.env", import.meta.url), quiet: true });
 config({ quiet: true });
 
 const DEFAULT_SOURCE_DATABASE = "tenways_octo";
-const DEFAULT_TARGET_DATABASE = "tenways_octo_ly_0509";
 const DEFAULT_MASTER_USER_ID = "a400632e-8d08-4ddf-977d-e8330b0adc5a";
 
 type UserTokenRow = Selectable<DatabaseSchema["user_tokens"]>;
@@ -61,7 +60,7 @@ export function parseArgs(argv: string[]): SyncUserTokensArgs {
   }
 
   let sourceDatabase = DEFAULT_SOURCE_DATABASE;
-  let targetDatabase = DEFAULT_TARGET_DATABASE;
+  let targetDatabase: string | undefined;
   let postgresUri = getDefaultPostgresUri();
   let provider: string | undefined;
 
@@ -110,6 +109,13 @@ export function parseArgs(argv: string[]): SyncUserTokensArgs {
 
   if (!postgresUri) {
     throw new Error("POSTGRES_URI or DATABASE_URL is required");
+  }
+
+  if (!targetDatabase) {
+    targetDatabase = new URL(postgresUri).pathname.replace(/^\//, "");
+    if (!targetDatabase) {
+      throw new Error("POSTGRES_URI or DATABASE_URL must include a target database name");
+    }
   }
 
   return {

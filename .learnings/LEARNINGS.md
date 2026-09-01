@@ -506,3 +506,21 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - **Context:** Support-QA Answer 的文本本身不是发送授权；历史 thread 同步保存的是 reply 消息，Lark 回复 API 需要 root message ID。
 - **Rule:** 发送前必须校验当前用户、Ticket 复合键、Answer action session 归属和固定 thread 上下文；从 reply 的 `root_id` 派生发送目标，并以 Ticket/Session/draft hash 去重。不能把模型输出或 `thread_id` 直接当作发送授权。
 - **Verified outcome:** 新服务仅在该校验后调用 Lark `replyToMessage(..., reply_in_thread=true)`；脱敏/证据单测、Server build、FE test/build 通过，未进行真实发送。
+
+## [LRN-20260901-004] eval-sample-freezes-mutable-ai-output
+
+- **Context:** Ticket 的当前 `ticket_ai` 与 SupportTicketAnalysis projection 都会随重跑或人工审核而变化，直接把它们当作 Eval 数据会丢失原始 AI 输出。
+- **Rule:** Eval/Badcase 样本必须在创建时以 Ticket 复合键和完整 thread snapshot version 冻结 allow-listed AI 输出；人工标准答案与失败标签另存。相同 Ticket/snapshot 的创建需幂等，历史样本不被后续 Ticket AI 更新覆盖。
+- **Verified outcome:** Server service 拒绝缺失或不完整的线程快照，PostgreSQL 样本表对 Ticket/snapshot 建唯一约束；聚焦 Server 测试、FE 全量测试和两端 build 通过。
+
+## [LRN-20260901-005] ticket-ai-pipeline-does-not-infer-session-completion
+
+- **Context:** Ticket AI 的问题总结、回答问题和生成文档是不同的 AI Session；只有部分结论会进入本地 `ticket_ai`，不能因存在分析结果就把后续阶段显示为完成。
+- **Rule:** AI 输出列表按意图识别、问题总结、Ticket 答案总结、文档生成四阶段读取明确字段；旧分析/知识字段可做兼容映射，但无持久化回答或文档字段时必须显示未生成。列表只导航到详情页启动既有 Session，不复制流式 workflow。
+- **Verified outcome:** Pipeline 单测覆盖兼容映射及答案空态，新增字段进入 allow-list 和分组详情；两端 build 通过。
+
+## [LRN-20260901-006] web-session-routes-must-be-explicitly-exempt-from-header-auth
+
+- **Context:** Eval 样本列表由浏览器 Web Session 鉴权，但其路径不在通用 API header-auth 的豁免集合中，导致已登录页面仍收到 `UNAUTHORIZED: Missing master-user-id header`。
+- **Rule:** 新增 Web Session 路由时，必须同时检查 `createApiAuthMiddleware` 的路径豁免；不能要求浏览器伪造或携带 `master-user-id`，身份只从服务端 session 解析。
+- **Verified outcome:** Eval 列表路径加入豁免集合，middleware/controller/route 定向测试 13/13 和两端 build 通过。
