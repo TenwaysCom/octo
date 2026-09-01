@@ -2,6 +2,18 @@
 
 Record concise, reusable lessons here. Include the context, the durable rule, and the verified outcome; never include secrets or raw credentials.
 
+## [LRN-20260901-003] prepared-thread-local-backfill-boundary
+
+- **Context:** Historical Ticket threads already have `messages_json`, so generating their Prepared projection does not require Lark credentials or another external fetch.
+- **Rule:** Scope the backfill by `baseId + tableId`, default to dry-run, derive only from local raw JSON, require `--apply` for writes, and update with the scanned `snapshot_version` as an optimistic concurrency guard.
+- **Verified outcome:** Script tests prove redaction, current/stale selection, local PostgreSQL writes, and rejection of Lark credential arguments.
+
+## [LRN-20260901-002] support-knowledge-approval-and-redaction-boundary
+
+- **Context:** Ticket Answer needs controlled documents and resolved historical cases, but the thread-sync snapshot is raw source data and the existing Support-QA fetch gate proves Ticket evidence rather than knowledge approval.
+- **Rule:** Store searchable knowledge separately as redacted chunks, require explicit human approval before indexing or retrieval, return `source_ref` with every hit, and keep the existing completed `fetch --json` gate mandatory for every Support-QA result.
+- **Verified outcome:** PostgreSQL-store and Ticket AI Session tests prove revoked cases are excluded, email text is redacted, and Answer prompts receive approved citations only.
+
 ## [LRN-20260828-007] ai-session-message-control-scope
 
 - **Context:** Ticket 与 Sprint AI Session 使用相同的消息视觉语言，但由两个页面入口渲染；复制动作只适用于助手正文，不适用于用户输入、状态或思考/工具诊断。
@@ -476,3 +488,9 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - **Context:** Meegle 工作项列表需要从 System 对应仓库快速选择 PR，同时关联关系仍由 GitHub 标题/描述标记的同步快照投影。
 - **Rule:** 候选列表读取本地 open/draft 快照并由 Server 映射仓库；选择后必须重新读取远端最新 PR、幂等追加精确 `m-<workItemId>` 标记，并用 GitHub 返回值立即 UPSERT 本地快照。远端写入后的本地失败要作为可重试的 partial success 明示。
 - **Verified outcome:** Service/controller/adapter/store 测试覆盖仓库约束、draft 摘要、标题只追加一次、结构化错误和即时快照刷新；8 个定向 Server 文件 76/76、FE 27/27 与两端 build 通过。
+
+## [LRN-20260901-002] ticket-reply-requires-session-and-root-proof
+
+- **Context:** Support-QA Answer 的文本本身不是发送授权；历史 thread 同步保存的是 reply 消息，Lark 回复 API 需要 root message ID。
+- **Rule:** 发送前必须校验当前用户、Ticket 复合键、Answer action session 归属和固定 thread 上下文；从 reply 的 `root_id` 派生发送目标，并以 Ticket/Session/draft hash 去重。不能把模型输出或 `thread_id` 直接当作发送授权。
+- **Verified outcome:** 新服务仅在该校验后调用 Lark `replyToMessage(..., reply_in_thread=true)`；脱敏/证据单测、Server build、FE test/build 通过，未进行真实发送。

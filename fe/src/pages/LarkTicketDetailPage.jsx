@@ -6,7 +6,7 @@ import { LarkTicketResponsible } from "../components/lark-ticket/LarkTicketRespo
 import { appendAiSessionEvent, createAiUserMessage, transcriptFromAiSessionEvents } from "../lib/ai-session-transcript.js";
 import { formatDateTime } from "../lib/formatters.js";
 import { getTicketAiSections } from "../lib/ticket-ai-sections.js";
-import { listLarkTicketAiSessions, loadLarkTicketAiSession, streamLarkTicketAiSession } from "../services/lark-ticket-ai/lark-ticket-ai-api.js";
+import { confirmLarkTicketAiDraft, listLarkTicketAiSessions, loadLarkTicketAiSession, streamLarkTicketAiSession } from "../services/lark-ticket-ai/lark-ticket-ai-api.js";
 import { loadLarkTicketSharedUrl } from "../services/lark-ticket/lark-ticket-api.js";
 import { getPlatformDataList } from "../services/platform-data/platform-data-api.js";
 
@@ -53,6 +53,7 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
   const [drawer, setDrawer] = useState(null);
   const [drawerDraft, setDrawerDraft] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
+  const [isSendingDraft, setIsSendingDraft] = useState(false);
   const [expandedTicketAiSectionId, setExpandedTicketAiSectionId] = useState(null);
 
   useEffect(() => {
@@ -129,6 +130,7 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
     setDrawer((current) => ({
       sessionId: sessionId || current?.sessionId || null,
       title: title || current?.title || trimmedMessage,
+      actionKey: actionKey || current?.actionKey || null,
       status: "generating",
       messages: [...(current?.messages || []), createAiUserMessage(trimmedMessage)],
       error: "",
@@ -180,6 +182,18 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
     const request = drawerDraft;
     setDrawerDraft("");
     await streamAiSession({ message: request, sessionId: drawer.sessionId || undefined, title: drawer.title });
+  }
+
+  async function confirmDraftSend() {
+    const draft = [...(drawer?.messages || [])].reverse().find((entry) => entry.kind === "assistant" && entry.text)?.text;
+    if (!ticket || !drawer?.sessionId || !draft || !window.confirm("确认将这份回复草案发送到当前 Lark Ticket thread？")) return;
+    setIsSendingDraft(true);
+    try {
+      await confirmLarkTicketAiDraft({ apiBaseUrl, ticket, sessionId: drawer.sessionId, draft, actionRunId: crypto.randomUUID() });
+      setDrawer((current) => current ? { ...current, draftSent: true } : current);
+    } catch (error) {
+      setDrawer((current) => current ? { ...current, status: "error", error: error.message || "回复草案发送失败。" } : current);
+    } finally { setIsSendingDraft(false); }
   }
 
   if (state.status === "loading") {
@@ -302,6 +316,8 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
           <textarea id="ticket-ai-followup" value={drawerDraft} onChange={(event) => setDrawerDraft(event.target.value)} placeholder="继续这个 AI Session…" rows="2" disabled={isStreaming || drawer.status === "loading"} />
           <button type="submit" disabled={isStreaming || drawer.status === "loading" || !drawerDraft.trim()}>发送 ↑</button>
         </form>
+        {drawer.actionKey === "lark-ticket-support-qa-answer" && !drawer.draftSent && drawer.messages.some((entry) => entry.kind === "assistant" && entry.text) ? <button className="ticket-ai-drawer__confirm-send" type="button" onClick={() => void confirmDraftSend()} disabled={isStreaming || isSendingDraft}>{isSendingDraft ? "正在发送…" : "确认发送回复草案"}</button> : null}
+        {drawer.draftSent ? <p className="ticket-ai-drawer__sent">回复草案已发送到当前 Ticket thread。</p> : null}
       </aside>
     </div> : null}
   </WorkspaceShell>;
