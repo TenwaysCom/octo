@@ -159,8 +159,9 @@ describe("PlatformSyncService", () => {
       "current_status_operator",
       "field_feb079",
       "field_1b9eb0",
-      "field_00f541",
       "field_9edc03",
+      "field_0dba3a",
+      "field_00f541",
       "start_time",
       "finish_time",
     ]);
@@ -206,11 +207,11 @@ describe("PlatformSyncService", () => {
 
     expect(createMeegleClient).not.toHaveBeenCalled();
     expect(store.meegleCleaning[0]?.lifecycle).toEqual({
-      phase: "started",
       addToCycleTime: "2026-08-21T00:00:00.000Z",
       currentNodeStartTime: null,
-      itemStartTime: null,
+      itemStartTime: "2026-08-21",
       itemFinishTime: null,
+      warnings: [],
     });
     expect(store.meegleCleaning[0]?.roleMembers).toEqual({
       present: true,
@@ -368,7 +369,7 @@ describe("PlatformSyncService", () => {
       ...workitem("1", "Finished"),
       assignee: "MQL Current Owner",
       priority: "P1",
-      updatedAt: "2026-08-11T00:01:00.000Z",
+      updatedAt: "2026-08-11 00:01:00",
     };
     const detailed = { ...candidate, assignee: undefined, priority: undefined, updatedAt: undefined };
     const client = {
@@ -390,22 +391,23 @@ describe("PlatformSyncService", () => {
       listed: 1,
       synced: 1,
       cleaned: 1,
-      watermarkUpdatedAt: "2026-08-11T00:01:00.000Z",
+      watermarkUpdatedAt: "2026-08-11 00:01:00",
     });
 
     expect(client.filterWorkitems).toHaveBeenCalledWith("project", {
       workitemTypeKeys: ["story"],
       pageSize: 50,
       autoPaginate: true,
-      sourceUpdatedAfter: "2026-08-10T23:55:00.000Z",
+      sourceUpdatedAfter: "2026-08-10 23:55:00",
       sourceUpdatedAtMqlFieldNames: { story: "updated_at" },
     });
     expect(client.getWorkitemDetails).toHaveBeenCalledWith("project", "story", ["1"], [
       "current_status_operator",
       "field_feb079",
       "field_1b9eb0",
-      "field_00f541",
       "field_9edc03",
+      "field_0dba3a",
+      "field_00f541",
       "start_time",
       "finish_time",
     ]);
@@ -414,6 +416,39 @@ describe("PlatformSyncService", () => {
     expect(store.meegle[0]?.workitem.priority).toBe("P1");
     expect(store.cleanedMeegle).toEqual(["1"]);
     expect(store.meegle[0]?.sprintObservedAt).toEqual(expect.any(String));
+  });
+
+  it("writes and cleans an invalid updated_at observation before failing the incremental scope", async () => {
+    const store = createStore();
+    const candidate = {
+      ...workitem("invalid-time", "In Progress"),
+      updatedAt: undefined,
+      fields: {
+        mql: {
+          moql_field_list: [{ key: "updated_at", value: { string_value: "not-a-time" } }],
+        },
+      },
+    };
+    const client = {
+      filterWorkitems: vi.fn().mockResolvedValue([candidate]),
+      getWorkitemDetails: vi.fn().mockResolvedValue([{ ...candidate, fields: { work_item_fields: [] } }]),
+      getSyncMappings: vi.fn().mockResolvedValue([]),
+    } as unknown as MeegleClient;
+    const service = new PlatformSyncService({ store, createMeegleClient: async () => client });
+
+    await expect(service.incrementalSyncMeegleWorkitems({
+      masterUserId: "user-1",
+      projectKey: "project",
+      workItemTypeKeys: ["story"],
+      sourceUpdatedAtMqlFieldNames: { story: "updated_at" },
+      watermarkUpdatedAt: "2026-08-11T00:00:00.000Z",
+      watermarkTiebreaker: "story:0",
+      cleanAfterSync: true,
+    })).rejects.toThrow("MEEGLE_SOURCE_UPDATED_AT_INVALID:1");
+
+    expect(store.meegle).toHaveLength(1);
+    expect(store.meegle[0]?.workitem.updatedAt).toBeUndefined();
+    expect(store.cleanedMeegle).toEqual(["invalid-time"]);
   });
 
   it("requests Tech Task relation fields before cleaning incremental snapshots", async () => {
@@ -454,6 +489,7 @@ describe("PlatformSyncService", () => {
       "field_ecd063",
       "field_5fab52",
       "field_3daed9",
+      "field_6da66b",
       "field_7c2f56",
       "start_time",
       "finish_time",
@@ -511,6 +547,7 @@ describe("PlatformSyncService", () => {
 
     expect(client.getWorkitemDetails).toHaveBeenCalledWith("project", "production_bug", ["1"], [
       "current_status_operator",
+      "field_4976fc",
       "field_26ef68",
       "start_time",
       "finish_time",
@@ -564,11 +601,10 @@ describe("PlatformSyncService", () => {
     expect(store.meegle[0]).toMatchObject({
       sprintRelation: { present: true, sprintId: "cycle-1", sprintName: "Sprint 1" },
       lifecycle: {
-        phase: "finished",
         addToCycleTime: "2026-08-21T00:00:00.000Z",
         currentNodeStartTime: null,
-        itemStartTime: "2026-08-22T00:00:00.000Z",
-        itemFinishTime: "2026-08-23T00:00:00.000Z",
+        itemStartTime: "2026-08-21",
+        itemFinishTime: "2026-08-23",
       },
     });
     expect(listWorkflowNodes).not.toHaveBeenCalled();

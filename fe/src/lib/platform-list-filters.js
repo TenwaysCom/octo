@@ -1,3 +1,5 @@
+import { parsePlatformTimestamp } from "./formatters.js";
+
 export const DATE_FILTERS = [
   ["today", "今天"],
   ["last-7-days", "最近 7 天"],
@@ -113,7 +115,7 @@ export function matchesSelectedTagFilters(item, fields, selectedValues) {
 }
 
 function matchesDateFilter(item, dateFilter, now) {
-  const updatedAt = new Date(item.sourceUpdatedAt || item.syncedAt || "");
+  const updatedAt = new Date(parsePlatformTimestamp(item.sourceUpdatedAt || item.syncedAt));
   if (Number.isNaN(updatedAt.getTime())) {
     return false;
   }

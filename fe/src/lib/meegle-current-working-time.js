@@ -1,14 +1,17 @@
+import { parsePlatformTimestamp } from "./formatters.js";
+
 const MINUTE_MS = 60 * 1000;
 const HOUR_MINUTES = 60;
 const DAY_MINUTES = 24 * HOUR_MINUTES;
 
 function parseTimestamp(value) {
-  const timestamp = typeof value === "number" ? value : Date.parse(value || "");
+  const timestamp = parsePlatformTimestamp(value);
   return Number.isFinite(timestamp) ? timestamp : null;
 }
 
 export function getMeegleCurrentWorkingDurationMs(item, nowTime = Date.now()) {
   if (!item?.currentNodeStartTime || item.membershipRemovedAt) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(item.itemFinishTime || "")) return null;
 
   const startTime = parseTimestamp(item.currentNodeStartTime);
   const endTime = item.itemFinishTime ? parseTimestamp(item.itemFinishTime) : parseTimestamp(nowTime);

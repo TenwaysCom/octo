@@ -11,6 +11,18 @@ export async function createTestPostgresDatabase() {
     returns: DataType.integer,
     implementation: (value: string) => value.length,
   });
+  memoryDb.public.registerFunction({
+    name: "substr",
+    args: [DataType.text, DataType.integer, DataType.integer],
+    returns: DataType.text,
+    implementation: (value: string, start: number, length: number) => value.slice(start - 1, start - 1 + length),
+  });
+  memoryDb.public.registerFunction({
+    name: "replace",
+    args: [DataType.text, DataType.text, DataType.text],
+    returns: DataType.text,
+    implementation: (value: string, search: string, replacement: string) => value.split(search).join(replacement),
+  });
   const adapter = memoryDb.adapters.createPg();
   const pool = new adapter.Pool();
   const db = new Kysely<DatabaseSchema>({

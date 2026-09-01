@@ -7,7 +7,6 @@ describe("Meegle Sprint membership transitions", () => {
     expect(projectMeegleSprintMembershipTransition({
       relation: { present: true, sprintId: "sprint-b" },
       lifecycle: {
-        phase: "finished",
         itemStartTime: "2026-08-20T00:00:00.000Z",
         itemFinishTime: "2026-08-25T00:00:00.000Z",
       },
@@ -30,7 +29,6 @@ describe("Meegle Sprint membership transitions", () => {
       },
       relation: { present: true, sprintId: "sprint-a" },
       lifecycle: {
-        phase: "finished",
         itemStartTime: "2026-08-04T00:00:00.000Z",
         itemFinishTime: "2026-08-10T00:00:00.000Z",
       },
@@ -39,7 +37,7 @@ describe("Meegle Sprint membership transitions", () => {
     expect(transition.createOpen).toEqual({
       sprintId: "sprint-a",
       addedAt: "2026-08-01T00:00:00.000Z",
-      startedAt: "2026-08-03T00:00:00.000Z",
+      startedAt: "2026-08-04T00:00:00.000Z",
       finishedAt: "2026-08-10T00:00:00.000Z",
       source: "historical_inferred",
     });
@@ -55,7 +53,7 @@ describe("Meegle Sprint membership transitions", () => {
         source: "historical_inferred",
       },
       relation: { present: true, sprintId: "sprint-b" },
-      lifecycle: { phase: "started", itemStartTime: "2026-08-04T00:00:00.000Z" },
+      lifecycle: { itemStartTime: "2026-08-04T00:00:00.000Z" },
       observedAt,
     });
     expect(transition.closeOpenAt).toBe(observedAt);
@@ -88,7 +86,7 @@ describe("Meegle Sprint membership transitions", () => {
         itemStartTime: "2026-08-03T00:00:00.000Z",
       },
       relation: { present: true },
-      lifecycle: { phase: "finished", itemFinishTime: "2026-08-27T00:00:00.000Z" },
+      lifecycle: { itemFinishTime: "2026-08-27T00:00:00.000Z" },
       observedAt,
     }).createClosed).toMatchObject({
       sprintId: "sprint-a",
@@ -100,7 +98,7 @@ describe("Meegle Sprint membership transitions", () => {
     expect(projectMeegleSprintMembershipTransition({
       openMembership,
       relation: { present: false },
-      lifecycle: { phase: "finished", itemFinishTime: "2026-08-26T00:00:00.000Z" },
+      lifecycle: { itemFinishTime: "2026-08-26T00:00:00.000Z" },
       observedAt,
     }).currentOpen).toEqual({
       ...openMembership,
@@ -119,25 +117,25 @@ describe("Meegle Sprint membership transitions", () => {
     expect(projectMeegleSprintMembershipTransition({
       openMembership,
       relation: { present: true, sprintId: "sprint-a" },
-      lifecycle: { phase: "finished", itemFinishTime: null },
+      lifecycle: { itemFinishTime: null },
       observedAt,
-    }).currentOpen).toMatchObject({ finishedAt: "2026-08-10T00:00:00.000Z" });
+    }).currentOpen).toMatchObject({ finishedAt: null });
     expect(projectMeegleSprintMembershipTransition({
       openMembership,
       relation: { present: true, sprintId: "sprint-a" },
-      lifecycle: { phase: "started" },
+      lifecycle: { itemStartTime: "2026-08-03T00:00:00.000Z", itemFinishTime: null },
       observedAt,
     }).currentOpen).toMatchObject({ startedAt: "2026-08-03T00:00:00.000Z", finishedAt: null });
     expect(projectMeegleSprintMembershipTransition({
       openMembership,
       relation: { present: true, sprintId: "sprint-a" },
-      lifecycle: { phase: "new" },
+      lifecycle: { itemStartTime: null, itemFinishTime: null },
       observedAt,
     }).currentOpen).toMatchObject({ startedAt: null, finishedAt: null });
     expect(projectMeegleSprintMembershipTransition({
       currentSnapshot: {},
       relation: { present: true, sprintId: "sprint-a" },
-      lifecycle: { phase: "new" },
+      lifecycle: { itemStartTime: null, itemFinishTime: null },
       observedAt,
     }).createOpen).toMatchObject({ sprintId: "sprint-a", addedAt: observedAt, source: "incremental_observed" });
   });

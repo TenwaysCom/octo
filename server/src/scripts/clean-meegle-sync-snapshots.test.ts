@@ -31,7 +31,6 @@ describe("Meegle sync snapshot cleanup", () => {
       sprint: "Sprint 1",
       version: "Version 1",
       bugs: ["Bug 1", "Bug 2"],
-      system: "Odoo/Odoo UK",
     });
   });
 
@@ -40,6 +39,7 @@ describe("Meegle sync snapshot cleanup", () => {
       "field_ecd063",
       "field_5fab52",
       "field_3daed9",
+      "field_6da66b",
       "field_7c2f56",
     ]);
   });

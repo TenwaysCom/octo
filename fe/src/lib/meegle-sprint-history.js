@@ -1,3 +1,5 @@
+import { parsePlatformTimestamp } from "./formatters.js";
+
 const COMPLETED_STATUS_MARKERS = ["done", "ended", "fixed", "launched", "completed", "finished"];
 const NOT_STARTED_STATUS_MARKERS = ["new", "start", "to start", "feature draft", "planned", "backlog"];
 const SPRINT_LIFECYCLE_ORDER = ["current", "upcoming", "past", "unknown"];
@@ -28,7 +30,7 @@ function getWorkitemProgress(item, cutoffAt) {
 function getLatestTimestamp(items) {
   return items.reduce((latest, item) => {
     const value = item.sourceUpdatedAt || item.syncedAt;
-    const timestamp = Date.parse(value || "");
+    const timestamp = parsePlatformTimestamp(value);
     return Number.isNaN(timestamp) || timestamp <= latest ? latest : timestamp;
   }, 0);
 }
@@ -45,8 +47,8 @@ function countValues(items, getValue) {
 }
 
 function compareTimestampDesc(leftValue, rightValue) {
-  const left = Date.parse(leftValue || "");
-  const right = Date.parse(rightValue || "");
+  const left = parsePlatformTimestamp(leftValue);
+  const right = parsePlatformTimestamp(rightValue);
   if (Number.isNaN(left) && Number.isNaN(right)) return 0;
   if (Number.isNaN(left)) return 1;
   if (Number.isNaN(right)) return -1;
@@ -178,7 +180,7 @@ export function buildMeegleSprintTimeline(sprint, now = new Date()) {
 }
 
 function parseTimestamp(value) {
-  const parsed = Date.parse(value || "");
+  const parsed = parsePlatformTimestamp(value);
   return Number.isNaN(parsed) ? undefined : parsed;
 }
 
@@ -201,7 +203,7 @@ export function buildMeegleSprintHistory(items, sprintDetails = [], now = new Da
     const idKey = getSprintIdKey(sprint.projectKey, sprint.sprintId);
     const nameKey = getSprintNameKey(sprint.projectKey, name);
     const current = metadataById.get(idKey);
-    if (!current || Date.parse(sprint.sourceUpdatedAt || sprint.syncedAt || "") > Date.parse(current.sourceUpdatedAt || current.syncedAt || "")) {
+    if (!current || parsePlatformTimestamp(sprint.sourceUpdatedAt || sprint.syncedAt) > parsePlatformTimestamp(current.sourceUpdatedAt || current.syncedAt)) {
       metadataById.set(idKey, sprint);
       metadataByName.set(nameKey, sprint);
     }

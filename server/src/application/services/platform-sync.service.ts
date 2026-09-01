@@ -13,8 +13,19 @@ import {
 } from "../../adapters/postgres/platform-sync-store.js";
 import { getResolvedUserStore, type ResolvedUserStore } from "../../adapters/postgres/resolved-user-store.js";
 import { createMeegleClient } from "./meegle-client.factory.js";
-import { extractMeegleCleaningRelations, extractMeegleSprintRelation, getMeegleCleaningFieldKeys } from "./meegle-cleaning.config.js";
-import { buildMeegleWorkitemLifecycle, getMeegleWorkitemLifecycleFieldKeys, type MeegleWorkitemLifecycle } from "./meegle-workitem-lifecycle.js";
+import {
+  extractMeegleCleaningRelations,
+  extractMeegleSprintRelation,
+  extractMeegleSystemRegion,
+  getMeegleCleaningFieldKeys,
+  type MeegleCleaningWarning,
+} from "./meegle-cleaning.config.js";
+import {
+  buildMeegleWorkitemLifecycle,
+  getMeegleWorkitemLifecycleFieldKeys,
+  supportsMeegleWorkitemLifecycleCleaning,
+  type MeegleWorkitemLifecycle,
+} from "./meegle-workitem-lifecycle.js";
 import { buildGitHubPrCleaningProjection } from "./github-pr-cleaning.js";
 import { buildLarkTicketCleaningProjection } from "./lark-ticket-cleaning.js";
 import { buildAuthenticatedLarkClient } from "./lark-auth-client.factory.js";
@@ -22,6 +33,10 @@ import { logger } from "../../logger.js";
 import { isMeegleProductionBugType, isMeegleSprintType } from "../../domain/meegle-workitem-types.js";
 import { buildMeegleSprintSnapshot, getMeegleSprintDetailFieldKeys } from "./meegle-sprint-snapshot.js";
 import { extractMeegleWorkitemRoleMembers } from "../../domain/meegle-workitem-role-members.js";
+import {
+  formatMeegleSourceUpdatedAt,
+  parseMeegleSourceTimestamp,
+} from "../../utils/meegle-source-time.js";
 import type {
   BulkSyncGitHubPullRequestsRequest,
   BulkSyncLarkBaseTicketsRequest,
@@ -115,6 +130,7 @@ export class PlatformSyncService {
       request.cleanAfterSync,
       [{ projectKey: request.projectKey, workItemTypeKey: request.workItemTypeKey, workItemId: workitem.id }],
       { synced: 1, workItemId: workitem.id, status: workitem.status },
+      request.actionRunId,
     );
   }
 
@@ -164,14 +180,16 @@ export class PlatformSyncService {
       request.cleanAfterSync,
       syncedRefs,
       { listed: listed.length, skippedInactive: listed.length - active.length, synced },
+      request.actionRunId,
     );
   }
 
   async incrementalSyncMeegleWorkitems(input: BulkSyncMeegleWorkitemsRequest & { watermarkUpdatedAt: string; watermarkTiebreaker: string }) {
     const client = await this.getMeegleClient(input.masterUserId, input.projectKey);
-    const threshold = new Date(new Date(input.watermarkUpdatedAt).getTime() - INCREMENTAL_OVERLAP_MS).getTime();
-    if (Number.isNaN(threshold)) throw new Error(`Invalid Meegle checkpoint watermark: ${input.watermarkUpdatedAt}`);
-    const sourceUpdatedAfter = new Date(threshold).toISOString();
+    const checkpointTimestamp = parseMeegleSourceTimestamp(input.watermarkUpdatedAt);
+    if (checkpointTimestamp === undefined) throw new Error(`Invalid Meegle checkpoint watermark: ${input.watermarkUpdatedAt}`);
+    const threshold = checkpointTimestamp - INCREMENTAL_OVERLAP_MS;
+    const sourceUpdatedAfter = formatMeegleSourceUpdatedAt(threshold);
     const listed = await client.filterWorkitems(input.projectKey, {
       workitemTypeKeys: input.workItemTypeKeys,
       pageSize: 50,
@@ -179,14 +197,12 @@ export class PlatformSyncService {
       sourceUpdatedAfter,
       sourceUpdatedAtMqlFieldNames: input.sourceUpdatedAtMqlFieldNames,
     });
-    if (listed.some((item) => !isValidSourceTimestamp(item.updatedAt))) {
-      throw new Error("Meegle incremental MQL result is missing source_updated_at");
-    }
-    const detailed = await this.getDetailedMeegleWorkitems(client, input.projectKey, listed);
-    if (detailed.some((item) => !isValidSourceTimestamp(item.updatedAt))) {
-      throw new Error("Meegle incremental batch detail is missing source_updated_at");
-    }
-    const changed = detailed.filter((item) => new Date(item.updatedAt!).getTime() >= threshold);
+    const detailed = await this.getDetailedMeegleWorkitems(client, input.projectKey, listed, true);
+    const changed = detailed.filter((item) => {
+      const timestamp = parseMeegleSourceTimestamp(item.updatedAt);
+      return timestamp === undefined || timestamp >= threshold;
+    });
+    const invalidUpdatedAt = changed.filter((item) => parseMeegleSourceTimestamp(item.updatedAt) === undefined);
     const configuredTypes = input.workItemTypeKeys ?? [];
     const metadataMappings = client.getSyncMappings
       ? await client.getSyncMappings(input.projectKey, configuredTypes)
@@ -214,13 +230,33 @@ export class PlatformSyncService {
       syncedRefs.push({ projectKey: input.projectKey, workItemTypeKey: item.type, workItemId: item.id });
     }
     const latest = latestWatermark(changed.map((item) => ({ updatedAt: item.updatedAt, tiebreaker: `${item.type}:${item.id}` })), input);
-    return this.withOptionalMeegleCleaning(input.cleanAfterSync, syncedRefs, {
+    if (invalidUpdatedAt.length > 0) {
+      for (const item of invalidUpdatedAt) {
+        syncLogger.warn({
+          layer: "server",
+          module: "platform-sync-service",
+          stage: "server.workflow.incremental-cleaning",
+          errorCode: "MEEGLE_SOURCE_UPDATED_AT_INVALID",
+          actionRunId: input.actionRunId,
+          projectKey: input.projectKey,
+          workItemTypeKey: item.type,
+          workItemId: item.id,
+          fieldKey: "updated_at",
+          rawValue: getMeegleMqlUpdatedAtRawValue(item, input.sourceUpdatedAtMqlFieldNames),
+        }, "MEEGLE_SOURCE_UPDATED_AT_INVALID");
+      }
+    }
+    const result = await this.withOptionalMeegleCleaning(input.cleanAfterSync, syncedRefs, {
       listed: listed.length,
       skippedInactive: 0,
       synced: changed.length,
       watermarkUpdatedAt: latest.updatedAt,
       watermarkTiebreaker: latest.tiebreaker,
-    });
+    }, input.actionRunId);
+    if (invalidUpdatedAt.length > 0) {
+      throw new Error(`MEEGLE_SOURCE_UPDATED_AT_INVALID:${invalidUpdatedAt.length}`);
+    }
+    return result;
   }
 
   async selectedSyncMeegleWorkitems(request: SelectedSyncMeegleWorkitemsRequest) {
@@ -242,6 +278,7 @@ export class PlatformSyncService {
       request.cleanAfterSync,
       refs,
       { selected: request.workitems.length, synced: request.workitems.length },
+      request.actionRunId,
     );
   }
 
@@ -476,21 +513,28 @@ export class PlatformSyncService {
     );
   }
 
-  async cleanMeegleWorkitems(refs: MeegleWorkitemSyncRef[]): Promise<number> {
+  async cleanMeegleWorkitems(refs: MeegleWorkitemSyncRef[], actionRunId?: string): Promise<number> {
     const snapshots = await this.syncStore.getMeegleWorkitemsForCleaning(refs);
     const sprintStarts = await this.getMeegleSprintStartsById();
     return this.cleanSnapshots("meegle", snapshots, (snapshot) => (
       `${snapshot.projectKey}/${snapshot.workItemTypeKey}/${snapshot.workItemId}`
     ), async (snapshot) => {
       const relations = snapshot.sourcePayload ? extractMeegleCleaningRelations(snapshot.sourcePayload) : {};
+      const system = snapshot.sourcePayload ? extractMeegleSystemRegion(snapshot.sourcePayload) : { present: false, warnings: [] };
       const roleMembers = extractMeegleWorkitemRoleMembers(snapshot.sourcePayload);
       const sprintRelation = snapshot.sourcePayload ? extractMeegleSprintRelation(snapshot.sourcePayload) : undefined;
-      const lifecycle = snapshot.sourcePayload ? buildMeegleWorkitemLifecycle({
-        workitem: snapshot.sourcePayload,
-        sprintStartAt: sprintRelation?.sprintId
-          ? sprintStarts.get(meegleSprintRef(snapshot.projectKey, sprintRelation.sprintId))
-          : undefined,
-      }) : undefined;
+      const lifecycle = snapshot.sourcePayload && supportsMeegleWorkitemLifecycleCleaning(snapshot.workItemTypeKey)
+        ? buildMeegleWorkitemLifecycle({
+          workitem: snapshot.sourcePayload,
+          sprintStartAt: sprintRelation?.sprintId
+            ? sprintStarts.get(meegleSprintRef(snapshot.projectKey, sprintRelation.sprintId))
+            : undefined,
+        })
+        : undefined;
+      this.logMeegleCleaningWarnings(snapshot, [
+        ...system.warnings,
+        ...(lifecycle?.warnings ?? []),
+      ], actionRunId);
       return this.syncStore.applyMeegleWorkitemCleaning({
         projectKey: snapshot.projectKey,
         workItemTypeKey: snapshot.workItemTypeKey,
@@ -500,7 +544,7 @@ export class PlatformSyncService {
         roleMembers,
         observedAt: snapshot.syncedAt,
         version: typeof relations.version === "string" ? relations.version : snapshot.version,
-        system: typeof relations.system === "string" ? relations.system : snapshot.system,
+        system: system.present ? system.value ?? null : undefined,
         bugs: Array.isArray(relations.bugs) ? relations.bugs : snapshot.bugs ?? [],
       });
     });
@@ -582,8 +626,9 @@ export class PlatformSyncService {
     cleanAfterSync: boolean | undefined,
     refs: MeegleWorkitemSyncRef[],
     result: T,
+    actionRunId?: string,
   ): Promise<T | (T & { cleaned: number })> {
-    return cleanAfterSync ? { ...result, cleaned: await this.cleanMeegleWorkitems(refs) } : result;
+    return cleanAfterSync ? { ...result, cleaned: await this.cleanMeegleWorkitems(refs, actionRunId) } : result;
   }
 
   private async withOptionalGitHubCleaning<T extends object>(
@@ -624,6 +669,7 @@ export class PlatformSyncService {
     client: MeegleSyncClient,
     projectKey: string,
     workitems: MeegleWorkitem[],
+    preferCandidateUpdatedAt = false,
   ): Promise<MeegleWorkitem[]> {
     const byId = new Map(workitems.map((workitem) => [workitem.id, workitem]));
     const byType = new Map<string, string[]>();
@@ -658,12 +704,14 @@ export class PlatformSyncService {
       const withPriority = withCurrentOwner.priority || !candidate.priority
         ? withCurrentOwner
         : { ...withCurrentOwner, priority: candidate.priority };
-      if (withPriority.updatedAt || isMeegleProductionBugType(withPriority.type)) {
-        return withPriority;
-      }
+      const withMqlFields = candidate.fields.mql === undefined
+        ? withPriority
+        : { ...withPriority, fields: { ...withPriority.fields, mql: candidate.fields.mql } };
+      if (preferCandidateUpdatedAt) return { ...withMqlFields, updatedAt: candidate.updatedAt };
+      if (withMqlFields.updatedAt || isMeegleProductionBugType(withMqlFields.type)) return withMqlFields;
       // +batch-get omits updated_at for normal types; retain the MQL value that
       // selected this exact candidate. Production Bug must use detail update_time.
-      return { ...withPriority, updatedAt: candidate.updatedAt };
+      return { ...withMqlFields, updatedAt: candidate.updatedAt };
     });
   }
 
@@ -671,9 +719,7 @@ export class PlatformSyncService {
     projectKey: string,
     workitems: MeegleWorkitem[],
   ): Promise<Map<string, MeegleWorkitemLifecycle>> {
-    const candidates = workitems.filter((workitem) => (
-      !isMeegleSprintType(workitem.type) && extractMeegleSprintRelation(workitem).sprintId
-    ));
+    const candidates = workitems.filter((workitem) => supportsMeegleWorkitemLifecycleCleaning(workitem.type));
     if (candidates.length === 0) return new Map();
     const sprintStarts = await this.getMeegleSprintStartsById(projectKey, workitems);
     const result = new Map<string, MeegleWorkitemLifecycle>();
@@ -685,6 +731,27 @@ export class PlatformSyncService {
       }));
     }
     return result;
+  }
+
+  private logMeegleCleaningWarnings(
+    snapshot: MeegleWorkitemSyncRef,
+    warnings: MeegleCleaningWarning[],
+    actionRunId?: string,
+  ): void {
+    for (const warning of warnings) {
+      syncLogger.warn({
+        layer: "server",
+        module: "platform-sync-service",
+        stage: "server.workflow.cleaning",
+        errorCode: warning.errorCode,
+        actionRunId,
+        projectKey: snapshot.projectKey,
+        workItemTypeKey: snapshot.workItemTypeKey,
+        workItemId: snapshot.workItemId,
+        fieldKey: warning.fieldKey,
+        rawValue: warning.rawValue,
+      }, warning.errorCode);
+    }
   }
 
   private async getMeegleSprintStartsById(
@@ -787,16 +854,39 @@ function latestWatermark(
 ): { updatedAt: string; tiebreaker: string } {
   let latest = { updatedAt: current.watermarkUpdatedAt, tiebreaker: current.watermarkTiebreaker };
   for (const entry of entries) {
-    if (!entry.updatedAt) continue;
-    const compare = new Date(entry.updatedAt).getTime() - new Date(latest.updatedAt).getTime()
+    const entryTimestamp = parseMeegleSourceTimestamp(entry.updatedAt);
+    const latestTimestamp = parseMeegleSourceTimestamp(latest.updatedAt);
+    if (entryTimestamp === undefined || latestTimestamp === undefined) continue;
+    const compare = entryTimestamp - latestTimestamp
       || entry.tiebreaker.localeCompare(latest.tiebreaker);
-    if (compare > 0) latest = { updatedAt: entry.updatedAt, tiebreaker: entry.tiebreaker };
+    if (compare > 0) latest = { updatedAt: entry.updatedAt!, tiebreaker: entry.tiebreaker };
   }
   return latest;
 }
 
 function isValidSourceTimestamp(value: string | undefined): value is string {
-  return !!value && !Number.isNaN(new Date(value).getTime());
+  return parseMeegleSourceTimestamp(value) !== undefined;
+}
+
+function getMeegleMqlUpdatedAtRawValue(
+  workitem: MeegleWorkitem,
+  fieldNames: Record<string, string> | undefined,
+): unknown {
+  const fieldName = fieldNames?.[workitem.type];
+  const mql = asRecord(workitem.fields.mql);
+  const fields = Array.isArray(mql?.moql_field_list) ? mql.moql_field_list.map(asRecord).filter(isRecord) : [];
+  const field = fields.find((candidate) => candidate.key === fieldName);
+  return field?.value;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : undefined;
+}
+
+function isRecord(value: Record<string, unknown> | undefined): value is Record<string, unknown> {
+  return value !== undefined;
 }
 
 export function buildLarkUpdatedSinceFilter(sourceUpdatedAtFieldName: string, threshold: number): string {

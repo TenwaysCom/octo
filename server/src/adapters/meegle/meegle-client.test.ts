@@ -92,7 +92,7 @@ describe("parseWorkitem", () => {
       name: "Test Item",
       type: "story",
       updated_at: 1786020656000,
-    }).updatedAt).toBe("2026-08-06T12:50:56.000Z");
+    }).updatedAt).toBe("2026-08-06 12:50:56");
     expect(parseWorkitem({
       id: "123",
       name: "Test Item",
@@ -123,14 +123,14 @@ describe("parseWorkitem", () => {
       work_item_type_key: "6932e40429d1cd8aac635c82",
       updated_at: 1786020656000,
       fields: { work_item_attribute: { update_time: "1785920000000" } },
-    }).updatedAt).toBe("2026-08-05T08:53:20.000Z");
+    }).updatedAt).toBe("2026-08-05 08:53:20");
     expect(parseWorkitem({
       id: "124",
       name: "Production Bug",
       type: "production_bug",
       updated_at: 1786020656000,
       fields: { work_item_attribute: { update_time: "1785920000000" } },
-    }).updatedAt).toBe("2026-08-05T08:53:20.000Z");
+    }).updatedAt).toBe("2026-08-05 08:53:20");
   });
 
   it("should extract status from work_item_status.state_key when direct status is empty", () => {

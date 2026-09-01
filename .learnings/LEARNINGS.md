@@ -389,9 +389,9 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 
 ## [LRN-20260827-009] meegle-sprint-stable-relation-boundary
 
-- **Context:** Sprint history needed reliable grouping and lifecycle timestamps, but Sprint names are mutable and operation records are not required for the accepted historical approximation.
-- **Rule:** Persist the platform Sprint ID separately from its display name and use project plus Sprint ID as the analytical identity. Historical cleaning is a replaceable projection from persisted PostgreSQL facts and must overwrite stale lifecycle values, including with `null`; incremental sync is a phase-aware merge that preserves the earliest known start, clears finish on reopen, and clears both timestamps on New. Missing persisted evidence must not trigger operation-record, all-nodes, or other API backfills. Keep `item_cycle_tag` derived instead of storing it.
-- **Verified outcome:** Relation extraction, PG-only lifecycle projection, phase-aware incremental transitions, stable-ID FE grouping, 576 Server tests, 73 FE tests, and both builds pass; the target PostgreSQL historical clean remains a separate unexecuted step.
+- **Context:** Sprint history needs stable grouping, while Meegle `start_time` and `finish_time` are current source dates rather than timestamps that can be reconstructed from workflow status or nodes.
+- **Rule:** Persist the platform Sprint ID separately from its display name and use project plus Sprint ID as the analytical identity. Project `item_start_time` and `item_finish_time` directly from current source fields as `YYYY-MM-DD`; current empty or invalid values overwrite stale values with `null`. Never preserve an earlier value or infer from status, nodes, creation time, `updatedAt`, or Sprint membership. Keep precise `current_node_start_time`, membership intervals, and derived `item_cycle_tag` as separate concepts.
+- **Verified outcome:** Canonical field, Store, Sprint-membership, API and FE tests cover direct replacement, reopen clearing, invalid dates and date-only display; rollout remains incremental-only and no historical clean was executed.
 
 ## [LRN-20260827-010] meegle-sprint-membership-interval-boundary
 
@@ -462,8 +462,8 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 ## [LRN-20260831-006] meegle-current-node-duration-boundary
 
 - **Context:** FE 需要从已持久化的 `current_node_start_time` 与 `add_to_cycle_time` 中选择依据，展示工作项的 `current_working_time`；Sprint 历史投影又可能携带工作项当前快照的节点时间。
-- **Rule:** 当前节点工作时长只能从 `current_node_start_time` 开始，未完成时截止当前时间、已完成时截止 `item_finish_time`；不得回退到 Cycle/Sprint 加入时间或更新时间。已关闭的 Sprint membership 没有历史节点开始事实时应留空，不能用当前工作项快照污染历史。
-- **Verified outcome:** 普通列表与 Sprint 详情默认显示派生时长并每分钟刷新；测试覆盖完成、缺失、非法、倒序、无 Cycle fallback 和已移出 Sprint，27/27 个 FE 测试文件与 production build 通过。
+- **Rule:** 当前节点工作时长只能从 `current_node_start_time` 开始，未完成时截止当前时间；只有完成时间仍是精确 datetime 时才可作为终点，日粒度 `item_finish_time` 必须留空显示，不能伪造时分秒。不得回退到 Cycle/Sprint 加入时间或更新时间。已关闭的 Sprint membership 没有历史节点开始事实时应留空，不能用当前工作项快照污染历史。
+- **Verified outcome:** 普通列表与 Sprint 详情默认显示派生时长并每分钟刷新；测试覆盖活动项、精确旧完成值、日粒度完成值、缺失、非法、倒序、无 Cycle fallback 和已移出 Sprint，FE 全量 test/build 通过。
 
 ## [LRN-20260831-007] lark-thread-root-id-boundary
 

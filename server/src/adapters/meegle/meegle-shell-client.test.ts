@@ -79,20 +79,20 @@ describe("MeegleShellClient", () => {
       workitemTypeKeys: ["story"],
       pageSize: 50,
       autoPaginate: true,
-      sourceUpdatedAfter: "2026-08-06T12:45:56.000Z",
+      sourceUpdatedAfter: "2026-08-06 12:45:56",
       sourceUpdatedAtMqlFieldNames: { story: "updated_at" },
     })).resolves.toMatchObject([{
       id: "123",
       assignee: "Current Owner",
       priority: "P1",
-      updatedAt: "2026-08-06T12:50:56.000Z",
+      updatedAt: "2026-08-06 12:50:56",
     }]);
     expect(runCommand).toHaveBeenNthCalledWith(3, [
       "workitem",
       "query",
       "--project-key", "4c3fv6",
       "--mql",
-      "SELECT `work_item_id`, `name`, `work_item_type_key`, `work_item_status`, `priority`, `current_status_operator`, `updated_at` FROM `Tenways Software R&D`.`Story` WHERE `updated_at` >= '2026-08-06T12:45:56.000Z' ORDER BY `updated_at` ASC, `work_item_id` ASC LIMIT 0, 50",
+      "SELECT `work_item_id`, `name`, `work_item_type_key`, `work_item_status`, `priority`, `current_status_operator`, `updated_at` FROM `Tenways Software R&D`.`Story` WHERE `updated_at` >= '2026-08-06 12:45:56' ORDER BY `updated_at` ASC, `work_item_id` ASC LIMIT 0, 50",
     ]);
   });
 
@@ -108,7 +108,7 @@ describe("MeegleShellClient", () => {
 
     await expect(client.filterWorkitems("4c3fv6", {
       workitemTypeKeys: ["story"],
-      sourceUpdatedAfter: "2026-08-06T12:45:56.000Z",
+      sourceUpdatedAfter: "2026-08-06 12:45:56",
       sourceUpdatedAtMqlFieldNames: {},
     })).rejects.toThrow("MEEGLE_SHELL_SOURCE_UPDATED_AT_FIELD_REQUIRED:story");
     expect(runCommand).toHaveBeenCalledTimes(2);
@@ -142,7 +142,7 @@ describe("MeegleShellClient", () => {
       workitemTypeKeys: ["story"],
       pageSize: 50,
       autoPaginate: true,
-      sourceUpdatedAfter: "2026-08-06T12:45:56.000Z",
+      sourceUpdatedAfter: "2026-08-06 12:45:56",
       sourceUpdatedAtMqlFieldNames: { story: "updated_at" },
     })).rejects.toThrow("MEEGLE_SHELL_MQL_PAGE_LIMIT_REACHED:story");
     expect(runCommand).toHaveBeenCalledTimes(102);
@@ -228,7 +228,7 @@ describe("MeegleShellClient", () => {
 
     await expect(client.getWorkitemDetails("project", "6932e40429d1cd8aac635c82", ["123"])).resolves.toMatchObject([{
       id: "123",
-      updatedAt: "2026-08-05T08:53:20.000Z",
+      updatedAt: "2026-08-05 08:53:20",
     }]);
   });
 

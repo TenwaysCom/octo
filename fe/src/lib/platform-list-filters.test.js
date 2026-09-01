@@ -47,6 +47,7 @@ test("normalizes persisted filter values and toggles multiple selections", () =>
 test("matches the union of selected date values and selected sprints", () => {
   const now = new Date("2026-08-27T12:00:00.000Z");
   assert.equal(matchesSelectedDateFilters({ sourceUpdatedAt: "2026-08-27T01:00:00.000Z" }, ["today"], now), true);
+  assert.equal(matchesSelectedDateFilters({ sourceUpdatedAt: "2026-08-27 01:00:00" }, ["today"], now), true);
   assert.equal(matchesSelectedDateFilters({ sourceUpdatedAt: "2026-08-20T12:00:00.000Z" }, ["today", "last-7-days"], now), true);
   assert.equal(matchesSelectedDateFilters({ sourceUpdatedAt: "2026-07-20T12:00:00.000Z" }, ["today", "last-7-days"], now), false);
   assert.equal(matchesSelectedSprints({ sprint: "Sprint 1" }, ["Sprint 1", "Sprint 2"]), true);

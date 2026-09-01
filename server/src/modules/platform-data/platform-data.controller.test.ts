@@ -5,8 +5,33 @@ import {
   createWebPlatformDataController,
 } from "./platform-data.controller.js";
 import { MeeglePullRequestLinkError } from "../../application/services/meegle-pull-request-link.service.js";
+import { meegleWorkitemListResponseSchema } from "./platform-data.dto.js";
 
 describe("web platform data controller", () => {
+  it("accepts date-only lifecycle fields and mixed-format Meegle source timestamps", () => {
+    expect(meegleWorkitemListResponseSchema.parse({
+      items: [{
+        projectKey: "project",
+        workItemTypeKey: "story",
+        workItemId: "1",
+        title: "Story",
+        relatedPeople: [],
+        githubPullRequests: [],
+        itemStartTime: "2026-08-01",
+        itemFinishTime: "2026-08-10",
+        sourceUpdatedAt: "2026-08-10 12:34:56",
+        syncedAt: "2026-08-10T12:35:00.000Z",
+      }],
+      sprints: [],
+      relatedPersonOptions: [],
+      pager: { offset: 0, limit: 500, total: 1, hasMore: false },
+    }).items[0]).toMatchObject({
+      itemStartTime: "2026-08-01",
+      itemFinishTime: "2026-08-10",
+      sourceUpdatedAt: "2026-08-10 12:34:56",
+    });
+  });
+
   it("requires the opaque web session before reading snapshots", async () => {
     const service = { list: vi.fn() };
     const controller = createWebPlatformDataController({

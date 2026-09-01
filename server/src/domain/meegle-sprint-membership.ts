@@ -1,7 +1,6 @@
 export type MeegleSprintMembershipSource = "historical_inferred" | "incremental_observed";
 
 export interface MeegleSprintMembershipLifecycle {
-  phase?: "new" | "started" | "finished";
   addToCycleTime?: string;
   itemStartTime?: string | null;
   itemFinishTime?: string | null;
@@ -126,26 +125,12 @@ function applyLifecycle(
   lifecycle: MeegleSprintMembershipLifecycle | undefined,
 ): MeegleSprintMembershipState {
   if (!lifecycle) return membership;
-  if (!lifecycle.phase) {
-    return {
-      ...membership,
-      startedAt: lifecycle.itemStartTime === undefined
-        ? membership.startedAt
-        : clampToMembership(lifecycle.itemStartTime, membership.addedAt),
-      finishedAt: lifecycle.itemFinishTime === undefined
-        ? membership.finishedAt
-        : clampToMembership(lifecycle.itemFinishTime, membership.addedAt),
-    };
-  }
-  if (lifecycle.phase === "new") return { ...membership, startedAt: null, finishedAt: null };
-
-  const observedStart = clampToMembership(lifecycle.itemStartTime, membership.addedAt);
-  const startedAt = earliestTimestamp(membership.startedAt, observedStart);
-  if (lifecycle.phase === "started") return { ...membership, startedAt, finishedAt: null };
   return {
     ...membership,
-    startedAt,
-    finishedAt: lifecycle.itemFinishTime == null
+    startedAt: lifecycle.itemStartTime === undefined
+      ? membership.startedAt
+      : clampToMembership(lifecycle.itemStartTime, membership.addedAt),
+    finishedAt: lifecycle.itemFinishTime === undefined
       ? membership.finishedAt
       : clampToMembership(lifecycle.itemFinishTime, membership.addedAt),
   };
@@ -154,12 +139,6 @@ function applyLifecycle(
 function clampToMembership(value: string | null | undefined, addedAt: string): string | null {
   if (!value) return null;
   return compareTimestamp(value, addedAt) < 0 ? addedAt : value;
-}
-
-function earliestTimestamp(left: string | null, right: string | null): string | null {
-  if (!left) return right;
-  if (!right) return left;
-  return compareTimestamp(left, right) <= 0 ? left : right;
 }
 
 function compareTimestamp(left: string, right: string): number {

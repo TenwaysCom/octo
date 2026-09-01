@@ -136,6 +136,15 @@ const meegleRelatedPersonOptionsSchema = z.array(z.object({
   roleNames: z.array(z.string()),
 }));
 
+const meegleDateOrDateTimeSchema = z.union([
+  z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  z.string().datetime(),
+]);
+const meegleSourceUpdatedAtSchema = z.union([
+  z.string().regex(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/),
+  z.string().datetime(),
+]);
+
 const meegleWorkitemSchema = z.object({
   projectKey: z.string(),
   projectName: z.string().optional(),
@@ -171,9 +180,9 @@ const meegleWorkitemSchema = z.object({
   createdAt: z.string().datetime().optional(),
   addToCycleTime: z.string().datetime().optional(),
   currentNodeStartTime: z.string().datetime().optional(),
-  itemStartTime: z.string().datetime().optional(),
-  itemFinishTime: z.string().datetime().optional(),
-  sourceUpdatedAt: z.string().optional(),
+  itemStartTime: meegleDateOrDateTimeSchema.optional(),
+  itemFinishTime: meegleDateOrDateTimeSchema.optional(),
+  sourceUpdatedAt: meegleSourceUpdatedAtSchema.optional(),
   syncedAt: z.string(),
 });
 
@@ -187,7 +196,7 @@ const meegleSprintDetailsSchema = z.array(z.object({
     description: z.string().optional(),
     startAt: z.string().datetime().optional(),
     endAt: z.string().datetime().optional(),
-    sourceUpdatedAt: z.string().datetime().optional(),
+    sourceUpdatedAt: meegleSourceUpdatedAtSchema.optional(),
     syncedAt: z.string().datetime(),
   }));
 

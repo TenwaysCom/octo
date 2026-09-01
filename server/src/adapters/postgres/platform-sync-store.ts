@@ -19,6 +19,17 @@ import type {
 
 const MEEGLE_SPRINT_TYPE_KEYS = [MEEGLE_SPRINT_API_NAME, MEEGLE_SPRINT_WORKITEM_TYPE_KEY];
 
+function normalizedMeegleUpdatedAt(column: string) {
+  const reference = sql.ref(column);
+  return sql<string | null>`case
+    when ${reference} is not null
+      and length(${reference}) = 19
+      and substr(${reference}, 11, 1) = ' '
+    then replace(${reference}, ' ', 'T') || '.000Z'
+    else ${reference}
+  end`;
+}
+
 export interface PlatformSyncStore {
   upsertMeegleWorkitem(input: {
     projectKey: string;
@@ -103,7 +114,6 @@ export interface MeegleWorkitemSyncItem {
 }
 
 export interface MeegleWorkitemLifecycleFields {
-  phase?: "new" | "started" | "finished";
   addToCycleTime?: string;
   currentNodeStartTime?: string | null;
   itemStartTime?: string | null;
@@ -164,7 +174,7 @@ export interface MeegleWorkitemCleaningInput extends MeegleWorkitemSyncRef {
   roleMembers: MeegleWorkitemRoleMembersProjection;
   observedAt: string;
   version?: string;
-  system?: string;
+  system?: string | null;
   bugs: string[];
 }
 
@@ -344,12 +354,8 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
       const currentNodeStartTime = input.lifecycle?.currentNodeStartTime === undefined
         ? existing?.current_node_start_time ?? null
         : input.lifecycle.currentNodeStartTime;
-      const itemStartTime = membershipTransition?.currentOpen
-        ? membershipTransition.currentOpen.startedAt
-        : projectedLifecycle.itemStartTime;
-      const itemFinishTime = membershipTransition?.currentOpen
-        ? membershipTransition.currentOpen.finishedAt
-        : projectedLifecycle.itemFinishTime;
+      const itemStartTime = projectedLifecycle.itemStartTime;
+      const itemFinishTime = projectedLifecycle.itemFinishTime;
 
       if (membershipTransition?.closeOpenAt) {
         await trx.updateTable("meegle_workitem_sprint_memberships").set({
@@ -726,6 +732,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
         ? existing.current_node_start_time
         : input.lifecycle.currentNodeStartTime;
       const bugsJson = JSON.stringify(input.bugs);
+      const system = input.system === undefined ? existing.system : input.system;
       const scalarChanged = existing.sprint_id !== sprint.sprintId
         || existing.sprint !== sprint.sprintName
         || existing.add_to_cycle_time !== sprint.addToCycleTime
@@ -733,7 +740,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
         || existing.item_finish_time !== itemFinishTime
         || existing.current_node_start_time !== currentNodeStartTime
         || existing.version !== (input.version ?? null)
-        || existing.system !== (input.system ?? null)
+        || existing.system !== system
         || existing.bugs_json !== bugsJson;
 
       const existingRoleMembers = input.roleMembers.present
@@ -761,7 +768,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
           item_start_time: itemStartTime,
           item_finish_time: itemFinishTime,
           version: input.version ?? null,
-          system: input.system ?? null,
+          system,
           bugs_json: bugsJson,
         }).where("project_key", "=", input.projectKey)
           .where("work_item_type_key", "=", input.workItemTypeKey)
@@ -926,7 +933,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
         "assignee", "priority", "source_updated_at", "synced_at",
         "add_to_cycle_time", "current_node_start_time", "item_start_time", "item_finish_time", "created_at",
       ])
-      .orderBy("source_updated_at", "desc")
+      .orderBy(normalizedMeegleUpdatedAt("workitem.source_updated_at"), "desc")
       .orderBy("synced_at", "desc")
       .offset(filters.offset ?? 0)
       .limit(limit)
@@ -1040,8 +1047,12 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
         in (${matchedWorkitems})
       `);
     }
-    if (filters.sourceUpdatedAtAfter) query = query.where("source_updated_at", ">=", filters.sourceUpdatedAtAfter);
-    if (filters.sourceUpdatedAtBefore) query = query.where("source_updated_at", "<=", filters.sourceUpdatedAtBefore);
+    if (filters.sourceUpdatedAtAfter) {
+      query = query.where(normalizedMeegleUpdatedAt("workitem.source_updated_at"), ">=", filters.sourceUpdatedAtAfter);
+    }
+    if (filters.sourceUpdatedAtBefore) {
+      query = query.where(normalizedMeegleUpdatedAt("workitem.source_updated_at"), "<=", filters.sourceUpdatedAtBefore);
+    }
     if (filters.withoutSprint) query = query.where((eb) => eb.or([eb("sprint", "is", null), eb("sprint", "=", "")]));
     if (filters.workitemTypes?.length) {
       query = query.where((eb) => eb.or(filters.workitemTypes!.map((type) => {
@@ -1081,7 +1092,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
         "add_to_cycle_time", "current_node_start_time", "item_start_time", "item_finish_time", "created_at",
       ])
       .where("work_item_type_key", "in", MEEGLE_SPRINT_TYPE_KEYS)
-      .orderBy("source_updated_at", "desc")
+      .orderBy(normalizedMeegleUpdatedAt("source_updated_at"), "desc")
       .orderBy("synced_at", "desc")
       .execute();
     return rows.map(toMeegleWorkitemSyncItem);
@@ -1345,45 +1356,14 @@ function projectMeegleIncrementalLifecycle(
   existing: ExistingMeegleLifecycle,
   lifecycle: MeegleWorkitemLifecycleFields | undefined,
 ): { itemStartTime: string | null; itemFinishTime: string | null } {
-  if (!lifecycle) {
-    return {
-      itemStartTime: existing?.item_start_time ?? null,
-      itemFinishTime: existing?.item_finish_time ?? null,
-    };
-  }
-
-  if (!lifecycle.phase) {
-    return {
-      itemStartTime: lifecycle.itemStartTime === undefined
-        ? existing?.item_start_time ?? null
-        : lifecycle.itemStartTime,
-      itemFinishTime: lifecycle.itemFinishTime === undefined
-        ? existing?.item_finish_time ?? null
-        : lifecycle.itemFinishTime,
-    };
-  }
-
-  if (lifecycle.phase === "new") {
-    return { itemStartTime: null, itemFinishTime: null };
-  }
-
-  const itemStartTime = earliestLifecycleTimestamp(existing?.item_start_time, lifecycle.itemStartTime);
-  if (lifecycle.phase === "started") {
-    return { itemStartTime, itemFinishTime: null };
-  }
-
   return {
-    itemStartTime,
-    itemFinishTime: lifecycle.itemFinishTime ?? existing?.item_finish_time ?? null,
+    itemStartTime: lifecycle?.itemStartTime === undefined
+      ? existing?.item_start_time ?? null
+      : lifecycle.itemStartTime,
+    itemFinishTime: lifecycle?.itemFinishTime === undefined
+      ? existing?.item_finish_time ?? null
+      : lifecycle.itemFinishTime,
   };
-}
-
-function earliestLifecycleTimestamp(
-  existing: string | null | undefined,
-  observed: string | null | undefined,
-): string | null {
-  const candidates = [existing, observed].filter((value): value is string => Boolean(value));
-  return candidates.length ? candidates.sort()[0] : null;
 }
 
 function projectMeegleSprintMembership(

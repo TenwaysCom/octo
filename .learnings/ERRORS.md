@@ -598,6 +598,7 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Symptom:** The new related-person Store test rejected both an outer-reference `EXISTS` query and a multi-column row-value `IN` query; pg-mem also lacked PostgreSQL's built-in `length(text)` function used by the compatible composite identity expression.
 - **Root cause:** pg-mem does not implement these PostgreSQL correlation/row-value paths or the full native function set.
 - **Verified fix:** Keep the member-indexed, non-JSON semi-match query, encode the full composite identity with length prefixes, and register PostgreSQL `length(text)` in the shared pg-mem test harness. The Store test and the real PostgreSQL migration/backfill both passed.
+- **Recurrence (2026-09-01):** Mixed-format Meegle timestamp ordering added PostgreSQL `substr(text,int,int)` and `replace(text,text,text)` expressions that pg-mem does not provide. Register every production SQL function used by the Store in `test-db.ts`; do not weaken the production comparison solely for the emulator.
 
 ### ERR-20260901-004 — Ad-hoc database verification omitted dotenv initialization
 

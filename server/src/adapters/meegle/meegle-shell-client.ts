@@ -9,7 +9,7 @@ import {
   type MeegleWorkitemOperationRecord,
 } from "./meegle-client.js";
 import { resolveMeegleSourceUpdatedAt } from "./meegle-source-updated-at.js";
-import { normalizeTimestamp } from "../../utils/normalize-timestamp.js";
+import { normalizeMeegleSourceUpdatedAt } from "../../utils/meegle-source-time.js";
 
 const execFileAsync = promisify(execFile);
 const MAX_MQL_PAGES = 100;
@@ -295,7 +295,7 @@ function toMqlWorkitem(
     ...(assignee ? { assignee } : {}),
     ...(priority ? { priority } : {}),
     updatedAt: sourceUpdatedAtMqlFieldName
-      ? normalizeTimestamp(fieldValues.get(sourceUpdatedAtMqlFieldName))
+      ? normalizeMeegleSourceUpdatedAt(fieldValues.get(sourceUpdatedAtMqlFieldName))
       : undefined,
     fields: { mql: record },
   };

@@ -1,6 +1,7 @@
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 import type { DatabaseSchema } from "./schema.js";
+import { parseMeegleSourceTimestamp } from "../../utils/meegle-source-time.js";
 
 export const PLATFORM_SYNC_PLATFORMS = ["github", "lark", "meegle"] as const;
 export type PlatformSyncPlatform = typeof PLATFORM_SYNC_PLATFORMS[number];
@@ -243,5 +244,8 @@ function maxTimestamp(left: string, right: string): string {
 }
 
 function compareTimestamp(left: string, right: string): number {
-  return new Date(left).getTime() - new Date(right).getTime();
+  const leftTimestamp = parseMeegleSourceTimestamp(left);
+  const rightTimestamp = parseMeegleSourceTimestamp(right);
+  if (leftTimestamp !== undefined && rightTimestamp !== undefined) return leftTimestamp - rightTimestamp;
+  return left.localeCompare(right);
 }

@@ -1,3 +1,5 @@
+import { parsePlatformTimestamp } from "./formatters.js";
+
 export const MEEGLE_VIEW_COLUMNS = [
   { key: "workitem", label: "工作项", sortKey: "workitem", required: true },
   { key: "workitemType", label: "类型", sortKey: "workitemType" },
@@ -81,8 +83,8 @@ export function sortMeegleWorkitems(items, sort) {
     const leftValue = getMeegleWorkitemViewValue(left, normalizedSort.key);
     const rightValue = getMeegleWorkitemViewValue(right, normalizedSort.key);
     const isDateSort = normalizedSort.key === "updatedAt" || normalizedSort.key === "createdAt";
-    const leftComparable = isDateSort ? Date.parse(leftValue) : leftValue;
-    const rightComparable = isDateSort ? Date.parse(rightValue) : rightValue;
+    const leftComparable = isDateSort ? parsePlatformTimestamp(leftValue) : leftValue;
+    const rightComparable = isDateSort ? parsePlatformTimestamp(rightValue) : rightValue;
     const leftMissing = isDateSort ? Number.isNaN(leftComparable) : !leftComparable;
     const rightMissing = isDateSort ? Number.isNaN(rightComparable) : !rightComparable;
     if (leftMissing && !rightMissing) return 1;

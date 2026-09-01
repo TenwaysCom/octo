@@ -4,8 +4,20 @@ import {
   MEEGLE_PRODUCTION_BUG_WORKITEM_TYPE_KEY,
 } from "../../domain/meegle-workitem-types.js";
 
-type RelationField = "sprint" | "version" | "system" | "bugs";
+type RelationField = "sprint" | "version" | "bugs";
 type RelationValues = Partial<Record<RelationField, string | string[]>>;
+
+export interface MeegleCleaningWarning {
+  errorCode: "MEEGLE_SYSTEM_REGION_UNRECOGNIZED" | "MEEGLE_TIME_INVALID";
+  fieldKey: string;
+  rawValue: unknown;
+}
+
+export interface MeegleSystemRegionProjection {
+  present: boolean;
+  value?: "eu" | "us" | "uk" | null;
+  warnings: MeegleCleaningWarning[];
+}
 
 export interface MeegleSprintRelation {
   present: boolean;
@@ -17,7 +29,6 @@ const RELATION_FIELD_MAPPING: Record<string, Partial<Record<RelationField, strin
   story: {
     sprint: "field_feb079",
     version: "field_1b9eb0",
-    system: "field_00f541",
     bugs: "field_9edc03",
   },
   "66700acbf297a8f821b4b860": {
@@ -28,8 +39,15 @@ const RELATION_FIELD_MAPPING: Record<string, Partial<Record<RelationField, strin
   [MEEGLE_PRODUCTION_BUG_WORKITEM_TYPE_KEY]: {
     sprint: "field_ee999e",
     version: "field_c6f6d0",
-    system: "field_4976fc",
   },
+};
+
+const SYSTEM_FIELD_MAPPING: Record<string, { primary: string; fallback?: string }> = {
+  story: { primary: "field_0dba3a", fallback: "field_00f541" },
+  techtask: { primary: "field_6da66b" },
+  "66700acbf297a8f821b4b860": { primary: "field_6da66b" },
+  [MEEGLE_PRODUCTION_BUG_API_NAME]: { primary: "field_4976fc" },
+  [MEEGLE_PRODUCTION_BUG_WORKITEM_TYPE_KEY]: { primary: "field_4976fc" },
 };
 
 const TEAM_FIELD_MAPPING: Record<string, string> = {
@@ -56,10 +74,40 @@ export function extractMeegleCleaningRelations(workitem: MeegleWorkitem): Relati
 
 export function getMeegleCleaningFieldKeys(workItemTypeKey: string): string[] {
   const teamFieldKey = TEAM_FIELD_MAPPING[workItemTypeKey];
+  const systemFields = SYSTEM_FIELD_MAPPING[workItemTypeKey];
   return [...new Set([
     ...Object.values(RELATION_FIELD_MAPPING[workItemTypeKey] ?? {}),
+    ...(systemFields ? [systemFields.primary, systemFields.fallback].filter((value): value is string => Boolean(value)) : []),
     ...(teamFieldKey ? [teamFieldKey] : []),
   ])];
+}
+
+export function extractMeegleSystemRegion(workitem: MeegleWorkitem): MeegleSystemRegionProjection {
+  const mapping = SYSTEM_FIELD_MAPPING[workitem.type];
+  if (!mapping) return { present: false, warnings: [] };
+  const values = getWorkitemFieldValues(workitem);
+  const primaryRaw = values.get(mapping.primary) ?? null;
+  const primaryLabel = toDisplayValue(primaryRaw);
+  const primaryRegion = normalizeSystemRegion(primaryLabel);
+  if (primaryRegion) return { present: true, value: primaryRegion, warnings: [] };
+
+  const fallbackRaw = mapping.fallback ? values.get(mapping.fallback) ?? null : null;
+  const fallbackLabel = toDisplayValue(fallbackRaw);
+  const fallbackRegion = normalizeSystemRegion(fallbackLabel);
+  if (fallbackRegion) return { present: true, value: fallbackRegion, warnings: [] };
+
+  const rawValues = [primaryLabel, fallbackLabel].flatMap((value) => (
+    Array.isArray(value) ? value : value ? [value] : []
+  ));
+  return {
+    present: true,
+    value: null,
+    warnings: rawValues.length === 0 ? [] : [{
+      errorCode: "MEEGLE_SYSTEM_REGION_UNRECOGNIZED",
+      fieldKey: mapping.fallback ? `${mapping.primary}|${mapping.fallback}` : mapping.primary,
+      rawValue: rawValues,
+    }],
+  };
 }
 
 export function getMeegleRelationFieldKey(workItemTypeKey: string, field: RelationField): string | undefined {
@@ -96,8 +144,45 @@ function toDisplayValue(value: unknown): string | string[] | undefined {
 }
 
 function toSingleDisplayValue(value: unknown): string | undefined {
+  if (typeof value === "string" || typeof value === "number") return String(value);
   const record = asRecord(value);
-  return stringValue(record?.name) || stringValue(record?.label) || undefined;
+  const direct = stringValue(record?.name) || stringValue(record?.label);
+  if (direct) return direct;
+  const cascade = asRecord(record?.cascade_key_label_value);
+  if (cascade) {
+    const labels = [stringValue(cascade.label), ...extractCascadeLabels(cascade.children)].filter(Boolean);
+    return labels.join("/") || undefined;
+  }
+  return undefined;
+}
+
+function getWorkitemFieldValues(workitem: MeegleWorkitem): Map<string, unknown> {
+  const container = asRecord(workitem.fields);
+  const rawFields = container?.work_item_fields ?? container?.fields;
+  const fields = Array.isArray(rawFields) ? rawFields.map(asRecord).filter(isRecord) : [];
+  return new Map(fields.map((field) => [
+    stringValue(field.key ?? field.field_key),
+    Object.prototype.hasOwnProperty.call(field, "value") ? field.value : field.field_value,
+  ]));
+}
+
+function normalizeSystemRegion(value: string | string[] | undefined): "eu" | "us" | "uk" | undefined {
+  const labels = Array.isArray(value) ? value : value ? [value] : [];
+  for (const label of labels) {
+    if (!/\b(?:odoo|portal)\b/i.test(label)) continue;
+    const region = label.match(/(?:^|[\s/_-])(eu|us|uk)(?:$|[\s/_-])/i)?.[1]?.toLocaleLowerCase();
+    if (region === "eu" || region === "us" || region === "uk") return region;
+  }
+  return undefined;
+}
+
+function extractCascadeLabels(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((child) => {
+    const record = asRecord(child);
+    if (!record) return [];
+    return [stringValue(record.label), ...extractCascadeLabels(record.children)].filter(Boolean);
+  });
 }
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {

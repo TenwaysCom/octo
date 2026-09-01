@@ -32,7 +32,7 @@ test("normalizes Meegle view configuration without allowing the workitem column 
 test("sorts Meegle workitems by configured fields and leaves empty values last", () => {
   const items = [
     { workItemId: "2", sprint: "Sprint 10", sourceUpdatedAt: "2026-08-10T00:00:00Z" },
-    { workItemId: "1", sprint: "Sprint 2", sourceUpdatedAt: "2026-08-12T00:00:00Z" },
+    { workItemId: "1", sprint: "Sprint 2", sourceUpdatedAt: "2026-08-12 00:00:00" },
     { workItemId: "3", sprint: "" },
     { workItemId: "4", sprint: "", sourceUpdatedAt: "invalid" },
   ];

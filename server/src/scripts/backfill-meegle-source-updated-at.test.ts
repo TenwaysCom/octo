@@ -19,7 +19,7 @@ describe("backfill-meegle-source-updated-at", () => {
     }])).toMatchObject({
       invalid: 0,
       scopes: [{ scope: "project", candidates: 1, valid: 1, invalid: 0 }],
-      valid: [{ projectKey: "project", workItemTypeKey: "6932e40429d1cd8aac635c82", workItemId: "1", sourceUpdatedAt: "2026-08-05T08:53:20.000Z" }],
+      valid: [{ projectKey: "project", workItemTypeKey: "6932e40429d1cd8aac635c82", workItemId: "1", sourceUpdatedAt: "2026-08-05 08:53:20" }],
     });
   });
 });

@@ -33,7 +33,7 @@ Octo 从 Lark Base、Meegle 与 GitHub 读取指定范围的对象，持久化�
 | Meegle | current role member relation | `meegle_workitem_role_members` | work item 复合键 + `role_key + member_key` | 清洗时原子替换 |
 | GitHub | pull request | `github_pr_syncs` | `owner + repo + pull_number` | UPSERT |
 
-每行保存用于展示的字段、原始 JSON 快照、`source_updated_at`、`synced_at`、`last_seen_at` 与 `stale`。重复同步会更新本轮实际拉到的对象并清除其 `stale` 标记；它不会清空表、物理删除本轮未出现的记录，也不会保护写入同一快照列的本地人工修改。
+每行保存用于展示的字段、原始 JSON 快照、`source_updated_at`、`synced_at`、`last_seen_at` 与 `stale`。Meegle 的 `source_updated_at` 新写入值保留平台秒级格式 `YYYY-MM-DD HH:mm:ss`，历史 ISO 值继续兼容查询和 checkpoint 比较。重复同步会更新本轮实际拉到的对象并清除其 `stale` 标记；它不会清空表、物理删除本轮未出现的记录，也不会保护写入同一快照列的本地人工修改。
 
 ### 2.2 当前触发入口
 
@@ -64,7 +64,7 @@ Web Integrations 还提供受 Web 会话保护的同步状态页：展示 Lark T
 
 Web Lark Ticket 列表默认按状态分组并按状态升序排列，提供“进行中”“未分类”“未同步”快速过滤；“进行中”包含状态不是 `Finish`、`Cancelled`、`Rejected` 的 Ticket。列表也支持切换为按 Issue 类型、需求人、负责人、紧急度分组或不分组，并可配置排序字段、排序方向和显示字段。
 
-Web Meegle 工作项列表默认按状态分组，也支持切换为按类型、Sprint、Version、System、负责人分组或不分组，并可配置排序字段、排序方向和显示字段；紧凑工作项行在已有值时始终保留 System，不因窄屏隐藏。普通列表和 Sprint 详情都默认显示“当前工作时长”：从 `current_node_start_time` 计算到当前时间，完成项截止到 `item_finish_time`，每分钟刷新；不回退到表示进入 Cycle/Sprint 时间的 `add_to_cycle_time`，已移出 Sprint 的历史成员不使用当前工作项快照计算该值。Sprint 详情的工作项表同样默认显示 System，并支持按 System 筛选、排序、主分组和次分组。Meegle“负责人”严格取系统字段 `current_status_operator`（Current owner）；多人按源端顺序去重并以逗号展示，空值不回退到当前节点 owner、Task Owner、Product Owner 或其他角色。普通列表及 Sprint 详情的过滤和视图配置只保存在当前 Web 会话的 `App` 页面状态中；Sprint 详情按 route 中的 Sprint ref 隔离，离开后返回会恢复，刷新浏览器后重置，不修改同步快照或外部平台数据。
+Web Meegle 工作项列表默认按状态分组，也支持切换为按类型、Sprint、Version、System、负责人分组或不分组，并可配置排序字段、排序方向和显示字段；紧凑工作项行在已有值时始终保留 System，不因窄屏隐藏。普通列表和 Sprint 详情都默认显示“当前工作时长”：从 `current_node_start_time` 计算到当前时间，每分钟刷新；只有旧快照仍提供精确 datetime 完成时间时才可截止到 `item_finish_time`，新规则下日粒度完成时间不展示伪精确时长。不回退到表示进入 Cycle/Sprint 时间的 `add_to_cycle_time`，已移出 Sprint 的历史成员不使用当前工作项快照计算该值。Sprint 详情的工作项表同样默认显示 System，并支持按 System 筛选、排序、主分组和次分组。Meegle“负责人”严格取系统字段 `current_status_operator`（Current owner）；多人按源端顺序去重并以逗号展示，空值不回退到当前节点 owner、Task Owner、Product Owner 或其他角色。普通列表及 Sprint 详情的过滤和视图配置只保存在当前 Web 会话的 `App` 页面状态中；Sprint 详情按 route 中的 Sprint ref 隔离，离开后返回会恢复，刷新浏览器后重置，不修改同步快照或外部平台数据。
 
 本地 CLI 配置文件为 `server/config/platform-sync.local.json`，只提交 `.example`，不得保存 token。Lark 通过服务端保存的用户凭据读取；本地 Meegle 同步使用本机 `meegle` CLI profile；本地 GitHub 同步使用 `gh` CLI。HTTP GitHub 同步使用服务端 `GITHUB_TOKEN`。
 
@@ -148,11 +148,23 @@ Support-QA 快捷动作还会在 workflow 完成前核对当前 Ticket 的 `fetc
 | 平台 | 当前批量读取 | 当前过滤/限制 | 需要注意 |
 | --- | --- | --- | --- |
 | Lark | full/incremental 直接消费 List records；单条/多选按 ID 使用 `batch_get(automatic_fields=true)` | 全量初始化跳过终态；增量包含终态 | List 与 Batch Get 均通过统一 mapper；增量依赖配置的 Bitable 最后修改时间字段 |
-| Meegle | 全量初始化按 project/type 枚举；增量以 MQL 时间过滤后分页，再 `+batch-get` 详情 | 全量初始化跳过终态；增量包含终态 | 每个 type 必须配置 MQL 时间字段；详情时间才是 checkpoint 权威值 |
+| Meegle | 全量初始化按 project/type 枚举；增量以 MQL 时间过滤后分页，再 `+batch-get` 详情 | 全量初始化跳过终态；增量包含终态 | 每个 type 必须配置 MQL 时间字段；增量 MQL `updated_at` 是 checkpoint 与快照版本权威值，batch detail 提供当前业务字段 |
 | GitHub HTTP | 读取 open PR | 跳过终态 | 只能覆盖开放 PR |
 | GitHub CLI | `all` 依次读取 `closed` 与 `merged`，每类最多 100 | `closed` 结果会排除已合并 PR | 当前 `all` 不包含 open；命名与范围需在新版设计中统一 |
 
 当前已有独立 scheduler Worker，但没有 webhook 消费器。Worker、Web 手动同步和 CLI 均基于相同 scope checkpoint，并通过 PostgreSQL scope lease 防止同一来源并发执行。GitHub、Lark 和 Meegle 均支持按 checkpoint 的源端增量拉取；Meegle 依赖每个 work item type 的 MQL 时间字段配置。
+
+### 2.5 Meegle System 与时间清洗
+
+当前 canonical cleaner 覆盖已配置的 Story、Tech Task 和 Production Bug。上线只继续运行既有增量 scheduler，不主动执行 full、clean 或历史回填；因此历史快照在后续被 checkpoint 捕获到更新时才应用下列规则：
+
+- Story System 优先读取 `field_0dba3a`，无法识别区域时 fallback 到 `field_00f541`；Tech Task 读取 `field_6da66b`；Production Bug 读取 `field_4976fc`。仅把 Odoo/Portal 的 EU、US、UK 归一化为 `eu`、`us`、`uk`。
+- System 来源为空会清空旧投影；非空但无法识别同样清空，并记录工作项类型、ID、字段与原值的结构化告警。
+- `item_start_time` 和 `item_finish_time` 只取当前 detail 的 `start_time`、`finish_time`，输出 `YYYY-MM-DD`；不从状态、workflow node、创建时间、旧值或 `updated_at` 推断。来源清空或非法时同步清空，非法值另记结构化告警。
+- `current_node_start_time` 仍是当前节点 `actual_begin_time` 的精确时间，`add_to_cycle_time` 仍服务于 Cycle/Sprint 关系，两者不作为起止日期 fallback。
+- 增量 `updated_at` 保留 MQL 返回的 UTC 秒级值。非法或缺失值先写入该工作项快照并执行本批其他清洗，再令 scope 失败，使 coordinator 不推进 checkpoint，下一轮可幂等重试。
+
+标准 Bugs（type key `issue`）尚未加入同步 target 或 cleaner；后续范围与字段决策记录在 `docs/tasks/platform-sync/2026-09-01-meegle-standard-bugs-cleaning-todo.md`。
 
 ## 3. 代码与运行入口
 

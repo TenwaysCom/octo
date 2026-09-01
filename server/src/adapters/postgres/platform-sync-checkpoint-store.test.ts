@@ -11,7 +11,10 @@ describe("PostgresPlatformSyncCheckpointStore", () => {
       githubSnapshot({ pull_number: 12, source_updated_at: "2026-08-09T10:00:00.000Z", synced_at: "2026-08-11T10:00:00.000Z" }),
     ]).execute();
     await db.insertInto("lark_base_ticket_syncs").values(larkSnapshot({ source_updated_at: null })).execute();
-    await db.insertInto("meegle_workitem_syncs").values(meegleSnapshot()).execute();
+    await db.insertInto("meegle_workitem_syncs").values([
+      meegleSnapshot(),
+      meegleSnapshot({ work_item_id: "43", source_updated_at: "2026-08-07 10:00:01" }),
+    ]).execute();
 
     await expect(store.listInitialCheckpoints()).resolves.toEqual([
       {
@@ -24,8 +27,8 @@ describe("PostgresPlatformSyncCheckpointStore", () => {
       {
         platform: "meegle",
         scopeKey: "project/story",
-        watermarkUpdatedAt: "2026-08-07T10:00:00.000Z",
-        watermarkTiebreaker: "story:42",
+        watermarkUpdatedAt: "2026-08-07 10:00:01",
+        watermarkTiebreaker: "story:43",
         lastSuccessAt: "2026-08-08T10:00:00.000Z",
       },
     ]);

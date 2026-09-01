@@ -168,6 +168,43 @@ describe("PostgresPlatformSyncStore", () => {
     await pool.end();
   });
 
+  it("sorts and filters mixed legacy ISO and new Meegle updated_at values chronologically", async () => {
+    const { db, pool } = await createTestPostgresDatabase();
+    const store = new PostgresPlatformSyncStore(db);
+    for (const workitem of [
+      { id: "legacy", updatedAt: "2026-08-11T23:00:00.000Z" },
+      { id: "raw", updatedAt: "2026-08-12 00:00:00" },
+    ]) {
+      await store.upsertMeegleWorkitem({
+        projectKey: "project",
+        workItemTypeKey: "story",
+        workitem: {
+          id: workitem.id,
+          key: workitem.id,
+          name: workitem.id,
+          type: "story",
+          status: "In Progress",
+          fields: {},
+          updatedAt: workitem.updatedAt,
+        },
+      });
+    }
+
+    await expect(store.listMeegleWorkitems(10)).resolves.toEqual([
+      expect.objectContaining({ workItemId: "raw" }),
+      expect.objectContaining({ workItemId: "legacy" }),
+    ]);
+    await expect(store.listMeegleWorkitems(10, {
+      sourceUpdatedAtAfter: "2026-08-11T23:30:00.000Z",
+    })).resolves.toEqual([expect.objectContaining({ workItemId: "raw" })]);
+    await expect(store.listMeegleWorkitems(10, {
+      sourceUpdatedAtBefore: "2026-08-11T23:30:00.000Z",
+    })).resolves.toEqual([expect.objectContaining({ workItemId: "legacy" })]);
+
+    await db.destroy();
+    await pool.end();
+  });
+
   it("replaces related people transactionally and supports batched and reverse lookup", async () => {
     const { db, pool } = await createTestPostgresDatabase();
     const store = new PostgresPlatformSyncStore(db);
@@ -386,69 +423,64 @@ describe("PostgresPlatformSyncStore", () => {
     await pool.end();
   });
 
-  it("merges incremental lifecycle observations without losing the earliest start", async () => {
+  it("replaces and clears lifecycle dates from the current source values", async () => {
     const { db, pool } = await createTestPostgresDatabase();
     const store = new PostgresPlatformSyncStore(db);
     const baseWorkitem = {
       id: "story-lifecycle", key: "S-LIFE", name: "Lifecycle", type: "story", status: "In Progress", fields: {},
     };
     const upsertLifecycle = async (lifecycle: {
-      phase: "new" | "started" | "finished";
       currentNodeStartTime: string | null;
       itemStartTime: string | null;
       itemFinishTime: string | null;
     }) => store.upsertMeegleWorkitem({
       projectKey: "project",
       workItemTypeKey: "story",
-      workitem: { ...baseWorkitem, status: lifecycle.phase === "new" ? "New" : lifecycle.phase === "finished" ? "Done" : "In Progress" },
+      workitem: baseWorkitem,
       lifecycle,
     });
 
     await upsertLifecycle({
-      phase: "started",
       currentNodeStartTime: "2026-08-22T00:00:00.000Z",
       itemStartTime: "2026-08-22T00:00:00.000Z",
       itemFinishTime: null,
     });
     await upsertLifecycle({
-      phase: "started",
       currentNodeStartTime: "2026-08-25T00:00:00.000Z",
       itemStartTime: "2026-08-25T00:00:00.000Z",
       itemFinishTime: null,
     });
-    await upsertLifecycle({ phase: "started", currentNodeStartTime: null, itemStartTime: null, itemFinishTime: null });
     await expect(store.listMeegleWorkitems(10)).resolves.toEqual([
       expect.objectContaining({
-        itemStartTime: "2026-08-22T00:00:00.000Z",
-        currentNodeStartTime: undefined,
+        itemStartTime: "2026-08-25T00:00:00.000Z",
+        currentNodeStartTime: "2026-08-25T00:00:00.000Z",
         itemFinishTime: undefined,
       }),
     ]);
 
     await upsertLifecycle({
-      phase: "finished",
       currentNodeStartTime: "2026-08-26T00:00:00.000Z",
-      itemStartTime: null,
+      itemStartTime: "2026-08-25T00:00:00.000Z",
       itemFinishTime: "2026-08-26T00:00:00.000Z",
     });
     await expect(store.listMeegleWorkitems(10)).resolves.toEqual([
       expect.objectContaining({
-        itemStartTime: "2026-08-22T00:00:00.000Z",
+        itemStartTime: "2026-08-25T00:00:00.000Z",
         currentNodeStartTime: "2026-08-26T00:00:00.000Z",
         itemFinishTime: "2026-08-26T00:00:00.000Z",
       }),
     ]);
 
-    await upsertLifecycle({ phase: "started", currentNodeStartTime: "2026-08-27T00:00:00.000Z", itemStartTime: null, itemFinishTime: null });
+    await upsertLifecycle({ currentNodeStartTime: "2026-08-27T00:00:00.000Z", itemStartTime: null, itemFinishTime: null });
     await expect(store.listMeegleWorkitems(10)).resolves.toEqual([
       expect.objectContaining({
-        itemStartTime: "2026-08-22T00:00:00.000Z",
+        itemStartTime: undefined,
         currentNodeStartTime: "2026-08-27T00:00:00.000Z",
         itemFinishTime: undefined,
       }),
     ]);
 
-    await upsertLifecycle({ phase: "new", currentNodeStartTime: null, itemStartTime: null, itemFinishTime: null });
+    await upsertLifecycle({ currentNodeStartTime: null, itemStartTime: null, itemFinishTime: null });
     await expect(store.listMeegleWorkitems(10)).resolves.toEqual([
       expect.objectContaining({ currentNodeStartTime: undefined, itemStartTime: undefined, itemFinishTime: undefined }),
     ]);
@@ -476,9 +508,8 @@ describe("PostgresPlatformSyncStore", () => {
       sprintRelation: { present: true, ...(input.sprintId ? { sprintId: input.sprintId, sprintName: `Sprint ${input.sprintId}` } : {}) },
       sprintObservedAt: input.at,
       lifecycle: {
-        phase: input.phase,
-        itemStartTime: input.start,
-        itemFinishTime: input.finish,
+        itemStartTime: input.phase === "new" ? null : input.start,
+        itemFinishTime: input.phase === "finished" ? input.finish : null,
       },
     });
 
@@ -568,7 +599,7 @@ describe("PostgresPlatformSyncStore", () => {
       workitem,
       sprintRelation: { present: true, sprintId: "a", sprintName: "Sprint A" },
       sprintObservedAt: "2026-08-10T00:00:00.000Z",
-      lifecycle: { phase: "finished", itemFinishTime: "2026-08-09T00:00:00.000Z" },
+      lifecycle: { itemFinishTime: "2026-08-09T00:00:00.000Z" },
     });
     await store.upsertMeegleWorkitem({
       projectKey: "project",
@@ -576,7 +607,7 @@ describe("PostgresPlatformSyncStore", () => {
       workitem,
       sprintRelation: { present: false },
       sprintObservedAt: "2026-08-11T00:00:00.000Z",
-      lifecycle: { phase: "started" },
+      lifecycle: { itemFinishTime: null },
     });
 
     await expect(db.selectFrom("meegle_workitem_sprint_memberships")

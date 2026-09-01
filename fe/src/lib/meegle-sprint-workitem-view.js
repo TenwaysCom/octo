@@ -1,3 +1,5 @@
+import { parsePlatformTimestamp } from "./formatters.js";
+
 export const SPRINT_WORKITEM_VIEW_COLUMNS = [
   { key: "workitem", label: "工作项", sortKey: "workitem", required: true },
   { key: "workitemType", label: "类型", sortKey: "workitemType" },
@@ -93,8 +95,8 @@ export function sortSprintWorkitems(items, sort) {
   return [...items].sort((left, right) => {
     const leftValue = getSprintWorkitemViewValue(left, normalizedSort.key);
     const rightValue = getSprintWorkitemViewValue(right, normalizedSort.key);
-    const leftComparable = normalizedSort.key === "updatedAt" ? Date.parse(leftValue) : leftValue;
-    const rightComparable = normalizedSort.key === "updatedAt" ? Date.parse(rightValue) : rightValue;
+    const leftComparable = normalizedSort.key === "updatedAt" ? parsePlatformTimestamp(leftValue) : leftValue;
+    const rightComparable = normalizedSort.key === "updatedAt" ? parsePlatformTimestamp(rightValue) : rightValue;
     const leftMissing = normalizedSort.key === "updatedAt" ? Number.isNaN(leftComparable) : !leftComparable;
     const rightMissing = normalizedSort.key === "updatedAt" ? Number.isNaN(rightComparable) : !rightComparable;
     if (leftMissing && !rightMissing) return 1;
