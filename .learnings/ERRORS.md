@@ -90,6 +90,7 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Error:** TypeScript `TS2558: Expected 0 type arguments, but got 1.`
 - **Fix:** Use `toMatchObject({...})` directly; keep type assertions outside the matcher when needed.
 - **Status:** resolved
+- **Recurrence (2026-09-01):** Meegle PR link service 新测试再次给 `toMatchObject` 传了类型参数；删除 matcher 泛型后 Server build 通过。
 
 ## [ERR-20260810-002] ignored-env-search-output
 
@@ -204,6 +205,7 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Error:** Unrelated environment failures appeared for unavailable `node:sqlite` suites and the logger file timing test, even though the platform-data controller tests passed.
 - **Fix:** Use `pnpm --dir server exec vitest run <test-file>` for an exact focused run, then execute the Server build separately.
 - **Status:** resolved; all 5 platform-data controller tests and the Server TypeScript build pass.
+- **Recurrence (2026-09-01):** `pnpm --dir server test -- <files>` 仍运行了全量套件；改用 `pnpm --dir server exec vitest run <files...>` 后本次 8 个文件 76/76 通过。
 
 ## [ERR-20260817-001] list-get-diagnostic-tsx-entrypoint
 

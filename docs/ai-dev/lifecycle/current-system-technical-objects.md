@@ -47,6 +47,7 @@ update_required_when:
 | `LarkTicketAcpPermissionContext` | Server automation catalog / ACP proxy | `server/src/modules/public-config/automation-actions.config.ts`, `server/src/application/services/acp-kimi-permission-policy.ts`, `server/src/adapters/kimi-acp/kimi-acp-runtime.ts` | Ticket 快捷动作将 Profile、Skill 和四级执行策略绑定至 Session；每个 ACP 工具调用重新判定；Kimi 0.38 的完整参数按 `sessionId + toolCallId` 从直接 `tool_call` 或 lazy-create 后的 canonical `tool_call_update` 单次关联，Support-QA fetch 未完成时 workflow 不接受结果 |
 | `MeegleSprintAiSession` | Server workflow / PostgreSQL | `server/src/application/services/meegle-sprint-ai-session.service.ts`, `server/src/adapters/postgres/acp-kimi-sprint-session-store.ts` | 每个会话由用户、`projectKey + sprintId` 和创建时清洗后的完成项上下文绑定；只读 Sprint 快照与归属历史，不调用或写入 Meegle |
 | `GitHubWorkitemAction` | Extension modal + server workflow | `server/src/modules/github-branch-create/*`, `server/src/controllers/github-reverse-lookup.ts`, `extension/src/popup-shared/*github*` | 依赖 Meegle workitem 字段和 GitHub adapter |
+| `MeeglePullRequestLinkAction` | Octo FE + server workflow | `fe/src/pages/PlatformListPage.jsx`, `server/src/application/services/meegle-pull-request-link.service.ts` | 从本地 open/draft PR 快照选候选；Server 校验 System 仓库、更新 GitHub 标题并刷新本地快照 |
 | `ActionRunTrace` | Should be cross-layer contract | docs issue/rules only | 规则已定义，代码尚未统一实现 |
 
 ## 2. 分层对象矩阵
@@ -84,6 +85,7 @@ update_required_when:
 | `MeegleStoryBackBriefAction` | `server` | `extension` triggers, Meegle/Kimi adapters execute platform and ACP calls | Meegle Story page action -> server workflow -> Meegle read -> ACP one-shot -> Meegle Tech Summary update -> result | popup 自行读取 Meegle fields 或调用 ACP |
 | `AcpKimiOneShotRuntime` | `server` | ACP adapter subprocess/runtime | workflow limiter -> ACP runtime initialize -> session/new -> prompt -> close runtime | 写入 reusable session registry 或 ownership store |
 | `GitHubWorkitemAction` | `server` for workflow, `extension` for modal UX | platform data via Meegle/GitHub adapters | page context -> modal -> server preview/create/lookup -> result | extension 直接解析 Meegle fields 或决定 repo mapping |
+| `MeeglePullRequestLinkAction` | `server` for repository mapping and write orchestration, FE for picker UX | PostgreSQL snapshots plus GitHub adapter | Meegle snapshot -> System repository -> local open/draft candidates -> remote latest PR -> title marker update -> local snapshot upsert | FE 决定仓库、直接写 GitHub，或把候选列表变成逐条远端请求 |
 | `ActionRunTrace` | `server` contract, initiated by `extension` | all layers append logs with same id | action click -> actionRunId -> server/adapter/platform result -> popup display | 某层吞掉错误，只返回普通 message |
 
 ## 4. 文件拆分策略
@@ -420,6 +422,7 @@ ExecutionDraft
 - Workflows should not hardcode `field_*`.
 - Adapter should normalize field access shape.
 - Meegle snapshot `assignee` is the display projection of the system `current_status_operator` (Current owner) field. Preserve all current owners in source order, and do not infer this value from workflow-node owners or type-specific roles.
+- Meegle source creation time is normalized by the adapter and persisted as the dedicated nullable `created_at` snapshot projection; list APIs must not reopen `payload_json` to display or sort it.
 - Metadata resolver should validate create/update payload before platform request.
 - Persist the Sprint relation as stable `sprint_id` plus display-only `sprint` name. Do not use the mutable name as the join identity.
 - Historical lifecycle cleaning is PostgreSQL-only: use persisted workitem fields/current or embedded nodes plus persisted Sprint snapshots, never operation records or an extra workflow-node request. Missing evidence stays null. Incremental sync uses only the workitem detail already fetched, preserves the earliest known start across active-node changes, clears finish when reopened, and clears both times when returned to New. `updatedAt` is not a lifecycle timestamp.
@@ -631,6 +634,7 @@ Meegle 工作项详情页
 - GitHub PR URL context
 - Meegle workitem lookup result
 - GitHub branch preview/create request
+- Meegle workitem PR picker/link request
 - GitHub PR Odoo.sh build badge
 - GitHub PR 列表预览与关联 Meegle 快照投影
 
@@ -678,6 +682,21 @@ Meegle Web 页面不把 Odoo.sh 快照放在首屏读取路径：
   -> 刷新和 Redis/in-process TTL 缓存均以 eu/uk/us 为单位，绝不以 repo 或单条 PR 为单位
 ```
 
+Meegle 工作项快速关联 PR 采用本地候选、远端写入的独立路径：
+
+```text
+#meegle-workitems 的空 PR 图标，或悬停/聚焦工作项后按 g
+  -> FE 携带 projectKey + workItemTypeKey + workItemId 请求候选项
+  -> server 从本地 Meegle 快照读取 System，并映射唯一 GitHub 仓库
+  -> server 只返回该仓库本地 open/draft PR 快照的 ID、author、head/base branch 等摘要
+  -> 用户选择后，FE 生成 actionRunId 并提交精确 PR 标识
+  -> server 重验 System 仓库和本地候选状态，再通过 GitHub adapter 读取远端最新 PR
+  -> 标题缺少精确 m-<workItemId> 标记时 PATCH 标题；已有标记时不重复写入
+  -> server UPSERT GitHub 返回值，FE 立即把关联 PR 投影到当前工作项
+```
+
+候选读取不调用 GitHub，也不读取 Odoo.sh。远端标题写入成功但本地快照 UPSERT 失败属于显式 partial success；重试时会因标题已有标记而跳过重复 PATCH，只修复本地快照。
+
 冷缓存的 202 响应可由 FE 轮询；已有但过期的环境快照可以立即标为旧数据，同时在后台刷新，用户下次打开可获取新状态。Redis 不可用时保留进程内 30 分钟 TTL 兜底；这不是跨重启持久化保证。
 
 Octo FE 的 GitHub PR 列表表头可使用受 opaque HttpOnly Octo Web session 保护的重置接口；请求携带 `actionRunId`，服务端一次删除 EU、UK、US 三个 Odoo DevOps 分支缓存 key，随后列表刷新构建状态。
@@ -695,6 +714,7 @@ GitHub PR 同步快照会从标题与描述中保留 `meegleIds`。Web 列表只
 - Treat GitHub actions as frontend modal plus server workflow, not extension business logic.
 - Meegle field resolution should share the same metadata resolver as Lark workflows.
 - GitHub PR 列表只读取关联 ID；完整 Meegle 字段应在预览边界按单个 PR 的全部 ID 批量读取本地快照，并保留无法解析的原始 ID。不要逐 ID 查询或为列表预加载全部工作项详情。
+- Meegle PR 候选仓库必须由 Server 从 System 映射；选择时重新读取远端 PR，并在成功写入后用平台返回值刷新本地同步快照。FE 只负责候选交互和即时投影。
 
 ## 15. 动作运行追踪生命周期
 

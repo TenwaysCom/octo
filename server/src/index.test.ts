@@ -41,6 +41,8 @@ describe("index routes", () => {
         "GET /api/web/profile",
         "GET /api/web/platform-data/lark-tickets",
         "GET /api/web/platform-data/meegle-workitems",
+        "GET /api/web/meegle-workitems/pull-request-candidates",
+        "POST /api/web/meegle-workitems/link-pull-request",
         "GET /api/web/platform-data/github-pull-requests",
         "GET /api/web/platform-data/github-pull-request-preview",
         "GET /api/web/meegle-sprints",

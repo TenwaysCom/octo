@@ -1,8 +1,10 @@
 import {
   createWebGitHubPullRequestPreviewController,
+  createWebMeeglePullRequestLinkController,
   createWebMeegleSprintHistoryController,
   createWebPlatformDataController,
 } from "./platform-data.controller.js";
+import { MeeglePullRequestLinkError } from "../../application/services/meegle-pull-request-link.service.js";
 
 describe("web platform data controller", () => {
   it("requires the opaque web session before reading snapshots", async () => {
@@ -21,6 +23,108 @@ describe("web platform data controller", () => {
       body: { ok: false, error: { errorCode: "UNAUTHENTICATED", errorMessage: "Missing web session." } },
     });
     expect(service.list).not.toHaveBeenCalled();
+  });
+
+  it("returns validated Meegle PR candidates and links one selected PR", async () => {
+    const candidate = {
+      owner: "TenwaysCom",
+      repo: "tenways-ukk",
+      pullNumber: 42,
+      title: "Fix checkout m-13802503",
+      htmlUrl: "https://github.com/TenwaysCom/tenways-ukk/pull/42",
+      state: "open" as const,
+      isDraft: true,
+      authorLogin: "ada",
+      headRef: "fix/checkout",
+      baseRef: "main",
+    };
+    const service = {
+      listCandidates: vi.fn().mockResolvedValue({
+        repository: { owner: "TenwaysCom", repo: "tenways-ukk" },
+        candidates: [{ ...candidate, linked: false }],
+      }),
+      link: vi.fn().mockResolvedValue({
+        actionRunId: "action-1",
+        marker: "m-13802503",
+        titleUpdated: true,
+        pullRequest: candidate,
+      }),
+    };
+    const controller = createWebMeeglePullRequestLinkController({
+      service,
+      ensureSession: vi.fn().mockResolvedValue({ ok: true, role: "dev", user: {} }),
+    });
+
+    await expect(controller.listCandidates({
+      cookieHeader: "octo_web_session=session-token",
+      query: { projectKey: "project", workItemTypeKey: "story", workItemId: "13802503" },
+    })).resolves.toEqual({
+      statusCode: 200,
+      body: { ok: true, data: {
+        repository: { owner: "TenwaysCom", repo: "tenways-ukk" },
+        candidates: [{ ...candidate, linked: false }],
+      } },
+    });
+    await expect(controller.link({
+      cookieHeader: "octo_web_session=session-token",
+      body: {
+        projectKey: "project",
+        workItemTypeKey: "story",
+        workItemId: "13802503",
+        owner: "TenwaysCom",
+        repo: "tenways-ukk",
+        pullNumber: 42,
+        actionRunId: "action-1",
+      },
+    })).resolves.toEqual({
+      statusCode: 200,
+      body: { ok: true, data: {
+        actionRunId: "action-1",
+        marker: "m-13802503",
+        titleUpdated: true,
+        pullRequest: candidate,
+      } },
+    });
+  });
+
+  it("returns a structured action error when GitHub title update fails", async () => {
+    const service = {
+      listCandidates: vi.fn(),
+      link: vi.fn().mockRejectedValue(new MeeglePullRequestLinkError(
+        "GITHUB_PULL_REQUEST_TITLE_UPDATE_FAILED",
+        "无法更新 GitHub PR 标题，请稍后重试。",
+        502,
+        "adapter",
+        "adapter.github.pull_request.update",
+      )),
+    };
+    const controller = createWebMeeglePullRequestLinkController({
+      service,
+      ensureSession: vi.fn().mockResolvedValue({ ok: true, role: "dev", user: {} }),
+    });
+
+    const result = await controller.link({
+      cookieHeader: "octo_web_session=session-token",
+      body: {
+        projectKey: "project",
+        workItemTypeKey: "story",
+        workItemId: "13802503",
+        owner: "TenwaysCom",
+        repo: "tenways-ukk",
+        pullNumber: 42,
+        actionRunId: "action-failed",
+      },
+    });
+    expect(result).toMatchObject({
+      statusCode: 502,
+      body: { ok: false, error: {
+        actionRunId: "action-failed",
+        layer: "adapter",
+        module: "meegle-pull-request-link",
+        stage: "adapter.github.pull_request.update",
+        errorCode: "GITHUB_PULL_REQUEST_TITLE_UPDATE_FAILED",
+      } },
+    });
   });
 
   it("returns Sprint history from the dedicated web endpoint", async () => {
@@ -70,6 +174,7 @@ describe("web platform data controller", () => {
         headRef: "feature/m-1138",
         baseRef: "main",
         state: "merged",
+        isDraft: false,
         odooShBuilds: [{ environment: "eu", status: "done", result: "success" }],
       }],
       plannedSprint: "must not leak",

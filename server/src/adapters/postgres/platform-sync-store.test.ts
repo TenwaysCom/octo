@@ -18,7 +18,7 @@ describe("PostgresPlatformSyncStore", () => {
       workItemTypeKey: "story",
       workitem: {
         id: "1", key: "S-1", name: "Original", type: "story", workItemType: "Feature",
-        status: "In Progress", statusKey: "status_started", subStage: "Development", subStageKey: "node_dev", priority: "P1", updatedAt: "2026-08-01T00:00:00.000Z", fields: {},
+        status: "In Progress", statusKey: "status_started", subStage: "Development", subStageKey: "node_dev", priority: "P1", createdAt: "2026-07-31T00:00:00.000Z", updatedAt: "2026-08-01T00:00:00.000Z", fields: {},
       },
       sprintRelation: { present: true, sprintId: "cycle-1", sprintName: "Sprint 1" },
       lifecycle: {
@@ -33,7 +33,7 @@ describe("PostgresPlatformSyncStore", () => {
       workItemTypeKey: "story",
       workitem: {
         id: "1", key: "S-1", name: "Updated", type: "story", workItemType: "Feature",
-        status: "Finished", statusKey: "status_finished", subStage: "Done", subStageKey: "node_done", priority: "P0", updatedAt: "2026-08-02T00:00:00.000Z", fields: {},
+        status: "Finished", statusKey: "status_finished", subStage: "Done", subStageKey: "node_done", priority: "P0", createdAt: "2026-07-31T00:00:00.000Z", updatedAt: "2026-08-02T00:00:00.000Z", fields: {},
       },
       sprintRelation: { present: true, sprintId: "cycle-1", sprintName: "Sprint 1" },
       lifecycle: {
@@ -113,6 +113,7 @@ describe("PostgresPlatformSyncStore", () => {
         sprint_id: "cycle-1",
         current_node_start_time: "2026-08-02T01:00:00.000Z",
         item_finish_time: "2026-08-02T00:00:00.000Z",
+        created_at: "2026-07-31T00:00:00.000Z",
       })]);
     await expect(db.selectFrom("meegle_sync_mappings").selectAll().execute())
       .resolves.toEqual([expect.objectContaining({ source_key: "story", display_value: "Feature" })]);
@@ -130,7 +131,7 @@ describe("PostgresPlatformSyncStore", () => {
       workItemId: "1", title: "Updated", statusKey: "status_finished", status: "Finished",
       subStageKey: "node_done", subStage: "Done",
       sprint: "Sprint 1", version: "Version 1", bugs: ["Bug 1"], priority: "P0",
-      sprintId: "cycle-1", currentNodeStartTime: "2026-08-02T01:00:00.000Z", itemFinishTime: "2026-08-02T00:00:00.000Z",
+      sprintId: "cycle-1", createdAt: "2026-07-31T00:00:00.000Z", currentNodeStartTime: "2026-08-02T01:00:00.000Z", itemFinishTime: "2026-08-02T00:00:00.000Z",
     })]);
     await expect(store.listMeegleWorkitems(10, { sprints: ["Sprint 1"] })).resolves.toHaveLength(1);
     await expect(store.countMeegleWorkitems({ sprints: ["Sprint 1"] })).resolves.toBe(1);
@@ -139,7 +140,7 @@ describe("PostgresPlatformSyncStore", () => {
     await expect(store.listMeegleWorkitemsByIds(["1", "missing", "1"])).resolves.toEqual([
       expect.objectContaining({
         workItemId: "1", title: "Updated", status: "Finished", sprintId: "cycle-1", sprint: "Sprint 1", version: "Version 1",
-        addToCycleTime: "2026-08-01T01:00:00.000Z", currentNodeStartTime: "2026-08-02T01:00:00.000Z", itemStartTime: "2026-08-01T02:00:00.000Z", itemFinishTime: "2026-08-02T00:00:00.000Z",
+        createdAt: "2026-07-31T00:00:00.000Z", addToCycleTime: "2026-08-01T01:00:00.000Z", currentNodeStartTime: "2026-08-02T01:00:00.000Z", itemStartTime: "2026-08-01T02:00:00.000Z", itemFinishTime: "2026-08-02T00:00:00.000Z",
       }),
     ]);
     await expect(store.listGitHubPullRequests(10)).resolves.toEqual([expect.objectContaining({
@@ -152,8 +153,8 @@ describe("PostgresPlatformSyncStore", () => {
     await expect(store.findGitHubPullRequest({ owner: "acme", repo: "app", pullNumber: 404 })).resolves.toBeUndefined();
     await expect(store.countGitHubPullRequests()).resolves.toBe(1);
     await expect(store.listGitHubPullRequestLinks(["123", "456"])) .resolves.toEqual([
-      expect.objectContaining({ meegleId: "123", pullNumber: 2, headRef: "feature/m-123", baseRef: "main", state: "open" }),
-      expect.objectContaining({ meegleId: "456", pullNumber: 2, headRef: "feature/m-123", baseRef: "main", state: "open" }),
+      expect.objectContaining({ meegleId: "123", pullNumber: 2, headRef: "feature/m-123", baseRef: "main", state: "open", isDraft: false }),
+      expect.objectContaining({ meegleId: "456", pullNumber: 2, headRef: "feature/m-123", baseRef: "main", state: "open", isDraft: false }),
     ]);
     await expect(store.listLarkBaseTickets(10)).resolves.toEqual([expect.objectContaining({
       recordId: "rec-1", ticketStatus: "Open", requester: "PM Ada", priority: "P1",

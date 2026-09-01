@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { isEditableShortcutTarget, shouldHandleKeyboardShortcut } from "./keyboard-shortcuts.js";
+import { KEYBOARD_SHORTCUTS, isEditableShortcutTarget, shouldHandleKeyboardShortcut } from "./keyboard-shortcuts.js";
 
 test("recognizes a slash shortcut outside editable elements", () => {
   assert.equal(shouldHandleKeyboardShortcut({ key: "/", target: { tagName: "BUTTON" } }, "/"), true);
@@ -24,4 +24,8 @@ test("allows an explicit escape action to run from an editable element", () => {
 test("handles Space for a focused PR but leaves text editing alone", () => {
   assert.equal(shouldHandleKeyboardShortcut({ key: " ", target: { tagName: "TR" } }, " "), true);
   assert.equal(shouldHandleKeyboardShortcut({ key: " ", target: { tagName: "TEXTAREA" } }, " "), false);
+});
+
+test("documents the Meegle g shortcut", () => {
+  assert.deepEqual(KEYBOARD_SHORTCUTS.find(({ key }) => key === "g")?.pages, ["Meegle"]);
 });

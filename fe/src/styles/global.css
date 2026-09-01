@@ -516,6 +516,30 @@ a.workitem-row__title:hover { color: var(--octo-brand); text-decoration: underli
 .github-pr-links { display: grid; gap: 6px; min-width: 150px; }
 .github-pr-links__item { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
 .github-pr-link-badge { padding: 3px 7px; border-radius: 999px; font-size: 11px; line-height: 1.2; }
+.meegle-pr-picker-trigger { display: inline-grid; width: 27px; height: 27px; padding: 0; border: 1px dashed var(--octo-border); border-radius: 7px; color: var(--octo-text-muted); cursor: pointer; background: transparent; place-items: center; }
+.meegle-pr-picker-trigger:hover, .meegle-pr-picker-trigger:focus-visible { border-color: var(--octo-brand); color: var(--octo-brand); background: color-mix(in srgb, var(--octo-brand) 7%, var(--octo-surface)); }
+.meegle-pr-picker-trigger svg { width: 15px; height: 15px; overflow: visible; fill: var(--octo-surface); stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.4; }
+.meegle-pr-picker-layer { position: fixed; z-index: 1000; inset: 0; }
+.meegle-pr-picker { position: fixed; display: grid; overflow: hidden; max-height: min(420px, calc(100dvh - 24px)); border: 1px solid var(--octo-border); border-radius: 11px; color: var(--octo-text); background: var(--octo-surface); box-shadow: 0 18px 48px rgb(15 23 42 / 0.2); }
+.meegle-pr-picker > header { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 11px 12px; border-bottom: 1px solid var(--octo-border); background: var(--octo-surface-muted); }
+.meegle-pr-picker > header > div { display: grid; min-width: 0; gap: 2px; }
+.meegle-pr-picker > header strong { font-size: 13px; }
+.meegle-pr-picker > header small { overflow: hidden; color: var(--octo-text-muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.meegle-pr-picker > header > button { width: 25px; height: 25px; flex: 0 0 auto; padding: 0; border: 1px solid var(--octo-border); border-radius: 6px; color: var(--octo-text-muted); cursor: pointer; background: var(--octo-surface); font-size: 18px; line-height: 1; }
+.meegle-pr-picker__options { display: grid; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.meegle-pr-picker__option { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 10px 12px; border: 0; border-bottom: 1px solid var(--octo-border); color: var(--octo-text); cursor: pointer; background: var(--octo-surface); font: inherit; text-align: left; }
+.meegle-pr-picker__option:last-child { border-bottom: 0; }
+.meegle-pr-picker__option:hover:not(:disabled), .meegle-pr-picker__option:focus-visible { background: var(--octo-surface-muted); }
+.meegle-pr-picker__option:disabled { cursor: default; opacity: .6; }
+.meegle-pr-picker__option-main { display: grid; min-width: 0; gap: 4px; }
+.meegle-pr-picker__option-main > span:first-child { display: flex; align-items: center; gap: 6px; }
+.meegle-pr-picker__option-main strong { font-size: 12px; font-variant-numeric: tabular-nums; }
+.meegle-pr-picker__title { overflow: hidden; font-size: 12px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.meegle-pr-picker__option-meta { display: grid; max-width: 150px; justify-items: end; gap: 3px; color: var(--octo-text-muted); font-size: 10px; }
+.meegle-pr-picker__option-meta span { overflow: hidden; max-width: 150px; text-overflow: ellipsis; white-space: nowrap; }
+.meegle-pr-picker__option-meta em { color: var(--octo-brand); font-style: normal; font-weight: 700; }
+.meegle-pr-picker__message { margin: 0; padding: 22px 14px; color: var(--octo-text-muted); font-size: 12px; text-align: center; }
+.meegle-pr-picker__message--error { color: var(--octo-danger); }
 .odoo-sh-build-dots { display: inline-flex; align-items: center; gap: 4px; }
 .odoo-sh-build-indicator { display: inline-flex; align-items: center; gap: 3px; color: var(--octo-text-muted); font-size: 10px; font-weight: 700; line-height: 1; }
 .odoo-sh-build-indicator__environment { letter-spacing: .02em; }

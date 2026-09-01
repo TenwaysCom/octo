@@ -89,6 +89,7 @@ describe("PlatformDataService", () => {
         headRef: "feature/m-123",
         baseRef: "main",
         state: "merged",
+        isDraft: false,
       }]),
     } as unknown as PlatformSyncStore;
     const service = new PlatformDataService(store);
@@ -137,11 +138,13 @@ describe("PlatformDataService", () => {
           meegleId: "123", owner: "TenwaysCom", repo: "Tenways", pullNumber: 1138,
           title: "Exact branch", htmlUrl: "https://github.com/TenwaysCom/Tenways/pull/1138",
           headRef: "feature/m-123", state: "open",
+          isDraft: false,
         },
         {
           meegleId: "123", owner: "TenwaysCom", repo: "Tenways", pullNumber: 1139,
           title: "Different branch", htmlUrl: "https://github.com/TenwaysCom/Tenways/pull/1139",
           headRef: "feature/m-123-extra", state: "open",
+          isDraft: false,
         },
       ]),
     } as unknown as PlatformSyncStore;

@@ -30,6 +30,7 @@ const MEEGLE_OPTIONAL_STRING_FIELDS = [
   "system",
   "assignee",
   "priority",
+  "createdAt",
   "sourceUpdatedAt",
   "addToCycleTime",
   "currentNodeStartTime",
@@ -95,6 +96,72 @@ export async function getGitHubPullRequestPreview({ apiBaseUrl, owner, repo, pul
     throw new Error(payload?.error?.errorCode || "GITHUB_PULL_REQUEST_PREVIEW_FAILED");
   }
   return parseSyncedGitHubPullRequest(payload.data);
+}
+
+export async function getMeeglePullRequestCandidates({
+  apiBaseUrl,
+  projectKey,
+  workItemTypeKey,
+  workItemId,
+  fetchImpl = fetch,
+}) {
+  const query = new URLSearchParams({ projectKey, workItemTypeKey, workItemId });
+  const response = await fetchImpl(`${buildApiUrl(apiBaseUrl, "/web/meegle-workitems/pull-request-candidates")}?${query}`, {
+    credentials: "include",
+  });
+  const payload = await response.json().catch(() => undefined);
+  if (!response.ok || !payload?.ok || !isRecord(payload.data?.repository) || !Array.isArray(payload.data?.candidates)) {
+    throw platformDataApiError(payload, "MEEGLE_PULL_REQUEST_CANDIDATES_FAILED");
+  }
+  if (typeof payload.data.repository.owner !== "string" || typeof payload.data.repository.repo !== "string") {
+    throw new Error("INVALID_MEEGLE_PULL_REQUEST_CANDIDATES_RESPONSE");
+  }
+  return {
+    repository: { owner: payload.data.repository.owner, repo: payload.data.repository.repo },
+    candidates: payload.data.candidates.map((candidate) => {
+      const pullRequest = parseMeeglePullRequestCandidate(candidate);
+      if (typeof candidate.linked !== "boolean") throw new Error("INVALID_MEEGLE_PULL_REQUEST_CANDIDATES_RESPONSE");
+      return { ...pullRequest, linked: candidate.linked };
+    }),
+  };
+}
+
+export async function linkMeeglePullRequest({
+  apiBaseUrl,
+  workitem,
+  pullRequest,
+  actionRunId,
+  fetchImpl = fetch,
+}) {
+  const response = await fetchImpl(buildApiUrl(apiBaseUrl, "/web/meegle-workitems/link-pull-request"), {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      projectKey: workitem.projectKey,
+      workItemTypeKey: workitem.workItemTypeKey,
+      workItemId: workitem.workItemId,
+      owner: pullRequest.owner,
+      repo: pullRequest.repo,
+      pullNumber: pullRequest.pullNumber,
+      actionRunId,
+    }),
+  });
+  const payload = await response.json().catch(() => undefined);
+  if (!response.ok || !payload?.ok || !isRecord(payload.data)) {
+    throw platformDataApiError(payload, "MEEGLE_PULL_REQUEST_LINK_FAILED");
+  }
+  if (payload.data.actionRunId !== actionRunId
+    || typeof payload.data.marker !== "string"
+    || typeof payload.data.titleUpdated !== "boolean") {
+    throw new Error("INVALID_MEEGLE_PULL_REQUEST_LINK_RESPONSE");
+  }
+  return {
+    actionRunId: payload.data.actionRunId,
+    marker: payload.data.marker,
+    titleUpdated: payload.data.titleUpdated,
+    pullRequest: parseMeeglePullRequestCandidate(payload.data.pullRequest),
+  };
 }
 
 function getSharedPlatformDataRequest(requestKey, load) {
@@ -299,6 +366,7 @@ function parseGitHubPullRequest(value) {
     || (value.headRef !== undefined && typeof value.headRef !== "string")
     || (value.baseRef !== undefined && typeof value.baseRef !== "string")
     || typeof value.state !== "string"
+    || typeof value.isDraft !== "boolean"
     || !Array.isArray(value.odooShBuilds)
     || value.odooShBuilds.some((build) => !isOdooShBuild(build))) {
     throw new Error("INVALID_MEEGLE_WORKITEM_RESPONSE");
@@ -312,7 +380,36 @@ function parseGitHubPullRequest(value) {
     ...(value.headRef === undefined ? {} : { headRef: value.headRef }),
     ...(value.baseRef === undefined ? {} : { baseRef: value.baseRef }),
     state: value.state,
+    isDraft: value.isDraft,
     odooShBuilds: value.odooShBuilds,
+  };
+}
+
+function parseMeeglePullRequestCandidate(value) {
+  if (!isRecord(value)
+    || typeof value.owner !== "string"
+    || typeof value.repo !== "string"
+    || !Number.isInteger(value.pullNumber)
+    || typeof value.title !== "string"
+    || typeof value.htmlUrl !== "string"
+    || value.state !== "open"
+    || typeof value.isDraft !== "boolean"
+    || (value.authorLogin !== undefined && typeof value.authorLogin !== "string")
+    || (value.headRef !== undefined && typeof value.headRef !== "string")
+    || (value.baseRef !== undefined && typeof value.baseRef !== "string")) {
+    throw new Error("INVALID_MEEGLE_PULL_REQUEST_CANDIDATES_RESPONSE");
+  }
+  return {
+    owner: value.owner,
+    repo: value.repo,
+    pullNumber: value.pullNumber,
+    title: value.title,
+    htmlUrl: value.htmlUrl,
+    state: value.state,
+    isDraft: value.isDraft,
+    ...(value.authorLogin === undefined ? {} : { authorLogin: value.authorLogin }),
+    ...(value.headRef === undefined ? {} : { headRef: value.headRef }),
+    ...(value.baseRef === undefined ? {} : { baseRef: value.baseRef }),
   };
 }
 
@@ -424,4 +521,10 @@ function isOdooShBuild(value) {
 
 function isRecord(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function platformDataApiError(payload, fallbackCode) {
+  const error = new Error(payload?.error?.errorMessage || payload?.error?.errorCode || fallbackCode);
+  error.code = payload?.error?.errorCode || fallbackCode;
+  return error;
 }

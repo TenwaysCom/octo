@@ -3,9 +3,11 @@ import test from "node:test";
 import {
   getGitHubPullRequestOdooShBuild,
   getMeegleSprintHistory,
+  getMeeglePullRequestCandidates,
   getGitHubPullRequestPreview,
   getPlatformDataList,
   getPlatformDataListPage,
+  linkMeeglePullRequest,
   resetAllOdooDevopsBranchesCache,
 } from "./platform-data-api.js";
 import { getPlatformSyncSources, syncPlatformSource } from "./platform-sync-api.js";
@@ -34,7 +36,8 @@ test("loads a synced platform list with the browser session cookie", async () =>
         currentNodeStartTime: "2026-08-08T00:00:00.000Z",
         itemStartTime: "2026-08-07T01:00:00.000Z",
         itemFinishTime: "2026-08-08T01:00:00.000Z",
-        githubPullRequests: [{ owner: "TenwaysCom", repo: "Tenways", pullNumber: 1, title: "PR", htmlUrl: "https://github.com/TenwaysCom/Tenways/pull/1", headRef: "feature/m-1", baseRef: "main", state: "merged", odooShBuilds: [{ environment: "eu", status: "done", result: "success" }] }],
+        createdAt: "2026-08-01T00:00:00.000Z",
+        githubPullRequests: [{ owner: "TenwaysCom", repo: "Tenways", pullNumber: 1, title: "PR", htmlUrl: "https://github.com/TenwaysCom/Tenways/pull/1", headRef: "feature/m-1", baseRef: "main", state: "merged", isDraft: false, odooShBuilds: [{ environment: "eu", status: "done", result: "success" }] }],
       }], sprints: ["Sprint 1"], sprintDetails: [{
         projectKey: "4c3fv6",
         sprintId: "sprint-1",
@@ -78,7 +81,8 @@ test("loads a synced platform list with the browser session cookie", async () =>
       currentNodeStartTime: "2026-08-08T00:00:00.000Z",
       itemStartTime: "2026-08-07T01:00:00.000Z",
       itemFinishTime: "2026-08-08T01:00:00.000Z",
-      githubPullRequests: [{ owner: "TenwaysCom", repo: "Tenways", pullNumber: 1, title: "PR", htmlUrl: "https://github.com/TenwaysCom/Tenways/pull/1", headRef: "feature/m-1", baseRef: "main", state: "merged", odooShBuilds: [{ environment: "eu", status: "done", result: "success" }] }],
+      createdAt: "2026-08-01T00:00:00.000Z",
+      githubPullRequests: [{ owner: "TenwaysCom", repo: "Tenways", pullNumber: 1, title: "PR", htmlUrl: "https://github.com/TenwaysCom/Tenways/pull/1", headRef: "feature/m-1", baseRef: "main", state: "merged", isDraft: false, odooShBuilds: [{ environment: "eu", status: "done", result: "success" }] }],
     }],
     sprints: ["Sprint 1"],
     sprintDetails: [{
@@ -167,6 +171,92 @@ test("loads Meegle Sprint history from its dedicated endpoint", async () => {
   assert.equal(result.sprintDetails[0].name, "Sprint 1");
   assert.equal(result.sprintWorkitems[0].sprint, "Sprint 1");
   assert.equal(result.sprintWorkitems[0].currentNodeStartTime, "2026-08-08T00:00:00.000Z");
+});
+
+test("loads open and draft PR candidates for one Meegle workitem", async () => {
+  let request;
+  const candidate = {
+    owner: "TenwaysCom",
+    repo: "tenways-ukk",
+    pullNumber: 42,
+    title: "Fix checkout",
+    htmlUrl: "https://github.com/TenwaysCom/tenways-ukk/pull/42",
+    state: "open",
+    isDraft: true,
+    authorLogin: "ada",
+    headRef: "fix/checkout",
+    baseRef: "main",
+    linked: false,
+  };
+  const result = await getMeeglePullRequestCandidates({
+    apiBaseUrl: "/api",
+    projectKey: "project",
+    workItemTypeKey: "story",
+    workItemId: "13802503",
+    fetchImpl: async (url, options) => {
+      request = { url, options };
+      return { ok: true, json: async () => ({ ok: true, data: {
+        repository: { owner: "TenwaysCom", repo: "tenways-ukk" },
+        candidates: [candidate],
+      } }) };
+    },
+  });
+
+  assert.equal(request.url, "/api/web/meegle-workitems/pull-request-candidates?projectKey=project&workItemTypeKey=story&workItemId=13802503");
+  assert.equal(request.options.credentials, "include");
+  assert.deepEqual(result, {
+    repository: { owner: "TenwaysCom", repo: "tenways-ukk" },
+    candidates: [candidate],
+  });
+});
+
+test("links a selected PR with the action run id", async () => {
+  let request;
+  const pullRequest = {
+    owner: "TenwaysCom",
+    repo: "tenways-ukk",
+    pullNumber: 42,
+    title: "Fix checkout m-13802503",
+    htmlUrl: "https://github.com/TenwaysCom/tenways-ukk/pull/42",
+    state: "open",
+    isDraft: false,
+    authorLogin: "ada",
+    headRef: "fix/checkout",
+    baseRef: "main",
+  };
+  const result = await linkMeeglePullRequest({
+    apiBaseUrl: "/api",
+    workitem: { projectKey: "project", workItemTypeKey: "story", workItemId: "13802503" },
+    pullRequest,
+    actionRunId: "action-1",
+    fetchImpl: async (url, options) => {
+      request = { url, options };
+      return { ok: true, json: async () => ({ ok: true, data: {
+        actionRunId: "action-1",
+        marker: "m-13802503",
+        titleUpdated: true,
+        pullRequest,
+      } }) };
+    },
+  });
+
+  assert.equal(request.url, "/api/web/meegle-workitems/link-pull-request");
+  assert.equal(request.options.method, "POST");
+  assert.deepEqual(JSON.parse(request.options.body), {
+    projectKey: "project",
+    workItemTypeKey: "story",
+    workItemId: "13802503",
+    owner: "TenwaysCom",
+    repo: "tenways-ukk",
+    pullNumber: 42,
+    actionRunId: "action-1",
+  });
+  assert.deepEqual(result, {
+    actionRunId: "action-1",
+    marker: "m-13802503",
+    titleUpdated: true,
+    pullRequest,
+  });
 });
 
 test("accepts an asynchronous Odoo.sh build refresh response", async () => {

@@ -1,4 +1,5 @@
 import { logger } from "../../logger.js";
+import { normalizeTimestamp } from "../../utils/normalize-timestamp.js";
 import { resolveMeegleSourceUpdatedAt } from "./meegle-source-updated-at.js";
 
 const clientLogger = logger.child({ module: "meegle-client" });
@@ -382,6 +383,7 @@ export interface MeegleWorkitem {
   subStageKey?: string;
   assignee?: string;
   priority?: string;
+  createdAt?: string;
   updatedAt?: string;
   fields: Record<string, unknown>;
 }
@@ -580,8 +582,16 @@ export function parseWorkitem(data: Record<string, unknown>): MeegleWorkitem {
     fields,
     updatedAt: data.updated_at ?? data.updatedAt,
   });
+  const workItemAttribute = asRecordValue(rawFieldsRecord?.work_item_attribute ?? data.work_item_attribute);
+  const createdAt = normalizeTimestamp(
+    data.created_at
+      ?? data.createdAt
+      ?? data.created
+      ?? workItemAttribute?.create_time
+      ?? workItemAttribute?.created_at,
+  );
 
-  return { id, key, name, type, status, assignee, priority, updatedAt, fields };
+  return { id, key, name, type, status, assignee, priority, createdAt, updatedAt, fields };
 }
 
 function parseComment(data: Record<string, unknown>): MeegleComment {

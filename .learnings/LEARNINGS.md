@@ -470,3 +470,9 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - **Context:** A Lark Ticket link provides a `threadid`, while the single-message endpoint requires a message ID. Treating them as interchangeable caused HTTP 400 and marked reply-only snapshots complete.
 - **Rule:** Fetch a thread with `thread_id`, derive the root message ID from a reply's `root_id`, then fetch the root message by that ID. A historical snapshot containing replies but no stored corresponding root must be selected for a forced full repair before it can be treated as complete.
 - **Verified outcome:** Thread-context and backfill tests cover root-ID lookup, reject `thread_id` as the message request ID, and reselect reply-only snapshots; Server TypeScript build passes.
+
+## [LRN-20260901-001] local-candidate-remote-write-snapshot-refresh
+
+- **Context:** Meegle 工作项列表需要从 System 对应仓库快速选择 PR，同时关联关系仍由 GitHub 标题/描述标记的同步快照投影。
+- **Rule:** 候选列表读取本地 open/draft 快照并由 Server 映射仓库；选择后必须重新读取远端最新 PR、幂等追加精确 `m-<workItemId>` 标记，并用 GitHub 返回值立即 UPSERT 本地快照。远端写入后的本地失败要作为可重试的 partial success 明示。
+- **Verified outcome:** Service/controller/adapter/store 测试覆盖仓库约束、draft 摘要、标题只追加一次、结构化错误和即时快照刷新；8 个定向 Server 文件 76/76、FE 27/27 与两端 build 通过。

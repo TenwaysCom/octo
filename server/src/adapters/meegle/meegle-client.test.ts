@@ -101,6 +101,21 @@ describe("parseWorkitem", () => {
     }).updatedAt).toBeUndefined();
   });
 
+  it("normalizes root and Production Bug creation timestamps", () => {
+    expect(parseWorkitem({
+      id: "123",
+      name: "Story",
+      type: "story",
+      created_at: 1785931200000,
+    }).createdAt).toBe("2026-08-05T12:00:00.000Z");
+    expect(parseWorkitem({
+      id: "124",
+      name: "Production Bug",
+      type: "production_bug",
+      fields: { work_item_attribute: { create_time: "1785931200000" } },
+    }).createdAt).toBe("2026-08-05T12:00:00.000Z");
+  });
+
   it("uses Production Bug work_item_attribute.update_time instead of root updated_at", () => {
     expect(parseWorkitem({
       id: "123",

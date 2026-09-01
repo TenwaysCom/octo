@@ -175,6 +175,39 @@ export class GitHubClient {
     );
   }
 
+  async updatePullRequestTitle(
+    owner: string,
+    repo: string,
+    pullNumber: number,
+    title: string,
+    context: { actionRunId?: string } = {},
+  ): Promise<GitHubPrDetails> {
+    githubLogger.info({
+      actionRunId: context.actionRunId,
+      operation: "meegle_workitem.link_pull_request",
+      layer: "adapter",
+      stage: "adapter.github.pull_request.update.request",
+      owner,
+      repo,
+      pullNumber,
+    }, "GITHUB_PULL_REQUEST_TITLE_UPDATE_REQUEST");
+    const pullRequest = await this.write<GitHubPrDetails>(
+      "PATCH",
+      `/repos/${owner}/${repo}/pulls/${pullNumber}`,
+      { title },
+    );
+    githubLogger.info({
+      actionRunId: context.actionRunId,
+      operation: "meegle_workitem.link_pull_request",
+      layer: "adapter",
+      stage: "adapter.github.pull_request.update.response",
+      owner,
+      repo,
+      pullNumber,
+    }, "GITHUB_PULL_REQUEST_TITLE_UPDATE_RESPONSE");
+    return pullRequest;
+  }
+
   async createBranch(owner: string, repo: string, branchName: string, baseBranch = "main"): Promise<GitHubRef> {
     // 1. Get base branch SHA
     const baseRef = await this.request<GitHubRef>(`/repos/${owner}/${repo}/git/ref/heads/${baseBranch}`);
@@ -190,9 +223,13 @@ export class GitHubClient {
   }
 
   private async post<T>(path: string, body: unknown): Promise<T> {
+    return this.write("POST", path, body);
+  }
+
+  private async write<T>(method: "POST" | "PATCH", path: string, body: unknown): Promise<T> {
     const url = `${GITHUB_API_BASE}${path}`;
     const response = await this.fetch(url, {
-      method: "POST",
+      method,
       headers: {
         Authorization: `Bearer ${this.token}`,
         Accept: "application/vnd.github.v3+json",

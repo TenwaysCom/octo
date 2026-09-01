@@ -86,6 +86,7 @@ export interface MeegleWorkitemSyncItem {
   bugs?: string[];
   assignee?: string;
   priority?: string;
+  createdAt?: string;
   addToCycleTime?: string;
   currentNodeStartTime?: string;
   itemStartTime?: string;
@@ -201,6 +202,7 @@ export interface GitHubPullRequestLink {
   headRef?: string;
   baseRef?: string;
   state: string;
+  isDraft: boolean;
 }
 
 export interface LarkBaseTicketSyncItem {
@@ -397,6 +399,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
         current_node_start_time: currentNodeStartTime,
         item_start_time: itemStartTime,
         item_finish_time: itemFinishTime,
+        created_at: input.workitem.createdAt ?? null,
         payload_json: JSON.stringify(input.workitem),
         source_updated_at: sourceUpdatedAt,
         synced_at: now,
@@ -422,6 +425,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
         current_node_start_time: currentNodeStartTime,
         item_start_time: itemStartTime,
         item_finish_time: itemFinishTime,
+        created_at: input.workitem.createdAt ?? null,
         payload_json: JSON.stringify(input.workitem),
         source_updated_at: sourceUpdatedAt,
         synced_at: now,
@@ -622,7 +626,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
           "project_key", "project_name", "work_item_type_key", "work_item_id", "work_item_key", "title",
           "work_item_type", "status_key", "status", "sub_stage_key", "sub_stage", "sprint_id", "sprint", "version",
           "system", "bugs_json", "assignee", "priority", "source_updated_at", "synced_at", "payload_json",
-          "add_to_cycle_time", "current_node_start_time", "item_start_time", "item_finish_time",
+          "add_to_cycle_time", "current_node_start_time", "item_start_time", "item_finish_time", "created_at",
         ])
         .where("project_key", "=", ref.projectKey)
         .where("work_item_type_key", "=", ref.workItemTypeKey)
@@ -850,7 +854,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
         "work_item_type", "status_key", "status", "sub_stage_key", "sub_stage",
         "sprint_id", "sprint", "version", "system", "bugs_json",
         "assignee", "priority", "source_updated_at", "synced_at",
-        "add_to_cycle_time", "current_node_start_time", "item_start_time", "item_finish_time",
+        "add_to_cycle_time", "current_node_start_time", "item_start_time", "item_finish_time", "created_at",
       ])
       .orderBy("source_updated_at", "desc")
       .orderBy("synced_at", "desc")
@@ -922,7 +926,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
         "work_item_type", "status_key", "status", "sub_stage_key", "sub_stage",
         "sprint_id", "sprint", "version", "system", "bugs_json", "assignee", "priority",
         "source_updated_at", "synced_at", "payload_json",
-        "add_to_cycle_time", "current_node_start_time", "item_start_time", "item_finish_time",
+        "add_to_cycle_time", "current_node_start_time", "item_start_time", "item_finish_time", "created_at",
       ])
       .where("work_item_type_key", "in", MEEGLE_SPRINT_TYPE_KEYS)
       .orderBy("source_updated_at", "desc")
@@ -951,6 +955,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
           "workitem.payload_json as payload_json",
           "workitem.current_node_start_time as current_node_start_time",
           "workitem.item_start_time as item_start_time", "workitem.item_finish_time as item_finish_time",
+          "workitem.created_at as created_at",
           "workitem.source_updated_at as source_updated_at", "workitem.synced_at as synced_at",
           "membership.sprint_id as membership_sprint_id", "membership.added_at as membership_added_at",
           "membership.started_at as membership_started_at", "membership.finished_at as membership_finished_at",
@@ -969,7 +974,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
           "sprint_id", "sprint", "version", "system", "bugs_json", "assignee", "priority",
           "payload_json",
           "source_updated_at", "synced_at", "add_to_cycle_time", "current_node_start_time",
-          "item_start_time", "item_finish_time",
+          "item_start_time", "item_finish_time", "created_at",
         ])
         .where("work_item_type_key", "not in", MEEGLE_SPRINT_TYPE_KEYS)
         .where("sprint_id", "is not", null)
@@ -1011,7 +1016,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
           "project_key", "project_name", "work_item_type_key", "work_item_id", "work_item_key", "title",
           "work_item_type", "status_key", "status", "sub_stage_key", "sub_stage",
           "sprint_id", "sprint", "version", "system", "bugs_json", "assignee", "priority",
-          "source_updated_at", "synced_at", "add_to_cycle_time", "current_node_start_time", "item_start_time", "item_finish_time",
+          "source_updated_at", "synced_at", "add_to_cycle_time", "current_node_start_time", "item_start_time", "item_finish_time", "created_at",
         ])
         .where("work_item_id", "in", batch)
         .execute();
@@ -1028,7 +1033,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
 
     const rows = await this.db.selectFrom("github_pr_syncs")
       .select([
-        "owner", "repo", "pull_number", "title", "state", "merged_at", "html_url", "head_ref", "base_ref", "meegle_ids",
+        "owner", "repo", "pull_number", "title", "state", "merged_at", "html_url", "head_ref", "base_ref", "is_draft", "meegle_ids",
       ])
       .where("meegle_ids", "!=", "[]")
       .execute();
@@ -1045,6 +1050,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
         headRef: row.head_ref ?? undefined,
         baseRef: row.base_ref ?? undefined,
         state: row.merged_at ? "merged" : row.state,
+        isDraft: row.is_draft,
       })));
   }
 
@@ -1294,6 +1300,7 @@ type MeegleWorkitemSyncRow = {
   current_node_start_time: string | null;
   item_start_time: string | null;
   item_finish_time: string | null;
+  created_at: string | null;
   source_updated_at: string | null;
   synced_at: string;
   payload_json?: string;
@@ -1368,6 +1375,7 @@ function toMeegleWorkitemSyncItem(row: MeegleWorkitemSyncRow): MeegleWorkitemSyn
     currentNodeStartTime: row.current_node_start_time ?? undefined,
     itemStartTime: row.item_start_time ?? undefined,
     itemFinishTime: row.item_finish_time ?? undefined,
+    createdAt: row.created_at ?? undefined,
     sourcePayload: parseMeegleWorkitem(row.payload_json),
     sourceUpdatedAt: row.source_updated_at ?? undefined,
     syncedAt: row.synced_at,

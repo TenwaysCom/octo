@@ -1,10 +1,22 @@
 import type { OdooDevopsEnvironment } from "../../adapters/odoo-devops/odoo-devops-branches-client.js";
 
-const githubRepoEnvironmentMap: Record<string, OdooDevopsEnvironment> = {
-  tenways: "eu",
-  "tenways-ukk": "uk",
-  odoo_tenways: "us",
+export interface GitHubRepositoryRef {
+  owner: string;
+  repo: string;
+}
+
+const githubRepositoryByEnvironment: Record<OdooDevopsEnvironment, GitHubRepositoryRef> = {
+  eu: { owner: "TenwaysCom", repo: "Tenways" },
+  uk: { owner: "TenwaysCom", repo: "tenways-ukk" },
+  us: { owner: "TWS-lance", repo: "odoo_tenways" },
 };
+
+const githubRepoEnvironmentMap = Object.fromEntries(
+  Object.entries(githubRepositoryByEnvironment).map(([environment, repository]) => [
+    repository.repo.toLocaleLowerCase(),
+    environment as OdooDevopsEnvironment,
+  ]),
+);
 
 export function resolveMeegleSystemEnvironment(system: string | undefined): OdooDevopsEnvironment | undefined {
   const normalized = system?.trim().toLocaleLowerCase();
@@ -24,4 +36,9 @@ export function resolveMeegleSystemEnvironment(system: string | undefined): Odoo
 
 export function resolveGitHubRepoEnvironment(repo: string): OdooDevopsEnvironment | undefined {
   return githubRepoEnvironmentMap[repo.trim().toLocaleLowerCase()];
+}
+
+export function resolveMeegleSystemGitHubRepository(system: string | undefined): GitHubRepositoryRef | undefined {
+  const environment = resolveMeegleSystemEnvironment(system);
+  return environment ? githubRepositoryByEnvironment[environment] : undefined;
 }

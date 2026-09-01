@@ -8,6 +8,7 @@ export const MEEGLE_VIEW_COLUMNS = [
   { key: "system", label: "System", sortKey: "system" },
   { key: "assignee", label: "负责人", sortKey: "assignee" },
   { key: "currentWorkingTime", label: "当前工作时长" },
+  { key: "createdAt", label: "创建时间", sortKey: "createdAt" },
   { key: "updatedAt", label: "更新时间", sortKey: "updatedAt" },
 ];
 
@@ -67,6 +68,7 @@ export function getMeegleWorkitemViewValue(item, key) {
     version: item.version || "",
     system: item.system || "",
     assignee: item.assignee || "",
+    createdAt: item.createdAt || "",
     updatedAt: item.sourceUpdatedAt || item.syncedAt || "",
   };
   return values[key] || "";
@@ -77,14 +79,15 @@ export function sortMeegleWorkitems(items, sort) {
   return [...items].sort((left, right) => {
     const leftValue = getMeegleWorkitemViewValue(left, normalizedSort.key);
     const rightValue = getMeegleWorkitemViewValue(right, normalizedSort.key);
-    const leftComparable = normalizedSort.key === "updatedAt" ? Date.parse(leftValue) : leftValue;
-    const rightComparable = normalizedSort.key === "updatedAt" ? Date.parse(rightValue) : rightValue;
-    const leftMissing = normalizedSort.key === "updatedAt" ? Number.isNaN(leftComparable) : !leftComparable;
-    const rightMissing = normalizedSort.key === "updatedAt" ? Number.isNaN(rightComparable) : !rightComparable;
+    const isDateSort = normalizedSort.key === "updatedAt" || normalizedSort.key === "createdAt";
+    const leftComparable = isDateSort ? Date.parse(leftValue) : leftValue;
+    const rightComparable = isDateSort ? Date.parse(rightValue) : rightValue;
+    const leftMissing = isDateSort ? Number.isNaN(leftComparable) : !leftComparable;
+    const rightMissing = isDateSort ? Number.isNaN(rightComparable) : !rightComparable;
     if (leftMissing && !rightMissing) return 1;
     if (!leftMissing && rightMissing) return -1;
     if (leftMissing && rightMissing) return 0;
-    const comparison = normalizedSort.key === "updatedAt"
+    const comparison = isDateSort
       ? leftComparable - rightComparable
       : String(leftComparable).localeCompare(String(rightComparable), "zh-CN", { numeric: true, sensitivity: "base" });
     return normalizedSort.direction === "asc" ? comparison : -comparison;

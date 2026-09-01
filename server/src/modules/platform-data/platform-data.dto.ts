@@ -47,6 +47,21 @@ export const githubPullRequestPreviewQuerySchema = z.object({
   pullNumber: z.coerce.number().int().positive(),
 });
 
+const meegleWorkitemRefSchema = z.object({
+  projectKey: z.string().trim().min(1).max(200),
+  workItemTypeKey: z.string().trim().min(1).max(200),
+  workItemId: z.string().trim().regex(/^\d+$/).max(40),
+});
+
+export const meeglePullRequestCandidatesQuerySchema = meegleWorkitemRefSchema;
+
+export const linkMeeglePullRequestBodySchema = meegleWorkitemRefSchema.extend({
+  owner: z.string().trim().min(1).max(100).regex(/^[A-Za-z0-9_.-]+$/),
+  repo: z.string().trim().min(1).max(100).regex(/^[A-Za-z0-9_.-]+$/),
+  pullNumber: z.number().int().positive(),
+  actionRunId: z.string().trim().min(1).max(128),
+});
+
 const platformDataPagerSchema = z.object({
   offset: z.number().int().nonnegative(),
   limit: z.number().int().positive(),
@@ -64,6 +79,31 @@ const odooShBuildSchema = z.object({
   environment: z.enum(["eu", "uk", "us"]),
   status: z.string(),
   result: z.string(),
+});
+
+const meeglePullRequestCandidateSchema = z.object({
+  owner: z.string(),
+  repo: z.string(),
+  pullNumber: z.number().int().positive(),
+  title: z.string(),
+  htmlUrl: z.string().url(),
+  state: z.literal("open"),
+  isDraft: z.boolean(),
+  authorLogin: z.string().optional(),
+  headRef: z.string().optional(),
+  baseRef: z.string().optional(),
+});
+
+export const meeglePullRequestCandidatesResponseSchema = z.object({
+  repository: z.object({ owner: z.string(), repo: z.string() }),
+  candidates: z.array(meeglePullRequestCandidateSchema.extend({ linked: z.boolean() })),
+});
+
+export const linkMeeglePullRequestResponseSchema = z.object({
+  actionRunId: z.string(),
+  marker: z.string(),
+  titleUpdated: z.boolean(),
+  pullRequest: meeglePullRequestCandidateSchema,
 });
 
 const githubLinkedMeegleWorkitemSchema = z.object({
@@ -105,10 +145,12 @@ const meegleWorkitemSchema = z.object({
     headRef: z.string().optional(),
     baseRef: z.string().optional(),
     state: z.string(),
+    isDraft: z.boolean(),
     odooShBuilds: z.array(odooShBuildSchema),
   })),
   assignee: z.string().optional(),
   priority: z.string().optional(),
+  createdAt: z.string().datetime().optional(),
   addToCycleTime: z.string().datetime().optional(),
   currentNodeStartTime: z.string().datetime().optional(),
   itemStartTime: z.string().datetime().optional(),

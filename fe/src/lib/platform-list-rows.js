@@ -49,6 +49,11 @@ function dateMeta(item) {
   return { key: "updatedAt", type: "date", value, text: formatDateTime(value) };
 }
 
+function createdDateMeta(item) {
+  const value = item.createdAt || "";
+  return { key: "createdAt", type: "date", value, text: formatDateTime(value), title: "创建时间" };
+}
+
 export function buildLarkTicketRow(item, visibleColumns = []) {
   const visible = new Set(visibleColumns);
   const leading = [];
@@ -78,6 +83,8 @@ export function buildMeegleWorkitemRow(item, visibleColumns = [], nowTime = Date
   const trailing = [];
   if (visible.has("pullRequests") && item.githubPullRequests?.length) {
     trailing.push({ key: "pullRequests", type: "pr-links", pullRequests: item.githubPullRequests });
+  } else if (visible.has("pullRequests")) {
+    trailing.push({ key: "pullRequests", type: "pr-picker" });
   }
   const textColumns = [
     ["sprint", item.sprint, false],
@@ -97,6 +104,7 @@ export function buildMeegleWorkitemRow(item, visibleColumns = [], nowTime = Date
       title: `当前节点开始：${formatDateTime(item.currentNodeStartTime)}`,
     });
   }
+  if (visible.has("createdAt")) trailing.push(createdDateMeta(item));
   if (visible.has("updatedAt")) trailing.push(dateMeta(item));
   return {
     kind: "meegle-workitems",

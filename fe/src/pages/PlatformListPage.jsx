@@ -50,7 +50,9 @@ import {
 import { getOdooShBuildTone } from "../lib/odoo-sh-build-status.js";
 import {
   getGitHubPullRequestPreview,
+  getMeeglePullRequestCandidates,
   getPlatformDataListPage,
+  linkMeeglePullRequest,
   resetAllOdooDevopsBranchesCache,
 } from "../services/platform-data/platform-data-api.js";
 import { getLarkTicketDetailHash } from "../app/routes/workspace-routes.js";
@@ -158,13 +160,29 @@ function OdooShBuildStatusList({ builds }) {
   </div>)}</div>;
 }
 
-function GitHubPullRequestLinks({ pullRequests, apiBaseUrl }) {
+function PullRequestPickerButton({ onClick }) {
+  return <button
+    aria-label="选择关联 PR"
+    className="meegle-pr-picker-trigger"
+    title="选择关联 PR（快捷键 g）"
+    type="button"
+    onClick={(event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      onClick?.(event.currentTarget);
+    }}
+  >
+    <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="4" cy="3" r="2" /><circle cx="4" cy="13" r="2" /><circle cx="12" cy="5" r="2" /><path d="M4 5v6M6 5h2a4 4 0 0 1 4 4v2" /></svg>
+  </button>;
+}
+
+function GitHubPullRequestLinks({ pullRequests, apiBaseUrl, onPick }) {
   if (!pullRequests?.length) {
-    return "-";
+    return onPick ? <PullRequestPickerButton onClick={onPick} /> : "-";
   }
   return <div className="github-pr-links">{pullRequests.map((pullRequest) => <div className="github-pr-links__item" key={`${pullRequest.owner}-${pullRequest.repo}-${pullRequest.pullNumber}`}>
     <ExternalLink className={`github-pr-link-badge github-pr-link-badge--${pullRequest.state}`} href={pullRequest.htmlUrl} title={`${pullRequest.owner}/${pullRequest.repo} #${pullRequest.pullNumber}\n${pullRequest.title}\n${pullRequest.state}`}>#{pullRequest.pullNumber}-{pullRequest.baseRef || "-"}</ExternalLink>
-    <GitHubPullRequestStatus state={pullRequest.state} />
+    <GitHubPullRequestStatus isDraft={pullRequest.isDraft} state={pullRequest.state} />
     {pullRequest.odooShBuilds?.length ? <OdooShBuildDots builds={pullRequest.odooShBuilds} /> : <OdooShBuildStatus apiBaseUrl={apiBaseUrl} pullRequest={pullRequest} />}
   </div>)}</div>;
 }
@@ -298,12 +316,12 @@ function RowOverflowGroup({ items, ariaLabel, renderItem, limit }) {
 function RowPullRequestLink({ pullRequest, apiBaseUrl }) {
   return <span className="workitem-row__pr-link">
     <ExternalLink className={`github-pr-link-badge github-pr-link-badge--${pullRequest.state}`} href={pullRequest.htmlUrl} title={`${pullRequest.owner}/${pullRequest.repo} #${pullRequest.pullNumber}\n${pullRequest.title}\n${pullRequest.state}`}>#{pullRequest.pullNumber}-{pullRequest.baseRef || "-"}</ExternalLink>
-    <GitHubPullRequestStatus state={pullRequest.state} />
+    <GitHubPullRequestStatus isDraft={pullRequest.isDraft} state={pullRequest.state} />
     {pullRequest.odooShBuilds?.length ? <OdooShBuildDots builds={pullRequest.odooShBuilds} /> : <OdooShBuildStatus apiBaseUrl={apiBaseUrl} pullRequest={pullRequest} />}
   </span>;
 }
 
-function WorkitemRowMeta({ meta, apiBaseUrl }) {
+function WorkitemRowMeta({ meta, apiBaseUrl, onPickPullRequest }) {
   const className = `workitem-row__meta ${meta.hideOnSmall ? "workitem-row__meta--small-hidden" : ""}`.trim();
   let content;
   if (meta.type === "lark-badge") {
@@ -316,6 +334,8 @@ function WorkitemRowMeta({ meta, apiBaseUrl }) {
     content = <GitHubPullRequestStatus isDraft={meta.isDraft} state={meta.state} />;
   } else if (meta.type === "pr-links") {
     content = <RowOverflowGroup ariaLabel="关联 PR" items={meta.pullRequests} renderItem={(pullRequest) => <RowPullRequestLink apiBaseUrl={apiBaseUrl} pullRequest={pullRequest} />} />;
+  } else if (meta.type === "pr-picker") {
+    content = <PullRequestPickerButton onClick={onPickPullRequest} />;
   } else if (meta.type === "github-labels") {
     content = <RowOverflowGroup ariaLabel="Label" items={meta.labels} renderItem={(label) => <span className="github-pr-label">{label}</span>} />;
   } else if (meta.type === "github-users") {
@@ -334,7 +354,7 @@ function WorkitemRowMeta({ meta, apiBaseUrl }) {
   return <span className={className} title={meta.title || (meta.type === "meegle-status" && meta.subStage ? meta.subStage : undefined)}>{content}</span>;
 }
 
-function WorkitemRow({ row, item, apiBaseUrl, onPreviewCandidateChange }) {
+function WorkitemRow({ row, item, apiBaseUrl, onPreviewCandidateChange, onMeegleCandidateChange, onOpenMeeglePullRequestPicker }) {
   const previewProps = onPreviewCandidateChange ? {
     "aria-label": `${row.title}，按空格预览`,
     tabIndex: 0,
@@ -342,6 +362,13 @@ function WorkitemRow({ row, item, apiBaseUrl, onPreviewCandidateChange }) {
     onMouseLeave: (event) => { if (!event.currentTarget.contains(document.activeElement)) onPreviewCandidateChange(null); },
     onFocusCapture: () => onPreviewCandidateChange(item),
     onBlurCapture: (event) => { if (!event.currentTarget.contains(event.relatedTarget)) onPreviewCandidateChange(null); },
+  } : onMeegleCandidateChange ? {
+    "aria-label": `${row.title}，按 g 选择关联 PR`,
+    tabIndex: 0,
+    onMouseEnter: (event) => onMeegleCandidateChange(item, event.currentTarget),
+    onMouseLeave: (event) => { if (!event.currentTarget.contains(document.activeElement)) onMeegleCandidateChange(null, null); },
+    onFocusCapture: (event) => onMeegleCandidateChange(item, event.currentTarget),
+    onBlurCapture: (event) => { if (!event.currentTarget.contains(event.relatedTarget)) onMeegleCandidateChange(null, null); },
   } : {};
   const title = row.href
     ? row.external
@@ -352,7 +379,7 @@ function WorkitemRow({ row, item, apiBaseUrl, onPreviewCandidateChange }) {
     {row.leading.length ? <span className="workitem-row__leading">{row.leading.map((meta) => <WorkitemRowMeta apiBaseUrl={apiBaseUrl} key={meta.key} meta={meta} />)}</span> : null}
     {row.identifier ? <span className="workitem-row__id">{row.identifier}</span> : null}
     {title}
-    {row.trailing.length ? <span className="workitem-row__trailing">{row.trailing.map((meta) => <WorkitemRowMeta apiBaseUrl={apiBaseUrl} key={meta.key} meta={meta} />)}</span> : null}
+    {row.trailing.length ? <span className="workitem-row__trailing">{row.trailing.map((meta) => <WorkitemRowMeta apiBaseUrl={apiBaseUrl} key={meta.key} meta={meta} onPickPullRequest={(anchor) => onOpenMeeglePullRequestPicker?.(item, anchor)} />)}</span> : null}
   </div>;
 }
 
@@ -372,18 +399,20 @@ function getWorkitemRowKey(kind, item, index) {
   return `${item.owner}-${item.repo}-${item.pullNumber}`;
 }
 
-function SyncedRowList({ kind, items, visibleColumns, apiBaseUrl, nowTime, onGitHubPreviewCandidateChange }) {
+function SyncedRowList({ kind, items, visibleColumns, apiBaseUrl, nowTime, onGitHubPreviewCandidateChange, onMeegleCandidateChange, onOpenMeeglePullRequestPicker }) {
   const buildRow = WORKITEM_ROW_BUILDERS[kind] || buildGitHubPullRequestRow;
   return <div className="workitem-rows" role="list">{items.map((item, index) => <WorkitemRow
     apiBaseUrl={apiBaseUrl}
     item={item}
     key={getWorkitemRowKey(kind, item, index)}
     onPreviewCandidateChange={kind === "github-pull-requests" ? onGitHubPreviewCandidateChange : undefined}
+    onMeegleCandidateChange={kind === "meegle-workitems" ? onMeegleCandidateChange : undefined}
+    onOpenMeeglePullRequestPicker={kind === "meegle-workitems" ? onOpenMeeglePullRequestPicker : undefined}
     row={buildRow(item, visibleColumns, nowTime)}
   />)}</div>;
 }
 
-function MeegleWorkitemCell({ columnKey, item, apiBaseUrl, nowTime }) {
+function MeegleWorkitemCell({ columnKey, item, apiBaseUrl, nowTime, onPickPullRequest }) {
   if (columnKey === "workitem") {
     return <><ExternalLink href={getMeegleWorkitemDetailUrl(item)}>{item.workItemKey || item.workItemId}</ExternalLink><small>{item.title}</small></>;
   }
@@ -394,7 +423,7 @@ function MeegleWorkitemCell({ columnKey, item, apiBaseUrl, nowTime }) {
     return <><MeegleStatusPill status={item.status} /><small>{item.subStage || ""}</small></>;
   }
   if (columnKey === "pullRequests") {
-    return <GitHubPullRequestLinks apiBaseUrl={apiBaseUrl} pullRequests={item.githubPullRequests} />;
+    return <GitHubPullRequestLinks apiBaseUrl={apiBaseUrl} pullRequests={item.githubPullRequests} onPick={onPickPullRequest} />;
   }
   if (columnKey === "sprint") {
     return item.sprint || "-";
@@ -411,6 +440,9 @@ function MeegleWorkitemCell({ columnKey, item, apiBaseUrl, nowTime }) {
   if (columnKey === "currentWorkingTime") {
     const value = formatMeegleCurrentWorkingTime(item, nowTime);
     return value ? <span title={`当前节点开始：${formatDateTime(item.currentNodeStartTime)}`}>{value}</span> : "-";
+  }
+  if (columnKey === "createdAt") {
+    return formatDateTime(item.createdAt);
   }
   return formatDateTime(item.sourceUpdatedAt || item.syncedAt);
 }
@@ -680,17 +712,25 @@ function LarkTicketCard({ item, visibleColumns }) {
   </article>;
 }
 
-function MeegleWorkitemCard({ item, visibleColumns, apiBaseUrl, nowTime }) {
+function MeegleWorkitemCard({ item, visibleColumns, apiBaseUrl, nowTime, onMeegleCandidateChange, onOpenMeeglePullRequestPicker }) {
   const columns = MEEGLE_VIEW_COLUMNS.filter(({ key }) => key !== "workitem" && visibleColumns.includes(key));
   const layout = getKanbanCardLayout("meegle-workitems", visibleColumns, item);
   const floatingColumns = columns.filter(({ key }) => layout.floatingKeys.includes(key));
-  return <article className="kanban-card">
+  return <article
+    aria-label={`${item.title}，按 g 选择关联 PR`}
+    className="kanban-card"
+    tabIndex={0}
+    onMouseEnter={(event) => onMeegleCandidateChange?.(item, event.currentTarget)}
+    onMouseLeave={(event) => { if (!event.currentTarget.contains(document.activeElement)) onMeegleCandidateChange?.(null, null); }}
+    onFocusCapture={(event) => onMeegleCandidateChange?.(item, event.currentTarget)}
+    onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) onMeegleCandidateChange?.(null, null); }}
+  >
     <div className="kanban-card__header">
       <ExternalLink className="table-link kanban-card__title" href={getMeegleWorkitemDetailUrl(item)}>{item.workItemKey || item.workItemId || item.title}</ExternalLink>
       <KanbanCardPeople item={item} kind="meegle-workitems" />
     </div>
-    <KanbanCardSecondLine identifier={item.workItemKey || item.workItemId || item.title} statusColumn={columns.find(({ key }) => key === layout.statusKey)} time={layout.updatedAtKey ? getKanbanCardTime("meegle-workitems", item) : null} renderCell={(column) => <MeegleWorkitemCell apiBaseUrl={apiBaseUrl} columnKey={column.key} item={item} nowTime={nowTime} />} />
-    <KanbanCardFloatingMeta columns={floatingColumns} detailsId={`kanban-card-details-meegle-${item.projectKey}-${item.workItemId}`} renderCell={(column) => <MeegleWorkitemCell apiBaseUrl={apiBaseUrl} columnKey={column.key} item={item} nowTime={nowTime} />} />
+    <KanbanCardSecondLine identifier={item.workItemKey || item.workItemId || item.title} statusColumn={columns.find(({ key }) => key === layout.statusKey)} time={layout.updatedAtKey ? getKanbanCardTime("meegle-workitems", item) : null} renderCell={(column) => <MeegleWorkitemCell apiBaseUrl={apiBaseUrl} columnKey={column.key} item={item} nowTime={nowTime} onPickPullRequest={(anchor) => onOpenMeeglePullRequestPicker?.(item, anchor)} />} />
+    <KanbanCardFloatingMeta columns={floatingColumns} detailsId={`kanban-card-details-meegle-${item.projectKey}-${item.workItemId}`} renderCell={(column) => <MeegleWorkitemCell apiBaseUrl={apiBaseUrl} columnKey={column.key} item={item} nowTime={nowTime} onPickPullRequest={(anchor) => onOpenMeeglePullRequestPicker?.(item, anchor)} />} />
   </article>;
 }
 
@@ -826,6 +866,67 @@ function GitHubPullRequestPreviewModal({ preview, onClose, onRetry }) {
   </div>;
 }
 
+function getMeeglePullRequestPickerPosition(anchor) {
+  const width = Math.min(440, window.innerWidth - 24);
+  const rect = anchor?.getBoundingClientRect?.();
+  if (!rect) {
+    return { width, left: Math.max(12, (window.innerWidth - width) / 2), top: Math.max(24, window.innerHeight * 0.18) };
+  }
+  const left = Math.min(Math.max(12, rect.right - width), Math.max(12, window.innerWidth - width - 12));
+  const top = Math.min(rect.bottom + 7, Math.max(12, window.innerHeight - 430));
+  return { width, left, top };
+}
+
+function MeeglePullRequestPicker({ picker, onClose, onSelect }) {
+  const { workitem } = picker;
+  return <div className="meegle-pr-picker-layer" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+    <section
+      aria-busy={picker.status === "loading" || Boolean(picker.selectingKey)}
+      aria-labelledby="meegle-pr-picker-title"
+      aria-modal="true"
+      className="meegle-pr-picker"
+      role="dialog"
+      style={picker.position}
+    >
+      <header>
+        <div>
+          <strong id="meegle-pr-picker-title">选择关联 PR</strong>
+          <small>{workitem.workItemKey || workitem.workItemId} · {picker.repository ? `${picker.repository.owner}/${picker.repository.repo}` : workitem.system || "System 未设置"}</small>
+        </div>
+        <button aria-label="关闭 PR 选择器" autoFocus type="button" onClick={onClose}>×</button>
+      </header>
+      {picker.status === "loading" ? <p className="meegle-pr-picker__message">正在读取 open / draft PR…</p> : null}
+      {picker.status === "error" ? <p className="meegle-pr-picker__message meegle-pr-picker__message--error">{picker.error}</p> : null}
+      {picker.status === "ready" && picker.candidates.length === 0 ? <p className="meegle-pr-picker__message">该仓库暂无 open / draft PR。</p> : null}
+      {picker.status === "ready" && picker.candidates.length > 0 ? <div className="meegle-pr-picker__options" role="listbox" aria-label="候选 GitHub PR">
+        {picker.candidates.map((pullRequest) => {
+          const key = `${pullRequest.owner}/${pullRequest.repo}#${pullRequest.pullNumber}`;
+          const selecting = picker.selectingKey === key;
+          return <button
+            aria-selected={pullRequest.linked}
+            className="meegle-pr-picker__option"
+            disabled={pullRequest.linked || Boolean(picker.selectingKey)}
+            key={key}
+            role="option"
+            type="button"
+            onClick={() => onSelect(pullRequest)}
+          >
+            <span className="meegle-pr-picker__option-main">
+              <span><strong>#{pullRequest.pullNumber}</strong><GitHubPullRequestStatus isDraft={pullRequest.isDraft} state={pullRequest.state} /></span>
+              <span className="meegle-pr-picker__title" title={pullRequest.title}>{pullRequest.title}</span>
+            </span>
+            <span className="meegle-pr-picker__option-meta">
+              <span>@{pullRequest.authorLogin || "unknown"}</span>
+              <span title={`${pullRequest.headRef || "-"} → ${pullRequest.baseRef || "-"}`}>{pullRequest.headRef || "-"} → {pullRequest.baseRef || "-"}</span>
+              {pullRequest.linked ? <em>已关联</em> : selecting ? <em>关联中…</em> : null}
+            </span>
+          </button>;
+        })}
+      </div> : null}
+    </section>
+  </div>;
+}
+
 export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, breadcrumbs, platformListFilterState, onPlatformListFilterStateChange }) {
   const restoredFilters = platformListFilterState || {};
   const [state, setState] = useState({ status: "loading", items: [], filterItems: [], filterItemsPage: page, sprints: [], pager: null, isLoadingMore: false });
@@ -896,8 +997,11 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
   const [isResettingDevopsCache, setIsResettingDevopsCache] = useState(false);
   const [githubPreviewCandidate, setGitHubPreviewCandidate] = useState(null);
   const [githubPreview, setGitHubPreview] = useState(null);
+  const [meeglePrCandidate, setMeeglePrCandidate] = useState(null);
+  const [meeglePrPicker, setMeeglePrPicker] = useState(null);
   const githubPreviewCacheRef = useRef(new Map());
   const githubPreviewRequestVersionRef = useRef(0);
+  const meeglePrPickerRequestVersionRef = useRef(0);
   const filterStateRef = useRef(null);
   const dataRequestVersionRef = useRef(0);
   const larkSubgroupDefaultsRef = useRef(Array.isArray(restoredFilters.collapsedLarkSubgroups) ? "restored" : null);
@@ -1209,9 +1313,96 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
     setGitHubPreview(null);
   }
 
+  function updateMeeglePrCandidate(workitem, anchor) {
+    setMeeglePrCandidate(workitem ? { workitem, anchor } : null);
+  }
+
+  async function openMeeglePullRequestPicker(workitem, anchor) {
+    const requestVersion = ++meeglePrPickerRequestVersionRef.current;
+    setMeeglePrPicker({
+      workitem,
+      position: getMeeglePullRequestPickerPosition(anchor),
+      repository: null,
+      candidates: [],
+      status: "loading",
+      error: "",
+      selectingKey: null,
+    });
+    try {
+      const result = await getMeeglePullRequestCandidates({
+        apiBaseUrl,
+        projectKey: workitem.projectKey,
+        workItemTypeKey: workitem.workItemTypeKey,
+        workItemId: workitem.workItemId,
+      });
+      if (requestVersion === meeglePrPickerRequestVersionRef.current) {
+        setMeeglePrPicker((current) => current ? {
+          ...current,
+          repository: result.repository,
+          candidates: result.candidates,
+          status: "ready",
+        } : null);
+      }
+    } catch (error) {
+      if (requestVersion === meeglePrPickerRequestVersionRef.current) {
+        setMeeglePrPicker((current) => current ? {
+          ...current,
+          status: "error",
+          error: error instanceof Error ? error.message : "无法读取候选 GitHub PR。",
+        } : null);
+      }
+    }
+  }
+
+  function closeMeeglePullRequestPicker() {
+    meeglePrPickerRequestVersionRef.current += 1;
+    setMeeglePrPicker(null);
+  }
+
+  async function selectMeeglePullRequest(pullRequest) {
+    const picker = meeglePrPicker;
+    if (!picker || picker.selectingKey) return;
+    const selectingKey = `${pullRequest.owner}/${pullRequest.repo}#${pullRequest.pullNumber}`;
+    setMeeglePrPicker((current) => current ? { ...current, selectingKey, error: "" } : null);
+    try {
+      const result = await linkMeeglePullRequest({
+        apiBaseUrl,
+        workitem: picker.workitem,
+        pullRequest,
+        actionRunId: crypto.randomUUID(),
+      });
+      const linkedPullRequest = { ...result.pullRequest, odooShBuilds: [] };
+      const applyLinkedPullRequest = (items) => items.map((item) => {
+        if (item.projectKey !== picker.workitem.projectKey
+          || item.workItemTypeKey !== picker.workitem.workItemTypeKey
+          || item.workItemId !== picker.workitem.workItemId) return item;
+        const githubPullRequests = [...(item.githubPullRequests || []).filter((candidate) => (
+          candidate.owner !== linkedPullRequest.owner
+          || candidate.repo !== linkedPullRequest.repo
+          || candidate.pullNumber !== linkedPullRequest.pullNumber
+        )), linkedPullRequest];
+        return { ...item, githubPullRequests };
+      });
+      setState((current) => ({
+        ...current,
+        items: applyLinkedPullRequest(current.items),
+        filterItems: applyLinkedPullRequest(current.filterItems),
+      }));
+      setMeeglePrCandidate(null);
+      closeMeeglePullRequestPicker();
+    } catch (error) {
+      setMeeglePrPicker((current) => current ? {
+        ...current,
+        status: "error",
+        selectingKey: null,
+        error: error instanceof Error ? error.message : "无法关联 GitHub PR。",
+      } : null);
+    }
+  }
+
   useKeyboardShortcut({
     key: "Escape",
-    enabled: filterOpen || viewConfigOpen || Boolean(githubPreview),
+    enabled: filterOpen || viewConfigOpen || Boolean(githubPreview) || Boolean(meeglePrPicker),
     allowInEditableTarget: true,
     handler: (event) => {
       event.preventDefault();
@@ -1219,6 +1410,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
       setActiveFilterField(null);
       setViewConfigOpen(false);
       closeGitHubPullRequestPreview();
+      closeMeeglePullRequestPicker();
     },
   });
 
@@ -1228,6 +1420,15 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
     handler: (event) => {
       event.preventDefault();
       void openGitHubPullRequestPreview(githubPreviewCandidate);
+    },
+  });
+
+  useKeyboardShortcut({
+    key: "g",
+    enabled: page === "meegle-workitems" && Boolean(meeglePrCandidate) && !meeglePrPicker,
+    handler: (event) => {
+      event.preventDefault();
+      void openMeeglePullRequestPicker(meeglePrCandidate.workitem, meeglePrCandidate.anchor);
     },
   });
 
@@ -1561,7 +1762,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
               onToggleSubgroup={(subgroupKey) => setCollapsedMeegleSubgroups((current) => current.includes(subgroupKey)
                 ? current.filter((key) => key !== subgroupKey)
                 : [...current, subgroupKey])}
-              renderCard={(item) => <MeegleWorkitemCard apiBaseUrl={apiBaseUrl} item={item} nowTime={workingTimeNow} visibleColumns={meegleVisibleColumns} key={`${item.projectKey}-${item.workItemTypeKey}-${item.workItemId}`} />}
+              renderCard={(item) => <MeegleWorkitemCard apiBaseUrl={apiBaseUrl} item={item} nowTime={workingTimeNow} visibleColumns={meegleVisibleColumns} key={`${item.projectKey}-${item.workItemTypeKey}-${item.workItemId}`} onMeegleCandidateChange={updateMeeglePrCandidate} onOpenMeeglePullRequestPicker={openMeeglePullRequestPicker} />}
             />
             <footer className="list-pagination">
               <p className="list-results">已加载 <strong>{sortedItems.length}</strong> / {totalItems} 条结果 · {meegleGroups.length} 个分组</p>
@@ -1605,7 +1806,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
               onToggleSubgroup={(subgroupKey) => setCollapsedMeegleSubgroups((current) => current.includes(subgroupKey)
                 ? current.filter((key) => key !== subgroupKey)
                 : [...current, subgroupKey])}
-              renderRows={(items) => <SyncedRowList apiBaseUrl={apiBaseUrl} kind="meegle-workitems" items={items} nowTime={workingTimeNow} visibleColumns={meegleVisibleColumns} />}
+              renderRows={(items) => <SyncedRowList apiBaseUrl={apiBaseUrl} kind="meegle-workitems" items={items} nowTime={workingTimeNow} visibleColumns={meegleVisibleColumns} onMeegleCandidateChange={updateMeeglePrCandidate} onOpenMeeglePullRequestPicker={openMeeglePullRequestPicker} />}
             />
             <footer className="list-pagination">
               <p className="list-results">已加载 <strong>{sortedItems.length}</strong> / {totalItems} 条结果 · {meegleGroups.length} 个分组</p>
@@ -1627,7 +1828,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
               <p className="list-results">已加载 <strong>{sortedItems.length}</strong> / {totalItems} 条结果 · {githubGroups.length} 个分组</p>
             </footer>
           </> : <>
-            <SyncedRowList apiBaseUrl={apiBaseUrl} kind={page} items={pageItems} nowTime={workingTimeNow} onGitHubPreviewCandidateChange={setGitHubPreviewCandidate} visibleColumns={page === "lark-tickets" ? larkVisibleColumns : page === "meegle-workitems" ? meegleVisibleColumns : githubVisibleColumns} />
+            <SyncedRowList apiBaseUrl={apiBaseUrl} kind={page} items={pageItems} nowTime={workingTimeNow} onGitHubPreviewCandidateChange={setGitHubPreviewCandidate} onMeegleCandidateChange={updateMeeglePrCandidate} onOpenMeeglePullRequestPicker={openMeeglePullRequestPicker} visibleColumns={page === "lark-tickets" ? larkVisibleColumns : page === "meegle-workitems" ? meegleVisibleColumns : githubVisibleColumns} />
             <footer className="list-pagination">
               <p className="list-results">显示 <strong>{firstResult}–{lastResult}</strong> / 已加载 {sortedItems.length}（共 {totalItems}）条结果</p>
               <div className="list-pagination__controls">
@@ -1657,6 +1858,11 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
         preview={githubPreview}
         onClose={closeGitHubPullRequestPreview}
         onRetry={() => { void openGitHubPullRequestPreview(githubPreview.pullRequest, { force: true }); }}
+      /> : null}
+      {meeglePrPicker ? <MeeglePullRequestPicker
+        picker={meeglePrPicker}
+        onClose={closeMeeglePullRequestPicker}
+        onSelect={(pullRequest) => { void selectMeeglePullRequest(pullRequest); }}
       /> : null}
     </section>
   </WorkspaceShell>;

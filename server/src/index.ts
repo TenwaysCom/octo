@@ -70,6 +70,7 @@ import {
 } from "./modules/platform-sync/platform-sync.controller.js";
 import {
   createWebGitHubPullRequestPreviewController,
+  createWebMeeglePullRequestLinkController,
   createWebMeegleSprintHistoryController,
   createWebPlatformDataController,
 } from "./modules/platform-data/platform-data.controller.js";
@@ -87,6 +88,7 @@ import { registerInternalLarkTicketAiWriteRoutes } from "./modules/lark-ticket-a
 import { registerInternalAcpTicketContextRoutes } from "./modules/lark-ticket-ai/internal-acp-ticket-context.controller.js";
 import { registerWebLarkTicketRoutes } from "./modules/lark-ticket/lark-ticket.controller.js";
 import { createWebUserSshPublicKeysController } from "./modules/user-ssh-public-keys/user-ssh-public-keys.controller.js";
+import { MeeglePullRequestLinkService } from "./application/services/meegle-pull-request-link.service.js";
 
 import { logger, stdoutLogger } from "./logger.js";
 
@@ -178,13 +180,17 @@ const odooDevopsBranchesService = new OdooDevopsBranchesService({
 const getWebOdooDevopsBranchesController = createWebOdooDevopsBranchesController({
   service: odooDevopsBranchesService,
 });
+const githubClient = process.env.GITHUB_TOKEN ? new GitHubClient({ token: process.env.GITHUB_TOKEN }) : undefined;
 const platformDataService = new PlatformDataService(undefined, odooDevopsBranchesService);
 const listWebPlatformDataController = createWebPlatformDataController({ service: platformDataService });
 const listWebMeegleSprintHistoryController = createWebMeegleSprintHistoryController({ service: platformDataService });
 const getWebGitHubPullRequestPreviewController = createWebGitHubPullRequestPreviewController({ service: platformDataService });
+const webMeeglePullRequestLinkController = createWebMeeglePullRequestLinkController({
+  service: new MeeglePullRequestLinkService(undefined, githubClient),
+});
 const webPlatformSyncController = createWebPlatformSyncController();
 const getWebGitHubPrOdooDevopsBuildController = createWebGitHubPrOdooDevopsBuildController({
-  githubClient: process.env.GITHUB_TOKEN ? new GitHubClient({ token: process.env.GITHUB_TOKEN }) : undefined,
+  githubClient,
   odooDevopsBranchesService,
 });
 const resetWebOdooDevopsBranchesCacheController = createWebOdooDevopsBranchesCacheResetController({
@@ -386,6 +392,20 @@ app.get("/api/web/platform-data/lark-tickets", async (req, res) => {
 app.get("/api/web/platform-data/meegle-workitems", async (req, res) => {
   const result = await listWebPlatformDataController({
     kind: "meegle-workitems", cookieHeader: req.headers.cookie, query: req.query,
+  });
+  res.status(result.statusCode).json(result.body);
+});
+app.get("/api/web/meegle-workitems/pull-request-candidates", async (req, res) => {
+  const result = await webMeeglePullRequestLinkController.listCandidates({
+    cookieHeader: req.headers.cookie,
+    query: req.query,
+  });
+  res.status(result.statusCode).json(result.body);
+});
+app.post("/api/web/meegle-workitems/link-pull-request", async (req, res) => {
+  const result = await webMeeglePullRequestLinkController.link({
+    cookieHeader: req.headers.cookie,
+    body: req.body,
   });
   res.status(result.statusCode).json(result.body);
 });

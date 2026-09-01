@@ -38,4 +38,9 @@ export const KEYBOARD_SHORTCUTS = [
     description: "预览当前悬停或聚焦的 GitHub PR",
     pages: ["GitHub PR"],
   },
+  {
+    key: "g",
+    description: "为当前悬停或聚焦的 Meegle 工作项选择 GitHub PR",
+    pages: ["Meegle"],
+  },
 ];

@@ -1,5 +1,6 @@
 import {
   resolveGitHubRepoEnvironment,
+  resolveMeegleSystemGitHubRepository,
   resolveMeegleSystemEnvironment,
 } from "./odoo-devops-environment-mapping.js";
 
@@ -17,5 +18,11 @@ describe("Odoo DevOps environment mapping", () => {
     expect(resolveGitHubRepoEnvironment("tenways-ukk")).toBe("uk");
     expect(resolveGitHubRepoEnvironment("odoo_tenways")).toBe("us");
     expect(resolveGitHubRepoEnvironment("unrelated-repo")).toBeUndefined();
+  });
+
+  it("maps one Meegle System to its GitHub repository", () => {
+    expect(resolveMeegleSystemGitHubRepository("Odoo/Odoo UK")).toEqual({ owner: "TenwaysCom", repo: "tenways-ukk" });
+    expect(resolveMeegleSystemGitHubRepository("Odoo US")).toEqual({ owner: "TWS-lance", repo: "odoo_tenways" });
+    expect(resolveMeegleSystemGitHubRepository("Odoo EU/Odoo UK")).toBeUndefined();
   });
 });

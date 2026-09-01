@@ -53,6 +53,20 @@ describe("GitHubClient", () => {
     });
   });
 
+  it("patches a pull request title", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ title: "Fix bug m-123", body: null }),
+    });
+
+    await expect(client.updatePullRequestTitle("owner", "repo", 123, "Fix bug m-123", { actionRunId: "action-1" }))
+      .resolves.toMatchObject({ title: "Fix bug m-123" });
+    expect(mockFetch).toHaveBeenCalledWith(
+      "https://api.github.com/repos/owner/repo/pulls/123",
+      expect.objectContaining({ method: "PATCH", body: JSON.stringify({ title: "Fix bug m-123" }) }),
+    );
+  });
+
   it("searches incrementally updated pull requests in ascending update order", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,

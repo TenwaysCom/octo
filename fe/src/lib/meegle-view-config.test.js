@@ -14,6 +14,7 @@ import {
 test("normalizes Meegle view configuration without allowing the workitem column to disappear", () => {
   assert.deepEqual(normalizeMeegleVisibleColumns(undefined), DEFAULT_MEEGLE_VISIBLE_COLUMNS);
   assert.equal(DEFAULT_MEEGLE_VISIBLE_COLUMNS.includes("currentWorkingTime"), true);
+  assert.equal(DEFAULT_MEEGLE_VISIBLE_COLUMNS.includes("createdAt"), true);
   assert.deepEqual(normalizeMeegleVisibleColumns(["status", "unknown", "status"]), ["workitem", "status"]);
   assert.equal(normalizeMeegleGroupBy("sprint"), "sprint");
   assert.equal(normalizeMeegleGroupBy("none"), "none");
@@ -37,6 +38,11 @@ test("sorts Meegle workitems by configured fields and leaves empty values last",
   assert.deepEqual(sortMeegleWorkitems(items, { key: "sprint", direction: "asc" }).map((item) => item.workItemId), ["1", "2", "3", "4"]);
   assert.deepEqual(sortMeegleWorkitems(items, { key: "updatedAt", direction: "desc" }).map((item) => item.workItemId), ["1", "2", "3", "4"]);
   assert.deepEqual(sortMeegleWorkitems(items, { key: "updatedAt", direction: "asc" }).map((item) => item.workItemId), ["2", "1", "3", "4"]);
+  assert.deepEqual(sortMeegleWorkitems([
+    { workItemId: "2", createdAt: "2026-08-10T00:00:00Z" },
+    { workItemId: "1", createdAt: "2026-08-01T00:00:00Z" },
+    { workItemId: "3" },
+  ], { key: "createdAt", direction: "asc" }).map((item) => item.workItemId), ["1", "2", "3"]);
 });
 
 test("groups sorted Meegle workitems by configured display value", () => {

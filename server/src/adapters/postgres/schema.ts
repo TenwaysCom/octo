@@ -163,6 +163,7 @@ export interface DatabaseSchema {
     current_node_start_time: string | null;
     item_start_time: string | null;
     item_finish_time: string | null;
+    created_at: Generated<string | null>;
     payload_json: string;
     source_updated_at: string | null;
     synced_at: string;
