@@ -37,6 +37,21 @@ test("combines Meegle Subscribed with custom and tag filters", () => {
   });
 });
 
+test("adds the AI-output constraint to a Lark Ticket list request", () => {
+  assert.deepEqual(getPlatformListFilters({
+    page: "lark-tickets",
+    selectedStatuses: null,
+    selectedDateFilters: [],
+    selectedSprints: [],
+    selectedTagFilters: {},
+    larkTicketQuickFilter: "all",
+    larkHasAiOutput: true,
+    meegleQuickFilter: "all",
+    workitemTypeFilter: "all",
+    noSprintFilter: false,
+  }), { hasAiOutput: true });
+});
+
 test("normalizes persisted filter values and toggles multiple selections", () => {
   assert.deepEqual(normalizeFilterValues(["today", "today", 3, ""]), ["today"]);
   assert.deepEqual(normalizeFilterValues(undefined, ["last-7-days"]), ["last-7-days"]);

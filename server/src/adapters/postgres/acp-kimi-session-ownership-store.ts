@@ -20,6 +20,11 @@ export interface AcpKimiSessionOwnershipRecord {
   threadId: string | null;
   threadSnapshotVersion: number | null;
   threadContextSyncedAt: string | null;
+  actionRunId: string | null;
+  runStatus: "completed" | "failed" | null;
+  runErrorCode: string | null;
+  runErrorMessage: string | null;
+  unverifiedOutput: string | null;
   deletedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -64,6 +69,15 @@ export interface AcpKimiSessionOwnershipStore {
     threadContextSyncedAt?: string | null;
   }): Promise<AcpKimiSessionOwnershipRecord | undefined>;
   touch(sessionId: string, operatorLarkId: string): Promise<void>;
+  updateRun?(input: {
+    sessionId: string;
+    operatorLarkId: string;
+    actionRunId: string;
+    status: "completed" | "failed";
+    errorCode?: string | null;
+    errorMessage?: string | null;
+    unverifiedOutput?: string | null;
+  }): Promise<AcpKimiSessionOwnershipRecord | undefined>;
   deleteForOperator(sessionId: string, operatorLarkId: string): Promise<boolean>;
 }
 
@@ -92,6 +106,11 @@ function toRecord(
     threadId: row.thread_id ?? null,
     threadSnapshotVersion: row.thread_snapshot_version ?? null,
     threadContextSyncedAt: row.thread_context_synced_at ?? null,
+    actionRunId: row.action_run_id ?? null,
+    runStatus: row.run_status === "completed" || row.run_status === "failed" ? row.run_status : null,
+    runErrorCode: row.run_error_code ?? null,
+    runErrorMessage: row.run_error_message ?? null,
+    unverifiedOutput: row.unverified_output ?? null,
     deletedAt: row.deleted_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -255,6 +274,33 @@ export class PostgresAcpKimiSessionOwnershipStore
       .where("operator_lark_id", "=", operatorLarkId)
       .where("deleted_at", "is", null)
       .execute();
+  }
+
+  async updateRun(input: {
+    sessionId: string;
+    operatorLarkId: string;
+    actionRunId: string;
+    status: "completed" | "failed";
+    errorCode?: string | null;
+    errorMessage?: string | null;
+    unverifiedOutput?: string | null;
+  }): Promise<AcpKimiSessionOwnershipRecord | undefined> {
+    const result = await this.database.updateTable("acp_kimi_session_owners")
+      .set({
+        action_run_id: input.actionRunId,
+        run_status: input.status,
+        run_error_code: input.errorCode ?? null,
+        run_error_message: input.errorMessage ?? null,
+        unverified_output: input.unverifiedOutput ?? null,
+        updated_at: new Date().toISOString(),
+      })
+      .where("session_id", "=", input.sessionId)
+      .where("operator_lark_id", "=", input.operatorLarkId)
+      .where("deleted_at", "is", null)
+      .executeTakeFirst();
+    return Number(result.numUpdatedRows) > 0
+      ? this.getBySessionId(input.sessionId)
+      : undefined;
   }
 
   async deleteForOperator(

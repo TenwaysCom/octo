@@ -60,6 +60,47 @@ describe("Lark Ticket AI Session service", () => {
     expect(events).toHaveLength(2);
   });
 
+  it("associates a created Session before a later ACP prompt failure", async () => {
+    const ownershipStore = {
+      getBySessionId: vi.fn(),
+      listByTicket: vi.fn(),
+      attachTicket: vi.fn().mockResolvedValue({ sessionId: "sess_interrupted" }),
+      touch: vi.fn(),
+    };
+    const acpService = {
+      assertSessionAccess: vi.fn(),
+      chat: vi.fn(async (_input, emit) => {
+        emit({ event: "session.created", data: { sessionId: "sess_interrupted" } });
+        await Promise.resolve();
+        expect(ownershipStore.attachTicket).toHaveBeenCalledWith(expect.objectContaining({
+          sessionId: "sess_interrupted",
+          ...ticket,
+        }));
+        throw new Error("ACP prompt interrupted");
+      }),
+    };
+    const service = createLarkTicketAiSessionService({
+      syncStore: { getLarkBaseTicketsForCleaning: vi.fn().mockResolvedValue([{
+        ...ticket,
+        title: "Interrupted Ticket",
+        ticketNumber: "LT-10",
+        syncedAt: "2026-08-12T00:00:00.000Z",
+      }]) } as never,
+      ownershipStore: ownershipStore as never,
+      acpService: acpService as never,
+    });
+
+    await expect(service.chat({
+      operatorLarkId: "ou_1",
+      masterUserId: "usr_1",
+      larkBaseUrl: "https://open.larksuite.com",
+      ticket,
+      message: "回答问题",
+      actionRunId: "run_interrupted",
+    }, vi.fn())).rejects.toThrow("ACP prompt interrupted");
+    expect(ownershipStore.attachTicket).toHaveBeenCalledTimes(1);
+  });
+
   it("lists only sessions already associated with the requested Ticket", async () => {
     const ownershipStore = {
       listByTicket: vi.fn().mockResolvedValue([{
@@ -97,8 +138,8 @@ describe("Lark Ticket AI Session service", () => {
     const acpService = {
       assertSessionAccess: vi.fn(),
       chat: vi.fn(async (input, emit) => {
-        const analysisCommand = input.message.match(/bash \.agents\/skills\/write-support-qa\/scripts\/write-support-qa\.sh analysis-update \/tmp\/support-qa\/support-analysis-[a-f0-9]+\.json --json/)?.[0];
-        expect(analysisCommand).toBeDefined();
+        const analysisPath = input.message.match(/"subcommand":"analysis-update","args":\["([^"]+)","--json"\]/)?.[1];
+        expect(analysisPath).toMatch(/^\/srv\/odoo\/eu\/\.octo-support-analysis-[a-f0-9]+\.json$/);
         emit({ event: "session.created", data: { sessionId: "sess_2" } });
         emit({
           event: "acp.session.update",
@@ -120,7 +161,10 @@ describe("Lark Ticket AI Session service", () => {
               toolCallId: "12:fetch_1",
               status: "in_progress",
               rawInput: {
-                command: "bash .agents/skills/write-support-qa/scripts/write-support-qa.sh fetch LT-10 --json",
+                root: "support_workspace",
+                script: ".agents/skills/write-support-qa/scripts/write-support-qa.sh",
+                subcommand: "fetch",
+                args: ["LT-10", "--json"],
               },
             },
           },
@@ -144,7 +188,12 @@ describe("Lark Ticket AI Session service", () => {
               sessionUpdate: "tool_call_update",
               toolCallId: "12:analysis_1",
               status: "in_progress",
-              rawInput: { command: analysisCommand },
+              rawInput: {
+                root: "support_workspace",
+                script: ".agents/skills/write-support-qa/scripts/write-support-qa.sh",
+                subcommand: "analysis-update",
+                args: [analysisPath, "--json"],
+              },
             },
           },
         });
@@ -203,6 +252,7 @@ describe("Lark Ticket AI Session service", () => {
           executionPolicy: "write+shell",
         },
         workspaceDir: "/srv/odoo/eu",
+        octoServerDir: "/srv/octo/server",
         skillPath: "/srv/odoo/eu/.agents/skills/query-support-qa/SKILL.md",
       }),
     });
@@ -222,14 +272,15 @@ describe("Lark Ticket AI Session service", () => {
       permissionContext: expect.objectContaining({
         executionPolicy: "write+shell",
         workspaceDir: "/srv/odoo/eu",
+        octoServerDir: "/srv/octo/server",
         ticketNumber: "LT-10",
         ticketRecordId: "rec_1",
         actionRunId: "action_summary_1",
-        policyVersion: "v2",
+        policyVersion: "v4-temporary-support-qa-bash",
       }),
     }), expect.any(Function), expect.any(Object));
     expect(acpService.chat.mock.calls[0][0].message).toContain('"version":"support-analysis-v1"');
-    expect(acpService.chat.mock.calls[0][0].message).toContain("write-support-qa.sh analysis-update");
+    expect(acpService.chat.mock.calls[0][0].message).toContain('"subcommand":"analysis-update"');
     expect(ownershipStore.attachTicket).toHaveBeenCalledWith(expect.objectContaining({ ticketNumber: "LT-10" }));
   });
 
@@ -237,7 +288,8 @@ describe("Lark Ticket AI Session service", () => {
     const ownershipStore = {
       getBySessionId: vi.fn(),
       listByTicket: vi.fn(),
-      attachTicket: vi.fn(),
+      attachTicket: vi.fn().mockResolvedValue({ sessionId: "sess_no_fetch" }),
+      updateRun: vi.fn(),
       touch: vi.fn(),
     };
     const acpService = {
@@ -279,6 +331,14 @@ describe("Lark Ticket AI Session service", () => {
               status: "failed",
             },
           },
+        });
+        emit({
+          event: "acp.session.update",
+          data: { sessionId: "sess_failed", update: {
+            sessionUpdate: "agent_message_chunk",
+            messageId: "assistant_1",
+            content: { type: "text", text: "这是一份未验证答案" },
+          } },
         });
         emit({ event: "done", data: { sessionId: "sess_failed", stopReason: "end_turn" } });
       }),
@@ -324,6 +384,7 @@ describe("Lark Ticket AI Session service", () => {
           executionPolicy: "write+shell",
         },
         workspaceDir: "/srv/odoo/eu",
+        octoServerDir: "/srv/octo/server",
         skillPath: "/srv/odoo/eu/.agents/skills/query-support-qa/SKILL.md",
       }),
     });
@@ -347,14 +408,21 @@ describe("Lark Ticket AI Session service", () => {
       },
     });
     expect(events.some((event) => event.event === "done")).toBe(false);
-    expect(ownershipStore.attachTicket).not.toHaveBeenCalled();
+    expect(ownershipStore.attachTicket).toHaveBeenCalled();
+    expect(ownershipStore.updateRun).toHaveBeenCalledWith(expect.objectContaining({
+      actionRunId: "run_1",
+      status: "failed",
+      errorCode: "SUPPORT_QA_EVIDENCE_NOT_FETCHED",
+      unverifiedOutput: "这是一份未验证答案",
+    }));
   });
 
   it("rejects a Summary result when ACP does not complete the signed analysis update", async () => {
     const ownershipStore = {
       getBySessionId: vi.fn(),
       listByTicket: vi.fn(),
-      attachTicket: vi.fn(),
+      attachTicket: vi.fn().mockResolvedValue({ sessionId: "sess_no_analysis" }),
+      updateRun: vi.fn(),
       touch: vi.fn(),
     };
     const acpService = {
@@ -409,6 +477,7 @@ describe("Lark Ticket AI Session service", () => {
           executionPolicy: "write+shell",
         },
         workspaceDir: "/srv/odoo/eu",
+        octoServerDir: "/srv/octo/server",
         skillPath: "/srv/odoo/eu/.agents/skills/query-support-qa/SKILL.md",
       }),
     });
@@ -427,7 +496,12 @@ describe("Lark Ticket AI Session service", () => {
       diagnostic: { stage: "server.analysis.update", actionRunId: "run_no_analysis" },
     });
     expect(events.some((event) => event.event === "done")).toBe(false);
-    expect(ownershipStore.attachTicket).not.toHaveBeenCalled();
+    expect(ownershipStore.attachTicket).toHaveBeenCalled();
+    expect(ownershipStore.updateRun).toHaveBeenCalledWith(expect.objectContaining({
+      actionRunId: "run_no_analysis",
+      status: "failed",
+      errorCode: "SUPPORT_ANALYSIS_NOT_UPDATED",
+    }));
   });
 
   it("adds only approved knowledge citations to a new Answer quick-action prompt", async () => {
@@ -493,6 +567,7 @@ describe("Lark Ticket AI Session service", () => {
           executionPolicy: "shell",
         },
         workspaceDir: "/srv/odoo/eu",
+        octoServerDir: "/srv/octo/server",
         skillPath: "/srv/odoo/eu/.agents/skills/query-support-qa/SKILL.md",
       }),
       threadContextService: { ensure: vi.fn().mockResolvedValue({ decision: "cached", source: "postgres" }) } as never,
@@ -511,6 +586,9 @@ describe("Lark Ticket AI Session service", () => {
     expect(acpService.chat).toHaveBeenCalledWith(expect.objectContaining({
       message: expect.stringContaining("source_ref=case:LT-9:segment-2"),
     }), expect.any(Function), expect.any(Object));
+    expect(acpService.chat.mock.calls[0][0].message).toContain("mcp__octo_execute__execute");
+    expect(acpService.chat.mock.calls[0][0].message).toContain('"subcommand":"fetch","args":["LT-10","--json"]');
+    expect(acpService.chat.mock.calls[0][0].message).toContain("不得调用 Bash");
     expect(acpService.chat.mock.calls[0][0].message).not.toContain("person@example.com");
   });
 

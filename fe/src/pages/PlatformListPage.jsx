@@ -1052,6 +1052,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
     selectedSprints,
     selectedTagFilters,
     larkTicketQuickFilter,
+    larkHasAiOutput: page === "lark-tickets" && larkViewMode === "ai-output",
     meegleQuickFilter,
     workitemTypeFilter,
     noSprintFilter,
@@ -1117,6 +1118,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
       selectedSprints,
       selectedTagFilters,
       larkTicketQuickFilter,
+      larkHasAiOutput: page === "lark-tickets" && larkViewMode === "ai-output",
       meegleQuickFilter,
       workitemTypeFilter,
       noSprintFilter,
@@ -1139,7 +1141,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
       () => { if (active && dataRequestVersionRef.current === requestVersion) setState((current) => ({ status: "error", items: [], filterItems: current.filterItems, filterItemsPage: current.filterItemsPage, sprints: [], relatedPersonOptions: [], pager: null, isLoadingMore: false })); },
     );
     return () => { active = false; };
-  }, [apiBaseUrl, larkTicketQuickFilter, meegleQuickFilter, noSprintFilter, page, reloadVersion, selectedDateFilters, selectedSprints, selectedStatuses, selectedTagFilters, workitemTypeFilter]);
+  }, [apiBaseUrl, larkTicketQuickFilter, larkViewMode, meegleQuickFilter, noSprintFilter, page, reloadVersion, selectedDateFilters, selectedSprints, selectedStatuses, selectedTagFilters, workitemTypeFilter]);
 
   async function loadMorePlatformItems() {
     const pager = state.pager;
@@ -1154,6 +1156,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
       selectedSprints,
       selectedTagFilters,
       larkTicketQuickFilter,
+      larkHasAiOutput: page === "lark-tickets" && larkViewMode === "ai-output",
       meegleQuickFilter,
       workitemTypeFilter,
       noSprintFilter,
@@ -1581,12 +1584,12 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
             })}
           </div> : null}
           {page === "lark-tickets" ? <div className="list-filter-tabs" role="group" aria-label="Lark Ticket 快速筛选">
-            {["in-progress", "unclassified", "unsynced"].map((filter) => <button
+            {["in-progress", "unclassified", "unsynced", "ai-output", "ai-missing"].map((filter) => <button
               className={`list-filter-tab ${larkTicketQuickFilter === filter ? "list-filter-tab--active" : ""}`.trim()}
               type="button"
               key={filter}
               onClick={() => { setLarkTicketQuickFilter((current) => current === filter ? "all" : filter); setPageIndex(0); }}
-            >{filter === "in-progress" ? "进行中" : filter === "unclassified" ? "未分类" : "未同步"}</button>)}
+            >{filter === "in-progress" ? "进行中" : filter === "unclassified" ? "未分类" : filter === "unsynced" ? "未同步" : filter === "ai-output" ? "AI 已输出" : "AI 未输出"}</button>)}
           </div> : null}
           <div className="list-toolbar__actions">
             {page === "github-pull-requests" ? <button className="secondary-button" type="button" disabled={isResettingDevopsCache} onClick={resetAllDevopsCache}>{isResettingDevopsCache ? "清除中…" : "清除 DevOps 缓存"}</button> : null}

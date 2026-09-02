@@ -90,6 +90,7 @@ describe("api auth middleware", () => {
       "/api/web/profile",
       "/api/web/ssh-public-keys",
       "/api/web/lark-ticket-eval-samples",
+      "/api/web/lark-ticket-eval-samples/sample_1",
       "/api/web/platform-data/lark-tickets",
       "/api/web/platform-data/meegle-workitems",
       "/api/web/platform-data/github-pull-requests",

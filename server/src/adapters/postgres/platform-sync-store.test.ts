@@ -632,6 +632,16 @@ describe("PostgresPlatformSyncStore", () => {
     await expect(store.listLarkBaseTickets(10, {
       statuses: ["Open"], priorities: ["P1"], responsibles: ["Ada"], quickFilter: "unsynced",
     })).resolves.toEqual([expect.objectContaining({ recordId: "rec-feature-current" })]);
+    await store.upsertLarkBaseTicketAi({
+      baseId: "base", tableId: "table", recordId: "rec-feature-current", fields: { "AI Ticket 总结": "已生成" },
+    });
+    await expect(store.listLarkBaseTickets(10, { quickFilter: "ai-output" })).resolves.toEqual([
+      expect.objectContaining({ recordId: "rec-feature-current" }),
+    ]);
+    await expect(store.listLarkBaseTickets(10, { quickFilter: "ai-missing" })).resolves.toEqual([
+      expect.objectContaining({ recordId: "rec-feature-old" }),
+      expect.objectContaining({ recordId: "rec-bug-current" }),
+    ]);
 
     await db.destroy();
     await pool.end();

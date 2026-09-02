@@ -1,8 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildSupportQaFetchInstruction,
   buildSupportAnalysisUpdateInstruction,
   supportAnalysisPayloadSchema,
 } from "./support-ticket-analysis-update.js";
+
+it("builds a shell-free Support-QA fetch instruction bound to the current Ticket", () => {
+  expect(buildSupportQaFetchInstruction("LT-10")).toContain("mcp__octo_execute__execute");
+  expect(buildSupportQaFetchInstruction("LT-10")).toContain('"subcommand":"fetch","args":["LT-10","--json"]');
+  expect(buildSupportQaFetchInstruction("LT-10")).toContain("不得调用 Bash");
+});
 
 describe("support Ticket analysis update contract", () => {
   it("validates the structured analysis payload", () => {
@@ -32,9 +39,19 @@ describe("support Ticket analysis update contract", () => {
       baseId: "app_1",
       tableId: "tbl_1",
       recordId: "rec_1",
+      ticketNumber: "LT-10",
       snapshotVersion: 3,
       actionRunId: "action_1",
       updatePath: "/tmp/support-qa/support-analysis-1.json",
-    })).toContain("write-support-qa.sh analysis-update /tmp/support-qa/support-analysis-1.json --json");
+    })).toContain('"subcommand":"analysis-update"');
+    expect(buildSupportAnalysisUpdateInstruction({
+      baseId: "app_1",
+      tableId: "tbl_1",
+      recordId: "rec_1",
+      ticketNumber: "LT-10",
+      snapshotVersion: 3,
+      actionRunId: "action_1",
+      updatePath: "/tmp/support-qa/support-analysis-1.json",
+    })).toContain('"subcommand":"fetch"');
   });
 });

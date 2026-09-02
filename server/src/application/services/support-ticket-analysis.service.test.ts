@@ -48,8 +48,12 @@ function createSnapshot() {
 describe("SupportTicketAnalysisService", () => {
   it("validates the fixed snapshot, redacts content, and stores one atomic update", async () => {
     const analysisStore = { upsert: vi.fn().mockResolvedValue({ intentSegmentId: "segment_1" }) };
+    const syncStore = {
+      getLarkBaseTicketsForCleaning: vi.fn().mockResolvedValue([{ ...ticket, title: "Ticket" }]),
+      upsertLarkBaseTicketAi: vi.fn().mockResolvedValue(true),
+    };
     const service = createSupportTicketAnalysisService({
-      syncStore: { getLarkBaseTicketsForCleaning: vi.fn().mockResolvedValue([{ ...ticket, title: "Ticket" }]) },
+      syncStore,
       threadStore: { get: vi.fn().mockResolvedValue(createSnapshot()) },
       analysisStore,
       now: () => "2026-09-01T10:05:00.000Z",
@@ -72,12 +76,25 @@ describe("SupportTicketAnalysisService", () => {
         quality: expect.objectContaining({ summary: "等待 [EMAIL] 回复" }),
       }),
     }));
+    expect(syncStore.upsertLarkBaseTicketAi).toHaveBeenCalledWith(expect.objectContaining({
+      ...ticket,
+      fields: expect.objectContaining({
+        "AI分析状态": "已分析",
+        "AI意图": "troubleshoot / login",
+        "AI Ticket 总结": "[EMAIL] 无法登录",
+        "AI回答总结": "联系 [EMAIL] 收集信息",
+        "AI LLM Eval Status": "reviewed",
+      }),
+    }));
   });
 
   it("rejects stale snapshots and evidence outside prepared messages", async () => {
     const analysisStore = { upsert: vi.fn() };
     const service = createSupportTicketAnalysisService({
-      syncStore: { getLarkBaseTicketsForCleaning: vi.fn().mockResolvedValue([{ ...ticket, title: "Ticket" }]) },
+      syncStore: {
+        getLarkBaseTicketsForCleaning: vi.fn().mockResolvedValue([{ ...ticket, title: "Ticket" }]),
+        upsertLarkBaseTicketAi: vi.fn(),
+      },
       threadStore: { get: vi.fn().mockResolvedValue(createSnapshot()) },
       analysisStore: analysisStore as never,
     });

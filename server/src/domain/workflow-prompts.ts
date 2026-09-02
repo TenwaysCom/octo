@@ -240,7 +240,25 @@ const LARK_TICKET_SUPPORT_QA_PROMPT_PREFIX = `你正在处理一条 Lark Ticket�
 `;
 
 export const DEFAULT_LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_TEMPLATE = `${LARK_TICKET_SUPPORT_QA_PROMPT_PREFIX}
-请使用该 Skill 拉取所需证据，先输出一个 \`ticket_analysis\` JSON 对象，再输出简洁问题总结。JSON 必须包含 intent_type、intent_subtype、outcome、quality_summary、evidence_message_ids 和 risk_flags；evidence_message_ids 只能引用 Ticket 上下文明确出现的 Message ID。事实和推断必须明确区分；不要写入外部系统。`;
+请按当前请求随后给出的受控步骤完成问题总结：通过 Octo execute 工具拉取当前 Ticket 的只读证据；把结构化分析写入指定的 workspace 文件；最后通过同一个 execute 工具调用指定的 analysis-update。
+
+结构化分析必须使用固定快照中的 Message ID 作为 evidenceMessageIds，明确区分事实和推断。不得在回复正文输出 JSON，不得创建知识文档、回复 Ticket、修改 Lark Base 或执行任何未被当前请求明确允许的动作。只有受控 analysis-update 成功后，才能返回简洁中文问题总结。`;
+
+/**
+ * Prompts created before Summary gained the structured Octo analysis writeback.
+ * They are migrated only when their content exactly matches these defaults, so
+ * an administrator-authored prompt is never overwritten during startup.
+ */
+export const LEGACY_LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_TEMPLATES = [
+  `${LARK_TICKET_SUPPORT_QA_PROMPT_PREFIX}
+请使用该 Skill 拉取所需证据，输出问题总结。事实和推断必须明确区分；不要写入外部系统。`,
+  `${LARK_TICKET_SUPPORT_QA_PROMPT_PREFIX}
+请使用该 Skill 拉取所需证据，先输出一个 \`ticket_analysis\` JSON 对象，再输出简洁问题总结。JSON 必须包含 intent_type、intent_subtype、outcome、quality_summary、evidence_message_ids 和 risk_flags；evidence_message_ids 只能引用 Ticket 上下文明确出现的 Message ID。事实和推断必须明确区分；不要写入外部系统。`,
+  `${LARK_TICKET_SUPPORT_QA_PROMPT_PREFIX}
+请按当前请求随后给出的受控步骤完成问题总结：先拉取当前 Ticket 的只读证据；再仅把结构化分析写入指定的临时 JSON；最后只执行指定的 \`analysis-update\` 命令。
+
+结构化分析必须使用固定快照中的 Message ID 作为 evidenceMessageIds，明确区分事实和推断。不得在回复正文输出 JSON，不得创建知识文档、回复 Ticket、修改 Lark Base 或执行任何未被当前请求明确允许的命令。只有受控 \`analysis-update\` 成功后，才能返回简洁中文问题总结。`,
+] as const;
 
 export const DEFAULT_LARK_TICKET_SUPPORT_QA_ANSWER_PROMPT_TEMPLATE = `${LARK_TICKET_SUPPORT_QA_PROMPT_PREFIX}
 请使用该 Skill 拉取所需证据，先给出 intent、风险与缺失信息，再形成可直接回复的答案草稿。草稿必须引用 Ticket 上下文内的“Approved internal knowledge evidence”中的 source_ref；没有检索证据时不得编造文档或历史案例。未确认事实必须标注待确认。涉及权限、数据修改、部署或外部写入时只给出升级建议；不要写入外部系统。`;

@@ -34,6 +34,27 @@ describe("web Lark Ticket controller", () => {
     });
   });
 
+  it("returns the redacted prepared messages from the stored Ticket snapshot", async () => {
+    const threadStore = {
+      get: vi.fn().mockResolvedValue({
+        threadId: "thread_1", messageLink: "https://open.larksuite.com/client/chat/thread_1", snapshotVersion: 3, historyComplete: true,
+        preparedMessages: [{ messageId: "om_1", senderRole: "user", text: "无法登录", hasArtifact: false }],
+      }),
+    };
+    const controller = createWebLarkTicketController({
+      threadStore: threadStore as never,
+      resolveSession: vi.fn().mockResolvedValue({ ok: true, masterUserId: "user_1", baseUrl: "https://open.larksuite.com", user: {} }),
+    });
+
+    await expect(controller.loadPreparedMessages({
+      cookieHeader: "octo_web_session=session_1", recordId: "rec_1", query: { baseId: "app_1", tableId: "tbl_1" },
+    })).resolves.toEqual({
+      statusCode: 200,
+      body: { ok: true, data: expect.objectContaining({ snapshotVersion: 3, messages: [{ messageId: "om_1", senderRole: "user", text: "无法登录", hasArtifact: false }] }) },
+    });
+    expect(threadStore.get).toHaveBeenCalledWith({ baseId: "app_1", tableId: "tbl_1", recordId: "rec_1" });
+  });
+
   it("updates intent, result, and quality through the authenticated Ticket endpoint", async () => {
     const analysisService = {
       update: vi.fn().mockResolvedValue({

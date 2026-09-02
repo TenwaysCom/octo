@@ -25,4 +25,14 @@ describe("LarkTicketEvalDatasetService", () => {
     });
     await expect(service.create({ ticket, actionRunId: "run_1" })).rejects.toMatchObject({ code: "THREAD_SNAPSHOT_INCOMPLETE" });
   });
+
+  it("allows a complete Ticket snapshot to enter the dataset before AI output is available", async () => {
+    const sampleStore = { list: vi.fn(), findByTicketSnapshot: vi.fn().mockResolvedValue(undefined), create: vi.fn().mockResolvedValue(sample), update: vi.fn() };
+    const service = createLarkTicketEvalDatasetService({
+      syncStore: { getLarkBaseTicketsForCleaning: vi.fn().mockResolvedValue([{ ...ticket, title: "登录失败" }]) },
+      threadStore: { get: vi.fn().mockResolvedValue({ snapshotVersion: 3, historyComplete: true }) }, sampleStore: sampleStore as never, now: () => sample.createdAt,
+    });
+    await expect(service.create({ ticket, actionRunId: "run_1" })).resolves.toEqual(sample);
+    expect(sampleStore.create).toHaveBeenCalledWith(expect.objectContaining({ aiOutput: {} }));
+  });
 });

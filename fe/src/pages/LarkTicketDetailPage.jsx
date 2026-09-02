@@ -16,6 +16,8 @@ const TICKET_AI_QUICK_ACTIONS = [
   { actionKey: "lark-ticket-support-qa-document-preview", title: "生成文档", icon: "▤" },
 ];
 
+const UNVERIFIED_AI_ERROR_CODES = new Set(["SUPPORT_QA_EVIDENCE_NOT_FETCHED", "SUPPORT_ANALYSIS_NOT_UPDATED"]);
+
 function ExternalResource({ href, children }) {
   if (!href) return null;
   try {
@@ -113,13 +115,13 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
 
   async function openAiSession(session) {
     if (!ticket) return;
-    setDrawer({ sessionId: session.sessionId, title: session.title, status: "loading", messages: [], error: "", lastMessage: "" });
+    setDrawer({ sessionId: session.sessionId, title: session.title, actionKey: session.actionKey || null, verificationStatus: session.runStatus === "failed" ? "unverified" : "verified", status: "loading", messages: [], error: "", lastMessage: "" });
     setDrawerDraft("");
     try {
       const loaded = await loadLarkTicketAiSession({ apiBaseUrl, ticket, sessionId: session.sessionId });
-      setDrawer({ sessionId: loaded.sessionId, title: session.title, status: "ready", messages: transcriptFromAiSessionEvents(loaded.events), error: "", lastMessage: "" });
+      setDrawer({ sessionId: loaded.sessionId, title: session.title, actionKey: session.actionKey || null, verificationStatus: session.runStatus === "failed" ? "unverified" : "verified", status: "ready", messages: transcriptFromAiSessionEvents(loaded.events), error: session.runStatus === "failed" ? session.errorMessage || "证据校验未完成，当前内容仅作为未验证草稿保留。" : "", lastMessage: "" });
     } catch (error) {
-      setDrawer({ sessionId: session.sessionId, title: session.title, status: "error", messages: [], error: error.message || "AI Session 无法打开。", lastMessage: "" });
+      setDrawer({ sessionId: session.sessionId, title: session.title, actionKey: session.actionKey || null, verificationStatus: session.runStatus === "failed" ? "unverified" : "verified", status: "error", messages: [], error: error.message || "AI Session 无法打开。", lastMessage: "" });
     }
   }
 
@@ -131,6 +133,7 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
       sessionId: sessionId || current?.sessionId || null,
       title: title || current?.title || trimmedMessage,
       actionKey: actionKey || current?.actionKey || null,
+      verificationStatus: actionKey ? "pending" : current?.verificationStatus || "verified",
       status: "generating",
       messages: [...(current?.messages || []), createAiUserMessage(trimmedMessage)],
       error: "",
@@ -148,12 +151,15 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
           ...current,
           sessionId: event.event === "session.created" ? event.data.sessionId : current.sessionId,
           status: event.event === "done" ? "ready" : "generating",
+          verificationStatus: event.event === "done" ? "verified" : current.verificationStatus,
           messages: appendAiSessionEvent(current.messages, event),
         } : current),
       });
       void refreshAiSessions();
     } catch (error) {
-      setDrawer((current) => current ? { ...current, status: "error", error: error.message || "AI Session 启动失败。" } : current);
+      const unverified = UNVERIFIED_AI_ERROR_CODES.has(error.code);
+      setDrawer((current) => current ? { ...current, status: "error", verificationStatus: unverified ? "unverified" : current.verificationStatus, error: error.message || "AI Session 启动失败。" } : current);
+      void refreshAiSessions();
     } finally {
       setIsStreaming(false);
     }
@@ -271,7 +277,8 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
             </div> : null}
             {aiSessions.items.length ? <div className="ticket-ai-session-list">{aiSessions.items.map((session) => <button className="ticket-ai-session-card" type="button" key={session.sessionId} onClick={() => void openAiSession(session)}>
               <span className="ticket-ai-session-card__icon" aria-hidden="true">✦</span>
-              <span className="ticket-ai-session-card__content"><strong>{session.title}</strong><small>{formatDateTime(session.updatedAt)}</small></span>
+              <span className="ticket-ai-session-card__content"><strong>{session.title}</strong><small>{formatDateTime(session.updatedAt)}{session.runStatus === "failed" ? " · 未验证草稿" : ""}</small></span>
+              {session.runStatus === "failed" ? <span className="ticket-ai-session-card__status">未验证</span> : null}
               <span className="ticket-ai-session-card__open" aria-hidden="true">›</span>
             </button>)}</div> : null}
             <div className="ticket-ai-session-composer">
@@ -306,17 +313,18 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
       <aside className="ticket-ai-drawer" aria-label="AI Session 详情" onMouseDown={(event) => event.stopPropagation()}>
         <header className="ticket-ai-drawer__header"><div><p>Kimi ACP AI Chat</p><h2>{drawer.title}</h2></div><button type="button" aria-label="关闭 AI Session" onClick={() => setDrawer(null)} disabled={isStreaming}>×</button></header>
         <div className="ticket-ai-drawer__body">
+          {drawer.verificationStatus === "unverified" ? <div className="ticket-ai-drawer__unverified"><strong>未验证草稿</strong><p>答案已保存，但证据获取或分析写回没有完成，未进入正式 Ticket AI 输出。</p></div> : null}
           {drawer.status === "loading" ? <p className="ticket-section-empty">正在加载会话…</p> : null}
           {drawer.messages.length ? drawer.messages.map((entry, index) => <AiSessionMessage entry={entry} key={entry.id || `${entry.kind}-${index}`} />) : null}
           {drawer.status === "generating" ? <p className="ticket-ai-generating">Kimi 正在生成回复…</p> : null}
-          {drawer.status === "error" ? <div className="ticket-ai-drawer__error"><p>{drawer.error}</p>{drawer.lastMessage ? <button type="button" onClick={() => void streamAiSession({ message: drawer.lastMessage, sessionId: drawer.sessionId || undefined, title: drawer.title })} disabled={isStreaming}>Retry</button> : null}</div> : null}
+          {drawer.status === "error" ? <div className="ticket-ai-drawer__error"><p>{drawer.error}</p>{drawer.lastMessage || drawer.actionKey ? <button type="button" onClick={() => void streamAiSession({ message: drawer.lastMessage || drawer.title, sessionId: drawer.verificationStatus === "unverified" ? undefined : drawer.sessionId || undefined, actionKey: drawer.verificationStatus === "unverified" ? drawer.actionKey || undefined : undefined, title: drawer.title })} disabled={isStreaming}>重新执行</button> : null}</div> : null}
         </div>
         <form className="ticket-ai-drawer__composer" onSubmit={continueAiSession}>
           <label className="visually-hidden" htmlFor="ticket-ai-followup">继续对话</label>
-          <textarea id="ticket-ai-followup" value={drawerDraft} onChange={(event) => setDrawerDraft(event.target.value)} placeholder="继续这个 AI Session…" rows="2" disabled={isStreaming || drawer.status === "loading"} />
-          <button type="submit" disabled={isStreaming || drawer.status === "loading" || !drawerDraft.trim()}>发送 ↑</button>
+          <textarea id="ticket-ai-followup" value={drawerDraft} onChange={(event) => setDrawerDraft(event.target.value)} placeholder={drawer.verificationStatus === "unverified" ? "请先重新执行受控动作" : "继续这个 AI Session…"} rows="2" disabled={isStreaming || drawer.status === "loading" || drawer.verificationStatus === "unverified"} />
+          <button type="submit" disabled={isStreaming || drawer.status === "loading" || drawer.verificationStatus === "unverified" || !drawerDraft.trim()}>发送 ↑</button>
         </form>
-        {drawer.actionKey === "lark-ticket-support-qa-answer" && !drawer.draftSent && drawer.messages.some((entry) => entry.kind === "assistant" && entry.text) ? <button className="ticket-ai-drawer__confirm-send" type="button" onClick={() => void confirmDraftSend()} disabled={isStreaming || isSendingDraft}>{isSendingDraft ? "正在发送…" : "确认发送回复草案"}</button> : null}
+        {drawer.actionKey === "lark-ticket-support-qa-answer" && drawer.verificationStatus !== "unverified" && !drawer.draftSent && drawer.messages.some((entry) => entry.kind === "assistant" && entry.text) ? <button className="ticket-ai-drawer__confirm-send" type="button" onClick={() => void confirmDraftSend()} disabled={isStreaming || isSendingDraft}>{isSendingDraft ? "正在发送…" : "确认发送回复草案"}</button> : null}
         {drawer.draftSent ? <p className="ticket-ai-drawer__sent">回复草案已发送到当前 Ticket thread。</p> : null}
       </aside>
     </div> : null}

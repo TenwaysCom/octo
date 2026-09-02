@@ -64,7 +64,7 @@ describe("PostgresLarkTicketThreadSyncStore", () => {
     expect(persisted.prepared_messages_json).not.toContain("jane@example.com");
     expect(JSON.parse(persisted.prepared_messages_json || "{}")).toMatchObject({
       schemaVersion: 1,
-      redactionVersion: "v1",
+      redactionVersion: "v2",
       snapshotVersion: 2,
     });
 

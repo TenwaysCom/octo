@@ -11,6 +11,7 @@ import {
   DEFAULT_LARK_TICKET_SUPPORT_QA_ANSWER_PROMPT_TEMPLATE,
   DEFAULT_LARK_TICKET_SUPPORT_QA_DOCUMENT_PREVIEW_PROMPT_TEMPLATE,
   DEFAULT_LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_TEMPLATE,
+  LEGACY_LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_TEMPLATES,
   DEFAULT_MEEGLE_SPRINT_CONFIRM_GAPS_PROMPT_NOTE,
   DEFAULT_MEEGLE_SPRINT_CONFIRM_GAPS_PROMPT_TEMPLATE,
   DEFAULT_MEEGLE_SPRINT_INTERNAL_SUMMARY_PROMPT_NOTE,
@@ -111,6 +112,11 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .addColumn("thread_id", "text")
     .addColumn("thread_snapshot_version", "integer")
     .addColumn("thread_context_synced_at", "text")
+    .addColumn("action_run_id", "text")
+    .addColumn("run_status", "text")
+    .addColumn("run_error_code", "text")
+    .addColumn("run_error_message", "text")
+    .addColumn("unverified_output", "text")
     .addColumn("deleted_at", "text")
     .addColumn("created_at", "text", (column) => column.notNull())
     .addColumn("updated_at", "text", (column) => column.notNull())
@@ -815,6 +821,15 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
       .onConflict((conflict) => conflict.column("key").doNothing())
       .execute();
   }
+  await db.updateTable("workflow_prompts")
+    .set({
+      prompt: DEFAULT_LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_TEMPLATE,
+      note: DEFAULT_LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_NOTE,
+      updated_at: now,
+    })
+    .where("key", "=", LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_KEY)
+    .where("prompt", "in", LEGACY_LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_TEMPLATES)
+    .execute();
 
   await db.insertInto("workflow_prompts")
     .values({
@@ -924,6 +939,9 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     ALTER TABLE acp_kimi_session_owners
     ADD COLUMN IF NOT EXISTS thread_snapshot_version integer
   `.execute(db);
+  for (const column of ["action_run_id", "run_status", "run_error_code", "run_error_message", "unverified_output"]) {
+    await sql.raw(`ALTER TABLE acp_kimi_session_owners ADD COLUMN IF NOT EXISTS ${column} text`).execute(db);
+  }
   await sql`
     CREATE INDEX IF NOT EXISTS acp_kimi_session_owners_ticket_idx
     ON acp_kimi_session_owners(operator_lark_id, ticket_base_id, ticket_table_id, ticket_record_id, updated_at)

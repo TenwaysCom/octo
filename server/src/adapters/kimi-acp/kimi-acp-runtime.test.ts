@@ -53,6 +53,7 @@ describe("kimi acp runtime", () => {
         actionKey: "lark-ticket-support-qa-summarize",
         executionPolicy: "shell",
         workspaceDir: "/srv/odoo/eu",
+        octoServerDir: "/srv/octo/server",
         skillProfile: "support_qa_eu",
         skillId: "support_qa_query",
         ticketNumber: "LT-10",
@@ -90,12 +91,43 @@ describe("kimi acp runtime", () => {
       outcome: { outcome: "selected", optionId: "approve" },
     });
     await expect(client.requestPermission(request)).resolves.toEqual({
-      outcome: { outcome: "cancelled" },
+      outcome: { outcome: "selected", optionId: "approve" },
     });
     expect(emit).toHaveBeenCalledWith(expect.objectContaining({
       event: "acp.session.update",
       data: expect.objectContaining({ sessionId: "session_1" }),
     }));
+  });
+
+  it("waits for Kimi's delayed rawInput before evaluating the permission", async () => {
+    const command = "bash .agents/skills/write-support-qa/scripts/write-support-qa.sh fetch LT-10 --json";
+    const client = createKimiAcpCollectingClient(
+      vi.fn(),
+      createAcpKimiPermissionHandler({
+        actionKey: "lark-ticket-support-qa-summarize",
+        executionPolicy: "shell",
+        workspaceDir: "/srv/odoo/eu",
+        octoServerDir: "/srv/octo/server",
+        skillId: "support_qa_query",
+        ticketNumber: "LT-10",
+      }),
+    );
+    const toolCallId = "12:delayed";
+    const permission = client.requestPermission(kimi038PermissionRequest(toolCallId));
+
+    await client.sessionUpdate({
+      sessionId: "session_1",
+      update: {
+        sessionUpdate: "tool_call_update",
+        toolCallId,
+        rawInput: { command },
+        status: "in_progress",
+      },
+    } as SessionNotification);
+
+    await expect(permission).resolves.toEqual({
+      outcome: { outcome: "selected", optionId: "approve" },
+    });
   });
 
   it("keeps missing, cross-id, and conflicting Kimi 0.38 permission evidence denied", async () => {
@@ -105,6 +137,7 @@ describe("kimi acp runtime", () => {
       createAcpKimiPermissionHandler({
         executionPolicy: "shell",
         workspaceDir: "/srv/odoo/eu",
+        octoServerDir: "/srv/octo/server",
         skillId: "support_qa_query",
         ticketNumber: "LT-10",
       }),

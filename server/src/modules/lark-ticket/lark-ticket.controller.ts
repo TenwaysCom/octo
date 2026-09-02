@@ -13,6 +13,7 @@ import {
 import { supportAnalysisPayloadSchema } from "../../domain/support-ticket-analysis-update.js";
 import { createLarkTicketEvalSampleSchema, updateLarkTicketEvalSampleSchema } from "../../domain/lark-ticket-eval-sample.js";
 import { createLarkTicketEvalDatasetService, LarkTicketEvalDatasetError } from "../../application/services/lark-ticket-eval-dataset.service.js";
+import { PostgresLarkTicketThreadSyncStore, type LarkTicketThreadSyncStore } from "../../adapters/postgres/lark-ticket-thread-sync-store.js";
 
 const ticketSharedUrlQuerySchema = z.object({
   baseId: z.string().trim().min(1),
@@ -44,11 +45,13 @@ export function createWebLarkTicketController(deps: {
   service?: ReturnType<typeof createLarkTicketService>;
   analysisService?: ReturnType<typeof createSupportTicketAnalysisService>;
   evalDatasetService?: ReturnType<typeof createLarkTicketEvalDatasetService>;
+  threadStore?: Pick<LarkTicketThreadSyncStore, "get">;
   resolveSession?: (sessionToken: string | undefined) => Promise<WebIdentity>;
 } = {}) {
   const service = deps.service ?? createLarkTicketService();
   const getAnalysisService = () => deps.analysisService ?? createSupportTicketAnalysisService();
   const getEvalDatasetService = () => deps.evalDatasetService ?? createLarkTicketEvalDatasetService();
+  const getThreadStore = () => deps.threadStore ?? new PostgresLarkTicketThreadSyncStore();
   const resolveSession = deps.resolveSession ?? resolveLarkWebSessionIdentity;
 
   return {
@@ -135,6 +138,20 @@ export function createWebLarkTicketController(deps: {
       }
     },
 
+    async loadPreparedMessages(input: { cookieHeader: string | undefined; recordId: string; query: unknown }) {
+      const session = await resolveSession(readCookie(input.cookieHeader, WEB_SESSION_COOKIE_NAME));
+      if (!session.ok) return { statusCode: 401, body: { ok: false as const, error: { errorCode: session.errorCode, errorMessage: session.errorMessage } } };
+      try {
+        const query = ticketSharedUrlQuerySchema.parse(input.query);
+        const snapshot = await getThreadStore().get({ baseId: query.baseId, tableId: query.tableId, recordId: input.recordId });
+        if (!snapshot) return { statusCode: 404, body: { ok: false as const, error: { errorCode: "THREAD_SNAPSHOT_NOT_FOUND", errorMessage: "Ticket 尚未准备线程消息。" } } };
+        return { statusCode: 200, body: { ok: true as const, data: { threadId: snapshot.threadId, messageLink: snapshot.messageLink, snapshotVersion: snapshot.snapshotVersion, historyComplete: snapshot.historyComplete, messages: snapshot.preparedMessages } } };
+      } catch (error) {
+        if (error instanceof ZodError) return { statusCode: 400, body: { ok: false as const, error: { errorCode: "INVALID_REQUEST", errorMessage: error.message } } };
+        return { statusCode: 500, body: { ok: false as const, error: { errorCode: "PREPARED_MESSAGES_LOAD_FAILED", errorMessage: "Prepared messages 暂时无法读取。" } } };
+      }
+    },
+
     async createEvalSample(input: { cookieHeader: string | undefined; recordId: string; body: unknown }) {
       const session = await resolveSession(readCookie(input.cookieHeader, WEB_SESSION_COOKIE_NAME));
       if (!session.ok) return { statusCode: 401, body: { ok: false as const, error: { errorCode: session.errorCode, errorMessage: session.errorMessage } } };
@@ -178,6 +195,10 @@ export function registerWebLarkTicketRoutes(app: Express) {
   });
   app.get("/api/web/lark-ticket-eval-samples", async (req, res) => {
     const result = await controller.listEvalSamples({ cookieHeader: req.headers.cookie });
+    res.status(result.statusCode).json(result.body);
+  });
+  app.get("/api/web/lark-tickets/:recordId/prepared-messages", async (req, res) => {
+    const result = await controller.loadPreparedMessages({ cookieHeader: req.headers.cookie, recordId: req.params.recordId, query: req.query });
     res.status(result.statusCode).json(result.body);
   });
   app.post("/api/web/lark-tickets/:recordId/eval-sample", async (req, res) => {

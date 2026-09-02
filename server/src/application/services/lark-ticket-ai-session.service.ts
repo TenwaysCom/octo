@@ -2,8 +2,11 @@ import type { AcpKimiProxyService } from "./acp-kimi-proxy.service.js";
 import { acpKimiProxyService } from "./acp-kimi-proxy.service.js";
 import {
   buildSupportAnalysisUpdatePath,
+  extractAcpKimiExecuteCall,
   extractAcpKimiRawCommand,
+  isAcpKimiSupportAnalysisUpdateExecuteCall,
   isAcpKimiSupportAnalysisUpdateCommand,
+  isAcpKimiSupportQaFetchExecuteCall,
   isAcpKimiSupportQaFetchCommand,
   type AcpKimiPermissionContext,
 } from "./acp-kimi-permission-policy.js";
@@ -38,7 +41,7 @@ import {
   renderWorkflowPromptTemplate,
 } from "../../domain/workflow-prompts.js";
 import { prepareTicketThread, redactSupportText } from "../../domain/support-ticket-analysis.js";
-import { buildSupportAnalysisUpdateInstruction } from "../../domain/support-ticket-analysis-update.js";
+import { buildSupportAnalysisUpdateInstruction, buildSupportQaFetchInstruction } from "../../domain/support-ticket-analysis-update.js";
 import { randomUUID } from "node:crypto";
 import { access, realpath } from "node:fs/promises";
 import { constants } from "node:fs";
@@ -94,6 +97,7 @@ export interface LarkTicketAiSessionServiceDeps {
 interface ResolvedTicketAiAction {
   action: TicketAiAutomationActionConfig;
   workspaceDir: string;
+  octoServerDir: string;
   skillPath: string;
 }
 
@@ -203,33 +207,70 @@ export function createLarkTicketAiSessionService(
         ? await buildQuickActionPrompt(workflowPromptStore, quickAction, ticket, input.message, threadContext, knowledgeEvidence, actionRunId, analysisUpdatePath)
         : input.sessionId ? input.message : buildTicketPrompt(ticket, input.message, threadContext);
       let createdSessionId: string | undefined;
+      let attachmentPromise: Promise<void> | undefined;
       let doneEvent: Extract<AcpKimiStreamEvent, { event: "done" }> | undefined;
+      let assistantOutput = "";
       const evidenceTracker = quickAction && permissionContext
         ? createSupportQaEvidenceTracker(permissionContext, quickAction.action.key === "lark-ticket-support-qa-summarize")
         : undefined;
 
-      await acpService.chat({
-        operatorLarkId: input.operatorLarkId,
-        sessionId: input.sessionId,
-        actionRunId,
-        message: prompt,
-        permissionContext,
-      }, (event) => {
-        if (event.event === "session.created") {
-          createdSessionId = event.data.sessionId;
-        }
-        evidenceTracker?.observe(event);
-        if (event.event === "done" && evidenceTracker) {
-          doneEvent = event;
-          return;
-        }
-        emit(event);
-      }, {
-        signal: input.signal,
-        session: input.sessionId ? undefined : null,
-      });
+      try {
+        await acpService.chat({
+          operatorLarkId: input.operatorLarkId,
+          sessionId: input.sessionId,
+          actionRunId,
+          message: prompt,
+          permissionContext,
+        }, (event) => {
+          if (event.event === "session.created") {
+            createdSessionId = event.data.sessionId;
+            attachmentPromise = attachCreatedTicketSession({
+              ownershipStore,
+              sessionId: createdSessionId,
+              operatorLarkId: input.operatorLarkId,
+              title: deriveSessionTitle(input.message),
+              ticket: input.ticket,
+              ticketNumber: ticket.ticketNumber || ticket.recordId,
+              snapshot: threadContext?.snapshot,
+            });
+          }
+          assistantOutput = appendAssistantOutput(assistantOutput, event);
+          evidenceTracker?.observe(event);
+          if (event.event === "done" && evidenceTracker) {
+            doneEvent = event;
+            return;
+          }
+          emit(event);
+        }, {
+          signal: input.signal,
+          session: input.sessionId ? undefined : null,
+        });
+      } catch (error) {
+        await attachmentPromise;
+        throw error;
+      }
+
+      await attachmentPromise;
+
+      const sessionId = input.sessionId ?? createdSessionId;
+      if (!sessionId) {
+        throw new LarkTicketAiSessionError("SESSION_NOT_FOUND", "Kimi ACP did not return a session id.");
+      }
+
+      if (!createdSessionId) {
+        await ownershipStore.touch(sessionId, input.operatorLarkId);
+      }
 
       if (evidenceTracker && !evidenceTracker.fetchCompleted) {
+        await ownershipStore.updateRun?.({
+          sessionId,
+          operatorLarkId: input.operatorLarkId,
+          actionRunId: actionRunId!,
+          status: "failed",
+          errorCode: "SUPPORT_QA_EVIDENCE_NOT_FETCHED",
+          errorMessage: "Support-QA evidence fetch did not complete; the AI result was not accepted.",
+          unverifiedOutput: assistantOutput || null,
+        });
         throw new LarkTicketAiSessionError(
           "SUPPORT_QA_EVIDENCE_NOT_FETCHED",
           "Support-QA evidence fetch did not complete; the AI result was not accepted.",
@@ -242,6 +283,15 @@ export function createLarkTicketAiSessionService(
         );
       }
       if (evidenceTracker?.analysisUpdateRequired && !evidenceTracker.analysisUpdated) {
+        await ownershipStore.updateRun?.({
+          sessionId,
+          operatorLarkId: input.operatorLarkId,
+          actionRunId: actionRunId!,
+          status: "failed",
+          errorCode: "SUPPORT_ANALYSIS_NOT_UPDATED",
+          errorMessage: "Support-QA analysis update did not complete; the AI result was not accepted.",
+          unverifiedOutput: assistantOutput || null,
+        });
         throw new LarkTicketAiSessionError(
           "SUPPORT_ANALYSIS_NOT_UPDATED",
           "Support-QA analysis update did not complete; the AI result was not accepted.",
@@ -256,34 +306,42 @@ export function createLarkTicketAiSessionService(
       if (doneEvent) {
         emit(doneEvent);
       }
-
-      const sessionId = input.sessionId ?? createdSessionId;
-      if (!sessionId) {
-        throw new LarkTicketAiSessionError("SESSION_NOT_FOUND", "Kimi ACP did not return a session id.");
-      }
-
-      if (createdSessionId) {
-        const snapshot = threadContext?.snapshot;
-        const claimed = await ownershipStore.attachTicket({
+      if (quickAction && actionRunId) {
+        await ownershipStore.updateRun?.({
           sessionId,
           operatorLarkId: input.operatorLarkId,
-          title: deriveSessionTitle(input.message),
-          ...input.ticket,
-          ticketNumber: ticket.ticketNumber || ticket.recordId,
-          ...(snapshot ? {
-            threadId: snapshot.threadId,
-            threadSnapshotVersion: snapshot.snapshotVersion,
-            threadContextSyncedAt: snapshot.lastSuccessfulSyncAt ?? snapshot.updatedAt,
-          } : {}),
+          actionRunId,
+          status: "completed",
         });
-        if (!claimed) {
-          throw new LarkTicketAiSessionError("SESSION_NOT_FOUND", "Created AI session could not be associated with this Ticket.");
-        }
-      } else {
-        await ownershipStore.touch(sessionId, input.operatorLarkId);
       }
     },
   };
+}
+
+async function attachCreatedTicketSession(input: {
+  ownershipStore: AcpKimiSessionOwnershipStore;
+  sessionId: string;
+  operatorLarkId: string;
+  title: string;
+  ticket: LarkTicketAiSessionRef;
+  ticketNumber: string;
+  snapshot?: LarkTicketThreadContextResult["snapshot"];
+}): Promise<void> {
+  const claimed = await input.ownershipStore.attachTicket({
+    sessionId: input.sessionId,
+    operatorLarkId: input.operatorLarkId,
+    title: input.title,
+    ...input.ticket,
+    ticketNumber: input.ticketNumber,
+    ...(input.snapshot ? {
+      threadId: input.snapshot.threadId,
+      threadSnapshotVersion: input.snapshot.snapshotVersion,
+      threadContextSyncedAt: input.snapshot.lastSuccessfulSyncAt ?? input.snapshot.updatedAt,
+    } : {}),
+  });
+  if (!claimed) {
+    throw new LarkTicketAiSessionError("SESSION_NOT_FOUND", "Created AI session could not be associated with this Ticket.");
+  }
 }
 
 function createSupportQaEvidenceTracker(context: AcpKimiPermissionContext, analysisUpdateRequired: boolean) {
@@ -313,11 +371,16 @@ function createSupportQaEvidenceTracker(context: AcpKimiPermissionContext, analy
       if ((update.sessionUpdate === "tool_call" || update.sessionUpdate === "tool_call_update")
         && update.rawInput !== undefined && update.rawInput !== null) {
         const command = extractAcpKimiRawCommand(update.rawInput);
-        const kind = command && isAcpKimiSupportQaFetchCommand(command, context)
+        const executeCall = extractAcpKimiExecuteCall(update.rawInput);
+        const kind = executeCall && isAcpKimiSupportQaFetchExecuteCall(executeCall, context)
           ? "fetch"
-          : command && isAcpKimiSupportAnalysisUpdateCommand(command, context)
+          : executeCall && isAcpKimiSupportAnalysisUpdateExecuteCall(executeCall, context)
             ? "analysis-update"
-            : undefined;
+            : command && isAcpKimiSupportQaFetchCommand(command, context)
+              ? "fetch"
+              : command && isAcpKimiSupportAnalysisUpdateCommand(command, context)
+                ? "analysis-update"
+                : undefined;
         if (kind) {
           if (!conflictingToolCallIds.has(toolCallId)) {
             const currentKind = toolCallKinds.get(toolCallId);
@@ -390,7 +453,26 @@ function toSessionSummary(session: AcpKimiSessionOwnershipRecord) {
     sessionId: session.sessionId,
     title: session.title || session.sessionId,
     updatedAt: session.updatedAt,
+    ...(session.automationActionKey ? { actionKey: session.automationActionKey } : {}),
+    ...(session.actionRunId ? { actionRunId: session.actionRunId } : {}),
+    ...(session.runStatus ? { runStatus: session.runStatus } : {}),
+    ...(session.runErrorCode ? { errorCode: session.runErrorCode } : {}),
+    ...(session.runErrorMessage ? { errorMessage: session.runErrorMessage } : {}),
+    ...(session.unverifiedOutput ? { hasUnverifiedOutput: true } : {}),
   };
+}
+
+function appendAssistantOutput(current: string, event: AcpKimiStreamEvent): string {
+  if (event.event !== "acp.session.update") return current;
+  const update = event.data.update;
+  if (update.sessionUpdate !== "agent_message_chunk") return current;
+  const content = update.content;
+  const chunk = typeof content === "string"
+    ? content
+    : content && typeof content === "object" && "text" in content && typeof content.text === "string"
+      ? content.text
+      : "";
+  return `${current}${chunk}`.slice(-32_000);
 }
 
 function deriveSessionTitle(message: string): string {
@@ -443,11 +525,13 @@ async function resolveTicketAiAction(actionKey: string): Promise<ResolvedTicketA
   }
   const profile = AUTOMATION_SKILL_PROFILES[action.skillProfile];
   const workspaceDir = process.env[profile.workspaceEnv]?.trim();
+  const octoServerDir = process.env.OCTO_SERVER_DIR?.trim();
   const skillRelativePath = (profile.skills as Record<string, string>)[action.skillId];
-  if (!workspaceDir || !skillRelativePath) {
+  if (!workspaceDir || !octoServerDir || !skillRelativePath) {
     throw new LarkTicketAiSessionError("SKILL_PROFILE_NOT_CONFIGURED", `Skill profile ${action.skillProfile} is not configured on this server.`);
   }
   const resolvedWorkspace = await realpath(workspaceDir);
+  const resolvedOctoServer = await realpath(octoServerDir);
   const skillPath = await realpath(resolve(resolvedWorkspace, skillRelativePath));
   const pathFromWorkspace = relative(resolvedWorkspace, skillPath);
   if (!pathFromWorkspace
@@ -457,7 +541,7 @@ async function resolveTicketAiAction(actionKey: string): Promise<ResolvedTicketA
     throw new LarkTicketAiSessionError("SKILL_PROFILE_NOT_CONFIGURED", `Skill profile ${action.skillProfile} resolves outside its workspace.`);
   }
   await access(skillPath, constants.R_OK);
-  return { action, workspaceDir: resolvedWorkspace, skillPath };
+  return { action, workspaceDir: resolvedWorkspace, octoServerDir: resolvedOctoServer, skillPath };
 }
 
 function createPermissionContext(
@@ -469,12 +553,13 @@ function createPermissionContext(
     actionKey: quickAction.action.key,
     executionPolicy: quickAction.action.executionPolicy,
     workspaceDir: quickAction.workspaceDir,
+    octoServerDir: quickAction.octoServerDir,
     skillProfile: quickAction.action.skillProfile,
     skillId: quickAction.action.skillId,
     ticketNumber: ticket.ticketNumber || ticket.recordId,
     ticketRecordId: ticket.recordId,
     actionRunId,
-    policyVersion: "v2",
+    policyVersion: "v4-temporary-support-qa-bash",
   };
 }
 
@@ -510,11 +595,12 @@ async function buildQuickActionPrompt(
       baseId: ticket.baseId,
       tableId: ticket.tableId,
       recordId: ticket.recordId,
+      ticketNumber: ticket.ticketNumber || ticket.recordId,
       snapshotVersion: snapshot.snapshotVersion,
       actionRunId,
       updatePath: analysisUpdatePath,
     })}`
-    : prompt;
+    : `${prompt}\n\n${buildSupportQaFetchInstruction(ticket.ticketNumber || ticket.recordId)}`;
 }
 
 function buildKnowledgeQuery(ticket: LarkBaseTicketSyncItem, message: string): string {

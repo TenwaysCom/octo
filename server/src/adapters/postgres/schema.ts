@@ -26,6 +26,11 @@ export interface DatabaseSchema {
     thread_id: string | null;
     thread_snapshot_version: number | null;
     thread_context_synced_at: string | null;
+    action_run_id: string | null;
+    run_status: string | null;
+    run_error_code: string | null;
+    run_error_message: string | null;
+    unverified_output: string | null;
     deleted_at: string | null;
     created_at: string;
     updated_at: string;

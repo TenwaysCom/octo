@@ -253,7 +253,8 @@ export interface LarkBaseTicketListFilters {
   statuses?: string[];
   priorities?: string[];
   responsibles?: string[];
-  quickFilter?: "in-progress" | "unclassified" | "unsynced";
+  quickFilter?: "in-progress" | "unclassified" | "unsynced" | "ai-output" | "ai-missing";
+  hasAiOutput?: boolean;
   offset?: number;
 }
 
@@ -1321,6 +1322,16 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
     if (filters.quickFilter === "unsynced") query = query
       .where(sql<boolean>`lower(coalesce(sync.issue_type, '')) = 'feature'`)
       .where(sql<boolean>`coalesce(sync.meegle_link, '') = ''`);
+    if (filters.quickFilter === "ai-output") query = query
+      .where(sql<boolean>`octo.ticket_ai is not null`)
+      .where(sql<boolean>`octo.ticket_ai not like '%"fields":{}%'`);
+    if (filters.quickFilter === "ai-missing") query = query.where((eb) => eb.or([
+      eb("octo.ticket_ai", "is", null),
+      sql<boolean>`octo.ticket_ai like '%"fields":{}%'`,
+    ]));
+    if (filters.hasAiOutput) query = query
+      .where(sql<boolean>`octo.ticket_ai is not null`)
+      .where(sql<boolean>`octo.ticket_ai not like '%"fields":{}%'`);
     return query;
   }
 }

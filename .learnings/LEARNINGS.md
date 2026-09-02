@@ -522,5 +522,41 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 ## [LRN-20260901-006] web-session-routes-must-be-explicitly-exempt-from-header-auth
 
 - **Context:** Eval 样本列表由浏览器 Web Session 鉴权，但其路径不在通用 API header-auth 的豁免集合中，导致已登录页面仍收到 `UNAUTHORIZED: Missing master-user-id header`。
-- **Rule:** 新增 Web Session 路由时，必须同时检查 `createApiAuthMiddleware` 的路径豁免；不能要求浏览器伪造或携带 `master-user-id`，身份只从服务端 session 解析。
-- **Verified outcome:** Eval 列表路径加入豁免集合，middleware/controller/route 定向测试 13/13 和两端 build 通过。
+- **Rule:** 新增 Web Session 路由时，必须同时检查 `createApiAuthMiddleware` 的路径豁免；对含参数的资源路由应豁免精确根路径和资源前缀。不能要求浏览器伪造或携带 `master-user-id`，身份只从服务端 session 解析。
+- **Verified outcome:** Eval 列表根路径和样本编辑前缀均加入豁免，middleware/controller/route 定向测试 13/13 和两端 build 通过。
+
+## [LRN-20260902-001] acp-permission-must-carry-command-before-approval
+
+- **Context:** Kimi 0.39.1 在 Support-QA Summary 的 Bash 审批请求中先发送通用工具标题，未携带 rawInput 或完整命令；命令参数只在审批被响应后才以 tool-call update 发送。
+- **Rule:** 对模型 Shell 的受控白名单不能根据工具名、后到的参数或会话文件做推断放行。通用 ACP 客户端应声明标准 `terminal` / `fs` 能力，让命令和路径在执行前以结构化请求进入同一策略；旧 Kimi 若仍绕过 terminal 并发送无载荷审批，只能安全拒绝，不能为每个业务建立专用 ACP 或默认授权 Bash。
+- **Verified outcome:** 标准 terminal/fs 客户端与策略确认旧 Kimi 的 Bash 请求无法安全判定；最终以同一 ACP 会话中的结构化 `execute` MCP 替代业务 Shell，同时保留 fs 读写与自然语言响应，三条真实 Ticket 写回通过。
+
+## [LRN-20260902-002] acp-operational-effects-use-structured-execute
+
+- **Context:** Kimi ACP 的 Bash 审批不稳定地缺少命令载荷，但 Support-QA 仍需要调用现有 fetch/update 脚本，且 Quick Action 必须保留自然语言结果。
+- **Rule:** 文件读写交给 ACP fs callback 做 root、敏感路径与 symlink 校验；业务命令统一走一个结构化 `execute` MCP，由 Server manifest 和 action context 同时约束 root、script、subcommand 与 argv，使用 `shell: false` 执行。不要默认授权 Bash，也不要为每个业务建立新的 ACP 通道。
+- **Verified outcome:** 三条真实 Ticket 完成 fetch、workspace JSON 写入、signed analysis-update 和 FE 投影回读；AI 输出与 Eval 视图均在登录态页面可见，Eval 创建不再返回 `UNAUTHORIZED`。
+
+## [LRN-20260902-003] normalized-ai-write-must-refresh-list-projection
+
+- **Context:** Support analysis 已写入规范化 intent/result/quality 表，但 AI 输出列表只读取 `lark_base_ticket_octo.ticket_ai`，造成 Session 成功而列表仍显示“AI 未输出”。
+- **Rule:** 同一个 Server analysis-update 在通过 snapshot/evidence 校验后，必须同步更新规范化分析模型和 allow-listed `ticket_ai` 读投影；不能要求 FE 联表或从 Session 文本推断完成状态。
+- **Verified outcome:** 2070、2007、2111 在 AI 输出视图显示意图类型、问题总结和明确阶段状态，并可直接冻结为 Eval 样本。
+
+## [LRN-20260902-004] rejected-ai-output-is-a-draft-not-a-success
+
+- **Context:** Kimi 已生成完整回答，但 Ticket 证据 fetch 或 `analysis-update` 门禁失败；旧流程既拒绝正式结果，也不把新 Session 绑定回 Ticket，导致正文刷新后丢失。
+- **Rule:** 失败门禁必须保留 actionRun、Session 归属、错误码和模型正文，并明确标记 `unverified`；禁止写正式 intent/result/quality 和 `ticket_ai`，禁止直接发送。重试未验证 Quick Action 必须新建受控运行，不能作为普通 follow-up 绕过门禁。
+- **Verified outcome:** PostgreSQL ownership store、Session service、FE 未验证状态及重新执行链通过 19 个聚焦测试，FE 135 tests、两端 build 与本地 migration 通过。
+
+## [LRN-20260902-005] opaque-bash-exception-must-be-explicit-and-removable
+
+- **Context:** 用户明确要求先解决 Kimi ACP 0.38 缺少 command 的 Bash 审批失败，即使这时无法验证脚本目录。
+- **Rule:** 临时兼容只能按明确 action、skill profile、skill 和 execution policy 收口，使用独立 policy version 并记录 `temporary_unverified_bash`；必须公开说明它不是目录沙箱，不能扩散到其他 action，并保留结构化 execute 作为收紧路径。
+- **Verified outcome:** 三个 Lark Ticket Support-QA action 可获单次 Bash 批准，非 Support-QA action 继续拒绝；权限与 ACP runtime 定向测试通过。
+
+## [LRN-20260902-006] session-ownership-must-be-durable-at-creation
+
+- **Context:** ACP Session 创建和 prompt 执行是两个不同阶段；Server 重启或流中断可能发生在两者之间。
+- **Rule:** 依赖 Session 可恢复性的外部上下文关联必须在 `session.created` 事件到达时立即开始持久化，不能等模型完成、证据门禁或 `chat()` 返回。失败结果状态可后写，但 Ticket 归属是创建阶段的不变量。
+- **Verified outcome:** 中断回归测试证明 attach 先于后续 prompt failure；实际孤立 Session 已按唯一 session id 恢复并从数据库回读 Ticket 2106、thread 与 actionRun。

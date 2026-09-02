@@ -659,3 +659,39 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Symptom:** `GET /api/web/lark-ticket-eval-samples` returned `UNAUTHORIZED: Missing master-user-id header` while `GET /api/web/profile` succeeded with the same browser session.
 - **Root cause:** The Eval list endpoint was a Web Session route but absent from `DEFAULT_EXEMPT_PATHS` in the generic header-auth middleware.
 - **Verified fix:** Exempt that exact path and cover it in the Web Session route regression test; never solve this by forwarding a browser-supplied `master-user-id`.
+
+### ERR-20260901-009 — Eval save path was omitted from Web Session prefix authentication
+
+- **Symptom:** Creating an Eval sample succeeded, but saving its annotations returned `UNAUTHORIZED: Missing master-user-id header`.
+- **Root cause:** The list root path was exempted, while the parameterized `PUT /api/web/lark-ticket-eval-samples/:id` path was not.
+- **Verified fix:** Exempt the resource path prefix and cover a parameterized path in the middleware regression test.
+
+### ERR-20260902-001 — Kimi 0.39 ACP flushes permission evidence after the decision
+
+- **Symptom:** Waiting for `tool_call_update`, reading the local session wire, and adding exact global `permission.rules` all still ended with a missing-command Bash approval and `SUPPORT_QA_EVIDENCE_NOT_FETCHED`.
+- **Root cause:** Kimi 0.39.1 sends `session/request_permission` without the command, blocks later ACP updates until a response, and only flushes the complete `interaction.request.display.command` into `wire.jsonl` after the approval decision. Its ACP path also did not apply the tested config rules.
+- **Verified fix:** Remove the ineffective wire/config workarounds and keep missing-payload Bash approvals denied. Route manifest-declared operational scripts through one structured `execute` MCP, while ACP fs callbacks independently enforce read/write paths; three live Ticket workflows then completed with the existing Kimi login.
+
+### ERR-20260902-002 — Nonexistent write path failed across macOS realpath aliases
+
+- **Symptom:** A permitted new analysis file below the Support workspace was rejected when the configured root resolved through `/var` while the parent resolved through `/private/var`.
+- **Root cause:** The policy compared unresolved path strings before canonicalizing the existing parent directory.
+- **Verified fix:** Resolve the workspace root and the target parent with `realpath`, then rebuild the not-yet-created candidate from the canonical parent before applying root and sensitive-path checks.
+
+### ERR-20260902-003 — Valid analysis was not visible in the AI output list
+
+- **Symptom:** Three real `analysis-update` calls persisted intent/result/quality, but the FE still showed “AI 未输出”.
+- **Root cause:** The normalized analysis store and the `ticket_ai` list projection were separate writes, and the new update path only performed the first.
+- **Verified fix:** Project the validated analysis into allow-listed Ticket AI fields during the same Server workflow. Browser read-back then showed all three tickets as “AI 已输出”, and Eval creation/read-back succeeded without authorization errors.
+
+### ERR-20260902-004 — Rejected Support-QA text became an orphan Session
+
+- **Symptom:** FE streamed a complete answer and then received `SUPPORT_QA_EVIDENCE_NOT_FETCHED`; refresh removed the answer and no Ticket AI Session exposed it.
+- **Root cause:** Session ownership attachment happened only after evidence and analysis gates, while failed runs had no persisted status or draft text.
+- **Verified fix:** Attach the created Session before evaluating the gates, persist failed run metadata and the assistant text, and render it as an unverified non-sendable draft with a controlled rerun path.
+
+### ERR-20260902-005 — Prompt interruption occurred before Ticket Session attachment
+
+- **Symptom:** Kimi created a Session, but a Server watcher restart interrupted the prompt; the ownership row remained without Ticket keys and the failed Session disappeared from the Ticket page.
+- **Root cause:** Moving attachment before the evidence gates was insufficient because the code still waited for `acpService.chat()` to return before attaching. A process interruption can happen after `session.created` but before that return.
+- **Verified fix:** Start Ticket and thread attachment directly from the `session.created` event, await the in-flight write on normal completion or prompt failure, and cover the interruption ordering in a service test. Recover only the explicitly identified historical row after verifying its Ticket and thread snapshot.

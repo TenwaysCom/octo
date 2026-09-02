@@ -29,7 +29,7 @@ export class SupportTicketAnalysisError extends Error {
 }
 
 export interface SupportTicketAnalysisServiceDeps {
-  syncStore?: Pick<PlatformSyncStore, "getLarkBaseTicketsForCleaning">;
+  syncStore?: Pick<PlatformSyncStore, "getLarkBaseTicketsForCleaning" | "upsertLarkBaseTicketAi">;
   threadStore?: Pick<LarkTicketThreadSyncStore, "get">;
   analysisStore?: SupportTicketAnalysisStore;
   now?: () => string;
@@ -87,6 +87,10 @@ export function createSupportTicketAnalysisService(deps: SupportTicketAnalysisSe
         analysis,
         updatedAt,
       });
+      await syncStore.upsertLarkBaseTicketAi({
+        ...input.ticket,
+        fields: toTicketAiFields(analysis, input.reviewStatus),
+      });
       return {
         analysisRunId: runId,
         intentSegmentId: stored.intentSegmentId,
@@ -95,6 +99,33 @@ export function createSupportTicketAnalysisService(deps: SupportTicketAnalysisSe
         updatedAt,
       };
     },
+  };
+}
+
+function toTicketAiFields(
+  analysis: SupportAnalysisPayload,
+  reviewStatus: "ai_generated" | "reviewed" | "approved",
+): Record<string, unknown> {
+  const qualityScores = Object.values(analysis.quality.scores);
+  return {
+    "AI分析状态": "已分析",
+    "AI意图识别状态": "已分析",
+    "AI意图": analysis.intent.intentSubtype
+      ? `${analysis.intent.intentType} / ${analysis.intent.intentSubtype}`
+      : analysis.intent.intentType,
+    "AI分析版本": `${TAXONOMY_VERSION}/${RUBRIC_VERSION}`,
+    "AI Ticket 总结": analysis.intent.summary,
+    "AI问题总结状态": "已生成",
+    "AI回答状态": analysis.result.solutionSummary ? "已生成" : "未生成",
+    ...(analysis.result.solutionSummary ? { "AI回答总结": analysis.result.solutionSummary } : {}),
+    "AI处理原因": analysis.quality.summary,
+    "AI Confidence": analysis.intent.confidence,
+    "AI证据摘要": analysis.intent.evidenceMessageIds.join("、"),
+    ...(qualityScores.length ? { "AI LLM Eval Score": qualityScores.reduce((sum, score) => sum + score, 0) / qualityScores.length } : {}),
+    "AI LLM Eval Status": reviewStatus,
+    "AI LLM Eval Summary": analysis.quality.summary,
+    "AI LLM Eval Critical Issues": analysis.quality.criticalIssues,
+    "AI LLM Eval Warnings": analysis.quality.warnings,
   };
 }
 

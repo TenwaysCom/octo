@@ -41,5 +41,20 @@ describe("PostgresAcpKimiSessionOwnershipStore", () => {
       threadSnapshotVersion: 3,
       threadContextSyncedAt: "2026-08-26T12:00:00.000Z",
     });
+
+    await expect(store.updateRun({
+      sessionId: "sess_1",
+      operatorLarkId: "ou_1",
+      actionRunId: "action_1",
+      status: "failed",
+      errorCode: "SUPPORT_QA_EVIDENCE_NOT_FETCHED",
+      errorMessage: "Evidence fetch did not complete.",
+      unverifiedOutput: "Saved but not accepted",
+    })).resolves.toMatchObject({
+      actionRunId: "action_1",
+      runStatus: "failed",
+      runErrorCode: "SUPPORT_QA_EVIDENCE_NOT_FETCHED",
+      unverifiedOutput: "Saved but not accepted",
+    });
   });
 });

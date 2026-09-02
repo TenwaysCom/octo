@@ -5,7 +5,7 @@ import { PostgresLarkTicketEvalSampleStore, type LarkTicketEvalSampleStore } fro
 import type { LarkTicketEvalSampleUpdate } from "../../domain/lark-ticket-eval-sample.js";
 
 export class LarkTicketEvalDatasetError extends Error {
-  constructor(readonly code: "LARK_TICKET_NOT_FOUND" | "TICKET_AI_OUTPUT_NOT_FOUND" | "THREAD_SNAPSHOT_NOT_FOUND" | "THREAD_SNAPSHOT_INCOMPLETE" | "EVAL_SAMPLE_NOT_FOUND", message: string, readonly actionRunId: string) { super(message); this.name = "LarkTicketEvalDatasetError"; }
+  constructor(readonly code: "LARK_TICKET_NOT_FOUND" | "THREAD_SNAPSHOT_NOT_FOUND" | "THREAD_SNAPSHOT_INCOMPLETE" | "EVAL_SAMPLE_NOT_FOUND", message: string, readonly actionRunId: string) { super(message); this.name = "LarkTicketEvalDatasetError"; }
 }
 
 export function createLarkTicketEvalDatasetService(deps: {
@@ -23,7 +23,6 @@ export function createLarkTicketEvalDatasetService(deps: {
     async create(input: { ticket: { baseId: string; tableId: string; recordId: string }; actionRunId: string }) {
       const [ticket] = await syncStore.getLarkBaseTicketsForCleaning([input.ticket]);
       if (!ticket) throw new LarkTicketEvalDatasetError("LARK_TICKET_NOT_FOUND", "The requested Lark Ticket is not available in the synchronized snapshot.", input.actionRunId);
-      if (!Object.keys(ticket.ticketAi?.fields ?? {}).length) throw new LarkTicketEvalDatasetError("TICKET_AI_OUTPUT_NOT_FOUND", "Generate Ticket AI output before creating an Eval sample.", input.actionRunId);
       const snapshot = await threadStore.get(input.ticket);
       if (!snapshot) throw new LarkTicketEvalDatasetError("THREAD_SNAPSHOT_NOT_FOUND", "Create an AI context snapshot before creating an Eval sample.", input.actionRunId);
       if (!snapshot.historyComplete) throw new LarkTicketEvalDatasetError("THREAD_SNAPSHOT_INCOMPLETE", "The Ticket thread snapshot is incomplete and cannot be used as an Eval sample.", input.actionRunId);
