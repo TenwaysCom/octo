@@ -178,6 +178,25 @@ test("loads Meegle Sprint history from its dedicated endpoint", async () => {
   assert.equal(result.sprintWorkitems[0].currentNodeStartTime, "2026-08-08T00:00:00.000Z");
 });
 
+test("shares an in-flight Meegle Sprint history request across duplicate mounts", async () => {
+  let requestCount = 0;
+  let releaseResponse;
+  const responseReady = new Promise((resolve) => { releaseResponse = resolve; });
+  const fetchImpl = async () => {
+    requestCount += 1;
+    await responseReady;
+    return { ok: true, json: async () => ({ ok: true, data: { sprintDetails: [], sprintWorkitems: [] } }) };
+  };
+
+  const first = getMeegleSprintHistory({ apiBaseUrl: "/sprint-dedup-api", fetchImpl });
+  const second = getMeegleSprintHistory({ apiBaseUrl: "/sprint-dedup-api", fetchImpl });
+  assert.strictEqual(first, second);
+  assert.equal(requestCount, 1);
+
+  releaseResponse();
+  await assert.doesNotReject(first);
+});
+
 test("loads open and draft PR candidates for one Meegle workitem", async () => {
   let request;
   const candidate = {

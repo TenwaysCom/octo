@@ -58,8 +58,13 @@ export function getPlatformDataListPage({ apiBaseUrl, kind, filters = {}, offset
   return getSharedPlatformDataRequest(requestKey, () => loadPlatformDataListPage({ apiBaseUrl, kind, filters, offset, fetchImpl, path }));
 }
 
-export async function getMeegleSprintHistory({ apiBaseUrl, fetchImpl = fetch }) {
-  const response = await fetchImpl(buildApiUrl(apiBaseUrl, "/web/meegle-sprints"), { credentials: "include" });
+export function getMeegleSprintHistory({ apiBaseUrl, fetchImpl = fetch }) {
+  const url = buildApiUrl(apiBaseUrl, "/web/meegle-sprints");
+  return getSharedPlatformDataRequest(`${url}#history`, () => loadMeegleSprintHistory(url, fetchImpl));
+}
+
+async function loadMeegleSprintHistory(url, fetchImpl) {
+  const response = await fetchImpl(url, { credentials: "include" });
   const payload = await response.json().catch(() => undefined);
   if (!response.ok || !payload?.ok) {
     throw new Error(payload?.error?.errorCode || "MEEGLE_SPRINT_HISTORY_LOAD_FAILED");

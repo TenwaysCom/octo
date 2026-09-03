@@ -759,3 +759,9 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Symptom:** `tsc` failed with "No overload matches this call" on `z.object({...}).default({})`, and at runtime `config.scheduler.tasks.lark` was `undefined` even though every child field had its own default.
 - **Root cause:** This repo's Zod version types `.default()` against the *output* type, so `{}` is rejected at compile time; and a `.default()` value is applied as-is without parsing, so partial objects never pick up child defaults.
 - **Verified fix:** Give every nested `.default()` the full output-shaped object (e.g. `.default({ enabled: true })`, and the parent `.default({ lark: { enabled: true }, ... })`). Write schema-default tests (`expect(config.scheduler.tasks.shadow.enabled).toBe(false)`) to lock the resolved values.
+
+### ERR-20260903-008 — Sprint badge 补丁使用了不存在的 CSS 相邻规则
+
+- **Symptom:** 首次跨文件 `apply_patch` 在 `global.css` 的插入点校验失败，整块补丁没有落盘。
+- **Root cause:** 补丁假设 `.sprint-carryover-badge` 后紧邻筛选面板规则，但当前文件中间还有 Sprint 详情面板样式。
+- **Verified fix:** 重新读取精确 CSS 局部并按共享逻辑、组件、样式、任务记录拆分补丁；随后 `git diff --check`、FE 31/31 测试文件和 production build 均通过。

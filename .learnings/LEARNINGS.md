@@ -583,3 +583,21 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - Adding a required column to the Kysely schema means every `insertInto` for that table must set it — check scripts too (`backfill-lark-ticket-ai.ts`), not just the store.
 - In this shell `pnpm` is not on PATH; use `export PATH="$HOME/.nvm/versions/node/v24.15.0/bin:$PATH"` + `corepack pnpm`.
 - `octo-kimi-execute-mcp.test.ts` flaked once under full-suite parallel load (bash spawn returned empty stdout); passes on rerun. Not caused by code changes — verify flakiness by re-running before investigating.
+
+## [LRN-20260903-002] shared-semantic-badges-and-user-rendering
+
+- **Context:** 普通 Meegle 列表已有按状态语义着色的 badge，但 Sprint 详情仍显示纯文本；负责人和相关人也绕过了统一 `User` 展示。
+- **Rule:** 同一平台语义在多个 FE 视图中展示时，共享 tone/分类纯函数，页面只负责选择 badge 外观；人员姓名统一通过 `User` 组件渲染，角色分组、溢出和历史/当前边界继续留在各自关系组件中。
+- **Verified outcome:** Sprint 的状态、项目、Version、System、优先级使用一致 badge，负责人和当前相关人使用 `User`；FE 31/31 测试文件和 production build 通过。
+
+## [LRN-20260903-003] async-groups-must-exist-before-default-collapse-is-committed
+
+- **Context:** Meegle 列表的默认折叠 effect 会在异步数据尚未返回、分组数组为空时记录当前配置；数据到达后配置 key 没变化，因此不会再折叠真实分组。
+- **Rule:** 依赖异步派生集合的“一次性默认状态”只能在集合非空后标记为已初始化；恢复出的显式空数组仍表示用户选择全部展开，必须与“尚未初始化”区分。
+- **Verified outcome:** `/#meegle-workitems` 缺省按类型分组，并在真实类型组出现后统一折叠；已恢复状态不被覆盖，FE 31/31 测试文件和 production build 通过。
+
+## [LRN-20260903-004] filter-identity-and-sprint-statistics-must-share-an-explicit-aggregation-key
+
+- **Context:** Meegle 工作项筛选协议按 Sprint 名称传值，而 Sprint 快照与成员历史按 `projectKey + sprintId` 标识；同名 Sprint 可能来自多个项目或多个稳定 ID。
+- **Rule:** 在名称型筛选中合并 Sprint 统计时，先按稳定 ID 构建每个 Sprint 摘要，再显式按筛选协议的名称聚合 Scope/状态统计并重新计算百分比。当前列表命中数和完整 Sprint 历史 Scope 必须分开展示，不能把分页内计数冒充完整 Scope。
+- **Verified outcome:** Sprint 标签按名称自然倒序，同名 Sprint 统计可复核地求和，右侧“当前列表 N 项”与“完成 X/Y”并列但语义独立；FE 31/31 测试文件和 production build 通过。

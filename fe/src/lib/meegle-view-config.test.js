@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  DEFAULT_MEEGLE_GROUP_BY,
   DEFAULT_MEEGLE_VISIBLE_COLUMNS,
+  getDefaultMeegleCollapsedGroupKeys,
   groupMeegleWorkitems,
   normalizeMeegleGroupBy,
   normalizeMeegleSort,
@@ -19,7 +21,9 @@ test("normalizes Meegle view configuration without allowing the workitem column 
   assert.deepEqual(normalizeMeegleVisibleColumns(["status", "unknown", "status"]), ["workitem", "status"]);
   assert.equal(normalizeMeegleGroupBy("sprint"), "sprint");
   assert.equal(normalizeMeegleGroupBy("none"), "none");
-  assert.equal(normalizeMeegleGroupBy("unknown"), "status");
+  assert.equal(DEFAULT_MEEGLE_GROUP_BY, "workitemType");
+  assert.equal(normalizeMeegleGroupBy(undefined), "workitemType");
+  assert.equal(normalizeMeegleGroupBy("unknown"), "workitemType");
   assert.equal(normalizeMeegleSubGroupBy("sprint", "status"), "sprint");
   assert.equal(normalizeMeegleSubGroupBy("status", "status"), "none");
   assert.equal(normalizeMeegleSubGroupBy("sprint", "none"), "none");
@@ -27,6 +31,15 @@ test("normalizes Meegle view configuration without allowing the workitem column 
   assert.equal(normalizeMeegleViewMode("unknown"), "list");
   assert.deepEqual(normalizeMeegleSort({ key: "sprint", direction: "asc" }), { key: "sprint", direction: "asc" });
   assert.deepEqual(normalizeMeegleSort({ key: "sprintVersion", direction: "asc" }), { key: "updatedAt", direction: "desc" });
+});
+
+test("defaults Meegle primary groups to collapsed without duplicate keys", () => {
+  assert.deepEqual(getDefaultMeegleCollapsedGroupKeys([
+    { key: "Story" },
+    { key: "Tech Task" },
+    { key: "Story" },
+  ]), ["Story", "Tech Task"]);
+  assert.deepEqual(getDefaultMeegleCollapsedGroupKeys([]), []);
 });
 
 test("sorts Meegle workitems by configured fields and leaves empty values last", () => {

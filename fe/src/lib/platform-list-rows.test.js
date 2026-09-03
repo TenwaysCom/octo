@@ -5,9 +5,19 @@ import {
   buildGitHubPullRequestRow,
   buildLarkTicketRow,
   buildMeegleWorkitemRow,
+  getMeegleStatusTone,
   getMeegleWorkitemCategory,
   splitOverflowItems,
 } from "./platform-list-rows.js";
+
+test("getMeegleStatusTone keeps Meegle status badges consistent", () => {
+  assert.equal(getMeegleStatusTone("Done"), "completed");
+  assert.equal(getMeegleStatusTone("Server Launch"), "release");
+  assert.equal(getMeegleStatusTone("Feature Draft"), "planning");
+  assert.equal(getMeegleStatusTone("QA Testing"), "review");
+  assert.equal(getMeegleStatusTone("Doing"), "active");
+  assert.equal(getMeegleStatusTone("Blocked"), "default");
+});
 
 test("splitOverflowItems keeps the first N items inline and the rest in overflow", () => {
   const { visible, overflow } = splitOverflowItems(["a", "b", "c", "d", "e"], 2);

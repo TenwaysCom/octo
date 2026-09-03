@@ -4,6 +4,7 @@ import { AiSessionCopyButton } from "../components/ai-session/AiSessionCopyButto
 import { WorkspaceShell } from "../components/layout/WorkspaceShell.jsx";
 import { OdooShBuildStatus } from "../components/platform/OdooShBuildStatus.jsx";
 import { MeegleRelatedPeople } from "../components/platform/MeegleRelatedPeople.jsx";
+import { User } from "../components/user/User.jsx";
 import { useKeyboardShortcut } from "../hooks/useKeyboardShortcut.js";
 import { useMinuteNow } from "../hooks/useMinuteNow.js";
 import { formatDateTime } from "../lib/formatters.js";
@@ -27,6 +28,7 @@ import {
   getDefaultOpenMeegleSprint,
 } from "../lib/meegle-sprint-history.js";
 import { countFilterValues, toggleFilterValue } from "../lib/platform-list-filters.js";
+import { getMeegleStatusTone } from "../lib/platform-list-rows.js";
 import { getMeegleSprintHistory } from "../services/platform-data/platform-data-api.js";
 import { listMeegleSprintAiSessions, loadMeegleSprintAiSession, streamMeegleSprintAiSession } from "../services/meegle-sprint-ai/meegle-sprint-ai-api.js";
 
@@ -244,16 +246,24 @@ function SprintRelatedPullRequests({ pullRequests, apiBaseUrl }) {
   })}</div>;
 }
 
+function SprintWorkitemBadge({ kind, value }) {
+  const label = value || "未设置";
+  const className = kind === "status"
+    ? `meegle-workitem-status meegle-workitem-status--${getMeegleStatusTone(value)}`
+    : `sprint-workitem-field-badge sprint-workitem-field-badge--${kind}`;
+  return <span className={className} title={label}>{label}</span>;
+}
+
 function SprintWorkitemCell({ columnKey, item, apiBaseUrl, nowTime }) {
   if (columnKey === "workitem") return <><a className="table-link" href={getMeegleWorkitemUrl(item)} target="_blank" rel="noreferrer">{item.workItemKey || item.workItemId}</a><small>{item.title}</small>{item.carryoverToSprintName ? <span className="sprint-carryover-badge">结转至 {item.carryoverToSprintName}</span> : null}</>;
   if (columnKey === "workitemType") return <span className={`workitem-type-badge workitem-type-badge--${getMeegleWorkitemCategory(item)}`}>{item.workItemType || item.workItemTypeKey || "-"}</span>;
-  if (columnKey === "status") return <>{item.status || "未设置"}<small>{item.subStage || ""}</small></>;
-  if (columnKey === "project") return item.projectName || item.projectKey || "未设置";
-  if (columnKey === "version") return item.version || "未设置";
-  if (columnKey === "system") return item.system || "未设置";
+  if (columnKey === "status") return <><SprintWorkitemBadge kind="status" value={item.status} /><small>{item.subStage || ""}</small></>;
+  if (columnKey === "project") return <SprintWorkitemBadge kind="project" value={item.projectName || item.projectKey} />;
+  if (columnKey === "version") return <SprintWorkitemBadge kind="version" value={item.version} />;
+  if (columnKey === "system") return <SprintWorkitemBadge kind="system" value={item.system} />;
   if (columnKey === "pullRequests") return <SprintRelatedPullRequests apiBaseUrl={apiBaseUrl} pullRequests={item.githubPullRequests} />;
-  if (columnKey === "priority") return item.priority || "未设置";
-  if (columnKey === "assignee") return item.assignee || "未设置";
+  if (columnKey === "priority") return <SprintWorkitemBadge kind="priority" value={item.priority} />;
+  if (columnKey === "assignee") return <User name={item.assignee} />;
   if (columnKey === "relatedPeople") return <MeegleRelatedPeople relatedPeople={item.relatedPeople} />;
   if (columnKey === "currentWorkingTime") {
     const value = formatMeegleCurrentWorkingTime(item, nowTime);

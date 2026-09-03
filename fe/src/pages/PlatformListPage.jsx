@@ -9,6 +9,7 @@ import { useKeyboardShortcut } from "../hooks/useKeyboardShortcut.js";
 import { useMinuteNow } from "../hooks/useMinuteNow.js";
 import { formatDateTime } from "../lib/formatters.js";
 import { formatMeegleCurrentWorkingTime } from "../lib/meegle-current-working-time.js";
+import { buildMeegleSprintHistory, buildMeegleSprintTagValues } from "../lib/meegle-sprint-history.js";
 import { countMyOpenGitHubPullRequests, matchesGitHubPullRequestQuickFilter } from "../lib/github-pull-request-filters.js";
 import {
   DEFAULT_GITHUB_PULL_REQUEST_SORT,
@@ -44,7 +45,9 @@ import {
   sortLarkTickets,
 } from "../lib/lark-ticket-view-config.js";
 import {
+  DEFAULT_MEEGLE_GROUP_BY,
   DEFAULT_MEEGLE_VISIBLE_COLUMNS,
+  getDefaultMeegleCollapsedGroupKeys,
   groupMeegleWorkitems,
   MEEGLE_GROUP_OPTIONS,
   MEEGLE_VIEW_COLUMNS,
@@ -58,6 +61,7 @@ import {
 import { getOdooShBuildTone } from "../lib/odoo-sh-build-status.js";
 import {
   getGitHubPullRequestPreview,
+  getMeegleSprintHistory,
   getMeeglePullRequestCandidates,
   getPlatformDataListPage,
   linkMeeglePullRequest,
@@ -69,6 +73,7 @@ import {
   buildGitHubPullRequestRow,
   buildLarkTicketRow,
   buildMeegleWorkitemRow,
+  getMeegleStatusTone,
   getMeegleWorkitemCategory,
   getMeegleWorkitemDetailUrl,
   splitOverflowItems,
@@ -93,16 +98,6 @@ function ExternalLink({ href, title, className, children }) {
     // Synced fields may be empty or a non-URL value; render plain text in that case.
   }
   return children;
-}
-
-function getMeegleStatusTone(status) {
-  const normalized = String(status || "").toLocaleLowerCase();
-  if (["done", "ended", "fixed", "launched"].includes(normalized)) return "completed";
-  if (["fe launch", "server launch"].includes(normalized)) return "release";
-  if (normalized.includes("design") || ["feature draft", "new", "to start"].includes(normalized)) return "planning";
-  if (normalized.includes("review") || normalized.includes("testing") || normalized.includes("check")) return "review";
-  if (normalized.includes("doing") || normalized.includes("ongoing") || normalized.includes("development")) return "active";
-  return "default";
 }
 
 function MeegleStatusPill({ status }) {
@@ -512,8 +507,9 @@ function TagFilterSidebar({ fields, activeFieldKey, selectedValues, onActiveFiel
         aria-pressed={selectedValues[activeField.key]?.includes(tag.value) || false}
         className={selectedValues[activeField.key]?.includes(tag.value) ? "list-tag-sidebar__value--active" : ""}
         key={tag.value}
+        title={tag.summary ? `${tag.label}：${tag.summary}；当前列表 ${tag.count} 项` : undefined}
         onClick={() => onToggle(activeField.key, tag.value)}
-      ><span><i aria-hidden="true" />{tag.label}</span><small>{tag.count}</small></button>)}
+      ><span><i aria-hidden="true" />{tag.summary ? <span className="list-tag-sidebar__value-copy"><strong>{tag.label}</strong><small>{tag.summary}</small></span> : tag.label}</span><small className="list-tag-sidebar__count">{tag.count}{tag.summary ? " 项" : ""}</small></button>)}
       {!activeField?.values.length ? <p>暂无可筛选的标签</p> : null}
     </div>
   </aside>;
@@ -758,10 +754,6 @@ function getDefaultCollapsedSubgroupKeys(groups) {
   ])))];
 }
 
-function getDefaultCollapsedGroupKeys(groups) {
-  return [...new Set(groups.map((group) => group.key))];
-}
-
 function LoadMoreResults({ pager, loaded, isLoading, onLoadMore }) {
   if (!pager?.hasMore) return null;
   return <footer className="list-load-more">
@@ -954,6 +946,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
   const [githubPreview, setGitHubPreview] = useState(null);
   const [meeglePrCandidate, setMeeglePrCandidate] = useState(null);
   const [meeglePrPicker, setMeeglePrPicker] = useState(null);
+  const [meegleSprintSummaries, setMeegleSprintSummaries] = useState([]);
   const githubPreviewCacheRef = useRef(new Map());
   const githubPreviewRequestVersionRef = useRef(0);
   const meeglePrPickerRequestVersionRef = useRef(0);
@@ -987,13 +980,23 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
     { key: "label", label: "Label", getValues: (item) => item.labels || [] },
     { key: "reviewer", label: "Reviewer", getValues: (item) => item.reviewers || [] },
   ];
-  const tagFilterFieldsWithCounts = tagFilterFields.map((field) => ({
-    ...field,
-    values: mergeKnownFilterValues(
+  const tagFilterFieldsWithCounts = tagFilterFields.map((field) => {
+    const countedValues = mergeKnownFilterValues(
       countFilterValues(itemsAfterQuickFilters, field.getValues),
       countFilterValues(state.filterItems, field.getValues),
-    ),
-  }));
+    );
+    return {
+      ...field,
+      values: page === "meegle-workitems" && field.key === "sprint"
+        ? buildMeegleSprintTagValues({
+          sprintSummaries: meegleSprintSummaries,
+          countedValues,
+          knownSprintNames: state.sprints,
+        })
+        : countedValues,
+    };
+  });
+  const sprintFilterValues = tagFilterFieldsWithCounts.find(({ key }) => key === "sprint")?.values || [];
   const filteredItems = itemsAfterQuickFilters;
   const sortedItems = page === "lark-tickets"
     ? sortLarkTickets(filteredItems, sort)
@@ -1099,6 +1102,21 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
   useEffect(() => () => onPlatformListFilterStateChange?.(page, filterStateRef.current), [onPlatformListFilterStateChange, page]);
 
   useEffect(() => {
+    if (page !== "meegle-workitems") {
+      setMeegleSprintSummaries([]);
+      return undefined;
+    }
+    let active = true;
+    void getMeegleSprintHistory({ apiBaseUrl }).then(
+      ({ sprintDetails, sprintWorkitems }) => {
+        if (active) setMeegleSprintSummaries(buildMeegleSprintHistory(sprintWorkitems, sprintDetails));
+      },
+      () => { if (active) setMeegleSprintSummaries([]); },
+    );
+    return () => { active = false; };
+  }, [apiBaseUrl, page]);
+
+  useEffect(() => {
     let active = true;
     const requestVersion = ++dataRequestVersionRef.current;
     setState((current) => ({
@@ -1201,6 +1219,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
       meegleGroupDefaultsRef.current = null;
       return;
     }
+    if (!meegleGroups.length) return;
     const configKey = `${meegleGroupBy}:${meegleSubGroupBy}`;
     if (meegleGroupDefaultsRef.current === "restored") {
       meegleGroupDefaultsRef.current = configKey;
@@ -1208,7 +1227,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
     }
     if (meegleGroupDefaultsRef.current === configKey) return;
     meegleGroupDefaultsRef.current = configKey;
-    setCollapsedMeegleGroups(getDefaultCollapsedGroupKeys(meegleGroups));
+    setCollapsedMeegleGroups(getDefaultMeegleCollapsedGroupKeys(meegleGroups));
   }, [meegleGroupBy, meegleGroups, meegleSubGroupBy, page]);
 
   useEffect(() => {
@@ -1513,7 +1532,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
       {
         key: "sprint",
         label: "Sprint",
-        values: state.sprints.map((sprint) => ({ value: sprint, label: sprint })),
+        values: sprintFilterValues.map(({ value, label }) => ({ value, label })),
         selectedValues: selectedSprints,
         isFiltered: selectedSprints.length > 0,
         onToggle: (value) => {
@@ -1677,11 +1696,12 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
                 onToggleColumn={toggleMeegleColumn}
                 onReset={() => {
                   setMeegleViewMode("list");
-                  setMeegleGroupBy("status");
+                  setMeegleGroupBy(DEFAULT_MEEGLE_GROUP_BY);
                   setMeegleSubGroupBy("none");
                   setMeegleShowEmptyGroups(false);
                   setSort(DEFAULT_SORT);
                   setMeegleVisibleColumns([...DEFAULT_MEEGLE_VISIBLE_COLUMNS]);
+                  meegleGroupDefaultsRef.current = null;
                   setCollapsedMeegleGroups([]);
                   setCollapsedMeegleSubgroups([]);
                   setPageIndex(0);

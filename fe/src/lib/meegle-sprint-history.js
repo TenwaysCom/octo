@@ -247,6 +247,76 @@ export function buildMeegleSprintHistory(items, sprintDetails = [], now = new Da
     });
 }
 
+export function buildMeegleSprintTagValues({ sprintSummaries = [], countedValues = [], knownSprintNames = [] } = {}) {
+  const valuesByName = new Map();
+  const ensureValue = (rawName) => {
+    const name = normalizeText(rawName);
+    if (!name) return undefined;
+    const current = valuesByName.get(name);
+    if (current) return current;
+    const created = {
+      value: name,
+      label: name,
+      count: 0,
+      sprintCount: 0,
+      projectKeys: new Set(),
+      statuses: new Set(),
+      lifecycles: new Set(),
+      scope: 0,
+      completed: 0,
+      started: 0,
+      notStarted: 0,
+    };
+    valuesByName.set(name, created);
+    return created;
+  };
+
+  for (const name of knownSprintNames) ensureValue(name);
+  for (const countedValue of countedValues) {
+    const value = ensureValue(countedValue?.value || countedValue?.label);
+    if (value) value.count = Number.isFinite(countedValue?.count) ? Math.max(0, countedValue.count) : 0;
+  }
+  for (const sprint of sprintSummaries) {
+    const value = ensureValue(sprint?.name);
+    if (!value) continue;
+    value.sprintCount += 1;
+    if (sprint.projectKey) value.projectKeys.add(sprint.projectKey);
+    if (normalizeText(sprint.status)) value.statuses.add(normalizeText(sprint.status));
+    if (normalizeText(sprint.lifecycle)) value.lifecycles.add(normalizeText(sprint.lifecycle));
+    value.scope += Number.isFinite(sprint.progress?.scope) ? sprint.progress.scope : 0;
+    value.completed += Number.isFinite(sprint.progress?.completed) ? sprint.progress.completed : 0;
+    value.started += Number.isFinite(sprint.progress?.started) ? sprint.progress.started : 0;
+    value.notStarted += Number.isFinite(sprint.progress?.notStarted) ? sprint.progress.notStarted : 0;
+  }
+
+  return [...valuesByName.values()].map((value) => {
+    const completionPercent = value.scope ? Math.round(value.completed / value.scope * 100) : 0;
+    const stateLabel = [...value.statuses].join(" / ") || [...value.lifecycles].join(" / ");
+    const summary = value.sprintCount ? [
+      stateLabel,
+      `完成 ${value.completed}/${value.scope}（${completionPercent}%）`,
+      value.sprintCount > 1 ? `${value.sprintCount} 个 Sprint 合并` : "",
+    ].filter(Boolean).join(" · ") : "";
+    return {
+      value: value.value,
+      label: value.label,
+      count: value.count,
+      ...(summary ? { summary } : {}),
+      ...(value.sprintCount ? {
+        stats: {
+          sprintCount: value.sprintCount,
+          projectCount: value.projectKeys.size,
+          scope: value.scope,
+          completed: value.completed,
+          started: value.started,
+          notStarted: value.notStarted,
+          completionPercent,
+        },
+      } : {}),
+    };
+  }).sort((left, right) => right.label.localeCompare(left.label, "zh-CN", { numeric: true, sensitivity: "base" }));
+}
+
 function getSprintIdKey(projectKey, sprintId) {
   return `id:${normalizeText(projectKey)}:${normalizeText(sprintId)}`;
 }

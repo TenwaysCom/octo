@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   buildMeegleSprintHistory,
+  buildMeegleSprintTagValues,
   buildMeegleSprintTimeline,
   filterMeegleSprintHistory,
   filterMeegleSprintItems,
@@ -10,6 +11,61 @@ import {
   groupMeegleSprintHistory,
   summarizeMeegleSprint,
 } from "./meegle-sprint-history.js";
+
+test("builds Sprint filter values in descending name order and merges same-name statistics", () => {
+  const values = buildMeegleSprintTagValues({
+    countedValues: [
+      { value: "Odoo Sprint 20260917", label: "Odoo Sprint 20260917", count: 3 },
+      { value: "Odoo Sprint 20260903", label: "Odoo Sprint 20260903", count: 1 },
+    ],
+    knownSprintNames: ["Odoo Sprint 20260820"],
+    sprintSummaries: [{
+      name: "Odoo Sprint 20260917",
+      projectKey: "project-a",
+      status: "In progress",
+      lifecycle: "current",
+      progress: { scope: 4, completed: 2, started: 1, notStarted: 1 },
+    }, {
+      name: "Odoo Sprint 20260917",
+      projectKey: "project-b",
+      status: "In progress",
+      lifecycle: "current",
+      progress: { scope: 2, completed: 1, started: 1, notStarted: 0 },
+    }, {
+      name: "Odoo Sprint 20260903",
+      projectKey: "project-a",
+      status: "Ended",
+      lifecycle: "past",
+      progress: { scope: 5, completed: 5, started: 0, notStarted: 0 },
+    }],
+  });
+
+  assert.deepEqual(values.map(({ value }) => value), [
+    "Odoo Sprint 20260917",
+    "Odoo Sprint 20260903",
+    "Odoo Sprint 20260820",
+  ]);
+  assert.deepEqual(values[0], {
+    value: "Odoo Sprint 20260917",
+    label: "Odoo Sprint 20260917",
+    count: 3,
+    summary: "In progress · 完成 3/6（50%） · 2 个 Sprint 合并",
+    stats: {
+      sprintCount: 2,
+      projectCount: 2,
+      scope: 6,
+      completed: 3,
+      started: 2,
+      notStarted: 1,
+      completionPercent: 50,
+    },
+  });
+  assert.deepEqual(values[2], {
+    value: "Odoo Sprint 20260820",
+    label: "Odoo Sprint 20260820",
+    count: 0,
+  });
+});
 
 const items = [
   { projectKey: "project", workItemId: "1", sprintId: "current", sprint: "Sprint 2", status: "Done", projectName: "Octo", priority: "P1", sourceUpdatedAt: "2026-08-27T09:00:00.000Z" },

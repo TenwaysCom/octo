@@ -34,6 +34,16 @@ export function getMeegleWorkitemCategory(item) {
   return "other";
 }
 
+export function getMeegleStatusTone(status) {
+  const normalized = String(status || "").toLocaleLowerCase();
+  if (["done", "ended", "fixed", "launched"].includes(normalized)) return "completed";
+  if (["fe launch", "server launch"].includes(normalized)) return "release";
+  if (normalized.includes("design") || ["feature draft", "new", "to start"].includes(normalized)) return "planning";
+  if (normalized.includes("review") || normalized.includes("testing") || normalized.includes("check")) return "review";
+  if (normalized.includes("doing") || normalized.includes("ongoing") || normalized.includes("development")) return "active";
+  return "default";
+}
+
 export function getMeegleWorkitemDetailUrl(item) {
   const urlSlugByCategory = {
     story: "story",

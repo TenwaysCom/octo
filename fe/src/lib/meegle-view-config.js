@@ -27,6 +27,7 @@ export const MEEGLE_GROUP_OPTIONS = [
 
 export const DEFAULT_MEEGLE_VISIBLE_COLUMNS = MEEGLE_VIEW_COLUMNS.map(({ key }) => key);
 export const DEFAULT_MEEGLE_VIEW_MODE = "list";
+export const DEFAULT_MEEGLE_GROUP_BY = "workitemType";
 
 const COLUMN_KEYS = new Set(DEFAULT_MEEGLE_VISIBLE_COLUMNS);
 const GROUP_KEYS = new Set(MEEGLE_GROUP_OPTIONS.map(([key]) => key));
@@ -41,7 +42,11 @@ export function normalizeMeegleVisibleColumns(value) {
 }
 
 export function normalizeMeegleGroupBy(value) {
-  return GROUP_KEYS.has(value) ? value : "status";
+  return GROUP_KEYS.has(value) ? value : DEFAULT_MEEGLE_GROUP_BY;
+}
+
+export function getDefaultMeegleCollapsedGroupKeys(groups) {
+  return [...new Set((groups || []).map((group) => group.key).filter((key) => typeof key === "string"))];
 }
 
 export function normalizeMeegleSubGroupBy(value, groupBy) {

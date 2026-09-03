@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { flattenMeegleRelatedPeople, formatMeegleRelatedPeopleLabel } from "../../lib/meegle-related-people.js";
+import { User } from "../user/User.jsx";
 
 const INLINE_LIMIT = 2;
 
@@ -31,7 +32,7 @@ export function MeegleRelatedPeople({ relatedPeople }) {
     onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}
     onKeyDown={(event) => { if (event.key === "Escape" && open) { event.stopPropagation(); setOpen(false); buttonRef.current?.focus(); } }}
   >
-    {visible.map((entry) => <span className="meegle-related-people__entry" key={`${entry.roleKey}:${entry.memberKey}`}><small>{entry.roleName}</small><span>{entry.name}</span></span>)}
+    {visible.map((entry) => <span className="meegle-related-people__entry" key={`${entry.roleKey}:${entry.memberKey}`}><small>{entry.roleName}</small><User name={entry.name} /></span>)}
     {overflowCount > 0 ? <button
       aria-expanded={open}
       aria-label={`相关人共 ${entries.length} 项，展开查看全部`}
@@ -43,7 +44,7 @@ export function MeegleRelatedPeople({ relatedPeople }) {
     {open ? <span aria-label="全部相关人" className="meegle-related-people__popover" role="group" style={position}>
       {relatedPeople.map((role) => <span className="meegle-related-people__role" key={role.roleKey}>
         <strong>{role.roleName}</strong>
-        <span>{role.members.map((member) => member.name).join("、")}</span>
+        <span className="user-list">{role.members.map((member) => <User key={member.memberKey} name={member.name} />)}</span>
       </span>)}
     </span> : null}
   </span>;
