@@ -683,6 +683,7 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .addColumn("record_id", "text", (column) => column.notNull())
     .addColumn("shared_url", "text")
     .addColumn("ticket_ai", "text", (column) => column.notNull().defaultTo("{}"))
+    .addColumn("shadow_ai", "text", (column) => column.notNull().defaultTo("{}"))
     .addColumn("local_json", "text", (column) => column.notNull().defaultTo("{}"))
     .addColumn("created_at", "text", (column) => column.notNull())
     .addColumn("updated_at", "text", (column) => column.notNull())
@@ -1011,6 +1012,10 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
   await sql`
     ALTER TABLE lark_base_ticket_octo
     ADD COLUMN IF NOT EXISTS ticket_ai text NOT NULL DEFAULT '{}'
+  `.execute(db);
+  await sql`
+    ALTER TABLE lark_base_ticket_octo
+    ADD COLUMN IF NOT EXISTS shadow_ai text NOT NULL DEFAULT '{}'
   `.execute(db);
   await sql`
     INSERT INTO lark_base_ticket_octo (

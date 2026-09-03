@@ -64,6 +64,7 @@ async function main() {
         record_id: candidate.recordId,
         shared_url: null,
         ticket_ai: candidate.ticketAi,
+        shadow_ai: "{}",
         local_json: "{}",
         created_at: now,
         updated_at: now,

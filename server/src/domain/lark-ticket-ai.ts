@@ -49,6 +49,54 @@ export function pickLarkTicketAiFields(value: Record<string, unknown> | undefine
   return Object.fromEntries(Object.entries(value).filter(([name]) => larkTicketAiFieldNameSet.has(name)));
 }
 
+export interface LarkTicketShadowAi {
+  status: "ok" | "skipped" | "error";
+  intent?: string;
+  intentConfidence?: number;
+  summary?: string;
+  analyzedAt?: string;
+  snapshotVersion?: number;
+  promptVersion?: string;
+  reason?: string;
+  errorCode?: string;
+}
+
+export function parseLarkTicketShadowAi(value: string | null | undefined): LarkTicketShadowAi | undefined {
+  if (!value) return undefined;
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return undefined;
+    const candidate = parsed as Record<string, unknown>;
+    const status = candidate.status;
+    if (status !== "ok" && status !== "skipped" && status !== "error") return undefined;
+    const analysis = candidate.analysis as Record<string, unknown> | undefined;
+    const intent = analysis?.analysis && typeof analysis.analysis === "object"
+      ? (analysis.analysis as Record<string, unknown>).intent as Record<string, unknown> | undefined
+      : undefined;
+    const intentType = typeof intent?.intentType === "string" ? intent.intentType : "";
+    const intentSubtype = typeof intent?.intentSubtype === "string" ? intent.intentSubtype : "";
+    return {
+      status,
+      ...(intentType ? { intent: intentSubtype ? `${intentType} / ${intentSubtype}` : intentType } : {}),
+      ...(typeof intent?.confidence === "number" ? { intentConfidence: intent.confidence } : {}),
+      ...(typeof candidate.summary === "string" && candidate.summary.trim()
+        ? { summary: candidate.summary }
+        : typeof analysis?.summary === "string" && analysis.summary.trim()
+          ? { summary: analysis.summary }
+          : {}),
+      ...(typeof candidate.analyzedAt === "string" ? { analyzedAt: candidate.analyzedAt } : {}),
+      ...(typeof candidate.snapshotVersion === "number" ? { snapshotVersion: candidate.snapshotVersion } : {}),
+      ...(typeof candidate.promptVersion === "string" ? { promptVersion: candidate.promptVersion } : {}),
+      ...(typeof candidate.reason === "string" ? { reason: candidate.reason } : {}),
+      ...(typeof (candidate.error as Record<string, unknown> | undefined)?.errorCode === "string"
+        ? { errorCode: (candidate.error as Record<string, unknown>).errorCode as string }
+        : {}),
+    };
+  } catch {
+    return undefined;
+  }
+}
+
 export function parseLarkTicketAiData(value: string | null | undefined): LarkTicketAiData | undefined {
   if (!value) return undefined;
   try {

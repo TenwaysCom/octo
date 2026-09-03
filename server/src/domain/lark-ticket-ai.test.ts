@@ -1,5 +1,6 @@
 import {
   parseLarkTicketAiData,
+  parseLarkTicketShadowAi,
   pickLarkTicketAiFields,
 } from "./lark-ticket-ai.js";
 
@@ -19,5 +20,44 @@ describe("Lark Ticket AI field contract", () => {
     }));
     expect(data).toMatchObject({ fields: { "AI分析状态": "已分析" } });
     expect(data).not.toHaveProperty("syncedAt");
+  });
+
+  it("parses shadow summary payloads for the AI output view", () => {
+    const shadow = parseLarkTicketShadowAi(JSON.stringify({
+      status: "ok",
+      analysis: {
+        version: "support-analysis-result-v1",
+        analysis: {
+          intent: { intentType: "troubleshoot", intentSubtype: "workflow_stuck", confidence: 0.72 },
+        },
+        summary: "订单无法添加促销，待排查。",
+      },
+      analyzedAt: "2026-09-03T05:00:00.000Z",
+      snapshotVersion: 7,
+      promptVersion: "v2",
+    }));
+    expect(shadow).toEqual({
+      status: "ok",
+      intent: "troubleshoot / workflow_stuck",
+      intentConfidence: 0.72,
+      summary: "订单无法添加促销，待排查。",
+      analyzedAt: "2026-09-03T05:00:00.000Z",
+      snapshotVersion: 7,
+      promptVersion: "v2",
+    });
+  });
+
+  it("parses skipped and error shadow payloads", () => {
+    expect(parseLarkTicketShadowAi(JSON.stringify({ status: "skipped", reason: "no_thread_link", analyzedAt: "2026-09-03T05:00:00.000Z" })))
+      .toEqual({ status: "skipped", reason: "no_thread_link", analyzedAt: "2026-09-03T05:00:00.000Z" });
+    expect(parseLarkTicketShadowAi(JSON.stringify({ status: "error", error: { errorCode: "SHADOW_ACP_FAILED" } })))
+      .toEqual({ status: "error", errorCode: "SHADOW_ACP_FAILED" });
+  });
+
+  it("rejects malformed shadow payloads", () => {
+    expect(parseLarkTicketShadowAi("{}")).toBeUndefined();
+    expect(parseLarkTicketShadowAi("not json")).toBeUndefined();
+    expect(parseLarkTicketShadowAi(null)).toBeUndefined();
+    expect(parseLarkTicketShadowAi(JSON.stringify({ status: "pending" }))).toBeUndefined();
   });
 });

@@ -476,15 +476,27 @@ test("resets all Odoo DevOps branch caches with the web session", async () => {
 });
 
 test("loads and triggers a configured platform sync source with the web session", async () => {
-  const sources = await getPlatformSyncSources({
+  const result = await getPlatformSyncSources({
     apiBaseUrl: "/api",
     fetchImpl: async (url, options) => {
       assert.equal(url, "/api/web/platform-sync-sources");
       assert.equal(options.credentials, "include");
-      return { ok: true, json: async () => ({ ok: true, data: { sources: [{ id: "lark-tickets", label: "Lark Ticket", configured: true }] } }) };
+      return {
+        ok: true,
+        json: async () => ({
+          ok: true,
+          data: {
+            sources: [{ id: "lark-tickets", label: "Lark Ticket", configured: true }],
+            shadowSummary: { ok: 2, skipped: 1, error: 0, pending: 3, lastAnalyzedAt: "2026-09-03T01:00:00.000Z", enabled: true },
+          },
+        }),
+      };
     },
   });
-  assert.deepEqual(sources, [{ id: "lark-tickets", label: "Lark Ticket", configured: true }]);
+  assert.deepEqual(result, {
+    sources: [{ id: "lark-tickets", label: "Lark Ticket", configured: true }],
+    shadowSummary: { ok: 2, skipped: 1, error: 0, pending: 3, lastAnalyzedAt: "2026-09-03T01:00:00.000Z", enabled: true },
+  });
 
   let request;
   await syncPlatformSource({

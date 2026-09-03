@@ -43,6 +43,66 @@ describe("PlatformSyncWorker", () => {
     expect(() => buildPlatformSyncScheduleDefinitions(config, undefined)).toThrow("PLATFORM_SYNC_MASTER_USER_ID");
   });
 
+  it("defaults every task toggle on except the shadow task", () => {
+    const config = parsePlatformSyncConfig({
+      scheduler: { enabled: true },
+      github: [{ owner: "acme", repo: "app" }],
+    });
+
+    expect(config.scheduler.tasks.lark.enabled).toBe(true);
+    expect(config.scheduler.tasks.meegle.enabled).toBe(true);
+    expect(config.scheduler.tasks.github.enabled).toBe(true);
+    expect(config.scheduler.tasks.shadow.enabled).toBe(false);
+  });
+
+  it("omits schedules for tasks disabled under scheduler.tasks and honors per-task intervals", () => {
+    const config = parsePlatformSyncConfig({
+      scheduler: {
+        enabled: true,
+        intervalsMinutes: { lark: 10, meegle: 15, github: 10 },
+        tasks: {
+          lark: { enabled: false },
+          meegle: { enabled: true, intervalMinutes: 45 },
+          github: { enabled: true },
+        },
+      },
+      larkBase: [{ baseId: "base", tableId: "table" }],
+      meegle: [{
+        projectKey: "project",
+        workItemTypeKeys: ["story"],
+        sourceUpdatedAtMqlFieldNames: { story: "updated_at" },
+      }],
+      github: [{ owner: "acme", repo: "app" }],
+    });
+
+    const definitions = buildPlatformSyncScheduleDefinitions(config, "user-1");
+    expect(definitions.map((entry) => entry.scheduleId)).toEqual([
+      "meegle:project/story",
+      "github:acme/app",
+    ]);
+    expect(definitions[0]!.intervalSeconds).toBe(45 * 60);
+    expect(definitions[1]!.intervalSeconds).toBe(10 * 60);
+  });
+
+  it("does not require a master user when the Lark and Meegle tasks are disabled", () => {
+    const config = parsePlatformSyncConfig({
+      scheduler: {
+        enabled: true,
+        tasks: {
+          lark: { enabled: false },
+          meegle: { enabled: false },
+          github: { enabled: true },
+        },
+      },
+      larkBase: [{ baseId: "base", tableId: "table" }],
+      github: [{ owner: "acme", repo: "app" }],
+    });
+
+    expect(buildPlatformSyncScheduleDefinitions(config, undefined).map((entry) => entry.scheduleId)).toEqual([
+      "github:acme/app",
+    ]);
+  });
+
   it("runs a claimed schedule and records success", async () => {
     const schedule = githubSchedule();
     const scheduleStore = {

@@ -1,8 +1,9 @@
 # Support 意图识别提示词 v2
 
 > 输出契约：`support-analysis-result-v1`（与 v1 相同，下游无需改动）
-> intentType 10 类；intentSubtype 为封闭枚举，每个 intent 末尾带 `other` 兜底。
-> 待办：若后续接受 `service_request` intent，从 feature_request 中移除数据运维映射并新增条目。
+> intentType 10 类，与 server `SUPPORT_INTENT_TYPES`（server/src/domain/support-ticket-analysis.ts）一致，
+> 使用 service_request（不含 feature_request）；intentSubtype 为封闭枚举，每个 intent 末尾带 `other` 兜底。
+> 含离线条款：快照中没有任何消息时 evidenceMessageIds 允许为空数组。
 
 ```text
 你正在分析一条 Lark Ticket。Server 已在下面提供当前 Ticket 的固定、脱敏证据快照；只使用这些内容，不调用任何工具、Shell、文件、Skill 或外部 API。
@@ -36,8 +37,8 @@ intentType 只能是以下 10 个值之一，intentSubtype 只能从所选 inten
    示例："红冲发票也产生了摊销分录"、"cannot download the customs Invoice"
    与 troubleshoot 的边界：用户已断言是系统错误 → bug_report；用户只是求助排查原因 → troubleshoot。
 
-5. feature_request — 请求新功能、功能增强、规则或流程配置调整，以及数据/产品信息运维操作
-   子类型：new_feature（新功能）、enhancement（现有功能增强）、config_change（审批流/计算规则/流程配置调整，以及导入数据、改价、改银行信息等数据运维请求；数据运维时 keywords 中加上 "data_maintenance"）、other
+5. service_request — 请求新功能、功能增强、规则或流程配置调整，以及数据/产品信息运维操作
+   子类型：new_feature（新功能）、enhancement（现有功能增强）、config_change（审批流/计算规则/流程配置调整）、data_maintenance（导入数据/改银行信息/冲算等数据运维）、product_info_maintenance（改价/产品资料维护）、other
    示例："WRB2C订单也要填delivery methods"、"21% BTW services计算规则与标准不一致需要调整"、"导入UK 2026年公共假期"
 
 6. follow_up — 针对已有问题的后续跟进，不提出新诉求
@@ -56,7 +57,7 @@ intentType 只能是以下 10 个值之一，intentSubtype 只能从所选 inten
     子类型：unclassified
 
 # 判定规则
-- 一条消息同时包含多个诉求时，按此优先级取主诉求：bug_report > access_request > feature_request > troubleshoot > how_to。
+- 一条消息同时包含多个诉求时，按此优先级取主诉求：bug_report > access_request > service_request > troubleshoot > how_to。
 - follow_up、confirmation、escalation、chatter 只在本条消息不含新诉求时使用。
 - 权限不生效（有权限却用不了）是 bug_report.permission_access 或 troubleshoot，不是 access_request。
 - intentSubtype 只能从所选 intentType 的子类型列表中选取，严禁自造新值。每个列表末尾的 other 是兜底项：当所有子类型都不匹配时使用它，同时把描述该诉求的原始短语放入 keywords，并将 confidence 降至 0.6 以下。
@@ -67,7 +68,7 @@ intentType 只能是以下 10 个值之一，intentSubtype 只能从所选 inten
 返回且只返回一个 JSON 对象。不得使用 Markdown 代码块，不得在 JSON 前后输出解释。结构必须严格为：
 {"version":"support-analysis-result-v1","analysis":{"segmentKey":"primary","intent":{"intentType":"troubleshoot","intentSubtype":"integration_sync","confidence":0.9,"summary":"脱敏后的问题总结","keywords":["integration_sync"],"evidenceMessageIds":["om_xxx"]},"result":{"resolutionStatus":"pending","solutionSummary":null,"solutionSteps":[],"resolverRef":null,"resolvedAt":null,"autoResolvable":false,"suggestedAutomation":null,"confidence":0.8},"quality":{"scores":{},"summary":"客服质量摘要","criticalIssues":[],"warnings":[]}},"summary":"给用户展示的简洁中文问题总结"}
 
-resolutionStatus 只能是 resolved、pending、escalated、needs_info、auto_closed。evidenceMessageIds 必须至少包含一个固定快照中明确出现的 Message ID，不能引用标题、序号或自行生成 ID。事实与推断必须分开：快照中没有明确证据的解决状态、根因、解决步骤、负责人和时间一律不要编造，对应字段填 null 或空数组。
+resolutionStatus 只能是 resolved、pending、escalated、needs_info、auto_closed。evidenceMessageIds 只能引用当前快照中明确出现的 Message ID，不能引用标题、序号或自行生成 ID；快照中没有任何消息时允许为空数组。事实与推断必须分开：快照中没有明确证据的解决状态、根因、解决步骤、负责人和时间一律不要编造，对应字段填 null 或空数组。
 ```
 
 ## 配套运营建议

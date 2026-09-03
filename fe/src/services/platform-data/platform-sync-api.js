@@ -10,7 +10,7 @@ export async function getPlatformSyncSources({ apiBaseUrl, fetchImpl = fetch }) 
   if (!response.ok || !payload?.ok || !Array.isArray(payload.data?.sources)) {
     throw new Error(payload?.error?.errorCode || "SYNC_SOURCES_LOAD_FAILED");
   }
-  return payload.data.sources;
+  return { sources: payload.data.sources, shadowSummary: payload.data.shadowSummary };
 }
 
 export async function syncPlatformSource({ apiBaseUrl, sourceId, actionRunId, fetchImpl = fetch }) {

@@ -45,6 +45,19 @@ export type GitHubPullRequestState = z.infer<typeof githubPullRequestStateSchema
 type GitHubPullRequestSyncState = Exclude<GitHubPullRequestState, "all">;
 const syncModeSchema = z.enum(["full", "incremental", "clean"]);
 export type PlatformSyncMode = z.infer<typeof syncModeSchema>;
+const syncTaskToggleSchema = z.object({
+  enabled: z.boolean().default(true),
+  intervalMinutes: z.number().int().min(1).max(1440).optional(),
+});
+
+const shadowTaskSchema = z.object({
+  enabled: z.boolean().default(false),
+  intervalMinutes: z.number().int().min(1).max(1440).optional(),
+  settleMinutes: z.number().int().min(1).max(10080).optional(),
+  batchLimit: z.number().int().min(1).max(50).optional(),
+  acpTimeoutSeconds: z.number().int().min(30).max(1800).optional(),
+});
+
 const platformSyncSchedulerSchema = z.object({
   enabled: z.boolean().default(false),
   pollIntervalSeconds: z.number().int().min(5).max(300).default(30),
@@ -55,12 +68,29 @@ const platformSyncSchedulerSchema = z.object({
     meegle: z.number().int().min(1).max(1440).default(15),
     github: z.number().int().min(1).max(1440).default(10),
   }).default({ lark: 10, meegle: 15, github: 10 }),
+  tasks: z.object({
+    lark: syncTaskToggleSchema.default({ enabled: true }),
+    meegle: syncTaskToggleSchema.default({ enabled: true }),
+    github: syncTaskToggleSchema.default({ enabled: true }),
+    shadow: shadowTaskSchema.default({ enabled: false }),
+  }).default({
+    lark: { enabled: true },
+    meegle: { enabled: true },
+    github: { enabled: true },
+    shadow: { enabled: false },
+  }),
 }).default({
   enabled: false,
   pollIntervalSeconds: 30,
   concurrency: 2,
   leaseSeconds: 1200,
   intervalsMinutes: { lark: 10, meegle: 15, github: 10 },
+  tasks: {
+    lark: { enabled: true },
+    meegle: { enabled: true },
+    github: { enabled: true },
+    shadow: { enabled: false },
+  },
 });
 
 const platformSyncConfigSchema = z.object({

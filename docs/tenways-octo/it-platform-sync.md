@@ -251,12 +251,26 @@ pnpm --dir server exec pm2 save
     "pollIntervalSeconds": 30,
     "concurrency": 2,
     "leaseSeconds": 1200,
-    "intervalsMinutes": { "lark": 10, "meegle": 15, "github": 10 }
+    "intervalsMinutes": { "lark": 10, "meegle": 15, "github": 10 },
+    "tasks": {
+      "lark": { "enabled": true, "intervalMinutes": 10 },
+      "meegle": { "enabled": true, "intervalMinutes": 15 },
+      "github": { "enabled": false },
+      "shadow": {
+        "enabled": true,
+        "intervalMinutes": 60,
+        "settleMinutes": 180,
+        "batchLimit": 5,
+        "acpTimeoutSeconds": 300
+      }
+    }
   }
 }
 ```
 
-Worker 启动时把当前配置 scope 收敛到 `platform_sync_schedules`；删除的配置 scope 会被禁用。错过的多个周期合并成一次，同 scope 已由手动或 CLI 运行占用时也直接合并到下一周期。临时网络、429 与 5xx 按 1/5/15 分钟退避，超过三次或遇到 checkpoint、授权、权限、配置错误时禁用该 schedule 并保存安全的 `blocked_reason`；修复配置或授权后重启 Worker 会按配置重新启用。
+`scheduler.enabled` 是 Worker 定时任务总开关（`false` 时整个 Worker 空转）。`tasks.lark/meegle/github` 是各数据源同步的独立开关（缺省全开），`intervalMinutes` 可覆盖 `intervalsMinutes` 的平台默认值；`tasks.shadow` 是 Lark Ticket 影子 AI 分析任务（缺省关闭），`intervalMinutes` 是轮询间隔，`settleMinutes` 是工单静默多久才分析，`batchLimit` 是每轮条数。只跑 shadow 不跑同步时，把三个数据源任务置 `false`、`tasks.shadow.enabled` 置 `true` 即可。shadow 相关环境变量（`LARK_TICKET_SHADOW_SUMMARY_ENABLED` 等）仍可作为覆盖项，设置后优先于配置文件。
+
+Worker 启动时把当前配置 scope 收敛到 `platform_sync_schedules`；删除或任务级禁用的配置 scope 会被禁用。错过的多个周期合并成一次，同 scope 已由手动或 CLI 运行占用时也直接合并到下一周期。临时网络、429 与 5xx 按 1/5/15 分钟退避，超过三次或遇到 checkpoint、授权、权限、配置错误时禁用该 schedule 并保存安全的 `blocked_reason`；修复配置或授权后重启 Worker 会按配置重新启用。
 
 Meegle 的本进程读取限流由 `MEEGLE_MIN_REQUEST_INTERVAL_MS` 控制，HTTP 429 的重试次数由 `MEEGLE_RATE_LIMIT_RETRY_COUNT` 控制。`Commercial Usage Exceeded` 是调用额度耗尽，不应按短时频率限制自动重试。
 

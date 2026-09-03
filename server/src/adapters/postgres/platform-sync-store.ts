@@ -1,4 +1,4 @@
-import { sql, type Kysely } from "kysely";
+import { sql, type Kysely, type SqlBool } from "kysely";
 import { getSharedDatabase } from "./database.js";
 import type { DatabaseSchema } from "./schema.js";
 import type { MeegleSyncMapping, MeegleWorkitem } from "../meegle/meegle-client.js";
@@ -6,9 +6,11 @@ import type { GitHubPrDetails } from "../github/github-types.js";
 import type { LarkBitableRecord } from "../lark/lark-client.js";
 import {
   parseLarkTicketAiData,
+  parseLarkTicketShadowAi,
   pickLarkTicketAiFields,
   type LarkTicketAiData,
   type LarkTicketAiFields,
+  type LarkTicketShadowAi,
 } from "../../domain/lark-ticket-ai.js";
 import { projectMeegleSprintMembershipTransition } from "../../domain/meegle-sprint-membership.js";
 import { MEEGLE_SPRINT_API_NAME, MEEGLE_SPRINT_WORKITEM_TYPE_KEY } from "../../domain/meegle-workitem-types.js";
@@ -29,6 +31,14 @@ function normalizedMeegleUpdatedAt(column: string) {
     else ${reference}
   end`;
 }
+
+export type LarkTicketShadowSummaryWatermark = {
+  ok: number;
+  skipped: number;
+  error: number;
+  pending: number;
+  lastAnalyzedAt?: string;
+};
 
 export interface PlatformSyncStore {
   upsertMeegleWorkitem(input: {
@@ -60,6 +70,9 @@ export interface PlatformSyncStore {
     sharedUrl: string;
   }): Promise<void>;
   upsertLarkBaseTicketAi(input: LarkBaseTicketSyncRef & { fields: LarkTicketAiFields }): Promise<boolean>;
+  upsertLarkBaseTicketShadowAi(input: LarkBaseTicketSyncRef & { shadow: Record<string, unknown> }): Promise<void>;
+  listLarkTicketShadowSummaryCandidates(input: { olderThan: string; limit: number }): Promise<LarkBaseTicketSyncItem[]>;
+  getLarkTicketShadowSummaryWatermark(input: { olderThan: string }): Promise<LarkTicketShadowSummaryWatermark>;
   findLarkBaseTicketByRecordId(recordId: string): Promise<LarkBaseTicketSyncRef | undefined>;
   getMeegleWorkitemsForCleaning(refs: MeegleWorkitemSyncRef[]): Promise<MeegleWorkitemSyncItem[]>;
   getGitHubPullRequestsForCleaning(refs: GitHubPullRequestSyncRef[]): Promise<GitHubPullRequestSyncItem[]>;
@@ -250,6 +263,7 @@ export interface LarkBaseTicketSyncItem {
   meegleLink?: string;
   larkMessageLink?: string;
   ticketAi?: LarkTicketAiData;
+  shadowAi?: LarkTicketShadowAi;
   sourceUpdatedAt?: string;
   syncedAt: string;
 }
@@ -571,6 +585,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
           record_id: input.record.record_id,
           shared_url: input.record.shared_url!,
           ticket_ai: "{}",
+          shadow_ai: "{}",
           local_json: "{}",
           created_at: now,
           updated_at: now,
@@ -596,6 +611,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
       record_id: input.recordId,
       shared_url: input.sharedUrl,
       ticket_ai: "{}",
+      shadow_ai: "{}",
       local_json: "{}",
       created_at: now,
       updated_at: now,
@@ -625,6 +641,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
       record_id: input.recordId,
       shared_url: null,
       ticket_ai: JSON.stringify({ fields: mergedFields, updatedAt: now }),
+      shadow_ai: "{}",
       local_json: "{}",
       created_at: now,
       updated_at: now,
@@ -632,6 +649,104 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
       .doUpdateSet({ ticket_ai: JSON.stringify({ fields: mergedFields, updatedAt: now }), updated_at: now }))
       .execute();
     return true;
+  }
+
+  async upsertLarkBaseTicketShadowAi(input: LarkBaseTicketSyncRef & { shadow: Record<string, unknown> }): Promise<void> {
+    const now = new Date().toISOString();
+    const shadowAi = JSON.stringify(input.shadow);
+    await this.db.insertInto("lark_base_ticket_octo").values({
+      base_id: input.baseId,
+      table_id: input.tableId,
+      record_id: input.recordId,
+      shared_url: null,
+      ticket_ai: "{}",
+      shadow_ai: shadowAi,
+      local_json: "{}",
+      created_at: now,
+      updated_at: now,
+    }).onConflict((conflict) => conflict.columns(["base_id", "table_id", "record_id"])
+      .doUpdateSet({ shadow_ai: shadowAi, updated_at: now }))
+      .execute();
+  }
+
+  async listLarkTicketShadowSummaryCandidates(input: { olderThan: string; limit: number }): Promise<LarkBaseTicketSyncItem[]> {
+    const rows = await this.db.selectFrom("lark_base_ticket_syncs as sync")
+      .leftJoin("lark_base_ticket_octo as octo", (join) => join
+        .onRef("octo.base_id", "=", "sync.base_id")
+        .onRef("octo.table_id", "=", "sync.table_id")
+        .onRef("octo.record_id", "=", "sync.record_id"))
+      .select([
+        "sync.base_id", "sync.table_id", "sync.record_id", "sync.title", "sync.ticket_status", "sync.created_time",
+        "sync.ticket_number", "sync.issue_type", "sync.requester", "sync.responsible", "sync.priority", "sync.detail_description", "sync.meegle_link", "sync.lark_message_link",
+        "sync.source_updated_at", "sync.synced_at", "sync.fields_json", "octo.shared_url as octo_shared_url", "octo.ticket_ai as octo_ticket_ai", "octo.shadow_ai as octo_shadow_ai",
+      ])
+      .where("sync.ticket_status", "not in", ["Cancelled", "Rejected"])
+      .where("sync.source_updated_at", "is not", null)
+      .where("sync.source_updated_at", "!=", "")
+      .where("sync.source_updated_at", "<", input.olderThan)
+      .where((eb) => eb.or([
+        eb.not(eb.exists((qb) => qb.selectFrom("lark_ticket_thread_syncs as thread")
+          .select("thread.record_id")
+          .whereRef("thread.base_id", "=", "sync.base_id")
+          .whereRef("thread.table_id", "=", "sync.table_id")
+          .whereRef("thread.record_id", "=", "sync.record_id"))),
+        eb(sql`coalesce(octo.shadow_ai::jsonb ->> 'status', '')`, "=", "error"),
+      ]))
+      .where((eb) => eb.or([
+        // Transient failures (auth, ACP output) retry on the next round without
+        // waiting for the source ticket to change.
+        sql<SqlBool>`coalesce(octo.shadow_ai::jsonb ->> 'analyzedAt', '') < sync.source_updated_at`,
+        sql<SqlBool>`coalesce(octo.shadow_ai::jsonb ->> 'status', '') = 'error'`,
+      ]))
+      .orderBy(sql`sync.ticket_number::int`, "desc")
+      .limit(input.limit)
+      .execute();
+    return rows.map(toLarkBaseTicketSyncItem);
+  }
+
+  async getLarkTicketShadowSummaryWatermark(input: { olderThan: string }): Promise<LarkTicketShadowSummaryWatermark> {
+    const countsRow = await sql<{
+      ok: string | number;
+      skipped: string | number;
+      error: string | number;
+      last_analyzed_at: string | null;
+    }>`select
+      count(*) filter (where shadow_ai::jsonb ->> 'status' = 'ok') as ok,
+      count(*) filter (where shadow_ai::jsonb ->> 'status' = 'skipped') as skipped,
+      count(*) filter (where shadow_ai::jsonb ->> 'status' = 'error') as error,
+      max(shadow_ai::jsonb ->> 'analyzedAt') filter (where shadow_ai::jsonb ->> 'status' = 'ok') as last_analyzed_at
+      from lark_base_ticket_octo`.execute(this.db);
+    const counts = countsRow.rows[0];
+    const pendingRow = await this.db.selectFrom("lark_base_ticket_syncs as sync")
+      .leftJoin("lark_base_ticket_octo as octo", (join) => join
+        .onRef("octo.base_id", "=", "sync.base_id")
+        .onRef("octo.table_id", "=", "sync.table_id")
+        .onRef("octo.record_id", "=", "sync.record_id"))
+      .select((eb) => eb.fn.countAll().as("count"))
+      .where("sync.ticket_status", "not in", ["Cancelled", "Rejected"])
+      .where("sync.source_updated_at", "is not", null)
+      .where("sync.source_updated_at", "!=", "")
+      .where("sync.source_updated_at", "<", input.olderThan)
+      .where((eb) => eb.or([
+        eb.not(eb.exists((qb) => qb.selectFrom("lark_ticket_thread_syncs as thread")
+          .select("thread.record_id")
+          .whereRef("thread.base_id", "=", "sync.base_id")
+          .whereRef("thread.table_id", "=", "sync.table_id")
+          .whereRef("thread.record_id", "=", "sync.record_id"))),
+        eb(sql`coalesce(octo.shadow_ai::jsonb ->> 'status', '')`, "=", "error"),
+      ]))
+      .where((eb) => eb.or([
+        sql<SqlBool>`coalesce(octo.shadow_ai::jsonb ->> 'analyzedAt', '') < sync.source_updated_at`,
+        sql<SqlBool>`coalesce(octo.shadow_ai::jsonb ->> 'status', '') = 'error'`,
+      ]))
+      .executeTakeFirstOrThrow();
+    return {
+      ok: Number(counts?.ok ?? 0),
+      skipped: Number(counts?.skipped ?? 0),
+      error: Number(counts?.error ?? 0),
+      pending: Number(pendingRow.count),
+      ...(counts?.last_analyzed_at ? { lastAnalyzedAt: counts.last_analyzed_at } : {}),
+    };
   }
 
   async findLarkBaseTicketByRecordId(recordId: string): Promise<LarkBaseTicketSyncRef | undefined> {
@@ -697,7 +812,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
         .select([
           "sync.base_id", "sync.table_id", "sync.record_id", "sync.title", "sync.ticket_status", "sync.created_time",
           "sync.ticket_number", "sync.issue_type", "sync.requester", "sync.responsible", "sync.priority", "sync.detail_description", "sync.meegle_link", "sync.lark_message_link",
-          "sync.source_updated_at", "sync.synced_at", "sync.fields_json", "octo.shared_url as octo_shared_url", "octo.ticket_ai as octo_ticket_ai",
+          "sync.source_updated_at", "sync.synced_at", "sync.fields_json", "octo.shared_url as octo_shared_url", "octo.ticket_ai as octo_ticket_ai", "octo.shadow_ai as octo_shadow_ai",
         ])
         .where((eb) => eb.or(batch.map((ref) => eb.and([
           eb("sync.base_id", "=", ref.baseId),
@@ -1288,7 +1403,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
       .select([
         "sync.base_id", "sync.table_id", "sync.record_id", "sync.title", "sync.ticket_status",
         "sync.created_time", "sync.ticket_number", "sync.issue_type", "sync.requester", "sync.responsible", "sync.priority", "sync.detail_description", "sync.meegle_link", "sync.lark_message_link",
-        "sync.source_updated_at", "sync.synced_at", "sync.fields_json", "octo.shared_url as octo_shared_url", "octo.ticket_ai as octo_ticket_ai",
+        "sync.source_updated_at", "sync.synced_at", "sync.fields_json", "octo.shared_url as octo_shared_url", "octo.ticket_ai as octo_ticket_ai", "octo.shadow_ai as octo_shadow_ai",
       ])
       .orderBy("sync.source_updated_at", "desc")
       .orderBy("sync.synced_at", "desc")
@@ -1480,6 +1595,7 @@ type LarkBaseTicketSyncRow = {
   ticket_status: string | null;
   octo_shared_url: string | null;
   octo_ticket_ai?: string | null;
+  octo_shadow_ai?: string | null;
   created_time: string | null;
   source_updated_at: string | null;
   synced_at: string;
@@ -1588,6 +1704,7 @@ function toLarkBaseTicketSyncItem(row: LarkBaseTicketSyncRow): LarkBaseTicketSyn
     meegleLink: row.meegle_link ?? undefined,
     larkMessageLink: row.lark_message_link ?? undefined,
     ticketAi: parseLarkTicketAiData(row.octo_ticket_ai),
+    shadowAi: parseLarkTicketShadowAi(row.octo_shadow_ai),
     sourceUpdatedAt: row.source_updated_at ?? undefined,
     syncedAt: row.synced_at,
   };

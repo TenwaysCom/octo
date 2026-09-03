@@ -23,6 +23,10 @@ import {
   type PlatformSyncScopeRef,
   type PlatformSyncScopeStatus,
 } from "../../adapters/postgres/platform-sync-status-store.js";
+import {
+  PostgresPlatformSyncStore,
+  type PlatformSyncStore,
+} from "../../adapters/postgres/platform-sync-store.js";
 import { resolveLarkWebSessionIdentity } from "../lark-auth/lark-auth.service.js";
 import { WEB_SESSION_COOKIE_NAME } from "../lark-auth/lark-auth.controller.js";
 import { getWebWorkspaceAccess } from "../lark-auth/web-workspace-access.js";
@@ -54,6 +58,12 @@ const configSchema = z.object({
     statusFieldName: z.string().min(1).optional(),
     sourceUpdatedAtFieldName: z.string().min(1).optional(),
   })).default([]),
+  scheduler: z.object({
+    enabled: z.boolean().default(false),
+    tasks: z.object({
+      shadow: z.object({ enabled: z.boolean().default(false) }).default({ enabled: false }),
+    }).default({ shadow: { enabled: false } }),
+  }).optional(),
 });
 
 type PlatformSyncConfig = z.infer<typeof configSchema>;
@@ -63,6 +73,7 @@ type WebPlatformSyncService = Pick<PlatformSyncService,
 >;
 type WebPlatformSyncCoordinator = Pick<PlatformSyncCoordinator, "runIncremental">;
 type WebPlatformSyncStatusStore = Pick<PostgresPlatformSyncStatusStore, "list">;
+type WebShadowSummaryStore = Pick<PlatformSyncStore, "getLarkTicketShadowSummaryWatermark">;
 type PlatformSyncSourceDefinition = {
   id: z.infer<typeof sourceIdSchema>;
   label: string;
@@ -127,6 +138,7 @@ export function createWebPlatformSyncController(deps: {
   service?: WebPlatformSyncService;
   coordinator?: WebPlatformSyncCoordinator;
   statusStore?: WebPlatformSyncStatusStore;
+  shadowStore?: WebShadowSummaryStore;
   ensureSession?: (sessionToken: string | undefined) => Promise<WebSessionResult>;
   loadConfig?: () => Promise<PlatformSyncConfig>;
 } = {}) {
@@ -153,10 +165,28 @@ export function createWebPlatformSyncController(deps: {
     statusStore ??= new PostgresPlatformSyncStatusStore(getSharedDatabase());
     return statusStore;
   };
+  let shadowStore = deps.shadowStore;
+  const getShadowStore = () => {
+    shadowStore ??= new PostgresPlatformSyncStore(getSharedDatabase());
+    return shadowStore;
+  };
 
   async function sessionFor(cookieHeader: string | undefined) {
     const session = await ensureSession(readCookie(cookieHeader, WEB_SESSION_COOKIE_NAME));
     return session.ok ? session : undefined;
+  }
+
+  async function readShadowSummaryWatermark(config: PlatformSyncConfig) {
+    try {
+      const settleMs = readPositiveInt(process.env.LARK_TICKET_SHADOW_SUMMARY_SETTLE_MS, 3 * 60 * 60 * 1000);
+      const olderThan = new Date(Date.now() - settleMs).toISOString();
+      const watermark = await getShadowStore().getLarkTicketShadowSummaryWatermark({ olderThan });
+      const enabled = parseBooleanEnv(process.env.LARK_TICKET_SHADOW_SUMMARY_ENABLED)
+        ?? Boolean(config.scheduler?.enabled && config.scheduler.tasks.shadow.enabled);
+      return { ...watermark, enabled };
+    } catch {
+      return undefined;
+    }
   }
 
   return {
@@ -165,9 +195,20 @@ export function createWebPlatformSyncController(deps: {
       if (!session) return unauthorized();
       if (!getWebWorkspaceAccess(session.role).platformSync) return forbidden();
       try {
-        const definitions = sourceDefinitions(await loadConfig());
+        const config = await loadConfig();
+        const definitions = sourceDefinitions(config);
         const statuses = await getStatusStore().list(uniqueScopes(definitions.flatMap((source) => source.scopes)));
-        return { statusCode: 200, body: { ok: true as const, data: { sources: projectSourceStatuses(definitions, statuses) } } };
+        const shadowSummary = await readShadowSummaryWatermark(config);
+        return {
+          statusCode: 200,
+          body: {
+            ok: true as const,
+            data: {
+              sources: projectSourceStatuses(definitions, statuses),
+              ...(shadowSummary ? { shadowSummary } : {}),
+            },
+          },
+        };
       } catch {
         return { statusCode: 503, body: { ok: false as const, error: { errorCode: "SYNC_CONFIGURATION_UNAVAILABLE", errorMessage: "同步配置暂时不可用。" } } };
       }
@@ -241,6 +282,17 @@ export function createWebPlatformSyncController(deps: {
 
 function uniqueScopes(scopes: PlatformSyncScopeRef[]): PlatformSyncScopeRef[] {
   return [...new Map(scopes.map((scope) => [`${scope.platform}:${scope.scopeKey}`, scope])).values()];
+}
+
+function readPositiveInt(value: string | undefined, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function parseBooleanEnv(value: string | undefined): boolean | undefined {
+  if (value === "true" || value === "1") return true;
+  if (value === "false" || value === "0") return false;
+  return undefined;
 }
 
 function projectSourceStatuses(

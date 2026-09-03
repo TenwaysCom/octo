@@ -2,6 +2,7 @@ import "dotenv/config";
 import { pathToFileURL } from "node:url";
 import { PlatformSyncCoordinator } from "../application/services/platform-sync-coordinator.js";
 import { PlatformSyncService } from "../application/services/platform-sync.service.js";
+import { createLarkTicketShadowSummaryService } from "../application/services/lark-ticket-shadow-summary.service.js";
 import {
   buildPlatformSyncScheduleDefinitions,
   PlatformSyncWorker,
@@ -43,60 +44,97 @@ export async function runPlatformSyncWorker(): Promise<void> {
 
   try {
     await ensurePostgresSchema(db);
-    const scheduleStore = new PostgresPlatformSyncScheduleStore(db);
-    const definitions = buildPlatformSyncScheduleDefinitions(
-      config,
-      process.env.PLATFORM_SYNC_MASTER_USER_ID,
-    );
-    await scheduleStore.reconcileConfigSchedules(definitions);
-    if (!config.scheduler.enabled) {
+    const syncStore = new PostgresPlatformSyncStore(db);
+    const larkTokenStore = new PostgresLarkTokenStore(db);
+    configureLocalLarkAuth(larkTokenStore);
+
+    const loops: Promise<void>[] = [];
+    if (config.scheduler.enabled) {
+      const scheduleStore = new PostgresPlatformSyncScheduleStore(db);
+      const definitions = buildPlatformSyncScheduleDefinitions(
+        config,
+        process.env.PLATFORM_SYNC_MASTER_USER_ID,
+      );
+      await scheduleStore.reconcileConfigSchedules(definitions);
+      const meegleShellClient = new MeegleShellClient();
+      const service = new PlatformSyncService({
+        store: syncStore,
+        createMeegleClient: async () => meegleShellClient,
+        createLarkClient: async ({ masterUserId, larkBaseUrl }) => {
+          const { client } = await buildAuthenticatedLarkClient(
+            masterUserId,
+            larkBaseUrl ?? process.env.LARK_BASE_URL ?? "https://open.feishu.cn",
+            { getLarkTokenStore: () => larkTokenStore },
+          );
+          return client;
+        },
+      });
+      const coordinator = new PlatformSyncCoordinator({
+        checkpointStore: new PostgresPlatformSyncCheckpointStore(db),
+        runStore: new PostgresPlatformSyncRunStore(db),
+        leaseStore: new PostgresPlatformSyncLeaseStore(db),
+        leaseDurationMs: config.scheduler.leaseSeconds * 1000,
+      });
+      const worker = new PlatformSyncWorker({
+        scheduleStore,
+        coordinator,
+        service,
+        concurrency: config.scheduler.concurrency,
+        pollIntervalMs: config.scheduler.pollIntervalSeconds * 1000,
+      });
+      workerLogger.info({
+        operation: "platform_sync_scheduler",
+        layer: "server",
+        stage: "server.sync.scheduler_started",
+        schedules: definitions.length,
+        concurrency: config.scheduler.concurrency,
+        pollIntervalSeconds: config.scheduler.pollIntervalSeconds,
+      }, "PLATFORM_SYNC_SCHEDULER_STARTED");
+      loops.push(worker.run(abortController.signal));
+    } else {
       workerLogger.info({
         operation: "platform_sync_scheduler",
         layer: "server",
         stage: "server.sync.scheduler_disabled",
       }, "PLATFORM_SYNC_SCHEDULER_DISABLED");
+    }
+
+    // Shadow summary task: env toggle wins when set, otherwise the task runs
+    // when the scheduler master switch and scheduler.tasks.shadow are both on.
+    const shadowTask = config.scheduler.tasks.shadow;
+    const shadowEnabled = parseBooleanEnv(process.env.LARK_TICKET_SHADOW_SUMMARY_ENABLED)
+      ?? (config.scheduler.enabled && shadowTask.enabled);
+    const shadowMasterUserId = process.env.PLATFORM_SYNC_MASTER_USER_ID;
+    if (shadowEnabled) {
+      if (shadowMasterUserId) {
+        const shadowService = createLarkTicketShadowSummaryService({
+          syncStore,
+          masterUserId: shadowMasterUserId,
+          larkBaseUrl: config.larkBase[0]?.larkBaseUrl ?? process.env.LARK_BASE_URL,
+          ...(shadowTask.settleMinutes ? { settleMs: shadowTask.settleMinutes * 60_000 } : {}),
+          ...(shadowTask.batchLimit ? { batchLimit: shadowTask.batchLimit } : {}),
+          ...(shadowTask.intervalMinutes ? { pollIntervalMs: shadowTask.intervalMinutes * 60_000 } : {}),
+          ...(shadowTask.acpTimeoutSeconds ? { acpTimeoutMs: shadowTask.acpTimeoutSeconds * 1000 } : {}),
+        });
+        loops.push(shadowService.run(abortController.signal));
+        workerLogger.info({
+          operation: "lark_ticket_shadow_summary",
+          layer: "server",
+          stage: "server.shadow.scheduler_started",
+        }, "LARK_TICKET_SHADOW_SUMMARY_STARTED");
+      } else {
+        workerLogger.warn({
+          operation: "lark_ticket_shadow_summary",
+          layer: "server",
+          stage: "server.shadow.scheduler_disabled",
+        }, "LARK_TICKET_SHADOW_SUMMARY_DISABLED_MISSING_MASTER_USER");
+      }
+    }
+    if (loops.length === 0) {
       await waitUntilAborted(abortController.signal);
       return;
     }
-
-    const syncStore = new PostgresPlatformSyncStore(db);
-    const larkTokenStore = new PostgresLarkTokenStore(db);
-    configureLocalLarkAuth(larkTokenStore);
-    const meegleShellClient = new MeegleShellClient();
-    const service = new PlatformSyncService({
-      store: syncStore,
-      createMeegleClient: async () => meegleShellClient,
-      createLarkClient: async ({ masterUserId, larkBaseUrl }) => {
-        const { client } = await buildAuthenticatedLarkClient(
-          masterUserId,
-          larkBaseUrl ?? process.env.LARK_BASE_URL ?? "https://open.feishu.cn",
-          { getLarkTokenStore: () => larkTokenStore },
-        );
-        return client;
-      },
-    });
-    const coordinator = new PlatformSyncCoordinator({
-      checkpointStore: new PostgresPlatformSyncCheckpointStore(db),
-      runStore: new PostgresPlatformSyncRunStore(db),
-      leaseStore: new PostgresPlatformSyncLeaseStore(db),
-      leaseDurationMs: config.scheduler.leaseSeconds * 1000,
-    });
-    const worker = new PlatformSyncWorker({
-      scheduleStore,
-      coordinator,
-      service,
-      concurrency: config.scheduler.concurrency,
-      pollIntervalMs: config.scheduler.pollIntervalSeconds * 1000,
-    });
-    workerLogger.info({
-      operation: "platform_sync_scheduler",
-      layer: "server",
-      stage: "server.sync.scheduler_started",
-      schedules: definitions.length,
-      concurrency: config.scheduler.concurrency,
-      pollIntervalSeconds: config.scheduler.pollIntervalSeconds,
-    }, "PLATFORM_SYNC_SCHEDULER_STARTED");
-    await worker.run(abortController.signal);
+    await Promise.all(loops);
   } finally {
     process.removeListener("SIGINT", stop);
     process.removeListener("SIGTERM", stop);
@@ -122,6 +160,12 @@ export function waitUntilAborted(signal: AbortSignal): Promise<void> {
       resolve();
     }
   });
+}
+
+function parseBooleanEnv(value: string | undefined): boolean | undefined {
+  if (value === "true" || value === "1") return true;
+  if (value === "false" || value === "0") return false;
+  return undefined;
 }
 
 export function isPlatformSyncWorkerEntrypoint(

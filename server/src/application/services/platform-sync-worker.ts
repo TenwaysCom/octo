@@ -191,11 +191,14 @@ export function buildPlatformSyncScheduleDefinitions(
   masterUserId: string | undefined,
 ): PlatformSyncScheduleDefinition[] {
   if (!config.scheduler.enabled) return [];
-  if ((config.larkBase.length > 0 || config.meegle.length > 0) && !masterUserId) {
+  const { tasks, intervalsMinutes } = config.scheduler;
+  const larkEnabled = tasks.lark.enabled && config.larkBase.length > 0;
+  const meegleEnabled = tasks.meegle.enabled && config.meegle.length > 0;
+  if ((larkEnabled || meegleEnabled) && !masterUserId) {
     throw new Error("PLATFORM_SYNC_MASTER_USER_ID is required for scheduled Lark or Meegle sync");
   }
   const definitions: PlatformSyncScheduleDefinition[] = [];
-  for (const target of config.larkBase) {
+  if (larkEnabled) for (const target of config.larkBase) {
     const scheduledTarget = {
       platform: "lark" as const,
       baseId: target.baseId,
@@ -210,12 +213,12 @@ export function buildPlatformSyncScheduleDefinitions(
       scheduleId: `lark:${scopeKey}`,
       platform: "lark",
       scopeKey,
-      intervalSeconds: config.scheduler.intervalsMinutes.lark * 60,
+      intervalSeconds: (tasks.lark.intervalMinutes ?? intervalsMinutes.lark) * 60,
       masterUserId,
       target: scheduledTarget,
     });
   }
-  for (const target of config.meegle) {
+  if (meegleEnabled) for (const target of config.meegle) {
     for (const workItemTypeKey of target.workItemTypeKeys ?? []) {
       const sourceUpdatedAtMqlFieldName = target.sourceUpdatedAtMqlFieldNames[workItemTypeKey];
       if (!sourceUpdatedAtMqlFieldName) {
@@ -232,20 +235,20 @@ export function buildPlatformSyncScheduleDefinitions(
         scheduleId: `meegle:${scopeKey}`,
         platform: "meegle",
         scopeKey,
-        intervalSeconds: config.scheduler.intervalsMinutes.meegle * 60,
+        intervalSeconds: (tasks.meegle.intervalMinutes ?? intervalsMinutes.meegle) * 60,
         masterUserId,
         target: scheduledTarget,
       });
     }
   }
-  for (const target of config.github) {
+  if (tasks.github.enabled) for (const target of config.github) {
     const scheduledTarget = { platform: "github" as const, owner: target.owner, repo: target.repo };
     const scopeKey = platformSyncScopeKey(scheduledTarget);
     definitions.push({
       scheduleId: `github:${scopeKey}`,
       platform: "github",
       scopeKey,
-      intervalSeconds: config.scheduler.intervalsMinutes.github * 60,
+      intervalSeconds: (tasks.github.intervalMinutes ?? intervalsMinutes.github) * 60,
       target: scheduledTarget,
     });
   }

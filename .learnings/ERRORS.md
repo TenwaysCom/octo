@@ -748,3 +748,14 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Symptom:** `pnpm --dir server test` 中 129 个文件、637 项测试通过，但 6 个 SQLite suite 无法加载 `node:sqlite`，logger dated-file 用例仍有一次落盘时序失败。
 - **Root cause:** 当前 Node 22.12.0 不提供仓库 SQLite legacy tests 需要的 `node:sqlite`；logger 用例存在已知 transport flush race。两者均未经过本次 Meegle formatter 路径。
 - **Verified fix:** 本次相关的三个测试文件 40/40 通过，Server TypeScript build 通过，真实只读 MQL 与重启后的 staging 手工同步通过；全量环境失败保留为明确验证边界。
+### ERR-20260903-006 — psql COPY TO STDOUT corrupts JSON for json.loads
+
+- **Symptom:** `json.loads` failed with `Expecting value: line 1 column 460` when reading `COPY (SELECT json_agg(...)) TO STDOUT` output from psql.
+- **Root cause:** COPY text format re-escapes backslashes, so JSON-embedded `\n`/`\uXXXX` sequences arrive double-escaped and the payload no longer round-trips through `json.loads` reliably.
+- **Verified fix:** Use plain `psql -t -A -q -c "SELECT json_agg(...) ..."` instead of COPY when the consumer parses the output as JSON.
+
+### ERR-20260903-007 — Zod v4 `.default({})` silently breaks nested object defaults
+
+- **Symptom:** `tsc` failed with "No overload matches this call" on `z.object({...}).default({})`, and at runtime `config.scheduler.tasks.lark` was `undefined` even though every child field had its own default.
+- **Root cause:** This repo's Zod version types `.default()` against the *output* type, so `{}` is rejected at compile time; and a `.default()` value is applied as-is without parsing, so partial objects never pick up child defaults.
+- **Verified fix:** Give every nested `.default()` the full output-shaped object (e.g. `.default({ enabled: true })`, and the parent `.default({ lark: { enabled: true }, ... })`). Write schema-default tests (`expect(config.scheduler.tasks.shadow.enabled).toBe(false)`) to lock the resolved values.

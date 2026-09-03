@@ -390,6 +390,7 @@ export interface DatabaseSchema {
     record_id: string;
     shared_url: string | null;
     ticket_ai: string;
+    shadow_ai: string;
     local_json: string;
     created_at: string | null;
     updated_at: string | null;

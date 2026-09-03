@@ -570,3 +570,16 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - **Context:** Meegle 的 `updated_at` 返回值和 Octo checkpoint 可以规范化为秒级 `YYYY-MM-DD HH:mm:ss`，但 MQL datetime 查询字面量不接受相同的空格分隔表示。
 - **Rule:** 将“源值/持久化时间规范化”和“MQL 查询字面量序列化”作为两个独立协议处理。MQL datetime 必须使用带 `T` 的受支持格式；修改 formatter 时必须保留真实只读 MQL 验证，不能只更新 mock 中的期望字符串。
 - **Verified outcome:** 运行审计显示提交 `9925646` 将查询阈值从 ISO 改为空格格式后，四类 Meegle 增量 scope 立即从成功变为 `ErrMoqlInvalidArgument` Code 2001；独立 MQL formatter 恢复 ISO 后，40 个定向测试、Server build、真实只读 MQL 与 staging 手工同步通过。
+
+## 2026-09-03 — Offline ticket intent analysis via `kimi acp`
+
+- `kimi acp` (kimi-code CLI 0.39.x) speaks ACP over stdio: `initialize` → `session/new` (per-ticket session, avoids cross-ticket context contamination) → `session/prompt`; agent text arrives as `session/update` notifications with `agent_message_chunk` updates.
+- `lark_ticket_thread_syncs.prepared_messages_json` (redactionVersion v2) is exactly what the online quick-action flow feeds the model — reuse it verbatim for offline parity; `support-ticket-analysis.ts` `validateSupportEvidence` requires evidence IDs from that snapshot.
+- Server `SUPPORT_INTENT_TYPES` uses `service_request` (not `feature_request`) — the DB/enum, not the prompt draft, is the source of truth for output validation.
+
+## 2026-09-03 — Shadow summary worker implementation notes
+
+- `upsertLarkBaseTicketAi` rewrites the whole `ticket_ai` JSON (`{fields, updatedAt}`), so any other top-level key stored there is wiped by the next online analysis update. Coexisting per-ticket AI state needs its own column (we added `lark_base_ticket_octo.shadow_ai`).
+- Adding a required column to the Kysely schema means every `insertInto` for that table must set it — check scripts too (`backfill-lark-ticket-ai.ts`), not just the store.
+- In this shell `pnpm` is not on PATH; use `export PATH="$HOME/.nvm/versions/node/v24.15.0/bin:$PATH"` + `corepack pnpm`.
+- `octo-kimi-execute-mcp.test.ts` flaked once under full-suite parallel load (bash spawn returned empty stdout); passes on rerun. Not caused by code changes — verify flakiness by re-running before investigating.

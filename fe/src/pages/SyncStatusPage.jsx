@@ -40,15 +40,34 @@ function SyncSourceCard({ source, latest, running, error, onSync }) {
   </article>;
 }
 
+function ShadowSummaryCard({ summary }) {
+  return <article className="sync-source-card" data-test="shadow-summary-card">
+    <div className="sync-source-card__heading">
+      <div><p className="profile-card__eyebrow">AI ANALYSIS</p><h2>Lark Ticket AI 分析</h2></div>
+      <span className={`status-badge ${summary.enabled ? "status-badge--ready" : "status-badge--attention"}`}>
+        <span />{summary.enabled ? "影子·运行中" : "影子·未启用"}
+      </span>
+    </div>
+    <dl className="authorization-details">
+      <div><dt>已分析</dt><dd>{summary.ok}</dd></div>
+      <div><dt>已跳过</dt><dd>{summary.skipped}</dd></div>
+      <div><dt>分析失败</dt><dd>{summary.error}</dd></div>
+      <div><dt>待分析</dt><dd>{summary.pending}</dd></div>
+      <div><dt>最近分析</dt><dd>{summary.lastAnalyzedAt ? formatDateTime(summary.lastAnalyzedAt) : "暂无分析记录"}</dd></div>
+      <div><dt>自动分析</dt><dd>{summary.enabled ? "已启用" : "未启用"}</dd></div>
+    </dl>
+  </article>;
+}
+
 export function SyncStatusPage({ profile, apiBaseUrl, onLogout, isBusy, breadcrumbs }) {
-  const [state, setState] = useState({ status: "loading", sources: [] });
+  const [state, setState] = useState({ status: "loading", sources: [], shadowSummary: undefined });
   const [runningId, setRunningId] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorBySource, setErrorBySource] = useState({});
 
   const load = useCallback(async () => {
-    const sources = await getPlatformSyncSources({ apiBaseUrl });
-    setState({ status: "ready", sources });
+    const { sources, shadowSummary } = await getPlatformSyncSources({ apiBaseUrl });
+    setState({ status: "ready", sources, shadowSummary });
   }, [apiBaseUrl]);
 
   useEffect(() => {
@@ -102,6 +121,7 @@ export function SyncStatusPage({ profile, apiBaseUrl, onLogout, isBusy, breadcru
           error={errorBySource[source.id]}
           onSync={() => void sync(source.id)}
         />)}
+        {state.shadowSummary ? <ShadowSummaryCard summary={state.shadowSummary} /> : null}
       </section> : null}
     </section>
   </WorkspaceShell>;

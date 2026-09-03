@@ -127,6 +127,9 @@ function createStore(): PlatformSyncStore & {
     async countGitHubPullRequests() { return 0; },
     async listLarkBaseTickets() { return []; },
     async countLarkBaseTickets() { return 0; },
+    async upsertLarkBaseTicketShadowAi() { return undefined; },
+    async listLarkTicketShadowSummaryCandidates() { return []; },
+    async getLarkTicketShadowSummaryWatermark() { return { ok: 0, skipped: 0, error: 0, pending: 0 }; },
   };
   return store;
 }

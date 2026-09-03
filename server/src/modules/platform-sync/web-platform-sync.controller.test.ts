@@ -38,14 +38,25 @@ function createController(service = {
     })),
   };
   const statusStore = { list: vi.fn().mockResolvedValue([]) };
+  const shadowStore = {
+    getLarkTicketShadowSummaryWatermark: vi.fn().mockResolvedValue({
+      ok: 2,
+      skipped: 1,
+      error: 1,
+      pending: 3,
+      lastAnalyzedAt: "2026-09-03T01:00:00.000Z",
+    }),
+  };
   return {
     service,
     coordinator,
     statusStore,
+    shadowStore,
     controller: createWebPlatformSyncController({
       service,
       coordinator,
       statusStore,
+      shadowStore,
       ensureSession: async () => ({ ok: true, masterUserId: "user_1", baseUrl: "https://open.larksuite.com", role: "devops", user: {} } as never),
       loadConfig: async () => config,
     }),
@@ -112,12 +123,74 @@ describe("web platform sync controller", () => {
             expect.objectContaining({ id: "github-odoo-uk", label: "GitHub · Odoo UK", configured: true }),
             expect.objectContaining({ id: "github-odoo-us", label: "GitHub · Odoo US", configured: true }),
           ]),
+          shadowSummary: {
+            ok: 2,
+            skipped: 1,
+            error: 1,
+            pending: 3,
+            lastAnalyzedAt: "2026-09-03T01:00:00.000Z",
+            enabled: false,
+          },
         },
       },
     });
     expect(statusStore.list).toHaveBeenCalledWith(expect.arrayContaining([
       { platform: "meegle", scopeKey: `project/${MEEGLE_SPRINT_WORKITEM_TYPE_KEY}` },
     ]));
+  });
+
+  it("includes the Lark ticket shadow analysis watermark in the source list", async () => {
+    const { controller, shadowStore } = createController();
+    const result = await controller.list({ cookieHeader: "octo_web_session=session" });
+
+    expect(result).toMatchObject({
+      statusCode: 200,
+      body: {
+        data: {
+          shadowSummary: {
+            ok: 2,
+            skipped: 1,
+            error: 1,
+            pending: 3,
+            lastAnalyzedAt: "2026-09-03T01:00:00.000Z",
+            enabled: false,
+          },
+        },
+      },
+    });
+    expect(shadowStore.getLarkTicketShadowSummaryWatermark).toHaveBeenCalledWith({ olderThan: expect.any(String) });
+  });
+
+  it("omits the shadow watermark instead of failing the list when the store read fails", async () => {
+    const { controller, shadowStore } = createController();
+    shadowStore.getLarkTicketShadowSummaryWatermark.mockRejectedValueOnce(new Error("db unavailable"));
+    const result = await controller.list({ cookieHeader: "octo_web_session=session" });
+
+    expect(result.statusCode).toBe(200);
+    expect(result.body.ok).toBe(true);
+    const data = result.body.ok ? result.body.data as { shadowSummary?: unknown } : {};
+    expect(data.shadowSummary).toBeUndefined();
+  });
+
+  it("reports the shadow task as enabled when the scheduler config enables it", async () => {
+    const { service, coordinator, statusStore, shadowStore } = createController();
+    const controller = createWebPlatformSyncController({
+      service,
+      coordinator,
+      statusStore,
+      shadowStore,
+      ensureSession: async () => ({ ok: true, masterUserId: "user_1", baseUrl: "https://open.larksuite.com", role: "devops", user: {} } as never),
+      loadConfig: async () => ({
+        ...config,
+        scheduler: { enabled: true, tasks: { shadow: { enabled: true } } },
+      }),
+    });
+    const result = await controller.list({ cookieHeader: "octo_web_session=session" });
+
+    expect(result).toMatchObject({
+      statusCode: 200,
+      body: { data: { shadowSummary: { enabled: true } } },
+    });
   });
 
   it("runs the requested Meegle type incrementally across its own checkpoint scope", async () => {
@@ -175,11 +248,12 @@ describe("web platform sync controller", () => {
   });
 
   it("keeps the Meegle Sprint source visible but unavailable when its type is not configured", async () => {
-    const { service, coordinator, statusStore } = createController();
+    const { service, coordinator, statusStore, shadowStore } = createController();
     const controller = createWebPlatformSyncController({
       service,
       coordinator,
       statusStore,
+      shadowStore,
       ensureSession: async () => ({ ok: true, masterUserId: "user_1", baseUrl: "https://open.larksuite.com", role: "devops", user: {} } as never),
       loadConfig: async () => ({
         ...config,
