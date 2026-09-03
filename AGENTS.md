@@ -119,9 +119,15 @@ assumption: state it and obtain confirmation before proceeding.
 
 ## Learning Ledger
 
-- Maintain concise, reusable learnings in `.learnings/LEARNINGS.md` and errors in `.learnings/ERRORS.md`; record failed commands, compiler/runtime errors, wrong assumptions, and the verified fix.
+Division of labor: each fact has exactly one authoritative record; everything else links to it.
+
+- `docs/tasks/` task docs are the sole authority for per-task facts: goals, decisions, progress, and verification evidence. Ledgers never restate them.
+- `.learnings/LEARNINGS.md` holds durable, cross-task rules only. Each entry is `Context` + `Rule` (two short paragraphs) plus a `source:` link to the originating task doc; do not copy verification outcomes or test counts into the entry.
+- `.learnings/ERRORS.md` is a reproducible failure-signature library, indexed by symptom (exact error message, failed command, wrong assumption): record `Error` + `Fix` + a link to the task doc. One-off task-specific bugs stay in the task doc's progress log instead. Do not record resolution status or test evidence here.
+- Double-write rule: an incident goes to ERRORS by default. Promote it to LEARNINGS only when the lesson generalizes beyond the original context; the LRN entry links the ERR id instead of repeating its background.
 - Do not record secrets, raw credentials, cookies, tokens, or large unredacted logs.
 - At the end of every complex task, review failures and near-misses, identify the root cause, and write back one durable rule when it will prevent a repeat.
+- Monthly consolidation (alongside the tasks review): merge near-duplicate entries; drop any rule now enforced by a linter, CI check, or test, noting which check replaced it.
 
 ## Tasks Ledger
 
