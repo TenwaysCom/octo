@@ -49,6 +49,7 @@ related:
 | 2026-09-03 | v6 | in_progress | v6 冒烟通过：token 刷新后首轮 considered 5 → summarized 4 / failed 1，ok 输出质量正常（intent+subtype+中文摘要均合理）；2126 失败于 `analysis.quality` schema 校验（模型输出不符合 strict schema）。水位：ok 4 / skipped 0 / error 11 / pending 212。发现设计偏差：error 重试被 `analyzedAt < source_updated_at` 条件挡住，瞬时失败（token/输出校验）不会下轮自动重试，要等工单在 Lark 侧更新。已修复：候选与 pending 统计的 watermark 条件对 `status='error'` 豁免，dev 库验证 pending 212→223（+11 即全部 error 记录），server 677 + tsc 通过 | worker 常驻方式待定（pm2 未安装）；待下轮观察 error 重试与 2126 复跑 |
 | 2026-09-03 | v7 | in_progress | v7 范围修正：已有 `lark_ticket_thread_syncs` 快照的工单**不再排除**（用户澄清）——候选条件删掉 `NOT EXISTS thread 快照` 分支，处理时由 `threadContext.ensure` 走原增量逻辑补 thread 数据（10min 内复用 cache / 超期 incremental+60s overlap / >24h full reconcile / 拉取失败回退 stale_cache）。dev 库验证 pending 223→1820（=1841 总量 −17 Cancelled/Rejected −4 已 ok）；server 688 + tsc 通过 | 待调大 batchLimit 消化 backlog；worker 常驻方式待定 |
 | 2026-09-03 | v8 | in_progress | v8 错误诊断增强：定位到一票 `SHADOW_OUTPUT_INVALID` 实为 Kimi 配额 403（`[provider.auth_error]`）以流式文本返回被当成模型输出。新增 `SHADOW_ACP_PROVIDER_ERROR` 错误码（捕获路径与"输出文本即 provider 错误且无 JSON"路径都识别）；`SHADOW_OUTPUT_INVALID` 各分支携带 `outputChars` + 截断 `outputPreview`（300 字符），写入 `shadow_ai.error` 并随 warn 日志输出；空输出单独报 "output was empty"；domain `parseLarkTicketShadowAi` 透出 `errorMessage/outputChars/outputPreview`。server 691 + tsc 通过 | 待配额恢复后重跑观察 error 分类是否符合预期 |
+| 2026-09-03 | v8 | in_progress | 合并冲突处理：保留输出文本的 provider 错误分类，以及 ACP 成功输出的 debug 诊断；诊断只记录 300 字符 `outputPreview`，不记录完整工单/模型输出。目标单测 16/16 与 server TypeScript 构建均通过。 | 未做真实 Lark/Kimi 运行时验证。 |
 
 ## 验证
 
@@ -57,6 +58,8 @@ related:
 | 单测 | 通过 | `vitest run lark-ticket-shadow-summary` 9/9 | mock ACP/thread/store，未触真实 Lark/Kimi |
 | 全量测试 | 通过 | `pnpm --dir server test` 668/668 | octo-kimi-execute-mcp 单次并行抖动失败，复跑通过，与本次改动无关 |
 | 静态检查 | 通过 | `pnpm --dir server build` (tsc) | - |
+| 合并后目标单测 | 通过 | `pnpm --dir server exec vitest run src/application/services/lark-ticket-shadow-summary.service.test.ts src/adapters/kimi-acp/spawn-config.test.ts`：16/16 | mock ACP/thread/store，未触真实 Lark/Kimi |
+| 合并后静态检查 | 通过 | `pnpm --dir server build` (tsc) | 不替代运行时验证 |
 | 运行时验证 | 未执行 | - | 需设 `LARK_TICKET_SHADOW_SUMMARY_ENABLED=true` 后观察 shadow_ai 写入 |
 
 ## 关联

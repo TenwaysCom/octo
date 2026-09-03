@@ -35,4 +35,17 @@ describe("buildKimiAcpSpawnConfig", () => {
 
     expect(config.env.PATH).toBe("/Users/tester/.kimi-code/bin:/usr/bin:/bin");
   });
+
+  it("moves the default Kimi Code bin path to the front when it is not first", () => {
+    const config = buildKimiAcpSpawnConfig({
+      HOME: "/Users/tester",
+      PATH: "/usr/bin:/Users/tester/.kimi-code/bin:/bin",
+    });
+
+    expect(config.env.PATH?.split(delimiter).slice(0, 3)).toEqual([
+      "/Users/tester/.kimi-code/bin",
+      "/usr/bin",
+      "/bin",
+    ]);
+  });
 });

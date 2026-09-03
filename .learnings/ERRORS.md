@@ -2,6 +2,13 @@
 
 Record concise compiler/runtime errors, failed commands, wrong assumptions, and their verified fixes here. Redact secrets, cookies, tokens, and sensitive payloads.
 
+## [ERR-20260903-001] kimi-acp-default-bin-path-not-first
+
+- **Summary:** Server 启动 Kimi ACP 子进程时，`ensureDefaultKimiBinOnPath` 只检查 `~/.kimi-code/bin` 是否存在于 PATH，却不保证它在最前面。当父进程 PATH 把 `/home/deploy/.local/bin` 排在前面时，实际启动的是旧版独立 kimi-cli（1.41.0），其 OAuth token 已过期；项目期望的 `~/.kimi-code/bin/kimi`（0.38.0）虽然有效但未被使用。
+- **Error:** Shadow summary 报 `SHADOW_OUTPUT_INVALID`，Kimi CLI 日志显示 `API Key appears to be invalid or may have expired`（401），server 侧 ACP 直接 `end_turn` 且无 `agent_message_chunk`。
+- **Fix:** 修改 `server/src/adapters/kimi-acp/spawn-config.ts` 的 `ensureDefaultKimiBinOnPath`，先过滤掉已有的 `~/.kimi-code/bin` 再 prepend 到 PATH 最前；补充测试覆盖 PATH 中已存在但非首位的场景。
+- **Status:** resolved；`spawn-config.test.ts` 4/4 通过，`pnpm --dir server build` 通过。
+
 ## [ERR-20260901-010] async-permission-branch-short-circuit
 
 - **Summary:** 在受限 shell policy 中并列加入 `analysis-update` 后，旧 `allowsUpdate()` 的 Promise 被直接用于 `||`，导致新分支永远不会执行。

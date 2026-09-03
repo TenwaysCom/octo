@@ -280,6 +280,13 @@ export function createLarkTicketShadowSummaryService(deps: LarkTicketShadowSumma
         outputDiagnostics(text),
       );
     }
+    shadowLogger.debug({
+      operation: "lark_ticket_shadow_summary",
+      layer: "server",
+      stage: "server.shadow.acp_output",
+      outputLength: text.length,
+      outputPreview: text.slice(0, MAX_OUTPUT_PREVIEW_CHARS),
+    }, "LARK_TICKET_SHADOW_SUMMARY_ACP_OUTPUT");
     return text;
   }
 
@@ -414,6 +421,13 @@ function parseShadowAnalysis(text: string): ShadowAnalysisResult {
   const start = text.indexOf("{");
   const end = text.lastIndexOf("}");
   if (start < 0 || end <= start) {
+    shadowLogger.debug({
+      operation: "lark_ticket_shadow_summary",
+      layer: "server",
+      stage: "server.shadow.parse",
+      outputLength: text.length,
+      outputPreview: text.slice(0, MAX_OUTPUT_PREVIEW_CHARS),
+    }, "LARK_TICKET_SHADOW_SUMMARY_PARSE_EMPTY");
     throw new LarkTicketShadowSummaryError(
       "SHADOW_OUTPUT_INVALID",
       "Shadow ACP output did not contain a JSON object.",
@@ -425,6 +439,13 @@ function parseShadowAnalysis(text: string): ShadowAnalysisResult {
   try {
     parsed = JSON.parse(text.slice(start, end + 1));
   } catch (error) {
+    shadowLogger.debug({
+      operation: "lark_ticket_shadow_summary",
+      layer: "server",
+      stage: "server.shadow.parse",
+      outputLength: text.length,
+      outputPreview: text.slice(0, MAX_OUTPUT_PREVIEW_CHARS),
+    }, "LARK_TICKET_SHADOW_SUMMARY_PARSE_JSON_FAILED");
     throw new LarkTicketShadowSummaryError(
       "SHADOW_OUTPUT_INVALID",
       `Shadow ACP output JSON parse failed: ${error instanceof Error ? error.message : String(error)}`,
@@ -434,6 +455,13 @@ function parseShadowAnalysis(text: string): ShadowAnalysisResult {
   }
   const result = shadowAnalysisResultSchema.safeParse(parsed);
   if (!result.success) {
+    shadowLogger.debug({
+      operation: "lark_ticket_shadow_summary",
+      layer: "server",
+      stage: "server.shadow.validate",
+      outputLength: text.length,
+      outputPreview: text.slice(0, MAX_OUTPUT_PREVIEW_CHARS),
+    }, "LARK_TICKET_SHADOW_SUMMARY_PARSE_SCHEMA_FAILED");
     throw new LarkTicketShadowSummaryError(
       "SHADOW_OUTPUT_INVALID",
       `Shadow ACP output failed schema validation: ${result.error.issues.map((issue) => issue.path.join(".") || issue.code).join(", ").slice(0, 300)}`,
