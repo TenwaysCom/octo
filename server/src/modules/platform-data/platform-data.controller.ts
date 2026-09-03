@@ -89,7 +89,7 @@ export function createWebPlatformDataController(deps: {
       };
     }
 
-    const hasLarkTicketFilters = query.createdAfter || query.createdBefore || query.issueType || query.responsible || query.quickFilter;
+    const hasLarkTicketFilters = query.createdAfter || query.createdBefore || query.issueType || query.responsible || query.quickFilter || query.hasAiOutput;
     if (input.kind !== "lark-tickets" && hasLarkTicketFilters) {
       return {
         statusCode: 400,
@@ -128,6 +128,7 @@ export function createWebPlatformDataController(deps: {
           priorities: query.priority,
           responsibles: query.responsible,
           quickFilter: query.quickFilter,
+          hasAiOutput: query.hasAiOutput || undefined,
           offset: query.offset || undefined,
         }) }
         : input.kind === "meegle-workitems" ? { meegleWorkitems: omitUndefined({

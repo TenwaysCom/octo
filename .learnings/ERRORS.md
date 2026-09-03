@@ -2,6 +2,34 @@
 
 Record concise compiler/runtime errors, failed commands, wrong assumptions, and their verified fixes here. Redact secrets, cookies, tokens, and sensitive payloads.
 
+## [ERR-20260901-010] async-permission-branch-short-circuit
+
+- **Summary:** 在受限 shell policy 中并列加入 `analysis-update` 后，旧 `allowsUpdate()` 的 Promise 被直接用于 `||`，导致新分支永远不会执行。
+- **Error:** ACP permission 定向测试拒绝了本应允许的精确 Summary analysis-update 命令。
+- **Fix:** 对两个异步权限判断分别显式 `await`，并保留精确 action、Skill、临时路径和命令匹配。
+- **Status:** resolved；ACP policy 7/7、整体相关测试 31/31 通过。
+
+## [ERR-20260901-009] optional-analysis-service-eager-database-init
+
+- **Summary:** 首版把仅 Summary Quick Action 使用的分析服务在 Ticket Controller/Session service 构造时立即创建，导致无关测试也尝试连接 PostgreSQL。
+- **Error:** 7-file 定向测试中 8 个既有用例失败，报错 `POSTGRES_URI is not configured`；另有一个新断言错误地要求不存在的 `actionRunId` Store 字段。
+- **Fix:** 把分析服务改为仅在更新/summary 持久化分支中按需创建，并修正 Store 入参断言。
+- **Status:** resolved；相同 7 files / 18 tests 和 Server build 全部通过。
+
+## [ERR-20260901-008] prepared-thread-snapshot-test-fixture
+
+- **Summary:** Making `preparedMessages` a required thread snapshot projection left one typed in-memory Store fixture on the old shape.
+- **Error:** Server build failed with `PreparedTicketMessage[] | undefined` not assignable to `PreparedTicketMessage[]`.
+- **Fix:** Add deterministic prepared messages to the fixture and regenerate them from the fake Store's synchronized raw input.
+- **Status:** resolved; 4 focused files / 16 tests and Server build pass.
+
+## [ERR-20260901-007] prompt-template-unescaped-backticks
+
+- **Summary:** A Support-QA prompt update embedded Markdown backticks inside a TypeScript template literal.
+- **Error:** Vite/esbuild stopped test collection with `Expected ";" but found "Approved"`.
+- **Fix:** Use Chinese quotation marks in the prompt text unless the backticks are escaped; rerun the focused tests and Server TypeScript build.
+- **Status:** resolved; 3 focused files / 10 tests and Server build pass.
+
 ## [ERR-20260829-001] meegle-sprint-history-list-fallback
 
 - **Summary:** A FE API test still expected the normal Meegle workitem list to synthesize Sprint history from the current page.
@@ -580,7 +608,6 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Root cause:** Its expected Sprint cell context accidentally repeated the `assignee` branch, while the source contains it once.
 - **Verified fix:** Inspect the exact JSX block and apply smaller configuration/test and page patches; FE check then passed.
 - **Recurrence (2026-08-31):** A broad current-working-time patch spanning two large JSX pages again failed context verification without changing files; splitting imports, cells, cards, and call sites into small ordered patches applied cleanly.
-
 ### ERR-20260901-001 — PostgreSQL shape probe bypassed the configured SSH connection path
 
 - **Symptom:** Direct `psql` returned an empty connection error; follow-up `tsx -e` attempts also failed on relative env-file resolution, top-level await, and sandbox IPC permissions before reaching the database.
@@ -617,3 +644,55 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Symptom:** `pnpm test -- --run <files>` executed the full Server suite instead of only the requested files; the run surfaced the already-known `node:sqlite` availability failures and logger rotation race.
 - **Root cause:** The package script already expands to `vitest run`; the extra `-- --run` was treated as forwarded arguments rather than a scoped Vitest invocation.
 - **Verified fix:** Run `pnpm exec vitest run <files>` from `server/`. The intended Store, platform-data controller, and Lark auth service files then passed 44/44 tests.
+# 2026-09-01 — tsx inline top-level await
+
+- Symptom: `pnpm exec tsx -e` rejected a diagnostic command using top-level `await` because it emitted CommonJS.
+- Fix: wrap inline diagnostics in an async IIFE; do not treat the command failure as a database or schema failure.
+
+### ERR-20260901-007 — Eval service fixture omitted a nested object close
+
+- **Symptom:** The first focused Eval service test could not transform because its mocked Ticket AI object had an unmatched bracket.
+- **Root cause:** A dense one-line nested fixture made the outer Ticket object closing brace easy to omit.
+- **Verified fix:** Expand nested test fixtures across lines before running Vitest; the focused service, controller, and route tests then passed.
+
+### ERR-20260901-008 — Eval list was intercepted by header authentication
+
+- **Symptom:** `GET /api/web/lark-ticket-eval-samples` returned `UNAUTHORIZED: Missing master-user-id header` while `GET /api/web/profile` succeeded with the same browser session.
+- **Root cause:** The Eval list endpoint was a Web Session route but absent from `DEFAULT_EXEMPT_PATHS` in the generic header-auth middleware.
+- **Verified fix:** Exempt that exact path and cover it in the Web Session route regression test; never solve this by forwarding a browser-supplied `master-user-id`.
+
+### ERR-20260901-009 — Eval save path was omitted from Web Session prefix authentication
+
+- **Symptom:** Creating an Eval sample succeeded, but saving its annotations returned `UNAUTHORIZED: Missing master-user-id header`.
+- **Root cause:** The list root path was exempted, while the parameterized `PUT /api/web/lark-ticket-eval-samples/:id` path was not.
+- **Verified fix:** Exempt the resource path prefix and cover a parameterized path in the middleware regression test.
+
+### ERR-20260902-001 — Kimi 0.39 ACP flushes permission evidence after the decision
+
+- **Symptom:** Waiting for `tool_call_update`, reading the local session wire, and adding exact global `permission.rules` all still ended with a missing-command Bash approval and `SUPPORT_QA_EVIDENCE_NOT_FETCHED`.
+- **Root cause:** Kimi 0.39.1 sends `session/request_permission` without the command, blocks later ACP updates until a response, and only flushes the complete `interaction.request.display.command` into `wire.jsonl` after the approval decision. Its ACP path also did not apply the tested config rules.
+- **Verified fix:** Remove the ineffective wire/config workarounds and keep missing-payload Bash approvals denied. Route manifest-declared operational scripts through one structured `execute` MCP, while ACP fs callbacks independently enforce read/write paths; three live Ticket workflows then completed with the existing Kimi login.
+
+### ERR-20260902-002 — Nonexistent write path failed across macOS realpath aliases
+
+- **Symptom:** A permitted new analysis file below the Support workspace was rejected when the configured root resolved through `/var` while the parent resolved through `/private/var`.
+- **Root cause:** The policy compared unresolved path strings before canonicalizing the existing parent directory.
+- **Verified fix:** Resolve the workspace root and the target parent with `realpath`, then rebuild the not-yet-created candidate from the canonical parent before applying root and sensitive-path checks.
+
+### ERR-20260902-003 — Valid analysis was not visible in the AI output list
+
+- **Symptom:** Three real `analysis-update` calls persisted intent/result/quality, but the FE still showed “AI 未输出”.
+- **Root cause:** The normalized analysis store and the `ticket_ai` list projection were separate writes, and the new update path only performed the first.
+- **Verified fix:** Project the validated analysis into allow-listed Ticket AI fields during the same Server workflow. Browser read-back then showed all three tickets as “AI 已输出”, and Eval creation/read-back succeeded without authorization errors.
+
+### ERR-20260902-004 — Rejected Support-QA text became an orphan Session
+
+- **Symptom:** FE streamed a complete answer and then received `SUPPORT_QA_EVIDENCE_NOT_FETCHED`; refresh removed the answer and no Ticket AI Session exposed it.
+- **Root cause:** Session ownership attachment happened only after evidence and analysis gates, while failed runs had no persisted status or draft text.
+- **Verified fix:** Attach the created Session before evaluating the gates, persist failed run metadata and the assistant text, and render it as an unverified non-sendable draft with a controlled rerun path.
+
+### ERR-20260902-005 — Prompt interruption occurred before Ticket Session attachment
+
+- **Symptom:** Kimi created a Session, but a Server watcher restart interrupted the prompt; the ownership row remained without Ticket keys and the failed Session disappeared from the Ticket page.
+- **Root cause:** Moving attachment before the evidence gates was insufficient because the code still waited for `acpService.chat()` to return before attaching. A process interruption can happen after `session.created` but before that return.
+- **Verified fix:** Start Ticket and thread attachment directly from the `session.created` event, await the in-flight write on normal completion or prompt failure, and cover the interruption ordering in a service test. Recover only the explicitly identified historical row after verifying its Ticket and thread snapshot.

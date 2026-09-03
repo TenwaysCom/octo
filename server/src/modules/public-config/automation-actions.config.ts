@@ -107,7 +107,7 @@ export const AUTOMATION_ACTIONS = {
     promptKey: "lark_ticket.support_qa.summarize",
     skillProfile: "support_qa_eu",
     skillId: "support_qa_query",
-    executionPolicy: "shell",
+    executionPolicy: "write+shell",
     requiresConfirmation: false,
   },
   larkTicketSupportQaAnswer: {
@@ -147,6 +147,21 @@ export const AUTOMATION_ACTIONS = {
     skillId: "support_qa_write",
     executionPolicy: "write+shell",
     requiresConfirmation: false,
+  },
+  larkTicketSupportQaConfirmDraft: {
+    key: "lark-ticket-support-qa-confirm-draft",
+    title: "确认发送回复草案",
+    description: "人工确认后，将当前 Answer Session 的回复草案发送到 Ticket thread。",
+    style: "primary",
+    placements: [],
+    interaction: { type: "preview_confirm" },
+    executor: {
+      type: "backend_api",
+      operation: "lark_ticket.support_qa.confirm_draft",
+      method: "POST",
+      route: "/api/web/lark-tickets/:recordId/reply-drafts/confirm",
+    },
+    requiresConfirmation: true,
   },
   analyze: {
     key: "analyze",

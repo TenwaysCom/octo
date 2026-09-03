@@ -8,6 +8,12 @@ export function matchesLarkTicketQuickFilter(item, filter) {
   if (filter === "unsynced") {
     return normalizeValue(item.issueType) === "feature" && !normalizeValue(item.meegleLink);
   }
+  if (filter === "ai-output") {
+    return Boolean(Object.keys(item.ticketAi?.fields || {}).length);
+  }
+  if (filter === "ai-missing") {
+    return !Object.keys(item.ticketAi?.fields || {}).length;
+  }
   return true;
 }
 

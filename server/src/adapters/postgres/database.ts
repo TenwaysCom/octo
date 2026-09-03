@@ -11,6 +11,7 @@ import {
   DEFAULT_LARK_TICKET_SUPPORT_QA_ANSWER_PROMPT_TEMPLATE,
   DEFAULT_LARK_TICKET_SUPPORT_QA_DOCUMENT_PREVIEW_PROMPT_TEMPLATE,
   DEFAULT_LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_TEMPLATE,
+  LEGACY_LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_TEMPLATES,
   DEFAULT_MEEGLE_SPRINT_CONFIRM_GAPS_PROMPT_NOTE,
   DEFAULT_MEEGLE_SPRINT_CONFIRM_GAPS_PROMPT_TEMPLATE,
   DEFAULT_MEEGLE_SPRINT_INTERNAL_SUMMARY_PROMPT_NOTE,
@@ -111,6 +112,11 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .addColumn("thread_id", "text")
     .addColumn("thread_snapshot_version", "integer")
     .addColumn("thread_context_synced_at", "text")
+    .addColumn("action_run_id", "text")
+    .addColumn("run_status", "text")
+    .addColumn("run_error_code", "text")
+    .addColumn("run_error_message", "text")
+    .addColumn("unverified_output", "text")
     .addColumn("deleted_at", "text")
     .addColumn("created_at", "text", (column) => column.notNull())
     .addColumn("updated_at", "text", (column) => column.notNull())
@@ -434,6 +440,7 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .addColumn("message_link", "text", (column) => column.notNull())
     .addColumn("thread_id", "text", (column) => column.notNull())
     .addColumn("messages_json", "text", (column) => column.notNull().defaultTo('{"schemaVersion":1,"messages":[]}'))
+    .addColumn("prepared_messages_json", "text")
     .addColumn("snapshot_version", "integer", (column) => column.notNull().defaultTo(0))
     .addColumn("history_complete", "boolean", (column) => column.notNull().defaultTo(false))
     .addColumn("watermark_created_at", "text")
@@ -448,6 +455,113 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .addColumn("created_at", "text", (column) => column.notNull())
     .addColumn("updated_at", "text", (column) => column.notNull())
     .addPrimaryKeyConstraint("lark_ticket_thread_syncs_pkey", ["base_id", "table_id", "record_id"])
+    .execute();
+
+  await sql`
+    ALTER TABLE lark_ticket_thread_syncs
+    ADD COLUMN IF NOT EXISTS prepared_messages_json text
+  `.execute(db);
+
+  await db.schema.createTable("support_analysis_runs").ifNotExists()
+    .addColumn("id", "text", (column) => column.primaryKey())
+    .addColumn("action_run_id", "text", (column) => column.notNull().defaultTo("legacy"))
+    .addColumn("source_name", "text", (column) => column.notNull())
+    .addColumn("status", "text", (column) => column.notNull())
+    .addColumn("taxonomy_version", "text", (column) => column.notNull())
+    .addColumn("rubric_version", "text", (column) => column.notNull())
+    .addColumn("created_at", "text", (column) => column.notNull())
+    .addColumn("updated_at", "text", (column) => column.notNull())
+    .execute();
+  await sql`
+    ALTER TABLE support_analysis_runs
+    ADD COLUMN IF NOT EXISTS action_run_id text NOT NULL DEFAULT 'legacy'
+  `.execute(db);
+  await db.schema.createTable("support_thread_intent_segments").ifNotExists()
+    .addColumn("id", "text", (column) => column.primaryKey())
+    .addColumn("analysis_run_id", "text", (column) => column.notNull())
+    .addColumn("base_id", "text", (column) => column.notNull())
+    .addColumn("table_id", "text", (column) => column.notNull())
+    .addColumn("record_id", "text", (column) => column.notNull())
+    .addColumn("snapshot_version", "integer", (column) => column.notNull())
+    .addColumn("segment_key", "text", (column) => column.notNull())
+    .addColumn("redacted_summary", "text")
+    .addColumn("intent_json", "text", (column) => column.notNull())
+    .addColumn("evidence_message_ids_json", "text", (column) => column.notNull())
+    .addColumn("review_status", "text", (column) => column.notNull())
+    .addColumn("created_at", "text", (column) => column.notNull())
+    .addColumn("updated_at", "text", (column) => column.notNull())
+    .addUniqueConstraint("support_thread_intent_segments_version_key", ["base_id", "table_id", "record_id", "snapshot_version", "segment_key"])
+    .execute();
+  await db.schema.createTable("support_thread_results").ifNotExists()
+    .addColumn("id", "text", (column) => column.primaryKey())
+    .addColumn("intent_segment_id", "text", (column) => column.notNull())
+    .addColumn("result_json", "text", (column) => column.notNull())
+    .addColumn("created_at", "text", (column) => column.notNull())
+    .addColumn("updated_at", "text", (column) => column.notNull())
+    .execute();
+  await db.schema.createTable("support_quality_reviews").ifNotExists()
+    .addColumn("id", "text", (column) => column.primaryKey())
+    .addColumn("intent_segment_id", "text", (column) => column.notNull())
+    .addColumn("reviewer_kind", "text", (column) => column.notNull())
+    .addColumn("score_json", "text", (column) => column.notNull())
+    .addColumn("critical_issues_json", "text", (column) => column.notNull())
+    .addColumn("created_at", "text", (column) => column.notNull())
+    .addColumn("updated_at", "text", (column) => column.notNull())
+    .execute();
+  await db.schema.createTable("lark_ticket_eval_samples").ifNotExists()
+    .addColumn("id", "text", (column) => column.primaryKey())
+    .addColumn("base_id", "text", (column) => column.notNull())
+    .addColumn("table_id", "text", (column) => column.notNull())
+    .addColumn("record_id", "text", (column) => column.notNull())
+    .addColumn("ticket_title", "text", (column) => column.notNull())
+    .addColumn("snapshot_version", "integer", (column) => column.notNull())
+    .addColumn("ai_output_json", "text", (column) => column.notNull())
+    .addColumn("dataset_status", "text", (column) => column.notNull())
+    .addColumn("manual_intent", "text")
+    .addColumn("expected_outcome", "text")
+    .addColumn("notes", "text")
+    .addColumn("failure_labels_json", "text", (column) => column.notNull())
+    .addColumn("created_at", "text", (column) => column.notNull())
+    .addColumn("updated_at", "text", (column) => column.notNull())
+    .addUniqueConstraint("lark_ticket_eval_samples_ticket_snapshot", ["base_id", "table_id", "record_id", "snapshot_version"])
+    .execute();
+  await db.schema.createTable("support_ticket_reply_drafts").ifNotExists()
+    .addColumn("id", "text", (column) => column.primaryKey())
+    .addColumn("base_id", "text", (column) => column.notNull())
+    .addColumn("table_id", "text", (column) => column.notNull())
+    .addColumn("record_id", "text", (column) => column.notNull())
+    .addColumn("session_id", "text", (column) => column.notNull())
+    .addColumn("operator_lark_id", "text", (column) => column.notNull())
+    .addColumn("draft_hash", "text", (column) => column.notNull())
+    .addColumn("status", "text", (column) => column.notNull())
+    .addColumn("sent_message_id", "text")
+    .addColumn("action_run_id", "text")
+    .addColumn("created_at", "text", (column) => column.notNull())
+    .addColumn("updated_at", "text", (column) => column.notNull())
+    .addUniqueConstraint("support_ticket_reply_drafts_idempotency", ["base_id", "table_id", "record_id", "session_id", "draft_hash"])
+    .execute();
+  await db.schema.createTable("support_knowledge_documents").ifNotExists()
+    .addColumn("id", "text", (column) => column.primaryKey())
+    .addColumn("source_kind", "text", (column) => column.notNull())
+    .addColumn("source_ref", "text", (column) => column.notNull())
+    .addColumn("title", "text", (column) => column.notNull())
+    .addColumn("redacted_summary", "text")
+    .addColumn("tags_json", "text", (column) => column.notNull().defaultTo("[]"))
+    .addColumn("approval_status", "text", (column) => column.notNull())
+    .addColumn("approved_by", "text", (column) => column.notNull())
+    .addColumn("approved_at", "text", (column) => column.notNull())
+    .addColumn("created_at", "text", (column) => column.notNull())
+    .addColumn("updated_at", "text", (column) => column.notNull())
+    .addUniqueConstraint("support_knowledge_documents_source_key", ["source_kind", "source_ref"])
+    .execute();
+  await db.schema.createTable("support_knowledge_chunks").ifNotExists()
+    .addColumn("id", "text", (column) => column.primaryKey())
+    .addColumn("document_id", "text", (column) => column.notNull())
+    .addColumn("sequence", "integer", (column) => column.notNull())
+    .addColumn("redacted_content", "text", (column) => column.notNull())
+    .addColumn("created_at", "text", (column) => column.notNull())
+    .addColumn("updated_at", "text", (column) => column.notNull())
+    .addUniqueConstraint("support_knowledge_chunks_document_sequence", ["document_id", "sequence"])
     .execute();
 
   await db.schema
@@ -707,6 +821,15 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
       .onConflict((conflict) => conflict.column("key").doNothing())
       .execute();
   }
+  await db.updateTable("workflow_prompts")
+    .set({
+      prompt: DEFAULT_LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_TEMPLATE,
+      note: DEFAULT_LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_NOTE,
+      updated_at: now,
+    })
+    .where("key", "=", LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_KEY)
+    .where("prompt", "in", LEGACY_LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_TEMPLATES)
+    .execute();
 
   await db.insertInto("workflow_prompts")
     .values({
@@ -816,6 +939,9 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     ALTER TABLE acp_kimi_session_owners
     ADD COLUMN IF NOT EXISTS thread_snapshot_version integer
   `.execute(db);
+  for (const column of ["action_run_id", "run_status", "run_error_code", "run_error_message", "unverified_output"]) {
+    await sql.raw(`ALTER TABLE acp_kimi_session_owners ADD COLUMN IF NOT EXISTS ${column} text`).execute(db);
+  }
   await sql`
     CREATE INDEX IF NOT EXISTS acp_kimi_session_owners_ticket_idx
     ON acp_kimi_session_owners(operator_lark_id, ticket_base_id, ticket_table_id, ticket_record_id, updated_at)

@@ -2,6 +2,24 @@
 
 Record concise, reusable lessons here. Include the context, the durable rule, and the verified outcome; never include secrets or raw credentials.
 
+## [LRN-20260901-006] support-analysis-shared-write-boundary
+
+- **Context:** Ticket 人工审核接口与 Summary Quick Action 都要更新 intent、result、quality，但 Quick Action 的实际执行者是外部 ACP Skill，已有 SSH 签名 internal API 通道。
+- **Rule:** Web PUT 仅服务 FE human review；ACP 通过受限 wrapper 调签名 internal API。两个 Controller 共用分析应用服务，服务必须核对 Ticket、精确 snapshot version 和 prepared-message evidence，再脱敏并事务 upsert。Summary 只允许写 actionRunId 绑定的临时 JSON，且 fetch/update 两步都完成才接受结果。
+- **Verified outcome:** 定向测试覆盖 Web/Internal 分流、Zod、快照/证据拒绝、脱敏、原子更新、精确 ACP 权限和双门禁；Support-QA wrapper 语法及 analysis-update dry-run 通过。
+
+## [LRN-20260901-005] prepared-thread-local-backfill-boundary
+
+- **Context:** Historical Ticket threads already have `messages_json`, so generating their Prepared projection does not require Lark credentials or another external fetch.
+- **Rule:** Scope the backfill by `baseId + tableId`, default to dry-run, derive only from local raw JSON, require `--apply` for writes, and update with the scanned `snapshot_version` as an optimistic concurrency guard.
+- **Verified outcome:** Script tests prove redaction, current/stale selection, local PostgreSQL writes, and rejection of Lark credential arguments.
+
+## [LRN-20260901-004] support-knowledge-approval-and-redaction-boundary
+
+- **Context:** Ticket Answer needs controlled documents and resolved historical cases, but the thread-sync snapshot is raw source data and the existing Support-QA fetch gate proves Ticket evidence rather than knowledge approval.
+- **Rule:** Store searchable knowledge separately as redacted chunks, require explicit human approval before indexing or retrieval, return `source_ref` with every hit, and keep the existing completed `fetch --json` gate mandatory for every Support-QA result.
+- **Verified outcome:** PostgreSQL-store and Ticket AI Session tests prove revoked cases are excluded, email text is redacted, and Answer prompts receive approved citations only.
+
 ## [LRN-20260828-007] ai-session-message-control-scope
 
 - **Context:** Ticket 与 Sprint AI Session 使用相同的消息视觉语言，但由两个页面入口渲染；复制动作只适用于助手正文，不适用于用户输入、状态或思考/工具诊断。
@@ -482,3 +500,63 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - **Context:** Meegle 工作项 payload 的 `work_item_attribute.role_members` 同时包含角色定义、稳定人员 key、显示名和 email；许多角色没有成员，旧快照也可能完全缺失这段证据。
 - **Rule:** 把当前角色成员清洗为以 workitem ref、role key 和 member key 标识的关系投影，保留角色/成员源顺序并区分“字段缺失”和“明确为空”。负责人 `current_status_operator` 继续独立；列表读取不解析 payload、不拼接姓名作为查询键，也不复制未使用的 email。`Subscribed` 之类“与我相关”过滤必须由 Server 会话解析稳定人员 key，并作为独立 AND 条件与手选人员组及其他过滤组合，不能把当前用户追加进组内 OR 数组。
 - **Verified outcome:** 关系表、member-leading 索引、事务清洗、memberKey API 筛选和 FE 普通列表/看板/Sprint 展示已落地；本地回填写入 2,515 条关系，空字段、重复和孤儿均为 0，二次回填为 0 变更。后续 `Subscribed` 快速过滤在不暴露会话 Meegle key 的前提下完成独立 AND 查询，Store/controller/session 共 44 个聚焦测试、FE 全量测试和两端 build 通过。
+
+## [LRN-20260901-003] ticket-reply-requires-session-and-root-proof
+
+- **Context:** Support-QA Answer 的文本本身不是发送授权；历史 thread 同步保存的是 reply 消息，Lark 回复 API 需要 root message ID。
+- **Rule:** 发送前必须校验当前用户、Ticket 复合键、Answer action session 归属和固定 thread 上下文；从 reply 的 `root_id` 派生发送目标，并以 Ticket/Session/draft hash 去重。不能把模型输出或 `thread_id` 直接当作发送授权。
+- **Verified outcome:** 新服务仅在该校验后调用 Lark `replyToMessage(..., reply_in_thread=true)`；脱敏/证据单测、Server build、FE test/build 通过，未进行真实发送。
+
+## [LRN-20260901-004] eval-sample-freezes-mutable-ai-output
+
+- **Context:** Ticket 的当前 `ticket_ai` 与 SupportTicketAnalysis projection 都会随重跑或人工审核而变化，直接把它们当作 Eval 数据会丢失原始 AI 输出。
+- **Rule:** Eval/Badcase 样本必须在创建时以 Ticket 复合键和完整 thread snapshot version 冻结 allow-listed AI 输出；人工标准答案与失败标签另存。相同 Ticket/snapshot 的创建需幂等，历史样本不被后续 Ticket AI 更新覆盖。
+- **Verified outcome:** Server service 拒绝缺失或不完整的线程快照，PostgreSQL 样本表对 Ticket/snapshot 建唯一约束；聚焦 Server 测试、FE 全量测试和两端 build 通过。
+
+## [LRN-20260901-005] ticket-ai-pipeline-does-not-infer-session-completion
+
+- **Context:** Ticket AI 的问题总结、回答问题和生成文档是不同的 AI Session；只有部分结论会进入本地 `ticket_ai`，不能因存在分析结果就把后续阶段显示为完成。
+- **Rule:** AI 输出列表按意图识别、问题总结、Ticket 答案总结、文档生成四阶段读取明确字段；旧分析/知识字段可做兼容映射，但无持久化回答或文档字段时必须显示未生成。列表只导航到详情页启动既有 Session，不复制流式 workflow。
+- **Verified outcome:** Pipeline 单测覆盖兼容映射及答案空态，新增字段进入 allow-list 和分组详情；两端 build 通过。
+
+## [LRN-20260901-006] web-session-routes-must-be-explicitly-exempt-from-header-auth
+
+- **Context:** Eval 样本列表由浏览器 Web Session 鉴权，但其路径不在通用 API header-auth 的豁免集合中，导致已登录页面仍收到 `UNAUTHORIZED: Missing master-user-id header`。
+- **Rule:** 新增 Web Session 路由时，必须同时检查 `createApiAuthMiddleware` 的路径豁免；对含参数的资源路由应豁免精确根路径和资源前缀。不能要求浏览器伪造或携带 `master-user-id`，身份只从服务端 session 解析。
+- **Verified outcome:** Eval 列表根路径和样本编辑前缀均加入豁免，middleware/controller/route 定向测试 13/13 和两端 build 通过。
+
+## [LRN-20260902-001] acp-permission-must-carry-command-before-approval
+
+- **Context:** Kimi 0.39.1 在 Support-QA Summary 的 Bash 审批请求中先发送通用工具标题，未携带 rawInput 或完整命令；命令参数只在审批被响应后才以 tool-call update 发送。
+- **Rule:** 对模型 Shell 的受控白名单不能根据工具名、后到的参数或会话文件做推断放行。通用 ACP 客户端应声明标准 `terminal` / `fs` 能力，让命令和路径在执行前以结构化请求进入同一策略；旧 Kimi 若仍绕过 terminal 并发送无载荷审批，只能安全拒绝，不能为每个业务建立专用 ACP 或默认授权 Bash。
+- **Verified outcome:** 标准 terminal/fs 客户端与策略确认旧 Kimi 的 Bash 请求无法安全判定；最终以同一 ACP 会话中的结构化 `execute` MCP 替代业务 Shell，同时保留 fs 读写与自然语言响应，三条真实 Ticket 写回通过。
+
+## [LRN-20260902-002] acp-operational-effects-use-structured-execute
+
+- **Context:** Kimi ACP 的 Bash 审批不稳定地缺少命令载荷，但 Support-QA 仍需要调用现有 fetch/update 脚本，且 Quick Action 必须保留自然语言结果。
+- **Rule:** 文件读写交给 ACP fs callback 做 root、敏感路径与 symlink 校验；业务命令统一走一个结构化 `execute` MCP，由 Server manifest 和 action context 同时约束 root、script、subcommand 与 argv，使用 `shell: false` 执行。不要默认授权 Bash，也不要为每个业务建立新的 ACP 通道。
+- **Verified outcome:** 三条真实 Ticket 完成 fetch、workspace JSON 写入、signed analysis-update 和 FE 投影回读；AI 输出与 Eval 视图均在登录态页面可见，Eval 创建不再返回 `UNAUTHORIZED`。
+
+## [LRN-20260902-003] normalized-ai-write-must-refresh-list-projection
+
+- **Context:** Support analysis 已写入规范化 intent/result/quality 表，但 AI 输出列表只读取 `lark_base_ticket_octo.ticket_ai`，造成 Session 成功而列表仍显示“AI 未输出”。
+- **Rule:** 同一个 Server analysis-update 在通过 snapshot/evidence 校验后，必须同步更新规范化分析模型和 allow-listed `ticket_ai` 读投影；不能要求 FE 联表或从 Session 文本推断完成状态。
+- **Verified outcome:** 2070、2007、2111 在 AI 输出视图显示意图类型、问题总结和明确阶段状态，并可直接冻结为 Eval 样本。
+
+## [LRN-20260902-004] rejected-ai-output-is-a-draft-not-a-success
+
+- **Context:** Kimi 已生成完整回答，但 Ticket 证据 fetch 或 `analysis-update` 门禁失败；旧流程既拒绝正式结果，也不把新 Session 绑定回 Ticket，导致正文刷新后丢失。
+- **Rule:** 失败门禁必须保留 actionRun、Session 归属、错误码和模型正文，并明确标记 `unverified`；禁止写正式 intent/result/quality 和 `ticket_ai`，禁止直接发送。重试未验证 Quick Action 必须新建受控运行，不能作为普通 follow-up 绕过门禁。
+- **Verified outcome:** PostgreSQL ownership store、Session service、FE 未验证状态及重新执行链通过 19 个聚焦测试，FE 135 tests、两端 build 与本地 migration 通过。
+
+## [LRN-20260902-005] opaque-bash-exception-must-be-explicit-and-removable
+
+- **Context:** 用户明确要求先解决 Kimi ACP 0.38 缺少 command 的 Bash 审批失败，即使这时无法验证脚本目录。
+- **Rule:** 临时兼容只能按明确 action、skill profile、skill 和 execution policy 收口，使用独立 policy version 并记录 `temporary_unverified_bash`；必须公开说明它不是目录沙箱，不能扩散到其他 action，并保留结构化 execute 作为收紧路径。
+- **Verified outcome:** 三个 Lark Ticket Support-QA action 可获单次 Bash 批准，非 Support-QA action 继续拒绝；权限与 ACP runtime 定向测试通过。
+
+## [LRN-20260902-006] session-ownership-must-be-durable-at-creation
+
+- **Context:** ACP Session 创建和 prompt 执行是两个不同阶段；Server 重启或流中断可能发生在两者之间。
+- **Rule:** 依赖 Session 可恢复性的外部上下文关联必须在 `session.created` 事件到达时立即开始持久化，不能等模型完成、证据门禁或 `chat()` 返回。失败结果状态可后写，但 Ticket 归属是创建阶段的不变量。
+- **Verified outcome:** 中断回归测试证明 attach 先于后续 prompt failure；实际孤立 Session 已按唯一 session id 恢复并从数据库回读 Ticket 2106、thread 与 actionRun。

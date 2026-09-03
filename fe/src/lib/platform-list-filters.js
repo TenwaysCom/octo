@@ -34,6 +34,7 @@ export function getPlatformListFilters({
   selectedSprints,
   selectedTagFilters,
   larkTicketQuickFilter,
+  larkHasAiOutput,
   meegleQuickFilter,
   workitemTypeFilter,
   noSprintFilter,
@@ -47,6 +48,7 @@ export function getPlatformListFilters({
       ...(selectedTagFilters.priority?.length ? { priority: selectedTagFilters.priority } : {}),
       ...(selectedTagFilters.responsible?.length ? { responsible: selectedTagFilters.responsible } : {}),
       ...(larkTicketQuickFilter !== "all" ? { quickFilter: larkTicketQuickFilter } : {}),
+      ...(larkHasAiOutput ? { hasAiOutput: true } : {}),
     };
   }
   if (page === "meegle-workitems") {

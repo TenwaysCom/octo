@@ -60,6 +60,47 @@ describe("Lark Ticket AI Session service", () => {
     expect(events).toHaveLength(2);
   });
 
+  it("associates a created Session before a later ACP prompt failure", async () => {
+    const ownershipStore = {
+      getBySessionId: vi.fn(),
+      listByTicket: vi.fn(),
+      attachTicket: vi.fn().mockResolvedValue({ sessionId: "sess_interrupted" }),
+      touch: vi.fn(),
+    };
+    const acpService = {
+      assertSessionAccess: vi.fn(),
+      chat: vi.fn(async (_input, emit) => {
+        emit({ event: "session.created", data: { sessionId: "sess_interrupted" } });
+        await Promise.resolve();
+        expect(ownershipStore.attachTicket).toHaveBeenCalledWith(expect.objectContaining({
+          sessionId: "sess_interrupted",
+          ...ticket,
+        }));
+        throw new Error("ACP prompt interrupted");
+      }),
+    };
+    const service = createLarkTicketAiSessionService({
+      syncStore: { getLarkBaseTicketsForCleaning: vi.fn().mockResolvedValue([{
+        ...ticket,
+        title: "Interrupted Ticket",
+        ticketNumber: "LT-10",
+        syncedAt: "2026-08-12T00:00:00.000Z",
+      }]) } as never,
+      ownershipStore: ownershipStore as never,
+      acpService: acpService as never,
+    });
+
+    await expect(service.chat({
+      operatorLarkId: "ou_1",
+      masterUserId: "usr_1",
+      larkBaseUrl: "https://open.larksuite.com",
+      ticket,
+      message: "回答问题",
+      actionRunId: "run_interrupted",
+    }, vi.fn())).rejects.toThrow("ACP prompt interrupted");
+    expect(ownershipStore.attachTicket).toHaveBeenCalledTimes(1);
+  });
+
   it("lists only sessions already associated with the requested Ticket", async () => {
     const ownershipStore = {
       listByTicket: vi.fn().mockResolvedValue([{
@@ -96,7 +137,9 @@ describe("Lark Ticket AI Session service", () => {
     };
     const acpService = {
       assertSessionAccess: vi.fn(),
-      chat: vi.fn(async (_input, emit) => {
+      chat: vi.fn(async (input, emit) => {
+        const analysisPath = input.message.match(/"subcommand":"analysis-update","args":\["([^"]+)","--json"\]/)?.[1];
+        expect(analysisPath).toMatch(/^\/srv\/odoo\/eu\/\.octo-support-analysis-[a-f0-9]+\.json$/);
         emit({ event: "session.created", data: { sessionId: "sess_2" } });
         emit({
           event: "acp.session.update",
@@ -118,7 +161,10 @@ describe("Lark Ticket AI Session service", () => {
               toolCallId: "12:fetch_1",
               status: "in_progress",
               rawInput: {
-                command: "bash .agents/skills/write-support-qa/scripts/write-support-qa.sh fetch LT-10 --json",
+                root: "support_workspace",
+                script: ".agents/skills/write-support-qa/scripts/write-support-qa.sh",
+                subcommand: "fetch",
+                args: ["LT-10", "--json"],
               },
             },
           },
@@ -130,6 +176,34 @@ describe("Lark Ticket AI Session service", () => {
             update: {
               sessionUpdate: "tool_call_update",
               toolCallId: "12:fetch_1",
+              status: "completed",
+            },
+          },
+        });
+        emit({
+          event: "acp.session.update",
+          data: {
+            sessionId: "sess_2",
+            update: {
+              sessionUpdate: "tool_call_update",
+              toolCallId: "12:analysis_1",
+              status: "in_progress",
+              rawInput: {
+                root: "support_workspace",
+                script: ".agents/skills/write-support-qa/scripts/write-support-qa.sh",
+                subcommand: "analysis-update",
+                args: [analysisPath, "--json"],
+              },
+            },
+          },
+        });
+        emit({
+          event: "acp.session.update",
+          data: {
+            sessionId: "sess_2",
+            update: {
+              sessionUpdate: "tool_call_update",
+              toolCallId: "12:analysis_1",
               status: "completed",
             },
           },
@@ -151,15 +225,34 @@ describe("Lark Ticket AI Session service", () => {
       workflowPromptStore: {
         getByKey: vi.fn().mockResolvedValue({ prompt: "Skill: {{skill_path}}\n{{ticket_context}}\n{{user_message}}" }),
       } as never,
+      threadContextService: {
+        ensure: vi.fn().mockResolvedValue({
+          decision: "cached",
+          source: "postgres",
+          snapshot: {
+            ...ticket,
+            messageLink: "https://example.test/thread",
+            threadId: "thread_1",
+            messages: [],
+            preparedMessages: [{ messageId: "om_1", senderRole: "user", text: "无法登录", hasArtifact: false }],
+            snapshotVersion: 3,
+            historyComplete: true,
+            dirty: false,
+            createdAt: "2026-09-01T09:00:00.000Z",
+            updatedAt: "2026-09-01T10:00:00.000Z",
+          },
+        }),
+      } as never,
       resolveAction: vi.fn().mockResolvedValue({
         action: {
           key: "lark-ticket-support-qa-summarize",
           promptKey: "lark_ticket.support_qa.summarize",
           skillProfile: "support_qa_eu",
           skillId: "support_qa_query",
-          executionPolicy: "shell",
+          executionPolicy: "write+shell",
         },
         workspaceDir: "/srv/odoo/eu",
+        octoServerDir: "/srv/octo/server",
         skillPath: "/srv/odoo/eu/.agents/skills/query-support-qa/SKILL.md",
       }),
     });
@@ -171,17 +264,23 @@ describe("Lark Ticket AI Session service", () => {
       ticket,
       message: "请总结问题",
       actionKey: "lark-ticket-support-qa-summarize",
+      actionRunId: "action_summary_1",
     }, vi.fn());
 
     expect(acpService.chat).toHaveBeenCalledWith(expect.objectContaining({
       message: expect.stringContaining("query-support-qa/SKILL.md"),
       permissionContext: expect.objectContaining({
-        executionPolicy: "shell",
+        executionPolicy: "write+shell",
         workspaceDir: "/srv/odoo/eu",
+        octoServerDir: "/srv/octo/server",
         ticketNumber: "LT-10",
-        policyVersion: "v2",
+        ticketRecordId: "rec_1",
+        actionRunId: "action_summary_1",
+        policyVersion: "v4-temporary-support-qa-bash",
       }),
     }), expect.any(Function), expect.any(Object));
+    expect(acpService.chat.mock.calls[0][0].message).toContain('"version":"support-analysis-v1"');
+    expect(acpService.chat.mock.calls[0][0].message).toContain('"subcommand":"analysis-update"');
     expect(ownershipStore.attachTicket).toHaveBeenCalledWith(expect.objectContaining({ ticketNumber: "LT-10" }));
   });
 
@@ -189,7 +288,8 @@ describe("Lark Ticket AI Session service", () => {
     const ownershipStore = {
       getBySessionId: vi.fn(),
       listByTicket: vi.fn(),
-      attachTicket: vi.fn(),
+      attachTicket: vi.fn().mockResolvedValue({ sessionId: "sess_no_fetch" }),
+      updateRun: vi.fn(),
       touch: vi.fn(),
     };
     const acpService = {
@@ -232,6 +332,14 @@ describe("Lark Ticket AI Session service", () => {
             },
           },
         });
+        emit({
+          event: "acp.session.update",
+          data: { sessionId: "sess_failed", update: {
+            sessionUpdate: "agent_message_chunk",
+            messageId: "assistant_1",
+            content: { type: "text", text: "这是一份未验证答案" },
+          } },
+        });
         emit({ event: "done", data: { sessionId: "sess_failed", stopReason: "end_turn" } });
       }),
     };
@@ -249,15 +357,34 @@ describe("Lark Ticket AI Session service", () => {
       workflowPromptStore: {
         getByKey: vi.fn().mockResolvedValue({ prompt: "Skill: {{skill_path}}\n{{ticket_context}}\n{{user_message}}" }),
       } as never,
+      threadContextService: {
+        ensure: vi.fn().mockResolvedValue({
+          decision: "cached",
+          source: "postgres",
+          snapshot: {
+            ...ticket,
+            messageLink: "https://example.test/thread",
+            threadId: "thread_1",
+            messages: [],
+            preparedMessages: [{ messageId: "om_1", senderRole: "user", text: "无法登录", hasArtifact: false }],
+            snapshotVersion: 3,
+            historyComplete: true,
+            dirty: false,
+            createdAt: "2026-09-01T09:00:00.000Z",
+            updatedAt: "2026-09-01T10:00:00.000Z",
+          },
+        }),
+      } as never,
       resolveAction: vi.fn().mockResolvedValue({
         action: {
           key: "lark-ticket-support-qa-summarize",
           promptKey: "lark_ticket.support_qa.summarize",
           skillProfile: "support_qa_eu",
           skillId: "support_qa_query",
-          executionPolicy: "shell",
+          executionPolicy: "write+shell",
         },
         workspaceDir: "/srv/odoo/eu",
+        octoServerDir: "/srv/octo/server",
         skillPath: "/srv/odoo/eu/.agents/skills/query-support-qa/SKILL.md",
       }),
     });
@@ -281,7 +408,188 @@ describe("Lark Ticket AI Session service", () => {
       },
     });
     expect(events.some((event) => event.event === "done")).toBe(false);
-    expect(ownershipStore.attachTicket).not.toHaveBeenCalled();
+    expect(ownershipStore.attachTicket).toHaveBeenCalled();
+    expect(ownershipStore.updateRun).toHaveBeenCalledWith(expect.objectContaining({
+      actionRunId: "run_1",
+      status: "failed",
+      errorCode: "SUPPORT_QA_EVIDENCE_NOT_FETCHED",
+      unverifiedOutput: "这是一份未验证答案",
+    }));
+  });
+
+  it("rejects a Summary result when ACP does not complete the signed analysis update", async () => {
+    const ownershipStore = {
+      getBySessionId: vi.fn(),
+      listByTicket: vi.fn(),
+      attachTicket: vi.fn().mockResolvedValue({ sessionId: "sess_no_analysis" }),
+      updateRun: vi.fn(),
+      touch: vi.fn(),
+    };
+    const acpService = {
+      assertSessionAccess: vi.fn(),
+      chat: vi.fn(async (_input, emit) => {
+        emit({ event: "session.created", data: { sessionId: "sess_no_analysis" } });
+        emit({
+          event: "acp.session.update",
+          data: { sessionId: "sess_no_analysis", update: {
+            sessionUpdate: "tool_call_update", toolCallId: "fetch_1", status: "in_progress",
+            rawInput: { command: "bash .agents/skills/write-support-qa/scripts/write-support-qa.sh fetch LT-10 --json" },
+          } },
+        });
+        emit({
+          event: "acp.session.update",
+          data: { sessionId: "sess_no_analysis", update: {
+            sessionUpdate: "tool_call_update", toolCallId: "fetch_1", status: "completed",
+          } },
+        });
+        emit({ event: "done", data: { sessionId: "sess_no_analysis", stopReason: "end_turn" } });
+      }),
+    };
+    const service = createLarkTicketAiSessionService({
+      syncStore: { getLarkBaseTicketsForCleaning: vi.fn().mockResolvedValue([{
+        ...ticket, title: "Ticket title", ticketNumber: "LT-10", syncedAt: "2026-08-12T00:00:00.000Z",
+      }]) } as never,
+      ownershipStore: ownershipStore as never,
+      acpService: acpService as never,
+      workflowPromptStore: { getByKey: vi.fn().mockResolvedValue({ prompt: "{{ticket_context}}" }) } as never,
+      threadContextService: { ensure: vi.fn().mockResolvedValue({
+        decision: "cached",
+        source: "postgres",
+        snapshot: {
+          ...ticket,
+          messageLink: "https://example.test/thread",
+          threadId: "thread_1",
+          messages: [],
+          preparedMessages: [{ messageId: "om_1", senderRole: "user", text: "无法登录", hasArtifact: false }],
+          snapshotVersion: 3,
+          historyComplete: true,
+          dirty: false,
+          createdAt: "2026-09-01T09:00:00.000Z",
+          updatedAt: "2026-09-01T10:00:00.000Z",
+        },
+      }) } as never,
+      resolveAction: vi.fn().mockResolvedValue({
+        action: {
+          key: "lark-ticket-support-qa-summarize",
+          promptKey: "lark_ticket.support_qa.summarize",
+          skillProfile: "support_qa_eu",
+          skillId: "support_qa_query",
+          executionPolicy: "write+shell",
+        },
+        workspaceDir: "/srv/odoo/eu",
+        octoServerDir: "/srv/octo/server",
+        skillPath: "/srv/odoo/eu/.agents/skills/query-support-qa/SKILL.md",
+      }),
+    });
+    const events: Array<{ event: string }> = [];
+
+    await expect(service.chat({
+      operatorLarkId: "ou_1",
+      masterUserId: "usr_1",
+      larkBaseUrl: "https://open.larksuite.com",
+      ticket,
+      message: "请总结问题",
+      actionKey: "lark-ticket-support-qa-summarize",
+      actionRunId: "run_no_analysis",
+    }, (event) => events.push(event))).rejects.toMatchObject({
+      code: "SUPPORT_ANALYSIS_NOT_UPDATED",
+      diagnostic: { stage: "server.analysis.update", actionRunId: "run_no_analysis" },
+    });
+    expect(events.some((event) => event.event === "done")).toBe(false);
+    expect(ownershipStore.attachTicket).toHaveBeenCalled();
+    expect(ownershipStore.updateRun).toHaveBeenCalledWith(expect.objectContaining({
+      actionRunId: "run_no_analysis",
+      status: "failed",
+      errorCode: "SUPPORT_ANALYSIS_NOT_UPDATED",
+    }));
+  });
+
+  it("adds only approved knowledge citations to a new Answer quick-action prompt", async () => {
+    const ownershipStore = {
+      getBySessionId: vi.fn(),
+      listByTicket: vi.fn(),
+      attachTicket: vi.fn().mockResolvedValue({ sessionId: "sess_answer" }),
+      touch: vi.fn(),
+    };
+    const acpService = {
+      assertSessionAccess: vi.fn(),
+      chat: vi.fn(async (_input, emit) => {
+        emit({ event: "session.created", data: { sessionId: "sess_answer" } });
+        emit({
+          event: "acp.session.update",
+          data: { sessionId: "sess_answer", update: {
+            sessionUpdate: "tool_call_update", toolCallId: "fetch_answer", status: "in_progress",
+            rawInput: { command: "bash .agents/skills/write-support-qa/scripts/write-support-qa.sh fetch LT-10 --json" },
+          } },
+        });
+        emit({
+          event: "acp.session.update",
+          data: { sessionId: "sess_answer", update: {
+            sessionUpdate: "tool_call_update", toolCallId: "fetch_answer", status: "completed",
+          } },
+        });
+        emit({ event: "done", data: { sessionId: "sess_answer", stopReason: "end_turn" } });
+      }),
+    };
+    const knowledgeRetriever = {
+      searchApproved: vi.fn().mockResolvedValue([{
+        documentId: "doc_1",
+        chunkId: "chunk_1",
+        sourceKind: "approved_case",
+        sourceRef: "case:LT-9:segment-2",
+        title: "VPN certificate reset",
+        redactedContent: "Reset the certificate and ask the requester to reconnect.",
+        tags: ["VPN"],
+        approvedAt: "2026-09-01T09:00:00.000Z",
+        score: 6,
+      }]),
+    };
+    const service = createLarkTicketAiSessionService({
+      syncStore: {
+        getLarkBaseTicketsForCleaning: vi.fn().mockResolvedValue([{
+          ...ticket,
+          title: "VPN failed for person@example.com",
+          ticketNumber: "LT-10",
+          detailDescription: "VPN certificate error",
+          syncedAt: "2026-08-12T00:00:00.000Z",
+        }]),
+      } as never,
+      ownershipStore: ownershipStore as never,
+      acpService: acpService as never,
+      knowledgeRetriever,
+      workflowPromptStore: { getByKey: vi.fn().mockResolvedValue({ prompt: "{{ticket_context}}" }) } as never,
+      resolveAction: vi.fn().mockResolvedValue({
+        action: {
+          key: "lark-ticket-support-qa-answer",
+          promptKey: "lark_ticket.support_qa.answer",
+          skillProfile: "support_qa_eu",
+          skillId: "support_qa_query",
+          executionPolicy: "shell",
+        },
+        workspaceDir: "/srv/odoo/eu",
+        octoServerDir: "/srv/octo/server",
+        skillPath: "/srv/odoo/eu/.agents/skills/query-support-qa/SKILL.md",
+      }),
+      threadContextService: { ensure: vi.fn().mockResolvedValue({ decision: "cached", source: "postgres" }) } as never,
+    });
+
+    await service.chat({
+      operatorLarkId: "ou_1",
+      masterUserId: "usr_1",
+      larkBaseUrl: "https://open.larksuite.com",
+      ticket,
+      message: "VPN cannot connect",
+      actionKey: "lark-ticket-support-qa-answer",
+    }, vi.fn());
+
+    expect(knowledgeRetriever.searchApproved).toHaveBeenCalledWith(expect.objectContaining({ query: expect.stringContaining("VPN") }));
+    expect(acpService.chat).toHaveBeenCalledWith(expect.objectContaining({
+      message: expect.stringContaining("source_ref=case:LT-9:segment-2"),
+    }), expect.any(Function), expect.any(Object));
+    expect(acpService.chat.mock.calls[0][0].message).toContain("mcp__octo_execute__execute");
+    expect(acpService.chat.mock.calls[0][0].message).toContain('"subcommand":"fetch","args":["LT-10","--json"]');
+    expect(acpService.chat.mock.calls[0][0].message).toContain("不得调用 Bash");
+    expect(acpService.chat.mock.calls[0][0].message).not.toContain("person@example.com");
   });
 
   it("ensures thread context only for a new Session and pins its snapshot metadata", async () => {

@@ -26,7 +26,7 @@ describe("sync-user-tokens", () => {
     expect(parseArgs(["--postgres-uri", "postgres://u:p@localhost:5432/postgres"])).toEqual({
       masterUserId: "a400632e-8d08-4ddf-977d-e8330b0adc5a",
       sourceDatabase: "tenways_octo",
-      targetDatabase: "tenways_octo_ly_0509",
+      targetDatabase: "postgres",
       postgresUri: "postgres://u:p@localhost:5432/postgres",
     });
   });
@@ -35,7 +35,7 @@ describe("sync-user-tokens", () => {
     expect(parseArgs(["usr_1", "--postgres-uri", "postgres://u:p@localhost:5432/postgres"])).toEqual({
       masterUserId: "usr_1",
       sourceDatabase: "tenways_octo",
-      targetDatabase: "tenways_octo_ly_0509",
+      targetDatabase: "postgres",
       postgresUri: "postgres://u:p@localhost:5432/postgres",
     });
   });
@@ -67,7 +67,7 @@ describe("sync-user-tokens", () => {
     ])).toEqual({
       masterUserId: "usr_1",
       sourceDatabase: "tenways_octo",
-      targetDatabase: "tenways_octo_ly_0509",
+      targetDatabase: "postgres",
       postgresUri: "postgres://u:p@localhost:5432/postgres",
       provider: "lark",
     });

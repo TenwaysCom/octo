@@ -12,3 +12,18 @@ export async function loadLarkTicketSharedUrl({ apiBaseUrl, ticket, fetchImpl = 
   }
   return payload.data.sharedUrl;
 }
+
+export async function loadLarkTicketPreparedMessages({ apiBaseUrl, ticket, fetchImpl = fetch }) {
+  const query = new URLSearchParams({ baseId: ticket.baseId, tableId: ticket.tableId });
+  const response = await fetchImpl(
+    `${buildApiUrl(apiBaseUrl, `/web/lark-tickets/${encodeURIComponent(ticket.recordId)}/prepared-messages`)}?${query}`,
+    { credentials: "include" },
+  );
+  const payload = await response.json().catch(() => undefined);
+  if (!response.ok || !payload?.ok || !Array.isArray(payload.data?.messages)) {
+    const error = new Error(payload?.error?.errorCode || "PREPARED_MESSAGES_LOAD_FAILED");
+    error.code = payload?.error?.errorCode || "PREPARED_MESSAGES_LOAD_FAILED";
+    throw error;
+  }
+  return payload.data;
+}

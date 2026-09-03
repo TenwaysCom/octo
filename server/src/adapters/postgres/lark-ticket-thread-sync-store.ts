@@ -1,6 +1,11 @@
 import type { Kysely, Selectable } from "kysely";
 import { getSharedDatabase } from "./database.js";
 import type { DatabaseSchema } from "./schema.js";
+import {
+  prepareTicketThread,
+  SUPPORT_REDACTION_VERSION,
+  type PreparedTicketMessage,
+} from "../../domain/support-ticket-analysis.js";
 
 export interface LarkTicketThreadRef {
   baseId: string;
@@ -27,10 +32,18 @@ export interface LarkTicketThreadMessagesDocument {
   messages: LarkTicketThreadMessage[];
 }
 
+export interface PreparedLarkTicketThreadMessagesDocument {
+  schemaVersion: 1;
+  redactionVersion: string;
+  snapshotVersion: number;
+  messages: PreparedTicketMessage[];
+}
+
 export interface LarkTicketThreadSnapshot extends LarkTicketThreadRef {
   messageLink: string;
   threadId: string;
   messages: LarkTicketThreadMessage[];
+  preparedMessages: PreparedTicketMessage[];
   snapshotVersion: number;
   historyComplete: boolean;
   watermarkCreatedAt?: string;
@@ -80,17 +93,43 @@ function serializeMessages(messages: LarkTicketThreadMessage[]): string {
   return JSON.stringify({ schemaVersion: 1, messages } satisfies LarkTicketThreadMessagesDocument);
 }
 
+function parsePreparedMessages(value: string | null, snapshotVersion: number): PreparedTicketMessage[] | undefined {
+  if (!value) return undefined;
+  try {
+    const document = JSON.parse(value) as Partial<PreparedLarkTicketThreadMessagesDocument>;
+    return document.schemaVersion === 1
+      && document.redactionVersion === SUPPORT_REDACTION_VERSION
+      && document.snapshotVersion === snapshotVersion
+      && Array.isArray(document.messages)
+      ? document.messages
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function serializePreparedMessages(messages: PreparedTicketMessage[], snapshotVersion: number): string {
+  return JSON.stringify({
+    schemaVersion: 1,
+    redactionVersion: SUPPORT_REDACTION_VERSION,
+    snapshotVersion,
+    messages,
+  } satisfies PreparedLarkTicketThreadMessagesDocument);
+}
+
 function toSnapshot(
   row: Selectable<DatabaseSchema["lark_ticket_thread_syncs"]> | undefined,
 ): LarkTicketThreadSnapshot | undefined {
   if (!row) return undefined;
+  const messages = parseMessages(row.messages_json);
   return {
     baseId: row.base_id,
     tableId: row.table_id,
     recordId: row.record_id,
     messageLink: row.message_link,
     threadId: row.thread_id,
-    messages: parseMessages(row.messages_json),
+    messages,
+    preparedMessages: parsePreparedMessages(row.prepared_messages_json, row.snapshot_version) ?? prepareTicketThread(messages),
     snapshotVersion: row.snapshot_version,
     historyComplete: row.history_complete,
     watermarkCreatedAt: row.watermark_created_at ?? undefined,
@@ -143,6 +182,7 @@ export class PostgresLarkTicketThreadSyncStore implements LarkTicketThreadSyncSt
     const snapshotVersion = current
       ? current.snapshotVersion + (contentChanged ? 1 : 0)
       : 1;
+    const preparedMessagesJson = serializePreparedMessages(prepareTicketThread(input.messages), snapshotVersion);
     const now = input.checkedAt;
     const frozenAt = input.frozenStatus ? current?.frozenAt ?? now : null;
 
@@ -154,6 +194,7 @@ export class PostgresLarkTicketThreadSyncStore implements LarkTicketThreadSyncSt
         message_link: input.messageLink,
         thread_id: input.threadId,
         messages_json: messagesJson,
+        prepared_messages_json: preparedMessagesJson,
         snapshot_version: snapshotVersion,
         history_complete: input.historyComplete,
         watermark_created_at: input.watermarkCreatedAt ?? null,
@@ -172,6 +213,7 @@ export class PostgresLarkTicketThreadSyncStore implements LarkTicketThreadSyncSt
         message_link: input.messageLink,
         thread_id: input.threadId,
         messages_json: messagesJson,
+        prepared_messages_json: preparedMessagesJson,
         snapshot_version: snapshotVersion,
         history_complete: input.historyComplete,
         watermark_created_at: input.watermarkCreatedAt ?? null,

@@ -10,6 +10,7 @@ test("matches in-progress, unclassified and unsynced Lark Ticket quick filters",
   const unclassified = { issueType: "  ", meegleLink: "https://project.larksuite.com/workitem" };
   const unsyncedFeature = { issueType: "Feature", meegleLink: "  " };
   const syncedFeature = { issueType: "feature", meegleLink: "https://project.larksuite.com/workitem" };
+  const withAiOutput = { ticketAi: { fields: { "AI Ticket 总结": "已生成" } } };
 
   assert.equal(matchesLarkTicketQuickFilter(inProgress, "in-progress"), true);
   assert.equal(matchesLarkTicketQuickFilter(inDevelopment, "in-progress"), true);
@@ -21,5 +22,9 @@ test("matches in-progress, unclassified and unsynced Lark Ticket quick filters",
   assert.equal(matchesLarkTicketQuickFilter(unclassified, "unclassified"), true);
   assert.equal(matchesLarkTicketQuickFilter(unsyncedFeature, "unsynced"), true);
   assert.equal(matchesLarkTicketQuickFilter(syncedFeature, "unsynced"), false);
+  assert.equal(matchesLarkTicketQuickFilter(withAiOutput, "ai-output"), true);
+  assert.equal(matchesLarkTicketQuickFilter({}, "ai-output"), false);
+  assert.equal(matchesLarkTicketQuickFilter({}, "ai-missing"), true);
+  assert.equal(matchesLarkTicketQuickFilter(withAiOutput, "ai-missing"), false);
   assert.equal(matchesLarkTicketQuickFilter(unclassified, "all"), true);
 });

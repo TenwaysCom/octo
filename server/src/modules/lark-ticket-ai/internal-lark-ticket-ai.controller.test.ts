@@ -46,4 +46,53 @@ describe("internal Lark Ticket AI write controller", () => {
       body: { ok: false, error: { errorCode: "INTERNAL_REQUEST_SOURCE_IP_FORBIDDEN", stage: "server.auth.checked" } },
     });
   });
+
+  it("routes a signed fixed-snapshot analysis update to the shared analysis service", async () => {
+    const authorizer = { authorize: vi.fn().mockResolvedValue({ publicKeyFingerprint: "SHA256:signingKey", principalId: "usr_1" }) };
+    const analysisService = {
+      update: vi.fn().mockResolvedValue({
+        analysisRunId: "analysis_1",
+        intentSegmentId: "segment_1",
+        snapshotVersion: 3,
+        actionRunId: "run_analysis_1",
+        updatedAt: "2026-09-01T10:00:00.000Z",
+      }),
+    };
+    const controller = createInternalLarkTicketAiWriteController({
+      authorizer,
+      service: { update: vi.fn() },
+      analysisService,
+    });
+    const body = {
+      version: "support-analysis-v1",
+      base_id: "app_1",
+      table_id: "tbl_1",
+      record_id: "rec_1",
+      snapshot_version: 3,
+      actionRunId: "run_analysis_1",
+      segmentKey: "primary",
+      intent: { intentType: "troubleshoot", intentSubtype: "login", confidence: 0.9, summary: "无法登录", keywords: ["login"], evidenceMessageIds: ["om_1"] },
+      result: { resolutionStatus: "pending", solutionSummary: null, solutionSteps: [], resolverRef: null, resolvedAt: null, autoResolvable: false, suggestedAutomation: null, confidence: 0.8 },
+      quality: { scores: { clarity: 4 }, summary: "等待补充信息", criticalIssues: [], warnings: [] },
+    };
+
+    await expect(controller.update(request(body))).resolves.toEqual({
+      statusCode: 200,
+      body: { ok: true, data: expect.objectContaining({ analysisRunId: "analysis_1", intentSegmentId: "segment_1" }) },
+    });
+    expect(analysisService.update).toHaveBeenCalledWith({
+      ticket: { baseId: "app_1", tableId: "tbl_1", recordId: "rec_1" },
+      snapshotVersion: 3,
+      actionRunId: "run_analysis_1",
+      sourceName: "lark-ticket-support-qa-summarize",
+      reviewStatus: "ai_generated",
+      reviewerKind: "ai",
+      analysis: {
+        segmentKey: "primary",
+        intent: body.intent,
+        result: body.result,
+        quality: body.quality,
+      },
+    });
+  });
 });

@@ -2,9 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   DEFAULT_LARK_TICKET_SORT,
+  DEFAULT_LARK_TICKET_AI_OUTPUT_VISIBLE_COLUMNS,
+  DEFAULT_LARK_TICKET_EVAL_DATASET_VISIBLE_COLUMNS,
   DEFAULT_LARK_TICKET_VISIBLE_COLUMNS,
   groupLarkTickets,
   normalizeLarkTicketGroupBy,
+  normalizeLarkTicketAiOutputVisibleColumns,
+  normalizeLarkTicketEvalDatasetVisibleColumns,
   normalizeLarkTicketSort,
   normalizeLarkTicketSubGroupBy,
   normalizeLarkTicketVisibleColumns,
@@ -15,6 +19,10 @@ import {
 test("normalizes Lark Ticket view configuration and keeps the Ticket column visible", () => {
   assert.deepEqual(normalizeLarkTicketVisibleColumns(undefined), DEFAULT_LARK_TICKET_VISIBLE_COLUMNS);
   assert.deepEqual(normalizeLarkTicketVisibleColumns(["status", "unknown", "status"]), ["title", "status"]);
+  assert.deepEqual(normalizeLarkTicketAiOutputVisibleColumns(undefined), DEFAULT_LARK_TICKET_AI_OUTPUT_VISIBLE_COLUMNS);
+  assert.deepEqual(normalizeLarkTicketAiOutputVisibleColumns(["answerSummary", "unknown"]), ["title", "answerSummary"]);
+  assert.deepEqual(normalizeLarkTicketEvalDatasetVisibleColumns(undefined), DEFAULT_LARK_TICKET_EVAL_DATASET_VISIBLE_COLUMNS);
+  assert.deepEqual(normalizeLarkTicketEvalDatasetVisibleColumns(["datasetStatus", "unknown"]), ["title", "datasetStatus"]);
   assert.equal(normalizeLarkTicketGroupBy("requester"), "requester");
   assert.equal(normalizeLarkTicketGroupBy("none"), "none");
   assert.equal(normalizeLarkTicketGroupBy("unknown"), "status");
@@ -22,6 +30,8 @@ test("normalizes Lark Ticket view configuration and keeps the Ticket column visi
   assert.equal(normalizeLarkTicketSubGroupBy("status", "status"), "none");
   assert.equal(normalizeLarkTicketSubGroupBy("priority", "none"), "none");
   assert.equal(normalizeLarkTicketViewMode("board"), "board");
+  assert.equal(normalizeLarkTicketViewMode("ai-output"), "ai-output");
+  assert.equal(normalizeLarkTicketViewMode("eval-dataset"), "eval-dataset");
   assert.equal(normalizeLarkTicketViewMode("unknown"), "list");
   assert.deepEqual(normalizeLarkTicketSort(undefined), DEFAULT_LARK_TICKET_SORT);
   assert.deepEqual(normalizeLarkTicketSort({ key: "priority", direction: "desc" }), { key: "priority", direction: "desc" });

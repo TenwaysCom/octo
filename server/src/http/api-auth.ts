@@ -16,6 +16,7 @@ const DEFAULT_EXEMPT_PATHS = new Set([
   "/api/lark/auth/web/logout",
   "/api/web/profile",
   "/api/web/ssh-public-keys",
+  "/api/web/lark-ticket-eval-samples",
   "/api/web/platform-data/lark-tickets",
   "/api/web/platform-data/meegle-workitems",
   "/api/web/meegle-workitems/pull-request-candidates",
@@ -70,7 +71,7 @@ function upsertMasterUserId(
 
 export function createApiAuthMiddleware(exemptPaths: ReadonlySet<string> = DEFAULT_EXEMPT_PATHS) {
   return (req: Request, res: Response, next: NextFunction) => {
-    if (req.method === "OPTIONS" || !req.path.startsWith("/api/") || exemptPaths.has(req.path) || req.path.startsWith("/api/web/platform-sync-sources/") || req.path.startsWith("/api/web/lark-tickets/") || req.path.startsWith("/api/web/meegle-sprints/")) {
+    if (req.method === "OPTIONS" || !req.path.startsWith("/api/") || exemptPaths.has(req.path) || req.path.startsWith("/api/web/platform-sync-sources/") || req.path.startsWith("/api/web/lark-tickets/") || req.path.startsWith("/api/web/lark-ticket-eval-samples/") || req.path.startsWith("/api/web/meegle-sprints/")) {
       next();
       return;
     }

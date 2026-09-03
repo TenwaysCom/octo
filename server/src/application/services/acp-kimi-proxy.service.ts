@@ -17,9 +17,11 @@ import {
 } from "../../adapters/postgres/acp-kimi-session-ownership-store.js";
 import { logger } from "../../logger.js";
 import {
+  createAcpKimiClientCapabilityPolicy,
   createAcpKimiPermissionHandler,
   type AcpKimiPermissionContext,
 } from "./acp-kimi-permission-policy.js";
+import { buildAcpKimiExecuteMcpServers } from "./acp-kimi-execute-mcp-config.js";
 
 const acpKimiProxyLogger = logger.child({ module: "acp-kimi-proxy" });
 
@@ -319,6 +321,8 @@ async function createOwnedSession(
   }, "ACP_KIMI_CREATE_SESSION START");
   const runtime = await createSessionRuntime({
     cwd: workDir,
+    capabilityPolicy: createAcpKimiClientCapabilityPolicy(permissionContext),
+    mcpServers: buildAcpKimiExecuteMcpServers(permissionContext),
     permissionHandler: createAcpKimiPermissionHandler(permissionContext),
     signal,
   });
@@ -416,6 +420,8 @@ async function getOwnedSession(
   const runtime = await createSessionRuntime({
     sessionId,
     cwd: ownership.kimiWorkDir ?? process.cwd(),
+    capabilityPolicy: createAcpKimiClientCapabilityPolicy(permissionContext),
+    mcpServers: buildAcpKimiExecuteMcpServers(permissionContext),
     permissionHandler: createAcpKimiPermissionHandler(permissionContext),
   });
   const restoredSession = {
@@ -447,6 +453,7 @@ function toPermissionContext(
       ? ownership.executionPolicy
       : "read_only",
     workspaceDir: ownership.kimiWorkDir,
+    octoServerDir: process.env.OCTO_SERVER_DIR?.trim() || null,
     skillProfile: ownership.skillProfile,
     skillId: ownership.skillId,
     ticketNumber: ownership.ticketNumber,

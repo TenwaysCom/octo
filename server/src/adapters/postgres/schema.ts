@@ -26,6 +26,11 @@ export interface DatabaseSchema {
     thread_id: string | null;
     thread_snapshot_version: number | null;
     thread_context_synced_at: string | null;
+    action_run_id: string | null;
+    run_status: string | null;
+    run_error_code: string | null;
+    run_error_message: string | null;
+    unverified_output: string | null;
     deleted_at: string | null;
     created_at: string;
     updated_at: string;
@@ -256,6 +261,7 @@ export interface DatabaseSchema {
     message_link: string;
     thread_id: string;
     messages_json: string;
+    prepared_messages_json: string | null;
     snapshot_version: Generated<number>;
     history_complete: Generated<boolean>;
     watermark_created_at: string | null;
@@ -267,6 +273,98 @@ export interface DatabaseSchema {
     frozen_at: string | null;
     frozen_status: string | null;
     last_error: string | null;
+    created_at: string;
+    updated_at: string;
+  };
+  support_analysis_runs: {
+    id: string;
+    action_run_id: string;
+    source_name: string;
+    status: string;
+    taxonomy_version: string;
+    rubric_version: string;
+    created_at: string;
+    updated_at: string;
+  };
+  support_thread_intent_segments: {
+    id: string;
+    analysis_run_id: string;
+    base_id: string;
+    table_id: string;
+    record_id: string;
+    snapshot_version: number;
+    segment_key: string;
+    redacted_summary: string | null;
+    intent_json: string;
+    evidence_message_ids_json: string;
+    review_status: string;
+    created_at: string;
+    updated_at: string;
+  };
+  support_thread_results: {
+    id: string;
+    intent_segment_id: string;
+    result_json: string;
+    created_at: string;
+    updated_at: string;
+  };
+  support_quality_reviews: {
+    id: string;
+    intent_segment_id: string;
+    reviewer_kind: string;
+    score_json: string;
+    critical_issues_json: string;
+    created_at: string;
+    updated_at: string;
+  };
+  lark_ticket_eval_samples: {
+    id: string;
+    base_id: string;
+    table_id: string;
+    record_id: string;
+    ticket_title: string;
+    snapshot_version: number;
+    ai_output_json: string;
+    dataset_status: "draft" | "eval" | "badcase";
+    manual_intent: string | null;
+    expected_outcome: string | null;
+    notes: string | null;
+    failure_labels_json: string;
+    created_at: string;
+    updated_at: string;
+  };
+  support_ticket_reply_drafts: {
+    id: string;
+    base_id: string;
+    table_id: string;
+    record_id: string;
+    session_id: string;
+    operator_lark_id: string;
+    draft_hash: string;
+    status: string;
+    sent_message_id: string | null;
+    action_run_id: string | null;
+    created_at: string;
+    updated_at: string;
+  };
+  support_knowledge_documents: {
+    id: string;
+    source_kind: "controlled_document" | "approved_case";
+    source_ref: string;
+    title: string;
+    redacted_summary: string | null;
+    tags_json: string;
+    approval_status: "approved" | "revoked";
+    approved_by: string;
+    approved_at: string;
+    created_at: string;
+    updated_at: string;
+  };
+  support_knowledge_chunks: {
+    id: string;
+    document_id: string;
+    sequence: number;
+    redacted_content: string;
     created_at: string;
     updated_at: string;
   };

@@ -2,218 +2,135 @@ import type { RequestPermissionRequest } from "@agentclientprotocol/sdk";
 import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createAcpKimiPermissionHandler } from "./acp-kimi-permission-policy.js";
+import {
+  buildSupportAnalysisUpdatePath,
+  createAcpKimiClientCapabilityPolicy,
+  createAcpKimiPermissionHandler,
+  extractAcpKimiExecuteCall,
+  isAcpKimiSupportAnalysisUpdateExecuteCall,
+  isAcpKimiSupportQaFetchExecuteCall,
+} from "./acp-kimi-permission-policy.js";
 
-function permissionRequest(input: {
-  title?: string;
-  rawInput?: unknown;
-  content?: RequestPermissionRequest["toolCall"]["content"];
-  options?: RequestPermissionRequest["options"];
-} = {}): RequestPermissionRequest {
-  const rawInput = Object.prototype.hasOwnProperty.call(input, "rawInput")
-    ? input.rawInput
-    : {
-        command: "bash .agents/skills/write-support-qa/scripts/write-support-qa.sh fetch LT-10 --json",
-      };
+function permissionRequest(input: { title: string; rawInput?: unknown }): RequestPermissionRequest {
   return {
     sessionId: "session_1",
-    options: input.options ?? [
+    options: [
       { optionId: "allow-once", name: "Allow once", kind: "allow_once" },
       { optionId: "deny", name: "Deny", kind: "reject_once" },
     ],
-    toolCall: {
-      toolCallId: "tool_1",
-      title: input.title ?? "Bash",
-      rawInput,
-      ...(input.content ? { content: input.content } : {}),
-    },
+    toolCall: { toolCallId: "tool_1", title: input.title, rawInput: input.rawInput },
   } as RequestPermissionRequest;
 }
 
-function kimiCommandPermissionRequest(command: string): RequestPermissionRequest {
-  return permissionRequest({
-    title: "Shell: write-support-qa.sh",
-    rawInput: null,
-    content: [{
-      type: "content",
-      content: {
-        type: "text",
-        text: `Requesting approval to perform: Run command \`${command}\``,
-      },
-    }],
-    options: [
-      { optionId: "approve", name: "Approve once", kind: "allow_once" },
-      { optionId: "approve_for_session", name: "Approve for this session", kind: "allow_always" },
-      { optionId: "reject", name: "Reject", kind: "reject_once" },
-    ],
-  });
-}
-
 describe("acp kimi permission policy", () => {
-  const shellContext = {
-    actionKey: "lark-ticket-support-qa-summarize",
-    executionPolicy: "shell" as const,
-    workspaceDir: "/srv/odoo/eu",
-    skillProfile: "support_qa_eu",
-    skillId: "support_qa_query",
-    ticketNumber: "LT-10",
-    policyVersion: "v1",
-  };
-
-  it("allows only the configured Ticket fetch command once for shell policy", async () => {
-    const handler = createAcpKimiPermissionHandler(shellContext);
-
-    await expect(handler(permissionRequest())).resolves.toEqual({
-      outcome: { outcome: "selected", optionId: "allow-once" },
+  it("temporarily approves opaque Bash only for a configured Support-QA Ticket action", async () => {
+    const context = {
+      actionKey: "lark-ticket-support-qa-summarize",
+      executionPolicy: "write+shell" as const,
+      workspaceDir: "/srv/odoo/eu",
+      octoServerDir: "/srv/octo/server",
+      skillProfile: "support_qa_eu",
+      skillId: "support_qa_query",
+      ticketNumber: "LT-10",
+      ticketRecordId: "rec_1",
+      actionRunId: "action_1",
+    };
+    const handler = createAcpKimiPermissionHandler(context);
+    for (const title of ["Read", "Write", "mcp__octo_execute__execute", "Bash"]) {
+      await expect(handler(permissionRequest({ title }))).resolves.toEqual({
+        outcome: { outcome: "selected", optionId: "allow-once" },
+      });
+    }
+    const unrelatedHandler = createAcpKimiPermissionHandler({
+      ...context,
+      actionKey: "unrelated-action",
     });
-    await expect(handler(permissionRequest({
-      rawInput: { command: "bash .agents/skills/write-support-qa/scripts/write-support-qa.sh fetch LT-11 --json" },
-    }))).resolves.toEqual({ outcome: { outcome: "cancelled" } });
-    await expect(handler(permissionRequest({
-      rawInput: { command: "bash .agents/skills/write-support-qa/scripts/write-support-qa.sh fetch LT-10 --json; pwd" },
-    }))).resolves.toEqual({ outcome: { outcome: "cancelled" } });
-  });
-
-  it("reads the command from the real Kimi ACP permission content shape", async () => {
-    const handler = createAcpKimiPermissionHandler(shellContext);
-    const command = "bash .agents/skills/write-support-qa/scripts/write-support-qa.sh fetch LT-10 --json";
-
-    await expect(handler(kimiCommandPermissionRequest(command))).resolves.toEqual({
-      outcome: { outcome: "selected", optionId: "approve" },
-    });
-    await expect(handler(kimiCommandPermissionRequest(`${command}; pwd`))).resolves.toEqual({
+    await expect(unrelatedHandler(permissionRequest({ title: "Bash" }))).resolves.toEqual({
       outcome: { outcome: "cancelled" },
     });
   });
 
-  it("allows path-scoped ls and quoted grep while rejecting unsafe variants", async () => {
-    const handler = createAcpKimiPermissionHandler(shellContext);
-
-    await expect(handler(permissionRequest({
-      rawInput: { command: "ls docs/support-qa/" },
-    }))).resolves.toEqual({ outcome: { outcome: "selected", optionId: "allow-once" } });
-    await expect(handler(permissionRequest({
-      rawInput: { command: "grep '\"ticket_no\":\"LT-10\"' docs/support-qa/knowledge-index.jsonl" },
-    }))).resolves.toEqual({ outcome: { outcome: "selected", optionId: "allow-once" } });
-    await expect(handler(permissionRequest({
-      rawInput: { command: "grep -E 'Return in transit|Customer Return' docs/support-qa/knowledge-index.jsonl" },
-    }))).resolves.toEqual({ outcome: { outcome: "selected", optionId: "allow-once" } });
-    await expect(handler(permissionRequest({
-      rawInput: { command: "rg 'ticket_no' docs/support-qa/knowledge-index.jsonl" },
-    }))).resolves.toEqual({ outcome: { outcome: "selected", optionId: "allow-once" } });
-
-    await expect(handler(permissionRequest({
-      rawInput: { command: "ls /etc" },
-    }))).resolves.toEqual({ outcome: { outcome: "cancelled" } });
-    await expect(handler(permissionRequest({
-      rawInput: { command: "ls docs/support-qa-private/" },
-    }))).resolves.toEqual({ outcome: { outcome: "cancelled" } });
-    await expect(handler(permissionRequest({
-      rawInput: { command: "grep 'root' /etc/passwd" },
-    }))).resolves.toEqual({ outcome: { outcome: "cancelled" } });
-    await expect(handler(permissionRequest({
-      rawInput: { command: "grep -r 'ticket_no' docs/support-qa/" },
-    }))).resolves.toEqual({ outcome: { outcome: "cancelled" } });
-    await expect(handler(permissionRequest({
-      rawInput: { command: "grep 'ticket_no' docs/support-qa/knowledge-index.jsonl | cat" },
-    }))).resolves.toEqual({ outcome: { outcome: "cancelled" } });
-    await expect(handler(permissionRequest({
-      rawInput: { command: "grep \"$(id)\" docs/support-qa/knowledge-index.jsonl" },
-    }))).resolves.toEqual({ outcome: { outcome: "cancelled" } });
-    await expect(handler(permissionRequest({
-      rawInput: { command: "rg --pre 'cat /etc/passwd' 'root' docs/support-qa/knowledge-index.jsonl" },
-    }))).resolves.toEqual({ outcome: { outcome: "cancelled" } });
-  });
-
-  it("allows only Support-QA document writes for write+shell policy", async () => {
-    const handler = createAcpKimiPermissionHandler({
-      ...shellContext,
+  it("allows reads in both configured roots and writes only in the Support workspace", async () => {
+    const testRoot = await mkdtemp(join(tmpdir(), "octo-acp-policy-"));
+    const workspaceDir = join(testRoot, "support");
+    const octoServerDir = join(testRoot, "server");
+    const outsideDir = join(testRoot, "outside");
+    await Promise.all([mkdir(workspaceDir), mkdir(octoServerDir), mkdir(outsideDir)]);
+    const supportFile = join(workspaceDir, "support.md");
+    const serverFile = join(octoServerDir, "server.ts");
+    const outsideFile = join(outsideDir, "outside.txt");
+    await Promise.all([
+      writeFile(supportFile, "support"),
+      writeFile(serverFile, "server"),
+      writeFile(outsideFile, "outside"),
+    ]);
+    const policy = createAcpKimiClientCapabilityPolicy({
       executionPolicy: "write+shell",
-      skillId: "support_qa_write",
+      workspaceDir,
+      octoServerDir,
     });
-
-    await expect(handler(permissionRequest({
-      title: "Write",
-      rawInput: { path: "docs/support-qa/qa-cards/LT-10.md", content: "draft" },
-    }))).resolves.toEqual({
-      outcome: { outcome: "selected", optionId: "allow-once" },
-    });
-    await expect(handler(permissionRequest({
-      title: "Write",
-      rawInput: { path: "../../.ssh/config", content: "draft" },
-    }))).resolves.toEqual({ outcome: { outcome: "cancelled" } });
-  });
-
-  it("allows only direct, regular JSON files in the Support-QA temp directory", async () => {
-    const testRoot = await mkdtemp(join(tmpdir(), "octo-acp-permission-"));
-    const supportQaTempDir = join(testRoot, "support-qa");
-    await mkdir(supportQaTempDir);
-    const updatePath = join(supportQaTempDir, "support-qa-LT-10-update.json");
-    const symlinkPath = join(supportQaTempDir, "linked-update.json");
-    const outsidePath = join(testRoot, "outside.json");
-    await writeFile(outsidePath, "{}\n");
-    await symlink(outsidePath, symlinkPath);
 
     try {
-      const handler = createAcpKimiPermissionHandler({
-        ...shellContext,
-        executionPolicy: "write+shell",
-        skillId: "support_qa_write",
-      }, { supportQaTempDir });
-
-      await expect(handler(permissionRequest({
-        title: "WriteFile: support-qa-LT-10-update.json",
-        rawInput: null,
-        content: [{ type: "diff", path: updatePath, oldText: "", newText: "{}" }],
-      }))).resolves.toEqual({ outcome: { outcome: "selected", optionId: "allow-once" } });
-      await expect(handler(permissionRequest({
-        title: "Write",
-        rawInput: { path: join(supportQaTempDir, "update.txt"), content: "{}" },
-      }))).resolves.toEqual({ outcome: { outcome: "cancelled" } });
-      await expect(handler(permissionRequest({
-        title: "Write",
-        rawInput: { path: join(supportQaTempDir, "nested", "update.json"), content: "{}" },
-      }))).resolves.toEqual({ outcome: { outcome: "cancelled" } });
-      await expect(handler(permissionRequest({
-        title: "Write",
-        rawInput: { path: symlinkPath, content: "{}" },
-      }))).resolves.toEqual({ outcome: { outcome: "cancelled" } });
-
-      await writeFile(updatePath, "{}\n");
-      await expect(handler(permissionRequest({
-        rawInput: { command: `cat ${updatePath}` },
-      }))).resolves.toEqual({ outcome: { outcome: "selected", optionId: "allow-once" } });
-      await expect(handler(permissionRequest({
-        title: "Shell",
-        rawInput: null,
-        content: [{
-          type: "content",
-          content: {
-            type: "text",
-            text: `Requesting approval to perform: Run command \`bash .agents/skills/write-support-qa/scripts/write-support-qa.sh update ${updatePath} --dry-run --json\``,
-          },
-        }],
-      }))).resolves.toEqual({ outcome: { outcome: "selected", optionId: "allow-once" } });
-      await expect(handler(permissionRequest({
-        rawInput: { command: `bash .agents/skills/write-support-qa/scripts/write-support-qa.sh update ${symlinkPath} --json` },
-      }))).resolves.toEqual({ outcome: { outcome: "cancelled" } });
-      await expect(handler(permissionRequest({
-        rawInput: { command: `bash .agents/skills/write-support-qa/scripts/write-support-qa.sh update ${outsidePath} --json` },
-      }))).resolves.toEqual({ outcome: { outcome: "cancelled" } });
+      await expect(policy.allowsReadTextFile({ sessionId: "s", path: supportFile })).resolves.toBe(true);
+      await expect(policy.allowsReadTextFile({ sessionId: "s", path: serverFile })).resolves.toBe(true);
+      await expect(policy.allowsReadTextFile({ sessionId: "s", path: outsideFile })).resolves.toBe(false);
+      await expect(policy.allowsWriteTextFile({ sessionId: "s", path: join(workspaceDir, "new.json"), content: "{}" })).resolves.toBe(true);
+      await expect(policy.allowsWriteTextFile({ sessionId: "s", path: join(octoServerDir, "new.json"), content: "{}" })).resolves.toBe(false);
+      await expect(policy.allowsWriteTextFile({ sessionId: "s", path: join(workspaceDir, ".env"), content: "secret" })).resolves.toBe(false);
+      await expect(policy.allowsTerminal({ sessionId: "s", command: "bash", args: ["-c", "id"] })).resolves.toBe(false);
     } finally {
       await rm(testRoot, { recursive: true, force: true });
     }
   });
 
-  it("keeps read_only, full, and missing contexts fail-closed", async () => {
-    await expect(createAcpKimiPermissionHandler({
-      ...shellContext,
-      executionPolicy: "read_only",
-    })(permissionRequest())).resolves.toEqual({ outcome: { outcome: "cancelled" } });
-    await expect(createAcpKimiPermissionHandler({
-      ...shellContext,
-      executionPolicy: "full",
-    })(permissionRequest())).resolves.toEqual({ outcome: { outcome: "cancelled" } });
-    await expect(createAcpKimiPermissionHandler(undefined)(permissionRequest())).resolves.toEqual({ outcome: { outcome: "cancelled" } });
+  it("rejects symlink escapes for reads and writes", async () => {
+    const testRoot = await mkdtemp(join(tmpdir(), "octo-acp-symlink-"));
+    const workspaceDir = join(testRoot, "support");
+    const outsideDir = join(testRoot, "outside");
+    await Promise.all([mkdir(workspaceDir), mkdir(outsideDir)]);
+    const outsideFile = join(outsideDir, "outside.txt");
+    const link = join(workspaceDir, "linked.txt");
+    await writeFile(outsideFile, "outside");
+    await symlink(outsideFile, link);
+    const policy = createAcpKimiClientCapabilityPolicy({
+      executionPolicy: "write+shell",
+      workspaceDir,
+      octoServerDir: workspaceDir,
+    });
+
+    try {
+      await expect(policy.allowsReadTextFile({ sessionId: "s", path: link })).resolves.toBe(false);
+      await expect(policy.allowsWriteTextFile({ sessionId: "s", path: link, content: "changed" })).resolves.toBe(false);
+    } finally {
+      await rm(testRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("recognizes only context-bound Support-QA execute payloads", () => {
+    const context = {
+      actionKey: "lark-ticket-support-qa-summarize",
+      skillId: "support_qa_query",
+      workspaceDir: "/srv/odoo/eu",
+      ticketNumber: "LT-10",
+      ticketRecordId: "rec_1",
+      actionRunId: "action_1",
+    };
+    const analysisPath = buildSupportAnalysisUpdatePath(context)!;
+    const fetch = extractAcpKimiExecuteCall({
+      root: "support_workspace",
+      script: ".agents/skills/write-support-qa/scripts/write-support-qa.sh",
+      subcommand: "fetch",
+      args: ["LT-10", "--json"],
+    })!;
+    const update = extractAcpKimiExecuteCall({ arguments: {
+      root: "support_workspace",
+      script: ".agents/skills/write-support-qa/scripts/write-support-qa.sh",
+      subcommand: "analysis-update",
+      args: [analysisPath, "--json"],
+    } })!;
+
+    expect(isAcpKimiSupportQaFetchExecuteCall(fetch, context)).toBe(true);
+    expect(isAcpKimiSupportAnalysisUpdateExecuteCall(update, context)).toBe(true);
+    expect(isAcpKimiSupportQaFetchExecuteCall({ ...fetch, args: ["LT-11", "--json"] }, context)).toBe(false);
   });
 });

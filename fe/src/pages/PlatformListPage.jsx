@@ -4,6 +4,7 @@ import { OdooShBuildStatus } from "../components/platform/OdooShBuildStatus.jsx"
 import { MeegleRelatedPeople } from "../components/platform/MeegleRelatedPeople.jsx";
 import { LarkTicketBadge } from "../components/lark-ticket/LarkTicketBadge.jsx";
 import { LarkTicketResponsible } from "../components/lark-ticket/LarkTicketResponsible.jsx";
+import { LarkTicketAiWorkspace } from "../components/lark-ticket/LarkTicketAiWorkspace.jsx";
 import { useKeyboardShortcut } from "../hooks/useKeyboardShortcut.js";
 import { useMinuteNow } from "../hooks/useMinuteNow.js";
 import { formatDateTime } from "../lib/formatters.js";
@@ -25,10 +26,16 @@ import {
 import { DATE_FILTERS, countFilterValues, getPlatformListFilters, normalizeFilterValues, toggleFilterValue } from "../lib/platform-list-filters.js";
 import {
   DEFAULT_LARK_TICKET_SORT,
+  DEFAULT_LARK_TICKET_AI_OUTPUT_VISIBLE_COLUMNS,
+  DEFAULT_LARK_TICKET_EVAL_DATASET_VISIBLE_COLUMNS,
   DEFAULT_LARK_TICKET_VISIBLE_COLUMNS,
   groupLarkTickets,
+  LARK_TICKET_AI_OUTPUT_VIEW_COLUMNS,
+  LARK_TICKET_EVAL_DATASET_VIEW_COLUMNS,
   LARK_TICKET_GROUP_OPTIONS,
   LARK_TICKET_VIEW_COLUMNS,
+  normalizeLarkTicketAiOutputVisibleColumns,
+  normalizeLarkTicketEvalDatasetVisibleColumns,
   normalizeLarkTicketGroupBy,
   normalizeLarkTicketSort,
   normalizeLarkTicketSubGroupBy,
@@ -512,15 +519,14 @@ function TagFilterSidebar({ fields, activeFieldKey, selectedValues, onActiveFiel
   </aside>;
 }
 
-function ListViewConfigPanel({ idPrefix, columns, groupOptions, viewMode, onViewModeChange, groupBy, onGroupByChange, subGroupBy, onSubGroupByChange, showEmptyGroups, onShowEmptyGroupsChange, sort, onSortChange, visibleColumns, onToggleColumn, onReset }) {
+function ListViewConfigPanel({ idPrefix, columns, sortColumns = columns, groupOptions, viewMode, onViewModeChange, viewModeOptions = [["list", "☰ 列表"], ["board", "▦ 看板"]], groupBy, onGroupByChange, subGroupBy, onSubGroupByChange, showEmptyGroups, onShowEmptyGroupsChange, sort, onSortChange, visibleColumns, onToggleColumn, onReset }) {
   return <div className="list-view-config-panel">
     <header className="list-view-config-panel__header">
       <strong>视图配置</strong>
       <button type="button" onClick={onReset}>重置</button>
     </header>
-    <div className="list-view-mode" role="group" aria-label="视图类型">
-      <button className={viewMode === "list" ? "list-view-mode--active" : ""} type="button" onClick={() => onViewModeChange("list")}>☰ 列表</button>
-      <button className={viewMode === "board" ? "list-view-mode--active" : ""} type="button" onClick={() => onViewModeChange("board")}>▦ 看板</button>
+    <div className="list-view-mode" role="group" aria-label="视图类型" style={{ gridTemplateColumns: `repeat(${viewModeOptions.length}, minmax(0, 1fr))` }}>
+      {viewModeOptions.map(([value, label]) => <button className={viewMode === value ? "list-view-mode--active" : ""} type="button" key={value} onClick={() => onViewModeChange(value)}>{label}</button>)}
     </div>
     <div className="list-view-config-section">
       <label htmlFor={`${idPrefix}-group-by`}>分组</label>
@@ -537,7 +543,7 @@ function ListViewConfigPanel({ idPrefix, columns, groupOptions, viewMode, onView
     <div className="list-view-config-section list-view-config-section--ordering">
       <label htmlFor={`${idPrefix}-order-by`}>排序</label>
       <select id={`${idPrefix}-order-by`} value={sort.key} onChange={(event) => onSortChange({ ...sort, key: event.target.value })}>
-        {columns.filter(({ sortKey }) => sortKey).map(({ label, sortKey }) => <option key={sortKey} value={sortKey}>{label}</option>)}
+        {sortColumns.filter(({ sortKey }) => sortKey).map(({ label, sortKey }) => <option key={sortKey} value={sortKey}>{label}</option>)}
       </select>
       <div className="list-view-direction" role="group" aria-label="排序方向">
         <button className={sort.direction === "asc" ? "list-view-direction--active" : ""} type="button" aria-label="升序" title="升序" onClick={() => onSortChange({ ...sort, direction: "asc" })}>↑</button>
@@ -903,6 +909,8 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
   const [larkViewMode, setLarkViewMode] = useState(() => normalizeLarkTicketViewMode(restoredFilters.larkViewMode));
   const [larkShowEmptyGroups, setLarkShowEmptyGroups] = useState(() => Boolean(restoredFilters.larkShowEmptyGroups));
   const [larkVisibleColumns, setLarkVisibleColumns] = useState(() => normalizeLarkTicketVisibleColumns(restoredFilters.larkVisibleColumns));
+  const [larkAiOutputVisibleColumns, setLarkAiOutputVisibleColumns] = useState(() => normalizeLarkTicketAiOutputVisibleColumns(restoredFilters.larkAiOutputVisibleColumns));
+  const [larkEvalDatasetVisibleColumns, setLarkEvalDatasetVisibleColumns] = useState(() => normalizeLarkTicketEvalDatasetVisibleColumns(restoredFilters.larkEvalDatasetVisibleColumns));
   const [collapsedLarkGroups, setCollapsedLarkGroups] = useState(() => Array.isArray(restoredFilters.collapsedLarkGroups)
     ? [...new Set(restoredFilters.collapsedLarkGroups.filter((key) => typeof key === "string"))]
     : []);
@@ -1011,6 +1019,18 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
     subGroupValues: state.items,
   }) : [];
   const isLarkBoard = page === "lark-tickets" && larkViewMode === "board";
+  const isLarkAiOutput = page === "lark-tickets" && larkViewMode === "ai-output";
+  const isLarkEvalDataset = page === "lark-tickets" && larkViewMode === "eval-dataset";
+  const larkConfiguredColumns = isLarkAiOutput
+    ? LARK_TICKET_AI_OUTPUT_VIEW_COLUMNS
+    : isLarkEvalDataset
+      ? LARK_TICKET_EVAL_DATASET_VIEW_COLUMNS
+      : LARK_TICKET_VIEW_COLUMNS;
+  const larkConfiguredVisibleColumns = isLarkAiOutput
+    ? larkAiOutputVisibleColumns
+    : isLarkEvalDataset
+      ? larkEvalDatasetVisibleColumns
+      : larkVisibleColumns;
   const isMeegleBoard = page === "meegle-workitems" && meegleViewMode === "board";
   const isGitHubBoard = page === "github-pull-requests" && githubViewMode === "board";
   const isLarkGrouped = page === "lark-tickets" && larkViewMode === "list" && larkGroupBy !== "none";
@@ -1032,6 +1052,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
     selectedSprints,
     selectedTagFilters,
     larkTicketQuickFilter,
+    larkHasAiOutput: page === "lark-tickets" && larkViewMode === "ai-output",
     meegleQuickFilter,
     workitemTypeFilter,
     noSprintFilter,
@@ -1054,6 +1075,8 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
     larkViewMode,
     larkShowEmptyGroups,
     larkVisibleColumns,
+    larkAiOutputVisibleColumns,
+    larkEvalDatasetVisibleColumns,
     collapsedLarkGroups,
     collapsedLarkSubgroups,
     meegleGroupBy,
@@ -1095,6 +1118,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
       selectedSprints,
       selectedTagFilters,
       larkTicketQuickFilter,
+      larkHasAiOutput: page === "lark-tickets" && larkViewMode === "ai-output",
       meegleQuickFilter,
       workitemTypeFilter,
       noSprintFilter,
@@ -1117,7 +1141,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
       () => { if (active && dataRequestVersionRef.current === requestVersion) setState((current) => ({ status: "error", items: [], filterItems: current.filterItems, filterItemsPage: current.filterItemsPage, sprints: [], relatedPersonOptions: [], pager: null, isLoadingMore: false })); },
     );
     return () => { active = false; };
-  }, [apiBaseUrl, larkTicketQuickFilter, meegleQuickFilter, noSprintFilter, page, reloadVersion, selectedDateFilters, selectedSprints, selectedStatuses, selectedTagFilters, workitemTypeFilter]);
+  }, [apiBaseUrl, larkTicketQuickFilter, larkViewMode, meegleQuickFilter, noSprintFilter, page, reloadVersion, selectedDateFilters, selectedSprints, selectedStatuses, selectedTagFilters, workitemTypeFilter]);
 
   async function loadMorePlatformItems() {
     const pager = state.pager;
@@ -1132,6 +1156,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
       selectedSprints,
       selectedTagFilters,
       larkTicketQuickFilter,
+      larkHasAiOutput: page === "lark-tickets" && larkViewMode === "ai-output",
       meegleQuickFilter,
       workitemTypeFilter,
       noSprintFilter,
@@ -1407,6 +1432,22 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
       : [...current, key]));
   }
 
+  function toggleLarkConfiguredColumn(key) {
+    if (larkViewMode === "ai-output") {
+      setLarkAiOutputVisibleColumns((current) => normalizeLarkTicketAiOutputVisibleColumns(current.includes(key)
+        ? current.filter((columnKey) => columnKey !== key)
+        : [...current, key]));
+      return;
+    }
+    if (larkViewMode === "eval-dataset") {
+      setLarkEvalDatasetVisibleColumns((current) => normalizeLarkTicketEvalDatasetVisibleColumns(current.includes(key)
+        ? current.filter((columnKey) => columnKey !== key)
+        : [...current, key]));
+      return;
+    }
+    toggleLarkColumn(key);
+  }
+
   function toggleMeegleColumn(key) {
     setMeegleVisibleColumns((current) => normalizeMeegleVisibleColumns(current.includes(key)
       ? current.filter((columnKey) => columnKey !== key)
@@ -1543,12 +1584,12 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
             })}
           </div> : null}
           {page === "lark-tickets" ? <div className="list-filter-tabs" role="group" aria-label="Lark Ticket 快速筛选">
-            {["in-progress", "unclassified", "unsynced"].map((filter) => <button
+            {["in-progress", "unclassified", "unsynced", "ai-output", "ai-missing"].map((filter) => <button
               className={`list-filter-tab ${larkTicketQuickFilter === filter ? "list-filter-tab--active" : ""}`.trim()}
               type="button"
               key={filter}
               onClick={() => { setLarkTicketQuickFilter((current) => current === filter ? "all" : filter); setPageIndex(0); }}
-            >{filter === "in-progress" ? "进行中" : filter === "unclassified" ? "未分类" : "未同步"}</button>)}
+            >{filter === "in-progress" ? "进行中" : filter === "unclassified" ? "未分类" : filter === "unsynced" ? "未同步" : filter === "ai-output" ? "AI 已输出" : "AI 未输出"}</button>)}
           </div> : null}
           <div className="list-toolbar__actions">
             {page === "github-pull-requests" ? <button className="secondary-button" type="button" disabled={isResettingDevopsCache} onClick={resetAllDevopsCache}>{isResettingDevopsCache ? "清除中…" : "清除 DevOps 缓存"}</button> : null}
@@ -1567,10 +1608,12 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
               </button>
               {viewConfigOpen ? page === "lark-tickets" ? <ListViewConfigPanel
                 idPrefix="lark-ticket"
-                columns={LARK_TICKET_VIEW_COLUMNS}
+                columns={larkConfiguredColumns}
+                sortColumns={LARK_TICKET_VIEW_COLUMNS}
                 groupOptions={LARK_TICKET_GROUP_OPTIONS}
                 viewMode={larkViewMode}
-                onViewModeChange={setLarkViewMode}
+                onViewModeChange={(value) => setLarkViewMode(normalizeLarkTicketViewMode(value))}
+                viewModeOptions={[["list", "☰ 列表"], ["board", "▦ 看板"], ["ai-output", "✦ AI 输出"], ["eval-dataset", "✓ Eval 数据集"]]}
                 groupBy={larkGroupBy}
                 onGroupByChange={(value) => {
                   const nextGroupBy = normalizeLarkTicketGroupBy(value);
@@ -1590,8 +1633,8 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
                 onShowEmptyGroupsChange={setLarkShowEmptyGroups}
                 sort={sort}
                 onSortChange={updateLarkViewSort}
-                visibleColumns={larkVisibleColumns}
-                onToggleColumn={toggleLarkColumn}
+                visibleColumns={larkConfiguredVisibleColumns}
+                onToggleColumn={toggleLarkConfiguredColumn}
                 onReset={() => {
                   setLarkViewMode("list");
                   setLarkGroupBy("status");
@@ -1599,6 +1642,8 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
                   setLarkShowEmptyGroups(false);
                   setSort({ ...DEFAULT_LARK_TICKET_SORT });
                   setLarkVisibleColumns([...DEFAULT_LARK_TICKET_VISIBLE_COLUMNS]);
+                  setLarkAiOutputVisibleColumns([...DEFAULT_LARK_TICKET_AI_OUTPUT_VISIBLE_COLUMNS]);
+                  setLarkEvalDatasetVisibleColumns([...DEFAULT_LARK_TICKET_EVAL_DATASET_VISIBLE_COLUMNS]);
                   setCollapsedLarkGroups([]);
                   setCollapsedLarkSubgroups([]);
                   setPageIndex(0);
@@ -1719,7 +1764,11 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
         {state.status === "ready" && state.items.length > 0 ? <div className={`list-results-layout ${tagSidebarOpen && tagFilterFieldsWithCounts.length ? "list-results-layout--with-sidebar" : ""}`.trim()}>
           <div className="list-results-layout__main">
           {filteredItems.length > 0 || canShowConfiguredEmptyGroups ? <>
-          {isLarkBoard ? <>
+          {isLarkAiOutput || isLarkEvalDataset ? <LarkTicketAiWorkspace apiBaseUrl={apiBaseUrl} mode={larkViewMode} groups={larkGroups} visibleColumns={larkConfiguredVisibleColumns} collapsedGroups={collapsedLarkGroups} onToggleGroup={(groupKey) => setCollapsedLarkGroups((current) => current.includes(groupKey)
+            ? current.filter((key) => key !== groupKey)
+            : [...current, groupKey])} collapsedSubgroups={collapsedLarkSubgroups} onToggleSubgroup={(subgroupKey) => setCollapsedLarkSubgroups((current) => current.includes(subgroupKey)
+            ? current.filter((key) => key !== subgroupKey)
+            : [...current, subgroupKey])} /> : isLarkBoard ? <>
             <KanbanBoard
               groups={larkGroups}
               collapsedSubgroups={collapsedLarkSubgroups}

@@ -8,6 +8,24 @@ export const LARK_TICKET_VIEW_COLUMNS = [
   { key: "updatedAt", label: "更新时间", sortKey: "updatedAt" },
 ];
 
+export const LARK_TICKET_AI_OUTPUT_VIEW_COLUMNS = [
+  { key: "title", label: "Ticket", required: true },
+  { key: "intent", label: "意图识别" },
+  { key: "problemSummary", label: "问题总结" },
+  { key: "answerSummary", label: "答案总结" },
+  { key: "documentOutput", label: "文档生成" },
+];
+
+export const LARK_TICKET_EVAL_DATASET_VIEW_COLUMNS = [
+  { key: "title", label: "Ticket", required: true },
+  { key: "datasetStatus", label: "数据集状态" },
+  { key: "snapshotVersion", label: "快照版本" },
+  { key: "aiIntent", label: "AI 意图" },
+  { key: "manualIntent", label: "人工意图" },
+  { key: "expectedOutcome", label: "期望结果" },
+  { key: "failureLabels", label: "失败标签" },
+];
+
 export const LARK_TICKET_GROUP_OPTIONS = [
   ["none", "不分组"],
   ["status", "状态"],
@@ -19,17 +37,31 @@ export const LARK_TICKET_GROUP_OPTIONS = [
 
 export const DEFAULT_LARK_TICKET_SORT = { key: "status", direction: "asc" };
 export const DEFAULT_LARK_TICKET_VISIBLE_COLUMNS = LARK_TICKET_VIEW_COLUMNS.map(({ key }) => key);
+export const DEFAULT_LARK_TICKET_AI_OUTPUT_VISIBLE_COLUMNS = LARK_TICKET_AI_OUTPUT_VIEW_COLUMNS.map(({ key }) => key);
+export const DEFAULT_LARK_TICKET_EVAL_DATASET_VISIBLE_COLUMNS = LARK_TICKET_EVAL_DATASET_VIEW_COLUMNS.map(({ key }) => key);
 export const DEFAULT_LARK_TICKET_VIEW_MODE = "list";
 
 const COLUMN_KEYS = new Set(DEFAULT_LARK_TICKET_VISIBLE_COLUMNS);
+const AI_OUTPUT_COLUMN_KEYS = new Set(DEFAULT_LARK_TICKET_AI_OUTPUT_VISIBLE_COLUMNS);
+const EVAL_DATASET_COLUMN_KEYS = new Set(DEFAULT_LARK_TICKET_EVAL_DATASET_VISIBLE_COLUMNS);
 const GROUP_KEYS = new Set(LARK_TICKET_GROUP_OPTIONS.map(([key]) => key));
 const SORT_KEYS = new Set(LARK_TICKET_VIEW_COLUMNS.map(({ sortKey }) => sortKey));
 
 export function normalizeLarkTicketVisibleColumns(value) {
-  if (!Array.isArray(value)) {
-    return [...DEFAULT_LARK_TICKET_VISIBLE_COLUMNS];
-  }
-  const visible = [...new Set(value.filter((key) => COLUMN_KEYS.has(key)))];
+  return normalizeVisibleColumns(value, COLUMN_KEYS, DEFAULT_LARK_TICKET_VISIBLE_COLUMNS);
+}
+
+export function normalizeLarkTicketAiOutputVisibleColumns(value) {
+  return normalizeVisibleColumns(value, AI_OUTPUT_COLUMN_KEYS, DEFAULT_LARK_TICKET_AI_OUTPUT_VISIBLE_COLUMNS);
+}
+
+export function normalizeLarkTicketEvalDatasetVisibleColumns(value) {
+  return normalizeVisibleColumns(value, EVAL_DATASET_COLUMN_KEYS, DEFAULT_LARK_TICKET_EVAL_DATASET_VISIBLE_COLUMNS);
+}
+
+function normalizeVisibleColumns(value, columnKeys, defaults) {
+  if (!Array.isArray(value)) return [...defaults];
+  const visible = [...new Set(value.filter((key) => columnKeys.has(key)))];
   return visible.includes("title") ? visible : ["title", ...visible];
 }
 
@@ -45,7 +77,7 @@ export function normalizeLarkTicketSubGroupBy(value, groupBy) {
 }
 
 export function normalizeLarkTicketViewMode(value) {
-  return value === "board" ? "board" : DEFAULT_LARK_TICKET_VIEW_MODE;
+  return ["list", "board", "ai-output", "eval-dataset"].includes(value) ? value : DEFAULT_LARK_TICKET_VIEW_MODE;
 }
 
 export function normalizeLarkTicketSort(value) {

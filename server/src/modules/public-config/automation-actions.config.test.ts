@@ -17,7 +17,7 @@ describe("ticket AI automation actions", () => {
       promptKey: "lark_ticket.support_qa.summarize",
       skillProfile: "support_qa_eu",
       skillId: "support_qa_query",
-      executionPolicy: "shell",
+      executionPolicy: "write+shell",
       requiresConfirmation: false,
     });
     expect(getTicketAiAutomationAction("lark-ticket-support-qa-document-preview")).toMatchObject({
