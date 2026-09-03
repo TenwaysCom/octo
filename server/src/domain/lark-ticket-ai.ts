@@ -59,6 +59,9 @@ export interface LarkTicketShadowAi {
   promptVersion?: string;
   reason?: string;
   errorCode?: string;
+  errorMessage?: string;
+  outputChars?: number;
+  outputPreview?: string;
 }
 
 export function parseLarkTicketShadowAi(value: string | null | undefined): LarkTicketShadowAi | undefined {
@@ -88,9 +91,16 @@ export function parseLarkTicketShadowAi(value: string | null | undefined): LarkT
       ...(typeof candidate.snapshotVersion === "number" ? { snapshotVersion: candidate.snapshotVersion } : {}),
       ...(typeof candidate.promptVersion === "string" ? { promptVersion: candidate.promptVersion } : {}),
       ...(typeof candidate.reason === "string" ? { reason: candidate.reason } : {}),
-      ...(typeof (candidate.error as Record<string, unknown> | undefined)?.errorCode === "string"
-        ? { errorCode: (candidate.error as Record<string, unknown>).errorCode as string }
-        : {}),
+      ...(() => {
+        const error = candidate.error as Record<string, unknown> | undefined;
+        if (!error || typeof error !== "object") return {};
+        return {
+          ...(typeof error.errorCode === "string" ? { errorCode: error.errorCode } : {}),
+          ...(typeof error.errorMessage === "string" ? { errorMessage: error.errorMessage } : {}),
+          ...(typeof error.outputChars === "number" ? { outputChars: error.outputChars } : {}),
+          ...(typeof error.outputPreview === "string" ? { outputPreview: error.outputPreview } : {}),
+        };
+      })(),
     };
   } catch {
     return undefined;

@@ -52,6 +52,21 @@ describe("Lark Ticket AI field contract", () => {
       .toEqual({ status: "skipped", reason: "no_thread_link", analyzedAt: "2026-09-03T05:00:00.000Z" });
     expect(parseLarkTicketShadowAi(JSON.stringify({ status: "error", error: { errorCode: "SHADOW_ACP_FAILED" } })))
       .toEqual({ status: "error", errorCode: "SHADOW_ACP_FAILED" });
+    expect(parseLarkTicketShadowAi(JSON.stringify({
+      status: "error",
+      error: {
+        errorCode: "SHADOW_OUTPUT_INVALID",
+        errorMessage: "Shadow ACP output did not contain a JSON object.",
+        outputChars: 12,
+        outputPreview: "抱歉，我无法分析",
+      },
+    }))).toEqual({
+      status: "error",
+      errorCode: "SHADOW_OUTPUT_INVALID",
+      errorMessage: "Shadow ACP output did not contain a JSON object.",
+      outputChars: 12,
+      outputPreview: "抱歉，我无法分析",
+    });
   });
 
   it("rejects malformed shadow payloads", () => {

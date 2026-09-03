@@ -67,6 +67,7 @@ export type ShadowSummaryErrorCode =
   | "SHADOW_THREAD_UNAVAILABLE"
   | "SHADOW_ACP_TIMEOUT"
   | "SHADOW_ACP_FAILED"
+  | "SHADOW_ACP_PROVIDER_ERROR"
   | "SHADOW_OUTPUT_INVALID"
   | "SHADOW_EVIDENCE_OUTSIDE_SNAPSHOT";
 
@@ -75,6 +76,7 @@ export class LarkTicketShadowSummaryError extends Error {
     readonly code: ShadowSummaryErrorCode,
     message: string,
     readonly stage: string,
+    readonly details?: Record<string, unknown>,
   ) {
     super(message);
     this.name = "LarkTicketShadowSummaryError";
@@ -215,6 +217,7 @@ export function createLarkTicketShadowSummaryService(deps: LarkTicketShadowSumma
         error: {
           errorCode: shadowError.code,
           errorMessage: shadowError.message.slice(0, 500),
+          ...shadowError.details,
         },
         analyzedAt,
         actionRunId,
@@ -225,6 +228,7 @@ export function createLarkTicketShadowSummaryService(deps: LarkTicketShadowSumma
         stage: shadowError.stage,
         errorCode: shadowError.code,
         errorMessage: shadowError.message,
+        ...shadowError.details,
       }, "LARK_TICKET_SHADOW_SUMMARY_FAILED");
       throw shadowError;
     }
@@ -251,15 +255,32 @@ export function createLarkTicketShadowSummaryService(deps: LarkTicketShadowSumma
           "adapter.acp.prompt",
         );
       }
+      const message = error instanceof Error ? error.message : String(error);
+      if (isProviderErrorText(message)) {
+        throw new LarkTicketShadowSummaryError(
+          "SHADOW_ACP_PROVIDER_ERROR",
+          `Shadow ACP provider error: ${message}`,
+          "adapter.acp.prompt",
+        );
+      }
       throw new LarkTicketShadowSummaryError(
         "SHADOW_ACP_FAILED",
-        error instanceof Error ? error.message : String(error),
+        message,
         "adapter.acp.prompt",
       );
     } finally {
       globalThis.clearTimeout(timeoutId);
     }
-    return chunks.join("").trim();
+    const text = chunks.join("").trim();
+    if (text && isProviderErrorText(text) && !containsJsonObject(text)) {
+      throw new LarkTicketShadowSummaryError(
+        "SHADOW_ACP_PROVIDER_ERROR",
+        `Shadow ACP provider error returned as output: ${firstLineOf(text)}`,
+        "adapter.acp.prompt",
+        outputDiagnostics(text),
+      );
+    }
+    return text;
   }
 
   async function runOnce(): Promise<ShadowSummaryRunResult> {
@@ -357,7 +378,39 @@ function readFieldText(fields: Record<string, unknown>, key: string): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+const MAX_OUTPUT_PREVIEW_CHARS = 300;
+const PROVIDER_ERROR_PATTERN = /\[\s*provider\.[a-z0-9_]+\s*\]/i;
+
+function isProviderErrorText(text: string): boolean {
+  return PROVIDER_ERROR_PATTERN.test(text);
+}
+
+function containsJsonObject(text: string): boolean {
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  return start >= 0 && end > start;
+}
+
+function firstLineOf(text: string): string {
+  return (text.split("\n").map((line) => line.trim()).find(Boolean) ?? text).slice(0, 300);
+}
+
+function outputDiagnostics(text: string): Record<string, unknown> {
+  return {
+    outputChars: text.length,
+    outputPreview: text.slice(0, MAX_OUTPUT_PREVIEW_CHARS),
+  };
+}
+
 function parseShadowAnalysis(text: string): ShadowAnalysisResult {
+  if (!text) {
+    throw new LarkTicketShadowSummaryError(
+      "SHADOW_OUTPUT_INVALID",
+      "Shadow ACP output was empty.",
+      "server.shadow.parse",
+      outputDiagnostics(text),
+    );
+  }
   const start = text.indexOf("{");
   const end = text.lastIndexOf("}");
   if (start < 0 || end <= start) {
@@ -365,6 +418,7 @@ function parseShadowAnalysis(text: string): ShadowAnalysisResult {
       "SHADOW_OUTPUT_INVALID",
       "Shadow ACP output did not contain a JSON object.",
       "server.shadow.parse",
+      outputDiagnostics(text),
     );
   }
   let parsed: unknown;
@@ -375,6 +429,7 @@ function parseShadowAnalysis(text: string): ShadowAnalysisResult {
       "SHADOW_OUTPUT_INVALID",
       `Shadow ACP output JSON parse failed: ${error instanceof Error ? error.message : String(error)}`,
       "server.shadow.parse",
+      outputDiagnostics(text),
     );
   }
   const result = shadowAnalysisResultSchema.safeParse(parsed);
@@ -383,6 +438,7 @@ function parseShadowAnalysis(text: string): ShadowAnalysisResult {
       "SHADOW_OUTPUT_INVALID",
       `Shadow ACP output failed schema validation: ${result.error.issues.map((issue) => issue.path.join(".") || issue.code).join(", ").slice(0, 300)}`,
       "server.shadow.validate",
+      outputDiagnostics(text),
     );
   }
   return result.data;

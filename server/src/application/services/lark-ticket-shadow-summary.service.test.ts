@@ -190,9 +190,27 @@ describe("lark-ticket-shadow-summary.service", () => {
     const result = await service.runOnce();
 
     expect(result.failed).toBe(1);
-    const shadow = writes[0] as { status: string; error: { errorCode: string } };
+    const shadow = writes[0] as { status: string; error: { errorCode: string; errorMessage: string; outputChars: number; outputPreview: string } };
     expect(shadow.status).toBe("error");
     expect(shadow.error.errorCode).toBe("SHADOW_OUTPUT_INVALID");
+    expect(shadow.error.outputChars).toBe("这不是 JSON".length);
+    expect(shadow.error.outputPreview).toBe("这不是 JSON");
+  });
+
+  it("writes an error shadow when the ACP output is empty", async () => {
+    const { service, writes } = makeDeps({
+      candidates: [makeTicket()],
+      threadResult: { source: "lark", snapshot: makeSnapshot() },
+      acpText: "   ",
+    });
+
+    const result = await service.runOnce();
+
+    expect(result.failed).toBe(1);
+    const shadow = writes[0] as { error: { errorCode: string; errorMessage: string; outputChars: number } };
+    expect(shadow.error.errorCode).toBe("SHADOW_OUTPUT_INVALID");
+    expect(shadow.error.errorMessage).toBe("Shadow ACP output was empty.");
+    expect(shadow.error.outputChars).toBe(0);
   });
 
   it("writes an error shadow when the ACP output fails schema validation", async () => {
@@ -205,7 +223,10 @@ describe("lark-ticket-shadow-summary.service", () => {
     const result = await service.runOnce();
 
     expect(result.failed).toBe(1);
-    expect((writes[0] as { error: { errorCode: string } }).error.errorCode).toBe("SHADOW_OUTPUT_INVALID");
+    const shadow = writes[0] as { error: { errorCode: string; errorMessage: string; outputChars: number; outputPreview: string } };
+    expect(shadow.error.errorCode).toBe("SHADOW_OUTPUT_INVALID");
+    expect(shadow.error.errorMessage).toContain("schema validation");
+    expect(shadow.error.outputPreview).toContain("feature_request");
   });
 
   it("rejects evidence message IDs outside the fixed snapshot", async () => {
@@ -219,6 +240,39 @@ describe("lark-ticket-shadow-summary.service", () => {
 
     expect(result.failed).toBe(1);
     expect((writes[0] as { error: { errorCode: string } }).error.errorCode).toBe("SHADOW_EVIDENCE_OUTSIDE_SNAPSHOT");
+  });
+
+  it("classifies provider errors returned as output text", async () => {
+    const providerError = "Error: [provider.auth_error] 403 You've reached your 5-hour usage limit. Your quota will reset when the current 5-hour window ends.";
+    const { service, writes } = makeDeps({
+      candidates: [makeTicket()],
+      threadResult: { source: "lark", snapshot: makeSnapshot() },
+      acpText: providerError,
+    });
+
+    const result = await service.runOnce();
+
+    expect(result.failed).toBe(1);
+    const shadow = writes[0] as { error: { errorCode: string; errorMessage: string; outputChars: number; outputPreview: string } };
+    expect(shadow.error.errorCode).toBe("SHADOW_ACP_PROVIDER_ERROR");
+    expect(shadow.error.errorMessage).toContain("provider.auth_error");
+    expect(shadow.error.outputChars).toBe(providerError.length);
+    expect(shadow.error.outputPreview).toContain("5-hour usage limit");
+  });
+
+  it("classifies provider errors thrown by the ACP call", async () => {
+    const { service, writes } = makeDeps({
+      candidates: [makeTicket()],
+      threadResult: { source: "lark", snapshot: makeSnapshot() },
+      acpError: new Error("[provider.rate_limit] 429 too many requests"),
+    });
+
+    const result = await service.runOnce();
+
+    expect(result.failed).toBe(1);
+    const shadow = writes[0] as { error: { errorCode: string; errorMessage: string } };
+    expect(shadow.error.errorCode).toBe("SHADOW_ACP_PROVIDER_ERROR");
+    expect(shadow.error.errorMessage).toContain("provider.rate_limit");
   });
 
   it("writes an error shadow when the ACP call fails", async () => {
