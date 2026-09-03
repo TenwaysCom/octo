@@ -685,16 +685,10 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
       .where("sync.source_updated_at", "!=", "")
       .where("sync.source_updated_at", "<", input.olderThan)
       .where((eb) => eb.or([
-        eb.not(eb.exists((qb) => qb.selectFrom("lark_ticket_thread_syncs as thread")
-          .select("thread.record_id")
-          .whereRef("thread.base_id", "=", "sync.base_id")
-          .whereRef("thread.table_id", "=", "sync.table_id")
-          .whereRef("thread.record_id", "=", "sync.record_id"))),
-        eb(sql`coalesce(octo.shadow_ai::jsonb ->> 'status', '')`, "=", "error"),
-      ]))
-      .where((eb) => eb.or([
-        // Transient failures (auth, ACP output) retry on the next round without
-        // waiting for the source ticket to change.
+        // Tickets with an existing thread snapshot are still candidates: the
+        // thread context service tops the snapshot up incrementally during
+        // processing. Transient failures (auth, ACP output) retry on the next
+        // round without waiting for the source ticket to change.
         sql<SqlBool>`coalesce(octo.shadow_ai::jsonb ->> 'analyzedAt', '') < sync.source_updated_at`,
         sql<SqlBool>`coalesce(octo.shadow_ai::jsonb ->> 'status', '') = 'error'`,
       ]))
@@ -727,14 +721,6 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
       .where("sync.source_updated_at", "is not", null)
       .where("sync.source_updated_at", "!=", "")
       .where("sync.source_updated_at", "<", input.olderThan)
-      .where((eb) => eb.or([
-        eb.not(eb.exists((qb) => qb.selectFrom("lark_ticket_thread_syncs as thread")
-          .select("thread.record_id")
-          .whereRef("thread.base_id", "=", "sync.base_id")
-          .whereRef("thread.table_id", "=", "sync.table_id")
-          .whereRef("thread.record_id", "=", "sync.record_id"))),
-        eb(sql`coalesce(octo.shadow_ai::jsonb ->> 'status', '')`, "=", "error"),
-      ]))
       .where((eb) => eb.or([
         sql<SqlBool>`coalesce(octo.shadow_ai::jsonb ->> 'analyzedAt', '') < sync.source_updated_at`,
         sql<SqlBool>`coalesce(octo.shadow_ai::jsonb ->> 'status', '') = 'error'`,
