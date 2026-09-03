@@ -29,6 +29,25 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Error:** Vite/esbuild stopped test collection with `Expected ";" but found "Approved"`.
 - **Fix:** Use Chinese quotation marks in the prompt text unless the backticks are escaped; rerun the focused tests and Server TypeScript build.
 - **Status:** resolved; 3 focused files / 10 tests and Server build pass.
+## [ERR-20260902-006] assumed-meegle-auth-repository-path
+
+- **Summary:** The first auth persistence inspection assumed a module-local `meegle-auth.repository.ts` file that does not exist.
+- **Error:** `sed` failed with `No such file or directory` before the chained search could run.
+- **Fix:** Locate persistence implementations with `rg --files` / symbol search first; the active store is `server/src/adapters/postgres/meegle-token-store.ts`.
+- **Status:** resolved; the correct token store and schema were inspected without changing code.
+
+## [ERR-20260902-007] assumed-local-test-server-listener
+
+- **Summary:** A live public-config probe assumed the test Server was listening on workspace localhost port 3040.
+- **Error:** `curl` failed to connect because the inspected runtime is the deployed test origin, not a local dev process.
+- **Fix:** Use the selected deployment origin from the extension environment mapping, request only the public endpoint with approved network access, and reduce output to non-secret configuration-presence booleans.
+- **Status:** resolved; the deployed test endpoint confirmed the public Meegle Plugin ID is present.
+
+## [ERR-20260902-008] jq-output-truncated-with-head
+
+- **Summary:** A diagnostic piped a long-running `jq` stream into `head`, causing `jq` to report a broken pipe after the requested rows were printed.
+- **Fix:** Put the row limit inside `jq` or avoid downstream early-closing consumers when clean diagnostic output matters.
+- **Status:** resolved; no data or project state was changed.
 
 ## [ERR-20260829-001] meegle-sprint-history-list-fallback
 
@@ -50,6 +69,7 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Error:** zsh reported `no matches found`.
 - **Fix:** Use `rg --files -g '.env*'` for optional environment-file discovery; never expand unquoted optional globs.
 - **Status:** resolved; no environment content was read.
+- **Recurrence (2026-09-02):** A source search included the optional unquoted path glob `extension/src/sidebar*`; zsh rejected it before `rg` ran. Search known directories or discover optional paths with `rg --files` first.
 
 ## [ERR-20260828-015] pg-mem-repeated-schema-bootstrap
 
@@ -583,6 +603,7 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Symptom:** The first read-only payload coverage query failed with `connect EPERM` before reaching PostgreSQL.
 - **Root cause:** The managed sandbox blocked the configured database network connection.
 - **Verified fix:** Re-run the same scoped, parameterized diagnostic with approved elevated network access; keep connection strings and payload contents out of output.
+- **Recurrence (2026-09-02):** A direct read-only `psql` check of one affected auth identity returned a blank connection error inside the sandbox. The same `BEGIN TRANSACTION READ ONLY` query succeeded with approved private-database access and returned only status, timestamps, and credential-presence booleans.
 
 ### ERR-20260831-002 — Multi-hunk Priority patch used reverse source order
 
@@ -696,3 +717,34 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Symptom:** Kimi created a Session, but a Server watcher restart interrupted the prompt; the ownership row remained without Ticket keys and the failed Session disappeared from the Ticket page.
 - **Root cause:** Moving attachment before the evidence gates was insufficient because the code still waited for `acpService.chat()` to return before attaching. A process interruption can happen after `session.created` but before that return.
 - **Verified fix:** Start Ticket and thread attachment directly from the `session.created` event, await the in-flight write on normal completion or prompt failure, and cover the interruption ordering in a service test. Recover only the explicitly identified historical row after verifying its Ticket and thread snapshot.
+
+### ERR-20260903-001 — 授权任务记录补丁使用了不精确的中文上下文
+
+- **Symptom:** 首次工具栏授权修复补丁在任务记录处校验失败，整块补丁未落盘。
+- **Root cause:** 补丁上下文将原文 `非 Meegle 页` 误写成了 `非 Meegle页`，少了一个空格。
+- **Verified fix:** 重新读取精确行内容，并将实现、测试和任务记录拆成小补丁应用；首次失败没有修改任何文件。
+
+### ERR-20260903-002 — Extension typecheck 未加载 Vitest globals 类型
+
+- **Symptom:** 移除两个测试文件对 `describe`、`it`、`expect` 的显式导入后，Vitest 定向测试通过，但 `pnpm --dir extension typecheck` 报告这些名称不存在。
+- **Root cause:** Vitest 运行配置启用了 globals，但 `tsconfig.typecheck.json` 没有加载 `vitest/globals` 类型；仓库测试因此仍普遍使用显式导入。
+- **Verified fix:** 在受影响测试中声明 `vitest/globals` 类型引用，继续直接使用 globals，同时避免为本次入口修复扩大共享 TypeScript 配置范围，并重新执行类型检查。
+
+### ERR-20260903-003 — Sandbox blocked Meegle and PostgreSQL diagnostics
+
+- **Symptom:** 沙箱内的 `meegle auth status` 因本机代理 socket 权限返回 server unreachable；随后只读 `pnpm exec tsx -e` 数据库诊断在创建 IPC pipe 时返回 `listen EPERM`。
+- **Root cause:** 托管沙箱禁止访问本机代理 socket，并限制 tsx IPC/数据库隧道所需的进程通信；这些错误发生在到达 Meegle 或 PostgreSQL 之前。
+- **Verified fix:** 使用获批的沙箱外只读执行重新运行精确命令；CLI 返回 authenticated，PostgreSQL 查询只输出脱敏后的同步运行错误摘要。
+- **Recurrence:** 沙箱内读取 PM2 状态又因 `.pm2/*.sock` 权限与只读 `pm2.log` 失败；使用获批的精确 `pm2 status/jlist` 只读命令确认 staging API/Worker 仍加载旧 build。
+
+### ERR-20260903-004 — Inline tsx regex broke outer shell quoting
+
+- **Symptom:** 一次只读运行审计查询在 zsh 解析阶段报 `parse error near ')'`，没有连接数据库。
+- **Root cause:** `tsx -e` 脚本由 shell 单引号包裹，而 JavaScript 正则又包含未转义的单引号，提前终止了 shell 字符串。
+- **Verified fix:** 去掉诊断正则对引号字符的依赖，仅按 `updated_at`、比较符和日期分隔符匹配；同一脱敏只读查询随后成功确认旧进程仍发送空格时间。
+
+### ERR-20260903-005 — Server full suite retained known environment failures
+
+- **Symptom:** `pnpm --dir server test` 中 129 个文件、637 项测试通过，但 6 个 SQLite suite 无法加载 `node:sqlite`，logger dated-file 用例仍有一次落盘时序失败。
+- **Root cause:** 当前 Node 22.12.0 不提供仓库 SQLite legacy tests 需要的 `node:sqlite`；logger 用例存在已知 transport flush race。两者均未经过本次 Meegle formatter 路径。
+- **Verified fix:** 本次相关的三个测试文件 40/40 通过，Server TypeScript build 通过，真实只读 MQL 与重启后的 staging 手工同步通过；全量环境失败保留为明确验证边界。

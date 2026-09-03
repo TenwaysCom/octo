@@ -43,6 +43,12 @@ export function formatMeegleSourceUpdatedAt(value: number | Date): string {
     + `${twoDigits(date.getUTCHours())}:${twoDigits(date.getUTCMinutes())}:${twoDigits(date.getUTCSeconds())}`;
 }
 
+export function formatMeegleMqlDateTime(value: number | Date): string {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) throw new Error("Invalid Meegle MQL datetime");
+  return date.toISOString();
+}
+
 function isValidUtcDate(value: string): boolean {
   const match = MEEGLE_DATE_PATTERN.exec(value);
   if (!match) return false;

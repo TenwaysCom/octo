@@ -16,7 +16,7 @@ export function ToolbarPopupView({
   serverUrl,
   onEnvironmentChange,
   onSaveEnvironment,
-  onAuthorizeMeegle,
+  onMeegleAction,
   onAuthorizeLark,
 }: {
   pageType: PopupPageType;
@@ -28,7 +28,7 @@ export function ToolbarPopupView({
   serverUrl: string;
   onEnvironmentChange: (environmentName: ToolbarEnvironmentName) => void;
   onSaveEnvironment: () => void | Promise<void>;
-  onAuthorizeMeegle: () => void | Promise<void>;
+  onMeegleAction: () => void | Promise<void>;
   onAuthorizeLark: () => void | Promise<void>;
 }) {
   const showAuthActions = !meegleAuthorized || !larkAuthorized;
@@ -94,14 +94,16 @@ export function ToolbarPopupView({
       </UiCard>
 
       {showAuthActions ? (
-        <UiCard title="授权跳转">
+        <UiCard title="授权操作">
           <div className="toolbar-popup__actions">
             <p className="toolbar-popup__order-tip">
-              未授权时，请先授权 Meegle，再授权 Lark。
+              {pageType === "meegle"
+                ? "未授权时，请先授权 Meegle，再授权 Lark。"
+                : "请先打开 Meegle 页面，再从工具栏授权 Meegle。"}
             </p>
             {!meegleAuthorized ? (
-              <UiButton variant="primary" block onClick={onAuthorizeMeegle}>
-                授权 Meegle
+              <UiButton variant="primary" block onClick={onMeegleAction}>
+                {pageType === "meegle" ? "授权 Meegle" : "打开 Meegle"}
               </UiButton>
             ) : null}
             {!larkAuthorized ? (
@@ -155,5 +157,9 @@ function resolveHint(pageType: PopupPageType): string {
     return "请切换到 Lark、Meegle 或 GitHub PR / Issue 页面，再使用页面悬浮 Icon。";
   }
 
-  return "工具栏入口只负责提示和授权跳转，完整功能请使用页面内的悬浮 Icon。";
+  if (pageType === "meegle") {
+    return "可在此授权 Meegle；完整功能请使用页面内的悬浮 Icon。";
+  }
+
+  return "完整功能请使用页面内的悬浮 Icon；如需授权 Meegle，请先打开 Meegle 页面。";
 }

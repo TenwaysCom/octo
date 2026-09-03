@@ -1,14 +1,15 @@
 // @vitest-environment jsdom
+/// <reference types="vitest/globals" />
 
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { vi } from "vitest";
 
 import { ToolbarPopupView } from "./ToolbarPopupView.js";
 
 describe("ToolbarPopupView", () => {
-  it("renders floating icon guidance and ordered auth actions when unauthorized", async () => {
+  it("shows an explicit Meegle navigation action outside a Meegle page", async () => {
     const user = userEvent.setup();
     const onAuthorizeMeegle = vi.fn();
     const onAuthorizeLark = vi.fn();
@@ -24,7 +25,7 @@ describe("ToolbarPopupView", () => {
         serverUrl: "https://octo.odoo.tenways.it:18443",
         onEnvironmentChange: vi.fn(),
         onSaveEnvironment: vi.fn(),
-        onAuthorizeMeegle,
+        onMeegleAction: onAuthorizeMeegle,
         onAuthorizeLark,
       }),
     );
@@ -34,17 +35,44 @@ describe("ToolbarPopupView", () => {
       screen.getByText("授权状态").compareDocumentPosition(screen.getByText("环境配置")) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    expect(screen.getByText("未授权时，请先授权 Meegle，再授权 Lark。")).toBeTruthy();
+    expect(screen.getByText("请先打开 Meegle 页面，再从工具栏授权 Meegle。")).toBeTruthy();
     expect(screen.queryByText("自动化")).toBeNull();
     expect(screen.queryByText("聊天")).toBeNull();
 
-    await user.click(screen.getByRole("button", { name: "授权 Meegle" }));
+    await user.click(screen.getByRole("button", { name: "打开 Meegle" }));
     expect(onAuthorizeMeegle).toHaveBeenCalledTimes(1);
 
     const larkButton = screen.getByRole("button", { name: "授权 Lark" });
     expect(larkButton).toHaveProperty("disabled", true);
     await user.click(larkButton);
     expect(onAuthorizeLark).toHaveBeenCalledTimes(0);
+  });
+
+  it("shows the Meegle authorization action on a Meegle page", async () => {
+    const user = userEvent.setup();
+    const onAuthorizeMeegle = vi.fn();
+
+    render(
+      React.createElement(ToolbarPopupView, {
+        pageType: "meegle",
+        meegleStatusText: "待授权",
+        larkStatusText: "待授权",
+        meegleAuthorized: false,
+        larkAuthorized: false,
+        environmentName: "prod",
+        serverUrl: "https://octo.odoo.tenways.it:18443",
+        onEnvironmentChange: vi.fn(),
+        onSaveEnvironment: vi.fn(),
+        onMeegleAction: onAuthorizeMeegle,
+        onAuthorizeLark: vi.fn(),
+      }),
+    );
+
+    expect(screen.getByText("未授权时，请先授权 Meegle，再授权 Lark。")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "打开 Meegle" })).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "授权 Meegle" }));
+    expect(onAuthorizeMeegle).toHaveBeenCalledTimes(1);
   });
 
   it("hides auth actions when both providers are already authorized", () => {
@@ -59,13 +87,14 @@ describe("ToolbarPopupView", () => {
         serverUrl: "https://octotest.odoo.tenways.it:18443",
         onEnvironmentChange: vi.fn(),
         onSaveEnvironment: vi.fn(),
-        onAuthorizeMeegle: vi.fn(),
+        onMeegleAction: vi.fn(),
         onAuthorizeLark: vi.fn(),
       }),
     );
 
     expect(screen.getByText("请使用页面悬浮 Icon")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "授权 Meegle" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "打开 Meegle" })).toBeNull();
     expect(screen.queryByRole("button", { name: "授权 Lark" })).toBeNull();
   });
 
@@ -85,7 +114,7 @@ describe("ToolbarPopupView", () => {
         serverUrl: "https://octo.odoo.tenways.it:18443",
         onEnvironmentChange,
         onSaveEnvironment,
-        onAuthorizeMeegle: vi.fn(),
+        onMeegleAction: vi.fn(),
         onAuthorizeLark: vi.fn(),
       }),
     );

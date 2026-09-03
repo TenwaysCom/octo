@@ -34,6 +34,7 @@ import { isMeegleProductionBugType, isMeegleSprintType } from "../../domain/meeg
 import { buildMeegleSprintSnapshot, getMeegleSprintDetailFieldKeys } from "./meegle-sprint-snapshot.js";
 import { extractMeegleWorkitemRoleMembers } from "../../domain/meegle-workitem-role-members.js";
 import {
+  formatMeegleMqlDateTime,
   formatMeegleSourceUpdatedAt,
   parseMeegleSourceTimestamp,
 } from "../../utils/meegle-source-time.js";
@@ -189,7 +190,7 @@ export class PlatformSyncService {
     const checkpointTimestamp = parseMeegleSourceTimestamp(input.watermarkUpdatedAt);
     if (checkpointTimestamp === undefined) throw new Error(`Invalid Meegle checkpoint watermark: ${input.watermarkUpdatedAt}`);
     const threshold = checkpointTimestamp - INCREMENTAL_OVERLAP_MS;
-    const sourceUpdatedAfter = formatMeegleSourceUpdatedAt(threshold);
+    const sourceUpdatedAfter = formatMeegleMqlDateTime(threshold);
     const listed = await client.filterWorkitems(input.projectKey, {
       workitemTypeKeys: input.workItemTypeKeys,
       pageSize: 50,

@@ -19,7 +19,12 @@ export default function App() {
     void popupApp.initialize();
   }, [popupApp.initialize]);
 
-  const openMeegleAuthPage = async () => {
+  const handleMeegleAction = async () => {
+    if (popupApp.state.pageType === "meegle") {
+      await popupApp.authorizeMeegle();
+      return;
+    }
+
     const config = await getConfig();
     const url = normalizeMeegleAuthBaseUrl(
       popupApp.state.currentTabOrigin,
@@ -45,7 +50,7 @@ export default function App() {
       serverUrl={popupApp.settingsForm.SERVER_URL}
       onEnvironmentChange={changeEnvironment}
       onSaveEnvironment={popupApp.saveSettingsForm}
-      onAuthorizeMeegle={openMeegleAuthPage}
+      onMeegleAction={handleMeegleAction}
       onAuthorizeLark={popupApp.authorizeLark}
     />
   );

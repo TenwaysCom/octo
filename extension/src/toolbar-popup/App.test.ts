@@ -1,29 +1,38 @@
 // @vitest-environment jsdom
+/// <reference types="vitest/globals" />
 
 import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, vi } from "vitest";
 
 const {
   initialize,
+  authorizeMeegle,
   authorizeLark,
   updateSettingsFormField,
   saveSettingsForm,
   getConfigMock,
+  popupState,
 } = vi.hoisted(() => ({
   initialize: vi.fn().mockResolvedValue(undefined),
+  authorizeMeegle: vi.fn().mockResolvedValue(undefined),
   authorizeLark: vi.fn().mockResolvedValue(undefined),
   updateSettingsFormField: vi.fn(),
   saveSettingsForm: vi.fn().mockResolvedValue(undefined),
   getConfigMock: vi.fn().mockResolvedValue({
     MEEGLE_BASE_URL: "https://project.larksuite.com",
   }),
+  popupState: {
+    pageType: "lark",
+    currentTabOrigin: "https://foo.larksuite.com",
+  },
 }));
 
 vi.mock("../popup-react/hooks/usePopupApp.js", () => ({
   usePopupApp: () => ({
     initialize,
+    authorizeMeegle,
     authorizeLark,
     updateSettingsFormField,
     saveSettingsForm,
@@ -32,8 +41,7 @@ vi.mock("../popup-react/hooks/usePopupApp.js", () => ({
       SERVER_URL: "https://octo.odoo.tenways.it:18443",
     },
     state: {
-      pageType: "lark",
-      currentTabOrigin: "https://foo.larksuite.com",
+      ...popupState,
       isAuthed: {
         meegle: false,
         lark: false,
@@ -58,7 +66,7 @@ vi.mock("./ToolbarPopupView.js", () => ({
     serverUrl: string;
     onEnvironmentChange: (environmentName: "prod" | "test" | "dev") => void;
     onSaveEnvironment: () => void | Promise<void>;
-    onAuthorizeMeegle: () => void | Promise<void>;
+    onMeegleAction: () => void | Promise<void>;
     onAuthorizeLark: () => void | Promise<void>;
   }) =>
     React.createElement(
@@ -79,7 +87,7 @@ vi.mock("./ToolbarPopupView.js", () => ({
         React.createElement("option", { value: "dev" }, "dev"),
       ),
       React.createElement("button", { onClick: props.onSaveEnvironment }, "save-env"),
-      React.createElement("button", { onClick: props.onAuthorizeMeegle }, "go-meegle"),
+      React.createElement("button", { onClick: props.onMeegleAction }, "go-meegle"),
       React.createElement("button", { onClick: props.onAuthorizeLark }, "go-lark"),
     ),
 }));
@@ -89,14 +97,17 @@ import App from "./App.js";
 describe("toolbar popup App", () => {
   beforeEach(() => {
     initialize.mockClear();
+    authorizeMeegle.mockClear();
     authorizeLark.mockClear();
     updateSettingsFormField.mockClear();
     saveSettingsForm.mockClear();
     getConfigMock.mockClear();
     vi.mocked(chrome.tabs.create).mockClear();
+    popupState.pageType = "lark";
+    popupState.currentTabOrigin = "https://foo.larksuite.com";
   });
 
-  it("runs initialize on mount and wires auth actions", async () => {
+  it("opens Meegle when the current tab is not a Meegle page", async () => {
     const user = userEvent.setup();
     render(React.createElement(App));
 
@@ -110,9 +121,23 @@ describe("toolbar popup App", () => {
       url: "https://project.larksuite.com",
       active: true,
     });
+    expect(authorizeMeegle).not.toHaveBeenCalled();
 
     await user.click(screen.getByRole("button", { name: "go-lark" }));
     expect(authorizeLark).toHaveBeenCalledTimes(1);
+  });
+
+  it("authorizes Meegle directly when the current tab is a Meegle page", async () => {
+    popupState.pageType = "meegle";
+    popupState.currentTabOrigin = "https://project.larksuite.com";
+    const user = userEvent.setup();
+    render(React.createElement(App));
+
+    await user.click(screen.getByRole("button", { name: "go-meegle" }));
+
+    expect(authorizeMeegle).toHaveBeenCalledTimes(1);
+    expect(getConfigMock).not.toHaveBeenCalled();
+    expect(chrome.tabs.create).not.toHaveBeenCalled();
   });
 
   it("wires environment changes to popup settings", async () => {

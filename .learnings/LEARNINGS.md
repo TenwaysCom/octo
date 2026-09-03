@@ -19,6 +19,11 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - **Context:** Ticket Answer needs controlled documents and resolved historical cases, but the thread-sync snapshot is raw source data and the existing Support-QA fetch gate proves Ticket evidence rather than knowledge approval.
 - **Rule:** Store searchable knowledge separately as redacted chunks, require explicit human approval before indexing or retrieval, return `source_ref` with every hit, and keep the existing completed `fetch --json` gate mandatory for every Support-QA result.
 - **Verified outcome:** PostgreSQL-store and Ticket AI Session tests prove revoked cases are excluded, email text is redacted, and Answer prompts receive approved citations only.
+## [LRN-20260902-007] meegle-auth-entrypoint-and-pre-exchange-observability
+
+- **Context:** A new user repeatedly saw Meegle `require_auth_code`; Server and database checks showed a valid identity binding but no exchange request or token row. The toolbar action labeled “授权 Meegle” only opened the Meegle root page, while unmatched root/workbench pages intentionally suppressed the floating sidebar that contained the real auth bridge.
+- **Rule:** An action labeled as authorization must either invoke the auth bridge or explicitly say it only navigates to the prerequisite page. Diagnose Meegle auth by separating status, auth-code acquisition, exchange, and persistence; upload non-sensitive stage/error codes from background and content script so a missing Server exchange is distinguishable from an unclicked or failed browser step.
+- **Verified outcome:** Route counts, safe page-config logs, toolbar and sidebar code, user clarification, and a read-only credential-presence query confirmed the deadlock without reading credentials or profile data. The `0.9.1` toolbar now invokes the auth bridge on Meegle pages and labels off-page navigation as “打开 Meegle”; 282 Extension tests, typecheck, and production build pass.
 
 ## [LRN-20260828-007] ai-session-message-control-scope
 
@@ -560,3 +565,8 @@ Record concise, reusable lessons here. Include the context, the durable rule, an
 - **Context:** ACP Session 创建和 prompt 执行是两个不同阶段；Server 重启或流中断可能发生在两者之间。
 - **Rule:** 依赖 Session 可恢复性的外部上下文关联必须在 `session.created` 事件到达时立即开始持久化，不能等模型完成、证据门禁或 `chat()` 返回。失败结果状态可后写，但 Ticket 归属是创建阶段的不变量。
 - **Verified outcome:** 中断回归测试证明 attach 先于后续 prompt failure；实际孤立 Session 已按唯一 session id 恢复并从数据库回读 Ticket 2106、thread 与 actionRun。
+## [LRN-20260903-001] meegle-mql-datetime-literal-boundary
+
+- **Context:** Meegle 的 `updated_at` 返回值和 Octo checkpoint 可以规范化为秒级 `YYYY-MM-DD HH:mm:ss`，但 MQL datetime 查询字面量不接受相同的空格分隔表示。
+- **Rule:** 将“源值/持久化时间规范化”和“MQL 查询字面量序列化”作为两个独立协议处理。MQL datetime 必须使用带 `T` 的受支持格式；修改 formatter 时必须保留真实只读 MQL 验证，不能只更新 mock 中的期望字符串。
+- **Verified outcome:** 运行审计显示提交 `9925646` 将查询阈值从 ISO 改为空格格式后，四类 Meegle 增量 scope 立即从成功变为 `ErrMoqlInvalidArgument` Code 2001；独立 MQL formatter 恢复 ISO 后，40 个定向测试、Server build、真实只读 MQL 与 staging 手工同步通过。

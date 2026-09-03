@@ -398,7 +398,7 @@ describe("PlatformSyncService", () => {
       workitemTypeKeys: ["story"],
       pageSize: 50,
       autoPaginate: true,
-      sourceUpdatedAfter: "2026-08-10 23:55:00",
+      sourceUpdatedAfter: "2026-08-10T23:55:00.000Z",
       sourceUpdatedAtMqlFieldNames: { story: "updated_at" },
     });
     expect(client.getWorkitemDetails).toHaveBeenCalledWith("project", "story", ["1"], [

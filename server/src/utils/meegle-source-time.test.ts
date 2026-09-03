@@ -1,4 +1,5 @@
 import {
+  formatMeegleMqlDateTime,
   formatMeegleSourceUpdatedAt,
   normalizeMeegleDate,
   normalizeMeegleSourceUpdatedAt,
@@ -12,10 +13,15 @@ describe("Meegle source time normalization", () => {
     expect(normalizeMeegleDate("2026-02-31")).toBeUndefined();
   });
 
-  it("emits the Meegle MQL second-level UTC representation", () => {
+  it("normalizes Meegle source timestamps to second-level UTC storage values", () => {
     expect(normalizeMeegleSourceUpdatedAt(1786020656000)).toBe("2026-08-06 12:50:56");
     expect(normalizeMeegleSourceUpdatedAt("2026-08-06T12:50:56Z")).toBe("2026-08-06 12:50:56");
     expect(formatMeegleSourceUpdatedAt(Date.UTC(2026, 7, 6, 12, 50, 56))).toBe("2026-08-06 12:50:56");
+  });
+
+  it("formats MQL datetime literals with the required ISO T separator", () => {
+    expect(formatMeegleMqlDateTime(Date.UTC(2026, 7, 6, 12, 50, 56)))
+      .toBe("2026-08-06T12:50:56.000Z");
   });
 
   it("parses both new raw values and legacy ISO checkpoints as UTC", () => {
