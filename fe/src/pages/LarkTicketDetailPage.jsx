@@ -36,6 +36,31 @@ function TicketProperty({ label, children }) {
   </div>;
 }
 
+const SHADOW_STATUS_LABELS = { ok: "已生成", skipped: "已跳过", error: "失败" };
+
+function ShadowAiPanel({ shadowAi }) {
+  const statusLabel = SHADOW_STATUS_LABELS[shadowAi.status] || shadowAi.status;
+  return <section className="ticket-shadow-panel" aria-label="影子分析">
+    <div className="ticket-shadow-panel__heading">
+      <h2>影子分析</h2>
+      <span className={`ticket-shadow-panel__status ticket-shadow-panel__status--${shadowAi.status}`}>{statusLabel}</span>
+    </div>
+    {shadowAi.status === "ok" ? <dl>
+      {shadowAi.intentType ? <TicketProperty label="意图">{shadowAi.intentType}</TicketProperty> : null}
+      {shadowAi.intentSubtype ? <TicketProperty label="子意图">{shadowAi.intentSubtype}</TicketProperty> : null}
+      {typeof shadowAi.intentConfidence === "number" ? <TicketProperty label="置信度">{Math.round(shadowAi.intentConfidence * 100)}%</TicketProperty> : null}
+      {shadowAi.summary ? <TicketProperty label="总结">{shadowAi.summary}</TicketProperty> : null}
+    </dl> : null}
+    {shadowAi.status === "skipped" ? <p className="ticket-shadow-panel__note">跳过原因：{shadowAi.reason || "未记录"}</p> : null}
+    {shadowAi.status === "error" ? <p className="ticket-shadow-panel__note">{shadowAi.errorCode || "SHADOW_FAILED"}{shadowAi.errorMessage ? `：${shadowAi.errorMessage}` : ""}</p> : null}
+    <p className="ticket-shadow-panel__meta">
+      {shadowAi.analyzedAt ? `分析于 ${formatDateTime(shadowAi.analyzedAt)}` : "尚未分析"}
+      {shadowAi.snapshotVersion ? ` · 快照 v${shadowAi.snapshotVersion}` : ""}
+      {shadowAi.promptVersion ? ` · 提示词 ${shadowAi.promptVersion}` : ""}
+    </p>
+  </section>;
+}
+
 function TicketLoadingState({ children }) {
   return <section className="profile-main ticket-detail-page"><p className="list-message">{children}</p></section>;
 }
@@ -306,6 +331,7 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
             <TicketProperty label="类型"><LarkTicketBadge kind="type" value={ticket.issueType} /></TicketProperty>
           </dl>
           <p className="ticket-detail__sync-time">同步于 {formatDateTime(ticket.syncedAt)}</p>
+          {ticket.shadowAi ? <ShadowAiPanel shadowAi={ticket.shadowAi} /> : null}
         </aside>
       </div>
     </main>

@@ -1002,6 +1002,19 @@ h1 {
 .ticket-property dd { min-width: 0; margin: 0; }
 .ticket-detail__sync-time { margin: 34px 0 0; color: var(--octo-text-muted); font-size: 11px; line-height: 1.5; }
 
+.ticket-shadow-panel { margin-top: 22px; padding: 14px 16px; border: 1px solid var(--octo-border); border-radius: 12px; background: var(--octo-surface); }
+.ticket-shadow-panel__heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+.ticket-shadow-panel__heading h2 { margin: 0; color: var(--octo-text-muted); font-size: 12px; font-weight: 650; text-transform: uppercase; letter-spacing: .06em; }
+.ticket-shadow-panel__status { padding: 2px 7px; border-radius: 99px; font-size: 10px; font-weight: 700; }
+.ticket-shadow-panel__status--ok { color: #166534; background: #dcfce7; }
+.ticket-shadow-panel__status--skipped { color: var(--octo-text-muted); background: #e2e8f0; }
+.ticket-shadow-panel__status--error { color: var(--octo-badge-danger-text); background: var(--octo-badge-danger-bg); }
+.ticket-shadow-panel dl { display: grid; gap: 10px; margin: 0; }
+.ticket-shadow-panel .ticket-property { align-items: start; }
+.ticket-shadow-panel .ticket-property dd { overflow-wrap: anywhere; font-size: 12px; line-height: 1.6; }
+.ticket-shadow-panel__note { margin: 0; overflow-wrap: anywhere; color: var(--octo-text-muted); font-size: 12px; line-height: 1.6; }
+.ticket-shadow-panel__meta { margin: 12px 0 0; color: var(--octo-text-muted); font-size: 11px; line-height: 1.5; }
+
 .sprint-history-page .list-page__header { margin-bottom: 24px; }
 .sprint-history-page .list-page__header h1 { font-size: clamp(27px, 2.3vw, 34px); }
 .sprint-history-list { position: relative; display: grid; padding-left: 92px; }

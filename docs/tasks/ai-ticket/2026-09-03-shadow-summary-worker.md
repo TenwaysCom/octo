@@ -50,6 +50,7 @@ related:
 | 2026-09-03 | v7 | in_progress | v7 范围修正：已有 `lark_ticket_thread_syncs` 快照的工单**不再排除**（用户澄清）——候选条件删掉 `NOT EXISTS thread 快照` 分支，处理时由 `threadContext.ensure` 走原增量逻辑补 thread 数据（10min 内复用 cache / 超期 incremental+60s overlap / >24h full reconcile / 拉取失败回退 stale_cache）。dev 库验证 pending 223→1820（=1841 总量 −17 Cancelled/Rejected −4 已 ok）；server 688 + tsc 通过 | 待调大 batchLimit 消化 backlog；worker 常驻方式待定 |
 | 2026-09-03 | v8 | in_progress | v8 错误诊断增强：定位到一票 `SHADOW_OUTPUT_INVALID` 实为 Kimi 配额 403（`[provider.auth_error]`）以流式文本返回被当成模型输出。新增 `SHADOW_ACP_PROVIDER_ERROR` 错误码（捕获路径与"输出文本即 provider 错误且无 JSON"路径都识别）；`SHADOW_OUTPUT_INVALID` 各分支携带 `outputChars` + 截断 `outputPreview`（300 字符），写入 `shadow_ai.error` 并随 warn 日志输出；空输出单独报 "output was empty"；domain `parseLarkTicketShadowAi` 透出 `errorMessage/outputChars/outputPreview`。server 691 + tsc 通过 | 待配额恢复后重跑观察 error 分类是否符合预期 |
 | 2026-09-03 | v8 | in_progress | 合并冲突处理：保留输出文本的 provider 错误分类，以及 ACP 成功输出的 debug 诊断；诊断只记录 300 字符 `outputPreview`，不记录完整工单/模型输出。目标单测 16/16 与 server TypeScript 构建均通过。 | 未做真实 Lark/Kimi 运行时验证。 |
+| 2026-09-03 | v9 | in_progress | v9 FE 展示补全：domain `parseLarkTicketShadowAi` 额外透出 `intentType/intentSubtype`（`intent` 保持合并串兼容 pipeline）；Ticket 详情页右栏新增「影子分析」面板（状态 badge + 意图/子意图/置信度/总结，skipped 显示原因、error 显示 errorCode+errorMessage，底部分析时间/快照/提示词版本元信息）；AI 输出视图行标题区新增 issue 类型、优先级 badge（复用 LarkTicketBadge，有值才渲染）。server 691 + FE 145 测试通过，tsc + vite build 通过 | 待本地联调目检面板与 badge 实际渲染效果 |
 
 ## 验证
 

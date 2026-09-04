@@ -52,6 +52,8 @@ export function pickLarkTicketAiFields(value: Record<string, unknown> | undefine
 export interface LarkTicketShadowAi {
   status: "ok" | "skipped" | "error";
   intent?: string;
+  intentType?: string;
+  intentSubtype?: string;
   intentConfidence?: number;
   summary?: string;
   analyzedAt?: string;
@@ -80,7 +82,8 @@ export function parseLarkTicketShadowAi(value: string | null | undefined): LarkT
     const intentSubtype = typeof intent?.intentSubtype === "string" ? intent.intentSubtype : "";
     return {
       status,
-      ...(intentType ? { intent: intentSubtype ? `${intentType} / ${intentSubtype}` : intentType } : {}),
+      ...(intentType ? { intent: intentSubtype ? `${intentType} / ${intentSubtype}` : intentType, intentType } : {}),
+      ...(intentSubtype ? { intentSubtype } : {}),
       ...(typeof intent?.confidence === "number" ? { intentConfidence: intent.confidence } : {}),
       ...(typeof candidate.summary === "string" && candidate.summary.trim()
         ? { summary: candidate.summary }

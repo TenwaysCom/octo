@@ -39,6 +39,8 @@ describe("Lark Ticket AI field contract", () => {
     expect(shadow).toEqual({
       status: "ok",
       intent: "troubleshoot / workflow_stuck",
+      intentType: "troubleshoot",
+      intentSubtype: "workflow_stuck",
       intentConfidence: 0.72,
       summary: "订单无法添加促销，待排查。",
       analyzedAt: "2026-09-03T05:00:00.000Z",
