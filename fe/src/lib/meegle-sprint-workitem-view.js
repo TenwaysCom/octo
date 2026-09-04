@@ -109,6 +109,19 @@ export function sortSprintWorkitems(items, sort) {
   });
 }
 
+export function splitSprintWorkitemsByCarryover(items) {
+  const currentSprintItems = [];
+  const carryoverItems = [];
+  for (const item of items || []) {
+    if (item?.carryoverToSprintId || item?.carryoverToSprintName) carryoverItems.push(item);
+    else currentSprintItems.push(item);
+  }
+  return [
+    { key: "carryover", label: "已结转至后续 Sprint", items: carryoverItems },
+    { key: "current", label: "本 Sprint 工作项", items: currentSprintItems },
+  ].filter((section) => section.items.length);
+}
+
 function getGroupDescriptor(value) {
   return value ? { key: value, label: value } : { key: "__unset__", label: "未设置" };
 }

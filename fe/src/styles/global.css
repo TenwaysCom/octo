@@ -1053,6 +1053,10 @@ h1 {
 .sprint-detail-layout__main { min-width: 0; }
 .data-table--sprint-workitems { min-width: 980px; }
 .data-table--sprint-workitems td:first-child { min-width: 250px; }
+.sprint-workitem-sections { display: grid; gap: 20px; }
+.sprint-workitem-section { min-width: 0; }
+.sprint-workitem-section__header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; color: var(--octo-text-muted); font-size: 12px; }
+.sprint-workitem-section__header strong { color: var(--octo-text); font-size: 13px; }
 .sprint-carryover-badge { display: inline-flex; width: fit-content; margin-top: 6px; padding: 3px 7px; border-radius: 999px; color: var(--octo-badge-orange-text); background: var(--octo-badge-orange-bg); font-size: 11px; font-weight: 650; line-height: 1.2; }
 .sprint-workitem-field-badge { display: inline-flex; max-width: 180px; align-items: center; overflow: hidden; padding: 3px 7px; border-radius: 999px; color: var(--octo-badge-neutral-text); background: var(--octo-badge-neutral-bg); font-size: 11px; font-weight: 700; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
 .sprint-workitem-field-badge--version { color: var(--octo-badge-teal-text); background: var(--octo-badge-teal-bg); }

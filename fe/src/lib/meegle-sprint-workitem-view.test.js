@@ -9,6 +9,7 @@ import {
   normalizeSprintWorkitemSubGroupBy,
   normalizeSprintWorkitemVisibleColumns,
   rememberSprintWorkitemPageState,
+  splitSprintWorkitemsByCarryover,
   sortSprintWorkitems,
 } from "./meegle-sprint-workitem-view.js";
 
@@ -124,6 +125,23 @@ test("sorts Sprint workitems by configured workitem fields", () => {
   assert.deepEqual(sortSprintWorkitems(items, { key: "priority", direction: "asc" }).map((item) => item.workItemId), ["1", "2", "3"]);
   assert.deepEqual(sortSprintWorkitems(items, { key: "version", direction: "asc" }).map((item) => item.workItemId), ["1", "2", "3"]);
   assert.deepEqual(sortSprintWorkitems(items, { key: "updatedAt", direction: "desc" }).map((item) => item.workItemId), ["1", "2", "3"]);
+});
+
+test("splits Sprint workitems into current and carried-over sections", () => {
+  const sections = splitSprintWorkitemsByCarryover([
+    { workItemId: "1" },
+    { workItemId: "2", carryoverToSprintId: "sprint-next", carryoverToSprintName: "Sprint Next" },
+    { workItemId: "3", carryoverToSprintId: "sprint-next" },
+  ]);
+
+  assert.deepEqual(sections.map((section) => ({
+    key: section.key,
+    label: section.label,
+    ids: section.items.map((item) => item.workItemId),
+  })), [
+    { key: "carryover", label: "已结转至后续 Sprint", ids: ["2", "3"] },
+    { key: "current", label: "本 Sprint 工作项", ids: ["1"] },
+  ]);
 });
 
 test("groups Sprint workitems by the configured primary and secondary fields", () => {
