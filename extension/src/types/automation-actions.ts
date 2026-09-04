@@ -30,6 +30,7 @@ export interface AutomationActionListItem {
     | { type: "preview_form_confirm" }
     | { type: "direct_execute" }
     | { type: "direct_result" };
+  provider?: "kimi_acp" | "deepseek";
   executor: AutomationActionExecutor;
   execution?: {
     mode: "async";

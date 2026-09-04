@@ -23,14 +23,27 @@ export const AUTOMATION_SKILL_PROFILES = {
   },
 } as const satisfies Record<string, AutomationSkillProfileConfig>;
 
-export interface TicketAiAutomationActionConfig extends AutomationActionConfig {
+interface TicketAiAutomationActionBase extends AutomationActionConfig {
   executor: Extract<AutomationActionConfig["executor"], { type: "backend_api" }>;
   promptKey: string;
+  provider: "kimi_acp" | "deepseek";
+  requiresConfirmation: boolean;
+}
+
+export interface KimiTicketAiAutomationActionConfig extends TicketAiAutomationActionBase {
+  provider: "kimi_acp";
   skillProfile: keyof typeof AUTOMATION_SKILL_PROFILES;
   skillId: string;
   executionPolicy: AutomationExecutionPolicy;
-  requiresConfirmation: boolean;
 }
+
+export interface DeepSeekTicketAiAutomationActionConfig extends TicketAiAutomationActionBase {
+  provider: "deepseek";
+}
+
+export type TicketAiAutomationActionConfig =
+  | KimiTicketAiAutomationActionConfig
+  | DeepSeekTicketAiAutomationActionConfig;
 
 export interface SprintAiAutomationActionConfig extends AutomationActionConfig {
   executor: Extract<AutomationActionConfig["executor"], { type: "backend_api" }>;
@@ -94,7 +107,7 @@ export const AUTOMATION_ACTIONS = {
   larkTicketSupportQaSummarize: {
     key: "lark-ticket-support-qa-summarize",
     title: "问题总结",
-    description: "读取当前 Ticket 和 Support-QA 知识库，生成问题总结。",
+    description: "读取当前 Ticket 固定快照，经 DeepSeek 生成并写回问题总结。",
     style: "default",
     placements: [],
     interaction: { type: "direct_execute" },
@@ -105,9 +118,7 @@ export const AUTOMATION_ACTIONS = {
       route: "/api/web/lark-tickets/:recordId/ai-sessions",
     },
     promptKey: "lark_ticket.support_qa.summarize",
-    skillProfile: "support_qa_eu",
-    skillId: "support_qa_query",
-    executionPolicy: "write+shell",
+    provider: "deepseek",
     requiresConfirmation: false,
   },
   larkTicketSupportQaAnswer: {
@@ -124,6 +135,7 @@ export const AUTOMATION_ACTIONS = {
       route: "/api/web/lark-tickets/:recordId/ai-sessions",
     },
     promptKey: "lark_ticket.support_qa.answer",
+    provider: "kimi_acp",
     skillProfile: "support_qa_eu",
     skillId: "support_qa_query",
     executionPolicy: "shell",
@@ -143,6 +155,7 @@ export const AUTOMATION_ACTIONS = {
       route: "/api/web/lark-tickets/:recordId/ai-sessions",
     },
     promptKey: "lark_ticket.support_qa.document_preview",
+    provider: "kimi_acp",
     skillProfile: "support_qa_eu",
     skillId: "support_qa_write",
     executionPolicy: "write+shell",
@@ -410,18 +423,20 @@ export type AutomationActionId = keyof typeof AUTOMATION_ACTIONS;
 export function getTicketAiAutomationAction(
   key: string,
 ): TicketAiAutomationActionConfig | undefined {
-  const action = (Object.values(AUTOMATION_ACTIONS) as AutomationActionConfig[])
+  const action = Object.values(AUTOMATION_ACTIONS)
     .find((candidate) => candidate.key === key);
   if (!action
+    || !("promptKey" in action)
     || !action.promptKey
-    || !action.skillProfile
-    || !action.skillId
-    || !action.executionPolicy
+    || !("provider" in action)
     || action.requiresConfirmation === undefined
     || action.executor.type !== "backend_api") {
     return undefined;
   }
-
+  if (action.provider === "kimi_acp"
+    && (!("skillProfile" in action) || !("skillId" in action) || !("executionPolicy" in action))) {
+    return undefined;
+  }
   return action as TicketAiAutomationActionConfig;
 }
 

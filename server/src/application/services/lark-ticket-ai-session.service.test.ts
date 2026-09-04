@@ -2,8 +2,43 @@ import { describe, expect, it, vi } from "vitest";
 import {
   createLarkTicketAiSessionService,
 } from "./lark-ticket-ai-session.service.js";
+import { DeepSeekChatError } from "../../adapters/deepseek/deepseek-chat-client.js";
+import { SupportTicketAnalysisError } from "./support-ticket-analysis.service.js";
 
 const ticket = { baseId: "app_1", tableId: "tbl_1", recordId: "rec_1" };
+
+function createDirectSummaryTestService(
+  deepSeekClient: { createJsonCompletion: ReturnType<typeof vi.fn> },
+  analysisService: { update: ReturnType<typeof vi.fn> },
+) {
+  return createLarkTicketAiSessionService({
+    syncStore: { getLarkBaseTicketsForCleaning: vi.fn().mockResolvedValue([{
+      ...ticket, title: "Ticket", ticketNumber: "LT-10", syncedAt: "2026-09-04T00:00:00.000Z",
+    }]) } as never,
+    ownershipStore: {} as never,
+    deepSeekClient,
+    analysisService: analysisService as never,
+    workflowPromptStore: { getByKey: vi.fn().mockResolvedValue({ prompt: "{{ticket_context}} {{user_message}}" }) } as never,
+    threadContextService: { ensure: vi.fn().mockResolvedValue({
+      source: "postgres",
+      decision: "cached",
+      snapshot: {
+        ...ticket, threadId: "thread_1", messages: [], preparedMessages: [{ messageId: "om_1", senderRole: "user", text: "问题", hasArtifact: false }], snapshotVersion: 1, historyComplete: true, dirty: false, createdAt: "2026-09-04T00:00:00.000Z", updatedAt: "2026-09-04T00:00:00.000Z",
+      },
+    }) } as never,
+  });
+}
+
+const validDirectSummaryResult = {
+  version: "support-analysis-result-v1",
+  analysis: {
+    segmentKey: "primary",
+    intent: { intentType: "other", intentSubtype: "unclassified", confidence: 0.5, summary: "总结", keywords: [], evidenceMessageIds: ["om_1"] },
+    result: { resolutionStatus: "pending", solutionSummary: null, solutionSteps: [], resolverRef: null, resolvedAt: null, autoResolvable: false, suggestedAutomation: null, confidence: 0.5 },
+    quality: { scores: {}, summary: "证据不足", criticalIssues: [], warnings: [] },
+  },
+  summary: "问题总结",
+};
 
 describe("Lark Ticket AI Session service", () => {
   it("starts a Kimi session with server-built Ticket context and associates it after creation", async () => {
@@ -103,11 +138,20 @@ describe("Lark Ticket AI Session service", () => {
 
   it("lists only sessions already associated with the requested Ticket", async () => {
     const ownershipStore = {
-      listByTicket: vi.fn().mockResolvedValue([{
-        sessionId: "sess_1",
-        title: "Create a PRD",
-        updatedAt: "2026-08-12T00:00:00.000Z",
-      }]),
+      listByTicket: vi.fn().mockResolvedValue([
+        {
+          sessionId: "sess_1",
+          title: "Create a PRD",
+          automationActionKey: null,
+          updatedAt: "2026-08-12T00:00:00.000Z",
+        },
+        {
+          sessionId: "sess_legacy_summary",
+          title: "问题总结",
+          automationActionKey: "lark-ticket-support-qa-summarize",
+          updatedAt: "2026-08-12T00:00:00.000Z",
+        },
+      ]),
     };
     const service = createLarkTicketAiSessionService({
       syncStore: {
@@ -128,160 +172,197 @@ describe("Lark Ticket AI Session service", () => {
     expect(ownershipStore.listByTicket).toHaveBeenCalledWith({ operatorLarkId: "ou_1", ...ticket });
   });
 
-  it("uses the action catalog prompt and permission context for a new quick-action Session", async () => {
-    const ownershipStore = {
-      getBySessionId: vi.fn(),
-      listByTicket: vi.fn(),
-      attachTicket: vi.fn().mockResolvedValue({ sessionId: "sess_2" }),
-      touch: vi.fn(),
-    };
-    const acpService = {
-      assertSessionAccess: vi.fn(),
-      chat: vi.fn(async (input, emit) => {
-        const analysisPath = input.message.match(/"subcommand":"analysis-update","args":\["([^"]+)","--json"\]/)?.[1];
-        expect(analysisPath).toMatch(/^\/srv\/odoo\/eu\/\.octo-support-analysis-[a-f0-9]+\.json$/);
-        emit({ event: "session.created", data: { sessionId: "sess_2" } });
-        emit({
-          event: "acp.session.update",
-          data: {
-            sessionId: "sess_2",
-            update: {
-              sessionUpdate: "tool_call",
-              toolCallId: "12:fetch_1",
-              status: "pending",
-            },
-          },
-        });
-        emit({
-          event: "acp.session.update",
-          data: {
-            sessionId: "sess_2",
-            update: {
-              sessionUpdate: "tool_call_update",
-              toolCallId: "12:fetch_1",
-              status: "in_progress",
-              rawInput: {
-                root: "support_workspace",
-                script: ".agents/skills/write-support-qa/scripts/write-support-qa.sh",
-                subcommand: "fetch",
-                args: ["LT-10", "--json"],
-              },
-            },
-          },
-        });
-        emit({
-          event: "acp.session.update",
-          data: {
-            sessionId: "sess_2",
-            update: {
-              sessionUpdate: "tool_call_update",
-              toolCallId: "12:fetch_1",
-              status: "completed",
-            },
-          },
-        });
-        emit({
-          event: "acp.session.update",
-          data: {
-            sessionId: "sess_2",
-            update: {
-              sessionUpdate: "tool_call_update",
-              toolCallId: "12:analysis_1",
-              status: "in_progress",
-              rawInput: {
-                root: "support_workspace",
-                script: ".agents/skills/write-support-qa/scripts/write-support-qa.sh",
-                subcommand: "analysis-update",
-                args: [analysisPath, "--json"],
-              },
-            },
-          },
-        });
-        emit({
-          event: "acp.session.update",
-          data: {
-            sessionId: "sess_2",
-            update: {
-              sessionUpdate: "tool_call_update",
-              toolCallId: "12:analysis_1",
-              status: "completed",
-            },
-          },
-        });
-        emit({ event: "done", data: { sessionId: "sess_2", stopReason: "end_turn" } });
-      }),
-    };
+  it("does not reopen a legacy ACP Session created by Ticket Summary", async () => {
+    const historyService = { loadSession: vi.fn() };
     const service = createLarkTicketAiSessionService({
-      syncStore: {
-        getLarkBaseTicketsForCleaning: vi.fn().mockResolvedValue([{
-          ...ticket,
-          title: "Ticket title",
-          ticketNumber: "LT-10",
-          syncedAt: "2026-08-12T00:00:00.000Z",
-        }]),
-      } as never,
-      ownershipStore: ownershipStore as never,
-      acpService: acpService as never,
-      workflowPromptStore: {
-        getByKey: vi.fn().mockResolvedValue({ prompt: "Skill: {{skill_path}}\n{{ticket_context}}\n{{user_message}}" }),
-      } as never,
-      threadContextService: {
-        ensure: vi.fn().mockResolvedValue({
-          decision: "cached",
-          source: "postgres",
-          snapshot: {
-            ...ticket,
-            messageLink: "https://example.test/thread",
-            threadId: "thread_1",
-            messages: [],
-            preparedMessages: [{ messageId: "om_1", senderRole: "user", text: "无法登录", hasArtifact: false }],
-            snapshotVersion: 3,
-            historyComplete: true,
-            dirty: false,
-            createdAt: "2026-09-01T09:00:00.000Z",
-            updatedAt: "2026-09-01T10:00:00.000Z",
-          },
+      ownershipStore: {
+        getBySessionId: vi.fn().mockResolvedValue({
+          sessionId: "sess_legacy_summary",
+          operatorLarkId: "ou_1",
+          ticketBaseId: ticket.baseId,
+          ticketTableId: ticket.tableId,
+          ticketRecordId: ticket.recordId,
+          automationActionKey: "lark-ticket-support-qa-summarize",
+          deletedAt: null,
         }),
       } as never,
-      resolveAction: vi.fn().mockResolvedValue({
-        action: {
-          key: "lark-ticket-support-qa-summarize",
-          promptKey: "lark_ticket.support_qa.summarize",
-          skillProfile: "support_qa_eu",
-          skillId: "support_qa_query",
-          executionPolicy: "write+shell",
-        },
-        workspaceDir: "/srv/odoo/eu",
-        octoServerDir: "/srv/octo/server",
-        skillPath: "/srv/odoo/eu/.agents/skills/query-support-qa/SKILL.md",
-      }),
+      historyService: historyService as never,
     });
+
+    await expect(service.loadSession({
+      operatorLarkId: "ou_1",
+      ticket,
+      sessionId: "sess_legacy_summary",
+    })).rejects.toMatchObject({ code: "SESSION_NOT_FOUND" });
+    expect(historyService.loadSession).not.toHaveBeenCalled();
+  });
+
+  it("runs Summary through DeepSeek, validates its fixed-snapshot evidence, and writes the analysis directly", async () => {
+    const analysis = {
+      segmentKey: "primary",
+      intent: {
+        intentType: "troubleshoot",
+        intentSubtype: "workflow_stuck",
+        confidence: 0.9,
+        summary: "用户无法登录，需要进一步确认报错信息。",
+        keywords: ["login"],
+        evidenceMessageIds: ["om_1"],
+      },
+      result: {
+        resolutionStatus: "needs_info",
+        solutionSummary: null,
+        solutionSteps: [],
+        resolverRef: null,
+        resolvedAt: null,
+        autoResolvable: false,
+        suggestedAutomation: null,
+        confidence: 0.7,
+      },
+      quality: { scores: {}, summary: "当前证据不足。", criticalIssues: [], warnings: ["缺少报错截图"] },
+    };
+    const deepSeekClient = {
+      createJsonCompletion: vi.fn().mockResolvedValue({
+        content: JSON.stringify({
+          version: "support-analysis-result-v1",
+          analysis,
+          summary: "用户无法登录，尚需补充报错信息。",
+        }),
+        model: "deepseek-v4-flash",
+      }),
+    };
+    const analysisService = { update: vi.fn().mockResolvedValue({ analysisRunId: "analysis_1" }) };
+    const ownershipStore = { listByTicket: vi.fn(), getBySessionId: vi.fn() };
+    const acpService = { assertSessionAccess: vi.fn(), chat: vi.fn() };
+    const service = createLarkTicketAiSessionService({
+      syncStore: { getLarkBaseTicketsForCleaning: vi.fn().mockResolvedValue([{
+        ...ticket, title: "Login failed", ticketNumber: "LT-10", detailDescription: "Cannot sign in", syncedAt: "2026-09-04T00:00:00.000Z",
+      }]) } as never,
+      ownershipStore: ownershipStore as never,
+      acpService: acpService as never,
+      deepSeekClient,
+      analysisService: analysisService as never,
+      workflowPromptStore: { getByKey: vi.fn().mockResolvedValue(undefined) } as never,
+      threadContextService: { ensure: vi.fn().mockResolvedValue({
+        decision: "cached",
+        source: "postgres",
+        snapshot: {
+          ...ticket,
+          threadId: "thread_1",
+          messages: [],
+          preparedMessages: [{ messageId: "om_1", senderRole: "user", text: "登录时报错", hasArtifact: false }],
+          snapshotVersion: 3,
+          historyComplete: true,
+          dirty: false,
+          createdAt: "2026-09-04T00:00:00.000Z",
+          updatedAt: "2026-09-04T00:00:00.000Z",
+        },
+      }) } as never,
+    });
+    const events: Array<{ event: string; data: Record<string, unknown> }> = [];
 
     await service.chat({
       operatorLarkId: "ou_1",
       masterUserId: "usr_1",
       larkBaseUrl: "https://open.larksuite.com",
       ticket,
-      message: "请总结问题",
+      message: "问题总结",
       actionKey: "lark-ticket-support-qa-summarize",
-      actionRunId: "action_summary_1",
-    }, vi.fn());
+      actionRunId: "run_deepseek_1",
+    }, (event) => events.push(event as never));
 
-    expect(acpService.chat).toHaveBeenCalledWith(expect.objectContaining({
-      message: expect.stringContaining("query-support-qa/SKILL.md"),
-      permissionContext: expect.objectContaining({
-        executionPolicy: "write+shell",
-        workspaceDir: "/srv/odoo/eu",
-        octoServerDir: "/srv/octo/server",
-        ticketNumber: "LT-10",
-        ticketRecordId: "rec_1",
-        actionRunId: "action_summary_1",
-        policyVersion: "v4-temporary-support-qa-bash",
+    expect(deepSeekClient.createJsonCompletion).toHaveBeenCalledWith(expect.objectContaining({
+      actionRunId: "run_deepseek_1",
+      prompt: expect.stringContaining("om_1"),
+    }));
+    expect(deepSeekClient.createJsonCompletion.mock.calls[0][0].prompt).toContain("evidenceMessageIds");
+    expect(deepSeekClient.createJsonCompletion.mock.calls[0][0].prompt).toContain("intentType 只能是以下 10 个值之一");
+    expect(analysisService.update).toHaveBeenCalledWith({
+      ticket,
+      snapshotVersion: 3,
+      actionRunId: "run_deepseek_1",
+      sourceName: "lark-ticket-support-qa-summarize",
+      reviewStatus: "ai_generated",
+      reviewerKind: "ai",
+      analysis,
+    });
+    expect(acpService.chat).not.toHaveBeenCalled();
+    expect(events.map((event) => event.event)).toEqual(["acp.session.update", "done"]);
+    expect(events[0]).toMatchObject({
+      data: { update: { content: { type: "text", text: "用户无法登录，尚需补充报错信息。" } } },
+    });
+    expect(events.some((event) => event.event === "session.created")).toBe(false);
+  });
+
+  it("rejects DeepSeek evidence outside the fixed snapshot without writing analysis", async () => {
+    const deepSeekClient = { createJsonCompletion: vi.fn().mockResolvedValue({
+      model: "deepseek-v4-flash",
+      content: JSON.stringify({
+        version: "support-analysis-result-v1",
+        analysis: {
+          segmentKey: "primary",
+          intent: { intentType: "other", intentSubtype: "unclassified", confidence: 0.5, summary: "总结", keywords: [], evidenceMessageIds: ["om_other"] },
+          result: { resolutionStatus: "pending", solutionSummary: null, solutionSteps: [], resolverRef: null, resolvedAt: null, autoResolvable: false, suggestedAutomation: null, confidence: 0.5 },
+          quality: { scores: {}, summary: "证据不足", criticalIssues: [], warnings: [] },
+        },
+        summary: "总结",
       }),
-    }), expect.any(Function), expect.any(Object));
-    expect(acpService.chat.mock.calls[0][0].message).toContain('"version":"support-analysis-v1"');
-    expect(acpService.chat.mock.calls[0][0].message).toContain('"subcommand":"analysis-update"');
-    expect(ownershipStore.attachTicket).toHaveBeenCalledWith(expect.objectContaining({ ticketNumber: "LT-10" }));
+    }) };
+    const analysisService = { update: vi.fn() };
+    const service = createLarkTicketAiSessionService({
+      syncStore: { getLarkBaseTicketsForCleaning: vi.fn().mockResolvedValue([{ ...ticket, title: "Ticket", syncedAt: "2026-09-04T00:00:00.000Z" }]) } as never,
+      ownershipStore: {} as never,
+      deepSeekClient,
+      analysisService: analysisService as never,
+      workflowPromptStore: { getByKey: vi.fn().mockResolvedValue({ prompt: "{{ticket_context}} {{user_message}}" }) } as never,
+      threadContextService: { ensure: vi.fn().mockResolvedValue({
+        source: "postgres",
+        decision: "cached",
+        snapshot: {
+          ...ticket, threadId: "thread_1", messages: [], preparedMessages: [{ messageId: "om_1", senderRole: "user", text: "问题", hasArtifact: false }], snapshotVersion: 1, historyComplete: true, dirty: false, createdAt: "2026-09-04T00:00:00.000Z", updatedAt: "2026-09-04T00:00:00.000Z",
+        },
+      }) } as never,
+    });
+
+    await expect(service.chat({
+      operatorLarkId: "ou_1", masterUserId: "usr_1", larkBaseUrl: "https://open.larksuite.com", ticket,
+      message: "问题总结", actionKey: "lark-ticket-support-qa-summarize", actionRunId: "run_bad_evidence",
+    }, vi.fn())).rejects.toMatchObject({ code: "DEEPSEEK_EVIDENCE_OUTSIDE_SNAPSHOT" });
+    expect(analysisService.update).not.toHaveBeenCalled();
+  });
+
+  it("does not write analysis when the DeepSeek request fails", async () => {
+    const analysisService = { update: vi.fn() };
+    const service = createDirectSummaryTestService({
+      createJsonCompletion: vi.fn().mockRejectedValue(new DeepSeekChatError("DEEPSEEK_REQUEST_FAILED", "Provider unavailable.")),
+    }, analysisService);
+
+    await expect(service.chat({
+      operatorLarkId: "ou_1", masterUserId: "usr_1", larkBaseUrl: "https://open.larksuite.com", ticket,
+      message: "问题总结", actionKey: "lark-ticket-support-qa-summarize", actionRunId: "run_provider_error",
+    }, vi.fn())).rejects.toMatchObject({ code: "DEEPSEEK_REQUEST_FAILED" });
+    expect(analysisService.update).not.toHaveBeenCalled();
+  });
+
+  it("returns a version conflict when the fixed snapshot expires before writeback", async () => {
+    const analysisService = {
+      update: vi.fn().mockRejectedValue(new SupportTicketAnalysisError(
+        "THREAD_SNAPSHOT_VERSION_CONFLICT",
+        "The analysis snapshot version is no longer current.",
+        "run_snapshot_conflict",
+      )),
+    };
+    const service = createDirectSummaryTestService({
+      createJsonCompletion: vi.fn().mockResolvedValue({
+        model: "deepseek-v4-flash",
+        content: JSON.stringify(validDirectSummaryResult),
+      }),
+    }, analysisService);
+
+    await expect(service.chat({
+      operatorLarkId: "ou_1", masterUserId: "usr_1", larkBaseUrl: "https://open.larksuite.com", ticket,
+      message: "问题总结", actionKey: "lark-ticket-support-qa-summarize", actionRunId: "run_snapshot_conflict",
+    }, vi.fn())).rejects.toMatchObject({ code: "THREAD_SNAPSHOT_VERSION_CONFLICT" });
+    expect(analysisService.update).toHaveBeenCalledTimes(1);
   });
 
   it("rejects a Support-QA quick action that ends without a completed Ticket fetch", async () => {
@@ -354,6 +435,7 @@ describe("Lark Ticket AI Session service", () => {
       } as never,
       ownershipStore: ownershipStore as never,
       acpService: acpService as never,
+      knowledgeRetriever: { searchApproved: vi.fn().mockResolvedValue([]) } as never,
       workflowPromptStore: {
         getByKey: vi.fn().mockResolvedValue({ prompt: "Skill: {{skill_path}}\n{{ticket_context}}\n{{user_message}}" }),
       } as never,
@@ -377,11 +459,13 @@ describe("Lark Ticket AI Session service", () => {
       } as never,
       resolveAction: vi.fn().mockResolvedValue({
         action: {
-          key: "lark-ticket-support-qa-summarize",
-          promptKey: "lark_ticket.support_qa.summarize",
+          key: "lark-ticket-support-qa-answer",
+          promptKey: "lark_ticket.support_qa.answer",
           skillProfile: "support_qa_eu",
           skillId: "support_qa_query",
-          executionPolicy: "write+shell",
+          executionPolicy: "shell",
+          provider: "kimi_acp",
+          requiresConfirmation: false,
         },
         workspaceDir: "/srv/odoo/eu",
         octoServerDir: "/srv/octo/server",
@@ -395,8 +479,8 @@ describe("Lark Ticket AI Session service", () => {
       masterUserId: "usr_1",
       larkBaseUrl: "https://open.larksuite.com",
       ticket,
-      message: "请总结问题",
-      actionKey: "lark-ticket-support-qa-summarize",
+      message: "请回答问题",
+      actionKey: "lark-ticket-support-qa-answer",
       actionRunId: "run_1",
     }, (event) => events.push(event))).rejects.toMatchObject({
       code: "SUPPORT_QA_EVIDENCE_NOT_FETCHED",
@@ -414,93 +498,6 @@ describe("Lark Ticket AI Session service", () => {
       status: "failed",
       errorCode: "SUPPORT_QA_EVIDENCE_NOT_FETCHED",
       unverifiedOutput: "这是一份未验证答案",
-    }));
-  });
-
-  it("rejects a Summary result when ACP does not complete the signed analysis update", async () => {
-    const ownershipStore = {
-      getBySessionId: vi.fn(),
-      listByTicket: vi.fn(),
-      attachTicket: vi.fn().mockResolvedValue({ sessionId: "sess_no_analysis" }),
-      updateRun: vi.fn(),
-      touch: vi.fn(),
-    };
-    const acpService = {
-      assertSessionAccess: vi.fn(),
-      chat: vi.fn(async (_input, emit) => {
-        emit({ event: "session.created", data: { sessionId: "sess_no_analysis" } });
-        emit({
-          event: "acp.session.update",
-          data: { sessionId: "sess_no_analysis", update: {
-            sessionUpdate: "tool_call_update", toolCallId: "fetch_1", status: "in_progress",
-            rawInput: { command: "bash .agents/skills/write-support-qa/scripts/write-support-qa.sh fetch LT-10 --json" },
-          } },
-        });
-        emit({
-          event: "acp.session.update",
-          data: { sessionId: "sess_no_analysis", update: {
-            sessionUpdate: "tool_call_update", toolCallId: "fetch_1", status: "completed",
-          } },
-        });
-        emit({ event: "done", data: { sessionId: "sess_no_analysis", stopReason: "end_turn" } });
-      }),
-    };
-    const service = createLarkTicketAiSessionService({
-      syncStore: { getLarkBaseTicketsForCleaning: vi.fn().mockResolvedValue([{
-        ...ticket, title: "Ticket title", ticketNumber: "LT-10", syncedAt: "2026-08-12T00:00:00.000Z",
-      }]) } as never,
-      ownershipStore: ownershipStore as never,
-      acpService: acpService as never,
-      workflowPromptStore: { getByKey: vi.fn().mockResolvedValue({ prompt: "{{ticket_context}}" }) } as never,
-      threadContextService: { ensure: vi.fn().mockResolvedValue({
-        decision: "cached",
-        source: "postgres",
-        snapshot: {
-          ...ticket,
-          messageLink: "https://example.test/thread",
-          threadId: "thread_1",
-          messages: [],
-          preparedMessages: [{ messageId: "om_1", senderRole: "user", text: "无法登录", hasArtifact: false }],
-          snapshotVersion: 3,
-          historyComplete: true,
-          dirty: false,
-          createdAt: "2026-09-01T09:00:00.000Z",
-          updatedAt: "2026-09-01T10:00:00.000Z",
-        },
-      }) } as never,
-      resolveAction: vi.fn().mockResolvedValue({
-        action: {
-          key: "lark-ticket-support-qa-summarize",
-          promptKey: "lark_ticket.support_qa.summarize",
-          skillProfile: "support_qa_eu",
-          skillId: "support_qa_query",
-          executionPolicy: "write+shell",
-        },
-        workspaceDir: "/srv/odoo/eu",
-        octoServerDir: "/srv/octo/server",
-        skillPath: "/srv/odoo/eu/.agents/skills/query-support-qa/SKILL.md",
-      }),
-    });
-    const events: Array<{ event: string }> = [];
-
-    await expect(service.chat({
-      operatorLarkId: "ou_1",
-      masterUserId: "usr_1",
-      larkBaseUrl: "https://open.larksuite.com",
-      ticket,
-      message: "请总结问题",
-      actionKey: "lark-ticket-support-qa-summarize",
-      actionRunId: "run_no_analysis",
-    }, (event) => events.push(event))).rejects.toMatchObject({
-      code: "SUPPORT_ANALYSIS_NOT_UPDATED",
-      diagnostic: { stage: "server.analysis.update", actionRunId: "run_no_analysis" },
-    });
-    expect(events.some((event) => event.event === "done")).toBe(false);
-    expect(ownershipStore.attachTicket).toHaveBeenCalled();
-    expect(ownershipStore.updateRun).toHaveBeenCalledWith(expect.objectContaining({
-      actionRunId: "run_no_analysis",
-      status: "failed",
-      errorCode: "SUPPORT_ANALYSIS_NOT_UPDATED",
     }));
   });
 

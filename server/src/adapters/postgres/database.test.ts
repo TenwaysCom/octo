@@ -1,11 +1,54 @@
 import { describe, expect, it } from "vitest";
 import { Kysely, PostgresDialect, sql } from "kysely";
 import { newDb } from "pg-mem";
-import { renameLegacyUserSshPublicKeyIdColumn } from "./database.js";
+import { migrateLegacyLarkTicketSupportQaSummaryPrompt, renameLegacyUserSshPublicKeyIdColumn } from "./database.js";
 import type { DatabaseSchema } from "./schema.js";
 import { createTestPostgresDatabase } from "./test-db.js";
+import {
+  DEFAULT_LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_TEMPLATE,
+  LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_KEY,
+  LEGACY_LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_TEMPLATES,
+} from "../../domain/workflow-prompts.js";
 
 describe("postgres database helpers", () => {
+  it("seeds the fixed-snapshot Ticket Summary prompt on its established key", async () => {
+    const { db } = await createTestPostgresDatabase();
+    await expect(db.selectFrom("workflow_prompts")
+      .select(["key", "prompt"])
+      .where("key", "=", LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_KEY)
+      .executeTakeFirst()).resolves.toEqual(expect.objectContaining({
+        key: LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_KEY,
+        prompt: expect.stringContaining('"version":"support-analysis-result-v1"'),
+      }));
+  });
+
+  it("migrates the known ACP Summary default without overwriting arbitrary prompts", async () => {
+    const { db } = await createTestPostgresDatabase();
+    await db.updateTable("workflow_prompts")
+      .set({ prompt: LEGACY_LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_TEMPLATES[0] })
+      .where("key", "=", LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_KEY)
+      .execute();
+
+    await migrateLegacyLarkTicketSupportQaSummaryPrompt(db, "2026-09-04T01:00:00.000Z");
+
+    await expect(db.selectFrom("workflow_prompts")
+      .select("prompt")
+      .where("key", "=", LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_KEY)
+      .executeTakeFirstOrThrow()).resolves.toEqual({
+        prompt: DEFAULT_LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_TEMPLATE,
+      });
+
+    await db.updateTable("workflow_prompts")
+      .set({ prompt: "管理员自定义问题总结提示词" })
+      .where("key", "=", LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_KEY)
+      .execute();
+    await migrateLegacyLarkTicketSupportQaSummaryPrompt(db, "2026-09-04T02:00:00.000Z");
+    await expect(db.selectFrom("workflow_prompts")
+      .select("prompt")
+      .where("key", "=", LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_KEY)
+      .executeTakeFirstOrThrow()).resolves.toEqual({ prompt: "管理员自定义问题总结提示词" });
+  });
+
   it("allows the same lark id to exist under different tenant keys", async () => {
     const { db } = await createTestPostgresDatabase();
 

@@ -7,6 +7,19 @@ export const SUPPORT_INTENT_TYPES = [
 
 export type SupportIntentType = typeof SUPPORT_INTENT_TYPES[number];
 
+export const SUPPORT_INTENT_SUBTYPES: Record<SupportIntentType, readonly string[]> = {
+  access_request: ["grant_permission", "modify_permission", "account_setup", "other"],
+  troubleshoot: ["data_inconsistency", "integration_sync", "workflow_stuck", "report_issue", "case_lookup", "other"],
+  how_to: ["usage_guidance", "business_rule", "where_to_find", "other"],
+  bug_report: ["configuration_master_data", "integration", "data_consistency", "permission_access", "usability_display", "reporting", "workflow_status", "performance", "vendor_third_party", "regression_change_side_effect", "other"],
+  service_request: ["new_feature", "enhancement", "config_change", "data_maintenance", "product_info_maintenance", "other"],
+  follow_up: ["status_inquiry", "reminder", "reopen", "other"],
+  confirmation: ["confirm_resolved", "confirm_received", "other"],
+  escalation: ["urgent", "complaint", "handover", "other"],
+  chatter: ["greeting", "thanks", "smalltalk", "other"],
+  other: ["unclassified"],
+};
+
 export const SUPPORT_REDACTION_VERSION = "v2";
 
 export interface PreparedTicketMessage {

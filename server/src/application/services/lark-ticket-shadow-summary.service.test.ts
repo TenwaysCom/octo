@@ -1,6 +1,6 @@
 import type { LarkBaseTicketSyncItem } from "../../adapters/postgres/platform-sync-store.js";
 import type { LarkTicketThreadSnapshot } from "../../adapters/postgres/lark-ticket-thread-sync-store.js";
-import type { AcpKimiStreamEvent } from "../../modules/acp-kimi/event-stream.js";
+import { DeepSeekChatError } from "../../adapters/deepseek/deepseek-chat-client.js";
 import {
   createLarkTicketShadowSummaryService,
   LarkTicketShadowSummaryError,
@@ -84,12 +84,14 @@ function validAnalysisJson(evidenceMessageIds: string[] = ["om_1"]): string {
 function makeDeps(input: {
   candidates?: LarkBaseTicketSyncItem[];
   threadResult?: { source: "none" | "cache" | "lark" | "stale_cache"; snapshot?: LarkTicketThreadSnapshot };
-  acpText?: string;
-  acpError?: Error;
+  deepSeekText?: string;
+  deepSeekError?: Error;
   prompt?: string;
+  promptKey?: string;
 }) {
   const writes: Array<Record<string, unknown>> = [];
   const prompts: string[] = [];
+  const actionRunIds: string[] = [];
   const service = createLarkTicketShadowSummaryService({
     masterUserId: "master-1",
     larkBaseUrl: "https://open.feishu.cn",
@@ -108,20 +110,15 @@ function makeDeps(input: {
         snapshot: input.threadResult?.snapshot,
       }),
     },
-    acpService: {
-      chatOneShot: async ({ message }, emit) => {
-        prompts.push(message);
-        if (input.acpError) throw input.acpError;
-        emit({
-          event: "acp.session.update",
-          data: {
-            sessionId: "session-test",
-            update: {
-              sessionUpdate: "agent_message_chunk",
-              content: { type: "text", text: input.acpText ?? validAnalysisJson() },
-            },
-          },
-        } as unknown as AcpKimiStreamEvent);
+    deepSeekClient: {
+      createJsonCompletion: async ({ prompt, actionRunId }) => {
+        prompts.push(prompt);
+        actionRunIds.push(actionRunId);
+        if (input.deepSeekError) throw input.deepSeekError;
+        return {
+          content: input.deepSeekText ?? validAnalysisJson(),
+          model: "deepseek-v4-flash",
+        };
       },
     },
     promptStore: {
@@ -131,13 +128,14 @@ function makeDeps(input: {
           ? { key, prompt: input.prompt, note: null, createdAt: "2026-09-03T00:00:00.000Z", updatedAt: "2026-09-03T00:00:00.000Z" }
           : undefined,
     },
+    promptKey: input.promptKey,
   });
-  return { service, writes, prompts };
+  return { service, writes, prompts, actionRunIds };
 }
 
 describe("lark-ticket-shadow-summary.service", () => {
   it("summarizes a candidate and writes the ok shadow payload", async () => {
-    const { service, writes, prompts } = makeDeps({
+    const { service, writes, prompts, actionRunIds } = makeDeps({
       candidates: [makeTicket()],
       threadResult: { source: "lark", snapshot: makeSnapshot() },
     });
@@ -150,9 +148,10 @@ describe("lark-ticket-shadow-summary.service", () => {
     expect(shadow.status).toBe("ok");
     expect(shadow.analysis.analysis.intent.intentType).toBe("troubleshoot");
     expect(shadow.snapshotVersion).toBe(7);
-    expect(shadow.promptVersion).toBe("v2");
+    expect(shadow.promptVersion).toBe("v4");
     expect(prompts[0]).toContain("订单无法添加促销");
     expect(prompts[0]).toContain("om_1");
+    expect(actionRunIds[0]).toEqual(expect.any(String));
   });
 
   it("marks tickets without a thread link as skipped", async () => {
@@ -180,28 +179,28 @@ describe("lark-ticket-shadow-summary.service", () => {
     expect((writes[0] as { reason: string }).reason).toBe("no_messages");
   });
 
-  it("writes an error shadow when the ACP output is not valid JSON", async () => {
+  it("writes an error shadow when the DeepSeek output is not valid JSON", async () => {
     const { service, writes } = makeDeps({
       candidates: [makeTicket()],
       threadResult: { source: "lark", snapshot: makeSnapshot() },
-      acpText: "这不是 JSON",
+      deepSeekText: "这不是 JSON",
     });
 
     const result = await service.runOnce();
 
     expect(result.failed).toBe(1);
-    const shadow = writes[0] as { status: string; error: { errorCode: string; errorMessage: string; outputChars: number; outputPreview: string } };
+    const shadow = writes[0] as { status: string; error: { errorCode: string; errorMessage: string; outputChars: number; outputPreview?: string } };
     expect(shadow.status).toBe("error");
     expect(shadow.error.errorCode).toBe("SHADOW_OUTPUT_INVALID");
     expect(shadow.error.outputChars).toBe("这不是 JSON".length);
-    expect(shadow.error.outputPreview).toBe("这不是 JSON");
+    expect(shadow.error.outputPreview).toBeUndefined();
   });
 
-  it("writes an error shadow when the ACP output is empty", async () => {
+  it("writes an error shadow when the DeepSeek output is empty", async () => {
     const { service, writes } = makeDeps({
       candidates: [makeTicket()],
       threadResult: { source: "lark", snapshot: makeSnapshot() },
-      acpText: "   ",
+      deepSeekText: "   ",
     });
 
     const result = await service.runOnce();
@@ -209,31 +208,31 @@ describe("lark-ticket-shadow-summary.service", () => {
     expect(result.failed).toBe(1);
     const shadow = writes[0] as { error: { errorCode: string; errorMessage: string; outputChars: number } };
     expect(shadow.error.errorCode).toBe("SHADOW_OUTPUT_INVALID");
-    expect(shadow.error.errorMessage).toBe("Shadow ACP output was empty.");
-    expect(shadow.error.outputChars).toBe(0);
+    expect(shadow.error.errorMessage).toBe("Shadow DeepSeek output did not contain a JSON object.");
+    expect(shadow.error.outputChars).toBe(3);
   });
 
-  it("writes an error shadow when the ACP output fails schema validation", async () => {
+  it("writes an error shadow when the DeepSeek output fails schema validation", async () => {
     const { service, writes } = makeDeps({
       candidates: [makeTicket()],
       threadResult: { source: "lark", snapshot: makeSnapshot() },
-      acpText: JSON.stringify({ version: "support-analysis-result-v1", analysis: { intent: { intentType: "feature_request" } } }),
+      deepSeekText: JSON.stringify({ version: "support-analysis-result-v1", analysis: { intent: { intentType: "feature_request" } } }),
     });
 
     const result = await service.runOnce();
 
     expect(result.failed).toBe(1);
-    const shadow = writes[0] as { error: { errorCode: string; errorMessage: string; outputChars: number; outputPreview: string } };
+    const shadow = writes[0] as { error: { errorCode: string; errorMessage: string; outputChars: number; outputPreview?: string } };
     expect(shadow.error.errorCode).toBe("SHADOW_OUTPUT_INVALID");
     expect(shadow.error.errorMessage).toContain("schema validation");
-    expect(shadow.error.outputPreview).toContain("feature_request");
+    expect(shadow.error.outputPreview).toBeUndefined();
   });
 
   it("rejects evidence message IDs outside the fixed snapshot", async () => {
     const { service, writes } = makeDeps({
       candidates: [makeTicket()],
       threadResult: { source: "lark", snapshot: makeSnapshot(["om_1"]) },
-      acpText: validAnalysisJson(["om_not_in_snapshot"]),
+      deepSeekText: validAnalysisJson(["om_not_in_snapshot"]),
     });
 
     const result = await service.runOnce();
@@ -242,54 +241,66 @@ describe("lark-ticket-shadow-summary.service", () => {
     expect((writes[0] as { error: { errorCode: string } }).error.errorCode).toBe("SHADOW_EVIDENCE_OUTSIDE_SNAPSHOT");
   });
 
-  it("classifies provider errors returned as output text", async () => {
-    const providerError = "Error: [provider.auth_error] 403 You've reached your 5-hour usage limit. Your quota will reset when the current 5-hour window ends.";
+  it("persists typed DeepSeek response errors", async () => {
     const { service, writes } = makeDeps({
       candidates: [makeTicket()],
       threadResult: { source: "lark", snapshot: makeSnapshot() },
-      acpText: providerError,
-    });
-
-    const result = await service.runOnce();
-
-    expect(result.failed).toBe(1);
-    const shadow = writes[0] as { error: { errorCode: string; errorMessage: string; outputChars: number; outputPreview: string } };
-    expect(shadow.error.errorCode).toBe("SHADOW_ACP_PROVIDER_ERROR");
-    expect(shadow.error.errorMessage).toContain("provider.auth_error");
-    expect(shadow.error.outputChars).toBe(providerError.length);
-    expect(shadow.error.outputPreview).toContain("5-hour usage limit");
-  });
-
-  it("classifies provider errors thrown by the ACP call", async () => {
-    const { service, writes } = makeDeps({
-      candidates: [makeTicket()],
-      threadResult: { source: "lark", snapshot: makeSnapshot() },
-      acpError: new Error("[provider.rate_limit] 429 too many requests"),
+      deepSeekError: new DeepSeekChatError(
+        "DEEPSEEK_RESPONSE_INVALID",
+        "DeepSeek returned an empty or truncated completion.",
+      ),
     });
 
     const result = await service.runOnce();
 
     expect(result.failed).toBe(1);
     const shadow = writes[0] as { error: { errorCode: string; errorMessage: string } };
-    expect(shadow.error.errorCode).toBe("SHADOW_ACP_PROVIDER_ERROR");
-    expect(shadow.error.errorMessage).toContain("provider.rate_limit");
+    expect(shadow.error.errorCode).toBe("DEEPSEEK_RESPONSE_INVALID");
+    expect(shadow.error.errorMessage).toContain("empty or truncated");
   });
 
-  it("writes an error shadow when the ACP call fails", async () => {
+  it("persists DeepSeek request status without response content", async () => {
     const { service, writes } = makeDeps({
       candidates: [makeTicket()],
       threadResult: { source: "lark", snapshot: makeSnapshot() },
-      acpError: new Error("process exited"),
+      deepSeekError: new DeepSeekChatError("DEEPSEEK_REQUEST_FAILED", "DeepSeek request failed with status 429.", 429),
     });
 
     const result = await service.runOnce();
 
     expect(result.failed).toBe(1);
-    expect((writes[0] as { error: { errorCode: string } }).error.errorCode).toBe("SHADOW_ACP_FAILED");
+    const shadow = writes[0] as { error: { errorCode: string; errorMessage: string; statusCode: number } };
+    expect(shadow.error.errorCode).toBe("DEEPSEEK_REQUEST_FAILED");
+    expect(shadow.error.errorMessage).toContain("status 429");
+    expect(shadow.error.statusCode).toBe(429);
   });
 
-  it("fails fast when the workflow prompt is not configured", async () => {
-    const { service } = makeDeps({ prompt: "" });
+  it("writes an error shadow when the DeepSeek call fails unexpectedly", async () => {
+    const { service, writes } = makeDeps({
+      candidates: [makeTicket()],
+      threadResult: { source: "lark", snapshot: makeSnapshot() },
+      deepSeekError: new Error("connection failed"),
+    });
+
+    const result = await service.runOnce();
+
+    expect(result.failed).toBe(1);
+    expect((writes[0] as { error: { errorCode: string } }).error.errorCode).toBe("DEEPSEEK_REQUEST_FAILED");
+  });
+
+  it("uses the built-in default when the database prompt is missing", async () => {
+    const { service, prompts } = makeDeps({
+      candidates: [makeTicket()],
+      threadResult: { source: "lark", snapshot: makeSnapshot() },
+      prompt: "",
+    });
+
+    await expect(service.runOnce()).resolves.toMatchObject({ summarized: 1 });
+    expect(prompts[0]).toContain("intentType");
+  });
+
+  it("fails fast when neither the database nor a built-in prompt is configured", async () => {
+    const { service } = makeDeps({ prompt: "", promptKey: "unknown.prompt" });
 
     await expect(service.runOnce()).rejects.toMatchObject({
       code: "SHADOW_PROMPT_NOT_CONFIGURED",
@@ -302,7 +313,7 @@ describe("lark-ticket-shadow-summary.service", () => {
     const { service, writes } = makeDeps({
       candidates: [first, second],
       threadResult: { source: "lark", snapshot: makeSnapshot() },
-      acpText: "不是 JSON",
+      deepSeekText: "不是 JSON",
     });
 
     const result = await service.runOnce();

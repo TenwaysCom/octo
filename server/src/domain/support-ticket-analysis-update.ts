@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { SUPPORT_INTENT_TYPES } from "./support-ticket-analysis.js";
+import { SUPPORT_INTENT_SUBTYPES, SUPPORT_INTENT_TYPES } from "./support-ticket-analysis.js";
 
 const shortText = z.string().trim().min(1).max(500);
 const optionalText = z.string().trim().min(1).max(500).optional().nullable();
@@ -40,6 +40,23 @@ export const supportAnalysisPayloadSchema = z.object({
 }).strict();
 
 export type SupportAnalysisPayload = z.infer<typeof supportAnalysisPayloadSchema>;
+
+export const supportAnalysisResultSchema = z.object({
+  version: z.literal("support-analysis-result-v1"),
+  analysis: supportAnalysisPayloadSchema,
+  summary: z.string().trim().min(1).max(2000),
+}).strict().superRefine((value, context) => {
+  const { intentType, intentSubtype } = value.analysis.intent;
+  if (!intentSubtype || !SUPPORT_INTENT_SUBTYPES[intentType].includes(intentSubtype)) {
+    context.addIssue({
+      code: "custom",
+      path: ["analysis", "intent", "intentSubtype"],
+      message: `intentSubtype must belong to ${intentType}.`,
+    });
+  }
+});
+
+export type SupportAnalysisResult = z.infer<typeof supportAnalysisResultSchema>;
 
 export function buildSupportQaFetchInstruction(ticketNumber: string): string {
   return `这是一个受控执行任务。不得调用 Bash、terminal 或其他 shell 工具，也不得在第一条受控操作前输出结论。

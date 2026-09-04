@@ -49,8 +49,14 @@ function toErrorResponse(error: unknown) {
     return { statusCode: 400, body: { ok: false as const, error: { errorCode: "INVALID_REQUEST", errorMessage: error.message } } };
   }
   if (error instanceof LarkTicketAiSessionError) {
-    const statusCode = error.code === "LARK_THREAD_CONTEXT_UNAVAILABLE"
+    const statusCode = error.code === "DEEPSEEK_TIMEOUT"
+      ? 504
+      : error.code === "LARK_THREAD_CONTEXT_UNAVAILABLE" || error.code === "DEEPSEEK_API_KEY_MISSING"
       ? 503
+      : error.code === "DEEPSEEK_REQUEST_FAILED" || error.code === "DEEPSEEK_RESPONSE_INVALID" || error.code === "DEEPSEEK_OUTPUT_INVALID"
+        ? 502
+        : error.code === "DEEPSEEK_EVIDENCE_OUTSIDE_SNAPSHOT" || error.code === "THREAD_SNAPSHOT_VERSION_CONFLICT"
+          ? 409
       : error.code === "SUPPORT_QA_EVIDENCE_NOT_FETCHED" || error.code === "SUPPORT_ANALYSIS_NOT_UPDATED"
         ? 502
         : error.code === "LARK_TICKET_NOT_FOUND" || error.code === "SESSION_NOT_FOUND"

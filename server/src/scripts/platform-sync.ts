@@ -55,6 +55,8 @@ const shadowTaskSchema = z.object({
   intervalMinutes: z.number().int().min(1).max(1440).optional(),
   settleMinutes: z.number().int().min(1).max(10080).optional(),
   batchLimit: z.number().int().min(1).max(50).optional(),
+  deepSeekTimeoutSeconds: z.number().int().min(30).max(1800).optional(),
+  // Backward-compatible read for existing local configs; new configs use deepSeekTimeoutSeconds.
   acpTimeoutSeconds: z.number().int().min(30).max(1800).optional(),
 });
 

@@ -107,6 +107,7 @@ export async function runPlatformSyncWorker(): Promise<void> {
     const shadowMasterUserId = process.env.PLATFORM_SYNC_MASTER_USER_ID;
     if (shadowEnabled) {
       if (shadowMasterUserId) {
+        const shadowDeepSeekTimeoutSeconds = shadowTask.deepSeekTimeoutSeconds ?? shadowTask.acpTimeoutSeconds;
         const shadowService = createLarkTicketShadowSummaryService({
           syncStore,
           masterUserId: shadowMasterUserId,
@@ -114,7 +115,7 @@ export async function runPlatformSyncWorker(): Promise<void> {
           ...(shadowTask.settleMinutes ? { settleMs: shadowTask.settleMinutes * 60_000 } : {}),
           ...(shadowTask.batchLimit ? { batchLimit: shadowTask.batchLimit } : {}),
           ...(shadowTask.intervalMinutes ? { pollIntervalMs: shadowTask.intervalMinutes * 60_000 } : {}),
-          ...(shadowTask.acpTimeoutSeconds ? { acpTimeoutMs: shadowTask.acpTimeoutSeconds * 1000 } : {}),
+          ...(shadowDeepSeekTimeoutSeconds ? { deepSeekTimeoutMs: shadowDeepSeekTimeoutSeconds * 1000 } : {}),
         });
         loops.push(shadowService.run(abortController.signal));
         workerLogger.info({

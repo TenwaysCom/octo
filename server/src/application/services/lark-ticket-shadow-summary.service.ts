@@ -10,6 +10,12 @@ import {
   type WorkflowPromptStore,
 } from "../../adapters/postgres/workflow-prompt-store.js";
 import {
+  createDeepSeekChatClient,
+  DeepSeekChatError,
+  type DeepSeekChatErrorCode,
+  type DeepSeekJsonCompletionClient,
+} from "../../adapters/deepseek/deepseek-chat-client.js";
+import {
   supportQualityUpdateSchema,
   supportResultUpdateSchema,
 } from "../../domain/support-ticket-analysis-update.js";
@@ -17,11 +23,12 @@ import {
   SUPPORT_INTENT_TYPES,
   type PreparedTicketMessage,
 } from "../../domain/support-ticket-analysis.js";
-import { renderWorkflowPromptTemplate } from "../../domain/workflow-prompts.js";
+import {
+  DEFAULT_LARK_TICKET_SUPPORT_QA_PROMPTS,
+  renderWorkflowPromptTemplate,
+} from "../../domain/workflow-prompts.js";
 import type { LarkTicketThreadSnapshot } from "../../adapters/postgres/lark-ticket-thread-sync-store.js";
-import type { AcpKimiStreamEvent } from "../../modules/acp-kimi/event-stream.js";
 import { logger } from "../../logger.js";
-import { acpKimiProxyService } from "./acp-kimi-proxy.service.js";
 import {
   createLarkTicketThreadContextService,
   type LarkTicketThreadContextResult,
@@ -31,11 +38,10 @@ const shadowLogger = logger.child({ module: "lark-ticket-shadow-summary" });
 
 export const LARK_TICKET_SHADOW_SUMMARY_PROMPT_KEY = "lark_ticket.support_qa.summarize";
 export const LARK_TICKET_SHADOW_SUMMARY_SOURCE = "shadow-worker";
-export const LARK_TICKET_SHADOW_SUMMARY_PROMPT_VERSION = "v2";
+export const LARK_TICKET_SHADOW_SUMMARY_PROMPT_VERSION = "v4";
 
 const DEFAULT_SETTLE_MS = 3 * 60 * 60 * 1000;
 const DEFAULT_BATCH_LIMIT = 5;
-const DEFAULT_ACP_TIMEOUT_MS = 300_000;
 const DEFAULT_POLL_INTERVAL_MS = 60 * 60 * 1000;
 const MAX_MESSAGE_CHARS = 1000;
 const MAX_CONTEXT_CHARS = 30_000;
@@ -65,9 +71,7 @@ export type ShadowAnalysisResult = z.infer<typeof shadowAnalysisResultSchema>;
 export type ShadowSummaryErrorCode =
   | "SHADOW_PROMPT_NOT_CONFIGURED"
   | "SHADOW_THREAD_UNAVAILABLE"
-  | "SHADOW_ACP_TIMEOUT"
-  | "SHADOW_ACP_FAILED"
-  | "SHADOW_ACP_PROVIDER_ERROR"
+  | DeepSeekChatErrorCode
   | "SHADOW_OUTPUT_INVALID"
   | "SHADOW_EVIDENCE_OUTSIDE_SNAPSHOT";
 
@@ -99,24 +103,16 @@ interface ThreadContextLike {
   }): Promise<LarkTicketThreadContextResult>;
 }
 
-interface AcpOneShotLike {
-  chatOneShot(
-    input: { operatorLarkId: string; message: string },
-    emit: (event: AcpKimiStreamEvent) => void,
-    deps?: { signal?: AbortSignal },
-  ): Promise<unknown>;
-}
-
 export interface LarkTicketShadowSummaryServiceDeps {
   syncStore?: Pick<PlatformSyncStore, "listLarkTicketShadowSummaryCandidates" | "upsertLarkBaseTicketShadowAi">;
   threadContext?: ThreadContextLike;
-  acpService?: AcpOneShotLike;
+  deepSeekClient?: DeepSeekJsonCompletionClient;
+  deepSeekTimeoutMs?: number;
   promptStore?: Pick<WorkflowPromptStore, "getByKey">;
   masterUserId?: string;
   larkBaseUrl?: string;
   settleMs?: number;
   batchLimit?: number;
-  acpTimeoutMs?: number;
   pollIntervalMs?: number;
   promptKey?: string;
   now?: () => Date;
@@ -125,12 +121,13 @@ export interface LarkTicketShadowSummaryServiceDeps {
 export function createLarkTicketShadowSummaryService(deps: LarkTicketShadowSummaryServiceDeps = {}) {
   const syncStore = deps.syncStore ?? new PostgresPlatformSyncStore();
   const threadContext = deps.threadContext ?? createLarkTicketThreadContextService();
-  const acpService = deps.acpService ?? acpKimiProxyService;
+  const deepSeekClient = deps.deepSeekClient ?? createDeepSeekChatClient(
+    deps.deepSeekTimeoutMs ? { timeoutMs: deps.deepSeekTimeoutMs } : {},
+  );
   const promptStore = deps.promptStore ?? getWorkflowPromptStore();
   const now = deps.now ?? (() => new Date());
   const settleMs = deps.settleMs ?? readPositiveInt(process.env.LARK_TICKET_SHADOW_SUMMARY_SETTLE_MS, DEFAULT_SETTLE_MS);
   const batchLimit = deps.batchLimit ?? readPositiveInt(process.env.LARK_TICKET_SHADOW_SUMMARY_BATCH_LIMIT, DEFAULT_BATCH_LIMIT);
-  const acpTimeoutMs = deps.acpTimeoutMs ?? readPositiveInt(process.env.LARK_TICKET_SHADOW_SUMMARY_ACP_TIMEOUT_MS, DEFAULT_ACP_TIMEOUT_MS);
   const pollIntervalMs = deps.pollIntervalMs ?? readPositiveInt(process.env.LARK_TICKET_SHADOW_SUMMARY_POLL_INTERVAL_MS, DEFAULT_POLL_INTERVAL_MS);
   const promptKey = deps.promptKey ?? LARK_TICKET_SHADOW_SUMMARY_PROMPT_KEY;
 
@@ -188,8 +185,8 @@ export function createLarkTicketShadowSummaryService(deps: LarkTicketShadowSumma
         ticket_context: buildTicketContext(ticket, snapshot),
         user_message: readUserMessage(ticket),
       });
-      const text = await runAcpPrompt(prompt, acpTimeoutMs);
-      const analysis = parseShadowAnalysis(text);
+      const completion = await runDeepSeekCompletion(deepSeekClient, prompt, actionRunId);
+      const analysis = parseShadowAnalysis(completion.content);
       assertEvidenceWithinSnapshot(analysis, snapshot.preparedMessages);
 
       await writeShadow(ticket, {
@@ -234,65 +231,11 @@ export function createLarkTicketShadowSummaryService(deps: LarkTicketShadowSumma
     }
   }
 
-  async function runAcpPrompt(prompt: string, timeoutMs: number): Promise<string> {
-    const chunks: string[] = [];
-    const abortController = new AbortController();
-    const timeoutId = globalThis.setTimeout(() => abortController.abort(), timeoutMs);
-    try {
-      await acpService.chatOneShot(
-        { operatorLarkId: LARK_TICKET_SHADOW_SUMMARY_SOURCE, message: prompt },
-        (event) => {
-          const text = getAgentMessageText(event);
-          if (text) chunks.push(text);
-        },
-        { signal: abortController.signal },
-      );
-    } catch (error) {
-      if (abortController.signal.aborted) {
-        throw new LarkTicketShadowSummaryError(
-          "SHADOW_ACP_TIMEOUT",
-          `Shadow ACP prompt timed out after ${timeoutMs}ms.`,
-          "adapter.acp.prompt",
-        );
-      }
-      const message = error instanceof Error ? error.message : String(error);
-      if (isProviderErrorText(message)) {
-        throw new LarkTicketShadowSummaryError(
-          "SHADOW_ACP_PROVIDER_ERROR",
-          `Shadow ACP provider error: ${message}`,
-          "adapter.acp.prompt",
-        );
-      }
-      throw new LarkTicketShadowSummaryError(
-        "SHADOW_ACP_FAILED",
-        message,
-        "adapter.acp.prompt",
-      );
-    } finally {
-      globalThis.clearTimeout(timeoutId);
-    }
-    const text = chunks.join("").trim();
-    if (text && isProviderErrorText(text) && !containsJsonObject(text)) {
-      throw new LarkTicketShadowSummaryError(
-        "SHADOW_ACP_PROVIDER_ERROR",
-        `Shadow ACP provider error returned as output: ${firstLineOf(text)}`,
-        "adapter.acp.prompt",
-        outputDiagnostics(text),
-      );
-    }
-    shadowLogger.debug({
-      operation: "lark_ticket_shadow_summary",
-      layer: "server",
-      stage: "server.shadow.acp_output",
-      outputLength: text.length,
-      outputPreview: text.slice(0, MAX_OUTPUT_PREVIEW_CHARS),
-    }, "LARK_TICKET_SHADOW_SUMMARY_ACP_OUTPUT");
-    return text;
-  }
-
   async function runOnce(): Promise<ShadowSummaryRunResult> {
     const promptRecord = await promptStore.getByKey(promptKey);
-    if (!promptRecord?.prompt?.trim()) {
+    const promptTemplate = promptRecord?.prompt.trim()
+      || DEFAULT_LARK_TICKET_SUPPORT_QA_PROMPTS[promptKey];
+    if (!promptTemplate) {
       throw new LarkTicketShadowSummaryError(
         "SHADOW_PROMPT_NOT_CONFIGURED",
         `Workflow prompt ${promptKey} is not configured.`,
@@ -304,7 +247,7 @@ export function createLarkTicketShadowSummaryService(deps: LarkTicketShadowSumma
     const result: ShadowSummaryRunResult = { considered: candidates.length, summarized: 0, skipped: 0, failed: 0 };
     for (const ticket of candidates) {
       try {
-        const outcome = await summarizeTicket(ticket, promptRecord.prompt);
+        const outcome = await summarizeTicket(ticket, promptTemplate);
         if (outcome === "skipped") {
           result.skipped += 1;
         } else {
@@ -385,35 +328,34 @@ function readFieldText(fields: Record<string, unknown>, key: string): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
-const MAX_OUTPUT_PREVIEW_CHARS = 300;
-const PROVIDER_ERROR_PATTERN = /\[\s*provider\.[a-z0-9_]+\s*\]/i;
-
-function isProviderErrorText(text: string): boolean {
-  return PROVIDER_ERROR_PATTERN.test(text);
-}
-
-function containsJsonObject(text: string): boolean {
-  const start = text.indexOf("{");
-  const end = text.lastIndexOf("}");
-  return start >= 0 && end > start;
-}
-
-function firstLineOf(text: string): string {
-  return (text.split("\n").map((line) => line.trim()).find(Boolean) ?? text).slice(0, 300);
-}
-
 function outputDiagnostics(text: string): Record<string, unknown> {
   return {
     outputChars: text.length,
-    outputPreview: text.slice(0, MAX_OUTPUT_PREVIEW_CHARS),
   };
+}
+
+async function runDeepSeekCompletion(
+  client: DeepSeekJsonCompletionClient,
+  prompt: string,
+  actionRunId: string,
+): Promise<{ content: string; model: string }> {
+  try {
+    return await client.createJsonCompletion({ prompt, actionRunId });
+  } catch (error) {
+    if (error instanceof DeepSeekChatError) throw error;
+    throw new LarkTicketShadowSummaryError(
+      "DEEPSEEK_REQUEST_FAILED",
+      "DeepSeek request failed before a valid response was received.",
+      "adapter.deepseek.request",
+    );
+  }
 }
 
 function parseShadowAnalysis(text: string): ShadowAnalysisResult {
   if (!text) {
     throw new LarkTicketShadowSummaryError(
       "SHADOW_OUTPUT_INVALID",
-      "Shadow ACP output was empty.",
+      "Shadow DeepSeek output was empty.",
       "server.shadow.parse",
       outputDiagnostics(text),
     );
@@ -426,11 +368,10 @@ function parseShadowAnalysis(text: string): ShadowAnalysisResult {
       layer: "server",
       stage: "server.shadow.parse",
       outputLength: text.length,
-      outputPreview: text.slice(0, MAX_OUTPUT_PREVIEW_CHARS),
     }, "LARK_TICKET_SHADOW_SUMMARY_PARSE_EMPTY");
     throw new LarkTicketShadowSummaryError(
       "SHADOW_OUTPUT_INVALID",
-      "Shadow ACP output did not contain a JSON object.",
+      "Shadow DeepSeek output did not contain a JSON object.",
       "server.shadow.parse",
       outputDiagnostics(text),
     );
@@ -444,11 +385,10 @@ function parseShadowAnalysis(text: string): ShadowAnalysisResult {
       layer: "server",
       stage: "server.shadow.parse",
       outputLength: text.length,
-      outputPreview: text.slice(0, MAX_OUTPUT_PREVIEW_CHARS),
     }, "LARK_TICKET_SHADOW_SUMMARY_PARSE_JSON_FAILED");
     throw new LarkTicketShadowSummaryError(
       "SHADOW_OUTPUT_INVALID",
-      `Shadow ACP output JSON parse failed: ${error instanceof Error ? error.message : String(error)}`,
+      `Shadow DeepSeek output JSON parse failed: ${error instanceof Error ? error.message : String(error)}`,
       "server.shadow.parse",
       outputDiagnostics(text),
     );
@@ -460,11 +400,10 @@ function parseShadowAnalysis(text: string): ShadowAnalysisResult {
       layer: "server",
       stage: "server.shadow.validate",
       outputLength: text.length,
-      outputPreview: text.slice(0, MAX_OUTPUT_PREVIEW_CHARS),
     }, "LARK_TICKET_SHADOW_SUMMARY_PARSE_SCHEMA_FAILED");
     throw new LarkTicketShadowSummaryError(
       "SHADOW_OUTPUT_INVALID",
-      `Shadow ACP output failed schema validation: ${result.error.issues.map((issue) => issue.path.join(".") || issue.code).join(", ").slice(0, 300)}`,
+      `Shadow DeepSeek output failed schema validation: ${result.error.issues.map((issue) => issue.path.join(".") || issue.code).join(", ").slice(0, 300)}`,
       "server.shadow.validate",
       outputDiagnostics(text),
     );
@@ -486,27 +425,24 @@ function assertEvidenceWithinSnapshot(analysis: ShadowAnalysisResult, messages: 
 
 function toShadowError(error: unknown): LarkTicketShadowSummaryError {
   if (error instanceof LarkTicketShadowSummaryError) return error;
+  if (error instanceof DeepSeekChatError) {
+    const stage = error.code === "DEEPSEEK_API_KEY_MISSING"
+      ? "adapter.deepseek.config"
+      : error.code === "DEEPSEEK_TIMEOUT"
+        ? "adapter.deepseek.timeout"
+        : "adapter.deepseek.response";
+    return new LarkTicketShadowSummaryError(
+      error.code,
+      error.message,
+      stage,
+      error.statusCode === undefined ? undefined : { statusCode: error.statusCode },
+    );
+  }
   return new LarkTicketShadowSummaryError(
     "SHADOW_THREAD_UNAVAILABLE",
     error instanceof Error ? error.message : String(error),
     "server.shadow.thread",
   );
-}
-
-function getAgentMessageText(event: AcpKimiStreamEvent): string {
-  if (event.event !== "acp.session.update") return "";
-  const update = event.data.update;
-  if (update.sessionUpdate !== "agent_message_chunk") return "";
-  const content = update.content;
-  if (
-    content
-    && typeof content === "object"
-    && (content as Record<string, unknown>).type === "text"
-    && typeof (content as Record<string, unknown>).text === "string"
-  ) {
-    return (content as Record<string, unknown>).text as string;
-  }
-  return "";
 }
 
 function readPositiveInt(value: string | undefined, fallback: number): number {

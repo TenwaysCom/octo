@@ -55,6 +55,20 @@ describe("PlatformSyncWorker", () => {
     expect(config.scheduler.tasks.shadow.enabled).toBe(false);
   });
 
+  it("accepts DeepSeek timeout configuration for the shadow task and preserves the legacy alias", () => {
+    const current = parsePlatformSyncConfig({
+      scheduler: { tasks: { shadow: { enabled: true, deepSeekTimeoutSeconds: 90 } } },
+      github: [{ owner: "acme", repo: "app" }],
+    });
+    const legacy = parsePlatformSyncConfig({
+      scheduler: { tasks: { shadow: { enabled: true, acpTimeoutSeconds: 300 } } },
+      github: [{ owner: "acme", repo: "app" }],
+    });
+
+    expect(current.scheduler.tasks.shadow.deepSeekTimeoutSeconds).toBe(90);
+    expect(legacy.scheduler.tasks.shadow.acpTimeoutSeconds).toBe(300);
+  });
+
   it("omits schedules for tasks disabled under scheduler.tasks and honors per-task intervals", () => {
     const config = parsePlatformSyncConfig({
       scheduler: {

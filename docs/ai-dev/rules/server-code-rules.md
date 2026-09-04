@@ -131,6 +131,8 @@ When an ACP action needs repository-local evidence or an existing workspace work
 5. Browser-facing streams continue with the model's normal human-readable response; the JSON transport file is not the user-facing Quick Action result.
 6. If evidence fetch or analysis writeback is not confirmed, attach the created Session to the Ticket and persist its text as an unverified failed run. FE may display and retry that draft, but must not promote it to `SupportTicketAnalysis`, `ticket_ai`, or a sendable reply.
 
+The `lark-ticket-support-qa-summarize` action and Lark Ticket shadow summary worker are exceptions to the ACP flow above: both are one-shot DeepSeek structured-output workflows. The Server must obtain the fixed, redacted Ticket snapshot before the provider call and validate the returned JSON and evidence IDs locally. The Quick Action calls `SupportTicketAnalysisService.update()` directly; the shadow worker only writes its independent `shadow_ai` projection. Neither path may create a reusable Session or expose workspace, shell, Skill, or internal signing capabilities to DeepSeek. Answer and Document remain ACP-backed.
+
 Partial success rules:
 
 | Case | Required response detail |

@@ -772,3 +772,9 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Symptom:** 首次跨文件 `apply_patch` 在 `global.css` 的插入点校验失败，整块补丁没有落盘。
 - **Root cause:** 补丁假设 `.sprint-carryover-badge` 后紧邻筛选面板规则，但当前文件中间还有 Sprint 详情面板样式。
 - **Verified fix:** 重新读取精确 CSS 局部并按共享逻辑、组件、样式、任务记录拆分补丁；随后 `git diff --check`、FE 31/31 测试文件和 production build 均通过。
+
+### ERR-20260904-001 — pg-mem 无法在同一测试库重复执行整套 schema DDL
+
+- **Error:** 已初始化的 `pg-mem` 测试库再次调用 `ensurePostgresSchema()` 时，对 `CREATE TABLE IF NOT EXISTS ... PRIMARY KEY/NOT NULL` 报 `AST which parts have not been read by the query planner`。
+- **Fix:** 将待验证的数据迁移提成幂等的小函数，由 schema bootstrap 调用；单测直接调用该迁移函数，不为验证一条数据迁移而重复执行整套 DDL。
+- **source:** [DeepSeek 直连 Ticket 问题总结](../docs/tasks/ai-ticket/2026-09-04-deepseek-ticket-summary.md)

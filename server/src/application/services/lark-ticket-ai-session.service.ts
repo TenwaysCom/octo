@@ -1,11 +1,9 @@
 import type { AcpKimiProxyService } from "./acp-kimi-proxy.service.js";
 import { acpKimiProxyService } from "./acp-kimi-proxy.service.js";
+import { createDeepSeekChatClient, DeepSeekChatError, type DeepSeekJsonCompletionClient } from "../../adapters/deepseek/deepseek-chat-client.js";
 import {
-  buildSupportAnalysisUpdatePath,
   extractAcpKimiExecuteCall,
   extractAcpKimiRawCommand,
-  isAcpKimiSupportAnalysisUpdateExecuteCall,
-  isAcpKimiSupportAnalysisUpdateCommand,
   isAcpKimiSupportQaFetchExecuteCall,
   isAcpKimiSupportQaFetchCommand,
   type AcpKimiPermissionContext,
@@ -25,7 +23,8 @@ import {
 import {
   AUTOMATION_SKILL_PROFILES,
   getTicketAiAutomationAction,
-  type TicketAiAutomationActionConfig,
+  type DeepSeekTicketAiAutomationActionConfig,
+  type KimiTicketAiAutomationActionConfig,
 } from "../../modules/public-config/automation-actions.config.js";
 import {
   getWorkflowPromptStore,
@@ -41,7 +40,8 @@ import {
   renderWorkflowPromptTemplate,
 } from "../../domain/workflow-prompts.js";
 import { prepareTicketThread, redactSupportText } from "../../domain/support-ticket-analysis.js";
-import { buildSupportAnalysisUpdateInstruction, buildSupportQaFetchInstruction } from "../../domain/support-ticket-analysis-update.js";
+import { buildSupportQaFetchInstruction, supportAnalysisResultSchema } from "../../domain/support-ticket-analysis-update.js";
+import { createSupportTicketAnalysisService, SupportTicketAnalysisError } from "./support-ticket-analysis.service.js";
 import { randomUUID } from "node:crypto";
 import { access, realpath } from "node:fs/promises";
 import { constants } from "node:fs";
@@ -59,6 +59,8 @@ export interface LarkTicketAiSessionRef {
   recordId: string;
 }
 
+const LARK_TICKET_SUPPORT_QA_SUMMARIZE_ACTION_KEY = "lark-ticket-support-qa-summarize";
+
 export class LarkTicketAiSessionError extends Error {
   constructor(
     readonly code:
@@ -69,7 +71,14 @@ export class LarkTicketAiSessionError extends Error {
       | "SKILL_PROFILE_NOT_CONFIGURED"
       | "LARK_THREAD_CONTEXT_UNAVAILABLE"
       | "SUPPORT_QA_EVIDENCE_NOT_FETCHED"
-      | "SUPPORT_ANALYSIS_NOT_UPDATED",
+      | "SUPPORT_ANALYSIS_NOT_UPDATED"
+      | "DEEPSEEK_API_KEY_MISSING"
+      | "DEEPSEEK_TIMEOUT"
+      | "DEEPSEEK_REQUEST_FAILED"
+      | "DEEPSEEK_RESPONSE_INVALID"
+      | "DEEPSEEK_OUTPUT_INVALID"
+      | "DEEPSEEK_EVIDENCE_OUTSIDE_SNAPSHOT"
+      | "THREAD_SNAPSHOT_VERSION_CONFLICT",
     message: string,
     readonly diagnostic?: {
       layer: "server" | "adapter";
@@ -92,10 +101,12 @@ export interface LarkTicketAiSessionServiceDeps {
   threadContextService?: Pick<LarkTicketThreadContextService, "ensure">;
   knowledgeRetriever?: SupportKnowledgeRetriever;
   resolveAction?: (actionKey: string) => Promise<ResolvedTicketAiAction | undefined>;
+  deepSeekClient?: DeepSeekJsonCompletionClient;
+  analysisService?: Pick<ReturnType<typeof createSupportTicketAnalysisService>, "update">;
 }
 
 interface ResolvedTicketAiAction {
-  action: TicketAiAutomationActionConfig;
+  action: KimiTicketAiAutomationActionConfig;
   workspaceDir: string;
   octoServerDir: string;
   skillPath: string;
@@ -112,6 +123,8 @@ export function createLarkTicketAiSessionService(
   const threadContextService = deps.threadContextService ?? createLarkTicketThreadContextService();
   const knowledgeRetriever = deps.knowledgeRetriever ?? getSupportKnowledgeStore();
   const resolveAction = deps.resolveAction ?? resolveTicketAiAction;
+  const getDeepSeekClient = () => deps.deepSeekClient ?? createDeepSeekChatClient();
+  const getAnalysisService = () => deps.analysisService ?? createSupportTicketAnalysisService();
 
   return {
     async listSessions(input: {
@@ -123,7 +136,9 @@ export function createLarkTicketAiSessionService(
         operatorLarkId: input.operatorLarkId,
         ...input.ticket,
       });
-      return sessions.map(toSessionSummary);
+      return sessions
+        .filter((session) => session.automationActionKey !== LARK_TICKET_SUPPORT_QA_SUMMARIZE_ACTION_KEY)
+        .map(toSessionSummary);
     },
 
     async loadSession(input: {
@@ -152,6 +167,25 @@ export function createLarkTicketAiSessionService(
       signal?: AbortSignal;
     }, emit: (event: AcpKimiStreamEvent) => void) {
       const ticket = await getTicket(getSyncStore(), input.ticket);
+      const requestedAction = !input.sessionId && input.actionKey
+        ? getTicketAiAutomationAction(input.actionKey)
+        : undefined;
+      if (!deps.resolveAction && input.actionKey && !input.sessionId && !requestedAction) {
+        throw new LarkTicketAiSessionError("AI_ACTION_NOT_FOUND", "Requested AI quick action is not configured.");
+      }
+      if (requestedAction?.provider === "deepseek") {
+        await runDeepSeekSummary({
+          ticket,
+          input,
+          action: requestedAction,
+          promptStore: workflowPromptStore,
+          threadContextService,
+          deepSeekClient: getDeepSeekClient(),
+          analysisService: getAnalysisService(),
+          emit,
+        });
+        return;
+      }
       const session = input.sessionId
         ? await getTicketSession(ownershipStore, {
           operatorLarkId: input.operatorLarkId,
@@ -193,25 +227,15 @@ export function createLarkTicketAiSessionService(
           limit: 5,
         })
         : [];
-      const analysisUpdatePath = quickAction?.action.key === "lark-ticket-support-qa-summarize"
-        ? buildSupportAnalysisUpdatePath(permissionContext ?? {})
-        : undefined;
-      if (quickAction?.action.key === "lark-ticket-support-qa-summarize"
-        && (!actionRunId || !analysisUpdatePath || !threadContext?.snapshot)) {
-        throw new LarkTicketAiSessionError(
-          "LARK_THREAD_CONTEXT_UNAVAILABLE",
-          "Support-QA summary requires a fixed Ticket snapshot and analysis update context.",
-        );
-      }
       const prompt = quickAction
-        ? await buildQuickActionPrompt(workflowPromptStore, quickAction, ticket, input.message, threadContext, knowledgeEvidence, actionRunId, analysisUpdatePath)
+        ? await buildQuickActionPrompt(workflowPromptStore, quickAction, ticket, input.message, threadContext, knowledgeEvidence)
         : input.sessionId ? input.message : buildTicketPrompt(ticket, input.message, threadContext);
       let createdSessionId: string | undefined;
       let attachmentPromise: Promise<void> | undefined;
       let doneEvent: Extract<AcpKimiStreamEvent, { event: "done" }> | undefined;
       let assistantOutput = "";
       const evidenceTracker = quickAction && permissionContext
-        ? createSupportQaEvidenceTracker(permissionContext, quickAction.action.key === "lark-ticket-support-qa-summarize")
+        ? createSupportQaEvidenceTracker(permissionContext)
         : undefined;
 
       try {
@@ -282,27 +306,6 @@ export function createLarkTicketAiSessionService(
           },
         );
       }
-      if (evidenceTracker?.analysisUpdateRequired && !evidenceTracker.analysisUpdated) {
-        await ownershipStore.updateRun?.({
-          sessionId,
-          operatorLarkId: input.operatorLarkId,
-          actionRunId: actionRunId!,
-          status: "failed",
-          errorCode: "SUPPORT_ANALYSIS_NOT_UPDATED",
-          errorMessage: "Support-QA analysis update did not complete; the AI result was not accepted.",
-          unverifiedOutput: assistantOutput || null,
-        });
-        throw new LarkTicketAiSessionError(
-          "SUPPORT_ANALYSIS_NOT_UPDATED",
-          "Support-QA analysis update did not complete; the AI result was not accepted.",
-          {
-            layer: "server",
-            module: "lark-ticket-ai-session",
-            stage: "server.analysis.update",
-            ...(actionRunId ? { actionRunId } : {}),
-          },
-        );
-      }
       if (doneEvent) {
         emit(doneEvent);
       }
@@ -316,6 +319,162 @@ export function createLarkTicketAiSessionService(
       }
     },
   };
+}
+
+async function runDeepSeekSummary(input: {
+  ticket: LarkBaseTicketSyncItem;
+  input: {
+    masterUserId: string;
+    larkBaseUrl: string;
+    ticket: LarkTicketAiSessionRef;
+    message: string;
+    actionRunId?: string;
+    signal?: AbortSignal;
+  };
+  action: DeepSeekTicketAiAutomationActionConfig;
+  promptStore: WorkflowPromptStore;
+  threadContextService: Pick<LarkTicketThreadContextService, "ensure">;
+  deepSeekClient: DeepSeekJsonCompletionClient;
+  analysisService: Pick<ReturnType<typeof createSupportTicketAnalysisService>, "update">;
+  emit: (event: AcpKimiStreamEvent) => void;
+}): Promise<void> {
+  const actionRunId = input.input.actionRunId ?? randomUUID();
+  let threadContext: LarkTicketThreadContextResult;
+  try {
+    threadContext = await input.threadContextService.ensure({
+      masterUserId: input.input.masterUserId,
+      larkBaseUrl: input.input.larkBaseUrl,
+      ticket: input.ticket,
+    });
+  } catch (error) {
+    if (error instanceof LarkTicketThreadContextError) {
+      throw new LarkTicketAiSessionError(error.code, error.message, {
+        layer: "server",
+        module: "lark-ticket-ai-session",
+        stage: "server.thread.snapshot",
+        actionRunId,
+      });
+    }
+    throw error;
+  }
+  const snapshot = threadContext.snapshot;
+  if (!snapshot || snapshot.preparedMessages.length === 0) {
+    throw new LarkTicketAiSessionError(
+      "LARK_THREAD_CONTEXT_UNAVAILABLE",
+      "DeepSeek summary requires a fixed Ticket snapshot with at least one evidence message.",
+      { layer: "server", module: "lark-ticket-ai-session", stage: "server.thread.snapshot", actionRunId },
+    );
+  }
+  const promptRecord = await input.promptStore.getByKey(input.action.promptKey);
+  const template = promptRecord?.prompt.trim()
+    || DEFAULT_LARK_TICKET_SUPPORT_QA_PROMPTS[input.action.promptKey];
+  if (!template) {
+    throw new LarkTicketAiSessionError("AI_ACTION_NOT_FOUND", `Prompt ${input.action.promptKey} is not configured.`);
+  }
+  const prompt = renderWorkflowPromptTemplate(template, {
+    ticket_context: buildDeepSeekTicketContext(input.ticket, threadContext),
+    user_message: input.input.message,
+  });
+  let completion: Awaited<ReturnType<DeepSeekJsonCompletionClient["createJsonCompletion"]>>;
+  try {
+    completion = await input.deepSeekClient.createJsonCompletion({
+      prompt,
+      actionRunId,
+      signal: input.input.signal,
+    });
+  } catch (error) {
+    if (error instanceof DeepSeekChatError) {
+      throw new LarkTicketAiSessionError(error.code, error.message, {
+        layer: "adapter",
+        module: "deepseek-chat-client",
+        stage: error.code === "DEEPSEEK_TIMEOUT" ? "adapter.deepseek.timeout" : "adapter.deepseek.response",
+        actionRunId,
+      });
+    }
+    throw error;
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(completion.content);
+  } catch {
+    throw new LarkTicketAiSessionError(
+      "DEEPSEEK_OUTPUT_INVALID",
+      "DeepSeek output was not valid JSON.",
+      { layer: "server", module: "lark-ticket-ai-session", stage: "server.deepseek.parse", actionRunId },
+    );
+  }
+  const analysisResult = supportAnalysisResultSchema.safeParse(parsed);
+  if (!analysisResult.success) {
+    throw new LarkTicketAiSessionError(
+      "DEEPSEEK_OUTPUT_INVALID",
+      `DeepSeek output failed analysis schema validation: ${analysisResult.error.issues.map((issue) => issue.path.join(".") || issue.code).join(", ").slice(0, 300)}`,
+      { layer: "server", module: "lark-ticket-ai-session", stage: "server.deepseek.validate", actionRunId },
+    );
+  }
+  const knownEvidenceIds = new Set(snapshot.preparedMessages.map((message) => message.messageId));
+  if (analysisResult.data.analysis.intent.evidenceMessageIds.some((id) => !knownEvidenceIds.has(id))) {
+    throw new LarkTicketAiSessionError(
+      "DEEPSEEK_EVIDENCE_OUTSIDE_SNAPSHOT",
+      "DeepSeek analysis referenced evidence outside the fixed Ticket snapshot.",
+      { layer: "server", module: "lark-ticket-ai-session", stage: "server.deepseek.evidence", actionRunId },
+    );
+  }
+  try {
+    await input.analysisService.update({
+      ticket: input.input.ticket,
+      snapshotVersion: snapshot.snapshotVersion,
+      actionRunId,
+      sourceName: "lark-ticket-support-qa-summarize",
+      reviewStatus: "ai_generated",
+      reviewerKind: "ai",
+      analysis: analysisResult.data.analysis,
+    });
+  } catch (error) {
+    if (error instanceof SupportTicketAnalysisError) {
+      const code = error.code === "THREAD_SNAPSHOT_VERSION_CONFLICT"
+        ? "THREAD_SNAPSHOT_VERSION_CONFLICT"
+        : error.code === "INVALID_EVIDENCE_MESSAGE_IDS"
+          ? "DEEPSEEK_EVIDENCE_OUTSIDE_SNAPSHOT"
+          : error.code === "LARK_TICKET_NOT_FOUND"
+            ? "LARK_TICKET_NOT_FOUND"
+            : "LARK_THREAD_CONTEXT_UNAVAILABLE";
+      throw new LarkTicketAiSessionError(code, error.message, {
+        layer: "server",
+        module: "support-ticket-analysis",
+        stage: "server.analysis.update",
+        actionRunId,
+      });
+    }
+    throw error;
+  }
+  const streamId = `deepseek-${actionRunId}`;
+  input.emit({
+    event: "acp.session.update",
+    data: {
+      sessionId: streamId,
+      update: {
+        sessionUpdate: "agent_message_chunk",
+        messageId: streamId,
+        content: { type: "text", text: analysisResult.data.summary },
+      },
+    },
+  });
+  input.emit({ event: "done", data: { sessionId: streamId, stopReason: "end_turn" } });
+}
+
+function buildDeepSeekTicketContext(
+  ticket: LarkBaseTicketSyncItem,
+  threadContext: LarkTicketThreadContextResult,
+): string {
+  return [
+    `Type: ${ticket.issueType || "Lark Ticket"}`,
+    `Number: ${ticket.ticketNumber || ticket.recordId}`,
+    `Title: ${redactSupportText(ticket.title)}`,
+    `Description:\n${redactSupportText(ticket.detailDescription) || "(none)"}`,
+    `Fixed snapshot version: ${threadContext.snapshot?.snapshotVersion ?? "none"}`,
+    `Allowed evidence Message IDs: ${(threadContext.snapshot?.preparedMessages ?? []).map((message) => message.messageId).join(", ") || "(none)"}`,
+    `Lark thread context:\n${formatThreadContext(threadContext)}`,
+  ].join("\n\n");
 }
 
 async function attachCreatedTicketSession(input: {
@@ -344,19 +503,14 @@ async function attachCreatedTicketSession(input: {
   }
 }
 
-function createSupportQaEvidenceTracker(context: AcpKimiPermissionContext, analysisUpdateRequired: boolean) {
-  const toolCallKinds = new Map<string, "fetch" | "analysis-update">();
+function createSupportQaEvidenceTracker(context: AcpKimiPermissionContext) {
+  const toolCallIds = new Set<string>();
   const conflictingToolCallIds = new Set<string>();
   let fetchCompleted = false;
-  let analysisUpdated = false;
   return {
     get fetchCompleted() {
       return fetchCompleted;
     },
-    get analysisUpdated() {
-      return analysisUpdated;
-    },
-    analysisUpdateRequired,
     observe(event: AcpKimiStreamEvent) {
       if (event.event !== "acp.session.update") {
         return;
@@ -372,27 +526,14 @@ function createSupportQaEvidenceTracker(context: AcpKimiPermissionContext, analy
         && update.rawInput !== undefined && update.rawInput !== null) {
         const command = extractAcpKimiRawCommand(update.rawInput);
         const executeCall = extractAcpKimiExecuteCall(update.rawInput);
-        const kind = executeCall && isAcpKimiSupportQaFetchExecuteCall(executeCall, context)
-          ? "fetch"
-          : executeCall && isAcpKimiSupportAnalysisUpdateExecuteCall(executeCall, context)
-            ? "analysis-update"
-            : command && isAcpKimiSupportQaFetchCommand(command, context)
-              ? "fetch"
-              : command && isAcpKimiSupportAnalysisUpdateCommand(command, context)
-                ? "analysis-update"
-                : undefined;
-        if (kind) {
+        const isFetch = executeCall && isAcpKimiSupportQaFetchExecuteCall(executeCall, context)
+          || command && isAcpKimiSupportQaFetchCommand(command, context);
+        if (isFetch) {
           if (!conflictingToolCallIds.has(toolCallId)) {
-            const currentKind = toolCallKinds.get(toolCallId);
-            if (!currentKind || currentKind === kind) {
-              toolCallKinds.set(toolCallId, kind);
-            } else {
-              toolCallKinds.delete(toolCallId);
-              conflictingToolCallIds.add(toolCallId);
-            }
+            toolCallIds.add(toolCallId);
           }
-        } else if (toolCallKinds.has(toolCallId)) {
-          toolCallKinds.delete(toolCallId);
+        } else if (toolCallIds.has(toolCallId)) {
+          toolCallIds.delete(toolCallId);
           conflictingToolCallIds.add(toolCallId);
         }
       }
@@ -403,14 +544,10 @@ function createSupportQaEvidenceTracker(context: AcpKimiPermissionContext, analy
         || (update.status !== "completed" && update.status !== "failed")) {
         return;
       }
-      const kind = toolCallKinds.get(toolCallId);
-      if (update.status === "completed" && kind === "fetch") {
+      if (update.status === "completed" && toolCallIds.has(toolCallId)) {
         fetchCompleted = true;
       }
-      if (update.status === "completed" && kind === "analysis-update") {
-        analysisUpdated = true;
-      }
-      toolCallKinds.delete(toolCallId);
+      toolCallIds.delete(toolCallId);
       conflictingToolCallIds.delete(toolCallId);
     },
   };
@@ -444,6 +581,9 @@ async function getTicketSession(
     || session.ticketTableId !== input.ticket.tableId
     || session.ticketRecordId !== input.ticket.recordId) {
     throw new LarkTicketAiSessionError("SESSION_FORBIDDEN", "AI Session does not belong to this Ticket.");
+  }
+  if (session.automationActionKey === LARK_TICKET_SUPPORT_QA_SUMMARIZE_ACTION_KEY) {
+    throw new LarkTicketAiSessionError("SESSION_NOT_FOUND", "Ticket Summary is a one-shot result and has no resumable AI Session.");
   }
   return session;
 }
@@ -520,7 +660,7 @@ function buildTicketPrompt(
 
 async function resolveTicketAiAction(actionKey: string): Promise<ResolvedTicketAiAction | undefined> {
   const action = getTicketAiAutomationAction(actionKey);
-  if (!action) {
+  if (!action || action.provider !== "kimi_acp") {
     return undefined;
   }
   const profile = AUTOMATION_SKILL_PROFILES[action.skillProfile];
@@ -570,8 +710,6 @@ async function buildQuickActionPrompt(
   message: string,
   threadContext?: LarkTicketThreadContextResult,
   knowledgeEvidence: SupportKnowledgeSearchHit[] = [],
-  actionRunId?: string,
-  analysisUpdatePath?: string,
 ): Promise<string> {
   const storedPrompt = await promptStore.getByKey(quickAction.action.promptKey);
   const template = storedPrompt?.prompt.trim()
@@ -588,19 +726,7 @@ async function buildQuickActionPrompt(
     knowledge_evidence: formatKnowledgeEvidence(knowledgeEvidence),
     user_message: message,
   });
-  const snapshot = threadContext?.snapshot;
-  return quickAction.action.key === "lark-ticket-support-qa-summarize"
-    && snapshot && actionRunId && analysisUpdatePath
-    ? `${prompt}\n\n${buildSupportAnalysisUpdateInstruction({
-      baseId: ticket.baseId,
-      tableId: ticket.tableId,
-      recordId: ticket.recordId,
-      ticketNumber: ticket.ticketNumber || ticket.recordId,
-      snapshotVersion: snapshot.snapshotVersion,
-      actionRunId,
-      updatePath: analysisUpdatePath,
-    })}`
-    : `${prompt}\n\n${buildSupportQaFetchInstruction(ticket.ticketNumber || ticket.recordId)}`;
+  return `${prompt}\n\n${buildSupportQaFetchInstruction(ticket.ticketNumber || ticket.recordId)}`;
 }
 
 function buildKnowledgeQuery(ticket: LarkBaseTicketSyncItem, message: string): string {

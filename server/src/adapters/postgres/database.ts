@@ -822,15 +822,7 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
       .onConflict((conflict) => conflict.column("key").doNothing())
       .execute();
   }
-  await db.updateTable("workflow_prompts")
-    .set({
-      prompt: DEFAULT_LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_TEMPLATE,
-      note: DEFAULT_LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_NOTE,
-      updated_at: now,
-    })
-    .where("key", "=", LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_KEY)
-    .where("prompt", "in", LEGACY_LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_TEMPLATES)
-    .execute();
+  await migrateLegacyLarkTicketSupportQaSummaryPrompt(db, now);
 
   await db.insertInto("workflow_prompts")
     .values({
@@ -1061,6 +1053,21 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
   ]) {
     await sql.raw(`ALTER TABLE meegle_workitem_syncs DROP COLUMN IF EXISTS ${column}`).execute(db);
   }
+}
+
+export async function migrateLegacyLarkTicketSupportQaSummaryPrompt(
+  db: Kysely<DatabaseSchema>,
+  updatedAt: string,
+): Promise<void> {
+  await db.updateTable("workflow_prompts")
+    .set({
+      prompt: DEFAULT_LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_TEMPLATE,
+      note: DEFAULT_LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_NOTE,
+      updated_at: updatedAt,
+    })
+    .where("key", "=", LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_KEY)
+    .where("prompt", "in", LEGACY_LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_TEMPLATES)
+    .execute();
 }
 
 export async function renameLegacyUserSshPublicKeyIdColumn(db: Kysely<DatabaseSchema>): Promise<void> {
