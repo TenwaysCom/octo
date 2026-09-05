@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { getIntegrationsSubroutes, getWorkspaceNavigationRoutes, INTEGRATIONS_ROUTE, INTEGRATIONS_SUBROUTES } from "../../app/routes/workspace-routes.js";
+import { getDefaultSettingsRoute, getIntegrationsSubroutes, getWorkspaceNavigationRoutes, INTEGRATIONS_ROUTE, INTEGRATIONS_SUBROUTES } from "../../app/routes/workspace-routes.js";
 
 export const WorkspaceMetricsContext = createContext({ githubMyOpenCount: undefined });
 
@@ -45,7 +45,7 @@ function WorkspaceSidebar({ activePage, workspaceAccess, githubMyOpenCount }) {
       <div className={`profile-nav__group profile-nav__group--settings ${integrationsOpen ? "profile-nav__group--active" : ""}`.trim()}>
         <a
           className="profile-nav__item"
-          href={INTEGRATIONS_ROUTE.hash}
+          href={getDefaultSettingsRoute(workspaceAccess).hash}
           aria-expanded={integrationsOpen}
           onClick={() => setIntegrationsOpen((open) => isIntegrationsPage ? !open : true)}
         >

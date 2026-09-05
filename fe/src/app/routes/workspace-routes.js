@@ -10,6 +10,7 @@ export const WORKSPACE_ROUTES = [
 
 export const WORKSPACE_NAVIGATION_ROUTES = WORKSPACE_ROUTES.filter((route) => !["integrations", "sync", "shortcuts"].includes(route.page));
 export const INTEGRATIONS_ROUTE = WORKSPACE_ROUTES.find((route) => route.page === "integrations");
+export const SYNC_ROUTE = WORKSPACE_ROUTES.find((route) => route.page === "sync");
 export const INTEGRATIONS_SUBROUTES = WORKSPACE_ROUTES.filter((route) => ["integrations", "sync", "shortcuts"].includes(route.page));
 export const WORKSPACE_BREADCRUMB_LIMIT = 5;
 const PLATFORM_LIST_PAGES = new Set(["lark-tickets", "lark-ticket-detail", "meegle-workitems", "meegle-sprints", "meegle-sprint-detail", "github-pull-requests"]);
@@ -30,6 +31,10 @@ export function getWorkspaceNavigationRoutes(workspaceAccess) {
 
 export function getIntegrationsSubroutes(workspaceAccess) {
   return INTEGRATIONS_SUBROUTES.filter((route) => canAccessWorkspaceRoute(workspaceAccess, route));
+}
+
+export function getDefaultSettingsRoute(workspaceAccess) {
+  return canAccessWorkspaceRoute(workspaceAccess, SYNC_ROUTE) ? SYNC_ROUTE : INTEGRATIONS_ROUTE;
 }
 
 export function getLarkTicketDetailHash(recordId) {

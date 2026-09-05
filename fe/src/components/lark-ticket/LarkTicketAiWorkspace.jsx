@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createLarkTicketEvalSample, listLarkTicketEvalSamples, updateLarkTicketEvalSample } from "../../services/lark-ticket-eval/lark-ticket-eval-api.js";
 import { loadLarkTicketPreparedMessages } from "../../services/lark-ticket/lark-ticket-api.js";
 import { getLarkTicketAiPipeline } from "../../lib/lark-ticket-ai-pipeline.js";
+import { getLarkTicketEvalSaveErrorMessage, getLarkTicketEvalValidationMessage } from "../../lib/lark-ticket-eval-validation.js";
 import { formatDateTime } from "../../lib/formatters.js";
 import { LarkTicketBadge } from "./LarkTicketBadge.jsx";
 
@@ -18,11 +19,16 @@ function EvalEditor({ sample, onClose, onSaved }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   async function save() {
+    const validationMessage = getLarkTicketEvalValidationMessage(draft);
+    if (validationMessage) {
+      setError(validationMessage);
+      return;
+    }
     setSaving(true); setError("");
     try {
       const updated = await updateLarkTicketEvalSample({ apiBaseUrl: sample.apiBaseUrl, sampleId: sample.id, update: { ...draft, actionRunId: crypto.randomUUID() } });
       onSaved(updated); onClose();
-    } catch (cause) { setError(cause.message || "样本保存失败。"); } finally { setSaving(false); }
+    } catch (cause) { setError(getLarkTicketEvalSaveErrorMessage(cause)); } finally { setSaving(false); }
   }
   return <div className="ticket-eval-editor-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
     <section className="ticket-eval-editor" role="dialog" aria-modal="true" aria-labelledby="ticket-eval-editor-title">

@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   appendWorkspaceBreadcrumb,
   canAccessWorkspaceRoute,
+  getDefaultSettingsRoute,
   getIntegrationsSubroutes,
   getLarkTicketDetailHash,
   getMeegleSprintDetailHash,
@@ -68,6 +69,8 @@ test("limits workspace navigation to server-provided role permissions", () => {
   assert.deepEqual(getWorkspaceNavigationRoutes(developerAccess).map((route) => route.page), ["lark-tickets", "meegle-workitems", "meegle-sprints", "github-pull-requests"]);
   assert.deepEqual(getIntegrationsSubroutes(developerAccess).map((route) => route.page), ["integrations", "shortcuts"]);
   assert.equal(canAccessWorkspaceRoute(devopsAccess, getWorkspaceRoute("#sync")), true);
+  assert.equal(getDefaultSettingsRoute(devopsAccess).hash, "#sync");
+  assert.equal(getDefaultSettingsRoute(developerAccess), INTEGRATIONS_ROUTE);
   assert.equal(canAccessWorkspaceRoute(restrictedAccess, getWorkspaceRoute("#lark-tickets")), false);
   assert.equal(canAccessWorkspaceRoute(restrictedAccess, getWorkspaceRoute("#integrations")), true);
 });
