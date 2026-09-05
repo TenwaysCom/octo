@@ -65,10 +65,21 @@ const SPRINT_WORKITEM_FILTER_FIELDS = [
 ];
 
 const SPRINT_AI_QUICK_ACTIONS = [
-  { actionKey: "meegle-sprint-release-notes", title: "生成 Release Notes", icon: "◌" },
-  { actionKey: "meegle-sprint-internal-summary", title: "生成内部摘要", icon: "↗" },
-  { actionKey: "meegle-sprint-confirm-gaps", title: "检查待确认项", icon: "▤" },
+  { actionKey: "meegle-sprint-release-notes", title: "生成 Release Notes", icon: "sparkle" },
+  { actionKey: "meegle-sprint-internal-summary", title: "生成内部摘要", icon: "summary" },
+  { actionKey: "meegle-sprint-confirm-gaps", title: "检查待确认项", icon: "checklist" },
 ];
+
+function SprintIcon({ name, className = "" }) {
+  const commonProps = { className: `sprint-icon ${className}`.trim(), viewBox: "0 0 20 20", fill: "none", stroke: "currentColor", strokeWidth: "1.7", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true };
+  if (name === "sparkle") return <svg {...commonProps}><path d="m10 2.5 1.35 4.15L15.5 8l-4.15 1.35L10 13.5 8.65 9.35 4.5 8l4.15-1.35L10 2.5Z" /><path d="m15.5 12 .55 1.7 1.7.55-1.7.55-.55 1.7-.55-1.7-1.7-.55 1.7-.55.55-1.7Z" /></svg>;
+  if (name === "summary") return <svg {...commonProps}><path d="M4 4.5h12M4 8h9M4 11.5h12M4 15h7" /></svg>;
+  if (name === "checklist") return <svg {...commonProps}><rect x="4" y="3" width="12" height="14" rx="2" /><path d="m7 7 1.15 1.15L10.2 6.1M7 12l1.15 1.15L10.2 11.1M12 7h1.4M12 12h1.4" /></svg>;
+  if (name === "chevron-right") return <svg {...commonProps}><path d="m8 4 4 6-4 6" /></svg>;
+  if (name === "close") return <svg {...commonProps}><path d="m5 5 10 10M15 5 5 15" /></svg>;
+  if (name === "send") return <svg {...commonProps}><path d="m16 3-5.25 14-2.1-5.65L3 9.25 16 3Z" /><path d="m8.65 11.35 3.15-3.15" /></svg>;
+  return null;
+}
 
 function getMeegleWorkitemCategory(item) {
   if (item.workItemTypeKey === "story") return "story";
@@ -101,14 +112,37 @@ function SprintActivityBadge({ lifecycle }) {
   return <span className={`sprint-activity-badge sprint-activity-badge--${lifecycle}`}>{ACTIVITY_LABELS[lifecycle]}</span>;
 }
 
-function buildStepPath(points, field, width, top, bottom, maximum) {
-  const y = (value) => bottom - value / maximum * (bottom - top);
-  if (points.length <= 1) return `M 0 ${y(points[0]?.[field] || 0)} H ${width}`;
-  return points.reduce((path, point, index) => {
-    const x = index / (points.length - 1) * width;
-    const nextY = y(point[field]);
-    return index === 0 ? `M ${x} ${nextY}` : `${path} H ${x} V ${nextY}`;
-  }, "");
+function getTimelineCoordinates(points, field, width, top, bottom, maximum) {
+  const y = (value) => bottom - Number(value || 0) / maximum * (bottom - top);
+  const lastPointIndex = points.length - 1;
+  return points.map((point, index) => ({
+    x: lastPointIndex > 0 ? index / lastPointIndex * width : 0,
+    y: y(point[field]),
+  }));
+}
+
+function buildSmoothPath(coordinates, width) {
+  if (!coordinates.length) return "";
+  if (coordinates.length === 1) return `M 0 ${coordinates[0].y} H ${width}`;
+
+  const slopes = coordinates.slice(0, -1).map((point, index) => (coordinates[index + 1].y - point.y) / (coordinates[index + 1].x - point.x));
+  const tangents = slopes.map((slope, index) => {
+    if (index === 0) return slope;
+    const previousSlope = slopes[index - 1];
+    return previousSlope * slope <= 0 ? 0 : 2 * previousSlope * slope / (previousSlope + slope);
+  });
+  tangents.push(slopes.at(-1));
+
+  return coordinates.slice(1).reduce((path, point, index) => {
+    const previous = coordinates[index];
+    const deltaX = point.x - previous.x;
+    return `${path} C ${previous.x + deltaX / 3} ${previous.y + tangents[index] * deltaX / 3}, ${point.x - deltaX / 3} ${point.y - tangents[index + 1] * deltaX / 3}, ${point.x} ${point.y}`;
+  }, `M ${coordinates[0].x} ${coordinates[0].y}`);
+}
+
+function buildAreaPath(path, width, bottom) {
+  if (!path) return "";
+  return `${path} L ${width} ${bottom} L 0 ${bottom} Z`;
 }
 
 function SprintTimelineChart({ sprint, compact = false }) {
@@ -120,6 +154,11 @@ function SprintTimelineChart({ sprint, compact = false }) {
   const width = 320;
   const top = 8;
   const bottom = 86;
+  const series = [
+    { field: "scope", className: "scope" },
+    { field: "started", className: "started" },
+    { field: "completed", className: "completed" },
+  ].map((item) => ({ ...item, coordinates: getTimelineCoordinates(points, item.field, width, top, bottom, maximum) }));
   const dateLabel = (value) => value ? value.slice(5).replace("-", "/") : "-";
   const lastPointIndex = Math.max(0, points.length - 1);
   const dateTicks = [...new Set([0, Math.floor(lastPointIndex / 3), Math.floor(lastPointIndex * 2 / 3), lastPointIndex])]
@@ -133,10 +172,13 @@ function SprintTimelineChart({ sprint, compact = false }) {
     </div>
     <div className="sprint-timeline__plot" role="img" aria-label={`Scope ${metrics.scope}，Started ${metrics.started}，Completed ${metrics.completed}`}>
       <svg viewBox={`0 0 ${width} 104`} preserveAspectRatio="none" aria-hidden="true">
-        <line className="sprint-timeline__grid" x1="0" y1={bottom} x2={width} y2={bottom} />
-        <path className="sprint-timeline__line sprint-timeline__line--scope" d={buildStepPath(points, "scope", width, top, bottom, maximum)} />
-        <path className="sprint-timeline__line sprint-timeline__line--started" d={buildStepPath(points, "started", width, top, bottom, maximum)} />
-        <path className="sprint-timeline__line sprint-timeline__line--completed" d={buildStepPath(points, "completed", width, top, bottom, maximum)} />
+        {[top, top + (bottom - top) / 2, bottom].map((position) => <line className="sprint-timeline__grid" key={position} x1="0" y1={position} x2={width} y2={position} />)}
+        <path className="sprint-timeline__area" d={buildAreaPath(buildSmoothPath(series[2].coordinates, width), width, bottom)} />
+        {series.map(({ className, coordinates }) => <path className={`sprint-timeline__line sprint-timeline__line--${className}`} d={buildSmoothPath(coordinates, width)} key={className} />)}
+        {series.map(({ className, coordinates }) => {
+          const finalPoint = coordinates.at(-1);
+          return finalPoint ? <circle className={`sprint-timeline__point sprint-timeline__point--${className}`} cx={finalPoint.x} cy={finalPoint.y} r="3" key={className} /> : null;
+        })}
       </svg>
       <div className="sprint-timeline__dates">{dateTicks.map((tick) => <span
         key={`${tick.date}-${tick.position}`}
@@ -203,17 +245,17 @@ function SprintAiSessions({ sprint, apiBaseUrl }) {
     <div className="ticket-section-heading"><h2>AI Sessions</h2><span>{aiSessions.items.length} 个会话</span></div>
     {aiSessions.status === "loading" ? <p className="ticket-section-empty">正在加载 AI Sessions…</p> : null}
     {aiSessions.status === "error" ? <p className="ticket-ai-session-error">{aiSessions.error}</p> : null}
-    {aiSessions.status === "ready" && !aiSessions.items.length ? <div className="ticket-ai-session-empty"><span className="ticket-ai-session-empty__icon" aria-hidden="true">✦</span><div><strong>暂无 AI Session</strong><p>基于当前 Sprint 已完成工作项创建 Release Notes 草稿。</p></div></div> : null}
-    {aiSessions.items.length ? <div className="ticket-ai-session-list">{aiSessions.items.map((session) => <button className="ticket-ai-session-card" type="button" key={session.sessionId} onClick={() => void openSession(session)}><span className="ticket-ai-session-card__icon" aria-hidden="true">✦</span><span className="ticket-ai-session-card__content"><strong>{session.title}</strong><small>{formatDateTime(session.updatedAt)}</small></span><span className="ticket-ai-session-card__open" aria-hidden="true">›</span></button>)}</div> : null}
+    {aiSessions.status === "ready" && !aiSessions.items.length ? <div className="ticket-ai-session-empty"><span className="ticket-ai-session-empty__icon"><SprintIcon name="sparkle" /></span><div><strong>暂无 AI Session</strong><p>基于当前 Sprint 已完成工作项创建 Release Notes 草稿。</p></div></div> : null}
+    {aiSessions.items.length ? <div className="ticket-ai-session-list">{aiSessions.items.map((session) => <button className="ticket-ai-session-card" type="button" key={session.sessionId} onClick={() => void openSession(session)}><span className="ticket-ai-session-card__icon"><SprintIcon name="sparkle" /></span><span className="ticket-ai-session-card__content"><strong>{session.title}</strong><small>{formatDateTime(session.updatedAt)}</small></span><span className="ticket-ai-session-card__open"><SprintIcon name="chevron-right" /></span></button>)}</div> : null}
     <div className="ticket-ai-session-composer">
-      <div className="ticket-ai-session-quick-actions" aria-label="Sprint AI 快捷操作">{SPRINT_AI_QUICK_ACTIONS.map((action) => <button type="button" key={action.actionKey} disabled={isStreaming} onClick={() => void streamSession({ message: action.title, title: action.title, actionKey: action.actionKey })}><span aria-hidden="true">{action.icon}</span>{action.title}</button>)}</div>
+      <div className="ticket-ai-session-quick-actions" aria-label="Sprint AI 快捷操作">{SPRINT_AI_QUICK_ACTIONS.map((action) => <button type="button" key={action.actionKey} disabled={isStreaming} onClick={() => void streamSession({ message: action.title, title: action.title, actionKey: action.actionKey })}><SprintIcon name={action.icon} />{action.title}</button>)}</div>
       <form className="ticket-ai-session-create" onSubmit={(event) => { event.preventDefault(); const message = draft; setDraft(""); void streamSession({ message, title: message }); }}>
         <label className="visually-hidden" htmlFor="sprint-ai-session-request">AI Session 请求</label>
         <textarea id="sprint-ai-session-request" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="例如：把本 Sprint 的 Release Notes 压缩为 5 条内部更新…" rows="3" disabled={isStreaming} />
         <div><span>只使用当前 Sprint 已完成的三类工作项快照。</span><button type="submit" disabled={!draft.trim() || isStreaming}>{isStreaming ? "AI 正在回复…" : "新建 AI Session"}</button></div>
       </form>
     </div>
-    {drawer ? <div className="ticket-ai-drawer-backdrop" role="presentation" onMouseDown={() => !isStreaming && setDrawer(null)}><aside className="ticket-ai-drawer" aria-label="Sprint AI Session 详情" onMouseDown={(event) => event.stopPropagation()}><header className="ticket-ai-drawer__header"><div><p>Sprint AI Chat</p><h2>{drawer.title}</h2></div><button type="button" aria-label="关闭 AI Session" onClick={() => setDrawer(null)} disabled={isStreaming}>×</button></header><div className="ticket-ai-drawer__body">{drawer.status === "loading" ? <p className="ticket-section-empty">正在加载会话…</p> : null}{drawer.messages.map((entry, index) => <div className={`ticket-ai-message ticket-ai-message--${entry.kind}`} key={entry.id || `${entry.kind}-${index}`}>{entry.text ? <div className="ticket-ai-message__text">{entry.text}</div> : null}{entry.kind === "assistant" && entry.text ? <div className="ticket-ai-message__actions"><AiSessionCopyButton text={entry.text} /></div> : null}</div>)}{drawer.status === "generating" ? <p className="ticket-ai-generating">Kimi 正在生成回复…</p> : null}{drawer.status === "error" ? <div className="ticket-ai-drawer__error"><p>{drawer.error}</p>{drawer.lastMessage ? <button type="button" disabled={isStreaming} onClick={() => void streamSession({ message: drawer.lastMessage, sessionId: drawer.sessionId || undefined, title: drawer.title })}>Retry</button> : null}</div> : null}</div><form className="ticket-ai-drawer__composer" onSubmit={(event) => { event.preventDefault(); const message = drawerDraft; setDrawerDraft(""); void streamSession({ message, sessionId: drawer.sessionId || undefined, title: drawer.title }); }}><label className="visually-hidden" htmlFor="sprint-ai-followup">继续对话</label><textarea id="sprint-ai-followup" value={drawerDraft} onChange={(event) => setDrawerDraft(event.target.value)} placeholder="继续这个 AI Session…" rows="2" disabled={isStreaming || drawer.status === "loading"} /><button type="submit" disabled={isStreaming || drawer.status === "loading" || !drawerDraft.trim()}>发送 ↑</button></form></aside></div> : null}
+    {drawer ? <div className="ticket-ai-drawer-backdrop" role="presentation" onMouseDown={() => !isStreaming && setDrawer(null)}><aside className="ticket-ai-drawer" aria-label="Sprint AI Session 详情" onMouseDown={(event) => event.stopPropagation()}><header className="ticket-ai-drawer__header"><div><p>Sprint AI Chat</p><h2>{drawer.title}</h2></div><button type="button" aria-label="关闭 AI Session" onClick={() => setDrawer(null)} disabled={isStreaming}><SprintIcon name="close" /></button></header><div className="ticket-ai-drawer__body">{drawer.status === "loading" ? <p className="ticket-section-empty">正在加载会话…</p> : null}{drawer.messages.map((entry, index) => <div className={`ticket-ai-message ticket-ai-message--${entry.kind}`} key={entry.id || `${entry.kind}-${index}`}>{entry.text ? <div className="ticket-ai-message__text">{entry.text}</div> : null}{entry.kind === "assistant" && entry.text ? <div className="ticket-ai-message__actions"><AiSessionCopyButton text={entry.text} /></div> : null}</div>)}{drawer.status === "generating" ? <p className="ticket-ai-generating">Kimi 正在生成回复…</p> : null}{drawer.status === "error" ? <div className="ticket-ai-drawer__error"><p>{drawer.error}</p>{drawer.lastMessage ? <button type="button" disabled={isStreaming} onClick={() => void streamSession({ message: drawer.lastMessage, sessionId: drawer.sessionId || undefined, title: drawer.title })}>Retry</button> : null}</div> : null}</div><form className="ticket-ai-drawer__composer" onSubmit={(event) => { event.preventDefault(); const message = drawerDraft; setDrawerDraft(""); void streamSession({ message, sessionId: drawer.sessionId || undefined, title: drawer.title }); }}><label className="visually-hidden" htmlFor="sprint-ai-followup">继续对话</label><textarea id="sprint-ai-followup" value={drawerDraft} onChange={(event) => setDrawerDraft(event.target.value)} placeholder="继续这个 AI Session…" rows="2" disabled={isStreaming || drawer.status === "loading"} /><button type="submit" disabled={isStreaming || drawer.status === "loading" || !drawerDraft.trim()}>发送 <SprintIcon name="send" /></button></form></aside></div> : null}
   </section>;
 }
 

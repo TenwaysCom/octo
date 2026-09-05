@@ -1084,21 +1084,35 @@ h1 {
 .sprint-progress-metrics > div { display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 4px 6px; align-items: center; color: var(--octo-text-muted); font-size: 10px; }
 .sprint-progress-metrics strong { grid-column: 2; color: var(--octo-text); font-size: 14px; }
 .sprint-progress-metrics small { grid-column: 2; color: var(--octo-text-muted); font-size: 9px; }
-.sprint-progress-key { width: 14px; height: 0; border-top: 2px solid #94a3b8; }
+.sprint-progress-key { position: relative; width: 14px; height: 0; border-top: 2px solid #94a3b8; }
+.sprint-progress-key::after { position: absolute; top: -4px; right: 0; width: 6px; height: 6px; border: 1.5px solid var(--octo-surface); border-radius: 50%; background: #94a3b8; content: ""; }
 .sprint-progress-key--scope { border-top-style: dashed; }
 .sprint-progress-key--started { border-top-color: #eab308; }
+.sprint-progress-key--started::after { background: #eab308; }
 .sprint-progress-key--completed { border-top-color: var(--octo-brand); }
+.sprint-progress-key--completed::after { background: var(--octo-brand); }
 .sprint-timeline__plot { position: relative; height: 132px; margin-top: 9px; }
 .sprint-timeline--compact .sprint-timeline__plot { height: 155px; }
-.sprint-timeline__plot svg { display: block; width: 100%; height: calc(100% - 18px); overflow: visible; }
-.sprint-timeline__grid { stroke: var(--octo-border); stroke-width: 1; }
-.sprint-timeline__line { fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2; vector-effect: non-scaling-stroke; }
+.sprint-timeline__plot svg { display: block; width: 100%; height: calc(100% - 18px); overflow: visible; border: 1px solid color-mix(in srgb, var(--octo-border) 82%, transparent); border-radius: 8px; background: linear-gradient(180deg, color-mix(in srgb, var(--octo-brand) 4%, var(--octo-surface)), var(--octo-surface)); }
+.sprint-timeline__grid { stroke: var(--octo-border); stroke-dasharray: 2 3; stroke-width: 1; }
+.sprint-timeline__area { fill: color-mix(in srgb, var(--octo-brand) 8%, transparent); }
+.sprint-timeline__line { fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2.25; vector-effect: non-scaling-stroke; }
 .sprint-timeline__line--scope { stroke: #94a3b8; stroke-dasharray: 4 3; }
 .sprint-timeline__line--started { stroke: #eab308; }
 .sprint-timeline__line--completed { stroke: var(--octo-brand); }
+.sprint-timeline__point { stroke: var(--octo-surface); stroke-width: 1.75; vector-effect: non-scaling-stroke; }
+.sprint-timeline__point--scope { fill: #94a3b8; }
+.sprint-timeline__point--started { fill: #eab308; }
+.sprint-timeline__point--completed { fill: var(--octo-brand); }
 .sprint-timeline__dates { position: absolute; right: 0; bottom: 0; left: 0; height: 12px; color: var(--octo-text-muted); font-size: 9px; }
 .sprint-timeline__dates span { position: absolute; white-space: nowrap; }
 .sprint-timeline__coverage { display: block; margin-top: 5px; color: #a16207; font-size: 9px; line-height: 1.4; }
+.sprint-icon { display: block; width: 16px; height: 16px; flex: 0 0 auto; }
+.ticket-ai-session-empty__icon .sprint-icon, .ticket-ai-session-card__icon .sprint-icon { width: 15px; height: 15px; }
+.ticket-ai-session-card__open .sprint-icon { width: 14px; height: 14px; }
+.ticket-ai-session-quick-actions .sprint-icon { width: 14px; height: 14px; }
+.ticket-ai-drawer__header .sprint-icon { width: 17px; height: 17px; }
+.ticket-ai-drawer__composer button .sprint-icon { width: 14px; height: 14px; }
 .sprint-ai-sessions { display: grid; gap: 12px; padding: 15px 16px 17px; border-top: 1px solid var(--octo-border); }
 .sprint-ai-sessions .ticket-ai-session-list { margin-bottom: 0; }
 .sprint-ai-sessions .ticket-ai-session-create textarea { min-height: 72px; }
