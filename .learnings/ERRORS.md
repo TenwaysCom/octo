@@ -108,8 +108,7 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 
 - **Summary:** Lark thread 功能的全量 Server test 命令触发了与本次改动无关的运行环境失败。
 - **Error:** Node v22.12.0 无法加载 `node:sqlite`，导致 6 个既有 SQLite suites 失败；`src/logger.test.ts` 的 dated log 文件断言在全量和独立运行中都失败。
-- **Fix:** 使用 `pnpm --dir server exec vitest run <files...>` 精确验证相关 10 个文件（37 tests 全通过），并单独执行 `pnpm --dir server build`。全量套件需在提供 `node:sqlite` 的项目标准 Node runtime 运行，并另行修复既有 logger 落盘时序/兼容性。
-- **Status:** 本功能验证完成；全量环境问题未在本任务中修改。
+- **Fix:** Server `test` script uses `NODE_OPTIONS=--experimental-sqlite` so Vitest workers can load the legacy module. The dated-file test polls for the expected message with a bounded timeout instead of treating `logger.flush()` as transport-worker completion. source: [Server 测试 SQLite runtime 与 logger 稳定性修复](../docs/tasks/engineering-ops/2026-09-04-server-test-runtime-and-logger-stability.md)
 
 ## [ERR-20260826-002] postgres-migration-sandbox-network
 
@@ -164,8 +163,7 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 
 - **Summary:** The full server suite intermittently did not observe a Pino daily-rotation file immediately after `flush`.
 - **Error:** `src/logger.test.ts` expected a dated log filename, received `undefined`; the isolated retry passed.
-- **Fix:** Treat this as an existing timing-sensitive test; keep the unrelated logger implementation unchanged and report both the full-suite result and isolated retry.
-- **Status:** resolved by retry; no product-code change
+- **Fix:** Assert on the dated file containing the logged message after a bounded poll; `flush()` alone does not establish worker-transport completion. source: [Server 测试 SQLite runtime 与 logger 稳定性修复](../docs/tasks/engineering-ops/2026-09-04-server-test-runtime-and-logger-stability.md)
 
 ## [ERR-20260810-005] sandbox-process-inspection-denied
 

@@ -29,7 +29,7 @@
     "dev:serve": "nodemon --watch dist --ext js --delay 200ms dist/index.js",
     "kimi-acp:repl": "tsx ./examples/kimi-acp-client/repl.ts",
     "kimi-acp:validate": "tsx ./examples/kimi-acp-client/client.ts",
-    "test": "vitest run"
+    "test": "NODE_OPTIONS=--experimental-sqlite vitest run"
   },
   "dependencies": {
     "@agentclientprotocol/sdk": "0.17.1",

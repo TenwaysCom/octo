@@ -4,6 +4,27 @@ import { join } from "node:path";
 import { createDailyRotatingFileTransport, createFileLogger } from "./logger.js";
 
 const tempDirs: string[] = [];
+const datedLogFilePattern = /^app\.\d{4}-\d{2}-\d{2}\.1\.log$/;
+
+async function waitForLogMessage(dir: string, message: string): Promise<string> {
+  const deadline = Date.now() + 5_000;
+
+  while (Date.now() < deadline) {
+    const files = await readdir(dir);
+    const logFile = files.find((file) => datedLogFilePattern.test(file));
+
+    if (logFile) {
+      const contents = await readFile(join(dir, logFile), "utf-8");
+      if (contents.includes(message)) {
+        return logFile;
+      }
+    }
+
+    await new Promise<void>((resolve) => setTimeout(resolve, 10));
+  }
+
+  throw new Error(`Timed out waiting for ${message} to reach the dated log file`);
+}
 
 afterEach(async () => {
   await Promise.all(
@@ -34,9 +55,7 @@ describe("createDailyRotatingFileTransport", () => {
       logger.flush((error) => (error ? reject(error) : resolve()));
     });
 
-    const files = await readdir(dir);
-    const logFile = files.find((file) => /^app\.\d{4}-\d{2}-\d{2}\.1\.log$/.test(file));
-    expect(logFile).toBeDefined();
-    await expect(readFile(join(dir, logFile ?? ""), "utf-8")).resolves.toContain("DAILY_LOG_TEST");
-  });
+    const logFile = await waitForLogMessage(dir, "DAILY_LOG_TEST");
+    await expect(readFile(join(dir, logFile), "utf-8")).resolves.toContain("DAILY_LOG_TEST");
+  }, 6_000);
 });

@@ -2,6 +2,12 @@
 
 Record concise, reusable lessons here. Include the context, the durable rule, and the verified outcome; never include secrets or raw credentials.
 
+## [LRN-20260904-001] server-test-worker-runtime-and-transport-output
+
+- **Context:** Vitest workers did not inherit a SQLite feature flag supplied only to the parent Node process, and Pino's worker transport can complete `logger.flush()` before the observable file write.
+- **Rule:** Pass required experimental Node features through `NODE_OPTIONS` in the package test command so all Vitest workers receive them. For worker-transport output tests, wait for the specific persisted output with a bounded timeout instead of asserting immediately after a flush callback.
+- source: [Server 测试 SQLite runtime 与 logger 稳定性修复](../docs/tasks/engineering-ops/2026-09-04-server-test-runtime-and-logger-stability.md)
+
 ## [LRN-20260901-006] support-analysis-shared-write-boundary
 
 - **Context:** Ticket 人工审核接口与 Summary Quick Action 都要更新 intent、result、quality，但 Quick Action 的实际执行者是外部 ACP Skill，已有 SSH 签名 internal API 通道。
