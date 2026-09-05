@@ -2,13 +2,13 @@ import { describe, expect, it, vi } from "vitest";
 import {
   createLarkTicketAiSessionService,
 } from "./lark-ticket-ai-session.service.js";
-import { DeepSeekChatError } from "../../adapters/deepseek/deepseek-chat-client.js";
+import { ZcodeChatError } from "../../adapters/zcode/zcode-chat-client.js";
 import { SupportTicketAnalysisError } from "./support-ticket-analysis.service.js";
 
 const ticket = { baseId: "app_1", tableId: "tbl_1", recordId: "rec_1" };
 
 function createDirectSummaryTestService(
-  deepSeekClient: { createJsonCompletion: ReturnType<typeof vi.fn> },
+  ticketSummaryClient: { createJsonCompletion: ReturnType<typeof vi.fn> },
   analysisService: { update: ReturnType<typeof vi.fn> },
 ) {
   return createLarkTicketAiSessionService({
@@ -16,7 +16,7 @@ function createDirectSummaryTestService(
       ...ticket, title: "Ticket", ticketNumber: "LT-10", syncedAt: "2026-09-04T00:00:00.000Z",
     }]) } as never,
     ownershipStore: {} as never,
-    deepSeekClient,
+    ticketSummaryClient,
     analysisService: analysisService as never,
     workflowPromptStore: { getByKey: vi.fn().mockResolvedValue({ prompt: "{{ticket_context}} {{user_message}}" }) } as never,
     threadContextService: { ensure: vi.fn().mockResolvedValue({
@@ -197,7 +197,7 @@ describe("Lark Ticket AI Session service", () => {
     expect(historyService.loadSession).not.toHaveBeenCalled();
   });
 
-  it("runs Summary through DeepSeek, validates its fixed-snapshot evidence, and writes the analysis directly", async () => {
+  it("runs Summary through the configured provider, validates its fixed-snapshot evidence, and writes the analysis directly", async () => {
     const analysis = {
       segmentKey: "primary",
       intent: {
@@ -220,14 +220,14 @@ describe("Lark Ticket AI Session service", () => {
       },
       quality: { scores: {}, summary: "当前证据不足。", criticalIssues: [], warnings: ["缺少报错截图"] },
     };
-    const deepSeekClient = {
+    const ticketSummaryClient = {
       createJsonCompletion: vi.fn().mockResolvedValue({
         content: JSON.stringify({
           version: "support-analysis-result-v1",
           analysis,
           summary: "用户无法登录，尚需补充报错信息。",
         }),
-        model: "deepseek-v4-flash",
+        model: "glm-5.3",
       }),
     };
     const analysisService = { update: vi.fn().mockResolvedValue({ analysisRunId: "analysis_1" }) };
@@ -239,7 +239,7 @@ describe("Lark Ticket AI Session service", () => {
       }]) } as never,
       ownershipStore: ownershipStore as never,
       acpService: acpService as never,
-      deepSeekClient,
+      ticketSummaryClient,
       analysisService: analysisService as never,
       workflowPromptStore: { getByKey: vi.fn().mockResolvedValue(undefined) } as never,
       threadContextService: { ensure: vi.fn().mockResolvedValue({
@@ -267,19 +267,19 @@ describe("Lark Ticket AI Session service", () => {
       ticket,
       message: "问题总结",
       actionKey: "lark-ticket-support-qa-summarize",
-      actionRunId: "run_deepseek_1",
+      actionRunId: "run_ticket_summary_1",
     }, (event) => events.push(event as never));
 
-    expect(deepSeekClient.createJsonCompletion).toHaveBeenCalledWith(expect.objectContaining({
-      actionRunId: "run_deepseek_1",
+    expect(ticketSummaryClient.createJsonCompletion).toHaveBeenCalledWith(expect.objectContaining({
+      actionRunId: "run_ticket_summary_1",
       prompt: expect.stringContaining("om_1"),
     }));
-    expect(deepSeekClient.createJsonCompletion.mock.calls[0][0].prompt).toContain("evidenceMessageIds");
-    expect(deepSeekClient.createJsonCompletion.mock.calls[0][0].prompt).toContain("intentType 只能是以下 10 个值之一");
+    expect(ticketSummaryClient.createJsonCompletion.mock.calls[0][0].prompt).toContain("evidenceMessageIds");
+    expect(ticketSummaryClient.createJsonCompletion.mock.calls[0][0].prompt).toContain("intentType 只能是以下 10 个值之一");
     expect(analysisService.update).toHaveBeenCalledWith({
       ticket,
       snapshotVersion: 3,
-      actionRunId: "run_deepseek_1",
+      actionRunId: "run_ticket_summary_1",
       sourceName: "lark-ticket-support-qa-summarize",
       reviewStatus: "ai_generated",
       reviewerKind: "ai",
@@ -293,8 +293,8 @@ describe("Lark Ticket AI Session service", () => {
     expect(events.some((event) => event.event === "session.created")).toBe(false);
   });
 
-  it("rejects DeepSeek evidence outside the fixed snapshot without writing analysis", async () => {
-    const deepSeekClient = { createJsonCompletion: vi.fn().mockResolvedValue({
+  it("rejects configured-provider evidence outside the fixed snapshot without writing analysis", async () => {
+    const ticketSummaryClient = { createJsonCompletion: vi.fn().mockResolvedValue({
       model: "deepseek-v4-flash",
       content: JSON.stringify({
         version: "support-analysis-result-v1",
@@ -311,7 +311,7 @@ describe("Lark Ticket AI Session service", () => {
     const service = createLarkTicketAiSessionService({
       syncStore: { getLarkBaseTicketsForCleaning: vi.fn().mockResolvedValue([{ ...ticket, title: "Ticket", syncedAt: "2026-09-04T00:00:00.000Z" }]) } as never,
       ownershipStore: {} as never,
-      deepSeekClient,
+      ticketSummaryClient,
       analysisService: analysisService as never,
       workflowPromptStore: { getByKey: vi.fn().mockResolvedValue({ prompt: "{{ticket_context}} {{user_message}}" }) } as never,
       threadContextService: { ensure: vi.fn().mockResolvedValue({
@@ -326,20 +326,20 @@ describe("Lark Ticket AI Session service", () => {
     await expect(service.chat({
       operatorLarkId: "ou_1", masterUserId: "usr_1", larkBaseUrl: "https://open.larksuite.com", ticket,
       message: "问题总结", actionKey: "lark-ticket-support-qa-summarize", actionRunId: "run_bad_evidence",
-    }, vi.fn())).rejects.toMatchObject({ code: "DEEPSEEK_EVIDENCE_OUTSIDE_SNAPSHOT" });
+    }, vi.fn())).rejects.toMatchObject({ code: "TICKET_SUMMARY_EVIDENCE_OUTSIDE_SNAPSHOT" });
     expect(analysisService.update).not.toHaveBeenCalled();
   });
 
-  it("does not write analysis when the DeepSeek request fails", async () => {
+  it("does not write analysis when the configured provider request fails", async () => {
     const analysisService = { update: vi.fn() };
     const service = createDirectSummaryTestService({
-      createJsonCompletion: vi.fn().mockRejectedValue(new DeepSeekChatError("DEEPSEEK_REQUEST_FAILED", "Provider unavailable.")),
+      createJsonCompletion: vi.fn().mockRejectedValue(new ZcodeChatError("ZCODE_REQUEST_FAILED", "Provider unavailable.")),
     }, analysisService);
 
     await expect(service.chat({
       operatorLarkId: "ou_1", masterUserId: "usr_1", larkBaseUrl: "https://open.larksuite.com", ticket,
       message: "问题总结", actionKey: "lark-ticket-support-qa-summarize", actionRunId: "run_provider_error",
-    }, vi.fn())).rejects.toMatchObject({ code: "DEEPSEEK_REQUEST_FAILED" });
+    }, vi.fn())).rejects.toMatchObject({ code: "ZCODE_REQUEST_FAILED" });
     expect(analysisService.update).not.toHaveBeenCalled();
   });
 

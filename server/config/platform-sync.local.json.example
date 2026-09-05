@@ -34,7 +34,7 @@
       "meegle":  { "enabled": false,  "intervalMinutes": 15 },
       "github":  { "enabled": false,  "intervalMinutes": 15 },
       "shadow":  { "enabled": true,  "intervalMinutes": 30,
-                  "settleMinutes": 180, "batchLimit": 2, "deepSeekTimeoutSeconds": 300 },
+                  "settleMinutes": 180, "batchLimit": 2, "summaryTimeoutSeconds": 300 },
       "help": {
         "leaseSeconds": 1200,
         "settleMinutes": "表示只有 source_updated_at 早于当前时间 3 小时的 Ticket，才会进入 Shadow 分析候选。"

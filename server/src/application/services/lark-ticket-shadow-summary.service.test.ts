@@ -1,6 +1,7 @@
 import type { LarkBaseTicketSyncItem } from "../../adapters/postgres/platform-sync-store.js";
 import type { LarkTicketThreadSnapshot } from "../../adapters/postgres/lark-ticket-thread-sync-store.js";
 import { DeepSeekChatError } from "../../adapters/deepseek/deepseek-chat-client.js";
+import { ZcodeChatError } from "../../adapters/zcode/zcode-chat-client.js";
 import {
   createLarkTicketShadowSummaryService,
   LarkTicketShadowSummaryError,
@@ -110,7 +111,7 @@ function makeDeps(input: {
         snapshot: input.threadResult?.snapshot,
       }),
     },
-    deepSeekClient: {
+    ticketSummaryClient: {
       createJsonCompletion: async ({ prompt, actionRunId }) => {
         prompts.push(prompt);
         actionRunIds.push(actionRunId);
@@ -208,7 +209,7 @@ describe("lark-ticket-shadow-summary.service", () => {
     expect(result.failed).toBe(1);
     const shadow = writes[0] as { error: { errorCode: string; errorMessage: string; outputChars: number } };
     expect(shadow.error.errorCode).toBe("SHADOW_OUTPUT_INVALID");
-    expect(shadow.error.errorMessage).toBe("Shadow DeepSeek output did not contain a JSON object.");
+    expect(shadow.error.errorMessage).toBe("Shadow Ticket summary output did not contain a JSON object.");
     expect(shadow.error.outputChars).toBe(3);
   });
 
@@ -257,6 +258,22 @@ describe("lark-ticket-shadow-summary.service", () => {
     const shadow = writes[0] as { error: { errorCode: string; errorMessage: string } };
     expect(shadow.error.errorCode).toBe("DEEPSEEK_RESPONSE_INVALID");
     expect(shadow.error.errorMessage).toContain("empty or truncated");
+  });
+
+  it("persists typed ZCode response errors", async () => {
+    const { service, writes } = makeDeps({
+      candidates: [makeTicket()],
+      threadResult: { source: "lark", snapshot: makeSnapshot() },
+      deepSeekError: new ZcodeChatError(
+        "ZCODE_RESPONSE_INVALID",
+        "ZCode returned an empty or truncated completion.",
+      ),
+    });
+
+    const result = await service.runOnce();
+
+    expect(result.failed).toBe(1);
+    expect((writes[0] as { error: { errorCode: string } }).error.errorCode).toBe("ZCODE_RESPONSE_INVALID");
   });
 
   it("persists DeepSeek request status without response content", async () => {

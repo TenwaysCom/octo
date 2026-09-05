@@ -2,6 +2,14 @@
 
 Record concise, reusable lessons here. Include the context, the durable rule, and the verified outcome; never include secrets or raw credentials.
 
+## [LRN-20260905-001] ticket-summary-provider-single-config
+
+**Context:** A Ticket Quick Action and a background Shadow Worker run the same fixed-snapshot structured analysis but previously each constructed a vendor-specific client, so a model switch could make their output incomparable.
+
+**Rule:** Put any provider/model selection shared by two analysis paths behind one Server-owned factory and one configuration namespace; workflow catalog metadata may name the logical capability, but must not freeze a vendor choice that deployment configuration can change.
+
+source: [Ticket 问题总结与 Shadow Worker 共用 ZCode Provider](../docs/tasks/ai-ticket/2026-09-05-shared-zcode-ticket-summary-provider.md)
+
 ## [LRN-20260904-001] server-test-worker-runtime-and-transport-output
 
 - **Context:** Vitest workers did not inherit a SQLite feature flag supplied only to the parent Node process, and Pino's worker transport can complete `logger.flush()` before the observable file write.

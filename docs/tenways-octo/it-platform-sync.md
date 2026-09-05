@@ -137,11 +137,11 @@ Support-QA 快捷动作还会在 workflow 完成前核对当前 Ticket 的 `fetc
 | 路由 | 作用 |
 | --- | --- |
 | `GET /api/web/lark-tickets/:recordId/ai-sessions` | 列出当前 Web 用户在指定 Ticket 下的 AI Sessions |
-| `POST /api/web/lark-tickets/:recordId/ai-sessions` | 新建或继续 Kimi ACP 流式对话 |
+| `POST /api/web/lark-tickets/:recordId/ai-sessions` | 运行配置的 Ticket Summary one-shot，或新建/继续 Kimi ACP 流式对话 |
 | `POST /api/web/lark-tickets/:recordId/ai-sessions/:sessionId/load` | 加载一个已归属该 Ticket 的会话历史 |
 | `POST /api/internal/acp/ticket-context/messages` | 通过 SSH 签名身份按需 ensure 并返回 Ticket thread 快照 |
 
-三个路由都要求有效的 HttpOnly `octo_web_session`；浏览器只提交当前已加载 Ticket 的引用和用户输入，服务端解析用户身份、读取同步快照、校验会话归属并调用 Kimi ACP。浏览器不会接收 `masterUserId` 或 ACP 凭据。详情页按 ACP turn 合并流式 text chunk，并把同一回复的思考过程与工具调用收进可展开区块；无 `messageId` 的事件以用户消息作为新 turn 边界，避免跨轮回复拼接。
+三个路由都要求有效的 HttpOnly `octo_web_session`；浏览器只提交当前已加载 Ticket 的引用和用户输入，服务端解析用户身份、读取同步快照、校验会话归属，并按 action 调用共享 Ticket Summary provider 或 Kimi ACP。浏览器不会接收 `masterUserId`、provider key 或 ACP 凭据。详情页按 ACP turn 合并流式 text chunk，并把同一回复的思考过程与工具调用收进可展开区块；无 `messageId` 的事件以用户消息作为新 turn 边界，避免跨轮回复拼接。
 
 ### 2.4 当前批量范围与限制
 
@@ -261,14 +261,14 @@ pnpm --dir server exec pm2 save
         "intervalMinutes": 60,
         "settleMinutes": 180,
         "batchLimit": 5,
-        "deepSeekTimeoutSeconds": 300
+        "summaryTimeoutSeconds": 300
       }
     }
   }
 }
 ```
 
-`scheduler.enabled` 是 Worker 定时任务总开关（`false` 时整个 Worker 空转）。`tasks.lark/meegle/github` 是各数据源同步的独立开关（缺省全开），`intervalMinutes` 可覆盖 `intervalsMinutes` 的平台默认值；`tasks.shadow` 是 Lark Ticket 影子 AI 分析任务（缺省关闭），`intervalMinutes` 是轮询间隔，`settleMinutes` 是工单静默多久才分析，`batchLimit` 是每轮条数，`deepSeekTimeoutSeconds` 是单次 DeepSeek 请求超时。只跑 shadow 不跑同步时，把三个数据源任务置 `false`、`tasks.shadow.enabled` 置 `true` 即可。shadow 相关环境变量（`LARK_TICKET_SHADOW_SUMMARY_ENABLED` 等）仍可作为覆盖项，设置后优先于配置文件。shadow 与 Quick Action 共用 `DEEPSEEK_API_KEY`、`DEEPSEEK_LARK_TICKET_SUMMARY_MODEL` 和 `DEEPSEEK_LARK_TICKET_SUMMARY_TIMEOUT_MS`；任务级 `deepSeekTimeoutSeconds` 覆盖通用超时。已有本地配置中的 `acpTimeoutSeconds` 仅作为兼容别名读取。
+`scheduler.enabled` 是 Worker 定时任务总开关（`false` 时整个 Worker 空转）。`tasks.lark/meegle/github` 是各数据源同步的独立开关（缺省全开），`intervalMinutes` 可覆盖 `intervalsMinutes` 的平台默认值；`tasks.shadow` 是 Lark Ticket 影子 AI 分析任务（缺省关闭），`intervalMinutes` 是轮询间隔，`settleMinutes` 是工单静默多久才分析，`batchLimit` 是每轮条数，`summaryTimeoutSeconds` 是单次 Ticket Summary provider 请求超时。只跑 shadow 不跑同步时，把三个数据源任务置 `false`、`tasks.shadow.enabled` 置 `true` 即可。Quick Action 与 shadow 统一读取 `LARK_TICKET_SUMMARY_PROVIDER`、`LARK_TICKET_SUMMARY_MODEL` 和 `LARK_TICKET_SUMMARY_TIMEOUT_MS`：默认 `deepseek`，设为 `zcode` 时使用 `ZCODE_API_KEY` 和智谱标准 OpenAI Chat Completions 接口。任务级 `summaryTimeoutSeconds` 只覆盖 shadow 的通用超时；已有 `deepSeekTimeoutSeconds` 和 `acpTimeoutSeconds` 仅作为兼容别名读取。
 
 Worker 启动时把当前配置 scope 收敛到 `platform_sync_schedules`；删除或任务级禁用的配置 scope 会被禁用。错过的多个周期合并成一次，同 scope 已由手动或 CLI 运行占用时也直接合并到下一周期。临时网络、429 与 5xx 按 1/5/15 分钟退避，超过三次或遇到 checkpoint、授权、权限、配置错误时禁用该 schedule 并保存安全的 `blocked_reason`；修复配置或授权后重启 Worker 会按配置重新启用。
 

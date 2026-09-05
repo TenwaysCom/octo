@@ -5,7 +5,7 @@ import {
 } from "./automation-actions.config.js";
 
 describe("ticket AI automation actions", () => {
-  it("routes only Summary to DeepSeek and keeps the other Support-QA actions on ACP", () => {
+  it("routes only Summary to the configured Ticket Summary provider and keeps the other Support-QA actions on ACP", () => {
     expect(AUTOMATION_SKILL_PROFILES.support_qa_eu).toEqual({
       workspaceEnv: "SUPPORT_QA_EU_WORKSPACE_DIR",
       skills: {
@@ -15,7 +15,7 @@ describe("ticket AI automation actions", () => {
     });
     expect(getTicketAiAutomationAction("lark-ticket-support-qa-summarize")).toMatchObject({
       promptKey: "lark_ticket.support_qa.summarize",
-      provider: "deepseek",
+      provider: "ticket_summary",
       requiresConfirmation: false,
     });
     expect(getTicketAiAutomationAction("lark-ticket-support-qa-answer")).toMatchObject({

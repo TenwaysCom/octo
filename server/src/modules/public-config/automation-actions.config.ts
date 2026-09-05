@@ -26,7 +26,7 @@ export const AUTOMATION_SKILL_PROFILES = {
 interface TicketAiAutomationActionBase extends AutomationActionConfig {
   executor: Extract<AutomationActionConfig["executor"], { type: "backend_api" }>;
   promptKey: string;
-  provider: "kimi_acp" | "deepseek";
+  provider: "kimi_acp" | "ticket_summary";
   requiresConfirmation: boolean;
 }
 
@@ -37,13 +37,13 @@ export interface KimiTicketAiAutomationActionConfig extends TicketAiAutomationAc
   executionPolicy: AutomationExecutionPolicy;
 }
 
-export interface DeepSeekTicketAiAutomationActionConfig extends TicketAiAutomationActionBase {
-  provider: "deepseek";
+export interface TicketSummaryTicketAiAutomationActionConfig extends TicketAiAutomationActionBase {
+  provider: "ticket_summary";
 }
 
 export type TicketAiAutomationActionConfig =
   | KimiTicketAiAutomationActionConfig
-  | DeepSeekTicketAiAutomationActionConfig;
+  | TicketSummaryTicketAiAutomationActionConfig;
 
 export interface SprintAiAutomationActionConfig extends AutomationActionConfig {
   executor: Extract<AutomationActionConfig["executor"], { type: "backend_api" }>;
@@ -107,7 +107,7 @@ export const AUTOMATION_ACTIONS = {
   larkTicketSupportQaSummarize: {
     key: "lark-ticket-support-qa-summarize",
     title: "问题总结",
-    description: "读取当前 Ticket 固定快照，经 DeepSeek 生成并写回问题总结。",
+    description: "读取当前 Ticket 固定快照，经服务端配置的模型生成并写回问题总结。",
     style: "default",
     placements: [],
     interaction: { type: "direct_execute" },
@@ -118,7 +118,7 @@ export const AUTOMATION_ACTIONS = {
       route: "/api/web/lark-tickets/:recordId/ai-sessions",
     },
     promptKey: "lark_ticket.support_qa.summarize",
-    provider: "deepseek",
+    provider: "ticket_summary",
     requiresConfirmation: false,
   },
   larkTicketSupportQaAnswer: {

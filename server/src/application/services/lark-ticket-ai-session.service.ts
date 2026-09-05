@@ -1,6 +1,11 @@
 import type { AcpKimiProxyService } from "./acp-kimi-proxy.service.js";
 import { acpKimiProxyService } from "./acp-kimi-proxy.service.js";
-import { createDeepSeekChatClient, DeepSeekChatError, type DeepSeekJsonCompletionClient } from "../../adapters/deepseek/deepseek-chat-client.js";
+import {
+  createTicketSummaryJsonCompletionClient,
+  isTicketSummaryClientError,
+  type TicketSummaryClientErrorCode,
+  type TicketSummaryJsonCompletionClient,
+} from "../../adapters/ai/ticket-summary-client.js";
 import {
   extractAcpKimiExecuteCall,
   extractAcpKimiRawCommand,
@@ -23,8 +28,8 @@ import {
 import {
   AUTOMATION_SKILL_PROFILES,
   getTicketAiAutomationAction,
-  type DeepSeekTicketAiAutomationActionConfig,
   type KimiTicketAiAutomationActionConfig,
+  type TicketSummaryTicketAiAutomationActionConfig,
 } from "../../modules/public-config/automation-actions.config.js";
 import {
   getWorkflowPromptStore,
@@ -72,12 +77,9 @@ export class LarkTicketAiSessionError extends Error {
       | "LARK_THREAD_CONTEXT_UNAVAILABLE"
       | "SUPPORT_QA_EVIDENCE_NOT_FETCHED"
       | "SUPPORT_ANALYSIS_NOT_UPDATED"
-      | "DEEPSEEK_API_KEY_MISSING"
-      | "DEEPSEEK_TIMEOUT"
-      | "DEEPSEEK_REQUEST_FAILED"
-      | "DEEPSEEK_RESPONSE_INVALID"
-      | "DEEPSEEK_OUTPUT_INVALID"
-      | "DEEPSEEK_EVIDENCE_OUTSIDE_SNAPSHOT"
+      | TicketSummaryClientErrorCode
+      | "TICKET_SUMMARY_OUTPUT_INVALID"
+      | "TICKET_SUMMARY_EVIDENCE_OUTSIDE_SNAPSHOT"
       | "THREAD_SNAPSHOT_VERSION_CONFLICT",
     message: string,
     readonly diagnostic?: {
@@ -101,7 +103,7 @@ export interface LarkTicketAiSessionServiceDeps {
   threadContextService?: Pick<LarkTicketThreadContextService, "ensure">;
   knowledgeRetriever?: SupportKnowledgeRetriever;
   resolveAction?: (actionKey: string) => Promise<ResolvedTicketAiAction | undefined>;
-  deepSeekClient?: DeepSeekJsonCompletionClient;
+  ticketSummaryClient?: TicketSummaryJsonCompletionClient;
   analysisService?: Pick<ReturnType<typeof createSupportTicketAnalysisService>, "update">;
 }
 
@@ -123,7 +125,7 @@ export function createLarkTicketAiSessionService(
   const threadContextService = deps.threadContextService ?? createLarkTicketThreadContextService();
   const knowledgeRetriever = deps.knowledgeRetriever ?? getSupportKnowledgeStore();
   const resolveAction = deps.resolveAction ?? resolveTicketAiAction;
-  const getDeepSeekClient = () => deps.deepSeekClient ?? createDeepSeekChatClient();
+  const getTicketSummaryClient = () => deps.ticketSummaryClient ?? createTicketSummaryJsonCompletionClient();
   const getAnalysisService = () => deps.analysisService ?? createSupportTicketAnalysisService();
 
   return {
@@ -173,14 +175,14 @@ export function createLarkTicketAiSessionService(
       if (!deps.resolveAction && input.actionKey && !input.sessionId && !requestedAction) {
         throw new LarkTicketAiSessionError("AI_ACTION_NOT_FOUND", "Requested AI quick action is not configured.");
       }
-      if (requestedAction?.provider === "deepseek") {
-        await runDeepSeekSummary({
+      if (requestedAction?.provider === "ticket_summary") {
+        await runTicketSummary({
           ticket,
           input,
           action: requestedAction,
           promptStore: workflowPromptStore,
           threadContextService,
-          deepSeekClient: getDeepSeekClient(),
+          getTicketSummaryClient,
           analysisService: getAnalysisService(),
           emit,
         });
@@ -321,7 +323,7 @@ export function createLarkTicketAiSessionService(
   };
 }
 
-async function runDeepSeekSummary(input: {
+async function runTicketSummary(input: {
   ticket: LarkBaseTicketSyncItem;
   input: {
     masterUserId: string;
@@ -331,10 +333,10 @@ async function runDeepSeekSummary(input: {
     actionRunId?: string;
     signal?: AbortSignal;
   };
-  action: DeepSeekTicketAiAutomationActionConfig;
+  action: TicketSummaryTicketAiAutomationActionConfig;
   promptStore: WorkflowPromptStore;
   threadContextService: Pick<LarkTicketThreadContextService, "ensure">;
-  deepSeekClient: DeepSeekJsonCompletionClient;
+  getTicketSummaryClient: () => TicketSummaryJsonCompletionClient;
   analysisService: Pick<ReturnType<typeof createSupportTicketAnalysisService>, "update">;
   emit: (event: AcpKimiStreamEvent) => void;
 }): Promise<void> {
@@ -361,7 +363,7 @@ async function runDeepSeekSummary(input: {
   if (!snapshot || snapshot.preparedMessages.length === 0) {
     throw new LarkTicketAiSessionError(
       "LARK_THREAD_CONTEXT_UNAVAILABLE",
-      "DeepSeek summary requires a fixed Ticket snapshot with at least one evidence message.",
+      "Ticket summary requires a fixed Ticket snapshot with at least one evidence message.",
       { layer: "server", module: "lark-ticket-ai-session", stage: "server.thread.snapshot", actionRunId },
     );
   }
@@ -372,22 +374,26 @@ async function runDeepSeekSummary(input: {
     throw new LarkTicketAiSessionError("AI_ACTION_NOT_FOUND", `Prompt ${input.action.promptKey} is not configured.`);
   }
   const prompt = renderWorkflowPromptTemplate(template, {
-    ticket_context: buildDeepSeekTicketContext(input.ticket, threadContext),
+    ticket_context: buildTicketSummaryContext(input.ticket, threadContext),
     user_message: input.input.message,
   });
-  let completion: Awaited<ReturnType<DeepSeekJsonCompletionClient["createJsonCompletion"]>>;
+  let completion: Awaited<ReturnType<TicketSummaryJsonCompletionClient["createJsonCompletion"]>>;
   try {
-    completion = await input.deepSeekClient.createJsonCompletion({
+    completion = await input.getTicketSummaryClient().createJsonCompletion({
       prompt,
       actionRunId,
       signal: input.input.signal,
     });
   } catch (error) {
-    if (error instanceof DeepSeekChatError) {
+    if (isTicketSummaryClientError(error)) {
       throw new LarkTicketAiSessionError(error.code, error.message, {
         layer: "adapter",
-        module: "deepseek-chat-client",
-        stage: error.code === "DEEPSEEK_TIMEOUT" ? "adapter.deepseek.timeout" : "adapter.deepseek.response",
+        module: error.name === "ZcodeChatError" ? "zcode-chat-client" : "ticket-summary-client",
+        stage: error.code === "DEEPSEEK_TIMEOUT" || error.code === "ZCODE_TIMEOUT"
+          ? "adapter.ticket_summary.timeout"
+          : error.code === "TICKET_SUMMARY_PROVIDER_INVALID"
+            ? "adapter.ticket_summary.config"
+            : "adapter.ticket_summary.response",
         actionRunId,
       });
     }
@@ -398,25 +404,25 @@ async function runDeepSeekSummary(input: {
     parsed = JSON.parse(completion.content);
   } catch {
     throw new LarkTicketAiSessionError(
-      "DEEPSEEK_OUTPUT_INVALID",
-      "DeepSeek output was not valid JSON.",
-      { layer: "server", module: "lark-ticket-ai-session", stage: "server.deepseek.parse", actionRunId },
+      "TICKET_SUMMARY_OUTPUT_INVALID",
+      "Ticket summary output was not valid JSON.",
+      { layer: "server", module: "lark-ticket-ai-session", stage: "server.ticket_summary.parse", actionRunId },
     );
   }
   const analysisResult = supportAnalysisResultSchema.safeParse(parsed);
   if (!analysisResult.success) {
     throw new LarkTicketAiSessionError(
-      "DEEPSEEK_OUTPUT_INVALID",
-      `DeepSeek output failed analysis schema validation: ${analysisResult.error.issues.map((issue) => issue.path.join(".") || issue.code).join(", ").slice(0, 300)}`,
-      { layer: "server", module: "lark-ticket-ai-session", stage: "server.deepseek.validate", actionRunId },
+      "TICKET_SUMMARY_OUTPUT_INVALID",
+      `Ticket summary output failed analysis schema validation: ${analysisResult.error.issues.map((issue) => issue.path.join(".") || issue.code).join(", ").slice(0, 300)}`,
+      { layer: "server", module: "lark-ticket-ai-session", stage: "server.ticket_summary.validate", actionRunId },
     );
   }
   const knownEvidenceIds = new Set(snapshot.preparedMessages.map((message) => message.messageId));
   if (analysisResult.data.analysis.intent.evidenceMessageIds.some((id) => !knownEvidenceIds.has(id))) {
     throw new LarkTicketAiSessionError(
-      "DEEPSEEK_EVIDENCE_OUTSIDE_SNAPSHOT",
-      "DeepSeek analysis referenced evidence outside the fixed Ticket snapshot.",
-      { layer: "server", module: "lark-ticket-ai-session", stage: "server.deepseek.evidence", actionRunId },
+      "TICKET_SUMMARY_EVIDENCE_OUTSIDE_SNAPSHOT",
+      "Ticket summary analysis referenced evidence outside the fixed Ticket snapshot.",
+      { layer: "server", module: "lark-ticket-ai-session", stage: "server.ticket_summary.evidence", actionRunId },
     );
   }
   try {
@@ -434,7 +440,7 @@ async function runDeepSeekSummary(input: {
       const code = error.code === "THREAD_SNAPSHOT_VERSION_CONFLICT"
         ? "THREAD_SNAPSHOT_VERSION_CONFLICT"
         : error.code === "INVALID_EVIDENCE_MESSAGE_IDS"
-          ? "DEEPSEEK_EVIDENCE_OUTSIDE_SNAPSHOT"
+          ? "TICKET_SUMMARY_EVIDENCE_OUTSIDE_SNAPSHOT"
           : error.code === "LARK_TICKET_NOT_FOUND"
             ? "LARK_TICKET_NOT_FOUND"
             : "LARK_THREAD_CONTEXT_UNAVAILABLE";
@@ -447,7 +453,7 @@ async function runDeepSeekSummary(input: {
     }
     throw error;
   }
-  const streamId = `deepseek-${actionRunId}`;
+  const streamId = `ticket-summary-${actionRunId}`;
   input.emit({
     event: "acp.session.update",
     data: {
@@ -462,7 +468,7 @@ async function runDeepSeekSummary(input: {
   input.emit({ event: "done", data: { sessionId: streamId, stopReason: "end_turn" } });
 }
 
-function buildDeepSeekTicketContext(
+function buildTicketSummaryContext(
   ticket: LarkBaseTicketSyncItem,
   threadContext: LarkTicketThreadContextResult,
 ): string {

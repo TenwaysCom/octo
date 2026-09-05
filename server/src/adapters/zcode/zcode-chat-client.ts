@@ -1,45 +1,45 @@
-import { logger } from "../../logger.js";
 import type { JsonCompletionClient } from "../ai/json-completion-client.js";
+import { logger } from "../../logger.js";
 
-const deepSeekLogger = logger.child({ module: "deepseek-chat-client" });
+const zcodeLogger = logger.child({ module: "zcode-chat-client" });
 
-export type DeepSeekChatErrorCode =
-  | "DEEPSEEK_API_KEY_MISSING"
-  | "DEEPSEEK_TIMEOUT"
-  | "DEEPSEEK_REQUEST_FAILED"
-  | "DEEPSEEK_RESPONSE_INVALID";
+export type ZcodeChatErrorCode =
+  | "ZCODE_API_KEY_MISSING"
+  | "ZCODE_TIMEOUT"
+  | "ZCODE_REQUEST_FAILED"
+  | "ZCODE_RESPONSE_INVALID";
 
-export class DeepSeekChatError extends Error {
+export class ZcodeChatError extends Error {
   constructor(
-    readonly code: DeepSeekChatErrorCode,
+    readonly code: ZcodeChatErrorCode,
     message: string,
     readonly statusCode?: number,
   ) {
     super(message);
-    this.name = "DeepSeekChatError";
+    this.name = "ZcodeChatError";
   }
 }
 
-export type DeepSeekJsonCompletionClient = JsonCompletionClient;
+export type ZcodeJsonCompletionClient = JsonCompletionClient;
 
-export interface DeepSeekChatClientDeps {
+export interface ZcodeChatClientDeps {
   apiKey?: string;
   model?: string;
   timeoutMs?: number;
   fetchImpl?: typeof fetch;
 }
 
-const DEFAULT_MODEL = "deepseek-v4-flash";
+const DEFAULT_MODEL = "glm-5.3";
 const DEFAULT_TIMEOUT_MS = 60_000;
-const ENDPOINT = "https://api.deepseek.com/chat/completions";
+const ENDPOINT = "https://open.bigmodel.cn/api/paas/v4/chat/completions";
 
-export function createDeepSeekChatClient(
-  deps: DeepSeekChatClientDeps = {},
-): DeepSeekJsonCompletionClient {
-  const apiKey = deps.apiKey ?? process.env.DEEPSEEK_API_KEY?.trim();
-  const model = deps.model ?? (process.env.DEEPSEEK_LARK_TICKET_SUMMARY_MODEL?.trim() || DEFAULT_MODEL);
+export function createZcodeChatClient(
+  deps: ZcodeChatClientDeps = {},
+): ZcodeJsonCompletionClient {
+  const apiKey = deps.apiKey ?? process.env.ZCODE_API_KEY?.trim();
+  const model = deps.model ?? (process.env.LARK_TICKET_SUMMARY_MODEL?.trim() || DEFAULT_MODEL);
   const timeoutMs = deps.timeoutMs ?? readPositiveInt(
-    process.env.DEEPSEEK_LARK_TICKET_SUMMARY_TIMEOUT_MS,
+    process.env.LARK_TICKET_SUMMARY_TIMEOUT_MS,
     DEFAULT_TIMEOUT_MS,
   );
   const fetchImpl = deps.fetchImpl ?? fetch;
@@ -47,14 +47,14 @@ export function createDeepSeekChatClient(
   return {
     async createJsonCompletion(input) {
       const baseLog = {
-        provider: "deepseek",
+        provider: "zcode",
         model,
         actionRunId: input.actionRunId,
         layer: "adapter",
       };
       if (!apiKey) {
-        deepSeekLogger.warn({ ...baseLog, durationMs: 0, stage: "adapter.deepseek.config", errorCode: "DEEPSEEK_API_KEY_MISSING" }, "DEEPSEEK_API_KEY_MISSING");
-        throw new DeepSeekChatError("DEEPSEEK_API_KEY_MISSING", "DeepSeek API key is not configured.");
+        zcodeLogger.warn({ ...baseLog, durationMs: 0, stage: "adapter.zcode.config", errorCode: "ZCODE_API_KEY_MISSING" }, "ZCODE_API_KEY_MISSING");
+        throw new ZcodeChatError("ZCODE_API_KEY_MISSING", "ZCode API key is not configured.");
       }
       const controller = new AbortController();
       const abort = () => controller.abort();
@@ -88,8 +88,8 @@ export function createDeepSeekChatClient(
         });
         const durationMs = Date.now() - startedAt;
         if (!response.ok) {
-          deepSeekLogger.warn({ ...baseLog, statusCode: response.status, durationMs, stage: "adapter.deepseek.response", errorCode: "DEEPSEEK_REQUEST_FAILED" }, "DEEPSEEK_REQUEST_FAILED");
-          throw new DeepSeekChatError("DEEPSEEK_REQUEST_FAILED", `DeepSeek request failed with status ${response.status}.`, response.status);
+          zcodeLogger.warn({ ...baseLog, statusCode: response.status, durationMs, stage: "adapter.zcode.response", errorCode: "ZCODE_REQUEST_FAILED" }, "ZCODE_REQUEST_FAILED");
+          throw new ZcodeChatError("ZCODE_REQUEST_FAILED", `ZCode request failed with status ${response.status}.`, response.status);
         }
         const data = await response.json().catch(() => undefined) as {
           model?: unknown;
@@ -97,23 +97,23 @@ export function createDeepSeekChatClient(
         } | undefined;
         const content = data?.choices?.[0]?.message?.content;
         if (typeof content !== "string" || !content.trim() || data?.choices?.[0]?.finish_reason === "length") {
-          deepSeekLogger.warn({ ...baseLog, statusCode: response.status, durationMs, stage: "adapter.deepseek.response", errorCode: "DEEPSEEK_RESPONSE_INVALID" }, "DEEPSEEK_RESPONSE_INVALID");
-          throw new DeepSeekChatError("DEEPSEEK_RESPONSE_INVALID", "DeepSeek returned an empty or truncated completion.");
+          zcodeLogger.warn({ ...baseLog, statusCode: response.status, durationMs, stage: "adapter.zcode.response", errorCode: "ZCODE_RESPONSE_INVALID" }, "ZCODE_RESPONSE_INVALID");
+          throw new ZcodeChatError("ZCODE_RESPONSE_INVALID", "ZCode returned an empty or truncated completion.");
         }
         const responseModel = typeof data?.model === "string" ? data.model : model;
-        deepSeekLogger.info({ ...baseLog, model: responseModel, statusCode: response.status, durationMs, stage: "adapter.deepseek.completed" }, "DEEPSEEK_COMPLETION_COMPLETED");
+        zcodeLogger.info({ ...baseLog, model: responseModel, statusCode: response.status, durationMs, stage: "adapter.zcode.completed" }, "ZCODE_COMPLETION_COMPLETED");
         return { content: content.trim(), model: responseModel };
       } catch (error) {
-        if (error instanceof DeepSeekChatError) {
+        if (error instanceof ZcodeChatError) {
           throw error;
         }
         const durationMs = Date.now() - startedAt;
         if (controller.signal.aborted) {
-          deepSeekLogger.warn({ ...baseLog, durationMs, stage: "adapter.deepseek.timeout", errorCode: "DEEPSEEK_TIMEOUT" }, "DEEPSEEK_TIMEOUT");
-          throw new DeepSeekChatError("DEEPSEEK_TIMEOUT", `DeepSeek request timed out after ${timeoutMs}ms.`);
+          zcodeLogger.warn({ ...baseLog, durationMs, stage: "adapter.zcode.timeout", errorCode: "ZCODE_TIMEOUT" }, "ZCODE_TIMEOUT");
+          throw new ZcodeChatError("ZCODE_TIMEOUT", `ZCode request timed out after ${timeoutMs}ms.`);
         }
-        deepSeekLogger.warn({ ...baseLog, durationMs, stage: "adapter.deepseek.request", errorCode: "DEEPSEEK_REQUEST_FAILED" }, "DEEPSEEK_REQUEST_FAILED");
-        throw new DeepSeekChatError("DEEPSEEK_REQUEST_FAILED", "DeepSeek request failed before a valid response was received.");
+        zcodeLogger.warn({ ...baseLog, durationMs, stage: "adapter.zcode.request", errorCode: "ZCODE_REQUEST_FAILED" }, "ZCODE_REQUEST_FAILED");
+        throw new ZcodeChatError("ZCODE_REQUEST_FAILED", "ZCode request failed before a valid response was received.");
       } finally {
         globalThis.clearTimeout(timeoutId);
         input.signal?.removeEventListener("abort", abort);

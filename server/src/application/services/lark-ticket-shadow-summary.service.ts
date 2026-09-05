@@ -10,11 +10,11 @@ import {
   type WorkflowPromptStore,
 } from "../../adapters/postgres/workflow-prompt-store.js";
 import {
-  createDeepSeekChatClient,
-  DeepSeekChatError,
-  type DeepSeekChatErrorCode,
-  type DeepSeekJsonCompletionClient,
-} from "../../adapters/deepseek/deepseek-chat-client.js";
+  createTicketSummaryJsonCompletionClient,
+  isTicketSummaryClientError,
+  type TicketSummaryClientErrorCode,
+  type TicketSummaryJsonCompletionClient,
+} from "../../adapters/ai/ticket-summary-client.js";
 import {
   supportQualityUpdateSchema,
   supportResultUpdateSchema,
@@ -71,7 +71,7 @@ export type ShadowAnalysisResult = z.infer<typeof shadowAnalysisResultSchema>;
 export type ShadowSummaryErrorCode =
   | "SHADOW_PROMPT_NOT_CONFIGURED"
   | "SHADOW_THREAD_UNAVAILABLE"
-  | DeepSeekChatErrorCode
+  | TicketSummaryClientErrorCode
   | "SHADOW_OUTPUT_INVALID"
   | "SHADOW_EVIDENCE_OUTSIDE_SNAPSHOT";
 
@@ -106,8 +106,8 @@ interface ThreadContextLike {
 export interface LarkTicketShadowSummaryServiceDeps {
   syncStore?: Pick<PlatformSyncStore, "listLarkTicketShadowSummaryCandidates" | "upsertLarkBaseTicketShadowAi">;
   threadContext?: ThreadContextLike;
-  deepSeekClient?: DeepSeekJsonCompletionClient;
-  deepSeekTimeoutMs?: number;
+  ticketSummaryClient?: TicketSummaryJsonCompletionClient;
+  summaryTimeoutMs?: number;
   promptStore?: Pick<WorkflowPromptStore, "getByKey">;
   masterUserId?: string;
   larkBaseUrl?: string;
@@ -121,8 +121,8 @@ export interface LarkTicketShadowSummaryServiceDeps {
 export function createLarkTicketShadowSummaryService(deps: LarkTicketShadowSummaryServiceDeps = {}) {
   const syncStore = deps.syncStore ?? new PostgresPlatformSyncStore();
   const threadContext = deps.threadContext ?? createLarkTicketThreadContextService();
-  const deepSeekClient = deps.deepSeekClient ?? createDeepSeekChatClient(
-    deps.deepSeekTimeoutMs ? { timeoutMs: deps.deepSeekTimeoutMs } : {},
+  const getTicketSummaryClient = () => deps.ticketSummaryClient ?? createTicketSummaryJsonCompletionClient(
+    deps.summaryTimeoutMs ? { timeoutMs: deps.summaryTimeoutMs } : {},
   );
   const promptStore = deps.promptStore ?? getWorkflowPromptStore();
   const now = deps.now ?? (() => new Date());
@@ -185,7 +185,7 @@ export function createLarkTicketShadowSummaryService(deps: LarkTicketShadowSumma
         ticket_context: buildTicketContext(ticket, snapshot),
         user_message: readUserMessage(ticket),
       });
-      const completion = await runDeepSeekCompletion(deepSeekClient, prompt, actionRunId);
+      const completion = await runTicketSummaryCompletion(getTicketSummaryClient, prompt, actionRunId);
       const analysis = parseShadowAnalysis(completion.content);
       assertEvidenceWithinSnapshot(analysis, snapshot.preparedMessages);
 
@@ -334,19 +334,19 @@ function outputDiagnostics(text: string): Record<string, unknown> {
   };
 }
 
-async function runDeepSeekCompletion(
-  client: DeepSeekJsonCompletionClient,
+async function runTicketSummaryCompletion(
+  getClient: () => TicketSummaryJsonCompletionClient,
   prompt: string,
   actionRunId: string,
 ): Promise<{ content: string; model: string }> {
   try {
-    return await client.createJsonCompletion({ prompt, actionRunId });
+    return await getClient().createJsonCompletion({ prompt, actionRunId });
   } catch (error) {
-    if (error instanceof DeepSeekChatError) throw error;
+    if (isTicketSummaryClientError(error)) throw error;
     throw new LarkTicketShadowSummaryError(
       "DEEPSEEK_REQUEST_FAILED",
-      "DeepSeek request failed before a valid response was received.",
-      "adapter.deepseek.request",
+      "Ticket summary request failed before a valid response was received.",
+      "adapter.ticket_summary.request",
     );
   }
 }
@@ -355,7 +355,7 @@ function parseShadowAnalysis(text: string): ShadowAnalysisResult {
   if (!text) {
     throw new LarkTicketShadowSummaryError(
       "SHADOW_OUTPUT_INVALID",
-      "Shadow DeepSeek output was empty.",
+      "Shadow Ticket summary output was empty.",
       "server.shadow.parse",
       outputDiagnostics(text),
     );
@@ -371,7 +371,7 @@ function parseShadowAnalysis(text: string): ShadowAnalysisResult {
     }, "LARK_TICKET_SHADOW_SUMMARY_PARSE_EMPTY");
     throw new LarkTicketShadowSummaryError(
       "SHADOW_OUTPUT_INVALID",
-      "Shadow DeepSeek output did not contain a JSON object.",
+      "Shadow Ticket summary output did not contain a JSON object.",
       "server.shadow.parse",
       outputDiagnostics(text),
     );
@@ -388,7 +388,7 @@ function parseShadowAnalysis(text: string): ShadowAnalysisResult {
     }, "LARK_TICKET_SHADOW_SUMMARY_PARSE_JSON_FAILED");
     throw new LarkTicketShadowSummaryError(
       "SHADOW_OUTPUT_INVALID",
-      `Shadow DeepSeek output JSON parse failed: ${error instanceof Error ? error.message : String(error)}`,
+      `Shadow Ticket summary output JSON parse failed: ${error instanceof Error ? error.message : String(error)}`,
       "server.shadow.parse",
       outputDiagnostics(text),
     );
@@ -403,7 +403,7 @@ function parseShadowAnalysis(text: string): ShadowAnalysisResult {
     }, "LARK_TICKET_SHADOW_SUMMARY_PARSE_SCHEMA_FAILED");
     throw new LarkTicketShadowSummaryError(
       "SHADOW_OUTPUT_INVALID",
-      `Shadow DeepSeek output failed schema validation: ${result.error.issues.map((issue) => issue.path.join(".") || issue.code).join(", ").slice(0, 300)}`,
+      `Shadow Ticket summary output failed schema validation: ${result.error.issues.map((issue) => issue.path.join(".") || issue.code).join(", ").slice(0, 300)}`,
       "server.shadow.validate",
       outputDiagnostics(text),
     );
@@ -425,17 +425,19 @@ function assertEvidenceWithinSnapshot(analysis: ShadowAnalysisResult, messages: 
 
 function toShadowError(error: unknown): LarkTicketShadowSummaryError {
   if (error instanceof LarkTicketShadowSummaryError) return error;
-  if (error instanceof DeepSeekChatError) {
-    const stage = error.code === "DEEPSEEK_API_KEY_MISSING"
-      ? "adapter.deepseek.config"
-      : error.code === "DEEPSEEK_TIMEOUT"
-        ? "adapter.deepseek.timeout"
-        : "adapter.deepseek.response";
+  if (isTicketSummaryClientError(error)) {
+    const stage = error.code === "DEEPSEEK_API_KEY_MISSING" || error.code === "ZCODE_API_KEY_MISSING" || error.code === "TICKET_SUMMARY_PROVIDER_INVALID"
+      ? "adapter.ticket_summary.config"
+      : error.code === "DEEPSEEK_TIMEOUT" || error.code === "ZCODE_TIMEOUT"
+        ? "adapter.ticket_summary.timeout"
+        : "adapter.ticket_summary.response";
     return new LarkTicketShadowSummaryError(
       error.code,
       error.message,
       stage,
-      error.statusCode === undefined ? undefined : { statusCode: error.statusCode },
+      "statusCode" in error && typeof error.statusCode === "number"
+        ? { statusCode: error.statusCode }
+        : undefined,
     );
   }
   return new LarkTicketShadowSummaryError(

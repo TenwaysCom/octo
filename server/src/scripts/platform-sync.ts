@@ -55,8 +55,11 @@ const shadowTaskSchema = z.object({
   intervalMinutes: z.number().int().min(1).max(1440).optional(),
   settleMinutes: z.number().int().min(1).max(10080).optional(),
   batchLimit: z.number().int().min(1).max(50).optional(),
+  summaryTimeoutSeconds: z.number().int().min(30).max(1800).optional(),
+  // Backward-compatible reads for existing local configs. New configs use
+  // summaryTimeoutSeconds because the shared Ticket Summary provider is
+  // selectable between DeepSeek and ZCode.
   deepSeekTimeoutSeconds: z.number().int().min(30).max(1800).optional(),
-  // Backward-compatible read for existing local configs; new configs use deepSeekTimeoutSeconds.
   acpTimeoutSeconds: z.number().int().min(30).max(1800).optional(),
 });
 

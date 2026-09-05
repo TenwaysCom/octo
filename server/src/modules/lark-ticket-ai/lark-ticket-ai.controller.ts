@@ -49,13 +49,13 @@ function toErrorResponse(error: unknown) {
     return { statusCode: 400, body: { ok: false as const, error: { errorCode: "INVALID_REQUEST", errorMessage: error.message } } };
   }
   if (error instanceof LarkTicketAiSessionError) {
-    const statusCode = error.code === "DEEPSEEK_TIMEOUT"
+    const statusCode = error.code === "DEEPSEEK_TIMEOUT" || error.code === "ZCODE_TIMEOUT"
       ? 504
-      : error.code === "LARK_THREAD_CONTEXT_UNAVAILABLE" || error.code === "DEEPSEEK_API_KEY_MISSING"
+      : error.code === "LARK_THREAD_CONTEXT_UNAVAILABLE" || error.code === "DEEPSEEK_API_KEY_MISSING" || error.code === "ZCODE_API_KEY_MISSING" || error.code === "TICKET_SUMMARY_PROVIDER_INVALID"
       ? 503
-      : error.code === "DEEPSEEK_REQUEST_FAILED" || error.code === "DEEPSEEK_RESPONSE_INVALID" || error.code === "DEEPSEEK_OUTPUT_INVALID"
+      : error.code === "DEEPSEEK_REQUEST_FAILED" || error.code === "DEEPSEEK_RESPONSE_INVALID" || error.code === "ZCODE_REQUEST_FAILED" || error.code === "ZCODE_RESPONSE_INVALID" || error.code === "TICKET_SUMMARY_OUTPUT_INVALID"
         ? 502
-        : error.code === "DEEPSEEK_EVIDENCE_OUTSIDE_SNAPSHOT" || error.code === "THREAD_SNAPSHOT_VERSION_CONFLICT"
+        : error.code === "TICKET_SUMMARY_EVIDENCE_OUTSIDE_SNAPSHOT" || error.code === "THREAD_SNAPSHOT_VERSION_CONFLICT"
           ? 409
       : error.code === "SUPPORT_QA_EVIDENCE_NOT_FETCHED" || error.code === "SUPPORT_ANALYSIS_NOT_UPDATED"
         ? 502

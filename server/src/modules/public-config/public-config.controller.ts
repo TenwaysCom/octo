@@ -87,7 +87,7 @@ export interface AutomationActionConfig {
    * but it must never make an authorization decision from these fields.
    */
   promptKey?: string;
-  provider?: "kimi_acp" | "deepseek";
+  provider?: "kimi_acp" | "ticket_summary";
   skillProfile?: string;
   skillId?: string;
   executionPolicy?: AutomationExecutionPolicy;
