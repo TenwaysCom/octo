@@ -145,7 +145,9 @@ export function createLarkTicketShadowSummaryService(deps: LarkTicketShadowSumma
     promptTemplate: string,
   ): Promise<"ok" | "skipped"> {
     const actionRunId = randomUUID();
-    const analyzedAt = now().toISOString();
+    const processingStartedAt = now();
+    const analyzedAt = processingStartedAt.toISOString();
+    const processingDurationMs = () => Math.max(0, now().getTime() - processingStartedAt.getTime());
     const baseLog = {
       operation: "lark_ticket_shadow_summary",
       layer: "server",
@@ -170,14 +172,16 @@ export function createLarkTicketShadowSummaryService(deps: LarkTicketShadowSumma
       });
       const snapshot = thread.snapshot;
       if (thread.source === "none" || !snapshot || snapshot.preparedMessages.length === 0) {
+        const durationMs = processingDurationMs();
         await writeShadow(ticket, {
           status: "skipped",
           reason: thread.source === "none" ? "no_thread_link" : "no_messages",
           analyzedAt,
+          processingDurationMs: durationMs,
           actionRunId,
           source: LARK_TICKET_SHADOW_SUMMARY_SOURCE,
         });
-        shadowLogger.info({ ...baseLog, stage: "server.shadow.skipped", reason: thread.source }, "LARK_TICKET_SHADOW_SUMMARY_SKIPPED");
+        shadowLogger.info({ ...baseLog, stage: "server.shadow.skipped", reason: thread.source, processingDurationMs: durationMs }, "LARK_TICKET_SHADOW_SUMMARY_SKIPPED");
         return "skipped";
       }
 
@@ -189,10 +193,12 @@ export function createLarkTicketShadowSummaryService(deps: LarkTicketShadowSumma
       const analysis = parseShadowAnalysis(completion.content);
       assertEvidenceWithinSnapshot(analysis, snapshot.preparedMessages);
 
+      const durationMs = processingDurationMs();
       await writeShadow(ticket, {
         status: "ok",
         analysis,
         analyzedAt,
+        processingDurationMs: durationMs,
         snapshotVersion: snapshot.snapshotVersion,
         promptKey,
         promptVersion: LARK_TICKET_SHADOW_SUMMARY_PROMPT_VERSION,
@@ -205,10 +211,12 @@ export function createLarkTicketShadowSummaryService(deps: LarkTicketShadowSumma
         snapshotVersion: snapshot.snapshotVersion,
         intentType: analysis.analysis.intent.intentType,
         confidence: analysis.analysis.intent.confidence,
+        processingDurationMs: durationMs,
       }, "LARK_TICKET_SHADOW_SUMMARY_COMPLETED");
       return "ok";
     } catch (error) {
       const shadowError = toShadowError(error);
+      const durationMs = processingDurationMs();
       await writeShadow(ticket, {
         status: "error",
         error: {
@@ -217,6 +225,7 @@ export function createLarkTicketShadowSummaryService(deps: LarkTicketShadowSumma
           ...shadowError.details,
         },
         analyzedAt,
+        processingDurationMs: durationMs,
         actionRunId,
         source: LARK_TICKET_SHADOW_SUMMARY_SOURCE,
       });
@@ -225,6 +234,7 @@ export function createLarkTicketShadowSummaryService(deps: LarkTicketShadowSumma
         stage: shadowError.stage,
         errorCode: shadowError.code,
         errorMessage: shadowError.message,
+        processingDurationMs: durationMs,
         ...shadowError.details,
       }, "LARK_TICKET_SHADOW_SUMMARY_FAILED");
       throw shadowError;

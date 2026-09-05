@@ -776,3 +776,9 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Error:** 已初始化的 `pg-mem` 测试库再次调用 `ensurePostgresSchema()` 时，对 `CREATE TABLE IF NOT EXISTS ... PRIMARY KEY/NOT NULL` 报 `AST which parts have not been read by the query planner`。
 - **Fix:** 将待验证的数据迁移提成幂等的小函数，由 schema bootstrap 调用；单测直接调用该迁移函数，不为验证一条数据迁移而重复执行整套 DDL。
 - **source:** [DeepSeek 直连 Ticket 问题总结](../docs/tasks/ai-ticket/2026-09-04-deepseek-ticket-summary.md)
+
+### ERR-20260905-001 — Shadow Worker 意外使用旧的 120 秒 Ticket Summary 超时
+
+- **Error:** `ZCODE_TIMEOUT: ZCode request timed out after 120000ms.` 出现在已配置 `LARK_TICKET_SUMMARY_TIMEOUT_MS=150000` 的环境。
+- **Fix:** 检查 `scheduler.tasks.shadow` 的显式覆盖及兼容字段；移除或更新遗留的 `deepSeekTimeoutSeconds`/`acpTimeoutSeconds`，让 Worker 继承共享 timeout 后重启 Worker。
+- **source:** [Ticket 问题总结与 Shadow Worker 共用 ZCode Provider](../docs/tasks/ai-ticket/2026-09-05-shared-zcode-ticket-summary-provider.md)

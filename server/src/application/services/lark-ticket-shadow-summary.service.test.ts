@@ -89,6 +89,7 @@ function makeDeps(input: {
   deepSeekError?: Error;
   prompt?: string;
   promptKey?: string;
+  now?: () => Date;
 }) {
   const writes: Array<Record<string, unknown>> = [];
   const prompts: string[] = [];
@@ -96,7 +97,7 @@ function makeDeps(input: {
   const service = createLarkTicketShadowSummaryService({
     masterUserId: "master-1",
     larkBaseUrl: "https://open.feishu.cn",
-    now: () => new Date("2026-09-03T05:00:00.000Z"),
+    now: input.now ?? (() => new Date("2026-09-03T05:00:00.000Z")),
     syncStore: {
       listLarkTicketShadowSummaryCandidates: async () => input.candidates ?? [],
       upsertLarkBaseTicketShadowAi: async ({ shadow }) => {
@@ -136,20 +137,27 @@ function makeDeps(input: {
 
 describe("lark-ticket-shadow-summary.service", () => {
   it("summarizes a candidate and writes the ok shadow payload", async () => {
+    const times = [
+      "2026-09-03T05:00:00.000Z",
+      "2026-09-03T05:00:00.000Z",
+      "2026-09-03T05:00:03.250Z",
+    ];
     const { service, writes, prompts, actionRunIds } = makeDeps({
       candidates: [makeTicket()],
       threadResult: { source: "lark", snapshot: makeSnapshot() },
+      now: () => new Date(times.shift() ?? "2026-09-03T05:00:03.250Z"),
     });
 
     const result = await service.runOnce();
 
     expect(result).toEqual({ considered: 1, summarized: 1, skipped: 0, failed: 0 });
     expect(writes).toHaveLength(1);
-    const shadow = writes[0] as { status: string; analysis: { analysis: { intent: { intentType: string } } }; snapshotVersion: number; promptVersion: string };
+    const shadow = writes[0] as { status: string; analysis: { analysis: { intent: { intentType: string } } }; processingDurationMs: number; snapshotVersion: number; promptVersion: string };
     expect(shadow.status).toBe("ok");
     expect(shadow.analysis.analysis.intent.intentType).toBe("troubleshoot");
     expect(shadow.snapshotVersion).toBe(7);
     expect(shadow.promptVersion).toBe("v4");
+    expect(shadow.processingDurationMs).toBe(3250);
     expect(prompts[0]).toContain("订单无法添加促销");
     expect(prompts[0]).toContain("om_1");
     expect(actionRunIds[0]).toEqual(expect.any(String));
@@ -166,6 +174,7 @@ describe("lark-ticket-shadow-summary.service", () => {
     expect(result).toEqual({ considered: 1, summarized: 0, skipped: 1, failed: 0 });
     expect((writes[0] as { status: string; reason: string }).status).toBe("skipped");
     expect((writes[0] as { reason: string }).reason).toBe("no_thread_link");
+    expect((writes[0] as { processingDurationMs: number }).processingDurationMs).toBe(0);
   });
 
   it("marks snapshots without prepared messages as skipped", async () => {
@@ -190,8 +199,9 @@ describe("lark-ticket-shadow-summary.service", () => {
     const result = await service.runOnce();
 
     expect(result.failed).toBe(1);
-    const shadow = writes[0] as { status: string; error: { errorCode: string; errorMessage: string; outputChars: number; outputPreview?: string } };
+    const shadow = writes[0] as { status: string; processingDurationMs: number; error: { errorCode: string; errorMessage: string; outputChars: number; outputPreview?: string } };
     expect(shadow.status).toBe("error");
+    expect(shadow.processingDurationMs).toBe(0);
     expect(shadow.error.errorCode).toBe("SHADOW_OUTPUT_INVALID");
     expect(shadow.error.outputChars).toBe("这不是 JSON".length);
     expect(shadow.error.outputPreview).toBeUndefined();

@@ -33,8 +33,18 @@ function TicketProperty({ label, children }) {
 
 const SHADOW_STATUS_LABELS = { ok: "已生成", skipped: "已跳过", error: "失败" };
 
+function formatProcessingDuration(durationMs) {
+  if (!Number.isSafeInteger(durationMs) || durationMs < 0) return "";
+  if (durationMs < 1000) return "< 1 秒";
+  const seconds = Math.round(durationMs / 1000);
+  if (seconds < 60) return `${seconds} 秒`;
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes} 分 ${seconds % 60} 秒`;
+}
+
 function ShadowAiPanel({ shadowAi }) {
   const statusLabel = SHADOW_STATUS_LABELS[shadowAi.status] || shadowAi.status;
+  const processingDuration = formatProcessingDuration(shadowAi.processingDurationMs);
   return <section className="ticket-shadow-panel" aria-label="影子分析">
     <div className="ticket-shadow-panel__heading">
       <h2>影子分析</h2>
@@ -50,6 +60,7 @@ function ShadowAiPanel({ shadowAi }) {
     {shadowAi.status === "error" ? <p className="ticket-shadow-panel__note">{shadowAi.errorCode || "SHADOW_FAILED"}{shadowAi.errorMessage ? `：${shadowAi.errorMessage}` : ""}</p> : null}
     <p className="ticket-shadow-panel__meta">
       {shadowAi.analyzedAt ? `分析于 ${formatDateTime(shadowAi.analyzedAt)}` : "尚未分析"}
+      {processingDuration ? ` · 耗时 ${processingDuration}` : ""}
       {shadowAi.snapshotVersion ? ` · 快照 v${shadowAi.snapshotVersion}` : ""}
       {shadowAi.promptVersion ? ` · 提示词 ${shadowAi.promptVersion}` : ""}
     </p>

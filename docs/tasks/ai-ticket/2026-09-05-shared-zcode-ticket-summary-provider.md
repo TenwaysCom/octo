@@ -2,7 +2,7 @@
 title: "Ticket 问题总结与 Shadow Worker 共用 ZCode Provider"
 module: "ai-ticket"
 status: done
-requirement_version: 1
+requirement_version: 2
 created_on: 2026-09-05
 updated_on: 2026-09-05
 closed_on: 2026-09-05
@@ -25,6 +25,7 @@ related:
 - [x] 两个入口共用 `LARK_TICKET_SUMMARY_MODEL`，仍执行固定快照、JSON schema 和 evidence ID 校验。
 - [x] ZCode 缺 key、超时、HTTP 失败和无效响应均返回或写入区分明确的错误码。
 - [x] 默认 DeepSeek 配置及既有 Shadow timeout 兼容字段继续有效。
+- [x] Shadow 未设置显式 `summaryTimeoutSeconds` 时继承 `LARK_TICKET_SUMMARY_TIMEOUT_MS`。
 
 ## 背景与范围
 
@@ -35,6 +36,7 @@ ZCode 通过智谱标准 OpenAI Chat Completions 兼容端点调用。两条 Tic
 - 在 Server adapter 层集中 provider factory，支持 `deepseek` 与 `zcode`；环境变量 `LARK_TICKET_SUMMARY_PROVIDER`、`LARK_TICKET_SUMMARY_MODEL` 和 `LARK_TICKET_SUMMARY_TIMEOUT_MS` 是两条路径唯一的共同模型配置。
 - ZCode 通过官方标准 OpenAI Chat Completions base URL 调用，使用 `ZCODE_API_KEY`，不向客户端传递 key。
 - `tasks.shadow.summaryTimeoutSeconds` 是 Shadow Worker 的超时覆盖；历史 `deepSeekTimeoutSeconds`、`acpTimeoutSeconds` 继续只读兼容。
+- 本地 Shadow 配置移除遗留的 `deepSeekTimeoutSeconds: 120`，因此当前 `LARK_TICKET_SUMMARY_TIMEOUT_MS=150000` 同时适用于 Quick Action 和 Shadow Worker。Worker 重启后加载该配置。
 - Quick Action catalog 用 `ticket_summary` 表示 Server 配置的直连结构化模型，避免将实际 vendor 错误暴露为静态页面配置。
 
 ## 进展记录
@@ -43,6 +45,7 @@ ZCode 通过智谱标准 OpenAI Chat Completions 兼容端点调用。两条 Tic
 | --- | --- | --- | --- |
 | 2026-09-05 | v1 | in_progress | 已完成 provider factory、ZCode adapter、Quick Action/Shadow 共用接线、配置示例与契约文档更新。 | 运行定向测试与 Server 构建。 |
 | 2026-09-05 | v1 | done | 定向回归通过；Server build、全量测试，Extension typecheck、全量测试与生产构建通过。 | 未持有或调用真实 ZCode key；上线后由部署配置和一张脱敏 Ticket 验证。 |
+| 2026-09-05 | v2 | done | 运行日志中 `ZCODE_TIMEOUT after 120000ms` 定位为本地 Shadow 任务的遗留 `deepSeekTimeoutSeconds: 120` 覆盖；已移除，使其继承共享的 150 秒 timeout。 | 本轮未重启 Worker；需由现有部署进程重启后读取新配置，不主动重试已失败 Ticket。 |
 
 ## 验证
 
@@ -51,6 +54,7 @@ ZCode 通过智谱标准 OpenAI Chat Completions 兼容端点调用。两条 Tic
 | Server 定向回归 | 通过 | 8 files / 50 tests，覆盖 DeepSeek/ZCode adapter、共享 provider factory、Quick Action、Shadow Worker、配置兼容与 controller 映射。 | mock provider/thread/store。 |
 | Server 全量测试与构建 | 通过 | `pnpm --dir server build`；`pnpm --dir server test`（148 files / 715 tests）。 | 不调用真实 ZCode 或 Lark。 |
 | Extension 契约验证 | 通过 | `pnpm --dir extension typecheck`；`pnpm --dir extension test`（45 files / 282 tests）；`pnpm --dir extension build`。 | 不做浏览器实机或 provider 调用。 |
+| v2 本地配置验证 | 通过 | `jq` 验证 `server/config/platform-sync.local.json`，Shadow 配置不再含 timeout 覆盖；共享环境变量为 `LARK_TICKET_SUMMARY_TIMEOUT_MS=150000`。 | 必须重启 Worker，运行进程不会热加载 `.env` 或 JSON 配置。 |
 
 ## 关联
 

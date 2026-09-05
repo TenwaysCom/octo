@@ -57,6 +57,7 @@ export interface LarkTicketShadowAi {
   intentConfidence?: number;
   summary?: string;
   analyzedAt?: string;
+  processingDurationMs?: number;
   snapshotVersion?: number;
   promptVersion?: string;
   reason?: string;
@@ -91,6 +92,9 @@ export function parseLarkTicketShadowAi(value: string | null | undefined): LarkT
           ? { summary: analysis.summary }
           : {}),
       ...(typeof candidate.analyzedAt === "string" ? { analyzedAt: candidate.analyzedAt } : {}),
+      ...(isNonNegativeSafeInteger(candidate.processingDurationMs)
+        ? { processingDurationMs: candidate.processingDurationMs }
+        : {}),
       ...(typeof candidate.snapshotVersion === "number" ? { snapshotVersion: candidate.snapshotVersion } : {}),
       ...(typeof candidate.promptVersion === "string" ? { promptVersion: candidate.promptVersion } : {}),
       ...(typeof candidate.reason === "string" ? { reason: candidate.reason } : {}),
@@ -108,6 +112,10 @@ export function parseLarkTicketShadowAi(value: string | null | undefined): LarkT
   } catch {
     return undefined;
   }
+}
+
+function isNonNegativeSafeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
 }
 
 export function parseLarkTicketAiData(value: string | null | undefined): LarkTicketAiData | undefined {

@@ -33,6 +33,7 @@ describe("Lark Ticket AI field contract", () => {
         summary: "订单无法添加促销，待排查。",
       },
       analyzedAt: "2026-09-03T05:00:00.000Z",
+      processingDurationMs: 3250,
       snapshotVersion: 7,
       promptVersion: "v2",
     }));
@@ -44,6 +45,7 @@ describe("Lark Ticket AI field contract", () => {
       intentConfidence: 0.72,
       summary: "订单无法添加促销，待排查。",
       analyzedAt: "2026-09-03T05:00:00.000Z",
+      processingDurationMs: 3250,
       snapshotVersion: 7,
       promptVersion: "v2",
     });
@@ -76,5 +78,7 @@ describe("Lark Ticket AI field contract", () => {
     expect(parseLarkTicketShadowAi("not json")).toBeUndefined();
     expect(parseLarkTicketShadowAi(null)).toBeUndefined();
     expect(parseLarkTicketShadowAi(JSON.stringify({ status: "pending" }))).toBeUndefined();
+    expect(parseLarkTicketShadowAi(JSON.stringify({ status: "ok", processingDurationMs: -1 })))
+      .toEqual({ status: "ok" });
   });
 });
