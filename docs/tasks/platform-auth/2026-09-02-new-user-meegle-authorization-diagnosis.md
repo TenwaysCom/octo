@@ -1,7 +1,7 @@
 ---
 title: "新用户 Meegle 授权未进入 exchange 排查"
 module: "platform-auth"
-status: completed
+status: done
 requirement_version: 4
 created_on: 2026-09-02
 updated_on: 2026-09-03

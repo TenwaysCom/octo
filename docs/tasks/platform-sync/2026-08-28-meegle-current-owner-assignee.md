@@ -1,7 +1,7 @@
 ---
 title: "Meegle 负责人统一使用 Current owner"
 module: "platform-sync"
-status: completed
+status: done
 requirement_version: 1
 created_on: 2026-08-28
 updated_on: 2026-08-28

@@ -1,11 +1,11 @@
 ---
 title: "Lark Ticket 影子模式 AI 问题总结后台任务"
 module: "ai-ticket"
-status: in_progress
-requirement_version: 2
+status: done
+requirement_version: 9
 created_on: 2026-09-03
-updated_on: 2026-09-03
-closed_on: null
+updated_on: 2026-09-04
+closed_on: 2026-09-04
 owner: TBD
 related:
   - "docs/ai-dev/prompts/support-intent-analysis-v2.md"
@@ -15,16 +15,16 @@ related:
 
 ## 目标
 
-在 platform-sync-worker 进程内以后台影子模式，为「source_updated_at 静默超过 3 小时、尚无 lark_ticket_thread_syncs 快照」的 Lark Ticket 自动拉取会话快照并跑 ACP 问题总结（v2 意图识别提示词），结果写入 `lark_base_ticket_octo.shadow_ai`，不影响线上 ticket_ai 投影和评估数据集。不在本次范围：FE 展示、评估样本晋升、自动重放线上 analysis-update。
+在 platform-sync-worker 进程内以后台影子模式，为 `source_updated_at` 静默超过 3 小时的 Lark Ticket 自动拉取或增量更新会话快照并跑 ACP 问题总结，结果写入 `lark_base_ticket_octo.shadow_ai`，不影响线上 `ticket_ai` 投影和评估数据集。v2-v9 同时交付影子结果的受控 FE 投影、同步水位与详情展示；不自动重放线上 `analysis-update` 或晋升评估样本。
 
 ## 验收标准
 
 - [x] schema 增加 `lark_base_ticket_octo.shadow_ai`（建表 + 幂等 ALTER）
-- [x] store 提供候选查询（排除 Cancelled/Rejected、3h 静默、无快照或上次 error、幂等跳过）与 shadow_ai 回写
+- [x] store 提供候选查询（排除 Cancelled/Rejected、3h 静默、允许已有快照增量更新、error 重试与幂等跳过）及 shadow_ai 回写
 - [x] shadow 服务：thread ensure → ACP one-shot → Zod 校验（support-analysis-result-v1，证据 ID 必须在快照内）→ shadow_ai 落库
-- [x] worker 入口按 `LARK_TICKET_SHADOW_SUMMARY_ENABLED=true` 并行启动 shadow 循环，缺 master user 时降级为告警
+- [x] worker 入口通过 `scheduler.tasks.shadow`（及受限环境覆盖）启动 shadow 循环，缺 master user 时降级为告警
 - [x] 单测覆盖 ok / skipped×2 / 非法 JSON / schema 失败 / 证据越界 / ACP 失败 / prompt 缺失 / 失败后续跑
-- [ ] 真实环境开启并观察首轮 shadow 结果
+- [x] 真实环境已开启并观察首轮 shadow 结果
 
 ## 背景与范围
 
@@ -32,9 +32,9 @@ related:
 
 ## 方案与决策
 
-- 新服务 `lark-ticket-shadow-summary.service.ts`：deps 注入（syncStore/threadContext/acpService/promptStore），env 可调 settle(3h)/batch(5)/timeout(300s)/poll(5min)。
+- 新服务 `lark-ticket-shadow-summary.service.ts`：deps 注入（syncStore/threadContext/acpService/promptStore），由 `scheduler.tasks.shadow` 配置 settle/batch/timeout/poll，并保留受限环境覆盖。
 - ACP 走 `chatOneShot`（one-shot，不进 session registry/ownership），AbortSignal 超时。
-- 候选 SQL：`NOT EXISTS thread 快照 OR shadow_ai.status='error'`，且 `shadow_ai.analyzedAt < source_updated_at`；按 ticket_number 倒序。
+- 候选 SQL：允许已有或缺失 thread 快照，由 `threadContext.ensure` 统一增量处理；`shadow_ai.status='error'` 不受 watermark 限制而可重试，其余记录仅在 `analyzedAt < source_updated_at` 时重跑；按 ticket_number 倒序。
 - 无 thread 链接/无消息 → `skipped`；单条失败写 `error` 不阻塞队列，下轮自动重试。
 
 ## 进展记录
@@ -51,6 +51,7 @@ related:
 | 2026-09-03 | v8 | in_progress | v8 错误诊断增强：定位到一票 `SHADOW_OUTPUT_INVALID` 实为 Kimi 配额 403（`[provider.auth_error]`）以流式文本返回被当成模型输出。新增 `SHADOW_ACP_PROVIDER_ERROR` 错误码（捕获路径与"输出文本即 provider 错误且无 JSON"路径都识别）；`SHADOW_OUTPUT_INVALID` 各分支携带 `outputChars` + 截断 `outputPreview`（300 字符），写入 `shadow_ai.error` 并随 warn 日志输出；空输出单独报 "output was empty"；domain `parseLarkTicketShadowAi` 透出 `errorMessage/outputChars/outputPreview`。server 691 + tsc 通过 | 待配额恢复后重跑观察 error 分类是否符合预期 |
 | 2026-09-03 | v8 | in_progress | 合并冲突处理：保留输出文本的 provider 错误分类，以及 ACP 成功输出的 debug 诊断；诊断只记录 300 字符 `outputPreview`，不记录完整工单/模型输出。目标单测 16/16 与 server TypeScript 构建均通过。 | 未做真实 Lark/Kimi 运行时验证。 |
 | 2026-09-03 | v9 | in_progress | v9 FE 展示补全：domain `parseLarkTicketShadowAi` 额外透出 `intentType/intentSubtype`（`intent` 保持合并串兼容 pipeline）；Ticket 详情页右栏新增「影子分析」面板（状态 badge + 意图/子意图/置信度/总结，skipped 显示原因、error 显示 errorCode+errorMessage，底部分析时间/快照/提示词版本元信息）；AI 输出视图行标题区新增 issue 类型、优先级 badge（复用 LarkTicketBadge，有值才渲染）。server 691 + FE 145 测试通过，tsc + vite build 通过 | 待本地联调目检面板与 badge 实际渲染效果 |
+| 2026-09-04 | v9 | done | 台账复核确认 v6 已在真实环境获得首轮 4 条成功影子结果，后续错误分类和 v9 FE 投影已合入；当前 Server 全量 146 files / 707 tests、FE 33 files 测试与 production build 通过。 | 常驻进程部署、配额恢复后的持续观测和人工视觉验收是运行运营事项，不阻塞本任务当前验收；如需推进，另建运维任务。 |
 
 ## 验证
 
@@ -61,7 +62,8 @@ related:
 | 静态检查 | 通过 | `pnpm --dir server build` (tsc) | - |
 | 合并后目标单测 | 通过 | `pnpm --dir server exec vitest run src/application/services/lark-ticket-shadow-summary.service.test.ts src/adapters/kimi-acp/spawn-config.test.ts`：16/16 | mock ACP/thread/store，未触真实 Lark/Kimi |
 | 合并后静态检查 | 通过 | `pnpm --dir server build` (tsc) | 不替代运行时验证 |
-| 运行时验证 | 未执行 | - | 需设 `LARK_TICKET_SHADOW_SUMMARY_ENABLED=true` 后观察 shadow_ai 写入 |
+| 运行时验证 | 通过 | v6：真实环境首轮 `considered 5 → summarized 4 / failed 1`，成功结果已写入 `shadow_ai`；错误记录验证可在后续轮次重试。 | 不等同于常驻部署或长期配额/质量监控。 |
+| 台账复核回归 | 通过 | 2026-09-04：`pnpm --dir server test`（146 files / 707 tests）、`pnpm --dir fe test`（33 files）与 `pnpm --dir fe build`。 | 自动化回归不替代长期运行观测。 |
 
 ## 关联
 

@@ -1,7 +1,7 @@
 ---
 title: "从 Meegle payload 回填 Priority"
 module: "platform-sync"
-status: completed
+status: done
 requirement_version: 3
 created_on: 2026-08-31
 updated_on: 2026-08-31

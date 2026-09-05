@@ -1,12 +1,13 @@
 ---
 title: "Meegle 工作项详情页与研发记录 PRD"
 module: "platform-data"
-status: planned
+status: cancelled
+requirement_version: 1
 created_on: 2026-08-18
-updated_on: 2026-08-18
-closed_on: null
+updated_on: 2026-09-04
+closed_on: 2026-09-04
 owner: TBD
-last_reviewed: 2026-08-18
+last_reviewed: 2026-09-04
 scope: Octo FE 的 Meegle 工作项本地详情页与研发记录
 related:
   - "../../tenways-octo/it-platform-sync.md"
@@ -239,6 +240,8 @@ Octo FE 已能展示同步到本地的 Meegle 工作项列表，但点击编号�
 | 日期 | 状态 | 结果与证据 | 未验证边界 / 下一步 |
 | --- | --- | --- | --- |
 | 2026-08-18 | planned | 已完成 PRD，明确页面、数据归属、接口、鉴权、并发和验证计划。 | 尚未实施与验证；按“实施顺序”推进。 |
+| 2026-09-04 | planned | 台账复核确认当前代码尚无本 PRD 定义的详情 GET/研发记录 PUT 路由或 `researchNotes` 投影；本任务仍停留在已批准 PRD 阶段。 | 按既有实施顺序执行：先 DTO/store 与并发测试，再 service/controller/路由，最后 FE 详情页与登录态 smoke；尚未开始代码或数据库写入。 |
+| 2026-09-04 | cancelled | 按请求关闭：本 PRD 未进入实施，未创建路由、研发记录投影或数据库写入。 | 保留本文件作为已批准但取消的方案；若重启需求，更新当前有效范围后将任务重新打开。 |
 
 ## 关联
 

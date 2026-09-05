@@ -1,7 +1,7 @@
 ---
 title: "同步列表视图配置：看板、子分组与空分组"
 module: "platform-sync"
-status: completed
+status: done
 created_on: 2026-08-27
 updated_on: 2026-08-27
 closed_on: 2026-08-27
@@ -56,35 +56,35 @@ Lark Ticket API 接受 `createdAfter`、`createdBefore`、`sourceUpdatedAtAfter`
 
 | 日期 | 状态 | 结果与证据 | 未验证边界 / 下一步 |
 | --- | --- | --- | --- |
-| 2026-08-27 | completed | 已实现配置模型、列表/看板渲染；54 项 FE 单测和 Vite 生产构建通过。 | 未做登录态下的人工浏览器验收。 |
-| 2026-08-27 | completed | 已新增 Lark Ticket 服务端创建时间、sourceUpdatedAt、类型筛选及 PostgreSQL 索引；完整 server 测试和 TypeScript 构建通过。 | FE 尚未把现有控件改为向服务端传递筛选参数。 |
-| 2026-08-27 | completed | 已将搜索、状态、更新时间及 Meegle Sprint 放入 Filter 弹层；左侧类型、No Sprint 与各平台快捷筛选保留在工具栏。此前 54 项 FE 单测和构建通过，待本次调整复验。 | 未做登录态浏览器视觉验收。 |
-| 2026-08-27 | completed | Filter 已改为字段/值双列，并分别提供字段和值搜索；状态、更新时间和 Meegle Sprint 可多选。`pnpm --dir fe check` 通过 56/56 测试和 Vite 构建。 | 未做登录态浏览器视觉验收。 |
-| 2026-08-27 | completed | 列表子分组已增加独立折叠；看板子分组改为可折叠的跨列泳道。主分组使用品牌浅色背景，子分组/泳道使用中性浅色背景；`pnpm --dir fe check` 通过 56/56 测试和 Vite 构建。 | 未做登录态浏览器视觉验收。 |
-| 2026-08-27 | completed | 移除了 Filter 内不必要的全局全文搜索；字段和值各自搜索，副列值列表可独立滚动；`pnpm --dir fe check` 通过 56/56 测试和 Vite 构建。 | 未做登录态浏览器视觉验收。 |
-| 2026-08-27 | completed | 看板主列与泳道 cell 的最小宽度由 270px 收窄为 220px，保留横向滚动；`pnpm --dir fe check` 通过 56/56 测试和 Vite 构建。 | 未做登录态浏览器视觉验收。 |
-| 2026-08-27 | completed | Filter 字段列改为内容高度的紧凑行（最小 32px、顶部对齐），避免少量字段被拉伸为大卡片；`pnpm --dir fe check` 通过 56/56 测试和 Vite 构建。 | 未做登录态浏览器视觉验收。 |
-| 2026-08-27 | completed | 新配置下 List 子分组和 Kanban 泳道默认折叠；已保存的用户展开状态保持不变；`pnpm --dir fe check` 通过 56/56 测试和 Vite 构建。 | 未做登录态浏览器视觉验收。 |
-| 2026-08-27 | completed | Filter 值列改为按字段悬停/聚焦/点击触发的左侧悬浮菜单，默认隐藏；移动端在主菜单下方展开；`pnpm --dir fe check` 通过 56/56 测试和 Vite 构建。 | 未做登录态浏览器视觉验收。 |
-| 2026-08-27 | completed | Kanban 卡片、主列与泳道标题允许自然换行，适配收窄的列宽；`pnpm --dir fe check` 通过 56/56 测试和 Vite 构建。 | 未做登录态浏览器视觉验收。 |
-| 2026-08-27 | completed | subgroup 泳道的网格列由无上限的 `minmax(220px, 1fr)` 改为 `minmax(220px, 260px)`，避免宽屏下 cell 被拉宽；`pnpm --dir fe check` 通过 56/56 测试和 Vite 构建。 | 未做登录态浏览器视觉验收。 |
-| 2026-08-27 | completed | List 的分组/子分组，以及 Kanban 的主列/子分组泳道标题均显示明确的 `X 条` 数量；`pnpm --dir fe check` 通过 56/56 测试和 Vite 构建。 | 未做登录态浏览器视觉验收。 |
-| 2026-08-27 | completed | Ticket 与 Meegle Kanban 卡片标题统一为普通正文规格（13px、常规字重）；`pnpm --dir fe check` 通过 56/56 测试和 Vite 构建。 | 未做登录态浏览器视觉验收。 |
-| 2026-08-27 | completed | 增加右侧标签筛选栏：Meegle 支持 Sprint、项目、优先级，Lark Ticket 支持 Issue 类型、紧急度、负责人；标签带数量、支持多选，并提供高亮的侧栏开关图标。Meegle priority 已从标准平台字段透传至快照/API；FE 57/57、Server 定向 31/31 测试及 Server 构建通过。 | 已有 Meegle 快照需下一次同步才会填充 priority；未做登录态浏览器视觉验收。 |
-| 2026-08-27 | completed | 标签侧栏关闭时取消 280px 的预留列，列表/看板恢复完整内容宽度；开启时才使用双列布局。 | 未做登录态浏览器视觉验收。 |
-| 2026-08-27 | completed | 筛选改为 Server 先筛选结果集、API 以 500 条分页、FE 自动拉取全部匹配页；List/Kanban 的排序、分组、折叠和数量仍由 FE 基于完整匹配集合处理。Lark 与 Meegle 的现有筛选控件均已下推。 | `show empty groups` 仍基于当前匹配集合的已知值；未连接真实已登录数据做视觉和大数据量验收。 |
-| 2026-08-27 | completed | 保留 React StrictMode，并在 Web profile 与平台列表 API 层合并相同的并发请求；开发模式的重复挂载不再让 Lark 分页、Meegle/GitHub 列表或 profile 对 Server 发起两次请求。 | 未在真实浏览器 Network 面板复验。 |
-| 2026-08-27 | completed | 平台列表接口新增真实 `pager`，PostgreSQL 用同筛选条件返回 total；List/Kanban 首屏仅请求 500 条，在内容底部显示“已加载 X / Y”与“加载更多”，点击后才请求下一页。旧 Server 缺少 pager 时 FE 按单页结束，避免 offset 无限累加。 | 需将 Server 与 FE 部署到正式环境后，在真实 Network 面板验证首屏仅一条平台数据请求、点击后才出现 `offset=500`。 |
-| 2026-08-27 | completed | 按用户确认，将同一套 Filter、Group by、Label 三个工具栏入口扩展到 GitHub PR。 | 未做登录态浏览器视觉验收。 |
-| 2026-08-27 | completed | GitHub PR 已支持状态/更新时间 Filter、列表/看板 Group by、仓库/Label/Reviewer 侧栏筛选，以及视图字段、折叠和状态恢复；筛选条件下推至同一 PostgreSQL list/count 查询。 | 未做登录态浏览器视觉验收。 |
-| 2026-08-27 | completed | 最初按当前页 `meegleIds` 批量关联本地 Meegle 快照；后续根据交互确认，已由 PR 预览按需查询替代。 | 历史方案，不再用于列表接口。 |
-| 2026-08-27 | completed | GitHub PR 行和看板卡片支持悬停/焦点候选，Space 打开详情弹层；展示标题、描述、Odoo.sh status/result 和关联工作项完整字段，Esc 或遮罩关闭。 | 未做登录态浏览器视觉验收。 |
-| 2026-08-27 | completed | 真实 FE 请求返回 200/304，但旧 Server 响应尚无新增的关联 Meegle 字段，FE 严格校验导致整页进入错误态；现已将缺失字段归一化为空数组。 | 新 Server 生效前不显示关联详情，但页面其余数据可正常读取。 |
-| 2026-08-27 | completed | GitHub 列表仅保留关联 ID，并将“关联 Meegle”移动到 Author 后；Space 预览通过专用 Web 接口读取单个 PR，再按其全部 ID 一次批量查询本地 Meegle 快照。FE 显示加载/重试状态并缓存成功结果。 | 未做登录态浏览器视觉与真实快照验收。 |
-| 2026-08-27 | completed | Popup 的 Meegle 工作项改为单行紧凑卡片：左侧 ID/标题截断，右侧 Status/Sprint/Version 统一 badge 展示。 | 未做不同长度真实字段的浏览器视觉验收。 |
-| 2026-08-27 | completed | `#sync` 改为只读取同步状态接口；Server 从各平台快照表汇总每个 source 的最近 `synced_at`，FE 不再加载 Lark/Meegle/GitHub 列表后自行汇总。 | 需在真实 Network 面板确认进入 `#sync` 时只有 `/web/platform-sync-sources` 请求。 |
-| 2026-08-27 | completed | 移除 `#sync` 的 10 秒状态轮询，增加“刷新状态”手动按钮；单源“立即同步”完成后仍刷新一次状态。 | 未做登录态浏览器交互验收。 |
-| 2026-08-27 | completed | Quick Filter 保持为后端查询参数；当后端筛选结果为 0 时，筛选工具栏仍显示，用户可再次点击已激活的 Quick Filter 取消筛选。 | 未做真实数据下的筛选组合浏览器验收。 |
+| 2026-08-27 | done | 已实现配置模型、列表/看板渲染；54 项 FE 单测和 Vite 生产构建通过。 | 未做登录态下的人工浏览器验收。 |
+| 2026-08-27 | done | 已新增 Lark Ticket 服务端创建时间、sourceUpdatedAt、类型筛选及 PostgreSQL 索引；完整 server 测试和 TypeScript 构建通过。 | FE 尚未把现有控件改为向服务端传递筛选参数。 |
+| 2026-08-27 | done | 已将搜索、状态、更新时间及 Meegle Sprint 放入 Filter 弹层；左侧类型、No Sprint 与各平台快捷筛选保留在工具栏。此前 54 项 FE 单测和构建通过，待本次调整复验。 | 未做登录态浏览器视觉验收。 |
+| 2026-08-27 | done | Filter 已改为字段/值双列，并分别提供字段和值搜索；状态、更新时间和 Meegle Sprint 可多选。`pnpm --dir fe check` 通过 56/56 测试和 Vite 构建。 | 未做登录态浏览器视觉验收。 |
+| 2026-08-27 | done | 列表子分组已增加独立折叠；看板子分组改为可折叠的跨列泳道。主分组使用品牌浅色背景，子分组/泳道使用中性浅色背景；`pnpm --dir fe check` 通过 56/56 测试和 Vite 构建。 | 未做登录态浏览器视觉验收。 |
+| 2026-08-27 | done | 移除了 Filter 内不必要的全局全文搜索；字段和值各自搜索，副列值列表可独立滚动；`pnpm --dir fe check` 通过 56/56 测试和 Vite 构建。 | 未做登录态浏览器视觉验收。 |
+| 2026-08-27 | done | 看板主列与泳道 cell 的最小宽度由 270px 收窄为 220px，保留横向滚动；`pnpm --dir fe check` 通过 56/56 测试和 Vite 构建。 | 未做登录态浏览器视觉验收。 |
+| 2026-08-27 | done | Filter 字段列改为内容高度的紧凑行（最小 32px、顶部对齐），避免少量字段被拉伸为大卡片；`pnpm --dir fe check` 通过 56/56 测试和 Vite 构建。 | 未做登录态浏览器视觉验收。 |
+| 2026-08-27 | done | 新配置下 List 子分组和 Kanban 泳道默认折叠；已保存的用户展开状态保持不变；`pnpm --dir fe check` 通过 56/56 测试和 Vite 构建。 | 未做登录态浏览器视觉验收。 |
+| 2026-08-27 | done | Filter 值列改为按字段悬停/聚焦/点击触发的左侧悬浮菜单，默认隐藏；移动端在主菜单下方展开；`pnpm --dir fe check` 通过 56/56 测试和 Vite 构建。 | 未做登录态浏览器视觉验收。 |
+| 2026-08-27 | done | Kanban 卡片、主列与泳道标题允许自然换行，适配收窄的列宽；`pnpm --dir fe check` 通过 56/56 测试和 Vite 构建。 | 未做登录态浏览器视觉验收。 |
+| 2026-08-27 | done | subgroup 泳道的网格列由无上限的 `minmax(220px, 1fr)` 改为 `minmax(220px, 260px)`，避免宽屏下 cell 被拉宽；`pnpm --dir fe check` 通过 56/56 测试和 Vite 构建。 | 未做登录态浏览器视觉验收。 |
+| 2026-08-27 | done | List 的分组/子分组，以及 Kanban 的主列/子分组泳道标题均显示明确的 `X 条` 数量；`pnpm --dir fe check` 通过 56/56 测试和 Vite 构建。 | 未做登录态浏览器视觉验收。 |
+| 2026-08-27 | done | Ticket 与 Meegle Kanban 卡片标题统一为普通正文规格（13px、常规字重）；`pnpm --dir fe check` 通过 56/56 测试和 Vite 构建。 | 未做登录态浏览器视觉验收。 |
+| 2026-08-27 | done | 增加右侧标签筛选栏：Meegle 支持 Sprint、项目、优先级，Lark Ticket 支持 Issue 类型、紧急度、负责人；标签带数量、支持多选，并提供高亮的侧栏开关图标。Meegle priority 已从标准平台字段透传至快照/API；FE 57/57、Server 定向 31/31 测试及 Server 构建通过。 | 已有 Meegle 快照需下一次同步才会填充 priority；未做登录态浏览器视觉验收。 |
+| 2026-08-27 | done | 标签侧栏关闭时取消 280px 的预留列，列表/看板恢复完整内容宽度；开启时才使用双列布局。 | 未做登录态浏览器视觉验收。 |
+| 2026-08-27 | done | 筛选改为 Server 先筛选结果集、API 以 500 条分页、FE 自动拉取全部匹配页；List/Kanban 的排序、分组、折叠和数量仍由 FE 基于完整匹配集合处理。Lark 与 Meegle 的现有筛选控件均已下推。 | `show empty groups` 仍基于当前匹配集合的已知值；未连接真实已登录数据做视觉和大数据量验收。 |
+| 2026-08-27 | done | 保留 React StrictMode，并在 Web profile 与平台列表 API 层合并相同的并发请求；开发模式的重复挂载不再让 Lark 分页、Meegle/GitHub 列表或 profile 对 Server 发起两次请求。 | 未在真实浏览器 Network 面板复验。 |
+| 2026-08-27 | done | 平台列表接口新增真实 `pager`，PostgreSQL 用同筛选条件返回 total；List/Kanban 首屏仅请求 500 条，在内容底部显示“已加载 X / Y”与“加载更多”，点击后才请求下一页。旧 Server 缺少 pager 时 FE 按单页结束，避免 offset 无限累加。 | 需将 Server 与 FE 部署到正式环境后，在真实 Network 面板验证首屏仅一条平台数据请求、点击后才出现 `offset=500`。 |
+| 2026-08-27 | done | 按用户确认，将同一套 Filter、Group by、Label 三个工具栏入口扩展到 GitHub PR。 | 未做登录态浏览器视觉验收。 |
+| 2026-08-27 | done | GitHub PR 已支持状态/更新时间 Filter、列表/看板 Group by、仓库/Label/Reviewer 侧栏筛选，以及视图字段、折叠和状态恢复；筛选条件下推至同一 PostgreSQL list/count 查询。 | 未做登录态浏览器视觉验收。 |
+| 2026-08-27 | done | 最初按当前页 `meegleIds` 批量关联本地 Meegle 快照；后续根据交互确认，已由 PR 预览按需查询替代。 | 历史方案，不再用于列表接口。 |
+| 2026-08-27 | done | GitHub PR 行和看板卡片支持悬停/焦点候选，Space 打开详情弹层；展示标题、描述、Odoo.sh status/result 和关联工作项完整字段，Esc 或遮罩关闭。 | 未做登录态浏览器视觉验收。 |
+| 2026-08-27 | done | 真实 FE 请求返回 200/304，但旧 Server 响应尚无新增的关联 Meegle 字段，FE 严格校验导致整页进入错误态；现已将缺失字段归一化为空数组。 | 新 Server 生效前不显示关联详情，但页面其余数据可正常读取。 |
+| 2026-08-27 | done | GitHub 列表仅保留关联 ID，并将“关联 Meegle”移动到 Author 后；Space 预览通过专用 Web 接口读取单个 PR，再按其全部 ID 一次批量查询本地 Meegle 快照。FE 显示加载/重试状态并缓存成功结果。 | 未做登录态浏览器视觉与真实快照验收。 |
+| 2026-08-27 | done | Popup 的 Meegle 工作项改为单行紧凑卡片：左侧 ID/标题截断，右侧 Status/Sprint/Version 统一 badge 展示。 | 未做不同长度真实字段的浏览器视觉验收。 |
+| 2026-08-27 | done | `#sync` 改为只读取同步状态接口；Server 从各平台快照表汇总每个 source 的最近 `synced_at`，FE 不再加载 Lark/Meegle/GitHub 列表后自行汇总。 | 需在真实 Network 面板确认进入 `#sync` 时只有 `/web/platform-sync-sources` 请求。 |
+| 2026-08-27 | done | 移除 `#sync` 的 10 秒状态轮询，增加“刷新状态”手动按钮；单源“立即同步”完成后仍刷新一次状态。 | 未做登录态浏览器交互验收。 |
+| 2026-08-27 | done | Quick Filter 保持为后端查询参数；当后端筛选结果为 0 时，筛选工具栏仍显示，用户可再次点击已激活的 Quick Filter 取消筛选。 | 未做真实数据下的筛选组合浏览器验收。 |
 
 ## 验证
 

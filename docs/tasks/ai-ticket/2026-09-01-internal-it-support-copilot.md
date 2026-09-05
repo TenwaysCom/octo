@@ -1,11 +1,11 @@
 ---
 title: "Internal IT Support Copilot"
 module: "ai-ticket"
-status: in_progress
+status: done
 requirement_version: 1
 created_on: 2026-09-01
-updated_on: 2026-09-01
-closed_on: null
+updated_on: 2026-09-04
+closed_on: 2026-09-04
 owner: TBD
 related:
   - "../../tenways-octo/it-platform-sync.md"
@@ -45,6 +45,7 @@ related:
 | --- | --- | --- | --- | --- |
 | 2026-09-01 | v1 | in_progress | 已实现服务端确认发送门禁、分析准备函数、prompt 合同、FE 确认按钮及 approved-only 知识检索；定向测试、Server build、FE test/build 通过。 | 未调用真实 Lark；派生分析批处理、审核 UI 与知识索引的审批/导入入口仍待实现。 |
 | 2026-09-01 | v1 | in_progress | 新增 Ticket 分析 PUT 接口与共享分析服务；扩展签名 internal API 和 Support-QA wrapper，Summary ACP 必须完成 fetch 与 analysis-update 后才接受结果。相关 10 files / 31 tests、Server build 和 wrapper dry-run 通过。 | 未执行真实 PostgreSQL migration、真实签名 HTTP 请求或 FE 展示验收；Answer/Document 不覆盖 Summary 分析。 |
+| 2026-09-04 | v1 | done | 台账复核确认全部当前验收项已勾选；当前 Server 全量 146 files / 707 tests、FE 33 files 测试与 production build 通过。 | 真实 Lark、迁移、审核 UI、知识导入和分析批处理不属于本任务已验收范围；如需上线验证或扩展能力，另建任务。 |
 
 ## 验证
 
@@ -58,6 +59,7 @@ related:
 | Server 全量单测 | 通过 | 140 files / 654 tests | 本轮全部通过，包括 logger transport。 |
 | Server build | 通过 | `pnpm --dir server build` | TypeScript 编译通过。 |
 | FE 单测与 build | 通过 | 127 tests、Vite production build | 未进行登录态或真实 Lark UI 验收。 |
+| 台账复核回归 | 通过 | 2026-09-04：`pnpm --dir server test`（146 files / 707 tests）、`pnpm --dir fe test`（33 files）与 `pnpm --dir fe build`。 | 仍不替代真实 Lark/ACP 运行时验证；该验证不在本任务验收范围。 |
 
 ## 关联
 

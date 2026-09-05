@@ -1,7 +1,7 @@
 ---
 title: "Lark Ticket Thread 上下文按需同步"
 module: "ai-ticket"
-status: completed
+status: done
 requirement_version: 5
 created_on: 2026-08-26
 updated_on: 2026-08-31
@@ -50,11 +50,11 @@ related:
 | 日期 | 状态 | 结果与证据 | 未验证边界 / 下一步 |
 | --- | --- | --- | --- |
 | 2026-08-26 | in_progress | 已确认现有 Ticket sync、Lark adapter、Kimi Session ownership 与内部路由边界。 | 实现 schema/store、ensure、ACP 接入与测试。 |
-| 2026-08-26 | completed | 新增 thread sync store、分页/增量 ensure、终态冻结、Kimi 首轮快照、签名内部接口；定向 37 tests 与 Server build 通过。 | 未对真实 Lark tenant 做在线调用；全量套件仍受本机 `node:sqlite` 缺失与既有 logger 文件测试影响。 |
-| 2026-08-27 | completed | 内部 ACP Ticket 上下文 controller 改为按首次已授权请求懒创建数据库服务，避免路由注册先于 `ensureSharedDatabase()` 访问 SSH PostgreSQL；controller/index 定向 5/5、Server build 与实际 `server start` 启动通过。 | 未发起真实签名 Ticket 上下文请求。 |
-| 2026-08-31 | completed | v2：新增 Finish Ticket 历史 thread 补齐脚本和单测；默认预检不访问 Lark，`--apply` 要求显式授权身份和 HTTPS 域名，并复用既有 `ensure()` 保存/冻结逻辑。 | 未执行真实 Lark 批量调用；需先对目标 Base/Table dry-run 确认数量。 |
-| 2026-08-31 | completed | v3：新增 `--limit`，仅限制本轮实际尝试的候选数，保留完整预检统计以便分批执行。 | 未执行真实 Lark 批量调用；需先对目标 Base/Table dry-run 确认数量。 |
-| 2026-08-31 | completed | v5：根消息改由 thread 回复中的 `root_id` 拉取；补齐脚本检测到旧快照有回复却缺 root 时，会强制全量重拉。 | 未执行真实 Lark 批量调用；需先部署到远端后对 3 条已补齐记录做受控验证。 |
+| 2026-08-26 | done | 新增 thread sync store、分页/增量 ensure、终态冻结、Kimi 首轮快照、签名内部接口；定向 37 tests 与 Server build 通过。 | 未对真实 Lark tenant 做在线调用；全量套件仍受本机 `node:sqlite` 缺失与既有 logger 文件测试影响。 |
+| 2026-08-27 | done | 内部 ACP Ticket 上下文 controller 改为按首次已授权请求懒创建数据库服务，避免路由注册先于 `ensureSharedDatabase()` 访问 SSH PostgreSQL；controller/index 定向 5/5、Server build 与实际 `server start` 启动通过。 | 未发起真实签名 Ticket 上下文请求。 |
+| 2026-08-31 | done | v2：新增 Finish Ticket 历史 thread 补齐脚本和单测；默认预检不访问 Lark，`--apply` 要求显式授权身份和 HTTPS 域名，并复用既有 `ensure()` 保存/冻结逻辑。 | 未执行真实 Lark 批量调用；需先对目标 Base/Table dry-run 确认数量。 |
+| 2026-08-31 | done | v3：新增 `--limit`，仅限制本轮实际尝试的候选数，保留完整预检统计以便分批执行。 | 未执行真实 Lark 批量调用；需先对目标 Base/Table dry-run 确认数量。 |
+| 2026-08-31 | done | v5：根消息改由 thread 回复中的 `root_id` 拉取；补齐脚本检测到旧快照有回复却缺 root 时，会强制全量重拉。 | 未执行真实 Lark 批量调用；需先部署到远端后对 3 条已补齐记录做受控验证。 |
 
 ## 验证
 

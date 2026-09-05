@@ -1,7 +1,7 @@
 ---
 title: "Platform list linear rows"
-module: "platform-sync"
-status: verified
+module: "platform-data"
+status: done
 requirement_version: 2
 created_on: 2026-08-30
 updated_on: 2026-08-30

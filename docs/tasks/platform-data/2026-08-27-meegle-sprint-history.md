@@ -4,7 +4,7 @@ module: "platform-data"
 status: in_progress
 requirement_version: 8
 created_on: 2026-08-27
-updated_on: 2026-08-28
+updated_on: 2026-09-04
 closed_on: null
 owner: Codex
 related:
@@ -23,7 +23,7 @@ related:
 - 因此旧 Sprint 的工作项、Scope 和完成率会随之后的同步变化，B 也无法区分临时新增与从 A 延期进入。
 - start/finish 在重开、回到 New 或切换 Sprint 后还会继续变化；只保存 Sprint 关系的 added/removed 仍不足以稳定旧 Sprint 图表。
 
-## 当前有效需求（v7）
+## 当前有效需求（v8）
 
 ### 范围
 
@@ -154,6 +154,7 @@ v4 已完成 Sprint 页面、稳定 `sprint_id`、当前生命周期投影和 PG
 | 2026-08-27 | v6 | in_progress | 关系保存 `historical_inferred` / `incremental_observed`；已有当前快照首次进入新逻辑时惰性创建推定开放区间，同 Sprint 后续同步不升级来源。 | 历史批量初始化、准确性 API/FE 提示和目标数据库验证尚未实施。 |
 | 2026-08-28 | v7 | done | 修正 FE 图表横轴结束日：移除对今天的上限，Current 与 Upcoming 均延伸到 Sprint 配置结束日；结束日缺失时继续回退今天。 | 未执行登录态浏览器视觉验收。 |
 | 2026-08-28 | v8 | done | Platform-data API 新增按 Sprint 归属区间展开的 `sprintWorkitems` 投影；FE 列表、详情和图表改读该投影。A → B 后 A 仍保留工作项，且仅在 observed 关系、A/B 日期完整并确认 A 在结束日未完成时显示“结转至 B”；缺少已持久化关系的当前 Sprint 由 Server 以 `historical_inferred` 兼容投影。 | 未执行登录态浏览器视觉验收；Planned/After cycle 和推定准确性提示仍未实现。 |
+| 2026-09-04 | v8 | in_progress | 台账复核确认 v8 的原 Sprint 保留和确定 carryover 投影仍有效；结转项分区展示已在关联子任务完成。当前 Server 全量 146 files / 707 tests、FE 33 files 测试与 production build 通过。 | 继续按顺序补齐 Planned/After cycle 与推定准确性标识及测试；随后在获得明确授权后执行目标 PostgreSQL migration/PG-only 初始化并只读核对，最后做登录态浏览器验收。 |
 
 ## 验证
 

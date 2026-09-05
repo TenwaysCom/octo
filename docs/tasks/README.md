@@ -1,7 +1,7 @@
 ---
 status: active
 owner: TBD
-last_reviewed: 2026-08-25
+last_reviewed: 2026-09-04
 scope: Octo 工作任务台账的记录、检索与归档规则
 review_cadence: monthly
 ---

@@ -1,7 +1,7 @@
 ---
 title: "从 Meegle role_members 清洗相关人"
 module: "platform-sync"
-status: completed
+status: done
 requirement_version: 3
 created_on: 2026-09-01
 updated_on: 2026-09-01

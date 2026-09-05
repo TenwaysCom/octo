@@ -2,11 +2,13 @@
 title: "Meegle 标准 Bugs 增量清洗 TODO"
 module: "platform-sync"
 status: planned
-requirement_version: 1
+backlog: true
+requirement_version: 3
 created_on: 2026-09-01
-updated_on: 2026-09-01
+updated_on: 2026-09-04
 closed_on: null
 owner: TBD
+last_reviewed: 2026-09-04
 related:
   - "Meegle work item type: issue"
   - "docs/tasks/platform-sync/2026-09-01-meegle-system-time-incremental-cleaning.md"
@@ -16,7 +18,7 @@ related:
 
 ## 目标
 
-在独立后续任务中把 Tenways Software R&D 的标准 Bugs（type key/API name 均为 `issue`）纳入 Meegle 增量同步和 canonical cleaner。本任务只记录技术范围，不修改当前 target、checkpoint 或代码。
+将 Tenways Software R&D 的标准 Bugs（type key/API name 均为 `issue`）纳入 Meegle 增量同步和 canonical cleaner。该事项暂列 backlog；本期不修改服务端映射、活跃 target 或 checkpoint，后续启动范围与 System 规则须先讨论确认。
 
 ## 验收标准
 
@@ -44,6 +46,8 @@ related:
 | 日期 | 需求版本 | 状态 | 结果与证据 | 未验证边界 / 下一步 |
 | --- | --- | --- | --- | --- |
 | 2026-09-01 | v1 | planned | 已确认类型、时间字段、System 字段和当前未配置状态。 | 产品确认 System fallback 后另行排期实现。 |
+| 2026-09-04 | v1 | blocked | 台账复核确认 `issue` 仍没有对应 lifecycle field 映射或已配置的增量 target；没有开始 checkpoint、cleaner 或历史扫描。 | 需要产品负责人明确：`field_19682c` 是否为唯一 System 权威来源，以及是否允许任何 fallback。收到书面决策后，按验收顺序建立 target/checkpoint、日期规则与来源清空/非法值告警测试。 |
+| 2026-09-04 | v3 | planned | 按本期优先级调整移入 backlog；已撤回未提交的 `issue` 映射、测试和架构说明改动，未修改活跃 config 或 checkpoint。 | 后续讨论并确认 System 来源、是否允许 fallback、激活时的 checkpoint 初始化方式与维护窗口后，再递增需求版本实施。 |
 
 ## 验证
 

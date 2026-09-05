@@ -1,7 +1,7 @@
 ---
 title: "DeepSeek 直连 Ticket 问题总结与 Shadow Worker"
 module: "ai-ticket"
-status: completed
+status: done
 requirement_version: 2
 created_on: 2026-09-04
 updated_on: 2026-09-04

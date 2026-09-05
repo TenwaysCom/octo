@@ -1,7 +1,7 @@
 ---
 title: "Meegle 增量同步时间格式报错诊断"
 module: "platform-sync"
-status: completed
+status: done
 requirement_version: 2
 created_on: 2026-09-03
 updated_on: 2026-09-03

@@ -2,9 +2,9 @@
 title: "Sprint Release Notes AI Sessions"
 module: ai-tasks
 status: in_progress
-requirement_version: 1
+requirement_version: 3
 created_on: 2026-08-28
-updated_on: 2026-08-28
+updated_on: 2026-09-04
 closed_on: null
 owner: Codex
 related:
@@ -38,6 +38,7 @@ related:
 | 日期 | 需求版本 | 状态 | 结果与证据 | 未验证边界 / 下一步 |
 | --- | --- | --- | --- | --- |
 | 2026-08-28 | v3 | in_progress | 已完成 Server 会话归属、Sprint 上下文、SSE API、趋势图下前端会话 UI、Quick Actions；三个 Quick Action 分别使用独立的数据库 Prompt。 | 无额外 workspace/Skill 配置；未启动真实 ACP。 |
+| 2026-09-04 | v3 | in_progress | 台账复核确认路由、actionRunId 传递、数据库 Prompt 和会话归属实现仍在；当前 Server 全量 146 files / 707 tests、FE 33 files 测试与 production build 通过。 | 仅剩受控真实 ACP 会话：使用已配置的内部 AI 身份启动一个 Sprint Quick Action，核对 SSE 结束状态与会话归属；本次复核未发起外部调用。 |
 
 ## 验证
 
