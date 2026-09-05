@@ -152,6 +152,93 @@ describe("meegle story PRD to simplified service", () => {
     );
   });
 
+  it("rejects Lark document-only Story Summary before calling ACP or updating Tech Summary", async () => {
+    const updateWorkitem = vi.fn();
+    const client = {
+      getWorkitemDetails: vi.fn().mockResolvedValue([
+        {
+          id: "123456",
+          key: "STORY-1",
+          name: "Story title",
+          type: "story",
+          status: "open",
+          fields: {
+            fields: [
+              {
+                field_key: "field_e67b43",
+                field_value: "https://nsghpcq7ar4z.sg.larksuite.com/wiki/JmzGrl2yIeP98ocqUzrlUFfjgxc",
+              },
+            ],
+          },
+        },
+      ]),
+      updateWorkitem,
+    } as unknown as MeegleClient;
+    const acpService = {
+      assertSessionAccess: vi.fn(),
+      chatOneShot: vi.fn(),
+      chat: vi.fn(),
+    };
+
+    const result = await executeMeegleStoryPrdToSimplified(
+      {
+        projectKey: "OPS",
+        workItemTypeKey: "story",
+        workItemId: "123456",
+        masterUserId: "usr_1",
+        baseUrl: "https://project.larksuite.com",
+        actionRunId: "run_lark_doc_link",
+      },
+      {
+        resolvedUserStore: {
+          getById: vi.fn().mockResolvedValue({
+            id: "usr_1",
+            status: "active",
+            larkTenantKey: "tenant_1",
+            larkId: "ou_1",
+            larkEmail: null,
+            larkName: null,
+            larkAvatarUrl: null,
+            meegleBaseUrl: "https://project.larksuite.com",
+            meegleUserKey: "meegle_1",
+            githubId: null,
+            role: null,
+            createdAt: "2026-06-18T00:00:00.000Z",
+            updatedAt: "2026-06-18T00:00:00.000Z",
+          }),
+          getByLarkId: vi.fn(),
+          getByLarkIdentity: vi.fn(),
+          getByMeegleIdentity: vi.fn(),
+          create: vi.fn(),
+          update: vi.fn(),
+        },
+        refreshCredential: vi.fn().mockResolvedValue({
+          tokenStatus: "ready",
+          userToken: "token_1",
+        }),
+        createMeegleClient: vi.fn().mockResolvedValue(client),
+        workflowPromptStore: {
+          getByKey: vi.fn().mockResolvedValue(undefined),
+          upsert: vi.fn(),
+        },
+        acpService,
+      },
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toMatchObject({
+        layer: "server",
+        stage: "server.workflow.started",
+        errorCode: "LARK_STORY_SUMMARY_CONTENT_UNAVAILABLE",
+        actionRunId: "run_lark_doc_link",
+      });
+    }
+    expect(acpService.chatOneShot).not.toHaveBeenCalled();
+    expect(acpService.chat).not.toHaveBeenCalled();
+    expect(updateWorkitem).not.toHaveBeenCalled();
+  });
+
   it("rejects non-story workitems before calling ACP", async () => {
     const acpService = {
       assertSessionAccess: vi.fn(),

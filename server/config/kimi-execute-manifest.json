@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "scripts": [
+    {
+      "root": "support_workspace",
+      "path": ".agents/skills/write-support-qa/scripts/write-support-qa.sh",
+      "subcommands": ["fetch", "update", "analysis-update"]
+    }
+  ]
+}

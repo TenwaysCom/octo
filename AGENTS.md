@@ -39,6 +39,27 @@ pnpm --dir extension package
 pnpm --dir extension test:e2e
 ```
 
+## 本地 FE 插件登录联调
+
+启动同一套本地环境：
+
+```bash
+make server-dev
+make ext-dev-profile
+make fe-dev
+```
+
+- FE 为 `http://localhost:4173`，Vite 将 `/api` 代理到 Server `http://localhost:3040`。
+- `ext-dev-profile` 使用 `~/.config/octo-ext-profile/Default`；真实 Lark 登录只保留在该专用 profile，不读取或导出其 cookie/token。
+- 成功判定必须同时看到 `start -> approve -> complete` 都返回 `2xx`，随后 `GET /api/web/profile` 为已登录状态。
+
+排查时只提取非敏感请求字段，不输出响应体、cookie、token 或用户资料：
+
+```bash
+rg '"path":"/api/web/plugin-login/(start|approve|complete)"' server/logs/api.$(date +%F).* \
+  | jq -r '[.time, .phase, .method, .path, (.statusCode // "")] | @tsv'
+```
+
 ## Hard Rules
 
 1. Keep workflow/business logic out of the extension.
@@ -71,8 +92,8 @@ For non-trivial changes, agents must read the relevant docs before editing:
 
 ## Logs
 
-- Server logs: `server/logs/app.log`, `server/logs/api.log`.
-- Extension client upload logs: `server/logs/popup-client.log` when enabled.
+- Server logs: `server/logs/app.YYYY-MM-DD.N.log`, `server/logs/api.YYYY-MM-DD.N.log` (Pino daily rotation).
+- Extension client upload logs: `server/logs/popup-client.YYYY-MM-DD.N.log` when enabled (same Pino daily rotation).
 - Use `LOG_LEVEL=debug` for deeper server debugging.
 
 ## Documentation
@@ -87,3 +108,29 @@ For non-trivial changes, agents must read the relevant docs before editing:
 - Keep changes surgical.
 - Prefer editing existing files over creating new files.
 - Write commit messages and PR descriptions casually and specifically; avoid robot copy and vague summaries.
+
+## Scope Discipline
+
+Interpret requests narrowly. Do not infer new capabilities, dependencies,
+configuration, or architectural patterns from examples or similar features.
+
+If an implementation choice expands the requested scope, treat it as an
+assumption: state it and obtain confirmation before proceeding.
+
+## Learning Ledger
+
+Division of labor: each fact has exactly one authoritative record; everything else links to it.
+
+- `docs/tasks/` task docs are the sole authority for per-task facts: goals, decisions, progress, and verification evidence. Ledgers never restate them.
+- `.learnings/LEARNINGS.md` holds durable, cross-task rules only. Each entry is `Context` + `Rule` (two short paragraphs) plus a `source:` link to the originating task doc; do not copy verification outcomes or test counts into the entry.
+- `.learnings/ERRORS.md` is a reproducible failure-signature library, indexed by symptom (exact error message, failed command, wrong assumption): record `Error` + `Fix` + a link to the task doc. One-off task-specific bugs stay in the task doc's progress log instead. Do not record resolution status or test evidence here.
+- Double-write rule: an incident goes to ERRORS by default. Promote it to LEARNINGS only when the lesson generalizes beyond the original context; the LRN entry links the ERR id instead of repeating its background.
+- Do not record secrets, raw credentials, cookies, tokens, or large unredacted logs.
+- At the end of every complex task, review failures and near-misses, identify the root cause, and write back one durable rule when it will prevent a repeat.
+- Monthly consolidation (alongside the tasks review): merge near-duplicate entries; drop any rule now enforced by a linter, CI check, or test, noting which check replaced it.
+
+## Tasks Ledger
+
+- Record each independent task in `docs/tasks/<module>/YYYY-MM-DD-brief-kebab-case.md`; use the template and update an existing record instead of duplicating it.
+- Keep its status, progress, evidence, and verification boundary current; never record secrets or sensitive payloads.
+- Review closed tasks monthly: archive confirmed records older than 90 days; review stale open records, never auto-archive them.

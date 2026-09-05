@@ -12,7 +12,7 @@ SSH_PORT="2233"
 PROJECT_DIR="~/projects/octo"
 
 # 读取扩展当前版本号
-EXT_VERSION=$(node -p "require('./extension/package.json').version")
+EXT_VERSION=$(node -p "require('./extension/manifest.json').version")
 echo "[DEPLOY-PROD] 扩展版本: $EXT_VERSION"
 
 echo "[DEPLOY-PROD] 连接到正式服务器执行部署..."
@@ -40,6 +40,7 @@ ssh -p "$SSH_PORT" "$SSH_HOST" -t "
     
     echo '[5/5] 重启 PM2 服务...'
     pnpm exec pm2 reload octo-server --update-env || pnpm exec pm2 start dist/index.js --name octo-server
+    pnpm exec pm2 reload octo-platform-sync-worker --update-env || pnpm exec pm2 start dist/scripts/platform-sync-worker.js --name octo-platform-sync-worker
     pnpm exec pm2 save
     
     echo ''

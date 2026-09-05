@@ -101,7 +101,7 @@ describe("popup controller", () => {
             },
             {
               key: "bulk-create-meegle-tickets",
-              title: "批量创建 MEEGLE TICKET",
+              title: "批量创建 Meegle Item",
               style: "default",
               executor: { type: "frontend", actionKey: "bulk-create-meegle-tickets" },
             },
@@ -122,7 +122,7 @@ describe("popup controller", () => {
           automationActions: [
             {
               key: "create-meegle-item",
-              title: "创建 Meegle Item",
+              title: "批量创建 Meegle Item",
               style: "default",
               executor: { type: "frontend", actionKey: "create-meegle-item" },
             },
@@ -163,6 +163,17 @@ describe("popup controller", () => {
                 route: "/api/meegle/workitem/story-prd-to-simplified",
               },
             },
+            {
+              key: "update-lark-and-push",
+              title: "更新Lark及推送",
+              style: "default",
+              executor: {
+                type: "backend_api",
+                operation: "meegle.workitem.update_lark_and_push",
+                method: "POST",
+                route: "/api/meegle/workitem/update-lark-and-push",
+              },
+            },
           ],
         };
       }
@@ -187,6 +198,17 @@ describe("popup controller", () => {
                 operation: "lark.bug.analyze",
                 method: "POST",
                 route: "/api/lark-bug/analyze",
+              },
+            },
+            {
+              key: "update-lark-and-push",
+              title: "更新Lark及推送",
+              style: "default",
+              executor: {
+                type: "backend_api",
+                operation: "meegle.workitem.update_lark_and_push",
+                method: "POST",
+                route: "/api/meegle/workitem/update-lark-and-push",
               },
             },
           ],
@@ -466,13 +488,52 @@ describe("popup controller", () => {
     controller.dispose();
   });
 
-  it("shows execution status while dispatching server-configured backend API actions", async () => {
+  it("shows an existing Meegle link prompt when single creation is skipped", async () => {
+    runtimeMock.runLarkBaseCreateWorkitemRequest.mockResolvedValueOnce({
+      ok: false,
+      error: {
+        layer: "server",
+        module: "lark-base-workflow",
+        stage: "server.workflow.skipped",
+        errorCode: "MEEGLE_LINK_ALREADY_EXISTS",
+        errorMessage: "Meegle 链接已经有记录。",
+        actionRunId: "server_run_existing_link",
+      },
+    });
     runtimeMock.queryActiveTabContext.mockResolvedValueOnce({
+      id: 12,
+      url: "https://nsghpcq7ar4z.sg.larksuite.com/record/KxOYr6CJKeWYktcI2GilrfRAgeg",
+      origin: "https://nsghpcq7ar4z.sg.larksuite.com",
+      pageType: "lark",
+      larkContext: {
+        baseId: "base_1",
+        tableId: "tbl_1",
+        recordId: "rec_real_1",
+        wikiRecordId: "KxOYr6CJKeWYktcI2GilrfRAgeg",
+      },
+    });
+
+    const controller = createPopupController();
+    await controller.initialize();
+    await controller.runFeatureAction("create-meegle-item");
+
+    expect(runtimeMock.runLarkBaseBulkPreviewRequest).not.toHaveBeenCalled();
+    expect(runtimeMock.runLarkBaseCreateWorkitemRequest).toHaveBeenCalled();
+    expect(controller.getState().larkActions[0]).toMatchObject({
+      statusText: "Meegle 链接已经有记录。 · server_run_existing_link",
+      statusTone: "error",
+    });
+    controller.dispose();
+  });
+
+  it("shows execution status while dispatching server-configured backend API actions", async () => {
+    const storyContext = {
       id: 12,
       url: "https://project.larksuite.com/OPS/story/detail/123456",
       origin: "https://project.larksuite.com",
-      pageType: "meegle",
-    });
+      pageType: "meegle" as const,
+    };
+    runtimeMock.queryActiveTabContext.mockResolvedValueOnce(storyContext);
 
     const controller = createPopupController();
     await controller.initialize();
@@ -539,13 +600,123 @@ describe("popup controller", () => {
     controller.dispose();
   });
 
-  it("shows an error status when a backend API action fails", async () => {
+  it("submits server-configured async GitHub review actions and registers completion notification", async () => {
     runtimeMock.queryActiveTabContext.mockResolvedValueOnce({
+      id: 12,
+      url: "https://github.com/TenwaysCom/Tenways/pull/1036/files",
+      origin: "https://github.com",
+      pageType: "github",
+    });
+    runtimeMock.getExtensionPageConfig.mockResolvedValueOnce({
+      platform: "github",
+      pageType: "github_pr",
+      matchedRuleId: "github.pr",
+      sidebar: { injectPageElements: true, sidebarButtonEnabled: true, keyboardShortcutEnabled: true },
+      automationActions: [{
+        key: "github-quick-scan",
+        title: "Quick scan（后台执行）",
+        executor: {
+          type: "backend_api",
+          operation: "github.pr.quick_scan",
+          method: "POST",
+          route: "/api/github/pr/review",
+        },
+        execution: {
+          mode: "async",
+          submit: { message: "已提交后台 Quick scan", style: "info" },
+          completion: {
+            status: { method: "GET", route: "/api/github/pr/review/:actionRunId", pollIntervalMs: 1 },
+            success: {
+              message: "Quick scan 已完成",
+              style: "success",
+              notification: { title: "Quick scan 已完成", message: "结果已回写到 GitHub" },
+            },
+            failure: { message: "Quick scan 执行失败", style: "error" },
+          },
+        },
+      }],
+    });
+    const controller = createPopupController();
+    await controller.initialize();
+    vi.mocked(globalThis.fetch).mockReset();
+    vi.mocked(globalThis.fetch)
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true, data: { actionRunId: "run_async_1", status: "queued" } }) } as Response)
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true, data: { actionRunId: "run_async_1", status: "succeeded", commentUrl: "https://github.com/comment" } }) } as Response);
+    vi.mocked(chrome.runtime.sendMessage).mockResolvedValueOnce({ ok: true });
+    await controller.runFeatureAction("github-quick-scan");
+
+    await vi.waitFor(() => {
+      expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+      expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({
+        action: "octo.async-action.track",
+        payload: expect.objectContaining({
+          actionRunId: "run_async_1",
+          masterUserId: "usr_resolved",
+          serverUrl: "http://localhost:3000",
+          statusRoute: "/api/github/pr/review/:actionRunId",
+          notification: {
+            title: "Quick scan 已完成",
+            message: "结果已回写到 GitHub",
+          },
+        }),
+      });
+    });
+    expect(globalThis.fetch).toHaveBeenNthCalledWith(1,
+      "http://localhost:3000/api/github/pr/review",
+      expect.objectContaining({ method: "POST", body: expect.any(String) }),
+    );
+    expect(globalThis.fetch).toHaveBeenNthCalledWith(2,
+      "http://localhost:3000/api/github/pr/review/run_async_1",
+      expect.objectContaining({ method: "GET" }),
+    );
+    expect(controller.getState().githubActions[0]).toMatchObject({
+      statusText: "Quick scan 已完成",
+      statusTone: "success",
+    });
+    controller.dispose();
+  });
+
+  it("refreshes Meegle page context before dispatching backend API actions", async () => {
+    runtimeMock.queryActiveTabContext
+      .mockResolvedValueOnce({
+        id: 12,
+        url: "https://project.larksuite.com/4c3fv6/story/detail/10435506",
+        origin: "https://project.larksuite.com",
+        pageType: "meegle",
+      })
+      .mockResolvedValueOnce({
+        id: 12,
+        url: "https://project.larksuite.com/4c3fv6/production_bug/detail/13290007",
+        origin: "https://project.larksuite.com",
+        pageType: "meegle",
+      });
+
+    const controller = createPopupController();
+    await controller.initialize();
+    runtimeMock.runMeegleLarkPushRequest.mockClear();
+
+    await controller.runFeatureAction("update-lark-and-push");
+
+    expect(runtimeMock.queryActiveTabContext).toHaveBeenCalledTimes(2);
+    expect(runtimeMock.runMeegleLarkPushRequest).toHaveBeenCalledWith({
+      projectKey: "4c3fv6",
+      workItemTypeKey: "production_bug",
+      workItemId: "13290007",
+      masterUserId: "usr_resolved",
+      baseUrl: "https://project.larksuite.com",
+      actionRunId: expect.any(String),
+    }, undefined);
+    controller.dispose();
+  });
+
+  it("shows an error status when a backend API action fails", async () => {
+    const storyContext = {
       id: 12,
       url: "https://project.larksuite.com/OPS/story/detail/123456",
       origin: "https://project.larksuite.com",
-      pageType: "meegle",
-    });
+      pageType: "meegle" as const,
+    };
+    runtimeMock.queryActiveTabContext.mockResolvedValueOnce(storyContext);
 
     const controller = createPopupController();
     await controller.initialize();
@@ -574,12 +745,13 @@ describe("popup controller", () => {
   });
 
   it("dispatches the Lark Bug analysis backend API action from server config", async () => {
-    runtimeMock.queryActiveTabContext.mockResolvedValueOnce({
+    const productionBugContext = {
       id: 12,
       url: "https://project.larksuite.com/OPS/production_bug/detail/123456",
       origin: "https://project.larksuite.com",
-      pageType: "meegle",
-    });
+      pageType: "meegle" as const,
+    };
+    runtimeMock.queryActiveTabContext.mockResolvedValueOnce(productionBugContext);
 
     const controller = createPopupController();
     await controller.initialize();
@@ -1213,6 +1385,7 @@ describe("popup controller", () => {
     controller.openSettings();
     controller.updateSettingsFormField("ENV_NAME", "test");
     expect(controller.getState().settingsForm.SERVER_URL).toBe("https://octotest.odoo.tenways.it:18443");
+    expect(controller.getState().settingsForm.LARK_OAUTH_CALLBACK_URL).toBe("");
 
     controller.closeSettings();
 

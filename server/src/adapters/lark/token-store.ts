@@ -8,6 +8,8 @@ export interface StoredLarkToken {
   refreshToken?: string;
   refreshTokenExpiresAt?: string;
   credentialStatus?: "active" | "expired";
+  lastAuthAt?: string;
+  lastRefreshAt?: string;
 }
 
 export interface LarkTokenLookup {

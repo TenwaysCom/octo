@@ -75,7 +75,12 @@ describe("acp kimi proxy service", () => {
     );
 
     expect(createSessionRuntime).toHaveBeenCalledTimes(1);
-    expect(ownershipStore.claim).toHaveBeenCalledWith("sess_1", "ou_123");
+    expect(ownershipStore.claim).toHaveBeenCalledWith(expect.objectContaining({
+      sessionId: "sess_1",
+      operatorLarkId: "ou_123",
+      runtimeHostName: expect.any(String),
+      kimiWorkDir: process.cwd(),
+    }));
     expect(prompt).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({

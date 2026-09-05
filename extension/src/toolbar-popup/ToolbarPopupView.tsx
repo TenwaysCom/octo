@@ -1,7 +1,10 @@
 import { UiBadge } from "../popup-react/components/UiBadge.js";
 import { UiButton } from "../popup-react/components/UiButton.js";
 import { UiCard } from "../popup-react/components/UiCard.js";
+import type { PopupSettingsForm } from "../popup/types.js";
 import type { PopupPageType } from "../popup/view-model.js";
+
+type ToolbarEnvironmentName = NonNullable<PopupSettingsForm["ENV_NAME"]>;
 
 export function ToolbarPopupView({
   pageType,
@@ -9,7 +12,11 @@ export function ToolbarPopupView({
   larkStatusText,
   meegleAuthorized,
   larkAuthorized,
-  onAuthorizeMeegle,
+  environmentName,
+  serverUrl,
+  onEnvironmentChange,
+  onSaveEnvironment,
+  onMeegleAction,
   onAuthorizeLark,
 }: {
   pageType: PopupPageType;
@@ -17,7 +24,11 @@ export function ToolbarPopupView({
   larkStatusText: string;
   meegleAuthorized: boolean;
   larkAuthorized: boolean;
-  onAuthorizeMeegle: () => void | Promise<void>;
+  environmentName: ToolbarEnvironmentName;
+  serverUrl: string;
+  onEnvironmentChange: (environmentName: ToolbarEnvironmentName) => void;
+  onSaveEnvironment: () => void | Promise<void>;
+  onMeegleAction: () => void | Promise<void>;
   onAuthorizeLark: () => void | Promise<void>;
 }) {
   const showAuthActions = !meegleAuthorized || !larkAuthorized;
@@ -54,15 +65,45 @@ export function ToolbarPopupView({
         </div>
       </UiCard>
 
+      <UiCard title="环境配置">
+        <div className="toolbar-popup__environment">
+          <label className="toolbar-popup__environment-field">
+            <span className="toolbar-popup__status-label">Environment</span>
+            <select
+              value={environmentName}
+              className="settings-page__input"
+              onChange={(event) =>
+                onEnvironmentChange(event.target.value as ToolbarEnvironmentName)
+              }
+            >
+              <option value="prod">prod</option>
+              <option value="test">test</option>
+              <option value="dev">dev</option>
+            </select>
+          </label>
+          <UiButton
+            size="sm"
+            variant="primary"
+            className="toolbar-popup__environment-save"
+            onClick={onSaveEnvironment}
+          >
+            保存
+          </UiButton>
+        </div>
+        <p className="toolbar-popup__server-url">Server URL: {serverUrl}</p>
+      </UiCard>
+
       {showAuthActions ? (
-        <UiCard title="授权跳转">
+        <UiCard title="授权操作">
           <div className="toolbar-popup__actions">
             <p className="toolbar-popup__order-tip">
-              未授权时，请先授权 Meegle，再授权 Lark。
+              {pageType === "meegle"
+                ? "未授权时，请先授权 Meegle，再授权 Lark。"
+                : "请先打开 Meegle 页面，再从工具栏授权 Meegle。"}
             </p>
             {!meegleAuthorized ? (
-              <UiButton variant="primary" block onClick={onAuthorizeMeegle}>
-                授权 Meegle
+              <UiButton variant="primary" block onClick={onMeegleAction}>
+                {pageType === "meegle" ? "授权 Meegle" : "打开 Meegle"}
               </UiButton>
             ) : null}
             {!larkAuthorized ? (
@@ -116,5 +157,9 @@ function resolveHint(pageType: PopupPageType): string {
     return "请切换到 Lark、Meegle 或 GitHub PR / Issue 页面，再使用页面悬浮 Icon。";
   }
 
-  return "工具栏入口只负责提示和授权跳转，完整功能请使用页面内的悬浮 Icon。";
+  if (pageType === "meegle") {
+    return "可在此授权 Meegle；完整功能请使用页面内的悬浮 Icon。";
+  }
+
+  return "完整功能请使用页面内的悬浮 Icon；如需授权 Meegle，请先打开 Meegle 页面。";
 }

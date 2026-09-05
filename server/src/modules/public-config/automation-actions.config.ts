@@ -1,6 +1,181 @@
-import type { AutomationActionConfig } from "./public-config.controller.js";
+import type {
+  AutomationActionConfig,
+  AutomationExecutionPolicy,
+} from "./public-config.controller.js";
+
+export interface AutomationSkillProfileConfig {
+  workspaceEnv: string;
+  skills: Record<string, string>;
+}
+
+/**
+ * Logical profiles are versioned with the action catalog. Deployment-specific
+ * workspace roots remain normal server environment variables, never browser
+ * configuration and never a second local JSON file.
+ */
+export const AUTOMATION_SKILL_PROFILES = {
+  support_qa_eu: {
+    workspaceEnv: "SUPPORT_QA_EU_WORKSPACE_DIR",
+    skills: {
+      support_qa_query: ".agents/skills/query-support-qa/SKILL.md",
+      support_qa_write: ".agents/skills/write-support-qa/SKILL.md",
+    },
+  },
+} as const satisfies Record<string, AutomationSkillProfileConfig>;
+
+interface TicketAiAutomationActionBase extends AutomationActionConfig {
+  executor: Extract<AutomationActionConfig["executor"], { type: "backend_api" }>;
+  promptKey: string;
+  provider: "kimi_acp" | "ticket_summary";
+  requiresConfirmation: boolean;
+}
+
+export interface KimiTicketAiAutomationActionConfig extends TicketAiAutomationActionBase {
+  provider: "kimi_acp";
+  skillProfile: keyof typeof AUTOMATION_SKILL_PROFILES;
+  skillId: string;
+  executionPolicy: AutomationExecutionPolicy;
+}
+
+export interface TicketSummaryTicketAiAutomationActionConfig extends TicketAiAutomationActionBase {
+  provider: "ticket_summary";
+}
+
+export type TicketAiAutomationActionConfig =
+  | KimiTicketAiAutomationActionConfig
+  | TicketSummaryTicketAiAutomationActionConfig;
+
+export interface SprintAiAutomationActionConfig extends AutomationActionConfig {
+  executor: Extract<AutomationActionConfig["executor"], { type: "backend_api" }>;
+  promptKey: string;
+  executionPolicy: AutomationExecutionPolicy;
+  requiresConfirmation: boolean;
+}
 
 export const AUTOMATION_ACTIONS = {
+  meegleSprintReleaseNotes: {
+    key: "meegle-sprint-release-notes",
+    title: "生成 Release Notes",
+    description: "基于已完成的 Sprint 工作项生成内部 Release Notes 草稿。",
+    style: "default",
+    placements: [],
+    interaction: { type: "direct_execute" },
+    executor: {
+      type: "backend_api",
+      operation: "meegle_sprint.ai.release_notes",
+      method: "POST",
+      route: "/api/web/meegle-sprints/:sprintId/ai-sessions",
+    },
+    promptKey: "meegle.sprint.release_notes",
+    executionPolicy: "read_only",
+    requiresConfirmation: false,
+  },
+  meegleSprintInternalSummary: {
+    key: "meegle-sprint-internal-summary",
+    title: "生成内部摘要",
+    description: "基于已完成的 Sprint 工作项生成简短内部更新摘要。",
+    style: "default",
+    placements: [],
+    interaction: { type: "direct_execute" },
+    executor: {
+      type: "backend_api",
+      operation: "meegle_sprint.ai.internal_summary",
+      method: "POST",
+      route: "/api/web/meegle-sprints/:sprintId/ai-sessions",
+    },
+    promptKey: "meegle.sprint.internal_summary",
+    executionPolicy: "read_only",
+    requiresConfirmation: false,
+  },
+  meegleSprintConfirmGaps: {
+    key: "meegle-sprint-confirm-gaps",
+    title: "检查待确认项",
+    description: "找出已完成 Sprint 工作项中无法可靠形成 Release Notes 的信息缺口。",
+    style: "default",
+    placements: [],
+    interaction: { type: "direct_execute" },
+    executor: {
+      type: "backend_api",
+      operation: "meegle_sprint.ai.confirm_gaps",
+      method: "POST",
+      route: "/api/web/meegle-sprints/:sprintId/ai-sessions",
+    },
+    promptKey: "meegle.sprint.confirm_gaps",
+    executionPolicy: "read_only",
+    requiresConfirmation: false,
+  },
+  larkTicketSupportQaSummarize: {
+    key: "lark-ticket-support-qa-summarize",
+    title: "问题总结",
+    description: "读取当前 Ticket 固定快照，经服务端配置的模型生成并写回问题总结。",
+    style: "default",
+    placements: [],
+    interaction: { type: "direct_execute" },
+    executor: {
+      type: "backend_api",
+      operation: "lark_ticket.ai.quick_action",
+      method: "POST",
+      route: "/api/web/lark-tickets/:recordId/ai-sessions",
+    },
+    promptKey: "lark_ticket.support_qa.summarize",
+    provider: "ticket_summary",
+    requiresConfirmation: false,
+  },
+  larkTicketSupportQaAnswer: {
+    key: "lark-ticket-support-qa-answer",
+    title: "回答问题",
+    description: "读取当前 Ticket 和 Support-QA 知识库，生成可确认的回复草稿。",
+    style: "default",
+    placements: [],
+    interaction: { type: "direct_execute" },
+    executor: {
+      type: "backend_api",
+      operation: "lark_ticket.ai.quick_action",
+      method: "POST",
+      route: "/api/web/lark-tickets/:recordId/ai-sessions",
+    },
+    promptKey: "lark_ticket.support_qa.answer",
+    provider: "kimi_acp",
+    skillProfile: "support_qa_eu",
+    skillId: "support_qa_query",
+    executionPolicy: "shell",
+    requiresConfirmation: false,
+  },
+  larkTicketSupportQaDocumentPreview: {
+    key: "lark-ticket-support-qa-document-preview",
+    title: "生成文档",
+    description: "创建 AI Session，按 Support-QA 文档流程生成受限草稿。",
+    style: "default",
+    placements: [],
+    interaction: { type: "direct_execute" },
+    executor: {
+      type: "backend_api",
+      operation: "lark_ticket.ai.quick_action",
+      method: "POST",
+      route: "/api/web/lark-tickets/:recordId/ai-sessions",
+    },
+    promptKey: "lark_ticket.support_qa.document_preview",
+    provider: "kimi_acp",
+    skillProfile: "support_qa_eu",
+    skillId: "support_qa_write",
+    executionPolicy: "write+shell",
+    requiresConfirmation: false,
+  },
+  larkTicketSupportQaConfirmDraft: {
+    key: "lark-ticket-support-qa-confirm-draft",
+    title: "确认发送回复草案",
+    description: "人工确认后，将当前 Answer Session 的回复草案发送到 Ticket thread。",
+    style: "primary",
+    placements: [],
+    interaction: { type: "preview_confirm" },
+    executor: {
+      type: "backend_api",
+      operation: "lark_ticket.support_qa.confirm_draft",
+      method: "POST",
+      route: "/api/web/lark-tickets/:recordId/reply-drafts/confirm",
+    },
+    requiresConfirmation: true,
+  },
   analyze: {
     key: "analyze",
     title: "分析当前页面",
@@ -29,7 +204,7 @@ export const AUTOMATION_ACTIONS = {
   },
   bulkCreateMeegleTickets: {
     key: "bulk-create-meegle-tickets",
-    title: "创建 Meegle Item",
+    title: "批量创建 Meegle Item",
     style: "default",
     placements: [{ surface: "popup" }, { surface: "sidebar" }],
     interaction: {
@@ -113,6 +288,121 @@ export const AUTOMATION_ACTIONS = {
       actionKey: "lookup-github-pr",
     },
   },
+  githubQuickScan: {
+    key: "github-quick-scan",
+    title: "Quick scan（后台执行）",
+    description: "后台扫描当前 PR 的结构性风险；完成后自动回写 PR 评论并通知你。",
+    style: "default",
+    placements: [{ surface: "popup" }, { surface: "sidebar" }],
+    interaction: {
+      type: "direct_execute",
+    },
+    executor: {
+      type: "backend_api",
+      operation: "github.pr.quick_scan",
+      method: "POST",
+      route: "/api/github/pr/review",
+    },
+    execution: {
+      mode: "async",
+      submit: {
+        message: "已提交后台 Quick scan；可关闭插件，完成后会通知你。",
+        style: "info",
+      },
+      completion: {
+        status: {
+          method: "GET",
+          route: "/api/github/pr/review/:actionRunId",
+          pollIntervalMs: 5000,
+        },
+        success: {
+          message: "Quick scan 已完成，审查结果已回写到 PR。",
+          style: "success",
+          notification: {
+            title: "Quick scan 已完成",
+            message: "PR 审查结果已回写到 GitHub。",
+          },
+        },
+        failure: {
+          message: "Quick scan 执行失败，请查看任务状态或日志。",
+          style: "error",
+        },
+      },
+    },
+  },
+  githubDeepReview: {
+    key: "github-deep-review",
+    title: "Deep review（后台执行）",
+    description: "后台执行当前 PR 的深度代码审查；完成后自动回写 PR 评论并通知你。",
+    style: "primary",
+    placements: [{ surface: "popup" }, { surface: "sidebar" }],
+    interaction: {
+      type: "direct_execute",
+    },
+    executor: {
+      type: "backend_api",
+      operation: "github.pr.deep_review",
+      method: "POST",
+      route: "/api/github/pr/review",
+    },
+    execution: {
+      mode: "async",
+      submit: {
+        message: "已提交后台 Deep review；可关闭插件，完成后会通知你。",
+        style: "info",
+      },
+      completion: {
+        status: {
+          method: "GET",
+          route: "/api/github/pr/review/:actionRunId",
+          pollIntervalMs: 5000,
+        },
+        success: {
+          message: "Deep review 已完成，审查结果已回写到 PR。",
+          style: "success",
+          notification: {
+            title: "Deep review 已完成",
+            message: "PR 深度审查结果已回写到 GitHub。",
+          },
+        },
+        failure: {
+          message: "Deep review 执行失败，请查看任务状态或日志。",
+          style: "error",
+        },
+      },
+    },
+  },
+  githubCodeReviewFeedback: {
+    key: "github-code-review-feedback",
+    title: "Code review feedback（后台执行）",
+    description: "审查当前 PR，并将结构化反馈写入 Lark Base。",
+    style: "default",
+    placements: [{ surface: "popup" }, { surface: "sidebar" }],
+    interaction: { type: "direct_execute" },
+    executor: {
+      type: "backend_api",
+      operation: "github.pr.code_review_feedback",
+      method: "POST",
+      route: "/api/github/pr/code-review-feedback",
+    },
+    execution: {
+      mode: "async",
+      submit: { message: "已提交 Code review feedback；完成后会通知你。", style: "info" },
+      completion: {
+        status: {
+          method: "GET",
+          route: "/api/github/pr/code-review-feedback/:actionRunId",
+          pollIntervalMs: 5000,
+        },
+        success: {
+          message: "Code review feedback 已写入 Lark Base。",
+          style: "success",
+          notification: { title: "Code review feedback 已完成", message: "反馈已写入 Lark Base。" },
+        },
+        failure: { message: "Code review feedback 执行失败，请查看任务状态或日志。", style: "error" },
+      },
+    },
+  },
   lookupGithubIssue: {
     key: "lookup-github-issue",
     title: "查询 Issue 关联的 Meegle 工作项",
@@ -129,3 +419,39 @@ export const AUTOMATION_ACTIONS = {
 } satisfies Record<string, AutomationActionConfig>;
 
 export type AutomationActionId = keyof typeof AUTOMATION_ACTIONS;
+
+export function getTicketAiAutomationAction(
+  key: string,
+): TicketAiAutomationActionConfig | undefined {
+  const action = Object.values(AUTOMATION_ACTIONS)
+    .find((candidate) => candidate.key === key);
+  if (!action
+    || !("promptKey" in action)
+    || !action.promptKey
+    || !("provider" in action)
+    || action.requiresConfirmation === undefined
+    || action.executor.type !== "backend_api") {
+    return undefined;
+  }
+  if (action.provider === "kimi_acp"
+    && (!("skillProfile" in action) || !("skillId" in action) || !("executionPolicy" in action))) {
+    return undefined;
+  }
+  return action as TicketAiAutomationActionConfig;
+}
+
+export function getSprintAiAutomationAction(
+  key: string,
+): SprintAiAutomationActionConfig | undefined {
+  const action = (Object.values(AUTOMATION_ACTIONS) as AutomationActionConfig[])
+    .find((candidate) => candidate.key === key);
+  if (!action
+    || !action.key.startsWith("meegle-sprint-")
+    || !action.promptKey
+    || !action.executionPolicy
+    || action.requiresConfirmation === undefined
+    || action.executor.type !== "backend_api") {
+    return undefined;
+  }
+  return action as SprintAiAutomationActionConfig;
+}

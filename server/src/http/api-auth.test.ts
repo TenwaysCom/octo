@@ -84,6 +84,46 @@ describe("api auth middleware", () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
+  it("allows web-session routes without a master-user-id header", () => {
+    const middleware = createApiAuthMiddleware();
+    for (const path of [
+      "/api/web/profile",
+      "/api/web/ssh-public-keys",
+      "/api/web/lark-ticket-eval-samples",
+      "/api/web/lark-ticket-eval-samples/sample_1",
+      "/api/web/platform-data/lark-tickets",
+      "/api/web/platform-data/meegle-workitems",
+      "/api/web/platform-data/github-pull-requests",
+      "/api/web/platform-data/github-pull-request-preview",
+      "/api/web/meegle-sprints",
+      "/api/web/meegle-workitems/pull-request-candidates",
+      "/api/web/meegle-workitems/link-pull-request",
+      "/api/web/platform-sync-sources",
+      "/api/web/platform-sync-sources/lark-tickets",
+      "/api/web/lark-tickets/rec_1/ai-sessions",
+      "/api/web/meegle-sprints/sprint_1/ai-sessions",
+      "/api/web/odoo-devops-branches",
+      "/api/internal/lark-ticket-ai",
+      "/api/internal/acp/ticket-context/messages",
+      "/api/extension/version",
+    ]) {
+      const req = {
+        method: "GET",
+        path,
+        body: undefined,
+        query: {},
+        headers: {},
+      } as Partial<Request> as Request;
+      const res = createResponse();
+      const next = vi.fn() as unknown as NextFunction;
+
+      middleware(req, res, next);
+
+      expect(next).toHaveBeenCalledOnce();
+      expect(res.status).not.toHaveBeenCalled();
+    }
+  });
+
   it("injects masterUserId from header into protected request bodies", () => {
     const middleware = createApiAuthMiddleware();
     const req = {

@@ -1,0 +1,44 @@
+{
+  "meegle": [
+    {
+      "projectKey": "4c3fv6",
+      "workItemTypeKeys": ["story", "642ebe04168eea39eeb0d34a"],
+      "sourceUpdatedAtMqlFieldNames": {
+        "story": "updated_at",
+        "642ebe04168eea39eeb0d34a": "updated_at"
+      }
+    }
+  ],
+  "github": [
+    {
+      "owner": "TenwaysCom",
+      "repo": "octo"
+    }
+  ],
+  "larkBase": [
+    {
+      "baseId": "app_xxx",
+      "tableId": "tbl_xxx",
+      "sourceUpdatedAtFieldName": "最后更新时间",
+      "titleFieldName": "Title",
+      "statusFieldName": "Status"
+    }
+  ],
+  "scheduler": {
+    "enabled": false,
+    "pollIntervalSeconds": 30,
+    "concurrency": 2,
+    "leaseSeconds": 1200,
+    "tasks": {
+      "lark":    { "enabled": false,  "intervalMinutes": 10 },
+      "meegle":  { "enabled": false,  "intervalMinutes": 15 },
+      "github":  { "enabled": false,  "intervalMinutes": 15 },
+      "shadow":  { "enabled": true,  "intervalMinutes": 30,
+                  "settleMinutes": 180, "batchLimit": 2, "summaryTimeoutSeconds": 300 },
+      "help": {
+        "leaseSeconds": 1200,
+        "settleMinutes": "表示只有 source_updated_at 早于当前时间 3 小时的 Ticket，才会进入 Shadow 分析候选。"
+      }
+    }
+  }
+}

@@ -501,7 +501,10 @@ export function createKimiChatController<TStore extends PopupKimiChatStoreLike>(
     }
   }
 
-  async function sendMessage(messageText: string): Promise<void> {
+  async function sendMessage(
+    messageText: string,
+    options: { actionRunId?: string } = {},
+  ): Promise<void> {
     const current = deps.readStore();
     const operatorLarkId = readOperatorLarkId();
     const masterUserId = current.state.identity.masterUserId;
@@ -515,6 +518,7 @@ export function createKimiChatController<TStore extends PopupKimiChatStoreLike>(
         activePage: current.activePage,
         hasOperatorLarkId: Boolean(operatorLarkId),
         hasSessionId: Boolean(current.kimiChatSessionId),
+        actionRunId: options.actionRunId,
         transcriptLength: current.kimiChatTranscript.length,
         messageLength: messageText.length,
       },
@@ -580,6 +584,7 @@ export function createKimiChatController<TStore extends PopupKimiChatStoreLike>(
         operatorLarkId: string;
         message: string;
         sessionId?: string;
+        actionRunId?: string;
       } = {
         operatorLarkId,
         message: messageText,
@@ -587,6 +592,10 @@ export function createKimiChatController<TStore extends PopupKimiChatStoreLike>(
 
       if (currentForRequest.kimiChatSessionId) {
         request.sessionId = currentForRequest.kimiChatSessionId;
+      }
+
+      if (options.actionRunId) {
+        request.actionRunId = options.actionRunId;
       }
 
       await client.sendMessage(request, {

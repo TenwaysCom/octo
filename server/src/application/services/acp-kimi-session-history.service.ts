@@ -1,3 +1,4 @@
+import { hostname } from "node:os";
 import {
   createKimiAcpSessionRuntime,
   listKimiAcpSessions,
@@ -47,7 +48,13 @@ export function createAcpKimiSessionHistoryService(
       for (const session of discoveredSessions) {
         const existing = await ownershipStore.getBySessionId(session.sessionId);
         if (!existing) {
-          await ownershipStore.claim(session.sessionId, input.operatorLarkId, session.title);
+          await ownershipStore.claim({
+            sessionId: session.sessionId,
+            operatorLarkId: input.operatorLarkId,
+            title: session.title,
+            runtimeHostName: hostname(),
+            kimiWorkDir: process.cwd(),
+          });
         }
       }
 

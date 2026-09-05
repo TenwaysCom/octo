@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 describe("acp-kimi dto", () => {
-  it("accepts the first-turn popup contract with operatorLarkId and message", async () => {
+  it("accepts the first-turn popup contract with an optional action run id", async () => {
     const { validateAcpKimiChatRequest } = await import(
       "../src/modules/acp-kimi/acp-kimi.dto.js"
     );
@@ -10,10 +10,12 @@ describe("acp-kimi dto", () => {
       validateAcpKimiChatRequest({
         operatorLarkId: "ou_123",
         message: "请帮我总结当前会话。",
+        actionRunId: "run_123",
       }),
     ).toEqual({
       operatorLarkId: "ou_123",
       message: "请帮我总结当前会话。",
+      actionRunId: "run_123",
     });
   });
 

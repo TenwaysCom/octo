@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Kysely } from "kysely";
 import { PostgresOauthSessionStore } from "../../adapters/postgres/lark-oauth-session-store.js";
 import { PostgresLarkTokenStore } from "../../adapters/postgres/lark-token-store.js";
+import { PostgresWebSessionStore } from "../../adapters/postgres/web-session-store.js";
+import { PostgresWebPluginLoginChallengeStore } from "../../adapters/postgres/web-plugin-login-challenge-store.js";
+import { InMemoryMeegleTokenStore } from "../../adapters/meegle/token-store.js";
 import {
   PostgresResolvedUserStore,
   configureResolvedUserStore,
@@ -15,6 +18,14 @@ import {
   exchangeLarkAuthCode,
   fetchLarkUserInfo,
   handleLarkAuthCallback,
+  handleLarkWebAuthCallback,
+  getLarkWebProfile,
+  ensureLarkWebSession,
+  resolveLarkWebSessionIdentity,
+  logoutLarkWebSession,
+  approveWebPluginLoginChallenge,
+  completeWebPluginLoginChallenge,
+  createWebPluginLoginChallenge,
   refreshLarkToken,
   startLarkOauthSession,
 } from "./lark-auth.service.js";
@@ -24,12 +35,18 @@ describe("lark-auth.service", () => {
   let resolvedUserStore: PostgresResolvedUserStore;
   let tokenStore: PostgresLarkTokenStore;
   let oauthSessionStore: PostgresOauthSessionStore;
+  let webSessionStore: PostgresWebSessionStore;
+  let webPluginLoginChallengeStore: PostgresWebPluginLoginChallengeStore;
+  let meegleTokenStore: InMemoryMeegleTokenStore;
 
   beforeEach(async () => {
     ({ db } = await createTestPostgresDatabase());
     resolvedUserStore = new PostgresResolvedUserStore(db);
     tokenStore = new PostgresLarkTokenStore(db);
     oauthSessionStore = new PostgresOauthSessionStore(db);
+    webSessionStore = new PostgresWebSessionStore(db);
+    webPluginLoginChallengeStore = new PostgresWebPluginLoginChallengeStore(db);
+    meegleTokenStore = new InMemoryMeegleTokenStore();
     configureResolvedUserStore(resolvedUserStore);
     configureLarkAuthServiceDeps({
       appId: "cli_test",
@@ -38,6 +55,127 @@ describe("lark-auth.service", () => {
       resolvedUserStore,
       tokenStore,
       oauthSessionStore,
+      webSessionStore,
+      webPluginLoginChallengeStore,
+      meegleTokenStore,
+    });
+  });
+
+  it("creates a web session from a one-time plugin approval without exposing the plugin identity", async () => {
+    const user = await resolvedUserStore.create({
+      status: "active",
+      larkTenantKey: "tenant_plugin",
+      larkId: "ou_plugin",
+    });
+    await tokenStore.save({
+      masterUserId: user.id,
+      tenantKey: "tenant_plugin",
+      larkUserId: "ou_plugin",
+      baseUrl: "https://open.larksuite.com",
+      userToken: "lark_user_token",
+      userTokenExpiresAt: "2099-01-01T00:00:00.000Z",
+      credentialStatus: "active",
+      lastAuthAt: "2026-08-08T00:00:00.000Z",
+    });
+
+    const challenge = await createWebPluginLoginChallenge();
+    await expect(approveWebPluginLoginChallenge({
+      challengeId: challenge.challengeId,
+      masterUserId: user.id,
+    })).resolves.toEqual({ ok: true });
+
+    await expect(completeWebPluginLoginChallenge({
+      challengeId: challenge.challengeId,
+      browserProof: "wrong_browser_proof",
+    })).resolves.toMatchObject({ ok: false, errorCode: "WEB_PLUGIN_LOGIN_INVALID" });
+
+    const completed = await completeWebPluginLoginChallenge({
+      challengeId: challenge.challengeId,
+      browserProof: challenge.browserProof,
+    });
+    expect(completed.ok).toBe(true);
+    if (!completed.ok) {
+      throw new Error("Expected plugin login completion to succeed");
+    }
+    await expect(ensureLarkWebSession(completed.sessionToken)).resolves.toMatchObject({ ok: true });
+    await expect(completeWebPluginLoginChallenge({
+      challengeId: challenge.challengeId,
+      browserProof: challenge.browserProof,
+    })).resolves.toMatchObject({ ok: false, errorCode: "WEB_PLUGIN_LOGIN_INVALID" });
+  });
+
+  it("returns a sanitized Meegle authorization status for the web profile", async () => {
+    const user = await resolvedUserStore.create({
+      status: "active",
+      larkTenantKey: "tenant_profile",
+      larkId: "ou_profile",
+      meegleBaseUrl: "https://project.larksuite.com",
+      meegleUserKey: "meegle_profile",
+      githubId: "octo",
+      role: "devops",
+    });
+    await tokenStore.save({
+      masterUserId: user.id,
+      tenantKey: "tenant_profile",
+      larkUserId: "ou_profile",
+      baseUrl: "https://open.larksuite.com",
+      userToken: "lark_user_token",
+      userTokenExpiresAt: "2099-01-01T00:00:00.000Z",
+      credentialStatus: "active",
+    });
+    await meegleTokenStore.save({
+      masterUserId: user.id,
+      meegleUserKey: "meegle_profile",
+      baseUrl: "https://project.larksuite.com",
+      pluginToken: "plugin_token",
+      userToken: "meegle_user_token",
+      userTokenExpiresAt: "2099-01-01T00:00:00.000Z",
+      credentialStatus: "active",
+    });
+
+    const challenge = await createWebPluginLoginChallenge();
+    await approveWebPluginLoginChallenge({ challengeId: challenge.challengeId, masterUserId: user.id });
+    const completed = await completeWebPluginLoginChallenge({
+      challengeId: challenge.challengeId,
+      browserProof: challenge.browserProof,
+    });
+    if (!completed.ok) {
+      throw new Error("Expected plugin login completion to succeed");
+    }
+
+    await expect(getLarkWebProfile(completed.sessionToken)).resolves.toMatchObject({
+      ok: true,
+      profile: {
+        user: { githubId: "octo" },
+        workspaceAccess: { platformLists: true, platformSync: true },
+        larkAuthorization: { status: "ready" },
+        meegleAuthorization: { status: "ready" },
+      },
+    });
+    await expect(resolveLarkWebSessionIdentity(completed.sessionToken)).resolves.toMatchObject({
+      ok: true,
+      meegleUserKey: "meegle_profile",
+    });
+    const profile = await getLarkWebProfile(completed.sessionToken);
+    if (!profile.ok) {
+      throw new Error("Expected web profile to be available");
+    }
+    expect(profile.profile).not.toHaveProperty("masterUserId");
+    expect(JSON.stringify(profile.profile)).not.toContain("meegle_profile");
+    expect(JSON.stringify(profile.profile)).not.toContain("meegle_user_token");
+
+    await meegleTokenStore.save({
+      masterUserId: user.id,
+      meegleUserKey: "meegle_profile",
+      baseUrl: "https://project.larksuite.com",
+      pluginToken: "plugin_token",
+      userToken: "meegle_user_token",
+      userTokenExpiresAt: "2000-01-01T00:00:00.000Z",
+      credentialStatus: "expired",
+    });
+    await expect(getLarkWebProfile(completed.sessionToken)).resolves.toMatchObject({
+      ok: true,
+      profile: { meegleAuthorization: { status: "require_auth" } },
     });
   });
 
@@ -164,6 +302,251 @@ describe("lark-auth.service", () => {
       status: "pending",
       masterUserId: "usr_123",
     });
+  });
+
+  it("creates a user and opaque web session when a Lark callback has no master user", async () => {
+    await startLarkOauthSession({
+      state: "web_state_123",
+      baseUrl: "https://open.larksuite.com",
+    });
+
+    const result = await handleLarkWebAuthCallback(
+      { code: "web_code_123", state: "web_state_123" },
+      {
+        appId: "cli_test",
+        appSecret: "secret_test",
+        fetchImpl: vi
+          .fn()
+          .mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({ code: 0, app_access_token: "app_access_token_123" }),
+          })
+          .mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({
+              code: 0,
+              data: {
+                access_token: "user_access_token_456",
+                refresh_token: "refresh_token_789",
+                expires_in: 7200,
+                refresh_token_expires_in: 604800,
+                token_type: "Bearer",
+              },
+            }),
+          })
+          .mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({
+              code: 0,
+              data: {
+                open_id: "ou_web_user",
+                tenant_key: "tenant_web",
+                email: "web@example.com",
+                name: "Web User",
+              },
+            }),
+          }) as unknown as typeof fetch,
+        resolvedUserStore,
+        tokenStore,
+        oauthSessionStore,
+        webSessionStore,
+      },
+    );
+
+    expect(result.kind).toBe("ready");
+    if (result.kind !== "ready") {
+      throw new Error("Expected a ready web callback result");
+    }
+
+    await expect(ensureLarkWebSession(result.sessionToken, {
+      appId: "cli_test",
+      appSecret: "secret_test",
+      resolvedUserStore,
+      tokenStore,
+      oauthSessionStore,
+      webSessionStore,
+    })).resolves.toEqual({
+      ok: true,
+      user: { larkName: "Web User", larkEmail: "web@example.com", larkAvatarUrl: undefined },
+    });
+
+    await expect(getLarkWebProfile(result.sessionToken, {
+      appId: "cli_test",
+      appSecret: "secret_test",
+      resolvedUserStore,
+      tokenStore,
+      oauthSessionStore,
+      webSessionStore,
+    })).resolves.toMatchObject({
+      ok: true,
+      profile: {
+        user: { larkName: "Web User", larkEmail: "web@example.com" },
+        larkAuthorization: { status: "ready", authorizedAt: expect.any(String) },
+      },
+    });
+
+    const user = await resolvedUserStore.getByLarkIdentity("tenant_web", "ou_web_user");
+    const token = await tokenStore.get({
+      masterUserId: user!.id,
+      baseUrl: "https://open.larksuite.com",
+    });
+    await tokenStore.save({
+      ...token!,
+      userTokenExpiresAt: new Date(Date.now() - 60_000).toISOString(),
+      refreshToken: undefined,
+      refreshTokenExpiresAt: undefined,
+      credentialStatus: "expired",
+    });
+
+    await expect(ensureLarkWebSession(result.sessionToken, {
+      appId: "cli_test",
+      appSecret: "secret_test",
+      resolvedUserStore,
+      tokenStore,
+      webSessionStore,
+    })).resolves.toMatchObject({ ok: true });
+    await expect(getLarkWebProfile(result.sessionToken, {
+      appId: "cli_test",
+      appSecret: "secret_test",
+      resolvedUserStore,
+      tokenStore,
+      webSessionStore,
+    })).resolves.toMatchObject({
+      ok: true,
+      profile: { larkAuthorization: { status: "require_auth" } },
+    });
+
+    await logoutLarkWebSession(result.sessionToken, {
+      appId: "cli_test",
+      appSecret: "secret_test",
+      webSessionStore,
+    });
+    await expect(ensureLarkWebSession(result.sessionToken, {
+      appId: "cli_test",
+      appSecret: "secret_test",
+      webSessionStore,
+    })).resolves.toMatchObject({ ok: false, errorCode: "UNAUTHENTICATED" });
+  });
+
+  it("uses OAuth open_id and enriches a missing profile through the matching Contact identity type", async () => {
+    await startLarkOauthSession({
+      state: "web_open_id_state",
+      baseUrl: "https://open.larksuite.com",
+    });
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ code: 0, app_access_token: "app_access_token_123" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          code: 0,
+          data: {
+            access_token: "user_access_token_456",
+            refresh_token: "refresh_token_789",
+            expires_in: 7200,
+            refresh_token_expires_in: 604800,
+            token_type: "Bearer",
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          code: 0,
+          data: { open_id: "ou_open_id_user", tenant_key: "tenant_open_id" },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          code: 0,
+          data: {
+            user: {
+              name: "Open ID User",
+              enterprise_email: "open-id@example.com",
+              avatar: { avatar_240: "https://example.com/open-id-avatar.png" },
+            },
+          },
+        }),
+      });
+
+    const result = await handleLarkWebAuthCallback(
+      { code: "web_open_id_code", state: "web_open_id_state" },
+      {
+        appId: "cli_test",
+        appSecret: "secret_test",
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+        resolvedUserStore,
+        tokenStore,
+        oauthSessionStore,
+        webSessionStore,
+      },
+    );
+
+    expect(result.kind).toBe("ready");
+    expect(fetchImpl).toHaveBeenNthCalledWith(
+      4,
+      "https://open.larksuite.com/open-apis/contact/v3/users/ou_open_id_user?user_id_type=open_id",
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: "Bearer user_access_token_456" }),
+      }),
+    );
+    await expect(resolvedUserStore.getByLarkIdentity("tenant_open_id", "ou_open_id_user")).resolves.toMatchObject({
+      larkName: "Open ID User",
+      larkEmail: "open-id@example.com",
+      larkAvatarUrl: "https://example.com/open-id-avatar.png",
+    });
+  });
+
+  it("rejects an OAuth profile without an open_id", async () => {
+    await startLarkOauthSession({
+      state: "web_missing_open_id_state",
+      baseUrl: "https://open.larksuite.com",
+    });
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ code: 0, app_access_token: "app_access_token_123" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          code: 0,
+          data: {
+            access_token: "user_access_token_456",
+            expires_in: 7200,
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          code: 0,
+          data: { user_id: "legacy_user_id", tenant_key: "tenant_open_id" },
+        }),
+      });
+
+    const result = await handleLarkWebAuthCallback(
+      { code: "web_missing_open_id_code", state: "web_missing_open_id_state" },
+      {
+        appId: "cli_test",
+        appSecret: "secret_test",
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+        resolvedUserStore,
+        tokenStore,
+        oauthSessionStore,
+        webSessionStore,
+      },
+    );
+
+    expect(result).toMatchObject({ kind: "failed" });
+    if (result.kind === "failed") {
+      expect(result.page.body).toContain("missing open_id or tenant identity");
+    }
   });
 
   it("returns require_auth when no stored token exists", async () => {
@@ -331,7 +714,7 @@ describe("lark-auth.service", () => {
             json: async () => ({
               code: 0,
           data: {
-            user_id: "ou_123",
+            open_id: "ou_123",
             tenant_key: "tenant_123",
             email: "user@example.com",
           },
@@ -416,7 +799,7 @@ describe("lark-auth.service", () => {
         json: async () => ({
           code: 0,
           data: {
-            user_id: "ou_123",
+            open_id: "ou_123",
             tenant_key: "tenant_123",
             email: "user@example.com",
             name: "Test User",
@@ -440,7 +823,7 @@ describe("lark-auth.service", () => {
         },
       ),
     ).resolves.toEqual({
-      userId: "ou_123",
+      openId: "ou_123",
       tenantKey: "tenant_123",
       email: "user@example.com",
       name: "Test User",
@@ -494,7 +877,7 @@ describe("lark-auth.service", () => {
       json: async () => ({
         code: 0,
         data: {
-          user_id: "ou_123",
+          open_id: "ou_123",
           tenant_key: "tenant_123",
           email: "user@example.com",
           name: "Test User",
@@ -577,7 +960,7 @@ describe("lark-auth.service", () => {
         json: async () => ({
           code: 0,
           data: {
-            user_id: "ou_123",
+            open_id: "ou_123",
             tenant_key: "tenant_123",
             email: "user@example.com",
             name: "Test User",
@@ -601,7 +984,7 @@ describe("lark-auth.service", () => {
         },
       ),
     ).resolves.toEqual({
-      userId: "ou_123",
+      openId: "ou_123",
       tenantKey: "tenant_123",
       email: "user@example.com",
       name: "Test User",

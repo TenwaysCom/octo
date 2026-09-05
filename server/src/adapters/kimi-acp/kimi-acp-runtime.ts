@@ -5,6 +5,7 @@ import type {
   SessionNotification,
 } from "@agentclientprotocol/sdk";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { readFile, writeFile } from "node:fs/promises";
 import { Readable, Writable } from "node:stream";
 import { buildKimiAcpRuntimeConfig, type KimiAcpSpawnConfig } from "./kimi-acp-config.js";
 import { cleanupAgentProcess } from "./process-lifecycle.js";
@@ -14,6 +15,11 @@ import type {
   AcpKimiSessionUpdateEvent,
 } from "../../modules/acp-kimi/event-stream.js";
 import { logger } from "../../logger.js";
+import {
+  extractAcpKimiRawCommand,
+  type AcpKimiClientCapabilityPolicy,
+  type AcpKimiPermissionHandler,
+} from "../../application/services/acp-kimi-permission-policy.js";
 
 const kimiAcpRuntimeLogger = logger.child({ module: "kimi-acp-runtime" });
 const DEFAULT_KIMI_ACP_STARTUP_TIMEOUT_MS = 30_000;
@@ -67,6 +73,9 @@ export interface KimiAcpConnectionFactoryInput {
   spawnConfig: KimiAcpSpawnConfig;
   cwd: string;
   emit(event: AcpKimiStreamEvent): void;
+  capabilityPolicy?: AcpKimiClientCapabilityPolicy;
+  mcpServers?: acp.McpServer[];
+  permissionHandler?: AcpKimiPermissionHandler;
   signal?: AbortSignal;
 }
 
@@ -79,6 +88,9 @@ export interface KimiAcpRuntimeDeps {
     input: KimiAcpConnectionFactoryInput,
   ) => Promise<KimiAcpConnection> | KimiAcpConnection;
   emit?: (event: AcpKimiStreamEvent) => void;
+  capabilityPolicy?: AcpKimiClientCapabilityPolicy;
+  mcpServers?: acp.McpServer[];
+  permissionHandler?: AcpKimiPermissionHandler;
   signal?: AbortSignal;
   sessionId?: string;
 }
@@ -123,6 +135,9 @@ export async function createKimiAcpSessionRuntime(
         emit(event) {
           emit(event);
         },
+        capabilityPolicy: deps.capabilityPolicy,
+        mcpServers: deps.mcpServers,
+        permissionHandler: deps.permissionHandler,
         signal: deps.signal,
       })
     : createDefaultConnection(
@@ -132,6 +147,9 @@ export async function createKimiAcpSessionRuntime(
           emit(event) {
             emit(event);
           },
+          capabilityPolicy: deps.capabilityPolicy,
+          mcpServers: deps.mcpServers,
+          permissionHandler: deps.permissionHandler,
           signal: deps.signal,
         },
         deps.spawnProcess,
@@ -246,6 +264,8 @@ export async function listKimiAcpSessions(
         spawnConfig,
         cwd,
         emit() {},
+        capabilityPolicy: undefined,
+        permissionHandler: undefined,
         signal: deps.signal,
       })
     : createDefaultConnection(
@@ -253,6 +273,8 @@ export async function listKimiAcpSessions(
           spawnConfig,
           cwd,
           emit() {},
+          capabilityPolicy: undefined,
+          permissionHandler: undefined,
           signal: deps.signal,
         },
         deps.spawnProcess,
@@ -357,7 +379,11 @@ async function createDefaultConnection(
   >[1];
 
   const connection = new acp.ClientSideConnection(
-    () => new CollectingClient(input.emit),
+    () => createKimiAcpCollectingClient(
+      input.emit,
+      input.permissionHandler,
+      input.capabilityPolicy,
+    ),
     stream,
   );
 
@@ -374,7 +400,14 @@ async function createDefaultConnection(
             name: "tenways-octo-kimi",
             version: "0.1.0",
           },
-          clientCapabilities: {},
+          clientCapabilities: input.capabilityPolicy
+            ? {
+                fs: {
+                  readTextFile: true,
+                  writeTextFile: true,
+                },
+              }
+            : {},
         });
       });
     },
@@ -387,7 +420,7 @@ async function createDefaultConnection(
         }, "KIMI_ACP_CONNECTION NEW_SESSION");
         return connection.newSession({
           cwd,
-          mcpServers: [],
+          mcpServers: input.mcpServers ?? [],
         });
       });
     },
@@ -409,7 +442,7 @@ async function createDefaultConnection(
         return (await connection.loadSession({
           sessionId,
           cwd,
-          mcpServers: [],
+          mcpServers: input.mcpServers ?? [],
         })) as Record<string, unknown>;
       });
     },
@@ -726,12 +759,90 @@ function truncateLogValue(value: string, maxLength = 1_000): string {
   return `${value.slice(0, maxLength)}...`;
 }
 
+const MAX_PENDING_PERMISSION_EVIDENCE = 128;
+const PERMISSION_EVIDENCE_WAIT_MS = 1_000;
+
+interface PendingPermissionEvidence {
+  rawInput: unknown;
+  fingerprint?: string;
+  ambiguous: boolean;
+}
+
+export function createKimiAcpCollectingClient(
+  emit: (event: AcpKimiStreamEvent) => void,
+  permissionHandler?: AcpKimiPermissionHandler,
+  capabilityPolicy?: AcpKimiClientCapabilityPolicy,
+): acp.Client {
+  return new CollectingClient(emit, permissionHandler, capabilityPolicy);
+}
+
 class CollectingClient implements acp.Client {
-  constructor(private readonly emit: (event: AcpKimiStreamEvent) => void) {}
+  private readonly pendingPermissionEvidence = new Map<string, PendingPermissionEvidence>();
+  private readonly pendingPermissionEvidenceWaiters = new Map<string, {
+    resolve: (evidence: PendingPermissionEvidence | undefined) => void;
+    timeout: ReturnType<typeof setTimeout>;
+  }>();
+
+  constructor(
+    private readonly emit: (event: AcpKimiStreamEvent) => void,
+    private readonly permissionHandler?: AcpKimiPermissionHandler,
+    private readonly capabilityPolicy?: AcpKimiClientCapabilityPolicy,
+  ) {}
+
+  async readTextFile(params: acp.ReadTextFileRequest): Promise<acp.ReadTextFileResponse> {
+    if (!this.capabilityPolicy || !await this.capabilityPolicy.allowsReadTextFile(params)) {
+      throw new Error("ACP file read denied by capability policy.");
+    }
+    const content = await readFile(params.path, "utf8");
+    if (!params.line && !params.limit) return { content };
+    const start = Math.max(0, (params.line ?? 1) - 1);
+    const lines = content.split("\n");
+    const selected = params.limit ? lines.slice(start, start + params.limit) : lines.slice(start);
+    return { content: selected.join("\n") };
+  }
+
+  async writeTextFile(params: acp.WriteTextFileRequest): Promise<acp.WriteTextFileResponse> {
+    if (!this.capabilityPolicy || !await this.capabilityPolicy.allowsWriteTextFile(params)) {
+      throw new Error("ACP file write denied by capability policy.");
+    }
+    await writeFile(params.path, params.content, "utf8");
+    return {};
+  }
 
   async requestPermission(
-    _params: RequestPermissionRequest,
+    params: RequestPermissionRequest,
   ): Promise<RequestPermissionResponse> {
+    const evidenceKey = permissionEvidenceKey(params.sessionId, params.toolCall.toolCallId);
+    let evidence = this.takePermissionEvidence(evidenceKey);
+    if (!evidence && !hasRawInput(params.toolCall.rawInput)) {
+      evidence = await this.waitForPermissionEvidence(evidenceKey);
+    }
+
+    if (evidence?.ambiguous || hasPermissionEvidenceMismatch(params.toolCall.rawInput, evidence)) {
+      kimiAcpRuntimeLogger.warn({
+        sessionId: params.sessionId,
+        toolCallId: params.toolCall.toolCallId,
+        toolName: params.toolCall.title?.split(":", 1)[0]?.trim() ?? "",
+      }, "KIMI_ACP_PERMISSION EVIDENCE_MISMATCH");
+      return {
+        outcome: {
+          outcome: "cancelled" as const,
+        },
+      };
+    }
+
+    const request = evidence && !hasRawInput(params.toolCall.rawInput)
+      ? {
+          ...params,
+          toolCall: {
+            ...params.toolCall,
+            rawInput: evidence.rawInput,
+          },
+        }
+      : params;
+    if (this.permissionHandler) {
+      return this.permissionHandler(request);
+    }
     return {
       outcome: {
         outcome: "cancelled" as const,
@@ -740,6 +851,7 @@ class CollectingClient implements acp.Client {
   }
 
   async sessionUpdate(params: SessionNotification): Promise<void> {
+    this.trackPermissionEvidence(params);
     kimiAcpRuntimeLogger.info({
       sessionId: params.sessionId,
       sessionUpdate:
@@ -757,6 +869,114 @@ class CollectingClient implements acp.Client {
       },
     } satisfies AcpKimiSessionUpdateEvent);
   }
+
+  private trackPermissionEvidence(params: SessionNotification): void {
+    const update = asRecord(params.update);
+    if (!update) {
+      return;
+    }
+    const sessionUpdate = update?.sessionUpdate;
+    const toolCallId = update?.toolCallId;
+    if (typeof toolCallId !== "string") {
+      return;
+    }
+    const key = permissionEvidenceKey(params.sessionId, toolCallId);
+    if ((sessionUpdate === "tool_call" || sessionUpdate === "tool_call_update")
+      && hasRawInput(update.rawInput)) {
+      this.rememberPermissionEvidence(key, update.rawInput);
+    }
+    if (sessionUpdate === "tool_call_update"
+      && (update.status === "completed" || update.status === "failed")) {
+      this.resolvePermissionEvidenceWaiter(key, this.takePermissionEvidence(key));
+    }
+  }
+
+  private rememberPermissionEvidence(key: string, rawInput: unknown): void {
+    const fingerprint = permissionEvidenceFingerprint(rawInput);
+    const existing = this.pendingPermissionEvidence.get(key);
+    if (existing) {
+      existing.ambiguous = existing.ambiguous
+        || !fingerprint
+        || !existing.fingerprint
+        || existing.fingerprint !== fingerprint;
+      return;
+    }
+    if (this.pendingPermissionEvidence.size >= MAX_PENDING_PERMISSION_EVIDENCE) {
+      const oldestKey = this.pendingPermissionEvidence.keys().next().value;
+      if (typeof oldestKey === "string") {
+        this.pendingPermissionEvidence.delete(oldestKey);
+      }
+    }
+    this.pendingPermissionEvidence.set(key, {
+      rawInput,
+      fingerprint,
+      ambiguous: false,
+    });
+    if (this.pendingPermissionEvidenceWaiters.has(key)) {
+      this.resolvePermissionEvidenceWaiter(key, this.takePermissionEvidence(key));
+    }
+  }
+
+  private takePermissionEvidence(key: string): PendingPermissionEvidence | undefined {
+    const evidence = this.pendingPermissionEvidence.get(key);
+    this.pendingPermissionEvidence.delete(key);
+    return evidence;
+  }
+
+  private waitForPermissionEvidence(key: string): Promise<PendingPermissionEvidence | undefined> {
+    return new Promise((resolve) => {
+      const timeout = setTimeout(() => {
+        this.resolvePermissionEvidenceWaiter(key, this.takePermissionEvidence(key));
+      }, PERMISSION_EVIDENCE_WAIT_MS);
+      this.pendingPermissionEvidenceWaiters.set(key, { resolve, timeout });
+    });
+  }
+
+  private resolvePermissionEvidenceWaiter(
+    key: string,
+    evidence: PendingPermissionEvidence | undefined,
+  ): void {
+    const waiter = this.pendingPermissionEvidenceWaiters.get(key);
+    if (!waiter) return;
+    clearTimeout(waiter.timeout);
+    this.pendingPermissionEvidenceWaiters.delete(key);
+    waiter.resolve(evidence);
+  }
+
+}
+
+function permissionEvidenceKey(sessionId: string, toolCallId: string): string {
+  return `${sessionId}\0${toolCallId}`;
+}
+
+function hasRawInput(value: unknown): boolean {
+  return value !== undefined && value !== null;
+}
+
+function hasPermissionEvidenceMismatch(
+  requestRawInput: unknown,
+  evidence: PendingPermissionEvidence | undefined,
+): boolean {
+  if (!evidence || !hasRawInput(requestRawInput)) {
+    return false;
+  }
+  const requestFingerprint = permissionEvidenceFingerprint(requestRawInput);
+  return !requestFingerprint
+    || !evidence.fingerprint
+    || requestFingerprint !== evidence.fingerprint;
+}
+
+function permissionEvidenceFingerprint(rawInput: unknown): string | undefined {
+  const command = extractAcpKimiRawCommand(rawInput);
+  if (command) {
+    return `command:${command}`;
+  }
+  try {
+    const serialized = JSON.stringify(rawInput);
+    return serialized === undefined ? undefined : `json:${serialized}`;
+  } catch {
+    return undefined;
+  }
 }
 
 function normalizeSessionUpdate(update: unknown): Record<string, unknown> {
@@ -765,6 +985,12 @@ function normalizeSessionUpdate(update: unknown): Record<string, unknown> {
   }
 
   return update as Record<string, unknown>;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : undefined;
 }
 
 function normalizeSessionSummary(session: Record<string, unknown>): KimiAcpSessionSummary {

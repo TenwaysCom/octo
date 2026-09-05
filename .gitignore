@@ -18,4 +18,8 @@ worktrees
 .omx
 .DS_store
 logs
+evals/lark-ticket-ai/artifacts/
 .pnpm-store
+.workbuddy
+server/config/platform-sync.local.json
+intent_results.xlsx

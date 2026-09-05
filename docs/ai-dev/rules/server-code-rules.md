@@ -122,6 +122,17 @@ Service should not:
 3. Hardcode Meegle dynamic `field_*` as business semantics.
 4. Convert all failures to `Error.message`.
 
+When an ACP action needs repository-local evidence or an existing workspace workflow, keep the tool sequence explicit and capability-scoped:
+
+1. Local file reads may target only the configured Support workspace and Octo Server roots.
+2. File writes may target only non-sensitive files below the configured Support workspace root; every path is revalidated by the ACP fs callback.
+3. Operational commands should use the structured `execute` MCP tool, whose root, script, subcommand, Ticket, action key, and arguments are checked against a Server-owned manifest before spawning with `shell: false`. A temporary `v4-temporary-support-qa-bash` exception permits opaque Bash only for the three Lark Ticket Support-QA actions because Kimi ACP 0.38 omits command evidence before approval; log it as `temporary_unverified_bash` and do not extend it to other actions. This exception is action-scoped, not a real directory sandbox, and should be removed when the structured path is reliable.
+4. The target API must still validate its Zod payload, signed caller, snapshot version, and evidence IDs. A successful analysis update writes both the normalized analysis model and the allow-listed `ticket_ai` projection consumed by FE.
+5. Browser-facing streams continue with the model's normal human-readable response; the JSON transport file is not the user-facing Quick Action result.
+6. If evidence fetch or analysis writeback is not confirmed, attach the created Session to the Ticket and persist its text as an unverified failed run. FE may display and retry that draft, but must not promote it to `SupportTicketAnalysis`, `ticket_ai`, or a sendable reply.
+
+The `lark-ticket-support-qa-summarize` action and Lark Ticket shadow summary worker are exceptions to the ACP flow above: both are one-shot structured-output workflows using the shared Ticket Summary provider configuration. The Server must obtain the fixed, redacted Ticket snapshot before the provider call and validate the returned JSON and evidence IDs locally. The Quick Action calls `SupportTicketAnalysisService.update()` directly; the shadow worker only writes its independent `shadow_ai` projection. Both paths must resolve the same `LARK_TICKET_SUMMARY_PROVIDER` and `LARK_TICKET_SUMMARY_MODEL`; neither may create a reusable Session or expose workspace, shell, Skill, or internal signing capabilities to the provider. Answer and Document remain ACP-backed.
+
 Partial success rules:
 
 | Case | Required response detail |

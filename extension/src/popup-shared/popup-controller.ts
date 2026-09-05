@@ -78,6 +78,270 @@ import { collectActionRuntimeContext } from "./action-runtime-context.js";
 const popupLogger = createExtensionLogger("popup:app");
 const LARK_CREATE_ACTION_KEY = "create-meegle-item";
 const LARK_BULK_CREATE_ACTION_KEY = "bulk-create-meegle-tickets";
+const MEEGLE_LINK_ALREADY_EXISTS_ERROR_CODE = "MEEGLE_LINK_ALREADY_EXISTS";
+/* GitHub PR review prompts are server-owned workflow_prompts. */
+/*
+const GITHUB_REVIEW_PROMPTS = {
+  "github-deep-review": (prUrl: string) => [
+    "你是一名 Odoo 资深开发专家，正在进行 **Tier 3 深度代码审查**。你的任务是逐方法审查代码的**业务逻辑正确性、生命周期安全、性能风险和测试质量**。",
+    "",
+    "## 第一步：PR 全局信息提取",
+    "",
+    "首先从 PR 中提取以下全局信息：",
+    "",
+    "1. **涉及的核心对象**：列出所有被修改的 model（如 `sale.order`、`stock.picking`）",
+    "2. **风险等级**：P0 / P1 / P2（按 code-review-workflow.md 判定）",
+    "3. **生命周期节点**：修改了哪些生命周期方法？（create / write / unlink / action_xxx / constraint / compute / onchange）",
+    "4. **跨模块影响**：是否影响其他模块的 override 链",
+    "",
+    "## 第二步：逐方法审查",
+    "",
+    "对每个新增或修改的方法，按以下维度审查：",
+    "",
+    "### A. 业务逻辑正确性",
+    "",
+    "**判定规则**：",
+    "- 逻辑是否实现了 PR description 中描述的行为？",
+    "- 是否有明显的逻辑漏洞（空值未处理、条件分支遗漏、类型错误）？",
+    "- 批量操作是否考虑了 recordset 多记录场景？",
+    "- `ensure_one()` 的位置是否合理？（在循环外 vs 循环内）",
+    "",
+    "**常见反例**：",
+    "```python",
+    "# ❌ 只处理了单记录，没考虑 batch",
+    "def action_confirm(self):",
+    "    self.ensure_one()",
+    "    # 如果 self 是 recordset，其他记录被忽略",
+    "",
+    "# ✅ 正确处理 batch",
+    "def action_confirm(self):",
+    "    for record in self:",
+    "        record._check_can_confirm()",
+    "```",
+    "",
+    "### B. 生命周期安全",
+    "",
+    "**判定规则**：",
+    "- override 方法是否正确调用了 `super()`？调用时机是否正确（之前 vs 之后）？",
+    "- 是否可能与其他模块的 override 冲突？（检查已知的 override 链）",
+    "- create/write 中是否有递归调用风险？",
+    "- write 方法中是否先判断了目标字段在 vals 中？",
+    "",
+    "**常见反例**：",
+    "```python",
+    "# ❌ 递归 write",
+    "def write(self, vals):",
+    "    res = super().write(vals)",
+    "    self.write({'x_updated': True})  # 递归！",
+    "    return res",
+    "",
+    "# ❌ 未判断字段是否在 vals 中",
+    "def write(self, vals):",
+    "    self._sync_stock()  # 即使只改了 name 也会触发",
+    "    return super().write(vals)",
+    "```",
+    "",
+    "### C. 逻辑放置审查",
+    "",
+    "**判定规则**（对照 `team_coding_standard.md` 决策表）：",
+    "",
+    "| 当前写法 | 应该放哪里 | 风险 |",
+    "|---|---|---|",
+    "| onchange 做校验 | constraint / action check | import/API 不生效 |",
+    "| action 堆大段逻辑 | 拆分为 _check / _prepare / _apply | 不可测试、不可继承 |",
+    "| create/write 做按钮专属逻辑 | action 或 hook 方法 | 污染所有入口 |",
+    "| constraint 有副作用 | 去掉副作用 | 数据校验时产生意外行为 |",
+    "| compute 依赖过宽 | @api.depends 精确化 | recompute 性能爆炸 |",
+    "",
+    "### D. 权限安全",
+    "",
+    "**判定规则**：",
+    "- 是否有不合理的 `sudo()` 调用？是否在用户操作路径上提权？",
+    "- 是否在 search/read/write 中忽略了 record rule？",
+    "- 是否依赖了前端隐藏而非后端权限控制？",
+    "",
+    "### E. 事务与直接 SQL（如果有）",
+    "",
+    "**判定规则**（对照 `transaction-and-cr-rules.md`）：",
+    "- 直接 SQL 是否必要？为什么不使用 ORM？",
+    "- 是否有 `cr.commit()` 在事务中间？是否可能造成数据不一致？",
+    "- SQL 操作后是否 invalidate cache？",
+    "- 是否有并发保护（`FOR UPDATE SKIP LOCKED` 等）？",
+    "",
+    "### F. 性能风险",
+    "",
+    "**判定规则**：",
+    "- 循环内查询：是否在 `for record in self` 中逐条 `search()`？",
+    "- N+1 查询：是否可以通过 `mapped()`、`read_group()`、预取优化？",
+    "- store=True compute 的 recompute 成本：`@api.depends` 的字段是否频繁变化？",
+    "- 批量操作是否使用 `write()` 而非逐条 `record.write()`？",
+    "",
+    "**常见反例**：",
+    "```python",
+    "# ❌ 循环内查询 → N+1",
+    "for line in self:",
+    "    partner = self.env['res.partner'].browse(line.partner_id.id)  # 已缓存，多余",
+    "",
+    "# ❌ 逐条 write → 应批量",
+    "for record in self:",
+    "    record.write({'state': 'done'})",
+    "# ✅",
+    "self.write({'state': 'done'})",
+    "```",
+    "",
+    "## 第三步：测试质量评估",
+    "",
+    "**判定规则**（对照 `test-rule.md`）：",
+    "",
+    "对存在的测试文件（Tier 2 已确认存在），评估测试质量：",
+    "",
+    "| 检查项 | 评估标准 |",
+    "|---|---|",
+    "| 成功路径 | 是否有正常流程的测试？ |",
+    "| 非法状态 | 是否测试了在错误状态下调用 action？ |",
+    "| 权限边界 | 是否测试了不同用户/权限的场景？ |",
+    "| 批量场景 | 是否测试了多记录 batch 操作？ |",
+    "| 异常路径 | 是否测试了 constraint 触发、ValidationError？ |",
+    "| 回归测试 | bug fix 是否有对应的回归测试？ |",
+    "",
+    "## 输出格式",
+    "",
+    "### 第一部分：PR 概览",
+    "",
+    "```",
+    "## PR 概览",
+    "",
+    "| 项目 | 内容 |",
+    "|---|---|",
+    "| 核心对象 | sale.order, account.move |",
+    "| 风险等级 | P0 |",
+    "| 生命周期节点 | action_confirm, write |",
+    "| 修改方法数 | 5 个新增 + 2 个修改 |",
+    "| diff 行数 | 约 180 行 |",
+    "```",
+    "",
+    "### 第二部分：逐方法审查",
+    "",
+    "每个方法输出一个审查块：",
+    "",
+    "```",
+    "### 方法：`action_confirm` (`models/sale_order.py:45-72`)",
+    "",
+    "**逻辑正确性**：[PASS] / [ISSUE] / [BLOCKER]",
+    "[具体的分析和问题描述]",
+    "",
+    "**生命周期安全**：[PASS] / [ISSUE] / [BLOCKER]",
+    "- super() 调用：✅ L48 调用了 `super().action_confirm()`",
+    "- 递归风险：无",
+    "- override 链冲突：需检查 `tw_sale_extended` 模块是否也覆盖了此方法",
+    "",
+    "**逻辑放置**：[PASS] / [MISPLACED]",
+    "[如果放置不正确，指出应该放哪里]",
+    "",
+    "**推荐写法**（如有问题）：",
+    "[给出推荐的重构写法]",
+    "",
+    "---",
+    "```",
+    "",
+    "### 第三部分：测试质量评估",
+    "",
+    "```",
+    "## 测试质量评估",
+    "",
+    "| 测试文件 | 成功路径 | 非法状态 | 权限边界 | 批量场景 | 覆盖率 |",
+    "|---|---|---|---|---|---|",
+    "| test_sale.py | ✅ | ❌ 缺失 | ❌ 缺失 | ✅ | 仅覆盖 2/4 场景 |",
+    "",
+    "### 缺失的测试用例建议",
+    "",
+    "1. `test_action_confirm_from_done_state` — 非法状态测试",
+    "2. `test_action_confirm_no_permission` — 权限测试",
+    "```",
+    "",
+    "### 第四部分：风险汇总",
+    "",
+    "```",
+    "## 风险汇总",
+    "",
+    "| 等级 | 数量 | 说明 |",
+    "|---|---|---|",
+    "| BLOCKER | 0 | - |",
+    "| ISSUE | 2 | L45 递归风险 / L120 循环内查询 |",
+    "| SUGGESTION | 1 | L88 建议抽 _prepare_vals |",
+    "",
+    "## 审查结论",
+    "",
+    "- [ ] 通过 — 无 ISSUE/BLOCKER",
+    "- [x] 有条件通过 — 存在 2 个 ISSUE，需修复后重审",
+    "- [ ] 不通过 — 存在 BLOCKER，需要重大修改",
+    "",
+    "## ISSUE 清单（用于后续 fix-up PR 追溯）",
+    "",
+    "| # | 文件:行号 | 问题 | 严重度 |",
+    "|---|---|---|---|",
+    "| 1 | sale_order.py:45 | write 方法存在潜在递归 | ISSUE |",
+    "| 2 | stock_picking.py:120 | 循环内 search() 导致 N+1 | ISSUE |",
+    "```",
+    "",
+    "### 第五部分：关联模块影响分析（仅 P0 级别需要）",
+    "",
+    "```",
+    "## 关联模块影响",
+    "",
+    "| 受影响的模块 | 影响方式 | 风险 |",
+    "|---|---|---|",
+    "| tw_sale_extended | 覆盖相同的 action_confirm，需确认 super() 顺序 | 中 |",
+    "| tw_stock_custom | 依赖 sale.order 的状态字段，状态流转变化可能影响 | 低 |",
+    "```",
+    "",
+    "### 第六部分：fix-up PR 追溯模板",
+    "",
+    "如果此审查产生了 ISSUE，附上以下模板供后续 fix-up PR 使用：",
+    "",
+    "```markdown",
+    "## Fix-up for #[原PR编号] — Tier 3 Review Issues",
+    "",
+    "| # | 审查报告 ISSUE 编号 | 问题描述 | 本 PR 修复方式 | commit |",
+    "|---|---|---|---|---|",
+    "| 1 | #1 | sale_order.py:45 write 递归风险 | ... | ... |",
+    "| 2 | #2 | stock_picking.py:120 N+1 查询 | ... | ... |",
+    "```",
+    "",
+    `当前 PR：${prUrl}`,
+  ].join("\n"),
+} as const;
+*/
+
+function summarizeIdentifier(value?: string | null): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  if (value.length <= 8) {
+    return value;
+  }
+
+  return `${value.slice(0, 4)}...${value.slice(-4)}`;
+}
+
+function summarizeLarkContextForDebug(context?: Partial<LarkBaseUrlContext>): Record<string, unknown> {
+  const recordId = context?.recordId;
+
+  return {
+    hasBaseId: Boolean(context?.baseId),
+    baseId: summarizeIdentifier(context?.baseId),
+    hasTableId: Boolean(context?.tableId),
+    tableId: summarizeIdentifier(context?.tableId),
+    hasViewId: Boolean(context?.viewId),
+    viewId: summarizeIdentifier(context?.viewId),
+    hasRecordId: Boolean(recordId),
+    recordId: summarizeIdentifier(recordId),
+    isRealRecordId: typeof recordId === "string" && recordId.startsWith("rec"),
+    hasWikiRecordId: Boolean(context?.wikiRecordId),
+    wikiRecordId: summarizeIdentifier(context?.wikiRecordId),
+  };
+}
 
 function actionHasPopupPlacement(action: AutomationActionListItem): boolean {
   return action.placements?.some((placement) => placement.surface === "popup") ?? true;
@@ -95,7 +359,7 @@ type LazyKimiChatController = {
   openHistory: () => Promise<void>;
   loadHistorySession: (sessionId: string) => Promise<void>;
   deleteHistorySession: (sessionId: string) => Promise<void>;
-  sendMessage: (messageText: string) => Promise<void>;
+  sendMessage: (messageText: string, options?: { actionRunId?: string }) => Promise<void>;
   stopGeneration: () => void;
   dispose: () => void;
 };
@@ -131,6 +395,10 @@ type BackendAutomationResponse = {
     updatedField?: string;
     actionRunId?: string;
     analysisSummary?: string;
+    status?: "queued" | "running" | "succeeded" | "failed";
+    commentUrl?: string | null;
+    errorCode?: string | null;
+    errorMessage?: string | null;
   };
   error?: {
     errorCode?: string;
@@ -143,7 +411,7 @@ type BackendAutomationResponse = {
 const BACKEND_AUTOMATION_TIMEOUT_MS = 120_000;
 
 type PopupActionExecutionStatus = {
-  phase: "running" | "success" | "error";
+  phase: "running" | "submitted" | "success" | "error";
   message: string;
   actionRunId?: string;
   updatedAt: string;
@@ -471,6 +739,7 @@ export function createPopupController() {
             appendLog,
             showToast,
             setActivePage,
+            queryCurrentTabContext: queryActiveTabContext,
             updateCurrentTabUrl(tabId, url) {
               void chrome.tabs.update(tabId, { url });
             },
@@ -1284,6 +1553,7 @@ export function createPopupController() {
         nextSettings.SERVER_URL = resolveServerUrl({
           envName: value,
         });
+        nextSettings.LARK_OAUTH_CALLBACK_URL = "";
       }
 
       return {
@@ -1522,7 +1792,10 @@ export function createPopupController() {
     await controller.deleteHistorySession(sessionId);
   }
 
-  async function sendKimiChatMessage(messageText: string): Promise<void> {
+  async function sendKimiChatMessage(
+    messageText: string,
+    options: { actionRunId?: string } = {},
+  ): Promise<void> {
     updateStore((previous) => ({
       ...previous,
       showKimiChat: true,
@@ -1530,7 +1803,7 @@ export function createPopupController() {
     }));
 
     const controller = await loadKimiChatController();
-    await controller.sendMessage(messageText);
+    await controller.sendMessage(messageText, options);
   }
 
   async function ignoreUpdateVersion(): Promise<void> {
@@ -1568,7 +1841,7 @@ export function createPopupController() {
     const configuredAction = readStore().pageConfig?.automationActions.find(
       (action) => action.key === actionKey,
     );
-    if (readStore().actionStatuses[actionKey]?.phase === "running") {
+    if (["running", "submitted"].includes(readStore().actionStatuses[actionKey]?.phase ?? "")) {
       appendLog("warn", "当前操作仍在执行中，请等待返回状态。");
       return;
     }
@@ -1631,7 +1904,9 @@ export function createPopupController() {
 
       if (!result.ok) {
         const responseActionRunId = result.error.actionRunId ?? actionRunId;
-        const message = `创建 Meegle Item 失败: ${result.error.errorMessage}`;
+        const message = result.error.errorCode === MEEGLE_LINK_ALREADY_EXISTS_ERROR_CODE
+          ? result.error.errorMessage
+          : `创建 Meegle Item 失败: ${result.error.errorMessage}`;
         setActionStatus(actionKey, {
           phase: "error",
           actionRunId: responseActionRunId,
@@ -1747,11 +2022,26 @@ export function createPopupController() {
       action.executor.operation === "lark.bug.analyze" &&
       Boolean(initialLarkContext.baseId || initialLarkContext.tableId || initialLarkContext.wikiRecordId) &&
       !isRealLarkRecordId(initialLarkContext.recordId);
+    if (action.executor.operation === "lark.bug.analyze") {
+      popupLogger.debug("larkBugContext.beforeRefresh", {
+        actionRunId,
+        shouldRefresh: shouldRefreshProductionBugLarkContext,
+        larkContext: summarizeLarkContextForDebug(initialLarkContext),
+      });
+    }
+
     if (
       shouldRefreshProductionBugLarkContext
     ) {
       try {
         const refreshedTab = await queryActiveTabContext();
+        popupLogger.debug("larkBugContext.refreshedTab", {
+          actionRunId,
+          pageType: refreshedTab.pageType,
+          hasLarkContext: Boolean(refreshedTab.larkContext),
+          larkContext: summarizeLarkContextForDebug(refreshedTab.larkContext),
+        });
+
         if (refreshedTab.larkContext) {
           runtimeCurrentTab = {
             id: refreshedTab.id ?? runtimeCurrentTab.id,
@@ -1781,13 +2071,22 @@ export function createPopupController() {
               masterUserId,
             },
           });
+          popupLogger.debug("larkBugContext.afterRefresh", {
+            actionRunId,
+            larkContext: summarizeLarkContextForDebug(actionContext.pageContext.lark),
+          });
         }
-      } catch {
+      } catch (error) {
+        popupLogger.warn("larkBugContext.refreshFailed", {
+          actionRunId,
+          errorMessage: error instanceof Error ? error.message : String(error),
+        });
         // Keep the original context; the server will return a structured missing-record error.
       }
     }
 
     const meegleContext = actionContext.pageContext.meegle;
+    const githubContext = actionContext.pageContext.github;
     const larkContext = actionContext.pageContext.lark ?? {};
     const effectiveCurrentUrl = runtimeCurrentTab.url ?? currentUrl;
     const larkRecordId = isRealLarkRecordId(larkContext.recordId) ? larkContext.recordId : undefined;
@@ -1799,7 +2098,33 @@ export function createPopupController() {
         ? "lark_wiki_record"
         : "lark_base"
       : undefined;
-    if (!meegleContext && !larkRecordId && !(supportsLarkBaseContext && (hasLarkBaseContext || larkContext.wikiRecordId))) {
+    if (action.executor.operation === "lark.bug.analyze") {
+      popupLogger.debug("larkBugContext.payload", {
+        actionRunId,
+        route: action.executor.route,
+        hasMeegleContext: Boolean(meegleContext),
+        hasLarkBaseContext,
+        hasLarkRecordContext,
+        larkPageType,
+        larkRecordId: summarizeIdentifier(larkRecordId),
+        larkContext: summarizeLarkContextForDebug(larkContext),
+      });
+    }
+    popupLogger.debug("backendAction.payloadContext", {
+      actionRunId,
+      operation: action.executor.operation,
+      route: action.executor.route,
+      pageType: runtimeCurrentTab.pageType,
+      currentUrl: effectiveCurrentUrl,
+      projectKey: summarizeIdentifier(meegleContext?.projectKey),
+      workItemTypeKey: meegleContext?.workItemTypeKey,
+      workItemId: summarizeIdentifier(meegleContext?.workItemId),
+      hasMeegleContext: Boolean(meegleContext),
+      hasLarkBaseContext,
+      hasLarkRecordContext,
+    });
+
+    if (!meegleContext && !githubContext && !larkRecordId && !(supportsLarkBaseContext && (hasLarkBaseContext || larkContext.wikiRecordId))) {
       const message = `无法从当前 URL 解析 Meegle 工作项或 Lark 记录信息: ${effectiveCurrentUrl}`;
       setActionStatus(action.key, { phase: "error", message });
       appendLog("error", message);
@@ -1813,16 +2138,17 @@ export function createPopupController() {
       "info",
       `[${action.title}] 调用服务端: operation=${action.executor.operation}, actionRunId=${actionRunId}`,
     );
+    const isAsync = action.execution?.mode === "async";
     setActionStatus(action.key, {
       phase: "running",
       actionRunId,
-      message: `执行中 · ${actionRunId}`,
+      message: isAsync ? "正在提交后台任务…" : `执行中 · ${actionRunId}`,
     });
 
     const abortController = new AbortController();
     const timeoutId = globalThis.setTimeout(() => {
       abortController.abort();
-    }, BACKEND_AUTOMATION_TIMEOUT_MS);
+    }, isAsync ? 15_000 : BACKEND_AUTOMATION_TIMEOUT_MS);
     try {
       const { payload } = await fetchServerJson<BackendAutomationResponse>({
         url: `${config.SERVER_URL}${action.executor.route}`,
@@ -1832,6 +2158,8 @@ export function createPopupController() {
           projectKey: meegleContext?.projectKey,
           workItemTypeKey: meegleContext?.workItemTypeKey,
           workItemId: meegleContext?.workItemId,
+          prUrl: githubContext?.url,
+          operation: action.executor.operation,
           meegleUrl: effectiveCurrentUrl,
           baseId: larkContext.baseId,
           tableId: larkContext.tableId,
@@ -1857,6 +2185,39 @@ export function createPopupController() {
         });
         appendLog("error", `[${action.title}] 执行失败: ${errorMessage}`);
         showPopupToast(errorMessage, "error");
+        return;
+      }
+
+      if (action.execution?.mode === "async") {
+        const queuedActionRunId = payload.data?.actionRunId ?? actionRunId;
+        setActionStatus(action.key, {
+          phase: "submitted",
+          actionRunId: queuedActionRunId,
+          message: `${action.execution.submit.message} · ${queuedActionRunId}`,
+        });
+        appendLog("info", `[${action.title}] 已提交后台任务 · actionRunId=${queuedActionRunId}`);
+        showPopupToast(action.execution.submit.message, action.execution.submit.style);
+        void chrome.runtime.sendMessage({
+          action: "octo.async-action.track",
+          payload: {
+            actionRunId: queuedActionRunId,
+            masterUserId,
+            serverUrl: config.SERVER_URL,
+            statusRoute: action.execution.completion.status.route,
+            notification: action.execution.completion.success.notification,
+          },
+        }).catch((error: unknown) => {
+          popupLogger.warn("asyncAction.backgroundTrackingFailed", {
+            actionRunId: queuedActionRunId,
+            errorMessage: error instanceof Error ? error.message : String(error),
+          });
+        });
+        void monitorAsyncAction({
+          action,
+          actionRunId: queuedActionRunId,
+          masterUserId,
+          serverUrl: config.SERVER_URL,
+        });
         return;
       }
 
@@ -1887,6 +2248,64 @@ export function createPopupController() {
     } finally {
       globalThis.clearTimeout(timeoutId);
     }
+  }
+
+  async function monitorAsyncAction(input: {
+    action: AutomationActionListItem;
+    actionRunId: string;
+    masterUserId: string;
+    serverUrl: string;
+  }): Promise<void> {
+    const execution = input.action.execution;
+    if (!execution || execution.mode !== "async") {
+      return;
+    }
+
+    const statusUrl = `${input.serverUrl}${execution.completion.status.route.replace(":actionRunId", encodeURIComponent(input.actionRunId))}`;
+    try {
+      const { payload } = await fetchServerJson<BackendAutomationResponse>({
+        url: statusUrl,
+        method: execution.completion.status.method,
+        masterUserId: input.masterUserId,
+      });
+      if (!payload.ok) {
+        throw new Error(getBackendAutomationErrorMessage(payload));
+      }
+
+      if (payload.data?.status === "succeeded") {
+        setActionStatus(input.action.key, {
+          phase: "success",
+          actionRunId: input.actionRunId,
+          message: execution.completion.success.message,
+        });
+        appendLog("success", `[${input.action.title}] ${execution.completion.success.message} · actionRunId=${input.actionRunId}`);
+        showPopupToast(execution.completion.success.message, execution.completion.success.style);
+        return;
+      }
+
+      if (payload.data?.status === "failed") {
+        const detail = payload.data.errorMessage ? ` ${payload.data.errorMessage}` : "";
+        const message = `${execution.completion.failure.message}${detail}`;
+        setActionStatus(input.action.key, {
+          phase: "error",
+          actionRunId: input.actionRunId,
+          message,
+        });
+        appendLog("error", `[${input.action.title}] ${message} · actionRunId=${input.actionRunId}`);
+        showPopupToast(message, execution.completion.failure.style);
+        return;
+      }
+    } catch (error) {
+      popupLogger.warn("asyncAction.statusPollFailed", {
+        actionRunId: input.actionRunId,
+        operation: input.action.executor.type === "backend_api" ? input.action.executor.operation : undefined,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
+    }
+
+    globalThis.setTimeout(() => {
+      void monitorAsyncAction(input);
+    }, execution.completion.status.pollIntervalMs);
   }
 
   function createActionRunId(): string {
@@ -1963,7 +2382,7 @@ export function createPopupController() {
       status?: PopupActionExecutionStatus;
     },
   ): PopupFeatureAction {
-    const loading = input.status?.phase === "running";
+    const loading = input.status?.phase === "running" || input.status?.phase === "submitted";
     return {
       key: action.key,
       label: action.title,
@@ -1972,7 +2391,7 @@ export function createPopupController() {
         loading || (action.key === "analyze" ? !input.viewModel.canAnalyze : false),
       loading,
       statusText: input.status?.message,
-      statusTone: input.status?.phase,
+      statusTone: input.status?.phase === "submitted" ? "running" : input.status?.phase,
     };
   }
 

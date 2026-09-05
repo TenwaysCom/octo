@@ -30,7 +30,34 @@ export interface AutomationActionListItem {
     | { type: "preview_form_confirm" }
     | { type: "direct_execute" }
     | { type: "direct_result" };
+  provider?: "kimi_acp" | "ticket_summary";
   executor: AutomationActionExecutor;
+  execution?: {
+    mode: "async";
+    submit: {
+      message: string;
+      style: "info";
+    };
+    completion: {
+      status: {
+        method: "GET";
+        route: string;
+        pollIntervalMs: number;
+      };
+      success: {
+        message: string;
+        style: "success";
+        notification: {
+          title: string;
+          message: string;
+        };
+      };
+      failure: {
+        message: string;
+        style: "error";
+      };
+    };
+  };
 }
 
 export interface ExtensionPageConfig {

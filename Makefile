@@ -1,12 +1,15 @@
 SERVER_DIR := server
 EXT_DIR := extension
+FE_DIR := fe
 EXT_DEV_PORT ?= 3011
 EXT_PROFILE_DIR ?= $(HOME)/.config/octo-ext-profile
 MASTER_USER_ID ?= a400632e-8d08-4ddf-977d-e8330b0adc5a
+TEST_DATABASE ?= tenways_octo_test
+DEV_DATABASE ?= tenways_octo_ly_0509
 
 .DEFAULT_GOAL := help
 
-.PHONY: help completion server-dev test-server test-client db-backup db-restore db-sync-user-tokens ext-dev ext-dev-manual ext-dev-profile ext-dev-probe ext-build ext-package ext-deploy-zip ext-test ext-typecheck deploy-test deploy-prod
+.PHONY: help completion server-dev fe-dev fe-build test-server test-client db-backup db-restore db-sync-user-tokens db-sync-test-user-tokens platform-sync platform-clean-meegle platform-clean-history platform-init-checkpoints ext-dev ext-dev-manual ext-dev-profile ext-dev-probe ext-build ext-package ext-deploy-zip ext-test ext-typecheck deploy-test deploy-prod
 
 help: ## Show available make targets
 	@awk 'BEGIN {FS = ":.*## "}; /^[a-zA-Z0-9_.-]+:.*## / {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -28,23 +31,56 @@ completion: ## Print shell completion script for make targets (bash/zsh)
 server-dev: ## Run the backend server in watch mode
 	npm --prefix $(SERVER_DIR) run dev
 
+fe-dev: ## Run the FE Vite development server
+	pnpm --dir $(FE_DIR) dev
+
+fe-build: ## Build the FE into fe/dist
+	pnpm --dir $(FE_DIR) build
+
 test-server: ## Run backend tests
 	npm --prefix $(SERVER_DIR) test
 
 db-backup: ## Backup a postgres database via server script (usage: make db-backup DB_NAME=tenways_octo)
 	@test -n "$(DB_NAME)" || (echo "Usage: make db-backup DB_NAME=<database>"; exit 1)
-	npx tsx $(SERVER_DIR)/src/scripts/postgres-backup-restore.ts backup $(DB_NAME)
+	pnpm --dir $(SERVER_DIR) exec tsx src/scripts/postgres-backup-restore.ts backup $(DB_NAME)
 
 db-restore: ## Restore a postgres database via server script (usage: make db-restore DB_NAME=tenways_octo [FILE=path])
 	@test -n "$(DB_NAME)" || (echo "Usage: make db-restore DB_NAME=<database> [FILE=/path/to.dump]"; exit 1)
 	@if [ -n "$(FILE)" ]; then \
-		npx tsx $(SERVER_DIR)/src/scripts/postgres-backup-restore.ts restore $(DB_NAME) --file $(FILE); \
+		pnpm --dir $(SERVER_DIR) exec tsx src/scripts/postgres-backup-restore.ts restore $(DB_NAME) --file $(FILE); \
 	else \
-		npx tsx $(SERVER_DIR)/src/scripts/postgres-backup-restore.ts restore $(DB_NAME); \
+		pnpm --dir $(SERVER_DIR) exec tsx src/scripts/postgres-backup-restore.ts restore $(DB_NAME); \
 	fi
 
 db-sync-user-tokens: ## Sync user_tokens from tenways_octo to tenways_octo_ly_0509 (override: MASTER_USER_ID=...)
-	npx tsx $(SERVER_DIR)/src/scripts/sync-user-tokens.ts $(MASTER_USER_ID)
+	pnpm --dir $(SERVER_DIR) exec tsx src/scripts/sync-user-tokens.ts $(MASTER_USER_ID) --target-db $(DEV_DATABASE)
+
+db-sync-test-user-tokens: ## Sync user_tokens from test to the database configured in server/.env (override: MASTER_USER_ID=... TEST_DATABASE=...)
+	pnpm --dir $(SERVER_DIR) exec tsx src/scripts/sync-user-tokens.ts $(MASTER_USER_ID) --source-db $(TEST_DATABASE)
+
+platform-sync: ## Sync configured Lark, Meegle, and GitHub platform data
+	pnpm --dir $(SERVER_DIR) platform:sync
+
+platform-clean-meegle: ## Validate historical Meegle cleanup (set APPLY=1 to update)
+	@if [ "$(APPLY)" = "1" ]; then \
+		pnpm --dir $(SERVER_DIR) platform:clean-meegle --apply; \
+	else \
+		pnpm --dir $(SERVER_DIR) platform:clean-meegle; \
+	fi
+
+platform-clean-history: ## Clean historical GitHub and Lark snapshots into Octo projections (set APPLY=1 to update)
+	@if [ "$(APPLY)" = "1" ]; then \
+		pnpm --dir $(SERVER_DIR) platform:clean-history --apply; \
+	else \
+		pnpm --dir $(SERVER_DIR) platform:clean-history; \
+	fi
+
+platform-init-checkpoints: ## Preview historical snapshot checkpoint initialization (set APPLY=1 to create missing checkpoints)
+	@if [ "$(APPLY)" = "1" ]; then \
+		pnpm --dir $(SERVER_DIR) platform:init-checkpoints --apply; \
+	else \
+		pnpm --dir $(SERVER_DIR) platform:init-checkpoints; \
+	fi
 
 test-client: ## Run extension tests
 	pnpm --dir $(EXT_DIR) test
@@ -76,7 +112,7 @@ ext-test: ## Run extension tests
 ext-typecheck: ## Type-check the extension
 	pnpm --dir $(EXT_DIR) typecheck
 
-deploy-test: ## Deploy to test server (git pull only)
+deploy-test: ## Deploy to test server (git pull, install dependencies, and build server)
 	./scripts/deploy-test.sh
 
 deploy-prod: ## Deploy to production server (full build + pm2 restart)
