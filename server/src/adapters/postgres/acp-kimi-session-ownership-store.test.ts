@@ -11,6 +11,10 @@ describe("PostgresAcpKimiSessionOwnershipStore", () => {
       operatorLarkId: "ou_1",
       runtimeHostName: "octo-server-1",
       kimiWorkDir: "/srv/octo/server",
+      automationActionKey: "lark-ticket-support-qa-answer",
+      permissionProfileId: "support-qa.answer.v1",
+      permissionProfileVersion: "1",
+      actionRunId: "action_1",
     });
     const record = await store.claim({
       sessionId: "sess_1",
@@ -24,6 +28,9 @@ describe("PostgresAcpKimiSessionOwnershipStore", () => {
       operatorLarkId: "ou_1",
       runtimeHostName: "octo-server-1",
       kimiWorkDir: "/srv/octo/server",
+      permissionProfileId: "support-qa.answer.v1",
+      permissionProfileVersion: "1",
+      actionRunId: "action_1",
     });
 
     await expect(store.attachTicket({

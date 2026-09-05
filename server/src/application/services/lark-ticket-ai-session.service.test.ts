@@ -463,12 +463,11 @@ describe("Lark Ticket AI Session service", () => {
           promptKey: "lark_ticket.support_qa.answer",
           skillProfile: "support_qa_eu",
           skillId: "support_qa_query",
-          executionPolicy: "shell",
+          permissionProfileId: "support-qa.answer.v1",
           provider: "kimi_acp",
           requiresConfirmation: false,
         },
         workspaceDir: "/srv/odoo/eu",
-        octoServerDir: "/srv/octo/server",
         skillPath: "/srv/odoo/eu/.agents/skills/query-support-qa/SKILL.md",
       }),
     });
@@ -559,14 +558,23 @@ describe("Lark Ticket AI Session service", () => {
         action: {
           key: "lark-ticket-support-qa-answer",
           promptKey: "lark_ticket.support_qa.answer",
+          provider: "kimi_acp",
           skillProfile: "support_qa_eu",
           skillId: "support_qa_query",
-          executionPolicy: "shell",
+          permissionProfileId: "support-qa.answer.v1",
+          requiresConfirmation: false,
+          executor: { type: "backend_api", operation: "test", method: "POST", route: "/test" },
+          placements: [],
+          interaction: { type: "direct_execute" },
+          title: "回答问题",
         },
         workspaceDir: "/srv/odoo/eu",
-        octoServerDir: "/srv/octo/server",
         skillPath: "/srv/odoo/eu/.agents/skills/query-support-qa/SKILL.md",
       }),
+      operationAuditStore: {
+        record: vi.fn(),
+        get: vi.fn().mockReturnValue({ status: "completed", exitCode: 0 }),
+      },
       threadContextService: { ensure: vi.fn().mockResolvedValue({ decision: "cached", source: "postgres" }) } as never,
     });
 
@@ -577,15 +585,15 @@ describe("Lark Ticket AI Session service", () => {
       ticket,
       message: "VPN cannot connect",
       actionKey: "lark-ticket-support-qa-answer",
+      actionRunId: "action_answer_1",
     }, vi.fn());
 
     expect(knowledgeRetriever.searchApproved).toHaveBeenCalledWith(expect.objectContaining({ query: expect.stringContaining("VPN") }));
     expect(acpService.chat).toHaveBeenCalledWith(expect.objectContaining({
       message: expect.stringContaining("source_ref=case:LT-9:segment-2"),
     }), expect.any(Function), expect.any(Object));
-    expect(acpService.chat.mock.calls[0][0].message).toContain("mcp__octo_execute__execute");
-    expect(acpService.chat.mock.calls[0][0].message).toContain('"subcommand":"fetch","args":["LT-10","--json"]');
-    expect(acpService.chat.mock.calls[0][0].message).toContain("不得调用 Bash");
+    expect(acpService.chat.mock.calls[0][0].message).toContain("bash .agents/skills/write-support-qa/scripts/write-support-qa.sh fetch LT-10 --json");
+    expect(acpService.chat.mock.calls[0][0].message).not.toContain("mcp__octo");
     expect(acpService.chat.mock.calls[0][0].message).not.toContain("person@example.com");
   });
 

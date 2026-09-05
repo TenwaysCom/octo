@@ -18,6 +18,7 @@ import {
   renderWorkflowPromptTemplate,
 } from "../../domain/workflow-prompts.js";
 import { isMeegleProductionBugType } from "../../domain/meegle-workitem-types.js";
+import { getAcpKimiPermissionProfile } from "../../domain/acp-kimi-permission-profile.js";
 
 export interface MeegleSprintAiSessionRef {
   projectKey: string;
@@ -115,7 +116,7 @@ export function createMeegleSprintAiSessionService(deps: MeegleSprintAiSessionSe
       const prompt = input.sessionId
         ? input.message
         : await buildSprintPrompt(workflowPromptStore, quickAction, context, input.message);
-      const permissionContext = quickAction ? createPermissionContext(quickAction) : undefined;
+      const permissionContext = quickAction ? createPermissionContext(quickAction, input.actionRunId) : undefined;
       let createdSessionId: string | undefined;
       await acpService.chat({
         operatorLarkId: input.operatorLarkId,
@@ -204,11 +205,16 @@ function contextHash(context: SprintReleaseNotesContext): string {
   return createHash("sha256").update(JSON.stringify(context)).digest("hex");
 }
 
-function createPermissionContext(quickAction: SprintAiAutomationActionConfig): AcpKimiPermissionContext {
+function createPermissionContext(
+  quickAction: SprintAiAutomationActionConfig,
+  actionRunId?: string,
+): AcpKimiPermissionContext {
+  const profile = getAcpKimiPermissionProfile(quickAction.permissionProfileId);
   return {
     actionKey: quickAction.key,
-    executionPolicy: quickAction.executionPolicy,
-    policyVersion: "v1",
+    permissionProfileId: quickAction.permissionProfileId,
+    permissionProfileVersion: profile?.version ?? null,
+    actionRunId: actionRunId ?? null,
   };
 }
 

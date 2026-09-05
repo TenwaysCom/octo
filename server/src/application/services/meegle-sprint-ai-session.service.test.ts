@@ -79,8 +79,9 @@ describe("Meegle Sprint AI Session service", () => {
       message: expect.stringContaining("改善订单导出"),
       permissionContext: {
         actionKey: "meegle-sprint-release-notes",
-        executionPolicy: "read_only",
-        policyVersion: "v1",
+        permissionProfileId: "acp.chat-readonly.v1",
+        permissionProfileVersion: "1",
+        actionRunId: null,
       },
     }), expect.any(Function), expect.any(Object));
   });

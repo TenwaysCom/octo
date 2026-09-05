@@ -13,6 +13,9 @@ export interface AcpKimiSessionOwnershipRecord {
   runtimeHostName: string | null;
   kimiWorkDir: string | null;
   automationActionKey: string | null;
+  permissionProfileId: string | null;
+  permissionProfileVersion: string | null;
+  /** Historical only. New sessions never write this field. */
   executionPolicy: string | null;
   skillProfile: string | null;
   skillId: string | null;
@@ -46,10 +49,11 @@ export interface AcpKimiSessionOwnershipStore {
     runtimeHostName?: string | null;
     kimiWorkDir?: string | null;
     automationActionKey?: string | null;
-    executionPolicy?: string | null;
+    permissionProfileId?: string | null;
+    permissionProfileVersion?: string | null;
     skillProfile?: string | null;
     skillId?: string | null;
-    policyVersion?: string | null;
+    actionRunId?: string | null;
   }): Promise<AcpKimiSessionOwnershipRecord>;
   rename(
     sessionId: string,
@@ -99,6 +103,8 @@ function toRecord(
     runtimeHostName: row.runtime_host_name ?? null,
     kimiWorkDir: row.kimi_work_dir ?? null,
     automationActionKey: row.automation_action_key ?? null,
+    permissionProfileId: row.permission_profile_id ?? null,
+    permissionProfileVersion: row.permission_profile_version ?? null,
     executionPolicy: row.execution_policy ?? null,
     skillProfile: row.skill_profile ?? null,
     skillId: row.skill_id ?? null,
@@ -176,10 +182,11 @@ export class PostgresAcpKimiSessionOwnershipStore
     runtimeHostName?: string | null;
     kimiWorkDir?: string | null;
     automationActionKey?: string | null;
-    executionPolicy?: string | null;
+    permissionProfileId?: string | null;
+    permissionProfileVersion?: string | null;
     skillProfile?: string | null;
     skillId?: string | null;
-    policyVersion?: string | null;
+    actionRunId?: string | null;
   }): Promise<AcpKimiSessionOwnershipRecord> {
     const now = new Date().toISOString();
 
@@ -191,10 +198,11 @@ export class PostgresAcpKimiSessionOwnershipStore
         runtime_host_name: input.runtimeHostName ?? null,
         kimi_work_dir: input.kimiWorkDir ?? null,
         automation_action_key: input.automationActionKey ?? null,
-        execution_policy: input.executionPolicy ?? null,
+        permission_profile_id: input.permissionProfileId ?? null,
+        permission_profile_version: input.permissionProfileVersion ?? null,
         skill_profile: input.skillProfile ?? null,
         skill_id: input.skillId ?? null,
-        policy_version: input.policyVersion ?? null,
+        action_run_id: input.actionRunId ?? null,
         deleted_at: null,
         created_at: now,
         updated_at: now,

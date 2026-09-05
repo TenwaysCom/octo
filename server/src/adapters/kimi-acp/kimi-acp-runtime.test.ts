@@ -1,11 +1,21 @@
+import { mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import {
+  KIMI_ACP_MCP_SERVERS,
   KimiAcpRuntimeError,
   createKimiAcpCollectingClient,
   createKimiAcpSessionRuntime,
   type KimiAcpConnection,
 } from "./kimi-acp-runtime.js";
-import { createAcpKimiPermissionHandler } from "../../application/services/acp-kimi-permission-policy.js";
-import type { RequestPermissionRequest, SessionNotification } from "@agentclientprotocol/sdk";
+import {
+  createAcpKimiClientCapabilityPolicy,
+  ensureAcpKimiScratchDir,
+  type AcpKimiClientCapabilityPolicy,
+} from "../../application/services/acp-kimi-permission-policy.js";
+import { createInMemoryAcpKimiOperationAuditStore } from "../../application/services/acp-kimi-operation-audit.js";
+
+const FETCH_SCRIPT = ".agents/skills/write-support-qa/scripts/write-support-qa.sh";
 
 describe("kimi acp runtime", () => {
   afterEach(() => {
@@ -25,10 +35,7 @@ describe("kimi acp runtime", () => {
     } satisfies KimiAcpConnection;
 
     const runtimePromise = createKimiAcpSessionRuntime({
-      env: {
-        ...process.env,
-        KIMI_ACP_STARTUP_TIMEOUT_MS: "25",
-      },
+      env: { ...process.env, KIMI_ACP_STARTUP_TIMEOUT_MS: "25" },
       createConnection: () => connection,
     });
     const expectation = expect(runtimePromise).rejects.toMatchObject({
@@ -36,156 +43,169 @@ describe("kimi acp runtime", () => {
       code: "ACP_INITIALIZE_TIMEOUT",
       stage: "adapter.acp.initialize",
     } satisfies Partial<KimiAcpRuntimeError>);
-
     await vi.advanceTimersByTimeAsync(25);
-
     await expectation;
     expect(close).toHaveBeenCalledTimes(1);
-    expect(connection.newSession).not.toHaveBeenCalled();
   });
 
-  it("correlates Kimi 0.38 tool_call rawInput with its truncated permission request", async () => {
-    const emit = vi.fn();
-    const command = "bash .agents/skills/write-support-qa/scripts/write-support-qa.sh fetch LT-10 --json";
-    const client = createKimiAcpCollectingClient(
-      emit,
-      createAcpKimiPermissionHandler({
-        actionKey: "lark-ticket-support-qa-summarize",
-        executionPolicy: "shell",
-        workspaceDir: "/srv/odoo/eu",
-        octoServerDir: "/srv/octo/server",
-        skillProfile: "support_qa_eu",
-        skillId: "support_qa_query",
-        ticketNumber: "LT-10",
-        policyVersion: "v2",
-      }),
-    );
-    const toolCallId = "12:tool_1";
+  it("keeps MCP servers empty for every new ACP session", () => {
+    expect(KIMI_ACP_MCP_SERVERS).toEqual([]);
+  });
 
-    await client.sessionUpdate({
-      sessionId: "session_1",
-      update: {
-        sessionUpdate: "tool_call",
-        toolCallId,
-        title: "Bash",
-        kind: "execute",
-        status: "pending",
-        content: [{ type: "content", content: { type: "text", text: "{\"command\":\"bash .agents/" } }],
-      },
-    } as SessionNotification);
-    await client.sessionUpdate({
-      sessionId: "session_1",
-      update: {
-        sessionUpdate: "tool_call_update",
-        toolCallId,
-        title: "Running: bash .agents/skills/write-support-qa/scripts/write-…",
-        kind: "execute",
-        status: "in_progress",
-        rawInput: { command },
-        content: [{ type: "content", content: { type: "text", text: JSON.stringify({ command }) } }],
-      },
-    } as SessionNotification);
+  it("executes an allowed Terminal command with shell:false and records its real exit", async () => {
+    const fixture = await createTerminalFixture("printf 'ticket:%s\\nscratch:%s\\n' \"$2\" \"$OCTO_SUPPORT_QA_ACTION_DIR\"\n");
+    const auditStore = createInMemoryAcpKimiOperationAuditStore();
+    const policy = createAcpKimiClientCapabilityPolicy(fixture.context, auditStore);
+    const client = createKimiAcpCollectingClient(vi.fn(), undefined, policy);
+    try {
+      const created = await client.createTerminal({
+        sessionId: "session_1",
+        command: "/bin/bash",
+        args: ["-lc", `bash ${FETCH_SCRIPT} fetch TEN-10 --json`],
+        cwd: fixture.workspaceDir,
+      });
+      await expect(client.waitForTerminalExit({ sessionId: "session_1", terminalId: created.terminalId })).resolves.toEqual({ exitCode: 0, signal: null });
+      await expect(client.terminalOutput({ sessionId: "session_1", terminalId: created.terminalId })).resolves.toMatchObject({
+        output: `ticket:TEN-10\nscratch:${fixture.scratchDir}\n`,
+        truncated: false,
+        exitStatus: { exitCode: 0, signal: null },
+      });
+      expect(auditStore.get({ sessionId: "session_1", actionRunId: fixture.context.actionRunId, ruleId: "support_qa.fetch" })).toMatchObject({ status: "completed", exitCode: 0 });
+      await client.releaseTerminal({ sessionId: "session_1", terminalId: created.terminalId });
+    } finally {
+      await client.close();
+      await Promise.all([
+        rm(fixture.root, { recursive: true, force: true }),
+        rm(fixture.scratchDir, { recursive: true, force: true }),
+      ]);
+    }
+  });
 
-    const request = kimi038PermissionRequest(toolCallId);
-    await expect(client.requestPermission(request)).resolves.toEqual({
-      outcome: { outcome: "selected", optionId: "approve" },
+  it("enforces output limits, non-zero errors, one active process, and disconnect cleanup", async () => {
+    const audits: Array<Record<string, unknown>> = [];
+    const policy = fixedPolicy({
+      executable: "/bin/sh",
+      args: ["-c", "printf '0123456789'; sleep 5; exit 7"],
+      outputByteLimit: 5,
+      timeoutMs: 60_000,
+      record: (entry) => audits.push(entry),
     });
-    await expect(client.requestPermission(request)).resolves.toEqual({
-      outcome: { outcome: "selected", optionId: "approve" },
-    });
-    expect(emit).toHaveBeenCalledWith(expect.objectContaining({
-      event: "acp.session.update",
-      data: expect.objectContaining({ sessionId: "session_1" }),
+    const client = createKimiAcpCollectingClient(vi.fn(), undefined, policy);
+    const first = await client.createTerminal({ sessionId: "session_1", command: "approved" });
+    await expect(client.createTerminal({ sessionId: "session_1", command: "approved" })).rejects.toThrow("ACP_TERMINAL_BUSY");
+    let output = await client.terminalOutput({ sessionId: "session_1", terminalId: first.terminalId });
+    for (let attempt = 0; attempt < 20 && !output.output; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      output = await client.terminalOutput({ sessionId: "session_1", terminalId: first.terminalId });
+    }
+    expect(output).toMatchObject({ output: "56789", truncated: true });
+    await client.close();
+    expect(audits).toEqual(expect.arrayContaining([expect.objectContaining({ status: "started" }), expect.objectContaining({ status: "failed" })]));
+  });
+
+  it("returns stable timeout and non-zero exit errors", async () => {
+    const timeoutClient = createKimiAcpCollectingClient(vi.fn(), undefined, fixedPolicy({
+      executable: "/bin/sleep",
+      args: ["5"],
+      timeoutMs: 20,
     }));
+    const timed = await timeoutClient.createTerminal({ sessionId: "s", command: "approved" });
+    await expect(timeoutClient.waitForTerminalExit({ sessionId: "s", terminalId: timed.terminalId })).rejects.toThrow("ACP_TERMINAL_TIMEOUT");
+    await timeoutClient.close();
+
+    const failedClient = createKimiAcpCollectingClient(vi.fn(), undefined, fixedPolicy({
+      executable: "/usr/bin/false",
+      args: [],
+    }));
+    const failed = await failedClient.createTerminal({ sessionId: "s", command: "approved" });
+    await expect(failedClient.waitForTerminalExit({ sessionId: "s", terminalId: failed.terminalId })).rejects.toThrow("ACP_TERMINAL_NONZERO_EXIT");
+    await failedClient.close();
   });
 
-  it("waits for Kimi's delayed rawInput before evaluating the permission", async () => {
-    const command = "bash .agents/skills/write-support-qa/scripts/write-support-qa.sh fetch LT-10 --json";
-    const client = createKimiAcpCollectingClient(
-      vi.fn(),
-      createAcpKimiPermissionHandler({
-        actionKey: "lark-ticket-support-qa-summarize",
-        executionPolicy: "shell",
-        workspaceDir: "/srv/odoo/eu",
-        octoServerDir: "/srv/octo/server",
-        skillId: "support_qa_query",
-        ticketNumber: "LT-10",
-      }),
-    );
-    const toolCallId = "12:delayed";
-    const permission = client.requestPermission(kimi038PermissionRequest(toolCallId));
+  it("kills and releases a running terminal and requires a new action session for legacy writes", async () => {
+    const client = createKimiAcpCollectingClient(vi.fn(), undefined, fixedPolicy({
+      executable: "/bin/sleep",
+      args: ["5"],
+    }));
+    const running = await client.createTerminal({ sessionId: "s", command: "approved" });
+    await expect(client.killTerminal({ sessionId: "s", terminalId: running.terminalId })).resolves.toEqual({});
+    await expect(client.waitForTerminalExit({ sessionId: "s", terminalId: running.terminalId })).rejects.toThrow("ACP_TERMINAL_NONZERO_EXIT");
+    await expect(client.releaseTerminal({ sessionId: "s", terminalId: running.terminalId })).resolves.toEqual({});
 
-    await client.sessionUpdate({
-      sessionId: "session_1",
-      update: {
-        sessionUpdate: "tool_call_update",
-        toolCallId,
-        rawInput: { command },
-        status: "in_progress",
-      },
-    } as SessionNotification);
-
-    await expect(permission).resolves.toEqual({
-      outcome: { outcome: "selected", optionId: "approve" },
+    const legacy = createKimiAcpCollectingClient(vi.fn(), undefined, {
+      ...fixedPolicy({ executable: "/usr/bin/true", args: [] }),
+      permissionUpgradeRequired: true,
     });
+    await expect(legacy.writeTextFile({ sessionId: "s", path: "/tmp/never", content: "x" })).rejects.toThrow("ACP_SESSION_PERMISSION_UPGRADE_REQUIRED");
+    await expect(legacy.createTerminal({ sessionId: "s", command: "approved" })).rejects.toThrow("ACP_SESSION_PERMISSION_UPGRADE_REQUIRED");
+    await legacy.close();
   });
 
-  it("keeps missing, cross-id, and conflicting Kimi 0.38 permission evidence denied", async () => {
-    const command = "bash .agents/skills/write-support-qa/scripts/write-support-qa.sh fetch LT-10 --json";
-    const client = createKimiAcpCollectingClient(
-      vi.fn(),
-      createAcpKimiPermissionHandler({
-        executionPolicy: "shell",
-        workspaceDir: "/srv/odoo/eu",
-        octoServerDir: "/srv/octo/server",
-        skillId: "support_qa_query",
-        ticketNumber: "LT-10",
-      }),
-    );
-
-    await client.sessionUpdate({
-      sessionId: "session_1",
-      update: {
-        sessionUpdate: "tool_call",
-        toolCallId: "12:tool_1",
-        rawInput: { command },
-      },
-    } as SessionNotification);
-
-    await expect(client.requestPermission(kimi038PermissionRequest("12:other"))).resolves.toEqual({
-      outcome: { outcome: "cancelled" },
-    });
-    const conflicting = kimi038PermissionRequest("12:tool_1");
-    await expect(client.requestPermission({
-      ...conflicting,
-      toolCall: {
-        ...conflicting.toolCall,
-        rawInput: {
-          command: "bash .agents/skills/write-support-qa/scripts/write-support-qa.sh fetch LT-11 --json",
-        },
-      },
-    })).resolves.toEqual({ outcome: { outcome: "cancelled" } });
+  it("writes allowed text files with mode 0600", async () => {
+    const fixture = await createTerminalFixture("");
+    const policy = createAcpKimiClientCapabilityPolicy(fixture.context);
+    const client = createKimiAcpCollectingClient(vi.fn(), undefined, policy);
+    const path = join(fixture.scratchDir, "draft.json");
+    try {
+      await client.writeTextFile({ sessionId: "session_1", path, content: "{}" });
+      expect((await stat(path)).mode & 0o777).toBe(0o600);
+    } finally {
+      await client.close();
+      await Promise.all([
+        rm(fixture.root, { recursive: true, force: true }),
+        rm(fixture.scratchDir, { recursive: true, force: true }),
+      ]);
+    }
   });
 });
 
-function kimi038PermissionRequest(toolCallId: string): RequestPermissionRequest {
+async function createTerminalFixture(scriptBody: string) {
+  const root = await mkdtemp(join(tmpdir(), "octo-acp-runtime-"));
+  const workspaceDir = join(root, "workspace");
+  const actionRunId = `action_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  const scratchDir = await ensureAcpKimiScratchDir(actionRunId);
+  const scriptPath = join(workspaceDir, FETCH_SCRIPT);
+  await mkdir(dirname(scriptPath), { recursive: true });
+  await writeFile(scriptPath, `#!/bin/bash\n${scriptBody}`);
   return {
-    sessionId: "session_1",
-    options: [
-      { optionId: "approve", name: "Approve once", kind: "allow_once" },
-      { optionId: "approve_for_session", name: "Approve for this session", kind: "allow_always" },
-      { optionId: "reject", name: "Reject", kind: "reject_once" },
-    ],
-    toolCall: {
-      toolCallId,
-      title: "Bash",
-      content: [{
-        type: "content",
-        content: {
-          type: "text",
-          text: "Requesting approval to Running: bash .agents/skills/write-support-qa/scripts/write-…",
-        },
-      }],
+    root,
+    workspaceDir,
+    scratchDir,
+    context: {
+      actionKey: "lark-ticket-support-qa-answer",
+      permissionProfileId: "support-qa.answer.v1" as const,
+      permissionProfileVersion: "1",
+      workspaceDir,
+      scratchDir,
+      ticketNumber: "TEN-10",
+      actionRunId,
     },
-  } as RequestPermissionRequest;
+  };
+}
+
+function fixedPolicy(input: {
+  executable: string;
+  args: string[];
+  timeoutMs?: number;
+  outputByteLimit?: number;
+  record?: (entry: Record<string, unknown>) => void;
+}): AcpKimiClientCapabilityPolicy {
+  return {
+    canReadTextFile: false,
+    canWriteTextFile: false,
+    canUseTerminal: true,
+    permissionUpgradeRequired: false,
+    authorizeTerminal: async () => ({
+      executable: input.executable,
+      args: input.args,
+      cwd: process.cwd(),
+      env: {},
+      ruleId: "test.rule",
+      timeoutMs: input.timeoutMs ?? 60_000,
+      outputByteLimit: input.outputByteLimit ?? 256 * 1024,
+    }),
+    allowsReadTextFile: async () => false,
+    allowsWriteTextFile: async () => false,
+    recordTerminalAudit: (entry) => input.record?.(entry),
+  };
 }

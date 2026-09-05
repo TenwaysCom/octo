@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { listLarkTicketAiSessions, loadLarkTicketAiSession, streamLarkTicketAiSession } from "./lark-ticket-ai-api.js";
+import { confirmLarkTicketEffectDraft, listLarkTicketAiSessions, listLarkTicketEffectDrafts, loadLarkTicketAiSession, streamLarkTicketAiSession } from "./lark-ticket-ai-api.js";
 
 const ticket = { baseId: "app_1", tableId: "tbl_1", recordId: "rec_1" };
 
@@ -65,4 +65,17 @@ test("starts a configured Ticket quick-action Session with its action key", asyn
     actionKey: "lark-ticket-support-qa-summarize",
     actionRunId: "run_1",
   });
+});
+
+test("lists and confirms only server-stored Ticket effect drafts", async () => {
+  const requests = [];
+  const fetchImpl = async (url, options = {}) => {
+    requests.push({ url, options });
+    return { ok: true, json: async () => ({ ok: true, data: options.method === "POST" ? { draftId: "draft_1", status: "completed" } : { drafts: [{ draftId: "draft_1", status: "pending" }] } }) };
+  };
+  assert.deepEqual(await listLarkTicketEffectDrafts({ apiBaseUrl: "/api", ticket, fetchImpl }), [{ draftId: "draft_1", status: "pending" }]);
+  assert.deepEqual(await confirmLarkTicketEffectDraft({ apiBaseUrl: "/api", ticket, draftId: "draft_1", actionRunId: "run_1", fetchImpl }), { draftId: "draft_1", status: "completed" });
+  assert.equal(requests[0].url, "/api/web/lark-tickets/rec_1/effect-drafts?baseId=app_1&tableId=tbl_1");
+  assert.equal(requests[1].url, "/api/web/lark-tickets/rec_1/effect-drafts/draft_1/confirm");
+  assert.deepEqual(JSON.parse(requests[1].options.body), { baseId: "app_1", tableId: "tbl_1", actionRunId: "run_1", confirmed: true });
 });

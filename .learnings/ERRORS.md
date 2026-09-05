@@ -776,3 +776,9 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Error:** 已初始化的 `pg-mem` 测试库再次调用 `ensurePostgresSchema()` 时，对 `CREATE TABLE IF NOT EXISTS ... PRIMARY KEY/NOT NULL` 报 `AST which parts have not been read by the query planner`。
 - **Fix:** 将待验证的数据迁移提成幂等的小函数，由 schema bootstrap 调用；单测直接调用该迁移函数，不为验证一条数据迁移而重复执行整套 DDL。
 - **source:** [DeepSeek 直连 Ticket 问题总结](../docs/tasks/ai-ticket/2026-09-04-deepseek-ticket-summary.md)
+
+### ERR-20260904-002 — Meegle Tech Task 创建无法提交服务端必填的角色成员
+
+- **Error:** `meegle workitem create` 在普通必填字段齐全时返回 `ErrFieldRequired`，要求 FE 角色；将服务端报错给出的完整 FE 角色键放入 `fields` 后又返回 `ErrInvalidParam: field keys not found`。
+- **Fix:** 当前 CLI 的创建命令只暴露 `fields`，角色操作仅在 `workitem update` 中可用。不要反复尝试短角色键、完整角色键或未支持的顶层参数；等待 CLI 支持创建时角色成员，或改用经用户允许的其他渠道。
+- **source:** [批量搜索 many2one Tech Task](../docs/tasks/platform-data/2026-09-04-create-batch-search-many2one-tech-task.md)

@@ -7,7 +7,7 @@ import { appendAiSessionEvent, createAiUserMessage, transcriptFromAiSessionEvent
 import { formatDateTime } from "../lib/formatters.js";
 import { LARK_TICKET_AI_QUICK_ACTIONS } from "../lib/lark-ticket-ai-actions.js";
 import { getTicketAiSections } from "../lib/ticket-ai-sections.js";
-import { confirmLarkTicketAiDraft, listLarkTicketAiSessions, loadLarkTicketAiSession, streamLarkTicketAiSession } from "../services/lark-ticket-ai/lark-ticket-ai-api.js";
+import { confirmLarkTicketEffectDraft, listLarkTicketAiSessions, listLarkTicketEffectDrafts, loadLarkTicketAiSession, streamLarkTicketAiSession } from "../services/lark-ticket-ai/lark-ticket-ai-api.js";
 import { loadLarkTicketSharedUrl } from "../services/lark-ticket/lark-ticket-api.js";
 import { getPlatformDataList } from "../services/platform-data/platform-data-api.js";
 
@@ -71,11 +71,12 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
   const [state, setState] = useState({ status: "loading", ticket: undefined });
   const [sharedUrlStatus, setSharedUrlStatus] = useState("idle");
   const [aiSessions, setAiSessions] = useState({ status: "idle", items: [], error: "" });
+  const [effectDrafts, setEffectDrafts] = useState({ status: "idle", items: [], error: "" });
   const [newSessionDraft, setNewSessionDraft] = useState("");
   const [drawer, setDrawer] = useState(null);
   const [drawerDraft, setDrawerDraft] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
-  const [isSendingDraft, setIsSendingDraft] = useState(false);
+  const [isConfirmingEffect, setIsConfirmingEffect] = useState(false);
   const [expandedTicketAiSectionId, setExpandedTicketAiSectionId] = useState(null);
 
   useEffect(() => {
@@ -122,6 +123,19 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
     }
   }
 
+  async function refreshEffectDrafts() {
+    if (!ticket) return [];
+    setEffectDrafts((current) => ({ ...current, status: "loading", error: "" }));
+    try {
+      const items = await listLarkTicketEffectDrafts({ apiBaseUrl, ticket });
+      setEffectDrafts({ status: "ready", items, error: "" });
+      return items;
+    } catch {
+      setEffectDrafts((current) => ({ ...current, status: "error", error: "待确认操作暂时无法读取。" }));
+      return [];
+    }
+  }
+
   useEffect(() => {
     if (!ticket) return undefined;
     let active = true;
@@ -133,15 +147,27 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
     return () => { active = false; };
   }, [apiBaseUrl, ticket?.baseId, ticket?.recordId, ticket?.tableId]);
 
+  useEffect(() => {
+    if (!ticket) return undefined;
+    let active = true;
+    setEffectDrafts({ status: "loading", items: [], error: "" });
+    void listLarkTicketEffectDrafts({ apiBaseUrl, ticket }).then(
+      (items) => { if (active) setEffectDrafts({ status: "ready", items, error: "" }); },
+      () => { if (active) setEffectDrafts({ status: "error", items: [], error: "待确认操作暂时无法读取。" }); },
+    );
+    return () => { active = false; };
+  }, [apiBaseUrl, ticket?.baseId, ticket?.recordId, ticket?.tableId]);
+
   async function openAiSession(session) {
     if (!ticket) return;
-    setDrawer({ sessionId: session.sessionId, title: session.title, actionKey: session.actionKey || null, oneShot: false, verificationStatus: session.runStatus === "failed" ? "unverified" : "verified", status: "loading", messages: [], error: "", lastMessage: "" });
+    const effectDraft = effectDrafts.items.find((draft) => draft.sessionId === session.sessionId) || null;
+    setDrawer({ sessionId: session.sessionId, title: session.title, actionKey: session.actionKey || null, effectDraft, oneShot: false, verificationStatus: session.runStatus === "failed" ? "unverified" : "verified", status: "loading", messages: [], error: "", lastMessage: "" });
     setDrawerDraft("");
     try {
       const loaded = await loadLarkTicketAiSession({ apiBaseUrl, ticket, sessionId: session.sessionId });
-      setDrawer({ sessionId: loaded.sessionId, title: session.title, actionKey: session.actionKey || null, oneShot: false, verificationStatus: session.runStatus === "failed" ? "unverified" : "verified", status: "ready", messages: transcriptFromAiSessionEvents(loaded.events), error: session.runStatus === "failed" ? session.errorMessage || "证据校验未完成，当前内容仅作为未验证草稿保留。" : "", lastMessage: "" });
+      setDrawer({ sessionId: loaded.sessionId, title: session.title, actionKey: session.actionKey || null, effectDraft, oneShot: false, verificationStatus: session.runStatus === "failed" ? "unverified" : "verified", status: "ready", messages: transcriptFromAiSessionEvents(loaded.events), error: session.runStatus === "failed" ? session.errorMessage || "证据校验未完成，当前内容仅作为未验证草稿保留。" : "", lastMessage: "" });
     } catch (error) {
-      setDrawer({ sessionId: session.sessionId, title: session.title, actionKey: session.actionKey || null, oneShot: false, verificationStatus: session.runStatus === "failed" ? "unverified" : "verified", status: "error", messages: [], error: error.message || "AI Session 无法打开。", lastMessage: "" });
+      setDrawer({ sessionId: session.sessionId, title: session.title, actionKey: session.actionKey || null, effectDraft, oneShot: false, verificationStatus: session.runStatus === "failed" ? "unverified" : "verified", status: "error", messages: [], error: error.message || "AI Session 无法打开。", lastMessage: "" });
     }
   }
 
@@ -171,12 +197,18 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
         onEvent: (event) => setDrawer((current) => current ? {
           ...current,
           sessionId: event.event === "session.created" ? event.data.sessionId : current.sessionId,
+          effectDraft: event.event === "effect.draft.created" ? { ...event.data, payload: null } : current.effectDraft,
           status: event.event === "done" ? "ready" : "generating",
           verificationStatus: event.event === "done" ? "verified" : current.verificationStatus,
           messages: appendAiSessionEvent(current.messages, event),
         } : current),
       });
       void refreshAiSessions();
+      const drafts = await refreshEffectDrafts();
+      setDrawer((current) => current ? {
+        ...current,
+        effectDraft: drafts.find((draft) => draft.draftId === current.effectDraft?.draftId || draft.sessionId === current.sessionId) || current.effectDraft,
+      } : current);
     } catch (error) {
       const unverified = UNVERIFIED_AI_ERROR_CODES.has(error.code);
       setDrawer((current) => current ? { ...current, status: "error", verificationStatus: unverified ? "unverified" : current.verificationStatus, error: error.message || "AI Session 启动失败。" } : current);
@@ -212,16 +244,16 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
     await streamAiSession({ message: request, sessionId: drawer.sessionId || undefined, title: drawer.title });
   }
 
-  async function confirmDraftSend() {
-    const draft = [...(drawer?.messages || [])].reverse().find((entry) => entry.kind === "assistant" && entry.text)?.text;
-    if (!ticket || !drawer?.sessionId || !draft || !window.confirm("确认将这份回复草案发送到当前 Lark Ticket thread？")) return;
-    setIsSendingDraft(true);
+  async function confirmEffectDraft(draft) {
+    if (!ticket || !draft?.draftId || !draft.actionRunId || !window.confirm("确认执行这份已保存的操作草稿？")) return;
+    setIsConfirmingEffect(true);
     try {
-      await confirmLarkTicketAiDraft({ apiBaseUrl, ticket, sessionId: drawer.sessionId, draft, actionRunId: crypto.randomUUID() });
-      setDrawer((current) => current ? { ...current, draftSent: true } : current);
+      const confirmed = await confirmLarkTicketEffectDraft({ apiBaseUrl, ticket, draftId: draft.draftId, actionRunId: draft.actionRunId });
+      setDrawer((current) => current?.effectDraft?.draftId === confirmed.draftId ? { ...current, effectDraft: confirmed } : current);
+      await refreshEffectDrafts();
     } catch (error) {
-      setDrawer((current) => current ? { ...current, status: "error", error: error.message || "回复草案发送失败。" } : current);
-    } finally { setIsSendingDraft(false); }
+      setDrawer((current) => current ? { ...current, status: "error", error: error.message || "操作草稿确认失败。" } : current);
+    } finally { setIsConfirmingEffect(false); }
   }
 
   if (state.status === "loading") {
@@ -316,6 +348,19 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
               </form>
             </div>
           </section>
+
+          <section className="ticket-detail-section ticket-effect-drafts">
+            <div className="ticket-section-heading"><h2>待确认操作</h2><span>{effectDrafts.items.filter((draft) => draft.status !== "completed").length} 项</span></div>
+            {effectDrafts.status === "loading" ? <p className="ticket-section-empty">正在加载操作草稿…</p> : null}
+            {effectDrafts.status === "error" ? <p className="ticket-ai-session-error">{effectDrafts.error}</p> : null}
+            {effectDrafts.status === "ready" && !effectDrafts.items.length ? <p className="ticket-section-empty">暂无待确认操作。</p> : null}
+            {effectDrafts.items.map((draft) => <div className="ticket-effect-draft" key={draft.draftId}>
+              <div><strong>{draft.effectType === "answer_feedback" ? "Answer 反馈" : "Ticket AI 更新"}</strong><small>{draft.status} · 快照 v{draft.snapshotVersion}</small></div>
+              <pre>{JSON.stringify(draft.payload, null, 2)}</pre>
+              {draft.status !== "completed" && draft.status !== "outcome_unknown" ? <button type="button" onClick={() => void confirmEffectDraft(draft)} disabled={isConfirmingEffect}>{isConfirmingEffect ? "正在确认…" : "确认执行"}</button> : null}
+              {draft.status === "outcome_unknown" ? <p>外部写入结果未知，已禁止自动重试。</p> : null}
+            </div>)}
+          </section>
         </article>
 
         <aside className="ticket-detail__properties" aria-label="Ticket 属性">
@@ -341,14 +386,15 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
           {drawer.messages.length ? drawer.messages.map((entry, index) => <AiSessionMessage entry={entry} key={entry.id || `${entry.kind}-${index}`} />) : null}
           {drawer.status === "generating" ? <p className="ticket-ai-generating">{drawer.oneShot ? "DeepSeek 正在生成总结…" : "Kimi 正在生成回复…"}</p> : null}
           {drawer.status === "error" ? <div className="ticket-ai-drawer__error"><p>{drawer.error}</p>{drawer.lastMessage || drawer.actionKey ? <button type="button" onClick={() => void streamAiSession({ message: drawer.lastMessage || drawer.title, sessionId: drawer.oneShot || drawer.verificationStatus === "unverified" ? undefined : drawer.sessionId || undefined, actionKey: drawer.oneShot || drawer.verificationStatus === "unverified" ? drawer.actionKey || undefined : undefined, oneShot: drawer.oneShot, title: drawer.title })} disabled={isStreaming}>重新执行</button> : null}</div> : null}
+          {drawer.effectDraft ? <div className="ticket-ai-drawer__effect-draft"><strong>待确认操作：{drawer.effectDraft.effectType === "answer_feedback" ? "Answer 反馈" : "Ticket AI 更新"}</strong><pre>{drawer.effectDraft.payload ? JSON.stringify(drawer.effectDraft.payload, null, 2) : "正在读取草稿…"}</pre></div> : null}
         </div>
         {drawer.oneShot ? drawer.status === "ready" ? <p className="ticket-ai-drawer__sent">问题总结已写入 Ticket AI；如需更新，请重新执行该 Quick Action。</p> : null : <form className="ticket-ai-drawer__composer" onSubmit={continueAiSession}>
           <label className="visually-hidden" htmlFor="ticket-ai-followup">继续对话</label>
           <textarea id="ticket-ai-followup" value={drawerDraft} onChange={(event) => setDrawerDraft(event.target.value)} placeholder={drawer.verificationStatus === "unverified" ? "请先重新执行受控动作" : "继续这个 AI Session…"} rows="2" disabled={isStreaming || drawer.status === "loading" || drawer.verificationStatus === "unverified"} />
           <button type="submit" disabled={isStreaming || drawer.status === "loading" || drawer.verificationStatus === "unverified" || !drawerDraft.trim()}>发送 ↑</button>
         </form>}
-        {drawer.actionKey === "lark-ticket-support-qa-answer" && drawer.verificationStatus !== "unverified" && !drawer.draftSent && drawer.messages.some((entry) => entry.kind === "assistant" && entry.text) ? <button className="ticket-ai-drawer__confirm-send" type="button" onClick={() => void confirmDraftSend()} disabled={isStreaming || isSendingDraft}>{isSendingDraft ? "正在发送…" : "确认发送回复草案"}</button> : null}
-        {drawer.draftSent ? <p className="ticket-ai-drawer__sent">回复草案已发送到当前 Ticket thread。</p> : null}
+        {drawer.effectDraft && drawer.effectDraft.status !== "completed" && drawer.effectDraft.status !== "outcome_unknown" ? <button className="ticket-ai-drawer__confirm-send" type="button" onClick={() => void confirmEffectDraft(drawer.effectDraft)} disabled={isStreaming || isConfirmingEffect}>{isConfirmingEffect ? "正在确认…" : "确认执行操作草稿"}</button> : null}
+        {drawer.effectDraft?.status === "completed" ? <p className="ticket-ai-drawer__sent">操作草稿已执行并完成读回校验。</p> : null}
       </aside>
     </div> : null}
   </WorkspaceShell>;

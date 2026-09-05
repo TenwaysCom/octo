@@ -1,8 +1,8 @@
 # ACP 设计
 
-> Current Octo ACP source of truth.
+> Historical PM Analysis ACP V1 baseline.
 >
-> `docs/reference-acp/` is external reference material only. This document defines the current Octo ACP V1 boundary together with the engineering rules under [`docs/ai-dev/`](../ai-dev/README.md).
+> `docs/reference-acp/` is external reference material only. The current Kimi Ticket ACP permission, Terminal and effect-draft boundary is documented in [`it-platform-sync.md`](./it-platform-sync.md) and the engineering rules under [`docs/ai-dev/`](../ai-dev/README.md).
 
 ## 1. 文档目标
 

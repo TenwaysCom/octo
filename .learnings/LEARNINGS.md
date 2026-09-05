@@ -615,3 +615,10 @@ source: [Ticket 问题总结与 Shadow Worker 共用 ZCode Provider](../docs/tas
 - **Context:** Meegle 工作项筛选协议按 Sprint 名称传值，而 Sprint 快照与成员历史按 `projectKey + sprintId` 标识；同名 Sprint 可能来自多个项目或多个稳定 ID。
 - **Rule:** 在名称型筛选中合并 Sprint 统计时，先按稳定 ID 构建每个 Sprint 摘要，再显式按筛选协议的名称聚合 Scope/状态统计并重新计算百分比。当前列表命中数和完整 Sprint 历史 Scope 必须分开展示，不能把分页内计数冒充完整 Scope。
 - **Verified outcome:** Sprint 标签按名称自然倒序，同名 Sprint 统计可复核地求和，右侧“当前列表 N 项”与“完成 X/Y”并列但语义独立；FE 31/31 测试文件和 production build 通过。
+
+## [LRN-20260904-001] acp-command-authorization-must-precede-real-terminal-execution
+
+- **Context:** Support-QA 曾用 permission 标题、延迟到达的 tool-call 参数和专用 execute MCP 弥补 ACP Terminal 缺失，导致“批准了 Bash”和“完整命令已校验并执行成功”被混为一谈；本规则取代 LRN-20260902-002 与 LRN-20260902-005 的临时方案。
+- **Rule:** 模型命令只能通过标准 ACP Terminal，在启动前用完整输入规范化为 argv，并绑定 Action、版本化 Profile、Ticket、action run、cwd、真实脚本和参数白名单；以 `shell: false` 执行并用实际退出状态记账。权限标题、摘要、tool-call 文本及 MCP 调用均不得作为授权或成功证据。
+
+source: [ACP 权限重构任务](../docs/tasks/acp/2026-08-24-lark-ticket-ai-session-permissions.md)

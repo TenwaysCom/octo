@@ -1,7 +1,7 @@
 import type {
   AutomationActionConfig,
-  AutomationExecutionPolicy,
 } from "./public-config.controller.js";
+import type { AcpKimiPermissionProfileId } from "../../domain/acp-kimi-permission-profile.js";
 
 export interface AutomationSkillProfileConfig {
   workspaceEnv: string;
@@ -34,7 +34,7 @@ export interface KimiTicketAiAutomationActionConfig extends TicketAiAutomationAc
   provider: "kimi_acp";
   skillProfile: keyof typeof AUTOMATION_SKILL_PROFILES;
   skillId: string;
-  executionPolicy: AutomationExecutionPolicy;
+  permissionProfileId: AcpKimiPermissionProfileId;
 }
 
 export interface TicketSummaryTicketAiAutomationActionConfig extends TicketAiAutomationActionBase {
@@ -48,7 +48,7 @@ export type TicketAiAutomationActionConfig =
 export interface SprintAiAutomationActionConfig extends AutomationActionConfig {
   executor: Extract<AutomationActionConfig["executor"], { type: "backend_api" }>;
   promptKey: string;
-  executionPolicy: AutomationExecutionPolicy;
+  permissionProfileId: AcpKimiPermissionProfileId;
   requiresConfirmation: boolean;
 }
 
@@ -67,7 +67,7 @@ export const AUTOMATION_ACTIONS = {
       route: "/api/web/meegle-sprints/:sprintId/ai-sessions",
     },
     promptKey: "meegle.sprint.release_notes",
-    executionPolicy: "read_only",
+    permissionProfileId: "acp.chat-readonly.v1",
     requiresConfirmation: false,
   },
   meegleSprintInternalSummary: {
@@ -84,7 +84,7 @@ export const AUTOMATION_ACTIONS = {
       route: "/api/web/meegle-sprints/:sprintId/ai-sessions",
     },
     promptKey: "meegle.sprint.internal_summary",
-    executionPolicy: "read_only",
+    permissionProfileId: "acp.chat-readonly.v1",
     requiresConfirmation: false,
   },
   meegleSprintConfirmGaps: {
@@ -101,7 +101,7 @@ export const AUTOMATION_ACTIONS = {
       route: "/api/web/meegle-sprints/:sprintId/ai-sessions",
     },
     promptKey: "meegle.sprint.confirm_gaps",
-    executionPolicy: "read_only",
+    permissionProfileId: "acp.chat-readonly.v1",
     requiresConfirmation: false,
   },
   larkTicketSupportQaSummarize: {
@@ -138,7 +138,7 @@ export const AUTOMATION_ACTIONS = {
     provider: "kimi_acp",
     skillProfile: "support_qa_eu",
     skillId: "support_qa_query",
-    executionPolicy: "shell",
+    permissionProfileId: "support-qa.answer.v1",
     requiresConfirmation: false,
   },
   larkTicketSupportQaDocumentPreview: {
@@ -158,23 +158,8 @@ export const AUTOMATION_ACTIONS = {
     provider: "kimi_acp",
     skillProfile: "support_qa_eu",
     skillId: "support_qa_write",
-    executionPolicy: "write+shell",
+    permissionProfileId: "support-qa.document.v1",
     requiresConfirmation: false,
-  },
-  larkTicketSupportQaConfirmDraft: {
-    key: "lark-ticket-support-qa-confirm-draft",
-    title: "确认发送回复草案",
-    description: "人工确认后，将当前 Answer Session 的回复草案发送到 Ticket thread。",
-    style: "primary",
-    placements: [],
-    interaction: { type: "preview_confirm" },
-    executor: {
-      type: "backend_api",
-      operation: "lark_ticket.support_qa.confirm_draft",
-      method: "POST",
-      route: "/api/web/lark-tickets/:recordId/reply-drafts/confirm",
-    },
-    requiresConfirmation: true,
   },
   analyze: {
     key: "analyze",
@@ -434,7 +419,7 @@ export function getTicketAiAutomationAction(
     return undefined;
   }
   if (action.provider === "kimi_acp"
-    && (!("skillProfile" in action) || !("skillId" in action) || !("executionPolicy" in action))) {
+    && (!("skillProfile" in action) || !("skillId" in action) || !("permissionProfileId" in action))) {
     return undefined;
   }
   return action as TicketAiAutomationActionConfig;
@@ -448,7 +433,7 @@ export function getSprintAiAutomationAction(
   if (!action
     || !action.key.startsWith("meegle-sprint-")
     || !action.promptKey
-    || !action.executionPolicy
+    || !action.permissionProfileId
     || action.requiresConfirmation === undefined
     || action.executor.type !== "backend_api") {
     return undefined;

@@ -22,13 +22,13 @@ describe("ticket AI automation actions", () => {
       provider: "kimi_acp",
       skillProfile: "support_qa_eu",
       skillId: "support_qa_query",
-      executionPolicy: "shell",
+      permissionProfileId: "support-qa.answer.v1",
     });
     expect(getTicketAiAutomationAction("lark-ticket-support-qa-document-preview")).toMatchObject({
       promptKey: "lark_ticket.support_qa.document_preview",
       provider: "kimi_acp",
       skillId: "support_qa_write",
-      executionPolicy: "write+shell",
+      permissionProfileId: "support-qa.document.v1",
     });
     expect(getTicketAiAutomationAction("update-lark-and-push")).toBeUndefined();
   });
@@ -38,7 +38,7 @@ describe("Sprint AI automation actions", () => {
   it("uses the workflow prompt without a workspace Skill profile", () => {
     expect(getSprintAiAutomationAction("meegle-sprint-release-notes")).toEqual(expect.objectContaining({
       promptKey: "meegle.sprint.release_notes",
-      executionPolicy: "read_only",
+      permissionProfileId: "acp.chat-readonly.v1",
       requiresConfirmation: false,
     }));
     expect(getSprintAiAutomationAction("meegle-sprint-internal-summary")).toEqual(expect.objectContaining({

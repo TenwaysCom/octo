@@ -105,6 +105,8 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .addColumn("runtime_host_name", "text")
     .addColumn("kimi_work_dir", "text")
     .addColumn("automation_action_key", "text")
+    .addColumn("permission_profile_id", "text")
+    .addColumn("permission_profile_version", "text")
     .addColumn("execution_policy", "text")
     .addColumn("skill_profile", "text")
     .addColumn("skill_id", "text")
@@ -525,20 +527,26 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .addColumn("updated_at", "text", (column) => column.notNull())
     .addUniqueConstraint("lark_ticket_eval_samples_ticket_snapshot", ["base_id", "table_id", "record_id", "snapshot_version"])
     .execute();
-  await db.schema.createTable("support_ticket_reply_drafts").ifNotExists()
+  await db.schema.createTable("support_ticket_effect_drafts").ifNotExists()
     .addColumn("id", "text", (column) => column.primaryKey())
+    .addColumn("effect_type", "text", (column) => column.notNull())
     .addColumn("base_id", "text", (column) => column.notNull())
     .addColumn("table_id", "text", (column) => column.notNull())
     .addColumn("record_id", "text", (column) => column.notNull())
     .addColumn("session_id", "text", (column) => column.notNull())
     .addColumn("operator_lark_id", "text", (column) => column.notNull())
-    .addColumn("draft_hash", "text", (column) => column.notNull())
+    .addColumn("action_run_id", "text", (column) => column.notNull())
+    .addColumn("permission_profile_id", "text", (column) => column.notNull())
+    .addColumn("snapshot_version", "integer", (column) => column.notNull())
+    .addColumn("payload_json", "text", (column) => column.notNull())
+    .addColumn("payload_hash", "text", (column) => column.notNull())
     .addColumn("status", "text", (column) => column.notNull())
-    .addColumn("sent_message_id", "text")
-    .addColumn("action_run_id", "text")
+    .addColumn("external_ref", "text")
+    .addColumn("error_code", "text")
+    .addColumn("error_message", "text")
     .addColumn("created_at", "text", (column) => column.notNull())
     .addColumn("updated_at", "text", (column) => column.notNull())
-    .addUniqueConstraint("support_ticket_reply_drafts_idempotency", ["base_id", "table_id", "record_id", "session_id", "draft_hash"])
+    .addUniqueConstraint("support_ticket_effect_drafts_idempotency", ["session_id", "action_run_id", "payload_hash"])
     .execute();
   await db.schema.createTable("support_knowledge_documents").ifNotExists()
     .addColumn("id", "text", (column) => column.primaryKey())
@@ -922,7 +930,7 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
   for (const column of ["runtime_host_name", "kimi_work_dir"]) {
     await sql.raw(`ALTER TABLE acp_kimi_session_owners ADD COLUMN IF NOT EXISTS ${column} text`).execute(db);
   }
-  for (const column of ["automation_action_key", "execution_policy", "skill_profile", "skill_id", "policy_version"]) {
+  for (const column of ["automation_action_key", "execution_policy", "skill_profile", "skill_id", "policy_version", "permission_profile_id", "permission_profile_version"]) {
     await sql.raw(`ALTER TABLE acp_kimi_session_owners ADD COLUMN IF NOT EXISTS ${column} text`).execute(db);
   }
   for (const column of ["thread_id", "thread_context_synced_at"]) {

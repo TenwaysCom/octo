@@ -17,11 +17,16 @@ import {
 } from "../../adapters/postgres/acp-kimi-session-ownership-store.js";
 import { logger } from "../../logger.js";
 import {
+  buildAcpKimiScratchDir,
   createAcpKimiClientCapabilityPolicy,
   createAcpKimiPermissionHandler,
   type AcpKimiPermissionContext,
 } from "./acp-kimi-permission-policy.js";
-import { buildAcpKimiExecuteMcpServers } from "./acp-kimi-execute-mcp-config.js";
+import {
+  ACP_CHAT_ACTION_KEY,
+  getAcpKimiPermissionProfile,
+  isAcpKimiPermissionProfileId,
+} from "../../domain/acp-kimi-permission-profile.js";
 
 const acpKimiProxyLogger = logger.child({ module: "acp-kimi-proxy" });
 
@@ -311,26 +316,31 @@ async function createOwnedSession(
   permissionContext: AcpKimiPermissionContext | undefined,
   signal?: AbortSignal,
 ): Promise<KimiSessionRecord> {
+  const effectivePermissionContext: AcpKimiPermissionContext = permissionContext ?? {
+    actionKey: ACP_CHAT_ACTION_KEY,
+    permissionProfileId: "acp.chat-readonly.v1" as const,
+    permissionProfileVersion: getAcpKimiPermissionProfile("acp.chat-readonly.v1")!.version,
+  };
   const runtimeLocation = getRuntimeLocation();
-  const workDir = permissionContext?.workspaceDir ?? runtimeLocation.kimiWorkDir;
+  const workDir = effectivePermissionContext.workspaceDir ?? runtimeLocation.kimiWorkDir;
   acpKimiProxyLogger.info({
     operatorLarkId,
     cwd: workDir,
-    actionKey: permissionContext?.actionKey ?? null,
-    executionPolicy: permissionContext?.executionPolicy ?? "read_only",
+    actionKey: effectivePermissionContext.actionKey,
+    permissionProfileId: effectivePermissionContext.permissionProfileId,
+    permissionProfileVersion: effectivePermissionContext.permissionProfileVersion,
   }, "ACP_KIMI_CREATE_SESSION START");
   const runtime = await createSessionRuntime({
     cwd: workDir,
-    capabilityPolicy: createAcpKimiClientCapabilityPolicy(permissionContext),
-    mcpServers: buildAcpKimiExecuteMcpServers(permissionContext),
-    permissionHandler: createAcpKimiPermissionHandler(permissionContext),
+    capabilityPolicy: createAcpKimiClientCapabilityPolicy(effectivePermissionContext),
+    permissionHandler: createAcpKimiPermissionHandler(effectivePermissionContext),
     signal,
   });
   const session = {
     sessionId: runtime.sessionId,
     operatorLarkId,
     runtime,
-    permissionContext,
+    permissionContext: effectivePermissionContext,
     busy: false,
   } satisfies KimiSessionRecord;
 
@@ -340,11 +350,12 @@ async function createOwnedSession(
     operatorLarkId,
     runtimeHostName: runtimeLocation.runtimeHostName,
     kimiWorkDir: workDir,
-    automationActionKey: permissionContext?.actionKey ?? null,
-    executionPolicy: permissionContext?.executionPolicy ?? null,
-    skillProfile: permissionContext?.skillProfile ?? null,
-    skillId: permissionContext?.skillId ?? null,
-    policyVersion: permissionContext?.policyVersion ?? null,
+    automationActionKey: effectivePermissionContext.actionKey,
+    permissionProfileId: effectivePermissionContext.permissionProfileId,
+    permissionProfileVersion: effectivePermissionContext.permissionProfileVersion,
+    skillProfile: effectivePermissionContext.skillProfile ?? null,
+    skillId: effectivePermissionContext.skillId ?? null,
+    actionRunId: effectivePermissionContext.actionRunId ?? null,
   });
   acpKimiProxyLogger.info({
     operatorLarkId,
@@ -421,7 +432,6 @@ async function getOwnedSession(
     sessionId,
     cwd: ownership.kimiWorkDir ?? process.cwd(),
     capabilityPolicy: createAcpKimiClientCapabilityPolicy(permissionContext),
-    mcpServers: buildAcpKimiExecuteMcpServers(permissionContext),
     permissionHandler: createAcpKimiPermissionHandler(permissionContext),
   });
   const restoredSession = {
@@ -447,22 +457,22 @@ function toPermissionContext(
   if (!ownership) {
     return undefined;
   }
+  const permissionProfileId = isAcpKimiPermissionProfileId(ownership.permissionProfileId)
+    ? ownership.permissionProfileId
+    : null;
   return {
     actionKey: ownership.automationActionKey,
-    executionPolicy: isExecutionPolicy(ownership.executionPolicy)
-      ? ownership.executionPolicy
-      : "read_only",
+    permissionProfileId,
+    permissionProfileVersion: ownership.permissionProfileVersion,
     workspaceDir: ownership.kimiWorkDir,
-    octoServerDir: process.env.OCTO_SERVER_DIR?.trim() || null,
+    scratchDir: ownership.actionRunId ? buildAcpKimiScratchDir(ownership.actionRunId) : null,
     skillProfile: ownership.skillProfile,
     skillId: ownership.skillId,
     ticketNumber: ownership.ticketNumber,
-    policyVersion: ownership.policyVersion,
+    ticketRecordId: ownership.ticketRecordId,
+    actionRunId: ownership.actionRunId,
+    legacySession: !permissionProfileId,
   };
-}
-
-function isExecutionPolicy(value: string | null): value is NonNullable<AcpKimiPermissionContext["executionPolicy"]> {
-  return value === "read_only" || value === "shell" || value === "write+shell" || value === "full";
 }
 
 function isAbortError(error: unknown): boolean {

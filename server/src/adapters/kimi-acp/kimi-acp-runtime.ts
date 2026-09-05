@@ -4,8 +4,10 @@ import type {
   RequestPermissionResponse,
   SessionNotification,
 } from "@agentclientprotocol/sdk";
-import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
-import { readFile, writeFile } from "node:fs/promises";
+import { spawn, type ChildProcessByStdio, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import { chmod, readFile, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
 import { Readable, Writable } from "node:stream";
 import { buildKimiAcpRuntimeConfig, type KimiAcpSpawnConfig } from "./kimi-acp-config.js";
 import { cleanupAgentProcess } from "./process-lifecycle.js";
@@ -16,13 +18,15 @@ import type {
 } from "../../modules/acp-kimi/event-stream.js";
 import { logger } from "../../logger.js";
 import {
-  extractAcpKimiRawCommand,
+  AcpKimiCapabilityError,
   type AcpKimiClientCapabilityPolicy,
   type AcpKimiPermissionHandler,
 } from "../../application/services/acp-kimi-permission-policy.js";
 
 const kimiAcpRuntimeLogger = logger.child({ module: "kimi-acp-runtime" });
 const DEFAULT_KIMI_ACP_STARTUP_TIMEOUT_MS = 30_000;
+const TERMINAL_KILL_GRACE_MS = 1_000;
+export const KIMI_ACP_MCP_SERVERS: [] = [];
 
 export type KimiAcpRuntimeErrorCode =
   | "ACP_INITIALIZE_TIMEOUT"
@@ -43,12 +47,6 @@ export class KimiAcpRuntimeError extends Error {
 export interface KimiAcpConnection {
   initialize(): Promise<{
     protocolVersion: number;
-    agentCapabilities?: {
-      mcpCapabilities?: {
-        http?: boolean;
-        sse?: boolean;
-      };
-    };
   }>;
   newSession(input: { cwd: string }): Promise<{ sessionId: string }>;
   listSessions(input: {
@@ -74,7 +72,6 @@ export interface KimiAcpConnectionFactoryInput {
   cwd: string;
   emit(event: AcpKimiStreamEvent): void;
   capabilityPolicy?: AcpKimiClientCapabilityPolicy;
-  mcpServers?: acp.McpServer[];
   permissionHandler?: AcpKimiPermissionHandler;
   signal?: AbortSignal;
 }
@@ -89,7 +86,6 @@ export interface KimiAcpRuntimeDeps {
   ) => Promise<KimiAcpConnection> | KimiAcpConnection;
   emit?: (event: AcpKimiStreamEvent) => void;
   capabilityPolicy?: AcpKimiClientCapabilityPolicy;
-  mcpServers?: acp.McpServer[];
   permissionHandler?: AcpKimiPermissionHandler;
   signal?: AbortSignal;
   sessionId?: string;
@@ -136,7 +132,6 @@ export async function createKimiAcpSessionRuntime(
           emit(event);
         },
         capabilityPolicy: deps.capabilityPolicy,
-        mcpServers: deps.mcpServers,
         permissionHandler: deps.permissionHandler,
         signal: deps.signal,
       })
@@ -148,7 +143,6 @@ export async function createKimiAcpSessionRuntime(
             emit(event);
           },
           capabilityPolicy: deps.capabilityPolicy,
-          mcpServers: deps.mcpServers,
           permissionHandler: deps.permissionHandler,
           signal: deps.signal,
         },
@@ -378,12 +372,13 @@ async function createDefaultConnection(
     typeof acp.ClientSideConnection
   >[1];
 
+  const collectingClient = createKimiAcpCollectingClient(
+    input.emit,
+    input.permissionHandler,
+    input.capabilityPolicy,
+  );
   const connection = new acp.ClientSideConnection(
-    () => createKimiAcpCollectingClient(
-      input.emit,
-      input.permissionHandler,
-      input.capabilityPolicy,
-    ),
+    () => collectingClient,
     stream,
   );
 
@@ -400,14 +395,13 @@ async function createDefaultConnection(
             name: "tenways-octo-kimi",
             version: "0.1.0",
           },
-          clientCapabilities: input.capabilityPolicy
-            ? {
-                fs: {
-                  readTextFile: true,
-                  writeTextFile: true,
-                },
-              }
-            : {},
+          clientCapabilities: input.capabilityPolicy ? {
+            fs: {
+              readTextFile: input.capabilityPolicy.canReadTextFile,
+              writeTextFile: input.capabilityPolicy.canWriteTextFile,
+            },
+            terminal: input.capabilityPolicy.canUseTerminal,
+          } : {},
         });
       });
     },
@@ -420,7 +414,7 @@ async function createDefaultConnection(
         }, "KIMI_ACP_CONNECTION NEW_SESSION");
         return connection.newSession({
           cwd,
-          mcpServers: input.mcpServers ?? [],
+          mcpServers: KIMI_ACP_MCP_SERVERS,
         });
       });
     },
@@ -442,7 +436,7 @@ async function createDefaultConnection(
         return (await connection.loadSession({
           sessionId,
           cwd,
-          mcpServers: input.mcpServers ?? [],
+          mcpServers: KIMI_ACP_MCP_SERVERS,
         })) as Record<string, unknown>;
       });
     },
@@ -475,6 +469,7 @@ async function createDefaultConnection(
       kimiAcpRuntimeLogger.info({
         pid: agentProcess.pid,
       }, "KIMI_ACP_CONNECTION CLOSE");
+      await collectingClient.close();
       await cleanupAgentProcess(agentProcess as ChildProcessWithoutNullStreams);
     },
   } satisfies KimiAcpConnection;
@@ -759,29 +754,35 @@ function truncateLogValue(value: string, maxLength = 1_000): string {
   return `${value.slice(0, maxLength)}...`;
 }
 
-const MAX_PENDING_PERMISSION_EVIDENCE = 128;
-const PERMISSION_EVIDENCE_WAIT_MS = 1_000;
-
-interface PendingPermissionEvidence {
-  rawInput: unknown;
-  fingerprint?: string;
-  ambiguous: boolean;
-}
-
 export function createKimiAcpCollectingClient(
   emit: (event: AcpKimiStreamEvent) => void,
   permissionHandler?: AcpKimiPermissionHandler,
   capabilityPolicy?: AcpKimiClientCapabilityPolicy,
-): acp.Client {
+): CollectingClient {
   return new CollectingClient(emit, permissionHandler, capabilityPolicy);
 }
 
-class CollectingClient implements acp.Client {
-  private readonly pendingPermissionEvidence = new Map<string, PendingPermissionEvidence>();
-  private readonly pendingPermissionEvidenceWaiters = new Map<string, {
-    resolve: (evidence: PendingPermissionEvidence | undefined) => void;
-    timeout: ReturnType<typeof setTimeout>;
-  }>();
+interface TerminalExitResult {
+  exitCode: number | null;
+  signal: string | null;
+}
+
+interface RunningTerminal {
+  terminalId: string;
+  sessionId: string;
+  ruleId: string;
+  process: ChildProcessByStdio<null, Readable, Readable>;
+  output: Buffer;
+  outputByteLimit: number;
+  truncated: boolean;
+  exitStatus?: TerminalExitResult;
+  timedOut: boolean;
+  timeout: ReturnType<typeof setTimeout>;
+  completion: Promise<TerminalExitResult>;
+}
+
+export class CollectingClient implements acp.Client {
+  private readonly terminals = new Map<string, RunningTerminal>();
 
   constructor(
     private readonly emit: (event: AcpKimiStreamEvent) => void,
@@ -791,7 +792,7 @@ class CollectingClient implements acp.Client {
 
   async readTextFile(params: acp.ReadTextFileRequest): Promise<acp.ReadTextFileResponse> {
     if (!this.capabilityPolicy || !await this.capabilityPolicy.allowsReadTextFile(params)) {
-      throw new Error("ACP file read denied by capability policy.");
+      throw new AcpKimiCapabilityError("ACP_FILE_READ_DENIED", "File read denied by permission profile.");
     }
     const content = await readFile(params.path, "utf8");
     if (!params.line && !params.limit) return { content };
@@ -802,46 +803,22 @@ class CollectingClient implements acp.Client {
   }
 
   async writeTextFile(params: acp.WriteTextFileRequest): Promise<acp.WriteTextFileResponse> {
-    if (!this.capabilityPolicy || !await this.capabilityPolicy.allowsWriteTextFile(params)) {
-      throw new Error("ACP file write denied by capability policy.");
+    if (this.capabilityPolicy?.permissionUpgradeRequired) {
+      throw new AcpKimiCapabilityError("ACP_SESSION_PERMISSION_UPGRADE_REQUIRED", "Create a new Action session to use Write or Terminal.");
     }
-    await writeFile(params.path, params.content, "utf8");
+    if (!this.capabilityPolicy || !await this.capabilityPolicy.allowsWriteTextFile(params)) {
+      throw new AcpKimiCapabilityError("ACP_FILE_WRITE_DENIED", "File write denied by permission profile.");
+    }
+    await writeFile(params.path, params.content, { encoding: "utf8", mode: 0o600 });
+    await chmod(params.path, 0o600);
     return {};
   }
 
   async requestPermission(
     params: RequestPermissionRequest,
   ): Promise<RequestPermissionResponse> {
-    const evidenceKey = permissionEvidenceKey(params.sessionId, params.toolCall.toolCallId);
-    let evidence = this.takePermissionEvidence(evidenceKey);
-    if (!evidence && !hasRawInput(params.toolCall.rawInput)) {
-      evidence = await this.waitForPermissionEvidence(evidenceKey);
-    }
-
-    if (evidence?.ambiguous || hasPermissionEvidenceMismatch(params.toolCall.rawInput, evidence)) {
-      kimiAcpRuntimeLogger.warn({
-        sessionId: params.sessionId,
-        toolCallId: params.toolCall.toolCallId,
-        toolName: params.toolCall.title?.split(":", 1)[0]?.trim() ?? "",
-      }, "KIMI_ACP_PERMISSION EVIDENCE_MISMATCH");
-      return {
-        outcome: {
-          outcome: "cancelled" as const,
-        },
-      };
-    }
-
-    const request = evidence && !hasRawInput(params.toolCall.rawInput)
-      ? {
-          ...params,
-          toolCall: {
-            ...params.toolCall,
-            rawInput: evidence.rawInput,
-          },
-        }
-      : params;
     if (this.permissionHandler) {
-      return this.permissionHandler(request);
+      return this.permissionHandler(params);
     }
     return {
       outcome: {
@@ -851,7 +828,6 @@ class CollectingClient implements acp.Client {
   }
 
   async sessionUpdate(params: SessionNotification): Promise<void> {
-    this.trackPermissionEvidence(params);
     kimiAcpRuntimeLogger.info({
       sessionId: params.sessionId,
       sessionUpdate:
@@ -870,113 +846,209 @@ class CollectingClient implements acp.Client {
     } satisfies AcpKimiSessionUpdateEvent);
   }
 
-  private trackPermissionEvidence(params: SessionNotification): void {
-    const update = asRecord(params.update);
-    if (!update) {
-      return;
+  async createTerminal(params: acp.CreateTerminalRequest): Promise<acp.CreateTerminalResponse> {
+    if (this.capabilityPolicy?.permissionUpgradeRequired) {
+      throw new AcpKimiCapabilityError("ACP_SESSION_PERMISSION_UPGRADE_REQUIRED", "Create a new Action session to use Write or Terminal.");
     }
-    const sessionUpdate = update?.sessionUpdate;
-    const toolCallId = update?.toolCallId;
-    if (typeof toolCallId !== "string") {
-      return;
+    if (!this.capabilityPolicy?.canUseTerminal) {
+      throw new AcpKimiCapabilityError("ACP_TERMINAL_DENIED", "Terminal is disabled by permission profile.");
     }
-    const key = permissionEvidenceKey(params.sessionId, toolCallId);
-    if ((sessionUpdate === "tool_call" || sessionUpdate === "tool_call_update")
-      && hasRawInput(update.rawInput)) {
-      this.rememberPermissionEvidence(key, update.rawInput);
+    if ([...this.terminals.values()].some((terminal) => terminal.sessionId === params.sessionId && !terminal.exitStatus)) {
+      throw new AcpKimiCapabilityError("ACP_TERMINAL_BUSY", "Only one process may run in an ACP session.");
     }
-    if (sessionUpdate === "tool_call_update"
-      && (update.status === "completed" || update.status === "failed")) {
-      this.resolvePermissionEvidenceWaiter(key, this.takePermissionEvidence(key));
+    const authorization = await this.capabilityPolicy.authorizeTerminal(params);
+    if (!authorization) {
+      throw new AcpKimiCapabilityError("ACP_TERMINAL_COMMAND_DENIED", "Command does not match an allowed terminal rule.");
     }
-  }
 
-  private rememberPermissionEvidence(key: string, rawInput: unknown): void {
-    const fingerprint = permissionEvidenceFingerprint(rawInput);
-    const existing = this.pendingPermissionEvidence.get(key);
-    if (existing) {
-      existing.ambiguous = existing.ambiguous
-        || !fingerprint
-        || !existing.fingerprint
-        || existing.fingerprint !== fingerprint;
-      return;
-    }
-    if (this.pendingPermissionEvidence.size >= MAX_PENDING_PERMISSION_EVIDENCE) {
-      const oldestKey = this.pendingPermissionEvidence.keys().next().value;
-      if (typeof oldestKey === "string") {
-        this.pendingPermissionEvidence.delete(oldestKey);
+    const terminalId = randomUUID();
+    const child = spawn(authorization.executable, authorization.args, {
+      cwd: authorization.cwd,
+      env: buildTerminalEnvironment(authorization.env),
+      shell: false,
+      stdio: ["ignore", "pipe", "pipe"],
+    }) as ChildProcessByStdio<null, Readable, Readable>;
+    let resolveCompletion!: (result: TerminalExitResult) => void;
+    const completion = new Promise<TerminalExitResult>((resolve) => {
+      resolveCompletion = resolve;
+    });
+    const terminal: RunningTerminal = {
+      terminalId,
+      sessionId: params.sessionId,
+      ruleId: authorization.ruleId,
+      process: child,
+      output: Buffer.alloc(0),
+      outputByteLimit: authorization.outputByteLimit,
+      truncated: false,
+      timedOut: false,
+      timeout: setTimeout(() => {}, authorization.timeoutMs),
+      completion,
+    };
+    clearTimeout(terminal.timeout);
+    terminal.timeout = setTimeout(() => {
+      if (terminal.exitStatus) return;
+      terminal.timedOut = true;
+      this.capabilityPolicy?.recordTerminalAudit({
+        sessionId: terminal.sessionId,
+        ruleId: terminal.ruleId,
+        status: "timed_out",
+        exitCode: null,
+        signal: "SIGTERM",
+      });
+      void terminateTerminal(terminal);
+    }, authorization.timeoutMs);
+    terminal.timeout.unref?.();
+    this.terminals.set(terminalId, terminal);
+
+    const appendOutput = (chunk: Buffer | string) => {
+      const incoming = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      terminal.output = Buffer.concat([terminal.output, incoming]);
+      if (terminal.output.length > terminal.outputByteLimit) {
+        terminal.truncated = true;
+        terminal.output = retainUtf8Tail(terminal.output, terminal.outputByteLimit);
       }
-    }
-    this.pendingPermissionEvidence.set(key, {
-      rawInput,
-      fingerprint,
-      ambiguous: false,
+    };
+    child.stdout.on("data", appendOutput);
+    child.stderr.on("data", appendOutput);
+    child.once("exit", (exitCode, signal) => {
+      clearTimeout(terminal.timeout);
+      const exitStatus = { exitCode, signal };
+      terminal.exitStatus = exitStatus;
+      if (!terminal.timedOut) {
+        this.capabilityPolicy?.recordTerminalAudit({
+          sessionId: terminal.sessionId,
+          ruleId: terminal.ruleId,
+          status: exitCode === 0 ? "completed" : "failed",
+          exitCode,
+          signal,
+        });
+      }
+      resolveCompletion(exitStatus);
     });
-    if (this.pendingPermissionEvidenceWaiters.has(key)) {
-      this.resolvePermissionEvidenceWaiter(key, this.takePermissionEvidence(key));
+
+    try {
+      await new Promise<void>((resolve, reject) => {
+        child.once("spawn", () => resolve());
+        child.once("error", reject);
+      });
+    } catch (error) {
+      clearTimeout(terminal.timeout);
+      this.terminals.delete(terminalId);
+      this.capabilityPolicy.recordTerminalAudit({
+        sessionId: terminal.sessionId,
+        ruleId: terminal.ruleId,
+        status: "failed",
+        exitCode: null,
+        signal: null,
+      });
+      throw new AcpKimiCapabilityError(
+        "ACP_TERMINAL_START_FAILED",
+        error instanceof Error ? error.message : "Terminal process failed to start.",
+      );
     }
-  }
 
-  private takePermissionEvidence(key: string): PendingPermissionEvidence | undefined {
-    const evidence = this.pendingPermissionEvidence.get(key);
-    this.pendingPermissionEvidence.delete(key);
-    return evidence;
-  }
-
-  private waitForPermissionEvidence(key: string): Promise<PendingPermissionEvidence | undefined> {
-    return new Promise((resolve) => {
-      const timeout = setTimeout(() => {
-        this.resolvePermissionEvidenceWaiter(key, this.takePermissionEvidence(key));
-      }, PERMISSION_EVIDENCE_WAIT_MS);
-      this.pendingPermissionEvidenceWaiters.set(key, { resolve, timeout });
+    this.capabilityPolicy.recordTerminalAudit({
+      sessionId: terminal.sessionId,
+      ruleId: terminal.ruleId,
+      status: "started",
+      exitCode: null,
+      signal: null,
     });
+    return { terminalId };
   }
 
-  private resolvePermissionEvidenceWaiter(
-    key: string,
-    evidence: PendingPermissionEvidence | undefined,
-  ): void {
-    const waiter = this.pendingPermissionEvidenceWaiters.get(key);
-    if (!waiter) return;
-    clearTimeout(waiter.timeout);
-    this.pendingPermissionEvidenceWaiters.delete(key);
-    waiter.resolve(evidence);
+  async terminalOutput(params: acp.TerminalOutputRequest): Promise<acp.TerminalOutputResponse> {
+    const terminal = this.getTerminal(params.sessionId, params.terminalId);
+    return {
+      output: terminal.output.toString("utf8"),
+      truncated: terminal.truncated,
+      exitStatus: terminal.exitStatus,
+    };
   }
 
+  async waitForTerminalExit(params: acp.WaitForTerminalExitRequest): Promise<acp.WaitForTerminalExitResponse> {
+    const terminal = this.getTerminal(params.sessionId, params.terminalId);
+    const result = terminal.exitStatus ?? await terminal.completion;
+    if (terminal.timedOut) {
+      throw new AcpKimiCapabilityError("ACP_TERMINAL_TIMEOUT", "Allowed command exceeded its execution timeout.");
+    }
+    if (result.exitCode !== 0) {
+      throw new AcpKimiCapabilityError("ACP_TERMINAL_NONZERO_EXIT", `Allowed command exited with code ${result.exitCode ?? "null"}.`);
+    }
+    return result;
+  }
+
+  async killTerminal(params: acp.KillTerminalRequest): Promise<acp.KillTerminalResponse> {
+    const terminal = this.getTerminal(params.sessionId, params.terminalId);
+    await terminateTerminal(terminal);
+    return {};
+  }
+
+  async releaseTerminal(params: acp.ReleaseTerminalRequest): Promise<acp.ReleaseTerminalResponse> {
+    const terminal = this.getTerminal(params.sessionId, params.terminalId);
+    await terminateTerminal(terminal);
+    clearTimeout(terminal.timeout);
+    this.terminals.delete(params.terminalId);
+    return {};
+  }
+
+  async close(): Promise<void> {
+    const terminals = [...this.terminals.values()];
+    await Promise.all(terminals.map((terminal) => terminateTerminal(terminal)));
+    for (const terminal of terminals) clearTimeout(terminal.timeout);
+    this.terminals.clear();
+  }
+
+  private getTerminal(sessionId: string, terminalId: string): RunningTerminal {
+    const terminal = this.terminals.get(terminalId);
+    if (!terminal || terminal.sessionId !== sessionId) {
+      throw new AcpKimiCapabilityError("ACP_TERMINAL_NOT_FOUND", "Terminal does not exist in this ACP session.");
+    }
+    return terminal;
+  }
 }
 
-function permissionEvidenceKey(sessionId: string, toolCallId: string): string {
-  return `${sessionId}\0${toolCallId}`;
+function buildTerminalEnvironment(extra: Readonly<Record<string, string>> = {}): NodeJS.ProcessEnv {
+  return {
+    PATH: [dirname(process.execPath), "/usr/bin", "/bin", "/usr/local/bin", "/opt/homebrew/bin"].join(":"),
+    HOME: process.env.HOME,
+    LANG: process.env.LANG ?? "C.UTF-8",
+    LC_ALL: process.env.LC_ALL,
+    TMPDIR: process.env.TMPDIR,
+    ...extra,
+  };
 }
 
-function hasRawInput(value: unknown): boolean {
-  return value !== undefined && value !== null;
+function retainUtf8Tail(buffer: Buffer, byteLimit: number): Buffer {
+  if (byteLimit <= 0) return Buffer.alloc(0);
+  const tail = buffer.subarray(Math.max(0, buffer.length - byteLimit));
+  for (let offset = 0; offset < Math.min(4, tail.length); offset += 1) {
+    const decoded = tail.subarray(offset).toString("utf8");
+    if (!decoded.startsWith("�")) return Buffer.from(decoded, "utf8");
+  }
+  return Buffer.alloc(0);
 }
 
-function hasPermissionEvidenceMismatch(
-  requestRawInput: unknown,
-  evidence: PendingPermissionEvidence | undefined,
-): boolean {
-  if (!evidence || !hasRawInput(requestRawInput)) {
-    return false;
-  }
-  const requestFingerprint = permissionEvidenceFingerprint(requestRawInput);
-  return !requestFingerprint
-    || !evidence.fingerprint
-    || requestFingerprint !== evidence.fingerprint;
+async function terminateTerminal(terminal: RunningTerminal): Promise<void> {
+  if (terminal.exitStatus) return;
+  terminal.process.kill("SIGTERM");
+  const exitedGracefully = await waitForTerminalCompletion(terminal, TERMINAL_KILL_GRACE_MS);
+  if (exitedGracefully || terminal.exitStatus) return;
+  terminal.process.kill("SIGKILL");
+  await waitForTerminalCompletion(terminal, TERMINAL_KILL_GRACE_MS);
 }
 
-function permissionEvidenceFingerprint(rawInput: unknown): string | undefined {
-  const command = extractAcpKimiRawCommand(rawInput);
-  if (command) {
-    return `command:${command}`;
-  }
-  try {
-    const serialized = JSON.stringify(rawInput);
-    return serialized === undefined ? undefined : `json:${serialized}`;
-  } catch {
-    return undefined;
-  }
+async function waitForTerminalCompletion(terminal: RunningTerminal, timeoutMs: number): Promise<boolean> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const result = await Promise.race([
+    terminal.completion.then(() => true),
+    new Promise<false>((resolve) => {
+      timeout = setTimeout(() => resolve(false), timeoutMs);
+      timeout.unref?.();
+    }),
+  ]);
+  if (timeout) clearTimeout(timeout);
+  return result;
 }
 
 function normalizeSessionUpdate(update: unknown): Record<string, unknown> {
@@ -985,12 +1057,6 @@ function normalizeSessionUpdate(update: unknown): Record<string, unknown> {
   }
 
   return update as Record<string, unknown>;
-}
-
-function asRecord(value: unknown): Record<string, unknown> | undefined {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : undefined;
 }
 
 function normalizeSessionSummary(session: Record<string, unknown>): KimiAcpSessionSummary {

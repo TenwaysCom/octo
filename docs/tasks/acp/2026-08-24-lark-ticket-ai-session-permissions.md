@@ -1,83 +1,89 @@
 ---
-title: "核对并修复 Lark Ticket AI Session ACP 权限"
+title: "重构 Lark Ticket AI Session ACP 权限"
 module: acp
-status: done
-requirement_version: 4
+status: in_progress
+requirement_version: 5
 created_on: 2026-08-24
-updated_on: 2026-08-28
-closed_on: 2026-08-28
+updated_on: 2026-09-04
 owner: TBD
 related:
   - "../../tenways-octo/it-platform-sync.md"
-  - "../../tenways-octo/history/18-acp-pm-analysis-skill-notes.md"
-  - "../../superpowers/plans/2026-03-31-kimi-acp-backend-bridge-implementation-plan.md"
+  - "../../ai-dev/lifecycle/current-system-technical-objects.md"
+  - "../../ai-dev/rules/server-code-rules.md"
 ---
 
-# 核对并修复 Lark Ticket AI Session ACP 权限
+# 重构 Lark Ticket AI Session ACP 权限
 
 ## 目标
 
-核对历史 ACP 权限设计、当前 Ticket AI Session 权限上下文和真实 permission 请求，解释为何已配置的执行/文件修改能力仍被拒绝；在确认边界后修复 Support-QA 文档动作所需的 `/tmp/support-qa/` JSON 读写与 update 链路。
+移除 Octo ACP 的 MCP 权限与执行链，使用 Server 所有的版本化权限 Profile、ACP fs 和受控 Terminal 支撑 Support-QA Answer/Document。所有外部写入改为 effect draft → 人工确认 → Server 执行/readback，不能由 Kimi Terminal 直接完成。
 
-不在本次范围内：向所有普通自由对话 Session 默认开放任意 shell 或任意仓库写权限；修改 Lark Base、Meegle 或其他外部平台权限。
+## 根因与决策
+
+- 历史 `read_only | shell | write+shell | full` 只描述了意图；Octo 没有实现 ACP Terminal，因此给 action 标记 `shell` 并不能让 Kimi 的 Bash 真正执行。
+- Kimi 0.38 permission request 还可能只给截断摘要。工具名、摘要或 tool-call 文本不能用于安全批准，也不能作为执行成功证据。
+- Octo 不再提供 MCP 功能：删除 execute MCP builder、stdio server、manifest 和专项测试；ACP `mcpServers` 固定为空。
+- Kimi Bash 统一走 ACP Terminal。Server 必须取得完整命令，规范化为 argv，匹配当前 Action/Profile/Ticket/action run/cwd/脚本/参数规则，再以 `shell: false` 执行。
+- `lark-ticket-support-qa-summarize` 继续走现有 DeepSeek 结构化流程，不进入本次 Kimi ACP 权限链。
+
+## 权限 Profile
+
+| Profile | Write | Terminal |
+| --- | --- | --- |
+| `acp.chat-readonly.v1` | 禁止 | 禁止 |
+| `support-qa.answer.v1` | 仅当前 action run 临时目录 | 当前 Ticket fetch、`git status`、受限 diff |
+| `support-qa.document.v1` | 临时目录，以及 `qa-cards/**/*.md`、`indexes/*.md`、`faq.md` | Answer 命令，加确定性 Eval、update/analysis-update dry-run |
+
+临时目录固定为 `os.tmpdir()/octo-support-qa/<actionRunId>/`。Answer 不得写知识库；Document 不得写 `knowledge-index.jsonl`。旧 `execution_policy` 只保留为历史列；缺少 `permission_profile_id/version` 的 Session 只能只读追问，Write/Terminal 返回 `ACP_SESSION_PERMISSION_UPGRADE_REQUIRED`。
+
+## 实现范围
+
+1. 删除 ACP MCP 配置、脚本、manifest、imports、prompt/Skill 指令和基于 MCP tool call 的完成判定。
+2. ACP runtime 动态声明 fs/terminal；实现 create/output/wait/kill/release、单 Session 单进程、60 秒超时、256 KiB 输出上限和关闭清理。
+3. Write 只接受 256 KiB 内 UTF-8 文本；逐次校验 traversal、realpath、symlink 和敏感路径；scratch 使用 `0700`，文件使用 `0600`。
+4. 用 `AcpKimiOperationAuditStore` 记录真实 Terminal start/exit；`support_qa.fetch` 的 completed 记录是 workflow 成功门禁。
+5. Kimi 写固定 `effect-draft.json`；Server 持久化身份/snapshot/hash。确认 API 不接受新 payload，Server 完成 feedback 或 Ticket AI 写入和 readback；Document 成功后才更新 index。
+6. Action catalog 保存 `permissionProfileId`，Session 保存 Profile id/version 和 action run；浏览器 public config 不暴露内部权限字段。
 
 ## 验收标准
 
-- [x] 历史文档与当前实现的权限边界差异有明确结论和代码证据。
-- [x] 普通 Session、查询快捷动作、生成文档快捷动作的权限策略分别有明确说明。
-- [x] Kimi 0.38 permission request 能按 `sessionId + toolCallId` 关联先前 `tool_call.rawInput`，且无证据、ID 不匹配和命令不匹配时保持拒绝。
-- [x] `write+shell` 仅允许 Support-QA 文档目录及 `/tmp/support-qa/` 受限 JSON 流程，并拒绝越界、嵌套和符号链接。
-- [x] Support-QA 快捷动作没有完成当前 Ticket 的 fetch 时返回结构化错误，不发送成功 `done`。
-- [x] `ls` 和 `grep` 可在当前 Skill 的允许读取根内执行；越界路径、递归 grep、shell 控制符和命令替换保持拒绝。
-- [x] 相关回归测试和 Server build 通过；全量测试的非本次失败单独记录。
-- [x] 静态验证与实际部署/运行时验证边界分开记录。
-
-## 背景与范围
-
-当前 Server 已有 `read_only`、`shell`、`write+shell`、`full` 四级策略和 Session 权限快照。现有运行日志显示部分带 `shell` 的快捷动作仍返回 `policy_denied`；同时 Support-QA Skill 使用临时 JSON 交换证据和更新 payload，当前路径约束与 Skill 示例不一致。
-
-## 方案与决策
-
-- v3 当前方案：保留既有命令白名单；在 ACP client 内缓存非流式 `tool_call.rawInput` 或流式 lazy-create 后 canonical `tool_call_update.rawInput`，按 `sessionId + toolCallId` 单次关联到 permission request，不解析 Kimi 0.38 已截断的动作摘要。Support-QA 快捷动作在发送 `done` 前用相同两种参数来源校验匹配 fetch 的成功终态。
-- v1 的“只解析 permission request 自身内容”已被 Kimi 0.38 wire shape 替代，不能继续作为运行时兼容依据。
-- 先以历史设计、提交记录、当前代码和脱敏运行日志确认根因，不把“有策略枚举”等同于“真实工具调用已获批”。
-- 临时交换区只考虑 `/tmp/support-qa/` 的直接 `.json` 子文件；不放开整个 `/tmp`。
-- 保持普通无 action Session 默认 `read_only`，是否扩大普通会话权限需独立产品/安全决策。
-
-## 结论
-
-- 2026-03 的历史草案只表达了原则：action skill 风险最高、必须有 permission/approval，并明确把 approval 落在 popup、backend 还是 ACP runtime 留作问题。因此当时并未形成可实施的完整权限契约。
-- 2026-08 的权限提交和当前平台文档已经明确产品边界：普通 Session deny-by-default；查询快捷动作使用 `shell`；生成文档快捷动作使用 `write+shell`；权限随 Session 保存，并且每次只能选择 `allow_once`。
-- v1 缺口在协议和路径契约：当时补了 Kimi 0.22 permission content shape 与受限 `/tmp/support-qa/` JSON 流程，但 Kimi 0.38 又把完整命令留在更早的 `tool_call.rawInput`，permission request 本身只保留截断摘要，因此旧解析仍会拒绝合法 fetch。
-- v2 在 ACP client 中按 `sessionId + toolCallId` 单次关联结构化 `rawInput`；证据歧义、跨 ID 或命令冲突全部 fail closed。快捷动作还会在发送 `done` 前确认当前 Ticket fetch 已完成，避免权限失败后仍把无证据总结当成成功结果。
-- v3 补齐 Kimi 0.38 的流式参数路径：首次 lazy `tool_call` 没有 `rawInput`，完整参数在后续 canonical `tool_call_update` 才出现。权限缓存和 workflow 门禁现在都接受该 update，同时仍对冲突证据 fail closed。
-- 本次保持产品边界不变，只补真实 ACP 0.38 事件序列兼容和完成态门禁。没有给普通自由对话 Session 开放 shell 或写权限。
+- [x] execute MCP 服务、stdio 脚本、manifest 和专项测试已删除；新/恢复 ACP Session 的 `mcpServers` 固定为空。
+- [x] 三个版本化 Profile 与 Action/Profile/version fail-closed 校验已实现。
+- [x] ACP Write 和 Terminal 路径、参数、symlink、敏感文件、超时、输出和进程生命周期边界已实现。
+- [x] Terminal 使用完整 argv 白名单与 `shell: false`，不接收模型 env，不开放 stdin。
+- [x] fetch 完成门禁改为检查真实执行账本，不再读取 tool-call 文本。
+- [x] effect draft 存储、查询、确认、snapshot/hash/ownership 校验、readback、分段恢复和 unknown-outcome 锁定已实现。
+- [x] Support-QA prompt、两份 Skill、系统生命周期、Server 规则和平台架构文档已同步。
+- [x] Server focused/full tests 与 build 通过。
+- [x] FE tests/build 与 Extension tests/typecheck/build 通过。
+- [ ] 真实 Kimi 0.40.1 Answer/Document Session 完成受控运行时验收。
 
 ## 进展记录
 
 | 日期 | 状态 | 结果与证据 | 未验证边界 / 下一步 |
 | --- | --- | --- | --- |
-| 2026-08-24 | in_progress | 已核对当前 action catalog、Session 权限快照、ACP permission handler、历史提交 `b1f1b26` 和脱敏 permission 日志；已发现路径契约不一致，正在继续确认历史设计完整度与真实拒绝原因。 | 尚未完成代码验证；未做已部署运行时复测。 |
-| 2026-08-24 | in_progress | 历史方案在 2026-03 仍把 write-action approval boundary 标为未决；提交 `b1f1b26` 首次明确普通 Session deny-by-default、快捷动作策略快照与逐次 `allow_once`。真实 Kimi ACP 0.22 permission 请求不带 `rawInput`，而现有策略只从 `rawInput` 取命令/路径，导致已匹配 `shell`/`write+shell` 的调用仍被拒绝。 | 补真实 Kimi permission shape 测试，完成实现与运行时复测。 |
-| 2026-08-24 | done | Handler 已兼容真实 Kimi `Shell` text content、`WriteFile`/`StrReplaceFile` diff path 和旧版 `rawInput`；`/tmp/support-qa/` 仅允许直接普通 `.json` 文件，update 必须使用已有文件；Skill 示例已同步。相关 12 个回归用例、Server build、Skill 校验和 diff check 通过。 | 未对真实 Ticket 执行生成文档或写回；需部署后由有权用户选择测试 Ticket 做运行时复测。 |
-| 2026-08-28 | in_progress | v2：Kimi 已升级到 0.38；脱敏日志显示查询快捷动作三次 Bash 均被 `policy_denied`。本地运行时实现确认完整命令仍在先到达的 `tool_call.rawInput`，permission request 只剩截断动作摘要。 | 实现 toolCall 证据关联、缺失证据失败门禁和 0.38 回归测试。 |
-| 2026-08-28 | done | ACP client 已实现按 Session/toolCall 单次关联原始输入；冲突或错误 ID 拒绝。Ticket 快捷动作缺少成功 fetch 时抛出 `SUPPORT_QA_EVIDENCE_NOT_FETCHED`，包含 `layer/module/stage/actionRunId`，并抑制成功 `done`。4 个聚焦文件 15 个用例和 Server build 通过。 | 未启动真实 Kimi/Ticket 运行时，也未触发任何外部写入；部署后需受控复测。 |
-| 2026-08-28 | done | 首次运行时复测暴露 Kimi 0.38 lazy-create 路径：精确 `fetch 2007 --json` 仍被拒绝，而 `ls`/`grep` 越界请求按预期被拒绝。实现已改为从 canonical `tool_call_update.rawInput` 关联参数，完成态门禁同步识别该事件，fixture 改为真实流式顺序。 | 修复后尚未再次运行真实 Ticket；仍需重启 Server 后复测精确 fetch 获批、`ls`/`grep` 保持拒绝。 |
-| 2026-08-28 | done | 按运行流程需要，将 `ls` 和带安全引号 pattern 的 `grep` 加入路径受限只读白名单；仅允许 Skill 可读根、单一 grep 目标和有限参数，递归、越界、管道、重定向及命令替换均拒绝。 | 修复后尚未再次运行真实 Ticket；需复测 fetch、`ls docs/support-qa/` 和目标 index grep 获批。 |
+| 2026-08-24 至 2026-08-28 | superseded | 先后实现 permission rawInput 解析、Kimi 0.38 tool-call 关联及临时 Bash/MCP 方案；运行时暴露出 Octo 无 ACP Terminal、permission 摘要不足以安全批准的问题。 | 旧策略被本次 v5 设计替代，不再作为现行权限边界。 |
+| 2026-09-04 | in_progress | 已完成 MCP 链删除、Profile/fs/Terminal、执行账本、Session 快照、effect draft/确认 API、FE 确认入口以及 Support-QA Skill/架构文档同步。本地 focused/full/build 和前端/插件验证全绿；额外修复 action scratch symlink 根、fetch 输出未进入 action scratch、NVM 可执行路径和普通会话未保存 readonly Profile 四个边界。 | 尚未运行真实 Kimi/Ticket 外部验收。 |
 
 ## 验证
 
 | 类型 | 结果 | 证据 | 边界 |
 | --- | --- | --- | --- |
-| 静态检查 | 通过 | 当前代码、历史文档、Git 提交；两仓库目标文件 `git diff --check` | 不能证明部署环境已生效。 |
-| 相关回归测试 | 通过 | 4 个测试文件、16 个用例通过，覆盖 action policy、受限 `ls`/`grep`、Session 权限快照、Kimi 0.38 lazy `tool_call` / canonical update / permission 关联、证据单次消费、跨 ID/冲突拒绝、fetch 完成态门禁和临时文件安全边界 | 使用 fixture；首次真实复测已定位 v2 缺口，v4 修复后尚未再次运行真实 Ticket。 |
-| Server build | 通过 | `pnpm --dir server build` | 仅证明 TypeScript 构建。 |
-| Skill 校验 | 通过 | `quick_validate.py` 返回 `Skill is valid!` | 只验证 Skill 结构，不执行其外部写操作。 |
-| Server 全量测试 | 未全绿 | 122 个测试文件、581 个用例通过；6 个 SQLite suite 因当前 Node 未提供 `node:sqlite` 失败，另有 1 个既有 logger 文件生成时序用例失败 | 失败不涉及本次权限文件；相关回归均通过。 |
-| 已部署运行时验证 | 未执行 | 未选择真实 Ticket，未触发外部或仓库写入 | 部署后仍需一次受控复测。 |
+| 静态边界 | 通过 | 无可达 execute MCP 配置/调用、无 `temporary_unverified_bash`、无新 action `executionPolicy`；Skill transport `node --check`、wrapper `bash -n`、两仓库 `git diff --check` 通过 | 历史 DB 列、历史任务记录和本任务迁移说明允许保留。 |
+| Server focused tests/build | 通过 | 核心权限/Runtime/Session/effect draft/DB/controller 用例通过；`pnpm --dir server build` 通过 | 使用 fixture，不证明真实 Kimi 或 Lark。 |
+| Server full tests | 通过 | 147 个测试文件、718 个用例通过 | 本地测试环境，无部署证明。 |
+| FE / Extension | 通过 | FE 147 tests + Vite build；Extension 45 files/282 tests、typecheck、WXT build | 不证明外部写回。 |
+| 真实 Kimi 0.40.1 | 部分确认 | 本机 `kimi --version` 为 `0.40.1`；尚未新建 Answer/Document Session | 必须选择真实 Ticket 并触发受控外部读取；当前没有运行外部验收。 |
+
+## 运行时验收清单
+
+1. 新建 Answer Session：scratch Write 成功；知识库 Write 拒绝；当前 Ticket fetch 退出码 0 且 audit 为 completed；其他 Ticket/任意 shell 拒绝。
+2. 新建 Document Session：允许 Markdown 目标和 dry-run/Eval；`knowledge-index.jsonl`、非 dry-run、`record-upsert`、`--writeback`、`--allow-external-ai` 拒绝。
+3. 生成 effect draft 后在 FE 确认：校验当前 snapshot/hash，Server 执行并 readback；Document 只在 Ticket AI 成功后更新 index。
+4. 断连/关闭时确认子进程终止；超时/非零/输出截断均返回稳定错误且 audit 记录真实终态。
 
 ## 关联
 
 - [平台同步与 Ticket AI Session 说明](../../tenways-octo/it-platform-sync.md)
-- [ACP 与 Skills 历史讨论](../../tenways-octo/history/18-acp-pm-analysis-skill-notes.md)
-- [Kimi ACP backend bridge 历史实施计划](../../superpowers/plans/2026-03-31-kimi-acp-backend-bridge-implementation-plan.md)
+- [当前系统技术对象](../../ai-dev/lifecycle/current-system-technical-objects.md)
+- [Server 代码规则](../../ai-dev/rules/server-code-rules.md)

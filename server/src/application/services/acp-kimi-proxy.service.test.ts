@@ -53,11 +53,12 @@ describe("acp kimi proxy service", () => {
       operatorLarkId: "ou_1",
       runtimeHostName: "octo-server-1",
       kimiWorkDir: "/srv/octo/server",
-      automationActionKey: null,
-      executionPolicy: null,
+      automationActionKey: "acp.chat",
+      permissionProfileId: "acp.chat-readonly.v1",
+      permissionProfileVersion: "1",
       skillProfile: null,
       skillId: null,
-      policyVersion: null,
+      actionRunId: null,
     });
   });
 
@@ -79,13 +80,15 @@ describe("acp kimi proxy service", () => {
       operatorLarkId: "ou_1",
       message: "Summarize this ticket",
       permissionContext: {
-        actionKey: "lark-ticket-support-qa-summarize",
-        executionPolicy: "shell",
+        actionKey: "lark-ticket-support-qa-answer",
+        permissionProfileId: "support-qa.answer.v1",
+        permissionProfileVersion: "1",
         workspaceDir: "/srv/odoo/eu",
+        scratchDir: "/tmp/octo-support-qa/action_1",
         skillProfile: "support_qa_eu",
         skillId: "support_qa_query",
         ticketNumber: "LT-10",
-        policyVersion: "v1",
+        actionRunId: "action_1",
       },
     }, vi.fn());
 
@@ -95,11 +98,12 @@ describe("acp kimi proxy service", () => {
     }));
     expect(deps.ownershipStore.claim).toHaveBeenCalledWith(expect.objectContaining({
       kimiWorkDir: "/srv/odoo/eu",
-      automationActionKey: "lark-ticket-support-qa-summarize",
-      executionPolicy: "shell",
+      automationActionKey: "lark-ticket-support-qa-answer",
+      permissionProfileId: "support-qa.answer.v1",
+      permissionProfileVersion: "1",
       skillProfile: "support_qa_eu",
       skillId: "support_qa_query",
-      policyVersion: "v1",
+      actionRunId: "action_1",
     }));
   });
 

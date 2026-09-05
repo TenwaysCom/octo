@@ -23,9 +23,20 @@ export type AcpKimiDoneEvent = {
   };
 };
 
+export type AcpKimiEffectDraftCreatedEvent = {
+  event: "effect.draft.created";
+  data: {
+    draftId: string;
+    effectType: "answer_feedback" | "ticket_ai_update";
+    actionRunId: string;
+    status: "pending";
+  };
+};
+
 export type AcpKimiStreamEvent =
   | AcpKimiSessionCreatedEvent
   | AcpKimiSessionUpdateEvent
+  | AcpKimiEffectDraftCreatedEvent
   | AcpKimiDoneEvent;
 
 export function prepareAcpKimiEventStream(res: Response) {
