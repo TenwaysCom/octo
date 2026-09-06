@@ -51,6 +51,14 @@ export async function loadLarkTicketAiSession({ apiBaseUrl, ticket, sessionId, f
   return data;
 }
 
+export async function stopLarkTicketAiSession({ apiBaseUrl, ticket, sessionId, runId, fetchImpl = fetch }) {
+  const response = await fetchImpl(buildApiUrl(apiBaseUrl, `${ticketPath(ticket)}/${encodeURIComponent(sessionId)}/stop`), {
+    method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ baseId: ticket.baseId, tableId: ticket.tableId, runId }),
+  });
+  return requireSuccess(response, await readJson(response), "AI_SESSION_STOP_FAILED");
+}
+
 export async function streamLarkTicketAiSession({
   apiBaseUrl,
   ticket,
@@ -152,5 +160,5 @@ async function parseEventStream(stream, onEvent) {
     if (line.startsWith("data:")) eventData = line.slice("data:".length).trim();
   }
   flush();
-  if (!completed) throw createApiError("AI_SESSION_STREAM_INTERRUPTED", "连接已中断，本轮未完成。");
+  if (!completed) throw createApiError("AI_SESSION_STREAM_INTERRUPTED", "连接已中断，请重新打开会话查看任务状态。");
 }

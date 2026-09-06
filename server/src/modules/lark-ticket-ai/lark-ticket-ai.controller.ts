@@ -1,3 +1,7 @@
+import { randomUUID } from "node:crypto";
+import { AcpKimiProxyError } from "../../application/services/acp-kimi-proxy.service.js";
+import { createWebAiSessionRuns, mergeWebAiSessions, WebAiRunError } from "../../application/services/web-ai-session-runs.js";
+import type { AcpKimiStreamEvent } from "../acp-kimi/event-stream.js";
 import { AcpRuntimeError } from "../../adapters/acp/acp-runtime.js";
 import { AcpPermissionError } from "../../application/services/acp-permission.service.js";
 import { acpPermissionErrorResponse } from "../acp-kimi/acp-permission.controller.js";
@@ -54,6 +58,8 @@ function readCookie(cookieHeader: string | undefined, name: string): string | un
 }
 
 function toErrorResponse(error: unknown) {
+  if (error instanceof AcpKimiProxyError) return { statusCode: error.statusCode, body: { ok: false as const, error: { errorCode: error.code, errorMessage: error.message } } };
+  if (error instanceof WebAiRunError) return { statusCode: error.statusCode, body: { ok: false as const, error: { errorCode: error.code, errorMessage: error.message, layer: "server", module: "web-ai-session-runs", stage: "server.workflow.run" } } };
   if (error instanceof AcpPermissionError) return acpPermissionErrorResponse(error);
   if (error instanceof AcpRuntimeError) return { statusCode: 502, body: { ok: false as const, error: { errorCode: error.code, errorMessage: error.message, layer: "adapter", module: "acp", stage: error.stage } } };
   if (error instanceof ZodError) {
@@ -92,11 +98,13 @@ function toErrorResponse(error: unknown) {
 
 export function createWebLarkTicketAiController(deps: {
   service?: ReturnType<typeof createLarkTicketAiSessionService>;
+  runs?: ReturnType<typeof createWebAiSessionRuns>;
   resolveSession?: (sessionToken: string | undefined) => Promise<WebIdentity>;
   resolveOperatorLarkId?: (masterUserId: string) => Promise<string | undefined>;
   effectDraftService?: Pick<ReturnType<typeof createSupportTicketEffectDraftService>, "list" | "confirm">;
 } = {}) {
   const service = deps.service ?? createLarkTicketAiSessionService();
+  const runs = deps.runs ?? createWebAiSessionRuns();
   const resolveSession = deps.resolveSession ?? resolveLarkWebSessionIdentity;
   const resolveOperatorLarkId = deps.resolveOperatorLarkId ?? (async (masterUserId) => (await getResolvedUserStore().getById(masterUserId))?.larkId ?? undefined);
   const effectDraftService = deps.effectDraftService ?? createSupportTicketEffectDraftService();
@@ -125,7 +133,7 @@ export function createWebLarkTicketAiController(deps: {
       try {
         const query = ticketSessionListQuerySchema.parse(input.query);
         const ticket = ticketRefSchema.parse({ ...query, recordId: input.recordId });
-        return { statusCode: 200, body: { ok: true as const, data: { sessions: await service.listSessions({ operatorLarkId: identity.operatorLarkId, ticket }) } } };
+        return { statusCode: 200, body: { ok: true as const, data: { sessions: mergeWebAiSessions(await service.listSessions({ operatorLarkId: identity.operatorLarkId, ticket }), runs.list({ operatorLarkId: identity.operatorLarkId, resource: JSON.stringify(["ticket", ticket.baseId, ticket.tableId, ticket.recordId]) })) } } };
       } catch (error) {
         return toErrorResponse(error);
       }
@@ -137,7 +145,7 @@ export function createWebLarkTicketAiController(deps: {
       try {
         const body = ticketSessionLoadSchema.parse(input.body);
         const ticket = ticketRefSchema.parse({ ...body, recordId: input.recordId });
-        return { statusCode: 200, body: { ok: true as const, data: await service.loadSession({ operatorLarkId: identity.operatorLarkId, ticket, sessionId: input.sessionId }) } };
+        return { statusCode: 200, body: { ok: true as const, data: runs.load({ operatorLarkId: identity.operatorLarkId, resource: JSON.stringify(["ticket", ticket.baseId, ticket.tableId, ticket.recordId]) }, input.sessionId) ?? await service.loadSession({ operatorLarkId: identity.operatorLarkId, ticket, sessionId: input.sessionId }) } };
       } catch (error) {
         return toErrorResponse(error);
       }
@@ -177,6 +185,16 @@ export function createWebLarkTicketAiController(deps: {
       }
     },
 
+    async stop(input: { cookieHeader: string | undefined; recordId: string; sessionId: string; body: unknown }) {
+      const identity = await resolveIdentity(input.cookieHeader);
+      if (!identity.ok) return { statusCode: identity.statusCode, body: { ok: false as const, error: { errorCode: identity.errorCode, errorMessage: identity.errorMessage } } };
+      try {
+        const body = ticketSessionLoadSchema.extend({ runId: z.string().min(1) }).strict().parse(input.body);
+        const ticket = ticketRefSchema.parse({ ...body, recordId: input.recordId });
+        return { statusCode: 200, body: { ok: true as const, data: runs.stop({ operatorLarkId: identity.operatorLarkId, resource: JSON.stringify(["ticket", ticket.baseId, ticket.tableId, ticket.recordId]) }, input.sessionId, body.runId) } };
+      } catch (error) { return toErrorResponse(error); }
+    },
+
     async chat(req: Request, res: Response) {
       const identity = await resolveIdentity(req.headers.cookie);
       if (!identity.ok) {
@@ -194,33 +212,37 @@ export function createWebLarkTicketAiController(deps: {
         return;
       }
 
-      const abortController = new AbortController();
-      const abort = () => abortController.abort();
-      req.once("aborted", abort);
-      res.once("close", abort);
+      request.actionRunId ??= randomUUID();
+      const scope = { operatorLarkId: identity.operatorLarkId, resource: JSON.stringify(["ticket", ticket.baseId, ticket.tableId, ticket.recordId]) };
+      // A disconnected response only detaches this observer, never the run.
+      let connected = true;
+      const detach = () => { connected = false; };
+      req.once("aborted", detach);
+      res.once("close", detach);
+      const emit = (event: AcpKimiStreamEvent) => {
+        if (connected && !res.writableEnded && !res.destroyed) {
+          try { writeAcpKimiEvent(res, event); } catch { detach(); }
+        }
+      };
       prepareAcpKimiEventStream(res);
       try {
-        await service.chat({
-          operatorLarkId: identity.operatorLarkId,
-          masterUserId: identity.masterUserId,
-          larkBaseUrl: identity.larkBaseUrl,
-          ticket,
-          message: request.message,
-          sessionId: request.sessionId,
-          actionKey: request.actionKey,
-          actionRunId: request.actionRunId,
-          signal: abortController.signal,
-        }, (event) => writeAcpKimiEvent(res, event));
+        await runs.execute({ ...scope, sessionId: request.sessionId, message: request.message,
+          actionKey: request.actionKey, actionRunId: request.actionRunId, oneShot: request.actionKey === "lark-ticket-support-qa-summarize" }, {
+          loadHistory: async () => await service.loadSession({ operatorLarkId: identity.operatorLarkId, ticket, sessionId: request.sessionId! }) as { events: AcpKimiStreamEvent[] },
+          chat: (signal, emit, actionRunId) => service.chat({
+            operatorLarkId: identity.operatorLarkId, masterUserId: identity.masterUserId, larkBaseUrl: identity.larkBaseUrl, ticket, message: request.message,
+            sessionId: request.sessionId, actionKey: request.actionKey, actionRunId, signal,
+          }, emit),
+          emit,
+        });
       } catch (error) {
-        if (!abortController.signal.aborted && !res.writableEnded) {
-          const result = toErrorResponse(error);
-          controllerLogger.warn({ actionRunId: request.actionRunId, errorCode: result.body.error.errorCode }, "LARK_TICKET_AI_CHAT FAILED");
-          res.write(`event: error\ndata: ${JSON.stringify(result.body.error)}\n\n`);
-        }
+        const result = toErrorResponse(error);
+        controllerLogger.warn({ layer: "server", stage: "server.workflow.completed", actionRunId: request.actionRunId, errorCode: result.body.error.errorCode }, "LARK_TICKET_AI_CHAT_FAILED");
+        if (connected && !res.writableEnded && !res.destroyed) res.write(`event: error\ndata: ${JSON.stringify(result.body.error)}\n\n`);
       } finally {
-        req.off("aborted", abort);
-        res.off("close", abort);
-        if (!res.writableEnded) res.end();
+        req.off("aborted", detach);
+        res.off("close", detach);
+        if (connected && !res.writableEnded && !res.destroyed) res.end();
       }
     },
   };
@@ -233,6 +255,10 @@ export function registerWebLarkTicketAiRoutes(app: Express) {
     res.status(result.statusCode).json(result.body);
   });
   app.post("/api/web/lark-tickets/:recordId/ai-sessions", (req, res) => controller.chat(req, res));
+  app.post("/api/web/lark-tickets/:recordId/ai-sessions/:sessionId/stop", async (req, res) => {
+    const result = await controller.stop({ cookieHeader: req.headers.cookie, recordId: req.params.recordId, sessionId: req.params.sessionId, body: req.body });
+    res.status(result.statusCode).json(result.body);
+  });
   app.post("/api/web/lark-tickets/:recordId/ai-sessions/:sessionId/load", async (req, res) => {
     const result = await controller.load({ cookieHeader: req.headers.cookie, recordId: req.params.recordId, sessionId: req.params.sessionId, body: req.body });
     res.status(result.statusCode).json(result.body);

@@ -90,7 +90,7 @@ export function appendAiSessionEvent(messages, event) {
   if (update.sessionUpdate === "user_message_chunk" && text) {
     const userText = displayUserText(text);
     const lastMessage = messages.at(-1);
-    if (lastMessage?.kind === "user") {
+    if (lastMessage?.kind === "user" && (lastMessage.messageId ?? null) === normalizeMessageId(update.messageId)) {
       return [...messages.slice(0, -1), { ...lastMessage, text: `${lastMessage.text}${userText}` }];
     }
     return [...messages, message("user", userText, { messageId: normalizeMessageId(update.messageId) })];

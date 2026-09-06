@@ -266,6 +266,7 @@ export function createLarkTicketAiSessionService(
       const requiresPostProcessing = Boolean(quickAction) || canCreateEffectDraft;
 
       try {
+        input.signal?.throwIfAborted();
         await acpService.chat({
           operatorLarkId: input.operatorLarkId,
           sessionId: input.sessionId,
@@ -309,6 +310,7 @@ export function createLarkTicketAiSessionService(
       }
 
       await attachmentPromise;
+      input.signal?.throwIfAborted();
 
       const sessionId = input.sessionId ?? createdSessionId;
       if (!sessionId) {
@@ -320,6 +322,7 @@ export function createLarkTicketAiSessionService(
       }
 
       if (canCreateEffectDraft) {
+        input.signal?.throwIfAborted();
         const draft = await effectDraftService.ingestFromScratch({
           operatorLarkId: input.operatorLarkId,
           sessionId,
@@ -457,6 +460,7 @@ async function runTicketSummary(input: {
     );
   }
   try {
+    input.input.signal?.throwIfAborted();
     await input.analysisService.update({
       ticket: input.input.ticket,
       snapshotVersion: snapshot.snapshotVersion,

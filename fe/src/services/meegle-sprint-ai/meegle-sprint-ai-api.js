@@ -40,6 +40,14 @@ export async function loadMeegleSprintAiSession({ apiBaseUrl, sprint, sessionId,
   return data;
 }
 
+export async function stopMeegleSprintAiSession({ apiBaseUrl, sprint, sessionId, runId, fetchImpl = fetch }) {
+  const response = await fetchImpl(buildApiUrl(apiBaseUrl, `${sprintPath(sprint)}/${encodeURIComponent(sessionId)}/stop`), {
+    method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ projectKey: sprint.projectKey, runId }),
+  });
+  return requireSuccess(response, await readJson(response), "AI_SESSION_STOP_FAILED");
+}
+
 export async function streamMeegleSprintAiSession({ apiBaseUrl, sprint, message, sessionId, actionKey, actionRunId, onEvent, signal, fetchImpl = fetch }) {
   const response = await fetchImpl(buildApiUrl(apiBaseUrl, sprintPath(sprint)), {
     method: "POST", credentials: "include", headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
@@ -80,5 +88,5 @@ async function parseEventStream(stream, onEvent) {
     if (done) break;
   }
   flush();
-  if (!completed) throw createApiError("AI_SESSION_STREAM_INTERRUPTED", "连接已中断，本轮未完成。");
+  if (!completed) throw createApiError("AI_SESSION_STREAM_INTERRUPTED", "连接已中断，请重新打开会话查看任务状态。");
 }

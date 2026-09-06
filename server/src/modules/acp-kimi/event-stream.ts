@@ -48,6 +48,7 @@ export type AcpKimiEffectDraftCreatedEvent = {
 };
 
 export type AcpKimiStreamEvent =
+  | { event: "run.started"; data: { runId: string; sessionId: string; actionRunId: string } }
   | AcpPermissionEvent
   | AcpKimiSessionCreatedEvent
   | AcpKimiSessionUpdateEvent
