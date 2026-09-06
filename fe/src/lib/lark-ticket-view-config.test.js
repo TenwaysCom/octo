@@ -5,6 +5,7 @@ import {
   DEFAULT_LARK_TICKET_AI_OUTPUT_VISIBLE_COLUMNS,
   DEFAULT_LARK_TICKET_EVAL_DATASET_VISIBLE_COLUMNS,
   DEFAULT_LARK_TICKET_VISIBLE_COLUMNS,
+  getDefaultLarkTicketCollapsedGroupKeys,
   groupLarkTickets,
   normalizeLarkTicketGroupBy,
   normalizeLarkTicketAiOutputVisibleColumns,
@@ -36,6 +37,15 @@ test("normalizes Lark Ticket view configuration and keeps the Ticket column visi
   assert.equal(normalizeLarkTicketViewMode("unknown"), "list");
   assert.deepEqual(normalizeLarkTicketSort(undefined), DEFAULT_LARK_TICKET_SORT);
   assert.deepEqual(normalizeLarkTicketSort({ key: "priority", direction: "desc" }), { key: "priority", direction: "desc" });
+});
+
+test("defaults Lark Ticket primary groups to collapsed without duplicate keys", () => {
+  assert.deepEqual(getDefaultLarkTicketCollapsedGroupKeys([
+    { key: "Open" },
+    { key: "In progress" },
+    { key: "Open" },
+  ]), ["Open", "In progress"]);
+  assert.deepEqual(getDefaultLarkTicketCollapsedGroupKeys([]), []);
 });
 
 test("sorts Lark Tickets by status by default and leaves missing values last", () => {

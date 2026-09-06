@@ -114,13 +114,13 @@ test("loads a synced platform list with the browser session cookie", async () =>
       githubPullRequests: [],
       syncedAt: "2026-08-09T00:00:00.000Z",
     }],
-    pager: { offset: 0, limit: 500, total: 1, hasMore: false },
+    pager: { offset: 0, limit: 1000, total: 1, hasMore: false },
   });
-  assert.equal(request.url, "/api/web/platform-data/meegle-workitems?limit=500&sprint=Sprint+1&relatedPerson=member-1&relatedPerson=member-2&subscribed=true");
+  assert.equal(request.url, "/api/web/platform-data/meegle-workitems?limit=1000&sprint=Sprint+1&relatedPerson=member-1&relatedPerson=member-2&subscribed=true");
   assert.equal(request.options.credentials, "include");
 });
 
-test("requests 500 rows for the Lark ticket list", async () => {
+test("requests 1000 rows for the Lark ticket list", async () => {
   let requestUrl;
   await getPlatformDataList({
     apiBaseUrl: "/api",
@@ -130,7 +130,7 @@ test("requests 500 rows for the Lark ticket list", async () => {
       return { ok: true, json: async () => ({ ok: true, data: { items: [] } }) };
     },
   });
-  assert.equal(requestUrl, "/api/web/platform-data/lark-tickets?limit=500");
+  assert.equal(requestUrl, "/api/web/platform-data/lark-tickets?limit=1000");
 });
 
 test("does not make the workitem list synthesize Sprint history", async () => {
@@ -325,7 +325,7 @@ test("shares an in-flight list request across duplicate mounts", async () => {
 
 test("requests every matching page while preserving multi-value server filters", async () => {
   const requests = [];
-  const firstPage = Array.from({ length: 500 }, (_, index) => ({ recordId: `rec-${index}` }));
+  const firstPage = Array.from({ length: 1000 }, (_, index) => ({ recordId: `rec-${index}` }));
   const result = await getPlatformDataList({
     apiBaseUrl: "/api",
     kind: "lark-tickets",
@@ -339,31 +339,31 @@ test("requests every matching page while preserving multi-value server filters",
       requests.push(url);
       return {
         ok: true,
-        json: async () => ({ ok: true, data: { items: requests.length === 1 ? firstPage : [{ recordId: "rec-500" }], ...(requests.length === 1 ? { pager: { offset: 0, limit: 500, total: 501, hasMore: true, nextOffset: 500 } } : { pager: { offset: 500, limit: 500, total: 501, hasMore: false } }) } }),
+        json: async () => ({ ok: true, data: { items: requests.length === 1 ? firstPage : [{ recordId: "rec-1000" }], ...(requests.length === 1 ? { pager: { offset: 0, limit: 1000, total: 1001, hasMore: true, nextOffset: 1000 } } : { pager: { offset: 1000, limit: 1000, total: 1001, hasMore: false } }) } }),
       };
     },
   });
 
-  assert.equal(result.items.length, 501);
-  assert.equal(requests[0], "/api/web/platform-data/lark-tickets?limit=500&status=Open&status=In+progress&issueType=Feature&priority=P0&quickFilter=unsynced");
-  assert.equal(requests[1], "/api/web/platform-data/lark-tickets?limit=500&offset=500&status=Open&status=In+progress&issueType=Feature&priority=P0&quickFilter=unsynced");
+  assert.equal(result.items.length, 1001);
+  assert.equal(requests[0], "/api/web/platform-data/lark-tickets?limit=1000&status=Open&status=In+progress&issueType=Feature&priority=P0&quickFilter=unsynced");
+  assert.equal(requests[1], "/api/web/platform-data/lark-tickets?limit=1000&offset=1000&status=Open&status=In+progress&issueType=Feature&priority=P0&quickFilter=unsynced");
 });
 
 test("loads one page only until the list view requests the next offset", async () => {
   const requests = [];
-  const firstPage = Array.from({ length: 500 }, (_, index) => ({ recordId: `rec-${index}` }));
+  const firstPage = Array.from({ length: 1000 }, (_, index) => ({ recordId: `rec-${index}` }));
   const result = await getPlatformDataListPage({
     apiBaseUrl: "/api",
     kind: "lark-tickets",
     fetchImpl: async (url) => {
       requests.push(url);
-      return { ok: true, json: async () => ({ ok: true, data: { items: firstPage, pager: { offset: 0, limit: 500, total: 501, hasMore: true, nextOffset: 500 } } }) };
+      return { ok: true, json: async () => ({ ok: true, data: { items: firstPage, pager: { offset: 0, limit: 1000, total: 1001, hasMore: true, nextOffset: 1000 } } }) };
     },
   });
 
-  assert.equal(result.items.length, 500);
-  assert.deepEqual(result.pager, { offset: 0, limit: 500, total: 501, hasMore: true, nextOffset: 500 });
-  assert.deepEqual(requests, ["/api/web/platform-data/lark-tickets?limit=500"]);
+  assert.equal(result.items.length, 1000);
+  assert.deepEqual(result.pager, { offset: 0, limit: 1000, total: 1001, hasMore: true, nextOffset: 1000 });
+  assert.deepEqual(requests, ["/api/web/platform-data/lark-tickets?limit=1000"]);
 });
 
 test("treats an old server response without pager as one complete page", async () => {
@@ -373,11 +373,11 @@ test("treats an old server response without pager as one complete page", async (
     kind: "lark-tickets",
     fetchImpl: async (url) => {
       requests.push(url);
-      return { ok: true, json: async () => ({ ok: true, data: { items: Array.from({ length: 500 }, (_, index) => ({ recordId: `rec-${index}` })) } }) };
+      return { ok: true, json: async () => ({ ok: true, data: { items: Array.from({ length: 1000 }, (_, index) => ({ recordId: `rec-${index}` })) } }) };
     },
   });
 
-  assert.equal(result.items.length, 500);
+  assert.equal(result.items.length, 1000);
   assert.equal(requests.length, 1);
 });
 
@@ -388,14 +388,14 @@ test("rejects unknown list kinds before making a request", async () => {
   );
 });
 
-test("loads up to 500 GitHub PR rows with Odoo.sh build data", async () => {
+test("loads up to 1000 GitHub PR rows with Odoo.sh build data", async () => {
   const result = await getPlatformDataList({
     apiBaseUrl: "/api",
     kind: "github-pull-requests",
     fetchImpl: async (url) => ({
       ok: true,
       json: async () => {
-        assert.equal(url, "/api/web/platform-data/github-pull-requests?limit=500");
+        assert.equal(url, "/api/web/platform-data/github-pull-requests?limit=1000");
         return { ok: true, data: { items: [{
           owner: "TenwaysCom",
           repo: "Tenways",

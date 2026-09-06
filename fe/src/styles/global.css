@@ -1128,6 +1128,8 @@ h1 {
 .sprint-detail-layout__main { min-width: 0; }
 .data-table--sprint-workitems { min-width: 980px; }
 .data-table--sprint-workitems td:first-child { min-width: 250px; }
+.data-table--sprint-workitems :is(th, td)[data-column-key="currentWorkingTime"] { min-width: 132px; }
+.data-table--sprint-workitems :is(th, td)[data-column-key="updatedAt"] { min-width: 148px; }
 .sprint-workitem-sections { display: grid; gap: 20px; }
 .sprint-workitem-section { min-width: 0; }
 .sprint-workitem-section__header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; color: var(--octo-text-muted); font-size: 12px; }

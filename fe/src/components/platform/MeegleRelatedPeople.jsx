@@ -1,19 +1,17 @@
 import { useRef, useState } from "react";
-import { flattenMeegleRelatedPeople, formatMeegleRelatedPeopleLabel } from "../../lib/meegle-related-people.js";
+import { formatMeegleRelatedPeopleLabel, splitMeegleRelatedPeople } from "../../lib/meegle-related-people.js";
 import { User } from "../user/User.jsx";
 
 const INLINE_LIMIT = 2;
 
-export function MeegleRelatedPeople({ relatedPeople }) {
+export function MeegleRelatedPeople({ relatedPeople, inlineLimit = INLINE_LIMIT }) {
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState(null);
   const buttonRef = useRef(null);
-  const entries = flattenMeegleRelatedPeople(relatedPeople);
+  const { entries, visible, overflowCount } = splitMeegleRelatedPeople(relatedPeople, inlineLimit);
   if (!entries.length) return "-";
 
   const label = formatMeegleRelatedPeopleLabel(relatedPeople);
-  const visible = entries.slice(0, INLINE_LIMIT);
-  const overflowCount = entries.length - visible.length;
   function toggle() {
     if (!open && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();

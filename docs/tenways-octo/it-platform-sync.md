@@ -58,7 +58,7 @@ HTTP 路由如下。所有请求都可携带 `actionRunId`；Base ticket 可指�
 | `POST /api/sync/lark-base/tickets` | 批量同步指定 Lark Base table |
 | `POST /api/sync/lark-base/tickets/selected` | 同步多选 Lark Base record |
 
-Web Integrations 还提供受 Web 会话保护的同步状态页：展示 Lark Ticket、Meegle User Story、Meegle Tech Task、Meegle Production Bug，以及 GitHub Odoo EU、GitHub Odoo UK、GitHub Odoo US。每个 GitHub 卡片对应一个明确仓库，最近同步时间只从该仓库快照计算，单项同步也只读取该仓库。Web 的单项同步固定为“同步后清洗”：只清洗本次成功写入的快照。服务端从 `platform-sync.local.json` 解析实际 target，并从 HttpOnly Web session 获取 `masterUserId`；浏览器不会接收或传递用户 ID、平台 token、Base/Table ID 或仓库标识；未配置来源在页面明确显示为“未配置”。Web 的 Lark Ticket、Meegle 工作项和 GitHub PR 列表每次最多读取最新 500 条快照。
+Web Integrations 还提供受 Web 会话保护的同步状态页：展示 Lark Ticket、Meegle User Story、Meegle Tech Task、Meegle Production Bug，以及 GitHub Odoo EU、GitHub Odoo UK、GitHub Odoo US。每个 GitHub 卡片对应一个明确仓库，最近同步时间只从该仓库快照计算，单项同步也只读取该仓库。Web 的单项同步固定为“同步后清洗”：只清洗本次成功写入的快照。服务端从 `platform-sync.local.json` 解析实际 target，并从 HttpOnly Web session 获取 `masterUserId`；浏览器不会接收或传递用户 ID、平台 token、Base/Table ID 或仓库标识；未配置来源在页面明确显示为“未配置”。Web 的 Lark Ticket、Meegle 工作项和 GitHub PR 列表每页最多读取 1000 条快照。
 
 同步来源接口同时投影持久化 schedule、有效 scope lease 与 run audit。页面首次加载时读取任务状态，之后每 10 秒轻量轮询一次；若后台任务持有有效 lease，卡片显示“同步中”并禁用“立即同步”。轮询间隙即使发起重复请求，服务端仍以相同 scope lease 拒绝并返回 `409 SYNC_ALREADY_RUNNING`。查询状态时有效 lease 对应的运行优先于更晚的 skipped 审计，过期 lease 不会让按钮永久禁用。
 

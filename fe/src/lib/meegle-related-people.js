@@ -15,6 +15,16 @@ export function flattenMeegleRelatedPeople(relatedPeople) {
   });
 }
 
+export function splitMeegleRelatedPeople(relatedPeople, inlineLimit = 2) {
+  const entries = flattenMeegleRelatedPeople(relatedPeople);
+  const limit = Number.isInteger(inlineLimit) && inlineLimit > 0 ? inlineLimit : 2;
+  return {
+    entries,
+    visible: entries.slice(0, limit),
+    overflowCount: Math.max(0, entries.length - limit),
+  };
+}
+
 export function formatMeegleRelatedPeopleLabel(relatedPeople) {
   if (!Array.isArray(relatedPeople)) return "";
   return relatedPeople.flatMap((role) => {

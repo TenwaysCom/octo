@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   DEFAULT_GITHUB_PULL_REQUEST_SORT,
   DEFAULT_GITHUB_PULL_REQUEST_VISIBLE_COLUMNS,
+  getDefaultGitHubPullRequestCollapsedGroupKeys,
   groupGitHubPullRequests,
   normalizeGitHubPullRequestGroupBy,
   normalizeGitHubPullRequestSort,
@@ -30,6 +31,15 @@ test("normalizes GitHub PR view configuration and keeps the Pull Request column 
   assert.equal(normalizeGitHubPullRequestViewMode("unknown"), "list");
   assert.deepEqual(normalizeGitHubPullRequestSort(undefined), DEFAULT_GITHUB_PULL_REQUEST_SORT);
   assert.deepEqual(normalizeGitHubPullRequestSort({ key: "repo", direction: "asc" }), { key: "repo", direction: "asc" });
+});
+
+test("defaults GitHub PR primary groups to collapsed without duplicate keys", () => {
+  assert.deepEqual(getDefaultGitHubPullRequestCollapsedGroupKeys([
+    { key: "open" },
+    { key: "closed" },
+    { key: "open" },
+  ]), ["open", "closed"]);
+  assert.deepEqual(getDefaultGitHubPullRequestCollapsedGroupKeys([]), []);
 });
 
 test("sorts GitHub PRs by configured fields and leaves missing values last", () => {

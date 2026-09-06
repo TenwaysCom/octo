@@ -16,6 +16,7 @@ import {
   DEFAULT_GITHUB_PULL_REQUEST_VISIBLE_COLUMNS,
   GITHUB_PULL_REQUEST_GROUP_OPTIONS,
   GITHUB_PULL_REQUEST_VIEW_COLUMNS,
+  getDefaultGitHubPullRequestCollapsedGroupKeys,
   groupGitHubPullRequests,
   normalizeGitHubPullRequestGroupBy,
   normalizeGitHubPullRequestSort,
@@ -30,6 +31,7 @@ import {
   DEFAULT_LARK_TICKET_AI_OUTPUT_VISIBLE_COLUMNS,
   DEFAULT_LARK_TICKET_EVAL_DATASET_VISIBLE_COLUMNS,
   DEFAULT_LARK_TICKET_VISIBLE_COLUMNS,
+  getDefaultLarkTicketCollapsedGroupKeys,
   groupLarkTickets,
   LARK_TICKET_AI_OUTPUT_VIEW_COLUMNS,
   LARK_TICKET_EVAL_DATASET_VIEW_COLUMNS,
@@ -954,9 +956,11 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
   const meeglePrPickerRequestVersionRef = useRef(0);
   const filterStateRef = useRef(null);
   const dataRequestVersionRef = useRef(0);
+  const larkGroupDefaultsRef = useRef(Array.isArray(restoredFilters.collapsedLarkGroups) ? "restored" : null);
   const larkSubgroupDefaultsRef = useRef(Array.isArray(restoredFilters.collapsedLarkSubgroups) ? "restored" : null);
   const meegleGroupDefaultsRef = useRef(Array.isArray(restoredFilters.collapsedMeegleGroups) ? "restored" : null);
   const meegleSubgroupDefaultsRef = useRef(Array.isArray(restoredFilters.collapsedMeegleSubgroups) ? "restored" : null);
+  const githubGroupDefaultsRef = useRef(Array.isArray(restoredFilters.collapsedGitHubGroups) ? "restored" : null);
   const githubSubgroupDefaultsRef = useRef(Array.isArray(restoredFilters.collapsedGitHubSubgroups) ? "restored" : null);
   const workingTimeNow = useMinuteNow(page === "meegle-workitems" && meegleVisibleColumns.includes("currentWorkingTime"));
   const statusFilters = [...new Set(state.filterItems.map((item) => getPlatformItemStatus(page, item)))].sort((left, right) => left.localeCompare(right));
@@ -1207,6 +1211,23 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
   }
 
   useEffect(() => {
+    if (page !== "lark-tickets") return;
+    if (larkGroupBy === "none") {
+      larkGroupDefaultsRef.current = null;
+      return;
+    }
+    if (!larkGroups.length) return;
+    const configKey = `${larkGroupBy}:${larkSubGroupBy}`;
+    if (larkGroupDefaultsRef.current === "restored") {
+      larkGroupDefaultsRef.current = configKey;
+      return;
+    }
+    if (larkGroupDefaultsRef.current === configKey) return;
+    larkGroupDefaultsRef.current = configKey;
+    setCollapsedLarkGroups(getDefaultLarkTicketCollapsedGroupKeys(larkGroups));
+  }, [larkGroupBy, larkGroups, larkSubGroupBy, page]);
+
+  useEffect(() => {
     if (page !== "lark-tickets" || !larkGroups.some((group) => group.subgroups?.length)) {
       return;
     }
@@ -1254,6 +1275,23 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
     meegleSubgroupDefaultsRef.current = configKey;
     setCollapsedMeegleSubgroups(getDefaultCollapsedSubgroupKeys(meegleGroups));
   }, [meegleGroupBy, meegleGroups, meegleShowEmptyGroups, meegleSubGroupBy, page]);
+
+  useEffect(() => {
+    if (page !== "github-pull-requests") return;
+    if (githubGroupBy === "none") {
+      githubGroupDefaultsRef.current = null;
+      return;
+    }
+    if (!githubGroups.length) return;
+    const configKey = `${githubGroupBy}:${githubSubGroupBy}`;
+    if (githubGroupDefaultsRef.current === "restored") {
+      githubGroupDefaultsRef.current = configKey;
+      return;
+    }
+    if (githubGroupDefaultsRef.current === configKey) return;
+    githubGroupDefaultsRef.current = configKey;
+    setCollapsedGitHubGroups(getDefaultGitHubPullRequestCollapsedGroupKeys(githubGroups));
+  }, [githubGroupBy, githubGroups, githubSubGroupBy, page]);
 
   useEffect(() => {
     if (page !== "github-pull-requests" || !githubGroups.some((group) => group.subgroups?.length)) {

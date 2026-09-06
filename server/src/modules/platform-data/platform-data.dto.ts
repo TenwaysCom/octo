@@ -12,7 +12,7 @@ const stringListQuerySchema = z.preprocess((value) => {
   .transform((values) => values && [...new Set(values)]);
 
 export const platformDataListQuerySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(500).optional().default(500),
+  limit: z.coerce.number().int().min(1).max(1000).optional().default(1000),
   offset: z.coerce.number().int().min(0).max(1_000_000).optional().default(0),
   status: stringListQuerySchema,
   sprint: stringListQuerySchema,

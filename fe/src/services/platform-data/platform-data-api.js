@@ -5,7 +5,7 @@ const PATH_BY_KIND = {
   "meegle-workitems": "/web/platform-data/meegle-workitems",
   "github-pull-requests": "/web/platform-data/github-pull-requests",
 };
-const PLATFORM_DATA_LIST_LIMIT = 500;
+const PLATFORM_DATA_LIST_LIMIT = 1000;
 const pendingPlatformDataRequests = new Map();
 
 const MEEGLE_REQUIRED_STRING_FIELDS = [

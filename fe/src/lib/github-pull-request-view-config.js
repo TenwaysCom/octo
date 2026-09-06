@@ -40,6 +40,10 @@ export function normalizeGitHubPullRequestGroupBy(value) {
   return GROUP_KEYS.has(value) ? value : "status";
 }
 
+export function getDefaultGitHubPullRequestCollapsedGroupKeys(groups) {
+  return [...new Set((groups || []).map((group) => group.key).filter((key) => typeof key === "string"))];
+}
+
 export function normalizeGitHubPullRequestSubGroupBy(value, groupBy) {
   if (groupBy === "none" || value === groupBy || !GROUP_KEYS.has(value)) {
     return "none";

@@ -310,7 +310,7 @@ function SprintWorkitemCell({ columnKey, item, apiBaseUrl, nowTime }) {
   if (columnKey === "pullRequests") return <SprintRelatedPullRequests apiBaseUrl={apiBaseUrl} pullRequests={item.githubPullRequests} />;
   if (columnKey === "priority") return <SprintWorkitemBadge kind="priority" value={item.priority} />;
   if (columnKey === "assignee") return <User name={item.assignee} />;
-  if (columnKey === "relatedPeople") return <MeegleRelatedPeople relatedPeople={item.relatedPeople} />;
+  if (columnKey === "relatedPeople") return <MeegleRelatedPeople inlineLimit={1} relatedPeople={item.relatedPeople} />;
   if (columnKey === "currentWorkingTime") {
     const value = formatMeegleCurrentWorkingTime(item, nowTime);
     return value ? <span title={`当前节点开始：${formatDateTime(item.currentNodeStartTime)}`}>{value}</span> : "-";
@@ -321,10 +321,10 @@ function SprintWorkitemCell({ columnKey, item, apiBaseUrl, nowTime }) {
 function SprintWorkitemList({ items, sort, visibleColumns, onSort, apiBaseUrl, nowTime }) {
   const columns = SPRINT_WORKITEM_VIEW_COLUMNS.filter(({ key }) => visibleColumns.includes(key));
   return <div className="data-table-wrap"><table className="data-table data-table--sprint-workitems" style={{ minWidth: Math.max(720, columns.length * 145) }}>
-    <thead><tr>{columns.map((column) => <th key={column.key}>{column.sortKey
+    <thead><tr>{columns.map((column) => <th data-column-key={column.key} key={column.key}>{column.sortKey
       ? <button className="sortable-column-header" type="button" onClick={() => onSort(column.sortKey)}>{column.label}<span className="sortable-column-header__arrows" aria-hidden="true">{sort.key === column.sortKey ? sort.direction === "asc" ? "↑" : "↓" : "↕"}</span></button>
       : column.label}</th>)}</tr></thead>
-    <tbody>{items.map((item) => <tr key={`${item.projectKey}-${item.workItemTypeKey}-${item.workItemId}-${item.sprintId}-${item.addToCycleTime || "unknown"}`}>{columns.map((column) => <td key={column.key}><SprintWorkitemCell apiBaseUrl={apiBaseUrl} columnKey={column.key} item={item} nowTime={nowTime} /></td>)}</tr>)}</tbody>
+    <tbody>{items.map((item) => <tr key={`${item.projectKey}-${item.workItemTypeKey}-${item.workItemId}-${item.sprintId}-${item.addToCycleTime || "unknown"}`}>{columns.map((column) => <td data-column-key={column.key} key={column.key}><SprintWorkitemCell apiBaseUrl={apiBaseUrl} columnKey={column.key} item={item} nowTime={nowTime} /></td>)}</tr>)}</tbody>
   </table></div>;
 }
 

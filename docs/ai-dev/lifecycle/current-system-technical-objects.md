@@ -684,7 +684,7 @@ Meegle Web 页面不把 Odoo.sh 快照放在首屏读取路径：
 
 ```text
 #meegle-workitems
-  -> 当前筛选下的一页本地工作项（最大 500 条）+ Sprint 筛选项 + 本地 PR 摘要
+  -> 当前筛选下的一页本地工作项（最大 1000 条）+ Sprint 筛选项 + 本地 PR 摘要
   -> 不读取 Sprint 归属历史，也不请求 Odoo DevOps
 
 #meegle-sprints

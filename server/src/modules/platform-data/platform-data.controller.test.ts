@@ -236,7 +236,7 @@ describe("web platform data controller", () => {
       kind: "meegle-workitems",
       cookieHeader: "octo_web_session=session-token",
       query: {
-        limit: "500", offset: "500", sprint: "Odoo Sprint 20260806", status: "Launched,New",
+        limit: "1000", offset: "1000", sprint: "Odoo Sprint 20260806", status: "Launched,New",
         project: "4c3fv6", priority: "P1", workitemType: "story", relatedPerson: ["member-1", "member-2"],
         subscribed: "true",
         sourceUpdatedAtAfter: "2026-08-01T00:00:00Z",
@@ -256,15 +256,15 @@ describe("web platform data controller", () => {
         system: "Odoo/Odoo UK",
         currentNodeStartTime: "2026-08-09T02:00:00.000Z",
         githubPullRequests: [expect.objectContaining({ pullNumber: 1138, headRef: "feature/m-1138", baseRef: "main", state: "merged", odooShBuilds: [{ environment: "eu", status: "done", result: "success" }] })],
-      })], sprints: ["Odoo Sprint 20260806"], relatedPersonOptions: [], pager: { offset: 500, limit: 500, total: 1, hasMore: false } } },
+      })], sprints: ["Odoo Sprint 20260806"], relatedPersonOptions: [], pager: { offset: 1000, limit: 1000, total: 1, hasMore: false } } },
     });
     expect((result.body as { data: { items: Array<Record<string, unknown>> } }).data.items[0]).not.toHaveProperty("plannedSprint");
     expect(ensureSession).toHaveBeenCalledWith("session-token");
-    expect(service.list).toHaveBeenCalledWith("meegle-workitems", 500, { meegleWorkitems: {
+    expect(service.list).toHaveBeenCalledWith("meegle-workitems", 1000, { meegleWorkitems: {
       sprints: ["Odoo Sprint 20260806"], statuses: ["Launched", "New"], projects: ["4c3fv6"], priorities: ["P1"],
       workitemTypes: ["story"], relatedPersonMemberKeys: ["member-1", "member-2"],
       subscribedMemberKey: "member-me",
-      sourceUpdatedAtAfter: "2026-08-01T00:00:00.000Z", offset: 500,
+      sourceUpdatedAtAfter: "2026-08-01T00:00:00.000Z", offset: 1000,
     } });
   });
 
@@ -306,10 +306,10 @@ describe("web platform data controller", () => {
         priority: "P0",
         responsible: "Ada",
         quickFilter: "unsynced",
-        offset: "500",
+        offset: "1000",
       },
-    })).resolves.toEqual({ statusCode: 200, body: { ok: true, data: { items: [], pager: { offset: 500, limit: 500, total: 0, hasMore: false } } } });
-    expect(service.list).toHaveBeenCalledWith("lark-tickets", 500, {
+    })).resolves.toEqual({ statusCode: 200, body: { ok: true, data: { items: [], pager: { offset: 1000, limit: 1000, total: 0, hasMore: false } } } });
+    expect(service.list).toHaveBeenCalledWith("lark-tickets", 1000, {
       larkTickets: {
         createdAfter: "2026-08-01T00:00:00.000Z",
         createdBefore: "2026-08-31T23:59:59.000Z",
@@ -320,7 +320,7 @@ describe("web platform data controller", () => {
         priorities: ["P0"],
         responsibles: ["Ada"],
         quickFilter: "unsynced",
-        offset: 500,
+        offset: 1000,
       },
     });
   });
@@ -433,7 +433,7 @@ describe("web platform data controller", () => {
         label: "bug",
         reviewer: "reviewer",
         sourceUpdatedAtAfter: "2026-08-01T00:00:00Z",
-        offset: "500",
+        offset: "1000",
       },
     })).resolves.toEqual({
       statusCode: 200,
@@ -445,15 +445,15 @@ describe("web platform data controller", () => {
         labels: ["bug"],
         meegleIds: ["13802503"],
         odooShBuilds: [{ environment: "eu", status: "done", result: "success" }],
-      })], pager: { offset: 500, limit: 500, total: 1, hasMore: false } } },
+      })], pager: { offset: 1000, limit: 1000, total: 1, hasMore: false } } },
     });
-    expect(service.list).toHaveBeenCalledWith("github-pull-requests", 500, { githubPullRequests: {
+    expect(service.list).toHaveBeenCalledWith("github-pull-requests", 1000, { githubPullRequests: {
       statuses: ["Draft", "open"],
       repositories: ["TenwaysCom / Tenways"],
       labels: ["bug"],
       reviewers: ["reviewer"],
       sourceUpdatedAtAfter: "2026-08-01T00:00:00.000Z",
-      offset: 500,
+      offset: 1000,
     } });
   });
 
@@ -494,7 +494,7 @@ describe("web platform data controller", () => {
       .resolves.toMatchObject({ statusCode: 404, body: { error: { errorCode: "GITHUB_PULL_REQUEST_NOT_FOUND" } } });
   });
 
-  it("rejects list limits above 500", async () => {
+  it("rejects list limits above 1000", async () => {
     const service = { list: vi.fn() };
     const controller = createWebPlatformDataController({
       service,
@@ -504,7 +504,7 @@ describe("web platform data controller", () => {
     await expect(controller({
       kind: "lark-tickets",
       cookieHeader: "octo_web_session=session-token",
-      query: { limit: "501" },
+      query: { limit: "1001" },
     })).resolves.toMatchObject({
       statusCode: 400,
       body: { ok: false, error: { errorCode: "INVALID_REQUEST" } },
