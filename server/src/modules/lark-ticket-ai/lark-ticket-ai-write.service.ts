@@ -14,7 +14,7 @@ export class LarkTicketAiWriteError extends Error {
 }
 
 export interface LarkTicketAiWriteServiceDeps {
-  syncStore?: Pick<PlatformSyncStore, "findLarkBaseTicketByRecordId" | "upsertLarkBaseTicketAi">;
+  syncStore?: Pick<PlatformSyncStore, "findLarkBaseTicketByRecordId" | "upsertLarkBaseTicketAi" | "getLarkBaseTicketsForCleaning">;
 }
 
 export function createLarkTicketAiWriteService(deps: LarkTicketAiWriteServiceDeps = {}) {
@@ -31,7 +31,17 @@ export function createLarkTicketAiWriteService(deps: LarkTicketAiWriteServiceDep
         );
       }
       const updated = await syncStore.upsertLarkBaseTicketAi({ ...ticket, fields: input.fields });
-      return { recordId: ticket.recordId, updated, storedInOcto: updated };
+      const [readBack] = await syncStore.getLarkBaseTicketsForCleaning([ticket]);
+      const storedFields = readBack?.ticketAi?.fields ?? {};
+      const readBackMatches = Object.entries(input.fields).every(([name, value]) =>
+        JSON.stringify(storedFields[name]) === JSON.stringify(value));
+      if (!updated || !readBackMatches) {
+        throw new LarkTicketAiWriteError(
+          "LARK_TICKET_SNAPSHOT_NOT_FOUND",
+          "Ticket AI update could not be verified by readback.",
+        );
+      }
+      return { recordId: ticket.recordId, updated, storedInOcto: true, readBackVerified: true };
     },
   };
 }

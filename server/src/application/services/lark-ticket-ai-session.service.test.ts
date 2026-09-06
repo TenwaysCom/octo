@@ -365,7 +365,7 @@ describe("Lark Ticket AI Session service", () => {
     expect(analysisService.update).toHaveBeenCalledTimes(1);
   });
 
-  it("rejects a Support-QA quick action that ends without a completed Ticket fetch", async () => {
+  it.each(["fields", "thread", "identity"])("rejects incomplete materials (%s) before any provider call or business draft", async (missing) => {
     const ownershipStore = {
       getBySessionId: vi.fn(),
       listByTicket: vi.fn(),
@@ -429,6 +429,7 @@ describe("Lark Ticket AI Session service", () => {
         getLarkBaseTicketsForCleaning: vi.fn().mockResolvedValue([{
           ...ticket,
           title: "Ticket title",
+          sourceFields: missing === "fields" ? undefined : { "Issue Description": "Cannot log in" },
           ticketNumber: "LT-10",
           syncedAt: "2026-08-12T00:00:00.000Z",
         }]),
@@ -445,12 +446,13 @@ describe("Lark Ticket AI Session service", () => {
           source: "postgres",
           snapshot: {
             ...ticket,
+            recordId: missing === "identity" ? "another-record" : ticket.recordId,
             messageLink: "https://example.test/thread",
             threadId: "thread_1",
             messages: [],
             preparedMessages: [{ messageId: "om_1", senderRole: "user", text: "无法登录", hasArtifact: false }],
             snapshotVersion: 3,
-            historyComplete: true,
+            historyComplete: missing !== "thread",
             dirty: false,
             createdAt: "2026-09-01T09:00:00.000Z",
             updatedAt: "2026-09-01T10:00:00.000Z",
@@ -463,12 +465,11 @@ describe("Lark Ticket AI Session service", () => {
           promptKey: "lark_ticket.support_qa.answer",
           skillProfile: "support_qa_eu",
           skillId: "support_qa_query",
-          executionPolicy: "shell",
-          provider: "kimi_acp",
+          permissionProfileId: "support-qa.answer.v1",
+          provider: "hermes_acp",
           requiresConfirmation: false,
         },
         workspaceDir: "/srv/odoo/eu",
-        octoServerDir: "/srv/octo/server",
         skillPath: "/srv/odoo/eu/.agents/skills/query-support-qa/SKILL.md",
       }),
     });
@@ -483,22 +484,17 @@ describe("Lark Ticket AI Session service", () => {
       actionKey: "lark-ticket-support-qa-answer",
       actionRunId: "run_1",
     }, (event) => events.push(event))).rejects.toMatchObject({
-      code: "SUPPORT_QA_EVIDENCE_NOT_FETCHED",
+      code: "SUPPORT_QA_MATERIALS_UNAVAILABLE",
       diagnostic: {
         layer: "server",
         module: "lark-ticket-ai-session",
-        stage: "server.workflow.completed",
+        stage: "server.workflow.materials",
         actionRunId: "run_1",
       },
     });
     expect(events.some((event) => event.event === "done")).toBe(false);
-    expect(ownershipStore.attachTicket).toHaveBeenCalled();
-    expect(ownershipStore.updateRun).toHaveBeenCalledWith(expect.objectContaining({
-      actionRunId: "run_1",
-      status: "failed",
-      errorCode: "SUPPORT_QA_EVIDENCE_NOT_FETCHED",
-      unverifiedOutput: "这是一份未验证答案",
-    }));
+    expect(acpService.chat).not.toHaveBeenCalled();
+    expect(ownershipStore.attachTicket).not.toHaveBeenCalled();
   });
 
   it("adds only approved knowledge citations to a new Answer quick-action prompt", async () => {
@@ -546,6 +542,7 @@ describe("Lark Ticket AI Session service", () => {
         getLarkBaseTicketsForCleaning: vi.fn().mockResolvedValue([{
           ...ticket,
           title: "VPN failed for person@example.com",
+          sourceFields: { "Issue Description": "VPN failed", "解决方案": "Reset certificate" },
           ticketNumber: "LT-10",
           detailDescription: "VPN certificate error",
           syncedAt: "2026-08-12T00:00:00.000Z",
@@ -559,15 +556,23 @@ describe("Lark Ticket AI Session service", () => {
         action: {
           key: "lark-ticket-support-qa-answer",
           promptKey: "lark_ticket.support_qa.answer",
+          provider: "hermes_acp",
           skillProfile: "support_qa_eu",
           skillId: "support_qa_query",
-          executionPolicy: "shell",
+          permissionProfileId: "support-qa.answer.v1",
+          requiresConfirmation: false,
+          executor: { type: "backend_api", operation: "test", method: "POST", route: "/test" },
+          placements: [],
+          interaction: { type: "direct_execute" },
+          title: "回答问题",
         },
         workspaceDir: "/srv/odoo/eu",
-        octoServerDir: "/srv/octo/server",
         skillPath: "/srv/odoo/eu/.agents/skills/query-support-qa/SKILL.md",
       }),
-      threadContextService: { ensure: vi.fn().mockResolvedValue({ decision: "cached", source: "postgres" }) } as never,
+      effectDraftService: { ingestFromScratch: vi.fn().mockResolvedValue(null) },
+      threadContextService: { ensure: vi.fn().mockResolvedValue({ decision: "cache", source: "cache", snapshot: {
+        ...ticket, threadId: "thread_1", messages: [], preparedMessages: [{ messageId: "om_1", senderRole: "user", text: "VPN failure", hasArtifact: false }], snapshotVersion: 1, historyComplete: true,
+      } }) } as never,
     });
 
     await service.chat({
@@ -577,15 +582,17 @@ describe("Lark Ticket AI Session service", () => {
       ticket,
       message: "VPN cannot connect",
       actionKey: "lark-ticket-support-qa-answer",
+      actionRunId: "action_answer_1",
     }, vi.fn());
 
     expect(knowledgeRetriever.searchApproved).toHaveBeenCalledWith(expect.objectContaining({ query: expect.stringContaining("VPN") }));
     expect(acpService.chat).toHaveBeenCalledWith(expect.objectContaining({
       message: expect.stringContaining("source_ref=case:LT-9:segment-2"),
+      agentProvider: "hermes_acp",
     }), expect.any(Function), expect.any(Object));
-    expect(acpService.chat.mock.calls[0][0].message).toContain("mcp__octo_execute__execute");
-    expect(acpService.chat.mock.calls[0][0].message).toContain('"subcommand":"fetch","args":["LT-10","--json"]');
-    expect(acpService.chat.mock.calls[0][0].message).toContain("不得调用 Bash");
+    expect(acpService.chat.mock.calls[0][0].message).not.toContain("第一条操作必须");
+    expect(acpService.chat.mock.calls[0][0].message).toContain("记录评论尚未取得可靠");
+    expect(acpService.chat.mock.calls[0][0].message).not.toContain("mcp__octo");
     expect(acpService.chat.mock.calls[0][0].message).not.toContain("person@example.com");
   });
 

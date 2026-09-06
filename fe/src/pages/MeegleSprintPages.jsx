@@ -1,3 +1,6 @@
+import { useAiSessionPanel } from "../hooks/useAiSessionPanel.js";
+import { aiRunStatusLabel } from "../lib/ai-session-panel.js";
+import { AcpPermissionPrompt } from "../components/ai-session/AcpPermissionPrompt.jsx";
 import { useEffect, useRef, useState } from "react";
 import { getMeegleSprintDetailHash } from "../app/routes/workspace-routes.js";
 import { AiSessionCopyButton } from "../components/ai-session/AiSessionCopyButton.jsx";
@@ -9,7 +12,6 @@ import { useKeyboardShortcut } from "../hooks/useKeyboardShortcut.js";
 import { useMinuteNow } from "../hooks/useMinuteNow.js";
 import { formatDateTime } from "../lib/formatters.js";
 import { formatMeegleCurrentWorkingTime } from "../lib/meegle-current-working-time.js";
-import { appendAiSessionEvent, createAiUserMessage, transcriptFromAiSessionEvents } from "../lib/ai-session-transcript.js";
 import {
   DEFAULT_SPRINT_WORKITEM_VISIBLE_COLUMNS,
   groupSprintWorkitems,
@@ -31,7 +33,7 @@ import {
 import { countFilterValues, toggleFilterValue } from "../lib/platform-list-filters.js";
 import { getMeegleStatusTone } from "../lib/platform-list-rows.js";
 import { getMeegleSprintHistory } from "../services/platform-data/platform-data-api.js";
-import { listMeegleSprintAiSessions, loadMeegleSprintAiSession, streamMeegleSprintAiSession } from "../services/meegle-sprint-ai/meegle-sprint-ai-api.js";
+import { replyAcpPermission, listMeegleSprintAiSessions, loadMeegleSprintAiSession, stopMeegleSprintAiSession, streamMeegleSprintAiSession } from "../services/meegle-sprint-ai/meegle-sprint-ai-api.js";
 
 const ACTIVITY_LABELS = {
   past: "Past",
@@ -191,10 +193,14 @@ function SprintTimelineChart({ sprint, compact = false }) {
 
 function SprintAiSessions({ sprint, apiBaseUrl }) {
   const [aiSessions, setAiSessions] = useState({ status: "loading", items: [], error: "" });
-  const [drawer, setDrawer] = useState(null);
   const [draft, setDraft] = useState("");
   const [drawerDraft, setDrawerDraft] = useState("");
-  const [isStreaming, setIsStreaming] = useState(false);
+  const { drawer, panel, isStreaming } = useAiSessionPanel(JSON.stringify([apiBaseUrl, sprint.projectKey, sprint.sprintId]), {
+    load: (sessionId) => loadMeegleSprintAiSession({ apiBaseUrl, sprint, sessionId }),
+    stream: (input) => streamMeegleSprintAiSession({ ...input, apiBaseUrl, sprint }),
+    stop: (sessionId, runId) => stopMeegleSprintAiSession({ apiBaseUrl, sprint, sessionId, runId }),
+    onChange: refresh,
+  });
 
   async function refresh() {
     try {
@@ -208,37 +214,27 @@ function SprintAiSessions({ sprint, apiBaseUrl }) {
   useEffect(() => {
     let active = true;
     setAiSessions({ status: "loading", items: [], error: "" });
-    void listMeegleSprintAiSessions({ apiBaseUrl, sprint }).then(
-      (items) => { if (active) setAiSessions({ status: "ready", items, error: "" }); },
-      () => { if (active) setAiSessions({ status: "error", items: [], error: "AI Sessions 暂时无法读取。" }); },
-    );
-    return () => { active = false; };
+    let timer;
+    const refreshList = async () => {
+      try {
+        const items = await listMeegleSprintAiSessions({ apiBaseUrl, sprint });
+        if (active) setAiSessions({ status: "ready", items, error: "" });
+      } catch {
+        if (active) setAiSessions((current) => ({ ...current, status: "error", error: "AI Sessions 暂时无法读取。" }));
+      }
+      if (active) timer = setTimeout(refreshList, 3000);
+    };
+    void refreshList();
+    return () => { active = false; clearTimeout(timer); };
   }, [apiBaseUrl, sprint.projectKey, sprint.sprintId]);
 
   async function openSession(session) {
-    setDrawer({ sessionId: session.sessionId, title: session.title, status: "loading", messages: [], error: "", lastMessage: "" });
-    try {
-      const loaded = await loadMeegleSprintAiSession({ apiBaseUrl, sprint, sessionId: session.sessionId });
-      setDrawer({ sessionId: loaded.sessionId, title: session.title, status: "ready", messages: transcriptFromAiSessionEvents(loaded.events), error: "", lastMessage: "" });
-    } catch (error) {
-      setDrawer({ sessionId: session.sessionId, title: session.title, status: "error", messages: [], error: error.message || "AI Session 无法打开。", lastMessage: "" });
-    }
+    setDrawerDraft("");
+    await panel.open(session);
   }
 
-  async function streamSession({ message, sessionId, title, actionKey }) {
-    if (!message.trim() || isStreaming) return;
-    const trimmed = message.trim();
-    setIsStreaming(true);
-    setDrawer((current) => ({ sessionId: sessionId || current?.sessionId || null, title: title || current?.title || trimmed, status: "generating", messages: [...(current?.messages || []), createAiUserMessage(trimmed)], error: "", lastMessage: trimmed }));
-    try {
-      await streamMeegleSprintAiSession({
-        apiBaseUrl, sprint, message: trimmed, sessionId, actionKey, actionRunId: crypto.randomUUID(),
-        onEvent: (event) => setDrawer((current) => current ? { ...current, sessionId: event.event === "session.created" ? event.data.sessionId : current.sessionId, status: event.event === "done" ? "ready" : "generating", messages: appendAiSessionEvent(current.messages, event) } : current),
-      });
-      void refresh();
-    } catch (error) {
-      setDrawer((current) => current ? { ...current, status: "error", error: error.message || "AI Session 启动失败。" } : current);
-    } finally { setIsStreaming(false); }
+  async function streamSession(input) {
+    await panel.start(input);
   }
 
   return <section className="sprint-ai-sessions" aria-label="Sprint AI Sessions">
@@ -246,7 +242,7 @@ function SprintAiSessions({ sprint, apiBaseUrl }) {
     {aiSessions.status === "loading" ? <p className="ticket-section-empty">正在加载 AI Sessions…</p> : null}
     {aiSessions.status === "error" ? <p className="ticket-ai-session-error">{aiSessions.error}</p> : null}
     {aiSessions.status === "ready" && !aiSessions.items.length ? <div className="ticket-ai-session-empty"><span className="ticket-ai-session-empty__icon"><SprintIcon name="sparkle" /></span><div><strong>暂无 AI Session</strong><p>基于当前 Sprint 已完成工作项创建 Release Notes 草稿。</p></div></div> : null}
-    {aiSessions.items.length ? <div className="ticket-ai-session-list">{aiSessions.items.map((session) => <button className="ticket-ai-session-card" type="button" key={session.sessionId} onClick={() => void openSession(session)}><span className="ticket-ai-session-card__icon"><SprintIcon name="sparkle" /></span><span className="ticket-ai-session-card__content"><strong>{session.title}</strong><small>{formatDateTime(session.updatedAt)}</small></span><span className="ticket-ai-session-card__open"><SprintIcon name="chevron-right" /></span></button>)}</div> : null}
+    {aiSessions.items.length ? <div className="ticket-ai-session-list">{aiSessions.items.map((session) => <button className="ticket-ai-session-card" type="button" key={session.sessionId} onClick={() => void openSession(session)}><span className="ticket-ai-session-card__icon"><SprintIcon name="sparkle" /></span><span className="ticket-ai-session-card__content"><strong>{session.title}</strong><small>{formatDateTime(session.updatedAt)}{session.runStatus ? ` · ${aiRunStatusLabel(session.runStatus)}` : ""}</small></span><span className="ticket-ai-session-card__open"><SprintIcon name="chevron-right" /></span></button>)}</div> : null}
     <div className="ticket-ai-session-composer">
       <div className="ticket-ai-session-quick-actions" aria-label="Sprint AI 快捷操作">{SPRINT_AI_QUICK_ACTIONS.map((action) => <button type="button" key={action.actionKey} disabled={isStreaming} onClick={() => void streamSession({ message: action.title, title: action.title, actionKey: action.actionKey })}><SprintIcon name={action.icon} />{action.title}</button>)}</div>
       <form className="ticket-ai-session-create" onSubmit={(event) => { event.preventDefault(); const message = draft; setDraft(""); void streamSession({ message, title: message }); }}>
@@ -255,7 +251,14 @@ function SprintAiSessions({ sprint, apiBaseUrl }) {
         <div><span>只使用当前 Sprint 已完成的三类工作项快照。</span><button type="submit" disabled={!draft.trim() || isStreaming}>{isStreaming ? "AI 正在回复…" : "新建 AI Session"}</button></div>
       </form>
     </div>
-    {drawer ? <div className="ticket-ai-drawer-backdrop" role="presentation" onMouseDown={() => !isStreaming && setDrawer(null)}><aside className="ticket-ai-drawer" aria-label="Sprint AI Session 详情" onMouseDown={(event) => event.stopPropagation()}><header className="ticket-ai-drawer__header"><div><p>Sprint AI Chat</p><h2>{drawer.title}</h2></div><button type="button" aria-label="关闭 AI Session" onClick={() => setDrawer(null)} disabled={isStreaming}><SprintIcon name="close" /></button></header><div className="ticket-ai-drawer__body">{drawer.status === "loading" ? <p className="ticket-section-empty">正在加载会话…</p> : null}{drawer.messages.map((entry, index) => <div className={`ticket-ai-message ticket-ai-message--${entry.kind}`} key={entry.id || `${entry.kind}-${index}`}>{entry.text ? <div className="ticket-ai-message__text">{entry.text}</div> : null}{entry.kind === "assistant" && entry.text ? <div className="ticket-ai-message__actions"><AiSessionCopyButton text={entry.text} /></div> : null}</div>)}{drawer.status === "generating" ? <p className="ticket-ai-generating">Kimi 正在生成回复…</p> : null}{drawer.status === "error" ? <div className="ticket-ai-drawer__error"><p>{drawer.error}</p>{drawer.lastMessage ? <button type="button" disabled={isStreaming} onClick={() => void streamSession({ message: drawer.lastMessage, sessionId: drawer.sessionId || undefined, title: drawer.title })}>Retry</button> : null}</div> : null}</div><form className="ticket-ai-drawer__composer" onSubmit={(event) => { event.preventDefault(); const message = drawerDraft; setDrawerDraft(""); void streamSession({ message, sessionId: drawer.sessionId || undefined, title: drawer.title }); }}><label className="visually-hidden" htmlFor="sprint-ai-followup">继续对话</label><textarea id="sprint-ai-followup" value={drawerDraft} onChange={(event) => setDrawerDraft(event.target.value)} placeholder="继续这个 AI Session…" rows="2" disabled={isStreaming || drawer.status === "loading"} /><button type="submit" disabled={isStreaming || drawer.status === "loading" || !drawerDraft.trim()}>发送 <SprintIcon name="send" /></button></form></aside></div> : null}
+    {drawer ? <div className="ticket-ai-drawer-backdrop" role="presentation" onMouseDown={() => panel.close()}><aside className="ticket-ai-drawer" aria-label="Sprint AI Session 详情" onMouseDown={(event) => event.stopPropagation()}><header className="ticket-ai-drawer__header"><div><p>Sprint AI Chat</p><h2>{drawer.title}</h2></div><button type="button" aria-label="关闭 AI Session" onClick={() => panel.close()}><SprintIcon name="close" /></button></header><div className="ticket-ai-drawer__body">{drawer.status === "loading" ? <p className="ticket-section-empty">正在加载会话…</p> : null}{drawer.messages.map((entry, index) => <div className={`ticket-ai-message ticket-ai-message--${entry.kind}`} key={entry.id || `${entry.kind}-${index}`}>{entry.kind === "permission" ? <AcpPermissionPrompt permission={entry.permission} active={isStreaming} onReply={(input) => replyAcpPermission({ ...input, apiBaseUrl })} /> : null}{entry.text ? <div className="ticket-ai-message__text">{entry.text}</div> : null}{entry.kind === "assistant" && entry.text ? <div className="ticket-ai-message__actions"><AiSessionCopyButton text={entry.text} /></div> : null}</div>)}{drawer.connectionError ? <p role="status">{drawer.connectionError}</p> : null}{drawer.status === "cancelled" ? <p role="status">已停止生成，已有内容已保留。</p> : null}{drawer.status === "stopping" ? <p role="status">正在停止生成…</p> : null}{drawer.status === "generating" ? <p className="ticket-ai-generating">AI 正在生成回复…</p> : null}{drawer.status === "error" ? <div className="ticket-ai-drawer__error"><p>{drawer.error}</p>{drawer.lastMessage ? <button type="button" disabled={isStreaming} onClick={() => void streamSession({ message: drawer.lastMessage, sessionId: drawer.sessionId || undefined, title: drawer.title })}>Retry</button> : null}</div> : null}</div><form className="ticket-ai-drawer__composer" onSubmit={(event) => { event.preventDefault(); const message = drawerDraft; setDrawerDraft(""); void streamSession({ message, sessionId: drawer.sessionId || undefined, title: drawer.title }); }}><label className="visually-hidden" htmlFor="sprint-ai-followup">继续对话</label><textarea id="sprint-ai-followup" value={drawerDraft} onChange={(event) => setDrawerDraft(event.target.value)} placeholder="继续这个 AI Session…" rows="2" disabled={isStreaming || drawer.status === "loading"} /><div className="ticket-ai-drawer__composer-actions">
+      {isStreaming ? <button className="ticket-ai-drawer__stop" type="button" aria-label="停止生成" title="停止生成" onClick={() => void panel.stop()} disabled={!drawer.runId || drawer.status === "stopping"}>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" fill="currentColor" /></svg>
+      </button> : null}
+      <button className="ticket-ai-drawer__send" type="submit" aria-label="发送" title="发送" disabled={isStreaming || drawer.status === "loading" || !drawerDraft.trim()}>
+        <SprintIcon name="send" />
+      </button>
+    </div></form></aside></div> : null}
   </section>;
 }
 

@@ -1,9 +1,12 @@
 import type { Kysely, Selectable } from "kysely";
+import { resolveAcpSessionIdentity, type AcpAgentProvider } from "../acp/managed-acp-runtime.js";
 import { getSharedDatabase } from "./database.js";
 import type { DatabaseSchema } from "./schema.js";
 
 export interface AcpKimiSessionOwnershipRecord {
   sessionId: string;
+  agentProvider?: AcpAgentProvider | null;
+  agentSessionId?: string | null;
   operatorLarkId: string;
   title: string | null;
   ticketBaseId: string | null;
@@ -13,6 +16,9 @@ export interface AcpKimiSessionOwnershipRecord {
   runtimeHostName: string | null;
   kimiWorkDir: string | null;
   automationActionKey: string | null;
+  permissionProfileId: string | null;
+  permissionProfileVersion: string | null;
+  /** Historical only. New sessions never write this field. */
   executionPolicy: string | null;
   skillProfile: string | null;
   skillId: string | null;
@@ -41,15 +47,18 @@ export interface AcpKimiSessionOwnershipStore {
   }): Promise<AcpKimiSessionOwnershipRecord[]>;
   claim(input: {
     sessionId: string;
+    agentProvider?: AcpAgentProvider;
+    agentSessionId?: string;
     operatorLarkId: string;
     title?: string | null;
     runtimeHostName?: string | null;
     kimiWorkDir?: string | null;
     automationActionKey?: string | null;
-    executionPolicy?: string | null;
+    permissionProfileId?: string | null;
+    permissionProfileVersion?: string | null;
     skillProfile?: string | null;
     skillId?: string | null;
-    policyVersion?: string | null;
+    actionRunId?: string | null;
   }): Promise<AcpKimiSessionOwnershipRecord>;
   rename(
     sessionId: string,
@@ -88,8 +97,13 @@ function toRecord(
     return undefined;
   }
 
+  if (row.agent_provider && row.agent_provider !== "hermes_acp" && row.agent_provider !== "kimi_acp") {
+    throw new Error("Saved ACP session has an unsupported provider.");
+  }
   return {
     sessionId: row.session_id,
+    agentProvider: row.agent_provider === "hermes_acp" || row.agent_provider === "kimi_acp" ? row.agent_provider : null,
+    agentSessionId: row.agent_session_id ?? null,
     operatorLarkId: row.operator_lark_id,
     title: row.title ?? null,
     ticketBaseId: row.ticket_base_id ?? null,
@@ -99,6 +113,8 @@ function toRecord(
     runtimeHostName: row.runtime_host_name ?? null,
     kimiWorkDir: row.kimi_work_dir ?? null,
     automationActionKey: row.automation_action_key ?? null,
+    permissionProfileId: row.permission_profile_id ?? null,
+    permissionProfileVersion: row.permission_profile_version ?? null,
     executionPolicy: row.execution_policy ?? null,
     skillProfile: row.skill_profile ?? null,
     skillId: row.skill_id ?? null,
@@ -129,12 +145,17 @@ export class PostgresAcpKimiSessionOwnershipStore
   async getBySessionId(
     sessionId: string,
   ): Promise<AcpKimiSessionOwnershipRecord | undefined> {
-    return toRecord(
-      await this.database.selectFrom("acp_kimi_session_owners")
-        .selectAll()
-        .where("session_id", "=", sessionId)
-        .executeTakeFirst(),
-    );
+    const row = await this.database.selectFrom("acp_kimi_session_owners")
+      .selectAll().where("session_id", "=", sessionId).executeTakeFirst();
+    const record = toRecord(row);
+    if (record && (!record.agentProvider || !record.agentSessionId)) {
+      const identity = resolveAcpSessionIdentity(record);
+      await this.database.updateTable("acp_kimi_session_owners")
+        .set({ agent_provider: identity.agentProvider, agent_session_id: identity.agentSessionId })
+        .where("session_id", "=", sessionId).execute();
+      return { ...record, ...identity };
+    }
+    return record;
   }
 
   async listByOperatorLarkId(
@@ -171,43 +192,53 @@ export class PostgresAcpKimiSessionOwnershipStore
 
   async claim(input: {
     sessionId: string;
+    agentProvider?: AcpAgentProvider;
+    agentSessionId?: string;
     operatorLarkId: string;
     title?: string | null;
     runtimeHostName?: string | null;
     kimiWorkDir?: string | null;
     automationActionKey?: string | null;
-    executionPolicy?: string | null;
+    permissionProfileId?: string | null;
+    permissionProfileVersion?: string | null;
     skillProfile?: string | null;
     skillId?: string | null;
-    policyVersion?: string | null;
+    actionRunId?: string | null;
   }): Promise<AcpKimiSessionOwnershipRecord> {
     const now = new Date().toISOString();
 
     await this.database.insertInto("acp_kimi_session_owners")
       .values({
         session_id: input.sessionId,
+        agent_provider: input.agentProvider ?? resolveAcpSessionIdentity(input).agentProvider,
+        agent_session_id: input.agentSessionId ?? input.sessionId,
         operator_lark_id: input.operatorLarkId,
         title: input.title ?? null,
         runtime_host_name: input.runtimeHostName ?? null,
         kimi_work_dir: input.kimiWorkDir ?? null,
         automation_action_key: input.automationActionKey ?? null,
-        execution_policy: input.executionPolicy ?? null,
+        permission_profile_id: input.permissionProfileId ?? null,
+        permission_profile_version: input.permissionProfileVersion ?? null,
         skill_profile: input.skillProfile ?? null,
         skill_id: input.skillId ?? null,
-        policy_version: input.policyVersion ?? null,
+        action_run_id: input.actionRunId ?? null,
         deleted_at: null,
         created_at: now,
         updated_at: now,
       })
       .onConflict((conflict) =>
         conflict.column("session_id").doUpdateSet({
-          operator_lark_id: input.operatorLarkId,
           deleted_at: null,
           updated_at: now,
-        }))
+        }).where("acp_kimi_session_owners.operator_lark_id", "=", input.operatorLarkId))
       .execute();
 
-    return (await this.getBySessionId(input.sessionId))!;
+    const record = (await this.getBySessionId(input.sessionId))!;
+    if (record.operatorLarkId !== input.operatorLarkId) throw new Error("ACP session is already owned by another operator.");
+    if ((input.agentProvider && record.agentProvider !== input.agentProvider) || (input.agentSessionId && record.agentSessionId !== input.agentSessionId)) {
+      throw new Error("ACP session identity cannot be changed after creation.");
+    }
+    return record;
   }
 
   async rename(

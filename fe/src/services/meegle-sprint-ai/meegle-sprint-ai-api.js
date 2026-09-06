@@ -1,3 +1,4 @@
+export { replyAcpPermission } from "../acp/acp-permission-api.js";
 import { buildApiUrl } from "../../app/runtime-config.js";
 
 function sprintPath(sprint) {
@@ -39,6 +40,14 @@ export async function loadMeegleSprintAiSession({ apiBaseUrl, sprint, sessionId,
   return data;
 }
 
+export async function stopMeegleSprintAiSession({ apiBaseUrl, sprint, sessionId, runId, fetchImpl = fetch }) {
+  const response = await fetchImpl(buildApiUrl(apiBaseUrl, `${sprintPath(sprint)}/${encodeURIComponent(sessionId)}/stop`), {
+    method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ projectKey: sprint.projectKey, runId }),
+  });
+  return requireSuccess(response, await readJson(response), "AI_SESSION_STOP_FAILED");
+}
+
 export async function streamMeegleSprintAiSession({ apiBaseUrl, sprint, message, sessionId, actionKey, actionRunId, onEvent, signal, fetchImpl = fetch }) {
   const response = await fetchImpl(buildApiUrl(apiBaseUrl, sprintPath(sprint)), {
     method: "POST", credentials: "include", headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
@@ -55,12 +64,14 @@ export async function streamMeegleSprintAiSession({ apiBaseUrl, sprint, message,
 async function parseEventStream(stream, onEvent) {
   const reader = stream.getReader();
   const decoder = new TextDecoder();
+  let completed = false;
   let buffer = ""; let eventName = ""; let eventData = "";
   function flush() {
     if (!eventName) return;
     let data;
     try { data = JSON.parse(eventData || "{}"); } catch { throw createApiError("AI_SESSION_STREAM_INVALID", "AI Session returned an invalid event."); }
     if (eventName === "error") throw createApiError(data.errorCode || "AI_SESSION_FAILED", data.errorMessage);
+    if (eventName === "done") completed = true;
     onEvent?.({ event: eventName, data }); eventName = ""; eventData = "";
   }
   while (true) {
@@ -77,4 +88,5 @@ async function parseEventStream(stream, onEvent) {
     if (done) break;
   }
   flush();
+  if (!completed) throw createApiError("AI_SESSION_STREAM_INTERRUPTED", "连接已中断，请重新打开会话查看任务状态。");
 }

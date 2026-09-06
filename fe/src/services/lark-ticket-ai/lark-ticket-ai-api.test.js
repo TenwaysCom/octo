@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { listLarkTicketAiSessions, loadLarkTicketAiSession, streamLarkTicketAiSession } from "./lark-ticket-ai-api.js";
+import { confirmLarkTicketEffectDraft, listLarkTicketAiSessions, listLarkTicketEffectDrafts, loadLarkTicketAiSession, streamLarkTicketAiSession } from "./lark-ticket-ai-api.js";
 
 const ticket = { baseId: "app_1", tableId: "tbl_1", recordId: "rec_1" };
 
@@ -49,7 +49,7 @@ test("starts a configured Ticket quick-action Session with its action key", asyn
         ok: true,
         body: new ReadableStream({
           start(controller) {
-            controller.enqueue(new TextEncoder().encode("event: done\\ndata: {}\\n\\n"));
+            controller.enqueue(new TextEncoder().encode("event: done\ndata: {}\n\n"));
             controller.close();
           },
         }),
@@ -65,4 +65,29 @@ test("starts a configured Ticket quick-action Session with its action key", asyn
     actionKey: "lark-ticket-support-qa-summarize",
     actionRunId: "run_1",
   });
+});
+
+test("lists and confirms only server-stored Ticket effect drafts", async () => {
+  const requests = [];
+  const fetchImpl = async (url, options = {}) => {
+    requests.push({ url, options });
+    return { ok: true, json: async () => ({ ok: true, data: options.method === "POST" ? { draftId: "draft_1", status: "completed" } : { drafts: [{ draftId: "draft_1", status: "pending" }] } }) };
+  };
+  assert.deepEqual(await listLarkTicketEffectDrafts({ apiBaseUrl: "/api", ticket, fetchImpl }), [{ draftId: "draft_1", status: "pending" }]);
+  assert.deepEqual(await confirmLarkTicketEffectDraft({ apiBaseUrl: "/api", ticket, draftId: "draft_1", actionRunId: "run_1", fetchImpl }), { draftId: "draft_1", status: "completed" });
+  assert.equal(requests[0].url, "/api/web/lark-tickets/rec_1/effect-drafts?baseId=app_1&tableId=tbl_1");
+  assert.equal(requests[1].url, "/api/web/lark-tickets/rec_1/effect-drafts/draft_1/confirm");
+  assert.deepEqual(JSON.parse(requests[1].options.body), { baseId: "app_1", tableId: "tbl_1", actionRunId: "run_1", confirmed: true });
+});
+
+test("surfaces an empty Hermes result sent as an SSE error after session creation", async () => {
+  const events = [];
+  await assert.rejects(streamLarkTicketAiSession({
+    apiBaseUrl: "/api", ticket, message: "生成答案", onEvent: (event) => events.push(event),
+    fetchImpl: async () => ({ ok: true, body: new ReadableStream({ start(controller) {
+      controller.enqueue(new TextEncoder().encode('event: session.created\ndata: {"sessionId":"hermes_test"}\n\nevent: error\ndata: {"errorCode":"ACP_EMPTY_RESULT","errorMessage":"Hermes 未返回回答"}\n\n'));
+      controller.close();
+    } }) }),
+  }), { code: "ACP_EMPTY_RESULT", message: "Hermes 未返回回答" });
+  assert.deepEqual(events.map((event) => event.event), ["session.created"]);
 });

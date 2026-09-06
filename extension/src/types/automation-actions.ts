@@ -30,7 +30,7 @@ export interface AutomationActionListItem {
     | { type: "preview_form_confirm" }
     | { type: "direct_execute" }
     | { type: "direct_result" };
-  provider?: "kimi_acp" | "ticket_summary";
+  provider?: "kimi_acp" | "hermes_acp" | "ticket_summary";
   executor: AutomationActionExecutor;
   execution?: {
     mode: "async";

@@ -1,5 +1,12 @@
 import { z } from "zod";
 
+export const acpPermissionReplySchema = z.object({
+  sessionId: z.string().min(1).max(256),
+  actionRunId: z.string().min(1).max(128),
+  requestId: z.string().uuid(),
+  optionId: z.string().min(1).max(256),
+}).strict();
+
 export const acpKimiChatRequestSchema = z.object({
   operatorLarkId: z.string().min(1),
   message: z.string().min(1),

@@ -1,3 +1,10 @@
+import { randomUUID } from "node:crypto";
+import { AcpKimiProxyError } from "../../application/services/acp-kimi-proxy.service.js";
+import { createWebAiSessionRuns, mergeWebAiSessions, WebAiRunError } from "../../application/services/web-ai-session-runs.js";
+import type { AcpKimiStreamEvent } from "../acp-kimi/event-stream.js";
+import { AcpRuntimeError } from "../../adapters/acp/acp-runtime.js";
+import { AcpPermissionError } from "../../application/services/acp-permission.service.js";
+import { acpPermissionErrorResponse } from "../acp-kimi/acp-permission.controller.js";
 import type { Express, Request, Response } from "express";
 import { z, ZodError } from "zod";
 import {
@@ -30,6 +37,10 @@ function readCookie(cookieHeader: string | undefined, name: string): string | un
 }
 
 function toErrorResponse(error: unknown) {
+  if (error instanceof AcpKimiProxyError) return { statusCode: error.statusCode, body: { ok: false as const, error: { errorCode: error.code, errorMessage: error.message } } };
+  if (error instanceof WebAiRunError) return { statusCode: error.statusCode, body: { ok: false as const, error: { errorCode: error.code, errorMessage: error.message, layer: "server", module: "web-ai-session-runs", stage: "server.workflow.run" } } };
+  if (error instanceof AcpPermissionError) return acpPermissionErrorResponse(error);
+  if (error instanceof AcpRuntimeError) return { statusCode: 502, body: { ok: false as const, error: { errorCode: error.code, errorMessage: error.message, layer: "adapter", module: "acp", stage: error.stage } } };
   if (error instanceof ZodError) return { statusCode: 400, body: { ok: false as const, error: { errorCode: "INVALID_REQUEST", errorMessage: error.message } } };
   if (error instanceof MeegleSprintAiSessionError) {
     const statusCode = error.code === "SPRINT_NOT_FOUND" || error.code === "SESSION_NOT_FOUND" ? 404
@@ -41,10 +52,12 @@ function toErrorResponse(error: unknown) {
 
 export function createWebMeegleSprintAiController(deps: {
   service?: ReturnType<typeof createMeegleSprintAiSessionService>;
+  runs?: ReturnType<typeof createWebAiSessionRuns>;
   resolveSession?: (sessionToken: string | undefined) => Promise<WebIdentity>;
   resolveOperatorLarkId?: (masterUserId: string) => Promise<string | undefined>;
 } = {}) {
   const service = deps.service ?? createMeegleSprintAiSessionService();
+  const runs = deps.runs ?? createWebAiSessionRuns();
   const resolveSession = deps.resolveSession ?? resolveLarkWebSessionIdentity;
   const resolveOperatorLarkId = deps.resolveOperatorLarkId ?? (async (masterUserId) => (await getResolvedUserStore().getById(masterUserId))?.larkId);
 
@@ -64,7 +77,7 @@ export function createWebMeegleSprintAiController(deps: {
       try {
         const query = sprintSessionLoadSchema.parse(input.query);
         const sprint = sprintRefSchema.parse({ ...query, sprintId: input.sprintId });
-        return { statusCode: 200, body: { ok: true as const, data: { sessions: await service.listSessions({ operatorLarkId: identity.operatorLarkId, sprint }) } } };
+        return { statusCode: 200, body: { ok: true as const, data: { sessions: mergeWebAiSessions(await service.listSessions({ operatorLarkId: identity.operatorLarkId, sprint }), runs.list({ operatorLarkId: identity.operatorLarkId, resource: JSON.stringify(["sprint", sprint.projectKey, sprint.sprintId]) })) } } };
       } catch (error) { return toErrorResponse(error); }
     },
 
@@ -74,7 +87,17 @@ export function createWebMeegleSprintAiController(deps: {
       try {
         const request = sprintSessionLoadSchema.parse(input.body);
         const sprint = sprintRefSchema.parse({ ...request, sprintId: input.sprintId });
-        return { statusCode: 200, body: { ok: true as const, data: await service.loadSession({ operatorLarkId: identity.operatorLarkId, sprint, sessionId: input.sessionId }) } };
+        return { statusCode: 200, body: { ok: true as const, data: runs.load({ operatorLarkId: identity.operatorLarkId, resource: JSON.stringify(["sprint", sprint.projectKey, sprint.sprintId]) }, input.sessionId) ?? await service.loadSession({ operatorLarkId: identity.operatorLarkId, sprint, sessionId: input.sessionId }) } };
+      } catch (error) { return toErrorResponse(error); }
+    },
+
+    async stop(input: { cookieHeader: string | undefined; sprintId: string; sessionId: string; body: unknown }) {
+      const identity = await resolveIdentity(input.cookieHeader);
+      if (!identity.ok) return { statusCode: identity.statusCode, body: { ok: false as const, error: { errorCode: identity.errorCode, errorMessage: identity.errorMessage } } };
+      try {
+        const body = sprintSessionLoadSchema.extend({ runId: z.string().min(1) }).strict().parse(input.body);
+        const sprint = sprintRefSchema.parse({ ...body, sprintId: input.sprintId });
+        return { statusCode: 200, body: { ok: true as const, data: runs.stop({ operatorLarkId: identity.operatorLarkId, resource: JSON.stringify(["sprint", sprint.projectKey, sprint.sprintId]) }, input.sessionId, body.runId) } };
       } catch (error) { return toErrorResponse(error); }
     },
 
@@ -87,21 +110,37 @@ export function createWebMeegleSprintAiController(deps: {
         request = sprintSessionChatSchema.parse(req.body);
         sprint = sprintRefSchema.parse({ ...request, sprintId: req.params.sprintId });
       } catch (error) { const result = toErrorResponse(error); res.status(result.statusCode).json(result.body); return; }
-      const abortController = new AbortController();
-      const abort = () => abortController.abort();
-      req.once("aborted", abort); res.once("close", abort);
+      request.actionRunId ??= randomUUID();
+      const scope = { operatorLarkId: identity.operatorLarkId, resource: JSON.stringify(["sprint", sprint.projectKey, sprint.sprintId]) };
+      // A disconnected response only detaches this observer, never the run.
+      let connected = true;
+      const detach = () => { connected = false; };
+      req.once("aborted", detach);
+      res.once("close", detach);
+      const emit = (event: AcpKimiStreamEvent) => {
+        if (connected && !res.writableEnded && !res.destroyed) {
+          try { writeAcpKimiEvent(res, event); } catch { detach(); }
+        }
+      };
       prepareAcpKimiEventStream(res);
       try {
-        await service.chat({ operatorLarkId: identity.operatorLarkId, sprint, message: request.message, sessionId: request.sessionId, actionKey: request.actionKey, actionRunId: request.actionRunId, signal: abortController.signal }, (event) => writeAcpKimiEvent(res, event));
+        await runs.execute({ ...scope, sessionId: request.sessionId, message: request.message,
+          actionKey: request.actionKey, actionRunId: request.actionRunId, oneShot: false }, {
+          loadHistory: async () => await service.loadSession({ operatorLarkId: identity.operatorLarkId, sprint, sessionId: request.sessionId! }) as { events: AcpKimiStreamEvent[] },
+          chat: (signal, emit, actionRunId) => service.chat({
+            operatorLarkId: identity.operatorLarkId, sprint, message: request.message,
+            sessionId: request.sessionId, actionKey: request.actionKey, actionRunId, signal,
+          }, emit),
+          emit,
+        });
       } catch (error) {
-        if (!abortController.signal.aborted && !res.writableEnded) {
-          const result = toErrorResponse(error);
-          controllerLogger.warn({ actionRunId: request.actionRunId, errorCode: result.body.error.errorCode }, "MEEGLE_SPRINT_AI_CHAT_FAILED");
-          res.write(`event: error\ndata: ${JSON.stringify(result.body.error)}\n\n`);
-        }
+        const result = toErrorResponse(error);
+        controllerLogger.warn({ layer: "server", stage: "server.workflow.completed", actionRunId: request.actionRunId, errorCode: result.body.error.errorCode }, "MEEGLE_SPRINT_AI_CHAT_FAILED");
+        if (connected && !res.writableEnded && !res.destroyed) res.write(`event: error\ndata: ${JSON.stringify(result.body.error)}\n\n`);
       } finally {
-        req.off("aborted", abort); res.off("close", abort);
-        if (!res.writableEnded) res.end();
+        req.off("aborted", detach);
+        res.off("close", detach);
+        if (connected && !res.writableEnded && !res.destroyed) res.end();
       }
     },
   };
@@ -114,6 +153,10 @@ export function registerWebMeegleSprintAiRoutes(app: Express) {
     res.status(result.statusCode).json(result.body);
   });
   app.post("/api/web/meegle-sprints/:sprintId/ai-sessions", (req, res) => controller.chat(req, res));
+  app.post("/api/web/meegle-sprints/:sprintId/ai-sessions/:sessionId/stop", async (req, res) => {
+    const result = await controller.stop({ cookieHeader: req.headers.cookie, sprintId: req.params.sprintId, sessionId: req.params.sessionId, body: req.body });
+    res.status(result.statusCode).json(result.body);
+  });
   app.post("/api/web/meegle-sprints/:sprintId/ai-sessions/:sessionId/load", async (req, res) => {
     const result = await controller.load({ cookieHeader: req.headers.cookie, sprintId: req.params.sprintId, sessionId: req.params.sessionId, body: req.body });
     res.status(result.statusCode).json(result.body);

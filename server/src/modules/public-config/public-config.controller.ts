@@ -27,12 +27,6 @@ export type AutomationActionPlacement =
   | { surface: "sidebar" }
   | { surface: "page_dom"; target: "lark_detail_header" };
 
-export type AutomationExecutionPolicy =
-  | "read_only"
-  | "shell"
-  | "write+shell"
-  | "full";
-
 export interface AutomationActionConfig {
   key: string;
   title: string;
@@ -87,10 +81,10 @@ export interface AutomationActionConfig {
    * but it must never make an authorization decision from these fields.
    */
   promptKey?: string;
-  provider?: "kimi_acp" | "ticket_summary";
+  provider?: "kimi_acp" | "hermes_acp" | "ticket_summary";
   skillProfile?: string;
   skillId?: string;
-  executionPolicy?: AutomationExecutionPolicy;
+  permissionProfileId?: string;
   requiresConfirmation?: boolean;
 }
 
@@ -401,7 +395,7 @@ function resolveActionPageConfig(
       }
 
       actions.set(actionId, {
-        ...actionConfig,
+        ...toPublicAutomationAction(actionConfig),
         placements: placements ?? actionConfig.placements,
       });
     }
@@ -417,6 +411,20 @@ function resolveActionPageConfig(
     sidebar: primaryRule.sidebar,
     automationActions: [...actions.values()],
   };
+}
+
+function toPublicAutomationAction(action: AutomationActionConfig): AutomationActionConfig {
+  const internal = action as AutomationActionConfig & Record<string, unknown>;
+  const {
+    promptKey: _promptKey,
+    provider: _provider,
+    skillProfile: _skillProfile,
+    skillId: _skillId,
+    permissionProfileId: _permissionProfileId,
+    requiresConfirmation: _requiresConfirmation,
+    ...publicAction
+  } = internal;
+  return publicAction as AutomationActionConfig;
 }
 
 function logPageConfigResolved(url: URL | null, pageConfig: ExtensionPageConfig): void {
@@ -564,6 +572,8 @@ export async function getServerApiCatalogController(): Promise<ServerApiCatalogR
             { method: "POST", path: "/api/acp/kimi/sessions/load", description: "加载 Kimi ACP 会话" },
             { method: "POST", path: "/api/acp/kimi/sessions/rename", description: "重命名 Kimi ACP 会话" },
             { method: "POST", path: "/api/acp/kimi/sessions/delete", description: "删除 Kimi ACP 会话" },
+            { method: "GET", path: "/api/web/lark-tickets/:recordId/effect-drafts", description: "查看当前 Ticket 的待确认 effect drafts" },
+            { method: "POST", path: "/api/web/lark-tickets/:recordId/effect-drafts/:draftId/confirm", description: "确认并执行 Server 保存的 effect draft" },
           ],
         },
         {

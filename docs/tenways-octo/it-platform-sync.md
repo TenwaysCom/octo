@@ -91,34 +91,39 @@ Lark Ticket full/incremental 同步只维护 Ticket 字段和 `lark_message_link
 | 上述终态还没有完整成功快照 | Lark 全量一次，成功后冻结 |
 | 已冻结 Ticket 重新进入活跃状态 | 恢复增量/完整对账策略 |
 
-同一 Server 进程内，对同一用户和 Ticket 的并发 ensure 会合并为一个 Lark 请求。Kimi 新 Session 的首轮 prompt 包含本次快照，并把 `thread_id`、`thread_snapshot_version` 和同步时间写入 `acp_kimi_session_owners`；同一 Session 的后续 turn 依赖会话内已注入上下文，不再次 ensure，保证一次分析使用固定上下文。
+同一 Server 进程内，对同一用户和 Ticket 的并发 ensure 会合并为一个 Lark 请求。ACP 新 Session 的首轮 prompt 包含本次快照，并把 `thread_id`、`thread_snapshot_version` 和同步时间写入 `acp_kimi_session_owners`；同一 Session 的后续 turn 依赖会话内已注入上下文，不再次 ensure，保证一次分析使用固定上下文。
 
-`POST /api/internal/acp/ticket-context/messages` 为 Kimi/受控 Skill 提供同一 ensure 能力。请求使用 `ticket-thread-context-v1` DTO，不能提交 `masterUserId`；Server 通过独立 `octo-acp-ticket-context` SSHSIG namespace、`x-octo-acp-context-*` headers、直接 TCP 来源 CIDR 和 `user_ssh_public_keys` 解析用户。允许网段由 `OCTO_ACP_TICKET_CONTEXT_ALLOWED_CIDRS` 配置，未设置时沿用 `OCTO_TICKET_AI_ALLOWED_CIDRS`。响应包含 decision/source、快照版本、完整性、冻结状态和规范化消息，不返回 Lark token 或图片二进制。
+`POST /api/internal/acp/ticket-context/messages` 为 ACP Agent / 受控 Skill 提供同一 ensure 能力。请求使用 `ticket-thread-context-v1` DTO，不能提交 `masterUserId`；Server 通过独立 `octo-acp-ticket-context` SSHSIG namespace、`x-octo-acp-context-*` headers、直接 TCP 来源 CIDR 和 `user_ssh_public_keys` 解析用户。允许网段由 `OCTO_ACP_TICKET_CONTEXT_ALLOWED_CIDRS` 配置，未设置时沿用 `OCTO_TICKET_AI_ALLOWED_CIDRS`。响应包含 decision/source、快照版本、完整性、冻结状态和规范化消息，不返回 Lark token 或图片二进制。
 
 #### 会话存储边界
 
-`acp_kimi_session_owners` 不是消息表。它只保存 `session_id`、Ticket 与用户归属、标题/时间、首轮 thread 快照引用，以及创建节点的 `runtime_host_name`、`kimi_work_dir`。thread 引用仅包含 `thread_id`、`thread_snapshot_version`、`thread_context_synced_at`，消息正文仍在 `lark_ticket_thread_syncs`。后两个运行节点值仅由 Server 取得（分别为 `os.hostname()` 与传给 Kimi ACP 的工作目录），用于定位实际承载会话的运行节点；已有记录的这些字段可为空。由快捷动作创建的 Session 还保存 `automation_action_key`、`execution_policy`、`skill_profile`、`skill_id`、`policy_version` 和 Ticket number，作为权限策略快照；旧会话这些字段为空时继续默认拒绝所有敏感 ACP 调用。
+`acp_kimi_session_owners` 不是消息表。它保存 `session_id`、`agent_provider`、`agent_session_id`、Ticket 与用户归属、标题/时间、首轮 thread 快照引用，以及创建节点的 `runtime_host_name`、`kimi_work_dir`。thread 引用仅包含 `thread_id`、`thread_snapshot_version`、`thread_context_synced_at`，消息正文仍在 `lark_ticket_thread_syncs`。后两个运行节点值仅由 Server 取得（分别为 `os.hostname()` 与传给 ACP Agent 的工作目录），用于定位实际承载会话的运行节点；已有记录的这些字段可为空。由快捷动作创建的新 Session 还保存 `automation_action_key`、`action_run_id`、`permission_profile_id`、`permission_profile_version`、`skill_profile`、`skill_id` 和 Ticket number，作为权限策略快照。旧 `execution_policy` / `policy_version` 列只用于读取历史记录；Kimi 缺少版本化 Profile 的旧 Session 可继续只读追问，但 Write 或 Terminal 返回 `ACP_SESSION_PERMISSION_UPGRADE_REQUIRED`。
 
 #### Support-QA 快捷动作与 ACP 权限
 
-`server/src/modules/public-config/automation-actions.config.ts` 是 automation 的唯一逻辑定义：三个 Lark Ticket 快捷动作分别绑定稳定 `promptKey`、`skillProfile`、`skillId`、`executionPolicy` 和 `requiresConfirmation`。实际环境目录不写入 action，也不返回浏览器；统一由普通 Server 环境变量 `SUPPORT_QA_EU_WORKSPACE_DIR` 提供。该值在 `server/.env.example` 中说明，生产环境通过部署环境变量配置，不新增本地 JSON 配置文件。
+Ticket Answer / Document 与三个 Sprint Quick Actions 的新会话由 Server catalog 选择 `hermes_acp`，共享 TS ACP Client 直接启动官方 `python -m acp_adapter`，不依赖项目补丁。Hermes 执行原生工具及风险审批；普通新对话默认 Kimi。保存的 provider/native ID 优先于当前 catalog，模型与认证复用 Hermes 配置，见 [Server 运行说明](../../server/README.md#hermes-acp)。文件隔离与真实业务验收尚未完成，不代表已经部署。
 
-| `executionPolicy` | 当前行为 |
-| --- | --- |
-| `read_only` | 不批准敏感 ACP 工具调用；这是未绑定 action 的默认行为。 |
-| `shell` | 仅一次性批准当前 Ticket 的 Support-QA `fetch --json` 包装命令，以及指定 Skill/知识库目录和 `/tmp/support-qa/` 直接子级 JSON 的受限读取。 |
-| `write+shell` | 在 `shell` 基础上，仅允许 Support-QA 文档目录写入、`/tmp/support-qa/` 直接子级 JSON 写入及使用该 JSON 的受限 `update` 包装命令。 |
-| `full` | 预留给未来的逐次人工确认；当前没有确认桥接时仍拒绝，绝不自动放行。 |
+`server/src/modules/public-config/automation-actions.config.ts` 是 automation 的唯一逻辑定义：Lark Ticket Answer/Document 快捷动作分别绑定稳定 `promptKey`、`skillProfile`、`skillId` 和版本化 `permissionProfileId`。具体路径、命令规则和超时不写入 action，也不返回浏览器；它们由 Server 策略实现持有。实际 Support-QA 环境目录统一由普通 Server 环境变量 `SUPPORT_QA_EU_WORKSPACE_DIR` 提供。
 
-每次 Kimi 发起 ACP `session/request_permission`，Server 都基于 Session 快照重新判断并最多选择 Kimi 提供的 `allow_once` 选项；不会使用 `allow_always`。Shell 命令含控制操作符、路径越出 workspace、动作/Skill/Profile 不匹配，均拒绝。临时 JSON 只允许位于 `/tmp/support-qa/` 第一层，扩展名必须为 `.json`；目录或目标文件是符号链接、文件越过该目录、嵌套子目录或 update 目标不是已有普通文件时均拒绝。此策略是授权拦截层，不替代生产环境的专用运行账号、受限工作目录和最小 Lark CLI 身份。
+以下回调权限适用于 Kimi，不限制 Hermes 的原生工具或 Terminal 间接写入：
 
-查询和文档快捷动作可在上述逐次授权内使用路径受限的只读 shell 工具：`ls` 只能列出当前 Skill 可读根目录中的目标，`grep` 只能以有限的显示/匹配参数搜索一个允许目标；不允许递归 grep。命令先经过保守 shell 分词，未闭合引号、管道、重定向、命令替换、反斜杠转义、未引用 glob 或其他 shell 扩展均拒绝。引号只用于安全地传递 grep pattern，不扩大可读路径。
+| `permissionProfileId` | Write | Terminal |
+| --- | --- | --- |
+| `acp.chat-readonly.v1` | 禁止 | 禁止 |
+| `support-qa.answer.v1` | 仅 `os.tmpdir()/octo-support-qa/<actionRunId>/` | 当前 Ticket fetch、`git status`、受限 diff |
+| `support-qa.document.v1` | action 临时目录，加 `qa-cards/**/*.md`、`indexes/*.md`、`faq.md` | Answer 命令，加确定性 Eval 和 `update` / `analysis-update --dry-run --json` |
 
-权限匹配必须兼容 Kimi ACP 的真实事件顺序。Kimi 0.38 的 permission request 不再携带完整 Shell 命令，只保留截断的动作摘要。非流式工具调用会在先到达的 `tool_call.rawInput` 给出完整参数；流式参数路径会先 lazy-create 一个没有 `rawInput` 的 `tool_call`，再由 canonical `tool_call_update.rawInput` 补齐。ACP client 仅按相同 `sessionId + toolCallId` 单次关联该参数，再交给既有精确白名单判断；证据缺失、ID 不匹配、重复证据冲突或 permission 自带参数与关联参数不一致时全部拒绝。旧版 permission `rawInput`、Kimi 0.22 严格 text content 和文件 diff `content.path` 继续兼容，但不得根据 0.38 的截断摘要猜测命令。测试必须保留真实 0.38 lazy-create/upgrade 事件顺序 fixture，不能只用人为构造的 permission `rawInput` 或非流式 `tool_call` 证明策略可用。
+Octo 发起 ACP Session 时的 `mcpServers` 固定为空；这不保证禁用 Hermes 自身配置的 MCP。Kimi Write 回调只接受 UTF-8 文本且单文件最多 256 KiB；每次回调都阻止目录穿越、symlink 逃逸、`.git`、`.env*`、证书、SSH 和凭据文件。临时目录创建为 `0700`，文件写为 `0600`；草稿入库后删除，异常目录超过 24 小时才清理。Document 不能直接写 `knowledge-index.jsonl`。
 
-Support-QA 快捷动作还会在 workflow 完成前核对当前 Ticket 的 `fetch --json` tool call 是否以 `completed` 结束。没有匹配 fetch、权限被拒绝或 fetch 失败时，Server 不发送成功 `done`，而是返回 `SUPPORT_QA_EVIDENCE_NOT_FETCHED`，并带 `layer`、`module`、`stage` 和可用时的 `actionRunId`；模型仅依赖 Ticket 快照生成的降级答案不再被当作成功结果。
+Kimi ACP Agent 可提交直接命令 argv，也可提交 `/bin/bash -lc "<command>"`。Server 必须先解析出完整 argv，拒绝管道、重定向、变量展开、控制符和模型提供的 env，再按 Action、Profile、cwd、脚本真实路径、当前 Ticket、参数和 action run 匹配命令规则；实际执行固定使用 `spawn(executable, args, { shell: false })`，不开放 stdin。每个 Session 最多一个子进程，默认 60 秒、输出上限 256 KiB，断连或关闭 Session 时终止。权限弹窗的工具名、截断摘要和 tool-call 文本都不构成授权或成功证据。
 
-对话正文、思考过程和工具调用由 Kimi CLI 在运行 Server 的机器上持久化，默认目录结构如下：
+Kimi Terminal 的启动和退出继续写入 `AcpKimiOperationAuditStore`，用于诊断。Answer/Document 的门槛改为 application service 准备材料：数据库源字段、完整非空聊天快照，以及 Answer 的已批准知识检索。缺少必需材料返回 `SUPPORT_QA_MATERIALS_UNAVAILABLE`，不调用 Agent；不再要求第一条 Terminal fetch。现有 fetch 的 record history 不能证明评论已取得，提示词明确保留评论来源缺口。
+
+Hermes 原生风险请求通过 `acp.permission.requested` 交给 Ticket/Sprint 共用组件，当前 Web 用户选择原生 optionId，默认单次允许。`POST /api/web/acp/permissions/reply` 校验用户、会话、action run、请求有效期与 options。拒绝或 50 秒过期会取消本轮并发送 `acp.permission.resolved`；后台模式立即拒绝、取消并记录 `ACP_PERMISSION_CONFIGURATION_REQUIRED`，后续 end_turn 不覆盖失败。断连和取消清理所有待审批请求。
+
+外部写入不由 Terminal 执行。ACP Agent 只能在 action 临时目录写固定 schema 的 `effect-draft.json`；Server 将其绑定 operator、Session、Action、Ticket、Profile、snapshot version 和 payload hash 入库。确认接口只接受 `draftId`、Ticket 标识、`actionRunId` 和 `confirmed: true`，不接受替换 payload。Answer feedback 由 Server 创建并 readback；Document 先写并 readback `ticket_ai`，成功后再原子更新 `knowledge-index.jsonl`。未知外部结果记录为 `outcome_unknown`，禁止自动重试。
+
+Kimi 会话的对话正文、思考过程和工具调用仍由 Kimi CLI 在运行 Server 的机器上持久化，默认目录结构如下：
 
 ```text
 ~/.kimi-code/
@@ -130,18 +135,18 @@ Support-QA 快捷动作还会在 workflow 完成前核对当前 Ticket 的 `fetc
     └── logs/kimi-code.log       # 可选诊断日志
 ```
 
-加载历史时，Octo 先根据数据库关联校验会话归属，再连接 Kimi 恢复会话；如果运行期没有重放完整转录，会使用 `kimi export` 读取 `wire.jsonl`，临时导出文件读取后删除。Octo PostgreSQL 不保存上述转录，也不向 Lark 回写 AI 消息或评论。
+Hermes 保留原生 ID 工厂，转录保存于 `$HERMES_HOME/state.db`。Octo 的 `hermes_<uuid>` 公开身份映射至完整 `agent_session_id`，`agent_provider` 保存恢复入口。旧 v2/v3 原生 ID 本来带前缀，兼容读取保留全文。两个可空字段由 schema 迁移增加，缺失值在 ownership 读取后补齐；迁移执行只记录在任务文档。原生 RPC 用 native ID，registry/SSE/业务引用用 Octo ID。只有 Kimi 使用 `kimi export` 兜底；Hermes 使用原生 session load/replay。Octo 不向 Lark 回写会话消息或评论。
 
-单实例部署必须持久化该 Kimi 会话目录。多实例部署中，`runtime_host_name` 和 `kimi_work_dir` 只是诊断元数据，不能自动把请求路由回原节点；仍须共享/持久化 Kimi 会话目录、实现按节点路由，或将转录另行写入 Octo 的持久化存储。
+单实例部署必须持久化 Kimi 会话目录及 Hermes 的状态数据库。多实例部署中，`runtime_host_name` 和 `kimi_work_dir` 只是诊断元数据，不能自动把请求路由回原节点；仍须持久化对应 Agent 状态、实现按节点路由，或将转录另行写入 Octo 的持久化存储。
 
 | 路由 | 作用 |
 | --- | --- |
 | `GET /api/web/lark-tickets/:recordId/ai-sessions` | 列出当前 Web 用户在指定 Ticket 下的 AI Sessions |
-| `POST /api/web/lark-tickets/:recordId/ai-sessions` | 运行配置的 Ticket Summary one-shot，或新建/继续 Kimi ACP 流式对话 |
+| `POST /api/web/lark-tickets/:recordId/ai-sessions` | 运行配置的 Ticket Summary one-shot，或新建/继续 ACP 流式对话 |
 | `POST /api/web/lark-tickets/:recordId/ai-sessions/:sessionId/load` | 加载一个已归属该 Ticket 的会话历史 |
 | `POST /api/internal/acp/ticket-context/messages` | 通过 SSH 签名身份按需 ensure 并返回 Ticket thread 快照 |
 
-三个路由都要求有效的 HttpOnly `octo_web_session`；浏览器只提交当前已加载 Ticket 的引用和用户输入，服务端解析用户身份、读取同步快照、校验会话归属，并按 action 调用共享 Ticket Summary provider 或 Kimi ACP。浏览器不会接收 `masterUserId`、provider key 或 ACP 凭据。详情页按 ACP turn 合并流式 text chunk，并把同一回复的思考过程与工具调用收进可展开区块；无 `messageId` 的事件以用户消息作为新 turn 边界，避免跨轮回复拼接。
+三个路由都要求有效的 HttpOnly `octo_web_session`；浏览器只提交当前已加载 Ticket 的引用和用户输入，服务端解析用户身份、读取同步快照、校验会话归属，并按 action 调用共享 Ticket Summary provider 或 Hermes ACP。浏览器不会接收 `masterUserId`、provider key 或 ACP 凭据。详情页按 ACP turn 合并流式 text chunk，并把同一回复的思考过程与工具调用收进可展开区块；无 `messageId` 的事件以用户消息作为新 turn 边界，避免跨轮回复拼接。
 
 ### 2.4 当前批量范围与限制
 

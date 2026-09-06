@@ -5,6 +5,7 @@ describe("Lark Ticket AI write service", () => {
     const syncStore = {
       findLarkBaseTicketByRecordId: vi.fn().mockResolvedValue({ baseId: "base", tableId: "table", recordId: "rec_1" }),
       upsertLarkBaseTicketAi: vi.fn().mockResolvedValue(true),
+      getLarkBaseTicketsForCleaning: vi.fn().mockResolvedValue([{ ticketAi: { fields: { "AI分析状态": "已分析" } } }]),
     };
     const service = createLarkTicketAiWriteService({ syncStore });
 
@@ -12,6 +13,7 @@ describe("Lark Ticket AI write service", () => {
       recordId: "rec_1",
       updated: true,
       storedInOcto: true,
+      readBackVerified: true,
     });
     expect(syncStore.upsertLarkBaseTicketAi).toHaveBeenCalledWith({
       baseId: "base", tableId: "table", recordId: "rec_1", fields: { "AI分析状态": "已分析" },
@@ -23,6 +25,7 @@ describe("Lark Ticket AI write service", () => {
       syncStore: {
         findLarkBaseTicketByRecordId: vi.fn().mockResolvedValue(undefined),
         upsertLarkBaseTicketAi: vi.fn(),
+        getLarkBaseTicketsForCleaning: vi.fn(),
       },
     });
 

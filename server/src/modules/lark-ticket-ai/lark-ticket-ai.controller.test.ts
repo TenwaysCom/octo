@@ -76,4 +76,46 @@ describe("web Lark Ticket AI controller", () => {
     expect(writes.join("\n")).toContain("event: acp.session.update");
     expect(writes.join("\n")).toContain("event: done");
   });
+
+  it("confirms only a server-stored effect draft identity", async () => {
+    const effectDraftService = { list: vi.fn(), confirm: vi.fn().mockResolvedValue({ draftId: "draft_1", status: "completed" }) };
+    const controller = createWebLarkTicketAiController({
+      service: {} as never,
+      effectDraftService,
+      resolveSession: vi.fn().mockResolvedValue({ ok: true, masterUserId: "usr_1", baseUrl: "https://open.larksuite.com", user: {} }),
+      resolveOperatorLarkId: vi.fn().mockResolvedValue("ou_1"),
+    });
+    await expect(controller.confirmEffectDraft({
+      cookieHeader: "octo_web_session=session_1",
+      recordId: "rec_1",
+      draftId: "draft_1",
+      body: { baseId: "app_1", tableId: "tbl_1", actionRunId: "run_1", confirmed: true },
+    })).resolves.toMatchObject({ statusCode: 200 });
+    expect(effectDraftService.confirm).toHaveBeenCalledWith({
+      operatorLarkId: "ou_1",
+      masterUserId: "usr_1",
+      larkBaseUrl: "https://open.larksuite.com",
+      ticket: { baseId: "app_1", tableId: "tbl_1", recordId: "rec_1" },
+      draftId: "draft_1",
+      actionRunId: "run_1",
+      confirmed: true,
+    });
+  });
+
+  it("rejects arbitrary business payloads on effect draft confirmation", async () => {
+    const effectDraftService = { list: vi.fn(), confirm: vi.fn() };
+    const controller = createWebLarkTicketAiController({
+      service: {} as never,
+      effectDraftService,
+      resolveSession: vi.fn().mockResolvedValue({ ok: true, masterUserId: "usr_1", baseUrl: "https://open.larksuite.com", user: {} }),
+      resolveOperatorLarkId: vi.fn().mockResolvedValue("ou_1"),
+    });
+    await expect(controller.confirmEffectDraft({
+      cookieHeader: "octo_web_session=session_1",
+      recordId: "rec_1",
+      draftId: "draft_1",
+      body: { baseId: "app_1", tableId: "tbl_1", actionRunId: "run_1", confirmed: true, fields: { injected: true } },
+    })).resolves.toMatchObject({ statusCode: 400, body: { error: { errorCode: "INVALID_REQUEST" } } });
+    expect(effectDraftService.confirm).not.toHaveBeenCalled();
+  });
 });

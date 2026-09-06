@@ -19,16 +19,16 @@ describe("ticket AI automation actions", () => {
       requiresConfirmation: false,
     });
     expect(getTicketAiAutomationAction("lark-ticket-support-qa-answer")).toMatchObject({
-      provider: "kimi_acp",
+      provider: "hermes_acp",
       skillProfile: "support_qa_eu",
       skillId: "support_qa_query",
-      executionPolicy: "shell",
+      permissionProfileId: "support-qa.answer.v1",
     });
     expect(getTicketAiAutomationAction("lark-ticket-support-qa-document-preview")).toMatchObject({
       promptKey: "lark_ticket.support_qa.document_preview",
-      provider: "kimi_acp",
+      provider: "hermes_acp",
       skillId: "support_qa_write",
-      executionPolicy: "write+shell",
+      permissionProfileId: "support-qa.document.v1",
     });
     expect(getTicketAiAutomationAction("update-lark-and-push")).toBeUndefined();
   });
@@ -37,14 +37,17 @@ describe("ticket AI automation actions", () => {
 describe("Sprint AI automation actions", () => {
   it("uses the workflow prompt without a workspace Skill profile", () => {
     expect(getSprintAiAutomationAction("meegle-sprint-release-notes")).toEqual(expect.objectContaining({
+      provider: "hermes_acp",
       promptKey: "meegle.sprint.release_notes",
-      executionPolicy: "read_only",
+      permissionProfileId: "acp.chat-readonly.v1",
       requiresConfirmation: false,
     }));
     expect(getSprintAiAutomationAction("meegle-sprint-internal-summary")).toEqual(expect.objectContaining({
+      provider: "hermes_acp",
       promptKey: "meegle.sprint.internal_summary",
     }));
     expect(getSprintAiAutomationAction("meegle-sprint-confirm-gaps")).toEqual(expect.objectContaining({
+      provider: "hermes_acp",
       promptKey: "meegle.sprint.confirm_gaps",
     }));
     expect(AUTOMATION_SKILL_PROFILES).not.toHaveProperty("octo_sprint_release_notes");

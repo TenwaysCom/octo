@@ -1,3 +1,4 @@
+export { replyAcpPermission } from "../acp/acp-permission-api.js";
 import { buildApiUrl } from "../../app/runtime-config.js";
 
 function ticketPath(ticket) {
@@ -50,6 +51,14 @@ export async function loadLarkTicketAiSession({ apiBaseUrl, ticket, sessionId, f
   return data;
 }
 
+export async function stopLarkTicketAiSession({ apiBaseUrl, ticket, sessionId, runId, fetchImpl = fetch }) {
+  const response = await fetchImpl(buildApiUrl(apiBaseUrl, `${ticketPath(ticket)}/${encodeURIComponent(sessionId)}/stop`), {
+    method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ baseId: ticket.baseId, tableId: ticket.tableId, runId }),
+  });
+  return requireSuccess(response, await readJson(response), "AI_SESSION_STOP_FAILED");
+}
+
 export async function streamLarkTicketAiSession({
   apiBaseUrl,
   ticket,
@@ -85,17 +94,26 @@ export async function streamLarkTicketAiSession({
   await parseEventStream(response.body, onEvent);
 }
 
-export async function confirmLarkTicketAiDraft({ apiBaseUrl, ticket, sessionId, draft, actionRunId, fetchImpl = fetch }) {
-  const response = await fetchImpl(buildApiUrl(apiBaseUrl, `/web/lark-tickets/${encodeURIComponent(ticket.recordId)}/reply-drafts/confirm`), {
+export async function listLarkTicketEffectDrafts({ apiBaseUrl, ticket, fetchImpl = fetch }) {
+  const path = `/web/lark-tickets/${encodeURIComponent(ticket.recordId)}/effect-drafts`;
+  const response = await fetchImpl(`${buildApiUrl(apiBaseUrl, path)}?${ticketQuery(ticket)}`, { credentials: "include" });
+  const data = requireSuccess(response, await readJson(response), "EFFECT_DRAFT_LIST_FAILED");
+  if (!Array.isArray(data?.drafts)) throw createApiError("INVALID_EFFECT_DRAFT_LIST", "Invalid effect draft list response.");
+  return data.drafts;
+}
+
+export async function confirmLarkTicketEffectDraft({ apiBaseUrl, ticket, draftId, actionRunId, fetchImpl = fetch }) {
+  const response = await fetchImpl(buildApiUrl(apiBaseUrl, `/web/lark-tickets/${encodeURIComponent(ticket.recordId)}/effect-drafts/${encodeURIComponent(draftId)}/confirm`), {
     method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ baseId: ticket.baseId, tableId: ticket.tableId, sessionId, draft, confirmed: true, actionRunId }),
+    body: JSON.stringify({ baseId: ticket.baseId, tableId: ticket.tableId, actionRunId, confirmed: true }),
   });
-  return requireSuccess(response, await readJson(response), "AI_DRAFT_SEND_FAILED");
+  return requireSuccess(response, await readJson(response), "EFFECT_DRAFT_CONFIRM_FAILED");
 }
 
 async function parseEventStream(stream, onEvent) {
   const reader = stream.getReader();
   const decoder = new TextDecoder();
+  let completed = false;
   let buffer = "";
   let eventName = "";
   let eventData = "";
@@ -111,6 +129,7 @@ async function parseEventStream(stream, onEvent) {
     if (eventName === "error") {
       throw createApiError(data.errorCode || "AI_SESSION_FAILED", data.errorMessage);
     }
+    if (eventName === "done") completed = true;
     onEvent?.({ event: eventName, data });
     eventName = "";
     eventData = "";
@@ -141,4 +160,5 @@ async function parseEventStream(stream, onEvent) {
     if (line.startsWith("data:")) eventData = line.slice("data:".length).trim();
   }
   flush();
+  if (!completed) throw createApiError("AI_SESSION_STREAM_INTERRUPTED", "连接已中断，请重新打开会话查看任务状态。");
 }

@@ -675,6 +675,37 @@ a.workitem-row__title:hover { color: var(--octo-brand); text-decoration: underli
 .github-pr-status--merged { color: var(--octo-badge-success-text); background: var(--octo-badge-success-bg); }
 .github-pr-status--closed { color: var(--octo-badge-neutral-text); background: var(--octo-badge-neutral-bg); }
 .github-pr-status--draft { color: var(--octo-badge-active-text); background: var(--octo-badge-active-bg); }
+
+.ticket-effect-draft,
+.ticket-ai-drawer__effect-draft {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 0.75rem;
+  padding: 0.85rem;
+  border: 1px solid var(--octo-border, #e2e8f0);
+  border-radius: 0.75rem;
+  background: #f8fafc;
+}
+
+.ticket-effect-draft > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.ticket-effect-draft small {
+  color: #64748b;
+}
+
+.ticket-effect-draft pre,
+.ticket-ai-drawer__effect-draft pre {
+  max-height: 16rem;
+  margin: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.75rem;
+}
 .lark-ticket-badge { display: inline-flex; max-width: 150px; align-items: center; overflow: hidden; padding: 3px 7px; border-radius: 999px; color: var(--octo-badge-neutral-text); background: var(--octo-badge-neutral-bg); font-size: 11px; font-weight: 700; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
 .lark-ticket-badge--status.lark-ticket-badge--open { color: var(--octo-badge-warning-text); background: var(--octo-badge-warning-bg); }
 .lark-ticket-badge--status.lark-ticket-badge--active { color: var(--octo-badge-active-text); background: var(--octo-badge-active-bg); }
@@ -994,6 +1025,13 @@ h1 {
 .ticket-ai-drawer__composer textarea { min-height: 44px; padding: 10px; border: 1px solid var(--octo-border); border-radius: 8px; background: var(--octo-surface); }
 .ticket-ai-drawer__composer textarea:focus { border-color: var(--octo-brand); box-shadow: 0 0 0 3px color-mix(in srgb, var(--octo-brand) 15%, transparent); }
 .ticket-ai-drawer__composer button { min-height: 37px; }
+.ticket-ai-drawer__composer--actions-only { grid-template-columns: 1fr; }
+.ticket-ai-drawer__composer-actions { display: flex; justify-self: end; gap: 8px; }
+.ticket-ai-drawer__composer-actions button { display: grid; width: 37px; height: 37px; padding: 0; place-items: center; }
+.ticket-ai-drawer__composer-actions svg { width: 20px; height: 20px; }
+.ticket-ai-drawer__composer .ticket-ai-drawer__stop { border: 1px solid var(--octo-border); color: #000; background: var(--octo-surface); }
+.ticket-ai-drawer__composer .ticket-ai-drawer__stop:hover:not(:disabled) { background: #f3f4f6; }
+.ticket-ai-drawer__composer .ticket-ai-drawer__send:disabled { color: #9ca3af; background: #e5e7eb; opacity: 1; }
 .ticket-detail__properties { position: sticky; top: 92px; padding-top: 4px; }
 .ticket-detail__properties > h2 { margin-bottom: 18px; color: var(--octo-text-muted); font-size: 12px; font-weight: 650; text-transform: uppercase; letter-spacing: .06em; }
 .ticket-detail__properties dl { display: grid; gap: 14px; margin: 0; }

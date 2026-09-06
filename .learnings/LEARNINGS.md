@@ -16,6 +16,38 @@ source: [Ticket 问题总结与 Shadow Worker 共用 ZCode Provider](../docs/tas
 - **Rule:** Pass required experimental Node features through `NODE_OPTIONS` in the package test command so all Vitest workers receive them. For worker-transport output tests, wait for the specific persisted output with a bounded timeout instead of asserting immediately after a flush callback.
 - source: [Server 测试 SQLite runtime 与 logger 稳定性修复](../docs/tasks/engineering-ops/2026-09-04-server-test-runtime-and-logger-stability.md)
 
+## [LRN-20260905-004] native-permission-config-version-and-scope
+
+**Context:** 不同 Agent 的同名 allowlist 可能分别表示精确命令、危险类别或会话批准；在线文档中的配置能力也可能领先于本机实际版本。
+
+**Rule:** 生成权限配置前核对目标版本的字段与匹配语义。把原生可配置项、模板占位符及宿主必须实现的审批行为分开标注；不为补齐缺失能力虚构配置字段或扩大授权范围。语法解析通过只证明配置格式，实际权限需由对应运行时验证。
+
+source: [Hermes ACP 接入任务](../docs/tasks/acp/2026-09-05-hermes-acp-integration.md#v4-权限配置草案)
+
+## [LRN-20260905-001] acp-protocol-deployment-execution-boundaries
+
+**Context:** 比较可提供多种接口的 Agent 时，容易把原生 ACP 能力、独立 HTTP 服务和工具执行位置混为一谈，导致推荐偏离已有宿主的接入目标。
+
+**Rule:** 分别核实通信协议、部署方式和执行边界；支持 HTTP API 不意味着需要独立服务，支持 ACP 审批不意味着工具委托宿主执行。适配结论必须区分消息互通、权限决策和真实操作审计。
+
+source: [Hermes ACP 接入任务](../docs/tasks/acp/2026-09-05-hermes-acp-integration.md)
+
+## [LRN-20260905-003] execution-extensions-must-fail-closed
+
+**Context:** Agent 的正式 hook 或 middleware 可以替换工具结果，但为了保持原生运行可用，扩展加载失败或回调异常时可能继续执行默认工具。
+
+**Rule:** 将扩展用于宿主独占执行前，核实扩展缺失、异常、超时和断连的行为；只有这些路径也明确拒绝原生执行，才能作为执行边界。正常路径成功委托和插件 API 正式公开均不足以证明隔离成立。
+
+source: [Hermes ACP 历史设计复核](../docs/tasks/acp/2026-09-05-hermes-acp-integration.md#历史设计复核与-v3-实施)
+
+## [LRN-20260905-002] acp-dispatch-and-cleanup-proof
+
+**Context:** 适配现成 Agent 时，串行、并行和特殊工具可能采用不同执行入口；取消与 finally 也可能同时触发清理，单个入口 mock 或布尔式 close 标记无法覆盖完整生命周期。
+
+**Rule:** 沿原生模型循环核实全部工具分发入口，并用真实协议进程加本地模型桩验证宿主回调与审计。并发 close 共享同一个清理 Promise，所有调用方均等待真实退出及审计终态。
+
+source: [Hermes ACP 接入任务](../docs/tasks/acp/2026-09-05-hermes-acp-integration.md)
+
 ## [LRN-20260901-006] support-analysis-shared-write-boundary
 
 - **Context:** Ticket 人工审核接口与 Summary Quick Action 都要更新 intent、result、quality，但 Quick Action 的实际执行者是外部 ACP Skill，已有 SSH 签名 internal API 通道。
@@ -30,9 +62,11 @@ source: [Ticket 问题总结与 Shadow Worker 共用 ZCode Provider](../docs/tas
 
 ## [LRN-20260901-004] support-knowledge-approval-and-redaction-boundary
 
-- **Context:** Ticket Answer needs controlled documents and resolved historical cases, but the thread-sync snapshot is raw source data and the existing Support-QA fetch gate proves Ticket evidence rather than knowledge approval.
-- **Rule:** Store searchable knowledge separately as redacted chunks, require explicit human approval before indexing or retrieval, return `source_ref` with every hit, and keep the existing completed `fetch --json` gate mandatory for every Support-QA result.
+- **Context:** Ticket Answer needs controlled documents and resolved historical cases. Raw Ticket evidence, approval to reuse knowledge, and a command execution receipt serve different purposes.
+- **Rule:** Store searchable knowledge separately as redacted chunks, require explicit human approval before indexing or retrieval, and return `source_ref` with every hit. Ticket evidence acceptance belongs to the current workflow design; a particular `fetch --json` execution path is not a universal requirement.
 - **Verified outcome:** PostgreSQL-store and Ticket AI Session tests prove revoked cases are excluded, email text is redacted, and Answer prompts receive approved citations only.
+
+source: [Hermes ACP 当前材料验收设计](../docs/tasks/acp/2026-09-05-hermes-acp-integration.md#v5-已确认设计)
 ## [LRN-20260902-007] meegle-auth-entrypoint-and-pre-exchange-observability
 
 - **Context:** A new user repeatedly saw Meegle `require_auth_code`; Server and database checks showed a valid identity binding but no exchange request or token row. The toolbar action labeled “授权 Meegle” only opened the Meegle root page, while unmatched root/workbench pages intentionally suppressed the floating sidebar that contained the real auth bridge.
@@ -615,3 +649,36 @@ source: [Ticket 问题总结与 Shadow Worker 共用 ZCode Provider](../docs/tas
 - **Context:** Meegle 工作项筛选协议按 Sprint 名称传值，而 Sprint 快照与成员历史按 `projectKey + sprintId` 标识；同名 Sprint 可能来自多个项目或多个稳定 ID。
 - **Rule:** 在名称型筛选中合并 Sprint 统计时，先按稳定 ID 构建每个 Sprint 摘要，再显式按筛选协议的名称聚合 Scope/状态统计并重新计算百分比。当前列表命中数和完整 Sprint 历史 Scope 必须分开展示，不能把分页内计数冒充完整 Scope。
 - **Verified outcome:** Sprint 标签按名称自然倒序，同名 Sprint 统计可复核地求和，右侧“当前列表 N 项”与“完成 X/Y”并列但语义独立；FE 31/31 测试文件和 production build 通过。
+
+## [LRN-20260904-001] acp-command-authorization-must-precede-real-terminal-execution
+
+- **Context:** Support-QA 曾用 permission 标题、延迟到达的 tool-call 参数和专用 execute MCP 弥补 ACP Terminal 缺失，导致“批准了 Bash”和“完整命令已校验并执行成功”被混为一谈；本规则取代 LRN-20260902-002 与 LRN-20260902-005 的临时方案。
+- **Rule:** 先按任务确认权限模型。要求 Octo 精确命令白名单时，通过标准 ACP Terminal 在执行前校验完整输入、业务身份、cwd 和真实路径，并以实际退出状态记账。采用原生 Agent 风险审批时，复用其审批语义，不能为复刻 Octo 执行账本扩成全量工具委托；业务材料验收放 application service。两种模式均不能把工具标题或模型文字当作已校验完整命令、实际执行成功的证据，也不能因命令审批放宽而自动扩大文件写入范围。
+
+source: [ACP 权限重构任务](../docs/tasks/acp/2026-08-24-lark-ticket-ai-session-permissions.md)
+
+适用范围更新来源：[Hermes ACP v5 设计](../docs/tasks/acp/2026-09-05-hermes-acp-integration.md#v5-已确认设计)
+
+## [LRN-20260906-001] material-completeness-requires-source-semantics
+
+**Context:** 替换业务材料获取路径时，旧脚本的字段名或成功退出不能证明其使用的 API 提供了对应材料；记录变更历史也可能被误当成评论。
+
+**Rule:** 按必需材料逐项核对真实数据源、身份范围和缺失语义，再决定是否可替换获取路径。未经验证的来源明确标为不可用，不把空结果解释为没有数据，也不把执行成功当作材料完整。
+
+source: [Hermes ACP 接入任务](../docs/tasks/acp/2026-09-05-hermes-acp-integration.md#v5-代码实施结果2026-09-06)
+
+## [LRN-20260906-002] session-close-review-must-follow-execution-and-reconnect
+
+**Context:** 流式会话的关闭按钮、页面连接和后端执行可能共享生命周期；历史可恢复也不代表运行中可重新订阅。
+
+**Rule:** 评审关闭或刷新行为时，同时追踪 UI 可见性与消息存储、断连取消、本轮执行状态和运行中重新打开路径。明确停止当前轮次与保留历史的语义，再决定修改边界，不能从按钮可关闭推导出后台执行或可重连。异步响应与收尾清理都要先校验当前显示归属，避免旧任务清理新任务的连接或定时器。
+
+source: [FE AI Session 生命周期讨论](../docs/tasks/acp/2026-09-06-fe-ai-session-lifecycle-discussion.md)
+
+## [LRN-20260906-003] transcript-review-must-check-provider-event-boundaries
+
+**Context:** 不同 Agent 的实时流与历史回放可能不提供消息 ID，或在不同阶段复用 ID；同一会话不等于同一回复步骤。
+
+**Rule:** 评审对话聚合时，先核对 provider 实际发送的事件顺序、ID 可用性与作用域，再定义用户轮次和工具步骤边界，并同时检查流式追加与历史恢复。没有可靠边界时保留连续内容，不靠 ID 名称或 Session 身份推断生命周期。
+
+source: [FE Session 分组任务](../docs/tasks/acp/2026-09-06-fe-session-turn-grouping.md)

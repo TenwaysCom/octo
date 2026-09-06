@@ -777,8 +777,26 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Fix:** 将待验证的数据迁移提成幂等的小函数，由 schema bootstrap 调用；单测直接调用该迁移函数，不为验证一条数据迁移而重复执行整套 DDL。
 - **source:** [DeepSeek 直连 Ticket 问题总结](../docs/tasks/ai-ticket/2026-09-04-deepseek-ticket-summary.md)
 
+### ERR-20260904-002 — Meegle Tech Task 创建无法提交服务端必填的角色成员
+
+- **Error:** `meegle workitem create` 在普通必填字段齐全时返回 `ErrFieldRequired`，要求 FE 角色；将服务端报错给出的完整 FE 角色键放入 `fields` 后又返回 `ErrInvalidParam: field keys not found`。
+- **Fix:** 当前 CLI 的创建命令只暴露 `fields`，角色操作仅在 `workitem update` 中可用。不要反复尝试短角色键、完整角色键或未支持的顶层参数；等待 CLI 支持创建时角色成员，或改用经用户允许的其他渠道。
+- **source:** [批量搜索 many2one Tech Task](../docs/tasks/platform-data/2026-09-04-create-batch-search-many2one-tech-task.md)
+
 ### ERR-20260905-001 — Shadow Worker 意外使用旧的 120 秒 Ticket Summary 超时
 
 - **Error:** `ZCODE_TIMEOUT: ZCode request timed out after 120000ms.` 出现在已配置 `LARK_TICKET_SUMMARY_TIMEOUT_MS=150000` 的环境。
 - **Fix:** 检查 `scheduler.tasks.shadow` 的显式覆盖及兼容字段；移除或更新遗留的 `deepSeekTimeoutSeconds`/`acpTimeoutSeconds`，让 Worker 继承共享 timeout 后重启 Worker。
 - **source:** [Ticket 问题总结与 Shadow Worker 共用 ZCode Provider](../docs/tasks/ai-ticket/2026-09-05-shared-zcode-ticket-summary-provider.md)
+
+### ERR-20260906-001 — Hermes AuthenticationError 之后仍返回 end_turn
+
+- **Error:** Hermes stderr 出现 `AuthenticationError` / `401`，但 ACP prompt 返回 `stopReason=end_turn`，本轮只有 user / usage 消息，应用误显示完成。
+- **Fix:** 分别检查配置 provider 的认证错误和本轮实际输出；没有非空助手文本时以 `ACP_EMPTY_RESULT` 失败、持久化并清理运行时，前端保留错误与重新执行入口。不能仅凭 RPC 正常结束推定已生成，也不要用解析模型文字替代结构化产物检查。
+- **source:** [Hermes ACP 本地业务排障](../docs/tasks/acp/2026-09-05-hermes-acp-integration.md#v5-本地业务排障2026-09-06)
+
+### ERR-20260906-002 — Node 26 Web Storage 全局遮蔽 jsdom 存储对象
+
+- **Error:** `pnpm --dir extension test` 的 jsdom 用例集中报 `Cannot read properties of undefined (reading 'clear'/'getItem'/'setItem')`，而类型检查和构建正常。
+- **Fix:** Node 26 默认实验性 Web Storage getter 在未配置持久化文件时返回 `undefined`，并遮蔽 Vitest/jsdom 注入；使用 `NODE_OPTIONS=--no-experimental-webstorage` 运行现有套件。
+- **source:** [Feature 分支合并冲突处理](../docs/tasks/engineering-ops/2026-09-06-feature-branch-merge-conflict-resolution.md)

@@ -1,0 +1,33 @@
+# Kimi Code CLI 权限片段：回答问题。先阅读 README.md。
+# __...__ 必须按当前任务替换；不可与 Document 规则合并。
+# 不含模型或认证；不覆盖个人 config.toml，不启用 YOLO。
+default_permission_mode = "manual"
+
+[permission]
+dangerous_command_guard = true
+
+[[permission.rules]]
+decision = "allow"
+pattern = "Bash(bash .agents/skills/write-support-qa/scripts/write-support-qa.sh fetch __TICKET_NUMBER__ --json)"
+
+# 反馈草稿只写入本次任务的固定文件。
+[[permission.rules]]
+decision = "allow"
+pattern = "Write(__ACTION_DIR__/effect-draft.json)"
+
+[[permission.rules]]
+decision = "allow"
+pattern = "Edit(__ACTION_DIR__/effect-draft.json)"
+
+# 其他命令由宿主处理审批；后台宿主应拒绝并将任务记为失败。
+[[permission.rules]]
+decision = "ask"
+pattern = "Bash"
+
+[[permission.rules]]
+decision = "deny"
+pattern = "Write"
+
+[[permission.rules]]
+decision = "deny"
+pattern = "Edit"

@@ -10,6 +10,8 @@ export interface DatabaseSchema {
   };
   acp_kimi_session_owners: {
     session_id: string;
+    agent_provider: string | null;
+    agent_session_id: string | null;
     operator_lark_id: string;
     title: string | null;
     ticket_base_id: string | null;
@@ -19,6 +21,8 @@ export interface DatabaseSchema {
     runtime_host_name: string | null;
     kimi_work_dir: string | null;
     automation_action_key: string | null;
+    permission_profile_id: string | null;
+    permission_profile_version: string | null;
     execution_policy: string | null;
     skill_profile: string | null;
     skill_id: string | null;
@@ -333,17 +337,23 @@ export interface DatabaseSchema {
     created_at: string;
     updated_at: string;
   };
-  support_ticket_reply_drafts: {
+  support_ticket_effect_drafts: {
     id: string;
+    effect_type: "answer_feedback" | "ticket_ai_update";
     base_id: string;
     table_id: string;
     record_id: string;
     session_id: string;
     operator_lark_id: string;
-    draft_hash: string;
-    status: string;
-    sent_message_id: string | null;
-    action_run_id: string | null;
+    action_run_id: string;
+    permission_profile_id: string;
+    snapshot_version: number;
+    payload_json: string;
+    payload_hash: string;
+    status: "pending" | "executing" | "ticket_ai_written" | "completed" | "failed" | "outcome_unknown";
+    external_ref: string | null;
+    error_code: string | null;
+    error_message: string | null;
     created_at: string;
     updated_at: string;
   };
