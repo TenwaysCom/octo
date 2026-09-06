@@ -1,5 +1,13 @@
 let nextMessageId = 0;
 
+export function aiSessionStatusAfterEvent(status, event) {
+  if (event.event === "acp.permission.requested") return status === "error" ? status : "waiting_permission";
+  if (event.event === "acp.permission.resolved") return event.data.status === "approved" && status !== "error" ? "generating" : "error";
+  if (status === "error" || status === "waiting_permission") return status;
+  if (event.event === "done") return !event.data?.stopReason || event.data.stopReason === "end_turn" ? "ready" : "error";
+  return "generating";
+}
+
 function message(kind, text, extra = {}) {
   nextMessageId += 1;
   return { id: `ai-message-${Date.now()}-${nextMessageId}`, kind, text, ...extra };
@@ -60,7 +68,17 @@ function updateToolCall(toolCalls, update) {
 }
 
 export function appendAiSessionEvent(messages, event) {
+  if (event.event === "acp.permission.requested" || event.event === "acp.permission.resolved") {
+    const permission = { ...event.data, status: event.event === "acp.permission.requested" ? "pending" : event.data.status };
+    const index = messages.findIndex((entry) => entry.kind === "permission" && entry.permission.requestId === permission.requestId);
+    const entry = message("permission", "", { permission });
+    if (index === -1) return [...messages, entry];
+    return messages.map((current, i) => i === index ? { ...entry, id: current.id } : current);
+  }
   if (event.event === "done") {
+    const turnStart = messages.findLastIndex((entry) => entry.kind === "user");
+    if (messages.slice(turnStart + 1).some((entry) => entry.kind === "permission" && entry.permission.status !== "approved")) return messages;
+    if (event.data?.stopReason && event.data.stopReason !== "end_turn") return [...messages, message("status", "本轮 AI 回复已停止")];
     return [...messages, message("status", "本轮 AI 回复已完成")];
   }
   if (event.event !== "acp.session.update") return messages;

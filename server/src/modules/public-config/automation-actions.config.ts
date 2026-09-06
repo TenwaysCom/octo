@@ -26,12 +26,12 @@ export const AUTOMATION_SKILL_PROFILES = {
 interface TicketAiAutomationActionBase extends AutomationActionConfig {
   executor: Extract<AutomationActionConfig["executor"], { type: "backend_api" }>;
   promptKey: string;
-  provider: "kimi_acp" | "ticket_summary";
+  provider: "hermes_acp" | "ticket_summary";
   requiresConfirmation: boolean;
 }
 
-export interface KimiTicketAiAutomationActionConfig extends TicketAiAutomationActionBase {
-  provider: "kimi_acp";
+export interface AcpTicketAiAutomationActionConfig extends TicketAiAutomationActionBase {
+  provider: "hermes_acp";
   skillProfile: keyof typeof AUTOMATION_SKILL_PROFILES;
   skillId: string;
   permissionProfileId: AcpKimiPermissionProfileId;
@@ -42,10 +42,11 @@ export interface TicketSummaryTicketAiAutomationActionConfig extends TicketAiAut
 }
 
 export type TicketAiAutomationActionConfig =
-  | KimiTicketAiAutomationActionConfig
+  | AcpTicketAiAutomationActionConfig
   | TicketSummaryTicketAiAutomationActionConfig;
 
 export interface SprintAiAutomationActionConfig extends AutomationActionConfig {
+  provider: "hermes_acp";
   executor: Extract<AutomationActionConfig["executor"], { type: "backend_api" }>;
   promptKey: string;
   permissionProfileId: AcpKimiPermissionProfileId;
@@ -67,6 +68,7 @@ export const AUTOMATION_ACTIONS = {
       route: "/api/web/meegle-sprints/:sprintId/ai-sessions",
     },
     promptKey: "meegle.sprint.release_notes",
+    provider: "hermes_acp",
     permissionProfileId: "acp.chat-readonly.v1",
     requiresConfirmation: false,
   },
@@ -84,6 +86,7 @@ export const AUTOMATION_ACTIONS = {
       route: "/api/web/meegle-sprints/:sprintId/ai-sessions",
     },
     promptKey: "meegle.sprint.internal_summary",
+    provider: "hermes_acp",
     permissionProfileId: "acp.chat-readonly.v1",
     requiresConfirmation: false,
   },
@@ -101,6 +104,7 @@ export const AUTOMATION_ACTIONS = {
       route: "/api/web/meegle-sprints/:sprintId/ai-sessions",
     },
     promptKey: "meegle.sprint.confirm_gaps",
+    provider: "hermes_acp",
     permissionProfileId: "acp.chat-readonly.v1",
     requiresConfirmation: false,
   },
@@ -135,7 +139,7 @@ export const AUTOMATION_ACTIONS = {
       route: "/api/web/lark-tickets/:recordId/ai-sessions",
     },
     promptKey: "lark_ticket.support_qa.answer",
-    provider: "kimi_acp",
+    provider: "hermes_acp",
     skillProfile: "support_qa_eu",
     skillId: "support_qa_query",
     permissionProfileId: "support-qa.answer.v1",
@@ -155,7 +159,7 @@ export const AUTOMATION_ACTIONS = {
       route: "/api/web/lark-tickets/:recordId/ai-sessions",
     },
     promptKey: "lark_ticket.support_qa.document_preview",
-    provider: "kimi_acp",
+    provider: "hermes_acp",
     skillProfile: "support_qa_eu",
     skillId: "support_qa_write",
     permissionProfileId: "support-qa.document.v1",
@@ -418,7 +422,7 @@ export function getTicketAiAutomationAction(
     || action.executor.type !== "backend_api") {
     return undefined;
   }
-  if (action.provider === "kimi_acp"
+  if (action.provider === "hermes_acp"
     && (!("skillProfile" in action) || !("skillId" in action) || !("permissionProfileId" in action))) {
     return undefined;
   }

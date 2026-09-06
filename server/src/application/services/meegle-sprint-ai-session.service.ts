@@ -118,27 +118,27 @@ export function createMeegleSprintAiSessionService(deps: MeegleSprintAiSessionSe
         : await buildSprintPrompt(workflowPromptStore, quickAction, context, input.message);
       const permissionContext = quickAction ? createPermissionContext(quickAction, input.actionRunId) : undefined;
       let createdSessionId: string | undefined;
+      let attachmentPromise: Promise<void> | undefined;
+      const attach = (sessionId: string) => attachmentPromise ??= Promise.all([
+        ownershipStore.rename(sessionId, input.operatorLarkId, deriveSessionTitle(input.message)),
+        sprintSessionStore.attach({ sessionId, operatorLarkId: input.operatorLarkId,
+          projectKey: input.sprint.projectKey, sprintId: input.sprint.sprintId, contextHash: contextHash(context) }),
+      ]).then(() => {});
       await acpService.chat({
         operatorLarkId: input.operatorLarkId,
         sessionId: input.sessionId,
         actionRunId: input.actionRunId,
         message: prompt,
         permissionContext,
+        ...(quickAction ? { agentProvider: quickAction.provider } : {}),
       }, (event) => {
         if (event.event === "session.created") createdSessionId = event.data.sessionId;
         emit(event);
-      }, { signal: input.signal, session: input.sessionId ? undefined : null });
+      }, { signal: input.signal, session: input.sessionId ? undefined : null,
+        async onSessionCreated(session) { createdSessionId = session.sessionId; await attach(session.sessionId); },
+      });
       if (createdSessionId) {
-        await Promise.all([
-          ownershipStore.rename(createdSessionId, input.operatorLarkId, deriveSessionTitle(input.message)),
-          sprintSessionStore.attach({
-          sessionId: createdSessionId,
-          operatorLarkId: input.operatorLarkId,
-          projectKey: input.sprint.projectKey,
-          sprintId: input.sprint.sprintId,
-          contextHash: contextHash(context),
-          }),
-        ]);
+        await attach(createdSessionId);
       } else if (input.sessionId) {
         await sprintSessionStore.touch(input.sessionId, input.operatorLarkId);
       }

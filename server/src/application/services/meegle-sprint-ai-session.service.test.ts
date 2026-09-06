@@ -83,6 +83,7 @@ describe("Meegle Sprint AI Session service", () => {
         permissionProfileVersion: "1",
         actionRunId: null,
       },
+      agentProvider: "hermes_acp",
     }), expect.any(Function), expect.any(Object));
   });
 });

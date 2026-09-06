@@ -1,9 +1,12 @@
 import type { Kysely, Selectable } from "kysely";
+import { resolveAcpSessionIdentity, type AcpAgentProvider } from "../acp/managed-acp-runtime.js";
 import { getSharedDatabase } from "./database.js";
 import type { DatabaseSchema } from "./schema.js";
 
 export interface AcpKimiSessionOwnershipRecord {
   sessionId: string;
+  agentProvider?: AcpAgentProvider | null;
+  agentSessionId?: string | null;
   operatorLarkId: string;
   title: string | null;
   ticketBaseId: string | null;
@@ -44,6 +47,8 @@ export interface AcpKimiSessionOwnershipStore {
   }): Promise<AcpKimiSessionOwnershipRecord[]>;
   claim(input: {
     sessionId: string;
+    agentProvider?: AcpAgentProvider;
+    agentSessionId?: string;
     operatorLarkId: string;
     title?: string | null;
     runtimeHostName?: string | null;
@@ -92,8 +97,13 @@ function toRecord(
     return undefined;
   }
 
+  if (row.agent_provider && row.agent_provider !== "hermes_acp" && row.agent_provider !== "kimi_acp") {
+    throw new Error("Saved ACP session has an unsupported provider.");
+  }
   return {
     sessionId: row.session_id,
+    agentProvider: row.agent_provider === "hermes_acp" || row.agent_provider === "kimi_acp" ? row.agent_provider : null,
+    agentSessionId: row.agent_session_id ?? null,
     operatorLarkId: row.operator_lark_id,
     title: row.title ?? null,
     ticketBaseId: row.ticket_base_id ?? null,
@@ -135,12 +145,17 @@ export class PostgresAcpKimiSessionOwnershipStore
   async getBySessionId(
     sessionId: string,
   ): Promise<AcpKimiSessionOwnershipRecord | undefined> {
-    return toRecord(
-      await this.database.selectFrom("acp_kimi_session_owners")
-        .selectAll()
-        .where("session_id", "=", sessionId)
-        .executeTakeFirst(),
-    );
+    const row = await this.database.selectFrom("acp_kimi_session_owners")
+      .selectAll().where("session_id", "=", sessionId).executeTakeFirst();
+    const record = toRecord(row);
+    if (record && (!record.agentProvider || !record.agentSessionId)) {
+      const identity = resolveAcpSessionIdentity(record);
+      await this.database.updateTable("acp_kimi_session_owners")
+        .set({ agent_provider: identity.agentProvider, agent_session_id: identity.agentSessionId })
+        .where("session_id", "=", sessionId).execute();
+      return { ...record, ...identity };
+    }
+    return record;
   }
 
   async listByOperatorLarkId(
@@ -177,6 +192,8 @@ export class PostgresAcpKimiSessionOwnershipStore
 
   async claim(input: {
     sessionId: string;
+    agentProvider?: AcpAgentProvider;
+    agentSessionId?: string;
     operatorLarkId: string;
     title?: string | null;
     runtimeHostName?: string | null;
@@ -193,6 +210,8 @@ export class PostgresAcpKimiSessionOwnershipStore
     await this.database.insertInto("acp_kimi_session_owners")
       .values({
         session_id: input.sessionId,
+        agent_provider: input.agentProvider ?? resolveAcpSessionIdentity(input).agentProvider,
+        agent_session_id: input.agentSessionId ?? input.sessionId,
         operator_lark_id: input.operatorLarkId,
         title: input.title ?? null,
         runtime_host_name: input.runtimeHostName ?? null,
@@ -209,13 +228,17 @@ export class PostgresAcpKimiSessionOwnershipStore
       })
       .onConflict((conflict) =>
         conflict.column("session_id").doUpdateSet({
-          operator_lark_id: input.operatorLarkId,
           deleted_at: null,
           updated_at: now,
-        }))
+        }).where("acp_kimi_session_owners.operator_lark_id", "=", input.operatorLarkId))
       .execute();
 
-    return (await this.getBySessionId(input.sessionId))!;
+    const record = (await this.getBySessionId(input.sessionId))!;
+    if (record.operatorLarkId !== input.operatorLarkId) throw new Error("ACP session is already owned by another operator.");
+    if ((input.agentProvider && record.agentProvider !== input.agentProvider) || (input.agentSessionId && record.agentSessionId !== input.agentSessionId)) {
+      throw new Error("ACP session identity cannot be changed after creation.");
+    }
+    return record;
   }
 
   async rename(

@@ -57,11 +57,3 @@ export const supportAnalysisResultSchema = z.object({
 });
 
 export type SupportAnalysisResult = z.infer<typeof supportAnalysisResultSchema>;
-
-export function buildSupportQaFetchInstruction(ticketNumber: string): string {
-  return `这是一个受控执行任务。不得在第一条受控操作前输出结论。
-
-第一条操作必须通过 ACP Terminal 拉取当前 Ticket 证据，命令必须逐字等于：
-\`bash .agents/skills/write-support-qa/scripts/write-support-qa.sh fetch ${ticketNumber} --json\`
-后续回答只能基于 Terminal 实际退出码为 0 的证据和当前 Ticket 上下文。执行失败时必须明确报告失败，不得改用其他 Bash、shell、MCP 或网络命令。`;
-}

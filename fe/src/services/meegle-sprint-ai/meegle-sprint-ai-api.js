@@ -1,3 +1,4 @@
+export { replyAcpPermission } from "../acp/acp-permission-api.js";
 import { buildApiUrl } from "../../app/runtime-config.js";
 
 function sprintPath(sprint) {
@@ -55,12 +56,14 @@ export async function streamMeegleSprintAiSession({ apiBaseUrl, sprint, message,
 async function parseEventStream(stream, onEvent) {
   const reader = stream.getReader();
   const decoder = new TextDecoder();
+  let completed = false;
   let buffer = ""; let eventName = ""; let eventData = "";
   function flush() {
     if (!eventName) return;
     let data;
     try { data = JSON.parse(eventData || "{}"); } catch { throw createApiError("AI_SESSION_STREAM_INVALID", "AI Session returned an invalid event."); }
     if (eventName === "error") throw createApiError(data.errorCode || "AI_SESSION_FAILED", data.errorMessage);
+    if (eventName === "done") completed = true;
     onEvent?.({ event: eventName, data }); eventName = ""; eventData = "";
   }
   while (true) {
@@ -77,4 +80,5 @@ async function parseEventStream(stream, onEvent) {
     if (done) break;
   }
   flush();
+  if (!completed) throw createApiError("AI_SESSION_STREAM_INTERRUPTED", "连接已中断，本轮未完成。");
 }

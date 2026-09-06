@@ -782,3 +782,9 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Error:** `meegle workitem create` 在普通必填字段齐全时返回 `ErrFieldRequired`，要求 FE 角色；将服务端报错给出的完整 FE 角色键放入 `fields` 后又返回 `ErrInvalidParam: field keys not found`。
 - **Fix:** 当前 CLI 的创建命令只暴露 `fields`，角色操作仅在 `workitem update` 中可用。不要反复尝试短角色键、完整角色键或未支持的顶层参数；等待 CLI 支持创建时角色成员，或改用经用户允许的其他渠道。
 - **source:** [批量搜索 many2one Tech Task](../docs/tasks/platform-data/2026-09-04-create-batch-search-many2one-tech-task.md)
+
+### ERR-20260906-001 — Hermes AuthenticationError 之后仍返回 end_turn
+
+- **Error:** Hermes stderr 出现 `AuthenticationError` / `401`，但 ACP prompt 返回 `stopReason=end_turn`，本轮只有 user / usage 消息，应用误显示完成。
+- **Fix:** 分别检查配置 provider 的认证错误和本轮实际输出；没有非空助手文本时以 `ACP_EMPTY_RESULT` 失败、持久化并清理运行时，前端保留错误与重新执行入口。不能仅凭 RPC 正常结束推定已生成，也不要用解析模型文字替代结构化产物检查。
+- **source:** [Hermes ACP 本地业务排障](../docs/tasks/acp/2026-09-05-hermes-acp-integration.md#v5-本地业务排障2026-09-06)

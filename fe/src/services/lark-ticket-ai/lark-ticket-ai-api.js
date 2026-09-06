@@ -1,3 +1,4 @@
+export { replyAcpPermission } from "../acp/acp-permission-api.js";
 import { buildApiUrl } from "../../app/runtime-config.js";
 
 function ticketPath(ticket) {
@@ -104,6 +105,7 @@ export async function confirmLarkTicketEffectDraft({ apiBaseUrl, ticket, draftId
 async function parseEventStream(stream, onEvent) {
   const reader = stream.getReader();
   const decoder = new TextDecoder();
+  let completed = false;
   let buffer = "";
   let eventName = "";
   let eventData = "";
@@ -119,6 +121,7 @@ async function parseEventStream(stream, onEvent) {
     if (eventName === "error") {
       throw createApiError(data.errorCode || "AI_SESSION_FAILED", data.errorMessage);
     }
+    if (eventName === "done") completed = true;
     onEvent?.({ event: eventName, data });
     eventName = "";
     eventData = "";
@@ -149,4 +152,5 @@ async function parseEventStream(stream, onEvent) {
     if (line.startsWith("data:")) eventData = line.slice("data:".length).trim();
   }
   flush();
+  if (!completed) throw createApiError("AI_SESSION_STREAM_INTERRUPTED", "连接已中断，本轮未完成。");
 }

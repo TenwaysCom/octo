@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { appendAiSessionEvent, createAiUserMessage } from "./ai-session-transcript.js";
+import { aiSessionStatusAfterEvent, appendAiSessionEvent, createAiUserMessage } from "./ai-session-transcript.js";
 
 function update(update) {
   return { event: "acp.session.update", data: { update } };
@@ -63,4 +63,25 @@ test("starts a new assistant entry after a new user turn when ACP omits message 
     messages.filter((entry) => entry.kind === "assistant").map((entry) => entry.text),
     ["第一轮回复", "第二轮回复"],
   );
+});
+
+test("shows one permission entry through resolution and never completes a waiting or failed turn", () => {
+  const data = { requestId: "request", sessionId: "session", actionRunId: "run", expiresAt: "2026-09-06T00:00:00Z", toolCall: { title: "Risk" }, options: [] };
+  let messages = [createAiUserMessage("run")];
+  messages = appendAiSessionEvent(messages, { event: "acp.permission.requested", data });
+  assert.equal(messages.at(-1).permission.status, "pending");
+  assert.equal(appendAiSessionEvent(messages, { event: "done" }).length, messages.length);
+  messages = appendAiSessionEvent(messages, { event: "acp.permission.resolved", data: { ...data, status: "rejected" } });
+  assert.equal(messages.length, 2);
+  assert.equal(appendAiSessionEvent(messages, { event: "done" }).length, 2);
+  messages = [...messages, createAiUserMessage("retry")];
+  assert.equal(appendAiSessionEvent(messages, { event: "done" }).at(-1).text, "本轮 AI 回复已完成");
+});
+
+test("keeps waiting and permission failures out of the ready state", async () => {
+  // Test the same state transition used by both Ticket and Sprint drawers.
+  assert.equal(aiSessionStatusAfterEvent("generating", { event: "acp.permission.requested" }), "waiting_permission");
+  assert.equal(aiSessionStatusAfterEvent("waiting_permission", { event: "done" }), "waiting_permission");
+  assert.equal(aiSessionStatusAfterEvent("waiting_permission", { event: "acp.permission.resolved", data: { status: "expired" } }), "error");
+  assert.equal(aiSessionStatusAfterEvent("error", { event: "done" }), "error");
 });

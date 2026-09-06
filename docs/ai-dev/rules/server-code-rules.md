@@ -122,7 +122,7 @@ Service should not:
 3. Hardcode Meegle dynamic `field_*` as business semantics.
 4. Convert all failures to `Error.message`.
 
-When an ACP action needs repository-local evidence or an existing workspace workflow, keep the tool sequence explicit and capability-scoped:
+For Kimi ACP callback execution, keep the tool sequence explicit and capability-scoped:
 
 1. Bind each Session to one Server-owned, versioned permission profile. The action catalog may name the profile, but must not expose its path or command rules to the browser or model.
 2. ACP file writes must be UTF-8 text no larger than 256 KiB. Revalidate traversal, real paths, symlinks and sensitive names for every callback. Answer may write only its action-run scratch directory; Document may additionally write the allow-listed Support-QA Markdown targets, never `knowledge-index.jsonl`.
@@ -132,6 +132,12 @@ When an ACP action needs repository-local evidence or an existing workspace work
 6. Browser-facing streams continue with the model's normal human-readable response. A scratch JSON file, dry-run result or generated model text is not proof that `ticket_ai`, the feedback table or the knowledge index was updated.
 
 The `lark-ticket-support-qa-summarize` action and Lark Ticket shadow summary worker are exceptions to the ACP flow above: both are one-shot structured-output workflows using the shared Ticket Summary provider configuration. The Server must obtain the fixed, redacted Ticket snapshot before the provider call and validate the returned JSON and evidence IDs locally. The Quick Action calls `SupportTicketAnalysisService.update()` directly; the shadow worker only writes its independent `shadow_ai` projection. Both paths must resolve the same `LARK_TICKET_SUMMARY_PROVIDER` and `LARK_TICKET_SUMMARY_MODEL`; neither may create a reusable Session or expose workspace, shell, Skill, or internal signing capabilities to the provider. Answer and Document remain ACP-backed.
+
+Kimi and Hermes share the TS ACP client; Hermes starts the official `python -m acp_adapter` without a production patch/launcher dependency. Persist provider and full native session ID separately from Octo's public ID before prompting. Restore using saved metadata; infer the legacy provider only when metadata is absent, and never strip an old Hermes native ID. Kimi export recovery receives only Kimi native IDs.
+
+Hermes uses native risk approvals. Do not auto-allow a request based on its Bash/Terminal title, or claim client capability flags constrain native tools. The shared service binds operator, public/native session, action run, request ID and native options. Interactive replies wait at most 50 seconds, below the verified native 60-second timeout. Cancellation, disconnection and expiry clear pending requests. Background denial must cancel the run, persist a permission configuration failure and suppress later successful completion. File write isolation remains a separate deployment requirement.
+
+Ticket Quick Actions require source fields and a complete, nonempty fixed chat snapshot before calling the provider; Answer also requires the approved-knowledge query to succeed (zero hits is valid). Record history does not prove record comments were retrieved. Material failures prevent result acceptance. The first-Terminal-fetch instruction and operation-audit completion gate are removed; Kimi audit remains diagnostic. Effect drafts still require human confirmation and Server write/readback.
 
 Partial success rules:
 

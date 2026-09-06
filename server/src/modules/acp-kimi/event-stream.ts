@@ -1,4 +1,18 @@
 import type { Response } from "express";
+import type { RequestPermissionRequest } from "@agentclientprotocol/sdk";
+
+export type AcpPermissionStatus = "approved" | "rejected" | "expired" | "cancelled";
+export type AcpPermissionRequestData = {
+  requestId: string;
+  sessionId: string;
+  actionRunId: string;
+  expiresAt: string;
+  toolCall: RequestPermissionRequest["toolCall"];
+  options: RequestPermissionRequest["options"];
+};
+export type AcpPermissionEvent =
+  | { event: "acp.permission.requested"; data: AcpPermissionRequestData }
+  | { event: "acp.permission.resolved"; data: AcpPermissionRequestData & { status: AcpPermissionStatus; optionId?: string } };
 
 export type AcpKimiSessionCreatedEvent = {
   event: "session.created";
@@ -34,6 +48,7 @@ export type AcpKimiEffectDraftCreatedEvent = {
 };
 
 export type AcpKimiStreamEvent =
+  | AcpPermissionEvent
   | AcpKimiSessionCreatedEvent
   | AcpKimiSessionUpdateEvent
   | AcpKimiEffectDraftCreatedEvent

@@ -1,3 +1,4 @@
+import { AcpPermissionPrompt } from "../components/ai-session/AcpPermissionPrompt.jsx";
 import { useEffect, useRef, useState } from "react";
 import { getMeegleSprintDetailHash } from "../app/routes/workspace-routes.js";
 import { AiSessionCopyButton } from "../components/ai-session/AiSessionCopyButton.jsx";
@@ -9,7 +10,7 @@ import { useKeyboardShortcut } from "../hooks/useKeyboardShortcut.js";
 import { useMinuteNow } from "../hooks/useMinuteNow.js";
 import { formatDateTime } from "../lib/formatters.js";
 import { formatMeegleCurrentWorkingTime } from "../lib/meegle-current-working-time.js";
-import { appendAiSessionEvent, createAiUserMessage, transcriptFromAiSessionEvents } from "../lib/ai-session-transcript.js";
+import { aiSessionStatusAfterEvent, appendAiSessionEvent, createAiUserMessage, transcriptFromAiSessionEvents } from "../lib/ai-session-transcript.js";
 import {
   DEFAULT_SPRINT_WORKITEM_VISIBLE_COLUMNS,
   groupSprintWorkitems,
@@ -31,7 +32,7 @@ import {
 import { countFilterValues, toggleFilterValue } from "../lib/platform-list-filters.js";
 import { getMeegleStatusTone } from "../lib/platform-list-rows.js";
 import { getMeegleSprintHistory } from "../services/platform-data/platform-data-api.js";
-import { listMeegleSprintAiSessions, loadMeegleSprintAiSession, streamMeegleSprintAiSession } from "../services/meegle-sprint-ai/meegle-sprint-ai-api.js";
+import { replyAcpPermission, listMeegleSprintAiSessions, loadMeegleSprintAiSession, streamMeegleSprintAiSession } from "../services/meegle-sprint-ai/meegle-sprint-ai-api.js";
 
 const ACTIVITY_LABELS = {
   past: "Past",
@@ -153,6 +154,8 @@ function SprintAiSessions({ sprint, apiBaseUrl }) {
   const [draft, setDraft] = useState("");
   const [drawerDraft, setDrawerDraft] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
+  const streamAbort = useRef(null);
+  useEffect(() => () => streamAbort.current?.abort(), []);
 
   async function refresh() {
     try {
@@ -186,12 +189,15 @@ function SprintAiSessions({ sprint, apiBaseUrl }) {
   async function streamSession({ message, sessionId, title, actionKey }) {
     if (!message.trim() || isStreaming) return;
     const trimmed = message.trim();
+    const abort = new AbortController();
+    streamAbort.current = abort;
     setIsStreaming(true);
     setDrawer((current) => ({ sessionId: sessionId || current?.sessionId || null, title: title || current?.title || trimmed, status: "generating", messages: [...(current?.messages || []), createAiUserMessage(trimmed)], error: "", lastMessage: trimmed }));
     try {
       await streamMeegleSprintAiSession({
+        signal: abort.signal,
         apiBaseUrl, sprint, message: trimmed, sessionId, actionKey, actionRunId: crypto.randomUUID(),
-        onEvent: (event) => setDrawer((current) => current ? { ...current, sessionId: event.event === "session.created" ? event.data.sessionId : current.sessionId, status: event.event === "done" ? "ready" : "generating", messages: appendAiSessionEvent(current.messages, event) } : current),
+        onEvent: (event) => setDrawer((current) => current ? { ...current, sessionId: event.event === "session.created" ? event.data.sessionId : current.sessionId, status: aiSessionStatusAfterEvent(current.status, event), messages: appendAiSessionEvent(current.messages, event) } : current),
       });
       void refresh();
     } catch (error) {
@@ -213,7 +219,7 @@ function SprintAiSessions({ sprint, apiBaseUrl }) {
         <div><span>只使用当前 Sprint 已完成的三类工作项快照。</span><button type="submit" disabled={!draft.trim() || isStreaming}>{isStreaming ? "AI 正在回复…" : "新建 AI Session"}</button></div>
       </form>
     </div>
-    {drawer ? <div className="ticket-ai-drawer-backdrop" role="presentation" onMouseDown={() => !isStreaming && setDrawer(null)}><aside className="ticket-ai-drawer" aria-label="Sprint AI Session 详情" onMouseDown={(event) => event.stopPropagation()}><header className="ticket-ai-drawer__header"><div><p>Sprint AI Chat</p><h2>{drawer.title}</h2></div><button type="button" aria-label="关闭 AI Session" onClick={() => setDrawer(null)} disabled={isStreaming}>×</button></header><div className="ticket-ai-drawer__body">{drawer.status === "loading" ? <p className="ticket-section-empty">正在加载会话…</p> : null}{drawer.messages.map((entry, index) => <div className={`ticket-ai-message ticket-ai-message--${entry.kind}`} key={entry.id || `${entry.kind}-${index}`}>{entry.text ? <div className="ticket-ai-message__text">{entry.text}</div> : null}{entry.kind === "assistant" && entry.text ? <div className="ticket-ai-message__actions"><AiSessionCopyButton text={entry.text} /></div> : null}</div>)}{drawer.status === "generating" ? <p className="ticket-ai-generating">Kimi 正在生成回复…</p> : null}{drawer.status === "error" ? <div className="ticket-ai-drawer__error"><p>{drawer.error}</p>{drawer.lastMessage ? <button type="button" disabled={isStreaming} onClick={() => void streamSession({ message: drawer.lastMessage, sessionId: drawer.sessionId || undefined, title: drawer.title })}>Retry</button> : null}</div> : null}</div><form className="ticket-ai-drawer__composer" onSubmit={(event) => { event.preventDefault(); const message = drawerDraft; setDrawerDraft(""); void streamSession({ message, sessionId: drawer.sessionId || undefined, title: drawer.title }); }}><label className="visually-hidden" htmlFor="sprint-ai-followup">继续对话</label><textarea id="sprint-ai-followup" value={drawerDraft} onChange={(event) => setDrawerDraft(event.target.value)} placeholder="继续这个 AI Session…" rows="2" disabled={isStreaming || drawer.status === "loading"} /><button type="submit" disabled={isStreaming || drawer.status === "loading" || !drawerDraft.trim()}>发送 ↑</button></form></aside></div> : null}
+    {drawer ? <div className="ticket-ai-drawer-backdrop" role="presentation" onMouseDown={() => !isStreaming && setDrawer(null)}><aside className="ticket-ai-drawer" aria-label="Sprint AI Session 详情" onMouseDown={(event) => event.stopPropagation()}><header className="ticket-ai-drawer__header"><div><p>Sprint AI Chat</p><h2>{drawer.title}</h2></div><button type="button" aria-label="关闭 AI Session" onClick={() => setDrawer(null)} disabled={isStreaming}>×</button></header><div className="ticket-ai-drawer__body">{drawer.status === "loading" ? <p className="ticket-section-empty">正在加载会话…</p> : null}{drawer.messages.map((entry, index) => <div className={`ticket-ai-message ticket-ai-message--${entry.kind}`} key={entry.id || `${entry.kind}-${index}`}>{entry.kind === "permission" ? <AcpPermissionPrompt permission={entry.permission} active={isStreaming} onReply={(input) => replyAcpPermission({ ...input, apiBaseUrl })} /> : null}{entry.text ? <div className="ticket-ai-message__text">{entry.text}</div> : null}{entry.kind === "assistant" && entry.text ? <div className="ticket-ai-message__actions"><AiSessionCopyButton text={entry.text} /></div> : null}</div>)}{drawer.status === "generating" ? <p className="ticket-ai-generating">AI 正在生成回复…</p> : null}{drawer.status === "error" ? <div className="ticket-ai-drawer__error"><p>{drawer.error}</p>{drawer.lastMessage ? <button type="button" disabled={isStreaming} onClick={() => void streamSession({ message: drawer.lastMessage, sessionId: drawer.sessionId || undefined, title: drawer.title })}>Retry</button> : null}</div> : null}</div><form className="ticket-ai-drawer__composer" onSubmit={(event) => { event.preventDefault(); const message = drawerDraft; setDrawerDraft(""); void streamSession({ message, sessionId: drawer.sessionId || undefined, title: drawer.title }); }}><label className="visually-hidden" htmlFor="sprint-ai-followup">继续对话</label><textarea id="sprint-ai-followup" value={drawerDraft} onChange={(event) => setDrawerDraft(event.target.value)} placeholder="继续这个 AI Session…" rows="2" disabled={isStreaming || drawer.status === "loading"} /><button type="submit" disabled={isStreaming || drawer.status === "loading" || !drawerDraft.trim()}>发送 ↑</button></form></aside></div> : null}
   </section>;
 }
 

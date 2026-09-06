@@ -1,3 +1,6 @@
+import { AcpRuntimeError } from "../../adapters/acp/acp-runtime.js";
+import { AcpPermissionError } from "../../application/services/acp-permission.service.js";
+import { acpPermissionErrorResponse } from "../acp-kimi/acp-permission.controller.js";
 import type { Express, Request, Response } from "express";
 import { z, ZodError } from "zod";
 import {
@@ -30,6 +33,8 @@ function readCookie(cookieHeader: string | undefined, name: string): string | un
 }
 
 function toErrorResponse(error: unknown) {
+  if (error instanceof AcpPermissionError) return acpPermissionErrorResponse(error);
+  if (error instanceof AcpRuntimeError) return { statusCode: 502, body: { ok: false as const, error: { errorCode: error.code, errorMessage: error.message, layer: "adapter", module: "acp", stage: error.stage } } };
   if (error instanceof ZodError) return { statusCode: 400, body: { ok: false as const, error: { errorCode: "INVALID_REQUEST", errorMessage: error.message } } };
   if (error instanceof MeegleSprintAiSessionError) {
     const statusCode = error.code === "SPRINT_NOT_FOUND" || error.code === "SESSION_NOT_FOUND" ? 404

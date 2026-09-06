@@ -10,6 +10,8 @@ export interface DatabaseSchema {
   };
   acp_kimi_session_owners: {
     session_id: string;
+    agent_provider: string | null;
+    agent_session_id: string | null;
     operator_lark_id: string;
     title: string | null;
     ticket_base_id: string | null;

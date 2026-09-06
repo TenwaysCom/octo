@@ -1,17 +1,18 @@
-import { useEffect, useState } from "react";
+import { AcpPermissionPrompt } from "../components/ai-session/AcpPermissionPrompt.jsx";
+import { useEffect, useRef, useState } from "react";
 import { AiSessionCopyButton } from "../components/ai-session/AiSessionCopyButton.jsx";
 import { WorkspaceShell } from "../components/layout/WorkspaceShell.jsx";
 import { LarkTicketBadge } from "../components/lark-ticket/LarkTicketBadge.jsx";
 import { LarkTicketResponsible } from "../components/lark-ticket/LarkTicketResponsible.jsx";
-import { appendAiSessionEvent, createAiUserMessage, transcriptFromAiSessionEvents } from "../lib/ai-session-transcript.js";
+import { aiSessionStatusAfterEvent, appendAiSessionEvent, createAiUserMessage, transcriptFromAiSessionEvents } from "../lib/ai-session-transcript.js";
 import { formatDateTime } from "../lib/formatters.js";
 import { LARK_TICKET_AI_QUICK_ACTIONS } from "../lib/lark-ticket-ai-actions.js";
 import { getTicketAiSections } from "../lib/ticket-ai-sections.js";
-import { confirmLarkTicketEffectDraft, listLarkTicketAiSessions, listLarkTicketEffectDrafts, loadLarkTicketAiSession, streamLarkTicketAiSession } from "../services/lark-ticket-ai/lark-ticket-ai-api.js";
+import { replyAcpPermission, confirmLarkTicketEffectDraft, listLarkTicketAiSessions, listLarkTicketEffectDrafts, loadLarkTicketAiSession, streamLarkTicketAiSession } from "../services/lark-ticket-ai/lark-ticket-ai-api.js";
 import { loadLarkTicketSharedUrl } from "../services/lark-ticket/lark-ticket-api.js";
 import { getPlatformDataList } from "../services/platform-data/platform-data-api.js";
 
-const UNVERIFIED_AI_ERROR_CODES = new Set(["SUPPORT_QA_EVIDENCE_NOT_FETCHED", "SUPPORT_ANALYSIS_NOT_UPDATED"]);
+const UNVERIFIED_AI_ERROR_CODES = new Set(["SUPPORT_QA_EVIDENCE_NOT_FETCHED", "SUPPORT_QA_MATERIALS_UNAVAILABLE", "ACP_EMPTY_RESULT", "ACP_PERMISSION_REJECTED", "ACP_PERMISSION_EXPIRED", "ACP_PERMISSION_CONFIGURATION_REQUIRED", "SUPPORT_ANALYSIS_NOT_UPDATED"]);
 
 function ExternalResource({ href, children }) {
   if (!href) return null;
@@ -76,6 +77,8 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
   const [drawer, setDrawer] = useState(null);
   const [drawerDraft, setDrawerDraft] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
+  const streamAbort = useRef(null);
+  useEffect(() => () => streamAbort.current?.abort(), []);
   const [isConfirmingEffect, setIsConfirmingEffect] = useState(false);
   const [expandedTicketAiSectionId, setExpandedTicketAiSectionId] = useState(null);
 
@@ -165,7 +168,7 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
     setDrawerDraft("");
     try {
       const loaded = await loadLarkTicketAiSession({ apiBaseUrl, ticket, sessionId: session.sessionId });
-      setDrawer({ sessionId: loaded.sessionId, title: session.title, actionKey: session.actionKey || null, effectDraft, oneShot: false, verificationStatus: session.runStatus === "failed" ? "unverified" : "verified", status: "ready", messages: transcriptFromAiSessionEvents(loaded.events), error: session.runStatus === "failed" ? session.errorMessage || "证据校验未完成，当前内容仅作为未验证草稿保留。" : "", lastMessage: "" });
+      setDrawer({ sessionId: loaded.sessionId, title: session.title, actionKey: session.actionKey || null, effectDraft, oneShot: false, verificationStatus: session.runStatus === "failed" ? "unverified" : "verified", status: session.runStatus === "failed" ? "error" : "ready", messages: transcriptFromAiSessionEvents(loaded.events), error: session.runStatus === "failed" ? session.errorMessage || "执行或结果校验未完成，请重新执行。" : "", lastMessage: "" });
     } catch (error) {
       setDrawer({ sessionId: session.sessionId, title: session.title, actionKey: session.actionKey || null, effectDraft, oneShot: false, verificationStatus: session.runStatus === "failed" ? "unverified" : "verified", status: "error", messages: [], error: error.message || "AI Session 无法打开。", lastMessage: "" });
     }
@@ -174,6 +177,8 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
   async function streamAiSession({ message, sessionId, title, actionKey, oneShot = false }) {
     if (!ticket || !message.trim()) return;
     const trimmedMessage = message.trim();
+    const abort = new AbortController();
+    streamAbort.current = abort;
     setIsStreaming(true);
     setDrawer((current) => ({
       sessionId: sessionId || current?.sessionId || null,
@@ -188,6 +193,7 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
     }));
     try {
       await streamLarkTicketAiSession({
+        signal: abort.signal,
         apiBaseUrl,
         ticket,
         message: trimmedMessage,
@@ -198,8 +204,8 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
           ...current,
           sessionId: event.event === "session.created" ? event.data.sessionId : current.sessionId,
           effectDraft: event.event === "effect.draft.created" ? { ...event.data, payload: null } : current.effectDraft,
-          status: event.event === "done" ? "ready" : "generating",
-          verificationStatus: event.event === "done" ? "verified" : current.verificationStatus,
+          status: aiSessionStatusAfterEvent(current.status, event),
+          verificationStatus: event.event === "done" && aiSessionStatusAfterEvent(current.status, event) === "ready" ? "verified" : current.verificationStatus,
           messages: appendAiSessionEvent(current.messages, event),
         } : current),
       });
@@ -327,11 +333,11 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
             {aiSessions.status === "error" ? <p className="ticket-ai-session-error">{aiSessions.error}</p> : null}
             {aiSessions.status === "ready" && aiSessions.items.length === 0 ? <div className="ticket-ai-session-empty">
               <span className="ticket-ai-session-empty__icon" aria-hidden="true">✦</span>
-              <div><strong>暂无 AI Session</strong><p>输入目标后创建一个带有当前 Ticket 上下文的 Kimi ACP 会话。</p></div>
+              <div><strong>暂无 AI Session</strong><p>输入目标后创建一个带有当前 Ticket 上下文的 AI 会话。</p></div>
             </div> : null}
             {aiSessions.items.length ? <div className="ticket-ai-session-list">{aiSessions.items.map((session) => <button className="ticket-ai-session-card" type="button" key={session.sessionId} onClick={() => void openAiSession(session)}>
               <span className="ticket-ai-session-card__icon" aria-hidden="true">✦</span>
-              <span className="ticket-ai-session-card__content"><strong>{session.title}</strong><small>{formatDateTime(session.updatedAt)}{session.runStatus === "failed" ? " · 未验证草稿" : ""}</small></span>
+              <span className="ticket-ai-session-card__content"><strong>{session.title}</strong><small>{formatDateTime(session.updatedAt)}{session.runStatus === "failed" ? " · 执行未完成" : ""}</small></span>
               {session.runStatus === "failed" ? <span className="ticket-ai-session-card__status">未验证</span> : null}
               <span className="ticket-ai-session-card__open" aria-hidden="true">›</span>
             </button>)}</div> : null}
@@ -379,12 +385,12 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
     </main>
     {drawer ? <div className="ticket-ai-drawer-backdrop" role="presentation" onMouseDown={() => !isStreaming && setDrawer(null)}>
       <aside className="ticket-ai-drawer" aria-label="AI Session 详情" onMouseDown={(event) => event.stopPropagation()}>
-        <header className="ticket-ai-drawer__header"><div><p>{drawer.oneShot ? "DeepSeek 一次性分析" : "Kimi ACP AI Chat"}</p><h2>{drawer.title}</h2></div><button type="button" aria-label="关闭 AI Session" onClick={() => setDrawer(null)} disabled={isStreaming}>×</button></header>
+        <header className="ticket-ai-drawer__header"><div><p>{drawer.oneShot ? "DeepSeek 一次性分析" : "ACP AI Chat"}</p><h2>{drawer.title}</h2></div><button type="button" aria-label="关闭 AI Session" onClick={() => setDrawer(null)} disabled={isStreaming}>×</button></header>
         <div className="ticket-ai-drawer__body">
-          {drawer.verificationStatus === "unverified" ? <div className="ticket-ai-drawer__unverified"><strong>未验证草稿</strong><p>答案已保存，但证据获取或分析写回没有完成，未进入正式 Ticket AI 输出。</p></div> : null}
+          {drawer.verificationStatus === "unverified" ? <div className="ticket-ai-drawer__unverified"><strong>执行未完成</strong><p>当前会话未通过执行与结果校验；已有内容仅供参考，请查看错误后重新执行。</p></div> : null}
           {drawer.status === "loading" ? <p className="ticket-section-empty">正在加载会话…</p> : null}
-          {drawer.messages.length ? drawer.messages.map((entry, index) => <AiSessionMessage entry={entry} key={entry.id || `${entry.kind}-${index}`} />) : null}
-          {drawer.status === "generating" ? <p className="ticket-ai-generating">{drawer.oneShot ? "DeepSeek 正在生成总结…" : "Kimi 正在生成回复…"}</p> : null}
+          {drawer.messages.length ? drawer.messages.map((entry, index) => <AiSessionMessage entry={entry} apiBaseUrl={apiBaseUrl} active={isStreaming} key={entry.id || `${entry.kind}-${index}`} />) : null}
+          {drawer.status === "generating" ? <p className="ticket-ai-generating">{drawer.oneShot ? "DeepSeek 正在生成总结…" : "AI 正在生成回复…"}</p> : null}
           {drawer.status === "error" ? <div className="ticket-ai-drawer__error"><p>{drawer.error}</p>{drawer.lastMessage || drawer.actionKey ? <button type="button" onClick={() => void streamAiSession({ message: drawer.lastMessage || drawer.title, sessionId: drawer.oneShot || drawer.verificationStatus === "unverified" ? undefined : drawer.sessionId || undefined, actionKey: drawer.oneShot || drawer.verificationStatus === "unverified" ? drawer.actionKey || undefined : undefined, oneShot: drawer.oneShot, title: drawer.title })} disabled={isStreaming}>重新执行</button> : null}</div> : null}
           {drawer.effectDraft ? <div className="ticket-ai-drawer__effect-draft"><strong>待确认操作：{drawer.effectDraft.effectType === "answer_feedback" ? "Answer 反馈" : "Ticket AI 更新"}</strong><pre>{drawer.effectDraft.payload ? JSON.stringify(drawer.effectDraft.payload, null, 2) : "正在读取草稿…"}</pre></div> : null}
         </div>
@@ -400,7 +406,8 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
   </WorkspaceShell>;
 }
 
-function AiSessionMessage({ entry }) {
+function AiSessionMessage({ entry, apiBaseUrl, active }) {
+  if (entry.kind === "permission") return <AcpPermissionPrompt permission={entry.permission} active={active} onReply={(input) => replyAcpPermission({ ...input, apiBaseUrl })} />;
   const thoughts = entry.thoughts || [];
   const toolCalls = entry.toolCalls || [];
   return <div className={`ticket-ai-message ticket-ai-message--${entry.kind}`}>

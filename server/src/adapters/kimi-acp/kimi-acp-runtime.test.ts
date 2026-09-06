@@ -39,7 +39,7 @@ describe("kimi acp runtime", () => {
       createConnection: () => connection,
     });
     const expectation = expect(runtimePromise).rejects.toMatchObject({
-      name: "KimiAcpRuntimeError",
+      name: "AcpRuntimeError",
       code: "ACP_INITIALIZE_TIMEOUT",
       stage: "adapter.acp.initialize",
     } satisfies Partial<KimiAcpRuntimeError>);

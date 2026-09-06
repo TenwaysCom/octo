@@ -95,6 +95,8 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
   await db.schema
     .createTable("acp_kimi_session_owners")
     .ifNotExists()
+    .addColumn("agent_provider", "text")
+    .addColumn("agent_session_id", "text")
     .addColumn("session_id", "text", (column) => column.primaryKey())
     .addColumn("operator_lark_id", "text", (column) => column.notNull())
     .addColumn("title", "text")
@@ -927,7 +929,7 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
       .onConflict((conflict) => conflict.column("key").doNothing())
       .execute();
   }
-  for (const column of ["runtime_host_name", "kimi_work_dir"]) {
+  for (const column of ["runtime_host_name", "kimi_work_dir", "agent_provider", "agent_session_id"]) {
     await sql.raw(`ALTER TABLE acp_kimi_session_owners ADD COLUMN IF NOT EXISTS ${column} text`).execute(db);
   }
   for (const column of ["automation_action_key", "execution_policy", "skill_profile", "skill_id", "policy_version", "permission_profile_id", "permission_profile_version"]) {

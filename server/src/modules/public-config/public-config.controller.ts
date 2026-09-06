@@ -81,7 +81,7 @@ export interface AutomationActionConfig {
    * but it must never make an authorization decision from these fields.
    */
   promptKey?: string;
-  provider?: "kimi_acp" | "ticket_summary";
+  provider?: "kimi_acp" | "hermes_acp" | "ticket_summary";
   skillProfile?: string;
   skillId?: string;
   permissionProfileId?: string;

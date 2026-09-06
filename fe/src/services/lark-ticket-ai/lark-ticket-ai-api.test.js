@@ -49,7 +49,7 @@ test("starts a configured Ticket quick-action Session with its action key", asyn
         ok: true,
         body: new ReadableStream({
           start(controller) {
-            controller.enqueue(new TextEncoder().encode("event: done\\ndata: {}\\n\\n"));
+            controller.enqueue(new TextEncoder().encode("event: done\ndata: {}\n\n"));
             controller.close();
           },
         }),
@@ -78,4 +78,16 @@ test("lists and confirms only server-stored Ticket effect drafts", async () => {
   assert.equal(requests[0].url, "/api/web/lark-tickets/rec_1/effect-drafts?baseId=app_1&tableId=tbl_1");
   assert.equal(requests[1].url, "/api/web/lark-tickets/rec_1/effect-drafts/draft_1/confirm");
   assert.deepEqual(JSON.parse(requests[1].options.body), { baseId: "app_1", tableId: "tbl_1", actionRunId: "run_1", confirmed: true });
+});
+
+test("surfaces an empty Hermes result sent as an SSE error after session creation", async () => {
+  const events = [];
+  await assert.rejects(streamLarkTicketAiSession({
+    apiBaseUrl: "/api", ticket, message: "生成答案", onEvent: (event) => events.push(event),
+    fetchImpl: async () => ({ ok: true, body: new ReadableStream({ start(controller) {
+      controller.enqueue(new TextEncoder().encode('event: session.created\ndata: {"sessionId":"hermes_test"}\n\nevent: error\ndata: {"errorCode":"ACP_EMPTY_RESULT","errorMessage":"Hermes 未返回回答"}\n\n'));
+      controller.close();
+    } }) }),
+  }), { code: "ACP_EMPTY_RESULT", message: "Hermes 未返回回答" });
+  assert.deepEqual(events.map((event) => event.event), ["session.created"]);
 });

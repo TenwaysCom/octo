@@ -1,3 +1,6 @@
+import { AcpRuntimeError } from "../../adapters/acp/acp-runtime.js";
+import { AcpPermissionError } from "../../application/services/acp-permission.service.js";
+import { acpPermissionErrorResponse } from "../acp-kimi/acp-permission.controller.js";
 import type { Express, Request, Response } from "express";
 import { z, ZodError } from "zod";
 import {
@@ -51,6 +54,8 @@ function readCookie(cookieHeader: string | undefined, name: string): string | un
 }
 
 function toErrorResponse(error: unknown) {
+  if (error instanceof AcpPermissionError) return acpPermissionErrorResponse(error);
+  if (error instanceof AcpRuntimeError) return { statusCode: 502, body: { ok: false as const, error: { errorCode: error.code, errorMessage: error.message, layer: "adapter", module: "acp", stage: error.stage } } };
   if (error instanceof ZodError) {
     return { statusCode: 400, body: { ok: false as const, error: { errorCode: "INVALID_REQUEST", errorMessage: error.message } } };
   }
@@ -63,7 +68,7 @@ function toErrorResponse(error: unknown) {
         ? 502
         : error.code === "TICKET_SUMMARY_EVIDENCE_OUTSIDE_SNAPSHOT" || error.code === "THREAD_SNAPSHOT_VERSION_CONFLICT"
           ? 409
-      : error.code === "SUPPORT_QA_EVIDENCE_NOT_FETCHED" || error.code === "SUPPORT_ANALYSIS_NOT_UPDATED"
+      : error.code === "SUPPORT_QA_MATERIALS_UNAVAILABLE" || error.code === "SUPPORT_ANALYSIS_NOT_UPDATED"
         ? 502
         : error.code === "LARK_TICKET_NOT_FOUND" || error.code === "SESSION_NOT_FOUND"
           ? 404

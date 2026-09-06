@@ -10,10 +10,6 @@ import {
   ensureAcpKimiScratchDir,
   type AcpKimiPermissionContext,
 } from "./acp-kimi-permission-policy.js";
-import {
-  acpKimiOperationAuditStore,
-  type AcpKimiOperationAuditStore,
-} from "./acp-kimi-operation-audit.js";
 import { acpKimiSessionHistoryService } from "./acp-kimi-session-history.service.js";
 import type { AcpKimiStreamEvent } from "../../modules/acp-kimi/event-stream.js";
 import {
@@ -29,7 +25,7 @@ import {
 import {
   AUTOMATION_SKILL_PROFILES,
   getTicketAiAutomationAction,
-  type KimiTicketAiAutomationActionConfig,
+  type AcpTicketAiAutomationActionConfig,
   type TicketSummaryTicketAiAutomationActionConfig,
 } from "../../modules/public-config/automation-actions.config.js";
 import {
@@ -46,7 +42,7 @@ import {
   renderWorkflowPromptTemplate,
 } from "../../domain/workflow-prompts.js";
 import { prepareTicketThread, redactSupportText } from "../../domain/support-ticket-analysis.js";
-import { buildSupportQaFetchInstruction, supportAnalysisResultSchema } from "../../domain/support-ticket-analysis-update.js";
+import { supportAnalysisResultSchema } from "../../domain/support-ticket-analysis-update.js";
 import { createSupportTicketAnalysisService, SupportTicketAnalysisError } from "./support-ticket-analysis.service.js";
 import { randomUUID } from "node:crypto";
 import { access, realpath } from "node:fs/promises";
@@ -80,7 +76,7 @@ export class LarkTicketAiSessionError extends Error {
       | "AI_ACTION_NOT_FOUND"
       | "SKILL_PROFILE_NOT_CONFIGURED"
       | "LARK_THREAD_CONTEXT_UNAVAILABLE"
-      | "SUPPORT_QA_EVIDENCE_NOT_FETCHED"
+      | "SUPPORT_QA_MATERIALS_UNAVAILABLE"
       | "SUPPORT_ANALYSIS_NOT_UPDATED"
       | TicketSummaryClientErrorCode
       | "TICKET_SUMMARY_OUTPUT_INVALID"
@@ -110,12 +106,11 @@ export interface LarkTicketAiSessionServiceDeps {
   resolveAction?: (actionKey: string) => Promise<ResolvedTicketAiAction | undefined>;
   ticketSummaryClient?: TicketSummaryJsonCompletionClient;
   analysisService?: Pick<ReturnType<typeof createSupportTicketAnalysisService>, "update">;
-  operationAuditStore?: AcpKimiOperationAuditStore;
   effectDraftService?: Pick<ReturnType<typeof createSupportTicketEffectDraftService>, "ingestFromScratch">;
 }
 
 interface ResolvedTicketAiAction {
-  action: KimiTicketAiAutomationActionConfig;
+  action: AcpTicketAiAutomationActionConfig;
   workspaceDir: string;
   skillPath: string;
 }
@@ -133,7 +128,6 @@ export function createLarkTicketAiSessionService(
   const resolveAction = deps.resolveAction ?? resolveTicketAiAction;
   const getTicketSummaryClient = () => deps.ticketSummaryClient ?? createTicketSummaryJsonCompletionClient();
   const getAnalysisService = () => deps.analysisService ?? createSupportTicketAnalysisService();
-  const operationAuditStore = deps.operationAuditStore ?? acpKimiOperationAuditStore;
   const effectDraftService = deps.effectDraftService ?? createSupportTicketEffectDraftService();
 
   return {
@@ -209,7 +203,7 @@ export function createLarkTicketAiSessionService(
       const quickAction = input.sessionId || !input.actionKey
         ? undefined
         : await resolveAction(input.actionKey);
-      if (input.actionKey && !quickAction) {
+      if (input.actionKey && !input.sessionId && !quickAction) {
         throw new LarkTicketAiSessionError("AI_ACTION_NOT_FOUND", "Requested AI quick action is not configured.");
       }
       const actionRunId = session?.actionRunId ?? input.actionRunId ?? (quickAction ? randomUUID() : undefined);
@@ -230,6 +224,21 @@ export function createLarkTicketAiSessionService(
           }
           throw error;
         }
+      }
+      if (quickAction && (!ticket.sourceFields || !Object.keys(ticket.sourceFields).length
+        || !threadContext?.snapshot?.historyComplete
+        || threadContext.snapshot.baseId !== ticket.baseId
+        || threadContext.snapshot.tableId !== ticket.tableId
+        || threadContext.snapshot.recordId !== ticket.recordId
+        || !Number.isSafeInteger(threadContext.snapshot.snapshotVersion)
+        || threadContext.snapshot.snapshotVersion < 1
+        || !(threadContext.snapshot.preparedMessages ?? prepareTicketThread(threadContext.snapshot.messages)).length)) {
+        throw new LarkTicketAiSessionError("SUPPORT_QA_MATERIALS_UNAVAILABLE", "Ticket 字段或聊天材料不完整，未启动 AI；请先补齐同步快照。", {
+          layer: "server", module: "lark-ticket-ai-session", stage: "server.workflow.materials", actionRunId,
+        });
+      }
+      if (session?.automationActionKey?.startsWith("lark-ticket-support-qa-") && !session.threadSnapshotVersion) {
+        throw new LarkTicketAiSessionError("SUPPORT_QA_MATERIALS_UNAVAILABLE", "旧会话没有固定材料快照，请重新执行 Quick Action。");
       }
       const knowledgeEvidence = quickAction?.action.key === "lark-ticket-support-qa-answer"
         ? await knowledgeRetriever.searchApproved({
@@ -254,8 +263,7 @@ export function createLarkTicketAiSessionService(
       let attachmentPromise: Promise<void> | undefined;
       let doneEvent: Extract<AcpKimiStreamEvent, { event: "done" }> | undefined;
       let assistantOutput = "";
-      const requiresEvidence = Boolean(quickAction && actionRunId);
-      const requiresPostProcessing = requiresEvidence || canCreateEffectDraft;
+      const requiresPostProcessing = Boolean(quickAction) || canCreateEffectDraft;
 
       try {
         await acpService.chat({
@@ -264,10 +272,11 @@ export function createLarkTicketAiSessionService(
           actionRunId,
           message: prompt,
           permissionContext,
+          ...(quickAction ? { agentProvider: quickAction.action.provider } : {}),
         }, (event) => {
           if (event.event === "session.created") {
             createdSessionId = event.data.sessionId;
-            attachmentPromise = attachCreatedTicketSession({
+            attachmentPromise ??= attachCreatedTicketSession({
               ownershipStore,
               sessionId: createdSessionId,
               operatorLarkId: input.operatorLarkId,
@@ -286,6 +295,13 @@ export function createLarkTicketAiSessionService(
         }, {
           signal: input.signal,
           session: input.sessionId ? undefined : null,
+          async onSessionCreated(session) {
+            createdSessionId = session.sessionId;
+            attachmentPromise = attachCreatedTicketSession({ ownershipStore, sessionId: session.sessionId,
+              operatorLarkId: input.operatorLarkId, title: deriveSessionTitle(input.message), ticket: input.ticket,
+              ticketNumber: ticket.ticketNumber || ticket.recordId, snapshot: threadContext?.snapshot });
+            await attachmentPromise;
+          },
         });
       } catch (error) {
         await attachmentPromise;
@@ -303,32 +319,6 @@ export function createLarkTicketAiSessionService(
         await ownershipStore.touch(sessionId, input.operatorLarkId);
       }
 
-      const fetchAudit = actionRunId ? operationAuditStore.get({
-        sessionId,
-        actionRunId,
-        ruleId: "support_qa.fetch",
-      }) : undefined;
-      if (requiresEvidence && fetchAudit?.status !== "completed") {
-        await ownershipStore.updateRun?.({
-          sessionId,
-          operatorLarkId: input.operatorLarkId,
-          actionRunId: actionRunId!,
-          status: "failed",
-          errorCode: "SUPPORT_QA_EVIDENCE_NOT_FETCHED",
-          errorMessage: "Support-QA evidence fetch did not complete; the AI result was not accepted.",
-          unverifiedOutput: assistantOutput || null,
-        });
-        throw new LarkTicketAiSessionError(
-          "SUPPORT_QA_EVIDENCE_NOT_FETCHED",
-          "Support-QA evidence fetch did not complete; the AI result was not accepted.",
-          {
-            layer: "server",
-            module: "lark-ticket-ai-session",
-            stage: "server.workflow.completed",
-            ...(actionRunId ? { actionRunId } : {}),
-          },
-        );
-      }
       if (canCreateEffectDraft) {
         const draft = await effectDraftService.ingestFromScratch({
           operatorLarkId: input.operatorLarkId,
@@ -351,10 +341,7 @@ export function createLarkTicketAiSessionService(
           });
         }
       }
-      if (doneEvent) {
-        emit(doneEvent);
-      }
-      if (quickAction && actionRunId) {
+      if ((quickAction || canCreateEffectDraft) && actionRunId) {
         await ownershipStore.updateRun?.({
           sessionId,
           operatorLarkId: input.operatorLarkId,
@@ -362,6 +349,7 @@ export function createLarkTicketAiSessionService(
           status: "completed",
         });
       }
+      if (doneEvent) emit(doneEvent);
     },
   };
 }
@@ -652,14 +640,15 @@ function buildTicketPrompt(
     `Title: ${redactSupportText(ticket.title)}`,
     `Description:\n${redactSupportText(ticket.detailDescription) || "(none)"}`,
     `Resources:\n${resources || "(none)"}`,
-    `Lark thread context (snapshot version ${threadContext?.snapshot?.snapshotVersion ?? "none"}):\n${formatThreadContext(threadContext)}`,
+    `Ticket source fields (PostgreSQL snapshot, synced ${ticket.syncedAt}):\n${formatTicketSourceFields(ticket)}`,
+    `Lark thread context (source ${threadContext?.source ?? "none"}, snapshot version ${threadContext?.snapshot?.snapshotVersion ?? "none"}):\n${formatThreadContext(threadContext)}`,
     `User request:\n${request}`,
   ].join("\n\n");
 }
 
 async function resolveTicketAiAction(actionKey: string): Promise<ResolvedTicketAiAction | undefined> {
   const action = getTicketAiAutomationAction(actionKey);
-  if (!action || action.provider !== "kimi_acp") {
+  if (!action || action.provider !== "hermes_acp") {
     return undefined;
   }
   const profile = AUTOMATION_SKILL_PROFILES[action.skillProfile];
@@ -728,7 +717,7 @@ async function buildQuickActionPrompt(
   });
   return [
     prompt,
-    buildSupportQaFetchInstruction(ticket.ticketNumber || ticket.recordId),
+    "Server 已准备下方 Ticket 字段、固定聊天快照和知识检索结果，无需把 fetch 作为第一条操作。记录评论尚未取得可靠的逐记录来源，不代表评论为空；不得将未提供的评论当作证据。",
     buildEffectDraftInstruction(quickAction.action.key, permissionContext, ticket, threadContext?.snapshot?.snapshotVersion),
   ].filter(Boolean).join("\n\n");
 }
@@ -749,10 +738,10 @@ function buildEffectDraftInstruction(
     actionRunId: context.actionRunId,
   };
   if (actionKey === "lark-ticket-support-qa-answer") {
-    return `正式反馈写回只能走确认层。首次回答时不要创建写回文件；只有用户明确确认或否定答案并补齐必填反馈后，才使用 ACP Write 将以下 JSON 写到 ${join(context.scratchDir, "effect-draft.json")}：\n${JSON.stringify({ version: "support-qa-answer-feedback-draft-v1", effectType: "answer_feedback", ...identity, feedback: { correct: true, issueSummary: "简要问题", answerSummary: "简要答案", errorCategories: [], errorExplanation: "" } })}\n不得调用 lark-cli、网络命令或任何写回命令。写入只生成待用户确认的 effect draft，不代表已写入 Lark。`;
+    return `正式反馈写回只能走确认层。首次回答时不要创建写回文件；只有用户明确确认或否定答案并补齐必填反馈后，才使用文件写入工具将以下 JSON 写到 ${join(context.scratchDir, "effect-draft.json")}：\n${JSON.stringify({ version: "support-qa-answer-feedback-draft-v1", effectType: "answer_feedback", ...identity, feedback: { correct: true, issueSummary: "简要问题", answerSummary: "简要答案", errorCategories: [], errorExplanation: "" } })}\n不得调用 lark-cli、网络命令或任何写回命令。写入只生成待用户确认的 effect draft，不代表已写入 Lark。`;
   }
   if (actionKey === "lark-ticket-support-qa-document-preview") {
-    return `正式 Ticket AI 写回只能走确认层。完成文档草稿及允许的 dry-run 后，使用 ACP Write 将待确认内容写到 ${join(context.scratchDir, "effect-draft.json")}，格式为：\n${JSON.stringify({ version: "support-qa-ticket-ai-draft-v1", effectType: "ticket_ai_update", ...identity, fields: { "AI分析状态": "已分析" }, indexEntry: { record_id: ticket.recordId } })}\nfields 必须替换为本次真实草稿数据；indexEntry 只保留当前 record_id，完整索引记录由 Server 从确认后的 fields 构建。不得通过 Terminal 执行非 dry-run update；该文件只生成 effect draft，不代表已更新 ticket_ai 或 knowledge-index.jsonl。`;
+    return `正式 Ticket AI 写回只能走确认层。完成文档草稿及允许的 dry-run 后，使用文件写入工具将待确认内容写到 ${join(context.scratchDir, "effect-draft.json")}，格式为：\n${JSON.stringify({ version: "support-qa-ticket-ai-draft-v1", effectType: "ticket_ai_update", ...identity, fields: { "AI分析状态": "已分析" }, indexEntry: { record_id: ticket.recordId } })}\nfields 必须替换为本次真实草稿数据；indexEntry 只保留当前 record_id，完整索引记录由 Server 从确认后的 fields 构建。不得通过 Terminal 执行非 dry-run update；该文件只生成 effect draft，不代表已更新 ticket_ai 或 knowledge-index.jsonl。`;
   }
   return "";
 }
@@ -775,4 +764,14 @@ function formatKnowledgeEvidence(hits: SupportKnowledgeSearchHit[]): string {
     `approved_at=${hit.approvedAt}`,
     `content=${hit.redactedContent}`,
   ].join("\n"))].join("\n\n");
+}
+
+// Same source fields used by the existing Support-QA fetch script. Keep the
+// source snapshot explicit; a field-change history is not record comments.
+function formatTicketSourceFields(ticket: LarkBaseTicketSyncItem): string {
+  const fields = ["解决方案", "Attachments", "状态", "紧急度", "Business line", "tag", "Responsible", "需求人", "创建时间", "关闭时间", "Planned Version", "Planned Sprint"];
+  return fields.filter((key) => ticket.sourceFields && key in ticket.sourceFields).map((key) => {
+    const value = redactSupportText(JSON.stringify(ticket.sourceFields![key]));
+    return `${key}: ${value.length > 8000 ? `${value.slice(0, 8000)} [truncated]` : value}`;
+  }).join("\n") || "(additional source fields unavailable)";
 }

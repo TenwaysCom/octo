@@ -1,3 +1,5 @@
+/** Kimi Terminal/fs callback profiles. Action/effect identity is shared, but these
+ * capability flags do not restrict Hermes native tools or terminal filesystem writes. */
 export const ACP_CHAT_ACTION_KEY = "acp.chat";
 
 export const ACP_KIMI_PERMISSION_PROFILES = {

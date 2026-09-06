@@ -1,15 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
-  buildSupportQaFetchInstruction,
   supportAnalysisPayloadSchema,
   supportAnalysisResultSchema,
 } from "./support-ticket-analysis-update.js";
-
-it("builds an ACP Terminal fetch instruction bound to the current Ticket", () => {
-  expect(buildSupportQaFetchInstruction("LT-10")).toContain("bash .agents/skills/write-support-qa/scripts/write-support-qa.sh fetch LT-10 --json");
-  expect(buildSupportQaFetchInstruction("LT-10")).toContain("Terminal 实际退出码为 0");
-  expect(buildSupportQaFetchInstruction("LT-10")).not.toContain("mcp__octo");
-});
 
 describe("support Ticket analysis update contract", () => {
   it("validates the structured analysis payload", () => {

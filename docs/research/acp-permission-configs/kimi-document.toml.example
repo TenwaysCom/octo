@@ -1,0 +1,105 @@
+# Kimi Code CLI 权限片段：生成文档。先阅读 README.md。
+# __...__ 必须按当前任务替换；不可与 Answer 规则合并。
+# 下列路径规则不约束 Bash/脚本间接写入，匹配行为仍需真实 ACP 验证。
+default_permission_mode = "manual"
+
+[permission]
+dangerous_command_guard = true
+
+[[permission.rules]]
+decision = "allow"
+pattern = "Bash(bash .agents/skills/write-support-qa/scripts/write-support-qa.sh fetch __TICKET_NUMBER__ --json)"
+
+[[permission.rules]]
+decision = "allow"
+pattern = "Bash(git status --short)"
+
+[[permission.rules]]
+decision = "allow"
+pattern = "Bash(git diff --no-ext-diff -- docs/support-qa)"
+
+[[permission.rules]]
+decision = "allow"
+pattern = "Bash(bash .agents/skills/write-support-qa/scripts/write-support-qa.sh update __ACTION_DIR__/support-qa-__TICKET_NUMBER__-update.json --dry-run --json)"
+
+# 未生成 QA Card 时删掉本规则，以及下方 QA Card 的 Write/Edit 两条规则。
+[[permission.rules]]
+decision = "allow"
+pattern = "Bash(node .agents/skills/eval-support-qa/scripts/eval-support-qa.mjs --ticket-no __TICKET_NUMBER__ --qa-card-path __QA_CARD_REL_PATH__ --json)"
+
+[[permission.rules]]
+decision = "allow"
+pattern = "Write(__ACTION_DIR__/support-qa-__TICKET_NUMBER__-update.json)"
+
+[[permission.rules]]
+decision = "allow"
+pattern = "Edit(__ACTION_DIR__/support-qa-__TICKET_NUMBER__-update.json)"
+
+[[permission.rules]]
+decision = "allow"
+pattern = "Write(__ACTION_DIR__/effect-draft.json)"
+
+[[permission.rules]]
+decision = "allow"
+pattern = "Edit(__ACTION_DIR__/effect-draft.json)"
+
+[[permission.rules]]
+decision = "allow"
+pattern = "Write(__QA_CARD_ABS_PATH__)"
+
+[[permission.rules]]
+decision = "allow"
+pattern = "Edit(__QA_CARD_ABS_PATH__)"
+
+[[permission.rules]]
+decision = "allow"
+pattern = "Write(__WORKSPACE__/docs/support-qa/faq.md)"
+
+[[permission.rules]]
+decision = "allow"
+pattern = "Edit(__WORKSPACE__/docs/support-qa/faq.md)"
+
+[[permission.rules]]
+decision = "allow"
+pattern = "Write(__WORKSPACE__/docs/support-qa/indexes/by-module.md)"
+
+[[permission.rules]]
+decision = "allow"
+pattern = "Edit(__WORKSPACE__/docs/support-qa/indexes/by-module.md)"
+
+[[permission.rules]]
+decision = "allow"
+pattern = "Write(__WORKSPACE__/docs/support-qa/indexes/by-symptom.md)"
+
+[[permission.rules]]
+decision = "allow"
+pattern = "Edit(__WORKSPACE__/docs/support-qa/indexes/by-symptom.md)"
+
+[[permission.rules]]
+decision = "allow"
+pattern = "Write(__WORKSPACE__/docs/support-qa/indexes/by-process.md)"
+
+[[permission.rules]]
+decision = "allow"
+pattern = "Edit(__WORKSPACE__/docs/support-qa/indexes/by-process.md)"
+
+[[permission.rules]]
+decision = "allow"
+pattern = "Write(__WORKSPACE__/docs/support-qa/indexes/by-root-cause.md)"
+
+[[permission.rules]]
+decision = "allow"
+pattern = "Edit(__WORKSPACE__/docs/support-qa/indexes/by-root-cause.md)"
+
+# 不预授权 analysis-update、非 dry-run update、外部 AI 或 Eval 写回。
+[[permission.rules]]
+decision = "ask"
+pattern = "Bash"
+
+[[permission.rules]]
+decision = "deny"
+pattern = "Write"
+
+[[permission.rules]]
+decision = "deny"
+pattern = "Edit"

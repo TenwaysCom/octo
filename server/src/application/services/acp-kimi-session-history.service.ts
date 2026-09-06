@@ -1,4 +1,6 @@
 import { hostname } from "node:os";
+import { createManagedAcpSessionRuntime, resolveAcpSessionIdentity, mapAcpEventSession } from "../../adapters/acp/managed-acp-runtime.js";
+import { createAcpKimiClientCapabilityPolicy, createAcpKimiPermissionHandler } from "./acp-kimi-permission-policy.js";
 import {
   createKimiAcpSessionRuntime,
   listKimiAcpSessions,
@@ -13,7 +15,8 @@ import {
 } from "../../adapters/postgres/acp-kimi-session-ownership-store.js";
 import { inMemoryKimiSessionRegistry } from "../../adapters/kimi-acp/in-memory-kimi-session-registry.js";
 import type { KimiSessionRegistry } from "../../adapters/kimi-acp/kimi-session-registry.js";
-import { AcpKimiProxyError } from "./acp-kimi-proxy.service.js";
+import { AcpKimiProxyError, toPermissionContext } from "./acp-kimi-proxy.service.js";
+import { logger } from "../../logger.js";
 
 export interface AcpKimiSessionHistoryServiceDeps {
   ownershipStore?: AcpKimiSessionOwnershipStore;
@@ -36,13 +39,14 @@ export function createAcpKimiSessionHistoryService(
   const ownershipStore = deps.ownershipStore ?? getAcpKimiSessionOwnershipStore();
   const sessionRegistry = deps.sessionRegistry ?? inMemoryKimiSessionRegistry;
   const listSessions = deps.listSessions ?? listKimiAcpSessions;
-  const createSessionRuntime = deps.createSessionRuntime ?? createKimiAcpSessionRuntime;
+  const createSessionRuntime = deps.createSessionRuntime ?? createManagedAcpSessionRuntime;
   const exportSessionEvents = deps.exportSessionEvents ?? exportKimiSessionEvents;
 
   return {
     async listSessions(input: { operatorLarkId: string }) {
-      const discoveredSessions = await listSessions({
-        cwd: process.cwd(),
+      const discoveredSessions = await listSessions({ cwd: process.cwd() }).catch(() => {
+        logger.warn({ layer: "server", module: "acp-session-history", stage: "sessions.discover", errorCode: "KIMI_SESSION_DISCOVERY_UNAVAILABLE" }, "Using owned ACP sessions because Kimi discovery is unavailable");
+        return [];
       });
 
       for (const session of discoveredSessions) {
@@ -68,7 +72,11 @@ export function createAcpKimiSessionHistoryService(
           .map((s) => [s.sessionId, s.title]),
       );
 
-      return discoveredSessions
+      const discoveredIds = new Set(discoveredSessions.map((item) => item.sessionId));
+      const savedSessions = ownedSessions.filter((item) => !discoveredIds.has(item.sessionId)).map((item) => ({
+        sessionId: item.sessionId, title: item.title, cwd: item.kimiWorkDir, updatedAt: item.updatedAt,
+      }));
+      return [...discoveredSessions, ...savedSessions]
         .filter((session) => ownedSessionIds.has(session.sessionId))
         .map((session) => ({
           ...session,
@@ -84,7 +92,9 @@ export function createAcpKimiSessionHistoryService(
       sessionId: string;
       signal?: AbortSignal;
     }) {
-      await assertOwnership(ownershipStore, input.sessionId, input.operatorLarkId);
+      const ownership = await assertOwnership(ownershipStore, input.sessionId, input.operatorLarkId);
+      const permissionContext = toPermissionContext(ownership);
+      const identity = resolveAcpSessionIdentity(ownership);
 
       const existingSession = sessionRegistry.get(input.sessionId);
       if (existingSession && existingSession.busy) {
@@ -110,24 +120,32 @@ export function createAcpKimiSessionHistoryService(
       const runtime = await createSessionRuntime({
         signal: input.signal,
         sessionId: input.sessionId,
+        ...identity,
+        cwd: ownership.kimiWorkDir ?? process.cwd(),
+        ...(identity.agentProvider === "kimi_acp" ? {
+          capabilityPolicy: createAcpKimiClientCapabilityPolicy(permissionContext),
+          permissionHandler: createAcpKimiPermissionHandler(permissionContext),
+        } : {}),
         emit(event) {
-          events.push(event);
+          events.push(mapAcpEventSession(event, input.sessionId));
         },
       });
 
       sessionRegistry.set({
-        sessionId: runtime.sessionId,
+        ...identity,
+        sessionId: input.sessionId,
         operatorLarkId: input.operatorLarkId,
         runtime,
+        permissionContext,
         busy: false,
       });
 
       const hasReplayEvents = events.some(
         (event) => event.event === "acp.session.update",
       );
-      if (!hasReplayEvents) {
+      if (!hasReplayEvents && identity.agentProvider === "kimi_acp") {
         try {
-          events.push(...await exportSessionEvents(input.sessionId));
+          events.push(...(await exportSessionEvents(identity.agentSessionId)).map((event) => mapAcpEventSession(event, input.sessionId)));
         } catch {
           // Fall back to the loaded runtime even if export-based history recovery fails.
         }
@@ -204,7 +222,7 @@ async function assertOwnership(
   ownershipStore: AcpKimiSessionOwnershipStore,
   sessionId: string,
   operatorLarkId: string,
-): Promise<void> {
+) {
   const ownedSession = await ownershipStore.getBySessionId(sessionId);
 
   if (!ownedSession || ownedSession.deletedAt) {
@@ -222,4 +240,5 @@ async function assertOwnership(
       `Kimi ACP session ${sessionId} does not belong to ${operatorLarkId}.`,
     );
   }
+  return ownedSession;
 }

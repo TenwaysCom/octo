@@ -1,8 +1,11 @@
+import { AcpRuntimeError } from "../../adapters/acp/acp-runtime.js";
+import { randomUUID } from "node:crypto";
+import { acpPermissionService, type AcpRunMode } from "./acp-permission.service.js";
 import { hostname } from "node:os";
+import { createManagedAcpSessionRuntime, resolveAcpSessionIdentity, type AcpAgentProvider } from "../../adapters/acp/managed-acp-runtime.js";
 import type { AcpKimiChatRequest } from "../../modules/acp-kimi/acp-kimi.dto.js";
 import type { AcpKimiStreamEvent } from "../../modules/acp-kimi/event-stream.js";
 import {
-  createKimiAcpSessionRuntime,
   type KimiAcpSessionRuntime,
   type KimiAcpRuntimeDeps,
 } from "../../adapters/kimi-acp/kimi-acp-runtime.js";
@@ -35,6 +38,7 @@ export interface AcpKimiProxyServiceDeps {
     deps?: KimiAcpRuntimeDeps,
   ) => Promise<KimiAcpSessionRuntime>;
   sessionRegistry?: KimiSessionRegistry;
+  permissionService?: typeof acpPermissionService;
   ownershipStore?: AcpKimiSessionOwnershipStore;
   getRuntimeLocation?: () => {
     runtimeHostName: string;
@@ -59,12 +63,15 @@ export interface AcpKimiProxyService {
     deps?: {
       signal?: AbortSignal;
       session?: KimiSessionRecord | null;
+      onSessionCreated?: (session: KimiSessionRecord) => Promise<void>;
     },
   ): Promise<void>;
 }
 
 export type AcpKimiManagedChatRequest = AcpKimiChatRequest & {
   permissionContext?: AcpKimiPermissionContext;
+  agentProvider?: AcpAgentProvider;
+  runMode?: AcpRunMode;
 };
 
 export class AcpKimiProxyError extends Error {
@@ -82,9 +89,10 @@ export function createAcpKimiProxyService(
   deps: AcpKimiProxyServiceDeps = {},
 ): AcpKimiProxyService {
   const createSessionRuntime =
-    deps.createSessionRuntime ?? createKimiAcpSessionRuntime;
+    deps.createSessionRuntime ?? createManagedAcpSessionRuntime;
   const sessionRegistry = deps.sessionRegistry ?? inMemoryKimiSessionRegistry;
   const ownershipStore = deps.ownershipStore ?? getAcpKimiSessionOwnershipStore();
+  const permissionService = deps.permissionService ?? acpPermissionService;
   const getRuntimeLocation = deps.getRuntimeLocation ?? (() => ({
     runtimeHostName: hostname(),
     kimiWorkDir: process.cwd(),
@@ -187,6 +195,7 @@ export function createAcpKimiProxyService(
       deps?: {
         signal?: AbortSignal;
         session?: KimiSessionRecord | null;
+        onSessionCreated?: (session: KimiSessionRecord) => Promise<void>;
       },
     ) {
       acpKimiProxyLogger.info({
@@ -214,6 +223,7 @@ export function createAcpKimiProxyService(
             getRuntimeLocation,
             input.permissionContext,
             deps?.signal,
+            input.agentProvider,
           );
 
       acpKimiProxyLogger.info({
@@ -222,34 +232,59 @@ export function createAcpKimiProxyService(
         reusedSession: Boolean(input.sessionId || deps?.session),
       }, "ACP_KIMI_CHAT SESSION_READY");
 
-      if (!input.sessionId) {
-        acpKimiProxyLogger.info({
-          operatorLarkId: input.operatorLarkId,
-          sessionId: session.sessionId,
-        }, "ACP_KIMI_CHAT SESSION_CREATED_EVENT");
-        emit({
-          event: "session.created",
-          data: {
-            sessionId: session.sessionId,
-          },
-        });
+      if (session.operatorLarkId !== input.operatorLarkId || (input.sessionId && session.sessionId !== input.sessionId)) {
+        throw new AcpKimiProxyError("SESSION_FORBIDDEN", 403, "Session does not belong to this request.");
       }
-
-      if (!deps?.session) {
-        assertSessionNotBusy(session);
-      }
-
+      assertSessionNotBusy(session);
       session.busy = true;
+      const actionRunId = input.actionRunId ?? session.permissionContext?.actionRunId ?? randomUUID();
+      const abort = new AbortController();
+      const onAbort = () => abort.abort();
+      deps?.signal?.addEventListener("abort", onAbort, { once: true });
+      if (deps?.signal?.aborted) abort.abort();
+      const agentProvider = session.agentProvider ?? session.runtime.agentProvider ?? resolveAcpSessionIdentity({ sessionId: session.sessionId }).agentProvider;
+      const permissionRun = permissionService.beginRun({
+        operatorLarkId: input.operatorLarkId,
+        sessionId: session.sessionId,
+        agentSessionId: session.agentSessionId ?? session.runtime.agentSessionId ?? session.runtime.sessionId,
+        actionRunId,
+        mode: input.runMode ?? "interactive",
+        emit,
+        signal: abort.signal,
+        cancel: onAbort,
+      });
       try {
+        if (!input.sessionId) {
+          await deps?.onSessionCreated?.(session);
+          emit({ event: "session.created", data: { sessionId: session.sessionId } });
+        }
         acpKimiProxyLogger.info({
           operatorLarkId: input.operatorLarkId,
           sessionId: session.sessionId,
         }, "ACP_KIMI_CHAT PROMPT_START");
+        let hasAssistantOutput = false;
         const promptResult = await session.runtime.prompt({
           message: input.message,
-          emit,
-          signal: deps?.signal,
+          emit(event) {
+            if (event.event === "acp.session.update" && event.data.update.sessionUpdate === "agent_message_chunk") {
+              const content = event.data.update.content;
+              if (content && typeof content === "object" && "text" in content && typeof content.text === "string" && content.text.trim()) {
+                hasAssistantOutput = true;
+              }
+            }
+            emit(event);
+          },
+          signal: abort.signal,
+          ...(agentProvider === "hermes_acp" ? { permissionHandler: permissionRun.request } : {}),
         });
+        permissionRun.assertCompleted();
+        if (agentProvider === "hermes_acp" && promptResult.stopReason !== "end_turn") {
+          throw new AcpRuntimeError("ACP_AGENT_RUN_INCOMPLETE", "adapter.acp.prompt", `Agent stopped with ${promptResult.stopReason}; the run was not completed.`);
+        }
+        if (abort.signal.aborted) throw new DOMException("The operation was aborted.", "AbortError");
+        if (agentProvider === "hermes_acp" && !hasAssistantOutput) {
+          throw new AcpRuntimeError("ACP_EMPTY_RESULT", "adapter.acp.prompt", "Hermes 未返回回答，本轮未完成。请检查 Hermes 的模型认证配置及 Server 运行日志后重新执行。");
+        }
 
         acpKimiProxyLogger.info({
           operatorLarkId: input.operatorLarkId,
@@ -275,11 +310,26 @@ export function createAcpKimiProxyService(
           sessionId: session.sessionId,
           errorMessage: error instanceof Error ? error.message : String(error),
         }, "ACP_KIMI_CHAT ERROR");
-        if (!isAbortError(error) && !deps?.signal?.aborted) {
-          await sessionRegistry.delete(session.sessionId);
+        const failure = permissionRun.failure ?? error;
+        try {
+          if (failure instanceof Error && "code" in failure) {
+            await ownershipStore.updateRun?.({
+              sessionId: session.sessionId, operatorLarkId: input.operatorLarkId, actionRunId,
+              status: "failed", errorCode: String(failure.code), errorMessage: failure.message,
+            });
+          }
+        } catch (persistError) {
+          acpKimiProxyLogger.error({ sessionId: session.sessionId, actionRunId, errorMessage: String(persistError) }, "ACP_CHAT_FAILURE_PERSIST_ERROR");
         }
-        throw error;
+        try {
+          await sessionRegistry.delete(session.sessionId);
+        } catch (closeError) {
+          acpKimiProxyLogger.error({ sessionId: session.sessionId, actionRunId, errorMessage: String(closeError) }, "ACP_CHAT_FAILURE_CLOSE_ERROR");
+        }
+        throw failure;
       } finally {
+        permissionRun.close();
+        deps?.signal?.removeEventListener("abort", onAbort);
         session.busy = false;
         acpKimiProxyLogger.info({
           operatorLarkId: input.operatorLarkId,
@@ -315,6 +365,7 @@ async function createOwnedSession(
   },
   permissionContext: AcpKimiPermissionContext | undefined,
   signal?: AbortSignal,
+  agentProvider?: AcpAgentProvider,
 ): Promise<KimiSessionRecord> {
   const effectivePermissionContext: AcpKimiPermissionContext = permissionContext ?? {
     actionKey: ACP_CHAT_ACTION_KEY,
@@ -331,32 +382,44 @@ async function createOwnedSession(
     permissionProfileVersion: effectivePermissionContext.permissionProfileVersion,
   }, "ACP_KIMI_CREATE_SESSION START");
   const runtime = await createSessionRuntime({
+    agentProvider,
     cwd: workDir,
-    capabilityPolicy: createAcpKimiClientCapabilityPolicy(effectivePermissionContext),
-    permissionHandler: createAcpKimiPermissionHandler(effectivePermissionContext),
+    ...(agentProvider !== "hermes_acp" ? {
+      capabilityPolicy: createAcpKimiClientCapabilityPolicy(effectivePermissionContext),
+      permissionHandler: createAcpKimiPermissionHandler(effectivePermissionContext),
+    } : {}),
     signal,
   });
   const session = {
     sessionId: runtime.sessionId,
+    agentProvider: runtime.agentProvider ?? agentProvider ?? "kimi_acp",
+    agentSessionId: runtime.agentSessionId ?? runtime.sessionId,
     operatorLarkId,
     runtime,
     permissionContext: effectivePermissionContext,
     busy: false,
   } satisfies KimiSessionRecord;
 
+  try {
+    await ownershipStore.claim({
+      sessionId: session.sessionId,
+      agentProvider: runtime.agentProvider ?? agentProvider ?? "kimi_acp",
+      agentSessionId: runtime.agentSessionId ?? runtime.sessionId,
+      operatorLarkId,
+      runtimeHostName: runtimeLocation.runtimeHostName,
+      kimiWorkDir: workDir,
+      automationActionKey: effectivePermissionContext.actionKey,
+      permissionProfileId: effectivePermissionContext.permissionProfileId,
+      permissionProfileVersion: effectivePermissionContext.permissionProfileVersion,
+      skillProfile: effectivePermissionContext.skillProfile ?? null,
+      skillId: effectivePermissionContext.skillId ?? null,
+      actionRunId: effectivePermissionContext.actionRunId ?? null,
+    });
+  } catch (error) {
+    await runtime.close();
+    throw error;
+  }
   sessionRegistry.set(session);
-  await ownershipStore.claim({
-    sessionId: session.sessionId,
-    operatorLarkId,
-    runtimeHostName: runtimeLocation.runtimeHostName,
-    kimiWorkDir: workDir,
-    automationActionKey: effectivePermissionContext.actionKey,
-    permissionProfileId: effectivePermissionContext.permissionProfileId,
-    permissionProfileVersion: effectivePermissionContext.permissionProfileVersion,
-    skillProfile: effectivePermissionContext.skillProfile ?? null,
-    skillId: effectivePermissionContext.skillId ?? null,
-    actionRunId: effectivePermissionContext.actionRunId ?? null,
-  });
   acpKimiProxyLogger.info({
     operatorLarkId,
     sessionId: session.sessionId,
@@ -428,14 +491,19 @@ async function getOwnedSession(
   }
 
   const permissionContext = toPermissionContext(ownership);
+  const identity = resolveAcpSessionIdentity(ownership);
   const runtime = await createSessionRuntime({
     sessionId,
+    ...identity,
     cwd: ownership.kimiWorkDir ?? process.cwd(),
-    capabilityPolicy: createAcpKimiClientCapabilityPolicy(permissionContext),
-    permissionHandler: createAcpKimiPermissionHandler(permissionContext),
+    ...(identity.agentProvider === "kimi_acp" ? {
+      capabilityPolicy: createAcpKimiClientCapabilityPolicy(permissionContext),
+      permissionHandler: createAcpKimiPermissionHandler(permissionContext),
+    } : {}),
   });
   const restoredSession = {
     sessionId,
+    ...identity,
     operatorLarkId,
     runtime,
     permissionContext,
@@ -451,7 +519,7 @@ async function getOwnedSession(
   return restoredSession;
 }
 
-function toPermissionContext(
+export function toPermissionContext(
   ownership: Awaited<ReturnType<AcpKimiSessionOwnershipStore["getBySessionId"]>>,
 ): AcpKimiPermissionContext | undefined {
   if (!ownership) {
@@ -473,8 +541,4 @@ function toPermissionContext(
     actionRunId: ownership.actionRunId,
     legacySession: !permissionProfileId,
   };
-}
-
-function isAbortError(error: unknown): boolean {
-  return error instanceof Error && error.name === "AbortError";
 }

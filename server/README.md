@@ -108,6 +108,8 @@ OCTO_EXTENSION_ORIGINS=chrome-extension://EXTENSION_ID
 
 ### PM Analysis / ACP
 
+Ticket Answer / Document 与三个 Sprint Quick Actions 的新会话使用 Hermes 原生 ACP；运行节点需准备 Hermes Python 环境。配置见下方 [Hermes ACP](#hermes-acp)，协议验证见 [测试说明](scripts/hermes-acp/README.md)。已有 Kimi 会话及其他 ACP 入口保持兼容。
+
 - `POST /api/pm/analysis/run`
 - `POST /api/acp/kimi/chat`
 - `POST /api/acp/kimi/sessions/list`
@@ -232,3 +234,13 @@ server/src/
 说明：
 - `adapters/postgres/` 是当前运行时存储实现
 - `adapters/sqlite/` 只保留给旧库读取和一次性数据导入
+
+### Hermes ACP
+
+Hermes adapter 用 `HERMES_ACP_PYTHON`（默认 `$HERMES_HOME/hermes-agent/venv/bin/python`）执行官方 `-m acp_adapter`。`HERMES_HOME` 默认 `~/.hermes`，模型、认证、审批和原生会话 DB 复用该目录配置；安装与状态目录分离时显式设置 Python 路径。启动不再调用仓库 launcher、补丁或 Git。`KIMI_ACP_STARTUP_TIMEOUT_MS` 沿用为共用 transport 的启动/加载超时，默认 30 秒。
+
+运行前需要 schema 中可空的 `acp_kimi_session_owners.agent_provider` / `agent_session_id`。迁移代码已提供，执行属于部署步骤。新会话先保存映射及业务引用再调用模型，旧记录读取时补齐历史身份。不要修改 Hermes 原生 ID 或丢弃旧 `hermes_` 前缀。
+
+Hermes 使用原生风险审批，建议起步采用 `manual`，`smart` 按实际版本验证。Octo 不设置 YOLO 或永久 allowlist；原生请求由已登录用户选择原生 options，默认单次允许，宿主等待 50 秒。后台模式需要审批时取消本轮并记录配置错误。Kimi 的能力声明和路径白名单不限制 Hermes 原生工具；Document 多位置及 Terminal 间接写入隔离需在目标节点单独验证。
+
+Hermes 0.14 的部分模型异常会变成普通文本加 `end_turn`，并非结构化失败；Octo 不解析模型文字猜测成功。协议拒绝/取消/进程错误与权限失败有明确终态，业务仍需校验材料、草稿与正式写回。上游错误边界、文件隔离和真实业务验证见 [实施任务](../docs/tasks/acp/2026-09-05-hermes-acp-integration.md)。

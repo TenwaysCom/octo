@@ -238,7 +238,7 @@ describe("acp kimi proxy service", () => {
     await firstTurn;
   });
 
-  it("keeps the session alive after aborting a turn so the next turn can continue", async () => {
+  it("removes the closed runtime after abort and reloads the owned session for the next turn", async () => {
     const { createAcpKimiProxyService } = await import(
       "../src/application/services/acp-kimi-proxy.service.js"
     );
@@ -293,10 +293,9 @@ describe("acp kimi proxy service", () => {
     await expect(firstTurn).rejects.toMatchObject({
       name: "AbortError",
     });
-    expect(registry.get("sess_1")).toMatchObject({
-      sessionId: "sess_1",
-      operatorLarkId: "ou_123",
-    });
+    expect(registry.get("sess_1")).toBeUndefined();
+    expect(runtime.close).toHaveBeenCalled();
+    vi.mocked(ownershipStore.getBySessionId).mockResolvedValue({ sessionId: "sess_1", operatorLarkId: "ou_123", deletedAt: null } as never);
 
     await service.chat(
       {
