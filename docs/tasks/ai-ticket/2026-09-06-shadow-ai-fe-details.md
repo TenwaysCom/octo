@@ -2,7 +2,7 @@
 title: "Shadow AI 输出与 Ticket 详情展示增强"
 module: "ai-ticket"
 status: done
-requirement_version: 12
+requirement_version: 15
 created_on: 2026-09-06
 updated_on: 2026-09-06
 closed_on: 2026-09-06
@@ -15,7 +15,7 @@ related:
 
 ## 目标
 
-在不修改 Eval 数据集功能的前提下，扩展 Shadow AI 的只读 FE 投影：AI 输出视图将 Shadow 信息合并进现有四阶段模块并通过悬浮层展示详情；Ticket 详情页继续在右侧 Shadow AI 面板展示更多处理结果与质量信息。问题总结、方案摘要和质量摘要默认最多显示四行，悬浮可查看全文。
+在不修改 Eval 数据集功能的前提下，扩展 Shadow AI 的只读 FE 投影：AI 输出视图将 Shadow 信息合并进现有四阶段模块并通过悬浮层展示详情；Ticket 详情页继续在右侧 Shadow AI 面板展示更多处理结果与质量信息。关键词直接完整显示，长文本最多显示三行并可悬浮查看全文。
 
 ## 验收标准
 
@@ -23,7 +23,9 @@ related:
 - [x] Server 安全解析并透出 Shadow 意图、处理结果、质量和证据数量，不返回原始 `shadow_ai` JSON。
 - [x] AI 输出视图不增加新模块；Shadow 信息合并进现有四阶段模块，默认展示摘要，悬浮展示相应详情。
 - [x] 正式输出继续优先，Shadow 结果不得把正式 Answer 或 Document 阶段错误标记为已生成。
-- [x] Ticket 详情右侧 Shadow AI 面板展示处理结果和质量信息；三段指定长文本四行截断且悬浮显示全文。
+- [x] Ticket 详情右侧 Shadow AI 面板展示处理结果和质量信息；关键词直接完整展示，问题/方案/质量摘要最多显示三行并可悬浮查看全文。
+- [x] Shadow `result.confidence` 在详情页及答案阶段详情统一标为“答案置信”，并置于方案摘要之后。
+- [x] Ticket 详情页移除“全部 Lark Ticket”返回入口；上一条/下一条移入固定的 workspace-breadcrumbs 栏。
 - [x] AI 输出行的标题独占一行，不显示 Ticket 描述和“打开 AI Actions”；正式 AI 与 Shadow 状态合并为单一行级标记，四阶段模块不重复显示 Shadow 标记。
 - [x] AI 输出行标题默认最多显示三行；正式答案缺失时，答案模块直接区分 Shadow 的处理结果或运行状态。
 - [x] AI 输出行的“查看 prepared messages”入口缩短为“查看messages”。
@@ -46,7 +48,7 @@ Shadow Worker 已把完整 `support-analysis-result-v1` 写入独立 `lark_base_
 - 扩展 `LarkTicketShadowAi` 的显式白名单投影，新增意图摘要、关键词、证据数量、处理结果、自动化建议、质量摘要及风险数组。
 - AI 输出四阶段仍为意图识别、问题总结、Ticket 答案总结、文档生成。前三阶段按各自语义提供 Shadow 悬浮详情；Document 没有 Shadow 产物，因此维持正式字段行为。
 - 正式字段仍是默认摘要的第一优先级。正式 Answer 缺失时可以显示 Shadow 方案摘要，但正式状态仍为“未生成”，另用“Shadow 判断”标记说明摘要来源。
-- Ticket 详情保留右栏位置；空字段不渲染，长文本使用四行截断和全文 `title`。
+- Ticket 详情保留右栏位置；空字段不渲染，关键词直接完整显示；问题、方案和质量摘要最多显示三行并保留全文 `title`。
 - v2：AI 输出行标题独占一行，描述和“打开 AI Actions”不渲染；有正式输出时行级状态只显示“AI”，否则回退显示 Shadow 状态或“AI 未输出”；四阶段模块只保留摘要和悬浮详情，不重复展示 Shadow 标记。
 - v3：标题改为三行截断；答案模块在正式答案缺失时显示 `Shadow · 已解决/待处理/已升级/失败/已跳过` 等短状态，正式答案存在时仍以正式状态为准；AI 输出行入口改为“查看messages”。
 - v4：Eval 数据集行复用三行标题和 AI/Shadow 短标记；列表移除数据集状态列，但编辑弹窗仍保留状态修改；操作区固定在最右列。
@@ -59,6 +61,9 @@ Shadow Worker 已把完整 `support-analysis-result-v1` 写入独立 `lark_base_
 - v10：Eval 左侧元信息以 Issue No 替换 Record ID；Issue No 缺失时明确显示“未设置”，不泄露内部 Record ID。
 - v11：人工意图和期望结果改用专用文本卡，直接渲染样本中的完整字符串，不再经通用摘要卡转换。
 - v12：Eval 左侧元信息移除快照版本与“Issue No”标签，只保留 Issue 编号值；快照版本同步移出列表列配置。
+- v13：Ticket 详情页 Shadow AI 面板取消关键词与详情的截断；处理步骤和风险也直接显示完整文本，不再只显示数量或依赖悬浮提示。
+- v14：`result.confidence` 是结果/答案结论的置信度，统一显示为“答案置信”并置于方案摘要之后；本版本覆盖 v13 的长文本直接完整显示规则，恢复为最多三行并保留全文悬浮提示。
+- v15：Ticket 详情移除顶部“全部 Lark Ticket”返回入口；前后导航作为面包屑栏的右侧操作，workspace-breadcrumbs 滚动时固定在视口顶部。
 
 ## 进展记录
 
@@ -82,6 +87,9 @@ Shadow Worker 已把完整 `support-analysis-result-v1` 写入独立 `lark_base_
 | 2026-09-06 | v10 | done | Eval 元信息展示 Issue No；缺失时显示“未设置”，不回退显示 Record ID。 | 未做登录态浏览器目检。 |
 | 2026-09-06 | v11 | done | 人工意图和期望结果改用专用文本卡，直接显示数据库样本中的完整字符串；空值显示“待标注”。 | 未做登录态浏览器目检。 |
 | 2026-09-06 | v12 | done | Eval 左侧仅展示 Issue 编号值，移除快照版本和 Issue No 标签；快照版本不再出现在列配置中。 | 未做登录态浏览器目检。 |
+| 2026-09-06 | v13 | done | Ticket 详情页 Shadow AI 面板的关键词、详情、处理步骤和风险改为直接完整显示，移除四行/单行截断及仅悬浮查看的依赖。 | `pnpm --dir fe test`、`pnpm --dir fe build` 与 `git diff --check` 通过；未做登录态浏览器目检。 |
+| 2026-09-06 | v14 | done | `result.confidence` 在详情页和答案阶段详情均改为“答案置信”，位于方案摘要之后；关键词完整换行，长文本恢复为三行截断与全文悬浮提示。 | `pnpm --dir fe test`、`pnpm --dir fe build` 与 `git diff --check` 通过；未做登录态浏览器目检。 |
+| 2026-09-06 | v15 | done | 已移除 Ticket 详情顶部“全部 Lark Ticket”入口；前后导航移至固定的 workspace-breadcrumbs 右侧。 | `pnpm --dir fe test`、`pnpm --dir fe build` 与 `git diff --check` 通过；未做登录态浏览器目检。 |
 
 ## 验证
 
@@ -102,6 +110,9 @@ Shadow Worker 已把完整 `support-analysis-result-v1` 写入独立 `lark_base_
 | v10 FE 回归 | 通过 | `pnpm --dir fe test`（36/36）、`pnpm --dir fe build`、`git diff --check` | 覆盖 Issue No 映射和 JSX 编译边界；未做登录态浏览器目检。 |
 | v11 FE 回归 | 通过 | `pnpm --dir fe test`（36/36）、`pnpm --dir fe build`、`git diff --check` | 覆盖直接文本渲染的 JSX/CSS 编译边界；未做登录态浏览器目检。 |
 | v12 FE 回归 | 通过 | `pnpm --dir fe test`（36/36）、`pnpm --dir fe build`、`git diff --check` | 覆盖快照列配置清理和 Issue 编号 JSX 编译边界；未做登录态浏览器目检。 |
+| v13 FE 回归 | 通过 | `pnpm --dir fe test`（184/184）、`pnpm --dir fe build`、`git diff --check` | 覆盖现有 FE 行为与生产编译；未做登录态浏览器目检。 |
+| v14 FE 回归 | 通过 | `pnpm --dir fe test`（184/184）、`pnpm --dir fe build`、`git diff --check` | 覆盖答案置信标签/顺序、现有 FE 行为与生产编译；未做登录态浏览器目检。 |
+| v15 FE 回归 | 通过 | `pnpm --dir fe test`（184/184）、`pnpm --dir fe build`、`git diff --check` | 覆盖面包屑操作槽、导航移动与生产编译；未做登录态浏览器目检。 |
 
 ## 关联
 

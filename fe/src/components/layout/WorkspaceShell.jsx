@@ -88,22 +88,25 @@ function WorkspaceHeader({ user, workspaceAccess, onLogout, isBusy }) {
   </header>;
 }
 
-function WorkspaceBreadcrumbs({ items }) {
+function WorkspaceBreadcrumbs({ items, actions }) {
   if (!items.length) return null;
   return <nav className="workspace-breadcrumbs" aria-label="面包屑导航">
-    {items.map((item, index) => index === items.length - 1
-      ? <span aria-current="page" key={item.hash}>{item.label}</span>
-      : <a href={item.hash} key={item.hash}>{item.label}</a>)}
+    <div className="workspace-breadcrumbs__items">
+      {items.map((item, index) => index === items.length - 1
+        ? <span aria-current="page" key={item.hash}>{item.label}</span>
+        : <a href={item.hash} key={item.hash}>{item.label}</a>)}
+    </div>
+    {actions ? <div className="workspace-breadcrumbs__actions">{actions}</div> : null}
   </nav>;
 }
 
-export function WorkspaceShell({ user, workspaceAccess, activePage, onLogout, isBusy, breadcrumbs = [], children }) {
+export function WorkspaceShell({ user, workspaceAccess, activePage, onLogout, isBusy, breadcrumbs = [], breadcrumbActions, children }) {
   const { githubMyOpenCount } = useContext(WorkspaceMetricsContext);
   return <main className="workspace-layout">
     <WorkspaceSidebar activePage={activePage} workspaceAccess={workspaceAccess} githubMyOpenCount={githubMyOpenCount} />
     <div className="workspace-content">
       <WorkspaceHeader user={user} workspaceAccess={workspaceAccess} onLogout={onLogout} isBusy={isBusy} />
-      <WorkspaceBreadcrumbs items={breadcrumbs} />
+      <WorkspaceBreadcrumbs items={breadcrumbs} actions={breadcrumbActions} />
       {children}
     </div>
   </main>;

@@ -33,7 +33,13 @@ test("builds stage-specific Shadow hover details", () => {
     { label: "置信度", value: "72%" },
   ]);
   assert.equal(getShadowStageDetails(shadowAi, "summary")[0].value, "订单无法添加促销，待排查。");
-  assert.equal(getShadowStageDetails(shadowAi, "answer").find(({ label }) => label === "处理步骤").value, "1. 检查配置\n2. 确认订单状态");
+  const answerDetails = getShadowStageDetails(shadowAi, "answer");
+  assert.deepEqual(answerDetails.slice(0, 3), [
+    { label: "处理状态", value: "待处理" },
+    { label: "方案摘要", value: "检查促销配置" },
+    { label: "答案置信", value: "80%" },
+  ]);
+  assert.equal(answerDetails.find(({ label }) => label === "处理步骤").value, "1. 检查配置\n2. 确认订单状态");
   assert.deepEqual(getShadowStageDetails(shadowAi, "document"), []);
 });
 

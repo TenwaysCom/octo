@@ -48,6 +48,10 @@ function ShadowInlineText({ value, title = value }) {
   return <span className="ticket-shadow-panel__inline-text" title={title}>{value}</span>;
 }
 
+function ShadowKeywords({ values }) {
+  return <span className="ticket-shadow-panel__keywords">{values.join("、")}</span>;
+}
+
 function numberedText(values) {
   return values?.map((value, index) => `${index + 1}. ${value}`).join("\n") || "";
 }
@@ -72,10 +76,10 @@ function ShadowAiPanel({ shadowAi }) {
     {shadowAi.status === "ok" ? <dl>
       {getShadowIntentLabel(shadowAi) ? <TicketProperty label="意图"><ShadowInlineText value={getShadowIntentLabel(shadowAi)} /></TicketProperty> : null}
       {typeof shadowAi.intentConfidence === "number" ? <TicketProperty label="置信度">{formatShadowConfidence(shadowAi.intentConfidence)}</TicketProperty> : null}
-      {shadowAi.resolutionStatus ? <TicketProperty label="处理状态">{getShadowResolutionLabel(shadowAi.resolutionStatus)}</TicketProperty> : null}
-      {typeof shadowAi.resultConfidence === "number" ? <TicketProperty label="结果置信度">{formatShadowConfidence(shadowAi.resultConfidence)}</TicketProperty> : null}
       {shadowAi.summary ? <TicketProperty label="问题总结"><ShadowLongText value={shadowAi.summary} /></TicketProperty> : null}
+      {shadowAi.resolutionStatus ? <TicketProperty label="处理状态">{getShadowResolutionLabel(shadowAi.resolutionStatus)}</TicketProperty> : null}
       {shadowAi.solutionSummary ? <TicketProperty label="方案摘要"><ShadowLongText value={shadowAi.solutionSummary} /></TicketProperty> : null}
+      {typeof shadowAi.resultConfidence === "number" ? <TicketProperty label="答案置信">{formatShadowConfidence(shadowAi.resultConfidence)}</TicketProperty> : null}
       {shadowAi.solutionSteps?.length ? <TicketProperty label="处理步骤"><ShadowInlineText value={`${shadowAi.solutionSteps.length} 步`} title={solutionSteps} /></TicketProperty> : null}
       {shadowAi.resolverRef ? <TicketProperty label="处理人"><ShadowInlineText value={shadowAi.resolverRef} /></TicketProperty> : null}
       {shadowAi.resolvedAt ? <TicketProperty label="解决时间">{formatDateTime(shadowAi.resolvedAt)}</TicketProperty> : null}
@@ -83,7 +87,7 @@ function ShadowAiPanel({ shadowAi }) {
       {shadowAi.suggestedAutomation ? <TicketProperty label="自动化建议"><ShadowInlineText value={shadowAi.suggestedAutomation} /></TicketProperty> : null}
       {shadowAi.qualitySummary ? <TicketProperty label="质量摘要"><ShadowLongText value={shadowAi.qualitySummary} /></TicketProperty> : null}
       <TicketProperty label="风险"><span className={riskCount ? "ticket-shadow-panel__risk ticket-shadow-panel__risk--warning" : "ticket-shadow-panel__risk"} title={riskDetails || riskSummary}>{riskSummary}</span></TicketProperty>
-      {shadowAi.keywords?.length ? <TicketProperty label="关键词"><ShadowInlineText value={shadowAi.keywords.join("、")} /></TicketProperty> : null}
+      {shadowAi.keywords?.length ? <TicketProperty label="关键词"><ShadowKeywords values={shadowAi.keywords} /></TicketProperty> : null}
       {typeof shadowAi.evidenceMessageCount === "number" ? <TicketProperty label="证据">{shadowAi.evidenceMessageCount} 条</TicketProperty> : null}
     </dl> : null}
     {shadowAi.status === "skipped" ? <p className="ticket-shadow-panel__note">跳过原因：{shadowAi.reason || "未记录"}</p> : null}
@@ -289,19 +293,14 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
   ].filter(([href]) => href);
   const ticketAiSections = getTicketAiSections(ticket.ticketAi?.fields);
   const hasTicketAiData = ticketAiSections.some((section) => section.hasData);
+  const ticketNavigationActions = ticketNavigation ? <div role="group" aria-label="Ticket 前后导航" className="ticket-detail-navigation">
+    <button type="button" disabled={!ticketNavigation.previousRecordId} onClick={() => { if (ticketNavigation.previousRecordId) window.location.hash = getLarkTicketDetailHash(ticketNavigation.previousRecordId); }}>上一条</button>
+    <span aria-label={`当前第 ${ticketNavigation.position} 条，共 ${ticketNavigation.total} 条`}>{ticketNavigation.position} / {ticketNavigation.total}</span>
+    <button type="button" disabled={!ticketNavigation.nextRecordId} onClick={() => { if (ticketNavigation.nextRecordId) window.location.hash = getLarkTicketDetailHash(ticketNavigation.nextRecordId); }}>下一条</button>
+  </div> : null;
 
-  return <WorkspaceShell user={profile.user ?? {}} workspaceAccess={profile.workspaceAccess} activePage="lark-tickets" onLogout={onLogout} isBusy={isBusy} breadcrumbs={breadcrumbs}>
+  return <WorkspaceShell user={profile.user ?? {}} workspaceAccess={profile.workspaceAccess} activePage="lark-tickets" onLogout={onLogout} isBusy={isBusy} breadcrumbs={breadcrumbs} breadcrumbActions={ticketNavigationActions}>
     <main className="profile-main ticket-detail-page">
-      <div className="ticket-detail__topline">
-        <a className="ticket-back-link" href="#lark-tickets"><span aria-hidden="true">←</span>全部 Lark Ticket</a>
-        <div className="ticket-detail__topline-actions">
-          {ticketNavigation ? <nav aria-label="Ticket 前后导航" className="ticket-detail-navigation">
-            <button type="button" disabled={!ticketNavigation.previousRecordId} onClick={() => { if (ticketNavigation.previousRecordId) window.location.hash = getLarkTicketDetailHash(ticketNavigation.previousRecordId); }}>上一条</button>
-            <span aria-label={`当前第 ${ticketNavigation.position} 条，共 ${ticketNavigation.total} 条`}>{ticketNavigation.position} / {ticketNavigation.total}</span>
-            <button type="button" disabled={!ticketNavigation.nextRecordId} onClick={() => { if (ticketNavigation.nextRecordId) window.location.hash = getLarkTicketDetailHash(ticketNavigation.nextRecordId); }}>下一条</button>
-          </nav> : null}
-        </div>
-      </div>
       <div className="ticket-detail-grid">
         <article className="ticket-detail__content">
           <p className="ticket-detail__identity"><LarkTicketBadge kind="type" value={ticket.issueType} /><span>·</span>{ticketNumber}</p>

@@ -79,8 +79,8 @@ export function getShadowStageDetails(shadowAi, stageId) {
   if (stageId === "answer") {
     return compactDetails([
       ["处理状态", getShadowResolutionLabel(shadowAi.resolutionStatus)],
-      ["结果置信度", formatShadowConfidence(shadowAi.resultConfidence)],
       ["方案摘要", shadowAi.solutionSummary],
+      ["答案置信", formatShadowConfidence(shadowAi.resultConfidence)],
       ["处理步骤", numberedValues(shadowAi.solutionSteps)],
       ["处理人", shadowAi.resolverRef],
       ["解决时间", shadowAi.resolvedAt ? formatDateTime(shadowAi.resolvedAt) : ""],
