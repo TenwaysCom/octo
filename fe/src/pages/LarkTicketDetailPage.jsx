@@ -385,11 +385,11 @@ function AiSessionMessage({ entry, apiBaseUrl, active }) {
       <summary>思考过程 <span>{thoughts.length} 条</span></summary>
       <div>{thoughts.map((thought, index) => <p key={thought.id || index}>{thought.text}</p>)}</div>
     </details> : null}
+    {entry.text ? <div className="ticket-ai-message__text">{entry.text}</div> : null}
     {toolCalls.length ? <details className="ticket-ai-message__details">
       <summary>工具调用 <span>{toolCalls.length} 个</span></summary>
       <div>{toolCalls.map((toolCall, index) => <div className="ticket-ai-tool-call" key={toolCall.id || index}><strong>{toolCall.title}</strong><small>{formatToolStatus(toolCall.status)}</small>{toolCall.detail ? <p>{toolCall.detail}</p> : null}</div>)}</div>
     </details> : null}
-    {entry.text ? <div className="ticket-ai-message__text">{entry.text}</div> : null}
     {entry.kind === "assistant" && entry.text ? <div className="ticket-ai-message__actions"><AiSessionCopyButton text={entry.text} /></div> : null}
   </div>;
 }

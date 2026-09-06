@@ -674,3 +674,11 @@ source: [Hermes ACP 接入任务](../docs/tasks/acp/2026-09-05-hermes-acp-integr
 **Rule:** 评审关闭或刷新行为时，同时追踪 UI 可见性与消息存储、断连取消、本轮执行状态和运行中重新打开路径。明确停止当前轮次与保留历史的语义，再决定修改边界，不能从按钮可关闭推导出后台执行或可重连。异步响应与收尾清理都要先校验当前显示归属，避免旧任务清理新任务的连接或定时器。
 
 source: [FE AI Session 生命周期讨论](../docs/tasks/acp/2026-09-06-fe-ai-session-lifecycle-discussion.md)
+
+## [LRN-20260906-003] transcript-review-must-check-provider-event-boundaries
+
+**Context:** 不同 Agent 的实时流与历史回放可能不提供消息 ID，或在不同阶段复用 ID；同一会话不等于同一回复步骤。
+
+**Rule:** 评审对话聚合时，先核对 provider 实际发送的事件顺序、ID 可用性与作用域，再定义用户轮次和工具步骤边界，并同时检查流式追加与历史恢复。没有可靠边界时保留连续内容，不靠 ID 名称或 Session 身份推断生命周期。
+
+source: [FE Session 分组任务](../docs/tasks/acp/2026-09-06-fe-session-turn-grouping.md)

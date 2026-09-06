@@ -105,6 +105,23 @@ test("pending permission history is stable across snapshots and resolves from se
   assert.equal(resolved.error, "审批已过期");
 });
 
+test("restored steps and turns have unique stable keys despite reused ACP message IDs", () => {
+  const withId = (text) => { const event = chunk(text); event.data.update.messageId = "reused"; return event; };
+  const events = [
+    withId("第一步"),
+    { event: "acp.session.update", data: { update: { sessionUpdate: "tool_call", toolCallId: "read" } } },
+    withId("第二步"), done,
+    { event: "acp.session.update", data: { update: { sessionUpdate: "user_message_chunk", content: { text: "再问" } } } },
+    withId("下一轮"),
+  ];
+  const first = drawerFromAiSessionSnapshot({}, snapshot({ events }));
+  const second = drawerFromAiSessionSnapshot(first, snapshot({ events: [...events, withId("继续")] }));
+  const ids = first.messages.map((entry) => entry.id);
+  assert.equal(new Set(ids).size, ids.length);
+  assert.deepEqual(second.messages.map((entry) => entry.id), ids);
+  assert.deepEqual(second.messages.filter((entry) => entry.kind === "assistant").map((entry) => entry.text), ["第一步", "第二步", "下一轮继续"]);
+});
+
 test("stop targets the exact run and late stream chunks do not duplicate the stop snapshot", async () => {
   const gate = deferred(); let emit; let stopped;
   const panel = createAiSessionPanel({ load: async () => snapshot({ runStatus: "cancelled" }), stream: async ({ onEvent }) => { emit = onEvent; emit(started); await gate.promise; }, stop: async (...args) => { stopped = args; return snapshot({ runStatus: "cancelled" }); } });

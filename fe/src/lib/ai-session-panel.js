@@ -9,7 +9,7 @@ export function drawerFromAiSessionSnapshot(current, loaded) {
   return {
     ...current, ...loaded,
     status: ({ running: "generating", waiting_permission: "waiting_permission", stopping: "stopping", failed: "error", cancelled: "cancelled" })[runStatus] || "ready",
-    messages: transcriptFromAiSessionEvents(loaded.events).map((entry, index) => ({ ...entry, id: `${loaded.sessionId}-${entry.kind}-${entry.permission?.requestId || entry.messageId || index}` })),
+    messages: transcriptFromAiSessionEvents(loaded.events).map((entry, index) => ({ ...entry, id: `${loaded.sessionId}-${entry.kind}-${index}` })),
     verificationStatus: failed && (loaded.actionKey || current.actionKey) ? "unverified" : "verified",
     error: failed ? loaded.errorMessage || current.errorMessage || "本轮执行未完成。" : "",
     connectionError: "",
