@@ -18,8 +18,6 @@ export const LARK_TICKET_AI_OUTPUT_VIEW_COLUMNS = [
 
 export const LARK_TICKET_EVAL_DATASET_VIEW_COLUMNS = [
   { key: "title", label: "Ticket", required: true },
-  { key: "datasetStatus", label: "数据集状态" },
-  { key: "snapshotVersion", label: "快照版本" },
   { key: "aiIntent", label: "AI 意图" },
   { key: "manualIntent", label: "人工意图" },
   { key: "expectedOutcome", label: "期望结果" },

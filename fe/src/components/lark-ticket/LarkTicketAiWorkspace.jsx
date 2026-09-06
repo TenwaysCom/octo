@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { createLarkTicketEvalSample, listLarkTicketEvalSamples, updateLarkTicketEvalSample } from "../../services/lark-ticket-eval/lark-ticket-eval-api.js";
 import { loadLarkTicketPreparedMessages } from "../../services/lark-ticket/lark-ticket-api.js";
-import { getLarkTicketAiPipeline } from "../../lib/lark-ticket-ai-pipeline.js";
+import { getLarkTicketAiOutputMarker, getLarkTicketAiPipeline } from "../../lib/lark-ticket-ai-pipeline.js";
 import { getLarkTicketEvalSaveErrorMessage, getLarkTicketEvalValidationMessage } from "../../lib/lark-ticket-eval-validation.js";
 import { formatDateTime } from "../../lib/formatters.js";
 import { LarkTicketBadge } from "./LarkTicketBadge.jsx";
@@ -78,9 +78,63 @@ function TicketGroupRows({ group, renderRows, collapsedSubgroups, onToggleSubgro
   >{renderRows(subgroup.items)}</TicketSubgroup>)}</div>;
 }
 
-function TicketThreadActions({ ticket, onShowPreparedMessages }) {
+function TicketThreadActions({ ticket, onShowPreparedMessages, messagesLabel = "查看 prepared messages" }) {
   const threadLink = ticket.larkMessageLink || ticket.threadLink;
-  return <>{threadLink ? <a href={threadLink} target="_blank" rel="noreferrer">打开 Lark Thread</a> : <button type="button" disabled title="该 Ticket 没有已同步的 Lark Thread 链接">打开 Lark Thread</button>}<button type="button" onClick={() => void onShowPreparedMessages(ticket)}>查看 prepared messages</button></>;
+  return <>{threadLink ? <a href={threadLink} target="_blank" rel="noreferrer">打开 Lark Thread</a> : <button type="button" disabled title="该 Ticket 没有已同步的 Lark Thread 链接">打开 Lark Thread</button>}<button type="button" onClick={() => void onShowPreparedMessages(ticket)}>{messagesLabel}</button></>;
+}
+
+function closeActionsMenu(event) {
+  event.currentTarget.closest("details")?.removeAttribute("open");
+}
+
+function EvalActionsMenu({ ticket, onShowPreparedMessages }) {
+  return <details className="ticket-row-actions-menu">
+    <summary aria-label="更多操作" title="更多操作">…</summary>
+    <div className="ticket-row-actions-menu__panel">
+      {ticket.larkMessageLink || ticket.threadLink
+        ? <a href={ticket.larkMessageLink || ticket.threadLink} target="_blank" rel="noreferrer" onClick={closeActionsMenu}>打开 Lark Thread</a>
+        : <button type="button" disabled title="该 Ticket 没有已同步的 Lark Thread 链接">打开 Lark Thread</button>}
+      <button type="button" onClick={(event) => { closeActionsMenu(event); void onShowPreparedMessages(ticket); }}>查看messages</button>
+    </div>
+  </details>;
+}
+
+function AiPipelineStage({ stage, showStatus = true }) {
+  const tooltipId = useId();
+  const details = stage.details || stage.shadowDetails || [];
+  const hasDetails = Boolean(details.length);
+  const statusTone = stage.statusTone || (stage.status === "未生成" ? "empty" : "ready");
+  return <div
+    className={`ticket-ai-pipeline-stage${hasDetails ? " ticket-ai-pipeline-stage--has-details" : ""}`}
+    tabIndex={hasDetails ? 0 : undefined}
+    aria-describedby={hasDetails ? tooltipId : undefined}
+  >
+    <small>{stage.title}</small>
+    {showStatus ? <span className={`ticket-ai-pipeline-stage__status ticket-ai-pipeline-stage__status--${statusTone}`}>{stage.status}</span> : null}
+    <strong title={hasDetails ? undefined : stage.summary}>{stage.summary}</strong>
+    {hasDetails ? <div className="ticket-ai-pipeline-stage__tooltip" id={tooltipId} role="tooltip">
+      <b>{stage.detailTitle || "Shadow AI"}</b>
+      <dl>{details.map((detail) => <div key={detail.label}><dt>{detail.label}</dt><dd>{detail.value}</dd></div>)}</dl>
+    </div> : null}
+  </div>;
+}
+
+function EvalTextField({ title, value }) {
+  return <div className="ticket-ai-pipeline-stage ticket-eval-text-field">
+    <small>{title}</small>
+    <p>{typeof value === "string" && value.trim() ? value : "待标注"}</p>
+  </div>;
+}
+
+function getEvalDetailStage(id, title, value) {
+  const summary = text(value) || "待标注";
+  return {
+    id,
+    title,
+    summary,
+    detailTitle: `${title}详情`,
+    details: summary === "待标注" ? [] : [{ label: "完整内容", value: summary }],
+  };
 }
 
 function PreparedMessagesDialog({ thread, onClose }) {
@@ -99,7 +153,12 @@ export function LarkTicketAiWorkspace({ apiBaseUrl, mode, groups, visibleColumns
   const evalGroups = useMemo(() => {
     const toSamples = (tickets) => tickets.flatMap((ticket) => {
       const sample = sampleByTicket.get(`${ticket.baseId}:${ticket.tableId}:${ticket.recordId}`);
-      return sample ? [{ ...sample, ticketOutput: ticket.detailDescription || "", threadLink: ticket.larkMessageLink || "" }] : [];
+      return sample ? [{
+        ...sample,
+        ticket: { ...sample.ticket, ticketNumber: ticket.ticketNumber, issueType: ticket.issueType, ticketStatus: ticket.ticketStatus },
+        shadowAi: ticket.shadowAi,
+        threadLink: ticket.larkMessageLink || "",
+      }] : [];
     });
     return groups.map((group) => ({
       ...group,
@@ -120,10 +179,42 @@ export function LarkTicketAiWorkspace({ apiBaseUrl, mode, groups, visibleColumns
   }
   function renderAiRows(tickets) {
     const stageColumnKeys = { intent: "intent", summary: "problemSummary", answer: "answerSummary", document: "documentOutput" };
-    return <div className="ticket-ai-output-list">{tickets.map((ticket) => { const sample = sampleByTicket.get(`${ticket.baseId}:${ticket.tableId}:${ticket.recordId}`); const pipeline = getLarkTicketAiPipeline(ticket).filter((stage) => visibleColumns.includes(stageColumnKeys[stage.id])); const hasAiOutput = Boolean(Object.keys(ticket.ticketAi?.fields || {}).length); return <article className="ticket-ai-output-row" key={ticket.recordId}><div className="ticket-ai-output-row__ticket"><div className="ticket-ai-ticket-title"><a href={`#lark-tickets/${encodeURIComponent(ticket.recordId)}`}>{ticket.title}</a><span className={hasAiOutput ? "ticket-ai-marker ticket-ai-marker--ready" : "ticket-ai-marker"}>{hasAiOutput ? "AI 已输出" : "AI 未输出"}</span>{ticket.issueType ? <LarkTicketBadge kind="type" value={ticket.issueType} /> : null}{ticket.priority ? <LarkTicketBadge kind="priority" value={ticket.priority} /> : null}</div><small>{ticket.ticketNumber || ticket.recordId} · {ticket.ticketStatus || "未设置"}</small><p className="ticket-ai-ticket-output">{ticket.detailDescription || "Ticket 描述尚未同步"}</p></div>{pipeline.length ? <div className="ticket-ai-output-row__pipeline" style={{ gridTemplateColumns: `repeat(${pipeline.length}, minmax(0, 1fr))` }}>{pipeline.map((stage) => <div className="ticket-ai-pipeline-stage" key={stage.id}><small>{stage.title}</small><span className={stage.status === "未生成" ? "ticket-ai-pipeline-stage__status ticket-ai-pipeline-stage__status--empty" : "ticket-ai-pipeline-stage__status"}>{stage.status}</span><strong title={stage.summary}>{stage.summary}</strong></div>)}</div> : null}<div className="ticket-ai-output-row__actions"><a href={`#lark-tickets/${encodeURIComponent(ticket.recordId)}`} title="进入详情页后可执行问题总结、回答问题、生成文档">打开 AI Actions</a><TicketThreadActions ticket={ticket} onShowPreparedMessages={showPreparedMessages} />{sample ? <button type="button" onClick={() => setEditor({ ...sample, apiBaseUrl })}>{sample.datasetStatus === "badcase" ? "Badcase" : sample.datasetStatus === "eval" ? "查看 Eval" : "继续标注"}</button> : <button className="button-primary" type="button" disabled={creatingId === ticket.recordId} onClick={() => void createSample(ticket)}>{creatingId === ticket.recordId ? "创建中…" : "加入 Eval"}</button>}</div></article>; })}</div>;
+    return <div className="ticket-ai-output-list">{tickets.map((ticket) => { const sample = sampleByTicket.get(`${ticket.baseId}:${ticket.tableId}:${ticket.recordId}`); const pipeline = getLarkTicketAiPipeline(ticket).filter((stage) => visibleColumns.includes(stageColumnKeys[stage.id])); const outputMarker = getLarkTicketAiOutputMarker(ticket); return <article className="ticket-ai-output-row" key={ticket.recordId}><div className="ticket-ai-output-row__ticket"><a className="ticket-ai-output-row__title" href={`#lark-tickets/${encodeURIComponent(ticket.recordId)}`} title={ticket.title}>{ticket.title}</a><div className="ticket-ai-output-row__meta"><small>{ticket.ticketNumber || ticket.recordId} · {ticket.ticketStatus || "未设置"}</small><span className={`ticket-ai-marker${outputMarker.tone === "default" ? "" : ` ticket-ai-marker--${outputMarker.tone}`}`}>{outputMarker.label}</span>{ticket.issueType ? <LarkTicketBadge kind="type" value={ticket.issueType} /> : null}{ticket.priority ? <LarkTicketBadge kind="priority" value={ticket.priority} /> : null}</div></div>{pipeline.length ? <div className="ticket-ai-output-row__pipeline" style={{ gridTemplateColumns: `repeat(${pipeline.length}, minmax(0, 1fr))` }}>{pipeline.map((stage) => <AiPipelineStage stage={stage} key={stage.id} />)}</div> : null}<div className="ticket-ai-output-row__actions"><TicketThreadActions ticket={ticket} onShowPreparedMessages={showPreparedMessages} messagesLabel="查看messages" />{sample ? <button type="button" onClick={() => setEditor({ ...sample, apiBaseUrl })}>{sample.datasetStatus === "badcase" ? "Badcase" : sample.datasetStatus === "eval" ? "查看 Eval" : "继续标注"}</button> : <button className="button-primary" type="button" disabled={creatingId === ticket.recordId} onClick={() => void createSample(ticket)}>{creatingId === ticket.recordId ? "创建中…" : "加入 Eval"}</button>}</div></article>; })}</div>;
   }
   function renderEvalRows(sampleItems) {
-    return <div className="ticket-eval-sample-list">{sampleItems.map((sample) => { const hasAiOutput = Boolean(Object.keys(sample.aiOutput || {}).length); return <article className="ticket-eval-sample-row" key={sample.id}><div><div className="ticket-ai-ticket-title"><strong>{sample.ticket.title}</strong><span className={hasAiOutput ? "ticket-ai-marker ticket-ai-marker--ready" : "ticket-ai-marker"}>{hasAiOutput ? "AI 已输出" : "AI 未输出"}</span></div><small>{visibleColumns.includes("snapshotVersion") ? `快照 v${sample.snapshotVersion} · ` : ""}{sample.ticket.recordId}</small><p className="ticket-ai-ticket-output">{sample.ticketOutput || "Ticket 描述尚未同步"}</p></div>{visibleColumns.includes("datasetStatus") ? <span className={`ticket-eval-status ticket-eval-status--${sample.datasetStatus}`}>{sample.datasetStatus === "badcase" ? "Badcase" : sample.datasetStatus === "eval" ? "Eval" : "草稿"}</span> : null}{visibleColumns.includes("aiIntent") ? <div><small>AI 意图</small><strong>{text(sample.aiOutput?.["AI意图"] || sample.aiOutput?.["AI Bug 分类"]) || "未设置"}</strong></div> : null}{visibleColumns.includes("manualIntent") ? <div><small>人工意图</small><strong>{sample.manualIntent || "待标注"}</strong></div> : null}{visibleColumns.includes("expectedOutcome") ? <div><small>期望结果</small><strong>{sample.expectedOutcome || "待标注"}</strong></div> : null}{visibleColumns.includes("failureLabels") ? <div><small>失败标签</small><strong>{sample.failureLabels?.join("、") || "未标注"}</strong></div> : null}<div className="ticket-ai-output-row__actions"><TicketThreadActions ticket={{ ...sample.ticket, threadLink: sample.threadLink }} onShowPreparedMessages={showPreparedMessages} /><button type="button" onClick={() => setEditor({ ...sample, apiBaseUrl })}>编辑</button></div></article>; })}</div>;
+    return <div className="ticket-eval-sample-list">{sampleItems.map((sample) => {
+      const outputMarker = getLarkTicketAiOutputMarker({ ticketAi: { fields: sample.aiOutput || {} }, shadowAi: sample.shadowAi });
+      const aiIntent = getLarkTicketAiPipeline({ ticketAi: { fields: sample.aiOutput || {} }, shadowAi: sample.shadowAi })[0];
+      const formalIntent = text(sample.aiOutput?.["AI意图"] || sample.aiOutput?.["AI Bug 分类"]);
+      const aiIntentDetails = [
+        ...(formalIntent ? [{ label: "正式 AI 意图", value: formalIntent }] : []),
+        ...(aiIntent.shadowDetails || []).map((detail) => detail.label === "意图" ? { ...detail, label: "Shadow 意图" } : detail),
+      ];
+      return <article className="ticket-eval-sample-row" key={sample.id}>
+        <div className="ticket-eval-sample-row__ticket">
+          <div className="ticket-eval-sample-row__heading">
+            <span className={`ticket-eval-status ticket-eval-status--${sample.datasetStatus}`}>{sample.datasetStatus === "badcase" ? "Badcase" : sample.datasetStatus === "eval" ? "Eval" : "Draft"}</span>
+            <a className="ticket-ai-output-row__title" href={`#lark-tickets/${encodeURIComponent(sample.ticket.recordId)}`} title={sample.ticket.title}>{sample.ticket.title}</a>
+          </div>
+          <div className="ticket-ai-output-row__meta">
+            <small>{sample.ticket.ticketNumber || "未设置"}</small>
+            <span className={`ticket-ai-marker${outputMarker.tone === "default" ? "" : ` ticket-ai-marker--${outputMarker.tone}`}`}>{outputMarker.label}</span>
+            <LarkTicketBadge kind="type" value={sample.ticket.issueType} />
+            <LarkTicketBadge kind="status" value={sample.ticket.ticketStatus} />
+          </div>
+        </div>
+        {visibleColumns.includes("aiIntent") ? <AiPipelineStage showStatus={false} stage={{ ...aiIntent, detailTitle: "AI 意图详情", details: aiIntentDetails }} /> : null}
+        {visibleColumns.includes("manualIntent") ? <EvalTextField title="人工意图" value={sample.manualIntent} /> : null}
+        {visibleColumns.includes("expectedOutcome") ? <EvalTextField title="期望结果" value={sample.expectedOutcome} /> : null}
+        {visibleColumns.includes("failureLabels") ? <AiPipelineStage showStatus={false} stage={getEvalDetailStage("failure-labels", "失败标签", sample.failureLabels)} /> : null}
+        <div className="ticket-ai-output-row__actions ticket-eval-sample-row__actions">
+          <button className="ticket-eval-edit-button" type="button" aria-label="编辑" title="编辑" onClick={() => setEditor({ ...sample, apiBaseUrl })}>
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m10.8 2.2 3 3L5 14H2v-3l8.8-8.8ZM9.3 3.7l3 3" /></svg>
+          </button>
+          <EvalActionsMenu ticket={{ ...sample.ticket, threadLink: sample.threadLink }} onShowPreparedMessages={showPreparedMessages} />
+        </div>
+      </article>;
+    })}</div>;
   }
   return <section className="ticket-ai-workspace">
     {error ? <p className="list-message list-message--error">{error}</p> : null}

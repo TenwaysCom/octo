@@ -22,7 +22,8 @@ test("normalizes Lark Ticket view configuration and keeps the Ticket column visi
   assert.deepEqual(normalizeLarkTicketAiOutputVisibleColumns(undefined), DEFAULT_LARK_TICKET_AI_OUTPUT_VISIBLE_COLUMNS);
   assert.deepEqual(normalizeLarkTicketAiOutputVisibleColumns(["answerSummary", "unknown"]), ["title", "answerSummary"]);
   assert.deepEqual(normalizeLarkTicketEvalDatasetVisibleColumns(undefined), DEFAULT_LARK_TICKET_EVAL_DATASET_VISIBLE_COLUMNS);
-  assert.deepEqual(normalizeLarkTicketEvalDatasetVisibleColumns(["datasetStatus", "unknown"]), ["title", "datasetStatus"]);
+  assert.deepEqual(normalizeLarkTicketEvalDatasetVisibleColumns(["datasetStatus", "aiIntent", "unknown"]), ["title", "aiIntent"]);
+  assert.deepEqual(normalizeLarkTicketEvalDatasetVisibleColumns(["snapshotVersion"]), ["title"]);
   assert.equal(normalizeLarkTicketGroupBy("requester"), "requester");
   assert.equal(normalizeLarkTicketGroupBy("none"), "none");
   assert.equal(normalizeLarkTicketGroupBy("unknown"), "status");

@@ -55,7 +55,21 @@ export interface LarkTicketShadowAi {
   intentType?: string;
   intentSubtype?: string;
   intentConfidence?: number;
+  intentSummary?: string;
+  keywords?: string[];
+  evidenceMessageCount?: number;
   summary?: string;
+  resolutionStatus?: "resolved" | "pending" | "escalated" | "needs_info" | "auto_closed";
+  solutionSummary?: string;
+  solutionSteps?: string[];
+  resolverRef?: string;
+  resolvedAt?: string;
+  autoResolvable?: boolean;
+  suggestedAutomation?: string;
+  resultConfidence?: number;
+  qualitySummary?: string;
+  criticalIssues?: string[];
+  warnings?: string[];
   analyzedAt?: string;
   processingDurationMs?: number;
   snapshotVersion?: number;
@@ -75,22 +89,43 @@ export function parseLarkTicketShadowAi(value: string | null | undefined): LarkT
     const candidate = parsed as Record<string, unknown>;
     const status = candidate.status;
     if (status !== "ok" && status !== "skipped" && status !== "error") return undefined;
-    const analysis = candidate.analysis as Record<string, unknown> | undefined;
-    const intent = analysis?.analysis && typeof analysis.analysis === "object"
-      ? (analysis.analysis as Record<string, unknown>).intent as Record<string, unknown> | undefined
-      : undefined;
+    const analysis = asRecord(candidate.analysis);
+    const analysisPayload = asRecord(analysis?.analysis);
+    const intent = asRecord(analysisPayload?.intent);
+    const result = asRecord(analysisPayload?.result);
+    const quality = asRecord(analysisPayload?.quality);
     const intentType = typeof intent?.intentType === "string" ? intent.intentType : "";
     const intentSubtype = typeof intent?.intentSubtype === "string" ? intent.intentSubtype : "";
+    const keywords = readStringArray(intent?.keywords);
+    const evidenceMessageIds = readStringArray(intent?.evidenceMessageIds);
+    const resolutionStatus = isResolutionStatus(result?.resolutionStatus) ? result.resolutionStatus : undefined;
+    const solutionSteps = readStringArray(result?.solutionSteps);
+    const criticalIssues = readStringArray(quality?.criticalIssues);
+    const warnings = readStringArray(quality?.warnings);
     return {
       status,
       ...(intentType ? { intent: intentSubtype ? `${intentType} / ${intentSubtype}` : intentType, intentType } : {}),
       ...(intentSubtype ? { intentSubtype } : {}),
       ...(typeof intent?.confidence === "number" ? { intentConfidence: intent.confidence } : {}),
+      ...(typeof intent?.summary === "string" && intent.summary.trim() ? { intentSummary: intent.summary } : {}),
+      ...(keywords.length ? { keywords } : {}),
+      ...(Array.isArray(intent?.evidenceMessageIds) ? { evidenceMessageCount: evidenceMessageIds.length } : {}),
       ...(typeof candidate.summary === "string" && candidate.summary.trim()
         ? { summary: candidate.summary }
         : typeof analysis?.summary === "string" && analysis.summary.trim()
           ? { summary: analysis.summary }
           : {}),
+      ...(resolutionStatus ? { resolutionStatus } : {}),
+      ...(typeof result?.solutionSummary === "string" && result.solutionSummary.trim() ? { solutionSummary: result.solutionSummary } : {}),
+      ...(solutionSteps.length ? { solutionSteps } : {}),
+      ...(typeof result?.resolverRef === "string" && result.resolverRef.trim() ? { resolverRef: result.resolverRef } : {}),
+      ...(typeof result?.resolvedAt === "string" ? { resolvedAt: result.resolvedAt } : {}),
+      ...(typeof result?.autoResolvable === "boolean" ? { autoResolvable: result.autoResolvable } : {}),
+      ...(typeof result?.suggestedAutomation === "string" && result.suggestedAutomation.trim() ? { suggestedAutomation: result.suggestedAutomation } : {}),
+      ...(typeof result?.confidence === "number" ? { resultConfidence: result.confidence } : {}),
+      ...(typeof quality?.summary === "string" && quality.summary.trim() ? { qualitySummary: quality.summary } : {}),
+      ...(criticalIssues.length ? { criticalIssues } : {}),
+      ...(warnings.length ? { warnings } : {}),
       ...(typeof candidate.analyzedAt === "string" ? { analyzedAt: candidate.analyzedAt } : {}),
       ...(isNonNegativeSafeInteger(candidate.processingDurationMs)
         ? { processingDurationMs: candidate.processingDurationMs }
@@ -116,6 +151,26 @@ export function parseLarkTicketShadowAi(value: string | null | undefined): LarkT
 
 function isNonNegativeSafeInteger(value: unknown): value is number {
   return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : undefined;
+}
+
+function readStringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+    : [];
+}
+
+function isResolutionStatus(value: unknown): value is NonNullable<LarkTicketShadowAi["resolutionStatus"]> {
+  return value === "resolved"
+    || value === "pending"
+    || value === "escalated"
+    || value === "needs_info"
+    || value === "auto_closed";
 }
 
 export function parseLarkTicketAiData(value: string | null | undefined): LarkTicketAiData | undefined {

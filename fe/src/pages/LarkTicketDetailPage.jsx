@@ -9,6 +9,13 @@ import { LarkTicketResponsible } from "../components/lark-ticket/LarkTicketRespo
 import { formatDateTime } from "../lib/formatters.js";
 import { LARK_TICKET_AI_QUICK_ACTIONS } from "../lib/lark-ticket-ai-actions.js";
 import { getTicketAiSections } from "../lib/ticket-ai-sections.js";
+import {
+  formatShadowConfidence,
+  formatShadowDuration,
+  getShadowIntentLabel,
+  getShadowResolutionLabel,
+  getShadowStatusLabel,
+} from "../lib/lark-ticket-shadow-ai.js";
 import { replyAcpPermission, confirmLarkTicketEffectDraft, listLarkTicketAiSessions, listLarkTicketEffectDrafts, loadLarkTicketAiSession, stopLarkTicketAiSession, streamLarkTicketAiSession } from "../services/lark-ticket-ai/lark-ticket-ai-api.js";
 import { loadLarkTicketSharedUrl } from "../services/lark-ticket/lark-ticket-api.js";
 import { getPlatformDataList } from "../services/platform-data/platform-data-api.js";
@@ -31,30 +38,51 @@ function TicketProperty({ label, children }) {
   </div>;
 }
 
-const SHADOW_STATUS_LABELS = { ok: "已生成", skipped: "已跳过", error: "失败" };
+function ShadowLongText({ value }) {
+  return <span className="ticket-shadow-panel__long-text" title={value}>{value}</span>;
+}
 
-function formatProcessingDuration(durationMs) {
-  if (!Number.isSafeInteger(durationMs) || durationMs < 0) return "";
-  if (durationMs < 1000) return "< 1 秒";
-  const seconds = Math.round(durationMs / 1000);
-  if (seconds < 60) return `${seconds} 秒`;
-  const minutes = Math.floor(seconds / 60);
-  return `${minutes} 分 ${seconds % 60} 秒`;
+function ShadowInlineText({ value, title = value }) {
+  return <span className="ticket-shadow-panel__inline-text" title={title}>{value}</span>;
+}
+
+function numberedText(values) {
+  return values?.map((value, index) => `${index + 1}. ${value}`).join("\n") || "";
 }
 
 function ShadowAiPanel({ shadowAi }) {
-  const statusLabel = SHADOW_STATUS_LABELS[shadowAi.status] || shadowAi.status;
-  const processingDuration = formatProcessingDuration(shadowAi.processingDurationMs);
+  const statusLabel = getShadowStatusLabel(shadowAi.status);
+  const processingDuration = formatShadowDuration(shadowAi.processingDurationMs);
+  const solutionSteps = numberedText(shadowAi.solutionSteps);
+  const criticalIssues = numberedText(shadowAi.criticalIssues);
+  const warnings = numberedText(shadowAi.warnings);
+  const riskCount = (shadowAi.criticalIssues?.length || 0) + (shadowAi.warnings?.length || 0);
+  const riskSummary = `严重 ${shadowAi.criticalIssues?.length || 0} · 警告 ${shadowAi.warnings?.length || 0}`;
+  const riskDetails = [
+    criticalIssues ? `严重问题\n${criticalIssues}` : "",
+    warnings ? `警告\n${warnings}` : "",
+  ].filter(Boolean).join("\n\n");
   return <section className="ticket-shadow-panel" aria-label="影子分析">
     <div className="ticket-shadow-panel__heading">
       <h2>影子分析</h2>
       <span className={`ticket-shadow-panel__status ticket-shadow-panel__status--${shadowAi.status}`}>{statusLabel}</span>
     </div>
     {shadowAi.status === "ok" ? <dl>
-      {shadowAi.intentType ? <TicketProperty label="意图">{shadowAi.intentType}</TicketProperty> : null}
-      {shadowAi.intentSubtype ? <TicketProperty label="子意图">{shadowAi.intentSubtype}</TicketProperty> : null}
-      {typeof shadowAi.intentConfidence === "number" ? <TicketProperty label="置信度">{Math.round(shadowAi.intentConfidence * 100)}%</TicketProperty> : null}
-      {shadowAi.summary ? <TicketProperty label="总结">{shadowAi.summary}</TicketProperty> : null}
+      {getShadowIntentLabel(shadowAi) ? <TicketProperty label="意图"><ShadowInlineText value={getShadowIntentLabel(shadowAi)} /></TicketProperty> : null}
+      {typeof shadowAi.intentConfidence === "number" ? <TicketProperty label="置信度">{formatShadowConfidence(shadowAi.intentConfidence)}</TicketProperty> : null}
+      {shadowAi.resolutionStatus ? <TicketProperty label="处理状态">{getShadowResolutionLabel(shadowAi.resolutionStatus)}</TicketProperty> : null}
+      {typeof shadowAi.resultConfidence === "number" ? <TicketProperty label="结果置信度">{formatShadowConfidence(shadowAi.resultConfidence)}</TicketProperty> : null}
+      {shadowAi.summary ? <TicketProperty label="问题总结"><ShadowLongText value={shadowAi.summary} /></TicketProperty> : null}
+      {shadowAi.solutionSummary ? <TicketProperty label="方案摘要"><ShadowLongText value={shadowAi.solutionSummary} /></TicketProperty> : null}
+      {shadowAi.solutionSteps?.length ? <TicketProperty label="处理步骤"><ShadowInlineText value={`${shadowAi.solutionSteps.length} 步`} title={solutionSteps} /></TicketProperty> : null}
+      {shadowAi.resolverRef ? <TicketProperty label="处理人"><ShadowInlineText value={shadowAi.resolverRef} /></TicketProperty> : null}
+      {shadowAi.resolvedAt ? <TicketProperty label="解决时间">{formatDateTime(shadowAi.resolvedAt)}</TicketProperty> : null}
+      {typeof shadowAi.autoResolvable === "boolean" ? <TicketProperty label="自动处理">{shadowAi.autoResolvable ? "是" : "否"}</TicketProperty> : null}
+      {shadowAi.suggestedAutomation ? <TicketProperty label="自动化建议"><ShadowInlineText value={shadowAi.suggestedAutomation} /></TicketProperty> : null}
+      {shadowAi.qualitySummary ? <TicketProperty label="质量摘要"><ShadowLongText value={shadowAi.qualitySummary} /></TicketProperty> : null}
+      <TicketProperty label="风险"><span className={riskCount ? "ticket-shadow-panel__risk ticket-shadow-panel__risk--warning" : "ticket-shadow-panel__risk"} title={riskDetails || riskSummary}>{riskSummary}</span></TicketProperty>
+      {shadowAi.keywords?.length ? <TicketProperty label="关键词"><ShadowInlineText value={shadowAi.keywords.join("、")} /></TicketProperty> : null}
+      {typeof shadowAi.evidenceMessageCount === "number" ? <TicketProperty label="证据">{shadowAi.evidenceMessageCount} 条</TicketProperty> : null}
     </dl> : null}
     {shadowAi.status === "skipped" ? <p className="ticket-shadow-panel__note">跳过原因：{shadowAi.reason || "未记录"}</p> : null}
     {shadowAi.status === "error" ? <p className="ticket-shadow-panel__note">{shadowAi.errorCode || "SHADOW_FAILED"}{shadowAi.errorMessage ? `：${shadowAi.errorMessage}` : ""}</p> : null}
