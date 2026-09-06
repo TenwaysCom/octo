@@ -8,7 +8,9 @@ import { LarkTicketBadge } from "../components/lark-ticket/LarkTicketBadge.jsx";
 import { LarkTicketResponsible } from "../components/lark-ticket/LarkTicketResponsible.jsx";
 import { formatDateTime } from "../lib/formatters.js";
 import { LARK_TICKET_AI_QUICK_ACTIONS } from "../lib/lark-ticket-ai-actions.js";
+import { getLarkTicketDetailNavigation } from "../lib/lark-ticket-detail-navigation.js";
 import { getTicketAiSections } from "../lib/ticket-ai-sections.js";
+import { getLarkTicketDetailHash } from "../app/routes/workspace-routes.js";
 import {
   formatShadowConfidence,
   formatShadowDuration,
@@ -106,8 +108,8 @@ function formatTicketAiValue(value) {
   return String(value);
 }
 
-export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLogout, isBusy, breadcrumbs }) {
-  const [state, setState] = useState({ status: "loading", ticket: undefined });
+export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLogout, isBusy, breadcrumbs, larkTicketNavigationContext }) {
+  const [state, setState] = useState({ status: "loading", ticket: undefined, ticketRecordIds: [] });
   const [sharedUrlStatus, setSharedUrlStatus] = useState("idle");
   const [aiSessions, setAiSessions] = useState({ status: "idle", items: [], error: "" });
   const [effectDrafts, setEffectDrafts] = useState({ status: "idle", items: [], error: "" });
@@ -120,14 +122,19 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
     let active = true;
     void getPlatformDataList({ apiBaseUrl, kind: "lark-tickets" }).then(
       ({ items }) => {
-        if (active) setState({ status: "ready", ticket: items.find((item) => item.recordId === ticketRecordId) });
+        if (active) setState({ status: "ready", ticket: items.find((item) => item.recordId === ticketRecordId), ticketRecordIds: items.map((item) => item.recordId) });
       },
-      () => { if (active) setState({ status: "error", ticket: undefined }); },
+      () => { if (active) setState({ status: "error", ticket: undefined, ticketRecordIds: [] }); },
     );
     return () => { active = false; };
   }, [apiBaseUrl, ticketRecordId]);
 
   const ticket = state.ticket;
+  const ticketNavigation = getLarkTicketDetailNavigation({
+    navigationContext: larkTicketNavigationContext,
+    currentRecordId: ticketRecordId,
+    availableRecordIds: state.ticketRecordIds,
+  });
   const { drawer, panel, isStreaming, setDrawer } = useAiSessionPanel(JSON.stringify([apiBaseUrl, ticketRecordId, ticket?.baseId, ticket?.tableId]), {
     load: (sessionId) => loadLarkTicketAiSession({ apiBaseUrl, ticket, sessionId }),
     stream: (input) => streamLarkTicketAiSession({ ...input, apiBaseUrl, ticket }),
@@ -281,7 +288,14 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
     <main className="profile-main ticket-detail-page">
       <div className="ticket-detail__topline">
         <a className="ticket-back-link" href="#lark-tickets"><span aria-hidden="true">←</span>全部 Lark Ticket</a>
-        <ExternalResource href={ticket.sharedUrl}>在 Lark 中查看</ExternalResource>
+        <div className="ticket-detail__topline-actions">
+          {ticketNavigation ? <nav aria-label="Ticket 前后导航" className="ticket-detail-navigation">
+            <button type="button" disabled={!ticketNavigation.previousRecordId} onClick={() => { if (ticketNavigation.previousRecordId) window.location.hash = getLarkTicketDetailHash(ticketNavigation.previousRecordId); }}>上一条</button>
+            <span aria-label={`当前第 ${ticketNavigation.position} 条，共 ${ticketNavigation.total} 条`}>{ticketNavigation.position} / {ticketNavigation.total}</span>
+            <button type="button" disabled={!ticketNavigation.nextRecordId} onClick={() => { if (ticketNavigation.nextRecordId) window.location.hash = getLarkTicketDetailHash(ticketNavigation.nextRecordId); }}>下一条</button>
+          </nav> : null}
+          <ExternalResource href={ticket.sharedUrl}>在 Lark 中查看</ExternalResource>
+        </div>
       </div>
       <div className="ticket-detail-grid">
         <article className="ticket-detail__content">

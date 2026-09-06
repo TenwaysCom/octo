@@ -945,6 +945,11 @@ h1 {
 .ticket-detail__topline { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 22px; }
 .ticket-back-link { display: inline-flex; align-items: center; gap: 8px; color: var(--octo-text-muted); font-size: 13px; font-weight: 650; text-decoration: none; }
 .ticket-back-link:hover { color: var(--octo-brand); }
+.ticket-detail__topline-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+.ticket-detail-navigation { display: inline-flex; align-items: center; gap: 7px; color: var(--octo-text-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.ticket-detail-navigation button { min-height: 30px; padding: 4px 9px; border: 1px solid var(--octo-border); border-radius: 7px; color: var(--octo-text); cursor: pointer; background: var(--octo-surface); font: inherit; font-weight: 650; }
+.ticket-detail-navigation button:hover:not(:disabled) { border-color: var(--octo-brand); color: var(--octo-brand); background: color-mix(in srgb, var(--octo-brand) 5%, var(--octo-surface)); }
+.ticket-detail-navigation button:disabled { color: var(--octo-text-muted); cursor: not-allowed; background: var(--octo-surface-muted); opacity: .7; }
 .ticket-detail-grid { display: grid; grid-template-columns: minmax(0, 1fr) 248px; gap: clamp(44px, 7vw, 92px); align-items: start; }
 .ticket-detail__content { min-width: 0; }
 .ticket-detail__identity { display: flex; align-items: center; gap: 7px; margin: 0 0 13px; color: var(--octo-text-muted); font-size: 13px; font-weight: 650; }
@@ -1246,6 +1251,7 @@ h1 {
   .ssh-key-card__form > div { align-items: flex-start; flex-direction: column; }
   .ssh-key-card__form .secondary-button { align-self: flex-end; }
   .ticket-detail__topline { align-items: flex-start; flex-direction: column; margin-bottom: 26px; }
+  .ticket-detail__topline-actions { width: 100%; justify-content: space-between; }
   .ticket-detail__properties dl { grid-template-columns: 1fr; gap: 16px; }
   .ticket-ai-session-create > div { align-items: flex-start; flex-direction: column; }
   .ticket-ai-session-create button { align-self: flex-end; }

@@ -5,7 +5,7 @@ EXT_DEV_PORT ?= 3011
 EXT_PROFILE_DIR ?= $(HOME)/.config/octo-ext-profile
 MASTER_USER_ID ?= a400632e-8d08-4ddf-977d-e8330b0adc5a
 TEST_DATABASE ?= tenways_octo_test
-DEV_DATABASE ?= tenways_octo_ly_0509
+DEV_DATABASE ?= tenways_octo_ly_0906
 
 .DEFAULT_GOAL := help
 

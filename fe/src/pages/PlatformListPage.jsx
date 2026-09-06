@@ -44,6 +44,7 @@ import {
   normalizeLarkTicketViewMode,
   sortLarkTickets,
 } from "../lib/lark-ticket-view-config.js";
+import { createLarkTicketNavigationContext } from "../lib/lark-ticket-detail-navigation.js";
 import {
   DEFAULT_MEEGLE_GROUP_BY,
   DEFAULT_MEEGLE_VISIBLE_COLUMNS,
@@ -299,7 +300,7 @@ function WorkitemRowMeta({ meta, apiBaseUrl, onPickPullRequest }) {
   return <span className={className} title={meta.title || (meta.type === "meegle-status" && meta.subStage ? meta.subStage : undefined)}>{content}</span>;
 }
 
-function WorkitemRow({ row, item, apiBaseUrl, onPreviewCandidateChange, onMeegleCandidateChange, onOpenMeeglePullRequestPicker }) {
+function WorkitemRow({ row, item, apiBaseUrl, onPreviewCandidateChange, onMeegleCandidateChange, onOpenLarkTicketDetail, onOpenMeeglePullRequestPicker }) {
   const previewProps = onPreviewCandidateChange ? {
     "aria-label": `${row.title}，按空格预览`,
     tabIndex: 0,
@@ -318,7 +319,7 @@ function WorkitemRow({ row, item, apiBaseUrl, onPreviewCandidateChange, onMeegle
   const title = row.href
     ? row.external
       ? <ExternalLink className="workitem-row__title" href={row.href} title={row.title}>{row.title}</ExternalLink>
-      : <a className="workitem-row__title" href={row.href} title={row.title}>{row.title}</a>
+      : <a className="workitem-row__title" href={row.href} title={row.title} onClick={(event) => onOpenLarkTicketDetail?.(event, item)}>{row.title}</a>
     : <span className="workitem-row__title" title={row.title}>{row.title}</span>;
   return <div className="workitem-row" role="listitem" {...previewProps}>
     {row.leading.length ? <span className="workitem-row__leading">{row.leading.map((meta) => <WorkitemRowMeta apiBaseUrl={apiBaseUrl} key={meta.key} meta={meta} />)}</span> : null}
@@ -344,7 +345,7 @@ function getWorkitemRowKey(kind, item, index) {
   return `${item.owner}-${item.repo}-${item.pullNumber}`;
 }
 
-function SyncedRowList({ kind, items, visibleColumns, apiBaseUrl, nowTime, onGitHubPreviewCandidateChange, onMeegleCandidateChange, onOpenMeeglePullRequestPicker }) {
+function SyncedRowList({ kind, items, visibleColumns, apiBaseUrl, nowTime, onGitHubPreviewCandidateChange, onMeegleCandidateChange, onOpenLarkTicketDetail, onOpenMeeglePullRequestPicker }) {
   const buildRow = WORKITEM_ROW_BUILDERS[kind] || buildGitHubPullRequestRow;
   return <div className="workitem-rows" role="list">{items.map((item, index) => <WorkitemRow
     apiBaseUrl={apiBaseUrl}
@@ -352,6 +353,7 @@ function SyncedRowList({ kind, items, visibleColumns, apiBaseUrl, nowTime, onGit
     key={getWorkitemRowKey(kind, item, index)}
     onPreviewCandidateChange={kind === "github-pull-requests" ? onGitHubPreviewCandidateChange : undefined}
     onMeegleCandidateChange={kind === "meegle-workitems" ? onMeegleCandidateChange : undefined}
+    onOpenLarkTicketDetail={kind === "lark-tickets" ? onOpenLarkTicketDetail : undefined}
     onOpenMeeglePullRequestPicker={kind === "meegle-workitems" ? onOpenMeeglePullRequestPicker : undefined}
     row={buildRow(item, visibleColumns, nowTime)}
   />)}</div>;
@@ -645,14 +647,14 @@ function KanbanCardFloatingMeta({ columns, description, detailsId, renderCell })
   </div>;
 }
 
-function LarkTicketCard({ item, visibleColumns }) {
+function LarkTicketCard({ item, visibleColumns, onOpenLarkTicketDetail }) {
   const columns = LARK_TICKET_VIEW_COLUMNS.filter(({ key }) => key !== "title" && visibleColumns.includes(key));
   const layout = getKanbanCardLayout("lark-tickets", visibleColumns, item);
   const description = getKanbanCardDescription("lark-tickets", item);
   const floatingColumns = columns.filter(({ key }) => layout.floatingKeys.includes(key));
   return <article className="kanban-card">
     <div className="kanban-card__header">
-      <a className="table-link kanban-card__title" href={getLarkTicketDetailHash(item.recordId)}>{item.title || item.ticketNumber || item.recordId}</a>
+      <a className="table-link kanban-card__title" href={getLarkTicketDetailHash(item.recordId)} onClick={(event) => onOpenLarkTicketDetail?.(event, item)}>{item.title || item.ticketNumber || item.recordId}</a>
       <KanbanCardPeople item={item} kind="lark-tickets" />
     </div>
     <KanbanCardSecondLine identifier={item.ticketNumber || item.recordId} statusColumn={columns.find(({ key }) => key === layout.statusKey)} time={layout.updatedAtKey ? getKanbanCardTime("lark-tickets", item) : null} renderCell={(column) => <LarkTicketCell columnKey={column.key} item={item} />} />
@@ -871,7 +873,7 @@ function MeeglePullRequestPicker({ picker, onClose, onSelect }) {
   </div>;
 }
 
-export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, breadcrumbs, platformListFilterState, onPlatformListFilterStateChange }) {
+export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, breadcrumbs, platformListFilterState, onPlatformListFilterStateChange, onLarkTicketNavigationContextChange }) {
   const restoredFilters = platformListFilterState || {};
   const [state, setState] = useState({ status: "loading", items: [], filterItems: [], filterItemsPage: page, sprints: [], relatedPersonOptions: [], pager: null, isLoadingMore: false });
   const [selectedStatuses, setSelectedStatuses] = useState(() => restoredFilters.selectedStatuses || null);
@@ -1003,6 +1005,13 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
     : page === "meegle-workitems"
       ? sortMeegleWorkitems(filteredItems, sort)
       : sortGitHubPullRequests(filteredItems, sort);
+  const larkTicketNavigationContext = page === "lark-tickets"
+    ? createLarkTicketNavigationContext(sortedItems)
+    : null;
+  const rememberLarkTicketNavigation = (event, ticket) => {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || !ticket?.recordId) return;
+    onLarkTicketNavigationContextChange?.(larkTicketNavigationContext);
+  };
   const larkGroups = page === "lark-tickets" ? groupLarkTickets(sortedItems, larkGroupBy, {
     subGroupBy: larkSubGroupBy,
     showEmptyGroups: larkShowEmptyGroups,
@@ -1784,7 +1793,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
         {state.status === "ready" && state.items.length > 0 ? <div className={`list-results-layout ${tagSidebarOpen && tagFilterFieldsWithCounts.length ? "list-results-layout--with-sidebar" : ""}`.trim()}>
           <div className="list-results-layout__main">
           {filteredItems.length > 0 || canShowConfiguredEmptyGroups ? <>
-          {isLarkAiOutput || isLarkEvalDataset ? <LarkTicketAiWorkspace apiBaseUrl={apiBaseUrl} mode={larkViewMode} groups={larkGroups} visibleColumns={larkConfiguredVisibleColumns} collapsedGroups={collapsedLarkGroups} onToggleGroup={(groupKey) => setCollapsedLarkGroups((current) => current.includes(groupKey)
+          {isLarkAiOutput || isLarkEvalDataset ? <LarkTicketAiWorkspace apiBaseUrl={apiBaseUrl} mode={larkViewMode} groups={larkGroups} visibleColumns={larkConfiguredVisibleColumns} collapsedGroups={collapsedLarkGroups} onLarkTicketDetailLinkClick={rememberLarkTicketNavigation} onToggleGroup={(groupKey) => setCollapsedLarkGroups((current) => current.includes(groupKey)
             ? current.filter((key) => key !== groupKey)
             : [...current, groupKey])} collapsedSubgroups={collapsedLarkSubgroups} onToggleSubgroup={(subgroupKey) => setCollapsedLarkSubgroups((current) => current.includes(subgroupKey)
             ? current.filter((key) => key !== subgroupKey)
@@ -1795,7 +1804,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
               onToggleSubgroup={(subgroupKey) => setCollapsedLarkSubgroups((current) => current.includes(subgroupKey)
                 ? current.filter((key) => key !== subgroupKey)
                 : [...current, subgroupKey])}
-              renderCard={(item, index) => <LarkTicketCard item={item} visibleColumns={larkVisibleColumns} key={item.recordId || `${item.baseId || "base"}-${item.tableId || "table"}-${index}`} />}
+              renderCard={(item, index) => <LarkTicketCard item={item} visibleColumns={larkVisibleColumns} onOpenLarkTicketDetail={rememberLarkTicketNavigation} key={item.recordId || `${item.baseId || "base"}-${item.tableId || "table"}-${index}`} />}
             />
             <footer className="list-pagination">
               <p className="list-results">已加载 <strong>{sortedItems.length}</strong> / {totalItems} 条结果 · {larkGroups.length} 个分组</p>
@@ -1835,7 +1844,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
               onToggleSubgroup={(subgroupKey) => setCollapsedLarkSubgroups((current) => current.includes(subgroupKey)
                 ? current.filter((key) => key !== subgroupKey)
                 : [...current, subgroupKey])}
-              renderRows={(items) => <SyncedRowList kind="lark-tickets" items={items} visibleColumns={larkVisibleColumns} />}
+              renderRows={(items) => <SyncedRowList kind="lark-tickets" items={items} visibleColumns={larkVisibleColumns} onOpenLarkTicketDetail={rememberLarkTicketNavigation} />}
             />
             <footer className="list-pagination">
               <p className="list-results">已加载 <strong>{sortedItems.length}</strong> / {totalItems} 条结果 · {larkGroups.length} 个分组</p>
@@ -1873,7 +1882,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
               <p className="list-results">已加载 <strong>{sortedItems.length}</strong> / {totalItems} 条结果 · {githubGroups.length} 个分组</p>
             </footer>
           </> : <>
-            <SyncedRowList apiBaseUrl={apiBaseUrl} kind={page} items={pageItems} nowTime={workingTimeNow} onGitHubPreviewCandidateChange={setGitHubPreviewCandidate} onMeegleCandidateChange={updateMeeglePrCandidate} onOpenMeeglePullRequestPicker={openMeeglePullRequestPicker} visibleColumns={page === "lark-tickets" ? larkVisibleColumns : page === "meegle-workitems" ? meegleVisibleColumns : githubVisibleColumns} />
+            <SyncedRowList apiBaseUrl={apiBaseUrl} kind={page} items={pageItems} nowTime={workingTimeNow} onGitHubPreviewCandidateChange={setGitHubPreviewCandidate} onLarkTicketDetail={rememberLarkTicketNavigation} onMeegleCandidateChange={updateMeeglePrCandidate} onOpenMeeglePullRequestPicker={openMeeglePullRequestPicker} visibleColumns={page === "lark-tickets" ? larkVisibleColumns : page === "meegle-workitems" ? meegleVisibleColumns : githubVisibleColumns} />
             <footer className="list-pagination">
               <p className="list-results">显示 <strong>{firstResult}–{lastResult}</strong> / 已加载 {sortedItems.length}（共 {totalItems}）条结果</p>
               <div className="list-pagination__controls">

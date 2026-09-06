@@ -41,6 +41,7 @@ export function App({ apiBaseUrl }) {
   const [workspaceRoute, setWorkspaceRoute] = useState(() => getWorkspaceRoute(window.location.hash));
   const [breadcrumbs, setBreadcrumbs] = useState(() => appendWorkspaceBreadcrumb([], getWorkspaceRoute(window.location.hash)));
   const [platformListFilterStates, setPlatformListFilterStates] = useState({});
+  const [larkTicketNavigationContext, setLarkTicketNavigationContext] = useState(null);
   const [meegleSprintDetailStates, setMeegleSprintDetailStates] = useState({});
   const [githubMyOpenCount, setGithubMyOpenCount] = useState();
 
@@ -130,6 +131,10 @@ export function App({ apiBaseUrl }) {
     setPlatformListFilterStates((current) => ({ ...current, [page]: filterState }));
   }, []);
 
+  const saveLarkTicketNavigationContext = useCallback((navigationContext) => {
+    setLarkTicketNavigationContext(navigationContext);
+  }, []);
+
   const saveMeegleSprintDetailState = useCallback((sprintName, detailState) => {
     setMeegleSprintDetailStates((current) => rememberSprintWorkitemPageState(current, sprintName, detailState));
   }, []);
@@ -172,6 +177,8 @@ export function App({ apiBaseUrl }) {
         breadcrumbs={breadcrumbs}
         platformListFilterState={platformListFilterStates[activeWorkspaceRoute.page]}
         onPlatformListFilterStateChange={savePlatformListFilterState}
+        larkTicketNavigationContext={larkTicketNavigationContext}
+        onLarkTicketNavigationContextChange={saveLarkTicketNavigationContext}
         meegleSprintDetailState={meegleSprintDetailStates[activeWorkspaceRoute.sprintName]}
         onMeegleSprintDetailStateChange={saveMeegleSprintDetailState}
         apiBaseUrl={apiBaseUrl}
