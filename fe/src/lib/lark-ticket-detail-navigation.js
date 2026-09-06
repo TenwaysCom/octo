@@ -1,20 +1,23 @@
-function normalizeRecordIds(values) {
+function normalizeTickets(values) {
   const seen = new Set();
   return (Array.isArray(values) ? values : []).filter((value) => {
-    if (typeof value !== "string" || !value || seen.has(value)) return false;
-    seen.add(value);
+    if (!value || typeof value.recordId !== "string" || !value.recordId || seen.has(value.recordId)) return false;
+    seen.add(value.recordId);
     return true;
   });
 }
 
 export function createLarkTicketNavigationContext(tickets) {
-  const recordIds = normalizeRecordIds((Array.isArray(tickets) ? tickets : []).map((ticket) => ticket?.recordId));
-  return recordIds.length ? { recordIds } : null;
+  const items = normalizeTickets(tickets);
+  return items.length ? { recordIds: items.map((ticket) => ticket.recordId), tickets: items } : null;
 }
 
-export function getLarkTicketDetailNavigation({ navigationContext, currentRecordId, availableRecordIds }) {
-  const available = new Set(normalizeRecordIds(availableRecordIds));
-  const recordIds = normalizeRecordIds(navigationContext?.recordIds).filter((recordId) => available.has(recordId));
+export function getLarkTicketFromNavigationContext({ navigationContext, recordId }) {
+  return navigationContext?.tickets?.find((ticket) => ticket.recordId === recordId);
+}
+
+export function getLarkTicketDetailNavigation({ navigationContext, currentRecordId }) {
+  const recordIds = navigationContext?.recordIds || [];
   const index = recordIds.indexOf(currentRecordId);
 
   if (index < 0) return null;
