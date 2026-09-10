@@ -29,7 +29,7 @@ module.exports = {
       exec_mode: "fork",
       instances: 1,
       autorestart: true,
-      watch: true,
+      watch: ["dist"],
       restart_delay: 3_000,
       kill_timeout: 10_000,
     },

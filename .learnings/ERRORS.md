@@ -800,3 +800,15 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Error:** `pnpm --dir extension test` 的 jsdom 用例集中报 `Cannot read properties of undefined (reading 'clear'/'getItem'/'setItem')`，而类型检查和构建正常。
 - **Fix:** Node 26 默认实验性 Web Storage getter 在未配置持久化文件时返回 `undefined`，并遮蔽 Vitest/jsdom 注入；使用 `NODE_OPTIONS=--no-experimental-webstorage` 运行现有套件。
 - **source:** [Feature 分支合并冲突处理](../docs/tasks/engineering-ops/2026-09-06-feature-branch-merge-conflict-resolution.md)
+
+### ERR-20260910-001 — PM2 监听运行日志导致连续重启
+
+- **Error:** PM2 反复记录 `Change detected on path logs/app.2026-09-10.1.log for app octo-server-staging - restarting`，进程随后以 code 0 / SIGINT 退出。
+- **Fix:** 检查 ecosystem 的 `watch` 范围；关闭文件监听，或将其限制为构建产物目录，避免运行日志写入再次触发重启。
+- **source:** [staging PM2 重启诊断](../docs/tasks/engineering-ops/2026-09-10-pm2-staging-restart-diagnosis.md)
+
+### ERR-20260910-002 — systemd-resolved 缺少上游 DNS
+
+- **Error:** Node `fetch failed` 的 cause 为 `getaddrinfo EAI_AGAIN`，`resolvectl query` 报 `No appropriate name servers or networks for name found`。
+- **Fix:** 在实际服务主机确认 resolved 全局及网卡 DNS；若均为空且直接查询指定 DNS 可达，配置上游 DNS 并验证系统解析及相同运行时无代理请求。
+- **source:** [Meegle DNS 排障与修复](../docs/tasks/platform-auth/2026-09-10-meegle-auth-fetch-failure-diagnosis.md)

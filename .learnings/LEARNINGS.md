@@ -683,6 +683,23 @@ source: [FE AI Session 生命周期讨论](../docs/tasks/acp/2026-09-06-fe-ai-se
 
 source: [FE Session 分组任务](../docs/tasks/acp/2026-09-06-fe-session-turn-grouping.md)
 
+## [LRN-20260910-001] user-service-migration-must-cover-all-startup-paths
+
+**Context:** 将用户目录中的服务迁移给另一用户和进程管理器时，目录副本可能仍包含旧用户绝对路径、后台启动包装脚本及原用户的定时入口。
+
+**Rule:** 切换前检查配置路径、属主、定时任务和所有启停入口，让进程管理器直接托管前台服务；迁移完成后验证实例唯一、真实请求及持久化配置。保留回退材料，并将开机配置已启用与实际重启验证分别记录。
+
+source: [Clash deploy PM2 迁移](../docs/tasks/engineering-ops/2026-09-10-clash-deploy-pm2-migration.md)
+
+## [LRN-20260910-002] diagnose-network-in-service-runtime
+
+**Context:** 网络失败可能受工具沙箱、进程启动环境及系统解析器影响，参见 [ERR-20260910-002](./ERRORS.md#err-20260910-002--systemd-resolved-缺少上游-dns)。
+
+**Rule:** 先在实际服务环境提取底层错误，并用同一运行时做无凭据直连与代理对照；代理可达只证明替代路径可用，修复方向应由 DNS、连接或 TLS 的具体失败阶段决定。
+
+source: [Meegle DNS 排障与修复](../docs/tasks/platform-auth/2026-09-10-meegle-auth-fetch-failure-diagnosis.md)
+
+
 ## [LRN-20260910-003] approval-review-must-cover-operation-details-and-visible-state
 
 **Context:** 原生 Agent 已接入权限回调和回复接口，不代表用户能在前端看到足够信息作出选择；命令、文件 diff 和通用参数可能使用不同内容结构。
@@ -690,3 +707,11 @@ source: [FE Session 分组任务](../docs/tasks/acp/2026-09-06-fe-session-turn-g
 **Rule:** 验收人工审批时按实际工具类型检查申请内容、按钮可见性和选择后果，并同时核对实时流及重开快照。审批界面应展示可核对的操作详情；将“请求已发出”“用户已回复”和“执行已完成”分别验证。
 
 source: [FE Hermes 权限审批](../docs/tasks/acp/2026-09-10-fe-hermes-permission-approval.md)
+
+## [LRN-20260910-004] commit-shared-docs-with-the-matching-task
+
+**Context:** 多个任务可能同时修改同一架构条目或学习账本，文件整体不一定对应一个已完成任务。
+
+**Rule:** 只提交已完成任务时，逐项核对实现、任务证据和共享文档的暂存内容；共享文件按内容选取，避免提交的文档描述仍留在工作区的实现。测试通过不替代任务验收。
+
+source: [已完成任务提交复核](../docs/tasks/engineering-ops/2026-09-10-completed-task-commit-review.md)
