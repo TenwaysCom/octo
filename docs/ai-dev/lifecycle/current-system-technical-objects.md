@@ -1,7 +1,7 @@
 ---
 status: draft
 owner: TBD
-last_reviewed: 2026-09-05
+last_reviewed: 2026-09-10
 scope: 当前 Octo 技术对象在 extension、server、adapter 与平台间的生命周期图谱
 update_required_when:
   - 页面或动作配置契约变更
@@ -52,7 +52,7 @@ update_required_when:
 | `AcpKimiOneShotRuntime` | Server ACP proxy / adapter | `server/src/application/services/acp-kimi-proxy.service.ts`, `server/src/adapters/kimi-acp/kimi-acp-runtime.ts` | 一次性 ACP runtime；不进入 reusable session registry，prompt 后关闭 |
 | `ManagedAcpSessionRuntime` | Server ACP adapter | `server/src/adapters/acp/managed-acp-runtime.ts`, `server/src/adapters/hermes-acp/hermes-acp-runtime.ts` | 共用 TS ACP Client；Hermes 直接启动官方 `python -m acp_adapter`。公开 Session 与 native ID 分离，ownership 保存 provider/native ID，新建即保存并关联 Ticket/Sprint 后才 prompt。旧记录兼容补齐；Kimi 继续按保存归属恢复。文件隔离及真实业务验收见任务。 |
 | `WebAiSessionRun` | Server application service / FE observes | `server/src/application/services/web-ai-session-runs.ts`, `fe/src/hooks/useAiSessionPanel.js` | Ticket/Sprint X 只收起显示；断连仅卸载观察者，后台任务继续。list/load 返回当前状态和事件快照，运行中不调用原生 load；显式 stop 校验身份、完整业务引用和精确 runId。原生历史继续持久化，进程重启自动续跑不在本次范围。 |
-| `LarkTicketAcpPermissionContext` | Server catalog / ACP proxy | `server/src/domain/acp-kimi-permission-profile.ts`, `server/src/application/services/acp-permission.service.ts` | Action/Profile 绑定会话及 effect draft。Kimi 回调继续校验 argv/path 并记录审计；Hermes 原生风险请求按 options 等待当前 Web 用户回复，50 秒过期。后台请求拒绝并取消，失败终态不能被 done 覆盖。能力声明不是 Hermes 原生工具隔离保证。 |
+| `LarkTicketAcpPermissionContext` | Server catalog / ACP proxy | `server/src/domain/acp-kimi-permission-profile.ts`, `server/src/application/services/acp-permission.service.ts` | Action/Profile 绑定会话及 effect draft。Kimi 回调继续校验 argv/path 并记录审计；Hermes 原生风险请求按 options 等待当前 Web 用户回复，50 秒过期。FE Ticket/Sprint 共享审批卡片展示操作详情、diff 和倒计时，显式点击原生选项后继续或终止；待审批/失败不得被晚到完成事件标为验证成功。后台请求拒绝并取消，失败终态不能被 done 覆盖。能力声明不是 Hermes 原生工具隔离保证。 |
 | `SupportTicketEffectDraft` | Server workflow / PostgreSQL | `server/src/domain/support-ticket-effect-draft.ts`, `server/src/adapters/postgres/support-ticket-effect-draft-store.ts`, `server/src/application/services/support-ticket-effect-draft.service.ts` | ACP Agent 只在 action-run 临时目录生成固定 schema 草稿。Server 绑定 operator、Session、Action、Ticket、Profile、snapshot 和 payload hash 持久化；确认接口只接受草稿身份，正式写入后 readback，Document 在 Ticket AI 成功后才原子更新本地 knowledge index。 |
 | `MeegleSprintAiSession` | Server workflow / PostgreSQL | `server/src/application/services/meegle-sprint-ai-session.service.ts`, `server/src/adapters/postgres/acp-kimi-sprint-session-store.ts` | 每个会话由用户、`projectKey + sprintId` 和创建时清洗后的完成项上下文绑定；只读 Sprint 快照与归属历史，不调用或写入 Meegle |
 | `GitHubWorkitemAction` | Extension modal + server workflow | `server/src/modules/github-branch-create/*`, `server/src/controllers/github-reverse-lookup.ts`, `extension/src/popup-shared/*github*` | 依赖 Meegle workitem 字段和 GitHub adapter |

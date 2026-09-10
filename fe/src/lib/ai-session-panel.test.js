@@ -105,6 +105,28 @@ test("pending permission history is stable across snapshots and resolves from se
   assert.equal(resolved.error, "审批已过期");
 });
 
+test("live permission replies resume only on approval and never verify a rejected or waiting turn", async (t) => {
+  for (const resolution of ["approved", "rejected", "expired", null]) {
+    const gate = deferred(); let emit;
+    const panel = createAiSessionPanel({ load: async () => snapshot(), stop: async () => {}, stream: async ({ onEvent }) => { emit = onEvent; emit(started); await gate.promise; } });
+    t.after(() => panel.dispose());
+    const execution = panel.start({ message: "执行操作", actionKey: "document" });
+    const data = { requestId: "permission1", sessionId: "s1", actionRunId: "a1", options: [], toolCall: {}, expiresAt: new Date(Date.now() + 50000).toISOString() };
+    emit({ event: "acp.permission.requested", data });
+    assert.equal(panel.getSnapshot().status, "waiting_permission");
+    assert.equal(panel.getSnapshot().runStatus, "waiting_permission");
+    if (resolution) {
+      emit({ event: "acp.permission.resolved", data: { ...data, status: resolution } });
+      assert.equal(panel.getSnapshot().status, resolution === "approved" ? "generating" : "error");
+      assert.equal(panel.getSnapshot().runStatus, resolution === "approved" ? "running" : "failed");
+    }
+    emit(done);
+    assert.equal(panel.getSnapshot().runStatus, resolution === "approved" ? "completed" : resolution ? "failed" : "waiting_permission");
+    assert.equal(panel.getSnapshot().verificationStatus, resolution === "approved" ? "verified" : resolution ? "unverified" : "pending");
+    gate.resolve(); await execution;
+  }
+});
+
 test("restored steps and turns have unique stable keys despite reused ACP message IDs", () => {
   const withId = (text) => { const event = chunk(text); event.data.update.messageId = "reused"; return event; };
   const events = [

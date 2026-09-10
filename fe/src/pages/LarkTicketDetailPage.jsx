@@ -399,11 +399,11 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
     </main>
     {drawer ? <div className="ticket-ai-drawer-backdrop" role="presentation" onMouseDown={() => panel.close()}>
       <aside className="ticket-ai-drawer" aria-label="AI Session 详情" onMouseDown={(event) => event.stopPropagation()}>
-        <header className="ticket-ai-drawer__header"><div><p>{drawer.oneShot ? "DeepSeek 一次性分析" : "ACP AI Chat"}</p><h2>{drawer.title}</h2></div><button type="button" aria-label="关闭 AI Session" onClick={() => panel.close()}>×</button></header>
+        <header className="ticket-ai-drawer__header"><div><p>{drawer.oneShot ? "DeepSeek 一次性分析" : "ACP AI Chat"}</p><h2>{drawer.title}</h2>{drawer.status === "waiting_permission" ? <p role="status">待审批：请确认或拒绝工具操作</p> : null}</div><button type="button" aria-label="关闭 AI Session" onClick={() => panel.close()}>×</button></header>
         <div className="ticket-ai-drawer__body">
           {drawer.verificationStatus === "unverified" ? <div className="ticket-ai-drawer__unverified"><strong>执行未完成</strong><p>上一轮未通过执行与结果校验；已有内容仅供参考，可以在当前会话继续处理。</p></div> : null}
           {drawer.status === "loading" ? <p className="ticket-section-empty">正在加载会话…</p> : null}
-          {drawer.messages.length ? drawer.messages.map((entry, index) => <AiSessionMessage entry={entry} apiBaseUrl={apiBaseUrl} active={isStreaming} key={entry.id || `${entry.kind}-${index}`} />) : null}
+          {drawer.messages.length ? drawer.messages.map((entry, index) => <AiSessionMessage entry={entry} apiBaseUrl={apiBaseUrl} active={isStreaming && drawer.status !== "stopping"} key={entry.id || `${entry.kind}-${index}`} />) : null}
           {drawer.connectionError ? <p role="status">{drawer.connectionError}</p> : null}
           {drawer.status === "cancelled" ? <p role="status">已停止生成，已有内容已保留。</p> : null}
           {drawer.status === "stopping" ? <p role="status">正在停止生成…</p> : null}

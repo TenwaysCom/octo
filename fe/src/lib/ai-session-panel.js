@@ -106,15 +106,19 @@ export function createAiSessionPanel({ load, stream, stop, onChange = () => {}, 
               if (!active(token)) abort.abort();
             }
             if (!active(token)) return;
-            update((current) => ({ ...current,
-              ...(event.event === "run.started" ? event.data : {}),
-              sessionId: event.event === "session.created" ? event.data.sessionId : event.event === "run.started" ? event.data.sessionId : current.sessionId,
-              effectDraft: event.event === "effect.draft.created" ? { ...event.data, payload: null } : current.effectDraft,
-              status: aiSessionStatusAfterEvent(current.status, event),
-              runStatus: event.event === "done" ? "completed" : current.runStatus,
-              verificationStatus: event.event === "done" ? "verified" : current.verificationStatus,
-              messages: appendAiSessionEvent(current.messages, event),
-            }));
+            update((current) => {
+              const status = aiSessionStatusAfterEvent(current.status, event);
+              const completed = event.event === "done" && status === "ready";
+              return { ...current,
+                ...(event.event === "run.started" ? event.data : {}),
+                sessionId: event.event === "session.created" ? event.data.sessionId : event.event === "run.started" ? event.data.sessionId : current.sessionId,
+                effectDraft: event.event === "effect.draft.created" ? { ...event.data, payload: null } : current.effectDraft,
+                status,
+                runStatus: status === "waiting_permission" ? "waiting_permission" : status === "error" ? "failed" : completed ? "completed" : "running",
+                verificationStatus: status === "error" ? "unverified" : completed ? "verified" : current.verificationStatus,
+                messages: appendAiSessionEvent(current.messages, event),
+              };
+            });
           },
         });
       } catch (error) {

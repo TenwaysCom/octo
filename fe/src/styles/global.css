@@ -1047,6 +1047,20 @@ h1 {
 .ticket-ai-tool-call small { color: var(--octo-text-muted); }
 .ticket-ai-tool-call p { grid-column: 1 / -1; color: var(--octo-text-muted); font-size: 11px; }
 .ticket-ai-generating { margin: 0; color: var(--octo-text-muted); font-size: 12px; }
+.ticket-ai-message--permission { width: 100%; max-width: 100%; padding: 0; white-space: normal; }
+.ticket-ai-permission { min-width: 0; padding: 14px; border: 1px solid var(--octo-border); border-radius: 10px; color: var(--octo-text); background: var(--octo-surface-muted); font-size: 12px; line-height: 1.6; }
+.ticket-ai-permission--pending { border-color: #edc56f; background: #fff8e8; }
+.ticket-ai-permission > strong { display: block; font-size: 13px; }
+.ticket-ai-permission p { margin: 6px 0; overflow-wrap: anywhere; }
+.ticket-ai-permission pre { max-height: 220px; overflow: auto; margin: 8px 0; padding: 9px; border-radius: 6px; background: var(--octo-surface); white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11px; }
+.ticket-ai-permission__details { margin: 8px 0; }
+.ticket-ai-permission__details summary { cursor: pointer; overflow-wrap: anywhere; }
+.ticket-ai-permission__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.ticket-ai-permission__actions button { min-height: 34px; padding: 6px 12px; border: 1px solid var(--octo-border); border-radius: 7px; color: var(--octo-text); background: var(--octo-surface); cursor: pointer; font: inherit; font-weight: 650; }
+.ticket-ai-permission__actions .ticket-ai-permission__allow { border-color: var(--octo-brand); color: #fff; background: var(--octo-brand); }
+.ticket-ai-permission__actions button:disabled { cursor: not-allowed; opacity: .55; }
+.ticket-ai-permission__actions button:focus-visible { outline: 2px solid var(--octo-brand); outline-offset: 2px; }
+.ticket-ai-permission [role="alert"] { color: var(--octo-danger); }
 .ticket-ai-drawer__error { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px; border: 1px solid color-mix(in srgb, var(--octo-danger) 35%, var(--octo-surface)); border-radius: 9px; color: var(--octo-danger); background: color-mix(in srgb, var(--octo-danger) 5%, var(--octo-surface)); font-size: 12px; }
 .ticket-ai-drawer__error p { margin: 0; line-height: 1.45; }
 .ticket-ai-drawer__error button { background: #6675d8; }

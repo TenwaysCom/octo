@@ -682,3 +682,11 @@ source: [FE AI Session 生命周期讨论](../docs/tasks/acp/2026-09-06-fe-ai-se
 **Rule:** 评审对话聚合时，先核对 provider 实际发送的事件顺序、ID 可用性与作用域，再定义用户轮次和工具步骤边界，并同时检查流式追加与历史恢复。没有可靠边界时保留连续内容，不靠 ID 名称或 Session 身份推断生命周期。
 
 source: [FE Session 分组任务](../docs/tasks/acp/2026-09-06-fe-session-turn-grouping.md)
+
+## [LRN-20260910-003] approval-review-must-cover-operation-details-and-visible-state
+
+**Context:** 原生 Agent 已接入权限回调和回复接口，不代表用户能在前端看到足够信息作出选择；命令、文件 diff 和通用参数可能使用不同内容结构。
+
+**Rule:** 验收人工审批时按实际工具类型检查申请内容、按钮可见性和选择后果，并同时核对实时流及重开快照。审批界面应展示可核对的操作详情；将“请求已发出”“用户已回复”和“执行已完成”分别验证。
+
+source: [FE Hermes 权限审批](../docs/tasks/acp/2026-09-10-fe-hermes-permission-approval.md)
