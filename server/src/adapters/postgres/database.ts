@@ -7,6 +7,8 @@ import {
   DEFAULT_LARK_BUG_ANALYZE_PROMPT_TEMPLATE,
   DEFAULT_LARK_TICKET_SUPPORT_QA_ANSWER_PROMPT_NOTE,
   DEFAULT_LARK_TICKET_SUPPORT_QA_DOCUMENT_PREVIEW_PROMPT_NOTE,
+  LEGACY_LARK_TICKET_SUPPORT_QA_ANSWER_PROMPT_TEMPLATES,
+  LEGACY_LARK_TICKET_SUPPORT_QA_DOCUMENT_PREVIEW_PROMPT_TEMPLATES,
   DEFAULT_LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_NOTE,
   DEFAULT_LARK_TICKET_SUPPORT_QA_ANSWER_PROMPT_TEMPLATE,
   DEFAULT_LARK_TICKET_SUPPORT_QA_DOCUMENT_PREVIEW_PROMPT_TEMPLATE,
@@ -835,6 +837,8 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
       .execute();
   }
   await migrateLegacyLarkTicketSupportQaSummaryPrompt(db, now);
+  await migrateLegacyLarkTicketSupportQaDocumentPreviewPrompt(db, now);
+  await migrateLegacyLarkTicketSupportQaAnswerPrompt(db, now);
 
   await db.insertInto("workflow_prompts")
     .values({
@@ -1079,6 +1083,36 @@ export async function migrateLegacyLarkTicketSupportQaSummaryPrompt(
     })
     .where("key", "=", LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_KEY)
     .where("prompt", "in", LEGACY_LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_TEMPLATES)
+    .execute();
+}
+
+export async function migrateLegacyLarkTicketSupportQaAnswerPrompt(
+  db: Kysely<DatabaseSchema>,
+  updatedAt: string,
+): Promise<void> {
+  await db.updateTable("workflow_prompts")
+    .set({
+      prompt: DEFAULT_LARK_TICKET_SUPPORT_QA_ANSWER_PROMPT_TEMPLATE,
+      note: DEFAULT_LARK_TICKET_SUPPORT_QA_ANSWER_PROMPT_NOTE,
+      updated_at: updatedAt,
+    })
+    .where("key", "=", LARK_TICKET_SUPPORT_QA_ANSWER_PROMPT_KEY)
+    .where("prompt", "in", LEGACY_LARK_TICKET_SUPPORT_QA_ANSWER_PROMPT_TEMPLATES)
+    .execute();
+}
+
+export async function migrateLegacyLarkTicketSupportQaDocumentPreviewPrompt(
+  db: Kysely<DatabaseSchema>,
+  updatedAt: string,
+): Promise<void> {
+  await db.updateTable("workflow_prompts")
+    .set({
+      prompt: DEFAULT_LARK_TICKET_SUPPORT_QA_DOCUMENT_PREVIEW_PROMPT_TEMPLATE,
+      note: DEFAULT_LARK_TICKET_SUPPORT_QA_DOCUMENT_PREVIEW_PROMPT_NOTE,
+      updated_at: updatedAt,
+    })
+    .where("key", "=", LARK_TICKET_SUPPORT_QA_DOCUMENT_PREVIEW_PROMPT_KEY)
+    .where("prompt", "in", LEGACY_LARK_TICKET_SUPPORT_QA_DOCUMENT_PREVIEW_PROMPT_TEMPLATES)
     .execute();
 }
 

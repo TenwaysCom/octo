@@ -397,7 +397,7 @@ describe("Lark Ticket AI Session service", () => {
               toolCallId: "12:fetch_failed",
               status: "in_progress",
               rawInput: {
-                command: "bash .agents/skills/write-support-qa/scripts/write-support-qa.sh fetch LT-10 --json",
+                command: "bash .agents/skills/write-support-qa/scripts/octo-ticket-evidence.sh fetch LT-10 --json",
               },
             },
           },
@@ -512,7 +512,7 @@ describe("Lark Ticket AI Session service", () => {
           event: "acp.session.update",
           data: { sessionId: "sess_answer", update: {
             sessionUpdate: "tool_call_update", toolCallId: "fetch_answer", status: "in_progress",
-            rawInput: { command: "bash .agents/skills/write-support-qa/scripts/write-support-qa.sh fetch LT-10 --json" },
+            rawInput: { command: "bash .agents/skills/write-support-qa/scripts/octo-ticket-evidence.sh fetch LT-10 --json" },
           } },
         });
         emit({

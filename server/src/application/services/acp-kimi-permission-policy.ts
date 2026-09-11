@@ -6,7 +6,7 @@ import type {
   WriteTextFileRequest,
 } from "@agentclientprotocol/sdk";
 import { constants } from "node:fs";
-import { access, chmod, lstat, mkdir, realpath } from "node:fs/promises";
+import { access, chmod, lstat, mkdir, readFile, realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, extname, isAbsolute, join, relative, resolve } from "node:path";
 import { getAcpKimiPermissionProfile, type AcpKimiPermissionProfileId } from "../../domain/acp-kimi-permission-profile.js";
@@ -21,8 +21,7 @@ const permissionLogger = logger.child({ module: "acp-kimi-permission-policy" });
 const MAX_WRITE_BYTES = 256 * 1024;
 const MAX_TERMINAL_OUTPUT_BYTES = 256 * 1024;
 const TERMINAL_TIMEOUT_MS = 60_000;
-const SUPPORT_QA_SCRIPT = ".agents/skills/write-support-qa/scripts/write-support-qa.sh";
-const SUPPORT_QA_EVAL_SCRIPT = ".agents/skills/eval-support-qa/scripts/eval-support-qa.mjs";
+const SUPPORT_QA_SCRIPT = ".agents/skills/write-support-qa/scripts/octo-ticket-evidence.sh";
 
 export interface AcpKimiPermissionContext {
   actionKey?: string | null;
@@ -132,6 +131,34 @@ export function createAcpKimiPermissionHandler(context: AcpKimiPermissionContext
   };
 }
 
+/** Return an allow-once response only for a fully verified Hermes edit.
+ * Undefined deliberately falls back to the normal interactive/background permission flow. */
+export async function tryAutoApproveAcpHermesEdit(
+  params: RequestPermissionRequest,
+  context: AcpKimiPermissionContext | undefined,
+): Promise<RequestPermissionResponse | undefined> {
+  const edit = extractAcpHermesEdit(params, context);
+  const allowOnce = params.options.find((option) => option.kind === "allow_once");
+  if (!edit || !allowOnce) return undefined;
+
+  const contentLength = Buffer.byteLength(edit.content, "utf8");
+  const allowed = Boolean(resolveContextProfile(context)?.allowWrite && context)
+    && isValidUtf8Text(edit.content)
+    && contentLength <= MAX_WRITE_BYTES
+    && await isAllowedWritePath(edit.path, context!);
+  if (!allowed) {
+    logHermesEditDecision(params, context, edit, false, "write_policy_denied", contentLength);
+    return undefined;
+  }
+  if (edit.tool === "patch" && edit.oldText !== await readFile(edit.path, "utf8").catch(() => undefined)) {
+    logHermesEditDecision(params, context, edit, false, "source_content_changed", contentLength);
+    return undefined;
+  }
+
+  logHermesEditDecision(params, context, edit, true, "safe_structured_edit", contentLength);
+  return { outcome: { outcome: "selected", optionId: allowOnce.optionId } };
+}
+
 export function createAcpKimiClientCapabilityPolicy(
   context: AcpKimiPermissionContext | undefined,
   auditStore: AcpKimiOperationAuditStore = acpKimiOperationAuditStore,
@@ -237,26 +264,13 @@ async function matchTerminalRule(
     const script = await resolveTrustedWorkspaceFile(workspaceDir, SUPPORT_QA_SCRIPT);
     return script ? { executable: "/bin/bash", args: [script, ...tokens.slice(2)], ruleId: "support_qa.fetch" } : undefined;
   }
+  if (program === "bash" && isSupportQaFetchRecordTokens(tokens, context)) {
+    const script = await resolveTrustedWorkspaceFile(workspaceDir, SUPPORT_QA_SCRIPT);
+    return script ? { executable: "/bin/bash", args: [script, ...tokens.slice(2)], ruleId: "support_qa.fetch_record" } : undefined;
+  }
   if (program === "git" && tokens.length === 3 && tokens[1] === "status" && tokens[2] === "--short") {
     const executable = await resolveExecutable("git");
     return executable ? { executable, args: tokens.slice(1), ruleId: "support_qa.repo_status" } : undefined;
-  }
-  if (program === "git" && isAllowedDiffTokens(tokens)) {
-    const executable = await resolveExecutable("git");
-    return executable ? { executable, args: tokens.slice(1), ruleId: "support_qa.repo_diff" } : undefined;
-  }
-  if (context.permissionProfileId !== "support-qa.document.v1") return undefined;
-  if (program === "bash" && await isAllowedDryRunTokens(tokens, context, workspaceDir)) {
-    const script = await resolveTrustedWorkspaceFile(workspaceDir, SUPPORT_QA_SCRIPT);
-    return script ? {
-      executable: "/bin/bash",
-      args: [script, ...tokens.slice(2)],
-      ruleId: tokens[2] === "analysis-update" ? "support_qa.analysis_update_dry_run" : "support_qa.update_dry_run",
-    } : undefined;
-  }
-  if (program === "node" && await isAllowedEvalTokens(tokens, context, workspaceDir)) {
-    const script = await resolveTrustedWorkspaceFile(workspaceDir, SUPPORT_QA_EVAL_SCRIPT);
-    return script ? { executable: process.execPath, args: [script, ...tokens.slice(2)], ruleId: "support_qa.eval" } : undefined;
   }
   return undefined;
 }
@@ -270,52 +284,13 @@ function isSupportQaFetchTokens(tokens: string[], context: Pick<AcpKimiPermissio
     && tokens.length === 5;
 }
 
-function isAllowedDiffTokens(tokens: string[]): boolean {
-  if (tokens.length !== 5 || tokens[1] !== "diff" || tokens[2] !== "--no-ext-diff" || tokens[3] !== "--") return false;
-  const target = tokens[4]?.replaceAll("\\", "/");
-  return target === "docs/support-qa" || Boolean(target?.startsWith("docs/support-qa/") && !target.includes(".."));
-}
-
-async function isAllowedDryRunTokens(
-  tokens: string[],
-  context: AcpKimiPermissionContext,
-  workspaceDir: string,
-): Promise<boolean> {
-  if (basename(tokens[0] ?? "") !== "bash"
-    || tokens[1] !== SUPPORT_QA_SCRIPT
-    || (tokens[2] !== "update" && tokens[2] !== "analysis-update")
-    || tokens[4] !== "--dry-run"
-    || tokens[5] !== "--json"
-    || tokens.length !== 6
-    || !tokens[3]
-    || !context.scratchDir) return false;
-  return Boolean(await resolveTrustedWorkspaceFile(workspaceDir, SUPPORT_QA_SCRIPT)
-    && await isAllowedExistingFile(tokens[3], context.scratchDir, ".json"));
-}
-
-async function isAllowedEvalTokens(tokens: string[], context: AcpKimiPermissionContext, workspaceDir: string): Promise<boolean> {
-  if (basename(tokens[0] ?? "") !== "node"
-    || tokens[1] !== SUPPORT_QA_EVAL_SCRIPT
-    || tokens[2] !== "--ticket-no"
-    || tokens[3] !== context.ticketNumber) return false;
-  let qaCardSeen = false;
-  let jsonSeen = false;
-  for (let index = 4; index < tokens.length; index += 1) {
-    const token = tokens[index]!;
-    if (token === "--qa-card-path") {
-      const card = tokens[++index];
-      if (qaCardSeen || !card || !isAllowedDocumentRelativePath(card, true)
-        || !await isAllowedExistingFile(card, workspaceDir, ".md")) return false;
-      qaCardSeen = true;
-    } else if (token === "--json" && !jsonSeen) {
-      jsonSeen = true;
-    } else {
-      return false;
-    }
-  }
-  return qaCardSeen
-    && Boolean(await resolveTrustedWorkspaceFile(workspaceDir, SUPPORT_QA_EVAL_SCRIPT))
-    && Boolean(await resolveTrustedWorkspaceFile(workspaceDir, "docs/support-qa/faq.md"));
+function isSupportQaFetchRecordTokens(tokens: string[], context: Pick<AcpKimiPermissionContext, "ticketRecordId">): boolean {
+  return basename(tokens[0] ?? "") === "bash"
+    && tokens[1] === SUPPORT_QA_SCRIPT
+    && tokens[2] === "fetch-record"
+    && tokens[3] === context.ticketRecordId
+    && tokens[4] === "--json"
+    && tokens.length === 5;
 }
 
 function normalizeTerminalTokens(command: string, args: string[]): string[] | undefined {
@@ -362,27 +337,90 @@ async function isAllowedReadPath(path: string, context: AcpKimiPermissionContext
   if (!context.workspaceDir) return false;
   const relativePath = await existingRelativePath(path, context.workspaceDir);
   if (!relativePath || isSensitiveRelativePath(relativePath)) return false;
-  return relativePath.startsWith("docs/support-qa/")
+  return relativePath === "docs/llm-wiki" || relativePath.startsWith("docs/llm-wiki/")
     || relativePath.startsWith("docs/ai-dev/lifecycle/")
     || relativePath.startsWith(".agents/skills/query-support-qa/")
-    || relativePath.startsWith(".agents/skills/write-support-qa/")
-    || relativePath.startsWith(".agents/skills/eval-support-qa/");
+    || relativePath.startsWith(".agents/skills/write-support-qa/");
 }
 
 async function isAllowedWritePath(path: string, context: AcpKimiPermissionContext): Promise<boolean> {
   const scratchDir = await resolveContextScratchDir(context);
   if (scratchDir && await isAllowedWritableFile(path, scratchDir)) return true;
-  if (context.permissionProfileId !== "support-qa.document.v1" || !context.workspaceDir) return false;
+  if (!context.workspaceDir) return false;
   const relativePath = await writableRelativePath(path, context.workspaceDir);
-  return Boolean(relativePath && isAllowedDocumentRelativePath(relativePath));
+  if (!relativePath) return false;
+  // query-support-qa knowledge loop is available to both Support-QA profiles;
+  // full wiki authoring stays document-preview-only.
+  if (isAllowedQueryLoopRelativePath(relativePath)) return true;
+  if (context.permissionProfileId !== "support-qa.document.v1") return false;
+  return isAllowedDocumentRelativePath(relativePath);
 }
 
-function isAllowedDocumentRelativePath(path: string, cardOnly = false): boolean {
+function isAllowedQueryLoopRelativePath(path: string): boolean {
   const normalized = path.replaceAll("\\", "/");
   if (normalized.includes("..") || isSensitiveRelativePath(normalized)) return false;
-  const card = normalized.startsWith("docs/support-qa/qa-cards/") && extname(normalized) === ".md";
-  if (cardOnly) return card;
-  return card || /^docs\/support-qa\/indexes\/[^/]+\.md$/.test(normalized) || normalized === "docs/support-qa/faq.md";
+  if (normalized === "docs/llm-wiki/log.md") return true;
+  return /^docs\/llm-wiki\/queries\/[^/]+\.md$/.test(normalized);
+}
+
+function isAllowedDocumentRelativePath(path: string): boolean {
+  const normalized = path.replaceAll("\\", "/");
+  if (normalized.includes("..") || isSensitiveRelativePath(normalized)) return false;
+  if (normalized === "docs/llm-wiki/index.md" || normalized === "docs/llm-wiki/log.md") return true;
+  if (normalized === "docs/llm-wiki/_meta/state.jsonl") return true;
+  if (normalized.startsWith("docs/llm-wiki/raw/transcripts/") && /^ticket-[A-Za-z0-9._-]+\.md$/.test(normalized.split("/").pop() ?? "")) return true;
+  if (normalized.startsWith("docs/llm-wiki/concepts/") && extname(normalized) === ".md") return true;
+  return normalized.startsWith("docs/llm-wiki/entities/") && extname(normalized) === ".md";
+}
+
+type AcpHermesEdit = {
+  tool: "patch" | "write_file";
+  path: string;
+  content: string;
+  oldText?: string;
+};
+
+function extractAcpHermesEdit(
+  params: RequestPermissionRequest,
+  context: AcpKimiPermissionContext | undefined,
+): AcpHermesEdit | undefined {
+  if (params.toolCall.kind !== "edit" || !context?.workspaceDir) return undefined;
+  const rawInput = asRecord(params.toolCall.rawInput);
+  const tool = rawInput?.tool;
+  const args = asRecord(rawInput?.arguments);
+  if ((tool !== "patch" && tool !== "write_file") || !args) return undefined;
+
+  const rawPath = typeof args.path === "string" ? args.path : undefined;
+  const content = params.toolCall.content;
+  const diff = content?.length === 1 ? asRecord(content[0]) : undefined;
+  if (!rawPath || diff?.type !== "diff" || typeof diff.path !== "string" || typeof diff.newText !== "string") return undefined;
+
+  const path = resolveEditPath(rawPath, context.workspaceDir);
+  const diffPath = resolveEditPath(diff.path, context.workspaceDir);
+  if (!path || path !== diffPath) return undefined;
+
+  if (tool === "write_file") {
+    return typeof args.content === "string" && args.content === diff.newText
+      ? { tool, path, content: diff.newText }
+      : undefined;
+  }
+
+  const mode = args.mode ?? "replace";
+  if (mode !== "replace"
+    || typeof args.old_string !== "string"
+    || typeof args.new_string !== "string"
+    || typeof diff.oldText !== "string"
+    || args.replace_all !== undefined && typeof args.replace_all !== "boolean") return undefined;
+  if (!args.old_string.length) return undefined;
+  const parts = diff.oldText.split(args.old_string);
+  if (parts.length < 2 || !args.replace_all && parts.length !== 2) return undefined;
+  if (parts.join(args.new_string) !== diff.newText) return undefined;
+  return { tool, path, content: diff.newText, oldText: diff.oldText };
+}
+
+function resolveEditPath(path: string, workspaceDir: string): string | undefined {
+  if (!path || path.includes("\0")) return undefined;
+  return resolve(isAbsolute(path) ? path : resolve(workspaceDir, path));
 }
 
 async function existingRelativePath(path: string, root: string): Promise<string | undefined> {
@@ -553,4 +591,25 @@ function logCapabilityDecision(
     decision: allowed ? "allow_once" : "cancelled",
     ...details,
   }, "ACP_KIMI_CAPABILITY DECISION");
+}
+
+function logHermesEditDecision(
+  params: RequestPermissionRequest,
+  context: AcpKimiPermissionContext | undefined,
+  edit: AcpHermesEdit,
+  allowed: boolean,
+  reason: string,
+  contentLength: number,
+): void {
+  permissionLogger.info({
+    sessionId: params.sessionId,
+    actionKey: context?.actionKey ?? null,
+    permissionProfileId: context?.permissionProfileId ?? null,
+    permissionProfileVersion: context?.permissionProfileVersion ?? null,
+    toolName: edit.tool,
+    pathScope: describePathScope(edit.path, context),
+    contentLength,
+    decision: allowed ? "allow_once" : "manual_approval",
+    reason,
+  }, "ACP_HERMES_EDIT_PERMISSION DECISION");
 }

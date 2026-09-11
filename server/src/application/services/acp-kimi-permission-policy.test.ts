@@ -6,11 +6,11 @@ import {
   createAcpKimiClientCapabilityPolicy,
   createAcpKimiPermissionHandler,
   ensureAcpKimiScratchDir,
+  tryAutoApproveAcpHermesEdit,
   type AcpKimiPermissionContext,
 } from "./acp-kimi-permission-policy.js";
 
-const FETCH_SCRIPT = ".agents/skills/write-support-qa/scripts/write-support-qa.sh";
-const EVAL_SCRIPT = ".agents/skills/eval-support-qa/scripts/eval-support-qa.mjs";
+const FETCH_SCRIPT = ".agents/skills/write-support-qa/scripts/octo-ticket-evidence.sh";
 
 function permissionRequest(title: string): RequestPermissionRequest {
   return {
@@ -21,6 +21,34 @@ function permissionRequest(title: string): RequestPermissionRequest {
     ],
     toolCall: { toolCallId: "tool_1", title },
   } as RequestPermissionRequest;
+}
+
+function hermesEditRequest(input: {
+  tool: "patch" | "write_file";
+  path: string;
+  oldText?: string | null;
+  newText: string;
+  arguments?: Record<string, unknown>;
+}): RequestPermissionRequest {
+  return {
+    sessionId: "session_1",
+    options: [
+      { optionId: "allow-once", name: "Allow once", kind: "allow_once" },
+      { optionId: "deny", name: "Deny", kind: "reject_once" },
+    ],
+    toolCall: {
+      toolCallId: "edit-approval-1",
+      title: `Approve edit: ${input.path}`,
+      kind: "edit",
+      content: [{ type: "diff", path: input.path, oldText: input.oldText, newText: input.newText }],
+      rawInput: {
+        tool: input.tool,
+        arguments: input.arguments ?? (input.tool === "write_file"
+          ? { path: input.path, content: input.newText }
+          : { path: input.path, mode: "replace", old_string: input.oldText, new_string: input.newText }),
+      },
+    },
+  };
 }
 
 function terminalRequest(command: string, args: string[] = [], cwd?: string): CreateTerminalRequest {
@@ -35,16 +63,24 @@ async function createFixture() {
   const outsideDir = join(root, "outside");
   for (const path of [
     join(workspaceDir, dirname(FETCH_SCRIPT)),
-    join(workspaceDir, dirname(EVAL_SCRIPT)),
-    join(workspaceDir, "docs/support-qa/qa-cards"),
-    join(workspaceDir, "docs/support-qa/indexes"),
+    join(workspaceDir, "docs/llm-wiki/concepts/faq"),
+    join(workspaceDir, "docs/llm-wiki/concepts/cache-refresh"),
+    join(workspaceDir, "docs/llm-wiki/raw/transcripts"),
+    join(workspaceDir, "docs/llm-wiki/entities"),
+    join(workspaceDir, "docs/llm-wiki/entities/group"),
+    join(workspaceDir, "docs/llm-wiki/queries"),
+    join(workspaceDir, "docs/llm-wiki/_meta"),
     outsideDir,
   ]) await mkdir(path, { recursive: true });
   await Promise.all([
     writeFile(join(workspaceDir, FETCH_SCRIPT), "#!/bin/bash\n"),
-    writeFile(join(workspaceDir, EVAL_SCRIPT), ""),
-    writeFile(join(workspaceDir, "docs/support-qa/faq.md"), "faq"),
-    writeFile(join(workspaceDir, "docs/support-qa/qa-cards/TEN-10.md"), "card"),
+    writeFile(join(workspaceDir, "docs/llm-wiki/SCHEMA.md"), "schema"),
+    writeFile(join(workspaceDir, "docs/llm-wiki/index.md"), "index"),
+    writeFile(join(workspaceDir, "docs/llm-wiki/log.md"), "log"),
+    writeFile(join(workspaceDir, "docs/llm-wiki/_meta/state.jsonl"), "{}\n"),
+    writeFile(join(workspaceDir, "docs/llm-wiki/concepts/faq/example.md"), "faq"),
+    writeFile(join(workspaceDir, "docs/llm-wiki/raw/transcripts/ticket-1001.md"), "raw"),
+    writeFile(join(workspaceDir, "docs/llm-wiki/entities/odoo.md"), "entity"),
     writeFile(join(outsideDir, "outside.md"), "outside"),
   ]);
   return { root, workspaceDir, scratchDir, outsideDir, actionRunId };
@@ -98,20 +134,38 @@ describe("acp kimi permission policy", () => {
     }
   });
 
-  it("limits Answer writes to scratch and Document writes to named markdown targets", async () => {
+  it("limits Answer writes to scratch and Document writes to wiki knowledge targets", async () => {
     const fixture = await createFixture();
     try {
       const answer = createAcpKimiClientCapabilityPolicy(context(fixture));
       const document = createAcpKimiClientCapabilityPolicy(context(fixture, "support-qa.document.v1"));
       const scratchFile = join(fixture.scratchDir, "effect-draft.json");
-      const card = join(fixture.workspaceDir, "docs/support-qa/qa-cards/TEN-10.md");
-      const index = join(fixture.workspaceDir, "docs/support-qa/indexes/products.md");
+      const card = join(fixture.workspaceDir, "docs/llm-wiki/concepts/cache-refresh/x.md");
+      const faq = join(fixture.workspaceDir, "docs/llm-wiki/concepts/faq/example.md");
+      const raw = join(fixture.workspaceDir, "docs/llm-wiki/raw/transcripts/ticket-1001.md");
+      const entity = join(fixture.workspaceDir, "docs/llm-wiki/entities/odoo.md");
+      const entityNested = join(fixture.workspaceDir, "docs/llm-wiki/entities/group/odoo.md");
+      const state = join(fixture.workspaceDir, "docs/llm-wiki/_meta/state.jsonl");
+      const wikiIndex = join(fixture.workspaceDir, "docs/llm-wiki/index.md");
 
       await expect(answer.allowsWriteTextFile({ sessionId: "s", path: scratchFile, content: "{}" })).resolves.toBe(true);
       await expect(answer.allowsWriteTextFile({ sessionId: "s", path: card, content: "x" })).resolves.toBe(false);
+      await expect(answer.allowsWriteTextFile({ sessionId: "s", path: join(fixture.workspaceDir, "docs/llm-wiki/queries/2026-09-11-vpn.md"), content: "x" })).resolves.toBe(true);
+      await expect(answer.allowsWriteTextFile({ sessionId: "s", path: join(fixture.workspaceDir, "docs/llm-wiki/log.md"), content: "x" })).resolves.toBe(true);
+      await expect(answer.allowsWriteTextFile({ sessionId: "s", path: join(fixture.workspaceDir, "docs/llm-wiki/queries/nested/x.md"), content: "x" })).resolves.toBe(false);
+      await expect(answer.allowsWriteTextFile({ sessionId: "s", path: join(fixture.workspaceDir, "docs/llm-wiki/index.md"), content: "x" })).resolves.toBe(false);
+      await expect(answer.allowsWriteTextFile({ sessionId: "s", path: join(fixture.workspaceDir, "docs/llm-wiki/_meta/state.jsonl"), content: "{}" })).resolves.toBe(false);
       await expect(document.allowsWriteTextFile({ sessionId: "s", path: card, content: "x" })).resolves.toBe(true);
-      await expect(document.allowsWriteTextFile({ sessionId: "s", path: index, content: "x" })).resolves.toBe(true);
-      await expect(document.allowsWriteTextFile({ sessionId: "s", path: join(fixture.workspaceDir, "docs/support-qa/knowledge-index.jsonl"), content: "{}" })).resolves.toBe(false);
+      await expect(document.allowsWriteTextFile({ sessionId: "s", path: faq, content: "x" })).resolves.toBe(true);
+      await expect(document.allowsWriteTextFile({ sessionId: "s", path: raw, content: "x" })).resolves.toBe(true);
+      await expect(document.allowsWriteTextFile({ sessionId: "s", path: entity, content: "x" })).resolves.toBe(true);
+      await expect(document.allowsWriteTextFile({ sessionId: "s", path: entityNested, content: "x" })).resolves.toBe(true);
+      await expect(document.allowsWriteTextFile({ sessionId: "s", path: state, content: "{}\n" })).resolves.toBe(true);
+      await expect(document.allowsWriteTextFile({ sessionId: "s", path: wikiIndex, content: "x" })).resolves.toBe(true);
+      await expect(document.allowsWriteTextFile({ sessionId: "s", path: `${fixture.workspaceDir}/docs/llm-wiki/../llm-wiki-escape.md`, content: "x" })).resolves.toBe(false);
+      await expect(document.allowsWriteTextFile({ sessionId: "s", path: join(fixture.workspaceDir, "docs/llm-wiki/SCHEMA.md"), content: "x" })).resolves.toBe(false);
+      await expect(document.allowsWriteTextFile({ sessionId: "s", path: join(fixture.workspaceDir, "docs/llm-wiki/_meta/other.jsonl"), content: "x" })).resolves.toBe(false);
+      await expect(document.allowsWriteTextFile({ sessionId: "s", path: join(fixture.workspaceDir, "docs/llm-wiki/knowledge-index.jsonl"), content: "{}" })).resolves.toBe(false);
       await expect(document.allowsWriteTextFile({ sessionId: "s", path: join(fixture.scratchDir, "missing", "x.json"), content: "{}" })).resolves.toBe(false);
       await expect(document.allowsWriteTextFile({ sessionId: "s", path: join(fixture.scratchDir, ".env.local"), content: "secret" })).resolves.toBe(false);
       await expect(document.allowsWriteTextFile({ sessionId: "s", path: scratchFile, content: "bad\0text" })).resolves.toBe(false);
@@ -122,7 +176,7 @@ describe("acp kimi permission policy", () => {
     }
   });
 
-  it("rejects traversal and symlink escapes for reads and writes", async () => {
+  it("allows reading the wiki knowledge base and rejects traversal and symlink escapes", async () => {
     const fixture = await createFixture();
     try {
       const outsideFile = join(fixture.outsideDir, "outside.md");
@@ -135,7 +189,10 @@ describe("acp kimi permission policy", () => {
       const policy = createAcpKimiClientCapabilityPolicy(context(fixture, "support-qa.document.v1"));
       await expect(policy.allowsReadTextFile({ sessionId: "s", path: link })).resolves.toBe(false);
       await expect(policy.allowsWriteTextFile({ sessionId: "s", path: link, content: "changed" })).resolves.toBe(false);
-      await expect(policy.allowsReadTextFile({ sessionId: "s", path: join(fixture.workspaceDir, "docs/support-qa/qa-cards/TEN-10.md") })).resolves.toBe(true);
+      await expect(policy.allowsReadTextFile({ sessionId: "s", path: join(fixture.workspaceDir, "docs/llm-wiki/SCHEMA.md") })).resolves.toBe(true);
+      await expect(policy.allowsReadTextFile({ sessionId: "s", path: join(fixture.workspaceDir, "docs/llm-wiki/index.md") })).resolves.toBe(true);
+      await expect(policy.allowsReadTextFile({ sessionId: "s", path: join(fixture.workspaceDir, "docs/llm-wiki/_meta/state.jsonl") })).resolves.toBe(true);
+      await expect(policy.allowsReadTextFile({ sessionId: "s", path: join(fixture.workspaceDir, "docs/llm-wiki/concepts/faq/example.md") })).resolves.toBe(true);
       await expect(policy.allowsReadTextFile({ sessionId: "s", path: outsideFile })).resolves.toBe(false);
       const linkedRootPolicy = createAcpKimiClientCapabilityPolicy({ ...context(fixture), scratchDir: scratchLink });
       await expect(linkedRootPolicy.allowsWriteTextFile({ sessionId: "s", path: join(scratchLink, "escape.json"), content: "{}" })).resolves.toBe(false);
@@ -145,7 +202,76 @@ describe("acp kimi permission policy", () => {
     }
   });
 
-  it("matches only context-bound terminal argv and rejects shell injection and external effects", async () => {
+  it("auto-approves only structured Hermes write_file and replace patches accepted by the write policy", async () => {
+    const fixture = await createFixture();
+    try {
+      const document = context(fixture, "support-qa.document.v1");
+      const entity = join(fixture.workspaceDir, "docs/llm-wiki/entities/odoo.md");
+      const newConcept = join(fixture.workspaceDir, "docs/llm-wiki/concepts/new.md");
+
+      await expect(tryAutoApproveAcpHermesEdit(hermesEditRequest({
+        tool: "patch", path: entity, oldText: "entity", newText: "updated entity",
+      }), document)).resolves.toEqual({ outcome: { outcome: "selected", optionId: "allow-once" } });
+      await expect(tryAutoApproveAcpHermesEdit(hermesEditRequest({
+        tool: "write_file", path: newConcept, oldText: null, newText: "new concept",
+      }), document)).resolves.toEqual({ outcome: { outcome: "selected", optionId: "allow-once" } });
+
+      const answer = context(fixture);
+      const query = join(fixture.workspaceDir, "docs/llm-wiki/queries/2026-09-11-vpn.md");
+      await expect(tryAutoApproveAcpHermesEdit(hermesEditRequest({
+        tool: "write_file", path: query, oldText: null, newText: "query",
+      }), answer)).resolves.toEqual({ outcome: { outcome: "selected", optionId: "allow-once" } });
+    } finally {
+      await cleanupFixture(fixture);
+    }
+  });
+
+  it("leaves unsafe, stale or unverifiable Hermes edits for normal approval", async () => {
+    const fixture = await createFixture();
+    try {
+      const document = context(fixture, "support-qa.document.v1");
+      const entity = join(fixture.workspaceDir, "docs/llm-wiki/entities/odoo.md");
+      const outside = join(fixture.outsideDir, "outside.md");
+      const safePatch = hermesEditRequest({ tool: "patch", path: entity, oldText: "entity", newText: "updated" });
+
+      await expect(tryAutoApproveAcpHermesEdit(hermesEditRequest({
+        tool: "patch", path: entity, oldText: "entity", newText: "displayed",
+        arguments: { path: entity, old_string: "entity", new_string: "different" },
+      }), document)).resolves.toBeUndefined();
+      await expect(tryAutoApproveAcpHermesEdit(hermesEditRequest({
+        tool: "patch", path: outside, oldText: "outside", newText: "changed",
+      }), document)).resolves.toBeUndefined();
+      await expect(tryAutoApproveAcpHermesEdit(hermesEditRequest({
+        tool: "patch", path: entity, oldText: "stale", newText: "changed",
+      }), document)).resolves.toBeUndefined();
+      await expect(tryAutoApproveAcpHermesEdit({
+        ...safePatch,
+        toolCall: { ...safePatch.toolCall, content: [{ type: "diff", path: outside, oldText: "entity", newText: "updated" }] },
+      }, document)).resolves.toBeUndefined();
+      await expect(tryAutoApproveAcpHermesEdit(hermesEditRequest({
+        tool: "write_file",
+        path: entity,
+        oldText: "entity",
+        newText: "displayed",
+        arguments: { path: entity, content: "different" },
+      }), document)).resolves.toBeUndefined();
+      await expect(tryAutoApproveAcpHermesEdit(hermesEditRequest({
+        tool: "patch",
+        path: entity,
+        oldText: "entity",
+        newText: "*** Begin Patch\n*** Update File: entity\n*** End Patch",
+        arguments: { mode: "patch", patch: "*** Begin Patch\n*** Update File: entity\n*** End Patch" },
+      }), document)).resolves.toBeUndefined();
+      await expect(tryAutoApproveAcpHermesEdit({
+        ...safePatch,
+        options: [{ optionId: "deny", name: "Deny", kind: "reject_once" }],
+      }, document)).resolves.toBeUndefined();
+    } finally {
+      await cleanupFixture(fixture);
+    }
+  });
+
+  it("matches only read-only evidence terminal argv and rejects shell injection and v1 write commands", async () => {
     const fixture = await createFixture();
     try {
       const answer = createAcpKimiClientCapabilityPolicy(context(fixture));
@@ -156,6 +282,9 @@ describe("acp kimi permission policy", () => {
         args: expect.arrayContaining(["fetch", "TEN-10", "--json"]),
         env: { OCTO_SUPPORT_QA_ACTION_DIR: fixture.scratchDir },
       });
+      await expect(answer.authorizeTerminal(terminalRequest("/bin/bash", ["-lc", `bash ${FETCH_SCRIPT} fetch-record rec_1 --json`], fixture.workspaceDir))).resolves.toMatchObject({
+        ruleId: "support_qa.fetch_record",
+      });
       await expect(answer.authorizeTerminal(terminalRequest("bash", [FETCH_SCRIPT, "fetch", "TEN-11", "--json"], fixture.workspaceDir))).resolves.toBeUndefined();
       for (const command of [`${fetch}; id`, `${fetch} | cat`, `${fetch} > /tmp/x`, "curl https://example.com", "lark-cli record-upsert", "id"]) {
         await expect(answer.authorizeTerminal(terminalRequest("/bin/bash", ["-lc", command], fixture.workspaceDir))).resolves.toBeUndefined();
@@ -165,12 +294,10 @@ describe("acp kimi permission policy", () => {
 
       const updateFile = join(fixture.scratchDir, "update.json");
       await writeFile(updateFile, "{}");
-      await expect(document.authorizeTerminal(terminalRequest("bash", [FETCH_SCRIPT, "update", updateFile, "--dry-run", "--json"], fixture.workspaceDir))).resolves.toMatchObject({ ruleId: "support_qa.update_dry_run" });
+      // v1 write paths are gone: update / analysis-update / eval are never authorized
+      await expect(document.authorizeTerminal(terminalRequest("bash", [FETCH_SCRIPT, "update", updateFile, "--dry-run", "--json"], fixture.workspaceDir))).resolves.toBeUndefined();
       await expect(document.authorizeTerminal(terminalRequest("bash", [FETCH_SCRIPT, "update", updateFile, "--json"], fixture.workspaceDir))).resolves.toBeUndefined();
-      await expect(document.authorizeTerminal(terminalRequest("node", [EVAL_SCRIPT, "--ticket-no", "TEN-10", "--qa-card-path", "docs/support-qa/qa-cards/TEN-10.md", "--json"], fixture.workspaceDir))).resolves.toMatchObject({ ruleId: "support_qa.eval" });
-      await expect(document.authorizeTerminal(terminalRequest("node", [EVAL_SCRIPT, "--ticket-no", "TEN-10", "--json"], fixture.workspaceDir))).resolves.toBeUndefined();
-      await expect(document.authorizeTerminal(terminalRequest("node", [EVAL_SCRIPT, "--ticket-no", "TEN-10", "--writeback"], fixture.workspaceDir))).resolves.toBeUndefined();
-      await expect(document.authorizeTerminal(terminalRequest("node", [EVAL_SCRIPT, "--ticket-no", "TEN-10", "--allow-external-ai"], fixture.workspaceDir))).resolves.toBeUndefined();
+      await expect(document.authorizeTerminal(terminalRequest("node", [".agents/skills/eval-support-qa/scripts/eval-support-qa.mjs", "--ticket-no", "TEN-10", "--qa-card-path", "docs/llm-wiki/concepts/x.md", "--json"], fixture.workspaceDir))).resolves.toBeUndefined();
     } finally {
       await cleanupFixture(fixture);
     }

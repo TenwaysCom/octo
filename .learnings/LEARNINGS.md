@@ -683,6 +683,14 @@ source: [FE AI Session 生命周期讨论](../docs/tasks/acp/2026-09-06-fe-ai-se
 
 source: [FE Session 分组任务](../docs/tasks/acp/2026-09-06-fe-session-turn-grouping.md)
 
+## [LRN-20260909-001] edit-auto-approval-requires-structured-payload-agreement
+
+**Context:** 自动批准 Agent 编辑时，路径标题或单独一份 diff 都不能证明即将执行的工具参数与受控写入一致；参见 [ERR-20260909-001](./ERRORS.md#err-20260909-001--hermes-安全编辑等待-ui-审批后过期)。
+
+**Rule:** 编辑免批必须同时绑定结构化工具名、raw arguments、唯一 diff、canonical path 和最终内容策略；只给单次授权。任何不一致、无法还原最终内容或版本化 profile 不匹配都回退人工审批，不能按标题或目录前缀直接放行。
+
+source: [Hermes ACP v6 安全编辑自动批准](../docs/tasks/acp/2026-09-05-hermes-acp-integration.md#v6-support-qa-安全编辑自动批准2026-09-09)
+
 ## [LRN-20260910-001] user-service-migration-must-cover-all-startup-paths
 
 **Context:** 将用户目录中的服务迁移给另一用户和进程管理器时，目录副本可能仍包含旧用户绝对路径、后台启动包装脚本及原用户的定时入口。

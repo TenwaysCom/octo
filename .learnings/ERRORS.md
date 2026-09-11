@@ -741,6 +741,7 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Root cause:** 托管沙箱禁止访问本机代理 socket，并限制 tsx IPC/数据库隧道所需的进程通信；这些错误发生在到达 Meegle 或 PostgreSQL 之前。
 - **Verified fix:** 使用获批的沙箱外只读执行重新运行精确命令；CLI 返回 authenticated，PostgreSQL 查询只输出脱敏后的同步运行错误摘要。
 - **Recurrence:** 沙箱内读取 PM2 状态又因 `.pm2/*.sock` 权限与只读 `pm2.log` 失败；使用获批的精确 `pm2 status/jlist` 只读命令确认 staging API/Worker 仍加载旧 build。
+- **Recurrence:** Hermes ACP loopback 协议测试在沙箱内绑定 `127.0.0.1` 报 `listen EPERM`；同一测试获批在沙箱外运行后通过，不能把该失败归因于 Hermes 或审批实现。
 
 ### ERR-20260903-004 — Inline tsx regex broke outer shell quoting
 
@@ -801,6 +802,11 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Fix:** Node 26 默认实验性 Web Storage getter 在未配置持久化文件时返回 `undefined`，并遮蔽 Vitest/jsdom 注入；使用 `NODE_OPTIONS=--no-experimental-webstorage` 运行现有套件。
 - **source:** [Feature 分支合并冲突处理](../docs/tasks/engineering-ops/2026-09-06-feature-branch-merge-conflict-resolution.md)
 
+### ERR-20260909-001 — Hermes 安全编辑等待 UI 审批后过期
+
+- **Error:** Support-QA Document 对 allowlisted `account-move.md` 发出 `Approve edit`，但 Octo 在 50 秒内未收到审批回复，最终报“工具审批已过期，本轮已终止，请重新执行”。
+- **Fix:** 对 Hermes 结构化 `patch`/`write_file` 请求校验 raw tool/arguments、唯一 diff、canonical path、最终 UTF-8 内容、大小和版本化 Support-QA 写策略；全部通过时只自动返回本次 `allow_once`，无法验证或越界时仍进入人工审批。
+- **source:** [Hermes ACP v6 安全编辑自动批准](../docs/tasks/acp/2026-09-05-hermes-acp-integration.md#v6-support-qa-安全编辑自动批准2026-09-09)
 ### ERR-20260910-001 — PM2 监听运行日志导致连续重启
 
 - **Error:** PM2 反复记录 `Change detected on path logs/app.2026-09-10.1.log for app octo-server-staging - restarting`，进程随后以 code 0 / SIGINT 退出。

@@ -2,6 +2,9 @@ import {
   createAcpKimiProxyService,
   type AcpKimiProxyServiceDeps,
 } from "./acp-kimi-proxy.service.js";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 function createProxyDeps(): Required<
   Pick<AcpKimiProxyServiceDeps, "sessionRegistry" | "ownershipStore">
@@ -193,6 +196,51 @@ describe("acp kimi proxy service", () => {
 });
 
 describe("Hermes permission terminal states", () => {
+  it("auto-approves a structured safe edit without emitting an interactive permission request", async () => {
+    const root = await mkdtemp(join(tmpdir(), "octo-hermes-safe-edit-"));
+    const entity = join(root, "docs/llm-wiki/entities/account-move.md");
+    await mkdir(join(root, "docs/llm-wiki/entities"), { recursive: true });
+    await writeFile(entity, "before");
+    try {
+      let permissionResponse: unknown;
+      const runtime = {
+        sessionId: "public", agentSessionId: "native", agentProvider: "hermes_acp" as const, close: vi.fn(),
+        prompt: vi.fn(async ({ emit, permissionHandler }) => {
+          permissionResponse = await permissionHandler({
+            sessionId: "native",
+            options: [{ optionId: "allow_once", name: "Allow edit", kind: "allow_once" }, { optionId: "deny", name: "Deny", kind: "reject_once" }],
+            toolCall: {
+              toolCallId: "edit-approval-1", title: `Approve edit: ${entity}`, kind: "edit", status: "pending",
+              content: [{ type: "diff", path: entity, oldText: "before", newText: "after" }],
+              rawInput: { tool: "patch", arguments: { path: entity, mode: "replace", old_string: "before", new_string: "after" } },
+            },
+          });
+          emit({ event: "acp.session.update", data: { sessionId: "public", update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "Updated." } } } });
+          return { stopReason: "end_turn" };
+        }),
+      };
+      const deps = createProxyDeps();
+      const service = createAcpKimiProxyService({ ...deps, createSessionRuntime: vi.fn().mockResolvedValue(runtime) });
+      const events: Array<{ event: string }> = [];
+
+      await service.chat({
+        agentProvider: "hermes_acp", operatorLarkId: "ou_1", message: "update", actionRunId: "run-safe-edit",
+        permissionContext: {
+          actionKey: "lark-ticket-support-qa-document-preview",
+          permissionProfileId: "support-qa.document.v1",
+          permissionProfileVersion: "1",
+          workspaceDir: root,
+          actionRunId: "run-safe-edit",
+        },
+      }, (event) => events.push(event));
+
+      expect(permissionResponse).toEqual({ outcome: { outcome: "selected", optionId: "allow_once" } });
+      expect(events.some((event) => event.event === "acp.permission.requested")).toBe(false);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it.each(["", "   \n"])("rejects a Hermes end_turn without an answer instead of emitting done: %j", async (text) => {
     const deps = createProxyDeps();
     deps.ownershipStore.updateRun = vi.fn();

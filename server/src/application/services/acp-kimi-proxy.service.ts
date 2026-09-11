@@ -23,6 +23,7 @@ import {
   buildAcpKimiScratchDir,
   createAcpKimiClientCapabilityPolicy,
   createAcpKimiPermissionHandler,
+  tryAutoApproveAcpHermesEdit,
   type AcpKimiPermissionContext,
 } from "./acp-kimi-permission-policy.js";
 import {
@@ -275,7 +276,10 @@ export function createAcpKimiProxyService(
             emit(event);
           },
           signal: abort.signal,
-          ...(agentProvider === "hermes_acp" ? { permissionHandler: permissionRun.request } : {}),
+          ...(agentProvider === "hermes_acp" ? {
+            permissionHandler: async (params) => await tryAutoApproveAcpHermesEdit(params, session.permissionContext)
+              ?? permissionRun.request(params),
+          } : {}),
         });
         permissionRun.assertCompleted();
         if (agentProvider === "hermes_acp" && promptResult.stopReason !== "end_turn") {

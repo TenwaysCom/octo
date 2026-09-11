@@ -2,9 +2,9 @@
 title: "Hermes ACP 接入改造"
 module: acp
 status: in_progress
-requirement_version: 5
+requirement_version: 6
 created_on: 2026-09-05
-updated_on: 2026-09-06
+updated_on: 2026-09-09
 closed_on: null
 owner: TBD
 related:
@@ -17,9 +17,21 @@ related:
 
 # Hermes ACP 接入改造
 
-## v5 已确认设计
+## v6 Support-QA 安全编辑自动批准（2026-09-09）
 
-2026-09-06 用户确认逐文件设计“设计没问题”，随后要求先将设计落盘。本节是当前目标、方案及验收的有效版本；下方 v2–v4 方案均为 **superseded**，保留用于追溯，不作为当前实施和部署依据。
+用户确认当前原生 Shell 风险审批行为可以保留，并授权处理 Support-QA 安全目录内的 `patch`、`write_file` 自动放行。本版本只收紧编辑审批体验，不改变 Terminal、`execute_code`、外部写回或其他 action 的权限。
+
+- Octo 仅识别 Hermes 编辑请求中的结构化 `rawInput.tool` 和 `rawInput.arguments`，不依赖可伪造的标题。
+- `write_file` 要求 raw content 与唯一 ACP diff 的 `newText` 一致；`patch` 仅自动批准 Hermes 默认的单文件 `replace` mode，要求 raw path、diff path 和当前源文件内容一致。
+- 最终内容继续复用现有版本化 Support-QA profile：UTF-8、最大 256 KiB、canonical root、父目录 realpath、symlink、敏感文件名和具体 wiki 路径规则全部通过后，只返回本次 `allow_once`。
+- V4A/multi-file patch、参数/diff 不一致、源文件已变化、越界路径、未知 profile 或没有 `allow_once` option 的请求保持原生人工审批；不会因为自动判定失败而扩大权限。
+- 当前 Document 安全目标包括既有策略允许的 `docs/llm-wiki/index.md`、`log.md`、`_meta/state.jsonl`、`raw/transcripts/ticket-*.md`、`concepts/**/*.md` 与 `entities/**/*.md`；Answer 只保留其 scratch、一级 `queries/*.md` 与 `log.md` 范围。
+
+本次真实故障中的 `account-move.md` 调用未显式传 `mode`，Hermes 按 `replace` 处理，属于上述可自动验证路径。原生 Terminal 和 `execute_code` 的直接文件副作用仍不受本规则限制，也不在本次改动范围。
+
+## v5 已确认设计（v6 仅替代安全编辑审批部分）
+
+2026-09-06 用户确认逐文件设计“设计没问题”，随后要求先将设计落盘。本节仍是其他 Hermes 接入范围的基线；其中“所有原生编辑均人工审批”和“Document 多位置待定”已由上方 v6 替代。下方 v2–v4 方案均为 **superseded**，保留用于追溯，不作为当前实施和部署依据。
 
 **当前实施授权（2026-09-06）：** 用户要求实现本任务，已从设计落盘进入 v5 代码改造与本地验证。真实 Kimi/Hermes 配置、数据库迁移执行、业务命令和部署仍未执行。Quick Actions 命令逐条核查保持暂停；`script execution via -e/-c flag` 只是能力示例，没有加入实际永久授权。
 
@@ -34,7 +46,7 @@ related:
 
 **原生协议发现：** 本机 Hermes 0.14 对不存在的 session/load 返回 None，但 Python SDK 将它归一化为空对象。Hermes adapter 因此先通过原生 session/list 验证存在性，找不到时返回 `ACP_SESSION_NOT_FOUND`。原生模型循环的部分异常仍被上游转成文本加 end_turn；v5 不再用补丁改写该逻辑，也不以文本匹配冒充结构化错误。权限拒绝/过期/后台失败由 Octo 独立终态控制，其他真实模型失败方式仍是业务验收边界。
 
-**尚未完成：** 最终运行环境、Document 多位置与 Terminal 间接写入的隔离仍待确定；本轮已向用户询问环境和允许目录，尚未取得答复。未执行真实模型、Ticket Answer/Document、Sprint 或外部写回/readback，未执行真实数据库迁移和部署。旧补丁文件已停止生产引用，按本任务第 4 步保留，待文件边界与原生业务替代路径验证后删除。
+**v5 当时尚未完成：** 最终运行环境、Document 多位置与 Terminal 间接写入的隔离仍待确定。v6 已为结构化 `patch`/`write_file` 接入具体多位置策略；Terminal/`execute_code` 间接写入仍保持原生行为。真实 Ticket Answer/Document、Sprint、外部写回/readback 和部署仍未执行。旧补丁文件已停止生产引用，按本任务第 4 步保留，待原生业务替代路径验证后删除。
 
 ### 目标与已确认边界
 
@@ -173,13 +185,14 @@ Ticket 服务已有聊天快照准备，Answer 已有已批准知识检索。v5 
 - [x] provider/native session 映射、兼容 schema 及历史恢复验证通过（pg-mem；真实 migration 未执行）。
 - [x] Quick Actions 审批与后台权限错误终态验证通过（服务/接口/FE 状态与原生协议测试；真实页面操作验收未执行）。
 - [x] 材料准备取代强制 fetch 账本，缺失或身份不符时在调用模型前失败；评论来源缺口单独记录。
-- [ ] 所需可写位置明确并验证；Document 多位置和间接写入未解决前不宣称路径隔离完成。
+- [x] Hermes 结构化 `patch`/`write_file` 的 Support-QA 多位置范围已明确并通过自动化验证。
+- [x] Terminal/`execute_code` 间接写入按用户确认保留原生行为；明确不宣称其受 v6 编辑 allowlist 隔离。
 - [ ] 原生真实 Ticket Answer/Document 及 Sprint 业务验收完成，保留发布确认/readback。
 - [x] Server/FE/Extension 包级检查及当前代码文档同步完成。
 - [ ] 替代路径验证后删除补丁链。
 - [ ] 部署节点及实际运行验收完成。
 
-任务保持 `in_progress`：v5 代码与本地检查已实施，文件隔离、真实业务验收、补丁文件删除及部署仍待完成。具体 Quick Actions allowlist 留待后续，本次不扩充授权。
+任务保持 `in_progress`：v6 安全编辑自动批准与本地检查已实施；真实业务验收、补丁文件删除及部署仍待完成。
 
 ## v4 权限配置草案
 
@@ -360,11 +373,19 @@ Answer / Document 仍要求当前 Session / action run 的 `support_qa.fetch` �
 | 2026-09-06 | v5 | in_progress | 用户确认原生风险审批和逐文件设计，要求先落盘。记录原生启动、会话元数据、共用审批、材料准备及补丁退出计划，标记旧方案 superseded。 | 仅更新文档和相关索引；未继续命令逐条核查，未应用 allowlist，未改运行代码、配置或数据库。 |
 | 2026-09-06 | v5 | in_progress | 用户要求实施；生产路径改为官方 ACP，持久化 provider/native ID，接入共用审批与创建阶段业务关联，替换 fetch 审计门槛为材料校验。原生进程、持久化兼容、审批终态和包级验证见下表。 | 未修改真实配置、执行数据库迁移或部署；文件隔离、真实业务和补丁删除仍待完成。 |
 | 2026-09-06 | v5 | in_progress | 开发库两列幂等迁移及读回完成；实测定位模型 401 被原生空 end_turn 隐藏，补上空结果失败、页面错误与重试，修正两条误标完成会话。 | 两个真实 Quick Actions 已验证失败可见及持久化；认证修复与成功生成尚未通过。 |
+| 2026-09-09 | v6 | in_progress | Hermes 结构化 `write_file` 与默认 replace `patch` 已接入既有 Support-QA 写策略；安全编辑返回 `allow_once`，其余请求仍进入共用审批。 | 自动化验证已完成；待真实 Document Quick Action 确认不再出现安全路径编辑审批。 |
+
+## 2026-09-11 提交复核
+
+本轮按用户要求提交剩余实现：Support-QA Answer/Document 的提示词及文件策略迁移至 llm-wiki，取证脚本改为 octo-ticket-evidence.sh 并支持绑定当前记录的 fetch-record；旧默认 Prompt 仅在内容精确匹配时自动迁移，自定义内容不覆盖。Document 不再生成旧 Ticket AI 写回草稿，Answer 的确认反馈流程保留。
+
+复核发现 replace patch 的参数与展示 diff 未核对：现由原文和替换参数重建结果，结果不一致、空匹配串或非 replace_all 的多重匹配均回退原生审批；增加伪造替换内容回归。修复后 Server 全量811通过、1跳过，构建与差异检查通过。此为自动化验证，不代表真实 Hermes 编辑、业务写回或部署已验收；任务保持 in_progress。
 
 ## 验证证据
 
 | 检查 | 结果 | 证据与边界 |
 | --- | --- | --- |
+| v6 Hermes 安全编辑 / Server 全量与 build | 通过 | 定向权限策略、proxy 接线和原审批服务 25 项通过；全量 155 个文件、775 项通过，1 个可选 Hermes 进程协议测试在全量入口跳过；该协议测试使用当前安装 Hermes 与 loopback 模型桩单独重跑 1/1 通过；TypeScript build 通过。覆盖安全 patch/write、Answer query、越界、stale source、diff 欺骗、V4A patch 与缺少 allow-once；未执行真实 Hermes 文件写入。协议测试首次在沙箱内因 `listen EPERM` 未启动，获批在沙箱外执行后通过。 |
 | v5 空结果回归 / Server 全量 | 通过 | 先验证 2 个空输出用例在旧逻辑失败，再修复至定向 10 / 10；全量 151 个文件、749 项通过，1 项可选协议测试跳过，Server build 通过。覆盖空白、仅思考与正常文本，以及失败状态、清理和不发送 done。 |
 | v5 排障 FE 测试 / build | 通过 | 152 / 152，build 通过；新增 HTTP 200 SSE 携带 ACP_EMPTY_RESULT 时错误保留、不产生 done 的回归。Chrome 实测两个按钮，均显示执行未完成、具体错误和重新执行；失败状态由开发库读回确认。 |
 | v5 Server 全量 / build | 通过 | `pnpm --dir server test`：151 个文件、746 项通过，1 项可选协议测试默认跳过并另行启用验证；`pnpm --dir server build` 通过。覆盖审批身份/归属/选项、过期/取消/后台终态、失败写库异常仍清理运行时、创建阶段关联与并发保护、材料缺失和身份不符。 |

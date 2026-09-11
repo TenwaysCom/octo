@@ -327,11 +327,23 @@ export const LEGACY_LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_TEMPLATES = [
 结构化分析必须使用固定快照中的 Message ID 作为 evidenceMessageIds，明确区分事实和推断。不得在回复正文输出 JSON，不得创建知识文档、回复 Ticket、修改 Lark Base 或执行任何未被当前请求明确允许的命令。只有受控 \`analysis-update\` 成功后，才能返回简洁中文问题总结。`,
 ] as const;
 
+export const LEGACY_LARK_TICKET_SUPPORT_QA_ANSWER_PROMPT_TEMPLATES = [
+  `${LARK_TICKET_SUPPORT_QA_PROMPT_PREFIX}
+请使用该 Skill 拉取所需证据，先给出 intent、风险与缺失信息，再形成可直接回复的答案草稿。草稿必须引用 Ticket 上下文内的“Approved internal knowledge evidence”中的 source_ref；没有检索证据时不得编造文档或历史案例。未确认事实必须标注待确认。涉及权限、数据修改、部署或外部写入时只给出升级建议；不要写入外部系统。`,
+] as const;
+
 export const DEFAULT_LARK_TICKET_SUPPORT_QA_ANSWER_PROMPT_TEMPLATE = `${LARK_TICKET_SUPPORT_QA_PROMPT_PREFIX}
-请使用该 Skill 拉取所需证据，先给出 intent、风险与缺失信息，再形成可直接回复的答案草稿。草稿必须引用 Ticket 上下文内的“Approved internal knowledge evidence”中的 source_ref；没有检索证据时不得编造文档或历史案例。未确认事实必须标注待确认。涉及权限、数据修改、部署或外部写入时只给出升级建议；不要写入外部系统。`;
+按该 Skill（query-support-qa v2.1）的读取顺序检索 docs/llm-wiki 知识库：FAQ → QA Card → entities → raw 证据，先给出 intent、风险与缺失信息，再按 answer_ready / historical_candidate / needs_followup / no_safe_match 四种结果状态之一形成可直接回复的答案草稿。命中结果也要与 Server 提供的 “Approved internal knowledge evidence” 交叉核对；没有检索证据时不得编造文档或历史案例。未确认事实必须标注待确认。涉及权限、数据修改、部署或外部写入时只给出升级建议。
+
+写通道边界：回答完成后允许执行 Skill 的 Knowledge-loop——把综合回答写入 docs/llm-wiki/queries/、在 docs/llm-wiki/log.md 追加查询记录与缺口登记；除此之外不得创建或修改 QA Card / FAQ / index。用户反馈的 Lark Base 写回必须走 Octo 确认层（写入 scratch 的 effect-draft.json），禁止直接调用 lark-cli 或任何 Lark 写命令。`;
+
+export const LEGACY_LARK_TICKET_SUPPORT_QA_DOCUMENT_PREVIEW_PROMPT_TEMPLATES = [
+  `${LARK_TICKET_SUPPORT_QA_PROMPT_PREFIX}
+仅基于已确认的 intent、结果、质量问题和证据生成 Support-QA 文档草稿。草稿不是已发布知识；仅在当前权限允许的范围内执行；不得宣称未被工具确认的写入。`,
+] as const;
 
 export const DEFAULT_LARK_TICKET_SUPPORT_QA_DOCUMENT_PREVIEW_PROMPT_TEMPLATE = `${LARK_TICKET_SUPPORT_QA_PROMPT_PREFIX}
-仅基于已确认的 intent、结果、质量问题和证据生成 Support-QA 文档草稿。草稿不是已发布知识；仅在当前权限允许的范围内执行；不得宣称未被工具确认的写入。`;
+按该 Skill 的 v2 流程把当前 Ticket 蒸馏进 docs/llm-wiki 知识库：先落 raw 快照，再按漏斗判定（QA Card / FAQ / skip），以簇为单位写作并完成 entities、index、log、_meta/state.jsonl 的联动更新。所有判定与写作以 Skill 和 docs/llm-wiki/SCHEMA.md 为准；本轮为草稿，status 保持 draft，不做任何对外发布或 Lark/Octo 回写，不得宣称未被工具确认的写入。`;
 
 export const WIKI_QA_PROMPTS = {
   extract: {

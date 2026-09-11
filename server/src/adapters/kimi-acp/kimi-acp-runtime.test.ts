@@ -15,7 +15,7 @@ import {
 } from "../../application/services/acp-kimi-permission-policy.js";
 import { createInMemoryAcpKimiOperationAuditStore } from "../../application/services/acp-kimi-operation-audit.js";
 
-const FETCH_SCRIPT = ".agents/skills/write-support-qa/scripts/write-support-qa.sh";
+const FETCH_SCRIPT = ".agents/skills/write-support-qa/scripts/octo-ticket-evidence.sh";
 
 describe("kimi acp runtime", () => {
   afterEach(() => {

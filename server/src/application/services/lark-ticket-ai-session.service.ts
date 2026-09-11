@@ -288,7 +288,7 @@ export function createLarkTicketAiSessionService(
       const effectSnapshotVersion = threadContext?.snapshot?.snapshotVersion ?? session?.threadSnapshotVersion ?? undefined;
       const canCreateEffectDraft = Boolean(
         actionRunId && effectProfileId && effectSnapshotVersion
-        && (effectActionKey === "lark-ticket-support-qa-answer" || effectActionKey === "lark-ticket-support-qa-document-preview"),
+        && effectActionKey === "lark-ticket-support-qa-answer",
       );
       if (canCreateEffectDraft) {
         await ensureAcpKimiScratchDir(actionRunId!);
@@ -777,9 +777,6 @@ function buildEffectDraftInstruction(
   };
   if (actionKey === "lark-ticket-support-qa-answer") {
     return `正式反馈写回只能走确认层。首次回答时不要创建写回文件；只有用户明确确认或否定答案并补齐必填反馈后，才使用文件写入工具将以下 JSON 写到 ${join(context.scratchDir, "effect-draft.json")}：\n${JSON.stringify({ version: "support-qa-answer-feedback-draft-v1", effectType: "answer_feedback", ...identity, feedback: { correct: true, issueSummary: "简要问题", answerSummary: "简要答案", errorCategories: [], errorExplanation: "" } })}\n不得调用 lark-cli、网络命令或任何写回命令。写入只生成待用户确认的 effect draft，不代表已写入 Lark。`;
-  }
-  if (actionKey === "lark-ticket-support-qa-document-preview") {
-    return `正式 Ticket AI 写回只能走确认层。完成文档草稿及允许的 dry-run 后，使用文件写入工具将待确认内容写到 ${join(context.scratchDir, "effect-draft.json")}，格式为：\n${JSON.stringify({ version: "support-qa-ticket-ai-draft-v1", effectType: "ticket_ai_update", ...identity, fields: { "AI分析状态": "已分析" }, indexEntry: { record_id: ticket.recordId } })}\nfields 必须替换为本次真实草稿数据；indexEntry 只保留当前 record_id，完整索引记录由 Server 从确认后的 fields 构建。不得通过 Terminal 执行非 dry-run update；该文件只生成 effect draft，不代表已更新 ticket_ai 或 knowledge-index.jsonl。`;
   }
   return "";
 }
