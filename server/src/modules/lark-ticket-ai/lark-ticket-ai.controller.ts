@@ -19,6 +19,8 @@ import {
 import { WEB_SESSION_COOKIE_NAME } from "../lark-auth/lark-auth.controller.js";
 import { prepareAcpKimiEventStream, writeAcpKimiEvent } from "../acp-kimi/event-stream.js";
 import { logger } from "../../logger.js";
+import { WikiQaError } from "../../domain/wiki-qa.js";
+import { isOneShotTicketAiAction } from "../public-config/automation-actions.config.js";
 import {
   createSupportTicketEffectDraftService,
   SupportTicketEffectDraftError,
@@ -58,6 +60,10 @@ function readCookie(cookieHeader: string | undefined, name: string): string | un
 }
 
 function toErrorResponse(error: unknown) {
+  if (error instanceof WikiQaError) return {
+    statusCode: error.code === "WIKI_QA_UNAVAILABLE" ? 503 : 502,
+    body: { ok: false as const, error: { errorCode: error.code, errorMessage: error.message, ...error.diagnostic } },
+  };
   if (error instanceof AcpKimiProxyError) return { statusCode: error.statusCode, body: { ok: false as const, error: { errorCode: error.code, errorMessage: error.message } } };
   if (error instanceof WebAiRunError) return { statusCode: error.statusCode, body: { ok: false as const, error: { errorCode: error.code, errorMessage: error.message, layer: "server", module: "web-ai-session-runs", stage: "server.workflow.run" } } };
   if (error instanceof AcpPermissionError) return acpPermissionErrorResponse(error);
@@ -227,7 +233,7 @@ export function createWebLarkTicketAiController(deps: {
       prepareAcpKimiEventStream(res);
       try {
         await runs.execute({ ...scope, sessionId: request.sessionId, message: request.message,
-          actionKey: request.actionKey, actionRunId: request.actionRunId, oneShot: request.actionKey === "lark-ticket-support-qa-summarize" }, {
+          actionKey: request.actionKey, actionRunId: request.actionRunId, oneShot: isOneShotTicketAiAction(request.actionKey) }, {
           loadHistory: async () => await service.loadSession({ operatorLarkId: identity.operatorLarkId, ticket, sessionId: request.sessionId! }) as { events: AcpKimiStreamEvent[] },
           chat: (signal, emit, actionRunId) => service.chat({
             operatorLarkId: identity.operatorLarkId, masterUserId: identity.masterUserId, larkBaseUrl: identity.larkBaseUrl, ticket, message: request.message,

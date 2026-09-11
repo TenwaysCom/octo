@@ -1,7 +1,7 @@
 ---
 status: draft
 owner: TBD
-last_reviewed: 2026-09-10
+last_reviewed: 2026-09-11
 scope: 当前 Octo 技术对象在 extension、server、adapter 与平台间的生命周期图谱
 update_required_when:
   - 页面或动作配置契约变更
@@ -48,6 +48,7 @@ update_required_when:
 | `SupportTicketAnalysis` | Server application service / PostgreSQL projection | `server/src/application/services/support-ticket-analysis.service.ts`, `server/src/adapters/postgres/support-ticket-analysis-store.ts`, `server/src/modules/lark-ticket/lark-ticket.controller.ts` | intent、result、quality 绑定固定 Ticket snapshot；Web PUT 负责人工更新；Summary Quick Action 将脱敏固定快照交给共享 Ticket Summary provider，Server 校验 JSON schema、snapshot version 与 evidence IDs 后直接更新规范化分析表及 FE `ticket_ai` 投影。失败时不得写入正式分析投影。 |
 | `TicketSummaryProvider` | Server adapter factory | `server/src/adapters/ai/ticket-summary-client.ts`, `server/src/adapters/deepseek/deepseek-chat-client.ts`, `server/src/adapters/zcode/zcode-chat-client.ts` | Quick Action 与 Shadow Worker 统一按 `LARK_TICKET_SUMMARY_PROVIDER` 和 `LARK_TICKET_SUMMARY_MODEL` 创建一个无工具、结构化 JSON completion client；当前支持 `deepseek` 与智谱 API `zcode`。 |
 | `TicketSummaryQuickAction` | Server workflow / Ticket Summary adapter | `server/src/application/services/lark-ticket-ai-session.service.ts`, `server/src/adapters/ai/ticket-summary-client.ts`, `server/src/domain/workflow-prompts.ts` | `lark-ticket-support-qa-summarize` 的一次性结构化分析；不启动 ACP、不创建可续聊 Session、不暴露 workspace 或工具权限。复用浏览器 SSE 外壳展示当前结果，长期结果由 `SupportTicketAnalysis` 投影承载。 |
+| `TicketWikiQaQuickAction` / `WikiKnowledgeEvidence` | Server workflow / filesystem reader / shared completion client | `server/src/application/services/wiki-qa.service.ts`, `server/src/adapters/filesystem/wiki-knowledge-reader.ts` | `lark-ticket-wiki-qa` 获取固定 Ticket 聊天快照，提取问题、召回最多20篇 wiki 页面并重排为最多3篇 FAQ / QA Card；index/entities 仅导航，raw 仅提供脱敏原始证据，Shadow AI 不作为原始证据。Server 分配引用编号，保留草稿与适用性边界，调用共享问题总结模型生成供审核的回复。一次性 SSE/进程内运行记录，不创建 ACP 会话，不写 Ticket AI、Lark 或 wiki。 |
 | `LarkTicketShadowSummary` | Server background workflow / Ticket Summary adapter | `server/src/application/services/lark-ticket-shadow-summary.service.ts`, `server/src/adapters/ai/ticket-summary-client.ts`, `server/src/adapters/postgres/platform-sync-store.ts` | 后台候选取得固定脱敏快照后，读取 `lark_ticket.support_qa.summarize` 数据库 Prompt 并使用与 Quick Action 相同的 provider/model；Server 校验 JSON schema 和 evidence IDs，只写独立 `shadow_ai` 投影，并记录每张 Ticket 的 `processingDurationMs`。Web 只透出显式白名单内的意图、处理结果、质量、证据数量与运行元数据；AI 输出行有正式结果时只显示“AI”，否则回退为 Shadow 状态，四阶段默认显示摘要并以悬浮详情读取 Shadow 投影；Ticket 详情在右栏只读展示，不把 Shadow 判断当成正式 Answer/Document 完成状态。不会启动 ACP、写正式 `SupportTicketAnalysis` 或改动 Eval 样本。 |
 | `AcpKimiOneShotRuntime` | Server ACP proxy / adapter | `server/src/application/services/acp-kimi-proxy.service.ts`, `server/src/adapters/kimi-acp/kimi-acp-runtime.ts` | 一次性 ACP runtime；不进入 reusable session registry，prompt 后关闭 |
 | `ManagedAcpSessionRuntime` | Server ACP adapter | `server/src/adapters/acp/managed-acp-runtime.ts`, `server/src/adapters/hermes-acp/hermes-acp-runtime.ts` | 共用 TS ACP Client；Hermes 直接启动官方 `python -m acp_adapter`。公开 Session 与 native ID 分离，ownership 保存 provider/native ID，新建即保存并关联 Ticket/Sprint 后才 prompt。旧记录兼容补齐；Kimi 继续按保存归属恢复。文件隔离及真实业务验收见任务。 |

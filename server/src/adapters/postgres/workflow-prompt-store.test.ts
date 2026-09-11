@@ -11,9 +11,19 @@ import {
   MEEGLE_SPRINT_INTERNAL_SUMMARY_PROMPT_KEY,
   MEEGLE_SPRINT_RELEASE_NOTES_PROMPT_KEY,
   STORY_PRD_TO_SIMPLIFIED_PROMPT_KEY,
+  WIKI_QA_PROMPTS,
 } from "../../domain/workflow-prompts.js";
 
 describe("PostgresWorkflowPromptStore", () => {
+  it("seeds separate wiki extraction, rerank and answer prompts", async () => {
+    const { db } = await createTestPostgresDatabase();
+    const store = new PostgresWorkflowPromptStore(db);
+    for (const prompt of Object.values(WIKI_QA_PROMPTS)) {
+      await expect(store.getByKey(prompt.key)).resolves.toMatchObject(prompt);
+    }
+    expect(WIKI_QA_PROMPTS.answer.prompt).toContain("{{knowledge_evidence}}");
+    await db.destroy();
+  });
   it("reads the seeded Story Review prompt by key with note", async () => {
     const { db } = await createTestPostgresDatabase();
     const store = new PostgresWorkflowPromptStore(db);

@@ -37,6 +37,7 @@ import {
   MEEGLE_SPRINT_INTERNAL_SUMMARY_PROMPT_KEY,
   MEEGLE_SPRINT_RELEASE_NOTES_PROMPT_KEY,
   STORY_PRD_TO_SIMPLIFIED_PROMPT_KEY,
+  WIKI_QA_PROMPTS,
 } from "../../domain/workflow-prompts.js";
 
 function readPostgresUri(): string {
@@ -807,6 +808,7 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .onConflict((conflict) => conflict.column("key").doNothing())
     .execute();
   for (const prompt of [
+    ...Object.values(WIKI_QA_PROMPTS),
     {
       key: LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_KEY,
       prompt: DEFAULT_LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_TEMPLATE,

@@ -715,3 +715,19 @@ source: [FE Hermes 权限审批](../docs/tasks/acp/2026-09-10-fe-hermes-permissi
 **Rule:** 只提交已完成任务时，逐项核对实现、任务证据和共享文档的暂存内容；共享文件按内容选取，避免提交的文档描述仍留在工作区的实现。测试通过不替代任务验收。
 
 source: [已完成任务提交复核](../docs/tasks/engineering-ops/2026-09-10-completed-task-commit-review.md)
+
+## [LRN-20260911-001] resolve-the-current-knowledge-authority-before-reusing-search
+
+**Context:** 知识库迁移后，旧数据库检索接口、旧状态账本与新文件目录可能同时存在；名称相近不代表查询的是同一批资料。
+
+**Rule:** 接入知识检索前，沿实际配置检查数据根目录、读取实现和当前 schema，再确认命中单位、状态含义及原始证据来源。导航索引只用于定位，不替代内容文件和原始证据；不要仅调整旧接口的 limit 就宣称已接入新知识源。
+
+source: [Ticket wiki 问答](../docs/tasks/ai-ticket/2026-09-11-wiki-qa-quick-action.md)
+
+## [LRN-20260911-002] scope-aggregated-knowledge-to-selected-evidence
+
+**Context:** 同一知识页可能汇总多个事故，命中页面或模型请求成功并不代表其中全部处理路径都适用于当前问题。
+
+**Rule:** 知识问答验收需同时核对来源选择、适用前提和最终答复的每个处理分支。优先传递所选原始证据关联的知识段落，缺失前提保留历史参考；用真实模型检查是否混入同页无关事故，不以 HTTP 成功替代答案质量核对。
+
+source: [Ticket wiki 问答](../docs/tasks/ai-ticket/2026-09-11-wiki-qa-quick-action.md)

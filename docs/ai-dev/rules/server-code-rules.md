@@ -1,7 +1,7 @@
 ---
 status: draft
 owner: TBD
-last_reviewed: 2026-06-18
+last_reviewed: 2026-09-11
 scope: Coding rules for Octo server routes, controllers, services, adapters, workflows, platform metadata, errors, logging, and tests
 update_required_when:
   - server route/controller/service layering changes
@@ -132,6 +132,8 @@ For Kimi ACP callback execution, keep the tool sequence explicit and capability-
 6. Browser-facing streams continue with the model's normal human-readable response. A scratch JSON file, dry-run result or generated model text is not proof that `ticket_ai`, the feedback table or the knowledge index was updated.
 
 The `lark-ticket-support-qa-summarize` action and Lark Ticket shadow summary worker are exceptions to the ACP flow above: both are one-shot structured-output workflows using the shared Ticket Summary provider configuration. The Server must obtain the fixed, redacted Ticket snapshot before the provider call and validate the returned JSON and evidence IDs locally. The Quick Action calls `SupportTicketAnalysisService.update()` directly; the shadow worker only writes its independent `shadow_ai` projection. Both paths must resolve the same `LARK_TICKET_SUMMARY_PROVIDER` and `LARK_TICKET_SUMMARY_MODEL`; neither may create a reusable Session or expose workspace, shell, Skill, or internal signing capabilities to the provider. Answer and Document remain ACP-backed.
+
+`lark-ticket-wiki-qa` is a separate one-shot draft workflow using that same provider/model configuration. Its extraction, rerank and answer prompts live under `lark_ticket.wiki_qa.*`. The Server reads only the configured wiki root, validates canonical file paths, uses index/entities as navigation and concepts as distinct knowledge hits, then assigns at most three source numbers after validating model-selected candidate and raw-evidence IDs. Draft/unknown scope, incomplete evidence and conflicting material must retain their applicability limits. Raw transcript Shadow AI sections are reference material, not primary evidence. The answer call has no tools; it receives only the fixed Ticket context and selected evidence. It must not invoke the old PostgreSQL approved-knowledge retrieval, ACP, knowledge-loop writes, or Ticket analysis writeback. FE displays a reviewable draft through the existing scoped one-shot run lifecycle.
 
 Kimi and Hermes share the TS ACP client; Hermes starts the official `python -m acp_adapter` without a production patch/launcher dependency. Persist provider and full native session ID separately from Octo's public ID before prompting. Restore using saved metadata; infer the legacy provider only when metadata is absent, and never strip an old Hermes native ID. Kimi export recovery receives only Kimi native IDs.
 

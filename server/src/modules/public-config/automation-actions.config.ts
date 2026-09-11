@@ -26,7 +26,7 @@ export const AUTOMATION_SKILL_PROFILES = {
 interface TicketAiAutomationActionBase extends AutomationActionConfig {
   executor: Extract<AutomationActionConfig["executor"], { type: "backend_api" }>;
   promptKey: string;
-  provider: "hermes_acp" | "ticket_summary";
+  provider: "hermes_acp" | "ticket_summary" | "wiki_qa";
   requiresConfirmation: boolean;
 }
 
@@ -41,9 +41,14 @@ export interface TicketSummaryTicketAiAutomationActionConfig extends TicketAiAut
   provider: "ticket_summary";
 }
 
+export interface WikiQaTicketAiAutomationActionConfig extends TicketAiAutomationActionBase {
+  provider: "wiki_qa";
+}
+
 export type TicketAiAutomationActionConfig =
   | AcpTicketAiAutomationActionConfig
-  | TicketSummaryTicketAiAutomationActionConfig;
+  | TicketSummaryTicketAiAutomationActionConfig
+  | WikiQaTicketAiAutomationActionConfig;
 
 export interface SprintAiAutomationActionConfig extends AutomationActionConfig {
   provider: "hermes_acp";
@@ -123,6 +128,23 @@ export const AUTOMATION_ACTIONS = {
     },
     promptKey: "lark_ticket.support_qa.summarize",
     provider: "ticket_summary",
+    requiresConfirmation: false,
+  },
+  larkTicketWikiQa: {
+    key: "lark-ticket-wiki-qa",
+    title: "wiki 问答",
+    description: "检索 llm-wiki 中最多三篇相关资料，结合当前 Ticket 聊天生成回复草稿。",
+    style: "default",
+    placements: [],
+    interaction: { type: "direct_execute" },
+    executor: {
+      type: "backend_api",
+      operation: "lark_ticket.ai.wiki_qa",
+      method: "POST",
+      route: "/api/web/lark-tickets/:recordId/ai-sessions",
+    },
+    promptKey: "lark_ticket.wiki_qa.answer",
+    provider: "wiki_qa",
     requiresConfirmation: false,
   },
   larkTicketSupportQaAnswer: {
@@ -408,6 +430,11 @@ export const AUTOMATION_ACTIONS = {
 } satisfies Record<string, AutomationActionConfig>;
 
 export type AutomationActionId = keyof typeof AUTOMATION_ACTIONS;
+
+export function isOneShotTicketAiAction(key: string | undefined): boolean {
+  const provider = key ? getTicketAiAutomationAction(key)?.provider : undefined;
+  return provider === "ticket_summary" || provider === "wiki_qa";
+}
 
 export function getTicketAiAutomationAction(
   key: string,

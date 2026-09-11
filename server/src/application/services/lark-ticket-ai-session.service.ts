@@ -44,6 +44,7 @@ import {
 import { prepareTicketThread, redactSupportText } from "../../domain/support-ticket-analysis.js";
 import { supportAnalysisResultSchema } from "../../domain/support-ticket-analysis-update.js";
 import { createSupportTicketAnalysisService, SupportTicketAnalysisError } from "./support-ticket-analysis.service.js";
+import { createWikiQaService } from "./wiki-qa.service.js";
 import { randomUUID } from "node:crypto";
 import { access, realpath } from "node:fs/promises";
 import { constants } from "node:fs";
@@ -105,6 +106,7 @@ export interface LarkTicketAiSessionServiceDeps {
   knowledgeRetriever?: SupportKnowledgeRetriever;
   resolveAction?: (actionKey: string) => Promise<ResolvedTicketAiAction | undefined>;
   ticketSummaryClient?: TicketSummaryJsonCompletionClient;
+  wikiQaService?: Pick<ReturnType<typeof createWikiQaService>, "answer">;
   analysisService?: Pick<ReturnType<typeof createSupportTicketAnalysisService>, "update">;
   effectDraftService?: Pick<ReturnType<typeof createSupportTicketEffectDraftService>, "ingestFromScratch">;
 }
@@ -188,6 +190,38 @@ export function createLarkTicketAiSessionService(
           analysisService: getAnalysisService(),
           emit,
         });
+        return;
+      }
+      if (requestedAction?.provider === "wiki_qa") {
+        const actionRunId = input.actionRunId ?? randomUUID();
+        let context: LarkTicketThreadContextResult;
+        try {
+          context = await threadContextService.ensure({ masterUserId: input.masterUserId, larkBaseUrl: input.larkBaseUrl, ticket });
+        } catch (error) {
+          if (error instanceof LarkTicketThreadContextError) throw new LarkTicketAiSessionError(error.code, error.message, {
+            layer: "server", module: "wiki-qa", stage: "server.wiki_qa.materials", actionRunId,
+          });
+          throw error;
+        }
+        const snapshot = context.snapshot;
+        if (!ticket.sourceFields || !Object.keys(ticket.sourceFields).length || !snapshot?.historyComplete
+          || snapshot.baseId !== ticket.baseId || snapshot.tableId !== ticket.tableId || snapshot.recordId !== ticket.recordId
+          || !Number.isSafeInteger(snapshot.snapshotVersion) || snapshot.snapshotVersion < 1 || !snapshot.preparedMessages?.length) {
+          throw new LarkTicketAiSessionError("SUPPORT_QA_MATERIALS_UNAVAILABLE", "Ticket 字段或聊天材料不完整，请先补齐同步快照。", {
+            layer: "server", module: "wiki-qa", stage: "server.wiki_qa.materials", actionRunId,
+          });
+        }
+        const service = deps.wikiQaService ?? createWikiQaService({ client: deps.ticketSummaryClient, promptStore: workflowPromptStore });
+        const result = await service.answer({
+          ticketContext: [buildTicketSummaryContext(ticket, context), formatTicketSourceFields(ticket), "记录评论未提供，不代表评论为空。"].join("\n\n"),
+          actionRunId, signal: input.signal,
+        });
+        input.signal?.throwIfAborted();
+        const streamId = `wiki-qa-${actionRunId}`;
+        emit({ event: "acp.session.update", data: { sessionId: streamId, update: {
+          sessionUpdate: "agent_message_chunk", messageId: streamId, content: { type: "text", text: result.answerMarkdown },
+        } } });
+        emit({ event: "done", data: { sessionId: streamId, stopReason: "end_turn" } });
         return;
       }
       const session = input.sessionId

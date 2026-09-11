@@ -37,8 +37,9 @@ describe("web Lark Ticket AI controller", () => {
     });
   });
 
-  it("forwards one-shot Summary events without creating a resumable session", async () => {
+  it.each(["lark-ticket-support-qa-summarize", "lark-ticket-wiki-qa"])("forwards one-shot events without creating a resumable session: %s", async (actionKey) => {
     const service = {
+      listSessions: vi.fn().mockResolvedValue([]),
       chat: vi.fn(async (_input, emit) => {
         emit({ event: "acp.session.update", data: { sessionId: "deepseek-run_1", update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "问题总结" } } } });
         emit({ event: "done", data: { sessionId: "deepseek-run_1", stopReason: "end_turn" } });
@@ -53,7 +54,7 @@ describe("web Lark Ticket AI controller", () => {
     let writableEnded = false;
     const req = {
       headers: { cookie: "octo_web_session=session_1" },
-      body: { baseId: "app_1", tableId: "tbl_1", message: "问题总结", actionKey: "lark-ticket-support-qa-summarize", actionRunId: "run_1" },
+      body: { baseId: "app_1", tableId: "tbl_1", message: "生成结果", actionKey, actionRunId: "run_1" },
       params: { recordId: "rec_1" },
       once: vi.fn(),
       off: vi.fn(),
@@ -71,10 +72,12 @@ describe("web Lark Ticket AI controller", () => {
 
     await controller.chat(req, res);
 
-    expect(service.chat).toHaveBeenCalledWith(expect.objectContaining({ actionKey: "lark-ticket-support-qa-summarize", actionRunId: "run_1" }), expect.any(Function));
+    expect(service.chat).toHaveBeenCalledWith(expect.objectContaining({ actionKey, actionRunId: "run_1" }), expect.any(Function));
     expect(writes.join("\n")).not.toContain("event: session.created");
     expect(writes.join("\n")).toContain("event: acp.session.update");
     expect(writes.join("\n")).toContain("event: done");
+    const listed = await controller.list({ cookieHeader: "octo_web_session=session_1", recordId: "rec_1", query: { baseId: "app_1", tableId: "tbl_1" } });
+    expect(listed.body).toMatchObject({ ok: true, data: { sessions: [expect.objectContaining({ oneShot: true, actionKey, runStatus: "completed" })] } });
   });
 
   it("confirms only a server-stored effect draft identity", async () => {

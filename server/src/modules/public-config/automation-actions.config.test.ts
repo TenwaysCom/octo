@@ -5,7 +5,7 @@ import {
 } from "./automation-actions.config.js";
 
 describe("ticket AI automation actions", () => {
-  it("routes only Summary to the configured Ticket Summary provider and keeps the other Support-QA actions on ACP", () => {
+  it("routes Summary and wiki QA separately while keeping Answer and Document on ACP", () => {
     expect(AUTOMATION_SKILL_PROFILES.support_qa_eu).toEqual({
       workspaceEnv: "SUPPORT_QA_EU_WORKSPACE_DIR",
       skills: {
@@ -23,6 +23,10 @@ describe("ticket AI automation actions", () => {
       skillProfile: "support_qa_eu",
       skillId: "support_qa_query",
       permissionProfileId: "support-qa.answer.v1",
+    });
+    expect(getTicketAiAutomationAction("lark-ticket-wiki-qa")).toMatchObject({
+      title: "wiki 问答", provider: "wiki_qa", promptKey: "lark_ticket.wiki_qa.answer",
+      executor: { type: "backend_api", operation: "lark_ticket.ai.wiki_qa", method: "POST", route: "/api/web/lark-tickets/:recordId/ai-sessions" },
     });
     expect(getTicketAiAutomationAction("lark-ticket-support-qa-document-preview")).toMatchObject({
       promptKey: "lark_ticket.support_qa.document_preview",
