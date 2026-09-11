@@ -5,6 +5,7 @@ import { MeegleRelatedPeople } from "../components/platform/MeegleRelatedPeople.
 import { LarkTicketBadge } from "../components/lark-ticket/LarkTicketBadge.jsx";
 import { LarkTicketResponsible } from "../components/lark-ticket/LarkTicketResponsible.jsx";
 import { LarkTicketAiWorkspace } from "../components/lark-ticket/LarkTicketAiWorkspace.jsx";
+import { LarkTicketContextMenu } from "../components/lark-ticket/LarkTicketContextMenu.jsx";
 import { useKeyboardShortcut } from "../hooks/useKeyboardShortcut.js";
 import { useMinuteNow } from "../hooks/useMinuteNow.js";
 import { formatDateTime } from "../lib/formatters.js";
@@ -47,6 +48,8 @@ import {
   sortLarkTickets,
 } from "../lib/lark-ticket-view-config.js";
 import { createLarkTicketNavigationContext } from "../lib/lark-ticket-detail-navigation.js";
+import { LARK_TICKET_MENU_FIELD_ACTIONS } from "../lib/lark-ticket-context-menu.js";
+import { createLarkTicketMeegleWorkitem, loadLarkTicketFieldOptions, updateLarkTicketField } from "../services/lark-ticket/lark-ticket-actions-api.js";
 import {
   DEFAULT_MEEGLE_GROUP_BY,
   DEFAULT_MEEGLE_VISIBLE_COLUMNS,
@@ -203,6 +206,16 @@ function getPlatformItemStatus(kind, item) {
   return item.isDraft ? "Draft" : item.state || "未设置";
 }
 
+function getTicketActionErrorText(error) {
+  const code = error?.code;
+  if (code === "MEEGLE_LINK_ALREADY_EXISTS") return "该 Ticket 已有 Meegle 链接，无需重复创建。";
+  if (code === "LARK_TICKET_FIELD_NOT_FOUND") return "Lark Base 中未找到对应字段，请检查表结构。";
+  if (code === "LARK_TICKET_USER_ID_REQUIRED") return "缺少人员信息，无法写入该字段。";
+  if (code === "WORKSPACE_ACCESS_DENIED") return "当前角色无权操作平台数据。";
+  if (code === "LARK_TICKET_FIELD_OPTIONS_LOAD_FAILED") return "字段选项加载失败，请稍后重试。";
+  return "操作失败，请稍后重试。";
+}
+
 function mergeKnownFilterValues(values, knownValues) {
   const merged = new Map(values.map((value) => [value.value, value]));
   for (const value of knownValues) {
@@ -311,7 +324,7 @@ function WorkitemRowMeta({ meta, apiBaseUrl, onPickPullRequest }) {
   return <span className={className} title={meta.title || (meta.type === "meegle-status" && meta.subStage ? meta.subStage : undefined)}>{content}</span>;
 }
 
-function WorkitemRow({ row, item, apiBaseUrl, onPreviewCandidateChange, onMeegleCandidateChange, onOpenLarkTicketDetail, onOpenMeeglePullRequestPicker }) {
+function WorkitemRow({ row, item, apiBaseUrl, onPreviewCandidateChange, onMeegleCandidateChange, onOpenLarkTicketDetail, onOpenMeeglePullRequestPicker, onTicketContextMenu }) {
   const previewProps = onPreviewCandidateChange ? {
     "aria-label": `${row.title}，按空格预览`,
     tabIndex: 0,
@@ -332,7 +345,7 @@ function WorkitemRow({ row, item, apiBaseUrl, onPreviewCandidateChange, onMeegle
       ? <ExternalLink className="workitem-row__title" href={row.href} title={row.title}>{row.title}</ExternalLink>
       : <a className="workitem-row__title" href={row.href} title={row.title} onClick={(event) => onOpenLarkTicketDetail?.(event, item)}>{row.title}</a>
     : <span className="workitem-row__title" title={row.title}>{row.title}</span>;
-  return <div className="workitem-row" role="listitem" {...previewProps}>
+  return <div className="workitem-row" role="listitem" onContextMenu={(event) => onTicketContextMenu?.(event, item)} {...previewProps}>
     {row.leading.length ? <span className="workitem-row__leading">{row.leading.map((meta) => <WorkitemRowMeta apiBaseUrl={apiBaseUrl} key={meta.key} meta={meta} />)}</span> : null}
     {row.identifier ? <span className="workitem-row__id">{row.identifier}</span> : null}
     {title}
@@ -356,7 +369,7 @@ function getWorkitemRowKey(kind, item, index) {
   return `${item.owner}-${item.repo}-${item.pullNumber}`;
 }
 
-function SyncedRowList({ kind, items, visibleColumns, apiBaseUrl, nowTime, onGitHubPreviewCandidateChange, onMeegleCandidateChange, onOpenLarkTicketDetail, onOpenMeeglePullRequestPicker }) {
+function SyncedRowList({ kind, items, visibleColumns, apiBaseUrl, nowTime, onGitHubPreviewCandidateChange, onMeegleCandidateChange, onOpenLarkTicketDetail, onOpenMeeglePullRequestPicker, onTicketContextMenu }) {
   const buildRow = WORKITEM_ROW_BUILDERS[kind] || buildGitHubPullRequestRow;
   return <div className="workitem-rows" role="list">{items.map((item, index) => <WorkitemRow
     apiBaseUrl={apiBaseUrl}
@@ -366,6 +379,7 @@ function SyncedRowList({ kind, items, visibleColumns, apiBaseUrl, nowTime, onGit
     onMeegleCandidateChange={kind === "meegle-workitems" ? onMeegleCandidateChange : undefined}
     onOpenLarkTicketDetail={kind === "lark-tickets" ? onOpenLarkTicketDetail : undefined}
     onOpenMeeglePullRequestPicker={kind === "meegle-workitems" ? onOpenMeeglePullRequestPicker : undefined}
+    onTicketContextMenu={kind === "lark-tickets" ? onTicketContextMenu : undefined}
     row={buildRow(item, visibleColumns, nowTime)}
   />)}</div>;
 }
@@ -658,12 +672,15 @@ function KanbanCardFloatingMeta({ columns, description, detailsId, renderCell })
   </div>;
 }
 
-function LarkTicketCard({ item, visibleColumns, onOpenLarkTicketDetail }) {
+function LarkTicketCard({ item, visibleColumns, onOpenLarkTicketDetail, onTicketContextMenu }) {
   const columns = LARK_TICKET_VIEW_COLUMNS.filter(({ key }) => key !== "title" && visibleColumns.includes(key));
   const layout = getKanbanCardLayout("lark-tickets", visibleColumns, item);
   const description = getKanbanCardDescription("lark-tickets", item);
   const floatingColumns = columns.filter(({ key }) => layout.floatingKeys.includes(key));
-  return <article className="kanban-card">
+  return <article
+    className="kanban-card"
+    onContextMenu={(event) => onTicketContextMenu?.(event, item)}
+  >
     <div className="kanban-card__header">
       <a className="table-link kanban-card__title" href={getLarkTicketDetailHash(item.recordId)} onClick={(event) => onOpenLarkTicketDetail?.(event, item)}>{item.title || item.ticketNumber || item.recordId}</a>
       <KanbanCardPeople item={item} kind="lark-tickets" />
@@ -960,6 +977,12 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
   const [meeglePrCandidate, setMeeglePrCandidate] = useState(null);
   const [meeglePrPicker, setMeeglePrPicker] = useState(null);
   const [meegleSprintSummaries, setMeegleSprintSummaries] = useState([]);
+  const [ticketContextMenu, setTicketContextMenu] = useState(null);
+  const [ticketFieldOptions, setTicketFieldOptions] = useState({ key: "", status: "idle", fields: [] });
+  const ticketCreateRunningRef = useRef(new Set());
+  const [ticketAction, setTicketAction] = useState(null);
+  const [ticketActionMessage, setTicketActionMessage] = useState(null);
+  const ticketFieldOptionsRequestRef = useRef(0);
   const githubPreviewCacheRef = useRef(new Map());
   const githubPreviewRequestVersionRef = useRef(0);
   const meeglePrPickerRequestVersionRef = useRef(0);
@@ -1318,6 +1341,86 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
     setCollapsedGitHubSubgroups(getDefaultCollapsedSubgroupKeys(githubGroups));
   }, [githubGroupBy, githubGroups, githubShowEmptyGroups, githubSubGroupBy, page]);
 
+  function ensureTicketFieldOptions(baseId, tableId, { force = false } = {}) {
+    const key = `${baseId}:${tableId}`;
+    if (!force && ticketFieldOptions.key === key && ["loading", "ready"].includes(ticketFieldOptions.status)) return;
+    const requestVersion = ++ticketFieldOptionsRequestRef.current;
+    setTicketFieldOptions({ key, status: "loading", fields: ticketFieldOptions.key === key ? ticketFieldOptions.fields : [] });
+    void loadLarkTicketFieldOptions({ apiBaseUrl, baseId, tableId }).then(
+      (fields) => { if (ticketFieldOptionsRequestRef.current === requestVersion) setTicketFieldOptions({ key, status: "ready", fields }); },
+      () => { if (ticketFieldOptionsRequestRef.current === requestVersion) setTicketFieldOptions({ key, status: "error", fields: [] }); },
+    );
+  }
+
+  function openTicketContextMenu(event, item) {
+    if (page !== "lark-tickets" || !item?.recordId) return;
+    event.preventDefault();
+    setTicketContextMenu({ ticket: item, point: { x: event.clientX, y: event.clientY } });
+    setTicketActionMessage(null);
+    ensureTicketFieldOptions(item.baseId, item.tableId);
+  }
+
+  function patchLarkTicketRow(recordId, patch) {
+    setState((current) => {
+      const apply = (items) => items.map((item) => item.recordId === recordId ? { ...item, ...patch } : item);
+      return { ...current, items: apply(current.items), filterItems: apply(current.filterItems) };
+    });
+  }
+
+  function closeTicketContextMenu() {
+    setTicketContextMenu(null);
+  }
+
+  async function runTicketFieldAction(field, option) {
+    const context = ticketContextMenu;
+    if (!context) return;
+    const recordId = context.ticket.recordId;
+    setTicketAction({ recordId, field, status: "running" });
+    try {
+      const result = await updateLarkTicketField({
+        apiBaseUrl,
+        ticket: context.ticket,
+        field,
+        value: option.label,
+        optionUserId: option.userId,
+        actionRunId: crypto.randomUUID(),
+      });
+      if (result.ticket) patchLarkTicketRow(recordId, result.ticket);
+      else setReloadVersion((version) => version + 1);
+      const actionLabel = LARK_TICKET_MENU_FIELD_ACTIONS.find((item) => item.field === field)?.label || field;
+      setTicketAction({ recordId, field, status: "done" });
+      setTicketActionMessage({ tone: "success", text: `${actionLabel}：${option.label}` });
+      setTicketContextMenu(null);
+    } catch (error) {
+      setTicketAction({ recordId, field, status: "error" });
+      setTicketContextMenu(null);
+      setTicketActionMessage({ tone: "error", text: getTicketActionErrorText(error) });
+    }
+  }
+
+  async function runTicketCreateMeegle() {
+    const context = ticketContextMenu;
+    if (!context) return;
+    const recordId = context.ticket.recordId;
+    const createKey = JSON.stringify([context.ticket.baseId, context.ticket.tableId, recordId]);
+    if (ticketCreateRunningRef.current.has(createKey)) return;
+    ticketCreateRunningRef.current.add(createKey);
+    setTicketAction({ recordId, field: "create-meegle", status: "running" });
+    try {
+      const result = await createLarkTicketMeegleWorkitem({ apiBaseUrl, ticket: context.ticket, actionRunId: crypto.randomUUID() });
+      setTicketAction({ recordId, field: "create-meegle", status: "done" });
+      setTicketContextMenu(null);
+      setTicketActionMessage({ tone: "success", text: `已创建 Meegle 工作项 ${result.workitemId}${result.syncFailed ? "，但列表同步失败，请稍后同步 Ticket。" : ""}`, url: result.meegleLink });
+      setReloadVersion((version) => version + 1);
+    } catch (error) {
+      setTicketAction({ recordId, field: "create-meegle", status: "error" });
+      setTicketContextMenu(null);
+      setTicketActionMessage({ tone: "error", text: getTicketActionErrorText(error) });
+    } finally {
+      ticketCreateRunningRef.current.delete(createKey);
+    }
+  }
+
   async function resetAllDevopsCache() {
     setResetError("");
     setIsResettingDevopsCache(true);
@@ -1618,6 +1721,10 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
         {state.status === "loading" ? <p className="list-message">正在加载同步数据…</p> : null}
         {state.status === "error" ? <p className="list-message list-message--error">同步数据暂时无法读取，请稍后重试。</p> : null}
         {resetError ? <p className="list-message list-message--error">{resetError}</p> : null}
+        {ticketActionMessage ? <p className={`list-message ${ticketActionMessage.tone === "error" ? "list-message--error" : "list-message--success"}`.trim()}>
+          {ticketActionMessage.text}
+          {ticketActionMessage.url ? <> <a className="table-link" href={ticketActionMessage.url} target="_blank" rel="noreferrer">打开 Meegle</a></> : null}
+        </p> : null}
         {state.status === "ready" && state.items.length === 0 ? <p className="list-message">{hasActiveServerFilters ? "未找到匹配的数据，请调整筛选条件。" : "暂无已同步的数据。"}</p> : null}
         {state.status === "ready" ? <div className="list-toolbar">
           {page === "meegle-workitems" ? <div className="list-filter-tabs" role="group" aria-label="按工作项类型筛选">
@@ -1851,7 +1958,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
               onToggleSubgroup={(subgroupKey) => setCollapsedLarkSubgroups((current) => current.includes(subgroupKey)
                 ? current.filter((key) => key !== subgroupKey)
                 : [...current, subgroupKey])}
-              renderCard={(item, index) => <LarkTicketCard item={item} visibleColumns={larkVisibleColumns} onOpenLarkTicketDetail={rememberLarkTicketNavigation} key={item.recordId || `${item.baseId || "base"}-${item.tableId || "table"}-${index}`} />}
+              renderCard={(item, index) => <LarkTicketCard item={item} visibleColumns={larkVisibleColumns} onOpenLarkTicketDetail={rememberLarkTicketNavigation} onTicketContextMenu={openTicketContextMenu} key={item.recordId || `${item.baseId || "base"}-${item.tableId || "table"}-${index}`} />}
             />
             <footer className="list-pagination">
               <p className="list-results">已加载 <strong>{sortedItems.length}</strong> / {totalItems} 条结果 · {larkGroups.length} 个分组</p>
@@ -1891,7 +1998,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
               onToggleSubgroup={(subgroupKey) => setCollapsedLarkSubgroups((current) => current.includes(subgroupKey)
                 ? current.filter((key) => key !== subgroupKey)
                 : [...current, subgroupKey])}
-              renderRows={(items) => <SyncedRowList kind="lark-tickets" items={items} visibleColumns={larkVisibleColumns} onOpenLarkTicketDetail={rememberLarkTicketNavigation} />}
+              renderRows={(items) => <SyncedRowList kind="lark-tickets" items={items} visibleColumns={larkVisibleColumns} onOpenLarkTicketDetail={rememberLarkTicketNavigation} onTicketContextMenu={openTicketContextMenu} />}
             />
             <footer className="list-pagination">
               <p className="list-results">已加载 <strong>{sortedItems.length}</strong> / {totalItems} 条结果 · {larkGroups.length} 个分组</p>
@@ -1929,7 +2036,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
               <p className="list-results">已加载 <strong>{sortedItems.length}</strong> / {totalItems} 条结果 · {githubGroups.length} 个分组</p>
             </footer>
           </> : <>
-            <SyncedRowList apiBaseUrl={apiBaseUrl} kind={page} items={pageItems} nowTime={workingTimeNow} onGitHubPreviewCandidateChange={setGitHubPreviewCandidate} onLarkTicketDetail={rememberLarkTicketNavigation} onMeegleCandidateChange={updateMeeglePrCandidate} onOpenMeeglePullRequestPicker={openMeeglePullRequestPicker} visibleColumns={page === "lark-tickets" ? larkVisibleColumns : page === "meegle-workitems" ? meegleVisibleColumns : githubVisibleColumns} />
+            <SyncedRowList apiBaseUrl={apiBaseUrl} kind={page} items={pageItems} nowTime={workingTimeNow} onGitHubPreviewCandidateChange={setGitHubPreviewCandidate} onLarkTicketDetail={rememberLarkTicketNavigation} onMeegleCandidateChange={updateMeeglePrCandidate} onOpenMeeglePullRequestPicker={openMeeglePullRequestPicker} onTicketContextMenu={openTicketContextMenu} visibleColumns={page === "lark-tickets" ? larkVisibleColumns : page === "meegle-workitems" ? meegleVisibleColumns : githubVisibleColumns} />
             <footer className="list-pagination">
               <p className="list-results">显示 <strong>{firstResult}–{lastResult}</strong> / 已加载 {sortedItems.length}（共 {totalItems}）条结果</p>
               <div className="list-pagination__controls">
@@ -1964,6 +2071,19 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
         picker={meeglePrPicker}
         onClose={closeMeeglePullRequestPicker}
         onSelect={(pullRequest) => { void selectMeeglePullRequest(pullRequest); }}
+      /> : null}
+      {ticketContextMenu && page === "lark-tickets" ? <LarkTicketContextMenu
+        actionStatus={ticketAction?.recordId === ticketContextMenu.ticket.recordId ? { field: ticketAction.field, status: ticketAction.status } : null}
+        createPending={ticketCreateRunningRef.current.has(JSON.stringify([ticketContextMenu.ticket.baseId, ticketContextMenu.ticket.tableId, ticketContextMenu.ticket.recordId]))}
+        items={state.items}
+        fieldOptions={ticketFieldOptions.key === `${ticketContextMenu.ticket.baseId}:${ticketContextMenu.ticket.tableId}` ? ticketFieldOptions.fields : []}
+        onClose={closeTicketContextMenu}
+        onCreateMeegle={() => { void runTicketCreateMeegle(); }}
+        onAction={(field, option) => { void runTicketFieldAction(field, option); }}
+        onReloadOptions={() => ensureTicketFieldOptions(ticketContextMenu.ticket.baseId, ticketContextMenu.ticket.tableId, { force: true })}
+        optionsStatus={ticketFieldOptions.key === `${ticketContextMenu.ticket.baseId}:${ticketContextMenu.ticket.tableId}` ? ticketFieldOptions.status : "loading"}
+        point={ticketContextMenu.point}
+        ticket={ticketContextMenu.ticket}
       /> : null}
     </section>
   </WorkspaceShell>;

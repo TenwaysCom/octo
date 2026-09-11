@@ -748,3 +748,12 @@ source: [Ticket wiki 问答](../docs/tasks/ai-ticket/2026-09-11-wiki-qa-quick-ac
 **Rule:** 为会独立变化的事实来源保留各自版本或内容指纹和观察时点，重摄入时检查所有实际输入。补充来源信息时保留旧证据版本，不能用当前源字段时间替换旧线程时间，或让新增 AI 参考内容改变原始证据身份。
 
 source: [Ticket 源字段与 wiki 快照](../docs/tasks/ai-ticket/2026-09-11-ticket-source-fields-and-wiki-snapshots.md)
+
+
+## [LRN-20260911-004] verify-write-through-the-list-read-path
+
+**Context:** 平台写入成功及前端临时回显，不能证明数据库中供列表和筛选读取的派生字段已刷新。
+
+**Rule:** 审查跨平台写操作时，沿列表实际读取路径检查原始快照、清洗列和刷新顺序；把外部写入成功与本地同步失败作为不同结果验证，避免用重新请求列表代替同步。
+
+source: [Lark Ticket 右键快捷动作](../docs/tasks/platform-data/2026-09-11-lark-ticket-context-menu-actions.md)

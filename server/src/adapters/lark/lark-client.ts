@@ -38,9 +38,18 @@ export interface LarkBitableTable {
   name: string;
 }
 
+export interface LarkBitableFieldOption {
+  id?: string;
+  name: string;
+}
+
 export interface LarkBitableField {
   field_id: string;
   field_name: string;
+  type?: number;
+  ui_type?: string;
+  /** Populated for single/multi select fields; empty for other field types. */
+  options?: LarkBitableFieldOption[];
 }
 
 export interface LarkBitableBase {
@@ -320,11 +329,31 @@ export class LarkClient {
 
   async getFields(baseId: string, tableId: string): Promise<LarkBitableField[]> {
     const data = await this.request<{
-      items?: Array<{ field_id: string; field_name: string }>;
+      items?: Array<{
+        field_id: string;
+        field_name: string;
+        type?: number;
+        ui_type?: string;
+        property?: {
+          options?: Array<{ id?: string; name?: unknown }>;
+        };
+      }>;
     }>("GET", `/open-apis/bitable/v1/apps/${baseId}/tables/${tableId}/fields`);
     return (data.items || []).map((field) => ({
       field_id: field.field_id,
       field_name: field.field_name,
+      ...(field.type === undefined ? {} : { type: field.type }),
+      ...(field.ui_type === undefined ? {} : { ui_type: field.ui_type }),
+      ...(field.property?.options?.length
+        ? {
+          options: field.property.options
+            .filter((option) => typeof option?.name === "string" && option.name.trim() !== "")
+            .map((option) => ({
+              name: option.name as string,
+              ...(option.id === undefined ? {} : { id: option.id }),
+            })),
+        }
+        : {}),
     }));
   }
 

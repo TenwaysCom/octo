@@ -1,8 +1,11 @@
+import { LARK_TICKET_FIELD_CANDIDATES } from "../../domain/lark-ticket-fields.js";
+
 const TICKET_NUMBER_FIELDS = ["Ticket 编号", "Ticket编号", "ticket编号", "Ticket Number", "Ticket No.", "编号"];
-const ISSUE_TYPE_FIELDS = ["Issue 类型", "Issue Type", "issue_type"];
-const REQUESTER_FIELDS = ["需求人", "Requester", "Requestor"];
-const RESPONSIBLE_FIELDS = ["Responsible", "负责人", "责任人", "Owner", "Assignee"];
-const URGENCY_FIELDS = ["紧急度"];
+const ISSUE_TYPE_FIELDS = LARK_TICKET_FIELD_CANDIDATES.issueType;
+const REQUESTER_FIELDS = LARK_TICKET_FIELD_CANDIDATES.requester;
+const RESPONSIBLE_FIELDS = LARK_TICKET_FIELD_CANDIDATES.responsible;
+const URGENCY_FIELDS = LARK_TICKET_FIELD_CANDIDATES.priority;
+const BUSINESS_LINE_FIELDS = LARK_TICKET_FIELD_CANDIDATES.businessLine;
 const CREATED_AT_FIELDS = ["创建时间", "Created Time", "Created At"];
 const DETAIL_DESCRIPTION_FIELDS = ["Details Description", "Issue Description"];
 const MEEGLE_LINK_FIELDS = ["meegle链接", "Meegle Link", "meegleLink"];
@@ -33,7 +36,7 @@ export function buildLarkTicketCleaningProjection(
   return omitEmpty({
     ticketNumber: readField(source, TICKET_NUMBER_FIELDS),
     issueType: readField(source, ISSUE_TYPE_FIELDS),
-    businessLine: readField(source, ["Business line"]),
+    businessLine: readField(source, BUSINESS_LINE_FIELDS),
     requester: readField(source, REQUESTER_FIELDS),
     responsible: readField(source, RESPONSIBLE_FIELDS),
     priority: readField(source, URGENCY_FIELDS),

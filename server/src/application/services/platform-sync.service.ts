@@ -28,6 +28,7 @@ import {
 } from "./meegle-workitem-lifecycle.js";
 import { buildGitHubPrCleaningProjection } from "./github-pr-cleaning.js";
 import { buildLarkTicketCleaningProjection } from "./lark-ticket-cleaning.js";
+import { LARK_TICKET_FIELD_CANDIDATES, LARK_TICKET_TITLE_FIELD_CANDIDATES } from "../../domain/lark-ticket-fields.js";
 import { buildAuthenticatedLarkClient } from "./lark-auth-client.factory.js";
 import { logger } from "../../logger.js";
 import { isMeegleProductionBugType, isMeegleSprintType } from "../../domain/meegle-workitem-types.js";
@@ -56,8 +57,8 @@ const INACTIVE_STATUSES = new Set([
   "end",
   "已终止", "已取消", "已完成", "已合并", "已关闭",
 ]);
-const STATUS_FIELD_CANDIDATES = ["Status", "状态", "Ticket Status", "ticket_status"];
-const TITLE_FIELD_CANDIDATES = ["Title", "标题", "名称", "name", "Issue Description", "问题描述", "问题"];
+const STATUS_FIELD_CANDIDATES = LARK_TICKET_FIELD_CANDIDATES.status;
+const TITLE_FIELD_CANDIDATES = LARK_TICKET_TITLE_FIELD_CANDIDATES;
 const INCREMENTAL_OVERLAP_MS = 5 * 60 * 1000;
 const LARK_BATCH_GET_SIZE = 100;
 
