@@ -950,7 +950,7 @@ describe("PlatformSyncService", () => {
       requester: "PM Ada",
       responsible: "Ada, Lin",
       priority: "P1",
-      createdAt: "2026-08-01T08:00:00Z",
+      createdAt: "2026-08-01T08:00:00.000Z",
       detailDescription: expect.stringContaining("threadid=thread_1"),
       meegleLink: "https://project.meegle.com/acme/story/detail/123",
       larkMessageLink: expect.stringContaining("threadid=thread_1"),

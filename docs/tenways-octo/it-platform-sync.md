@@ -64,6 +64,8 @@ Web Integrations 还提供受 Web 会话保护的同步状态页：展示 Lark T
 
 Web Lark Ticket 列表默认按状态分组并按状态升序排列，提供“进行中”“未分类”“未同步”快速过滤；“进行中”包含状态不是 `Finish`、`Cancelled`、`Rejected` 的 Ticket。列表也支持切换为按 Issue 类型、需求人、负责人、紧急度分组或不分组，并可配置排序字段、排序方向和显示字段。
 
+Lark Ticket 列表默认显示 Business line、创建时间，关闭时间和解决方案可从显示字段配置开启。Business line 在列表和详情均使用标签 widget；详情 Properties 显示时间，正文单独展示解决方案。Server 从已有同步快照生成 `businessLine`、`createdAt`、`closedAt`、`solution` 只读投影；源端日期的毫秒时间戳归一为 UTC ISO，创建时间缺失时回退已有 `created_time`，关闭时间不从状态推断。FE 不接收原始源字段；空字段显示未设置或暂无内容。
+
 Web Meegle 工作项列表默认按状态分组，也支持切换为按类型、Sprint、Version、System、负责人分组或不分组，并可配置排序字段、排序方向和显示字段；紧凑工作项行在已有值时始终保留 System，不因窄屏隐藏。普通列表和 Sprint 详情都默认显示“当前工作时长”：从 `current_node_start_time` 计算到当前时间，每分钟刷新；只有旧快照仍提供精确 datetime 完成时间时才可截止到 `item_finish_time`，新规则下日粒度完成时间不展示伪精确时长。不回退到表示进入 Cycle/Sprint 时间的 `add_to_cycle_time`，已移出 Sprint 的历史成员不使用当前工作项快照计算该值。Sprint 详情的工作项表同样默认显示 System，并支持按 System 筛选、排序、主分组和次分组。Meegle“负责人”严格取系统字段 `current_status_operator`（Current owner）；多人按源端顺序去重并以逗号展示，空值不回退到当前节点 owner、Task Owner、Product Owner 或其他角色。普通列表及 Sprint 详情的过滤和视图配置只保存在当前 Web 会话的 `App` 页面状态中；Sprint 详情按 route 中的 Sprint ref 隔离，离开后返回会恢复，刷新浏览器后重置，不修改同步快照或外部平台数据。
 
 本地 CLI 配置文件为 `server/config/platform-sync.local.json`，只提交 `.example`，不得保存 token。Lark 通过服务端保存的用户凭据读取；本地 Meegle 同步使用本机 `meegle` CLI profile；本地 GitHub 同步使用 `gh` CLI。HTTP GitHub 同步使用服务端 `GITHUB_TOKEN`。

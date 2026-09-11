@@ -47,9 +47,16 @@ export class PlatformDataService {
           ]);
           return {
             items: items.map(({ sourceFields, ...item }) => {
-              const requester = item.requester
-                ?? buildLarkTicketCleaningProjection(sourceFields, item.createdTime).requester;
-              return { ...item, ...(requester ? { requester } : {}) };
+              const projection = buildLarkTicketCleaningProjection(sourceFields, item.createdTime);
+              const requester = item.requester ?? projection.requester;
+              return {
+                ...item,
+                ...(requester ? { requester } : {}),
+                ...(projection.businessLine ? { businessLine: projection.businessLine } : {}),
+                ...(projection.createdAt ? { createdAt: projection.createdAt } : {}),
+                ...(projection.closedAt ? { closedAt: projection.closedAt } : {}),
+                ...(projection.solution ? { solution: projection.solution } : {}),
+              };
             }),
             total,
           };

@@ -2,9 +2,13 @@ export const LARK_TICKET_VIEW_COLUMNS = [
   { key: "title", label: "Ticket", sortKey: "title", required: true },
   { key: "status", label: "状态", sortKey: "status" },
   { key: "issueType", label: "Issue 类型", sortKey: "issueType" },
+  { key: "businessLine", label: "Business line" },
   { key: "requester", label: "需求人", sortKey: "requester" },
   { key: "responsible", label: "负责人", sortKey: "responsible" },
   { key: "priority", label: "紧急度", sortKey: "priority" },
+  { key: "createdAt", label: "创建时间" },
+  { key: "closedAt", label: "关闭时间" },
+  { key: "solution", label: "解决方案" },
   { key: "updatedAt", label: "更新时间", sortKey: "updatedAt" },
 ];
 
@@ -34,16 +38,16 @@ export const LARK_TICKET_GROUP_OPTIONS = [
 ];
 
 export const DEFAULT_LARK_TICKET_SORT = { key: "status", direction: "asc" };
-export const DEFAULT_LARK_TICKET_VISIBLE_COLUMNS = LARK_TICKET_VIEW_COLUMNS.map(({ key }) => key);
+export const DEFAULT_LARK_TICKET_VISIBLE_COLUMNS = LARK_TICKET_VIEW_COLUMNS.map(({ key }) => key).filter((key) => !["closedAt", "solution"].includes(key));
 export const DEFAULT_LARK_TICKET_AI_OUTPUT_VISIBLE_COLUMNS = LARK_TICKET_AI_OUTPUT_VIEW_COLUMNS.map(({ key }) => key);
 export const DEFAULT_LARK_TICKET_EVAL_DATASET_VISIBLE_COLUMNS = LARK_TICKET_EVAL_DATASET_VIEW_COLUMNS.map(({ key }) => key);
 export const DEFAULT_LARK_TICKET_VIEW_MODE = "list";
 
-const COLUMN_KEYS = new Set(DEFAULT_LARK_TICKET_VISIBLE_COLUMNS);
+const COLUMN_KEYS = new Set(LARK_TICKET_VIEW_COLUMNS.map(({ key }) => key));
 const AI_OUTPUT_COLUMN_KEYS = new Set(DEFAULT_LARK_TICKET_AI_OUTPUT_VISIBLE_COLUMNS);
 const EVAL_DATASET_COLUMN_KEYS = new Set(DEFAULT_LARK_TICKET_EVAL_DATASET_VISIBLE_COLUMNS);
 const GROUP_KEYS = new Set(LARK_TICKET_GROUP_OPTIONS.map(([key]) => key));
-const SORT_KEYS = new Set(LARK_TICKET_VIEW_COLUMNS.map(({ sortKey }) => sortKey));
+const SORT_KEYS = new Set(LARK_TICKET_VIEW_COLUMNS.map(({ sortKey }) => sortKey).filter(Boolean));
 
 export function normalizeLarkTicketVisibleColumns(value) {
   return normalizeVisibleColumns(value, COLUMN_KEYS, DEFAULT_LARK_TICKET_VISIBLE_COLUMNS);

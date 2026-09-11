@@ -221,6 +221,15 @@ function LarkTicketCell({ columnKey, item }) {
   if (columnKey === "issueType") {
     return <LarkTicketBadge kind="type" value={item.issueType} />;
   }
+  if (columnKey === "businessLine") {
+    return <LarkTicketBadge kind="business-line" value={item.businessLine} />;
+  }
+  if (columnKey === "createdAt" || columnKey === "closedAt") {
+    return formatDateTime(item[columnKey]);
+  }
+  if (columnKey === "solution") {
+    return item.solution || "暂无解决方案";
+  }
   if (columnKey === "requester") {
     return <LarkTicketResponsible responsible={item.requester} />;
   }

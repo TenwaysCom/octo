@@ -2,6 +2,48 @@ import type { PlatformSyncStore } from "../../adapters/postgres/platform-sync-st
 import { PlatformDataService } from "./platform-data.service.js";
 
 describe("PlatformDataService", () => {
+  it("projects Base creation/closing milliseconds and solution text without inferring a close time", async () => {
+    const store = {
+      listLarkBaseTickets: vi.fn().mockResolvedValue([
+        { recordId: "dates", createdTime: "2025-01-01T00:00:00Z", sourceFields: {
+          "创建时间": 1767225600000, "关闭时间": "1767312000000", "解决方案": [{ text: "修改配置\n验证通过" }],
+        } },
+        { recordId: "empty", ticketStatus: "Finish", createdTime: "2026-01-01T00:00:00Z", sourceFields: { "关闭时间": null, "解决方案": null } },
+        { recordId: "invalid", sourceFields: { "创建时间": "not-a-date", "关闭时间": 0 } },
+      ]),
+      countLarkBaseTickets: vi.fn().mockResolvedValue(3),
+    } as unknown as PlatformSyncStore;
+    const { items } = await new PlatformDataService(store).list("lark-tickets", 50);
+    expect(items[0]).toMatchObject({ createdAt: "2026-01-01T00:00:00.000Z", closedAt: "2026-01-02T00:00:00.000Z", solution: "修改配置\n验证通过" });
+    expect(items[1]).toMatchObject({ createdAt: "2026-01-01T00:00:00.000Z" });
+    expect(items[1]).not.toHaveProperty("closedAt");
+    expect(items[1]).not.toHaveProperty("solution");
+    expect(items[2]).not.toHaveProperty("createdAt");
+    expect(items[2]).not.toHaveProperty("closedAt");
+    expect(items[0]).not.toHaveProperty("sourceFields");
+  });
+
+  it.each([
+    ["B2B sales", "B2B sales"],
+    [{ name: "Software center" }, "Software center"],
+    [[{ text: "B2B sales" }, { name: "Software center" }], "B2B sales, Software center"],
+    ["  ", undefined],
+    [undefined, undefined],
+  ])("projects Business line from the snapshot without exposing source fields (%j)", async (value, expected) => {
+    const store = {
+      listLarkBaseTickets: vi.fn().mockResolvedValue([{
+        baseId: "base", tableId: "table", recordId: "rec-business-line",
+        sourceFields: { "Business line": value, internalField: "not for the browser" },
+      }]),
+      countLarkBaseTickets: vi.fn().mockResolvedValue(1),
+    } as unknown as PlatformSyncStore;
+    const result = await new PlatformDataService(store).list("lark-tickets", 50);
+    const item = result.items[0];
+    if (expected === undefined) expect(item).not.toHaveProperty("businessLine");
+    else expect(item).toHaveProperty("businessLine", expected);
+    expect(item).not.toHaveProperty("sourceFields");
+  });
+
   it("returns the cleaned Lark requester and falls back to the existing source fields", async () => {
     const store = {
       listLarkBaseTickets: vi.fn().mockResolvedValue([

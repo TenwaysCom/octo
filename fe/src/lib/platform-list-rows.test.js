@@ -39,19 +39,22 @@ test("buildLarkTicketRow puts type, priority and status on the left and people/d
     title: "登录失败",
     ticketStatus: "处理中",
     issueType: "Production Bug",
+    businessLine: "B2B sales",
     priority: "P1",
     requester: "张三",
     responsible: "李四",
     sourceUpdatedAt: "2026-08-01T10:00:00.000Z",
   };
-  const row = buildLarkTicketRow(item, ["title", "status", "issueType", "requester", "responsible", "priority", "updatedAt"]);
+  const row = buildLarkTicketRow(item, ["title", "status", "issueType", "businessLine", "requester", "responsible", "priority", "updatedAt"]);
   assert.equal(row.kind, "lark-tickets");
   assert.equal(row.identifier, "T-10086");
   assert.equal(row.title, "登录失败");
   assert.equal(row.href, "#lark-tickets/rec123");
   assert.equal(row.external, false);
   assert.deepEqual(row.leading.map((meta) => meta.key), ["issueType", "priority", "status"]);
-  assert.deepEqual(row.trailing.map((meta) => meta.key), ["requester", "responsible", "updatedAt"]);
+  assert.deepEqual(row.trailing.map((meta) => meta.key), ["businessLine", "requester", "responsible", "updatedAt"]);
+  assert.equal(row.trailing[0].value, "B2B sales");
+  assert.equal(row.trailing[0].kind, "business-line");
   assert.deepEqual(row.leading.map((meta) => meta.type), ["lark-badge", "lark-badge", "lark-badge"]);
 });
 
@@ -59,6 +62,12 @@ test("buildLarkTicketRow respects visible columns", () => {
   const row = buildLarkTicketRow({ recordId: "rec1", title: "t" }, ["title", "status"]);
   assert.deepEqual(row.leading.map((meta) => meta.key), ["status"]);
   assert.deepEqual(row.trailing, []);
+  assert.equal(buildLarkTicketRow({}, ["businessLine"]).trailing[0].value, undefined);
+  const detailed = buildLarkTicketRow({ createdAt: "2026-01-01T00:00:00Z", solution: "修复配置" }, ["createdAt", "closedAt", "solution"]);
+  assert.deepEqual(detailed.trailing.map((meta) => meta.key), ["createdAt", "closedAt", "solution"]);
+  assert.equal(detailed.trailing[0].text.startsWith("创建 "), true);
+  assert.equal(detailed.trailing[1].text, "关闭 -");
+  assert.equal(detailed.trailing[2].text, "修复配置");
 });
 
 test("buildMeegleWorkitemRow links externally and carries collapsible PR data", () => {

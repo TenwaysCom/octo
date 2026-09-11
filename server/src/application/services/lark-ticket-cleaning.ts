@@ -12,10 +12,13 @@ const LARK_MESSAGE_LINK_PATTERN = /https?:\/\/[^\s"'<>)\]]*(?:threadid|chatid|me
 export interface LarkTicketCleaningProjection {
   ticketNumber?: string;
   issueType?: string;
+  businessLine?: string;
   requester?: string;
   responsible?: string;
   priority?: string;
   createdAt?: string;
+  closedAt?: string;
+  solution?: string;
   detailDescription?: string;
   meegleLink?: string;
   larkMessageLink?: string;
@@ -30,14 +33,27 @@ export function buildLarkTicketCleaningProjection(
   return omitEmpty({
     ticketNumber: readField(source, TICKET_NUMBER_FIELDS),
     issueType: readField(source, ISSUE_TYPE_FIELDS),
+    businessLine: readField(source, ["Business line"]),
     requester: readField(source, REQUESTER_FIELDS),
     responsible: readField(source, RESPONSIBLE_FIELDS),
     priority: readField(source, URGENCY_FIELDS),
-    createdAt: createdTime ?? readField(source, CREATED_AT_FIELDS),
+    createdAt: normalizeLarkTicketTimestamp(readField(source, CREATED_AT_FIELDS) ?? createdTime),
+    closedAt: normalizeLarkTicketTimestamp(readField(source, ["关闭时间"])),
+    solution: readField(source, ["解决方案"]),
     detailDescription,
     meegleLink: readUrl(source, MEEGLE_LINK_FIELDS),
     larkMessageLink: readUrl(source, LARK_MESSAGE_LINK_FIELDS) ?? findMessageLink(detailDescription),
   });
+}
+
+export function normalizeLarkTicketTimestamp(value: string | undefined): string | undefined {
+  if (!value?.trim()) return undefined;
+  const text = value.trim();
+  // Lark Base date values are Unix milliseconds, including legacy string values.
+  const timestamp = /^\d+$/.test(text) ? Number(text) : Date.parse(text);
+  if (!Number.isFinite(timestamp) || timestamp <= 0) return undefined;
+  const date = new Date(timestamp);
+  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
 }
 
 function readField(fields: Record<string, unknown>, names: string[]): string | undefined {

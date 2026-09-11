@@ -312,6 +312,11 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
           </section>
 
           <section className="ticket-detail-section">
+            <h2>解决方案</h2>
+            <p className={`ticket-description ${ticket.solution ? "" : "ticket-description--empty"}`.trim()}>{ticket.solution || "暂无解决方案。"}</p>
+          </section>
+
+          <section className="ticket-detail-section">
             <h2>Resources</h2>
             {resources.length ? <div className="ticket-resource-list">{resources.map(([href, label]) => <ExternalResource href={href} key={label}>{label}</ExternalResource>)}</div> : sharedUrlStatus === "loading" ? <p className="ticket-section-empty">正在获取 Lark Ticket 链接…</p> : <p className="ticket-section-empty">暂无关联资源。</p>}
           </section>
@@ -391,6 +396,9 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
             <TicketProperty label="需求人"><LarkTicketResponsible responsible={ticket.requester} /></TicketProperty>
             <TicketProperty label="负责人"><LarkTicketResponsible responsible={ticket.responsible} /></TicketProperty>
             <TicketProperty label="类型"><LarkTicketBadge kind="type" value={ticket.issueType} /></TicketProperty>
+            <TicketProperty label="Business line"><LarkTicketBadge kind="business-line" value={ticket.businessLine} /></TicketProperty>
+            <TicketProperty label="创建时间">{ticket.createdAt ? formatDateTime(ticket.createdAt) : "未设置"}</TicketProperty>
+            <TicketProperty label="关闭时间">{ticket.closedAt ? formatDateTime(ticket.closedAt) : "未设置"}</TicketProperty>
           </dl>
           <p className="ticket-detail__sync-time">同步于 {formatDateTime(ticket.syncedAt)}</p>
           {ticket.shadowAi ? <ShadowAiPanel shadowAi={ticket.shadowAi} /> : null}

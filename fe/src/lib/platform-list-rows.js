@@ -71,8 +71,13 @@ export function buildLarkTicketRow(item, visibleColumns = []) {
   if (visible.has("priority")) leading.push({ key: "priority", type: "lark-badge", kind: "priority", value: item.priority });
   if (visible.has("status")) leading.push({ key: "status", type: "lark-badge", kind: "status", value: item.ticketStatus });
   const trailing = [];
+  if (visible.has("businessLine")) trailing.push({ key: "businessLine", type: "lark-badge", kind: "business-line", value: item.businessLine, title: `Business line: ${item.businessLine || "未设置"}` });
   if (visible.has("requester")) trailing.push({ key: "requester", type: "lark-users", value: item.requester, hideOnSmall: true });
   if (visible.has("responsible")) trailing.push({ key: "responsible", type: "lark-users", value: item.responsible });
+  for (const [key, label] of [["createdAt", "创建"], ["closedAt", "关闭"]]) {
+    if (visible.has(key)) trailing.push({ key, type: "date", value: item[key], text: `${label} ${formatDateTime(item[key])}`, title: `${label}时间` });
+  }
+  if (visible.has("solution")) trailing.push({ key: "solution", type: "text", text: item.solution || "暂无解决方案", title: `解决方案：${item.solution || "未设置"}` });
   if (visible.has("updatedAt")) trailing.push(dateMeta(item));
   return {
     kind: "lark-tickets",
