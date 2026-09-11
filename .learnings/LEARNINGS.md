@@ -739,3 +739,12 @@ source: [Ticket wiki 问答](../docs/tasks/ai-ticket/2026-09-11-wiki-qa-quick-ac
 **Rule:** 知识问答验收需同时核对来源选择、适用前提和最终答复的每个处理分支。优先传递所选原始证据关联的知识段落，缺失前提保留历史参考；用真实模型检查是否混入同页无关事故，不以 HTTP 成功替代答案质量核对。
 
 source: [Ticket wiki 问答](../docs/tasks/ai-ticket/2026-09-11-wiki-qa-quick-action.md)
+
+
+## [LRN-20260911-003] multi-source-snapshots-need-independent-version-boundaries
+
+**Context:** 一个证据快照可能合并线程消息、业务源字段和 AI 参考结果；只比较线程哈希时，其他来源发生变化仍可能被当成重复内容跳过。
+
+**Rule:** 为会独立变化的事实来源保留各自版本或内容指纹和观察时点，重摄入时检查所有实际输入。补充来源信息时保留旧证据版本，不能用当前源字段时间替换旧线程时间，或让新增 AI 参考内容改变原始证据身份。
+
+source: [Ticket 源字段与 wiki 快照](../docs/tasks/ai-ticket/2026-09-11-ticket-source-fields-and-wiki-snapshots.md)
