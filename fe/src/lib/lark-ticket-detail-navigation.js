@@ -29,3 +29,11 @@ export function getLarkTicketDetailNavigation({ navigationContext, currentRecord
     total: recordIds.length,
   };
 }
+
+
+export function updateLarkTicketNavigationContext(navigationContext, patch) {
+  if (!navigationContext) return navigationContext;
+  return { ...navigationContext, tickets: navigationContext.tickets.map((ticket) =>
+    ticket.baseId === patch.baseId && ticket.tableId === patch.tableId && ticket.recordId === patch.recordId
+      ? { ...ticket, ...patch } : ticket) };
+}

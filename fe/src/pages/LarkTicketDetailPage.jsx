@@ -5,10 +5,10 @@ import { aiRunStatusLabel } from "../lib/ai-session-panel.js";
 import { AiSessionCopyButton } from "../components/ai-session/AiSessionCopyButton.jsx";
 import { WorkspaceShell } from "../components/layout/WorkspaceShell.jsx";
 import { LarkTicketBadge } from "../components/lark-ticket/LarkTicketBadge.jsx";
-import { LarkTicketResponsible } from "../components/lark-ticket/LarkTicketResponsible.jsx";
+import { LarkTicketEditableProperties } from "../components/lark-ticket/LarkTicketEditableProperties.jsx";
 import { formatDateTime } from "../lib/formatters.js";
 import { LARK_TICKET_AI_QUICK_ACTIONS } from "../lib/lark-ticket-ai-actions.js";
-import { getLarkTicketDetailNavigation, getLarkTicketFromNavigationContext } from "../lib/lark-ticket-detail-navigation.js";
+import { getLarkTicketDetailNavigation, getLarkTicketFromNavigationContext, updateLarkTicketNavigationContext } from "../lib/lark-ticket-detail-navigation.js";
 import { getTicketAiSections } from "../lib/ticket-ai-sections.js";
 import { getLarkTicketDetailHash } from "../app/routes/workspace-routes.js";
 import {
@@ -112,7 +112,7 @@ function formatTicketAiValue(value) {
   return String(value);
 }
 
-export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLogout, isBusy, breadcrumbs, larkTicketNavigationContext }) {
+export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLogout, isBusy, breadcrumbs, larkTicketNavigationContext, onLarkTicketNavigationContextChange }) {
   const snapshotTicket = getLarkTicketFromNavigationContext({ navigationContext: larkTicketNavigationContext, recordId: ticketRecordId });
   const [state, setState] = useState(() => snapshotTicket
     ? { status: "ready", ticket: snapshotTicket }
@@ -390,16 +390,20 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
 
         <aside className="ticket-detail__properties" aria-label="Ticket 属性">
           <h2>Properties</h2>
-          <dl>
-            <TicketProperty label="状态"><LarkTicketBadge kind="status" value={ticket.ticketStatus} /></TicketProperty>
-            <TicketProperty label="紧急度"><LarkTicketBadge kind="priority" value={ticket.priority} /></TicketProperty>
-            <TicketProperty label="需求人"><LarkTicketResponsible responsible={ticket.requester} /></TicketProperty>
-            <TicketProperty label="负责人"><LarkTicketResponsible responsible={ticket.responsible} /></TicketProperty>
-            <TicketProperty label="类型"><LarkTicketBadge kind="type" value={ticket.issueType} /></TicketProperty>
-            <TicketProperty label="Business line"><LarkTicketBadge kind="business-line" value={ticket.businessLine} /></TicketProperty>
+          <LarkTicketEditableProperties
+            key={JSON.stringify([apiBaseUrl, ticket.baseId, ticket.tableId, ticket.recordId])}
+            ticket={ticket}
+            apiBaseUrl={apiBaseUrl}
+            canEdit={Boolean(profile.workspaceAccess?.platformSync)}
+            onUpdated={(patch) => {
+              const matches = (item) => item?.baseId === patch.baseId && item?.tableId === patch.tableId && item?.recordId === patch.recordId;
+              setState((current) => matches(current.ticket) ? { ...current, ticket: { ...current.ticket, ...patch } } : current);
+              onLarkTicketNavigationContextChange?.((current) => updateLarkTicketNavigationContext(current, patch));
+            }}
+          >
             <TicketProperty label="创建时间">{ticket.createdAt ? formatDateTime(ticket.createdAt) : "未设置"}</TicketProperty>
             <TicketProperty label="关闭时间">{ticket.closedAt ? formatDateTime(ticket.closedAt) : "未设置"}</TicketProperty>
-          </dl>
+          </LarkTicketEditableProperties>
           <p className="ticket-detail__sync-time">同步于 {formatDateTime(ticket.syncedAt)}</p>
           {ticket.shadowAi ? <ShadowAiPanel shadowAi={ticket.shadowAi} /> : null}
         </aside>

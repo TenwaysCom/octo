@@ -3,6 +3,7 @@ import test from "node:test";
 import { sortLarkTickets } from "./lark-ticket-view-config.js";
 import {
   createLarkTicketNavigationContext,
+  updateLarkTicketNavigationContext,
   getLarkTicketDetailNavigation,
   getLarkTicketFromNavigationContext,
 } from "./lark-ticket-detail-navigation.js";
@@ -85,4 +86,22 @@ test("uses the captured Ticket data and hides navigation without a matching list
     navigationContext,
     currentRecordId: "rec-missing",
   }), null);
+});
+
+
+test("keeps saved fields when navigating back without changing order or unrelated Ticket data", () => {
+  const original = createLarkTicketNavigationContext([
+    { baseId: "base_1", tableId: "table_1", recordId: "rec_1", ticketStatus: "Open", title: "First", sharedUrl: "https://example.com/ticket" },
+    { baseId: "base_1", tableId: "table_1", recordId: "rec_2", ticketStatus: "Open" },
+  ]);
+  const patch = { baseId: "base_1", tableId: "table_1", recordId: "rec_1", ticketStatus: "Done" };
+  const updated = updateLarkTicketNavigationContext(original, patch);
+  assert.deepEqual(updated.recordIds, original.recordIds);
+  assert.equal(updated.tickets[1], original.tickets[1]);
+  assert.equal(original.tickets[0].ticketStatus, "Open");
+  assert.deepEqual(getLarkTicketFromNavigationContext({ navigationContext: updated, recordId: "rec_1" }), {
+    ...original.tickets[0], ticketStatus: "Done",
+  });
+  assert.deepEqual(updateLarkTicketNavigationContext(original, { ...patch, tableId: "other" }), original);
+  assert.equal(updateLarkTicketNavigationContext(null, patch), null);
 });

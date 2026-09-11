@@ -757,3 +757,12 @@ source: [Ticket 源字段与 wiki 快照](../docs/tasks/ai-ticket/2026-09-11-tic
 **Rule:** 审查跨平台写操作时，沿列表实际读取路径检查原始快照、清洗列和刷新顺序；把外部写入成功与本地同步失败作为不同结果验证，避免用重新请求列表代替同步。
 
 source: [Lark Ticket 右键快捷动作](../docs/tasks/platform-data/2026-09-11-lark-ticket-context-menu-actions.md)
+
+
+## [LRN-20260911-005] update-navigation-snapshots-after-detail-writes
+
+**Context:** 详情页可能从列表导航缓存恢复数据，本地组件更新成功后，返回该记录仍可能读到旧缓存。
+
+**Rule:** 增加详情写入时检查所有缓存读取路径，在服务端确认成功后按完整业务标识合并投影；用函数式更新保留当前导航集合和其他字段，验证切换记录后返回的显示结果。
+
+source: [Lark Ticket 详情属性编辑](../docs/tasks/platform-data/2026-09-11-lark-ticket-detail-field-editing.md)

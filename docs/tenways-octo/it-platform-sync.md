@@ -70,6 +70,8 @@ Web Meegle 工作项列表默认按状态分组，也支持切换为按类型、
 
 本地 CLI 配置文件为 `server/config/platform-sync.local.json`，只提交 `.example`，不得保存 token。Lark 通过服务端保存的用户凭据读取；本地 Meegle 同步使用本机 `meegle` CLI profile；本地 GitHub 同步使用 `gh` CLI。HTTP GitHub 同步使用服务端 `GITHUB_TOKEN`。
 
+Lark Ticket 详情 Properties 的状态、紧急度、需求人、负责人、类型和 Business Line 支持点击编辑；仅 `platformSync` 权限用户显示编辑入口。字段写入复用独立的 Web Ticket action workflow：写回 Lark Base 后单条同步并清洗，再更新详情与前后导航快照；同步失败显示部分成功。创建/关闭时间及 Shadow AI 仍只读。
+
 ### 2.3 Lark Ticket AI Sessions
 
 Lark Ticket 详情页可基于当前同步快照的标题、描述与资源创建 Kimi ACP AI Session。会话归属保存在 `acp_kimi_session_owners`：每条 Ticket Session 同时绑定 Lark `base_id + table_id + record_id` 与服务端解析出的 Lark 用户身份。它不向 Lark 回写消息或评论。

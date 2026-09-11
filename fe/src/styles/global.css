@@ -1313,3 +1313,14 @@ h1 {
 .ticket-context-menu__submenu-note button { margin-left: 6px; padding: 0; border: 0; color: var(--octo-brand); background: none; font: inherit; cursor: pointer; }
 .ticket-context-menu__option--current { background: var(--octo-surface-muted); }
 .list-message--success { color: var(--octo-success); }
+
+.ticket-property__edit { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 3px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--octo-text); cursor: pointer; text-align: left; }
+.ticket-property__edit:hover, .ticket-property__edit:focus-visible { border-color: var(--octo-border); background: var(--octo-surface); }
+.ticket-property__edit:disabled { cursor: wait; opacity: .6; }
+.ticket-property__form { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; font-size: 12px; }
+.ticket-property__form select { width: 100%; min-width: 0; padding: 6px; border: 1px solid var(--octo-border); border-radius: 6px; color: var(--octo-text); background: var(--octo-surface); }
+.ticket-property__form button { padding: 4px 8px; border: 1px solid var(--octo-border); border-radius: 6px; color: var(--octo-text); background: var(--octo-surface); cursor: pointer; }
+.ticket-property__form button:disabled { opacity: .5; cursor: default; }
+.ticket-property__form p { margin: 0; }
+.ticket-property__message { font-size: 12px; line-height: 1.6; color: var(--octo-text-muted); }
+.ticket-property__message--error { color: #b42318; }
