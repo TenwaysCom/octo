@@ -818,3 +818,9 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Error:** Node `fetch failed` 的 cause 为 `getaddrinfo EAI_AGAIN`，`resolvectl query` 报 `No appropriate name servers or networks for name found`。
 - **Fix:** 在实际服务主机确认 resolved 全局及网卡 DNS；若均为空且直接查询指定 DNS 可达，配置上游 DNS 并验证系统解析及相同运行时无代理请求。
 - **source:** [Meegle DNS 排障与修复](../docs/tasks/platform-auth/2026-09-10-meegle-auth-fetch-failure-diagnosis.md)
+
+### ERR-20260910-003 — hosts 钉死失效 IP 导致 OdooSH 全环境请求失败
+
+- **Error:** FE 不显示 OdooSH build 状态，app 日志 `ODOO_DEVOPS_BRANCHES_REQUEST_FAILED` 连续出现且不带 `status` 字段（client 仅在 fetch 抛错时如此打点），无 `AUTH_REJECTED`；`getent` 命中 `/etc/hosts` 将 `devops.odoo.tenways.it` 钉在已不可达的 `192.168.59.103`（网关回 `Destination Host Unreachable`）。
+- **Fix:** 先按日志字段区分失败层（不带 `status` = 网络层 fetch 抛错；401/403/302 = `AUTH_REJECTED` session 失效），再对比 `getent` 与 `dig @上游DNS` 定位 hosts 覆盖；hosts 改回实际部署地址后，用 `.env` session 模拟三环境请求验证 200。
+- **source:** [FE OdooSH build 状态不显示诊断](../docs/tasks/engineering-ops/2026-09-10-odoosh-build-hosts-pin-diagnosis.md)
