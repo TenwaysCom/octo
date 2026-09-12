@@ -29,6 +29,7 @@ export function summarizeRequestPayload(payload: unknown): unknown {
   return {
     requestId: record.requestId,
     actionRunId: record.actionRunId,
+    actionKey: record.actionKey,
     masterUserId: record.masterUserId,
     operatorLarkId: record.operatorLarkId,
     meegleUserKey: record.meegleUserKey,

@@ -1,10 +1,7 @@
 import { delimiter } from "node:path";
 
-export interface KimiAcpSpawnConfig {
-  command: string;
-  args: string[];
-  env: NodeJS.ProcessEnv;
-}
+import type { AcpSpawnConfig } from "../acp/spawn-config.js";
+export type KimiAcpSpawnConfig = AcpSpawnConfig;
 
 export interface KimiAcpConfigEnv {
   KIMI_ACP_COMMAND?: string;
@@ -58,15 +55,11 @@ function ensureDefaultKimiBinOnPath(
   const defaultKimiBin = `${env.HOME}/.kimi-code/bin`;
   const currentPath = env.PATH ?? "";
   const pathEntries = currentPath.split(delimiter).filter(Boolean);
-  if (pathEntries.includes(defaultKimiBin)) {
-    return env;
-  }
+  const filteredEntries = pathEntries.filter((entry) => entry !== defaultKimiBin);
 
   return {
     ...env,
-    PATH: currentPath
-      ? `${defaultKimiBin}${delimiter}${currentPath}`
-      : defaultKimiBin,
+    PATH: `${defaultKimiBin}${delimiter}${filteredEntries.join(delimiter)}`,
   };
 }
 

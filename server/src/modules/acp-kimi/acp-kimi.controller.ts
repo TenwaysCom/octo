@@ -44,6 +44,7 @@ export function createAcpKimiChatController(
     }
 
     acpKimiControllerLogger.info({
+      actionRunId: request.actionRunId,
       operatorLarkId: request.operatorLarkId,
       hasSessionId: Boolean(request.sessionId),
       sessionId: request.sessionId,
@@ -60,6 +61,7 @@ export function createAcpKimiChatController(
         sessionId: request.sessionId,
       });
       acpKimiControllerLogger.info({
+        actionRunId: request.actionRunId,
         operatorLarkId: request.operatorLarkId,
         requestedSessionId: request.sessionId,
         resolvedSessionId: session?.sessionId ?? null,
@@ -69,6 +71,7 @@ export function createAcpKimiChatController(
       await service.chat(request, (event) => {
         emittedEvents += 1;
         acpKimiControllerLogger.info({
+          actionRunId: request.actionRunId,
           operatorLarkId: request.operatorLarkId,
           sessionId:
             ("data" in event && event.data && "sessionId" in event.data)
@@ -84,6 +87,7 @@ export function createAcpKimiChatController(
       });
 
       acpKimiControllerLogger.info({
+        actionRunId: request.actionRunId,
         operatorLarkId: request.operatorLarkId,
         requestedSessionId: request.sessionId,
         emittedEvents,
@@ -92,6 +96,7 @@ export function createAcpKimiChatController(
     } catch (error) {
       if (abortController.signal.aborted || isAbortError(error)) {
         acpKimiControllerLogger.warn({
+          actionRunId: request.actionRunId,
           operatorLarkId: request.operatorLarkId,
           requestedSessionId: request.sessionId,
           emittedEvents,
@@ -104,6 +109,7 @@ export function createAcpKimiChatController(
 
       if (error instanceof AcpKimiProxyError) {
         acpKimiControllerLogger.warn({
+          actionRunId: request.actionRunId,
           operatorLarkId: request.operatorLarkId,
           requestedSessionId: request.sessionId,
           emittedEvents,
@@ -122,6 +128,7 @@ export function createAcpKimiChatController(
 
       if (res.headersSent) {
         acpKimiControllerLogger.error({
+          actionRunId: request.actionRunId,
           operatorLarkId: request.operatorLarkId,
           requestedSessionId: request.sessionId,
           emittedEvents,
@@ -134,6 +141,7 @@ export function createAcpKimiChatController(
       }
 
       acpKimiControllerLogger.error({
+        actionRunId: request.actionRunId,
         operatorLarkId: request.operatorLarkId,
         requestedSessionId: request.sessionId,
         emittedEvents,

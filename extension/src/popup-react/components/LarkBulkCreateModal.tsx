@@ -34,7 +34,7 @@ export function LarkBulkCreateModal({
     <div className="bulk-modal-backdrop" data-test="lark-bulk-create-modal">
       <div className="bulk-modal" role="dialog" aria-modal="true" aria-labelledby="bulk-modal-title">
         <div className="bulk-modal__header">
-          <h3 id="bulk-modal-title">批量创建 MEEGLE TICKET</h3>
+          <h3 id="bulk-modal-title">批量创建 Meegle Item</h3>
           <button className="bulk-modal__close" type="button" onClick={onClose}>
             关闭
           </button>

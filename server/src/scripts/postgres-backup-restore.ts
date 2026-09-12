@@ -4,6 +4,7 @@ import { basename, join, resolve } from "node:path";
 import { spawn } from "node:child_process";
 
 import { getDefaultPostgresUri } from "../adapters/postgres/database.js";
+import { preparePostgresConnection } from "../adapters/postgres/ssh-tunnel.js";
 
 type Command = "backup" | "restore";
 
@@ -190,15 +191,20 @@ async function main(): Promise<void> {
     throw new Error("POSTGRES_URI or DATABASE_URL is required");
   }
 
-  const resolvedBackupDir = resolve(backupDir ?? "backups/postgres");
+  const connection = await preparePostgresConnection(postgresUri);
+  try {
+    const resolvedBackupDir = resolve(backupDir ?? "backups/postgres");
 
-  if (command === "backup") {
-    await backupDatabase(postgresUri, databaseName, resolvedBackupDir);
-    return;
+    if (command === "backup") {
+      await backupDatabase(connection.postgresUri, databaseName, resolvedBackupDir);
+      return;
+    }
+
+    const restoreFile = filePath ? resolve(filePath) : findLatestBackupFile(resolvedBackupDir, databaseName);
+    await restoreDatabase(connection.postgresUri, databaseName, restoreFile);
+  } finally {
+    await connection.close();
   }
-
-  const restoreFile = filePath ? resolve(filePath) : findLatestBackupFile(resolvedBackupDir, databaseName);
-  await restoreDatabase(postgresUri, databaseName, restoreFile);
 }
 
 if (import.meta.url === new URL(process.argv[1] ?? "", "file:").href) {

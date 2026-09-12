@@ -1,3 +1,7 @@
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import app from "./index.js";
 
@@ -36,14 +40,43 @@ describe("index routes", () => {
         "POST /api/lark/auth/refresh",
         "POST /api/lark/auth/status",
         "POST /api/lark/auth/session",
+        "GET /api/lark/auth/web/start",
+        "GET /api/lark/auth/web/ensure",
+        "GET /api/web/profile",
+        "POST /api/web/acp/permissions/reply",
+        "GET /api/web/platform-data/lark-tickets",
+        "GET /api/web/platform-data/meegle-workitems",
+        "GET /api/web/meegle-workitems/pull-request-candidates",
+        "POST /api/web/meegle-workitems/link-pull-request",
+        "GET /api/web/platform-data/github-pull-requests",
+        "GET /api/web/platform-data/github-pull-request-preview",
+        "GET /api/web/meegle-sprints",
+        "GET /api/web/lark-tickets/:recordId/shared-url",
+        "PUT /api/web/lark-tickets/:recordId/support-analysis",
+        "GET /api/web/lark-ticket-eval-samples",
+        "POST /api/web/lark-tickets/:recordId/eval-sample",
+        "PUT /api/web/lark-ticket-eval-samples/:sampleId",
+        "GET /api/web/lark-tickets/:recordId/ai-sessions",
+        "POST /api/web/lark-tickets/:recordId/ai-sessions",
+        "POST /api/web/lark-tickets/:recordId/ai-sessions/:sessionId/load",
+        "POST /api/web/lark-tickets/:recordId/ai-sessions/:sessionId/stop",
+        "GET /api/web/meegle-sprints/:sprintId/ai-sessions",
+        "POST /api/web/meegle-sprints/:sprintId/ai-sessions",
+        "POST /api/web/meegle-sprints/:sprintId/ai-sessions/:sessionId/load",
+        "POST /api/web/meegle-sprints/:sprintId/ai-sessions/:sessionId/stop",
+        "POST /api/lark/auth/web/logout",
         "GET /api/lark/auth/callback",
         "POST /api/pm/analysis/run",
         "POST /api/lark-base/update-meegle-link",
         "POST /api/lark-base/create-meegle-workitem",
         "POST /api/lark-base/bulk-preview-meegle-workitems",
         "POST /api/lark-base/bulk-create-meegle-workitems",
+        "POST /api/internal/lark-ticket-ai",
+        "POST /api/internal/acp/ticket-context/messages",
         "POST /api/meegle/workitem/story-prd-to-simplified",
         "POST /api/lark-bug/analyze",
+        "POST /api/github/pr/code-review-feedback",
+        "GET /api/github/pr/code-review-feedback/:actionRunId",
       ]),
     );
   });
@@ -67,4 +100,21 @@ describe("index routes", () => {
       expect(routes).not.toContain(`POST ${path}`);
     }
   });
+});
+
+
+it("loads .env before eagerly constructing loggers in the real entry point", () => {
+  const dir = mkdtempSync(join(tmpdir(), "octo-entry-env-"));
+  try {
+    const envPath = join(dir, ".env");
+    writeFileSync(envPath, `LOG_LEVEL=debug\nLOG_FILE=${join(dir, "app.log")}\nAPI_LOG_FILE=${join(dir, "api.log")}\n`);
+    const child = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e",
+      'import "./src/index.ts"; import { logger } from "./src/logger.ts"; process.stdout.write("ENTRY_LOG_LEVEL=" + logger.level);',
+    ], {
+      cwd: process.cwd(), encoding: "utf8", timeout: 10_000,
+      env: { PATH: process.env.PATH, NODE_ENV: "test", VITEST: "true", DOTENV_CONFIG_PATH: envPath },
+    });
+    expect(child.status, child.stderr).toBe(0);
+    expect(child.stdout).toContain("ENTRY_LOG_LEVEL=debug");
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });

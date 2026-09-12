@@ -604,7 +604,8 @@ body {
 }
 
 .toolbar-popup__hero,
-.toolbar-popup__status-row {
+.toolbar-popup__status-row,
+.toolbar-popup__environment {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -613,9 +614,19 @@ body {
 
 .toolbar-popup__hero-copy,
 .toolbar-popup__status-copy,
-.toolbar-popup__actions {
+.toolbar-popup__actions,
+.toolbar-popup__environment-field {
   display: grid;
   gap: 8px;
+}
+
+.toolbar-popup__environment-field {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.toolbar-popup__environment-save {
+  margin-top: 27px;
 }
 
 .toolbar-popup__eyebrow {
@@ -636,11 +647,16 @@ body {
 
 .toolbar-popup__hint,
 .toolbar-popup__order-tip,
-.toolbar-popup__status-text {
+.toolbar-popup__status-text,
+.toolbar-popup__server-url {
   margin: 0;
   color: #64748b;
   font-size: 13px;
   line-height: 1.6;
+}
+
+.toolbar-popup__server-url {
+  overflow-wrap: anywhere;
 }
 
 .toolbar-popup__status-label {

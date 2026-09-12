@@ -1,0 +1,59 @@
+import {
+  AUTOMATION_SKILL_PROFILES,
+  getSprintAiAutomationAction,
+  getTicketAiAutomationAction,
+} from "./automation-actions.config.js";
+
+describe("ticket AI automation actions", () => {
+  it("routes Summary and wiki QA separately while keeping Answer and Document on ACP", () => {
+    expect(AUTOMATION_SKILL_PROFILES.support_qa_eu).toEqual({
+      workspaceEnv: "SUPPORT_QA_EU_WORKSPACE_DIR",
+      skills: {
+        support_qa_query: ".agents/skills/query-support-qa/SKILL.md",
+        support_qa_write: ".agents/skills/write-support-qa/SKILL.md",
+      },
+    });
+    expect(getTicketAiAutomationAction("lark-ticket-support-qa-summarize")).toMatchObject({
+      promptKey: "lark_ticket.support_qa.summarize",
+      provider: "ticket_summary",
+      requiresConfirmation: false,
+    });
+    expect(getTicketAiAutomationAction("lark-ticket-support-qa-answer")).toMatchObject({
+      provider: "hermes_acp",
+      skillProfile: "support_qa_eu",
+      skillId: "support_qa_query",
+      permissionProfileId: "support-qa.answer.v1",
+    });
+    expect(getTicketAiAutomationAction("lark-ticket-wiki-qa")).toMatchObject({
+      title: "wiki 问答", provider: "wiki_qa", promptKey: "lark_ticket.wiki_qa.answer",
+      executor: { type: "backend_api", operation: "lark_ticket.ai.wiki_qa", method: "POST", route: "/api/web/lark-tickets/:recordId/ai-sessions" },
+    });
+    expect(getTicketAiAutomationAction("lark-ticket-support-qa-document-preview")).toMatchObject({
+      promptKey: "lark_ticket.support_qa.document_preview",
+      provider: "hermes_acp",
+      skillId: "support_qa_write",
+      permissionProfileId: "support-qa.document.v1",
+    });
+    expect(getTicketAiAutomationAction("update-lark-and-push")).toBeUndefined();
+  });
+});
+
+describe("Sprint AI automation actions", () => {
+  it("uses the workflow prompt without a workspace Skill profile", () => {
+    expect(getSprintAiAutomationAction("meegle-sprint-release-notes")).toEqual(expect.objectContaining({
+      provider: "hermes_acp",
+      promptKey: "meegle.sprint.release_notes",
+      permissionProfileId: "acp.chat-readonly.v1",
+      requiresConfirmation: false,
+    }));
+    expect(getSprintAiAutomationAction("meegle-sprint-internal-summary")).toEqual(expect.objectContaining({
+      provider: "hermes_acp",
+      promptKey: "meegle.sprint.internal_summary",
+    }));
+    expect(getSprintAiAutomationAction("meegle-sprint-confirm-gaps")).toEqual(expect.objectContaining({
+      provider: "hermes_acp",
+      promptKey: "meegle.sprint.confirm_gaps",
+    }));
+    expect(AUTOMATION_SKILL_PROFILES).not.toHaveProperty("octo_sprint_release_notes");
+  });
+});

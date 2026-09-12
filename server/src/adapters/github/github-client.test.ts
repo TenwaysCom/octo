@@ -53,6 +53,64 @@ describe("GitHubClient", () => {
     });
   });
 
+  it("patches a pull request title", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ title: "Fix bug m-123", body: null }),
+    });
+
+    await expect(client.updatePullRequestTitle("owner", "repo", 123, "Fix bug m-123", { actionRunId: "action-1" }))
+      .resolves.toMatchObject({ title: "Fix bug m-123" });
+    expect(mockFetch).toHaveBeenCalledWith(
+      "https://api.github.com/repos/owner/repo/pulls/123",
+      expect.objectContaining({ method: "PATCH", body: JSON.stringify({ title: "Fix bug m-123" }) }),
+    );
+  });
+
+  it("searches incrementally updated pull requests in ascending update order", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        total_count: 1,
+        incomplete_results: false,
+        items: [{ number: 12, updated_at: "2026-08-12T00:01:00Z" }],
+      }),
+    });
+
+    await expect(client.listPullRequestsUpdatedSince("owner", "repo", "2026-08-12T00:00:00Z"))
+      .resolves.toEqual([{ number: 12, updated_at: "2026-08-12T00:01:00Z" }]);
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining("/search/issues?q=repo%3Aowner%2Frepo%20is%3Apr%20updated%3A%3E%3D2026-08-12T00%3A00%3A00.000Z&sort=updated&order=asc"),
+      expect.anything(),
+    );
+  });
+
+  it("fetches paginated PR files and posts a PR comment", async () => {
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => [{ filename: "Tenways/tw_sale/models/sale.py", patch: "+pass" }],
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ id: 1, html_url: "https://github.com/owner/repo/pull/123#issuecomment-1" }),
+      });
+
+    await expect(client.getPullRequestFiles("owner", "repo", 123)).resolves.toHaveLength(1);
+    await expect(client.createPullRequestComment("owner", "repo", 123, "review")).resolves.toMatchObject({ id: 1 });
+
+    expect(mockFetch).toHaveBeenNthCalledWith(
+      1,
+      "https://api.github.com/repos/owner/repo/pulls/123/files?per_page=100&page=1",
+      expect.any(Object),
+    );
+    expect(mockFetch).toHaveBeenNthCalledWith(
+      2,
+      "https://api.github.com/repos/owner/repo/issues/123/comments",
+      expect.objectContaining({ method: "POST", body: JSON.stringify({ body: "review" }) }),
+    );
+  });
+
   describe("getIssue", () => {
     it("should fetch issue details", async () => {
       mockFetch.mockResolvedValueOnce({

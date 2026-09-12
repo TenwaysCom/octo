@@ -23,6 +23,7 @@ export interface ResolvedUserStore {
   getById(id: string): Promise<ResolvedUserRecord | undefined>;
   getByLarkId(larkId: string): Promise<ResolvedUserRecord | undefined>;
   getByLarkIdentity(larkTenantKey: string, larkId: string): Promise<ResolvedUserRecord | undefined>;
+  getByGithubId(githubId: string): Promise<ResolvedUserRecord | undefined>;
   getByMeegleIdentity(
     meegleBaseUrl: string,
     meegleUserKey: string,
@@ -105,6 +106,15 @@ export class PostgresResolvedUserStore implements ResolvedUserStore {
         .where("lark_id", "=", larkId)
         .executeTakeFirst(),
     );
+  }
+
+  async getByGithubId(githubId: string): Promise<ResolvedUserRecord | undefined> {
+    const rows = await this.database.selectFrom("users")
+      .selectAll()
+      .where((eb) => eb(eb.fn<string>("lower", ["github_id"]), "=", githubId.toLowerCase()))
+      .limit(2)
+      .execute();
+    return rows.length === 1 ? toRecord(rows[0]) : undefined;
   }
 
   async getByMeegleIdentity(

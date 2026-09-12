@@ -1,4 +1,6 @@
 import { logger } from "../../logger.js";
+import { normalizeTimestamp } from "../../utils/normalize-timestamp.js";
+import { resolveMeegleSourceUpdatedAt } from "./meegle-source-updated-at.js";
 
 const clientLogger = logger.child({ module: "meegle-client" });
 
@@ -46,6 +48,7 @@ const API_PATH_GET_FIELDS = "/open_api/:project_key/field/all";
 const API_PATH_GET_WORKFLOW_TEMPLATES = "/open_api/:project_key/template_list/:work_item_type";
 const API_PATH_GET_BUSINESS_LINES = "/open_api/:project_key/business/all";
 const API_PATH_GET_WORKITEM_TYPES = "/open_api/:project_key/work_item/all-types";
+const API_PATH_LIST_WORKITEM_OPERATION_RECORDS = "/open_api/op_record/work_item/list";
 
 // Auth API paths
 const API_PATH_GET_AUTH_CODE = "/bff/v2/authen/v1/auth_code";
@@ -235,7 +238,85 @@ export interface MeegleClientOptions {
   pluginId?: string;
 }
 
+export interface MeegleRequestLimiter {
+  wait(): Promise<void>;
+}
+
+export interface MeegleClientDeps {
+  requestLimiter?: MeegleRequestLimiter;
+  sleep?: (ms: number) => Promise<void>;
+  fetch?: typeof fetch;
+  maxRateLimitRetries?: number;
+}
+
+export class MeegleMinimumIntervalLimiter implements MeegleRequestLimiter {
+  private nextRequestAt = 0;
+  private queue = Promise.resolve();
+
+  constructor(
+    private readonly minimumIntervalMs: number,
+    private readonly now: () => number = Date.now,
+    private readonly waitFor: (ms: number) => Promise<void> = delay,
+  ) {}
+
+  wait(): Promise<void> {
+    const reservation = this.queue.then(async () => {
+      const currentTime = this.now();
+      const waitMs = Math.max(0, this.nextRequestAt - currentTime);
+      this.nextRequestAt = Math.max(this.nextRequestAt, currentTime) + this.minimumIntervalMs;
+      if (waitMs > 0) {
+        await this.waitFor(waitMs);
+      }
+    });
+    this.queue = reservation.catch(() => undefined);
+    return reservation;
+  }
+}
+
 // ==================== Utility Functions ====================
+
+const DEFAULT_MEEGLE_MIN_REQUEST_INTERVAL_MS = 1_000;
+const DEFAULT_MEEGLE_RATE_LIMIT_RETRY_COUNT = 2;
+const MAX_MEEGLE_RATE_LIMIT_RETRY_DELAY_MS = 30_000;
+let sharedRequestLimiter: MeegleRequestLimiter | undefined;
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getPositiveIntegerEnv(name: string, fallback: number): number {
+  const value = Number.parseInt(process.env[name] ?? "", 10);
+  return Number.isFinite(value) && value >= 0 ? value : fallback;
+}
+
+function getSharedRequestLimiter(): MeegleRequestLimiter {
+  sharedRequestLimiter ??= new MeegleMinimumIntervalLimiter(
+    getPositiveIntegerEnv("MEEGLE_MIN_REQUEST_INTERVAL_MS", DEFAULT_MEEGLE_MIN_REQUEST_INTERVAL_MS),
+  );
+  return sharedRequestLimiter;
+}
+
+function getRetryAfterMs(value: string | null): number | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const seconds = Number.parseInt(value, 10);
+  if (Number.isFinite(seconds) && seconds >= 0) {
+    return seconds * 1_000;
+  }
+  const timestamp = Date.parse(value);
+  return Number.isNaN(timestamp) ? undefined : Math.max(0, timestamp - Date.now());
+}
+
+function getRateLimitHeaders(headers: Headers): Record<string, string> {
+  return Object.fromEntries(
+    ["retry-after", "x-ratelimit-limit", "x-ratelimit-remaining", "x-ratelimit-reset"]
+      .flatMap((name) => {
+        const value = headers.get(name);
+        return value === null ? [] : [[name, value] as const];
+      }),
+  );
+}
 
 function joinUrl(baseUrl: string, path: string): string {
   return new URL(path, `${baseUrl.replace(/\/$/, "")}/`).toString();
@@ -255,7 +336,13 @@ async function parseJson(response: Response): Promise<Record<string, unknown>> {
 
 function handleResponse(response: Response, data: Record<string, unknown>): Record<string, unknown> {
   if (!response.ok) {
-    const error_msg = (data.message || data.error || `HTTP ${response.status}`) as string;
+    const nestedError = data.err;
+    const nestedErrorMessage = typeof nestedError === "object" && nestedError !== null
+      ? (nestedError as Record<string, unknown>).msg
+      : undefined;
+    const error_msg = String(
+      data.message ?? data.error ?? data.err_msg ?? nestedErrorMessage ?? `HTTP ${response.status}`,
+    );
 
     if (response.status === 401) {
       throw new MeegleAuthenticationError(error_msg, response.status, data);
@@ -289,9 +376,45 @@ export interface MeegleWorkitem {
   key: string;
   name: string;
   type: string;
+  workItemType?: string;
   status: string;
+  statusKey?: string;
+  subStage?: string;
+  subStageKey?: string;
   assignee?: string;
+  priority?: string;
+  createdAt?: string;
+  updatedAt?: string;
   fields: Record<string, unknown>;
+}
+
+export const MEEGLE_CURRENT_OWNER_FIELD_KEY = "current_status_operator";
+
+export interface MeegleOperationRecordContent {
+  objectType?: string;
+  objectValue?: string;
+  objectProperty?: string;
+  oldValues: string[];
+  newValues: string[];
+}
+
+export interface MeegleWorkitemOperationRecord {
+  workItemId: string;
+  workItemTypeKey: string;
+  operationType: string;
+  operationTime: string;
+  module: string;
+  recordContents: MeegleOperationRecordContent[];
+}
+
+export type MeegleSyncMappingKind = "workitem_type" | "status" | "sub_stage";
+
+export interface MeegleSyncMapping {
+  projectKey: string;
+  workItemTypeKey: string;
+  kind: MeegleSyncMappingKind;
+  sourceKey: string;
+  displayValue: string;
 }
 
 export interface MeegleComment {
@@ -324,15 +447,99 @@ function parseUser(data: Record<string, unknown>): MeegleUser {
   };
 }
 
+export function formatMeegleCurrentOwners(value: unknown): string | undefined {
+  const record = asRecordValue(value);
+  const owners = Array.isArray(value)
+    ? value
+    : Array.isArray(record?.user_value_list)
+      ? record.user_value_list
+      : Array.isArray(record?.value)
+        ? record.value
+        : value === undefined || value === null
+          ? []
+          : [value];
+  const names = owners
+    .map(getMeegleUserDisplayName)
+    .filter((name): name is string => Boolean(name));
+  const uniqueNames = [...new Set(names)];
+  return uniqueNames.length > 0 ? uniqueNames.join(", ") : undefined;
+}
+
+function getMeegleUserDisplayName(value: unknown): string | undefined {
+  if (typeof value === "string" || typeof value === "number") {
+    return String(value).trim() || undefined;
+  }
+  const record = asRecordValue(value);
+  if (!record) return undefined;
+  for (const candidate of [record.name_cn, record.name_en, record.display_name, record.label]) {
+    if (typeof candidate === "string" && candidate.trim()) return candidate.trim();
+  }
+  if (typeof record.name === "string" && record.name.trim()) return record.name.trim();
+  const localizedName = asRecordValue(record.name);
+  for (const candidate of [localizedName?.default, localizedName?.zh_cn, localizedName?.en_us]) {
+    if (typeof candidate === "string" && candidate.trim()) return candidate.trim();
+  }
+  return undefined;
+}
+
+function findMeegleCurrentOwnerValue(
+  data: Record<string, unknown>,
+  rawFields: unknown,
+): { present: boolean; value?: unknown } {
+  const direct = findRecordProperty(data, MEEGLE_CURRENT_OWNER_FIELD_KEY);
+  if (direct.present) return direct;
+
+  const rawFieldsRecord = asRecordValue(rawFields);
+  if (rawFieldsRecord) {
+    const nestedDirect = findRecordProperty(rawFieldsRecord, MEEGLE_CURRENT_OWNER_FIELD_KEY);
+    if (nestedDirect.present) return nestedDirect;
+  }
+
+  for (const fields of [
+    rawFields,
+    data.work_item_fields,
+    rawFieldsRecord?.work_item_fields,
+    rawFieldsRecord?.fields,
+  ]) {
+    if (!Array.isArray(fields)) continue;
+    const field = fields.map(asRecordValue).find((candidate) => (
+      candidate?.key === MEEGLE_CURRENT_OWNER_FIELD_KEY
+      || candidate?.field_key === MEEGLE_CURRENT_OWNER_FIELD_KEY
+    ));
+    if (!field) continue;
+    return {
+      present: true,
+      value: Object.prototype.hasOwnProperty.call(field, "value") ? field.value : field.field_value,
+    };
+  }
+  return { present: false };
+}
+
+function findRecordProperty(record: Record<string, unknown>, key: string): { present: boolean; value?: unknown } {
+  return Object.prototype.hasOwnProperty.call(record, key)
+    ? { present: true, value: record[key] }
+    : { present: false };
+}
+
+function asRecordValue(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : undefined;
+}
+
 export function parseWorkitem(data: Record<string, unknown>): MeegleWorkitem {
   const id = String(data.id || data.work_item_id || "");
   const key = String(data.key || data.work_item_key || "");
   const name = String(data.name || data.title || "");
   const type = String(data.type || data.work_item_type_key || "");
-  const assignee = (data.assignee || data.owner) as string | undefined;
-
+  const priority = typeof data.priority === "string" ? data.priority : undefined;
   // current_nodes and work_item_status may be nested inside data.fields
-  const rawFields = data.fields as Record<string, unknown> | undefined;
+  const rawFields = data.fields;
+  const rawFieldsRecord = asRecordValue(rawFields);
+  const currentOwner = findMeegleCurrentOwnerValue(data, rawFields);
+  const assignee = currentOwner.present
+    ? formatMeegleCurrentOwners(currentOwner.value)
+    : formatMeegleCurrentOwners(data.assignee ?? data.owner);
 
   // Extract status from multiple possible locations
   // Priority: direct status/state > current_nodes[0].name > work_item_status.state_key
@@ -340,7 +547,7 @@ export function parseWorkitem(data: Record<string, unknown>): MeegleWorkitem {
 
   // Try current_nodes[0].name for human-readable status (e.g. "Server Launch")
   if (!status) {
-    const currentNodes = (rawFields?.current_nodes ?? data.current_nodes) as unknown[] | undefined;
+    const currentNodes = (rawFieldsRecord?.current_nodes ?? data.current_nodes) as unknown[] | undefined;
     if (Array.isArray(currentNodes) && currentNodes.length > 0) {
       const firstNode = currentNodes[0] as Record<string, unknown>;
       status = String(firstNode.name || firstNode.id || "");
@@ -349,21 +556,42 @@ export function parseWorkitem(data: Record<string, unknown>): MeegleWorkitem {
 
   // Try work_item_status.state_key as fallback
   if (!status) {
-    const workItemStatus = (rawFields?.work_item_status ?? data.work_item_status) as Record<string, unknown> | undefined;
+    const workItemStatus = (rawFieldsRecord?.work_item_status ?? data.work_item_status) as Record<string, unknown> | undefined;
     if (workItemStatus && typeof workItemStatus === "object") {
       status = String(workItemStatus.state_key || "");
     }
   }
 
-  // Extract other fields
+  // Extract other fields. Meegle detail responses often nest custom fields in
+  // data.fields.fields; expose that nested object directly so workflow services
+  // can read the field-value-pair array consistently.
   const fields: Record<string, unknown> = {};
+  if (Array.isArray(rawFields)) {
+    fields.fields = rawFields;
+  } else if (rawFieldsRecord) {
+    Object.assign(fields, rawFieldsRecord);
+  }
   for (const [k, v] of Object.entries(data)) {
-    if (!["id", "key", "name", "title", "type", "work_item_type_key", "status", "state", "assignee", "owner"].includes(k)) {
+    if (!["id", "key", "name", "title", "type", "work_item_type_key", "status", "state", "assignee", "owner", "fields"].includes(k)) {
       fields[k] = v;
     }
   }
 
-  return { id, key, name, type, status, assignee, fields };
+  const updatedAt = resolveMeegleSourceUpdatedAt({
+    workItemTypeKey: type,
+    fields,
+    updatedAt: data.updated_at ?? data.updatedAt,
+  });
+  const workItemAttribute = asRecordValue(rawFieldsRecord?.work_item_attribute ?? data.work_item_attribute);
+  const createdAt = normalizeTimestamp(
+    data.created_at
+      ?? data.createdAt
+      ?? data.created
+      ?? workItemAttribute?.create_time
+      ?? workItemAttribute?.created_at,
+  );
+
+  return { id, key, name, type, status, assignee, priority, createdAt, updatedAt, fields };
 }
 
 function parseComment(data: Record<string, unknown>): MeegleComment {
@@ -408,19 +636,80 @@ function parseItemsList(data: unknown, keys: string[]): Record<string, unknown>[
   return [];
 }
 
+export function parseWorkitemOperationRecord(data: Record<string, unknown>): MeegleWorkitemOperationRecord | undefined {
+  const timestamp = normalizeOperationTime(data.operation_time);
+  if (!timestamp) return undefined;
+  const contents = Array.isArray(data.record_contents) ? data.record_contents : [];
+  return {
+    workItemId: String(data.work_item_id ?? ""),
+    workItemTypeKey: String(data.work_item_type_key ?? ""),
+    operationType: String(data.operation_type ?? ""),
+    operationTime: timestamp,
+    module: String(data.op_record_module ?? ""),
+    recordContents: contents.flatMap((content) => {
+      if (typeof content !== "object" || content === null || Array.isArray(content)) return [];
+      const record = content as Record<string, unknown>;
+      const object = typeof record.object === "object" && record.object !== null && !Array.isArray(record.object)
+        ? record.object as Record<string, unknown>
+        : undefined;
+      return [{
+        objectType: stringOrUndefined(object?.object_type),
+        objectValue: stringOrUndefined(object?.object_value),
+        objectProperty: stringOrUndefined(record.object_property),
+        oldValues: stringArray(record.old),
+        newValues: stringArray(record.new),
+      }];
+    }),
+  };
+}
+
+function normalizeOperationTime(value: unknown): string | undefined {
+  const timestamp = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(timestamp)) return undefined;
+  const date = new Date(timestamp);
+  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
+}
+
+function stringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.flatMap((item) => typeof item === "string" || typeof item === "number" ? [String(item)] : [])
+    : [];
+}
+
+function stringOrUndefined(value: unknown): string | undefined {
+  return typeof value === "string" || typeof value === "number" ? String(value) : undefined;
+}
+
+function recordOrUndefined(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : undefined;
+}
+
 // ==================== MeegleClient Class ====================
 // Based on project-oapi-sdk-golang/client.go pattern
 
 export class MeegleClient {
   private config: MeegleClientOptions;
+  private readonly requestLimiter: MeegleRequestLimiter;
+  private readonly sleep: (ms: number) => Promise<void>;
+  private readonly fetchFn: typeof fetch;
+  private readonly maxRateLimitRetries: number;
 
-  constructor(options: MeegleClientOptions) {
+  constructor(options: MeegleClientOptions, deps: MeegleClientDeps = {}) {
     this.config = {
       baseUrl: options.baseUrl || "https://www.meegle.com",
       timeout: options.timeout || 30000,
       userToken: options.userToken,
       userKey: options.userKey,
     };
+    this.requestLimiter = deps.requestLimiter ?? getSharedRequestLimiter();
+    this.sleep = deps.sleep ?? delay;
+    this.fetchFn = deps.fetch ?? fetch;
+    this.maxRateLimitRetries = deps.maxRateLimitRetries ?? getPositiveIntegerEnv(
+      "MEEGLE_RATE_LIMIT_RETRY_COUNT",
+      DEFAULT_MEEGLE_RATE_LIMIT_RETRY_COUNT,
+    );
   }
 
   private getHeaders(
@@ -465,31 +754,55 @@ export class MeegleClient {
     idempotencyKey?: string,
   ): Promise<Record<string, unknown>> {
     const url = this.buildUrl(req);
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
+    for (let attempt = 0; ; attempt += 1) {
+      await this.requestLimiter.wait();
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
 
-    try {
-      clientLogger.debug({ url: url.replace(/\?.*/, ""), method: req.httpMethod, apiPath: req.apiPath, body: req.body }, "MEEGLE_REQUEST_START");
-      const response = await fetch(url, {
-        method: req.httpMethod,
-        headers: this.getHeaders(idempotent, idempotencyKey),
-        body: req.body ? JSON.stringify(req.body) : undefined,
-        signal: controller.signal,
-      });
+      try {
+        clientLogger.debug({ url: url.replace(/\?.*/, ""), method: req.httpMethod, apiPath: req.apiPath, body: req.body, attempt }, "MEEGLE_REQUEST_START");
+        const response = await this.fetchFn(url, {
+          method: req.httpMethod,
+          headers: this.getHeaders(idempotent, idempotencyKey),
+          body: req.body ? JSON.stringify(req.body) : undefined,
+          signal: controller.signal,
+        });
 
-      clearTimeout(timeoutId);
-      const data = await parseJson(response);
-      clientLogger.debug({ url: url.replace(/\?.*/, ""), statusCode: response.status, ok: response.ok }, "MEEGLE_REQUEST_RESPONSE");
-      if (!response.ok) {
-        clientLogger.warn({ url: url.replace(/\?.*/, ""), statusCode: response.status, response: data }, "MEEGLE_REQUEST_ERROR");
+        const data = await parseJson(response);
+        clientLogger.debug({
+          url: url.replace(/\?.*/, ""),
+          statusCode: response.status,
+          ok: response.ok,
+          attempt,
+          rateLimit: getRateLimitHeaders(response.headers),
+        }, "MEEGLE_REQUEST_RESPONSE");
+        if (response.status === 429 && attempt < this.maxRateLimitRetries) {
+          const retryAfterMs = getRetryAfterMs(response.headers.get("retry-after"));
+          const waitMs = Math.min(
+            retryAfterMs ?? 1_000 * 2 ** attempt,
+            MAX_MEEGLE_RATE_LIMIT_RETRY_DELAY_MS,
+          );
+          clientLogger.warn({
+            url: url.replace(/\?.*/, ""),
+            apiPath: req.apiPath,
+            attempt,
+            waitMs,
+          }, "MEEGLE_RATE_LIMIT_RETRY");
+          await this.sleep(waitMs);
+          continue;
+        }
+        if (!response.ok) {
+          clientLogger.warn({ url: url.replace(/\?.*/, ""), statusCode: response.status, response: data }, "MEEGLE_REQUEST_ERROR");
+        }
+        return handleResponse(response, data);
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") {
+          throw new MeegleAPIError("Request timeout", 408);
+        }
+        throw err;
+      } finally {
+        clearTimeout(timeoutId);
       }
-      return handleResponse(response, data);
-    } catch (err) {
-      clearTimeout(timeoutId);
-      if (err instanceof Error && err.name === "AbortError") {
-        throw new MeegleAPIError("Request timeout", 408);
-      }
-      throw err;
     }
   }
 
@@ -702,6 +1015,45 @@ export class MeegleClient {
     return items.map(parseWorkitem);
   }
 
+  async listWorkitemOperationRecords(
+    projectKey: string,
+    workitemIds: string[],
+  ): Promise<MeegleWorkitemOperationRecord[]> {
+    if (workitemIds.length === 0) return [];
+    const numericWorkitemIds = workitemIds.map((workitemId) => Number(workitemId));
+    if (numericWorkitemIds.some((workitemId) => !Number.isSafeInteger(workitemId))) {
+      throw new Error("MEEGLE_OPERATION_RECORD_WORK_ITEM_ID_INVALID");
+    }
+    const records: MeegleWorkitemOperationRecord[] = [];
+    let startFrom: string | undefined;
+    for (let page = 0; page < 100; page += 1) {
+      const data = await this.request({
+        httpMethod: "POST",
+        apiPath: API_PATH_LIST_WORKITEM_OPERATION_RECORDS,
+        pathParams: {},
+        queryParams: {},
+        body: {
+          project_key: projectKey,
+          work_item_ids: numericWorkitemIds,
+          op_record_module: ["field_mod", "work_item_mod"],
+          page_size: 100,
+          ...(startFrom ? { start_from: startFrom } : {}),
+        },
+      });
+      const pageData = (data.data ?? data) as Record<string, unknown>;
+      const pageRecords = parseItemsList(pageData, ["op_records"])
+        .flatMap((record) => {
+          const parsed = parseWorkitemOperationRecord(record);
+          return parsed ? [parsed] : [];
+        });
+      records.push(...pageRecords);
+      if (pageData.has_more !== true) return records;
+      startFrom = stringOrUndefined(pageData.start_from);
+      if (!startFrom) throw new Error("MEEGLE_OPERATION_RECORD_CURSOR_MISSING");
+    }
+    throw new Error("MEEGLE_OPERATION_RECORD_PAGE_LIMIT_REACHED");
+  }
+
   async filterWorkitems(
     projectKey: string,
     options?: {
@@ -709,6 +1061,8 @@ export class MeegleClient {
       pageNum?: number;
       pageSize?: number;
       autoPaginate?: boolean;
+      sourceUpdatedAfter?: string;
+      sourceUpdatedAtMqlFieldNames?: Record<string, string>;
     },
   ): Promise<MeegleWorkitem[]> {
     const {
@@ -717,6 +1071,10 @@ export class MeegleClient {
       pageSize = 50,
       autoPaginate = false,
     } = options || {};
+
+    if (options?.sourceUpdatedAfter) {
+      throw new Error("MEEGLE_SOURCE_UPDATED_AT_FILTER_NOT_SUPPORTED");
+    }
 
     if (autoPaginate) {
       return this.filterWorkitemsPaginated(projectKey, workitemTypeKeys, pageSize);

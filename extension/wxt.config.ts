@@ -1,15 +1,24 @@
 import fs from "node:fs";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "wxt";
+import {
+  buildOctoWebContentMatches,
+  OCTO_SERVER_URLS,
+  parseOctoWebAllowedOrigins,
+} from "./src/environment-config.js";
 
-const { version: extensionVersion } = JSON.parse(
-  fs.readFileSync(new URL("./package.json", import.meta.url), "utf8"),
-) as { version: string };
-const extensionName = `Tenways Octo ${extensionVersion}`;
+const { name: extensionBaseName, version: extensionVersion } = JSON.parse(
+  fs.readFileSync(new URL("./manifest.json", import.meta.url), "utf8"),
+) as { name: string; version: string };
+const extensionName = `${extensionBaseName} ${extensionVersion}`;
 
 const chromiumProfile = process.env.WXT_CHROMIUM_PROFILE?.trim();
 const devPort = Number(process.env.WXT_DEV_PORT || 3000);
 const devOrigin = process.env.WXT_DEV_ORIGIN?.trim() || `http://localhost:${devPort}`;
+const octoWebContentMatches = buildOctoWebContentMatches([
+  ...Object.values(OCTO_SERVER_URLS),
+  ...parseOctoWebAllowedOrigins(process.env.WXT_PUBLIC_OCTO_WEB_ALLOWED_ORIGINS),
+]);
 const devHost = (() => {
   try {
     return new URL(devOrigin).hostname;
@@ -65,14 +74,15 @@ export default defineConfig({
       "128": "icons/icon-128.png",
     },
     permissions: ["tabs", "activeTab", "scripting", "storage", "cookies", "alarms", "notifications", "downloads"],
-    host_permissions: [
+    host_permissions: Array.from(new Set([
       "http://localhost/*",
       "https://*.feishu.cn/*",
       "https://*.larksuite.com/*",
       "https://meegle.com/*",
       "https://*.meegle.com/*",
       "https://github.com/*",
-    ],
+      ...octoWebContentMatches,
+    ])),
     web_accessible_resources: [
       {
         resources: ["page-bridge.js"],

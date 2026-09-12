@@ -44,7 +44,7 @@ vi.mock("./components/LarkBulkCreateModal.js", async (importOriginal) => {
       React.createElement(
         "div",
         { "data-test": "lark-bulk-create-modal" },
-        "批量创建 MEEGLE TICKET",
+        "批量创建 Meegle Item",
       ),
   };
 });
@@ -102,7 +102,7 @@ describe("popup-react lazy boundaries", () => {
       await gate.promise;
     });
 
-    expect(await screen.findByText("批量创建 MEEGLE TICKET")).toBeTruthy();
+    expect(await screen.findByText("批量创建 Meegle Item")).toBeTruthy();
     expect(container.querySelector('[data-test="lark-bulk-create-modal-loading"]')).toBeNull();
     expect(container.querySelector('[data-test="lark-bulk-create-modal"]')).not.toBeNull();
   });

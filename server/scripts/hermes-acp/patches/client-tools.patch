@@ -1,0 +1,222 @@
+--- a/run_agent.py
++++ b/run_agent.py
+@@ -412,8 +412,14 @@
+         checkpoint_max_total_size_mb: int = 500,
+         checkpoint_max_file_size_mb: int = 10,
+         pass_session_id: bool = False,
++        tool_backend=None,
++        tool_backend_required: bool = False,
+     ):
+         """Forwarder — see ``agent.agent_init.init_agent``."""
++        from agent.tool_backend import validate_backend
++        validate_backend(tool_backend, tool_backend_required)
++        self.tool_backend = tool_backend
++        self.tool_backend_required = tool_backend_required
+         from agent.agent_init import init_agent
+         init_agent(
+             self,
+@@ -483,6 +489,10 @@
+             pass_session_id=pass_session_id,
+         )
+ 
++        if self.tool_backend_required:
++            self.tools = self.tool_backend.tool_definitions()
++            self.valid_tool_names = {tool["function"]["name"] for tool in self.tools}
++
+     def _get_session_db_for_recall(self):
+         """Return a SessionDB for recall, lazily creating it if an entrypoint forgot.
+ 
+@@ -3802,6 +3812,9 @@
+                      tool_call_id: Optional[str] = None, messages: list = None,
+                      pre_tool_block_checked: bool = False) -> str:
+         """Forwarder — see ``agent.agent_runtime_helpers.invoke_tool``."""
++        if self.tool_backend_required:
++            from agent.tool_backend import invoke_backend
++            return invoke_backend(self, function_name, function_args, effective_task_id, tool_call_id)
+         from agent.agent_runtime_helpers import invoke_tool
+         return invoke_tool(self, function_name, function_args, effective_task_id, tool_call_id, messages, pre_tool_block_checked)
+ 
+--- a/agent/tool_executor.py
++++ b/agent/tool_executor.py
+@@ -601,6 +601,10 @@
+             # tool result for the original tool_call_id without executing.
+             function_result = agent._guardrail_block_result(_guardrail_block_decision)
+             tool_duration = 0.0
++        elif getattr(agent, "tool_backend_required", False):
++            from agent.tool_backend import invoke_backend
++            function_result = invoke_backend(agent, function_name, function_args, effective_task_id, tool_call.id)
++            tool_duration = time.time() - tool_start_time
+         elif function_name == "todo":
+             from tools.todo_tool import todo_tool as _todo_tool
+             function_result = _todo_tool(
+--- a/acp_adapter/session.py
++++ b/acp_adapter/session.py
+@@ -191,7 +191,8 @@
+     via ``session_search``.
+     """
+ 
+-    def __init__(self, agent_factory=None, db=None):
++    def __init__(self, agent_factory=None, db=None, *, tool_backend=None,
++                 require_client_tools=False, session_id_factory=None):
+         """
+         Args:
+             agent_factory: Optional callable that creates an AIAgent-like object.
+@@ -203,6 +204,9 @@
+         self._sessions: Dict[str, SessionState] = {}
+         self._lock = Lock()
+         self._agent_factory = agent_factory
++        self.tool_backend = tool_backend
++        self.require_client_tools = require_client_tools
++        self.session_id_factory = session_id_factory
+         self._db_instance = db  # None → lazy-init on first use
+ 
+     # ---- public API ---------------------------------------------------------
+@@ -212,7 +216,7 @@
+         import threading
+ 
+         cwd = _translate_acp_cwd(cwd)
+-        session_id = str(uuid.uuid4())
++        session_id = self.session_id_factory() if self.session_id_factory else str(uuid.uuid4())
+         agent = self._make_agent(session_id=session_id, cwd=cwd)
+         state = SessionState(
+             session_id=session_id,
+@@ -618,8 +622,22 @@
+                 }
+             )
+         except Exception:
++            if self.require_client_tools:
++                raise RuntimeError("ACP_PROVIDER_RESOLUTION_FAILED") from None
+             logger.debug("ACP session falling back to default provider resolution", exc_info=True)
+ 
++        if self.require_client_tools:
++            from agent.tool_backend import validate_backend
++            validate_backend(self.tool_backend, True)
++            if kwargs.get("api_mode") in {"acp", "codex", "codex-rpc", "codex_app_server"}:
++                raise ValueError("ACP client tools require a model API, not a nested agent runtime")
++            kwargs.update(
++                tool_backend=self.tool_backend.bind_session(session_id, cwd),
++                tool_backend_required=True,
++                enabled_toolsets=["acp-client-tools"],
++                skip_context_files=True, skip_memory=True,
++                load_soul_identity=False, checkpoints_enabled=False,
++            )
+         _register_task_cwd(session_id, cwd)
+         agent = AIAgent(**kwargs)
+         # ACP stdio transport requires stdout to remain protocol-only JSON-RPC.
+--- a/acp_adapter/server.py
++++ b/acp_adapter/server.py
+@@ -495,9 +495,19 @@
+         },
+     )
+ 
+-    def __init__(self, session_manager: SessionManager | None = None):
++    def __init__(self, session_manager: SessionManager | None = None, *,
++                 tool_backend=None, require_client_tools=False, session_id_factory=None):
+         super().__init__()
+-        self.session_manager = session_manager or SessionManager()
++        from agent.tool_backend import validate_backend
++        validate_backend(tool_backend, require_client_tools)
++        if require_client_tools and session_manager is not None:
++            raise ValueError("Controlled ACP owns its SessionManager")
++        self.tool_backend = tool_backend
++        self.require_client_tools = require_client_tools
++        self.session_manager = session_manager or SessionManager(
++            tool_backend=tool_backend, require_client_tools=require_client_tools,
++            session_id_factory=session_id_factory,
++        )
+         self._conn: Optional[acp.Client] = None
+ 
+     # ---- Connection lifecycle -----------------------------------------------
+@@ -505,6 +515,8 @@
+     def on_connect(self, conn: acp.Client) -> None:
+         """Store the client connection for sending session updates."""
+         self._conn = conn
++        if self.require_client_tools:
++            self.tool_backend.on_connect(conn)
+         logger.info("ACP client connected")
+ 
+     @staticmethod
+@@ -665,6 +677,10 @@
+         mcp_servers: list[McpServerStdio | McpServerHttp | McpServerSse] | None,
+     ) -> None:
+         """Register ACP-provided MCP servers and refresh the agent tool surface."""
++        if self.require_client_tools:
++            if mcp_servers:
++                raise ValueError("ACP client tools mode does not accept MCP servers")
++            return
+         if not mcp_servers:
+             return
+ 
+@@ -741,6 +757,8 @@
+             protocol_version if isinstance(protocol_version, int) else acp.PROTOCOL_VERSION
+         )
+         auth_methods = build_auth_methods()
++        if self.require_client_tools:
++            self.tool_backend.initialize(client_capabilities, asyncio.get_running_loop())
+ 
+         client_name = client_info.name if client_info else "unknown"
+         logger.info(
+@@ -1065,6 +1083,8 @@
+         return ResumeSessionResponse(models=self._build_model_state(state))
+ 
+     async def cancel(self, session_id: str, **kwargs: Any) -> None:
++        if self.require_client_tools:
++            self.tool_backend.cancel(session_id)
+         state = self.session_manager.get_session(session_id)
+         if state and state.cancel_event:
+             with state.runtime_lock:
+@@ -1267,13 +1287,14 @@
+             approval_cb = None
+ 
+         agent = state.agent
+-        agent.tool_progress_callback = tool_progress_cb
++        # Client tool backend emits canonical ACP tool IDs/events itself.
++        agent.tool_progress_callback = None if self.require_client_tools else tool_progress_cb
+         # ACP thought panes should not receive Hermes' local kawaii waiting/status
+         # updates. Route provider/model reasoning deltas instead; if the provider
+         # emits no reasoning, Zed should not get a fake "thinking" accordion.
+         agent.thinking_callback = None
+         agent.reasoning_callback = reasoning_cb
+-        agent.step_callback = step_cb
++        agent.step_callback = None if self.require_client_tools else step_cb
+         agent.stream_delta_callback = stream_delta_cb
+ 
+         # Approval callback is per-thread (thread-local, GHSA-qg5c-hvr5-hjgr).
+@@ -1328,7 +1349,7 @@
+                 return result
+             except Exception as e:
+                 logger.exception("Agent error in session %s", session_id)
+-                return {"final_response": f"Error: {e}", "messages": state.history}
++                return {"final_response": f"Error: {e}", "messages": state.history, "failed": True}
+             finally:
+                 # Restore HERMES_INTERACTIVE.
+                 if previous_interactive is None:
+@@ -1359,7 +1380,17 @@
+             with state.runtime_lock:
+                 state.is_running = False
+                 state.current_prompt_text = ""
++            if self.require_client_tools:
++                from acp.exceptions import RequestError
++                raise RequestError(-32000, "ACP_AGENT_RUN_FAILED: Hermes executor failed") from None
+             return PromptResponse(stop_reason="end_turn")
++
++        if self.require_client_tools and (result.get("failed") or result.get("error")):
++            with state.runtime_lock:
++                state.is_running = False
++                state.current_prompt_text = ""
++            from acp.exceptions import RequestError
++            raise RequestError(-32000, "ACP_AGENT_RUN_FAILED: Hermes model execution failed")
+ 
+         if result.get("messages"):
+             state.history = result["messages"]
+--- a/hermes_cli/plugins.py
++++ b/hermes_cli/plugins.py
+@@ -794,6 +794,8 @@
+         changes or newly-added bundled backends become visible in long-lived
+         sessions without requiring a full agent restart.
+         """
++        if os.environ.get("HERMES_ACP_CLIENT_TOOLS_REQUIRED") == "1":
++            return
+         if self._discovered and not force:
+             return
+         if force:

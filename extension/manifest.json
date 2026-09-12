@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "Tenways Octo 0.8.0",
-  "version": "0.8.0",
+  "name": "Tenways Octo",
+  "version": "0.9.1",
   "description": "跨平台协同助手 - Lark 到 Meegle 半自动建单工具",
   "icons": {
     "16": "icons/icon-16.png",
@@ -13,7 +13,8 @@
     "tabs",
     "activeTab",
     "scripting",
-    "storage"
+    "storage",
+    "cookies"
   ],
   "host_permissions": [
     "http://localhost/*",
@@ -21,7 +22,9 @@
     "https://*.larksuite.com/*",
     "https://meegle.com/*",
     "https://*.meegle.com/*",
-    "https://github.com/*"
+    "https://github.com/*",
+    "https://octo.odoo.tenways.it/*",
+    "https://octotest.odoo.tenways.it/*"
   ],
   "background": {
     "service_worker": "background/router.js",
@@ -34,10 +37,22 @@
   "content_scripts": [
     {
       "matches": [
-        "http://localhost/api/lark/auth/callback*"
+        "http://localhost/api/lark/auth/callback*",
+        "https://octo.odoo.tenways.it/api/lark/auth/callback*",
+        "https://octotest.odoo.tenways.it/api/lark/auth/callback*"
       ],
       "js": [
         "content-scripts/lark-auth-callback.js"
+      ]
+    },
+    {
+      "matches": [
+        "http://localhost/*",
+        "https://octo.odoo.tenways.it/*",
+        "https://octotest.odoo.tenways.it/*"
+      ],
+      "js": [
+        "content-scripts/octo-web.js"
       ]
     },
     {

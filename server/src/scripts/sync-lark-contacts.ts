@@ -4,6 +4,7 @@ import { pathToFileURL } from "node:url";
 import { LarkContactClient, type LarkContactDirectoryClient } from "../adapters/lark/contact-client.js";
 import { createPostgresDatabase, ensurePostgresSchema } from "../adapters/postgres/database.js";
 import { PostgresLarkContactStore } from "../adapters/postgres/lark-contact-store.js";
+import { preparePostgresConnection } from "../adapters/postgres/ssh-tunnel.js";
 import { syncLarkContacts } from "../application/services/lark-contact-sync.service.js";
 import { logger } from "../logger.js";
 
@@ -277,7 +278,8 @@ async function main(): Promise<void> {
     });
   }
 
-  const db = createPostgresDatabase(args.postgresUri);
+  const connection = await preparePostgresConnection(args.postgresUri);
+  const db = createPostgresDatabase(connection.postgresUri);
   try {
     await ensurePostgresSchema(db);
     const result = await syncLarkContacts({
@@ -298,6 +300,7 @@ async function main(): Promise<void> {
     ].join("\n"));
   } finally {
     await db.destroy();
+    await connection.close();
   }
 }
 

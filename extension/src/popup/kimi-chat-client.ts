@@ -18,6 +18,7 @@ export function createKimiChatClient(input: { baseUrl: string; masterUserId: str
         operatorLarkId: string;
         message: string;
         sessionId?: string;
+        actionRunId?: string;
       } = {
         operatorLarkId: request.operatorLarkId,
         message: request.message,
@@ -25,6 +26,10 @@ export function createKimiChatClient(input: { baseUrl: string; masterUserId: str
 
       if (request.sessionId) {
         body.sessionId = request.sessionId;
+      }
+
+      if (request.actionRunId) {
+        body.actionRunId = request.actionRunId;
       }
 
       const response = await fetch(`${input.baseUrl}/api/acp/kimi/chat`, {

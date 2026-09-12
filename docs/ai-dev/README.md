@@ -4,6 +4,7 @@ owner: TBD
 last_reviewed: 2026-06-09
 scope: Octo AI development context entrypoint and system rule map
 update_required_when:
+  - 开发工作规范变更
   - extension/server/platform boundary changes
   - page/action config contract changes
   - Meegle or Lark integration rules change
@@ -39,6 +40,7 @@ Octo 由三层组成：
 
 | Task | Required context |
 | --- | --- |
+| 开始任意开发、排障或文档治理任务 | `rules/development-workflow.md` |
 | 提需求或创建 AI/dev 任务 | `templates/ai-task-template.md` |
 | 做 PR review | `templates/pr-review-checklist.md` |
 | 判断下一步修复顺序 | `governance/execution-plan.md` |
@@ -85,6 +87,7 @@ Octo 由三层组成：
 | `governance/execution-plan.md` | 当前治理和代码修复执行计划 |
 | `lifecycle/current-system-technical-objects.md` | 当前系统技术对象 lifecycle |
 | `rules/system-boundaries-and-code-rules.md` | 当前系统边界和后续代码规范 |
+| `rules/development-workflow.md` | 从任务到验证与交付的共同工作规范 |
 | `rules/extension-code-rules.md` | Extension 端代码规范 |
 | `rules/server-code-rules.md` | Server 端代码规范 |
 | `templates/ai-task-template.md` | 提需求或创建 AI/dev 任务的输入模板 |

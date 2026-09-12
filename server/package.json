@@ -1,5 +1,6 @@
 {
   "name": "tenways-octo-server",
+  "version": "0.8.2",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,13 +10,26 @@
     "db:import-sqlite": "node dist/scripts/database-import-sqlite.js",
     "db:sync-user-tokens": "node dist/scripts/sync-user-tokens.js",
     "lark:contacts:sync": "tsx ./src/scripts/sync-lark-contacts.ts",
+    "platform:sync": "tsx ./src/scripts/platform-sync.ts",
+    "platform:sync:worker": "node ./dist/scripts/platform-sync-worker.js",
+    "platform:sync:worker:dev": "tsx ./src/scripts/platform-sync-worker.ts",
+    "platform:clean-meegle": "tsx ./src/scripts/clean-meegle-sync-snapshots.ts",
+    "platform:clean-history": "tsx ./src/scripts/clean-platform-sync-snapshots.ts",
+    "platform:init-checkpoints": "tsx ./src/scripts/backfill-platform-sync-checkpoints.ts",
+    "platform:backfill-lark-source-time": "tsx ./src/scripts/backfill-lark-source-updated-at.ts",
+    "platform:backfill-lark-ticket-titles": "tsx ./src/scripts/backfill-lark-ticket-titles.ts",
+    "platform:backfill-lark-ticket-ai": "tsx ./src/scripts/backfill-lark-ticket-ai.ts",
+    "platform:backfill-finished-lark-ticket-threads": "tsx ./src/scripts/backfill-finished-lark-ticket-threads.ts",
+    "platform:backfill-lark-ticket-prepared-messages": "tsx ./src/scripts/backfill-lark-ticket-prepared-messages.ts",
+    "platform:reset-lark-incremental": "tsx ./src/scripts/reset-lark-incremental-checkpoint.ts",
+    "platform:backfill-meegle-source-time": "tsx ./src/scripts/backfill-meegle-source-updated-at.ts",
     "start": "node dist/index.js",
     "dev": "concurrently -k -n tsc,server -c yellow,cyan \"npm:dev:watch\" \"npm:dev:serve\"",
     "dev:watch": "tsc --watch",
     "dev:serve": "nodemon --watch dist --ext js --delay 200ms dist/index.js",
     "kimi-acp:repl": "tsx ./examples/kimi-acp-client/repl.ts",
     "kimi-acp:validate": "tsx ./examples/kimi-acp-client/client.ts",
-    "test": "vitest run"
+    "test": "NODE_OPTIONS=--experimental-sqlite vitest run"
   },
   "dependencies": {
     "@agentclientprotocol/sdk": "0.17.1",
@@ -26,7 +40,9 @@
     "pg": "^8.16.3",
     "pino": "^10.3.1",
     "pino-http": "^11.0.0",
+    "pino-roll": "^4.0.0",
     "pinyin-pro": "^3.28.1",
+    "redis": "^6.2.0",
     "reflect-metadata": "^0.2.2",
     "zod": "^4.1.5"
   },

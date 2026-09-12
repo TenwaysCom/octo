@@ -14,6 +14,10 @@ import { refreshCredential } from "../../application/services/meegle-credential.
 import { getConfiguredMeegleAuthServiceDeps } from "../../modules/meegle-auth/meegle-auth.service.js";
 import { getResolvedUserStore } from "../../adapters/postgres/resolved-user-store.js";
 import { logger } from "../../logger.js";
+import {
+  MEEGLE_PRODUCTION_BUG_API_NAME,
+  MEEGLE_PRODUCTION_BUG_WORKITEM_TYPE_KEY,
+} from "../../domain/meegle-workitem-types.js";
 import { pinyin } from "pinyin-pro";
 
 const branchLogger = logger.child({ module: "github-branch-create-service" });
@@ -72,7 +76,7 @@ const MEEGLE_API_NAME_TO_TYPE_KEY: Record<string, string> = {
   voc: "6621e5b5be796e305e3a9229",
   techtask: "66700acbf297a8f821b4b860",
   changeapproval: "6819b8e43035408c4c94307d",
-  production_bug: "6932e40429d1cd8aac635c82",
+  [MEEGLE_PRODUCTION_BUG_API_NAME]: MEEGLE_PRODUCTION_BUG_WORKITEM_TYPE_KEY,
 };
 
 function resolveMeegleTypeKey(apiName: string): string {

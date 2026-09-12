@@ -26,7 +26,7 @@ describe("sync-user-tokens", () => {
     expect(parseArgs(["--postgres-uri", "postgres://u:p@localhost:5432/postgres"])).toEqual({
       masterUserId: "a400632e-8d08-4ddf-977d-e8330b0adc5a",
       sourceDatabase: "tenways_octo",
-      targetDatabase: "tenways_octo_ly_0509",
+      targetDatabase: "postgres",
       postgresUri: "postgres://u:p@localhost:5432/postgres",
     });
   });
@@ -35,8 +35,41 @@ describe("sync-user-tokens", () => {
     expect(parseArgs(["usr_1", "--postgres-uri", "postgres://u:p@localhost:5432/postgres"])).toEqual({
       masterUserId: "usr_1",
       sourceDatabase: "tenways_octo",
+      targetDatabase: "postgres",
+      postgresUri: "postgres://u:p@localhost:5432/postgres",
+    });
+  });
+
+  it("accepts explicit source and target databases", () => {
+    expect(parseArgs([
+      "usr_1",
+      "--source-db",
+      "tenways_octo_test",
+      "--target-db",
+      "tenways_octo_ly_0509",
+      "--postgres-uri",
+      "postgres://u:p@localhost:5432/postgres",
+    ])).toEqual({
+      masterUserId: "usr_1",
+      sourceDatabase: "tenways_octo_test",
       targetDatabase: "tenways_octo_ly_0509",
       postgresUri: "postgres://u:p@localhost:5432/postgres",
+    });
+  });
+
+  it("accepts an optional provider filter", () => {
+    expect(parseArgs([
+      "usr_1",
+      "--provider",
+      "lark",
+      "--postgres-uri",
+      "postgres://u:p@localhost:5432/postgres",
+    ])).toEqual({
+      masterUserId: "usr_1",
+      sourceDatabase: "tenways_octo",
+      targetDatabase: "postgres",
+      postgresUri: "postgres://u:p@localhost:5432/postgres",
+      provider: "lark",
     });
   });
 
@@ -78,6 +111,48 @@ describe("sync-user-tokens", () => {
       expect(rows).toHaveLength(1);
       expect(rows[0]?.user_token).toBe("source-user-token");
       expect(rows[0]?.user_token_expires_at).toBe("2026-07-01T00:00:00.000Z");
+    } finally {
+      await source.db.destroy();
+      await target.db.destroy();
+    }
+  });
+
+  it("replaces only the selected provider's target rows", async () => {
+    const source = await createTestPostgresDatabase();
+    const target = await createTestPostgresDatabase();
+    const sourceMeegleToken = {
+      ...sourceToken,
+      provider: "meegle",
+      external_user_key: "meegle_1",
+      base_url: "https://project.larksuite.com",
+      user_token: "source-meegle-token",
+    };
+    const targetMeegleToken = {
+      ...sourceMeegleToken,
+      user_token: "target-meegle-token",
+    };
+
+    try {
+      await source.db.insertInto("user_tokens").values([sourceToken, sourceMeegleToken]).execute();
+      await target.db.insertInto("user_tokens").values([
+        { ...sourceToken, user_token: "old-target-lark-token" },
+        targetMeegleToken,
+      ]).execute();
+
+      const result = await syncUserTokens(source.db, target.db, "usr_1", "lark");
+      const rows = await target.db
+        .selectFrom("user_tokens")
+        .select(["provider", "user_token"])
+        .where("master_user_id", "=", "usr_1")
+        .orderBy("provider")
+        .execute();
+
+      expect(result.copiedRows).toBe(1);
+      expect(result.deletedRows).toBe("1");
+      expect(rows).toEqual([
+        { provider: "lark", user_token: "source-user-token" },
+        { provider: "meegle", user_token: "target-meegle-token" },
+      ]);
     } finally {
       await source.db.destroy();
       await target.db.destroy();

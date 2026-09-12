@@ -31,6 +31,13 @@ export const larkAuthCallbackQuerySchema = z.object({
   code: z.string().min(1),
   state: z.string().min(1),
 });
+export const webPluginLoginApprovalRequestSchema = z.object({
+  challengeId: z.string().min(1),
+  masterUserId: z.string().min(1),
+});
+export const webPluginLoginCompletionRequestSchema = z.object({
+  challengeId: z.string().min(1),
+});
 
 export const larkUserInfoRequestSchema = baseLarkAuthSchema;
 
@@ -39,6 +46,8 @@ export type LarkTokenRefreshRequest = z.infer<typeof larkTokenRefreshRequestSche
 export type LarkAuthStatusRequest = z.infer<typeof larkAuthStatusRequestSchema>;
 export type LarkOauthSessionRequest = z.infer<typeof larkOauthSessionRequestSchema>;
 export type LarkAuthCallbackQuery = z.infer<typeof larkAuthCallbackQuerySchema>;
+export type WebPluginLoginApprovalRequest = z.infer<typeof webPluginLoginApprovalRequestSchema>;
+export type WebPluginLoginCompletionRequest = z.infer<typeof webPluginLoginCompletionRequestSchema>;
 export type LarkUserInfoRequest = z.infer<typeof larkUserInfoRequestSchema>;
 
 // ==================== Response Types ====================
@@ -93,6 +102,14 @@ export function validateLarkOauthSessionRequest(input: unknown): LarkOauthSessio
 
 export function validateLarkAuthCallbackQuery(input: unknown): LarkAuthCallbackQuery {
   return larkAuthCallbackQuerySchema.parse(input);
+}
+
+export function validateWebPluginLoginApprovalRequest(input: unknown): WebPluginLoginApprovalRequest {
+  return webPluginLoginApprovalRequestSchema.parse(input);
+}
+
+export function validateWebPluginLoginCompletionRequest(input: unknown): WebPluginLoginCompletionRequest {
+  return webPluginLoginCompletionRequestSchema.parse(input);
 }
 
 export function validateLarkUserInfoRequest(input: unknown): LarkUserInfoRequest {

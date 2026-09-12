@@ -29,9 +29,9 @@ const redactPaths = [
   "responseBody.data.token",
 ];
 
-function createFileLogger(destination: string) {
-  return pino({
-    level: process.env.LOG_LEVEL || "info",
+function createLoggerOptions(level = process.env.LOG_LEVEL || "info") {
+  return {
+    level,
     timestamp: () => {
       const date = new Date();
       const formatted = date.toLocaleString("zh-CN", {
@@ -47,21 +47,40 @@ function createFileLogger(destination: string) {
       return `,"time":"${formatted}"`;
     },
     formatters: {
-      level: (label) => ({ level: label.toUpperCase() }),
-    },
-    transport: {
-      target: "pino/file",
-      options: {
-        destination,
-        mkdir: true,
-      },
+      level: (label: string) => ({ level: label.toUpperCase() }),
     },
     redact: {
       paths: redactPaths,
       censor: "[Redacted]",
     },
+  };
+}
+
+export function createDailyRotatingFileTransport(destination: string) {
+  return {
+    target: "pino-roll",
+    options: {
+      file: destination,
+      frequency: "daily",
+      dateFormat: "yyyy-MM-dd",
+      mkdir: true,
+    },
+  };
+}
+
+export function createFileLogger(destination: string, level?: string) {
+  return pino({
+    ...createLoggerOptions(level),
+    transport: createDailyRotatingFileTransport(destination),
   });
+}
+
+function createStreamLogger(destination: string) {
+  const stream = destination === "stdout" ? process.stdout : process.stderr;
+
+  return pino(createLoggerOptions(), stream);
 }
 
 export const logger = createFileLogger(process.env.LOG_FILE || "./logs/app.log");
 export const apiLogger = createFileLogger(process.env.API_LOG_FILE || "./logs/api.log");
+export const stdoutLogger = createStreamLogger("stdout");

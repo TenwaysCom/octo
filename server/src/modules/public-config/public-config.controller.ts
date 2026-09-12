@@ -50,6 +50,42 @@ export interface AutomationActionConfig {
         method: "POST";
         route: string;
       };
+  execution?: {
+    mode: "async";
+    submit: {
+      message: string;
+      style: "info";
+    };
+    completion: {
+      status: {
+        method: "GET";
+        route: string;
+        pollIntervalMs: number;
+      };
+      success: {
+        message: string;
+        style: "success";
+        notification: {
+          title: string;
+          message: string;
+        };
+      };
+      failure: {
+        message: string;
+        style: "error";
+      };
+    };
+  };
+  /**
+   * Server-owned AI execution metadata. The extension may use it for display,
+   * but it must never make an authorization decision from these fields.
+   */
+  promptKey?: string;
+  provider?: "kimi_acp" | "hermes_acp" | "ticket_summary" | "wiki_qa";
+  skillProfile?: string;
+  skillId?: string;
+  permissionProfileId?: string;
+  requiresConfirmation?: boolean;
 }
 
 export interface ExtensionPageConfig {
@@ -181,6 +217,25 @@ function isGitHubHost(hostname: string): boolean {
   return hostname === "github.com" || hostname.endsWith(".github.com");
 }
 
+function isConfiguredLarkOAuthCallback(url: URL): boolean {
+  const callbackUrl = getUrl(publicConfigDeps.LARK_OAUTH_CALLBACK_URL);
+  return Boolean(
+    callbackUrl
+    && url.origin === callbackUrl.origin
+    && url.pathname === callbackUrl.pathname,
+  );
+}
+
+function larkOAuthCallbackPageConfig(): ExtensionPageConfig {
+  return {
+    platform: "lark",
+    pageType: "lark",
+    matchedRuleId: "octo.lark.auth.callback",
+    sidebar: SIDEBAR_DISABLED,
+    automationActions: [],
+  };
+}
+
 function unsupportedPageConfig(): ExtensionPageConfig {
   return {
     platform: "unsupported",
@@ -216,11 +271,16 @@ function matchesHost(hostname: string, hostPattern: string): boolean {
 function matchPath(
   pathname: string,
   pattern: string,
+  options: { allowSubpaths?: boolean } = {},
 ): { ok: true; params: Record<string, string> } | { ok: false } {
   const pathSegments = pathname.split("/").filter(Boolean);
   const patternSegments = pattern.split("/").filter(Boolean);
 
-  if (pathSegments.length !== patternSegments.length) {
+  if (options.allowSubpaths) {
+    if (pathSegments.length < patternSegments.length) {
+      return { ok: false };
+    }
+  } else if (pathSegments.length !== patternSegments.length) {
     return { ok: false };
   }
 
@@ -260,7 +320,9 @@ function matchesRule(url: URL, rule: ActionPageRule): boolean {
     return false;
   }
 
-  const pathMatch = matchPath(url.pathname, rule.path);
+  const pathMatch = matchPath(url.pathname, rule.path, {
+    allowSubpaths: rule.allowSubpaths,
+  });
   if (!pathMatch.ok) {
     return false;
   }
@@ -333,7 +395,7 @@ function resolveActionPageConfig(
       }
 
       actions.set(actionId, {
-        ...actionConfig,
+        ...toPublicAutomationAction(actionConfig),
         placements: placements ?? actionConfig.placements,
       });
     }
@@ -349,6 +411,20 @@ function resolveActionPageConfig(
     sidebar: primaryRule.sidebar,
     automationActions: [...actions.values()],
   };
+}
+
+function toPublicAutomationAction(action: AutomationActionConfig): AutomationActionConfig {
+  const internal = action as AutomationActionConfig & Record<string, unknown>;
+  const {
+    promptKey: _promptKey,
+    provider: _provider,
+    skillProfile: _skillProfile,
+    skillId: _skillId,
+    permissionProfileId: _permissionProfileId,
+    requiresConfirmation: _requiresConfirmation,
+    ...publicAction
+  } = internal;
+  return publicAction as AutomationActionConfig;
 }
 
 function logPageConfigResolved(url: URL | null, pageConfig: ExtensionPageConfig): void {
@@ -378,6 +454,17 @@ export async function getExtensionPageConfigController(input: {
   if (!url) {
     const pageConfig = unsupportedPageConfig();
     logPageConfigResolved(null, pageConfig);
+    return {
+      ok: true,
+      data: {
+        pageConfig,
+      },
+    };
+  }
+
+  if (isConfiguredLarkOAuthCallback(url)) {
+    const pageConfig = larkOAuthCallbackPageConfig();
+    logPageConfigResolved(url, pageConfig);
     return {
       ok: true,
       data: {
@@ -485,6 +572,8 @@ export async function getServerApiCatalogController(): Promise<ServerApiCatalogR
             { method: "POST", path: "/api/acp/kimi/sessions/load", description: "加载 Kimi ACP 会话" },
             { method: "POST", path: "/api/acp/kimi/sessions/rename", description: "重命名 Kimi ACP 会话" },
             { method: "POST", path: "/api/acp/kimi/sessions/delete", description: "删除 Kimi ACP 会话" },
+            { method: "GET", path: "/api/web/lark-tickets/:recordId/effect-drafts", description: "查看当前 Ticket 的待确认 effect drafts" },
+            { method: "POST", path: "/api/web/lark-tickets/:recordId/effect-drafts/:draftId/confirm", description: "确认并执行 Server 保存的 effect draft" },
           ],
         },
         {
