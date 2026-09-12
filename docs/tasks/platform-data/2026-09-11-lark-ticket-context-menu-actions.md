@@ -2,7 +2,7 @@
 title: "Lark Ticket 列表右键快捷动作"
 module: "platform-data"
 status: in-progress
-requirement_version: 1
+requirement_version: 4
 created_on: 2026-09-11
 updated_on: 2026-09-11
 closed_on: null
@@ -82,3 +82,22 @@ FE Lark Ticket 列表（列表 / 分组 / 看板视图）右键 ticket 行弹出
 - 本轮验证：`pnpm --dir server test` 836 passed / 1 skipped；`pnpm --dir fe test` 39 个测试文件通过；Server TypeScript 与 FE Vite 构建通过，`git diff --check` 通过。
 - 验证边界：外部 API 使用 mock，未执行真实 Lark/Meegle 写入；新增服务端并发保护仅适用于同一进程内的 Web Ticket 创建路径。
 - 临时 Playwright 浏览器检查通过：空字段菜单渲染、loading、error/retry、空选项、加载列表计数、创建按钮及键盘禁用。仅使用本地组件与构造数据，无真实账号。首次临时页面缺少 React Refresh 初始化及 CJS 默认导入，修正测试页后通过；未改产品代码绕过问题。
+
+## v2 子菜单搜索（2026-09-11）
+
+- 六个字段子菜单加入搜索框，打开自动聚焦，按名称本地即时过滤；忽略大小写及首尾空白，支持中文。
+- 搜索不改变选项原有计数、当前值和人员 userId。清空恢复全部，切换字段/重新定位 Ticket 时重置；无匹配与无源选项分开提示。
+- 子菜单接管方向键和 Enter 选值，避免触发一级菜单；中文输入法组合期间不截获按键。运行中的字段选项禁用。
+- 验证：FE 测试 39 个文件和生产构建通过；临时浏览器检查过滤、中文、人员 ID、计数勾选、键盘、清空/切换重置、加载失败重试及 Esc 关闭通过。
+- 临时测试页漏声明 UTF-8 导致中文 fixture 乱码，补充 charset 后通过；产品页面已有 UTF-8 声明，无须改动。
+- 边界：使用构造数据，未执行真实平台写入。
+
+## v3 行内直接编辑与 v4 资源入口（2026-09-11）
+
+- 列表/分组列表中六个可编辑 badge/人员值使用独立按钮，点击立即打开单字段搜索菜单，不触发详情导航；看板显示的属性单元格同样支持此入口。仅 platformSync 用户显示按钮，标题与日期保持原行为。
+- 单字段菜单复用右键菜单选项、搜索、计数、当前值及字段写回；完整右键菜单保留。字段提交增加同步 ref 防重复，syncFailed 明确提示 Lark 已写入但列表同步失败。
+- 右键菜单新增“打开 Lark Base”“打开 Lark 消息”，单字段菜单不显示这些额外动作。
+- Base 优先用已有 sharedUrl，否则复用 GET shared-url；在点击手势内预留标签页并清空 opener，成功后导航，失败关闭空白页并提示可重试。弹窗被拦截时提示。
+- 消息使用当前 Ticket 的 larkMessageLink；缺失/非 HTTP(S) 时禁用。已知链接通过 noopener,noreferrer 打开。
+- 验证：FE 测试 39 个文件和生产构建通过；真实 PlatformListPage + 模拟 API 浏览器检查六字段点击/搜索/正确 payload/行回显/分组/权限、保留右键、打开 Base 与消息、Base 获取失败关闭空白页及重试通过。资源菜单模型增加缺失与非法 URL 回归用例。
+- 边界：平台 API 及新标签页均使用模拟对象，没有实际外部写入或浏览器账号访问。看板仅现有属性单元格可编辑，聚合人员头像保持展示。

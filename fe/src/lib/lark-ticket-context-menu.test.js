@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { getLarkTicketBadgeTone } from "./lark-ticket-badges.js";
 import {
   buildLarkTicketMenuSections,
+  getLarkTicketResourceUrl,
   countLarkTicketFieldValues,
   getLarkTicketMenuPosition,
   getLarkTicketOptionTone,
@@ -28,7 +30,7 @@ test("builds field action items with options, counts, and the current flag", () 
     items: [ticket, { ...ticket, ticketStatus: "Done" }],
   });
 
-  assert.equal(sections.length, 2);
+  assert.equal(sections.length, 3);
   const fields = sections[0].items;
   assert.deepEqual(fields.map((item) => item.field), ["status", "responsible", "requester", "priority", "issueType", "businessLine"]);
   const status = fields[0];
@@ -72,7 +74,7 @@ test("maps option tones by field kind", () => {
   assert.equal(getLarkTicketOptionTone("status", "Done"), "completed");
   assert.equal(getLarkTicketOptionTone("priority", "P0"), "critical");
   assert.equal(getLarkTicketOptionTone("issueType", "Production Bug"), "bug");
-  assert.equal(getLarkTicketOptionTone("businessLine", "B2B sales"), "default");
+  assert.equal(getLarkTicketOptionTone("businessLine", "B2B sales"), getLarkTicketBadgeTone("business-line", "B2B sales"));
 });
 
 test("flips the menu near viewport edges", () => {
@@ -98,4 +100,16 @@ test("missing and null fields neither match options nor contribute to counts", (
     }
     assert.equal(countLarkTicketFieldValues(emptyTickets, field).size, 0);
   }
+});
+
+
+test("resource actions keep the current message URL and disable missing or unsafe links", () => {
+  const sections = buildLarkTicketMenuSections({ ticket: { ...ticket, larkMessageLink: "https://example.com/message/1" } });
+  assert.deepEqual(sections[2].items.map((item) => item.kind), ["open-base", "open-message"]);
+  assert.equal(sections[2].items[1].disabled, false);
+  for (const value of [undefined, "", "not a url", "javascript:alert(1)"]) {
+    assert.equal(getLarkTicketResourceUrl(value), null);
+    assert.equal(buildLarkTicketMenuSections({ ticket: { ...ticket, larkMessageLink: value } })[2].items[1].disabled, true);
+  }
+  assert.equal(getLarkTicketResourceUrl("https://example.com/message/1"), "https://example.com/message/1");
 });

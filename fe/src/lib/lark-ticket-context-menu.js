@@ -54,6 +54,7 @@ export function getLarkTicketOptionTone(field, label) {
   if (field === "status") return getLarkTicketBadgeTone("status", label);
   if (field === "priority") return getLarkTicketBadgeTone("priority", label);
   if (field === "issueType") return getLarkTicketBadgeTone("type", label);
+  if (field === "businessLine") return getLarkTicketBadgeTone("business-line", label);
   return "default";
 }
 
@@ -83,6 +84,10 @@ export function buildLarkTicketMenuSections({ ticket, fieldOptions = [], items =
   return [
     { items: fieldItems },
     { items: [{ key: "create-meegle", kind: "create-meegle", label: "创建 Meegle Work Item" }] },
+    { items: [
+      { key: "open-base", kind: "open-base", label: "打开 Lark Base" },
+      { key: "open-message", kind: "open-message", label: "打开 Lark 消息", disabled: !getLarkTicketResourceUrl(ticket.larkMessageLink) },
+    ] },
   ];
 }
 
@@ -104,4 +109,13 @@ export function getLarkTicketMenuPosition(
     top: Math.round(Math.max(LARK_TICKET_CONTEXT_MENU_MARGIN, top)),
     flipSubmenu: point.x + LARK_TICKET_CONTEXT_MENU_WIDTH * 2 > viewport.width - LARK_TICKET_CONTEXT_MENU_MARGIN,
   };
+}
+
+
+export function getLarkTicketResourceUrl(value) {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return ["https:", "http:"].includes(url.protocol) ? url.href : null;
+  } catch { return null; }
 }
