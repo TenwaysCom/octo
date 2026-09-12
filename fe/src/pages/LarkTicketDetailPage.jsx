@@ -9,13 +9,12 @@ import { LarkTicketEditableProperties } from "../components/lark-ticket/LarkTick
 import { formatDateTime } from "../lib/formatters.js";
 import { LARK_TICKET_AI_QUICK_ACTIONS } from "../lib/lark-ticket-ai-actions.js";
 import { getLarkTicketDetailNavigation, getLarkTicketFromNavigationContext, updateLarkTicketNavigationContext } from "../lib/lark-ticket-detail-navigation.js";
-import { getTicketAiSections } from "../lib/ticket-ai-sections.js";
+import { getTicketAiSections, getTicketAiShadowNotice } from "../lib/ticket-ai-sections.js";
 import { getLarkTicketDetailHash } from "../app/routes/workspace-routes.js";
 import {
   formatShadowConfidence,
   formatShadowDuration,
   getShadowIntentLabel,
-  getShadowResolutionLabel,
   getShadowStatusLabel,
 } from "../lib/lark-ticket-shadow-ai.js";
 import { replyAcpPermission, confirmLarkTicketEffectDraft, listLarkTicketAiSessions, listLarkTicketEffectDrafts, loadLarkTicketAiSession, stopLarkTicketAiSession, streamLarkTicketAiSession } from "../services/lark-ticket-ai/lark-ticket-ai-api.js";
@@ -48,26 +47,9 @@ function ShadowInlineText({ value, title = value }) {
   return <span className="ticket-shadow-panel__inline-text" title={title}>{value}</span>;
 }
 
-function ShadowKeywords({ values }) {
-  return <span className="ticket-shadow-panel__keywords">{values.join("、")}</span>;
-}
-
-function numberedText(values) {
-  return values?.map((value, index) => `${index + 1}. ${value}`).join("\n") || "";
-}
-
 function ShadowAiPanel({ shadowAi }) {
   const statusLabel = getShadowStatusLabel(shadowAi.status);
   const processingDuration = formatShadowDuration(shadowAi.processingDurationMs);
-  const solutionSteps = numberedText(shadowAi.solutionSteps);
-  const criticalIssues = numberedText(shadowAi.criticalIssues);
-  const warnings = numberedText(shadowAi.warnings);
-  const riskCount = (shadowAi.criticalIssues?.length || 0) + (shadowAi.warnings?.length || 0);
-  const riskSummary = `严重 ${shadowAi.criticalIssues?.length || 0} · 警告 ${shadowAi.warnings?.length || 0}`;
-  const riskDetails = [
-    criticalIssues ? `严重问题\n${criticalIssues}` : "",
-    warnings ? `警告\n${warnings}` : "",
-  ].filter(Boolean).join("\n\n");
   return <section className="ticket-shadow-panel" aria-label="影子分析">
     <div className="ticket-shadow-panel__heading">
       <h2>影子分析</h2>
@@ -77,18 +59,7 @@ function ShadowAiPanel({ shadowAi }) {
       {getShadowIntentLabel(shadowAi) ? <TicketProperty label="意图"><ShadowInlineText value={getShadowIntentLabel(shadowAi)} /></TicketProperty> : null}
       {typeof shadowAi.intentConfidence === "number" ? <TicketProperty label="置信度">{formatShadowConfidence(shadowAi.intentConfidence)}</TicketProperty> : null}
       {shadowAi.summary ? <TicketProperty label="问题总结"><ShadowLongText value={shadowAi.summary} /></TicketProperty> : null}
-      {shadowAi.resolutionStatus ? <TicketProperty label="处理状态">{getShadowResolutionLabel(shadowAi.resolutionStatus)}</TicketProperty> : null}
       {shadowAi.solutionSummary ? <TicketProperty label="方案摘要"><ShadowLongText value={shadowAi.solutionSummary} /></TicketProperty> : null}
-      {typeof shadowAi.resultConfidence === "number" ? <TicketProperty label="答案置信">{formatShadowConfidence(shadowAi.resultConfidence)}</TicketProperty> : null}
-      {shadowAi.solutionSteps?.length ? <TicketProperty label="处理步骤"><ShadowInlineText value={`${shadowAi.solutionSteps.length} 步`} title={solutionSteps} /></TicketProperty> : null}
-      {shadowAi.resolverRef ? <TicketProperty label="处理人"><ShadowInlineText value={shadowAi.resolverRef} /></TicketProperty> : null}
-      {shadowAi.resolvedAt ? <TicketProperty label="解决时间">{formatDateTime(shadowAi.resolvedAt)}</TicketProperty> : null}
-      {typeof shadowAi.autoResolvable === "boolean" ? <TicketProperty label="自动处理">{shadowAi.autoResolvable ? "是" : "否"}</TicketProperty> : null}
-      {shadowAi.suggestedAutomation ? <TicketProperty label="自动化建议"><ShadowInlineText value={shadowAi.suggestedAutomation} /></TicketProperty> : null}
-      {shadowAi.qualitySummary ? <TicketProperty label="质量摘要"><ShadowLongText value={shadowAi.qualitySummary} /></TicketProperty> : null}
-      <TicketProperty label="风险"><span className={riskCount ? "ticket-shadow-panel__risk ticket-shadow-panel__risk--warning" : "ticket-shadow-panel__risk"} title={riskDetails || riskSummary}>{riskSummary}</span></TicketProperty>
-      {shadowAi.keywords?.length ? <TicketProperty label="关键词"><ShadowKeywords values={shadowAi.keywords} /></TicketProperty> : null}
-      {typeof shadowAi.evidenceMessageCount === "number" ? <TicketProperty label="证据">{shadowAi.evidenceMessageCount} 条</TicketProperty> : null}
     </dl> : null}
     {shadowAi.status === "skipped" ? <p className="ticket-shadow-panel__note">跳过原因：{shadowAi.reason || "未记录"}</p> : null}
     {shadowAi.status === "error" ? <p className="ticket-shadow-panel__note">{shadowAi.errorCode || "SHADOW_FAILED"}{shadowAi.errorMessage ? `：${shadowAi.errorMessage}` : ""}</p> : null}
@@ -291,8 +262,16 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
     [ticket.larkMessageLink, "关联 Lark 消息"],
     [ticket.meegleLink, "关联 Meegle 工作项"],
   ].filter(([href]) => href);
-  const ticketAiSections = getTicketAiSections(ticket.ticketAi?.fields);
-  const hasTicketAiData = ticketAiSections.some((section) => section.hasData);
+  const ticketAiSections = getTicketAiSections(ticket.ticketAi?.fields, ticket.shadowAi);
+  const hasTicketAiData = ticketAiSections.some((section) => section.hasFormalData);
+  const hasShadowAiData = ticketAiSections.some((section) => section.hasShadowData);
+  const shadowAiNotice = getTicketAiShadowNotice(ticket.shadowAi);
+  const shadowAiMeta = [
+    ticket.shadowAi?.analyzedAt ? `分析于 ${formatDateTime(ticket.shadowAi.analyzedAt)}` : "尚未分析",
+    formatShadowDuration(ticket.shadowAi?.processingDurationMs) ? `耗时 ${formatShadowDuration(ticket.shadowAi.processingDurationMs)}` : "",
+    ticket.shadowAi?.snapshotVersion ? `快照 v${ticket.shadowAi.snapshotVersion}` : "",
+    ticket.shadowAi?.promptVersion ? `提示词 ${ticket.shadowAi.promptVersion}` : "",
+  ].filter(Boolean).join(" · ");
   const ticketNavigationActions = ticketNavigation ? <div role="group" aria-label="Ticket 前后导航" className="ticket-detail-navigation">
     <button type="button" disabled={!ticketNavigation.previousRecordId} onClick={() => { if (ticketNavigation.previousRecordId) window.location.hash = getLarkTicketDetailHash(ticketNavigation.previousRecordId); }}>上一条</button>
     <span aria-label={`当前第 ${ticketNavigation.position} 条，共 ${ticketNavigation.total} 条`}>{ticketNavigation.position} / {ticketNavigation.total}</span>
@@ -322,27 +301,39 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
           </section>
 
           <section className="ticket-detail-section ticket-ai-data">
-            <div className="ticket-section-heading"><h2>Ticket AI</h2><span>{hasTicketAiData ? "Octo 本地记录" : "暂无记录"}</span></div>
+            <div className="ticket-section-heading"><h2>Ticket AI</h2><span>{hasTicketAiData ? "Octo 本地记录" : hasShadowAiData ? `影子分析${ticket.shadowAi?.analyzedAt ? ` · ${formatDateTime(ticket.shadowAi.analyzedAt)}` : ""}` : ticket.shadowAi ? `影子分析 · ${getShadowStatusLabel(ticket.shadowAi.status)}` : "暂无记录"}</span></div>
             <div className="ticket-ai-overview" aria-label="Ticket AI 概览">
               {ticketAiSections.map((section) => {
                 const expanded = expandedTicketAiSectionId === section.id;
+                const cardState = section.hasFormalData ? "filled" : section.hasShadowData ? "shadow" : "empty";
                 return <button
-                  className={`ticket-ai-overview-card ${section.hasData ? "ticket-ai-overview-card--filled" : "ticket-ai-overview-card--empty"}`}
+                  className={`ticket-ai-overview-card ticket-ai-overview-card--${cardState}${section.shadowItems.length ? " ticket-ai-overview-card--has-details" : ""}`}
                   type="button"
                   key={section.id}
                   aria-expanded={expanded}
                   aria-controls={`ticket-ai-section-${section.id}`}
                   onClick={() => setExpandedTicketAiSectionId((current) => current === section.id ? null : section.id)}
                 >
-                  <span className="ticket-ai-overview-card__heading"><strong>{section.title}</strong><small>{section.hasData ? "已生成" : "暂无数据"}</small></span>
-                  <span className="ticket-ai-overview-card__summary">{section.summary.length ? section.summary.map((item) => formatTicketAiValue(item.value)).join(" · ") : section.emptyMessage}</span>
+                  <span className="ticket-ai-overview-card__heading"><strong>{section.title}</strong><small>{section.hasFormalData ? "已生成" : section.hasShadowData ? "影子分析" : "暂无数据"}</small></span>
+                  <span className="ticket-ai-overview-card__summary">{section.summary.length ? section.summary.map((item) => formatTicketAiValue(item.value)).join(" · ") : section.shadowSummary || section.emptyMessage}</span>
+                  {section.shadowItems.length ? <span className="ticket-ai-overview-card__tooltip" role="presentation">
+                    <b>影子分析</b>
+                    <dl>{section.shadowItems.map((item) => <div key={item.name}><dt>{item.name}</dt><dd>{item.value}</dd></div>)}</dl>
+                  </span> : null}
                   <span className="ticket-ai-overview-card__toggle" aria-hidden="true">{expanded ? "收起" : "查看"}</span>
                 </button>;
               })}
             </div>
             {ticketAiSections.map((section) => expandedTicketAiSectionId === section.id ? <div className="ticket-ai-section-detail" id={`ticket-ai-section-${section.id}`} key={section.id}>
-              <div className="ticket-ai-section-detail__heading"><h3>{section.title}</h3><span>{section.hasData ? `${section.items.length} 项信息` : "暂无数据"}</span></div>
-              {section.hasData ? <dl className="ticket-ai-section-detail__fields">{section.items.map((item) => <div key={item.name}><dt>{item.name}</dt><dd>{formatTicketAiValue(item.value)}</dd></div>)}</dl> : <p className="ticket-section-empty">{section.emptyMessage}</p>}
+              <div className="ticket-ai-section-detail__heading"><h3>{section.title}</h3><span>{section.hasData ? `${section.items.length + section.shadowItems.length} 项信息` : "暂无数据"}</span></div>
+              {section.hasFormalData ? <dl className="ticket-ai-section-detail__fields">{section.items.map((item) => <div key={item.name}><dt>{item.name}</dt><dd>{formatTicketAiValue(item.value)}</dd></div>)}</dl> : null}
+              {section.shadowItems.length ? <div className="ticket-ai-section-detail__shadow">
+                <p className="ticket-ai-section-detail__source">影子分析 · 自动生成，未回写 Lark</p>
+                <dl className="ticket-ai-section-detail__fields">{section.shadowItems.map((item) => <div key={item.name}><dt>{item.name}</dt><dd>{item.value}</dd></div>)}</dl>
+                <p className="ticket-ai-section-detail__meta">{shadowAiMeta}</p>
+              </div> : null}
+              {section.id === "analysis" && shadowAiNotice ? <p className="ticket-ai-section-detail__notice">{shadowAiNotice}</p> : null}
+              {!section.hasData ? <p className="ticket-section-empty">{section.emptyMessage}</p> : null}
             </div> : null)}
           </section>
 
