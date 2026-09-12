@@ -23,6 +23,7 @@ function createResolvedUserStore() {
     }),
     getByLarkId: vi.fn(),
     getByLarkIdentity: vi.fn(),
+    getByGithubId: vi.fn(),
     getByMeegleIdentity: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),

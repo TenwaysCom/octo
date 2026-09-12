@@ -664,6 +664,8 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .addPrimaryKeyConstraint("platform_sync_leases_pkey", ["platform", "scope_key"])
     .execute();
 
+  await ensureOdooShBuildSchema(db);
+
   await db.schema
     .createTable("meegle_workitem_octo")
     .ifNotExists()
@@ -796,6 +798,10 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
   await sql`
     CREATE INDEX IF NOT EXISTS platform_sync_schedules_due_idx
     ON platform_sync_schedules(enabled, next_run_at)
+  `.execute(db);
+  await sql`
+    CREATE INDEX IF NOT EXISTS odoo_sh_build_notifications_due_idx
+    ON odoo_sh_build_notifications(status, next_attempt_at)
   `.execute(db);
 
   const now = new Date().toISOString();
@@ -1134,6 +1140,9 @@ export async function resetPostgresDatabase(db: Kysely<DatabaseSchema>): Promise
   await sql`DROP TABLE IF EXISTS platform_sync_schedules`.execute(db);
   await sql`DROP TABLE IF EXISTS platform_sync_runs`.execute(db);
   await sql`DROP TABLE IF EXISTS platform_sync_checkpoints`.execute(db);
+  await sql`DROP TABLE IF EXISTS odoo_sh_build_notifications`.execute(db);
+  await sql`DROP TABLE IF EXISTS odoo_sh_builds`.execute(db);
+  await sql`DROP TABLE IF EXISTS odoo_sh_build_sync_state`.execute(db);
   await sql`DROP TABLE IF EXISTS lark_base_ticket_octo`.execute(db);
   await sql`DROP TABLE IF EXISTS github_pr_octo`.execute(db);
   await sql`DROP TABLE IF EXISTS meegle_workitem_octo`.execute(db);
@@ -1208,4 +1217,57 @@ export async function closeSharedDatabase(): Promise<void> {
 
   await db?.destroy();
   await connection?.close();
+}
+
+/** Scoped migration for the build notification workflow. */
+export async function ensureOdooShBuildSchema(db: Kysely<DatabaseSchema>): Promise<void> {
+  await db.schema.createTable("odoo_sh_build_sync_state").ifNotExists()
+    .addColumn("environment", "text", (column) => column.notNull())
+    .addColumn("project_id", "integer", (column) => column.notNull())
+    .addColumn("initialized_at", "text", (column) => column.notNull())
+    .addPrimaryKeyConstraint("odoo_sh_build_sync_state_pkey", ["environment", "project_id"])
+    .execute();
+
+  await db.schema
+    .createTable("odoo_sh_builds")
+    .ifNotExists()
+    .addColumn("environment", "text", (column) => column.notNull())
+    .addColumn("project_id", "integer", (column) => column.notNull())
+    .addColumn("build_id", "integer", (column) => column.notNull())
+    .addColumn("branch", "text", (column) => column.notNull())
+    .addColumn("stage", "text", (column) => column.notNull())
+    .addColumn("odoo_branch", "text", (column) => column.notNull())
+    .addColumn("last_build_status", "text", (column) => column.notNull())
+    .addColumn("last_build_result", "text", (column) => column.notNull())
+    .addColumn("build_url", "text")
+    .addColumn("commit_sha", "text")
+    .addColumn("pusher_github_id", "text")
+    .addColumn("first_seen_at", "text", (column) => column.notNull())
+    .addColumn("last_seen_at", "text", (column) => column.notNull())
+    .addColumn("updated_at", "text", (column) => column.notNull())
+    .addPrimaryKeyConstraint("odoo_sh_builds_pkey", ["environment", "project_id", "build_id"])
+    .execute();
+
+  await db.schema
+    .createTable("odoo_sh_build_notifications")
+    .ifNotExists()
+    .addColumn("id", "text", (column) => column.primaryKey())
+    .addColumn("environment", "text", (column) => column.notNull())
+    .addColumn("project_id", "integer", (column) => column.notNull())
+    .addColumn("build_id", "integer", (column) => column.notNull())
+    .addColumn("status", "text", (column) => column.notNull())
+    .addColumn("attempts", "integer", (column) => column.notNull().defaultTo(0))
+    .addColumn("next_attempt_at", "text")
+    .addColumn("claim_token", "text")
+    .addColumn("claim_expires_at", "text")
+    .addColumn("message_id", "text")
+    .addColumn("error_code", "text")
+    .addColumn("error_message", "text")
+    .addColumn("created_at", "text", (column) => column.notNull())
+    .addColumn("updated_at", "text", (column) => column.notNull())
+    .addUniqueConstraint("odoo_sh_build_notifications_build_unique", ["environment", "project_id", "build_id"])
+    .execute();
+
+  await sql`ALTER TABLE odoo_sh_builds ADD COLUMN IF NOT EXISTS head_commit_author text`.execute(db);
+  await sql`ALTER TABLE odoo_sh_builds ADD COLUMN IF NOT EXISTS head_commit_url text`.execute(db);
 }

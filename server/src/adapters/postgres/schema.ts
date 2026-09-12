@@ -465,4 +465,43 @@ export interface DatabaseSchema {
     created_at: string;
     updated_at: string;
   };
+  odoo_sh_build_sync_state: {
+    environment: string;
+    project_id: number;
+    initialized_at: string;
+  };
+  odoo_sh_builds: {
+    environment: string;
+    project_id: number;
+    build_id: number;
+    branch: string;
+    stage: string;
+    odoo_branch: string;
+    last_build_status: string;
+    last_build_result: string;
+    build_url: string | null;
+    commit_sha: string | null;
+    pusher_github_id: string | null;
+    head_commit_author: string | null;
+    head_commit_url: string | null;
+    first_seen_at: string;
+    last_seen_at: string;
+    updated_at: string;
+  };
+  odoo_sh_build_notifications: {
+    id: string;
+    environment: string;
+    project_id: number;
+    build_id: number;
+    status: string;
+    attempts: number;
+    next_attempt_at: string | null;
+    claim_token: string | null;
+    claim_expires_at: string | null;
+    message_id: string | null;
+    error_code: string | null;
+    error_message: string | null;
+    created_at: string;
+    updated_at: string;
+  };
 }

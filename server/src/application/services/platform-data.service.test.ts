@@ -210,14 +210,17 @@ describe("PlatformDataService", () => {
         }
         return {
           environment,
+          project_id: 42,
           project_name: "Odoo",
           total: 1,
           items: [{
+            database_id: 101,
             branch: "feature/m-123",
             stage: "dev",
             last_build_status: "done",
             last_build_result: environment === "eu" ? "success" : "warning",
             odoo_branch: "17.0",
+            connect_url: null,
           }],
           cached: false,
         };
@@ -262,14 +265,17 @@ describe("PlatformDataService", () => {
     const odooDevopsBranchesService = {
       list: vi.fn(async (environment: "eu" | "uk" | "us") => ({
         environment,
+        project_id: 42,
         project_name: "Odoo",
         total: 1,
         items: [{
+          database_id: 101,
           branch: "feature/m-123",
           stage: "dev",
           last_build_status: "done",
           last_build_result: "success",
           odoo_branch: "17.0",
+          connect_url: null,
         }],
         cached: false,
       })),
@@ -315,8 +321,8 @@ describe("PlatformDataService", () => {
     } as unknown as PlatformSyncStore;
     const odooDevopsBranchesService = {
       list: vi.fn().mockResolvedValue({
-        environment: "uk", project_name: "Odoo", total: 1,
-        items: [{ branch: "feature/m-123", stage: "dev", last_build_status: "done", last_build_result: "success", odoo_branch: "17.0" }],
+        environment: "uk", project_id: 42, project_name: "Odoo", total: 1,
+        items: [{ database_id: 101, branch: "feature/m-123", stage: "dev", last_build_status: "done", last_build_result: "success", odoo_branch: "17.0", connect_url: null }],
         cached: true,
       }),
     };

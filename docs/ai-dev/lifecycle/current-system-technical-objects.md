@@ -809,3 +809,7 @@ PR Quick scan / Deep review 的运行状态存于 PostgreSQL `github_pr_review_r
 4. 若新增或重构跨 extension/server/adapter/platform 的流程，携带 `actionRunId`。
 5. 若写入 Meegle 字段，集中将语义字段解析为 `field_key`。
 6. 若可能出现部分成功，返回类型化 stage 与结果标志。
+
+### Odoo.sh build 失败通知
+
+Server 启动后立即刷新 EU / UK / US，之后由 `OdooShBuildRefreshScheduler` 每 30 分钟强制刷新。定时与页面读取共用每环境刷新 Promise，读取 branches 和不带 limit 的 `/builds`，校验环境/项目后将真实 build id、状态和 head commit 信息写入 PostgreSQL。初始化标记 `odoo_sh_build_sync_state` 与首次快照原子保存，历史不通知，空项目也能完成初始化；后续为所有新增失败或失败转换入队，不只检查分支首项。消费者用 `ODOO_SH_BUILD_AUTHOR_GITHUB_MAPPING` 的大小写无关别名查询唯一 active `users.github_id → lark_id` 绑定。缺身份仍发送正文，成功后保存 message_id；token 获取网络失败可重试，实际发送结果不确定或机器人未入群时停止自动重发。过期 sending 一律待核实，不依赖 Lark 的短期幂等窗口重发；远端已送达而本地确认写回失败时保留 message_id 用于核实。通知 timer 捕获单轮异常，后续周期继续运行。Server 关闭时停止并等待刷新；该调度为单进程能力。任务决策与验证证据见 [Odoo.sh 失败通知](../../tasks/engineering-ops/2026-09-10-odoo-build-failure-lark-notification.md)。

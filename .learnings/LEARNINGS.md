@@ -766,3 +766,12 @@ source: [Lark Ticket 右键快捷动作](../docs/tasks/platform-data/2026-09-11-
 **Rule:** 增加详情写入时检查所有缓存读取路径，在服务端确认成功后按完整业务标识合并投影；用函数式更新保留当前导航集合和其他字段，验证切换记录后返回的显示结果。
 
 source: [Lark Ticket 详情属性编辑](../docs/tasks/platform-data/2026-09-11-lark-ticket-detail-field-editing.md)
+
+
+## [LRN-20260912-001] distinguish-commit-author-aliases-from-platform-identities
+
+**Context:** 构建源可能只给 commit 作者显示名，而通知服务需要跨平台用户绑定；作者、推送人和账号登录名代表不同事实。
+
+**Rule:** 先明确被提醒者是作者还是推送人。显示名仅可通过用户明确维护的别名映射或权威账号证据解析；保留显示名与平台身份的独立语义，并把无法匹配身份与平台查询故障分开处理。
+
+source: [Odoo.sh 失败通知](../docs/tasks/engineering-ops/2026-09-10-odoo-build-failure-lark-notification.md)

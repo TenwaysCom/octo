@@ -21,51 +21,53 @@ export function createHttpOdooDevopsBranchesClient(options: {
   baseUrl: string;
   session: string;
   fetchImpl?: typeof fetch;
-}): OdooDevopsBranchesClient {
+}): OdooDevopsBranchesClient & { listBuilds(environment: OdooDevopsEnvironment): Promise<unknown> } {
   const baseUrl = readHttpsBaseUrl(options.baseUrl);
   const session = readSession(options.session);
   const fetchImpl = options.fetchImpl ?? fetch;
 
+  async function request(environment: OdooDevopsEnvironment, resource: "branches" | "builds") {
+    if (!baseUrl || !session) {
+      throw new OdooDevopsBranchesClientError("ODOO_DEVOPS_NOT_CONFIGURED");
+    }
+
+    const url = new URL(`/api/v1/odoo-sh/${environment}/${resource}`, baseUrl);
+    if (resource === "branches") url.searchParams.set("stage", "all");
+
+    let response: Response;
+    try {
+      response = await fetchImpl(url, {
+        headers: {
+          accept: "application/json",
+          cookie: `odoo_devops_new_prod_session=${session}`,
+        },
+        redirect: "manual",
+        signal: AbortSignal.timeout(30_000),
+      });
+    } catch {
+      clientLogger.warn({ environment }, "ODOO_DEVOPS_BRANCHES_REQUEST_FAILED");
+      throw new OdooDevopsBranchesClientError("ODOO_DEVOPS_UNAVAILABLE");
+    }
+
+    if (response.status === 401 || response.status === 403 || response.status >= 300 && response.status < 400) {
+      clientLogger.warn({ environment, status: response.status }, "ODOO_DEVOPS_BRANCHES_AUTH_REJECTED");
+      throw new OdooDevopsBranchesClientError("ODOO_DEVOPS_AUTH_REQUIRED");
+    }
+    if (!response.ok) {
+      clientLogger.warn({ environment, status: response.status }, "ODOO_DEVOPS_BRANCHES_REQUEST_FAILED");
+      throw new OdooDevopsBranchesClientError("ODOO_DEVOPS_UNAVAILABLE");
+    }
+
+    try {
+      return await response.json();
+    } catch {
+      clientLogger.warn({ environment, status: response.status }, "ODOO_DEVOPS_BRANCHES_INVALID_JSON");
+      throw new OdooDevopsBranchesClientError("ODOO_DEVOPS_UNAVAILABLE");
+    }
+  }
   return {
-    async listBranches(environment) {
-      if (!baseUrl || !session) {
-        throw new OdooDevopsBranchesClientError("ODOO_DEVOPS_NOT_CONFIGURED");
-      }
-
-      const url = new URL(`/api/v1/odoo-sh/${environment}/branches`, baseUrl);
-      url.searchParams.set("stage", "all");
-
-      let response: Response;
-      try {
-        response = await fetchImpl(url, {
-          headers: {
-            accept: "application/json",
-            cookie: `odoo_devops_new_prod_session=${session}`,
-          },
-          redirect: "manual",
-          signal: AbortSignal.timeout(30_000),
-        });
-      } catch {
-        clientLogger.warn({ environment }, "ODOO_DEVOPS_BRANCHES_REQUEST_FAILED");
-        throw new OdooDevopsBranchesClientError("ODOO_DEVOPS_UNAVAILABLE");
-      }
-
-      if (response.status === 401 || response.status === 403 || response.status >= 300 && response.status < 400) {
-        clientLogger.warn({ environment, status: response.status }, "ODOO_DEVOPS_BRANCHES_AUTH_REJECTED");
-        throw new OdooDevopsBranchesClientError("ODOO_DEVOPS_AUTH_REQUIRED");
-      }
-      if (!response.ok) {
-        clientLogger.warn({ environment, status: response.status }, "ODOO_DEVOPS_BRANCHES_REQUEST_FAILED");
-        throw new OdooDevopsBranchesClientError("ODOO_DEVOPS_UNAVAILABLE");
-      }
-
-      try {
-        return await response.json();
-      } catch {
-        clientLogger.warn({ environment, status: response.status }, "ODOO_DEVOPS_BRANCHES_INVALID_JSON");
-        throw new OdooDevopsBranchesClientError("ODOO_DEVOPS_UNAVAILABLE");
-      }
-    },
+    listBranches: (environment) => request(environment, "branches"),
+    listBuilds: (environment) => request(environment, "builds"),
   };
 }
 

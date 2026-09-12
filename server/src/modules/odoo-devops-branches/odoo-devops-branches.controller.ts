@@ -5,10 +5,15 @@ import { OdooDevopsBranchesService } from "../../application/services/odoo-devop
 import { ensureLarkWebSession } from "../lark-auth/lark-auth.service.js";
 import { WEB_SESSION_COOKIE_NAME } from "../lark-auth/lark-auth.controller.js";
 import { logger } from "../../logger.js";
-import { odooDevopsBranchesCacheResetBodySchema, odooDevopsBranchesQuerySchema } from "./odoo-devops-branches.dto.js";
+import {
+  odooDevopsBranchesCacheResetBodySchema,
+  odooDevopsBranchesQuerySchema,
+  odooDevopsBranchesRefreshingSchema,
+} from "./odoo-devops-branches.dto.js";
 
 type WebSessionResult = Awaited<ReturnType<typeof ensureLarkWebSession>>;
 const controllerLogger = logger.child({ module: "odoo-devops-branches" });
+const REFRESH_RETRY_AFTER_MS = 1_000;
 
 function readCookie(cookieHeader: string | undefined, name: string): string | undefined {
   const prefix = `${name}=`;
@@ -24,8 +29,12 @@ function readCookie(cookieHeader: string | undefined, name: string): string | un
   }
 }
 
+/**
+ * 冷缓存返回 202 refreshing（前端按 retryAfterMs 有界重试），已有快照立即返回并
+ * 在过期时标记 stale、合并后台刷新；读取不串行等待上游或同步链路。
+ */
 export function createWebOdooDevopsBranchesController(deps: {
-  service: Pick<OdooDevopsBranchesService, "list">;
+  service: Pick<OdooDevopsBranchesService, "getOrStartRefresh">;
   ensureSession?: (sessionToken: string | undefined) => Promise<WebSessionResult>;
 }) {
   const ensureSession = deps.ensureSession ?? ensureLarkWebSession;
@@ -41,8 +50,43 @@ export function createWebOdooDevopsBranchesController(deps: {
 
     try {
       const query = odooDevopsBranchesQuerySchema.parse(input.query);
-      const snapshot = await deps.service.list(query.environment);
-      return { statusCode: 200, body: { ok: true as const, data: snapshot } };
+      const result = await deps.service.getOrStartRefresh(query.environment);
+      if (result.state === "refreshing") {
+        return {
+          statusCode: 202,
+          body: {
+            ok: true as const,
+            data: odooDevopsBranchesRefreshingSchema.parse({
+              state: "refreshing",
+              environment: query.environment,
+              retryAfterMs: REFRESH_RETRY_AFTER_MS,
+            }),
+          },
+        };
+      }
+      if (result.state === "unavailable") {
+        return {
+          statusCode: 503,
+          body: {
+            ok: false as const,
+            error: {
+              errorCode: "ODOO_DEVOPS_UNAVAILABLE",
+              errorMessage: "Odoo DevOps 分支状态暂时不可用。",
+            },
+          },
+        };
+      }
+      return {
+        statusCode: 200,
+        body: {
+          ok: true as const,
+          data: {
+            ...result.snapshot,
+            cached: result.cached,
+            stale: result.stale,
+          },
+        },
+      };
     } catch (error) {
       if (error instanceof ZodError) {
         return {
@@ -59,6 +103,12 @@ export function createWebOdooDevopsBranchesController(deps: {
           },
         };
       }
+      controllerLogger.error({
+        operation: "odoo_devops_branches_read",
+        layer: "server",
+        stage: "server.read.failed",
+        errorCode: "ODOO_DEVOPS_INVALID_RESPONSE",
+      }, "ODOO_DEVOPS_BRANCHES_READ_FAILED");
       return {
         statusCode: 502,
         body: {

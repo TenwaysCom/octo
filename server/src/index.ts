@@ -1,5 +1,8 @@
 import "reflect-metadata";
 import "dotenv/config";
+import { OdooShBuildRefreshScheduler } from "./application/services/odoo-sh-build-refresh-scheduler.js";
+import { createOdooShCommitAuthorResolver, parseOdooShAuthorGithubMapping } from "./application/services/odoo-sh-commit-author.service.js";
+import { odooDevopsBuildsSnapshotSchema } from "./modules/odoo-devops-branches/odoo-devops-branches.dto.js";
 import express, { type Request, type Response } from "express";
 import { resolveIdentityController } from "./modules/identity/identity.controller.js";
 import { writeClientDebugLogController } from "./modules/debug-log/debug-log.controller.js";
@@ -82,6 +85,11 @@ import { createWebOdooDevopsBranchesCacheResetController, createWebOdooDevopsBra
 import { createRedisApiCache } from "./http/redis-cache.js";
 import { createWebGitHubPrOdooDevopsBuildController } from "./modules/github-pr-odoo-devops-build/github-pr-odoo-devops-build.controller.js";
 import { GitHubClient } from "./adapters/github/github-client.js";
+import { PostgresOdooShBuildStore } from "./adapters/postgres/odoo-sh-build-store.js";
+import { OdooShBuildSyncService } from "./application/services/odoo-sh-build-sync.service.js";
+import { OdooShBuildNotificationConsumer } from "./application/services/odoo-sh-build-notification.service.js";
+import { LarkImNotificationClientImpl } from "./adapters/lark/im-notification-client.js";
+import { getResolvedUserStore } from "./adapters/postgres/resolved-user-store.js";
 import { registerWebAcpPermissionRoutes } from "./modules/acp-kimi/acp-permission.controller.js";
 import { registerWebLarkTicketAiRoutes } from "./modules/lark-ticket-ai/lark-ticket-ai.controller.js";
 import { registerWebMeegleSprintAiRoutes } from "./modules/meegle-sprint-ai/meegle-sprint-ai.controller.js";
@@ -109,6 +117,12 @@ const MEEGLE_BASE_URL = process.env.MEEGLE_BASE_URL || "https://project.larksuit
 const ODOO_DEVOPS_BASE_URL = process.env.ODOO_DEVOPS_BASE_URL || "https://devops.odoo.tenways.it:18443";
 const ODOO_DEVOPS_SESSION = process.env.ODOO_DEVOPS_SESSION || "";
 const REDIS_URL = process.env.REDIS_URL || "";
+// Odoo.sh build 失败群通知：EU/UK/US 统一目标群；机器人发送依赖 LARK_APP_ID/LARK_APP_SECRET。
+const ODOO_SH_BUILD_NOTIFY_LARK_CHAT_ID = process.env.ODOO_SH_BUILD_NOTIFY_LARK_CHAT_ID || "oc_ebad023939d64fa0b0314d03307d8d77";
+const ODOO_SH_BUILD_NOTIFY_POLL_INTERVAL_MS = readPositiveIntegerEnv("ODOO_SH_BUILD_NOTIFY_POLL_INTERVAL_MS", 30_000);
+const ODOO_SH_BUILD_NOTIFY_MAX_ATTEMPTS = readPositiveIntegerEnv("ODOO_SH_BUILD_NOTIFY_MAX_ATTEMPTS", 3);
+const ODOO_SH_BUILD_NOTIFY_RETRY_DELAY_MS = readPositiveIntegerEnv("ODOO_SH_BUILD_NOTIFY_RETRY_DELAY_MS", 60_000);
+const ODOO_SH_BUILD_NOTIFY_SEND_TIMEOUT_MS = readPositiveIntegerEnv("ODOO_SH_BUILD_NOTIFY_SEND_TIMEOUT_MS", 10_000);
 const OCTO_EXTENSION_ORIGINS = parseAllowedCredentialOrigins(process.env.OCTO_EXTENSION_ORIGINS);
 const ODOO_DEVOPS_BRANCHES_CACHE_TTL_SECONDS = readCacheTtlSeconds(
   process.env.ODOO_DEVOPS_BRANCHES_CACHE_TTL_SECONDS,
@@ -170,13 +184,20 @@ const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || "0.0.0.0";
 const WEB_ALLOWED_ORIGINS = [LARK_WEB_ORIGIN, ...OCTO_EXTENSION_ORIGINS];
 const apiCache = createRedisApiCache(REDIS_URL);
+const odooShBuildStore = new PostgresOdooShBuildStore();
+const odooShBuildSyncService = new OdooShBuildSyncService({ store: odooShBuildStore });
+const odooDevopsClient = createHttpOdooDevopsBranchesClient({ baseUrl: ODOO_DEVOPS_BASE_URL, session: ODOO_DEVOPS_SESSION });
 const odooDevopsBranchesService = new OdooDevopsBranchesService({
-  client: createHttpOdooDevopsBranchesClient({
-    baseUrl: ODOO_DEVOPS_BASE_URL,
-    session: ODOO_DEVOPS_SESSION,
-  }),
+  client: odooDevopsClient,
   cache: apiCache,
   cacheTtlSeconds: ODOO_DEVOPS_BRANCHES_CACHE_TTL_SECONDS,
+  onSnapshotSync: async (snapshot) => {
+    const builds = odooDevopsBuildsSnapshotSchema.parse(await odooDevopsClient.listBuilds(snapshot.environment));
+    if (builds.environment !== snapshot.environment || builds.project_id !== snapshot.project_id) {
+      throw new Error("ODOO_SH_BUILD_PROJECT_MISMATCH");
+    }
+    await odooShBuildSyncService.syncFromSnapshot(builds);
+  },
 });
 const getWebOdooDevopsBranchesController = createWebOdooDevopsBranchesController({
   service: odooDevopsBranchesService,
@@ -220,6 +241,19 @@ function readCacheTtlSeconds(value: string | undefined): number {
     "INVALID_CACHE_TTL_USING_DEFAULT",
   );
   return defaultTtlSeconds;
+}
+
+function readPositiveIntegerEnv(name: string, defaultValue: number): number {
+  const value = process.env[name];
+  if (!value?.trim()) {
+    return defaultValue;
+  }
+  const parsed = Number(value);
+  if (Number.isInteger(parsed) && parsed > 0) {
+    return parsed;
+  }
+  serverLogger.warn({ name, value }, "INVALID_POSITIVE_INTEGER_ENV_USING_DEFAULT");
+  return defaultValue;
 }
 
 app.use(createCorsMiddleware({ allowedCredentialOrigins: WEB_ALLOWED_ORIGINS }));
@@ -569,6 +603,44 @@ if (process.env.GITHUB_TOKEN) {
 
 if (process.env.NODE_ENV !== "test" && process.env.VITEST !== "true") {
   await ensureSharedDatabase();
+  const odooShBuildNotificationConsumer = new OdooShBuildNotificationConsumer({
+    store: odooShBuildStore,
+    sender: new LarkImNotificationClientImpl({
+      appId: LARK_APP_ID,
+      appSecret: LARK_APP_SECRET,
+      baseUrl: LARK_AUTH_BASE_URL,
+      timeoutMs: ODOO_SH_BUILD_NOTIFY_SEND_TIMEOUT_MS,
+    }),
+    resolveCommitAuthor: createOdooShCommitAuthorResolver({
+      mapping: parseOdooShAuthorGithubMapping(process.env.ODOO_SH_BUILD_AUTHOR_GITHUB_MAPPING),
+      users: getResolvedUserStore(),
+    }),
+    config: {
+      chatId: ODOO_SH_BUILD_NOTIFY_LARK_CHAT_ID,
+      maxAttempts: ODOO_SH_BUILD_NOTIFY_MAX_ATTEMPTS,
+      retryDelayMs: ODOO_SH_BUILD_NOTIFY_RETRY_DELAY_MS,
+      claimDurationMs: Math.max(ODOO_SH_BUILD_NOTIFY_SEND_TIMEOUT_MS * 3, 30_000),
+      batchSize: 10,
+    },
+  });
+  if (LARK_APP_ID && LARK_APP_SECRET) {
+    odooShBuildNotificationConsumer.start(ODOO_SH_BUILD_NOTIFY_POLL_INTERVAL_MS);
+    serverLogger.info({
+      operation: "odoo_sh_build_notify",
+      layer: "server",
+      stage: "server.notify.configured",
+      chatIdConfigured: true,
+      pollIntervalMs: ODOO_SH_BUILD_NOTIFY_POLL_INTERVAL_MS,
+    }, "ODOO_SH_BUILD_NOTIFY_CONFIGURED");
+  } else {
+    serverLogger.warn("ODOO_SH build notification consumer not started: LARK_APP_ID/LARK_APP_SECRET missing; queued notifications stay pending.");
+  }
+  const odooShBuildRefreshScheduler = new OdooShBuildRefreshScheduler({
+    refresh: (environment) => odooDevopsBranchesService.refresh(environment),
+  });
+  if (ODOO_DEVOPS_SESSION) odooShBuildRefreshScheduler.start();
+  else serverLogger.warn("ODOO_SH build refresh not started: ODOO_DEVOPS_SESSION missing.");
+
   const httpServer = app.listen(PORT, HOST, () => {
     const startupLog = { host: HOST, port: PORT, version: SERVER_VERSION };
     serverLogger.info(startupLog, "Tenways Octo Server running");
@@ -584,10 +656,14 @@ if (process.env.NODE_ENV !== "test" && process.env.VITEST !== "true") {
     }
     shuttingDown = true;
     serverLogger.info({ signal }, "Shutting down server and PostgreSQL connection");
+    odooShBuildNotificationConsumer.stop();
     const forceExit = setTimeout(() => process.exit(1), 10_000);
     forceExit.unref();
+    const refreshStopped = odooShBuildRefreshScheduler.stop();
     httpServer.close(() => {
-      void Promise.all([closeSharedDatabase(), apiCache.close()]).finally(() => process.exit(0));
+      void refreshStopped
+        .then(() => Promise.all([closeSharedDatabase(), apiCache.close()]))
+        .finally(() => process.exit(0));
     });
   };
 
