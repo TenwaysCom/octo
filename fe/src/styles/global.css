@@ -694,10 +694,32 @@ a.workitem-row__title:hover { color: var(--octo-brand); text-decoration: underli
 .pr-preview-workitem-badge--version { color: var(--octo-badge-teal-text); background: var(--octo-badge-teal-bg); }
 .pr-preview-unresolved { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; color: var(--octo-text-muted); font-size: 11px; }
 .pr-preview-unresolved span { padding: 3px 7px; border-radius: 999px; background: var(--octo-surface-muted); }
+.meegle-system-badge { display: inline-flex; padding: 3px 7px; border-radius: 999px; color: var(--octo-text-muted); background: var(--octo-surface-muted); font-size: 11px; font-weight: 700; line-height: 1; }
+.meegle-system-badge--eu { color: var(--octo-badge-review-text); background: var(--octo-badge-review-bg); }
+.meegle-system-badge--uk { color: var(--octo-badge-info-text); background: var(--octo-badge-info-bg); }
+.meegle-system-badge--us { color: var(--octo-badge-teal-text); background: var(--octo-badge-teal-bg); }
+.meegle-auto-badge { display: inline-flex; padding: 3px 7px; border-radius: 999px; color: var(--octo-text-muted); background: var(--octo-surface-muted); font-size: 11px; font-weight: 700; line-height: 1; }
+.meegle-auto-badge--0 { color: var(--octo-badge-review-text); background: var(--octo-badge-review-bg); }
+.meegle-auto-badge--1 { color: var(--octo-badge-warning-text); background: var(--octo-badge-warning-bg); }
+.meegle-auto-badge--2 { color: var(--octo-badge-info-text); background: var(--octo-badge-info-bg); }
+.meegle-auto-badge--3 { color: var(--octo-badge-success-text); background: var(--octo-badge-success-bg); }
+.meegle-auto-badge--4 { color: #be123c; background: #ffe4e6; }
+.meegle-auto-badge--5 { color: var(--octo-badge-teal-text); background: var(--octo-badge-teal-bg); }
+.meegle-auto-badge--6 { color: var(--octo-badge-orange-text); background: var(--octo-badge-orange-bg); }
 .odoo-sh-build-dot { width: 8px; height: 8px; border-radius: 999px; background: #94a3b8; }
 .odoo-sh-build-dot--failed { background: #dc2626; }
 .odoo-sh-build-dot--warning { background: #eab308; }
 .odoo-sh-build-dot--success { background: #16a34a; }
+.odoo-sh-build-gear { display: inline-flex; color: #94a3b8; }
+.odoo-sh-build-gear svg { width: 12px; height: 12px; }
+.odoo-sh-build-gear--failed { color: #dc2626; }
+.odoo-sh-build-gear--warning { color: #eab308; }
+.odoo-sh-build-gear--success { color: #16a34a; }
+.github-pr-status-dot { width: 8px; height: 8px; flex: 0 0 auto; border-radius: 999px; background: #94a3b8; }
+.github-pr-status-dot--open { background: var(--octo-badge-warning-text); }
+.github-pr-status-dot--merged { background: #4ade80; }
+.github-pr-status-dot--closed { background: var(--octo-badge-neutral-text); }
+.github-pr-status-dot--draft { background: var(--octo-badge-active-text); }
 .github-pr-link-badge--open { color: var(--octo-badge-warning-text); background: var(--octo-badge-warning-bg); }
 .github-pr-link-badge--merged { color: var(--octo-badge-success-text); background: var(--octo-badge-success-bg); }
 .github-pr-link-badge--closed { color: var(--octo-badge-neutral-text); background: var(--octo-badge-neutral-bg); }

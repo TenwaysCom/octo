@@ -1,10 +1,11 @@
 import { loadLarkTicketSharedUrl } from "../services/lark-ticket/lark-ticket-api.js";
 import { useEffect, useRef, useState } from "react";
 import { WorkspaceShell } from "../components/layout/WorkspaceShell.jsx";
-import { OdooShBuildStatus } from "../components/platform/OdooShBuildStatus.jsx";
+import { OdooShBuildGears, OdooShBuildStatus } from "../components/platform/OdooShBuildStatus.jsx";
 import { MeegleRelatedPeople } from "../components/platform/MeegleRelatedPeople.jsx";
 import { LarkTicketBadge } from "../components/lark-ticket/LarkTicketBadge.jsx";
 import { LarkTicketResponsible } from "../components/lark-ticket/LarkTicketResponsible.jsx";
+import { User } from "../components/user/User.jsx";
 import { LarkTicketAiWorkspace } from "../components/lark-ticket/LarkTicketAiWorkspace.jsx";
 import { LarkTicketContextMenu } from "../components/lark-ticket/LarkTicketContextMenu.jsx";
 import { useKeyboardShortcut } from "../hooks/useKeyboardShortcut.js";
@@ -65,7 +66,7 @@ import {
   normalizeMeegleViewMode,
   sortMeegleWorkitems,
 } from "../lib/meegle-view-config.js";
-import { getOdooShBuildTone } from "../lib/odoo-sh-build-status.js";
+import { getOdooShBuildTone, resolveGitHubRepoEnvironment, resolveMeegleSystemEnvironment } from "../lib/odoo-sh-build-status.js";
 import {
   getGitHubPullRequestPreview,
   getMeegleSprintHistory,
@@ -77,9 +78,11 @@ import {
 import { getLarkTicketDetailHash } from "../app/routes/workspace-routes.js";
 import { formatKanbanCardTime, getKanbanCardDescription, getKanbanCardLayout, getKanbanCardPeople, getKanbanCardTime } from "../lib/kanban-card-person.js";
 import {
+  ROW_OVERFLOW_LIMIT,
   buildGitHubPullRequestRow,
   buildLarkTicketRow,
   buildMeegleWorkitemRow,
+  getAutoBadgeTone,
   getMeegleStatusTone,
   getMeegleWorkitemCategory,
   getMeegleWorkitemDetailUrl,
@@ -111,9 +114,50 @@ function MeegleStatusPill({ status }) {
   return <span className={`meegle-workitem-status meegle-workitem-status--${getMeegleStatusTone(status)}`}>{status || "未设置"}</span>;
 }
 
+function MeegleSystemBadge({ system }) {
+  if (!system) {
+    return "-";
+  }
+  const environment = resolveMeegleSystemEnvironment(system);
+  return <span className={`meegle-system-badge${environment ? ` meegle-system-badge--${environment}` : ""}`} title={system}>{system}</span>;
+}
+
+function MeegleAutoBadge({ value }) {
+  if (!value) {
+    return "-";
+  }
+  return <span className={`meegle-auto-badge meegle-auto-badge--${getAutoBadgeTone(value)}`} title={value}>{value}</span>;
+}
+
 function GitHubPullRequestStatus({ isDraft, state }) {
   const status = isDraft ? "draft" : state || "closed";
   return <span className={`github-pr-status github-pr-status--${status}`}>{status}</span>;
+}
+
+// Compact single-line PR display: "#123" badge plus colored status dot; the
+// full repo/title/branch info lives in the badge tooltip.
+function getPullRequestLinkTitle(pullRequest) {
+  const status = pullRequest.isDraft ? "draft" : pullRequest.state || "closed";
+  return [
+    `${pullRequest.owner}/${pullRequest.repo} #${pullRequest.pullNumber}`,
+    pullRequest.title,
+    `${pullRequest.headRef || "-"} → ${pullRequest.baseRef || "-"}`,
+    status,
+  ].filter(Boolean).join("\n");
+}
+
+function GitHubPullRequestStatusDot({ isDraft, state }) {
+  const status = isDraft ? "draft" : state || "closed";
+  return <span aria-label={`PR 状态：${status}`} className={`github-pr-status-dot github-pr-status-dot--${status}`} title={`PR 状态：${status}`} />;
+}
+
+function PullRequestSummaryLink({ pullRequest, apiBaseUrl }) {
+  const environment = resolveGitHubRepoEnvironment(pullRequest.repo);
+  return <>
+    <ExternalLink className="github-pr-link-badge" href={pullRequest.htmlUrl} title={getPullRequestLinkTitle(pullRequest)}>#{pullRequest.pullNumber}{environment ? `-${environment}` : ""}</ExternalLink>
+    <GitHubPullRequestStatusDot isDraft={pullRequest.isDraft} state={pullRequest.state} />
+    {pullRequest.odooShBuilds?.length ? <OdooShBuildGears builds={pullRequest.odooShBuilds} /> : <OdooShBuildStatus apiBaseUrl={apiBaseUrl} pullRequest={pullRequest} compact />}
+  </>;
 }
 
 function GitHubUser({ login }) {
@@ -191,10 +235,8 @@ function GitHubPullRequestLinks({ pullRequests, apiBaseUrl, onPick }) {
     return onPick ? <PullRequestPickerButton onClick={onPick} /> : "-";
   }
   return <div className="github-pr-links">{pullRequests.map((pullRequest) => <div className="github-pr-links__item" key={`${pullRequest.owner}-${pullRequest.repo}-${pullRequest.pullNumber}`}>
-    <ExternalLink className={`github-pr-link-badge github-pr-link-badge--${pullRequest.state}`} href={pullRequest.htmlUrl} title={`${pullRequest.owner}/${pullRequest.repo} #${pullRequest.pullNumber}\n${pullRequest.title}\n${pullRequest.state}`}>#{pullRequest.pullNumber}-{pullRequest.baseRef || "-"}</ExternalLink>
-    <GitHubPullRequestStatus isDraft={pullRequest.isDraft} state={pullRequest.state} />
-    {pullRequest.odooShBuilds?.length ? <OdooShBuildDots builds={pullRequest.odooShBuilds} /> : <OdooShBuildStatus apiBaseUrl={apiBaseUrl} pullRequest={pullRequest} />}
-  </div>)}</div>;
+    <PullRequestSummaryLink apiBaseUrl={apiBaseUrl} pullRequest={pullRequest} />
+  </div>)}{onPick && pullRequests.length < ROW_OVERFLOW_LIMIT ? <PullRequestPickerButton onClick={onPick} /> : null}</div>;
 }
 
 function getPlatformItemStatus(kind, item) {
@@ -289,9 +331,7 @@ function RowOverflowGroup({ items, ariaLabel, renderItem, limit }) {
 
 function RowPullRequestLink({ pullRequest, apiBaseUrl }) {
   return <span className="workitem-row__pr-link">
-    <ExternalLink className={`github-pr-link-badge github-pr-link-badge--${pullRequest.state}`} href={pullRequest.htmlUrl} title={`${pullRequest.owner}/${pullRequest.repo} #${pullRequest.pullNumber}\n${pullRequest.title}\n${pullRequest.state}`}>#{pullRequest.pullNumber}-{pullRequest.baseRef || "-"}</ExternalLink>
-    <GitHubPullRequestStatus isDraft={pullRequest.isDraft} state={pullRequest.state} />
-    {pullRequest.odooShBuilds?.length ? <OdooShBuildDots builds={pullRequest.odooShBuilds} /> : <OdooShBuildStatus apiBaseUrl={apiBaseUrl} pullRequest={pullRequest} />}
+    <PullRequestSummaryLink apiBaseUrl={apiBaseUrl} pullRequest={pullRequest} />
   </span>;
 }
 
@@ -304,10 +344,17 @@ function WorkitemRowMeta({ meta, apiBaseUrl, onPickPullRequest, onTicketFieldCli
     content = <MeegleStatusPill status={meta.value} />;
   } else if (meta.type === "workitem-type") {
     content = <span className={`workitem-type-badge workitem-type-badge--${meta.category}`}>{meta.label}</span>;
+  } else if (meta.type === "system-badge") {
+    content = <MeegleSystemBadge system={meta.value} />;
+  } else if (meta.type === "auto-badge") {
+    content = <MeegleAutoBadge value={meta.value} />;
   } else if (meta.type === "github-pr-status") {
     content = <GitHubPullRequestStatus isDraft={meta.isDraft} state={meta.state} />;
   } else if (meta.type === "pr-links") {
-    content = <RowOverflowGroup ariaLabel="关联 PR" items={meta.pullRequests} renderItem={(pullRequest) => <RowPullRequestLink apiBaseUrl={apiBaseUrl} pullRequest={pullRequest} />} />;
+    content = <>
+      <RowOverflowGroup ariaLabel="关联 PR" items={meta.pullRequests} renderItem={(pullRequest) => <RowPullRequestLink apiBaseUrl={apiBaseUrl} pullRequest={pullRequest} />} />
+      {meta.canAddMore && onPickPullRequest ? <PullRequestPickerButton onClick={onPickPullRequest} /> : null}
+    </>;
   } else if (meta.type === "pr-picker") {
     content = <PullRequestPickerButton onClick={onPickPullRequest} />;
   } else if (meta.type === "github-labels") {
@@ -410,16 +457,16 @@ function MeegleWorkitemCell({ columnKey, item, apiBaseUrl, nowTime, onPickPullRe
     return <GitHubPullRequestLinks apiBaseUrl={apiBaseUrl} pullRequests={item.githubPullRequests} onPick={onPickPullRequest} />;
   }
   if (columnKey === "sprint") {
-    return item.sprint || "-";
+    return <MeegleAutoBadge value={item.sprint} />;
   }
   if (columnKey === "version") {
-    return item.version || "-";
+    return <MeegleAutoBadge value={item.version} />;
   }
   if (columnKey === "system") {
-    return item.system || "-";
+    return <MeegleSystemBadge system={item.system} />;
   }
   if (columnKey === "assignee") {
-    return item.assignee || "-";
+    return <User name={item.assignee} />;
   }
   if (columnKey === "relatedPeople") {
     return <MeegleRelatedPeople relatedPeople={item.relatedPeople} />;

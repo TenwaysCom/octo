@@ -25,11 +25,11 @@ export const MEEGLE_GROUP_OPTIONS = [
   ["assignee", "负责人"],
 ];
 
-export const DEFAULT_MEEGLE_VISIBLE_COLUMNS = MEEGLE_VIEW_COLUMNS.map(({ key }) => key);
+export const DEFAULT_MEEGLE_VISIBLE_COLUMNS = MEEGLE_VIEW_COLUMNS.map(({ key }) => key).filter((key) => key !== "relatedPeople");
 export const DEFAULT_MEEGLE_VIEW_MODE = "list";
 export const DEFAULT_MEEGLE_GROUP_BY = "workitemType";
 
-const COLUMN_KEYS = new Set(DEFAULT_MEEGLE_VISIBLE_COLUMNS);
+const COLUMN_KEYS = new Set(MEEGLE_VIEW_COLUMNS.map(({ key }) => key));
 const GROUP_KEYS = new Set(MEEGLE_GROUP_OPTIONS.map(([key]) => key));
 const SORT_KEYS = new Set(MEEGLE_VIEW_COLUMNS.flatMap(({ sortKey }) => sortKey ? [sortKey] : []));
 

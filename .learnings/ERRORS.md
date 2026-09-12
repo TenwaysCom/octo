@@ -2,6 +2,13 @@
 
 Record concise compiler/runtime errors, failed commands, wrong assumptions, and their verified fixes here. Redact secrets, cookies, tokens, and sensitive payloads.
 
+## [ERR-20260912-001] fe-mirrored-wrong-server-env-resolver
+
+- **Summary:** FE 的 system 徽标要按环境（eu/uk/us）着色，我照搬了 server 同名函数 `resolveMeegleSystemEnvironment`（odoo-devops-environment-mapping.ts，处理 Meegle 原始 MQL label，如 "Odoo/Odoo UK"）。但 platform-data 列表 API 实际返回的 `system` 列已经过 `meegle-cleaning.config.ts` 的 `normalizeSystemRegion` 归一化为裸值 `eu`/`us`/`uk`，带 Odoo 前缀的正则永远匹配不上，徽标全部回退灰色。
+- **Error:** 用户反馈 system 徽标的 eu、uk、us 没有识别出颜色。
+- **Fix:** `fe/src/lib/odoo-sh-build-status.js` 的 `resolveMeegleSystemEnvironment` 先匹配裸值 `eu`/`uk`/`us`，Odoo 前缀形式保留兼容；测试补充裸值断言。
+- **Status:** resolved；FE 211/211 通过，build 通过。
+
 ## [ERR-20260903-001] kimi-acp-default-bin-path-not-first
 
 - **Summary:** Server 启动 Kimi ACP 子进程时，`ensureDefaultKimiBinOnPath` 只检查 `~/.kimi-code/bin` 是否存在于 PATH，却不保证它在最前面。当父进程 PATH 把 `/home/deploy/.local/bin` 排在前面时，实际启动的是旧版独立 kimi-cli（1.41.0），其 OAuth token 已过期；项目期望的 `~/.kimi-code/bin/kimi`（0.38.0）虽然有效但未被使用。

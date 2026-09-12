@@ -7,6 +7,7 @@ import {
   buildMeegleWorkitemRow,
   getMeegleStatusTone,
   getMeegleWorkitemCategory,
+  getAutoBadgeTone,
   splitOverflowItems,
 } from "./platform-list-rows.js";
 
@@ -70,6 +71,18 @@ test("buildLarkTicketRow respects visible columns", () => {
   assert.equal(detailed.trailing[2].text, "修复配置");
 });
 
+test("getAutoBadgeTone assigns stable tones within the seven-colour cycle", () => {
+  assert.equal(getAutoBadgeTone(""), undefined);
+  assert.equal(getAutoBadgeTone("   "), undefined);
+  assert.equal(getAutoBadgeTone("Sprint 12"), getAutoBadgeTone("Sprint 12"));
+  for (const value of ["Sprint 1", "Sprint 2", "Sprint 10", "Sprint 21", "2.11.0", "2.11.5"]) {
+    const tone = getAutoBadgeTone(value);
+    assert.ok(Number.isInteger(tone) && tone >= 0 && tone < 7, `${value} should map into 0-6`);
+  }
+  const tones = new Set(["Sprint 1", "Sprint 2", "Sprint 3", "Sprint 4", "Sprint 5"].map(getAutoBadgeTone));
+  assert.ok(tones.size >= 3, "consecutive sprints should spread over several tones");
+});
+
 test("buildMeegleWorkitemRow links externally and carries collapsible PR data", () => {
   const item = {
     projectKey: "octo",
@@ -80,6 +93,7 @@ test("buildMeegleWorkitemRow links externally and carries collapsible PR data", 
     status: "Doing",
     subStage: "开发",
     sprint: "Sprint 12",
+    version: "2.11.0",
     system: "Odoo/Odoo UK",
     assignee: "王五",
     relatedPeople: [{ roleKey: "developer", roleName: "Developer", members: [{ memberKey: "user-1", name: "赵六" }] }],
@@ -90,7 +104,7 @@ test("buildMeegleWorkitemRow links externally and carries collapsible PR data", 
     ],
     sourceUpdatedAt: "2026-08-02T10:00:00.000Z",
   };
-  const row = buildMeegleWorkitemRow(item, ["workitem", "workitemType", "status", "pullRequests", "sprint", "system", "assignee", "relatedPeople", "currentWorkingTime", "createdAt", "updatedAt"], Date.parse("2026-08-02T10:00:00.000Z"));
+  const row = buildMeegleWorkitemRow(item, ["workitem", "workitemType", "status", "pullRequests", "sprint", "version", "system", "assignee", "relatedPeople", "currentWorkingTime", "createdAt", "updatedAt"], Date.parse("2026-08-02T10:00:00.000Z"));
   assert.equal(row.kind, "meegle-workitems");
   assert.equal(row.identifier, "OCTO-666");
   assert.equal(row.external, true);
@@ -100,9 +114,13 @@ test("buildMeegleWorkitemRow links externally and carries collapsible PR data", 
   const prMeta = row.trailing.find((meta) => meta.key === "pullRequests");
   assert.equal(prMeta.type, "pr-links");
   assert.equal(prMeta.pullRequests.length, 1);
-  assert.deepEqual(row.trailing.map((meta) => meta.key), ["pullRequests", "sprint", "system", "assignee", "relatedPeople", "currentWorkingTime", "createdAt", "updatedAt"]);
+  assert.equal(prMeta.canAddMore, true);
+  assert.deepEqual(row.trailing.map((meta) => meta.key), ["pullRequests", "sprint", "version", "system", "assignee", "relatedPeople", "currentWorkingTime", "createdAt", "updatedAt"]);
   assert.deepEqual(row.trailing.find((meta) => meta.key === "relatedPeople").relatedPeople, item.relatedPeople);
-  assert.equal(row.trailing.find((meta) => meta.key === "system").hideOnSmall, false);
+  assert.equal(row.trailing.find((meta) => meta.key === "assignee").type, "lark-users");
+  assert.equal(row.trailing.find((meta) => meta.key === "system").type, "system-badge");
+  assert.equal(row.trailing.find((meta) => meta.key === "sprint").type, "auto-badge");
+  assert.equal(row.trailing.find((meta) => meta.key === "version").type, "auto-badge");
   assert.equal(row.trailing.find((meta) => meta.key === "currentWorkingTime").text, "工作 1小时 30分钟");
 });
 
@@ -111,6 +129,15 @@ test("buildMeegleWorkitemRow reserves the PR picker while omitting other empty m
   assert.deepEqual(row.trailing, [{ key: "pullRequests", type: "pr-picker" }]);
   assert.equal(getMeegleWorkitemCategory({ workItemTypeKey: "bug" }), "bug");
   assert.match(row.href, /production_bug\/detail\/1$/);
+});
+
+test("buildMeegleWorkitemRow drops the add-PR entry once three PRs are linked", () => {
+  const columns = ["pullRequests"];
+  const pullRequest = { owner: "tenways", repo: "octo", pullNumber: 1, htmlUrl: "https://github.com/tenways/octo/pull/1", state: "open" };
+  const two = buildMeegleWorkitemRow({ projectKey: "p", workItemTypeKey: "story", workItemId: "1", githubPullRequests: [pullRequest, { ...pullRequest, pullNumber: 2 }] }, columns);
+  assert.equal(two.trailing[0].canAddMore, true);
+  const three = buildMeegleWorkitemRow({ projectKey: "p", workItemTypeKey: "story", workItemId: "1", githubPullRequests: [pullRequest, { ...pullRequest, pullNumber: 2 }, { ...pullRequest, pullNumber: 3 }] }, columns);
+  assert.equal(three.trailing[0].canAddMore, false);
 });
 
 test("buildGitHubPullRequestRow keeps labels, reviewers and meegle ids collapsible on the right", () => {

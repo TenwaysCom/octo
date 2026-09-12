@@ -44,6 +44,22 @@ export function getMeegleStatusTone(status) {
   return "default";
 }
 
+// Sprint and version names have no intrinsic color, so derive one
+// deterministically from the value: the same name keeps its hue across rows
+// and reloads, and seven badge tones cycle so neighbouring values land on
+// neighbouring tones.
+export function getAutoBadgeTone(value) {
+  const text = String(value || "").trim();
+  if (!text) {
+    return undefined;
+  }
+  let hash = 5381;
+  for (let index = 0; index < text.length; index += 1) {
+    hash = (hash * 33 + text.charCodeAt(index)) % 2147483647;
+  }
+  return hash % 7;
+}
+
 export function getMeegleWorkitemDetailUrl(item) {
   const urlSlugByCategory = {
     story: "story",
@@ -97,19 +113,19 @@ export function buildMeegleWorkitemRow(item, visibleColumns = [], nowTime = Date
   if (visible.has("status")) leading.push({ key: "status", type: "meegle-status", value: item.status, subStage: item.subStage || "" });
   const trailing = [];
   if (visible.has("pullRequests") && item.githubPullRequests?.length) {
-    trailing.push({ key: "pullRequests", type: "pr-links", pullRequests: item.githubPullRequests });
+    trailing.push({
+      key: "pullRequests",
+      type: "pr-links",
+      pullRequests: item.githubPullRequests,
+      canAddMore: item.githubPullRequests.length < ROW_OVERFLOW_LIMIT,
+    });
   } else if (visible.has("pullRequests")) {
     trailing.push({ key: "pullRequests", type: "pr-picker" });
   }
-  const textColumns = [
-    ["sprint", item.sprint, false],
-    ["version", item.version, true],
-    ["system", item.system, false],
-    ["assignee", item.assignee, false],
-  ];
-  for (const [columnKey, value, hideOnSmall] of textColumns) {
-    if (visible.has(columnKey) && value) trailing.push({ key: columnKey, type: "text", text: value, hideOnSmall });
-  }
+  if (visible.has("sprint") && item.sprint) trailing.push({ key: "sprint", type: "auto-badge", value: item.sprint });
+  if (visible.has("version") && item.version) trailing.push({ key: "version", type: "auto-badge", value: item.version, hideOnSmall: true });
+  if (visible.has("system") && item.system) trailing.push({ key: "system", type: "system-badge", value: item.system });
+  if (visible.has("assignee") && item.assignee) trailing.push({ key: "assignee", type: "lark-users", value: item.assignee });
   if (visible.has("relatedPeople") && item.relatedPeople?.length) {
     trailing.push({ key: "relatedPeople", type: "related-people", relatedPeople: item.relatedPeople });
   }
