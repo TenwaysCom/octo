@@ -768,6 +768,15 @@ source: [Lark Ticket 右键快捷动作](../docs/tasks/platform-data/2026-09-11-
 source: [Lark Ticket 详情属性编辑](../docs/tasks/platform-data/2026-09-11-lark-ticket-detail-field-editing.md)
 
 
+## [LRN-20260912-001] distinguish-commit-author-aliases-from-platform-identities
+
+**Context:** 构建源可能只给 commit 作者显示名，而通知服务需要跨平台用户绑定；作者、推送人和账号登录名代表不同事实。
+
+**Rule:** 先明确被提醒者是作者还是推送人。显示名仅可通过用户明确维护的别名映射或权威账号证据解析；保留显示名与平台身份的独立语义，并把无法匹配身份与平台查询故障分开处理。
+
+source: [Odoo.sh 失败通知](../docs/tasks/engineering-ops/2026-09-10-odoo-build-failure-lark-notification.md)
+
+
 ## [LRN-20260913-001] verify-postgres-locks-outside-memory-emulation
 
 **Context:** pg-mem 可验证 store 数据分支，但不能证明 PostgreSQL 行锁等待与并发事务交错。

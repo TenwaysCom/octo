@@ -53,3 +53,10 @@ describe("Odoo DevOps branches client", () => {
     });
   });
 });
+
+it("requests builds without limit or stage parameters", async () => {
+  const fetchImpl = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ items: [] }) });
+  const client = createHttpOdooDevopsBranchesClient({ baseUrl: "https://devops.example.com", session: "session", fetchImpl });
+  await client.listBuilds("uk");
+  expect(fetchImpl).toHaveBeenCalledWith(new URL("https://devops.example.com/api/v1/odoo-sh/uk/builds"), expect.objectContaining({ redirect: "manual" }));
+});

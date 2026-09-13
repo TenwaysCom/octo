@@ -18,13 +18,18 @@ export type OdooDevopsBranchesAsyncResult =
 
 export class OdooDevopsBranchesService {
   private readonly memorySnapshots = new Map<OdooDevopsEnvironment, CachedSnapshot>();
-  private readonly refreshes = new Map<OdooDevopsEnvironment, Promise<void>>();
+  private readonly refreshes = new Map<OdooDevopsEnvironment, Promise<OdooDevopsBranchesSnapshot>>();
   private readonly refreshFailures = new Map<OdooDevopsEnvironment, number>();
 
   constructor(private readonly deps: {
     client: OdooDevopsBranchesClient;
     cache: ApiCache;
     cacheTtlSeconds?: number;
+    /**
+     * 新快照校验成功后的本地 build 同步钩子（差异比较、持久化、通知入队）。
+     * 同步失败会向上抛出，本次快照不写入缓存，等待下一次有界刷新重试。
+     */
+    onSnapshotSync?: (snapshot: OdooDevopsBranchesSnapshot) => Promise<void>;
   }) {}
 
   async list(environment: OdooDevopsEnvironment): Promise<OdooDevopsBranchesSnapshot & { cached: boolean }> {
@@ -33,7 +38,7 @@ export class OdooDevopsBranchesService {
       return { ...cached.snapshot, cached: true };
     }
 
-    const snapshot = await this.fetchAndCache(environment);
+    const snapshot = await this.refresh(environment);
     return { ...snapshot, cached: false };
   }
 
@@ -91,17 +96,35 @@ export class OdooDevopsBranchesService {
     return Date.now() - cached.fetchedAt >= (this.deps.cacheTtlSeconds ?? CACHE_TTL_SECONDS) * 1000;
   }
 
-  private startRefresh(environment: OdooDevopsEnvironment): void {
-    if (this.refreshes.has(environment)) return;
+  /** Force an upstream refresh, coalesced with page reads and scheduled refreshes. */
+  refresh(environment: OdooDevopsEnvironment): Promise<OdooDevopsBranchesSnapshot> {
+    const active = this.refreshes.get(environment);
+    if (active) return active;
     const refresh = this.fetchAndCache(environment)
-      .then(() => { this.refreshFailures.delete(environment); })
-      .catch(() => { this.refreshFailures.set(environment, Date.now()); })
+      .then((snapshot) => {
+        this.refreshFailures.delete(environment);
+        return snapshot;
+      })
+      .catch((error: unknown) => {
+        this.refreshFailures.set(environment, Date.now());
+        throw error;
+      })
       .finally(() => { this.refreshes.delete(environment); });
     this.refreshes.set(environment, refresh);
+    return refresh;
+  }
+
+  private startRefresh(environment: OdooDevopsEnvironment): void {
+    void this.refresh(environment).catch(() => { /* failure time is retained by refresh */ });
   }
 
   private async fetchAndCache(environment: OdooDevopsEnvironment): Promise<OdooDevopsBranchesSnapshot> {
     const snapshot = odooDevopsBranchesSnapshotSchema.parse(await this.deps.client.listBranches(environment));
+    if (snapshot.environment !== environment) throw new Error("ODOO_SH_BUILD_ENVIRONMENT_MISMATCH");
+    if (this.deps.onSnapshotSync) {
+      // 同步成功后才发布新缓存；失败则保留旧快照并等待下一次刷新重试。
+      await this.deps.onSnapshotSync(snapshot);
+    }
     this.memorySnapshots.set(environment, { snapshot, fetchedAt: Date.now() });
     await this.deps.cache.set(cacheKey(environment), JSON.stringify(snapshot), this.deps.cacheTtlSeconds ?? CACHE_TTL_SECONDS);
     return snapshot;
@@ -109,7 +132,8 @@ export class OdooDevopsBranchesService {
 }
 
 export function cacheKey(environment: OdooDevopsEnvironment): string {
-  return `odoo-devops:branches:v1:${environment}`;
+  // v2：快照新增 project_id/database_id/connect_url，供 build 持久化去重使用。
+  return `odoo-devops:branches:v2:${environment}`;
 }
 
 export { CACHE_TTL_SECONDS };

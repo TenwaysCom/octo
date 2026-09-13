@@ -1,3 +1,7 @@
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import app from "./index.js";
 
@@ -96,4 +100,21 @@ describe("index routes", () => {
       expect(routes).not.toContain(`POST ${path}`);
     }
   });
+});
+
+
+it("loads .env before eagerly constructing loggers in the real entry point", () => {
+  const dir = mkdtempSync(join(tmpdir(), "octo-entry-env-"));
+  try {
+    const envPath = join(dir, ".env");
+    writeFileSync(envPath, `LOG_LEVEL=debug\nLOG_FILE=${join(dir, "app.log")}\nAPI_LOG_FILE=${join(dir, "api.log")}\n`);
+    const child = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e",
+      'import "./src/index.ts"; import { logger } from "./src/logger.ts"; process.stdout.write("ENTRY_LOG_LEVEL=" + logger.level);',
+    ], {
+      cwd: process.cwd(), encoding: "utf8", timeout: 10_000,
+      env: { PATH: process.env.PATH, NODE_ENV: "test", VITEST: "true", DOTENV_CONFIG_PATH: envPath },
+    });
+    expect(child.status, child.stderr).toBe(0);
+    expect(child.stdout).toContain("ENTRY_LOG_LEVEL=debug");
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });
