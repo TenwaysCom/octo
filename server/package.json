@@ -16,6 +16,7 @@
     "platform:clean-meegle": "tsx ./src/scripts/clean-meegle-sync-snapshots.ts",
     "platform:clean-history": "tsx ./src/scripts/clean-platform-sync-snapshots.ts",
     "platform:init-checkpoints": "tsx ./src/scripts/backfill-platform-sync-checkpoints.ts",
+    "platform:init-sprint-memberships": "tsx ./src/scripts/init-meegle-sprint-memberships.ts",
     "platform:backfill-lark-source-time": "tsx ./src/scripts/backfill-lark-source-updated-at.ts",
     "platform:backfill-lark-ticket-titles": "tsx ./src/scripts/backfill-lark-ticket-titles.ts",
     "platform:backfill-lark-ticket-ai": "tsx ./src/scripts/backfill-lark-ticket-ai.ts",

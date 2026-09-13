@@ -173,7 +173,7 @@ Hermes 保留原生 ID 工厂，转录保存于 `$HERMES_HOME/state.db`。Octo �
 - `current_node_start_time` 仍是当前节点 `actual_begin_time` 的精确时间，`add_to_cycle_time` 仍服务于 Cycle/Sprint 关系，两者不作为起止日期 fallback。
 - 增量 `updated_at` 保留 MQL 返回的 UTC 秒级值。非法或缺失值先写入该工作项快照并执行本批其他清洗，再令 scope 失败，使 coordinator 不推进 checkpoint，下一轮可幂等重试。
 
-标准 Bugs（type key `issue`）尚未加入同步 target 或 cleaner；后续范围与字段决策记录在 `docs/tasks/platform-sync/2026-09-01-meegle-standard-bugs-cleaning-todo.md`。
+标准 Bugs（type key `issue`）尚未加入同步 target 或 cleaner；后续范围与字段决策记录在 `docs/tasks/archived/platform-sync/2026-09-01-meegle-standard-bugs-cleaning-todo.md`（已归档）。
 
 ## 3. 代码与运行入口
 
@@ -514,7 +514,18 @@ Meegle 增量同样回退 checkpoint 5 分钟，但执行分为两层：先用 `
 
 Octo FE 的 Meegle Sprint 历史使用同一 `meegle_workitem_syncs` 快照链路。需要在 Meegle target 中加入 Sprint type key（Tenways Software R&D 当前为 `642ebe04168eea39eeb0d34a`）及其 `updated_at` 水位字段。数据同步页将该 type 的 scope 投影为独立的 `Meegle Sprint` 数据源卡片，并通过通用 Web 同步动作只执行这个 Sprint scope 的增量同步。Sprint 快照会额外读取语义字段 `description` 与 schedule；Server 将 Sprint 对象从普通工作项列表排除，仅通过 `sprintDetails` 投影描述、状态、起止时间。终态 Sprint 仍保留用于历史页，不能按普通终态工作项清除。
 
-### 5.7 独立清洗 CLI
+### 5.7 Sprint 归属历史与派生分类
+
+Meegle Sprint 页的历史、图表和分类基于一个两层数据结构，数据来源仅限本地 PostgreSQL 快照，不请求 Meegle：
+
+- **持久化事实层**：`meegle_workitem_sprint_memberships` 表按"每段连续归属一行"保存工作项的 Sprint 区间（`added_at/started_at/finished_at/removed_at` 与来源 `historical_inferred` / `incremental_observed`）。增量同步在每次工作项 UPSERT 的同一事务内关闭旧区间并创建/更新当前区间；数据库用 partial unique index 保证同一工作项最多一条开放归属。历史初始化与后续清洗不得为补齐证据额外请求 Meegle，无法证明的旧 Sprint 归属保持未知。
+- **派生分类层（不落库）**：Carryover / Planned / After cycle / Unknown 及 estimated 标记在 API 投影时由 Server 纯函数现算，输入为归属区间与 Sprint 起止日期快照；`item_cycle_tag`、carryover 布尔值等分类结果一律不持久化，规则演进无需刷历史数据。
+
+判定规则：存在更早的、不同的 Sprint 归属且该归属在其 Sprint 结束时未完成（`finished_at` 缺失或晚于结束日，仅 `incremental_observed` 且双方 Sprint 日期完整时判定）→ `carryover`（附带结转来源 Sprint）；推定归属不推导历史 Carryover，一律 `unknown`；非结转时 `added_at <= Sprint 开始 + 24h` 为 `planned`，否则 `after_cycle`，基于推定 `added_at` 计算的结果带 `estimated` 标记；日期证据不足为 `unknown`。FE 只消费投影结果，不从当前 `sprint_id` 猜历史。
+
+存量工作项的归属回填使用幂等命令（默认 dry-run，`--apply` 写入；只补缺失的开放归属，已有归属不改动）：`pnpm --dir server platform:init-sprint-memberships --apply`。API 读取侧同时保留读时惰性推定：当前有 Sprint 但尚无持久化区间的工作项会以 `historical_inferred` 临时投影，因此初始化只影响存储完整性，不影响页面可见性。
+
+### 5.8 独立清洗 CLI
 
 `--mode clean` 不读取任何外部平台，只针对本地 `*_syncs` 表中配置的 scope 重算清洗投影。可用于补跑历史数据或修复清洗规则后回填：
 

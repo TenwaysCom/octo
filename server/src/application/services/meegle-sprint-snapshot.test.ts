@@ -82,6 +82,51 @@ describe("Meegle Sprint snapshot projection", () => {
     expect(result[1]).not.toHaveProperty("carryoverToSprintId");
   });
 
+  it("classifies incoming memberships as carryover, planned, after cycle or unknown with estimated flags", () => {
+    const sprints = [{
+      projectKey: "project", sprintId: "sprint-a", name: "Sprint A",
+      startAt: "2026-08-01T00:00:00.000Z", endAt: "2026-08-14T00:00:00.000Z", syncedAt: "2026-08-28T00:00:00.000Z",
+    }, {
+      projectKey: "project", sprintId: "sprint-b", name: "Sprint B",
+      startAt: "2026-08-15T00:00:00.000Z", endAt: "2026-08-28T00:00:00.000Z", syncedAt: "2026-08-28T00:00:00.000Z",
+    }, {
+      projectKey: "project", sprintId: "sprint-c", name: "Sprint C",
+      syncedAt: "2026-08-28T00:00:00.000Z",
+    }];
+    const base = {
+      projectKey: "project", workItemTypeKey: "story", workItemId: "story-1", title: "Story",
+      syncedAt: "2026-08-28T00:00:00.000Z",
+    };
+    const result = buildMeegleSprintWorkitemProjections([
+      { ...base, sprintId: "sprint-a", addToCycleTime: "2026-08-01T00:00:00.000Z", membershipSource: "incremental_observed" as const },
+      { ...base, sprintId: "sprint-b", addToCycleTime: "2026-08-16T00:00:00.000Z", membershipSource: "incremental_observed" as const },
+    ], sprints);
+    expect(result[0]).toMatchObject({ membershipClass: "planned", membershipClassEstimated: false });
+    expect(result[1]).toMatchObject({
+      membershipClass: "carryover",
+      membershipClassEstimated: false,
+      carriedOverFromSprintId: "sprint-a",
+      carriedOverFromSprintName: "Sprint A",
+    });
+
+    const inferred = buildMeegleSprintWorkitemProjections([
+      { ...base, sprintId: "sprint-a", addToCycleTime: "2026-08-01T00:00:00.000Z", membershipSource: "historical_inferred" as const },
+      { ...base, sprintId: "sprint-b", addToCycleTime: "2026-08-15T12:00:00.000Z", membershipSource: "historical_inferred" as const },
+    ], sprints);
+    expect(inferred[1]).toMatchObject({ membershipClass: "unknown", membershipClassEstimated: false });
+    expect(inferred[1]).not.toHaveProperty("carriedOverFromSprintId");
+
+    const inferredOnly = buildMeegleSprintWorkitemProjections([
+      { ...base, sprintId: "sprint-b", addToCycleTime: "2026-08-20T00:00:00.000Z", membershipSource: "historical_inferred" as const },
+    ], sprints);
+    expect(inferredOnly[0]).toMatchObject({ membershipClass: "after_cycle", membershipClassEstimated: true });
+
+    const withoutDates = buildMeegleSprintWorkitemProjections([
+      { ...base, sprintId: "sprint-c", addToCycleTime: "2026-08-20T00:00:00.000Z", membershipSource: "incremental_observed" as const },
+    ], sprints);
+    expect(withoutDates[0]).toMatchObject({ membershipClass: "unknown", membershipClassEstimated: false });
+  });
+
   it("does not claim carryover for completed or historically inferred memberships", () => {
     const sprints = [{
       projectKey: "project", sprintId: "sprint-a", name: "Sprint A",

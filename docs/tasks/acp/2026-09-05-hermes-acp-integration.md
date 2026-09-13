@@ -1,11 +1,11 @@
 ---
 title: "Hermes ACP 接入改造"
 module: acp
-status: in_progress
+status: done
 requirement_version: 6
 created_on: 2026-09-05
-updated_on: 2026-09-09
-closed_on: null
+updated_on: 2026-09-13
+closed_on: 2026-09-13
 owner: TBD
 related:
   - "../../research/2026-09-05-acp-agent-options.md"
@@ -185,14 +185,14 @@ Ticket 服务已有聊天快照准备，Answer 已有已批准知识检索。v5 
 - [x] provider/native session 映射、兼容 schema 及历史恢复验证通过（pg-mem；真实 migration 未执行）。
 - [x] Quick Actions 审批与后台权限错误终态验证通过（服务/接口/FE 状态与原生协议测试；真实页面操作验收未执行）。
 - [x] 材料准备取代强制 fetch 账本，缺失或身份不符时在调用模型前失败；评论来源缺口单独记录。
+- [x] 原生真实 Ticket Answer/Document 及 Sprint 业务验收完成，保留发布确认/readback。（2026-09-13 用户确认通过）
 - [x] Hermes 结构化 `patch`/`write_file` 的 Support-QA 多位置范围已明确并通过自动化验证。
 - [x] Terminal/`execute_code` 间接写入按用户确认保留原生行为；明确不宣称其受 v6 编辑 allowlist 隔离。
-- [ ] 原生真实 Ticket Answer/Document 及 Sprint 业务验收完成，保留发布确认/readback。
+- [ ] 替代路径验证后删除补丁链。（遗留清理项 2026-09-13：替代路径业务与部署验收均已通过，删除条件已满足；按用户确认任务关闭，补丁链删除转为独立清理项后续执行，涉及 `server/scripts/hermes-acp/` 的 launcher/patch/upstream 及相关测试改写。）
 - [x] Server/FE/Extension 包级检查及当前代码文档同步完成。
-- [ ] 替代路径验证后删除补丁链。
-- [ ] 部署节点及实际运行验收完成。
+- [x] 部署节点及实际运行验收完成。（2026-09-13 用户确认通过）
 
-任务保持 `in_progress`：v6 安全编辑自动批准与本地检查已实施；真实业务验收、补丁文件删除及部署仍待完成。
+任务已于 2026-09-13 关闭（done）：v6 真实业务验收与部署验收经用户确认通过；补丁链删除为唯一遗留清理项，单独执行。
 
 ## v4 权限配置草案
 
@@ -374,6 +374,8 @@ Answer / Document 仍要求当前 Session / action run 的 `support_qa.fetch` �
 | 2026-09-06 | v5 | in_progress | 用户要求实施；生产路径改为官方 ACP，持久化 provider/native ID，接入共用审批与创建阶段业务关联，替换 fetch 审计门槛为材料校验。原生进程、持久化兼容、审批终态和包级验证见下表。 | 未修改真实配置、执行数据库迁移或部署；文件隔离、真实业务和补丁删除仍待完成。 |
 | 2026-09-06 | v5 | in_progress | 开发库两列幂等迁移及读回完成；实测定位模型 401 被原生空 end_turn 隐藏，补上空结果失败、页面错误与重试，修正两条误标完成会话。 | 两个真实 Quick Actions 已验证失败可见及持久化；认证修复与成功生成尚未通过。 |
 | 2026-09-09 | v6 | in_progress | Hermes 结构化 `write_file` 与默认 replace `patch` 已接入既有 Support-QA 写策略；安全编辑返回 `allow_once`，其余请求仍进入共用审批。 | 自动化验证已完成；待真实 Document Quick Action 确认不再出现安全路径编辑审批。 |
+| 2026-09-11 | v6 | in_progress | Support-QA Answer/Document 提示词及文件策略迁移至 llm-wiki，取证脚本改为 `octo-ticket-evidence.sh` 并绑定当前记录 fetch-record；复核修复 replace patch 参数与展示 diff 不一致问题。Server 全量 811 通过、1 跳过，构建与差异检查通过（详见「2026-09-11 提交复核」节）。 | 自动化验证，不代表真实 Hermes 编辑、业务写回或部署已验收。 |
+| 2026-09-13 | v6 | done | 用户确认真实业务验收（Ticket Answer/Document 及 Sprint Quick Actions）与部署节点实际运行验收均已通过，任务关闭。 | 补丁链删除条件已满足，转为独立清理项待执行；台账未留存验收过程证据（用户口头确认）。 |
 
 ## 2026-09-11 提交复核
 

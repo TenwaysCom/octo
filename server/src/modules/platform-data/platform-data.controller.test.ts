@@ -158,6 +158,8 @@ describe("web platform data controller", () => {
       sprintWorkitems: [{
         projectKey: "project", workItemTypeKey: "story", workItemId: "1", title: "Story",
         sprintId: "sprint-1", sprint: "Sprint 1", membershipSource: "incremental_observed",
+        membershipClass: "carryover", membershipClassEstimated: false,
+        carriedOverFromSprintId: "sprint-0", carriedOverFromSprintName: "Sprint 0",
         githubPullRequests: [], syncedAt: "2026-08-09T00:00:00.000Z",
       }],
     };
@@ -224,6 +226,7 @@ describe("web platform data controller", () => {
       sprintId: "13100779",
       sprint: "Odoo Sprint 20260806",
       membershipSource: "incremental_observed",
+      membershipClass: "planned", membershipClassEstimated: false,
       carryoverToSprintId: "next-sprint",
       carryoverToSprintName: "Odoo Sprint 20260820",
       githubPullRequests: [],

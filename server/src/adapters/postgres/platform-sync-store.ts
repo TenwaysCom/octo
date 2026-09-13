@@ -12,7 +12,16 @@ import {
   type LarkTicketAiFields,
   type LarkTicketShadowAi,
 } from "../../domain/lark-ticket-ai.js";
-import { projectMeegleSprintMembershipTransition } from "../../domain/meegle-sprint-membership.js";
+import {
+  projectMeegleSprintMembershipTransition,
+  type MeegleSprintMembershipState,
+} from "../../domain/meegle-sprint-membership.js";
+
+export type MeegleSprintMembershipInitRow = MeegleSprintMembershipState & {
+  projectKey: string;
+  workItemTypeKey: string;
+  workItemId: string;
+};
 import { MEEGLE_SPRINT_API_NAME, MEEGLE_SPRINT_WORKITEM_TYPE_KEY } from "../../domain/meegle-workitem-types.js";
 import type {
   MeegleWorkitemRoleMember,
@@ -88,7 +97,9 @@ export interface PlatformSyncStore {
   listMeegleSprints(): Promise<string[]>;
   listMeegleWorkitemsByIds(workItemIds: string[]): Promise<MeegleWorkitemSyncItem[]>;
   listMeegleSprintSnapshots(): Promise<MeegleWorkitemSyncItem[]>;
-  listMeegleSprintMemberships(): Promise<MeegleSprintMembershipSyncItem[]>;
+  listMeegleSprintMemberships(options?: { includeSynthesizedCurrent?: boolean }): Promise<MeegleSprintMembershipSyncItem[]>;
+  listMeegleWorkitemsForMembershipInit(): Promise<MeegleWorkitemSyncItem[]>;
+  insertMissingMeegleSprintMemberships(rows: MeegleSprintMembershipInitRow[]): Promise<number>;
   listGitHubPullRequestLinks(meegleWorkItemIds: string[]): Promise<GitHubPullRequestLink[]>;
   findGitHubPullRequest(ref: GitHubPullRequestSyncRef): Promise<GitHubPullRequestSyncItem | undefined>;
   listGitHubPullRequests(limit: number, filters?: GitHubPullRequestListFilters): Promise<GitHubPullRequestSyncItem[]>;
@@ -1200,7 +1211,10 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
     return rows.map(toMeegleWorkitemSyncItem);
   }
 
-  async listMeegleSprintMemberships(): Promise<MeegleSprintMembershipSyncItem[]> {
+  async listMeegleSprintMemberships(
+    options: { includeSynthesizedCurrent?: boolean } = {},
+  ): Promise<MeegleSprintMembershipSyncItem[]> {
+    const includeSynthesizedCurrent = options.includeSynthesizedCurrent !== false;
     const [rows, currentRows] = await Promise.all([
       this.db.selectFrom("meegle_workitem_sprint_memberships as membership")
         .innerJoin("meegle_workitem_syncs as workitem", (join) => join
@@ -1232,7 +1246,8 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
         .orderBy("membership.work_item_id")
         .orderBy("membership.added_at")
         .execute(),
-      this.db.selectFrom("meegle_workitem_syncs")
+      includeSynthesizedCurrent
+        ? this.db.selectFrom("meegle_workitem_syncs")
         .select([
           "project_key", "project_name", "work_item_type_key", "work_item_id", "work_item_key", "title",
           "work_item_type", "status_key", "status", "sub_stage_key", "sub_stage",
@@ -1243,7 +1258,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
         ])
         .where("work_item_type_key", "not in", MEEGLE_SPRINT_TYPE_KEYS)
         .where("sprint_id", "is not", null)
-        .execute(),
+        .execute() : Promise.resolve([]),
     ]);
 
     const memberships = rows.map((row) => {
@@ -1270,6 +1285,66 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
       return [{ ...current, sprintId, membershipSource: "historical_inferred" as const }];
     });
     return [...memberships, ...inferredCurrentMemberships];
+  }
+
+  async listMeegleWorkitemsForMembershipInit(): Promise<MeegleWorkitemSyncItem[]> {
+    const rows = await this.db.selectFrom("meegle_workitem_syncs")
+      .select([
+        "project_key", "project_name", "work_item_type_key", "work_item_id", "work_item_key", "title",
+        "work_item_type", "status_key", "status", "sub_stage_key", "sub_stage",
+        "sprint_id", "sprint", "version", "system", "bugs_json", "assignee", "priority",
+        "payload_json",
+        "source_updated_at", "synced_at", "add_to_cycle_time", "current_node_start_time",
+        "item_start_time", "item_finish_time", "created_at",
+      ])
+      .where("work_item_type_key", "not in", MEEGLE_SPRINT_TYPE_KEYS)
+      .where("sprint_id", "is not", null)
+      .orderBy("project_key")
+      .orderBy("work_item_type_key")
+      .orderBy("work_item_id")
+      .execute();
+    return rows.map(toMeegleWorkitemSyncItem);
+  }
+
+  async insertMissingMeegleSprintMemberships(rows: MeegleSprintMembershipInitRow[]): Promise<number> {
+    let created = 0;
+    await this.db.transaction().execute(async (trx) => {
+      for (const row of rows) {
+        // Match the incremental upsert lock order, including when no membership exists yet.
+        const current = await trx.selectFrom("meegle_workitem_syncs")
+          .select("sprint_id")
+          .where("project_key", "=", row.projectKey)
+          .where("work_item_type_key", "=", row.workItemTypeKey)
+          .where("work_item_id", "=", row.workItemId)
+          .forUpdate()
+          .executeTakeFirst();
+        if (!current || current.sprint_id !== row.sprintId) continue;
+        const existingOpen = await trx.selectFrom("meegle_workitem_sprint_memberships")
+          .select("work_item_id")
+          .where("project_key", "=", row.projectKey)
+          .where("work_item_type_key", "=", row.workItemTypeKey)
+          .where("work_item_id", "=", row.workItemId)
+          .where("removed_at", "is", null)
+          .limit(1)
+          .executeTakeFirst();
+        if (existingOpen) continue;
+        await trx.insertInto("meegle_workitem_sprint_memberships").values({
+          project_key: row.projectKey,
+          work_item_type_key: row.workItemTypeKey,
+          work_item_id: row.workItemId,
+          sprint_id: row.sprintId,
+          added_at: row.addedAt,
+          started_at: row.startedAt,
+          finished_at: row.finishedAt,
+          removed_at: null,
+          source: row.source,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }).execute();
+        created += 1;
+      }
+    });
+    return created;
   }
 
   async listMeegleWorkitemsByIds(workItemIds: string[]): Promise<MeegleWorkitemSyncItem[]> {

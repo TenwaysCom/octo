@@ -147,3 +147,126 @@ function compareTimestamp(left: string, right: string): number {
   if (!Number.isNaN(leftTime) && !Number.isNaN(rightTime)) return leftTime - rightTime;
   return left.localeCompare(right);
 }
+
+export interface MeegleInferredCurrentMembershipInput {
+  sprintId: string;
+  addToCycleTime?: string | null;
+  workitemCreatedAt?: string | null;
+  sprintStartAt?: string | null;
+  itemStartTime?: string | null;
+  itemFinishTime?: string | null;
+}
+
+export function buildInferredCurrentMembership(
+  input: MeegleInferredCurrentMembershipInput,
+): MeegleSprintMembershipState | undefined {
+  if (!input.sprintId) return undefined;
+  const addedAt = input.addToCycleTime || laterTimestamp(input.workitemCreatedAt, input.sprintStartAt);
+  if (!addedAt) return undefined;
+  return {
+    sprintId: input.sprintId,
+    addedAt,
+    startedAt: clampToMembership(input.itemStartTime, addedAt),
+    finishedAt: clampToMembership(input.itemFinishTime, addedAt),
+    source: "historical_inferred",
+  };
+}
+
+function laterTimestamp(left: string | null | undefined, right: string | null | undefined): string | undefined {
+  if (!left) return right || undefined;
+  if (!right) return left;
+  return compareTimestamp(left, right) >= 0 ? left : right;
+}
+
+export type MeegleSprintWorkitemClass = "carryover" | "planned" | "after_cycle" | "unknown";
+
+export interface MeegleSprintMembershipClassification {
+  membershipClass: MeegleSprintWorkitemClass;
+  estimated: boolean;
+  carriedOverFromSprintId?: string;
+}
+
+export interface MeegleSprintClassifiedSegment {
+  sprintId: string;
+  addedAt?: string | null;
+  finishedAt?: string | null;
+  source: MeegleSprintMembershipSource;
+}
+
+export interface MeegleSprintClassSpan {
+  startAt?: string | null;
+  endAt?: string | null;
+}
+
+const PLANNED_ENTRY_GRACE_MS = 24 * 60 * 60 * 1000;
+const UNKNOWN_CLASSIFICATION: MeegleSprintMembershipClassification = { membershipClass: "unknown", estimated: false };
+
+export function classifyMeegleSprintMembership(
+  segments: MeegleSprintClassifiedSegment[],
+  index: number,
+  getSprintSpan: (sprintId: string) => MeegleSprintClassSpan | undefined,
+): MeegleSprintMembershipClassification {
+  const current = segments[index];
+  if (!current) return UNKNOWN_CLASSIFICATION;
+  const currentSpan = getSprintSpan(current.sprintId);
+  const prior = mostRecentPriorSprintSegment(segments, index);
+  if (prior) {
+    const priorSpan = getSprintSpan(prior.sprintId);
+    if (!canDeriveCarryover(prior, priorSpan, currentSpan)) return UNKNOWN_CLASSIFICATION;
+    if (unfinishedAtSprintEnd(prior.finishedAt, priorSpan?.endAt)) {
+      return {
+        membershipClass: "carryover",
+        estimated: false,
+        carriedOverFromSprintId: prior.sprintId,
+      };
+    }
+  }
+  const addedAt = parseClassTimestamp(current.addedAt);
+  const startAt = parseClassTimestamp(currentSpan?.startAt);
+  if (addedAt === undefined || startAt === undefined) return UNKNOWN_CLASSIFICATION;
+  const estimated = current.source === "historical_inferred";
+  return addedAt <= startAt + PLANNED_ENTRY_GRACE_MS
+    ? { membershipClass: "planned", estimated }
+    : { membershipClass: "after_cycle", estimated };
+}
+
+function mostRecentPriorSprintSegment(
+  segments: MeegleSprintClassifiedSegment[],
+  index: number,
+): MeegleSprintClassifiedSegment | undefined {
+  for (let before = index - 1; before >= 0; before--) {
+    if (segments[before].sprintId !== segments[index].sprintId) return segments[before];
+  }
+  return undefined;
+}
+
+function canDeriveCarryover(
+  prior: MeegleSprintClassifiedSegment,
+  priorSpan: MeegleSprintClassSpan | undefined,
+  currentSpan: MeegleSprintClassSpan | undefined,
+): boolean {
+  return prior.source === "incremental_observed"
+    && Boolean(priorSpan?.endAt)
+    && Boolean(currentSpan?.startAt)
+    && Boolean(currentSpan?.endAt);
+}
+
+function unfinishedAtSprintEnd(finishedAt: string | null | undefined, sprintEndAt: string | null | undefined): boolean {
+  const sprintEnd = endOfUtcDayValue(sprintEndAt);
+  if (sprintEnd === undefined) return false;
+  const finished = parseClassTimestamp(finishedAt);
+  return finished === undefined || finished > sprintEnd;
+}
+
+function parseClassTimestamp(value: string | null | undefined): number | undefined {
+  if (!value) return undefined;
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? undefined : parsed;
+}
+
+function endOfUtcDayValue(value: string | null | undefined): number | undefined {
+  const parsed = parseClassTimestamp(value);
+  if (parsed === undefined) return undefined;
+  const date = new Date(parsed);
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + 1) - 1;
+}

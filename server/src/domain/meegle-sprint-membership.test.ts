@@ -1,4 +1,8 @@
-import { projectMeegleSprintMembershipTransition } from "./meegle-sprint-membership.js";
+import {
+  buildInferredCurrentMembership,
+  classifyMeegleSprintMembership,
+  projectMeegleSprintMembershipTransition,
+} from "./meegle-sprint-membership.js";
 
 const observedAt = "2026-08-27T12:00:00.000Z";
 
@@ -138,5 +142,144 @@ describe("Meegle Sprint membership transitions", () => {
       lifecycle: { itemStartTime: null, itemFinishTime: null },
       observedAt,
     }).createOpen).toMatchObject({ sprintId: "sprint-a", addedAt: observedAt, source: "incremental_observed" });
+  });
+});
+
+describe("Meegle Sprint membership transitions (A -> B finished)", () => {
+  it("clamps an already-finished item entering the next Sprint to the observed add time", () => {
+    const transition = projectMeegleSprintMembershipTransition({
+      currentSnapshot: {
+        sprintId: "sprint-a",
+        addToCycleTime: "2026-08-01T00:00:00.000Z",
+        itemStartTime: "2026-08-02T00:00:00.000Z",
+        itemFinishTime: "2026-08-10T00:00:00.000Z",
+      },
+      relation: { present: true, sprintId: "sprint-b", sprintName: "Sprint B" },
+      lifecycle: { itemFinishTime: "2026-08-10T00:00:00.000Z" },
+      observedAt: "2026-08-16T00:00:00.000Z",
+    });
+    expect(transition.createClosed).toMatchObject({
+      sprintId: "sprint-a",
+      addedAt: "2026-08-01T00:00:00.000Z",
+      startedAt: "2026-08-02T00:00:00.000Z",
+      finishedAt: "2026-08-10T00:00:00.000Z",
+      removedAt: "2026-08-16T00:00:00.000Z",
+      source: "historical_inferred",
+    });
+    expect(transition.createOpen).toMatchObject({
+      sprintId: "sprint-b",
+      addedAt: "2026-08-16T00:00:00.000Z",
+      startedAt: null,
+      finishedAt: "2026-08-16T00:00:00.000Z",
+      source: "incremental_observed",
+    });
+  });
+});
+
+describe("classifyMeegleSprintMembership", () => {
+  const spans: Record<string, { startAt?: string; endAt?: string }> = {
+    "sprint-a": { startAt: "2026-08-01T00:00:00.000Z", endAt: "2026-08-14T00:00:00.000Z" },
+    "sprint-b": { startAt: "2026-08-15T00:00:00.000Z", endAt: "2026-08-28T00:00:00.000Z" },
+    "sprint-no-dates": {},
+  };
+  const getSpan = (sprintId: string) => spans[sprintId];
+
+  it("classifies on-time observed entries as planned and late entries as after cycle", () => {
+    expect(classifyMeegleSprintMembership([
+      { sprintId: "sprint-a", addedAt: "2026-08-02T00:00:00.000Z", source: "incremental_observed" },
+    ], 0, getSpan)).toEqual({ membershipClass: "planned", estimated: false });
+    expect(classifyMeegleSprintMembership([
+      { sprintId: "sprint-a", addedAt: "2026-08-05T00:00:00.000Z", source: "incremental_observed" },
+    ], 0, getSpan)).toEqual({ membershipClass: "after_cycle", estimated: false });
+  });
+
+  it("keeps the grace window within 24 hours of the Sprint start", () => {
+    expect(classifyMeegleSprintMembership([
+      { sprintId: "sprint-a", addedAt: "2026-08-01T23:59:59.000Z", source: "incremental_observed" },
+    ], 0, getSpan)).toMatchObject({ membershipClass: "planned" });
+    expect(classifyMeegleSprintMembership([
+      { sprintId: "sprint-a", addedAt: "2026-08-02T00:00:01.000Z", source: "incremental_observed" },
+    ], 0, getSpan)).toMatchObject({ membershipClass: "after_cycle" });
+  });
+
+  it("marks timing classes as estimated for inferred memberships", () => {
+    expect(classifyMeegleSprintMembership([
+      { sprintId: "sprint-a", addedAt: "2026-08-03T00:00:00.000Z", source: "historical_inferred" },
+    ], 0, getSpan)).toEqual({ membershipClass: "after_cycle", estimated: true });
+  });
+
+  it("classifies a transfer from an unfinished observed Sprint as carryover", () => {
+    expect(classifyMeegleSprintMembership([
+      { sprintId: "sprint-a", addedAt: "2026-08-01T00:00:00.000Z", finishedAt: null, source: "incremental_observed" },
+      { sprintId: "sprint-b", addedAt: "2026-08-16T00:00:00.000Z", finishedAt: null, source: "incremental_observed" },
+    ], 1, getSpan)).toEqual({
+      membershipClass: "carryover",
+      estimated: false,
+      carriedOverFromSprintId: "sprint-a",
+    });
+  });
+
+  it("returns unknown when the prior membership is inferred or its Sprint end date is missing", () => {
+    expect(classifyMeegleSprintMembership([
+      { sprintId: "sprint-a", addedAt: "2026-08-01T00:00:00.000Z", source: "historical_inferred" },
+      { sprintId: "sprint-b", addedAt: "2026-08-16T00:00:00.000Z", source: "incremental_observed" },
+    ], 1, getSpan)).toEqual({ membershipClass: "unknown", estimated: false });
+    expect(classifyMeegleSprintMembership([
+      { sprintId: "sprint-no-dates", addedAt: "2026-08-01T00:00:00.000Z", source: "incremental_observed" },
+      { sprintId: "sprint-b", addedAt: "2026-08-16T00:00:00.000Z", source: "incremental_observed" },
+    ], 1, getSpan)).toEqual({ membershipClass: "unknown", estimated: false });
+  });
+
+  it("falls back to entry timing when the prior Sprint membership finished before its end", () => {
+    expect(classifyMeegleSprintMembership([
+      { sprintId: "sprint-a", addedAt: "2026-08-01T00:00:00.000Z", finishedAt: "2026-08-10T00:00:00.000Z", source: "incremental_observed" },
+      { sprintId: "sprint-b", addedAt: "2026-08-20T00:00:00.000Z", source: "incremental_observed" },
+    ], 1, getSpan)).toEqual({ membershipClass: "after_cycle", estimated: false });
+  });
+
+  it("returns unknown when entry time or Sprint start date is missing", () => {
+    expect(classifyMeegleSprintMembership([
+      { sprintId: "sprint-no-dates", addedAt: "2026-08-10T00:00:00.000Z", source: "incremental_observed" },
+    ], 0, getSpan)).toEqual({ membershipClass: "unknown", estimated: false });
+    expect(classifyMeegleSprintMembership([
+      { sprintId: "sprint-a", addedAt: null, source: "incremental_observed" },
+    ], 0, getSpan)).toEqual({ membershipClass: "unknown", estimated: false });
+  });
+});
+
+describe("buildInferredCurrentMembership", () => {
+  it("prefers the stored add time and clamps lifecycle times to it", () => {
+    expect(buildInferredCurrentMembership({
+      sprintId: "sprint-a",
+      addToCycleTime: "2026-08-05T00:00:00.000Z",
+      workitemCreatedAt: "2026-07-01T00:00:00.000Z",
+      sprintStartAt: "2026-08-01T00:00:00.000Z",
+      itemStartTime: "2026-08-02T00:00:00.000Z",
+      itemFinishTime: "2026-08-20T00:00:00.000Z",
+    })).toEqual({
+      sprintId: "sprint-a",
+      addedAt: "2026-08-05T00:00:00.000Z",
+      startedAt: "2026-08-05T00:00:00.000Z",
+      finishedAt: "2026-08-20T00:00:00.000Z",
+      source: "historical_inferred",
+    });
+  });
+
+  it("falls back to max(workitem created time, Sprint start) for the add time", () => {
+    expect(buildInferredCurrentMembership({
+      sprintId: "sprint-a",
+      workitemCreatedAt: "2026-08-10T00:00:00.000Z",
+      sprintStartAt: "2026-08-01T00:00:00.000Z",
+    })).toMatchObject({ addedAt: "2026-08-10T00:00:00.000Z", startedAt: null, finishedAt: null });
+    expect(buildInferredCurrentMembership({
+      sprintId: "sprint-a",
+      workitemCreatedAt: null,
+      sprintStartAt: "2026-08-01T00:00:00.000Z",
+    })).toMatchObject({ addedAt: "2026-08-01T00:00:00.000Z" });
+  });
+
+  it("skips workitems without provable entry evidence", () => {
+    expect(buildInferredCurrentMembership({ sprintId: "sprint-a" })).toBeUndefined();
+    expect(buildInferredCurrentMembership({ sprintId: "" })).toBeUndefined();
   });
 });

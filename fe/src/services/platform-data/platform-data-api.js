@@ -364,19 +364,27 @@ function parseMeegleRelatedPersonOption(value) {
   return { memberKey: value.memberKey, name: value.name, roleNames: value.roleNames };
 }
 
+const MEMBERSHIP_CLASS_VALUES = ["carryover", "planned", "after_cycle", "unknown"];
+
 function parseMeegleSprintWorkitem(value) {
   const item = parseMeegleWorkitem(value);
   if (typeof value.sprintId !== "string"
     || typeof value.sprint !== "string"
     || !["historical_inferred", "incremental_observed"].includes(value.membershipSource)
-    || ["membershipRemovedAt", "carryoverToSprintId", "carryoverToSprintName"]
+    || !MEMBERSHIP_CLASS_VALUES.includes(value.membershipClass)
+    || typeof value.membershipClassEstimated !== "boolean"
+    || ["membershipRemovedAt", "carryoverToSprintId", "carryoverToSprintName",
+      "carriedOverFromSprintId", "carriedOverFromSprintName"]
       .some((field) => value[field] !== undefined && typeof value[field] !== "string")) {
     throw new Error("INVALID_MEEGLE_WORKITEM_RESPONSE");
   }
   return {
     ...item,
     membershipSource: value.membershipSource,
-    ...Object.fromEntries(["membershipRemovedAt", "carryoverToSprintId", "carryoverToSprintName"]
+    membershipClass: value.membershipClass,
+    membershipClassEstimated: value.membershipClassEstimated,
+    ...Object.fromEntries(["membershipRemovedAt", "carryoverToSprintId", "carryoverToSprintName",
+      "carriedOverFromSprintId", "carriedOverFromSprintName"]
       .flatMap((field) => value[field] === undefined ? [] : [[field, value[field]]])),
   };
 }

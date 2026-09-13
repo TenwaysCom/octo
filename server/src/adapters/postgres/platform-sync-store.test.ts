@@ -577,6 +577,53 @@ describe("PostgresPlatformSyncStore", () => {
     await pool.end();
   });
 
+  it("revalidates initialization candidates and preserves memberships created after planning", async () => {
+    const { db, pool } = await createTestPostgresDatabase();
+    const store = new PostgresPlatformSyncStore(db);
+    try {
+      const candidates = ["unchanged", "changed", "removed", "deleted", "observed"].map((workItemId) => ({
+        projectKey: "project", workItemTypeKey: "story", workItemId,
+        sprintId: "a", addedAt: "2026-08-01T00:00:00.000Z",
+        startedAt: null, finishedAt: null, source: "historical_inferred" as const,
+      }));
+      for (const candidate of candidates) {
+        await store.upsertMeegleWorkitem({
+          projectKey: candidate.projectKey,
+          workItemTypeKey: candidate.workItemTypeKey,
+          workitem: { id: candidate.workItemId, key: candidate.workItemId, name: candidate.workItemId, type: "story", status: "New", fields: {} },
+          sprintRelation: { present: true, sprintId: "a" },
+          lifecycle: { addToCycleTime: candidate.addedAt },
+        });
+      }
+      await db.updateTable("meegle_workitem_syncs").set({ sprint_id: "b" })
+        .where("work_item_id", "=", "changed").execute();
+      await db.updateTable("meegle_workitem_syncs").set({ sprint_id: null })
+        .where("work_item_id", "=", "removed").execute();
+      await db.deleteFrom("meegle_workitem_syncs")
+        .where("work_item_id", "=", "deleted").execute();
+      await store.upsertMeegleWorkitem({
+        projectKey: "project", workItemTypeKey: "story",
+        workitem: { id: "observed", key: "observed", name: "observed", type: "story", status: "New", fields: {} },
+        sprintRelation: { present: true, sprintId: "a" },
+        sprintObservedAt: "2026-08-02T00:00:00.000Z",
+      });
+      const before = await db.selectFrom("meegle_workitem_sprint_memberships")
+        .selectAll().where("work_item_id", "=", "observed").execute();
+
+      await expect(store.insertMissingMeegleSprintMemberships(candidates)).resolves.toBe(1);
+      await expect(store.insertMissingMeegleSprintMemberships(candidates)).resolves.toBe(0);
+      const rows = await db.selectFrom("meegle_workitem_sprint_memberships")
+        .selectAll().orderBy("work_item_id").execute();
+      expect(rows).toEqual([
+        ...before,
+        expect.objectContaining({ work_item_id: "unchanged", sprint_id: "a", source: "historical_inferred" }),
+      ]);
+    } finally {
+      await db.destroy();
+      await pool.end();
+    }
+  });
+
   it("lazily initializes an existing current Sprint as inferred without upgrading its source", async () => {
     const { db, pool } = await createTestPostgresDatabase();
     const store = new PostgresPlatformSyncStore(db);

@@ -9,6 +9,8 @@ import {
   type GitHubPullRequestSyncRef,
   type LarkBaseTicketSyncRef,
   type LarkBaseTicketUpsertInput,
+  type MeegleSprintMembershipInitRow,
+  type MeegleWorkitemSyncItem,
   type MeegleWorkitemSyncRef,
 } from "../../adapters/postgres/platform-sync-store.js";
 import { getResolvedUserStore, type ResolvedUserStore } from "../../adapters/postgres/resolved-user-store.js";
@@ -33,6 +35,7 @@ import { buildAuthenticatedLarkClient } from "./lark-auth-client.factory.js";
 import { logger } from "../../logger.js";
 import { isMeegleProductionBugType, isMeegleSprintType } from "../../domain/meegle-workitem-types.js";
 import { buildMeegleSprintSnapshot, getMeegleSprintDetailFieldKeys } from "./meegle-sprint-snapshot.js";
+import { buildInferredCurrentMembership } from "../../domain/meegle-sprint-membership.js";
 import { extractMeegleWorkitemRoleMembers } from "../../domain/meegle-workitem-role-members.js";
 import {
   formatMeegleMqlDateTime,
@@ -552,6 +555,65 @@ export class PlatformSyncService {
     });
   }
 
+  async initMeegleSprintMembershipHistory(options: { apply?: boolean } = {}): Promise<{
+    scanned: number;
+    existingOpen: number;
+    missingEvidence: number;
+    candidates: number;
+    created: number;
+  }> {
+    const [sprintStarts, persistedMemberships, workitems] = await Promise.all([
+      this.getMeegleSprintStartsById(),
+      this.syncStore.listMeegleSprintMemberships({ includeSynthesizedCurrent: false }),
+      this.syncStore.listMeegleWorkitemsForMembershipInit(),
+    ]);
+    const openKeys = new Set(persistedMemberships
+      .filter((membership) => !membership.membershipRemovedAt)
+      .map((membership) => meegleSprintMembershipRef(membership)));
+    let existingOpen = 0;
+    let missingEvidence = 0;
+    const candidates: MeegleSprintMembershipInitRow[] = [];
+    for (const item of workitems) {
+      if (!item.sprintId) continue;
+      if (openKeys.has(meegleSprintMembershipRef(item))) {
+        existingOpen += 1;
+        continue;
+      }
+      const membership = buildInferredCurrentMembership({
+        sprintId: item.sprintId,
+        addToCycleTime: item.addToCycleTime,
+        workitemCreatedAt: item.createdAt,
+        sprintStartAt: sprintStarts.get(meegleSprintRef(item.projectKey, item.sprintId)),
+        itemStartTime: item.itemStartTime,
+        itemFinishTime: item.itemFinishTime,
+      });
+      if (!membership) {
+        missingEvidence += 1;
+        continue;
+      }
+      candidates.push({
+        ...membership,
+        projectKey: item.projectKey,
+        workItemTypeKey: item.workItemTypeKey,
+        workItemId: item.workItemId,
+      });
+    }
+    const created = options.apply
+      ? await this.syncStore.insertMissingMeegleSprintMemberships(candidates)
+      : 0;
+    syncLogger.info({
+      module: "platform-sync",
+      stage: "meegle-membership-init",
+      scanned: workitems.length,
+      existingOpen,
+      missingEvidence,
+      candidates: candidates.length,
+      created,
+      apply: Boolean(options.apply),
+    }, "Meegle sprint membership history init completed");
+    return { scanned: workitems.length, existingOpen, missingEvidence, candidates: candidates.length, created };
+  }
+
   async cleanGitHubPullRequests(refs: GitHubPullRequestSyncRef[]): Promise<number> {
     const snapshots = await this.syncStore.getGitHubPullRequestsForCleaning(refs);
     return this.cleanSnapshots("github", snapshots, (snapshot) => (
@@ -973,6 +1035,12 @@ function meegleWorkitemRef(workitem: Pick<MeegleWorkitem, "type" | "id">): strin
 
 function meegleSprintRef(projectKey: string, sprintId: string): string {
   return `${projectKey}\u0000${sprintId}`;
+}
+
+function meegleSprintMembershipRef(
+  item: Pick<MeegleWorkitemSyncItem, "projectKey" | "workItemTypeKey" | "workItemId" | "sprintId">,
+): string {
+  return `${item.projectKey}\u0000${item.workItemTypeKey}\u0000${item.workItemId}\u0000${item.sprintId ?? ""}`;
 }
 
 function chunk<T>(items: T[], size: number): T[][] {

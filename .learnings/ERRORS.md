@@ -789,7 +789,7 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 
 - **Error:** `meegle workitem create` 在普通必填字段齐全时返回 `ErrFieldRequired`，要求 FE 角色；将服务端报错给出的完整 FE 角色键放入 `fields` 后又返回 `ErrInvalidParam: field keys not found`。
 - **Fix:** 当前 CLI 的创建命令只暴露 `fields`，角色操作仅在 `workitem update` 中可用。不要反复尝试短角色键、完整角色键或未支持的顶层参数；等待 CLI 支持创建时角色成员，或改用经用户允许的其他渠道。
-- **source:** [批量搜索 many2one Tech Task](../docs/tasks/platform-data/2026-09-04-create-batch-search-many2one-tech-task.md)
+- **source:** 2026-09-04「批量搜索 many2one Tech Task」任务记录已按指示删除（任务未执行）。
 
 ### ERR-20260905-001 — Shadow Worker 意外使用旧的 120 秒 Ticket Summary 超时
 
@@ -831,3 +831,9 @@ Record concise compiler/runtime errors, failed commands, wrong assumptions, and 
 - **Error:** FE 不显示 OdooSH build 状态，app 日志 `ODOO_DEVOPS_BRANCHES_REQUEST_FAILED` 连续出现且不带 `status` 字段（client 仅在 fetch 抛错时如此打点），无 `AUTH_REJECTED`；`getent` 命中 `/etc/hosts` 将 `devops.odoo.tenways.it` 钉在已不可达的 `192.168.59.103`（网关回 `Destination Host Unreachable`）。
 - **Fix:** 先按日志字段区分失败层（不带 `status` = 网络层 fetch 抛错；401/403/302 = `AUTH_REJECTED` session 失效），再对比 `getent` 与 `dig @上游DNS` 定位 hosts 覆盖；hosts 改回实际部署地址后，用 `.env` session 模拟三环境请求验证 200。
 - **source:** [FE OdooSH build 状态不显示诊断](../docs/tasks/engineering-ops/2026-09-10-odoosh-build-hosts-pin-diagnosis.md)
+
+### ERR-20260913-001 — 误把“存储缺失”当成“可见性缺失”
+
+- **Error:** 台账复核时按 memberships 表覆盖率（95/500）断言“旧 Sprint 图表对 406 个工作项是空白”，但 `listMeegleSprintMemberships` 的读取路径会对有当前 Sprint、无持久化区间的工作项合成 `historical_inferred` 临时投影，页面数据并未缺失；缺失的只是持久化事实。
+- **Fix:** 评估数据缺口前先核对读取路径的惰性补全/兼容投影逻辑；把“存储完整性缺口”与“用户可见性缺口”分开判断和汇报，再决定是否需要写路径建设。
+- **source:** [Meegle Sprint 历史与详情](../docs/tasks/platform-data/2026-08-27-meegle-sprint-history.md)

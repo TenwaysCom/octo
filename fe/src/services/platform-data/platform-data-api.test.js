@@ -56,6 +56,8 @@ test("loads a synced platform list with the browser session cookie", async () =>
         sprintId: "sprint-1",
         sprint: "Sprint 1",
         membershipSource: "incremental_observed",
+        membershipClass: "carryover",
+        membershipClassEstimated: false,
         membershipRemovedAt: "2026-08-21T00:00:00.000Z",
         carryoverToSprintId: "sprint-2",
         carryoverToSprintName: "Sprint 2",
@@ -107,6 +109,8 @@ test("loads a synced platform list with the browser session cookie", async () =>
       sprintId: "sprint-1",
       sprint: "Sprint 1",
       membershipSource: "incremental_observed",
+      membershipClass: "carryover",
+      membershipClassEstimated: false,
       membershipRemovedAt: "2026-08-21T00:00:00.000Z",
       carryoverToSprintId: "sprint-2",
       carryoverToSprintName: "Sprint 2",
@@ -163,7 +167,8 @@ test("loads Meegle Sprint history from its dedicated endpoint", async () => {
         sprintDetails: [{ projectKey: "project", sprintId: "sprint-1", name: "Sprint 1", syncedAt: "2026-08-09T00:00:00.000Z" }],
         sprintWorkitems: [{
           projectKey: "project", workItemTypeKey: "story", workItemId: "1", title: "Story",
-          sprintId: "sprint-1", sprint: "Sprint 1", membershipSource: "incremental_observed",
+          sprintId: "sprint-1", sprint: "Sprint 1", membershipSource: "historical_inferred",
+          membershipClass: "after_cycle", membershipClassEstimated: true,
           currentNodeStartTime: "2026-08-08T00:00:00.000Z",
           githubPullRequests: [], syncedAt: "2026-08-09T00:00:00.000Z",
         }],
@@ -175,6 +180,8 @@ test("loads Meegle Sprint history from its dedicated endpoint", async () => {
   assert.equal(request.options.credentials, "include");
   assert.equal(result.sprintDetails[0].name, "Sprint 1");
   assert.equal(result.sprintWorkitems[0].sprint, "Sprint 1");
+  assert.equal(result.sprintWorkitems[0].membershipClass, "after_cycle");
+  assert.equal(result.sprintWorkitems[0].membershipClassEstimated, true);
   assert.equal(result.sprintWorkitems[0].currentNodeStartTime, "2026-08-08T00:00:00.000Z");
 });
 

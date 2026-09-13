@@ -1,11 +1,11 @@
 ---
 title: "Lark Ticket 列表右键快捷动作"
 module: "platform-data"
-status: in-progress
+status: done
 requirement_version: 4
 created_on: 2026-09-11
-updated_on: 2026-09-11
-closed_on: null
+updated_on: 2026-09-13
+closed_on: 2026-09-13
 owner: jack
 related:
   - "docs/ai-dev/rules/server-code-rules.md"
@@ -60,6 +60,7 @@ FE Lark Ticket 列表（列表 / 分组 / 看板视图）右键 ticket 行弹出
 | 日期 | 需求版本 | 状态 | 结果与证据 | 未验证边界 / 下一步 |
 | --- | --- | --- | --- | --- |
 | 2026-09-11 | v1 | in-progress | server+fe 实现，测试/构建通过 | 未做浏览器端真实 Lark 联调（`make server-dev && make fe-dev` 手工验证） |
+| 2026-09-13 | v4 | done | 用户确认完成，任务关闭；v1–v4 交付已入库（commit `3f35cc1`、`a79bfc5`）。 | 台账内验证均基于 mock/构造数据与临时浏览器检查，真实 Lark/Meegle 写入未留证据；后续真实联调若发现问题另行建档。 |
 
 ## 验证
 

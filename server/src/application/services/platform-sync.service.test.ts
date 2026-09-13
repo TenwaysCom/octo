@@ -122,6 +122,8 @@ function createStore(): PlatformSyncStore & {
     async listMeegleWorkitemsByIds() { return []; },
     async listMeegleSprintSnapshots() { return []; },
     async listMeegleSprintMemberships() { return []; },
+    async listMeegleWorkitemsForMembershipInit() { return []; },
+    async insertMissingMeegleSprintMemberships() { return 0; },
     async listGitHubPullRequestLinks() { return []; },
     async listGitHubPullRequests() { return []; },
     async countGitHubPullRequests() { return 0; },
@@ -967,5 +969,107 @@ describe("PlatformSyncService", () => {
     expect(isInactiveSyncStatus("closed")).toBe(true);
     expect(isInactiveSyncStatus("end")).toBe(true);
     expect(isInactiveSyncStatus("in progress")).toBe(false);
+  });
+});
+
+describe("initMeegleSprintMembershipHistory", () => {
+  const SPRINT_TYPE_KEY = "642ebe04168eea39eeb0d34a";
+
+  function createMembershipInitStore() {
+    const persisted: Array<Record<string, unknown>> = [];
+    const insertedRows: Array<Record<string, unknown>> = [];
+    const store = {
+      async listMeegleSprintSnapshots() {
+        return [{
+          projectKey: "p",
+          workItemTypeKey: SPRINT_TYPE_KEY,
+          workItemId: "sprint-a",
+          title: "Sprint A",
+          syncedAt: "2026-08-28T00:00:00.000Z",
+          sourcePayload: {
+            fields: {
+              work_item_fields: [
+                { key: "field_3729d1", value: {
+                  start_time: { iso_time: "2026-08-01T00:00:00Z" },
+                  end_time: { iso_time: "2026-08-14T00:00:00Z" },
+                } },
+              ],
+            },
+          },
+        }];
+      },
+      async listMeegleSprintMemberships(options?: { includeSynthesizedCurrent?: boolean }) {
+        return options?.includeSynthesizedCurrent === false
+          ? persisted.map((row) => ({ ...row }))
+          : persisted.map((row) => ({ ...row }));
+      },
+      async listMeegleWorkitemsForMembershipInit() {
+        return [
+          {
+            projectKey: "p", workItemTypeKey: "story", workItemId: "w1", title: "W1",
+            sprintId: "sprint-a", addToCycleTime: "2026-08-05T00:00:00.000Z",
+            createdAt: "2026-07-01T00:00:00.000Z", syncedAt: "2026-08-28T00:00:00.000Z",
+          },
+          {
+            projectKey: "p", workItemTypeKey: "story", workItemId: "w2", title: "W2",
+            sprintId: "sprint-a", addToCycleTime: "2026-08-03T00:00:00.000Z",
+            createdAt: "2026-07-01T00:00:00.000Z", syncedAt: "2026-08-28T00:00:00.000Z",
+          },
+          {
+            projectKey: "p", workItemTypeKey: "story", workItemId: "w3", title: "W3",
+            sprintId: "sprint-b", addToCycleTime: null, createdAt: null,
+            syncedAt: "2026-08-28T00:00:00.000Z",
+          },
+        ];
+      },
+      async insertMissingMeegleSprintMemberships(
+        rows: Array<Record<string, unknown> & { projectKey: string; workItemId: string }>,
+      ) {
+        let created = 0;
+        for (const row of rows) {
+          const hasOpen = persisted.some((membership) => !membership.membershipRemovedAt
+            && membership.projectKey === row.projectKey
+            && membership.workItemTypeKey === row.workItemTypeKey
+            && membership.workItemId === row.workItemId);
+          if (hasOpen) continue;
+          persisted.push({ ...row, membershipRemovedAt: undefined });
+          insertedRows.push(row);
+          created += 1;
+        }
+        return created;
+      },
+    };
+    return { store, persisted, insertedRows };
+  }
+
+  it("plans inferred memberships, stays idempotent, and never constructs a Meegle client", async () => {
+    const { store, persisted, insertedRows } = createMembershipInitStore();
+    persisted.push({
+      projectKey: "p", workItemTypeKey: "story", workItemId: "w2", sprintId: "sprint-a",
+      addedAt: "2026-08-03T00:00:00.000Z", membershipRemovedAt: undefined,
+    });
+    const service = new PlatformSyncService({
+      store: store as unknown as PlatformSyncStore,
+      createMeegleClient: async () => {
+        throw new Error("meegle client must not be constructed");
+      },
+    });
+
+    const dryRun = await service.initMeegleSprintMembershipHistory();
+    expect(dryRun).toEqual({ scanned: 3, existingOpen: 1, missingEvidence: 1, candidates: 1, created: 0 });
+    expect(insertedRows).toEqual([]);
+
+    const applied = await service.initMeegleSprintMembershipHistory({ apply: true });
+    expect(applied.created).toBe(1);
+    expect(insertedRows[0]).toMatchObject({
+      projectKey: "p",
+      workItemId: "w1",
+      sprintId: "sprint-a",
+      addedAt: "2026-08-05T00:00:00.000Z",
+      source: "historical_inferred",
+    });
+
+    const again = await service.initMeegleSprintMembershipHistory({ apply: true });
+    expect(again).toEqual({ scanned: 3, existingOpen: 2, missingEvidence: 1, candidates: 0, created: 0 });
   });
 });

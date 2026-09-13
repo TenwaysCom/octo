@@ -5,10 +5,12 @@ status: planned
 backlog: true
 requirement_version: 3
 created_on: 2026-09-01
-updated_on: 2026-09-04
+updated_on: 2026-09-13
 closed_on: null
+archived_on: 2026-09-13
+archive_reason: "backlog 挂起暂不实施，按用户指示移入归档；恢复时移回 platform-sync、清除归档字段并更新状态"
 owner: TBD
-last_reviewed: 2026-09-04
+last_reviewed: 2026-09-13
 related:
   - "Meegle work item type: issue"
   - "docs/tasks/platform-sync/2026-09-01-meegle-system-time-incremental-cleaning.md"

@@ -2,6 +2,11 @@ import type {
   MeegleSprintMembershipSyncItem,
   MeegleWorkitemSyncItem,
 } from "../../adapters/postgres/platform-sync-store.js";
+import {
+  classifyMeegleSprintMembership,
+  type MeegleSprintClassifiedSegment,
+  type MeegleSprintWorkitemClass,
+} from "../../domain/meegle-sprint-membership.js";
 import { isMeegleSprintType } from "../../domain/meegle-workitem-types.js";
 import { normalizeTimestamp } from "../../utils/normalize-timestamp.js";
 
@@ -28,6 +33,10 @@ export interface MeegleSprintWorkitemProjection extends MeegleSprintMembershipSy
   sprint: string;
   carryoverToSprintId?: string;
   carryoverToSprintName?: string;
+  membershipClass: MeegleSprintWorkitemClass;
+  membershipClassEstimated: boolean;
+  carriedOverFromSprintId?: string;
+  carriedOverFromSprintName?: string;
 }
 
 export function getMeegleSprintDetailFieldKeys(workItemTypeKey: string): string[] {
@@ -75,6 +84,9 @@ export function buildMeegleSprintWorkitemProjections(
 
   return [...membershipsByWorkitem.values()].flatMap((workitemMemberships) => {
     const ordered = [...workitemMemberships].sort((left, right) => compareMemberships(left, right));
+    const classifiedSegments = ordered.map(toClassifiedSegment);
+    const sprintSpan = (membership: MeegleSprintMembershipSyncItem) => (sprintId: string) =>
+      sprintById.get(sprintIdentity(membership.projectKey, sprintId));
     return ordered.map((membership, index) => {
       const sprint = sprintById.get(sprintIdentity(membership.projectKey, membership.sprintId));
       const next = ordered[index + 1];
@@ -84,13 +96,38 @@ export function buildMeegleSprintWorkitemProjections(
       const carryover = next && nextSprint && isObservedUnfinishedTransfer(membership, sprint, nextSprint)
         ? { carryoverToSprintId: next.sprintId, carryoverToSprintName: nextSprint.name }
         : {};
+      const classification = classifyMeegleSprintMembership(
+        classifiedSegments,
+        index,
+        sprintSpan(membership),
+      );
+      const carriedOverFromSprint = classification.carriedOverFromSprintId
+        ? sprintById.get(sprintIdentity(membership.projectKey, classification.carriedOverFromSprintId))
+        : undefined;
       return {
         ...membership,
         sprint: sprint?.name || membership.sprint || membership.sprintId,
         ...carryover,
+        membershipClass: classification.membershipClass,
+        membershipClassEstimated: classification.estimated,
+        ...(carriedOverFromSprint
+          ? {
+            carriedOverFromSprintId: classification.carriedOverFromSprintId,
+            carriedOverFromSprintName: carriedOverFromSprint.name,
+          }
+          : {}),
       };
     });
   });
+}
+
+function toClassifiedSegment(membership: MeegleSprintMembershipSyncItem): MeegleSprintClassifiedSegment {
+  return {
+    sprintId: membership.sprintId,
+    addedAt: membership.addToCycleTime,
+    finishedAt: membership.itemFinishTime,
+    source: membership.membershipSource,
+  };
 }
 
 function isObservedUnfinishedTransfer(

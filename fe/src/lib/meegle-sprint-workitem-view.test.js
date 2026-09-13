@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   DEFAULT_SPRINT_WORKITEM_VISIBLE_COLUMNS,
+  getMeegleSprintMembershipClassLabel,
+  getSprintWorkitemViewValue,
   groupSprintWorkitems,
   normalizeSprintWorkitemGroupBy,
   normalizeSprintWorkitemPageState,
@@ -157,5 +159,33 @@ test("groups Sprint workitems by the configured primary and secondary fields", (
   })), [
     { label: "Doing", ids: ["1", "2"], subgroups: [{ label: "Octo", ids: ["1"] }, { label: "Odoo", ids: ["2"] }] },
     { label: "Done", ids: ["3"], subgroups: [{ label: "Octo", ids: ["3"] }] },
+  ]);
+});
+
+test("labels membership classes with carryover source and estimated markers", () => {
+  assert.equal(getMeegleSprintMembershipClassLabel({
+    membershipClass: "carryover", carriedOverFromSprintName: "Sprint 14",
+  }), "结转（自 Sprint 14）");
+  assert.equal(getMeegleSprintMembershipClassLabel({ membershipClass: "carryover" }), "结转");
+  assert.equal(getMeegleSprintMembershipClassLabel({ membershipClass: "planned", membershipClassEstimated: false }), "按期排入");
+  assert.equal(getMeegleSprintMembershipClassLabel({ membershipClass: "planned", membershipClassEstimated: true }), "按期排入（推定）");
+  assert.equal(getMeegleSprintMembershipClassLabel({ membershipClass: "after_cycle", membershipClassEstimated: true }), "中途加入（推定）");
+  assert.equal(getMeegleSprintMembershipClassLabel({ membershipClass: "unknown", membershipClassEstimated: false }), "证据不足");
+  assert.equal(getMeegleSprintMembershipClassLabel({}), "");
+});
+
+test("exposes membership class through the view value map and group options", () => {
+  assert.equal(getSprintWorkitemViewValue({
+    membershipClass: "planned", membershipClassEstimated: true,
+  }, "membershipClass"), "按期排入（推定）");
+  assert.equal(getSprintWorkitemViewValue({}, "membershipClass"), "");
+  const groups = groupSprintWorkitems([
+    { workItemId: "1", membershipClass: "carryover", carriedOverFromSprintName: "Sprint 14" },
+    { workItemId: "2", membershipClass: "planned", membershipClassEstimated: false },
+    { workItemId: "3", membershipClass: "planned", membershipClassEstimated: false },
+  ], "membershipClass");
+  assert.deepEqual(groups.map((group) => ({ label: group.label, count: group.items.length })), [
+    { label: "结转（自 Sprint 14）", count: 1 },
+    { label: "按期排入", count: 2 },
   ]);
 });

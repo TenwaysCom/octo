@@ -14,6 +14,7 @@ import { formatDateTime } from "../lib/formatters.js";
 import { formatMeegleCurrentWorkingTime } from "../lib/meegle-current-working-time.js";
 import {
   DEFAULT_SPRINT_WORKITEM_VISIBLE_COLUMNS,
+  getMeegleSprintMembershipClassLabel,
   groupSprintWorkitems,
   normalizeSprintWorkitemGroupBy,
   normalizeSprintWorkitemPageState,
@@ -304,6 +305,10 @@ function SprintWorkitemCell({ columnKey, item, apiBaseUrl, nowTime }) {
   if (columnKey === "workitem") return <><a className="table-link" href={getMeegleWorkitemUrl(item)} target="_blank" rel="noreferrer">{item.workItemKey || item.workItemId}</a><small>{item.title}</small>{item.carryoverToSprintId || item.carryoverToSprintName ? <span className="sprint-carryover-badge">{item.carryoverToSprintName ? `结转至 ${item.carryoverToSprintName}` : "结转至后续 Sprint"}</span> : null}</>;
   if (columnKey === "workitemType") return <span className={`workitem-type-badge workitem-type-badge--${getMeegleWorkitemCategory(item)}`}>{item.workItemType || item.workItemTypeKey || "-"}</span>;
   if (columnKey === "status") return <><SprintWorkitemBadge kind="status" value={item.status} /><small>{item.subStage || ""}</small></>;
+  if (columnKey === "membershipClass") {
+    const label = getMeegleSprintMembershipClassLabel(item);
+    return label ? <SprintWorkitemBadge kind="membershipClass" value={label} /> : "-";
+  }
   if (columnKey === "project") return <SprintWorkitemBadge kind="project" value={item.projectName || item.projectKey} />;
   if (columnKey === "version") return <SprintWorkitemBadge kind="version" value={item.version} />;
   if (columnKey === "system") return <SprintWorkitemBadge kind="system" value={item.system} />;

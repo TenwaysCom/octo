@@ -1,11 +1,11 @@
 ---
 title: "Meegle Sprint 历史与详情"
 module: "platform-data"
-status: in_progress
+status: done
 requirement_version: 8
 created_on: 2026-08-27
-updated_on: 2026-09-04
-closed_on: null
+updated_on: 2026-09-13
+closed_on: 2026-09-13
 owner: Codex
 related:
   - "TEN-57"
@@ -116,13 +116,13 @@ API 应返回关系来源；FE 对包含 `historical_inferred` 关系的历史�
 - [x] 明确移除、同 Sprint 状态变化、完成、重开、回到 New 和同 Sprint 重入均符合行为契约。
 - [x] Current 与 Upcoming 图表结束于 Sprint 配置结束日，不再被今天截断；缺失结束日时仍安全回退到今天。
 - [x] Sprint 列表、详情工作项和 Scope/Started/Completed 图表改为读取 Sprint 归属历史，而不是只按当前 `sprint_id` 聚合。
-- [ ] Carryover、Planned、After cycle 按上述规则派生，`item_cycle_tag` 和 carryover 标志不落库。
-- [ ] API/FE 区分推定与观察数据：推定历史的 Carryover 为 Unknown，基于推定时间计算的 Planned/After cycle 标记为 estimated。
-- [ ] PG-only 初始化幂等，只生成当前可证明的开放归属；旧关系证据不足时保持未知。
-- [ ] 单元测试覆盖历史推定来源、推定区间不升级、首次观察加入、同 Sprint、A → B 未完成、A → B 已完成、提前移除、重开、New、同 Sprint 重入和缺失 Sprint 日期。
-- [ ] 测试断言历史初始化和增量生命周期投影不会构造 Meegle client 或调用 operation/all-nodes API。
-- [ ] Server 全量测试与 build、FE check 通过；登录态浏览器确认旧 Sprint 与新 Sprint 图表及 Carryover 展示。
-- [ ] 在目标 PostgreSQL 执行 schema migration 和 PG-only 初始化，并用只读查询核对关系数量、开放关系唯一性及空值分布。
+- [x] Carryover、Planned、After cycle 按上述规则派生，`item_cycle_tag` 和 carryover 标志不落库。（2026-09-13：domain 纯函数 `classifyMeegleSprintMembership` 接入 sprintWorkitems 投影与 DTO）
+- [x] API/FE 区分推定与观察数据：推定历史的 Carryover 为 Unknown，基于推定时间计算的 Planned/After cycle 标记为 estimated。（2026-09-13：DTO/FE 校验透传，FE 显示分类标签与"推定"标识，推断归属 Carryover 为 Unknown）
+- [x] PG-only 初始化幂等，只生成当前可证明的开放归属；旧关系证据不足时保持未知。（2026-09-13：`platform:init-sprint-memberships` 幂等命令，跳过已有开放归属，无证据项跳过，不构造 Meegle client）
+- [x] 单元测试覆盖历史推定来源、推定区间不升级、首次观察加入、同 Sprint、A → B 未完成、A → B 已完成、提前移除、重开、New、同 Sprint 重入和缺失 Sprint 日期。（domain/投影/service/FE 测试补齐）
+- [x] 测试断言历史初始化和增量生命周期投影不会构造 Meegle client 或调用 operation/all-nodes API。（初始化 service 测试注入抛错的 client 工厂断言未被调用）
+- [x] Server 全量测试与 build、FE check 通过；登录态浏览器确认旧 Sprint 与新 Sprint 图表及 Carryover 展示。（09-04 全量绿；2026-09-13 用户在 octo_test 环境浏览器验收通过）
+- [x] 在目标 PostgreSQL 执行 schema migration 和 PG-only 初始化，并用只读查询核对关系数量、开放关系唯一性及空值分布。（schema migration：用户确认已在目标库执行；PG-only 初始化：2026-09-13 在更新至 0913 的本地开发副本执行，创建 406 条开放推定归属、覆盖 500/500、唯一开放归属违例 0、新增行 added_at 无缺失、二次执行 created=0；目标库初始化：用户于 2026-09-13 确认已自行执行）
 
 ## 受影响层与技术对象
 
@@ -155,6 +155,8 @@ v4 已完成 Sprint 页面、稳定 `sprint_id`、当前生命周期投影和 PG
 | 2026-08-28 | v7 | done | 修正 FE 图表横轴结束日：移除对今天的上限，Current 与 Upcoming 均延伸到 Sprint 配置结束日；结束日缺失时继续回退今天。 | 未执行登录态浏览器视觉验收。 |
 | 2026-08-28 | v8 | done | Platform-data API 新增按 Sprint 归属区间展开的 `sprintWorkitems` 投影；FE 列表、详情和图表改读该投影。A → B 后 A 仍保留工作项，且仅在 observed 关系、A/B 日期完整并确认 A 在结束日未完成时显示“结转至 B”；缺少已持久化关系的当前 Sprint 由 Server 以 `historical_inferred` 兼容投影。 | 未执行登录态浏览器视觉验收；Planned/After cycle 和推定准确性提示仍未实现。 |
 | 2026-09-04 | v8 | in_progress | 台账复核确认 v8 的原 Sprint 保留和确定 carryover 投影仍有效；结转项分区展示已在关联子任务完成。当前 Server 全量 146 files / 707 tests、FE 33 files 测试与 production build 通过。 | 继续按顺序补齐 Planned/After cycle 与推定准确性标识及测试；随后在获得明确授权后执行目标 PostgreSQL migration/PG-only 初始化并只读核对，最后做登录态浏览器验收。 |
+| 2026-09-13 | v8 | in_progress | 用户完成 octo_test 浏览器验收；目标库 schema migration 用户确认已执行。对更新至 2026-09-13 的本地开发库（目标库副本）只读核对：开放归属唯一性违例 0、开放归属与当前快照 sprint 不一致 0、added_at 无缺失、关闭历史段 23 条（inferred 20 / observed 3），结构契约全部成立；定向测试 9/9 通过。 | 归属覆盖仅 95/500：406 个当前 Sprint 工作项无开放归属（339 个已完结、增量路径不会再触碰；创建时间线 08-28 起零星累积，无回填迹象），PG-only 批量初始化尚未执行且其实现仍缺；Planned/After cycle 派生分类与推定标识仍未实现。 |
+| 2026-09-13 | v8 | done | 派生分类落地为 domain 纯函数 `classifyMeegleSprintMembership`（carryover/planned/after_cycle/unknown + estimated），接入 sprintWorkitems 投影与 DTO；FE 增加"进入分类"列/分组与推定标识；PG-only 初始化落地为幂等命令 `platform:init-sprint-memberships`。验证：Server 全量 849 passed / 1 skipped、build 通过；FE 213 tests、production build 通过。本地 0913 开发副本执行初始化：创建 406 条开放推定归属、覆盖 500/500、唯一开放归属违例 0、新增行 added_at 无缺失（340 条无 start 证据按规则保留 null），二次执行 created=0 验证幂等。用户确认关闭任务。 | 目标 PostgreSQL 初始化由用户于 2026-09-13 确认执行（台账未留存目标库读回核对，可在目标库跑只读 SQL 复查覆盖率与唯一性）；分类只读时计算不落库，初始化不请求 Meegle，边界由测试断言覆盖。 |
 
 ## 验证
 
@@ -183,7 +185,7 @@ v4 已完成 Sprint 页面、稳定 `sprint_id`、当前生命周期投影和 PG
 - 当前 PostgreSQL 快照已覆盖的旧 Sprint 关系无法在 PG-only 边界内恢复，不能为了提高覆盖率静默扩大到 API 或 operation records。
 - 当前快照与关系历史必须在同一数据库事务中更新；并发或重试不能产生两个开放归属。
 - Sprint 起止日期缺失时 Carryover 必须为 Unknown，不能按状态或名称猜测。
-- Planned/After cycle 和推定关系的准确性提示仍需补齐；当前 v8 只交付原 Sprint 保留与确定的 outgoing carryover 标记。
+- Planned/After cycle、推定 estimated 标识与初始化回填已于 2026-09-13 交付；目标库初始化写入随部署执行。
 
 ## 关联
 
@@ -192,3 +194,12 @@ v4 已完成 Sprint 页面、稳定 `sprint_id`、当前生命周期投影和 PG
 - `server/src/application/services/meegle-workitem-lifecycle.ts`
 - `server/src/adapters/postgres/platform-sync-store.ts`
 - `server/src/adapters/postgres/schema.ts`
+
+
+## 2026-09-13 Review 修复：初始化与增量同步并发
+
+- 根因：初始化在事务外生成候选，写入事务只检查开放归属，没有参与增量 upsert 的工作项行锁；检查与插入之间可发生唯一键竞争，旧候选也可能在 Sprint 已移除或切换后写入。
+- 修复：先按完整工作项主键锁定 `meegle_workitem_syncs` 行，重新检查当前 `sprint_id`，再检查开放归属并插入；与增量 upsert 保持相同锁顺序。
+- 回归测试：store 测试覆盖候选被切换、移除、删除、同步已创建归属及重复初始化。首次构建发现测试 fixture 缺少必填 `key/status`，已补齐。
+- 验证：Server 全量 850 passed / 1 skipped，build 通过。独立临时 PostgreSQL 17 验证 3 组受控行锁交错（移除、切换、已创建归属）及 20 组真实 store 初始化/upsert 并发，均通过；临时实例已停止。
+- 边界：pg-mem 回归验证数据分支，不证明锁语义；真实并发验证为本次临时脚本 `/tmp/octo-membership-review-concurrency.mjs`，未接入常规测试入口，未访问目标库或外部平台。

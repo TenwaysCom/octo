@@ -60,4 +60,4 @@ related:
 
 ## 关联
 
-- `docs/tasks/platform-sync/2026-09-01-meegle-standard-bugs-cleaning-todo.md`
+- `docs/tasks/archived/platform-sync/2026-09-01-meegle-standard-bugs-cleaning-todo.md`（已归档）

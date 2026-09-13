@@ -206,8 +206,12 @@ const meegleSprintWorkitemsSchema = z.array(meegleWorkitemSchema.extend({
     sprint: z.string(),
     membershipRemovedAt: z.string().datetime().optional(),
     membershipSource: z.enum(["historical_inferred", "incremental_observed"]),
+    membershipClass: z.enum(["carryover", "planned", "after_cycle", "unknown"]),
+    membershipClassEstimated: z.boolean(),
     carryoverToSprintId: z.string().optional(),
     carryoverToSprintName: z.string().optional(),
+    carriedOverFromSprintId: z.string().optional(),
+    carriedOverFromSprintName: z.string().optional(),
   }));
 
 export const meegleWorkitemListResponseSchema = z.object({

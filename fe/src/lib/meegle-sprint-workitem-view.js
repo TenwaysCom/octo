@@ -4,6 +4,7 @@ export const SPRINT_WORKITEM_VIEW_COLUMNS = [
   { key: "workitem", label: "工作项", sortKey: "workitem", required: true },
   { key: "workitemType", label: "类型", sortKey: "workitemType" },
   { key: "status", label: "状态", sortKey: "status" },
+  { key: "membershipClass", label: "进入分类" },
   { key: "project", label: "项目", sortKey: "project" },
   { key: "version", label: "Version", sortKey: "version" },
   { key: "system", label: "System", sortKey: "system" },
@@ -19,6 +20,7 @@ export const SPRINT_WORKITEM_GROUP_OPTIONS = [
   ["none", "不分组"],
   ["workitemType", "类型"],
   ["status", "状态"],
+  ["membershipClass", "进入分类"],
   ["project", "项目"],
   ["version", "Version"],
   ["system", "System"],
@@ -75,11 +77,30 @@ export function rememberSprintWorkitemPageState(currentStates, sprintRef, pageSt
   return { ...current, [sprintRef]: normalizeSprintWorkitemPageState(pageState) };
 }
 
+const MEMBERSHIP_CLASS_LABELS = {
+  carryover: "结转",
+  planned: "按期排入",
+  after_cycle: "中途加入",
+  unknown: "证据不足",
+};
+
+export function getMeegleSprintMembershipClassLabel(item) {
+  const base = MEMBERSHIP_CLASS_LABELS[item?.membershipClass];
+  if (!base) return "";
+  if (item.membershipClass === "carryover") {
+    const from = item.carriedOverFromSprintName || item.carriedOverFromSprintId;
+    return from ? `${base}（自 ${from}）` : base;
+  }
+  if (item.membershipClass === "unknown") return base;
+  return item.membershipClassEstimated ? `${base}（推定）` : base;
+}
+
 export function getSprintWorkitemViewValue(item, key) {
   const values = {
     workitem: item.workItemKey || item.workItemId || item.title || "",
     workitemType: item.workItemType || item.workItemTypeKey || "",
     status: item.status || "",
+    membershipClass: getMeegleSprintMembershipClassLabel(item),
     project: item.projectName || item.projectKey || "",
     version: item.version || "",
     system: item.system || "",

@@ -1,10 +1,11 @@
 ---
 title: "重构 Lark Ticket AI Session ACP 权限"
 module: acp
-status: in_progress
+status: done
 requirement_version: 5
 created_on: 2026-08-24
-updated_on: 2026-09-04
+updated_on: 2026-09-13
+closed_on: 2026-09-13
 owner: TBD
 related:
   - "../../tenways-octo/it-platform-sync.md"
@@ -56,7 +57,7 @@ related:
 - [x] Support-QA prompt、两份 Skill、系统生命周期、Server 规则和平台架构文档已同步。
 - [x] Server focused/full tests 与 build 通过。
 - [x] FE tests/build 与 Extension tests/typecheck/build 通过。
-- [ ] 真实 Kimi 0.40.1 Answer/Document Session 完成受控运行时验收。
+- [ ] ~~真实 Kimi 0.40.1 Answer/Document Session 完成受控运行时验收~~（superseded 2026-09-13：Kimi 受控运行时路径已由 [Hermes ACP 接入改造](./2026-09-05-hermes-acp-integration.md) 的原生 ACP 接入替代，真实业务验收在彼任务执行，本任务不再处理。）
 
 ## 进展记录
 
@@ -64,6 +65,7 @@ related:
 | --- | --- | --- | --- |
 | 2026-08-24 至 2026-08-28 | superseded | 先后实现 permission rawInput 解析、Kimi 0.38 tool-call 关联及临时 Bash/MCP 方案；运行时暴露出 Octo 无 ACP Terminal、permission 摘要不足以安全批准的问题。 | 旧策略被本次 v5 设计替代，不再作为现行权限边界。 |
 | 2026-09-04 | in_progress | 已完成 MCP 链删除、Profile/fs/Terminal、执行账本、Session 快照、effect draft/确认 API、FE 确认入口以及 Support-QA Skill/架构文档同步。本地 focused/full/build 和前端/插件验证全绿；额外修复 action scratch symlink 根、fetch 输出未进入 action scratch、NVM 可执行路径和普通会话未保存 readonly Profile 四个边界。 | 尚未运行真实 Kimi/Ticket 外部验收。 |
+| 2026-09-13 | done | 用户确认关闭：v5 权限重构本体已全部交付，后续演进由 [Hermes ACP 接入改造](./2026-09-05-hermes-acp-integration.md) 承接并替代 Kimi 受控运行时路径。 | 唯一剩余项「真实 Kimi 0.40.1 受控运行时验收」标记 superseded、不再执行；真实业务验收以 Hermes 任务为准。 |
 
 ## 验证
 
