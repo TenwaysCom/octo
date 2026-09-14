@@ -665,6 +665,7 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .execute();
 
   await ensureOdooShBuildSchema(db);
+  await ensureMessageOutboxSchema(db);
 
   await db.schema
     .createTable("meegle_workitem_octo")
@@ -1142,6 +1143,7 @@ export async function resetPostgresDatabase(db: Kysely<DatabaseSchema>): Promise
   await sql`DROP TABLE IF EXISTS platform_sync_checkpoints`.execute(db);
   await sql`DROP TABLE IF EXISTS odoo_sh_build_notifications`.execute(db);
   await sql`DROP TABLE IF EXISTS odoo_sh_builds`.execute(db);
+  await sql`DROP TABLE IF EXISTS message_outbox`.execute(db);
   await sql`DROP TABLE IF EXISTS odoo_sh_build_sync_state`.execute(db);
   await sql`DROP TABLE IF EXISTS lark_base_ticket_octo`.execute(db);
   await sql`DROP TABLE IF EXISTS github_pr_octo`.execute(db);
@@ -1270,4 +1272,25 @@ export async function ensureOdooShBuildSchema(db: Kysely<DatabaseSchema>): Promi
 
   await sql`ALTER TABLE odoo_sh_builds ADD COLUMN IF NOT EXISTS head_commit_author text`.execute(db);
   await sql`ALTER TABLE odoo_sh_builds ADD COLUMN IF NOT EXISTS head_commit_url text`.execute(db);
+}
+
+
+async function ensureMessageOutboxSchema(db: Kysely<DatabaseSchema>): Promise<void> {
+  await db.schema.createTable("message_outbox").ifNotExists()
+    .addColumn("id", "text", (c) => c.primaryKey())
+    .addColumn("idempotency_key", "text", (c) => c.notNull().unique())
+    .addColumn("chat_id", "text", (c) => c.notNull())
+    .addColumn("text", "text", (c) => c.notNull())
+    .addColumn("status", "text", (c) => c.notNull())
+    .addColumn("attempts", "integer", (c) => c.notNull().defaultTo(0))
+    .addColumn("next_attempt_at", "text")
+    .addColumn("claim_token", "text")
+    .addColumn("claim_expires_at", "text")
+    .addColumn("message_id", "text")
+    .addColumn("error_code", "text")
+    .addColumn("created_at", "text", (c) => c.notNull())
+    .addColumn("updated_at", "text", (c) => c.notNull())
+    .execute();
+  await db.schema.createIndex("message_outbox_due").ifNotExists()
+    .on("message_outbox").columns(["status", "next_attempt_at", "created_at"]).execute();
 }

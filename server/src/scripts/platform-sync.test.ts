@@ -1,3 +1,7 @@
+import { readPlatformSyncSchedulerConfig, resolveBackgroundTaskConfig } from "../config/platform-sync-config.js";
+import { mkdtemp, writeFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   DEFAULT_PLATFORM_SYNC_CONFIG_PATH,
   parsePlatformSyncArgs,
@@ -415,5 +419,44 @@ describe("platform-sync script", () => {
       watermarkTiebreaker: "000000000001", limit: 2,
     }, store as never, runGh)).rejects.toThrow("reached --github-pr-limit=2");
     expect(store.upsertGitHubPullRequest).not.toHaveBeenCalled();
+  });
+});
+
+
+describe("background task configuration", () => {
+  it("honors the master switch and independent task switches", () => {
+    const parse = (enabled: boolean, builds: boolean, delivery: boolean) => resolveBackgroundTaskConfig(parsePlatformSyncConfig({
+      github: [{ owner: "acme", repo: "app" }],
+      scheduler: { enabled, tasks: {
+        odooSh: { enabled: builds, intervalMinutes: 7, chatId: "chat" },
+        messageDelivery: { enabled: delivery, pollIntervalSeconds: 11, maxAttempts: 4 },
+      } },
+    }).scheduler);
+    expect(parse(true, true, false)).toMatchObject({ odooSh: { enabled: true, intervalMinutes: 7, chatId: "chat" }, messageDelivery: { enabled: false, pollIntervalSeconds: 11, maxAttempts: 4 } });
+    expect(parse(true, false, true)).toMatchObject({ odooSh: { enabled: false }, messageDelivery: { enabled: true } });
+    expect(parse(false, true, true)).toMatchObject({ odooSh: { enabled: false }, messageDelivery: { enabled: false } });
+  });
+
+  it.each([
+    { odooSh: { intervalMinutes: 0 } }, { odooSh: { intervalMinutes: 1.5 } },
+    { messageDelivery: { batchSize: 0 } }, { odooSh: { chatId: " " } },
+    { messageDelivery: { sendTimeoutSeconds: -1 } }, { messageDelivery: { maxAttempts: 0 } },
+  ])("rejects invalid settings %j", (tasks) => {
+    expect(() => parsePlatformSyncConfig({
+      github: [{ owner: "acme", repo: "app" }], scheduler: { tasks },
+    })).toThrow();
+  });
+
+  it("loads server scheduling without platform targets and rejects malformed or explicitly missing config", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "octo-odoo-config-"));
+    const path = join(dir, "sync.json");
+    try {
+      await writeFile(path, JSON.stringify({ scheduler: { enabled: true, tasks: { odooSh: { intervalMinutes: 8 } } } }));
+      const tasks = resolveBackgroundTaskConfig(await readPlatformSyncSchedulerConfig(path));
+      expect(tasks).toMatchObject({ odooSh: { enabled: true, intervalMinutes: 8 }, messageDelivery: { batchSize: 10, maxAttempts: 3 } });
+      await writeFile(path, "{");
+      await expect(readPlatformSyncSchedulerConfig(path)).rejects.toThrow();
+      await expect(readPlatformSyncSchedulerConfig(join(dir, "missing.json"))).rejects.toThrow();
+    } finally { await rm(dir, { recursive: true, force: true }); }
   });
 });

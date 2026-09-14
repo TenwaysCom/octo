@@ -7,6 +7,7 @@ import { buildLarkTicketCleaningProjection } from "./lark-ticket-cleaning.js";
 import { PlatformSyncService } from "./platform-sync.service.js";
 import {
   LARK_TICKET_FIELD_CANDIDATES,
+  LARK_TICKET_CLOSED_AT_FIELD,
   LARK_TICKET_TITLE_FIELD_CANDIDATES,
   type LarkTicketSemanticField,
 } from "../../domain/lark-ticket-fields.js";
@@ -70,6 +71,7 @@ export interface UpdatedLarkTicketProjection {
   recordId: string;
   title: string;
   ticketStatus?: string;
+  closedAt?: string;
   issueType?: string;
   businessLine?: string;
   requester?: string;
@@ -206,6 +208,7 @@ function buildUpdatedTicketProjection(
     ...(projection.requester ? { requester: projection.requester } : {}),
     ...(projection.responsible ? { responsible: projection.responsible } : {}),
     ...(projection.priority ? { priority: projection.priority } : {}),
+    ...(projection.closedAt ? { closedAt: projection.closedAt } : {}),
     ticketStatus: readFieldText(fields, LARK_TICKET_FIELD_CANDIDATES.status),
   };
 }
@@ -279,6 +282,7 @@ export async function updateLarkTicketField(
     const fieldValue = buildFieldValue(field, fieldMeta, value, optionUserId);
     const updated: LarkBitableRecord = await client.updateRecord(baseId, tableId, recordId, {
       [fieldName]: fieldValue,
+      ...(field === "status" && value === "Finish" ? { [LARK_TICKET_CLOSED_AT_FIELD]: Date.now() } : {}),
     });
     serviceLogger.info({ actionRunId, recordId, field, fieldName }, "server.ticket-field.write");
 

@@ -2,7 +2,10 @@
   "meegle": [
     {
       "projectKey": "4c3fv6",
-      "workItemTypeKeys": ["story", "642ebe04168eea39eeb0d34a"],
+      "workItemTypeKeys": [
+        "story",
+        "642ebe04168eea39eeb0d34a"
+      ],
       "sourceUpdatedAtMqlFieldNames": {
         "story": "updated_at",
         "642ebe04168eea39eeb0d34a": "updated_at"
@@ -30,14 +33,41 @@
     "concurrency": 2,
     "leaseSeconds": 1200,
     "tasks": {
-      "lark":    { "enabled": false,  "intervalMinutes": 10 },
-      "meegle":  { "enabled": false,  "intervalMinutes": 15 },
-      "github":  { "enabled": false,  "intervalMinutes": 15 },
-      "shadow":  { "enabled": true,  "intervalMinutes": 30,
-                  "settleMinutes": 180, "batchLimit": 2, "summaryTimeoutSeconds": 300 },
+      "lark": {
+        "enabled": false,
+        "intervalMinutes": 10
+      },
+      "meegle": {
+        "enabled": false,
+        "intervalMinutes": 15
+      },
+      "github": {
+        "enabled": false,
+        "intervalMinutes": 15
+      },
+      "shadow": {
+        "enabled": true,
+        "intervalMinutes": 30,
+        "settleMinutes": 180,
+        "batchLimit": 2,
+        "summaryTimeoutSeconds": 300
+      },
       "help": {
         "leaseSeconds": 1200,
         "settleMinutes": "表示只有 source_updated_at 早于当前时间 3 小时的 Ticket，才会进入 Shadow 分析候选。"
+      },
+      "odooSh": {
+        "enabled": true,
+        "intervalMinutes": 30,
+        "chatId": "oc_ebad023939d64fa0b0314d03307d8d77"
+      },
+      "messageDelivery": {
+        "enabled": true,
+        "pollIntervalSeconds": 30,
+        "maxAttempts": 3,
+        "retryDelaySeconds": 60,
+        "sendTimeoutSeconds": 10,
+        "batchSize": 10
       }
     }
   }

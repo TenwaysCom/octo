@@ -12,17 +12,17 @@ export class OdooShBuildRefreshScheduler {
   private active: Promise<void> | undefined;
   private stopped = false;
 
-  constructor(private readonly deps: { refresh(environment: OdooDevopsEnvironment): Promise<unknown> }) {}
+  constructor(private readonly deps: { refresh(environment: OdooDevopsEnvironment): Promise<unknown>; intervalMs?: number }) {}
 
   start(): void {
     if (this.timer) return;
     this.stopped = false;
-    this.timer = setInterval(() => { void this.runCycle(); }, ODOO_SH_BUILD_REFRESH_INTERVAL_MS);
+    this.timer = setInterval(() => { void this.runCycle(); }, this.deps.intervalMs ?? ODOO_SH_BUILD_REFRESH_INTERVAL_MS);
     this.timer.unref();
     void this.runCycle();
     schedulerLogger.info({
       actionRunId: randomUUID(), layer: "server", module: "odoo-sh-build-refresh-scheduler",
-      stage: "server.refresh.started", intervalMs: ODOO_SH_BUILD_REFRESH_INTERVAL_MS,
+      stage: "server.refresh.started", intervalMs: this.deps.intervalMs ?? ODOO_SH_BUILD_REFRESH_INTERVAL_MS,
     }, "ODOO_SH_BUILD_REFRESH_STARTED");
   }
 
@@ -53,5 +53,6 @@ export class OdooShBuildRefreshScheduler {
         schedulerLogger.error({ ...context, stage: "server.refresh.failed", errorCode: "ODOO_SH_BUILD_REFRESH_FAILED" }, "ODOO_SH_BUILD_REFRESH_FAILED");
       }
     }));
+
   }
 }

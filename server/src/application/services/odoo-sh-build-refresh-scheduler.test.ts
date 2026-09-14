@@ -49,3 +49,18 @@ it("coalesces overlapping cycles and drains an active refresh on shutdown", asyn
   await scheduler.runCycle();
   expect(refresh).toHaveBeenCalledTimes(3);
 });
+
+
+it("uses the configured refresh interval", async () => {
+  vi.useFakeTimers();
+  const refresh = vi.fn().mockResolvedValue(undefined);
+  const scheduler = new OdooShBuildRefreshScheduler({ refresh, intervalMs: 60_000 });
+  try {
+    scheduler.start();
+    await scheduler.runCycle();
+    await vi.advanceTimersByTimeAsync(59_999);
+    expect(refresh).toHaveBeenCalledTimes(3);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(refresh).toHaveBeenCalledTimes(6);
+  } finally { await scheduler.stop(); vi.useRealTimers(); }
+});

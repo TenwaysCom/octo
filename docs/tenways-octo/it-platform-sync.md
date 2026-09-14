@@ -643,3 +643,10 @@ syncLark...    -> cleanLarkBaseTickets(...)
 - 每个 scope 的频率、重叠窗口、全量校验周期与保留时长。
 - 三张 `_octo` 表的首批字段、清洗版本策略与本地数据权限。
 - `stale`、删除和权限丢失的展示与人工确认规则。
+
+
+### Odoo.sh 业务同步与通用消息发送
+
+两个独立任务统一在 `server/config/platform-sync.local.json` 的 `scheduler.tasks` 配置：`odooSh` 刷新构建并生成完整消息，`messageDelivery` 从 PostgreSQL 通用队列发送消息。两者受 `scheduler.enabled` 总开关控制，目前由 Server 托管，与已有 platform-sync-worker 中的 Lark/Meegle/GitHub 调度共享配置但不重复执行。修改后重启 Server 生效。
+
+Odoo 业务事件保留在 `odoo_sh_build_notifications`，完成正文生成后标记 `queued`；实际发送状态进入 `message_outbox`，发送 Worker 不依赖 Odoo 字段。其他业务可写入相同的 Lark 文本消息契约，本次未迁移其他发送链路。首次构建基线静默、业务事件转消息的事务边界、旧通知与不确定结果处理见 [生命周期](../ai-dev/lifecycle/current-system-technical-objects.md) 和 [任务台账](../tasks/platform-sync/2026-09-13-odoo-build-sync-and-message-delivery-workers.md)。

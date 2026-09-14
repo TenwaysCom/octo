@@ -488,6 +488,21 @@ export interface DatabaseSchema {
     last_seen_at: string;
     updated_at: string;
   };
+  message_outbox: {
+    id: string;
+    idempotency_key: string;
+    chat_id: string;
+    text: string;
+    status: string;
+    attempts: number;
+    next_attempt_at: string | null;
+    claim_token: string | null;
+    claim_expires_at: string | null;
+    message_id: string | null;
+    error_code: string | null;
+    created_at: string;
+    updated_at: string;
+  };
   odoo_sh_build_notifications: {
     id: string;
     environment: string;

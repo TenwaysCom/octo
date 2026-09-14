@@ -1,4 +1,4 @@
-import { LARK_TICKET_FIELD_CANDIDATES } from "../../domain/lark-ticket-fields.js";
+import { LARK_TICKET_CLOSED_AT_FIELD, LARK_TICKET_FIELD_CANDIDATES } from "../../domain/lark-ticket-fields.js";
 
 const TICKET_NUMBER_FIELDS = ["Ticket 编号", "Ticket编号", "ticket编号", "Ticket Number", "Ticket No.", "编号"];
 const ISSUE_TYPE_FIELDS = LARK_TICKET_FIELD_CANDIDATES.issueType;
@@ -41,7 +41,7 @@ export function buildLarkTicketCleaningProjection(
     responsible: readField(source, RESPONSIBLE_FIELDS),
     priority: readField(source, URGENCY_FIELDS),
     createdAt: normalizeLarkTicketTimestamp(readField(source, CREATED_AT_FIELDS) ?? createdTime),
-    closedAt: normalizeLarkTicketTimestamp(readField(source, ["关闭时间"])),
+    closedAt: normalizeLarkTicketTimestamp(readField(source, [LARK_TICKET_CLOSED_AT_FIELD])),
     solution: readField(source, ["解决方案"]),
     detailDescription,
     meegleLink: readUrl(source, MEEGLE_LINK_FIELDS),

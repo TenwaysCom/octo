@@ -68,6 +68,7 @@ describe("executeMeegleLarkPush", () => {
           type: "production_bug",
           status: "Open",
           fields: {
+            field_e8ad0a: "https://example.larksuite.com/base/app_1?table=tbl_1&record=rec_1",
             field_c22a1a: "回复测试",
             field_8d0341: "https://applink.larksuite.com/client/chat/chatter/add_by_link?chatid=oc_test",
             fields: [
@@ -87,9 +88,11 @@ describe("executeMeegleLarkPush", () => {
     });
 
     const sendMessage = vi.fn().mockResolvedValue({ message_id: "om_sent" });
+    const updateRecord = vi.fn().mockResolvedValue({ record_id: "rec_1" });
     mocks.buildAuthenticatedLarkClient.mockResolvedValue({
       baseUrl: "https://open.larksuite.com",
       client: {
+        updateRecord,
         sendMessage,
         addMessageReaction: vi.fn(),
       },
@@ -101,6 +104,7 @@ describe("executeMeegleLarkPush", () => {
       ]),
     };
 
+    const before = Date.now();
     const result = await executeMeegleLarkPush(
       {
         projectKey: "4c3fv6",
@@ -113,6 +117,11 @@ describe("executeMeegleLarkPush", () => {
     );
 
     expect(result).toMatchObject({ ok: true, messageSent: true });
+    expect(updateRecord).toHaveBeenCalledWith("app_1", "tbl_1", "rec_1", {
+      "状态": "Finish", "关闭时间": expect.any(Number),
+    });
+    expect(updateRecord.mock.calls[0]![3]["关闭时间"]).toBeGreaterThanOrEqual(before);
+    expect(updateRecord.mock.calls[0]![3]["关闭时间"]).toBeLessThanOrEqual(Date.now());
     expect(getUsers).toHaveBeenCalledWith(["7538275242901323808"]);
     expect(larkContactResolver.resolveByEmails).toHaveBeenCalledWith(
       ["rick.hu@tenways.com"],

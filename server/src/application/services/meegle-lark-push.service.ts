@@ -6,6 +6,7 @@
  */
 
 import { LarkClient } from "../../adapters/lark/lark-client.js";
+import { LARK_TICKET_CLOSED_AT_FIELD } from "../../domain/lark-ticket-fields.js";
 import {
   buildAuthenticatedLarkClient,
   type AuthenticatedLarkClientFactoryDeps,
@@ -520,6 +521,7 @@ export async function executeMeegleLarkPush(
           recordInfo.recordId,
           {
             [statusFieldName]: "Finish",
+            [LARK_TICKET_CLOSED_AT_FIELD]: Date.now(),
           },
         );
         larkBaseUpdated = true;

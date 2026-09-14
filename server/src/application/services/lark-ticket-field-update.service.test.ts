@@ -48,6 +48,42 @@ function createClient(overrides: Record<string, unknown> = {}) {
 }
 
 describe("lark-ticket-field-update service", () => {
+  it.each([undefined, 1700000000000])("writes the current close time with Finish, replacing %s", async (previousClosedAt) => {
+    const client = createClient({
+      getRecord: vi.fn().mockResolvedValue({ record_id: "rec_1", fields: {
+        Status: "In Progress", "关闭时间": previousClosedAt,
+      } }),
+      updateRecord: vi.fn().mockImplementation(async (_base, _table, _record, fields) => ({ record_id: "rec_1", fields })),
+    });
+    const syncLarkBaseTicket = vi.fn().mockResolvedValue({ synced: 1 });
+    const before = Date.now();
+    const result = await updateLarkTicketField({
+      masterUserId: "user_1", baseId: "app_1", tableId: "tbl_1", recordId: "rec_1",
+      field: "status", value: "Finish",
+    }, { ...authDeps, createLarkClient: () => client as never, syncLarkBaseTicket });
+
+    const written = client.updateRecord.mock.calls[0]![3];
+    expect(written).toEqual({ Status: "Finish", "关闭时间": expect.any(Number) });
+    expect(written["关闭时间"]).toBeGreaterThanOrEqual(before);
+    expect(written["关闭时间"]).toBeLessThanOrEqual(Date.now());
+    expect(client.updateRecord).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({ ok: true, ticket: {
+      ticketStatus: "Finish", closedAt: new Date(written["关闭时间"]).toISOString(),
+    } });
+    expect(syncLarkBaseTicket).toHaveBeenCalledWith(expect.objectContaining({ recordId: "rec_1", cleanAfterSync: true }));
+  });
+
+  it("does not refresh the local ticket when the combined Finish write fails", async () => {
+    const client = createClient({ updateRecord: vi.fn().mockRejectedValue(new Error("WRITE_REJECTED")) });
+    const syncLarkBaseTicket = vi.fn();
+    const result = await updateLarkTicketField({
+      masterUserId: "user_1", baseId: "app_1", tableId: "tbl_1", recordId: "rec_1",
+      field: "status", value: "Finish",
+    }, { ...authDeps, createLarkClient: () => client as never, syncLarkBaseTicket });
+    expect(result).toMatchObject({ ok: false, error: { errorCode: "LARK_API_ERROR" } });
+    expect(syncLarkBaseTicket).not.toHaveBeenCalled();
+  });
+
   it("writes a select field by candidate field name and returns the refreshed projection", async () => {
     const client = createClient();
     const syncLarkBaseTicket = vi.fn().mockResolvedValue({ synced: 1 });

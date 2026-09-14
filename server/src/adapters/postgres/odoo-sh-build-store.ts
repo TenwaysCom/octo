@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { sql, type Kysely, type Selectable } from "kysely";
+import { PostgresMessageOutboxStore, type OutgoingMessage } from "./message-outbox-store.js";
 import { getSharedDatabase } from "./database.js";
 import type { DatabaseSchema } from "./schema.js";
 
@@ -23,6 +24,7 @@ export interface OdooShBuildRecord {
 }
 
 export type OdooShBuildNotificationStatus =
+  | "queued"
   | "pending_identity"
   | "pending_send"
   | "sending"
@@ -152,7 +154,7 @@ function toNotificationRecord(row: Selectable<DatabaseSchema["odoo_sh_build_noti
 
 function readStatus(value: string): OdooShBuildNotificationStatus {
   const allowed: OdooShBuildNotificationStatus[] = [
-    "pending_identity", "pending_send", "sending", "sent", "failed", "outcome_unknown",
+    "pending_identity", "pending_send", "sending", "sent", "failed", "outcome_unknown", "queued",
   ];
   return allowed.includes(value as OdooShBuildNotificationStatus)
     ? value as OdooShBuildNotificationStatus
@@ -282,6 +284,47 @@ export class PostgresOdooShBuildStore {
         touched: input.touchBuildIds.length,
         notificationsQueued,
       };
+    });
+  }
+
+  async listNotificationsForPreparation(environment: string, projectId: number): Promise<OdooShBuildNotificationRecord[]> {
+    const rows = await this.database.selectFrom("odoo_sh_build_notifications").selectAll()
+      .where("environment", "=", environment).where("project_id", "=", projectId)
+      .where("status", "in", ["pending_send", "pending_identity", "queued"]).execute();
+    return rows.map(toNotificationRecord);
+  }
+
+  /** Atomically transfer a business event into the generic delivery queue, or cancel it on recovery. */
+  async prepareNotification(id: string, build: OdooShBuildRecord, message: OutgoingMessage | null): Promise<boolean> {
+    return this.database.transaction().execute(async (tx) => {
+      // Lock order matches snapshot writes: build first, then its event.
+      const current = await tx.selectFrom("odoo_sh_builds").select("updated_at")
+        .where("environment", "=", build.environment).where("project_id", "=", build.projectId)
+        .where("build_id", "=", build.buildId).forUpdate().executeTakeFirst();
+      if (!current || current.updated_at !== build.updatedAt) return false;
+      const event = await tx.selectFrom("odoo_sh_build_notifications").selectAll()
+        .where("id", "=", id).where("environment", "=", build.environment)
+        .where("project_id", "=", build.projectId).where("build_id", "=", build.buildId)
+        .where("status", "in", ["pending_send", "pending_identity", "queued"])
+        .forUpdate().executeTakeFirst();
+      if (!event) return false;
+      const outbox = new PostgresMessageOutboxStore(tx);
+      if (message) {
+        if (event.status === "queued") return false;
+        await outbox.enqueue({ ...message, idempotencyKey: `odoo-sh-build-notify:${id}` }, {
+          attempts: event.attempts, nextAttemptAt: event.next_attempt_at,
+        });
+      } else {
+        const cancelled = await outbox.cancelPending(`odoo-sh-build-notify:${id}`);
+        if (event.status === "queued" && !cancelled) return false;
+      }
+      await tx.updateTable("odoo_sh_build_notifications").set({
+        status: message ? "queued" : "failed",
+        error_code: message ? null : "ODOO_SH_NOTIFY_BUILD_NO_LONGER_FAILED",
+        error_message: message ? null : "当前 build 已恢复，取消尚未发送的消息",
+        updated_at: new Date().toISOString(),
+      }).where("id", "=", id).execute();
+      return true;
     });
   }
 

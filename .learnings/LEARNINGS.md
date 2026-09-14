@@ -784,3 +784,12 @@ source: [Odoo.sh 失败通知](../docs/tasks/engineering-ops/2026-09-10-odoo-bui
 **Rule:** 修复依赖行锁的并发问题时，用隔离 PostgreSQL 实例验证锁等待及提交后的重读；将这类证据与内存数据库测试明确区分。
 
 source: [Meegle Sprint 历史与详情](../docs/tasks/platform-data/2026-08-27-meegle-sprint-history.md)
+
+
+## [LRN-20260913-002] separate-message-production-from-delivery
+
+**Context:** 将业务专用通知改成通用发送队列时，仅重命名 Worker 容易保留业务查询和模板判断，导致新业务仍需修改发送器。
+
+**Rule:** 生产端负责业务判定、身份解析和完整消息组装；发送端只消费目标、正文、幂等键与投递状态。业务事件转入发送队列必须具有事务或可恢复边界，迁移时保留终态和不确定结果，避免重复投递。
+
+source: [Odoo.sh 构建同步与通用消息发送 Worker](../docs/tasks/platform-sync/2026-09-13-odoo-build-sync-and-message-delivery-workers.md)

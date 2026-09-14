@@ -597,6 +597,8 @@ projectKey + workitemTypeKey
 
 ## 13. Meegle 到 Lark 推送生命周期
 
+Web Ticket 字段编辑将状态写为 `Finish` 时，同样在单次 Base 更新请求中写入 `关闭时间`（服务器当前毫秒时间戳，覆盖旧值）。写入成功后执行单 Ticket 同步和清洗，返回 ISO 格式 `closedAt` 供页面刷新；同步失败沿用 `larkBaseUpdated: true / syncFailed: true` 部分成功语义。其他状态或字段修改不写关闭时间。
+
 ### 技术对象
 
 `MeegleLarkPushAction`
@@ -612,7 +614,7 @@ Meegle 工作项详情页
   -> server 获取 Meegle 工作项详情
   -> server 提取 Lark 记录链接、消息链接、更新消息与更新状态
   -> 若已更新则停止
-  -> 有记录链接时更新 Lark Base 状态
+  -> 有记录链接时将 Lark Base 状态改为 Finish，并在同一请求中将关闭时间写为服务器当前毫秒时间戳
   -> 有消息链接时发送 Lark 消息与反应
   -> 将 Meegle 状态字段更新为已更新
   -> 返回动作结果
@@ -814,4 +816,10 @@ PR Quick scan / Deep review 的运行状态存于 PostgreSQL `github_pr_review_r
 
 ### Odoo.sh build 失败通知
 
-Server 启动后立即刷新 EU / UK / US，之后由 `OdooShBuildRefreshScheduler` 每 30 分钟强制刷新。定时与页面读取共用每环境刷新 Promise，读取 branches 和不带 limit 的 `/builds`，校验环境/项目后将真实 build id、状态和 head commit 信息写入 PostgreSQL。初始化标记 `odoo_sh_build_sync_state` 与首次快照原子保存，历史不通知，空项目也能完成初始化；后续为所有新增失败或失败转换入队，不只检查分支首项。消费者用 `ODOO_SH_BUILD_AUTHOR_GITHUB_MAPPING` 的大小写无关别名查询唯一 active `users.github_id → lark_id` 绑定。缺身份仍发送正文，成功后保存 message_id；token 获取网络失败可重试，实际发送结果不确定或机器人未入群时停止自动重发。过期 sending 一律待核实，不依赖 Lark 的短期幂等窗口重发；远端已送达而本地确认写回失败时保留 message_id 用于核实。通知 timer 捕获单轮异常，后续周期继续运行。Server 关闭时停止并等待刷新；该调度为单进程能力。任务决策与验证证据见 [Odoo.sh 失败通知](../../tasks/engineering-ops/2026-09-10-odoo-build-failure-lark-notification.md)。
+Odoo.sh 业务同步与通用消息发送是两个独立调度的 Server-owned Worker，共读 `platform-sync.local.json`（可由 `PLATFORM_SYNC_CONFIG_PATH` 指定）。`scheduler.enabled` 是总开关，`scheduler.tasks.odooSh` 控制构建刷新及目标群，`scheduler.tasks.messageDelivery` 控制通用发送的轮询、批量、超时和重试。两个任务都依赖 Server 存活；配置修改后重启 Server，现有 platform-sync-worker 不重复启动它们。
+
+业务同步启动后立即刷新 EU / UK / US，之后按配置间隔刷新（默认 30 分钟）。定时与页面读取共用每环境刷新 Promise。`odoo_sh_build_sync_state` 与首次快照原子保存，历史不通知，空项目也能初始化；后续为所有新增失败或失败转换写入 `odoo_sh_build_notifications` 业务事件。Odoo 生产端解析作者绑定、确定目标群并组装完整正文，在同一事务内写入 `message_outbox`、把事件标记为 `queued`；生成失败保留业务事件供后续刷新重试。build 恢复时生产端取消尚未领取的消息，已发送或发送中的消息不回滚。
+
+`MessageDeliveryWorker` 只消费通用 `message_outbox` 的目标、正文与幂等键，不读取 build、不解析作者。发送状态、尝试次数、平台 message_id 以通用表为准；领取使用条件更新与 claim token，明确可重试的失败有限重试，发送结果不确定或确认落库失败保持待核实，过期 sending 不自动重发。关闭 Server 时等待刷新与在途发送结束（仍受整体退出超时限制）。旧 Odoo 表保留去重和审计：确定未发送的事件可转入通用队列并保留原尝试次数与退避时间；sent/failed/outcome_unknown 不重发，旧 sending 过期后转为 outcome_unknown。原 Odoo 专用消费者不再使用。
+
+具体配置、兼容策略与验收见 [Worker 拆分任务](../../tasks/platform-sync/2026-09-13-odoo-build-sync-and-message-delivery-workers.md)。

@@ -1,8 +1,8 @@
 import "dotenv/config";
+import { DEFAULT_PLATFORM_SYNC_CONFIG_PATH, readPlatformSyncConfig, type PlatformSyncConfig } from "../config/platform-sync-config.js";
+export { DEFAULT_PLATFORM_SYNC_CONFIG_PATH, readPlatformSyncConfig, parsePlatformSyncConfig, type PlatformSyncConfig } from "../config/platform-sync-config.js";
 import { execFile } from "node:child_process";
-import { readFile } from "node:fs/promises";
 import { promisify } from "node:util";
-import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import type { Kysely } from "kysely";
 import { PlatformSyncService } from "../application/services/platform-sync.service.js";
@@ -34,9 +34,7 @@ const DEFAULT_GITHUB_PR_LIMIT = 100;
 const MAX_GITHUB_PR_LIMIT = 1000;
 const GITHUB_INCREMENTAL_OVERLAP_MS = 5 * 60 * 1000;
 const execFileAsync = promisify(execFile);
-export const DEFAULT_PLATFORM_SYNC_CONFIG_PATH = fileURLToPath(
-  new URL("../../config/platform-sync.local.json", import.meta.url),
-);
+
 
 const platformNameSchema = z.enum(["meegle", "github", "lark"]);
 export type PlatformName = z.infer<typeof platformNameSchema>;
@@ -45,88 +43,6 @@ export type GitHubPullRequestState = z.infer<typeof githubPullRequestStateSchema
 type GitHubPullRequestSyncState = Exclude<GitHubPullRequestState, "all">;
 const syncModeSchema = z.enum(["full", "incremental", "clean"]);
 export type PlatformSyncMode = z.infer<typeof syncModeSchema>;
-const syncTaskToggleSchema = z.object({
-  enabled: z.boolean().default(true),
-  intervalMinutes: z.number().int().min(1).max(1440).optional(),
-});
-
-const shadowTaskSchema = z.object({
-  enabled: z.boolean().default(false),
-  intervalMinutes: z.number().int().min(1).max(1440).optional(),
-  settleMinutes: z.number().int().min(1).max(10080).optional(),
-  batchLimit: z.number().int().min(1).max(50).optional(),
-  summaryTimeoutSeconds: z.number().int().min(30).max(1800).optional(),
-  // Backward-compatible reads for existing local configs. New configs use
-  // summaryTimeoutSeconds because the shared Ticket Summary provider is
-  // selectable between DeepSeek and ZCode.
-  deepSeekTimeoutSeconds: z.number().int().min(30).max(1800).optional(),
-  acpTimeoutSeconds: z.number().int().min(30).max(1800).optional(),
-});
-
-const platformSyncSchedulerSchema = z.object({
-  enabled: z.boolean().default(false),
-  pollIntervalSeconds: z.number().int().min(5).max(300).default(30),
-  concurrency: z.number().int().min(1).max(8).default(2),
-  leaseSeconds: z.number().int().min(60).max(3600).default(1200),
-  intervalsMinutes: z.object({
-    lark: z.number().int().min(1).max(1440).default(10),
-    meegle: z.number().int().min(1).max(1440).default(15),
-    github: z.number().int().min(1).max(1440).default(10),
-  }).default({ lark: 10, meegle: 15, github: 10 }),
-  tasks: z.object({
-    lark: syncTaskToggleSchema.default({ enabled: true }),
-    meegle: syncTaskToggleSchema.default({ enabled: true }),
-    github: syncTaskToggleSchema.default({ enabled: true }),
-    shadow: shadowTaskSchema.default({ enabled: false }),
-  }).default({
-    lark: { enabled: true },
-    meegle: { enabled: true },
-    github: { enabled: true },
-    shadow: { enabled: false },
-  }),
-}).default({
-  enabled: false,
-  pollIntervalSeconds: 30,
-  concurrency: 2,
-  leaseSeconds: 1200,
-  intervalsMinutes: { lark: 10, meegle: 15, github: 10 },
-  tasks: {
-    lark: { enabled: true },
-    meegle: { enabled: true },
-    github: { enabled: true },
-    shadow: { enabled: false },
-  },
-});
-
-const platformSyncConfigSchema = z.object({
-  meegle: z.array(z.object({
-    projectKey: z.string().min(1),
-    workItemTypeKeys: z.array(z.string().min(1)).min(1).optional(),
-    sourceUpdatedAtMqlFieldNames: z.record(z.string().min(1), z.string().min(1)).default({}),
-  })).default([]),
-  github: z.array(z.object({
-    owner: z.string().min(1),
-    repo: z.string().min(1),
-  })).default([]),
-  larkBase: z.array(z.object({
-    baseId: z.string().min(1),
-    tableId: z.string().min(1),
-    larkBaseUrl: z.string().url().optional(),
-    titleFieldName: z.string().min(1).optional(),
-    statusFieldName: z.string().min(1).optional(),
-    sourceUpdatedAtFieldName: z.string().min(1).default("最后更新时间"),
-  })).default([]),
-  scheduler: platformSyncSchedulerSchema,
-}).superRefine((value, context) => {
-  if (value.meegle.length + value.github.length + value.larkBase.length === 0) {
-    context.addIssue({
-      code: "custom",
-      message: "At least one Meegle, GitHub, or Lark Base target is required",
-    });
-  }
-});
-
-export type PlatformSyncConfig = z.infer<typeof platformSyncConfigSchema>;
 
 export interface PlatformSyncScriptArgs {
   masterUserId: string;
@@ -295,26 +211,7 @@ export function parsePlatformSyncArgs(argv: string[]): PlatformSyncScriptArgs {
   return args;
 }
 
-export async function readPlatformSyncConfig(path: string): Promise<PlatformSyncConfig> {
-  let source: string;
-  try {
-    source = await readFile(path, "utf8");
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`Unable to read platform sync config at ${path}: ${message}`);
-  }
 
-  try {
-    return parsePlatformSyncConfig(JSON.parse(source));
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`Invalid platform sync config at ${path}: ${message}`);
-  }
-}
-
-export function parsePlatformSyncConfig(input: unknown): PlatformSyncConfig {
-  return platformSyncConfigSchema.parse(input);
-}
 
 export function getMeegleIncrementalScopes(
   config: PlatformSyncConfig,
