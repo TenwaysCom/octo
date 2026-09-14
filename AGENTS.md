@@ -1,136 +1,114 @@
+# AGENTS.md
+
 ## Project Overview
 
-Tenways Octo is a browser extension plus backend server for PM coordination across Lark, Meegle, GitHub, identity/auth, and PM analysis flows.
+Tenways Octo coordinates PM work across Lark, Meegle, GitHub, identity/auth, and PM analysis flows.
 
-Core split:
+| Area | Responsibility |
+| --- | --- |
+| `extension/` | Thin browser client: page detection, context capture, auth triggers, UI, and action dispatch. |
+| `fe/` | Vite + React web UI: platform views, user interactions, and server API consumption. |
+| `server/` | Page/action catalog, identity/auth, business workflows, platform orchestration, persistence, and diagnostics. |
+| `server/src/adapters/` | Third-party API calls, persistence implementations, and platform error normalization. |
 
-- Extension stays thin: page detection, context capture, auth triggers, UI, and action dispatch.
-- Server owns page/action catalog, identity/auth, workflows, platform orchestration, persistence, and diagnostics.
-- Platform adapters own third-party API calls and error normalization.
+## Working Scope
 
-## Route Naming
+- Do exactly what was asked. Keep changes surgical and prefer editing existing files.
+- Do not infer new capabilities, dependencies, configuration, or architecture from examples or similar features. If a choice expands scope, state the assumption and obtain confirmation before proceeding.
+- Inspect the working tree before editing; preserve unrelated user changes.
+- Write commit messages and PR descriptions casually and specifically, describing actual changes and verification.
 
-- Public HTTP routes use current names such as `/api/lark-bug/*` and `/api/lark-user-story/*`.
-- Old `/api/a1/*` and `/api/a2/*` routes have been removed. Do not reintroduce them without an explicit compatibility plan.
+## Reading Guide
 
-## Commands
+Before non-trivial changes, read the relevant documents and sections for the affected layers:
 
-Prefer package-scoped commands from the package you are changing.
-
-Server:
-
-```bash
-pnpm --dir server dev
-pnpm --dir server test
-pnpm --dir server build
-pnpm --dir server start
-pnpm --dir server db:migrate
-pnpm --dir server db:reset
-```
-
-Extension:
-
-```bash
-pnpm --dir extension dev
-pnpm --dir extension test
-pnpm --dir extension typecheck
-pnpm --dir extension build
-pnpm --dir extension package
-pnpm --dir extension test:e2e
-```
-
-## 本地 FE 插件登录联调
-
-启动同一套本地环境：
-
-```bash
-make server-dev
-make ext-dev-profile
-make fe-dev
-```
-
-- FE 为 `http://localhost:4173`，Vite 将 `/api` 代理到 Server `http://localhost:3040`。
-- `ext-dev-profile` 使用 `~/.config/octo-ext-profile/Default`；真实 Lark 登录只保留在该专用 profile，不读取或导出其 cookie/token。
-- 成功判定必须同时看到 `start -> approve -> complete` 都返回 `2xx`，随后 `GET /api/web/profile` 为已登录状态。
-
-排查时只提取非敏感请求字段，不输出响应体、cookie、token 或用户资料：
-
-```bash
-rg '"path":"/api/web/plugin-login/(start|approve|complete)"' server/logs/api.$(date +%F).* \
-  | jq -r '[.time, .phase, .method, .path, (.statusCode // "")] | @tsv'
-```
+| When | Read |
+| --- | --- |
+| Development, troubleshooting, or documentation work | [Development workflow](docs/ai-dev/rules/development-workflow.md) |
+| Technical object or lifecycle changes | [Current technical objects](docs/ai-dev/lifecycle/current-system-technical-objects.md) |
+| Cross-layer actions, auth, or API contracts | [System boundaries](docs/ai-dev/rules/system-boundaries-and-code-rules.md) |
+| Extension changes | [Extension rules](docs/ai-dev/rules/extension-code-rules.md) |
+| Server or adapter changes | [Server rules](docs/ai-dev/rules/server-code-rules.md) |
+| FE changes or plugin-login verification | [FE guide](fe/README.md) |
 
 ## Hard Rules
 
-1. Keep workflow/business logic out of the extension.
-2. Backend actions should be driven by server `automationActions.executor`, not popup hardcoded backend routes.
-3. New or refactored cross-layer actions should carry `actionRunId` and return or log `layer`, `module`, `stage`, and `errorCode`.
+1. Keep business workflows on the server. Extension and FE own client interactions and presentation.
+2. Extension backend actions must use server `pageConfig.automationActions[].executor`, not popup hardcoded backend routes.
+3. New or refactored cross-layer actions should carry one `actionRunId` through the flow and return or log `layer`, `module`, `stage`, and `errorCode`.
 4. Do not scatter Meegle `field_*` keys in popup or workflow services; use a metadata resolver or documented fallback config.
 5. Validate API inputs with Zod DTO schemas.
 6. Keep services dependency-injected through explicit deps objects so they stay testable.
 7. Preserve structured `{ ok, data, error }` responses where the module already uses them.
-8. Do not use `console.log`; use server `logger.ts` or `extension/src/logger.ts`.
-9. Never send raw browser cookies to the server. Treat auth codes as one-time credentials.
-10. Dependencies should be added as devDependencies unless explicitly requested otherwise.
+8. Do not add `console.log`; use `server/src/logger.ts` for server logging and `extension/src/logger.ts` for extension logging.
+9. Never forward raw third-party browser cookies to the server. Treat auth codes as one-time credentials; keep platform tokens server-side. FE authentication uses the server-issued opaque HttpOnly Web session cookie.
+10. Add dependencies as devDependencies unless explicitly requested otherwise.
 
-## Agent Reading Rules
+## Route Naming
 
-For non-trivial changes, agents must read the relevant docs before editing:
+- Use registered public routes such as `/api/lark-bug/analyze` and `/api/lark-base/create-meegle-workitem`. Check [route registration](server/src/index.ts) and [route tests](server/src/index.test.ts) before documenting or calling an endpoint.
+- `/api/a1/*`, `/api/a2/*`, `/api/lark-user-story/*`, and the old `/api/lark-bug/to-meegle-product-bug/{draft,apply}` routes are removed. Do not reintroduce them without an explicit compatibility plan.
 
-- Technical object lifecycle: `docs/ai-dev/lifecycle/current-system-technical-objects.md`
-- Cross-layer boundary rules: `docs/ai-dev/rules/system-boundaries-and-code-rules.md`
-- Extension code rules: `docs/ai-dev/rules/extension-code-rules.md`
-- Server code rules: `docs/ai-dev/rules/server-code-rules.md`
+## Commands And Verification
 
-## Testing
+Run commands from the repository root, scoped to the package being changed. Script definitions live in each package's `package.json`; shortcuts live in [Makefile](Makefile).
 
-- Server verification usually means `pnpm --dir server test` and often `pnpm --dir server build`.
-- Extension verification usually means `pnpm --dir extension test`, `pnpm --dir extension typecheck`, and `pnpm --dir extension build`.
-- Extension live E2E uses Playwright via `pnpm --dir extension test:e2e`.
-- Vitest globals are enabled. Use `describe`, `it`, and `expect` directly without importing them.
-- Do not introduce dynamic `await import()` patterns in tests.
+| Package | Development | Usual verification | Other |
+| --- | --- | --- | --- |
+| Server | `pnpm --dir server dev` | `pnpm --dir server test`; `pnpm --dir server build` | `pnpm --dir server start` (build first) |
+| Extension | `pnpm --dir extension dev` | `pnpm --dir extension test`; `pnpm --dir extension typecheck`; `pnpm --dir extension build` | `pnpm --dir extension package`; `pnpm --dir extension test:e2e` |
+| FE | `pnpm --dir fe dev` | `pnpm --dir fe check` (test + build) | `pnpm --dir fe test`; `pnpm --dir fe build` |
+
+- Database scripts run compiled `dist/` code: build the server before `pnpm --dir server db:migrate` or `pnpm --dir server db:reset`. `db:reset` drops and recreates application tables; use it only for an explicitly authorized reset against the intended database.
+- Choose checks appropriate to the change. For documentation-only changes, verify referenced paths, commands, and the diff; no application test suite is needed unless behavior also changes.
+- Server and extension unit tests use Vitest globals: use `describe`, `it`, and `expect` without importing them. FE tests use `node:test` and `node:assert/strict`, following existing FE tests. Do not introduce dynamic `await import()` patterns in tests.
+- Extension TypeScript config does not load Vitest global types. New tests using globals need `/// <reference types="vitest/globals" />`, as in existing toolbar tests; runtime `globals: true` alone does not satisfy typecheck.
+- Extension live E2E uses Playwright. Confirm server URL, extension build/profile, platform authorization, and seed data before running it.
+- Report static checks, unit tests, mock integration, live E2E, and deployed runtime verification separately. Record checks not run and their limits; local tests do not prove deployment.
+
+## Local FE Plugin Login
+
+Run each command in a separate terminal:
+
+```bash
+PORT=3040 LARK_OAUTH_CALLBACK_URL=http://localhost:4173/api/lark/auth/callback make server-dev
+make ext-dev-profile
+make fe-dev
+```
+
+- FE runs at `http://localhost:4173`; Vite proxies `/api` to `http://localhost:3040`. The server otherwise uses `PORT` or defaults to `3000`; `make server-dev` alone does not set `3040`.
+- Select extension environment `dev` and set its custom `SERVER_URL` to `http://localhost:4173`, matching the browser-facing FE origin.
+- `ext-dev-profile` defaults to `~/.config/octo-ext-profile/Default` (`EXT_PROFILE_DIR` overrides the profile root). Keep real Lark login in this dedicated profile; never read or export its cookies/tokens.
+- Success requires `start -> approve -> complete` all returning `2xx`, followed by `GET /api/web/profile` reporting a logged-in state. The local server database must have the plugin user's active Lark authorization.
+
+Extract only non-sensitive request fields; never output response bodies, cookies, tokens, or user profiles. Use `--no-filename` so multiple rotated files remain valid JSON input to `jq`:
+
+```bash
+rg --no-filename '"path":"/api/web/plugin-login/(start|approve|complete)"' server/logs/api.$(date +%F).* \
+  | jq -r '[.time, .phase, .method, .path, (.statusCode // "")] | @tsv'
+```
 
 ## Logs
 
-- Server logs: `server/logs/app.YYYY-MM-DD.N.log`, `server/logs/api.YYYY-MM-DD.N.log` (Pino daily rotation).
-- Extension client upload logs: `server/logs/popup-client.YYYY-MM-DD.N.log` when enabled (same Pino daily rotation).
-- Use `LOG_LEVEL=debug` for deeper server debugging.
+- Default server logs: `server/logs/app.YYYY-MM-DD.N.log` and `server/logs/api.YYYY-MM-DD.N.log` (Pino daily rotation when started from the server package).
+- Extension client upload logs: `server/logs/popup-client.YYYY-MM-DD.N.log` when enabled.
+- Use `LOG_LEVEL=debug` for deeper server debugging. Log only safe summaries; never record raw credentials, full auth codes, or sensitive platform payloads.
 
-## Documentation
+## Documentation And Task Records
 
-- Keep high-level product/architecture references in `docs/tenways-octo/`.
-- Keep AI/dev governance, lifecycle, rules, execution plans, and issue maps in `docs/ai-dev/`.
-- If behavior changes across extension and server, update the affected architecture, lifecycle, protocol, or `docs/ai-dev` rule document instead of adding stray markdown files.
-
-## Working Style
-
-- Do exactly what was asked, nothing speculative.
-- Keep changes surgical.
-- Prefer editing existing files over creating new files.
-- Write commit messages and PR descriptions casually and specifically; avoid robot copy and vague summaries.
-
-## Scope Discipline
-
-Interpret requests narrowly. Do not infer new capabilities, dependencies,
-configuration, or architectural patterns from examples or similar features.
-
-If an implementation choice expands the requested scope, treat it as an
-assumption: state it and obtain confirmation before proceeding.
+- Keep product/architecture references in `docs/tenways-octo/`; AI/dev governance, lifecycle, rules, plans, and issue maps in `docs/ai-dev/`.
+- Update the affected architecture, lifecycle, protocol, or rule document when cross-layer behavior changes. Keep this file focused on rules, commands, and reading pointers.
+- `docs/tasks/` is the sole authority for per-task goals, decisions, progress, and verification evidence. Follow the [task ledger](docs/tasks/README.md) and [template](docs/tasks/_template.md); search for an existing task before creating `docs/tasks/<module>/YYYY-MM-DD-brief-kebab-case.md`.
+- Keep task status, progress, evidence, and verification boundaries current. For material requirement changes, update `requirement_version`, revise acceptance criteria, and reopen affected checks before continuing.
+- Review closed tasks monthly: archive confirmed records older than 90 days; review stale open records, never auto-archive them. Full criteria live in the task ledger.
 
 ## Learning Ledger
 
-Division of labor: each fact has exactly one authoritative record; everything else links to it.
+Each fact has one authoritative record; other documents link to it.
 
-- `docs/tasks/` task docs are the sole authority for per-task facts: goals, decisions, progress, and verification evidence. Ledgers never restate them.
-- `.learnings/LEARNINGS.md` holds durable, cross-task rules only. Each entry is `Context` + `Rule` (two short paragraphs) plus a `source:` link to the originating task doc; do not copy verification outcomes or test counts into the entry.
-- `.learnings/ERRORS.md` is a reproducible failure-signature library, indexed by symptom (exact error message, failed command, wrong assumption): record `Error` + `Fix` + a link to the task doc. One-off task-specific bugs stay in the task doc's progress log instead. Do not record resolution status or test evidence here.
-- Double-write rule: an incident goes to ERRORS by default. Promote it to LEARNINGS only when the lesson generalizes beyond the original context; the LRN entry links the ERR id instead of repeating its background.
-- Do not record secrets, raw credentials, cookies, tokens, or large unredacted logs.
-- At the end of every complex task, review failures and near-misses, identify the root cause, and write back one durable rule when it will prevent a repeat.
-- Monthly consolidation (alongside the tasks review): merge near-duplicate entries; drop any rule now enforced by a linter, CI check, or test, noting which check replaced it.
-
-## Tasks Ledger
-
-- Record each independent task in `docs/tasks/<module>/YYYY-MM-DD-brief-kebab-case.md`; use the template and update an existing record instead of duplicating it.
-- Keep its status, progress, evidence, and verification boundary current; never record secrets or sensitive payloads.
-- Review closed tasks monthly: archive confirmed records older than 90 days; review stale open records, never auto-archive them.
+- [.learnings/LEARNINGS.md](.learnings/LEARNINGS.md) holds durable cross-task rules only: `Context` + `Rule` (two short paragraphs) and a `source:` link to the originating task. Do not copy task outcomes or test counts.
+- [.learnings/ERRORS.md](.learnings/ERRORS.md) holds reproducible failure signatures, indexed by exact error, failed command, or wrong assumption: `Error` + `Fix` + task link. One-off task-specific bugs stay in the task's progress log; do not put resolution status or test evidence in the error library.
+- Record reusable incidents in ERRORS by default. Promote only generalizable rules to LEARNINGS, linking the ERR id instead of repeating the incident background.
+- At the end of a complex task, review failures and near-misses. Update an existing rule or add one when it will prevent a repeat; do not duplicate rules to satisfy a quota.
+- During monthly consolidation, merge near-duplicates and remove rules already enforced by a linter, CI check, or test, noting the replacement check.
+- Never record secrets, raw credentials, cookies, tokens, sensitive payloads, or large unredacted logs in either ledger or task records.

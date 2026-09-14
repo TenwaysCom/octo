@@ -2,6 +2,14 @@
 
 Record concise compiler/runtime errors, failed commands, wrong assumptions, and their verified fixes here. Redact secrets, cookies, tokens, and sensitive payloads.
 
+## [ERR-20260914-001] rg-multiple-json-logs-break-jq
+
+**Error:** `rg '"path":...' server/logs/api.* | jq ...` 在匹配多个 JSON 日志文件时报告 `jq: parse error: Invalid numeric literal`；`rg` 默认添加的文件名前缀使输出不再是 JSON。
+
+**Fix:** 将多文件 JSON 检索结果交给解析器前，使用 `rg --no-filename` 去掉前缀；用多个合成文件检查解析及字段白名单，不输出真实敏感日志。
+
+source: [AGENTS.md 审查与优化](../docs/tasks/engineering-ops/2026-09-14-agents-review-and-optimization.md)
+
 ## [ERR-20260912-001] fe-mirrored-wrong-server-env-resolver
 
 - **Summary:** FE 的 system 徽标要按环境（eu/uk/us）着色，我照搬了 server 同名函数 `resolveMeegleSystemEnvironment`（odoo-devops-environment-mapping.ts，处理 Meegle 原始 MQL label，如 "Odoo/Odoo UK"）。但 platform-data 列表 API 实际返回的 `system` 列已经过 `meegle-cleaning.config.ts` 的 `normalizeSystemRegion` 归一化为裸值 `eu`/`us`/`uk`，带 Odoo 前缀的正则永远匹配不上，徽标全部回退灰色。

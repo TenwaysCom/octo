@@ -1,6 +1,6 @@
 # Learnings
 
-Record concise, reusable lessons here. Include the context, the durable rule, and the verified outcome; never include secrets or raw credentials.
+Record concise, reusable rules here. Follow [AGENTS.md's Learning Ledger](../AGENTS.md#learning-ledger); keep task outcomes and verification evidence in the linked task record.
 
 ## [LRN-20260905-001] ticket-summary-provider-single-config
 
