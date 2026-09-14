@@ -57,6 +57,7 @@
         "settleMinutes": "表示只有 source_updated_at 早于当前时间 3 小时的 Ticket，才会进入 Shadow 分析候选。"
       },
       "odooSh": {
+        "notificationEnvironments": ["eu"],
         "enabled": true,
         "intervalMinutes": 30,
         "chatId": "oc_ebad023939d64fa0b0314d03307d8d77"

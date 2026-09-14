@@ -287,6 +287,26 @@ export class PostgresOdooShBuildStore {
     });
   }
 
+  /** Cancel only unclaimed messages; preserve delivery history and uncertain outcomes. */
+  async suppressNotificationsOutsideEnvironments(environments: string[]): Promise<void> {
+    await this.database.transaction().execute(async (tx) => {
+      let query = tx.selectFrom("odoo_sh_build_notifications").select("id")
+        .where("status", "in", ["pending_send", "pending_identity", "queued"]);
+      if (environments.length) query = query.where("environment", "not in", environments);
+      const events = await query.forUpdate().execute();
+      const outbox = new PostgresMessageOutboxStore(tx);
+      for (const event of events) {
+        await outbox.cancelPending(`odoo-sh-build-notify:${event.id}`);
+        await tx.updateTable("odoo_sh_build_notifications").set({
+          status: "failed", error_code: "ODOO_SH_NOTIFY_ENVIRONMENT_DISABLED",
+          error_message: "当前环境已关闭构建通知", next_attempt_at: null,
+          updated_at: new Date().toISOString(),
+        }).where("id", "=", event.id)
+          .where("status", "in", ["pending_send", "pending_identity"]).execute();
+      }
+    });
+  }
+
   async listNotificationsForPreparation(environment: string, projectId: number): Promise<OdooShBuildNotificationRecord[]> {
     const rows = await this.database.selectFrom("odoo_sh_build_notifications").selectAll()
       .where("environment", "=", environment).where("project_id", "=", projectId)

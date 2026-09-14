@@ -28,6 +28,11 @@ function collectRoutes(): string[] {
 }
 
 describe("index routes", () => {
+  it("registers health under the API prefix only", () => {
+    expect(collectRoutes()).toContain("GET /api/health");
+    expect(collectRoutes()).not.toContain("GET /health");
+  });
+
   it("registers lark-base and identity routes", () => {
     expect(collectRoutes()).toEqual(
       expect.arrayContaining([

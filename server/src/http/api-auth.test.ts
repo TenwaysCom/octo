@@ -64,6 +64,18 @@ describe("api auth middleware", () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
+  it("allows health probes without identity headers", () => {
+    const middleware = createApiAuthMiddleware();
+    const req = { method: "GET", path: "/api/health", headers: {} } as Request;
+    const res = createResponse();
+    const next = vi.fn() as unknown as NextFunction;
+
+    middleware(req, res, next);
+
+    expect(next).toHaveBeenCalledOnce();
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
   it("allows page config route before identity is resolved", () => {
     const middleware = createApiAuthMiddleware();
     const req = {

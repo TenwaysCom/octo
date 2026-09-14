@@ -26,6 +26,7 @@ const shadowTaskSchema = z.object({
 
 const odooShTaskSchema = z.object({
   enabled: z.boolean().default(true),
+  notificationEnvironments: z.array(z.enum(["eu", "uk", "us"])).default(["eu"]),
   intervalMinutes: z.number().int().min(1).max(1440).default(30),
   chatId: z.string().trim().min(1).default("oc_ebad023939d64fa0b0314d03307d8d77"),
 });

@@ -74,3 +74,51 @@ it.each(["sent", "failed", "outcome_unknown", "sending", "pending_send", "pendin
     }
   } finally { await db.destroy(); await pool.end(); }
 });
+
+it("keeps all environments synced but only queues EU and cancels existing UK/US pending messages", async () => {
+  const { db, pool } = await createTestPostgresDatabase();
+  try {
+    const store = new PostgresOdooShBuildStore(db);
+    const sync = new OdooShBuildSyncService({ store });
+    const resolveCommitAuthor = vi.fn().mockResolvedValue(undefined);
+    const legacy = new OdooShMessageProducer({ store, chatId: "chat", resolveCommitAuthor, notificationEnvironments: ["eu", "uk", "us"] });
+    for (const environment of ["eu", "uk", "us"] as const) {
+      await sync.syncFromSnapshot({ ...snapshot(""), environment });
+      await sync.syncFromSnapshot({ ...snapshot("failed"), environment });
+      await legacy.prepare(environment, 42);
+    }
+    const producer = new OdooShMessageProducer({ store, chatId: "chat", resolveCommitAuthor });
+    await producer.applyNotificationPolicy();
+    for (const environment of ["eu", "uk", "us"] as const) {
+      expect(await store.listBuildsByProject(environment, 42)).toHaveLength(1);
+      await producer.prepare(environment, 42);
+      const event = (await store.listNotificationsForPreparation(environment, 42))[0];
+      const message = await db.selectFrom("message_outbox").selectAll()
+        .where("idempotency_key", "=", `odoo-sh-build-notify:${event.id}`).executeTakeFirstOrThrow();
+      expect(message.status).toBe(environment === "eu" ? "pending_send" : "cancelled");
+    }
+    // New failures in disabled environments remain audited but never become messages.
+    await sync.syncFromSnapshot({ ...snapshot(""), environment: "uk", project_id: 43 });
+    await sync.syncFromSnapshot({ ...snapshot("failed"), environment: "uk", project_id: 43 });
+    resolveCommitAuthor.mockClear();
+    await producer.prepare("uk", 43);
+    expect(resolveCommitAuthor).not.toHaveBeenCalled();
+    expect(await db.selectFrom("message_outbox").selectAll().execute()).toHaveLength(3);
+    expect(await db.selectFrom("odoo_sh_build_notifications").select(["status", "error_code"])
+      .where("project_id", "=", 43).executeTakeFirstOrThrow()).toEqual({ status: "failed", error_code: "ODOO_SH_NOTIFY_ENVIRONMENT_DISABLED" });
+  } finally { await db.destroy(); await pool.end(); }
+});
+
+it.each(["sending", "sent", "failed", "outcome_unknown"])("environment policy preserves %s delivery history", async (status) => {
+  const { db, pool } = await createTestPostgresDatabase();
+  try {
+    const store = new PostgresOdooShBuildStore(db);
+    const sync = new OdooShBuildSyncService({ store });
+    await sync.syncFromSnapshot({ ...snapshot(""), environment: "us" });
+    await sync.syncFromSnapshot({ ...snapshot("failed"), environment: "us" });
+    await new OdooShMessageProducer({ store, chatId: "chat", resolveCommitAuthor: async () => undefined, notificationEnvironments: ["us"] }).prepare("us", 42);
+    await db.updateTable("message_outbox").set({ status }).execute();
+    await new OdooShMessageProducer({ store, chatId: "chat", resolveCommitAuthor: async () => undefined }).applyNotificationPolicy();
+    expect((await db.selectFrom("message_outbox").selectAll().executeTakeFirstOrThrow()).status).toBe(status);
+  } finally { await db.destroy(); await pool.end(); }
+});

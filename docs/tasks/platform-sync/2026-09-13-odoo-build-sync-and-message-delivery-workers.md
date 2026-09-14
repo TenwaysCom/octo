@@ -2,10 +2,10 @@
 title: "Odoo.sh 构建同步与通用消息发送 Worker"
 module: platform-sync
 status: done
-requirement_version: 2
+requirement_version: 3
 created_on: 2026-09-13
-updated_on: 2026-09-13
-closed_on: 2026-09-13
+updated_on: 2026-09-14
+closed_on: 2026-09-14
 owner: Codex
 related:
   - "../engineering-ops/2026-09-10-odoo-build-failure-lark-notification.md"
@@ -17,6 +17,8 @@ related:
 ## 目标
 
 将 Odoo.sh 构建同步和消息发送的配置统一纳入 `server/config/platform-sync.local.json`，明确拆分业务生产与通用发送两个 Worker。按已梳理的职责边界完成业务消息生产与通用发送接入。
+
+当前 v3：EU / UK / US 继续同步；`scheduler.tasks.odooSh.notificationEnvironments` 默认及本地配置为 `["eu"]`，仅 EU 生成通知。启动发送器前取消禁用环境已有的 pending_send 消息；sent / sending / failed / outcome_unknown 投递记录不改写、不重试。此要求替代 v2 的全环境通知范围。
 
 ## 已明确的需求
 
@@ -69,6 +71,7 @@ related:
     "enabled": true,
     "tasks": {
       "odooSh": {
+        "notificationEnvironments": ["eu"],
         "enabled": true,
         "intervalMinutes": 30,
         "chatId": "目标 Lark 群 ID"
@@ -90,6 +93,8 @@ related:
 
 ## 验收标准
 
+- [x] v3：仅 EU 通知，UK / US 保持同步；启动发送器前取消禁用环境待发送消息，保留投递终态与不确定结果。
+
 - [x] 上述边界已在实施请求下明确采用，配置字段及默认值已落地。
 - [x] 两个任务在同一配置文件中可独立启停和设置频率，凭据不进入任务配置。
 - [x] 业务同步 Worker 刷新构建、识别失败并生成消息，不执行真实发送。
@@ -108,7 +113,11 @@ related:
 | 2026-09-13 | v1 | planned | 用户要求先梳理职责、创建台账，暂停未接通草稿；“刷新后直接发送”的合并方案不采用。 | 待实施。 |
 | 2026-09-13 | v2 | done | 用户要求实现。完成独立配置、Odoo 消息生产端、通用队列和发送 Worker、旧表过渡、配置解析独立模块及 Server 启停装配；移除旧 Odoo 专用发送消费者。 | 未提交、部署、执行目标库迁移或发送真实消息。 |
 
+| 2026-09-14 | v3 | done | 用户要求暂时仅 EU 发送；增加通知环境配置和启动前队列清理，生产端应用同一策略。 | 未重启运行中服务、未操作实际数据库、未重试原 4 条失败消息。 |
+
 ## 验证
+
+v3 验证：相关测试 39 通过；Server 全量测试 927 passed / 1 skipped（`/tmp/octo-eu-notification-full-tests.log`），`pnpm --dir server build` 通过。下表保留 v2 历史证据。
 
 | 类型 | 结果 | 证据 | 边界 |
 | --- | --- | --- | --- |

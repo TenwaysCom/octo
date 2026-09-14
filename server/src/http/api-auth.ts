@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 
 const DEFAULT_EXEMPT_PATHS = new Set([
+  "/api/health",
   "/api/config/public",
   "/api/config/page",
   "/api/config/server-api-catalog",

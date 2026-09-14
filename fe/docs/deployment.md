@@ -1,7 +1,8 @@
 # FE Deployment
 
 This deployment keeps the FE and Octo API on the same public origin. Nginx
-serves the Vite build and proxies `/api` to the Node server.
+serves the Vite build and proxies `/api` to the Node server, including the public
+health check at `GET /api/health`.
 
 ## Test environment
 
@@ -36,11 +37,6 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    location = /health {
-        proxy_pass http://127.0.0.1:3040;
-        proxy_set_header Host $http_host;
     }
 
     location /assets/ {

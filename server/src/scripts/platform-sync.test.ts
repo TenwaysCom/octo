@@ -438,6 +438,7 @@ describe("background task configuration", () => {
   });
 
   it.each([
+    { odooSh: { notificationEnvironments: ["xx"] } },
     { odooSh: { intervalMinutes: 0 } }, { odooSh: { intervalMinutes: 1.5 } },
     { messageDelivery: { batchSize: 0 } }, { odooSh: { chatId: " " } },
     { messageDelivery: { sendTimeoutSeconds: -1 } }, { messageDelivery: { maxAttempts: 0 } },
@@ -453,7 +454,7 @@ describe("background task configuration", () => {
     try {
       await writeFile(path, JSON.stringify({ scheduler: { enabled: true, tasks: { odooSh: { intervalMinutes: 8 } } } }));
       const tasks = resolveBackgroundTaskConfig(await readPlatformSyncSchedulerConfig(path));
-      expect(tasks).toMatchObject({ odooSh: { enabled: true, intervalMinutes: 8 }, messageDelivery: { batchSize: 10, maxAttempts: 3 } });
+      expect(tasks).toMatchObject({ odooSh: { enabled: true, intervalMinutes: 8, notificationEnvironments: ["eu"] }, messageDelivery: { batchSize: 10, maxAttempts: 3 } });
       await writeFile(path, "{");
       await expect(readPlatformSyncSchedulerConfig(path)).rejects.toThrow();
       await expect(readPlatformSyncSchedulerConfig(join(dir, "missing.json"))).rejects.toThrow();

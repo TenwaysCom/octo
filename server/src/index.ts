@@ -252,7 +252,7 @@ app.use(createApiRequestLogger());
 app.use(createApiAuthMiddleware());
 
 // Health check
-app.get("/health", (_req, res) => {
+app.get("/api/health", (_req, res) => {
   res.json({
     status: "ok",
     timestamp: new Date().toISOString(),
@@ -594,11 +594,13 @@ if (process.env.NODE_ENV !== "test" && process.env.VITEST !== "true") {
   odooShMessageProducer = new OdooShMessageProducer({
     store: odooShBuildStore,
     chatId: tasks.odooSh.chatId,
+    notificationEnvironments: tasks.odooSh.notificationEnvironments,
     resolveCommitAuthor: createOdooShCommitAuthorResolver({
       mapping: parseOdooShAuthorGithubMapping(process.env.ODOO_SH_BUILD_AUTHOR_GITHUB_MAPPING),
       users: getResolvedUserStore(),
     }),
   });
+  await odooShMessageProducer.applyNotificationPolicy();
   const messageDeliveryWorker = new MessageDeliveryWorker({
     store: new PostgresMessageOutboxStore(),
     sender: new LarkImNotificationClientImpl({
@@ -626,7 +628,7 @@ if (process.env.NODE_ENV !== "test" && process.env.VITEST !== "true") {
     const startupLog = { host: HOST, port: PORT, version: SERVER_VERSION };
     serverLogger.info(startupLog, "Tenways Octo Server running");
     stdoutServerLogger.info(startupLog, "Tenways Octo Server running");
-    serverLogger.info(`Health check: http://${HOST}:${PORT}/health`);
+    serverLogger.info(`Health check: http://${HOST}:${PORT}/api/health`);
     serverLogger.info(`Lark Base create workitem: http://${HOST}:${PORT}/api/lark-base/create-meegle-workitem`);
   });
 

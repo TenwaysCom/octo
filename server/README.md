@@ -61,7 +61,7 @@ DATABASE_SSH_CONNECT_TIMEOUT_MS=10000
 
 ### 基础与配置
 
-- `GET /health`
+- `GET /api/health`
 - `GET /api/config/public`
 - `GET /api/extension/version`
 - `POST /api/identity/resolve`

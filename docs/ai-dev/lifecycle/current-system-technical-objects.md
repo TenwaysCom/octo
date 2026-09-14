@@ -823,3 +823,5 @@ Odoo.sh 业务同步与通用消息发送是两个独立调度的 Server-owned W
 `MessageDeliveryWorker` 只消费通用 `message_outbox` 的目标、正文与幂等键，不读取 build、不解析作者。发送状态、尝试次数、平台 message_id 以通用表为准；领取使用条件更新与 claim token，明确可重试的失败有限重试，发送结果不确定或确认落库失败保持待核实，过期 sending 不自动重发。关闭 Server 时等待刷新与在途发送结束（仍受整体退出超时限制）。旧 Odoo 表保留去重和审计：确定未发送的事件可转入通用队列并保留原尝试次数与退避时间；sent/failed/outcome_unknown 不重发，旧 sending 过期后转为 outcome_unknown。原 Odoo 专用消费者不再使用。
 
 具体配置、兼容策略与验收见 [Worker 拆分任务](../../tasks/platform-sync/2026-09-13-odoo-build-sync-and-message-delivery-workers.md)。
+
+Odoo 构建通知环境由 `scheduler.tasks.odooSh.notificationEnvironments` 控制，默认 `["eu"]`。EU / UK / US 数据仍全部同步；禁用环境不生成待发送消息，发送 Worker 启动前由 Odoo 生产端取消禁用环境已入队且尚未领取的消息。已发送、发送中、失败和结果未知的投递记录保留；重新启用环境不补发已取消或被抑制的历史事件。修改配置后需重启 Server。

@@ -525,7 +525,7 @@ export async function getServerApiCatalogController(): Promise<ServerApiCatalogR
           key: "system",
           title: "System / Config",
           routes: [
-            { method: "GET", path: "/health", description: "服务健康检查" },
+            { method: "GET", path: "/api/health", description: "服务健康检查" },
             { method: "GET", path: "/api/config/public", description: "插件公开运行配置" },
             { method: "GET", path: "/api/config/page", description: "按页面 URL 解析插件页面配置" },
             { method: "GET", path: "/api/config/server-api-catalog", description: "按业务分类返回 server API 清单" },

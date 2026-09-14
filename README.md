@@ -63,7 +63,7 @@ pnpm --dir extension build
 
 ## 主要 API
 
-- `GET /health`
+- `GET /api/health`
 - `GET /api/config/public`
 - `GET /api/extension/version`
 - `POST /api/identity/resolve`

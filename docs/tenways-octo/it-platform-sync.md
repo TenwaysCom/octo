@@ -650,3 +650,5 @@ syncLark...    -> cleanLarkBaseTickets(...)
 两个独立任务统一在 `server/config/platform-sync.local.json` 的 `scheduler.tasks` 配置：`odooSh` 刷新构建并生成完整消息，`messageDelivery` 从 PostgreSQL 通用队列发送消息。两者受 `scheduler.enabled` 总开关控制，目前由 Server 托管，与已有 platform-sync-worker 中的 Lark/Meegle/GitHub 调度共享配置但不重复执行。修改后重启 Server 生效。
 
 Odoo 业务事件保留在 `odoo_sh_build_notifications`，完成正文生成后标记 `queued`；实际发送状态进入 `message_outbox`，发送 Worker 不依赖 Odoo 字段。其他业务可写入相同的 Lark 文本消息契约，本次未迁移其他发送链路。首次构建基线静默、业务事件转消息的事务边界、旧通知与不确定结果处理见 [生命周期](../ai-dev/lifecycle/current-system-technical-objects.md) 和 [任务台账](../tasks/platform-sync/2026-09-13-odoo-build-sync-and-message-delivery-workers.md)。
+
+Odoo 构建通知环境由 `scheduler.tasks.odooSh.notificationEnvironments` 控制，默认 `["eu"]`。EU / UK / US 数据仍全部同步；禁用环境不生成待发送消息，发送 Worker 启动前由 Odoo 生产端取消禁用环境已入队且尚未领取的消息。已发送、发送中、失败和结果未知的投递记录保留；重新启用环境不补发已取消或被抑制的历史事件。修改配置后需重启 Server。

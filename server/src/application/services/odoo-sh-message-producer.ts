@@ -8,12 +8,21 @@ const producerLogger = logger.child({ module: "odoo-sh-message-producer" });
 /** Business-specific decisions end here; delivery receives only a complete message. */
 export class OdooShMessageProducer {
   constructor(private readonly deps: {
-    store: Pick<PostgresOdooShBuildStore, "listBuildsByProject" | "listNotificationsForPreparation" | "prepareNotification" | "reclaimExpiredClaims">;
+    store: Pick<PostgresOdooShBuildStore, "listBuildsByProject" | "listNotificationsForPreparation" | "prepareNotification" | "reclaimExpiredClaims" | "suppressNotificationsOutsideEnvironments">;
     resolveCommitAuthor: (build: { headCommitAuthor?: string | null }) => Promise<ResolvedUserRecord | undefined>;
     chatId: string;
+    notificationEnvironments?: OdooShEnvironment[];
   }) {}
 
+  async applyNotificationPolicy(): Promise<void> {
+    await this.deps.store.suppressNotificationsOutsideEnvironments(this.deps.notificationEnvironments ?? ["eu"]);
+  }
+
   async prepare(environment: OdooShEnvironment, projectId: number): Promise<void> {
+    if (!(this.deps.notificationEnvironments ?? ["eu"]).includes(environment)) {
+      await this.applyNotificationPolicy();
+      return;
+    }
     await this.deps.store.reclaimExpiredClaims({ now: new Date().toISOString() });
     const builds = new Map((await this.deps.store.listBuildsByProject(environment, projectId)).map((b) => [b.buildId, b]));
     const events = await this.deps.store.listNotificationsForPreparation(environment, projectId);
