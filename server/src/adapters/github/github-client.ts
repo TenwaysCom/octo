@@ -4,6 +4,8 @@ import type {
   GitHubIssueDetails,
   GitHubCommit,
   GitHubComment,
+  GitHubIssueCommentCreated,
+  GitHubPullRequestFile,
   ParsedPrUrl,
   ParsedGitHubWorkItemUrl,
   GitHubRef,
@@ -83,6 +85,51 @@ export class GitHubClient {
     return this.request<GitHubPrDetails>(`/repos/${owner}/${repo}/pulls/${pullNumber}`);
   }
 
+  async listOpenPullRequests(owner: string, repo: string): Promise<GitHubPrDetails[]> {
+    const pullRequests: GitHubPrDetails[] = [];
+
+    for (let page = 1; page <= 100; page++) {
+      const items = await this.request<GitHubPrDetails[]>(
+        `/repos/${owner}/${repo}/pulls?state=open&per_page=100&page=${page}`,
+      );
+      pullRequests.push(...items);
+      if (items.length < 100) {
+        break;
+      }
+    }
+
+    return pullRequests;
+  }
+
+  async listPullRequestsUpdatedSince(
+    owner: string,
+    repo: string,
+    updatedSince: string,
+  ): Promise<Array<Pick<GitHubPrDetails, "number" | "updated_at">>> {
+    const updatedAt = new Date(updatedSince);
+    if (Number.isNaN(updatedAt.getTime())) {
+      throw new Error(`Invalid GitHub incremental timestamp: ${updatedSince}`);
+    }
+
+    const pullRequests: Array<Pick<GitHubPrDetails, "number" | "updated_at">> = [];
+    const query = encodeURIComponent(`repo:${owner}/${repo} is:pr updated:>=${updatedAt.toISOString()}`);
+    for (let page = 1; page <= 10; page += 1) {
+      const result = await this.request<{
+        total_count: number;
+        incomplete_results: boolean;
+        items: Array<Pick<GitHubPrDetails, "number" | "updated_at">>;
+      }>(`/search/issues?q=${query}&sort=updated&order=asc&per_page=100&page=${page}`);
+      if (result.incomplete_results || result.total_count > 1000) {
+        throw new Error("GITHUB_INCREMENTAL_SEARCH_INCOMPLETE");
+      }
+      pullRequests.push(...result.items);
+      if (pullRequests.length >= result.total_count || result.items.length < 100) {
+        break;
+      }
+    }
+    return pullRequests;
+  }
+
   async getIssue(owner: string, repo: string, issueNumber: number): Promise<GitHubIssueDetails> {
     return this.request<GitHubIssueDetails>(`/repos/${owner}/${repo}/issues/${issueNumber}`);
   }
@@ -99,6 +146,68 @@ export class GitHubClient {
     return this.request<GitHubComment[]>(`/repos/${owner}/${repo}/pulls/${pullNumber}/comments`);
   }
 
+  async getPullRequestFiles(
+    owner: string,
+    repo: string,
+    pullNumber: number,
+  ): Promise<GitHubPullRequestFile[]> {
+    const files: GitHubPullRequestFile[] = [];
+    for (let page = 1; ; page += 1) {
+      const batch = await this.request<GitHubPullRequestFile[]>(
+        `/repos/${owner}/${repo}/pulls/${pullNumber}/files?per_page=100&page=${page}`,
+      );
+      files.push(...batch);
+      if (batch.length < 100) {
+        return files;
+      }
+    }
+  }
+
+  async createPullRequestComment(
+    owner: string,
+    repo: string,
+    pullNumber: number,
+    body: string,
+  ): Promise<GitHubIssueCommentCreated> {
+    return this.post<GitHubIssueCommentCreated>(
+      `/repos/${owner}/${repo}/issues/${pullNumber}/comments`,
+      { body },
+    );
+  }
+
+  async updatePullRequestTitle(
+    owner: string,
+    repo: string,
+    pullNumber: number,
+    title: string,
+    context: { actionRunId?: string } = {},
+  ): Promise<GitHubPrDetails> {
+    githubLogger.info({
+      actionRunId: context.actionRunId,
+      operation: "meegle_workitem.link_pull_request",
+      layer: "adapter",
+      stage: "adapter.github.pull_request.update.request",
+      owner,
+      repo,
+      pullNumber,
+    }, "GITHUB_PULL_REQUEST_TITLE_UPDATE_REQUEST");
+    const pullRequest = await this.write<GitHubPrDetails>(
+      "PATCH",
+      `/repos/${owner}/${repo}/pulls/${pullNumber}`,
+      { title },
+    );
+    githubLogger.info({
+      actionRunId: context.actionRunId,
+      operation: "meegle_workitem.link_pull_request",
+      layer: "adapter",
+      stage: "adapter.github.pull_request.update.response",
+      owner,
+      repo,
+      pullNumber,
+    }, "GITHUB_PULL_REQUEST_TITLE_UPDATE_RESPONSE");
+    return pullRequest;
+  }
+
   async createBranch(owner: string, repo: string, branchName: string, baseBranch = "main"): Promise<GitHubRef> {
     // 1. Get base branch SHA
     const baseRef = await this.request<GitHubRef>(`/repos/${owner}/${repo}/git/ref/heads/${baseBranch}`);
@@ -107,19 +216,27 @@ export class GitHubClient {
     githubLogger.info({ owner, repo, branchName, baseBranch, sha }, "GitHub create branch");
 
     // 2. Create new ref
-    const url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/git/refs`;
+    return this.post<GitHubRef>(`/repos/${owner}/${repo}/git/refs`, {
+      ref: `refs/heads/${branchName}`,
+      sha,
+    });
+  }
+
+  private async post<T>(path: string, body: unknown): Promise<T> {
+    return this.write("POST", path, body);
+  }
+
+  private async write<T>(method: "POST" | "PATCH", path: string, body: unknown): Promise<T> {
+    const url = `${GITHUB_API_BASE}${path}`;
     const response = await this.fetch(url, {
-      method: "POST",
+      method,
       headers: {
         Authorization: `Bearer ${this.token}`,
         Accept: "application/vnd.github.v3+json",
         "User-Agent": "Octo-Extension",
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        ref: `refs/heads/${branchName}`,
-        sha,
-      }),
+      body: JSON.stringify(body),
     });
 
     if (!response.ok) {
@@ -130,6 +247,6 @@ export class GitHubClient {
       throw error;
     }
 
-    return response.json() as Promise<GitHubRef>;
+    return response.json() as Promise<T>;
   }
 }

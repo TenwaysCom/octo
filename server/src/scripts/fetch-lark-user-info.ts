@@ -3,9 +3,11 @@ import {
   createPostgresDatabase,
   getDefaultPostgresUri,
 } from "../adapters/postgres/database.js";
-import { getSharedLarkTokenStore } from "../adapters/postgres/lark-token-store.js";
-import { getResolvedUserStore } from "../adapters/postgres/resolved-user-store.js";
-import { fetchLarkUserInfo } from "../modules/lark-auth/lark-auth.service.js";
+import { PostgresOauthSessionStore } from "../adapters/postgres/lark-oauth-session-store.js";
+import { PostgresLarkTokenStore } from "../adapters/postgres/lark-token-store.js";
+import { PostgresResolvedUserStore } from "../adapters/postgres/resolved-user-store.js";
+import { preparePostgresConnection } from "../adapters/postgres/ssh-tunnel.js";
+import { configureLarkAuthServiceDeps, fetchLarkUserInfo } from "../modules/lark-auth/lark-auth.service.js";
 
 async function main(): Promise<void> {
   const larkAppId = process.env.LARK_APP_ID || "";
@@ -22,22 +24,17 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const db = createPostgresDatabase(postgresUri);
+  const connection = await preparePostgresConnection(postgresUri);
+  const db = createPostgresDatabase(connection.postgresUri);
 
   try {
-    const tokenStore = getSharedLarkTokenStore();
-    const resolvedUserStore = getResolvedUserStore();
-
-    const { configureLarkAuthServiceDeps } = await import(
-      "../modules/lark-auth/lark-auth.service.js"
-    );
+    const tokenStore = new PostgresLarkTokenStore(db);
+    const resolvedUserStore = new PostgresResolvedUserStore(db);
     configureLarkAuthServiceDeps({
       appId: larkAppId,
       appSecret: larkAppSecret,
       tokenStore,
-      oauthSessionStore: await import(
-        "../adapters/postgres/lark-oauth-session-store.js"
-      ).then((m) => m.getSharedOauthSessionStore()),
+      oauthSessionStore: new PostgresOauthSessionStore(db),
       resolvedUserStore,
     });
 
@@ -93,6 +90,7 @@ async function main(): Promise<void> {
     console.log(`  Skipped: ${skipped}`);
   } finally {
     await db.destroy();
+    await connection.close();
   }
 }
 

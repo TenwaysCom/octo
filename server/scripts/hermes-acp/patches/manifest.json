@@ -1,0 +1,14 @@
+{
+  "commit": "43e566f77eaf01293086eb7cb99a21e240d60634",
+  "files": {
+    "run_agent.py": "ac2fc70c223a04ab122922661d1727ba2af510a12df088863457e10ec61ad923",
+    "agent/tool_executor.py": "900a6b5aa186050a0611628b7c50db21618775a0e929dff07abfa4d945a305f2",
+    "acp_adapter/session.py": "263991f1246dde0b7b7e44d24594d865df3bb443185104163c8e0af2d3701d27",
+    "acp_adapter/server.py": "99f5ace902847c6fa06c65cea2490af822d2a512d2a967dff0923ae631feabd3",
+    "hermes_cli/plugins.py": "416f99a81d952f6b4fd2a0b6d3347df6f7a2e4ee58acf33e8b8a8169cdd15a98",
+    "agent/conversation_loop.py": "da035a80d21e1f207fe032b78b99adf6dea433ea5d4650e6af8a28a0826479ac",
+    "agent/agent_init.py": "9840ff58829d63f91f043853fa6a71e015dfdc28cee9465beaef5056ffdfa989",
+    "agent/agent_runtime_helpers.py": "dfcfaebb63708a468024eed82d1e32d8fcb0a5bc3d83482a7b4fc484bee8658c",
+    "model_tools.py": "60e0ff3a7376d7cb36f60764cc8d989c9acf0a962b4c019c0104ccccf61057f1"
+  }
+}

@@ -5,6 +5,7 @@ import {
   ensurePostgresSchema,
   resetPostgresDatabase,
 } from "../adapters/postgres/database.js";
+import { preparePostgresConnection } from "../adapters/postgres/ssh-tunnel.js";
 
 function parseArgs(argv: string[]): { reset: boolean; postgresUri: string } {
   let reset = false;
@@ -35,7 +36,8 @@ function parseArgs(argv: string[]): { reset: boolean; postgresUri: string } {
 
 async function main(): Promise<void> {
   const { reset, postgresUri } = parseArgs(process.argv.slice(2));
-  const db = createPostgresDatabase(postgresUri);
+  const connection = await preparePostgresConnection(postgresUri);
+  const db = createPostgresDatabase(connection.postgresUri);
 
   try {
     if (reset) {
@@ -48,6 +50,7 @@ async function main(): Promise<void> {
     console.log("[db] ensured postgres schema");
   } finally {
     await db.destroy();
+    await connection.close();
   }
 }
 

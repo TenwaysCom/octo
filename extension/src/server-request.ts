@@ -27,6 +27,7 @@ export async function fetchServerJson<TResponse>(input: {
   contentType?: string;
   signal?: AbortSignal;
   keepalive?: boolean;
+  credentials?: RequestCredentials;
 }): Promise<{ response: Response; payload: TResponse }> {
   const response = await fetch(input.url, {
     method: input.method ?? "POST",
@@ -38,6 +39,7 @@ export async function fetchServerJson<TResponse>(input: {
     body: input.body === undefined ? undefined : JSON.stringify(input.body),
     signal: input.signal,
     keepalive: input.keepalive,
+    credentials: input.credentials,
   });
 
   const payload = await response.json() as TResponse;

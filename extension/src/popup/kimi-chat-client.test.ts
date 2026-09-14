@@ -23,6 +23,7 @@ describe("kimi chat client", () => {
     await client.sendMessage({
       operatorLarkId: "ou_xxx",
       message: "hello",
+      actionRunId: "run_123",
     });
 
     expect(globalThis.fetch).toHaveBeenCalledWith(
@@ -32,6 +33,11 @@ describe("kimi chat client", () => {
           "Content-Type": "application/json",
           Accept: "text/event-stream",
           "master-user-id": "usr_xxx",
+        }),
+        body: JSON.stringify({
+          operatorLarkId: "ou_xxx",
+          message: "hello",
+          actionRunId: "run_123",
         }),
       }),
     );

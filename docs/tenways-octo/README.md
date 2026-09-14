@@ -31,6 +31,7 @@
 14. [ACP 设计](./17-acp-design.md)
 15. [用户身份系统设计](./18-user-identity-design.md)
 16. [插件使用文档](./20-extension-user-guide.md)
+17. [IT Platform Sync](./it-platform-sync.md)
 
 ## 历史 / 演进 / 参考文档
 
@@ -51,7 +52,7 @@
 - 主要入口：浏览器插件
 - 插件职责：触发器 + 上下文采集 + 展示层
 - 核心智能：服务端 `agents + skills`
-- 数据策略：实时拉取，不做 Lark / Meegle / GitHub 业务镜像
+- 数据策略：对指定范围建立只读外部快照；同步边界、清洗与增量演进见 [IT Platform Sync](./it-platform-sync.md)
 - 主身份：`Lark ID`
 - Meegle 接入模型：`plugin_id/plugin_secret -> plugin_token -> auth code -> user token / refresh token`，运行时请求携带 `X-USER-KEY`
 - Meegle 授权策略：采用 `方案 B`，由浏览器插件在当前登录页面直接申请 `auth code`，服务端只接收 `auth code`
@@ -68,7 +69,7 @@
 ## 当前边界
 
 - 不做独立 PM 进度看板页面
-- 不做 Lark 和 Meegle 双向同步表
+- 不做 Lark、Meegle、GitHub 的业务数据双向回写；只读快照同步的边界见 [IT Platform Sync](./it-platform-sync.md)
 - 不做 PR 描述生成
 - 不做全自动状态推进
 - 不做多团队、多租户

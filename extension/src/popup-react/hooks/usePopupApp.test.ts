@@ -108,7 +108,7 @@ describe("usePopupApp React hook", () => {
             },
             {
               key: "bulk-create-meegle-tickets",
-              title: "批量创建 MEEGLE TICKET",
+              title: "批量创建 Meegle Item",
               style: "default",
               executor: { type: "frontend", actionKey: "bulk-create-meegle-tickets" },
             },

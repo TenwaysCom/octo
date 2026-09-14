@@ -3,6 +3,31 @@ export interface GitHubPrDetails {
   body: string | null;
   number: number;
   html_url: string;
+  state: string;
+  merged_at: string | null;
+  updated_at: string;
+  created_at?: string;
+  draft: boolean;
+  user?: { login?: string };
+  merged_by?: { login?: string };
+  requested_reviewers?: Array<{ login?: string }>;
+  labels?: Array<{ name?: string }>;
+  head?: { ref?: string };
+  base?: { ref?: string };
+}
+
+export interface GitHubPullRequestFile {
+  filename: string;
+  status: "added" | "modified" | "removed" | "renamed" | string;
+  additions: number;
+  deletions: number;
+  changes: number;
+  patch?: string;
+}
+
+export interface GitHubIssueCommentCreated {
+  id: number;
+  html_url: string;
 }
 
 export interface GitHubIssueDetails {
