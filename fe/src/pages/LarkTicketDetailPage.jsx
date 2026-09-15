@@ -1,5 +1,5 @@
 import { AcpPermissionPrompt } from "../components/ai-session/AcpPermissionPrompt.jsx";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAiSessionPanel } from "../hooks/useAiSessionPanel.js";
 import { aiRunStatusLabel } from "../lib/ai-session-panel.js";
 import { AiSessionCopyButton } from "../components/ai-session/AiSessionCopyButton.jsx";
@@ -91,6 +91,7 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
     : { status: "loading", ticket: undefined });
   const [sharedUrlStatus, setSharedUrlStatus] = useState("idle");
   const [aiSessions, setAiSessions] = useState({ status: "idle", items: [], error: "" });
+  const refreshAiSessionsRef = useRef(null);
   const [effectDrafts, setEffectDrafts] = useState({ status: "idle", items: [], error: "" });
   const [newSessionDraft, setNewSessionDraft] = useState("");
   const [drawerDraft, setDrawerDraft] = useState("");
@@ -145,14 +146,7 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
   }, [apiBaseUrl, ticket?.baseId, ticket?.recordId, ticket?.sharedUrl, ticket?.tableId]);
 
   async function refreshAiSessions() {
-    if (!ticket) return;
-    setAiSessions((current) => ({ ...current, status: "loading", error: "" }));
-    try {
-      const items = await listLarkTicketAiSessions({ apiBaseUrl, ticket });
-      setAiSessions({ status: "ready", items, error: "" });
-    } catch {
-      setAiSessions((current) => ({ ...current, status: "error", error: "AI Sessions 暂时无法读取。" }));
-    }
+    await refreshAiSessionsRef.current?.();
   }
 
   async function refreshEffectDrafts() {
@@ -174,17 +168,36 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
     let active = true;
     setAiSessions({ status: "loading", items: [], error: "" });
     let timer;
+    let requestVersion = 0;
+    let hasActiveSessions = false;
     const refresh = async () => {
+      if (!active || document.hidden) return;
+      clearTimeout(timer);
+      const version = ++requestVersion;
       try {
         const items = await listLarkTicketAiSessions({ apiBaseUrl, ticket });
-        if (active) setAiSessions({ status: "ready", items, error: "" });
+        if (!active || version !== requestVersion) return;
+        hasActiveSessions = items.some((session) => ["running", "waiting_permission", "stopping"].includes(session.runStatus));
+        setAiSessions({ status: "ready", items, error: "" });
       } catch {
-        if (active) setAiSessions((current) => ({ ...current, status: "error", error: "AI Sessions 暂时无法读取。" }));
+        if (!active || version !== requestVersion) return;
+        setAiSessions((current) => ({ ...current, status: "error", error: "AI Sessions 暂时无法读取。" }));
       }
-      if (active) timer = setTimeout(refresh, 3000);
+      if (hasActiveSessions && !document.hidden) timer = setTimeout(refresh, 10_000);
     };
+    const onVisibilityChange = () => {
+      clearTimeout(timer);
+      if (!document.hidden) void refresh();
+    };
+    refreshAiSessionsRef.current = refresh;
+    document.addEventListener("visibilitychange", onVisibilityChange);
     void refresh();
-    return () => { active = false; clearTimeout(timer); };
+    return () => {
+      active = false;
+      clearTimeout(timer);
+      refreshAiSessionsRef.current = null;
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, [apiBaseUrl, ticket?.baseId, ticket?.recordId, ticket?.tableId]);
 
   useEffect(() => {

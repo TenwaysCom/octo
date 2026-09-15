@@ -1,11 +1,11 @@
 ---
 title: "FE AI Session 关闭与刷新行为讨论"
 module: acp
-status: completed
-requirement_version: 4
+status: done
+requirement_version: 5
 created_on: 2026-09-06
-updated_on: 2026-09-06
-closed_on: 2026-09-06
+updated_on: 2026-09-15
+closed_on: 2026-09-15
 owner: TBD
 related:
   - "./2026-09-05-hermes-acp-integration.md"
@@ -17,8 +17,13 @@ related:
 
 X 只收起显示，任务由 Server 继续执行；再次打开加载历史与当前进度，刷新及切页不会取消本轮。用户已确认按该语义实施，停止生成使用独立操作。
 
+v5：降低 Ticket 会话列表请求频率。空闲时不轮询，有未结束任务时每 10 秒刷新；后台标签页暂停，重新可见时刷新。范围仅为 Ticket 列表，不改 Sprint、抽屉快照或服务端执行。
+
 ## 验收标准
 
+- [x] v5：Ticket 无活动任务时停止轮询；running / waiting_permission / stopping 时每次请求结束 10 秒后刷新。
+- [x] v5：隐藏标签页暂停列表请求，返回时刷新；保留会话操作主动刷新及切换 Ticket 后旧响应隔离。
+- [x] v5：FE 测试、构建及 diff 检查通过；单独说明浏览器和部署验证边界。
 - [x] 从当前代码追踪 X、页面卸载、HTTP 断连与 ACP 取消路径。
 - [x] 区分本轮执行取消、历史恢复和运行中重连。
 - [x] 用户确认关闭、停止、刷新和待审批的行为契约。
@@ -62,19 +67,33 @@ Ticket 与 Sprint 的 AI Session 抽屉；涉及 FE 页面、Web SSE controller�
 - `web-ai-session-runs.ts` 负责运行、并发保护、事件快照、停止与超时。每个 Web controller 最多 16 个活动任务；每轮 15 分钟超时；完成快照保留 30 分钟，最多保留 100 轮；过期后原生 Session 历史仍可加载。DeepSeek 只显示临时的一次性运行记录，不创建可续聊 ACP Session，长期结果仍在 Ticket AI。
 - 保留已有 POST SSE 接口；增加 `run.started` 事件，提供独立 runId。浏览器断连只停止向该响应发送事件。list 合并已保存 Session 与当前运行状态；load 优先读取运行快照，避免对 busy runtime 执行原生 load。
 - Ticket/Sprint 各自增加 `POST .../ai-sessions/:sessionId/stop`，DTO 只接受业务对象引用与 runId。X 不调用 stop；收到服务端 run.started 后即可断开浏览器订阅，若关闭发生在启动确认前则等待确认后再断开，避免占用隐藏会话连接或丢掉启动请求。运行中的 Web 交互任务继续使用 interactive 审批模式，隐藏面板不会切成无人审批的 worker。
-- FE 共用 `useAiSessionPanel`/`ai-session-panel`；会话列表每 3 秒刷新，重新打开的运行面板每 1 秒加载快照。状态读取不会创建新 prompt。显示版本号隔离旧事件、旧请求返回及旧定时器清理；显式停止后用服务端快照确定终态。
+- FE 共用 `useAiSessionPanel`/`ai-session-panel`；Ticket 列表固定每 3 秒刷新方案已被 v5 替代：仅可见且有活动任务时每 10 秒刷新，重新可见或会话操作时主动刷新；Sprint 列表仍每 3 秒刷新，重新打开的运行面板仍每 1 秒加载快照。状态读取不会创建新 prompt。显示版本号隔离旧事件、旧请求返回及旧定时器清理；显式停止后用服务端快照确定终态。
 - 本轮 `done` 延迟到业务服务整体成功后才发布和进入快照；取消检查位于 Ticket ACP 后处理及 DeepSeek 正式分析写入前。已执行写入不能由停止按钮回滚。
 
 ## 进展记录
 
 | 日期 | 需求版本 | 状态 | 结果与证据 | 未验证边界 / 下一步 |
 | --- | --- | --- | --- | --- |
+| 2026-09-15 | v5 | done | Ticket 列表为空闲停止、活动任务 10 秒、后台暂停，操作刷新与定时刷新共用作用域和请求版本保护，旧响应不会覆盖新结果或重启定时器。`pnpm --dir fe check`、`git diff --check` 通过。 | 本地静态检查、现有 FE 测试与构建；未做本次浏览器行为测试、真实模型或部署验证。 |
 | 2026-09-06 | v1 | planned | 完成 FE → controller → proxy → runtime / history 的静态追踪，提出交互建议。 | 当时没有启动真实会话或刷新实验。 |
 | 2026-09-06 | v2 | completed | 用户确认后实施服务端运行、快照读取、显式停止及共用 FE 面板。隔离工作区验证后同步回当前工作区。 | 未提交、未推送；未调用真实模型或写入业务平台。 |
 | 2026-09-06 | v3 | completed | Ticket 普通 ACP Session 的未验证状态不再禁用输入；继续处理沿用原 `sessionId`，一次性分析保持原行为。FE 163 项测试和 production build 通过。 | 未运行真实 Hermes 审批过期流程。 |
 | 2026-09-06 | v4 | completed | 用户确认输入区按钮布局：停止移到发送左侧，用黑色实心方块 SVG；发送使用向上箭头 SVG，禁用时呈灰色。保持 `isStreaming` 显示条件和原禁用判断；一次性分析运行中在底部显示停止图标，不新增续聊能力。图标保留 aria-label 与 title。`pnpm --config.verify-deps-before-run=false --dir fe check` 通过（163 项测试及 Vite build），`git diff --check` 通过。 | 本次仅修改两个 FE 页面和共享样式；未新增测试，未进行本次图标布局的浏览器目测或真实模型验证。日志：`/private/tmp/octo-ai-composer-fe-check.log`。 |
 
 ## 验证
+
+### v5（2026-09-15）
+
+| 类型 | 结果 | 证据 | 边界 |
+| --- | --- | --- | --- |
+| 静态检查 | 通过 | `git diff --check`；核对 active/requestVersion、活动状态和 visibilitychange 条件 | 人工代码检查，不等于浏览器验证 |
+| 现有 FE 单测 | 通过 | `pnpm --dir fe check` 中 `node --test`；日志 `/tmp/octo-ticket-ai-polling-fe-check.log` | 未新增页面计时器测试 |
+| FE 构建 | 通过 | 同命令中的 Vite production build | 未部署 |
+| Mock integration / live E2E / 已部署运行时 | 未执行 | 本次仅调整 FE 列表刷新 | 真实页面网络频率仍待上线后观察 |
+
+首次读取失败且尚无已知活动任务时不自动重试，可通过重新进入或切回标签页重试。已知活动任务读取失败继续按 10 秒重试。停止空闲轮询后，其他页面创建的会话需等重新可见、重新进入或本页会话操作才会被发现。隐藏前已发出的请求允许完成，不会继续启动周期请求。
+
+### v2–v4 历史验证
 
 | 类型 | 结果 | 证据 | 边界 |
 | --- | --- | --- | --- |
