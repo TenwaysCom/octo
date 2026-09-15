@@ -738,6 +738,22 @@ GitHub PR 同步快照会从标题与描述中保留 `meegleIds`。Web 列表只
 - GitHub PR 列表只读取关联 ID；完整 Meegle 字段应在预览边界按单个 PR 的全部 ID 批量读取本地快照，并保留无法解析的原始 ID。不要逐 ID 查询或为列表预加载全部工作项详情。
 - Meegle PR 候选仓库必须由 Server 从 System 映射；选择时重新读取远端 PR，并在成功写入后用平台返回值刷新本地同步快照。FE 只负责候选交互和即时投影。
 
+### Workspace 搜索与 Ticket 筛选
+
+Workspace 全局搜索和 Ticket 搜索只读取 Octo 已同步、已清洗的 PostgreSQL 快照。FE 在输入停止 300ms 后请求 Server；Server 校验 opaque Web session 与 `platformLists` 权限，再进行参数化查询。全局搜索仅投影标题、对象类型、状态、业务编号和详情定位信息，不调用外部搜索 API，也不返回源字段、AI 正文或凭据。FE 取消过期请求并忽略迟到响应。全局搜索面板采用顶部输入栏、类型切换与紧凑结果行；可选 `kind=lark-tickets|meegle-workitems|github-pull-requests` 在后端分页前筛选，省略时查询全部类型。切换类型重置 offset，加载更多携带相同 kind，旧类型的响应不能覆盖当前结果。
+
+| 接口 | 契约 |
+| --- | --- |
+| `GET /api/web/platform-data/search` | `q`：1–200 字符；`limit`：默认 20、最大 50；`offset`：默认 0。标题与编号忽略英文大小写、按字面包含匹配（`%`、`_` 不作为通配符），编号可带 `#`。精确编号优先，再按标题和平台复合标识稳定排序；返回 `items/hasMore/nextOffset`。沿用 `actionRunId`，错误包含 `layer/module/stage/errorCode`。 |
+| `GET /api/web/platform-data/lark-tickets` | 新增 `q` 和可重复的 `requester`；与现有 `responsible/issueType/status` 等条件组合，统一先筛选再计算 total 和分页。 |
+| `GET /api/web/platform-data/lark-ticket-filter-options` | 从全量 Ticket 清洗字段返回去重的 `requester/responsible/issueType`，不受当前页面搜索或分页限制。 |
+
+上述搜索与筛选选项接口在通用 `master-user-id` 中间件中按精确路径豁免，由各自控制器校验 Web session 和 workspace 权限。
+
+业务编号映射为 Lark `ticketNumber`、GitHub `pullNumber`、Meegle `workItemKey`（缺失时 `workItemId`，同时支持按 ID 查找）。GitHub 使用仓库范围区分相同 PR 编号，并区分 open/draft/closed/merged。Meegle 搜索沿用工作项列表排除 Sprint 的边界。Ticket 进入现有 Octo 详情，Meegle/GitHub 打开既有平台详情入口。
+
+Ticket 需求人、负责人按逗号分隔后的完整展示名匹配；同一字段多选为 OR、不同字段为 AND。搜索输入与选择在工作台内返回列表时保留；改变查询重置分页。搜索框在加载、空结果和失败状态仍可操作。实现与验证见 [搜索任务](../../tasks/platform-data/2026-09-15-workspace-search-ticket-filters.md)。
+
 ## 15. 动作运行追踪生命周期
 
 ### 技术对象

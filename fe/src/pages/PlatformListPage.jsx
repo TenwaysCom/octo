@@ -1,4 +1,5 @@
 import { loadLarkTicketSharedUrl } from "../services/lark-ticket/lark-ticket-api.js";
+import { getTicketFilterOptions } from "../services/platform-data/platform-search-api.js";
 import { useEffect, useRef, useState } from "react";
 import { WorkspaceShell } from "../components/layout/WorkspaceShell.jsx";
 import { OdooShBuildGears, OdooShBuildStatus } from "../components/platform/OdooShBuildStatus.jsx";
@@ -962,6 +963,11 @@ function MeeglePullRequestPicker({ picker, onClose, onSelect }) {
 
 export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, breadcrumbs, platformListFilterState, onPlatformListFilterStateChange, onLarkTicketNavigationContextChange }) {
   const restoredFilters = platformListFilterState || {};
+  const [searchInput, setSearchInput] = useState(() => restoredFilters.searchQuery || "");
+  const ticketSearchInputRef = useRef(null);
+  const [searchQuery, setSearchQuery] = useState(() => (restoredFilters.searchQuery || "").trim());
+  const [ticketFilterOptions, setTicketFilterOptions] = useState({ values: {}, status: "loading" });
+  const [filterOptionsRetry, setFilterOptionsRetry] = useState(0);
   const [state, setState] = useState({ status: "loading", items: [], filterItems: [], filterItemsPage: page, sprints: [], relatedPersonOptions: [], pager: null, isLoadingMore: false });
   const [selectedStatuses, setSelectedStatuses] = useState(() => restoredFilters.selectedStatuses || null);
   const [selectedDateFilters, setSelectedDateFilters] = useState(() => normalizeFilterValues(
@@ -1067,6 +1073,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
     ? state.items.filter((item) => matchesGitHubPullRequestQuickFilter(item, githubQuickFilter, githubId))
     : state.items;
   const tagFilterFields = page === "lark-tickets" ? [
+    { key: "requester", label: "需求人", getValues: (item) => String(item.requester || "").split(/[,，]/) },
     { key: "issueType", label: "Issue 类型", getValues: (item) => [item.issueType] },
     { key: "priority", label: "紧急度", getValues: (item) => [item.priority] },
     { key: "responsible", label: "负责人", getValues: (item) => String(item.responsible || "").split(/[,，]/) },
@@ -1082,7 +1089,11 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
   const tagFilterFieldsWithCounts = tagFilterFields.map((field) => {
     const countedValues = mergeKnownFilterValues(
       countFilterValues(itemsAfterQuickFilters, field.getValues),
-      countFilterValues(state.filterItems, field.getValues),
+      [
+        ...countFilterValues(state.filterItems, field.getValues),
+        ...(page === "lark-tickets" ? (ticketFilterOptions.values[field.key] || []).map((value) => ({ value, label: value })) : []),
+        ...(selectedTagFilters[field.key] || []).map((value) => ({ value, label: value })),
+      ],
     );
     return {
       ...field,
@@ -1155,6 +1166,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
   const lastResult = Math.min((currentPageIndex + 1) * LIST_PAGE_SIZE, sortedItems.length);
   const totalItems = state.pager?.total ?? sortedItems.length;
   const hasActiveServerFilters = Object.keys(getPlatformListFilters({
+    searchQuery,
     page,
     selectedStatuses,
     selectedDateFilters,
@@ -1168,6 +1180,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
   })).length > 0;
 
   filterStateRef.current = {
+    searchQuery: searchInput,
     selectedStatuses,
     selectedDateFilters,
     selectedSprints,
@@ -1208,6 +1221,23 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
   useEffect(() => () => onPlatformListFilterStateChange?.(page, filterStateRef.current), [onPlatformListFilterStateChange, page]);
 
   useEffect(() => {
+    if (searchInput.trim() === searchQuery) return undefined;
+    const timer = setTimeout(() => { setSearchQuery(searchInput.trim()); setPageIndex(0); }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput, searchQuery]);
+
+  useEffect(() => {
+    if (page !== "lark-tickets") return undefined;
+    const controller = new AbortController();
+    setTicketFilterOptions((current) => ({ ...current, status: "loading" }));
+    void getTicketFilterOptions({ apiBaseUrl, signal: controller.signal }).then(
+      (values) => { if (!controller.signal.aborted) setTicketFilterOptions({ values, status: "ready" }); },
+      () => { if (!controller.signal.aborted) setTicketFilterOptions((current) => ({ ...current, status: "error" })); },
+    );
+    return () => controller.abort();
+  }, [apiBaseUrl, page, reloadVersion, filterOptionsRetry]);
+
+  useEffect(() => {
     if (page !== "meegle-workitems") {
       setMeegleSprintSummaries([]);
       return undefined;
@@ -1236,6 +1266,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
       isLoadingMore: false,
     }));
     const filters = getPlatformListFilters({
+      searchQuery,
       page,
       selectedStatuses,
       selectedDateFilters,
@@ -1265,7 +1296,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
       () => { if (active && dataRequestVersionRef.current === requestVersion) setState((current) => ({ status: "error", items: [], filterItems: current.filterItems, filterItemsPage: current.filterItemsPage, sprints: [], relatedPersonOptions: [], pager: null, isLoadingMore: false })); },
     );
     return () => { active = false; };
-  }, [apiBaseUrl, larkTicketQuickFilter, larkViewMode, meegleQuickFilter, noSprintFilter, page, reloadVersion, selectedDateFilters, selectedSprints, selectedStatuses, selectedTagFilters, workitemTypeFilter]);
+  }, [apiBaseUrl, larkTicketQuickFilter, larkViewMode, meegleQuickFilter, noSprintFilter, page, reloadVersion, searchQuery, selectedDateFilters, selectedSprints, selectedStatuses, selectedTagFilters, workitemTypeFilter]);
 
   async function loadMorePlatformItems() {
     const pager = state.pager;
@@ -1274,6 +1305,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
     const nextOffset = pager.nextOffset;
     setState((current) => ({ ...current, isLoadingMore: true }));
     const filters = getPlatformListFilters({
+      searchQuery,
       page,
       selectedStatuses,
       selectedDateFilters,
@@ -1760,6 +1792,8 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
   }
 
   function resetListFilters() {
+    setSearchInput("");
+    setSearchQuery("");
     setSelectedStatuses(null);
     setSelectedDateFilters([]);
     setSelectedSprints([]);
@@ -1781,6 +1815,16 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
   }
 
   const listFilterFields = [
+    ...(page === "lark-tickets" ? tagFilterFieldsWithCounts
+      .filter((field) => ["requester", "responsible", "issueType"].includes(field.key))
+      .map((field) => ({
+        key: field.key,
+        label: field.label,
+        values: field.values,
+        selectedValues: selectedTagFilters[field.key] || [],
+        isFiltered: Boolean(selectedTagFilters[field.key]?.length),
+        onToggle: (value) => toggleTagFilter(field.key, value),
+      })) : []),
     {
       key: "status",
       label: "状态",
@@ -1828,9 +1872,21 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
     ] : []),
   ];
 
-  return <WorkspaceShell user={profile.user ?? {}} workspaceAccess={profile.workspaceAccess} activePage={page} onLogout={onLogout} isBusy={isBusy} breadcrumbs={breadcrumbs}>
+  const ticketSearch = page === "lark-tickets" ? <div className="ticket-search-input" role="search" aria-label="当前页 Ticket 搜索">
+    <svg className="ticket-search-input__icon" viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5" /><path d="m13 13 4 4" /></svg>
+    <input ref={ticketSearchInputRef} type="search" aria-label="搜索 Ticket 标题或编号" maxLength={200} placeholder="搜索标题或编号…" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} />
+    {searchInput ? <button className="ticket-search-input__clear" type="button" aria-label="清除搜索" title="清除搜索" onClick={() => {
+      setSearchInput("");
+      setSearchQuery("");
+      setPageIndex(0);
+      ticketSearchInputRef.current?.focus();
+    }}><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 6 8 8M14 6l-8 8" /></svg></button> : null}
+  </div> : null;
+
+  return <WorkspaceShell user={profile.user ?? {}} workspaceAccess={profile.workspaceAccess} activePage={page} onLogout={onLogout} isBusy={isBusy} breadcrumbs={breadcrumbs} breadcrumbActions={ticketSearch}>
     <section className="profile-main list-page">
       <section className="list-section">
+        {page === "lark-tickets" && ticketFilterOptions.status === "error" ? <p className="list-message list-message--error">筛选选项加载失败。<button className="secondary-button" type="button" onClick={() => setFilterOptionsRetry((value) => value + 1)}>重试</button></p> : null}
         {state.status === "loading" ? <p className="list-message">正在加载同步数据…</p> : null}
         {state.status === "error" ? <p className="list-message list-message--error">同步数据暂时无法读取，请稍后重试。</p> : null}
         {resetError ? <p className="list-message list-message--error">{resetError}</p> : null}

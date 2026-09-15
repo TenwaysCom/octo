@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
+import { WorkspaceSearchTrigger } from "./WorkspaceSearch.jsx";
 import { getDefaultSettingsRoute, getIntegrationsSubroutes, getWorkspaceNavigationRoutes, INTEGRATIONS_ROUTE, INTEGRATIONS_SUBROUTES } from "../../app/routes/workspace-routes.js";
 
 export const WorkspaceMetricsContext = createContext({ githubMyOpenCount: undefined });
@@ -31,6 +32,7 @@ function WorkspaceSidebar({ activePage, workspaceAccess, githubMyOpenCount }) {
   return <aside className="profile-sidebar" aria-label="工作台导航">
     <header className="profile-sidebar__header"><Brand /></header>
     <nav className="profile-nav" aria-label="工作台分区">
+      <WorkspaceSearchTrigger />
       <p className="profile-nav__label">WORKSPACE</p>
       {getWorkspaceNavigationRoutes(workspaceAccess).map((route) => <a
         className={`profile-nav__item ${activePage === route.page ? "profile-nav__item--active" : ""}`.trim()}

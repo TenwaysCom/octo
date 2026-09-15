@@ -280,6 +280,7 @@ export interface LarkBaseTicketSyncItem {
 }
 
 export interface LarkBaseTicketListFilters {
+  query?: string;
   createdAfter?: string;
   createdBefore?: string;
   sourceUpdatedAtAfter?: string;
@@ -288,6 +289,7 @@ export interface LarkBaseTicketListFilters {
   statuses?: string[];
   priorities?: string[];
   responsibles?: string[];
+  requesters?: string[];
   quickFilter?: "in-progress" | "unclassified" | "unsynced" | "ai-output" | "ai-missing";
   hasAiOutput?: boolean;
   offset?: number;
@@ -1468,6 +1470,9 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
       ])
       .orderBy("sync.source_updated_at", "desc")
       .orderBy("sync.synced_at", "desc")
+      .orderBy("sync.base_id")
+      .orderBy("sync.table_id")
+      .orderBy("sync.record_id")
       .offset(filters.offset ?? 0)
       .limit(limit)
       .execute();
@@ -1488,6 +1493,14 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
         .onRef("octo.base_id", "=", "sync.base_id")
         .onRef("octo.table_id", "=", "sync.table_id")
         .onRef("octo.record_id", "=", "sync.record_id"));
+    if (filters.query) {
+      const searchQuery = filters.query.toLowerCase();
+      const numberQuery = searchQuery.replace(/^#/, "") || searchQuery;
+      query = query.where((eb) => eb.or([
+        sql<boolean>`strpos(lower(sync.title), ${searchQuery}) > 0`,
+        sql<boolean>`strpos(lower(sync.ticket_number), ${numberQuery}) > 0`,
+      ]));
+    }
     if (filters.createdAfter) query = query.where("sync.created_time", ">=", filters.createdAfter);
     if (filters.createdBefore) query = query.where("sync.created_time", "<=", filters.createdBefore);
     if (filters.sourceUpdatedAtAfter) query = query.where("sync.source_updated_at", ">=", filters.sourceUpdatedAtAfter);
@@ -1501,9 +1514,12 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
       ]));
     }
     if (filters.priorities?.length) query = query.where("sync.priority", "in", filters.priorities);
-    if (filters.responsibles?.length) query = query.where((eb) => eb.or(filters.responsibles!.map((responsible) =>
-      eb("sync.responsible", "like", `%${responsible}%`),
-    )));
+    for (const [column, people] of [["sync.responsible", filters.responsibles], ["sync.requester", filters.requesters]] as const) {
+      if (people?.length) query = query.where((eb) => eb.or(people.map((person) => {
+        const name = person.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        return sql<boolean>`${sql.ref(column)} ~ ${`(^|[,，])\\s*${name}\\s*([,，]|$)`}`;
+      })));
+    }
     if (filters.quickFilter === "in-progress") query = query.where(sql<boolean>`coalesce(lower(sync.ticket_status), '') not in ('finish', 'cancelled', 'rejected')`);
     if (filters.quickFilter === "unclassified") query = query.where(sql<boolean>`coalesce(sync.issue_type, '') = ''`);
     if (filters.quickFilter === "unsynced") query = query

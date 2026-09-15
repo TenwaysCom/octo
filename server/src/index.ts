@@ -80,6 +80,7 @@ import {
 } from "./modules/platform-data/platform-data.controller.js";
 import { createWebPlatformSyncController } from "./modules/platform-sync/web-platform-sync.controller.js";
 import { PlatformDataService } from "./application/services/platform-data.service.js";
+import { registerWebPlatformSearchRoutes } from "./modules/platform-data/platform-search.controller.js";
 import { createHttpOdooDevopsBranchesClient } from "./adapters/odoo-devops/odoo-devops-branches-client.js";
 import { OdooDevopsBranchesService } from "./application/services/odoo-devops-branches.service.js";
 import { createWebOdooDevopsBranchesCacheResetController, createWebOdooDevopsBranchesController } from "./modules/odoo-devops-branches/odoo-devops-branches.controller.js";
@@ -404,6 +405,7 @@ app.post("/api/web/ssh-public-keys", async (req, res) => {
   const result = await webUserSshPublicKeysController.register({ cookieHeader: req.headers.cookie, body: req.body });
   res.status(result.statusCode).json(result.body);
 });
+registerWebPlatformSearchRoutes(app);
 app.get("/api/web/platform-data/lark-tickets", async (req, res) => {
   const result = await listWebPlatformDataController({
     kind: "lark-tickets", cookieHeader: req.headers.cookie, query: req.query,

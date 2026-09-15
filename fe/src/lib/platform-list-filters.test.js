@@ -10,6 +10,12 @@ import {
   toggleFilterValue,
 } from "./platform-list-filters.js";
 
+test("combines Ticket title/number search with requester, responsible and issue type", () => {
+  const input = { page: "lark-tickets", searchQuery: "  订单 #42 ", selectedStatuses: ["Open"], selectedDateFilters: [], selectedSprints: [], selectedTagFilters: { requester: ["Ada", "Bob"], responsible: ["Ann"], issueType: ["Bug"] }, larkTicketQuickFilter: "all" };
+  assert.deepEqual(getPlatformListFilters(input), { q: "订单 #42", status: ["Open"], requester: ["Ada", "Bob"], responsible: ["Ann"], issueType: ["Bug"] });
+  assert.equal("q" in getPlatformListFilters({ ...input, searchQuery: "  " }), false);
+});
+
 test("combines Meegle Subscribed with custom and tag filters", () => {
   assert.deepEqual(getPlatformListFilters({
     page: "meegle-workitems",

@@ -33,6 +33,7 @@ export function getPlatformListFilters({
   selectedDateFilters,
   selectedSprints,
   selectedTagFilters,
+  searchQuery,
   larkTicketQuickFilter,
   larkHasAiOutput,
   meegleQuickFilter,
@@ -42,11 +43,13 @@ export function getPlatformListFilters({
   const sourceUpdatedAtAfter = getEarliestSelectedDate(selectedDateFilters);
   if (page === "lark-tickets") {
     return {
+      ...(searchQuery?.trim() ? { q: searchQuery.trim() } : {}),
       ...(selectedStatuses ? { status: selectedStatuses } : {}),
       ...(sourceUpdatedAtAfter ? { sourceUpdatedAtAfter } : {}),
       ...(selectedTagFilters.issueType?.length ? { issueType: selectedTagFilters.issueType } : {}),
       ...(selectedTagFilters.priority?.length ? { priority: selectedTagFilters.priority } : {}),
       ...(selectedTagFilters.responsible?.length ? { responsible: selectedTagFilters.responsible } : {}),
+      ...(selectedTagFilters.requester?.length ? { requester: selectedTagFilters.requester } : {}),
       ...(larkTicketQuickFilter !== "all" ? { quickFilter: larkTicketQuickFilter } : {}),
       ...(larkHasAiOutput ? { hasAiOutput: true } : {}),
     };

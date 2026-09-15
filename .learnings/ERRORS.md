@@ -700,7 +700,7 @@ source: [AGENTS.md 审查与优化](../docs/tasks/engineering-ops/2026-09-14-age
 
 - **Symptom:** `GET /api/web/lark-ticket-eval-samples` returned `UNAUTHORIZED: Missing master-user-id header` while `GET /api/web/profile` succeeded with the same browser session.
 - **Root cause:** The Eval list endpoint was a Web Session route but absent from `DEFAULT_EXEMPT_PATHS` in the generic header-auth middleware.
-- **Verified fix:** Exempt that exact path and cover it in the Web Session route regression test; never solve this by forwarding a browser-supplied `master-user-id`.
+- **Fix:** Exempt only the exact Web Session paths and cover the shared middleware plus controller together (valid session, missing session, denied role, adjacent protected path); never solve this by forwarding a browser-supplied `master-user-id`. The same omission affected search and Ticket filter options; see [search task](../docs/tasks/platform-data/2026-09-15-workspace-search-ticket-filters.md).
 
 ### ERR-20260901-009 — Eval save path was omitted from Web Session prefix authentication
 
@@ -845,3 +845,8 @@ source: [AGENTS.md 审查与优化](../docs/tasks/engineering-ops/2026-09-14-age
 - **Error:** 台账复核时按 memberships 表覆盖率（95/500）断言“旧 Sprint 图表对 406 个工作项是空白”，但 `listMeegleSprintMemberships` 的读取路径会对有当前 Sprint、无持久化区间的工作项合成 `historical_inferred` 临时投影，页面数据并未缺失；缺失的只是持久化事实。
 - **Fix:** 评估数据缺口前先核对读取路径的惰性补全/兼容投影逻辑；把“存储完整性缺口”与“用户可见性缺口”分开判断和汇报，再决定是否需要写路径建设。
 - **source:** [Meegle Sprint 历史与详情](../docs/tasks/platform-data/2026-08-27-meegle-sprint-history.md)
+### ERR-20260915-001 — pg-mem 缺少 PostgreSQL 字符串查询能力
+
+- **Error:** 快照搜索测试遇到 `operator does not exist: text ~ text`、`function nullif(text,text) does not exist`；pg-mem 对 LIKE 转义字符的执行也与 PostgreSQL 存在差异。
+- **Fix:** 先区分数据库 SQL 与测试模拟器能力。字面包含匹配使用参数化 `strpos`，人员边界使用 PostgreSQL 正则；在测试适配器显式注册缺失的标准函数/运算符，声明模拟验证边界，不为迁就 pg-mem 改写业务匹配含义。
+- **source:** [Workspace 搜索与 Ticket 筛选](../docs/tasks/platform-data/2026-09-15-workspace-search-ticket-filters.md)

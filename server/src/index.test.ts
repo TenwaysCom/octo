@@ -50,6 +50,8 @@ describe("index routes", () => {
         "GET /api/web/profile",
         "POST /api/web/acp/permissions/reply",
         "GET /api/web/platform-data/lark-tickets",
+        "GET /api/web/platform-data/search",
+        "GET /api/web/platform-data/lark-ticket-filter-options",
         "GET /api/web/platform-data/meegle-workitems",
         "GET /api/web/meegle-workitems/pull-request-candidates",
         "POST /api/web/meegle-workitems/link-pull-request",

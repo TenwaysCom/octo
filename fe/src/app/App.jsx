@@ -17,6 +17,7 @@ import { MeegleSprintDetailPage, MeegleSprintHistoryPage } from "../pages/Meegle
 import { SettingsIntegrationsPage } from "../pages/SettingsIntegrationsPage.jsx";
 import { SyncStatusPage } from "../pages/SyncStatusPage.jsx";
 import { WorkspaceMetricsContext } from "../components/layout/WorkspaceShell.jsx";
+import { WorkspaceSearchProvider } from "../components/layout/WorkspaceSearch.jsx";
 import { getPlatformDataList } from "../services/platform-data/platform-data-api.js";
 import { appendWorkspaceBreadcrumb, canAccessWorkspaceRoute, getWorkspaceRoute, INTEGRATIONS_ROUTE } from "./routes/workspace-routes.js";
 
@@ -168,6 +169,7 @@ export function App({ apiBaseUrl }) {
   if (profile) {
     const WorkspacePage = WORKSPACE_PAGE_COMPONENTS[activeWorkspaceRoute.page];
     return <WorkspaceMetricsContext.Provider value={{ githubMyOpenCount }}>
+      <WorkspaceSearchProvider apiBaseUrl={apiBaseUrl} enabled={Boolean(profile.workspaceAccess?.platformLists)}>
       <WorkspacePage
         key={activeWorkspaceRoute.hash}
         profile={profile}
@@ -186,6 +188,7 @@ export function App({ apiBaseUrl }) {
         onReauthorize={() => startLarkLogin({ apiBaseUrl })}
         isBusy={isBusy}
       />
+      </WorkspaceSearchProvider>
     </WorkspaceMetricsContext.Provider>;
   }
 

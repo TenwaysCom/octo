@@ -6,6 +6,20 @@ import type { DatabaseSchema } from "./schema.js";
 export async function createTestPostgresDatabase() {
   const memoryDb = newDb();
   memoryDb.public.registerFunction({
+    name: "strpos",
+    args: [DataType.text, DataType.text],
+    returns: DataType.integer,
+    implementation: (value: string, query: string) => value.indexOf(query) + 1,
+  });
+  // pg-mem does not ship PostgreSQL's text regex operator.
+  memoryDb.public.registerOperator({
+    operator: "~",
+    left: DataType.text,
+    right: DataType.text,
+    returns: DataType.bool,
+    implementation: (value: string, pattern: string) => new RegExp(pattern).test(value),
+  });
+  memoryDb.public.registerFunction({
     name: "length",
     args: [DataType.text],
     returns: DataType.integer,

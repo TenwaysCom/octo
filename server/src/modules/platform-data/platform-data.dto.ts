@@ -12,6 +12,7 @@ const stringListQuerySchema = z.preprocess((value) => {
   .transform((values) => values && [...new Set(values)]);
 
 export const platformDataListQuerySchema = z.object({
+  q: z.string().trim().min(1).max(200).optional(),
   limit: z.coerce.number().int().min(1).max(1000).optional().default(1000),
   offset: z.coerce.number().int().min(0).max(1_000_000).optional().default(0),
   status: stringListQuerySchema,
@@ -19,6 +20,7 @@ export const platformDataListQuerySchema = z.object({
   project: stringListQuerySchema,
   priority: stringListQuerySchema,
   responsible: stringListQuerySchema,
+  requester: stringListQuerySchema,
   relatedPerson: stringListQuerySchema,
   workitemType: stringListQuerySchema,
   quickFilter: z.enum(["in-progress", "unclassified", "unsynced", "ai-output", "ai-missing"]).optional(),

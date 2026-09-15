@@ -89,7 +89,7 @@ export function createWebPlatformDataController(deps: {
       };
     }
 
-    const hasLarkTicketFilters = query.createdAfter || query.createdBefore || query.issueType || query.responsible || query.quickFilter || query.hasAiOutput;
+    const hasLarkTicketFilters = query.q || query.createdAfter || query.createdBefore || query.issueType || query.responsible || query.requester || query.quickFilter || query.hasAiOutput;
     if (input.kind !== "lark-tickets" && hasLarkTicketFilters) {
       return {
         statusCode: 400,
@@ -119,6 +119,7 @@ export function createWebPlatformDataController(deps: {
     try {
       const filters = input.kind === "lark-tickets"
         ? { larkTickets: omitUndefined({
+          query: query.q,
           createdAfter: query.createdAfter,
           createdBefore: query.createdBefore,
           sourceUpdatedAtAfter: query.sourceUpdatedAtAfter,
@@ -127,6 +128,7 @@ export function createWebPlatformDataController(deps: {
           statuses: query.status,
           priorities: query.priority,
           responsibles: query.responsible,
+          requesters: query.requester,
           quickFilter: query.quickFilter,
           hasAiOutput: query.hasAiOutput || undefined,
           offset: query.offset || undefined,
