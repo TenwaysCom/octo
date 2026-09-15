@@ -1024,6 +1024,14 @@ h1 {
 .ticket-resource:hover { border-color: var(--octo-brand); color: var(--octo-brand); background: color-mix(in srgb, var(--octo-brand) 5%, var(--octo-surface)); }
 .ticket-section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .ticket-section-heading span { color: var(--octo-text-muted); font-size: 11px; }
+.ticket-solution__heading { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.ticket-solution__heading h2 { margin: 0; }
+.ticket-solution__action { display: grid; place-items: center; width: 30px; height: 30px; padding: 5px; border: 1px solid var(--octo-border); border-radius: 6px; color: var(--octo-text-muted); background: var(--octo-surface); cursor: pointer; }
+.ticket-solution__action:hover { color: var(--octo-brand); border-color: var(--octo-brand); }
+.ticket-solution__action:focus-visible, .ticket-solution__input:focus { outline: 2px solid var(--octo-brand); outline-offset: 2px; }
+.ticket-solution__action svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.ticket-solution__input { box-sizing: border-box; width: 100%; min-height: 140px; padding: 10px; resize: vertical; border: 1px solid var(--octo-border); border-radius: 8px; color: var(--octo-text); background: var(--octo-surface); font: inherit; font-size: 13px; line-height: 1.6; }
+.ticket-solution__action:disabled, .ticket-solution__input:disabled { opacity: .6; cursor: wait; }
 .ticket-ai-session-empty { display: flex; align-items: flex-start; gap: 12px; padding: 6px 0; color: var(--octo-text-muted); }
 .ticket-ai-session-empty__icon { display: grid; width: 28px; height: 28px; flex: 0 0 auto; place-items: center; border-radius: 9px; color: var(--octo-brand); background: color-mix(in srgb, var(--octo-brand) 10%, var(--octo-surface)); font-size: 15px; }
 .ticket-ai-session-empty strong { display: block; color: var(--octo-text); font-size: 13px; }

@@ -6,6 +6,7 @@ import { AiSessionCopyButton } from "../components/ai-session/AiSessionCopyButto
 import { WorkspaceShell } from "../components/layout/WorkspaceShell.jsx";
 import { LarkTicketBadge } from "../components/lark-ticket/LarkTicketBadge.jsx";
 import { LarkTicketEditableProperties } from "../components/lark-ticket/LarkTicketEditableProperties.jsx";
+import { LarkTicketSolutionEditor } from "../components/lark-ticket/LarkTicketSolutionEditor.jsx";
 import { formatDateTime } from "../lib/formatters.js";
 import { LARK_TICKET_AI_QUICK_ACTIONS } from "../lib/lark-ticket-ai-actions.js";
 import { getLarkTicketDetailNavigation, getLarkTicketFromNavigationContext, updateLarkTicketNavigationContext } from "../lib/lark-ticket-detail-navigation.js";
@@ -290,10 +291,13 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
             <p className={`ticket-description ${ticket.detailDescription ? "" : "ticket-description--empty"}`.trim()}>{ticket.detailDescription || "暂无描述。"}</p>
           </section>
 
-          <section className="ticket-detail-section">
-            <h2>解决方案</h2>
-            <p className={`ticket-description ${ticket.solution ? "" : "ticket-description--empty"}`.trim()}>{ticket.solution || "暂无解决方案。"}</p>
-          </section>
+          <LarkTicketSolutionEditor ticket={ticket} apiBaseUrl={apiBaseUrl}
+            canEdit={Boolean(profile.workspaceAccess?.platformSync)}
+            onUpdated={(patch) => {
+              const matches = (item) => item?.baseId === patch.baseId && item?.tableId === patch.tableId && item?.recordId === patch.recordId;
+              setState((current) => matches(current.ticket) ? { ...current, ticket: { ...current.ticket, ...patch } } : current);
+              onLarkTicketNavigationContextChange?.((current) => updateLarkTicketNavigationContext(current, patch));
+            }} />
 
           <section className="ticket-detail-section">
             <h2>Resources</h2>

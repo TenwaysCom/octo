@@ -48,6 +48,55 @@ function createClient(overrides: Record<string, unknown> = {}) {
 }
 
 describe("lark-ticket-field-update service", () => {
+  it.each(["第一步\n第二步", ""])("writes only the solution and projects the saved value (%#)", async (value) => {
+    const client = createClient({
+      getFields: vi.fn().mockResolvedValue([{ field_name: "解决方案", type: 1 }]),
+      getRecord: vi.fn().mockResolvedValue({ record_id: "rec_1", fields: { Status: "Finish", "解决方案": [{ text: "旧方案" }] } }),
+      updateRecord: vi.fn().mockResolvedValue({ record_id: "rec_1", fields: { "解决方案": value ? [{ text: value }] : null } }),
+    });
+    const syncLarkBaseTicket = vi.fn().mockResolvedValue({ synced: 1 });
+    const result = await updateLarkTicketField({ masterUserId: "user_1", baseId: "app_1", tableId: "tbl_1", recordId: "rec_1",
+      field: "solution", value, actionRunId: "run_solution" }, { ...authDeps, createLarkClient: () => client as never, syncLarkBaseTicket });
+    expect(client.updateRecord).toHaveBeenCalledExactlyOnceWith("app_1", "tbl_1", "rec_1", { "解决方案": value });
+    expect(result).toMatchObject({ ok: true, larkBaseUpdated: true, ticket: { solution: value, ticketStatus: "Finish" } });
+    expect(syncLarkBaseTicket).toHaveBeenCalledWith(expect.objectContaining({ recordId: "rec_1", cleanAfterSync: true, actionRunId: "run_solution" }));
+  });
+
+  it("resolves an empty solution field from metadata", async () => {
+    const client = createClient({ getFields: vi.fn().mockResolvedValue([{ field_name: "解决方案", type: 1 }]),
+      updateRecord: vi.fn().mockResolvedValue({ record_id: "rec_1", fields: { "解决方案": "新方案" } }) });
+    const result = await updateLarkTicketField({ masterUserId: "user_1", baseId: "app_1", tableId: "tbl_1", recordId: "rec_1",
+      field: "solution", value: "新方案" }, { ...authDeps, createLarkClient: () => client as never, syncLarkBaseTicket: vi.fn() });
+    expect(result).toMatchObject({ ok: true, ticket: { solution: "新方案" } });
+  });
+
+  it("does not resurrect a cleared solution when the update response omits the empty field", async () => {
+    const client = createClient({
+      getRecord: vi.fn().mockResolvedValue({ record_id: "rec_1", fields: { "解决方案": "旧方案" } }),
+      getFields: vi.fn().mockResolvedValue([{ field_name: "解决方案", type: 1 }]),
+      updateRecord: vi.fn().mockResolvedValue({ record_id: "rec_1", fields: {} }),
+    });
+    const result = await updateLarkTicketField({ masterUserId: "user_1", baseId: "app_1", tableId: "tbl_1", recordId: "rec_1",
+      field: "solution", value: "" }, { ...authDeps, createLarkClient: () => client as never, syncLarkBaseTicket: vi.fn() });
+    expect(result).toMatchObject({ ok: true, ticket: { solution: "" } });
+  });
+
+  it.each(["write", "sync"])("reports solution %s failures without masking partial success", async (failure) => {
+    const client = createClient({ getFields: vi.fn().mockResolvedValue([{ field_name: "解决方案", type: 1 }]),
+      updateRecord: failure === "write" ? vi.fn().mockRejectedValue(new Error("write failed"))
+        : vi.fn().mockResolvedValue({ record_id: "rec_1", fields: { "解决方案": "方案" } }) });
+    const syncLarkBaseTicket = vi.fn().mockRejectedValue(new Error("sync failed"));
+    const result = await updateLarkTicketField({ masterUserId: "user_1", baseId: "app_1", tableId: "tbl_1", recordId: "rec_1",
+      field: "solution", value: "方案", actionRunId: "run_solution" }, { ...authDeps, createLarkClient: () => client as never, syncLarkBaseTicket });
+    if (failure === "write") {
+      expect(result).toMatchObject({ ok: false, error: { errorCode: "LARK_API_ERROR", actionRunId: "run_solution" } });
+      expect(syncLarkBaseTicket).not.toHaveBeenCalled();
+    } else {
+      expect(result).toMatchObject({ ok: true, larkBaseUpdated: true, syncFailed: true });
+      expect(result).not.toHaveProperty("ticket");
+    }
+  });
+
   it.each([undefined, 1700000000000])("writes the current close time with Finish, replacing %s", async (previousClosedAt) => {
     const client = createClient({
       getRecord: vi.fn().mockResolvedValue({ record_id: "rec_1", fields: {

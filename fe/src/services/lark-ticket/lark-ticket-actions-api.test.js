@@ -58,6 +58,25 @@ test("surfaces server error codes from a failed field update", async () => {
   }), (error) => error.code === "LARK_TICKET_FIELD_NOT_FOUND");
 });
 
+test("sends multiline or empty solution text and preserves partial sync results", async () => {
+  for (const value of ["修复配置\n验证通过", ""]) {
+    for (const syncFailed of [false, true]) {
+      let body;
+      const result = await updateLarkTicketField({ apiBaseUrl: "/api",
+        ticket: { baseId: "base", tableId: "table", recordId: "rec" }, field: "solution", value, actionRunId: "run",
+        fetchImpl: async (_url, options) => {
+          assert.equal(options.credentials, "include");
+          body = JSON.parse(options.body);
+          return { ok: true, json: async () => ({ ok: true, data: { larkBaseUpdated: true, syncFailed,
+            ...(!syncFailed ? { ticket: { solution: value } } : {}) } }) };
+        } });
+      assert.deepEqual(body, { baseId: "base", tableId: "table", field: "solution", value, actionRunId: "run" });
+      assert.equal(result.syncFailed, syncFailed);
+      if (!syncFailed) assert.equal(result.ticket.solution, value);
+    }
+  }
+});
+
 test("creates a Meegle work item from a ticket", async () => {
   let request;
   const data = await createLarkTicketMeegleWorkitem({

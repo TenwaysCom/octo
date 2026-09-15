@@ -8,6 +8,18 @@ import {
   getLarkTicketFromNavigationContext,
 } from "./lark-ticket-detail-navigation.js";
 
+test("solution updates and clearing patch only the complete ticket identity in navigation cache", () => {
+  let context = { recordIds: ["rec"], tickets: [
+    { baseId: "base", tableId: "table", recordId: "rec", solution: "旧方案" },
+    { baseId: "other", tableId: "table", recordId: "rec", solution: "其他 Base" },
+    { baseId: "base", tableId: "other", recordId: "rec", solution: "其他表" },
+  ] };
+  for (const solution of ["新方案\n验证通过", ""]) {
+    context = updateLarkTicketNavigationContext(context, { baseId: "base", tableId: "table", recordId: "rec", solution });
+    assert.deepEqual(context.tickets.map((ticket) => ticket.solution), [solution, "其他 Base", "其他表"]);
+  }
+});
+
 test("captures the loaded Lark Ticket sort order once, across list pages and groups", () => {
   const sortedTickets = sortLarkTickets([
     { recordId: "rec-review", ticketStatus: "Review" },

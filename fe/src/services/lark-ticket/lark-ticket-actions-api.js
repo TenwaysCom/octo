@@ -1,6 +1,6 @@
 import { buildApiUrl } from "../../app/runtime-config.js";
 
-export const LARK_TICKET_ACTION_FIELDS = ["status", "responsible", "requester", "priority", "issueType", "businessLine"];
+export const LARK_TICKET_ACTION_FIELDS = ["status", "responsible", "requester", "priority", "issueType", "businessLine", "solution"];
 
 export async function loadLarkTicketFieldOptions({ apiBaseUrl, baseId, tableId, fetchImpl = fetch }) {
   const query = new URLSearchParams({ baseId, tableId });

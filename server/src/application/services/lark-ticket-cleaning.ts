@@ -42,7 +42,7 @@ export function buildLarkTicketCleaningProjection(
     priority: readField(source, URGENCY_FIELDS),
     createdAt: normalizeLarkTicketTimestamp(readField(source, CREATED_AT_FIELDS) ?? createdTime),
     closedAt: normalizeLarkTicketTimestamp(readField(source, [LARK_TICKET_CLOSED_AT_FIELD])),
-    solution: readField(source, ["解决方案"]),
+    solution: readField(source, LARK_TICKET_FIELD_CANDIDATES.solution),
     detailDescription,
     meegleLink: readUrl(source, MEEGLE_LINK_FIELDS),
     larkMessageLink: readUrl(source, LARK_MESSAGE_LINK_FIELDS) ?? findMessageLink(detailDescription),

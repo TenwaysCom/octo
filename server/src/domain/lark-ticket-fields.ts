@@ -7,6 +7,7 @@ export type LarkTicketSemanticField =
   | "requester"
   | "responsible"
   | "priority"
+  | "solution"
   | "businessLine";
 
 export const LARK_TICKET_FIELD_CANDIDATES: Record<LarkTicketSemanticField, string[]> = {
@@ -16,6 +17,7 @@ export const LARK_TICKET_FIELD_CANDIDATES: Record<LarkTicketSemanticField, strin
   responsible: ["Responsible", "负责人", "责任人", "Owner", "Assignee"],
   priority: ["紧急度"],
   businessLine: ["Business line"],
+  solution: ["解决方案"],
 };
 
 export const LARK_TICKET_SEMANTIC_FIELDS = Object.keys(

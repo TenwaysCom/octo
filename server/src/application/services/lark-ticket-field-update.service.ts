@@ -77,6 +77,7 @@ export interface UpdatedLarkTicketProjection {
   requester?: string;
   responsible?: string;
   priority?: string;
+  solution: string;
 }
 
 export interface LarkTicketFieldUpdateResult {
@@ -210,6 +211,7 @@ function buildUpdatedTicketProjection(
     ...(projection.priority ? { priority: projection.priority } : {}),
     ...(projection.closedAt ? { closedAt: projection.closedAt } : {}),
     ticketStatus: readFieldText(fields, LARK_TICKET_FIELD_CANDIDATES.status),
+    solution: projection.solution ?? "",
   };
 }
 
@@ -286,7 +288,9 @@ export async function updateLarkTicketField(
     });
     serviceLogger.info({ actionRunId, recordId, field, fieldName }, "server.ticket-field.write");
 
-    const mergedFields = { ...record.fields, ...updated.fields };
+    // A cleared text cell may be omitted from the update response. Do not
+    // resurrect its pre-write value when merging a sparse platform response.
+    const mergedFields = { ...record.fields, ...(field === "solution" ? { [fieldName]: value } : {}), ...updated.fields };
     const ticket = buildUpdatedTicketProjection(baseId, tableId, recordId, mergedFields);
 
     try {

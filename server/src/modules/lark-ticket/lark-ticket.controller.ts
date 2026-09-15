@@ -35,11 +35,17 @@ const ticketFieldOptionsQuerySchema = z.object({
 const ticketFieldUpdateSchema = z.object({
   baseId: z.string().trim().min(1),
   tableId: z.string().trim().min(1),
-  field: z.enum(["status", "responsible", "requester", "priority", "issueType", "businessLine"]),
-  value: z.string().trim().min(1).max(512),
+  field: z.enum(["status", "responsible", "requester", "priority", "issueType", "businessLine", "solution"]),
+  value: z.string().trim(),
   optionUserId: z.string().trim().min(1).max(128).optional(),
   actionRunId: z.string().trim().min(1).max(128),
-}).strict();
+}).strict().superRefine(({ field, value }, ctx) => {
+  const max = field === "solution" ? 20_000 : 512;
+  if ((field !== "solution" && value.length === 0) || value.length > max) {
+    ctx.addIssue({ code: "custom", path: ["value"], message: field === "solution"
+      ? "解决方案最多 20,000 字符。" : "字段值不能为空，且最多 512 字符。" });
+  }
+});
 const ticketCreateMeegleSchema = z.object({
   baseId: z.string().trim().min(1),
   tableId: z.string().trim().min(1),

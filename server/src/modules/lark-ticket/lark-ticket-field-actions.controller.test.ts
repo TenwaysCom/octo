@@ -9,7 +9,7 @@ function createFieldUpdateService() {
       larkBaseUpdated: true as const,
       recordId: "rec_1",
       field: "status",
-      ticket: { baseId: "app_1", tableId: "tbl_1", recordId: "rec_1", title: "t", ticketStatus: "Done" },
+      ticket: { baseId: "app_1", tableId: "tbl_1", recordId: "rec_1", title: "t", ticketStatus: "Done", solution: "" },
     }),
     loadOptions: vi.fn().mockResolvedValue({
       baseId: "app_1",
@@ -20,6 +20,41 @@ function createFieldUpdateService() {
 }
 
 describe("web Lark Ticket field actions authorization", () => {
+  it.each(["  第一步\n第二步  ", "", "   ", "解".repeat(20_000)])("accepts solution text with its own limit and trimming (%#)", async (value) => {
+    const fieldUpdateService = createFieldUpdateService();
+    const controller = createWebLarkTicketController({ resolveSession: vi.fn().mockResolvedValue(pmSession), fieldUpdateService });
+    const result = await controller.updateTicketField({ cookieHeader: "octo_web_session=s", recordId: "rec_1",
+      body: { baseId: "app_1", tableId: "tbl_1", field: "solution", value, actionRunId: "run_1" } });
+    expect(result.statusCode).toBe(200);
+    expect(fieldUpdateService.update).toHaveBeenCalledWith(expect.objectContaining({ field: "solution", value: value.trim(), masterUserId: "user_1" }));
+  });
+
+  it.each([
+    { field: "solution", value: "解".repeat(20_001) },
+    { field: "solution", value: null },
+    { field: "status", value: " " },
+    { field: "status", value: "x".repeat(513) },
+  ])("rejects invalid text without relaxing other fields (%#)", async ({ field, value }) => {
+    const fieldUpdateService = createFieldUpdateService();
+    const controller = createWebLarkTicketController({ resolveSession: vi.fn().mockResolvedValue(pmSession), fieldUpdateService });
+    const result = await controller.updateTicketField({ cookieHeader: "octo_web_session=s", recordId: "rec_1",
+      body: { baseId: "app_1", tableId: "tbl_1", field, value, actionRunId: "run_1" } });
+    expect(result).toMatchObject({ statusCode: 400, body: { ok: false, error: { errorCode: "INVALID_REQUEST" } } });
+    expect(fieldUpdateService.update).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { session: { ...pmSession, role: "dev" }, status: 403 },
+    { session: { ok: false, errorCode: "UNAUTHENTICATED" }, status: 401 },
+  ])("protects solution writes with existing session permissions (%#)", async ({ session, status }) => {
+    const fieldUpdateService = createFieldUpdateService();
+    const controller = createWebLarkTicketController({ resolveSession: vi.fn().mockResolvedValue(session), fieldUpdateService });
+    const result = await controller.updateTicketField({ cookieHeader: undefined, recordId: "rec_1",
+      body: { baseId: "app_1", tableId: "tbl_1", field: "solution", value: "new", actionRunId: "run_1" } });
+    expect(result.statusCode).toBe(status);
+    expect(fieldUpdateService.update).not.toHaveBeenCalled();
+  });
+
   it("updates a ticket field through the server-side workflow with the session identity", async () => {
     const fieldUpdateService = createFieldUpdateService();
     const controller = createWebLarkTicketController({

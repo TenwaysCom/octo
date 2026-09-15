@@ -599,6 +599,8 @@ projectKey + workitemTypeKey
 
 Web Ticket 字段编辑将状态写为 `Finish` 时，同样在单次 Base 更新请求中写入 `关闭时间`（服务器当前毫秒时间戳，覆盖旧值）。写入成功后执行单 Ticket 同步和清洗，返回 ISO 格式 `closedAt` 供页面刷新；同步失败沿用 `larkBaseUpdated: true / syncFailed: true` 部分成功语义。其他状态或字段修改不写关闭时间。
 
+Web Ticket 详情的“解决方案”通过编辑图标进入多行编辑，只有保存图标提交 `POST /api/web/lark-tickets/:recordId/fields` 的 `field: "solution"`；沿用 Web session 与 `platformSync` 权限。服务端将其映射到 Base“解决方案”，去除首尾空白、保留内部换行，允许空字符串清空，最多 20,000 字符；其他字段仍要求非空且最多 512 字符。保存后沿用单 Ticket 同步清洗，返回字符串 `solution`（清空为 `""`），FE 更新详情和导航缓存。失败或本地同步失败保留草稿并分别提示；编辑状态按 API origin 与完整 Base/Table/Record 身份隔离，切换丢弃草稿并忽略迟到响应。批量导入、清洗策略及 AI 流程不变。验证记录见 [解决方案编辑任务](../../tasks/platform-data/2026-09-15-ticket-solution-editor.md)。
+
 ### 技术对象
 
 `MeegleLarkPushAction`
