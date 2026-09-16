@@ -1,0 +1,370 @@
+import type { Kysely, Selectable } from "kysely";
+import { resolveAcpSessionIdentity, type AcpAgentProvider } from "../acp/managed-acp-runtime.js";
+import { getSharedDatabase } from "./database.js";
+import type { DatabaseSchema } from "./schema.js";
+
+export interface AcpKimiSessionOwnershipRecord {
+  sessionId: string;
+  agentProvider?: AcpAgentProvider | null;
+  agentSessionId?: string | null;
+  operatorLarkId: string;
+  title: string | null;
+  ticketBaseId: string | null;
+  ticketTableId: string | null;
+  ticketRecordId: string | null;
+  ticketNumber: string | null;
+  runtimeHostName: string | null;
+  kimiWorkDir: string | null;
+  automationActionKey: string | null;
+  permissionProfileId: string | null;
+  permissionProfileVersion: string | null;
+  /** Historical only. New sessions never write this field. */
+  executionPolicy: string | null;
+  skillProfile: string | null;
+  skillId: string | null;
+  policyVersion: string | null;
+  threadId: string | null;
+  threadSnapshotVersion: number | null;
+  threadContextSyncedAt: string | null;
+  actionRunId: string | null;
+  runStatus: "completed" | "failed" | null;
+  runErrorCode: string | null;
+  runErrorMessage: string | null;
+  unverifiedOutput: string | null;
+  deletedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AcpKimiSessionOwnershipStore {
+  getBySessionId(sessionId: string): Promise<AcpKimiSessionOwnershipRecord | undefined>;
+  listByOperatorLarkId(operatorLarkId: string): Promise<AcpKimiSessionOwnershipRecord[]>;
+  listByTicket(input: {
+    operatorLarkId: string;
+    baseId: string;
+    tableId: string;
+    recordId: string;
+  }): Promise<AcpKimiSessionOwnershipRecord[]>;
+  claim(input: {
+    sessionId: string;
+    agentProvider?: AcpAgentProvider;
+    agentSessionId?: string;
+    operatorLarkId: string;
+    title?: string | null;
+    runtimeHostName?: string | null;
+    kimiWorkDir?: string | null;
+    automationActionKey?: string | null;
+    permissionProfileId?: string | null;
+    permissionProfileVersion?: string | null;
+    skillProfile?: string | null;
+    skillId?: string | null;
+    actionRunId?: string | null;
+  }): Promise<AcpKimiSessionOwnershipRecord>;
+  rename(
+    sessionId: string,
+    operatorLarkId: string,
+    title: string,
+  ): Promise<AcpKimiSessionOwnershipRecord | undefined>;
+  attachTicket(input: {
+    sessionId: string;
+    operatorLarkId: string;
+    title: string;
+    baseId: string;
+    tableId: string;
+    recordId: string;
+    ticketNumber?: string | null;
+    threadId?: string | null;
+    threadSnapshotVersion?: number | null;
+    threadContextSyncedAt?: string | null;
+  }): Promise<AcpKimiSessionOwnershipRecord | undefined>;
+  touch(sessionId: string, operatorLarkId: string): Promise<void>;
+  updateRun?(input: {
+    sessionId: string;
+    operatorLarkId: string;
+    actionRunId: string;
+    status: "completed" | "failed";
+    errorCode?: string | null;
+    errorMessage?: string | null;
+    unverifiedOutput?: string | null;
+  }): Promise<AcpKimiSessionOwnershipRecord | undefined>;
+  deleteForOperator(sessionId: string, operatorLarkId: string): Promise<boolean>;
+}
+
+function toRecord(
+  row: Selectable<DatabaseSchema["acp_kimi_session_owners"]> | undefined,
+): AcpKimiSessionOwnershipRecord | undefined {
+  if (!row) {
+    return undefined;
+  }
+
+  if (row.agent_provider && row.agent_provider !== "hermes_acp" && row.agent_provider !== "kimi_acp") {
+    throw new Error("Saved ACP session has an unsupported provider.");
+  }
+  return {
+    sessionId: row.session_id,
+    agentProvider: row.agent_provider === "hermes_acp" || row.agent_provider === "kimi_acp" ? row.agent_provider : null,
+    agentSessionId: row.agent_session_id ?? null,
+    operatorLarkId: row.operator_lark_id,
+    title: row.title ?? null,
+    ticketBaseId: row.ticket_base_id ?? null,
+    ticketTableId: row.ticket_table_id ?? null,
+    ticketRecordId: row.ticket_record_id ?? null,
+    ticketNumber: row.ticket_number ?? null,
+    runtimeHostName: row.runtime_host_name ?? null,
+    kimiWorkDir: row.kimi_work_dir ?? null,
+    automationActionKey: row.automation_action_key ?? null,
+    permissionProfileId: row.permission_profile_id ?? null,
+    permissionProfileVersion: row.permission_profile_version ?? null,
+    executionPolicy: row.execution_policy ?? null,
+    skillProfile: row.skill_profile ?? null,
+    skillId: row.skill_id ?? null,
+    policyVersion: row.policy_version ?? null,
+    threadId: row.thread_id ?? null,
+    threadSnapshotVersion: row.thread_snapshot_version ?? null,
+    threadContextSyncedAt: row.thread_context_synced_at ?? null,
+    actionRunId: row.action_run_id ?? null,
+    runStatus: row.run_status === "completed" || row.run_status === "failed" ? row.run_status : null,
+    runErrorCode: row.run_error_code ?? null,
+    runErrorMessage: row.run_error_message ?? null,
+    unverifiedOutput: row.unverified_output ?? null,
+    deletedAt: row.deleted_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export class PostgresAcpKimiSessionOwnershipStore
+  implements AcpKimiSessionOwnershipStore
+{
+  constructor(private readonly db?: Kysely<DatabaseSchema>) {}
+
+  private get database(): Kysely<DatabaseSchema> {
+    return this.db ?? getSharedDatabase();
+  }
+
+  async getBySessionId(
+    sessionId: string,
+  ): Promise<AcpKimiSessionOwnershipRecord | undefined> {
+    const row = await this.database.selectFrom("acp_kimi_session_owners")
+      .selectAll().where("session_id", "=", sessionId).executeTakeFirst();
+    const record = toRecord(row);
+    if (record && (!record.agentProvider || !record.agentSessionId)) {
+      const identity = resolveAcpSessionIdentity(record);
+      await this.database.updateTable("acp_kimi_session_owners")
+        .set({ agent_provider: identity.agentProvider, agent_session_id: identity.agentSessionId })
+        .where("session_id", "=", sessionId).execute();
+      return { ...record, ...identity };
+    }
+    return record;
+  }
+
+  async listByOperatorLarkId(
+    operatorLarkId: string,
+  ): Promise<AcpKimiSessionOwnershipRecord[]> {
+    return (await this.database.selectFrom("acp_kimi_session_owners")
+      .selectAll()
+      .where("operator_lark_id", "=", operatorLarkId)
+      .where("deleted_at", "is", null)
+      .orderBy("updated_at", "desc")
+      .execute()).map((row) => toRecord(row)!);
+  }
+
+  async listByTicket(input: {
+    operatorLarkId: string;
+    baseId: string;
+    tableId: string;
+    recordId: string;
+    ticketNumber?: string | null;
+    threadId?: string | null;
+    threadSnapshotVersion?: number | null;
+    threadContextSyncedAt?: string | null;
+  }): Promise<AcpKimiSessionOwnershipRecord[]> {
+    return (await this.database.selectFrom("acp_kimi_session_owners")
+      .selectAll()
+      .where("operator_lark_id", "=", input.operatorLarkId)
+      .where("ticket_base_id", "=", input.baseId)
+      .where("ticket_table_id", "=", input.tableId)
+      .where("ticket_record_id", "=", input.recordId)
+      .where("deleted_at", "is", null)
+      .orderBy("updated_at", "desc")
+      .execute()).map((row) => toRecord(row)!);
+  }
+
+  async claim(input: {
+    sessionId: string;
+    agentProvider?: AcpAgentProvider;
+    agentSessionId?: string;
+    operatorLarkId: string;
+    title?: string | null;
+    runtimeHostName?: string | null;
+    kimiWorkDir?: string | null;
+    automationActionKey?: string | null;
+    permissionProfileId?: string | null;
+    permissionProfileVersion?: string | null;
+    skillProfile?: string | null;
+    skillId?: string | null;
+    actionRunId?: string | null;
+  }): Promise<AcpKimiSessionOwnershipRecord> {
+    const now = new Date().toISOString();
+
+    await this.database.insertInto("acp_kimi_session_owners")
+      .values({
+        session_id: input.sessionId,
+        agent_provider: input.agentProvider ?? resolveAcpSessionIdentity(input).agentProvider,
+        agent_session_id: input.agentSessionId ?? input.sessionId,
+        operator_lark_id: input.operatorLarkId,
+        title: input.title ?? null,
+        runtime_host_name: input.runtimeHostName ?? null,
+        kimi_work_dir: input.kimiWorkDir ?? null,
+        automation_action_key: input.automationActionKey ?? null,
+        permission_profile_id: input.permissionProfileId ?? null,
+        permission_profile_version: input.permissionProfileVersion ?? null,
+        skill_profile: input.skillProfile ?? null,
+        skill_id: input.skillId ?? null,
+        action_run_id: input.actionRunId ?? null,
+        deleted_at: null,
+        created_at: now,
+        updated_at: now,
+      })
+      .onConflict((conflict) =>
+        conflict.column("session_id").doUpdateSet({
+          deleted_at: null,
+          updated_at: now,
+        }).where("acp_kimi_session_owners.operator_lark_id", "=", input.operatorLarkId))
+      .execute();
+
+    const record = (await this.getBySessionId(input.sessionId))!;
+    if (record.operatorLarkId !== input.operatorLarkId) throw new Error("ACP session is already owned by another operator.");
+    if ((input.agentProvider && record.agentProvider !== input.agentProvider) || (input.agentSessionId && record.agentSessionId !== input.agentSessionId)) {
+      throw new Error("ACP session identity cannot be changed after creation.");
+    }
+    return record;
+  }
+
+  async rename(
+    sessionId: string,
+    operatorLarkId: string,
+    title: string,
+  ): Promise<AcpKimiSessionOwnershipRecord | undefined> {
+    const now = new Date().toISOString();
+    const result = await this.database.updateTable("acp_kimi_session_owners")
+      .set({
+        title,
+        updated_at: now,
+      })
+      .where("session_id", "=", sessionId)
+      .where("operator_lark_id", "=", operatorLarkId)
+      .where("deleted_at", "is", null)
+      .executeTakeFirst();
+
+    if (Number(result.numUpdatedRows) === 0) {
+      return undefined;
+    }
+
+    return this.getBySessionId(sessionId);
+  }
+
+  async attachTicket(input: {
+    sessionId: string;
+    operatorLarkId: string;
+    title: string;
+    baseId: string;
+    tableId: string;
+    recordId: string;
+    ticketNumber?: string | null;
+    threadId?: string | null;
+    threadSnapshotVersion?: number | null;
+    threadContextSyncedAt?: string | null;
+  }): Promise<AcpKimiSessionOwnershipRecord | undefined> {
+    const result = await this.database.updateTable("acp_kimi_session_owners")
+      .set({
+        title: input.title,
+        ticket_base_id: input.baseId,
+        ticket_table_id: input.tableId,
+        ticket_record_id: input.recordId,
+        ticket_number: input.ticketNumber ?? null,
+        thread_id: input.threadId ?? null,
+        thread_snapshot_version: input.threadSnapshotVersion ?? null,
+        thread_context_synced_at: input.threadContextSyncedAt ?? null,
+        updated_at: new Date().toISOString(),
+      })
+      .where("session_id", "=", input.sessionId)
+      .where("operator_lark_id", "=", input.operatorLarkId)
+      .where("deleted_at", "is", null)
+      .executeTakeFirst();
+
+    return Number(result.numUpdatedRows) > 0
+      ? this.getBySessionId(input.sessionId)
+      : undefined;
+  }
+
+  async touch(sessionId: string, operatorLarkId: string): Promise<void> {
+    await this.database.updateTable("acp_kimi_session_owners")
+      .set({ updated_at: new Date().toISOString() })
+      .where("session_id", "=", sessionId)
+      .where("operator_lark_id", "=", operatorLarkId)
+      .where("deleted_at", "is", null)
+      .execute();
+  }
+
+  async updateRun(input: {
+    sessionId: string;
+    operatorLarkId: string;
+    actionRunId: string;
+    status: "completed" | "failed";
+    errorCode?: string | null;
+    errorMessage?: string | null;
+    unverifiedOutput?: string | null;
+  }): Promise<AcpKimiSessionOwnershipRecord | undefined> {
+    const result = await this.database.updateTable("acp_kimi_session_owners")
+      .set({
+        action_run_id: input.actionRunId,
+        run_status: input.status,
+        run_error_code: input.errorCode ?? null,
+        run_error_message: input.errorMessage ?? null,
+        unverified_output: input.unverifiedOutput ?? null,
+        updated_at: new Date().toISOString(),
+      })
+      .where("session_id", "=", input.sessionId)
+      .where("operator_lark_id", "=", input.operatorLarkId)
+      .where("deleted_at", "is", null)
+      .executeTakeFirst();
+    return Number(result.numUpdatedRows) > 0
+      ? this.getBySessionId(input.sessionId)
+      : undefined;
+  }
+
+  async deleteForOperator(
+    sessionId: string,
+    operatorLarkId: string,
+  ): Promise<boolean> {
+    const now = new Date().toISOString();
+    const result = await this.database.updateTable("acp_kimi_session_owners")
+      .set({
+        deleted_at: now,
+        updated_at: now,
+      })
+      .where("session_id", "=", sessionId)
+      .where("operator_lark_id", "=", operatorLarkId)
+      .where("deleted_at", "is", null)
+      .executeTakeFirst();
+
+    return Number(result.numUpdatedRows) > 0;
+  }
+}
+
+let defaultStore: AcpKimiSessionOwnershipStore | undefined;
+
+export function configureAcpKimiSessionOwnershipStore(
+  store: AcpKimiSessionOwnershipStore,
+): void {
+  defaultStore = store;
+}
+
+export function getAcpKimiSessionOwnershipStore(): AcpKimiSessionOwnershipStore {
+  if (!defaultStore) {
+    defaultStore = new PostgresAcpKimiSessionOwnershipStore();
+  }
+
+  return defaultStore;
+}

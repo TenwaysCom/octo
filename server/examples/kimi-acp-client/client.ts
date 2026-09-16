@@ -1,0 +1,183 @@
+#!/usr/bin/env node
+
+import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { Readable, Writable } from "node:stream";
+import process from "node:process";
+import * as acp from "@agentclientprotocol/sdk";
+import type {
+  RequestPermissionRequest,
+  RequestPermissionResponse,
+  SessionNotification,
+} from "@agentclientprotocol/sdk";
+import { buildKimiAcpSpawnConfig } from "../../src/experiments/kimi-acp/config.js";
+import {
+  cleanupAgentProcess,
+  runWithAgentProcessGuard,
+} from "../../src/experiments/kimi-acp/process-lifecycle.js";
+import { runValidationTurn } from "../../src/experiments/kimi-acp/run-validation.js";
+import { renderSessionUpdate } from "../../src/experiments/kimi-acp/session-update-output.js";
+
+class LoggingClient implements acp.Client {
+  async requestPermission(
+    params: RequestPermissionRequest,
+  ): Promise<RequestPermissionResponse> {
+    console.error(
+      `[kimi-acp] permission requested for tool call: ${params.toolCall.title}`,
+    );
+
+    return {
+      outcome: {
+        outcome: "cancelled",
+      },
+    };
+  }
+
+  async sessionUpdate(params: SessionNotification): Promise<void> {
+    const rendered = renderSessionUpdate(params.update);
+
+    if (!rendered) {
+      return;
+    }
+
+    if (rendered.stdoutText) {
+      process.stdout.write(rendered.stdoutText);
+    }
+
+    if (rendered.stderrLine) {
+      process.stderr.write(rendered.stderrLine);
+    }
+  }
+}
+
+async function main() {
+  const prompt = getPromptFromArgs(process.argv.slice(2));
+  const spawnConfig = buildKimiAcpSpawnConfig(process.env);
+  const agentProcess = spawnAgentProcess(spawnConfig);
+  const cleanup = installCleanup(agentProcess);
+
+  try {
+    const input = Writable.toWeb(agentProcess.stdin);
+    const output = Readable.toWeb(agentProcess.stdout);
+    const stream = acp.ndJsonStream(input, output);
+    const connection = new acp.ClientSideConnection(
+      () => new LoggingClient(),
+      stream,
+    );
+
+    const result = await runWithAgentProcessGuard(agentProcess, () =>
+      runValidationTurn({
+        cwd: process.cwd(),
+        prompt,
+        connection: {
+          initialize: () =>
+            connection.initialize({
+              protocolVersion: acp.PROTOCOL_VERSION,
+              clientInfo: {
+                name: "tenways-octo-kimi-validator",
+                version: "0.1.0",
+              },
+              clientCapabilities: {},
+            }),
+          createSession: ({ cwd }) =>
+            connection.newSession({
+              cwd,
+              mcpServers: [],
+            }),
+          prompt: ({ sessionId, prompt }) =>
+            connection.prompt({
+              sessionId,
+              prompt: [
+                {
+                  type: "text",
+                  text: prompt,
+                },
+              ],
+            }),
+        },
+      }),
+    );
+
+    console.log("\n");
+    console.log(`[kimi-acp] protocolVersion=${result.protocolVersion}`);
+    console.log(
+      `[kimi-acp] mcpCapabilities=${JSON.stringify(
+        result.capabilities.mcpCapabilities || {},
+      )}`,
+    );
+    console.log(`[kimi-acp] sessionId=${result.sessionId}`);
+    console.log(`[kimi-acp] stopReason=${result.stopReason}`);
+  } finally {
+    await cleanup();
+  }
+}
+
+function getPromptFromArgs(args: string[]): string {
+  if (args.length === 0) {
+    return "请简单介绍你自己，并确认 ACP 会话已经建立。";
+  }
+
+  return args.join(" ");
+}
+
+function spawnAgentProcess(
+  spawnConfig: ReturnType<typeof buildKimiAcpSpawnConfig>,
+): ChildProcessWithoutNullStreams {
+  const agentProcess = spawn(spawnConfig.command, spawnConfig.args, {
+    env: spawnConfig.env,
+    stdio: ["pipe", "pipe", "pipe"],
+  });
+
+  agentProcess.stderr.on("data", (chunk) => {
+    process.stderr.write(`[kimi-acp:stderr] ${String(chunk)}`);
+  });
+
+  return agentProcess;
+}
+
+function installCleanup(agentProcess: ChildProcessWithoutNullStreams) {
+  let cleanedUp = false;
+
+  const cleanup = async () => {
+    if (cleanedUp) {
+      return;
+    }
+
+    cleanedUp = true;
+
+    process.off("SIGINT", handleSignal);
+    process.off("SIGTERM", handleSignal);
+    process.off("uncaughtException", handleUncaughtException);
+    process.off("unhandledRejection", handleUnhandledRejection);
+
+    await cleanupAgentProcess(agentProcess);
+  };
+
+  const handleSignal = async () => {
+    await cleanup();
+    process.exit(130);
+  };
+
+  const handleUncaughtException = async (error: unknown) => {
+    console.error("[kimi-acp] uncaught exception:", error);
+    await cleanup();
+    process.exit(1);
+  };
+
+  const handleUnhandledRejection = async (reason: unknown) => {
+    console.error("[kimi-acp] unhandled rejection:", reason);
+    await cleanup();
+    process.exit(1);
+  };
+
+  process.on("SIGINT", handleSignal);
+  process.on("SIGTERM", handleSignal);
+  process.on("uncaughtException", handleUncaughtException);
+  process.on("unhandledRejection", handleUnhandledRejection);
+
+  return cleanup;
+}
+
+void main().catch(async (error) => {
+  console.error("[kimi-acp] validation failed:", error);
+  process.exit(1);
+});

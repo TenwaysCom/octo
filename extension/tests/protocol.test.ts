@@ -3,6 +3,6 @@ import { protocolActions } from "../src/types/protocol";
 
 describe("protocolActions", () => {
   it("includes the Meegle auth ensure action", () => {
-    expect(protocolActions).toContain("itdog.meegle.auth.ensure");
+    expect(protocolActions).toContain("octo.meegle.auth.ensure");
   });
 });

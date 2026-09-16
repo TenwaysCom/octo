@@ -1,0 +1,15 @@
+# Hermes config.yaml 权限片段；Answer / Document 共用此审批基础设置。
+# 必须先阅读 README.md：本文件不是完整的命令/路径白名单实现。
+# 保留既有模型和认证配置；不要直接覆盖个人配置。
+approvals:
+  # manual 仅对原生安全检查触发的危险命令请求审批。
+  # 它不保证清单外的所有命令都会进入 ACP 审批。
+  mode: manual
+
+# 本机版本这里保存危险模式的规范键/别名，不是任意脚本命令列表。
+# 不填写 bash、node 等宽泛类别，也不填写无效的精确命令字符串。
+# 空列表适用于新的任务配置；不用于自动清空个人已有授权。
+command_allowlist: []
+
+# Quick Action 用户审批、shadow 遇审批立即失败属于 Octo 宿主行为。
+# 不添加不存在的 onApproval/allowedCommands 字段，亦不以 YOLO 绕过审批。

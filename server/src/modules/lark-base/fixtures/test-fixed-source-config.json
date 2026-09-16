@@ -1,0 +1,33 @@
+{
+  "issueTypeMappings": [
+    {
+      "larkLabels": ["数据维护", "产品信息维护"],
+      "workitemTypeKey": "66700acbf297a8f821b4b860",
+      "templateId": "690928",
+      "urlSlug": "techtask",
+      "fieldMappings": [
+        {
+          "larkField": "Issue Description",
+          "fallbackLarkFields": ["fldaAzcMtg", "Details Description", "fldML66Cx1"],
+          "meegleField": "__title__",
+          "transform": "first_line"
+        },
+        {
+          "larkField": "Details Description",
+          "fallbackLarkFields": ["fldML66Cx1", "Issue Description", "fldaAzcMtg"],
+          "meegleField": "description",
+          "transform": "text"
+        },
+        {
+          "meegleField": "field_7c2f56",
+          "notes": "Tech Team",
+          "source": {
+            "sourceType": "fixed",
+            "value": "cmb9pif3i"
+          },
+          "transform": "text"
+        }
+      ]
+    }
+  ]
+}

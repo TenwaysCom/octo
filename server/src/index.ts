@@ -1,50 +1,263 @@
 import "reflect-metadata";
 import "dotenv/config";
+import { readPlatformSyncSchedulerConfig, resolveBackgroundTaskConfig } from "./config/platform-sync-config.js";
+import { OdooShBuildRefreshScheduler } from "./application/services/odoo-sh-build-refresh-scheduler.js";
+import { createOdooShCommitAuthorResolver, parseOdooShAuthorGithubMapping } from "./application/services/odoo-sh-commit-author.service.js";
+import { odooDevopsBuildsSnapshotSchema } from "./modules/odoo-devops-branches/odoo-devops-branches.dto.js";
 import express, { type Request, type Response } from "express";
-import { analyzeA2Controller, createB1DraftController, applyB1Controller } from "./modules/a2/a2.controller.js";
-import { analyzeA1Controller, createB2DraftController, applyB2Controller } from "./modules/a1/a1.controller.js";
 import { resolveIdentityController } from "./modules/identity/identity.controller.js";
-import { syncIdentityController, getIdentityController } from "./modules/identity/identity-sync.controller.js";
-import { exchangeAuthCodeController, getAuthStatusController, getAuthCodeController } from "./modules/meegle-auth/meegle-auth.controller.js";
-import { exchangeAuthCodeController as exchangeLarkAuthCodeController, refreshTokenController as refreshLarkTokenController, getAuthStatusController as getLarkAuthStatusController } from "./modules/lark-auth/lark-auth.controller.js";
+import { writeClientDebugLogController } from "./modules/debug-log/debug-log.controller.js";
+import { exchangeAuthCodeController, getAuthStatusController } from "./modules/meegle-auth/meegle-auth.controller.js";
+import { exchangeAuthCodeController as exchangeLarkAuthCodeController, refreshTokenController as refreshLarkTokenController, getAuthStatusController as getLarkAuthStatusController, handleAuthCallbackController as handleLarkAuthCallbackController, createOauthSessionController as createLarkOauthSessionController, ensureWebLarkAuthController, getWebProfileController, getLarkUserInfoController as getLarkUserInfoController, logoutWebLarkAuthController, refreshLarkAuthStatusController, startWebLarkAuthController, approveWebPluginLoginController, completeWebPluginLoginController, startWebPluginLoginController, WEB_PLUGIN_LOGIN_COOKIE_NAME, WEB_SESSION_COOKIE_NAME } from "./modules/lark-auth/lark-auth.controller.js";
 import { configureLarkAuthControllerDeps } from "./modules/lark-auth/lark-auth.controller.js";
+import { configureLarkAuthServiceDeps } from "./modules/lark-auth/lark-auth.service.js";
 import { configureMeegleAuthServiceDeps } from "./modules/meegle-auth/meegle-auth.service.js";
+import {
+  configurePublicConfigController,
+  getExtensionPageConfigController,
+  getPublicConfigController,
+  getServerApiCatalogController,
+} from "./modules/public-config/public-config.controller.js";
+import { getExtensionVersionController } from "./modules/public-config/extension-version.controller.js";
+import { createHttpMeegleAuthAdapter } from "./adapters/meegle/auth-adapter.js";
+import { closeSharedDatabase, ensureSharedDatabase } from "./adapters/postgres/database.js";
+import { getSharedMeegleTokenStore } from "./adapters/postgres/meegle-token-store.js";
+import { getSharedLarkTokenStore } from "./adapters/postgres/lark-token-store.js";
+import { getSharedOauthSessionStore } from "./adapters/postgres/lark-oauth-session-store.js";
+import { getSharedWebSessionStore } from "./adapters/postgres/web-session-store.js";
+import { getSharedWebPluginLoginChallengeStore } from "./adapters/postgres/web-plugin-login-challenge-store.js";
+import { registerLarkMeegleWorkflowRoutes } from "./http/lark-meegle-workflow-routes.js";
 import { runPMAnalysisController } from "./modules/pm-analysis/pm-analysis.controller.js";
+import { acpKimiChatController } from "./modules/acp-kimi/acp-kimi.controller.js";
+import {
+  acpKimiSessionDeleteController,
+  acpKimiSessionListController,
+  acpKimiSessionLoadController,
+  acpKimiSessionRenameController,
+} from "./modules/acp-kimi/acp-kimi-sessions.controller.js";
+import {
+  getLarkRecordUrlController,
+  updateLarkBaseMeegleLinkController,
+} from "./modules/lark-base/lark-base.controller.js";
+import { createLarkBaseWorkflowController } from "./modules/lark-base/lark-base-workflow.controller.js";
+import {
+  createLarkBaseBulkWorkflowController,
+  previewLarkBaseBulkWorkflowController,
+} from "./modules/lark-base/lark-base-bulk-workflow.controller.js";
+import { meegleLarkPushController } from "./modules/meegle-workitem/meegle-lark-push.controller.js";
+import { larkBugAnalyzeController } from "./modules/lark-bug/lark-bug-analyze.controller.js";
+import { meegleStoryPrdToSimplifiedController } from "./modules/meegle-workitem/meegle-story-prd-to-simplified.controller.js";
+import { createApiRequestLogger } from "./http/api-request-logger.js";
+import { createApiAuthMiddleware } from "./http/api-auth.js";
+import {
+  githubBranchPreviewController,
+  githubBranchCreateController,
+} from "./modules/github-branch-create/github-branch-create.controller.js";
+import {
+  githubPrReviewController,
+  githubPrCodeReviewFeedbackController,
+  githubPrReviewStatusController,
+} from "./modules/github-pr-review/github-pr-review.controller.js";
+import { createCorsMiddleware, parseAllowedCredentialOrigins } from "./http/cors.js";
+import { createGitHubLookupRouter } from "./routes/github-lookup.js";
+import { SERVER_VERSION } from "./server-version.js";
+import {
+  bulkSyncGitHubPullRequestsController,
+  bulkSyncLarkBaseTicketsController,
+  bulkSyncMeegleWorkitemsController,
+  selectedSyncGitHubPullRequestsController,
+  selectedSyncLarkBaseTicketsController,
+  selectedSyncMeegleWorkitemsController,
+  syncGitHubPullRequestController,
+  syncLarkBaseTicketController,
+  syncMeegleWorkitemController,
+} from "./modules/platform-sync/platform-sync.controller.js";
+import {
+  createWebGitHubPullRequestPreviewController,
+  createWebMeeglePullRequestLinkController,
+  createWebMeegleSprintHistoryController,
+  createWebPlatformDataController,
+} from "./modules/platform-data/platform-data.controller.js";
+import { createWebPlatformSyncController } from "./modules/platform-sync/web-platform-sync.controller.js";
+import { PlatformDataService } from "./application/services/platform-data.service.js";
+import { registerWebPlatformSearchRoutes } from "./modules/platform-data/platform-search.controller.js";
+import { createHttpOdooDevopsBranchesClient } from "./adapters/odoo-devops/odoo-devops-branches-client.js";
+import { OdooDevopsBranchesService } from "./application/services/odoo-devops-branches.service.js";
+import { createWebOdooDevopsBranchesCacheResetController, createWebOdooDevopsBranchesController } from "./modules/odoo-devops-branches/odoo-devops-branches.controller.js";
+import { createRedisApiCache } from "./http/redis-cache.js";
+import { createWebGitHubPrOdooDevopsBuildController } from "./modules/github-pr-odoo-devops-build/github-pr-odoo-devops-build.controller.js";
+import { GitHubClient } from "./adapters/github/github-client.js";
+import { PostgresOdooShBuildStore } from "./adapters/postgres/odoo-sh-build-store.js";
+import { OdooShBuildSyncService } from "./application/services/odoo-sh-build-sync.service.js";
+import { OdooShMessageProducer } from "./application/services/odoo-sh-message-producer.js";
+import { MessageDeliveryWorker } from "./application/services/message-delivery-worker.js";
+import { PostgresMessageOutboxStore } from "./adapters/postgres/message-outbox-store.js";
+import { LarkImNotificationClientImpl } from "./adapters/lark/im-notification-client.js";
+import { getResolvedUserStore } from "./adapters/postgres/resolved-user-store.js";
+import { registerWebAcpPermissionRoutes } from "./modules/acp-kimi/acp-permission.controller.js";
+import { registerWebLarkTicketAiRoutes } from "./modules/lark-ticket-ai/lark-ticket-ai.controller.js";
+import { registerWebMeegleSprintAiRoutes } from "./modules/meegle-sprint-ai/meegle-sprint-ai.controller.js";
+import { registerInternalLarkTicketAiWriteRoutes } from "./modules/lark-ticket-ai/internal-lark-ticket-ai.controller.js";
+import { registerInternalAcpTicketContextRoutes } from "./modules/lark-ticket-ai/internal-acp-ticket-context.controller.js";
+import { registerWebLarkTicketRoutes } from "./modules/lark-ticket/lark-ticket.controller.js";
+import { createWebUserSshPublicKeysController } from "./modules/user-ssh-public-keys/user-ssh-public-keys.controller.js";
+import { MeeglePullRequestLinkService } from "./application/services/meegle-pull-request-link.service.js";
+
+import { logger, stdoutLogger } from "./logger.js";
+
+const serverLogger = logger.child({ module: "server" });
+const stdoutServerLogger = stdoutLogger.child({ module: "server" });
 
 // Load environment variables
 const LARK_APP_ID = process.env.LARK_APP_ID || "";
 const LARK_APP_SECRET = process.env.LARK_APP_SECRET || "";
+const LARK_OAUTH_CALLBACK_URL = process.env.LARK_OAUTH_CALLBACK_URL || "http://localhost:3000/api/lark/auth/callback";
+const LARK_WEB_ORIGIN = new URL(LARK_OAUTH_CALLBACK_URL).origin;
+const LARK_AUTH_BASE_URL = process.env.LARK_AUTH_BASE_URL || "https://open.larksuite.com";
+const LARK_OAUTH_SCOPE = process.env.LARK_OAUTH_SCOPE || "offline_access contact:user.base:readonly bitable:app base:record:retrieve im:message.send_as_user im:message.reactions:write_only im:chat:readonly im:message";
 const MEEGLE_PLUGIN_ID = process.env.MEEGLE_PLUGIN_ID || "";
+const MEEGLE_PLUGIN_SECRET = process.env.MEEGLE_PLUGIN_SECRET || "";
+const MEEGLE_BASE_URL = process.env.MEEGLE_BASE_URL || "https://project.larksuite.com";
+const ODOO_DEVOPS_BASE_URL = process.env.ODOO_DEVOPS_BASE_URL || "https://devops.odoo.tenways.it:18443";
+const ODOO_DEVOPS_SESSION = process.env.ODOO_DEVOPS_SESSION || "";
+const REDIS_URL = process.env.REDIS_URL || "";
+const OCTO_EXTENSION_ORIGINS = parseAllowedCredentialOrigins(process.env.OCTO_EXTENSION_ORIGINS);
+const ODOO_DEVOPS_BRANCHES_CACHE_TTL_SECONDS = readCacheTtlSeconds(
+  process.env.ODOO_DEVOPS_BRANCHES_CACHE_TTL_SECONDS,
+);
+
+configurePublicConfigController({
+  MEEGLE_PLUGIN_ID,
+  LARK_APP_ID,
+  LARK_OAUTH_CALLBACK_URL,
+  LARK_OAUTH_SCOPE,
+  MEEGLE_BASE_URL,
+  CLIENT_DEBUG_LOG_UPLOAD_ENABLED:
+    process.env.CLIENT_DEBUG_LOG_UPLOAD_ENABLED === "true",
+});
 
 // Configure Lark auth with credentials
 if (LARK_APP_ID && LARK_APP_SECRET) {
   configureLarkAuthControllerDeps({
     appId: LARK_APP_ID,
     appSecret: LARK_APP_SECRET,
+    oauthCallbackUrl: LARK_OAUTH_CALLBACK_URL,
+    webAppUrl: LARK_WEB_ORIGIN,
+    oauthBaseUrl: LARK_AUTH_BASE_URL,
+    oauthScope: LARK_OAUTH_SCOPE,
   });
-  console.log("[Server] Lark auth configured with APP_ID:", LARK_APP_ID);
+  configureLarkAuthServiceDeps({
+    appId: LARK_APP_ID,
+    appSecret: LARK_APP_SECRET,
+    tokenStore: getSharedLarkTokenStore(),
+    meegleTokenStore: getSharedMeegleTokenStore(),
+    oauthSessionStore: getSharedOauthSessionStore(),
+    webSessionStore: getSharedWebSessionStore(),
+    webPluginLoginChallengeStore: getSharedWebPluginLoginChallengeStore(),
+  });
+  serverLogger.info({ larkAppId: LARK_APP_ID }, "Lark auth configured");
 } else {
-  console.warn("[Server] Warning: LARK_APP_ID and LARK_APP_SECRET not configured. Lark auth will not work.");
+  serverLogger.warn("LARK_APP_ID and LARK_APP_SECRET not configured. Lark auth will not work.");
 }
 
-// Log Meegle config status
-if (MEEGLE_PLUGIN_ID) {
-  console.log("[Server] Meegle plugin ID configured:", MEEGLE_PLUGIN_ID);
+// Configure Meegle auth with credentials
+if (MEEGLE_PLUGIN_ID && MEEGLE_PLUGIN_SECRET) {
+  const meegleAuthAdapter = createHttpMeegleAuthAdapter({
+    pluginId: MEEGLE_PLUGIN_ID,
+    pluginSecret: MEEGLE_PLUGIN_SECRET,
+  });
+  configureMeegleAuthServiceDeps({
+    authAdapter: meegleAuthAdapter,
+    pluginId: MEEGLE_PLUGIN_ID,
+    tokenStore: getSharedMeegleTokenStore(),
+    meegleAuthBaseUrl: MEEGLE_BASE_URL,
+  });
+  serverLogger.info({ meeglePluginId: MEEGLE_PLUGIN_ID }, "Meegle auth configured");
 } else {
-  console.warn("[Server] Warning: MEEGLE_PLUGIN_ID not configured.");
+  serverLogger.warn("MEEGLE_PLUGIN_ID and MEEGLE_PLUGIN_SECRET not configured. Meegle auth will not work.");
 }
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT || 3000);
+const HOST = process.env.HOST || "0.0.0.0";
+const WEB_ALLOWED_ORIGINS = [LARK_WEB_ORIGIN, ...OCTO_EXTENSION_ORIGINS];
+const apiCache = createRedisApiCache(REDIS_URL);
+const odooShBuildStore = new PostgresOdooShBuildStore();
+let odooShMessageProducer: OdooShMessageProducer | undefined;
+const odooShBuildSyncService = new OdooShBuildSyncService({ store: odooShBuildStore });
+const odooDevopsClient = createHttpOdooDevopsBranchesClient({ baseUrl: ODOO_DEVOPS_BASE_URL, session: ODOO_DEVOPS_SESSION });
+const odooDevopsBranchesService = new OdooDevopsBranchesService({
+  client: odooDevopsClient,
+  cache: apiCache,
+  cacheTtlSeconds: ODOO_DEVOPS_BRANCHES_CACHE_TTL_SECONDS,
+  onSnapshotSync: async (snapshot) => {
+    const builds = odooDevopsBuildsSnapshotSchema.parse(await odooDevopsClient.listBuilds(snapshot.environment));
+    if (builds.environment !== snapshot.environment || builds.project_id !== snapshot.project_id) {
+      throw new Error("ODOO_SH_BUILD_PROJECT_MISMATCH");
+    }
+    await odooShBuildSyncService.syncFromSnapshot(builds);
+    await odooShMessageProducer?.prepare(builds.environment, builds.project_id);
+  },
+});
+const getWebOdooDevopsBranchesController = createWebOdooDevopsBranchesController({
+  service: odooDevopsBranchesService,
+});
+const githubClient = process.env.GITHUB_TOKEN ? new GitHubClient({ token: process.env.GITHUB_TOKEN }) : undefined;
+const platformDataService = new PlatformDataService(undefined, odooDevopsBranchesService);
+const listWebPlatformDataController = createWebPlatformDataController({ service: platformDataService });
+const listWebMeegleSprintHistoryController = createWebMeegleSprintHistoryController({ service: platformDataService });
+const getWebGitHubPullRequestPreviewController = createWebGitHubPullRequestPreviewController({ service: platformDataService });
+const webMeeglePullRequestLinkController = createWebMeeglePullRequestLinkController({
+  service: new MeeglePullRequestLinkService(undefined, githubClient),
+});
+const webPlatformSyncController = createWebPlatformSyncController();
+const getWebGitHubPrOdooDevopsBuildController = createWebGitHubPrOdooDevopsBuildController({
+  githubClient,
+  odooDevopsBranchesService,
+});
+const resetWebOdooDevopsBranchesCacheController = createWebOdooDevopsBranchesCacheResetController({
+  service: odooDevopsBranchesService,
+});
+const webUserSshPublicKeysController = createWebUserSshPublicKeysController();
 
-app.use(express.json());
+function getMasterUserIdHeader(req: Request): string | undefined {
+  const headerValue = req.headers["master-user-id"];
+  const value = Array.isArray(headerValue) ? headerValue[0] : headerValue;
+
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function readCacheTtlSeconds(value: string | undefined): number {
+  const defaultTtlSeconds = 30 * 60;
+  if (!value?.trim()) {
+    return defaultTtlSeconds;
+  }
+  const parsed = Number(value);
+  if (Number.isInteger(parsed) && parsed >= 60 && parsed <= 3600) {
+    return parsed;
+  }
+  serverLogger.warn(
+    { name: "ODOO_DEVOPS_BRANCHES_CACHE_TTL_SECONDS" },
+    "INVALID_CACHE_TTL_USING_DEFAULT",
+  );
+  return defaultTtlSeconds;
+}
+
+app.use(createCorsMiddleware({ allowedCredentialOrigins: WEB_ALLOWED_ORIGINS }));
+app.use(express.json({
+  verify: (req, _res, buffer) => {
+    (req as Request & { rawBody?: Buffer }).rawBody = Buffer.from(buffer);
+  },
+}));
+app.use(createApiRequestLogger());
+app.use(createApiAuthMiddleware());
 
 // Health check
-app.get("/health", (_req, res) => {
+app.get("/api/health", (_req, res) => {
   res.json({
     status: "ok",
     timestamp: new Date().toISOString(),
-    service: "it-pm-assistant-server",
+    service: "tenways-octo-server",
   });
 });
 
@@ -55,7 +268,13 @@ function handleController(fn: (req: Request) => Promise<unknown>) {
       const result = await fn(req.body);
       res.json(result);
     } catch (error) {
-      console.error("Controller error:", error);
+      serverLogger.error({
+        path: req.path,
+        method: req.method,
+        originalUrl: req.originalUrl,
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      }, "REQUEST_HANDLER_ERROR");
       res.status(500).json({
         ok: false,
         error: {
@@ -69,38 +288,372 @@ function handleController(fn: (req: Request) => Promise<unknown>) {
 
 // Identity routes
 app.post("/api/identity/resolve", handleController(resolveIdentityController));
-app.post("/api/identity/sync", handleController(syncIdentityController));
-app.post("/api/identity/get", handleController(getIdentityController));
+app.post("/api/debug/client-log", async (req, res) => {
+  try {
+    const result = await writeClientDebugLogController({
+      ...(req.body && typeof req.body === "object" && !Array.isArray(req.body) ? req.body : {}),
+      masterUserId: getMasterUserIdHeader(req),
+    });
+    res.json(result);
+  } catch (error) {
+    serverLogger.error({
+      path: req.path,
+      method: req.method,
+      originalUrl: req.originalUrl,
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    }, "REQUEST_HANDLER_ERROR");
+    res.status(500).json({
+      ok: false,
+      error: {
+        errorCode: "INTERNAL_ERROR",
+        errorMessage: error instanceof Error ? error.message : String(error),
+      },
+    });
+  }
+});
+
+// Public config route
+app.get("/api/config/public", async (_req, res) => {
+  res.json(await getPublicConfigController());
+});
+app.get("/api/config/page", async (req, res) => {
+  res.json(await getExtensionPageConfigController({
+    url: typeof req.query.url === "string" ? req.query.url : undefined,
+  }));
+});
+app.get("/api/config/server-api-catalog", async (_req, res) => {
+  res.json(await getServerApiCatalogController());
+});
+app.get("/api/extension/version", async (_req, res) => {
+  res.json(await getExtensionVersionController(undefined));
+});
 
 // Meegle auth routes
 app.post("/api/meegle/auth/exchange", handleController(exchangeAuthCodeController));
 app.post("/api/meegle/auth/status", handleController(getAuthStatusController));
-app.post("/api/meegle/auth/get-code", handleController(getAuthCodeController));
 
 // Lark auth routes
 app.post("/api/lark/auth/exchange", handleController(exchangeLarkAuthCodeController));
-app.post("/api/lark/auth/refresh", handleController(refreshLarkTokenController));
+app.post("/api/lark/auth/refresh", handleController(refreshLarkAuthStatusController));
 app.post("/api/lark/auth/status", handleController(getLarkAuthStatusController));
+app.post("/api/lark/auth/session", handleController(createLarkOauthSessionController));
+app.post("/api/lark/user-info", handleController(getLarkUserInfoController));
+app.post("/api/web/plugin-login/start", async (_req, res) => {
+  const result = await startWebPluginLoginController();
+  const secure = LARK_OAUTH_CALLBACK_URL.startsWith("https://");
+  res.setHeader("Set-Cookie", [
+    `${WEB_PLUGIN_LOGIN_COOKIE_NAME}=${encodeURIComponent(result.browserProof)}`,
+    "Path=/api/web/plugin-login/complete",
+    "Max-Age=300",
+    "HttpOnly",
+    "SameSite=Lax",
+    secure ? "Secure" : "",
+  ].filter(Boolean).join("; "));
+  res.status(result.statusCode).json(result.body);
+});
+app.post("/api/web/plugin-login/approve", async (req, res) => {
+  const result = await approveWebPluginLoginController(req.body);
+  res.status(result.statusCode).json(result.body);
+});
+app.post("/api/web/plugin-login/complete", async (req, res) => {
+  const result = await completeWebPluginLoginController({
+    request: req.body,
+    cookieHeader: req.headers.cookie,
+  });
+  const secure = LARK_OAUTH_CALLBACK_URL.startsWith("https://");
+  const cookieAttributes = [
+    "HttpOnly",
+    "SameSite=Lax",
+    secure ? "Secure" : "",
+  ].filter(Boolean);
+  res.setHeader("Set-Cookie", [
+    [
+      `${WEB_PLUGIN_LOGIN_COOKIE_NAME}=`,
+      "Path=/api/web/plugin-login/complete",
+      "Max-Age=0",
+      ...cookieAttributes,
+    ].join("; "),
+    result.webSessionToken
+      ? [
+          `${WEB_SESSION_COOKIE_NAME}=${encodeURIComponent(result.webSessionToken)}`,
+          "Path=/",
+          "Max-Age=2592000",
+          ...cookieAttributes,
+        ].join("; ")
+      : undefined,
+  ].filter((value): value is string => typeof value === "string"));
+  res.status(result.statusCode).json(result.body);
+});
+app.get("/api/lark/auth/web/start", async (_req, res) => {
+  const result = await startWebLarkAuthController();
+  res.redirect(302, result.redirectUrl);
+});
+app.get("/api/lark/auth/web/ensure", async (req, res) => {
+  const result = await ensureWebLarkAuthController(req.headers.cookie);
+  res.status(result.statusCode).json(result.body);
+});
+app.get("/api/web/profile", async (req, res) => {
+  const result = await getWebProfileController(req.headers.cookie);
+  res.status(result.statusCode).json(result.body);
+});
+app.get("/api/web/ssh-public-keys", async (req, res) => {
+  const result = await webUserSshPublicKeysController.list({ cookieHeader: req.headers.cookie });
+  res.status(result.statusCode).json(result.body);
+});
+app.post("/api/web/ssh-public-keys", async (req, res) => {
+  const result = await webUserSshPublicKeysController.register({ cookieHeader: req.headers.cookie, body: req.body });
+  res.status(result.statusCode).json(result.body);
+});
+registerWebPlatformSearchRoutes(app);
+app.get("/api/web/platform-data/lark-tickets", async (req, res) => {
+  const result = await listWebPlatformDataController({
+    kind: "lark-tickets", cookieHeader: req.headers.cookie, query: req.query,
+  });
+  res.status(result.statusCode).json(result.body);
+});
+app.get("/api/web/platform-data/meegle-workitems", async (req, res) => {
+  const result = await listWebPlatformDataController({
+    kind: "meegle-workitems", cookieHeader: req.headers.cookie, query: req.query,
+  });
+  res.status(result.statusCode).json(result.body);
+});
+app.get("/api/web/meegle-workitems/pull-request-candidates", async (req, res) => {
+  const result = await webMeeglePullRequestLinkController.listCandidates({
+    cookieHeader: req.headers.cookie,
+    query: req.query,
+  });
+  res.status(result.statusCode).json(result.body);
+});
+app.post("/api/web/meegle-workitems/link-pull-request", async (req, res) => {
+  const result = await webMeeglePullRequestLinkController.link({
+    cookieHeader: req.headers.cookie,
+    body: req.body,
+  });
+  res.status(result.statusCode).json(result.body);
+});
+app.get("/api/web/meegle-sprints", async (req, res) => {
+  const result = await listWebMeegleSprintHistoryController({ cookieHeader: req.headers.cookie });
+  res.status(result.statusCode).json(result.body);
+});
+app.get("/api/web/platform-data/github-pull-requests", async (req, res) => {
+  const result = await listWebPlatformDataController({
+    kind: "github-pull-requests", cookieHeader: req.headers.cookie, query: req.query,
+  });
+  res.status(result.statusCode).json(result.body);
+});
+app.get("/api/web/platform-data/github-pull-request-preview", async (req, res) => {
+  const result = await getWebGitHubPullRequestPreviewController({
+    cookieHeader: req.headers.cookie,
+    query: req.query,
+  });
+  res.status(result.statusCode).json(result.body);
+});
+registerWebLarkTicketRoutes(app);
+app.get("/api/web/platform-sync-sources", async (req, res) => {
+  const result = await webPlatformSyncController.list({ cookieHeader: req.headers.cookie });
+  res.status(result.statusCode).json(result.body);
+});
+app.post("/api/web/platform-sync-sources/:sourceId", async (req, res) => {
+  const result = await webPlatformSyncController.sync({
+    cookieHeader: req.headers.cookie,
+    sourceId: req.params.sourceId,
+    body: req.body,
+  });
+  res.status(result.statusCode).json(result.body);
+});
+app.get("/api/web/odoo-devops-branches", async (req, res) => {
+  const result = await getWebOdooDevopsBranchesController({
+    cookieHeader: req.headers.cookie,
+    query: req.query,
+  });
+  res.status(result.statusCode).json(result.body);
+});
+app.get("/api/web/github-pr-odoo-devops-build", async (req, res) => {
+  const result = await getWebGitHubPrOdooDevopsBuildController({
+    cookieHeader: req.headers.cookie,
+    query: req.query,
+  });
+  res.status(result.statusCode).json(result.body);
+});
+app.post("/api/web/odoo-devops-branches/reset-cache", async (req, res) => {
+  const result = await resetWebOdooDevopsBranchesCacheController({
+    cookieHeader: req.headers.cookie,
+    body: req.body,
+  });
+  res.status(result.statusCode).json(result.body);
+});
+app.post("/api/lark/auth/web/logout", async (req, res) => {
+  const result = await logoutWebLarkAuthController(req.headers.cookie);
+  const secure = LARK_OAUTH_CALLBACK_URL.startsWith("https://");
+  res.setHeader("Set-Cookie", [
+    `${WEB_SESSION_COOKIE_NAME}=`,
+    "Path=/",
+    "Max-Age=0",
+    "HttpOnly",
+    "SameSite=Lax",
+    secure ? "Secure" : "",
+  ].filter(Boolean).join("; "));
+  res.json(result);
+});
+app.get("/api/lark/auth/callback", async (req, res) => {
+  const result = await handleLarkAuthCallbackController({
+    query: req.query,
+  });
+  if ("redirectUrl" in result && "webSessionToken" in result) {
+    const secure = LARK_OAUTH_CALLBACK_URL.startsWith("https://");
+    res.setHeader("Set-Cookie", [
+      `${WEB_SESSION_COOKIE_NAME}=${encodeURIComponent(result.webSessionToken)}`,
+      "Path=/",
+      "Max-Age=2592000",
+      "HttpOnly",
+      "SameSite=Lax",
+      secure ? "Secure" : "",
+    ].filter(Boolean).join("; "));
+    res.redirect(302, result.redirectUrl);
+    return;
+  }
+  res.status(result.statusCode).contentType(result.contentType).send(result.body);
+});
 
-// A1 routes
-app.post("/api/a1/analyze", handleController(analyzeA1Controller));
-app.post("/api/a1/create-b2-draft", handleController(createB2DraftController));
-app.post("/api/a1/apply-b2", handleController(applyB2Controller));
-
-// A2 routes
-app.post("/api/a2/analyze", handleController(analyzeA2Controller));
-app.post("/api/a2/create-b1-draft", handleController(createB1DraftController));
-app.post("/api/a2/apply-b1", handleController(applyB1Controller));
+registerLarkMeegleWorkflowRoutes(app, handleController);
+registerWebLarkTicketAiRoutes(app);
+registerWebAcpPermissionRoutes(app);
+registerWebMeegleSprintAiRoutes(app);
+registerInternalLarkTicketAiWriteRoutes(app);
+registerInternalAcpTicketContextRoutes(app);
+app.post("/api/acp/kimi/chat", acpKimiChatController);
+app.post("/api/acp/kimi/sessions/list", handleController(acpKimiSessionListController));
+app.post("/api/acp/kimi/sessions/load", handleController(acpKimiSessionLoadController));
+app.post("/api/acp/kimi/sessions/rename", handleController(acpKimiSessionRenameController));
+app.post("/api/acp/kimi/sessions/delete", handleController(acpKimiSessionDeleteController));
 
 // PM Analysis routes
 app.post("/api/pm/analysis/run", handleController(runPMAnalysisController));
 
-app.listen(PORT, () => {
-  console.log(`Tenways Octo Server running on port ${PORT}`);
-  console.log(`Health check: http://localhost:${PORT}/health`);
-  console.log(`A2 analyze: http://localhost:${PORT}/api/a2/analyze`);
-  console.log(`A2 create draft: http://localhost:${PORT}/api/a2/create-b1-draft`);
-  console.log(`A2 apply: http://localhost:${PORT}/api/a2/apply-b1`);
+// Lark Base routes
+app.post("/api/lark-base/update-meegle-link", handleController(updateLarkBaseMeegleLinkController));
+app.post("/api/lark-base/get-record-url", handleController(getLarkRecordUrlController));
+app.post("/api/lark-base/create-meegle-workitem", handleController(createLarkBaseWorkflowController));
+app.post("/api/lark-base/bulk-preview-meegle-workitems", handleController(previewLarkBaseBulkWorkflowController));
+app.post("/api/lark-base/bulk-create-meegle-workitems", handleController(createLarkBaseBulkWorkflowController));
+
+// Meegle workitem routes
+app.post("/api/meegle/workitem/update-lark-and-push", handleController(meegleLarkPushController));
+app.post("/api/meegle/workitem/story-prd-to-simplified", handleController(meegleStoryPrdToSimplifiedController));
+
+app.post("/api/sync/meegle/workitem", handleController(syncMeegleWorkitemController));
+app.post("/api/sync/meegle/workitems", handleController(bulkSyncMeegleWorkitemsController));
+app.post("/api/sync/meegle/workitems/selected", handleController(selectedSyncMeegleWorkitemsController));
+app.post("/api/sync/github/pull-request", handleController(syncGitHubPullRequestController));
+app.post("/api/sync/github/pull-requests", handleController(bulkSyncGitHubPullRequestsController));
+app.post("/api/sync/github/pull-requests/selected", handleController(selectedSyncGitHubPullRequestsController));
+app.post("/api/sync/lark-base/ticket", handleController(syncLarkBaseTicketController));
+app.post("/api/sync/lark-base/tickets", handleController(bulkSyncLarkBaseTicketsController));
+app.post("/api/sync/lark-base/tickets/selected", handleController(selectedSyncLarkBaseTicketsController));
+
+// Lark Bug routes
+app.post("/api/lark-bug/analyze", handleController(larkBugAnalyzeController));
+
+// GitHub branch create routes
+app.post("/api/github/branch/preview", handleController(githubBranchPreviewController));
+app.post("/api/github/branch/create", handleController(githubBranchCreateController));
+app.post("/api/github/pr/review", async (req, res) => {
+  const result = await githubPrReviewController(req.body);
+  res.status(result.ok && result.data.status === "queued" ? 202 : 200).json(result);
 });
+app.post("/api/github/pr/code-review-feedback", async (req, res) => {
+  const result = await githubPrCodeReviewFeedbackController(req.body);
+  res.status(result.ok && result.data.status === "queued" ? 202 : 200).json(result);
+});
+app.get("/api/github/pr/review/:actionRunId", async (req, res) => {
+  const result = await githubPrReviewStatusController({
+    actionRunId: req.params.actionRunId,
+    masterUserId: getMasterUserIdHeader(req),
+  });
+  res.json(result);
+});
+app.get("/api/github/pr/code-review-feedback/:actionRunId", async (req, res) => {
+  const result = await githubPrReviewStatusController({
+    actionRunId: req.params.actionRunId,
+    masterUserId: getMasterUserIdHeader(req),
+  });
+  res.json(result);
+});
+
+// GitHub reverse lookup routes (requires GITHUB_TOKEN)
+if (process.env.GITHUB_TOKEN) {
+  app.use("/api/github", createGitHubLookupRouter({
+    githubToken: process.env.GITHUB_TOKEN,
+  }));
+  serverLogger.info("GitHub reverse lookup route registered");
+}
+
+if (process.env.NODE_ENV !== "test" && process.env.VITEST !== "true") {
+  const tasks = resolveBackgroundTaskConfig(await readPlatformSyncSchedulerConfig());
+  const notifyTask = tasks.messageDelivery;
+  await ensureSharedDatabase();
+  odooShMessageProducer = new OdooShMessageProducer({
+    store: odooShBuildStore,
+    chatId: tasks.odooSh.chatId,
+    notificationEnvironments: tasks.odooSh.notificationEnvironments,
+    resolveCommitAuthor: createOdooShCommitAuthorResolver({
+      mapping: parseOdooShAuthorGithubMapping(process.env.ODOO_SH_BUILD_AUTHOR_GITHUB_MAPPING),
+      users: getResolvedUserStore(),
+    }),
+  });
+  await odooShMessageProducer.applyNotificationPolicy();
+  const messageDeliveryWorker = new MessageDeliveryWorker({
+    store: new PostgresMessageOutboxStore(),
+    sender: new LarkImNotificationClientImpl({
+      appId: LARK_APP_ID, appSecret: LARK_APP_SECRET, baseUrl: LARK_AUTH_BASE_URL,
+      timeoutMs: notifyTask.sendTimeoutSeconds * 1000,
+    }),
+    maxAttempts: notifyTask.maxAttempts,
+    retryDelayMs: notifyTask.retryDelaySeconds * 1000,
+    claimDurationMs: Math.max(notifyTask.sendTimeoutSeconds * 3000, 30_000),
+    batchSize: notifyTask.batchSize,
+  });
+  if (notifyTask.enabled && LARK_APP_ID && LARK_APP_SECRET) {
+    messageDeliveryWorker.start(notifyTask.pollIntervalSeconds * 1000);
+  } else {
+    serverLogger.warn("Message delivery not started: task disabled or Lark app credentials missing; messages stay queued.");
+  }
+  const odooShBuildRefreshScheduler = new OdooShBuildRefreshScheduler({
+    refresh: (environment) => odooDevopsBranchesService.refresh(environment),
+    intervalMs: tasks.odooSh.intervalMinutes * 60_000,
+  });
+  if (tasks.odooSh.enabled && ODOO_DEVOPS_SESSION) odooShBuildRefreshScheduler.start();
+  else serverLogger.warn("ODOO_SH task not started: task disabled or ODOO_DEVOPS_SESSION missing.");
+
+  const httpServer = app.listen(PORT, HOST, () => {
+    const startupLog = { host: HOST, port: PORT, version: SERVER_VERSION };
+    serverLogger.info(startupLog, "Tenways Octo Server running");
+    stdoutServerLogger.info(startupLog, "Tenways Octo Server running");
+    serverLogger.info(`Health check: http://${HOST}:${PORT}/api/health`);
+    serverLogger.info(`Lark Base create workitem: http://${HOST}:${PORT}/api/lark-base/create-meegle-workitem`);
+  });
+
+  let shuttingDown = false;
+  const shutdown = (signal: NodeJS.Signals) => {
+    if (shuttingDown) {
+      return;
+    }
+    shuttingDown = true;
+    serverLogger.info({ signal }, "Shutting down server and PostgreSQL connection");
+    const deliveryStopped = messageDeliveryWorker.stop();
+    const forceExit = setTimeout(() => process.exit(1), 10_000);
+    forceExit.unref();
+    const refreshStopped = odooShBuildRefreshScheduler.stop();
+    httpServer.close(() => {
+      void Promise.all([refreshStopped, deliveryStopped])
+        .then(() => Promise.all([closeSharedDatabase(), apiCache.close()]))
+        .finally(() => process.exit(0));
+    });
+  };
+
+  process.once("SIGINT", () => shutdown("SIGINT"));
+  process.once("SIGTERM", () => shutdown("SIGTERM"));
+}
 
 export default app;

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "new-york",
+  "rsc": false,
+  "tsx": true,
+  "tailwind": {
+    "config": "",
+    "css": "src/popup-react/styles.css",
+    "baseColor": "slate",
+    "cssVariables": true,
+    "prefix": ""
+  },
+  "aliases": {
+    "components": "@/popup-react/components",
+    "ui": "@/popup-react/components/ui",
+    "utils": "@/popup-react/lib/utils",
+    "hooks": "@/popup-react/hooks"
+  },
+  "iconLibrary": "lucide"
+}

@@ -1,0 +1,117 @@
+# .github/workflows/kimi-review.yml
+name: DeepSeek Code Review
+
+on:
+  pull_request:
+    branches:
+      - 'uat*'
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+jobs:
+  deepseek-review:
+    runs-on: ubuntu-latest
+
+    # 避免 fork PR 拿不到 secret，还可能跑不可信代码
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+
+    env:
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      DEEPSEEK_BASE_URL: https://api.deepseek.com
+      DEEPSEEK_MODEL_NAME: deepseek-v4-pro
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check tools
+        run: |
+          curl --version
+          jq --version
+          gh --version
+          gh auth status
+
+      - name: Generate PR diff
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch origin "${{ github.base_ref }}"
+          git diff "origin/${{ github.base_ref }}...HEAD" > pr.diff
+          test -s pr.diff
+      - name: Smoke test DeepSeek
+        run: |
+          test -n "$DEEPSEEK_API_KEY"
+          jq -n --arg model "$DEEPSEEK_MODEL_NAME" '{
+            model: $model,
+            messages: [
+              { role: "user", content: "Say OK only." }
+            ],
+            temperature: 0,
+            stream: false
+          }' > smoke-request.json
+
+          curl -fsS "$DEEPSEEK_BASE_URL/chat/completions" \
+            -H "Authorization: Bearer $DEEPSEEK_API_KEY" \
+            -H "Content-Type: application/json" \
+            --data @smoke-request.json \
+            > smoke-response.json
+
+          jq -e -r '.choices[0].message.content' smoke-response.json
+
+      - name: Run DeepSeek review
+        if: github.event_name == 'pull_request'
+        run: |
+          cat > review-prompt.md <<'EOF'
+          Review this pull request diff.
+          Requirements:
+          - Focus on real bugs, security issues, regressions, and missing tests.
+          - Do not nitpick formatting unless it causes behavior or maintainability problems.
+          - Output concise Markdown with file paths and line references when possible.
+
+          Diff:
+          EOF
+
+          head -c 200000 pr.diff >> review-prompt.md
+
+          wc -c review-prompt.md
+
+          jq -Rs --arg model "$DEEPSEEK_MODEL_NAME" '{
+            model: $model,
+            messages: [
+              {
+                role: "system",
+                content: "You are a senior engineer reviewing a pull request. Focus on real bugs, security issues, regressions, and missing tests. Keep the review concise and actionable."
+              },
+              {
+                role: "user",
+                content: .
+              }
+            ],
+            temperature: 0.2,
+            stream: false
+          }' review-prompt.md > review-request.json
+
+          curl -fsS "$DEEPSEEK_BASE_URL/chat/completions" \
+            -H "Authorization: Bearer $DEEPSEEK_API_KEY" \
+            -H "Content-Type: application/json" \
+            --data @review-request.json \
+            > deepseek-response.json
+
+          jq -r '.choices[0].message.content // empty' deepseek-response.json > deepseek-review.md
+
+          if ! test -s deepseek-review.md; then
+            echo "DeepSeek returned an empty review"
+            cat deepseek-response.json
+            exit 1
+          fi
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        run: |
+          gh pr comment "${{ github.event.pull_request.number }}" \
+            --body-file deepseek-review.md

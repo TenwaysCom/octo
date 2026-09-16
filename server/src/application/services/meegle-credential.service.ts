@@ -7,6 +7,13 @@ import type {
   MeegleTokenStore,
   StoredMeegleToken,
 } from "../../adapters/meegle/token-store.js";
+import {
+  DEFAULT_MEEGLE_AUTH_BASE_URL,
+  normalizeMeegleAuthBaseUrl,
+} from "../../platform-url.js";
+import { logger } from "../../logger.js";
+
+const credentialLogger = logger.child({ module: "meegle-credential-service" });
 
 export interface CredentialExchangeInput extends MeegleTokenLookup {
   requestId: string;
@@ -17,92 +24,263 @@ export interface CredentialExchangeInput extends MeegleTokenLookup {
 export interface CredentialStatus {
   requestId?: string;
   tokenStatus: "ready" | "require_auth_code";
+  credentialStatus?: "active" | "expired";
   baseUrl: string;
   userToken?: string;
   refreshToken?: string;
+  expiresAt?: string;
   errorCode?: string;
 }
 
 export interface MeegleCredentialServiceDeps {
   authAdapter: MeegleAuthAdapter;
   tokenStore: MeegleTokenStore;
+  meegleAuthBaseUrl?: string;
+}
+
+const EXPIRY_SAFETY_WINDOW_MS = 60_000;
+function logCredentialFlow(node: string, phase: "START" | "OK" | "FAIL", detail: Record<string, unknown>): void {
+  const logFn = phase === "FAIL" ? credentialLogger.error.bind(credentialLogger) : credentialLogger.info.bind(credentialLogger);
+  logFn({ node, phase, ...detail }, "CREDENTIAL_FLOW");
+}
+
+function toExpiresAt(expiresInSeconds?: number): string | undefined {
+  if (typeof expiresInSeconds !== "number" || !Number.isFinite(expiresInSeconds) || expiresInSeconds <= 0) {
+    return undefined;
+  }
+
+  return new Date(Date.now() + (expiresInSeconds * 1000)).toISOString();
+}
+
+function isExpired(expiresAt?: string): boolean {
+  if (!expiresAt) {
+    return true;
+  }
+
+  const expiresAtMs = Date.parse(expiresAt);
+  if (Number.isNaN(expiresAtMs)) {
+    return true;
+  }
+
+  return expiresAtMs <= Date.now() + EXPIRY_SAFETY_WINDOW_MS;
+}
+
+function buildReadyStatus(input: {
+  requestId?: string;
+  baseUrl: string;
+  userToken: string;
+  refreshToken?: string;
+  expiresAt?: string;
+}): CredentialStatus {
+  return {
+    requestId: input.requestId,
+    tokenStatus: "ready",
+    credentialStatus: "active",
+    baseUrl: input.baseUrl,
+    userToken: input.userToken,
+    refreshToken: input.refreshToken,
+    expiresAt: input.expiresAt,
+  };
 }
 
 export async function exchangeCredential(
   input: CredentialExchangeInput,
   deps: MeegleCredentialServiceDeps,
 ): Promise<CredentialStatus> {
-  const pluginToken = await deps.authAdapter.getPluginToken(input.baseUrl);
-  const tokenPair: UserTokenPair = await deps.authAdapter.exchangeUserToken({
-    baseUrl: input.baseUrl,
-    pluginToken,
-    authCode: input.authCode,
-    state: input.state,
-  });
-
-  const storedToken: StoredMeegleToken = {
-    operatorLarkId: input.operatorLarkId,
-    meegleUserKey: input.meegleUserKey,
-    baseUrl: input.baseUrl,
-    pluginToken,
-    userToken: tokenPair.userToken,
-    refreshToken: tokenPair.refreshToken,
+  const canonicalBaseUrl = normalizeMeegleAuthBaseUrl(
+    input.baseUrl,
+    deps.meegleAuthBaseUrl ?? DEFAULT_MEEGLE_AUTH_BASE_URL,
+  );
+  const normalizedInput = {
+    ...input,
+    baseUrl: canonicalBaseUrl,
   };
+  let stage = "get_plugin_token";
 
-  await deps.tokenStore.save(storedToken);
+  logCredentialFlow("EXCHANGE", "START", { requestId: input.requestId, masterUserId: input.masterUserId, meegleUserKey: input.meegleUserKey, baseUrl: input.baseUrl, hasAuthCode: Boolean(input.authCode) });
 
-  return {
-    requestId: input.requestId,
-    tokenStatus: "ready",
-    baseUrl: input.baseUrl,
-    userToken: tokenPair.userToken,
-    refreshToken: tokenPair.refreshToken,
-  };
+  try {
+    const pluginToken = await deps.authAdapter.getPluginToken(canonicalBaseUrl);
+    stage = "exchange_user_token";
+    const tokenPair: UserTokenPair = await deps.authAdapter.exchangeUserToken({
+      baseUrl: canonicalBaseUrl,
+      pluginToken: pluginToken.token,
+      authCode: normalizedInput.authCode,
+      state: normalizedInput.state,
+    });
+
+    const storedToken: StoredMeegleToken = {
+      masterUserId: input.masterUserId,
+      meegleUserKey: input.meegleUserKey,
+      baseUrl: canonicalBaseUrl,
+      pluginToken: pluginToken.token,
+      pluginTokenExpiresAt: toExpiresAt(pluginToken.expiresInSeconds),
+      userToken: tokenPair.userToken,
+      userTokenExpiresAt: toExpiresAt(tokenPair.expiresInSeconds),
+      refreshToken: tokenPair.refreshToken,
+      refreshTokenExpiresAt: toExpiresAt(tokenPair.refreshTokenExpiresInSeconds),
+      credentialStatus: "active",
+    };
+
+    await deps.tokenStore.save(storedToken);
+
+    logCredentialFlow("EXCHANGE", "OK", { requestId: input.requestId, masterUserId: input.masterUserId, meegleUserKey: input.meegleUserKey, baseUrl: input.baseUrl, stage: "stored_token", hasRefreshToken: Boolean(tokenPair.refreshToken), expiresAt: storedToken.userTokenExpiresAt });
+
+    credentialLogger.info({
+      masterUserId: input.masterUserId,
+      meegleUserKey: input.meegleUserKey,
+      baseUrl: canonicalBaseUrl,
+      requestId: input.requestId,
+    }, "EXCHANGE OK");
+
+    return buildReadyStatus({
+      requestId: normalizedInput.requestId,
+      baseUrl: canonicalBaseUrl,
+      userToken: tokenPair.userToken,
+      refreshToken: tokenPair.refreshToken,
+      expiresAt: storedToken.userTokenExpiresAt,
+    });
+  } catch (error) {
+    credentialLogger.error({
+      requestId: input.requestId,
+      masterUserId: input.masterUserId,
+      meegleUserKey: input.meegleUserKey,
+      baseUrl: input.baseUrl,
+      stage,
+      message: error instanceof Error ? error.message : String(error),
+    }, "EXCHANGE FAIL");
+    throw error;
+  }
 }
 
 export async function refreshCredential(
   input: MeegleTokenLookup,
   deps: MeegleCredentialServiceDeps,
 ): Promise<CredentialStatus> {
+  logCredentialFlow("REFRESH", "START", { masterUserId: input.masterUserId, meegleUserKey: input.meegleUserKey, baseUrl: input.baseUrl });
+  const canonicalRequestedBaseUrl = normalizeMeegleAuthBaseUrl(
+    input.baseUrl,
+    deps.meegleAuthBaseUrl ?? DEFAULT_MEEGLE_AUTH_BASE_URL,
+  );
   const storedToken = await deps.tokenStore.get(input);
 
-  if (!storedToken?.refreshToken) {
+  if (!storedToken?.userToken) {
+    logCredentialFlow("REFRESH", "FAIL", { masterUserId: input.masterUserId, meegleUserKey: input.meegleUserKey, baseUrl: input.baseUrl, reason: "NO_STORED_USER_TOKEN" });
     return {
       tokenStatus: "require_auth_code",
-      baseUrl: input.baseUrl,
+      baseUrl: canonicalRequestedBaseUrl,
     };
   }
 
-  const pluginToken =
-    storedToken.pluginToken || (await deps.authAdapter.getPluginToken(input.baseUrl));
+  const legacyLookup =
+    storedToken.baseUrl !== canonicalRequestedBaseUrl
+      ? {
+          masterUserId: storedToken.masterUserId,
+          meegleUserKey: storedToken.meegleUserKey,
+          baseUrl: storedToken.baseUrl,
+        }
+      : undefined;
+  const effectiveBaseUrl = normalizeMeegleAuthBaseUrl(
+    storedToken.baseUrl,
+    deps.meegleAuthBaseUrl ?? DEFAULT_MEEGLE_AUTH_BASE_URL,
+  );
+  const normalizedStoredToken =
+    storedToken.baseUrl === effectiveBaseUrl
+      ? storedToken
+      : {
+          ...storedToken,
+          baseUrl: effectiveBaseUrl,
+        };
+
+  if (!isExpired(storedToken.userTokenExpiresAt)) {
+    logCredentialFlow("REFRESH", "OK", { masterUserId: input.masterUserId, meegleUserKey: input.meegleUserKey, baseUrl: effectiveBaseUrl, requestedBaseUrl: input.baseUrl, source: "cached_user_token", expiresAt: storedToken.userTokenExpiresAt });
+    return buildReadyStatus({
+      baseUrl: effectiveBaseUrl,
+      userToken: storedToken.userToken,
+      refreshToken: storedToken.refreshToken,
+      expiresAt: storedToken.userTokenExpiresAt,
+    });
+  }
+
+  if (!storedToken.refreshToken || isExpired(storedToken.refreshTokenExpiresAt)) {
+    credentialLogger.warn({
+      masterUserId: input.masterUserId,
+      meegleUserKey: input.meegleUserKey,
+      baseUrl: effectiveBaseUrl,
+      requestedBaseUrl: input.baseUrl,
+      hasRefreshToken: Boolean(storedToken.refreshToken),
+      refreshTokenExpiresAt: storedToken.refreshTokenExpiresAt,
+    }, "REFRESH_TOKEN_UNAVAILABLE");
+    await deps.tokenStore.delete({
+      masterUserId: storedToken.masterUserId,
+      meegleUserKey: storedToken.meegleUserKey,
+      baseUrl: storedToken.baseUrl,
+    });
+    return {
+      tokenStatus: "require_auth_code",
+      baseUrl: effectiveBaseUrl,
+      errorCode: "MEEGLE_REFRESH_TOKEN_EXPIRED",
+    };
+  }
+
+  let pluginToken = storedToken.pluginToken;
+  let pluginTokenExpiresAt = storedToken.pluginTokenExpiresAt;
+
+  if (!pluginToken || isExpired(pluginTokenExpiresAt)) {
+    logCredentialFlow("REFRESH", "START", { masterUserId: input.masterUserId, meegleUserKey: input.meegleUserKey, baseUrl: effectiveBaseUrl, requestedBaseUrl: input.baseUrl, source: "refresh_plugin_token" });
+    const refreshedPluginToken = await deps.authAdapter.getPluginToken(effectiveBaseUrl);
+    pluginToken = refreshedPluginToken.token;
+    pluginTokenExpiresAt = toExpiresAt(refreshedPluginToken.expiresInSeconds);
+  }
+
   let refreshed: UserTokenPair;
 
   try {
     refreshed = await deps.authAdapter.refreshUserToken({
-      baseUrl: input.baseUrl,
+      baseUrl: effectiveBaseUrl,
       pluginToken,
       refreshToken: storedToken.refreshToken,
     });
   } catch {
-    await deps.tokenStore.delete(input);
+    credentialLogger.error({
+      masterUserId: input.masterUserId,
+      meegleUserKey: input.meegleUserKey,
+      baseUrl: effectiveBaseUrl,
+      requestedBaseUrl: input.baseUrl,
+    }, "REFRESH FAIL");
+    await deps.tokenStore.delete({
+      masterUserId: storedToken.masterUserId,
+      meegleUserKey: storedToken.meegleUserKey,
+      baseUrl: storedToken.baseUrl,
+    });
     return {
       tokenStatus: "require_auth_code",
-      baseUrl: input.baseUrl,
+      baseUrl: effectiveBaseUrl,
       errorCode: "MEEGLE_TOKEN_REFRESH_FAILED",
     };
   }
 
   await deps.tokenStore.save({
-    ...storedToken,
+    ...normalizedStoredToken,
     pluginToken,
+    pluginTokenExpiresAt,
     userToken: refreshed.userToken,
-    refreshToken: refreshed.refreshToken,
+    userTokenExpiresAt: toExpiresAt(refreshed.expiresInSeconds),
+    refreshToken: refreshed.refreshToken ?? storedToken.refreshToken,
+    refreshTokenExpiresAt:
+      toExpiresAt(refreshed.refreshTokenExpiresInSeconds) ?? storedToken.refreshTokenExpiresAt,
+    credentialStatus: "active",
   });
+  if (legacyLookup) {
+    await deps.tokenStore.delete(legacyLookup);
+  }
 
-  return {
-    tokenStatus: "ready",
-    baseUrl: input.baseUrl,
+  logCredentialFlow("REFRESH", "OK", { masterUserId: input.masterUserId, meegleUserKey: input.meegleUserKey, baseUrl: effectiveBaseUrl, requestedBaseUrl: input.baseUrl, source: "refresh_token", expiresAt: toExpiresAt(refreshed.expiresInSeconds), hasRefreshToken: Boolean(refreshed.refreshToken ?? storedToken.refreshToken) });
+
+  return buildReadyStatus({
+    baseUrl: effectiveBaseUrl,
     userToken: refreshed.userToken,
-    refreshToken: refreshed.refreshToken,
-  };
+    refreshToken: refreshed.refreshToken ?? storedToken.refreshToken,
+    expiresAt: toExpiresAt(refreshed.expiresInSeconds),
+  });
 }

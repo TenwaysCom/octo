@@ -1,0 +1,248 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { NextFunction, Request, Response } from "express";
+import { createApiAuthMiddleware } from "./api-auth.js";
+
+function createResponse() {
+  const json = vi.fn();
+  const status = vi.fn(() => ({ json }));
+
+  return {
+    status,
+    json,
+  } as unknown as Response;
+}
+
+describe("api auth middleware", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("rejects protected api routes without master-user-id header", () => {
+    const middleware = createApiAuthMiddleware();
+    const req = {
+      method: "POST",
+      path: "/api/lark/auth/status",
+      body: {
+        baseUrl: "https://open.larksuite.com",
+      },
+      query: {},
+      headers: {},
+    } as Partial<Request> as Request;
+    const res = createResponse();
+    const next = vi.fn() as unknown as NextFunction;
+
+    middleware(req, res, next);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect((res.status as unknown as ReturnType<typeof vi.fn>).mock.results[0]?.value.json).toHaveBeenCalledWith({
+      ok: false,
+      error: {
+        errorCode: "UNAUTHORIZED",
+        errorMessage: "Missing master-user-id header",
+      },
+    });
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it("allows whitelisted routes without master-user-id header", () => {
+    const middleware = createApiAuthMiddleware();
+    const req = {
+      method: "POST",
+      path: "/api/identity/resolve",
+      body: {
+        operatorLarkId: "ou_123",
+      },
+      query: {},
+      headers: {},
+    } as Partial<Request> as Request;
+    const res = createResponse();
+    const next = vi.fn() as unknown as NextFunction;
+
+    middleware(req, res, next);
+
+    expect(next).toHaveBeenCalledOnce();
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it("allows health probes without identity headers", () => {
+    const middleware = createApiAuthMiddleware();
+    const req = { method: "GET", path: "/api/health", headers: {} } as Request;
+    const res = createResponse();
+    const next = vi.fn() as unknown as NextFunction;
+
+    middleware(req, res, next);
+
+    expect(next).toHaveBeenCalledOnce();
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it("allows page config route before identity is resolved", () => {
+    const middleware = createApiAuthMiddleware();
+    const req = {
+      method: "GET",
+      path: "/api/config/page",
+      body: undefined,
+      query: {
+        url: "https://project.larksuite.com/OPS/production_bug/detail/1",
+      },
+      headers: {},
+    } as Partial<Request> as Request;
+    const res = createResponse();
+    const next = vi.fn() as unknown as NextFunction;
+
+    middleware(req, res, next);
+
+    expect(next).toHaveBeenCalledOnce();
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it("allows web-session routes without a master-user-id header", () => {
+    const middleware = createApiAuthMiddleware();
+    for (const path of [
+      "/api/web/profile",
+      "/api/web/ssh-public-keys",
+      "/api/web/lark-ticket-eval-samples",
+      "/api/web/lark-ticket-eval-samples/sample_1",
+      "/api/web/platform-data/lark-tickets",
+      "/api/web/platform-data/search",
+      "/api/web/platform-data/lark-ticket-filter-options",
+      "/api/web/platform-data/meegle-workitems",
+      "/api/web/platform-data/github-pull-requests",
+      "/api/web/platform-data/github-pull-request-preview",
+      "/api/web/meegle-sprints",
+      "/api/web/meegle-workitems/pull-request-candidates",
+      "/api/web/meegle-workitems/link-pull-request",
+      "/api/web/platform-sync-sources",
+      "/api/web/platform-sync-sources/lark-tickets",
+      "/api/web/lark-tickets/rec_1/ai-sessions",
+      "/api/web/meegle-sprints/sprint_1/ai-sessions",
+      "/api/web/odoo-devops-branches",
+      "/api/internal/lark-ticket-ai",
+      "/api/internal/acp/ticket-context/messages",
+      "/api/extension/version",
+    ]) {
+      const req = {
+        method: "GET",
+        path,
+        body: undefined,
+        query: {},
+        headers: {},
+      } as Partial<Request> as Request;
+      const res = createResponse();
+      const next = vi.fn() as unknown as NextFunction;
+
+      middleware(req, res, next);
+
+      expect(next).toHaveBeenCalledOnce();
+      expect(res.status).not.toHaveBeenCalled();
+    }
+  });
+
+  it("injects masterUserId from header into protected request bodies", () => {
+    const middleware = createApiAuthMiddleware();
+    const req = {
+      method: "POST",
+      path: "/api/lark/auth/status",
+      body: {
+        baseUrl: "https://open.larksuite.com",
+      },
+      query: {},
+      headers: {
+        "master-user-id": "usr_header",
+      },
+    } as Partial<Request> as Request;
+    const res = createResponse();
+    const next = vi.fn() as unknown as NextFunction;
+
+    middleware(req, res, next);
+
+    expect(next).toHaveBeenCalledOnce();
+    expect(req.body).toEqual({
+      baseUrl: "https://open.larksuite.com",
+      masterUserId: "usr_header",
+    });
+  });
+
+  it("rejects protected requests when body masterUserId conflicts with header", () => {
+    const middleware = createApiAuthMiddleware();
+    const req = {
+      method: "POST",
+      path: "/api/lark/auth/status",
+      body: {
+        masterUserId: "usr_body",
+        baseUrl: "https://open.larksuite.com",
+      },
+      query: {},
+      headers: {
+        "master-user-id": "usr_header",
+      },
+    } as Partial<Request> as Request;
+    const res = createResponse();
+    const next = vi.fn() as unknown as NextFunction;
+
+    middleware(req, res, next);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect((res.status as unknown as ReturnType<typeof vi.fn>).mock.results[0]?.value.json).toHaveBeenCalledWith({
+      ok: false,
+      error: {
+        errorCode: "UNAUTHORIZED",
+        errorMessage: "master-user-id header does not match request masterUserId",
+      },
+    });
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it("still protects kimi routes", () => {
+    const middleware = createApiAuthMiddleware();
+    const req = {
+      method: "POST",
+      path: "/api/acp/kimi/chat",
+      body: {
+        operatorLarkId: "ou_123",
+        message: "hello",
+      },
+      query: {},
+      headers: {},
+    } as Partial<Request> as Request;
+    const res = createResponse();
+    const next = vi.fn() as unknown as NextFunction;
+
+    middleware(req, res, next);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it("does not try to write back to getter-only req.query", () => {
+    const middleware = createApiAuthMiddleware();
+    const req = {
+      method: "POST",
+      path: "/api/meegle/auth/status",
+      body: {
+        baseUrl: "https://project.larksuite.com",
+      },
+      headers: {
+        "master-user-id": "usr_header",
+      },
+    } as Partial<Request> as Request;
+    Object.defineProperty(req, "query", {
+      configurable: true,
+      enumerable: true,
+      get() {
+        return {
+          baseUrl: "https://project.larksuite.com",
+        };
+      },
+    });
+    const res = createResponse();
+    const next = vi.fn() as unknown as NextFunction;
+
+    expect(() => middleware(req, res, next)).not.toThrow();
+    expect(next).toHaveBeenCalledOnce();
+    expect(req.body).toEqual({
+      baseUrl: "https://project.larksuite.com",
+      masterUserId: "usr_header",
+    });
+  });
+});

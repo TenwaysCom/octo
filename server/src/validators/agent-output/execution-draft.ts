@@ -6,7 +6,7 @@ export const fieldValuePairSchema = z.object({
 });
 
 export const sourceRefSchema = z.object({
-  sourcePlatform: z.enum(["lark_a1", "lark_a2"]),
+  sourcePlatform: z.enum(["lark_base"]),
   sourceRecordId: z.string().min(1),
 });
 
@@ -18,7 +18,6 @@ export const draftTargetSchema = z.object({
 
 export const executionDraftSchema = z.object({
   draftId: z.string().min(1),
-  draftType: z.enum(["b1", "b2"]),
   sourceRef: sourceRefSchema,
   target: draftTargetSchema,
   name: z.string().min(1),

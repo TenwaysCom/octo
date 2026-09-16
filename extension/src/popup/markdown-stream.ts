@@ -1,0 +1,121 @@
+const CODE_FENCE = "```";
+
+export function stabilizeMarkdownStream(source: string): string {
+  let stabilized = source.replace(/\r\n/g, "\n");
+
+  if (countCodeFences(stabilized) % 2 === 1) {
+    stabilized = stabilized.endsWith("\n")
+      ? `${stabilized}${CODE_FENCE}`
+      : `${stabilized}\n${CODE_FENCE}`;
+  }
+
+  if (countInlineBackticksOutsideCodeFences(stabilized) % 2 === 1) {
+    stabilized += "`";
+  }
+
+  return stabilized;
+}
+
+export function renderMarkdownStream(source: string): string {
+  const stabilized = stabilizeMarkdownStream(source);
+  const fencePattern = /```([^\n`]*)\n([\s\S]*?)```/g;
+  let html = "";
+  let lastIndex = 0;
+
+  for (const match of stabilized.matchAll(fencePattern)) {
+    const start = match.index ?? 0;
+    html += renderParagraphs(stabilized.slice(lastIndex, start));
+    html += renderCodeBlock(match[1] ?? "", match[2] ?? "");
+    lastIndex = start + match[0].length;
+  }
+
+  html += renderParagraphs(stabilized.slice(lastIndex));
+
+  return html;
+}
+
+/**
+ * Render inline markdown text (bold, italic, links, inline code)
+ * Does NOT wrap content in paragraphs - use renderParagraphs for block-level rendering.
+ */
+export function renderMarkdownText(source: string): string {
+  // First escape HTML
+  let html = escapeHtml(source);
+
+  // Render inline code first (to protect code content)
+  html = html.replace(/`([^`]+)`/g, '<code class="kimi-chat-markdown__inline-code">$1</code>');
+
+  // Render bold (**text** or __text__)
+  html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  html = html.replace(/__([^_]+)__/g, "<strong>$1</strong>");
+
+  // Render italic (*text* or _text_)
+  html = html.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+  html = html.replace(/_([^_]+)_/g, "<em>$1</em>");
+
+  // Render links [text](url)
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">$1</a>');
+
+  // Render line breaks
+  html = html.replace(/\n/g, "<br>");
+
+  return html;
+}
+
+function countCodeFences(source: string): number {
+  return source.match(/(^|\n)```/g)?.length ?? 0;
+}
+
+function countInlineBackticksOutsideCodeFences(source: string): number {
+  const segments = source.split(CODE_FENCE);
+  let count = 0;
+
+  for (let index = 0; index < segments.length; index += 2) {
+    const segment = segments[index] ?? "";
+    for (let offset = 0; offset < segment.length; offset += 1) {
+      if (segment[offset] !== "`" || segment[offset - 1] === "\\") {
+        continue;
+      }
+
+      count += 1;
+    }
+  }
+
+  return count;
+}
+
+function renderParagraphs(source: string): string {
+  return source
+    .split(/\n{2,}/)
+    .filter((segment) => segment.trim().length > 0)
+    .map((segment) => {
+      const withInlineCode = renderMarkdownText(segment);
+      return `<p class="kimi-chat-markdown__paragraph">${withInlineCode}</p>`;
+    })
+    .join("");
+}
+
+function renderCodeBlock(language: string, source: string): string {
+  const normalizedLanguage = language.trim();
+  const languageAttribute =
+    normalizedLanguage.length > 0
+      ? ` data-lang="${escapeHtml(normalizedLanguage)}"`
+      : "";
+
+  return [
+    `<pre class="kimi-chat-markdown__code-block">`,
+    `<code class="kimi-chat-markdown__code"${languageAttribute}>`,
+    escapeHtml(source.replace(/\n$/, "")),
+    "</code>",
+    "</pre>",
+  ].join("");
+}
+
+function escapeHtml(source: string): string {
+  return source
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}

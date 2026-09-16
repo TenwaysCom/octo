@@ -10,7 +10,7 @@ import { z } from "zod";
 // ==================== DTOs ====================
 
 const baseLarkAuthSchema = z.object({
-  operatorLarkId: z.string().min(1),
+  masterUserId: z.string().min(1),
   baseUrl: z.string().url(),
 });
 
@@ -24,10 +24,31 @@ export const larkTokenRefreshRequestSchema = baseLarkAuthSchema.extend({
 });
 
 export const larkAuthStatusRequestSchema = baseLarkAuthSchema;
+export const larkOauthSessionRequestSchema = baseLarkAuthSchema.extend({
+  state: z.string().min(1),
+});
+export const larkAuthCallbackQuerySchema = z.object({
+  code: z.string().min(1),
+  state: z.string().min(1),
+});
+export const webPluginLoginApprovalRequestSchema = z.object({
+  challengeId: z.string().min(1),
+  masterUserId: z.string().min(1),
+});
+export const webPluginLoginCompletionRequestSchema = z.object({
+  challengeId: z.string().min(1),
+});
+
+export const larkUserInfoRequestSchema = baseLarkAuthSchema;
 
 export type LarkAuthCodeRequest = z.infer<typeof larkAuthCodeRequestSchema>;
 export type LarkTokenRefreshRequest = z.infer<typeof larkTokenRefreshRequestSchema>;
 export type LarkAuthStatusRequest = z.infer<typeof larkAuthStatusRequestSchema>;
+export type LarkOauthSessionRequest = z.infer<typeof larkOauthSessionRequestSchema>;
+export type LarkAuthCallbackQuery = z.infer<typeof larkAuthCallbackQuerySchema>;
+export type WebPluginLoginApprovalRequest = z.infer<typeof webPluginLoginApprovalRequestSchema>;
+export type WebPluginLoginCompletionRequest = z.infer<typeof webPluginLoginCompletionRequestSchema>;
+export type LarkUserInfoRequest = z.infer<typeof larkUserInfoRequestSchema>;
 
 // ==================== Response Types ====================
 
@@ -35,12 +56,17 @@ export interface LarkTokenPair {
   accessToken: string;
   refreshToken?: string;
   expiresIn?: number;
+  refreshTokenExpiresIn?: number;
   tokenType: string;
 }
 
 export interface LarkAuthStatusResponse {
-  status: "ready" | "require_auth" | "expired" | "failed";
+  status: "ready" | "require_auth" | "require_refresh" | "expired" | "failed";
+  masterUserId: string;
+  baseUrl: string;
   reason?: string;
+  credentialStatus?: "active" | "expired";
+  expiresAt?: string;
 }
 
 export interface LarkAuthCodeResponse {
@@ -68,4 +94,30 @@ export function validateLarkTokenRefreshRequest(input: unknown): LarkTokenRefres
 
 export function validateLarkAuthStatusRequest(input: unknown): LarkAuthStatusRequest {
   return larkAuthStatusRequestSchema.parse(input);
+}
+
+export function validateLarkOauthSessionRequest(input: unknown): LarkOauthSessionRequest {
+  return larkOauthSessionRequestSchema.parse(input);
+}
+
+export function validateLarkAuthCallbackQuery(input: unknown): LarkAuthCallbackQuery {
+  return larkAuthCallbackQuerySchema.parse(input);
+}
+
+export function validateWebPluginLoginApprovalRequest(input: unknown): WebPluginLoginApprovalRequest {
+  return webPluginLoginApprovalRequestSchema.parse(input);
+}
+
+export function validateWebPluginLoginCompletionRequest(input: unknown): WebPluginLoginCompletionRequest {
+  return webPluginLoginCompletionRequestSchema.parse(input);
+}
+
+export function validateLarkUserInfoRequest(input: unknown): LarkUserInfoRequest {
+  return larkUserInfoRequestSchema.parse(input);
+}
+
+export interface LarkAuthCallbackPage {
+  statusCode: number;
+  contentType: string;
+  body: string;
 }

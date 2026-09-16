@@ -1,158 +1,210 @@
 import type {
-  LarkAuthCodeResponse,
+  LarkAuthCallbackResult,
   LarkAuthEnsureRequest,
   LarkAuthEnsureResponse,
-} from "../../types/lark";
+  LarkAuthSessionServerResponse,
+  LarkAuthStatusServerResponse,
+} from "../../types/lark.js";
+import {
+  DEFAULT_LARK_AUTH_BASE_URL,
+  normalizeLarkAuthBaseUrl,
+} from "../../platform-url.js";
+import { getConfig } from "../config.js";
+import { createExtensionLogger } from "../../logger.js";
+import { fetchServerJson } from "../../server-request.js";
+
+const larkAuthLogger = createExtensionLogger("background:lark-auth");
 
 export interface EnsureLarkAuthDeps {
   getCachedLarkToken?: () => string | undefined;
-  saveLarkAuthCode?: (response: LarkAuthCodeResponse) => Promise<void>;
-  requestAuthCodeFromContentScript?: (
+  getAuthStatusFromServer?: (request: {
+    masterUserId: string;
+    baseUrl: string;
+  }) => Promise<LarkAuthStatusServerResponse>;
+  createOauthSessionWithServer?: (request: {
+    masterUserId: string;
+    baseUrl: string;
+    state: string;
+  }) => Promise<LarkAuthSessionServerResponse>;
+  savePendingLarkOauthState?: (input: {
+    state: string;
+    startedAt: string;
+    baseUrl: string;
+    masterUserId?: string;
+  }) => Promise<void>;
+  saveLastLarkAuthResult?: (result: LarkAuthCallbackResult) => Promise<void>;
+  clearPendingLarkOauthState?: (state?: string) => Promise<void>;
+  openLarkOAuthTab?: (
     baseUrl: string,
-  ) => Promise<{ code: string; state: string } | undefined>;
-  requestLarkUserId?: () => Promise<string | undefined>;
-  openLarkOAuthTab?: (baseUrl: string, state: string, appId?: string) => Promise<void>;
-  exchangeAuthCodeWithServer?: (
-    code: string,
-    operatorLarkId: string,
-    baseUrl: string,
-  ) => Promise<LarkAuthCodeResponse | undefined>;
+    state: string,
+    appId?: string,
+    callbackUrl?: string,
+  ) => Promise<void>;
   appId?: string;
+  callbackUrl?: string;
 }
 
-/**
- * Request auth code from Lark content script
- */
-async function requestAuthCodeFromContentScript(
+export function buildLarkOauthUrl(
   baseUrl: string,
-): Promise<{ code: string; state: string } | undefined> {
-  return new Promise((resolve) => {
-    // Find Lark tab
-    chrome.tabs.query({ url: baseUrl + "/*" }, (tabs) => {
-      if (!tabs || tabs.length === 0) {
-        console.error("[Tenways Octo] No Lark tab found");
-        resolve(undefined);
-        return;
-      }
+  state: string,
+  appId?: string,
+  callbackUrl = "http://localhost:3000/api/lark/auth/callback",
+  scope = "offline_access contact:user.base:readonly bitable:app base:record:retrieve im:message.send_as_user im:message.reactions:write_only im:chat:readonly im:message",
+): string {
+  const authorizeBaseUrl = baseUrl.includes("feishu.cn")
+    ? "https://accounts.feishu.cn"
+    : "https://accounts.larksuite.com";
+  const resolvedAppId = appId || "cli_a4b5c6d7e8f9";
+  const oauthUrl = new URL("/open-apis/authen/v1/authorize", authorizeBaseUrl);
 
-      const larkTab = tabs[0];
+  oauthUrl.searchParams.set("app_id", resolvedAppId);
+  oauthUrl.searchParams.set("redirect_uri", callbackUrl);
+  oauthUrl.searchParams.set("state", state);
+  oauthUrl.searchParams.set("scope", scope);
+  oauthUrl.searchParams.set("response_type", "code");
 
-      // Send message to content script
-      chrome.tabs.sendMessage(
-        larkTab.id!,
-        {
-          action: "getLarkAuthCode",
-        },
-        (response) => {
-          if (chrome.runtime.lastError) {
-            console.error("[Tenways Octo] Failed to send message to Lark content script:", chrome.runtime.lastError);
-            resolve(undefined);
-            return;
-          }
-
-          if (response?.code && response?.state) {
-            resolve({
-              code: response.code,
-              state: response.state,
-            });
-          } else {
-            console.error("[Tenways Octo] Auth code request failed:", response);
-            resolve(undefined);
-          }
-        },
-      );
-    });
-  });
+  return oauthUrl.toString();
 }
 
-/**
- * Request Lark user ID from content script
- */
-async function requestLarkUserId(): Promise<string | undefined> {
+async function openLarkOAuthTab(
+  baseUrl: string,
+  state: string,
+  appId?: string,
+  callbackUrl?: string,
+): Promise<void> {
+  const config = await getConfig();
   return new Promise((resolve) => {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (!tabs || tabs.length === 0) {
-        resolve(undefined);
-        return;
-      }
-
-      const tab = tabs[0];
-
-      chrome.tabs.sendMessage(
-        tab.id!,
-        {
-          action: "getLarkUserId",
-        },
-        (response) => {
-          if (chrome.runtime.lastError) {
-            console.error("[Tenways Octo] Failed to get Lark user ID:", chrome.runtime.lastError);
-            resolve(undefined);
-            return;
-          }
-
-          resolve(response?.userId);
-        },
-      );
-    });
-  });
-}
-
-/**
- * Open Lark OAuth authorization page
- */
-async function openLarkOAuthTab(baseUrl: string, state: string, appId?: string): Promise<void> {
-  return new Promise((resolve) => {
-    // Use provided appId or fallback to config
-    const APP_ID = appId || "cli_a4b5c6d7e8f9"; // TODO: Configure via extension storage
-    const redirectUri = "http://localhost:3000/api/lark/auth/callback";
-    const scope = "contact:readonly:user";
-
-    const oauthUrl = `https://open.larksuite.com/service-open/oauth/authorize?app_id=${APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=${scope}&response_type=code`;
-
     chrome.tabs.create(
       {
-        url: oauthUrl,
+        url: buildLarkOauthUrl(baseUrl, state, appId, callbackUrl, config.LARK_OAUTH_SCOPE),
         active: true,
       },
-      () => {
-        resolve();
-      },
+      () => resolve(),
     );
   });
 }
 
-/**
- * Exchange auth code with server
- */
-async function exchangeAuthCodeWithServer(
-  code: string,
-  operatorLarkId: string,
-  baseUrl: string,
-): Promise<LarkAuthCodeResponse | undefined> {
+async function getAuthStatusFromServer(
+  request: {
+    masterUserId: string;
+    baseUrl: string;
+  },
+): Promise<LarkAuthStatusServerResponse> {
+  const config = await getConfig();
+  larkAuthLogger.info("Getting Lark auth status from server", { masterUserId: request.masterUserId, baseUrl: request.baseUrl });
+
   try {
-    const response = await fetch("http://localhost:3000/api/lark/auth/exchange", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        operatorLarkId,
-        baseUrl,
-        code,
-        grantType: "authorization_code",
-      }),
+    const { response, payload: result } = await fetchServerJson<LarkAuthStatusServerResponse>({
+      url: `${config.SERVER_URL}/api/lark/auth/status`,
+      masterUserId: request.masterUserId,
+      body: request,
     });
 
     if (!response.ok) {
-      console.error("[Tenways Octo] Failed to exchange Lark auth code:", response.status);
-      return undefined;
+      larkAuthLogger.warn("Lark auth status request failed", { status: response.status });
+      return {
+        ok: false,
+        error: {
+          errorCode: "LARK_STATUS_REQUEST_FAILED",
+          errorMessage: `Auth status request failed with ${response.status}.`,
+        },
+      };
     }
 
-    const result = await response.json();
+    larkAuthLogger.info("Lark auth status received", { ok: result.ok, status: result.data?.status });
     return result;
   } catch (error) {
-    console.error("[Tenways Octo] Error exchanging Lark auth code:", error);
-    return undefined;
+    larkAuthLogger.error("Error getting Lark auth status", { error: error instanceof Error ? error.message : String(error) });
+    return {
+      ok: false,
+      error: {
+        errorCode: "LARK_STATUS_REQUEST_FAILED",
+        errorMessage: error instanceof Error ? error.message : String(error),
+      },
+    };
+  }
+}
+
+async function refreshLarkTokenOnServer(
+  request: {
+    masterUserId: string;
+    baseUrl: string;
+  },
+): Promise<LarkAuthStatusServerResponse> {
+  const config = await getConfig();
+  larkAuthLogger.info("Refreshing Lark token on server", { masterUserId: request.masterUserId, baseUrl: request.baseUrl });
+
+  try {
+    const { response, payload: result } = await fetchServerJson<LarkAuthStatusServerResponse>({
+      url: `${config.SERVER_URL}/api/lark/auth/refresh`,
+      masterUserId: request.masterUserId,
+      body: request,
+    });
+
+    if (!response.ok) {
+      larkAuthLogger.warn("Lark token refresh request failed", { status: response.status });
+      return {
+        ok: false,
+        error: {
+          errorCode: "LARK_REFRESH_REQUEST_FAILED",
+          errorMessage: `Token refresh request failed with ${response.status}.`,
+        },
+      };
+    }
+
+    larkAuthLogger.info("Lark token refreshed", { ok: result.ok, status: result.data?.status });
+    return result;
+  } catch (error) {
+    larkAuthLogger.error("Error refreshing Lark token", { error: error instanceof Error ? error.message : String(error) });
+    return {
+      ok: false,
+      error: {
+        errorCode: "LARK_REFRESH_REQUEST_FAILED",
+        errorMessage: error instanceof Error ? error.message : String(error),
+      },
+    };
+  }
+}
+
+async function createOauthSessionWithServer(
+  request: {
+    masterUserId: string;
+    baseUrl: string;
+    state: string;
+  },
+): Promise<LarkAuthSessionServerResponse> {
+  const config = await getConfig();
+  larkAuthLogger.info("Creating Lark OAuth session", { masterUserId: request.masterUserId, baseUrl: request.baseUrl, state: request.state });
+
+  try {
+    const { response, payload: result } = await fetchServerJson<LarkAuthSessionServerResponse>({
+      url: `${config.SERVER_URL}/api/lark/auth/session`,
+      masterUserId: request.masterUserId,
+      body: request,
+    });
+
+    if (!response.ok) {
+      larkAuthLogger.warn("Lark OAuth session creation failed", { status: response.status });
+      return {
+        ok: false,
+        error: {
+          errorCode: "LARK_OAUTH_SESSION_CREATE_FAILED",
+          errorMessage: `OAuth session request failed with ${response.status}.`,
+        },
+      };
+    }
+
+    larkAuthLogger.info("Lark OAuth session created", { ok: result.ok, state: result.data?.state });
+    return result;
+  } catch (error) {
+    larkAuthLogger.error("Error creating Lark OAuth session", { error: error instanceof Error ? error.message : String(error) });
+    return {
+      ok: false,
+      error: {
+        errorCode: "LARK_OAUTH_SESSION_CREATE_FAILED",
+        errorMessage: error instanceof Error ? error.message : String(error),
+      },
+    };
   }
 }
 
@@ -160,74 +212,126 @@ export async function ensureLarkAuth(
   request: Partial<LarkAuthEnsureRequest> = {},
   deps: EnsureLarkAuthDeps = {},
 ): Promise<LarkAuthEnsureResponse> {
-  const baseUrl = request.baseUrl ?? "https://open.larksuite.com";
+  const baseUrl = normalizeLarkAuthBaseUrl(
+    request.baseUrl ?? request.pageOrigin,
+    DEFAULT_LARK_AUTH_BASE_URL,
+  );
   const state = request.state || `state_${Date.now()}`;
+  larkAuthLogger.info("Ensuring Lark auth", { masterUserId: request.masterUserId, baseUrl });
 
-  // Check if we have a cached token
-  const cachedToken = deps.getCachedLarkToken?.();
-
-  if (cachedToken) {
-    return {
-      status: "ready",
-      baseUrl,
-      state,
-    };
-  }
-
-  // Try to get auth code from content script
-  const requestAuthCode = deps.requestAuthCodeFromContentScript ?? requestAuthCodeFromContentScript;
-  const authResult = await requestAuthCode(baseUrl);
-
-  if (authResult) {
-    // We have an auth code from the redirect URL
-    // Need to get user ID and exchange for token
-    const requestUserId = deps.requestLarkUserId ?? requestLarkUserId;
-    const operatorLarkId = request.operatorLarkId || await requestUserId();
-
-    if (!operatorLarkId) {
-      return {
-        status: "failed",
-        baseUrl,
-        reason: "LARK_USER_ID_NOT_FOUND",
-      };
-    }
-
-    // Exchange auth code for token
-    const exchangeToken = deps.exchangeAuthCodeWithServer ?? exchangeAuthCodeWithServer;
-    const exchangeResult = await exchangeToken(authResult.code, operatorLarkId, baseUrl);
-
-    if (exchangeResult?.ok && exchangeResult.data) {
-      return {
-        status: "ready",
-        baseUrl,
-        state: authResult.state,
-        authCode: authResult.code,
-        tokenPair: exchangeResult.data,
-      };
-    }
-
+  if (!request.masterUserId) {
+    larkAuthLogger.warn("Lark auth required fields missing");
     return {
       status: "failed",
       baseUrl,
-      reason: "LARK_AUTH_CODE_EXCHANGE_FAILED",
+      reason: "LARK_AUTH_REQUIRED_FIELDS_MISSING",
+      errorMessage: "masterUserId is required for Lark auth.",
     };
   }
 
-  // Auth code not obtained, need user to authorize
-  const openOAuthTab = deps.openLarkOAuthTab ?? openLarkOAuthTab;
-  await openOAuthTab(baseUrl, state, deps.appId);
+  if (!request.force) {
+    const requestStatus = deps.getAuthStatusFromServer ?? getAuthStatusFromServer;
+    const statusResult = await requestStatus({
+      masterUserId: request.masterUserId,
+      baseUrl,
+    });
 
-  return {
-    status: "require_auth_code",
+    if (statusResult.ok && statusResult.data?.status === "ready") {
+      larkAuthLogger.info("Lark auth ready (cached)", { masterUserId: request.masterUserId, baseUrl: statusResult.data.baseUrl });
+      return {
+        status: "ready",
+        baseUrl: statusResult.data.baseUrl,
+        masterUserId: statusResult.data.masterUserId ?? request.masterUserId,
+        reason: statusResult.data.reason,
+        credentialStatus: statusResult.data.credentialStatus,
+        expiresAt: statusResult.data.expiresAt,
+      };
+    }
+
+    // If server says refresh is needed, try refresh first before OAuth
+    if (statusResult.ok && statusResult.data?.status === "require_refresh") {
+      larkAuthLogger.info("Lark token expired, attempting refresh", { masterUserId: request.masterUserId, baseUrl });
+
+      const refreshResult = await refreshLarkTokenOnServer({
+        masterUserId: request.masterUserId,
+        baseUrl,
+      });
+
+      if (refreshResult.ok && refreshResult.data?.status === "ready") {
+        larkAuthLogger.info("Lark token refreshed successfully", { masterUserId: request.masterUserId });
+        return {
+          status: "ready",
+          baseUrl: refreshResult.data.baseUrl,
+          masterUserId: refreshResult.data.masterUserId ?? request.masterUserId,
+          reason: refreshResult.data.reason,
+          credentialStatus: refreshResult.data.credentialStatus,
+          expiresAt: refreshResult.data.expiresAt,
+        };
+      }
+
+      larkAuthLogger.warn("Lark token refresh failed, proceeding to OAuth", {
+        error: refreshResult.error
+      });
+    }
+  }
+
+  const createSession =
+    deps.createOauthSessionWithServer ?? createOauthSessionWithServer;
+  const sessionResult = await createSession({
+    masterUserId: request.masterUserId,
     baseUrl,
     state,
-    reason: "NEED_USER_AUTHORIZATION",
+  });
+
+  if (!sessionResult.ok || !sessionResult.data) {
+    larkAuthLogger.error("Lark OAuth session creation failed", { error: sessionResult.error });
+    return {
+      status: "failed",
+      baseUrl,
+      masterUserId: request.masterUserId,
+      reason:
+        sessionResult.error?.errorCode || "LARK_OAUTH_SESSION_CREATE_FAILED",
+      errorMessage: sessionResult.error?.errorMessage,
+    };
+  }
+
+  await deps.savePendingLarkOauthState?.({
+    state: sessionResult.data.state,
+    startedAt: new Date().toISOString(),
+    baseUrl: sessionResult.data.baseUrl,
+    masterUserId: request.masterUserId,
+  });
+
+  const launchOauth = deps.openLarkOAuthTab ?? openLarkOAuthTab;
+  if (deps.callbackUrl) {
+    await launchOauth(
+      sessionResult.data.baseUrl,
+      sessionResult.data.state,
+      deps.appId,
+      deps.callbackUrl,
+    );
+  } else {
+    await launchOauth(
+      sessionResult.data.baseUrl,
+      sessionResult.data.state,
+      deps.appId,
+    );
+  }
+
+  larkAuthLogger.info("Lark OAuth pending", { masterUserId: request.masterUserId, state: sessionResult.data.state });
+  return {
+    status: "in_progress",
+    baseUrl: sessionResult.data.baseUrl,
+    masterUserId: request.masterUserId,
+    state: sessionResult.data.state,
+    reason: "LARK_OAUTH_PENDING",
   };
 }
 
-export async function runLarkAuthFlow(
-  request: LarkAuthEnsureRequest,
+export async function handleLarkAuthCallbackDetected(
+  result: LarkAuthCallbackResult,
   deps: EnsureLarkAuthDeps = {},
-): Promise<LarkAuthEnsureResponse> {
-  return ensureLarkAuth(request, deps);
+): Promise<void> {
+  await deps.saveLastLarkAuthResult?.(result);
+  await deps.clearPendingLarkOauthState?.(result.state);
 }

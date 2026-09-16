@@ -1,106 +1,88 @@
-// Lark content script - detects page context and injects page bridge
+import { createLarkContentScriptRuntime, type LarkDetectedPageContext } from "../injection/platforms/lark/bootstrap";
+import type { ProbeOverlayState } from "../injection/core/overlay";
+import { fetchExtensionPageConfig, pageConfigHasActionPlacement } from "./shared/page-config";
+import { injectSidebar, type SidebarInjectorHandle } from "./shared/sidebar-injector";
 
-import type { PageContext } from '../types/context.js';
-
-export function detectLarkPageContext(): PageContext | null {
-  const url = window.location.href;
-
-  const context: PageContext = {
-    pageType: 'lark_a1',
-    url,
+function createNoopSidebarHandle(): SidebarInjectorHandle {
+  return {
+    open() {},
+    close() {},
+    toggle() {},
+    destroy() {},
   };
-
-  // Extract baseId and recordId from URL
-  const urlMatch = url.match(/\/base\/([^/]+)\/table\/([^/]+)\/record\/([^/]+)/);
-  if (urlMatch) {
-    context.baseId = urlMatch[1];
-    context.tableId = urlMatch[2];
-    context.recordId = urlMatch[3];
-  }
-
-  // Try to detect Lark user ID from page
-  const larkIdElement = document.querySelector('[data-user-id]') as HTMLElement;
-  if (larkIdElement) {
-    context.detectedLarkId = larkIdElement.dataset.userId;
-  }
-
-  return context;
 }
 
-/**
- * Extract auth code from Lark OAuth redirect
- * Lark redirects to: https://your-server.com/api/lark/auth/callback?code=xxx&state=yyy
- */
-export function extractAuthCodeFromRedirect(): { code: string; state: string } | null {
-  const url = new URL(window.location.href);
-  const code = url.searchParams.get('code');
-  const state = url.searchParams.get('state');
-
-  if (code && state) {
-    return { code, state };
-  }
-
-  return null;
+interface TenwaysLarkTestingApi {
+  detectLarkPageContext: () => LarkDetectedPageContext | null;
+  extractAuthCodeFromRedirect: () => { code: string; state: string } | null;
+  getLarkUserId: () => string | null;
+  initLarkContentScript: (options?: { enablePageDomInjection?: boolean }) => void;
+  refreshProbeState: () => void;
+  getProbeState: () => ProbeOverlayState;
+  openSidebar: () => void;
+  closeSidebar: () => void;
+  toggleSidebar: () => void;
+  destroy: () => void;
 }
 
-/**
- * Get Lark user ID from page context
- */
-export function getLarkUserId(): string | null {
-  // Try multiple selectors to find user ID
-  const selectors = [
-    '[data-user-id]',
-    '[data-user_id]',
-    '.user-id',
-    '[id*="user"]',
-  ];
+const runtime = createLarkContentScriptRuntime();
 
-  for (const selector of selectors) {
-    const element = document.querySelector(selector) as HTMLElement;
-    if (element) {
-      // Try data-user-id first
-      if (element.dataset.userId) {
-        return element.dataset.userId;
-      }
-      // Try innerText as fallback
-      const id = element.innerText?.trim();
-      if (id && id.length > 5) {
-        return id;
-      }
-    }
-  }
+const larkTestingTarget = globalThis as typeof globalThis & {
+  __TENWAYS_LARK_TESTING__?: TenwaysLarkTestingApi;
+};
 
-  // Try to find from script tags or global variables
-  // @ts-ignore - Check for Lark global objects
-  if (window.Lark?.user?.id) {
-    // @ts-ignore
-    return window.Lark.user.id;
-  }
+let larkSidebar = createNoopSidebarHandle();
+let larkSidebarDestroyed = false;
 
-  return null;
-}
+runtime.initLarkContentScript({ enablePageDomInjection: false });
 
-export function initLarkContentScript() {
-  console.log('[Tenways Octo] Lark content script initialized');
-
-  // Listen for messages from popup or background
-  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    if (message.action === 'getPageContext') {
-      const context = detectLarkPageContext();
-      sendResponse(context);
-    }
-
-    if (message.action === 'getLarkAuthCode') {
-      const authCode = extractAuthCodeFromRedirect();
-      sendResponse(authCode);
-    }
-
-    if (message.action === 'getLarkUserId') {
-      const userId = getLarkUserId();
-      sendResponse({ userId });
-    }
+void (async () => {
+  const pageConfig = await fetchExtensionPageConfig({
+    url: typeof window !== "undefined" ? window.location.href : undefined,
+    fallbackPlatform: "lark",
   });
-}
 
-// Initialize
-initLarkContentScript();
+  if (larkSidebarDestroyed) {
+    return;
+  }
+
+  if (pageConfigHasActionPlacement(pageConfig, "page_dom", "lark_detail_header")) {
+    runtime.initLarkContentScript({ enablePageDomInjection: true });
+  }
+
+  if (!pageConfigHasActionPlacement(pageConfig, "sidebar")) {
+    return;
+  }
+
+  larkSidebar = injectSidebar(
+    {
+      hostPageType: "lark",
+      hostUrl: typeof window !== "undefined" ? window.location.href : undefined,
+      hostOrigin: typeof window !== "undefined" ? window.location.origin : undefined,
+      larkUserId: runtime.getLarkUserId() ?? undefined,
+    },
+    {
+      showTrigger: pageConfig.sidebar.sidebarButtonEnabled,
+      enableKeyboardShortcut: pageConfig.sidebar.keyboardShortcutEnabled,
+    },
+  );
+})();
+
+larkTestingTarget.__TENWAYS_LARK_TESTING__ = {
+  detectLarkPageContext: runtime.detectLarkPageContext,
+  extractAuthCodeFromRedirect: runtime.extractAuthCodeFromRedirect,
+  getLarkUserId: runtime.getLarkUserId,
+  initLarkContentScript: runtime.initLarkContentScript,
+  refreshProbeState: runtime.refreshProbeState,
+  getProbeState: runtime.getProbeState,
+  openSidebar: () => larkSidebar.open(),
+  closeSidebar: () => larkSidebar.close(),
+  toggleSidebar: () => larkSidebar.toggle(),
+  destroy: () => {
+    larkSidebarDestroyed = true;
+    larkSidebar.destroy();
+    runtime.destroy();
+  },
+};
+
+export {};
