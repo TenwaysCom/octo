@@ -2,6 +2,14 @@
 
 Record concise compiler/runtime errors, failed commands, wrong assumptions, and their verified fixes here. Redact secrets, cookies, tokens, and sensitive payloads.
 
+## [ERR-20260916-001] launched-assumed-workflow-finished
+
+**Error:** 排查 Meegle 完成数量时，仅凭已同步的 `status=Launched` 判断流程已经完成，并把空完成时间当作数据缺失；保存的源响应实际仍有当前节点 Go-Live check。
+
+**Fix:** 对照源响应的工作项状态、当前流程节点和完成时间，再判断字段缺失是否异常；区分当前状态与历史归属截止统计。不要从 FE 的完成色或业务状态名称反推流程终态。
+
+source: [Meegle Sprint 标签完成数量排查](../docs/tasks/platform-data/2026-09-16-meegle-sprint-tag-completed-count.md)
+
 ## [ERR-20260914-001] rg-multiple-json-logs-break-jq
 
 **Error:** `rg '"path":...' server/logs/api.* | jq ...` 在匹配多个 JSON 日志文件时报告 `jq: parse error: Invalid numeric literal`；`rg` 默认添加的文件名前缀使输出不再是 JSON。

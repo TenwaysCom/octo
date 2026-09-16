@@ -85,6 +85,7 @@ import {
   buildMeegleWorkitemRow,
   getAutoBadgeTone,
   getMeegleStatusTone,
+  getMeegleStatusPresentation,
   getMeegleWorkitemCategory,
   getMeegleWorkitemDetailUrl,
   splitOverflowItems,
@@ -111,8 +112,9 @@ function ExternalLink({ href, title, className, children }) {
   return children;
 }
 
-function MeegleStatusPill({ status }) {
-  return <span className={`meegle-workitem-status meegle-workitem-status--${getMeegleStatusTone(status)}`}>{status || "未设置"}</span>;
+function MeegleStatusPill({ status, subStage, itemFinishTime }) {
+  const { label, tone } = getMeegleStatusPresentation({ status, subStage, itemFinishTime });
+  return <span className={`meegle-workitem-status meegle-workitem-status--${tone}`}>{label}</span>;
 }
 
 function MeegleSystemBadge({ system }) {
@@ -342,7 +344,7 @@ function WorkitemRowMeta({ meta, apiBaseUrl, onPickPullRequest, onTicketFieldCli
   if (meta.type === "lark-badge") {
     content = <LarkTicketBadge kind={meta.kind} value={meta.value} />;
   } else if (meta.type === "meegle-status") {
-    content = <MeegleStatusPill status={meta.value} />;
+    content = <MeegleStatusPill status={meta.value} subStage={meta.subStage} itemFinishTime={meta.itemFinishTime} />;
   } else if (meta.type === "workitem-type") {
     content = <span className={`workitem-type-badge workitem-type-badge--${meta.category}`}>{meta.label}</span>;
   } else if (meta.type === "system-badge") {
@@ -452,7 +454,7 @@ function MeegleWorkitemCell({ columnKey, item, apiBaseUrl, nowTime, onPickPullRe
     return <span className={`workitem-type-badge workitem-type-badge--${getMeegleWorkitemCategory(item)}`}>{item.workItemType || item.workItemTypeKey || "-"}</span>;
   }
   if (columnKey === "status") {
-    return <><MeegleStatusPill status={item.status} /><small>{item.subStage || ""}</small></>;
+    return <><MeegleStatusPill status={item.status} subStage={item.subStage} itemFinishTime={item.itemFinishTime} /><small>{item.status?.trim().toLocaleLowerCase() === "launched" ? "" : item.subStage || ""}</small></>;
   }
   if (columnKey === "pullRequests") {
     return <GitHubPullRequestLinks apiBaseUrl={apiBaseUrl} pullRequests={item.githubPullRequests} onPick={onPickPullRequest} />;

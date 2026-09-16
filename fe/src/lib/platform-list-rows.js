@@ -1,5 +1,5 @@
 import { getLarkTicketDetailHash } from "../app/routes/workspace-routes.js";
-import { formatDateTime } from "./formatters.js";
+import { formatDateTime, parsePlatformTimestamp } from "./formatters.js";
 import { formatMeegleCurrentWorkingTime } from "./meegle-current-working-time.js";
 
 // Row models for the compact single-line list rendering on platform list pages.
@@ -36,12 +36,24 @@ export function getMeegleWorkitemCategory(item) {
 
 export function getMeegleStatusTone(status) {
   const normalized = String(status || "").toLocaleLowerCase();
-  if (["done", "ended", "fixed", "launched"].includes(normalized)) return "completed";
-  if (["fe launch", "server launch"].includes(normalized)) return "release";
+  if (["done", "ended", "fixed", "finished"].includes(normalized)) return "completed";
+  if (["fe launch", "server launch", "launched"].includes(normalized)) return "release";
   if (normalized.includes("design") || ["feature draft", "new", "to start"].includes(normalized)) return "planning";
   if (normalized.includes("review") || normalized.includes("testing") || normalized.includes("check")) return "review";
   if (normalized.includes("doing") || normalized.includes("ongoing") || normalized.includes("development")) return "active";
   return "default";
+}
+
+export function getMeegleStatusPresentation({ status, subStage, itemFinishTime } = {}) {
+  const label = String(status || "").trim() || "未设置";
+  if (label.toLocaleLowerCase() !== "launched") return { label, tone: getMeegleStatusTone(status) };
+  const node = String(subStage || "").trim();
+  // An active node takes precedence over a potentially stale finish timestamp.
+  if (node) return { label: `${label} · ${node}`, tone: getMeegleStatusTone(node) };
+  if (Number.isFinite(parsePlatformTimestamp(itemFinishTime))) {
+    return { label: `${label} · Finished`, tone: "completed" };
+  }
+  return { label, tone: "release" };
 }
 
 // Sprint and version names have no intrinsic color, so derive one
@@ -110,7 +122,7 @@ export function buildMeegleWorkitemRow(item, visibleColumns = [], nowTime = Date
   const visible = new Set(visibleColumns);
   const leading = [];
   if (visible.has("workitemType")) leading.push({ key: "workitemType", type: "workitem-type", category: getMeegleWorkitemCategory(item), label: item.workItemType || item.workItemTypeKey || "-" });
-  if (visible.has("status")) leading.push({ key: "status", type: "meegle-status", value: item.status, subStage: item.subStage || "" });
+  if (visible.has("status")) leading.push({ key: "status", type: "meegle-status", value: item.status, subStage: item.subStage || "", itemFinishTime: item.itemFinishTime });
   const trailing = [];
   if (visible.has("pullRequests") && item.githubPullRequests?.length) {
     trailing.push({

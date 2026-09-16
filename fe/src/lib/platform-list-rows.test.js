@@ -6,6 +6,7 @@ import {
   buildLarkTicketRow,
   buildMeegleWorkitemRow,
   getMeegleStatusTone,
+  getMeegleStatusPresentation,
   getMeegleWorkitemCategory,
   getAutoBadgeTone,
   splitOverflowItems,
@@ -13,11 +14,31 @@ import {
 
 test("getMeegleStatusTone keeps Meegle status badges consistent", () => {
   assert.equal(getMeegleStatusTone("Done"), "completed");
+  assert.equal(getMeegleStatusTone("Launched"), "release");
   assert.equal(getMeegleStatusTone("Server Launch"), "release");
   assert.equal(getMeegleStatusTone("Feature Draft"), "planning");
   assert.equal(getMeegleStatusTone("QA Testing"), "review");
   assert.equal(getMeegleStatusTone("Doing"), "active");
   assert.equal(getMeegleStatusTone("Blocked"), "default");
+});
+
+test("Launched distinguishes an active Go-Live check from a finished workflow", () => {
+  const status = "Launched";
+  assert.deepEqual(getMeegleStatusPresentation({ status, subStage: "Go-Live check" }), {
+    label: "Launched · Go-Live check", tone: "review",
+  });
+  assert.deepEqual(getMeegleStatusPresentation({ status, itemFinishTime: "2026-09-01" }), {
+    label: "Launched · Finished", tone: "completed",
+  });
+  assert.deepEqual(getMeegleStatusPresentation({ status, subStage: "Go-Live check", itemFinishTime: "2026-09-01" }), {
+    label: "Launched · Go-Live check", tone: "review",
+  });
+  for (const itemFinishTime of [undefined, null, "", "invalid"]) {
+    assert.deepEqual(getMeegleStatusPresentation({ status, itemFinishTime }), { label: status, tone: "release" });
+  }
+  assert.deepEqual(getMeegleStatusPresentation({ status: "Doing", subStage: "Development" }), {
+    label: "Doing", tone: "active",
+  });
 });
 
 test("splitOverflowItems keeps the first N items inline and the rest in overflow", () => {
@@ -122,6 +143,15 @@ test("buildMeegleWorkitemRow links externally and carries collapsible PR data", 
   assert.equal(row.trailing.find((meta) => meta.key === "sprint").type, "auto-badge");
   assert.equal(row.trailing.find((meta) => meta.key === "version").type, "auto-badge");
   assert.equal(row.trailing.find((meta) => meta.key === "currentWorkingTime").text, "工作 1小时 30分钟");
+});
+
+test("Meegle list rows retain lifecycle evidence for the status badge", () => {
+  const item = { status: "Launched", subStage: "", itemFinishTime: "2026-09-01" };
+  const [meta] = buildMeegleWorkitemRow(item, ["status"]).leading;
+  assert.equal(meta.itemFinishTime, item.itemFinishTime);
+  assert.deepEqual(getMeegleStatusPresentation({ status: meta.value, subStage: meta.subStage, itemFinishTime: meta.itemFinishTime }), {
+    label: "Launched · Finished", tone: "completed",
+  });
 });
 
 test("buildMeegleWorkitemRow reserves the PR picker while omitting other empty metadata", () => {
