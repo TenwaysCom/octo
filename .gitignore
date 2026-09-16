@@ -23,4 +23,5 @@ evals/lark-ticket-ai/artifacts/
 .workbuddy
 server/config/platform-sync.local.json
 intent_results.xlsx
+*.swp
 .zcode

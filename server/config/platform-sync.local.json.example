@@ -60,7 +60,7 @@
         "notificationEnvironments": ["eu"],
         "enabled": true,
         "intervalMinutes": 30,
-        "chatId": "oc_ebad023939d64fa0b0314d03307d8d77"
+        "chatId": "oc_a50cf5c83845e52e007b0394ad3e4470"
       },
       "messageDelivery": {
         "enabled": true,

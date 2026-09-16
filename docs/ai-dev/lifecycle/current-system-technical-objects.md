@@ -836,6 +836,10 @@ PR Quick scan / Deep review 的运行状态存于 PostgreSQL `github_pr_review_r
 
 Odoo.sh 业务同步与通用消息发送是两个独立调度的 Server-owned Worker，共读 `platform-sync.local.json`（可由 `PLATFORM_SYNC_CONFIG_PATH` 指定）。`scheduler.enabled` 是总开关，`scheduler.tasks.odooSh` 控制构建刷新及目标群，`scheduler.tasks.messageDelivery` 控制通用发送的轮询、批量、超时和重试。两个任务都依赖 Server 存活；配置修改后重启 Server，现有 platform-sync-worker 不重复启动它们。
 
+通知目标由 `scheduler.tasks.odooSh.chatId` 配置，默认值见 `server/src/config/platform-sync-config.ts`。更换群只影响配置生效后新入队的消息，已有 `message_outbox` 记录保留生成时的目标群；最近一次更换见[任务记录](../../tasks/engineering-ops/2026-09-16-odoo-notification-chat.md)。
+
+PM2 ecosystem 仅在 `NODE_ENV=production` 时注册 API Server 与独立 platform-sync-worker；其他环境只注册 API Server。此进程配置不关闭上述 Server 内调度，既有非 production Worker 的移除步骤见 [平台同步运行说明](../../tenways-octo/it-platform-sync.md)。
+
 业务同步启动后立即刷新 EU / UK / US，之后按配置间隔刷新（默认 30 分钟）。定时与页面读取共用每环境刷新 Promise。`odoo_sh_build_sync_state` 与首次快照原子保存，历史不通知，空项目也能初始化；后续为所有新增失败或失败转换写入 `odoo_sh_build_notifications` 业务事件。Odoo 生产端解析作者绑定、确定目标群并组装完整正文，在同一事务内写入 `message_outbox`、把事件标记为 `queued`；生成失败保留业务事件供后续刷新重试。build 恢复时生产端取消尚未领取的消息，已发送或发送中的消息不回滚。
 
 `MessageDeliveryWorker` 只消费通用 `message_outbox` 的目标、正文与幂等键，不读取 build、不解析作者。发送状态、尝试次数、平台 message_id 以通用表为准；领取使用条件更新与 claim token，明确可重试的失败有限重试，发送结果不确定或确认落库失败保持待核实，过期 sending 不自动重发。关闭 Server 时等待刷新与在途发送结束（仍受整体退出超时限制）。旧 Odoo 表保留去重和审计：确定未发送的事件可转入通用队列并保留原尝试次数与退避时间；sent/failed/outcome_unknown 不重发，旧 sending 过期后转为 outcome_unknown。原 Odoo 专用消费者不再使用。

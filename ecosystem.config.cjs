@@ -45,5 +45,7 @@ module.exports = {
       restart_delay: 5_000,
       kill_timeout: 30_000,
     },
-  ],
+  ].filter((app) =>
+    environment === "production" || app.name === `octo-server-${environment}`
+  ),
 };
