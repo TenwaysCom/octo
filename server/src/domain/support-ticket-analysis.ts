@@ -1,4 +1,5 @@
 import type { LarkTicketThreadMessage } from "../adapters/postgres/lark-ticket-thread-sync-store.js";
+import { prepareMessageContent } from "./prepared-message-content.js";
 
 export const SUPPORT_INTENT_TYPES = [
   "access_request", "troubleshoot", "how_to", "bug_report", "service_request",
@@ -20,7 +21,7 @@ export const SUPPORT_INTENT_SUBTYPES: Record<SupportIntentType, readonly string[
   other: ["unclassified"],
 };
 
-export const SUPPORT_REDACTION_VERSION = "v2";
+export const SUPPORT_REDACTION_VERSION = "v3";
 
 export interface PreparedTicketMessage {
   messageId: string;
@@ -50,7 +51,8 @@ export function prepareTicketThread(messages: LarkTicketThreadMessage[]): Prepar
     .flatMap((message) => {
       if (seen.has(message.messageId) || message.deleted) return [];
       seen.add(message.messageId);
-      const text = redactSupportText(message.content);
+      const content = prepareMessageContent(message.content, message.messageType);
+      const text = redactSupportText(content.text);
       const senderRole = message.senderType === "user" ? "user" : message.senderType === "bot" ? "bot" : message.senderType === "system" ? "system" : "unknown";
       const userNumber = senderRole === "user" && message.senderId
         ? userLabels.get(message.senderId) ?? (userLabels.set(message.senderId, userLabels.size + 1), userLabels.size)
@@ -61,8 +63,8 @@ export function prepareTicketThread(messages: LarkTicketThreadMessage[]): Prepar
         ...(message.createdAt ? { createdAt: message.createdAt } : {}),
         senderRole,
         senderLabel: senderRole === "user" ? userNumber ? `用户 ${userNumber}` : "用户" : senderRole === "bot" ? "客服机器人" : senderRole === "system" ? "系统" : "未知发送者",
-        text: text || `[${message.messageType || "unsupported"} message]`,
-        hasArtifact: !["text", "post"].includes(message.messageType || ""),
+        text,
+        hasArtifact: content.hasArtifact,
       }];
     });
 }

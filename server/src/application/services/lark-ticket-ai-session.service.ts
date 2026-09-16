@@ -652,6 +652,7 @@ function formatThreadContext(context: LarkTicketThreadContextResult | undefined)
     `Message ${index + 1} (${message.messageId})`,
     message.createdAt && `Time: ${message.createdAt}`,
     `Sender role: ${message.senderRole}`,
+    message.senderLabel && `Sender: ${message.senderLabel}`,
     message.replyTo && `Reply to: ${message.replyTo}`,
     message.text,
   ].filter(Boolean).join("\n")).join("\n\n");

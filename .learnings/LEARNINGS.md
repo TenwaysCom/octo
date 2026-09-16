@@ -793,3 +793,10 @@ source: [Meegle Sprint 历史与详情](../docs/tasks/platform-data/2026-08-27-m
 **Rule:** 生产端负责业务判定、身份解析和完整消息组装；发送端只消费目标、正文、幂等键与投递状态。业务事件转入发送队列必须具有事务或可恢复边界，迁移时保留终态和不确定结果，避免重复投递。
 
 source: [Odoo.sh 构建同步与通用消息发送 Worker](../docs/tasks/platform-sync/2026-09-13-odoo-build-sync-and-message-delivery-workers.md)
+## [LRN-20260914-001] inspect-content-degradation-before-backfill
+
+**Context:** 消息外层记录可以成功反序列化，但内部消息类型和节点仍可能无法提取正文。
+
+**Rule:** 批量清洗前按消息类型统计解析失败及未知内容占位，核对降级原因；候选记录有效不能代替正文完整性验证。
+
+source: [富文本清洗任务](../docs/tasks/ai-ticket/2026-09-14-prepared-message-rich-text-cleaning.md)

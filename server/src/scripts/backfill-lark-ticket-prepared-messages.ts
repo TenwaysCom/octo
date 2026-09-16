@@ -2,6 +2,7 @@ import "dotenv/config";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { Kysely } from "kysely";
+import { z } from "zod";
 import {
   createPostgresDatabase,
   getDefaultPostgresUri,
@@ -49,6 +50,7 @@ export interface PreparedMessageBackfillSelection {
   candidates: PreparedMessageBackfillCandidate[];
   alreadyCurrent: number;
   invalidMessagesJson: number;
+  invalidRecordIds: string[];
 }
 
 function usage(): string {
@@ -101,12 +103,23 @@ export function parseArgs(argv: string[]): BackfillLarkTicketPreparedMessagesArg
   return { apply, baseId, tableId, concurrency, limit };
 }
 
+const rawMessagesSchema = z.object({
+  schemaVersion: z.literal(1),
+  messages: z.array(z.object({
+    messageId: z.string().min(1),
+    content: z.string().optional(),
+    senderId: z.string().optional(),
+    senderType: z.string().optional(),
+    messageType: z.string().optional(),
+    createdAt: z.string().optional(),
+    parentId: z.string().optional(),
+    deleted: z.boolean().optional(),
+  }).passthrough()),
+});
+
 function parseRawMessages(value: string): LarkTicketThreadMessage[] | undefined {
   try {
-    const document = JSON.parse(value) as { schemaVersion?: unknown; messages?: unknown };
-    return document.schemaVersion === 1 && Array.isArray(document.messages)
-      ? document.messages as LarkTicketThreadMessage[]
-      : undefined;
+    return rawMessagesSchema.parse(JSON.parse(value)).messages;
   } catch {
     return undefined;
   }
@@ -155,6 +168,7 @@ export function findPreparedMessageBackfillCandidates(
     candidates: [],
     alreadyCurrent: 0,
     invalidMessagesJson: 0,
+    invalidRecordIds: [],
   };
   for (const row of rows) {
     if (isPreparedMessagesCurrent(row.prepared_messages_json, row.snapshot_version)) {
@@ -164,6 +178,7 @@ export function findPreparedMessageBackfillCandidates(
     const messages = parseRawMessages(row.messages_json);
     if (!messages) {
       selection.invalidMessagesJson += 1;
+      selection.invalidRecordIds.push(row.record_id);
       continue;
     }
     try {
@@ -176,6 +191,7 @@ export function findPreparedMessageBackfillCandidates(
       });
     } catch {
       selection.invalidMessagesJson += 1;
+      selection.invalidRecordIds.push(row.record_id);
     }
   }
   return selection;
@@ -185,20 +201,31 @@ export async function applyPreparedMessageBackfill(
   db: Kysely<DatabaseSchema>,
   candidates: PreparedMessageBackfillCandidate[],
   concurrency: number,
-): Promise<{ updated: number; stale: number }> {
+): Promise<{ updated: number; stale: number; failedRecordIds: string[]; staleRecordIds: string[] }> {
+  const failedRecordIds: string[] = [];
+  const staleRecordIds: string[] = [];
   const results = await mapWithConcurrency(candidates, concurrency, async (candidate) => {
-    const result = await db.updateTable("lark_ticket_thread_syncs")
-      .set({ prepared_messages_json: candidate.preparedMessagesJson })
-      .where("base_id", "=", candidate.baseId)
-      .where("table_id", "=", candidate.tableId)
-      .where("record_id", "=", candidate.recordId)
-      .where("snapshot_version", "=", candidate.snapshotVersion)
-      .executeTakeFirst();
-    return Number(result.numUpdatedRows) === 1 ? "updated" as const : "stale" as const;
+    try {
+      const result = await db.updateTable("lark_ticket_thread_syncs")
+        .set({ prepared_messages_json: candidate.preparedMessagesJson })
+        .where("base_id", "=", candidate.baseId)
+        .where("table_id", "=", candidate.tableId)
+        .where("record_id", "=", candidate.recordId)
+        .where("snapshot_version", "=", candidate.snapshotVersion)
+        .executeTakeFirst();
+      if (Number(result.numUpdatedRows) === 1) return "updated" as const;
+      staleRecordIds.push(candidate.recordId);
+      return "stale" as const;
+    } catch {
+      failedRecordIds.push(candidate.recordId);
+      return "failed" as const;
+    }
   });
   return {
     updated: results.filter((result) => result === "updated").length,
     stale: results.filter((result) => result === "stale").length,
+    failedRecordIds: failedRecordIds.sort(),
+    staleRecordIds: staleRecordIds.sort(),
   };
 }
 
@@ -221,7 +248,7 @@ async function main(): Promise<void> {
       : selection.candidates.slice(0, args.limit);
     const applied = args.apply
       ? await applyPreparedMessageBackfill(db, candidates, args.concurrency)
-      : { updated: 0, stale: 0 };
+      : { updated: 0, stale: 0, failedRecordIds: [], staleRecordIds: [] };
     process.stdout.write(`[lark-ticket-prepared-message-backfill] ${JSON.stringify({
       apply: args.apply,
       baseId: args.baseId,
@@ -233,8 +260,11 @@ async function main(): Promise<void> {
       invalidMessagesJson: selection.invalidMessagesJson,
       updated: applied.updated,
       stale: applied.stale,
+      invalidRecordIds: selection.invalidRecordIds,
+      failedRecordIds: applied.failedRecordIds,
+      staleRecordIds: applied.staleRecordIds,
     })}\n`);
-    if (applied.stale > 0) process.exitCode = 1;
+    if (applied.stale > 0 || applied.failedRecordIds.length > 0 || selection.invalidMessagesJson > 0) process.exitCode = 1;
   } finally {
     await db.destroy();
     await connection.close();

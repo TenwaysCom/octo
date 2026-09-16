@@ -626,7 +626,7 @@ describe("Lark Ticket AI Session service", () => {
           ...ticket,
           messageLink: "https://applink.larksuite.com/client/thread/open?threadid=thread_1",
           threadId: "thread_1",
-          messages: [{ messageId: "om_1", content: "Thread reply" }],
+          messages: [{ messageId: "om_1", senderType: "user", senderId: "private_sender", messageType: "text", content: JSON.stringify({ text: "Thread reply" }) }],
           snapshotVersion: 4,
           historyComplete: true,
           dirty: false,
@@ -661,6 +661,8 @@ describe("Lark Ticket AI Session service", () => {
 
     expect(threadContextService.ensure).toHaveBeenCalledTimes(1);
     expect(acpService.chat.mock.calls[0][0].message).toContain("Thread reply");
+    expect(acpService.chat.mock.calls[0][0].message).toContain("Sender: 用户 1");
+    expect(acpService.chat.mock.calls[0][0].message).not.toContain("private_sender");
     expect(acpService.chat.mock.calls[1][0].message).toBe("Continue");
     expect(ownershipStore.attachTicket).toHaveBeenCalledWith(expect.objectContaining({
       threadId: "thread_1",

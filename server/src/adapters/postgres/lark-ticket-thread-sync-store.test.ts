@@ -2,6 +2,29 @@ import { PostgresLarkTicketThreadSyncStore } from "./lark-ticket-thread-sync-sto
 import { createTestPostgresDatabase } from "./test-db.js";
 
 describe("PostgresLarkTicketThreadSyncStore", () => {
+  it("rebuilds v2 cache on read without writing source or cache, then persists v3 on sync", async () => {
+    const { db, pool } = await createTestPostgresDatabase();
+    const store = new PostgresLarkTicketThreadSyncStore(db);
+    const input = {
+      baseId: "base", tableId: "table", recordId: "record", threadId: "thread", messageLink: "https://example.com",
+      messages: [{ messageId: "m1", senderId: "private", senderType: "user", messageType: "post", content: JSON.stringify({ content: [[{ tag: "text", text: "Hello" }, { tag: "img" }]] }) }],
+      historyComplete: true, checkedAt: "2026-09-14T00:00:00Z",
+    };
+    await store.saveSuccessfulSync(input);
+    const old = JSON.stringify({ schemaVersion: 1, redactionVersion: "v2", snapshotVersion: 1, messages: [{ text: "old JSON" }] });
+    await db.updateTable("lark_ticket_thread_syncs").set({ prepared_messages_json: old }).execute();
+    const before = await db.selectFrom("lark_ticket_thread_syncs").selectAll().executeTakeFirstOrThrow();
+    const snapshot = await store.get(input);
+    expect(snapshot).toMatchObject({ snapshotVersion: 1, preparedMessages: [{ messageId: "m1", senderLabel: "用户 1", text: "Hello[图片]", hasArtifact: true }] });
+    expect(await db.selectFrom("lark_ticket_thread_syncs").selectAll().executeTakeFirstOrThrow()).toEqual(before);
+    await store.saveSuccessfulSync(input);
+    const after = await db.selectFrom("lark_ticket_thread_syncs").selectAll().executeTakeFirstOrThrow();
+    expect(after.messages_json).toBe(before.messages_json);
+    expect(after.snapshot_version).toBe(1);
+    expect(JSON.parse(after.prepared_messages_json!)).toMatchObject({ redactionVersion: "v3", snapshotVersion: 1 });
+    await db.destroy();
+    await pool.end();
+  });
   it("stores one versioned JSON document and increments the version only when message content changes", async () => {
     const { db, pool } = await createTestPostgresDatabase();
     const store = new PostgresLarkTicketThreadSyncStore(db);
@@ -64,7 +87,7 @@ describe("PostgresLarkTicketThreadSyncStore", () => {
     expect(persisted.prepared_messages_json).not.toContain("jane@example.com");
     expect(JSON.parse(persisted.prepared_messages_json || "{}")).toMatchObject({
       schemaVersion: 1,
-      redactionVersion: "v2",
+      redactionVersion: "v3",
       snapshotVersion: 2,
     });
 

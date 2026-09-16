@@ -82,6 +82,8 @@ Lark Ticket full/incremental 同步只维护 Ticket 字段和 `lark_message_link
 
 该表按 `base_id + table_id + record_id` 保存一个 `schemaVersion=1` 的消息 JSON 文档，并单独记录 `thread_id`、`snapshot_version`、创建时间 watermark、完整性、最近检查/成功/完整对账时间、dirty 与冻结状态。增量读取使用创建时间 watermark 减 60 秒重叠窗口，按创建时间升序遍历全部分页，再按 `message_id` 合并并覆盖完整 JSON；旧消息编辑或撤回由默认 24 小时一次的完整对账修正。图片不下载二进制，只保留 image resource key；已有完整快照在 Lark 临时失败时可作为 stale cache 使用，首次读取失败则明确终止分析，不能用空上下文冒充成功。
 
+同表的 `prepared_messages_json` 是供 FE 与 AI 使用的派生数据。Server 按消息类型将正文打平成单个字符串，保留段落、mention 名称、链接与附件占位，替代节点 JSON；发送者显示线程内“用户 N”，真实 senderId 仍保留在原始消息中。清洗版本与源 snapshotVersion 分开：旧清洗版本读取时由原文重建，不自动写库，离线回填只更新 prepared 列。未知内容显式占位；本文不承诺全文姓名匿名化。需求与验证见 [富文本清洗任务](../tasks/ai-ticket/2026-09-14-prepared-message-rich-text-cleaning.md)。
+
 `ensure` 的默认决策如下：
 
 | 条件 | 数据来源 |

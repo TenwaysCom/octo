@@ -7,6 +7,31 @@ import {
 } from "./backfill-lark-ticket-prepared-messages.js";
 
 describe("backfill Lark ticket prepared messages", () => {
+  it("reports failed writes and continues the batch without logging raw errors", async () => {
+    const query = {
+      set: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis(),
+      executeTakeFirst: vi.fn().mockRejectedValueOnce(new Error("private database details"))
+        .mockResolvedValueOnce({ numUpdatedRows: 1n }),
+    };
+    const db = { updateTable: vi.fn().mockReturnValue(query) };
+    const candidate = { baseId: "base", tableId: "table", recordId: "bad", snapshotVersion: 1, preparedMessagesJson: "{}" };
+    await expect(applyPreparedMessageBackfill(db as never, [candidate, { ...candidate, recordId: "ok" }], 1))
+      .resolves.toEqual({ updated: 1, stale: 0, failedRecordIds: ["bad"], staleRecordIds: [] });
+  });
+  it("rejects malformed raw records and selects v2 rich text for one-time rebuilding", () => {
+    const base = { base_id: "base", table_id: "table", snapshot_version: 1, prepared_messages_json: JSON.stringify({ schemaVersion: 1, redactionVersion: "v2", snapshotVersion: 1, messages: [] }) };
+    const raw = JSON.stringify({ schemaVersion: 1, messages: [{ messageId: "m1", messageType: "text", content: JSON.stringify({ text: "hello" }) }] });
+    const selection = findPreparedMessageBackfillCandidates([
+      { ...base, record_id: "ok", messages_json: raw },
+      { ...base, record_id: "bad", messages_json: JSON.stringify({ schemaVersion: 1, messages: [{}] }) },
+      { ...base, record_id: "bad-type", messages_json: JSON.stringify({ schemaVersion: 1, messages: [{ messageId: "m1", content: {} }] }) },
+    ]);
+    expect(selection.invalidRecordIds).toEqual(["bad", "bad-type"]);
+    expect(selection.candidates).toHaveLength(1);
+    const prepared = selection.candidates[0].preparedMessagesJson;
+    expect(JSON.parse(prepared).messages[0].text).toBe("hello");
+    expect(findPreparedMessageBackfillCandidates([{ ...base, record_id: "ok", messages_json: raw, prepared_messages_json: prepared }])).toMatchObject({ candidates: [], alreadyCurrent: 1 });
+  });
   it("requires a local table scope and keeps apply independent from Lark credentials", () => {
     expect(parseArgs(["--base-id", "base", "--table-id", "table"])).toEqual({
       apply: false,
@@ -85,8 +110,8 @@ describe("backfill Lark ticket prepared messages", () => {
       preparedMessagesJson: serializePreparedMessages([], 2),
     };
 
-    await expect(applyPreparedMessageBackfill(db, [candidate], 1)).resolves.toEqual({ updated: 1, stale: 0 });
-    await expect(applyPreparedMessageBackfill(db, [{ ...candidate, snapshotVersion: 1 }], 1)).resolves.toEqual({ updated: 0, stale: 1 });
+    await expect(applyPreparedMessageBackfill(db, [candidate], 1)).resolves.toEqual({ updated: 1, stale: 0, failedRecordIds: [], staleRecordIds: [] });
+    await expect(applyPreparedMessageBackfill(db, [{ ...candidate, snapshotVersion: 1 }], 1)).resolves.toEqual({ updated: 0, stale: 1, failedRecordIds: [], staleRecordIds: ["rec_1"] });
     await expect(db.selectFrom("lark_ticket_thread_syncs").select("prepared_messages_json")
       .where("record_id", "=", "rec_1").executeTakeFirst()).resolves.toMatchObject({
       prepared_messages_json: candidate.preparedMessagesJson,
