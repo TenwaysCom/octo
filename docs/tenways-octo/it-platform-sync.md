@@ -232,11 +232,14 @@ pnpm --dir server platform:sync --only github --mode incremental --scope TWS-lan
 pnpm --dir server build
 pnpm --dir server platform:sync:worker
 
-# 本地 PM2 同时维护 API Server 与 Worker；进程名以后缀区分 server/.env 的 NODE_ENV
+# PM2 仅在 production 维护 API Server 与 Worker；其他环境只维护 API Server
+# 进程名以后缀区分 server/.env 的 NODE_ENV
 # ecosystem 只解析 NODE_ENV，应用运行时环境仍由 Server 自行从 server/.env 加载
 pnpm --dir server exec pm2 startOrReload ../ecosystem.config.cjs --update-env
 pnpm --dir server exec pm2 save
 ```
+
+`ecosystem.config.cjs` 仅在 `NODE_ENV=production` 时注册 Worker，staging、development、test 及自定义环境均只注册 API Server。首次切换时，若 PM2 中已有非 production Worker，需按实际进程名删除并 `pm2 save`（例如 `pm2 delete octo-platform-sync-worker-staging`），因为移除配置不会删除既有进程。此限制仅作用于 ecosystem，不拦截手工直接启动 Worker，也不关闭 Server 内的 Odoo.sh 与消息发送调度。运维记录见 [仅 production 启用 Worker](../../tasks/engineering-ops/2026-09-16-disable-staging-platform-worker.md)。
 
 本地配置只包含同步目标，例如：
 
