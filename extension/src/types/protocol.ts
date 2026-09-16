@@ -22,8 +22,11 @@ export const protocolActions = [
   "octo.lark_base.create_workitem",
   "octo.lark_base.bulk_preview_workitems",
   "octo.lark_base.bulk_create_workitems",
+  "octo.async-action.track",
   "octo.pm.analysis.run",
   "octo.page.meegle.auth_code.request",
+  "octo.web.plugin-login.approve",
+  "octo.github-pr.odoo-devops-build.read",
 ] as const;
 
 export type ProtocolAction = (typeof protocolActions)[number];
@@ -95,4 +98,46 @@ export type LarkBaseBulkCreateWorkitemsMessage = ProtocolEnvelope<
 export type LarkBaseBulkCreateWorkitemsResult = ProtocolEnvelope<
   "octo.lark_base.bulk_create_workitems",
   LarkBaseBulkCreateResultPayload
+>;
+
+export type AsyncActionTrackMessage = ProtocolEnvelope<
+  "octo.async-action.track",
+  {
+    actionRunId: string;
+    masterUserId: string;
+    serverUrl: string;
+    statusRoute: string;
+    notification: {
+      title: string;
+      message: string;
+    };
+  }
+>;
+
+export type WebPluginLoginApprovalMessage = ProtocolEnvelope<
+  "octo.web.plugin-login.approve",
+  { challengeId: string; pageOrigin: string }
+>;
+
+export type WebPluginLoginApprovalResult = ProtocolEnvelope<
+  "octo.web.plugin-login.approve",
+  { status: "approved" | "failed"; errorCode?: string }
+>;
+
+export type GitHubPrOdooDevopsBuildMessage = ProtocolEnvelope<
+  "octo.github-pr.odoo-devops-build.read",
+  { owner: string; repo: string; pullNumber: number }
+>;
+
+export type GitHubPrOdooDevopsBuildResult = ProtocolEnvelope<
+  "octo.github-pr.odoo-devops-build.read",
+  {
+    status: "ready" | "unavailable";
+    data?: {
+      environment: "eu" | "uk" | "us";
+      headRef: string;
+      build: { branch: string; status: string; result: string } | null;
+    };
+    errorCode?: string;
+  }
 >;

@@ -1,70 +1,27 @@
 # .github/workflows/kimi-review.yml
-name: Kimi Code Review
+name: Python Compile Check
 
 on:
   pull_request:
+    branches:
+      - 'uat*'
     types: [opened, synchronize, reopened]
   workflow_dispatch:
 
 permissions:
   contents: read
-  pull-requests: write
-  checks: write
 
 jobs:
-  kimi-review:
+  python-test:
     runs-on: ubuntu-latest
-
-    # 避免 fork PR 拿不到 secret，还可能跑不可信代码
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-
-    env:
-      KIMI_API_KEY: ${{ secrets.KIMI_API_KEY }}
-      KIMI_BASE_URL: https://api.kimi.com/coding/v1
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          fetch-depth: 0
+          python-version: '3.10'
 
-      - name: Install Kimi Code CLI
-        run: |
-          curl -LsSf https://code.kimi.com/install.sh | bash
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-
-      - name: Check tools
-        run: |
-          kimi --version
-          gh --version
-          gh auth status
-
-      - name: Generate PR diff
-        if: github.event_name == 'pull_request'
-        run: |
-          git fetch origin "${{ github.base_ref }}"
-          git diff "origin/${{ github.base_ref }}...HEAD" > pr.diff
-          test -s pr.diff
-
-      - name: Run Kimi review
-        if: github.event_name == 'pull_request'
-        run: |
-          kimi --quiet --work-dir "$GITHUB_WORKSPACE" -p "$(cat <<'EOF'
-          Review this pull request diff.
-          Requirements:
-          - Focus on real bugs, security issues, regressions, and missing tests.
-          - Do not nitpick formatting unless it causes behavior or maintainability problems.
-          - Output concise Markdown with file paths and line references when possible.
-
-          Diff:
-          EOF
-          cat pr.diff
-          )" > kimi-review.md
-
-          test -s kimi-review.md
-
-      - name: Comment on PR
-        if: github.event_name == 'pull_request'
-        run: |
-          gh pr comment "${{ github.event.pull_request.number }}" \
-            --body-file kimi-review.md
+      - name: Compile Python files
+        run: python .github/scripts/python_quality.py

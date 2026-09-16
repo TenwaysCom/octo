@@ -73,7 +73,13 @@ describe("acp kimi session history service", () => {
       cwd: process.cwd(),
     });
     expect(ownershipStore.claim).toHaveBeenCalledTimes(1);
-    expect(ownershipStore.claim).toHaveBeenCalledWith("sess_orphan", "ou_123", "Orphan");
+    expect(ownershipStore.claim).toHaveBeenCalledWith(expect.objectContaining({
+      sessionId: "sess_orphan",
+      operatorLarkId: "ou_123",
+      title: "Orphan",
+      runtimeHostName: expect.any(String),
+      kimiWorkDir: process.cwd(),
+    }));
     expect(sessions).toEqual([
       {
         sessionId: "sess_orphan",

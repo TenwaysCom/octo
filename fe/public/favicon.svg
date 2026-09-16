@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="octo-gradient" x1="8" y1="6" x2="56" y2="58" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#d97706"/>
+      <stop offset="1" stop-color="#b45309"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="18" fill="url(#octo-gradient)"/>
+  <rect x="15" y="15" width="14" height="14" rx="4" fill="#fff"/>
+  <rect x="35" y="15" width="14" height="14" rx="4" fill="#fff" fill-opacity=".76"/>
+  <rect x="15" y="35" width="14" height="14" rx="4" fill="#fff" fill-opacity=".56"/>
+  <rect x="35" y="35" width="14" height="14" rx="4" fill="#fff" fill-opacity=".34"/>
+</svg>

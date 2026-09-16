@@ -66,6 +66,24 @@ function summarizeIdentifier(value?: string | null): string | undefined {
   return `${value.slice(0, 4)}...${value.slice(-4)}`;
 }
 
+function summarizeLarkContextForDebug(context?: Partial<LarkBaseUrlContext>): Record<string, unknown> {
+  const recordId = context?.recordId;
+
+  return {
+    hasBaseId: Boolean(context?.baseId),
+    baseId: summarizeIdentifier(context?.baseId),
+    hasTableId: Boolean(context?.tableId),
+    tableId: summarizeIdentifier(context?.tableId),
+    hasViewId: Boolean(context?.viewId),
+    viewId: summarizeIdentifier(context?.viewId),
+    hasRecordId: Boolean(recordId),
+    recordId: summarizeIdentifier(recordId),
+    isRealRecordId: typeof recordId === "string" && recordId.startsWith("rec"),
+    hasWikiRecordId: Boolean(context?.wikiRecordId),
+    wikiRecordId: summarizeIdentifier(context?.wikiRecordId),
+  };
+}
+
 export interface PopupTabContext {
   id: number | null;
   url: string | null;
@@ -280,6 +298,15 @@ function readInjectedSidebarHostContext(): Partial<PopupTabContext> {
   }
 }
 
+function shouldUseInjectedSidebarUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "chrome-extension:" && parsed.pathname.endsWith("sidebar-popup.html");
+  } catch {
+    return false;
+  }
+}
+
 export async function queryActiveTabContext(): Promise<PopupTabContext> {
   const injectedContext = readInjectedSidebarHostContext();
   const response = await sendRuntimeMessage<{
@@ -322,14 +349,18 @@ export async function queryActiveTabContext(): Promise<PopupTabContext> {
 
   try {
     const parsed = new URL(url);
-    const effectiveUrl = injectedContext.url ?? url;
-    const pageType = injectedContext.pageType ?? detectPopupPageType(effectiveUrl);
+    const useInjectedUrl = Boolean(injectedContext.url) && shouldUseInjectedSidebarUrl(url);
+    const effectiveUrl = useInjectedUrl ? injectedContext.url ?? url : url;
+    const effectiveParsed = new URL(effectiveUrl);
+    const pageType = useInjectedUrl
+      ? injectedContext.pageType ?? detectPopupPageType(effectiveUrl)
+      : detectPopupPageType(effectiveUrl);
     const larkContext = await queryLarkPageContext(tabId ?? null, pageType);
 
     return {
       id: tabId ?? null,
       url: effectiveUrl,
-      origin: injectedContext.origin ?? parsed.origin,
+      origin: useInjectedUrl ? injectedContext.origin ?? effectiveParsed.origin : parsed.origin,
       pageType,
       larkContext,
       larkUserId: injectedContext.larkUserId,
@@ -360,17 +391,34 @@ async function queryLarkPageContext(
       action: "getPageContext",
     });
     if (!response) {
+      runtimeLogger.debug("queryLarkPageContext.empty", {
+        tabId,
+        pageType,
+      });
       return undefined;
     }
 
-    return {
+    const context = {
       baseId: response.baseId,
       tableId: response.tableId,
       recordId: response.recordId,
       viewId: response.viewId,
       wikiRecordId: response.wikiRecordId,
     };
-  } catch {
+
+    runtimeLogger.debug("queryLarkPageContext.done", {
+      tabId,
+      pageType,
+      larkContext: summarizeLarkContextForDebug(context),
+    });
+
+    return context;
+  } catch (error) {
+    runtimeLogger.warn("queryLarkPageContext.failed", {
+      tabId,
+      pageType,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
     return undefined;
   }
 }

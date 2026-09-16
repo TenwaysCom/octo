@@ -109,7 +109,7 @@ pnpm --dir extension build
 
 ### 扩展无法连接服务端
 
-1. 确认 `http://localhost:3000/health` 可访问
+1. 确认 `http://localhost:3000/api/health` 可访问
 2. 检查 popup 设置里的服务端地址
 3. 检查浏览器控制台是否存在 CORS 或 network 错误
 

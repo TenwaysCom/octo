@@ -27,6 +27,7 @@ Tenways Octo 是一个非 Chrome Web Store 分发的浏览器扩展，需要实�
   - 用户主动点击扩展 popup 时
 - **检查方式**: 向服务器 `/api/extension/version` 发送请求，获取最新版本信息
 - **版本对比**: 将服务器返回的版本号与当前 `manifest.json` 中的版本号对比
+- **版本来源**: 服务端从 `server/package.json#version` 返回已部署的最新版本；发布时需与 `extension/manifest.json` 的版本保持一致。
 
 #### FR-002: 版本信息格式
 服务器应返回以下格式：
@@ -119,7 +120,7 @@ extension/
 │   └── types/
 │       └── update.ts              # 更新相关类型定义
 ├── manifest.json                  # 添加 notifications 权限（可选）
-└── package.json                   # 添加版本号常量
+└── package.json                   # 扩展依赖与脚本
 ```
 
 ### 4.2 服务器端接口

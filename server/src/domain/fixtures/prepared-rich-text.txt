@@ -1,0 +1,15 @@
+【EMTC SPs stock -- when to add new-inbound stock to Odoo？】
+Person6：@Person0 
+Hi Person7, i hope you are doing well. I wanted to ask you when the stock of parts planned for inbonding to Odoo. My team already sees them in the sheet of Person8 but they are not available in Odoo yet for both B2B and B2C. 
+
+Person7：
+Hello, Person6. We would also like to do a good job, but realistic factors mean we cannot process the goods into stock in Odoo immediately upon their arrival at the warehouse.The factors affecting the time taken to process stock receipts in Odoo are: 
+1. Transaction procedures between EMTC and HK (it takes some time for Person8 to provide customs clearance documents, invoices, etc.) 
+2. Transaction procedures between HK and the EU (Person9 needs to create a PO in Odoo, and the Finance Department needs to issue an invoice) 
+3. Stock receipt in the EU (PO is correct)
+So, it normally takes 2–3 days for goods to be received by Person8 and fully processed into the Odoo. If customs clearance takes longer than usual, the process may take up to 5 or 7 days (maybe longer).
+
+@Person1 @Person2 @Person3 @Person4 @Person5 Sync.
+
+Person6：Should we expect them in Odoo by Monday?
+Person7: today we will stock up in Odoo.

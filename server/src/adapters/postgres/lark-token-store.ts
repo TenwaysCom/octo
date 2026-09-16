@@ -24,6 +24,8 @@ function toRecord(
     refreshToken: row.refresh_token ?? undefined,
     refreshTokenExpiresAt: row.refresh_token_expires_at ?? undefined,
     credentialStatus: row.credential_status === "expired" ? "expired" : "active",
+    lastAuthAt: row.last_auth_at,
+    lastRefreshAt: row.last_refresh_at ?? undefined,
   };
 }
 
@@ -45,7 +47,7 @@ export class PostgresLarkTokenStore implements LarkTokenStore {
       .executeTakeFirst();
 
     const now = new Date().toISOString();
-    const lastAuthAt = existing?.last_auth_at ?? now;
+    const lastAuthAt = token.lastAuthAt ?? existing?.last_auth_at ?? now;
     const lastRefreshAt = existing ? now : null;
 
     await this.database.insertInto("user_tokens").values({

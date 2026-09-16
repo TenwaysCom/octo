@@ -1,7 +1,7 @@
 ---
 status: draft
 owner: TBD
-last_reviewed: 2026-06-18
+last_reviewed: 2026-09-11
 scope: Coding rules for Octo server routes, controllers, services, adapters, workflows, platform metadata, errors, logging, and tests
 update_required_when:
   - server route/controller/service layering changes
@@ -121,6 +121,27 @@ Service should not:
 2. Directly access browser/extension state.
 3. Hardcode Meegle dynamic `field_*` as business semantics.
 4. Convert all failures to `Error.message`.
+
+For Kimi ACP callback execution, keep the tool sequence explicit and capability-scoped:
+
+1. Bind each Session to one Server-owned, versioned permission profile. The action catalog may name the profile, but must not expose its path or command rules to the browser or model.
+2. ACP file writes must be UTF-8 text no larger than 256 KiB. Revalidate traversal, real paths, symlinks and sensitive names for every callback. Answer may write its action-run scratch directory plus the explicitly configured query loop targets; Document may additionally write the allow-listed Support-QA knowledge targets, including only the specifically named state file and never `knowledge-index.jsonl`.
+3. Operational commands must use ACP Terminal. Normalize a direct argv or `/bin/bash -lc` wrapper into a complete argv, reject shell expansion and control operators, match an action/profile/Ticket/cwd/script rule, and spawn the authorized executable with `shell: false`, a Server-owned environment and no stdin.
+4. Treat Terminal completion and the Server operation audit as the evidence boundary. Permission-dialog labels, truncated summaries and model tool-call text are not execution proof.
+5. External writes must be represented by a Server-stored effect draft bound to operator, Session, action run, Ticket, profile, snapshot and payload hash. Confirmation accepts only the draft identity; the Server performs and reads back the write. Unknown external outcomes are terminal and must not be retried automatically.
+6. Browser-facing streams continue with the model's normal human-readable response. A scratch JSON file, dry-run result or generated model text is not proof that `ticket_ai`, the feedback table or the knowledge index was updated.
+
+The `lark-ticket-support-qa-summarize` action and Lark Ticket shadow summary worker are exceptions to the ACP flow above: both are one-shot structured-output workflows using the shared Ticket Summary provider configuration. The Server must obtain the fixed, redacted Ticket snapshot before the provider call and validate the returned JSON and evidence IDs locally. The Quick Action calls `SupportTicketAnalysisService.update()` directly; the shadow worker only writes its independent `shadow_ai` projection. Both paths must resolve the same `LARK_TICKET_SUMMARY_PROVIDER` and `LARK_TICKET_SUMMARY_MODEL`; neither may create a reusable Session or expose workspace, shell, Skill, or internal signing capabilities to the provider. Answer and Document remain ACP-backed.
+
+`lark-ticket-wiki-qa` is a separate one-shot draft workflow using that same provider/model configuration. Its extraction, rerank and answer prompts live under `lark_ticket.wiki_qa.*`. The Server reads only the configured wiki root, validates canonical file paths, uses index/entities as navigation and concepts as distinct knowledge hits, then assigns at most three source numbers after validating model-selected candidate and raw-evidence IDs. Draft/unknown scope, incomplete evidence and conflicting material must retain their applicability limits. Raw transcript Shadow AI sections are reference material, not primary evidence. The answer call has no tools; it receives only the fixed Ticket context and selected evidence. It must not invoke the old PostgreSQL approved-knowledge retrieval, ACP, knowledge-loop writes, or Ticket analysis writeback. FE displays a reviewable draft through the existing scoped one-shot run lifecycle.
+
+Kimi and Hermes share the TS ACP client; Hermes starts the official `python -m acp_adapter` without a production patch/launcher dependency. Persist provider and full native session ID separately from Octo's public ID before prompting. Restore using saved metadata; infer the legacy provider only when metadata is absent, and never strip an old Hermes native ID. Kimi export recovery receives only Kimi native IDs.
+
+Hermes uses native risk approvals for commands and other non-preapproved operations. Do not auto-allow a request based on its Bash/Terminal title, or claim client capability flags constrain native tools. A Hermes `patch`/`write_file` request may receive automatic `allow_once` only when its structured `rawInput` names the supported edit tool, its single ACP diff agrees with the path and write payload, the final UTF-8 content is no larger than 256 KiB, and the existing versioned action/profile policy accepts the canonical path; replace patches must also still match the source content used to build the diff. Unverifiable patch modes and all out-of-policy edits continue through native approval. The shared service binds operator, public/native session, action run, request ID and native options. Interactive replies wait at most 50 seconds, below the verified native 60-second timeout. Explicit run cancellation and expiry clear pending requests. Request-bound ACP endpoints also cancel on disconnection; FE Ticket/Sprint streams only detach their observer on disconnection, so their interactive approvals remain pending until reply, cancellation or expiry. Background denial must cancel the run, persist a permission configuration failure and suppress later successful completion. Terminal and `execute_code` filesystem effects remain outside this edit auto-approval boundary.
+
+FE Ticket/Sprint AI runs belong to the Server, independently of a drawer or HTTP connection. Their list/load APIs expose scoped run state and buffered history while the native runtime is busy; stop requires the current Web identity, full business reference and exact runId. A late stop cannot target a later turn. Only publish done after the business service, including postprocessing, succeeds. Native Session history remains durable; process-local run snapshots and browser reconnection do not promise automatic continuation after Server restart. See [FE AI Session lifecycle](../../tasks/acp/2026-09-06-fe-ai-session-lifecycle-discussion.md).
+
+Ticket Quick Actions require source fields and a complete, nonempty fixed chat snapshot before calling the provider; Answer also requires the approved-knowledge query to succeed (zero hits is valid). Record history does not prove record comments were retrieved. Material failures prevent result acceptance. The first-Terminal-fetch instruction and operation-audit completion gate are removed; Kimi audit remains diagnostic. Effect drafts still require human confirmation and Server write/readback.
 
 Partial success rules:
 

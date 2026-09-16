@@ -61,9 +61,11 @@ type MeegleGlobalState = typeof globalThis & {
 
 const SIDEBAR_HOST_ID = "tenways-octo-sidebar-host";
 const SIDEBAR_ROUTE_REFRESH_DELAY_MS = 100;
+const SIDEBAR_URL_POLL_INTERVAL_MS = 300;
 
 let meegleSidebar = createNoopSidebarHandle();
 let lastSidebarUrl: string | undefined;
+let lastObservedUrl: string | undefined;
 let authMessageListenerRegistered = false;
 let routeRefreshTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -415,6 +417,16 @@ function scheduleMeegleSidebarRefresh(): void {
   }, SIDEBAR_ROUTE_REFRESH_DELAY_MS);
 }
 
+function observeMeegleUrlChange(): void {
+  const currentUrl = window.location.href;
+  if (currentUrl === lastObservedUrl) {
+    return;
+  }
+
+  lastObservedUrl = currentUrl;
+  scheduleMeegleSidebarRefresh();
+}
+
 function installMeegleRouteWatcher(): void {
   if (typeof window === "undefined") {
     return;
@@ -424,6 +436,7 @@ function installMeegleRouteWatcher(): void {
     return;
   }
   meegleTestingTarget.__TENWAYS_MEEGLE_ROUTE_WATCH_INSTALLED__ = true;
+  lastObservedUrl = window.location.href;
 
   const wrapHistoryMethod = (method: "pushState" | "replaceState") => {
     const original = window.history[method];
@@ -434,7 +447,7 @@ function installMeegleRouteWatcher(): void {
       const previousUrl = window.location.href;
       const result = original.apply(this, args);
       if (window.location.href !== previousUrl) {
-        scheduleMeegleSidebarRefresh();
+        observeMeegleUrlChange();
       }
       return result;
     };
@@ -442,7 +455,9 @@ function installMeegleRouteWatcher(): void {
 
   wrapHistoryMethod("pushState");
   wrapHistoryMethod("replaceState");
-  window.addEventListener("popstate", scheduleMeegleSidebarRefresh);
+  window.addEventListener("popstate", observeMeegleUrlChange);
+  const pollTimer = setInterval(observeMeegleUrlChange, SIDEBAR_URL_POLL_INTERVAL_MS);
+  (pollTimer as { unref?: () => void }).unref?.();
 }
 
 function registerMeegleMessageListener(): void {

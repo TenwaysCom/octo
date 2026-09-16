@@ -142,6 +142,47 @@ describe("lark-base-workflow.service", () => {
     );
   });
 
+  it("skips creation when the record already has a Meegle link", async () => {
+    const record = makeRecord("User Story");
+    record.fields["meegle链接"] = {
+      text: "https://project.larksuite.com/4c3fv6/story/detail/13290007",
+      link: "https://project.larksuite.com/4c3fv6/story/detail/13290007",
+    };
+    createLarkClientMock.mockReturnValueOnce({
+      getRecord: vi.fn().mockResolvedValueOnce(record),
+    });
+    getLarkTokenStoreMock.mockResolvedValueOnce({
+      userToken: "token_123",
+      userTokenExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
+      baseUrl: "https://open.larksuite.com",
+    });
+
+    const result = await executeLarkBaseWorkflow(
+      {
+        recordId: "rec_123",
+        masterUserId: "usr_xxx",
+        baseId: "base_123",
+        tableId: "tbl_456",
+        actionRunId: "run_create_existing_link",
+      },
+      deps,
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: {
+        layer: "server",
+        module: "lark-base-workflow",
+        stage: "server.workflow.skipped",
+        errorCode: "MEEGLE_LINK_ALREADY_EXISTS",
+        errorMessage: "Meegle 链接已经有记录。",
+        actionRunId: "run_create_existing_link",
+      },
+    });
+    expect(executeMeegleApplyMock).not.toHaveBeenCalled();
+    expect(updateLarkBaseMeegleLinkMock).not.toHaveBeenCalled();
+  });
+
   it("threads actionRunId through create apply and success result", async () => {
     const record = makeRecord("User Story");
     createLarkClientMock.mockReturnValueOnce({

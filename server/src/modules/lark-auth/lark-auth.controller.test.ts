@@ -10,6 +10,7 @@ import {
   configureLarkAuthControllerDeps,
   getAuthStatusController,
   handleAuthCallbackController,
+  startWebLarkAuthController,
 } from "./lark-auth.controller.js";
 import {
   configureLarkAuthServiceDeps,
@@ -57,6 +58,22 @@ describe("lark-auth.controller", () => {
     });
   });
 
+  it("starts a standalone web OAuth session without a master user id", async () => {
+    const result = await startWebLarkAuthController();
+    const authorizationUrl = new URL(result.redirectUrl);
+    const state = authorizationUrl.searchParams.get("state");
+
+    expect(authorizationUrl.origin).toBe("https://accounts.larksuite.com");
+    expect(authorizationUrl.pathname).toBe("/open-apis/authen/v1/authorize");
+    expect(authorizationUrl.searchParams.get("app_id")).toBe("cli_test");
+    expect(authorizationUrl.searchParams.get("redirect_uri")).toBe("http://localhost:3000/api/lark/auth/callback");
+    expect(state).toBeTruthy();
+    await expect(oauthSessionStore.get(state!)).resolves.toMatchObject({
+      status: "pending",
+      masterUserId: undefined,
+    });
+  });
+
   it("renders a success completion page when callback exchange succeeds", async () => {
     const { db } = await createTestPostgresDatabase();
     const resolvedUserStore = new PostgresResolvedUserStore(db);
@@ -94,7 +111,7 @@ describe("lark-auth.controller", () => {
           code: 0,
           data: {
             tenant_key: "tenant_oauth_verified",
-            user_id: "ou_oauth_verified",
+            open_id: "ou_oauth_verified",
           },
         }),
       })

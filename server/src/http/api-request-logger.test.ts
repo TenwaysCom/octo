@@ -40,6 +40,7 @@ describe("api-request-logger", () => {
       body: {
         masterUserId: "usr_123",
         actionRunId: "run_api_001",
+        actionKey: "lark-ticket-support-qa-answer",
         baseUrl: "https://open.larksuite.com",
         authCode: "auth_code_1234",
       },
@@ -75,6 +76,7 @@ describe("api-request-logger", () => {
         body: expect.objectContaining({
           masterUserId: "usr_123",
           actionRunId: "run_api_001",
+          actionKey: "lark-ticket-support-qa-answer",
           baseUrl: "https://open.larksuite.com",
           hasAuthCode: true,
           authCodeSuffix: "1234",

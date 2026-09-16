@@ -1,4 +1,18 @@
 import type { Response } from "express";
+import type { RequestPermissionRequest } from "@agentclientprotocol/sdk";
+
+export type AcpPermissionStatus = "approved" | "rejected" | "expired" | "cancelled";
+export type AcpPermissionRequestData = {
+  requestId: string;
+  sessionId: string;
+  actionRunId: string;
+  expiresAt: string;
+  toolCall: RequestPermissionRequest["toolCall"];
+  options: RequestPermissionRequest["options"];
+};
+export type AcpPermissionEvent =
+  | { event: "acp.permission.requested"; data: AcpPermissionRequestData }
+  | { event: "acp.permission.resolved"; data: AcpPermissionRequestData & { status: AcpPermissionStatus; optionId?: string } };
 
 export type AcpKimiSessionCreatedEvent = {
   event: "session.created";
@@ -23,9 +37,22 @@ export type AcpKimiDoneEvent = {
   };
 };
 
+export type AcpKimiEffectDraftCreatedEvent = {
+  event: "effect.draft.created";
+  data: {
+    draftId: string;
+    effectType: "answer_feedback" | "ticket_ai_update";
+    actionRunId: string;
+    status: "pending";
+  };
+};
+
 export type AcpKimiStreamEvent =
+  | { event: "run.started"; data: { runId: string; sessionId: string; actionRunId: string } }
+  | AcpPermissionEvent
   | AcpKimiSessionCreatedEvent
   | AcpKimiSessionUpdateEvent
+  | AcpKimiEffectDraftCreatedEvent
   | AcpKimiDoneEvent;
 
 export function prepareAcpKimiEventStream(res: Response) {

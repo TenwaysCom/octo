@@ -8,6 +8,7 @@ import {
   getDefaultPostgresUri,
 } from "../adapters/postgres/database.js";
 import type { DatabaseSchema } from "../adapters/postgres/schema.js";
+import { preparePostgresConnection } from "../adapters/postgres/ssh-tunnel.js";
 import { getDefaultDatabasePath } from "../adapters/sqlite/database.js";
 
 interface ImportOptions {
@@ -149,7 +150,8 @@ function parseArgs(argv: string[]): { sqlitePath: string; postgresUri: string } 
 
 async function main(): Promise<void> {
   const { sqlitePath, postgresUri } = parseArgs(process.argv.slice(2));
-  const db = createPostgresDatabase(postgresUri);
+  const connection = await preparePostgresConnection(postgresUri);
+  const db = createPostgresDatabase(connection.postgresUri);
 
   try {
     await ensurePostgresSchema(db);
@@ -162,6 +164,7 @@ async function main(): Promise<void> {
     console.log(`[db] users=${result.users} user_tokens=${result.userTokens} oauth_sessions=${result.oauthSessions}`);
   } finally {
     await db.destroy();
+    await connection.close();
   }
 }
 
