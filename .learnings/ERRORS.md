@@ -282,6 +282,7 @@ source: [AGENTS.md 审查与优化](../docs/tasks/engineering-ops/2026-09-14-age
 - **Fix:** Use `pnpm --dir server exec vitest run <test-file>` for an exact focused run, then execute the Server build separately.
 - **Status:** resolved; all 5 platform-data controller tests and the Server TypeScript build pass.
 - **Recurrence (2026-09-01):** `pnpm --dir server test -- <files>` 仍运行了全量套件；改用 `pnpm --dir server exec vitest run <files...>` 后本次 8 个文件 76/76 通过。
+- **source:** [2026-09-17 再次触发；沿用 exec vitest run 修正调用方式](../docs/tasks/ai-ticket/2026-09-17-wiki-entity-maintenance.md)。
 
 ## [ERR-20260817-001] list-get-diagnostic-tsx-entrypoint
 
