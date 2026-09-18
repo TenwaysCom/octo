@@ -22,6 +22,7 @@ const MAX_WRITE_BYTES = 256 * 1024;
 const MAX_TERMINAL_OUTPUT_BYTES = 256 * 1024;
 const TERMINAL_TIMEOUT_MS = 60_000;
 const SUPPORT_QA_SCRIPT = ".agents/skills/write-support-qa/scripts/octo-ticket-evidence.sh";
+const ENTITY_MAINTENANCE_SCRIPT = "docs/llm-wiki/scripts/entity-maintenance.py";
 
 export interface AcpKimiPermissionContext {
   actionKey?: string | null;
@@ -268,11 +269,28 @@ async function matchTerminalRule(
     const script = await resolveTrustedWorkspaceFile(workspaceDir, SUPPORT_QA_SCRIPT);
     return script ? { executable: "/bin/bash", args: [script, ...tokens.slice(2)], ruleId: "support_qa.fetch_record" } : undefined;
   }
+  if (context.permissionProfileId === "support-qa.document.v1" && isEntityMaintenanceTokens(tokens)) {
+    const script = await resolveTrustedWorkspaceFile(workspaceDir, ENTITY_MAINTENANCE_SCRIPT);
+    const executable = await resolveExecutable("python3");
+    return script && executable
+      ? { executable, args: ["-B", script, ...tokens.slice(3)], ruleId: "support_qa.entity_maintenance" }
+      : undefined;
+  }
   if (program === "git" && tokens.length === 3 && tokens[1] === "status" && tokens[2] === "--short") {
     const executable = await resolveExecutable("git");
     return executable ? { executable, args: tokens.slice(1), ruleId: "support_qa.repo_status" } : undefined;
   }
   return undefined;
+}
+
+function isEntityMaintenanceTokens(tokens: string[]): boolean {
+  if (basename(tokens[0] ?? "") !== "python3" || tokens[1] !== "-B"
+    || tokens[2] !== ENTITY_MAINTENANCE_SCRIPT || !["plan", "check"].includes(tokens[3] ?? "")
+    || tokens.at(-1) !== "--json") return false;
+  const selectors = tokens.slice(4, -1);
+  if (selectors.length % 2 !== 0) return false;
+  return selectors.every((token, index) => index % 2 === 0 ? token === "--entity"
+    : /^entities\/(?:[a-z0-9_-]+\/)*[a-z0-9_-]+\.md$/.test(token));
 }
 
 function isSupportQaFetchTokens(tokens: string[], context: Pick<AcpKimiPermissionContext, "ticketNumber">): boolean {
@@ -468,7 +486,7 @@ async function resolveTrustedWorkspaceFile(root: string, relativePath: string): 
   return stat?.isFile() && !stat.isSymbolicLink() ? candidate : undefined;
 }
 
-async function resolveExecutable(name: "git"): Promise<string | undefined> {
+async function resolveExecutable(name: "git" | "python3"): Promise<string | undefined> {
   for (const directory of ["/usr/bin", "/bin", "/usr/local/bin"]) {
     const candidate = join(directory, name);
     try {

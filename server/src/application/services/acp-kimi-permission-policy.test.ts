@@ -11,6 +11,7 @@ import {
 } from "./acp-kimi-permission-policy.js";
 
 const FETCH_SCRIPT = ".agents/skills/write-support-qa/scripts/octo-ticket-evidence.sh";
+const ENTITY_SCRIPT = "docs/llm-wiki/scripts/entity-maintenance.py";
 
 function permissionRequest(title: string): RequestPermissionRequest {
   return {
@@ -63,6 +64,7 @@ async function createFixture() {
   const outsideDir = join(root, "outside");
   for (const path of [
     join(workspaceDir, dirname(FETCH_SCRIPT)),
+    join(workspaceDir, dirname(ENTITY_SCRIPT)),
     join(workspaceDir, "docs/llm-wiki/concepts/faq"),
     join(workspaceDir, "docs/llm-wiki/concepts/cache-refresh"),
     join(workspaceDir, "docs/llm-wiki/raw/transcripts"),
@@ -74,6 +76,7 @@ async function createFixture() {
   ]) await mkdir(path, { recursive: true });
   await Promise.all([
     writeFile(join(workspaceDir, FETCH_SCRIPT), "#!/bin/bash\n"),
+    writeFile(join(workspaceDir, ENTITY_SCRIPT), "# read-only entity planner\n"),
     writeFile(join(workspaceDir, "docs/llm-wiki/SCHEMA.md"), "schema"),
     writeFile(join(workspaceDir, "docs/llm-wiki/index.md"), "index"),
     writeFile(join(workspaceDir, "docs/llm-wiki/log.md"), "log"),
@@ -266,6 +269,42 @@ describe("acp kimi permission policy", () => {
         ...safePatch,
         options: [{ optionId: "deny", name: "Deny", kind: "reject_once" }],
       }, document)).resolves.toBeUndefined();
+    } finally {
+      await cleanupFixture(fixture);
+    }
+  });
+
+  it("allows only the fixed read-only entity planner for Document", async () => {
+    const fixture = await createFixture();
+    try {
+      const document = createAcpKimiClientCapabilityPolicy(context(fixture, "support-qa.document.v1"));
+      const answer = createAcpKimiClientCapabilityPolicy(context(fixture));
+      for (const args of [
+        ["-B", ENTITY_SCRIPT, "plan", "--json"],
+        ["-B", ENTITY_SCRIPT, "check", "--entity", "entities/objects/sale-order.md", "--entity", "entities/objects/account-move.md", "--json"],
+      ]) {
+        await expect(document.authorizeTerminal(terminalRequest("python3", args, fixture.workspaceDir))).resolves.toMatchObject({
+          ruleId: "support_qa.entity_maintenance",
+          args: ["-B", join(fixture.workspaceDir, ENTITY_SCRIPT), ...args.slice(2)],
+        });
+        await expect(answer.authorizeTerminal(terminalRequest("python3", args, fixture.workspaceDir))).resolves.toBeUndefined();
+      }
+      for (const args of [
+        ["-B", ENTITY_SCRIPT, "apply", "--json"],
+        ["-B", ENTITY_SCRIPT, "plan", "--apply", "--json"],
+        ["-B", ENTITY_SCRIPT, "check", "--entity", "entities/../../outside.md", "--json"],
+        ["-B", ENTITY_SCRIPT, "check", "--entity", "/tmp/entity.md", "--json"],
+        ["-B", ENTITY_SCRIPT, "check", "--entity", "--json"],
+        ["-B", ENTITY_SCRIPT, "plan", "--root", fixture.outsideDir, "--json"],
+        ["-B", "docs/llm-wiki/scripts/other.py", "plan", "--json"],
+        ["-c", "print('arbitrary')"],
+      ]) {
+        await expect(document.authorizeTerminal(terminalRequest("python3", args, fixture.workspaceDir))).resolves.toBeUndefined();
+      }
+      await expect(document.authorizeTerminal(terminalRequest("bash", ["-lc", `python3 -B ${ENTITY_SCRIPT} check --json; id`], fixture.workspaceDir))).resolves.toBeUndefined();
+      await rm(join(fixture.workspaceDir, ENTITY_SCRIPT));
+      await symlink(join(fixture.outsideDir, "outside.md"), join(fixture.workspaceDir, ENTITY_SCRIPT));
+      await expect(document.authorizeTerminal(terminalRequest("python3", ["-B", ENTITY_SCRIPT, "plan", "--json"], fixture.workspaceDir))).resolves.toBeUndefined();
     } finally {
       await cleanupFixture(fixture);
     }

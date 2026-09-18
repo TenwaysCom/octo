@@ -143,6 +143,8 @@ FE Ticket/Sprint AI runs belong to the Server, independently of a drawer or HTTP
 
 Ticket Quick Actions require source fields and a complete, nonempty fixed chat snapshot before calling the provider; Answer also requires the approved-knowledge query to succeed (zero hits is valid). Record history does not prove record comments were retrieved. Material failures prevent result acceptance. The first-Terminal-fetch instruction and operation-audit completion gate are removed; Kimi audit remains diagnostic. Effect drafts still require human confirmation and Server write/readback.
 
+Support-QA Document also permits the fixed read-only `python3 -B docs/llm-wiki/scripts/entity-maintenance.py plan|check [--entity entities/...md ...] --json` command through the Kimi argv guard. The executable and script resolve through trusted paths; Answer, arbitrary scripts, root overrides, apply flags and shell composition remain denied. The external wiki SCHEMA and write-support-qa Skill define batch-end entity reconciliation and semantic review. Suggested blocks are applied through existing guarded file writes; this command neither grants cross-Ticket evidence access nor creates a Server-enforced completion gate. Hermes native terminal approval remains governed by its existing permission flow.
+
 Partial success rules:
 
 | Case | Required response detail |
