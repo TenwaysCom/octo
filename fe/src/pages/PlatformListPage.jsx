@@ -2118,7 +2118,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
         {state.status === "ready" && state.items.length > 0 ? <div className={`list-results-layout ${tagSidebarOpen && tagFilterFieldsWithCounts.length ? "list-results-layout--with-sidebar" : ""}`.trim()}>
           <div className="list-results-layout__main">
           {filteredItems.length > 0 || canShowConfiguredEmptyGroups ? <>
-          {isLarkAiOutput || isLarkEvalDataset ? <LarkTicketAiWorkspace apiBaseUrl={apiBaseUrl} mode={larkViewMode} groups={larkGroups} visibleColumns={larkConfiguredVisibleColumns} collapsedGroups={collapsedLarkGroups} onLarkTicketDetailLinkClick={rememberLarkTicketNavigation} onToggleGroup={(groupKey) => setCollapsedLarkGroups((current) => current.includes(groupKey)
+          {isLarkAiOutput || isLarkEvalDataset ? <LarkTicketAiWorkspace apiBaseUrl={apiBaseUrl} onTicketContextMenu={openTicketContextMenu} mode={larkViewMode} groups={larkGroups} visibleColumns={larkConfiguredVisibleColumns} collapsedGroups={collapsedLarkGroups} onLarkTicketDetailLinkClick={rememberLarkTicketNavigation} onToggleGroup={(groupKey) => setCollapsedLarkGroups((current) => current.includes(groupKey)
             ? current.filter((key) => key !== groupKey)
             : [...current, groupKey])} collapsedSubgroups={collapsedLarkSubgroups} onToggleSubgroup={(subgroupKey) => setCollapsedLarkSubgroups((current) => current.includes(subgroupKey)
             ? current.filter((key) => key !== subgroupKey)
