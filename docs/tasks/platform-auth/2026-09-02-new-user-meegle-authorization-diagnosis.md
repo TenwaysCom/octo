@@ -4,7 +4,7 @@ module: "platform-auth"
 status: done
 requirement_version: 4
 created_on: 2026-09-02
-updated_on: 2026-09-03
+updated_on: 2026-09-18
 closed_on: 2026-09-03
 owner: TBD
 related:
@@ -70,3 +70,26 @@ related:
 - `extension/src/popup-shared/popup-controller.ts`
 - `extension/src/background/handlers/meegle-auth.ts`
 - `docs/ai-dev/lifecycle/current-system-technical-objects.md`
+
+## 2026-09-18 版本兼容性复核
+
+- 用户询问 0.9.1 发布后 0.8.2 授权失败是否由认证协议变化导致。本次仅比较源码，不修改认证行为。
+- 比较 Git 标签 `0.8.2` 与 `0.9.1`：工具栏从仅 `chrome.tabs.create` 导航改为在 Meegle 页调用 `popupApp.authorizeMeegle()`；非 Meegle 页仍导航。`v0.8.2` 与 `0.8.2` 标签不同，但其差异不涉及此认证链路。
+- 两版本的 `extension/src/background/handlers/meegle-auth.ts`、`extension/src/page-bridge/meegle-auth.ts`、`extension/src/popup/meegle-auth.ts`、Server `modules/meegle-auth/`、`adapters/meegle/auth-adapter.ts`、`application/services/meegle-credential.service.ts`、`adapters/postgres/meegle-token-store.ts` 无差异；exchange/status 路由与 Meegle API 的身份头要求保留。
+- 0.9.1 增加公开配置来源校验，避免跨 Server origin 复用配置；默认 prod/test/dev 地址未变化。新增 Web 登录与 CORS credential 支持未将旧 Meegle exchange 改为 Web session 认证，未发现按扩展版本拒绝旧客户端的认证改动。
+- 判断边界：旧版工具栏只跳转的问题确实存在，但不能据此认定本次用户故障根因。若既有 token 失效或环境切换导致需重新授权，可能暴露该旧入口问题；这些触发因素未取得本次运行时证据。若用户通过页面悬浮入口执行授权仍失败，需要按失败时间、环境、错误码和 exchange 请求定位。
+- 验证：完成上述 Git 差异静态核对；未运行单测、mock integration、live E2E 或本次受影响账号的部署日志核对。此前 9 月 2 日日志只证明历史事件，不作为本次故障证据。
+- 用户进一步明确组合为 **0.8.2 Extension + 0.10.0 Server**。补充比较 `0.8.2..0.10.0`：上述 Meegle 认证 controller/DTO/service、auth adapter、credential service、PG token store 仍无差异；identity 模块未变，exchange/status 路由保留，API 身份头要求未变。未发现由版本号直接触发的认证拒绝。
+- 对本地现有日志仅提取安全聚合：2026-09-18 API 日志有 6 次 status（HTTP 200）、无 exchange；应用日志有 4 次 status ready、2 次 `NO_STORED_TOKEN`。这些记录尚未匹配用户的环境、失败时间、插件版本或部署版本，不能用于认定本次根因；HTTP 200 也不等于已经授权。已请求用户提供环境、失败时间和错误文字，继续定位需要该关联信息。
+- 用户明确故障为 prod、2026-09-17 下午，并确认生产日志目录 `/home/deploy/projects/octo/server/logs`。读取该目录当日 API、app、popup-client 日志：全天 status 153 次均 HTTP 200；exchange 仅 11:22:14 一次，应用日志确认 `EXCHANGE OK` 且 `stored_token`。下午没有 exchange 请求。一名匿名用户全天 38 次 `NO_STORED_TOKEN`，下午 14:04:33 至 18:51:57 持续出现；另有用户出现 `MISSING_MEEGLE_USER_KEY`。时间为 logger 的 Asia/Shanghai，与用户时区同为 UTC+8。
+- 本次生产证据把下午故障范围缩小到 exchange 到达服务端之前，而非服务端收到授权码后拒绝旧版本。没有存储 token 仅说明当时查不到对应授权，不足以断言过期、丢失或清库。候选用户尚未由用户确认；日志也未记录其插件版本或实际点击入口。popup-client 当天只有 `activePage.changed`（插件内部页面切换），不能据此推断浏览器位于 Meegle 首页，也没有 auth bridge 失败阶段证据。0.8.2 工具栏入口缺陷仍是待浏览器确认的解释，不能把历史根因直接当作本次已证实根因。
+
+### Meegle / Lark 授权变化补充审计
+
+- 范围为标签 `0.8.2 → 0.9.1`，并复核 `0.9.1 → 0.10.0`。后一个区间中两平台 auth 模块、插件 background/toolbar/popup-shared 及两平台 PG token store 无变化；公共配置的额外变化涉及业务 action 元数据。
+- Meegle 用户标识仍为 `meegleUserKey`，auth code bridge、exchange/status DTO、凭证刷新和 token store 不变。入口修复之外，共享 `getConfig()` 新增来源校验；不匹配时会清除缓存的 Meegle Plugin ID，且新公开配置需通过 Lark App ID / callback 校验才接受。因此 Lark 配置错误可能间接影响新版 Meegle 配置加载，不能将 Meegle 描述为完全没有变化。该校验位于新版插件，不能直接解释旧插件独有故障。
+- 扩展 host permissions 增加 Octo prod/test 域名；Lark 专用 callback content script 从只匹配 localhost 改为匹配 prod/test/dev 与额外配置域名。其用途是向 background 通知授权完成，不代表旧版服务端必然无法存 token。
+- Lark background ensure handler 主体不变，但 router 新增配置前置拦截：`LARK_PUBLIC_CONFIG_UNAVAILABLE`、`LARK_OAUTH_CONFIG_ENVIRONMENT_MISMATCH`。服务端新增 Web OAuth/session/plugin-login 分支，已有带 masterUserId 的插件 OAuth session 继续进入原插件回调分支。
+- Lark 服务端把用户信息、身份绑定、token 用户标识及通讯录查询从 `user_id` 改为 `open_id`；通讯录回包解析同时修复嵌套 `data.user` 和企业邮箱回退。
+- **静态确认的契约不一致**：`getLarkUserInfoController` 的 `/api/lark/user-info` 从返回 `data.userId` 改为 `data.openId`；但 0.8.2、0.9.1 的 `extension/src/popup/runtime.ts::fetchLarkUserInfo` 与 `popup-shared/popup-controller.ts::hydrateLarkIdentityFromServer` 仍声明/读取 `data.userId`。新服务端搭配这两个插件版本时，此处无法回填新 Lark ID，只保留原值；不能由此推断 token exchange 必然失败，更不能直接认定为此次 Meegle 故障原因。
+- 此次仅完成源码审计、文档记录和 diff 格式检查，未修复上述契约、修改生产数据或运行真实浏览器验证。
