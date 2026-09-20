@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Express } from "express";
 import { z } from "zod";
-import { exchangeWeKnoraEmbedToken } from "../../adapters/weknora/embed-token.js";
+import { exchangeWeKnoraEmbedToken, WeKnoraExchangeError } from "../../adapters/weknora/embed-token.js";
 import { WEB_SESSION_COOKIE_NAME } from "../lark-auth/lark-auth.controller.js";
 import { resolveLarkWebSessionIdentity } from "../lark-auth/lark-auth.service.js";
 
@@ -19,10 +19,11 @@ export function createWeKnoraController(deps: {
 } = {}) {
   return async (input: { cookieHeader?: string; query: unknown }) => {
     const actionRunId = randomUUID();
-    const fail = (statusCode: number, errorCode: string, stage: string) => ({
+    const fail = (statusCode: number, errorCode: string, stage: string, rawStatusCode?: number) => ({
       statusCode,
       body: { ok: false, error: { errorCode, errorMessage: errorCode, actionRunId,
-        layer: stage === "exchange" ? "adapter" : "server", module: "weknora", stage } },
+        layer: stage === "exchange" ? "adapter" : "server", module: "weknora", stage,
+        ...(rawStatusCode === undefined ? {} : { rawStatusCode }) } },
     });
     try {
       const session = await (deps.resolveSession ?? resolveLarkWebSessionIdentity)(readSession(input.cookieHeader));
@@ -41,7 +42,11 @@ export function createWeKnoraController(deps: {
         const data = await (deps.exchange ?? exchangeWeKnoraEmbedToken)({ publishToken, origin });
         // The widget expects this flat token contract.
         return { statusCode: 200, body: data };
-      } catch { return fail(502, "WEKNORA_MINT_FAILED", "exchange"); }
+      } catch (error) {
+        return error instanceof WeKnoraExchangeError
+          ? fail(502, error.errorCode, "exchange", error.rawStatusCode)
+          : fail(502, "WEKNORA_MINT_FAILED", "exchange");
+      }
     } catch { return fail(500, "WEKNORA_SESSION_CHECK_FAILED", "auth"); }
   };
 }

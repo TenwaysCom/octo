@@ -15,7 +15,19 @@ describe("WeKnora exchange adapter", () => {
   ])("rejects bad status or response %s %s", async (status, body) => {
     await expect(exchangeWeKnoraEmbedToken({ publishToken: "private", origin: "https://octo.example" }, { fetch: vi.fn().mockResolvedValue(new Response(body, { status })) })).rejects.toThrow();
   });
+  it("identifies an Origin denial without exposing the upstream response", async () => {
+    const request = exchangeWeKnoraEmbedToken({ publishToken: "private", origin: "https://octo.example" }, {
+      fetch: vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: "origin not allowed: sensitive-details" }), { status: 403 })),
+    });
+    await expect(request).rejects.toMatchObject({ errorCode: "WEKNORA_ORIGIN_NOT_ALLOWED", rawStatusCode: 403 });
+    await expect(request).rejects.not.toThrow("sensitive-details");
+  });
+  it("distinguishes timeouts from other transport failures", async () => {
+    await expect(exchangeWeKnoraEmbedToken({ publishToken: "private", origin: "https://octo.example" }, {
+      fetch: vi.fn().mockRejectedValue(new DOMException("sensitive-details", "TimeoutError")),
+    })).rejects.toMatchObject({ errorCode: "WEKNORA_EXCHANGE_TIMEOUT" });
+  });
   it("propagates transport failure to the sanitized controller boundary", async () => {
-    await expect(exchangeWeKnoraEmbedToken({ publishToken: "private", origin: "https://octo.example" }, { fetch: vi.fn().mockRejectedValue(new Error("timeout")) })).rejects.toThrow("timeout");
+    await expect(exchangeWeKnoraEmbedToken({ publishToken: "private", origin: "https://octo.example" }, { fetch: vi.fn().mockRejectedValue(new Error("timeout")) })).rejects.toThrow("WEKNORA_CONNECTION_FAILED");
   });
 });

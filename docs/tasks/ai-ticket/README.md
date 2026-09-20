@@ -1,6 +1,6 @@
 # AI Ticket Tasks
 
-- [Lark Ticket WeKnora 浮窗](2026-09-20-weknora-widget.md) — done；本地测试和构建通过，未部署。
+- [Lark Ticket WeKnora 浮窗](2026-09-20-weknora-widget.md) — in_progress；本地实现已合并，兑换诊断确认 Origin 被拒绝，待频道允许列表配置。
 
 范围：Lark Ticket/工单 AI 分析、分类、回复建议、评测与反馈闭环。记录规则见 [Tasks 台账](../README.md)。
 

@@ -1,5 +1,6 @@
 import { vi } from "vitest";
 import express from "express";
+import { WeKnoraExchangeError } from "../../adapters/weknora/embed-token.js";
 import { createServer } from "node:http";
 import { createWeKnoraController, registerWeKnoraRoutes } from "./weknora.controller.js";
 import { createApiAuthMiddleware } from "../../http/api-auth.js";
@@ -41,6 +42,14 @@ describe("WeKnora token controller", () => {
     const result = await controller({ query: {} });
     expect(result.statusCode).toBe(502);
     expect(JSON.stringify(result)).not.toContain("secret upstream body");
+  });
+  it("preserves safe exchange diagnostics for the API logger", async () => {
+    const { controller, exchange } = setup();
+    exchange.mockRejectedValue(new WeKnoraExchangeError("WEKNORA_ORIGIN_NOT_ALLOWED", 403));
+    const result = await controller({ query: {} });
+    expect(result).toMatchObject({ statusCode: 502, body: { error: {
+      errorCode: "WEKNORA_ORIGIN_NOT_ALLOWED", rawStatusCode: 403, layer: "adapter", stage: "exchange",
+    } } });
   });
   it("serves both routes without caching and never accepts a fake bearer", async () => {
     const app = express();
