@@ -16,6 +16,8 @@ const DEFAULT_EXEMPT_PATHS = new Set([
   "/api/lark/auth/web/ensure",
   "/api/lark/auth/web/logout",
   "/api/web/profile",
+  // WeKnora validates the opaque Web session itself.
+  "/api/weknora/embed-token",
   "/api/web/ssh-public-keys",
   "/api/web/lark-ticket-eval-samples",
   "/api/web/platform-data/lark-tickets",
