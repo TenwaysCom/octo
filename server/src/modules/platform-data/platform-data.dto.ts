@@ -23,7 +23,7 @@ export const platformDataListQuerySchema = z.object({
   requester: stringListQuerySchema,
   relatedPerson: stringListQuerySchema,
   workitemType: stringListQuerySchema,
-  quickFilter: z.enum(["in-progress", "unclassified", "unsynced", "ai-output", "ai-missing"]).optional(),
+  quickFilter: z.enum(["in-progress", "unclassified", "unsynced", "ai-output", "ai-missing", "my-evals"]).optional(),
   hasAiOutput: z.enum(["true"]).optional().transform((value) => value === "true"),
   subscribed: z.enum(["true"]).optional().transform((value) => value === "true"),
   withoutSprint: z.enum(["true"]).optional().transform((value) => value === "true"),

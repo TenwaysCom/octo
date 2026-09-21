@@ -23,9 +23,6 @@ export const updateLarkTicketEvalSampleSchema = z.object({
   failureLabels: z.array(z.enum(LARK_TICKET_FAILURE_LABELS)).max(LARK_TICKET_FAILURE_LABELS.length).default([])
     .refine((values) => new Set(values).size === values.length, "Failure labels must be unique."),
 }).strict().superRefine((value, context) => {
-  if (value.datasetStatus !== "draft" && (!value.manualIntent || !value.expectedOutcome)) {
-    context.addIssue({ code: z.ZodIssueCode.custom, message: "Eval samples require manualIntent and expectedOutcome." });
-  }
   if (value.datasetStatus === "badcase" && value.failureLabels.length === 0) {
     context.addIssue({ code: z.ZodIssueCode.custom, message: "Badcase samples require at least one failure label." });
   }

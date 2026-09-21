@@ -10,8 +10,8 @@ async function readData(response, fallbackCode) {
   return payload.data;
 }
 
-export async function listLarkTicketEvalSamples({ apiBaseUrl, fetchImpl = fetch }) {
-  const data = await readData(await fetchImpl(buildApiUrl(apiBaseUrl, "/web/lark-ticket-eval-samples"), { credentials: "include" }), "EVAL_SAMPLE_LIST_FAILED");
+export async function listLarkTicketEvalSamples({ apiBaseUrl, mine = false, fetchImpl = fetch }) {
+  const data = await readData(await fetchImpl(buildApiUrl(apiBaseUrl, `/web/lark-ticket-eval-samples${mine ? "?mine=true" : ""}`), { credentials: "include" }), "EVAL_SAMPLE_LIST_FAILED");
   if (!Array.isArray(data?.samples)) throw new Error("INVALID_EVAL_SAMPLE_LIST");
   return data.samples;
 }

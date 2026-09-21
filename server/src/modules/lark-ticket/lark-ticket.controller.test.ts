@@ -100,3 +100,26 @@ describe("web Lark Ticket controller", () => {
     }));
   });
 });
+
+it("binds Eval creation, draft saves and My evals to the Web identity", async () => {
+  const service = { create: vi.fn().mockResolvedValue({ id: "s" }), update: vi.fn().mockResolvedValue({ id: "s" }), list: vi.fn().mockResolvedValue([]) };
+  const controller = createWebLarkTicketController({ evalDatasetService: service as never,
+    resolveSession: vi.fn().mockResolvedValue({ ok: true, masterUserId: "alice", user: { larkName: "Alice" } }) });
+  expect((await controller.createEvalSample({ cookieHeader: "session", recordId: "r", body: { baseId: "b", tableId: "t", actionRunId: "create" } })).statusCode).toBe(200);
+  expect(service.create).toHaveBeenCalledWith(expect.objectContaining({ reviewer: { id: "alice", name: "Alice" } }));
+  expect((await controller.updateEvalSample({ cookieHeader: "session", sampleId: "s", body: { datasetStatus: "draft", actionRunId: "save" } })).statusCode).toBe(200);
+  expect(service.update).toHaveBeenCalledWith(expect.objectContaining({ reviewer: { id: "alice", name: "Alice" }, update: expect.objectContaining({ datasetStatus: "draft" }) }));
+  expect((await controller.listEvalSamples({ cookieHeader: "session", query: { mine: "true" } })).statusCode).toBe(200);
+  expect(service.list).toHaveBeenCalledWith("alice", true);
+  expect((await controller.updateEvalSample({ cookieHeader: "session", sampleId: "s", body: { datasetStatus: "draft", actionRunId: "save", evalBy: "bob" } })).statusCode).toBe(400);
+});
+
+it("rejects unauthenticated Eval reads and writes before accessing the dataset", async () => {
+  const service = { create: vi.fn(), update: vi.fn(), list: vi.fn() };
+  const controller = createWebLarkTicketController({ evalDatasetService: service as never,
+    resolveSession: vi.fn().mockResolvedValue({ ok: false, errorCode: "UNAUTHENTICATED", errorMessage: "Missing session" }) });
+  expect((await controller.listEvalSamples({ cookieHeader: undefined })).statusCode).toBe(401);
+  expect((await controller.createEvalSample({ cookieHeader: undefined, recordId: "r", body: {} })).statusCode).toBe(401);
+  expect((await controller.updateEvalSample({ cookieHeader: undefined, sampleId: "s", body: {} })).statusCode).toBe(401);
+  for (const method of Object.values(service)) expect(method).not.toHaveBeenCalled();
+});

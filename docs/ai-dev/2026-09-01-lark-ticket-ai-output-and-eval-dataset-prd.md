@@ -9,7 +9,7 @@
 在 Lark Ticket 页面提供两个独立工作面：
 
 1. **AI 输出**：按“意图识别 → 问题总结 → Ticket 答案总结 → 文档生成”查看每个 Ticket 的 AI 处理流水线；从这里继续进入详情页执行已有 AI Session，或把符合条件的 Ticket 建立为 Eval 样本。
-2. **Eval 数据集**：维护冻结的 `Ticket snapshot + AI output + 人工标准答案 + Badcase 标签`，供后续导出和离线回归。
+2. **Eval 数据集**：维护冻结的 `Ticket snapshot + AI output + 可选人工标准答案 + Badcase 标签`，供后续导出和离线回归。
 
 ## Scope
 
@@ -29,7 +29,7 @@
 
 - FE: `PlatformListPage`、Lark Ticket AI workspace、Web API client。
 - Server: Web-session Ticket Eval API、Zod DTO、application service、PostgreSQL store。
-- Persistence: `lark_ticket_eval_samples`，以 Ticket 复合键和线程快照版本唯一定位样本。
+- Persistence: `lark_ticket_eval_samples`，以 Ticket 复合键和线程快照版本唯一定位样本；`lark_ticket_eval_reviews` 保存每次成功人工保存的身份、时间、状态和 actionRunId。
 
 ## Behavior Contract
 
@@ -38,15 +38,19 @@
 - AI 输出冻结为创建时的 allow-listed `ticket_ai` 字段；之后 AI 字段或线程变化不覆盖历史样本。
 - 回答总结和文档生成尚未持久化时必须显示“未生成”；列表的“继续处理”只进入详情页复用既有 AI Session，不能把 Session 预期当作已完成结果。
 - Eval 视图仅显示当前筛选与分组范围内已有样本；样本与 AI 输出以 `baseId + tableId + recordId + snapshotVersion` 关联，二者不互相覆盖。
-- `eval` 和 `badcase` 保存时必须有人工意图及期望结果；Badcase 还至少有一个失败标签。
-- 样本可先保存为 draft，draft 不进入可用 Eval 数据集。
+- Draft / Eval 的人工意图、期望结果与失败标签均选填；Bad case 至少有一个失败标签，人工意图与期望结果选填。
+- “加入 Eval”直接创建 Eval，已有样本显示“编辑 Eval”并复用编辑器，可保存为 Draft。人工保存任意状态都记为一次审核，Draft 不等于未审核。
+- 标题前只读紧凑标签显示“未标记 / Draft / Bad case / 纳入 Eval”；未标记表示尚无样本。标签不增加菜单，原有 Thread、messages 和编辑入口保留。
+- Eval 人/时间取最近一次人工成功保存；由 Web Session 和服务端时钟绑定，在悬浮信息与编辑器按需查看。旧样本缺失信息显示未记录，不从创建或更新时间推断。
+- My evals 复用快捷过滤区，按本人曾保存过的样本匹配，在服务端分页前按 Ticket 去重。别人后续保存不移除原参与者的归属；与现有页面筛选取交集。
+- 每个 Ticket 默认展示最高快照版本；My evals 展示本人参与过的最高版本。保存与审核记录事务提交，同一样本、操作人和 actionRunId 的重复请求不重复记审核，也不覆盖后续保存。
 
 ## Acceptance Criteria
 
 - 用户能在 AI 输出视图定位四阶段的已生成/未生成状态，并从一条已有 AI 输出的 Ticket 创建 Eval 样本。
 - Eval 数据集视图能查看、编辑、保存 draft/eval/badcase 样本。
-- 样本行明确展示 Ticket、固定快照版本、AI 摘要、人工标准答案和数据集状态。
-- Eval 样本至少展示冻结 AI 意图、人工标准意图、期望结果、失败标签、数据集状态和 snapshot version；人工意图后续细分为意图类型、子类和人工摘要。
+- 样本行沿用现有布局展示 Ticket、AI 摘要、人工标注和标题前状态；快照版本在编辑器中查看。
+- Eval 行保留已有字段显隐配置；审核人和时间不增加常驻列，My evals 不增加统计面板。
 - 创建/更新请求使用 Web Session、Zod 校验与 `{ ok, data, error }` 响应；不写 Lark。
 - 定向 FE、Server 测试与两端 build 通过。
 
@@ -58,5 +62,7 @@
 
 ## Risks And Follow-Up
 
-- 当前不导出到 CSV；后续需要受控 exporter 将已批准 `eval`/`badcase` 样本转换为 DeepEval 数据文件，并保留样本 ID 与版本。
+- 当前不导出到 CSV；后续需要受控 exporter 将`eval`/`badcase` 样本转换为 DeepEval 数据文件，并保留样本 ID 与版本；导出用于标准答案评分前需另行检查标注完整性，纳入 Eval 不代表答案正确。
 - 现有 SupportTicketAnalysis 的 AI/人工投影不作为该数据集的唯一来源，以免人工更新覆盖 AI 基线。
+
+实施状态和验证证据见[任务台账](../tasks/ai-ticket/2026-09-01-lark-ticket-ai-output-eval-dataset-views.md)。

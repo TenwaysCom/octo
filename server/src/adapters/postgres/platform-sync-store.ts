@@ -290,7 +290,8 @@ export interface LarkBaseTicketListFilters {
   priorities?: string[];
   responsibles?: string[];
   requesters?: string[];
-  quickFilter?: "in-progress" | "unclassified" | "unsynced" | "ai-output" | "ai-missing";
+  quickFilter?: "in-progress" | "unclassified" | "unsynced" | "ai-output" | "ai-missing" | "my-evals";
+  evalReviewerId?: string;
   hasAiOutput?: boolean;
   offset?: number;
 }
@@ -1519,6 +1520,17 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
         const name = person.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
         return sql<boolean>`${sql.ref(column)} ~ ${`(^|[,，])\\s*${name}\\s*([,，]|$)`}`;
       })));
+    }
+    if (filters.quickFilter === "my-evals") {
+      const reviewerId = filters.evalReviewerId;
+      query = reviewerId ? query.innerJoin(
+        this.db.selectFrom("lark_ticket_eval_samples as eval_sample")
+          .innerJoin("lark_ticket_eval_reviews as eval_review", "eval_review.sample_id", "eval_sample.id")
+          .select(["eval_sample.base_id", "eval_sample.table_id", "eval_sample.record_id"]).distinct()
+          .where("eval_review.reviewer_id", "=", reviewerId).as("reviewed"),
+        (join) => join.onRef("reviewed.base_id", "=", "sync.base_id")
+          .onRef("reviewed.table_id", "=", "sync.table_id").onRef("reviewed.record_id", "=", "sync.record_id")
+      ) : query.where(sql<boolean>`false`);
     }
     if (filters.quickFilter === "in-progress") query = query.where(sql<boolean>`coalesce(lower(sync.ticket_status), '') not in ('finish', 'cancelled', 'rejected')`);
     if (filters.quickFilter === "unclassified") query = query.where(sql<boolean>`coalesce(sync.issue_type, '') = ''`);

@@ -321,6 +321,14 @@ export interface DatabaseSchema {
     created_at: string;
     updated_at: string;
   };
+  lark_ticket_eval_reviews: {
+    sample_id: string;
+    reviewer_id: string;
+    reviewer_name: string;
+    evaluated_at: string;
+    dataset_status: "draft" | "eval" | "badcase";
+    action_run_id: string;
+  };
   lark_ticket_eval_samples: {
     id: string;
     base_id: string;
