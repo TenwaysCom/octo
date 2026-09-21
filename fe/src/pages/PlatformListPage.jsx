@@ -1,6 +1,7 @@
 import { loadLarkTicketSharedUrl } from "../services/lark-ticket/lark-ticket-api.js";
 import { getTicketFilterOptions } from "../services/platform-data/platform-search-api.js";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { WorkspaceShell } from "../components/layout/WorkspaceShell.jsx";
 import { OdooShBuildGears, OdooShBuildStatus } from "../components/platform/OdooShBuildStatus.jsx";
 import { MeegleRelatedPeople } from "../components/platform/MeegleRelatedPeople.jsx";
@@ -1051,6 +1052,11 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
   const ticketResourceRunningRef = useRef(false);
   const [ticketAction, setTicketAction] = useState(null);
   const [ticketActionMessage, setTicketActionMessage] = useState(null);
+  useEffect(() => {
+    if (!ticketActionMessage) return;
+    const timeout = window.setTimeout(() => setTicketActionMessage(null), 3000);
+    return () => window.clearTimeout(timeout);
+  }, [ticketActionMessage]);
   const ticketFieldOptionsRequestRef = useRef(0);
   const githubPreviewCacheRef = useRef(new Map());
   const githubPreviewRequestVersionRef = useRef(0);
@@ -1892,10 +1898,14 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
         {state.status === "loading" ? <p className="list-message">正在加载同步数据…</p> : null}
         {state.status === "error" ? <p className="list-message list-message--error">同步数据暂时无法读取，请稍后重试。</p> : null}
         {resetError ? <p className="list-message list-message--error">{resetError}</p> : null}
-        {ticketActionMessage ? <p className={`list-message ${ticketActionMessage.tone === "error" ? "list-message--error" : "list-message--success"}`.trim()}>
-          {ticketActionMessage.text}
-          {ticketActionMessage.url ? <> <a className="table-link" href={ticketActionMessage.url} target="_blank" rel="noreferrer">打开 Meegle</a></> : null}
-        </p> : null}
+        {ticketActionMessage ? createPortal(<div className={`ticket-notification ticket-notification--${ticketActionMessage.tone}`}>
+          <span className="ticket-notification__icon" aria-hidden="true">{ticketActionMessage.tone === "error" ? "!" : "✓"}</span>
+          <div className="ticket-notification__content" role={ticketActionMessage.tone === "error" ? "alert" : "status"} aria-atomic="true">
+            {ticketActionMessage.text}
+            {ticketActionMessage.url ? <> <a className="table-link" href={ticketActionMessage.url} target="_blank" rel="noreferrer">打开 Meegle</a></> : null}
+          </div>
+          <button className="ticket-notification__close" type="button" aria-label="关闭通知" onClick={() => setTicketActionMessage(null)}>×</button>
+        </div>, document.body) : null}
         {state.status === "ready" && state.items.length === 0 ? <p className="list-message">{hasActiveServerFilters ? "未找到匹配的数据，请调整筛选条件。" : "暂无已同步的数据。"}</p> : null}
         {state.status === "ready" ? <div className="list-toolbar">
           {page === "meegle-workitems" ? <div className="list-filter-tabs" role="group" aria-label="按工作项类型筛选">
@@ -2118,7 +2128,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
         {state.status === "ready" && state.items.length > 0 ? <div className={`list-results-layout ${tagSidebarOpen && tagFilterFieldsWithCounts.length ? "list-results-layout--with-sidebar" : ""}`.trim()}>
           <div className="list-results-layout__main">
           {filteredItems.length > 0 || canShowConfiguredEmptyGroups ? <>
-          {isLarkAiOutput || isLarkEvalDataset ? <LarkTicketAiWorkspace apiBaseUrl={apiBaseUrl} mode={larkViewMode} groups={larkGroups} visibleColumns={larkConfiguredVisibleColumns} collapsedGroups={collapsedLarkGroups} onLarkTicketDetailLinkClick={rememberLarkTicketNavigation} onToggleGroup={(groupKey) => setCollapsedLarkGroups((current) => current.includes(groupKey)
+          {isLarkAiOutput || isLarkEvalDataset ? <LarkTicketAiWorkspace apiBaseUrl={apiBaseUrl} onTicketContextMenu={openTicketContextMenu} mode={larkViewMode} groups={larkGroups} visibleColumns={larkConfiguredVisibleColumns} collapsedGroups={collapsedLarkGroups} onLarkTicketDetailLinkClick={rememberLarkTicketNavigation} onToggleGroup={(groupKey) => setCollapsedLarkGroups((current) => current.includes(groupKey)
             ? current.filter((key) => key !== groupKey)
             : [...current, groupKey])} collapsedSubgroups={collapsedLarkSubgroups} onToggleSubgroup={(subgroupKey) => setCollapsedLarkSubgroups((current) => current.includes(subgroupKey)
             ? current.filter((key) => key !== subgroupKey)

@@ -99,6 +99,7 @@ import { registerWebLarkTicketAiRoutes } from "./modules/lark-ticket-ai/lark-tic
 import { registerWebMeegleSprintAiRoutes } from "./modules/meegle-sprint-ai/meegle-sprint-ai.controller.js";
 import { registerInternalLarkTicketAiWriteRoutes } from "./modules/lark-ticket-ai/internal-lark-ticket-ai.controller.js";
 import { registerInternalAcpTicketContextRoutes } from "./modules/lark-ticket-ai/internal-acp-ticket-context.controller.js";
+import { registerWeKnoraRoutes } from "./modules/weknora/weknora.controller.js";
 import { registerWebLarkTicketRoutes } from "./modules/lark-ticket/lark-ticket.controller.js";
 import { createWebUserSshPublicKeysController } from "./modules/user-ssh-public-keys/user-ssh-public-keys.controller.js";
 import { MeeglePullRequestLinkService } from "./application/services/meegle-pull-request-link.service.js";
@@ -450,6 +451,7 @@ app.get("/api/web/platform-data/github-pull-request-preview", async (req, res) =
   res.status(result.statusCode).json(result.body);
 });
 registerWebLarkTicketRoutes(app);
+registerWeKnoraRoutes(app);
 app.get("/api/web/platform-sync-sources", async (req, res) => {
   const result = await webPlatformSyncController.list({ cookieHeader: req.headers.cookie });
   res.status(result.statusCode).json(result.body);

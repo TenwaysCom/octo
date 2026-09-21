@@ -1,3 +1,4 @@
+import { WeKnoraWidget } from "../components/WeKnoraWidget.jsx";
 import { useCallback, useEffect, useState } from "react";
 import { detectOctoExtension } from "../services/auth/extension-presence.js";
 import {
@@ -170,6 +171,7 @@ export function App({ apiBaseUrl }) {
     const WorkspacePage = WORKSPACE_PAGE_COMPONENTS[activeWorkspaceRoute.page];
     return <WorkspaceMetricsContext.Provider value={{ githubMyOpenCount }}>
       <WorkspaceSearchProvider apiBaseUrl={apiBaseUrl} enabled={Boolean(profile.workspaceAccess?.platformLists)}>
+      {["lark-tickets", "lark-ticket-detail"].includes(activeWorkspaceRoute.page) && <WeKnoraWidget apiBaseUrl={apiBaseUrl} />}
       <WorkspacePage
         key={activeWorkspaceRoute.hash}
         profile={profile}

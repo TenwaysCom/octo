@@ -1,11 +1,11 @@
 ---
 title: "Lark Ticket 列表右键快捷动作"
 module: "platform-data"
-status: done
-requirement_version: 4
+status: blocked
+requirement_version: 5
 created_on: 2026-09-11
-updated_on: 2026-09-13
-closed_on: 2026-09-13
+updated_on: 2026-09-18
+closed_on: null
 owner: jack
 related:
   - "docs/ai-dev/rules/server-code-rules.md"
@@ -16,7 +16,7 @@ related:
 
 ## 目标
 
-FE Lark Ticket 列表（列表 / 分组 / 看板视图）右键 ticket 行弹出 Linear 风格二级上下文菜单：
+FE Lark Ticket 列表（列表 / 分组 / 看板 / AI 输出视图）右键 ticket 行弹出 Linear 风格二级上下文菜单：
 
 - 一级动作：更新状态、修改负责人、修改需求人（提出人）、修改紧急度、修改类型、修改 Business Line、创建 Meegle Work Item
 - 二级子菜单：可变更的选项值，当前值打勾并计数；「创建 Meegle」无二级
@@ -27,7 +27,7 @@ FE Lark Ticket 列表（列表 / 分组 / 看板视图）右键 ticket 行弹出
 
 ## 验收标准
 
-- [x] 右键 lark ticket 行弹出菜单；列表 / 分组 / 看板视图生效；ai-output / eval-dataset 视图不触发
+- [x] 右键 lark ticket 行弹出菜单；列表 / 分组 / 看板 / AI 输出视图生效；eval-dataset 视图不触发
 - [x] 六个字段动作均有二级选项（来自 Lark 字段元数据 / 同步数据人员聚合），可写入并回显最新行
 - [x] 创建 Meegle 复用 `executeLarkBaseWorkflow`，已有链接返回 409 与提示
 - [x] Base 写成功但投影重同步失败时返回部分成功（`syncFailed: true`），不阻塞用户
@@ -102,3 +102,17 @@ FE Lark Ticket 列表（列表 / 分组 / 看板视图）右键 ticket 行弹出
 - 消息使用当前 Ticket 的 larkMessageLink；缺失/非 HTTP(S) 时禁用。已知链接通过 noopener,noreferrer 打开。
 - 验证：FE 测试 39 个文件和生产构建通过；真实 PlatformListPage + 模拟 API 浏览器检查六字段点击/搜索/正确 payload/行回显/分组/权限、保留右键、打开 Base 与消息、Base 获取失败关闭空白页及重试通过。资源菜单模型增加缺失与非法 URL 回归用例。
 - 边界：平台 API 及新标签页均使用模拟对象，没有实际外部写入或浏览器账号访问。看板仅现有属性单元格可编辑，聚合人员头像保持展示。
+
+## v5 AI 输出列表右键菜单（2026-09-18）
+
+- 用户要求将现有右键功能接入 AI 输出列表；取代旧验收中 AI 输出不触发菜单的限制。
+- AI 输出行传递当前 Ticket 与鼠标事件给 PlatformListPage 的既有菜单处理器，复用权限、字段选项、写回、刷新和资源跳转。包含主分组和二级分组内的行。
+- 范围仅 FE 入口接线，不新增 API，也不扩展 Eval 数据集或行内字段点击编辑。
+- 2026-09-18 / v5 / in_progress：已确认数据和处理器可直接复用，待 FE 检查。
+- 2026-09-18 / v5 / done：AI 输出行已接入同一右键处理器；静态检查确认普通与两级分组共用该行渲染，Eval 行未绑定此事件。`pnpm --dir fe check` 通过（41 个测试文件通过、Vite 生产构建通过），`git diff --check` 通过。未运行浏览器交互 E2E、真实 Lark/Meegle 写入或部署验证；本次未修改服务端。
+
+### v5 运行时反馈：选项加载失败（2026-09-18）
+
+- 用户反馈 AI 输出右键菜单选项加载失败。API 日志显示 11:17:39 起 `/api/web/lark-tickets/field-options` 连续返回 500；同秒应用日志显示 Lark 授权刷新失败，平台错误码 `20026`，错误签名 `refresh token is invalid, it may has been used`。仅记录安全错误摘要。
+- 代码确认读取选项先构建授权客户端，刷新失败会进入 controller 通用 500 分支，前端显示通用加载失败。右键入口已触发正确请求；当前阻塞在 Lark 授权恢复。
+- 等用户通过现有 Lark 授权入口重新授权后，再点击菜单重试并复查字段选项请求；未执行授权、真实平台写入或部署。此前 FE 测试/构建不能替代该运行时验证。

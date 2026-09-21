@@ -1360,6 +1360,15 @@ h1 {
 .ticket-context-menu__submenu-note button { margin-left: 6px; padding: 0; border: 0; color: var(--octo-brand); background: none; font: inherit; cursor: pointer; }
 .ticket-context-menu__option--current { background: var(--octo-surface-muted); }
 .list-message--success { color: var(--octo-success); }
+.ticket-notification { position: fixed; z-index: 1300; top: 20px; right: 20px; display: flex; align-items: flex-start; gap: 12px; box-sizing: border-box; width: min(380px, calc(100vw - 40px)); padding: 16px; border: 1px solid var(--octo-border); border-radius: 12px; color: var(--octo-text); background: var(--octo-surface); box-shadow: 0 8px 30px rgb(15 23 42 / .12), 0 2px 6px rgb(15 23 42 / .04); animation: ticket-notification-enter 160ms ease-out; }
+.ticket-notification__icon { display: grid; flex: 0 0 22px; place-items: center; height: 22px; border-radius: 50%; color: var(--octo-success); background: var(--octo-badge-success-bg); font-size: 14px; font-weight: 700; }
+.ticket-notification--error .ticket-notification__icon { color: var(--octo-danger); background: var(--octo-badge-danger-bg); }
+.ticket-notification__content { flex: 1; min-width: 0; font-size: 13px; line-height: 22px; overflow-wrap: anywhere; }
+.ticket-notification__close { display: grid; flex: 0 0 24px; place-items: center; height: 24px; padding: 0; border: 0; border-radius: 5px; color: var(--octo-text-muted); background: transparent; font-size: 20px; cursor: pointer; }
+.ticket-notification__close:hover { color: var(--octo-text); background: var(--octo-surface-muted); }
+.ticket-notification__close:focus-visible { outline: 2px solid var(--octo-brand); outline-offset: 2px; }
+@keyframes ticket-notification-enter { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .ticket-notification { animation: none; } }
 
 .ticket-property__edit { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 3px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--octo-text); cursor: pointer; text-align: left; }
 .ticket-property__edit:hover, .ticket-property__edit:focus-visible { border-color: var(--octo-border); background: var(--octo-surface); }

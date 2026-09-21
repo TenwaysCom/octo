@@ -48,6 +48,8 @@ describe("index routes", () => {
         "GET /api/lark/auth/web/start",
         "GET /api/lark/auth/web/ensure",
         "GET /api/web/profile",
+        "GET /weknora/embed-token",
+        "GET /api/weknora/embed-token",
         "POST /api/web/acp/permissions/reply",
         "GET /api/web/platform-data/lark-tickets",
         "GET /api/web/platform-data/search",

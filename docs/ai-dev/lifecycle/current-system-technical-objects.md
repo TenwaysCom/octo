@@ -847,3 +847,12 @@ PM2 ecosystem 仅在 `NODE_ENV=production` 时注册 API Server 与独立 platfo
 具体配置、兼容策略与验收见 [Worker 拆分任务](../../tasks/platform-sync/2026-09-13-odoo-build-sync-and-message-delivery-workers.md)。
 
 Odoo 构建通知环境由 `scheduler.tasks.odooSh.notificationEnvironments` 控制，默认 `["eu"]`。EU / UK / US 数据仍全部同步；禁用环境不生成待发送消息，发送 Worker 启动前由 Odoo 生产端取消禁用环境已入队且尚未领取的消息。已发送、发送中、失败和结果未知的投递记录保留；重新启用环境不补发已取消或被抑制的历史事件。修改配置后需重启 Server。
+
+### WeKnora 嵌入短时令牌
+
+已登录 Ticket 页面加载 SDK → 携带 HttpOnly Octo Web session 请求
+`GET /api/weknora/embed-token`（同时支持 `/weknora/embed-token`）→ Server 验证实际会话 →
+Adapter 使用服务端 `WEKNORA_PUBLISH_TOKEN` 和固定频道兑换 → 浏览器仅收到 `{ token, expiresIn }`。
+SDK 在到期前刷新；离开 Ticket/退出登录时销毁实例。接口所有响应 no-store，认证失败 401、
+配置缺失 503、兑换失败 502。Origin 来自 `WEKNORA_EMBED_ORIGIN` 或 OAuth callback origin，
+不信任客户端参数。实现与验证见[任务记录](../../tasks/ai-ticket/2026-09-20-weknora-widget.md)。

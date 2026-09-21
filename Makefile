@@ -53,7 +53,7 @@ db-restore: ## Restore a postgres database via server script (usage: make db-res
 	fi
 
 db-sync-user-tokens: ## Sync user_tokens from tenways_octo to tenways_octo_ly_0509 (override: MASTER_USER_ID=...)
-	pnpm --dir $(SERVER_DIR) exec tsx src/scripts/sync-user-tokens.ts $(MASTER_USER_ID) --target-db $(DEV_DATABASE)
+	pnpm --dir $(SERVER_DIR) exec tsx src/scripts/sync-user-tokens.ts $(MASTER_USER_ID) --target-db $(TEST_DATABASE)
 
 db-sync-test-user-tokens: ## Sync user_tokens from test to the database configured in server/.env (override: MASTER_USER_ID=... TEST_DATABASE=...)
 	pnpm --dir $(SERVER_DIR) exec tsx src/scripts/sync-user-tokens.ts $(MASTER_USER_ID) --source-db $(TEST_DATABASE)

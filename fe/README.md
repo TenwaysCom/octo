@@ -87,3 +87,13 @@ To exercise plugin login successfully, the local server database needs the
 current plugin user's active Lark authorization. Real Lark OAuth callback
 verification additionally requires that the Lark app accepts the localhost
 callback URL; otherwise use the test deployment for that E2E case.
+
+## Lark Ticket 客服浮窗
+
+已登录的 Ticket 列表和详情页加载 WeKnora SDK；离开 Ticket 或退出登录时销毁浮窗。
+FE 经现有 API base 调用 `GET /api/weknora/embed-token`，服务端另提供 `/weknora/embed-token`。
+服务端必须设置 `WEKNORA_PUBLISH_TOKEN`，不得添加 `VITE_` 前缀。
+`WEKNORA_EMBED_ORIGIN` 设置为 FE 对外 origin（协议、域名和端口）；未设置则取
+`LARK_OAUTH_CALLBACK_URL` 的 origin。WeKnora 频道 allowed_origins 必须允许该 origin。
+修改服务端环境变量后需重启。测试环境与生产环境分别配置。
+本接入不自动向 WeKnora 发送 Ticket 内容。详见[任务记录](../docs/tasks/ai-ticket/2026-09-20-weknora-widget.md)。
