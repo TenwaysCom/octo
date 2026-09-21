@@ -859,3 +859,11 @@ source: [AGENTS.md 审查与优化](../docs/tasks/engineering-ops/2026-09-14-age
 - **Error:** 快照搜索测试遇到 `operator does not exist: text ~ text`、`function nullif(text,text) does not exist`；pg-mem 对 LIKE 转义字符的执行也与 PostgreSQL 存在差异。
 - **Fix:** 先区分数据库 SQL 与测试模拟器能力。字面包含匹配使用参数化 `strpos`，人员边界使用 PostgreSQL 正则；在测试适配器显式注册缺失的标准函数/运算符，声明模拟验证边界，不为迁就 pg-mem 改写业务匹配含义。
 - **source:** [Workspace 搜索与 Ticket 筛选](../docs/tasks/platform-data/2026-09-15-workspace-search-ticket-filters.md)
+
+## [ERR-20260921-001] pg-mem-correlated-eval-subquery
+
+**Error:** Eval store 集成测试中的相关 EXISTS 子查询报 `column "lark_ticket_eval_samples.id" does not exist`；pg-mem 未正确解析外层表引用，不能据此断言真实 PostgreSQL 语法无效。
+
+**Fix:** 对单列归属使用非相关 `id IN (SELECT sample_id ...)`；对复合 Ticket 键使用去重子查询 JOIN，保证在分页前筛选且审核记录不放大行数。并发和事务回滚仍需真实 PostgreSQL 验证。
+
+source: [Eval 状态与 My evals](../docs/tasks/ai-ticket/2026-09-01-lark-ticket-ai-output-eval-dataset-views.md)

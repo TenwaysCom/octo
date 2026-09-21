@@ -130,6 +130,7 @@ export function createWebPlatformDataController(deps: {
           responsibles: query.responsible,
           requesters: query.requester,
           quickFilter: query.quickFilter,
+          evalReviewerId: query.quickFilter === "my-evals" ? session.masterUserId : undefined,
           hasAiOutput: query.hasAiOutput || undefined,
           offset: query.offset || undefined,
         }) }

@@ -532,6 +532,17 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .addColumn("updated_at", "text", (column) => column.notNull())
     .addUniqueConstraint("lark_ticket_eval_samples_ticket_snapshot", ["base_id", "table_id", "record_id", "snapshot_version"])
     .execute();
+  await db.schema.createTable("lark_ticket_eval_reviews").ifNotExists()
+    .addColumn("sample_id", "text", (column) => column.notNull().references("lark_ticket_eval_samples.id").onDelete("cascade"))
+    .addColumn("reviewer_id", "text", (column) => column.notNull())
+    .addColumn("reviewer_name", "text", (column) => column.notNull())
+    .addColumn("evaluated_at", "text", (column) => column.notNull())
+    .addColumn("dataset_status", "text", (column) => column.notNull())
+    .addColumn("action_run_id", "text", (column) => column.notNull())
+    .addPrimaryKeyConstraint("lark_ticket_eval_reviews_pk", ["sample_id", "reviewer_id", "action_run_id"])
+    .execute();
+  await db.schema.createIndex("lark_ticket_eval_reviews_reviewer").ifNotExists()
+    .on("lark_ticket_eval_reviews").columns(["reviewer_id", "sample_id"]).execute();
   await db.schema.createTable("support_ticket_effect_drafts").ifNotExists()
     .addColumn("id", "text", (column) => column.primaryKey())
     .addColumn("effect_type", "text", (column) => column.notNull())

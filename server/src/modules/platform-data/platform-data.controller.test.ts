@@ -533,3 +533,13 @@ describe("web platform data controller", () => {
     expect(service.list).not.toHaveBeenCalled();
   });
 });
+
+it("uses the authenticated reviewer for My evals, including paged requests", async () => {
+  const service = { list: vi.fn().mockResolvedValue({ items: [], total: 0 }) };
+  const controller = createWebPlatformDataController({ service,
+    ensureSession: vi.fn().mockResolvedValue({ ok: true, role: "dev", masterUserId: "alice", user: {} }) });
+  expect((await controller({ kind: "lark-tickets", cookieHeader: "session", query: { quickFilter: "my-evals", offset: "20" } })).statusCode).toBe(200);
+  expect(service.list).toHaveBeenCalledWith("lark-tickets", expect.any(Number), {
+    larkTickets: { quickFilter: "my-evals", evalReviewerId: "alice", offset: 20 },
+  });
+});

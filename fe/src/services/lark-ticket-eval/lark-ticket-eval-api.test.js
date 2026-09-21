@@ -17,3 +17,11 @@ test("creates and updates a browser-session Eval sample", async () => {
 test("lists Eval samples", async () => {
   assert.deepEqual(await listLarkTicketEvalSamples({ apiBaseUrl: "/api", fetchImpl: async () => ({ ok: true, json: async () => ({ ok: true, data: { samples: [] } }) }) }), []);
 });
+
+test("requests My evals using the Web session without sending a reviewer identity", async () => {
+  await listLarkTicketEvalSamples({ apiBaseUrl: "/api", mine: true, fetchImpl: async (url, options) => {
+    assert.equal(url, "/api/web/lark-ticket-eval-samples?mine=true");
+    assert.equal(options.credentials, "include");
+    return { ok: true, json: async () => ({ ok: true, data: { samples: [] } }) };
+  } });
+});
