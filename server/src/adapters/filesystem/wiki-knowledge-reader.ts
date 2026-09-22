@@ -4,7 +4,7 @@ import { redactSupportText } from "../../domain/support-ticket-analysis.js";
 import { WikiQaError, type WikiCandidate, type WikiKnowledgeReader, type WikiSourceEvidence } from "../../domain/wiki-qa.js";
 
 const MAX_FILE_BYTES = 256 * 1024;
-const MAX_CANDIDATES = 20;
+const MAX_CANDIDATES = 10;
 
 // Read the scalar/string-list subset used by SCHEMA.md. Unrecognized forms
 // remain unknown, never a confirmed status or a permissive environment.

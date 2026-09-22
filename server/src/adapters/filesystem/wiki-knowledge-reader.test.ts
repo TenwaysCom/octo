@@ -72,10 +72,10 @@ describe("wiki knowledge reader", () => {
     expect(hits[0].sourceEvidence).toEqual([]);
   });
 
-  it("caps candidates at twenty, reloads edits, and distinguishes no hits from unreadable wiki", async () => {
+  it("caps candidates at ten, reloads edits, and distinguishes no hits from unreadable wiki", async () => {
     const { reader, put } = await fixture();
     for (let i = 0; i < 22; i++) await put(`concepts/faq/report-${i}.md`, card());
-    expect(await reader.search(question)).toHaveLength(20);
+    expect(await reader.search(question)).toHaveLength(10);
     expect(await reader.search({ ...question, question: "unmatchableword", keywords: [], objects: [] })).toEqual([]);
     await put("concepts/accounting/report.md", card("UK Odoo 17", "", "newuniqueword"));
     expect(await reader.search({ ...question, question: "newuniqueword", keywords: [], objects: [] })).toHaveLength(1);

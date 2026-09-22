@@ -1,3 +1,10 @@
+/* WeKnora appends its launcher to body with inline dimensions and no size option. */
+body > button[aria-label="octo 客服"] {
+  width: 44px !important;
+  height: 44px !important;
+  font-size: 20px !important;
+}
+
 :root {
   --octo-brand: #b45309;
   --octo-brand-hover: #92400e;
@@ -364,20 +371,18 @@ a { color: inherit; }
 .ticket-ai-pipeline-stage__tooltip dl > div { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 9px; align-items: start; }
 .ticket-ai-pipeline-stage__tooltip dt { color: var(--octo-text-muted); font-size: 11px; }
 .ticket-ai-pipeline-stage__tooltip dd { min-width: 0; margin: 0; overflow-wrap: anywhere; font-size: 12px; line-height: 1.5; white-space: pre-wrap; }
-.ticket-ai-output-row__actions { display: grid; gap: 7px; justify-items: end; }
+.ticket-ai-output-row > .ticket-ai-output-row__actions, .ticket-eval-sample-row > .ticket-ai-output-row__actions { grid-column: -2 / -1; width: 232px; max-width: 100%; justify-self: end; justify-items: end; gap: 7px; }
 .ticket-eval-sample-row > .ticket-ai-pipeline-stage { align-self: stretch; gap: 4px; }
-.ticket-eval-sample-row__actions { grid-column: -2 / -1; display: flex; align-items: center; justify-self: end; gap: 6px; }
-.ticket-eval-sample-row button.ticket-eval-edit-button { width: 30px; min-height: 30px; display: grid; place-items: center; padding: 0; }
-.ticket-eval-edit-button svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.5; }
-.ticket-row-actions-menu { position: relative; }
-.ticket-row-actions-menu > summary { width: 30px; height: 30px; display: grid; place-items: center; border: 1px solid var(--octo-border); border-radius: 7px; color: var(--octo-text); cursor: pointer; background: var(--octo-surface); font-size: 18px; font-weight: 700; line-height: 1; list-style: none; }
-.ticket-row-actions-menu > summary::-webkit-details-marker { display: none; }
-.ticket-row-actions-menu[open] > summary { border-color: var(--octo-brand); color: var(--octo-brand); box-shadow: 0 0 0 3px color-mix(in srgb, var(--octo-brand) 15%, transparent); }
-.ticket-row-actions-menu__panel { position: absolute; z-index: 18; top: calc(100% + 6px); right: 0; min-width: 164px; display: grid; gap: 3px; padding: 5px; border: 1px solid var(--octo-border); border-radius: 8px; background: var(--octo-surface); box-shadow: 0 12px 28px rgba(15, 23, 42, .18); }
-.ticket-row-actions-menu__panel > a, .ticket-row-actions-menu__panel > button { width: 100%; min-height: 30px; box-sizing: border-box; display: flex; align-items: center; justify-content: flex-start; padding: 0 9px; border: 0; border-radius: 5px; color: var(--octo-text); cursor: pointer; background: transparent; font-size: 12px; font-weight: 600; text-align: left; text-decoration: none; white-space: nowrap; }
-.ticket-row-actions-menu__panel > a:hover, .ticket-row-actions-menu__panel > button:not(:disabled):hover { background: var(--octo-surface-muted); }
-.ticket-row-actions-menu__panel > button:disabled { color: var(--octo-text-muted); cursor: not-allowed; }
-.ticket-ai-output-row__actions > a { color: var(--octo-brand); font-size: 12px; font-weight: 650; text-decoration: none; }
+.ticket-row-action-icons { display: flex; align-items: center; gap: 6px; }
+.ticket-row-action-icons .ticket-row-icon-button { box-sizing: border-box; width: 30px; height: 30px; display: grid; place-items: center; padding: 0; border: 1px solid var(--octo-border); border-radius: 7px; color: var(--octo-text-muted); background: var(--octo-surface); text-decoration: none; }
+.ticket-row-icon-button svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.5; }
+.ticket-row-icon-button:not(:disabled):hover { color: var(--octo-brand); border-color: var(--octo-brand); background: var(--octo-surface-muted); }
+.ticket-row-icon-button:focus-visible { outline: 2px solid var(--octo-brand); outline-offset: 2px; }
+.ticket-row-icon-button:disabled { opacity: .4; cursor: not-allowed; }
+.ticket-eval-review-meta { display: flex; align-items: center; gap: 5px; max-width: 100%; white-space: nowrap; }
+.ticket-eval-review-meta .ticket-eval-status { margin-top: 0; }
+.ticket-eval-review-meta small { flex: 0 0 auto; }
+.ticket-eval-review-meta .ticket-eval-review-meta__person { min-width: 0; max-width: 64px; flex: 0 1 auto; }
 .ticket-ai-output-row button.button-primary, .ticket-eval-editor footer button.button-primary { border-color: var(--octo-brand); color: #fff; background: var(--octo-brand); }
 .ticket-eval-status { flex: 0 0 auto; margin-top: 1px; padding: 2px 6px; border-radius: 999px; color: var(--octo-text-muted); background: #e2e8f0; font-size: 10px; font-weight: 700; line-height: 1.4; }
 .ticket-eval-status--eval { color: #166534; background: #dcfce7; }

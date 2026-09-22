@@ -7,7 +7,7 @@ test("mounts the specified widget and destroys it on leave", async () => {
   let destroyed = 0;
   const dispose = mountWeKnoraWidget({ apiBaseUrl: "/api/", load: async () => ({ init(value) { options = value; }, destroy() { destroyed++; } }) });
   await Promise.resolve();
-  assert.deepEqual(options, { channel: "6410a037-6485-4408-8173-4b0c498a0426", tokenEndpoint: "/api/weknora/embed-token", baseUrl: "https://weknora.odoo.tenways.it:18443", position: "top-right", primaryColor: "#7d6955", title: "octo 客服" });
+  assert.deepEqual(options, { channel: "6410a037-6485-4408-8173-4b0c498a0426", tokenEndpoint: "/api/weknora/embed-token", baseUrl: "https://weknora.odoo.tenways.it:18443", position: "bottom-right", primaryColor: "#7d6955", title: "octo 客服" });
   dispose();
   assert.equal(destroyed, 1);
 });

@@ -68,7 +68,12 @@ export function createDailyRotatingFileTransport(destination: string) {
   };
 }
 
-export function createFileLogger(destination: string, level?: string) {
+export function createFileLogger(destination: string, level?: string, onError?: (error: Error) => void) {
+  if (onError) {
+    const transport = pino.transport(createDailyRotatingFileTransport(destination));
+    transport.on("error", onError);
+    return pino(createLoggerOptions(level), transport);
+  }
   return pino({
     ...createLoggerOptions(level),
     transport: createDailyRotatingFileTransport(destination),
