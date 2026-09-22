@@ -4,7 +4,7 @@ module: "ai-ticket"
 status: done
 requirement_version: 1
 created_on: 2026-09-11
-updated_on: 2026-09-11
+updated_on: 2026-09-21
 closed_on: 2026-09-11
 owner: Codex
 related:
@@ -81,3 +81,16 @@ related:
 
 - [技术对象生命周期](../../ai-dev/lifecycle/current-system-technical-objects.md)
 - [Server 规则](../../ai-dev/rules/server-code-rules.md)
+
+## 2026-09-21 日志排障：network error 与无过程展示
+
+本轮范围为只读定位原因，未修改应用代码、Nginx 配置或执行部署；原功能交付状态不代表此次故障已修复。
+
+- 正式环境运行 `bd9dead8-ba94-4c98-9c90-32f6ace30d86`（`web_run_71edd5cf-175e-4a2c-8785-ebcf9fd909af`）在 2026-09-21 16:10:27 启动；`/home/deploy/projects/octo/server/logs/app.2026-09-21.1.log` 记录 extract 27,011 ms、rerank 151,545 ms、answer 111,308 ms，三个模型请求均 200，16:15:18 `WEB_AI_RUN_FINISHED` 为 `completed`。
+- `journalctl -u nginx --since '2026-09-21 16:09:00' --until '2026-09-21 16:17:00'` 中正式域名的 ai-sessions 请求于 16:11:27 报 `upstream timed out (110: Connection timed out) while reading upstream`，距开始恰好 60 秒。`/var/log/nginx/error.log` 为空，实际证据来自 systemd journal。
+- 正式环境同日 api 日志显示 16:16:14 对同一 run 执行 `/load`，200、2 ms。这与断流后后台继续完成、重开恢复答案吻合。
+- 当前 `lark-ticket-ai.controller.ts` 断开时只取消观察，不取消后台 run；`web-ai-session-runs.ts` 在进程内保存结果供 load 返回。SSE helper 没有心跳，也没有 `X-Accel-Buffering: no`；正式 Nginx `/api/` 未配置读超时或关闭缓冲。
+- `wiki-qa.service.ts` 三阶段等待 JSON completion；wiki 分支直到完整答案生成才 emit answer/done，没有阶段进度或 thought 事件。ZCode adapter 仅取 `message.content`，没有流式 reasoning 传递。因此无过程展示是当前实现缺口。
+- 建议后续修复：SSE 定时心跳及禁用代理缓冲，展示提取/检索/重排/生成阶段进度，断流后按已有 run 自动恢复状态和结果，避免将连接错误等同于任务失败。此处仅记录建议，未执行。
+
+验证边界：已核对正式应用日志、Nginx journal、磁盘配置与当前源码；未重新触发模型、未执行浏览器 E2E、未运行应用测试。确认本次样本的代理超时，不据此断言所有历史 network error 原因相同。

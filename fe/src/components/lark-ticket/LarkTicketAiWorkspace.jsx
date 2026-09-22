@@ -4,7 +4,7 @@ import { loadLarkTicketPreparedMessages } from "../../services/lark-ticket/lark-
 import { getLarkTicketAiOutputMarker, getLarkTicketAiPipeline } from "../../lib/lark-ticket-ai-pipeline.js";
 import { getLarkTicketEvalSaveErrorMessage, getLarkTicketEvalValidationMessage } from "../../lib/lark-ticket-eval-validation.js";
 import { getEvalStatusLabel, getEvalSamplesByTicket } from "../../lib/lark-ticket-eval-display.js";
-import { formatDateTime } from "../../lib/formatters.js";
+import { formatDateTime, parsePlatformTimestamp } from "../../lib/formatters.js";
 import { LarkTicketBadge } from "./LarkTicketBadge.jsx";
 
 const FAILURE_LABELS = [
@@ -87,25 +87,38 @@ function TicketGroupRows({ group, renderRows, collapsedSubgroups, onToggleSubgro
   >{renderRows(subgroup.items)}</TicketSubgroup>)}</div>;
 }
 
-function TicketThreadActions({ ticket, onShowPreparedMessages, messagesLabel = "查看 prepared messages" }) {
+function TicketActionIcon({ kind }) {
+  const paths = {
+    thread: "M9 2h5v5M14 2 7 9M6 3H3a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-3",
+    messages: "M3 2h10a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H7l-4 3v-3H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1ZM5 5h6M5 8h4",
+    add: "M8 3v10M3 8h10",
+    edit: "m10.8 2.2 3 3L5 14H2v-3l8.8-8.8ZM9.3 3.7l3 3",
+  };
+  return <svg viewBox="0 0 16 16" aria-hidden="true"><path d={paths[kind]} /></svg>;
+}
+
+function TicketEvalActions({ ticket, sample, onShowPreparedMessages, onCreate, onEdit, canCreate = false, creating = false }) {
   const threadLink = ticket.larkMessageLink || ticket.threadLink;
-  return <>{threadLink ? <a href={threadLink} target="_blank" rel="noreferrer">打开 Lark Thread</a> : <button type="button" disabled title="该 Ticket 没有已同步的 Lark Thread 链接">打开 Lark Thread</button>}<button type="button" onClick={() => void onShowPreparedMessages(ticket)}>{messagesLabel}</button></>;
-}
-
-function closeActionsMenu(event) {
-  event.currentTarget.closest("details")?.removeAttribute("open");
-}
-
-function EvalActionsMenu({ ticket, onShowPreparedMessages }) {
-  return <details className="ticket-row-actions-menu">
-    <summary aria-label="更多操作" title="更多操作">…</summary>
-    <div className="ticket-row-actions-menu__panel">
-      {ticket.larkMessageLink || ticket.threadLink
-        ? <a href={ticket.larkMessageLink || ticket.threadLink} target="_blank" rel="noreferrer" onClick={closeActionsMenu}>打开 Lark Thread</a>
-        : <button type="button" disabled title="该 Ticket 没有已同步的 Lark Thread 链接">打开 Lark Thread</button>}
-      <button type="button" onClick={(event) => { closeActionsMenu(event); void onShowPreparedMessages(ticket); }}>查看messages</button>
+  const timestamp = parsePlatformTimestamp(sample?.evalAt);
+  const shortTime = Number.isNaN(timestamp) ? "未记录" : new Intl.DateTimeFormat("zh-CN", {
+    month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).format(new Date(timestamp));
+  const addTitle = sample ? "已加入，使用编辑 Eval 修改" : creating ? "正在加入 Eval…" : canCreate ? "加入 Eval" : "Eval 数据尚未就绪";
+  return <div className="ticket-ai-output-row__actions">
+    <div className="ticket-row-action-icons" role="group" aria-label="Ticket 操作">
+      {threadLink ? <a className="ticket-row-icon-button" href={threadLink} target="_blank" rel="noreferrer" title="打开 Lark Thread" aria-label="打开 Lark Thread"><TicketActionIcon kind="thread" /></a>
+        : <button className="ticket-row-icon-button" type="button" disabled title="该 Ticket 没有已同步的 Lark Thread 链接" aria-label="打开 Lark Thread"><TicketActionIcon kind="thread" /></button>}
+      <button className="ticket-row-icon-button" type="button" title="查看 messages" aria-label="查看 messages" onClick={() => void onShowPreparedMessages(ticket)}><TicketActionIcon kind="messages" /></button>
+      <button className="ticket-row-icon-button" type="button" title={addTitle} aria-label="加入 Eval" aria-busy={creating} disabled={Boolean(sample) || !canCreate || creating} onClick={() => void onCreate(ticket)}><TicketActionIcon kind="add" /></button>
+      <button className="ticket-row-icon-button" type="button" title={sample ? "编辑 Eval" : "请先加入 Eval"} aria-label="编辑 Eval" disabled={!sample} onClick={() => onEdit(sample)}><TicketActionIcon kind="edit" /></button>
     </div>
-  </details>;
+    <div className="ticket-eval-review-meta" title={evalReviewDescription(sample)}>
+      <EvalStatus sample={sample} />
+      <small className="ticket-eval-review-meta__person" aria-label={`Eval 人：${sample?.evalBy || "未记录"}`}>{sample?.evalBy || "未记录"}</small>
+      <small aria-hidden="true">·</small>
+      <small aria-label={`Eval 时间：${sample?.evalAt ? formatDateTime(sample.evalAt) : "未记录"}`}>{shortTime}</small>
+    </div>
+  </div>;
 }
 
 function AiPipelineStage({ stage, showStatus = true }) {
@@ -188,7 +201,7 @@ export function LarkTicketAiWorkspace({ apiBaseUrl, myEvals = false, mode, group
   }
   function renderAiRows(tickets) {
     const stageColumnKeys = { intent: "intent", summary: "problemSummary", answer: "answerSummary", document: "documentOutput" };
-    return <div className="ticket-ai-output-list">{tickets.map((ticket) => { const sample = sampleByTicket.get(`${ticket.baseId}:${ticket.tableId}:${ticket.recordId}`); const pipeline = getLarkTicketAiPipeline(ticket).filter((stage) => visibleColumns.includes(stageColumnKeys[stage.id])); const outputMarker = getLarkTicketAiOutputMarker(ticket); return <article className="ticket-ai-output-row" key={ticket.recordId} onContextMenu={(event) => onTicketContextMenu?.(event, ticket)}><div className="ticket-ai-output-row__ticket"><div className="ticket-eval-sample-row__heading"><EvalStatus sample={sample} /><a className="ticket-ai-output-row__title" href={`#lark-tickets/${encodeURIComponent(ticket.recordId)}`} title={ticket.title} onClick={(event) => onLarkTicketDetailLinkClick?.(event, ticket)}>{ticket.title}</a></div><div className="ticket-ai-output-row__meta"><small>{ticket.ticketNumber || ticket.recordId} · {ticket.ticketStatus || "未设置"}</small><span className={`ticket-ai-marker${outputMarker.tone === "default" ? "" : ` ticket-ai-marker--${outputMarker.tone}`}`}>{outputMarker.label}</span>{ticket.issueType ? <LarkTicketBadge kind="type" value={ticket.issueType} /> : null}{ticket.priority ? <LarkTicketBadge kind="priority" value={ticket.priority} /> : null}</div></div>{pipeline.length ? <div className="ticket-ai-output-row__pipeline" style={{ gridTemplateColumns: `repeat(${pipeline.length}, minmax(0, 1fr))` }}>{pipeline.map((stage) => <AiPipelineStage stage={stage} key={stage.id} />)}</div> : null}<div className="ticket-ai-output-row__actions"><TicketThreadActions ticket={ticket} onShowPreparedMessages={showPreparedMessages} messagesLabel="查看messages" />{sample ? <button type="button" onClick={() => setEditor({ ...sample, apiBaseUrl })}>编辑 Eval</button> : <button className="button-primary" type="button" disabled={sampleStatus !== "ready" || creatingId === ticket.recordId} onClick={() => void createSample(ticket)}>{creatingId === ticket.recordId ? "创建中…" : "加入 Eval"}</button>}</div></article>; })}</div>;
+    return <div className="ticket-ai-output-list">{tickets.map((ticket) => { const sample = sampleByTicket.get(`${ticket.baseId}:${ticket.tableId}:${ticket.recordId}`); const pipeline = getLarkTicketAiPipeline(ticket).filter((stage) => visibleColumns.includes(stageColumnKeys[stage.id])); const outputMarker = getLarkTicketAiOutputMarker(ticket); return <article className="ticket-ai-output-row" key={ticket.recordId} onContextMenu={(event) => onTicketContextMenu?.(event, ticket)}><div className="ticket-ai-output-row__ticket"><div className="ticket-eval-sample-row__heading"><a className="ticket-ai-output-row__title" href={`#lark-tickets/${encodeURIComponent(ticket.recordId)}`} title={ticket.title} onClick={(event) => onLarkTicketDetailLinkClick?.(event, ticket)}>{ticket.title}</a></div><div className="ticket-ai-output-row__meta"><small>{ticket.ticketNumber || ticket.recordId} · {ticket.ticketStatus || "未设置"}</small><span className={`ticket-ai-marker${outputMarker.tone === "default" ? "" : ` ticket-ai-marker--${outputMarker.tone}`}`}>{outputMarker.label}</span>{ticket.issueType ? <LarkTicketBadge kind="type" value={ticket.issueType} /> : null}{ticket.priority ? <LarkTicketBadge kind="priority" value={ticket.priority} /> : null}</div></div>{pipeline.length ? <div className="ticket-ai-output-row__pipeline" style={{ gridTemplateColumns: `repeat(${pipeline.length}, minmax(0, 1fr))` }}>{pipeline.map((stage) => <AiPipelineStage stage={stage} key={stage.id} />)}</div> : null}<TicketEvalActions ticket={ticket} sample={sample} onShowPreparedMessages={showPreparedMessages} onCreate={createSample} onEdit={(value) => setEditor({ ...value, apiBaseUrl })} canCreate={sampleStatus === "ready"} creating={creatingId === ticket.recordId} /></article>; })}</div>;
   }
   function renderEvalRows(sampleItems) {
     return <div className="ticket-eval-sample-list">{sampleItems.map((sample) => {
@@ -202,7 +215,6 @@ export function LarkTicketAiWorkspace({ apiBaseUrl, myEvals = false, mode, group
       return <article className="ticket-eval-sample-row" key={sample.id}>
         <div className="ticket-eval-sample-row__ticket">
           <div className="ticket-eval-sample-row__heading">
-            <EvalStatus sample={sample} />
             <a className="ticket-ai-output-row__title" href={`#lark-tickets/${encodeURIComponent(sample.ticket.recordId)}`} title={sample.ticket.title} onClick={(event) => onLarkTicketDetailLinkClick?.(event, sample.ticket)}>{sample.ticket.title}</a>
           </div>
           <div className="ticket-ai-output-row__meta">
@@ -216,12 +228,7 @@ export function LarkTicketAiWorkspace({ apiBaseUrl, myEvals = false, mode, group
         {visibleColumns.includes("manualIntent") ? <EvalTextField title="人工意图" value={sample.manualIntent} /> : null}
         {visibleColumns.includes("expectedOutcome") ? <EvalTextField title="期望结果" value={sample.expectedOutcome} /> : null}
         {visibleColumns.includes("failureLabels") ? <AiPipelineStage showStatus={false} stage={getEvalDetailStage("failure-labels", "失败标签", sample.failureLabels)} /> : null}
-        <div className="ticket-ai-output-row__actions ticket-eval-sample-row__actions">
-          <button className="ticket-eval-edit-button" type="button" aria-label="编辑 Eval" title="编辑 Eval" onClick={() => setEditor({ ...sample, apiBaseUrl })}>
-            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m10.8 2.2 3 3L5 14H2v-3l8.8-8.8ZM9.3 3.7l3 3" /></svg>
-          </button>
-          <EvalActionsMenu ticket={{ ...sample.ticket, threadLink: sample.threadLink }} onShowPreparedMessages={showPreparedMessages} />
-        </div>
+        <TicketEvalActions ticket={{ ...sample.ticket, threadLink: sample.threadLink }} sample={sample} onShowPreparedMessages={showPreparedMessages} onEdit={(value) => setEditor({ ...value, apiBaseUrl })} />
       </article>;
     })}</div>;
   }
