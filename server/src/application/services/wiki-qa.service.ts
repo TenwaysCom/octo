@@ -1,14 +1,17 @@
 import { z } from "zod";
 import type { JsonCompletionClient } from "../../adapters/ai/json-completion-client.js";
 import { createTicketSummaryJsonCompletionClient, isTicketSummaryClientError } from "../../adapters/ai/ticket-summary-client.js";
+import { createWikiQaRerankClient, WikiQaRerankClientError, type WikiQaRerankClient } from "../../adapters/ai/wiki-qa-rerank-client.js";
 import { createWikiKnowledgeReader } from "../../adapters/filesystem/wiki-knowledge-reader.js";
+import { wikiQaExtractLog, type WikiQaExtractLog } from "../../adapters/filesystem/wiki-qa-extract-log.js";
 import { getWorkflowPromptStore, type WorkflowPromptStore } from "../../adapters/postgres/workflow-prompt-store.js";
 import { redactSupportText } from "../../domain/support-ticket-analysis.js";
 import { WIKI_QA_PROMPTS, renderWorkflowPromptTemplate } from "../../domain/workflow-prompts.js";
-import { WikiQaError, wikiQuestionSchema, wikiRankingSchema, type WikiKnowledgeEvidence, type WikiKnowledgeReader } from "../../domain/wiki-qa.js";
+import { WikiQaError, wikiQuestionSchema, wikiRankingSchema, type WikiCandidate, type WikiKnowledgeEvidence, type WikiKnowledgeReader } from "../../domain/wiki-qa.js";
 import { logger } from "../../logger.js";
 
 const wikiLogger = logger.child({ module: "wiki-qa" });
+const MAX_RERANK_CANDIDATES = 4;
 const answerSchema = z.object({ answerMarkdown: z.string().trim().min(1).max(16000) }).strict();
 interface WikiQaInput { ticketContext: string; actionRunId: string; signal?: AbortSignal }
 
@@ -25,12 +28,15 @@ function scopedWikiContent(content: string, sourcePaths: string[]): string {
 export function createWikiQaService(deps: {
   reader?: WikiKnowledgeReader;
   client?: JsonCompletionClient;
+  rerankClient?: WikiQaRerankClient;
   promptStore?: Pick<WorkflowPromptStore, "getByKey">;
+  extractLog?: WikiQaExtractLog;
 } = {}) {
   const reader = deps.reader ?? createWikiKnowledgeReader();
   const promptStore = deps.promptStore ?? getWorkflowPromptStore();
+  const extractLog = deps.extractLog ?? wikiQaExtractLog;
 
-  async function complete<T>(phase: keyof typeof WIKI_QA_PROMPTS, values: Record<string, string>, schema: z.ZodType<T>, input: WikiQaInput): Promise<T> {
+  async function complete<T>(phase: keyof typeof WIKI_QA_PROMPTS, values: Record<string, string>, schema: z.ZodType<T>, input: WikiQaInput, candidates: WikiCandidate[] = []): Promise<T> {
     input.signal?.throwIfAborted();
     const stage = `server.wiki_qa.${phase}`;
     const base = { actionRunId: input.actionRunId, layer: "server" as const, module: "wiki-qa", stage };
@@ -39,20 +45,51 @@ export function createWikiQaService(deps: {
     const prompt = renderWorkflowPromptTemplate(stored?.prompt.trim() || spec.prompt, values);
     const start = Date.now();
     let content: string;
+    let model: string;
+    if (phase === "extract") extractLog({ event: "input", actionRunId: input.actionRunId, prompt });
     try {
-      const client = deps.client ?? createTicketSummaryJsonCompletionClient();
-      const result = await client.createJsonCompletion({ prompt, actionRunId: input.actionRunId, signal: input.signal });
-      input.signal?.throwIfAborted();
-      content = result.content;
+      const result = phase === "rerank"
+        ? await (deps.rerankClient ?? createWikiQaRerankClient()).rerank({
+          prompt, query: values.question, documents: candidates.map((candidate) => JSON.stringify(candidate)),
+          topN: Math.min(3, candidates.length), actionRunId: input.actionRunId, signal: input.signal,
+        })
+        : await (deps.client ?? createTicketSummaryJsonCompletionClient()).createJsonCompletion({
+          prompt, actionRunId: input.actionRunId, signal: input.signal,
+        });
+      if ("results" in result) {
+        // Relevance scores cannot verify treatment prerequisites or source support.
+        content = JSON.stringify({ matches: result.results.map(({ index }) => {
+          const candidate = candidates[index];
+          return {
+            candidateId: candidate.id,
+            applicability: "historical_reference",
+            conditionsMatched: false,
+            evidenceIds: candidate.sourceEvidence.map((source) => source.id),
+            limitations: ["专用重排仅评估相关性，原始证据与处理前提尚未逐项核验"],
+          };
+        }) });
+      } else {
+        content = result.content;
+      }
+      model = result.model;
       wikiLogger.info({ ...base, model: result.model, durationMs: Date.now() - start }, "WIKI_QA_MODEL_COMPLETED");
     } catch (error) {
+      if (phase === "extract") extractLog({ event: "failed", actionRunId: input.actionRunId, durationMs: Date.now() - start,
+        errorCode: input.signal?.aborted ? "ABORTED" : isTicketSummaryClientError(error) ? error.code : "WIKI_QA_MODEL_FAILED" });
       input.signal?.throwIfAborted();
-      wikiLogger.warn({ ...base, layer: "adapter", errorCode: isTicketSummaryClientError(error) ? error.code : "WIKI_QA_MODEL_FAILED", durationMs: Date.now() - start }, "WIKI_QA_MODEL_FAILED");
+      wikiLogger.warn({ ...base, layer: "adapter", errorCode: isTicketSummaryClientError(error) || error instanceof WikiQaRerankClientError ? error.code : "WIKI_QA_MODEL_FAILED", durationMs: Date.now() - start }, "WIKI_QA_MODEL_FAILED");
       throw new WikiQaError("WIKI_QA_MODEL_FAILED", "Wiki 问答模型调用失败，请检查模型配置或稍后重新执行。", { ...base, layer: "adapter" });
     }
-    try { return schema.parse(JSON.parse(content)); } catch {
+    const parsed = (() => {
+      try { return schema.safeParse(JSON.parse(content)); } catch { return undefined; }
+    })();
+    if (phase === "extract") extractLog({ event: "output", actionRunId: input.actionRunId, model,
+      durationMs: Date.now() - start, output: content, valid: parsed?.success === true });
+    input.signal?.throwIfAborted();
+    if (!parsed?.success) {
       throw new WikiQaError("WIKI_QA_OUTPUT_INVALID", "Wiki 问答模型返回了无效结果，请重新执行。", base);
     }
+    return parsed.data;
   }
 
   async function retrieve(input: WikiQaInput): Promise<{ question: string; evidence: WikiKnowledgeEvidence[] }> {
@@ -64,14 +101,15 @@ export function createWikiQaService(deps: {
       throw error;
     }
     input.signal?.throwIfAborted();
-    wikiLogger.info({ actionRunId: input.actionRunId, layer: "server", stage: "server.wiki_qa.retrieve", candidates: candidates.length }, "WIKI_QA_CANDIDATES_READY");
+    const rerankCandidates = candidates.slice(0, MAX_RERANK_CANDIDATES);
+    wikiLogger.info({ actionRunId: input.actionRunId, layer: "server", stage: "server.wiki_qa.retrieve", candidates: candidates.length, rerankCandidates: rerankCandidates.length }, "WIKI_QA_CANDIDATES_READY");
     if (!candidates.length) return { question: extracted.question, evidence: [] };
     const ranked = await complete("rerank", {
-      question: extracted.question, ticket_context: ticketContext, candidates: JSON.stringify(candidates),
-    }, wikiRankingSchema, input);
+      question: extracted.question, ticket_context: ticketContext, candidates: JSON.stringify(rerankCandidates),
+    }, wikiRankingSchema, input, rerankCandidates);
     const seen = new Set<string>();
     const evidence: WikiKnowledgeEvidence[] = ranked.matches.map((match, index) => {
-      const candidate = candidates.find((item) => item.id === match.candidateId);
+      const candidate = rerankCandidates.find((item) => item.id === match.candidateId);
       if (!candidate || seen.has(candidate.path) || new Set(match.evidenceIds).size !== match.evidenceIds.length
         || match.evidenceIds.some((id) => !candidate.sourceEvidence.some((source) => source.id === id))) {
         throw new WikiQaError("WIKI_QA_REFERENCE_INVALID", "Wiki 检索结果包含重复页面或候选之外的引用，请重新执行。", {
