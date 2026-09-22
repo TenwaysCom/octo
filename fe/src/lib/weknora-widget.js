@@ -29,7 +29,7 @@ export function mountWeKnoraWidget({ apiBaseUrl, document = globalThis.document,
       channel: "6410a037-6485-4408-8173-4b0c498a0426",
       tokenEndpoint: `${apiBaseUrl.replace(/\/$/, "")}/weknora/embed-token`,
       baseUrl: BASE_URL,
-      position: "top-right",
+      position: "bottom-right",
       primaryColor: "#7d6955",
       title: "octo 客服",
     });

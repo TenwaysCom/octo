@@ -1,3 +1,10 @@
+/* WeKnora appends its launcher to body with inline dimensions and no size option. */
+body > button[aria-label="octo 客服"] {
+  width: 44px !important;
+  height: 44px !important;
+  font-size: 20px !important;
+}
+
 :root {
   --octo-brand: #b45309;
   --octo-brand-hover: #92400e;
