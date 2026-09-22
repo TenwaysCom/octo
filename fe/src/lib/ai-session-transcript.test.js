@@ -6,6 +6,41 @@ function update(update) {
   return { event: "acp.session.update", data: { update } };
 }
 
+test("shows wiki stages immediately, updates each stage, and keeps progress out of the answer", () => {
+  const progress = (phase, status, message) => ({ event: "wiki_qa.progress", data: { actionRunId: "wiki-run", phase, status, message } });
+  const events = [progress("extract", "started", "准备开始问题提取")];
+  let messages = transcriptFromAiSessionEvents(events);
+  assert.equal(messages[0].text, "准备开始问题提取");
+  const id = messages[0].id;
+  const completed = progress("extract", "completed", "已完成问题提取");
+  messages = appendAiSessionEvent(messages, completed);
+  assert.equal(messages.length, 1);
+  assert.equal(messages[0].id, id);
+  assert.equal(messages[0].wikiProgress.status, "completed");
+  const rest = [completed, progress("retrieve", "completed", "已完成知识召回，找到 10 篇候选"),
+    progress("answer", "started", "准备开始最终答案生成"), progress("answer", "completed", "已完成最终答案生成"),
+    update({ sessionUpdate: "agent_message_chunk", content: { text: "最终答案。[1]" } }),
+    { event: "done", data: { stopReason: "end_turn" } }];
+  const replayed = transcriptFromAiSessionEvents([...events, ...rest]);
+  assert.equal(replayed.filter((entry) => entry.wikiProgress).length, 3);
+  assert.deepEqual(replayed.filter((entry) => entry.kind === "assistant").map((entry) => entry.text), ["最终答案。[1]"]);
+  assert.equal(aiSessionStatusAfterEvent("generating", rest[3]), "generating");
+  assert.equal(aiSessionStatusAfterEvent("generating", rest.at(-1)), "ready");
+});
+
+test("preserves failed and cancelled wiki stages and ignores malformed progress", () => {
+  for (const status of ["failed", "cancelled"]) {
+    const data = { actionRunId: "run", phase: "rerank", status: "started", message: "开始重排" };
+    const messages = transcriptFromAiSessionEvents([
+      { event: "wiki_qa.progress", data },
+      { event: "wiki_qa.progress", data: { ...data, status, message: "重排未完成" } },
+    ]);
+    assert.equal(messages.length, 1);
+    assert.equal(messages[0].wikiProgress.status, status);
+  }
+  assert.deepEqual(appendAiSessionEvent([], { event: "wiki_qa.progress", data: {} }), []);
+});
+
 test("merges thought chunks and tool state, then starts a response after tools", () => {
   let messages = [createAiUserMessage("请总结")];
   messages = appendAiSessionEvent(messages, update({

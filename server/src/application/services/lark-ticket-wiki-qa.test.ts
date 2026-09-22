@@ -24,6 +24,20 @@ function fixture() {
 }
 
 describe("Ticket wiki QA integration", () => {
+  it("forwards intermediate progress before the final answer and done event", async () => {
+    const f = fixture();
+    const progress = { actionRunId: request.actionRunId, layer: "server", module: "wiki-qa", stage: "server.wiki_qa.extract",
+      phase: "extract", status: "started", message: "准备开始问题提取" };
+    f.wikiQaService.answer.mockImplementation(async (input) => {
+      input.onProgress(progress);
+      return { question: "test", evidence: [], answerMarkdown: "最终答案" };
+    });
+    const emit = vi.fn();
+    await f.service.chat(request, emit);
+    expect(emit.mock.calls.map(([event]) => event.event)).toEqual(["wiki_qa.progress", "acp.session.update", "done"]);
+    expect(emit.mock.calls[0][0].data).toEqual(progress);
+  });
+
   it("uses the fixed Ticket thread, emits a one-shot draft, and performs no analysis or ACP writes", async () => {
     const f = fixture();
     const emit = vi.fn();
@@ -92,4 +106,17 @@ describe("Ticket wiki QA integration", () => {
     await expect(f.service.chat({ ...request, signal: abort.signal }, emit)).rejects.toMatchObject({ name: "AbortError" });
     expect(emit).not.toHaveBeenCalled();
   });
+});
+
+it("uses a field whitelist for answer context while retaining the extraction snapshot", async () => {
+  const f = fixture();
+  Object.assign(f.record.sourceFields, { Responsible: { avatar_url: "private-avatar" }, Attachments: ["private-file"], tag: "claim" });
+  await f.service.chat(request, vi.fn());
+  const call = f.wikiQaService.answer.mock.calls[0][0];
+  expect(call.ticketContext).toContain("private-avatar");
+  expect(call.answerContext).not.toContain("private-avatar");
+  expect(call.answerContext).not.toContain("private-file");
+  expect(call.answerContext).toContain("解决方案");
+  expect(call.answerContext).toContain("claim");
+  expect(call.answerContext).toContain("M1");
 });

@@ -2,6 +2,7 @@ import { readFile, readdir, realpath, stat } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { redactSupportText } from "../../domain/support-ticket-analysis.js";
 import { WikiQaError, type WikiCandidate, type WikiKnowledgeReader, type WikiSourceEvidence } from "../../domain/wiki-qa.js";
+import { relevantSourceContent, relevantWikiContent, wikiMatchCount, wikiQueryTerms as terms } from "../../domain/wiki-evidence.js";
 
 const MAX_FILE_BYTES = 256 * 1024;
 const MAX_CANDIDATES = 10;
@@ -36,20 +37,11 @@ function metadata(text: string, key: string): string[] {
   return values.filter(Boolean);
 }
 
-function terms(text: string): string[] {
-  const normalized = text.toLowerCase();
-  return [...new Set([
-    ...(normalized.match(/[a-z0-9_][a-z0-9_.-]+/g) ?? []),
-    ...[...normalized.matchAll(/[\u3400-\u9fff]{2,}/g)].flatMap(([phrase]) =>
-      Array.from({ length: phrase.length - 1 }, (_, index) => phrase.slice(index, index + 2))),
-  ])].filter((term) => !["odoo", "eu", "uk", "us", "17", "18", "如何", "怎么", "什么", "问题"].includes(term));
-}
-
 function excerpt(text: string, queryTerms: string[], maxLength: number): string {
   const clean = redactSupportText(text);
   if (clean.length <= maxLength) return clean;
   const paragraphs = clean.split(/\n\s*\n/).map((content, index) => ({
-    content, index, score: queryTerms.filter((term) => content.toLowerCase().includes(term)).length,
+    content, index, score: wikiMatchCount(content, queryTerms),
   })).sort((a, b) => b.score - a.score || a.index - b.index);
   let size = 0;
   const selected = paragraphs.filter((paragraph) => {
@@ -78,7 +70,24 @@ function linkedConcepts(text: string, path: string, pages: string[]): string[] {
 }
 
 export function createWikiKnowledgeReader(deps: { workspaceDir?: string } = {}): WikiKnowledgeReader {
+  // Keep full primary sources local to this run's candidate objects. They are
+  // never serialized into the rerank request or retained after candidates expire.
+  const originals = new WeakMap<WikiCandidate, WikiSourceEvidence[]>();
   return {
+    selectEvidence({ candidate, question, evidenceIds, signal }) {
+      signal?.throwIfAborted();
+      const queryTerms = terms([question.question, ...question.keywords, ...question.objects].join(" "));
+      const linkedPaths = sourcePaths(candidate.content);
+      const sources = (originals.get(candidate) ?? []).filter((source) => evidenceIds.includes(source.id)
+        && (!linkedPaths.length || linkedPaths.includes(source.path)));
+      let remaining = 2400;
+      return sources.flatMap((source) => {
+        const excerpt = relevantSourceContent(source.content, queryTerms, remaining, source.path.startsWith("raw/transcripts/"));
+        if (!excerpt.content) return [];
+        remaining -= excerpt.content.length;
+        return [{ ...source, content: excerpt.content, complete: source.complete && excerpt.contextComplete }];
+      });
+    },
     async search(input) {
       input.signal?.throwIfAborted();
       try {
@@ -128,8 +137,8 @@ export function createWikiKnowledgeReader(deps: { workspaceDir?: string } = {}):
           const title = metadata(text, "title").join(" ").toLowerCase();
           const tags = ["objects", "processes", "tags"].flatMap((key) => metadata(text, key)).join(" ").toLowerCase();
           const content = text.toLowerCase();
-          const score = queryTerms.reduce((total, term) => total + (title.includes(term) ? 4 : 0)
-            + (tags.includes(term) ? 3 : 0) + (content.includes(term) ? 2 : 0), 0);
+          const score = wikiMatchCount(title, queryTerms) * 4 + wikiMatchCount(tags, queryTerms) * 3
+            + wikiMatchCount(relevantWikiContent(content, queryTerms), queryTerms) * 2;
           pages.push({ path, text, score });
         }
         // Navigation pages contribute links, never independent knowledge hits.
@@ -141,7 +150,7 @@ export function createWikiKnowledgeReader(deps: { workspaceDir?: string } = {}):
           const text = await read(path, true);
           if (!text) continue;
           for (const line of text.split("\n")) {
-            if (!queryTerms.some((term) => line.toLowerCase().includes(term))) continue;
+            if (!wikiMatchCount(line, queryTerms)) continue;
             const linked = linkedConcepts(line, path, pages.map((page) => page.path));
             for (const page of pages) if (linked.includes(page.path)) page.score += 1;
           }
@@ -173,18 +182,24 @@ export function createWikiKnowledgeReader(deps: { workspaceDir?: string } = {}):
           }
           if (paths.length > 12) limitations.push("本轮仅核对前 12 个原始来源");
           if (!sources.length || sources.some((source) => !source.complete)) limitations.push("原始证据缺失或聊天快照不完整");
-          const sourceScore = (source: WikiSourceEvidence) => queryTerms.filter((term) => source.content.toLowerCase().includes(term)).length;
-          const selectedSources = sources.sort((a, b) => sourceScore(b) - sourceScore(a) || a.path.localeCompare(b.path)).slice(0, 3);
+          const content = relevantWikiContent(page.text, queryTerms);
+          const linkedPaths = sourcePaths(content);
+          const sourceScore = (source: WikiSourceEvidence) => wikiMatchCount(source.content, queryTerms);
+          const selectedSources = sources.sort((a, b) => Number(linkedPaths.includes(b.path)) - Number(linkedPaths.includes(a.path))
+            || sourceScore(b) - sourceScore(a) || a.path.localeCompare(b.path)).slice(0, 3);
           if (sources.length > selectedSources.length) limitations.push("本轮按相关性摘录最多 3 个原始来源，其余未核对");
           const sourceEvidence = selectedSources.map((source) => ({ ...source,
             content: excerpt(source.content, queryTerms, Math.floor(2400 / selectedSources.length)),
           }));
           const lowConfidence = metadata(page.text, "confidence")[0] === "low";
           if (lowConfidence) limitations.push("资料置信度低，仅供历史参考");
-          candidates.push({ id, path: page.path, title: redactSupportText(metadata(page.text, "title")[0] || page.text.match(/^#\s+(.+)$/m)?.[1] || page.path),
-            status, environments, content: excerpt(page.text, queryTerms, 2400), sourceEvidence,
+          if (!content) limitations.push("未能在预算内摘取完整相关知识段落");
+          const candidate: WikiCandidate = { id, path: page.path, title: redactSupportText(metadata(page.text, "title")[0] || page.text.match(/^#\s+(.+)$/m)?.[1] || page.path),
+            status, environments, content, sourceEvidence,
             limitations: [...new Set(limitations)], historicalOnly: unknownEnvironment || status === "unknown" || lowConfidence || !sourceEvidence.some((source) => source.complete),
-          });
+          };
+          originals.set(candidate, selectedSources);
+          candidates.push(candidate);
         }
         return candidates;
       } catch (error) {

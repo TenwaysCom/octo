@@ -427,7 +427,7 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
           {drawer.connectionError ? <p role="status">{drawer.connectionError}</p> : null}
           {drawer.status === "cancelled" ? <p role="status">已停止生成，已有内容已保留。</p> : null}
           {drawer.status === "stopping" ? <p role="status">正在停止生成…</p> : null}
-          {drawer.status === "generating" ? <p className="ticket-ai-generating">{drawer.actionKey === "lark-ticket-wiki-qa" ? "正在检索 wiki 并生成回复…" : drawer.oneShot ? "AI 正在生成总结…" : "AI 正在生成回复…"}</p> : null}
+          {drawer.status === "generating" && !drawer.messages.some((entry) => entry.wikiProgress) ? <p className="ticket-ai-generating">{drawer.actionKey === "lark-ticket-wiki-qa" ? "正在准备 Wiki 问答…" : drawer.oneShot ? "AI 正在生成总结…" : "AI 正在生成回复…"}</p> : null}
           {drawer.status === "error" || drawer.status === "cancelled" ? <div className="ticket-ai-drawer__error"><p>{drawer.error}</p>{drawer.lastMessage || drawer.actionKey ? <button type="button" onClick={() => void streamAiSession({ message: drawer.lastMessage || drawer.title, sessionId: drawer.oneShot ? undefined : drawer.sessionId || undefined, actionKey: drawer.oneShot ? drawer.actionKey || undefined : undefined, oneShot: drawer.oneShot, title: drawer.title })} disabled={isStreaming}>{drawer.oneShot ? "重新执行" : "继续处理"}</button> : null}</div> : null}
           {drawer.effectDraft ? <div className="ticket-ai-drawer__effect-draft"><strong>待确认操作：{drawer.effectDraft.effectType === "answer_feedback" ? "Answer 反馈" : "Ticket AI 更新"}</strong><pre>{drawer.effectDraft.payload ? JSON.stringify(drawer.effectDraft.payload, null, 2) : "正在读取草稿…"}</pre></div> : null}
         </div>
@@ -457,7 +457,7 @@ function AiSessionMessage({ entry, apiBaseUrl, active }) {
   if (entry.kind === "permission") return <AcpPermissionPrompt permission={entry.permission} active={active} onReply={(input) => replyAcpPermission({ ...input, apiBaseUrl })} />;
   const thoughts = entry.thoughts || [];
   const toolCalls = entry.toolCalls || [];
-  return <div className={`ticket-ai-message ticket-ai-message--${entry.kind}`}>
+  return <div className={`ticket-ai-message ticket-ai-message--${entry.kind}`} role={entry.wikiProgress ? "status" : undefined}>
     {thoughts.length ? <details className="ticket-ai-message__details">
       <summary>思考过程 <span>{thoughts.length} 条</span></summary>
       <div>{thoughts.map((thought, index) => <p key={thought.id || index}>{thought.text}</p>)}</div>

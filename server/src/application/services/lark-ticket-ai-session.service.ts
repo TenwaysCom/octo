@@ -214,7 +214,9 @@ export function createLarkTicketAiSessionService(
         const service = deps.wikiQaService ?? createWikiQaService({ client: deps.ticketSummaryClient, promptStore: workflowPromptStore });
         const result = await service.answer({
           ticketContext: [buildTicketSummaryContext(ticket, context, true), formatTicketSourceFields(ticket), "记录评论未提供，不代表评论为空。"].join("\n\n"),
+          answerContext: [buildTicketSummaryContext(ticket, context, true), formatTicketSourceFields(ticket, ["解决方案", "状态", "Business line", "tag"]), "记录评论未提供，不代表评论为空。"].join("\n\n"),
           actionRunId, signal: input.signal,
+          onProgress: (progress) => emit({ event: "wiki_qa.progress", data: progress }),
         });
         input.signal?.throwIfAborted();
         const streamId = `wiki-qa-${actionRunId}`;
@@ -816,8 +818,7 @@ function formatKnowledgeEvidence(hits: SupportKnowledgeSearchHit[]): string {
 
 // Same source fields used by the existing Support-QA fetch script. Keep the
 // source snapshot explicit; a field-change history is not record comments.
-function formatTicketSourceFields(ticket: LarkBaseTicketSyncItem): string {
-  const fields = ["解决方案", "Attachments", "状态", "紧急度", "Business line", "tag", "Responsible", "需求人", "创建时间", "关闭时间", "Planned Version", "Planned Sprint"];
+function formatTicketSourceFields(ticket: LarkBaseTicketSyncItem, fields = ["解决方案", "Attachments", "状态", "紧急度", "Business line", "tag", "Responsible", "需求人", "创建时间", "关闭时间", "Planned Version", "Planned Sprint"]): string {
   return fields.filter((key) => ticket.sourceFields && key in ticket.sourceFields).map((key) => {
     const value = redactSupportText(JSON.stringify(ticket.sourceFields![key]));
     return `${key}: ${value.length > 8000 ? `${value.slice(0, 8000)} [truncated]` : value}`;

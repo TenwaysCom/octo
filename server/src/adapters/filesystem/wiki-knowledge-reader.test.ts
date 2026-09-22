@@ -24,6 +24,35 @@ function card(environment = "UK Odoo 17", additional = "", body = "## 已确认�
 }
 
 describe("wiki knowledge reader", () => {
+  it("selects evidence after ranking from original sources, preserving late corrections beyond the earlier excerpt", async () => {
+    const { reader, put } = await fixture();
+    const message = (index: number, text: string) => `- **[2026-09-22T10:00:00.000] 用户 ${index}**(text): ${text}`;
+    const messages = [message(1, "PL report 40500 配置缺失。"), message(2, "核对配置后重试。"),
+      ...Array.from({ length: 20 }, (_, i) => message(i + 3, `无关库存讨论${"背景".repeat(100)}`)),
+      message(23, "复查结束。"), message(24, "纠正：仍未解决，不能沿用前面的判断。")];
+    await put("raw/transcripts/ticket-1.md", `---\nthread_id: 123\nhistory_complete: true\n---\n## 线程消息\n${messages.join("\n\n")}\n\n## Shadow AI\nSHADOW_ANALYSIS`);
+    const hit = (await reader.search(question))[0];
+    expect(hit.sourceEvidence[0].content).not.toContain("纠正：仍未解决");
+    const sources = reader.selectEvidence!({ candidate: hit, question, evidenceIds: hit.sourceEvidence.map((source) => source.id) });
+    expect(sources).toHaveLength(1);
+    expect(sources[0].content).toContain("M24\n");
+    expect(sources[0].content).toContain(messages[23]);
+    expect(sources[0].content).not.toContain("库存");
+    expect(sources[0].content).not.toContain("SHADOW_ANALYSIS");
+    expect(sources[0].path).toBe("raw/transcripts/ticket-1.md");
+  });
+
+  it("uses links in related wiki content and never returns an unselected or unrelated source", async () => {
+    const { reader, put } = await fixture();
+    await put("raw/documents/other.md", "PL report 40500 unrelated branch");
+    await put("concepts/accounting/report.md", card("UK Odoo 17", "", "## 报表\nPL report 40500 [证据](../../raw/transcripts/ticket-1.md)\n## 库存\n其他事故 [证据](../../raw/documents/other.md)"));
+    const hit = (await reader.search(question))[0];
+    const sources = reader.selectEvidence!({ candidate: hit, question, evidenceIds: hit.sourceEvidence.map((source) => source.id) });
+    expect(sources.map((source) => source.path)).toEqual(["raw/transcripts/ticket-1.md"]);
+    expect(reader.selectEvidence!({ candidate: hit, question, evidenceIds: [] })).toEqual([]);
+    expect(reader.selectEvidence!({ candidate: { ...hit }, question, evidenceIds: hit.sourceEvidence.map((source) => source.id) })).toEqual([]);
+  });
+
   it("retrieves pages missing from the index and supplies primary thread evidence, excluding Shadow AI", async () => {
     const { reader } = await fixture();
     const hits = await reader.search(question);

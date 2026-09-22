@@ -97,3 +97,12 @@ FE 经现有 API base 调用 `GET /api/weknora/embed-token`，服务端另提供
 `LARK_OAUTH_CALLBACK_URL` 的 origin。WeKnora 频道 allowed_origins 必须允许该 origin。
 修改服务端环境变量后需重启。测试环境与生产环境分别配置。
 本接入不自动向 WeKnora 发送 Ticket 内容。详见[任务记录](../docs/tasks/ai-ticket/2026-09-20-weknora-widget.md)。
+
+## Wiki 问答阶段进度
+
+Wiki 问答复用现有 Ticket AI SSE，接收 `wiki_qa.progress` 事件。`data` 包含
+`actionRunId`、`layer`、`module`、`stage`、`phase`、`status`、`message`，失败时可有 `errorCode`。
+阶段为 `extract/retrieve/rerank/evidence/answer`；状态为 `started/completed/failed/cancelled`。
+FE 为每次运行的每个阶段显示一条状态，完成后更新原条目；与最终答案分开，复制答案不包含进度。
+运行记录保存这些事件，重开时可还原；仍以最终 `done` 事件判断本轮完成。
+没有候选时会跳过重排和证据筛选。阶段事件不包含原始问题、聊天、提示词或模型思考。
