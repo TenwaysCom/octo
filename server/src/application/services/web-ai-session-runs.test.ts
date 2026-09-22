@@ -8,6 +8,24 @@ const done: AcpKimiStreamEvent = { event: "done", data: { sessionId: "session_1"
 function deferred() { let resolve!: () => void; const promise = new Promise<void>((r) => { resolve = r; }); return { promise, resolve }; }
 
 describe("Web AI session runs", () => {
+  it("retains wiki progress while running and when reopening a completed one-shot run", async () => {
+    const runs = createWebAiSessionRuns();
+    const gate = deferred();
+    const emit = vi.fn();
+    const progress: AcpKimiStreamEvent = { event: "wiki_qa.progress", data: {
+      actionRunId: input.actionRunId, layer: "server", module: "wiki-qa", stage: "server.wiki_qa.extract",
+      phase: "extract", status: "started", message: "准备开始问题提取",
+    } };
+    const execution = runs.execute({ ...input, oneShot: true }, { loadHistory: vi.fn(), emit, chat: async (_signal, send) => {
+      send(progress); await gate.promise; send(chunk("答案")); send(done);
+    } });
+    const started = emit.mock.calls.find(([event]) => event.event === "run.started")![0];
+    expect(runs.load(scope, started.data.sessionId)?.events).toContainEqual(progress);
+    gate.resolve(); await execution;
+    expect(runs.load(scope, started.data.sessionId)?.events).toContainEqual(progress);
+    expect(runs.load(scope, started.data.sessionId)?.runStatus).toBe("completed");
+  });
+
   it("exposes active history before completion and retains it for reopening", async () => {
     const runs = createWebAiSessionRuns();
     const gate = deferred();

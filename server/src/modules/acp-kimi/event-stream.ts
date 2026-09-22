@@ -1,5 +1,6 @@
 import type { Response } from "express";
 import type { RequestPermissionRequest } from "@agentclientprotocol/sdk";
+import type { WikiQaProgress } from "../../domain/wiki-qa.js";
 
 export type AcpPermissionStatus = "approved" | "rejected" | "expired" | "cancelled";
 export type AcpPermissionRequestData = {
@@ -48,6 +49,7 @@ export type AcpKimiEffectDraftCreatedEvent = {
 };
 
 export type AcpKimiStreamEvent =
+  | { event: "wiki_qa.progress"; data: WikiQaProgress }
   | { event: "run.started"; data: { runId: string; sessionId: string; actionRunId: string } }
   | AcpPermissionEvent
   | AcpKimiSessionCreatedEvent

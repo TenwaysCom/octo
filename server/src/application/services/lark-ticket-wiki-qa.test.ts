@@ -24,6 +24,20 @@ function fixture() {
 }
 
 describe("Ticket wiki QA integration", () => {
+  it("forwards intermediate progress before the final answer and done event", async () => {
+    const f = fixture();
+    const progress = { actionRunId: request.actionRunId, layer: "server", module: "wiki-qa", stage: "server.wiki_qa.extract",
+      phase: "extract", status: "started", message: "准备开始问题提取" };
+    f.wikiQaService.answer.mockImplementation(async (input) => {
+      input.onProgress(progress);
+      return { question: "test", evidence: [], answerMarkdown: "最终答案" };
+    });
+    const emit = vi.fn();
+    await f.service.chat(request, emit);
+    expect(emit.mock.calls.map(([event]) => event.event)).toEqual(["wiki_qa.progress", "acp.session.update", "done"]);
+    expect(emit.mock.calls[0][0].data).toEqual(progress);
+  });
+
   it("uses the fixed Ticket thread, emits a one-shot draft, and performs no analysis or ACP writes", async () => {
     const f = fixture();
     const emit = vi.fn();
@@ -33,13 +47,34 @@ describe("Ticket wiki QA integration", () => {
       ticketContext: expect.stringContaining("UK Odoo 17：PL 报表缺少科目。"),
     }));
     const context = f.wikiQaService.answer.mock.calls[0][0].ticketContext;
-    expect(context).toContain("Message 1 (om_wiki)");
+    expect(context).toContain("M1\nSender role: user");
+    expect(context).not.toContain("om_wiki");
+    expect(context).not.toContain("Allowed evidence Message IDs");
     expect(context).toContain("解决方案");
     expect(context).not.toContain("wiki 问答");
     expect(emit.mock.calls.map(([event]) => event.event)).toEqual(["acp.session.update", "done"]);
     expect(f.acpService.chat).not.toHaveBeenCalled();
     expect(f.analysisService.update).not.toHaveBeenCalled();
     expect(f.ownershipStore.attachTicket).not.toHaveBeenCalled();
+  });
+
+  it("shortens reply references without changing the fixed snapshot or message content", async () => {
+    const f = fixture();
+    const messages = [
+      { ...f.snapshot.preparedMessages[0], messageId: "om_first_long_id", createdAt: "2026-09-22T00:00:00Z", senderLabel: "User 1", replyTo: "om_second_long_id" },
+      { ...f.snapshot.preparedMessages[0], messageId: "om_second_long_id", text: "Follow up", replyTo: "om_first_long_id" },
+      { ...f.snapshot.preparedMessages[0], messageId: "om_third_long_id", text: "External reply", replyTo: "om_outside" },
+      { ...f.snapshot.preparedMessages[0], messageId: "om_fourth_long_id", text: "Same external reply", replyTo: "om_outside" },
+    ];
+    f.snapshot.preparedMessages = messages;
+    const before = structuredClone(f.snapshot);
+    await f.service.chat(request, vi.fn());
+    const context = f.wikiQaService.answer.mock.calls[0][0].ticketContext;
+    expect(context).toContain("M1\nTime: 2026-09-22T00:00:00Z\nSender role: user\nSender: User 1\nReply to: M2");
+    expect(context).toContain("M2\nSender role: user\nReply to: M1\nFollow up");
+    expect(context.match(/Reply to: E1 \(outside snapshot\)/g)).toHaveLength(2);
+    expect(context).not.toContain("om_");
+    expect(f.snapshot).toEqual(before);
   });
 
   it.each(["incomplete", "empty", "wrong-ticket", "missing-fields", "invalid-version"])("stops before retrieval when materials are invalid: %s", async (kind) => {
@@ -71,4 +106,17 @@ describe("Ticket wiki QA integration", () => {
     await expect(f.service.chat({ ...request, signal: abort.signal }, emit)).rejects.toMatchObject({ name: "AbortError" });
     expect(emit).not.toHaveBeenCalled();
   });
+});
+
+it("uses a field whitelist for answer context while retaining the extraction snapshot", async () => {
+  const f = fixture();
+  Object.assign(f.record.sourceFields, { Responsible: { avatar_url: "private-avatar" }, Attachments: ["private-file"], tag: "claim" });
+  await f.service.chat(request, vi.fn());
+  const call = f.wikiQaService.answer.mock.calls[0][0];
+  expect(call.ticketContext).toContain("private-avatar");
+  expect(call.answerContext).not.toContain("private-avatar");
+  expect(call.answerContext).not.toContain("private-file");
+  expect(call.answerContext).toContain("解决方案");
+  expect(call.answerContext).toContain("claim");
+  expect(call.answerContext).toContain("M1");
 });

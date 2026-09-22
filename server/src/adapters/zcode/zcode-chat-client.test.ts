@@ -63,3 +63,32 @@ describe("ZCode chat client", () => {
       .rejects.toMatchObject({ code: "ZCODE_TIMEOUT" });
   });
 });
+
+it("sends opt-in reasoning effort only to supported models and returns numeric telemetry", async () => {
+  for (const model of ["glm-5.3-flash", "other-model"]) {
+    const fetchImpl = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      choices: [{ message: { content: "{}", reasoning_content: "private reasoning" } }],
+      usage: { prompt_tokens: 100, completion_tokens: 20, total_tokens: 120, completion_tokens_details: { reasoning_tokens: 12 } },
+    })));
+    const result = await createZcodeChatClient({ apiKey: "secret", model, fetchImpl }).createJsonCompletion({ prompt: "test", actionRunId: "r", reasoningEffort: "low", collectDiagnostics: true });
+    expect(JSON.parse(fetchImpl.mock.calls[0][1].body).reasoning_effort).toBe(model === "glm-5.3-flash" ? "low" : undefined);
+    expect(result.diagnostics).toMatchObject({ promptTokens: 100, completionTokens: 20, reasoningTokens: 12 });
+    expect(result.diagnostics!.totalMs).toBeGreaterThanOrEqual(result.diagnostics!.responseHeadersMs);
+    expect(JSON.stringify(result)).not.toContain("private reasoning");
+  }
+});
+it("retains allowlisted transport codes for fetch and body failures without raw exceptions", async () => {
+  for (const code of ["UND_ERR_HEADERS_TIMEOUT", "UND_ERR_BODY_TIMEOUT", "private-code"]) {
+    const error = Object.assign(new Error("private response"), { cause: { code } });
+    const fetchImpl = code === "UND_ERR_BODY_TIMEOUT"
+      ? vi.fn().mockResolvedValue({ ok: true, status: 200, json: () => Promise.reject(error) })
+      : vi.fn().mockRejectedValue(error);
+    try {
+      await createZcodeChatClient({ apiKey: "secret", fetchImpl }).createJsonCompletion({ prompt: "test", actionRunId: "r" });
+      expect.unreachable();
+    } catch (result) {
+      expect(result).toMatchObject({ code: "ZCODE_REQUEST_FAILED", causeCode: code === "private-code" ? undefined : code });
+      expect(String(result)).not.toContain("private response");
+    }
+  }
+});

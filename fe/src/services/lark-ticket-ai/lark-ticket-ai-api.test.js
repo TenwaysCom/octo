@@ -67,6 +67,26 @@ test("starts a configured Ticket quick-action Session with its action key", asyn
   });
 });
 
+test("delivers wiki progress while the SSE stream is still open", async () => {
+  let controller;
+  let received;
+  const firstEvent = new Promise((resolve) => { received = resolve; });
+  const events = [];
+  const body = new ReadableStream({ start(value) { controller = value; } });
+  const execution = streamLarkTicketAiSession({ apiBaseUrl: "/api", ticket, message: "wiki 问答",
+    actionKey: "lark-ticket-wiki-qa", fetchImpl: async () => ({ ok: true, body }),
+    onEvent: (event) => { events.push(event); received(); },
+  });
+  const progress = { actionRunId: "run_1", phase: "extract", status: "started", message: "准备开始问题提取" };
+  controller.enqueue(new TextEncoder().encode(`event: wiki_qa.progress\ndata: ${JSON.stringify(progress)}\n\n`));
+  await firstEvent;
+  assert.deepEqual(events, [{ event: "wiki_qa.progress", data: progress }]);
+  controller.enqueue(new TextEncoder().encode('event: done\ndata: {"stopReason":"end_turn"}\n\n'));
+  controller.close();
+  await execution;
+  assert.equal(events.at(-1).event, "done");
+});
+
 test("lists and confirms only server-stored Ticket effect drafts", async () => {
   const requests = [];
   const fetchImpl = async (url, options = {}) => {

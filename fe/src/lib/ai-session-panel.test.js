@@ -9,6 +9,25 @@ const done = { event: "done", data: { sessionId: "s1", stopReason: "end_turn" } 
 const snapshot = (extra = {}) => ({ sessionId: "s1", runId: "r1", runStatus: "running", title: "分析", events: [chunk("已有内容")], ...extra });
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 
+test("shows wiki progress during generation and restores it from run history", async () => {
+  const gate = deferred();
+  const progress = { event: "wiki_qa.progress", data: { actionRunId: "run_1", phase: "extract", status: "started", message: "准备开始问题提取" } };
+  const panel = createAiSessionPanel({
+    load: async () => snapshot({ oneShot: true, actionKey: "lark-ticket-wiki-qa", runStatus: "completed", events: [progress, chunk("答案"), done] }),
+    stop: async () => {},
+    stream: async ({ onEvent }) => { onEvent(started); onEvent(progress); await gate.promise; onEvent(chunk("答案")); onEvent(done); },
+  });
+  const execution = panel.start({ message: "wiki 问答", actionKey: "lark-ticket-wiki-qa", oneShot: true });
+  assert.equal(panel.getSnapshot().status, "generating");
+  assert.equal(panel.getSnapshot().messages.at(-1).text, "准备开始问题提取");
+  gate.resolve(); await execution;
+  panel.close();
+  await panel.open({ sessionId: "s1" });
+  assert.equal(panel.getSnapshot().messages[0].wikiProgress.phase, "extract");
+  assert.equal(panel.getSnapshot().status, "ready");
+  panel.dispose();
+});
+
 test("closing detaches the accepted stream without stopping the run or letting late events reopen it", async () => {
   const gate = deferred(); let observer; let signal; let stops = 0;
   const panel = createAiSessionPanel({ load: async () => snapshot(), stop: async () => { stops++; }, stream: async (input) => { observer = input.onEvent; signal = input.signal; observer(started); await gate.promise; } });

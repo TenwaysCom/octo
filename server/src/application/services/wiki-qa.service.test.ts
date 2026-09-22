@@ -20,10 +20,100 @@ function fixture(candidates = [candidate()], ranking = { matches: [match()] }, a
   const rerankClient = { rerank: vi.fn().mockResolvedValue({ mode: "general", content: JSON.stringify(ranking), model: "rerank-model" }) };
   const promptStore = { getByKey: vi.fn().mockResolvedValue(undefined) };
   const extractLog = vi.fn();
-  return { reader, client, rerankClient, promptStore, extractLog, service: createWikiQaService({ reader, client, rerankClient, promptStore, extractLog }) };
+  const answerLog = vi.fn();
+  return { reader, client, rerankClient, promptStore, extractLog, answerLog, service: createWikiQaService({ reader, client, rerankClient, promptStore, extractLog, answerLog }) };
 }
 
 describe("wiki QA service", () => {
+  it("emits ordered stage transitions before starting each operation", async () => {
+    const f = fixture();
+    const onProgress = vi.fn();
+    f.reader.search.mockImplementation(async () => {
+      expect(onProgress.mock.calls.at(-1)?.[0]).toMatchObject({ phase: "retrieve", status: "started" });
+      return [candidate()];
+    });
+    await f.service.answer({ ...input, onProgress });
+    expect(onProgress.mock.calls.map(([event]) => `${event.phase}:${event.status}`)).toEqual([
+      "extract:started", "extract:completed", "retrieve:started", "retrieve:completed",
+      "rerank:started", "rerank:completed", "evidence:started", "evidence:completed", "answer:started", "answer:completed",
+    ]);
+    expect(onProgress.mock.calls.every(([event]) => event.actionRunId === input.actionRunId && event.layer === "server" && event.module === "wiki-qa")).toBe(true);
+    expect(onProgress.mock.calls[3][0].message).toContain("1 篇候选");
+  });
+
+  it("reports stage failure without later progress or exposing provider errors", async () => {
+    const f = fixture();
+    const onProgress = vi.fn();
+    f.rerankClient.rerank.mockRejectedValue(new Error("private provider payload"));
+    await expect(f.service.answer({ ...input, onProgress })).rejects.toMatchObject({ code: "WIKI_QA_MODEL_FAILED" });
+    expect(onProgress.mock.calls.at(-1)?.[0]).toMatchObject({ phase: "rerank", status: "failed", errorCode: "WIKI_QA_MODEL_FAILED" });
+    expect(onProgress.mock.calls.some(([event]) => event.phase === "answer")).toBe(false);
+    expect(JSON.stringify(onProgress.mock.calls)).not.toContain("private provider payload");
+  });
+
+  it("does not report an answer as completed until its references pass validation", async () => {
+    const f = fixture(undefined, undefined, "无效来源。[9]");
+    const onProgress = vi.fn();
+    await expect(f.service.answer({ ...input, onProgress })).rejects.toMatchObject({ code: "WIKI_QA_REFERENCE_INVALID" });
+    expect(onProgress.mock.calls.at(-1)?.[0]).toMatchObject({ phase: "answer", status: "failed" });
+    expect(onProgress.mock.calls.some(([event]) => event.phase === "answer" && event.status === "completed")).toBe(false);
+  });
+
+  it("reports cancellation instead of completion even if a dependency returns a late result", async () => {
+    const f = fixture();
+    const controller = new AbortController();
+    const onProgress = vi.fn();
+    f.reader.search.mockImplementation(async () => { controller.abort(); return [candidate()]; });
+    await expect(f.service.answer({ ...input, signal: controller.signal, onProgress })).rejects.toMatchObject({ name: "AbortError" });
+    expect(onProgress.mock.calls.at(-1)?.[0]).toMatchObject({ phase: "retrieve", status: "cancelled", errorCode: "ABORTED" });
+  });
+
+  it("skips unused ranking stages when retrieval returns no candidates", async () => {
+    const f = fixture([], { matches: [] }, "未找到相关资料。");
+    const onProgress = vi.fn();
+    await f.service.answer({ ...input, onProgress });
+    expect(onProgress.mock.calls.map(([event]) => `${event.phase}:${event.status}`)).toEqual([
+      "extract:started", "extract:completed", "retrieve:started", "retrieve:completed", "answer:started", "answer:completed",
+    ]);
+  });
+
+  it("logs only the rendered answer input and model output to the independent answer sink", async () => {
+    const f = fixture();
+    await f.service.answer(input);
+    expect(f.answerLog).toHaveBeenCalledTimes(2);
+    expect(f.answerLog.mock.calls[0][0]).toEqual({ event: "input", actionRunId: input.actionRunId,
+      prompt: f.client.createJsonCompletion.mock.calls[1][0].prompt });
+    expect(f.answerLog.mock.calls[1][0]).toMatchObject({ event: "output", actionRunId: input.actionRunId,
+      model: "test-model", output: JSON.stringify({ answerMarkdown: "可以先核对 PL 报表的分组配置。[1]" }), valid: true });
+  });
+
+  it.each(["not-json", '{"answerMarkdown":42}'])("retains invalid answer output and records validation failure: %s", async (content) => {
+    const f = fixture();
+    f.client.createJsonCompletion.mockReset()
+      .mockResolvedValueOnce({ content: JSON.stringify(extracted), model: "test-model" })
+      .mockResolvedValueOnce({ content, model: "test-model" });
+    await expect(f.service.answer(input)).rejects.toMatchObject({ code: "WIKI_QA_OUTPUT_INVALID" });
+    expect(f.answerLog.mock.calls[1][0]).toMatchObject({ event: "output", output: content, valid: false });
+    expect(f.answerLog.mock.calls[2][0]).toMatchObject({ event: "failed", errorCode: "WIKI_QA_OUTPUT_INVALID" });
+  });
+
+  it("records answer provider errors without exposing raw exceptions or inventing output", async () => {
+    const f = fixture();
+    f.client.createJsonCompletion.mockReset()
+      .mockResolvedValueOnce({ content: JSON.stringify(extracted), model: "test-model" })
+      .mockRejectedValueOnce(new Error("private-provider-error"));
+    await expect(f.service.answer(input)).rejects.toMatchObject({ code: "WIKI_QA_MODEL_FAILED" });
+    expect(f.answerLog.mock.calls.map(([event]) => event.event)).toEqual(["input", "failed"]);
+    expect(JSON.stringify(f.answerLog.mock.calls)).not.toContain("private-provider-error");
+  });
+
+  it("distinguishes valid answer JSON from a later reference-validation failure", async () => {
+    const f = fixture(undefined, undefined, "错误引用。[9]");
+    await expect(f.service.answer(input)).rejects.toMatchObject({ code: "WIKI_QA_REFERENCE_INVALID" });
+    expect(f.answerLog.mock.calls[1][0]).toMatchObject({ event: "output", valid: true });
+    expect(f.answerLog.mock.calls[2][0]).toMatchObject({ event: "failed", errorCode: "WIKI_QA_REFERENCE_INVALID" });
+  });
+
   it("logs the rendered extraction input and output, excluding rerank and answer", async () => {
     const f = fixture();
     await f.service.answer(input);
@@ -64,19 +154,24 @@ describe("wiki QA service", () => {
     expect(f.promptStore.getByKey.mock.calls.flat()).toEqual(["lark_ticket.wiki_qa.extract", "lark_ticket.wiki_qa.rerank", "lark_ticket.wiki_qa.answer"]);
   });
 
-  it("sends only the first four recalled evidence bundles to the independent rerank client", async () => {
+  it("reranks all ten recalled bundles and supplies only the selected three to the answer", async () => {
     const candidates = Array.from({ length: 10 }, (_, i) => candidate(`wiki-${i + 1}`));
-    const f = fixture(candidates);
-    await f.service.answer(input);
+    const f = fixture(candidates, { matches: [match("wiki-10"), match("wiki-5"), match("wiki-7")] });
+    const result = await f.service.answer(input);
     const prompt = f.rerankClient.rerank.mock.calls[0][0].prompt;
     const sent = JSON.parse(prompt.split("candidates：")[1]);
-    expect(sent).toEqual(candidates.slice(0, 4));
+    expect(sent).toEqual(candidates);
+    expect(f.rerankClient.rerank.mock.calls[0][0].topN).toBe(5);
+    expect(result.evidence.map((item) => item.path)).toEqual([candidates[9].path, candidates[4].path, candidates[6].path]);
+    const answerPrompt = f.client.createJsonCompletion.mock.calls[1][0].prompt;
+    for (const index of [9, 4, 6]) expect(answerPrompt).toContain(candidates[index].path);
+    for (const index of [0, 1, 2, 3, 5, 7, 8]) expect(answerPrompt).not.toContain(candidates[index].path);
     expect(f.client.createJsonCompletion.mock.calls[0][0].prompt).toContain(input.ticketContext);
     expect(f.client.createJsonCompletion.mock.calls[1][0].prompt).toContain(input.ticketContext);
   });
 
-  it("rejects recalled candidates that were not included in the rerank request", async () => {
-    const f = fixture(Array.from({ length: 10 }, (_, i) => candidate(`wiki-${i + 1}`)), { matches: [match("wiki-5")] });
+  it("rejects candidates that were not included in the rerank request", async () => {
+    const f = fixture(Array.from({ length: 10 }, (_, i) => candidate(`wiki-${i + 1}`)), { matches: [match("wiki-11")] });
     await expect(f.service.answer(input)).rejects.toMatchObject({ code: "WIKI_QA_REFERENCE_INVALID" });
     expect(f.client.createJsonCompletion).toHaveBeenCalledTimes(1);
   });
@@ -114,11 +209,11 @@ describe("wiki QA service", () => {
     }
   });
 
-  it("maps dedicated scores back to the four supplied bundles without claiming verified applicability", async () => {
+  it("maps dedicated scores across all ten bundles without claiming verified applicability", async () => {
     const candidates = Array.from({ length: 10 }, (_, i) => candidate(`wiki-${i + 1}`));
     const f = fixture(candidates);
     const fetchImpl = vi.fn().mockResolvedValue(new Response(JSON.stringify({ results: [
-      { index: 0, relevance_score: 0.5 }, { index: 2, relevance_score: 0.9 },
+      { index: 4, relevance_score: 0.75 }, { index: 9, relevance_score: 0.9 },
     ] }), { status: 200 }));
     const rerankClient = createWikiQaRerankClient({ env: {
       WIKI_QA_RERANK_MODE: "rerank", WIKI_QA_RERANK_URL: "https://ranker.example/v1/rerank", WIKI_QA_RERANK_MODEL: "bge",
@@ -127,16 +222,28 @@ describe("wiki QA service", () => {
     const result = await service.answer(input);
     const body = JSON.parse(fetchImpl.mock.calls[0][1].body);
     expect(body.query).toBe(extracted.question);
-    expect(body.documents.map((document: string) => JSON.parse(document))).toEqual(candidates.slice(0, 4));
-    expect(body.top_n).toBe(3);
-    expect(result.evidence.map((item) => item.path)).toEqual([candidates[2].path, candidates[0].path]);
+    expect(body.documents.map((document: string) => JSON.parse(document))).toEqual(candidates.map(({ title, environments, content }) => ({ title, environments, content })));
+    expect(body.documents.join("\n")).not.toContain("sourceEvidence");
+    expect(body.documents.join("\n")).not.toContain("核对分组后显示");
+    expect(body.top_n).toBe(5);
+    expect(result.evidence.map((item) => item.path)).toEqual([candidates[9].path, candidates[4].path]);
     expect(result.evidence.map((item) => item.sourceId)).toEqual([1, 2]);
     expect(result.evidence.every((item) => item.applicability === "historical_reference")).toBe(true);
-    expect(result.evidence[0].sourceEvidence).toEqual(candidates[2].sourceEvidence);
+    expect(result.evidence[0].sourceEvidence).toEqual(candidates[9].sourceEvidence);
     expect(result.evidence[0].limitations).toContain("专用重排仅评估相关性，原始证据与处理前提尚未逐项核验");
     expect(f.client.createJsonCompletion.mock.calls[1][0].prompt).toContain("historical_reference");
     expect(f.client.createJsonCompletion).toHaveBeenCalledTimes(2);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps source links on the server while sending readable knowledge to dedicated rerank", async () => {
+    const page = { ...candidate(), content: "核对配置：[处理说明](../../raw/transcripts/ticket-1.md)" };
+    const f = fixture([page]);
+    await f.service.answer(input);
+    const document = JSON.parse(f.rerankClient.rerank.mock.calls[0][0].documents[0]);
+    expect(document).toEqual({ title: page.title, environments: page.environments, content: "核对配置：处理说明" });
+    expect(f.rerankClient.rerank.mock.calls[0][0].prompt).toContain("raw/transcripts/ticket-1.md");
+    expect(f.client.createJsonCompletion.mock.calls[1][0].prompt).toContain("raw/transcripts/ticket-1.md");
   });
 
   it("keeps the no-evidence answer flow when dedicated reranking returns no results", async () => {
@@ -146,6 +253,32 @@ describe("wiki QA service", () => {
     expect(result.evidence).toEqual([]);
     expect(result.answerMarkdown).not.toContain("参考资料");
     expect(f.client.createJsonCompletion).toHaveBeenCalledTimes(2);
+  });
+
+  it("selects original evidence only after reranking and passes the selected snippets to the answer", async () => {
+    const candidates = Array.from({ length: 10 }, (_, i) => candidate(`wiki-${i + 1}`));
+    const f = fixture(candidates, { matches: [match("wiki-10")] });
+    const source = { ...candidates[9].sourceEvidence[0], content: "M12\nPL 报表配置缺失。\n\nM21\n纠正：尚未验证完成。" };
+    const selectEvidence = vi.fn().mockImplementation(() => {
+      expect(f.rerankClient.rerank).toHaveBeenCalledTimes(1);
+      return [source];
+    });
+    const service = createWikiQaService({ reader: { ...f.reader, selectEvidence }, client: f.client, rerankClient: f.rerankClient, promptStore: f.promptStore });
+    const result = await service.answer(input);
+    expect(selectEvidence).toHaveBeenCalledExactlyOnceWith({ candidate: candidates[9], question: extracted,
+      evidenceIds: [source.id], signal: undefined });
+    expect(result.evidence[0].sourceEvidence).toEqual([source]);
+    expect(f.client.createJsonCompletion.mock.calls[1][0].prompt).toContain("M21");
+    expect(f.client.createJsonCompletion.mock.calls[1][0].prompt).not.toContain("核对分组后显示");
+  });
+
+  it("demotes an applicable result if original evidence cannot be safely excerpted", async () => {
+    const f = fixture();
+    const service = createWikiQaService({ reader: { ...f.reader, selectEvidence: () => [] }, client: f.client,
+      rerankClient: f.rerankClient, promptStore: f.promptStore });
+    const result = await service.answer(input);
+    expect(result.evidence[0]).toMatchObject({ applicability: "historical_reference", sourceEvidence: [] });
+    expect(result.evidence[0].limitations).toContain("未找到支撑当前判断的原始证据");
   });
 
   it.each([
@@ -182,6 +315,15 @@ describe("wiki QA service", () => {
     expect(result.evidence[0].content).toContain("PL 分组");
     expect(result.evidence[0].content).not.toContain("权益科目");
     expect(f.client.createJsonCompletion.mock.calls[1][0].prompt).not.toContain("权益科目");
+  });
+
+  it("retains prerequisites with selected wiki claims and supports pages with frontmatter-only source links", async () => {
+    const page = { ...candidate(), content: "## 报表\n只有确认配置缺失才适用。\n\nPL 分组检查 [证据](raw/transcripts/ticket-1.md)\n\n尚未确认时不能修改。\n## 库存\n其他事故 [证据](raw/transcripts/ticket-2.md)" };
+    const result = await fixture([page]).service.answer(input);
+    expect(result.evidence[0].content).toContain("只有确认配置缺失");
+    expect(result.evidence[0].content).toContain("尚未确认时不能修改");
+    expect(result.evidence[0].content).not.toContain("其他事故");
+    expect((await fixture().service.answer(input)).evidence[0].content).toContain("核对 PL 报表分组配置");
   });
 
   it("demotes a model's applicable label when treatment prerequisites are unconfirmed", async () => {
@@ -224,4 +366,115 @@ describe("wiki QA service", () => {
     f.client.createJsonCompletion.mockReset().mockRejectedValue(new Error("provider failed"));
     await expect(f.service.answer(input)).rejects.toMatchObject({ code: "WIKI_QA_MODEL_FAILED", diagnostic: { stage: "server.wiki_qa.extract" } });
   });
+});
+
+it("filters unsupported error cards and assigns consecutive citation IDs", async () => {
+  const unrelated = { ...candidate("wiki-1"), content: "claim server error" };
+  const supported = { ...candidate("wiki-2"), content: "NotFoundError: insertBefore fails" };
+  const f = fixture([unrelated, supported], { matches: [match("wiki-1"), match("wiki-2")] });
+  f.client.createJsonCompletion.mockReset().mockResolvedValueOnce({ content: JSON.stringify({ ...extracted, question: "OwlError Caused by: NotFoundError" }), model: "test" });
+  const result = await f.service.retrieve(input);
+  expect(result.evidence.map((item) => [item.path, item.sourceId])).toEqual([[supported.path, 1]]);
+});
+it("allows zero supporting cards and shares extraction and answer reasoning effort", async () => {
+  const f = fixture(undefined, undefined, "没有对应错误的资料。");
+  f.client.createJsonCompletion.mockReset()
+    .mockResolvedValueOnce({ content: JSON.stringify({ ...extracted, question: "NotFoundError: insertBefore" }), model: "test" })
+    .mockResolvedValueOnce({ content: JSON.stringify({ answerMarkdown: "没有对应错误的资料。" }), model: "test", diagnostics: { responseHeadersMs: 1, totalMs: 2, promptTokens: 100 } });
+  const result = await f.service.answer({ ...input, answerContext: "compact current issue" });
+  expect(result.evidence).toEqual([]);
+  expect(f.client.createJsonCompletion.mock.calls[0][0]).toMatchObject({ reasoningEffort: "low" });
+  expect(f.client.createJsonCompletion.mock.calls[1][0]).toMatchObject({ reasoningEffort: "low", collectDiagnostics: true });
+  expect(f.client.createJsonCompletion.mock.calls[1][0].prompt).toContain("compact current issue");
+  expect(f.answerLog.mock.calls[1][0].diagnostics).toMatchObject({ promptTokens: 100 });
+});
+
+it.each(["low", "high", "max", "provider"])("shares configured %s effort between extraction and answer", async (effort) => {
+  vi.stubEnv("WIKI_QA_ANSWER_REASONING_EFFORT", effort);
+  try {
+    const f = fixture();
+    await f.service.answer(input);
+    for (const [call] of f.client.createJsonCompletion.mock.calls) {
+      expect(call.reasoningEffort).toBe(effort === "provider" ? undefined : effort);
+    }
+    expect(f.rerankClient.rerank.mock.calls[0][0]).not.toHaveProperty("reasoningEffort");
+  } finally { vi.unstubAllEnvs(); }
+});
+
+it("deduplicates keywords before limiting to 20 and keeps raw extraction output in logs", async () => {
+  const f = fixture([], { matches: [] });
+  const keywords = [" report ", "REPORT", "报表", ...Array.from({ length: 21 }, (_, i) => `keyword-${i}`)];
+  const output = JSON.stringify({ ...extracted, keywords });
+  f.client.createJsonCompletion.mockReset().mockResolvedValueOnce({ content: output, model: "test" });
+  await f.service.retrieve(input);
+  expect(f.reader.search.mock.calls[0][0].keywords).toEqual(["report", "报表", ...Array.from({ length: 18 }, (_, i) => `keyword-${i}`)]);
+  expect(f.extractLog.mock.calls[1][0]).toMatchObject({ output, valid: true });
+});
+it.each([42, " ", "x".repeat(121)])("rejects invalid keywords even beyond the first 20: %s", async (invalid) => {
+  const f = fixture();
+  const keywords = [...Array.from({ length: 20 }, (_, i) => `keyword-${i}`), invalid];
+  f.client.createJsonCompletion.mockReset().mockResolvedValueOnce({ content: JSON.stringify({ ...extracted, keywords }), model: "test" });
+  await expect(f.service.retrieve(input)).rejects.toMatchObject({ code: "WIKI_QA_OUTPUT_INVALID" });
+  expect(f.reader.search).not.toHaveBeenCalled();
+});
+
+it.each(["general", "rerank"])("uses ranks four and five after relevance filtering in %s mode", async (mode) => {
+  const candidates = Array.from({ length: 10 }, (_, i) => ({ ...candidate(`wiki-${i + 1}`),
+    content: i === 0 || i === 2 ? "generic server error" : "NotFoundError: insertBefore" }));
+  const f = fixture(candidates, { matches: candidates.slice(0, 5).map((item) => match(item.id)) });
+  if (mode === "rerank") f.rerankClient.rerank.mockResolvedValue({ mode: "rerank", model: "bge", results: candidates.slice(0, 5).map((_, index) => ({ index, relevance_score: 1 - index / 20 })) });
+  f.client.createJsonCompletion.mockReset()
+    .mockResolvedValueOnce({ content: JSON.stringify({ ...extracted, question: "NotFoundError: insertBefore" }), model: "test" })
+    .mockResolvedValueOnce({ content: JSON.stringify({ answerMarkdown: "历史参考。[1][2][3]" }), model: "test" });
+  const result = await f.service.answer(input);
+  expect(f.rerankClient.rerank.mock.calls[0][0]).toMatchObject({ topN: 5 });
+  expect(result.evidence.map((item) => item.path)).toEqual([candidates[1].path, candidates[3].path, candidates[4].path]);
+  expect(result.evidence.map((item) => item.sourceId)).toEqual([1, 2, 3]);
+  const prompt = f.client.createJsonCompletion.mock.calls[1][0].prompt;
+  for (const i of [0, 2, 5, 6, 7, 8, 9]) expect(prompt).not.toContain(candidates[i].path);
+});
+it("caps five relevant ranked cards at three answer sources", async () => {
+  const candidates = Array.from({ length: 5 }, (_, i) => candidate(`wiki-${i + 1}`));
+  const f = fixture(candidates, { matches: candidates.map((item) => match(item.id)) });
+  const result = await f.service.answer(input);
+  expect(result.evidence.map((item) => item.path)).toEqual(candidates.slice(0, 3).map((item) => item.path));
+  expect(f.client.createJsonCompletion.mock.calls[1][0].prompt).not.toContain(candidates[3].path);
+});
+it("still validates the fifth ranked reference before limiting answer sources", async () => {
+  const candidates = Array.from({ length: 5 }, (_, i) => candidate(`wiki-${i + 1}`));
+  const f = fixture(candidates, { matches: [...candidates.slice(0, 4).map((item) => match(item.id)), match("invented")] });
+  await expect(f.service.retrieve(input)).rejects.toMatchObject({ code: "WIKI_QA_REFERENCE_INVALID" });
+});
+
+it.each([
+  { configured: "", scores: [0.9, 0.7, 0.6999], kept: [0, 1] },
+  { configured: "0.8", scores: [0.9, 0.8, 0.79], kept: [0, 1] },
+  { configured: "0.7", scores: [0.69, 0.4, 0.1], kept: [] },
+  { configured: "0", scores: [0.5, 0.1, 0], kept: [0, 1, 2] },
+])("applies minimum score before answering: %j", async ({ configured, scores, kept }) => {
+  vi.stubEnv("WIKI_QA_RERANK_MIN_SCORE", configured);
+  try {
+    const candidates = scores.map((_, index) => candidate(`wiki-${index + 1}`));
+    const f = fixture(candidates, undefined, kept.length ? "参考资料。[1]" : "未找到相关资料。");
+    f.rerankClient.rerank.mockResolvedValue({ mode: "rerank", model: "bge", results: scores.map((relevance_score, index) => ({ index, relevance_score })) });
+    const result = await f.service.answer(input);
+    expect(result.evidence.map((item) => item.path)).toEqual(kept.map((index) => candidates[index].path));
+    expect(result.evidence.map((item) => item.sourceId)).toEqual(kept.map((_, index) => index + 1));
+  } finally { vi.unstubAllEnvs(); }
+});
+it.each(["invalid", "-0.1", "1.1", "Infinity"])("rejects invalid minimum score %s", async (configured) => {
+  vi.stubEnv("WIKI_QA_RERANK_MIN_SCORE", configured);
+  try {
+    const f = fixture();
+    f.rerankClient.rerank.mockResolvedValue({ mode: "rerank", model: "bge", results: [{ index: 0, relevance_score: 0.9 }] });
+    await expect(f.service.answer(input)).rejects.toMatchObject({ code: "WIKI_QA_MODEL_FAILED" });
+    expect(f.client.createJsonCompletion).toHaveBeenCalledTimes(1);
+  } finally { vi.unstubAllEnvs(); }
+});
+it("does not apply dedicated score configuration to general reranking", async () => {
+  vi.stubEnv("WIKI_QA_RERANK_MIN_SCORE", "invalid");
+  try {
+    const f = fixture();
+    expect((await f.service.answer(input)).evidence).toHaveLength(1);
+  } finally { vi.unstubAllEnvs(); }
 });

@@ -78,6 +78,19 @@ function updateToolCall(toolCalls, update) {
 }
 
 export function appendAiSessionEvent(messages, event) {
+  if (event.event === "wiki_qa.progress") {
+    const progress = event.data;
+    if (!progress || typeof progress.actionRunId !== "string" || typeof progress.message !== "string"
+      || !["extract", "retrieve", "rerank", "evidence", "answer"].includes(progress.phase)
+      || !["started", "completed", "failed", "cancelled"].includes(progress.status)) return messages;
+    const turnStart = currentTurnStart(messages);
+    const index = messages.findIndex((entry, i) => i >= turnStart
+      && entry.wikiProgress?.actionRunId === progress.actionRunId && entry.wikiProgress?.phase === progress.phase);
+    const entry = message("status", progress.message, { wikiProgress: {
+      actionRunId: progress.actionRunId, phase: progress.phase, status: progress.status,
+    } });
+    return index === -1 ? [...messages, entry] : messages.map((current, i) => i === index ? { ...entry, id: current.id } : current);
+  }
   if (event.event === "acp.permission.requested" || event.event === "acp.permission.resolved") {
     const permission = { ...event.data, status: event.event === "acp.permission.requested" ? "pending" : event.data.status };
     const index = messages.findIndex((entry) => entry.kind === "permission" && entry.permission.requestId === permission.requestId);
