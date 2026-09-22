@@ -213,7 +213,7 @@ export function createLarkTicketAiSessionService(
         }
         const service = deps.wikiQaService ?? createWikiQaService({ client: deps.ticketSummaryClient, promptStore: workflowPromptStore });
         const result = await service.answer({
-          ticketContext: [buildTicketSummaryContext(ticket, context), formatTicketSourceFields(ticket), "记录评论未提供，不代表评论为空。"].join("\n\n"),
+          ticketContext: [buildTicketSummaryContext(ticket, context, true), formatTicketSourceFields(ticket), "记录评论未提供，不代表评论为空。"].join("\n\n"),
           actionRunId, signal: input.signal,
         });
         input.signal?.throwIfAborted();
@@ -540,6 +540,7 @@ async function runTicketSummary(input: {
 function buildTicketSummaryContext(
   ticket: LarkBaseTicketSyncItem,
   threadContext: LarkTicketThreadContextResult,
+  compactMessageIds = false,
 ): string {
   return [
     `Type: ${ticket.issueType || "Lark Ticket"}`,
@@ -547,8 +548,8 @@ function buildTicketSummaryContext(
     `Title: ${redactSupportText(ticket.title)}`,
     `Description:\n${redactSupportText(ticket.detailDescription) || "(none)"}`,
     `Fixed snapshot version: ${threadContext.snapshot?.snapshotVersion ?? "none"}`,
-    `Allowed evidence Message IDs: ${(threadContext.snapshot?.preparedMessages ?? []).map((message) => message.messageId).join(", ") || "(none)"}`,
-    `Lark thread context:\n${formatThreadContext(threadContext)}`,
+    ...(!compactMessageIds ? [`Allowed evidence Message IDs: ${(threadContext.snapshot?.preparedMessages ?? []).map((message) => message.messageId).join(", ") || "(none)"}`] : []),
+    `Lark thread context:\n${formatThreadContext(threadContext, compactMessageIds)}`,
   ].join("\n\n");
 }
 
@@ -645,15 +646,26 @@ function deriveSessionTitle(message: string): string {
   return normalized.length > 56 ? `${normalized.slice(0, 56)}…` : normalized;
 }
 
-function formatThreadContext(context: LarkTicketThreadContextResult | undefined): string {
+function formatThreadContext(context: LarkTicketThreadContextResult | undefined, compactMessageIds = false): string {
   const snapshot = context?.snapshot;
   if (!snapshot) return "(none)";
-  const rendered = (snapshot.preparedMessages ?? prepareTicketThread(snapshot.messages)).map((message, index) => [
-    `Message ${index + 1} (${message.messageId})`,
+  const messages = snapshot.preparedMessages ?? prepareTicketThread(snapshot.messages);
+  // Short IDs follow the fixed snapshot order; the original IDs remain on the snapshot.
+  const aliases = new Map(compactMessageIds ? messages.map((message, index) => [message.messageId, `M${index + 1}`] as const) : []);
+  const externalAliases = new Map<string, string>();
+  function replyLabel(id: string): string {
+    if (!compactMessageIds) return id;
+    const alias = aliases.get(id);
+    if (alias) return alias;
+    if (!externalAliases.has(id)) externalAliases.set(id, `E${externalAliases.size + 1}`);
+    return `${externalAliases.get(id)} (outside snapshot)`;
+  }
+  const rendered = messages.map((message, index) => [
+    compactMessageIds ? `M${index + 1}` : `Message ${index + 1} (${message.messageId})`,
     message.createdAt && `Time: ${message.createdAt}`,
     `Sender role: ${message.senderRole}`,
     message.senderLabel && `Sender: ${message.senderLabel}`,
-    message.replyTo && `Reply to: ${message.replyTo}`,
+    message.replyTo && `Reply to: ${replyLabel(message.replyTo)}`,
     message.text,
   ].filter(Boolean).join("\n")).join("\n\n");
   const maxChars = 60_000;

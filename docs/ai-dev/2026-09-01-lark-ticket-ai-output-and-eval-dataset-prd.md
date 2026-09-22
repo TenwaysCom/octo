@@ -15,7 +15,7 @@
 
 - Lark Ticket 的“视图配置”新增“AI 输出 / Eval 数据集”；四种视图共用 Ticket 的服务端筛选、标签筛选、排序和分组配置。
 - AI 输出视图仅读取已同步 Ticket 及 Octo 本地 `ticket_ai`，按四阶段展示状态和结果，不触发 Lark 写入。
-- 创建 Eval 样本时服务端确认完整的线程快照，冻结当前 AI 输出与 snapshot version。
+- 创建 Eval 样本时服务端确认线程快照存在；完整快照或意图、问题摘要、方案摘要齐全的不完整快照均可加入，冻结当前 AI 输出与 snapshot version。
 - Eval 数据集视图支持填写人工意图、期望结果、备注、失败标签，并将样本标为 `eval` 或 `badcase`。
 - 数据全部只写 Octo PostgreSQL；Badcase 是 Eval 样本的特殊状态，不直接修改 Lark。
 
@@ -33,9 +33,9 @@
 
 ## Behavior Contract
 
-- 没有完整线程快照的 Ticket 不可创建 Eval 样本，必须展示“缺少完整线程快照”。
+- 没有线程快照仍不可创建 Eval 样本；快照不完整时，意图、问题摘要、方案摘要须齐全（正式字段优先，成功 Shadow 输出兜底，处理结果状态不能代替方案摘要）。创建失败在右上角显示红色通知，5 秒自动关闭，也可手动关闭。快照可通过既有同步流程后续补完，不覆盖历史样本。
 - 同一 Ticket 的同一 snapshot version 重复创建时返回已有样本，保证幂等。
-- AI 输出冻结为创建时的 allow-listed `ticket_ai` 字段；之后 AI 字段或线程变化不覆盖历史样本。
+- AI 输出冻结为创建时的 allow-listed `ticket_ai` 字段；不完整快照使用 Shadow 摘要准入时，将对应的意图、问题摘要和方案摘要一并冻结；之后 AI 字段或线程变化不覆盖历史样本。
 - 回答总结和文档生成尚未持久化时必须显示“未生成”；列表的“继续处理”只进入详情页复用既有 AI Session，不能把 Session 预期当作已完成结果。
 - Eval 视图仅显示当前筛选与分组范围内已有样本；样本与 AI 输出以 `baseId + tableId + recordId + snapshotVersion` 关联，二者不互相覆盖。
 - Draft / Eval 的人工意图、期望结果与失败标签均选填；Bad case 至少有一个失败标签，人工意图与期望结果选填。

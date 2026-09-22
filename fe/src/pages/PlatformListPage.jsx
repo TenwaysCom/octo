@@ -1054,7 +1054,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
   const [ticketActionMessage, setTicketActionMessage] = useState(null);
   useEffect(() => {
     if (!ticketActionMessage) return;
-    const timeout = window.setTimeout(() => setTicketActionMessage(null), 3000);
+    const timeout = window.setTimeout(() => setTicketActionMessage(null), ticketActionMessage.durationMs ?? 3000);
     return () => window.clearTimeout(timeout);
   }, [ticketActionMessage]);
   const ticketFieldOptionsRequestRef = useRef(0);
@@ -2128,7 +2128,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
         {state.status === "ready" && state.items.length > 0 ? <div className={`list-results-layout ${tagSidebarOpen && tagFilterFieldsWithCounts.length ? "list-results-layout--with-sidebar" : ""}`.trim()}>
           <div className="list-results-layout__main">
           {filteredItems.length > 0 || canShowConfiguredEmptyGroups ? <>
-          {isLarkAiOutput || isLarkEvalDataset ? <LarkTicketAiWorkspace myEvals={larkTicketQuickFilter === "my-evals"} apiBaseUrl={apiBaseUrl} onTicketContextMenu={openTicketContextMenu} mode={larkViewMode} groups={larkGroups} visibleColumns={larkConfiguredVisibleColumns} collapsedGroups={collapsedLarkGroups} onLarkTicketDetailLinkClick={rememberLarkTicketNavigation} onToggleGroup={(groupKey) => setCollapsedLarkGroups((current) => current.includes(groupKey)
+          {isLarkAiOutput || isLarkEvalDataset ? <LarkTicketAiWorkspace onNotify={setTicketActionMessage} myEvals={larkTicketQuickFilter === "my-evals"} apiBaseUrl={apiBaseUrl} onTicketContextMenu={openTicketContextMenu} mode={larkViewMode} groups={larkGroups} visibleColumns={larkConfiguredVisibleColumns} collapsedGroups={collapsedLarkGroups} onLarkTicketDetailLinkClick={rememberLarkTicketNavigation} onToggleGroup={(groupKey) => setCollapsedLarkGroups((current) => current.includes(groupKey)
             ? current.filter((key) => key !== groupKey)
             : [...current, groupKey])} collapsedSubgroups={collapsedLarkSubgroups} onToggleSubgroup={(subgroupKey) => setCollapsedLarkSubgroups((current) => current.includes(subgroupKey)
             ? current.filter((key) => key !== subgroupKey)

@@ -2,7 +2,7 @@
 title: "Ticket wiki 问答 Quick Action"
 module: "ai-ticket"
 status: done
-requirement_version: 7
+requirement_version: 8
 created_on: 2026-09-11
 updated_on: 2026-09-22
 closed_on: 2026-09-22
@@ -15,7 +15,7 @@ related:
 
 ## 目标
 
-当前v7在提取日志基础上增加重排输入/输出专用日志与独立开关，覆盖双模式，供后续导出；保留v5范围：在v4的10篇本地召回/4组重排基础上，通过WIKI_QA_RERANK_MODE切换通用Chat Completions和专用rerank协议。保留模型提取和回答、现有摘录/超时/连接行为。
+当前v8仅精简 Wiki 模型上下文的消息 ID，保留原快照用于追溯。v7在提取日志基础上增加重排输入/输出专用日志与独立开关，覆盖双模式，供后续导出；保留v5范围：在v4的10篇本地召回/4组重排基础上，通过WIKI_QA_RERANK_MODE切换通用Chat Completions和专用rerank协议。保留模型提取和回答、现有摘录/超时/连接行为。
 
 ## 验收标准（v5）
 
@@ -215,3 +215,16 @@ Adapter只负责协议请求和形态校验，返回discriminated result；workf
 - 新增独立 `WIKI_QA_RERANK_LOG_ENABLED` 与 `WIKI_QA_RERANK_LOG_FILE`，默认关闭，路径 `./logs/wiki-qa-rerank.log`，沿用提取文本脱敏和按日轮转。日志写入失败不改变模型调用结果。提取开关与重排开关相互独立。
 - 单元/mock integration：4个文件85项通过，包含双协议输入/响应、非法JSON、HTTP失败、关闭不创建sink及同步/异步日志失败隔离。Server构建与diff检查通过。合成调用adapter并真实写文件，验证双模式共4条事件及脱敏；未发起外部模型调用，临时文件已删除。
 - 测试环境 `.env` 已启用重排日志；确认 PM2 cwd 为本仓库 server 后重启 `octo-server-staging`，`/api/health` 返回200。正式服务未操作；尚未执行真实问答/浏览器E2E或全量Server套件。后续真实重排调用才会生成该专用文件。
+
+## 2026-09-22 v8 Wiki 消息上下文精简
+
+仅 Wiki 问答使用 M1/M2 短标签替换消息元数据中的长 ID，同步转换回复关系，移除 Allowed evidence Message IDs 列表。正文、角色、时间、顺序和既有截断上限保留，服务端原快照保留长 ID；不改变 Summary/ACP 输入。
+
+- [x] 短标签和回复关系正确，快照外回复明确标注；不修改原快照。
+- [x] Wiki 与共享 Summary 路径定向回归及构建通过；测试服务重启验证。
+
+### v8 验证与启用
+
+- Wiki 分支显式选择短 ID 格式；M 标签按原固定快照顺序生成，前向/后向回复都正确引用，快照外回复使用独立 E 标签并标明 outside snapshot。未替换正文中的任意文本或修改数据库快照，追溯可通过固定快照及序号还原；未新增映射持久化。原有60000字符/首10000尾50000截断策略保留。
+- 定向单元/mock integration：wiki集成、Ticket AI session和wiki service三个文件共50项通过；覆盖回复关系、角色时间正文保留、原快照不变、Summary仍传真实ID。Server构建与diff检查通过。
+- 确认 PM2 cwd 为本测试仓库后，仅重启 octo-server-staging；/api/health 返回200。未发起真实模型调用、浏览器E2E或全量Server套件，未量测延迟改善；不能据此声称30秒达标。

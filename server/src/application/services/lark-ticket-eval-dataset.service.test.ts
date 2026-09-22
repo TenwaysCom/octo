@@ -16,7 +16,7 @@ describe("LarkTicketEvalDatasetService", () => {
     expect(sampleStore.create).toHaveBeenCalledWith(expect.objectContaining({ snapshotVersion: 3, aiOutput: { "AI Ticket 总结": "登录失败" }, datasetStatus: "eval" }), { id: "user_1", name: "Alice" }, "run_1");
   });
 
-  it("does not create a reusable Eval sample from an incomplete snapshot", async () => {
+  it("rejects an incomplete snapshot without the required summaries", async () => {
     const service = createLarkTicketEvalDatasetService({
       syncStore: { getLarkBaseTicketsForCleaning: vi.fn().mockResolvedValue([{ ...ticket, title: "登录失败", ticketAi: { fields: { "AI分析状态": "已生成" } } }]) },
       threadStore: { get: vi.fn().mockResolvedValue({ snapshotVersion: 3, historyComplete: false }) },
@@ -46,4 +46,42 @@ it("returns an existing snapshot without changing another reviewer's state", asy
   expect(await service.create({ ticket, actionRunId: "retry", reviewer: { id: "alice", name: "Alice" } })).toEqual(existing);
   expect(sampleStore.create).not.toHaveBeenCalled();
   expect(sampleStore.update).not.toHaveBeenCalled();
+});
+
+const summaries = { "AI意图": "咨询", "AI Ticket 总结": "无法登录", "AI回答总结": "重置密码" };
+
+it.each([
+  { name: "formal summaries", ticketAi: { fields: summaries } },
+  { name: "successful Shadow summaries", shadowAi: { status: "ok", intent: "咨询", summary: "无法登录", solutionSummary: "重置密码" } },
+  { name: "formal summaries before Shadow", ticketAi: { fields: summaries }, shadowAi: { status: "ok", intent: "其他", summary: "其他", solutionSummary: "其他" } },
+  { name: "mixed formal and Shadow summaries", ticketAi: { fields: { "AI意图": "咨询" } }, shadowAi: { status: "ok", summary: "无法登录", solutionSummary: "重置密码" } },
+])("admits an incomplete snapshot with $name and freezes its summaries", async (outputs) => {
+  const sampleStore = { list: vi.fn(), findByTicketSnapshot: vi.fn(), create: vi.fn().mockResolvedValue(sample), update: vi.fn() };
+  const service = createLarkTicketEvalDatasetService({
+    syncStore: { getLarkBaseTicketsForCleaning: vi.fn().mockResolvedValue([{ ...ticket, title: "登录失败", ...outputs }]) },
+    threadStore: { get: vi.fn().mockResolvedValue({ snapshotVersion: 3, historyComplete: false }) },
+    sampleStore: sampleStore as never,
+  });
+  await expect(service.create({ ticket, actionRunId: "partial", reviewer: { id: "alice", name: "Alice" } })).resolves.toEqual(sample);
+  expect(sampleStore.create).toHaveBeenCalledWith(expect.objectContaining({ snapshotVersion: 3, datasetStatus: "eval", aiOutput: summaries }), { id: "alice", name: "Alice" }, "partial");
+});
+
+it.each(Object.keys(summaries))("rejects partial snapshots missing %s even with unsuccessful Shadow output", async (missing) => {
+  const sampleStore = { list: vi.fn(), findByTicketSnapshot: vi.fn(), create: vi.fn(), update: vi.fn() };
+  const service = createLarkTicketEvalDatasetService({
+    syncStore: { getLarkBaseTicketsForCleaning: vi.fn().mockResolvedValue([{ ...ticket, title: "登录失败", ticketAi: { fields: { ...summaries, [missing]: "  " } }, shadowAi: { status: "error", intent: "咨询", summary: "无法登录", solutionSummary: "重置密码" } }]) },
+    threadStore: { get: vi.fn().mockResolvedValue({ snapshotVersion: 3, historyComplete: false }) }, sampleStore: sampleStore as never,
+  });
+  await expect(service.create({ ticket, actionRunId: "partial", reviewer: { id: "alice", name: "Alice" } })).rejects.toMatchObject({ code: "THREAD_SNAPSHOT_INCOMPLETE" });
+  expect(sampleStore.create).not.toHaveBeenCalled();
+});
+
+it("still requires a snapshot when all summaries are available", async () => {
+  const sampleStore = { list: vi.fn(), findByTicketSnapshot: vi.fn(), create: vi.fn(), update: vi.fn() };
+  const service = createLarkTicketEvalDatasetService({
+    syncStore: { getLarkBaseTicketsForCleaning: vi.fn().mockResolvedValue([{ ...ticket, ticketAi: { fields: summaries } }]) },
+    threadStore: { get: vi.fn().mockResolvedValue(undefined) }, sampleStore: sampleStore as never,
+  });
+  await expect(service.create({ ticket, actionRunId: "missing", reviewer: { id: "alice", name: "Alice" } })).rejects.toMatchObject({ code: "THREAD_SNAPSHOT_NOT_FOUND" });
+  expect(sampleStore.create).not.toHaveBeenCalled();
 });
