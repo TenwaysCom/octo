@@ -1,14 +1,14 @@
-.lark-app { width: 100%; max-width: 768px; min-height: 100dvh; margin: 0 auto; background: #f6f8fb; color: #202b40; font: 14px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; overflow-wrap: anywhere; }
+.lark-app { width: 100%; max-width: 768px; min-height: 100dvh; margin: 0 auto; background: var(--octo-canvas); color: var(--octo-text); font: 14px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; overflow-wrap: anywhere; }
 .lark-app * { box-sizing: border-box; }
-.lark-app__header { position: sticky; top: 0; z-index: 2; display: grid; gap: 12px; padding: 16px 20px; background: #fff; border-bottom: 1px solid #e3e8f0; }
+.lark-app__header { position: sticky; top: 0; z-index: 2; display: grid; gap: 12px; padding: 16px 20px; background: var(--octo-surface); border-bottom: 1px solid var(--octo-border); }
 .lark-app__header-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .lark-app__search { position: relative; }
 .lark-app__search input { padding: 7px 10px; font-size: 13px; }
-.lark-app__search-results { position: absolute; top: calc(100% + 6px); left: 0; right: 0; max-height: 50dvh; overflow-y: auto; padding: 8px 12px; border: 1px solid #dce3ed; border-radius: 8px; background: #fff; box-shadow: 0 8px 24px #202b401a; }
+.lark-app__search-results { position: absolute; top: calc(100% + 6px); left: 0; right: 0; max-height: 50dvh; overflow-y: auto; padding: 8px 12px; border: 1px solid var(--octo-border); border-radius: 8px; background: var(--octo-surface); box-shadow: 0 8px 24px color-mix(in srgb, var(--octo-text) 10%, transparent); }
 .lark-app__brand { display: flex; align-items: center; gap: 10px; }
 .lark-app__brand .brand-mark { width: 32px; height: 32px; flex: 0 0 auto; }
 .lark-app__brand strong { font-size: 16px; letter-spacing: -.3px; }
-.lark-app__brand small { display: block; color: #717e93; font-size: 11px; }
+.lark-app__brand small { display: block; color: var(--octo-text-muted); font-size: 11px; }
 .lark-app__body { padding: 20px; display: grid; gap: 14px; }
 .lark-app h1 { margin: 5px 0 12px; font-size: 20px; line-height: 1.5; letter-spacing: -.5px; }
 .lark-app h2 { margin: 0; font-size: 14px; font-weight: 650; }
@@ -16,39 +16,39 @@
 .lark-app p:last-child { margin-bottom: 0; }
 .lark-app a { color: var(--octo-brand-hover); text-decoration: none; }
 .lark-app a:hover { text-decoration: underline; }
-.lark-app button { appearance: none; border: 1px solid #dce3ed; border-radius: 7px; padding: 6px 12px; font: inherit; font-size: 12px; background: #fff; color: #354764; cursor: pointer; }
+.lark-app button { appearance: none; border: 1px solid var(--octo-border); border-radius: 7px; padding: 6px 12px; font: inherit; font-size: 12px; background: var(--octo-surface); color: var(--octo-text); cursor: pointer; }
 .lark-app button:disabled { opacity: .5; cursor: default; }
 .lark-app button:hover:not(:disabled) { background: var(--octo-brand-soft); }
-.lark-app button.lark-app__primary { color: #fff; background: var(--octo-brand); border-color: var(--octo-brand); }
+.lark-app button.lark-app__primary { color: var(--octo-text-on-brand); background: var(--octo-brand); border-color: var(--octo-brand); }
 .lark-app button.lark-app__primary:hover { background: var(--octo-brand-hover); }
 .lark-app :is(button, a, summary, input, textarea):focus-visible { outline: 2px solid var(--octo-brand); outline-offset: 3px; }
-.lark-app__card { background: #fff; border: 1px solid #e3e8f0; border-radius: 12px; padding: 16px; min-width: 0; }
+.lark-app__card { background: var(--octo-surface); border: 1px solid var(--octo-border); border-radius: 12px; padding: 16px; min-width: 0; }
 .lark-app__card--intent { background: var(--octo-brand-soft); border-color: color-mix(in srgb, var(--octo-brand) 25%, var(--octo-border)); }
 .lark-app__card--intent .lark-app__text { font-size: 16px; font-weight: 600; }
 .lark-app__section-title { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
-.lark-app__badge { display: inline-flex; align-items: center; padding: 1px 7px; border-radius: 5px; background: #edf1f6; color: #59677d; font-size: 10px; font-weight: 500; white-space: nowrap; }
-.lark-app__badge--source { border: 1px solid transparent; background: var(--octo-brand-soft); color: var(--octo-brand-hover); }
-.lark-app__badge--human { border: 1px solid color-mix(in srgb, var(--octo-brand) 18%, var(--octo-surface)); background: color-mix(in srgb, var(--octo-brand) 5%, var(--octo-surface)); color: var(--octo-brand-hover); }
+.lark-app__badge { display: inline-flex; align-items: center; padding: 1px 7px; border-radius: 5px; background: var(--octo-surface-muted); color: var(--octo-text-muted); font-size: 10px; font-weight: 500; white-space: nowrap; }
+.lark-app__badge--source { border: 1px solid transparent; background: var(--octo-source-badge-bg); color: var(--octo-source-badge-text); }
+.lark-app__badge--human { border: 1px solid color-mix(in srgb, var(--octo-brand) 18%, var(--octo-surface)); background: var(--octo-brand-soft); color: var(--octo-brand-hover); }
 .lark-app__text, .lark-app dd { white-space: pre-wrap; }
-.lark-app__muted, .lark-app__source-note { color: #758196; font-size: 12px; }
+.lark-app__muted, .lark-app__source-note { color: var(--octo-text-muted); font-size: 12px; }
 .lark-app__source-note { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.lark-app__notice { background: #fff4df; color: #855d18; border-radius: 8px; padding: 12px; }
-.lark-app summary { cursor: pointer; font-size: 12px; font-weight: 600; color: #5d6a81; }
+.lark-app__notice { background: var(--octo-badge-warning-bg); color: var(--octo-badge-warning-text); border-radius: 8px; padding: 12px; }
+.lark-app summary { cursor: pointer; font-size: 12px; font-weight: 600; color: var(--octo-text-muted); }
 .lark-app summary .lark-app__badge { margin-left: 8px; }
 .lark-app details[open] > summary { margin-bottom: 12px; }
-.lark-app dt { font-size: 12px; color: #768299; margin-top: 12px; }
+.lark-app dt { font-size: 12px; font-weight: 600; color: var(--octo-field-label-color); margin-top: 12px; }
 .lark-app dd { margin: 3px 0 0; font-size: 13px; }
-.lark-app__field-label { display: block; font-size: 12px; color: #647189; margin: 12px 0 5px; }
-.lark-app :is(textarea, input) { display: block; width: 100%; border: 1px solid #dce3ed; background: #fafbfd; border-radius: 8px; padding: 10px; color: #263550; font: inherit; }
+.lark-app__field-label { display: block; font-size: 12px; font-weight: 600; color: var(--octo-field-label-color); margin: 12px 0 5px; }
+.lark-app :is(textarea, input) { display: block; width: 100%; border: 1px solid var(--octo-border); background: var(--octo-surface); border-radius: 8px; padding: 10px; color: var(--octo-text); font: inherit; }
 .lark-app textarea { resize: vertical; min-height: 120px; }
 .lark-app__actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
 .lark-app__tickets { list-style: none; padding: 0; margin: 12px 0 0; }
-.lark-app__tickets li { border-top: 1px solid #edf0f5; }
-.lark-app__tickets a { display: flex; flex-direction: column; gap: 2px; padding: 12px 0; color: #263550; }
-.lark-app__tickets small { color: #7b879a; }
+.lark-app__tickets li { border-top: 1px solid var(--octo-border); }
+.lark-app__tickets a { display: flex; flex-direction: column; gap: 2px; padding: 12px 0; color: var(--octo-text); }
+.lark-app__tickets small { color: var(--octo-text-muted); }
 .lark-app__roadmap { background: transparent; border-style: dashed; }
 .lark-app__properties { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 12px; }
-.lark-app__property { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 5px; min-width: 0; max-width: 100%; color: #758196; font-size: 11px; }
+.lark-app__property { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 5px; min-width: 0; max-width: 100%; color: var(--octo-text-muted); font-size: 11px; }
 .lark-app__properties .lark-ticket-badge { max-width: 100%; white-space: normal; }
 @media (max-width: 360px) { .lark-app__body { padding: 12px; gap: 10px; } .lark-app__header { padding: 12px; } .lark-app__card { padding: 12px; } }
 .lark-app__understanding { border-left: 3px solid var(--octo-brand); }
@@ -60,25 +60,25 @@
 .lark-app__panel[hidden] { display: none; }
 .lark-app__history { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 8px; }
 .lark-app__history button { width: 100%; text-align: left; white-space: normal; overflow-wrap: anywhere; }
-.lark-app__history small { display: block; color: #758196; }
+.lark-app__history small { display: block; color: var(--octo-text-muted); }
 .lark-app__history [aria-pressed="true"] { border-color: var(--octo-brand); }
-.lark-app__answer { min-width: 0; margin: 12px 0; padding-top: 8px; border-top: 1px solid #edf0f5; }
+.lark-app__answer { min-width: 0; margin: 12px 0; padding-top: 8px; border-top: 1px solid var(--octo-border); }
 .lark-app__markdown { overflow-wrap: anywhere; }
 .lark-app__markdown h3 { font-size: 14px; margin: 16px 0 8px; }
-.lark-app__markdown pre { max-width: 100%; overflow: auto; padding: 10px; background: #f6f8fb; }
-.lark-app__markdown :not(pre) > code { white-space: pre-wrap; background: #f6f8fb; }
+.lark-app__markdown pre { max-width: 100%; overflow: auto; padding: 10px; background: var(--octo-canvas); }
+.lark-app__markdown :not(pre) > code { white-space: pre-wrap; background: var(--octo-canvas); }
 .lark-app__markdown ul, .lark-app__markdown ol { padding-left: 22px; }
 .lark-app__table { max-width: 100%; overflow-x: auto; }
 .lark-app__table table { border-collapse: collapse; font-size: 12px; }
-.lark-app__table th, .lark-app__table td { border: 1px solid #dce3ed; padding: 6px; text-align: left; }
+.lark-app__table th, .lark-app__table td { border: 1px solid var(--octo-border); padding: 6px; text-align: left; }
 
 .lark-app__shadow-more { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--octo-border); }
 
 .lark-app__scored-value { position: relative; display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 8px; }
-.lark-app button.lark-app__confidence { flex: 0 0 auto; padding: 1px 7px; border: 1px solid color-mix(in srgb, var(--octo-brand) 22%, var(--octo-surface)); border-radius: 5px; color: var(--octo-brand-hover); background: color-mix(in srgb, var(--octo-brand) 8%, var(--octo-surface)); font-size: 11px; line-height: 1.6; white-space: nowrap; }
-.lark-app button.lark-app__confidence:hover { color: var(--octo-brand-hover); background: var(--octo-brand-soft); border-color: var(--octo-brand); }
+.lark-app button.lark-app__confidence { flex: 0 0 auto; padding: 1px 7px; border: 1px solid color-mix(in srgb, var(--octo-info-text) 22%, var(--octo-surface)); border-radius: 5px; color: var(--octo-info-text); background: var(--octo-info-bg); font-size: 11px; line-height: 1.6; white-space: nowrap; }
+.lark-app button.lark-app__confidence:hover { color: var(--octo-info-text); background: var(--octo-info-hover-bg); border-color: var(--octo-info-text); }
 .lark-app__confidence-wrap { display: inline-flex; flex: 0 0 auto; }
-.lark-app__confidence-help { position: absolute; z-index: 3; top: 100%; left: 0; width: min(320px, 100%); padding: 10px 12px; border: 1px solid var(--octo-border); border-radius: 8px; color: var(--octo-text-muted); background: var(--octo-surface); box-shadow: 0 6px 20px #202b4026; font-size: 12px; line-height: 1.6; white-space: normal; visibility: hidden; opacity: 0; }
+.lark-app__confidence-help { position: absolute; z-index: 3; top: 100%; left: 0; width: min(320px, 100%); padding: 10px 12px; border: 1px solid var(--octo-border); border-radius: 8px; color: var(--octo-text-muted); background: var(--octo-surface); box-shadow: 0 6px 20px color-mix(in srgb, var(--octo-text) 15%, transparent); font-size: 12px; line-height: 1.6; white-space: normal; visibility: hidden; opacity: 0; }
 .lark-app__confidence-wrap:hover .lark-app__confidence-help, .lark-app__confidence-wrap:focus-within .lark-app__confidence-help { visibility: visible; opacity: 1; }
 
 .lark-app__properties > a { font-size: 11px; white-space: nowrap; }
@@ -89,7 +89,20 @@
 .lark-app__user-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--octo-text); font-size: 12px; font-weight: 600; }
 
 .lark-app__understanding-heading { position: relative; display: flex; align-items: center; gap: 6px; }
-.lark-app button.lark-app__info { display: grid; place-items: center; width: 17px; height: 17px; padding: 0; border: 1px solid var(--octo-text-muted); border-radius: 50%; color: var(--octo-text-muted); background: transparent; font: 600 11px/1 Georgia, serif; }
+.lark-app button.lark-app__info { display: grid; place-items: center; width: 17px; height: 17px; padding: 0; border: 1px solid var(--octo-info-text); border-radius: 50%; color: var(--octo-info-text); background: var(--octo-info-bg); font: 600 11px/1 Georgia, serif; }
 .lark-app__shadow-heading { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; }
 
 .lark-app__reply-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+
+.lark-app__understanding-heading { gap: 8px; }
+.lark-app__understanding-heading > .lark-app__confidence-wrap { margin-left: auto; }
+.lark-app__understanding-list { display: grid; gap: 12px; margin: 14px 0 0; }
+.lark-app__understanding-list dt { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; margin: 0; font-size: 11px; }
+.lark-app__understanding-list dd { margin: 0; min-width: 0; }
+.lark-app__understanding-intent { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: baseline; gap: 8px; }
+.lark-app__understanding-intent dd > span:first-child { font-weight: 550; }
+.lark-app__understanding-summary { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: baseline; gap: 8px; padding-top: 12px; border-top: 1px solid var(--octo-border); }
+.lark-app__understanding-summary dd { font-size: 14px; line-height: 1.8; color: var(--octo-text); }
+.lark-app__understanding-summary dd.lark-app__muted { color: var(--octo-text-muted); }
+
+.lark-app button.lark-app__info:hover { background: var(--octo-info-hover-bg); }

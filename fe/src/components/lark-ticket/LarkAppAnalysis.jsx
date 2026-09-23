@@ -20,16 +20,20 @@ function ConfidenceBadge({ value, kind = "intent" }) {
 
 export function LarkAppUnderstanding({ ticket }) {
   const descriptionId = useId();
+  const items = getLarkAppUnderstanding(ticket);
+  const sources = [...new Set(items.map((item) => item.source).filter(Boolean))];
+  const sharedSource = sources.length === 1 ? sources[0] : "";
   return <section className="lark-app__card lark-app__understanding">
     <div className="lark-app__understanding-heading"><h2>AI 诉求理解</h2>
+      {sharedSource && <span className="lark-app__badge lark-app__badge--source">{sharedSource}</span>}
       <span className="lark-app__confidence-wrap">
         <button type="button" className="lark-app__info" aria-label="AI 诉求理解说明" aria-describedby={descriptionId}>i</button>
         <span id={descriptionId} role="tooltip" className="lark-app__confidence-help">以上为已有 AI 推断，请结合最新讨论核对；期望结果、交付物及待补充信息仍需确认。</span>
       </span>
     </div>
-    <dl>{getLarkAppUnderstanding(ticket).map((item) => <div key={item.id}>
-      <dt>{item.label} {item.source && <span className="lark-app__badge lark-app__badge--source">{item.source}</span>}</dt>
-      <dd className="lark-app__scored-value"><span>{item.text || "待确认"}</span>{item.text && <ConfidenceBadge value={item.confidence} />}</dd>
+    <dl className="lark-app__understanding-list">{items.map((item) => <div className={`lark-app__understanding-${item.id}`} key={item.id}>
+      <dt>{item.label} {!sharedSource && item.source && <span className="lark-app__badge lark-app__badge--source">{item.source}</span>}</dt>
+      <dd className={`lark-app__scored-value${item.text ? "" : " lark-app__muted"}`}><span>{item.text || "待确认"}</span>{item.text && <ConfidenceBadge value={item.confidence} />}</dd>
     </div>)}</dl>
   </section>;
 }
