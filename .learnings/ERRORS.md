@@ -867,3 +867,9 @@ source: [AGENTS.md 审查与优化](../docs/tasks/engineering-ops/2026-09-14-age
 **Fix:** 对单列归属使用非相关 `id IN (SELECT sample_id ...)`；对复合 Ticket 键使用去重子查询 JOIN，保证在分页前筛选且审核记录不放大行数。并发和事务回滚仍需真实 PostgreSQL 验证。
 
 source: [Eval 状态与 My evals](../docs/tasks/ai-ticket/2026-09-01-lark-ticket-ai-output-eval-dataset-views.md)
+
+## [ERR-20260923-001] vite-harness-react-prebundle-import
+
+- **Error:** 临时 Vite 浏览器 harness 直接导入 `/node_modules/.vite/deps/react*.js`，出现 `does not provide an export named`，改为直接取 default 后又出现 `Invalid hook call`，应用和 harness 使用了不同模块实例。
+- **Fix:** harness 使用 `react` 和 `react-dom/client` bare imports，交给 Vite 统一解析和重写，不硬编码预优化缓存文件路径。
+- **source:** [Lark App v17 mock 验证](../docs/tasks/ai-ticket/2026-09-23-lark-ticket-analysis-app.md#v17-公共信息与-wiki-即时分析)。
