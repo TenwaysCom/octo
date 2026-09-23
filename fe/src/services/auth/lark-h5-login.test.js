@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isLarkClient, requestLarkLoginCode, performLarkH5Login } from "./lark-h5-login.js";
+import { isLarkClient, requestLarkLoginCode, performLarkH5Login, uploadLarkLoginDiagnostic } from "./lark-h5-login.js";
 
 const h5sdk = { ready: (callback) => callback() };
 
@@ -74,4 +74,92 @@ test("failed completion never reads profile or reports logged in", async () => {
       : Response.json({ ok: false, error: { errorMessage: "private" } }, { status: 401 }),
   }), /H5_LOGIN_FAILED/);
   assert.equal(calls, 2);
+});
+
+test("SDK rejection diagnostics preserve numeric codes and discard credentials and raw messages", async () => {
+  const events = [];
+  await assert.rejects(performLarkH5Login({ apiBaseUrl: "/api", actionRunId: "run-safe",
+    onDiagnostic: (detail) => events.push(detail),
+    fetchImpl: async () => Response.json({ ok: true, data: { appId: "private-app", challengeId: "private-challenge" } }),
+    loadSdk: async () => ({ h5sdk, tt: { requestAccess: ({ fail }) => fail({
+      errno: 2601002, errorCode: "333448", errCode: "private-code", code: "private-code",
+      errString: "private-token", cookie: "private-cookie",
+    }) } }),
+  }), /H5_LOGIN_DENIED/);
+  const failure = events.find((event) => event.callback === "requestAccess.fail");
+  assert.equal(failure.sdk_errno, 2601002);
+  assert.equal(failure.sdk_errorCode, 333448);
+  assert.equal(failure.stage, "sdk.requestAccess");
+  assert.ok(events.every((event) => event.actionRunId === "run-safe"));
+  assert.equal(events.at(-1).errorCode, "H5_LOGIN_DENIED");
+  assert.ok(!JSON.stringify(events).includes("private-"));
+});
+
+test("timeout diagnostics distinguish ready from authorization and ignore late failures", async () => {
+  for (const ready of [false, true]) {
+    const events = [];
+    let lateFail;
+    await assert.rejects(requestLarkLoginCode({ appId: "app", timeoutMs: 1,
+      h5sdk: { ready: (callback) => { if (ready) callback(); } },
+      tt: { requestAccess: ({ fail }) => { lateFail = fail; } },
+      onDiagnostic: (stage, status, detail) => events.push({ stage, status, ...detail }),
+    }), /H5_LOGIN_TIMEOUT/);
+    assert.equal(events.at(-1).stage, ready ? "sdk.requestAccess" : "sdk.ready");
+    assert.equal(events.at(-1).errorCode, "H5_LOGIN_TIMEOUT");
+    const length = events.length;
+    lateFail?.({ errno: 103 });
+    assert.equal(events.length, length);
+  }
+});
+
+test("inner SDK reasons are classified without uploading error text or URLs for either login API", async () => {
+  for (const api of ["requestAccess", "requestAuthCode"]) {
+    const events = [];
+    await assert.rejects(requestLarkLoginCode({ h5sdk, appId: "private-app",
+      tt: { [api]: ({ fail }) => fail({ errno: 2700002, errCode: 999,
+        errString: "Authorization terminated unexpectedly. Error code: 20029; error message: invalid redirect uri in h5 case https://private.example/?code=private-code",
+        errMsg: "requestAccess:fail please check errno", message: "Error code: 20029; private-token",
+      }) },
+      onDiagnostic: (stage, status, detail) => events.push({ stage, status, ...detail }),
+    }), /H5_LOGIN_DENIED/);
+    const failure = events.find((event) => event.status === "callback_failed");
+    assert.equal(failure.callback, `${api}.fail`);
+    assert.deepEqual(failure.sdk_innerErrorCodes, [20029]);
+    assert.deepEqual(failure.sdk_reasonHints, ["INVALID_REDIRECT_URI", "AUTHORIZATION_TERMINATED"]);
+    assert.ok(!JSON.stringify(events).includes("private"));
+    assert.ok(!JSON.stringify(events).includes("errString"));
+  }
+});
+
+test("inner diagnostics ignore unknown text, malformed codes and non-string values", async () => {
+  for (const errString of ["Error code: 1234567890;", "Error code: 123secret;", "Error code: 12.5;",
+    "unknown private-token", { message: "Error code: 20029;" }, "x".repeat(4096) + "Error code: 20029;"]) {
+    let failure;
+    await assert.rejects(requestLarkLoginCode({ h5sdk, appId: "app",
+      tt: { requestAccess: ({ fail }) => fail({ errString, errMsg: null }) },
+      onDiagnostic: (_stage, status, detail) => { if (status === "callback_failed") failure = detail; },
+    }), /H5_LOGIN_DENIED/);
+    assert.deepEqual(failure.sdk_innerErrorCodes, []);
+    assert.deepEqual(failure.sdk_reasonHints, []);
+  }
+});
+
+test("diagnostic upload uses the existing endpoint and tolerates transport failure", async () => {
+  const detail = { actionRunId: "run-safe", stage: "sdk.load", status: "failed" };
+  await uploadLarkLoginDiagnostic("/api", detail, async (url, options) => {
+    assert.equal(url, "/api/debug/client-log");
+    assert.deepEqual(JSON.parse(options.body), { source: "fe", level: "warn", event: "LARK_H5_LOGIN_DIAGNOSTIC", detail });
+    throw new Error("network unavailable");
+  });
+});
+
+test("broken diagnostic callbacks do not affect successful login", async () => {
+  for (const onDiagnostic of [() => { throw new Error("logging failed"); }, async () => { throw new Error("upload failed"); }]) {
+    const result = await performLarkH5Login({ apiBaseUrl: "/api", actionRunId: "run-safe", onDiagnostic,
+      loadSdk: async () => ({ h5sdk, tt: { requestAccess: ({ success }) => success({ code: "private-code" }) } }),
+      fetchImpl: async (url) => Response.json({ ok: true, data: url.endsWith("/start")
+        ? { appId: "app", challengeId: "challenge" } : { user: { id: "user" } } }),
+    });
+    assert.equal(result.authenticated, true);
+  }
 });

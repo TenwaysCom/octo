@@ -2,7 +2,7 @@
 title: "Lark thread Ticket AI 只读应用"
 module: "ai-ticket"
 status: in_progress
-requirement_version: 14
+requirement_version: 16
 created_on: 2026-09-23
 updated_on: 2026-09-23
 closed_on: null
@@ -16,6 +16,10 @@ owner: TBD
 在 Octo FE 增加适合 Lark 侧栏的原生网页应用页面，呈现已有 Ticket AI / Shadow AI。采用本地开发而非妙搭托管。v1–v5 保持 Server 不改；v6 用户授权先接 H5 免登，新增服务端登录入口；v7 用户进一步授权完成签名与 openChatId 采集/日志；v13 确认群 ID 无法定位当前 thread，移除 FE 会话采集、日志和展示，保留 H5 免登及手动搜索。
 
 ## 验收标准
+
+- [x] v16 在免登失败诊断中提取内层数字错误码及固定原因提示，限定字符串长度及输出数量，不上报原文；覆盖新旧 SDK API 失败与敏感字段排除测试。
+
+- [x] v15 增加 H5 免登阶段、SDK 数字错误码和回调来源的脱敏诊断；复用客户端日志接口并贯穿 actionRunId，日志失败不影响登录，验证敏感字段不进入日志。
 
 - [x] v12 在 lark-app 选中 Ticket 后，于标题正下方用一组小 badge 展示状态、Issue 类型、负责人和 Business Line；复用已有组件，缺失值明确显示，窄屏自动换行。
 
@@ -141,6 +145,45 @@ v7 签名样例核对：官方教程给定完整签名原串的示例 SHA-1 与�
 
 - 按用户要求将插件 `extension/manifest.json` 和 `server/package.json` 的发布版本从 0.10.0 更新为 0.11.0，沿用此前发布版本维护范围，FE 独立包版本不变。版本声明 JSON 与 diff 检查通过；前述 FE 测试/构建已通过。
 - 本次提交包括 lark-app 的会话采集移除、768px 最大宽度、Ticket 信息 badge、相关说明及版本声明；使用独立 Git index 保留其他任务的暂存修改和未合并索引。未推送、打标签、打包插件或部署。
+
+## 2026-09-23 H5 免登失败日志排查
+
+- 本次范围：只读排查日志与登录源码，定位失败阶段；未修改运行代码、平台配置或部署。
+- `server/logs/api.2026-09-23.1.log` 显示 16:58:09、16:58:19、16:58:52 三次 `/api/lark/auth/h5/start` 均为 200，对应此前 `/api/web/profile` 均为 401。当日已检查日志没有 `/api/lark/auth/h5/complete` 请求，也没有 `LARK_H5_LOGIN_FAILED` 服务日志。
+- 按 `fe/src/services/auth/lark-h5-login.js` 调用顺序，start 在 SDK 加载成功后执行，complete 在取得 code 后执行。因此本次可定位到初始化成功后、提交授权码前；尚未进入服务端兑换授权码或签发 Web Session 阶段。无法仅凭缺少 complete 排除客户端网络中断或页面提前关闭。
+- 诊断缺口：SDK fail 回调丢弃原始数字错误码，`App.jsx` 的 catch 统一显示“自动登录未完成”，没有免登失败日志上报。现有证据不能区分 ready 未触发、SDK 拒绝、缺少 code、超时等原因；历史 openChatId 签名的安全域名问题不能直接作为本次免登根因。
+- 下一步：复现时取得经过脱敏的客户端失败阶段、SDK 数字错误码及回调来源，再判断平台配置或 SDK 调用问题。静态源码与运行日志已核对；未运行测试或真实 Lark E2E，根因尚未确认。
+
+## v15 H5 免登诊断
+
+- 用户授权增加免登日志。复用 `/api/debug/client-log`，事件 `LARK_H5_LOGIN_DIAGNOSTIC`，记录 SDK load/ready/requestAccess/requestAuthCode、server start/complete、session profile 阶段及耗时、HTTP 状态、固定错误码和 SDK 数字错误码。用既有 actionRunId 关联；不上传原始错误文本、授权码、challenge、Cookie、用户资料或 URL。
+- 上传异步、三秒超时且失败不阻断登录；忽略授权结束后的迟到失败回调。未改变平台授权和手动登录回退规则。
+- 验证：定向 `node fe/src/services/auth/lark-h5-login.test.js` 10/10 通过，涵盖数字错误码脱敏、ready/授权超时区分、迟到回调和日志失败隔离；FE Vite 构建通过，diff 检查通过。SDK 和上传均为 mock，未跑全量测试或真实 Lark E2E；未部署，真实客户端错误原因需部署 FE 后复现，尚未确认。
+
+## v15 真实免登失败复查
+
+- 2026-09-23 17:04:21、17:04:25 的 `LARK_H5_LOGIN_DIAGNOSTIC` 已落入 `server/logs/popup-client.2026-09-23.1.log`，说明新增诊断已在客户端运行。actionRunId 分别为 `98b4a26e-c77f-49f5-a9a6-1f52710337c9`、`cb42a9d3-2168-4c01-9922-4bae5a28f671`。
+- 两次均为 SDK load/ready 成功、server start HTTP 200；requestAccess 分别在调用后 142ms、121ms 触发 fail，均返回 `sdk_errno=2700002`、`sdk_errCode=999`，没有进入 complete。可排除本次 SDK 加载失败或 ready/授权等待超时。
+- `H5_LOGIN_DENIED` 是本地统一分类，不能据此认定用户拒绝授权。当前日志没有 SDK errString 内层错误原因；公开官方页面未取得可核实的错误码解释，不能把重定向 URL、安全域名或应用权限配置直接判定为根因。需继续取得脱敏的内层错误码/固定原因分类或客户端调试证据。
+- 本次仅核对日志和源码、更新任务证据，未修改运行代码或配置，未重跑测试。
+
+## v16 免登内层错误诊断
+
+- 用户授权继续诊断。仅从 SDK `errString`、`errMsg`、`message` 的前 4096 字符提取明确 `Error code: <number>` 标记（最多 8 个去重数字）及固定短语提示；不上传原文、URL 或凭证。诊断版本为 2，新增 `sdk_innerErrorCodes`、`sdk_reasonHints`；提示只代表文本匹配，不作为已确认根因。
+- 原有授权调用及回退规则保持不变。静态 diff 检查、12 项 FE 定向单测及 Vite 构建通过；测试覆盖新旧 API 内层提取、去重、未知文本、非法数字、长度限制与敏感字段排除。SDK 和日志上传均为 mock，未运行全量测试、真实客户端 E2E 或服务端测试（无服务端修改）。未部署，需新版 FE 在真实客户端复现后确认内层错误原因。
+
+## v16 真实日志确认：H5 重定向地址无效
+
+- 2026-09-23 17:09:02，`popup-client.2026-09-23.1.log` 中 actionRunId `1c729866-134c-4002-8ded-52d4252782d8` 已为 diagnosticVersion=2。SDK load/ready 成功、start HTTP 200；requestAccess 调用后 120ms 失败，顶层 errno=2700002、errCode=999，内层 `sdk_innerErrorCodes=[20029]`、`sdk_reasonHints=[INVALID_REDIRECT_URI, AUTHORIZATION_TERMINATED]`。
+- 此次 SDK 明确报告重定向 URI 无效并终止授权，未进入 complete；前次缺失的内层原因已取得。尚未读取平台后台，具体不匹配项仍需核对。
+- 只提取本地 server/.env 的非敏感 URL 部分：当前配置 origin 为 `https://octo.odoo.tenways.it:18443`，OAuth callback path 为 `/api/lark/auth/callback`；若实际 H5 页面位于该站根路径，待核对的页面地址为 `https://octo.odoo.tenways.it:18443/`。本地配置不等于已确认客户端实际 URL 或部署进程配置，不能使用早期任务中的 octotest 地址替代核实。
+- 下一步在对应 Lark 应用的重定向 URL 设置核对实际 H5 页面地址（协议、域名、端口、路径），保留原有服务端 OAuth callback；修正平台配置后复测。未改平台配置或运行代码、未重跑测试。
+
+## v16 配置重定向后的复查
+
+- 用户反馈已配置 `https://octo.odoo.tenways.it:18443/`。最新 17:11:29、17:11:36–37 两次诊断（actionRunId `4c872727-df28-424d-80df-281153959f6a`、`2bf062a4-e423-410a-81ce-fc435579b84d`）仍为 requestAccess.fail，errno=2700002、errCode=999、内层 20029、INVALID_REDIRECT_URI；SDK ready 和 start HTTP 200 正常，无 complete 请求。
+- 已核对本地 server/.env 的公开 App ID 为 `cli_a9155c5fb1b99ed2`；start 源码返回 deps.appId。现有日志未记录实际客户端页面地址和运行时 App ID，因此尚不能区分配置在不同应用、实际页面路径不同或平台配置尚未生效。此前给出的根地址是根据本地配置推定，不能当作实际客户端 URL 的已验证证据。
+- 下一步核对对应应用的重定向 URL 配置与实际 H5 页面地址。未修改运行代码、平台配置或重跑测试。
 
 ## 关联
 
