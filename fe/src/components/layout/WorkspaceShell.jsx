@@ -4,9 +4,13 @@ import { getDefaultSettingsRoute, getIntegrationsSubroutes, getWorkspaceNavigati
 
 export const WorkspaceMetricsContext = createContext({ githubMyOpenCount: undefined });
 
+export function BrandMark() {
+  return <span className="brand-mark" aria-hidden="true"><span /><span /><span /><span /></span>;
+}
+
 export function Brand() {
   return <a className="brand" href="/" aria-label="Tenways Octo 首页">
-    <span className="brand-mark" aria-hidden="true"><span /><span /><span /><span /></span>
+    <BrandMark />
     <span>Tenways Octo</span>
   </a>;
 }

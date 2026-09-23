@@ -58,3 +58,30 @@ export function consumeLarkAppReturn(hash, storage) {
   } catch { /* Use the current URL when storage is unavailable. */ }
   return hash;
 }
+
+export const LARK_APP_WIKI_ACTION = "lark-ticket-wiki-qa";
+export const LARK_APP_ROADMAP = [
+  ["危险等级（1–9）", "需定义业务风险分级及依据；不使用答案置信度换算风险。"],
+  ["该不该马上回", "结合时限、消息状态和影响判断回复时机。"],
+  ["最佳动作", "根据证据给出回复、澄清、排查或升级等下一步建议。"],
+];
+
+export function getLarkAppUnderstanding(ticket) {
+  const shadow = ticket.shadowAi?.status === "ok" ? ticket.shadowAi : null;
+  const cards = getLarkAppAnalysis(ticket);
+  const intent = shadow ? displayText(getShadowIntentLabel(shadow)) : cards[0].formalText;
+  const intentSummary = displayText(shadow?.intentSummary);
+  const summary = intentSummary || displayText(shadow?.summary) || cards[1].formalText;
+  const summarySource = intentSummary || displayText(shadow?.summary) ? "Shadow AI" : summary ? "Ticket AI" : "";
+  const timeFor = (source) => source === "Shadow AI" ? shadow?.analyzedAt : source === "Ticket AI" ? ticket.ticketAi?.updatedAt : undefined;
+  const intentSource = intent ? shadow ? "Shadow AI" : "Ticket AI" : "";
+  return [
+    { id: "intent", label: "意图推断", text: intent, source: intentSource, time: timeFor(intentSource), confidence: intentSource === "Shadow AI" ? shadow.intentConfidence : undefined },
+    ...(summary && summary === intent ? [] : [{ id: "summary", label: intentSummary ? "诉求摘要" : summary ? "问题摘要（诉求待确认）" : "诉求摘要", text: summary, source: summarySource, time: timeFor(summarySource) }]),
+  ];
+}
+
+export function getLarkAppWikiHistory(sessions) {
+  return sessions.filter((session) => session.actionKey === LARK_APP_WIKI_ACTION)
+    .sort((a, b) => (Date.parse(b.updatedAt) || 0) - (Date.parse(a.updatedAt) || 0));
+}
