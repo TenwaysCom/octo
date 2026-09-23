@@ -100,6 +100,9 @@ describe("api auth middleware", () => {
     const middleware = createApiAuthMiddleware();
     for (const path of [
       "/api/web/profile",
+      "/api/lark/auth/h5/start",
+      "/api/lark/auth/h5/complete",
+      "/api/lark/auth/h5/signature",
       "/api/web/ssh-public-keys",
       "/api/web/lark-ticket-eval-samples",
       "/api/web/lark-ticket-eval-samples/sample_1",

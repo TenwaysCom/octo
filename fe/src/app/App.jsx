@@ -7,12 +7,15 @@ import {
   startLarkLogin,
 } from "../services/auth/lark-auth-api.js";
 import { usePluginLogin } from "../hooks/usePluginLogin.js";
+import { isLarkClient, loginWithLarkH5 } from "../services/auth/lark-h5-login.js";
 import { useKeyboardShortcut } from "../hooks/useKeyboardShortcut.js";
 import { countMyOpenGitHubPullRequests } from "../lib/github-pull-request-filters.js";
 import { rememberSprintWorkitemPageState } from "../lib/meegle-sprint-workitem-view.js";
 import { UnauthenticatedPage, SessionLoadingPage } from "../pages/LoginPage.jsx";
 import { KeyboardShortcutsPage } from "../pages/KeyboardShortcutsPage.jsx";
 import { LarkTicketDetailPage } from "../pages/LarkTicketDetailPage.jsx";
+import { LarkTicketAppPage } from "../pages/LarkTicketAppPage.jsx";
+import { rememberLarkAppReturn } from "../lib/lark-ticket-app.js";
 import { PlatformListPage } from "../pages/PlatformListPage.jsx";
 import { MeegleSprintDetailPage, MeegleSprintHistoryPage } from "../pages/MeegleSprintPages.jsx";
 import { SettingsIntegrationsPage } from "../pages/SettingsIntegrationsPage.jsx";
@@ -23,6 +26,7 @@ import { getPlatformDataList } from "../services/platform-data/platform-data-api
 import { appendWorkspaceBreadcrumb, canAccessWorkspaceRoute, getWorkspaceRoute, INTEGRATIONS_ROUTE } from "./routes/workspace-routes.js";
 
 const WORKSPACE_PAGE_COMPONENTS = {
+  "lark-app": LarkTicketAppPage,
   integrations: SettingsIntegrationsPage,
   sync: SyncStatusPage,
   shortcuts: KeyboardShortcutsPage,
@@ -71,9 +75,15 @@ export function App({ apiBaseUrl }) {
   const checkSession = useCallback(async () => {
     setIsBusy(true);
     try {
-      const result = await getWebProfile({ apiBaseUrl });
+      let result = await getWebProfile({ apiBaseUrl });
+      if (!result.authenticated && getWorkspaceRoute(window.location.hash).page === "lark-app" && isLarkClient(navigator.userAgent)) {
+        result = await loginWithLarkH5(apiBaseUrl);
+      }
       setProfile(result.authenticated ? result.profile : undefined);
       setStatus(undefined);
+    } catch {
+      setProfile(undefined);
+      setStatus({ title: "自动登录未完成", text: "请使用下方登录按钮登录 Octo 后继续。" });
     } finally {
       setSessionStatus("checked");
       setIsBusy(false);
@@ -86,7 +96,7 @@ export function App({ apiBaseUrl }) {
 
   useEffect(() => {
     const githubId = profile?.user?.githubId;
-    if (!githubId || !profile.workspaceAccess?.platformLists) {
+    if (!githubId || !profile.workspaceAccess?.platformLists || workspaceRoute.page === "lark-app") {
       setGithubMyOpenCount(undefined);
       return undefined;
     }
@@ -170,12 +180,13 @@ export function App({ apiBaseUrl }) {
   if (profile) {
     const WorkspacePage = WORKSPACE_PAGE_COMPONENTS[activeWorkspaceRoute.page];
     return <WorkspaceMetricsContext.Provider value={{ githubMyOpenCount }}>
-      <WorkspaceSearchProvider apiBaseUrl={apiBaseUrl} enabled={Boolean(profile.workspaceAccess?.platformLists)}>
+      <WorkspaceSearchProvider apiBaseUrl={apiBaseUrl} enabled={Boolean(profile.workspaceAccess?.platformLists) && activeWorkspaceRoute.page !== "lark-app"}>
       {["lark-tickets", "lark-ticket-detail"].includes(activeWorkspaceRoute.page) && <WeKnoraWidget apiBaseUrl={apiBaseUrl} />}
       <WorkspacePage
         key={activeWorkspaceRoute.hash}
         profile={profile}
         page={activeWorkspaceRoute.page}
+        appHash={activeWorkspaceRoute.hash}
         ticketRecordId={activeWorkspaceRoute.ticketRecordId}
         sprintName={activeWorkspaceRoute.sprintName}
         breadcrumbs={breadcrumbs}
@@ -195,10 +206,16 @@ export function App({ apiBaseUrl }) {
   }
 
   return <UnauthenticatedPage
-    status={status}
+    status={status || (workspaceRoute.page === "lark-app" ? {
+      title: "登录 Octo 后查看 Ticket AI",
+      text: "请使用你的 Lark 账号登录 Octo。登录后返回此页面，按你的 Octo 权限查看 Ticket 和 AI 分析。",
+    } : undefined)}
     isBusy={isBusy}
     extension={extension}
-    onLogin={() => startLarkLogin({ apiBaseUrl })}
+    onLogin={() => {
+      rememberLarkAppReturn(window.location.hash, window.sessionStorage);
+      startLarkLogin({ apiBaseUrl });
+    }}
     onPluginLogin={() => void loginWithPlugin()}
   />;
 }

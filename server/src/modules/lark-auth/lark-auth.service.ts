@@ -348,8 +348,6 @@ export async function exchangeLarkAuthorizationCode(
   if (code !== 0) {
     serviceLogger.warn({
       code,
-      msg: data.msg,
-      data: data.data,
     }, "LARK_EXCHANGE_API_FAIL");
     throw new Error(`Lark Authen API error: ${data.msg as string}`);
   }
@@ -357,7 +355,7 @@ export async function exchangeLarkAuthorizationCode(
   const tokenData = data.data as Record<string, unknown> | undefined;
 
   if (!tokenData) {
-    serviceLogger.warn({ data }, "LARK_EXCHANGE_API_MISSING_DATA");
+    serviceLogger.warn({ hasTokenData: false }, "LARK_EXCHANGE_API_MISSING_DATA");
     throw new Error("Invalid response: missing token data");
   }
 
@@ -691,6 +689,9 @@ export async function startLarkOauthSession(
 }
 
 export interface LarkWebAuthUser {
+  id?: string;
+  larkOpenId?: string;
+  larkTenantKey?: string;
   larkName?: string;
   larkEmail?: string;
   larkAvatarUrl?: string;
@@ -870,6 +871,51 @@ export async function handleLarkWebAuthCallback(
   }
 }
 
+function h5ChallengeState(challengeId: string, browserProof: string): string {
+  return `h5:${createHash("sha256").update(`${challengeId}.${browserProof}`).digest("hex")}`;
+}
+
+export async function startLarkH5Login(baseUrl: string, overrides?: Partial<LarkAuthServiceDeps>) {
+  const deps = getDeps(overrides);
+  const challengeId = randomBytes(32).toString("base64url");
+  const browserProof = randomBytes(32).toString("base64url");
+  await getOauthSessionStore(deps).save({
+    state: h5ChallengeState(challengeId, browserProof), provider: "lark",
+    baseUrl: normalizeLarkAuthBaseUrl(baseUrl), status: "pending",
+    expiresAt: new Date(Date.now() + 180_000).toISOString(),
+  });
+  return { appId: deps.appId, challengeId, browserProof };
+}
+
+export async function completeLarkH5Login(input: {
+  challengeId: string; browserProof: string; code: string; actionRunId: string;
+}, overrides?: Partial<LarkAuthServiceDeps>) {
+  const deps = getDeps(overrides);
+  const state = h5ChallengeState(input.challengeId, input.browserProof);
+  const store = getOauthSessionStore(deps);
+  const challenge = await store.consumePending(state, new Date().toISOString());
+  const fail = (errorCode: string) => ({ ok: false as const, errorCode });
+  if (!challenge) return fail("H5_LOGIN_CHALLENGE_INVALID");
+  const log = { actionRunId: input.actionRunId, layer: "server", module: "lark-h5-login", stage: "identity" };
+  try {
+    const signal = AbortSignal.timeout(10000);
+    const fetchImpl: typeof fetch = (url, init) => (deps.fetchImpl ?? fetch)(url, { ...init, signal });
+    const pair = await exchangeLarkAuthorizationCode({ baseUrl: challenge.baseUrl, code: input.code, grantType: "authorization_code" }, { ...deps, fetchImpl });
+    const userInfo = await getLarkUserInfo(challenge.baseUrl, pair.accessToken, fetchImpl, false);
+    const existing = await getResolvedStore(deps).getByLarkIdentity(userInfo.tenantKey, userInfo.openId);
+    if (existing && existing.status !== "active") return fail("H5_LOGIN_USER_UNAVAILABLE");
+    const user = await upsertLarkWebUser(getResolvedStore(deps), userInfo);
+    // Minimal login authorization must not replace the user's existing broader API credentials.
+    await store.markCompleted({ state, authCode: "", externalUserKey: userInfo.openId, masterUserId: user.id });
+    const sessionToken = await createLarkWebSession({ masterUserId: user.id, baseUrl: challenge.baseUrl }, deps);
+    serviceLogger.info({ ...log, stage: "session", masterUserId: user.id }, "LARK_H5_LOGIN_OK");
+    return { ok: true as const, sessionToken };
+  } catch {
+    serviceLogger.warn({ ...log, errorCode: "H5_LOGIN_FAILED" }, "LARK_H5_LOGIN_FAILED");
+    return fail("H5_LOGIN_FAILED");
+  }
+}
+
 async function resolveLarkWebSession(
   sessionToken: string | undefined,
   overrides?: Partial<LarkAuthServiceDeps>,
@@ -960,6 +1006,9 @@ export async function getLarkWebProfile(
     profile: {
       user: {
         ...session.user,
+        id: session.masterUserId,
+        larkOpenId: resolvedUser?.larkId ?? undefined,
+        larkTenantKey: resolvedUser?.larkTenantKey ?? undefined,
         githubId: resolvedUser?.githubId ?? undefined,
       },
       workspaceAccess: getWebWorkspaceAccess(resolvedUser?.role ?? session.role),
@@ -1171,6 +1220,7 @@ async function getLarkUserInfo(
   baseUrl: string,
   accessToken: string,
   fetchImpl: typeof fetch,
+  enrichContact = true,
 ): Promise<{ openId: string; tenantKey: string; email?: string; name?: string; avatarUrl?: string }> {
   const url = new URL("/open-apis/authen/v1/user_info", baseUrl);
   const response = await fetchImpl(url.toString(), {
@@ -1185,7 +1235,6 @@ async function getLarkUserInfo(
   }
 
   const data = (await response.json()) as Record<string, unknown>;
-  serviceLogger.debug(data, "Lark user info raw response");
   const code = data.code as number;
   if (code !== 0) {
     throw new Error(`Lark user info API error: ${data.msg as string}`);
@@ -1195,7 +1244,7 @@ async function getLarkUserInfo(
   const openId = typeof userData?.open_id === "string" && userData.open_id
     ? userData.open_id
     : undefined;
-  const tenantKey = userData?.tenant_key as string | undefined;
+  const tenantKey = typeof userData?.tenant_key === "string" ? userData.tenant_key : undefined;
   const rawEmail = userData?.email as string | undefined;
   const enterpriseEmail = userData?.enterprise_email as string | undefined;
   let email = rawEmail || enterpriseEmail || undefined;
@@ -1208,7 +1257,7 @@ async function getLarkUserInfo(
 
   // Fall back to Contact API when email is missing, because the current
   // OAuth scope does not always grant email access through the authen API.
-  if (!email) {
+  if (!email && enrichContact) {
     const contactInfo = await getLarkContactUserInfo(baseUrl, openId, accessToken, fetchImpl);
     email = contactInfo.email ?? email;
     name = contactInfo.name ?? name;

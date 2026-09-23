@@ -1,3 +1,5 @@
+import { parseLarkTicketAppHash } from "../../lib/lark-ticket-app.js";
+
 export const WORKSPACE_ROUTES = [
   { page: "lark-tickets", hash: "#lark-tickets", label: "Lark Ticket", icon: "◫", title: "Lark Ticket" },
   { page: "meegle-workitems", hash: "#meegle-workitems", label: "Meegle", icon: "◇", title: "Meegle" },
@@ -13,7 +15,7 @@ export const INTEGRATIONS_ROUTE = WORKSPACE_ROUTES.find((route) => route.page ==
 export const SYNC_ROUTE = WORKSPACE_ROUTES.find((route) => route.page === "sync");
 export const INTEGRATIONS_SUBROUTES = WORKSPACE_ROUTES.filter((route) => ["integrations", "sync", "shortcuts"].includes(route.page));
 export const WORKSPACE_BREADCRUMB_LIMIT = 5;
-const PLATFORM_LIST_PAGES = new Set(["lark-tickets", "lark-ticket-detail", "meegle-workitems", "meegle-sprints", "meegle-sprint-detail", "github-pull-requests"]);
+const PLATFORM_LIST_PAGES = new Set(["lark-app", "lark-tickets", "lark-ticket-detail", "meegle-workitems", "meegle-sprints", "meegle-sprint-detail", "github-pull-requests"]);
 
 export function canAccessWorkspaceRoute(workspaceAccess, route) {
   if (PLATFORM_LIST_PAGES.has(route.page)) {
@@ -46,6 +48,7 @@ export function getMeegleSprintDetailHash(sprintName) {
 }
 
 export function getWorkspaceRoute(hash) {
+  if (parseLarkTicketAppHash(hash)) return { page: "lark-app", hash, title: "Ticket AI", label: "Ticket AI" };
   const larkTicketDetailMatch = hash.match(/^#lark-tickets\/([^/?#]+)$/);
   if (larkTicketDetailMatch) {
     try {

@@ -1,0 +1,51 @@
+.lark-app { max-width: 560px; min-height: 100dvh; margin: 0 auto; background: #f6f8fb; color: #202b40; font: 14px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; overflow-wrap: anywhere; }
+.lark-app * { box-sizing: border-box; }
+.lark-app__header { position: sticky; top: 0; z-index: 2; display: grid; gap: 12px; padding: 16px 20px; background: #fff; border-bottom: 1px solid #e3e8f0; }
+.lark-app__header-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.lark-app__search { position: relative; }
+.lark-app__search input { padding: 7px 10px; font-size: 13px; }
+.lark-app__search-results { position: absolute; top: calc(100% + 6px); left: 0; right: 0; max-height: 50dvh; overflow-y: auto; padding: 8px 12px; border: 1px solid #dce3ed; border-radius: 8px; background: #fff; box-shadow: 0 8px 24px #202b401a; }
+.lark-app__brand { display: flex; align-items: center; gap: 10px; }
+.lark-app__brand > span { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 11px; color: #fff; background: #3370ff; font-size: 23px; }
+.lark-app__brand strong { font-size: 16px; letter-spacing: -.3px; }
+.lark-app__brand small { display: block; color: #717e93; font-size: 11px; }
+.lark-app__body { padding: 20px; display: grid; gap: 14px; }
+.lark-app h1 { margin: 5px 0 12px; font-size: 20px; line-height: 1.5; letter-spacing: -.5px; }
+.lark-app h2 { margin: 0; font-size: 14px; font-weight: 650; }
+.lark-app p { margin: 10px 0; }
+.lark-app p:last-child { margin-bottom: 0; }
+.lark-app a { color: #245bcd; text-decoration: none; }
+.lark-app a:hover { text-decoration: underline; }
+.lark-app button { appearance: none; border: 1px solid #dce3ed; border-radius: 7px; padding: 6px 12px; font: inherit; font-size: 12px; background: #fff; color: #354764; cursor: pointer; }
+.lark-app button:disabled { opacity: .5; cursor: default; }
+.lark-app button:hover:not(:disabled) { background: #edf3ff; }
+.lark-app button.lark-app__primary { color: #fff; background: #3370ff; border-color: #3370ff; }
+.lark-app button.lark-app__primary:hover { background: #245bcd; }
+.lark-app :is(button, a, summary, input, textarea):focus-visible { outline: 2px solid #3370ff; outline-offset: 3px; }
+.lark-app__card { background: #fff; border: 1px solid #e3e8f0; border-radius: 12px; padding: 16px; min-width: 0; }
+.lark-app__card--intent { background: #edf3ff; border-color: #dae6ff; }
+.lark-app__card--intent .lark-app__text { font-size: 16px; font-weight: 600; }
+.lark-app__section-title { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.lark-app__badge { display: inline-flex; align-items: center; padding: 1px 7px; border-radius: 5px; background: #edf1f6; color: #59677d; font-size: 10px; font-weight: 500; white-space: nowrap; }
+.lark-app__badge--shadow { background: #eee9ff; color: #6650a6; }
+.lark-app__text, .lark-app dd { white-space: pre-wrap; }
+.lark-app__muted, .lark-app__source-note { color: #758196; font-size: 12px; }
+.lark-app__source-note { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.lark-app__eyebrow { color: #6a778e; font-size: 11px; font-weight: 600; }
+.lark-app__links { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; }
+.lark-app__notice { background: #fff4df; color: #855d18; border-radius: 8px; padding: 12px; }
+.lark-app summary { cursor: pointer; font-size: 12px; font-weight: 600; color: #5d6a81; }
+.lark-app summary .lark-app__badge { margin-left: 8px; }
+.lark-app details[open] > summary { margin-bottom: 12px; }
+.lark-app dt { font-size: 12px; color: #768299; margin-top: 12px; }
+.lark-app dd { margin: 3px 0 0; font-size: 13px; }
+.lark-app__field-label { display: block; font-size: 12px; color: #647189; margin: 12px 0 5px; }
+.lark-app :is(textarea, input) { display: block; width: 100%; border: 1px solid #dce3ed; background: #fafbfd; border-radius: 8px; padding: 10px; color: #263550; font: inherit; }
+.lark-app textarea { resize: vertical; min-height: 120px; }
+.lark-app__actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+.lark-app__tickets { list-style: none; padding: 0; margin: 12px 0 0; }
+.lark-app__tickets li { border-top: 1px solid #edf0f5; }
+.lark-app__tickets a { display: flex; flex-direction: column; gap: 2px; padding: 12px 0; color: #263550; }
+.lark-app__tickets small { color: #7b879a; }
+.lark-app__roadmap { background: transparent; border-style: dashed; }
+@media (max-width: 360px) { .lark-app__body { padding: 12px; gap: 10px; } .lark-app__header { padding: 12px; } .lark-app__card { padding: 12px; } }

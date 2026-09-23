@@ -11,6 +11,9 @@ import { exchangeAuthCodeController, getAuthStatusController } from "./modules/m
 import { exchangeAuthCodeController as exchangeLarkAuthCodeController, refreshTokenController as refreshLarkTokenController, getAuthStatusController as getLarkAuthStatusController, handleAuthCallbackController as handleLarkAuthCallbackController, createOauthSessionController as createLarkOauthSessionController, ensureWebLarkAuthController, getWebProfileController, getLarkUserInfoController as getLarkUserInfoController, logoutWebLarkAuthController, refreshLarkAuthStatusController, startWebLarkAuthController, approveWebPluginLoginController, completeWebPluginLoginController, startWebPluginLoginController, WEB_PLUGIN_LOGIN_COOKIE_NAME, WEB_SESSION_COOKIE_NAME } from "./modules/lark-auth/lark-auth.controller.js";
 import { configureLarkAuthControllerDeps } from "./modules/lark-auth/lark-auth.controller.js";
 import { configureLarkAuthServiceDeps } from "./modules/lark-auth/lark-auth.service.js";
+import { createLarkH5LoginController } from "./modules/lark-auth/lark-h5-login.controller.js";
+import { createLarkH5SignatureController } from "./modules/lark-auth/lark-h5-signature.controller.js";
+import { createLarkH5TicketClient } from "./adapters/lark/h5-ticket-client.js";
 import { configureMeegleAuthServiceDeps } from "./modules/meegle-auth/meegle-auth.service.js";
 import {
   configurePublicConfigController,
@@ -389,6 +392,26 @@ app.post("/api/web/plugin-login/complete", async (req, res) => {
 app.get("/api/lark/auth/web/start", async (_req, res) => {
   const result = await startWebLarkAuthController();
   res.redirect(302, result.redirectUrl);
+});
+const h5LoginController = createLarkH5LoginController({ webOrigin: LARK_WEB_ORIGIN, baseUrl: LARK_AUTH_BASE_URL });
+const h5TicketClient = createLarkH5TicketClient({ appId: LARK_APP_ID, appSecret: LARK_APP_SECRET, baseUrl: LARK_AUTH_BASE_URL });
+const h5SignatureController = createLarkH5SignatureController({ appId: LARK_APP_ID, webOrigin: LARK_WEB_ORIGIN, getTicket: h5TicketClient.getTicket });
+app.post("/api/lark/auth/h5/signature", async (req, res) => {
+  const result = await h5SignatureController({ origin: req.get("origin"), cookieHeader: req.headers.cookie, body: req.body });
+  res.setHeader("Cache-Control", "no-store");
+  res.status(result.statusCode).json(result.body);
+});
+app.post("/api/lark/auth/h5/start", async (req, res) => {
+  const result = await h5LoginController.start({ origin: req.get("origin"), body: req.body });
+  res.setHeader("Cache-Control", "no-store");
+  if (result.cookies.length) res.setHeader("Set-Cookie", result.cookies);
+  res.status(result.statusCode).json(result.body);
+});
+app.post("/api/lark/auth/h5/complete", async (req, res) => {
+  const result = await h5LoginController.complete({ origin: req.get("origin"), cookieHeader: req.headers.cookie, body: req.body });
+  res.setHeader("Cache-Control", "no-store");
+  if (result.cookies.length) res.setHeader("Set-Cookie", result.cookies);
+  res.status(result.statusCode).json(result.body);
 });
 app.get("/api/lark/auth/web/ensure", async (req, res) => {
   const result = await ensureWebLarkAuthController(req.headers.cookie);

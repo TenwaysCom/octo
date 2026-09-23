@@ -116,6 +116,14 @@ export class SqliteOauthSessionStore implements OauthSessionStore {
     );
   }
 
+  async consumePending(state: string, now: string): Promise<StoredOauthSession | undefined> {
+    const result = this.db.prepare(`UPDATE oauth_sessions
+      SET status = 'failed', error_code = 'H5_LOGIN_CONSUMED', updated_at = ?
+      WHERE state = ? AND status = 'pending' AND expires_at > ? AND master_user_id IS NULL`)
+      .run(now, state, now);
+    return result.changes ? this.get(state) : undefined;
+  }
+
   async markCompleted(input: {
     state: string;
     authCode: string;

@@ -85,6 +85,15 @@ export class PostgresOauthSessionStore implements OauthSessionStore {
     );
   }
 
+  async consumePending(state: string, now: string): Promise<StoredOauthSession | undefined> {
+    // Fail closed before external code exchange; only one caller may claim this challenge.
+    return toRecord(await this.database.updateTable("oauth_sessions")
+      .set({ status: "failed", error_code: "H5_LOGIN_CONSUMED", updated_at: now })
+      .where("state", "=", state).where("status", "=", "pending")
+      .where("expires_at", ">", now).where("master_user_id", "is", null)
+      .returningAll().executeTakeFirst());
+  }
+
   async markCompleted(input: {
     state: string;
     authCode: string;

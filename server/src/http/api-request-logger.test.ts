@@ -111,6 +111,19 @@ describe("api-request-logger", () => {
     expect(mockError).not.toHaveBeenCalled();
   });
 
+  it("omits H5 authorization codes, suffixes and challenge proofs", () => {
+    const req = { method: "POST", path: "/api/lark/auth/h5/complete", originalUrl: "/api/lark/auth/h5/complete",
+      headers: { cookie: "octo_h5_login=secret-proof" }, query: {},
+      body: { actionRunId: "run-h5", code: "secret-code-ABCD", challengeId: "secret-challenge" },
+    } as unknown as Request;
+    const res = new EventEmitter() as Response & EventEmitter;
+    res.json = vi.fn() as unknown as Response["json"];
+    res.send = vi.fn() as unknown as Response["send"];
+    createApiRequestLogger()(req, res, vi.fn());
+    expect(mockInfo.mock.calls[0][0].body).toEqual({ actionRunId: "run-h5", hasAuthCode: true });
+    expect(JSON.stringify(mockInfo.mock.calls)).not.toMatch(/secret-|ABCD/);
+  });
+
   it("logs 5xx responses as failures", () => {
     const middleware = createApiRequestLogger();
     const req = {
