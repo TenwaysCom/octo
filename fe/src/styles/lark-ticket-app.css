@@ -1,4 +1,4 @@
-.lark-app { max-width: 560px; min-height: 100dvh; margin: 0 auto; background: #f6f8fb; color: #202b40; font: 14px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; overflow-wrap: anywhere; }
+.lark-app { width: 100%; max-width: 768px; min-height: 100dvh; margin: 0 auto; background: #f6f8fb; color: #202b40; font: 14px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; overflow-wrap: anywhere; }
 .lark-app * { box-sizing: border-box; }
 .lark-app__header { position: sticky; top: 0; z-index: 2; display: grid; gap: 12px; padding: 16px 20px; background: #fff; border-bottom: 1px solid #e3e8f0; }
 .lark-app__header-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -48,4 +48,7 @@
 .lark-app__tickets a { display: flex; flex-direction: column; gap: 2px; padding: 12px 0; color: #263550; }
 .lark-app__tickets small { color: #7b879a; }
 .lark-app__roadmap { background: transparent; border-style: dashed; }
+.lark-app__properties { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 12px; }
+.lark-app__property { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 5px; min-width: 0; max-width: 100%; color: #758196; font-size: 11px; }
+.lark-app__properties .lark-ticket-badge { max-width: 100%; white-space: normal; }
 @media (max-width: 360px) { .lark-app__body { padding: 12px; gap: 10px; } .lark-app__header { padding: 12px; } .lark-app__card { padding: 12px; } }

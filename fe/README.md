@@ -55,9 +55,8 @@ Session exists, it loads the official SDK, calls `requestAccess` (or the legacy
 `POST /api/lark/auth/h5/complete` to establish the same cookie. The server binds the
 one-time challenge to an HttpOnly browser proof and checks the configured Web
 origin. Minimal login tokens never replace existing API authorization. Ordinary
-browsers and failed automatic logins retain the normal login buttons. After login, the app requests `/api/lark/auth/h5/signature`, configures the SDK,
-and collects input-menu chat context for diagnostic logging. This does not map
-a chat to a Ticket. See [the app guide](docs/lark-ticket-app.md).
+browsers and failed automatic logins retain the normal login buttons. After login, users select a Ticket by title or number. The app does not collect
+chat context or request JSAPI signing. See [the app guide](docs/lark-ticket-app.md).
 
 The Meegle card reads only the sanitized `meegleAuthorization.status` from
 `/api/web/profile`. The server checks its stored Meegle credential without

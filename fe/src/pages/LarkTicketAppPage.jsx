@@ -5,7 +5,8 @@ import { formatDateTime } from "../lib/formatters.js";
 import { getShadowStageDetails, getShadowStatusLabel } from "../lib/lark-ticket-shadow-ai.js";
 import { getTicketAiShadowNotice } from "../lib/ticket-ai-sections.js";
 import { getLarkTicketDetailHash } from "../app/routes/workspace-routes.js";
-import { getLarkAppChatContext } from "../services/auth/lark-h5-context.js";
+import { LarkTicketBadge } from "../components/lark-ticket/LarkTicketBadge.jsx";
+import { LarkTicketResponsible } from "../components/lark-ticket/LarkTicketResponsible.jsx";
 import "../styles/lark-ticket-app.css";
 
 function CopyButton({ text, children = "复制", primary = false }) {
@@ -64,13 +65,7 @@ function Roadmap() {
   </details>;
 }
 
-export function LarkTicketAppPage({ apiBaseUrl, appHash, profile }) {
-  const [chatContext, setChatContext] = useState();
-  useEffect(() => {
-    let active = true;
-    void getLarkAppChatContext(apiBaseUrl, profile?.user?.id).then((result) => { if (active) setChatContext(result); });
-    return () => { active = false; };
-  }, [apiBaseUrl, profile?.user?.id]);
+export function LarkTicketAppPage({ apiBaseUrl, appHash }) {
   const context = parseLarkTicketAppHash(appHash);
   const [state, setState] = useState({ status: "loading", items: [] });
   const [query, setQuery] = useState("");
@@ -106,12 +101,6 @@ export function LarkTicketAppPage({ apiBaseUrl, appHash, profile }) {
       </div>
     </header>
     <div className="lark-app__body">
-      {chatContext && <details className="lark-app__card">
-        <summary>{chatContext.openChatId ? "已获取当前会话" : "当前会话未获取"}</summary>
-        {chatContext.openChatId ? <p className="lark-app__text">openChatId：{chatContext.openChatId}</p>
-          : <p className="lark-app__muted">请从 Lark 聊天输入框的应用菜单重新打开。仍可按标题搜索 Ticket。</p>}
-        <p className="lark-app__muted">{chatContext.errorCode && `诊断：${chatContext.errorCode} · `}{chatContext.logged ? "诊断日志已上报" : "诊断日志未上报"}。会话 ID 不用于自动匹配 Ticket。</p>
-      </details>}
       {context.invalid ? <section className="lark-app__card"><h1>入口链接不完整</h1><p>请返回搜索页选择 Ticket。</p><a href="#lark-app-thread-analysis">搜索 Ticket</a></section>
         : state.status === "loading" ? <p role="status" className="lark-app__notice">正在读取已有分析…</p>
           : state.status === "error" ? <section className="lark-app__card" role="alert"><h1>读取失败</h1><p>请检查网络及 Octo 登录状态后重试。</p><button onClick={() => setRefresh((value) => value + 1)}>重试</button><a href="#integrations">检查登录状态</a></section>
@@ -119,7 +108,13 @@ export function LarkTicketAppPage({ apiBaseUrl, appHash, profile }) {
               : !ticket ? <section className="lark-app__card">
                 <h1>查看 Ticket 分析</h1><p className="lark-app__muted">在上方输入标题关键词，选择对应 Ticket 后查看已有 AI 分析。</p>
               </section> : <>
-                <section className="lark-app__identity"><div className="lark-app__eyebrow">{ticket.ticketNumber || "Ticket"} · {ticket.ticketStatus || "状态未记录"}</div><h1>{ticket.title}</h1>
+                <section className="lark-app__identity"><div className="lark-app__eyebrow">{ticket.ticketNumber || "Ticket"}</div><h1>{ticket.title}</h1>
+                  <div className="lark-app__properties" aria-label="Ticket 信息">
+                    <span className="lark-app__property"><span>状态</span><LarkTicketBadge kind="status" value={ticket.ticketStatus} /></span>
+                    <span className="lark-app__property"><span>Issue 类型</span><LarkTicketBadge kind="type" value={ticket.issueType} /></span>
+                    <span className="lark-app__property"><span>负责人</span>{ticket.responsible?.trim() ? <LarkTicketResponsible responsible={ticket.responsible} /> : <span className="lark-app__badge">未分配</span>}</span>
+                    <span className="lark-app__property"><span>Business Line</span><LarkTicketBadge kind="business-line" value={ticket.businessLine} /></span>
+                  </div>
                   <div className="lark-app__links"><a href={getLarkTicketDetailHash(ticket.recordId)} target="_blank" rel="noreferrer">完整详情 ↗</a><SafeLink href={ticket.larkMessageLink}>原始讨论</SafeLink></div>
                 </section>
                 <div className="lark-app__source-note">展示已保存分析，请结合最新讨论核对。{ticket.shadowAi && <span className="lark-app__badge lark-app__badge--shadow">Shadow · {getShadowStatusLabel(ticket.shadowAi.status)}</span>}</div>

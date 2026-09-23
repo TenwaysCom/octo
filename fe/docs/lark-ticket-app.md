@@ -1,11 +1,11 @@
 # Ticket AI 输入框菜单应用
 
-本地页面：`http://localhost:4173/#lark-app-thread-analysis`。部署后使用 FE 的同源地址。页面复用 Web Session 和平台列表权限，通过既有 GET 接口读取 Ticket。v6 增加 H5 SDK 免登，v7 接入签名及输入框菜单的 openChatId 采集。真实 Lark 客户端验收仍待部署后完成。
+本地页面：`http://localhost:4173/#lark-app-thread-analysis`。部署后使用 FE 的同源地址。页面复用 Web Session 和平台列表权限，通过既有 GET 接口读取 Ticket。保留 H5 SDK 免登；v13 已移除 openChatId 采集、签名请求和会话诊断展示，通过标题/编号搜索选择 Ticket。
 
 ## 开发者后台配置
 
 1. 在目标自建应用启用网页应用能力，将首页设为 `<Octo FE origin>/#lark-app-thread-analysis`。应用域名应与现有 OAuth 回调和 `/api` 同源部署相符。
-2. 构建部署 FE 和 Server，确认页面与 `/api` 同源，且该 origin 与 Server 的 `LARK_OAUTH_CALLBACK_URL` 一致；H5 免登入口会严格检查 Origin。App ID 从 Server 下发，App Secret 只保留在 Server。SDK 使用官方免登示例的固定 1.5.26 版本，部署环境需允许加载对应 CDN。在 Lark 开发者后台的安全设置中，将实际 FE 域名加入 H5 SDK 可信域名。
+2. 构建部署 FE 和 Server，确认页面与 `/api` 同源，且该 origin 与 Server 的 `LARK_OAUTH_CALLBACK_URL` 一致；H5 免登入口会严格检查 Origin。App ID 从 Server 下发，App Secret 只保留在 Server。SDK 使用官方免登示例的固定 1.5.26 版本，部署环境需允许加载对应 CDN。当前页面只使用免登 SDK，不为获取会话上下文调用 JSAPI 签名。
 3. 在 **Features → Extensions → Message Field Shortcuts（输入框 + 菜单）** 启用入口，名称建议“查看 Ticket AI”。桌面入口填写：
 
    ```text
@@ -17,13 +17,23 @@
 
 若应用首页已经直接配置为 `/#lark-app-thread-analysis`，输入框菜单可省略 `lk_target_url`，使用 `web_app/open?appId=<cli_app_id>&mode=sidebar`。若保留现有工作台首页，则仍使用上述 `lk_target_url` 指定分析页。不要把本地合成数据验证端口作为线上应用地址。
 
+### 客户端侧栏宽度
+
+页面 CSS 的 `width: 100%` 仅填满客户端容器，不能控制 Lark 原生侧栏的大小。若整个侧栏无法拖宽，可在原菜单 AppLink 的顶层 query 中增加 `min_width=560&max_width=1000`，不要放进 `lk_target_url`：
+
+```text
+https://applink.larksuite.com/client/web_app/open?appId=<cli_app_id>&mode=sidebar&min_width=560&max_width=1000&lk_target_url=<encodeURIComponent(完整页面URL)>
+```
+
+[飞书官方协议](https://open.feishu.cn/document/common-capabilities/applink-protocol/supported-protocol/open-an-h5-app)明确列出这两个侧栏参数：7.9 起支持，默认值均为 350，最大不超过客户端窗口宽度。2026-09-23 核对时 Lark 国际版对应文档尚未列出，以上为待验证的 Lark 配置方案，不能宣称已在国际版生效。需修改开发者后台菜单入口、按平台要求发布，并关闭原侧栏重新从菜单打开验证；本仓库没有自动更新后台入口的逻辑。
+
 ## 本轮能力及边界
 
 | 项目 | 行为 |
 | --- | --- |
 | 菜单场景 | 识别 `message_action`、`chat_action`、`plus_menu_p2p`、`plus_menu_group` 启动场景；无 hash 时进入应用页。建议入口 URL 显式指定 `#lark-app-thread-analysis`。 |
 | 标题搜索 | 顶部常驻小搜索框，按标题或编号进行不区分大小写的包含匹配，显示最多 20 个候选及总数；无结果有提示。点选后显示分析，Escape 或失焦收起候选。 |
-| 会话诊断 | 输入框菜单启动时，登录后通过 Server 签名和 SDK 获取 openChatId，上报安全诊断日志；页面可展开查看结果。普通浏览器或缺少参数时显示原因，不阻断搜索。 |
+| Ticket 信息 badge | 选中 Ticket 后，在标题正下方用一组小 badge 显示状态、Issue 类型、负责人和 Business Line，复用现有徽标与人员组件；缺失状态/类型/业务线显示“未设置”，负责人为空显示“未分配”，窄屏自动换行。 |
 | 当前 thread → Ticket | **未接入**；本版采用手动搜索选择，无需 thread 添加链接。保留已有深链接的三元组定位能力。 |
 | 数据读取 | 复用 `GET /api/web/platform-data/lark-tickets` 及既有分页实现，精确匹配 baseId/tableId/recordId。当前接口不能按消息 ID 查询；没有新增接口。 |
 | 意图、总结、答案 | 逐项以正式 Ticket AI 优先，成功 Shadow AI 兜底；同时保留 Shadow 原文和来源。 |
@@ -49,16 +59,11 @@ Lark 内免登无需 h5sdk.config 签名。首次使用可能出现授权确认�
 
 输入框「+ 菜单」与单条消息快捷操作是不同入口：前者文档使用 `getTriggerContext` 获取 `openChatId`，未承诺当前 thread ID；后者才使用 `getBlockActionSourceDetail` 获取所选消息。不能由群聊 ID 推断当前 Ticket，也不能仅增加 H5 签名就声称实现自动定位。
 
-### H5 签名与 openChatId
+### 会话上下文
 
-登录成功后，从页面查询参数 `bdp_launch_query` 的 JSON 中读取 `__trigger_id__`。支持 `chat_action`、`plus_menu_p2p`、`plus_menu_group` 输入框菜单场景；单条消息菜单 `message_action` 显示 `MESSAGE_ACTION_UNSUPPORTED`，本版未实现该入口的 `getBlockActionSourceDetail`。
+openChatId 标识会话，无法确认用户当前查看的话题。页面不再调用 getTriggerContext、H5 签名接口或上报会话诊断；不展示会话 ID、诊断错误码及重新打开菜单的提示。通过标题或编号搜索选择 Ticket，已有 Ticket 深链接仍可直接打开。
 
-1. FE 调用 `POST /api/lark/auth/h5/signature`，提交去掉 hash、保留原始 query 编码的页面 URL 及 actionRunId。
-2. Server 校验 Web Session、请求 Origin 和 URL 同源；使用已有 App 配置获取 tenant_access_token 和 jsapi_ticket，按到期时间提前失效缓存，同一进程共享并发刷新。每次签名使用新的 nonce 与毫秒 timestamp，只向 FE 返回公开签名参数，不返回票据或 token。
-3. FE 调用 `h5sdk.config`，同时等待配置成功和 SDK ready，再调用 `tt.getTriggerContext({ triggerCode })`。SDK/网络调用均有超时，同一用户和启动 URL 的页面切换复用结果。
-4. 通过现有 `/api/debug/client-log` 上报 `LARK_APP_OPEN_CHAT_CONTEXT`，包含 openChatId 或安全失败码、场景、actionRunId；不记录触发码、签名 URL、Cookie、票据或原始 SDK 响应。默认查看 `server/logs/popup-client.YYYY-MM-DD.N.log`；以 actionRunId 关联应用日志中的 `LARK_H5_SIGNATURE_OK` / `LARK_H5_SIGNATURE_FAILED`。客户端日志仅用于诊断，不作为可信身份凭据。
-
-页面“当前会话”折叠区展示 ID、失败原因及日志上报状态。日志失败不阻断 Ticket 搜索。普通浏览器、工作台直接打开或手动 OAuth 返回时若启动参数已丢失，需要从输入框应用菜单重新打开。`openChatId` 是会话 ID，不是 thread ID；本版不据此自动匹配 Ticket。
+Server 的 `/api/lark/auth/h5/signature` 接口保持现状，本页面已无调用。历史采集与诊断证据见任务记录。
 
 ## 后续能力
 
@@ -70,8 +75,8 @@ Lark 内免登无需 h5sdk.config 签名。首次使用可能出现授权确认�
 - 未登录：登录后返回原 Ticket 小窗；无权限时沿用工作台权限路由。
 - Lark 无会话：确认 start → SDK 授权 → complete → profile 链路，profile 中两个用户 ID 与当前账号一致；重复/过期/跨浏览器挑战被拒绝。用户拒绝或 SDK 不可用时可手动登录。
 - 深链接：同一 recordId 位于不同 base/table 时不误选；缺少标识时提示链接不完整。
-- Lark 输入框菜单：配置可信域名并部署 FE/Server 后，确认 signature 返回 200，SDK config 成功，页面展示 openChatId；以 actionRunId 核对 Server 签名日志及会话诊断日志。真实客户端和日志落盘尚未验收。
-- 普通浏览器、参数缺失、SDK 失败：明确显示诊断状态，标题搜索仍可用；不将群聊 ID 当作 thread/Ticket ID。单条消息菜单获取上下文不作为本版通过项。
+- Lark 输入框菜单：登录后进入标题/编号搜索；页面不显示会话诊断，也不发出 H5 signature 或 LARK_APP_OPEN_CHAT_CONTEXT 请求。
+- 普通浏览器或缺少菜单参数：沿用登录、搜索和深链接流程，不依赖聊天上下文。
 
 参考：[输入框菜单](https://open.larksuite.com/document/client-docs/extensions/message-field-shortcuts-(%E2%80%9C+%E2%80%9D))、[Message Shortcuts](https://open.larksuite.com/document/client-docs/extensions/message-shortcuts)、[Open an H5 app](https://open.larksuite.com/document/common-capabilities/applink-protocol/supported-protocol/open-an-h5-app)。
 
