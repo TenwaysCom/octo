@@ -12,6 +12,12 @@ pnpm --dir fe build
 `dev` starts at `http://localhost:4173`; `build` writes deployable static files
 to `fe/dist/`.
 
+## Lark Ticket AI 应用
+
+`#lark-app-thread-analysis` 提供适合 Lark 侧栏的只读分析页面，复用已有 Ticket AI / Shadow AI；
+Ticket 详情页可通过“打开 Ticket AI 小窗”进入。顶部常驻标题搜索框，选择 Ticket 即可查看或切换分析。输入框菜单配置见
+[接入说明](docs/lark-ticket-app.md)。
+
 ## FE-owned environment configuration
 
 The FE chooses its own API base URL. It does not read the extension's
@@ -37,9 +43,20 @@ After the server callback exchanges the one-time authorization code, it finds
 or creates the Octo user by `(tenantKey, larkUserId)`, stores the Lark token
 server-side, and returns an opaque `HttpOnly; SameSite=Lax` web-session cookie.
 The FE calls `/api/lark/auth/web/ensure` and `/api/web/profile` with that
-cookie; it never receives a `masterUserId`, Lark token, Meegle cookie, or
+cookie. The profile exposes verified `user.id` (Octo), `user.larkOpenId`, and
+`user.larkTenantKey`; these are identifiers, not credentials. The FE never supplies
+an identity header to select its user and never receives a Lark token, Meegle cookie, or
 Chrome extension data. A Lark token that cannot be refreshed is shown as
 "需要重新授权" on the personal page; it does not invalidate the Octo Web session.
+
+The `#lark-app-thread-analysis` page also supports H5 SDK login inside the Lark client. If no Web
+Session exists, it loads the official SDK, calls `requestAccess` (or the legacy
+`requestAuthCode` fallback), and uses `POST /api/lark/auth/h5/start` and
+`POST /api/lark/auth/h5/complete` to establish the same cookie. The server binds the
+one-time challenge to an HttpOnly browser proof and checks the configured Web
+origin. Minimal login tokens never replace existing API authorization. Ordinary
+browsers and failed automatic logins retain the normal login buttons. After login, users select a Ticket by title or number. The app does not collect
+chat context or request JSAPI signing. See [the app guide](docs/lark-ticket-app.md).
 
 The Meegle card reads only the sanitized `meegleAuthorization.status` from
 `/api/web/profile`. The server checks its stored Meegle credential without

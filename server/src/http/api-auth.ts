@@ -13,6 +13,10 @@ const DEFAULT_EXEMPT_PATHS = new Set([
   // to a user through the server-side OAuth session keyed by state.
   "/api/lark/auth/callback",
   "/api/lark/auth/web/start",
+  // H5 login validates browser-bound challenge and Lark's one-time code itself.
+  "/api/lark/auth/h5/start",
+  "/api/lark/auth/h5/complete",
+  "/api/lark/auth/h5/signature",
   "/api/lark/auth/web/ensure",
   "/api/lark/auth/web/logout",
   "/api/web/profile",

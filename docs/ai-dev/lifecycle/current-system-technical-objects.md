@@ -336,6 +336,7 @@ sequenceDiagram
 - Extension may trigger auth, but token exchange and persistence stay on server.
 - Never send raw browser cookies to server.
 - Standalone FE plugin login must use one-time server challenges and an opaque HttpOnly web session; it may reuse existing server-side Lark authorization but must not read it in page JavaScript.
+- Lark App H5 login uses `/api/lark/auth/h5/start` and `/complete`: the Server checks the configured Web origin, binds a three-minute challenge to an HttpOnly browser proof, atomically consumes the challenge, verifies the Lark code, maps `(tenantKey, openId)` to the Octo user and issues the existing Web Session. Login-only tokens do not replace stored API credentials. Profile returns `user.id`, `user.larkOpenId`, and `user.larkTenantKey`; clients cannot submit these identifiers to choose the acting identity. `/api/lark/auth/h5/signature` validates the Web Session and same-origin URL, signs with a server-only cached JSAPI ticket, and returns fresh public signature parameters. The signing endpoint remains available, but the Ticket AI FE no longer calls it or collects/reports input-menu `openChatId` (v13); users select Tickets by title/number or an existing Ticket deep link. H5 login remains independent of JSAPI signing. Implementation and verification: [Ticket AI app task](../../tasks/ai-ticket/2026-09-23-lark-ticket-analysis-app.md).
 - Action errors must distinguish identity missing, auth missing, token expired, and platform rejected.
 
 ## 8. Lark Base 到 Meegle 工作项生命周期

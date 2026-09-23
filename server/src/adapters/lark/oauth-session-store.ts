@@ -15,6 +15,7 @@ export interface StoredOauthSession {
 export interface OauthSessionStore {
   save(session: Omit<StoredOauthSession, "createdAt" | "updatedAt">): Promise<StoredOauthSession>;
   get(state: string): Promise<StoredOauthSession | undefined>;
+  consumePending(state: string, now: string): Promise<StoredOauthSession | undefined>;
   markCompleted(input: {
     state: string;
     authCode: string;

@@ -12,6 +12,7 @@ import { LARK_TICKET_AI_QUICK_ACTIONS } from "../lib/lark-ticket-ai-actions.js";
 import { getLarkTicketDetailNavigation, getLarkTicketFromNavigationContext, updateLarkTicketNavigationContext } from "../lib/lark-ticket-detail-navigation.js";
 import { getTicketAiSections, getTicketAiShadowNotice } from "../lib/ticket-ai-sections.js";
 import { getLarkTicketDetailHash } from "../app/routes/workspace-routes.js";
+import { getLarkTicketAppHash } from "../lib/lark-ticket-app.js";
 import {
   formatShadowConfidence,
   formatShadowDuration,
@@ -298,6 +299,7 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
         <article className="ticket-detail__content">
           <p className="ticket-detail__identity"><LarkTicketBadge kind="type" value={ticket.issueType} /><span>·</span>{ticketNumber}</p>
           <h1>{ticket.title}</h1>
+          <a href={getLarkTicketAppHash(ticket)} target="_blank" rel="noreferrer">打开 Ticket AI 小窗 ↗</a>
 
           <section className="ticket-detail-section">
             <h2>Description</h2>

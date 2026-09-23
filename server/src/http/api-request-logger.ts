@@ -179,7 +179,9 @@ export function createApiRequestLogger() {
       originalUrl: req.originalUrl,
       headerMasterUserId: getHeaderMasterUserId(req),
       query: summarizeRequestPayload(req.query),
-      body: summarizeRequestPayload(req.body),
+      body: req.path.startsWith("/api/lark/auth/h5/")
+        ? { actionRunId: req.body?.actionRunId, hasAuthCode: typeof req.body?.code === "string" }
+        : summarizeRequestPayload(req.body),
     };
 
     logApiRequest("START", detail);
