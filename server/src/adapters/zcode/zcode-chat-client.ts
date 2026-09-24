@@ -1,4 +1,5 @@
 import type { JsonCompletionClient } from "../ai/json-completion-client.js";
+import { createModelRequestClient } from "../ai/model-request-client.js";
 import { logger } from "../../logger.js";
 
 const zcodeLogger = logger.child({ module: "zcode-chat-client" });
@@ -67,6 +68,8 @@ export function createZcodeChatClient(
       const timeoutId = globalThis.setTimeout(abort, timeoutMs);
       const startedAt = Date.now();
       const reasoningEffort = /^glm-5\.3(?:-flash)?$/i.test(model) ? input.reasoningEffort : undefined;
+      // Injected fetch implementations own their transport (e.g. test doubles).
+      const dispatcher = deps.fetchImpl ? undefined : createModelRequestClient(new URL(ENDPOINT).origin);
       try {
         const response = await fetchImpl(ENDPOINT, {
           method: "POST",
@@ -88,6 +91,7 @@ export function createZcodeChatClient(
             ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
           }),
           signal: controller.signal,
+          ...(dispatcher ? { dispatcher } : {}),
         });
         const durationMs = Date.now() - startedAt;
         if (!response.ok) {
@@ -132,6 +136,7 @@ export function createZcodeChatClient(
       } finally {
         globalThis.clearTimeout(timeoutId);
         input.signal?.removeEventListener("abort", abort);
+        await dispatcher?.destroy();
       }
     },
   };

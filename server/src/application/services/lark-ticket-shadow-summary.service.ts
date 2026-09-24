@@ -1,4 +1,4 @@
-import { createWikiQaService } from "./wiki-qa.service.js";
+import { createWikiQaService, wikiReasoningEffort } from "./wiki-qa.service.js";
 import { WikiQaError } from "../../domain/wiki-qa.js";
 import { buildShadowWikiContext, renderShadowWikiInput, hasInvalidShadowWikiReferences, type ShadowWikiContext } from "../../domain/shadow-wiki-context.js";
 import { resolveTicketThreadEvidence } from "../../domain/ticket-thread-ai-context.js";
@@ -343,7 +343,7 @@ async function runTicketSummaryCompletion(
   actionRunId: string,
 ): Promise<{ content: string; model: string }> {
   try {
-    return await getClient().createJsonCompletion({ prompt, actionRunId });
+    return await getClient().createJsonCompletion({ prompt, actionRunId, reasoningEffort: wikiReasoningEffort() });
   } catch (error) {
     if (isTicketSummaryClientError(error)) throw error;
     throw new LarkTicketShadowSummaryError(

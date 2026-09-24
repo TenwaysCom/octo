@@ -2,7 +2,7 @@
 title: "Lark Ticket 影子模式 AI 问题总结后台任务"
 module: "ai-ticket"
 status: done
-requirement_version: 14
+requirement_version: 16
 created_on: 2026-09-03
 updated_on: 2026-09-24
 closed_on: 2026-09-24
@@ -15,6 +15,10 @@ related:
 
 ## 目标
 
+v16：Shadow 最终分析与 Wiki 提取/回答共用 WIKI_QA_ANSWER_REASONING_EFFORT，默认 low；provider 不传推理强度。仅调整此调用配置，不修改生产环境配置。
+
+v15：修复 ZCode 模型请求在应用350秒时限之前被底层默认300秒响应头超时中止的问题。使用专用 Undici Client，与现有 fetch/AbortController 协作；不改全局dispatcher、不增加重试或整条分析总时限。范围覆盖复用该ZCode客户端的调用；Wiki专用重排保持原实现。
+
 v14：Wiki 问答与 Shadow 共用可配置候选召回上限 WIKI_QA_RECALL_LIMIT，默认 20；重排 Top5、最终最多3篇不变。此前 v13 固定最多10篇的范围被替代。
 
 v13：Shadow 最终分析前复用 Wiki 问答 retrieve 的问题提取、召回、重排及原始证据筛选；最多三篇相关 Wiki 与 thread 一起分析。用户确认 Wiki 失败时基于聊天继续，并明确标记 Wiki 不可用。当前 Ticket 事实与 Wiki 历史参考分开；保留精简输出和正式总结现状。
@@ -24,6 +28,10 @@ v12：正式问题总结的 thread 输入与 Shadow 共用完整消息选取、�
 v11：Shadow 一次 JsonCompletionClient 调用在现有意图、结果、质量、总结上新增业务风险与回复时机（各三个字段）。参考 Wiki 复用短引用/回复关系与堆栈精简，按完整消息块保留初始诉求和最新消息，补齐完整性、字段脱敏、实际输入证据校验和安全诊断。只写 shadow_ai，正式 Ticket AI、Wiki 行为、调度和模型参数不变。
 
 ## 验收标准
+
+- [x] v16 Shadow 最终分析使用共用 reasoning effort 解析，验证默认值、low/high/max、provider 和非法配置；相关测试与构建通过。
+
+- [x] v15 专用Client底层超时不早于应用时限，应用取消覆盖响应头及响应体等待；目标测试与构建通过，部署单独记录。
 
 - [x] v14 Wiki/Shadow 共用默认20篇、可配置的召回上限；配置校验与边界测试通过，最终证据最多3篇。
 
@@ -54,6 +62,12 @@ v1-v10 ACP 等方案为历史记录，已被当前直连 Ticket Summary provider
 - 后续：result/quality 独立证据、effort/token/分段耗时、快照/提示词版本调度与有限退避。本次无数据库迁移执行、无部署、无真实模型调用。
 
 ## 进展记录
+
+2026-09-24 v15：ZCode 原生 fetch 每次请求使用专用 Undici Client（headersTimeout/bodyTimeout=0），保留已有 AbortController 作为请求全程时限，finally 销毁 Client。注入 fetch 的测试/自定义传输仍由注入方管理。不改变其他 HTTP 请求、Wiki 专用重排、轮询或重试策略。按仓库规则新增 undici 7.29.1 devDependency；server lockfile 原本被忽略，本地已更新但不新增版本跟踪。
+
+v15 验证：4个目标文件66项通过（真实本地HTTP连接+模拟时间测试4项、ZCode9项、Ticket Summary2项、Shadow51项），server build、git diff --check通过。对照默认Client复现300秒响应头超时；修复Client在310秒响应可成功，350秒应用时限可中止等待响应头及响应体；成功/失败均验证专用Client释放。时间由fake timers推进，不是实际等待350秒或真实模型调用。首轮本地监听被沙箱EPERM阻止，随后经授权在沙箱外仅监听127.0.0.1执行通过。
+
+v15 发布边界：本轮修复未部署、未重启、未改生产配置/数据库。发布需安装更新后的server依赖、构建并重启Server及Worker；本修复不需要数据库迁移。复用ZCode客户端的正式总结同样获得此修复；网络连接错误或应用时限到达仍会失败，不承诺消除所有请求失败。
 
 | 日期 | 需求版本 | 状态 | 结果与证据 | 未验证边界 / 下一步 |
 | --- | --- | --- | --- | --- |
@@ -177,3 +191,22 @@ v1-v10 ACP 等方案为历史记录，已被当前直连 Ticket Summary provider
 4. 检查 W 引用可对应本轮来源，历史案例未被写成当前已解决或已回复；正式总结仍仅增加 thread 处理，不意外引入 Wiki 召回。
 
 失败与近失复核：本轮新测试及构建无新增失败；没有需要新增的重复经验条目。
+
+## 2026-09-24 production 日志只读核查
+
+- 用户确认已自行执行 db:migrate，并在生产库找到更新后的 Shadow 独立提示词；本次未再次查询或修改生产数据库。
+- 检查 production checkout `../octo/server/logs/app.2026-09-23.*.log` 和 `app.2026-09-24.*.log`，截至 09-24 16:20（UTC+8）。生产文件配置为 intervalMinutes=20、settleMinutes=180、batchLimit=30；日志空轮次间隔与20分钟吻合。包版本0.11.4，磁盘编译产物含 promptVersion v6 与 Wiki 链路；不能仅凭磁盘文件证明进程已执行新链路。
+- 最近 Shadow 启动为15:23:29；之后15:23:29、15:43:29、16:03:29均正常结束，候选数0。若进程不重启或退出，下轮预计16:23:29；不是保证的单票分析时间。
+- 09-23：64轮完成、17次分析成功、8次失败；09-24截至核查：46轮完成、13次成功、9次失败。均为运行次数，非去重Ticket数。两天共16次ZCODE_REQUEST_FAILED、1次SHADOW_OUTPUT_INVALID，无POLL_FAILED；失败涉及8条Ticket，在后续日志中均有成功记录。2152曾失败6次，于03:25:33成功。
+- 09-24成功分析耗时中位203.343秒、最大297.206秒，包含上下文获取，不能全归因于模型。模型请求失败需按关联adapter的causeCode诊断，不能仅以接近300秒断言模型推理超时。
+- 关联actionRunId核对16次请求失败：13次UND_ERR_HEADERS_TIMEOUT（等待响应头超时）、1次ECONNRESET（连接重置）、2次未提供causeCode。没有证据把这些归因于风险规则或Wiki召回。
+- 最近单条成功完成日志为14:02:09，耗时215.360秒；其分析开始约13:58:33，与页面“最近分析13:58”一致。之后空轮次不会刷新页面该字段。
+- 这两天尚无SHADOW_WIKI_READY/UNAVAILABLE日志，最近启动后也没有候选。因此新版Wiki召回、风险与回复建议的真实生产效果尚无本次日志证据；未调用模型、未重算历史、未改生产配置或重启。
+
+## 2026-09-24 v16 Shadow 共用 reasoning effort
+
+- 用户要求 Shadow 最终分析同样读取 `WIKI_QA_ANSWER_REASONING_EFFORT`，已复用 Wiki 的同一个解析函数；未新增配置项。默认/空值为 low，provider 不传模型参数；非法值在最终模型请求前失败。模型适用范围沿用 ZCode adapter。
+- 验证：Shadow service 58项、Wiki service 65项，共123项测试通过；server build、差异检查通过。新增7项覆盖默认/空值、low/high/max、provider与非法配置。
+- 仅修改本地调用与配置说明，未改生产环境变量、未部署或重启、未触发历史重算；没有继续或修改并行进行的HTTP超时修复。
+
+2026-09-24 提交前联合验证：v15超时修复与已暂存的v16 reasoning effort改动共同执行5个目标文件138项测试通过，server build通过；仅本地Git交付，不推送、不部署。
