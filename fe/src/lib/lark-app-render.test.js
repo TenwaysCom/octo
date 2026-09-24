@@ -19,3 +19,27 @@ test("Wiki Markdown renders readable structure and never executes model HTML or 
     assert.match(markup, /&lt;script&gt;/);
   } finally { await server.close(); }
 });
+
+test("Shadow saved analysis renders concise assessments and old results as unevaluated", async () => {
+  const server = await createServer({ configFile: false, root: new URL("../..", import.meta.url).pathname, server: { middlewareMode: true, hmr: false, watch: null, ws: false }, optimizeDeps: { noDiscovery: true, include: [] }, appType: "custom" });
+  try {
+    const { LarkAppAnalysis } = await server.ssrLoadModule("/src/components/lark-ticket/LarkAppAnalysis.jsx");
+    const ticket = { baseId: "base", tableId: "table", recordId: "record", shadowAi: {
+      status: "ok", analyzedAt: "2026-09-23T09:00:00Z",
+      businessRisk: { level: 6, rationale: "发货流程受阻，无替代方案", evidenceMessageIds: ["om_private"] },
+      replyAdvice: { advice: "reply_now", rationale: "已错过反馈承诺，建议说明进展", evidenceMessageIds: ["om_private"] },
+    } };
+    const markup = renderToStaticMarkup(createElement(LarkAppAnalysis, { ticket, apiBaseUrl: "/api" }));
+    assert.match(markup, /业务风险/);
+    assert.match(markup, /6\/9/);
+    assert.match(markup, /发货流程受阻，无替代方案/);
+    assert.match(markup, /回复时机（分析时）/);
+    assert.match(markup, /立即回复/);
+    assert.match(markup, /已错过反馈承诺，建议说明进展/);
+    assert.doesNotMatch(markup, /om_private/);
+    const old = renderToStaticMarkup(createElement(LarkAppAnalysis, { ticket: { ...ticket, shadowAi: { status: "ok" } }, apiBaseUrl: "/api" }));
+    assert.equal(old.match(/未评估/g)?.length, 2);
+    const degraded = renderToStaticMarkup(createElement(LarkAppAnalysis, { ticket: { ...ticket, shadowAi: { ...ticket.shadowAi, wikiContext: { status: "unavailable", sources: [] } } }, apiBaseUrl: "/api" }));
+    assert.match(degraded.split('<details')[0], /Wiki 不可用，本次仅基于聊天分析/);
+  } finally { await server.close(); }
+});

@@ -5,7 +5,18 @@ import { WikiQaError, type WikiCandidate, type WikiKnowledgeReader, type WikiSou
 import { relevantSourceContent, relevantWikiContent, wikiMatchCount, wikiQueryTerms as terms } from "../../domain/wiki-evidence.js";
 
 const MAX_FILE_BYTES = 256 * 1024;
-const MAX_CANDIDATES = 10;
+const DEFAULT_RECALL_LIMIT = 20;
+
+function readRecallLimit(): number {
+  const configured = process.env.WIKI_QA_RECALL_LIMIT?.trim();
+  const limit = configured ? Number(configured) : DEFAULT_RECALL_LIMIT;
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) {
+    throw new WikiQaError("WIKI_QA_UNAVAILABLE", "WIKI_QA_RECALL_LIMIT must be an integer from 1 to 100.", {
+      layer: "server", module: "wiki-knowledge-reader", stage: "server.wiki_qa.retrieve.config",
+    });
+  }
+  return limit;
+}
 
 // Read the scalar/string-list subset used by SCHEMA.md. Unrecognized forms
 // remain unknown, never a confirmed status or a permissive environment.
@@ -90,6 +101,7 @@ export function createWikiKnowledgeReader(deps: { workspaceDir?: string } = {}):
     },
     async search(input) {
       input.signal?.throwIfAborted();
+      const recallLimit = readRecallLimit();
       try {
         const workspace = deps.workspaceDir ?? process.env.SUPPORT_QA_EU_WORKSPACE_DIR?.trim();
         if (!workspace) throw new Error("Workspace missing");
@@ -156,7 +168,7 @@ export function createWikiKnowledgeReader(deps: { workspaceDir?: string } = {}):
           }
         }
         const candidates: WikiCandidate[] = [];
-        for (const page of pages.filter((page) => page.score > 0).sort((a, b) => b.score - a.score || a.path.localeCompare(b.path)).slice(0, MAX_CANDIDATES)) {
+        for (const page of pages.filter((page) => page.score > 0).sort((a, b) => b.score - a.score || a.path.localeCompare(b.path)).slice(0, recallLimit)) {
           input.signal?.throwIfAborted();
           const id = `wiki-${candidates.length + 1}`;
           const state = metadata(page.text, "status")[0];

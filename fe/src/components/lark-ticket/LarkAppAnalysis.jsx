@@ -40,7 +40,7 @@ export function LarkAppUnderstanding({ ticket }) {
 
 function SavedAnalysis({ ticket }) {
   const shadow = ticket.shadowAi;
-  const previewLabels = ["意图", "关键词", "问题总结", "方案摘要"];
+  const previewLabels = ["意图", "关键词", "问题总结", "方案摘要", "业务风险", "风险依据", "回复时机（分析时）", "回复依据", ...(shadow?.wikiContext ? ["Wiki 参考"] : [])];
   const fields = shadow ? (shadow.status === "ok" ? ["intent", "summary", "answer"] : ["intent"])
     .flatMap((stage) => getShadowStageDetails(shadow, stage)) : [];
   const preview = shadow?.status === "ok"

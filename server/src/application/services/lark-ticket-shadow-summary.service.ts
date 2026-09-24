@@ -1,3 +1,10 @@
+import { createWikiQaService } from "./wiki-qa.service.js";
+import { WikiQaError } from "../../domain/wiki-qa.js";
+import { buildShadowWikiContext, renderShadowWikiInput, hasInvalidShadowWikiReferences, type ShadowWikiContext } from "../../domain/shadow-wiki-context.js";
+import { resolveTicketThreadEvidence } from "../../domain/ticket-thread-ai-context.js";
+import { buildShadowTicketContext } from "../../domain/shadow-ticket-context.js";
+import { shadowBusinessRiskSchema, shadowReplyAdviceSchema } from "../../domain/shadow-analysis.js";
+import { DEFAULT_SHADOW_SUMMARY_PROMPT, SHADOW_SUMMARY_PROMPT_KEY, SHADOW_SUMMARY_RULE_VERSION } from "../../domain/shadow-summary-prompt.js";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import {
@@ -21,13 +28,11 @@ import {
 } from "../../domain/support-ticket-analysis-update.js";
 import {
   SUPPORT_INTENT_TYPES,
-  type PreparedTicketMessage,
+  SUPPORT_INTENT_SUBTYPES,
 } from "../../domain/support-ticket-analysis.js";
 import {
-  DEFAULT_LARK_TICKET_SUPPORT_QA_PROMPTS,
   renderWorkflowPromptTemplate,
 } from "../../domain/workflow-prompts.js";
-import type { LarkTicketThreadSnapshot } from "../../adapters/postgres/lark-ticket-thread-sync-store.js";
 import { logger } from "../../logger.js";
 import {
   createLarkTicketThreadContextService,
@@ -36,35 +41,40 @@ import {
 
 const shadowLogger = logger.child({ module: "lark-ticket-shadow-summary" });
 
-export const LARK_TICKET_SHADOW_SUMMARY_PROMPT_KEY = "lark_ticket.support_qa.summarize";
+export const LARK_TICKET_SHADOW_SUMMARY_PROMPT_KEY = SHADOW_SUMMARY_PROMPT_KEY;
 export const LARK_TICKET_SHADOW_SUMMARY_SOURCE = "shadow-worker";
-export const LARK_TICKET_SHADOW_SUMMARY_PROMPT_VERSION = "v4";
+export const LARK_TICKET_SHADOW_SUMMARY_PROMPT_VERSION = "v6";
 
 const DEFAULT_SETTLE_MS = 3 * 60 * 60 * 1000;
 const DEFAULT_BATCH_LIMIT = 5;
 const DEFAULT_POLL_INTERVAL_MS = 60 * 60 * 1000;
-const MAX_MESSAGE_CHARS = 1000;
-const MAX_CONTEXT_CHARS = 30_000;
 
 const shadowIntentSchema = z.object({
   intentType: z.enum(SUPPORT_INTENT_TYPES),
-  intentSubtype: z.string().trim().min(1).max(500).optional().nullable(),
+  intentSubtype: z.string().trim().min(1).max(500),
   confidence: z.number().min(0).max(1),
   summary: z.string().trim().min(1).max(2000),
   keywords: z.array(z.string().trim().min(1).max(500)).max(10).default([]),
-  evidenceMessageIds: z.array(z.string().trim().min(1).max(200)).max(100).default([]),
+  evidenceMessageIds: z.array(z.string().trim().min(1).max(200)).max(100).transform((ids) => [...new Set(ids)]),
 }).strict();
 
 const shadowAnalysisResultSchema = z.object({
-  version: z.literal("support-analysis-result-v1"),
+  version: z.literal("shadow-analysis-result-v2"),
   analysis: z.object({
     segmentKey: z.string().trim().min(1).max(120).default("primary"),
     intent: shadowIntentSchema,
     result: supportResultUpdateSchema,
     quality: supportQualityUpdateSchema,
+    businessRisk: shadowBusinessRiskSchema.strict(),
+    replyAdvice: shadowReplyAdviceSchema.strict(),
   }).strict(),
   summary: z.string().trim().min(1).max(2000),
-}).strict();
+}).strict().superRefine((value, context) => {
+  const { intentType, intentSubtype } = value.analysis.intent;
+  if (!SUPPORT_INTENT_SUBTYPES[intentType].includes(intentSubtype)) {
+    context.addIssue({ code: "custom", path: ["analysis", "intent", "intentSubtype"], message: "Subtype must belong to its intent type." });
+  }
+});
 
 export type ShadowAnalysisResult = z.infer<typeof shadowAnalysisResultSchema>;
 
@@ -73,7 +83,8 @@ export type ShadowSummaryErrorCode =
   | "SHADOW_THREAD_UNAVAILABLE"
   | TicketSummaryClientErrorCode
   | "SHADOW_OUTPUT_INVALID"
-  | "SHADOW_EVIDENCE_OUTSIDE_SNAPSHOT";
+  | "SHADOW_EVIDENCE_OUTSIDE_SNAPSHOT"
+  | "SHADOW_WIKI_REFERENCE_INVALID";
 
 export class LarkTicketShadowSummaryError extends Error {
   constructor(
@@ -108,6 +119,7 @@ export interface LarkTicketShadowSummaryServiceDeps {
   threadContext?: ThreadContextLike;
   ticketSummaryClient?: TicketSummaryJsonCompletionClient;
   summaryTimeoutMs?: number;
+  wikiQaService?: Pick<ReturnType<typeof createWikiQaService>, "retrieve">;
   promptStore?: Pick<WorkflowPromptStore, "getByKey">;
   masterUserId?: string;
   larkBaseUrl?: string;
@@ -185,13 +197,28 @@ export function createLarkTicketShadowSummaryService(deps: LarkTicketShadowSumma
         return "skipped";
       }
 
-      const prompt = renderWorkflowPromptTemplate(promptTemplate, {
-        ticket_context: buildTicketContext(ticket, snapshot),
-        user_message: readUserMessage(ticket),
-      });
+      const context = buildShadowTicketContext(ticket, snapshot, thread.source, analyzedAt);
+      let wiki: ReturnType<typeof buildShadowWikiContext>;
+      try {
+        const wikiService = deps.wikiQaService ?? createWikiQaService({ client: getTicketSummaryClient(), promptStore });
+        const retrieved = await wikiService.retrieve({ ticketContext: context.text, actionRunId });
+        wiki = buildShadowWikiContext(retrieved.evidence);
+      } catch (error) {
+        const errorCode: ShadowWikiContext["errorCode"] = error instanceof WikiQaError ? error.code : "SHADOW_WIKI_UNAVAILABLE";
+        wiki = buildShadowWikiContext([], errorCode);
+        shadowLogger.warn({ ...baseLog, stage: "server.shadow.wiki", errorCode }, "LARK_TICKET_SHADOW_WIKI_UNAVAILABLE");
+      }
+      shadowLogger.info({ ...baseLog, stage: "server.shadow.wiki", wikiStatus: wiki.info.status, sourceCount: wiki.info.sources.length }, "LARK_TICKET_SHADOW_WIKI_READY");
+      const prompt = [renderWorkflowPromptTemplate(promptTemplate, {
+        ticket_context: context.text,
+        user_message: "请分析上述 Ticket；问题描述已包含在上下文中。",
+      }), renderShadowWikiInput(wiki)].join("\n\n");
       const completion = await runTicketSummaryCompletion(getTicketSummaryClient, prompt, actionRunId);
-      const analysis = parseShadowAnalysis(completion.content);
-      assertEvidenceWithinSnapshot(analysis, snapshot.preparedMessages);
+      const analysis = parseShadowAnalysis(completion.content, actionRunId);
+      resolveEvidenceWithinInput(analysis, context.evidenceIds);
+      if (hasInvalidShadowWikiReferences(analysis, new Set(wiki.info.sources.map((source) => source.sourceId)))) {
+        throw new LarkTicketShadowSummaryError("SHADOW_WIKI_REFERENCE_INVALID", "Shadow analysis referenced Wiki sources not provided to this run.", "server.shadow.validate");
+      }
 
       const durationMs = processingDurationMs();
       await writeShadow(ticket, {
@@ -200,6 +227,10 @@ export function createLarkTicketShadowSummaryService(deps: LarkTicketShadowSumma
         analyzedAt,
         processingDurationMs: durationMs,
         snapshotVersion: snapshot.snapshotVersion,
+        contextInfo: context.info,
+        wikiContext: wiki.info,
+        wikiEvidence: wiki.evidence,
+        ruleVersion: SHADOW_SUMMARY_RULE_VERSION,
         promptKey,
         promptVersion: LARK_TICKET_SHADOW_SUMMARY_PROMPT_VERSION,
         actionRunId,
@@ -244,7 +275,7 @@ export function createLarkTicketShadowSummaryService(deps: LarkTicketShadowSumma
   async function runOnce(): Promise<ShadowSummaryRunResult> {
     const promptRecord = await promptStore.getByKey(promptKey);
     const promptTemplate = promptRecord?.prompt.trim()
-      || DEFAULT_LARK_TICKET_SUPPORT_QA_PROMPTS[promptKey];
+      || (promptKey === SHADOW_SUMMARY_PROMPT_KEY ? DEFAULT_SHADOW_SUMMARY_PROMPT : undefined);
     if (!promptTemplate) {
       throw new LarkTicketShadowSummaryError(
         "SHADOW_PROMPT_NOT_CONFIGURED",
@@ -300,44 +331,6 @@ export function createLarkTicketShadowSummaryService(deps: LarkTicketShadowSumma
   };
 }
 
-function buildTicketContext(ticket: LarkBaseTicketSyncItem, snapshot: LarkTicketThreadSnapshot): string {
-  const fields = ticket.sourceFields ?? {};
-  const lines = [
-    `ticket_number: ${ticket.ticketNumber ?? ""}`,
-    `title: ${ticket.title}`,
-    `ticket_status: ${ticket.ticketStatus ?? ""}`,
-    `issue 类型: ${ticket.issueType ?? ""}`,
-    `business line: ${readFieldText(fields, "Business line")}`,
-    "",
-    "Issue Description:",
-    readFieldText(fields, "Issue Description"),
-    "",
-    "Lark thread context（脱敏快照，text 为 Lark 消息原始内容）：",
-  ];
-  let budget = MAX_CONTEXT_CHARS;
-  for (const message of snapshot.preparedMessages) {
-    const text = (message.text || "").slice(0, MAX_MESSAGE_CHARS);
-    const entry = `- [${message.messageId}] ${message.senderLabel ?? message.senderRole} @ ${message.createdAt ?? ""}: ${text}`;
-    if (budget - entry.length < 0) {
-      lines.push("- ...（后续消息因长度截断）");
-      break;
-    }
-    budget -= entry.length;
-    lines.push(entry);
-  }
-  return lines.join("\n");
-}
-
-function readUserMessage(ticket: LarkBaseTicketSyncItem): string {
-  const description = readFieldText(ticket.sourceFields ?? {}, "Issue Description");
-  return description || ticket.title;
-}
-
-function readFieldText(fields: Record<string, unknown>, key: string): string {
-  const value = fields[key];
-  return typeof value === "string" ? value.trim() : "";
-}
-
 function outputDiagnostics(text: string): Record<string, unknown> {
   return {
     outputChars: text.length,
@@ -361,7 +354,7 @@ async function runTicketSummaryCompletion(
   }
 }
 
-function parseShadowAnalysis(text: string): ShadowAnalysisResult {
+function parseShadowAnalysis(text: string, actionRunId: string): ShadowAnalysisResult {
   if (!text) {
     throw new LarkTicketShadowSummaryError(
       "SHADOW_OUTPUT_INVALID",
@@ -375,6 +368,7 @@ function parseShadowAnalysis(text: string): ShadowAnalysisResult {
   if (start < 0 || end <= start) {
     shadowLogger.debug({
       operation: "lark_ticket_shadow_summary",
+      actionRunId,
       layer: "server",
       stage: "server.shadow.parse",
       outputLength: text.length,
@@ -392,45 +386,75 @@ function parseShadowAnalysis(text: string): ShadowAnalysisResult {
   } catch (error) {
     shadowLogger.debug({
       operation: "lark_ticket_shadow_summary",
+      actionRunId,
       layer: "server",
       stage: "server.shadow.parse",
       outputLength: text.length,
     }, "LARK_TICKET_SHADOW_SUMMARY_PARSE_JSON_FAILED");
     throw new LarkTicketShadowSummaryError(
       "SHADOW_OUTPUT_INVALID",
-      `Shadow Ticket summary output JSON parse failed: ${error instanceof Error ? error.message : String(error)}`,
+      "Shadow Ticket summary output JSON parse failed.",
       "server.shadow.parse",
       outputDiagnostics(text),
     );
   }
   const result = shadowAnalysisResultSchema.safeParse(parsed);
   if (!result.success) {
+    const schemaIssues = safeSchemaIssues(parsed, result.error.issues);
     shadowLogger.debug({
       operation: "lark_ticket_shadow_summary",
+      actionRunId,
       layer: "server",
       stage: "server.shadow.validate",
       outputLength: text.length,
+      schemaIssues,
     }, "LARK_TICKET_SHADOW_SUMMARY_PARSE_SCHEMA_FAILED");
     throw new LarkTicketShadowSummaryError(
       "SHADOW_OUTPUT_INVALID",
-      `Shadow Ticket summary output failed schema validation: ${result.error.issues.map((issue) => issue.path.join(".") || issue.code).join(", ").slice(0, 300)}`,
+      `Shadow Ticket summary output failed schema validation: ${schemaIssues.map((issue) => `${issue.path}:${issue.reason}`).join(", ").slice(0, 300)}`,
       "server.shadow.validate",
-      outputDiagnostics(text),
+      { ...outputDiagnostics(text), schemaIssues },
     );
   }
   return result.data;
 }
 
-function assertEvidenceWithinSnapshot(analysis: ShadowAnalysisResult, messages: PreparedTicketMessage[]): void {
-  const known = new Set(messages.map((message) => message.messageId));
-  const outside = analysis.analysis.intent.evidenceMessageIds.filter((id) => !known.has(id));
-  if (outside.length > 0) {
-    throw new LarkTicketShadowSummaryError(
-      "SHADOW_EVIDENCE_OUTSIDE_SNAPSHOT",
-      `Evidence message IDs outside the fixed snapshot: ${outside.slice(0, 3).join(", ")}`,
-      "server.shadow.validate",
-    );
+function resolveEvidenceWithinInput(analysis: ShadowAnalysisResult, known: Map<string, string>): void {
+  for (const section of [analysis.analysis.intent, analysis.analysis.businessRisk, analysis.analysis.replyAdvice]) {
+    const resolved = resolveTicketThreadEvidence(section.evidenceMessageIds, known);
+    if (!resolved) {
+      throw new LarkTicketShadowSummaryError(
+        "SHADOW_EVIDENCE_OUTSIDE_SNAPSHOT",
+        "Evidence references must belong to messages actually presented to the model.",
+        "server.shadow.validate",
+      );
+    }
+    section.evidenceMessageIds = resolved;
   }
+}
+
+// Never include model values, unknown property names or Zod's raw messages.
+function safeSchemaIssues(parsed: unknown, issues: z.core.$ZodIssue[]) {
+  const allowed = new Set([
+    "version", "analysis", "summary", "segmentKey", "intent", "intentType", "intentSubtype", "confidence",
+    "keywords", "evidenceMessageIds", "result", "resolutionStatus", "solutionSummary", "solutionSteps",
+    "resolverRef", "resolvedAt", "autoResolvable", "suggestedAutomation", "quality", "scores",
+    "criticalIssues", "warnings", "businessRisk", "level", "rationale", "replyAdvice", "advice",
+  ]);
+  return issues.slice(0, 20).map((issue) => {
+    let value: unknown = parsed;
+    for (const part of issue.path) {
+      value = value && typeof value === "object" ? (value as Record<PropertyKey, unknown>)[part] : undefined;
+    }
+    const reason = value === undefined ? "missing" : issue.code === "invalid_type" ? "type"
+      : issue.code === "too_small" || issue.code === "too_big" ? "range" : issue.code;
+    return {
+      path: issue.path.map((part, index) => typeof part === "number" ? "[]"
+        : index > 0 && issue.path[index - 1] === "scores" ? "[key]"
+          : allowed.has(String(part)) ? String(part) : "[field]").join(".") || "root",
+      reason,
+    };
+  });
 }
 
 function toShadowError(error: unknown): LarkTicketShadowSummaryError {

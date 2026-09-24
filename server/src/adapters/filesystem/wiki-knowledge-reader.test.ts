@@ -6,7 +6,7 @@ import type { WikiQuestion } from "../../domain/wiki-qa.js";
 
 const question: WikiQuestion = { question: "报表缺少科目 40500", keywords: ["PL", "report", "科目"], objects: ["account.account"], environments: ["UK Odoo 17"] };
 const fixtures: string[] = [];
-afterEach(async () => { await Promise.all(fixtures.splice(0).map((path) => rm(path, { recursive: true, force: true }))); });
+afterEach(async () => { vi.unstubAllEnvs(); await Promise.all(fixtures.splice(0).map((path) => rm(path, { recursive: true, force: true }))); });
 
 async function fixture() {
   const workspaceDir = await mkdtemp(join(tmpdir(), "wiki-reader-"));
@@ -101,10 +101,10 @@ describe("wiki knowledge reader", () => {
     expect(hits[0].sourceEvidence).toEqual([]);
   });
 
-  it("caps candidates at ten, reloads edits, and distinguishes no hits from unreadable wiki", async () => {
+  it("caps candidates at twenty, reloads edits, and distinguishes no hits from unreadable wiki", async () => {
     const { reader, put } = await fixture();
     for (let i = 0; i < 22; i++) await put(`concepts/faq/report-${i}.md`, card());
-    expect(await reader.search(question)).toHaveLength(10);
+    expect(await reader.search(question)).toHaveLength(20);
     expect(await reader.search({ ...question, question: "unmatchableword", keywords: [], objects: [] })).toEqual([]);
     await put("concepts/accounting/report.md", card("UK Odoo 17", "", "newuniqueword"));
     expect(await reader.search({ ...question, question: "newuniqueword", keywords: [], objects: [] })).toHaveLength(1);
@@ -126,4 +126,17 @@ describe("wiki knowledge reader", () => {
     const { reader } = await fixture();
     await expect(reader.search({ ...question, signal: AbortSignal.abort() })).rejects.toMatchObject({ name: "AbortError" });
   });
+});
+
+it("shares the configured recall limit and validates integer bounds", async () => {
+  const { reader, put } = await fixture();
+  for (let i = 0; i < 22; i++) await put(`concepts/faq/report-${i}.md`, card());
+  for (const [setting, count] of [["1", 1], ["7", 7], ["20", 20], ["30", 23], ["100", 23], ["", 20]] as const) {
+    vi.stubEnv("WIKI_QA_RECALL_LIMIT", setting);
+    expect(await reader.search(question)).toHaveLength(count);
+  }
+  for (const setting of ["0", "-1", "1.5", "101", "abc"]) {
+    vi.stubEnv("WIKI_QA_RECALL_LIMIT", setting);
+    await expect(reader.search(question)).rejects.toMatchObject({ code: "WIKI_QA_UNAVAILABLE", diagnostic: { stage: "server.wiki_qa.retrieve.config" } });
+  }
 });
