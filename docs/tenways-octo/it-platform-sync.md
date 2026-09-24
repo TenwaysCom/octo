@@ -284,7 +284,11 @@ pnpm --dir server exec pm2 save
 
 `scheduler.enabled` 是 Worker 定时任务总开关（`false` 时整个 Worker 空转）。`tasks.lark/meegle/github` 是各数据源同步的独立开关（缺省全开），`intervalMinutes` 可覆盖 `intervalsMinutes` 的平台默认值；`tasks.shadow` 是 Lark Ticket 影子 AI 分析任务（缺省关闭），`intervalMinutes` 是轮询间隔，`settleMinutes` 是工单静默多久才分析，`batchLimit` 是每轮条数，`summaryTimeoutSeconds` 是单次 Ticket Summary provider 请求超时。只跑 shadow 不跑同步时，把三个数据源任务置 `false`、`tasks.shadow.enabled` 置 `true` 即可。Quick Action 与 shadow 统一读取 `LARK_TICKET_SUMMARY_PROVIDER`、`LARK_TICKET_SUMMARY_MODEL` 和 `LARK_TICKET_SUMMARY_TIMEOUT_MS`：默认 `deepseek`，设为 `zcode` 时使用 `ZCODE_API_KEY` 和智谱标准 OpenAI Chat Completions 接口。任务级 `summaryTimeoutSeconds` 只覆盖 shadow 的通用超时；已有 `deepSeekTimeoutSeconds` 和 `acpTimeoutSeconds` 仅作为兼容别名读取。
 
-Shadow 独立使用 `lark_ticket.shadow.summarize` 提示词，正式问题总结保留原 key。新增业务风险与分析时回复建议，历史结果显示未评估；聊天模型输入使用短引用，preparedMessages 保留完整 ID。候选仍按原 Ticket 更新时间/错误状态筛选，不因提示词升级或仅聊天变化自动重算。实现与验证边界见 [Shadow 任务 v14](../tasks/ai-ticket/2026-09-03-shadow-summary-worker.md)。
+Shadow 独立使用 `lark_ticket.shadow.summarize` 提示词，正式问题总结保留原 key。新增业务风险与分析时回复建议，历史结果显示未评估；聊天模型输入使用短引用，preparedMessages 保留完整 ID。候选仍按原 Ticket 更新时间/错误状态筛选，不因提示词升级或仅聊天变化自动重算。实现与验证边界见 [Shadow 任务](../tasks/ai-ticket/2026-09-03-shadow-summary-worker.md)。
+
+Shadow 最终分析与 Wiki 提取/回答共用 `WIKI_QA_ANSWER_REASONING_EFFORT`：默认 `low`，支持 `low/high/max/provider`，`provider` 不发送该参数。仅 ZCode 的 `glm-5.3` / `glm-5.3-flash` 模型发送 reasoning_effort；其他模型/provider 忽略。环境变量修改后重启对应 Server/Worker。
+
+ZCode 模型客户端为每次原生 fetch 请求创建专用 Undici Client，关闭该连接独立的 headers/body 超时，由现有 AbortController 统一限制从请求到响应体读取的总时间，结束后销毁 Client；不修改全局 dispatcher。这样配置超过300秒时不会先触发默认响应头超时。网络连接等其他错误仍可能提前失败；Wiki 专用重排超时及 Shadow 的下一轮重试策略不变。这是单次模型请求时限，不是整条 Shadow 分析总时限。
 
 Worker 启动时把当前配置 scope 收敛到 `platform_sync_schedules`；删除或任务级禁用的配置 scope 会被禁用。错过的多个周期合并成一次，同 scope 已由手动或 CLI 运行占用时也直接合并到下一周期。临时网络、429 与 5xx 按 1/5/15 分钟退避，超过三次或遇到 checkpoint、授权、权限、配置错误时禁用该 schedule 并保存安全的 `blocked_reason`；修复配置或授权后重启 Worker 会按配置重新启用。
 

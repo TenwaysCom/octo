@@ -1,6 +1,25 @@
 import { createZcodeChatClient } from "./zcode-chat-client.js";
 
 describe("ZCode chat client", () => {
+  for (const status of [200, 503]) {
+    it(`uses and disposes a dedicated dispatcher for native fetch (${status})`, async () => {
+      const fetchImpl = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+        choices: [{ message: { content: "{}" } }],
+      }), { status }));
+      vi.stubGlobal("fetch", fetchImpl);
+      try {
+        const client = createZcodeChatClient({ apiKey: "test-key", timeoutMs: 350_000 });
+        const result = client.createJsonCompletion({ prompt: "test", actionRunId: "transport-test" });
+        if (status === 200) await expect(result).resolves.toMatchObject({ content: "{}" });
+        else await expect(result).rejects.toMatchObject({ code: "ZCODE_REQUEST_FAILED" });
+        const init = fetchImpl.mock.calls[0][1];
+        expect(init.dispatcher.dispatch).toBeTypeOf("function");
+        expect(init.dispatcher.destroyed).toBe(true);
+        expect(init.signal).toBeInstanceOf(AbortSignal);
+      } finally { vi.unstubAllGlobals(); }
+    });
+  }
+
   it("uses the 智谱 OpenAI-compatible endpoint for structured JSON", async () => {
     const fetchImpl = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       model: "glm-5.3",

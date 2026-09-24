@@ -99,6 +99,7 @@ function makeDeps(input: {
   const writes: Array<Record<string, unknown>> = [];
   const prompts: string[] = [];
   const actionRunIds: string[] = [];
+  const reasoningEfforts: Array<string | undefined> = [];
   const promptKeys: string[] = [];
   const service = createLarkTicketShadowSummaryService({
     masterUserId: "master-1",
@@ -120,7 +121,8 @@ function makeDeps(input: {
       }),
     },
     ticketSummaryClient: {
-      createJsonCompletion: async ({ prompt, actionRunId }) => {
+      createJsonCompletion: async ({ prompt, actionRunId, reasoningEffort }) => {
+        reasoningEfforts.push(reasoningEffort);
         prompts.push(prompt);
         actionRunIds.push(actionRunId);
         if (input.deepSeekError) throw input.deepSeekError;
@@ -139,10 +141,31 @@ function makeDeps(input: {
     },
     promptKey: input.promptKey,
   });
-  return { service, writes, prompts, actionRunIds, promptKeys };
+  return { service, writes, prompts, actionRunIds, promptKeys, reasoningEfforts };
 }
 
 describe("lark-ticket-shadow-summary.service", () => {
+  it.each([
+    [undefined, "low"], ["", "low"], ["low", "low"],
+    ["high", "high"], ["max", "max"], ["provider", undefined],
+  ])("uses shared Wiki reasoning effort %s for final analysis", async (configured, expected) => {
+    vi.stubEnv("WIKI_QA_ANSWER_REASONING_EFFORT", configured);
+    try {
+      const { service, reasoningEfforts } = makeDeps({ candidates: [makeTicket()], threadResult: { source: "lark", snapshot: makeSnapshot() } });
+      expect((await service.runOnce()).summarized).toBe(1);
+      expect(reasoningEfforts).toEqual([expected]);
+    } finally { vi.unstubAllEnvs(); }
+  });
+
+  it("rejects invalid shared effort before requesting final analysis", async () => {
+    vi.stubEnv("WIKI_QA_ANSWER_REASONING_EFFORT", "invalid");
+    try {
+      const { service, reasoningEfforts } = makeDeps({ candidates: [makeTicket()], threadResult: { source: "lark", snapshot: makeSnapshot() } });
+      expect((await service.runOnce()).failed).toBe(1);
+      expect(reasoningEfforts).toEqual([]);
+    } finally { vi.unstubAllEnvs(); }
+  });
+
   it("summarizes a candidate and writes the ok shadow payload", async () => {
     const times = [
       "2026-09-03T05:00:00.000Z",

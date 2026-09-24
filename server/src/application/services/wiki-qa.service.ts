@@ -216,7 +216,7 @@ export function createWikiQaService(deps: {
   };
 }
 
-function wikiReasoningEffort(): "low" | "high" | "max" | undefined {
+export function wikiReasoningEffort(): "low" | "high" | "max" | undefined {
   const value = z.enum(["low", "high", "max", "provider"]).parse(process.env.WIKI_QA_ANSWER_REASONING_EFFORT?.trim() || "low");
   return value === "provider" ? undefined : value;
 }
