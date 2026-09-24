@@ -18,6 +18,7 @@ import {
   formatShadowDuration,
   getShadowIntentLabel,
   getShadowStatusLabel,
+  getShadowAssessmentDetails,
 } from "../lib/lark-ticket-shadow-ai.js";
 import { replyAcpPermission, confirmLarkTicketEffectDraft, listLarkTicketAiSessions, listLarkTicketEffectDrafts, loadLarkTicketAiSession, stopLarkTicketAiSession, streamLarkTicketAiSession } from "../services/lark-ticket-ai/lark-ticket-ai-api.js";
 import { loadLarkTicketSharedUrl } from "../services/lark-ticket/lark-ticket-api.js";
@@ -62,6 +63,7 @@ function ShadowAiPanel({ shadowAi }) {
       {typeof shadowAi.intentConfidence === "number" ? <TicketProperty label="置信度">{formatShadowConfidence(shadowAi.intentConfidence)}</TicketProperty> : null}
       {shadowAi.summary ? <TicketProperty label="问题总结"><ShadowLongText value={shadowAi.summary} /></TicketProperty> : null}
       {shadowAi.solutionSummary ? <TicketProperty label="方案摘要"><ShadowLongText value={shadowAi.solutionSummary} /></TicketProperty> : null}
+      {getShadowAssessmentDetails(shadowAi).map(({ label, value }) => <TicketProperty key={label} label={label}><ShadowLongText value={value} /></TicketProperty>)}
     </dl> : null}
     {shadowAi.status === "skipped" ? <p className="ticket-shadow-panel__note">跳过原因：{shadowAi.reason || "未记录"}</p> : null}
     {shadowAi.status === "error" ? <p className="ticket-shadow-panel__note">{shadowAi.errorCode || "SHADOW_FAILED"}{shadowAi.errorMessage ? `：${shadowAi.errorMessage}` : ""}</p> : null}

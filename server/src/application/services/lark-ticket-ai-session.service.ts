@@ -1,3 +1,4 @@
+import { renderTicketThreadMessages, prepareTicketThreadAiContext, resolveTicketThreadEvidence, TICKET_SUMMARY_THREAD_REFERENCE_INSTRUCTION } from "../../domain/ticket-thread-ai-context.js";
 import type { AcpKimiProxyService } from "./acp-kimi-proxy.service.js";
 import { acpKimiProxyService } from "./acp-kimi-proxy.service.js";
 import {
@@ -443,10 +444,28 @@ async function runTicketSummary(input: {
   if (!template) {
     throw new LarkTicketAiSessionError("AI_ACTION_NOT_FOUND", `Prompt ${input.action.promptKey} is not configured.`);
   }
-  const prompt = renderWorkflowPromptTemplate(template, {
-    ticket_context: buildTicketSummaryContext(input.ticket, threadContext),
+  const threadInput = prepareTicketThreadAiContext(snapshot, threadContext.source);
+  if (!threadInput.evidenceIds.size) {
+    throw new LarkTicketAiSessionError(
+      "LARK_THREAD_CONTEXT_UNAVAILABLE",
+      "No complete evidence messages fit the Ticket summary context budget.",
+      { layer: "server", module: "lark-ticket-ai-session", stage: "server.thread.snapshot", actionRunId },
+    );
+  }
+  const ticketContext = [
+    `Type: ${input.ticket.issueType || "Lark Ticket"}`,
+    `Number: ${input.ticket.ticketNumber || input.ticket.recordId}`,
+    `Title: ${redactSupportText(input.ticket.title)}`,
+    `Description:\n${redactSupportText(input.ticket.detailDescription) || "(none)"}`,
+    `Fixed snapshot version: ${snapshot.snapshotVersion}`,
+    `analysis_time: ${new Date().toISOString()} (UTC; sender timezone unknown unless provided)`,
+    `context_info: ${JSON.stringify(threadInput.info)}`,
+    `Lark thread context:\n${threadInput.text}`,
+  ].join("\n\n");
+  const prompt = [renderWorkflowPromptTemplate(template, {
+    ticket_context: ticketContext,
     user_message: input.input.message,
-  });
+  }), TICKET_SUMMARY_THREAD_REFERENCE_INSTRUCTION].join("\n\n");
   let completion: Awaited<ReturnType<TicketSummaryJsonCompletionClient["createJsonCompletion"]>>;
   try {
     completion = await input.getTicketSummaryClient().createJsonCompletion({
@@ -487,14 +506,15 @@ async function runTicketSummary(input: {
       { layer: "server", module: "lark-ticket-ai-session", stage: "server.ticket_summary.validate", actionRunId },
     );
   }
-  const knownEvidenceIds = new Set(snapshot.preparedMessages.map((message) => message.messageId));
-  if (analysisResult.data.analysis.intent.evidenceMessageIds.some((id) => !knownEvidenceIds.has(id))) {
+  const resolvedEvidence = resolveTicketThreadEvidence(analysisResult.data.analysis.intent.evidenceMessageIds, threadInput.evidenceIds);
+  if (!resolvedEvidence) {
     throw new LarkTicketAiSessionError(
       "TICKET_SUMMARY_EVIDENCE_OUTSIDE_SNAPSHOT",
-      "Ticket summary analysis referenced evidence outside the fixed Ticket snapshot.",
+      "Ticket summary analysis referenced a message not presented in the model input.",
       { layer: "server", module: "lark-ticket-ai-session", stage: "server.ticket_summary.evidence", actionRunId },
     );
   }
+  analysisResult.data.analysis.intent.evidenceMessageIds = resolvedEvidence;
   try {
     input.input.signal?.throwIfAborted();
     await input.analysisService.update({
@@ -652,24 +672,7 @@ function formatThreadContext(context: LarkTicketThreadContextResult | undefined,
   const snapshot = context?.snapshot;
   if (!snapshot) return "(none)";
   const messages = snapshot.preparedMessages ?? prepareTicketThread(snapshot.messages);
-  // Short IDs follow the fixed snapshot order; the original IDs remain on the snapshot.
-  const aliases = new Map(compactMessageIds ? messages.map((message, index) => [message.messageId, `M${index + 1}`] as const) : []);
-  const externalAliases = new Map<string, string>();
-  function replyLabel(id: string): string {
-    if (!compactMessageIds) return id;
-    const alias = aliases.get(id);
-    if (alias) return alias;
-    if (!externalAliases.has(id)) externalAliases.set(id, `E${externalAliases.size + 1}`);
-    return `${externalAliases.get(id)} (outside snapshot)`;
-  }
-  const rendered = messages.map((message, index) => [
-    compactMessageIds ? `M${index + 1}` : `Message ${index + 1} (${message.messageId})`,
-    message.createdAt && `Time: ${message.createdAt}`,
-    `Sender role: ${message.senderRole}`,
-    message.senderLabel && `Sender: ${message.senderLabel}`,
-    message.replyTo && `Reply to: ${replyLabel(message.replyTo)}`,
-    message.text,
-  ].filter(Boolean).join("\n")).join("\n\n");
+  const rendered = renderTicketThreadMessages(messages, compactMessageIds).map((message) => message.text).join("\n\n");
   const maxChars = 60_000;
   if (rendered.length <= maxChars) return rendered || "(empty thread)";
   const headChars = 10_000;

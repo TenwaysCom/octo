@@ -56,3 +56,40 @@ test("builds failure details without inventing analysis content", () => {
     { label: "错误信息", value: "输出格式错误" },
   ]);
 });
+
+test("shows risk and reply independently of confidence and distinguishes unknown from unevaluated", () => {
+  const fields = (shadow) => Object.fromEntries(getShadowStageDetails({ status: "ok", ...shadow }, "answer").map(({ label, value }) => [label, value]));
+  assert.equal(fields({})["业务风险"], "未评估");
+  assert.equal(fields({})["回复时机（分析时）"], "未评估");
+  const risk = { level: 7, rationale: "核心流程受阻", evidenceMessageIds: ["om_1"] };
+  const reply = { advice: "no_reply_needed", rationale: "已告知当前进展，等待对方确认", evidenceMessageIds: ["om_2"] };
+  for (const confidence of [0.1, 0.99]) {
+    const result = fields({ businessRisk: risk, replyAdvice: reply, intentConfidence: confidence, resultConfidence: confidence });
+    assert.equal(result["业务风险"], "7/9");
+    assert.equal(result["回复时机（分析时）"], "暂无需回复");
+    assert.equal(result["风险依据"], risk.rationale);
+    assert.equal(result["回复依据"], reply.rationale);
+  }
+  assert.equal(fields({ businessRisk: { ...risk, level: null } })["业务风险"], "待确认");
+});
+
+test("shows incomplete/stale context and omitted messages without claiming live freshness", () => {
+  const details = getShadowStageDetails({ status: "ok", contextInfo: { includedMessages: 2, totalMessages: 10, historyComplete: false, truncated: true, dirty: true, source: "stale_cache", omittedRanges: ["M2–M9"], syncedAt: null } }, "answer");
+  const context = details.find(({ label }) => label === "消息上下文").value;
+  assert.match(context, /2\/10 条/);
+  assert.match(context, /快照历史不完整/);
+  assert.match(context, /同步失败/);
+  assert.equal(details.find(({ label }) => label === "快照同步时间").value, "未知");
+});
+
+test("distinguishes missing, empty, degraded and matched Wiki context with source limitations", () => {
+  const fields = (wikiContext) => Object.fromEntries(getShadowStageDetails({ status: "ok", wikiContext }, "answer").map(({ label, value }) => [label, value]));
+  assert.equal(fields(undefined)["Wiki 参考"], undefined);
+  assert.equal(fields({ status: "no_matches", sources: [] })["Wiki 参考"], "未召回相关资料");
+  assert.equal(fields({ status: "unavailable", sources: [] })["Wiki 参考"], "Wiki 不可用，本次仅基于聊天分析");
+  const shown = fields({ status: "matched", sources: [{ sourceId: 1, title: "配置检查", path: "concepts/config.md", status: "draft", applicability: "historical_reference", limitations: ["前提待核实"] }] });
+  assert.equal(shown["Wiki 参考"], "已参考 1 篇相关资料");
+  assert.match(shown["Wiki 来源"], /\[W1\] 配置检查/);
+  assert.match(shown["Wiki 来源"], /草稿；仅供历史参考/);
+  assert.match(shown["Wiki 来源"], /前提待核实/);
+});

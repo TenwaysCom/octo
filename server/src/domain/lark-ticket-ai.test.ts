@@ -117,3 +117,39 @@ describe("Lark Ticket AI field contract", () => {
       .toEqual({ status: "ok" });
   });
 });
+
+it("whitelists v2 assessments and context metadata while keeping legacy payloads readable", () => {
+  const output = parseLarkTicketShadowAi(JSON.stringify({
+    status: "ok", ruleVersion: "v1",
+    contextInfo: { source: "stale_cache", historyComplete: false, dirty: true, syncedAt: null, checkedAt: null,
+      totalMessages: 10, includedMessages: 2, truncated: true, omittedRanges: ["M2–M9"], compactedMessages: 0, secret: "private" },
+    analysis: { version: "shadow-analysis-result-v2", analysis: {
+      businessRisk: { level: null, rationale: "影响未知", evidenceMessageIds: [], secret: "private" },
+      replyAdvice: { advice: "undetermined", rationale: "缺少最新消息", evidenceMessageIds: ["om_1"] },
+    } },
+  }));
+  expect(output).toMatchObject({ businessRisk: { level: null }, replyAdvice: { advice: "undetermined" }, contextInfo: { truncated: true }, ruleVersion: "v1" });
+  expect(JSON.stringify(output)).not.toContain("private");
+  const old = parseLarkTicketShadowAi(JSON.stringify({ status: "ok", analysis: { version: "support-analysis-result-v1" } }));
+  expect(old).not.toHaveProperty("businessRisk");
+  expect(old).not.toHaveProperty("replyAdvice");
+});
+
+it("does not project malformed new assessment fields", () => {
+  const output = parseLarkTicketShadowAi(JSON.stringify({ status: "ok", analysis: { analysis: {
+    businessRisk: { level: 99, rationale: "x", evidenceMessageIds: [] },
+    replyAdvice: { advice: "send_automatically", rationale: "x", evidenceMessageIds: [] },
+  } } }));
+  expect(output).toEqual({ status: "ok" });
+});
+
+it("projects Wiki status and source metadata without exposing private raw evidence", () => {
+  const value = parseLarkTicketShadowAi(JSON.stringify({ status: "ok", wikiContext: {
+    status: "matched", sources: [{ sourceId: 1, title: "相关知识", path: "concepts/report.md", status: "draft", applicability: "historical_reference", limitations: ["待核实"], content: "private raw" }],
+    privateField: "private raw",
+  }, wikiEvidence: [{ content: "private raw" }] }));
+  expect(value).toMatchObject({ wikiContext: { status: "matched", sources: [{ sourceId: 1, title: "相关知识", limitations: ["待核实"] }] } });
+  expect(JSON.stringify(value)).not.toContain("private raw");
+  expect(value).not.toHaveProperty("wikiEvidence");
+  expect(parseLarkTicketShadowAi(JSON.stringify({ status: "ok" }))).not.toHaveProperty("wikiContext");
+});

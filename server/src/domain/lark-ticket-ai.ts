@@ -1,3 +1,7 @@
+import { shadowWikiContextSchema, type ShadowWikiContext } from "./shadow-wiki-context.js";
+import { shadowBusinessRiskSchema, shadowReplyAdviceSchema, shadowContextInfoSchema,
+  type ShadowBusinessRisk, type ShadowReplyAdvice, type ShadowContextInfo } from "./shadow-analysis.js";
+
 export const LARK_TICKET_AI_FIELD_NAMES = [
   "AI分析状态",
   "AI意图识别状态",
@@ -70,6 +74,11 @@ export interface LarkTicketShadowAi {
   qualitySummary?: string;
   criticalIssues?: string[];
   warnings?: string[];
+  businessRisk?: ShadowBusinessRisk;
+  replyAdvice?: ShadowReplyAdvice;
+  contextInfo?: ShadowContextInfo;
+  wikiContext?: ShadowWikiContext;
+  ruleVersion?: string;
   analyzedAt?: string;
   processingDurationMs?: number;
   snapshotVersion?: number;
@@ -94,6 +103,10 @@ export function parseLarkTicketShadowAi(value: string | null | undefined): LarkT
     const intent = asRecord(analysisPayload?.intent);
     const result = asRecord(analysisPayload?.result);
     const quality = asRecord(analysisPayload?.quality);
+    const businessRisk = shadowBusinessRiskSchema.safeParse(analysisPayload?.businessRisk);
+    const replyAdvice = shadowReplyAdviceSchema.safeParse(analysisPayload?.replyAdvice);
+    const contextInfo = shadowContextInfoSchema.safeParse(candidate.contextInfo);
+    const wikiContext = shadowWikiContextSchema.safeParse(candidate.wikiContext);
     const intentType = typeof intent?.intentType === "string" ? intent.intentType : "";
     const intentSubtype = typeof intent?.intentSubtype === "string" ? intent.intentSubtype : "";
     const keywords = readStringArray(intent?.keywords);
@@ -104,6 +117,11 @@ export function parseLarkTicketShadowAi(value: string | null | undefined): LarkT
     const warnings = readStringArray(quality?.warnings);
     return {
       status,
+      ...(businessRisk.success ? { businessRisk: businessRisk.data } : {}),
+      ...(replyAdvice.success ? { replyAdvice: replyAdvice.data } : {}),
+      ...(contextInfo.success ? { contextInfo: contextInfo.data } : {}),
+      ...(wikiContext.success ? { wikiContext: wikiContext.data } : {}),
+      ...(typeof candidate.ruleVersion === "string" ? { ruleVersion: candidate.ruleVersion } : {}),
       ...(intentType ? { intent: intentSubtype ? `${intentType} / ${intentSubtype}` : intentType, intentType } : {}),
       ...(intentSubtype ? { intentSubtype } : {}),
       ...(typeof intent?.confidence === "number" ? { intentConfidence: intent.confidence } : {}),

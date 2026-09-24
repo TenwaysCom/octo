@@ -1,3 +1,4 @@
+import type { LarkTicketThreadSnapshot } from "../../adapters/postgres/lark-ticket-thread-sync-store.js";
 import { describe, expect, it, vi } from "vitest";
 import {
   createLarkTicketAiSessionService,
@@ -10,6 +11,8 @@ const ticket = { baseId: "app_1", tableId: "tbl_1", recordId: "rec_1" };
 function createDirectSummaryTestService(
   ticketSummaryClient: { createJsonCompletion: ReturnType<typeof vi.fn> },
   analysisService: { update: ReturnType<typeof vi.fn> },
+  snapshot?: LarkTicketThreadSnapshot,
+  prompt = "{{ticket_context}} {{user_message}}",
 ) {
   return createLarkTicketAiSessionService({
     syncStore: { getLarkBaseTicketsForCleaning: vi.fn().mockResolvedValue([{
@@ -18,11 +21,11 @@ function createDirectSummaryTestService(
     ownershipStore: {} as never,
     ticketSummaryClient,
     analysisService: analysisService as never,
-    workflowPromptStore: { getByKey: vi.fn().mockResolvedValue({ prompt: "{{ticket_context}} {{user_message}}" }) } as never,
+    workflowPromptStore: { getByKey: vi.fn().mockResolvedValue({ prompt }) } as never,
     threadContextService: { ensure: vi.fn().mockResolvedValue({
-      source: "postgres",
-      decision: "cached",
-      snapshot: {
+      source: "cache",
+      decision: "cache",
+      snapshot: snapshot ?? {
         ...ticket, threadId: "thread_1", messages: [], preparedMessages: [{ messageId: "om_1", senderRole: "user", text: "问题", hasArtifact: false }], snapshotVersion: 1, historyComplete: true, dirty: false, createdAt: "2026-09-04T00:00:00.000Z", updatedAt: "2026-09-04T00:00:00.000Z",
       },
     }) } as never,
@@ -33,7 +36,7 @@ const validDirectSummaryResult = {
   version: "support-analysis-result-v1",
   analysis: {
     segmentKey: "primary",
-    intent: { intentType: "other", intentSubtype: "unclassified", confidence: 0.5, summary: "总结", keywords: [], evidenceMessageIds: ["om_1"] },
+    intent: { intentType: "other", intentSubtype: "unclassified", confidence: 0.5, summary: "总结", keywords: [], evidenceMessageIds: ["M1"] },
     result: { resolutionStatus: "pending", solutionSummary: null, solutionSteps: [], resolverRef: null, resolvedAt: null, autoResolvable: false, suggestedAutomation: null, confidence: 0.5 },
     quality: { scores: {}, summary: "证据不足", criticalIssues: [], warnings: [] },
   },
@@ -224,7 +227,7 @@ describe("Lark Ticket AI Session service", () => {
       createJsonCompletion: vi.fn().mockResolvedValue({
         content: JSON.stringify({
           version: "support-analysis-result-v1",
-          analysis,
+          analysis: { ...analysis, intent: { ...analysis.intent, evidenceMessageIds: ["M1"] } },
           summary: "用户无法登录，尚需补充报错信息。",
         }),
         model: "glm-5.3",
@@ -243,8 +246,8 @@ describe("Lark Ticket AI Session service", () => {
       analysisService: analysisService as never,
       workflowPromptStore: { getByKey: vi.fn().mockResolvedValue(undefined) } as never,
       threadContextService: { ensure: vi.fn().mockResolvedValue({
-        decision: "cached",
-        source: "postgres",
+        decision: "cache",
+        source: "cache",
         snapshot: {
           ...ticket,
           threadId: "thread_1",
@@ -272,7 +275,7 @@ describe("Lark Ticket AI Session service", () => {
 
     expect(ticketSummaryClient.createJsonCompletion).toHaveBeenCalledWith(expect.objectContaining({
       actionRunId: "run_ticket_summary_1",
-      prompt: expect.stringContaining("om_1"),
+      prompt: expect.stringContaining("M1\nSender role: user"),
     }));
     expect(ticketSummaryClient.createJsonCompletion.mock.calls[0][0].prompt).toContain("evidenceMessageIds");
     expect(ticketSummaryClient.createJsonCompletion.mock.calls[0][0].prompt).toContain("intentType 只能是以下 10 个值之一");
@@ -315,8 +318,8 @@ describe("Lark Ticket AI Session service", () => {
       analysisService: analysisService as never,
       workflowPromptStore: { getByKey: vi.fn().mockResolvedValue({ prompt: "{{ticket_context}} {{user_message}}" }) } as never,
       threadContextService: { ensure: vi.fn().mockResolvedValue({
-        source: "postgres",
-        decision: "cached",
+        source: "cache",
+        decision: "cache",
         snapshot: {
           ...ticket, threadId: "thread_1", messages: [], preparedMessages: [{ messageId: "om_1", senderRole: "user", text: "问题", hasArtifact: false }], snapshotVersion: 1, historyComplete: true, dirty: false, createdAt: "2026-09-04T00:00:00.000Z", updatedAt: "2026-09-04T00:00:00.000Z",
         },
@@ -442,8 +445,8 @@ describe("Lark Ticket AI Session service", () => {
       } as never,
       threadContextService: {
         ensure: vi.fn().mockResolvedValue({
-          decision: "cached",
-          source: "postgres",
+          decision: "cache",
+          source: "cache",
           snapshot: {
             ...ticket,
             recordId: missing === "identity" ? "another-record" : ticket.recordId,
@@ -669,5 +672,75 @@ describe("Lark Ticket AI Session service", () => {
       threadSnapshotVersion: 4,
       threadContextSyncedAt: "2026-08-26T12:00:00.000Z",
     }));
+  });
+});
+
+describe("formal Summary shares Shadow thread processing", () => {
+  const request = { operatorLarkId: "ou_1", masterUserId: "usr_1", larkBaseUrl: "https://open.larksuite.com", ticket,
+    message: "请总结当前未解决问题", actionKey: "lark-ticket-support-qa-summarize", actionRunId: "run_shared_context" };
+  function snapshot(texts: string[]): LarkTicketThreadSnapshot {
+    return { ...ticket, threadId: "thread_1", messageLink: "", messages: [],
+      preparedMessages: texts.map((text, i) => ({ messageId: `om_${i + 1}`, senderRole: "user", text, hasArtifact: false })),
+      snapshotVersion: 3, historyComplete: true, dirty: false, createdAt: "2026-09-23T08:00:00Z", updatedAt: "2026-09-23T08:00:00Z",
+      lastSuccessfulSyncAt: "2026-09-23T08:00:00Z" };
+  }
+
+  it("preserves full source IDs but sends whole compacted messages, acknowledgements and latest corrections with short replies", async () => {
+    const frames = Array.from({ length: 8 }, (_, i) => `    at f${i} (https://private.example/assets/file.js:${i}:1)`).join("\n");
+    const input = snapshot([`初始问题\n${frames}\nCaused by: denied\n仍未恢复`, "oversized".repeat(8000), "收到，谢谢", "再次失败，请继续排查"]);
+    input.preparedMessages[3].replyTo = "om_3";
+    input.preparedMessages[2].replyTo = "om_1";
+    const before = structuredClone(input);
+    const output = structuredClone(validDirectSummaryResult);
+    output.analysis.intent.evidenceMessageIds = ["M1", "M4"];
+    const client = { createJsonCompletion: vi.fn().mockResolvedValue({ content: JSON.stringify(output), model: "test" }) };
+    const analysis = { update: vi.fn().mockResolvedValue({ analysisRunId: "run" }) };
+    const service = createDirectSummaryTestService(client, analysis, input, "自定义分类要求保持不变\n{{ticket_context}}\n{{user_message}}\n旧例 om_xxx");
+    await service.chat(request, vi.fn());
+    const prompt = client.createJsonCompletion.mock.calls[0][0].prompt;
+    expect(prompt).toContain("自定义分类要求保持不变");
+    expect(prompt).toContain(request.message);
+    expect(prompt).toContain("Server 消息引用与上下文契约");
+    expect(prompt).toContain("Caused by: denied");
+    expect(prompt).toContain("仍未恢复");
+    expect(prompt).toContain("收到，谢谢");
+    expect(prompt).toContain("再次失败，请继续排查");
+    expect(prompt).toContain("Reply to: M3");
+    expect(prompt).toContain("Reply to: M1");
+    expect(prompt).toContain('"omittedRanges":["M2"]');
+    expect(prompt).toContain('"syncedAt":"2026-09-23T08:00:00Z"');
+    expect(prompt).not.toContain("oversized");
+    expect(prompt).not.toContain("private.example");
+    expect(prompt).not.toContain("om_1");
+    expect(prompt).not.toContain("Allowed evidence Message IDs");
+    expect(input).toEqual(before);
+    expect(analysis.update).toHaveBeenCalledWith(expect.objectContaining({
+      snapshotVersion: 3, analysis: expect.objectContaining({ intent: expect.objectContaining({ evidenceMessageIds: ["om_1", "om_4"] }) }),
+    }));
+    expect(analysis.update.mock.calls[0][0].analysis).not.toHaveProperty("businessRisk");
+  });
+
+  it.each(["M2", "E1", "om_1", "M999"])("rejects omitted, external or raw evidence %s before formal writeback", async (evidence) => {
+    const input = snapshot(["问题", "oversized".repeat(8000), "更新"]);
+    input.preparedMessages[2].replyTo = "outside";
+    const output = structuredClone(validDirectSummaryResult);
+    output.analysis.intent.evidenceMessageIds = [evidence];
+    const client = { createJsonCompletion: vi.fn().mockResolvedValue({ content: JSON.stringify(output), model: "test" }) };
+    const analysis = { update: vi.fn() };
+    const emit = vi.fn();
+    await expect(createDirectSummaryTestService(client, analysis, input).chat(request, emit)).rejects.toMatchObject({
+      code: "TICKET_SUMMARY_EVIDENCE_OUTSIDE_SNAPSHOT", diagnostic: { actionRunId: request.actionRunId, stage: "server.ticket_summary.evidence" },
+    });
+    expect(analysis.update).not.toHaveBeenCalled();
+    expect(emit).not.toHaveBeenCalled();
+  });
+
+  it("does not invoke the provider or persist analysis if no complete message fits", async () => {
+    const client = { createJsonCompletion: vi.fn() };
+    const analysis = { update: vi.fn() };
+    await expect(createDirectSummaryTestService(client, analysis, snapshot(["x".repeat(60001)])).chat(request, vi.fn()))
+      .rejects.toMatchObject({ code: "LARK_THREAD_CONTEXT_UNAVAILABLE" });
+    expect(client.createJsonCompletion).not.toHaveBeenCalled();
+    expect(analysis.update).not.toHaveBeenCalled();
   });
 });

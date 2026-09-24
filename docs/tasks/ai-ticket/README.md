@@ -8,8 +8,10 @@
 
 - [Lark Ticket AI 输出与 Eval 数据集视图](2026-09-01-lark-ticket-ai-output-eval-dataset-views.md) — done；v5 两行操作区（四图标 + 状态/人/时间）已实现，审核归属及 My evals 沿用 v4；迁移、部署和登录态验收未执行。
 
-- [Lark Ticket WeKnora 浮窗](2026-09-20-weknora-widget.md) — in_progress；本地实现已合并，兑换诊断确认 Origin 被拒绝，待频道允许列表配置。
+- Lark Ticket WeKnora 浮窗 — 原索引引用的 `2026-09-20-weknora-widget.md` 未找到；“待频道允许列表配置”为旧索引描述，状态待核实，不能据此认定已解决。
 
 范围：Lark Ticket/工单 AI 分析、分类、回复建议、评测与反馈闭环。记录规则见 [Tasks 台账](../README.md)。
 
 - [Wiki entities 批末联动与语义复核](2026-09-17-wiki-entity-maintenance.md) — done；机制与检查脚本已落地，存量语义复核和部署边界见记录。
+
+- [Shadow 总结与风险/回复建议](2026-09-03-shadow-summary-worker.md) — done（本地开发验证）；v14 Shadow 接入 Wiki 召回/重排，Wiki 与 Shadow 共用默认20篇可配上限，失败时聊天分析降级；保留 v12 共用 thread 与 v11 风险/回复功能；尚未部署或验证真实模型，调度/性能后续处理。

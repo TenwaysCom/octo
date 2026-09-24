@@ -33,9 +33,8 @@ function ReplyReference({ answer }) {
   return <section className="lark-app__card lark-app__reply">
     <div className="lark-app__section-title"><div className="lark-app__reply-heading"><h2>回复草稿</h2><CopyButton text={draft} primary>复制回复</CopyButton></div><span className="lark-app__badge lark-app__badge--human">人工整理</span></div>
     <p className="lark-app__muted">{answer.text ? `以 ${answer.source} 已有答案为参考，确认适用后再回复。` : "暂无已有答案可供引用。可自行填写回复。"}此处编辑仅保留在当前页面。</p>
-    <label className="lark-app__field-label" htmlFor="lark-app-reply">回复草稿</label>
+    <label className="visually-hidden" htmlFor="lark-app-reply">回复草稿</label>
     <textarea id="lark-app-reply" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="填写或整理你准备发送的回复…" rows={5} />
-    <p className="lark-app__muted">复制后自行粘贴到 thread</p>
   </section>;
 }
 

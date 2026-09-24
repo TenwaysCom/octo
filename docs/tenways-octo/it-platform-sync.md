@@ -284,6 +284,8 @@ pnpm --dir server exec pm2 save
 
 `scheduler.enabled` 是 Worker 定时任务总开关（`false` 时整个 Worker 空转）。`tasks.lark/meegle/github` 是各数据源同步的独立开关（缺省全开），`intervalMinutes` 可覆盖 `intervalsMinutes` 的平台默认值；`tasks.shadow` 是 Lark Ticket 影子 AI 分析任务（缺省关闭），`intervalMinutes` 是轮询间隔，`settleMinutes` 是工单静默多久才分析，`batchLimit` 是每轮条数，`summaryTimeoutSeconds` 是单次 Ticket Summary provider 请求超时。只跑 shadow 不跑同步时，把三个数据源任务置 `false`、`tasks.shadow.enabled` 置 `true` 即可。Quick Action 与 shadow 统一读取 `LARK_TICKET_SUMMARY_PROVIDER`、`LARK_TICKET_SUMMARY_MODEL` 和 `LARK_TICKET_SUMMARY_TIMEOUT_MS`：默认 `deepseek`，设为 `zcode` 时使用 `ZCODE_API_KEY` 和智谱标准 OpenAI Chat Completions 接口。任务级 `summaryTimeoutSeconds` 只覆盖 shadow 的通用超时；已有 `deepSeekTimeoutSeconds` 和 `acpTimeoutSeconds` 仅作为兼容别名读取。
 
+Shadow 独立使用 `lark_ticket.shadow.summarize` 提示词，正式问题总结保留原 key。新增业务风险与分析时回复建议，历史结果显示未评估；聊天模型输入使用短引用，preparedMessages 保留完整 ID。候选仍按原 Ticket 更新时间/错误状态筛选，不因提示词升级或仅聊天变化自动重算。实现与验证边界见 [Shadow 任务 v14](../tasks/ai-ticket/2026-09-03-shadow-summary-worker.md)。
+
 Worker 启动时把当前配置 scope 收敛到 `platform_sync_schedules`；删除或任务级禁用的配置 scope 会被禁用。错过的多个周期合并成一次，同 scope 已由手动或 CLI 运行占用时也直接合并到下一周期。临时网络、429 与 5xx 按 1/5/15 分钟退避，超过三次或遇到 checkpoint、授权、权限、配置错误时禁用该 schedule 并保存安全的 `blocked_reason`；修复配置或授权后重启 Worker 会按配置重新启用。
 
 Meegle 的本进程读取限流由 `MEEGLE_MIN_REQUEST_INTERVAL_MS` 控制，HTTP 429 的重试次数由 `MEEGLE_RATE_LIMIT_RETRY_COUNT` 控制。`Commercial Usage Exceeded` 是调用额度耗尽，不应按短时频率限制自动重试。
@@ -657,3 +659,6 @@ syncLark...    -> cleanLarkBaseTickets(...)
 Odoo 业务事件保留在 `odoo_sh_build_notifications`，完成正文生成后标记 `queued`；实际发送状态进入 `message_outbox`，发送 Worker 不依赖 Odoo 字段。其他业务可写入相同的 Lark 文本消息契约，本次未迁移其他发送链路。首次构建基线静默、业务事件转消息的事务边界、旧通知与不确定结果处理见 [生命周期](../ai-dev/lifecycle/current-system-technical-objects.md) 和 [任务台账](../tasks/platform-sync/2026-09-13-odoo-build-sync-and-message-delivery-workers.md)。
 
 Odoo 构建通知环境由 `scheduler.tasks.odooSh.notificationEnvironments` 控制，默认 `["eu"]`。EU / UK / US 数据仍全部同步；禁用环境不生成待发送消息，发送 Worker 启动前由 Odoo 生产端取消禁用环境已入队且尚未领取的消息。已发送、发送中、失败和结果未知的投递记录保留；重新启用环境不补发已取消或被抑制的历史事件。修改配置后需重启 Server。
+
+
+Shadow 最终分析前会复用 Wiki 问答的召回与重排，关联最多3篇 Wiki 及相关原始证据；检索失败仍基于聊天分析，并展示“Wiki 不可用”。Wiki 问答与 Shadow 的候选召回上限由 `WIKI_QA_RECALL_LIMIT` 共用，默认20，允许整数1–100；重排Top5、最终最多3篇不变。服务端/Worker 配置相同值后重启对应进程。Wiki 根目录和重排模型沿用现有 Wiki 配置，正式“问题总结”本轮不增加 Wiki 检索。一次成功 Shadow 分析通常包含问题提取、重排、最终分析三次模型调用，处理耗时包括这些阶段。

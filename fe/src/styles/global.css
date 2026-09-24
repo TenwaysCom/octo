@@ -6,24 +6,49 @@ body > button[aria-label="octo 客服"] {
 }
 
 :root {
-  --octo-brand: #b45309;
-  --octo-brand-hover: #92400e;
+  /* Palette: raw colors. Components should use semantic tokens below. */
+  --octo-amber-700: #b45309;
+  --octo-amber-800: #92400e;
+  --octo-amber-50: #fff7ed;
+  --octo-teal-700: #0f766e;
+  --octo-teal-100: #ccfbf1;
+  --octo-teal-50: #f0fdfa;
+  --octo-slate-800: #1e293b;
+  --octo-slate-600: #475569;
+  --octo-slate-500: #64748b;
+  --octo-slate-200: #e2e8f0;
+  --octo-slate-100: #f1f5f9;
+  --octo-slate-50: #f8fafc;
 
-  --octo-canvas: #f9fafb;
+  /* Semantic roles shared by the Octo FE. */
+  --octo-brand: var(--octo-amber-700);
+  --octo-brand-hover: var(--octo-amber-800);
+  --octo-brand-soft: var(--octo-amber-50);
+  --octo-info-text: var(--octo-teal-700);
+  --octo-info-bg: var(--octo-teal-50);
+  --octo-info-hover-bg: var(--octo-teal-100);
+  --octo-canvas: var(--octo-slate-50);
   --octo-surface: #ffffff;
-  --octo-surface-muted: #f3f4f6;
-  --octo-border: #e5e7eb;
+  --octo-surface-muted: var(--octo-slate-100);
+  --octo-border: var(--octo-slate-200);
+  --octo-text-primary: var(--octo-slate-800);
+  --octo-text-secondary: var(--octo-slate-500);
+  --octo-text-on-brand: #ffffff;
+  --octo-text: var(--octo-text-primary);
+  --octo-text-muted: var(--octo-text-secondary);
 
-  --octo-text: #1f2937;
-  --octo-text-muted: #6b7280;
-
+  /* Business status colors are independent from AI self-assessment. */
   --octo-success: #239f52;
-  --octo-warning: #c2410c;
+  --octo-warning: #a16207;
   --octo-danger: #e63939;
-  --octo-brand-soft: color-mix(in srgb, var(--octo-brand) 12%, var(--octo-surface));
 
-  --octo-badge-neutral-text: #475569;
-  --octo-badge-neutral-bg: #e2e8f0;
+  /* Component roles. */
+  --octo-field-label-color: var(--octo-info-text);
+  --octo-source-badge-text: var(--octo-info-text);
+  --octo-source-badge-bg: var(--octo-info-bg);
+
+  --octo-badge-neutral-text: var(--octo-slate-600);
+  --octo-badge-neutral-bg: var(--octo-slate-200);
   --octo-badge-active-text: #1d4ed8;
   --octo-badge-active-bg: #dbeafe;
   --octo-badge-review-text: #6d28d9;
@@ -36,8 +61,8 @@ body > button[aria-label="octo 客服"] {
   --octo-badge-danger-bg: #fee2e2;
   --octo-badge-info-text: #0369a1;
   --octo-badge-info-bg: #e0f2fe;
-  --octo-badge-teal-text: #0f766e;
-  --octo-badge-teal-bg: #ccfbf1;
+  --octo-badge-teal-text: var(--octo-teal-700);
+  --octo-badge-teal-bg: var(--octo-teal-100);
   --octo-badge-yellow-text: #a16207;
   --octo-badge-yellow-bg: #fef9c3;
   --octo-badge-orange-text: #9a3412;
