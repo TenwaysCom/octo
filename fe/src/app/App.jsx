@@ -181,7 +181,7 @@ export function App({ apiBaseUrl }) {
     const WorkspacePage = WORKSPACE_PAGE_COMPONENTS[activeWorkspaceRoute.page];
     return <WorkspaceMetricsContext.Provider value={{ githubMyOpenCount }}>
       <WorkspaceSearchProvider apiBaseUrl={apiBaseUrl} enabled={Boolean(profile.workspaceAccess?.platformLists) && activeWorkspaceRoute.page !== "lark-app"}>
-      {["lark-tickets", "lark-ticket-detail"].includes(activeWorkspaceRoute.page) && <WeKnoraWidget apiBaseUrl={apiBaseUrl} />}
+      {["lark-tickets", "lark-ticket-detail", "lark-app"].includes(activeWorkspaceRoute.page) && <WeKnoraWidget apiBaseUrl={apiBaseUrl} />}
       <WorkspacePage
         key={activeWorkspaceRoute.hash}
         profile={profile}
