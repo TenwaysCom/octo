@@ -15,3 +15,5 @@
 - [Wiki entities 批末联动与语义复核](2026-09-17-wiki-entity-maintenance.md) — done；机制与检查脚本已落地，存量语义复核和部署边界见记录。
 
 - [Shadow 总结与风险/回复建议](2026-09-03-shadow-summary-worker.md) — done（本地开发验证）；v14 Shadow 接入 Wiki 召回/重排，Wiki 与 Shadow 共用默认20篇可配上限，失败时聊天分析降级；保留 v12 共用 thread 与 v11 风险/回复功能；尚未部署或验证真实模型，调度/性能后续处理。
+
+- [Lark App 分析页异步接入 WeKnora](2026-09-25-lark-app-weknora.md) — done；已接入并增加服务可用性检测及超时隐藏，本地测试和构建通过，未部署或真实客户端验收。
