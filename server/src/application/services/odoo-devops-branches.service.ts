@@ -1,9 +1,9 @@
-import type { OdooDevopsBranchesClient, OdooDevopsEnvironment } from "../../adapters/odoo-devops/odoo-devops-branches-client.js";
+import { OdooDevopsBranchesClientError, type OdooDevopsBranchesClient, type OdooDevopsEnvironment } from "../../adapters/odoo-devops/odoo-devops-branches-client.js";
 import type { ApiCache } from "../../http/redis-cache.js";
 import { odooDevopsBranchesSnapshotSchema, type OdooDevopsBranchesSnapshot } from "../../modules/odoo-devops-branches/odoo-devops-branches.dto.js";
 
 const CACHE_TTL_SECONDS = 30 * 60;
-const REFRESH_FAILURE_RETRY_MS = 5_000;
+const REFRESH_FAILURE_RETRY_MS = 30_000;
 const ODOO_DEVOPS_ENVIRONMENTS: OdooDevopsEnvironment[] = ["eu", "uk", "us"];
 
 type CachedSnapshot = {
@@ -38,6 +38,7 @@ export class OdooDevopsBranchesService {
       return { ...cached.snapshot, cached: true };
     }
 
+    if (this.isCoolingDown(environment)) throw new OdooDevopsBranchesClientError("ODOO_DEVOPS_UNAVAILABLE");
     const snapshot = await this.refresh(environment);
     return { ...snapshot, cached: false };
   }
@@ -49,8 +50,7 @@ export class OdooDevopsBranchesService {
       if (stale) this.startRefresh(environment);
       return { state: "ready", snapshot: cached.snapshot, cached: true, stale };
     }
-    const failedAt = this.refreshFailures.get(environment);
-    if (failedAt && Date.now() - failedAt < REFRESH_FAILURE_RETRY_MS) {
+    if (this.isCoolingDown(environment)) {
       return { state: "unavailable" };
     }
     this.refreshFailures.delete(environment);
@@ -114,7 +114,13 @@ export class OdooDevopsBranchesService {
     return refresh;
   }
 
+  private isCoolingDown(environment: OdooDevopsEnvironment): boolean {
+    const failedAt = this.refreshFailures.get(environment);
+    return failedAt !== undefined && Date.now() - failedAt < REFRESH_FAILURE_RETRY_MS;
+  }
+
   private startRefresh(environment: OdooDevopsEnvironment): void {
+    if (this.isCoolingDown(environment)) return;
     void this.refresh(environment).catch(() => { /* failure time is retained by refresh */ });
   }
 

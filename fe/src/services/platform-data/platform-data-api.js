@@ -83,6 +83,7 @@ export async function getGitHubPullRequestOdooShBuild({ apiBaseUrl, owner, repo,
   if (headRef) query.set("headRef", headRef);
   const response = await fetchImpl(`${buildApiUrl(apiBaseUrl, "/web/github-pr-odoo-devops-build")}?${query}`, {
     credentials: "include",
+    signal: AbortSignal.timeout(10_000),
   });
   const payload = await response.json().catch(() => undefined);
   if ((!response.ok && response.status !== 202) || !payload?.ok) {
@@ -486,12 +487,16 @@ function parseSyncedGitHubPullRequest(value) {
     || (value.sourceUpdatedAt !== undefined && typeof value.sourceUpdatedAt !== "string")
     || (value.meegleIds !== undefined && (!Array.isArray(value.meegleIds) || value.meegleIds.some((workItemId) => typeof workItemId !== "string")))
     || (value.meegleWorkitems !== undefined && !Array.isArray(value.meegleWorkitems))
+    || (value.odooShBuildState !== undefined && !["ready", "refreshing", "unavailable", "unmapped"].includes(value.odooShBuildState))
+    || (value.odooShBuildStale !== undefined && typeof value.odooShBuildStale !== "boolean")
     || !Array.isArray(value.odooShBuilds)
     || value.odooShBuilds.some((build) => !isOdooShBuild(build))) {
     throw new Error("INVALID_GITHUB_PULL_REQUEST_RESPONSE");
   }
 
   return {
+    ...(value.odooShBuildState === undefined ? {} : { odooShBuildState: value.odooShBuildState }),
+    ...(value.odooShBuildStale === undefined ? {} : { odooShBuildStale: value.odooShBuildStale }),
     owner: value.owner,
     repo: value.repo,
     pullNumber: value.pullNumber,

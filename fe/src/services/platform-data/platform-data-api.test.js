@@ -593,3 +593,21 @@ test("rejects an invalid Meegle four-field response", async () => {
     { message: "INVALID_MEEGLE_WORKITEM_RESPONSE" },
   );
 });
+
+test("preserves and validates list build availability separately from an empty build array", async () => {
+  for (const state of ["ready", "refreshing", "unavailable", "unmapped", "invalid"]) {
+    const request = getPlatformDataListPage({ apiBaseUrl: "/api", kind: "github-pull-requests", fetchImpl: async () => ({
+      ok: true, json: async () => ({ ok: true, data: { items: [{
+        owner: "TenwaysCom", repo: "tenways-ukk", pullNumber: 223, title: "PR", state: "open",
+        htmlUrl: "https://github.com/TenwaysCom/tenways-ukk/pull/223", isDraft: false, syncedAt: "2026-09-24T00:00:00Z",
+        odooShBuilds: [], odooShBuildState: state, odooShBuildStale: false,
+      }] } }),
+    }) });
+    if (state === "invalid") await assert.rejects(request, /INVALID_GITHUB_PULL_REQUEST_RESPONSE/);
+    else {
+      const result = await request;
+      assert.equal(result.items[0].odooShBuildState, state);
+      assert.equal(result.items[0].odooShBuildStale, false);
+    }
+  }
+});

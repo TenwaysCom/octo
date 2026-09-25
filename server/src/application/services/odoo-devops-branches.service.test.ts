@@ -184,3 +184,29 @@ it("does not sync or cache a response from the wrong environment", async () => {
   expect(onSnapshotSync).not.toHaveBeenCalled();
   expect(cache.set).not.toHaveBeenCalled();
 });
+
+it("cools down cold and stale page reads for thirty seconds after upstream failure", async () => {
+  vi.useFakeTimers();
+  try {
+    vi.setSystemTime(new Date("2026-09-24T00:00:00Z"));
+    const client = { listBranches: vi.fn().mockResolvedValue(snapshot) };
+    const service = new OdooDevopsBranchesService({ client, cache: createCache(), cacheTtlSeconds: 1 });
+    await service.list("eu");
+    vi.advanceTimersByTime(1001);
+    client.listBranches.mockRejectedValue(new Error("upstream 502"));
+    await expect(service.refresh("eu")).rejects.toThrow();
+    await expect(service.refresh("uk")).rejects.toThrow();
+    for (let i = 0; i < 3; i++) {
+      await expect(service.getOrStartRefresh("eu")).resolves.toMatchObject({ state: "ready", stale: true });
+      await expect(service.getOrStartRefresh("uk")).resolves.toEqual({ state: "unavailable" });
+      await expect(service.list("uk")).rejects.toThrow("ODOO_DEVOPS_UNAVAILABLE");
+    }
+    expect(client.listBranches).toHaveBeenCalledTimes(3);
+    vi.advanceTimersByTime(30_000);
+    client.listBranches.mockResolvedValue(snapshot);
+    await service.getOrStartRefresh("eu");
+    expect(client.listBranches).toHaveBeenCalledTimes(4);
+  } finally {
+    vi.useRealTimers();
+  }
+});

@@ -7,7 +7,7 @@ import {
   type PlatformSyncStore,
 } from "../../adapters/postgres/platform-sync-store.js";
 import type { OdooDevopsEnvironment } from "../../adapters/odoo-devops/odoo-devops-branches-client.js";
-import type { OdooDevopsBranchesService } from "./odoo-devops-branches.service.js";
+import type { OdooDevopsBranchesService, OdooDevopsBranchesAsyncResult } from "./odoo-devops-branches.service.js";
 import { logger } from "../../logger.js";
 import {
   resolveGitHubRepoEnvironment,
@@ -32,7 +32,7 @@ export class PlatformDataService {
 
   constructor(
     store?: PlatformSyncStore,
-    private readonly odooDevopsBranchesService?: Pick<OdooDevopsBranchesService, "list">,
+    private readonly odooDevopsBranchesService?: Pick<OdooDevopsBranchesService, "getOrStartRefresh">,
   ) {
     this.store = store;
   }
@@ -92,12 +92,13 @@ export class PlatformDataService {
               environments.add(environment);
             }
           }
-          const buildsByBranch = await this.listOdooShBuildsByBranch(environments);
+          const { buildsByBranch, states } = await this.listOdooShBuildsByBranch(environments);
           return {
             items: items.map((item) => {
               const { description: _description, ...listItem } = item;
               return {
                 ...listItem,
+                ...buildState(states.get(environmentByPullRequest.get(item)!), !!item.headRef && !!environmentByPullRequest.get(item)),
                 odooShBuilds: selectOdooShBuilds(
                   buildsByBranch,
                   item.headRef,
@@ -134,7 +135,7 @@ export class PlatformDataService {
     const meegleWorkitems = await this.syncStore.listMeegleWorkitemsByIds(pullRequest.meegleIds);
     const linkedIds = new Set(pullRequest.meegleIds);
     const environment = resolveGitHubRepoEnvironment(pullRequest.repo);
-    const buildsByBranch = await this.listOdooShBuildsByBranch(
+    const { buildsByBranch, states } = await this.listOdooShBuildsByBranch(
       pullRequest.headRef && environment ? [environment] : [],
     );
     return {
@@ -153,6 +154,7 @@ export class PlatformDataService {
           ...(workitem.sprint ? { sprint: workitem.sprint } : {}),
           ...(workitem.version ? { version: workitem.version } : {}),
         })),
+      ...buildState(states.get(environment!), !!pullRequest.headRef && !!environment),
       odooShBuilds: selectOdooShBuilds(buildsByBranch, pullRequest.headRef, environment),
     };
   }
@@ -201,18 +203,21 @@ export class PlatformDataService {
 
   private async listOdooShBuildsByBranch(
     environments: Iterable<OdooDevopsEnvironment>,
-  ): Promise<Map<string, OdooShBuild[]>> {
+  ) {
     const buildsByBranch = new Map<string, OdooShBuild[]>();
+    const states = new Map<OdooDevopsEnvironment, OdooDevopsBranchesAsyncResult>();
     const odooDevopsBranchesService = this.odooDevopsBranchesService;
     const requestedEnvironments = [...new Set(environments)];
     if (!odooDevopsBranchesService || requestedEnvironments.length === 0) {
-      return buildsByBranch;
+      return { buildsByBranch, states };
     }
 
     await Promise.all(requestedEnvironments.map(async (environment) => {
       try {
-        const snapshot = await odooDevopsBranchesService.list(environment);
-        for (const branch of snapshot.items) {
+        const result = await odooDevopsBranchesService.getOrStartRefresh(environment);
+        states.set(environment, result);
+        if (result.state !== "ready") return;
+        for (const branch of result.snapshot.items) {
           const builds = buildsByBranch.get(branch.branch) ?? [];
           builds.push({
             environment,
@@ -226,7 +231,7 @@ export class PlatformDataService {
       }
     }));
 
-    return buildsByBranch;
+    return { buildsByBranch, states };
   }
 }
 
@@ -243,4 +248,11 @@ function selectOdooShBuilds(
     return [];
   }
   return (buildsByBranch.get(headRef) ?? []).filter((build) => build.environment === environment);
+}
+
+function buildState(result: OdooDevopsBranchesAsyncResult | undefined, mapped: boolean) {
+  return {
+    odooShBuildState: mapped ? (result?.state ?? "unavailable") : "unmapped",
+    odooShBuildStale: result?.state === "ready" && result.stale,
+  };
 }

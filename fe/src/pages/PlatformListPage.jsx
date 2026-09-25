@@ -1,3 +1,4 @@
+import { odooBuildRequests } from "../services/platform-data/odoo-build-requests.js";
 import { loadLarkTicketSharedUrl } from "../services/lark-ticket/lark-ticket-api.js";
 import { getTicketFilterOptions } from "../services/platform-data/platform-search-api.js";
 import { useEffect, useRef, useState } from "react";
@@ -209,7 +210,22 @@ function OdooShBuildDots({ builds }) {
   })}</span>;
 }
 
-function OdooShBuildStatusList({ builds }) {
+function CachedOdooShBuildStatus({ pullRequest, apiBaseUrl }) {
+  if (pullRequest.odooShBuildState === "refreshing") {
+    return <OdooShBuildStatus apiBaseUrl={apiBaseUrl} pullRequest={pullRequest} />;
+  }
+  if (pullRequest.odooShBuildState === "unavailable") return <small>构建状态暂不可用</small>;
+  if (pullRequest.odooShBuildState === "unmapped") return null;
+  return <span title={pullRequest.odooShBuildStale ? "旧数据" : undefined}>
+    {pullRequest.odooShBuilds?.length ? <OdooShBuildDots builds={pullRequest.odooShBuilds} /> : <small>无 Odoo.sh 构建</small>}
+    {pullRequest.odooShBuildStale ? <small>旧数据</small> : null}
+  </span>;
+}
+
+function OdooShBuildStatusList({ builds, pullRequest, apiBaseUrl }) {
+  if ((pullRequest.odooShBuildState && pullRequest.odooShBuildState !== "ready") || pullRequest.odooShBuildStale) {
+    return <CachedOdooShBuildStatus pullRequest={pullRequest} apiBaseUrl={apiBaseUrl} />;
+  }
   if (!builds?.length) return <p className="pr-preview-empty">暂无关联的 Odoo.sh 构建状态。</p>;
   return <div className="pr-preview-builds">{builds.map((build) => <div key={build.environment}>
     <strong>{build.environment.toUpperCase()}</strong>
@@ -485,7 +501,7 @@ function MeegleWorkitemCell({ columnKey, item, apiBaseUrl, nowTime, onPickPullRe
   return formatDateTime(item.sourceUpdatedAt || item.syncedAt);
 }
 
-function GitHubPullRequestCell({ columnKey, item }) {
+function GitHubPullRequestCell({ columnKey, item, apiBaseUrl }) {
   if (columnKey === "pullRequest") {
     return <><ExternalLink href={item.htmlUrl}>{item.title}</ExternalLink><small>#{item.pullNumber}</small></>;
   }
@@ -496,7 +512,7 @@ function GitHubPullRequestCell({ columnKey, item }) {
     return <GitHubPullRequestStatus isDraft={item.isDraft} state={item.state} />;
   }
   if (columnKey === "branch") {
-    return <><span className="github-pr-branch">{item.headRef || "-"}<OdooShBuildDots builds={item.odooShBuilds} /></span><small>{item.baseRef ? `→ ${item.baseRef}` : ""}</small></>;
+    return <><span className="github-pr-branch">{item.headRef || "-"}<CachedOdooShBuildStatus pullRequest={item} apiBaseUrl={apiBaseUrl} /></span><small>{item.baseRef ? `→ ${item.baseRef}` : ""}</small></>;
   }
   if (columnKey === "author") {
     return <GitHubUser login={item.authorLogin} />;
@@ -775,7 +791,7 @@ function MeegleWorkitemCard({ item, visibleColumns, apiBaseUrl, nowTime, onMeegl
   </article>;
 }
 
-function GitHubPullRequestCard({ item, visibleColumns, onPreviewCandidateChange }) {
+function GitHubPullRequestCard({ item, visibleColumns, onPreviewCandidateChange, apiBaseUrl }) {
   const columns = GITHUB_PULL_REQUEST_VIEW_COLUMNS.filter(({ key }) => key !== "pullRequest" && visibleColumns.includes(key));
   const layout = getKanbanCardLayout("github-pull-requests", visibleColumns, item);
   const description = getKanbanCardDescription("github-pull-requests", item);
@@ -793,8 +809,8 @@ function GitHubPullRequestCard({ item, visibleColumns, onPreviewCandidateChange 
       <ExternalLink className="table-link kanban-card__title" href={item.htmlUrl}>{item.title || `#${item.pullNumber}`}</ExternalLink>
       <KanbanCardPeople item={item} kind="github-pull-requests" />
     </div>
-    <KanbanCardSecondLine identifier={`#${item.pullNumber}`} statusColumn={columns.find(({ key }) => key === layout.statusKey)} time={layout.updatedAtKey ? getKanbanCardTime("github-pull-requests", item) : null} renderCell={(column) => <GitHubPullRequestCell columnKey={column.key} item={item} />} />
-    <KanbanCardFloatingMeta columns={floatingColumns} description={description} detailsId={`kanban-card-details-github-${item.owner}-${item.repo}-${item.pullNumber}`} renderCell={(column) => <GitHubPullRequestCell columnKey={column.key} item={item} />} />
+    <KanbanCardSecondLine identifier={`#${item.pullNumber}`} statusColumn={columns.find(({ key }) => key === layout.statusKey)} time={layout.updatedAtKey ? getKanbanCardTime("github-pull-requests", item) : null} renderCell={(column) => <GitHubPullRequestCell apiBaseUrl={apiBaseUrl} columnKey={column.key} item={item} />} />
+    <KanbanCardFloatingMeta columns={floatingColumns} description={description} detailsId={`kanban-card-details-github-${item.owner}-${item.repo}-${item.pullNumber}`} renderCell={(column) => <GitHubPullRequestCell apiBaseUrl={apiBaseUrl} columnKey={column.key} item={item} />} />
   </article>;
 }
 
@@ -855,7 +871,7 @@ function LoadMoreResults({ pager, loaded, isLoading, onLoadMore }) {
   </footer>;
 }
 
-function GitHubPullRequestPreviewModal({ preview, onClose, onRetry }) {
+function GitHubPullRequestPreviewModal({ preview, onClose, onRetry, apiBaseUrl }) {
   const { pullRequest } = preview;
   const linkedIds = new Set((pullRequest.meegleWorkitems || []).map((workitem) => workitem.workItemId));
   const unresolvedIds = (pullRequest.meegleIds || []).filter((workItemId) => !linkedIds.has(workItemId));
@@ -876,7 +892,7 @@ function GitHubPullRequestPreviewModal({ preview, onClose, onRetry }) {
       {preview.status === "ready" ? <>
       <div className="pr-preview-section">
         <h3>Odoo.sh 状态</h3>
-        <OdooShBuildStatusList builds={pullRequest.odooShBuilds} />
+        <OdooShBuildStatusList builds={pullRequest.odooShBuilds} pullRequest={pullRequest} apiBaseUrl={apiBaseUrl} />
       </div>
       <div className="pr-preview-section">
         <h3>描述</h3>
@@ -1582,6 +1598,8 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
         apiBaseUrl,
         actionRunId: crypto.randomUUID(),
       });
+      odooBuildRequests.invalidate(apiBaseUrl);
+      githubPreviewCacheRef.current.clear();
       setReloadVersion((version) => version + 1);
     } catch {
       setResetError("DevOps 缓存重置失败，请稍后重试。");
@@ -2163,7 +2181,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
               onToggleSubgroup={(subgroupKey) => setCollapsedGitHubSubgroups((current) => current.includes(subgroupKey)
                 ? current.filter((key) => key !== subgroupKey)
                 : [...current, subgroupKey])}
-              renderCard={(item) => <GitHubPullRequestCard item={item} visibleColumns={githubVisibleColumns} onPreviewCandidateChange={setGitHubPreviewCandidate} key={`${item.owner}-${item.repo}-${item.pullNumber}`} />}
+              renderCard={(item) => <GitHubPullRequestCard apiBaseUrl={apiBaseUrl} item={item} visibleColumns={githubVisibleColumns} onPreviewCandidateChange={setGitHubPreviewCandidate} key={`${item.owner}-${item.repo}-${item.pullNumber}`} />}
             />
             <footer className="list-pagination">
               <p className="list-results">已加载 <strong>{sortedItems.length}</strong> / {totalItems} 条结果 · {githubGroups.length} 个分组</p>
@@ -2243,7 +2261,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
           /> : null}
         </div> : null}
       </section>
-      {githubPreview ? <GitHubPullRequestPreviewModal
+      {githubPreview ? <GitHubPullRequestPreviewModal apiBaseUrl={apiBaseUrl}
         preview={githubPreview}
         onClose={closeGitHubPullRequestPreview}
         onRetry={() => { void openGitHubPullRequestPreview(githubPreview.pullRequest, { force: true }); }}
