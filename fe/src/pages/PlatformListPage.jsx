@@ -4,7 +4,7 @@ import { getTicketFilterOptions } from "../services/platform-data/platform-searc
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { WorkspaceShell } from "../components/layout/WorkspaceShell.jsx";
-import { OdooShBuildGears, OdooShBuildStatus } from "../components/platform/OdooShBuildStatus.jsx";
+import { OdooShBuildGears, OdooShBuildsProvider, OdooShBuildStatus } from "../components/platform/OdooShBuildStatus.jsx";
 import { MeegleRelatedPeople } from "../components/platform/MeegleRelatedPeople.jsx";
 import { LarkTicketBadge } from "../components/lark-ticket/LarkTicketBadge.jsx";
 import { LarkTicketResponsible } from "../components/lark-ticket/LarkTicketResponsible.jsx";
@@ -1909,7 +1909,8 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
     }}><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 6 8 8M14 6l-8 8" /></svg></button> : null}
   </div> : null;
 
-  return <WorkspaceShell user={profile.user ?? {}} workspaceAccess={profile.workspaceAccess} activePage={page} onLogout={onLogout} isBusy={isBusy} breadcrumbs={breadcrumbs} breadcrumbActions={ticketSearch}>
+  return <OdooShBuildsProvider apiBaseUrl={apiBaseUrl} enabled={page === "meegle-workitems"}>
+    <WorkspaceShell user={profile.user ?? {}} workspaceAccess={profile.workspaceAccess} activePage={page} onLogout={onLogout} isBusy={isBusy} breadcrumbs={breadcrumbs} breadcrumbActions={ticketSearch}>
     <section className="profile-main list-page">
       <section className="list-section">
         {page === "lark-tickets" && ticketFilterOptions.status === "error" ? <p className="list-message list-message--error">筛选选项加载失败。<button className="secondary-button" type="button" onClick={() => setFilterOptionsRetry((value) => value + 1)}>重试</button></p> : null}
@@ -2288,5 +2289,6 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
         ticket={ticketContextMenu.ticket}
       /> : null}
     </section>
-  </WorkspaceShell>;
+  </WorkspaceShell>
+  </OdooShBuildsProvider>;
 }

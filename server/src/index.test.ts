@@ -76,6 +76,7 @@ describe("index routes", () => {
         "POST /api/web/meegle-sprints/:sprintId/ai-sessions",
         "POST /api/web/meegle-sprints/:sprintId/ai-sessions/:sessionId/load",
         "POST /api/web/meegle-sprints/:sprintId/ai-sessions/:sessionId/stop",
+        "GET /api/web/github-pr-odoo-devops-build",
         "POST /api/lark/auth/web/logout",
         "GET /api/lark/auth/callback",
         "POST /api/pm/analysis/run",

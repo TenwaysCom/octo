@@ -700,11 +700,17 @@ Meegle Web 页面不把 Odoo.sh 快照放在首屏读取路径：
   -> /api/web/meegle-sprints 读取本地 Sprint 快照和归属历史
   -> 不受工作项普通列表分页影响，也不请求 Odoo DevOps
 
-关联 PR 状态组件挂载后异步读取
-  -> repo 仅用于映射 eu/uk/us
-  -> server 返回该环境的已有快照，或 202 refreshing 并合并后台刷新
+Meegle 工作项 / Sprint 详情页面挂载后独立加载构建状态
+  -> 页面只请求一次 GET /api/web/github-pr-odoo-devops-build?all=true&actionRunId=...
+  -> server 并行读取 eu/uk/us，冷缓存在本次请求内等待环境级单飞刷新
+  -> 返回三个环境的安全构建投影；页面以 repo 对应环境 + headRef 匹配所有 PR
+  -> 分组展开、筛选、组件重挂载复用页面结果，不逐 PR 请求或轮询
   -> 刷新和 Redis/in-process TTL 缓存均以 eu/uk/us 为单位，绝不以 repo 或单条 PR 为单位
 ```
+
+批量模式沿用 opaque HttpOnly Web session，Zod 校验 `all=true` 和 `actionRunId`；不与 owner/repo/pullNumber 单 PR 参数混用。返回 `{ ok: true, data: { actionRunId, environments } }`，每环境包含 `environment`、`state: ready|unavailable`、`stale`、`builds: [{ branch, status, result }]`；失败环境另含安全 `error`（layer/module/stage/errorCode）。不输出项目、数据库或连接地址等原始上游字段。已有旧快照即时返回并后台刷新；单环境失败不丢弃其他环境结果。FE 只显示不可用状态，不发单 PR 回退请求；无 headRef 或未映射仓库同样不触发 GitHub 查询，刷新页面可重新读取。
+
+单 PR GET 的 owner/repo/pullNumber/headRef 模式保持兼容：冷缓存仍为 `202 refreshing`，缺少 headRef 时可通过 GitHub adapter 查询。
 
 Meegle 工作项快速关联 PR 采用本地候选、远端写入的独立路径：
 
@@ -721,7 +727,7 @@ Meegle 工作项快速关联 PR 采用本地候选、远端写入的独立路径
 
 候选读取不调用 GitHub，也不读取 Odoo.sh。远端标题写入成功但本地快照 UPSERT 失败属于显式 partial success；重试时会因标题已有标记而跳过重复 PATCH，只修复本地快照。
 
-冷缓存的 202 响应可由 FE 轮询；已有但过期的环境快照可以立即标为旧数据，同时在后台刷新，用户下次打开可获取新状态。Redis 不可用时保留进程内 30 分钟 TTL 兜底；这不是跨重启持久化保证。
+旧单 PR/单环境接口的冷缓存 202 响应可由调用方轮询；Meegle 页面批量模式不返回 202。已有但过期的环境快照立即标为旧数据，同时在后台刷新，用户下次打开可获取新状态。Redis 不可用时保留进程内 30 分钟 TTL 兜底；这不是跨重启持久化保证。
 
 GitHub PR 列表及预览也通过 `getOrStartRefresh` 读取环境缓存，不等待 Odoo DevOps 上游刷新。返回 `odooShBuildState`（`ready/refreshing/unavailable/unmapped`）和 `odooShBuildStale`，空构建数组不能单独代表无构建；只有 ready 的空结果才表示已确认无构建。旧快照立即展示并标注旧数据，冷缓存 refreshing 的状态展示通过构建接口补查。环境刷新失败后，冷缓存与旧缓存页面读取均冷却 30 秒；同步 list 入口也遵守失败冷却，显式/定时 refresh 仍可强制刷新。
 

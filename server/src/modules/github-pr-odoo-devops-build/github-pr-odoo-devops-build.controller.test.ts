@@ -1,6 +1,53 @@
 import { createWebGitHubPrOdooDevopsBuildController } from "./github-pr-odoo-devops-build.controller.js";
 
 describe("web GitHub PR Odoo DevOps build controller", () => {
+  const allBuilds = {
+    actionRunId: "batch-test",
+    environments: ["eu", "uk", "us"].map((environment) => ({
+      environment, state: "ready", stale: false,
+      builds: [{ branch: "shared-branch", status: "done", result: "success", connect_url: "must-not-leak" }],
+    })),
+  };
+
+  it("returns all environments in one authenticated request without GitHub calls or raw snapshot fields", async () => {
+    const githubClient = { getPullRequest: vi.fn() };
+    const odooDevopsBranchesService = { getOrStartRefresh: vi.fn(), listBuildStatuses: vi.fn().mockResolvedValue(allBuilds) };
+    const controller = createWebGitHubPrOdooDevopsBuildController({
+      githubClient, odooDevopsBranchesService,
+      ensureSession: vi.fn().mockResolvedValue({ ok: true, user: {} }),
+    });
+    const result = await controller({ cookieHeader: "octo_web_session=session", query: { all: "true", actionRunId: "batch-test" } });
+    expect(result).toMatchObject({ statusCode: 200, body: { ok: true, data: { actionRunId: "batch-test", environments: expect.any(Array) } } });
+    expect(JSON.stringify(result)).not.toContain("connect_url");
+    expect(odooDevopsBranchesService.listBuildStatuses).toHaveBeenCalledExactlyOnceWith("batch-test");
+    expect(odooDevopsBranchesService.getOrStartRefresh).not.toHaveBeenCalled();
+    expect(githubClient.getPullRequest).not.toHaveBeenCalled();
+  });
+
+  it("requires a session for all-build reads before querying the service", async () => {
+    const odooDevopsBranchesService = { getOrStartRefresh: vi.fn(), listBuildStatuses: vi.fn() };
+    const controller = createWebGitHubPrOdooDevopsBuildController({
+      odooDevopsBranchesService,
+      ensureSession: vi.fn().mockResolvedValue({ ok: false, errorCode: "UNAUTHENTICATED" }),
+    });
+    expect(await controller({ cookieHeader: undefined, query: { all: "true", actionRunId: "batch-test" } })).toMatchObject({ statusCode: 401 });
+    expect(odooDevopsBranchesService.listBuildStatuses).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { all: "true" },
+    { all: "false", actionRunId: "batch-test" },
+    { all: ["true"], actionRunId: "batch-test" },
+    { all: "true", actionRunId: " ", owner: "owner" },
+    { all: "true", actionRunId: "batch-test", owner: "owner", repo: "Tenways", pullNumber: 1 },
+  ])("rejects malformed or ambiguous all-build query %j", async (query) => {
+    const odooDevopsBranchesService = { getOrStartRefresh: vi.fn(), listBuildStatuses: vi.fn() };
+    const controller = createWebGitHubPrOdooDevopsBuildController({ odooDevopsBranchesService, ensureSession: vi.fn().mockResolvedValue({ ok: true }) });
+    expect(await controller({ cookieHeader: undefined, query })).toMatchObject({ statusCode: 400 });
+    expect(odooDevopsBranchesService.listBuildStatuses).not.toHaveBeenCalled();
+    expect(odooDevopsBranchesService.getOrStartRefresh).not.toHaveBeenCalled();
+  });
+
   const snapshot = {
     environment: "eu" as const,
     project_name: "Tenways",
@@ -17,7 +64,7 @@ describe("web GitHub PR Odoo DevOps build controller", () => {
 
   it("requires the opaque Octo web session", async () => {
     const githubClient = { getPullRequest: vi.fn() };
-    const odooDevopsBranchesService = { getOrStartRefresh: vi.fn() };
+    const odooDevopsBranchesService = { listBuildStatuses: vi.fn(), getOrStartRefresh: vi.fn() };
     const controller = createWebGitHubPrOdooDevopsBuildController({
       githubClient,
       odooDevopsBranchesService,
@@ -31,7 +78,7 @@ describe("web GitHub PR Odoo DevOps build controller", () => {
 
   it("maps the repository to EU and matches the current GitHub head ref only", async () => {
     const githubClient = { getPullRequest: vi.fn().mockResolvedValue({ head: { ref: "feature/m-1140" } }) };
-    const odooDevopsBranchesService = { getOrStartRefresh: vi.fn().mockResolvedValue({
+    const odooDevopsBranchesService = { listBuildStatuses: vi.fn(), getOrStartRefresh: vi.fn().mockResolvedValue({
       state: "ready",
       snapshot,
       cached: true,
@@ -65,7 +112,7 @@ describe("web GitHub PR Odoo DevOps build controller", () => {
 
   it("returns 202 while an environment snapshot is refreshing", async () => {
     const githubClient = { getPullRequest: vi.fn() };
-    const odooDevopsBranchesService = { getOrStartRefresh: vi.fn().mockResolvedValue({ state: "refreshing" }) };
+    const odooDevopsBranchesService = { listBuildStatuses: vi.fn(), getOrStartRefresh: vi.fn().mockResolvedValue({ state: "refreshing" }) };
     const controller = createWebGitHubPrOdooDevopsBuildController({
       githubClient,
       odooDevopsBranchesService,
@@ -87,7 +134,7 @@ describe("web GitHub PR Odoo DevOps build controller", () => {
 
   it("does not query GitHub or Odoo DevOps for an unmapped repository", async () => {
     const githubClient = { getPullRequest: vi.fn() };
-    const odooDevopsBranchesService = { getOrStartRefresh: vi.fn() };
+    const odooDevopsBranchesService = { listBuildStatuses: vi.fn(), getOrStartRefresh: vi.fn() };
     const controller = createWebGitHubPrOdooDevopsBuildController({
       githubClient,
       odooDevopsBranchesService,

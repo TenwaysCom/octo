@@ -23,6 +23,26 @@ export function resolveGitHubRepoEnvironment(repo) {
   return githubRepoEnvironmentMap[String(repo || "").trim().toLocaleLowerCase()];
 }
 
+export function indexOdooShBuilds(environments) {
+  return new Map(environments.map((item) => [item.environment, {
+    ...item,
+    builds: new Map(item.builds.map((build) => [build.branch, build])),
+  }]));
+}
+
+export function getSharedOdooShBuildState(shared, pullRequest) {
+  const environment = resolveGitHubRepoEnvironment(pullRequest.repo);
+  if (!environment || !pullRequest.headRef) return { status: "unavailable", builds: [] };
+  if (shared.status !== "ready") return { status: shared.status, builds: [] };
+  const entry = shared.environments.get(environment);
+  if (entry?.state !== "ready") return { status: "unavailable", builds: [] };
+  const build = entry.builds.get(pullRequest.headRef);
+  return {
+    status: entry.stale ? "stale" : "ready",
+    builds: build ? [{ environment, status: build.status, result: build.result }] : [],
+  };
+}
+
 // Maps the Meegle system field to an environment. The platform-data list
 // serves the server-normalized value (bare "eu"/"us"/"uk"); Odoo-prefixed
 // labels stay supported for raw values, ambiguous combinations resolve to

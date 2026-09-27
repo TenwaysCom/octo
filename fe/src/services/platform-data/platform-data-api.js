@@ -92,6 +92,26 @@ export async function getGitHubPullRequestOdooShBuild({ apiBaseUrl, owner, repo,
   return parseGitHubPullRequestOdooShBuild(payload.data);
 }
 
+export function getAllGitHubPrOdooShBuilds({ apiBaseUrl, fetchImpl = fetch }) {
+  const url = `${buildApiUrl(apiBaseUrl, "/web/github-pr-odoo-devops-build")}?all=true`;
+  return getSharedPlatformDataRequest(url, async () => {
+    const actionRunId = globalThis.crypto?.randomUUID?.() ?? `odoo-builds-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const response = await fetchImpl(`${url}&actionRunId=${encodeURIComponent(actionRunId)}`, { credentials: "include" });
+    const payload = await response.json().catch(() => undefined);
+    if (!response.ok || !payload?.ok) throw new Error(payload?.error?.errorCode || "ODOO_DEVOPS_BUILDS_LOAD_FAILED");
+    const data = payload.data;
+    if (data?.actionRunId !== actionRunId || !Array.isArray(data.environments) || data.environments.length !== 3
+      || new Set(data.environments.map((item) => item?.environment)).size !== 3
+      || data.environments.some((item) => !["eu", "uk", "us"].includes(item?.environment)
+        || !["ready", "unavailable"].includes(item.state) || typeof item.stale !== "boolean"
+        || !Array.isArray(item.builds) || item.builds.some((build) => !build
+          || typeof build.branch !== "string" || typeof build.status !== "string" || typeof build.result !== "string"))) {
+      throw new Error("INVALID_ODOO_DEVOPS_BUILDS_RESPONSE");
+    }
+    return data;
+  });
+}
+
 export async function getGitHubPullRequestPreview({ apiBaseUrl, owner, repo, pullNumber, fetchImpl = fetch }) {
   const query = new URLSearchParams({ owner, repo, pullNumber: String(pullNumber) });
   const response = await fetchImpl(`${buildApiUrl(apiBaseUrl, "/web/platform-data/github-pull-request-preview")}?${query}`, {

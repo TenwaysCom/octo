@@ -12,6 +12,20 @@ pnpm --dir fe build
 `dev` starts at `http://localhost:4173`; `build` writes deployable static files
 to `fe/dist/`.
 
+## 页面按需加载
+
+登录后的业务页面按现有页面模块懒加载；登录与会话检查同步加载。
+首次打开页面时显示“正在加载页面…”，加载失败显示刷新按钮，刷新保留当前地址。
+页面加载使用 Vite 默认拆包，不提高体积告警阈值。
+体积对比与验证证据见[任务记录](../docs/tasks/engineering-ops/2026-09-25-fe-page-lazy-loading.md)。
+
+## Meegle Odoo.sh 构建状态
+
+Meegle 工作项列表和 Sprint 详情页各用一次 `GET /api/web/github-pr-odoo-devops-build?all=true&actionRunId=...`
+读取 EU/UK/US 分支构建状态，所有关联 PR 共用页面结果；分组展开和筛选不会按 PR 再次请求。
+构建读取独立于列表内容，冷缓存等待时仍可浏览工作项。旧快照显示“旧数据”，环境失败或缺少 headRef 时显示暂不可用；不会自动轮询，刷新页面重新读取。
+契约与验证见[Meegle 页面性能任务](../docs/tasks/platform-data/2026-08-29-meegle-page-performance.md)。
+
 ## Lark Ticket AI 应用
 
 `#lark-app-thread-analysis` 提供适合 Lark 侧栏的只读分析页面，复用已有 Ticket AI / Shadow AI；

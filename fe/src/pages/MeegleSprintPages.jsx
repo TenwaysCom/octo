@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { getMeegleSprintDetailHash } from "../app/routes/workspace-routes.js";
 import { AiSessionCopyButton } from "../components/ai-session/AiSessionCopyButton.jsx";
 import { WorkspaceShell } from "../components/layout/WorkspaceShell.jsx";
-import { OdooShBuildStatus } from "../components/platform/OdooShBuildStatus.jsx";
+import { OdooShBuildsProvider, OdooShBuildStatus } from "../components/platform/OdooShBuildStatus.jsx";
 import { MeegleRelatedPeople } from "../components/platform/MeegleRelatedPeople.jsx";
 import { User } from "../components/user/User.jsx";
 import { useKeyboardShortcut } from "../hooks/useKeyboardShortcut.js";
@@ -540,7 +540,8 @@ export function MeegleSprintDetailPage({ profile, sprintName, apiBaseUrl, onLogo
     setCollapsedGroups([]);
     setCollapsedSubgroups([]);
   }
-  return <WorkspaceShell user={profile.user ?? {}} workspaceAccess={profile.workspaceAccess} activePage="meegle-sprints" onLogout={onLogout} isBusy={isBusy} breadcrumbs={breadcrumbs}>
+  return <OdooShBuildsProvider apiBaseUrl={apiBaseUrl}>
+    <WorkspaceShell user={profile.user ?? {}} workspaceAccess={profile.workspaceAccess} activePage="meegle-sprints" onLogout={onLogout} isBusy={isBusy} breadcrumbs={breadcrumbs}>
     <section className="profile-main list-page sprint-detail-page">
       {state.status === "loading" ? <p className="list-message">正在加载 Sprint 详情…</p> : null}
       {state.status === "error" ? <p className="list-message list-message--error">Sprint 详情暂时无法读取，请稍后重试。</p> : null}
@@ -569,5 +570,6 @@ export function MeegleSprintDetailPage({ profile, sprintName, apiBaseUrl, onLogo
         </div>
       </> : null}
     </section>
-  </WorkspaceShell>;
+  </WorkspaceShell>
+  </OdooShBuildsProvider>;
 }

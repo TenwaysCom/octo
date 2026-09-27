@@ -1,5 +1,5 @@
 import { WeKnoraWidget } from "../components/WeKnoraWidget.jsx";
-import { useCallback, useEffect, useState } from "react";
+import { Component, lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { detectOctoExtension } from "../services/auth/extension-presence.js";
 import {
   getWebProfile,
@@ -12,18 +12,20 @@ import { useKeyboardShortcut } from "../hooks/useKeyboardShortcut.js";
 import { countMyOpenGitHubPullRequests } from "../lib/github-pull-request-filters.js";
 import { rememberSprintWorkitemPageState } from "../lib/meegle-sprint-workitem-view.js";
 import { UnauthenticatedPage, SessionLoadingPage } from "../pages/LoginPage.jsx";
-import { KeyboardShortcutsPage } from "../pages/KeyboardShortcutsPage.jsx";
-import { LarkTicketDetailPage } from "../pages/LarkTicketDetailPage.jsx";
-import { LarkTicketAppPage } from "../pages/LarkTicketAppPage.jsx";
 import { rememberLarkAppReturn } from "../lib/lark-ticket-app.js";
-import { PlatformListPage } from "../pages/PlatformListPage.jsx";
-import { MeegleSprintDetailPage, MeegleSprintHistoryPage } from "../pages/MeegleSprintPages.jsx";
-import { SettingsIntegrationsPage } from "../pages/SettingsIntegrationsPage.jsx";
-import { SyncStatusPage } from "../pages/SyncStatusPage.jsx";
 import { WorkspaceMetricsContext } from "../components/layout/WorkspaceShell.jsx";
 import { WorkspaceSearchProvider } from "../components/layout/WorkspaceSearch.jsx";
 import { getPlatformDataList } from "../services/platform-data/platform-data-api.js";
 import { appendWorkspaceBreadcrumb, canAccessWorkspaceRoute, getWorkspaceRoute, INTEGRATIONS_ROUTE } from "./routes/workspace-routes.js";
+
+const KeyboardShortcutsPage = lazy(() => import("../pages/KeyboardShortcutsPage.jsx").then((module) => ({ default: module.KeyboardShortcutsPage })));
+const LarkTicketDetailPage = lazy(() => import("../pages/LarkTicketDetailPage.jsx").then((module) => ({ default: module.LarkTicketDetailPage })));
+const LarkTicketAppPage = lazy(() => import("../pages/LarkTicketAppPage.jsx").then((module) => ({ default: module.LarkTicketAppPage })));
+const PlatformListPage = lazy(() => import("../pages/PlatformListPage.jsx").then((module) => ({ default: module.PlatformListPage })));
+const MeegleSprintDetailPage = lazy(() => import("../pages/MeegleSprintPages.jsx").then((module) => ({ default: module.MeegleSprintDetailPage })));
+const MeegleSprintHistoryPage = lazy(() => import("../pages/MeegleSprintPages.jsx").then((module) => ({ default: module.MeegleSprintHistoryPage })));
+const SettingsIntegrationsPage = lazy(() => import("../pages/SettingsIntegrationsPage.jsx").then((module) => ({ default: module.SettingsIntegrationsPage })));
+const SyncStatusPage = lazy(() => import("../pages/SyncStatusPage.jsx").then((module) => ({ default: module.SyncStatusPage })));
 
 const WORKSPACE_PAGE_COMPONENTS = {
   "lark-app": LarkTicketAppPage,
@@ -37,6 +39,26 @@ const WORKSPACE_PAGE_COMPONENTS = {
   "meegle-sprint-detail": MeegleSprintDetailPage,
   "github-pull-requests": PlatformListPage,
 };
+
+class WorkspacePageErrorBoundary extends Component {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  render() {
+    if (this.state.failed) {
+      return <main className="session-loading">
+        <div className="session-loading__content" role="alert">
+          <p>页面加载失败，请刷新页面后重试。</p>
+          <button className="primary-button" type="button" onClick={() => window.location.reload()}>刷新页面</button>
+        </div>
+      </main>;
+    }
+    return this.props.children;
+  }
+}
 
 export function App({ apiBaseUrl }) {
   const [status, setStatus] = useState();
@@ -182,6 +204,8 @@ export function App({ apiBaseUrl }) {
     return <WorkspaceMetricsContext.Provider value={{ githubMyOpenCount }}>
       <WorkspaceSearchProvider apiBaseUrl={apiBaseUrl} enabled={Boolean(profile.workspaceAccess?.platformLists) && activeWorkspaceRoute.page !== "lark-app"}>
       {["lark-tickets", "lark-ticket-detail", "lark-app"].includes(activeWorkspaceRoute.page) && <WeKnoraWidget apiBaseUrl={apiBaseUrl} />}
+      <WorkspacePageErrorBoundary key={activeWorkspaceRoute.hash}>
+      <Suspense fallback={<SessionLoadingPage message="正在加载页面…" />}>
       <WorkspacePage
         key={activeWorkspaceRoute.hash}
         profile={profile}
@@ -201,6 +225,8 @@ export function App({ apiBaseUrl }) {
         onReauthorize={() => startLarkLogin({ apiBaseUrl })}
         isBusy={isBusy}
       />
+      </Suspense>
+      </WorkspacePageErrorBoundary>
       </WorkspaceSearchProvider>
     </WorkspaceMetricsContext.Provider>;
   }
