@@ -41,8 +41,8 @@ async function runStage<T>(phase: WikiQaProgress["phase"], input: WikiQaInput, o
 
 // A page can aggregate many unrelated incidents. Only forward statements tied
 // to the selected primary sources; the original source excerpts remain available.
-function scopedWikiContent(content: string, sourcePaths: string[]): string {
-  if (!sourcePaths.length) return "";
+function scopedWikiContent(content: string, sourcePaths: string[], retainWithoutPrimaryEvidence = false): string {
+  if (!sourcePaths.length) return retainWithoutPrimaryEvidence ? content : "";
   const isOtherSource = (part: string) => /raw\/(?:transcripts|documents)\//.test(part)
     && !sourcePaths.some((path) => part.includes(path));
   return content.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, "")
@@ -158,20 +158,23 @@ export function createWikiQaService(deps: {
     return runStage("evidence", input, async () => {
       const evidence: WikiKnowledgeEvidence[] = ranked.matches.map((match, index) => {
         const candidate = rerankCandidates.find((item) => item.id === match.candidateId);
-        if (!candidate || seen.has(candidate.path) || new Set(match.evidenceIds).size !== match.evidenceIds.length
+        const sourcePath = candidate?.sourcePath ?? candidate?.path ?? "";
+        if (!candidate || seen.has(sourcePath) || new Set(match.evidenceIds).size !== match.evidenceIds.length
           || match.evidenceIds.some((id) => !candidate.sourceEvidence.some((source) => source.id === id))) {
           throw new WikiQaError("WIKI_QA_REFERENCE_INVALID", "Wiki 检索结果包含重复页面或候选之外的引用，请重新执行。", {
             actionRunId: input.actionRunId, layer: "server", module: "wiki-qa", stage: "server.wiki_qa.rerank",
           });
         }
-        seen.add(candidate.path);
+        seen.add(sourcePath);
         const sources = reader.selectEvidence
           ? reader.selectEvidence({ candidate, question: extracted, evidenceIds: match.evidenceIds, signal: input.signal })
           : candidate.sourceEvidence.filter((source) => match.evidenceIds.includes(source.id));
         const omittedEvidence = sources.length < match.evidenceIds.length;
         const historical = candidate.historicalOnly || !match.conditionsMatched || !sources.length || omittedEvidence || sources.some((source) => !source.complete);
-        return { sourceId: index + 1, path: candidate.path, title: candidate.title, status: candidate.status,
-          environments: candidate.environments, content: scopedWikiContent(candidate.content, sources.map((source) => source.path)), sourceEvidence: sources,
+        return { sourceId: index + 1, path: sourcePath, knowledgeType: candidate.knowledgeType,
+          title: candidate.title, status: candidate.status,
+          environments: candidate.environments,
+          content: scopedWikiContent(candidate.content, sources.map((source) => source.path), candidate.knowledgeType === "ontology"), sourceEvidence: sources,
           applicability: historical ? "historical_reference" : match.applicability,
           limitations: [...new Set([...candidate.limitations, ...match.limitations,
             ...(!match.conditionsMatched ? ["当前材料尚未确认处理路径的关键前提"] : []),
@@ -207,8 +210,10 @@ export function createWikiQaService(deps: {
             actionRunId: input.actionRunId, layer: "server", module: "wiki-qa", stage: "server.wiki_qa.answer",
           });
         }
-        const sources = retrieved.evidence.map((item) =>
-          `[${item.sourceId}] ${item.title.replace(/[\r\n]/g, " ")}（${item.status === "draft" ? "草稿" : item.status === "confirmed" ? "已确认" : "状态待确认"}${item.applicability === "historical_reference" ? "；仅供历史参考" : ""}）\n来源：docs/llm-wiki/${item.path}`);
+        const sources = retrieved.evidence.map((item) => {
+          const sourcePath = item.path.startsWith("docs/") ? item.path : `docs/llm-wiki/${item.path}`;
+          return `[${item.sourceId}] ${item.title.replace(/[\r\n]/g, " ")}（${item.status === "draft" ? "草稿" : item.status === "confirmed" ? "已确认" : "状态待确认"}${item.applicability === "historical_reference" ? "；仅供历史参考" : ""}）\n来源：${sourcePath}`;
+        });
         input.signal?.throwIfAborted();
         return { ...retrieved, answerMarkdown: [redactSupportText(answer.answerMarkdown), ...(sources.length ? ["参考资料：", ...sources] : [])].join("\n\n") };
       });

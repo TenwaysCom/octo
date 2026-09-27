@@ -22,6 +22,10 @@ const REPLY_ADVICE_LABELS = {
   undetermined: "无法判断",
 };
 
+function formatWikiSourcePath(path) {
+  return String(path || "").startsWith("docs/") ? path : `docs/llm-wiki/${path}`;
+}
+
 export function getShadowAssessmentDetails(shadowAi) {
   if (shadowAi?.status !== "ok") return [];
   const { businessRisk: risk, replyAdvice: reply, contextInfo: context } = shadowAi;
@@ -36,7 +40,7 @@ export function getShadowAssessmentDetails(shadowAi) {
     ["省略范围", context?.omittedRanges?.join("、")],
     ["快照同步时间", context ? context.syncedAt ? formatDateTime(context.syncedAt) : "未知" : ""],
     ["Wiki 参考", shadowAi.wikiContext ? ({ matched: `已参考 ${shadowAi.wikiContext.sources.length} 篇相关资料`, no_matches: "未召回相关资料", unavailable: "Wiki 不可用，本次仅基于聊天分析" })[shadowAi.wikiContext.status] : ""],
-    ["Wiki 来源", shadowAi.wikiContext?.sources?.map((source) => `[W${source.sourceId}] ${source.title}（${source.status === "confirmed" ? "已确认" : source.status === "draft" ? "草稿" : "状态待确认"}；${source.applicability === "historical_reference" ? "仅供历史参考" : "相关参考"}）\n来源：docs/llm-wiki/${source.path}${source.limitations.length ? `\n局限：${source.limitations.join("；")}` : ""}`).join("\n\n")],
+    ["Wiki 来源", shadowAi.wikiContext?.sources?.map((source) => `[W${source.sourceId}] ${source.title}（${source.status === "confirmed" ? "已确认" : source.status === "draft" ? "草稿" : "状态待确认"}；${source.applicability === "historical_reference" ? "仅供历史参考" : "相关参考"}）\n来源：${formatWikiSourcePath(source.path)}${source.limitations.length ? `\n局限：${source.limitations.join("；")}` : ""}`).join("\n\n")],
     ["规则版本", shadowAi.ruleVersion],
   ]);
 }

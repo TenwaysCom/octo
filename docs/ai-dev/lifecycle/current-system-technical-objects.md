@@ -61,6 +61,10 @@ update_required_when:
 | `MeeglePullRequestLinkAction` | Octo FE + server workflow | `fe/src/pages/PlatformListPage.jsx`, `server/src/application/services/meegle-pull-request-link.service.ts` | 从本地 open/draft PR 快照选候选；Server 校验 System 仓库、更新 GitHub 标题并刷新本地快照 |
 | `ActionRunTrace` | Should be cross-layer contract | docs issue/rules only | 规则已定义，代码尚未统一实现 |
 
+### Wiki QA 双知识根补充（2026-09-27）
+
+`TicketWikiQaQuickAction` 与 `LarkTicketShadowSummary` 共用的本地召回现在限制在 `SUPPORT_QA_EU_WORKSPACE_DIR` 下两个 canonical 根：`docs/llm-wiki/concepts/` 保持原 QA Card/FAQ 候选，`docs/ontology/{objects,processes,rules}/` 增加只读 Ontology 候选。Ontology 顶层 `index.md`/`*-index.md` 只导航，`reviews/`、`templates/`、`examples/`、隐藏目录和符号链接不进入候选。Ontology 没有 Ticket raw 原始证据，正文可以参与重排和答案，但结果始终为 `historical_reference`，保留 draft、`business_review`、环境、实现核对及“不能证明已部署/当前 Ticket 事实”限制。公开来源路径使用 `docs/llm-wiki/...` 或 `docs/ontology/...`；历史 `concepts/...` 路径仍兼容。
+
 ## 2. 分层对象矩阵
 
 这里按 error envelope 的 `layer` 维度整理技术对象。这个矩阵用于排障和代码放置：先判断对象属于哪一层的权威状态，再决定应该改 extension、server、adapter 还是平台 metadata。

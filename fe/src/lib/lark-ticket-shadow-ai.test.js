@@ -91,5 +91,9 @@ test("distinguishes missing, empty, degraded and matched Wiki context with sourc
   assert.equal(shown["Wiki 参考"], "已参考 1 篇相关资料");
   assert.match(shown["Wiki 来源"], /\[W1\] 配置检查/);
   assert.match(shown["Wiki 来源"], /草稿；仅供历史参考/);
+  assert.match(shown["Wiki 来源"], /docs\/llm-wiki\/concepts\/config\.md/);
   assert.match(shown["Wiki 来源"], /前提待核实/);
+  const ontology = fields({ status: "matched", sources: [{ sourceId: 1, title: "销售订单定义", path: "docs/ontology/objects/sales-order.md", status: "draft", applicability: "historical_reference", limitations: [] }] });
+  assert.match(ontology["Wiki 来源"], /来源：docs\/ontology\/objects\/sales-order\.md/);
+  assert.doesNotMatch(ontology["Wiki 来源"], /docs\/llm-wiki\/docs\/ontology/);
 });

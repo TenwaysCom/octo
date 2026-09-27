@@ -7,6 +7,12 @@ import { relevantSourceContent, relevantWikiContent, wikiMatchCount, wikiQueryTe
 const MAX_FILE_BYTES = 256 * 1024;
 const DEFAULT_RECALL_LIMIT = 20;
 
+interface KnowledgeRoot {
+  root: string;
+  publicRoot: "docs/llm-wiki" | "docs/ontology";
+  knowledgeType: "support_wiki" | "ontology";
+}
+
 function readRecallLimit(): number {
   const configured = process.env.WIKI_QA_RECALL_LIMIT?.trim();
   const limit = configured ? Number(configured) : DEFAULT_RECALL_LIMIT;
@@ -63,11 +69,53 @@ function excerpt(text: string, queryTerms: string[], maxLength: number): string 
   return `${selected.map((p) => p.content).join("\n\n").slice(0, maxLength)}\n[内容已截取，省略部分未经本轮核对]`;
 }
 
+const ontologyGuardHeading = /规则|条件|边界|限制|例外|安全|验证|冲突|待确认|状态|生命周期|rule|condition|boundary|limit|exception|security|validation|conflict|pending|state|lifecycle/i;
+
+// Ontology pages are substantially longer than QA cards. Select whole matched
+// sections first, then adjacent guard sections, without truncating a rule away
+// from its boundary or allowing every guard section in the document to crowd
+// the matched material out of the fixed context budget.
+function relevantOntologyContent(text: string, queryTerms: string[], maxLength = 2400): string {
+  // Match against the local source before redaction: stable ontology IDs such
+  // as `sales-order-amendment` can resemble reference numbers. Redact only the
+  // selected text that leaves this adapter.
+  const clean = text.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, "").trim();
+  // Stable-id anchors in ontology pages commonly sit immediately before the
+  // heading they identify. Treat the anchor and heading as one section start.
+  const starts = [...clean.matchAll(/^(?:<a\b[^>\r\n]*><\/a>\r?\n)?#{1,6}\s/gim)].map((match) => match.index);
+  if (!starts.length || starts[0] !== 0) starts.unshift(0);
+  const sections = starts.map((start, index) => clean.slice(start, starts[index + 1] ?? clean.length).trim())
+    .map((content, index) => ({
+      content, index, score: wikiMatchCount(content, queryTerms),
+    }));
+  const matches = sections.filter((section) => section.score > 0)
+    .sort((a, b) => b.score - a.score || a.index - b.index);
+  const kept = new Set<number>();
+  let remaining = maxLength - 48;
+  const keep = (section: typeof sections[number] | undefined) => {
+    if (!section || kept.has(section.index) || section.content.length > remaining) return;
+    kept.add(section.index);
+    remaining -= section.content.length + 2;
+  };
+  for (const match of matches) keep(match);
+  if (![...kept].some((index) => sections[index].score > 0)) return "";
+  const heading = (section: typeof sections[number]) => section.content.split("\n").find((line) => /^#{1,6}\s/.test(line)) ?? "";
+  for (const match of matches) {
+    const before = sections[match.index - 1];
+    const after = sections[match.index + 1];
+    if (before && ontologyGuardHeading.test(heading(before))) keep(before);
+    if (after && ontologyGuardHeading.test(heading(after))) keep(after);
+  }
+  const content = [...kept].sort((a, b) => a - b)
+    .map((index) => redactSupportText(sections[index].content)).join("\n\n");
+  return content ? `${content}\n[Ontology 相关章节摘录；未包含的内容未经本轮核对]` : "";
+}
+
 function sourcePaths(text: string): string[] {
   return [...new Set(text.match(/raw\/(?:transcripts|documents)\/[^\s\]\)"'<>]+\.md/g) ?? [])];
 }
 
-function linkedConcepts(text: string, path: string, pages: string[]): string[] {
+function linkedPages(text: string, path: string, pages: string[]): string[] {
   const links = [...text.matchAll(/\]\(([^)\s]+)(?:\s+[^)]*)?\)|\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g)];
   const found = new Set<string>();
   for (const match of links) {
@@ -105,70 +153,123 @@ export function createWikiKnowledgeReader(deps: { workspaceDir?: string } = {}):
       try {
         const workspace = deps.workspaceDir ?? process.env.SUPPORT_QA_EU_WORKSPACE_DIR?.trim();
         if (!workspace) throw new Error("Workspace missing");
-        const root = await realpath(resolve(workspace, "docs/llm-wiki"));
-        const within = (path: string) => { const rel = relative(root, path); return rel !== ".." && !rel.startsWith("../") && !isAbsolute(rel); };
-        async function read(path: string, optional = false): Promise<string | undefined> {
+        const workspaceRoot = await realpath(workspace);
+        const withinWorkspace = (path: string) => {
+          const rel = relative(workspaceRoot, path);
+          return rel !== ".." && !rel.startsWith("../") && !isAbsolute(rel);
+        };
+        const wikiRoot: KnowledgeRoot = {
+          root: await realpath(resolve(workspaceRoot, "docs/llm-wiki")),
+          publicRoot: "docs/llm-wiki",
+          knowledgeType: "support_wiki",
+        };
+        let ontologyRoot: KnowledgeRoot | undefined;
+        try {
+          ontologyRoot = {
+            root: await realpath(resolve(workspaceRoot, "docs/ontology")),
+            publicRoot: "docs/ontology",
+            knowledgeType: "ontology",
+          };
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+        }
+        if (!withinWorkspace(wikiRoot.root) || (ontologyRoot && !withinWorkspace(ontologyRoot.root))) {
+          throw new Error("Knowledge root outside workspace");
+        }
+        const within = (source: KnowledgeRoot, path: string) => {
+          const rel = relative(source.root, path);
+          return rel !== ".." && !rel.startsWith("../") && !isAbsolute(rel);
+        };
+        async function read(source: KnowledgeRoot, path: string, optional = false): Promise<string | undefined> {
           input.signal?.throwIfAborted();
-          if (path.split("/").includes("..") || !within(resolve(root, path)) || !path.endsWith(".md")) return undefined;
+          if (path.split("/").includes("..") || !within(source, resolve(source.root, path)) || !path.endsWith(".md")) return undefined;
           let canonical: string;
-          try { canonical = await realpath(resolve(root, path)); } catch (error) {
+          try { canonical = await realpath(resolve(source.root, path)); } catch (error) {
             if (optional && (error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
             throw error;
           }
-          if (!within(canonical)) return undefined;
-          const rawKind = ["raw/transcripts/", "raw/documents/"].find((prefix) => path.startsWith(prefix));
-          if (rawKind && !relative(root, canonical).startsWith(rawKind)) return undefined;
+          if (!within(source, canonical)) return undefined;
+          const rawKind = source.knowledgeType === "support_wiki"
+            ? ["raw/transcripts/", "raw/documents/"].find((prefix) => path.startsWith(prefix))
+            : undefined;
+          if (rawKind && !relative(source.root, canonical).startsWith(rawKind)) return undefined;
           const info = await stat(canonical);
           if (!info.isFile() || info.size > MAX_FILE_BYTES) return undefined;
           const buffer = await readFile(canonical, { signal: input.signal });
           if (buffer.length > MAX_FILE_BYTES) return undefined;
           return buffer.toString("utf8");
         }
-        async function scan(directory: string): Promise<string[]> {
+        async function scan(source: KnowledgeRoot, directory: string, optional = false): Promise<string[]> {
           input.signal?.throwIfAborted();
-          const canonical = await realpath(resolve(root, directory));
-          if (!within(canonical)) return [];
+          let canonical: string;
+          try { canonical = await realpath(resolve(source.root, directory)); } catch (error) {
+            if (optional && (error as NodeJS.ErrnoException).code === "ENOENT") return [];
+            throw error;
+          }
+          if (!within(source, canonical)) return [];
           const entries = await readdir(canonical, { withFileTypes: true });
           const paths: string[] = [];
           for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
             if (entry.name.startsWith(".") || entry.isSymbolicLink()) continue;
             const path = `${directory}/${entry.name}`;
-            if (entry.isDirectory()) paths.push(...await scan(path));
+            if (entry.isDirectory()) paths.push(...await scan(source, path));
             else if (entry.isFile() && entry.name.endsWith(".md")) paths.push(path);
           }
           return paths;
         }
+        async function topLevelIndexes(source: KnowledgeRoot): Promise<string[]> {
+          const entries = await readdir(source.root, { withFileTypes: true });
+          return entries.filter((entry) => !entry.name.startsWith(".") && !entry.isSymbolicLink() && entry.isFile()
+            && (entry.name === "index.md" || entry.name.endsWith("-index.md")))
+            .map((entry) => entry.name).sort((a, b) => a.localeCompare(b));
+        }
         const queryTerms = terms([input.question, ...input.keywords, ...input.objects].join(" "));
-        const pages: Array<{ path: string; text: string; score: number }> = [];
-        for (const path of await scan("concepts")) {
-          const text = await read(path);
-          if (!text) continue;
-          const environments = metadata(text, "environments");
-          if (input.environments.length && environments.length && !environments.includes("待确认")
-            && !input.environments.some((environment) => environments.includes(environment))) continue;
-          const title = metadata(text, "title").join(" ").toLowerCase();
-          const tags = ["objects", "processes", "tags"].flatMap((key) => metadata(text, key)).join(" ").toLowerCase();
-          const content = text.toLowerCase();
-          const score = wikiMatchCount(title, queryTerms) * 4 + wikiMatchCount(tags, queryTerms) * 3
-            + wikiMatchCount(relevantWikiContent(content, queryTerms), queryTerms) * 2;
-          pages.push({ path, text, score });
+        const pages: Array<{ source: KnowledgeRoot; path: string; text: string; content: string; score: number }> = [];
+        const candidateDirectories: Array<{ source: KnowledgeRoot; directory: string; optional?: boolean }> = [
+          { source: wikiRoot, directory: "concepts" },
+          ...(ontologyRoot ? ["objects", "processes", "rules"].map((directory) => ({ source: ontologyRoot, directory, optional: true })) : []),
+        ];
+        for (const { source, directory, optional } of candidateDirectories) {
+          for (const path of await scan(source, directory, optional)) {
+            const text = await read(source, path);
+            if (!text) continue;
+            const environments = metadata(text, "environments");
+            if (input.environments.length && environments.length && !environments.includes("待确认")
+              && !input.environments.some((environment) => environments.includes(environment))) continue;
+            const title = (source.knowledgeType === "ontology"
+              ? metadata(text, "title")[0] || text.match(/^#\s+(.+)$/m)?.[1] || path
+              : metadata(text, "title").join(" ")).toLowerCase();
+            const tags = ["objects", "processes", "tags"].flatMap((key) => metadata(text, key)).join(" ").toLowerCase();
+            const content = source.knowledgeType === "ontology"
+              ? relevantOntologyContent(text, queryTerms)
+              : relevantWikiContent(text, queryTerms);
+            const pathScore = source.knowledgeType === "ontology" ? wikiMatchCount(path.replace(/\.md$/, ""), queryTerms) : 0;
+            const score = (wikiMatchCount(title, queryTerms) + pathScore) * 4
+              + wikiMatchCount(tags, queryTerms) * 3 + wikiMatchCount(content, queryTerms) * 2;
+            pages.push({ source, path, text, content, score });
+          }
         }
         // Navigation pages contribute links, never independent knowledge hits.
-        const navigation = ["index.md"];
-        try { navigation.push(...await scan("entities")); } catch (error) {
-          if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-        }
-        for (const path of navigation) {
-          const text = await read(path, true);
-          if (!text) continue;
-          for (const line of text.split("\n")) {
-            if (!wikiMatchCount(line, queryTerms)) continue;
-            const linked = linkedConcepts(line, path, pages.map((page) => page.path));
-            for (const page of pages) if (linked.includes(page.path)) page.score += 1;
+        const navigation: Array<{ source: KnowledgeRoot; paths: string[] }> = [{
+          source: wikiRoot,
+          paths: ["index.md", ...await scan(wikiRoot, "entities", true)],
+        }];
+        if (ontologyRoot) navigation.push({ source: ontologyRoot, paths: await topLevelIndexes(ontologyRoot) });
+        for (const group of navigation) {
+          const sourcePages = pages.filter((page) => page.source === group.source);
+          for (const path of group.paths) {
+            const text = await read(group.source, path, true);
+            if (!text) continue;
+            for (const line of text.split("\n")) {
+              if (!wikiMatchCount(line, queryTerms)) continue;
+              const linked = linkedPages(line, path, sourcePages.map((page) => page.path));
+              for (const page of sourcePages) if (linked.includes(page.path)) page.score += 1;
+            }
           }
         }
         const candidates: WikiCandidate[] = [];
-        for (const page of pages.filter((page) => page.score > 0).sort((a, b) => b.score - a.score || a.path.localeCompare(b.path)).slice(0, recallLimit)) {
+        for (const page of pages.filter((page) => page.score > 0).sort((a, b) => b.score - a.score
+          || `${a.source.publicRoot}/${a.path}`.localeCompare(`${b.source.publicRoot}/${b.path}`)).slice(0, recallLimit)) {
           input.signal?.throwIfAborted();
           const id = `wiki-${candidates.length + 1}`;
           const state = metadata(page.text, "status")[0];
@@ -179,10 +280,20 @@ export function createWikiKnowledgeReader(deps: { workspaceDir?: string } = {}):
           const unknownEnvironment = !input.environments.length || !environments.length || environments.includes("待确认");
           if (unknownEnvironment) limitations.push("当前问题或资料的适用环境待确认");
           if (metadata(page.text, "contested")[0] === "true") limitations.push("资料标记有未决冲突");
+          if (page.source.knowledgeType === "ontology") {
+            const businessReview = metadata(page.text, "business_review")[0];
+            if (businessReview === "pending") limitations.push("Ontology 业务规则待确认");
+            else if (businessReview !== "approved" && businessReview !== "confirmed") limitations.push("Ontology 业务复核状态未确认");
+            const implementationReview = metadata(page.text, "implementation_review")[0];
+            if (implementationReview === "pending" || implementationReview === "partial-static") {
+              limitations.push("Ontology 实现仅完成部分静态核对");
+            }
+            limitations.push("Ontology 仅作为业务建模参考，不证明当前环境已上线或本 Ticket 已发生相应事实");
+          }
           const sources: WikiSourceEvidence[] = [];
-          const paths = sourcePaths(page.text);
+          const paths = page.source.knowledgeType === "support_wiki" ? sourcePaths(page.text) : [];
           for (const path of paths.slice(0, 12)) {
-            const source = await read(path, true);
+            const source = await read(wikiRoot, path, true);
             if (!source) { limitations.push("部分原始来源不可读取"); continue; }
             // Shadow AI analysis in a raw snapshot is not primary evidence.
             const thread = source.match(/^##\s+线程消息[^\n]*\n([\s\S]*?)(?=^##\s|$(?![\s\S]))/m)?.[1]?.trim() ?? "";
@@ -193,8 +304,9 @@ export function createWikiKnowledgeReader(deps: { workspaceDir?: string } = {}):
             sources.push({ id: `${id}-source-${sources.length + 1}`, path, complete, content });
           }
           if (paths.length > 12) limitations.push("本轮仅核对前 12 个原始来源");
-          if (!sources.length || sources.some((source) => !source.complete)) limitations.push("原始证据缺失或聊天快照不完整");
-          const content = relevantWikiContent(page.text, queryTerms);
+          if (page.source.knowledgeType === "ontology") limitations.push("Ontology 页面不作为本 Ticket 的原始证据");
+          else if (!sources.length || sources.some((source) => !source.complete)) limitations.push("原始证据缺失或聊天快照不完整");
+          const content = page.content;
           const linkedPaths = sourcePaths(content);
           const sourceScore = (source: WikiSourceEvidence) => wikiMatchCount(source.content, queryTerms);
           const selectedSources = sources.sort((a, b) => Number(linkedPaths.includes(b.path)) - Number(linkedPaths.includes(a.path))
@@ -206,9 +318,12 @@ export function createWikiKnowledgeReader(deps: { workspaceDir?: string } = {}):
           const lowConfidence = metadata(page.text, "confidence")[0] === "low";
           if (lowConfidence) limitations.push("资料置信度低，仅供历史参考");
           if (!content) limitations.push("未能在预算内摘取完整相关知识段落");
-          const candidate: WikiCandidate = { id, path: page.path, title: redactSupportText(metadata(page.text, "title")[0] || page.text.match(/^#\s+(.+)$/m)?.[1] || page.path),
+          const candidate: WikiCandidate = { id, path: page.path, sourcePath: `${page.source.publicRoot}/${page.path}`,
+            knowledgeType: page.source.knowledgeType,
+            title: redactSupportText(metadata(page.text, "title")[0] || page.text.match(/^#\s+(.+)$/m)?.[1] || page.path),
             status, environments, content, sourceEvidence,
-            limitations: [...new Set(limitations)], historicalOnly: unknownEnvironment || status === "unknown" || lowConfidence || !sourceEvidence.some((source) => source.complete),
+            limitations: [...new Set(limitations)], historicalOnly: page.source.knowledgeType === "ontology"
+              || unknownEnvironment || status === "unknown" || lowConfidence || !sourceEvidence.some((source) => source.complete),
           };
           originals.set(candidate, selectedSources);
           candidates.push(candidate);
