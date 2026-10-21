@@ -60,6 +60,27 @@ describe("ZCode chat client", () => {
       .rejects.toMatchObject({ code: "ZCODE_REQUEST_FAILED", statusCode: 429 });
   });
 
+  it("retains the numeric provider code for insufficient balance without exposing the response", async () => {
+    const client = createZcodeChatClient({
+      apiKey: "test-key",
+      fetchImpl: vi.fn().mockResolvedValue(new Response(JSON.stringify({
+        error: { code: "1113", message: "private provider details" },
+      }), { status: 429 })),
+    });
+    const error = await client.createJsonCompletion({ prompt: "return json", actionRunId: "balance-test" }).catch((error) => error);
+    expect(error).toMatchObject({ code: "ZCODE_REQUEST_FAILED", statusCode: 429, providerErrorCode: "1113" });
+    expect(String(error)).not.toContain("private provider details");
+  });
+
+  it.each(["private provider details", { secret: "private" }, null])("omits unsafe provider error codes: %j", async (code) => {
+    const client = createZcodeChatClient({
+      apiKey: "test-key",
+      fetchImpl: vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: { code } }), { status: 429 })),
+    });
+    await expect(client.createJsonCompletion({ prompt: "return json", actionRunId: "unsafe-code-test" }))
+      .rejects.toMatchObject({ code: "ZCODE_REQUEST_FAILED", statusCode: 429, providerErrorCode: undefined });
+  });
+
   it("rejects empty or truncated completions", async () => {
     const client = createZcodeChatClient({
       apiKey: "secret-key",

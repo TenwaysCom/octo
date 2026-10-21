@@ -3,6 +3,7 @@ import { supportsWikiQuestion, wikiQueryTerms } from "../../domain/wiki-evidence
 import { z } from "zod";
 import type { JsonCompletionClient } from "../../adapters/ai/json-completion-client.js";
 import { createTicketSummaryJsonCompletionClient, isTicketSummaryClientError } from "../../adapters/ai/ticket-summary-client.js";
+import { ZcodeChatError } from "../../adapters/zcode/zcode-chat-client.js";
 import { createWikiQaRerankClient, WikiQaRerankClientError, type WikiQaRerankClient } from "../../adapters/ai/wiki-qa-rerank-client.js";
 import { createWikiKnowledgeReader } from "../../adapters/filesystem/wiki-knowledge-reader.js";
 import { wikiQaExtractLog, type WikiQaExtractLog } from "../../adapters/filesystem/wiki-qa-extract-log.js";
@@ -122,8 +123,13 @@ export function createWikiQaService(deps: {
       phaseLog?.({ event: "failed", actionRunId: input.actionRunId, durationMs: Date.now() - start,
         errorCode: input.signal?.aborted ? "ABORTED" : isTicketSummaryClientError(error) ? error.code : "WIKI_QA_MODEL_FAILED" });
       input.signal?.throwIfAborted();
-      wikiLogger.warn({ ...base, layer: "adapter", errorCode: isTicketSummaryClientError(error) || error instanceof WikiQaRerankClientError ? error.code : "WIKI_QA_MODEL_FAILED", durationMs: Date.now() - start }, "WIKI_QA_MODEL_FAILED");
-      throw new WikiQaError("WIKI_QA_MODEL_FAILED", "Wiki 问答模型调用失败，请检查模型配置或稍后重新执行。", { ...base, layer: "adapter" });
+      wikiLogger.warn({ ...base, layer: "adapter", errorCode: isTicketSummaryClientError(error) || error instanceof WikiQaRerankClientError ? error.code : "WIKI_QA_MODEL_FAILED", durationMs: Date.now() - start,
+        ...(error instanceof ZcodeChatError ? { statusCode: error.statusCode, providerErrorCode: error.providerErrorCode } : {}),
+      }, "WIKI_QA_MODEL_FAILED");
+      const message = error instanceof ZcodeChatError && error.providerErrorCode === "1113"
+        ? "Wiki 问答模型账户余额不足或无可用资源包，请联系管理员检查智谱 API 账户余额和资源包后重新执行。"
+        : "Wiki 问答模型调用失败，请检查模型配置或稍后重新执行。";
+      throw new WikiQaError("WIKI_QA_MODEL_FAILED", message, { ...base, layer: "adapter" });
     }
     const parsed = (() => {
       try { return schema.safeParse(JSON.parse(content)); } catch { return undefined; }

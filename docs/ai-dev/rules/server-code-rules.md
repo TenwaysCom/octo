@@ -311,6 +311,8 @@ Rules:
 4. Logs do not include raw tokens, cookies, full auth codes, or full sensitive platform payloads.
 5. Platform raw response is summarized and truncated.
 
+ZCode HTTP failures retain only a validated numeric `providerErrorCode` alongside HTTP status and `actionRunId`; never log provider error messages or response bodies. Wiki QA maps provider code `1113` to a fixed balance/resource-package message while retaining the existing `WIKI_QA_MODEL_FAILED` envelope. Do not treat every HTTP 429 as a frequency limit or automatically switch endpoints.
+
 ## 12. Testing Rules
 
 Server test types:

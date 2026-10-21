@@ -1,5 +1,7 @@
 # AI Ticket Tasks
 
+- [Wiki 问答模型 HTTP 429 排障](2026-10-15-wiki-qa-provider-429.md) — in_progress；确认通用 API 返回1113，已修正提示与安全日志，92项测试/类型检查通过；最新真实模型+合成资料完整链路成功，真实Wiki验证待授权，未部署。
+
 - [User profile extractor 提炼与增量验证](2026-09-27-user-profile-extractor.md) — in_progress；需求v2仅输出JSON性格/沟通/需求特点，设计及原型已更新，20项测试通过；真实双用户验证需补需求人消息证据及外发授权，无数据库迁移或部署。
 
 - [Lark thread Ticket AI 只读应用](2026-09-23-lark-ticket-analysis-app.md) — in_progress；FE 分析/搜索与 H5 SDK 免登已实现，返回已验证用户 ID；签名及输入框菜单 openChatId 采集/日志已实现并通过本地验证；后台配置、部署与真实客户端验收待完成。
