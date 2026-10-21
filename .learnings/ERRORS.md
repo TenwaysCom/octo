@@ -868,6 +868,12 @@ source: [AGENTS.md 审查与优化](../docs/tasks/engineering-ops/2026-09-14-age
 
 source: [Eval 状态与 My evals](../docs/tasks/ai-ticket/2026-09-01-lark-ticket-ai-output-eval-dataset-views.md)
 
+## [ERR-20261015-001] zcode-http-429-insufficient-balance
+
+- **Error:** Wiki 问答在 `server.wiki_qa.extract` 报 `WIKI_QA_MODEL_FAILED`，关联 adapter 为 `ZCODE_REQUEST_FAILED` / HTTP 429；真实最小请求返回服务商错误码 `1113`（余额或可用资源包不足）。
+- **Fix:** 不仅凭 HTTP 429 判断频率限制。安全提取数字服务商错误码，按已确认的1113提示管理员检查当前 API 账户余额/资源包；恢复可用额度后再验证完整流程，不用重试或放宽超时代替额度修复，不自动切换套餐端点。
+- **source:** [Wiki 问答 HTTP 429 排障](../docs/tasks/ai-ticket/2026-10-15-wiki-qa-provider-429.md)
+
 ## [ERR-20260923-001] vite-harness-react-prebundle-import
 
 - **Error:** 临时 Vite 浏览器 harness 直接导入 `/node_modules/.vite/deps/react*.js`，出现 `does not provide an export named`，改为直接取 default 后又出现 `Invalid hook call`，应用和 harness 使用了不同模块实例。

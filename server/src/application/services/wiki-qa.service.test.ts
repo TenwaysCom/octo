@@ -1,6 +1,7 @@
 import { createWikiQaService } from "./wiki-qa.service.js";
 import { WikiQaError, type WikiCandidate } from "../../domain/wiki-qa.js";
 import { createWikiQaRerankClient } from "../../adapters/ai/wiki-qa-rerank-client.js";
+import { createZcodeChatClient } from "../../adapters/zcode/zcode-chat-client.js";
 
 const candidate = (id = "wiki-1"): WikiCandidate => ({
   id, path: `concepts/faq/${id}.md`, title: "报表科目显示", status: "draft", environments: ["UK Odoo 17"],
@@ -25,6 +26,26 @@ function fixture(candidates = [candidate()], ranking = { matches: [match()] }, a
 }
 
 describe("wiki QA service", () => {
+  it("explains provider balance exhaustion at extraction without starting retrieval", async () => {
+    const f = fixture();
+    const client = createZcodeChatClient({
+      apiKey: "test-key",
+      fetchImpl: vi.fn().mockResolvedValue(new Response(JSON.stringify({
+        error: { code: "1113", message: "private provider details" },
+      }), { status: 429 })),
+    });
+    const service = createWikiQaService({ ...f, client });
+    const onProgress = vi.fn();
+    await expect(service.answer({ ...input, onProgress })).rejects.toMatchObject({
+      code: "WIKI_QA_MODEL_FAILED",
+      message: expect.stringContaining("余额不足或无可用资源包"),
+      diagnostic: { actionRunId: input.actionRunId, stage: "server.wiki_qa.extract" },
+    });
+    expect(f.reader.search).not.toHaveBeenCalled();
+    expect(onProgress.mock.calls.at(-1)?.[0]).toMatchObject({ phase: "extract", status: "failed" });
+    expect(JSON.stringify(onProgress.mock.calls)).not.toContain("private provider details");
+  });
+
   it("emits ordered stage transitions before starting each operation", async () => {
     const f = fixture();
     const onProgress = vi.fn();

@@ -16,6 +16,7 @@ export class ZcodeChatError extends Error {
     message: string,
     readonly statusCode?: number,
     readonly causeCode?: string,
+    readonly providerErrorCode?: string,
   ) {
     super(message);
     this.name = "ZcodeChatError";
@@ -95,8 +96,13 @@ export function createZcodeChatClient(
         });
         const durationMs = Date.now() - startedAt;
         if (!response.ok) {
-          zcodeLogger.warn({ ...baseLog, statusCode: response.status, durationMs, stage: "adapter.zcode.response", errorCode: "ZCODE_REQUEST_FAILED" }, "ZCODE_REQUEST_FAILED");
-          throw new ZcodeChatError("ZCODE_REQUEST_FAILED", `ZCode request failed with status ${response.status}.`, response.status);
+          // Only retain a numeric error code; provider text can contain private data.
+          const payload = await response.json().catch(() => undefined) as { error?: { code?: unknown } } | undefined;
+          const code = payload?.error?.code;
+          const providerErrorCode = (typeof code === "string" || typeof code === "number") && /^\d{1,8}$/.test(String(code))
+            ? String(code) : undefined;
+          zcodeLogger.warn({ ...baseLog, statusCode: response.status, providerErrorCode, durationMs: Date.now() - startedAt, stage: "adapter.zcode.response", errorCode: "ZCODE_REQUEST_FAILED" }, "ZCODE_REQUEST_FAILED");
+          throw new ZcodeChatError("ZCODE_REQUEST_FAILED", `ZCode request failed with status ${response.status}.`, response.status, undefined, providerErrorCode);
         }
         const data = await response.json().catch((error: unknown) => {
           if (error instanceof SyntaxError) return undefined;
