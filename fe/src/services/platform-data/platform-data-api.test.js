@@ -362,6 +362,20 @@ test("shares an in-flight list request across duplicate mounts", async () => {
   await assert.doesNotReject(first);
 });
 
+test("a new edit revision never reuses a list read started before the write", async () => {
+  const releases = [];
+  const fetchImpl = () => new Promise((resolve) => releases.push(() => resolve({ ok: true,
+    json: async () => ({ ok: true, data: { items: [] } }) })));
+  const options = { apiBaseUrl: "/edit-read-barrier-api", kind: "lark-tickets", fetchImpl };
+  const oldRead = getPlatformDataList({ ...options, requestScope: "session:0" });
+  const afterWrite = getPlatformDataList({ ...options, requestScope: "session:2" });
+  assert.notStrictEqual(oldRead, afterWrite);
+  assert.equal(releases.length, 2);
+  assert.strictEqual(afterWrite, getPlatformDataList({ ...options, requestScope: "session:2" }));
+  releases.forEach((release) => release());
+  await Promise.all([oldRead, afterWrite]);
+});
+
 test("requests every matching page while preserving multi-value server filters", async () => {
   const requests = [];
   const firstPage = Array.from({ length: 1000 }, (_, index) => ({ recordId: `rec-${index}` }));

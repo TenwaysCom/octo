@@ -872,3 +872,15 @@ Adapter 使用服务端 `WEKNORA_PUBLISH_TOKEN` 和固定频道兑换 → 浏览
 SDK 在到期前刷新；离开 Ticket/退出登录时销毁实例。接口所有响应 no-store，认证失败 401、
 配置缺失 503、兑换失败 502。Origin 来自 `WEKNORA_EMBED_ORIGIN` 或 OAuth callback origin，
 不信任客户端参数。实现与验证见[任务记录](../../tasks/ai-ticket/2026-09-20-weknora-widget.md)。
+
+### Lark Ticket 字段编辑与确认
+
+列表、详情属性、解决方案和 `#lark-app-thread-analysis` 属性栏共用 App 会话内的 `lark-ticket-field-edits`。Lark App 与详情复用六字段编辑组件，有 platformSync 权限时可编辑，其他用户保持只读。选择属性后立即回显并提示保存中，同一 Base/Table/Record 的修改依次发送；确认响应只更新本次字段（状态可附带关闭时间），失败以最后已确认值和更新的在途修改重建显示。导航缓存同步更新，列表请求复用按会话与编辑版本隔离，保存前开始的读取不能覆盖较新的编辑。退出登录取消尚未发送的修改；该客户端队列不提供刷新或重启后的持久化保证。
+
+`POST /api/web/lark-tickets/:recordId/fields` 继续同步确认 Lark 写入及本地快照同步。Server 每次先解析实际用户授权，字段元数据按授权域名、masterUserId、Base/Table 缓存 5 分钟、最多 256 项；选项与写入共用缓存并合并并发读取，失败不缓存，字段缺失或写入失败使缓存失效。已有本地源字段时不再写前读取 Lark 记录，仍保留写后 Batch Get、UPSERT 和清洗，并用读回后的本地字段构造响应。缓存命中且本地快照存在时为两次远端数据 API 调用。
+
+Lark 已写但本地同步失败仍是显式部分成功：FE 保留新值并提示，不回滚成未写入或自动重写。阶段日志记录 actionRunId、layer/module/stage 及安全耗时摘要，不记录字段正文或凭据。实现、验收及未部署边界见[性能优化任务](../../tasks/platform-sync/2026-10-21-lark-ticket-edit-sync-performance.md)。
+
+### Lark App 创建 Meegle 工作项
+
+`#lark-app-thread-analysis` 的未关联 Ticket 可由有 platformSync 权限的用户调用既有 `POST /api/web/lark-tickets/:recordId/create-meegle-workitem`。FE 只携带源记录标识及 actionRunId；Server 的类型映射、创建、链接回写与单条同步契约保持现状。属性尚未保存时不开始创建，创建期间阻止同 Ticket 属性写入；App 会话状态按 Base/Table/Record 复用在途创建请求并保存结果，搜索切换不会串记录。成功结果投影到 Ticket 和导航缓存，多项链接分别展示；本地同步失败仍保留成功结果并提示，不自动重试。已有链接或平台返回已关联时阻止重复创建，无写权限只展示已有安全链接。此 FE 入口不增强跨进程幂等保证；实现与验证见[创建功能任务](../../tasks/platform-data/2026-10-21-lark-app-create-meegle.md)。

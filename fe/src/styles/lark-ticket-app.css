@@ -50,6 +50,15 @@
 .lark-app__properties { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 12px; }
 .lark-app__property { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 5px; min-width: 0; max-width: 100%; color: var(--octo-text-muted); font-size: 11px; }
 .lark-app__properties .lark-ticket-badge { max-width: 100%; white-space: normal; }
+.lark-app__meegle-actions { display: contents; }
+.lark-app__meegle-actions button { padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--octo-brand-hover); font: inherit; }
+.lark-app__meegle-actions button:hover:not(:disabled) { background: transparent; text-decoration: underline; }
+.lark-app__property-fields { display: contents; }
+.lark-app__property-fields .ticket-property { display: inline-flex; min-width: 0; max-width: 100%; }
+.lark-app__property-fields dt { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+.lark-app__property-fields dd { margin: 0; }
+.lark-app__property-fields .ticket-property__edit { padding: 3px; border-color: transparent; background: transparent; }
+.lark-app__property-fields .ticket-property__edit:hover { border-color: var(--octo-border); background: var(--octo-surface); }
 @media (max-width: 360px) { .lark-app__body { padding: 12px; gap: 10px; } .lark-app__header { padding: 12px; } .lark-app__card { padding: 12px; } }
 .lark-app__understanding { border-left: 3px solid var(--octo-brand); }
 .lark-app__tabs { display: flex; gap: 4px; padding: 0 4px; border-bottom: 1px solid var(--octo-border); }

@@ -1,3 +1,4 @@
+import { useLarkTicketFieldEdits } from "../hooks/useLarkTicketFieldEdits.js";
 import { odooBuildRequests } from "../services/platform-data/odoo-build-requests.js";
 import { loadLarkTicketSharedUrl } from "../services/lark-ticket/lark-ticket-api.js";
 import { getTicketFilterOptions } from "../services/platform-data/platform-search-api.js";
@@ -54,7 +55,7 @@ import {
 } from "../lib/lark-ticket-view-config.js";
 import { createLarkTicketNavigationContext } from "../lib/lark-ticket-detail-navigation.js";
 import { getLarkTicketResourceUrl, LARK_TICKET_MENU_FIELD_ACTIONS } from "../lib/lark-ticket-context-menu.js";
-import { createLarkTicketMeegleWorkitem, loadLarkTicketFieldOptions, updateLarkTicketField } from "../services/lark-ticket/lark-ticket-actions-api.js";
+import { createLarkTicketMeegleWorkitem, loadLarkTicketFieldOptions } from "../services/lark-ticket/lark-ticket-actions-api.js";
 import {
   DEFAULT_MEEGLE_GROUP_BY,
   DEFAULT_MEEGLE_VISIBLE_COLUMNS,
@@ -980,14 +981,17 @@ function MeeglePullRequestPicker({ picker, onClose, onSelect }) {
   </div>;
 }
 
-export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, breadcrumbs, platformListFilterState, onPlatformListFilterStateChange, onLarkTicketNavigationContextChange }) {
+export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, breadcrumbs, platformListFilterState, onPlatformListFilterStateChange, onLarkTicketNavigationContextChange, ticketFieldEdits }) {
+  const fieldEdits = useLarkTicketFieldEdits(ticketFieldEdits, apiBaseUrl);
+  const fieldSaveStatus = fieldEdits.status();
   const restoredFilters = platformListFilterState || {};
   const [searchInput, setSearchInput] = useState(() => restoredFilters.searchQuery || "");
   const ticketSearchInputRef = useRef(null);
   const [searchQuery, setSearchQuery] = useState(() => (restoredFilters.searchQuery || "").trim());
   const [ticketFilterOptions, setTicketFilterOptions] = useState({ values: {}, status: "loading" });
   const [filterOptionsRetry, setFilterOptionsRetry] = useState(0);
-  const [state, setState] = useState({ status: "loading", items: [], filterItems: [], filterItemsPage: page, sprints: [], relatedPersonOptions: [], pager: null, isLoadingMore: false });
+  const [rawState, setState] = useState({ status: "loading", items: [], filterItems: [], filterItemsPage: page, sprints: [], relatedPersonOptions: [], pager: null, isLoadingMore: false });
+  const state = page === "lark-tickets" ? { ...rawState, items: rawState.items.map(fieldEdits.project), filterItems: rawState.filterItems.map(fieldEdits.project) } : rawState;
   const [selectedStatuses, setSelectedStatuses] = useState(() => restoredFilters.selectedStatuses || null);
   const [selectedDateFilters, setSelectedDateFilters] = useState(() => normalizeFilterValues(
     restoredFilters.selectedDateFilters,
@@ -1064,7 +1068,6 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
   const [ticketContextMenu, setTicketContextMenu] = useState(null);
   const [ticketFieldOptions, setTicketFieldOptions] = useState({ key: "", status: "idle", fields: [] });
   const ticketCreateRunningRef = useRef(new Set());
-  const ticketFieldRunningRef = useRef(new Set());
   const ticketResourceRunningRef = useRef(false);
   const [ticketAction, setTicketAction] = useState(null);
   const [ticketActionMessage, setTicketActionMessage] = useState(null);
@@ -1279,6 +1282,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
   useEffect(() => {
     let active = true;
     const requestVersion = ++dataRequestVersionRef.current;
+    const readVersion = fieldEdits.getVersion();
     setState((current) => ({
       status: "loading",
       items: [],
@@ -1303,9 +1307,10 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
       noSprintFilter,
     });
     const isFiltered = Object.keys(filters).length > 0;
-    void getPlatformDataListPage({ apiBaseUrl, kind: page, filters }).then(
+    void getPlatformDataListPage({ apiBaseUrl, kind: page, filters, requestScope: page === "lark-tickets" ? fieldEdits.getReadScope() : "" }).then(
       (result) => {
         if (!active || dataRequestVersionRef.current !== requestVersion) return;
+        if (page === "lark-tickets") fieldEdits.accept(result.items, readVersion);
         setState((current) => ({
           status: "ready",
           items: result.items,
@@ -1327,6 +1332,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
     if (!pager?.hasMore || state.isLoadingMore || !Number.isInteger(pager.nextOffset)) return;
     const requestVersion = dataRequestVersionRef.current;
     const nextOffset = pager.nextOffset;
+    const readVersion = fieldEdits.getVersion();
     setState((current) => ({ ...current, isLoadingMore: true }));
     const filters = getPlatformListFilters({
       searchQuery,
@@ -1342,8 +1348,10 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
       noSprintFilter,
     });
     try {
-      const result = await getPlatformDataListPage({ apiBaseUrl, kind: page, filters, offset: nextOffset });
+      const result = await getPlatformDataListPage({ apiBaseUrl, kind: page, filters, offset: nextOffset,
+        requestScope: page === "lark-tickets" ? fieldEdits.getReadScope() : "" });
       if (dataRequestVersionRef.current !== requestVersion) return;
+      if (page === "lark-tickets") fieldEdits.accept(result.items, readVersion);
       setState((current) => current.pager?.nextOffset !== nextOffset ? current : {
         ...current,
         items: [...current.items, ...result.items],
@@ -1498,37 +1506,13 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
     setTicketContextMenu(null);
   }
 
-  async function runTicketFieldAction(field, option) {
+  function runTicketFieldAction(field, option) {
     const context = ticketContextMenu;
-    if (!context) return;
-    const recordId = context.ticket.recordId;
-    const key = JSON.stringify([context.ticket.baseId, context.ticket.tableId, recordId]);
-    if (ticketFieldRunningRef.current.has(key)) return;
-    ticketFieldRunningRef.current.add(key);
-    setTicketAction({ recordId, field, status: "running" });
-    try {
-      const result = await updateLarkTicketField({
-        apiBaseUrl,
-        ticket: context.ticket,
-        field,
-        value: option.label,
-        optionUserId: option.userId,
-        actionRunId: crypto.randomUUID(),
-      });
-      if (result.ticket) patchLarkTicketRow(recordId, result.ticket);
-      else setReloadVersion((version) => version + 1);
-      const actionLabel = LARK_TICKET_MENU_FIELD_ACTIONS.find((item) => item.field === field)?.label || field;
-      setTicketAction({ recordId, field, status: "done" });
-      setTicketActionMessage({ tone: result.syncFailed ? "error" : "success", text: result.syncFailed
-        ? "已写入 Lark Base，但列表同步失败，请稍后同步 Ticket。" : `${actionLabel}：${option.label}` });
-      setTicketContextMenu(null);
-    } catch (error) {
-      setTicketAction({ recordId, field, status: "error" });
-      setTicketContextMenu(null);
-      setTicketActionMessage({ tone: "error", text: getTicketActionErrorText(error) });
-    } finally {
-      ticketFieldRunningRef.current.delete(key);
-    }
+    if (!context || !profile.workspaceAccess?.platformSync) return;
+    setTicketContextMenu(null);
+    // The session queue owns completion and rollback even after this page unmounts.
+    void fieldEdits.submit({ ticket: fieldEdits.project(context.ticket), field, value: option.label,
+      optionUserId: option.userId }).catch(() => {});
   }
 
   async function openTicketResource(kind) {
@@ -1917,6 +1901,8 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
         {state.status === "loading" ? <p className="list-message">正在加载同步数据…</p> : null}
         {state.status === "error" ? <p className="list-message list-message--error">同步数据暂时无法读取，请稍后重试。</p> : null}
         {resetError ? <p className="list-message list-message--error">{resetError}</p> : null}
+        {page === "lark-tickets" && fieldSaveStatus.pending > 0 ? <p className="list-message" role="status">正在保存 {fieldSaveStatus.pending} 项修改…</p> : null}
+        {page === "lark-tickets" ? fieldSaveStatus.notices.map((notice, index) => <p className="list-message list-message--error" role="alert" key={`${index}:${notice}`}>{notice}</p>) : null}
         {ticketActionMessage ? createPortal(<div className={`ticket-notification ticket-notification--${ticketActionMessage.tone}`}>
           <span className="ticket-notification__icon" aria-hidden="true">{ticketActionMessage.tone === "error" ? "!" : "✓"}</span>
           <div className="ticket-notification__content" role={ticketActionMessage.tone === "error" ? "alert" : "status"} aria-atomic="true">
@@ -2286,7 +2272,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
         onReloadOptions={() => ensureTicketFieldOptions(ticketContextMenu.ticket.baseId, ticketContextMenu.ticket.tableId, { force: true })}
         optionsStatus={ticketFieldOptions.key === `${ticketContextMenu.ticket.baseId}:${ticketContextMenu.ticket.tableId}` ? ticketFieldOptions.status : "loading"}
         point={ticketContextMenu.point}
-        ticket={ticketContextMenu.ticket}
+        ticket={fieldEdits.project(ticketContextMenu.ticket)}
       /> : null}
     </section>
   </WorkspaceShell>

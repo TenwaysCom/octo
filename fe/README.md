@@ -28,9 +28,13 @@ Meegle 工作项列表和 Sprint 详情页各用一次 `GET /api/web/github-pr-o
 
 ## Lark Ticket AI 应用
 
-`#lark-app-thread-analysis` 提供适合 Lark 侧栏的只读分析页面，复用已有 Ticket AI / Shadow AI；
+`#lark-app-thread-analysis` 提供适合 Lark 侧栏的分析页面，复用已有 Ticket AI / Shadow AI；
 Ticket 详情页可通过“打开 Ticket AI 小窗”进入。顶部常驻标题搜索框，选择 Ticket 即可查看或切换分析。输入框菜单配置见
 [接入说明](docs/lark-ticket-app.md)。
+
+标题下六项属性（状态、紧急度、需求人、负责人、类型、Business Line）支持有 `platformSync` 权限的用户点击编辑；仅有查看权限时保持只读。复用列表/详情的共享队列，立即回显、允许连续修改，并按字段处理失败回滚和部分成功；搜索切换 Ticket 不串值，修改属性不重置回复草稿。
+
+未关联 Meegle 的 Ticket 支持有 `platformSync` 权限的用户点击“创建 Meegle”，复用现有 Server 创建与链接回写流程。等待属性保存完成后才能开始创建，创建期间暂停该 Ticket 的属性修改并防重复提交；成功后直接显示返回的工作项链接，部分同步失败也保留结果。已有链接只展示“打开 Meegle”；两个入口均紧随“原始讨论”同行显示，窄屏自然换行。状态和结果在当前登录会话内按 Ticket 隔离，搜索切换不会串入其他记录。验证及边界见[创建功能任务](../docs/tasks/platform-data/2026-10-21-lark-app-create-meegle.md)。
 
 ## FE-owned environment configuration
 
@@ -137,6 +141,12 @@ Wiki 问答复用现有 Ticket AI SSE，接收 `wiki_qa.progress` 事件。`data
 FE 为每次运行的每个阶段显示一条状态，完成后更新原条目；与最终答案分开，复制答案不包含进度。
 运行记录保存这些事件，重开时可还原；仍以最终 `done` 事件判断本轮完成。
 没有候选时会跳过重排和证据筛选。阶段事件不包含原始问题、聊天、提示词或模型思考。
+
+## Ticket 字段连续编辑
+
+Ticket 列表、详情属性及 Lark App 属性栏在选值后立即关闭菜单、回显并显示保存中，可以连续修改。App 按登录用户及 API 地址持有共享队列；同一 Ticket 请求依次发送，失败只恢复对应字段到最后已确认值，旧响应不会整条覆盖更新的修改。详情导航缓存同步更新，列表请求按编辑版本隔离并发复用。解决方案提交共用该队列。Lark 已写但本地同步失败时保留新值并提示；退出登录取消未发送修改。队列仅在当前页面会话内有效，未提供刷新后的持久化恢复。
+
+Server 元数据缓存及减少远端读取的契约、模拟浏览器检查入口和真实平台验证边界见[任务记录](../docs/tasks/platform-sync/2026-10-21-lark-ticket-edit-sync-performance.md)。
 
 ## 共享颜色主题
 

@@ -1,5 +1,7 @@
 import { WeKnoraWidget } from "../components/WeKnoraWidget.jsx";
-import { Component, lazy, Suspense, useCallback, useEffect, useState } from "react";
+import { Component, lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { createLarkTicketFieldEdits } from "../services/lark-ticket/lark-ticket-field-edits.js";
+import { updateLarkTicketNavigationContext } from "../lib/lark-ticket-detail-navigation.js";
 import { detectOctoExtension } from "../services/auth/extension-presence.js";
 import {
   getWebProfile,
@@ -70,6 +72,10 @@ export function App({ apiBaseUrl }) {
   const [breadcrumbs, setBreadcrumbs] = useState(() => appendWorkspaceBreadcrumb([], getWorkspaceRoute(window.location.hash)));
   const [platformListFilterStates, setPlatformListFilterStates] = useState({});
   const [larkTicketNavigationContext, setLarkTicketNavigationContext] = useState(null);
+  const ticketFieldEdits = useMemo(() => createLarkTicketFieldEdits({ apiBaseUrl,
+    onPatch: (patch) => setLarkTicketNavigationContext((current) => updateLarkTicketNavigationContext(current, patch)),
+  }), [apiBaseUrl, profile?.user?.id]);
+  useEffect(() => ticketFieldEdits.retain(), [ticketFieldEdits]);
   const [meegleSprintDetailStates, setMeegleSprintDetailStates] = useState({});
   const [githubMyOpenCount, setGithubMyOpenCount] = useState();
 
@@ -146,12 +152,13 @@ export function App({ apiBaseUrl }) {
   }, [profile]);
 
   const logout = useCallback(async () => {
+    ticketFieldEdits.dispose();
     setIsBusy(true);
     await logoutWebAuthSession({ apiBaseUrl });
     setProfile(undefined);
     setStatus({ title: "已退出登录", text: "你的本工作台会话已结束。" });
     setIsBusy(false);
-  }, [apiBaseUrl]);
+  }, [apiBaseUrl, ticketFieldEdits]);
 
   const loginWithPlugin = usePluginLogin({
     apiBaseUrl,
@@ -217,6 +224,7 @@ export function App({ apiBaseUrl }) {
         platformListFilterState={platformListFilterStates[activeWorkspaceRoute.page]}
         onPlatformListFilterStateChange={savePlatformListFilterState}
         larkTicketNavigationContext={larkTicketNavigationContext}
+        ticketFieldEdits={ticketFieldEdits}
         onLarkTicketNavigationContextChange={saveLarkTicketNavigationContext}
         meegleSprintDetailState={meegleSprintDetailStates[activeWorkspaceRoute.sprintName]}
         onMeegleSprintDetailStateChange={saveMeegleSprintDetailState}

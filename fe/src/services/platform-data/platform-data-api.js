@@ -38,23 +38,23 @@ const MEEGLE_OPTIONAL_STRING_FIELDS = [
   "itemFinishTime",
 ];
 
-export function getPlatformDataList({ apiBaseUrl, kind, filters = {}, fetchImpl = fetch }) {
+export function getPlatformDataList({ apiBaseUrl, kind, filters = {}, fetchImpl = fetch, requestScope = "" }) {
   const path = PATH_BY_KIND[kind];
   if (!path) {
     return Promise.reject(new Error("UNKNOWN_PLATFORM_DATA_KIND"));
   }
 
-  const requestKey = `${buildApiUrl(apiBaseUrl, path)}?${buildListQuery(filters, 0)}&all=true`;
-  return getSharedPlatformDataRequest(requestKey, () => loadPlatformDataList({ apiBaseUrl, kind, filters, fetchImpl }));
+  const requestKey = `${buildApiUrl(apiBaseUrl, path)}?${buildListQuery(filters, 0)}&all=true#${requestScope}`;
+  return getSharedPlatformDataRequest(requestKey, () => loadPlatformDataList({ apiBaseUrl, kind, filters, fetchImpl, requestScope }));
 }
 
-export function getPlatformDataListPage({ apiBaseUrl, kind, filters = {}, offset = 0, fetchImpl = fetch }) {
+export function getPlatformDataListPage({ apiBaseUrl, kind, filters = {}, offset = 0, fetchImpl = fetch, requestScope = "" }) {
   const path = PATH_BY_KIND[kind];
   if (!path) {
     return Promise.reject(new Error("UNKNOWN_PLATFORM_DATA_KIND"));
   }
 
-  const requestKey = `${buildApiUrl(apiBaseUrl, path)}?${buildListQuery(filters, offset)}`;
+  const requestKey = `${buildApiUrl(apiBaseUrl, path)}?${buildListQuery(filters, offset)}#${requestScope}`;
   return getSharedPlatformDataRequest(requestKey, () => loadPlatformDataListPage({ apiBaseUrl, kind, filters, offset, fetchImpl, path }));
 }
 
@@ -203,8 +203,8 @@ function getSharedPlatformDataRequest(requestKey, load) {
   return request;
 }
 
-async function loadPlatformDataList({ apiBaseUrl, kind, filters, fetchImpl }) {
-  const firstPage = await getPlatformDataListPage({ apiBaseUrl, kind, filters, fetchImpl });
+async function loadPlatformDataList({ apiBaseUrl, kind, filters, fetchImpl, requestScope }) {
+  const firstPage = await getPlatformDataListPage({ apiBaseUrl, kind, filters, fetchImpl, requestScope });
   const items = [...firstPage.items];
   let sprints = firstPage.sprints || [];
   let relatedPersonOptions = firstPage.relatedPersonOptions || [];
@@ -212,7 +212,7 @@ async function loadPlatformDataList({ apiBaseUrl, kind, filters, fetchImpl }) {
   let sprintWorkitems = firstPage.sprintWorkitems || [];
   let pager = firstPage.pager;
   while (pager.hasMore) {
-    const page = await getPlatformDataListPage({ apiBaseUrl, kind, filters, offset: pager.nextOffset, fetchImpl });
+    const page = await getPlatformDataListPage({ apiBaseUrl, kind, filters, offset: pager.nextOffset, fetchImpl, requestScope });
     items.push(...page.items);
     sprints = page.sprints || sprints;
     relatedPersonOptions = page.relatedPersonOptions || relatedPersonOptions;

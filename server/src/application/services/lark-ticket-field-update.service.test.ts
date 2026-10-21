@@ -1,3 +1,4 @@
+import { LarkTicketFieldMetadataCache } from "./lark-ticket-field-metadata-cache.js";
 import {
   createLarkTicketMeegleWorkitem,
   getLarkTicketFieldOptions,
@@ -6,6 +7,8 @@ import {
 } from "./lark-ticket-field-update.service.js";
 
 const authDeps = {
+  fieldMetadataCache: new LarkTicketFieldMetadataCache(),
+  syncStore: { listLarkBaseTickets: vi.fn().mockResolvedValue([]), getLarkBaseTicketsForCleaning: vi.fn().mockResolvedValue([]) },
   getLarkTokenStore: (() => ({
     get: vi.fn().mockResolvedValue({
       masterUserId: "user_1",
@@ -16,6 +19,8 @@ const authDeps = {
     }),
   })) as never,
 };
+
+beforeEach(() => { authDeps.fieldMetadataCache = new LarkTicketFieldMetadataCache(); });
 
 function createClient(overrides: Record<string, unknown> = {}) {
   return {
@@ -48,6 +53,67 @@ function createClient(overrides: Record<string, unknown> = {}) {
 }
 
 describe("lark-ticket-field-update service", () => {
+  it("reuses options metadata and local snapshots across consecutive writes without a pre-write Lark read", async () => {
+    const client = createClient();
+    const syncStore = {
+      listLarkBaseTickets: vi.fn().mockResolvedValue([]),
+      getLarkBaseTicketsForCleaning: vi.fn().mockResolvedValue([{ sourceFields: { Status: "In Progress", "紧急度": "P1" } }]),
+    };
+    const syncLarkBaseTicket = vi.fn().mockResolvedValue({ synced: 1 });
+    const deps = { ...authDeps, syncStore, createLarkClient: () => client as never, syncLarkBaseTicket };
+    const request = { masterUserId: "user_1", baseId: "app_1", tableId: "tbl_1", recordId: "rec_1" };
+    await getLarkTicketFieldOptions(request, deps);
+    await updateLarkTicketField({ ...request, field: "status", value: "Done" }, deps);
+    await updateLarkTicketField({ ...request, field: "priority", value: "P0" }, deps);
+    expect(client.getRecord).not.toHaveBeenCalled();
+    expect(client.getFields).toHaveBeenCalledTimes(1);
+    expect(client.updateRecord).toHaveBeenCalledTimes(2);
+    expect(syncLarkBaseTicket).toHaveBeenCalledTimes(2);
+    expect(syncStore.getLarkBaseTicketsForCleaning).toHaveBeenCalledWith([
+      { baseId: "app_1", tableId: "tbl_1", recordId: "rec_1" },
+    ]);
+  });
+
+  it("returns the canonical projection after read-back, using current metadata instead of stale local field names", async () => {
+    const client = createClient({ getFields: vi.fn().mockResolvedValue([{ field_name: "状态", type: 3 }]) });
+    const getLarkBaseTicketsForCleaning = vi.fn()
+      .mockResolvedValueOnce([{ sourceFields: { Status: "Open", "负责人": [{ name: "Old" }] } }])
+      .mockResolvedValueOnce([{ sourceFields: { "状态": "Finish", "负责人": [{ name: "New" }], "关闭时间": 1700000000000 } }]);
+    const result = await updateLarkTicketField({ masterUserId: "user_1", baseId: "app_1", tableId: "tbl_1", recordId: "rec_1",
+      field: "status", value: "Finish" }, { ...authDeps, createLarkClient: () => client as never,
+      syncStore: { listLarkBaseTickets: vi.fn(), getLarkBaseTicketsForCleaning }, syncLarkBaseTicket: vi.fn() });
+    expect(client.updateRecord).toHaveBeenCalledWith("app_1", "tbl_1", "rec_1", { "状态": "Finish", "关闭时间": expect.any(Number) });
+    expect(result).toMatchObject({ ticket: { ticketStatus: "Finish", responsible: "New", closedAt: "2023-11-14T22:13:20.000Z" } });
+  });
+
+  it("checks authorization on cache hits and separates users and tables", async () => {
+    const client = createClient();
+    const get = vi.fn().mockImplementation(async ({ masterUserId }) => ({ masterUserId, baseUrl: "https://open.larksuite.com",
+      userToken: "fixture", userTokenExpiresAt: new Date(Date.now() + 3600_000).toISOString() }));
+    const deps = { ...authDeps, getLarkTokenStore: (() => ({ get })) as never, createLarkClient: () => client as never };
+    const request = { masterUserId: "user_1", baseId: "base", tableId: "table" };
+    await getLarkTicketFieldOptions(request, deps);
+    await getLarkTicketFieldOptions(request, deps);
+    await getLarkTicketFieldOptions({ ...request, masterUserId: "user_2" }, deps);
+    await getLarkTicketFieldOptions({ ...request, tableId: "other" }, deps);
+    expect(client.getFields).toHaveBeenCalledTimes(3);
+    expect(get).toHaveBeenCalledTimes(4);
+    get.mockResolvedValueOnce(undefined);
+    await expect(getLarkTicketFieldOptions(request, deps)).rejects.toThrow("token not found");
+    expect(client.getFields).toHaveBeenCalledTimes(3);
+  });
+
+  it("invalidates metadata on a failed write without retrying the write automatically", async () => {
+    const client = createClient({ updateRecord: vi.fn().mockRejectedValueOnce(new Error("TIMEOUT"))
+      .mockResolvedValue({ record_id: "rec_1", fields: { Status: "Done" } }) });
+    const deps = { ...authDeps, createLarkClient: () => client as never, syncLarkBaseTicket: vi.fn() };
+    const request = { masterUserId: "user_1", baseId: "app_1", tableId: "tbl_1", recordId: "rec_1", field: "status" as const, value: "Done" };
+    await expect(updateLarkTicketField(request, deps)).resolves.toMatchObject({ ok: false });
+    expect(client.updateRecord).toHaveBeenCalledTimes(1);
+    await expect(updateLarkTicketField(request, deps)).resolves.toMatchObject({ ok: true });
+    expect(client.getFields).toHaveBeenCalledTimes(2);
+  });
+
   it.each(["第一步\n第二步", ""])("writes only the solution and projects the saved value (%#)", async (value) => {
     const client = createClient({
       getFields: vi.fn().mockResolvedValue([{ field_name: "解决方案", type: 1 }]),
