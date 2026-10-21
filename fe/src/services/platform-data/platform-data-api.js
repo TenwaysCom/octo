@@ -38,23 +38,23 @@ const MEEGLE_OPTIONAL_STRING_FIELDS = [
   "itemFinishTime",
 ];
 
-export function getPlatformDataList({ apiBaseUrl, kind, filters = {}, fetchImpl = fetch }) {
+export function getPlatformDataList({ apiBaseUrl, kind, filters = {}, fetchImpl = fetch, requestScope = "" }) {
   const path = PATH_BY_KIND[kind];
   if (!path) {
     return Promise.reject(new Error("UNKNOWN_PLATFORM_DATA_KIND"));
   }
 
-  const requestKey = `${buildApiUrl(apiBaseUrl, path)}?${buildListQuery(filters, 0)}&all=true`;
-  return getSharedPlatformDataRequest(requestKey, () => loadPlatformDataList({ apiBaseUrl, kind, filters, fetchImpl }));
+  const requestKey = `${buildApiUrl(apiBaseUrl, path)}?${buildListQuery(filters, 0)}&all=true#${requestScope}`;
+  return getSharedPlatformDataRequest(requestKey, () => loadPlatformDataList({ apiBaseUrl, kind, filters, fetchImpl, requestScope }));
 }
 
-export function getPlatformDataListPage({ apiBaseUrl, kind, filters = {}, offset = 0, fetchImpl = fetch }) {
+export function getPlatformDataListPage({ apiBaseUrl, kind, filters = {}, offset = 0, fetchImpl = fetch, requestScope = "" }) {
   const path = PATH_BY_KIND[kind];
   if (!path) {
     return Promise.reject(new Error("UNKNOWN_PLATFORM_DATA_KIND"));
   }
 
-  const requestKey = `${buildApiUrl(apiBaseUrl, path)}?${buildListQuery(filters, offset)}`;
+  const requestKey = `${buildApiUrl(apiBaseUrl, path)}?${buildListQuery(filters, offset)}#${requestScope}`;
   return getSharedPlatformDataRequest(requestKey, () => loadPlatformDataListPage({ apiBaseUrl, kind, filters, offset, fetchImpl, path }));
 }
 
@@ -90,6 +90,26 @@ export async function getGitHubPullRequestOdooShBuild({ apiBaseUrl, owner, repo,
     throw new Error(payload?.error?.errorCode || "ODOO_DEVOPS_BUILD_LOAD_FAILED");
   }
   return parseGitHubPullRequestOdooShBuild(payload.data);
+}
+
+export function getAllGitHubPrOdooShBuilds({ apiBaseUrl, fetchImpl = fetch }) {
+  const url = `${buildApiUrl(apiBaseUrl, "/web/github-pr-odoo-devops-build")}?all=true`;
+  return getSharedPlatformDataRequest(url, async () => {
+    const actionRunId = globalThis.crypto?.randomUUID?.() ?? `odoo-builds-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const response = await fetchImpl(`${url}&actionRunId=${encodeURIComponent(actionRunId)}`, { credentials: "include" });
+    const payload = await response.json().catch(() => undefined);
+    if (!response.ok || !payload?.ok) throw new Error(payload?.error?.errorCode || "ODOO_DEVOPS_BUILDS_LOAD_FAILED");
+    const data = payload.data;
+    if (data?.actionRunId !== actionRunId || !Array.isArray(data.environments) || data.environments.length !== 3
+      || new Set(data.environments.map((item) => item?.environment)).size !== 3
+      || data.environments.some((item) => !["eu", "uk", "us"].includes(item?.environment)
+        || !["ready", "unavailable"].includes(item.state) || typeof item.stale !== "boolean"
+        || !Array.isArray(item.builds) || item.builds.some((build) => !build
+          || typeof build.branch !== "string" || typeof build.status !== "string" || typeof build.result !== "string"))) {
+      throw new Error("INVALID_ODOO_DEVOPS_BUILDS_RESPONSE");
+    }
+    return data;
+  });
 }
 
 export async function getGitHubPullRequestPreview({ apiBaseUrl, owner, repo, pullNumber, fetchImpl = fetch }) {
@@ -183,8 +203,8 @@ function getSharedPlatformDataRequest(requestKey, load) {
   return request;
 }
 
-async function loadPlatformDataList({ apiBaseUrl, kind, filters, fetchImpl }) {
-  const firstPage = await getPlatformDataListPage({ apiBaseUrl, kind, filters, fetchImpl });
+async function loadPlatformDataList({ apiBaseUrl, kind, filters, fetchImpl, requestScope }) {
+  const firstPage = await getPlatformDataListPage({ apiBaseUrl, kind, filters, fetchImpl, requestScope });
   const items = [...firstPage.items];
   let sprints = firstPage.sprints || [];
   let relatedPersonOptions = firstPage.relatedPersonOptions || [];
@@ -192,7 +212,7 @@ async function loadPlatformDataList({ apiBaseUrl, kind, filters, fetchImpl }) {
   let sprintWorkitems = firstPage.sprintWorkitems || [];
   let pager = firstPage.pager;
   while (pager.hasMore) {
-    const page = await getPlatformDataListPage({ apiBaseUrl, kind, filters, offset: pager.nextOffset, fetchImpl });
+    const page = await getPlatformDataListPage({ apiBaseUrl, kind, filters, offset: pager.nextOffset, fetchImpl, requestScope });
     items.push(...page.items);
     sprints = page.sprints || sprints;
     relatedPersonOptions = page.relatedPersonOptions || relatedPersonOptions;

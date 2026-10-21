@@ -43,3 +43,17 @@ test("Shadow saved analysis renders concise assessments and old results as uneva
     assert.match(degraded.split('<details')[0], /Wiki 不可用，本次仅基于聊天分析/);
   } finally { await server.close(); }
 });
+
+test("Eval editor shows the frozen Shadow version and escapes annotation text", async () => {
+  const server = await createServer({ configFile: false, root: new URL("../..", import.meta.url).pathname, server: { middlewareMode: true, hmr: false, watch: null, ws: false }, optimizeDeps: { noDiscovery: true, include: [] }, appType: "custom" });
+  try {
+    const { LarkTicketEvalEditor } = await server.ssrLoadModule("/src/components/lark-ticket/LarkTicketEvalEditor.jsx");
+    const sample = { id: "s", ticket: { title: "Title" }, source: "shadow", snapshotVersion: 3, datasetStatus: "badcase", failureLabels: ["fact_incorrect"], notes: "<script>unsafe()</script>", aiOutput: { shadowAi: { status: "ok", summary: "冻结的问题", analyzedAt: "2026-10-21T01:00:00Z" } } };
+    const markup = renderToStaticMarkup(createElement(LarkTicketEvalEditor, { sample, apiBaseUrl: "/api", onClose() {}, onSaved() {} }));
+    assert.match(markup, /冻结的问题/);
+    assert.match(markup, /快照 v3/);
+    assert.match(markup, /Badcase 必填/);
+    assert.match(markup, /&lt;script&gt;/);
+    assert.doesNotMatch(markup, /<script>/);
+  } finally { await server.close(); }
+});

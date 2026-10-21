@@ -1,3 +1,4 @@
+import { shadowEvalVersion } from "./shadow-eval-version.js";
 import { shadowWikiContextSchema, type ShadowWikiContext } from "./shadow-wiki-context.js";
 import { shadowBusinessRiskSchema, shadowReplyAdviceSchema, shadowContextInfoSchema,
   type ShadowBusinessRisk, type ShadowReplyAdvice, type ShadowContextInfo } from "./shadow-analysis.js";
@@ -54,6 +55,7 @@ export function pickLarkTicketAiFields(value: Record<string, unknown> | undefine
 }
 
 export interface LarkTicketShadowAi {
+  evalVersion?: string;
   status: "ok" | "skipped" | "error";
   intent?: string;
   intentType?: string;
@@ -115,7 +117,7 @@ export function parseLarkTicketShadowAi(value: string | null | undefined): LarkT
     const solutionSteps = readStringArray(result?.solutionSteps);
     const criticalIssues = readStringArray(quality?.criticalIssues);
     const warnings = readStringArray(quality?.warnings);
-    return {
+    const projection: LarkTicketShadowAi = {
       status,
       ...(businessRisk.success ? { businessRisk: businessRisk.data } : {}),
       ...(replyAdvice.success ? { replyAdvice: replyAdvice.data } : {}),
@@ -162,6 +164,8 @@ export function parseLarkTicketShadowAi(value: string | null | undefined): LarkT
         };
       })(),
     };
+    return status === "ok" && Number.isSafeInteger(projection.snapshotVersion)
+      ? { ...projection, evalVersion: shadowEvalVersion(projection) } : projection;
   } catch {
     return undefined;
   }

@@ -175,6 +175,40 @@ describe("wiki QA service", () => {
     expect(f.promptStore.getByKey.mock.calls.flat()).toEqual(["lark_ticket.wiki_qa.extract", "lark_ticket.wiki_qa.rerank", "lark_ticket.wiki_qa.answer"]);
   });
 
+  it("keeps recalled ontology content as a historical reference and renders its repository path", async () => {
+    const ontology: WikiCandidate = {
+      id: "ontology-1",
+      path: "objects/reporting.md",
+      sourcePath: "docs/ontology/objects/reporting.md",
+      knowledgeType: "ontology",
+      title: "报表业务定义",
+      status: "draft",
+      environments: [],
+      content: "## 报表规则\nPL 报表分组配置需要业务确认。",
+      sourceEvidence: [],
+      limitations: ["Ontology 业务规则待确认", "Ontology 页面不作为本 Ticket 的原始证据"],
+      historicalOnly: true,
+    };
+    const ranking = { matches: [{
+      candidateId: ontology.id,
+      applicability: "applicable" as const,
+      conditionsMatched: true,
+      evidenceIds: [],
+      limitations: [],
+    }] };
+    const f = fixture([ontology], ranking);
+    const result = await f.service.answer(input);
+    expect(result.evidence[0]).toMatchObject({
+      path: ontology.sourcePath,
+      knowledgeType: "ontology",
+      content: expect.stringContaining("PL 报表分组配置"),
+      applicability: "historical_reference",
+    });
+    expect(result.evidence[0].limitations).toContain("Ontology 业务规则待确认");
+    expect(result.answerMarkdown).toContain("来源：docs/ontology/objects/reporting.md");
+    expect(result.answerMarkdown).not.toContain("docs/llm-wiki/docs/ontology");
+  });
+
   it("reranks all ten recalled bundles and supplies only the selected three to the answer", async () => {
     const candidates = Array.from({ length: 10 }, (_, i) => candidate(`wiki-${i + 1}`));
     const f = fixture(candidates, { matches: [match("wiki-10"), match("wiki-5"), match("wiki-7")] });

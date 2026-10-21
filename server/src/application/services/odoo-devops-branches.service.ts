@@ -1,6 +1,8 @@
 import { OdooDevopsBranchesClientError, type OdooDevopsBranchesClient, type OdooDevopsEnvironment } from "../../adapters/odoo-devops/odoo-devops-branches-client.js";
 import type { ApiCache } from "../../http/redis-cache.js";
 import { odooDevopsBranchesSnapshotSchema, type OdooDevopsBranchesSnapshot } from "../../modules/odoo-devops-branches/odoo-devops-branches.dto.js";
+import type { AllGitHubPrOdooDevopsBuildResponse } from "../../modules/github-pr-odoo-devops-build/github-pr-odoo-devops-build.dto.js";
+import { logger } from "../../logger.js";
 
 const CACHE_TTL_SECONDS = 30 * 60;
 const REFRESH_FAILURE_RETRY_MS = 30_000;
@@ -62,6 +64,42 @@ export class OdooDevopsBranchesService {
     this.memorySnapshots.delete(environment);
     this.refreshFailures.delete(environment);
     return this.deps.cache.delete(cacheKey(environment));
+  }
+
+  async listBuildStatuses(actionRunId: string): Promise<AllGitHubPrOdooDevopsBuildResponse> {
+    const environments = await Promise.all(ODOO_DEVOPS_ENVIRONMENTS.map(async (environment) => {
+      try {
+        const cached = await this.readSnapshot(environment);
+        const stale = Boolean(cached && this.isStale(cached));
+        if (stale) this.startRefresh(environment);
+        const failedAt = this.refreshFailures.get(environment);
+        if (!cached && failedAt && Date.now() - failedAt < REFRESH_FAILURE_RETRY_MS) {
+          throw new Error("ODOO_DEVOPS_UNAVAILABLE");
+        }
+        // Cold reads join the environment's refresh; stale snapshots remain immediately usable.
+        const snapshot = cached?.snapshot ?? await this.refresh(environment);
+        return {
+          environment,
+          state: "ready" as const,
+          stale,
+          builds: snapshot.items.map((item) => ({
+            branch: item.branch,
+            status: item.last_build_status,
+            result: item.last_build_result,
+          })),
+        };
+      } catch {
+        const error = {
+          layer: "server" as const,
+          module: "odoo-devops-branches" as const,
+          stage: "server.builds.read.failed" as const,
+          errorCode: "ODOO_DEVOPS_UNAVAILABLE" as const,
+        };
+        logger.warn({ actionRunId, environment, ...error }, "ODOO_DEVOPS_BUILDS_READ_FAILED");
+        return { environment, state: "unavailable" as const, stale: false, builds: [], error };
+      }
+    }));
+    return { actionRunId, environments };
   }
 
   async invalidateAll(): Promise<boolean> {

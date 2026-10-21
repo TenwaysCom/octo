@@ -1,6 +1,18 @@
 # AI Ticket Tasks
 
+- [Lark Ticket AI：Hermes Agent AI 页签需求确认](2026-10-21-lark-hermes-answer-tab.md) — done（v6）；Sources Server 实时 / 历史事件及 FE 卡片已接通并部署，定向回归与构建通过；用户确认正文 Inline citation 暂不处理，真实模型 / 完整流程验收未恢复。
+
+- [TEN-144：Lark Shadow Eval / Badcase 标注](2026-10-21-lark-badcase-design.md) — done（v4）；测试部署/迁移与两端业务验收完成，用户确认飞书“测试可用”；评测区和共用表单已精简并更新测试站，49 个 FE 测试入口、6 组 mock 浏览器及 10 组真实部署回归通过，QA 数据已清理。
+
 - [Wiki 问答模型 HTTP 429 排障](2026-10-15-wiki-qa-provider-429.md) — in_progress；确认通用 API 返回1113，已修正提示与安全日志，92项测试/类型检查通过；最新真实模型+合成资料完整链路成功，真实Wiki验证待授权，未部署。
+
+- [LLM wiki 优化与 KCS 试点评估](2026-10-13-wiki-kcs-optimization-assessment.md) — done（v3 详细设计交付）；[具体设计](../../tenways-octo/ticket-kcs-update-and-use-design.md)涵盖逐票 KCS 记录、更新差异/采纳、版本与冲突、wiki 增量和问答使用；评估保留用户讨论与官方方法依据；未修改应用、摄入知识或实施试点。
+
+- [本地 Lark Odoo Wiki 原始文档更新清单](2026-10-12-lark-odoo-wiki-update-backlog.md) — done（清单交付）；按 09-25 本地导出盘点 117 节点，整理 20 个更新专题、37 个目标页面；明确缺项与业务待确认分开，未修改飞书或原始导出。
+
+- [LLM wiki 更新机制与生产接入核查](2026-10-12-wiki-update-production-audit.md) — done（核查与文档）；生产 Server/Worker 在线且已配置共用 wiki；平台同步与 Shadow 定期运行，wiki 摄入仍需手动执行；取证脚本已按 v2 改为优先生产 octo；环境选择检查通过，真实问答/写入未验收。
+
+- [User profile extractor 提炼与增量验证](2026-09-27-user-profile-extractor.md) — in_progress；需求v2仅输出JSON性格/沟通/需求特点，设计及原型已更新，20项测试通过；真实双用户验证需补需求人消息证据及外发授权，无数据库迁移或部署。
 
 - [Lark thread Ticket AI 只读应用](2026-09-23-lark-ticket-analysis-app.md) — in_progress；FE 分析/搜索与 H5 SDK 免登已实现，返回已验证用户 ID；签名及输入框菜单 openChatId 采集/日志已实现并通过本地验证；后台配置、部署与真实客户端验收待完成。
 

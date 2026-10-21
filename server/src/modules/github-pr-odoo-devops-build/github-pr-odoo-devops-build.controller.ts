@@ -7,6 +7,8 @@ import { resolveGitHubRepoEnvironment } from "../../application/services/odoo-de
 import { ensureLarkWebSession } from "../lark-auth/lark-auth.service.js";
 import { WEB_SESSION_COOKIE_NAME } from "../lark-auth/lark-auth.controller.js";
 import {
+  allGitHubPrOdooDevopsBuildQuerySchema,
+  allGitHubPrOdooDevopsBuildResponseSchema,
   githubPrOdooDevopsBuildQuerySchema,
   githubPrOdooDevopsBuildResponseSchema,
 } from "./github-pr-odoo-devops-build.dto.js";
@@ -29,7 +31,7 @@ function readCookie(cookieHeader: string | undefined, name: string): string | un
 
 export function createWebGitHubPrOdooDevopsBuildController(deps: {
   githubClient?: Pick<GitHubClient, "getPullRequest">;
-  odooDevopsBranchesService: Pick<OdooDevopsBranchesService, "getOrStartRefresh">;
+  odooDevopsBranchesService: Pick<OdooDevopsBranchesService, "getOrStartRefresh" | "listBuildStatuses">;
   ensureSession?: (sessionToken: string | undefined) => Promise<WebSessionResult>;
 }) {
   const ensureSession = deps.ensureSession ?? ensureLarkWebSession;
@@ -44,7 +46,11 @@ export function createWebGitHubPrOdooDevopsBuildController(deps: {
     }
 
     try {
-      const query = githubPrOdooDevopsBuildQuerySchema.parse(input.query);
+      const query = allGitHubPrOdooDevopsBuildQuerySchema.or(githubPrOdooDevopsBuildQuerySchema).parse(input.query);
+      if (query.all === "true") {
+        const data = await deps.odooDevopsBranchesService.listBuildStatuses(query.actionRunId);
+        return { statusCode: 200, body: { ok: true as const, data: allGitHubPrOdooDevopsBuildResponseSchema.parse(data) } };
+      }
       const environment = resolveGitHubRepoEnvironment(query.repo);
       if (!environment) {
         return {

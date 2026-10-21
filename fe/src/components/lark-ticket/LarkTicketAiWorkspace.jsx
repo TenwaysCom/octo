@@ -1,19 +1,16 @@
-import { useEffect, useId, useMemo, useState } from "react";
-import { createLarkTicketEvalSample, listLarkTicketEvalSamples, updateLarkTicketEvalSample } from "../../services/lark-ticket-eval/lark-ticket-eval-api.js";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { createLarkTicketEvalSample, createShadowEvalSample, listLarkTicketEvalSamples } from "../../services/lark-ticket-eval/lark-ticket-eval-api.js";
 import { loadLarkTicketPreparedMessages } from "../../services/lark-ticket/lark-ticket-api.js";
 import { getLarkTicketAiOutputMarker, getLarkTicketAiPipeline } from "../../lib/lark-ticket-ai-pipeline.js";
-import { getLarkTicketEvalSaveErrorMessage, getLarkTicketEvalValidationMessage } from "../../lib/lark-ticket-eval-validation.js";
-import { getEvalStatusLabel, getEvalSamplesByTicket } from "../../lib/lark-ticket-eval-display.js";
+import { getFrozenEvalTicket, createEvalSaveAttempt } from "../../lib/lark-ticket-eval-save.js";
+import { LarkTicketEvalEditor } from "./LarkTicketEvalEditor.jsx";
+import { getEvalStatusLabel, getEvalSamplesByTicket, getCurrentEvalSample } from "../../lib/lark-ticket-eval-display.js";
+import { getLarkTicketEvalSaveErrorMessage } from "../../lib/lark-ticket-eval-validation.js";
 import { formatDateTime, parsePlatformTimestamp } from "../../lib/formatters.js";
 import { LarkTicketBadge } from "./LarkTicketBadge.jsx";
 
-const FAILURE_LABELS = [
-  ["intent_incorrect", "意图错误"], ["fact_incorrect", "事实错误"], ["missing_evidence", "缺少证据"],
-  ["risk_missed", "风险遗漏"], ["action_incorrect", "行动错误"], ["answer_unusable", "回答不可用"],
-];
-
 function text(value) { if (value == null) return ""; return Array.isArray(value) ? value.join("、") : typeof value === "object" ? JSON.stringify(value) : String(value); }
-function initialDraft(sample) { return { datasetStatus: sample.datasetStatus, manualIntent: sample.manualIntent || "", expectedOutcome: sample.expectedOutcome || "", notes: sample.notes || "", failureLabels: sample.failureLabels || [] }; }
+
 
 function evalReviewDescription(sample) {
   return sample?.evalAt ? `Eval 人：${sample.evalBy || "未命名用户"} · Eval 时间：${formatDateTime(sample.evalAt)}` : "Eval 人 / 时间：未记录";
@@ -21,37 +18,6 @@ function evalReviewDescription(sample) {
 
 function EvalStatus({ sample }) {
   return <span className={`ticket-eval-status ticket-eval-status--${sample?.datasetStatus || "unmarked"}`} title={evalReviewDescription(sample)}>{getEvalStatusLabel(sample)}</span>;
-}
-
-function EvalEditor({ sample, onClose, onSaved }) {
-  const [draft, setDraft] = useState(() => initialDraft(sample));
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  async function save() {
-    const validationMessage = getLarkTicketEvalValidationMessage(draft);
-    if (validationMessage) {
-      setError(validationMessage);
-      return;
-    }
-    setSaving(true); setError("");
-    try {
-      const updated = await updateLarkTicketEvalSample({ apiBaseUrl: sample.apiBaseUrl, sampleId: sample.id, update: { ...draft, actionRunId: crypto.randomUUID() } });
-      onSaved(updated); onClose();
-    } catch (cause) { setError(getLarkTicketEvalSaveErrorMessage(cause)); } finally { setSaving(false); }
-  }
-  return <div className="ticket-eval-editor-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-    <section className="ticket-eval-editor" role="dialog" aria-modal="true" aria-labelledby="ticket-eval-editor-title">
-      <header><div><small>快照 v{sample.snapshotVersion} · {evalReviewDescription(sample)}</small><h2 id="ticket-eval-editor-title">{sample.ticket.title}</h2></div><button type="button" onClick={onClose} aria-label="关闭">×</button></header>
-      <div className="ticket-eval-editor__ai"><strong>冻结的 AI 输出</strong><p>{text(sample.aiOutput?.["AI Ticket 总结"]) || "未记录 AI 总结"}</p><small>意图：{text(sample.aiOutput?.["AI Bug 分类"]) || "未设置"}</small></div>
-      <label>人工标准意图（选填）<textarea value={draft.manualIntent} onChange={(event) => setDraft((current) => ({ ...current, manualIntent: event.target.value }))} placeholder="例如：用户登录故障" /></label>
-      <label>期望结果（选填）<textarea value={draft.expectedOutcome} onChange={(event) => setDraft((current) => ({ ...current, expectedOutcome: event.target.value }))} placeholder="写出可判定的正确处理结果或回答要点" /></label>
-      <label>标注备注<textarea value={draft.notes} onChange={(event) => setDraft((current) => ({ ...current, notes: event.target.value }))} placeholder="可选：边界、复现条件或评测说明" /></label>
-      <fieldset><legend>失败标签</legend><div>{FAILURE_LABELS.map(([value, label]) => <label key={value}><input type="checkbox" checked={draft.failureLabels.includes(value)} onChange={() => setDraft((current) => ({ ...current, failureLabels: current.failureLabels.includes(value) ? current.failureLabels.filter((item) => item !== value) : [...current.failureLabels, value] }))} />{label}</label>)}</div></fieldset>
-      <label>数据集状态<select value={draft.datasetStatus} onChange={(event) => setDraft((current) => ({ ...current, datasetStatus: event.target.value }))}><option value="draft">草稿</option><option value="eval">纳入 Eval</option><option value="badcase">标记 Badcase</option></select></label>
-      {error ? <p className="ticket-eval-editor__error">{error}</p> : null}
-      <footer><button type="button" onClick={onClose}>取消</button><button className="button-primary" type="button" disabled={saving} onClick={() => void save()}>{saving ? "保存中…" : "保存样本"}</button></footer>
-    </section>
-  </div>;
 }
 
 function TicketGroup({ group, children, collapsedGroups, onToggleGroup }) {
@@ -113,6 +79,7 @@ function TicketEvalActions({ ticket, sample, onShowPreparedMessages, onCreate, o
       <button className="ticket-row-icon-button" type="button" title={sample ? "编辑 Eval" : "请先加入 Eval"} aria-label="编辑 Eval" disabled={!sample} onClick={() => onEdit(sample)}><TicketActionIcon kind="edit" /></button>
     </div>
     <div className="ticket-eval-review-meta" title={evalReviewDescription(sample)}>
+      {sample?.source === "shadow" ? <small>Shadow AI</small> : null}
       <EvalStatus sample={sample} />
       <small className="ticket-eval-review-meta__person" aria-label={`Eval 人：${sample?.evalBy || "未记录"}`}>{sample?.evalBy || "未记录"}</small>
       <small aria-hidden="true">·</small>
@@ -170,15 +137,19 @@ export function LarkTicketAiWorkspace({ apiBaseUrl, onNotify, myEvals = false, m
   const [editor, setEditor] = useState(null);
   const [preparedThread, setPreparedThread] = useState(null);
   const [creatingId, setCreatingId] = useState(null);
-  useEffect(() => { let active = true; setSampleStatus("loading"); setSamples([]); setError(""); void listLarkTicketEvalSamples({ apiBaseUrl, mine: myEvals }).then((items) => { if (active) { setSamples(items); setSampleStatus("ready"); } }, (cause) => { if (active) { setSampleStatus("error"); setError(cause?.code === "EVAL_SAMPLE_LIST_FAILED" ? "Eval 数据集读取失败：请确认 Server 已重启，并已执行 db:migrate 创建本地样本表。" : `Eval 数据集读取失败：${cause?.code || "UNKNOWN_ERROR"}`); } }); return () => { active = false; }; }, [apiBaseUrl, myEvals]);
+  const [selectedVersions, setSelectedVersions] = useState({});
+  const attempts = useRef(new Map()), creating = useRef(false);
+  const active = useRef(false);
+  useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
+  useEffect(() => { let active = true; setSampleStatus("loading"); setSamples([]); setError(""); void listLarkTicketEvalSamples({ apiBaseUrl }).then((items) => { if (active) { setSamples(items); setSampleStatus("ready"); } }, (cause) => { if (active) { setSampleStatus("error"); setError(cause?.code === "EVAL_SAMPLE_LIST_FAILED" ? "Eval 数据集读取失败：请确认 Server 已重启，并已执行 db:migrate 创建本地样本表。" : `Eval 数据集读取失败：${cause?.code || "UNKNOWN_ERROR"}`); } }); return () => { active = false; }; }, [apiBaseUrl, myEvals]);
   const sampleByTicket = useMemo(() => getEvalSamplesByTicket(samples, myEvals), [samples, myEvals]);
   const evalGroups = useMemo(() => {
     const toSamples = (tickets) => tickets.flatMap((ticket) => {
-      const sample = sampleByTicket.get(`${ticket.baseId}:${ticket.tableId}:${ticket.recordId}`);
+      const key = `${ticket.baseId}:${ticket.tableId}:${ticket.recordId}`;
+      const sample = samples.find((item) => item.id === selectedVersions[key] && (!myEvals || item.isMyEval)) || sampleByTicket.get(key);
       return sample ? [{
         ...sample,
         ticket: { ...sample.ticket, ticketNumber: ticket.ticketNumber, issueType: ticket.issueType, ticketStatus: ticket.ticketStatus },
-        shadowAi: ticket.shadowAi,
         threadLink: ticket.larkMessageLink || "",
       }] : [];
     });
@@ -187,8 +158,21 @@ export function LarkTicketAiWorkspace({ apiBaseUrl, onNotify, myEvals = false, m
       items: toSamples(group.items),
       subgroups: group.subgroups?.map((subgroup) => ({ ...subgroup, items: toSamples(subgroup.items) })),
     }));
-  }, [groups, sampleByTicket]);
-  async function createSample(ticket) { setCreatingId(ticket.recordId); setError(""); try { const sample = await createLarkTicketEvalSample({ apiBaseUrl, ticket, actionRunId: crypto.randomUUID() }); setSamples((current) => [sample, ...current.filter((item) => item.id !== sample.id)]); } catch (cause) { const code = cause?.code || cause?.message; onNotify({ tone: "error", durationMs: 5000, text: code === "THREAD_SNAPSHOT_INCOMPLETE" ? "该 Ticket 的线程快照不完整，请先补齐意图、问题摘要和方案摘要后再加入 Eval。" : code === "THREAD_SNAPSHOT_NOT_FOUND" ? "该 Ticket 尚未生成线程快照，请先进入详情页完成 AI 上下文准备。" : `创建 Eval 样本失败：${code || "UNKNOWN_ERROR"}` }); } finally { setCreatingId(null); } }
+  }, [groups, sampleByTicket, samples, selectedVersions, myEvals]);
+  async function createSample(ticket) {
+    if (creating.current) return;
+    creating.current = true; setCreatingId(ticket.recordId); setError("");
+    const key = JSON.stringify([ticket.baseId, ticket.tableId, ticket.recordId]);
+    if (!attempts.current.has(key)) attempts.current.set(key, createEvalSaveAttempt());
+    const outputVersion = ticket.shadowAi?.status === "ok" ? ticket.shadowAi.evalVersion : undefined;
+    const update = attempts.current.get(key)({ datasetStatus: "eval", failureLabels: [], ...(outputVersion ? { outputVersion } : {}) });
+    try {
+      const sample = outputVersion ? await createShadowEvalSample({ apiBaseUrl, ticket, update })
+        : await createLarkTicketEvalSample({ apiBaseUrl, ticket, actionRunId: update.actionRunId });
+      if (active.current) setSamples((current) => [sample, ...current.filter((item) => item.id !== sample.id)]);
+    } catch (cause) { if (active.current) onNotify({ tone: "error", durationMs: 5000, text: getLarkTicketEvalSaveErrorMessage(cause) }); }
+    finally { creating.current = false; if (active.current) setCreatingId(null); }
+  }
   function saved(sample) { setSamples((current) => current.map((item) => item.id === sample.id ? sample : item)); }
   async function showPreparedMessages(ticket) {
     setPreparedThread({ ticket, status: "loading", messages: [], error: "" });
@@ -201,12 +185,12 @@ export function LarkTicketAiWorkspace({ apiBaseUrl, onNotify, myEvals = false, m
   }
   function renderAiRows(tickets) {
     const stageColumnKeys = { intent: "intent", summary: "problemSummary", answer: "answerSummary", document: "documentOutput" };
-    return <div className="ticket-ai-output-list">{tickets.map((ticket) => { const sample = sampleByTicket.get(`${ticket.baseId}:${ticket.tableId}:${ticket.recordId}`); const pipeline = getLarkTicketAiPipeline(ticket).filter((stage) => visibleColumns.includes(stageColumnKeys[stage.id])); const outputMarker = getLarkTicketAiOutputMarker(ticket); return <article className="ticket-ai-output-row" key={ticket.recordId} onContextMenu={(event) => onTicketContextMenu?.(event, ticket)}><div className="ticket-ai-output-row__ticket"><div className="ticket-eval-sample-row__heading"><a className="ticket-ai-output-row__title" href={`#lark-tickets/${encodeURIComponent(ticket.recordId)}`} title={ticket.title} onClick={(event) => onLarkTicketDetailLinkClick?.(event, ticket)}>{ticket.title}</a></div><div className="ticket-ai-output-row__meta"><small>{ticket.ticketNumber || ticket.recordId} · {ticket.ticketStatus || "未设置"}</small><span className={`ticket-ai-marker${outputMarker.tone === "default" ? "" : ` ticket-ai-marker--${outputMarker.tone}`}`}>{outputMarker.label}</span>{ticket.issueType ? <LarkTicketBadge kind="type" value={ticket.issueType} /> : null}{ticket.priority ? <LarkTicketBadge kind="priority" value={ticket.priority} /> : null}</div></div>{pipeline.length ? <div className="ticket-ai-output-row__pipeline" style={{ gridTemplateColumns: `repeat(${pipeline.length}, minmax(0, 1fr))` }}>{pipeline.map((stage) => <AiPipelineStage stage={stage} key={stage.id} />)}</div> : null}<TicketEvalActions ticket={ticket} sample={sample} onShowPreparedMessages={showPreparedMessages} onCreate={createSample} onEdit={(value) => setEditor({ ...value, apiBaseUrl })} canCreate={sampleStatus === "ready"} creating={creatingId === ticket.recordId} /></article>; })}</div>;
+    return <div className="ticket-ai-output-list">{tickets.map((ticket) => { const sample = getCurrentEvalSample(samples, ticket); const pipeline = getLarkTicketAiPipeline(ticket).filter((stage) => visibleColumns.includes(stageColumnKeys[stage.id])); const outputMarker = getLarkTicketAiOutputMarker(ticket); return <article className="ticket-ai-output-row" key={ticket.recordId} onContextMenu={(event) => onTicketContextMenu?.(event, ticket)}><div className="ticket-ai-output-row__ticket"><div className="ticket-eval-sample-row__heading"><a className="ticket-ai-output-row__title" href={`#lark-tickets/${encodeURIComponent(ticket.recordId)}`} title={ticket.title} onClick={(event) => onLarkTicketDetailLinkClick?.(event, ticket)}>{ticket.title}</a></div><div className="ticket-ai-output-row__meta"><small>{ticket.ticketNumber || ticket.recordId} · {ticket.ticketStatus || "未设置"}</small><span className={`ticket-ai-marker${outputMarker.tone === "default" ? "" : ` ticket-ai-marker--${outputMarker.tone}`}`}>{outputMarker.label}</span>{ticket.issueType ? <LarkTicketBadge kind="type" value={ticket.issueType} /> : null}{ticket.priority ? <LarkTicketBadge kind="priority" value={ticket.priority} /> : null}</div></div>{pipeline.length ? <div className="ticket-ai-output-row__pipeline" style={{ gridTemplateColumns: `repeat(${pipeline.length}, minmax(0, 1fr))` }}>{pipeline.map((stage) => <AiPipelineStage stage={stage} key={stage.id} />)}</div> : null}<TicketEvalActions ticket={ticket} sample={sample} onShowPreparedMessages={showPreparedMessages} onCreate={createSample} onEdit={(value) => setEditor({ ...value, apiBaseUrl })} canCreate={sampleStatus === "ready"} creating={creatingId === ticket.recordId} /></article>; })}</div>;
   }
   function renderEvalRows(sampleItems) {
     return <div className="ticket-eval-sample-list">{sampleItems.map((sample) => {
-      const outputMarker = getLarkTicketAiOutputMarker({ ticketAi: { fields: sample.aiOutput || {} }, shadowAi: sample.shadowAi });
-      const aiIntent = getLarkTicketAiPipeline({ ticketAi: { fields: sample.aiOutput || {} }, shadowAi: sample.shadowAi })[0];
+      const outputMarker = getLarkTicketAiOutputMarker(getFrozenEvalTicket(sample));
+      const aiIntent = getLarkTicketAiPipeline(getFrozenEvalTicket(sample))[0];
       const formalIntent = text(sample.aiOutput?.["AI意图"] || sample.aiOutput?.["AI Bug 分类"]);
       const aiIntentDetails = [
         ...(formalIntent ? [{ label: "正式 AI 意图", value: formalIntent }] : []),
@@ -218,7 +202,8 @@ export function LarkTicketAiWorkspace({ apiBaseUrl, onNotify, myEvals = false, m
             <a className="ticket-ai-output-row__title" href={`#lark-tickets/${encodeURIComponent(sample.ticket.recordId)}`} title={sample.ticket.title} onClick={(event) => onLarkTicketDetailLinkClick?.(event, sample.ticket)}>{sample.ticket.title}</a>
           </div>
           <div className="ticket-ai-output-row__meta">
-            <small>{sample.ticket.ticketNumber || "未设置"}</small>
+            <small>{sample.ticket.ticketNumber || "未设置"} · {sample.source === "shadow" ? "Shadow AI" : "历史 Eval"}</small>
+            <label>评测版本 <select aria-label={`选择 ${sample.ticket.title} 的评测版本`} value={sample.id} onChange={(event) => setSelectedVersions((current) => ({ ...current, [`${sample.ticket.baseId}:${sample.ticket.tableId}:${sample.ticket.recordId}`]: event.target.value }))}>{samples.filter((item) => (!myEvals || item.isMyEval) && ["baseId", "tableId", "recordId"].every((key) => item.ticket[key] === sample.ticket[key])).map((item) => <option key={item.id} value={item.id}>{item.source === "shadow" ? "Shadow AI" : "历史 Eval"} · 快照 v{item.snapshotVersion} · {formatDateTime(item.aiOutput?.shadowAi?.analyzedAt || item.createdAt)}</option>)}</select></label>
             <span className={`ticket-ai-marker${outputMarker.tone === "default" ? "" : ` ticket-ai-marker--${outputMarker.tone}`}`}>{outputMarker.label}</span>
             <LarkTicketBadge kind="type" value={sample.ticket.issueType} />
             <LarkTicketBadge kind="status" value={sample.ticket.ticketStatus} />
@@ -236,7 +221,7 @@ export function LarkTicketAiWorkspace({ apiBaseUrl, onNotify, myEvals = false, m
     {error ? <p className="list-message list-message--error">{error}</p> : null}
     {mode === "ai-output" ? groups.map((group) => <TicketGroup group={group} key={group.key} collapsedGroups={collapsedGroups} onToggleGroup={onToggleGroup}><TicketGroupRows group={group} renderRows={renderAiRows} collapsedSubgroups={collapsedSubgroups} onToggleSubgroup={onToggleSubgroup} /></TicketGroup>) : null}
     {mode === "eval-dataset" ? <>{sampleStatus === "loading" ? <p className="list-message">正在加载 Eval 数据集…</p> : null}{sampleStatus === "ready" && samples.length === 0 ? <p className="list-message">暂无样本。请先从 AI 输出视图选择 Ticket。</p> : null}{evalGroups.map((group) => <TicketGroup group={group} key={group.key} collapsedGroups={collapsedGroups} onToggleGroup={onToggleGroup}><TicketGroupRows group={group} renderRows={renderEvalRows} collapsedSubgroups={collapsedSubgroups} onToggleSubgroup={onToggleSubgroup} /></TicketGroup>)}</> : null}
-    {editor ? <EvalEditor sample={editor} onClose={() => setEditor(null)} onSaved={saved} /> : null}
+    {editor ? <LarkTicketEvalEditor key={editor.id} sample={editor} onClose={() => setEditor(null)} onSaved={saved} /> : null}
     {preparedThread ? <PreparedMessagesDialog thread={preparedThread} onClose={() => setPreparedThread(null)} /> : null}
   </section>;
 }

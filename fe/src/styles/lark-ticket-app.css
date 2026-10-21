@@ -21,6 +21,16 @@
 .lark-app button:hover:not(:disabled) { background: var(--octo-brand-soft); }
 .lark-app button.lark-app__primary { color: var(--octo-text-on-brand); background: var(--octo-brand); border-color: var(--octo-brand); }
 .lark-app button.lark-app__primary:hover { background: var(--octo-brand-hover); }
+.lark-app__eval { display: grid; gap: 10px; margin-top: 18px; padding: 14px; border: 1px solid var(--octo-border); border-radius: 10px; background: var(--octo-surface-muted); }
+.lark-app__eval-heading, .lark-app__eval-heading > div { display: flex; align-items: center; gap: 10px; }
+.lark-app__eval-heading { justify-content: space-between; }
+.lark-app__eval-heading strong { font-size: 13px; }
+.lark-app__eval-heading .ticket-eval-status { margin: 0; }
+.lark-app button.lark-app__eval-refresh { display: grid; place-items: center; width: 28px; height: 28px; padding: 5px; border-color: transparent; background: transparent; color: var(--octo-text-muted); }
+.lark-app__eval-refresh svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.lark-app__eval-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.lark-app__eval-actions button { min-height: 34px; }
+.lark-app .lark-app__eval-notice { margin: 0; color: var(--octo-badge-success-text); font-size: 12px; }
 .lark-app :is(button, a, summary, input, textarea):focus-visible { outline: 2px solid var(--octo-brand); outline-offset: 3px; }
 .lark-app__card { background: var(--octo-surface); border: 1px solid var(--octo-border); border-radius: 12px; padding: 16px; min-width: 0; }
 .lark-app__card--intent { background: var(--octo-brand-soft); border-color: color-mix(in srgb, var(--octo-brand) 25%, var(--octo-border)); }
@@ -50,6 +60,15 @@
 .lark-app__properties { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 12px; }
 .lark-app__property { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 5px; min-width: 0; max-width: 100%; color: var(--octo-text-muted); font-size: 11px; }
 .lark-app__properties .lark-ticket-badge { max-width: 100%; white-space: normal; }
+.lark-app__meegle-actions { display: contents; }
+.lark-app__meegle-actions button { padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--octo-brand-hover); font: inherit; }
+.lark-app__meegle-actions button:hover:not(:disabled) { background: transparent; text-decoration: underline; }
+.lark-app__property-fields { display: contents; }
+.lark-app__property-fields .ticket-property { display: inline-flex; min-width: 0; max-width: 100%; }
+.lark-app__property-fields dt { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+.lark-app__property-fields dd { margin: 0; }
+.lark-app__property-fields .ticket-property__edit { padding: 3px; border-color: transparent; background: transparent; }
+.lark-app__property-fields .ticket-property__edit:hover { border-color: var(--octo-border); background: var(--octo-surface); }
 @media (max-width: 360px) { .lark-app__body { padding: 12px; gap: 10px; } .lark-app__header { padding: 12px; } .lark-app__card { padding: 12px; } }
 .lark-app__understanding { border-left: 3px solid var(--octo-brand); }
 .lark-app__tabs { display: flex; gap: 4px; padding: 0 4px; border-bottom: 1px solid var(--octo-border); }
@@ -106,3 +125,85 @@
 .lark-app__understanding-summary dd.lark-app__muted { color: var(--octo-text-muted); }
 
 .lark-app button.lark-app__info:hover { background: var(--octo-info-hover-bg); }
+
+.lark-hermes__actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.lark-hermes .lark-app__section-title { flex-wrap: wrap; gap: 10px; }
+.lark-hermes__history, .lark-hermes__composer label { display: grid; gap: 8px; font-size: 12px; color: var(--octo-text-muted); }
+.lark-hermes__history select { width: 100%; min-width: 0; padding: 8px; border: 1px solid var(--octo-border); border-radius: 7px; color: var(--octo-text); background: var(--octo-surface); font: inherit; }
+.lark-hermes__transcript { display: grid; gap: 28px; margin: 22px 0; }
+.lark-hermes__turn { display: grid; min-width: 0; gap: 18px; overflow-wrap: anywhere; }
+.lark-hermes__turn + .lark-hermes__turn { padding-top: 24px; border-top: 1px solid var(--octo-border); }
+.lark-hermes__question { margin-left: 24px; padding: 12px 14px; border-radius: 10px 10px 3px 10px; background: var(--octo-surface-muted); }
+.lark-hermes__question > span { color: var(--octo-text-muted); font-size: 11px; }
+.lark-hermes__question p { margin: 5px 0 0; font-size: 13px; line-height: 1.65; white-space: pre-wrap; }
+.lark-hermes__response { min-width: 0; }
+.lark-hermes__response-header { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+.lark-hermes__response-header strong { font-size: 13px; font-weight: 650; }
+.lark-hermes__avatar { display: grid; flex: 0 0 25px; width: 25px; height: 25px; place-items: center; border-radius: 7px; color: var(--octo-brand); background: var(--octo-brand-soft); }
+.lark-hermes__avatar svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linejoin: round; }
+.lark-hermes__run-state { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; color: var(--octo-text-muted); font-size: 11px; }
+.lark-hermes__run-state--running, .lark-hermes__run-state--waiting_permission { color: var(--octo-brand); }
+.lark-hermes__run-state--failed { color: var(--octo-danger); }
+.lark-hermes__activity-dot { width: 5px; height: 5px; flex-shrink: 0; border-radius: 50%; background: currentColor; animation: lark-hermes-pulse 1.6s ease-in-out infinite; }
+.lark-hermes__process { margin-bottom: 16px; border: 1px solid var(--octo-border); border-radius: 9px; background: var(--octo-surface-muted); font-size: 12px; }
+.lark-hermes__process > summary { display: flex; align-items: center; gap: 8px; min-height: 38px; padding: 9px 11px; cursor: pointer; list-style: none; }
+.lark-hermes__process > summary::-webkit-details-marker { display: none; }
+.lark-hermes__chevron { width: 5px; height: 5px; margin-right: 2px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); color: var(--octo-text-muted); }
+.lark-hermes__process[open] .lark-hermes__chevron { transform: rotate(45deg); }
+.lark-hermes__tool-count { color: var(--octo-text-muted); font-size: 11px; }
+.lark-hermes__process-state { margin-left: auto; color: var(--octo-text-muted); font-size: 11px; text-align: right; }
+.lark-hermes__process > ol { display: grid; gap: 0; margin: 0; padding: 0 12px 10px; list-style: none; }
+.lark-hermes__step { position: relative; display: grid; grid-template-columns: 7px minmax(0, 1fr) auto; align-items: baseline; gap: 9px; padding: 8px 0; color: var(--octo-text-muted); }
+.lark-hermes__step + .lark-hermes__step::before { position: absolute; top: -9px; bottom: calc(100% - 15px); left: 3px; border-left: 1px solid var(--octo-border); content: ""; }
+.lark-hermes__step-dot { position: relative; z-index: 1; width: 7px; height: 7px; border: 1px solid currentColor; border-radius: 50%; background: var(--octo-surface-muted); }
+.lark-hermes__step--completed .lark-hermes__step-dot { color: var(--octo-badge-success-text); background: currentColor; }
+.lark-hermes__step--failed { color: var(--octo-danger); }
+.lark-hermes__step--in_progress { color: var(--octo-brand); }
+.lark-hermes__step small { padding-top: 1px; font-size: 10px; white-space: nowrap; }
+.lark-hermes__tool-title { display: -webkit-box; overflow: hidden; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.6; }
+.lark-hermes__answer { min-width: 0; font-size: 13px; line-height: 1.8; }
+.lark-hermes__answer .lark-app__markdown + .lark-app__markdown { margin-top: 14px; }
+.lark-hermes__answer .lark-app__markdown h3 { margin-top: 20px; margin-bottom: 8px; font-size: 14px; line-height: 1.5; }
+.lark-hermes__answer .lark-app__markdown > :first-child { margin-top: 0; }
+.lark-hermes__answer .lark-app__markdown p { margin: 9px 0; }
+.lark-hermes__answer .lark-app__markdown :is(ul, ol) { padding-left: 20px; }
+.lark-hermes__answer .lark-app__markdown li + li { margin-top: 5px; }
+.lark-hermes__answer-footer { display: flex; justify-content: flex-end; margin-top: 14px; padding-top: 8px; border-top: 1px solid var(--octo-border); }
+.lark-hermes__reasoning, .lark-hermes__sources { min-width: 0; border: 1px solid var(--octo-border); border-radius: 9px; color: var(--octo-text-muted); background: var(--octo-surface); font-size: 12px; }
+.lark-hermes__reasoning { margin-bottom: 10px; }
+.lark-hermes__reasoning--active { border-color: color-mix(in srgb, var(--octo-brand) 25%, var(--octo-border)); }
+.lark-hermes__reasoning > summary, .lark-hermes__sources > summary { display: flex; align-items: center; gap: 8px; min-height: 38px; padding: 9px 11px; cursor: pointer; list-style: none; }
+.lark-hermes__reasoning > summary::-webkit-details-marker, .lark-hermes__sources > summary::-webkit-details-marker { display: none; }
+.lark-hermes__reasoning[open] > summary .lark-hermes__chevron, .lark-hermes__sources[open] > summary .lark-hermes__chevron { transform: rotate(45deg); }
+.lark-hermes__reasoning > summary > svg, .lark-hermes__sources > summary > svg { flex: 0 0 15px; width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
+.lark-hermes__reasoning--active > summary { color: var(--octo-brand); }
+.lark-hermes__reasoning-content { max-height: 260px; overflow: auto; overscroll-behavior: contain; padding: 4px 14px 12px; border-top: 1px solid var(--octo-border); font-size: 12px; line-height: 1.75; }
+.lark-hermes__reasoning-content .lark-app__markdown + .lark-app__markdown { margin-top: 12px; }
+.lark-hermes__reasoning-content .lark-app__markdown h3 { font-size: 12px; }
+.lark-hermes__reasoning-content .lark-app__markdown p { margin: 8px 0; }
+.lark-hermes__sources { margin-top: 20px; background: var(--octo-surface-muted); line-height: 1.5; }
+.lark-hermes__source-count { display: inline-grid; min-width: 18px; height: 18px; padding: 0 4px; place-items: center; border-radius: 5px; color: var(--octo-text); background: var(--octo-surface); font-size: 10px; }
+.lark-hermes__sources-content { padding: 0 10px 10px; }
+.lark-hermes .lark-hermes__sources-note { margin: 0 2px 8px; color: var(--octo-text-muted); font-size: 11px; }
+.lark-hermes__answer .lark-hermes__sources ul { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
+.lark-hermes__answer .lark-hermes__sources li + li { margin-top: 0; }
+.lark-hermes__source-card { display: flex; height: 100%; min-width: 0; align-items: flex-start; gap: 9px; padding: 11px; border: 1px solid var(--octo-border); border-radius: 7px; background: var(--octo-surface); }
+.lark-hermes .lark-hermes__source-card { color: var(--octo-text); }
+.lark-hermes a.lark-hermes__source-card:hover { border-color: var(--octo-brand); background: var(--octo-brand-soft); text-decoration: none; }
+.lark-hermes__source-icon { display: grid; flex: 0 0 24px; width: 24px; height: 24px; place-items: center; border-radius: 5px; color: var(--octo-text-muted); background: var(--octo-surface-muted); }
+.lark-hermes__source-icon svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
+.lark-hermes__source-info { display: grid; min-width: 0; gap: 4px; }
+.lark-hermes__source-info strong { display: -webkit-box; overflow: hidden; -webkit-line-clamp: 2; -webkit-box-orient: vertical; font-size: 12px; font-weight: 550; line-height: 1.5; }
+.lark-hermes__source-info small { color: var(--octo-text-muted); font-size: 10px; line-height: 1.5; overflow-wrap: anywhere; }
+.lark-hermes__source-open { margin-left: auto; color: var(--octo-text-muted); font-size: 13px; }
+.lark-hermes .lark-hermes__answer-placeholder { margin: 8px 0 0; color: var(--octo-text-muted); font-size: 12px; }
+.lark-hermes__composer { display: grid; gap: 12px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--octo-border); }
+.lark-hermes__composer .lark-hermes__actions { justify-content: flex-end; }
+.lark-hermes__progress { margin: 0; padding: 10px 12px; border-radius: 8px; color: var(--octo-text); background: var(--octo-surface-muted); font-size: 13px; }
+.lark-hermes .ticket-ai-permission { min-width: 0; }
+.lark-hermes .ticket-ai-permission pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.lark-app button.ticket-ai-message__copy { display: inline-grid; place-items: center; box-sizing: border-box; flex: 0 0 28px; width: 28px; min-width: 28px; height: 28px; min-height: 28px; padding: 0; border: 0; border-radius: 6px; line-height: 1; color: var(--octo-text-muted); background: transparent; }
+.lark-app button.ticket-ai-message__copy svg { display: block; width: 15px; height: 15px; margin: 0; }
+.lark-app button.ticket-ai-message__copy--copied { color: var(--octo-badge-success-text); background: var(--octo-surface-muted); }
+@keyframes lark-hermes-pulse { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .lark-hermes__activity-dot { animation: none; } }

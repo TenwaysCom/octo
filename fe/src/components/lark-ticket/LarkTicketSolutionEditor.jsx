@@ -1,5 +1,4 @@
 import { useLayoutEffect, useRef, useState } from "react";
-import { updateLarkTicketField } from "../../services/lark-ticket/lark-ticket-actions-api.js";
 
 // Remount on the complete identity so drafts and pending responses stay scoped.
 export function LarkTicketSolutionEditor(props) {
@@ -7,7 +6,7 @@ export function LarkTicketSolutionEditor(props) {
   return <SolutionEditor key={JSON.stringify([apiBaseUrl, ticket.baseId, ticket.tableId, ticket.recordId])} {...props} />;
 }
 
-function SolutionEditor({ ticket, apiBaseUrl, canEdit, onUpdated }) {
+function SolutionEditor({ ticket, canEdit, onSave }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
@@ -37,7 +36,7 @@ function SolutionEditor({ ticket, apiBaseUrl, canEdit, onUpdated }) {
     setMessage(null);
     const requestVersion = version.current;
     try {
-      const result = await updateLarkTicketField({ apiBaseUrl, ticket, field: "solution", value, actionRunId: crypto.randomUUID() });
+      const result = await onSave("solution", { label: value });
       if (requestVersion !== version.current) return;
       if (result.syncFailed) {
         setMessage({ error: true, text: "已保存到 Lark Base，本地同步失败，请稍后同步 Ticket。" });
@@ -47,7 +46,6 @@ function SolutionEditor({ ticket, apiBaseUrl, canEdit, onUpdated }) {
         setMessage({ error: true, text: "已保存到 Lark Base，暂未获取最新解决方案，请稍后同步 Ticket。" });
         return;
       }
-      onUpdated(result.ticket);
       setEditing(false);
       setMessage({ error: false, text: "解决方案已保存到 Lark Base。" });
     } catch (error) {

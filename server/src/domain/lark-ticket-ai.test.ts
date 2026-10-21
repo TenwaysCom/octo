@@ -61,6 +61,7 @@ describe("Lark Ticket AI field contract", () => {
       promptVersion: "v2",
     }));
     expect(shadow).toEqual({
+      evalVersion: expect.stringMatching(/^[a-f0-9]{64}$/),
       status: "ok",
       intent: "troubleshoot / workflow_stuck",
       intentType: "troubleshoot",

@@ -1,5 +1,7 @@
 import { WeKnoraWidget } from "../components/WeKnoraWidget.jsx";
-import { useCallback, useEffect, useState } from "react";
+import { Component, lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { createLarkTicketFieldEdits } from "../services/lark-ticket/lark-ticket-field-edits.js";
+import { updateLarkTicketNavigationContext } from "../lib/lark-ticket-detail-navigation.js";
 import { detectOctoExtension } from "../services/auth/extension-presence.js";
 import {
   getWebProfile,
@@ -12,18 +14,20 @@ import { useKeyboardShortcut } from "../hooks/useKeyboardShortcut.js";
 import { countMyOpenGitHubPullRequests } from "../lib/github-pull-request-filters.js";
 import { rememberSprintWorkitemPageState } from "../lib/meegle-sprint-workitem-view.js";
 import { UnauthenticatedPage, SessionLoadingPage } from "../pages/LoginPage.jsx";
-import { KeyboardShortcutsPage } from "../pages/KeyboardShortcutsPage.jsx";
-import { LarkTicketDetailPage } from "../pages/LarkTicketDetailPage.jsx";
-import { LarkTicketAppPage } from "../pages/LarkTicketAppPage.jsx";
 import { rememberLarkAppReturn } from "../lib/lark-ticket-app.js";
-import { PlatformListPage } from "../pages/PlatformListPage.jsx";
-import { MeegleSprintDetailPage, MeegleSprintHistoryPage } from "../pages/MeegleSprintPages.jsx";
-import { SettingsIntegrationsPage } from "../pages/SettingsIntegrationsPage.jsx";
-import { SyncStatusPage } from "../pages/SyncStatusPage.jsx";
 import { WorkspaceMetricsContext } from "../components/layout/WorkspaceShell.jsx";
 import { WorkspaceSearchProvider } from "../components/layout/WorkspaceSearch.jsx";
 import { getPlatformDataList } from "../services/platform-data/platform-data-api.js";
 import { appendWorkspaceBreadcrumb, canAccessWorkspaceRoute, getWorkspaceRoute, INTEGRATIONS_ROUTE } from "./routes/workspace-routes.js";
+
+const KeyboardShortcutsPage = lazy(() => import("../pages/KeyboardShortcutsPage.jsx").then((module) => ({ default: module.KeyboardShortcutsPage })));
+const LarkTicketDetailPage = lazy(() => import("../pages/LarkTicketDetailPage.jsx").then((module) => ({ default: module.LarkTicketDetailPage })));
+const LarkTicketAppPage = lazy(() => import("../pages/LarkTicketAppPage.jsx").then((module) => ({ default: module.LarkTicketAppPage })));
+const PlatformListPage = lazy(() => import("../pages/PlatformListPage.jsx").then((module) => ({ default: module.PlatformListPage })));
+const MeegleSprintDetailPage = lazy(() => import("../pages/MeegleSprintPages.jsx").then((module) => ({ default: module.MeegleSprintDetailPage })));
+const MeegleSprintHistoryPage = lazy(() => import("../pages/MeegleSprintPages.jsx").then((module) => ({ default: module.MeegleSprintHistoryPage })));
+const SettingsIntegrationsPage = lazy(() => import("../pages/SettingsIntegrationsPage.jsx").then((module) => ({ default: module.SettingsIntegrationsPage })));
+const SyncStatusPage = lazy(() => import("../pages/SyncStatusPage.jsx").then((module) => ({ default: module.SyncStatusPage })));
 
 const WORKSPACE_PAGE_COMPONENTS = {
   "lark-app": LarkTicketAppPage,
@@ -38,6 +42,26 @@ const WORKSPACE_PAGE_COMPONENTS = {
   "github-pull-requests": PlatformListPage,
 };
 
+class WorkspacePageErrorBoundary extends Component {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  render() {
+    if (this.state.failed) {
+      return <main className="session-loading">
+        <div className="session-loading__content" role="alert">
+          <p>页面加载失败，请刷新页面后重试。</p>
+          <button className="primary-button" type="button" onClick={() => window.location.reload()}>刷新页面</button>
+        </div>
+      </main>;
+    }
+    return this.props.children;
+  }
+}
+
 export function App({ apiBaseUrl }) {
   const [status, setStatus] = useState();
   const [isBusy, setIsBusy] = useState(false);
@@ -48,6 +72,10 @@ export function App({ apiBaseUrl }) {
   const [breadcrumbs, setBreadcrumbs] = useState(() => appendWorkspaceBreadcrumb([], getWorkspaceRoute(window.location.hash)));
   const [platformListFilterStates, setPlatformListFilterStates] = useState({});
   const [larkTicketNavigationContext, setLarkTicketNavigationContext] = useState(null);
+  const ticketFieldEdits = useMemo(() => createLarkTicketFieldEdits({ apiBaseUrl,
+    onPatch: (patch) => setLarkTicketNavigationContext((current) => updateLarkTicketNavigationContext(current, patch)),
+  }), [apiBaseUrl, profile?.user?.id]);
+  useEffect(() => ticketFieldEdits.retain(), [ticketFieldEdits]);
   const [meegleSprintDetailStates, setMeegleSprintDetailStates] = useState({});
   const [githubMyOpenCount, setGithubMyOpenCount] = useState();
 
@@ -124,12 +152,13 @@ export function App({ apiBaseUrl }) {
   }, [profile]);
 
   const logout = useCallback(async () => {
+    ticketFieldEdits.dispose();
     setIsBusy(true);
     await logoutWebAuthSession({ apiBaseUrl });
     setProfile(undefined);
     setStatus({ title: "已退出登录", text: "你的本工作台会话已结束。" });
     setIsBusy(false);
-  }, [apiBaseUrl]);
+  }, [apiBaseUrl, ticketFieldEdits]);
 
   const loginWithPlugin = usePluginLogin({
     apiBaseUrl,
@@ -182,6 +211,8 @@ export function App({ apiBaseUrl }) {
     return <WorkspaceMetricsContext.Provider value={{ githubMyOpenCount }}>
       <WorkspaceSearchProvider apiBaseUrl={apiBaseUrl} enabled={Boolean(profile.workspaceAccess?.platformLists) && activeWorkspaceRoute.page !== "lark-app"}>
       {["lark-tickets", "lark-ticket-detail", "lark-app"].includes(activeWorkspaceRoute.page) && <WeKnoraWidget apiBaseUrl={apiBaseUrl} />}
+      <WorkspacePageErrorBoundary key={activeWorkspaceRoute.hash}>
+      <Suspense fallback={<SessionLoadingPage message="正在加载页面…" />}>
       <WorkspacePage
         key={activeWorkspaceRoute.hash}
         profile={profile}
@@ -193,6 +224,7 @@ export function App({ apiBaseUrl }) {
         platformListFilterState={platformListFilterStates[activeWorkspaceRoute.page]}
         onPlatformListFilterStateChange={savePlatformListFilterState}
         larkTicketNavigationContext={larkTicketNavigationContext}
+        ticketFieldEdits={ticketFieldEdits}
         onLarkTicketNavigationContextChange={saveLarkTicketNavigationContext}
         meegleSprintDetailState={meegleSprintDetailStates[activeWorkspaceRoute.sprintName]}
         onMeegleSprintDetailStateChange={saveMeegleSprintDetailState}
@@ -201,6 +233,8 @@ export function App({ apiBaseUrl }) {
         onReauthorize={() => startLarkLogin({ apiBaseUrl })}
         isBusy={isBusy}
       />
+      </Suspense>
+      </WorkspacePageErrorBoundary>
       </WorkspaceSearchProvider>
     </WorkspaceMetricsContext.Provider>;
   }

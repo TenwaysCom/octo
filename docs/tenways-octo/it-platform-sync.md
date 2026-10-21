@@ -111,13 +111,23 @@ Ticket Answer / Document 与三个 Sprint Quick Actions 的新会话由 Server c
 
 `server/src/modules/public-config/automation-actions.config.ts` 是 automation 的唯一逻辑定义：Lark Ticket Answer/Document 快捷动作分别绑定稳定 `promptKey`、`skillProfile`、`skillId` 和版本化 `permissionProfileId`。具体路径、命令规则和超时不写入 action，也不返回浏览器；它们由 Server 策略实现持有。实际 Support-QA 环境目录统一由普通 Server 环境变量 `SUPPORT_QA_EU_WORKSPACE_DIR` 提供。
 
+##### llm-wiki 更新与生产接入
+
+平台同步、Shadow 分析与 wiki 摄入是三个独立环节：同步更新 Octo 数据快照；Shadow 可读取 wiki 并写 `shadow_ai`；wiki 内容由手动「生成文档」或具备取证权限的 workspace 执行 `write-support-qa` 更新。`wiki 问答` 只生成回复草稿，不写知识页。
+
+Ticket 摄入使用 DB-first：逐票取证并追加不可变 raw → 回读证据、查重和分流 → 按问题簇提炼 concepts → 核对证据、范围、状态与链接 → 更新 index/log/`_meta/state.jsonl`。原始快照或源字段变化时追加版本；账本登记不等于人工签核。当前 Schema/Skill 采用 concepts 优先、entities 按需维护，普通摄入不以实体 plan/check 为完成门槛；具体契约以 workspace 的 `docs/llm-wiki/SCHEMA.md` 与 `.agents/skills/write-support-qa/SKILL.md` 为准。
+
+**周期摄入尚未接入。** 2026-10-12 核查的 main 生产配置是平台数据每 10 分钟调度、Shadow 每 20 分钟轮询（静默期 20 分钟、每批最多 20 张）；它们都不会把新 Ticket 自动蒸馏成 wiki。核查的本机 Worker、PM2、deploy cron 与 systemd timer 未发现 wiki 摄入任务。
+
+同次核查确认生产 Server/Worker 在线、健康接口 200，部署产物已有 Wiki QA 与 Document 入口；production/staging 均指向 `/home/deploy/projects/odoo-eu-guide`，共用本地 wiki。同日按用户要求将取证脚本调整为优先读取生产 `octo/server/.env`（对应 `tenways_octo`），该文件不存在时再沿用测试及旧路径回退。以脚本实际选择的文件为准，取证前仍需核对环境；不支持仅凭外部环境变量覆盖数据源。进程、日志、账本快照及未执行的业务验收见[核查记录](../tasks/ai-ticket/2026-10-12-wiki-update-production-audit.md)，这些检查不证明真实问答或写入流程已验收。
+
 以下回调权限适用于 Kimi，不限制 Hermes 的原生工具或 Terminal 间接写入：
 
 | `permissionProfileId` | Write | Terminal |
 | --- | --- | --- |
 | `acp.chat-readonly.v1` | 禁止 | 禁止 |
-| `support-qa.answer.v1` | 仅 `os.tmpdir()/octo-support-qa/<actionRunId>/` | 当前 Ticket fetch、`git status`、受限 diff |
-| `support-qa.document.v1` | action 临时目录，加 `qa-cards/**/*.md`、`indexes/*.md`、`faq.md` | Answer 命令，加确定性 Eval 和 `update` / `analysis-update --dry-run --json` |
+| `support-qa.answer.v1` | action 临时目录，加 `docs/llm-wiki/queries/*.md`、`docs/llm-wiki/log.md` 查询沉淀 | 当前 Ticket fetch、`git status`、受限 diff |
+| `support-qa.document.v1` | Answer 范围，加 wiki 的 `raw/transcripts/ticket-*.md`、`concepts/**/*.md`、`entities/**/*.md`、`index.md`、`_meta/state.jsonl` | Answer 命令，加现有受控 Eval/dry-run 命令，以及固定 `python3 -B docs/llm-wiki/scripts/entity-maintenance.py plan\|check [--entity entities/...md ...] --json` |
 
 Octo 发起 ACP Session 时的 `mcpServers` 固定为空；这不保证禁用 Hermes 自身配置的 MCP。Kimi Write 回调只接受 UTF-8 文本且单文件最多 256 KiB；每次回调都阻止目录穿越、symlink 逃逸、`.git`、`.env*`、证书、SSH 和凭据文件。临时目录创建为 `0700`，文件写为 `0600`；草稿入库后删除，异常目录超过 24 小时才清理。Document 不能直接写 `knowledge-index.jsonl`。
 

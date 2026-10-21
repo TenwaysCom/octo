@@ -1,4 +1,46 @@
 import { createLarkTicketEvalDatasetService } from "./lark-ticket-eval-dataset.service.js";
+import { shadowEvalVersion } from "../../domain/shadow-eval-version.js";
+
+it("freezes only the viewed Shadow result, saves initial Badcase atomically, and rejects changed output", async () => {
+  const shadow = { status: "ok" as const, snapshotVersion: 3, analyzedAt: "2026-10-21T00:00:00Z", intent: "咨询", summary: "问题", solutionSummary: "方案" };
+  const stores = {
+    syncStore: { getLarkBaseTicketsForCleaning: vi.fn().mockResolvedValue([{ baseId: "b", tableId: "t", recordId: "r", title: "Title", shadowAi: shadow, ticketAi: { fields: { "AI意图": "不应混入" } } }]) },
+    threadStore: { get: vi.fn().mockResolvedValue({ snapshotVersion: 3, historyComplete: true }) },
+    sampleStore: { get: vi.fn(), hasReview: vi.fn(), create: vi.fn().mockImplementation(async (value) => value) },
+  };
+  const service = createLarkTicketEvalDatasetService({ syncStore: stores.syncStore as never, threadStore: stores.threadStore as never, sampleStore: stores.sampleStore as never,
+    shadowTransaction: (async (_ref: unknown, work: (deps: unknown) => unknown) => work(stores)) as never });
+  const input = { ticket: { baseId: "b", tableId: "t", recordId: "r" }, reviewer: { id: "alice", name: "Alice" },
+    request: { baseId: "b", tableId: "t", outputVersion: shadowEvalVersion(shadow), actionRunId: "save", datasetStatus: "badcase" as const, failureLabels: ["fact_incorrect" as const], notes: "方案环境错误" } };
+  expect(await service.createShadow(input)).toMatchObject({ source: "shadow", aiOutput: { shadowAi: shadow }, datasetStatus: "badcase", notes: "方案环境错误" });
+  expect(stores.sampleStore.create).toHaveBeenCalledTimes(1);
+  stores.sampleStore.create.mockClear();
+  await expect(service.createShadow({ ...input, request: { ...input.request, outputVersion: "a".repeat(64) } })).rejects.toMatchObject({ code: "SHADOW_OUTPUT_CHANGED" });
+  expect(stores.sampleStore.create).not.toHaveBeenCalled();
+  stores.sampleStore.get.mockResolvedValue({ id: "existing", notes: "后来保存的内容" });
+  stores.sampleStore.hasReview.mockResolvedValue(true);
+  expect(await service.createShadow(input)).toMatchObject({ notes: "后来保存的内容" });
+});
+
+it.each([
+  { name: "no result", shadow: undefined, snapshot: { snapshotVersion: 3, historyComplete: true }, code: "SHADOW_OUTPUT_UNAVAILABLE" },
+  { name: "failed result", shadow: { status: "error", snapshotVersion: 3 }, snapshot: { snapshotVersion: 3, historyComplete: true }, code: "SHADOW_OUTPUT_UNAVAILABLE" },
+  { name: "skipped result", shadow: { status: "skipped", snapshotVersion: 3 }, snapshot: { snapshotVersion: 3, historyComplete: true }, code: "SHADOW_OUTPUT_UNAVAILABLE" },
+  { name: "missing thread", shadow: { status: "ok", snapshotVersion: 3 }, snapshot: undefined, code: "THREAD_SNAPSHOT_NOT_FOUND" },
+  { name: "changed thread", shadow: { status: "ok", snapshotVersion: 3 }, snapshot: { snapshotVersion: 4, historyComplete: true }, code: "SHADOW_OUTPUT_CHANGED" },
+  { name: "incomplete material", shadow: { status: "ok", snapshotVersion: 3 }, snapshot: { snapshotVersion: 3, historyComplete: false }, code: "THREAD_SNAPSHOT_INCOMPLETE" },
+])("rejects $name without creating a Shadow sample", async ({ shadow, snapshot, code }) => {
+  const syncStore = { getLarkBaseTicketsForCleaning: vi.fn().mockResolvedValue([{ title: "Title", shadowAi: shadow }]) };
+  const threadStore = { get: vi.fn().mockResolvedValue(snapshot) };
+  const sampleStore = { get: vi.fn(), create: vi.fn() };
+  const deps = { syncStore, threadStore, sampleStore };
+  const service = createLarkTicketEvalDatasetService({ syncStore, threadStore, sampleStore: sampleStore as never,
+    shadowTransaction: (async (_ref: unknown, work: (value: unknown) => unknown) => work(deps)) as never });
+  await expect(service.createShadow({ ticket: { baseId: "b", tableId: "t", recordId: "r" }, reviewer: { id: "a", name: "A" },
+    request: { baseId: "b", tableId: "t", outputVersion: shadowEvalVersion(shadow ?? {}), actionRunId: "run", datasetStatus: "eval", failureLabels: [] } }))
+    .rejects.toMatchObject({ code });
+  expect(sampleStore.create).not.toHaveBeenCalled();
+});
 
 const ticket = { baseId: "app_1", tableId: "tbl_1", recordId: "rec_1" };
 const sample = { id: "sample_1", ticket: { ...ticket, title: "登录失败" }, snapshotVersion: 3, aiOutput: { "AI Ticket 总结": "登录失败" }, datasetStatus: "eval" as const, failureLabels: [], createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z" };

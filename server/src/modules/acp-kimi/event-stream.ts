@@ -1,6 +1,7 @@
 import type { Response } from "express";
 import type { RequestPermissionRequest } from "@agentclientprotocol/sdk";
 import type { WikiQaProgress } from "../../domain/wiki-qa.js";
+import type { TicketAnswerSource } from "../../domain/ticket-answer-sources.js";
 
 export type AcpPermissionStatus = "approved" | "rejected" | "expired" | "cancelled";
 export type AcpPermissionRequestData = {
@@ -49,6 +50,7 @@ export type AcpKimiEffectDraftCreatedEvent = {
 };
 
 export type AcpKimiStreamEvent =
+  | { event: "answer.sources"; data: { sessionId: string; actionRunId?: string; layer: "server"; module: "lark-ticket-ai"; stage: "server.workflow.sources"; provenance: "answer_reference"; sources: TicketAnswerSource[] } }
   | { event: "wiki_qa.progress"; data: WikiQaProgress }
   | { event: "run.started"; data: { runId: string; sessionId: string; actionRunId: string } }
   | AcpPermissionEvent
