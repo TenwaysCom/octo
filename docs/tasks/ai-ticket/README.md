@@ -1,6 +1,14 @@
 # AI Ticket Tasks
 
+- [TEN-144：Lark Ticket AI 页 Badcase 设计与验收草案](2026-10-21-lark-badcase-design.md) — done（设计交付）；入口已确认，提出原地标记/编辑原因、冻结输出、原子保存及 15 项验收；原因语义及 Wiki 范围待确认，未开发或部署。
+
 - [Wiki 问答模型 HTTP 429 排障](2026-10-15-wiki-qa-provider-429.md) — in_progress；确认通用 API 返回1113，已修正提示与安全日志，92项测试/类型检查通过；最新真实模型+合成资料完整链路成功，真实Wiki验证待授权，未部署。
+
+- [LLM wiki 优化与 KCS 试点评估](2026-10-13-wiki-kcs-optimization-assessment.md) — done（v3 详细设计交付）；[具体设计](../../tenways-octo/ticket-kcs-update-and-use-design.md)涵盖逐票 KCS 记录、更新差异/采纳、版本与冲突、wiki 增量和问答使用；评估保留用户讨论与官方方法依据；未修改应用、摄入知识或实施试点。
+
+- [本地 Lark Odoo Wiki 原始文档更新清单](2026-10-12-lark-odoo-wiki-update-backlog.md) — done（清单交付）；按 09-25 本地导出盘点 117 节点，整理 20 个更新专题、37 个目标页面；明确缺项与业务待确认分开，未修改飞书或原始导出。
+
+- [LLM wiki 更新机制与生产接入核查](2026-10-12-wiki-update-production-audit.md) — done（核查与文档）；生产 Server/Worker 在线且已配置共用 wiki；平台同步与 Shadow 定期运行，wiki 摄入仍需手动执行；取证脚本已按 v2 改为优先生产 octo；环境选择检查通过，真实问答/写入未验收。
 
 - [User profile extractor 提炼与增量验证](2026-09-27-user-profile-extractor.md) — in_progress；需求v2仅输出JSON性格/沟通/需求特点，设计及原型已更新，20项测试通过；真实双用户验证需补需求人消息证据及外发授权，无数据库迁移或部署。
 

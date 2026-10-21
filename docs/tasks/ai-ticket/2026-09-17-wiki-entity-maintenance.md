@@ -13,6 +13,8 @@ related:
 
 # Wiki entities 批末联动与语义复核
 
+> 本记录保留 2026-09-17 的交付契约与当时「未部署」的验证边界。外部 Schema/Skill 已于 2026-10-10 改为 concepts 优先、entities 按需维护，普通摄入不再执行批末实体 plan/check；2026-10-12 的生产接入与周期更新核查见[后续记录](2026-10-12-wiki-update-production-audit.md)。下文全库实体收尾要求不作为当前普通摄入规则。
+
 ## 目标
 
 落实用户确认的 SCHEMA 契约、write-support-qa 批处理收尾和变化/漏更校验。逐票取证、按簇写卡、每批统一复核受影响 entities；不回写 Lark/Octo Ticket，不自动认可历史知识。
