@@ -6,7 +6,7 @@ import type { AcpKimiStreamEvent } from "./event-stream.js";
 
 function deferred() { let resolve!: () => void; const promise = new Promise<void>((r) => { resolve = r; }); return { promise, resolve }; }
 function fixture(kind: "ticket" | "sprint", chat: (input: { signal: AbortSignal }, emit: (event: AcpKimiStreamEvent) => void) => Promise<void>) {
-  const service = { chat: vi.fn(chat), listSessions: vi.fn().mockResolvedValue([]), loadSession: vi.fn().mockRejectedValue(new Error("Native history must not load a running session")) };
+  const service = { chat: vi.fn(chat), listSessions: vi.fn().mockResolvedValue([]), getSessionMetadata: vi.fn().mockResolvedValue({ sessionId: "s1", agentProvider: "hermes_acp", threadSnapshotVersion: 3 }), loadSession: vi.fn().mockRejectedValue(new Error("Native history must not load a running session")) };
   const resolveOperatorLarkId = vi.fn().mockResolvedValue("ou_1");
   const deps = { service: service as never, resolveOperatorLarkId, resolveSession: vi.fn().mockResolvedValue({ ok: true, masterUserId: "u1", role: "pm", baseUrl: "https://example.com", user: {} }) };
   const controller = kind === "ticket" ? createWebLarkTicketAiController(deps) : createWebMeegleSprintAiController(deps);

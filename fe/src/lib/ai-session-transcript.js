@@ -78,6 +78,22 @@ function updateToolCall(toolCalls, update) {
 }
 
 export function appendAiSessionEvent(messages, event) {
+  if (event.event === "answer.sources") {
+    if (!Array.isArray(event.data?.sources)) return messages;
+    const turnStart = messages.findLastIndex((entry) => entry.kind === "user") + 1;
+    const index = messages.findLastIndex((entry, i) => i >= turnStart && entry.kind === "assistant");
+    if (index === -1) return messages;
+    const sources = event.data.sources.filter((source) => {
+      if (!source || !["id", "title", "location"].every((key) => typeof source[key] === "string")) return false;
+      if (source.kind === "document" || source.kind === "reference") return !source.href;
+      if (source.kind !== "web" || typeof source.href !== "string") return false;
+      try {
+        const url = new URL(source.href);
+        return ["http:", "https:"].includes(url.protocol) && !url.username && !url.password;
+      } catch { return false; }
+    }).slice(0, 50);
+    return messages.map((entry, i) => i === index ? { ...entry, sources } : entry);
+  }
   if (event.event === "wiki_qa.progress") {
     const progress = event.data;
     if (!progress || typeof progress.actionRunId !== "string" || typeof progress.message !== "string"

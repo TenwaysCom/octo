@@ -10,10 +10,27 @@ async function readData(response, fallbackCode) {
   return payload.data;
 }
 
-export async function listLarkTicketEvalSamples({ apiBaseUrl, mine = false, fetchImpl = fetch }) {
-  const data = await readData(await fetchImpl(buildApiUrl(apiBaseUrl, `/web/lark-ticket-eval-samples${mine ? "?mine=true" : ""}`), { credentials: "include" }), "EVAL_SAMPLE_LIST_FAILED");
+export async function listLarkTicketEvalSamples({ apiBaseUrl, mine = false, ticket, fetchImpl = fetch }) {
+  const query = new URLSearchParams({ ...(mine ? { mine: "true" } : {}), ...(ticket ? { baseId: ticket.baseId, tableId: ticket.tableId, recordId: ticket.recordId } : {}) });
+  const data = await readData(await fetchImpl(buildApiUrl(apiBaseUrl, `/web/lark-ticket-eval-samples${query.size ? `?${query}` : ""}`), { credentials: "include" }), "EVAL_SAMPLE_LIST_FAILED");
   if (!Array.isArray(data?.samples)) throw new Error("INVALID_EVAL_SAMPLE_LIST");
   return data.samples;
+}
+
+export async function loadShadowEvalSample({ apiBaseUrl, ticket, actionRunId = crypto.randomUUID(), fetchImpl = fetch }) {
+  const query = new URLSearchParams({ baseId: ticket.baseId, tableId: ticket.tableId, actionRunId });
+  return readData(await fetchImpl(buildApiUrl(apiBaseUrl, `/web/lark-tickets/${encodeURIComponent(ticket.recordId)}/shadow-eval-sample?${query}`), {
+    credentials: "include",
+  }), "EVAL_SAMPLE_LIST_FAILED");
+}
+
+export async function createShadowEvalSample({ apiBaseUrl, ticket, update, fetchImpl = fetch }) {
+  const data = await readData(await fetchImpl(buildApiUrl(apiBaseUrl, `/web/lark-tickets/${encodeURIComponent(ticket.recordId)}/shadow-eval-sample`), {
+    method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ baseId: ticket.baseId, tableId: ticket.tableId, ...update }),
+  }), "EVAL_SAMPLE_CREATE_FAILED");
+  if (!data?.sample?.id) throw new Error("INVALID_EVAL_SAMPLE");
+  return data.sample;
 }
 
 export async function createLarkTicketEvalSample({ apiBaseUrl, ticket, actionRunId, fetchImpl = fetch }) {

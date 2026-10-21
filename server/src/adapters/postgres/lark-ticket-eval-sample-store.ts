@@ -1,7 +1,7 @@
-import type { Kysely } from "kysely";
+import type { Kysely, Selectable } from "kysely";
 import { getSharedDatabase } from "./database.js";
 import type { DatabaseSchema } from "./schema.js";
-import type { LarkTicketEvalSampleUpdate } from "../../domain/lark-ticket-eval-sample.js";
+import { LarkTicketEvalDatasetError, type LarkTicketEvalSampleUpdate } from "../../domain/lark-ticket-eval-sample.js";
 
 export interface EvalReviewer { id: string; name: string }
 
@@ -9,6 +9,8 @@ export interface LarkTicketEvalSample {
   id: string;
   ticket: { baseId: string; tableId: string; recordId: string; title: string };
   snapshotVersion: number;
+  source?: "legacy" | "shadow";
+  outputVersion?: string;
   aiOutput: Record<string, unknown>;
   datasetStatus: "draft" | "eval" | "badcase";
   manualIntent?: string;
@@ -23,22 +25,50 @@ export interface LarkTicketEvalSample {
 }
 
 export interface LarkTicketEvalSampleStore {
-  list(reviewerId: string, mine?: boolean): Promise<LarkTicketEvalSample[]>;
+  list(reviewerId: string, mine?: boolean, ticket?: EvalTicketRef): Promise<LarkTicketEvalSample[]>;
+  get(id: string, reviewerId: string): Promise<LarkTicketEvalSample | undefined>;
+  hasReview(id: string, reviewerId: string, actionRunId: string): Promise<boolean>;
   findByTicketSnapshot(ticket: { baseId: string; tableId: string; recordId: string }, snapshotVersion: number, reviewerId?: string): Promise<LarkTicketEvalSample | undefined>;
   create(sample: LarkTicketEvalSample, reviewer: EvalReviewer, actionRunId: string): Promise<LarkTicketEvalSample>;
   update(id: string, update: LarkTicketEvalSampleUpdate, updatedAt: string, reviewer: EvalReviewer): Promise<LarkTicketEvalSample | undefined>;
 }
 
+export type EvalTicketRef = { baseId: string; tableId: string; recordId: string };
+
+export async function withShadowEvalSourceLock<T>(ticket: EvalTicketRef, work: (db: Kysely<DatabaseSchema>) => Promise<T>, db = getSharedDatabase()): Promise<T> {
+  return db.transaction().execute(async (trx) => {
+    for (const table of ["lark_base_ticket_syncs", "lark_ticket_thread_syncs", "lark_base_ticket_octo"] as const) {
+      await trx.selectFrom(table).select("record_id").where("base_id", "=", ticket.baseId)
+        .where("table_id", "=", ticket.tableId).where("record_id", "=", ticket.recordId).forUpdate().executeTakeFirst();
+    }
+    return work(trx);
+  });
+}
+
 export class PostgresLarkTicketEvalSampleStore implements LarkTicketEvalSampleStore {
   constructor(private readonly db?: Kysely<DatabaseSchema>) {}
   private get database() { return this.db ?? getSharedDatabase(); }
+  private transaction<T>(work: (db: Kysely<DatabaseSchema>) => Promise<T>): Promise<T> {
+    return this.database.isTransaction ? work(this.database) : this.database.transaction().execute(work);
+  }
 
-  async list(reviewerId: string, mine = false) {
+  async list(reviewerId: string, mine = false, ticket?: EvalTicketRef) {
     let query = this.database.selectFrom("lark_ticket_eval_samples").selectAll();
+    if (ticket) query = query.where("base_id", "=", ticket.baseId).where("table_id", "=", ticket.tableId).where("record_id", "=", ticket.recordId);
     if (mine) query = query.where("id", "in", this.database.selectFrom("lark_ticket_eval_reviews")
       .select("sample_id").where("reviewer_id", "=", reviewerId));
     const rows = await query.orderBy("snapshot_version", "desc").orderBy("updated_at", "desc").execute();
     return this.withReviews(rows.map(toSample), reviewerId);
+  }
+
+  async get(id: string, reviewerId: string) {
+    const row = await this.database.selectFrom("lark_ticket_eval_samples").selectAll().where("id", "=", id).executeTakeFirst();
+    return row ? (await this.withReviews([toSample(row)], reviewerId))[0] : undefined;
+  }
+
+  async hasReview(id: string, reviewerId: string, actionRunId: string) {
+    return Boolean(await this.database.selectFrom("lark_ticket_eval_reviews").select("sample_id")
+      .where("sample_id", "=", id).where("reviewer_id", "=", reviewerId).where("action_run_id", "=", actionRunId).executeTakeFirst());
   }
 
   private async withReviews(samples: LarkTicketEvalSample[], reviewerId?: string) {
@@ -55,41 +85,61 @@ export class PostgresLarkTicketEvalSampleStore implements LarkTicketEvalSampleSt
   async findByTicketSnapshot(ticket: { baseId: string; tableId: string; recordId: string }, snapshotVersion: number, reviewerId?: string) {
     const row = await this.database.selectFrom("lark_ticket_eval_samples").selectAll()
       .where("base_id", "=", ticket.baseId).where("table_id", "=", ticket.tableId).where("record_id", "=", ticket.recordId)
-      .where("snapshot_version", "=", snapshotVersion).executeTakeFirst();
+      .where("snapshot_version", "=", snapshotVersion).where("source", "=", "legacy").executeTakeFirst();
     return row ? (await this.withReviews([toSample(row)], reviewerId))[0] : undefined;
   }
 
   async create(sample: LarkTicketEvalSample, reviewer: EvalReviewer, actionRunId: string) {
-    return this.database.transaction().execute(async (trx) => {
+    return this.transaction(async (trx) => {
+      if (sample.source === "shadow") {
+        const scoped = new PostgresLarkTicketEvalSampleStore(trx);
+        const existing = await scoped.get(sample.id, reviewer.id);
+        if (existing) {
+          if (await scoped.hasReview(sample.id, reviewer.id, actionRunId)) return existing;
+          throw new LarkTicketEvalDatasetError("EVAL_SAMPLE_CONFLICT", "该结果已被标注，请重新读取后编辑。", actionRunId);
+        }
+      }
       const inserted = await trx.insertInto("lark_ticket_eval_samples").values({
         id: sample.id, base_id: sample.ticket.baseId, table_id: sample.ticket.tableId, record_id: sample.ticket.recordId,
         ticket_title: sample.ticket.title, snapshot_version: sample.snapshotVersion, ai_output_json: JSON.stringify(sample.aiOutput),
+        source: sample.source ?? "legacy", output_version: sample.outputVersion ?? "",
         dataset_status: sample.datasetStatus, manual_intent: sample.manualIntent ?? null, expected_outcome: sample.expectedOutcome ?? null,
         notes: sample.notes ?? null, failure_labels_json: JSON.stringify(sample.failureLabels), created_at: sample.createdAt, updated_at: sample.updatedAt,
-      }).onConflict((oc) => oc.columns(["base_id", "table_id", "record_id", "snapshot_version"]).doNothing()).returningAll().executeTakeFirst();
+      }).onConflict((oc) => oc.columns(["base_id", "table_id", "record_id", "snapshot_version", "source", "output_version"]).doNothing()).returningAll().executeTakeFirst();
       if (inserted) {
         await trx.insertInto("lark_ticket_eval_reviews").values({ sample_id: sample.id, reviewer_id: reviewer.id,
           reviewer_name: reviewer.name, evaluated_at: sample.updatedAt, dataset_status: sample.datasetStatus, action_run_id: actionRunId }).execute();
       }
       const row = inserted ?? await trx.selectFrom("lark_ticket_eval_samples").selectAll()
         .where("base_id", "=", sample.ticket.baseId).where("table_id", "=", sample.ticket.tableId)
-        .where("record_id", "=", sample.ticket.recordId).where("snapshot_version", "=", sample.snapshotVersion).executeTakeFirstOrThrow();
+        .where("record_id", "=", sample.ticket.recordId).where("snapshot_version", "=", sample.snapshotVersion)
+        .where("source", "=", sample.source ?? "legacy").where("output_version", "=", sample.outputVersion ?? "").executeTakeFirstOrThrow();
+      if (!inserted && sample.source === "shadow" && !await new PostgresLarkTicketEvalSampleStore(trx).hasReview(row.id, reviewer.id, actionRunId)) {
+        throw new LarkTicketEvalDatasetError("EVAL_SAMPLE_CONFLICT", "该结果已被标注，请重新读取后编辑。", actionRunId);
+      }
       return (await new PostgresLarkTicketEvalSampleStore(trx).withReviews([toSample(row)], reviewer.id))[0]!;
     });
   }
 
   async update(id: string, update: LarkTicketEvalSampleUpdate, updatedAt: string, reviewer: EvalReviewer) {
-    return this.database.transaction().execute(async (trx) => {
+    return this.transaction(async (trx) => {
       const existing = await trx.selectFrom("lark_ticket_eval_samples").selectAll().where("id", "=", id).forUpdate().executeTakeFirst();
       if (!existing) return undefined;
       const previous = await trx.selectFrom("lark_ticket_eval_reviews").select("sample_id").where("sample_id", "=", id)
         .where("reviewer_id", "=", reviewer.id).where("action_run_id", "=", update.actionRunId).executeTakeFirst();
       if (previous) return (await new PostgresLarkTicketEvalSampleStore(trx).withReviews([toSample(existing)], reviewer.id))[0];
+      if (existing.updated_at !== update.expectedUpdatedAt) {
+        throw new LarkTicketEvalDatasetError("EVAL_SAMPLE_CONFLICT", "标注已被其他操作更新，请重新读取后保存。", update.actionRunId);
+      }
+      if (existing.source === "shadow" && update.datasetStatus === "badcase" && !update.notes?.trim()) {
+        throw new LarkTicketEvalDatasetError("BADCASE_REASON_REQUIRED", "标记 Badcase 前，请填写失败原因。", update.actionRunId);
+      }
       // A monotonic per-sample timestamp makes the latest reviewer unambiguous, even for concurrent saves.
       const timestamp = new Date(Math.max(Date.parse(updatedAt), Date.parse(existing.updated_at) + 1)).toISOString();
       const row = await trx.updateTable("lark_ticket_eval_samples").set({
-        dataset_status: update.datasetStatus, manual_intent: update.manualIntent ?? null, expected_outcome: update.expectedOutcome ?? null,
-        notes: update.notes ?? null, failure_labels_json: JSON.stringify(update.failureLabels), updated_at: timestamp,
+        dataset_status: update.datasetStatus, manual_intent: update.manualIntent === undefined ? existing.manual_intent : update.manualIntent,
+        expected_outcome: update.expectedOutcome === undefined ? existing.expected_outcome : update.expectedOutcome,
+        notes: update.notes === undefined ? existing.notes : update.notes, failure_labels_json: JSON.stringify(update.failureLabels), updated_at: timestamp,
       }).where("id", "=", id).returningAll().executeTakeFirstOrThrow();
       await trx.insertInto("lark_ticket_eval_reviews").values({ sample_id: id, reviewer_id: reviewer.id,
         reviewer_name: reviewer.name, evaluated_at: timestamp, dataset_status: update.datasetStatus, action_run_id: update.actionRunId }).execute();
@@ -101,8 +151,9 @@ export class PostgresLarkTicketEvalSampleStore implements LarkTicketEvalSampleSt
 
 function parseRecord(value: string): Record<string, unknown> { try { const parsed = JSON.parse(value); return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {}; } catch { return {}; } }
 function parseStrings(value: string): string[] { try { const parsed = JSON.parse(value); return Array.isArray(parsed) && parsed.every((item) => typeof item === "string") ? parsed : []; } catch { return []; } }
-function toSample(row: DatabaseSchema["lark_ticket_eval_samples"]) : LarkTicketEvalSample {
+function toSample(row: Selectable<DatabaseSchema["lark_ticket_eval_samples"]>) : LarkTicketEvalSample {
   return { id: row.id, ticket: { baseId: row.base_id, tableId: row.table_id, recordId: row.record_id, title: row.ticket_title }, snapshotVersion: row.snapshot_version,
+    source: row.source, outputVersion: row.output_version,
     aiOutput: parseRecord(row.ai_output_json), datasetStatus: row.dataset_status, manualIntent: row.manual_intent ?? undefined,
     expectedOutcome: row.expected_outcome ?? undefined, notes: row.notes ?? undefined, failureLabels: parseStrings(row.failure_labels_json), createdAt: row.created_at, updatedAt: row.updated_at };
 }

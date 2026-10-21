@@ -542,6 +542,13 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .addColumn("action_run_id", "text", (column) => column.notNull())
     .addPrimaryKeyConstraint("lark_ticket_eval_reviews_pk", ["sample_id", "reviewer_id", "action_run_id"])
     .execute();
+  await db.transaction().execute(async (trx) => {
+    await sql`ALTER TABLE lark_ticket_eval_samples ADD COLUMN IF NOT EXISTS source text NOT NULL DEFAULT 'legacy'`.execute(trx);
+    await sql`ALTER TABLE lark_ticket_eval_samples ADD COLUMN IF NOT EXISTS output_version text NOT NULL DEFAULT ''`.execute(trx);
+    await sql`ALTER TABLE lark_ticket_eval_samples DROP CONSTRAINT IF EXISTS lark_ticket_eval_samples_ticket_snapshot`.execute(trx);
+    await trx.schema.createIndex("lark_ticket_eval_samples_output_key").ifNotExists().unique()
+      .on("lark_ticket_eval_samples").columns(["base_id", "table_id", "record_id", "snapshot_version", "source", "output_version"]).execute();
+  });
   await db.schema.createIndex("lark_ticket_eval_reviews_reviewer").ifNotExists()
     .on("lark_ticket_eval_reviews").columns(["reviewer_id", "sample_id"]).execute();
   await db.schema.createTable("support_ticket_effect_drafts").ifNotExists()

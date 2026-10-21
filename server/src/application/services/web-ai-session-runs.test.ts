@@ -8,6 +8,35 @@ const done: AcpKimiStreamEvent = { event: "done", data: { sessionId: "session_1"
 function deferred() { let resolve!: () => void; const promise = new Promise<void>((r) => { resolve = r; }); return { promise, resolve }; }
 
 describe("Web AI session runs", () => {
+  it("retains structured sources in load snapshots and clears them in a source-free follow-up", async () => {
+    const runs = createWebAiSessionRuns();
+    const sources: AcpKimiStreamEvent = { event: "answer.sources", data: { sessionId: "session_1", actionRunId: "action_1",
+      layer: "server", module: "lark-ticket-ai", stage: "server.workflow.sources", provenance: "answer_reference",
+      sources: [{ id: "https://example.com/", kind: "web", href: "https://example.com/", title: "引用", location: "example.com" }] } };
+    const emit = vi.fn();
+    await runs.execute(input, { loadHistory: vi.fn(), emit, chat: async (_signal, send) => {
+      send({ event: "session.created", data: { sessionId: "session_1" } }); send(chunk("第一轮")); send(sources); send(done);
+    } });
+    expect(runs.load(scope, "session_1")?.events).toContainEqual(sources);
+    expect(emit).toHaveBeenCalledWith(sources);
+    const empty = { ...sources, data: { ...sources.data, actionRunId: "action_2", sources: [] } };
+    await runs.execute({ ...input, sessionId: "session_1", message: "追问", actionRunId: "action_2" }, {
+      loadHistory: vi.fn(), emit, chat: async (_signal, send) => { send(chunk("第二轮")); send(empty); send(done); },
+    });
+    expect(runs.load(scope, "session_1")?.events.filter((event) => event.event === "answer.sources").at(-1)).toEqual(empty);
+  });
+  it("identifies a pending Hermes Answer before its native session exists", async () => {
+    const runs = createWebAiSessionRuns(); const gate = deferred();
+    const execution = runs.execute({ ...input, actionKey: "lark-ticket-support-qa-answer", agentProvider: "hermes_acp" }, {
+      loadHistory: vi.fn(), emit: vi.fn(), chat: async (_signal, emit) => { await gate.promise; emit({ event: "session.created", data: { sessionId: "native" } }); emit(done); },
+    });
+    const pending = runs.list(scope)[0];
+    expect(pending).toMatchObject({ agentProvider: "hermes_acp", actionKey: "lark-ticket-support-qa-answer", runStatus: "running" });
+    expect(pending.sessionId).toBe(pending.runId);
+    expect(runs.list({ ...scope, operatorLarkId: "other" })).toEqual([]);
+    gate.resolve(); await execution;
+    expect(runs.load(scope, pending.runId)).toMatchObject({ sessionId: "native", agentProvider: "hermes_acp" });
+  });
   it("retains wiki progress while running and when reopening a completed one-shot run", async () => {
     const runs = createWebAiSessionRuns();
     const gate = deferred();

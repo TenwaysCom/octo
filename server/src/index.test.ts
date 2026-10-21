@@ -67,6 +67,8 @@ describe("index routes", () => {
         "PUT /api/web/lark-tickets/:recordId/support-analysis",
         "GET /api/web/lark-ticket-eval-samples",
         "POST /api/web/lark-tickets/:recordId/eval-sample",
+        "GET /api/web/lark-tickets/:recordId/shadow-eval-sample",
+        "POST /api/web/lark-tickets/:recordId/shadow-eval-sample",
         "PUT /api/web/lark-ticket-eval-samples/:sampleId",
         "GET /api/web/lark-tickets/:recordId/ai-sessions",
         "POST /api/web/lark-tickets/:recordId/ai-sessions",

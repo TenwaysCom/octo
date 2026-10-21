@@ -47,6 +47,7 @@ import { supportAnalysisResultSchema } from "../../domain/support-ticket-analysi
 import { createSupportTicketAnalysisService, SupportTicketAnalysisError } from "./support-ticket-analysis.service.js";
 import { createWikiQaService } from "./wiki-qa.service.js";
 import { randomUUID } from "node:crypto";
+import { resolveAcpSessionIdentity } from "../../adapters/acp/managed-acp-runtime.js";
 import { access, realpath } from "node:fs/promises";
 import { constants } from "node:fs";
 import { join, relative, resolve } from "node:path";
@@ -57,6 +58,7 @@ import {
   type LarkTicketThreadContextService,
 } from "./lark-ticket-thread-context.service.js";
 import { getAcpKimiPermissionProfile } from "../../domain/acp-kimi-permission-profile.js";
+import { extractTicketAnswerSources } from "../../domain/ticket-answer-sources.js";
 import {
   createSupportTicketEffectDraftService,
 } from "./support-ticket-effect-draft.service.js";
@@ -134,6 +136,9 @@ export function createLarkTicketAiSessionService(
   const effectDraftService = deps.effectDraftService ?? createSupportTicketEffectDraftService();
 
   return {
+    async getSessionMetadata(input: { operatorLarkId: string; ticket: LarkTicketAiSessionRef; sessionId: string }) {
+      return toSessionSummary(await getTicketSession(ownershipStore, input));
+    },
     async listSessions(input: {
       operatorLarkId: string;
       ticket: LarkTicketAiSessionRef;
@@ -154,12 +159,14 @@ export function createLarkTicketAiSessionService(
       sessionId: string;
       signal?: AbortSignal;
     }) {
-      await getTicketSession(ownershipStore, input);
-      return historyService.loadSession({
+      const session = await getTicketSession(ownershipStore, input);
+      const history = await historyService.loadSession({
         operatorLarkId: input.operatorLarkId,
         sessionId: input.sessionId,
         signal: input.signal,
       });
+      return { ...history, ...toSessionSummary(session), events: session.automationActionKey === "lark-ticket-support-qa-answer"
+        ? restoreAnswerSources(history.events, input.sessionId) : history.events };
     },
 
     async chat(input: {
@@ -300,7 +307,7 @@ export function createLarkTicketAiSessionService(
       let attachmentPromise: Promise<void> | undefined;
       let doneEvent: Extract<AcpKimiStreamEvent, { event: "done" }> | undefined;
       let assistantOutput = "";
-      const requiresPostProcessing = Boolean(quickAction) || canCreateEffectDraft;
+      const requiresPostProcessing = Boolean(quickAction) || canCreateEffectDraft || effectActionKey === "lark-ticket-support-qa-answer";
 
       try {
         input.signal?.throwIfAborted();
@@ -388,6 +395,9 @@ export function createLarkTicketAiSessionService(
           actionRunId,
           status: "completed",
         });
+      }
+      if (effectActionKey === "lark-ticket-support-qa-answer") {
+        emit(answerSourcesEvent(assistantOutput, sessionId, input.actionRunId ?? actionRunId));
       }
       if (doneEvent) emit(doneEvent);
     },
@@ -641,6 +651,9 @@ function toSessionSummary(session: AcpKimiSessionOwnershipRecord) {
     sessionId: session.sessionId,
     title: session.title || session.sessionId,
     updatedAt: session.updatedAt,
+    agentProvider: resolveAcpSessionIdentity(session).agentProvider,
+    ...(session.threadSnapshotVersion ? { threadSnapshotVersion: session.threadSnapshotVersion } : {}),
+    ...(session.threadContextSyncedAt ? { threadContextSyncedAt: session.threadContextSyncedAt } : {}),
     ...(session.automationActionKey ? { actionKey: session.automationActionKey } : {}),
     ...(session.actionRunId ? { actionRunId: session.actionRunId } : {}),
     ...(session.runStatus ? { runStatus: session.runStatus } : {}),
@@ -648,6 +661,39 @@ function toSessionSummary(session: AcpKimiSessionOwnershipRecord) {
     ...(session.runErrorMessage ? { errorMessage: session.runErrorMessage } : {}),
     ...(session.unverifiedOutput ? { hasUnverifiedOutput: true } : {}),
   };
+}
+
+function answerSourcesEvent(answer: string, sessionId: string, actionRunId?: string): Extract<AcpKimiStreamEvent, { event: "answer.sources" }> {
+  return { event: "answer.sources", data: { sessionId, ...(actionRunId ? { actionRunId } : {}),
+    layer: "server", module: "lark-ticket-ai", stage: "server.workflow.sources", provenance: "answer_reference",
+    sources: extractTicketAnswerSources(answer) } };
+}
+
+function restoreAnswerSources(events: AcpKimiStreamEvent[], sessionId: string): AcpKimiStreamEvent[] {
+  const restored: AcpKimiStreamEvent[] = [];
+  let answer = "", hasAnswer = false, previousUserId: unknown;
+  const flush = () => {
+    if (hasAnswer) restored.push(answerSourcesEvent(answer, sessionId));
+    answer = ""; hasAnswer = false;
+  };
+  for (const event of events) {
+    if (event.event === "answer.sources") continue;
+    if (event.event === "acp.session.update") {
+      const update = event.data.update;
+      if (update.sessionUpdate === "user_message_chunk") {
+        // Native history can split one user message into multiple chunks.
+        if (hasAnswer || update.messageId !== previousUserId) flush();
+        previousUserId = update.messageId;
+      }
+      if (update.sessionUpdate === "agent_message_chunk") {
+        answer = appendAssistantOutput(answer, event); hasAnswer = true;
+      }
+    }
+    if (event.event === "done") flush();
+    restored.push(event);
+  }
+  flush();
+  return restored;
 }
 
 function appendAssistantOutput(current: string, event: AcpKimiStreamEvent): string {
@@ -660,7 +706,7 @@ function appendAssistantOutput(current: string, event: AcpKimiStreamEvent): stri
     : content && typeof content === "object" && "text" in content && typeof content.text === "string"
       ? content.text
       : "";
-  return `${current}${chunk}`.slice(-32_000);
+  return `${current}${chunk}`;
 }
 
 function deriveSessionTitle(message: string): string {

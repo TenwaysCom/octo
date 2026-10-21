@@ -1,6 +1,8 @@
 # AI Ticket Tasks
 
-- [TEN-144：Lark Ticket AI 页 Badcase 设计与验收草案](2026-10-21-lark-badcase-design.md) — done（设计交付）；入口已确认，提出原地标记/编辑原因、冻结输出、原子保存及 15 项验收；原因语义及 Wiki 范围待确认，未开发或部署。
+- [Lark Ticket AI：Hermes Agent AI 页签需求确认](2026-10-21-lark-hermes-answer-tab.md) — done（v6）；Sources Server 实时 / 历史事件及 FE 卡片已接通并部署，定向回归与构建通过；用户确认正文 Inline citation 暂不处理，真实模型 / 完整流程验收未恢复。
+
+- [TEN-144：Lark Shadow Eval / Badcase 标注](2026-10-21-lark-badcase-design.md) — done（v4）；测试部署/迁移与两端业务验收完成，用户确认飞书“测试可用”；评测区和共用表单已精简并更新测试站，49 个 FE 测试入口、6 组 mock 浏览器及 10 组真实部署回归通过，QA 数据已清理。
 
 - [Wiki 问答模型 HTTP 429 排障](2026-10-15-wiki-qa-provider-429.md) — in_progress；确认通用 API 返回1113，已修正提示与安全日志，92项测试/类型检查通过；最新真实模型+合成资料完整链路成功，真实Wiki验证待授权，未部署。
 

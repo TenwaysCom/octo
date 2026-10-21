@@ -1,5 +1,5 @@
 import type { LarkTicketThreadSnapshot } from "../../adapters/postgres/lark-ticket-thread-sync-store.js";
-import { describe, expect, it, vi } from "vitest";
+import { vi } from "vitest";
 import {
   createLarkTicketAiSessionService,
 } from "./lark-ticket-ai-session.service.js";
@@ -44,6 +44,49 @@ const validDirectSummaryResult = {
 };
 
 describe("Lark Ticket AI Session service", () => {
+  it("returns structured answer sources when restoring native Answer history", async () => {
+    const saved = { sessionId: "hermes-history", operatorLarkId: "ou_1", agentProvider: "hermes_acp",
+      ticketBaseId: ticket.baseId, ticketTableId: ticket.tableId, ticketRecordId: ticket.recordId,
+      automationActionKey: "lark-ticket-support-qa-answer", actionRunId: "run-history" };
+    const historyService = { loadSession: vi.fn().mockResolvedValue({ sessionId: saved.sessionId, events: [
+      { event: "acp.session.update", data: { sessionId: saved.sessionId, update: { sessionUpdate: "user_message_chunk", content: { type: "text", text: "问题" } } } },
+      { event: "acp.session.update", data: { sessionId: saved.sessionId, update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "请参考[操作说明](https://example.com/how-to)。" } } } },
+    ] }) };
+    const service = createLarkTicketAiSessionService({ ownershipStore: { getBySessionId: vi.fn().mockResolvedValue(saved) } as never, historyService });
+    const loaded = await service.loadSession({ operatorLarkId: "ou_1", ticket, sessionId: saved.sessionId });
+    expect(loaded.events).toContainEqual(expect.objectContaining({ event: "answer.sources", data: expect.objectContaining({
+      sessionId: saved.sessionId, sources: [expect.objectContaining({ title: "操作说明", href: "https://example.com/how-to" })],
+    }) }));
+  });
+  it("restores sources per turn, excluding reasoning and tool content", async () => {
+    const saved = { sessionId: "history", operatorLarkId: "ou_1", ticketBaseId: ticket.baseId, ticketTableId: ticket.tableId,
+      ticketRecordId: ticket.recordId, automationActionKey: "lark-ticket-support-qa-answer" };
+    const update = (sessionUpdate: string, text: string) => ({ event: "acp.session.update", data: { sessionId: saved.sessionId, update: { sessionUpdate, content: { type: "text", text } } } });
+    const events = [update("user_message_chunk", "问题1"), update("agent_thought_chunk", "[思考](https://example.com/thought)"),
+      update("tool_call", "[工具](https://example.com/tool)"), update("agent_message_chunk", "[引用](https://example.com/cited)"),
+      update("user_message_chunk", "问题2"), update("agent_message_chunk", "本轮没有引用")];
+    const historyService = { loadSession: vi.fn().mockResolvedValue({ sessionId: saved.sessionId, events }) };
+    const service = createLarkTicketAiSessionService({ ownershipStore: { getBySessionId: vi.fn().mockResolvedValue(saved) } as never, historyService });
+    const loaded = await service.loadSession({ operatorLarkId: "ou_1", ticket, sessionId: saved.sessionId });
+    const sources = loaded.events.filter((event) => event.event === "answer.sources");
+    expect(sources.map((event) => event.data.sources.map((source) => source.id))).toEqual([["https://example.com/cited"], []]);
+    expect(loaded.events.indexOf(sources[0])).toBeLessThan(loaded.events.indexOf(events[4] as never));
+  });
+  it("returns owned provider and frozen thread metadata without private runtime fields", async () => {
+    const saved = { sessionId: "not-a-prefix", agentProvider: "hermes_acp", agentSessionId: "private-native", operatorLarkId: "ou_1",
+      ticketBaseId: ticket.baseId, ticketTableId: ticket.tableId, ticketRecordId: ticket.recordId,
+      automationActionKey: "lark-ticket-support-qa-answer", threadSnapshotVersion: 3, threadContextSyncedAt: "2026-10-20T00:00:00Z",
+      updatedAt: "2026-10-21T00:00:00Z", kimiWorkDir: "/private/workspace", title: "回答问题" };
+    const historyService = { loadSession: vi.fn().mockResolvedValue({ sessionId: saved.sessionId, events: [] }) };
+    const service = createLarkTicketAiSessionService({ ownershipStore: { getBySessionId: vi.fn().mockResolvedValue(saved) } as never, historyService });
+    const result = await service.loadSession({ operatorLarkId: "ou_1", ticket, sessionId: saved.sessionId });
+    expect(result).toMatchObject({ agentProvider: "hermes_acp", threadSnapshotVersion: 3, threadContextSyncedAt: saved.threadContextSyncedAt, events: [] });
+    expect(result).not.toHaveProperty("agentSessionId");
+    expect(result).not.toHaveProperty("kimiWorkDir");
+    await expect(service.getSessionMetadata({ operatorLarkId: "other", ticket, sessionId: saved.sessionId })).rejects.toMatchObject({ code: "SESSION_FORBIDDEN" });
+    await expect(service.getSessionMetadata({ operatorLarkId: "ou_1", ticket: { ...ticket, recordId: "other" }, sessionId: saved.sessionId })).rejects.toMatchObject({ code: "SESSION_FORBIDDEN" });
+    expect(historyService.loadSession).toHaveBeenCalledTimes(1);
+  });
   it("starts a Kimi session with server-built Ticket context and associates it after creation", async () => {
     const ownershipStore = {
       getBySessionId: vi.fn(),
@@ -170,6 +213,7 @@ describe("Lark Ticket AI Session service", () => {
     await expect(service.listSessions({ operatorLarkId: "ou_1", ticket })).resolves.toEqual([{
       sessionId: "sess_1",
       title: "Create a PRD",
+      agentProvider: "kimi_acp",
       updatedAt: "2026-08-12T00:00:00.000Z",
     }]);
     expect(ownershipStore.listByTicket).toHaveBeenCalledWith({ operatorLarkId: "ou_1", ...ticket });
@@ -524,6 +568,7 @@ describe("Lark Ticket AI Session service", () => {
             sessionUpdate: "tool_call_update", toolCallId: "fetch_answer", status: "completed",
           } },
         });
+        emit({ event: "acp.session.update", data: { sessionId: "sess_answer", update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "参考[说明](https://example.com/help)" } } } });
         emit({ event: "done", data: { sessionId: "sess_answer", stopReason: "end_turn" } });
       }),
     };
@@ -578,6 +623,7 @@ describe("Lark Ticket AI Session service", () => {
       } }) } as never,
     });
 
+    const emitted = vi.fn();
     await service.chat({
       operatorLarkId: "ou_1",
       masterUserId: "usr_1",
@@ -586,8 +632,10 @@ describe("Lark Ticket AI Session service", () => {
       message: "VPN cannot connect",
       actionKey: "lark-ticket-support-qa-answer",
       actionRunId: "action_answer_1",
-    }, vi.fn());
+    }, emitted);
 
+    expect(emitted.mock.calls.at(-2)?.[0]).toMatchObject({ event: "answer.sources", data: { actionRunId: "action_answer_1", sources: [{ href: "https://example.com/help", title: "说明" }] } });
+    expect(emitted.mock.calls.at(-1)?.[0].event).toBe("done");
     expect(knowledgeRetriever.searchApproved).toHaveBeenCalledWith(expect.objectContaining({ query: expect.stringContaining("VPN") }));
     expect(acpService.chat).toHaveBeenCalledWith(expect.objectContaining({
       message: expect.stringContaining("source_ref=case:LT-9:segment-2"),

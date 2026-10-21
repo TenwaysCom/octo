@@ -33,6 +33,8 @@
 
 ## Behavior Contract
 
+以下普通样本的快照唯一规则适用于 `legacy` 来源；Shadow 的身份、冻结内容和保存约束以[新增契约](#shadow-eval-版本与保存契约)为准。
+
 - 没有线程快照仍不可创建 Eval 样本；快照不完整时，意图、问题摘要、方案摘要须齐全（正式字段优先，成功 Shadow 输出兜底，处理结果状态不能代替方案摘要）。创建失败在右上角显示红色通知，5 秒自动关闭，也可手动关闭。快照可通过既有同步流程后续补完，不覆盖历史样本。
 - 同一 Ticket 的同一 snapshot version 重复创建时返回已有样本，保证幂等。
 - AI 输出冻结为创建时的 allow-listed `ticket_ai` 字段；不完整快照使用 Shadow 摘要准入时，将对应的意图、问题摘要和方案摘要一并冻结；之后 AI 字段或线程变化不覆盖历史样本。
@@ -66,3 +68,16 @@
 - 现有 SupportTicketAnalysis 的 AI/人工投影不作为该数据集的唯一来源，以免人工更新覆盖 AI 基线。
 
 实施状态和验证证据见[任务台账](../tasks/ai-ticket/2026-09-01-lark-ticket-ai-output-eval-dataset-views.md)。
+
+## Shadow Eval 版本与保存契约
+
+- `source=shadow` 按 Ticket 三元组、Shadow 的线程快照版本及 `output_version` 唯一；`output_version` 为公开 Shadow 投影的稳定 SHA-256，包含分析时间和结果内容。读取成功且有快照版本的投影时生成 `evalVersion`。同一线程快照的多次分析可有独立样本；新结果不继承旧标记。历史数据新增 `source=legacy`、`output_version=''`，保留原 ID、内容和审核记录。
+- 只冻结 server allowlist 生成的公开 Shadow 投影到 `aiOutput.shadowAi`；不混入正式 Ticket AI、当前动态 Shadow、Wiki 原始摘录或人工回复草稿。主站默认选择最高快照/最新分析时间的匹配样本，编辑旧样本不将其变成最新结果；版本选择器允许访问历史样本。My evals 仍按曾成功参与的样本过滤并在 Ticket 分页前去重。
+- `GET /api/web/lark-tickets/:recordId/shadow-eval-sample` 接收 baseId/tableId/actionRunId，返回当前公开输出、输出版本及对应样本或 null。读取不创建样本或审核。Lark 正文及操作区共用该响应的 Shadow，以免显示与评价对象不一致。
+- `POST` 同一路径接收 baseId/tableId/actionRunId/outputVersion 及完整初始标注；一键纳入提交 eval，直接 Badcase 提交 badcase。校验当前源、快照准入后，样本和审核一次事务提交。校验与提交期间锁定 Ticket、thread 和 Octo 输出行；输出或线程版本变化返回 `SHADOW_OUTPUT_CHANGED`。并发首次提交仅一方成功；同样本/用户/actionRunId 已提交的重试先返回当前样本，不受后来源变化影响。
+- Shadow Badcase 必须非空原因（1–4000 字）及至少一个既有失败标签；人工意图与期望结果选填。两入口共用编辑器与 server 存储校验。状态切换保留标注内容；原因只保留最新版，审核表不承担原因历史。
+- 全部 Eval 读取、创建及编辑 API 要求 Web Session 与 platformLists；身份/时间来自 server，不从请求选择操作者。没有新增记录级可见性模型。新 Shadow 读写返回或携带 actionRunId/layer/module/stage，错误带 errorCode。
+- `PUT /api/web/lark-ticket-eval-samples/:sampleId` 必须携带 expectedUpdatedAt。先判已提交重试，再在行锁内比较更新时间，过期拒绝为 `EVAL_SAMPLE_CONFLICT`。未提交的非法/失败请求不增加审核；未传的可选文本保留原值。客户端同次重试复用 actionRunId，修改内容或重读版本后开启新尝试；冲突重读时保留本地修改并展示最新标注。
+- 发布需构建 Server，对确认的目标库执行 `pnpm --dir server db:migrate`，并协调发布 Server/FE。迁移改变唯一键；旧 Server 的创建 SQL 不兼容新索引，旧 FE 缺少 expectedUpdatedAt 的编辑被拒绝，应刷新。回退不能直接恢复旧唯一键，须先处理多版本样本；本任务不自动降级或删除数据。
+
+实施与验证边界见 [TEN-144 任务](../tasks/ai-ticket/2026-10-21-lark-badcase-design.md)。

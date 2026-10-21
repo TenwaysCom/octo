@@ -19,6 +19,6 @@ test("explains the fields required before an Eval sample can be saved", () => {
 test("does not expose a raw invalid-request code when the server rejects an Eval save", () => {
   assert.equal(
     getLarkTicketEvalSaveErrorMessage({ code: "INVALID_REQUEST", message: "INVALID_REQUEST" }),
-    "保存内容未通过校验：标记 Bad case 时请至少选择一个失败标签。",
+    "保存内容未通过校验，请检查必填项和字段长度；若页面较旧，请刷新后重试。",
   );
 });

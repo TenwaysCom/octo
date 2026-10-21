@@ -11,7 +11,7 @@ import {
   SupportTicketAnalysisError,
 } from "../../application/services/support-ticket-analysis.service.js";
 import { supportAnalysisPayloadSchema } from "../../domain/support-ticket-analysis-update.js";
-import { createLarkTicketEvalSampleSchema, updateLarkTicketEvalSampleSchema } from "../../domain/lark-ticket-eval-sample.js";
+import { createLarkTicketEvalSampleSchema, updateLarkTicketEvalSampleSchema, createShadowEvalSampleSchema } from "../../domain/lark-ticket-eval-sample.js";
 import { createLarkTicketEvalDatasetService, LarkTicketEvalDatasetError } from "../../application/services/lark-ticket-eval-dataset.service.js";
 import {
   createLarkTicketMeegleWorkitem,
@@ -51,6 +51,13 @@ const ticketCreateMeegleSchema = z.object({
   tableId: z.string().trim().min(1),
   actionRunId: z.string().trim().min(1).max(128),
 }).strict();
+const evalListQuerySchema = z.object({
+  mine: z.enum(["true", "false"]).optional(),
+  baseId: z.string().trim().min(1).max(240).optional(),
+  tableId: z.string().trim().min(1).max(240).optional(),
+  recordId: z.string().trim().min(1).max(240).optional(),
+}).strict().refine((value) => ![value.baseId, value.tableId, value.recordId].some(Boolean)
+  || [value.baseId, value.tableId, value.recordId].every(Boolean), "Ticket reference must be complete.");
 const ticketSupportAnalysisUpdateSchema = z.object({
   baseId: z.string().trim().min(1),
   tableId: z.string().trim().min(1),
@@ -104,6 +111,19 @@ export function createWebLarkTicketController(deps: {
     if (!getWebWorkspaceAccess(session.role).platformSync) {
       return { ok: false as const, response: { statusCode: 403 as const, body: { ok: false as const, error: { errorCode: "WORKSPACE_ACCESS_DENIED", errorMessage: "当前角色无权操作平台数据。" } } } };
     }
+    return { ok: true as const, session };
+  };
+
+  const resolveEvalSession = async (cookieHeader: string | undefined, body?: unknown) => {
+    const parsedRun = z.object({ actionRunId: z.string().trim().min(1).max(128) }).safeParse(body);
+    const diagnostics = parsedRun.success ? { actionRunId: parsedRun.data.actionRunId } : {};
+    const session = await resolveSession(readCookie(cookieHeader, WEB_SESSION_COOKIE_NAME));
+    if (!session.ok) return { ok: false as const, response: { statusCode: 401, body: { ok: false as const, error: {
+      ...diagnostics, layer: "server", module: "lark-ticket-eval-dataset", stage: "server.eval-dataset.auth", errorCode: session.errorCode, errorMessage: session.errorMessage,
+    } } } };
+    if (!getWebWorkspaceAccess(session.role).platformLists) return { ok: false as const, response: { statusCode: 403, body: { ok: false as const, error: {
+      ...diagnostics, layer: "server", module: "lark-ticket-eval-dataset", stage: "server.eval-dataset.auth", errorCode: "WORKSPACE_ACCESS_DENIED", errorMessage: "当前角色无权访问 Ticket 评测。",
+    } } } };
     return { ok: true as const, session };
   };
 
@@ -182,10 +202,15 @@ export function createWebLarkTicketController(deps: {
     },
 
     async listEvalSamples(input: { cookieHeader: string | undefined; query?: unknown }) {
-      const session = await resolveSession(readCookie(input.cookieHeader, WEB_SESSION_COOKIE_NAME));
-      if (!session.ok) return { statusCode: 401, body: { ok: false as const, error: { errorCode: session.errorCode, errorMessage: session.errorMessage } } };
+      const auth = await resolveEvalSession(input.cookieHeader);
+      if (!auth.ok) return auth.response;
+      const { session } = auth;
       try {
-        return { statusCode: 200, body: { ok: true as const, data: { samples: await getEvalDatasetService().list(session.masterUserId, z.object({ mine: z.enum(["true", "false"]).optional() }).strict().parse(input.query ?? {}).mine === "true") } } };
+        const query = evalListQuerySchema.parse(input.query ?? {});
+        const ticket = query.baseId && query.tableId && query.recordId ? { baseId: query.baseId, tableId: query.tableId, recordId: query.recordId } : undefined;
+        const samples = ticket ? await getEvalDatasetService().list(session.masterUserId, query.mine === "true", ticket)
+          : await getEvalDatasetService().list(session.masterUserId, query.mine === "true");
+        return { statusCode: 200, body: { ok: true as const, data: { samples } } };
       } catch (error) {
         if (error instanceof ZodError) return { statusCode: 400, body: { ok: false as const, error: { errorCode: "INVALID_REQUEST", errorMessage: error.message } } };
         return { statusCode: 500, body: { ok: false as const, error: { errorCode: "EVAL_SAMPLE_LIST_FAILED", errorMessage: "Eval 数据集暂时无法读取。" } } };
@@ -207,23 +232,56 @@ export function createWebLarkTicketController(deps: {
     },
 
     async createEvalSample(input: { cookieHeader: string | undefined; recordId: string; body: unknown }) {
-      const session = await resolveSession(readCookie(input.cookieHeader, WEB_SESSION_COOKIE_NAME));
-      if (!session.ok) return { statusCode: 401, body: { ok: false as const, error: { errorCode: session.errorCode, errorMessage: session.errorMessage } } };
+      const auth = await resolveEvalSession(input.cookieHeader, input.body);
+      if (!auth.ok) return auth.response;
+      const { session } = auth;
       try {
         const body = createLarkTicketEvalSampleSchema.parse(input.body);
         const sample = await getEvalDatasetService().create({ ticket: { baseId: body.baseId, tableId: body.tableId, recordId: input.recordId }, actionRunId: body.actionRunId, reviewer: { id: session.masterUserId, name: session.user.larkName || "未命名用户" } });
-        return { statusCode: 200, body: { ok: true as const, data: { sample } } };
+        return { statusCode: 200, body: { ok: true as const, data: { sample, actionRunId: body.actionRunId,
+          layer: "server", module: "lark-ticket-eval-dataset", stage: "server.eval-dataset.saved" } } };
       } catch (error) { return evalDatasetErrorResponse(error, input.body); }
     },
 
     async updateEvalSample(input: { cookieHeader: string | undefined; sampleId: string; body: unknown }) {
-      const session = await resolveSession(readCookie(input.cookieHeader, WEB_SESSION_COOKIE_NAME));
-      if (!session.ok) return { statusCode: 401, body: { ok: false as const, error: { errorCode: session.errorCode, errorMessage: session.errorMessage } } };
+      const auth = await resolveEvalSession(input.cookieHeader, input.body);
+      if (!auth.ok) return auth.response;
+      const { session } = auth;
       try {
         const update = updateLarkTicketEvalSampleSchema.parse(input.body);
         const sample = await getEvalDatasetService().update({ id: input.sampleId, update, reviewer: { id: session.masterUserId, name: session.user.larkName || "未命名用户" } });
-        return { statusCode: 200, body: { ok: true as const, data: { sample } } };
+        return { statusCode: 200, body: { ok: true as const, data: { sample, actionRunId: update.actionRunId,
+          layer: "server", module: "lark-ticket-eval-dataset", stage: "server.eval-dataset.saved" } } };
       } catch (error) { return evalDatasetErrorResponse(error, input.body); }
+    },
+
+    async createShadowEvalSample(input: { cookieHeader: string | undefined; recordId: string; body: unknown }) {
+      const auth = await resolveEvalSession(input.cookieHeader, input.body);
+      if (!auth.ok) return auth.response;
+      try {
+        const request = createShadowEvalSampleSchema.parse(input.body);
+        const recordId = z.string().trim().min(1).max(240).parse(input.recordId);
+        const sample = await getEvalDatasetService().createShadow({
+          ticket: { baseId: request.baseId, tableId: request.tableId, recordId }, request,
+          reviewer: { id: auth.session.masterUserId, name: auth.session.user.larkName || "未命名用户" },
+        });
+        return { statusCode: 200, body: { ok: true as const, data: { sample, actionRunId: request.actionRunId,
+          layer: "server", module: "lark-ticket-eval-dataset", stage: "server.eval-dataset.saved" } } };
+      } catch (error) { return evalDatasetErrorResponse(error, input.body); }
+    },
+
+    async loadShadowEvalSample(input: { cookieHeader: string | undefined; recordId: string; query: unknown }) {
+      const auth = await resolveEvalSession(input.cookieHeader, input.query);
+      if (!auth.ok) return auth.response;
+      try {
+        const query = ticketSharedUrlQuerySchema.extend({ actionRunId: z.string().trim().min(1).max(128) }).strict().parse(input.query);
+        const recordId = z.string().trim().min(1).max(240).parse(input.recordId);
+        const data = await getEvalDatasetService().loadShadow({
+          ticket: { baseId: query.baseId, tableId: query.tableId, recordId }, reviewerId: auth.session.masterUserId, actionRunId: query.actionRunId,
+        });
+        return { statusCode: 200, body: { ok: true as const, data: { ...data, actionRunId: query.actionRunId,
+          layer: "server", module: "lark-ticket-eval-dataset", stage: "server.eval-dataset.loaded" } } };
+      } catch (error) { return evalDatasetErrorResponse(error, input.query); }
     },
 
     async updateTicketField(input: { cookieHeader: string | undefined; recordId: string; body: unknown }) {
@@ -328,7 +386,8 @@ function evalDatasetErrorResponse(error: unknown, body?: unknown) {
     ...(actionRunId.success ? { actionRunId: actionRunId.data.actionRunId } : {}) };
   if (error instanceof ZodError) return { statusCode: 400, body: { ok: false as const, error: { ...diagnostics, errorCode: "INVALID_REQUEST", errorMessage: error.message } } };
   if (error instanceof LarkTicketEvalDatasetError) {
-    const statusCode = error.code === "EVAL_SAMPLE_NOT_FOUND" || error.code === "LARK_TICKET_NOT_FOUND" || error.code === "THREAD_SNAPSHOT_NOT_FOUND" ? 404 : 409;
+    const statusCode = error.code === "BADCASE_REASON_REQUIRED" ? 400
+      : error.code === "EVAL_SAMPLE_NOT_FOUND" || error.code === "LARK_TICKET_NOT_FOUND" || error.code === "THREAD_SNAPSHOT_NOT_FOUND" ? 404 : 409;
     return { statusCode, body: { ok: false as const, error: { layer: "server", module: "lark-ticket-eval-dataset", stage: "server.eval-dataset.validate", errorCode: error.code, errorMessage: error.message, actionRunId: error.actionRunId } } };
   }
   return { statusCode: 500, body: { ok: false as const, error: { ...diagnostics, errorCode: "LARK_TICKET_EVAL_SAMPLE_FAILED", errorMessage: "Eval 样本暂时无法保存。" } } };
@@ -366,6 +425,14 @@ export function registerWebLarkTicketRoutes(app: Express) {
   });
   app.post("/api/web/lark-tickets/:recordId/eval-sample", async (req, res) => {
     const result = await controller.createEvalSample({ cookieHeader: req.headers.cookie, recordId: req.params.recordId, body: req.body });
+    res.status(result.statusCode).json(result.body);
+  });
+  app.post("/api/web/lark-tickets/:recordId/shadow-eval-sample", async (req, res) => {
+    const result = await controller.createShadowEvalSample({ cookieHeader: req.headers.cookie, recordId: req.params.recordId, body: req.body });
+    res.status(result.statusCode).json(result.body);
+  });
+  app.get("/api/web/lark-tickets/:recordId/shadow-eval-sample", async (req, res) => {
+    const result = await controller.loadShadowEvalSample({ cookieHeader: req.headers.cookie, recordId: req.params.recordId, query: req.query });
     res.status(result.statusCode).json(result.body);
   });
   app.put("/api/web/lark-ticket-eval-samples/:sampleId", async (req, res) => {

@@ -32,9 +32,16 @@ Meegle 工作项列表和 Sprint 详情页各用一次 `GET /api/web/github-pr-o
 Ticket 详情页可通过“打开 Ticket AI 小窗”进入。顶部常驻标题搜索框，选择 Ticket 即可查看或切换分析。输入框菜单配置见
 [接入说明](docs/lark-ticket-app.md)。
 
+Wiki 后的 `Hermes Agent AI` 页签复用“回答问题”ACP 入口，手动启动、支持追问、工具审批及停止。仅显示当前账号 / Ticket 的 Hermes Answer 会话，与主站详情互通；聊天资料版本/同步时间来自 Server，旧会话不自动刷新材料，需要最新资料时新建对话。页签切换保留当前输入；离开页面不停止已接受的后台任务。新页签不提供业务草稿确认写回按钮。Reasoning、工具步骤与答案分层展示，思考可折叠阅读；Sources 消费 Server 的 `answer.sources` 实时 / 历史事件，按轮次展示回答引用；不从工具记录推断来源，不在 FE 解析 Markdown。
+本地模拟交互可运行 `pnpm --dir fe exec node manual-tests/lark-hermes.browser.mjs`（复用 Extension Playwright，浏览器路径配置同下文 Eval 脚本）；[实现与验收记录](../docs/tasks/ai-ticket/2026-10-21-lark-hermes-answer-tab.md)区分 mock 和真实 Hermes / 部署验证。
+
 标题下六项属性（状态、紧急度、需求人、负责人、类型、Business Line）支持有 `platformSync` 权限的用户点击编辑；仅有查看权限时保持只读。复用列表/详情的共享队列，立即回显、允许连续修改，并按字段处理失败回滚和部分成功；搜索切换 Ticket 不串值，修改属性不重置回复草稿。
 
 未关联 Meegle 的 Ticket 支持有 `platformSync` 权限的用户点击“创建 Meegle”，复用现有 Server 创建与链接回写流程。等待属性保存完成后才能开始创建，创建期间暂停该 Ticket 的属性修改并防重复提交；成功后直接显示返回的工作项链接，部分同步失败也保留结果。已有链接只展示“打开 Meegle”；两个入口均紧随“原始讨论”同行显示，窄屏自然换行。状态和结果在当前登录会话内按 Ticket 隔离，搜索切换不会串入其他记录。验证及边界见[创建功能任务](../docs/tasks/platform-data/2026-10-21-lark-app-create-meegle.md)。
+
+Shadow 区支持一键纳入 Eval、标记 Badcase 和编辑标注，复用主站样本。每版 Shadow 独立冻结；Badcase 至少一个失败标签并填写失败原因。主站 Eval 视图可选择历史评测版本；两个入口统一执行并发版本检查，冲突后重读保留已填写修改。
+操作区按当前状态突出主操作，已标记 Badcase 统一从“编辑标注”进入。共用表单优先展示标签和原因，分析详情及选填人工标准可展开；已有人工标准自动展开，首次保存因输出更新而重读时自动展开新分析。弹窗正文独立滚动，保存按钮和错误提示保持可见，折叠内容不参与 Tab 导航。
+浏览器模拟验收可运行 `pnpm --dir fe exec node manual-tests/lark-ticket-eval.browser.mjs`，复用 Extension 的 Playwright devDependency 和已安装的 Chromium；版本不匹配时通过 `OCTO_EVAL_BROWSER_EXECUTABLE` 指定已有浏览器。该脚本仅使用合成数据和模拟 API，不验证真实免登或部署。
 
 ## FE-owned environment configuration
 

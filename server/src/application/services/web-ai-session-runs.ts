@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { logger } from "../../logger.js";
 import type { AcpKimiStreamEvent } from "../../modules/acp-kimi/event-stream.js";
+import type { AcpAgentProvider } from "../../adapters/acp/managed-acp-runtime.js";
 
 export type WebAiRunStatus = "running" | "waiting_permission" | "stopping" | "completed" | "failed" | "cancelled";
 export type WebAiRunScope = { operatorLarkId: string; resource: string };
@@ -13,6 +14,7 @@ type Run = {
   sessionId: string;
   title?: string;
   actionKey?: string;
+  agentProvider?: AcpAgentProvider;
   oneShot: boolean;
   actionRunId: string;
   runStatus: WebAiRunStatus;
@@ -30,6 +32,7 @@ const summary = (run: Run) => ({
   runId: run.runId, sessionId: run.sessionId,
   ...(run.title ? { title: run.title } : {}), ...(run.actionKey ? { actionKey: run.actionKey } : {}),
   oneShot: run.oneShot, actionRunId: run.actionRunId, runStatus: run.runStatus, updatedAt: run.updatedAt,
+  ...(run.agentProvider ? { agentProvider: run.agentProvider } : {}),
   ...(run.error ?? {}),
 });
 
@@ -69,7 +72,7 @@ export function createWebAiSessionRuns(options: { timeoutMs?: number; retentionM
       }
       return snapshot(run);
     },
-    async execute(input: WebAiRunScope & { sessionId?: string; message: string; actionKey?: string; oneShot?: boolean; actionRunId?: string }, deps: {
+    async execute(input: WebAiRunScope & { sessionId?: string; message: string; actionKey?: string; oneShot?: boolean; actionRunId?: string; agentProvider?: AcpAgentProvider }, deps: {
       loadHistory: () => Promise<{ events: AcpKimiStreamEvent[] }>;
       chat: (signal: AbortSignal, emit: (event: AcpKimiStreamEvent) => void, actionRunId: string) => Promise<void>;
       emit: (event: AcpKimiStreamEvent) => void;
@@ -86,6 +89,7 @@ export function createWebAiSessionRuns(options: { timeoutMs?: number; retentionM
         scope: { operatorLarkId: input.operatorLarkId, resource: input.resource }, runId,
         sessionId: input.sessionId ?? runId, title: previous?.title ?? (input.sessionId ? undefined : input.message.replace(/\s+/g, " ").slice(0, 56)),
         actionKey: input.actionKey ?? previous?.actionKey, oneShot: input.oneShot ?? false,
+        agentProvider: input.agentProvider ?? previous?.agentProvider,
         actionRunId: input.actionRunId ?? randomUUID(), runStatus: "running", events: [],
         updatedAt: new Date().toISOString(), abort: new AbortController(),
       };
