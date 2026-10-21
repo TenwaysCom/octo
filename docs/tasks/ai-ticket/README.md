@@ -1,5 +1,7 @@
 # AI Ticket Tasks
 
+- [User profile extractor 提炼与增量验证](2026-09-27-user-profile-extractor.md) — in_progress；需求v2仅输出JSON性格/沟通/需求特点，设计及原型已更新，20项测试通过；真实双用户验证需补需求人消息证据及外发授权，无数据库迁移或部署。
+
 - [Lark thread Ticket AI 只读应用](2026-09-23-lark-ticket-analysis-app.md) — in_progress；FE 分析/搜索与 H5 SDK 免登已实现，返回已验证用户 ID；签名及输入框菜单 openChatId 采集/日志已实现并通过本地验证；后台配置、部署与真实客户端验收待完成。
 
 - [历史 Finish Ticket skip 重评](2026-09-22-historical-skip-reprocess.md) — in_progress；2026-09-23 按原始 1312 张与账本复核：1060 张 source_reviewed，252 张未完成原文复核（127 待补证、123 on_hold、2 张 no_distill/triaged 待核对）。草稿未视为人工签核。
