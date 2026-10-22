@@ -1,0 +1,2216 @@
+{
+  "phase": "holdout",
+  "complete": true,
+  "model": "BAAI/bge-reranker-v2-m3",
+  "topN": 5,
+  "sourceAssociation": "unchanged production baseline; G disabled",
+  "summaries": [
+    {
+      "group": "A",
+      "threshold": 0.7,
+      "cases": 24,
+      "queryCAvailable": 23,
+      "positive": 12,
+      "goldTop20": 12,
+      "goldTop5": 12,
+      "hit5": 1,
+      "mrr5": 0.9583333333333334,
+      "acceptedGoldIds": [
+        "T01",
+        "T03",
+        "T04",
+        "T05",
+        "T06",
+        "T07",
+        "T08",
+        "T09",
+        "T10",
+        "T11",
+        "T12"
+      ],
+      "goldWithPrimaryIds": [
+        "T03",
+        "T04",
+        "T05",
+        "T06",
+        "T07",
+        "T08",
+        "T09",
+        "T10",
+        "T11",
+        "T12"
+      ],
+      "wrongAcceptedIds": [],
+      "wrongFinalIds": [],
+      "noAnswer": 6,
+      "noAnswerAcceptedIds": [],
+      "noAnswerFinalIds": [],
+      "finalNonempty": 12
+    }
+  ],
+  "details": [
+    {
+      "id": "T01",
+      "group": "A",
+      "effectiveGroup": "A",
+      "queryCAvailable": true,
+      "type": "positive",
+      "expectedPages": [
+        "concepts/access/sales-team-order-visibility-history.md"
+      ],
+      "wrongPages": [],
+      "positive": true,
+      "goldInTop20": true,
+      "candidateCount": 20,
+      "expectedRank5": 1,
+      "rr5": 1,
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/access/sales-team-order-visibility-history.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.9895462393760681,
+          "isGold": true,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 2,
+          "path": "concepts/reporting/sales-visibility-filter-change-history.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.9431437253952026,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 3,
+          "path": "concepts/integration/turbo-customer-sync-history.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.9196574687957764,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 4,
+          "path": "concepts/integration/turbo-customer-sync-abort-history.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.8337744474411011,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 5,
+          "path": "concepts/faq/contact-backorder-preorder-overview.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.17668266594409943,
+          "isGold": false,
+          "isExplicitWrong": false
+        }
+      ],
+      "thresholds": [
+        {
+          "threshold": 0.7,
+          "accepted": [
+            "concepts/access/sales-team-order-visibility-history.md",
+            "concepts/reporting/sales-visibility-filter-change-history.md",
+            "concepts/integration/turbo-customer-sync-history.md",
+            "concepts/integration/turbo-customer-sync-abort-history.md"
+          ],
+          "acceptedGold": true,
+          "acceptedWrong": [],
+          "final": [
+            {
+              "path": "docs/llm-wiki/concepts/access/sales-team-order-visibility-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 0,
+              "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "sourcePaths": [],
+              "primaryChars": 0,
+              "primaryOrdinals": [],
+              "applicability": "historical_reference",
+              "limitations": [
+                "草稿资料，尚未人工确认",
+                "当前问题或资料的适用环境待确认",
+                "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+                "当前材料尚未确认处理路径的关键前提",
+                "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据",
+                "未找到支撑当前判断的原始证据"
+              ],
+              "isGold": true,
+              "isExplicitWrong": false
+            },
+            {
+              "path": "docs/llm-wiki/concepts/reporting/sales-visibility-filter-change-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 987,
+              "contentSha256": "5557ee579cbf5de52354ecd6e8d275c075ab2f2dc96fd03013fff8486042743e",
+              "sourcePaths": [
+                "raw/transcripts/ticket-2148.2026-09-11-0a3b95763c8c.md",
+                "raw/transcripts/ticket-1040.2026-09-11-d989aa69c290.md"
+              ],
+              "primaryChars": 1838,
+              "primaryOrdinals": [
+                [
+                  "M1",
+                  "M2",
+                  "M3",
+                  "M4",
+                  "M5"
+                ],
+                [
+                  "M1",
+                  "M2",
+                  "M3"
+                ]
+              ],
+              "applicability": "historical_reference",
+              "limitations": [
+                "草稿资料，尚未人工确认",
+                "当前问题或资料的适用环境待确认",
+                "本轮按相关性摘录最多 3 个原始来源，其余未核对",
+                "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+                "当前材料尚未确认处理路径的关键前提",
+                "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据"
+              ],
+              "isGold": false,
+              "isExplicitWrong": false
+            },
+            {
+              "path": "docs/llm-wiki/concepts/integration/turbo-customer-sync-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 675,
+              "contentSha256": "b48ed8d8cc21bf371e5886155159037214470c19bc80d41c016746aa3967dbe5",
+              "sourcePaths": [
+                "raw/transcripts/ticket-264.2026-09-11-64bc82f1f6e5.md",
+                "raw/transcripts/ticket-488.2026-09-11-03cd1aaad99b.md"
+              ],
+              "primaryChars": 2160,
+              "primaryOrdinals": [
+                [
+                  "M1",
+                  "M2",
+                  "M3",
+                  "M4",
+                  "M5",
+                  "M7",
+                  "M8"
+                ],
+                [
+                  "M1",
+                  "M2",
+                  "M3"
+                ]
+              ],
+              "applicability": "historical_reference",
+              "limitations": [
+                "草稿资料，尚未人工确认",
+                "当前问题或资料的适用环境待确认",
+                "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+                "当前材料尚未确认处理路径的关键前提",
+                "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据"
+              ],
+              "isGold": false,
+              "isExplicitWrong": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "T02",
+      "group": "A",
+      "effectiveGroup": "A",
+      "queryCAvailable": true,
+      "type": "positive",
+      "expectedPages": [
+        "concepts/accounting/asset-re-evaluate-original-value.md"
+      ],
+      "wrongPages": [],
+      "positive": true,
+      "goldInTop20": true,
+      "candidateCount": 20,
+      "expectedRank5": 2,
+      "rr5": 0.5,
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "objects/fixed-asset.md",
+          "knowledgeType": "ontology",
+          "score": 0.8921472430229187,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 2,
+          "path": "concepts/accounting/asset-re-evaluate-original-value.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.6334705948829651,
+          "isGold": true,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 3,
+          "path": "objects/sales-order-amendment.md",
+          "knowledgeType": "ontology",
+          "score": 0.5175422430038452,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 4,
+          "path": "processes/fixed-asset-acquisition-and-depreciation.md",
+          "knowledgeType": "ontology",
+          "score": 0.5113896727561951,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 5,
+          "path": "concepts/access/permission-request-and-effective-access.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.48718497157096863,
+          "isGold": false,
+          "isExplicitWrong": false
+        }
+      ],
+      "thresholds": [
+        {
+          "threshold": 0.7,
+          "accepted": [
+            "objects/fixed-asset.md"
+          ],
+          "acceptedGold": false,
+          "acceptedWrong": [],
+          "final": [
+            {
+              "path": "docs/ontology/objects/fixed-asset.md",
+              "knowledgeType": "ontology",
+              "contentChars": 2382,
+              "contentSha256": "467b79aa65778f16d2e9beba4a180987f9c02ddb7c35d85c4ea65b71c9b9ca0c",
+              "sourcePaths": [],
+              "primaryChars": 0,
+              "primaryOrdinals": [],
+              "applicability": "historical_reference",
+              "limitations": [
+                "草稿资料，尚未人工确认",
+                "当前问题或资料的适用环境待确认",
+                "Ontology 业务规则待确认",
+                "Ontology 仅作为业务建模参考，不证明当前环境已上线或本 Ticket 已发生相应事实",
+                "Ontology 页面不作为本 Ticket 的原始证据",
+                "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+                "当前材料尚未确认处理路径的关键前提",
+                "未找到支撑当前判断的原始证据"
+              ],
+              "isGold": false,
+              "isExplicitWrong": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "T03",
+      "group": "A",
+      "effectiveGroup": "A",
+      "queryCAvailable": true,
+      "type": "positive",
+      "expectedPages": [
+        "concepts/accounting/bank-reconciliation-latency-history.md"
+      ],
+      "wrongPages": [],
+      "positive": true,
+      "goldInTop20": true,
+      "candidateCount": 20,
+      "expectedRank5": 1,
+      "rr5": 1,
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/accounting/bank-reconciliation-latency-history.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.9516944289207458,
+          "isGold": true,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 2,
+          "path": "objects/sales-receipt-reconciliation.md",
+          "knowledgeType": "ontology",
+          "score": 0.47530362010002136,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 3,
+          "path": "processes/purchase-payment-and-reconciliation.md",
+          "knowledgeType": "ontology",
+          "score": 0.3176203966140747,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 4,
+          "path": "concepts/access/permission-request-and-effective-access.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.2818083167076111,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 5,
+          "path": "processes/sales-prepayment-settlement.md",
+          "knowledgeType": "ontology",
+          "score": 0.11138425022363663,
+          "isGold": false,
+          "isExplicitWrong": false
+        }
+      ],
+      "thresholds": [
+        {
+          "threshold": 0.7,
+          "accepted": [
+            "concepts/accounting/bank-reconciliation-latency-history.md"
+          ],
+          "acceptedGold": true,
+          "acceptedWrong": [],
+          "final": [
+            {
+              "path": "docs/llm-wiki/concepts/accounting/bank-reconciliation-latency-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 547,
+              "contentSha256": "0f5db6f0310f86b5c30ae255f6a57806032622ed5d0e152b5e1491d4d521207f",
+              "sourcePaths": [
+                "raw/transcripts/ticket-1931.2026-09-11-7bef185af7ab.md"
+              ],
+              "primaryChars": 1624,
+              "primaryOrdinals": [
+                [
+                  "M1",
+                  "M2",
+                  "M7",
+                  "M8",
+                  "M11",
+                  "M12",
+                  "M13",
+                  "M14",
+                  "M15"
+                ]
+              ],
+              "applicability": "historical_reference",
+              "limitations": [
+                "草稿资料，尚未人工确认",
+                "当前问题或资料的适用环境待确认",
+                "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+                "当前材料尚未确认处理路径的关键前提"
+              ],
+              "isGold": true,
+              "isExplicitWrong": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "T04",
+      "group": "A",
+      "effectiveGroup": "A",
+      "queryCAvailable": true,
+      "type": "positive",
+      "expectedPages": [
+        "concepts/accounting/asset-list-residual-value-fields-history.md"
+      ],
+      "wrongPages": [],
+      "positive": true,
+      "goldInTop20": true,
+      "candidateCount": 20,
+      "expectedRank5": 1,
+      "rr5": 1,
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/accounting/asset-list-residual-value-fields-history.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.9905015230178833,
+          "isGold": true,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 2,
+          "path": "objects/fixed-asset.md",
+          "knowledgeType": "ontology",
+          "score": 0.230353444814682,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 3,
+          "path": "processes/depreciating-fixed-asset-amendment.md",
+          "knowledgeType": "ontology",
+          "score": 0.1791674941778183,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 4,
+          "path": "concepts/accounting/asset-re-evaluate-original-value.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.06310456991195679,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 5,
+          "path": "concepts/accounting/accounting-change-navigation.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.054718393832445145,
+          "isGold": false,
+          "isExplicitWrong": false
+        }
+      ],
+      "thresholds": [
+        {
+          "threshold": 0.7,
+          "accepted": [
+            "concepts/accounting/asset-list-residual-value-fields-history.md"
+          ],
+          "acceptedGold": true,
+          "acceptedWrong": [],
+          "final": [
+            {
+              "path": "docs/llm-wiki/concepts/accounting/asset-list-residual-value-fields-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 666,
+              "contentSha256": "344a21a63bc607283dedebe409e00693640929c7a5ec1a188c0894eb47bdd9fd",
+              "sourcePaths": [
+                "raw/transcripts/ticket-1348.2026-09-11-7e049baabfaa.md"
+              ],
+              "primaryChars": 405,
+              "primaryOrdinals": [
+                [
+                  "M1",
+                  "M2",
+                  "M3"
+                ]
+              ],
+              "applicability": "historical_reference",
+              "limitations": [
+                "草稿资料，尚未人工确认",
+                "当前问题或资料的适用环境待确认",
+                "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+                "当前材料尚未确认处理路径的关键前提"
+              ],
+              "isGold": true,
+              "isExplicitWrong": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "T05",
+      "group": "A",
+      "effectiveGroup": "A",
+      "queryCAvailable": true,
+      "type": "positive",
+      "expectedPages": [
+        "concepts/approvals/cancelled-record-approval-todo.md"
+      ],
+      "wrongPages": [],
+      "positive": true,
+      "goldInTop20": true,
+      "candidateCount": 20,
+      "expectedRank5": 1,
+      "rr5": 1,
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/approvals/cancelled-record-approval-todo.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.9944759011268616,
+          "isGold": true,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 2,
+          "path": "concepts/sales/state-and-related-page-navigation.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.09714525938034058,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 3,
+          "path": "concepts/approvals/rapid-record-switch-wrong-done-history.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.06176019832491875,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 4,
+          "path": "concepts/approvals/inflight-approval-owner-change-history.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.026161201298236847,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 5,
+          "path": "concepts/accounting/other-outbound-done-journal-history.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.02230319194495678,
+          "isGold": false,
+          "isExplicitWrong": false
+        }
+      ],
+      "thresholds": [
+        {
+          "threshold": 0.7,
+          "accepted": [
+            "concepts/approvals/cancelled-record-approval-todo.md"
+          ],
+          "acceptedGold": true,
+          "acceptedWrong": [],
+          "final": [
+            {
+              "path": "docs/llm-wiki/concepts/approvals/cancelled-record-approval-todo.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 429,
+              "contentSha256": "f1464f2f640627fa7f74d3b2e7e2e2568c55de9a7a1d189d206d4097690a1c72",
+              "sourcePaths": [
+                "raw/transcripts/ticket-1300.2026-09-11-f92e065f056c.md"
+              ],
+              "primaryChars": 501,
+              "primaryOrdinals": [
+                [
+                  "M1",
+                  "M2",
+                  "M3",
+                  "M4"
+                ]
+              ],
+              "applicability": "historical_reference",
+              "limitations": [
+                "草稿资料，尚未人工确认",
+                "当前问题或资料的适用环境待确认",
+                "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+                "当前材料尚未确认处理路径的关键前提"
+              ],
+              "isGold": true,
+              "isExplicitWrong": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "T06",
+      "group": "A",
+      "effectiveGroup": "A",
+      "queryCAvailable": true,
+      "type": "positive",
+      "expectedPages": [
+        "concepts/approvals/approval-status-button-mapping-history.md"
+      ],
+      "wrongPages": [],
+      "positive": true,
+      "goldInTop20": true,
+      "candidateCount": 20,
+      "expectedRank5": 1,
+      "rr5": 1,
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/approvals/approval-status-button-mapping-history.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.9898785352706909,
+          "isGold": true,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 2,
+          "path": "concepts/approvals/approval-submission-and-progress-triage.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.9411651492118835,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 3,
+          "path": "concepts/approvals/inflight-approval-owner-change-history.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.9285446405410767,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 4,
+          "path": "concepts/delivery/approval-stock-done-stages-history.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.5884380340576172,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 5,
+          "path": "processes/warehouse-operation-approval.md",
+          "knowledgeType": "ontology",
+          "score": 0.4959275722503662,
+          "isGold": false,
+          "isExplicitWrong": false
+        }
+      ],
+      "thresholds": [
+        {
+          "threshold": 0.7,
+          "accepted": [
+            "concepts/approvals/approval-status-button-mapping-history.md",
+            "concepts/approvals/approval-submission-and-progress-triage.md",
+            "concepts/approvals/inflight-approval-owner-change-history.md"
+          ],
+          "acceptedGold": true,
+          "acceptedWrong": [],
+          "final": [
+            {
+              "path": "docs/llm-wiki/concepts/approvals/approval-status-button-mapping-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 644,
+              "contentSha256": "c3a0d7e5c56bde8f097c9eb6c0a1f176ffa5ef15c9603f5606dd99a38d653598",
+              "sourcePaths": [
+                "raw/transcripts/ticket-1875.2026-09-11-4af3767c8310.md"
+              ],
+              "primaryChars": 862,
+              "primaryOrdinals": [
+                [
+                  "M1",
+                  "M2",
+                  "M3",
+                  "M4",
+                  "M5"
+                ]
+              ],
+              "applicability": "historical_reference",
+              "limitations": [
+                "草稿资料，尚未人工确认",
+                "当前问题或资料的适用环境待确认",
+                "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+                "当前材料尚未确认处理路径的关键前提"
+              ],
+              "isGold": true,
+              "isExplicitWrong": false
+            },
+            {
+              "path": "docs/llm-wiki/concepts/approvals/approval-submission-and-progress-triage.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 1750,
+              "contentSha256": "dca11712338e8f0ec626312bc2a4afefe82a905eef672e68a635fd5565b5291a",
+              "sourcePaths": [
+                "raw/transcripts/ticket-2263.md"
+              ],
+              "primaryChars": 761,
+              "primaryOrdinals": [
+                [
+                  "M2",
+                  "M3",
+                  "M4",
+                  "M5",
+                  "M6",
+                  "M7",
+                  "M8",
+                  "M9",
+                  "M10"
+                ]
+              ],
+              "applicability": "historical_reference",
+              "limitations": [
+                "草稿资料，尚未人工确认",
+                "当前问题或资料的适用环境待确认",
+                "本轮按相关性摘录最多 3 个原始来源，其余未核对",
+                "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+                "当前材料尚未确认处理路径的关键前提",
+                "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据"
+              ],
+              "isGold": false,
+              "isExplicitWrong": false
+            },
+            {
+              "path": "docs/llm-wiki/concepts/approvals/inflight-approval-owner-change-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 2384,
+              "contentSha256": "013cb46ade604fa71f94d6c7ab349709c55bbd6bff765cf2b2f08c090bdf52f4",
+              "sourcePaths": [
+                "raw/transcripts/ticket-1564.2026-09-11-2d762f39e5f4.md",
+                "raw/transcripts/ticket-898.2026-09-11-dea154c93581.md"
+              ],
+              "primaryChars": 2372,
+              "primaryOrdinals": [
+                [
+                  "M1",
+                  "M2",
+                  "M3",
+                  "M4",
+                  "M5",
+                  "M8",
+                  "M9",
+                  "M10",
+                  "M11",
+                  "M12"
+                ],
+                [
+                  "M1",
+                  "M2",
+                  "M3",
+                  "M4",
+                  "M5"
+                ]
+              ],
+              "applicability": "historical_reference",
+              "limitations": [
+                "草稿资料，尚未人工确认",
+                "当前问题或资料的适用环境待确认",
+                "本轮按相关性摘录最多 3 个原始来源，其余未核对",
+                "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+                "当前材料尚未确认处理路径的关键前提",
+                "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据"
+              ],
+              "isGold": false,
+              "isExplicitWrong": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "T07",
+      "group": "A",
+      "effectiveGroup": "A",
+      "queryCAvailable": true,
+      "type": "positive",
+      "expectedPages": [
+        "concepts/delivery/delivery-note-multiple-email-history.md"
+      ],
+      "wrongPages": [],
+      "positive": true,
+      "goldInTop20": true,
+      "candidateCount": 20,
+      "expectedRank5": 1,
+      "rr5": 1,
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/delivery/delivery-note-multiple-email-history.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.9983345866203308,
+          "isGold": true,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 2,
+          "path": "concepts/sales/mail-notification-navigation.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.1803688257932663,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 3,
+          "path": "concepts/integration/wms-address-contract-history.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.11839751899242401,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 4,
+          "path": "objects/warehouse-inventory-control.md",
+          "knowledgeType": "ontology",
+          "score": 0.047096192836761475,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 5,
+          "path": "objects/warehouse-operation.md",
+          "knowledgeType": "ontology",
+          "score": 0.045023322105407715,
+          "isGold": false,
+          "isExplicitWrong": false
+        }
+      ],
+      "thresholds": [
+        {
+          "threshold": 0.7,
+          "accepted": [
+            "concepts/delivery/delivery-note-multiple-email-history.md"
+          ],
+          "acceptedGold": true,
+          "acceptedWrong": [],
+          "final": [
+            {
+              "path": "docs/llm-wiki/concepts/delivery/delivery-note-multiple-email-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 355,
+              "contentSha256": "4e8f593564e34ada14a764eb7d846d9cc3d6b758946015fb49bf297f29ad0683",
+              "sourcePaths": [
+                "raw/transcripts/ticket-580.2026-09-11-9526b33a0d39.md"
+              ],
+              "primaryChars": 1845,
+              "primaryOrdinals": [
+                [
+                  "M1",
+                  "M2",
+                  "M3",
+                  "M4",
+                  "M5"
+                ]
+              ],
+              "applicability": "historical_reference",
+              "limitations": [
+                "草稿资料，尚未人工确认",
+                "当前问题或资料的适用环境待确认",
+                "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+                "当前材料尚未确认处理路径的关键前提"
+              ],
+              "isGold": true,
+              "isExplicitWrong": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "T08",
+      "group": "A",
+      "effectiveGroup": "A",
+      "queryCAvailable": true,
+      "type": "positive",
+      "expectedPages": [
+        "concepts/delivery/cmc-street2-payload-history.md"
+      ],
+      "wrongPages": [],
+      "positive": true,
+      "goldInTop20": true,
+      "candidateCount": 20,
+      "expectedRank5": 1,
+      "rr5": 1,
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/delivery/cmc-street2-payload-history.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.85479736328125,
+          "isGold": true,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 2,
+          "path": "concepts/integration/wms-address-contract-history.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.7661253809928894,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 3,
+          "path": "concepts/delivery/sales-order-integration-contract-lark-1806.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.3066083788871765,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 4,
+          "path": "concepts/delivery/cmc-outbound-company-required-error-response.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.2931751310825348,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 5,
+          "path": "objects/warehouse-operation.md",
+          "knowledgeType": "ontology",
+          "score": 0.12870213389396667,
+          "isGold": false,
+          "isExplicitWrong": false
+        }
+      ],
+      "thresholds": [
+        {
+          "threshold": 0.7,
+          "accepted": [
+            "concepts/delivery/cmc-street2-payload-history.md",
+            "concepts/integration/wms-address-contract-history.md"
+          ],
+          "acceptedGold": true,
+          "acceptedWrong": [],
+          "final": [
+            {
+              "path": "docs/llm-wiki/concepts/delivery/cmc-street2-payload-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 732,
+              "contentSha256": "0c5fcd2ea227d6b5f2817a2b7d6a75eb200b302c793eeec0593ac0de6717e60d",
+              "sourcePaths": [
+                "raw/transcripts/ticket-1437.2026-09-11-2afcc72318c0.md"
+              ],
+              "primaryChars": 742,
+              "primaryOrdinals": [
+                [
+                  "M1",
+                  "M2",
+                  "M3",
+                  "M4",
+                  "M6",
+                  "M7",
+                  "M8"
+                ]
+              ],
+              "applicability": "historical_reference",
+              "limitations": [
+                "草稿资料，尚未人工确认",
+                "当前问题或资料的适用环境待确认",
+                "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+                "当前材料尚未确认处理路径的关键前提"
+              ],
+              "isGold": true,
+              "isExplicitWrong": false
+            },
+            {
+              "path": "docs/llm-wiki/concepts/integration/wms-address-contract-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 694,
+              "contentSha256": "35217366b44327ce1461f9938a93443fa9501d9bb1e400a831ffe77439ef5100",
+              "sourcePaths": [
+                "raw/transcripts/ticket-1832.2026-09-11-f2d4a3e39d2f.md",
+                "raw/transcripts/ticket-1264.2026-09-11-d1bf7157d202.md"
+              ],
+              "primaryChars": 2242,
+              "primaryOrdinals": [
+                [
+                  "M1",
+                  "M2",
+                  "M3",
+                  "M4",
+                  "M5",
+                  "M6",
+                  "M7",
+                  "M8",
+                  "M9",
+                  "M10",
+                  "M11"
+                ],
+                [
+                  "M2",
+                  "M3",
+                  "M4",
+                  "M5"
+                ]
+              ],
+              "applicability": "historical_reference",
+              "limitations": [
+                "草稿资料，尚未人工确认",
+                "当前问题或资料的适用环境待确认",
+                "本轮按相关性摘录最多 3 个原始来源，其余未核对",
+                "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+                "当前材料尚未确认处理路径的关键前提",
+                "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据"
+              ],
+              "isGold": false,
+              "isExplicitWrong": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "T09",
+      "group": "A",
+      "effectiveGroup": "A",
+      "queryCAvailable": true,
+      "type": "positive",
+      "expectedPages": [
+        "concepts/delivery/destination-country-source-history.md"
+      ],
+      "wrongPages": [],
+      "positive": true,
+      "goldInTop20": true,
+      "candidateCount": 20,
+      "expectedRank5": 1,
+      "rr5": 1,
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/delivery/destination-country-source-history.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.998547375202179,
+          "isGold": true,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 2,
+          "path": "objects/transaction-tax.md",
+          "knowledgeType": "ontology",
+          "score": 0.654799222946167,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 3,
+          "path": "concepts/invoicing/tax-source-selection-history.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.358223557472229,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 4,
+          "path": "objects/b2c-sales.md",
+          "knowledgeType": "ontology",
+          "score": 0.2906598746776581,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 5,
+          "path": "objects/business-party.md",
+          "knowledgeType": "ontology",
+          "score": 0.12585756182670593,
+          "isGold": false,
+          "isExplicitWrong": false
+        }
+      ],
+      "thresholds": [
+        {
+          "threshold": 0.7,
+          "accepted": [
+            "concepts/delivery/destination-country-source-history.md"
+          ],
+          "acceptedGold": true,
+          "acceptedWrong": [],
+          "final": [
+            {
+              "path": "docs/llm-wiki/concepts/delivery/destination-country-source-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 380,
+              "contentSha256": "82ddd054d4f94ef34ec95a8517f11495e5f213bebf60819fc2f8f34e59330ccc",
+              "sourcePaths": [
+                "raw/transcripts/ticket-2054.2026-09-11-538a2f393929.md"
+              ],
+              "primaryChars": 597,
+              "primaryOrdinals": [
+                [
+                  "M1",
+                  "M2",
+                  "M3",
+                  "M4",
+                  "M5",
+                  "M6"
+                ]
+              ],
+              "applicability": "historical_reference",
+              "limitations": [
+                "草稿资料，尚未人工确认",
+                "当前问题或资料的适用环境待确认",
+                "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+                "当前材料尚未确认处理路径的关键前提"
+              ],
+              "isGold": true,
+              "isExplicitWrong": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "T10",
+      "group": "A",
+      "effectiveGroup": "A",
+      "queryCAvailable": true,
+      "type": "positive",
+      "expectedPages": [
+        "concepts/sales/dubai-country-selection-history.md"
+      ],
+      "wrongPages": [],
+      "positive": true,
+      "goldInTop20": true,
+      "candidateCount": 20,
+      "expectedRank5": 1,
+      "rr5": 1,
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/sales/dubai-country-selection-history.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.9944644570350647,
+          "isGold": true,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 2,
+          "path": "processes/customer-profile-validation.md",
+          "knowledgeType": "ontology",
+          "score": 0.008281308226287365,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 3,
+          "path": "objects/portal-public-inquiry.md",
+          "knowledgeType": "ontology",
+          "score": 0.007046989165246487,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 4,
+          "path": "objects/b2c-sales.md",
+          "knowledgeType": "ontology",
+          "score": 0.004576921928673983,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 5,
+          "path": "objects/b2b-portal-sales.md",
+          "knowledgeType": "ontology",
+          "score": 0.0030566698405891657,
+          "isGold": false,
+          "isExplicitWrong": false
+        }
+      ],
+      "thresholds": [
+        {
+          "threshold": 0.7,
+          "accepted": [
+            "concepts/sales/dubai-country-selection-history.md"
+          ],
+          "acceptedGold": true,
+          "acceptedWrong": [],
+          "final": [
+            {
+              "path": "docs/llm-wiki/concepts/sales/dubai-country-selection-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 342,
+              "contentSha256": "2da211ba360f6f809ea2f54f0e0da2dffa4e353dd22ce0fe6f047c56565a9d7d",
+              "sourcePaths": [
+                "raw/transcripts/ticket-1131.2026-09-11-2df27b421fb2.md"
+              ],
+              "primaryChars": 805,
+              "primaryOrdinals": [
+                [
+                  "M1",
+                  "M2",
+                  "M3",
+                  "M5",
+                  "M6"
+                ]
+              ],
+              "applicability": "historical_reference",
+              "limitations": [
+                "草稿资料，尚未人工确认",
+                "当前问题或资料的适用环境待确认",
+                "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+                "当前材料尚未确认处理路径的关键前提"
+              ],
+              "isGold": true,
+              "isExplicitWrong": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "T11",
+      "group": "A",
+      "effectiveGroup": "A",
+      "queryCAvailable": true,
+      "type": "positive",
+      "expectedPages": [
+        "concepts/sales/shopify-exchanged-product-discount-amount-history.md"
+      ],
+      "wrongPages": [],
+      "positive": true,
+      "goldInTop20": true,
+      "candidateCount": 20,
+      "expectedRank5": 1,
+      "rr5": 1,
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/sales/shopify-exchanged-product-discount-amount-history.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.9943874478340149,
+          "isGold": true,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 2,
+          "path": "concepts/integration/uk-shopify-variant-taxable-price-difference-history.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.4621575176715851,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 3,
+          "path": "processes/b2c-sales-order.md",
+          "knowledgeType": "ontology",
+          "score": 0.2977955937385559,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 4,
+          "path": "processes/sales-tax-determination-and-invoicing.md",
+          "knowledgeType": "ontology",
+          "score": 0.16285057365894318,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 5,
+          "path": "objects/sales-order-amendment.md",
+          "knowledgeType": "ontology",
+          "score": 0.1227257028222084,
+          "isGold": false,
+          "isExplicitWrong": false
+        }
+      ],
+      "thresholds": [
+        {
+          "threshold": 0.7,
+          "accepted": [
+            "concepts/sales/shopify-exchanged-product-discount-amount-history.md"
+          ],
+          "acceptedGold": true,
+          "acceptedWrong": [],
+          "final": [
+            {
+              "path": "docs/llm-wiki/concepts/sales/shopify-exchanged-product-discount-amount-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 1192,
+              "contentSha256": "b75c35d97da0b59c630cc6bb73d1221d8126323bfc23a31b507eeb639a325662",
+              "sourcePaths": [
+                "raw/transcripts/ticket-2322.md"
+              ],
+              "primaryChars": 1151,
+              "primaryOrdinals": [
+                [
+                  "M2",
+                  "M3",
+                  "M4",
+                  "M5",
+                  "M6",
+                  "M7",
+                  "M8",
+                  "M9",
+                  "M10",
+                  "M17",
+                  "M18"
+                ]
+              ],
+              "applicability": "historical_reference",
+              "limitations": [
+                "草稿资料，尚未人工确认",
+                "当前问题或资料的适用环境待确认",
+                "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+                "当前材料尚未确认处理路径的关键前提"
+              ],
+              "isGold": true,
+              "isExplicitWrong": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "T12",
+      "group": "A",
+      "effectiveGroup": "A",
+      "queryCAvailable": true,
+      "type": "positive",
+      "expectedPages": [
+        "concepts/after_sales/contacts-owl-error-cannot-open-historical-case.md"
+      ],
+      "wrongPages": [],
+      "positive": true,
+      "goldInTop20": true,
+      "candidateCount": 20,
+      "expectedRank5": 1,
+      "rr5": 1,
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/after_sales/contacts-owl-error-cannot-open-historical-case.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.8607240319252014,
+          "isGold": true,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 2,
+          "path": "concepts/platform/odoo-reachability-investigation.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.3613929748535156,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 3,
+          "path": "concepts/platform/odoo-availability-triage.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.34219205379486084,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 4,
+          "path": "concepts/access/odoo-login-entry-triage.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.19891932606697083,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 5,
+          "path": "concepts/faq/odoo-availability-login-performance-triage.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.07981021702289581,
+          "isGold": false,
+          "isExplicitWrong": false
+        }
+      ],
+      "thresholds": [
+        {
+          "threshold": 0.7,
+          "accepted": [
+            "concepts/after_sales/contacts-owl-error-cannot-open-historical-case.md"
+          ],
+          "acceptedGold": true,
+          "acceptedWrong": [],
+          "final": [
+            {
+              "path": "docs/llm-wiki/concepts/after_sales/contacts-owl-error-cannot-open-historical-case.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 799,
+              "contentSha256": "bd068794f3ab5c849708b8ca13d7e9391c0fcee80b52ed6c722a122174e77a12",
+              "sourcePaths": [
+                "raw/transcripts/ticket-1612.2026-09-11-96e47797da86.md"
+              ],
+              "primaryChars": 2360,
+              "primaryOrdinals": [
+                [
+                  "M1",
+                  "M2",
+                  "M3",
+                  "M4"
+                ]
+              ],
+              "applicability": "historical_reference",
+              "limitations": [
+                "草稿资料，尚未人工确认",
+                "当前问题或资料的适用环境待确认",
+                "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+                "当前材料尚未确认处理路径的关键前提",
+                "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据"
+              ],
+              "isGold": true,
+              "isExplicitWrong": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "T13",
+      "group": "A",
+      "effectiveGroup": "A",
+      "queryCAvailable": true,
+      "type": "hard_negative",
+      "expectedPages": [],
+      "wrongPages": [
+        "concepts/reporting/gross-profit-quantity-sign-history.md"
+      ],
+      "positive": false,
+      "goldInTop20": false,
+      "candidateCount": 20,
+      "expectedRank5": null,
+      "rr5": 0,
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "objects/financial-reporting.md",
+          "knowledgeType": "ontology",
+          "score": 0.4212197959423065,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 2,
+          "path": "objects/business-party.md",
+          "knowledgeType": "ontology",
+          "score": 0.19558143615722656,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 3,
+          "path": "processes/gross-profit-management-reporting.md",
+          "knowledgeType": "ontology",
+          "score": 0.17031173408031464,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 4,
+          "path": "concepts/delivery/physical-shipment-status-invoice-history.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.07325825095176697,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 5,
+          "path": "concepts/inventory/return-transfer-delivered-link-history.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.04315630719065666,
+          "isGold": false,
+          "isExplicitWrong": false
+        }
+      ],
+      "thresholds": [
+        {
+          "threshold": 0.7,
+          "accepted": [],
+          "acceptedGold": false,
+          "acceptedWrong": [],
+          "final": []
+        }
+      ]
+    },
+    {
+      "id": "T14",
+      "group": "A",
+      "effectiveGroup": "A",
+      "queryCAvailable": true,
+      "type": "hard_negative",
+      "expectedPages": [],
+      "wrongPages": [
+        "concepts/sales/manual-sales-order-number-history.md"
+      ],
+      "positive": false,
+      "goldInTop20": false,
+      "candidateCount": 20,
+      "expectedRank5": null,
+      "rr5": 0,
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/inventory/location-type-direction-history.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.13214389979839325,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 2,
+          "path": "concepts/inventory/us18-return-location-and-operation-type-config.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.07502156496047974,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 3,
+          "path": "concepts/accounting/cancelled-journal-sequence-date-history.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.06739098578691483,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 4,
+          "path": "objects/preorder-backorder.md",
+          "knowledgeType": "ontology",
+          "score": 0.04346773028373718,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 5,
+          "path": "concepts/sales/manual-sales-order-number-history.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.03386976197361946,
+          "isGold": false,
+          "isExplicitWrong": true
+        }
+      ],
+      "thresholds": [
+        {
+          "threshold": 0.7,
+          "accepted": [],
+          "acceptedGold": false,
+          "acceptedWrong": [],
+          "final": []
+        }
+      ]
+    },
+    {
+      "id": "T15",
+      "group": "A",
+      "effectiveGroup": "A",
+      "queryCAvailable": true,
+      "type": "hard_negative",
+      "expectedPages": [],
+      "wrongPages": [
+        "concepts/delivery/next-transfer-type-investigation.md"
+      ],
+      "positive": false,
+      "goldInTop20": false,
+      "candidateCount": 20,
+      "expectedRank5": null,
+      "rr5": 0,
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "objects/warehouse-operation.md",
+          "knowledgeType": "ontology",
+          "score": 0.4693443179130554,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 2,
+          "path": "concepts/inventory/warehouse-location-operation-type-change-checklist.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.4259820878505707,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 3,
+          "path": "concepts/inventory/location-type-direction-history.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.2170802503824234,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 4,
+          "path": "concepts/delivery/next-transfer-type-investigation.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.19668030738830566,
+          "isGold": false,
+          "isExplicitWrong": true
+        },
+        {
+          "rank": 5,
+          "path": "concepts/faq/warehouse-location-operation-type-setup.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.11387228965759277,
+          "isGold": false,
+          "isExplicitWrong": false
+        }
+      ],
+      "thresholds": [
+        {
+          "threshold": 0.7,
+          "accepted": [],
+          "acceptedGold": false,
+          "acceptedWrong": [],
+          "final": []
+        }
+      ]
+    },
+    {
+      "id": "T16",
+      "group": "A",
+      "effectiveGroup": "A",
+      "queryCAvailable": true,
+      "type": "hard_negative",
+      "expectedPages": [],
+      "wrongPages": [
+        "concepts/workforce/public-holiday-import-history.md"
+      ],
+      "positive": false,
+      "goldInTop20": false,
+      "candidateCount": 20,
+      "expectedRank5": null,
+      "rr5": 0,
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/approvals/approval-submission-and-progress-triage.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.31659135222435,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 2,
+          "path": "objects/workforce-administration.md",
+          "knowledgeType": "ontology",
+          "score": 0.19580401480197906,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 3,
+          "path": "objects/business-approval.md",
+          "knowledgeType": "ontology",
+          "score": 0.1485903561115265,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 4,
+          "path": "concepts/platform/lark-desktop-login-history.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.06675675511360168,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 5,
+          "path": "concepts/workforce/public-holiday-import-history.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.05168328806757927,
+          "isGold": false,
+          "isExplicitWrong": true
+        }
+      ],
+      "thresholds": [
+        {
+          "threshold": 0.7,
+          "accepted": [],
+          "acceptedGold": false,
+          "acceptedWrong": [],
+          "final": []
+        }
+      ]
+    },
+    {
+      "id": "T17",
+      "group": "A",
+      "effectiveGroup": "A",
+      "queryCAvailable": true,
+      "type": "hard_negative",
+      "expectedPages": [],
+      "wrongPages": [
+        "concepts/inventory/return-grade-and-r-sku-history.md"
+      ],
+      "positive": false,
+      "goldInTop20": false,
+      "candidateCount": 20,
+      "expectedRank5": null,
+      "rr5": 0,
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/access/operation-access-and-button-triage.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.1459003984928131,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 2,
+          "path": "objects/warehouse-inventory-control.md",
+          "knowledgeType": "ontology",
+          "score": 0.07956460118293762,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 3,
+          "path": "concepts/delivery/wms-payload-validation-triage.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.07474526017904282,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 4,
+          "path": "objects/financial-reporting.md",
+          "knowledgeType": "ontology",
+          "score": 0.06356986612081528,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 5,
+          "path": "concepts/delivery/wms-push-failure-and-quantity-mismatch.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.01879230886697769,
+          "isGold": false,
+          "isExplicitWrong": false
+        }
+      ],
+      "thresholds": [
+        {
+          "threshold": 0.7,
+          "accepted": [],
+          "acceptedGold": false,
+          "acceptedWrong": [],
+          "final": []
+        }
+      ]
+    },
+    {
+      "id": "T18",
+      "group": "A",
+      "effectiveGroup": "A",
+      "queryCAvailable": true,
+      "type": "hard_negative",
+      "expectedPages": [],
+      "wrongPages": [
+        "concepts/approvals/approval-status-button-mapping-history.md"
+      ],
+      "positive": false,
+      "goldInTop20": false,
+      "candidateCount": 20,
+      "expectedRank5": null,
+      "rr5": 0,
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/faq/approval-flow-config-change-checklist.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.6686675548553467,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 2,
+          "path": "objects/business-approval.md",
+          "knowledgeType": "ontology",
+          "score": 0.2846248745918274,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 3,
+          "path": "objects/warehouse-operation.md",
+          "knowledgeType": "ontology",
+          "score": 0.2372150719165802,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 4,
+          "path": "processes/warehouse-operation-approval.md",
+          "knowledgeType": "ontology",
+          "score": 0.21109884977340698,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 5,
+          "path": "concepts/approvals/approval-policy-change-checklist.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.20613180100917816,
+          "isGold": false,
+          "isExplicitWrong": false
+        }
+      ],
+      "thresholds": [
+        {
+          "threshold": 0.7,
+          "accepted": [],
+          "acceptedGold": false,
+          "acceptedWrong": [],
+          "final": []
+        }
+      ]
+    },
+    {
+      "id": "T19",
+      "group": "A",
+      "effectiveGroup": "A",
+      "queryCAvailable": true,
+      "type": "no_answer",
+      "expectedPages": [],
+      "wrongPages": [],
+      "positive": false,
+      "goldInTop20": false,
+      "candidateCount": 20,
+      "expectedRank5": null,
+      "rr5": 0,
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "rules/commercial-partner-attribution.md",
+          "knowledgeType": "ontology",
+          "score": 0.07424501329660416,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 2,
+          "path": "objects/sales-receipt-reconciliation.md",
+          "knowledgeType": "ontology",
+          "score": 0.05880860611796379,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 3,
+          "path": "objects/access-governance.md",
+          "knowledgeType": "ontology",
+          "score": 0.052329644560813904,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 4,
+          "path": "concepts/sales/contact-tag-change-verification.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.021900277584791183,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 5,
+          "path": "concepts/accounting/accounting-config-checklist.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.014053844846785069,
+          "isGold": false,
+          "isExplicitWrong": false
+        }
+      ],
+      "thresholds": [
+        {
+          "threshold": 0.7,
+          "accepted": [],
+          "acceptedGold": false,
+          "acceptedWrong": [],
+          "final": []
+        }
+      ]
+    },
+    {
+      "id": "T20",
+      "group": "A",
+      "effectiveGroup": "A",
+      "queryCAvailable": false,
+      "type": "no_answer",
+      "expectedPages": [],
+      "wrongPages": [],
+      "positive": false,
+      "goldInTop20": false,
+      "candidateCount": 20,
+      "expectedRank5": null,
+      "rr5": 0,
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "objects/portal-legal-terms.md",
+          "knowledgeType": "ontology",
+          "score": 0.6198909282684326,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 2,
+          "path": "concepts/portal/service-centre-claim-display-history.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.5948842763900757,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 3,
+          "path": "objects/sales-invoice.md",
+          "knowledgeType": "ontology",
+          "score": 0.3444783091545105,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 4,
+          "path": "objects/b2b-invoice-integration.md",
+          "knowledgeType": "ontology",
+          "score": 0.23031820356845856,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 5,
+          "path": "processes/portal-legal-terms-publication-and-acceptance.md",
+          "knowledgeType": "ontology",
+          "score": 0.19293583929538727,
+          "isGold": false,
+          "isExplicitWrong": false
+        }
+      ],
+      "thresholds": [
+        {
+          "threshold": 0.7,
+          "accepted": [],
+          "acceptedGold": false,
+          "acceptedWrong": [],
+          "final": []
+        }
+      ]
+    },
+    {
+      "id": "T21",
+      "group": "A",
+      "effectiveGroup": "A",
+      "queryCAvailable": true,
+      "type": "no_answer",
+      "expectedPages": [],
+      "wrongPages": [],
+      "positive": false,
+      "goldInTop20": false,
+      "candidateCount": 20,
+      "expectedRank5": null,
+      "rr5": 0,
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/invoicing/price-and-invoicing-mismatch-triage.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.0546676404774189,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 2,
+          "path": "objects/product-catalog.md",
+          "knowledgeType": "ontology",
+          "score": 0.05144133046269417,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 3,
+          "path": "objects/sales-pricelist.md",
+          "knowledgeType": "ontology",
+          "score": 0.04775932803750038,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 4,
+          "path": "concepts/sales/pricelist-batch-update-historical-case.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.021369805559515953,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 5,
+          "path": "concepts/sales/promotion-price-approval-history.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.0165525171905756,
+          "isGold": false,
+          "isExplicitWrong": false
+        }
+      ],
+      "thresholds": [
+        {
+          "threshold": 0.7,
+          "accepted": [],
+          "acceptedGold": false,
+          "acceptedWrong": [],
+          "final": []
+        }
+      ]
+    },
+    {
+      "id": "T22",
+      "group": "A",
+      "effectiveGroup": "A",
+      "queryCAvailable": true,
+      "type": "no_answer",
+      "expectedPages": [],
+      "wrongPages": [],
+      "positive": false,
+      "goldInTop20": false,
+      "candidateCount": 20,
+      "expectedRank5": null,
+      "rr5": 0,
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "objects/purchase-settlement.md",
+          "knowledgeType": "ontology",
+          "score": 0.6549646854400635,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 2,
+          "path": "objects/sales-invoice.md",
+          "knowledgeType": "ontology",
+          "score": 0.5368640422821045,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 3,
+          "path": "objects/deferred-expense.md",
+          "knowledgeType": "ontology",
+          "score": 0.44161874055862427,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 4,
+          "path": "objects/transaction-tax.md",
+          "knowledgeType": "ontology",
+          "score": 0.411940336227417,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 5,
+          "path": "objects/business-approval.md",
+          "knowledgeType": "ontology",
+          "score": 0.3616434633731842,
+          "isGold": false,
+          "isExplicitWrong": false
+        }
+      ],
+      "thresholds": [
+        {
+          "threshold": 0.7,
+          "accepted": [],
+          "acceptedGold": false,
+          "acceptedWrong": [],
+          "final": []
+        }
+      ]
+    },
+    {
+      "id": "T23",
+      "group": "A",
+      "effectiveGroup": "A",
+      "queryCAvailable": true,
+      "type": "no_answer",
+      "expectedPages": [],
+      "wrongPages": [],
+      "positive": false,
+      "goldInTop20": false,
+      "candidateCount": 20,
+      "expectedRank5": null,
+      "rr5": 0,
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "objects/b2c-sales.md",
+          "knowledgeType": "ontology",
+          "score": 0.4972453713417053,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 2,
+          "path": "concepts/sales/partner-address-role-history.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.30738818645477295,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 3,
+          "path": "processes/party-address-maintenance.md",
+          "knowledgeType": "ontology",
+          "score": 0.2765156328678131,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 4,
+          "path": "objects/business-party.md",
+          "knowledgeType": "ontology",
+          "score": 0.2219270020723343,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 5,
+          "path": "rules/commercial-partner-attribution.md",
+          "knowledgeType": "ontology",
+          "score": 0.1920374035835266,
+          "isGold": false,
+          "isExplicitWrong": false
+        }
+      ],
+      "thresholds": [
+        {
+          "threshold": 0.7,
+          "accepted": [],
+          "acceptedGold": false,
+          "acceptedWrong": [],
+          "final": []
+        }
+      ]
+    },
+    {
+      "id": "T24",
+      "group": "A",
+      "effectiveGroup": "A",
+      "queryCAvailable": true,
+      "type": "no_answer",
+      "expectedPages": [],
+      "wrongPages": [],
+      "positive": false,
+      "goldInTop20": false,
+      "candidateCount": 20,
+      "expectedRank5": null,
+      "rr5": 0,
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/delivery/approval-validate-and-backorder-history.md",
+          "knowledgeType": "support_wiki",
+          "score": 0.06188231334090233,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 2,
+          "path": "processes/warehouse-operation-approval.md",
+          "knowledgeType": "ontology",
+          "score": 0.047510936856269836,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 3,
+          "path": "processes/embedded-business-record-approval.md",
+          "knowledgeType": "ontology",
+          "score": 0.0337662547826767,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 4,
+          "path": "objects/business-party.md",
+          "knowledgeType": "ontology",
+          "score": 0.02912474237382412,
+          "isGold": false,
+          "isExplicitWrong": false
+        },
+        {
+          "rank": 5,
+          "path": "objects/purchase-settlement.md",
+          "knowledgeType": "ontology",
+          "score": 0.026147978380322456,
+          "isGold": false,
+          "isExplicitWrong": false
+        }
+      ],
+      "thresholds": [
+        {
+          "threshold": 0.7,
+          "accepted": [],
+          "acceptedGold": false,
+          "acceptedWrong": [],
+          "final": []
+        }
+      ]
+    }
+  ]
+}

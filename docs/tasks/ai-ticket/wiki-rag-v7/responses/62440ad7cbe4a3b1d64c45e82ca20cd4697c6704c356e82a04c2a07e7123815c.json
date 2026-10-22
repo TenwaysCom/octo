@@ -1,0 +1,100 @@
+{
+  "caseId": "V06",
+  "group": "B",
+  "payloadHash": "62440ad7cbe4a3b1d64c45e82ca20cd4697c6704c356e82a04c2a07e7123815c",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 0,
+      "relevance_score": 0.9332644939422607
+    },
+    {
+      "index": 18,
+      "relevance_score": 0.0746462345123291
+    },
+    {
+      "index": 5,
+      "relevance_score": 0.0029709336813539267
+    },
+    {
+      "index": 6,
+      "relevance_score": 0.001892009750008583
+    },
+    {
+      "index": 4,
+      "relevance_score": 0.0012478568824008107
+    }
+  ],
+  "durationMs": 376,
+  "querySha256": "c8eb7a9b7c831f3cc050d3670260bfbb2ac646b440f0e0b2d9215409cdd18ff4",
+  "queryChars": 38,
+  "documentSha256": [
+    "10c26d8eb8e68098437e1f0859db4bda0d3ec6cd1e408b822c685a62f6f30233",
+    "35c57ae48ad19b20969545aaf0c995adb7d84ac31502d930127af42c9f42a79e",
+    "af76510b98307ec2a965b5442e92cbfbc2f596108fbe3d4186b7f85017ce22a2",
+    "b147b3d4a8efab44ffd7c6b3e7c7451f9640465b5794060e2f9b24bee9f6be68",
+    "ac17f9a2c3c85391ca02456c27296d6768ee7d23a60b1f221dcac37a550d170d",
+    "935fbb7479eb09e7302db4fca83e3d2e2971ac66d9e5f959fe8bf89a9626aa2b",
+    "94b93142825512e775129d98e046bad7425828ed0c630ac7e66722ef8fc3a8e3",
+    "2c3de35135d98617b857f334a4be3518866e9c6090275acadb0713409548e8e3",
+    "1d780f6c6720aa705cdf037a741d69f3dc6add61f54fed27f95ed077239d1b66",
+    "99b73f51dcfd7d50d281d85ad8fca773dfb5f6d0987932c96b0376b6ef5c5896",
+    "37041056b58b5e2b7e5b768ac0079cff8b5a8a63b5ae9614155acf4337b5693f",
+    "5727636606f5472bd400f27e7db2aff6524f9001969389e21bc7dc0d8ae8ebfc",
+    "1a0fce0b026cb6ac70720177c4da6e5c5a90d4327e84deb76d43ab5567924760",
+    "3ec9c8753e6077a8e2e4cc913856c3beddfb302f1f8b962690d1c9460dedeb13",
+    "35e9cd8c43bdf0492133eb7f115f504fdb2038fca772640643ae88b40438079a",
+    "9332485cb9660c00af31eb55f11b31630fbd509c1a9d74a5e8d658bb230e8cdb",
+    "ae0a093a0e2f1d977c17b2f2cca9e9fa1f62d091845ea9ff42ce61a8e3cc3e37",
+    "c7f22fb80893b8661afa3db9cbe551e3c085f1a91f4fa7628e681a4153534129",
+    "c4c0585c9730963c410d73fe51e753e89912d187021fc5691aaed7e2d9d6c8e3",
+    "89e818644d8777c6963350c5a03e9e35be380bd13fc9cf9989097af7cac43af4"
+  ],
+  "documentChars": [
+    909,
+    664,
+    380,
+    747,
+    883,
+    1403,
+    663,
+    260,
+    746,
+    484,
+    658,
+    865,
+    567,
+    725,
+    676,
+    741,
+    514,
+    280,
+    2467,
+    488
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/workforce/appraisal-scoring-history.md",
+    "docs/llm-wiki/concepts/delivery/westerman-booked-tracking-timing-history.md",
+    "docs/llm-wiki/concepts/inventory/free-to-use-location-scope-history.md",
+    "docs/llm-wiki/concepts/workforce/duplicate-department-retirement-history.md",
+    "docs/llm-wiki/concepts/sales/prepayment-credit-check-amount-calculation.md",
+    "docs/llm-wiki/concepts/inventory/reservation-residual-corrections-history.md",
+    "docs/llm-wiki/concepts/reporting/gross-profit-quantity-sign-history.md",
+    "docs/llm-wiki/concepts/sales/contact-overview-grouped-product-details.md",
+    "docs/llm-wiki/concepts/sales/shopify-exchanged-product-discount-amount-history.md",
+    "docs/llm-wiki/concepts/accounting/audit-journal-adje-history.md",
+    "docs/llm-wiki/concepts/accounting/bank-reconciliation-latency-history.md",
+    "docs/llm-wiki/concepts/accounting/cash-flow-config-timing-history.md",
+    "docs/llm-wiki/concepts/accounting/expense-category-unit-price-history.md",
+    "docs/llm-wiki/concepts/accounting/journal-review-copy-history.md",
+    "docs/llm-wiki/concepts/accounting/journal-review-latency-history.md",
+    "docs/llm-wiki/concepts/accounting/other-outbound-account-followup-history.md",
+    "docs/llm-wiki/concepts/accounting/resell-transfer-valuation-history.md",
+    "docs/llm-wiki/concepts/accounting/uk-20030-extra-entry-reconciliation-history.md",
+    "docs/llm-wiki/concepts/approvals/approval-submission-and-progress-triage.md",
+    "docs/llm-wiki/concepts/approvals/cancelled-record-approval-todo.md"
+  ],
+  "queryCAvailable": false
+}

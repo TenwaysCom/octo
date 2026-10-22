@@ -34,12 +34,27 @@ export function supportsWikiQuestion(question: string, terms: string[], content:
 const qualification = /前提|条件|仅限|只有|除非|不适用|限制|例外|注意|冲突|纠正|更正|判断有误|仍未|未解决|失败|无效|仍然|尚未|不能|不要|不得|验证|恢复|已解决|成功|已修复|显示正常|prerequisite|condition|exception|not applicable|correction|incorrect|still|failed|doesn.t work|only if|unless|verified|resolved/i;
 
 // Select complete sections/paragraphs: never slice a rule away from its caveat.
-export function relevantWikiContent(text: string, terms: string[], maxLength = 2400): string {
+export function relevantWikiContent(text: string, terms: string[], maxLength = 2400, discovery?: { matched: boolean; summary: string }): string {
   const clean = redactSupportText(text.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, "")).trim();
   const sections = clean.split(/\n(?=#{1,6}\s)/).filter((section) =>
     !/^#{1,6}\s+(?:Maintenance Notes|维护说明|维护备注|Related Tickets|关联工单|Resolution Summary Template|结论摘要模板)\s*$/im.test(section.split("\n")[0]));
   const scored = sections.map((content, index) => ({ content, index, score: matches(content, terms) }));
-  if (!scored.some((item) => item.score)) return "";
+  if (!scored.some((item) => item.score)) {
+    if (!discovery?.matched) return "";
+    // Aliases identify a page, not a source-backed action. Retain the whole
+    // introduction and every guard section; never retry a failed body match
+    // through this fallback to evade its original budget/qualification checks.
+    const intro = scored.find((item) => item.content.replace(/^#{1,6}[^\n]*$/gm, "")
+      .replace(/<a\b[^>]*><\/a>/g, "").trim());
+    if (!intro) return "";
+    const kept = scored.filter((item) => item === intro || qualification.test(item.content)
+      || /适用|边界|范围|待确认|未核验|结果|boundary|scope|outcome|pending/i.test(item.content.split("\n")[0]));
+    const summary = redactSupportText(discovery.summary).trim();
+    const content = [summary ? `摘要（检索线索，非原始证据）：${summary}` : "", ...kept.map((item) => item.content)]
+      .filter(Boolean).join("\n\n");
+    const marker = "\n[元数据命中；完整首段及限制摘录，不代表原始证据已支持该问题]";
+    return content.length + marker.length <= maxLength ? content + marker : "";
+  }
   const guards = scored.filter((item) => qualification.test(item.content.split("\n")[0]));
   const guardSize = guards.reduce((sum, item) => sum + item.content.length + 2, 0);
   if (guardSize > maxLength) return "";

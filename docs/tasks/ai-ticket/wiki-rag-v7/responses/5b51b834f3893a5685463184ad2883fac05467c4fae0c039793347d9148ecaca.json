@@ -1,0 +1,100 @@
+{
+  "caseId": "T12",
+  "group": "A",
+  "payloadHash": "5b51b834f3893a5685463184ad2883fac05467c4fae0c039793347d9148ecaca",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 0,
+      "relevance_score": 0.8607240319252014
+    },
+    {
+      "index": 3,
+      "relevance_score": 0.3613929748535156
+    },
+    {
+      "index": 2,
+      "relevance_score": 0.34219205379486084
+    },
+    {
+      "index": 11,
+      "relevance_score": 0.19891932606697083
+    },
+    {
+      "index": 12,
+      "relevance_score": 0.07981021702289581
+    }
+  ],
+  "durationMs": 357,
+  "querySha256": "d556e703f86646915d3f5be619c3fb0075adf95567005f9fcd4025d0d8c20313",
+  "queryChars": 111,
+  "documentSha256": [
+    "65b0655fe67b4421006cbd7af84213cdfd9cebec318514bc3334b4bacebe722c",
+    "3fe28c6e5f46be47a41ccf0fedd4bd4418cce9fd6c55c51a2f05051b172701f3",
+    "8bd44a966b7e84ba1bd6ccb9bb277bfafd53036ab50c70505ee95d7e1ee97e22",
+    "b9eb609104b8a33b2b4ba234b54bcea8d234e6434495aaf207f9cf0f89c809b0",
+    "69f654000b340cb0ee288c21ad706d1f4c7f25e7a44132869938e0391c706617",
+    "6dcdbe80da6712cd09b5ea427c29807e13117beb56ef7cf68bdbe2ba968dd221",
+    "6537ac31bf9dc937cb2aa830c9ed029238c291c6804b706671f24d7194200e6a",
+    "05a8ce911501f57e652d9ae86d363b56c25567d0ec8907923432d99bc3edd3c7",
+    "4947c357a76b9469861b66be9397553adacbad35f3e51ce80edd1691b494c82f",
+    "283ea5040a6b67f834e984e1b3480ac4e5d2a19e4bf0fc7a617e2bc857cca0c4",
+    "4871637b66f6d39c7df198389b76a821bf60076f28c373cb1cb5db8da8ec85c1",
+    "325623dae0ed2d794c7634f77488b2dc89dd7dbe26a7f0574a113d91406a8571",
+    "b1d0ddba2fe6af12364dac446edce06b25fde5795c9799e2b843cc6d17ef7c9b",
+    "653452cee8b43a9853b7e1a23aad6c340eb9e08c81afc93ae7a90948a7c28c8e",
+    "e76e0c64a0391ecd3267c02ea925386ceac43729a8dfea007c8b35d3f789b37f",
+    "bdf6698863d8cf0eddff2a263f993633cb16866c5f7d8301f32c49412920ef8f",
+    "ca062044ebc8a411dc03b18289ec62a8290a88a45db0542980baee23b1a22895",
+    "f854b0eaa95f0fb78b91a765e436dd2358ae17cf38692b45e1f8e30c484508cd",
+    "ff75844141597ab0a66120f364ab9203a219b9ef76ff240d6a914cd2b14cfe8d",
+    "12069e94798be7e1c5893fdbf31b61536c347bdcbb842898bb153aaffa3d4c44"
+  ],
+  "documentChars": [
+    816,
+    298,
+    647,
+    445,
+    233,
+    355,
+    426,
+    306,
+    184,
+    515,
+    215,
+    1095,
+    243,
+    221,
+    464,
+    769,
+    567,
+    334,
+    2247,
+    459
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/after_sales/contacts-owl-error-cannot-open-historical-case.md",
+    "docs/llm-wiki/concepts/faq/fleet-lark-attachment-link-not-openable.md",
+    "docs/llm-wiki/concepts/platform/odoo-availability-triage.md",
+    "docs/llm-wiki/concepts/platform/odoo-reachability-investigation.md",
+    "docs/llm-wiki/concepts/portal/survey-link-and-session-history.md",
+    "docs/llm-wiki/concepts/portal/survey-session-error-check.md",
+    "docs/llm-wiki/concepts/portal/turbo-android-pixel-startup-investigation.md",
+    "docs/llm-wiki/concepts/reporting/export-file-opening-history.md",
+    "docs/llm-wiki/concepts/workforce/fleet-lark-attachment-link-history.md",
+    "docs/llm-wiki/concepts/access/sales-team-order-visibility-history.md",
+    "docs/llm-wiki/concepts/delivery/service-centre-outbound-edit-history.md",
+    "docs/llm-wiki/concepts/access/odoo-login-entry-triage.md",
+    "docs/llm-wiki/concepts/faq/odoo-availability-login-performance-triage.md",
+    "docs/llm-wiki/concepts/faq/survey-link-error-check-login-first.md",
+    "docs/llm-wiki/concepts/invoicing/historical-invoice-bill-access-history.md",
+    "docs/llm-wiki/concepts/portal/portal-customer-blocked-operations-checklist.md",
+    "docs/llm-wiki/concepts/reporting/financial-report-opening-investigation.md",
+    "docs/llm-wiki/concepts/workforce/workforce-support-navigation.md",
+    "docs/ontology/objects/business-party.md",
+    "docs/llm-wiki/concepts/delivery/warehouse-document-amendment-checklist.md"
+  ],
+  "queryCAvailable": true
+}

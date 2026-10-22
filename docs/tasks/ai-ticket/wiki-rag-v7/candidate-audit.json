@@ -1,0 +1,3482 @@
+[
+  {
+    "id": "T01",
+    "candidates": [
+      {
+        "rank": 1,
+        "path": "concepts/access/sales-team-order-visibility-history.md",
+        "title": "Contacts 可见订单，Sales 和 Turbo 都看不到的 Sales Team 案例",
+        "type": "support_wiki",
+        "originalBodyChars": 740
+      },
+      {
+        "rank": 2,
+        "path": "concepts/integration/turbo-customer-sync-abort-history.md",
+        "title": "Turbo 看不到订单：客户 user_id 匹配失败的历史案例",
+        "type": "support_wiki",
+        "originalBodyChars": 501
+      },
+      {
+        "rank": 3,
+        "path": "concepts/integration/turbo-customer-sync-history.md",
+        "title": "Turbo 看不到订单，是同步中断还是客户基础资料问题？",
+        "type": "support_wiki",
+        "originalBodyChars": 674
+      },
+      {
+        "rank": 4,
+        "path": "concepts/sales/product-selection-sku-check.md",
+        "title": "EU 销售订单选不到 UK SKU，先核对什么？",
+        "type": "support_wiki",
+        "originalBodyChars": 235
+      },
+      {
+        "rank": 5,
+        "path": "concepts/platform/database-expiry-warning-triage.md",
+        "title": "Odoo 提示 database expired 或将删除，应该核对什么？",
+        "type": "support_wiki",
+        "originalBodyChars": 212
+      },
+      {
+        "rank": 6,
+        "path": "concepts/sales/contact-overview-create-sales-order.md",
+        "title": "怎样从 Contact 预订单／销售欠单总览创建销售报价？",
+        "type": "support_wiki",
+        "originalBodyChars": 2247
+      },
+      {
+        "rank": 7,
+        "path": "concepts/reporting/sales-visibility-filter-change-history.md",
+        "title": "Turbo 没显示订单，历史上有哪些归属、筛选和口径差异？",
+        "type": "support_wiki",
+        "originalBodyChars": 1513
+      },
+      {
+        "rank": 8,
+        "path": "concepts/sales/contact-tag-change-verification.md",
+        "title": "Contact 标签或主数据字段变更前后要核对什么？",
+        "type": "support_wiki",
+        "originalBodyChars": 1810
+      },
+      {
+        "rank": 9,
+        "path": "concepts/sales/uk-shopify-empty-salesperson-default-history.md",
+        "title": "UK Shopify [REFERENCE] 为空，但 Sales Team 有值正常吗？",
+        "type": "support_wiki",
+        "originalBodyChars": 733
+      },
+      {
+        "rank": 10,
+        "path": "concepts/faq/contact-backorder-preorder-overview.md",
+        "title": "联系人 Back Order / Pre Order 总览：数量、等待天数与创建销售订单",
+        "type": "support_wiki",
+        "originalBodyChars": 2060
+      },
+      {
+        "rank": 11,
+        "path": "concepts/sales/zero-quantity-concurrent-order-history.md",
+        "title": "同时创建两张订单后出现零数量零金额，是否已验证并发根因？",
+        "type": "support_wiki",
+        "originalBodyChars": 360
+      },
+      {
+        "rank": 12,
+        "path": "concepts/portal/portal-account-parent-company-invoices.md",
+        "title": "Portal 看不到公司发票，账号绑定调整有哪些历史证据？",
+        "type": "support_wiki",
+        "originalBodyChars": 1154
+      },
+      {
+        "rank": 13,
+        "path": "concepts/payment/turbo-overdue-after-payment-history.md",
+        "title": "Turbo 已付款仍逾期，是否已经证明同步故障？",
+        "type": "support_wiki",
+        "originalBodyChars": 447
+      },
+      {
+        "rank": 14,
+        "path": "concepts/portal/turbo-app-testflight-build-runtime-config-lark-1708.md",
+        "title": "Turbo 提示 beta expired，怎样核对 TestFlight build？",
+        "type": "support_wiki",
+        "originalBodyChars": 1079
+      },
+      {
+        "rank": 15,
+        "path": "concepts/invoicing/invoice-email-follows-sales-order-invoice-address.md",
+        "title": "客户没收到发票，如何核对订单发票地址与邮箱？",
+        "type": "support_wiki",
+        "originalBodyChars": 1700
+      },
+      {
+        "rank": 16,
+        "path": "concepts/invoicing/zero-order-shopify-rate-history.md",
+        "title": "UK 零元订单开票失败是否应该删除零元服务行？",
+        "type": "support_wiki",
+        "originalBodyChars": 212
+      },
+      {
+        "rank": 17,
+        "path": "concepts/payment/invoice-auto-send-sales-team-historical-assignment.md",
+        "title": "历史 Branding 订单发票为何仍自动发送？",
+        "type": "support_wiki",
+        "originalBodyChars": 621
+      },
+      {
+        "rank": 18,
+        "path": "concepts/sales/pricelist-discount-not-applied-or-price-mismatch.md",
+        "title": "pricelist 折扣未生效或订单价格与预期不符",
+        "type": "support_wiki",
+        "originalBodyChars": 1221
+      },
+      {
+        "rank": 19,
+        "path": "concepts/sales/so-flow-preorder-backorder-cancel-rules.md",
+        "title": "销售订单流转规则:preorder 转换/backorder/取消与恢复",
+        "type": "support_wiki",
+        "originalBodyChars": 1146
+      },
+      {
+        "rank": 20,
+        "path": "concepts/workforce/fleet-instance-visibility-history.md",
+        "title": "UK 账号看不到 Fleet 车辆一定是权限丢失吗？",
+        "type": "support_wiki",
+        "originalBodyChars": 249
+      }
+    ]
+  },
+  {
+    "id": "T02",
+    "candidates": [
+      {
+        "rank": 1,
+        "path": "objects/fixed-asset.md",
+        "title": "固定资产与折旧修改定义",
+        "type": "ontology",
+        "originalBodyChars": 2382
+      },
+      {
+        "rank": 2,
+        "path": "concepts/accounting/asset-value-depreciation-change-history.md",
+        "title": "资产原值负数与折旧科目修改失败怎样区分？",
+        "type": "support_wiki",
+        "originalBodyChars": 1151
+      },
+      {
+        "rank": 3,
+        "path": "concepts/faq/entry-field-edit-rules.md",
+        "title": "分录/资产字段修改规则:核销后编辑、资产原值调整、partner 显示位置",
+        "type": "support_wiki",
+        "originalBodyChars": 459
+      },
+      {
+        "rank": 4,
+        "path": "processes/depreciating-fixed-asset-amendment.md",
+        "title": "已开始折旧固定资产的价值与期限修改",
+        "type": "ontology",
+        "originalBodyChars": 1374
+      },
+      {
+        "rank": 5,
+        "path": "concepts/accounting/asset-re-evaluate-original-value.md",
+        "title": "固定资产已启用后通过重估调整原值",
+        "type": "support_wiki",
+        "originalBodyChars": 1183
+      },
+      {
+        "rank": 6,
+        "path": "concepts/accounting/asset-list-residual-value-fields-history.md",
+        "title": "资产列表显示 Not Depreciable Value 的发布案例",
+        "type": "support_wiki",
+        "originalBodyChars": 663
+      },
+      {
+        "rank": 7,
+        "path": "processes/fixed-asset-acquisition-and-depreciation.md",
+        "title": "固定资产建立与折旧运行",
+        "type": "ontology",
+        "originalBodyChars": 877
+      },
+      {
+        "rank": 8,
+        "path": "concepts/inventory/purchase-return-unit-price-zero.md",
+        "title": "采购退回单价为零，Next Transfers 与 Return 入口曾有什么区别？",
+        "type": "support_wiki",
+        "originalBodyChars": 420
+      },
+      {
+        "rank": 9,
+        "path": "objects/sales-order-amendment.md",
+        "title": "销售订单修改定义",
+        "type": "ontology",
+        "originalBodyChars": 2273
+      },
+      {
+        "rank": 10,
+        "path": "processes/unshipped-sales-order-amendment.md",
+        "title": "未发货销售订单修改",
+        "type": "ontology",
+        "originalBodyChars": 1901
+      },
+      {
+        "rank": 11,
+        "path": "concepts/accounting/accounting-change-navigation.md",
+        "title": "财务配置、分录字段、资产和汇率问题从哪里查？",
+        "type": "support_wiki",
+        "originalBodyChars": 1669
+      },
+      {
+        "rank": 12,
+        "path": "concepts/delivery/warehouse-document-amendment-checklist.md",
+        "title": "修改出库地址、数量或承运信息前怎样确定可处理范围？",
+        "type": "support_wiki",
+        "originalBodyChars": 642
+      },
+      {
+        "rank": 13,
+        "path": "concepts/inventory/sku-location-change-confirmation.md",
+        "title": "批量修改 SKU 分配仓位前怎样确认目标与清单？",
+        "type": "support_wiki",
+        "originalBodyChars": 367
+      },
+      {
+        "rank": 14,
+        "path": "concepts/sales/contact-tag-change-verification.md",
+        "title": "Contact 标签或主数据字段变更前后要核对什么？",
+        "type": "support_wiki",
+        "originalBodyChars": 2060
+      },
+      {
+        "rank": 15,
+        "path": "objects/preorder-backorder.md",
+        "title": "Ontology：预订单与销售欠单",
+        "type": "ontology",
+        "originalBodyChars": 2351
+      },
+      {
+        "rank": 16,
+        "path": "objects/journal-item-control.md",
+        "title": "会计明细控制定义",
+        "type": "ontology",
+        "originalBodyChars": 2369
+      },
+      {
+        "rank": 17,
+        "path": "processes/journal-item-dimension-amendment.md",
+        "title": "会计明细产品、往来方与产品类别修改流程",
+        "type": "ontology",
+        "originalBodyChars": 841
+      },
+      {
+        "rank": 18,
+        "path": "concepts/access/permission-request-and-effective-access.md",
+        "title": "申请或调整权限时，怎样确认实际授权范围？",
+        "type": "support_wiki",
+        "originalBodyChars": 2085
+      },
+      {
+        "rank": 19,
+        "path": "concepts/accounting/asset-bill-warning-history.md",
+        "title": "多个资产共用 Bill 的金额警告，可以直接忽略吗？",
+        "type": "support_wiki",
+        "originalBodyChars": 361
+      },
+      {
+        "rank": 20,
+        "path": "concepts/accounting/historical-entry-mandatory-fields-reverse.md",
+        "title": "历史凭证缺必填字段导致反冲失败，临时放开与后续发布有什么区别？",
+        "type": "support_wiki",
+        "originalBodyChars": 405
+      }
+    ]
+  },
+  {
+    "id": "T03",
+    "candidates": [
+      {
+        "rank": 1,
+        "path": "concepts/accounting/bank-reconciliation-latency-history.md",
+        "title": "银行核销从每项约 20 秒改善后，为什么仍不算性能验收？",
+        "type": "support_wiki",
+        "originalBodyChars": 545
+      },
+      {
+        "rank": 2,
+        "path": "concepts/payment/bank-reconciliation-differences.md",
+        "title": "银行核销与对账差异",
+        "type": "support_wiki",
+        "originalBodyChars": 1011
+      },
+      {
+        "rank": 3,
+        "path": "concepts/reporting/financial-report-opening-investigation.md",
+        "title": "Aged Receivable 或 Partner Ledger 一打开就卡住，怎样查？",
+        "type": "support_wiki",
+        "originalBodyChars": 724
+      },
+      {
+        "rank": 4,
+        "path": "processes/sales-receipt-and-reconciliation.md",
+        "title": "销售收款与应收核销",
+        "type": "ontology",
+        "originalBodyChars": 1052
+      },
+      {
+        "rank": 5,
+        "path": "objects/sales-receipt-reconciliation.md",
+        "title": "销售收款、核销与汇兑差额定义",
+        "type": "ontology",
+        "originalBodyChars": 2328
+      },
+      {
+        "rank": 6,
+        "path": "processes/foreign-currency-sales-receipt-reconciliation.md",
+        "title": "外币销售与外币收款核销",
+        "type": "ontology",
+        "originalBodyChars": 1025
+      },
+      {
+        "rank": 7,
+        "path": "processes/purchase-payment-and-reconciliation.md",
+        "title": "采购付款、银行匹配与应付核销",
+        "type": "ontology",
+        "originalBodyChars": 1059
+      },
+      {
+        "rank": 8,
+        "path": "concepts/accounting/cash-flow-fx-keep-first-account.md",
+        "title": "外币差额涉及多个科目时，历史现金流曾怎样处理？",
+        "type": "support_wiki",
+        "originalBodyChars": 486
+      },
+      {
+        "rank": 9,
+        "path": "processes/exchange-difference-reconciliation-and-revaluation.md",
+        "title": "汇兑损益核销、反核销与月末重估",
+        "type": "ontology",
+        "originalBodyChars": 1484
+      },
+      {
+        "rank": 10,
+        "path": "processes/journal-item-reconciliation.md",
+        "title": "会计明细对账与核销流程",
+        "type": "ontology",
+        "originalBodyChars": 825
+      },
+      {
+        "rank": 11,
+        "path": "processes/sales-prepayment-settlement.md",
+        "title": "销售预收款登记与发票核销",
+        "type": "ontology",
+        "originalBodyChars": 1527
+      },
+      {
+        "rank": 12,
+        "path": "concepts/access/permission-request-and-effective-access.md",
+        "title": "申请或调整权限时，怎样确认实际授权范围？",
+        "type": "support_wiki",
+        "originalBodyChars": 1677
+      },
+      {
+        "rank": 13,
+        "path": "concepts/accounting/cancelled-journal-sequence-date-history.md",
+        "title": "取消凭证跨月重用，日期与编号冲突曾怎样出现？",
+        "type": "support_wiki",
+        "originalBodyChars": 866
+      },
+      {
+        "rank": 14,
+        "path": "concepts/accounting/journal-required-dimensions-and-country.md",
+        "title": "手工分录选科目后不能保存，怎样核对 Partner Country 与必填字段？",
+        "type": "support_wiki",
+        "originalBodyChars": 877
+      },
+      {
+        "rank": 15,
+        "path": "concepts/accounting/legacy-account-and-reversal-history.md",
+        "title": "旧发票 reverse 后沿用旧科目，历史上怎样处理？",
+        "type": "support_wiki",
+        "originalBodyChars": 1106
+      },
+      {
+        "rank": 16,
+        "path": "concepts/inventory/return-grade-conversion-history.md",
+        "title": "二手退回的等级、R-SKU 与再出库应怎样对应？",
+        "type": "support_wiki",
+        "originalBodyChars": 1340
+      },
+      {
+        "rank": 17,
+        "path": "concepts/inventory/track-inventory-missing-stock-valuation.md",
+        "title": "US 入库没有库存价值，Track Inventory 与后续成本差额怎样分开？",
+        "type": "support_wiki",
+        "originalBodyChars": 487
+      },
+      {
+        "rank": 18,
+        "path": "concepts/payment/duplicate-bank-account-match-history.md",
+        "title": "同公司重复银行账号导致匹配失败，具体改动有记录吗？",
+        "type": "support_wiki",
+        "originalBodyChars": 373
+      },
+      {
+        "rank": 19,
+        "path": "concepts/portal/portal-email-and-archived-account-check.md",
+        "title": "Portal 邮箱占用、账号归档或绑定错误时怎样核对？",
+        "type": "support_wiki",
+        "originalBodyChars": 708
+      },
+      {
+        "rank": 20,
+        "path": "concepts/purchase/bill-bank-send-money-config-history.md",
+        "title": "UK 发票 Confirm 报错为什么曾检查银行 Send money？",
+        "type": "support_wiki",
+        "originalBodyChars": 524
+      }
+    ]
+  },
+  {
+    "id": "T04",
+    "candidates": [
+      {
+        "rank": 1,
+        "path": "concepts/accounting/asset-list-residual-value-fields-history.md",
+        "title": "资产列表显示 Not Depreciable Value 的发布案例",
+        "type": "support_wiki",
+        "originalBodyChars": 663
+      },
+      {
+        "rank": 2,
+        "path": "objects/fixed-asset.md",
+        "title": "固定资产与折旧修改定义",
+        "type": "ontology",
+        "originalBodyChars": 2231
+      },
+      {
+        "rank": 3,
+        "path": "concepts/faq/entry-field-edit-rules.md",
+        "title": "分录/资产字段修改规则:核销后编辑、资产原值调整、partner 显示位置",
+        "type": "support_wiki",
+        "originalBodyChars": 459
+      },
+      {
+        "rank": 4,
+        "path": "concepts/reporting/filter-language-timezone-history.md",
+        "title": "显示、筛选或导出不同，怎样避免直接改业务数据？",
+        "type": "support_wiki",
+        "originalBodyChars": 1678
+      },
+      {
+        "rank": 5,
+        "path": "concepts/accounting/accounting-change-navigation.md",
+        "title": "财务配置、分录字段、资产和汇率问题从哪里查？",
+        "type": "support_wiki",
+        "originalBodyChars": 1669
+      },
+      {
+        "rank": 6,
+        "path": "concepts/accounting/asset-re-evaluate-original-value.md",
+        "title": "固定资产已启用后通过重估调整原值",
+        "type": "support_wiki",
+        "originalBodyChars": 1183
+      },
+      {
+        "rank": 7,
+        "path": "objects/b2b-portal-sales.md",
+        "title": "B2B 门户销售渠道、客户角色与能力定义",
+        "type": "ontology",
+        "originalBodyChars": 1618
+      },
+      {
+        "rank": 8,
+        "path": "objects/portal-legal-terms.md",
+        "title": "Portal 法律条款、版本与行为证据定义",
+        "type": "ontology",
+        "originalBodyChars": 2290
+      },
+      {
+        "rank": 9,
+        "path": "processes/depreciating-fixed-asset-amendment.md",
+        "title": "已开始折旧固定资产的价值与期限修改",
+        "type": "ontology",
+        "originalBodyChars": 1374
+      },
+      {
+        "rank": 10,
+        "path": "processes/fixed-asset-acquisition-and-depreciation.md",
+        "title": "固定资产建立与折旧运行",
+        "type": "ontology",
+        "originalBodyChars": 877
+      },
+      {
+        "rank": 11,
+        "path": "concepts/accounting/asset-value-depreciation-change-history.md",
+        "title": "资产原值负数与折旧科目修改失败怎样区分？",
+        "type": "support_wiki",
+        "originalBodyChars": 1151
+      },
+      {
+        "rank": 12,
+        "path": "concepts/accounting/review-lock-mismatch-and-review-status-rules.md",
+        "title": "凭证审核/锁账异常:to review 列表与实际待审不一致",
+        "type": "support_wiki",
+        "originalBodyChars": 916
+      },
+      {
+        "rank": 13,
+        "path": "concepts/payment/unreconcile-matching-number-empty-lines-history.md",
+        "title": "反核销后仍有 Matching Number、点开却无分录：历史修复验证到了哪里？",
+        "type": "support_wiki",
+        "originalBodyChars": 941
+      },
+      {
+        "rank": 14,
+        "path": "concepts/sales/state-and-related-page-navigation.md",
+        "title": "原单已完成，关联页面为什么仍显示未完成？",
+        "type": "support_wiki",
+        "originalBodyChars": 862
+      },
+      {
+        "rank": 15,
+        "path": "objects/business-party.md",
+        "title": "Ontology：业务主体、客户／供应商角色与地址",
+        "type": "ontology",
+        "originalBodyChars": 2260
+      },
+      {
+        "rank": 16,
+        "path": "objects/warehouse-inventory-control.md",
+        "title": "仓库库存控制与转换定义",
+        "type": "ontology",
+        "originalBodyChars": 2246
+      },
+      {
+        "rank": 17,
+        "path": "concepts/sales/approval-markdone-vs-approve-button-stuck.md",
+        "title": "审批显示已批准但单据仍无法流转或重复要求审批",
+        "type": "support_wiki",
+        "originalBodyChars": 663
+      },
+      {
+        "rank": 18,
+        "path": "objects/financial-reporting.md",
+        "title": "财务与毛利报表定义",
+        "type": "ontology",
+        "originalBodyChars": 2367
+      },
+      {
+        "rank": 19,
+        "path": "processes/balance-sheet-preparation.md",
+        "title": "资产负债表编制与核验流程",
+        "type": "ontology",
+        "originalBodyChars": 591
+      },
+      {
+        "rank": 20,
+        "path": "concepts/access/two-factor-login-incident-history.md",
+        "title": "EU 两步验证故障曾临时关闭，能否作为通用登录办法？",
+        "type": "support_wiki",
+        "originalBodyChars": 98
+      }
+    ]
+  },
+  {
+    "id": "T05",
+    "candidates": [
+      {
+        "rank": 1,
+        "path": "concepts/sales/state-and-related-page-navigation.md",
+        "title": "原单已完成，关联页面为什么仍显示未完成？",
+        "type": "support_wiki",
+        "originalBodyChars": 862
+      },
+      {
+        "rank": 2,
+        "path": "concepts/approvals/rapid-record-switch-wrong-done-history.md",
+        "title": "快速切换单据后 Approve 把上一单 Done，为什么必须核对身份？",
+        "type": "support_wiki",
+        "originalBodyChars": 536
+      },
+      {
+        "rank": 3,
+        "path": "concepts/integration/shopify-import-schedule-and-config-history.md",
+        "title": "过了一轮拉取仍没有 Shopify 订单，为什么不能一直等待或重复导入？",
+        "type": "support_wiki",
+        "originalBodyChars": 1025
+      },
+      {
+        "rank": 4,
+        "path": "concepts/inventory/return-transfer-delivered-link-history.md",
+        "title": "库存已回正，SO Delivered 为什么仍未更新？",
+        "type": "support_wiki",
+        "originalBodyChars": 750
+      },
+      {
+        "rank": 5,
+        "path": "concepts/faq/contact-backorder-preorder-overview.md",
+        "title": "联系人 Back Order / Pre Order 总览：数量、等待天数与创建销售订单",
+        "type": "support_wiki",
+        "originalBodyChars": 1310
+      },
+      {
+        "rank": 6,
+        "path": "concepts/accounting/bank-reconciliation-latency-history.md",
+        "title": "银行核销从每项约 20 秒改善后，为什么仍不算性能验收？",
+        "type": "support_wiki",
+        "originalBodyChars": 102
+      },
+      {
+        "rank": 7,
+        "path": "concepts/accounting/journal-review-copy-history.md",
+        "title": "复制或修改凭证后 Review 信息为什么仍保留？",
+        "type": "support_wiki",
+        "originalBodyChars": 95
+      },
+      {
+        "rank": 8,
+        "path": "concepts/accounting/other-outbound-account-followup-history.md",
+        "title": "修改 Other 出库用途，为什么凭证不会自动跟着改？",
+        "type": "support_wiki",
+        "originalBodyChars": 625
+      },
+      {
+        "rank": 9,
+        "path": "concepts/approvals/cancelled-record-approval-todo.md",
+        "title": "单据已取消，为什么审批待办还在？",
+        "type": "support_wiki",
+        "originalBodyChars": 427
+      },
+      {
+        "rank": 10,
+        "path": "concepts/approvals/inflight-approval-owner-change-history.md",
+        "title": "为什么更换审批人后，进行中的审批仍指向旧人员？",
+        "type": "support_wiki",
+        "originalBodyChars": 2381
+      },
+      {
+        "rank": 11,
+        "path": "concepts/integration/app-dealer-data-sync-history.md",
+        "title": "网站地图已有经销商，App 为什么仍缺少？",
+        "type": "support_wiki",
+        "originalBodyChars": 99
+      },
+      {
+        "rank": 12,
+        "path": "concepts/payment/archived-customer-credit-balance-overpayment-bnk.md",
+        "title": "旧客户 BNK Overpayment 关联新客户后，余额为什么仍分开？",
+        "type": "support_wiki",
+        "originalBodyChars": 266
+      },
+      {
+        "rank": 13,
+        "path": "concepts/payment/mandate-state-and-exclusion-history.md",
+        "title": "客户有 Active Mandate，为什么仍未扣款？",
+        "type": "support_wiki",
+        "originalBodyChars": 87
+      },
+      {
+        "rank": 14,
+        "path": "concepts/sales/automatic-order-email-customer-language.md",
+        "title": "自动订单邮件已配置翻译，为什么仍发英文？",
+        "type": "support_wiki",
+        "originalBodyChars": 89
+      },
+      {
+        "rank": 15,
+        "path": "concepts/sales/pricelist-change-historical-order-history.md",
+        "title": "价目表或 Salesperson 已改，旧订单为什么仍显示旧值？",
+        "type": "support_wiki",
+        "originalBodyChars": 93
+      },
+      {
+        "rank": 16,
+        "path": "concepts/faq/doc-done-but-related-page-shows-stale-status.md",
+        "title": "单据已完成，但关联页面仍显示旧状态，为什么？",
+        "type": "support_wiki",
+        "originalBodyChars": 354
+      },
+      {
+        "rank": 17,
+        "path": "concepts/inventory/us18-return-location-and-operation-type-config.md",
+        "title": "US Odoo 18 Other Return 的库位选择与两步退回是否已交付？",
+        "type": "support_wiki",
+        "originalBodyChars": 490
+      },
+      {
+        "rank": 18,
+        "path": "concepts/accounting/other-outbound-done-journal-history.md",
+        "title": "Other Outbound 没生成分录，先核对 Done 还是外部同步？",
+        "type": "support_wiki",
+        "originalBodyChars": 641
+      },
+      {
+        "rank": 19,
+        "path": "concepts/accounting/resell-transfer-valuation-history.md",
+        "title": "Resell 到退回中转被当销售退库，配置是否已经修好？",
+        "type": "support_wiki",
+        "originalBodyChars": 403
+      },
+      {
+        "rank": 20,
+        "path": "concepts/accounting/uk-20030-extra-entry-reconciliation-history.md",
+        "title": "UK 20030 留有 £1.38，多余分录的处理是否已经查明成因？",
+        "type": "support_wiki",
+        "originalBodyChars": 678
+      }
+    ]
+  },
+  {
+    "id": "T06",
+    "candidates": [
+      {
+        "rank": 1,
+        "path": "concepts/approvals/approval-status-button-mapping-history.md",
+        "title": "UK 审批已通过但下一节点按钮缺失的 waiting 与 pending 映射案例",
+        "type": "support_wiki",
+        "originalBodyChars": 641
+      },
+      {
+        "rank": 2,
+        "path": "objects/business-approval.md",
+        "title": "业务审批申请、执行与决定定义",
+        "type": "ontology",
+        "originalBodyChars": 2341
+      },
+      {
+        "rank": 3,
+        "path": "concepts/approvals/approval-submission-and-progress-triage.md",
+        "title": "审批提交失败或流程不前进时，怎样分流排查？",
+        "type": "support_wiki",
+        "originalBodyChars": 1739
+      },
+      {
+        "rank": 4,
+        "path": "processes/embedded-business-record-approval.md",
+        "title": "业务单据嵌入式审批",
+        "type": "ontology",
+        "originalBodyChars": 1355
+      },
+      {
+        "rank": 5,
+        "path": "concepts/delivery/approval-stock-done-stages-history.md",
+        "title": "审批通过但出库未 Done，哪些阶段还没完成？",
+        "type": "support_wiki",
+        "originalBodyChars": 1410
+      },
+      {
+        "rank": 6,
+        "path": "concepts/inventory/start-stock-operation-button-check.md",
+        "title": "Start Stock Operation 或 Initiate Approval 按钮不可见时先核对什么？",
+        "type": "support_wiki",
+        "originalBodyChars": 1066
+      },
+      {
+        "rank": 7,
+        "path": "processes/budget-contract-payment-approval.md",
+        "title": "预算、合同／采购与付款审批衔接",
+        "type": "ontology",
+        "originalBodyChars": 1069
+      },
+      {
+        "rank": 8,
+        "path": "processes/warehouse-operation-approval.md",
+        "title": "仓库作业提交与审批",
+        "type": "ontology",
+        "originalBodyChars": 1516
+      },
+      {
+        "rank": 9,
+        "path": "concepts/access/operation-access-and-button-triage.md",
+        "title": "操作报无权限或按钮不可见，怎样区分权限与业务条件？",
+        "type": "support_wiki",
+        "originalBodyChars": 1109
+      },
+      {
+        "rank": 10,
+        "path": "concepts/inventory/inbound-approve-validate-backorder.md",
+        "title": "入库审批通过后仍 Ready，Validate 和欠货单应怎样理解？",
+        "type": "support_wiki",
+        "originalBodyChars": 1117
+      },
+      {
+        "rank": 11,
+        "path": "objects/warehouse-operation.md",
+        "title": "仓库作业、审批与外部 WMS 定义",
+        "type": "ontology",
+        "originalBodyChars": 2244
+      },
+      {
+        "rank": 12,
+        "path": "concepts/sales/approval-markdone-vs-approve-button-stuck.md",
+        "title": "审批显示已批准但单据仍无法流转或重复要求审批",
+        "type": "support_wiki",
+        "originalBodyChars": 663
+      },
+      {
+        "rank": 13,
+        "path": "processes/approval-policy-change.md",
+        "title": "审批政策与流程配置变更",
+        "type": "ontology",
+        "originalBodyChars": 835
+      },
+      {
+        "rank": 14,
+        "path": "processes/standalone-approval-request.md",
+        "title": "独立审批申请提交与决定",
+        "type": "ontology",
+        "originalBodyChars": 1016
+      },
+      {
+        "rank": 15,
+        "path": "concepts/approvals/approval-policy-change-checklist.md",
+        "title": "调整审批节点或审批人时，要核对哪些生效边界？",
+        "type": "support_wiki",
+        "originalBodyChars": 743
+      },
+      {
+        "rank": 16,
+        "path": "concepts/approvals/change-request-scheduling-history.md",
+        "title": "需求审批通过，是否意味着已经排期或上线？",
+        "type": "support_wiki",
+        "originalBodyChars": 942
+      },
+      {
+        "rank": 17,
+        "path": "concepts/approvals/inflight-approval-owner-change-history.md",
+        "title": "为什么更换审批人后，进行中的审批仍指向旧人员？",
+        "type": "support_wiki",
+        "originalBodyChars": 2381
+      },
+      {
+        "rank": 18,
+        "path": "concepts/faq/approval-flow-config-change-checklist.md",
+        "title": "审批流配置调整:节点/审批人变更的操作规则 FAQ",
+        "type": "support_wiki",
+        "originalBodyChars": 724
+      },
+      {
+        "rank": 19,
+        "path": "concepts/sales/document-stuck-generic-triage.md",
+        "title": "单据卡住的通用排查:按钮不出现/无法编辑/点击无反应",
+        "type": "support_wiki",
+        "originalBodyChars": 973
+      },
+      {
+        "rank": 20,
+        "path": "concepts/sales/mark-done-current-applicability-investigation.md",
+        "title": "当前 Mark Done 会完成审批，还是只关闭活动？",
+        "type": "support_wiki",
+        "originalBodyChars": 1337
+      }
+    ]
+  },
+  {
+    "id": "T07",
+    "candidates": [
+      {
+        "rank": 1,
+        "path": "concepts/delivery/delivery-note-multiple-email-history.md",
+        "title": "Delivery Note 可以填写多个收件邮箱吗？",
+        "type": "support_wiki",
+        "originalBodyChars": 353
+      },
+      {
+        "rank": 2,
+        "path": "concepts/integration/wms-address-contract-history.md",
+        "title": "仓库追问地址或收件人，接口传参与实际收货怎样区分？",
+        "type": "support_wiki",
+        "originalBodyChars": 596
+      },
+      {
+        "rank": 3,
+        "path": "objects/purchase-settlement.md",
+        "title": "采购入库、供应商账单与付款定义",
+        "type": "ontology",
+        "originalBodyChars": 2258
+      },
+      {
+        "rank": 4,
+        "path": "objects/warehouse-operation.md",
+        "title": "仓库作业、审批与外部 WMS 定义",
+        "type": "ontology",
+        "originalBodyChars": 2373
+      },
+      {
+        "rank": 5,
+        "path": "concepts/inventory/sku-warehouse-default-location-history.md",
+        "title": "产品默认仓库和出库单 SL，为什么不能当同一设置？",
+        "type": "support_wiki",
+        "originalBodyChars": 1374
+      },
+      {
+        "rank": 6,
+        "path": "concepts/inventory/warehouse-location-operation-type-change-checklist.md",
+        "title": "申请新增或调整仓库、库位和 Operation Type，要说明什么？",
+        "type": "support_wiki",
+        "originalBodyChars": 1572
+      },
+      {
+        "rank": 7,
+        "path": "objects/business-party.md",
+        "title": "Ontology：业务主体、客户／供应商角色与地址",
+        "type": "ontology",
+        "originalBodyChars": 2312
+      },
+      {
+        "rank": 8,
+        "path": "objects/warehouse-inventory-control.md",
+        "title": "仓库库存控制与转换定义",
+        "type": "ontology",
+        "originalBodyChars": 2347
+      },
+      {
+        "rank": 9,
+        "path": "processes/warehouse-operation-approval.md",
+        "title": "仓库作业提交与审批",
+        "type": "ontology",
+        "originalBodyChars": 1516
+      },
+      {
+        "rank": 10,
+        "path": "concepts/invoicing/invoice-email-follows-sales-order-invoice-address.md",
+        "title": "客户没收到发票，如何核对订单发票地址与邮箱？",
+        "type": "support_wiki",
+        "originalBodyChars": 1700
+      },
+      {
+        "rank": 11,
+        "path": "objects/b2c-sales.md",
+        "title": "B2C 销售、客户地址与 Leasing 角色定义",
+        "type": "ontology",
+        "originalBodyChars": 2360
+      },
+      {
+        "rank": 12,
+        "path": "objects/portal-public-inquiry.md",
+        "title": "Portal Dealer 申请与一般咨询定义",
+        "type": "ontology",
+        "originalBodyChars": 2283
+      },
+      {
+        "rank": 13,
+        "path": "processes/budget-contract-payment-approval.md",
+        "title": "预算、合同／采购与付款审批衔接",
+        "type": "ontology",
+        "originalBodyChars": 1069
+      },
+      {
+        "rank": 14,
+        "path": "processes/purchase-return-to-supplier.md",
+        "title": "采购收货退回供应商与结算交接",
+        "type": "ontology",
+        "originalBodyChars": 1291
+      },
+      {
+        "rank": 15,
+        "path": "processes/stock-batch-operation.md",
+        "title": "仓库批量作业组批、审批与执行",
+        "type": "ontology",
+        "originalBodyChars": 1082
+      },
+      {
+        "rank": 16,
+        "path": "concepts/delivery/delivery-config-checklist.md",
+        "title": "Delivery 配置项清单与检查项(聚合)",
+        "type": "support_wiki",
+        "originalBodyChars": 1220
+      },
+      {
+        "rank": 17,
+        "path": "concepts/delivery/wms-receipt-disputed-history.md",
+        "title": "Odoo 显示已发送，但仓库说没收到的历史案例",
+        "type": "support_wiki",
+        "originalBodyChars": 459
+      },
+      {
+        "rank": 18,
+        "path": "concepts/sales/mail-notification-navigation.md",
+        "title": "收到或没收到邮件，先区分哪个事件？",
+        "type": "support_wiki",
+        "originalBodyChars": 1048
+      },
+      {
+        "rank": 19,
+        "path": "processes/purchase-inbound-receipt.md",
+        "title": "采购到货登记与库存接收",
+        "type": "ontology",
+        "originalBodyChars": 1228
+      },
+      {
+        "rank": 20,
+        "path": "processes/purchase-tax-determination-and-billing.md",
+        "title": "采购税确定与供应商账单",
+        "type": "ontology",
+        "originalBodyChars": 1533
+      }
+    ]
+  },
+  {
+    "id": "T08",
+    "candidates": [
+      {
+        "rank": 1,
+        "path": "concepts/delivery/cmc-street2-payload-history.md",
+        "title": "CMC 收不到 street2：历史合并地址建议适用到哪里？",
+        "type": "support_wiki",
+        "originalBodyChars": 730
+      },
+      {
+        "rank": 2,
+        "path": "concepts/integration/wms-address-contract-history.md",
+        "title": "仓库追问地址或收件人，接口传参与实际收货怎样区分？",
+        "type": "support_wiki",
+        "originalBodyChars": 1187
+      },
+      {
+        "rank": 3,
+        "path": "concepts/inventory/sku-warehouse-default-location-history.md",
+        "title": "产品默认仓库和出库单 SL，为什么不能当同一设置？",
+        "type": "support_wiki",
+        "originalBodyChars": 1374
+      },
+      {
+        "rank": 4,
+        "path": "concepts/delivery/cmc-outbound-company-required-error-response.md",
+        "title": "CMC HTTP 200 返回 SQL 错误，与 CompanyName 必填是一回事吗？",
+        "type": "support_wiki",
+        "originalBodyChars": 1336
+      },
+      {
+        "rank": 5,
+        "path": "concepts/faq/westerman-outbound-not-pushed-to-wms.md",
+        "title": "为什么 Westerman 仓的出库单没有推送到 WMS？",
+        "type": "support_wiki",
+        "originalBodyChars": 93
+      },
+      {
+        "rank": 6,
+        "path": "concepts/delivery/cancelled-picking-recovery-history.md",
+        "title": "取消出库后要恢复或补发，为什么不能直接改状态？",
+        "type": "support_wiki",
+        "originalBodyChars": 1497
+      },
+      {
+        "rank": 7,
+        "path": "concepts/delivery/other-outbound-location-and-type-history.md",
+        "title": "Other 出库的操作类型和来源库位异常案例",
+        "type": "support_wiki",
+        "originalBodyChars": 860
+      },
+      {
+        "rank": 8,
+        "path": "concepts/delivery/warehouse-document-amendment-checklist.md",
+        "title": "修改出库地址、数量或承运信息前怎样确定可处理范围？",
+        "type": "support_wiki",
+        "originalBodyChars": 1022
+      },
+      {
+        "rank": 9,
+        "path": "objects/warehouse-operation.md",
+        "title": "仓库作业、审批与外部 WMS 定义",
+        "type": "ontology",
+        "originalBodyChars": 2373
+      },
+      {
+        "rank": 10,
+        "path": "concepts/delivery/outbound-pod-export-field.md",
+        "title": "出库单有 POD Link，为什么导出为空？",
+        "type": "support_wiki",
+        "originalBodyChars": 341
+      },
+      {
+        "rank": 11,
+        "path": "concepts/invoicing/eu-auto-invoice-job-timing-history.md",
+        "title": "EU 出库下午 Done，为什么当时要等次日开票？",
+        "type": "support_wiki",
+        "originalBodyChars": 203
+      },
+      {
+        "rank": 12,
+        "path": "concepts/invoicing/uk-inbound-bill-attachment-history.md",
+        "title": "UK 入库已 Done，为什么 Invoice 附件没有带到 Bill？",
+        "type": "support_wiki",
+        "originalBodyChars": 633
+      },
+      {
+        "rank": 13,
+        "path": "concepts/delivery/sales-order-integration-contract-lark-1806.md",
+        "title": "CMC 空车架号与 Westerman 映射导致不能 Done，能合成同一契约吗？",
+        "type": "support_wiki",
+        "originalBodyChars": 1021
+      },
+      {
+        "rank": 14,
+        "path": "concepts/delivery/service-center-outbound-split-correct-warehouse.md",
+        "title": "Service Centre 出库指向错误仓库，历史拆单建议适用于哪里？",
+        "type": "support_wiki",
+        "originalBodyChars": 689
+      },
+      {
+        "rank": 15,
+        "path": "objects/b2c-sales.md",
+        "title": "B2C 销售、客户地址与 Leasing 角色定义",
+        "type": "ontology",
+        "originalBodyChars": 2017
+      },
+      {
+        "rank": 16,
+        "path": "objects/business-party.md",
+        "title": "Ontology：业务主体、客户／供应商角色与地址",
+        "type": "ontology",
+        "originalBodyChars": 2319
+      },
+      {
+        "rank": 17,
+        "path": "processes/warehouse-operation-approval.md",
+        "title": "仓库作业提交与审批",
+        "type": "ontology",
+        "originalBodyChars": 1516
+      },
+      {
+        "rank": 18,
+        "path": "concepts/accounting/other-outbound-account-followup-history.md",
+        "title": "修改 Other 出库用途，为什么凭证不会自动跟着改？",
+        "type": "support_wiki",
+        "originalBodyChars": 625
+      },
+      {
+        "rank": 19,
+        "path": "concepts/approvals/ops-submission-notification-history.md",
+        "title": "OPS 为什么提交申请时没有立即收到通知？",
+        "type": "support_wiki",
+        "originalBodyChars": 196
+      },
+      {
+        "rank": 20,
+        "path": "concepts/delivery/outbound-export-line-grain-check.md",
+        "title": "导出出库明细和 Tracking 后，为什么行会错开？",
+        "type": "support_wiki",
+        "originalBodyChars": 94
+      }
+    ]
+  },
+  {
+    "id": "T09",
+    "candidates": [
+      {
+        "rank": 1,
+        "path": "concepts/delivery/destination-country-source-history.md",
+        "title": "Destination Country 取收货地址还是客户税号国家？",
+        "type": "support_wiki",
+        "originalBodyChars": 378
+      },
+      {
+        "rank": 2,
+        "path": "concepts/sales/delivery-address-country-tax-rate.md",
+        "title": "配送地址国家为空导致该客户税率异常，能推广到所有德国订单吗？",
+        "type": "support_wiki",
+        "originalBodyChars": 691
+      },
+      {
+        "rank": 3,
+        "path": "objects/business-party.md",
+        "title": "Ontology：业务主体、客户／供应商角色与地址",
+        "type": "ontology",
+        "originalBodyChars": 2376
+      },
+      {
+        "rank": 4,
+        "path": "concepts/accounting/accounting-change-navigation.md",
+        "title": "财务配置、分录字段、资产和汇率问题从哪里查？",
+        "type": "support_wiki",
+        "originalBodyChars": 1669
+      },
+      {
+        "rank": 5,
+        "path": "concepts/integration/sync-and-availability-navigation.md",
+        "title": "外部同步、登录性能、通知与客户端问题从哪里查？",
+        "type": "support_wiki",
+        "originalBodyChars": 1959
+      },
+      {
+        "rank": 6,
+        "path": "objects/b2c-sales.md",
+        "title": "B2C 销售、客户地址与 Leasing 角色定义",
+        "type": "ontology",
+        "originalBodyChars": 2175
+      },
+      {
+        "rank": 7,
+        "path": "concepts/integration/turbo-customer-sync-history.md",
+        "title": "Turbo 看不到订单，是同步中断还是客户基础资料问题？",
+        "type": "support_wiki",
+        "originalBodyChars": 674
+      },
+      {
+        "rank": 8,
+        "path": "objects/transaction-tax.md",
+        "title": "交易税与税务申报定义",
+        "type": "ontology",
+        "originalBodyChars": 2376
+      },
+      {
+        "rank": 9,
+        "path": "concepts/delivery/warehouse-dispatch-and-return-navigation.md",
+        "title": "仓储发货、改单、回传和导出问题从哪里查？",
+        "type": "support_wiki",
+        "originalBodyChars": 1527
+      },
+      {
+        "rank": 10,
+        "path": "concepts/integration/wms-address-contract-history.md",
+        "title": "仓库追问地址或收件人，接口传参与实际收货怎样区分？",
+        "type": "support_wiki",
+        "originalBodyChars": 1187
+      },
+      {
+        "rank": 11,
+        "path": "concepts/sales/dubai-country-selection-history.md",
+        "title": "客户在 Dubai，国家字段为什么找不到 Dubai？",
+        "type": "support_wiki",
+        "originalBodyChars": 340
+      },
+      {
+        "rank": 12,
+        "path": "concepts/delivery/cmc-street2-payload-history.md",
+        "title": "CMC 收不到 street2：历史合并地址建议适用到哪里？",
+        "type": "support_wiki",
+        "originalBodyChars": 730
+      },
+      {
+        "rank": 13,
+        "path": "concepts/invoicing/tax-source-selection-history.md",
+        "title": "税率异常来自 Fiscal Position 还是重复联系人？",
+        "type": "support_wiki",
+        "originalBodyChars": 975
+      },
+      {
+        "rank": 14,
+        "path": "concepts/workforce/workforce-support-navigation.md",
+        "title": "员工、绩效、假期与 Fleet 问题从哪里查？",
+        "type": "support_wiki",
+        "originalBodyChars": 862
+      },
+      {
+        "rank": 15,
+        "path": "processes/party-address-maintenance.md",
+        "title": "地址维护与交易单据选用",
+        "type": "ontology",
+        "originalBodyChars": 2193
+      },
+      {
+        "rank": 16,
+        "path": "objects/b2b-portal-sales.md",
+        "title": "B2B 门户销售渠道、客户角色与能力定义",
+        "type": "ontology",
+        "originalBodyChars": 2167
+      },
+      {
+        "rank": 17,
+        "path": "processes/b2c-leasing-sales.md",
+        "title": "B2C Leasing 订单角色替换与开票",
+        "type": "ontology",
+        "originalBodyChars": 1936
+      },
+      {
+        "rank": 18,
+        "path": "processes/customer-sales-ownership-change.md",
+        "title": "客户销售归属变更与历史单据处理",
+        "type": "ontology",
+        "originalBodyChars": 1165
+      },
+      {
+        "rank": 19,
+        "path": "processes/portal-profile-maintenance.md",
+        "title": "门户客户自助维护资料",
+        "type": "ontology",
+        "originalBodyChars": 1177
+      },
+      {
+        "rank": 20,
+        "path": "concepts/accounting/journal-required-dimensions-and-country.md",
+        "title": "手工分录选科目后不能保存，怎样核对 Partner Country 与必填字段？",
+        "type": "support_wiki",
+        "originalBodyChars": 972
+      }
+    ]
+  },
+  {
+    "id": "T10",
+    "candidates": [
+      {
+        "rank": 1,
+        "path": "concepts/sales/dubai-country-selection-history.md",
+        "title": "客户在 Dubai，国家字段为什么找不到 Dubai？",
+        "type": "support_wiki",
+        "originalBodyChars": 340
+      },
+      {
+        "rank": 2,
+        "path": "processes/customer-profile-validation.md",
+        "title": "客户资料建立与核验",
+        "type": "ontology",
+        "originalBodyChars": 2257
+      },
+      {
+        "rank": 3,
+        "path": "concepts/delivery/destination-country-source-history.md",
+        "title": "Destination Country 取收货地址还是客户税号国家？",
+        "type": "support_wiki",
+        "originalBodyChars": 378
+      },
+      {
+        "rank": 4,
+        "path": "concepts/integration/turbo-customer-sync-history.md",
+        "title": "Turbo 看不到订单，是同步中断还是客户基础资料问题？",
+        "type": "support_wiki",
+        "originalBodyChars": 674
+      },
+      {
+        "rank": 5,
+        "path": "objects/business-party.md",
+        "title": "Ontology：业务主体、客户／供应商角色与地址",
+        "type": "ontology",
+        "originalBodyChars": 2375
+      },
+      {
+        "rank": 6,
+        "path": "objects/b2b-portal-sales.md",
+        "title": "B2B 门户销售渠道、客户角色与能力定义",
+        "type": "ontology",
+        "originalBodyChars": 2278
+      },
+      {
+        "rank": 7,
+        "path": "concepts/sales/contact-overview-create-sales-order.md",
+        "title": "怎样从 Contact 预订单／销售欠单总览创建销售报价？",
+        "type": "support_wiki",
+        "originalBodyChars": 2247
+      },
+      {
+        "rank": 8,
+        "path": "processes/portal-profile-maintenance.md",
+        "title": "门户客户自助维护资料",
+        "type": "ontology",
+        "originalBodyChars": 1177
+      },
+      {
+        "rank": 9,
+        "path": "concepts/integration/turbo-customer-sync-abort-history.md",
+        "title": "Turbo 看不到订单：客户 user_id 匹配失败的历史案例",
+        "type": "support_wiki",
+        "originalBodyChars": 501
+      },
+      {
+        "rank": 10,
+        "path": "concepts/sales/partner-country-and-order-tax-check.md",
+        "title": "销售订单税率与预期不符，先检查客户国家信息吗？",
+        "type": "support_wiki",
+        "originalBodyChars": 746
+      },
+      {
+        "rank": 11,
+        "path": "concepts/sales/pricelist-batch-update-historical-case.md",
+        "title": "批量更新 EU 与 UK 价格资料时，如何核对重复规则和已归档 SKU？",
+        "type": "support_wiki",
+        "originalBodyChars": 382
+      },
+      {
+        "rank": 12,
+        "path": "objects/b2c-sales.md",
+        "title": "B2C 销售、客户地址与 Leasing 角色定义",
+        "type": "ontology",
+        "originalBodyChars": 2111
+      },
+      {
+        "rank": 13,
+        "path": "concepts/faq/contact-backorder-preorder-overview.md",
+        "title": "联系人 Back Order / Pre Order 总览：数量、等待天数与创建销售订单",
+        "type": "support_wiki",
+        "originalBodyChars": 947
+      },
+      {
+        "rank": 14,
+        "path": "concepts/reporting/missing-record-and-actor-history.md",
+        "title": "找不到报价或退回操作人，可以直接判未保存或误复制吗？",
+        "type": "support_wiki",
+        "originalBodyChars": 131
+      },
+      {
+        "rank": 15,
+        "path": "concepts/sales/delivery-address-country-tax-rate.md",
+        "title": "配送地址国家为空导致该客户税率异常，能推广到所有德国订单吗？",
+        "type": "support_wiki",
+        "originalBodyChars": 691
+      },
+      {
+        "rank": 16,
+        "path": "concepts/sales/pricelist-and-product-maintenance-navigation.md",
+        "title": "价格表、促销与产品资料问题从哪里查？",
+        "type": "support_wiki",
+        "originalBodyChars": 1209
+      },
+      {
+        "rank": 17,
+        "path": "processes/sales-return-receipt-and-disposition.md",
+        "title": "客户退货接收与后续处置",
+        "type": "ontology",
+        "originalBodyChars": 1672
+      },
+      {
+        "rank": 18,
+        "path": "concepts/accounting/journal-required-dimensions-and-country.md",
+        "title": "手工分录选科目后不能保存，怎样核对 Partner Country 与必填字段？",
+        "type": "support_wiki",
+        "originalBodyChars": 991
+      },
+      {
+        "rank": 19,
+        "path": "objects/portal-public-inquiry.md",
+        "title": "Portal Dealer 申请与一般咨询定义",
+        "type": "ontology",
+        "originalBodyChars": 2368
+      },
+      {
+        "rank": 20,
+        "path": "processes/b2b-portal-purchase.md",
+        "title": "B2B 门户客户自助购买并交销售确认",
+        "type": "ontology",
+        "originalBodyChars": 769
+      }
+    ]
+  },
+  {
+    "id": "T11",
+    "candidates": [
+      {
+        "rank": 1,
+        "path": "concepts/sales/shopify-exchanged-product-discount-amount-history.md",
+        "title": "Shopify 换商品后，CHF 1999 为什么变成 1987.36？",
+        "type": "support_wiki",
+        "originalBodyChars": 1190
+      },
+      {
+        "rank": 2,
+        "path": "concepts/integration/uk-shopify-variant-taxable-price-difference-history.md",
+        "title": "UK Shopify 价格导入后多 20%，原票为何检查变体 taxable？",
+        "type": "support_wiki",
+        "originalBodyChars": 904
+      },
+      {
+        "rank": 3,
+        "path": "concepts/integration/shopify-import-schedule-and-config-history.md",
+        "title": "过了一轮拉取仍没有 Shopify 订单，为什么不能一直等待或重复导入？",
+        "type": "support_wiki",
+        "originalBodyChars": 1025
+      },
+      {
+        "rank": 4,
+        "path": "concepts/sales/markup-name-and-price-rules.md",
+        "title": "价目表名称写了 Markup，为什么订单价格仍没变？",
+        "type": "support_wiki",
+        "originalBodyChars": 412
+      },
+      {
+        "rank": 5,
+        "path": "processes/b2c-sales-order.md",
+        "title": "Shopify B2C 订单导入与销售执行",
+        "type": "ontology",
+        "originalBodyChars": 1738
+      },
+      {
+        "rank": 6,
+        "path": "concepts/sales/pricelist-change-historical-order-history.md",
+        "title": "价目表或 Salesperson 已改，旧订单为什么仍显示旧值？",
+        "type": "support_wiki",
+        "originalBodyChars": 1303
+      },
+      {
+        "rank": 7,
+        "path": "concepts/integration/shopify-order-import-triage.md",
+        "title": "Shopify 订单没到 Odoo，先怎样定位缺口？",
+        "type": "support_wiki",
+        "originalBodyChars": 964
+      },
+      {
+        "rank": 8,
+        "path": "concepts/payment/shopify-statement-sync-history.md",
+        "title": "UK Shopify 账户流水停更，与订单导入有什么区别？",
+        "type": "support_wiki",
+        "originalBodyChars": 513
+      },
+      {
+        "rank": 9,
+        "path": "concepts/sales/pricelist-discount-not-applied-or-price-mismatch.md",
+        "title": "pricelist 折扣未生效或订单价格与预期不符",
+        "type": "support_wiki",
+        "originalBodyChars": 1221
+      },
+      {
+        "rank": 10,
+        "path": "concepts/sales/uk-shopify-empty-salesperson-default-history.md",
+        "title": "UK Shopify [REFERENCE] 为空，但 Sales Team 有值正常吗？",
+        "type": "support_wiki",
+        "originalBodyChars": 733
+      },
+      {
+        "rank": 11,
+        "path": "objects/sales-order.md",
+        "title": "销售订单与执行控制定义",
+        "type": "ontology",
+        "originalBodyChars": 2340
+      },
+      {
+        "rank": 12,
+        "path": "concepts/faq/shopify-order-not-synced-checklist.md",
+        "title": "Shopify 订单未同步到 Odoo:原因分流与处置(FAQ)",
+        "type": "support_wiki",
+        "originalBodyChars": 233
+      },
+      {
+        "rank": 13,
+        "path": "concepts/integration/shopify-paused-order-history.md",
+        "title": "Shopify 显示暂停的订单未导入，历史上怎样处理？",
+        "type": "support_wiki",
+        "originalBodyChars": 605
+      },
+      {
+        "rank": 14,
+        "path": "objects/sales-order-amendment.md",
+        "title": "销售订单修改定义",
+        "type": "ontology",
+        "originalBodyChars": 2336
+      },
+      {
+        "rank": 15,
+        "path": "processes/sales-tax-determination-and-invoicing.md",
+        "title": "销售税确定、开票与纠正",
+        "type": "ontology",
+        "originalBodyChars": 1955
+      },
+      {
+        "rank": 16,
+        "path": "concepts/reporting/export-grain-and-date-history.md",
+        "title": "导出为什么多出别的 SKU，时点余额又为什么不是逐 Bill 汇总？",
+        "type": "support_wiki",
+        "originalBodyChars": 1731
+      },
+      {
+        "rank": 17,
+        "path": "concepts/sales/automatic-order-email-customer-language.md",
+        "title": "自动订单邮件已配置翻译，为什么仍发英文？",
+        "type": "support_wiki",
+        "originalBodyChars": 291
+      },
+      {
+        "rank": 18,
+        "path": "concepts/sales/contact-overview-grouped-product-details.md",
+        "title": "为什么 Contact 预订单／销售欠单总览无法展开产品明细？",
+        "type": "support_wiki",
+        "originalBodyChars": 239
+      },
+      {
+        "rank": 19,
+        "path": "concepts/sales/product-display-change-history.md",
+        "title": "改颜色或产品名称为什么可能影响订单和门户？",
+        "type": "support_wiki",
+        "originalBodyChars": 780
+      },
+      {
+        "rank": 20,
+        "path": "objects/preorder-backorder.md",
+        "title": "Ontology：预订单与销售欠单",
+        "type": "ontology",
+        "originalBodyChars": 2321
+      }
+    ]
+  },
+  {
+    "id": "T12",
+    "candidates": [
+      {
+        "rank": 1,
+        "path": "concepts/after_sales/contacts-owl-error-cannot-open-historical-case.md",
+        "title": "Contacts 页面 OwlError 无法打开，历史恢复说明能支持什么？",
+        "type": "support_wiki",
+        "originalBodyChars": 797
+      },
+      {
+        "rank": 2,
+        "path": "concepts/faq/fleet-lark-attachment-link-not-openable.md",
+        "title": "Fleet 维修记录从 Lark 自动关联后，为什么附件打不开？",
+        "type": "support_wiki",
+        "originalBodyChars": 366
+      },
+      {
+        "rank": 3,
+        "path": "concepts/platform/odoo-availability-triage.md",
+        "title": "Odoo 打不开或很慢，先从哪个问题入口查？",
+        "type": "support_wiki",
+        "originalBodyChars": 1178
+      },
+      {
+        "rank": 4,
+        "path": "concepts/platform/odoo-reachability-investigation.md",
+        "title": "Odoo 间歇打不开但别人能用，怎样继续调查？",
+        "type": "support_wiki",
+        "originalBodyChars": 363
+      },
+      {
+        "rank": 5,
+        "path": "concepts/portal/survey-link-and-session-history.md",
+        "title": "Survey 链接改为 survey/start 后还打不开，是否只有链接问题？",
+        "type": "support_wiki",
+        "originalBodyChars": 141
+      },
+      {
+        "rank": 6,
+        "path": "concepts/portal/survey-session-error-check.md",
+        "title": "新客户 Survey 链接偶发打不开时，先核对什么？",
+        "type": "support_wiki",
+        "originalBodyChars": 324
+      },
+      {
+        "rank": 7,
+        "path": "concepts/portal/turbo-android-pixel-startup-investigation.md",
+        "title": "Android Pixel 的 Turbo 1.9.0 安装后打不开：哪些还没证实？",
+        "type": "support_wiki",
+        "originalBodyChars": 387
+      },
+      {
+        "rank": 8,
+        "path": "concepts/reporting/export-file-opening-history.md",
+        "title": "导出表格后打不开，一定是 Odoo 导出权限不够吗？",
+        "type": "support_wiki",
+        "originalBodyChars": 223
+      },
+      {
+        "rank": 9,
+        "path": "concepts/workforce/fleet-lark-attachment-link-history.md",
+        "title": "Fleet 关联的 Lark 附件打不开，是否已经证实链接过期？",
+        "type": "support_wiki",
+        "originalBodyChars": 100
+      },
+      {
+        "rank": 10,
+        "path": "concepts/access/sales-team-order-visibility-history.md",
+        "title": "Contacts 可见订单，Sales 和 Turbo 都看不到的 Sales Team 案例",
+        "type": "support_wiki",
+        "originalBodyChars": 461
+      },
+      {
+        "rank": 11,
+        "path": "concepts/delivery/service-centre-outbound-edit-history.md",
+        "title": "Service Centre 下推出库能否增删 SKU，Sent 后如何处理？",
+        "type": "support_wiki",
+        "originalBodyChars": 124
+      },
+      {
+        "rank": 12,
+        "path": "concepts/access/odoo-login-entry-triage.md",
+        "title": "Odoo 登录失败，怎样区分网址、客户端、账号与记录访问？",
+        "type": "support_wiki",
+        "originalBodyChars": 1541
+      },
+      {
+        "rank": 13,
+        "path": "concepts/faq/odoo-availability-login-performance-triage.md",
+        "title": "Odoo 登录/可用性/性能异常排查",
+        "type": "support_wiki",
+        "originalBodyChars": 284
+      },
+      {
+        "rank": 14,
+        "path": "concepts/faq/survey-link-error-check-login-first.md",
+        "title": "新客户 Survey 链接打开报错时先检查什么？",
+        "type": "support_wiki",
+        "originalBodyChars": 241
+      },
+      {
+        "rank": 15,
+        "path": "concepts/invoicing/historical-invoice-bill-access-history.md",
+        "title": "旧发票和 Bill 恢复打开后，复制与核销也恢复了吗？",
+        "type": "support_wiki",
+        "originalBodyChars": 501
+      },
+      {
+        "rank": 16,
+        "path": "concepts/portal/portal-customer-blocked-operations-checklist.md",
+        "title": "FAQ:Portal/客户侧操作受阻:预订单转换、密码重置、移动端限制",
+        "type": "support_wiki",
+        "originalBodyChars": 859
+      },
+      {
+        "rank": 17,
+        "path": "concepts/reporting/financial-report-opening-investigation.md",
+        "title": "Aged Receivable 或 Partner Ledger 一打开就卡住，怎样查？",
+        "type": "support_wiki",
+        "originalBodyChars": 637
+      },
+      {
+        "rank": 18,
+        "path": "concepts/workforce/workforce-support-navigation.md",
+        "title": "员工、绩效、假期与 Fleet 问题从哪里查？",
+        "type": "support_wiki",
+        "originalBodyChars": 783
+      },
+      {
+        "rank": 19,
+        "path": "objects/business-party.md",
+        "title": "Ontology：业务主体、客户／供应商角色与地址",
+        "type": "ontology",
+        "originalBodyChars": 2311
+      },
+      {
+        "rank": 20,
+        "path": "concepts/delivery/warehouse-document-amendment-checklist.md",
+        "title": "修改出库地址、数量或承运信息前怎样确定可处理范围？",
+        "type": "support_wiki",
+        "originalBodyChars": 575
+      }
+    ]
+  },
+  {
+    "id": "T13",
+    "candidates": [
+      {
+        "rank": 1,
+        "path": "concepts/reporting/gross-profit-direct-parent-customer-name-history.md",
+        "title": "毛利表三层 Contact 为什么曾只显示直接父级客户名？",
+        "type": "support_wiki",
+        "originalBodyChars": 369
+      },
+      {
+        "rank": 2,
+        "path": "concepts/reporting/gross-profit-quantity-sign-history.md",
+        "title": "Quantity 列已显示，为什么毛利表仍不能按手工退货负数抵消？",
+        "type": "support_wiki",
+        "originalBodyChars": 742
+      },
+      {
+        "rank": 3,
+        "path": "concepts/delivery/physical-shipment-status-invoice-history.md",
+        "title": "有物流信息但 SO 或开票页仍未完成，先看什么？",
+        "type": "support_wiki",
+        "originalBodyChars": 94
+      },
+      {
+        "rank": 4,
+        "path": "concepts/inventory/return-transfer-delivered-link-history.md",
+        "title": "库存已回正，SO Delivered 为什么仍未更新？",
+        "type": "support_wiki",
+        "originalBodyChars": 750
+      },
+      {
+        "rank": 5,
+        "path": "concepts/delivery/warehouse-document-amendment-checklist.md",
+        "title": "修改出库地址、数量或承运信息前怎样确定可处理范围？",
+        "type": "support_wiki",
+        "originalBodyChars": 642
+      },
+      {
+        "rank": 6,
+        "path": "concepts/sales/state-and-related-page-navigation.md",
+        "title": "原单已完成，关联页面为什么仍显示未完成？",
+        "type": "support_wiki",
+        "originalBodyChars": 862
+      },
+      {
+        "rank": 7,
+        "path": "objects/financial-reporting.md",
+        "title": "财务与毛利报表定义",
+        "type": "ontology",
+        "originalBodyChars": 2383
+      },
+      {
+        "rank": 8,
+        "path": "concepts/accounting/journal-review-copy-history.md",
+        "title": "复制或修改凭证后 Review 信息为什么仍保留？",
+        "type": "support_wiki",
+        "originalBodyChars": 741
+      },
+      {
+        "rank": 9,
+        "path": "concepts/workforce/public-holiday-import-history.md",
+        "title": "公共假期导入后为什么可能不出现在 Time Off？",
+        "type": "support_wiki",
+        "originalBodyChars": 101
+      },
+      {
+        "rank": 10,
+        "path": "objects/business-party.md",
+        "title": "Ontology：业务主体、客户／供应商角色与地址",
+        "type": "ontology",
+        "originalBodyChars": 2380
+      },
+      {
+        "rank": 11,
+        "path": "concepts/delivery/cancelled-picking-recovery-history.md",
+        "title": "取消出库后要恢复或补发，为什么不能直接改状态？",
+        "type": "support_wiki",
+        "originalBodyChars": 1497
+      },
+      {
+        "rank": 12,
+        "path": "concepts/delivery/invoiced-same-sku-reshipment-history.md",
+        "title": "同 SKU 已开票后重发，为什么旧操作指引会互相冲突？",
+        "type": "support_wiki",
+        "originalBodyChars": 1694
+      },
+      {
+        "rank": 13,
+        "path": "concepts/delivery/warehouse-dispatch-and-return-navigation.md",
+        "title": "仓储发货、改单、回传和导出问题从哪里查？",
+        "type": "support_wiki",
+        "originalBodyChars": 1470
+      },
+      {
+        "rank": 14,
+        "path": "concepts/delivery/westerman-booked-tracking-timing-history.md",
+        "title": "已有跟踪链接，Westerman WMS 状态为什么还没完成？",
+        "type": "support_wiki",
+        "originalBodyChars": 467
+      },
+      {
+        "rank": 15,
+        "path": "concepts/faq/outbound-follower-receives-customer-message.md",
+        "title": "为什么出库单的关注者会收到客户发送的消息？",
+        "type": "support_wiki",
+        "originalBodyChars": 236
+      },
+      {
+        "rank": 16,
+        "path": "concepts/faq/westerman-outbound-not-pushed-to-wms.md",
+        "title": "为什么 Westerman 仓的出库单没有推送到 WMS？",
+        "type": "support_wiki",
+        "originalBodyChars": 292
+      },
+      {
+        "rank": 17,
+        "path": "concepts/reporting/sales-wms-quantity-field-history.md",
+        "title": "Sales Report 的 WMS 数量为什么 Done 后清零？",
+        "type": "support_wiki",
+        "originalBodyChars": 546
+      },
+      {
+        "rank": 18,
+        "path": "processes/gross-profit-management-reporting.md",
+        "title": "毛利管理报表编制与核验流程",
+        "type": "ontology",
+        "originalBodyChars": 1102
+      },
+      {
+        "rank": 19,
+        "path": "concepts/sales/preorder-backorder-link-quantity-history.md",
+        "title": "预订或缺货需求转单后，关联和 remaining quantity 为什么不能只看 Done？",
+        "type": "support_wiki",
+        "originalBodyChars": 2364
+      },
+      {
+        "rank": 20,
+        "path": "concepts/delivery/delivery-config-checklist.md",
+        "title": "Delivery 配置项清单与检查项(聚合)",
+        "type": "support_wiki",
+        "originalBodyChars": 1050
+      }
+    ]
+  },
+  {
+    "id": "T14",
+    "candidates": [
+      {
+        "rank": 1,
+        "path": "objects/preorder-backorder.md",
+        "title": "Ontology：预订单与销售欠单",
+        "type": "ontology",
+        "originalBodyChars": 2222
+      },
+      {
+        "rank": 2,
+        "path": "objects/sales-order.md",
+        "title": "销售订单与执行控制定义",
+        "type": "ontology",
+        "originalBodyChars": 2349
+      },
+      {
+        "rank": 3,
+        "path": "processes/sales-promotion-approval-and-application.md",
+        "title": "销售促销审批、配置与订单应用",
+        "type": "ontology",
+        "originalBodyChars": 1180
+      },
+      {
+        "rank": 4,
+        "path": "concepts/inventory/location-type-direction-history.md",
+        "title": "Operation Type、SL／DL 和编号，哪个能证明库存方向？",
+        "type": "support_wiki",
+        "originalBodyChars": 1529
+      },
+      {
+        "rank": 5,
+        "path": "concepts/sales/automatic-order-email-customer-language.md",
+        "title": "自动订单邮件已配置翻译，为什么仍发英文？",
+        "type": "support_wiki",
+        "originalBodyChars": 291
+      },
+      {
+        "rank": 6,
+        "path": "concepts/inventory/us18-return-location-and-operation-type-config.md",
+        "title": "US Odoo 18 Other Return 的库位选择与两步退回是否已交付？",
+        "type": "support_wiki",
+        "originalBodyChars": 770
+      },
+      {
+        "rank": 7,
+        "path": "concepts/sales/pricelist-discount-not-applied-or-price-mismatch.md",
+        "title": "pricelist 折扣未生效或订单价格与预期不符",
+        "type": "support_wiki",
+        "originalBodyChars": 1221
+      },
+      {
+        "rank": 8,
+        "path": "concepts/accounting/cancelled-journal-sequence-date-history.md",
+        "title": "取消凭证跨月重用，日期与编号冲突曾怎样出现？",
+        "type": "support_wiki",
+        "originalBodyChars": 1090
+      },
+      {
+        "rank": 9,
+        "path": "concepts/faq/contact-backorder-preorder-overview.md",
+        "title": "联系人 Back Order / Pre Order 总览：数量、等待天数与创建销售订单",
+        "type": "support_wiki",
+        "originalBodyChars": 1698
+      },
+      {
+        "rank": 10,
+        "path": "concepts/inventory/return-on-return-number-prefix-history.md",
+        "title": "US 退货单上再次 Return 生成 RET 编号，历史上恢复了吗？",
+        "type": "support_wiki",
+        "originalBodyChars": 568
+      },
+      {
+        "rank": 11,
+        "path": "concepts/sales/cargo-discount-approval-history.md",
+        "title": "Cargo 折扣为零，是否一定是配置错误？",
+        "type": "support_wiki",
+        "originalBodyChars": 947
+      },
+      {
+        "rank": 12,
+        "path": "concepts/sales/manual-sales-order-number-history.md",
+        "title": "EU 两张 SO 曾可手改编号，是否代表允许编号重复？",
+        "type": "support_wiki",
+        "originalBodyChars": 525
+      },
+      {
+        "rank": 13,
+        "path": "concepts/sales/sale-order-backorder-preorder-runtime-config-lark-1654.md",
+        "title": "Backorder 显示 IT 改成 Expired，是否代表人工操作？",
+        "type": "support_wiki",
+        "originalBodyChars": 612
+      },
+      {
+        "rank": 14,
+        "path": "concepts/sales/sales-config-checklist.md",
+        "title": "Sales 配置项清单与检查项(聚合)",
+        "type": "support_wiki",
+        "originalBodyChars": 1431
+      },
+      {
+        "rank": 15,
+        "path": "objects/business-party.md",
+        "title": "Ontology：业务主体、客户／供应商角色与地址",
+        "type": "ontology",
+        "originalBodyChars": 2381
+      },
+      {
+        "rank": 16,
+        "path": "concepts/accounting/cash-flow-config-timing-history.md",
+        "title": "现金流少科目，为什么要区分配置时间与凭证过账时间？",
+        "type": "support_wiki",
+        "originalBodyChars": 1168
+      },
+      {
+        "rank": 17,
+        "path": "concepts/accounting/financial-report-config-preserve-on-module-update.md",
+        "title": "财务报表配置被更新覆盖，哪些站点曾修复或再次出现？",
+        "type": "support_wiki",
+        "originalBodyChars": 934
+      },
+      {
+        "rank": 18,
+        "path": "concepts/sales/contact-overview-create-sales-order.md",
+        "title": "怎样从 Contact 预订单／销售欠单总览创建销售报价？",
+        "type": "support_wiki",
+        "originalBodyChars": 2247
+      },
+      {
+        "rank": 19,
+        "path": "concepts/sales/so-flow-preorder-backorder-cancel-rules.md",
+        "title": "销售订单流转规则:preorder 转换/backorder/取消与恢复",
+        "type": "support_wiki",
+        "originalBodyChars": 1146
+      },
+      {
+        "rank": 20,
+        "path": "objects/customer-credit.md",
+        "title": "客户授信、交易限制与订单信用判断定义",
+        "type": "ontology",
+        "originalBodyChars": 2357
+      }
+    ]
+  },
+  {
+    "id": "T15",
+    "candidates": [
+      {
+        "rank": 1,
+        "path": "objects/warehouse-operation.md",
+        "title": "仓库作业、审批与外部 WMS 定义",
+        "type": "ontology",
+        "originalBodyChars": 2383
+      },
+      {
+        "rank": 2,
+        "path": "concepts/inventory/source-warehouse-masterdata-history.md",
+        "title": "改一张 PO 的仓位，为什么可能影响全部仓库资料？",
+        "type": "support_wiki",
+        "originalBodyChars": 452
+      },
+      {
+        "rank": 3,
+        "path": "concepts/inventory/warehouse-approver-location-check.md",
+        "title": "入库或特殊仓位没有审批权限，怎样区分负责人配置与用户组？",
+        "type": "support_wiki",
+        "originalBodyChars": 1169
+      },
+      {
+        "rank": 4,
+        "path": "concepts/inventory/warehouse-location-operation-type-change-checklist.md",
+        "title": "申请新增或调整仓库、库位和 Operation Type，要说明什么？",
+        "type": "support_wiki",
+        "originalBodyChars": 1217
+      },
+      {
+        "rank": 5,
+        "path": "concepts/delivery/wms-payload-validation-triage.md",
+        "title": "WMS 报名称、电话、Company 或 SKU 单位错误时怎样核对？",
+        "type": "support_wiki",
+        "originalBodyChars": 2249
+      },
+      {
+        "rank": 6,
+        "path": "concepts/integration/wms-address-contract-history.md",
+        "title": "仓库追问地址或收件人，接口传参与实际收货怎样区分？",
+        "type": "support_wiki",
+        "originalBodyChars": 651
+      },
+      {
+        "rank": 7,
+        "path": "concepts/inventory/location-type-direction-history.md",
+        "title": "Operation Type、SL／DL 和编号，哪个能证明库存方向？",
+        "type": "support_wiki",
+        "originalBodyChars": 1583
+      },
+      {
+        "rank": 8,
+        "path": "concepts/inventory/sku-location-change-confirmation.md",
+        "title": "批量修改 SKU 分配仓位前怎样确认目标与清单？",
+        "type": "support_wiki",
+        "originalBodyChars": 654
+      },
+      {
+        "rank": 9,
+        "path": "concepts/inventory/sku-warehouse-default-location-history.md",
+        "title": "产品默认仓库和出库单 SL，为什么不能当同一设置？",
+        "type": "support_wiki",
+        "originalBodyChars": 1429
+      },
+      {
+        "rank": 10,
+        "path": "concepts/portal/add-to-cart-regression-and-warehouse-history.md",
+        "title": "Portal 没有加购按钮，仓库分配一定是原因吗？",
+        "type": "support_wiki",
+        "originalBodyChars": 752
+      },
+      {
+        "rank": 11,
+        "path": "concepts/portal/portal-email-and-archived-account-check.md",
+        "title": "Portal 邮箱占用、账号归档或绑定错误时怎样核对？",
+        "type": "support_wiki",
+        "originalBodyChars": 708
+      },
+      {
+        "rank": 12,
+        "path": "objects/warehouse-inventory-control.md",
+        "title": "仓库库存控制与转换定义",
+        "type": "ontology",
+        "originalBodyChars": 2264
+      },
+      {
+        "rank": 13,
+        "path": "concepts/portal/b2b-portal-access-and-dealer-ordering.md",
+        "title": "B2B Portal 访问与经销商下单规则",
+        "type": "support_wiki",
+        "originalBodyChars": 1151
+      },
+      {
+        "rank": 14,
+        "path": "concepts/sales/contact-overview-create-sales-order.md",
+        "title": "怎样从 Contact 预订单／销售欠单总览创建销售报价？",
+        "type": "support_wiki",
+        "originalBodyChars": 1850
+      },
+      {
+        "rank": 15,
+        "path": "concepts/sales/contact-overview-quantity-and-status.md",
+        "title": "怎样读懂 Contact 总览的数量与 Fulfillment Status？",
+        "type": "support_wiki",
+        "originalBodyChars": 1574
+      },
+      {
+        "rank": 16,
+        "path": "processes/b2c-sales-order.md",
+        "title": "Shopify B2C 订单导入与销售执行",
+        "type": "ontology",
+        "originalBodyChars": 1738
+      },
+      {
+        "rank": 17,
+        "path": "processes/warehouse-operation-approval.md",
+        "title": "仓库作业提交与审批",
+        "type": "ontology",
+        "originalBodyChars": 1516
+      },
+      {
+        "rank": 18,
+        "path": "concepts/delivery/next-transfer-type-investigation.md",
+        "title": "Next Transfer 测试正常，为什么生产仍显示 Return Step2？",
+        "type": "support_wiki",
+        "originalBodyChars": 688
+      },
+      {
+        "rank": 19,
+        "path": "concepts/faq/warehouse-location-operation-type-setup.md",
+        "title": "仓库/库位/Operation Type 新建与调整:配置口径 FAQ",
+        "type": "support_wiki",
+        "originalBodyChars": 292
+      },
+      {
+        "rank": 20,
+        "path": "concepts/inventory/completed-picking-location-correction-history.md",
+        "title": "已 Done 的出库单库位与明细不一致，历史记录怎样解释？",
+        "type": "support_wiki",
+        "originalBodyChars": 422
+      }
+    ]
+  },
+  {
+    "id": "T16",
+    "candidates": [
+      {
+        "rank": 1,
+        "path": "objects/business-approval.md",
+        "title": "业务审批申请、执行与决定定义",
+        "type": "ontology",
+        "originalBodyChars": 2379
+      },
+      {
+        "rank": 2,
+        "path": "concepts/workforce/public-holiday-import-history.md",
+        "title": "公共假期导入后为什么可能不出现在 Time Off？",
+        "type": "support_wiki",
+        "originalBodyChars": 711
+      },
+      {
+        "rank": 3,
+        "path": "concepts/platform/lark-desktop-login-history.md",
+        "title": "Lark 手机能用、电脑进不了 Tenways 组织的历史案例",
+        "type": "support_wiki",
+        "originalBodyChars": 542
+      },
+      {
+        "rank": 4,
+        "path": "concepts/workforce/time-off-submission-and-retirement-history.md",
+        "title": "Time Off 拒绝、删除后重提与停止提交有什么区别？",
+        "type": "support_wiki",
+        "originalBodyChars": 844
+      },
+      {
+        "rank": 5,
+        "path": "concepts/platform/lark-mail-configuration-history.md",
+        "title": "Lark 消息正常但邮件停收，配置重设的历史结果",
+        "type": "support_wiki",
+        "originalBodyChars": 414
+      },
+      {
+        "rank": 6,
+        "path": "concepts/workforce/workforce-support-navigation.md",
+        "title": "员工、绩效、假期与 Fleet 问题从哪里查？",
+        "type": "support_wiki",
+        "originalBodyChars": 862
+      },
+      {
+        "rank": 7,
+        "path": "concepts/accounting/payment-request-owner-department-history.md",
+        "title": "请款 Owner Department 没带到 Bill 的历史检查线索",
+        "type": "support_wiki",
+        "originalBodyChars": 856
+      },
+      {
+        "rank": 8,
+        "path": "concepts/invoicing/duplicate-employee-old-department-on-journal-item.md",
+        "title": "重复员工档案带出旧部门，修主档会回刷历史凭证吗？",
+        "type": "support_wiki",
+        "originalBodyChars": 760
+      },
+      {
+        "rank": 9,
+        "path": "concepts/payment/citi-sepa-batch-booking-default-history.md",
+        "title": "Citi SEPA DD Batch Booking 默认取消勾选的历史请求",
+        "type": "support_wiki",
+        "originalBodyChars": 406
+      },
+      {
+        "rank": 10,
+        "path": "concepts/portal/service-center-internal-message-exposure-history.md",
+        "title": "Service Center 内部通信在 Dealer 页面可见的历史缺陷",
+        "type": "support_wiki",
+        "originalBodyChars": 1025
+      },
+      {
+        "rank": 11,
+        "path": "objects/workforce-administration.md",
+        "title": "员工与车辆管理定义",
+        "type": "ontology",
+        "originalBodyChars": 2297
+      },
+      {
+        "rank": 12,
+        "path": "processes/customer-sales-ownership-change.md",
+        "title": "客户销售归属变更与历史单据处理",
+        "type": "ontology",
+        "originalBodyChars": 1165
+      },
+      {
+        "rank": 13,
+        "path": "processes/standalone-approval-request.md",
+        "title": "独立审批申请提交与决定",
+        "type": "ontology",
+        "originalBodyChars": 1016
+      },
+      {
+        "rank": 14,
+        "path": "concepts/accounting/journal-asset-field-release-history.md",
+        "title": "Fields Check 和凭证 Asset 字段分批发布的历史记录",
+        "type": "support_wiki",
+        "originalBodyChars": 158
+      },
+      {
+        "rank": 15,
+        "path": "concepts/approvals/approval-submission-and-progress-triage.md",
+        "title": "审批提交失败或流程不前进时，怎样分流排查？",
+        "type": "support_wiki",
+        "originalBodyChars": 2383
+      },
+      {
+        "rank": 16,
+        "path": "concepts/approvals/payroll-chatter-log-history.md",
+        "title": "Payroll 点了节点 approve 没有 chatter 记录的历史答疑",
+        "type": "support_wiki",
+        "originalBodyChars": 159
+      },
+      {
+        "rank": 17,
+        "path": "concepts/delivery/done-picking-without-physical-shipment-history.md",
+        "title": "未选 Carrier 已 Done、实物却未出的历史处置建议",
+        "type": "support_wiki",
+        "originalBodyChars": 262
+      },
+      {
+        "rank": 18,
+        "path": "concepts/delivery/sent-picking-split-and-order-line-history.md",
+        "title": "SO 增行并入已发仓任务、Sent 后无法拆单的历史案例",
+        "type": "support_wiki",
+        "originalBodyChars": 152
+      },
+      {
+        "rank": 19,
+        "path": "concepts/delivery/wms-feedback-duplicate-quantity-history.md",
+        "title": "Burger 多份回传导致 WMS 数量翻倍的历史调查",
+        "type": "support_wiki",
+        "originalBodyChars": 147
+      },
+      {
+        "rank": 20,
+        "path": "concepts/delivery/wms-receipt-disputed-history.md",
+        "title": "Odoo 显示已发送，但仓库说没收到的历史案例",
+        "type": "support_wiki",
+        "originalBodyChars": 356
+      }
+    ]
+  },
+  {
+    "id": "T17",
+    "candidates": [
+      {
+        "rank": 1,
+        "path": "concepts/accounting/historical-entry-mandatory-fields-reverse.md",
+        "title": "历史凭证缺必填字段导致反冲失败，临时放开与后续发布有什么区别？",
+        "type": "support_wiki",
+        "originalBodyChars": 787
+      },
+      {
+        "rank": 2,
+        "path": "objects/business-party.md",
+        "title": "Ontology：业务主体、客户／供应商角色与地址",
+        "type": "ontology",
+        "originalBodyChars": 2375
+      },
+      {
+        "rank": 3,
+        "path": "concepts/after_sales/mega-bike-kiel-wik-l-beck-claim-unknown-pending-analysis-lark-1655.md",
+        "title": "Claim 无法选择配送地址，重置密码有效吗？",
+        "type": "support_wiki",
+        "originalBodyChars": 484
+      },
+      {
+        "rank": 4,
+        "path": "concepts/delivery/wms-payload-validation-triage.md",
+        "title": "WMS 报名称、电话、Company 或 SKU 单位错误时怎样核对？",
+        "type": "support_wiki",
+        "originalBodyChars": 2140
+      },
+      {
+        "rank": 5,
+        "path": "concepts/delivery/wms-push-failure-and-quantity-mismatch.md",
+        "title": "WMS 推送与回传:订单无法推送/数量不一致的排查",
+        "type": "support_wiki",
+        "originalBodyChars": 321
+      },
+      {
+        "rank": 6,
+        "path": "objects/financial-reporting.md",
+        "title": "财务与毛利报表定义",
+        "type": "ontology",
+        "originalBodyChars": 2352
+      },
+      {
+        "rank": 7,
+        "path": "concepts/accounting/report-data-mismatch-triage.md",
+        "title": "FAQ:报表取数与科目余额差异排查:CF/BS/GL/TB 口径与核对顺序",
+        "type": "support_wiki",
+        "originalBodyChars": 1648
+      },
+      {
+        "rank": 8,
+        "path": "concepts/inventory/return-grade-and-r-sku-history.md",
+        "title": "退回车等级无法选择与新增整车 R-SKU 的历史线索",
+        "type": "support_wiki",
+        "originalBodyChars": 503
+      },
+      {
+        "rank": 9,
+        "path": "concepts/reporting/gross-profit-tax-quantity-history.md",
+        "title": "毛利数量、Credit Note 符号和 EC Sales 遗漏，可以统一改公式吗？",
+        "type": "support_wiki",
+        "originalBodyChars": 822
+      },
+      {
+        "rank": 10,
+        "path": "objects/preorder-backorder.md",
+        "title": "Ontology：预订单与销售欠单",
+        "type": "ontology",
+        "originalBodyChars": 2307
+      },
+      {
+        "rank": 11,
+        "path": "objects/warehouse-inventory-control.md",
+        "title": "仓库库存控制与转换定义",
+        "type": "ontology",
+        "originalBodyChars": 2185
+      },
+      {
+        "rank": 12,
+        "path": "concepts/access/operation-access-and-button-triage.md",
+        "title": "操作报无权限或按钮不可见，怎样区分权限与业务条件？",
+        "type": "support_wiki",
+        "originalBodyChars": 2269
+      },
+      {
+        "rank": 13,
+        "path": "concepts/accounting/accounting-change-navigation.md",
+        "title": "财务配置、分录字段、资产和汇率问题从哪里查？",
+        "type": "support_wiki",
+        "originalBodyChars": 1669
+      },
+      {
+        "rank": 14,
+        "path": "concepts/accounting/journal-required-dimensions-and-country.md",
+        "title": "手工分录选科目后不能保存，怎样核对 Partner Country 与必填字段？",
+        "type": "support_wiki",
+        "originalBodyChars": 639
+      },
+      {
+        "rank": 15,
+        "path": "concepts/after_sales/contacts-owl-error-cannot-open-historical-case.md",
+        "title": "Contacts 页面 OwlError 无法打开，历史恢复说明能支持什么？",
+        "type": "support_wiki",
+        "originalBodyChars": 635
+      },
+      {
+        "rank": 16,
+        "path": "concepts/approvals/approval-manager-missing-check.md",
+        "title": "提交审批提示缺少 manager，或表单已有 manager 仍报错，怎样核对？",
+        "type": "support_wiki",
+        "originalBodyChars": 464
+      },
+      {
+        "rank": 17,
+        "path": "concepts/approvals/inflight-approval-owner-change-history.md",
+        "title": "为什么更换审批人后，进行中的审批仍指向旧人员？",
+        "type": "support_wiki",
+        "originalBodyChars": 2095
+      },
+      {
+        "rank": 18,
+        "path": "concepts/delivery/delivery-note-multiple-email-history.md",
+        "title": "Delivery Note 可以填写多个收件邮箱吗？",
+        "type": "support_wiki",
+        "originalBodyChars": 353
+      },
+      {
+        "rank": 19,
+        "path": "concepts/delivery/invoiced-same-sku-reshipment-history.md",
+        "title": "同 SKU 已开票后重发，为什么旧操作指引会互相冲突？",
+        "type": "support_wiki",
+        "originalBodyChars": 1694
+      },
+      {
+        "rank": 20,
+        "path": "concepts/delivery/sales-order-integration-contract-lark-1806.md",
+        "title": "CMC 空车架号与 Westerman 映射导致不能 Done，能合成同一契约吗？",
+        "type": "support_wiki",
+        "originalBodyChars": 405
+      }
+    ]
+  },
+  {
+    "id": "T18",
+    "candidates": [
+      {
+        "rank": 1,
+        "path": "objects/business-approval.md",
+        "title": "业务审批申请、执行与决定定义",
+        "type": "ontology",
+        "originalBodyChars": 2359
+      },
+      {
+        "rank": 2,
+        "path": "concepts/faq/approval-flow-config-change-checklist.md",
+        "title": "审批流配置调整:节点/审批人变更的操作规则 FAQ",
+        "type": "support_wiki",
+        "originalBodyChars": 724
+      },
+      {
+        "rank": 3,
+        "path": "processes/standalone-approval-request.md",
+        "title": "独立审批申请提交与决定",
+        "type": "ontology",
+        "originalBodyChars": 1016
+      },
+      {
+        "rank": 4,
+        "path": "processes/internal-stock-transfer.md",
+        "title": "内部库存调拨与跨仓交接",
+        "type": "ontology",
+        "originalBodyChars": 960
+      },
+      {
+        "rank": 5,
+        "path": "concepts/approvals/approval-policy-change-checklist.md",
+        "title": "调整审批节点或审批人时，要核对哪些生效边界？",
+        "type": "support_wiki",
+        "originalBodyChars": 2386
+      },
+      {
+        "rank": 6,
+        "path": "objects/warehouse-operation.md",
+        "title": "仓库作业、审批与外部 WMS 定义",
+        "type": "ontology",
+        "originalBodyChars": 2374
+      },
+      {
+        "rank": 7,
+        "path": "processes/budget-contract-payment-approval.md",
+        "title": "预算、合同／采购与付款审批衔接",
+        "type": "ontology",
+        "originalBodyChars": 1069
+      },
+      {
+        "rank": 8,
+        "path": "processes/embedded-business-record-approval.md",
+        "title": "业务单据嵌入式审批",
+        "type": "ontology",
+        "originalBodyChars": 1355
+      },
+      {
+        "rank": 9,
+        "path": "processes/other-outbound-execution.md",
+        "title": "其他出库申请、审批与执行",
+        "type": "ontology",
+        "originalBodyChars": 1029
+      },
+      {
+        "rank": 10,
+        "path": "concepts/faq/approval-stuck-and-submit-failure-disposition.md",
+        "title": "审批流卡住/提交失败处置:离职审批人、manager 缺失、状态映射异常",
+        "type": "support_wiki",
+        "originalBodyChars": 441
+      },
+      {
+        "rank": 11,
+        "path": "concepts/invoicing/document-followers-mail-history.md",
+        "title": "收到 CN 动态邮件是否说明被加入审批？",
+        "type": "support_wiki",
+        "originalBodyChars": 90
+      },
+      {
+        "rank": 12,
+        "path": "objects/sales-commercial-terms.md",
+        "title": "销售报价、商业条款与例外审批定义",
+        "type": "ontology",
+        "originalBodyChars": 2263
+      },
+      {
+        "rank": 13,
+        "path": "concepts/approvals/payroll-chatter-log-history.md",
+        "title": "Payroll 点了节点 approve 没有 chatter 记录的历史答疑",
+        "type": "support_wiki",
+        "originalBodyChars": 539
+      },
+      {
+        "rank": 14,
+        "path": "processes/warehouse-operation-approval.md",
+        "title": "仓库作业提交与审批",
+        "type": "ontology",
+        "originalBodyChars": 1516
+      },
+      {
+        "rank": 15,
+        "path": "concepts/approvals/approval-submission-and-progress-triage.md",
+        "title": "审批提交失败或流程不前进时，怎样分流排查？",
+        "type": "support_wiki",
+        "originalBodyChars": 2383
+      },
+      {
+        "rank": 16,
+        "path": "concepts/approvals/inflight-approval-owner-change-history.md",
+        "title": "为什么更换审批人后，进行中的审批仍指向旧人员？",
+        "type": "support_wiki",
+        "originalBodyChars": 2381
+      },
+      {
+        "rank": 17,
+        "path": "processes/sales-refund-authorization.md",
+        "title": "销售资金退款申请与授权",
+        "type": "ontology",
+        "originalBodyChars": 751
+      },
+      {
+        "rank": 18,
+        "path": "processes/sales-terms-exception-approval.md",
+        "title": "销售商业条款例外申请与审批",
+        "type": "ontology",
+        "originalBodyChars": 730
+      },
+      {
+        "rank": 19,
+        "path": "processes/user-account-onboarding-and-offboarding.md",
+        "title": "用户账号申请、开通、邀请与关闭流程",
+        "type": "ontology",
+        "originalBodyChars": 1126
+      },
+      {
+        "rank": 20,
+        "path": "concepts/approvals/approval-status-button-mapping-history.md",
+        "title": "UK 审批已通过但下一节点按钮缺失的 waiting 与 pending 映射案例",
+        "type": "support_wiki",
+        "originalBodyChars": 641
+      }
+    ]
+  },
+  {
+    "id": "T19",
+    "candidates": [
+      {
+        "rank": 1,
+        "path": "objects/business-party.md",
+        "title": "Ontology：业务主体、客户／供应商角色与地址",
+        "type": "ontology",
+        "originalBodyChars": 2379
+      },
+      {
+        "rank": 2,
+        "path": "concepts/sales/us-quotation-tax-bank-template-history.md",
+        "title": "US 手工报价的税码、银行信息与模板是否都已经确认？",
+        "type": "support_wiki",
+        "originalBodyChars": 540
+      },
+      {
+        "rank": 3,
+        "path": "concepts/accounting/accounting-config-checklist.md",
+        "title": "Accounting 配置项清单与检查项(聚合)",
+        "type": "support_wiki",
+        "originalBodyChars": 1199
+      },
+      {
+        "rank": 4,
+        "path": "concepts/sales/contact-overview-quantity-and-status.md",
+        "title": "怎样读懂 Contact 总览的数量与 Fulfillment Status？",
+        "type": "support_wiki",
+        "originalBodyChars": 1574
+      },
+      {
+        "rank": 5,
+        "path": "concepts/sales/contact-tag-change-verification.md",
+        "title": "Contact 标签或主数据字段变更前后要核对什么？",
+        "type": "support_wiki",
+        "originalBodyChars": 2029
+      },
+      {
+        "rank": 6,
+        "path": "objects/access-governance.md",
+        "title": "用户与权限治理定义",
+        "type": "ontology",
+        "originalBodyChars": 2334
+      },
+      {
+        "rank": 7,
+        "path": "concepts/accounting/journal-required-dimensions-and-country.md",
+        "title": "手工分录选科目后不能保存，怎样核对 Partner Country 与必填字段？",
+        "type": "support_wiki",
+        "originalBodyChars": 639
+      },
+      {
+        "rank": 8,
+        "path": "concepts/faq/contact-tag-and-master-data-change.md",
+        "title": "Contact 标签与主数据字段变更:维护规则 FAQ",
+        "type": "support_wiki",
+        "originalBodyChars": 557
+      },
+      {
+        "rank": 9,
+        "path": "concepts/payment/manual-journal-required-fields-partner-country.md",
+        "title": "手工分录必填字段校验与 Partner Country 缺失排查",
+        "type": "support_wiki",
+        "originalBodyChars": 377
+      },
+      {
+        "rank": 10,
+        "path": "objects/b2c-sales.md",
+        "title": "B2C 销售、客户地址与 Leasing 角色定义",
+        "type": "ontology",
+        "originalBodyChars": 2243
+      },
+      {
+        "rank": 11,
+        "path": "objects/sales-invoice.md",
+        "title": "销售发票与信用单定义",
+        "type": "ontology",
+        "originalBodyChars": 2264
+      },
+      {
+        "rank": 12,
+        "path": "rules/commercial-partner-attribution.md",
+        "title": "Commercial Partner 与交易／会计归集规则",
+        "type": "ontology",
+        "originalBodyChars": 2205
+      },
+      {
+        "rank": 13,
+        "path": "concepts/accounting/accounting-change-navigation.md",
+        "title": "财务配置、分录字段、资产和汇率问题从哪里查？",
+        "type": "support_wiki",
+        "originalBodyChars": 1669
+      },
+      {
+        "rank": 14,
+        "path": "concepts/accounting/journal-asset-field-release-history.md",
+        "title": "Fields Check 和凭证 Asset 字段分批发布的历史记录",
+        "type": "support_wiki",
+        "originalBodyChars": 758
+      },
+      {
+        "rank": 15,
+        "path": "concepts/faq/accounting-config-adjustments-checklist.md",
+        "title": "会计科目/凭证字段/报表配置调整 FAQ",
+        "type": "support_wiki",
+        "originalBodyChars": 237
+      },
+      {
+        "rank": 16,
+        "path": "concepts/faq/entry-field-edit-rules.md",
+        "title": "分录/资产字段修改规则:核销后编辑、资产原值调整、partner 显示位置",
+        "type": "support_wiki",
+        "originalBodyChars": 459
+      },
+      {
+        "rank": 17,
+        "path": "concepts/payment/unreconcile-matching-number-empty-lines-history.md",
+        "title": "反核销后仍有 Matching Number、点开却无分录：历史修复验证到了哪里？",
+        "type": "support_wiki",
+        "originalBodyChars": 646
+      },
+      {
+        "rank": 18,
+        "path": "concepts/sales/configuration-change-navigation.md",
+        "title": "配置、模板或主数据变更应怎样找对应责任？",
+        "type": "support_wiki",
+        "originalBodyChars": 1264
+      },
+      {
+        "rank": 19,
+        "path": "concepts/sales/contact-overview-create-sales-order.md",
+        "title": "怎样从 Contact 预订单／销售欠单总览创建销售报价？",
+        "type": "support_wiki",
+        "originalBodyChars": 1490
+      },
+      {
+        "rank": 20,
+        "path": "objects/sales-receipt-reconciliation.md",
+        "title": "销售收款、核销与汇兑差额定义",
+        "type": "ontology",
+        "originalBodyChars": 2287
+      }
+    ]
+  },
+  {
+    "id": "T20",
+    "candidates": [
+      {
+        "rank": 1,
+        "path": "concepts/portal/service-centre-claim-display-history.md",
+        "title": "Service Centre 提交与购买凭证预览，历史结果有什么不同？",
+        "type": "support_wiki",
+        "originalBodyChars": 2361
+      },
+      {
+        "rank": 2,
+        "path": "objects/portal-legal-terms.md",
+        "title": "Portal 法律条款、版本与行为证据定义",
+        "type": "ontology",
+        "originalBodyChars": 2350
+      },
+      {
+        "rank": 3,
+        "path": "objects/business-party.md",
+        "title": "Ontology：业务主体、客户／供应商角色与地址",
+        "type": "ontology",
+        "originalBodyChars": 2368
+      },
+      {
+        "rank": 4,
+        "path": "concepts/portal/purchase-access-types-history.md",
+        "title": "Portal 限制买整车，是否已经能禁止所有采购并隐藏发票？",
+        "type": "support_wiki",
+        "originalBodyChars": 475
+      },
+      {
+        "rank": 5,
+        "path": "concepts/portal/service-center-internal-message-exposure-history.md",
+        "title": "Service Center 内部通信在 Dealer 页面可见的历史缺陷",
+        "type": "support_wiki",
+        "originalBodyChars": 1442
+      },
+      {
+        "rank": 6,
+        "path": "objects/b2b-invoice-integration.md",
+        "title": "B2B 发票不同平台对接定义",
+        "type": "ontology",
+        "originalBodyChars": 2373
+      },
+      {
+        "rank": 7,
+        "path": "objects/sales-order-amendment.md",
+        "title": "销售订单修改定义",
+        "type": "ontology",
+        "originalBodyChars": 2248
+      },
+      {
+        "rank": 8,
+        "path": "processes/portal-legal-terms-publication-and-acceptance.md",
+        "title": "Portal 法律条款版本发布、通知与接受留证",
+        "type": "ontology",
+        "originalBodyChars": 1746
+      },
+      {
+        "rank": 9,
+        "path": "concepts/faq/contact-backorder-preorder-overview.md",
+        "title": "联系人 Back Order / Pre Order 总览：数量、等待天数与创建销售订单",
+        "type": "support_wiki",
+        "originalBodyChars": 1944
+      },
+      {
+        "rank": 10,
+        "path": "concepts/sales/contact-overview-create-sales-order.md",
+        "title": "怎样从 Contact 预订单／销售欠单总览创建销售报价？",
+        "type": "support_wiki",
+        "originalBodyChars": 2247
+      },
+      {
+        "rank": 11,
+        "path": "concepts/sales/preorder-backorder-link-quantity-history.md",
+        "title": "预订或缺货需求转单后，关联和 remaining quantity 为什么不能只看 Done？",
+        "type": "support_wiki",
+        "originalBodyChars": 2418
+      },
+      {
+        "rank": 12,
+        "path": "objects/portal-support-content.md",
+        "title": "Portal Support 内容定义",
+        "type": "ontology",
+        "originalBodyChars": 2356
+      },
+      {
+        "rank": 13,
+        "path": "objects/preorder-backorder.md",
+        "title": "Ontology：预订单与销售欠单",
+        "type": "ontology",
+        "originalBodyChars": 2224
+      },
+      {
+        "rank": 14,
+        "path": "concepts/portal/b2b-portal-access-and-dealer-ordering.md",
+        "title": "B2B Portal 访问与经销商下单规则",
+        "type": "support_wiki",
+        "originalBodyChars": 1151
+      },
+      {
+        "rank": 15,
+        "path": "objects/sales-order.md",
+        "title": "销售订单与执行控制定义",
+        "type": "ontology",
+        "originalBodyChars": 2255
+      },
+      {
+        "rank": 16,
+        "path": "processes/b2c-leasing-sales.md",
+        "title": "B2C Leasing 订单角色替换与开票",
+        "type": "ontology",
+        "originalBodyChars": 1936
+      },
+      {
+        "rank": 17,
+        "path": "concepts/portal/backorder-template-api-contract-500.md",
+        "title": "Portal Backorder 500 为什么不能直接按权限问题处理？",
+        "type": "support_wiki",
+        "originalBodyChars": 855
+      },
+      {
+        "rank": 18,
+        "path": "objects/portal-public-inquiry.md",
+        "title": "Portal Dealer 申请与一般咨询定义",
+        "type": "ontology",
+        "originalBodyChars": 2362
+      },
+      {
+        "rank": 19,
+        "path": "objects/sales-invoice.md",
+        "title": "销售发票与信用单定义",
+        "type": "ontology",
+        "originalBodyChars": 2383
+      },
+      {
+        "rank": 20,
+        "path": "processes/sales-order-confirmation.md",
+        "title": "报价确认形成销售承诺",
+        "type": "ontology",
+        "originalBodyChars": 2274
+      }
+    ]
+  },
+  {
+    "id": "T21",
+    "candidates": [
+      {
+        "rank": 1,
+        "path": "concepts/sales/pricelist-batch-update-historical-case.md",
+        "title": "批量更新 EU 与 UK 价格资料时，如何核对重复规则和已归档 SKU？",
+        "type": "support_wiki",
+        "originalBodyChars": 980
+      },
+      {
+        "rank": 2,
+        "path": "concepts/invoicing/uk-automatic-invoice-mail-history.md",
+        "title": "UK 发票邮件什么时候从手动变为自动？",
+        "type": "support_wiki",
+        "originalBodyChars": 1304
+      },
+      {
+        "rank": 3,
+        "path": "concepts/sales/pricelist-and-product-maintenance-navigation.md",
+        "title": "价格表、促销与产品资料问题从哪里查？",
+        "type": "support_wiki",
+        "originalBodyChars": 1350
+      },
+      {
+        "rank": 4,
+        "path": "concepts/inventory/us-sku-basic-attributes-check.md",
+        "title": "US Odoo 维护 SKU 时，先核对哪四项基础属性？",
+        "type": "support_wiki",
+        "originalBodyChars": 652
+      },
+      {
+        "rank": 5,
+        "path": "objects/sales-pricelist.md",
+        "title": "销售价格表业务定义",
+        "type": "ontology",
+        "originalBodyChars": 2380
+      },
+      {
+        "rank": 6,
+        "path": "processes/purchase-tax-determination-and-billing.md",
+        "title": "采购税确定与供应商账单",
+        "type": "ontology",
+        "originalBodyChars": 1907
+      },
+      {
+        "rank": 7,
+        "path": "processes/sales-invoicing.md",
+        "title": "销售开票与发送",
+        "type": "ontology",
+        "originalBodyChars": 2325
+      },
+      {
+        "rank": 8,
+        "path": "concepts/invoicing/price-and-invoicing-mismatch-triage.md",
+        "title": "FAQ:价格与开票差异排查:价表/折扣/单价/发票改动",
+        "type": "support_wiki",
+        "originalBodyChars": 1733
+      },
+      {
+        "rank": 9,
+        "path": "concepts/sales/promotion-price-approval-history.md",
+        "title": "指定 SKU 的固定促销价申请与配置案例",
+        "type": "support_wiki",
+        "originalBodyChars": 869
+      },
+      {
+        "rank": 10,
+        "path": "objects/business-party.md",
+        "title": "Ontology：业务主体、客户／供应商角色与地址",
+        "type": "ontology",
+        "originalBodyChars": 2361
+      },
+      {
+        "rank": 11,
+        "path": "objects/preorder-backorder.md",
+        "title": "Ontology：预订单与销售欠单",
+        "type": "ontology",
+        "originalBodyChars": 2237
+      },
+      {
+        "rank": 12,
+        "path": "objects/product-catalog.md",
+        "title": "产品主数据、交易变体与渠道投放定义",
+        "type": "ontology",
+        "originalBodyChars": 2361
+      },
+      {
+        "rank": 13,
+        "path": "objects/sales-order.md",
+        "title": "销售订单与执行控制定义",
+        "type": "ontology",
+        "originalBodyChars": 2224
+      },
+      {
+        "rank": 14,
+        "path": "processes/b2b-invoice-platform-delivery.md",
+        "title": "B2B 发票按平台生成与交付",
+        "type": "ontology",
+        "originalBodyChars": 2370
+      },
+      {
+        "rank": 15,
+        "path": "processes/customer-pricelist-change.md",
+        "title": "客户价格表变更与在途交易重价",
+        "type": "ontology",
+        "originalBodyChars": 2169
+      },
+      {
+        "rank": 16,
+        "path": "processes/sales-order-confirmation.md",
+        "title": "报价确认形成销售承诺",
+        "type": "ontology",
+        "originalBodyChars": 2274
+      },
+      {
+        "rank": 17,
+        "path": "processes/sales-pricelist-assignment-and-repricing.md",
+        "title": "销售价格表分配、维护与在途重价",
+        "type": "ontology",
+        "originalBodyChars": 1120
+      },
+      {
+        "rank": 18,
+        "path": "concepts/integration/shopify-order-sku-mismatch-mapping-and-lifecycle.md",
+        "title": "Shopify 与 Odoo 的 SKU 不同，怎样核对 listing 映射？",
+        "type": "support_wiki",
+        "originalBodyChars": 1319
+      },
+      {
+        "rank": 19,
+        "path": "objects/sales-invoice.md",
+        "title": "销售发票与信用单定义",
+        "type": "ontology",
+        "originalBodyChars": 2203
+      },
+      {
+        "rank": 20,
+        "path": "concepts/approvals/approval-submission-and-progress-triage.md",
+        "title": "审批提交失败或流程不前进时，怎样分流排查？",
+        "type": "support_wiki",
+        "originalBodyChars": 2334
+      }
+    ]
+  },
+  {
+    "id": "T22",
+    "candidates": [
+      {
+        "rank": 1,
+        "path": "objects/business-approval.md",
+        "title": "业务审批申请、执行与决定定义",
+        "type": "ontology",
+        "originalBodyChars": 2352
+      },
+      {
+        "rank": 2,
+        "path": "processes/budget-contract-payment-approval.md",
+        "title": "预算、合同／采购与付款审批衔接",
+        "type": "ontology",
+        "originalBodyChars": 1069
+      },
+      {
+        "rank": 3,
+        "path": "objects/purchase-settlement.md",
+        "title": "采购入库、供应商账单与付款定义",
+        "type": "ontology",
+        "originalBodyChars": 2373
+      },
+      {
+        "rank": 4,
+        "path": "processes/purchase-prepayment-and-deduction.md",
+        "title": "采购预付款建立、支付与尾款抵扣",
+        "type": "ontology",
+        "originalBodyChars": 1154
+      },
+      {
+        "rank": 5,
+        "path": "concepts/purchase/prepayment-deduction-history.md",
+        "title": "采购预付款、收货与自动 Bill 的金额为什么可能对不上？",
+        "type": "support_wiki",
+        "originalBodyChars": 628
+      },
+      {
+        "rank": 6,
+        "path": "objects/business-party.md",
+        "title": "Ontology：业务主体、客户／供应商角色与地址",
+        "type": "ontology",
+        "originalBodyChars": 2376
+      },
+      {
+        "rank": 7,
+        "path": "objects/sales-invoice.md",
+        "title": "销售发票与信用单定义",
+        "type": "ontology",
+        "originalBodyChars": 2356
+      },
+      {
+        "rank": 8,
+        "path": "objects/cash-flow-allocation.md",
+        "title": "现金流对账与分配定义",
+        "type": "ontology",
+        "originalBodyChars": 2284
+      },
+      {
+        "rank": 9,
+        "path": "objects/warehouse-operation.md",
+        "title": "仓库作业、审批与外部 WMS 定义",
+        "type": "ontology",
+        "originalBodyChars": 2369
+      },
+      {
+        "rank": 10,
+        "path": "processes/employee-expense-submission-approval-and-reimbursement.md",
+        "title": "员工报销提交、审批、过账与付款流程",
+        "type": "ontology",
+        "originalBodyChars": 1147
+      },
+      {
+        "rank": 11,
+        "path": "objects/deferred-expense.md",
+        "title": "递延费用定义",
+        "type": "ontology",
+        "originalBodyChars": 2371
+      },
+      {
+        "rank": 12,
+        "path": "objects/journal-item-control.md",
+        "title": "会计明细控制定义",
+        "type": "ontology",
+        "originalBodyChars": 2377
+      },
+      {
+        "rank": 13,
+        "path": "objects/sales-refund.md",
+        "title": "销售补偿、退款授权与资金执行定义",
+        "type": "ontology",
+        "originalBodyChars": 2296
+      },
+      {
+        "rank": 14,
+        "path": "objects/transaction-tax.md",
+        "title": "交易税与税务申报定义",
+        "type": "ontology",
+        "originalBodyChars": 2381
+      },
+      {
+        "rank": 15,
+        "path": "processes/sales-credit-adjustment.md",
+        "title": "销售财务调整与信用单处理",
+        "type": "ontology",
+        "originalBodyChars": 1967
+      },
+      {
+        "rank": 16,
+        "path": "concepts/approvals/approval-submission-and-progress-triage.md",
+        "title": "审批提交失败或流程不前进时，怎样分流排查？",
+        "type": "support_wiki",
+        "originalBodyChars": 2188
+      },
+      {
+        "rank": 17,
+        "path": "concepts/invoicing/rounding-promotion-after-invoice-history.md",
+        "title": "SO 与发票金额不同，是舍入还是开票后加了促销？",
+        "type": "support_wiki",
+        "originalBodyChars": 649
+      },
+      {
+        "rank": 18,
+        "path": "objects/marketing-sales.md",
+        "title": "Marketing 销售、出库与开票定义",
+        "type": "ontology",
+        "originalBodyChars": 2381
+      },
+      {
+        "rank": 19,
+        "path": "objects/service-center-case.md",
+        "title": "售后服务工单与处理定义",
+        "type": "ontology",
+        "originalBodyChars": 2367
+      },
+      {
+        "rank": 20,
+        "path": "rules/commercial-partner-attribution.md",
+        "title": "Commercial Partner 与交易／会计归集规则",
+        "type": "ontology",
+        "originalBodyChars": 2306
+      }
+    ]
+  },
+  {
+    "id": "T23",
+    "candidates": [
+      {
+        "rank": 1,
+        "path": "objects/business-party.md",
+        "title": "Ontology：业务主体、客户／供应商角色与地址",
+        "type": "ontology",
+        "originalBodyChars": 2377
+      },
+      {
+        "rank": 2,
+        "path": "concepts/invoicing/invoice-email-follows-sales-order-invoice-address.md",
+        "title": "客户没收到发票，如何核对订单发票地址与邮箱？",
+        "type": "support_wiki",
+        "originalBodyChars": 1700
+      },
+      {
+        "rank": 3,
+        "path": "objects/b2c-sales.md",
+        "title": "B2C 销售、客户地址与 Leasing 角色定义",
+        "type": "ontology",
+        "originalBodyChars": 2214
+      },
+      {
+        "rank": 4,
+        "path": "concepts/sales/partner-address-role-history.md",
+        "title": "默认地址或母子联系人改变后，怎样避免误改主体？",
+        "type": "support_wiki",
+        "originalBodyChars": 2281
+      },
+      {
+        "rank": 5,
+        "path": "concepts/faq/contact-backorder-preorder-overview.md",
+        "title": "联系人 Back Order / Pre Order 总览：数量、等待天数与创建销售订单",
+        "type": "support_wiki",
+        "originalBodyChars": 1666
+      },
+      {
+        "rank": 6,
+        "path": "concepts/after_sales/service-ticket-delivery-address-history.md",
+        "title": "售后配送地址回退到母公司其他联系人地址的处理案例",
+        "type": "support_wiki",
+        "originalBodyChars": 901
+      },
+      {
+        "rank": 7,
+        "path": "objects/b2b-portal-sales.md",
+        "title": "B2B 门户销售渠道、客户角色与能力定义",
+        "type": "ontology",
+        "originalBodyChars": 2167
+      },
+      {
+        "rank": 8,
+        "path": "objects/sales-invoice.md",
+        "title": "销售发票与信用单定义",
+        "type": "ontology",
+        "originalBodyChars": 2332
+      },
+      {
+        "rank": 9,
+        "path": "rules/commercial-partner-attribution.md",
+        "title": "Commercial Partner 与交易／会计归集规则",
+        "type": "ontology",
+        "originalBodyChars": 2322
+      },
+      {
+        "rank": 10,
+        "path": "objects/transaction-tax.md",
+        "title": "交易税与税务申报定义",
+        "type": "ontology",
+        "originalBodyChars": 2318
+      },
+      {
+        "rank": 11,
+        "path": "processes/party-address-maintenance.md",
+        "title": "地址维护与交易单据选用",
+        "type": "ontology",
+        "originalBodyChars": 2193
+      },
+      {
+        "rank": 12,
+        "path": "concepts/invoicing/credit-note-required-type-history.md",
+        "title": "从 Invoice 创建 CN 缺少 Credit Note 必填选择的历史修复",
+        "type": "support_wiki",
+        "originalBodyChars": 552
+      },
+      {
+        "rank": 13,
+        "path": "concepts/accounting/journal-required-dimensions-and-country.md",
+        "title": "手工分录选科目后不能保存，怎样核对 Partner Country 与必填字段？",
+        "type": "support_wiki",
+        "originalBodyChars": 1086
+      },
+      {
+        "rank": 14,
+        "path": "concepts/sales/contact-tag-change-verification.md",
+        "title": "Contact 标签或主数据字段变更前后要核对什么？",
+        "type": "support_wiki",
+        "originalBodyChars": 2353
+      },
+      {
+        "rank": 15,
+        "path": "objects/b2b-invoice-integration.md",
+        "title": "B2B 发票不同平台对接定义",
+        "type": "ontology",
+        "originalBodyChars": 2269
+      },
+      {
+        "rank": 16,
+        "path": "objects/customer-credit.md",
+        "title": "客户授信、交易限制与订单信用判断定义",
+        "type": "ontology",
+        "originalBodyChars": 2341
+      },
+      {
+        "rank": 17,
+        "path": "processes/b2b-invoice-platform-delivery.md",
+        "title": "B2B 发票按平台生成与交付",
+        "type": "ontology",
+        "originalBodyChars": 2370
+      },
+      {
+        "rank": 18,
+        "path": "processes/b2c-sales-order.md",
+        "title": "Shopify B2C 订单导入与销售执行",
+        "type": "ontology",
+        "originalBodyChars": 1738
+      },
+      {
+        "rank": 19,
+        "path": "concepts/invoicing/bill-vendor-versus-journal-partner.md",
+        "title": "Bill 上显示 Vendor，是否意味着会计明细没有 Partner？",
+        "type": "support_wiki",
+        "originalBodyChars": 592
+      },
+      {
+        "rank": 20,
+        "path": "concepts/portal/portal-account-parent-company-invoices.md",
+        "title": "Portal 看不到公司发票，账号绑定调整有哪些历史证据？",
+        "type": "support_wiki",
+        "originalBodyChars": 1590
+      }
+    ]
+  },
+  {
+    "id": "T24",
+    "candidates": [
+      {
+        "rank": 1,
+        "path": "objects/business-approval.md",
+        "title": "业务审批申请、执行与决定定义",
+        "type": "ontology",
+        "originalBodyChars": 2345
+      },
+      {
+        "rank": 2,
+        "path": "processes/budget-contract-payment-approval.md",
+        "title": "预算、合同／采购与付款审批衔接",
+        "type": "ontology",
+        "originalBodyChars": 1069
+      },
+      {
+        "rank": 3,
+        "path": "processes/warehouse-operation-approval.md",
+        "title": "仓库作业提交与审批",
+        "type": "ontology",
+        "originalBodyChars": 1516
+      },
+      {
+        "rank": 4,
+        "path": "processes/employee-expense-submission-approval-and-reimbursement.md",
+        "title": "员工报销提交、审批、过账与付款流程",
+        "type": "ontology",
+        "originalBodyChars": 1147
+      },
+      {
+        "rank": 5,
+        "path": "objects/warehouse-operation.md",
+        "title": "仓库作业、审批与外部 WMS 定义",
+        "type": "ontology",
+        "originalBodyChars": 2295
+      },
+      {
+        "rank": 6,
+        "path": "objects/purchase-settlement.md",
+        "title": "采购入库、供应商账单与付款定义",
+        "type": "ontology",
+        "originalBodyChars": 2255
+      },
+      {
+        "rank": 7,
+        "path": "processes/standalone-approval-request.md",
+        "title": "独立审批申请提交与决定",
+        "type": "ontology",
+        "originalBodyChars": 1016
+      },
+      {
+        "rank": 8,
+        "path": "objects/sales-invoice.md",
+        "title": "销售发票与信用单定义",
+        "type": "ontology",
+        "originalBodyChars": 2353
+      },
+      {
+        "rank": 9,
+        "path": "processes/embedded-business-record-approval.md",
+        "title": "业务单据嵌入式审批",
+        "type": "ontology",
+        "originalBodyChars": 1355
+      },
+      {
+        "rank": 10,
+        "path": "concepts/approvals/approval-submission-and-progress-triage.md",
+        "title": "审批提交失败或流程不前进时，怎样分流排查？",
+        "type": "support_wiki",
+        "originalBodyChars": 1929
+      },
+      {
+        "rank": 11,
+        "path": "concepts/approvals/change-request-scheduling-history.md",
+        "title": "需求审批通过，是否意味着已经排期或上线？",
+        "type": "support_wiki",
+        "originalBodyChars": 942
+      },
+      {
+        "rank": 12,
+        "path": "concepts/delivery/wms-send-failure-and-unknown-result.md",
+        "title": "出库单 New、Sending 或 Error 时怎样排查发送结果？",
+        "type": "support_wiki",
+        "originalBodyChars": 2190
+      },
+      {
+        "rank": 13,
+        "path": "concepts/faq/approval-stuck-and-submit-failure-disposition.md",
+        "title": "审批流卡住/提交失败处置:离职审批人、manager 缺失、状态映射异常",
+        "type": "support_wiki",
+        "originalBodyChars": 441
+      },
+      {
+        "rank": 14,
+        "path": "objects/business-party.md",
+        "title": "Ontology：业务主体、客户／供应商角色与地址",
+        "type": "ontology",
+        "originalBodyChars": 2368
+      },
+      {
+        "rank": 15,
+        "path": "objects/marketing-sales.md",
+        "title": "Marketing 销售、出库与开票定义",
+        "type": "ontology",
+        "originalBodyChars": 2377
+      },
+      {
+        "rank": 16,
+        "path": "objects/warehouse-inventory-control.md",
+        "title": "仓库库存控制与转换定义",
+        "type": "ontology",
+        "originalBodyChars": 2307
+      },
+      {
+        "rank": 17,
+        "path": "processes/journal-item-dimension-amendment.md",
+        "title": "会计明细产品、往来方与产品类别修改流程",
+        "type": "ontology",
+        "originalBodyChars": 841
+      },
+      {
+        "rank": 18,
+        "path": "concepts/approvals/approval-manager-missing-check.md",
+        "title": "提交审批提示缺少 manager，或表单已有 manager 仍报错，怎样核对？",
+        "type": "support_wiki",
+        "originalBodyChars": 800
+      },
+      {
+        "rank": 19,
+        "path": "concepts/approvals/approval-policy-change-checklist.md",
+        "title": "调整审批节点或审批人时，要核对哪些生效边界？",
+        "type": "support_wiki",
+        "originalBodyChars": 2415
+      },
+      {
+        "rank": 20,
+        "path": "concepts/delivery/approval-validate-and-backorder-history.md",
+        "title": "Demand 与 Quantity 不同，怎样区分审批、Validate 和余量处理？",
+        "type": "support_wiki",
+        "originalBodyChars": 1666
+      }
+    ]
+  }
+]

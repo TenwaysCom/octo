@@ -2,6 +2,8 @@
 
 - [Lark Ticket AI：Hermes Agent AI 页签需求确认](2026-10-21-lark-hermes-answer-tab.md) — done（v6）；Sources Server 实时 / 历史事件及 FE 卡片已接通并部署，定向回归与构建通过；用户确认正文 Inline citation 暂不处理，真实模型 / 完整流程验收未恢复。
 
+- [Wiki RAG：Vendor Bill Confirm 漏检诊断与修复](2026-10-21-wiki-rag-vendor-bill-diagnosis.md) — done（v16受限兜底采用）；保留v15字段召回／知识表达，新增0.7空通道下Support Wiki单篇Top1≥0.3／领先原Top2≥0.2／完整正文原文／历史参考兜底。238项单元／mock及build通过；未部署，无新增真实模型／答案，新32题不继续，G关闭。[阈值采用记录](wiki-rag-threshold-adoption/README.md)、[召回采用记录](wiki-rag-adoption/README.md)。
+
 - [TEN-144：Lark Shadow Eval / Badcase 标注](2026-10-21-lark-badcase-design.md) — done（v4）；测试部署/迁移与两端业务验收完成，用户确认飞书“测试可用”；评测区和共用表单已精简并更新测试站，49 个 FE 测试入口、6 组 mock 浏览器及 10 组真实部署回归通过，QA 数据已清理。
 
 - [Wiki 问答模型 HTTP 429 排障](2026-10-15-wiki-qa-provider-429.md) — in_progress；确认通用 API 返回1113，已修正提示与安全日志，92项测试/类型检查通过；最新真实模型+合成资料完整链路成功，真实Wiki验证待授权，未部署。

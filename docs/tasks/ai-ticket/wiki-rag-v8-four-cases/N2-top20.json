@@ -1,0 +1,86 @@
+{
+  "mode": "rerank",
+  "results": [
+    {
+      "index": 0,
+      "relevance_score": 0.9267265200614929
+    },
+    {
+      "index": 4,
+      "relevance_score": 0.04573038965463638
+    },
+    {
+      "index": 6,
+      "relevance_score": 0.016105344519019127
+    },
+    {
+      "index": 1,
+      "relevance_score": 0.008166327141225338
+    },
+    {
+      "index": 13,
+      "relevance_score": 0.008131573908030987
+    },
+    {
+      "index": 3,
+      "relevance_score": 0.004962115548551083
+    },
+    {
+      "index": 7,
+      "relevance_score": 0.00434630922973156
+    },
+    {
+      "index": 14,
+      "relevance_score": 0.003942182753235102
+    },
+    {
+      "index": 5,
+      "relevance_score": 0.003928547725081444
+    },
+    {
+      "index": 12,
+      "relevance_score": 0.003919750452041626
+    },
+    {
+      "index": 15,
+      "relevance_score": 0.0025744824670255184
+    },
+    {
+      "index": 18,
+      "relevance_score": 0.002538007916882634
+    },
+    {
+      "index": 9,
+      "relevance_score": 0.0016034647123888135
+    },
+    {
+      "index": 19,
+      "relevance_score": 0.001372363418340683
+    },
+    {
+      "index": 2,
+      "relevance_score": 0.001330312923528254
+    },
+    {
+      "index": 11,
+      "relevance_score": 0.0006502015166915953
+    },
+    {
+      "index": 17,
+      "relevance_score": 0.0005719463224522769
+    },
+    {
+      "index": 8,
+      "relevance_score": 0.0004278420237824321
+    },
+    {
+      "index": 16,
+      "relevance_score": 0.00039462436689063907
+    },
+    {
+      "index": 10,
+      "relevance_score": 0.0003744138521142304
+    }
+  ],
+  "model": "BAAI/bge-reranker-v2-m3"
+}

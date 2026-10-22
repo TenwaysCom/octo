@@ -16,6 +16,11 @@ describe("wiki evidence excerpts", () => {
     expect(relevantWikiContent(`## 报表\nreport 修复。\n## 适用条件\n${"前提".repeat(100)}`, ["report"], 60)).toBe("");
   });
 
+  it("does not retry an over-budget body match through metadata discovery", () => {
+    const text = `## 报表\nreport 已有处理记录。\n## 适用条件\n${"必要限制".repeat(100)}`;
+    expect(relevantWikiContent(text, ["report"], 120, { matched: true, summary: "report 历史摘要" })).toBe("");
+  });
+
   it("keeps exact original messages, local replies, late reversals and source ordinals", () => {
     const messages = [
       message(1, "UK Odoo 17，升级后发生。"), message(2, "PL report 缺少科目。"),

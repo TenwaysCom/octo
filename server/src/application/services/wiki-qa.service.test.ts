@@ -2,6 +2,10 @@ import { createWikiQaService } from "./wiki-qa.service.js";
 import { WikiQaError, type WikiCandidate } from "../../domain/wiki-qa.js";
 import { createWikiQaRerankClient } from "../../adapters/ai/wiki-qa-rerank-client.js";
 import { createZcodeChatClient } from "../../adapters/zcode/zcode-chat-client.js";
+import { createWikiKnowledgeReader } from "../../adapters/filesystem/wiki-knowledge-reader.js";
+import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 
 const candidate = (id = "wiki-1"): WikiCandidate => ({
   id, path: `concepts/faq/${id}.md`, title: "报表科目显示", status: "draft", environments: ["UK Odoo 17"],
@@ -532,4 +536,161 @@ it("does not apply dedicated score configuration to general reranking", async ()
     const f = fixture();
     expect((await f.service.answer(input)).evidence).toHaveLength(1);
   } finally { vi.unstubAllEnvs(); }
+});
+
+function lowScoreFixture(scores = [0.482614815, 0.028346812]) {
+  const pages: WikiCandidate[] = scores.map((_, index) => ({ ...candidate(`fallback-${index}`), knowledgeType: "support_wiki" }));
+  const f = fixture(pages);
+  f.rerankClient.rerank.mockResolvedValue({ mode: "rerank", model: "bge", results: scores.map((relevance_score, index) => ({ index, relevance_score })) });
+  const selectEvidence = vi.fn(({ candidate: page }: { candidate: WikiCandidate }) => page.sourceEvidence);
+  const service = createWikiQaService({ ...f, reader: { ...f.reader, selectEvidence } });
+  return { ...f, pages, selectEvidence, service };
+}
+
+describe("restricted low-score Support Wiki fallback", () => {
+  it.each([
+    { scores: [0.482614815, 0.028346812], kept: true },
+    { scores: [0.3, 0.1], kept: true },
+    { scores: [0.299999, 0.001], kept: false },
+    { scores: [0.499999, 0.3], kept: false },
+    { scores: [0.69, 0.5], kept: false },
+    { scores: [0.49, 0.49], kept: false },
+    { scores: [0.49], kept: false },
+    { scores: [], kept: false },
+  ])("applies the floor, inclusive gap and competitor requirement: %j", async ({ scores, kept }) => {
+    const f = lowScoreFixture(scores);
+    const result = await f.service.retrieve(input);
+    expect(result.evidence).toHaveLength(kept ? 1 : 0);
+    if (kept) {
+      expect(result.evidence[0]).toMatchObject({ path: f.pages[0].path, sourceId: 1, applicability: "historical_reference" });
+      expect(result.evidence[0].sourceEvidence).toEqual(f.pages[0].sourceEvidence);
+      expect(result.evidence[0].limitations).toContain("低分Top1兜底，仅供历史参考，不代表当前问题已有确定处理方案");
+    }
+    expect(f.rerankClient.rerank).toHaveBeenCalledTimes(Number(Boolean(scores.length)));
+    expect(f.client.createJsonCompletion).toHaveBeenCalledOnce();
+  });
+
+  it("keeps only the original top1 even when more low results meet the floor", async () => {
+    const f = lowScoreFixture([0.65, 0.4, 0.31]);
+    expect((await f.service.retrieve(input)).evidence.map(page => page.path)).toEqual([f.pages[0].path]);
+    expect(f.selectEvidence).toHaveBeenCalledOnce();
+  });
+
+  it("finds score top1 without mutating the response or changing candidate indices", async () => {
+    const f = lowScoreFixture([0.49, 0.01]);
+    const results = [{ index: 1, relevance_score: 0.01 }, { index: 0, relevance_score: 0.49 }];
+    f.rerankClient.rerank.mockResolvedValue({ mode: "rerank", model: "bge", results });
+    expect((await f.service.retrieve(input)).evidence[0].path).toBe(f.pages[0].path);
+    expect(results[0].index).toBe(1);
+  });
+
+  it("does not skip an Ontology top1 to promote a Support Wiki", async () => {
+    const f = lowScoreFixture([0.65, 0.35]);
+    f.pages[0].knowledgeType = "ontology";
+    expect((await f.service.retrieve(input)).evidence).toEqual([]);
+    expect(f.selectEvidence).not.toHaveBeenCalled();
+  });
+
+  it("uses an Ontology runner-up in the original score gap", async () => {
+    const f = lowScoreFixture([0.49, 0.35, 0.01]);
+    f.pages[1].knowledgeType = "ontology";
+    expect((await f.service.retrieve(input)).evidence).toEqual([]);
+  });
+
+  it.each(["missing", "blank", "incomplete", "over-budget", "blank-body", "no-selector"])(
+    "refuses low-score evidence that is %s", async (condition) => {
+      const f = lowScoreFixture();
+      const source = f.pages[0].sourceEvidence[0];
+      if (condition === "missing") f.selectEvidence.mockReturnValue([]);
+      if (condition === "blank") source.content = " ";
+      if (condition === "incomplete") source.complete = false;
+      if (condition === "over-budget") source.content = "PL 报表" + "文".repeat(2400);
+      if (condition === "blank-body") f.pages[0].content = " ";
+      const service = condition === "no-selector" ? createWikiQaService({ ...f, reader: f.reader }) : f.service;
+      expect((await service.retrieve(input)).evidence).toEqual([]);
+      expect(f.rerankClient.rerank).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("retains the normal channel at exactly 0.7 and never adds lower candidates", async () => {
+    const f = lowScoreFixture([0.7, 0.3, 0.01]);
+    f.pages[0].sourceEvidence[0].complete = false;
+    const result = await f.service.retrieve(input);
+    expect(result.evidence.map(page => page.path)).toEqual([f.pages[0].path]);
+    expect(result.evidence[0].limitations.join(" ")).not.toContain("低分Top1兜底");
+  });
+
+  it("does not retry low candidates after a high result fails topic evidence checks", async () => {
+    const f = lowScoreFixture([0.8, 0.49, 0.01]);
+    f.client.createJsonCompletion.mockReset().mockResolvedValue({ model: "test", content: JSON.stringify({ ...extracted, question: "NotFoundError: insertBefore" }) });
+    f.pages[1].content = "NotFoundError: insertBefore";
+    expect((await f.service.retrieve(input)).evidence).toEqual([]);
+    expect(f.selectEvidence).toHaveBeenCalledOnce();
+    expect(f.selectEvidence.mock.calls[0][0].candidate.id).toBe(f.pages[0].id);
+  });
+
+  it("does not mix fallback state between concurrent retrievals", async () => {
+    const f = lowScoreFixture();
+    f.pages[0].sourceEvidence[0].complete = false;
+    f.client.createJsonCompletion.mockReset().mockResolvedValue({ model: "test", content: JSON.stringify(extracted) });
+    f.rerankClient.rerank.mockImplementation(async ({ actionRunId }) => ({ mode: "rerank", model: "bge", results: [
+      { index: 0, relevance_score: actionRunId === "low" ? 0.49 : 0.9 }, { index: 1, relevance_score: 0.01 },
+    ] }));
+    const [low, high] = await Promise.all([f.service.retrieve({ ...input, actionRunId: "low" }), f.service.retrieve({ ...input, actionRunId: "high" })]);
+    expect(low.evidence).toEqual([]);
+    expect(high.evidence).toHaveLength(1);
+  });
+
+  it("honors a custom threshold without activating the 0.7 fallback", async () => {
+    vi.stubEnv("WIKI_QA_RERANK_MIN_SCORE", "0.8");
+    try {
+      expect((await lowScoreFixture().service.retrieve(input)).evidence).toEqual([]);
+    } finally { vi.unstubAllEnvs(); }
+  });
+
+  it.each([
+    [{ index: 0, relevance_score: 0.49 }, { index: 0, relevance_score: 0.01 }],
+    [{ index: 0, relevance_score: 0.49 }, { index: 2, relevance_score: 0.01 }],
+    [{ index: 0, relevance_score: 0.49 }, { index: 1, relevance_score: NaN }],
+    [{ index: 0, relevance_score: 0.49 }, { index: 1, relevance_score: -0.1 }],
+  ])("does not rescue malformed score results: %j", async (...results) => {
+    const f = lowScoreFixture();
+    f.rerankClient.rerank.mockResolvedValue({ mode: "rerank", model: "bge", results });
+    await expect(f.service.retrieve(input)).rejects.toMatchObject({ code: "WIKI_QA_MODEL_FAILED" });
+    expect(f.selectEvidence).not.toHaveBeenCalled();
+  });
+
+  it("propagates a rerank failure instead of returning recalled low-score pages", async () => {
+    const f = lowScoreFixture();
+    f.rerankClient.rerank.mockRejectedValue(new Error("private provider failure"));
+    await expect(f.service.retrieve(input)).rejects.toMatchObject({ code: "WIKI_QA_MODEL_FAILED" });
+    expect(f.selectEvidence).not.toHaveBeenCalled();
+    expect(f.client.createJsonCompletion).toHaveBeenCalledOnce();
+  });
+
+  it("uses the real reader's complete context, preserving a late correction and rejecting it whole if over budget", async () => {
+    const workspaceDir = await mkdtemp(join(tmpdir(), "wiki-fallback-"));
+    try {
+      const wiki = join(workspaceDir, "docs/llm-wiki");
+      await mkdir(join(wiki, "concepts"), { recursive: true });
+      await mkdir(join(wiki, "raw/transcripts"), { recursive: true });
+      await writeFile(join(wiki, "index.md"), "# Wiki");
+      for (const id of [1, 2]) {
+        await writeFile(join(wiki, `concepts/report-${id}.md`), `---\ntitle: PL report\nstatus: draft\nenvironments: [UK Odoo 17]\nsources: [raw/transcripts/ticket-${id}.md]\n---\n## 报表\nPL report 历史说明。`);
+        await writeFile(join(wiki, `raw/transcripts/ticket-${id}.md`), `---\nthread_id: thread-${id}\nhistory_complete: true\n---\n## 线程消息\n- **[2026-10-22] 用户**(user): PL report 配置缺失。\n\n- **[2026-10-22] 支持**(user): 纠正：仍未解决，不能直接照搬。`);
+      }
+      const f = fixture();
+      f.client.createJsonCompletion.mockReset().mockResolvedValue({ model: "test", content: JSON.stringify(extracted) });
+      f.rerankClient.rerank.mockResolvedValue({ mode: "rerank", model: "bge", results: [{ index: 0, relevance_score: 0.49 }, { index: 1, relevance_score: 0.01 }] });
+      const service = createWikiQaService({ ...f, reader: createWikiKnowledgeReader({ workspaceDir }) });
+      const result = await service.retrieve(input);
+      expect(result.evidence).toHaveLength(1);
+      expect(result.evidence[0].sourceEvidence[0].content).toContain("纠正：仍未解决");
+      expect(result.evidence[0].sourceEvidence[0].complete).toBe(true);
+      await writeFile(join(wiki, "raw/transcripts/ticket-1.md"), `---\nthread_id: thread-1\nhistory_complete: true\n---\n## 线程消息\n- **[2026-10-22] 用户**(user): PL report 已成功。\n\n- **[2026-10-22] 支持**(user): 纠正：失败，${"必要限制".repeat(700)}`);
+      expect((await service.retrieve(input)).evidence).toEqual([]);
+      expect(f.rerankClient.rerank).toHaveBeenCalledTimes(2);
+      expect(f.client.createJsonCompletion).toHaveBeenCalledTimes(2);
+    } finally { await rm(workspaceDir, { recursive: true, force: true }); }
+  });
 });

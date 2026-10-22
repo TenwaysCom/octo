@@ -1,0 +1,17 @@
+{
+  "decision": "NOT_ACCEPTED",
+  "development": "PASS",
+  "stability": "PASS_10_OF_10",
+  "independentPositiveGain": "NOT_PROVEN: 8/16 body+primary for A and D, no new valid body+primary rescue",
+  "lowPositiveCoverage": "INSUFFICIENT: 3 cases, required >=4; D effective retention 0/3",
+  "competitiveNegativeCoverage": "INSUFFICIENT: 1 score-band wrong top1, required >=4; it is Ontology, not a rescuable SupportWiki",
+  "specifiedWrongPairs": "PASS: 0/8 admitted by D; only one specified wrong page reached formal Top5",
+  "noAnswerContexts": "FAIL: 5/8 nonempty; all already present in A high-score path, one title-only; 4/8 contain body",
+  "newErroneousContextsFromD": 0,
+  "oldAndNewBaselinePayloadPreserved": true,
+  "nextAction": "Do not apply/deploy; do not retune or replace cases. Separate answerability/source sufficiency from relevance in a future proposal.",
+  "G": "disabled",
+  "httpRequests": 42,
+  "httpCap": 50,
+  "retries": 0
+}

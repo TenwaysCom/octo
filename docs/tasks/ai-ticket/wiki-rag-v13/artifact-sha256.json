@@ -1,0 +1,18 @@
+{
+  "files": {
+    "README.md": "fd26c4b5b8a52a6951940d5039cf0561e0104a98d1bbbeecf1f7d953cbdc358c",
+    "acceptance.json": "417cbbc74ad29c2869d97f020a06feb0ae0ab9c93f3868c80c7e00b65291a13b",
+    "candidate-full.patch": "7e9a10abd730175ecab84f6bce746a92a3080db3d1391b4e76130202a2a6e95e",
+    "candidate.patch": "c89f1a87a0459f3722e7beae19f1fe6075f304b703d4c2872da2b616c0c989bd",
+    "checks.json": "89669395ed697239a1fc46105e583bdad21caae7f67ee19a8b7e773c30288254",
+    "config.json": "834ba08cef8701f5fb279dbb53dab4e631a390d8100c3a5da6e815c4cc066afa",
+    "confirmed-regression.json": "c7dd6cd3665041d8557638a79eb883eb0be5bd084cab132e6095aed1c2bcaf42",
+    "execution-notes.json": "fce3eabe8f0916515590250abb009acdbb3feef242352dc8eead80ec00a0ad0f",
+    "experiment-code.json": "893de058af34ff202944f32d3ec279c1f4ed38bd039e3a94fd6cc9c4b9dc6218",
+    "initial-freeze.json": "f7a616340d12981fc40f89c09eaabe960fce0b2de35b8873e39ac7e408d3e4ac",
+    "old-audit-index.json": "5d531f3e2b6cfeacb4ee45aa061c36fee6bd09744ef84285eea6d3952a87593e",
+    "old-replay.json": "ce76ffbf4efa8546b81027ecee7655f4421dd2710877e2fa3265bdf6cf344a57",
+    "summary.json": "37afa9ead1c6d56951e252ab5e417f34bfe9d0989473a98cf696d7584ac00d34",
+    "verification.json": "abd50efe4b20271333e738849e2bc94872b675ad34b48947dc55e37d3f4baf62"
+  }
+}

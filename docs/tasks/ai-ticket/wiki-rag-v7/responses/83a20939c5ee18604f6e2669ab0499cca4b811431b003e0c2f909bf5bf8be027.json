@@ -1,0 +1,100 @@
+{
+  "caseId": "T21",
+  "group": "A",
+  "payloadHash": "83a20939c5ee18604f6e2669ab0499cca4b811431b003e0c2f909bf5bf8be027",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 7,
+      "relevance_score": 0.0546676404774189
+    },
+    {
+      "index": 11,
+      "relevance_score": 0.05144133046269417
+    },
+    {
+      "index": 4,
+      "relevance_score": 0.04775932803750038
+    },
+    {
+      "index": 0,
+      "relevance_score": 0.021369805559515953
+    },
+    {
+      "index": 8,
+      "relevance_score": 0.0165525171905756
+    }
+  ],
+  "durationMs": 566,
+  "querySha256": "eeabf31ad72b9018457b6e3fb08928d176dab1e7c62d6af4204b8a3c992c422a",
+  "queryChars": 51,
+  "documentSha256": [
+    "34d08c7af97dd8fd2b63a794c40b7691811dfd314b5a41d6a5981ce24c3a50f9",
+    "a16dfc0687ec416d963578b3fe57bdaab40167a79164393e29ebb86fd89b8b83",
+    "04c9e369c8af811b0d52fb5ed8a70e9a9fcb5f2c4b3f5539973dff757556e392",
+    "414b344a97ecc5aa8daf9851d0f14ac7041a1217f062058936e3e484bf053652",
+    "9736481e26e53c60cfa3dc5553c6e29f07dcacece7e99e2f09905820ac58e749",
+    "52af1f9fd06abc1e415511b52df729acae61a5a8b4f9a3383c64239f036af602",
+    "9034086aa3e68f68969a0ccb7658a552e27d4c1ec63a827dc9d90351d9ea2531",
+    "17b62bd3179ddf636aff11c0105ded9437c2b21cf55a7ef31822d55a97a9d745",
+    "fdb15733ef74af599257ff620cd427684345b7f09ccfbe2a2577d85eb9f39332",
+    "2b8ba4a4a5f8b337dea7f0fdca4dec961bd5c26534ed3af9e3f6afe77104da47",
+    "d5f12b9548d25ea08ff70fd93e82ecadfee7ac9894a5f7af8541620ce457e163",
+    "1c7d66a914735c5905d36769992bb948f763e254b9d08d2e41f2564ef4d16de8",
+    "11b8ec4f8e92f3898a9b6904af0e3da526d77eaf15b1e9d9caba464b0c0339c9",
+    "e8b3294dac390b37b96141d67406f879dfec0b36243e983ca75bcb26cfcafeda",
+    "013f486f97fba0df475ff08472b0e43d25add772a85a9d805c46321c49004c7c",
+    "8a1648b6f9914b34c7fcbcb60655834b5c18f77a3089e954ccff182fd5b91cf4",
+    "86ca7f3ef40faaf5ee987fadb3dc57217074e9aa0c282323ef1a209d7ebbdc4d",
+    "40aec2f64347c72ce1ea95b7ce2d9c1c384ede09b2f2dc749d91c154679cb848",
+    "d2bc81bfa275474615ba31363a6290f19838209dcb96be0fdf61f4e8c611c26a",
+    "9589e91235bf3238381f9e844591ceddaa96fba652006d52465fffa86f09ecc7"
+  ],
+  "documentChars": [
+    904,
+    1045,
+    849,
+    655,
+    2199,
+    1641,
+    1523,
+    1350,
+    748,
+    2496,
+    2279,
+    2279,
+    2220,
+    1918,
+    1734,
+    1839,
+    795,
+    1085,
+    1872,
+    1951
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/sales/pricelist-batch-update-historical-case.md",
+    "docs/llm-wiki/concepts/invoicing/uk-automatic-invoice-mail-history.md",
+    "docs/llm-wiki/concepts/sales/pricelist-and-product-maintenance-navigation.md",
+    "docs/llm-wiki/concepts/inventory/us-sku-basic-attributes-check.md",
+    "docs/ontology/objects/sales-pricelist.md",
+    "docs/ontology/processes/purchase-tax-determination-and-billing.md",
+    "docs/ontology/processes/sales-invoicing.md",
+    "docs/llm-wiki/concepts/invoicing/price-and-invoicing-mismatch-triage.md",
+    "docs/llm-wiki/concepts/sales/promotion-price-approval-history.md",
+    "docs/ontology/objects/business-party.md",
+    "docs/ontology/objects/preorder-backorder.md",
+    "docs/ontology/objects/product-catalog.md",
+    "docs/ontology/objects/sales-order.md",
+    "docs/ontology/processes/b2b-invoice-platform-delivery.md",
+    "docs/ontology/processes/customer-pricelist-change.md",
+    "docs/ontology/processes/sales-order-confirmation.md",
+    "docs/ontology/processes/sales-pricelist-assignment-and-repricing.md",
+    "docs/llm-wiki/concepts/integration/shopify-order-sku-mismatch-mapping-and-lifecycle.md",
+    "docs/ontology/objects/sales-invoice.md",
+    "docs/llm-wiki/concepts/approvals/approval-submission-and-progress-triage.md"
+  ],
+  "queryCAvailable": true
+}

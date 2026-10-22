@@ -1,0 +1,100 @@
+{
+  "caseId": "T13",
+  "group": "A",
+  "payloadHash": "20cade94590c70ea3c1bcb87e9e31ba5a089fd8693701608690566a9e2570711",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 6,
+      "relevance_score": 0.4212197959423065
+    },
+    {
+      "index": 9,
+      "relevance_score": 0.19558143615722656
+    },
+    {
+      "index": 17,
+      "relevance_score": 0.17031173408031464
+    },
+    {
+      "index": 2,
+      "relevance_score": 0.07325825095176697
+    },
+    {
+      "index": 3,
+      "relevance_score": 0.04315630719065666
+    }
+  ],
+  "durationMs": 386,
+  "querySha256": "dcbfed4fb5687cf0d9591206f09fad4358a916955cce1d7fd4a89ee344e69368",
+  "queryChars": 31,
+  "documentSha256": [
+    "2931ae37ffa1490cb4d7396b58d8251c74f19b615de265d1286e7d50bbbbb78c",
+    "e422cef1feaa01d6daf39057b4ae79540eba62ecacc7f875e1c822d809029631",
+    "862d5579e3fe363f4d8cb8ba5372fc960fab88928b4de12613e24fbec51ec571",
+    "7f9299e6b7fb0aa9d8b5148883fdb5005f8bc78d6471cd15ca37d12b0617bf8c",
+    "06d368c7afc39f19949b2e81e02ccfaea4025748ba33970fbc6da13f184d6b9f",
+    "f7f3fafce5c5d8a631bd3f409b010d6dc75dd38fa6565cc14001824ed2440a7b",
+    "a95bf443b85ae9a6d23b59f1321a7759383afee45cd327cb0c3736a8e7e88005",
+    "e2b48ab80f99bf0c18f481c008447a805bf84ffb4f82f4db3bc8f052967b181f",
+    "1f0b33ad8077f6d56533c3aaa4c8d353de37ceb93180fb22b1ebae006b35dda8",
+    "c62e44ed6033ffec36763d2e1806539f526b7ff4d1a24cb87f3e9180be106fe3",
+    "a088a7f60de066fdffdc1096d04452271b0ff6ea6b8ae4a77e51aef7cd8ea7d8",
+    "254fc7056661115f2361f4fddfee3adbd9fca293e06f468c6c3e260be71a1408",
+    "0051d48d2ee8e37851769d8ec63d8b78f46ee926424d10ccaece1bed6813b31d",
+    "87ac4be9a8864e38deee375a02488c7bd4977d18dc37c30c2f19adf18a26d9f3",
+    "a43d9e3d4fff04524ec78213f9fed2580488314a39b038e3a9effbe35d694474",
+    "39afab83872a4115cd34b12d425de240d1ced60fc0d2ac06e9d8631af4467e76",
+    "3e8a914ae5b627af1bd41bd0951f506d77ff6b0146c19a4c2f4d34e0c6f27b87",
+    "86a46bc877db697401d9bf22e5f5504203d95d7156a831a623b6cec4e5cb06b5",
+    "9a7060d2d82fb7b0c4b2f8bfdf6cefb7384d19d7285286f2a367001bea2bb382",
+    "e1a36443e50dbcf766fa0d0a50fd4a32c8e23975930c7df4c42a8f4c82c03f0e"
+  ],
+  "documentChars": [
+    355,
+    715,
+    170,
+    678,
+    531,
+    394,
+    2239,
+    671,
+    179,
+    1951,
+    1045,
+    1440,
+    481,
+    438,
+    206,
+    251,
+    525,
+    853,
+    1841,
+    511
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/reporting/gross-profit-direct-parent-customer-name-history.md",
+    "docs/llm-wiki/concepts/reporting/gross-profit-quantity-sign-history.md",
+    "docs/llm-wiki/concepts/delivery/physical-shipment-status-invoice-history.md",
+    "docs/llm-wiki/concepts/inventory/return-transfer-delivered-link-history.md",
+    "docs/llm-wiki/concepts/delivery/warehouse-document-amendment-checklist.md",
+    "docs/llm-wiki/concepts/sales/state-and-related-page-navigation.md",
+    "docs/ontology/objects/financial-reporting.md",
+    "docs/llm-wiki/concepts/accounting/journal-review-copy-history.md",
+    "docs/llm-wiki/concepts/workforce/public-holiday-import-history.md",
+    "docs/ontology/objects/business-party.md",
+    "docs/llm-wiki/concepts/delivery/cancelled-picking-recovery-history.md",
+    "docs/llm-wiki/concepts/delivery/invoiced-same-sku-reshipment-history.md",
+    "docs/llm-wiki/concepts/delivery/warehouse-dispatch-and-return-navigation.md",
+    "docs/llm-wiki/concepts/delivery/westerman-booked-tracking-timing-history.md",
+    "docs/llm-wiki/concepts/faq/outbound-follower-receives-customer-message.md",
+    "docs/llm-wiki/concepts/faq/westerman-outbound-not-pushed-to-wms.md",
+    "docs/llm-wiki/concepts/reporting/sales-wms-quantity-field-history.md",
+    "docs/ontology/processes/gross-profit-management-reporting.md",
+    "docs/llm-wiki/concepts/sales/preorder-backorder-link-quantity-history.md",
+    "docs/llm-wiki/concepts/delivery/delivery-config-checklist.md"
+  ],
+  "queryCAvailable": true
+}

@@ -1,0 +1,100 @@
+{
+  "caseId": "V04",
+  "group": "A",
+  "payloadHash": "833b01f7aca8c026f927049da3f1b7b44b60e9da4622d3d4ed9c4b8e2c2c41f6",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 8,
+      "relevance_score": 0.9544464349746704
+    },
+    {
+      "index": 2,
+      "relevance_score": 0.7295902371406555
+    },
+    {
+      "index": 0,
+      "relevance_score": 0.6374785304069519
+    },
+    {
+      "index": 9,
+      "relevance_score": 0.5837630033493042
+    },
+    {
+      "index": 7,
+      "relevance_score": 0.3215808570384979
+    }
+  ],
+  "durationMs": 527,
+  "querySha256": "1c8a51d67951d551986cf8d45762e1ade7c32dc626fe9517c8bbe90fe4ce5615",
+  "queryChars": 25,
+  "documentSha256": [
+    "a6972069b5b99fd2b7f5bb6689a12c83d1021989820f9d1dcc25aa54b49a0ff7",
+    "3dd8aa10895eb7154126cae7345a421f2d2b94b46d46b5ee2c53cecdfe480831",
+    "0fb3c46411677ae664ff8d533f725eb5af26efcc16fff5504b685594f522d283",
+    "83c78ac99ab03e17686f963c76eb5fe5e05dd97ff4dc1dd7198b0f1c4b60bdf0",
+    "44e665a39bb22cd22518f3882bd90db3b71c1a55f53f6dddf18b755cc81776f6",
+    "d3da79dc8b18cc242dd9b7f9d119a881c82481f9c64fbc1ceaf1fa60c69f1038",
+    "79081501fd7475e1a11444bb31bc3111e33e1617b13c1dbe97cd6c0fa7dd56e1",
+    "14a2728431276a409ddf775f7d51704b8db02177d35f0826629edf8c4a2e6be0",
+    "b1366400ddb674701c8d09325c8cb3dd596b98c4c5f4527bfcb8434a1f9fadee",
+    "7f9299e6b7fb0aa9d8b5148883fdb5005f8bc78d6471cd15ca37d12b0617bf8c",
+    "4c144ec0b6d0680f4ed3a1970d4c89471eec7f7d769099a444d45aa2518836cf",
+    "1e88f8d37ea89c153a20fc34d2708a865989545ea3793c6110c2955cf57f2b79",
+    "93dd6fa494db37810a75a4420aa81ae3b8980df9f24d801593fd1c7d8deb30bd",
+    "ea285360cebd547927a1f23fbd77009953134bb702f457762c8f16a15c12b6c3",
+    "876b946c5e1b0e58296d38f9761e451f13f3bc6b6d618a99bd0ab009395e159e",
+    "9c425423d2dc64a3bcd958217c7f9047bfd76c2a58e36de08cfa1c8248c9b29e",
+    "3b07ffdcf728e2e89930cf19eb4daffd16288e756c953e94508987389fde894a",
+    "a5ce0f62e4263c178a4a872a0c67bc85190eb955f48c8630ccc744f94cb18693",
+    "aec50e6682df77d17f347c746c9f4ffc425e85a7717827029e241d385e7dc308",
+    "254fc7056661115f2361f4fddfee3adbd9fca293e06f468c6c3e260be71a1408"
+  ],
+  "documentChars": [
+    701,
+    1057,
+    2404,
+    524,
+    600,
+    960,
+    831,
+    938,
+    699,
+    678,
+    1299,
+    365,
+    191,
+    206,
+    2060,
+    921,
+    1010,
+    679,
+    274,
+    1440
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/inventory/other-outbound-virtual-location-restore.md",
+    "docs/llm-wiki/concepts/inventory/stock-qty-mismatch-verification-order.md",
+    "docs/ontology/objects/sales-return.md",
+    "docs/llm-wiki/concepts/accounting/accounting-change-navigation.md",
+    "docs/llm-wiki/concepts/accounting/other-outbound-done-journal-history.md",
+    "docs/llm-wiki/concepts/integration/shopify-import-schedule-and-config-history.md",
+    "docs/llm-wiki/concepts/inventory/inventory-adjustment-lock-history.md",
+    "docs/llm-wiki/concepts/inventory/purchase-return-price-journal-and-location-anomalies.md",
+    "docs/llm-wiki/concepts/inventory/repeated-return-location-regression-history.md",
+    "docs/llm-wiki/concepts/inventory/return-transfer-delivered-link-history.md",
+    "docs/llm-wiki/concepts/inventory/track-inventory-missing-stock-valuation.md",
+    "docs/llm-wiki/concepts/invoicing/uk-inbound-bill-attachment-history.md",
+    "docs/llm-wiki/concepts/invoicing/zero-inbound-cost-history.md",
+    "docs/llm-wiki/concepts/reporting/journal-entry-pagination-history.md",
+    "docs/ontology/objects/warehouse-inventory-control.md",
+    "docs/llm-wiki/concepts/accounting/journal-dimension-edit-eligibility.md",
+    "docs/llm-wiki/concepts/accounting/journal-required-dimensions-and-country.md",
+    "docs/llm-wiki/concepts/accounting/other-outbound-account-followup-history.md",
+    "docs/llm-wiki/concepts/approvals/ops-submission-notification-history.md",
+    "docs/llm-wiki/concepts/delivery/invoiced-same-sku-reshipment-history.md"
+  ],
+  "queryCAvailable": false
+}

@@ -1,0 +1,100 @@
+{
+  "caseId": "Q15",
+  "group": "A",
+  "payloadHash": "c1a3240b9b478773c294f8690b00e4affaed074b0809160ada052a0380419a28",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 17,
+      "relevance_score": 0.17862534523010254
+    },
+    {
+      "index": 3,
+      "relevance_score": 0.14633284509181976
+    },
+    {
+      "index": 2,
+      "relevance_score": 0.1300823837518692
+    },
+    {
+      "index": 1,
+      "relevance_score": 0.12772543728351593
+    },
+    {
+      "index": 0,
+      "relevance_score": 0.12347199022769928
+    }
+  ],
+  "durationMs": 376,
+  "querySha256": "744d0c11825a7806934d9e4b9488dc57577e600dbf84e8fc3920f6228ec236f4",
+  "queryChars": 12,
+  "documentSha256": [
+    "f97806888f4ee989f9261c8e4feb6441efd35da55b0525de6529a25f9773c283",
+    "e999ea578414126e7327499045d90a64568189424e3d4b2d928c3352fb84f28c",
+    "d6f548c6acf7ba2d26dc6bde20c66430c75a73cc8c6b1957f14794dfd2388e5a",
+    "d0a229d164f10501b9d43ed950350fcdc2680797dc434a1105d49fda7843cff0",
+    "b4acd430da0912a93835c847f475611e1d1cc1dcdbe92aa641d7e323196378d5",
+    "d551f23f30f0e65d685e87a2fd1555925234f8d437203e5237e2ca8daf6cc255",
+    "b786a29d4f5b75e8a259f9f572dec31f151213777a192f1aee3b8ba7394c3c41",
+    "2c9ac90ecf4c803e9a792735cc78684e2ce09687057c70841e0b4ebd0736e652",
+    "a1e54eaff959ed76fe0f5f01240e6c6514f97aade6b6a4441c89e2d5c2e2161c",
+    "6992ec55ef3666b6008016d47d79924aead2dc06d4e6aa32f0d33337c2d196a4",
+    "c0293b7495b5b549ef6e50903f5b7d16773d1112e8287c631c9118be8c65a3e5",
+    "dbd31deea9264cebca0a40c453a2fb2694e9a633779e42cf21158310907d0114",
+    "d87b5738ac8af84171df58745b93434cba210491932799f475b579e55eb7fc58",
+    "427a24fe0308a6af0e8b0f6b1e075570d5f27c8bd872514afedcb36b08230a47",
+    "00ac24c6183340791ee60c3b872917c55705959752737317c44d38178bde58d4",
+    "4e04092e137f49534d704aed4066525977286f92a011cc43f1dd5e4cf9a68b14",
+    "2c70b9d073a47e090c933ca7df697c233e9390cbf9a64c191114e80e99f656d0",
+    "1438f97ce9d356624d4613d473ed865ce968288d20aeffac86df81cea1cf84c2",
+    "70e9b0db902dac160f2317a4ec56bc0128330f2892a7081d793d1563d79438dc",
+    "3e42306295c4ba6510849b6ac0d9f88c0f9874a1126cca66d231c914a4f7f557"
+  ],
+  "documentChars": [
+    660,
+    2299,
+    1215,
+    319,
+    403,
+    1786,
+    1416,
+    1141,
+    240,
+    534,
+    848,
+    1797,
+    744,
+    884,
+    778,
+    809,
+    2423,
+    167,
+    172,
+    659
+  ],
+  "candidatePaths": [
+    "docs/ontology/processes/cash-flow-statement-preparation.md",
+    "docs/ontology/objects/cash-flow-allocation.md",
+    "docs/ontology/processes/cash-flow-allocation-and-reconciliation.md",
+    "docs/llm-wiki/concepts/accounting/cash-flow-config-timing-history.md",
+    "docs/llm-wiki/concepts/accounting/cash-flow-fx-keep-first-account.md",
+    "docs/ontology/objects/financial-reporting.md",
+    "docs/llm-wiki/concepts/accounting/account-config-report-mapping-and-20030-residuals.md",
+    "docs/llm-wiki/concepts/accounting/report-data-mismatch-triage.md",
+    "docs/llm-wiki/concepts/reporting/financial-report-scope-history.md",
+    "docs/ontology/processes/balance-sheet-preparation.md",
+    "docs/llm-wiki/concepts/payment/bank-reconciliation-differences.md",
+    "docs/ontology/objects/journal-item-control.md",
+    "docs/ontology/processes/accounting-period-close-and-reopen.md",
+    "docs/ontology/processes/journal-item-account-reclassification.md",
+    "docs/ontology/processes/journal-item-dimension-amendment.md",
+    "docs/ontology/processes/sales-compensation-adjustment.md",
+    "docs/ontology/rules/portal-language-and-page-governance.md",
+    "docs/llm-wiki/concepts/accounting/financial-report-config-preserve-on-module-update.md",
+    "docs/llm-wiki/concepts/delivery/wms-feedback-duplicate-quantity-history.md",
+    "docs/llm-wiki/concepts/delivery/wms-send-failure-and-unknown-result.md"
+  ],
+  "queryCAvailable": true
+}

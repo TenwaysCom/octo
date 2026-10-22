@@ -1,0 +1,100 @@
+{
+  "caseId": "H06",
+  "group": "A",
+  "payloadHash": "ae8c93fb32ba606c22572c0bb1325e796af87bb326229935f07b5c6e8152aa69",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 0,
+      "relevance_score": 0.9928714632987976
+    },
+    {
+      "index": 8,
+      "relevance_score": 0.532410204410553
+    },
+    {
+      "index": 5,
+      "relevance_score": 0.5290794968605042
+    },
+    {
+      "index": 18,
+      "relevance_score": 0.5260863304138184
+    },
+    {
+      "index": 15,
+      "relevance_score": 0.4960242807865143
+    }
+  ],
+  "durationMs": 512,
+  "querySha256": "9edbe6b6d3cae7708e47e9b8c2c55151a000e123a164f27711876bf0f2fbc92b",
+  "queryChars": 103,
+  "documentSha256": [
+    "322d1c1603bee9dcd303f6fc39916b5f0ef2bef0f14d393ecb58bc198a1a29c3",
+    "040be98ac5c58d776c9ae2b74ffb34eb4699980330768093b94bc3de0870e67b",
+    "438e01491f7b82d4a8bc49c8309f855a9834f2c84389af7705e092d24053a2d4",
+    "45b3aa98c4baf42c7f508d36d575d430582b1ff31db2dd2814d5a2d5e6f2f147",
+    "96d79b670daa095297542b09d1fec994d1ea16ee446dcd7074d570dedf197020",
+    "8105d75f92f4f0bc886edf3e3a59213faf66801293c09110d63e1390c1e361a1",
+    "2b59316f75a59d8c5a22433ae1694aa88d49c122a5f8d09d4ad521b3c7b15456",
+    "6ecd42304670c6b2bde330043e380e596f0295d837653e786668cadadbe14118",
+    "9fba87b261e5062aff14baff5187a36d2ee0ef0ef166a4119e539e40f3a406ff",
+    "74a579bac274a11b1a24b209ea4c2bd7164565820f4465eb83cc50ea5a418d9c",
+    "a08d49067f069e88a2401c204ed71b21fadaf9399505c696d6ad84e93d3f2fc8",
+    "a1587aeb811d9a0957f07698dd56d1a5957bbac0ffbc11102cacc733749c67ec",
+    "1ded91b9fb572f3e7ee17ac9e11014bad2566bc14bd661d01617ec73a578dadf",
+    "9e33c9878b00c1634385d7cb0970eb825e809391911e615f940376c4ba2f1c1c",
+    "2ed086a59cc9a01a9c39e8cfd40c278b3b35261b867f4cb6979631752cd6a804",
+    "c2330f2b19aa5c85a2f7273cc8b1ded6e83f56a777dc7e97da68a5418df6b32d",
+    "4b684fc16c9e88579d76e810b2b0c2dcfa9333d4f1fae4a175007f3bb9c422cd",
+    "40350f70d4d4fdfa22389789daef6e0268cb0d7d39076fa34d654c478e8124f7",
+    "0042c4c8d65ccd8e9721abc6a62754f5a8b9725ac9316caf8ecb432b5abd181e",
+    "e69511950fa79b6a1bc5585650260e121508974bbe59c5fcfb8bc589b1d8adbc"
+  ],
+  "documentChars": [
+    1564,
+    1783,
+    1071,
+    1519,
+    2438,
+    2129,
+    927,
+    511,
+    1011,
+    2151,
+    1022,
+    663,
+    963,
+    1312,
+    1245,
+    1289,
+    567,
+    1233,
+    1557,
+    846
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/portal/service-center-internal-message-exposure-history.md",
+    "docs/llm-wiki/concepts/portal/service-centre-claim-display-history.md",
+    "docs/llm-wiki/concepts/portal/b2b-portal-access-and-dealer-ordering.md",
+    "docs/ontology/objects/service-center-case.md",
+    "docs/ontology/objects/portal-legal-terms.md",
+    "docs/ontology/objects/portal-support-content.md",
+    "docs/llm-wiki/concepts/after_sales/mega-bike-kiel-wik-l-beck-claim-unknown-pending-analysis-lark-1655.md",
+    "docs/llm-wiki/concepts/integration/app-dealer-data-sync-history.md",
+    "docs/llm-wiki/concepts/portal/backorder-template-api-contract-500.md",
+    "docs/ontology/objects/portal-public-inquiry.md",
+    "docs/llm-wiki/concepts/platform/browser-assets-and-widget-errors-history.md",
+    "docs/llm-wiki/concepts/portal/cart-stock-validation-history.md",
+    "docs/llm-wiki/concepts/portal/dealer-portal-delivery-address-server-failure.md",
+    "docs/llm-wiki/concepts/portal/portal-email-and-archived-account-check.md",
+    "docs/ontology/rules/portal-language-and-page-governance.md",
+    "docs/llm-wiki/concepts/platform/frontend-resource-refresh-history.md",
+    "docs/llm-wiki/concepts/portal/banner-currency-display-history.md",
+    "docs/ontology/processes/portal-legal-terms-publication-and-acceptance.md",
+    "docs/llm-wiki/concepts/access/operation-access-and-button-triage.md",
+    "docs/llm-wiki/concepts/delivery/service-center-outbound-split-correct-warehouse.md"
+  ],
+  "queryCAvailable": false
+}

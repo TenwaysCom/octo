@@ -1,0 +1,100 @@
+{
+  "caseId": "T14",
+  "group": "A",
+  "payloadHash": "6c4a377174a873e392f16e35bd581e73ecaaa0294b4b7f592cd9a81a9d44ba12",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 3,
+      "relevance_score": 0.13214389979839325
+    },
+    {
+      "index": 5,
+      "relevance_score": 0.07502156496047974
+    },
+    {
+      "index": 7,
+      "relevance_score": 0.06739098578691483
+    },
+    {
+      "index": 0,
+      "relevance_score": 0.04346773028373718
+    },
+    {
+      "index": 11,
+      "relevance_score": 0.03386976197361946
+    }
+  ],
+  "durationMs": 424,
+  "querySha256": "d7ebe834fa61c9e3bb9f56501de01e7b2da4713334030f01a4d4c3c5098157e4",
+  "queryChars": 53,
+  "documentSha256": [
+    "e3b26e55e7608644a1ab246050c541bc2357e53b768145e72bcc25a72698e786",
+    "e46ea955f2a723cc09f4dd5e1a65e1d1b031edd5e6434059e680a9edb33a5af3",
+    "97f1484085c88dbf4a6fe96791ec5f5d993f7b832feff7309b7ca6521a22441f",
+    "74ad870a52c12a8b3eafdf8ebbfc9230613c23c4c06fef613d1da794340c06a2",
+    "a8695a6f921f382e8ac610db82367c8b5dfbac326a1472d380691253caecf0d5",
+    "e42eca3196e1bd73f6489f0bc06149015c0ed7761ae15751bf2636fb356da63e",
+    "1dc191b3b0330c0fa6cdf67951776f5c7447404696fd1e7c51610a395b45ab75",
+    "e548c444e2f9ce1984877c148101e3d5ff920643b9d582c3d7aac20c64829246",
+    "b32941d81cc129f74fee53e2c97a0cf1bc5b8aa1c9de0185a91e85998e3523a6",
+    "029738cd05f2527da700d0492eb6ac60c5e56f4080655eb9a146f15e7bae3581",
+    "133b66d6d742d8f072a8b657fd6d687808d3105271383f0f35b378eac96a50f3",
+    "af6d5b348827d009fb2eaf206d82488c1607722ca9bccc6b0c77f963503c7a40",
+    "b19cdc0162e0ef95cc774cecb11798ecec4390ee0d14d8233a661933e37e5ec2",
+    "5289ecd2d154e45c711d475549eda8ef755e1f18da0ec7a06211101a18752f50",
+    "5e20ca47105cab0ca7930b152d911024c4b4fb12a1c1b5f842182ac02163ca5f",
+    "162cd4d2d50da6d5b8c4697ce79b66ee91193d8f4d743f031eead1444515c11b",
+    "32abd9d68f99592954a44b393f2f95c0b5fe363e16645c6a9493504285ea7fd4",
+    "c536c2f501adfb35997e80f9dd467eaac158cc9d51d2344dbd0ac810c2ae41b8",
+    "24d1e5fa39d34553c8745ebda87bbff26a76c7f41d2c152d172a8f8bf45bfdb7",
+    "851e0225a5c4dafcfff728796e06e5050131880ed4ac9ae13fb80c2fb08a84db"
+  ],
+  "documentChars": [
+    2138,
+    2416,
+    901,
+    1077,
+    370,
+    849,
+    1046,
+    912,
+    1146,
+    582,
+    733,
+    519,
+    665,
+    1161,
+    2273,
+    915,
+    889,
+    1404,
+    1070,
+    1889
+  ],
+  "candidatePaths": [
+    "docs/ontology/objects/preorder-backorder.md",
+    "docs/ontology/objects/sales-order.md",
+    "docs/ontology/processes/sales-promotion-approval-and-application.md",
+    "docs/llm-wiki/concepts/inventory/location-type-direction-history.md",
+    "docs/llm-wiki/concepts/sales/automatic-order-email-customer-language.md",
+    "docs/llm-wiki/concepts/inventory/us18-return-location-and-operation-type-config.md",
+    "docs/llm-wiki/concepts/sales/pricelist-discount-not-applied-or-price-mismatch.md",
+    "docs/llm-wiki/concepts/accounting/cancelled-journal-sequence-date-history.md",
+    "docs/llm-wiki/concepts/faq/contact-backorder-preorder-overview.md",
+    "docs/llm-wiki/concepts/inventory/return-on-return-number-prefix-history.md",
+    "docs/llm-wiki/concepts/sales/cargo-discount-approval-history.md",
+    "docs/llm-wiki/concepts/sales/manual-sales-order-number-history.md",
+    "docs/llm-wiki/concepts/sales/sale-order-backorder-preorder-runtime-config-lark-1654.md",
+    "docs/llm-wiki/concepts/sales/sales-config-checklist.md",
+    "docs/ontology/objects/business-party.md",
+    "docs/llm-wiki/concepts/accounting/cash-flow-config-timing-history.md",
+    "docs/llm-wiki/concepts/accounting/financial-report-config-preserve-on-module-update.md",
+    "docs/llm-wiki/concepts/sales/contact-overview-create-sales-order.md",
+    "docs/llm-wiki/concepts/sales/so-flow-preorder-backorder-cancel-rules.md",
+    "docs/ontology/objects/customer-credit.md"
+  ],
+  "queryCAvailable": true
+}

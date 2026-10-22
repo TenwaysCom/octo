@@ -1,0 +1,135 @@
+{
+  "frozenLabelsUnchanged": true,
+  "unsupportedAsRequestedAnswer": [
+    {
+      "id": "U26",
+      "frozenReason": "No candidate contains the requested EU AR line-item dataset as of 2026-07-31. Historical exports and accounting definitions cannot supply these records.",
+      "s1": 0.8708921074867249,
+      "branch": "normal_threshold",
+      "alsoInBaselineA": true,
+      "classification": "No support for the frozen requested fact; general modeling/historical context is not current data/configuration evidence.",
+      "notAnObservedFinalAnswerError": true,
+      "cards": [
+        {
+          "path": "concepts/reporting/financial-report-scope-history.md",
+          "contentChars": 720,
+          "primaryChars": 2234,
+          "sourcePaths": [
+            "raw/documents/eight-ticket-image-evidence-2026-10-19/source.md",
+            "raw/transcripts/ticket-2343.2026-10-19-1b3130d6bb44.md"
+          ]
+        },
+        {
+          "path": "concepts/reporting/filter-language-timezone-history.md",
+          "contentChars": 1680,
+          "primaryChars": 986,
+          "sourcePaths": [
+            "raw/transcripts/ticket-1278.2026-09-11-bde8cb81c26f.md",
+            "raw/transcripts/ticket-2122.2026-09-11-a87b27b22a54.md"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U27",
+      "frozenReason": "No candidate documents this Circuly zero-value automatic invoice issue or its current fix state; manual shipping mail and zero-line invoice errors are different cases.",
+      "s1": 0.8587977886199951,
+      "branch": "normal_threshold",
+      "alsoInBaselineA": true,
+      "classification": "No support for the frozen requested fact; general modeling/historical context is not current data/configuration evidence.",
+      "notAnObservedFinalAnswerError": true,
+      "cards": [
+        {
+          "path": "docs/ontology/objects/b2c-sales.md",
+          "contentChars": 2302,
+          "primaryChars": 0,
+          "sourcePaths": []
+        },
+        {
+          "path": "docs/ontology/processes/b2c-sales-order.md",
+          "contentChars": 1738,
+          "primaryChars": 0,
+          "sourcePaths": []
+        },
+        {
+          "path": "docs/ontology/processes/b2c-leasing-sales.md",
+          "contentChars": 1936,
+          "primaryChars": 0,
+          "sourcePaths": []
+        }
+      ]
+    },
+    {
+      "id": "U29",
+      "frozenReason": "No candidate supplies this new BTC Other Outbound first-approver configuration or its verified implementation result; generic policy change guidance is insufficient.",
+      "s1": 0.9523317217826843,
+      "branch": "normal_threshold",
+      "alsoInBaselineA": true,
+      "classification": "No support for the frozen requested fact; general modeling/historical context is not current data/configuration evidence.",
+      "notAnObservedFinalAnswerError": true,
+      "cards": [
+        {
+          "path": "concepts/approvals/approval-policy-change-checklist.md",
+          "contentChars": 2388,
+          "primaryChars": 1374,
+          "sourcePaths": [
+            "raw/transcripts/ticket-446.2026-09-11-82f585cb843a.md",
+            "raw/transcripts/ticket-511.2026-09-11-5edef2c7c4c6.md"
+          ]
+        },
+        {
+          "path": "concepts/approvals/inflight-approval-owner-change-history.md",
+          "contentChars": 2384,
+          "primaryChars": 1605,
+          "sourcePaths": [
+            "raw/transcripts/ticket-1564.2026-09-11-2d762f39e5f4.md"
+          ]
+        },
+        {
+          "path": "docs/ontology/processes/other-outbound-execution.md",
+          "contentChars": 1029,
+          "primaryChars": 0,
+          "sourcePaths": []
+        }
+      ]
+    },
+    {
+      "id": "U30",
+      "frozenReason": "No candidate establishes the field mapping behind this cross-carrier Additional Info/Tracking URL mismatch; generic tracking/feedback cases do not identify this source logic.",
+      "s1": 0.8340489268302917,
+      "branch": "normal_threshold",
+      "alsoInBaselineA": true,
+      "classification": "No support for the frozen requested fact; general modeling/historical context is not current data/configuration evidence.",
+      "notAnObservedFinalAnswerError": true,
+      "cards": [
+        {
+          "path": "docs/ontology/processes/external-wms-order-exchange.md",
+          "contentChars": 1857,
+          "primaryChars": 0,
+          "sourcePaths": []
+        }
+      ]
+    },
+    {
+      "id": "U32",
+      "frozenReason": "No candidate identifies the actual CI unit-price source for this outbound/SO discrepancy; ordinary invoice totals and missing outbound price cases do not establish that field mapping.",
+      "s1": 0.7270932197570801,
+      "branch": "normal_threshold",
+      "alsoInBaselineA": true,
+      "classification": "No support for the frozen requested fact; general modeling/historical context is not current data/configuration evidence.",
+      "notAnObservedFinalAnswerError": true,
+      "cards": [
+        {
+          "path": "concepts/invoicing/price-and-invoicing-mismatch-triage.md",
+          "contentChars": 0,
+          "primaryChars": 0,
+          "sourcePaths": []
+        }
+      ]
+    }
+  ],
+  "newFinalContextsFromD": [],
+  "DVersusAExactlyEqual": true,
+  "answerModelCalled": false,
+  "evaluationBoundary": "Knowledge context admission, not generated answer correctness."
+}

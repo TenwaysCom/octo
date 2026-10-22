@@ -1,0 +1,100 @@
+{
+  "caseId": "D02",
+  "group": "A",
+  "payloadHash": "86af38fd19ab6ed86652b851f289671f1c03e6b5f08f30acbfce9606cb9fed15",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 1,
+      "relevance_score": 0.6938227415084839
+    },
+    {
+      "index": 0,
+      "relevance_score": 0.6669140458106995
+    },
+    {
+      "index": 11,
+      "relevance_score": 0.560590922832489
+    },
+    {
+      "index": 13,
+      "relevance_score": 0.4722265601158142
+    },
+    {
+      "index": 12,
+      "relevance_score": 0.3432573974132538
+    }
+  ],
+  "durationMs": 575,
+  "querySha256": "67f3830ac2bbbd1428427cdadcacc5c8d1e680c11d5628ff945701e5d02d31f8",
+  "queryChars": 9,
+  "documentSha256": [
+    "1ca6ea97d59ae44ccf51a076702a551b834138fe2251768ffa9080c3e63994a4",
+    "3fa49d4c5e1147bedcc84ae49ca9cb027806137ec85ebe7e8a373c90cca7feb2",
+    "56c987742b46d3a4c1662bb6557966a4af2965f35e38acbe3c210000eadfa8cb",
+    "0f8c59caae33879ba10e650cafe31b1ef76484414c3741e555701a4b560111fc",
+    "3027e25635c987050cc2e7fe70f9b2973e03494d88b890f5a18cfa5d07c180a2",
+    "ed63fe7558553007157d790afc86807f47f89682de7d87c8851e87232858b211",
+    "7870e79b8b9ef76e961c6dc8f7db16fca58779886588ff44e4ec67b3f493b3c9",
+    "9755e0904bdb8b857dba5318cb6df63bcc22ea99bfa5ecd43626d88915827b78",
+    "a6f354fe7ecc409b9549cdc97d31da8d3cd12447b4049d0c3c5da861963634ad",
+    "86458557b02721fa3f56a904f4f562816a1bbc6c017c6318425fc7692eb320df",
+    "772d420eaec497a5d536c8bedb69074dc11b54ddff4b970e9301c365a69625fa",
+    "c0e6813948cefdf9b62225a323c9ef472a9f3b74e189c14a9211d4982c4ee1f5",
+    "4005ceff1af1af3064fb83e3753142b86b261e63f2fb36634d7c793d9ae9a4cd",
+    "c814bcc2c7aa4cd0b9f8d91a913a1fad2a9faff6b6522a8c6db712bda00d4328",
+    "e189825f6880ae2e0c4c90f5355f8344358b101bb1929d5979284054eecfe3d3",
+    "8b0a5b78bededbedf8ac0f124b7518d560b5ab27d45bd0985c2a442b4a64eade",
+    "8a323823dc7d5b11b15ce0ecfdf63349e041993da9e683bed30623336964d683",
+    "0d02bc8a84a33dcf79ae564275b7131d1a19fd4a143644f696dc78904738f0dd",
+    "9728ef0474e4e9468401d3a0124532abf613c01d52c620ea2451ca5735c46c68",
+    "f16078e4a50907316d29972afa87595266562a467a0f655b4d4f548a7a227aaa"
+  ],
+  "documentChars": [
+    2117,
+    906,
+    1827,
+    1033,
+    1928,
+    980,
+    162,
+    483,
+    336,
+    2309,
+    2187,
+    949,
+    2431,
+    2143,
+    2276,
+    1975,
+    930,
+    86,
+    734,
+    2045
+  ],
+  "candidatePaths": [
+    "docs/ontology/objects/purchase-settlement.md",
+    "docs/ontology/processes/purchase-vendor-bill-processing.md",
+    "docs/ontology/processes/purchase-tax-determination-and-billing.md",
+    "docs/ontology/processes/purchase-return-to-supplier.md",
+    "docs/ontology/objects/business-party.md",
+    "docs/ontology/processes/supplier-profile-validation.md",
+    "docs/llm-wiki/concepts/accounting/partner-duplicate-balance-history.md",
+    "docs/llm-wiki/concepts/integration/westerman-empty-feedback-history.md",
+    "docs/llm-wiki/concepts/sales/stock-route-confirmation-history.md",
+    "docs/ontology/objects/transaction-tax.md",
+    "docs/ontology/objects/warehouse-inventory-control.md",
+    "docs/ontology/processes/purchase-payment-and-reconciliation.md",
+    "docs/ontology/objects/deferred-expense.md",
+    "docs/ontology/objects/fixed-asset.md",
+    "docs/ontology/objects/journal-item-control.md",
+    "docs/ontology/objects/sales-invoice.md",
+    "docs/ontology/processes/budget-contract-payment-approval.md",
+    "docs/llm-wiki/concepts/faq/external-transfer-misc-checklist.md",
+    "docs/ontology/processes/deferred-expense-recognition.md",
+    "docs/ontology/objects/b2c-sales.md"
+  ],
+  "queryCAvailable": false
+}

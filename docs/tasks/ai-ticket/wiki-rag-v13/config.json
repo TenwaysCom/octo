@@ -1,0 +1,25 @@
+{
+  "version": 13,
+  "model": "BAAI/bge-reranker-v2-m3",
+  "url": "https://api.siliconflow.cn/v1/rerank",
+  "threshold": 0.7,
+  "recallLimit": 20,
+  "topN": 5,
+  "finalLimit": 3,
+  "A": {
+    "page": 2400,
+    "total": 7200
+  },
+  "B": {
+    "page": 4800,
+    "total": 7200
+  },
+  "allocationCohort": "baseline final <=3 pages; reserve all baseline units before extending in rerank order",
+  "maxRequests": 40,
+  "holdoutCases": 32,
+  "answerCalls": 0,
+  "judgeCalls": 0,
+  "G": "disabled",
+  "rawSentToModel": false,
+  "retune": false
+}

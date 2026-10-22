@@ -1,0 +1,100 @@
+{
+  "caseId": "T20",
+  "group": "A",
+  "payloadHash": "cdfba781384b2c86bf8f99ca06b6df997657ee484e2179016886f23c2675860a",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 1,
+      "relevance_score": 0.6198909282684326
+    },
+    {
+      "index": 0,
+      "relevance_score": 0.5948842763900757
+    },
+    {
+      "index": 18,
+      "relevance_score": 0.3444783091545105
+    },
+    {
+      "index": 5,
+      "relevance_score": 0.23031820356845856
+    },
+    {
+      "index": 7,
+      "relevance_score": 0.19293583929538727
+    }
+  ],
+  "durationMs": 561,
+  "querySha256": "43344b7421ee30de6ffcc13ad19bde41739289cb9e4013ccc6cbf31fb5e7ba26",
+  "queryChars": 104,
+  "documentSha256": [
+    "c018c3431dda714a83b43449b2ee2b250ca9271390792056b5ea34e088ce1343",
+    "96d79b670daa095297542b09d1fec994d1ea16ee446dcd7074d570dedf197020",
+    "db74208829209c750e5872bea59063c3c452152dfd12d13c316bc46ab31fc4e2",
+    "9ef9bf48034905dd303ad30044e8480683f2e46dda8993e30b84e4a423466800",
+    "d78dea83e0d7d47b53dc8214a9c5c380b1f7e46236bfe4002514c33254e226ac",
+    "e589df0983cc54c253914a384c90fea799c7b5e55c1d36bf4c33eedc8f8f037d",
+    "f6fb39505ff853698350408447cf0a82e83ec89a693000448d7e6332849c1173",
+    "40350f70d4d4fdfa22389789daef6e0268cb0d7d39076fa34d654c478e8124f7",
+    "bd471ad0beeaa3fcc1ea6977cbeda68f851b4e46898318f0a22feb0af03daf3c",
+    "c536c2f501adfb35997e80f9dd467eaac158cc9d51d2344dbd0ac810c2ae41b8",
+    "112e2f7bdf9971441b7111ecdaca5dae50c215ef0be1d630bd113d115157b6e4",
+    "57b613ec2512f72355a2ddbd8feb85f43f9a1468500496d469349a74740c6096",
+    "8d5a661701b95a80a4f4ef66b8c0cbaff4312306331db4f215f6b7ca8c9bab01",
+    "438e01491f7b82d4a8bc49c8309f855a9834f2c84389af7705e092d24053a2d4",
+    "6b24b4ff0c91ef5552abf4d503d32d5210a58ea2adac69b34fd6c39a60d5562e",
+    "bda6d319e02fafb390a4d018d76c61204fd576a64f0f21f70fe71d21d6a8ca83",
+    "d0eb9f6a3aef0ea16e7c8bf63e1e7b52032688425cb61f21c1c3100d22127360",
+    "f13fccf9c3fbb2c6b2478818cdf1fc04f7de2ea7f9e918c4985198303490fb2a",
+    "83e17b06c62763aafeb5bbc1c9ce43127b759cee658b657f2a28ed9424629168",
+    "8a1648b6f9914b34c7fcbcb60655834b5c18f77a3089e954ccff182fd5b91cf4"
+  ],
+  "documentChars": [
+    2048,
+    2438,
+    2219,
+    507,
+    1402,
+    2436,
+    2291,
+    1233,
+    1280,
+    1404,
+    1899,
+    2112,
+    2088,
+    1071,
+    2064,
+    1648,
+    948,
+    2157,
+    2325,
+    1839
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/portal/service-centre-claim-display-history.md",
+    "docs/ontology/objects/portal-legal-terms.md",
+    "docs/ontology/objects/business-party.md",
+    "docs/llm-wiki/concepts/portal/purchase-access-types-history.md",
+    "docs/llm-wiki/concepts/portal/service-center-internal-message-exposure-history.md",
+    "docs/ontology/objects/b2b-invoice-integration.md",
+    "docs/ontology/objects/sales-order-amendment.md",
+    "docs/ontology/processes/portal-legal-terms-publication-and-acceptance.md",
+    "docs/llm-wiki/concepts/faq/contact-backorder-preorder-overview.md",
+    "docs/llm-wiki/concepts/sales/contact-overview-create-sales-order.md",
+    "docs/llm-wiki/concepts/sales/preorder-backorder-link-quantity-history.md",
+    "docs/ontology/objects/portal-support-content.md",
+    "docs/ontology/objects/preorder-backorder.md",
+    "docs/llm-wiki/concepts/portal/b2b-portal-access-and-dealer-ordering.md",
+    "docs/ontology/objects/sales-order.md",
+    "docs/ontology/processes/b2c-leasing-sales.md",
+    "docs/llm-wiki/concepts/portal/backorder-template-api-contract-500.md",
+    "docs/ontology/objects/portal-public-inquiry.md",
+    "docs/ontology/objects/sales-invoice.md",
+    "docs/ontology/processes/sales-order-confirmation.md"
+  ],
+  "queryCAvailable": false
+}

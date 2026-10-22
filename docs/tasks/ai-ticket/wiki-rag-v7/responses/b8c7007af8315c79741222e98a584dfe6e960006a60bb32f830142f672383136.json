@@ -1,0 +1,100 @@
+{
+  "caseId": "T24",
+  "group": "A",
+  "payloadHash": "b8c7007af8315c79741222e98a584dfe6e960006a60bb32f830142f672383136",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 19,
+      "relevance_score": 0.06188231334090233
+    },
+    {
+      "index": 2,
+      "relevance_score": 0.047510936856269836
+    },
+    {
+      "index": 8,
+      "relevance_score": 0.0337662547826767
+    },
+    {
+      "index": 13,
+      "relevance_score": 0.02912474237382412
+    },
+    {
+      "index": 5,
+      "relevance_score": 0.026147978380322456
+    }
+  ],
+  "durationMs": 474,
+  "querySha256": "df5a51a1ec79accca6c9a4c7133fe9cf44091b57a46290045ac7cec54df524fd",
+  "queryChars": 165,
+  "documentSha256": [
+    "6da5e595d1b7f851ad43bfc88380e2a811d9980103ec913232470bd87c099909",
+    "8a323823dc7d5b11b15ce0ecfdf63349e041993da9e683bed30623336964d683",
+    "818304b660ca3a8bbf162162100f7c5285c4561e6bb4d81db85a0fb9d7fa97e4",
+    "48450ffcc908d80e99c6d62f64a596f23df471a06c30e25f38d95609aa13c4d5",
+    "d0d12474b776d660b400be869136be7f5d4196c099ab00a07319ace3d1bee975",
+    "52090b955039741499f4ae1add16a5c65ef518a592a41eb5a12f3b4c09163756",
+    "5b80bd751d6876d016475303bf348b06dd4584facd4c33145b0d07d120eb6225",
+    "44b959e087b7941d132cc4f52a35d0495dd75f01bbfe0a1b7b95c1faf2ff3f9b",
+    "42809f9346b809343fbc4b9b34570061a579c86ad0a21f333f4d9cc0814b4764",
+    "1a8dc732847c99319bbc6724d7374ea24cdda697d4d7cb0b2d373d7f31f9deb3",
+    "1d0408662f450598e1af98aab246ad291ae18508cd61023326f568560b525284",
+    "72fbe0a590fa2bea418d3570ff404fc12767de038ce537bc16886e291a747ae2",
+    "192feceffbf9b1dfd5e4abf3e9c41c6542c0ccf86cd8a8919b6e5fcf1ab83b31",
+    "9dc02e55daa5e853cd8a18c4961722005484da71d8e29a5b456c467720ca9d43",
+    "26cb1035f095d689a5b6e55abb690550014235a5dcb496a01021cd00d362078b",
+    "e344dca082fb78cb729faf4dd683900e2857770c51e4477d44639b2973a47a57",
+    "00ac24c6183340791ee60c3b872917c55705959752737317c44d38178bde58d4",
+    "7fbefb4d39f7bbf905ee70e46a932f06a245479a921f2157b2f02456de5a8e95",
+    "f388a9700d9b38309497e179c42110879c3f35725af6f4127b24033de3a1c95c",
+    "e9202e6c15a9a8c7de3401219e1935296c434723202b6fe57593ba3da1439a04"
+  ],
+  "documentChars": [
+    2448,
+    930,
+    1368,
+    1059,
+    2233,
+    1979,
+    737,
+    2319,
+    1180,
+    1569,
+    740,
+    1541,
+    366,
+    2449,
+    2411,
+    2107,
+    778,
+    739,
+    1720,
+    1428
+  ],
+  "candidatePaths": [
+    "docs/ontology/objects/business-approval.md",
+    "docs/ontology/processes/budget-contract-payment-approval.md",
+    "docs/ontology/processes/warehouse-operation-approval.md",
+    "docs/ontology/processes/employee-expense-submission-approval-and-reimbursement.md",
+    "docs/ontology/objects/warehouse-operation.md",
+    "docs/ontology/objects/purchase-settlement.md",
+    "docs/ontology/processes/standalone-approval-request.md",
+    "docs/ontology/objects/sales-invoice.md",
+    "docs/ontology/processes/embedded-business-record-approval.md",
+    "docs/llm-wiki/concepts/approvals/approval-submission-and-progress-triage.md",
+    "docs/llm-wiki/concepts/approvals/change-request-scheduling-history.md",
+    "docs/llm-wiki/concepts/delivery/wms-send-failure-and-unknown-result.md",
+    "docs/llm-wiki/concepts/faq/approval-stuck-and-submit-failure-disposition.md",
+    "docs/ontology/objects/business-party.md",
+    "docs/ontology/objects/marketing-sales.md",
+    "docs/ontology/objects/warehouse-inventory-control.md",
+    "docs/ontology/processes/journal-item-dimension-amendment.md",
+    "docs/llm-wiki/concepts/approvals/approval-manager-missing-check.md",
+    "docs/llm-wiki/concepts/approvals/approval-policy-change-checklist.md",
+    "docs/llm-wiki/concepts/delivery/approval-validate-and-backorder-history.md"
+  ],
+  "queryCAvailable": true
+}

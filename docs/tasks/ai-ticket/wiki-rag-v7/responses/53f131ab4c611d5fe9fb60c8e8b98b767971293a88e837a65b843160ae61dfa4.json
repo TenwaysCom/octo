@@ -1,0 +1,100 @@
+{
+  "caseId": "Q18",
+  "group": "B",
+  "payloadHash": "53f131ab4c611d5fe9fb60c8e8b98b767971293a88e837a65b843160ae61dfa4",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 0,
+      "relevance_score": 0.9690470099449158
+    },
+    {
+      "index": 17,
+      "relevance_score": 0.9555696845054626
+    },
+    {
+      "index": 18,
+      "relevance_score": 0.9529066681861877
+    },
+    {
+      "index": 2,
+      "relevance_score": 0.9470755457878113
+    },
+    {
+      "index": 3,
+      "relevance_score": 0.8961603045463562
+    }
+  ],
+  "durationMs": 388,
+  "querySha256": "b3b5cc84e01855ddd47f568822157a48573831962783df5efd25250e26316baf",
+  "queryChars": 13,
+  "documentSha256": [
+    "6f085c0a2ce128359a76c2f78a991931e2f5edea602fcfbd8a96bbfc4dc79372",
+    "92d7ebcad1379974797024941b3df91758c514f1a2ad94a358aa326243bd2c6d",
+    "9ec52e65c073e4d186c364487514caf5930e04de5a9c2cf607c88ee1651fcf55",
+    "e0e5d039db1b7f0f913ad45a97f4b07c35f11174dc5ea35c7c7d3c85af32226c",
+    "1dfa969e1d3c18f2de34fda2b3ed01d6483ad93153cc665b5e29d85a887a9f6a",
+    "451fa581a023ee096a717ec8c2a222215503addb8ad775788afda211093d395a",
+    "19d32b568d32bc43deedd007b2f1410094f7655e8ba54babe6fbaa2b178d43c5",
+    "c2d3a5e14b45fdd811801611b47fd666af966c3e0cb8da4689a136b1415ccab0",
+    "46bcd5390e8e64d0218bda81a8999caaf0c5109418d1815b7493c15868324c5f",
+    "f2ed8f39fdb976cdb698cb92052dd6271d11c59f77534d78aa7a7792ea7758b0",
+    "12d76b426d8110c9fbd30345ee14c221fc5d08466a58375bf014bd3af9aed679",
+    "d0bcc59539619084f6400a7e4c388db03e9efc1a8b6e6ab36f6b4672e2efee67",
+    "9940e00fd84ac2adc2d8a3169d914edfad2b13b04e1b2156a52b4155002b5c68",
+    "2911bfd0e2c7a23bc975eadddb3613c76ebbb0676cfe8c725eaf3c49c6cfdcc0",
+    "5966e7bf3b6502a880457fb496e63287626db3cb59dc5ce99f191c14dbc0617c",
+    "bd9f14993be867a2bc5a302a24f1799d74b7bc58af82e754e8b77d22a4fbb37c",
+    "9b5f22050f2377c2179711cb81b0039a43a0350227fc5b5e1c78ee57fca83578",
+    "896c13c55c3482cb6b8caaa5454da403351509d88d8af0b87db7b2a181c7ca59",
+    "07ededcae6362a2baf5691e0c7297af3402e3b6bbf42992456c6624036511b7a",
+    "ee60f743727a3a00f11a08f78e3857100fd53060fe7352ff3ffa304e4a3686e3"
+  ],
+  "documentChars": [
+    1013,
+    250,
+    608,
+    1374,
+    872,
+    641,
+    804,
+    741,
+    629,
+    754,
+    1628,
+    1201,
+    440,
+    698,
+    473,
+    689,
+    1107,
+    2294,
+    999,
+    676
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/integration/shopify-import-schedule-and-config-history.md",
+    "docs/llm-wiki/concepts/faq/shopify-order-not-synced-checklist.md",
+    "docs/llm-wiki/concepts/integration/shopify-duplicate-push-history.md",
+    "docs/llm-wiki/concepts/integration/shopify-missing-sku-and-confirm-timing-history.md",
+    "docs/llm-wiki/concepts/integration/shopify-order-import-triage.md",
+    "docs/llm-wiki/concepts/integration/shopify-paused-order-history.md",
+    "docs/llm-wiki/concepts/integration/shopify-product-category-history.md",
+    "docs/llm-wiki/concepts/integration/order-import-schedule-regression-history.md",
+    "docs/llm-wiki/concepts/payment/shopify-statement-sync-history.md",
+    "docs/llm-wiki/concepts/sales/uk-shopify-empty-salesperson-default-history.md",
+    "docs/ontology/processes/b2c-sales-order.md",
+    "docs/llm-wiki/concepts/integration/shopify-order-sku-mismatch-mapping-and-lifecycle.md",
+    "docs/llm-wiki/concepts/integration/integration-config-checklist.md",
+    "docs/llm-wiki/concepts/integration/order-line-import-boundaries-history.md",
+    "docs/llm-wiki/concepts/integration/shopify-post-confirm-gift-update-history.md",
+    "docs/llm-wiki/concepts/integration/shopify-promotion-freight-import-history.md",
+    "docs/ontology/processes/product-channel-publication.md",
+    "docs/llm-wiki/concepts/integration/integration-push-failure-triage.md",
+    "docs/llm-wiki/concepts/integration/sync-integration-triage-entry.md",
+    "docs/llm-wiki/concepts/integration/turbo-customer-sync-history.md"
+  ],
+  "queryCAvailable": true
+}

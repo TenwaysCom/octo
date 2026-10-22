@@ -1,0 +1,100 @@
+{
+  "caseId": "Q30",
+  "group": "A",
+  "payloadHash": "f66047f8f5688e20e62ed7122bfdad1faab191a80e1402d1c2aa14db2ab7b555",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 13,
+      "relevance_score": 0.773312509059906
+    },
+    {
+      "index": 17,
+      "relevance_score": 0.7238768935203552
+    },
+    {
+      "index": 1,
+      "relevance_score": 0.6160451769828796
+    },
+    {
+      "index": 7,
+      "relevance_score": 0.41917821764945984
+    },
+    {
+      "index": 4,
+      "relevance_score": 0.397022008895874
+    }
+  ],
+  "durationMs": 366,
+  "querySha256": "ee9bd92ef8a7d53e73b7e0863fd442f253ba225a78306016c2e3a69940eee610",
+  "queryChars": 75,
+  "documentSha256": [
+    "02147da93a2c492ced7dfb2cc99585c3ac7ac8a5ebf0a55b27ccd9cbec00b3b6",
+    "3d239df3fa037ef162e610c46f2cd1f2de8925b19de07bb698d1e74997c63104",
+    "74ad870a52c12a8b3eafdf8ebbfc9230613c23c4c06fef613d1da794340c06a2",
+    "35bbd8355e58f60614846207fcbca00381aec4887c57b8df7dd5ae71271b98e2",
+    "97fd60badfff2e220aae0c3d8a788e13720251cf249defc574f0067e6ed3f744",
+    "bb88a36cb76bd466f0df13fafd15fb13f17ef0f4342cd634962c8035bbe474a4",
+    "97ee5c47820c710836e99c2084eef128459a6b4f69113920184dfae583b0b6f9",
+    "44b1ccd7d928b42ef6765ade5ce877e2e014a36a605174cce3e6dae3362c9915",
+    "dac5f172439875776df722557565299d883d1acf08febc316bce05c9c1f541c3",
+    "93361bf5579257599d47c1e8955a3c9cba1f9b36960d9266f8e35262b40e4881",
+    "6102eecd1ef4f1c9cbd21afab538301c4614605304bdadce0b7a980b980c774a",
+    "48293a78b0bf8930464b6d4749cf4270e6e482263e8b5a232c23adec35bd6be9",
+    "8ffd75ad2b709ac85048f95e4800384178b3ff413752b81d41383cc70020021d",
+    "da1297516b2d87faf96afac6f351552518ee97376afc882a8bbf58d10a4b473d",
+    "76541bed0ea78623e2168216b040499d6578f079369e6f286d89270fdcbfd998",
+    "029738cd05f2527da700d0492eb6ac60c5e56f4080655eb9a146f15e7bae3581",
+    "164f7d6f745cfe99d7cd37de8bc117d41eedba9fd03d36924772dbc479fae5b3",
+    "87c99950d977ea74357b70c53e1f36a5a6db61d58dde84f13301544dec4668d6",
+    "b5812b0ff41ca3a70d442461fd5c270edca16c1fe1897b986e3b3918d19049c9",
+    "db2491fe6b6a59d9975662ce644cc05be3074966587ce30a7242a8fe9aa9a18d"
+  ],
+  "documentChars": [
+    252,
+    1037,
+    1077,
+    1021,
+    466,
+    454,
+    469,
+    504,
+    630,
+    933,
+    1826,
+    1145,
+    559,
+    1052,
+    1161,
+    582,
+    349,
+    2456,
+    978,
+    88
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/faq/warehouse-location-operation-type-setup.md",
+    "docs/llm-wiki/concepts/inventory/warehouse-location-operation-type-change-checklist.md",
+    "docs/llm-wiki/concepts/inventory/location-type-direction-history.md",
+    "docs/llm-wiki/concepts/inventory/wms-to-send-after-sales-operation-type-filter.md",
+    "docs/llm-wiki/concepts/inventory/inventory-config-checklist.md",
+    "docs/llm-wiki/concepts/inventory/location-report-grouping-history.md",
+    "docs/llm-wiki/concepts/inventory/loss-location-required-department-history.md",
+    "docs/llm-wiki/concepts/inventory/sku-warehouse-default-location-history.md",
+    "docs/llm-wiki/concepts/inventory/start-stock-operation-button-check.md",
+    "docs/llm-wiki/concepts/inventory/track-inventory-missing-stock-valuation.md",
+    "docs/ontology/objects/business-approval.md",
+    "docs/ontology/processes/other-inbound-receipt.md",
+    "docs/llm-wiki/concepts/delivery/other-outbound-location-and-type-history.md",
+    "docs/llm-wiki/concepts/inventory/purchase-return-eu-us-applicability-investigation.md",
+    "docs/llm-wiki/concepts/inventory/return-grade-conversion-history.md",
+    "docs/llm-wiki/concepts/inventory/return-on-return-number-prefix-history.md",
+    "docs/llm-wiki/concepts/sales/configuration-change-navigation.md",
+    "docs/ontology/objects/warehouse-inventory-control.md",
+    "docs/llm-wiki/concepts/inventory/stock-qty-mismatch-verification-order.md",
+    "docs/llm-wiki/concepts/inventory/us18-return-location-and-operation-type-config.md"
+  ],
+  "queryCAvailable": true
+}

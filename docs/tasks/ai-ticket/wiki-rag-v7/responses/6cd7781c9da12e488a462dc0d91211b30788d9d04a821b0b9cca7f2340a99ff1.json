@@ -1,0 +1,100 @@
+{
+  "caseId": "H01",
+  "group": "B",
+  "payloadHash": "6cd7781c9da12e488a462dc0d91211b30788d9d04a821b0b9cca7f2340a99ff1",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 0,
+      "relevance_score": 0.9764337539672852
+    },
+    {
+      "index": 17,
+      "relevance_score": 0.020163051784038544
+    },
+    {
+      "index": 4,
+      "relevance_score": 0.009110867977142334
+    },
+    {
+      "index": 10,
+      "relevance_score": 0.0047360253520309925
+    },
+    {
+      "index": 9,
+      "relevance_score": 0.0042853341437876225
+    }
+  ],
+  "durationMs": 537,
+  "querySha256": "e43c07715ecb5bda9fbc7f643ba4cfffac7e546b5f28847754d8a8cc25d881f4",
+  "queryChars": 48,
+  "documentSha256": [
+    "aa840d9a26bdc51055932d55fefae0d96c11617d644fd36a2a49ccb6b1d93981",
+    "85bba2f8b49f1a75f9e33e06ed67d5695f6d982516cbe214082763fba64f1ce7",
+    "ace9d61c5d952ceadfa0d181994ad7cd2193ad156e70f459bd4b57c9ddc9c37d",
+    "1b0b8c2d7f94f3eeefafd2230d76d8a88827a11536ccf7a1a40723db413bb242",
+    "c6b432c89e1a665ea0ded182101cb135d4a0c85794e2257964fedcb63b9ac703",
+    "ee3dd8533aca54be2234f7a5478248eff0242ec68de1e002ff4918a06d4ba48a",
+    "359f650425620f029b201f8edbf97a3258ff426d4e89a85b9824a5feb5b9bd29",
+    "4d728403e7a1b6e3cb8135945f3e7ea4d8697bef7046f6049e06a6bcb65406ad",
+    "6badf6025e67c32596e4113cf431460ff7960507f9e123bf4aad928ccc0fe8c2",
+    "e997d7fa442185776bf2565e06480171846a63561c15719a698cf1f0b4e4290a",
+    "170e81c0e6fe979e037ebff499ebfc550335ea55b0bbe24561dd86491795cda3",
+    "46c7e752dd8b1d6c16ec7ea53c339e24a7e31a46e23138a04ccac225d987a03f",
+    "6588da0fbcbede0375328d802c55b89b844c7d2e962760ec5acacd980ab7927d",
+    "8ef9cfe0517e5a39f07136a875349aa256d08eb3559ef873df01f3e6b9b9630e",
+    "9332485cb9660c00af31eb55f11b31630fbd509c1a9d74a5e8d658bb230e8cdb",
+    "1a4cc5437ef13971ce50863e974e04c49b0f7f2ed56c4d7e1015ea6b453e70f3",
+    "fa71791b5b5655f3b3381d1a961d9096aec7a098cb579817257cdc20083f97eb",
+    "7929a1af450cccac1ea45c915fe5cfd262f333a82a5850877166b491574d4a60",
+    "a9486100504c27b06eeff200910bd9fcfed9af24fc94b7f89e19596f1296a60f",
+    "8e660978bc1f66a34b4c37f7402ba28ccdf7a7921d5293e1ba65b37c512a8e96"
+  ],
+  "documentChars": [
+    473,
+    3102,
+    1097,
+    3064,
+    2562,
+    1402,
+    1599,
+    209,
+    1784,
+    3151,
+    3190,
+    1505,
+    1012,
+    763,
+    741,
+    368,
+    1260,
+    3157,
+    3102,
+    3014
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/platform/browser-translation-search-term-history.md",
+    "docs/ontology/objects/fixed-asset.md",
+    "docs/llm-wiki/concepts/purchase/po-buyer-vendor-correction-history.md",
+    "docs/ontology/objects/sales-order-amendment.md",
+    "docs/llm-wiki/concepts/approvals/approval-submission-and-progress-triage.md",
+    "docs/llm-wiki/concepts/invoicing/price-and-invoicing-mismatch-triage.md",
+    "docs/llm-wiki/concepts/sales/so-price-and-shipping-edit-triage.md",
+    "docs/ontology/objects/business-party.md",
+    "docs/ontology/processes/customer-pricelist-change.md",
+    "docs/ontology/objects/deferred-expense.md",
+    "docs/ontology/objects/journal-item-control.md",
+    "docs/ontology/processes/shipped-sales-order-amendment.md",
+    "docs/llm-wiki/concepts/accounting/account-mapping-old-journal-history.md",
+    "docs/llm-wiki/concepts/accounting/locked-entry-unreview-after-modification.md",
+    "docs/llm-wiki/concepts/accounting/other-outbound-account-followup-history.md",
+    "docs/llm-wiki/concepts/integration/shopify-post-confirm-gift-update-history.md",
+    "docs/llm-wiki/concepts/reporting/financial-report-definition-change-checklist.md",
+    "docs/ontology/objects/portal-support-content.md",
+    "docs/ontology/objects/purchase-settlement.md",
+    "docs/ontology/objects/sales-pricelist.md"
+  ],
+  "queryCAvailable": true
+}

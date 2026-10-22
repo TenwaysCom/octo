@@ -239,13 +239,18 @@ export function createWikiKnowledgeReader(deps: { workspaceDir?: string } = {}):
             const title = (source.knowledgeType === "ontology"
               ? metadata(text, "title")[0] || text.match(/^#\s+(.+)$/m)?.[1] || path
               : metadata(text, "title").join(" ")).toLowerCase();
-            const tags = ["objects", "processes", "tags"].flatMap((key) => metadata(text, key)).join(" ").toLowerCase();
+            const supportWiki = source.knowledgeType === "support_wiki";
+            const summary = supportWiki ? metadata(text, "summary").join(" ") : "";
+            const searchTerms = supportWiki ? metadata(text, "search_terms").join(" ") : "";
+            const tags = [...["objects", "processes", "tags"].flatMap((key) => metadata(text, key)), searchTerms].join(" ").toLowerCase();
             const content = source.knowledgeType === "ontology"
               ? relevantOntologyContent(text, queryTerms)
-              : relevantWikiContent(text, queryTerms);
+              : relevantWikiContent(text, queryTerms, 2400, {
+                matched: wikiMatchCount(`${searchTerms} ${summary}`, queryTerms) > 0, summary,
+              });
             const pathScore = source.knowledgeType === "ontology" ? wikiMatchCount(path.replace(/\.md$/, ""), queryTerms) : 0;
             const score = (wikiMatchCount(title, queryTerms) + pathScore) * 4
-              + wikiMatchCount(tags, queryTerms) * 3 + wikiMatchCount(content, queryTerms) * 2;
+              + wikiMatchCount(tags, queryTerms) * 3 + wikiMatchCount(`${summary} ${content}`, queryTerms) * 2;
             pages.push({ source, path, text, content, score });
           }
         }

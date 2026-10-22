@@ -1,0 +1,29 @@
+{
+  "passed": true,
+  "checks": {
+    "sharedApplicationUnchanged": true,
+    "candidateFrozen": true,
+    "baselineFrozen": true,
+    "knowledgeFrozen": true,
+    "labelsFrozen": true,
+    "policyFrozen": true,
+    "inputsFrozen": true,
+    "priorArtifactsUnchanged": true,
+    "experimentCodeFrozen": true,
+    "originalSourceUnitsAndBounds": true,
+    "baselinePreservedAndSubsetOfB": true,
+    "all32AdditionsAudited": true,
+    "qualityConclusionAgrees": true,
+    "noNew32BeforeGate": true,
+    "noModelsAndGOff": true
+  },
+  "checkedOriginalUnits": 123,
+  "baselineUnits": 112,
+  "sourceLabels": 32,
+  "networkRequests": 0,
+  "answerCalls": 0,
+  "judgeCalls": 0,
+  "G": "disabled",
+  "oldGatePassed": false,
+  "meaning": "Integrity passed does not mean source relevance or experiment acceptance passed."
+}

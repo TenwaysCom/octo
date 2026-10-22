@@ -1,0 +1,17 @@
+{
+  "casesSha256": "91e0793fe3aa547e2d107aa69768ca39ee383b8bf96d8335223be6c7ae300b07",
+  "privateInputSha256": "2f755724d2edcd9b8665f705691c2988d53a0533279253a0358ae0bb3289f60a",
+  "selectionSha256": "264ce37cf03c72041d074dc4648f24d47401cd470e62574cd6b50ade7a27a6b1",
+  "stabilitySha256": "74660b064d05c84376f4ca0e2c877a0439fec58a38a79dda689eac5dcc96cee9",
+  "liveCodeSha256": "da03fd5036f7747e28c14b5a6c3e95c2cb118649ddaef73686e1a8664550022b",
+  "code": {
+    "holdout-v10-seeds.json": "9b78980b7d3fe22aec3e3a5730dd8725d7a3891b3d4894f90a7169cabf73e389",
+    "prepare-holdout-v10.mts": "f955641e0c5dc41c6b29caec93925c412185a387f6f26e2cd4ae87348a37ed1e",
+    "freeze-holdout-v10.py": "f6efd5bbd19cd786b4871a606c12bb39d8683d8bd999a405fa43cf322d25bd11",
+    "run-holdout-v10.mts": "06c0b834cb32583c7d751c87aae6bc1366db8575732edd4afc4aa632b92613ad"
+  },
+  "httpBeforeHoldout": 10,
+  "holdoutCallsBeforeFreeze": 0,
+  "G": "disabled",
+  "scoresMayNotChangeLabelsOrCaseSelection": true
+}

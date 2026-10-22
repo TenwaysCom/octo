@@ -1,0 +1,20 @@
+{
+  "oldReplayRuns": 1,
+  "retunedAfterFreeze": false,
+  "preFreezeCorrections": [
+    "Focused test caught missing optional colon after Caused by; corrected before rule freeze.",
+    "tsx CLI failed to create IPC socket (EPERM); used node --import loader for local scripts.",
+    "Initial preparation stopped before manifest creation because policy export was absent; exact-equality restart preserved prepared inputs."
+  ],
+  "limitations": [
+    "Source labels are offline source-level review, not an independent production model or human approval.",
+    "Performance is local evidence processing after candidate loading; no cold-start, full live retrieval or production latency claim.",
+    "A pre-existing high-score insufficient context is preserved; rejecting additions does not solve general answerability.",
+    "12 relevant supplementary B additions were rejected even though all 6 headline recovered cases survived."
+  ],
+  "new32Prepared": false,
+  "networkRequests": 0,
+  "answerCalls": 0,
+  "judgeCalls": 0,
+  "G": "disabled"
+}

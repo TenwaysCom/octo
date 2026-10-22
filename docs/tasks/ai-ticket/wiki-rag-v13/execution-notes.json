@@ -1,0 +1,7 @@
+{
+  "replayHarnessCorrection": "The first cached replay attempt tried to open a response file for Q33, which has zero candidates and no original rerank request. Fixed the empty-case branch before any v13 result was written; no policy, old data or model score changed. Subsequent 137-case replay passed mechanical checks.",
+  "allocationCohort": "Minimal budget implementation extends only the baseline final <=3 pages; it never replaces or adds a page.",
+  "stopReason": "At least one new unrelated primary source confirmed despite identical selected pages; do not silently weaken the source-level failure to article-level equality.",
+  "noRepairInsideLockedRun": "No source relabelling, source whitelist, allocation retuning, G, or shared knowledge edits were introduced after this failure.",
+  "privateEvidence": "/tmp/octo-wiki-rag-v13 (directory 0700, evidence files 0600); reports contain hashes, counts and concise issue summaries, not raw transcripts."
+}

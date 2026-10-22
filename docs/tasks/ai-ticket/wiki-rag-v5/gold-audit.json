@@ -1,0 +1,661 @@
+[
+  {
+    "case": "Q01",
+    "page": "concepts/access/permission-request-and-effective-access.md",
+    "primary_paths_linked": [
+      "raw/transcripts/ticket-123.2026-09-11-5aee0c1d73fa.md"
+    ],
+    "boundary": "仅能证明当时按指定用户授 Survey；无参照账号全量复制或当前服务端范围验收。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-123.2026-09-11-5aee0c1d73fa.md"
+    ]
+  },
+  {
+    "case": "Q02",
+    "page": "concepts/sales/approval-activity-button-history.md",
+    "primary_paths_linked": [],
+    "boundary": "Mark Done 被称缺陷且计划调整；Approve 为历史临时建议，不能断言当前按钮语义。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-624.2026-10-15-88ce4e0710f3.md"
+    ]
+  },
+  {
+    "case": "Q03",
+    "page": "concepts/portal/portal-email-and-archived-account-check.md",
+    "primary_paths_linked": [
+      "raw/transcripts/ticket-159.2026-09-11-f0d1249dd967.md"
+    ],
+    "boundary": "159 是账号归档与激活报告，不是邮箱占用或当前登录成功验证。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-159.2026-09-11-f0d1249dd967.md"
+    ]
+  },
+  {
+    "case": "Q04",
+    "page": "concepts/sales/approval-activity-button-history.md",
+    "primary_paths_linked": [
+      "raw/transcripts/ticket-640.2026-09-11-44a591fff980.md"
+    ],
+    "boundary": "加组及按钮可见不证明服务端授权，不建议默认加管理组。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-640.2026-09-11-44a591fff980.md"
+    ]
+  },
+  {
+    "case": "Q05",
+    "page": "concepts/sales/markup-name-and-price-rules.md",
+    "primary_paths_linked": [
+      "raw/transcripts/ticket-139.2026-09-11-3928b320c211.md"
+    ],
+    "boundary": "仅该价表当时无规则；不能说所有 Markup 都没有规则或只靠名称自动算价。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-139.2026-09-11-3928b320c211.md"
+    ]
+  },
+  {
+    "case": "Q06",
+    "page": "concepts/sales/swiss-discount-unit-price-history.md",
+    "primary_paths_linked": [
+      "raw/transcripts/ticket-767.2026-09-11-6dc98e72f6aa.md"
+    ],
+    "boundary": "该 Swiss 历史解释为折扣入单价，不能从空列确认所有订单金额正确。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-767.2026-09-11-6dc98e72f6aa.md"
+    ]
+  },
+  {
+    "case": "Q07",
+    "page": "concepts/sales/delivery-address-country-tax-rate.md",
+    "primary_paths_linked": [
+      "raw/transcripts/ticket-1473.2026-09-11-003c2078a19b.md"
+    ],
+    "boundary": "业务要求该客户0%不是德国税务政策；旧单仍21%、未见新单验收。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-1473.2026-09-11-003c2078a19b.md"
+    ]
+  },
+  {
+    "case": "Q08",
+    "page": "concepts/portal/backorder-template-api-contract-500.md",
+    "primary_paths_linked": [
+      "raw/transcripts/ticket-1744.2026-09-11-087128c8192e.md"
+    ],
+    "boundary": "权限初判已被否定；模板缺接口字段，只有支持报告恢复，无dealer复测。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-1744.2026-09-11-087128c8192e.md"
+    ]
+  },
+  {
+    "case": "Q09",
+    "page": "concepts/delivery/cmc-outbound-company-required-error-response.md",
+    "primary_paths_linked": [],
+    "boundary": "HTTP200正文含SQL错误，不能证明仓收成功或把改注册名当修复。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-1829.2026-10-15-bda4aaa35d98.md"
+    ]
+  },
+  {
+    "case": "Q10",
+    "page": "concepts/integration/wms-result-unknown-history.md",
+    "primary_paths_linked": [],
+    "boundary": "API超时但仓库已收到；不以Error直接改状态重推，唯一收单仍待核。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-2156.2026-10-15-9e2294cd3d06.md"
+    ]
+  },
+  {
+    "case": "Q11",
+    "page": "concepts/inventory/repeated-return-location-regression-history.md",
+    "primary_paths_linked": [
+      "raw/transcripts/ticket-2100.2026-09-11-4b6837a2710c.md"
+    ],
+    "boundary": "数量回正后仍无分录；数据修复报告不等于数量、估值、12280双验收。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-2100.2026-09-11-4b6837a2710c.md"
+    ]
+  },
+  {
+    "case": "Q12",
+    "page": "concepts/inventory/inbound-approve-validate-backorder.md",
+    "primary_paths_linked": [
+      "raw/transcripts/ticket-2211.md"
+    ],
+    "boundary": "审批与Validate及余量分开；当次用户成功，后续按钮缺失仍无人答，不一律建BO。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-2211.md"
+    ]
+  },
+  {
+    "case": "Q13",
+    "page": "concepts/sales/returned-picking-scrapped-qty-delivered.md",
+    "primary_paths_linked": [
+      "raw/transcripts/ticket-1686.2026-09-11-4f0b5478d71c.md"
+    ],
+    "boundary": "支持解释scrapped排除并报样本修复；为何误标及长期根治未知。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-1686.2026-09-11-4f0b5478d71c.md"
+    ]
+  },
+  {
+    "case": "Q14",
+    "page": "concepts/accounting/historical-entry-mandatory-fields-reverse.md",
+    "primary_paths_linked": [
+      "raw/transcripts/ticket-1734.2026-09-11-e8546239c43a.md"
+    ],
+    "boundary": "临时停配置与7/23补缺字段发布分开，不能写所有posted字段可改或自动放开锁期。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-1734.2026-09-11-e8546239c43a.md"
+    ]
+  },
+  {
+    "case": "Q15",
+    "page": "concepts/accounting/cash-flow-fx-keep-first-account.md",
+    "primary_paths_linked": [
+      "raw/transcripts/ticket-1787.2026-09-11-30d313880301.md"
+    ],
+    "boundary": "小额手调未解释大额，keep first account为报告能力，无用户执行与当前公式核验。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-1787.2026-09-11-30d313880301.md"
+    ]
+  },
+  {
+    "case": "Q16",
+    "page": "concepts/payment/reconciliation-currency-scope-history.md",
+    "primary_paths_linked": [
+      "raw/transcripts/ticket-1613.2026-09-11-093f7e54a2ad.md"
+    ],
+    "boundary": "明确UK，总平与原币余额并存，财务持续追问；不能说无须调整。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-1613.2026-09-11-093f7e54a2ad.md"
+    ]
+  },
+  {
+    "case": "Q17",
+    "page": "concepts/invoicing/student-discount-vat-detail-history.md",
+    "primary_paths_linked": [
+      "raw/transcripts/ticket-1102.2026-09-11-c83cff80ccae.md"
+    ],
+    "boundary": "+1a/-1a只是提议，4月非Q1调整要求未验收；不教改映射或反关账。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-1102.2026-09-11-c83cff80ccae.md"
+    ]
+  },
+  {
+    "case": "Q18",
+    "page": "concepts/integration/shopify-duplicate-push-history.md",
+    "primary_paths_linked": [
+      "raw/transcripts/ticket-974.2026-09-11-f80048ecf9eb.md"
+    ],
+    "boundary": "7秒双推与一次内去重不同；关订阅改拉取不证明跨批幂等及旧重复已清。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-974.2026-09-11-f80048ecf9eb.md"
+    ]
+  },
+  {
+    "case": "Q19",
+    "page": "concepts/integration/shopify-line-id-feedback-history.md",
+    "primary_paths_linked": [
+      "raw/transcripts/ticket-1295.2026-09-11-c4520bcc69f3.md"
+    ],
+    "boundary": "原行关联与手工新增行不同，内部同步成功不等于外部Shipment；不能定性cancel唯一原因。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-1295.2026-09-11-c4520bcc69f3.md"
+    ]
+  },
+  {
+    "case": "Q20",
+    "page": "concepts/portal/turbo-app-testflight-build-runtime-config-lark-1708.md",
+    "primary_paths_linked": [
+      "raw/transcripts/ticket-1708.2026-09-11-e4faabd784ab.md",
+      "raw/transcripts/ticket-1732.2026-09-11-7c8b4dda2d7e.md"
+    ],
+    "boundary": "TestFlight build过期报告；1708和1732没有重装后用户确认，不判账号授权或Android故障。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-1708.2026-09-11-e4faabd784ab.md",
+      "raw/transcripts/ticket-1732.2026-09-11-7c8b4dda2d7e.md"
+    ]
+  },
+  {
+    "case": "Q21",
+    "page": "concepts/platform/frontend-resource-refresh-history.md",
+    "primary_paths_linked": [
+      "raw/transcripts/ticket-2060.2026-09-11-714fd90b6036.md"
+    ],
+    "boundary": "只桌面快捷方式坏而另一入口能用；重存和缓存是建议，无修复验收。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-2060.2026-09-11-714fd90b6036.md"
+    ]
+  },
+  {
+    "case": "Q22",
+    "page": "concepts/integration/hsbc-stopped-bank-sync-history.md",
+    "primary_paths_linked": [
+      "raw/transcripts/ticket-1056.2026-09-11-43f74232975a.md"
+    ],
+    "boundary": "重复超时任务停用仅转派且通知要求先审再启，无恢复；不自动重启。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-1056.2026-09-11-43f74232975a.md"
+    ]
+  },
+  {
+    "case": "Q23",
+    "page": "concepts/workforce/fleet-lark-attachment-link-history.md",
+    "primary_paths_linked": [
+      "raw/transcripts/ticket-1771.2026-09-11-55c859a27603.md"
+    ],
+    "boundary": "过期仅可能、补PDF仅建议；车牌归一是独立开发需求，不能判全部Lark链接失效。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-1771.2026-09-11-55c859a27603.md"
+    ]
+  },
+  {
+    "case": "Q24",
+    "page": "concepts/sales/automatic-order-email-customer-language.md",
+    "primary_paths_linked": [
+      "raw/transcripts/ticket-1455.2026-09-11-2bd48e71851f.md"
+    ],
+    "boundary": "7月配置后仍失败，8/3用户确认德语，8/11措辞改动；不能只讲翻译已配置即成功。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-1455.2026-09-11-2bd48e71851f.md"
+    ]
+  },
+  {
+    "case": "Q25",
+    "page": "concepts/invoicing/uk-automatic-invoice-mail-history.md",
+    "primary_paths_linked": [
+      "raw/transcripts/ticket-2125.2026-09-11-7b752fc3c272.md"
+    ],
+    "boundary": "七月中断、9/3报告修复补发；发出不等于客户收信或所有现时邮件正常。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-2125.2026-09-11-7b752fc3c272.md"
+    ]
+  },
+  {
+    "case": "Q26",
+    "page": "concepts/workforce/appraisal-scoring-history.md",
+    "primary_paths_linked": [
+      "raw/transcripts/ticket-818.2026-09-11-bfe5a0f798cf.md",
+      "raw/transcripts/ticket-1517.2026-09-11-22aeff15f928.md"
+    ],
+    "boundary": "818用户确认Add line显示，不证明所有HR服务端权限；1517权重是另一KPI校验，非物流重量。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-818.2026-09-11-bfe5a0f798cf.md",
+      "raw/transcripts/ticket-1517.2026-09-11-22aeff15f928.md"
+    ]
+  },
+  {
+    "case": "Q27",
+    "page": "concepts/sales/temp-credit-confirm-history.md",
+    "primary_paths_linked": [
+      "raw/transcripts/ticket-2038.2026-09-11-6c7132936313.md"
+    ],
+    "boundary": "建议再Confirm，Finance是否代确认未答，未有成功转单；不同于100%预付款计算。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-2038.2026-09-11-6c7132936313.md"
+    ]
+  },
+  {
+    "case": "Q28",
+    "page": "concepts/reporting/sales-visibility-filter-change-history.md",
+    "primary_paths_linked": [
+      "raw/transcripts/ticket-2148.2026-09-11-0a3b95763c8c.md"
+    ],
+    "boundary": "当年无单初判被实际发票反驳；最终新filter仅截图，不复原完整表达式。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-2148.2026-09-11-0a3b95763c8c.md"
+    ]
+  },
+  {
+    "case": "Q29",
+    "page": "concepts/reporting/tb-export-bs-structure-change-historical-case.md",
+    "primary_paths_linked": [
+      "raw/transcripts/ticket-1805.2026-09-22-0b7013ee5ecb.md"
+    ],
+    "boundary": "公司/截止日/Journal含ADJE范围未全验，重复导出不证明自助功能已交付。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-1805.2026-09-22-0b7013ee5ecb.md"
+    ]
+  },
+  {
+    "case": "Q30",
+    "page": "concepts/inventory/us18-return-location-and-operation-type-config.md",
+    "primary_paths_linked": [
+      "raw/transcripts/ticket-1795.2026-09-22-1c7d6d3e076d.md"
+    ],
+    "boundary": "US18固定DL、自选DL、两步开发分开；7/30还问排期，不推EU流程已迁US。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-1795.2026-09-22-1c7d6d3e076d.md"
+    ]
+  },
+  {
+    "case": "Q35",
+    "page": "concepts/faq/does-every-closed-ticket-need-a-qa-card.md",
+    "primary_paths_linked": [],
+    "boundary": "按当前Schema的写作判据回答，不代表任何业务工单已审核。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": []
+  },
+  {
+    "case": "Q36",
+    "page": "concepts/faq/where-detailed-technical-facts-live.md",
+    "primary_paths_linked": [],
+    "boundary": "解释当前资料分工；链接存在不证明所有定义已读、实体已同步。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": []
+  },
+  {
+    "case": "V01",
+    "page": "concepts/sales/approval-activity-button-history.md",
+    "primary_paths_linked": [],
+    "boundary": "Mark Done 被称缺陷且计划调整；Approve 为历史临时建议，不能断言当前按钮语义。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-624.2026-10-15-88ce4e0710f3.md"
+    ]
+  },
+  {
+    "case": "V02",
+    "page": "concepts/sales/markup-name-and-price-rules.md",
+    "primary_paths_linked": [
+      "raw/transcripts/ticket-139.2026-09-11-3928b320c211.md"
+    ],
+    "boundary": "仅该价表当时无规则；不能说所有 Markup 都没有规则或只靠名称自动算价。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-139.2026-09-11-3928b320c211.md"
+    ]
+  },
+  {
+    "case": "V03",
+    "page": "concepts/integration/wms-result-unknown-history.md",
+    "primary_paths_linked": [],
+    "boundary": "API超时但仓库已收到；不以Error直接改状态重推，唯一收单仍待核。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-2156.2026-10-15-9e2294cd3d06.md"
+    ]
+  },
+  {
+    "case": "V04",
+    "page": "concepts/inventory/repeated-return-location-regression-history.md",
+    "primary_paths_linked": [
+      "raw/transcripts/ticket-2100.2026-09-11-4b6837a2710c.md"
+    ],
+    "boundary": "数量回正后仍无分录；数据修复报告不等于数量、估值、12280双验收。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-2100.2026-09-11-4b6837a2710c.md"
+    ]
+  },
+  {
+    "case": "V05",
+    "page": "concepts/portal/turbo-app-testflight-build-runtime-config-lark-1708.md",
+    "primary_paths_linked": [
+      "raw/transcripts/ticket-1708.2026-09-11-e4faabd784ab.md",
+      "raw/transcripts/ticket-1732.2026-09-11-7c8b4dda2d7e.md"
+    ],
+    "boundary": "TestFlight build过期报告；1708和1732没有重装后用户确认，不判账号授权或Android故障。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-1708.2026-09-11-e4faabd784ab.md",
+      "raw/transcripts/ticket-1732.2026-09-11-7c8b4dda2d7e.md"
+    ]
+  },
+  {
+    "case": "V06",
+    "page": "concepts/workforce/appraisal-scoring-history.md",
+    "primary_paths_linked": [
+      "raw/transcripts/ticket-1517.2026-09-11-22aeff15f928.md"
+    ],
+    "boundary": "KPI100%错误6/11仅报告修复；不用物流重量知识，不提供绕过保存校验。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-1517.2026-09-11-22aeff15f928.md"
+    ]
+  },
+  {
+    "case": "V07",
+    "page": "concepts/sales/delivery-address-country-tax-rate.md",
+    "primary_paths_linked": [
+      "raw/transcripts/ticket-1473.2026-09-11-003c2078a19b.md"
+    ],
+    "boundary": "业务要求该客户0%不是德国税务政策；旧单仍21%、未见新单验收。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-1473.2026-09-11-003c2078a19b.md"
+    ]
+  },
+  {
+    "case": "V08",
+    "page": "concepts/reporting/tb-export-bs-structure-change-historical-case.md",
+    "primary_paths_linked": [
+      "raw/transcripts/ticket-1805.2026-09-22-0b7013ee5ecb.md"
+    ],
+    "boundary": "公司/截止日/Journal含ADJE范围未全验，重复导出不证明自助功能已交付。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-1805.2026-09-22-0b7013ee5ecb.md"
+    ]
+  },
+  {
+    "case": "N01",
+    "page": "concepts/inventory/purchase-return-original-receipt-value.md",
+    "primary_paths_linked": [],
+    "boundary": "EU历史修复不推US18；1764八月明确US差异，当前配置、估值链和财务处理需另核。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-1479.2026-10-15-3d8342473c55.md"
+    ]
+  },
+  {
+    "case": "N01",
+    "page": "concepts/inventory/track-inventory-missing-stock-valuation.md",
+    "primary_paths_linked": [],
+    "boundary": "EU历史修复不推US18；1764八月明确US差异，当前配置、估值链和财务处理需另核。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-1764.2026-10-15-8a5cbb1471e7.md"
+    ]
+  },
+  {
+    "case": "N02",
+    "page": "concepts/delivery/cmc-outbound-company-required-error-response.md",
+    "primary_paths_linked": [],
+    "boundary": "HTTP200不代表SQL成功；不因缺收单证据直接重推或改法律名称。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-1829.2026-10-15-bda4aaa35d98.md"
+    ]
+  },
+  {
+    "case": "N03",
+    "page": "concepts/sales/approval-activity-button-history.md",
+    "primary_paths_linked": [],
+    "boundary": "原票计划修Mark Done可生效，不能回答当前永远只关通知；必须查现版本实现。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-624.2026-10-15-88ce4e0710f3.md"
+    ]
+  },
+  {
+    "case": "N04",
+    "page": "concepts/invoicing/eu-auto-invoice-job-timing-history.md",
+    "primary_paths_linked": [
+      "raw/transcripts/ticket-2114.2026-09-11-731b5a13d3e0.md"
+    ],
+    "boundary": "2114只EU当时每日说明，未给时区；不能外推现在UK/US或固定12点。",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-2114.2026-09-11-731b5a13d3e0.md"
+    ]
+  },
+  {
+    "case": "D01",
+    "page": "concepts/invoicing/vendor-bill-confirm-stock-move-singleton-investigation.md",
+    "primary_paths_linked": [],
+    "boundary": "历史案例／未解决调查线索，不证明相同根因或通用修复",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-1935.2026-10-21-d75c39020f26.md",
+      "raw/transcripts/ticket-2118.2026-10-21-afb6098bcad0.md",
+      "raw/transcripts/ticket-2370.2026-10-21-722ae7f23be9.md"
+    ]
+  },
+  {
+    "case": "D02",
+    "page": "concepts/invoicing/vendor-bill-confirm-stock-move-singleton-investigation.md",
+    "primary_paths_linked": [],
+    "boundary": "历史案例／未解决调查线索，不证明相同根因或通用修复",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-1935.2026-10-21-d75c39020f26.md",
+      "raw/transcripts/ticket-2118.2026-10-21-afb6098bcad0.md",
+      "raw/transcripts/ticket-2370.2026-10-21-722ae7f23be9.md"
+    ]
+  },
+  {
+    "case": "D03",
+    "page": "concepts/invoicing/vendor-bill-confirm-stock-move-singleton-investigation.md",
+    "primary_paths_linked": [],
+    "boundary": "历史案例／未解决调查线索，不证明相同根因或通用修复",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-1935.2026-10-21-d75c39020f26.md",
+      "raw/transcripts/ticket-2118.2026-10-21-afb6098bcad0.md",
+      "raw/transcripts/ticket-2370.2026-10-21-722ae7f23be9.md"
+    ]
+  },
+  {
+    "case": "D04",
+    "page": "concepts/invoicing/vendor-bill-confirm-stock-move-singleton-investigation.md",
+    "primary_paths_linked": [],
+    "boundary": "历史案例／未解决调查线索，不证明相同根因或通用修复",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-1935.2026-10-21-d75c39020f26.md",
+      "raw/transcripts/ticket-2118.2026-10-21-afb6098bcad0.md",
+      "raw/transcripts/ticket-2370.2026-10-21-722ae7f23be9.md"
+    ]
+  },
+  {
+    "case": "D05",
+    "page": "concepts/invoicing/vendor-bill-confirm-stock-move-singleton-investigation.md",
+    "primary_paths_linked": [],
+    "boundary": "历史案例／未解决调查线索，不证明相同根因或通用修复",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-1935.2026-10-21-d75c39020f26.md",
+      "raw/transcripts/ticket-2118.2026-10-21-afb6098bcad0.md",
+      "raw/transcripts/ticket-2370.2026-10-21-722ae7f23be9.md"
+    ]
+  },
+  {
+    "case": "H01",
+    "page": "concepts/platform/browser-translation-search-term-history.md",
+    "primary_paths_linked": [
+      "raw/transcripts/ticket-2341.md"
+    ],
+    "boundary": "仅源解决方案记载关闭翻译恢复，线程无直接复测，原因仍可能",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-2341.md"
+    ]
+  },
+  {
+    "case": "H02",
+    "page": "concepts/platform/lark-desktop-login-history.md",
+    "primary_paths_linked": [
+      "raw/transcripts/ticket-330.2026-09-11-224d2a7662a3.md"
+    ],
+    "boundary": "旧票手机扫码与组织选择提供历史核对，不证明当前空账号同一根因",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-330.2026-09-11-224d2a7662a3.md"
+    ]
+  },
+  {
+    "case": "H03",
+    "page": "concepts/invoicing/invoice-email-follows-sales-order-invoice-address.md",
+    "primary_paths_linked": [
+      "raw/transcripts/ticket-1568.2026-09-11-2c3f5efdb868.md",
+      "raw/transcripts/ticket-530.2026-09-11-b7acc6baf8ea.md",
+      "raw/transcripts/ticket-1639.2026-09-11-efe0fc81af0e.md",
+      "raw/transcripts/ticket-2298.md"
+    ],
+    "boundary": "核对消息收件记录，不证明选址根因或实际送达",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-2298.md"
+    ]
+  },
+  {
+    "case": "H04",
+    "page": "concepts/inventory/reservation-residual-corrections-history.md",
+    "primary_paths_linked": [
+      "raw/transcripts/ticket-1680.2026-09-11-a01bee06bad7.md",
+      "raw/transcripts/ticket-1727.2026-09-11-48b8e5ffc033.md",
+      "raw/transcripts/ticket-1854.2026-09-11-fcb159a77e5d.md",
+      "raw/transcripts/ticket-2311.md",
+      "raw/transcripts/ticket-2320.md"
+    ],
+    "boundary": "首次修复报告后原单和新单仍不可选，不提供清零或永久修复",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-2320.md"
+    ]
+  },
+  {
+    "case": "H05",
+    "page": "concepts/delivery/westerman-scheduled-feedback-history.md",
+    "primary_paths_linked": [
+      "raw/transcripts/ticket-2000.2026-09-11-0c9424d56457.md",
+      "raw/transcripts/ticket-2308.md"
+    ],
+    "boundary": "20分钟为回忆，手动更新不证明自动调度恢复",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": [
+      "raw/transcripts/ticket-2308.md"
+    ]
+  },
+  {
+    "case": "H06",
+    "page": "concepts/portal/service-center-internal-message-exposure-history.md",
+    "primary_paths_linked": [
+      "raw/transcripts/ticket-2096.2026-09-11-5bb589e6f605.md",
+      "raw/transcripts/ticket-2317.md"
+    ],
+    "boundary": "内部备注可见历史缺陷，首次修复后复发，不能当当前已修复",
+    "verified_for": "historical reference / stated help type, never current executable solution",
+    "current_same_ticket_paths": []
+  }
+]

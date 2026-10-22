@@ -1,0 +1,100 @@
+{
+  "caseId": "Q13",
+  "group": "A",
+  "payloadHash": "8cb614890399e5153c82cad0a541d73c61872147bd73b9e81259915aabba2247",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 14,
+      "relevance_score": 0.9900581240653992
+    },
+    {
+      "index": 7,
+      "relevance_score": 0.8653501272201538
+    },
+    {
+      "index": 5,
+      "relevance_score": 0.7691294550895691
+    },
+    {
+      "index": 15,
+      "relevance_score": 0.4368559718132019
+    },
+    {
+      "index": 18,
+      "relevance_score": 0.24400809407234192
+    }
+  ],
+  "durationMs": 390,
+  "querySha256": "b1fb0e81fc54ad1543c73313a5335f06913ca6383b15acfb998639fcc1e3707e",
+  "queryChars": 45,
+  "documentSha256": [
+    "3804c1a411f9fb346e0852ba48ebf7dc5b51f49aa2fb05c78b35adb27e2832ce",
+    "1c2edb3139216309dc1427db2d512714872c91dcc25e79c63dfb7efe87db0bb5",
+    "eceb548e63afba3f1284b06e2709e454105403e3a00073c5a3485d9725567992",
+    "e4650d2780e27878ab3b7e1a4706e5149a8b9d9ceee3a67c9f702d5fc9833137",
+    "5178ea75e16b436d78a0660f1c7bfde9530a1ac229a16755f2593f4982169e7a",
+    "3dd8aa10895eb7154126cae7345a421f2d2b94b46d46b5ee2c53cecdfe480831",
+    "1d05b677cec40159d1367151280e9dcf441eb32326ee6aa4ad2db8bd1beb59fd",
+    "7f9299e6b7fb0aa9d8b5148883fdb5005f8bc78d6471cd15ca37d12b0617bf8c",
+    "28ea51fd5c0b8033b0a5cff237a3e98c96bc52b9dee98bbd9cd73586b514a51f",
+    "d73320275a36d531463c5b429c07731ddce6155074dd397f9d7c551b2ede488e",
+    "818304b660ca3a8bbf162162100f7c5285c4561e6bb4d81db85a0fb9d7fa97e4",
+    "a088a7f60de066fdffdc1096d04452271b0ff6ea6b8ae4a77e51aef7cd8ea7d8",
+    "4f3e4567f3b80ec678aaea230308213240bf421f138e1ffcc103e21ddfb81bb7",
+    "b23e569ccde2a33d5ad694aeb75bd3ad6ed0365a3e3e15d3c8a490ef61a0ab69",
+    "b8028de272f16931878aa2bb8ff44ef518698f1e185f630ade1e56a9b3034d0e",
+    "f0055cb05ad90142023ce31cf14f2acc8ed061e57c9de1dd47973fdd4b47618e",
+    "7f4d4ecefb0cec3b99bb751d2f6b6199d9ab4ab8e0846a3652574b3a118f1e73",
+    "ce3749479b432ee4e6fa13fc611907cb1e132bce5f656091651551f113d1889d",
+    "bf2894ab7f99d31a6bda1cbfec7a463b2353c016b667398a83f23928a734ed5c",
+    "8a41eeb12d51598d41b067741414ffe933b5f9bb35ec34b9cb2a82af50f02d06"
+  ],
+  "documentChars": [
+    795,
+    1277,
+    789,
+    689,
+    871,
+    1057,
+    688,
+    678,
+    2350,
+    2397,
+    1368,
+    1045,
+    357,
+    1156,
+    996,
+    553,
+    790,
+    694,
+    892,
+    2045
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/inventory/other-outbound-virtual-location-restore.md",
+    "docs/llm-wiki/concepts/sales/contact-overview-quantity-and-status.md",
+    "docs/llm-wiki/concepts/sales/order-edit-lifecycle-history.md",
+    "docs/llm-wiki/concepts/sales/wms-quantity-field-trace.md",
+    "docs/llm-wiki/concepts/delivery/warehouse-document-amendment-checklist.md",
+    "docs/llm-wiki/concepts/inventory/stock-qty-mismatch-verification-order.md",
+    "docs/llm-wiki/concepts/delivery/other-outbound-location-and-type-history.md",
+    "docs/llm-wiki/concepts/inventory/return-transfer-delivered-link-history.md",
+    "docs/ontology/objects/marketing-sales.md",
+    "docs/ontology/objects/warehouse-operation.md",
+    "docs/ontology/processes/warehouse-operation-approval.md",
+    "docs/llm-wiki/concepts/delivery/cancelled-picking-recovery-history.md",
+    "docs/llm-wiki/concepts/faq/business-rules-and-usage-quick-reference.md",
+    "docs/llm-wiki/concepts/inventory/sku-warehouse-default-location-history.md",
+    "docs/llm-wiki/concepts/sales/returned-picking-scrapped-qty-delivered.md",
+    "docs/llm-wiki/concepts/sales/uk-cancel-after-shipment-history.md",
+    "docs/ontology/processes/marketing-outbound-fulfillment.md",
+    "docs/llm-wiki/concepts/delivery/service-center-outbound-split-correct-warehouse.md",
+    "docs/llm-wiki/concepts/delivery/sent-picking-split-and-order-line-history.md",
+    "docs/llm-wiki/concepts/delivery/wms-feedback-and-marketplace-tracking-triage.md"
+  ],
+  "queryCAvailable": true
+}

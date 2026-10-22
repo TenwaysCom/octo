@@ -1,0 +1,100 @@
+{
+  "caseId": "Q14",
+  "group": "A",
+  "payloadHash": "7e03cafa6eb0ca16607428efcf4b69fec4aac7a94f6d6c0211a4e81d8b73c778",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 0,
+      "relevance_score": 0.9916412830352783
+    },
+    {
+      "index": 2,
+      "relevance_score": 0.12249378859996796
+    },
+    {
+      "index": 3,
+      "relevance_score": 0.09978168457746506
+    },
+    {
+      "index": 15,
+      "relevance_score": 0.03879769518971443
+    },
+    {
+      "index": 17,
+      "relevance_score": 0.03593910112977028
+    }
+  ],
+  "durationMs": 407,
+  "querySha256": "98d319fb570f8e12f57ee7f1fa256641fd0e365263126da1f400e66716fc5371",
+  "queryChars": 24,
+  "documentSha256": [
+    "0698f335f7cd600edbcc309c956bb50a4e7e387d33718a99e4fe308165d9eb43",
+    "74afa45dde2c971ad7798d005512fbaff90df668896e84a073bce7920de354ac",
+    "be2fbe8f596f87d4fb25469e24bb3ae2650362130f42e56d112901b661d5d8df",
+    "535dc936e8ef02a11ef1cc69448627dcc77e6521255a06ae2173b01e7e278ce6",
+    "dd7848e93b7104b35902f6b93cc53ae64806969a334bfa3be4a78bab574d2ef7",
+    "a1543c8ff6a8d7b44455727086c080ffffab6605c1c251e9c0470db6c0992eeb",
+    "d9c09fa79999fe33217d4d6f81837d4cc6dc20f2a42bd6109aa9d020330e5889",
+    "040be98ac5c58d776c9ae2b74ffb34eb4699980330768093b94bc3de0870e67b",
+    "65b0655fe67b4421006cbd7af84213cdfd9cebec318514bc3334b4bacebe722c",
+    "291aa0c6fae754470bdff77354c3bcbc53e1fe690611c1c7934783c2a53ee2e9",
+    "09700132575d197e7e5e166b6cdda899e80aae33b14d6d83210a257af23e3169",
+    "33fcfbfc0e1cb41bbc9443c03802f5f4cd2c9859cf4a1c4d67a0a84355e5702b",
+    "7db8f03af4f7c4d4be21a04147dbf0b8e8ce9333ce41e43e86114cee02f6384f",
+    "4ffb7eea8ec8e220cf294d01c07a6c3a710f8641a651fffad64b0892a542c960",
+    "74507c4de15df224cc1a78419fa72cb49b1ee68b197e544a1c09815e28bd4292",
+    "c75ba221b95d06e5e6d8c0dc76b36152d2b6457c23e3d10b433b7c066848356f",
+    "6e70a222c64e16cbceb99ad8b295b426821728d5f4ba1d7e92c6226a95f512ee",
+    "90d7d7f3289edaa5a1904dbc1800c7f2fe579993d500bc56adce52002965271e",
+    "4937aa537fd85a3c84a40048b7e664bbeca1b69115db11d37e002aab495e5921",
+    "24fcb1b971e13731cde2989367d76b6e90d0ab3a85cca63bdb6ac6fbcd556187"
+  ],
+  "documentChars": [
+    859,
+    498,
+    362,
+    673,
+    729,
+    630,
+    825,
+    1783,
+    816,
+    2220,
+    340,
+    242,
+    997,
+    230,
+    407,
+    653,
+    780,
+    977,
+    1540,
+    970
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/accounting/historical-entry-mandatory-fields-reverse.md",
+    "docs/llm-wiki/concepts/accounting/cash-flow-fx-keep-first-account.md",
+    "docs/llm-wiki/concepts/accounting/journal-asset-field-release-history.md",
+    "docs/llm-wiki/concepts/accounting/journal-attachment-post-history.md",
+    "docs/llm-wiki/concepts/accounting/journal-review-copy-history.md",
+    "docs/llm-wiki/concepts/delivery/sent-picking-split-and-order-line-history.md",
+    "docs/llm-wiki/concepts/invoicing/duplicate-employee-old-department-on-journal-item.md",
+    "docs/llm-wiki/concepts/portal/service-centre-claim-display-history.md",
+    "docs/llm-wiki/concepts/after_sales/contacts-owl-error-cannot-open-historical-case.md",
+    "docs/ontology/objects/business-party.md",
+    "docs/llm-wiki/concepts/access/record-access-evidence-checklist.md",
+    "docs/llm-wiki/concepts/accounting/account-mapping-old-journal-history.md",
+    "docs/llm-wiki/concepts/accounting/journal-required-dimensions-and-country.md",
+    "docs/llm-wiki/concepts/delivery/wms-feedback-duplicate-quantity-history.md",
+    "docs/llm-wiki/concepts/inventory/return-grade-and-r-sku-history.md",
+    "docs/llm-wiki/concepts/invoicing/credit-note-required-type-history.md",
+    "docs/llm-wiki/concepts/invoicing/department-archive-protect-accounting-history.md",
+    "docs/llm-wiki/concepts/payment/historical-residual-balance-mismatch.md",
+    "docs/llm-wiki/concepts/access/operation-access-and-button-triage.md",
+    "docs/llm-wiki/concepts/accounting/cancelled-journal-sequence-date-history.md"
+  ],
+  "queryCAvailable": true
+}

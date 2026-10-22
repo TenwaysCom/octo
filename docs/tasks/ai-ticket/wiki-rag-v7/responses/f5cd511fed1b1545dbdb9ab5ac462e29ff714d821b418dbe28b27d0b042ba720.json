@@ -1,0 +1,100 @@
+{
+  "caseId": "T01",
+  "group": "A",
+  "payloadHash": "f5cd511fed1b1545dbdb9ab5ac462e29ff714d821b418dbe28b27d0b042ba720",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 0,
+      "relevance_score": 0.9895462393760681
+    },
+    {
+      "index": 6,
+      "relevance_score": 0.9431437253952026
+    },
+    {
+      "index": 2,
+      "relevance_score": 0.9196574687957764
+    },
+    {
+      "index": 1,
+      "relevance_score": 0.8337744474411011
+    },
+    {
+      "index": 9,
+      "relevance_score": 0.17668266594409943
+    }
+  ],
+  "durationMs": 474,
+  "querySha256": "ee6478401c1f0f523a52ed4fa33c7d8861e56f2a41ed25f6756cad7316f3a07d",
+  "queryChars": 47,
+  "documentSha256": [
+    "4e84906288b33a3700ab5dac4ddf3b2f0fbee225905fcb64e90f185f35a83d05",
+    "8076866becc24cd25742013c4e184f463f92569ab24f3532dedab7aea03ab458",
+    "01134119b525b4ed1c14f59eeb9b8f295c28e2890cbfc94ce5410282bdbbb6b2",
+    "6de8041e6dde860dff53c1afb272296b512e536f4d10f8680dff029b5db89828",
+    "56436f7058daecf052dc7307dfe4cd2d2b5e16a375bf17ac1137a1fa8ac8eecd",
+    "c536c2f501adfb35997e80f9dd467eaac158cc9d51d2344dbd0ac810c2ae41b8",
+    "3084d33f6dca2357eb4fe1c84437141fe37f1de93f7cefbd1aba8b9669426d06",
+    "0fb92126014c75d549296c0c83de9c6e06f6b314323edec5d78a8517bbb09f1b",
+    "bee1d758a5cec69a19adf4992952d57ae4860d4fdaa562ab8de3ddbde2cd2eac",
+    "e4e02f5a8e45c277df5f57dae26c24d955f637db0a21f335ea3ab1e024a94a30",
+    "34ed2264c16dee1058c6cbec763ec4c8a8f4ef7e4f14580e586bed627c2cf732",
+    "b70c7625d20c780fcbe882d63cde8c5c55096c33cbbfee1aad2a4c419b5196c5",
+    "1100dd8af75d532be92f710ecf609be2c65da1bdfaf2772457aa56aabfdc1639",
+    "f1aec7c3c51045af205626726808fc9646462a2d7c7afd636c491449412dad4e",
+    "d4a35128759969a97224d48371d87634eaea33aa92de96c9acde773050547d7f",
+    "060d24b1929ae3ac97e0291f6b069b80caffea156da0d50f120eb86aa57f81b3",
+    "18f6ea3a41028f62cf77919eeb5c3600ad1d238a3d43d2154a85073e1a2c5738",
+    "1dc191b3b0330c0fa6cdf67951776f5c7447404696fd1e7c51610a395b45ab75",
+    "24d1e5fa39d34553c8745ebda87bbff26a76c7f41d2c152d172a8f8bf45bfdb7",
+    "0137580ca906a5c396e3a3e2f8eaeee46d61b9bf94a01c96735e907d67da25f3"
+  ],
+  "documentChars": [
+    656,
+    536,
+    576,
+    315,
+    305,
+    1404,
+    1309,
+    1711,
+    693,
+    1356,
+    395,
+    1110,
+    474,
+    1095,
+    1335,
+    292,
+    662,
+    1046,
+    1070,
+    278
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/access/sales-team-order-visibility-history.md",
+    "docs/llm-wiki/concepts/integration/turbo-customer-sync-abort-history.md",
+    "docs/llm-wiki/concepts/integration/turbo-customer-sync-history.md",
+    "docs/llm-wiki/concepts/sales/product-selection-sku-check.md",
+    "docs/llm-wiki/concepts/platform/database-expiry-warning-triage.md",
+    "docs/llm-wiki/concepts/sales/contact-overview-create-sales-order.md",
+    "docs/llm-wiki/concepts/reporting/sales-visibility-filter-change-history.md",
+    "docs/llm-wiki/concepts/sales/contact-tag-change-verification.md",
+    "docs/llm-wiki/concepts/sales/uk-shopify-empty-salesperson-default-history.md",
+    "docs/llm-wiki/concepts/faq/contact-backorder-preorder-overview.md",
+    "docs/llm-wiki/concepts/sales/zero-quantity-concurrent-order-history.md",
+    "docs/llm-wiki/concepts/portal/portal-account-parent-company-invoices.md",
+    "docs/llm-wiki/concepts/payment/turbo-overdue-after-payment-history.md",
+    "docs/llm-wiki/concepts/portal/turbo-app-testflight-build-runtime-config-lark-1708.md",
+    "docs/llm-wiki/concepts/invoicing/invoice-email-follows-sales-order-invoice-address.md",
+    "docs/llm-wiki/concepts/invoicing/zero-order-shopify-rate-history.md",
+    "docs/llm-wiki/concepts/payment/invoice-auto-send-sales-team-historical-assignment.md",
+    "docs/llm-wiki/concepts/sales/pricelist-discount-not-applied-or-price-mismatch.md",
+    "docs/llm-wiki/concepts/sales/so-flow-preorder-backorder-cancel-rules.md",
+    "docs/llm-wiki/concepts/workforce/fleet-instance-visibility-history.md"
+  ],
+  "queryCAvailable": true
+}

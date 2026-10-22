@@ -1,0 +1,26 @@
+{
+  "mode": "rerank",
+  "results": [
+    {
+      "index": 0,
+      "relevance_score": 0.9478025436401367
+    },
+    {
+      "index": 2,
+      "relevance_score": 0.4677421748638153
+    },
+    {
+      "index": 1,
+      "relevance_score": 0.188483327627182
+    },
+    {
+      "index": 10,
+      "relevance_score": 0.08986403793096542
+    },
+    {
+      "index": 5,
+      "relevance_score": 0.07427804172039032
+    }
+  ],
+  "model": "BAAI/bge-reranker-v2-m3"
+}

@@ -1,0 +1,5555 @@
+{
+  "phase": "holdout",
+  "cases": 32,
+  "totalRequests": 42,
+  "originalAssociationEnabled": false,
+  "results": [
+    {
+      "id": "U01",
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/approvals/company-card-field-history.md",
+          "score": 0.9900435209274292
+        },
+        {
+          "rank": 2,
+          "path": "objects/employee-expense.md",
+          "score": 0.2518998980522156
+        },
+        {
+          "rank": 3,
+          "path": "processes/employee-expense-submission-approval-and-reimbursement.md",
+          "score": 0.11207430809736252
+        },
+        {
+          "rank": 4,
+          "path": "concepts/integration/sync-and-availability-navigation.md",
+          "score": 0.06326610594987869
+        },
+        {
+          "rank": 5,
+          "path": "objects/marketing-sales.md",
+          "score": 0.025517936795949936
+        }
+      ],
+      "runs": [
+        {
+          "strategy": "A",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.9900435209274292,
+          "s2": 0.2518998980522156,
+          "observedGap": 0.7381436228752136,
+          "selected": [
+            {
+              "path": "concepts/approvals/company-card-field-history.md",
+              "score": 0.9900435209274292
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/approvals/company-card-field-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 396,
+              "contentSha256": "942b91c18993e7f1be9a622479629f51985217a1a7aea86b1ce7cb6ba518cebd",
+              "primaryChars": 415,
+              "primarySha256": [
+                "a989beefa98c1c1b847f40802d51d308cef2fc4dc49327f3fc25e5f00ec3049b"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1846.2026-09-11-c0d4f00e05d9.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "B",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "uniform_lower_threshold",
+          "lowFallback": false,
+          "s1": 0.9900435209274292,
+          "s2": 0.2518998980522156,
+          "observedGap": 0.7381436228752136,
+          "selected": [
+            {
+              "path": "concepts/approvals/company-card-field-history.md",
+              "score": 0.9900435209274292
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/approvals/company-card-field-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 396,
+              "contentSha256": "942b91c18993e7f1be9a622479629f51985217a1a7aea86b1ce7cb6ba518cebd",
+              "primaryChars": 415,
+              "primarySha256": [
+                "a989beefa98c1c1b847f40802d51d308cef2fc4dc49327f3fc25e5f00ec3049b"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1846.2026-09-11-c0d4f00e05d9.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "C",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.9900435209274292,
+          "s2": 0.2518998980522156,
+          "observedGap": 0.7381436228752136,
+          "selected": [
+            {
+              "path": "concepts/approvals/company-card-field-history.md",
+              "score": 0.9900435209274292
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/approvals/company-card-field-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 396,
+              "contentSha256": "942b91c18993e7f1be9a622479629f51985217a1a7aea86b1ce7cb6ba518cebd",
+              "primaryChars": 415,
+              "primarySha256": [
+                "a989beefa98c1c1b847f40802d51d308cef2fc4dc49327f3fc25e5f00ec3049b"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1846.2026-09-11-c0d4f00e05d9.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "D",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.9900435209274292,
+          "s2": 0.2518998980522156,
+          "observedGap": 0.7381436228752136,
+          "selected": [
+            {
+              "path": "concepts/approvals/company-card-field-history.md",
+              "score": 0.9900435209274292
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/approvals/company-card-field-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 396,
+              "contentSha256": "942b91c18993e7f1be9a622479629f51985217a1a7aea86b1ce7cb6ba518cebd",
+              "primaryChars": 415,
+              "primarySha256": [
+                "a989beefa98c1c1b847f40802d51d308cef2fc4dc49327f3fc25e5f00ec3049b"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1846.2026-09-11-c0d4f00e05d9.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U02",
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/approvals/payroll-chatter-log-history.md",
+          "score": 0.8659579157829285
+        },
+        {
+          "rank": 2,
+          "path": "concepts/approvals/approval-submission-and-progress-triage.md",
+          "score": 0.16623173654079437
+        },
+        {
+          "rank": 3,
+          "path": "concepts/approvals/approval-policy-change-checklist.md",
+          "score": 0.08508950471878052
+        },
+        {
+          "rank": 4,
+          "path": "concepts/integration/sync-and-availability-navigation.md",
+          "score": 0.05718493461608887
+        },
+        {
+          "rank": 5,
+          "path": "concepts/purchase/po-approve-view-error-history.md",
+          "score": 0.020582031458616257
+        }
+      ],
+      "runs": [
+        {
+          "strategy": "A",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.8659579157829285,
+          "s2": 0.16623173654079437,
+          "observedGap": 0.6997261792421341,
+          "selected": [
+            {
+              "path": "concepts/approvals/payroll-chatter-log-history.md",
+              "score": 0.8659579157829285
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/approvals/payroll-chatter-log-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 385,
+              "contentSha256": "7732638662224ee9e4cc6a64621513a839f5d75a90c83a096fe6337271d2e4e8",
+              "primaryChars": 862,
+              "primarySha256": [
+                "2fca6a5900f8d2551da814d18313e96094fc8232dd5a5fb09f8cea419eb1c6a7"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-677.2026-09-11-cdb51df930b1.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "B",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "uniform_lower_threshold",
+          "lowFallback": false,
+          "s1": 0.8659579157829285,
+          "s2": 0.16623173654079437,
+          "observedGap": 0.6997261792421341,
+          "selected": [
+            {
+              "path": "concepts/approvals/payroll-chatter-log-history.md",
+              "score": 0.8659579157829285
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/approvals/payroll-chatter-log-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 385,
+              "contentSha256": "7732638662224ee9e4cc6a64621513a839f5d75a90c83a096fe6337271d2e4e8",
+              "primaryChars": 862,
+              "primarySha256": [
+                "2fca6a5900f8d2551da814d18313e96094fc8232dd5a5fb09f8cea419eb1c6a7"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-677.2026-09-11-cdb51df930b1.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "C",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.8659579157829285,
+          "s2": 0.16623173654079437,
+          "observedGap": 0.6997261792421341,
+          "selected": [
+            {
+              "path": "concepts/approvals/payroll-chatter-log-history.md",
+              "score": 0.8659579157829285
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/approvals/payroll-chatter-log-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 385,
+              "contentSha256": "7732638662224ee9e4cc6a64621513a839f5d75a90c83a096fe6337271d2e4e8",
+              "primaryChars": 862,
+              "primarySha256": [
+                "2fca6a5900f8d2551da814d18313e96094fc8232dd5a5fb09f8cea419eb1c6a7"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-677.2026-09-11-cdb51df930b1.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "D",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.8659579157829285,
+          "s2": 0.16623173654079437,
+          "observedGap": 0.6997261792421341,
+          "selected": [
+            {
+              "path": "concepts/approvals/payroll-chatter-log-history.md",
+              "score": 0.8659579157829285
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/approvals/payroll-chatter-log-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 385,
+              "contentSha256": "7732638662224ee9e4cc6a64621513a839f5d75a90c83a096fe6337271d2e4e8",
+              "primaryChars": 862,
+              "primarySha256": [
+                "2fca6a5900f8d2551da814d18313e96094fc8232dd5a5fb09f8cea419eb1c6a7"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-677.2026-09-11-cdb51df930b1.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U03",
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/accounting/asset-bill-warning-history.md",
+          "score": 0.7860581278800964
+        },
+        {
+          "rank": 2,
+          "path": "objects/fixed-asset.md",
+          "score": 0.4848983585834503
+        },
+        {
+          "rank": 3,
+          "path": "concepts/invoicing/vendor-bill-confirm-stock-move-singleton-investigation.md",
+          "score": 0.09154051542282104
+        },
+        {
+          "rank": 4,
+          "path": "processes/depreciating-fixed-asset-amendment.md",
+          "score": 0.04752844199538231
+        },
+        {
+          "rank": 5,
+          "path": "objects/business-approval.md",
+          "score": 0.03805168718099594
+        }
+      ],
+      "runs": [
+        {
+          "strategy": "A",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.7860581278800964,
+          "s2": 0.4848983585834503,
+          "observedGap": 0.3011597692966461,
+          "selected": [
+            {
+              "path": "concepts/accounting/asset-bill-warning-history.md",
+              "score": 0.7860581278800964
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/accounting/asset-bill-warning-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 362,
+              "contentSha256": "3620e5890603d7d7a925da07381bb551a48904d9f0f89429571227d8bde8cdc9",
+              "primaryChars": 489,
+              "primarySha256": [
+                "d2973d19f3c9c5bbf4f590779255f71c5df6ab37eb29cf271fb5e7d84c8dabf0"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1751.2026-09-11-e99660a83c93.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "B",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "uniform_lower_threshold",
+          "lowFallback": false,
+          "s1": 0.7860581278800964,
+          "s2": 0.4848983585834503,
+          "observedGap": 0.3011597692966461,
+          "selected": [
+            {
+              "path": "concepts/accounting/asset-bill-warning-history.md",
+              "score": 0.7860581278800964
+            },
+            {
+              "path": "objects/fixed-asset.md",
+              "score": 0.4848983585834503
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/accounting/asset-bill-warning-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 362,
+              "contentSha256": "3620e5890603d7d7a925da07381bb551a48904d9f0f89429571227d8bde8cdc9",
+              "primaryChars": 489,
+              "primarySha256": [
+                "d2973d19f3c9c5bbf4f590779255f71c5df6ab37eb29cf271fb5e7d84c8dabf0"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1751.2026-09-11-e99660a83c93.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "docs/ontology/objects/fixed-asset.md",
+              "knowledgeType": "ontology",
+              "contentChars": 2373,
+              "contentSha256": "c3fb8ac4ba9a7bbb42c38128a1670335cec6dbcfc6d46c8fe96de8d353d6555a",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "C",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.7860581278800964,
+          "s2": 0.4848983585834503,
+          "observedGap": 0.3011597692966461,
+          "selected": [
+            {
+              "path": "concepts/accounting/asset-bill-warning-history.md",
+              "score": 0.7860581278800964
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/accounting/asset-bill-warning-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 362,
+              "contentSha256": "3620e5890603d7d7a925da07381bb551a48904d9f0f89429571227d8bde8cdc9",
+              "primaryChars": 489,
+              "primarySha256": [
+                "d2973d19f3c9c5bbf4f590779255f71c5df6ab37eb29cf271fb5e7d84c8dabf0"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1751.2026-09-11-e99660a83c93.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "D",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.7860581278800964,
+          "s2": 0.4848983585834503,
+          "observedGap": 0.3011597692966461,
+          "selected": [
+            {
+              "path": "concepts/accounting/asset-bill-warning-history.md",
+              "score": 0.7860581278800964
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/accounting/asset-bill-warning-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 362,
+              "contentSha256": "3620e5890603d7d7a925da07381bb551a48904d9f0f89429571227d8bde8cdc9",
+              "primaryChars": 489,
+              "primarySha256": [
+                "d2973d19f3c9c5bbf4f590779255f71c5df6ab37eb29cf271fb5e7d84c8dabf0"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1751.2026-09-11-e99660a83c93.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U04",
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/platform/pdf-signature-format-history.md",
+          "score": 0.025102468207478523
+        },
+        {
+          "rank": 2,
+          "path": "objects/sales-invoice.md",
+          "score": 0.02212352864444256
+        },
+        {
+          "rank": 3,
+          "path": "objects/transaction-tax.md",
+          "score": 0.01933719962835312
+        },
+        {
+          "rank": 4,
+          "path": "processes/sales-invoicing.md",
+          "score": 0.01532744150608778
+        },
+        {
+          "rank": 5,
+          "path": "concepts/invoicing/invoice-edit-restrictions-and-linked-doc-conflicts.md",
+          "score": 0.0024069028440862894
+        }
+      ],
+      "runs": [
+        {
+          "strategy": "A",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "no_high_score",
+          "lowFallback": false,
+          "s1": 0.025102468207478523,
+          "s2": 0.02212352864444256,
+          "observedGap": 0.002978939563035965,
+          "selected": [],
+          "final": []
+        },
+        {
+          "strategy": "B",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "uniform_lower_threshold",
+          "lowFallback": false,
+          "s1": 0.025102468207478523,
+          "s2": 0.02212352864444256,
+          "observedGap": 0.002978939563035965,
+          "selected": [],
+          "final": []
+        },
+        {
+          "strategy": "C",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "below_weknora_floor",
+          "lowFallback": false,
+          "s1": 0.025102468207478523,
+          "s2": 0.02212352864444256,
+          "observedGap": 0.002978939563035965,
+          "selected": [],
+          "final": []
+        },
+        {
+          "strategy": "D",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "below_floor",
+          "lowFallback": false,
+          "s1": 0.025102468207478523,
+          "s2": 0.02212352864444256,
+          "observedGap": 0.002978939563035965,
+          "selected": [],
+          "final": []
+        }
+      ]
+    },
+    {
+      "id": "U05",
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/accounting/other-outbound-done-journal-history.md",
+          "score": 0.16730642318725586
+        },
+        {
+          "rank": 2,
+          "path": "objects/purchase-settlement.md",
+          "score": 0.05706805735826492
+        },
+        {
+          "rank": 3,
+          "path": "concepts/sales/contact-overview-create-sales-order.md",
+          "score": 0.025519710034132004
+        },
+        {
+          "rank": 4,
+          "path": "processes/b2c-sales-order.md",
+          "score": 0.02337222546339035
+        },
+        {
+          "rank": 5,
+          "path": "processes/sales-order-cancellation.md",
+          "score": 0.019302546977996826
+        }
+      ],
+      "runs": [
+        {
+          "strategy": "A",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "no_high_score",
+          "lowFallback": false,
+          "s1": 0.16730642318725586,
+          "s2": 0.05706805735826492,
+          "observedGap": 0.11023836582899094,
+          "selected": [],
+          "final": []
+        },
+        {
+          "strategy": "B",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "uniform_lower_threshold",
+          "lowFallback": false,
+          "s1": 0.16730642318725586,
+          "s2": 0.05706805735826492,
+          "observedGap": 0.11023836582899094,
+          "selected": [],
+          "final": []
+        },
+        {
+          "strategy": "C",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "low_top1_eligible",
+          "lowFallback": true,
+          "s1": 0.16730642318725586,
+          "s2": 0.05706805735826492,
+          "observedGap": 0.11023836582899094,
+          "selected": [
+            {
+              "path": "concepts/accounting/other-outbound-done-journal-history.md",
+              "score": 0.16730642318725586
+            }
+          ],
+          "final": []
+        },
+        {
+          "strategy": "D",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "below_floor",
+          "lowFallback": false,
+          "s1": 0.16730642318725586,
+          "s2": 0.05706805735826492,
+          "observedGap": 0.11023836582899094,
+          "selected": [],
+          "final": []
+        }
+      ]
+    },
+    {
+      "id": "U06",
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/accounting/credit-note-deferred-plan-cancel-history.md",
+          "score": 0.7424914240837097
+        },
+        {
+          "rank": 2,
+          "path": "concepts/accounting/reverse-creditnote-rules-and-entry-direction-anomalies.md",
+          "score": 0.3590637743473053
+        },
+        {
+          "rank": 3,
+          "path": "objects/deferred-service-revenue.md",
+          "score": 0.21494106948375702
+        },
+        {
+          "rank": 4,
+          "path": "objects/sales-invoice.md",
+          "score": 0.17097684741020203
+        },
+        {
+          "rank": 5,
+          "path": "concepts/accounting/credit-note-deferred-inheritance-history.md",
+          "score": 0.1588030457496643
+        }
+      ],
+      "runs": [
+        {
+          "strategy": "A",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.7424914240837097,
+          "s2": 0.3590637743473053,
+          "observedGap": 0.3834276497364044,
+          "selected": [
+            {
+              "path": "concepts/accounting/credit-note-deferred-plan-cancel-history.md",
+              "score": 0.7424914240837097
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/accounting/credit-note-deferred-plan-cancel-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 536,
+              "contentSha256": "e5f5e2140b02cff2986527dc298a1961a0f8d45f35b8c5f7711dbc003e1d600a",
+              "primaryChars": 697,
+              "primarySha256": [
+                "d6f47aa4cd3bfa781a2172c735d0c03b99459761e2177f423d1b62266ac5da78"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1756.2026-09-11-805042c84d0b.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "B",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "uniform_lower_threshold",
+          "lowFallback": false,
+          "s1": 0.7424914240837097,
+          "s2": 0.3590637743473053,
+          "observedGap": 0.3834276497364044,
+          "selected": [
+            {
+              "path": "concepts/accounting/credit-note-deferred-plan-cancel-history.md",
+              "score": 0.7424914240837097
+            },
+            {
+              "path": "concepts/accounting/reverse-creditnote-rules-and-entry-direction-anomalies.md",
+              "score": 0.3590637743473053
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/accounting/credit-note-deferred-plan-cancel-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 536,
+              "contentSha256": "e5f5e2140b02cff2986527dc298a1961a0f8d45f35b8c5f7711dbc003e1d600a",
+              "primaryChars": 697,
+              "primarySha256": [
+                "d6f47aa4cd3bfa781a2172c735d0c03b99459761e2177f423d1b62266ac5da78"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1756.2026-09-11-805042c84d0b.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "C",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.7424914240837097,
+          "s2": 0.3590637743473053,
+          "observedGap": 0.3834276497364044,
+          "selected": [
+            {
+              "path": "concepts/accounting/credit-note-deferred-plan-cancel-history.md",
+              "score": 0.7424914240837097
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/accounting/credit-note-deferred-plan-cancel-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 536,
+              "contentSha256": "e5f5e2140b02cff2986527dc298a1961a0f8d45f35b8c5f7711dbc003e1d600a",
+              "primaryChars": 697,
+              "primarySha256": [
+                "d6f47aa4cd3bfa781a2172c735d0c03b99459761e2177f423d1b62266ac5da78"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1756.2026-09-11-805042c84d0b.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "D",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.7424914240837097,
+          "s2": 0.3590637743473053,
+          "observedGap": 0.3834276497364044,
+          "selected": [
+            {
+              "path": "concepts/accounting/credit-note-deferred-plan-cancel-history.md",
+              "score": 0.7424914240837097
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/accounting/credit-note-deferred-plan-cancel-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 536,
+              "contentSha256": "e5f5e2140b02cff2986527dc298a1961a0f8d45f35b8c5f7711dbc003e1d600a",
+              "primaryChars": 697,
+              "primarySha256": [
+                "d6f47aa4cd3bfa781a2172c735d0c03b99459761e2177f423d1b62266ac5da78"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1756.2026-09-11-805042c84d0b.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U07",
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "objects/business-approval.md",
+          "score": 0.4426722824573517
+        },
+        {
+          "rank": 2,
+          "path": "concepts/approvals/outbound-notification-client-history.md",
+          "score": 0.40789473056793213
+        },
+        {
+          "rank": 3,
+          "path": "concepts/approvals/inflight-approval-owner-change-history.md",
+          "score": 0.1608920842409134
+        },
+        {
+          "rank": 4,
+          "path": "concepts/approvals/approval-submission-and-progress-triage.md",
+          "score": 0.11826109886169434
+        },
+        {
+          "rank": 5,
+          "path": "concepts/delivery/wms-send-failure-and-unknown-result.md",
+          "score": 0.09624544531106949
+        }
+      ],
+      "runs": [
+        {
+          "strategy": "A",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "no_high_score",
+          "lowFallback": false,
+          "s1": 0.4426722824573517,
+          "s2": 0.40789473056793213,
+          "observedGap": 0.034777551889419556,
+          "selected": [],
+          "final": []
+        },
+        {
+          "strategy": "B",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "uniform_lower_threshold",
+          "lowFallback": false,
+          "s1": 0.4426722824573517,
+          "s2": 0.40789473056793213,
+          "observedGap": 0.034777551889419556,
+          "selected": [
+            {
+              "path": "objects/business-approval.md",
+              "score": 0.4426722824573517
+            },
+            {
+              "path": "concepts/approvals/outbound-notification-client-history.md",
+              "score": 0.40789473056793213
+            }
+          ],
+          "final": [
+            {
+              "path": "docs/ontology/objects/business-approval.md",
+              "knowledgeType": "ontology",
+              "contentChars": 2346,
+              "contentSha256": "b4407f836994c09b716a8397c3a60cb7b7be92e04af3c7ca897132a2734b339a",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/approvals/outbound-notification-client-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 562,
+              "contentSha256": "1e6bef44197d3139a6388528d9aed58252472acd247346c1714e32b5f0792335",
+              "primaryChars": 403,
+              "primarySha256": [
+                "53da82280990c3557f4dde8fcde3ec2be1d0906fa2e2f94faa335ab22cd9117b"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1676.2026-09-11-82eec3248275.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "C",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "low_ontology_not_rescued",
+          "lowFallback": false,
+          "s1": 0.4426722824573517,
+          "s2": 0.40789473056793213,
+          "observedGap": 0.034777551889419556,
+          "selected": [],
+          "final": []
+        },
+        {
+          "strategy": "D",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "insufficient_gap",
+          "lowFallback": false,
+          "s1": 0.4426722824573517,
+          "s2": 0.40789473056793213,
+          "observedGap": 0.034777551889419556,
+          "selected": [],
+          "final": []
+        }
+      ]
+    },
+    {
+      "id": "U08",
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/accounting/journal-asset-field-release-history.md",
+          "score": 0.666368842124939
+        },
+        {
+          "rank": 2,
+          "path": "concepts/accounting/asset-value-depreciation-change-history.md",
+          "score": 0.016108790412545204
+        },
+        {
+          "rank": 3,
+          "path": "objects/sales-return.md",
+          "score": 0.010429400019347668
+        },
+        {
+          "rank": 4,
+          "path": "objects/business-approval.md",
+          "score": 0.004515732638537884
+        },
+        {
+          "rank": 5,
+          "path": "concepts/reporting/journal-export-session-history.md",
+          "score": 0.0043840534053742886
+        }
+      ],
+      "runs": [
+        {
+          "strategy": "A",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "no_high_score",
+          "lowFallback": false,
+          "s1": 0.666368842124939,
+          "s2": 0.016108790412545204,
+          "observedGap": 0.6502600517123938,
+          "selected": [],
+          "final": []
+        },
+        {
+          "strategy": "B",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "uniform_lower_threshold",
+          "lowFallback": false,
+          "s1": 0.666368842124939,
+          "s2": 0.016108790412545204,
+          "observedGap": 0.6502600517123938,
+          "selected": [
+            {
+              "path": "concepts/accounting/journal-asset-field-release-history.md",
+              "score": 0.666368842124939
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/accounting/journal-asset-field-release-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 0,
+              "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "C",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "low_top1_eligible",
+          "lowFallback": true,
+          "s1": 0.666368842124939,
+          "s2": 0.016108790412545204,
+          "observedGap": 0.6502600517123938,
+          "selected": [
+            {
+              "path": "concepts/accounting/journal-asset-field-release-history.md",
+              "score": 0.666368842124939
+            }
+          ],
+          "final": []
+        },
+        {
+          "strategy": "D",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "low_top1_eligible",
+          "lowFallback": true,
+          "s1": 0.666368842124939,
+          "s2": 0.016108790412545204,
+          "observedGap": 0.6502600517123938,
+          "selected": [
+            {
+              "path": "concepts/accounting/journal-asset-field-release-history.md",
+              "score": 0.666368842124939
+            }
+          ],
+          "final": []
+        }
+      ]
+    },
+    {
+      "id": "U09",
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/accounting/payment-request-owner-department-history.md",
+          "score": 0.9706167578697205
+        },
+        {
+          "rank": 2,
+          "path": "concepts/reporting/financial-report-scope-history.md",
+          "score": 0.23284213244915009
+        },
+        {
+          "rank": 3,
+          "path": "concepts/invoicing/vendor-bill-confirm-stock-move-singleton-investigation.md",
+          "score": 0.18694338202476501
+        },
+        {
+          "rank": 4,
+          "path": "concepts/purchase/po-buyer-vendor-correction-history.md",
+          "score": 0.16885876655578613
+        },
+        {
+          "rank": 5,
+          "path": "concepts/invoicing/uk-inbound-bill-attachment-history.md",
+          "score": 0.07682284712791443
+        }
+      ],
+      "runs": [
+        {
+          "strategy": "A",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.9706167578697205,
+          "s2": 0.23284213244915009,
+          "observedGap": 0.7377746254205704,
+          "selected": [
+            {
+              "path": "concepts/accounting/payment-request-owner-department-history.md",
+              "score": 0.9706167578697205
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/accounting/payment-request-owner-department-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 860,
+              "contentSha256": "45f1eaf03c53aac8a35191e1b61a13d8c6cbcf8c1a47bd435ed4dedd4d5f772e",
+              "primaryChars": 1094,
+              "primarySha256": [
+                "cbdf5d2a1013b76bc067e657bad524b77a1a92c24914fa2c7b8ee52dceeca849"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1173.2026-09-11-bc65de93d3e3.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "B",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "uniform_lower_threshold",
+          "lowFallback": false,
+          "s1": 0.9706167578697205,
+          "s2": 0.23284213244915009,
+          "observedGap": 0.7377746254205704,
+          "selected": [
+            {
+              "path": "concepts/accounting/payment-request-owner-department-history.md",
+              "score": 0.9706167578697205
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/accounting/payment-request-owner-department-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 860,
+              "contentSha256": "45f1eaf03c53aac8a35191e1b61a13d8c6cbcf8c1a47bd435ed4dedd4d5f772e",
+              "primaryChars": 1094,
+              "primarySha256": [
+                "cbdf5d2a1013b76bc067e657bad524b77a1a92c24914fa2c7b8ee52dceeca849"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1173.2026-09-11-bc65de93d3e3.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "C",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.9706167578697205,
+          "s2": 0.23284213244915009,
+          "observedGap": 0.7377746254205704,
+          "selected": [
+            {
+              "path": "concepts/accounting/payment-request-owner-department-history.md",
+              "score": 0.9706167578697205
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/accounting/payment-request-owner-department-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 860,
+              "contentSha256": "45f1eaf03c53aac8a35191e1b61a13d8c6cbcf8c1a47bd435ed4dedd4d5f772e",
+              "primaryChars": 1094,
+              "primarySha256": [
+                "cbdf5d2a1013b76bc067e657bad524b77a1a92c24914fa2c7b8ee52dceeca849"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1173.2026-09-11-bc65de93d3e3.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "D",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.9706167578697205,
+          "s2": 0.23284213244915009,
+          "observedGap": 0.7377746254205704,
+          "selected": [
+            {
+              "path": "concepts/accounting/payment-request-owner-department-history.md",
+              "score": 0.9706167578697205
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/accounting/payment-request-owner-department-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 860,
+              "contentSha256": "45f1eaf03c53aac8a35191e1b61a13d8c6cbcf8c1a47bd435ed4dedd4d5f772e",
+              "primaryChars": 1094,
+              "primarySha256": [
+                "cbdf5d2a1013b76bc067e657bad524b77a1a92c24914fa2c7b8ee52dceeca849"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1173.2026-09-11-bc65de93d3e3.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U10",
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/delivery/outbound-pod-export-field.md",
+          "score": 0.996917724609375
+        },
+        {
+          "rank": 2,
+          "path": "concepts/faq/outbound-export-pod-link-and-row-mismatch.md",
+          "score": 0.9417353272438049
+        },
+        {
+          "rank": 3,
+          "path": "concepts/delivery/wms-feedback-and-marketplace-tracking-triage.md",
+          "score": 0.7286162376403809
+        },
+        {
+          "rank": 4,
+          "path": "objects/sales-delivery.md",
+          "score": 0.4622117877006531
+        },
+        {
+          "rank": 5,
+          "path": "concepts/delivery/warehouse-dispatch-and-return-navigation.md",
+          "score": 0.05901041999459267
+        }
+      ],
+      "runs": [
+        {
+          "strategy": "A",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.996917724609375,
+          "s2": 0.9417353272438049,
+          "observedGap": 0.05518239736557007,
+          "selected": [
+            {
+              "path": "concepts/delivery/outbound-pod-export-field.md",
+              "score": 0.996917724609375
+            },
+            {
+              "path": "concepts/faq/outbound-export-pod-link-and-row-mismatch.md",
+              "score": 0.9417353272438049
+            },
+            {
+              "path": "concepts/delivery/wms-feedback-and-marketplace-tracking-triage.md",
+              "score": 0.7286162376403809
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/delivery/outbound-pod-export-field.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 569,
+              "contentSha256": "743886d4c44bddfa22c46028733c4add1a348d1005daa9b35a7194f3957d4d55",
+              "primaryChars": 543,
+              "primarySha256": [
+                "10a38a2960bd504180fc4993ae76540ee39ffe3e2799782dfed0b02faa0aaf07"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-2216.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/faq/outbound-export-pod-link-and-row-mismatch.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 0,
+              "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/delivery/wms-feedback-and-marketplace-tracking-triage.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 1895,
+              "contentSha256": "bc2668c92f760ba543bd5f717b5a71cbb49ed613b74debaa8676807af75a2167",
+              "primaryChars": 2295,
+              "primarySha256": [
+                "a37323c61dddf020970fc06963a6bac55bf2022f6c705807354ae10d8d77fca3",
+                "a8399002fe7ccf095ca19e0e7ee64546ea6c7f87c5a27452fd0d1ca268a8334b"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-2087.2026-09-11-b0aae4f4d7bd.md",
+                "raw/transcripts/ticket-2243.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "B",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "uniform_lower_threshold",
+          "lowFallback": false,
+          "s1": 0.996917724609375,
+          "s2": 0.9417353272438049,
+          "observedGap": 0.05518239736557007,
+          "selected": [
+            {
+              "path": "concepts/delivery/outbound-pod-export-field.md",
+              "score": 0.996917724609375
+            },
+            {
+              "path": "concepts/faq/outbound-export-pod-link-and-row-mismatch.md",
+              "score": 0.9417353272438049
+            },
+            {
+              "path": "concepts/delivery/wms-feedback-and-marketplace-tracking-triage.md",
+              "score": 0.7286162376403809
+            },
+            {
+              "path": "objects/sales-delivery.md",
+              "score": 0.4622117877006531
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/delivery/outbound-pod-export-field.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 569,
+              "contentSha256": "743886d4c44bddfa22c46028733c4add1a348d1005daa9b35a7194f3957d4d55",
+              "primaryChars": 543,
+              "primarySha256": [
+                "10a38a2960bd504180fc4993ae76540ee39ffe3e2799782dfed0b02faa0aaf07"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-2216.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/faq/outbound-export-pod-link-and-row-mismatch.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 0,
+              "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/delivery/wms-feedback-and-marketplace-tracking-triage.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 1895,
+              "contentSha256": "bc2668c92f760ba543bd5f717b5a71cbb49ed613b74debaa8676807af75a2167",
+              "primaryChars": 2295,
+              "primarySha256": [
+                "a37323c61dddf020970fc06963a6bac55bf2022f6c705807354ae10d8d77fca3",
+                "a8399002fe7ccf095ca19e0e7ee64546ea6c7f87c5a27452fd0d1ca268a8334b"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-2087.2026-09-11-b0aae4f4d7bd.md",
+                "raw/transcripts/ticket-2243.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "C",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.996917724609375,
+          "s2": 0.9417353272438049,
+          "observedGap": 0.05518239736557007,
+          "selected": [
+            {
+              "path": "concepts/delivery/outbound-pod-export-field.md",
+              "score": 0.996917724609375
+            },
+            {
+              "path": "concepts/faq/outbound-export-pod-link-and-row-mismatch.md",
+              "score": 0.9417353272438049
+            },
+            {
+              "path": "concepts/delivery/wms-feedback-and-marketplace-tracking-triage.md",
+              "score": 0.7286162376403809
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/delivery/outbound-pod-export-field.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 569,
+              "contentSha256": "743886d4c44bddfa22c46028733c4add1a348d1005daa9b35a7194f3957d4d55",
+              "primaryChars": 543,
+              "primarySha256": [
+                "10a38a2960bd504180fc4993ae76540ee39ffe3e2799782dfed0b02faa0aaf07"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-2216.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/faq/outbound-export-pod-link-and-row-mismatch.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 0,
+              "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/delivery/wms-feedback-and-marketplace-tracking-triage.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 1895,
+              "contentSha256": "bc2668c92f760ba543bd5f717b5a71cbb49ed613b74debaa8676807af75a2167",
+              "primaryChars": 2295,
+              "primarySha256": [
+                "a37323c61dddf020970fc06963a6bac55bf2022f6c705807354ae10d8d77fca3",
+                "a8399002fe7ccf095ca19e0e7ee64546ea6c7f87c5a27452fd0d1ca268a8334b"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-2087.2026-09-11-b0aae4f4d7bd.md",
+                "raw/transcripts/ticket-2243.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "D",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.996917724609375,
+          "s2": 0.9417353272438049,
+          "observedGap": 0.05518239736557007,
+          "selected": [
+            {
+              "path": "concepts/delivery/outbound-pod-export-field.md",
+              "score": 0.996917724609375
+            },
+            {
+              "path": "concepts/faq/outbound-export-pod-link-and-row-mismatch.md",
+              "score": 0.9417353272438049
+            },
+            {
+              "path": "concepts/delivery/wms-feedback-and-marketplace-tracking-triage.md",
+              "score": 0.7286162376403809
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/delivery/outbound-pod-export-field.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 569,
+              "contentSha256": "743886d4c44bddfa22c46028733c4add1a348d1005daa9b35a7194f3957d4d55",
+              "primaryChars": 543,
+              "primarySha256": [
+                "10a38a2960bd504180fc4993ae76540ee39ffe3e2799782dfed0b02faa0aaf07"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-2216.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/faq/outbound-export-pod-link-and-row-mismatch.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 0,
+              "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/delivery/wms-feedback-and-marketplace-tracking-triage.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 1895,
+              "contentSha256": "bc2668c92f760ba543bd5f717b5a71cbb49ed613b74debaa8676807af75a2167",
+              "primaryChars": 2295,
+              "primarySha256": [
+                "a37323c61dddf020970fc06963a6bac55bf2022f6c705807354ae10d8d77fca3",
+                "a8399002fe7ccf095ca19e0e7ee64546ea6c7f87c5a27452fd0d1ca268a8334b"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-2087.2026-09-11-b0aae4f4d7bd.md",
+                "raw/transcripts/ticket-2243.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U11",
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/access/permission-request-and-effective-access.md",
+          "score": 0.1809259057044983
+        },
+        {
+          "rank": 2,
+          "path": "concepts/portal/survey-completion-notification-history.md",
+          "score": 0.12064138799905777
+        },
+        {
+          "rank": 3,
+          "path": "concepts/approvals/inflight-approval-owner-change-history.md",
+          "score": 0.1004219502210617
+        },
+        {
+          "rank": 4,
+          "path": "concepts/approvals/ops-submission-notification-history.md",
+          "score": 0.05403196066617966
+        },
+        {
+          "rank": 5,
+          "path": "concepts/sales/contact-overview-create-sales-order.md",
+          "score": 0.006853180006146431
+        }
+      ],
+      "runs": [
+        {
+          "strategy": "A",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "no_high_score",
+          "lowFallback": false,
+          "s1": 0.1809259057044983,
+          "s2": 0.12064138799905777,
+          "observedGap": 0.06028451770544052,
+          "selected": [],
+          "final": []
+        },
+        {
+          "strategy": "B",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "uniform_lower_threshold",
+          "lowFallback": false,
+          "s1": 0.1809259057044983,
+          "s2": 0.12064138799905777,
+          "observedGap": 0.06028451770544052,
+          "selected": [],
+          "final": []
+        },
+        {
+          "strategy": "C",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "low_top1_eligible",
+          "lowFallback": true,
+          "s1": 0.1809259057044983,
+          "s2": 0.12064138799905777,
+          "observedGap": 0.06028451770544052,
+          "selected": [
+            {
+              "path": "concepts/access/permission-request-and-effective-access.md",
+              "score": 0.1809259057044983
+            }
+          ],
+          "final": []
+        },
+        {
+          "strategy": "D",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "below_floor",
+          "lowFallback": false,
+          "s1": 0.1809259057044983,
+          "s2": 0.12064138799905777,
+          "observedGap": 0.06028451770544052,
+          "selected": [],
+          "final": []
+        }
+      ]
+    },
+    {
+      "id": "U12",
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/inventory/other-outbound-virtual-location-restore.md",
+          "score": 0.8625227212905884
+        },
+        {
+          "rank": 2,
+          "path": "processes/warehouse-document-amendment.md",
+          "score": 0.30472293496131897
+        },
+        {
+          "rank": 3,
+          "path": "concepts/accounting/other-outbound-done-journal-history.md",
+          "score": 0.18986590206623077
+        },
+        {
+          "rank": 4,
+          "path": "objects/purchase-settlement.md",
+          "score": 0.17995722591876984
+        },
+        {
+          "rank": 5,
+          "path": "processes/journal-item-account-reclassification.md",
+          "score": 0.15371298789978027
+        }
+      ],
+      "runs": [
+        {
+          "strategy": "A",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.8625227212905884,
+          "s2": 0.30472293496131897,
+          "observedGap": 0.5577997863292694,
+          "selected": [
+            {
+              "path": "concepts/inventory/other-outbound-virtual-location-restore.md",
+              "score": 0.8625227212905884
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/inventory/other-outbound-virtual-location-restore.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 424,
+              "contentSha256": "99e2a20e3503238a079cd186ba73fd4dbab1f8fc99d6dde072e113a5831c8101",
+              "primaryChars": 1786,
+              "primarySha256": [
+                "2bed36530d5d1d797100d9a6833e2aefab47c69e3def61c18db0f98d5632bdb4"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1769.2026-09-11-25f514c8740b.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "B",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "uniform_lower_threshold",
+          "lowFallback": false,
+          "s1": 0.8625227212905884,
+          "s2": 0.30472293496131897,
+          "observedGap": 0.5577997863292694,
+          "selected": [
+            {
+              "path": "concepts/inventory/other-outbound-virtual-location-restore.md",
+              "score": 0.8625227212905884
+            },
+            {
+              "path": "processes/warehouse-document-amendment.md",
+              "score": 0.30472293496131897
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/inventory/other-outbound-virtual-location-restore.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 424,
+              "contentSha256": "99e2a20e3503238a079cd186ba73fd4dbab1f8fc99d6dde072e113a5831c8101",
+              "primaryChars": 1786,
+              "primarySha256": [
+                "2bed36530d5d1d797100d9a6833e2aefab47c69e3def61c18db0f98d5632bdb4"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1769.2026-09-11-25f514c8740b.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "docs/ontology/processes/warehouse-document-amendment.md",
+              "knowledgeType": "ontology",
+              "contentChars": 1502,
+              "contentSha256": "d02f7eab31f559c0408f471126aa7641b3c4f2aa68f292abc40cb4211646b547",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "C",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.8625227212905884,
+          "s2": 0.30472293496131897,
+          "observedGap": 0.5577997863292694,
+          "selected": [
+            {
+              "path": "concepts/inventory/other-outbound-virtual-location-restore.md",
+              "score": 0.8625227212905884
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/inventory/other-outbound-virtual-location-restore.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 424,
+              "contentSha256": "99e2a20e3503238a079cd186ba73fd4dbab1f8fc99d6dde072e113a5831c8101",
+              "primaryChars": 1786,
+              "primarySha256": [
+                "2bed36530d5d1d797100d9a6833e2aefab47c69e3def61c18db0f98d5632bdb4"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1769.2026-09-11-25f514c8740b.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "D",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.8625227212905884,
+          "s2": 0.30472293496131897,
+          "observedGap": 0.5577997863292694,
+          "selected": [
+            {
+              "path": "concepts/inventory/other-outbound-virtual-location-restore.md",
+              "score": 0.8625227212905884
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/inventory/other-outbound-virtual-location-restore.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 424,
+              "contentSha256": "99e2a20e3503238a079cd186ba73fd4dbab1f8fc99d6dde072e113a5831c8101",
+              "primaryChars": 1786,
+              "primarySha256": [
+                "2bed36530d5d1d797100d9a6833e2aefab47c69e3def61c18db0f98d5632bdb4"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1769.2026-09-11-25f514c8740b.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U13",
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/delivery/wms-feedback-and-marketplace-tracking-triage.md",
+          "score": 0.9810559153556824
+        },
+        {
+          "rank": 2,
+          "path": "concepts/delivery/marketplace-tracking-update-history.md",
+          "score": 0.9636133909225464
+        },
+        {
+          "rank": 3,
+          "path": "concepts/integration/shopify-order-import-triage.md",
+          "score": 0.836803674697876
+        },
+        {
+          "rank": 4,
+          "path": "concepts/faq/shopify-order-not-synced-checklist.md",
+          "score": 0.5987511277198792
+        },
+        {
+          "rank": 5,
+          "path": "concepts/integration/shopify-order-sku-mismatch-mapping-and-lifecycle.md",
+          "score": 0.5903720855712891
+        }
+      ],
+      "runs": [
+        {
+          "strategy": "A",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.9810559153556824,
+          "s2": 0.9636133909225464,
+          "observedGap": 0.017442524433135986,
+          "selected": [
+            {
+              "path": "concepts/delivery/wms-feedback-and-marketplace-tracking-triage.md",
+              "score": 0.9810559153556824
+            },
+            {
+              "path": "concepts/delivery/marketplace-tracking-update-history.md",
+              "score": 0.9636133909225464
+            },
+            {
+              "path": "concepts/integration/shopify-order-import-triage.md",
+              "score": 0.836803674697876
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/delivery/wms-feedback-and-marketplace-tracking-triage.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 1624,
+              "contentSha256": "15e62df7356d6c2564d419ba8f3083cbf1569de1896bc669b1c8ccb25fbca09a",
+              "primaryChars": 418,
+              "primarySha256": [
+                "d0f4a891bb08a63f62e114534791c3b73974dd6803023204cc5513b5ab4d7084"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-2243.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/delivery/marketplace-tracking-update-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 753,
+              "contentSha256": "d7babcbba41fa574bb928298dbd684fd329c0a9b58fda48c81a2075a3c8436ed",
+              "primaryChars": 1319,
+              "primarySha256": [
+                "61600be28b06690bbfa1aaac9e3fd83a56dec30706fedf952d11f772079cb2d2"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1468.2026-09-11-658f5c5c85af.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/integration/shopify-order-import-triage.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 0,
+              "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "B",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "uniform_lower_threshold",
+          "lowFallback": false,
+          "s1": 0.9810559153556824,
+          "s2": 0.9636133909225464,
+          "observedGap": 0.017442524433135986,
+          "selected": [
+            {
+              "path": "concepts/delivery/wms-feedback-and-marketplace-tracking-triage.md",
+              "score": 0.9810559153556824
+            },
+            {
+              "path": "concepts/delivery/marketplace-tracking-update-history.md",
+              "score": 0.9636133909225464
+            },
+            {
+              "path": "concepts/integration/shopify-order-import-triage.md",
+              "score": 0.836803674697876
+            },
+            {
+              "path": "concepts/faq/shopify-order-not-synced-checklist.md",
+              "score": 0.5987511277198792
+            },
+            {
+              "path": "concepts/integration/shopify-order-sku-mismatch-mapping-and-lifecycle.md",
+              "score": 0.5903720855712891
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/delivery/wms-feedback-and-marketplace-tracking-triage.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 1624,
+              "contentSha256": "15e62df7356d6c2564d419ba8f3083cbf1569de1896bc669b1c8ccb25fbca09a",
+              "primaryChars": 418,
+              "primarySha256": [
+                "d0f4a891bb08a63f62e114534791c3b73974dd6803023204cc5513b5ab4d7084"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-2243.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/delivery/marketplace-tracking-update-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 753,
+              "contentSha256": "d7babcbba41fa574bb928298dbd684fd329c0a9b58fda48c81a2075a3c8436ed",
+              "primaryChars": 1319,
+              "primarySha256": [
+                "61600be28b06690bbfa1aaac9e3fd83a56dec30706fedf952d11f772079cb2d2"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1468.2026-09-11-658f5c5c85af.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/integration/shopify-order-import-triage.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 0,
+              "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "C",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.9810559153556824,
+          "s2": 0.9636133909225464,
+          "observedGap": 0.017442524433135986,
+          "selected": [
+            {
+              "path": "concepts/delivery/wms-feedback-and-marketplace-tracking-triage.md",
+              "score": 0.9810559153556824
+            },
+            {
+              "path": "concepts/delivery/marketplace-tracking-update-history.md",
+              "score": 0.9636133909225464
+            },
+            {
+              "path": "concepts/integration/shopify-order-import-triage.md",
+              "score": 0.836803674697876
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/delivery/wms-feedback-and-marketplace-tracking-triage.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 1624,
+              "contentSha256": "15e62df7356d6c2564d419ba8f3083cbf1569de1896bc669b1c8ccb25fbca09a",
+              "primaryChars": 418,
+              "primarySha256": [
+                "d0f4a891bb08a63f62e114534791c3b73974dd6803023204cc5513b5ab4d7084"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-2243.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/delivery/marketplace-tracking-update-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 753,
+              "contentSha256": "d7babcbba41fa574bb928298dbd684fd329c0a9b58fda48c81a2075a3c8436ed",
+              "primaryChars": 1319,
+              "primarySha256": [
+                "61600be28b06690bbfa1aaac9e3fd83a56dec30706fedf952d11f772079cb2d2"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1468.2026-09-11-658f5c5c85af.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/integration/shopify-order-import-triage.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 0,
+              "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "D",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.9810559153556824,
+          "s2": 0.9636133909225464,
+          "observedGap": 0.017442524433135986,
+          "selected": [
+            {
+              "path": "concepts/delivery/wms-feedback-and-marketplace-tracking-triage.md",
+              "score": 0.9810559153556824
+            },
+            {
+              "path": "concepts/delivery/marketplace-tracking-update-history.md",
+              "score": 0.9636133909225464
+            },
+            {
+              "path": "concepts/integration/shopify-order-import-triage.md",
+              "score": 0.836803674697876
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/delivery/wms-feedback-and-marketplace-tracking-triage.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 1624,
+              "contentSha256": "15e62df7356d6c2564d419ba8f3083cbf1569de1896bc669b1c8ccb25fbca09a",
+              "primaryChars": 418,
+              "primarySha256": [
+                "d0f4a891bb08a63f62e114534791c3b73974dd6803023204cc5513b5ab4d7084"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-2243.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/delivery/marketplace-tracking-update-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 753,
+              "contentSha256": "d7babcbba41fa574bb928298dbd684fd329c0a9b58fda48c81a2075a3c8436ed",
+              "primaryChars": 1319,
+              "primarySha256": [
+                "61600be28b06690bbfa1aaac9e3fd83a56dec30706fedf952d11f772079cb2d2"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1468.2026-09-11-658f5c5c85af.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/integration/shopify-order-import-triage.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 0,
+              "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U14",
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/payment/invoice-auto-send-sales-team-historical-assignment.md",
+          "score": 0.9303954243659973
+        },
+        {
+          "rank": 2,
+          "path": "concepts/sales/sales-config-checklist.md",
+          "score": 0.6842583417892456
+        },
+        {
+          "rank": 3,
+          "path": "objects/sales-invoice.md",
+          "score": 0.5517857074737549
+        },
+        {
+          "rank": 4,
+          "path": "concepts/sales/sales-team-change-history-boundaries.md",
+          "score": 0.38823339343070984
+        },
+        {
+          "rank": 5,
+          "path": "objects/marketing-sales.md",
+          "score": 0.35869455337524414
+        }
+      ],
+      "runs": [
+        {
+          "strategy": "A",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.9303954243659973,
+          "s2": 0.6842583417892456,
+          "observedGap": 0.2461370825767517,
+          "selected": [
+            {
+              "path": "concepts/payment/invoice-auto-send-sales-team-historical-assignment.md",
+              "score": 0.9303954243659973
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/payment/invoice-auto-send-sales-team-historical-assignment.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 0,
+              "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "B",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "uniform_lower_threshold",
+          "lowFallback": false,
+          "s1": 0.9303954243659973,
+          "s2": 0.6842583417892456,
+          "observedGap": 0.2461370825767517,
+          "selected": [
+            {
+              "path": "concepts/payment/invoice-auto-send-sales-team-historical-assignment.md",
+              "score": 0.9303954243659973
+            },
+            {
+              "path": "concepts/sales/sales-config-checklist.md",
+              "score": 0.6842583417892456
+            },
+            {
+              "path": "objects/sales-invoice.md",
+              "score": 0.5517857074737549
+            },
+            {
+              "path": "concepts/sales/sales-team-change-history-boundaries.md",
+              "score": 0.38823339343070984
+            },
+            {
+              "path": "objects/marketing-sales.md",
+              "score": 0.35869455337524414
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/payment/invoice-auto-send-sales-team-historical-assignment.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 0,
+              "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/sales/sales-config-checklist.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 0,
+              "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "docs/ontology/objects/sales-invoice.md",
+              "knowledgeType": "ontology",
+              "contentChars": 2289,
+              "contentSha256": "83baf7afbecda86fa4b2d70912637f0fe49a3f3b59207c191f8d1fd698e88111",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "C",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.9303954243659973,
+          "s2": 0.6842583417892456,
+          "observedGap": 0.2461370825767517,
+          "selected": [
+            {
+              "path": "concepts/payment/invoice-auto-send-sales-team-historical-assignment.md",
+              "score": 0.9303954243659973
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/payment/invoice-auto-send-sales-team-historical-assignment.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 0,
+              "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "D",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.9303954243659973,
+          "s2": 0.6842583417892456,
+          "observedGap": 0.2461370825767517,
+          "selected": [
+            {
+              "path": "concepts/payment/invoice-auto-send-sales-team-historical-assignment.md",
+              "score": 0.9303954243659973
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/payment/invoice-auto-send-sales-team-historical-assignment.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 0,
+              "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U15",
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/accounting/journal-dimension-edit-eligibility.md",
+          "score": 0.8736708164215088
+        },
+        {
+          "rank": 2,
+          "path": "objects/sales-return.md",
+          "score": 0.044694364070892334
+        },
+        {
+          "rank": 3,
+          "path": "concepts/reporting/journal-export-session-history.md",
+          "score": 0.007025753613561392
+        },
+        {
+          "rank": 4,
+          "path": "objects/business-approval.md",
+          "score": 0.0066023883409798145
+        },
+        {
+          "rank": 5,
+          "path": "processes/sales-return-inventory-accounting.md",
+          "score": 0.00592045160010457
+        }
+      ],
+      "runs": [
+        {
+          "strategy": "A",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.8736708164215088,
+          "s2": 0.044694364070892334,
+          "observedGap": 0.8289764523506165,
+          "selected": [
+            {
+              "path": "concepts/accounting/journal-dimension-edit-eligibility.md",
+              "score": 0.8736708164215088
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/accounting/journal-dimension-edit-eligibility.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 1064,
+              "contentSha256": "9a7f8652ad03fa3aa6e2e8463cfdf41d92485492878e7a4baa0cf9be14fb5a8f",
+              "primaryChars": 949,
+              "primarySha256": [
+                "4079248345e79317235cc4275b2bd2fd2a3c5f04dcdbc267c9f2318b00243911",
+                "43f8aa3f33a47af59542498ef839da94e71f6a9bef2d896379d6cc45ba1e5cb0"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-794.2026-09-11-4e5f0bb9a00e.md",
+                "raw/transcripts/ticket-1095.2026-09-11-3b8f3f101fc6.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "B",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "uniform_lower_threshold",
+          "lowFallback": false,
+          "s1": 0.8736708164215088,
+          "s2": 0.044694364070892334,
+          "observedGap": 0.8289764523506165,
+          "selected": [
+            {
+              "path": "concepts/accounting/journal-dimension-edit-eligibility.md",
+              "score": 0.8736708164215088
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/accounting/journal-dimension-edit-eligibility.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 1064,
+              "contentSha256": "9a7f8652ad03fa3aa6e2e8463cfdf41d92485492878e7a4baa0cf9be14fb5a8f",
+              "primaryChars": 949,
+              "primarySha256": [
+                "4079248345e79317235cc4275b2bd2fd2a3c5f04dcdbc267c9f2318b00243911",
+                "43f8aa3f33a47af59542498ef839da94e71f6a9bef2d896379d6cc45ba1e5cb0"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-794.2026-09-11-4e5f0bb9a00e.md",
+                "raw/transcripts/ticket-1095.2026-09-11-3b8f3f101fc6.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "C",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.8736708164215088,
+          "s2": 0.044694364070892334,
+          "observedGap": 0.8289764523506165,
+          "selected": [
+            {
+              "path": "concepts/accounting/journal-dimension-edit-eligibility.md",
+              "score": 0.8736708164215088
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/accounting/journal-dimension-edit-eligibility.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 1064,
+              "contentSha256": "9a7f8652ad03fa3aa6e2e8463cfdf41d92485492878e7a4baa0cf9be14fb5a8f",
+              "primaryChars": 949,
+              "primarySha256": [
+                "4079248345e79317235cc4275b2bd2fd2a3c5f04dcdbc267c9f2318b00243911",
+                "43f8aa3f33a47af59542498ef839da94e71f6a9bef2d896379d6cc45ba1e5cb0"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-794.2026-09-11-4e5f0bb9a00e.md",
+                "raw/transcripts/ticket-1095.2026-09-11-3b8f3f101fc6.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "D",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.8736708164215088,
+          "s2": 0.044694364070892334,
+          "observedGap": 0.8289764523506165,
+          "selected": [
+            {
+              "path": "concepts/accounting/journal-dimension-edit-eligibility.md",
+              "score": 0.8736708164215088
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/accounting/journal-dimension-edit-eligibility.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 1064,
+              "contentSha256": "9a7f8652ad03fa3aa6e2e8463cfdf41d92485492878e7a4baa0cf9be14fb5a8f",
+              "primaryChars": 949,
+              "primarySha256": [
+                "4079248345e79317235cc4275b2bd2fd2a3c5f04dcdbc267c9f2318b00243911",
+                "43f8aa3f33a47af59542498ef839da94e71f6a9bef2d896379d6cc45ba1e5cb0"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-794.2026-09-11-4e5f0bb9a00e.md",
+                "raw/transcripts/ticket-1095.2026-09-11-3b8f3f101fc6.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U16",
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/portal/password-reset-mail-history.md",
+          "score": 0.681127667427063
+        },
+        {
+          "rank": 2,
+          "path": "concepts/portal/portal-customer-blocked-operations-checklist.md",
+          "score": 0.5731421113014221
+        },
+        {
+          "rank": 3,
+          "path": "concepts/portal/portal-email-and-archived-account-check.md",
+          "score": 0.24058344960212708
+        },
+        {
+          "rank": 4,
+          "path": "objects/portal-public-inquiry.md",
+          "score": 0.1706521362066269
+        },
+        {
+          "rank": 5,
+          "path": "processes/portal-support-content-publication.md",
+          "score": 0.16868136823177338
+        }
+      ],
+      "runs": [
+        {
+          "strategy": "A",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "no_high_score",
+          "lowFallback": false,
+          "s1": 0.681127667427063,
+          "s2": 0.5731421113014221,
+          "observedGap": 0.10798555612564087,
+          "selected": [],
+          "final": []
+        },
+        {
+          "strategy": "B",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "uniform_lower_threshold",
+          "lowFallback": false,
+          "s1": 0.681127667427063,
+          "s2": 0.5731421113014221,
+          "observedGap": 0.10798555612564087,
+          "selected": [
+            {
+              "path": "concepts/portal/password-reset-mail-history.md",
+              "score": 0.681127667427063
+            },
+            {
+              "path": "concepts/portal/portal-customer-blocked-operations-checklist.md",
+              "score": 0.5731421113014221
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/portal/password-reset-mail-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 406,
+              "contentSha256": "56bf1f1cf7b44bf2742ee6e744b4ee7ab685620926d6d1c984f0cbdf7073751d",
+              "primaryChars": 1735,
+              "primarySha256": [
+                "ec44942c6bd75c675355b920b5361c3b9c8e2ba61b62176428c7c716922df744"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1765.2026-09-11-e7bfb599bb46.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/portal/portal-customer-blocked-operations-checklist.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 0,
+              "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "C",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "low_top1_eligible",
+          "lowFallback": true,
+          "s1": 0.681127667427063,
+          "s2": 0.5731421113014221,
+          "observedGap": 0.10798555612564087,
+          "selected": [
+            {
+              "path": "concepts/portal/password-reset-mail-history.md",
+              "score": 0.681127667427063
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/portal/password-reset-mail-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 406,
+              "contentSha256": "56bf1f1cf7b44bf2742ee6e744b4ee7ab685620926d6d1c984f0cbdf7073751d",
+              "primaryChars": 1735,
+              "primarySha256": [
+                "ec44942c6bd75c675355b920b5361c3b9c8e2ba61b62176428c7c716922df744"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1765.2026-09-11-e7bfb599bb46.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "D",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "insufficient_gap",
+          "lowFallback": false,
+          "s1": 0.681127667427063,
+          "s2": 0.5731421113014221,
+          "observedGap": 0.10798555612564087,
+          "selected": [],
+          "final": []
+        }
+      ]
+    },
+    {
+      "id": "U17",
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/accounting/journal-required-dimensions-and-country.md",
+          "score": 0.8068459630012512
+        },
+        {
+          "rank": 2,
+          "path": "objects/journal-item-control.md",
+          "score": 0.6188892722129822
+        },
+        {
+          "rank": 3,
+          "path": "concepts/payment/manual-journal-required-fields-partner-country.md",
+          "score": 0.4148528277873993
+        },
+        {
+          "rank": 4,
+          "path": "concepts/accounting/account-config-report-mapping-and-20030-residuals.md",
+          "score": 0.29587167501449585
+        },
+        {
+          "rank": 5,
+          "path": "objects/business-party.md",
+          "score": 0.26459458470344543
+        }
+      ],
+      "runs": [
+        {
+          "strategy": "A",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.8068459630012512,
+          "s2": 0.6188892722129822,
+          "observedGap": 0.18795669078826904,
+          "selected": [
+            {
+              "path": "concepts/accounting/journal-required-dimensions-and-country.md",
+              "score": 0.8068459630012512
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/accounting/journal-required-dimensions-and-country.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 1200,
+              "contentSha256": "344d12d9520776e487b0c4145218cb6bb4a96b2e7b7bff44942a4b8d4fecef44",
+              "primaryChars": 1020,
+              "primarySha256": [
+                "0b54c7b8d98f1f8a581f9ed57a7fbb52da586e421fc0eec16b908e8868025f49"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1581.2026-09-11-b6752ccf0970.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "B",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "uniform_lower_threshold",
+          "lowFallback": false,
+          "s1": 0.8068459630012512,
+          "s2": 0.6188892722129822,
+          "observedGap": 0.18795669078826904,
+          "selected": [
+            {
+              "path": "concepts/accounting/journal-required-dimensions-and-country.md",
+              "score": 0.8068459630012512
+            },
+            {
+              "path": "objects/journal-item-control.md",
+              "score": 0.6188892722129822
+            },
+            {
+              "path": "concepts/payment/manual-journal-required-fields-partner-country.md",
+              "score": 0.4148528277873993
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/accounting/journal-required-dimensions-and-country.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 1200,
+              "contentSha256": "344d12d9520776e487b0c4145218cb6bb4a96b2e7b7bff44942a4b8d4fecef44",
+              "primaryChars": 1020,
+              "primarySha256": [
+                "0b54c7b8d98f1f8a581f9ed57a7fbb52da586e421fc0eec16b908e8868025f49"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1581.2026-09-11-b6752ccf0970.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "docs/ontology/objects/journal-item-control.md",
+              "knowledgeType": "ontology",
+              "contentChars": 2303,
+              "contentSha256": "9e514aff67baa05777eaed7360501b51c134f01799645d8fbfd327054deb10ec",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/payment/manual-journal-required-fields-partner-country.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 0,
+              "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "C",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.8068459630012512,
+          "s2": 0.6188892722129822,
+          "observedGap": 0.18795669078826904,
+          "selected": [
+            {
+              "path": "concepts/accounting/journal-required-dimensions-and-country.md",
+              "score": 0.8068459630012512
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/accounting/journal-required-dimensions-and-country.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 1200,
+              "contentSha256": "344d12d9520776e487b0c4145218cb6bb4a96b2e7b7bff44942a4b8d4fecef44",
+              "primaryChars": 1020,
+              "primarySha256": [
+                "0b54c7b8d98f1f8a581f9ed57a7fbb52da586e421fc0eec16b908e8868025f49"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1581.2026-09-11-b6752ccf0970.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "D",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.8068459630012512,
+          "s2": 0.6188892722129822,
+          "observedGap": 0.18795669078826904,
+          "selected": [
+            {
+              "path": "concepts/accounting/journal-required-dimensions-and-country.md",
+              "score": 0.8068459630012512
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/accounting/journal-required-dimensions-and-country.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 1200,
+              "contentSha256": "344d12d9520776e487b0c4145218cb6bb4a96b2e7b7bff44942a4b8d4fecef44",
+              "primaryChars": 1020,
+              "primarySha256": [
+                "0b54c7b8d98f1f8a581f9ed57a7fbb52da586e421fc0eec16b908e8868025f49"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1581.2026-09-11-b6752ccf0970.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U18",
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/integration/shopify-post-confirm-gift-update-history.md",
+          "score": 0.9951375126838684
+        },
+        {
+          "rank": 2,
+          "path": "concepts/integration/order-line-import-boundaries-history.md",
+          "score": 0.8961135745048523
+        },
+        {
+          "rank": 3,
+          "path": "processes/b2c-sales-order.md",
+          "score": 0.708749532699585
+        },
+        {
+          "rank": 4,
+          "path": "concepts/integration/shopify-missing-sku-and-confirm-timing-history.md",
+          "score": 0.676569938659668
+        },
+        {
+          "rank": 5,
+          "path": "concepts/faq/shopify-order-not-synced-checklist.md",
+          "score": 0.6734418272972107
+        }
+      ],
+      "runs": [
+        {
+          "strategy": "A",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.9951375126838684,
+          "s2": 0.8961135745048523,
+          "observedGap": 0.09902393817901611,
+          "selected": [
+            {
+              "path": "concepts/integration/shopify-post-confirm-gift-update-history.md",
+              "score": 0.9951375126838684
+            },
+            {
+              "path": "concepts/integration/order-line-import-boundaries-history.md",
+              "score": 0.8961135745048523
+            },
+            {
+              "path": "processes/b2c-sales-order.md",
+              "score": 0.708749532699585
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/integration/shopify-post-confirm-gift-update-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 428,
+              "contentSha256": "83b73916c2d1be935abba509166a4c12e5dff4b962e84f33c0e48c8525fa37d0",
+              "primaryChars": 1386,
+              "primarySha256": [
+                "493cb41f64081451adaacf07af78a8a3456df035bb39588c6f18c277e0c86e73"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-851.2026-09-11-78ca68741dd1.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/integration/order-line-import-boundaries-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 769,
+              "contentSha256": "09d009f6c8547165957ba6b2a09166e3ffac4f98cc786a6c47b82aeb16ee4370",
+              "primaryChars": 1657,
+              "primarySha256": [
+                "f0cb4f9bf0b60f34d04454176744a055e0795470c42d9f7bf048860d6d3b9f66",
+                "3396c04fda51fa32daf1df69972c3e7784ad938a99b5852fc02cb4b8b91b307d",
+                "61ac2bc4eb2061d272779f0ce0936f6614af3bca286851902416ef67469858a7"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-512.2026-09-11-38615d8d0ffb.md",
+                "raw/transcripts/ticket-772.2026-09-11-516175eefa81.md",
+                "raw/transcripts/ticket-800.2026-09-11-fb9f376e83fb.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "docs/ontology/processes/b2c-sales-order.md",
+              "knowledgeType": "ontology",
+              "contentChars": 1738,
+              "contentSha256": "2486d75d5c0ef911d2751ec107825d882d2fbd5df4e8dcf1664dcecfe45d33b7",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "B",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "uniform_lower_threshold",
+          "lowFallback": false,
+          "s1": 0.9951375126838684,
+          "s2": 0.8961135745048523,
+          "observedGap": 0.09902393817901611,
+          "selected": [
+            {
+              "path": "concepts/integration/shopify-post-confirm-gift-update-history.md",
+              "score": 0.9951375126838684
+            },
+            {
+              "path": "concepts/integration/order-line-import-boundaries-history.md",
+              "score": 0.8961135745048523
+            },
+            {
+              "path": "processes/b2c-sales-order.md",
+              "score": 0.708749532699585
+            },
+            {
+              "path": "concepts/integration/shopify-missing-sku-and-confirm-timing-history.md",
+              "score": 0.676569938659668
+            },
+            {
+              "path": "concepts/faq/shopify-order-not-synced-checklist.md",
+              "score": 0.6734418272972107
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/integration/shopify-post-confirm-gift-update-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 428,
+              "contentSha256": "83b73916c2d1be935abba509166a4c12e5dff4b962e84f33c0e48c8525fa37d0",
+              "primaryChars": 1386,
+              "primarySha256": [
+                "493cb41f64081451adaacf07af78a8a3456df035bb39588c6f18c277e0c86e73"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-851.2026-09-11-78ca68741dd1.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/integration/order-line-import-boundaries-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 769,
+              "contentSha256": "09d009f6c8547165957ba6b2a09166e3ffac4f98cc786a6c47b82aeb16ee4370",
+              "primaryChars": 1657,
+              "primarySha256": [
+                "f0cb4f9bf0b60f34d04454176744a055e0795470c42d9f7bf048860d6d3b9f66",
+                "3396c04fda51fa32daf1df69972c3e7784ad938a99b5852fc02cb4b8b91b307d",
+                "61ac2bc4eb2061d272779f0ce0936f6614af3bca286851902416ef67469858a7"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-512.2026-09-11-38615d8d0ffb.md",
+                "raw/transcripts/ticket-772.2026-09-11-516175eefa81.md",
+                "raw/transcripts/ticket-800.2026-09-11-fb9f376e83fb.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "docs/ontology/processes/b2c-sales-order.md",
+              "knowledgeType": "ontology",
+              "contentChars": 1738,
+              "contentSha256": "2486d75d5c0ef911d2751ec107825d882d2fbd5df4e8dcf1664dcecfe45d33b7",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "C",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.9951375126838684,
+          "s2": 0.8961135745048523,
+          "observedGap": 0.09902393817901611,
+          "selected": [
+            {
+              "path": "concepts/integration/shopify-post-confirm-gift-update-history.md",
+              "score": 0.9951375126838684
+            },
+            {
+              "path": "concepts/integration/order-line-import-boundaries-history.md",
+              "score": 0.8961135745048523
+            },
+            {
+              "path": "processes/b2c-sales-order.md",
+              "score": 0.708749532699585
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/integration/shopify-post-confirm-gift-update-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 428,
+              "contentSha256": "83b73916c2d1be935abba509166a4c12e5dff4b962e84f33c0e48c8525fa37d0",
+              "primaryChars": 1386,
+              "primarySha256": [
+                "493cb41f64081451adaacf07af78a8a3456df035bb39588c6f18c277e0c86e73"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-851.2026-09-11-78ca68741dd1.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/integration/order-line-import-boundaries-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 769,
+              "contentSha256": "09d009f6c8547165957ba6b2a09166e3ffac4f98cc786a6c47b82aeb16ee4370",
+              "primaryChars": 1657,
+              "primarySha256": [
+                "f0cb4f9bf0b60f34d04454176744a055e0795470c42d9f7bf048860d6d3b9f66",
+                "3396c04fda51fa32daf1df69972c3e7784ad938a99b5852fc02cb4b8b91b307d",
+                "61ac2bc4eb2061d272779f0ce0936f6614af3bca286851902416ef67469858a7"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-512.2026-09-11-38615d8d0ffb.md",
+                "raw/transcripts/ticket-772.2026-09-11-516175eefa81.md",
+                "raw/transcripts/ticket-800.2026-09-11-fb9f376e83fb.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "docs/ontology/processes/b2c-sales-order.md",
+              "knowledgeType": "ontology",
+              "contentChars": 1738,
+              "contentSha256": "2486d75d5c0ef911d2751ec107825d882d2fbd5df4e8dcf1664dcecfe45d33b7",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "D",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.9951375126838684,
+          "s2": 0.8961135745048523,
+          "observedGap": 0.09902393817901611,
+          "selected": [
+            {
+              "path": "concepts/integration/shopify-post-confirm-gift-update-history.md",
+              "score": 0.9951375126838684
+            },
+            {
+              "path": "concepts/integration/order-line-import-boundaries-history.md",
+              "score": 0.8961135745048523
+            },
+            {
+              "path": "processes/b2c-sales-order.md",
+              "score": 0.708749532699585
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/integration/shopify-post-confirm-gift-update-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 428,
+              "contentSha256": "83b73916c2d1be935abba509166a4c12e5dff4b962e84f33c0e48c8525fa37d0",
+              "primaryChars": 1386,
+              "primarySha256": [
+                "493cb41f64081451adaacf07af78a8a3456df035bb39588c6f18c277e0c86e73"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-851.2026-09-11-78ca68741dd1.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/integration/order-line-import-boundaries-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 769,
+              "contentSha256": "09d009f6c8547165957ba6b2a09166e3ffac4f98cc786a6c47b82aeb16ee4370",
+              "primaryChars": 1657,
+              "primarySha256": [
+                "f0cb4f9bf0b60f34d04454176744a055e0795470c42d9f7bf048860d6d3b9f66",
+                "3396c04fda51fa32daf1df69972c3e7784ad938a99b5852fc02cb4b8b91b307d",
+                "61ac2bc4eb2061d272779f0ce0936f6614af3bca286851902416ef67469858a7"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-512.2026-09-11-38615d8d0ffb.md",
+                "raw/transcripts/ticket-772.2026-09-11-516175eefa81.md",
+                "raw/transcripts/ticket-800.2026-09-11-fb9f376e83fb.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "docs/ontology/processes/b2c-sales-order.md",
+              "knowledgeType": "ontology",
+              "contentChars": 1738,
+              "contentSha256": "2486d75d5c0ef911d2751ec107825d882d2fbd5df4e8dcf1664dcecfe45d33b7",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U19",
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "objects/sales-invoice.md",
+          "score": 0.5043910145759583
+        },
+        {
+          "rank": 2,
+          "path": "concepts/accounting/journal-attachment-post-history.md",
+          "score": 0.44088634848594666
+        },
+        {
+          "rank": 3,
+          "path": "concepts/accounting/reverse-entry-type-history.md",
+          "score": 0.3127308785915375
+        },
+        {
+          "rank": 4,
+          "path": "objects/financial-reporting.md",
+          "score": 0.29938381910324097
+        },
+        {
+          "rank": 5,
+          "path": "concepts/invoicing/reversal-cn-type-error-history.md",
+          "score": 0.15794770419597626
+        }
+      ],
+      "runs": [
+        {
+          "strategy": "A",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "no_high_score",
+          "lowFallback": false,
+          "s1": 0.5043910145759583,
+          "s2": 0.44088634848594666,
+          "observedGap": 0.0635046660900116,
+          "selected": [],
+          "final": []
+        },
+        {
+          "strategy": "B",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "uniform_lower_threshold",
+          "lowFallback": false,
+          "s1": 0.5043910145759583,
+          "s2": 0.44088634848594666,
+          "observedGap": 0.0635046660900116,
+          "selected": [
+            {
+              "path": "objects/sales-invoice.md",
+              "score": 0.5043910145759583
+            },
+            {
+              "path": "concepts/accounting/journal-attachment-post-history.md",
+              "score": 0.44088634848594666
+            },
+            {
+              "path": "concepts/accounting/reverse-entry-type-history.md",
+              "score": 0.3127308785915375
+            }
+          ],
+          "final": [
+            {
+              "path": "docs/ontology/objects/sales-invoice.md",
+              "knowledgeType": "ontology",
+              "contentChars": 2061,
+              "contentSha256": "5506cf078bf9798f25418ec36c13563f50897eff75ba931b00c63065d4532d7e",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/accounting/journal-attachment-post-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 640,
+              "contentSha256": "ac642f83bb861a6b77dc64ec5323d396065afbfb45141388ece8411d0bcdfcab",
+              "primaryChars": 1507,
+              "primarySha256": [
+                "12375f50d2984e27331d67431b65c61d0bdb24d6a6dac35757b860f9ab066b62",
+                "32521d3bf4c5771fa70c2322db67aeeb5049253f13a94bd454fd20a99134bf40"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-977.2026-09-11-31b2bfcb64af.md",
+                "raw/transcripts/ticket-1465.2026-09-11-0d205cdcc201.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/accounting/reverse-entry-type-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 966,
+              "contentSha256": "83116cf5033203ec92998977ebc7fec7658c54cb288cd6dde351f187224d5c4d",
+              "primaryChars": 2198,
+              "primarySha256": [
+                "70daabe8581ffc81e60c881f8556839df2d8b7387591a664c4658c1e28d2e33c"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-713.2026-09-11-45ad3b110e76.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "C",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "low_ontology_not_rescued",
+          "lowFallback": false,
+          "s1": 0.5043910145759583,
+          "s2": 0.44088634848594666,
+          "observedGap": 0.0635046660900116,
+          "selected": [],
+          "final": []
+        },
+        {
+          "strategy": "D",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "insufficient_gap",
+          "lowFallback": false,
+          "s1": 0.5043910145759583,
+          "s2": 0.44088634848594666,
+          "observedGap": 0.0635046660900116,
+          "selected": [],
+          "final": []
+        }
+      ]
+    },
+    {
+      "id": "U20",
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/approvals/payment-notification-and-approval.md",
+          "score": 0.9478025436401367
+        },
+        {
+          "rank": 2,
+          "path": "concepts/approvals/approval-routes-and-notifications.md",
+          "score": 0.4677421748638153
+        },
+        {
+          "rank": 3,
+          "path": "objects/business-approval.md",
+          "score": 0.188483327627182
+        },
+        {
+          "rank": 4,
+          "path": "concepts/approvals/inflight-approval-owner-change-history.md",
+          "score": 0.08986403793096542
+        },
+        {
+          "rank": 5,
+          "path": "concepts/sales/credit-blocked-order-mail-history.md",
+          "score": 0.07427804172039032
+        }
+      ],
+      "runs": [
+        {
+          "strategy": "A",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.9478025436401367,
+          "s2": 0.4677421748638153,
+          "observedGap": 0.4800603687763214,
+          "selected": [
+            {
+              "path": "concepts/approvals/payment-notification-and-approval.md",
+              "score": 0.9478025436401367
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/approvals/payment-notification-and-approval.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 555,
+              "contentSha256": "7e8210d15436854963f11b8bbeae53d80f7520437b4a0d752d71ebd714ce4eed",
+              "primaryChars": 831,
+              "primarySha256": [
+                "4a170a753d163da2b4cbd05d7ff4adba9d6d24d5e53b6ae7020b744b765d1615"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1265.2026-09-11-820542f870b4.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "B",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "uniform_lower_threshold",
+          "lowFallback": false,
+          "s1": 0.9478025436401367,
+          "s2": 0.4677421748638153,
+          "observedGap": 0.4800603687763214,
+          "selected": [
+            {
+              "path": "concepts/approvals/payment-notification-and-approval.md",
+              "score": 0.9478025436401367
+            },
+            {
+              "path": "concepts/approvals/approval-routes-and-notifications.md",
+              "score": 0.4677421748638153
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/approvals/payment-notification-and-approval.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 555,
+              "contentSha256": "7e8210d15436854963f11b8bbeae53d80f7520437b4a0d752d71ebd714ce4eed",
+              "primaryChars": 831,
+              "primarySha256": [
+                "4a170a753d163da2b4cbd05d7ff4adba9d6d24d5e53b6ae7020b744b765d1615"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1265.2026-09-11-820542f870b4.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/approvals/approval-routes-and-notifications.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 0,
+              "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "C",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.9478025436401367,
+          "s2": 0.4677421748638153,
+          "observedGap": 0.4800603687763214,
+          "selected": [
+            {
+              "path": "concepts/approvals/payment-notification-and-approval.md",
+              "score": 0.9478025436401367
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/approvals/payment-notification-and-approval.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 555,
+              "contentSha256": "7e8210d15436854963f11b8bbeae53d80f7520437b4a0d752d71ebd714ce4eed",
+              "primaryChars": 831,
+              "primarySha256": [
+                "4a170a753d163da2b4cbd05d7ff4adba9d6d24d5e53b6ae7020b744b765d1615"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1265.2026-09-11-820542f870b4.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "D",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.9478025436401367,
+          "s2": 0.4677421748638153,
+          "observedGap": 0.4800603687763214,
+          "selected": [
+            {
+              "path": "concepts/approvals/payment-notification-and-approval.md",
+              "score": 0.9478025436401367
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/approvals/payment-notification-and-approval.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 555,
+              "contentSha256": "7e8210d15436854963f11b8bbeae53d80f7520437b4a0d752d71ebd714ce4eed",
+              "primaryChars": 831,
+              "primarySha256": [
+                "4a170a753d163da2b4cbd05d7ff4adba9d6d24d5e53b6ae7020b744b765d1615"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1265.2026-09-11-820542f870b4.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U21",
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/delivery/westerman-booked-tracking-timing-history.md",
+          "score": 0.9908087253570557
+        },
+        {
+          "rank": 2,
+          "path": "concepts/delivery/stock-picking-integration-contract-lark-1815.md",
+          "score": 0.9554160237312317
+        },
+        {
+          "rank": 3,
+          "path": "concepts/faq/tracking-number-wms-status-callback-checklist.md",
+          "score": 0.9445168375968933
+        },
+        {
+          "rank": 4,
+          "path": "concepts/delivery/wms-send-failure-and-unknown-result.md",
+          "score": 0.9061933159828186
+        },
+        {
+          "rank": 5,
+          "path": "concepts/integration/cmc-done-frame-refresh-history.md",
+          "score": 0.9022512435913086
+        }
+      ],
+      "runs": [
+        {
+          "strategy": "A",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.9908087253570557,
+          "s2": 0.9554160237312317,
+          "observedGap": 0.035392701625823975,
+          "selected": [
+            {
+              "path": "concepts/delivery/westerman-booked-tracking-timing-history.md",
+              "score": 0.9908087253570557
+            },
+            {
+              "path": "concepts/delivery/stock-picking-integration-contract-lark-1815.md",
+              "score": 0.9554160237312317
+            },
+            {
+              "path": "concepts/faq/tracking-number-wms-status-callback-checklist.md",
+              "score": 0.9445168375968933
+            },
+            {
+              "path": "concepts/delivery/wms-send-failure-and-unknown-result.md",
+              "score": 0.9061933159828186
+            },
+            {
+              "path": "concepts/integration/cmc-done-frame-refresh-history.md",
+              "score": 0.9022512435913086
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/delivery/westerman-booked-tracking-timing-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 789,
+              "contentSha256": "e0984c33c24fc2cbdf450a822edd98146ebcb65e3b31ce7096fcb808773c7dae",
+              "primaryChars": 1261,
+              "primarySha256": [
+                "88cd696c0c7f0422d6fd5de2c1b6461bc48aef90264328c458a83a97568ee12e"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1844.2026-09-11-c456921a2e90.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/delivery/stock-picking-integration-contract-lark-1815.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 1029,
+              "contentSha256": "62eba5409d3585836787e050451bdb7cc2a0cbc4a7df45ef9e9b53c3080a2849",
+              "primaryChars": 1984,
+              "primarySha256": [
+                "c38c06ff8ea57c702d15263c16a9d7a7df28a845478b97c2fcff2503daa153e7"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1815.2026-09-11-d0c5502487c4.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/faq/tracking-number-wms-status-callback-checklist.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 0,
+              "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "B",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "uniform_lower_threshold",
+          "lowFallback": false,
+          "s1": 0.9908087253570557,
+          "s2": 0.9554160237312317,
+          "observedGap": 0.035392701625823975,
+          "selected": [
+            {
+              "path": "concepts/delivery/westerman-booked-tracking-timing-history.md",
+              "score": 0.9908087253570557
+            },
+            {
+              "path": "concepts/delivery/stock-picking-integration-contract-lark-1815.md",
+              "score": 0.9554160237312317
+            },
+            {
+              "path": "concepts/faq/tracking-number-wms-status-callback-checklist.md",
+              "score": 0.9445168375968933
+            },
+            {
+              "path": "concepts/delivery/wms-send-failure-and-unknown-result.md",
+              "score": 0.9061933159828186
+            },
+            {
+              "path": "concepts/integration/cmc-done-frame-refresh-history.md",
+              "score": 0.9022512435913086
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/delivery/westerman-booked-tracking-timing-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 789,
+              "contentSha256": "e0984c33c24fc2cbdf450a822edd98146ebcb65e3b31ce7096fcb808773c7dae",
+              "primaryChars": 1261,
+              "primarySha256": [
+                "88cd696c0c7f0422d6fd5de2c1b6461bc48aef90264328c458a83a97568ee12e"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1844.2026-09-11-c456921a2e90.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/delivery/stock-picking-integration-contract-lark-1815.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 1029,
+              "contentSha256": "62eba5409d3585836787e050451bdb7cc2a0cbc4a7df45ef9e9b53c3080a2849",
+              "primaryChars": 1984,
+              "primarySha256": [
+                "c38c06ff8ea57c702d15263c16a9d7a7df28a845478b97c2fcff2503daa153e7"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1815.2026-09-11-d0c5502487c4.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/faq/tracking-number-wms-status-callback-checklist.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 0,
+              "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "C",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.9908087253570557,
+          "s2": 0.9554160237312317,
+          "observedGap": 0.035392701625823975,
+          "selected": [
+            {
+              "path": "concepts/delivery/westerman-booked-tracking-timing-history.md",
+              "score": 0.9908087253570557
+            },
+            {
+              "path": "concepts/delivery/stock-picking-integration-contract-lark-1815.md",
+              "score": 0.9554160237312317
+            },
+            {
+              "path": "concepts/faq/tracking-number-wms-status-callback-checklist.md",
+              "score": 0.9445168375968933
+            },
+            {
+              "path": "concepts/delivery/wms-send-failure-and-unknown-result.md",
+              "score": 0.9061933159828186
+            },
+            {
+              "path": "concepts/integration/cmc-done-frame-refresh-history.md",
+              "score": 0.9022512435913086
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/delivery/westerman-booked-tracking-timing-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 789,
+              "contentSha256": "e0984c33c24fc2cbdf450a822edd98146ebcb65e3b31ce7096fcb808773c7dae",
+              "primaryChars": 1261,
+              "primarySha256": [
+                "88cd696c0c7f0422d6fd5de2c1b6461bc48aef90264328c458a83a97568ee12e"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1844.2026-09-11-c456921a2e90.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/delivery/stock-picking-integration-contract-lark-1815.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 1029,
+              "contentSha256": "62eba5409d3585836787e050451bdb7cc2a0cbc4a7df45ef9e9b53c3080a2849",
+              "primaryChars": 1984,
+              "primarySha256": [
+                "c38c06ff8ea57c702d15263c16a9d7a7df28a845478b97c2fcff2503daa153e7"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1815.2026-09-11-d0c5502487c4.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/faq/tracking-number-wms-status-callback-checklist.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 0,
+              "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "D",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.9908087253570557,
+          "s2": 0.9554160237312317,
+          "observedGap": 0.035392701625823975,
+          "selected": [
+            {
+              "path": "concepts/delivery/westerman-booked-tracking-timing-history.md",
+              "score": 0.9908087253570557
+            },
+            {
+              "path": "concepts/delivery/stock-picking-integration-contract-lark-1815.md",
+              "score": 0.9554160237312317
+            },
+            {
+              "path": "concepts/faq/tracking-number-wms-status-callback-checklist.md",
+              "score": 0.9445168375968933
+            },
+            {
+              "path": "concepts/delivery/wms-send-failure-and-unknown-result.md",
+              "score": 0.9061933159828186
+            },
+            {
+              "path": "concepts/integration/cmc-done-frame-refresh-history.md",
+              "score": 0.9022512435913086
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/delivery/westerman-booked-tracking-timing-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 789,
+              "contentSha256": "e0984c33c24fc2cbdf450a822edd98146ebcb65e3b31ce7096fcb808773c7dae",
+              "primaryChars": 1261,
+              "primarySha256": [
+                "88cd696c0c7f0422d6fd5de2c1b6461bc48aef90264328c458a83a97568ee12e"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1844.2026-09-11-c456921a2e90.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/delivery/stock-picking-integration-contract-lark-1815.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 1029,
+              "contentSha256": "62eba5409d3585836787e050451bdb7cc2a0cbc4a7df45ef9e9b53c3080a2849",
+              "primaryChars": 1984,
+              "primarySha256": [
+                "c38c06ff8ea57c702d15263c16a9d7a7df28a845478b97c2fcff2503daa153e7"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1815.2026-09-11-d0c5502487c4.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/faq/tracking-number-wms-status-callback-checklist.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 0,
+              "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U22",
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/purchase/po-change-and-inbound-recreate-rules.md",
+          "score": 0.9633227586746216
+        },
+        {
+          "rank": 2,
+          "path": "concepts/delivery/wms-send-failure-and-unknown-result.md",
+          "score": 0.5094495415687561
+        },
+        {
+          "rank": 3,
+          "path": "processes/other-inbound-receipt.md",
+          "score": 0.4440065026283264
+        },
+        {
+          "rank": 4,
+          "path": "concepts/invoicing/price-and-invoicing-mismatch-triage.md",
+          "score": 0.39252448081970215
+        },
+        {
+          "rank": 5,
+          "path": "objects/purchase-settlement.md",
+          "score": 0.3799382448196411
+        }
+      ],
+      "runs": [
+        {
+          "strategy": "A",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.9633227586746216,
+          "s2": 0.5094495415687561,
+          "observedGap": 0.4538732171058655,
+          "selected": [
+            {
+              "path": "concepts/purchase/po-change-and-inbound-recreate-rules.md",
+              "score": 0.9633227586746216
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/purchase/po-change-and-inbound-recreate-rules.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 768,
+              "contentSha256": "1fa903013709033343d18ff73986b3d9e50f7ca3d5343967902b3c6565ce6b6a",
+              "primaryChars": 1758,
+              "primarySha256": [
+                "50d058cdbc22b33652e7e5ee63aa89d4ca26552464ee1767032fdbc2172e11a1"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-2107.2026-09-11-023266344a4e.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "B",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "uniform_lower_threshold",
+          "lowFallback": false,
+          "s1": 0.9633227586746216,
+          "s2": 0.5094495415687561,
+          "observedGap": 0.4538732171058655,
+          "selected": [
+            {
+              "path": "concepts/purchase/po-change-and-inbound-recreate-rules.md",
+              "score": 0.9633227586746216
+            },
+            {
+              "path": "concepts/delivery/wms-send-failure-and-unknown-result.md",
+              "score": 0.5094495415687561
+            },
+            {
+              "path": "processes/other-inbound-receipt.md",
+              "score": 0.4440065026283264
+            },
+            {
+              "path": "concepts/invoicing/price-and-invoicing-mismatch-triage.md",
+              "score": 0.39252448081970215
+            },
+            {
+              "path": "objects/purchase-settlement.md",
+              "score": 0.3799382448196411
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/purchase/po-change-and-inbound-recreate-rules.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 768,
+              "contentSha256": "1fa903013709033343d18ff73986b3d9e50f7ca3d5343967902b3c6565ce6b6a",
+              "primaryChars": 1758,
+              "primarySha256": [
+                "50d058cdbc22b33652e7e5ee63aa89d4ca26552464ee1767032fdbc2172e11a1"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-2107.2026-09-11-023266344a4e.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/delivery/wms-send-failure-and-unknown-result.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 2027,
+              "contentSha256": "b7bcc9c4e90fd23a7c98eb66570be356f07c12270f44c0fe39b998685b383a1c",
+              "primaryChars": 482,
+              "primarySha256": [
+                "b3155080b012beea783909ca197a19f82b1e3e23723bbacd149094a8e3328826"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-609.2026-09-11-516161d47749.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "docs/ontology/processes/other-inbound-receipt.md",
+              "knowledgeType": "ontology",
+              "contentChars": 1319,
+              "contentSha256": "22cb7a1a4ebee1aebe42fbc4e71a1c68a054bb03a66926235eb36fabe0c28c5c",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "C",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.9633227586746216,
+          "s2": 0.5094495415687561,
+          "observedGap": 0.4538732171058655,
+          "selected": [
+            {
+              "path": "concepts/purchase/po-change-and-inbound-recreate-rules.md",
+              "score": 0.9633227586746216
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/purchase/po-change-and-inbound-recreate-rules.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 768,
+              "contentSha256": "1fa903013709033343d18ff73986b3d9e50f7ca3d5343967902b3c6565ce6b6a",
+              "primaryChars": 1758,
+              "primarySha256": [
+                "50d058cdbc22b33652e7e5ee63aa89d4ca26552464ee1767032fdbc2172e11a1"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-2107.2026-09-11-023266344a4e.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "D",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.9633227586746216,
+          "s2": 0.5094495415687561,
+          "observedGap": 0.4538732171058655,
+          "selected": [
+            {
+              "path": "concepts/purchase/po-change-and-inbound-recreate-rules.md",
+              "score": 0.9633227586746216
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/purchase/po-change-and-inbound-recreate-rules.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 768,
+              "contentSha256": "1fa903013709033343d18ff73986b3d9e50f7ca3d5343967902b3c6565ce6b6a",
+              "primaryChars": 1758,
+              "primarySha256": [
+                "50d058cdbc22b33652e7e5ee63aa89d4ca26552464ee1767032fdbc2172e11a1"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-2107.2026-09-11-023266344a4e.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U23",
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/inventory/reservation-residual-corrections-history.md",
+          "score": 0.015961885452270508
+        },
+        {
+          "rank": 2,
+          "path": "concepts/purchase/po-change-and-inbound-recreate-rules.md",
+          "score": 0.01485674548894167
+        },
+        {
+          "rank": 3,
+          "path": "concepts/reporting/filter-language-timezone-history.md",
+          "score": 0.009910295717418194
+        },
+        {
+          "rank": 4,
+          "path": "concepts/inventory/repeated-return-location-regression-history.md",
+          "score": 0.008356782607734203
+        },
+        {
+          "rank": 5,
+          "path": "concepts/reporting/export-grain-and-date-history.md",
+          "score": 0.008058789186179638
+        }
+      ],
+      "runs": [
+        {
+          "strategy": "A",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "no_high_score",
+          "lowFallback": false,
+          "s1": 0.015961885452270508,
+          "s2": 0.01485674548894167,
+          "observedGap": 0.0011051399633288383,
+          "selected": [],
+          "final": []
+        },
+        {
+          "strategy": "B",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "uniform_lower_threshold",
+          "lowFallback": false,
+          "s1": 0.015961885452270508,
+          "s2": 0.01485674548894167,
+          "observedGap": 0.0011051399633288383,
+          "selected": [],
+          "final": []
+        },
+        {
+          "strategy": "C",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "below_weknora_floor",
+          "lowFallback": false,
+          "s1": 0.015961885452270508,
+          "s2": 0.01485674548894167,
+          "observedGap": 0.0011051399633288383,
+          "selected": [],
+          "final": []
+        },
+        {
+          "strategy": "D",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "below_floor",
+          "lowFallback": false,
+          "s1": 0.015961885452270508,
+          "s2": 0.01485674548894167,
+          "observedGap": 0.0011051399633288383,
+          "selected": [],
+          "final": []
+        }
+      ]
+    },
+    {
+      "id": "U24",
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "objects/financial-reporting.md",
+          "score": 0.6402844786643982
+        },
+        {
+          "rank": 2,
+          "path": "objects/business-party.md",
+          "score": 0.5917952060699463
+        },
+        {
+          "rank": 3,
+          "path": "objects/transaction-tax.md",
+          "score": 0.517960786819458
+        },
+        {
+          "rank": 4,
+          "path": "objects/cash-flow-allocation.md",
+          "score": 0.15815263986587524
+        },
+        {
+          "rank": 5,
+          "path": "concepts/access/operation-access-and-button-triage.md",
+          "score": 0.1293431520462036
+        }
+      ],
+      "runs": [
+        {
+          "strategy": "A",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "no_high_score",
+          "lowFallback": false,
+          "s1": 0.6402844786643982,
+          "s2": 0.5917952060699463,
+          "observedGap": 0.048489272594451904,
+          "selected": [],
+          "final": []
+        },
+        {
+          "strategy": "B",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "uniform_lower_threshold",
+          "lowFallback": false,
+          "s1": 0.6402844786643982,
+          "s2": 0.5917952060699463,
+          "observedGap": 0.048489272594451904,
+          "selected": [
+            {
+              "path": "objects/financial-reporting.md",
+              "score": 0.6402844786643982
+            },
+            {
+              "path": "objects/business-party.md",
+              "score": 0.5917952060699463
+            },
+            {
+              "path": "objects/transaction-tax.md",
+              "score": 0.517960786819458
+            }
+          ],
+          "final": [
+            {
+              "path": "docs/ontology/objects/financial-reporting.md",
+              "knowledgeType": "ontology",
+              "contentChars": 2344,
+              "contentSha256": "fd27741a67716a028cfb0dfa4b106493a593fbd3aefae7f7d1cd404bfff5177d",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "docs/ontology/objects/business-party.md",
+              "knowledgeType": "ontology",
+              "contentChars": 2351,
+              "contentSha256": "8db24847d5604191064989b38bfa20ac55aae33b4420927a26270a6328df641f",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "docs/ontology/objects/transaction-tax.md",
+              "knowledgeType": "ontology",
+              "contentChars": 2316,
+              "contentSha256": "3069c4589a8a4a89e0321d92734d8dbb0f0e5b2b610c5d7259c04724310353c5",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "C",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "low_ontology_not_rescued",
+          "lowFallback": false,
+          "s1": 0.6402844786643982,
+          "s2": 0.5917952060699463,
+          "observedGap": 0.048489272594451904,
+          "selected": [],
+          "final": []
+        },
+        {
+          "strategy": "D",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "insufficient_gap",
+          "lowFallback": false,
+          "s1": 0.6402844786643982,
+          "s2": 0.5917952060699463,
+          "observedGap": 0.048489272594451904,
+          "selected": [],
+          "final": []
+        }
+      ]
+    },
+    {
+      "id": "U25",
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "processes/budget-contract-payment-approval.md",
+          "score": 0.3484935760498047
+        },
+        {
+          "rank": 2,
+          "path": "concepts/approvals/budget-contract-type-repair-history.md",
+          "score": 0.26359623670578003
+        },
+        {
+          "rank": 3,
+          "path": "concepts/approvals/approval-submission-and-progress-triage.md",
+          "score": 0.15620090067386627
+        },
+        {
+          "rank": 4,
+          "path": "objects/business-approval.md",
+          "score": 0.1327090859413147
+        },
+        {
+          "rank": 5,
+          "path": "processes/other-inbound-receipt.md",
+          "score": 0.039967749267816544
+        }
+      ],
+      "runs": [
+        {
+          "strategy": "A",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "no_high_score",
+          "lowFallback": false,
+          "s1": 0.3484935760498047,
+          "s2": 0.26359623670578003,
+          "observedGap": 0.08489733934402466,
+          "selected": [],
+          "final": []
+        },
+        {
+          "strategy": "B",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "uniform_lower_threshold",
+          "lowFallback": false,
+          "s1": 0.3484935760498047,
+          "s2": 0.26359623670578003,
+          "observedGap": 0.08489733934402466,
+          "selected": [
+            {
+              "path": "processes/budget-contract-payment-approval.md",
+              "score": 0.3484935760498047
+            }
+          ],
+          "final": [
+            {
+              "path": "docs/ontology/processes/budget-contract-payment-approval.md",
+              "knowledgeType": "ontology",
+              "contentChars": 1069,
+              "contentSha256": "d438a1cd7b6f4d938b0950c677dff460d6253801a4b0c2c3cd26e0dbcae26e8e",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "C",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "low_ontology_not_rescued",
+          "lowFallback": false,
+          "s1": 0.3484935760498047,
+          "s2": 0.26359623670578003,
+          "observedGap": 0.08489733934402466,
+          "selected": [],
+          "final": []
+        },
+        {
+          "strategy": "D",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "insufficient_gap",
+          "lowFallback": false,
+          "s1": 0.3484935760498047,
+          "s2": 0.26359623670578003,
+          "observedGap": 0.08489733934402466,
+          "selected": [],
+          "final": []
+        }
+      ]
+    },
+    {
+      "id": "U26",
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/reporting/financial-report-scope-history.md",
+          "score": 0.8708921074867249
+        },
+        {
+          "rank": 2,
+          "path": "concepts/reporting/filter-language-timezone-history.md",
+          "score": 0.77534019947052
+        },
+        {
+          "rank": 3,
+          "path": "concepts/reporting/audit-export-delivery-history.md",
+          "score": 0.6992862820625305
+        },
+        {
+          "rank": 4,
+          "path": "objects/journal-item-control.md",
+          "score": 0.6247393488883972
+        },
+        {
+          "rank": 5,
+          "path": "objects/financial-reporting.md",
+          "score": 0.5939915776252747
+        }
+      ],
+      "runs": [
+        {
+          "strategy": "A",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.8708921074867249,
+          "s2": 0.77534019947052,
+          "observedGap": 0.09555190801620483,
+          "selected": [
+            {
+              "path": "concepts/reporting/financial-report-scope-history.md",
+              "score": 0.8708921074867249
+            },
+            {
+              "path": "concepts/reporting/filter-language-timezone-history.md",
+              "score": 0.77534019947052
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/reporting/financial-report-scope-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 720,
+              "contentSha256": "0c1711bd727bfbb4e42b35145b2ab5bfd59fdb96e1537a720216acbcd394ae2d",
+              "primaryChars": 2234,
+              "primarySha256": [
+                "ec72b67acf6223558f6cea30a0c5cfdf226115997c126902e0f33c0e88193304",
+                "5df85ec5447217fb7ba06a41d3e3aace976d59edd771ad1fad373e2f486ca207"
+              ],
+              "sourcePaths": [
+                "raw/documents/eight-ticket-image-evidence-2026-10-19/source.md",
+                "raw/transcripts/ticket-2343.2026-10-19-1b3130d6bb44.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/reporting/filter-language-timezone-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 1680,
+              "contentSha256": "1ad378e9f7aa7408725e755a3cd8c412a56e0e963a1bce4d9b545a054f46e8bc",
+              "primaryChars": 986,
+              "primarySha256": [
+                "8dba04c4736496fa371ff3fe64a9750664710f5e9fbf5485eefa091ef208da58",
+                "feb0e0f839f18cdda42a2faa9d3f4648c9755936264a57c5e4a256f7dd6f5de1"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1278.2026-09-11-bde8cb81c26f.md",
+                "raw/transcripts/ticket-2122.2026-09-11-a87b27b22a54.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "B",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "uniform_lower_threshold",
+          "lowFallback": false,
+          "s1": 0.8708921074867249,
+          "s2": 0.77534019947052,
+          "observedGap": 0.09555190801620483,
+          "selected": [
+            {
+              "path": "concepts/reporting/financial-report-scope-history.md",
+              "score": 0.8708921074867249
+            },
+            {
+              "path": "concepts/reporting/filter-language-timezone-history.md",
+              "score": 0.77534019947052
+            },
+            {
+              "path": "concepts/reporting/audit-export-delivery-history.md",
+              "score": 0.6992862820625305
+            },
+            {
+              "path": "objects/journal-item-control.md",
+              "score": 0.6247393488883972
+            },
+            {
+              "path": "objects/financial-reporting.md",
+              "score": 0.5939915776252747
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/reporting/financial-report-scope-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 720,
+              "contentSha256": "0c1711bd727bfbb4e42b35145b2ab5bfd59fdb96e1537a720216acbcd394ae2d",
+              "primaryChars": 2234,
+              "primarySha256": [
+                "ec72b67acf6223558f6cea30a0c5cfdf226115997c126902e0f33c0e88193304",
+                "5df85ec5447217fb7ba06a41d3e3aace976d59edd771ad1fad373e2f486ca207"
+              ],
+              "sourcePaths": [
+                "raw/documents/eight-ticket-image-evidence-2026-10-19/source.md",
+                "raw/transcripts/ticket-2343.2026-10-19-1b3130d6bb44.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/reporting/filter-language-timezone-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 1680,
+              "contentSha256": "1ad378e9f7aa7408725e755a3cd8c412a56e0e963a1bce4d9b545a054f46e8bc",
+              "primaryChars": 986,
+              "primarySha256": [
+                "8dba04c4736496fa371ff3fe64a9750664710f5e9fbf5485eefa091ef208da58",
+                "feb0e0f839f18cdda42a2faa9d3f4648c9755936264a57c5e4a256f7dd6f5de1"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1278.2026-09-11-bde8cb81c26f.md",
+                "raw/transcripts/ticket-2122.2026-09-11-a87b27b22a54.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/reporting/audit-export-delivery-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 1097,
+              "contentSha256": "4ffac8045c2d9aacf2f740f5ad5e2ca6ac41fa9a8e0e2bc7706303b475554b81",
+              "primaryChars": 1756,
+              "primarySha256": [
+                "f59b08627a2442b5fd1c420b23fcc6cf5ea25005556726198cdff103e1a058ac",
+                "077e875101f0738e28b458e8d328c633fec3b5a834805d74ea6915e73e4cc30d"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-107.2026-09-11-23450e548a26.md",
+                "raw/transcripts/ticket-1126.2026-09-11-73f49dcfc5ff.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "C",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.8708921074867249,
+          "s2": 0.77534019947052,
+          "observedGap": 0.09555190801620483,
+          "selected": [
+            {
+              "path": "concepts/reporting/financial-report-scope-history.md",
+              "score": 0.8708921074867249
+            },
+            {
+              "path": "concepts/reporting/filter-language-timezone-history.md",
+              "score": 0.77534019947052
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/reporting/financial-report-scope-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 720,
+              "contentSha256": "0c1711bd727bfbb4e42b35145b2ab5bfd59fdb96e1537a720216acbcd394ae2d",
+              "primaryChars": 2234,
+              "primarySha256": [
+                "ec72b67acf6223558f6cea30a0c5cfdf226115997c126902e0f33c0e88193304",
+                "5df85ec5447217fb7ba06a41d3e3aace976d59edd771ad1fad373e2f486ca207"
+              ],
+              "sourcePaths": [
+                "raw/documents/eight-ticket-image-evidence-2026-10-19/source.md",
+                "raw/transcripts/ticket-2343.2026-10-19-1b3130d6bb44.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/reporting/filter-language-timezone-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 1680,
+              "contentSha256": "1ad378e9f7aa7408725e755a3cd8c412a56e0e963a1bce4d9b545a054f46e8bc",
+              "primaryChars": 986,
+              "primarySha256": [
+                "8dba04c4736496fa371ff3fe64a9750664710f5e9fbf5485eefa091ef208da58",
+                "feb0e0f839f18cdda42a2faa9d3f4648c9755936264a57c5e4a256f7dd6f5de1"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1278.2026-09-11-bde8cb81c26f.md",
+                "raw/transcripts/ticket-2122.2026-09-11-a87b27b22a54.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "D",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.8708921074867249,
+          "s2": 0.77534019947052,
+          "observedGap": 0.09555190801620483,
+          "selected": [
+            {
+              "path": "concepts/reporting/financial-report-scope-history.md",
+              "score": 0.8708921074867249
+            },
+            {
+              "path": "concepts/reporting/filter-language-timezone-history.md",
+              "score": 0.77534019947052
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/reporting/financial-report-scope-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 720,
+              "contentSha256": "0c1711bd727bfbb4e42b35145b2ab5bfd59fdb96e1537a720216acbcd394ae2d",
+              "primaryChars": 2234,
+              "primarySha256": [
+                "ec72b67acf6223558f6cea30a0c5cfdf226115997c126902e0f33c0e88193304",
+                "5df85ec5447217fb7ba06a41d3e3aace976d59edd771ad1fad373e2f486ca207"
+              ],
+              "sourcePaths": [
+                "raw/documents/eight-ticket-image-evidence-2026-10-19/source.md",
+                "raw/transcripts/ticket-2343.2026-10-19-1b3130d6bb44.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/reporting/filter-language-timezone-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 1680,
+              "contentSha256": "1ad378e9f7aa7408725e755a3cd8c412a56e0e963a1bce4d9b545a054f46e8bc",
+              "primaryChars": 986,
+              "primarySha256": [
+                "8dba04c4736496fa371ff3fe64a9750664710f5e9fbf5485eefa091ef208da58",
+                "feb0e0f839f18cdda42a2faa9d3f4648c9755936264a57c5e4a256f7dd6f5de1"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1278.2026-09-11-bde8cb81c26f.md",
+                "raw/transcripts/ticket-2122.2026-09-11-a87b27b22a54.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U27",
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "objects/b2c-sales.md",
+          "score": 0.8587977886199951
+        },
+        {
+          "rank": 2,
+          "path": "processes/b2c-sales-order.md",
+          "score": 0.8500208258628845
+        },
+        {
+          "rank": 3,
+          "path": "processes/b2c-leasing-sales.md",
+          "score": 0.8437433838844299
+        },
+        {
+          "rank": 4,
+          "path": "objects/deferred-service-revenue.md",
+          "score": 0.5304316282272339
+        },
+        {
+          "rank": 5,
+          "path": "concepts/invoicing/zero-order-shopify-rate-history.md",
+          "score": 0.24096207320690155
+        }
+      ],
+      "runs": [
+        {
+          "strategy": "A",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.8587977886199951,
+          "s2": 0.8500208258628845,
+          "observedGap": 0.008776962757110596,
+          "selected": [
+            {
+              "path": "objects/b2c-sales.md",
+              "score": 0.8587977886199951
+            },
+            {
+              "path": "processes/b2c-sales-order.md",
+              "score": 0.8500208258628845
+            },
+            {
+              "path": "processes/b2c-leasing-sales.md",
+              "score": 0.8437433838844299
+            }
+          ],
+          "final": [
+            {
+              "path": "docs/ontology/objects/b2c-sales.md",
+              "knowledgeType": "ontology",
+              "contentChars": 2302,
+              "contentSha256": "1572ac7290e902440dfa1a01634aae1ad05a59b2d8f2136f65af6dc5fa124ce3",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "docs/ontology/processes/b2c-sales-order.md",
+              "knowledgeType": "ontology",
+              "contentChars": 1738,
+              "contentSha256": "2486d75d5c0ef911d2751ec107825d882d2fbd5df4e8dcf1664dcecfe45d33b7",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "docs/ontology/processes/b2c-leasing-sales.md",
+              "knowledgeType": "ontology",
+              "contentChars": 1936,
+              "contentSha256": "dee003a8d309234227704b7852b9c3ca872784da09e6da3a659f541575474e46",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "B",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "uniform_lower_threshold",
+          "lowFallback": false,
+          "s1": 0.8587977886199951,
+          "s2": 0.8500208258628845,
+          "observedGap": 0.008776962757110596,
+          "selected": [
+            {
+              "path": "objects/b2c-sales.md",
+              "score": 0.8587977886199951
+            },
+            {
+              "path": "processes/b2c-sales-order.md",
+              "score": 0.8500208258628845
+            },
+            {
+              "path": "processes/b2c-leasing-sales.md",
+              "score": 0.8437433838844299
+            },
+            {
+              "path": "objects/deferred-service-revenue.md",
+              "score": 0.5304316282272339
+            }
+          ],
+          "final": [
+            {
+              "path": "docs/ontology/objects/b2c-sales.md",
+              "knowledgeType": "ontology",
+              "contentChars": 2302,
+              "contentSha256": "1572ac7290e902440dfa1a01634aae1ad05a59b2d8f2136f65af6dc5fa124ce3",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "docs/ontology/processes/b2c-sales-order.md",
+              "knowledgeType": "ontology",
+              "contentChars": 1738,
+              "contentSha256": "2486d75d5c0ef911d2751ec107825d882d2fbd5df4e8dcf1664dcecfe45d33b7",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "docs/ontology/processes/b2c-leasing-sales.md",
+              "knowledgeType": "ontology",
+              "contentChars": 1936,
+              "contentSha256": "dee003a8d309234227704b7852b9c3ca872784da09e6da3a659f541575474e46",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "C",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.8587977886199951,
+          "s2": 0.8500208258628845,
+          "observedGap": 0.008776962757110596,
+          "selected": [
+            {
+              "path": "objects/b2c-sales.md",
+              "score": 0.8587977886199951
+            },
+            {
+              "path": "processes/b2c-sales-order.md",
+              "score": 0.8500208258628845
+            },
+            {
+              "path": "processes/b2c-leasing-sales.md",
+              "score": 0.8437433838844299
+            }
+          ],
+          "final": [
+            {
+              "path": "docs/ontology/objects/b2c-sales.md",
+              "knowledgeType": "ontology",
+              "contentChars": 2302,
+              "contentSha256": "1572ac7290e902440dfa1a01634aae1ad05a59b2d8f2136f65af6dc5fa124ce3",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "docs/ontology/processes/b2c-sales-order.md",
+              "knowledgeType": "ontology",
+              "contentChars": 1738,
+              "contentSha256": "2486d75d5c0ef911d2751ec107825d882d2fbd5df4e8dcf1664dcecfe45d33b7",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "docs/ontology/processes/b2c-leasing-sales.md",
+              "knowledgeType": "ontology",
+              "contentChars": 1936,
+              "contentSha256": "dee003a8d309234227704b7852b9c3ca872784da09e6da3a659f541575474e46",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "D",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.8587977886199951,
+          "s2": 0.8500208258628845,
+          "observedGap": 0.008776962757110596,
+          "selected": [
+            {
+              "path": "objects/b2c-sales.md",
+              "score": 0.8587977886199951
+            },
+            {
+              "path": "processes/b2c-sales-order.md",
+              "score": 0.8500208258628845
+            },
+            {
+              "path": "processes/b2c-leasing-sales.md",
+              "score": 0.8437433838844299
+            }
+          ],
+          "final": [
+            {
+              "path": "docs/ontology/objects/b2c-sales.md",
+              "knowledgeType": "ontology",
+              "contentChars": 2302,
+              "contentSha256": "1572ac7290e902440dfa1a01634aae1ad05a59b2d8f2136f65af6dc5fa124ce3",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "docs/ontology/processes/b2c-sales-order.md",
+              "knowledgeType": "ontology",
+              "contentChars": 1738,
+              "contentSha256": "2486d75d5c0ef911d2751ec107825d882d2fbd5df4e8dcf1664dcecfe45d33b7",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "docs/ontology/processes/b2c-leasing-sales.md",
+              "knowledgeType": "ontology",
+              "contentChars": 1936,
+              "contentSha256": "dee003a8d309234227704b7852b9c3ca872784da09e6da3a659f541575474e46",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U28",
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/sales/contact-tag-change-verification.md",
+          "score": 0.15154476463794708
+        },
+        {
+          "rank": 2,
+          "path": "objects/product-catalog.md",
+          "score": 0.10488369315862656
+        },
+        {
+          "rank": 3,
+          "path": "objects/sales-return.md",
+          "score": 0.08935989439487457
+        },
+        {
+          "rank": 4,
+          "path": "objects/transaction-tax.md",
+          "score": 0.045103494077920914
+        },
+        {
+          "rank": 5,
+          "path": "objects/service-center-case.md",
+          "score": 0.03835843876004219
+        }
+      ],
+      "runs": [
+        {
+          "strategy": "A",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "no_high_score",
+          "lowFallback": false,
+          "s1": 0.15154476463794708,
+          "s2": 0.10488369315862656,
+          "observedGap": 0.046661071479320526,
+          "selected": [],
+          "final": []
+        },
+        {
+          "strategy": "B",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "uniform_lower_threshold",
+          "lowFallback": false,
+          "s1": 0.15154476463794708,
+          "s2": 0.10488369315862656,
+          "observedGap": 0.046661071479320526,
+          "selected": [],
+          "final": []
+        },
+        {
+          "strategy": "C",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "low_top1_eligible",
+          "lowFallback": true,
+          "s1": 0.15154476463794708,
+          "s2": 0.10488369315862656,
+          "observedGap": 0.046661071479320526,
+          "selected": [
+            {
+              "path": "concepts/sales/contact-tag-change-verification.md",
+              "score": 0.15154476463794708
+            }
+          ],
+          "final": []
+        },
+        {
+          "strategy": "D",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "below_floor",
+          "lowFallback": false,
+          "s1": 0.15154476463794708,
+          "s2": 0.10488369315862656,
+          "observedGap": 0.046661071479320526,
+          "selected": [],
+          "final": []
+        }
+      ]
+    },
+    {
+      "id": "U29",
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/approvals/approval-policy-change-checklist.md",
+          "score": 0.9523317217826843
+        },
+        {
+          "rank": 2,
+          "path": "concepts/approvals/inflight-approval-owner-change-history.md",
+          "score": 0.8824657201766968
+        },
+        {
+          "rank": 3,
+          "path": "processes/other-outbound-execution.md",
+          "score": 0.8679857850074768
+        },
+        {
+          "rank": 4,
+          "path": "concepts/sales/marketing-approval-online-shipment-history.md",
+          "score": 0.7648652791976929
+        },
+        {
+          "rank": 5,
+          "path": "processes/warehouse-operation-approval.md",
+          "score": 0.536750078201294
+        }
+      ],
+      "runs": [
+        {
+          "strategy": "A",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.9523317217826843,
+          "s2": 0.8824657201766968,
+          "observedGap": 0.06986600160598755,
+          "selected": [
+            {
+              "path": "concepts/approvals/approval-policy-change-checklist.md",
+              "score": 0.9523317217826843
+            },
+            {
+              "path": "concepts/approvals/inflight-approval-owner-change-history.md",
+              "score": 0.8824657201766968
+            },
+            {
+              "path": "processes/other-outbound-execution.md",
+              "score": 0.8679857850074768
+            },
+            {
+              "path": "concepts/sales/marketing-approval-online-shipment-history.md",
+              "score": 0.7648652791976929
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/approvals/approval-policy-change-checklist.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 2388,
+              "contentSha256": "ec21ada78abacb02aa90759a3d126ec1ae4511e1cd7a5067818b35a5d7cc7489",
+              "primaryChars": 1374,
+              "primarySha256": [
+                "bdb994b4a9814f4b5d9824057f8ee25ac8068e1a88d4d95d8b4dc115263f2110",
+                "ab89d980fd658ca27af0cfd99cadd615733ffd09713625b163b1bd3d004684ac"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-446.2026-09-11-82f585cb843a.md",
+                "raw/transcripts/ticket-511.2026-09-11-5edef2c7c4c6.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/approvals/inflight-approval-owner-change-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 2384,
+              "contentSha256": "013cb46ade604fa71f94d6c7ab349709c55bbd6bff765cf2b2f08c090bdf52f4",
+              "primaryChars": 1605,
+              "primarySha256": [
+                "2e598ce67d85b71f84c3d1413c166c8b9f1c5055bf15b88639c734216d97887d"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1564.2026-09-11-2d762f39e5f4.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "docs/ontology/processes/other-outbound-execution.md",
+              "knowledgeType": "ontology",
+              "contentChars": 1029,
+              "contentSha256": "1b944421134bb663554c93fec7484479784616fb7267fd2d0c3e879881ddfdcd",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "B",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "uniform_lower_threshold",
+          "lowFallback": false,
+          "s1": 0.9523317217826843,
+          "s2": 0.8824657201766968,
+          "observedGap": 0.06986600160598755,
+          "selected": [
+            {
+              "path": "concepts/approvals/approval-policy-change-checklist.md",
+              "score": 0.9523317217826843
+            },
+            {
+              "path": "concepts/approvals/inflight-approval-owner-change-history.md",
+              "score": 0.8824657201766968
+            },
+            {
+              "path": "processes/other-outbound-execution.md",
+              "score": 0.8679857850074768
+            },
+            {
+              "path": "concepts/sales/marketing-approval-online-shipment-history.md",
+              "score": 0.7648652791976929
+            },
+            {
+              "path": "processes/warehouse-operation-approval.md",
+              "score": 0.536750078201294
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/approvals/approval-policy-change-checklist.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 2388,
+              "contentSha256": "ec21ada78abacb02aa90759a3d126ec1ae4511e1cd7a5067818b35a5d7cc7489",
+              "primaryChars": 1374,
+              "primarySha256": [
+                "bdb994b4a9814f4b5d9824057f8ee25ac8068e1a88d4d95d8b4dc115263f2110",
+                "ab89d980fd658ca27af0cfd99cadd615733ffd09713625b163b1bd3d004684ac"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-446.2026-09-11-82f585cb843a.md",
+                "raw/transcripts/ticket-511.2026-09-11-5edef2c7c4c6.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/approvals/inflight-approval-owner-change-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 2384,
+              "contentSha256": "013cb46ade604fa71f94d6c7ab349709c55bbd6bff765cf2b2f08c090bdf52f4",
+              "primaryChars": 1605,
+              "primarySha256": [
+                "2e598ce67d85b71f84c3d1413c166c8b9f1c5055bf15b88639c734216d97887d"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1564.2026-09-11-2d762f39e5f4.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "docs/ontology/processes/other-outbound-execution.md",
+              "knowledgeType": "ontology",
+              "contentChars": 1029,
+              "contentSha256": "1b944421134bb663554c93fec7484479784616fb7267fd2d0c3e879881ddfdcd",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "C",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.9523317217826843,
+          "s2": 0.8824657201766968,
+          "observedGap": 0.06986600160598755,
+          "selected": [
+            {
+              "path": "concepts/approvals/approval-policy-change-checklist.md",
+              "score": 0.9523317217826843
+            },
+            {
+              "path": "concepts/approvals/inflight-approval-owner-change-history.md",
+              "score": 0.8824657201766968
+            },
+            {
+              "path": "processes/other-outbound-execution.md",
+              "score": 0.8679857850074768
+            },
+            {
+              "path": "concepts/sales/marketing-approval-online-shipment-history.md",
+              "score": 0.7648652791976929
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/approvals/approval-policy-change-checklist.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 2388,
+              "contentSha256": "ec21ada78abacb02aa90759a3d126ec1ae4511e1cd7a5067818b35a5d7cc7489",
+              "primaryChars": 1374,
+              "primarySha256": [
+                "bdb994b4a9814f4b5d9824057f8ee25ac8068e1a88d4d95d8b4dc115263f2110",
+                "ab89d980fd658ca27af0cfd99cadd615733ffd09713625b163b1bd3d004684ac"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-446.2026-09-11-82f585cb843a.md",
+                "raw/transcripts/ticket-511.2026-09-11-5edef2c7c4c6.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/approvals/inflight-approval-owner-change-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 2384,
+              "contentSha256": "013cb46ade604fa71f94d6c7ab349709c55bbd6bff765cf2b2f08c090bdf52f4",
+              "primaryChars": 1605,
+              "primarySha256": [
+                "2e598ce67d85b71f84c3d1413c166c8b9f1c5055bf15b88639c734216d97887d"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1564.2026-09-11-2d762f39e5f4.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "docs/ontology/processes/other-outbound-execution.md",
+              "knowledgeType": "ontology",
+              "contentChars": 1029,
+              "contentSha256": "1b944421134bb663554c93fec7484479784616fb7267fd2d0c3e879881ddfdcd",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "D",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.9523317217826843,
+          "s2": 0.8824657201766968,
+          "observedGap": 0.06986600160598755,
+          "selected": [
+            {
+              "path": "concepts/approvals/approval-policy-change-checklist.md",
+              "score": 0.9523317217826843
+            },
+            {
+              "path": "concepts/approvals/inflight-approval-owner-change-history.md",
+              "score": 0.8824657201766968
+            },
+            {
+              "path": "processes/other-outbound-execution.md",
+              "score": 0.8679857850074768
+            },
+            {
+              "path": "concepts/sales/marketing-approval-online-shipment-history.md",
+              "score": 0.7648652791976929
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/approvals/approval-policy-change-checklist.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 2388,
+              "contentSha256": "ec21ada78abacb02aa90759a3d126ec1ae4511e1cd7a5067818b35a5d7cc7489",
+              "primaryChars": 1374,
+              "primarySha256": [
+                "bdb994b4a9814f4b5d9824057f8ee25ac8068e1a88d4d95d8b4dc115263f2110",
+                "ab89d980fd658ca27af0cfd99cadd615733ffd09713625b163b1bd3d004684ac"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-446.2026-09-11-82f585cb843a.md",
+                "raw/transcripts/ticket-511.2026-09-11-5edef2c7c4c6.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/approvals/inflight-approval-owner-change-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 2384,
+              "contentSha256": "013cb46ade604fa71f94d6c7ab349709c55bbd6bff765cf2b2f08c090bdf52f4",
+              "primaryChars": 1605,
+              "primarySha256": [
+                "2e598ce67d85b71f84c3d1413c166c8b9f1c5055bf15b88639c734216d97887d"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1564.2026-09-11-2d762f39e5f4.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "docs/ontology/processes/other-outbound-execution.md",
+              "knowledgeType": "ontology",
+              "contentChars": 1029,
+              "contentSha256": "1b944421134bb663554c93fec7484479784616fb7267fd2d0c3e879881ddfdcd",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U30",
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "processes/external-wms-order-exchange.md",
+          "score": 0.8340489268302917
+        },
+        {
+          "rank": 2,
+          "path": "concepts/delivery/wms-feedback-and-marketplace-tracking-triage.md",
+          "score": 0.6865547299385071
+        },
+        {
+          "rank": 3,
+          "path": "concepts/delivery/westerman-booked-tracking-timing-history.md",
+          "score": 0.5790907740592957
+        },
+        {
+          "rank": 4,
+          "path": "concepts/delivery/sales-order-integration-contract-lark-1806.md",
+          "score": 0.5480849146842957
+        },
+        {
+          "rank": 5,
+          "path": "concepts/delivery/wms-feedback-duplicate-quantity-history.md",
+          "score": 0.4933066666126251
+        }
+      ],
+      "runs": [
+        {
+          "strategy": "A",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.8340489268302917,
+          "s2": 0.6865547299385071,
+          "observedGap": 0.14749419689178467,
+          "selected": [
+            {
+              "path": "processes/external-wms-order-exchange.md",
+              "score": 0.8340489268302917
+            }
+          ],
+          "final": [
+            {
+              "path": "docs/ontology/processes/external-wms-order-exchange.md",
+              "knowledgeType": "ontology",
+              "contentChars": 1857,
+              "contentSha256": "2bb20b0f189a52aa5bc054bdf2ee5597b31ee1e09979d678e39a95eed2af23f2",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "B",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "uniform_lower_threshold",
+          "lowFallback": false,
+          "s1": 0.8340489268302917,
+          "s2": 0.6865547299385071,
+          "observedGap": 0.14749419689178467,
+          "selected": [
+            {
+              "path": "processes/external-wms-order-exchange.md",
+              "score": 0.8340489268302917
+            },
+            {
+              "path": "concepts/delivery/wms-feedback-and-marketplace-tracking-triage.md",
+              "score": 0.6865547299385071
+            },
+            {
+              "path": "concepts/delivery/westerman-booked-tracking-timing-history.md",
+              "score": 0.5790907740592957
+            },
+            {
+              "path": "concepts/delivery/sales-order-integration-contract-lark-1806.md",
+              "score": 0.5480849146842957
+            },
+            {
+              "path": "concepts/delivery/wms-feedback-duplicate-quantity-history.md",
+              "score": 0.4933066666126251
+            }
+          ],
+          "final": [
+            {
+              "path": "docs/ontology/processes/external-wms-order-exchange.md",
+              "knowledgeType": "ontology",
+              "contentChars": 1857,
+              "contentSha256": "2bb20b0f189a52aa5bc054bdf2ee5597b31ee1e09979d678e39a95eed2af23f2",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/delivery/wms-feedback-and-marketplace-tracking-triage.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 2058,
+              "contentSha256": "8a91308afdbf1ae23163d9241e4024f96b08ab42f34a6ae2fdf703feb367d3db",
+              "primaryChars": 1886,
+              "primarySha256": [
+                "8ca113af86aa41c2a84ba94831e731c603864ef699af95531c57be10f73c5e66",
+                "49c21b0e0ead8067158b319ae4ee5285e58bb34be020b7aca61d03aa5d8af836"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-2243.md",
+                "raw/transcripts/ticket-103.2026-09-11-43f229ec578b.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/delivery/westerman-booked-tracking-timing-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 789,
+              "contentSha256": "e0984c33c24fc2cbdf450a822edd98146ebcb65e3b31ce7096fcb808773c7dae",
+              "primaryChars": 1261,
+              "primarySha256": [
+                "88cd696c0c7f0422d6fd5de2c1b6461bc48aef90264328c458a83a97568ee12e"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1844.2026-09-11-c456921a2e90.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "C",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.8340489268302917,
+          "s2": 0.6865547299385071,
+          "observedGap": 0.14749419689178467,
+          "selected": [
+            {
+              "path": "processes/external-wms-order-exchange.md",
+              "score": 0.8340489268302917
+            }
+          ],
+          "final": [
+            {
+              "path": "docs/ontology/processes/external-wms-order-exchange.md",
+              "knowledgeType": "ontology",
+              "contentChars": 1857,
+              "contentSha256": "2bb20b0f189a52aa5bc054bdf2ee5597b31ee1e09979d678e39a95eed2af23f2",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "D",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.8340489268302917,
+          "s2": 0.6865547299385071,
+          "observedGap": 0.14749419689178467,
+          "selected": [
+            {
+              "path": "processes/external-wms-order-exchange.md",
+              "score": 0.8340489268302917
+            }
+          ],
+          "final": [
+            {
+              "path": "docs/ontology/processes/external-wms-order-exchange.md",
+              "knowledgeType": "ontology",
+              "contentChars": 1857,
+              "contentSha256": "2bb20b0f189a52aa5bc054bdf2ee5597b31ee1e09979d678e39a95eed2af23f2",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "U31",
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/integration/shopify-order-sku-mismatch-mapping-and-lifecycle.md",
+          "score": 0.12489690631628036
+        },
+        {
+          "rank": 2,
+          "path": "concepts/delivery/wms-payload-validation-triage.md",
+          "score": 0.07017797976732254
+        },
+        {
+          "rank": 3,
+          "path": "objects/product-catalog.md",
+          "score": 0.03843488171696663
+        },
+        {
+          "rank": 4,
+          "path": "concepts/sales/so-flow-preorder-backorder-cancel-rules.md",
+          "score": 0.03304062783718109
+        },
+        {
+          "rank": 5,
+          "path": "processes/sku-conversion.md",
+          "score": 0.027715349569916725
+        }
+      ],
+      "runs": [
+        {
+          "strategy": "A",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "no_high_score",
+          "lowFallback": false,
+          "s1": 0.12489690631628036,
+          "s2": 0.07017797976732254,
+          "observedGap": 0.054718926548957825,
+          "selected": [],
+          "final": []
+        },
+        {
+          "strategy": "B",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "uniform_lower_threshold",
+          "lowFallback": false,
+          "s1": 0.12489690631628036,
+          "s2": 0.07017797976732254,
+          "observedGap": 0.054718926548957825,
+          "selected": [],
+          "final": []
+        },
+        {
+          "strategy": "C",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "below_weknora_floor",
+          "lowFallback": false,
+          "s1": 0.12489690631628036,
+          "s2": 0.07017797976732254,
+          "observedGap": 0.054718926548957825,
+          "selected": [],
+          "final": []
+        },
+        {
+          "strategy": "D",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "below_floor",
+          "lowFallback": false,
+          "s1": 0.12489690631628036,
+          "s2": 0.07017797976732254,
+          "observedGap": 0.054718926548957825,
+          "selected": [],
+          "final": []
+        }
+      ]
+    },
+    {
+      "id": "U32",
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/invoicing/price-and-invoicing-mismatch-triage.md",
+          "score": 0.7270932197570801
+        },
+        {
+          "rank": 2,
+          "path": "concepts/invoicing/amount-comparison-navigation.md",
+          "score": 0.657395601272583
+        },
+        {
+          "rank": 3,
+          "path": "concepts/invoicing/invoice-so-amount-mismatch.md",
+          "score": 0.3359953463077545
+        },
+        {
+          "rank": 4,
+          "path": "concepts/reporting/filter-language-timezone-history.md",
+          "score": 0.22253230214118958
+        },
+        {
+          "rank": 5,
+          "path": "concepts/inventory/completed-picking-location-correction-history.md",
+          "score": 0.21537747979164124
+        }
+      ],
+      "runs": [
+        {
+          "strategy": "A",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.7270932197570801,
+          "s2": 0.657395601272583,
+          "observedGap": 0.06969761848449707,
+          "selected": [
+            {
+              "path": "concepts/invoicing/price-and-invoicing-mismatch-triage.md",
+              "score": 0.7270932197570801
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/invoicing/price-and-invoicing-mismatch-triage.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 0,
+              "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "B",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "uniform_lower_threshold",
+          "lowFallback": false,
+          "s1": 0.7270932197570801,
+          "s2": 0.657395601272583,
+          "observedGap": 0.06969761848449707,
+          "selected": [
+            {
+              "path": "concepts/invoicing/price-and-invoicing-mismatch-triage.md",
+              "score": 0.7270932197570801
+            },
+            {
+              "path": "concepts/invoicing/amount-comparison-navigation.md",
+              "score": 0.657395601272583
+            },
+            {
+              "path": "concepts/invoicing/invoice-so-amount-mismatch.md",
+              "score": 0.3359953463077545
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/invoicing/price-and-invoicing-mismatch-triage.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 0,
+              "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/invoicing/amount-comparison-navigation.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 0,
+              "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/invoicing/invoice-so-amount-mismatch.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 0,
+              "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "C",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.7270932197570801,
+          "s2": 0.657395601272583,
+          "observedGap": 0.06969761848449707,
+          "selected": [
+            {
+              "path": "concepts/invoicing/price-and-invoicing-mismatch-triage.md",
+              "score": 0.7270932197570801
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/invoicing/price-and-invoicing-mismatch-triage.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 0,
+              "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "D",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "normal_threshold",
+          "lowFallback": false,
+          "s1": 0.7270932197570801,
+          "s2": 0.657395601272583,
+          "observedGap": 0.06969761848449707,
+          "selected": [
+            {
+              "path": "concepts/invoicing/price-and-invoicing-mismatch-triage.md",
+              "score": 0.7270932197570801
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/invoicing/price-and-invoicing-mismatch-triage.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 0,
+              "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "initial-freeze.json": "473d3e23b52ac48a37aea63667e9cb02e1f219b62c96a037369ccafaaf9c8c0a",
+  "cases.json": "df0e21b1c8ca78d3dcb49efa064b0567214b45d966b5c759cae69702f7fb29bc",
+  "labels.json": "544668971ea1231d81a2d17cd30e495b3fa84179f04a14d962dd85a025cde094",
+  "candidate-audit.json": "da297dffccb242a176b9fe051bf72478a9b33cd640eb73dd328f3641c69cb52d",
+  "input-manifest.json": "66eaf840dca444e333a0b26de9d5f828f0c755f318e8b04a38e4685c56c7294e",
+  "config.json": "af1ddaa09a450f9f075ed5e6e316c0942343de7bc10ca5c1822d69f768d73007",
+  "effective-prompts.json": "fc47f44c6c33126f7701f2ae20d3029634b8d21bb13b2d28e6e1efb11dc7949f",
+  "inputs_private_sha256": "6b1c6ed56faa20ba9aef880f52e62b05aa31fa80a5f03a485d969ab8de0be772",
+  "sequence": "24 events and candidate labels fixed before first model score; current reader recall unchanged; G/R off"
+}

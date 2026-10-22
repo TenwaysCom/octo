@@ -1,0 +1,100 @@
+{
+  "caseId": "Q10",
+  "group": "A",
+  "payloadHash": "c52cdc27aec5314b81eed432cde572b687e567ab7d4bab0c81206385c1108af1",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 11,
+      "relevance_score": 0.7639833688735962
+    },
+    {
+      "index": 5,
+      "relevance_score": 0.6964617967605591
+    },
+    {
+      "index": 2,
+      "relevance_score": 0.6183984875679016
+    },
+    {
+      "index": 4,
+      "relevance_score": 0.4690237045288086
+    },
+    {
+      "index": 10,
+      "relevance_score": 0.2955174744129181
+    }
+  ],
+  "durationMs": 385,
+  "querySha256": "cdd204407e9e27b27c15d1bd4cfd76345a52ecd1a2c1eef2077689079928fb0f",
+  "queryChars": 42,
+  "documentSha256": [
+    "41dbbcacdbec30c0ba0ffeb71d4992e5df79c2cc8ce54a7f5aa807c2ef0991d6",
+    "735bb6420a3cfad722decde6661ba15393b4baa20be1d3047029fe39c2d0f197",
+    "65ffe0cea2596db34f845e199ec0f26a0650b5f6b9e7302e1a4f189ad8226537",
+    "d2613298cfe7a3b799a8f788bbab52c01cc60da37a8a9d7de2b3c8f3236a0176",
+    "af2d47c96fd564c75a10031b91ba3e5ee2d3a94fbf144fec7a934655b6e3643b",
+    "9d21e84fdf59cbcf145d72ca7abdba72a02b6cb1ed26f11a73eefd4b7b508ede",
+    "6f52d3b5a02a3cb2a0ced33bb3ed58dafeb12170d541a5eb2717c116fff42a4b",
+    "e7ebd468e02f98be50b927c64dd7d80a6ce9575ce86497c0f4d769798c9b91f1",
+    "fa64b99e70ac8e3a636feb76b8091ee26c431efb17a442e84e7af3e70bc43eaa",
+    "e44f4a24220116cf87551897e50e67c289ac864c605aad891b5c0557cc184282",
+    "96487419cb6e173ea811e16eb852167986d11d35c81fa713e57389e0b6b9a5a5",
+    "6887767e9d78d9ab159eb5094207d67f1c317c2ab199d8c8f27d17c346e95a5a",
+    "9755e0904bdb8b857dba5318cb6df63bcc22ea99bfa5ecd43626d88915827b78",
+    "1a0b94002e8f4cf940e73f0223e2f64c5b634d407fd0ddadeb8de2e9f9803327",
+    "157152ffbdc67e8618cc3f3cd3bb950c400b4e761ad9f10cc3aa1641f650bff6",
+    "3bfd66f49586cdfd848f5bb39470fc4fed551c44ae58067fb2c4f067bcbc6056",
+    "f75751ab714f42af1a4d37cf70bf856703c5ed6ffb47350370977d8deec5f2d9",
+    "bdb841241d4e296c6635c4cf007d199396fc315d8af5045935301bd37a28ef59",
+    "e422cef1feaa01d6daf39057b4ae79540eba62ecacc7f875e1c822d809029631",
+    "21632b49685c2158e5f34c37869a7e2f7ac1f5c12c52c2bee6303b13b469a211"
+  ],
+  "documentChars": [
+    1026,
+    774,
+    1166,
+    1035,
+    1471,
+    1271,
+    1762,
+    2028,
+    454,
+    606,
+    712,
+    1454,
+    483,
+    703,
+    1255,
+    778,
+    1094,
+    466,
+    715,
+    503
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/delivery/cmc-outbound-company-required-error-response.md",
+    "docs/llm-wiki/concepts/delivery/wms-receipt-disputed-history.md",
+    "docs/llm-wiki/concepts/integration/wms-result-unknown-history.md",
+    "docs/llm-wiki/concepts/delivery/sales-order-integration-contract-lark-1806.md",
+    "docs/llm-wiki/concepts/delivery/westerman-scheduled-feedback-history.md",
+    "docs/llm-wiki/concepts/delivery/wms-payload-validation-triage.md",
+    "docs/llm-wiki/concepts/access/permission-request-and-effective-access.md",
+    "docs/llm-wiki/concepts/approvals/approval-submission-and-progress-triage.md",
+    "docs/llm-wiki/concepts/delivery/burger-self-pickup-feedback-history.md",
+    "docs/llm-wiki/concepts/delivery/service-center-outbound-split-correct-warehouse.md",
+    "docs/llm-wiki/concepts/delivery/westerman-booked-tracking-timing-history.md",
+    "docs/llm-wiki/concepts/delivery/wms-send-failure-and-unknown-result.md",
+    "docs/llm-wiki/concepts/integration/westerman-empty-feedback-history.md",
+    "docs/llm-wiki/concepts/invoicing/document-followers-mail-history.md",
+    "docs/llm-wiki/concepts/invoicing/price-and-invoicing-mismatch-triage.md",
+    "docs/llm-wiki/concepts/platform/browser-assets-and-widget-errors-history.md",
+    "docs/llm-wiki/concepts/portal/portal-email-and-archived-account-check.md",
+    "docs/llm-wiki/concepts/purchase/po-approve-view-error-history.md",
+    "docs/llm-wiki/concepts/reporting/gross-profit-quantity-sign-history.md",
+    "docs/llm-wiki/concepts/reporting/wms-list-filter-receipt-history.md"
+  ],
+  "queryCAvailable": true
+}

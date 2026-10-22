@@ -1,0 +1,101 @@
+{
+  "caseId": "Q32",
+  "group": "A",
+  "payloadHash": "5a5b6b3afdcc696fee63533a1bfaea254a2d2010239d86b4a33a546dfbfe5a2f",
+  "topN": 5,
+  "repeat": "stability-1",
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 13,
+      "relevance_score": 0.1408649981021881
+    },
+    {
+      "index": 8,
+      "relevance_score": 0.07400716841220856
+    },
+    {
+      "index": 11,
+      "relevance_score": 0.025293689221143723
+    },
+    {
+      "index": 14,
+      "relevance_score": 0.02206330932676792
+    },
+    {
+      "index": 12,
+      "relevance_score": 0.016244227066636086
+    }
+  ],
+  "durationMs": 386,
+  "querySha256": "2dede55fbad5c2b093cb66c9ac3880f57dfd5ae6bf2e5cd0c19ef31899feb8dd",
+  "queryChars": 75,
+  "documentSha256": [
+    "3e2e725860d1d0d31c8653128ced21966bc4d99b318a52de5b8059249e5a3f5b",
+    "8a323823dc7d5b11b15ce0ecfdf63349e041993da9e683bed30623336964d683",
+    "c669722b044fa70dad0d7c90d034ac9a6d48facedf92e74d37a53233195806a4",
+    "046f0e1e10f3b6067069e6e1f140f74540577d0064032f6b0b711e22abe35b07",
+    "dd63d6e6957ebed2a203eed2c4dced8d0bdc10da32f73eed9b584ae7046defe3",
+    "d7d846f035ce18e69abac6e23cc8847cc11c54a70f3253f50877ed66ceba23c0",
+    "acded84a952b850d0afcfe82b58b127d38339bf6a9ae317d885f2bc82ddf7c17",
+    "3fe28c6e5f46be47a41ccf0fedd4bd4418cce9fd6c55c51a2f05051b172701f3",
+    "ea9e9713bf24b9dcabfa76c91be3f2d1122e0e920fe2c857f42e0cbeb19235da",
+    "d32162b02d5247f68eb04fd4de9d367cbe31a8d7ccf804967fe1c63ff48d8b85",
+    "0d455a290ff364b8df02b8899d0f11b2f108a9e1a18d0a1410db3dea30be9d46",
+    "a28bec1a66ae922e39246e2999b45073bb693bd3f599b27f530d619b0909839e",
+    "9c1d167e9276948d2180c4f496ba934f53c5bf87a7e109aa38f6dfd240277c60",
+    "93e23bbbf4ae26156f5e22f8814f6e85dbd56805b290d14abe14eaabed6521a6",
+    "58b8fe85cf9b94e555f6c8cbb358acc9b288e9bd4c5d4df5ca9f9d7bbbce0b1e",
+    "36c1bc57695e58542cc7a6944a7345e83858180d520efdefacbdfd5478cfae28",
+    "a45ba14dbcb1e6b93749f7ecb459e5b572d6dec4587730736f6288515f846195",
+    "8c58413c2690727f134774eca9884e7f2605ae63ad36334ff8b0f94dcbdcfe05",
+    "d6fff19f43be1d97c3d076c1a4f486235e0cf590de76fc1c5c31712208545f18",
+    "f11e0ee2c615f3dc87e7fea30cf7648f1523476e34f3f66922e15c3c437836a3"
+  ],
+  "documentChars": [
+    663,
+    930,
+    411,
+    382,
+    752,
+    443,
+    756,
+    298,
+    223,
+    438,
+    54,
+    2406,
+    726,
+    1731,
+    558,
+    2188,
+    1732,
+    911,
+    1503,
+    2260
+  ],
+  "candidatePaths": [
+    "docs/ontology/objects/business-approval.md",
+    "docs/ontology/processes/budget-contract-payment-approval.md",
+    "docs/llm-wiki/concepts/platform/lark-desktop-login-history.md",
+    "docs/llm-wiki/concepts/platform/lark-mail-configuration-history.md",
+    "docs/llm-wiki/concepts/delivery/service-centre-outbound-edit-history.md",
+    "docs/llm-wiki/concepts/approvals/company-card-field-history.md",
+    "docs/llm-wiki/concepts/delivery/sent-picking-split-and-order-line-history.md",
+    "docs/llm-wiki/concepts/faq/fleet-lark-attachment-link-not-openable.md",
+    "docs/llm-wiki/concepts/inventory/start-stock-operation-button-check.md",
+    "docs/llm-wiki/concepts/workforce/fleet-lark-attachment-link-history.md",
+    "docs/ontology/processes/standalone-approval-request.md",
+    "docs/ontology/objects/marketing-sales.md",
+    "docs/llm-wiki/concepts/access/operation-access-and-button-triage.md",
+    "docs/llm-wiki/concepts/approvals/approval-submission-and-progress-triage.md",
+    "docs/llm-wiki/concepts/portal/survey-completion-notification-history.md",
+    "docs/ontology/objects/warehouse-operation.md",
+    "docs/ontology/processes/external-wms-order-exchange.md",
+    "docs/ontology/processes/other-outbound-execution.md",
+    "docs/ontology/processes/unshipped-sales-order-amendment.md",
+    "docs/ontology/objects/business-party.md"
+  ],
+  "queryCAvailable": true
+}

@@ -1,0 +1,16 @@
+{
+  "unit_and_mock_tests": {
+    "passed": 163,
+    "files": 5,
+    "scope": "isolated frozen server source"
+  },
+  "type_build": "passed",
+  "first_final_expected_ranks_identical": true,
+  "first_final_all_candidate_orders_identical": true,
+  "shared_reader_domain_test_source_unchanged": true,
+  "real_models": "not called",
+  "live_e2e": "not run",
+  "deployment": "not run",
+  "database_writes": false,
+  "compressed_first_run_overwrite_refused": true
+}

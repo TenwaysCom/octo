@@ -1,0 +1,100 @@
+{
+  "caseId": "N13",
+  "group": "A",
+  "payloadHash": "a0f89e2e85e6cbd2a9ad222add4e6fef113f8304eac0fa48870d6be855bb838f",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 1,
+      "relevance_score": 0.17804378271102905
+    },
+    {
+      "index": 4,
+      "relevance_score": 0.16801419854164124
+    },
+    {
+      "index": 13,
+      "relevance_score": 0.07777675241231918
+    },
+    {
+      "index": 10,
+      "relevance_score": 0.06167972832918167
+    },
+    {
+      "index": 6,
+      "relevance_score": 0.05195702612400055
+    }
+  ],
+  "durationMs": 470,
+  "querySha256": "e6479ac3e135fd09acceecbe018dd96efa94560466b74b32d3ec5cc0eb565d9d",
+  "queryChars": 126,
+  "documentSha256": [
+    "7be3aa230c2ea0127f82a1339e5984e05a2e55db34c5f915bd659fa6c283fc8a",
+    "693b034862728ccfba2c11cf561fb707bca0cab174c768a6672e55c2c45ab8e1",
+    "1a60436ce63f2751c536f2c943b6830719bbb0f92259077f4672fb161426f679",
+    "e02cf48d2e5f3ddcee586a00ae05a61bbde405997dc70d02f6ffc818ac4cbe43",
+    "a87d08b5cedb6937324145627d148b05cb66c7023c8e086238a3756e460154b0",
+    "9d9dea5cf865ac9984722c8c7816805852b948aed1703d7bffedab534e4ad437",
+    "2d3dfb8e4313eae66c10fe8cf45d6c12d873f4bb15220b991b350bb93f92293f",
+    "47c7e0450a14fe9ca36b58b242333d127e3e945125e442aaad5f4a24b0c33bae",
+    "0a0fc09fc0bd1809377f552289bc63678b40b06fd357451293f41efee20bc872",
+    "e072bf141a5705ea8f5f98099749acb79260fea2555278e32bb72f0691abbc16",
+    "e8b3294dac390b37b96141d67406f879dfec0b36243e983ca75bcb26cfcafeda",
+    "7bbbee631a1486455e08495802d920f7e5c48eed3363048e7437a559578eb71c",
+    "9bf215942937a7973da790a3bc2211a15efd3ead96de8917666b744d329bfb60",
+    "d2613298cfe7a3b799a8f788bbab52c01cc60da37a8a9d7de2b3c8f3236a0176",
+    "17c5e9cee4d20fdef8a7ba5c18c8ccd71ed3457ed4d80591355c8d9962646b5c",
+    "5cef63cfac2e03d8a5efbd25de10042b91a3372cdfa9f0bc626916fb69f3359e",
+    "6615889f51376a056c37a15ecd3c18da138b0be9a0bf078dab79f44b907e6db4",
+    "82018335ab33bb18b5228826365e1d8f0725db6d71f24f0b88dfa2d0b8e643ba",
+    "8538946d4868396463ae9064c4b88b06eb0a003c11ed9e78087dcd27a1fc241c",
+    "60277bdc9e3cbbad9a2a1d6e2d4b8d498bcacc5468b62991bbb7af1c83f849c6"
+  ],
+  "documentChars": [
+    2476,
+    2374,
+    1677,
+    2039,
+    880,
+    1498,
+    1757,
+    1341,
+    1416,
+    2299,
+    1918,
+    696,
+    330,
+    1035,
+    484,
+    313,
+    687,
+    255,
+    569,
+    1341
+  ],
+  "candidatePaths": [
+    "docs/ontology/objects/transaction-tax.md",
+    "docs/ontology/objects/b2b-invoice-integration.md",
+    "docs/ontology/objects/b2c-sales.md",
+    "docs/ontology/objects/purchase-settlement.md",
+    "docs/llm-wiki/concepts/delivery/frame-number-field-capacity-test-history.md",
+    "docs/llm-wiki/concepts/delivery/invoiced-same-sku-reshipment-history.md",
+    "docs/ontology/objects/sales-invoice.md",
+    "docs/llm-wiki/concepts/delivery/wms-feedback-and-marketplace-tracking-triage.md",
+    "docs/ontology/objects/b2b-portal-sales.md",
+    "docs/ontology/objects/warehouse-operation.md",
+    "docs/ontology/processes/b2b-invoice-platform-delivery.md",
+    "docs/llm-wiki/concepts/integration/cmc-done-frame-refresh-history.md",
+    "docs/llm-wiki/concepts/sales/contact-overview-grouped-product-details.md",
+    "docs/llm-wiki/concepts/delivery/sales-order-integration-contract-lark-1806.md",
+    "docs/llm-wiki/concepts/delivery/shipment-date-and-pickup-history.md",
+    "docs/llm-wiki/concepts/invoicing/head-office-tax-edit-history.md",
+    "docs/llm-wiki/concepts/invoicing/missing-so-link-repair-history.md",
+    "docs/llm-wiki/concepts/invoicing/uk-inbound-bill-attachment-history.md",
+    "docs/llm-wiki/concepts/purchase/bill-bank-send-money-config-history.md",
+    "docs/llm-wiki/concepts/reporting/filter-language-timezone-history.md"
+  ],
+  "queryCAvailable": false
+}

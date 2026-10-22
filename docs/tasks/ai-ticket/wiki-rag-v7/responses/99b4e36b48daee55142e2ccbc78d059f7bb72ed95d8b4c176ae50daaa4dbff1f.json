@@ -1,0 +1,100 @@
+{
+  "caseId": "Q11",
+  "group": "C",
+  "payloadHash": "99b4e36b48daee55142e2ccbc78d059f7bb72ed95d8b4c176ae50daaa4dbff1f",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 3,
+      "relevance_score": 0.9812970757484436
+    },
+    {
+      "index": 4,
+      "relevance_score": 0.9796680808067322
+    },
+    {
+      "index": 15,
+      "relevance_score": 0.9795817136764526
+    },
+    {
+      "index": 18,
+      "relevance_score": 0.9791964888572693
+    },
+    {
+      "index": 8,
+      "relevance_score": 0.9737450480461121
+    }
+  ],
+  "durationMs": 401,
+  "querySha256": "126f94d2c3905412e9190c1622167ad53ba2081f90528ed030287e16d65af861",
+  "queryChars": 277,
+  "documentSha256": [
+    "38bef1c4d7bdff3ef4acd7627ff4c4c6555d646291eb1eac8d5f313ebbf3973b",
+    "2c3de35135d98617b857f334a4be3518866e9c6090275acadb0713409548e8e3",
+    "e03fbf8af0b1644e0476f8126b58b793dd6cb88eab8b75f914371f2d5a426088",
+    "33fb9028a0d43dd0984144bcbb60c3381cb5b540eb5b0af60b03e6512351890d",
+    "f0805e3dd8e14cbb35058b0eec288ee3a10f795f91111ba1d509ad2556e7cc66",
+    "0c14519a2ddd8a1b51a5687cc8e3265a49dd9baed50c6c971ecf06df06061ece",
+    "4d728403e7a1b6e3cb8135945f3e7ea4d8697bef7046f6049e06a6bcb65406ad",
+    "e75e7a1efd9f0a685517a4b784e4b9c47ae8c1481b770c613375a031881e2282",
+    "b6a358bb42820acea3c9ddfef038d2c163adbb335081a9f9c4e8364200b2e688",
+    "90e1fc9e0c73d085237df64f4d58e1f3e1e5807b2e4514efcee755b499b9913c",
+    "343563d9cd549d2fc520abfd821d1d6f62a506530db74fd4f9aa5e120ce692fc",
+    "7b30e977de3f5f72a358213b824f92c12e484311a29035cb2ea950d1063b764b",
+    "114fc5449eb1de2eafacb860cddbd9da4bd75a935f9697dec6a1827ac621f9f7",
+    "a9ef27ba7b471e6e5c8f7c44fde726d396a052b553eaa719459c764356f2f305",
+    "1edfeac69aa256c7aa211aca5db457a655916e54f40bbe21e147c019d898a446",
+    "75872f5ec4058f9414522aaec90719d1b1e8bf15685d60b3429ddcab1f8c1f80",
+    "cb03e4c47ceb1a390346db9beb9bc6ed27de552304fb4b6f808a4a22fd92fd6e",
+    "eeb248164179239221af1cd9f1ff358972c22a971b42247e6cd7b63e0ba26aa9",
+    "4fc2a5d47318cafb339fe186039dffc31f526fc27657e4fc47bbe5ec3c47d928",
+    "2ec1f18cae0cabe466d519b02c1abb5f23368b14c8ad14baf289ad00b9323926"
+  ],
+  "documentChars": [
+    622,
+    260,
+    1132,
+    620,
+    1224,
+    617,
+    209,
+    720,
+    677,
+    909,
+    1724,
+    717,
+    749,
+    417,
+    640,
+    726,
+    761,
+    900,
+    767,
+    1098
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/sales/contact-overview-create-sales-order.md",
+    "docs/llm-wiki/concepts/sales/contact-overview-grouped-product-details.md",
+    "docs/llm-wiki/concepts/inventory/location-type-direction-history.md",
+    "docs/llm-wiki/concepts/inventory/return-on-return-number-prefix-history.md",
+    "docs/llm-wiki/concepts/inventory/sku-warehouse-default-location-history.md",
+    "docs/llm-wiki/concepts/reporting/cancelled-lines-ey-export-investigation.md",
+    "docs/ontology/objects/business-party.md",
+    "docs/llm-wiki/concepts/accounting/credit-note-cost-sign-history.md",
+    "docs/llm-wiki/concepts/accounting/other-outbound-done-journal-history.md",
+    "docs/llm-wiki/concepts/accounting/reverse-entry-type-history.md",
+    "docs/llm-wiki/concepts/approvals/inflight-approval-owner-change-history.md",
+    "docs/llm-wiki/concepts/delivery/next-transfer-type-investigation.md",
+    "docs/llm-wiki/concepts/delivery/service-center-outbound-split-correct-warehouse.md",
+    "docs/llm-wiki/concepts/faq/does-every-closed-ticket-need-a-qa-card.md",
+    "docs/llm-wiki/concepts/integration/cmc-done-frame-refresh-history.md",
+    "docs/llm-wiki/concepts/inventory/borrowed-bikes-stock-history.md",
+    "docs/llm-wiki/concepts/inventory/repeated-return-location-regression-history.md",
+    "docs/llm-wiki/concepts/inventory/reservation-residual-corrections-history.md",
+    "docs/llm-wiki/concepts/payment/bank-batch-send-recovery-history.md",
+    "docs/llm-wiki/concepts/portal/b2b-portal-access-and-dealer-ordering.md"
+  ],
+  "queryCAvailable": true
+}

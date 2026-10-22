@@ -1,0 +1,14 @@
+{
+  "N1-top20.json": "1d454fe37d94bab08f80dabd1a9d7d73c3c0440ef3bf31b8b4c28a91d9ca92a9",
+  "N1-top5.json": "ac2d7cbd02a1b998650ce0269b4896af7772248ec5f821fe0aab87d7b031232b",
+  "N2-top20.json": "f601fcc2dba2741e475c3299bcb26fbbe648d2096b006c558cb88637ca5ab9d1",
+  "N2-top5.json": "9a9b804fc343afec3b51a8125ebbacf8fdf4f605c259bc1796862dad94898466",
+  "P1-top5.json": "ccca467295bfffd6ac32e574bd2c28d00a94b33558b54d41a8d9dad950168cac",
+  "P2-top5.json": "8de92cda75c2a16ee14f4697b5bd8f4802688a133599bea0e5c8d09f8bd756a4",
+  "README.md": "ec9ab0e4a52490c676a88ef93b8a818ce059a44bed79cb690de7698844d8a78c",
+  "cases.json": "1fa43f4bfe9e6d13eac1816d4b27f596005cf03b62a7e7d7713ea44cb2fc1e9b",
+  "freeze.json": "28c5ca2a258b1cc2f2dd847a131a0662a5ec401dd046c55d925f3cc1ea487458",
+  "requests.jsonl": "99cd88e5ce5acaf0cce883c5e80f02cddd8e05a68565e747ede4cac0631f747a",
+  "results.json": "0254009c84e5212cdc38b786fa69bf8d3ea479ddf312633642c082a18ec15c59",
+  "verification.json": "d4d527af0bed581787c075bdc823ccd03e4c0707da0852bff17fd67e7e72862f"
+}

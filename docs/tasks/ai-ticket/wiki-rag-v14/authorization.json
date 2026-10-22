@@ -1,0 +1,13 @@
+{
+  "userConfirmed": true,
+  "order": [
+    "old137 gate",
+    "new32 only if old gate passes"
+  ],
+  "maxRerankHttp": 40,
+  "answerCalls": 0,
+  "judgeCalls": 0,
+  "G": "disabled",
+  "productionChanges": false,
+  "rawSentToModel": false
+}

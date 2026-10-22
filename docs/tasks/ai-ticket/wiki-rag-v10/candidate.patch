@@ -1,0 +1,56 @@
+--- a/server/src/application/services/wiki-qa.service.ts
++++ b/server/src/application/services/wiki-qa.service.ts
+@@ -1,3 +1,4 @@
++import { decideThreshold, hasPrimaryAndBody, type ThresholdPolicy, type Decision } from "./wiki-qa-threshold-policy.js";
+ import { compactWikiAnswerContext } from "../../domain/wiki-answer-context.js";
+ import { supportsWikiQuestion, wikiQueryTerms } from "../../domain/wiki-evidence.js";
+ import { z } from "zod";
+@@ -61,13 +62,14 @@
+   promptStore?: Pick<WorkflowPromptStore, "getByKey">;
+   extractLog?: WikiQaExtractLog;
+   answerLog?: WikiQaAnswerLog;
++  thresholdPolicy?: ThresholdPolicy;
+ } = {}) {
+   const reader = deps.reader ?? createWikiKnowledgeReader();
+   const promptStore = deps.promptStore ?? getWorkflowPromptStore();
+   const extractLog = deps.extractLog ?? wikiQaExtractLog;
+   const answerLog = deps.answerLog ?? wikiQaAnswerLog;
+ 
+-  async function complete<T>(phase: keyof typeof WIKI_QA_PROMPTS, values: Record<string, string>, schema: z.ZodType<T>, input: WikiQaInput, candidates: WikiCandidate[] = []): Promise<T> {
++  async function complete<T>(phase: keyof typeof WIKI_QA_PROMPTS, values: Record<string, string>, schema: z.ZodType<T>, input: WikiQaInput, candidates: WikiCandidate[] = [], onDecision?: (decision: Decision) => void): Promise<T> {
+     input.signal?.throwIfAborted();
+     const stage = `server.wiki_qa.${phase}`;
+     const base = { actionRunId: input.actionRunId, layer: "server" as const, module: "wiki-qa", stage };
+@@ -100,7 +102,9 @@
+         const parsedScore = z.coerce.number().finite().min(0).max(1).safeParse(configured || "0.7");
+         if (!parsedScore.success) throw new WikiQaRerankClientError("WIKI_QA_RERANK_CONFIG_INVALID", "Wiki rerank minimum score must be between 0 and 1.");
+         const minScore = parsedScore.data;
+-        const accepted = result.results.filter((item) => item.relevance_score >= minScore);
++        const decision = decideThreshold(result.results, candidates, deps.thresholdPolicy ?? { strategy: "A", floor: .4, gap: .2 });
++        onDecision?.(decision);
++        const accepted = decision.selected;
+         wikiLogger.info({ ...base, minScore, received: result.results.length, accepted: accepted.length }, "WIKI_QA_RERANK_SCORE_FILTERED");
+         // Relevance scores cannot verify treatment prerequisites or source support.
+         content = JSON.stringify({ matches: accepted.map(({ index }) => {
+@@ -157,9 +161,10 @@
+     const rerankCandidates = candidates;
+     wikiLogger.info({ actionRunId: input.actionRunId, layer: "server", stage: "server.wiki_qa.retrieve", candidates: candidates.length, rerankCandidates: rerankCandidates.length }, "WIKI_QA_CANDIDATES_READY");
+     if (!candidates.length) return { question: extracted.question, evidence: [] };
++    let thresholdDecision: Decision | undefined;
+     const ranked = await runStage("rerank", input, () => complete("rerank", {
+       question: extracted.question, ticket_context: ticketContext, candidates: JSON.stringify(rerankCandidates),
+-    }, wikiRankingSchema, input, rerankCandidates), (result) => `已完成候选重排，选出 ${result.matches.length} 篇资料`);
++    }, wikiRankingSchema, input, rerankCandidates, (decision) => { thresholdDecision = decision; }), (result) => `已完成候选重排，选出 ${result.matches.length} 篇资料`);
+     const seen = new Set<string>();
+     return runStage("evidence", input, async () => {
+       const evidence: WikiKnowledgeEvidence[] = ranked.matches.map((match, index) => {
+@@ -189,7 +194,8 @@
+         };
+       });
+       const terms = wikiQueryTerms([extracted.question, ...extracted.keywords, ...extracted.objects].join(" "));
+-      const supported = evidence.filter((item) => supportsWikiQuestion(extracted.question, terms,
++      const supported = evidence.filter((item) => !thresholdDecision?.lowFallback || hasPrimaryAndBody(item))
++        .filter((item) => supportsWikiQuestion(extracted.question, terms,
+         [item.title, item.content, ...item.sourceEvidence.map((source) => source.content)].join("\n")))
+         .slice(0, 3).map((item, index) => ({ ...item, sourceId: index + 1 }));
+       wikiLogger.info({ actionRunId: input.actionRunId, layer: "server", stage: "server.wiki_qa.evidence", selected: evidence.length, supported: supported.length }, "WIKI_QA_EVIDENCE_FILTERED");

@@ -1,0 +1,100 @@
+{
+  "caseId": "Q29",
+  "group": "A",
+  "payloadHash": "def8a8578b28a9b908df02dd429ef612c6c77e5bf4220a328dc4df1a3e3e39ef",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 0,
+      "relevance_score": 0.9739972949028015
+    },
+    {
+      "index": 2,
+      "relevance_score": 0.8461704254150391
+    },
+    {
+      "index": 4,
+      "relevance_score": 0.76445472240448
+    },
+    {
+      "index": 5,
+      "relevance_score": 0.7099856734275818
+    },
+    {
+      "index": 1,
+      "relevance_score": 0.34578245878219604
+    }
+  ],
+  "durationMs": 477,
+  "querySha256": "80be27733e9de64e4bd6d4306bb884ed16f9ac81c965d4f674d9c0688d616fa7",
+  "queryChars": 53,
+  "documentSha256": [
+    "b709e538c23d8d2b9c1e53ebf875c91f477ea9054d4de028df38e4e168bb6da7",
+    "cba64288b05e42f42f8ed63ff894cd7e81bd24cd44d630aa886cedf5258ffc6f",
+    "4f4d3efe5cefac4e8542eb85072cb23a6696adf988d9047e86753b6bd1b40229",
+    "45bb6e82fef5febd1de5d8b2f99a2ab1080e9af1fb250a5d344a2f7b79edb327",
+    "5dbafe1ff6b08dcabda2b41591ab9773ae031a74f7b4e1ca39a19f36548fb00b",
+    "b786a29d4f5b75e8a259f9f572dec31f151213777a192f1aee3b8ba7394c3c41",
+    "5a5eab8cd768cde21a310b01fb816c3e4c345cb8fefd2424406e5f0b5648c120",
+    "4ee8f2ebf433ee5a048ff34b0a75c4b8b2d4140d3102cc16a9f2548c2849af9e",
+    "9e112109c62c48f1ff62503ebf8ec441c868600c0d1d9735a0f705d2d5148df4",
+    "4aa94698647fb0e1a3e3c2cafb3f4ab3017311f13c8984f50885f1c2de8d617c",
+    "59b9170652e5b266f0215473b9c929336740edd0476d5777c6741b4957c83918",
+    "761c9760ceff56cde2c5de8c00c2bb694980bf5ccdc6d318378937863d9da71b",
+    "67badd7a7fc9b13286cc6a5967631e168ad2a51b6e9dec110929ac1ae48ee561",
+    "5a168888e6967086bc5a21a3f497acef97e6293ff4b7c018e2144bb173e1feb1",
+    "7511f05df962a30799dc5a8b8a4dee51e43efcc5efc02eadfc7644b888f89363",
+    "88bcdeb3439d0fead14f041a3a45e126f6e17f9803eeddac424ba7c116b18253",
+    "460eed3762f116b05662ce0fbb2903080a07de218abbbefa985f3aa3e31740c3",
+    "190a318a1e3e1c77e8c776166fe4ccc8e54ed30086af2cfcef52120acda35e0d",
+    "f50f56d6a252453428d3602b362dc90f7975a71fd8ba2251825da0c232711f76",
+    "52eb8fd3cd83b5bff2b910fe5c4135a70a6b679309adbdce66a8139804bc84cd"
+  ],
+  "documentChars": [
+    853,
+    1256,
+    1381,
+    2373,
+    841,
+    1416,
+    734,
+    1767,
+    1664,
+    344,
+    897,
+    394,
+    273,
+    484,
+    537,
+    945,
+    337,
+    1810,
+    2190,
+    2453
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/reporting/tb-export-bs-structure-change-historical-case.md",
+    "docs/llm-wiki/concepts/accounting/report-data-mismatch-triage.md",
+    "docs/llm-wiki/concepts/reporting/financial-report-scope-history.md",
+    "docs/ontology/rules/commercial-partner-attribution.md",
+    "docs/llm-wiki/concepts/payment/reconciliation-currency-scope-history.md",
+    "docs/llm-wiki/concepts/accounting/account-config-report-mapping-and-20030-residuals.md",
+    "docs/llm-wiki/concepts/platform/confirmation-mail-test-and-delivery-history.md",
+    "docs/ontology/objects/business-party.md",
+    "docs/ontology/objects/sales-invoice.md",
+    "docs/llm-wiki/concepts/payment/manual-journal-required-fields-partner-country.md",
+    "docs/llm-wiki/concepts/accounting/journal-required-dimensions-and-country.md",
+    "docs/llm-wiki/concepts/accounting/partner-missing-refresh-investigation-history.md",
+    "docs/llm-wiki/concepts/faq/entry-field-edit-rules.md",
+    "docs/llm-wiki/concepts/integration/wms-key-reference-contract-history.md",
+    "docs/llm-wiki/concepts/invoicing/bill-vendor-versus-journal-partner.md",
+    "docs/llm-wiki/concepts/reporting/financial-report-opening-investigation.md",
+    "docs/llm-wiki/concepts/reporting/previous-years-profit-special-account-history.md",
+    "docs/ontology/objects/b2b-portal-sales.md",
+    "docs/ontology/objects/financial-reporting.md",
+    "docs/ontology/objects/transaction-tax.md"
+  ],
+  "queryCAvailable": true
+}

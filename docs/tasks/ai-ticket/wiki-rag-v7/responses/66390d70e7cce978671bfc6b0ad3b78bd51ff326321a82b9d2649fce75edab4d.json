@@ -1,0 +1,100 @@
+{
+  "caseId": "V03",
+  "group": "B",
+  "payloadHash": "66390d70e7cce978671bfc6b0ad3b78bd51ff326321a82b9d2649fce75edab4d",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 2,
+      "relevance_score": 0.6538501977920532
+    },
+    {
+      "index": 6,
+      "relevance_score": 0.41687577962875366
+    },
+    {
+      "index": 5,
+      "relevance_score": 0.4072718024253845
+    },
+    {
+      "index": 4,
+      "relevance_score": 0.11218447983264923
+    },
+    {
+      "index": 12,
+      "relevance_score": 0.059716127812862396
+    }
+  ],
+  "durationMs": 741,
+  "querySha256": "33ba4767d8fef15a0014eb1be3d0779fdbf5a812b2b84c8ffc55cb27f05f6691",
+  "queryChars": 28,
+  "documentSha256": [
+    "37e1aaa8e6ec22ea184e1d1a6d62555c02f68c8f95988d50e812846201ce7963",
+    "afa9f5648c675061b685d2de407ee70a51e6ba8392cbd20b54ad9cc76f4d2fc9",
+    "a9c3aef936086d48447941ab5a91ace8d91b3c09c4ccb7f7f5085bfe41bdbae8",
+    "0a1f62fa80dd426433434ff860d2dd57fbb1e4e99a60d31e97e5933c4f5a97b1",
+    "14f4fcf00398b4fab0571c5ee16add2a369233c33781c41ca52170232e6de078",
+    "09d226f62d3070d27271eefa8adb9e71896a232371f496044002a5333723b29c",
+    "a50f5aea7683d503bd1762e9d45a9c9bb37dcb34b0a1cd33a5467a41c42e5dc4",
+    "d90d07223586b3cbb9f98961fc7f400923297ad64feffa2a5dd88b4d23de01f1",
+    "8de3e1cf93f9f1e4958d800aab4b4803ba528b6405e0620364b0bbf335ab2da4",
+    "aad250ffac1b5c4ffe4f9ac33826ec5e1af87f303e8d7be2b9a14cfe48d1eece",
+    "ddbacfe792a16376b94752c59c9c9f5ad9047eca0263241682538ca722e932e2",
+    "8dd76667cc58b86143eff0ecdef13f20cf2f7965f5bb7ab58c98135853bff68c",
+    "46c7e752dd8b1d6c16ec7ea53c339e24a7e31a46e23138a04ccac225d987a03f",
+    "1f958c33d0ecedc657ccbcc9a236e30127f6c0995af21d9207a2f30441c1b1e0",
+    "c57c4a270e0136b02029e07ea9f60375bc1a66a405108b9fc496214679ce734a",
+    "4d728403e7a1b6e3cb8135945f3e7ea4d8697bef7046f6049e06a6bcb65406ad",
+    "9732e95e52cb0c52c2c2e083660ff69857d6a6eae66d682e3f7a7fee608621f0",
+    "906dc57ada5eaa4a1deedca63137c280217925a24acc8aa8b37fe70bd8ffcd81",
+    "b2f8af31e5a36699249abdeb47ed1c1bd8c4f75268ca408823fc7c8314583166",
+    "b6f0dfe1c85b2ec57c8635039cd81e244c5409e98252c88732e3da75c44ed09c"
+  ],
+  "documentChars": [
+    654,
+    471,
+    944,
+    3152,
+    3163,
+    863,
+    1155,
+    503,
+    1275,
+    582,
+    911,
+    201,
+    1505,
+    709,
+    2441,
+    209,
+    1439,
+    781,
+    820,
+    2102
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/reporting/missing-record-and-actor-history.md",
+    "docs/llm-wiki/concepts/accounting/asset-bill-warning-history.md",
+    "docs/llm-wiki/concepts/delivery/wms-receipt-disputed-history.md",
+    "docs/ontology/objects/warehouse-inventory-control.md",
+    "docs/ontology/objects/warehouse-operation.md",
+    "docs/llm-wiki/concepts/delivery/service-center-outbound-split-correct-warehouse.md",
+    "docs/llm-wiki/concepts/integration/wms-result-unknown-history.md",
+    "docs/llm-wiki/concepts/payment/sepa-single-invoice-batch-history.md",
+    "docs/llm-wiki/concepts/reporting/filter-language-timezone-history.md",
+    "docs/llm-wiki/concepts/reporting/gross-profit-direct-parent-customer-name-history.md",
+    "docs/llm-wiki/concepts/sales/uk-odoo-approval-buttons-browser-cache.md",
+    "docs/ontology/objects/preorder-backorder.md",
+    "docs/ontology/processes/shipped-sales-order-amendment.md",
+    "docs/llm-wiki/concepts/sales/approval-markdone-vs-approve-button-stuck.md",
+    "docs/ontology/objects/business-approval.md",
+    "docs/ontology/objects/business-party.md",
+    "docs/ontology/processes/warehouse-operation-approval.md",
+    "docs/llm-wiki/concepts/reporting/gross-profit-quantity-sign-history.md",
+    "docs/llm-wiki/concepts/sales/preorder-pricelist-time-history.md",
+    "docs/ontology/objects/fixed-asset.md"
+  ],
+  "queryCAvailable": false
+}

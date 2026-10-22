@@ -1,0 +1,100 @@
+{
+  "caseId": "T15",
+  "group": "A",
+  "payloadHash": "6835a8550becf89fe4730fcf018e5d91c0643c132552a16b000a2f96d0d11f60",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 0,
+      "relevance_score": 0.4693443179130554
+    },
+    {
+      "index": 3,
+      "relevance_score": 0.4259820878505707
+    },
+    {
+      "index": 6,
+      "relevance_score": 0.2170802503824234
+    },
+    {
+      "index": 17,
+      "relevance_score": 0.19668030738830566
+    },
+    {
+      "index": 18,
+      "relevance_score": 0.11387228965759277
+    }
+  ],
+  "durationMs": 434,
+  "querySha256": "bda82179dbb9fd4d0846fb0ee59500568bc0a0141cfcdb498ff91c7b824eda7c",
+  "queryChars": 85,
+  "documentSha256": [
+    "de5bdb6b3c91c538148e94a7cd67c5788eb406f310e21ca37e9c0bb8940e6e7a",
+    "353f8040af3d8b40237d57ead6a3736f3db2c8718781a1d3168dd376d979f9ab",
+    "7db63cd012bbe208b8437c13580d72e8f0be3a7e6d377307dab3122a0dd0b880",
+    "f0d3c209a6de1eb46b092743d96068ed57780eb74fc77c5118630309d2f0b6ed",
+    "972d2ef38e52de6fefad6de1b129ed0d468aee16422e7e662844e70d08f4eacd",
+    "9336660b19300600234dc9967eee2ee71924fc684a5adbc59d02bfee2726d209",
+    "f001d1e7f15a8439185315ed44476c9d853ae861f0ef57a7c1ec41eda9dac8ed",
+    "7cd0cd288d08d726883556375cc12179c7b049b4f3a1c4dcb6b9308424bc0ed0",
+    "fe532c91046f92423326ae72d74847858a321743b8e5e774594b981ca11e6d34",
+    "12258a549661efff4d7771c1834abd7d3fc09a885fd6c671c47ed1c8d3c118fd",
+    "663f540554cef67a233bee8429065f745f830b526c36cad550713bc972b1b6b1",
+    "0748c4da2d4ed4857ea05610063534bb3254685b2682405389414518c87e7599",
+    "438e01491f7b82d4a8bc49c8309f855a9834f2c84389af7705e092d24053a2d4",
+    "9c3f5fb837327b0b84f5b920bd0cce480a67262f3609a2ae23dc867e31b8ac7e",
+    "1c2edb3139216309dc1427db2d512714872c91dcc25e79c63dfb7efe87db0bb5",
+    "271af46297960cfb49f84f031642e8472d5406cc103f6bcdaf84ced6a70fe787",
+    "818304b660ca3a8bbf162162100f7c5285c4561e6bb4d81db85a0fb9d7fa97e4",
+    "56932cfebdc1bff389275e22aeb97f7983c459abbcadf9840dd6664328d086b2",
+    "02147da93a2c492ced7dfb2cc99585c3ac7ac8a5ebf0a55b27ccd9cbec00b3b6",
+    "1b53fa87b631de2903184493d954e7546a9888ffff7d5c96499987c5e787bb94"
+  ],
+  "documentChars": [
+    2428,
+    488,
+    925,
+    1021,
+    1910,
+    709,
+    1135,
+    694,
+    1216,
+    682,
+    773,
+    2057,
+    1071,
+    1191,
+    1277,
+    1540,
+    1368,
+    682,
+    252,
+    367
+  ],
+  "candidatePaths": [
+    "docs/ontology/objects/warehouse-operation.md",
+    "docs/llm-wiki/concepts/inventory/source-warehouse-masterdata-history.md",
+    "docs/llm-wiki/concepts/inventory/warehouse-approver-location-check.md",
+    "docs/llm-wiki/concepts/inventory/warehouse-location-operation-type-change-checklist.md",
+    "docs/llm-wiki/concepts/delivery/wms-payload-validation-triage.md",
+    "docs/llm-wiki/concepts/integration/wms-address-contract-history.md",
+    "docs/llm-wiki/concepts/inventory/location-type-direction-history.md",
+    "docs/llm-wiki/concepts/inventory/sku-location-change-confirmation.md",
+    "docs/llm-wiki/concepts/inventory/sku-warehouse-default-location-history.md",
+    "docs/llm-wiki/concepts/portal/add-to-cart-regression-and-warehouse-history.md",
+    "docs/llm-wiki/concepts/portal/portal-email-and-archived-account-check.md",
+    "docs/ontology/objects/warehouse-inventory-control.md",
+    "docs/llm-wiki/concepts/portal/b2b-portal-access-and-dealer-ordering.md",
+    "docs/llm-wiki/concepts/sales/contact-overview-create-sales-order.md",
+    "docs/llm-wiki/concepts/sales/contact-overview-quantity-and-status.md",
+    "docs/ontology/processes/b2c-sales-order.md",
+    "docs/ontology/processes/warehouse-operation-approval.md",
+    "docs/llm-wiki/concepts/delivery/next-transfer-type-investigation.md",
+    "docs/llm-wiki/concepts/faq/warehouse-location-operation-type-setup.md",
+    "docs/llm-wiki/concepts/inventory/completed-picking-location-correction-history.md"
+  ],
+  "queryCAvailable": true
+}

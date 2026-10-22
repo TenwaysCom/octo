@@ -1,0 +1,14 @@
+{
+  "status": "explicit_user_authorization_received",
+  "destination": "https://api.siliconflow.cn/v1/rerank",
+  "contentScope": [
+    "frozen questions",
+    "Wiki candidate document bodies"
+  ],
+  "strategy": "locked v10; no retuning",
+  "maxTotalHttpRequests": 50,
+  "sequence": "10 frozen stability cases first; 32 new incidents only if stability passes",
+  "G": "disabled",
+  "deployment": "not authorized",
+  "previousApprovalBlockPreserved": true
+}

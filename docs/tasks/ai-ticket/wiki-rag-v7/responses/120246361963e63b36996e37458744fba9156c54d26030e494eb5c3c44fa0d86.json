@@ -1,0 +1,100 @@
+{
+  "caseId": "N16",
+  "group": "A",
+  "payloadHash": "120246361963e63b36996e37458744fba9156c54d26030e494eb5c3c44fa0d86",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 2,
+      "relevance_score": 0.06636884808540344
+    },
+    {
+      "index": 1,
+      "relevance_score": 0.02589334361255169
+    },
+    {
+      "index": 4,
+      "relevance_score": 0.017679715529084206
+    },
+    {
+      "index": 0,
+      "relevance_score": 0.015988405793905258
+    },
+    {
+      "index": 6,
+      "relevance_score": 0.011293834075331688
+    }
+  ],
+  "durationMs": 497,
+  "querySha256": "3762f15a34da9dd5b3ffe15bb3e1ec513f3959725edcf43b05f389643698c42c",
+  "queryChars": 99,
+  "documentSha256": [
+    "c9140a63ddd861396579e1a7871a72a48aac868d59b1a6faabd280bfab52d3a2",
+    "c6e237a718103e31e37b08db1c1a0c173d9e80e7c2ab4c4f453ef60a0b7a9617",
+    "e8b3294dac390b37b96141d67406f879dfec0b36243e983ca75bcb26cfcafeda",
+    "c9ae7641270b0d2bad505026c9a59b32dd85877a6f97f23676f9be2d621078cb",
+    "b161726e779e360db24b4b3d26e74afe97af22e15cc0dbfbc4c2e39183e61a42",
+    "8a323823dc7d5b11b15ce0ecfdf63349e041993da9e683bed30623336964d683",
+    "28679be44a0c9934827b76fa836aa112fe502593031b2cd96f7055b23667ff69",
+    "bcd45810e6acd2ca461ecb27e1444f1a70ffbaab3b88aac7ae53068032c603e3",
+    "3fa49d4c5e1147bedcc84ae49ca9cb027806137ec85ebe7e8a373c90cca7feb2",
+    "997f8ebd8018b63d67727438d94d639a7f7b11a2cd5039602995cb3e270e9556",
+    "0bc12d45308b82920c18038c16dc0ef518c3887785bb0f91c0d678a37096bda6",
+    "b5ab3e23d885d2aaf156ca8ce135440c9b339a3b3cc0f49feed13654e30fc7a2",
+    "1d0408662f450598e1af98aab246ad291ae18508cd61023326f568560b525284",
+    "298860ab0996971a534aeb1078d0ae074dc109dc37bdd0f53ecf575a7a129ad8",
+    "32d8a1451a16b03b55972c2f77fcf24f6084cdc6478b7fdc9dc9152230ccda39",
+    "f871e26629ebdcdb1ac0e845aaa996f8bdd169df0bd59d8444d2b0c421024c34",
+    "0ca8c739f6785053ee215f9ba854a6b62606fc3de508de00833cb34f5e2de62f",
+    "4b3615214aaafb6209d6e55229e5ff906336105a6a8546e9537698315e6adb0a",
+    "4483c81414f68e273658bcf6d60b3a0a15a4b068093e8241d8f2ec0800152738",
+    "48450ffcc908d80e99c6d62f64a596f23df471a06c30e25f38d95609aa13c4d5"
+  ],
+  "documentChars": [
+    1844,
+    1804,
+    1918,
+    934,
+    1968,
+    930,
+    2235,
+    993,
+    906,
+    983,
+    629,
+    2243,
+    740,
+    965,
+    577,
+    622,
+    2110,
+    2193,
+    2381,
+    1059
+  ],
+  "candidatePaths": [
+    "docs/ontology/objects/business-approval.md",
+    "docs/ontology/objects/b2b-invoice-integration.md",
+    "docs/ontology/processes/b2b-invoice-platform-delivery.md",
+    "docs/ontology/processes/warehouse-replenishment.md",
+    "docs/ontology/objects/sales-invoice.md",
+    "docs/ontology/processes/budget-contract-payment-approval.md",
+    "docs/ontology/objects/marketing-sales.md",
+    "docs/llm-wiki/concepts/faq/contact-backorder-preorder-overview.md",
+    "docs/ontology/processes/purchase-vendor-bill-processing.md",
+    "docs/llm-wiki/concepts/integration/sync-integration-triage-entry.md",
+    "docs/llm-wiki/concepts/invoicing/missing-so-link-repair-history.md",
+    "docs/ontology/objects/journal-item-control.md",
+    "docs/llm-wiki/concepts/approvals/change-request-scheduling-history.md",
+    "docs/llm-wiki/concepts/delivery/service-centre-outbound-edit-history.md",
+    "docs/llm-wiki/concepts/integration/sync-and-availability-navigation.md",
+    "docs/llm-wiki/concepts/invoicing/dynamo-gln-send-history.md",
+    "docs/ontology/objects/b2b-portal-sales.md",
+    "docs/ontology/objects/b2c-sales.md",
+    "docs/ontology/objects/sales-promotion.md",
+    "docs/ontology/processes/employee-expense-submission-approval-and-reimbursement.md"
+  ],
+  "queryCAvailable": false
+}

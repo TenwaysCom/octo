@@ -1,0 +1,29 @@
+[
+  {
+    "id": "T22",
+    "ticket": 2223,
+    "file": "wiki-qa-extract.2026-09-22.1.log",
+    "output_line": 8,
+    "original_input_available": true,
+    "original_prompt_sha256": "9a2459552222225ff8534dc97a26fb9a56060a2bd2861ce6ea0d8cc78e18bc10",
+    "question_origin": "saved model extraction; independently checked current Ticket identity; not original user literal"
+  },
+  {
+    "id": "T23",
+    "ticket": 2238,
+    "file": "wiki-qa-extract.2026-09-27.1.log",
+    "output_line": 2,
+    "original_input_available": true,
+    "original_prompt_sha256": "e6067296210ddd0b8d6a8a484b4972bdf31fb821fedbaea7f889d1e851936304",
+    "question_origin": "saved model extraction; independently checked current Ticket identity; not original user literal"
+  },
+  {
+    "id": "T24",
+    "ticket": 2237,
+    "file": "wiki-qa-extract.2026-09-27.1.log",
+    "output_line": 6,
+    "original_input_available": true,
+    "original_prompt_sha256": "29cf0ad9717eec4612d104a27fc5bcb99844e62d335b13fc8901d5ec1c4e839c",
+    "question_origin": "saved model extraction; independently checked current Ticket identity; not original user literal"
+  }
+]
