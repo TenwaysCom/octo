@@ -1,0 +1,100 @@
+{
+  "caseId": "Q17",
+  "group": "C",
+  "payloadHash": "121894d30f16440cbac8eea442826b7e56b61577bf6bbd828686c7a5ac0bb025",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 15,
+      "relevance_score": 0.7805902361869812
+    },
+    {
+      "index": 14,
+      "relevance_score": 0.6395852565765381
+    },
+    {
+      "index": 12,
+      "relevance_score": 0.6271728873252869
+    },
+    {
+      "index": 2,
+      "relevance_score": 0.4823395311832428
+    },
+    {
+      "index": 1,
+      "relevance_score": 0.399461030960083
+    }
+  ],
+  "durationMs": 425,
+  "querySha256": "f4dc653c5d6999483c547994a63ec390404d1aacb2161fc1cb87df8b7fadf92d",
+  "queryChars": 266,
+  "documentSha256": [
+    "4df81012e79cd1946f612a6d79f1399b2778d6b1137c95312c15ee6117f8bdeb",
+    "05d73bfe909685137c85f8979be416d0d28dba72f14e22079f2cbe763a9c170d",
+    "3baa2cc15cdcc33271fb7ce7ce21bfd7f19ae7a29c1ae452bf7ba80920aaf5eb",
+    "277c5393bf5344cf143e72e1188a60f0d03ba648a0045db00ca1082735c1c52c",
+    "9d953d6ad92bbbaa3d396aacb52480f85a93b9b53e7ed22a090d7523657e287b",
+    "476992d19117c80381f78a3ede6fab20bab20bb0125b6ccc01d2bdd286097c99",
+    "2aa1fd738620db438e0b777fba725c40f51ef68fc7f4451b54a4f4089ceb2dbe",
+    "19bf0b367a45ab8c24387bc2c3c6a4f4625b0f026c8d17330b015580d30987f3",
+    "9ed150d10846d506c76bb86f53aa90cffb892c005a4af613bf9ca702b42d8113",
+    "89181a25743a0fc012ce4df4d4886a09196f2f2c1179a8e4cd0f9530c2fa652e",
+    "d12cb0aaa400906a3ef418daded32dd96fac7f5b0a1b01a671fb6552b6f9acb1",
+    "6ef6f4dcf625000beea3361b85c1819e670577ba1d321927ceb95e122d063867",
+    "93f03fd3f5bfc4cb5f8a63e97c362d61bca8c39a85d25b8d4f9a6a576a78b40c",
+    "29e3e11f50a5416611fc0d36054c75445857ef6adfd5cf61f93cd0a4390344fa",
+    "57748b6274b92e1647b28f8158b347befed55fba2735495ecd5ac84b45d362e2",
+    "f61cf4113dab4f7b096ac89eeb25c5fe84144564a7e9a2f55e470f2f30846908",
+    "13f2ecd7678f45783821820ed2ed182daacdff0ceda35a6d7e40661a80af395d",
+    "7ebd55e95fd7ef3fa28e3f36c5ea5f8ccb9542eff31fe48e20115bbd2de3cd2f",
+    "3a2fe84330ddb2c0ed61c2f31578e7ef7d8175c8dfede4c1b030a4f7cdd420a1",
+    "a487422b5415bc45931a696449c0fd8eed7db01cedc8c8c19d1e65305bc226a0"
+  ],
+  "documentChars": [
+    194,
+    2149,
+    1969,
+    623,
+    1092,
+    3128,
+    849,
+    499,
+    964,
+    940,
+    301,
+    746,
+    230,
+    676,
+    654,
+    524,
+    979,
+    814,
+    749,
+    783
+  ],
+  "candidatePaths": [
+    "docs/ontology/objects/transaction-tax.md",
+    "docs/ontology/processes/sales-tax-determination-and-invoicing.md",
+    "docs/ontology/processes/tax-report-preparation-and-filing.md",
+    "docs/llm-wiki/concepts/integration/dzb-supplier-number-rejection-history.md",
+    "docs/llm-wiki/concepts/sales/order-edit-lifecycle-history.md",
+    "docs/ontology/rules/commercial-partner-attribution.md",
+    "docs/llm-wiki/concepts/accounting/accounting-lock-date-history.md",
+    "docs/llm-wiki/concepts/delivery/mismatched-shipped-sku-history.md",
+    "docs/llm-wiki/concepts/delivery/physical-shipment-status-invoice-history.md",
+    "docs/llm-wiki/concepts/delivery/sent-picking-split-and-order-line-history.md",
+    "docs/llm-wiki/concepts/faq/business-rules-and-usage-quick-reference.md",
+    "docs/llm-wiki/concepts/inventory/return-transfer-delivered-link-history.md",
+    "docs/llm-wiki/concepts/invoicing/amount-comparison-navigation.md",
+    "docs/llm-wiki/concepts/invoicing/missing-so-link-repair-history.md",
+    "docs/llm-wiki/concepts/invoicing/rounding-promotion-after-invoice-history.md",
+    "docs/llm-wiki/concepts/invoicing/student-discount-vat-detail-history.md",
+    "docs/llm-wiki/concepts/payment/historical-residual-balance-mismatch.md",
+    "docs/llm-wiki/concepts/reporting/batch-search-in-operator-history.md",
+    "docs/llm-wiki/concepts/reporting/oss-sales-historical-tax-code-block-investigation.md",
+    "docs/llm-wiki/concepts/reporting/sales-wms-quantity-field-history.md"
+  ],
+  "queryCAvailable": true
+}

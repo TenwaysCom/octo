@@ -1,0 +1,235 @@
+{
+  "version": "v14-r1",
+  "generic": [
+    "odoo",
+    "eu",
+    "uk",
+    "us",
+    "so",
+    "po",
+    "inv",
+    "je",
+    "ap",
+    "ar",
+    "vat",
+    "cmc",
+    "api",
+    "http",
+    "customer",
+    "customers",
+    "contact",
+    "contacts",
+    "invoice",
+    "invoices",
+    "bill",
+    "vendor",
+    "order",
+    "orders",
+    "sales",
+    "stock",
+    "warehouse",
+    "shopify",
+    "turbo",
+    "marketing",
+    "operations",
+    "team",
+    "partner",
+    "what",
+    "why",
+    "how",
+    "can",
+    "could",
+    "should",
+    "the",
+    "an",
+    "other"
+  ],
+  "families": {
+    "reverse": [
+      "反冲",
+      "冲销",
+      "reverse",
+      "reversal"
+    ],
+    "copy": [
+      "复制",
+      "duplicate",
+      "duplicated",
+      "copy",
+      "copied"
+    ],
+    "sync": [
+      "同步",
+      "sync",
+      "synced",
+      "synchronize"
+    ],
+    "export": [
+      "导出",
+      "export",
+      "exported",
+      "exporting"
+    ],
+    "import": [
+      "导入",
+      "import",
+      "imported",
+      "importing"
+    ],
+    "return": [
+      "退回",
+      "退货",
+      "return",
+      "returned"
+    ],
+    "approve": [
+      "审批",
+      "审核",
+      "复核",
+      "approve",
+      "approved",
+      "approval"
+    ],
+    "send": [
+      "发送",
+      "推送",
+      "send",
+      "sent",
+      "sending"
+    ],
+    "receive": [
+      "接收",
+      "收到",
+      "receive",
+      "received"
+    ],
+    "modify": [
+      "修改",
+      "调整",
+      "替换",
+      "change",
+      "changed",
+      "adjust",
+      "adjustment"
+    ],
+    "reserve": [
+      "占用",
+      "预留",
+      "reserved",
+      "reserve"
+    ],
+    "reset": [
+      "重置",
+      "清除",
+      "清空",
+      "reset",
+      "clear"
+    ],
+    "expand": [
+      "展开",
+      "expanding",
+      "expand"
+    ],
+    "validate": [
+      "校验",
+      "validate",
+      "validation"
+    ],
+    "cancel": [
+      "取消",
+      "cancel",
+      "cancelled"
+    ],
+    "fail": [
+      "失败",
+      "报错",
+      "无法",
+      "失败",
+      "failed",
+      "fails",
+      "failure"
+    ],
+    "missing": [
+      "缺失",
+      "缺少",
+      "missing",
+      "blank"
+    ],
+    "mandatory": [
+      "必填",
+      "mandatory",
+      "required"
+    ],
+    "difference": [
+      "差异",
+      "差额",
+      "差价",
+      "不一致",
+      "difference",
+      "different",
+      "mismatch"
+    ],
+    "balance": [
+      "余额",
+      "balance"
+    ],
+    "value": [
+      "价值",
+      "value",
+      "valuation"
+    ],
+    "quantity": [
+      "数量",
+      "quantity"
+    ],
+    "format": [
+      "格式",
+      "format"
+    ],
+    "structure": [
+      "结构",
+      "structure"
+    ],
+    "permission": [
+      "权限",
+      "permission",
+      "permissions"
+    ],
+    "button": [
+      "按钮",
+      "button"
+    ],
+    "node": [
+      "节点",
+      "node"
+    ],
+    "status": [
+      "状态",
+      "status",
+      "state"
+    ]
+  },
+  "actions": [
+    "reverse",
+    "copy",
+    "sync",
+    "export",
+    "import",
+    "return",
+    "approve",
+    "send",
+    "receive",
+    "modify",
+    "reserve",
+    "reset",
+    "expand",
+    "validate",
+    "cancel",
+    "fail",
+    "missing",
+    "mandatory"
+  ],
+  "fieldSuffix": "时间|字段|状态|值|信息|属性|列",
+  "windows": "direct matching M/P block plus returned original ordinal neighbors only",
+  "minimumIndependentFamilies": 2
+}

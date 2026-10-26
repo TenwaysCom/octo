@@ -1,0 +1,32 @@
+{
+  "v5_baseline_ranks_reproduced_65": true,
+  "v5_baseline_all_candidate_orders_reproduced_65": true,
+  "G_does_not_change_any_retrieval_order_77": true,
+  "tests": {
+    "RG": {
+      "files": 7,
+      "passed": 178
+    },
+    "G": {
+      "files": 6,
+      "passed": 169
+    },
+    "R_earlier_focused": {
+      "files": 3,
+      "passed": 92
+    }
+  },
+  "builds": {
+    "R": "passed",
+    "G": "passed",
+    "RG": "passed"
+  },
+  "real_models": "not called",
+  "deployment": "not performed",
+  "database_writes": false,
+  "release_accepted": false,
+  "other_four_vendor_bill_consumption_preserved": true,
+  "compressed_first_run_overwrite_refused": true,
+  "frozen_inputs_and_all_candidate_sources_rechecked": true,
+  "v5_delivered_artifact_integrity_preserved": true
+}

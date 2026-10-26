@@ -1,0 +1,162 @@
+[
+  {
+    "split": "old_regression",
+    "groups": {
+      "reference": {
+        "total": 48,
+        "positive": 44,
+        "hit20": 41,
+        "expectedPageCoverage": 42,
+        "expectedPageTotal": 45
+      },
+      "A": {
+        "total": 48,
+        "positive": 44,
+        "hit20": 41,
+        "expectedPageCoverage": 42,
+        "expectedPageTotal": 45
+      },
+      "B": {
+        "total": 48,
+        "positive": 44,
+        "hit20": 40,
+        "expectedPageCoverage": 41,
+        "expectedPageTotal": 45
+      },
+      "C": {
+        "total": 48,
+        "positive": 44,
+        "hit20": 41,
+        "expectedPageCoverage": 42,
+        "expectedPageTotal": 45
+      },
+      "D": {
+        "total": 48,
+        "positive": 44,
+        "hit20": 40,
+        "expectedPageCoverage": 41,
+        "expectedPageTotal": 45
+      }
+    }
+  },
+  {
+    "split": "old_development",
+    "groups": {
+      "reference": {
+        "total": 5,
+        "positive": 5,
+        "hit20": 5,
+        "expectedPageCoverage": 5,
+        "expectedPageTotal": 5
+      },
+      "A": {
+        "total": 5,
+        "positive": 5,
+        "hit20": 5,
+        "expectedPageCoverage": 5,
+        "expectedPageTotal": 5
+      },
+      "B": {
+        "total": 5,
+        "positive": 5,
+        "hit20": 5,
+        "expectedPageCoverage": 5,
+        "expectedPageTotal": 5
+      },
+      "C": {
+        "total": 5,
+        "positive": 5,
+        "hit20": 5,
+        "expectedPageCoverage": 5,
+        "expectedPageTotal": 5
+      },
+      "D": {
+        "total": 5,
+        "positive": 5,
+        "hit20": 5,
+        "expectedPageCoverage": 5,
+        "expectedPageTotal": 5
+      }
+    }
+  },
+  {
+    "split": "old_independent",
+    "groups": {
+      "reference": {
+        "total": 12,
+        "positive": 6,
+        "hit20": 6,
+        "expectedPageCoverage": 6,
+        "expectedPageTotal": 6
+      },
+      "A": {
+        "total": 12,
+        "positive": 6,
+        "hit20": 6,
+        "expectedPageCoverage": 6,
+        "expectedPageTotal": 6
+      },
+      "B": {
+        "total": 12,
+        "positive": 6,
+        "hit20": 6,
+        "expectedPageCoverage": 6,
+        "expectedPageTotal": 6
+      },
+      "C": {
+        "total": 12,
+        "positive": 6,
+        "hit20": 6,
+        "expectedPageCoverage": 6,
+        "expectedPageTotal": 6
+      },
+      "D": {
+        "total": 12,
+        "positive": 6,
+        "hit20": 6,
+        "expectedPageCoverage": 6,
+        "expectedPageTotal": 6
+      }
+    }
+  },
+  {
+    "split": "independent",
+    "groups": {
+      "reference": {
+        "total": 12,
+        "positive": 6,
+        "hit20": 6,
+        "expectedPageCoverage": 6,
+        "expectedPageTotal": 6
+      },
+      "A": {
+        "total": 12,
+        "positive": 6,
+        "hit20": 6,
+        "expectedPageCoverage": 6,
+        "expectedPageTotal": 6
+      },
+      "B": {
+        "total": 12,
+        "positive": 6,
+        "hit20": 6,
+        "expectedPageCoverage": 6,
+        "expectedPageTotal": 6
+      },
+      "C": {
+        "total": 12,
+        "positive": 6,
+        "hit20": 6,
+        "expectedPageCoverage": 6,
+        "expectedPageTotal": 6
+      },
+      "D": {
+        "total": 12,
+        "positive": 6,
+        "hit20": 6,
+        "expectedPageCoverage": 6,
+        "expectedPageTotal": 6
+      }
+    }
+  }
+]

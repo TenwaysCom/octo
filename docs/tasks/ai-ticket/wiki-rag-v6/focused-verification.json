@@ -1,0 +1,38 @@
+[
+  {
+    "variant": "G",
+    "passed": true,
+    "knowledgeChars": 917,
+    "primaryChars": 1395,
+    "primaryPaths": [
+      "raw/transcripts/ticket-2370.2026-10-21-722ae7f23be9.md"
+    ],
+    "selectedOrdinals": [
+      "M1",
+      "M2"
+    ],
+    "exactErrorAndFunctionVerified": true,
+    "unresolvedBoundaryRetained": true,
+    "otherTicketsRecoveryNotForwarded": true,
+    "originalBudgetRejectionsPreserved": true,
+    "applicability": "historical_reference"
+  },
+  {
+    "variant": "RG",
+    "passed": true,
+    "knowledgeChars": 917,
+    "primaryChars": 1395,
+    "primaryPaths": [
+      "raw/transcripts/ticket-2370.2026-10-21-722ae7f23be9.md"
+    ],
+    "selectedOrdinals": [
+      "M1",
+      "M2"
+    ],
+    "exactErrorAndFunctionVerified": true,
+    "unresolvedBoundaryRetained": true,
+    "otherTicketsRecoveryNotForwarded": true,
+    "originalBudgetRejectionsPreserved": true,
+    "applicability": "historical_reference"
+  }
+]

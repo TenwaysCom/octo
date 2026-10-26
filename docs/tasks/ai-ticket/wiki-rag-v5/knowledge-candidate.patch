@@ -1,0 +1,29 @@
+--- a/docs/llm-wiki/concepts/invoicing/vendor-bill-confirm-stock-move-singleton-investigation.md
++++ b/docs/llm-wiki/concepts/invoicing/vendor-bill-confirm-stock-move-singleton-investigation.md
+@@ -1,6 +1,12 @@
+ ---
+-title: "Vendor Bill Confirm 报 ValueError: Expected singleton: stock.move()，历史案例能说明什么？"
+-summary: 三票完整堆栈均在采购原币估值路径报 stock.move 单例异常；历史恢复、临时日期处理和当前未解决问题须分别判断。
++title: "供应商账单确认失败／Vendor Bill Confirm 报 stock.move 单例异常，历史案例能说明什么？"
++summary: "供应商账单确认失败、Bill过账失败的历史调查：三票报 ValueError: Expected singleton: stock.move()，并涉及采购原币估值函数；根因未知，历史恢复不能照搬为当前修复。"
++search_terms:
++- confirm vendor bill
++- 供应商账单确认失败
++- Bill过账失败
++- "ValueError: Expected singleton: stock.move()"
++- _tw_purchase_original_currency_unit_price
+ created: '2026-10-21'
+ updated: '2026-10-21'
+ type: concept
+@@ -27,9 +33,9 @@
+ applicability_status: needs_verification
+ ---
+ 
+-# Vendor Bill Confirm 报 ValueError: Expected singleton: stock.move()，历史案例能说明什么？
++# 供应商账单确认失败／Vendor Bill Confirm 报 stock.move 单例异常，历史案例能说明什么？
+ 
+-有相同技术报错的历史记录，但没有证据证明当前票可照搬历史处理。先区分错误签名、估值价差及财务日期规则。
++供应商账单确认失败（confirm vendor bill）或 Bill过账失败时，可先比对本页历史错误签名和采购原币估值路径。有相同报错的历史记录，但三票根因并未确认，也没有当前通用修复。历史恢复、SVL价差解释及财务日期规则须分别判断。
+ 
+ ## 错误与调用路径
+ 

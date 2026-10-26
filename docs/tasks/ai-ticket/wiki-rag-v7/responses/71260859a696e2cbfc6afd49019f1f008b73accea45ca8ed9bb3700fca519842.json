@@ -1,0 +1,100 @@
+{
+  "caseId": "Q04",
+  "group": "A",
+  "payloadHash": "71260859a696e2cbfc6afd49019f1f008b73accea45ca8ed9bb3700fca519842",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 2,
+      "relevance_score": 0.8588874936103821
+    },
+    {
+      "index": 9,
+      "relevance_score": 0.8579496741294861
+    },
+    {
+      "index": 4,
+      "relevance_score": 0.7894999980926514
+    },
+    {
+      "index": 1,
+      "relevance_score": 0.6685558557510376
+    },
+    {
+      "index": 10,
+      "relevance_score": 0.3847503364086151
+    }
+  ],
+  "durationMs": 427,
+  "querySha256": "cdc6427357b3098e7e48421c4aa43133b7cc701c29195efd85607bc40e3e5245",
+  "queryChars": 8,
+  "documentSha256": [
+    "e1c520e86476eae1e235d5ab2bd54c5e99687197bf61cdb41a9f6a912e615dd8",
+    "e88e861f94af5bf0f087c961ec0a25e95075a83469a11afbb74b5773bf047fbe",
+    "e75b44df8e3c74cb70e92570215acd8187d1a31305d5f4037240ee3b42684c5b",
+    "0bc12d45308b82920c18038c16dc0ef518c3887785bb0f91c0d678a37096bda6",
+    "ffdeb52c96df392059dccf1ff5d2aaa6e267611ae92e144687ec6f4f8ef9dfb9",
+    "f0055cb05ad90142023ce31cf14f2acc8ed061e57c9de1dd47973fdd4b47618e",
+    "8a323823dc7d5b11b15ce0ecfdf63349e041993da9e683bed30623336964d683",
+    "42809f9346b809343fbc4b9b34570061a579c86ad0a21f333f4d9cc0814b4764",
+    "818304b660ca3a8bbf162162100f7c5285c4561e6bb4d81db85a0fb9d7fa97e4",
+    "ea262074941c7ded933a7e270875a3f3e0388b8d165e9136b5ba5a76e2a2f5db",
+    "f388a9700d9b38309497e179c42110879c3f35725af6f4127b24033de3a1c95c",
+    "5c7bcc27c15df25c9cab18b867a16e9261be68b337fb8b25f3ecea900a40f389",
+    "ad74e460e011fcac4eb3e2d2553d595136a003556fe4651ae39abc9fffdabfb6",
+    "64f77819494dfb1e21aadb597ad61a2d3080a5391b042226f945781a20075876",
+    "83eda240887f532fd1c20604add141e1104141b543fbf9ae86e226f8991372b8",
+    "0d788e2f8c8080e041bbc856f4b0c5dba81dabe981ed79b74e8b34087e0c9f7b",
+    "3eacbdd3086c8fd628a177231549483dc33134e327cc6a2ff173591fef735c04",
+    "48ba470e7636a9a64dbe3dc6c7b68f19496138c8e826651f82cdc6f1269450d5",
+    "70454553d0ef5ac0bcf1971ed702f6a35aa432086e8eb6344b875cb9dee0d270",
+    "5b80bd751d6876d016475303bf348b06dd4584facd4c33145b0d07d120eb6225"
+  ],
+  "documentChars": [
+    2446,
+    918,
+    699,
+    629,
+    1283,
+    553,
+    930,
+    1180,
+    1368,
+    822,
+    1720,
+    1090,
+    768,
+    932,
+    1842,
+    2160,
+    667,
+    2303,
+    776,
+    737
+  ],
+  "candidatePaths": [
+    "docs/ontology/objects/business-approval.md",
+    "docs/llm-wiki/concepts/sales/uk-odoo-approval-buttons-browser-cache.md",
+    "docs/llm-wiki/concepts/approvals/approval-status-button-mapping-history.md",
+    "docs/llm-wiki/concepts/invoicing/missing-so-link-repair-history.md",
+    "docs/llm-wiki/concepts/sales/mark-done-current-applicability-investigation.md",
+    "docs/llm-wiki/concepts/sales/uk-cancel-after-shipment-history.md",
+    "docs/ontology/processes/budget-contract-payment-approval.md",
+    "docs/ontology/processes/embedded-business-record-approval.md",
+    "docs/ontology/processes/warehouse-operation-approval.md",
+    "docs/llm-wiki/concepts/access/operation-access-and-button-triage.md",
+    "docs/llm-wiki/concepts/approvals/approval-policy-change-checklist.md",
+    "docs/llm-wiki/concepts/sales/approval-activity-button-history.md",
+    "docs/llm-wiki/concepts/sales/marketing-approval-online-shipment-history.md",
+    "docs/llm-wiki/concepts/sales/marketing-outbound-approval-confirm-permission.md",
+    "docs/ontology/objects/sales-commercial-terms.md",
+    "docs/ontology/objects/warehouse-operation.md",
+    "docs/llm-wiki/concepts/sales/approval-markdone-vs-approve-button-stuck.md",
+    "docs/ontology/objects/business-party.md",
+    "docs/ontology/processes/approval-policy-change.md",
+    "docs/ontology/processes/standalone-approval-request.md"
+  ],
+  "queryCAvailable": true
+}

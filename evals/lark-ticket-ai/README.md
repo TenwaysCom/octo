@@ -9,7 +9,11 @@
 - 确定性门禁：必含/禁止输出文本、允许/必需工具标题、耗时预算。
 - 可选 LLM 裁判：每个 case 的质量标准；仅在设置 `OCTO_EVAL_ENABLE_LLM_JUDGE=1` 时启用。
 
-CSV 是唯一的数据集来源。多值条件在单元格中使用 JSON 数组，例如 `["待确认","下一步"]`，从而避免中文逗号或换行引起歧义。所有 case 默认禁用，也不包含真实 ID。启用前，应先将非生产的隔离 Ticket 同步到 Octo，并替换其三个 Ticket 标识；数据集文本必须保持脱敏。
+本 FE Action 套件的 CSV 是其唯一数据集来源。多值条件在单元格中使用 JSON 数组，例如 `["待确认","下一步"]`，从而避免中文逗号或换行引起歧义。所有 case 默认禁用，也不包含真实 ID。启用前，应先将非生产的隔离 Ticket 同步到 Octo，并替换其三个 Ticket 标识；数据集文本必须保持脱敏。
+
+Shadow 结构化动作判断另有[前十分钟120例分类复核集](../../docs/tasks/ai-ticket/shadow-first10-v2/README.md)，仅用聊天证据，逐条展示标准和human/wait依据，含待人工审核的AI复核标签与冻结JSONL输入。它不使用本套件的CSV列或API runner，不能直接交给`run_deepeval.py`执行。
+
+`feat/add-evals`按用户授权显式跟踪`artifacts/shadow-first10-v1/`、`artifacts/shadow-first10-v1-comparison/`、`artifacts/shadow-first10-v2-recheck-20261023/`中的17份冻结交付文件。其余artifacts仍忽略，不纳入临时草稿或截图。样本未完全匿名化，人工gold为0；生成与复核脚本在`server/examples/shadow-action-eval/`。来源能力图一并保存为背景说明，其中引用的独立Wiki增强任务不随本分支纳入。
 
 ## CSV 列定义
 

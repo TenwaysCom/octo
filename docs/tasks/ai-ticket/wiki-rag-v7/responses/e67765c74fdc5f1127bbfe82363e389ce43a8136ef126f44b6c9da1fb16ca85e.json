@@ -1,0 +1,100 @@
+{
+  "caseId": "T23",
+  "group": "A",
+  "payloadHash": "e67765c74fdc5f1127bbfe82363e389ce43a8136ef126f44b6c9da1fb16ca85e",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 2,
+      "relevance_score": 0.4972453713417053
+    },
+    {
+      "index": 3,
+      "relevance_score": 0.30738818645477295
+    },
+    {
+      "index": 10,
+      "relevance_score": 0.2765156328678131
+    },
+    {
+      "index": 0,
+      "relevance_score": 0.2219270020723343
+    },
+    {
+      "index": 8,
+      "relevance_score": 0.1920374035835266
+    }
+  ],
+  "durationMs": 524,
+  "querySha256": "b5171ce9b6b5c5ea1d09e03750a204cfc5ed44d3fb2e41c7054e11ea8dd3de46",
+  "queryChars": 120,
+  "documentSha256": [
+    "c01758ad31edad548d990c1483168ead0e44b55e5550a939696afc2b014177d3",
+    "d4a35128759969a97224d48371d87634eaea33aa92de96c9acde773050547d7f",
+    "06690a4a12c73d2457f92691e810c607abdb40dbe0c6493ec43a4e8f80471047",
+    "05089503c917487e386b55e8521d35e57d8e2036c9707d270b204940c0b3c838",
+    "36dde814a0b3016ff5f403058ba45c8b69c619e0374a01994fb539ba57cce405",
+    "920ecc05c3524cb9be025cbeda2700aaf0e0f155a6bf69f323af9209a8d73e31",
+    "7e6d1ff103449a044437adbb9064be1c119b9783d01b26b40e3046a9a22bcd02",
+    "8b455fe64cdbfe78698183f7a8b9d02dc389810e030a54ac6b3981b92949d190",
+    "f5c3507a9ec7894bb28fbe3a66b833d13eace5408f4537876e50e0af716a253e",
+    "063acee1b03abbe52011bead41fa65fe58e5c01479a4979dfaeb05ac4f492fff",
+    "ee014bd21520ed19405bd031e6757ae97711952d8f59b5f82e468848601fb541",
+    "b5142705874bdad723e5f93e543580c7c310463da3e7bce9eb683ba97596e980",
+    "7db8f03af4f7c4d4be21a04147dbf0b8e8ce9333ce41e43e86114cee02f6384f",
+    "b320ce79a806c8681a1e1e3e5e27317e111fa37dcad8e9e4801721aabf2790c1",
+    "ca12ff2782ab4d192711d3d1846a1623ed31a6a7629eb0599e4309a1bfb7a9b2",
+    "ee5ce3e324646a5d763ed8f6a50781930b052f18ab83013f232deb5ad4e83e29",
+    "e8b3294dac390b37b96141d67406f879dfec0b36243e983ca75bcb26cfcafeda",
+    "271af46297960cfb49f84f031642e8472d5406cc103f6bcdaf84ced6a70fe787",
+    "7511f05df962a30799dc5a8b8a4dee51e43efcc5efc02eadfc7644b888f89363",
+    "5a7939de144e6fe3978c563bda26da9dd71ee5b3bb1adc5c2a30af2f67370313"
+  ],
+  "documentChars": [
+    2482,
+    1335,
+    1650,
+    1581,
+    1127,
+    912,
+    2113,
+    2247,
+    2431,
+    2354,
+    1630,
+    595,
+    997,
+    1951,
+    2265,
+    1825,
+    1918,
+    1540,
+    537,
+    1472
+  ],
+  "candidatePaths": [
+    "docs/ontology/objects/business-party.md",
+    "docs/llm-wiki/concepts/invoicing/invoice-email-follows-sales-order-invoice-address.md",
+    "docs/ontology/objects/b2c-sales.md",
+    "docs/llm-wiki/concepts/sales/partner-address-role-history.md",
+    "docs/llm-wiki/concepts/faq/contact-backorder-preorder-overview.md",
+    "docs/llm-wiki/concepts/after_sales/service-ticket-delivery-address-history.md",
+    "docs/ontology/objects/b2b-portal-sales.md",
+    "docs/ontology/objects/sales-invoice.md",
+    "docs/ontology/rules/commercial-partner-attribution.md",
+    "docs/ontology/objects/transaction-tax.md",
+    "docs/ontology/processes/party-address-maintenance.md",
+    "docs/llm-wiki/concepts/invoicing/credit-note-required-type-history.md",
+    "docs/llm-wiki/concepts/accounting/journal-required-dimensions-and-country.md",
+    "docs/llm-wiki/concepts/sales/contact-tag-change-verification.md",
+    "docs/ontology/objects/b2b-invoice-integration.md",
+    "docs/ontology/objects/customer-credit.md",
+    "docs/ontology/processes/b2b-invoice-platform-delivery.md",
+    "docs/ontology/processes/b2c-sales-order.md",
+    "docs/llm-wiki/concepts/invoicing/bill-vendor-versus-journal-partner.md",
+    "docs/llm-wiki/concepts/portal/portal-account-parent-company-invoices.md"
+  ],
+  "queryCAvailable": true
+}

@@ -1,0 +1,2670 @@
+[
+  {
+    "key": "Q05|concepts/sales/cargo-discount-approval-history.md",
+    "id": "Q05",
+    "type": "positive",
+    "path": "concepts/sales/cargo-discount-approval-history.md",
+    "title": "Cargo 折扣为零，是否一定是配置错误？",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "仅该价表当时无规则；不能说所有 Markup 都没有规则或只靠名称自动算价。",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      }
+    ],
+    "question": "customer has the price list set to a 1.85 markup, but the prices are not changing",
+    "contentChars": 315,
+    "primaryChars": 1701,
+    "sourcePaths": [
+      "raw/transcripts/ticket-1615.2026-09-11-fe274c2117ef.md",
+      "raw/transcripts/ticket-1927.2026-09-11-2d54ab07f50c.md"
+    ],
+    "contentSha256": "22604e1a3cb6000ad69a7f7a558e2b7acdfea21decea1a10473118ff7d863d89"
+  },
+  {
+    "key": "Q08|concepts/portal/backorder-template-api-contract-500.md",
+    "id": "Q08",
+    "type": "positive",
+    "path": "concepts/portal/backorder-template-api-contract-500.md",
+    "title": "Portal Backorder 500 为什么不能直接按权限问题处理？",
+    "knownGold": true,
+    "knownWrong": false,
+    "boundary": "权限初判已被否定；模板缺接口字段，只有支持报告恢复，无dealer复测。",
+    "policies": [
+      {
+        "strategy": "C",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "D",
+        "floor": 0.3,
+        "gap": 0.1
+      },
+      {
+        "strategy": "D",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "D",
+        "floor": 0.4,
+        "gap": 0.1
+      },
+      {
+        "strategy": "D",
+        "floor": 0.4,
+        "gap": 0.2
+      }
+    ],
+    "question": "can't open backorders; 500: Internal Server Error",
+    "contentChars": 560,
+    "primaryChars": 1737,
+    "sourcePaths": [
+      "raw/transcripts/ticket-1744.2026-09-11-087128c8192e.md"
+    ],
+    "contentSha256": "d9c599b96e1ba95d7d051fbb5254ce6e46fb6a5cd5d75873a17f49552169c62b"
+  },
+  {
+    "key": "Q10|concepts/delivery/wms-payload-validation-triage.md",
+    "id": "Q10",
+    "type": "positive",
+    "path": "concepts/delivery/wms-payload-validation-triage.md",
+    "title": "WMS 报名称、电话、Company 或 SKU 单位错误时怎样核对？",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "API超时但仓库已收到；不以Error直接改状态重推，唯一收单仍待核。",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.5,
+        "gap": 0.2
+      }
+    ],
+    "question": "WDB2B/OUT/01529显示了错误,但是westerman实际已经收到这一单了",
+    "contentChars": 1550,
+    "primaryChars": 1603,
+    "sourcePaths": [
+      "raw/transcripts/ticket-1809.2026-09-11-e6fa704851ca.md",
+      "raw/transcripts/ticket-1032.2026-09-11-c1c5ac6f54f9.md"
+    ],
+    "contentSha256": "c2c317b4ee4f413223f290cc8445cf7a5699bb48c6a36f1b6c749d28af68b15b"
+  },
+  {
+    "key": "Q10|concepts/integration/wms-result-unknown-history.md",
+    "id": "Q10",
+    "type": "positive",
+    "path": "concepts/integration/wms-result-unknown-history.md",
+    "title": "队列 Done 或接口超时，仓库到底是否收到？",
+    "knownGold": true,
+    "knownWrong": false,
+    "boundary": "API超时但仓库已收到；不以Error直接改状态重推，唯一收单仍待核。",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.5,
+        "gap": 0.2
+      }
+    ],
+    "question": "WDB2B/OUT/01529显示了错误,但是westerman实际已经收到这一单了",
+    "contentChars": 1579,
+    "primaryChars": 1423,
+    "sourcePaths": [
+      "raw/transcripts/ticket-1183.2026-09-11-074aa0db3400.md",
+      "raw/transcripts/ticket-1374.2026-09-11-530265f187e1.md"
+    ],
+    "contentSha256": "6508afbf95bb5498a501e04ceae0804f7d9ee5a06aa90f6af04ecf3c195c7bc4"
+  },
+  {
+    "key": "Q12|concepts/delivery/cancelled-picking-recovery-history.md",
+    "id": "Q12",
+    "type": "positive",
+    "path": "concepts/delivery/cancelled-picking-recovery-history.md",
+    "title": "取消出库后要恢复或补发，为什么不能直接改状态？",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "审批与Validate及余量分开；当次用户成功，后续按钮缺失仍无人答，不一律建BO。",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      }
+    ],
+    "question": "WCB2B/INT/00239生成一个split transfer之后，单据done了之后还是现在ready状态",
+    "contentChars": 1499,
+    "primaryChars": 2318,
+    "sourcePaths": [
+      "raw/transcripts/ticket-1780.2026-09-11-532e95cf4c37.md",
+      "raw/transcripts/ticket-1873.2026-09-11-af55560d6887.md"
+    ],
+    "contentSha256": "3301f58cc8a9b422a7e7868b8d13ede2f03d8ac58a12fc1292ecc5e455febc05"
+  },
+  {
+    "key": "Q19|concepts/integration/shopify-missing-sku-and-confirm-timing-history.md",
+    "id": "Q19",
+    "type": "positive",
+    "path": "concepts/integration/shopify-missing-sku-and-confirm-timing-history.md",
+    "title": "Shopify 缺 SKU：主数据、确认前缺陷与确认后更新如何区分？",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "原行关联与手工新增行不同，内部同步成功不等于外部Shipment；不能定性cancel唯一原因。",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.5,
+        "gap": 0.2
+      }
+    ],
+    "question": "#SPF55671A ODOO显示已经update in marketplace,但是shopify后台的状态一直显示未发货",
+    "contentChars": 1620,
+    "primaryChars": 1793,
+    "sourcePaths": [
+      "raw/transcripts/ticket-303.2026-09-11-4c417219e028.md"
+    ],
+    "contentSha256": "c45a78c040077ff58dd1963fbc7675e4bf7bee2ea8c4bd6fbf8da711e7af486e"
+  },
+  {
+    "key": "Q20|concepts/payment/turbo-overdue-after-payment-history.md",
+    "id": "Q20",
+    "type": "positive",
+    "path": "concepts/payment/turbo-overdue-after-payment-history.md",
+    "title": "Turbo 已付款仍逾期，是否已经证明同步故障？",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "TestFlight build过期报告；1708和1732没有重装后用户确认，不判账号授权或Android故障。",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      }
+    ],
+    "question": "The TWS Turbo beta has expired",
+    "contentChars": 341,
+    "primaryChars": 607,
+    "sourcePaths": [
+      "raw/transcripts/ticket-198.2026-09-11-b632bb880559.md"
+    ],
+    "contentSha256": "d20f33748da4443583e28edef343f7dbd73a13ec481ff68c2ed63411a2c76d05"
+  },
+  {
+    "key": "Q21|concepts/platform/frontend-resource-refresh-history.md",
+    "id": "Q21",
+    "type": "positive",
+    "path": "concepts/platform/frontend-resource-refresh-history.md",
+    "title": "页面报错刷新后恢复，是否证明都是浏览器缓存？",
+    "knownGold": true,
+    "knownWrong": false,
+    "boundary": "只桌面快捷方式坏而另一入口能用；重存和缓存是建议，无修复验收。",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.5,
+        "gap": 0.2
+      }
+    ],
+    "question": "AssetsLoadingError: web_editor.backend_assets_wysiwyg.min.js failed",
+    "contentChars": 1087,
+    "primaryChars": 1138,
+    "sourcePaths": [
+      "raw/transcripts/ticket-2060.2026-09-11-714fd90b6036.md"
+    ],
+    "contentSha256": "4d3c44dfa094a5ac3686de4423ba79a02eabda9df3bbad2f83ea9afdec06587a"
+  },
+  {
+    "key": "Q26|concepts/workforce/appraisal-scoring-history.md",
+    "id": "Q26",
+    "type": "positive",
+    "path": "concepts/workforce/appraisal-scoring-history.md",
+    "title": "Appraisal 总分、Goal 年度和 KPI 权重问题应怎样区分？",
+    "knownGold": true,
+    "knownWrong": false,
+    "boundary": "818用户确认Add line显示，不证明所有HR服务端权限；1517权重是另一KPI校验，非物流重量。",
+    "policies": [
+      {
+        "strategy": "C",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.5,
+        "gap": 0.2
+      },
+      {
+        "strategy": "D",
+        "floor": 0.3,
+        "gap": 0.1
+      },
+      {
+        "strategy": "D",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "D",
+        "floor": 0.3,
+        "gap": 0.3
+      },
+      {
+        "strategy": "D",
+        "floor": 0.4,
+        "gap": 0.1
+      },
+      {
+        "strategy": "D",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "D",
+        "floor": 0.4,
+        "gap": 0.3
+      },
+      {
+        "strategy": "D",
+        "floor": 0.5,
+        "gap": 0.1
+      },
+      {
+        "strategy": "D",
+        "floor": 0.5,
+        "gap": 0.2
+      },
+      {
+        "strategy": "D",
+        "floor": 0.5,
+        "gap": 0.3
+      }
+    ],
+    "question": "Appraisals The \"Add line\" under Type does not show",
+    "contentChars": 859,
+    "primaryChars": 1127,
+    "sourcePaths": [
+      "raw/transcripts/ticket-818.2026-09-11-bfe5a0f798cf.md"
+    ],
+    "contentSha256": "5c19a9a53874db0dc9fee8e17ae583310b34a291e0d28d156935a7d14441b9b1"
+  },
+  {
+    "key": "Q27|concepts/delivery/sent-picking-split-and-order-line-history.md",
+    "id": "Q27",
+    "type": "positive",
+    "path": "concepts/delivery/sent-picking-split-and-order-line-history.md",
+    "title": "SO 增行并入已发仓任务、Sent 后无法拆单的历史案例",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "建议再Confirm，Finance是否代确认未答，未有成功转单；不同于100%预付款计算。",
+    "policies": [
+      {
+        "strategy": "C",
+        "floor": 0.4,
+        "gap": 0.2
+      }
+    ],
+    "question": "The excess amount of this SO is only 150.98 euros, temporarily increased by 4k euros, but SO still cannot be processed",
+    "contentChars": 771,
+    "primaryChars": 1865,
+    "sourcePaths": [
+      "raw/transcripts/ticket-1191.2026-09-11-1763081ab30e.md"
+    ],
+    "contentSha256": "400ad12b88a513503a5886fb3c0bfa7c2cb34b21e3671955b13dafc37fd5d25b"
+  },
+  {
+    "key": "Q28|concepts/reporting/filter-language-timezone-history.md",
+    "id": "Q28",
+    "type": "positive",
+    "path": "concepts/reporting/filter-language-timezone-history.md",
+    "title": "显示、筛选或导出不同，怎样避免直接改业务数据？",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "当年无单初判被实际发票反驳；最终新filter仅截图，不复原完整表达式。",
+    "policies": [
+      {
+        "strategy": "C",
+        "floor": 0.4,
+        "gap": 0.2
+      }
+    ],
+    "question": "use in \"accounting\" the same filter that I use in \"contacts\", some of these dynamo customers are left out",
+    "contentChars": 1280,
+    "primaryChars": 2087,
+    "sourcePaths": [
+      "raw/transcripts/ticket-1196.2026-09-11-137c75c7649b.md"
+    ],
+    "contentSha256": "a2b28c71d60f8dcf46966b7ec1e342311a20f6d4019ee7dbcaacbf6186d5deb2"
+  },
+  {
+    "key": "Q30|concepts/inventory/warehouse-location-operation-type-change-checklist.md",
+    "id": "Q30",
+    "type": "positive",
+    "path": "concepts/inventory/warehouse-location-operation-type-change-checklist.md",
+    "title": "申请新增或调整仓库、库位和 Operation Type，要说明什么？",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "US18固定DL、自选DL、两步开发分开；7/30还问排期，不推EU流程已迁US。",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.5,
+        "gap": 0.2
+      }
+    ],
+    "question": "US和UK-Odoo的Operation type需要增加Tenways - Inventory Help: Inventory Adjustment",
+    "contentChars": 1352,
+    "primaryChars": 2397,
+    "sourcePaths": [
+      "raw/transcripts/ticket-496.2026-09-11-8f94b1ab54b2.md",
+      "raw/transcripts/ticket-522.2026-09-11-9bd0169cbc1d.md",
+      "raw/transcripts/ticket-473.2026-09-11-aa294a94936e.md"
+    ],
+    "contentSha256": "2448f097180f9e8aed7f4bccf086fbf829f9fa865b2f2f6740d0e296bb51b2e6"
+  },
+  {
+    "key": "Q36|concepts/faq/business-rules-and-usage-quick-reference.md",
+    "id": "Q36",
+    "type": "positive",
+    "path": "concepts/faq/business-rules-and-usage-quick-reference.md",
+    "title": "业务规则与操作指引速查:SO/出库/科目/报表口径",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "解释当前资料分工；链接存在不证明所有定义已读、实体已同步。",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.5,
+        "gap": 0.2
+      }
+    ],
+    "question": "详细业务和技术事实应该放在哪里？",
+    "contentChars": 0,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "key": "V01|docs/ontology/objects/preorder-backorder.md",
+    "id": "V01",
+    "type": "positive",
+    "path": "docs/ontology/objects/preorder-backorder.md",
+    "title": "Ontology：预订单与销售欠单",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "Mark Done 被称缺陷且计划调整；Approve 为历史临时建议，不能断言当前按钮语义。",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.5,
+        "gap": 0.2
+      }
+    ],
+    "question": "付款条件已经批了，为什么确认订单又要重新审批？",
+    "contentChars": 2308,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "f9a7afd2c777adee84793fe821d5ea84aaab7e93e39b6f4bab9d912bbe2a71cb"
+  },
+  {
+    "key": "V01|docs/ontology/processes/sales-terms-exception-approval.md",
+    "id": "V01",
+    "type": "positive",
+    "path": "docs/ontology/processes/sales-terms-exception-approval.md",
+    "title": "销售商业条款例外申请与审批",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "Mark Done 被称缺陷且计划调整；Approve 为历史临时建议，不能断言当前按钮语义。",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      }
+    ],
+    "question": "付款条件已经批了，为什么确认订单又要重新审批？",
+    "contentChars": 730,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "8e6d72122f2021036ecaf4aa56b7acab165937f42f13252c356dab61f62750b6"
+  },
+  {
+    "key": "V01|docs/ontology/objects/sales-commercial-terms.md",
+    "id": "V01",
+    "type": "positive",
+    "path": "docs/ontology/objects/sales-commercial-terms.md",
+    "title": "销售报价、商业条款与例外审批定义",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "Mark Done 被称缺陷且计划调整；Approve 为历史临时建议，不能断言当前按钮语义。",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      }
+    ],
+    "question": "付款条件已经批了，为什么确认订单又要重新审批？",
+    "contentChars": 2372,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "c13d840cf675485ee3e3f8ca5cc7d1cd1668ff8c48d555063a2f424a844e4438"
+  },
+  {
+    "key": "V03|concepts/delivery/service-center-outbound-split-correct-warehouse.md",
+    "id": "V03",
+    "type": "positive",
+    "path": "concepts/delivery/service-center-outbound-split-correct-warehouse.md",
+    "title": "Service Centre 出库指向错误仓库，历史拆单建议适用于哪里？",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "API超时但仓库已收到；不以Error直接改状态重推，唯一收单仍待核。",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.5,
+        "gap": 0.2
+      }
+    ],
+    "question": "仓库已经收单，系统显示 Error，可以直接再送一次吗？",
+    "contentChars": 0,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "key": "V03|concepts/delivery/wms-receipt-disputed-history.md",
+    "id": "V03",
+    "type": "positive",
+    "path": "concepts/delivery/wms-receipt-disputed-history.md",
+    "title": "Odoo 显示已发送，但仓库说没收到的历史案例",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "API超时但仓库已收到；不以Error直接改状态重推，唯一收单仍待核。",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      }
+    ],
+    "question": "仓库已经收单，系统显示 Error，可以直接再送一次吗？",
+    "contentChars": 1062,
+    "primaryChars": 1581,
+    "sourcePaths": [
+      "raw/transcripts/ticket-1452.2026-09-11-bc826ba72705.md",
+      "raw/transcripts/ticket-1518.2026-09-11-23426942e14f.md"
+    ],
+    "contentSha256": "53b3e0b8b8d0b0062a43e40fe9823d01dc1fe4e20d4a17373165bc15e76ce1d5"
+  },
+  {
+    "key": "V03|concepts/integration/wms-result-unknown-history.md",
+    "id": "V03",
+    "type": "positive",
+    "path": "concepts/integration/wms-result-unknown-history.md",
+    "title": "队列 Done 或接口超时，仓库到底是否收到？",
+    "knownGold": true,
+    "knownWrong": false,
+    "boundary": "API超时但仓库已收到；不以Error直接改状态重推，唯一收单仍待核。",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      }
+    ],
+    "question": "仓库已经收单，系统显示 Error，可以直接再送一次吗？",
+    "contentChars": 1579,
+    "primaryChars": 1423,
+    "sourcePaths": [
+      "raw/transcripts/ticket-1183.2026-09-11-074aa0db3400.md",
+      "raw/transcripts/ticket-1374.2026-09-11-530265f187e1.md"
+    ],
+    "contentSha256": "6508afbf95bb5498a501e04ceae0804f7d9ee5a06aa90f6af04ecf3c195c7bc4"
+  },
+  {
+    "key": "V04|concepts/inventory/other-outbound-virtual-location-restore.md",
+    "id": "V04",
+    "type": "positive",
+    "path": "concepts/inventory/other-outbound-virtual-location-restore.md",
+    "title": "虚拟到虚拟没有分录，是否意味着库存数量没有变化？",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "数量回正后仍无分录；数据修复报告不等于数量、估值、12280双验收。",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.5,
+        "gap": 0.2
+      }
+    ],
+    "question": "库存补回了，为什么财务还是没有 12280 分录？",
+    "contentChars": 644,
+    "primaryChars": 2074,
+    "sourcePaths": [
+      "raw/transcripts/ticket-1769.2026-09-11-25f514c8740b.md"
+    ],
+    "contentSha256": "848a7b9129c14f26759175702b693e51b597ce08a41dee63eb29921f495a177e"
+  },
+  {
+    "key": "V05|concepts/portal/turbo-app-testflight-build-runtime-config-lark-1708.md",
+    "id": "V05",
+    "type": "positive",
+    "path": "concepts/portal/turbo-app-testflight-build-runtime-config-lark-1708.md",
+    "title": "Turbo 提示 beta expired，怎样核对 TestFlight build？",
+    "knownGold": true,
+    "knownWrong": false,
+    "boundary": "TestFlight build过期报告；1708和1732没有重装后用户确认，不判账号授权或Android故障。",
+    "policies": [
+      {
+        "strategy": "C",
+        "floor": 0.4,
+        "gap": 0.2
+      }
+    ],
+    "question": "beta版本过期了，要重新申请权限吗？",
+    "contentChars": 1083,
+    "primaryChars": 456,
+    "sourcePaths": [
+      "raw/transcripts/ticket-1708.2026-09-11-e4faabd784ab.md"
+    ],
+    "contentSha256": "3465197e9b0a7a61ed2d4c4dd379472750de26cde75ff31b5a53757089567681"
+  },
+  {
+    "key": "N04|concepts/invoicing/eu-auto-invoice-job-timing-history.md",
+    "id": "N04",
+    "type": "positive",
+    "path": "concepts/invoicing/eu-auto-invoice-job-timing-history.md",
+    "title": "EU 出库下午 Done，为什么当时要等次日开票？",
+    "knownGold": true,
+    "knownWrong": false,
+    "boundary": "2114只EU当时每日说明，未给时区；不能外推现在UK/US或固定12点。",
+    "policies": [
+      {
+        "strategy": "C",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "D",
+        "floor": 0.3,
+        "gap": 0.1
+      },
+      {
+        "strategy": "D",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "D",
+        "floor": 0.3,
+        "gap": 0.3
+      }
+    ],
+    "question": "现在UK和US也都固定每天中午12点自动开票吗？",
+    "contentChars": 467,
+    "primaryChars": 1015,
+    "sourcePaths": [
+      "raw/transcripts/ticket-2114.2026-09-11-731b5a13d3e0.md"
+    ],
+    "contentSha256": "e2181ff44a03556f471bdca868e730df5b38d18d604e49e777dda7656275add5"
+  },
+  {
+    "key": "D02|docs/ontology/processes/purchase-vendor-bill-processing.md",
+    "id": "D02",
+    "type": "positive",
+    "path": "docs/ontology/processes/purchase-vendor-bill-processing.md",
+    "title": "采购供应商账单创建、复核与过账",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "历史案例／未解决调查线索，不证明相同根因或通用修复",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.5,
+        "gap": 0.2
+      }
+    ],
+    "question": "供应商账单确认失败",
+    "contentChars": 1033,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "95b69f359a40e68dc5b4565fe3d7b0012e092305b5f0ba6ad751a755dc7aea3d"
+  },
+  {
+    "key": "D02|docs/ontology/objects/purchase-settlement.md",
+    "id": "D02",
+    "type": "positive",
+    "path": "docs/ontology/objects/purchase-settlement.md",
+    "title": "采购入库、供应商账单与付款定义",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "历史案例／未解决调查线索，不证明相同根因或通用修复",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.5,
+        "gap": 0.2
+      }
+    ],
+    "question": "供应商账单确认失败",
+    "contentChars": 2383,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "21b17a0df35bd1e27757c50ccedc378e5b379035307fcc7b1470085c2f0d04f4"
+  },
+  {
+    "key": "D02|docs/ontology/processes/purchase-payment-and-reconciliation.md",
+    "id": "D02",
+    "type": "positive",
+    "path": "docs/ontology/processes/purchase-payment-and-reconciliation.md",
+    "title": "采购付款、银行匹配与应付核销",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "历史案例／未解决调查线索，不证明相同根因或通用修复",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.5,
+        "gap": 0.2
+      }
+    ],
+    "question": "供应商账单确认失败",
+    "contentChars": 1059,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "ecdc98eb31ce105387b827f0444b5938b16fdd035c3cf471b456949ad0ebacc5"
+  },
+  {
+    "key": "D03|concepts/accounting/bill-svl-exchange-history.md",
+    "id": "D03",
+    "type": "positive",
+    "path": "concepts/accounting/bill-svl-exchange-history.md",
+    "title": "Bill、SVL 与分录本位币不一致，能靠改会计日期解决吗？",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "历史案例／未解决调查线索，不证明相同根因或通用修复",
+    "policies": [
+      {
+        "strategy": "C",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.5,
+        "gap": 0.2
+      },
+      {
+        "strategy": "D",
+        "floor": 0.3,
+        "gap": 0.1
+      },
+      {
+        "strategy": "D",
+        "floor": 0.4,
+        "gap": 0.1
+      },
+      {
+        "strategy": "D",
+        "floor": 0.5,
+        "gap": 0.1
+      }
+    ],
+    "question": "Bill过账失败",
+    "contentChars": 1728,
+    "primaryChars": 578,
+    "sourcePaths": [
+      "raw/transcripts/ticket-84.2026-09-11-f0cd0d63f6ab.md"
+    ],
+    "contentSha256": "279480c61a738671b7af9319f5d86f6596f28cbe3fffc658be7b3fc4c361d077"
+  },
+  {
+    "key": "D03|docs/ontology/processes/purchase-vendor-bill-processing.md",
+    "id": "D03",
+    "type": "positive",
+    "path": "docs/ontology/processes/purchase-vendor-bill-processing.md",
+    "title": "采购供应商账单创建、复核与过账",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "历史案例／未解决调查线索，不证明相同根因或通用修复",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      }
+    ],
+    "question": "Bill过账失败",
+    "contentChars": 1033,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "95b69f359a40e68dc5b4565fe3d7b0012e092305b5f0ba6ad751a755dc7aea3d"
+  },
+  {
+    "key": "D04|docs/ontology/objects/sales-delivery.md",
+    "id": "D04",
+    "type": "positive",
+    "path": "docs/ontology/objects/sales-delivery.md",
+    "title": "销售出库、撤仓与损失定义",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "历史案例／未解决调查线索，不证明相同根因或通用修复",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      }
+    ],
+    "question": "Expected singleton: stock.move()",
+    "contentChars": 165,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "241ec5572184152877bafe9f551b598974dc51b5093554212502acf3a79217e9"
+  },
+  {
+    "key": "H02|docs/ontology/objects/workforce-administration.md",
+    "id": "H02",
+    "type": "positive",
+    "path": "docs/ontology/objects/workforce-administration.md",
+    "title": "员工与车辆管理定义",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "旧票手机扫码与组织选择提供历史核对，不证明当前空账号同一根因",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.5,
+        "gap": 0.2
+      }
+    ],
+    "question": "用户在桌面端通过 Lark 登录后，账号显示为全新状态，看不到 TENWAYS 的设置/配置，Lark 登录进去为空白，请求协助解决。",
+    "contentChars": 2346,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "99ef447913653e76f73b513b5030673a6c768854bd8422acbdda044d168aa546"
+  },
+  {
+    "key": "H02|concepts/platform/lark-desktop-login-history.md",
+    "id": "H02",
+    "type": "positive",
+    "path": "concepts/platform/lark-desktop-login-history.md",
+    "title": "Lark 手机能用、电脑进不了 Tenways 组织的历史案例",
+    "knownGold": true,
+    "knownWrong": false,
+    "boundary": "旧票手机扫码与组织选择提供历史核对，不证明当前空账号同一根因",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.5,
+        "gap": 0.2
+      }
+    ],
+    "question": "用户在桌面端通过 Lark 登录后，账号显示为全新状态，看不到 TENWAYS 的设置/配置，Lark 登录进去为空白，请求协助解决。",
+    "contentChars": 0,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "key": "H02|docs/ontology/objects/access-governance.md",
+    "id": "H02",
+    "type": "positive",
+    "path": "docs/ontology/objects/access-governance.md",
+    "title": "用户与权限治理定义",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "旧票手机扫码与组织选择提供历史核对，不证明当前空账号同一根因",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.5,
+        "gap": 0.2
+      }
+    ],
+    "question": "用户在桌面端通过 Lark 登录后，账号显示为全新状态，看不到 TENWAYS 的设置/配置，Lark 登录进去为空白，请求协助解决。",
+    "contentChars": 2371,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "72693da2c5dcac0f0c9def297d6b583edba9776d1a22126319c1c77691d380bd"
+  },
+  {
+    "key": "H03|docs/ontology/objects/business-party.md",
+    "id": "H03",
+    "type": "positive",
+    "path": "docs/ontology/objects/business-party.md",
+    "title": "Ontology：业务主体、客户／供应商角色与地址",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "核对消息收件记录，不证明选址根因或实际送达",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.5,
+        "gap": 0.2
+      }
+    ],
+    "question": "如何在 Odoo 中查看发票（如 INV/2026/47990）实际发送到了哪个 email 地址（通过 ticket record / 消息邮件图标和联系人邮件图标查询），以及为何发送给了另一个地址",
+    "contentChars": 2351,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "8db24847d5604191064989b38bfa20ac55aae33b4420927a26270a6328df641f"
+  },
+  {
+    "key": "H03|docs/ontology/processes/b2b-invoice-platform-delivery.md",
+    "id": "H03",
+    "type": "positive",
+    "path": "docs/ontology/processes/b2b-invoice-platform-delivery.md",
+    "title": "B2B 发票按平台生成与交付",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "核对消息收件记录，不证明选址根因或实际送达",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.5,
+        "gap": 0.2
+      }
+    ],
+    "question": "如何在 Odoo 中查看发票（如 INV/2026/47990）实际发送到了哪个 email 地址（通过 ticket record / 消息邮件图标和联系人邮件图标查询），以及为何发送给了另一个地址",
+    "contentChars": 2370,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "f321a14a8df28874c963cedcc925a0c5f7a6e3280f004d261bee7caa18ad48f3"
+  },
+  {
+    "key": "H06|concepts/portal/backorder-template-api-contract-500.md",
+    "id": "H06",
+    "type": "positive",
+    "path": "concepts/portal/backorder-template-api-contract-500.md",
+    "title": "Portal Backorder 500 为什么不能直接按权限问题处理？",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "内部备注可见历史缺陷，首次修复后复发，不能当当前已修复",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.5,
+        "gap": 0.2
+      }
+    ],
+    "question": "EU portal 服务中心工单页面错误地显示内部备注（internal notes）给经销商，例如 SER165187 和 SER163087，此前修复后又复现，需尽快排查并修复，防止经销商看到敏感信息。",
+    "contentChars": 917,
+    "primaryChars": 2023,
+    "sourcePaths": [
+      "raw/transcripts/ticket-1744.2026-09-11-087128c8192e.md"
+    ],
+    "contentSha256": "3a490875475094b47d3e9a3b90b49f520ecdf99b3cb282bf7030e0ee99692388"
+  },
+  {
+    "key": "H06|docs/ontology/objects/portal-support-content.md",
+    "id": "H06",
+    "type": "positive",
+    "path": "docs/ontology/objects/portal-support-content.md",
+    "title": "Portal Support 内容定义",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "内部备注可见历史缺陷，首次修复后复发，不能当当前已修复",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.5,
+        "gap": 0.2
+      }
+    ],
+    "question": "EU portal 服务中心工单页面错误地显示内部备注（internal notes）给经销商，例如 SER165187 和 SER163087，此前修复后又复现，需尽快排查并修复，防止经销商看到敏感信息。",
+    "contentChars": 2373,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "c9685866b61f5513fee437fa4fda81339cd00faead344c7044b64785a0132d58"
+  },
+  {
+    "key": "H07|docs/ontology/objects/warehouse-operation.md",
+    "id": "H07",
+    "type": "boundary",
+    "path": "docs/ontology/objects/warehouse-operation.md",
+    "title": "仓库作业、审批与外部 WMS 定义",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "UK新增CMC仓库接口方案和当前配置前置条件无已核对答案；其他历史WMS材料可作背景",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.5,
+        "gap": 0.2
+      }
+    ],
+    "question": "UK Odoo 系统新增 CMC B2B 和 CMC B2C 两个仓库，如何与 CMC 系统做对接？是否仍用当前 CMC 的 APP 接口对接 UK-Odoo，还是需要 CMC 再次提供接口？另外，是否必须等 API 对接开始后才能正常配置 Odoo 仓库（参考 EU-Odoo 界面配置）？",
+    "contentChars": 2369,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "68c99dd30d155eb78b629cab6af70e874c84cccdca2f792673e9726c4e35a05d"
+  },
+  {
+    "key": "H07|concepts/inventory/warehouse-location-operation-type-change-checklist.md",
+    "id": "H07",
+    "type": "boundary",
+    "path": "concepts/inventory/warehouse-location-operation-type-change-checklist.md",
+    "title": "申请新增或调整仓库、库位和 Operation Type，要说明什么？",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "UK新增CMC仓库接口方案和当前配置前置条件无已核对答案；其他历史WMS材料可作背景",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      }
+    ],
+    "question": "UK Odoo 系统新增 CMC B2B 和 CMC B2C 两个仓库，如何与 CMC 系统做对接？是否仍用当前 CMC 的 APP 接口对接 UK-Odoo，还是需要 CMC 再次提供接口？另外，是否必须等 API 对接开始后才能正常配置 Odoo 仓库（参考 EU-Odoo 界面配置）？",
+    "contentChars": 1927,
+    "primaryChars": 2289,
+    "sourcePaths": [
+      "raw/transcripts/ticket-522.2026-09-11-9bd0169cbc1d.md"
+    ],
+    "contentSha256": "af2563eaf975d0ce863fa90c8e907a1789c383b5e84a12e4bc2e5634ef556ded"
+  },
+  {
+    "key": "H07|docs/ontology/processes/warehouse-operation-approval.md",
+    "id": "H07",
+    "type": "boundary",
+    "path": "docs/ontology/processes/warehouse-operation-approval.md",
+    "title": "仓库作业提交与审批",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "UK新增CMC仓库接口方案和当前配置前置条件无已核对答案；其他历史WMS材料可作背景",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      }
+    ],
+    "question": "UK Odoo 系统新增 CMC B2B 和 CMC B2C 两个仓库，如何与 CMC 系统做对接？是否仍用当前 CMC 的 APP 接口对接 UK-Odoo，还是需要 CMC 再次提供接口？另外，是否必须等 API 对接开始后才能正常配置 Odoo 仓库（参考 EU-Odoo 界面配置）？",
+    "contentChars": 1516,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "f05f0f40ab6ff2044d803962ef6289a89a4f6544a17bf90630036622e72c94c7"
+  },
+  {
+    "key": "H08|concepts/access/permission-request-and-effective-access.md",
+    "id": "H08",
+    "type": "boundary",
+    "path": "concepts/access/permission-request-and-effective-access.md",
+    "title": "申请或调整权限时，怎样确认实际授权范围？",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "UK Manufacturing需求取消／撤回状态无已核对答案，不能用旧制造单时间编辑案例回答",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.5,
+        "gap": 0.2
+      }
+    ],
+    "question": "UK Odoo 17 是否/何时可以新增 Manufacturing 生产制造模块（参考 EU-ODOO 的用法）；最新回复称不再开发此功能，当前待确认的是该需求是否正式取消或需撤回需求审批流程。",
+    "contentChars": 0,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "key": "H08|concepts/approvals/approval-submission-and-progress-triage.md",
+    "id": "H08",
+    "type": "boundary",
+    "path": "concepts/approvals/approval-submission-and-progress-triage.md",
+    "title": "审批提交失败或流程不前进时，怎样分流排查？",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "UK Manufacturing需求取消／撤回状态无已核对答案，不能用旧制造单时间编辑案例回答",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      }
+    ],
+    "question": "UK Odoo 17 是否/何时可以新增 Manufacturing 生产制造模块（参考 EU-ODOO 的用法）；最新回复称不再开发此功能，当前待确认的是该需求是否正式取消或需撤回需求审批流程。",
+    "contentChars": 2418,
+    "primaryChars": 1592,
+    "sourcePaths": [
+      "raw/transcripts/ticket-2263.md",
+      "raw/transcripts/ticket-2300.md"
+    ],
+    "contentSha256": "6c5adac7bb846b8086a1b3b8df62586b5a9ac27890aa2360cb88b98d38543749"
+  },
+  {
+    "key": "H08|docs/ontology/objects/warehouse-inventory-control.md",
+    "id": "H08",
+    "type": "boundary",
+    "path": "docs/ontology/objects/warehouse-inventory-control.md",
+    "title": "仓库库存控制与转换定义",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "UK Manufacturing需求取消／撤回状态无已核对答案，不能用旧制造单时间编辑案例回答",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      }
+    ],
+    "question": "UK Odoo 17 是否/何时可以新增 Manufacturing 生产制造模块（参考 EU-ODOO 的用法）；最新回复称不再开发此功能，当前待确认的是该需求是否正式取消或需撤回需求审批流程。",
+    "contentChars": 2346,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "0ef2f75f8542fb8dfb5bc426f54283b5b25b640bea9ea3444bba462d62deecc6"
+  },
+  {
+    "key": "H09|concepts/access/sales-team-order-visibility-history.md",
+    "id": "H09",
+    "type": "boundary",
+    "path": "concepts/access/sales-team-order-visibility-history.md",
+    "title": "Contacts 可见订单，Sales 和 Turbo 都看不到的 Sales Team 案例",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "Finance信用弹窗权限方案未有已核对配置或交付；临时额度与确认角色材料仅背景",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.5,
+        "gap": 0.2
+      }
+    ],
+    "question": "如何让 Finance 团队能查看 Sales Ops 在订单因信用额度被阻塞（Orders Blocked by Credit Limit / credit limit pop-up）时看到的信用额度信息？目前该弹窗需实时计算历史数据、仅在 confirm 按钮触发时计算，Finance 无法查看，需确认是否可配置还是需要开发（在 pending credit limit view 上增加该功能）。",
+    "contentChars": 0,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "key": "H09|docs/ontology/objects/customer-credit.md",
+    "id": "H09",
+    "type": "boundary",
+    "path": "docs/ontology/objects/customer-credit.md",
+    "title": "客户授信、交易限制与订单信用判断定义",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "Finance信用弹窗权限方案未有已核对配置或交付；临时额度与确认角色材料仅背景",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      }
+    ],
+    "question": "如何让 Finance 团队能查看 Sales Ops 在订单因信用额度被阻塞（Orders Blocked by Credit Limit / credit limit pop-up）时看到的信用额度信息？目前该弹窗需实时计算历史数据、仅在 confirm 按钮触发时计算，Finance 无法查看，需确认是否可配置还是需要开发（在 pending credit limit view 上增加该功能）。",
+    "contentChars": 2382,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "59bd0efdb268f2f1d79fe9c913ead31f43f43780f50eb6615cc0f2733e793bf7"
+  },
+  {
+    "key": "H09|docs/ontology/objects/preorder-backorder.md",
+    "id": "H09",
+    "type": "boundary",
+    "path": "docs/ontology/objects/preorder-backorder.md",
+    "title": "Ontology：预订单与销售欠单",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "Finance信用弹窗权限方案未有已核对配置或交付；临时额度与确认角色材料仅背景",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      }
+    ],
+    "question": "如何让 Finance 团队能查看 Sales Ops 在订单因信用额度被阻塞（Orders Blocked by Credit Limit / credit limit pop-up）时看到的信用额度信息？目前该弹窗需实时计算历史数据、仅在 confirm 按钮触发时计算，Finance 无法查看，需确认是否可配置还是需要开发（在 pending credit limit view 上增加该功能）。",
+    "contentChars": 2237,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "1cde0eb25716046dafc76d1e0a1c95297379588d330acd33710240a57592d680"
+  },
+  {
+    "key": "H11|concepts/approvals/approval-submission-and-progress-triage.md",
+    "id": "H11",
+    "type": "boundary",
+    "path": "concepts/approvals/approval-submission-and-progress-triage.md",
+    "title": "审批提交失败或流程不前进时，怎样分流排查？",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "Group Company新字段需求的当期排期无已核对交付答案",
+    "policies": [
+      {
+        "strategy": "C",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.5,
+        "gap": 0.2
+      },
+      {
+        "strategy": "D",
+        "floor": 0.3,
+        "gap": 0.1
+      },
+      {
+        "strategy": "D",
+        "floor": 0.4,
+        "gap": 0.1
+      },
+      {
+        "strategy": "D",
+        "floor": 0.5,
+        "gap": 0.1
+      }
+    ],
+    "question": "EU UK Odoo Contact 的 \"Group Company\" 字段优化需求：需提交新功能需求审批流程并推进，目标是尽量与毛利表同期（20261029）上线，因为毛利表连锁客户名称取数依赖该字段。",
+    "contentChars": 2192,
+    "primaryChars": 1177,
+    "sourcePaths": [
+      "raw/transcripts/ticket-1021.2026-09-11-fadabcb202e2.md",
+      "raw/transcripts/ticket-1877.2026-09-11-ae9a7a642368.md",
+      "raw/transcripts/ticket-1959.2026-09-11-55d88e4f74ab.md"
+    ],
+    "contentSha256": "424b4fb66d9b3ac62899549fdc0ad12010ac5d3ae3f147456f44fb0984d8d39b"
+  },
+  {
+    "key": "H11|concepts/sales/contact-tag-change-verification.md",
+    "id": "H11",
+    "type": "boundary",
+    "path": "concepts/sales/contact-tag-change-verification.md",
+    "title": "Contact 标签或主数据字段变更前后要核对什么？",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "Group Company新字段需求的当期排期无已核对交付答案",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      }
+    ],
+    "question": "EU UK Odoo Contact 的 \"Group Company\" 字段优化需求：需提交新功能需求审批流程并推进，目标是尽量与毛利表同期（20261029）上线，因为毛利表连锁客户名称取数依赖该字段。",
+    "contentChars": 2357,
+    "primaryChars": 1823,
+    "sourcePaths": [
+      "raw/transcripts/ticket-1656.2026-09-11-8fc5de74491a.md",
+      "raw/transcripts/ticket-474.2026-09-11-59548eb14403.md"
+    ],
+    "contentSha256": "7d1c571e0c97ec0a73ec5596247970d584604cdeafe38bc788f48f0921081921"
+  },
+  {
+    "key": "H12|concepts/faq/contact-backorder-preorder-overview.md",
+    "id": "H12",
+    "type": "boundary",
+    "path": "concepts/faq/contact-backorder-preorder-overview.md",
+    "title": "联系人 Back Order / Pre Order 总览：数量、等待天数与创建销售订单",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "Pre-order默认仓库／合计行新需求无已核对已上线答案",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      }
+    ],
+    "question": "能否在 Pre-orders（预售订单）中实现两项功能：1) 创建 pre-order 时默认自动填充 warehouse（仓库）字段（目前为空，需手动填写，希望像 sales orders 一样有默认仓库）；2) 在 pre-order 底部增加 total quantity（总数量）行以核对自行车总数（目前没有，sales orders 有）。",
+    "contentChars": 0,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "key": "P01|docs/ontology/objects/sales-available-inventory.md",
+    "id": "P01",
+    "type": "positive",
+    "path": "docs/ontology/objects/sales-available-inventory.md",
+    "title": "销售可用库存业务定义",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "负预留单笔处理报告，无方法、数值对账或用户恢复验收；不得清零",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.5,
+        "gap": 0.2
+      }
+    ],
+    "question": "为什么 SKU 081101445001 在 Odoo 仓位 WCB2B/Stock 中计算有误，其 Reserved Quantity 显示为负数？需要修复并刷新/重新计算该 SKU 的 Reserved Quantity。",
+    "contentChars": 2349,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "be343160c4127461e7e6428f093fa504f4081c50ee8e4270e720963a340aaedf"
+  },
+  {
+    "key": "P01|docs/ontology/objects/warehouse-operation.md",
+    "id": "P01",
+    "type": "positive",
+    "path": "docs/ontology/objects/warehouse-operation.md",
+    "title": "仓库作业、审批与外部 WMS 定义",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "负预留单笔处理报告，无方法、数值对账或用户恢复验收；不得清零",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.5,
+        "gap": 0.2
+      }
+    ],
+    "question": "为什么 SKU 081101445001 在 Odoo 仓位 WCB2B/Stock 中计算有误，其 Reserved Quantity 显示为负数？需要修复并刷新/重新计算该 SKU 的 Reserved Quantity。",
+    "contentChars": 2376,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "61d4298a6c9f45c548c389103f08e9c81c1e6aa5f1aba62b7bc79e39f779029a"
+  },
+  {
+    "key": "P04|docs/ontology/objects/journal-item-control.md",
+    "id": "P04",
+    "type": "positive",
+    "path": "docs/ontology/objects/journal-item-control.md",
+    "title": "会计明细控制定义",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "已匹配项与跨Partner样例解释历史差异，不能建立通用AR公式或当前核销正确结论",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      }
+    ],
+    "question": "UK Odoo 中，Aged Receivable 报表里 [CUSTOMER] 的应收总金额为 8295 英镑，但点击 Journal Item 后该客户余额为 25,283 英镑，为什么会有这个差异？（聊天中提及差异约 €16988，部分 matched 的条目未包含在 Dash 的 partner profile 中，需确认原因）",
+    "contentChars": 2357,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "26b288d57bd30620ddace5d30b41bd96caecc06010cf4aa2ddf0003eb16b5b77"
+  },
+  {
+    "key": "P04|docs/ontology/objects/financial-reporting.md",
+    "id": "P04",
+    "type": "positive",
+    "path": "docs/ontology/objects/financial-reporting.md",
+    "title": "财务与毛利报表定义",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "已匹配项与跨Partner样例解释历史差异，不能建立通用AR公式或当前核销正确结论",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      }
+    ],
+    "question": "UK Odoo 中，Aged Receivable 报表里 [CUSTOMER] 的应收总金额为 8295 英镑，但点击 Journal Item 后该客户余额为 25,283 英镑，为什么会有这个差异？（聊天中提及差异约 €16988，部分 matched 的条目未包含在 Dash 的 partner profile 中，需确认原因）",
+    "contentChars": 2363,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "dce11b64eb8212af7bfdb943ce867c90a811eda3bb862ea6e9a4713ddff44afe"
+  },
+  {
+    "key": "P06|docs/ontology/rules/commercial-partner-attribution.md",
+    "id": "P06",
+    "type": "positive",
+    "path": "docs/ontology/rules/commercial-partner-attribution.md",
+    "title": "Commercial Partner 与交易／会计归集规则",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "本端已发为支持报告，末尾仍问联系人类型，未证明个人类型无效或对端已接收",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.5,
+        "gap": 0.2
+      }
+    ],
+    "question": "Ops建单时选择Tenways Office（EU Office）对应的contact，仓库总是接收不到地址和收件人，需要确认该Odoo contact（个人类型）设置是否有效及仓库收不到数据的原因",
+    "contentChars": 2235,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "e4d3b6c74e655c50ad7413f62e6a775b8ee6e38706ca3797c064f27b6f2585ed"
+  },
+  {
+    "key": "N11|concepts/sales/so-price-and-shipping-edit-triage.md",
+    "id": "N11",
+    "type": "boundary",
+    "path": "concepts/sales/so-price-and-shipping-edit-triage.md",
+    "title": "销售订单单价、折扣或运费不可编辑时怎样排查？",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "DK运费金额模板bug，邮件语言案例不能解释金额",
+    "policies": [
+      {
+        "strategy": "C",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "D",
+        "floor": 0.3,
+        "gap": 0.1
+      }
+    ],
+    "question": "SO 确认邮件模板中 DK Delivery charges 显示 €30 而实际应为 €40/piece，请审查该 SO confirm template 并修正金额显示不一致的问题（SO/260618/00021），该问题已被确认为 bug 处理。",
+    "contentChars": 2275,
+    "primaryChars": 2124,
+    "sourcePaths": [
+      "raw/transcripts/ticket-1048.2026-09-11-4fa2f256f7c2.md"
+    ],
+    "contentSha256": "96257f50bb9fbc8678d0a463fe35408016e70432e8f85b185f37ca0b4449edfb"
+  },
+  {
+    "key": "N12|docs/ontology/objects/transaction-tax.md",
+    "id": "N12",
+    "type": "boundary",
+    "path": "docs/ontology/objects/transaction-tax.md",
+    "title": "交易税与税务申报定义",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "汇率显示小数精度，汇率数据停止更新属于不同问题",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      }
+    ],
+    "question": "Odoo JI 的 Journal Item 列表中 Currency Rate（汇率）字段如何配置为显示四位小数，且确保系统升级后配置不被刷掉（需同步修改代码）；确认后仅汇率显示四位小数，credit、debit、balance、amount in currency、Residual、Residual in Currency 等字段仍显示两位。",
+    "contentChars": 2381,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "a1dc5b891489d3621ea6768537bd7d13e78aa1fca943ecf2db9abd847415b21f"
+  },
+  {
+    "key": "N12|docs/ontology/objects/journal-item-control.md",
+    "id": "N12",
+    "type": "boundary",
+    "path": "docs/ontology/objects/journal-item-control.md",
+    "title": "会计明细控制定义",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "汇率显示小数精度，汇率数据停止更新属于不同问题",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      }
+    ],
+    "question": "Odoo JI 的 Journal Item 列表中 Currency Rate（汇率）字段如何配置为显示四位小数，且确保系统升级后配置不被刷掉（需同步修改代码）；确认后仅汇率显示四位小数，credit、debit、balance、amount in currency、Residual、Residual in Currency 等字段仍显示两位。",
+    "contentChars": 2378,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "f36225a80d923b480fb21a35b8ee23f2a4c6037d75b9c666a3cd069e431ef9b4"
+  },
+  {
+    "key": "N14|docs/ontology/objects/business-party.md",
+    "id": "N14",
+    "type": "boundary",
+    "path": "docs/ontology/objects/business-party.md",
+    "title": "Ontology：业务主体、客户／供应商角色与地址",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "价表规则改动日志／弹窗时机，不是价格保存后是否生效",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.5,
+        "gap": 0.2
+      }
+    ],
+    "question": "Pricelist rules 修改规则的两个问题：1) 修改 based on 字段的 pricelist 时日志记录遗漏（预期所有规则修改都应有日志记录）；2) 每次规则修改即触发一次提示弹窗，预期应在整个 pricelist 保存时一次性触发提示弹窗。",
+    "contentChars": 2382,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "f0d4e02a62bd49fcc8050919a01f1fb1e1e89ec4ab1eca0867a8c5e87f739da1"
+  },
+  {
+    "key": "N14|concepts/sales/markup-name-and-price-rules.md",
+    "id": "N14",
+    "type": "boundary",
+    "path": "concepts/sales/markup-name-and-price-rules.md",
+    "title": "价目表名称写了 Markup，为什么订单价格仍没变？",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "价表规则改动日志／弹窗时机，不是价格保存后是否生效",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.5,
+        "gap": 0.2
+      }
+    ],
+    "question": "Pricelist rules 修改规则的两个问题：1) 修改 based on 字段的 pricelist 时日志记录遗漏（预期所有规则修改都应有日志记录）；2) 每次规则修改即触发一次提示弹窗，预期应在整个 pricelist 保存时一次性触发提示弹窗。",
+    "contentChars": 785,
+    "primaryChars": 1644,
+    "sourcePaths": [
+      "raw/transcripts/ticket-139.2026-09-11-3928b320c211.md"
+    ],
+    "contentSha256": "8756cbce91150c83f0520cbf3eca75c00b2e436c5be42721a99e10577fa8b0ff"
+  },
+  {
+    "key": "N15|concepts/integration/shopify-order-sku-mismatch-mapping-and-lifecycle.md",
+    "id": "N15",
+    "type": "boundary",
+    "path": "concepts/integration/shopify-order-sku-mismatch-mapping-and-lifecycle.md",
+    "title": "Shopify 与 Odoo 的 SKU 不同，怎样核对 listing 映射？",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "STOP产品停用前提和时间，不是创建SKU的基础属性",
+    "policies": [
+      {
+        "strategy": "C",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.5,
+        "gap": 0.2
+      },
+      {
+        "strategy": "D",
+        "floor": 0.3,
+        "gap": 0.1
+      },
+      {
+        "strategy": "D",
+        "floor": 0.4,
+        "gap": 0.1
+      },
+      {
+        "strategy": "D",
+        "floor": 0.5,
+        "gap": 0.1
+      }
+    ],
+    "question": "为什么 Product Status 标记为 \"STOP\" 的已停产 SKU（以 CGO600 Pro V0 为例）在 Odoo 中仍处于 active 状态？如果没有特殊原因保留，停用或归档这些 SKU 的前提条件（如清空剩余库存、Shopify 用途等）和预期时间线是什么？",
+    "contentChars": 1432,
+    "primaryChars": 2293,
+    "sourcePaths": [
+      "raw/transcripts/ticket-422.2026-09-11-5579d0995ed3.md",
+      "raw/transcripts/ticket-1675.2026-09-11-124e97f962f4.md"
+    ],
+    "contentSha256": "c88c63007cfbc9f93c2899cc886a14ca27e51b01cebd732617e3d186d8af0241"
+  },
+  {
+    "key": "N15|docs/ontology/objects/product-catalog.md",
+    "id": "N15",
+    "type": "boundary",
+    "path": "docs/ontology/objects/product-catalog.md",
+    "title": "产品主数据、交易变体与渠道投放定义",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "STOP产品停用前提和时间，不是创建SKU的基础属性",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      }
+    ],
+    "question": "为什么 Product Status 标记为 \"STOP\" 的已停产 SKU（以 CGO600 Pro V0 为例）在 Odoo 中仍处于 active 状态？如果没有特殊原因保留，停用或归档这些 SKU 的前提条件（如清空剩余库存、Shopify 用途等）和预期时间线是什么？",
+    "contentChars": 2341,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "1821543ca03c4af00af3ae02e4ecd08cf306216f5780a0bec35302dbcbb84899"
+  },
+  {
+    "key": "N15|concepts/inventory/sku-warehouse-default-location-history.md",
+    "id": "N15",
+    "type": "boundary",
+    "path": "concepts/inventory/sku-warehouse-default-location-history.md",
+    "title": "产品默认仓库和出库单 SL，为什么不能当同一设置？",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "STOP产品停用前提和时间，不是创建SKU的基础属性",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      }
+    ],
+    "question": "为什么 Product Status 标记为 \"STOP\" 的已停产 SKU（以 CGO600 Pro V0 为例）在 Odoo 中仍处于 active 状态？如果没有特殊原因保留，停用或归档这些 SKU 的前提条件（如清空剩余库存、Shopify 用途等）和预期时间线是什么？",
+    "contentChars": 1080,
+    "primaryChars": 1942,
+    "sourcePaths": [
+      "raw/transcripts/ticket-2016.2026-09-11-be032788bcf8.md",
+      "raw/transcripts/ticket-700.2026-09-11-4629e22176ea.md"
+    ],
+    "contentSha256": "c08a0fc79a7a711f087a7d046320215c37e0875c1fade8efa130bd62f1ca82f9"
+  },
+  {
+    "key": "T02|concepts/accounting/asset-re-evaluate-original-value.md",
+    "id": "T02",
+    "type": "positive",
+    "path": "concepts/accounting/asset-re-evaluate-original-value.md",
+    "title": "固定资产已启用后通过重估调整原值",
+    "knownGold": true,
+    "knownWrong": false,
+    "boundary": "1335仅UAT测试；锁期、净值与正式账簿验收未闭环",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.5,
+        "gap": 0.2
+      }
+    ],
+    "question": "Odoo资产卡片的原值需要修改，有什么入口和处理前提？",
+    "contentChars": 0,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "key": "T02|docs/ontology/objects/sales-order-amendment.md",
+    "id": "T02",
+    "type": "positive",
+    "path": "docs/ontology/objects/sales-order-amendment.md",
+    "title": "销售订单修改定义",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "1335仅UAT测试；锁期、净值与正式账簿验收未闭环",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.5,
+        "gap": 0.2
+      }
+    ],
+    "question": "Odoo资产卡片的原值需要修改，有什么入口和处理前提？",
+    "contentChars": 2273,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "024e4d172fea574bd8485660b2be97e004fbcc1fb324e504334b96a6f917a72c"
+  },
+  {
+    "key": "T03|docs/ontology/objects/sales-receipt-reconciliation.md",
+    "id": "T03",
+    "type": "positive",
+    "path": "docs/ontology/objects/sales-receipt-reconciliation.md",
+    "title": "销售收款、核销与汇兑差额定义",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "局部调整报告，无最终根因或性能验收",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      }
+    ],
+    "question": "银行核销每一项约需20秒，Odoo非常慢，怎样查这个问题？",
+    "contentChars": 2328,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "479676cae15c1cd11e6c110a98f3e3925d1d76fba79ccaab69d0ecbbb4c5688f"
+  },
+  {
+    "key": "T03|docs/ontology/processes/purchase-payment-and-reconciliation.md",
+    "id": "T03",
+    "type": "positive",
+    "path": "docs/ontology/processes/purchase-payment-and-reconciliation.md",
+    "title": "采购付款、银行匹配与应付核销",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "局部调整报告，无最终根因或性能验收",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      }
+    ],
+    "question": "银行核销每一项约需20秒，Odoo非常慢，怎样查这个问题？",
+    "contentChars": 1059,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "ecdc98eb31ce105387b827f0444b5938b16fdd035c3cf471b456949ad0ebacc5"
+  },
+  {
+    "key": "T08|concepts/delivery/sales-order-integration-contract-lark-1806.md",
+    "id": "T08",
+    "type": "positive",
+    "path": "concepts/delivery/sales-order-integration-contract-lark-1806.md",
+    "title": "CMC 空车架号与 Westerman 映射导致不能 Done，能合成同一契约吗？",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "合并street1为历史讨论，不证明新接口或当前出库已更新",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      }
+    ],
+    "question": "WCB2C出库的地址2为什么没有传到CMC仓库，经常缺门牌号？",
+    "contentChars": 1024,
+    "primaryChars": 947,
+    "sourcePaths": [
+      "raw/transcripts/ticket-1806.2026-09-22-f58b390ce8fd.md"
+    ],
+    "contentSha256": "a383f4caa80f142ae395f173920b32c544d06ffbd6905c0012c6c6683f98339d"
+  },
+  {
+    "key": "T09|docs/ontology/objects/transaction-tax.md",
+    "id": "T09",
+    "type": "positive",
+    "path": "docs/ontology/objects/transaction-tax.md",
+    "title": "交易税与税务申报定义",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "原票字段说明，不证明当前所有单据实现",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.5,
+        "gap": 0.2
+      }
+    ],
+    "question": "Destination Country字段从哪里取数，是收货地址国家还是客户税号国家？",
+    "contentChars": 2376,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "d120bf15bd9d6c5a7bd3fb0fb1514f8bbcc482bb676bb6c2bebc736b9e03a539"
+  },
+  {
+    "key": "T09|concepts/invoicing/tax-source-selection-history.md",
+    "id": "T09",
+    "type": "positive",
+    "path": "concepts/invoicing/tax-source-selection-history.md",
+    "title": "税率异常来自 Fiscal Position 还是重复联系人？",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "原票字段说明，不证明当前所有单据实现",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      }
+    ],
+    "question": "Destination Country字段从哪里取数，是收货地址国家还是客户税号国家？",
+    "contentChars": 979,
+    "primaryChars": 633,
+    "sourcePaths": [
+      "raw/transcripts/ticket-260.2026-09-11-a03b5dadbbc8.md"
+    ],
+    "contentSha256": "09df662c2bd0d4295833701446d205dc6ea25dcf564cdf8ec5e872f84e2867fd"
+  },
+  {
+    "key": "T11|concepts/integration/uk-shopify-variant-taxable-price-difference-history.md",
+    "id": "T11",
+    "type": "positive",
+    "path": "concepts/integration/uk-shopify-variant-taxable-price-difference-history.md",
+    "title": "UK Shopify 价格导入后多 20%，原票为何检查变体 taxable？",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "历史换商品折扣金额说明，动机推测；0税率仅该单说明",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      }
+    ],
+    "question": "Shopify外币订单商品价格1999 CHF，为什么含税价不是1999？",
+    "contentChars": 906,
+    "primaryChars": 875,
+    "sourcePaths": [
+      "raw/transcripts/ticket-2325.md"
+    ],
+    "contentSha256": "a6816eec8de2233d550d8ad34f2b15e11148beb05969959d1dfe62c979de4ee2"
+  },
+  {
+    "key": "T13|docs/ontology/objects/financial-reporting.md",
+    "id": "T13",
+    "type": "hard_negative",
+    "path": "docs/ontology/objects/financial-reporting.md",
+    "title": "财务与毛利报表定义",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "费用行缺SO关联，不是退货数量正负号",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      }
+    ],
+    "question": "毛利表delivery charge为什么带不出来SO的信息？",
+    "contentChars": 2383,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "e8c57daeefa567a27e8de37f897524f546daacfa02a9e9288e4b3a9f85e1402a"
+  },
+  {
+    "key": "T15|docs/ontology/objects/warehouse-operation.md",
+    "id": "T15",
+    "type": "hard_negative",
+    "path": "docs/ontology/objects/warehouse-operation.md",
+    "title": "仓库作业、审批与外部 WMS 定义",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "新建Return Transit及首次退库Destination配置，不是Next Transfer字段仍显示Return Step2",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      }
+    ],
+    "question": "将虚拟仓位移到Return Transit B2B和B2C新仓库，前缀RTB2B和RTB2C，并绑定首次Return的Destination location，怎样实现？",
+    "contentChars": 2383,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "1bab39578d8b51deb482b47893b85512ec3affc69c45e8bde4c2c73599ebff5b"
+  },
+  {
+    "key": "T15|concepts/inventory/warehouse-location-operation-type-change-checklist.md",
+    "id": "T15",
+    "type": "hard_negative",
+    "path": "concepts/inventory/warehouse-location-operation-type-change-checklist.md",
+    "title": "申请新增或调整仓库、库位和 Operation Type，要说明什么？",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "新建Return Transit及首次退库Destination配置，不是Next Transfer字段仍显示Return Step2",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      }
+    ],
+    "question": "将虚拟仓位移到Return Transit B2B和B2C新仓库，前缀RTB2B和RTB2C，并绑定首次Return的Destination location，怎样实现？",
+    "contentChars": 1220,
+    "primaryChars": 2014,
+    "sourcePaths": [
+      "raw/transcripts/ticket-522.2026-09-11-9bd0169cbc1d.md"
+    ],
+    "contentSha256": "bdcc8ee67b2126f820991f594fea27ab1aefbef5d5989e28fb9e3a4f19731d39"
+  },
+  {
+    "key": "T16|concepts/approvals/approval-submission-and-progress-triage.md",
+    "id": "T16",
+    "type": "hard_negative",
+    "path": "concepts/approvals/approval-submission-and-progress-triage.md",
+    "title": "审批提交失败或流程不前进时，怎样分流排查？",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "员工历史申请导出，不是公共假期导入",
+    "policies": [
+      {
+        "strategy": "C",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "D",
+        "floor": 0.3,
+        "gap": 0.1
+      }
+    ],
+    "question": "请协助导出假勤转移到Lark之前，某位员工在Odoo的历史假期申请。",
+    "contentChars": 2393,
+    "primaryChars": 943,
+    "sourcePaths": [
+      "raw/transcripts/ticket-1877.2026-09-11-ae9a7a642368.md",
+      "raw/transcripts/ticket-1959.2026-09-11-55d88e4f74ab.md",
+      "raw/transcripts/ticket-2300.md"
+    ],
+    "contentSha256": "d636e90254771c979a8520098214a792912d2dfc6cab897228c55c5ce1c20396"
+  },
+  {
+    "key": "T18|concepts/faq/approval-flow-config-change-checklist.md",
+    "id": "T18",
+    "type": "hard_negative",
+    "path": "concepts/faq/approval-flow-config-change-checklist.md",
+    "title": "审批流配置调整:节点/审批人变更的操作规则 FAQ",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "新增审批人配置，不是已有审批waiting/pending状态映射异常",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.5,
+        "gap": 0.2
+      }
+    ],
+    "question": "内部调拨审批流的internal approve节点，请把申请人加入审批人。",
+    "contentChars": 0,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "key": "T20|docs/ontology/objects/portal-legal-terms.md",
+    "id": "T20",
+    "type": "no_answer",
+    "path": "docs/ontology/objects/portal-legal-terms.md",
+    "title": "Portal 法律条款、版本与行为证据定义",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "候选内无本次具体需求的实现／交付依据；仅同主题背景不算答案",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.5,
+        "gap": 0.2
+      }
+    ],
+    "question": "Portal service ticket新版本要求在线订单Invoice PDF只附到ticket，禁止dealer在Portal预览，并把Case Reference改成非必填，这批需求的交付安排是什么？",
+    "contentChars": 2350,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "4f7348cc37963e8f78c329964e3375a9e99b5a523d8bae966c387798a082f7b9"
+  },
+  {
+    "key": "T20|concepts/portal/service-centre-claim-display-history.md",
+    "id": "T20",
+    "type": "no_answer",
+    "path": "concepts/portal/service-centre-claim-display-history.md",
+    "title": "Service Centre 提交与购买凭证预览，历史结果有什么不同？",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "候选内无本次具体需求的实现／交付依据；仅同主题背景不算答案",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.5,
+        "gap": 0.2
+      }
+    ],
+    "question": "Portal service ticket新版本要求在线订单Invoice PDF只附到ticket，禁止dealer在Portal预览，并把Case Reference改成非必填，这批需求的交付安排是什么？",
+    "contentChars": 2058,
+    "primaryChars": 2281,
+    "sourcePaths": [
+      "raw/transcripts/ticket-1681.2026-09-11-8a15b0ee1ad8.md"
+    ],
+    "contentSha256": "3196d05493e1c706038b10ee66fea1c40ec445c9de659b2e8e53428fed29bfc6"
+  },
+  {
+    "key": "T20|docs/ontology/objects/sales-invoice.md",
+    "id": "T20",
+    "type": "no_answer",
+    "path": "docs/ontology/objects/sales-invoice.md",
+    "title": "销售发票与信用单定义",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "候选内无本次具体需求的实现／交付依据；仅同主题背景不算答案",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      }
+    ],
+    "question": "Portal service ticket新版本要求在线订单Invoice PDF只附到ticket，禁止dealer在Portal预览，并把Case Reference改成非必填，这批需求的交付安排是什么？",
+    "contentChars": 2383,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "258712926d923bc6f189260fcef172b39c49fd3bdb8dabed5d7201140efcb02b"
+  },
+  {
+    "key": "T22|docs/ontology/objects/purchase-settlement.md",
+    "id": "T22",
+    "type": "no_answer",
+    "path": "docs/ontology/objects/purchase-settlement.md",
+    "title": "采购入库、供应商账单与付款定义",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "无本次新功能具体实现／交付知识；非关键词同主题即支持",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.5,
+        "gap": 0.2
+      }
+    ],
+    "question": "当前 Odoo 仅允许发票金额大于 0，无法上传金额为 0 的发票（zero-value invoice）；业务上因对 Deel 的月度预付款抵扣相关费用后生成 0 金额发票，需要上传到 Odoo 用于费用确认并核减预付款账面余额，且该审批不会触发付款，系统能否支持上传金额为 0 的发票？",
+    "contentChars": 2373,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "141be8595101de2a025bedc58be20ac277d6504abb85d82157f60e4314e9d855"
+  },
+  {
+    "key": "T22|docs/ontology/objects/sales-invoice.md",
+    "id": "T22",
+    "type": "no_answer",
+    "path": "docs/ontology/objects/sales-invoice.md",
+    "title": "销售发票与信用单定义",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "无本次新功能具体实现／交付知识；非关键词同主题即支持",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.5,
+        "gap": 0.2
+      }
+    ],
+    "question": "当前 Odoo 仅允许发票金额大于 0，无法上传金额为 0 的发票（zero-value invoice）；业务上因对 Deel 的月度预付款抵扣相关费用后生成 0 金额发票，需要上传到 Odoo 用于费用确认并核减预付款账面余额，且该审批不会触发付款，系统能否支持上传金额为 0 的发票？",
+    "contentChars": 2356,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "7e9dcfadee1db0774da18470cc4ad242d6154657d2b309c3d76c44818902e44f"
+  },
+  {
+    "key": "T22|docs/ontology/objects/deferred-expense.md",
+    "id": "T22",
+    "type": "no_answer",
+    "path": "docs/ontology/objects/deferred-expense.md",
+    "title": "递延费用定义",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "无本次新功能具体实现／交付知识；非关键词同主题即支持",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      }
+    ],
+    "question": "当前 Odoo 仅允许发票金额大于 0，无法上传金额为 0 的发票（zero-value invoice）；业务上因对 Deel 的月度预付款抵扣相关费用后生成 0 金额发票，需要上传到 Odoo 用于费用确认并核减预付款账面余额，且该审批不会触发付款，系统能否支持上传金额为 0 的发票？",
+    "contentChars": 2371,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "1bf65006a6783dba3ce0cd7f481043071ce78195d93c225e6c09eabd5af44985"
+  },
+  {
+    "key": "T23|docs/ontology/objects/b2c-sales.md",
+    "id": "T23",
+    "type": "no_answer",
+    "path": "docs/ontology/objects/b2c-sales.md",
+    "title": "B2C 销售、客户地址与 Leasing 角色定义",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "无本次新功能具体实现／交付知识；非关键词同主题即支持",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      }
+    ],
+    "question": "能否为联系人下的 Invoice 创建一个发票地址（invoice address）地址填写区块，使发票上显示与注册地址不同的客户发票地址，且该地址字段为必填？当前系统不支持在 invoice address 下设置 address 区块。",
+    "contentChars": 2214,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "14c47a79d8a0ff1c2cbf29fb1a64626d2d86ffea9acebf38907c5fa82a77d16f"
+  },
+  {
+    "key": "T23|concepts/sales/partner-address-role-history.md",
+    "id": "T23",
+    "type": "no_answer",
+    "path": "concepts/sales/partner-address-role-history.md",
+    "title": "默认地址或母子联系人改变后，怎样避免误改主体？",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "无本次新功能具体实现／交付知识；非关键词同主题即支持",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      }
+    ],
+    "question": "能否为联系人下的 Invoice 创建一个发票地址（invoice address）地址填写区块，使发票上显示与注册地址不同的客户发票地址，且该地址字段为必填？当前系统不支持在 invoice address 下设置 address 区块。",
+    "contentChars": 2283,
+    "primaryChars": 1792,
+    "sourcePaths": [
+      "raw/transcripts/ticket-254.2026-09-11-bf092b0058ee.md"
+    ],
+    "contentSha256": "4c82c037dd4141d607a1feae5e36ccc242cf07cade629ec6ec285810e2ca3dd9"
+  },
+  {
+    "key": "E8-P1|docs/ontology/objects/journal-item-control.md",
+    "id": "E8-P1",
+    "type": "positive",
+    "path": "docs/ontology/objects/journal-item-control.md",
+    "title": "会计明细控制定义",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "40条仅建议；后续500条变快及提速报告不证明缩批根因或当前恢复",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.5,
+        "gap": 0.2
+      }
+    ],
+    "question": "Review Journal Items只选80条数据，五分钟还在loading，怎样排查凭证复核很慢？",
+    "contentChars": 2336,
+    "primaryChars": 0,
+    "sourcePaths": [],
+    "contentSha256": "c41ce37b08e124e72ad3a9bfd12d40bfaaedd5a7941192efc157db50738a0b24"
+  },
+  {
+    "key": "E8-P1|concepts/platform/odoo-slow-operation-investigation.md",
+    "id": "E8-P1",
+    "type": "positive",
+    "path": "concepts/platform/odoo-slow-operation-investigation.md",
+    "title": "Odoo 确认、审批或页面持续很慢，怎样保留有效调查线索？",
+    "knownGold": false,
+    "knownWrong": false,
+    "boundary": "40条仅建议；后续500条变快及提速报告不证明缩批根因或当前恢复",
+    "policies": [
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      }
+    ],
+    "question": "Review Journal Items只选80条数据，五分钟还在loading，怎样排查凭证复核很慢？",
+    "contentChars": 1957,
+    "primaryChars": 1487,
+    "sourcePaths": [
+      "raw/transcripts/ticket-1121.2026-09-11-1bb8404968c6.md",
+      "raw/transcripts/ticket-1137.2026-09-11-226a3d2bfc7c.md",
+      "raw/transcripts/ticket-819.2026-09-11-81ea400c6ae0.md"
+    ],
+    "contentSha256": "dca14c6b4b7c7cd8c988c0ee96055be52523aa3691737234f2aa3e02b269b661"
+  },
+  {
+    "key": "E8-P2|concepts/workforce/sign-document-archive-history.md",
+    "id": "E8-P2",
+    "type": "positive",
+    "path": "concepts/workforce/sign-document-archive-history.md",
+    "title": "Sign 中移除文档是 Archive 还是 Delete？",
+    "knownGold": true,
+    "knownWrong": false,
+    "boundary": "历史答复Archive，不证明永久删除、当前权限或签署记录处置",
+    "policies": [
+      {
+        "strategy": "C",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "B",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "D",
+        "floor": 0.3,
+        "gap": 0.1
+      },
+      {
+        "strategy": "D",
+        "floor": 0.3,
+        "gap": 0.2
+      },
+      {
+        "strategy": "D",
+        "floor": 0.3,
+        "gap": 0.3
+      },
+      {
+        "strategy": "D",
+        "floor": 0.4,
+        "gap": 0.1
+      },
+      {
+        "strategy": "D",
+        "floor": 0.4,
+        "gap": 0.2
+      },
+      {
+        "strategy": "D",
+        "floor": 0.4,
+        "gap": 0.3
+      }
+    ],
+    "question": "How do I remove or delete a document from the Sign app in Odoo?",
+    "contentChars": 236,
+    "primaryChars": 524,
+    "sourcePaths": [
+      "raw/transcripts/ticket-718.2026-09-11-953d80ac6ecc.md"
+    ],
+    "contentSha256": "758f99d737af4c8c417cb1addaeebf271f0dd4d97f04b2e7b310a19524e2e291"
+  }
+]

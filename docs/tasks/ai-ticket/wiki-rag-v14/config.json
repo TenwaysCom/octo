@@ -1,0 +1,30 @@
+{
+  "version": 14,
+  "model": "BAAI/bge-reranker-v2-m3",
+  "threshold": 0.7,
+  "recallLimit": 20,
+  "topN": 5,
+  "finalLimit": 3,
+  "A": {
+    "page": 2400
+  },
+  "B": {
+    "page": 4800,
+    "total": 7200
+  },
+  "C": {
+    "page": 4800,
+    "total": 7200,
+    "incrementOnly": true,
+    "subsetOfB": true,
+    "refill": false
+  },
+  "maxHttpRequests": 40,
+  "newCases": 32,
+  "answerCalls": 0,
+  "judgeCalls": 0,
+  "G": "disabled",
+  "rawSentToModel": false,
+  "oldGateBeforeNewCases": true,
+  "retuneAfterFreeze": false
+}

@@ -1,0 +1,17 @@
+{
+  "scope": "local_html_browser_only",
+  "cases": 120,
+  "basisPanels": 120,
+  "originalPanels": 111,
+  "changedCases": 6,
+  "humanFilter": 68,
+  "waitFilter": 27,
+  "searchAndChangedNavigation": "passed",
+  "historyInitiallyCollapsed": true,
+  "mobileWidth": 390,
+  "mobileHorizontalOverflow": false,
+  "pageErrors": 0,
+  "externalRequests": 0,
+  "deployedRuntimeVerified": false,
+  "browser_script_sha256": "be75a38ee9f54860468a2eb27b7a9007e45e1b808eac541b0fef14037737fa9a"
+}

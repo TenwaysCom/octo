@@ -1,0 +1,100 @@
+{
+  "caseId": "Q03",
+  "group": "A",
+  "payloadHash": "2f0ddc2489124dea3fab5cfef85a259bd4d87fc2f67ab925dbfa0d4557ca221e",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 1,
+      "relevance_score": 0.09235832095146179
+    },
+    {
+      "index": 16,
+      "relevance_score": 0.02044459991157055
+    },
+    {
+      "index": 2,
+      "relevance_score": 0.012292527593672276
+    },
+    {
+      "index": 10,
+      "relevance_score": 0.012083172798156738
+    },
+    {
+      "index": 18,
+      "relevance_score": 0.011994968168437481
+    }
+  ],
+  "durationMs": 387,
+  "querySha256": "b029d73a473f394e681e89807cc180a5cca5253506f8a5eb10f45a4f45e4728b",
+  "queryChars": 29,
+  "documentSha256": [
+    "5a7939de144e6fe3978c563bda26da9dd71ee5b3bb1adc5c2a30af2f67370313",
+    "9e33c9878b00c1634385d7cb0970eb825e809391911e615f940376c4ba2f1c1c",
+    "8e34e928b9d196d13655b84b97e25950564bf001f22be6f44e9e9a03870e3cdf",
+    "438e01491f7b82d4a8bc49c8309f855a9834f2c84389af7705e092d24053a2d4",
+    "c718ccd71c484e164960835420edc9e13003a3e3b90780ac973e8aca98c9db4a",
+    "afc550082fe86ab09d170ba51791a51783437a96a15904cdf843f43a575b1752",
+    "4b684fc16c9e88579d76e810b2b0c2dcfa9333d4f1fae4a175007f3bb9c422cd",
+    "6dd8515f5ba2f4edd459b5de74d9fe014e751f95b5860da086499a8de0c5987e",
+    "25bf8a06e2b51d0990635d9f3d7a1d4b49f0a19e310d293958f68481ffb64869",
+    "da4e02fc702e8af8e6b2fd9133f077521f9af51e93142ba1222949ed32e5a49c",
+    "bdf6698863d8cf0eddff2a263f993633cb16866c5f7d8301f32c49412920ef8f",
+    "9d0c36701f8247933c1962e2d1765b76b7febb67bdad04488b6d1b0028608e60",
+    "7dbc044caa3840b20800fcd5efe88db841cac2336d67c8fb1444c04a6b853f38",
+    "a2f66c73e125ecab2b3e277b384291905c28537a947d04f2ec9046976064a18d",
+    "f4372e054655a3c8eaae8a30a2ca8cf4859abe41ae33a19c38c011c554a68ba1",
+    "3d898580bd0ababf8ac3e1cf33d1ddc7b449effac3d8992decbb732625bbd1ec",
+    "3c09e6f3eee11d8a84aa2e54d9374a0ac84ee8fa0baa051d54b697c63c87e5db",
+    "78a0b15fa11592352e04eab86805c7499fa6a914837078ef064ee4f69e322495",
+    "40350f70d4d4fdfa22389789daef6e0268cb0d7d39076fa34d654c478e8124f7",
+    "c2f00460845cc4b711fb5ffa74d163a22c79dfda431df1cc097e0a4a25981972"
+  ],
+  "documentChars": [
+    1472,
+    1312,
+    1538,
+    1071,
+    624,
+    459,
+    567,
+    545,
+    225,
+    482,
+    769,
+    449,
+    1230,
+    504,
+    1525,
+    1100,
+    2129,
+    818,
+    1233,
+    1481
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/portal/portal-account-parent-company-invoices.md",
+    "docs/llm-wiki/concepts/portal/portal-email-and-archived-account-check.md",
+    "docs/llm-wiki/concepts/access/odoo-login-entry-triage.md",
+    "docs/llm-wiki/concepts/portal/b2b-portal-access-and-dealer-ordering.md",
+    "docs/llm-wiki/concepts/portal/add-to-cart-regression-and-warehouse-history.md",
+    "docs/llm-wiki/concepts/portal/backorder-template-api-contract-500.md",
+    "docs/llm-wiki/concepts/portal/banner-currency-display-history.md",
+    "docs/llm-wiki/concepts/portal/cart-stock-validation-history.md",
+    "docs/llm-wiki/concepts/portal/dealer-portal-delivery-address-server-failure.md",
+    "docs/llm-wiki/concepts/portal/email-regrant-history.md",
+    "docs/llm-wiki/concepts/portal/portal-customer-blocked-operations-checklist.md",
+    "docs/llm-wiki/concepts/portal/purchase-access-types-history.md",
+    "docs/llm-wiki/concepts/portal/service-center-internal-message-exposure-history.md",
+    "docs/llm-wiki/concepts/integration/sync-and-availability-navigation.md",
+    "docs/ontology/objects/portal-legal-terms.md",
+    "docs/ontology/objects/portal-public-inquiry.md",
+    "docs/ontology/objects/portal-support-content.md",
+    "docs/ontology/processes/portal-general-inquiry-handling.md",
+    "docs/ontology/processes/portal-legal-terms-publication-and-acceptance.md",
+    "docs/ontology/processes/portal-support-content-publication.md"
+  ],
+  "queryCAvailable": true
+}

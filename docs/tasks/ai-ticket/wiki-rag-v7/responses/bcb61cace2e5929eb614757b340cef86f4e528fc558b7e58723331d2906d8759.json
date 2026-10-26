@@ -1,0 +1,100 @@
+{
+  "caseId": "Q20",
+  "group": "A",
+  "payloadHash": "bcb61cace2e5929eb614757b340cef86f4e528fc558b7e58723331d2906d8759",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 0,
+      "relevance_score": 0.9923136830329895
+    },
+    {
+      "index": 1,
+      "relevance_score": 0.8310216069221497
+    },
+    {
+      "index": 4,
+      "relevance_score": 0.33336183428764343
+    },
+    {
+      "index": 11,
+      "relevance_score": 0.034097395837306976
+    },
+    {
+      "index": 14,
+      "relevance_score": 0.025830451399087906
+    }
+  ],
+  "durationMs": 382,
+  "querySha256": "e9710e997bef5998628196cfb9a1f63e52b23d7e67ea24d0b03da7d8189ed80f",
+  "queryChars": 30,
+  "documentSha256": [
+    "6fc692606392a4b806840dad7cf45b3b5a03c382fdc667302b504d7c2ff929b9",
+    "1dcbe10ddaa54f137bda171c009d964c7464d8cf9e0aa5c618dd4438d839b397",
+    "5e2d8bd44cf6ae3e238f00ab4356ced928e2b3c23c44eedddb59a8f54fe9c8ae",
+    "01134119b525b4ed1c14f59eeb9b8f295c28e2890cbfc94ce5410282bdbbb6b2",
+    "19f64081ff2ded1fc12907c91d27e954765e08eaf8e97627abb598090171226e",
+    "3ed4ca1fbc31ef51590c5d9de1ab7473ad69377a558fbd9d5e2b00c974231174",
+    "283ea5040a6b67f834e984e1b3480ac4e5d2a19e4bf0fc7a617e2bc857cca0c4",
+    "0f30a73659bc9286ce3b8d2b73f2267ec133ed8cd0350c01112e1a537928e602",
+    "9dcdb423aae048323ded4c3362b20d0302223f40ca75409ae2d6e0e9442b0bdb",
+    "0bcd1dbd0351acdd739a2058a692d6f6b4498fea0c1552f7ec8b980fdd751ccf",
+    "e146b86e4c80ba5bda966f46f871e977d660b072f47ea724091da6764fc7a405",
+    "3084d33f6dca2357eb4fe1c84437141fe37f1de93f7cefbd1aba8b9669426d06",
+    "8703d1ef930d060959a607551fa4ea2c471f584d5a720a332329c2ccb93fb025",
+    "16e7459d8fbf09057db52d46fc522a78186ad6921a04bad09b7a6507e6ac5962",
+    "7b51a43d2d30d8d3fd7e5f8329f6f6fe51c670279e3b312e8c9ba21da76c7022",
+    "ecd3f8786f11cb31c01a8ecf33fdec6d1e71bdbc587677dffab8f1b27a1a9a33",
+    "5cd46f3f17247071de899f0638e717c588007a1af2f2b9d4a91abb3712814c99",
+    "029738cd05f2527da700d0492eb6ac60c5e56f4080655eb9a146f15e7bae3581",
+    "865ac990d895d95b3c527c23a3f0633f8b3350d99202607725dbf1f28e59da43",
+    "a69c9c29a320710108e5d0a12ed80b3e5d090dcc6e86c909f233a876dc59e515"
+  ],
+  "documentChars": [
+    982,
+    248,
+    415,
+    576,
+    362,
+    639,
+    515,
+    1084,
+    608,
+    1285,
+    207,
+    1309,
+    397,
+    784,
+    402,
+    340,
+    916,
+    582,
+    573,
+    555
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/portal/turbo-app-testflight-build-runtime-config-lark-1708.md",
+    "docs/llm-wiki/concepts/faq/turbo-app-testflight-build-expired.md",
+    "docs/llm-wiki/concepts/integration/turbo-customer-sync-abort-history.md",
+    "docs/llm-wiki/concepts/integration/turbo-customer-sync-history.md",
+    "docs/llm-wiki/concepts/payment/turbo-overdue-after-payment-history.md",
+    "docs/llm-wiki/concepts/portal/turbo-android-pixel-startup-investigation.md",
+    "docs/llm-wiki/concepts/access/sales-team-order-visibility-history.md",
+    "docs/llm-wiki/concepts/platform/database-expiry-warning-triage.md",
+    "docs/llm-wiki/concepts/platform/session-expired-csrf-triage.md",
+    "docs/llm-wiki/concepts/reporting/journal-export-session-history.md",
+    "docs/llm-wiki/concepts/reporting/report-filter-visibility-triage.md",
+    "docs/llm-wiki/concepts/reporting/sales-visibility-filter-change-history.md",
+    "docs/llm-wiki/concepts/sales/sale-order-backorder-preorder-runtime-config-lark-1654.md",
+    "docs/llm-wiki/concepts/accounting/review-lock-mismatch-and-review-status-rules.md",
+    "docs/llm-wiki/concepts/integration/app-dealer-data-sync-history.md",
+    "docs/llm-wiki/concepts/integration/sync-and-availability-navigation.md",
+    "docs/llm-wiki/concepts/integration/sync-integration-triage-entry.md",
+    "docs/llm-wiki/concepts/inventory/return-on-return-number-prefix-history.md",
+    "docs/llm-wiki/concepts/platform/odoo-availability-triage.md",
+    "docs/llm-wiki/concepts/reporting/gross-profit-tax-quantity-history.md"
+  ],
+  "queryCAvailable": false
+}

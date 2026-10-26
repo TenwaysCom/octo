@@ -1,0 +1,100 @@
+{
+  "caseId": "Q35",
+  "group": "B",
+  "payloadHash": "18a230ea11ed204bd78946a0f347cba0464941993a72d714f6531edfcde3c1a9",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 0,
+      "relevance_score": 0.9979089498519897
+    },
+    {
+      "index": 1,
+      "relevance_score": 0.1700078696012497
+    },
+    {
+      "index": 18,
+      "relevance_score": 0.0218918789178133
+    },
+    {
+      "index": 14,
+      "relevance_score": 0.009662844240665436
+    },
+    {
+      "index": 9,
+      "relevance_score": 0.009646170772612095
+    }
+  ],
+  "durationMs": 417,
+  "querySha256": "e1791431363c816f793f7ac8ae880cd2bfa9dc35b4e23c997e6f0f770b13ed64",
+  "queryChars": 22,
+  "documentSha256": [
+    "a9ef27ba7b471e6e5c8f7c44fde726d396a052b553eaa719459c764356f2f305",
+    "a18d779aeaf33188dd2fb7f7b22647867e2c68ae37cae26b242beac7dc5d2425",
+    "204db93a765436605ae5948ee5a3ab74c94aa28a3bf93b692021eb3979c2c840",
+    "e8e924d5f7a86464d98c967219028fc3c2495c74b5f07590dd1bb792074fbc05",
+    "1face8c1bc7cff2cea4eb27a398b73e2d28ef1fd7cd569337551925f1860a56c",
+    "f84c2fc821129410107ff6733aeb2bf69b8a0a73fe6b38d0f07cad103b1fc41e",
+    "d7ef91b4669349bcd16686ed0ad162b16a75c6ceac59adb8d25232f6c314eb62",
+    "aa840d9a26bdc51055932d55fefae0d96c11617d644fd36a2a49ccb6b1d93981",
+    "a5f0f1e932707525902929d95eb5bbf82556d37dada25c35afae09cea6f51403",
+    "feb81715691f930ea81a953ff4a7a651bb98aa49b8bbeff6d5de109dd7f4fe05",
+    "642ba4481c0a82f4231f61e1c66ca26b4799ac7edc8870710b4f869b1e478fde",
+    "94746388931268ca6af2be03e2d778a98aec37217deebabd0f337d64d260b674",
+    "cf08e58bc2154bcc721826c048e33a082b98bd919e12d1e66319d632498775c5",
+    "876fb7b535e0a7b69488c81cd926123b2f0819dc99cd4f9ad0da49746e1554ca",
+    "7a5e83bd86e9e8d32867b7bf3747430949f8e896eee29de298a68c6d09f4aff0",
+    "5a1b89ec5cb17358548430c3ad388b74d020ea265ef5353de2127b592e040b47",
+    "25b04e3dc2ccb9b90d918b6a860e02c83b211f1ed07a31e868ebe66b02af0aa1",
+    "506faaf5df43c9090445be96aeb3c358caf00d5086024f330c2a33b94f4c138e",
+    "a1066422e8d065cb671f7ccda3d0e489c7e4250986aff55f89b925f30b53ddbb",
+    "dbaf96fc870713505a472a2136e6187c38f1d6ea76f1b8891e40cfb1d9e3290d"
+  ],
+  "documentChars": [
+    417,
+    3112,
+    666,
+    469,
+    506,
+    601,
+    1382,
+    473,
+    519,
+    835,
+    1638,
+    1145,
+    229,
+    578,
+    986,
+    595,
+    2330,
+    1029,
+    1709,
+    2353
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/faq/does-every-closed-ticket-need-a-qa-card.md",
+    "docs/ontology/objects/service-center-case.md",
+    "docs/llm-wiki/concepts/access/two-factor-login-incident-history.md",
+    "docs/llm-wiki/concepts/accounting/partner-missing-refresh-investigation-history.md",
+    "docs/llm-wiki/concepts/accounting/uk-auto-reconciliation-coverage-history.md",
+    "docs/llm-wiki/concepts/approvals/company-card-field-history.md",
+    "docs/llm-wiki/concepts/delivery/approval-validate-and-backorder-history.md",
+    "docs/llm-wiki/concepts/platform/browser-translation-search-term-history.md",
+    "docs/llm-wiki/concepts/sales/mark-done-current-applicability-investigation.md",
+    "docs/llm-wiki/concepts/sales/sale-order-cancel-loyalty-usage-log-permission.md",
+    "docs/ontology/processes/sales-order-closure.md",
+    "docs/ontology/processes/sales-order-confirmation.md",
+    "docs/llm-wiki/concepts/faq/warehouse-location-operation-type-setup.md",
+    "docs/llm-wiki/concepts/platform/attendance-mobile-entry-history.md",
+    "docs/llm-wiki/concepts/platform/session-expired-csrf-triage.md",
+    "docs/llm-wiki/concepts/workforce/employee-contract-sign-privacy-history.md",
+    "docs/ontology/processes/sales-shortage-replenishment.md",
+    "docs/ontology/processes/user-account-onboarding-and-offboarding.md",
+    "docs/ontology/objects/b2b-portal-sales.md",
+    "docs/ontology/objects/portal-support-content.md"
+  ],
+  "queryCAvailable": false
+}

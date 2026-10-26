@@ -1,0 +1,196 @@
+{
+  "summaries": [
+    {
+      "strategy": "A",
+      "positives": 16,
+      "goldRecall20": 15,
+      "goldTop5": 15,
+      "goldSelected": 9,
+      "goldBody": 8,
+      "goldWithPrimary": 8,
+      "newGoldWithPrimary": [],
+      "lowTop1PositiveCases": [
+        "U04",
+        "U08",
+        "U16"
+      ],
+      "lowTop1PrimaryKept": [],
+      "specifiedWrongTop5": [
+        "U19"
+      ],
+      "specifiedWrongFinal": [],
+      "noAnswerNonempty": [
+        "U26",
+        "U27",
+        "U29",
+        "U30",
+        "U32"
+      ],
+      "noAnswerWithBody": [
+        "U26",
+        "U27",
+        "U29",
+        "U30"
+      ],
+      "newFinalPairsVersusA": []
+    },
+    {
+      "strategy": "B",
+      "positives": 16,
+      "goldRecall20": 15,
+      "goldTop5": 15,
+      "goldSelected": 12,
+      "goldBody": 10,
+      "goldWithPrimary": 10,
+      "newGoldWithPrimary": [
+        "U07",
+        "U16"
+      ],
+      "lowTop1PositiveCases": [
+        "U04",
+        "U08",
+        "U16"
+      ],
+      "lowTop1PrimaryKept": [
+        "U16"
+      ],
+      "specifiedWrongTop5": [
+        "U19"
+      ],
+      "specifiedWrongFinal": [
+        "U19"
+      ],
+      "noAnswerNonempty": [
+        "U25",
+        "U26",
+        "U27",
+        "U29",
+        "U30",
+        "U32"
+      ],
+      "noAnswerWithBody": [
+        "U25",
+        "U26",
+        "U27",
+        "U29",
+        "U30"
+      ],
+      "newFinalPairsVersusA": [
+        "U03|docs/ontology/objects/fixed-asset.md",
+        "U07|docs/ontology/objects/business-approval.md",
+        "U07|concepts/approvals/outbound-notification-client-history.md",
+        "U08|concepts/accounting/journal-asset-field-release-history.md",
+        "U12|docs/ontology/processes/warehouse-document-amendment.md",
+        "U14|concepts/sales/sales-config-checklist.md",
+        "U14|docs/ontology/objects/sales-invoice.md",
+        "U16|concepts/portal/password-reset-mail-history.md",
+        "U16|concepts/portal/portal-customer-blocked-operations-checklist.md",
+        "U17|docs/ontology/objects/journal-item-control.md",
+        "U17|concepts/payment/manual-journal-required-fields-partner-country.md",
+        "U19|docs/ontology/objects/sales-invoice.md",
+        "U19|concepts/accounting/journal-attachment-post-history.md",
+        "U19|concepts/accounting/reverse-entry-type-history.md",
+        "U20|concepts/approvals/approval-routes-and-notifications.md",
+        "U22|concepts/delivery/wms-send-failure-and-unknown-result.md",
+        "U22|docs/ontology/processes/other-inbound-receipt.md",
+        "U24|docs/ontology/objects/financial-reporting.md",
+        "U24|docs/ontology/objects/business-party.md",
+        "U24|docs/ontology/objects/transaction-tax.md",
+        "U25|docs/ontology/processes/budget-contract-payment-approval.md",
+        "U26|concepts/reporting/audit-export-delivery-history.md",
+        "U30|concepts/delivery/wms-feedback-and-marketplace-tracking-triage.md",
+        "U30|concepts/delivery/westerman-booked-tracking-timing-history.md",
+        "U32|concepts/invoicing/amount-comparison-navigation.md",
+        "U32|concepts/invoicing/invoice-so-amount-mismatch.md"
+      ]
+    },
+    {
+      "strategy": "C",
+      "positives": 16,
+      "goldRecall20": 15,
+      "goldTop5": 15,
+      "goldSelected": 11,
+      "goldBody": 9,
+      "goldWithPrimary": 9,
+      "newGoldWithPrimary": [
+        "U16"
+      ],
+      "lowTop1PositiveCases": [
+        "U04",
+        "U08",
+        "U16"
+      ],
+      "lowTop1PrimaryKept": [
+        "U16"
+      ],
+      "specifiedWrongTop5": [
+        "U19"
+      ],
+      "specifiedWrongFinal": [],
+      "noAnswerNonempty": [
+        "U26",
+        "U27",
+        "U29",
+        "U30",
+        "U32"
+      ],
+      "noAnswerWithBody": [
+        "U26",
+        "U27",
+        "U29",
+        "U30"
+      ],
+      "newFinalPairsVersusA": [
+        "U16|concepts/portal/password-reset-mail-history.md"
+      ]
+    },
+    {
+      "strategy": "D",
+      "positives": 16,
+      "goldRecall20": 15,
+      "goldTop5": 15,
+      "goldSelected": 10,
+      "goldBody": 8,
+      "goldWithPrimary": 8,
+      "newGoldWithPrimary": [],
+      "lowTop1PositiveCases": [
+        "U04",
+        "U08",
+        "U16"
+      ],
+      "lowTop1PrimaryKept": [],
+      "specifiedWrongTop5": [
+        "U19"
+      ],
+      "specifiedWrongFinal": [],
+      "noAnswerNonempty": [
+        "U26",
+        "U27",
+        "U29",
+        "U30",
+        "U32"
+      ],
+      "noAnswerWithBody": [
+        "U26",
+        "U27",
+        "U29",
+        "U30"
+      ],
+      "newFinalPairsVersusA": []
+    }
+  ],
+  "competitiveNegativeTop1": [
+    "U25"
+  ],
+  "competitiveSupportWikiTop1": [],
+  "lowTop1PositiveCoverage": {
+    "observed": 3,
+    "required": 4
+  },
+  "negativeCoverage": {
+    "observedScoreBand": 1,
+    "required": 4
+  },
+  "rulesRetunedAfterHoldout": false,
+  "G": "disabled"
+}

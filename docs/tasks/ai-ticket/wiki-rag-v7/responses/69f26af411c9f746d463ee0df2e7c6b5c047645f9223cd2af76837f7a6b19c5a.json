@@ -1,0 +1,100 @@
+{
+  "caseId": "T16",
+  "group": "A",
+  "payloadHash": "69f26af411c9f746d463ee0df2e7c6b5c047645f9223cd2af76837f7a6b19c5a",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 14,
+      "relevance_score": 0.31659135222435
+    },
+    {
+      "index": 10,
+      "relevance_score": 0.19580401480197906
+    },
+    {
+      "index": 0,
+      "relevance_score": 0.1485903561115265
+    },
+    {
+      "index": 2,
+      "relevance_score": 0.06675675511360168
+    },
+    {
+      "index": 1,
+      "relevance_score": 0.05168328806757927
+    }
+  ],
+  "durationMs": 357,
+  "querySha256": "d675e176cd7b123970a283892fd18dfaf87e8146613f3f401ef5714c7da9d602",
+  "queryChars": 34,
+  "documentSha256": [
+    "80ae2b1cf6343a3556c7f96bd43f23a8ae14db8b8faf87529f9e6e3e1b78dd08",
+    "1e38f1175b210b9ffcf4b6c9f3815a66cb62d8a787303c97d97432010c4f3d59",
+    "5ed23c61e97a259859dfa6872104b7442ad2ea4366d814f87592b7377d385940",
+    "cc89d46fea7da288e026d84d7881fdf3523f458d29b7c12bbaca2b1f16a4812e",
+    "866a606a4aabf691942581a08919635a886a0e7605001d925a54cec4dd1e684a",
+    "79ed4550d3c461ade3c11bafd696901ab66aeb889029cbfd9bffe35e0801cbe0",
+    "71953c90d86d7fa1c8da1006b5356efc7be9629e48737bbd895769ac191755e1",
+    "d9c09fa79999fe33217d4d6f81837d4cc6dc20f2a42bd6109aa9d020330e5889",
+    "6742daf861f73fc92c94d93b3d871bd80d297c604a07f9714eccd76693a5bf00",
+    "b94354499b2bfdc2874e5eacb989c6c27e9d8fb5a7cf242d00727d0ec8dc44d2",
+    "fb0464b5bf9f712e9ea13760d8eadb0823c018483784fae716f310b006324275",
+    "140b7bb256a30c4c3c428ce649109abff29171b09c46be35d1f205a2dd068bff",
+    "5b80bd751d6876d016475303bf348b06dd4584facd4c33145b0d07d120eb6225",
+    "532275cf41b201670bc7285fa7453f1f109a53b8d8256490f70ec3cd82cb45a8",
+    "eff45f42c9b9fed44e9ae017d73253791a808ca7f5210f6f287bfad99334293c",
+    "4026b759a729073ebc5a80a8a9c2c49a6f61c54184a589ff4f538784c0fd5817",
+    "a0633c025f82aea12f247156fdba80e56fe5499bc0cb762fd87a601e21acfb77",
+    "9817a7fbcad325f604432496b28dc605582ba329fd38badf43f801d845defb89",
+    "4ffb7eea8ec8e220cf294d01c07a6c3a710f8641a651fffad64b0892a542c960",
+    "6a70989c2bd2d74867b426c93725a51c7b12dc64dcf4deaf26958acb724666dd"
+  ],
+  "documentChars": [
+    2298,
+    682,
+    580,
+    764,
+    440,
+    418,
+    827,
+    825,
+    507,
+    1030,
+    2252,
+    967,
+    737,
+    248,
+    1808,
+    254,
+    353,
+    236,
+    230,
+    363
+  ],
+  "candidatePaths": [
+    "docs/ontology/objects/business-approval.md",
+    "docs/llm-wiki/concepts/workforce/public-holiday-import-history.md",
+    "docs/llm-wiki/concepts/platform/lark-desktop-login-history.md",
+    "docs/llm-wiki/concepts/workforce/time-off-submission-and-retirement-history.md",
+    "docs/llm-wiki/concepts/platform/lark-mail-configuration-history.md",
+    "docs/llm-wiki/concepts/workforce/workforce-support-navigation.md",
+    "docs/llm-wiki/concepts/accounting/payment-request-owner-department-history.md",
+    "docs/llm-wiki/concepts/invoicing/duplicate-employee-old-department-on-journal-item.md",
+    "docs/llm-wiki/concepts/payment/citi-sepa-batch-booking-default-history.md",
+    "docs/llm-wiki/concepts/portal/service-center-internal-message-exposure-history.md",
+    "docs/ontology/objects/workforce-administration.md",
+    "docs/ontology/processes/customer-sales-ownership-change.md",
+    "docs/ontology/processes/standalone-approval-request.md",
+    "docs/llm-wiki/concepts/accounting/journal-asset-field-release-history.md",
+    "docs/llm-wiki/concepts/approvals/approval-submission-and-progress-triage.md",
+    "docs/llm-wiki/concepts/approvals/payroll-chatter-log-history.md",
+    "docs/llm-wiki/concepts/delivery/done-picking-without-physical-shipment-history.md",
+    "docs/llm-wiki/concepts/delivery/sent-picking-split-and-order-line-history.md",
+    "docs/llm-wiki/concepts/delivery/wms-feedback-duplicate-quantity-history.md",
+    "docs/llm-wiki/concepts/delivery/wms-receipt-disputed-history.md"
+  ],
+  "queryCAvailable": true
+}

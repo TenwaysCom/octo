@@ -1,0 +1,100 @@
+{
+  "caseId": "N02",
+  "group": "B",
+  "payloadHash": "596fcec3bc2c27e716ffaf3b83576a9c46d8ea1b57fa64bada00fae24f3feec7",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 3,
+      "relevance_score": 0.9879022836685181
+    },
+    {
+      "index": 4,
+      "relevance_score": 0.9802172183990479
+    },
+    {
+      "index": 0,
+      "relevance_score": 0.9450979232788086
+    },
+    {
+      "index": 17,
+      "relevance_score": 0.7684930562973022
+    },
+    {
+      "index": 2,
+      "relevance_score": 0.7553101778030396
+    }
+  ],
+  "durationMs": 479,
+  "querySha256": "42d69451892fac16b7610fc8e072895438b34dc1a72f518e519cf7f33a9bee1d",
+  "queryChars": 31,
+  "documentSha256": [
+    "a55563f38891dea0810916a936d81019c6d6ef0dcd2c85f2a66203b2c26cf05f",
+    "429e1dc58d51f2a96a740dacf61a6b8f9c23e342caf9920072ef9829df390b81",
+    "a9c3aef936086d48447941ab5a91ace8d91b3c09c4ccb7f7f5085bfe41bdbae8",
+    "74e93a7b68d93da82177e1bf2bde484b398fd1ea6a48e5db5dfe1a0e6f71fbf0",
+    "cd692abdc539a584968c0c994ec8f96dcf4e4296459c81a6621751f355677c4d",
+    "63bbd098b976085bdf81de6707ddc6b16797e31c11d28dd97c8d531a0526809e",
+    "61248d64968cf026701085ae84e7a78e18ce0976a8f292782337c6336aee8dfd",
+    "b28811ed10a8457f1487c61eb32d20e4599afa4dc3e6c30a2e20c2f0493d1c3a",
+    "46c7e752dd8b1d6c16ec7ea53c339e24a7e31a46e23138a04ccac225d987a03f",
+    "a8ede178ca0af1dc13deed2cceb7b5aee3aafc66e1d5f1fb429aeac73f02cb57",
+    "bab97030f39c93f4759b32c02cda407abc8bb5781f3ace74ec7f41637f695b56",
+    "97467a2f406ae71547e6ca5c9445158afa28248f193f682b0364d1d25dc21199",
+    "434ed0e393b251df1303538df5c7520948aa742c2881d9d017109ac915e50398",
+    "d266646e7e78e00158abe32d6f8e9b47005bca7c3ffb8b68ac9a9b6b3655b99e",
+    "b507ab0690aedcdf6c07811e05e02b118153dde5452b416bee3ce76efc6b3ee0",
+    "5b5918205657efd6f86397aecc1c98d44e7dcb13dcdf1ba9d56c8e1500c6930f",
+    "2fd5cd84866eb80d736080ddd989277da331ce6c88acfc8c9e451f79e11c5ef0",
+    "3c2ef699919e856328f2d5c0db7ec802389070a034085678d6b37656e9cee674",
+    "19f3e0668e8ed7e9c3273e8ad7060c1ece136b46f466e6076c0cf2c06bf75d68",
+    "3bb361ab231f3718b1d90127117e07d00454f81d7957ea0ff67369370637eafe"
+  ],
+  "documentChars": [
+    1252,
+    3084,
+    944,
+    1387,
+    1248,
+    1156,
+    701,
+    3198,
+    1505,
+    577,
+    1288,
+    1254,
+    723,
+    2907,
+    3173,
+    1595,
+    1114,
+    1860,
+    1140,
+    3115
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/delivery/cmc-outbound-company-required-error-response.md",
+    "docs/ontology/objects/warehouse-operation.md",
+    "docs/llm-wiki/concepts/delivery/wms-receipt-disputed-history.md",
+    "docs/llm-wiki/concepts/integration/wms-result-unknown-history.md",
+    "docs/llm-wiki/concepts/integration/wms-retry-current-applicability-investigation.md",
+    "docs/llm-wiki/concepts/delivery/delivery-method-analysis-lark-1622.md",
+    "docs/llm-wiki/concepts/integration/cmc-done-frame-refresh-history.md",
+    "docs/ontology/objects/sales-invoice.md",
+    "docs/ontology/processes/shipped-sales-order-amendment.md",
+    "docs/llm-wiki/concepts/reporting/wms-list-filter-receipt-history.md",
+    "docs/llm-wiki/concepts/sales/contact-overview-quantity-and-status.md",
+    "docs/ontology/processes/warehouse-document-amendment.md",
+    "docs/llm-wiki/concepts/delivery/cmc-street2-payload-history.md",
+    "docs/ontology/objects/marketing-sales.md",
+    "docs/ontology/objects/warehouse-inventory-control.md",
+    "docs/ontology/processes/unshipped-sales-order-amendment.md",
+    "docs/llm-wiki/concepts/delivery/approval-stock-done-stages-history.md",
+    "docs/llm-wiki/concepts/delivery/wms-payload-validation-triage.md",
+    "docs/llm-wiki/concepts/sales/mark-done-current-applicability-investigation.md",
+    "docs/ontology/objects/sales-order.md"
+  ],
+  "queryCAvailable": false
+}

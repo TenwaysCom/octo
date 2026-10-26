@@ -1,0 +1,45 @@
+{
+  "frozenInputs": "PASS",
+  "baselineSourceAndKnowledge": "PASS",
+  "previousArtifacts": {
+    "v5": "all previously frozen artifacts unchanged",
+    "v6": "all previously frozen artifacts unchanged"
+  },
+  "rootCriticalApplicationFilesUnchanged": [
+    "adapters/filesystem/wiki-knowledge-reader.ts",
+    "application/services/wiki-qa.service.ts",
+    "domain/wiki-qa.ts",
+    "domain/wiki-evidence.ts"
+  ],
+  "unitMock": {
+    "files": 7,
+    "tests": 209,
+    "passed": true
+  },
+  "snapshotBuild": "PASS",
+  "experimentTypecheck": "PASS",
+  "mockInputBoundaryChecks": "PASS, including actual service A request equivalence and refusal to overwrite frozen inputs",
+  "stability": {
+    "cases": 10,
+    "sameOrderAnd07Decisions": true,
+    "maxScoreDelta": 0.009355604648590088
+  },
+  "notMeasured": [
+    "final generative answers",
+    "current deployed process configuration",
+    "production E2E",
+    "joint v5 recall expansion with rerank",
+    "G source association rollout"
+  ],
+  "requests": {
+    "requests": 231,
+    "success200": 230,
+    "rateLimited429": 1,
+    "limit": 310,
+    "usageProvided": false,
+    "latencyMedianMs": 450,
+    "latencyP95Ms": 616,
+    "maxLatencyMs": 769
+  },
+  "requestPayloadHashes": "recomputed from frozen private inputs for every cached attempt by summarize-v7.py --verify"
+}

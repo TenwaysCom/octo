@@ -1,0 +1,31 @@
+{
+  "unitAndMock": {
+    "exitCode": 0,
+    "testsPassed": 147,
+    "filesPassed": 5,
+    "command": "pnpm --dir /tmp/octo-wiki-rag-v13/candidate/server test src/domain/wiki-primary-budget.test.ts src/domain/wiki-evidence.test.ts src/adapters/filesystem/wiki-knowledge-reader.test.ts src/application/services/wiki-qa.service.test.ts src/adapters/ai/wiki-qa-rerank-client.test.ts",
+    "newBudgetTests": 13,
+    "meaning": "Budget boundaries and existing mock behavior; not a semantic relevance proof or live answer test."
+  },
+  "isolatedBuild": {
+    "exitCode": 0,
+    "command": "pnpm --dir /tmp/octo-wiki-rag-v13/candidate/server build"
+  },
+  "experimentTypecheck": {
+    "exitCode": 0,
+    "files": [
+      "primary-budget-v13.mts",
+      "runtime-v13.mts",
+      "replay-v13.mts"
+    ],
+    "command": "node server/node_modules/typescript/bin/tsc --noEmit --allowImportingTsExtensions --module NodeNext --moduleResolution NodeNext --target ES2022 --skipLibCheck --esModuleInterop --types node --typeRoots server/node_modules/@types server/examples/wiki-retrieval-eval/primary-budget-v13.mts server/examples/wiki-retrieval-eval/runtime-v13.mts server/examples/wiki-retrieval-eval/replay-v13.mts"
+  },
+  "integrityAndSources": {
+    "artifact": "verification.json",
+    "passed": true,
+    "sourceUnitsVerified": 144
+  },
+  "liveRerank": "not_run_due_to_old_set_gate",
+  "liveAnswer": "not_run_explicitly_out_of_scope",
+  "deployedRuntime": "not_run_no_deployment"
+}

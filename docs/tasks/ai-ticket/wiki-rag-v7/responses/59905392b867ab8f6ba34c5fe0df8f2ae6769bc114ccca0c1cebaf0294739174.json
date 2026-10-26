@@ -1,0 +1,100 @@
+{
+  "caseId": "Q22",
+  "group": "B",
+  "payloadHash": "59905392b867ab8f6ba34c5fe0df8f2ae6769bc114ccca0c1cebaf0294739174",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 0,
+      "relevance_score": 0.8703877329826355
+    },
+    {
+      "index": 9,
+      "relevance_score": 0.037981774657964706
+    },
+    {
+      "index": 1,
+      "relevance_score": 0.01892773061990738
+    },
+    {
+      "index": 15,
+      "relevance_score": 0.012985852546989918
+    },
+    {
+      "index": 6,
+      "relevance_score": 0.006049703806638718
+    }
+  ],
+  "durationMs": 468,
+  "querySha256": "95c20d90785718c85e637c17d9f7942eb5e6be0ac232150874af591b9ba8d359",
+  "queryChars": 94,
+  "documentSha256": [
+    "aebfc0c7af16c979652fc8ff54bb5c6435458f92ed2eb590093fabaa15c62c6e",
+    "d6e5056d6c81903dbc427611fce3f25b1c15597d6759e715783869a054ee4720",
+    "4df81012e79cd1946f612a6d79f1399b2778d6b1137c95312c15ee6117f8bdeb",
+    "1e31e82edb60a24f0595e0b64b7342e56ab5d08a6a7808f66e93901c15d01993",
+    "343563d9cd549d2fc520abfd821d1d6f62a506530db74fd4f9aa5e120ce692fc",
+    "00be2c28c949123f345ef5513487a6140009035379bfd791de6fb777ac433db6",
+    "2a3a7a4d4b1cd2b1b14cb0fb55e81868403db28f7d519bc0111d10d63981177b",
+    "33fb9028a0d43dd0984144bcbb60c3381cb5b540eb5b0af60b03e6512351890d",
+    "ee3dd8533aca54be2234f7a5478248eff0242ec68de1e002ff4918a06d4ba48a",
+    "4fc2a5d47318cafb339fe186039dffc31f526fc27657e4fc47bbe5ec3c47d928",
+    "8add468a22ba5ff5df1ebc16e85a404b37bf267834a13acb43a44fa22e3cf584",
+    "75045835f33928d9d51cee0d3b559d10368d0a64e268a9f7acf801497f822236",
+    "a8ede178ca0af1dc13deed2cceb7b5aee3aafc66e1d5f1fb429aeac73f02cb57",
+    "474def85403c81413ca8d5b347e335a6447afea5a5de15dd753dd2641a8ae138",
+    "c67f94ee6e0b791ebc1bb7a17fbb2645b1d8abc38fd6b260451cba9c88a037af",
+    "205819e50ab0f86a215a13036fcf46001113d8cf04df78bdbd01a48feba48770",
+    "7b6d465f2720cc415a889d08a0c57d8236c39c8b13348a399e50d0d9836b3ecf",
+    "6fc0134c63809b28be141b403795857f6692d1927bbb11596f553d0e9aa6afcc",
+    "1ad20eaa7434b1f3d8b30d536c54845c15b6800c951d7c93893484968ae71ed9",
+    "135916f52e88b0140171ffe41d55ea0c53463b8ed3701a4bf07fe7e8e3c3e6d8"
+  ],
+  "documentChars": [
+    461,
+    3131,
+    194,
+    747,
+    1724,
+    1097,
+    1818,
+    620,
+    1402,
+    767,
+    679,
+    592,
+    577,
+    582,
+    975,
+    3181,
+    1537,
+    2846,
+    1073,
+    1285
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/integration/hsbc-stopped-bank-sync-history.md",
+    "docs/ontology/objects/sales-receipt-reconciliation.md",
+    "docs/ontology/objects/transaction-tax.md",
+    "docs/llm-wiki/concepts/accounting/cash-flow-fx-keep-first-account.md",
+    "docs/llm-wiki/concepts/approvals/inflight-approval-owner-change-history.md",
+    "docs/llm-wiki/concepts/delivery/approval-validate-and-backorder-history.md",
+    "docs/llm-wiki/concepts/inventory/reservation-residual-corrections-history.md",
+    "docs/llm-wiki/concepts/inventory/return-on-return-number-prefix-history.md",
+    "docs/llm-wiki/concepts/invoicing/price-and-invoicing-mismatch-triage.md",
+    "docs/llm-wiki/concepts/payment/bank-batch-send-recovery-history.md",
+    "docs/llm-wiki/concepts/payment/non-sepa-bank-identifier-history.md",
+    "docs/llm-wiki/concepts/purchase/bill-bank-send-money-config-history.md",
+    "docs/llm-wiki/concepts/reporting/wms-list-filter-receipt-history.md",
+    "docs/llm-wiki/concepts/sales/refurbished-price-notification-history.md",
+    "docs/llm-wiki/concepts/sales/wms-quantity-field-trace.md",
+    "docs/ontology/objects/cash-flow-allocation.md",
+    "docs/ontology/objects/financial-reporting.md",
+    "docs/ontology/objects/service-center-case.md",
+    "docs/ontology/processes/advanced-access-policy-management.md",
+    "docs/ontology/processes/cash-flow-allocation-and-reconciliation.md"
+  ],
+  "queryCAvailable": true
+}

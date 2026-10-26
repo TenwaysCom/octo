@@ -1,0 +1,100 @@
+{
+  "caseId": "T10",
+  "group": "A",
+  "payloadHash": "053a61635b097865f7b61075e0b1562c2bb9a2d957b59b1276788f5596812097",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 0,
+      "relevance_score": 0.9944644570350647
+    },
+    {
+      "index": 1,
+      "relevance_score": 0.008281308226287365
+    },
+    {
+      "index": 18,
+      "relevance_score": 0.007046989165246487
+    },
+    {
+      "index": 11,
+      "relevance_score": 0.004576921928673983
+    },
+    {
+      "index": 5,
+      "relevance_score": 0.0030566698405891657
+    }
+  ],
+  "durationMs": 510,
+  "querySha256": "43027d42f76e8efd337b54b07997d22def976db147fa5f3ba6dadc478da068c2",
+  "queryChars": 30,
+  "documentSha256": [
+    "6a49c83eef0a5aaf04862e9cc3bf45607fc82ddda13cc615324c3ebb18a4b39d",
+    "2e5bfe1f58cccc8d27b66cfd921f8f9691f60c89a6b46aa55169e5fc4eb65152",
+    "c91cf10b4ae0d964703c9b5d2fa283041e2dcc127ac56b57908900e90f59331e",
+    "01134119b525b4ed1c14f59eeb9b8f295c28e2890cbfc94ce5410282bdbbb6b2",
+    "e2babf44f2a2a728d16dcafdf9ead2221300884506b3cf5630a3640356c8892f",
+    "e4adf38541e559a34111090609488ad104334f83f99d828174638c48fe2f676f",
+    "c536c2f501adfb35997e80f9dd467eaac158cc9d51d2344dbd0ac810c2ae41b8",
+    "43b416aab7507c8304fa60d53858d38aec9540b6ed9a2e007265702acfd00308",
+    "8076866becc24cd25742013c4e184f463f92569ab24f3532dedab7aea03ab458",
+    "b2ae960814a1a7a25ea6428392c19ae11b0df1359f4a1a7cb46da635022dfd18",
+    "6dc5a9858ea7a6a32ffdbef781ad998b79dd56deeb59ce14b17866ad0ccbc967",
+    "fb3f63b1715399023a7ebaf3c307744c7e7b1d944b64bb8dee9d55ac52db1c72",
+    "180bff4a3ffaf16ad4736d80e92b0626de4d1df9e221bff5e35c6d6c16a18927",
+    "099d5b63ba350628f28ef2289bdc993fb4675cc3dbaf630523a4816e80189238",
+    "cd239909385bc9031d30d85b0a928eee4668eb7bbb03b4ff742852b091aff2c9",
+    "d96c9b0129f46d33a5255e13104c4f0ab517eed85e646897cceee897cd530a05",
+    "f97b6d3c807b88fffbee639f9a0c4d815942ce4582d4626f931fdc1a02f0de26",
+    "59b9170652e5b266f0215473b9c929336740edd0476d5777c6741b4957c83918",
+    "dfffc254b386bda5545dbb76128c8993767fb4a399746f2f9b179cb167b47190",
+    "594579005f0a01d6ef9b9ed8e0ca164059d63d2e184756480e906e8d382954c8"
+  ],
+  "documentChars": [
+    375,
+    1529,
+    420,
+    576,
+    2434,
+    2344,
+    1404,
+    994,
+    536,
+    555,
+    342,
+    2228,
+    651,
+    209,
+    757,
+    704,
+    1219,
+    897,
+    2110,
+    579
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/sales/dubai-country-selection-history.md",
+    "docs/ontology/processes/customer-profile-validation.md",
+    "docs/llm-wiki/concepts/delivery/destination-country-source-history.md",
+    "docs/llm-wiki/concepts/integration/turbo-customer-sync-history.md",
+    "docs/ontology/objects/business-party.md",
+    "docs/ontology/objects/b2b-portal-sales.md",
+    "docs/llm-wiki/concepts/sales/contact-overview-create-sales-order.md",
+    "docs/ontology/processes/portal-profile-maintenance.md",
+    "docs/llm-wiki/concepts/integration/turbo-customer-sync-abort-history.md",
+    "docs/llm-wiki/concepts/sales/partner-country-and-order-tax-check.md",
+    "docs/llm-wiki/concepts/sales/pricelist-batch-update-historical-case.md",
+    "docs/ontology/objects/b2c-sales.md",
+    "docs/llm-wiki/concepts/faq/contact-backorder-preorder-overview.md",
+    "docs/llm-wiki/concepts/reporting/missing-record-and-actor-history.md",
+    "docs/llm-wiki/concepts/sales/delivery-address-country-tax-rate.md",
+    "docs/llm-wiki/concepts/sales/pricelist-and-product-maintenance-navigation.md",
+    "docs/ontology/processes/sales-return-receipt-and-disposition.md",
+    "docs/llm-wiki/concepts/accounting/journal-required-dimensions-and-country.md",
+    "docs/ontology/objects/portal-public-inquiry.md",
+    "docs/ontology/processes/b2b-portal-purchase.md"
+  ],
+  "queryCAvailable": true
+}

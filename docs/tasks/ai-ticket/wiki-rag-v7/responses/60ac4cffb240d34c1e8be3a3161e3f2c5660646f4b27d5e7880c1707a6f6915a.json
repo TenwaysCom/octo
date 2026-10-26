@@ -1,0 +1,100 @@
+{
+  "caseId": "Q25",
+  "group": "B",
+  "payloadHash": "60ac4cffb240d34c1e8be3a3161e3f2c5660646f4b27d5e7880c1707a6f6915a",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 18,
+      "relevance_score": 0.8998323678970337
+    },
+    {
+      "index": 8,
+      "relevance_score": 0.8157548904418945
+    },
+    {
+      "index": 10,
+      "relevance_score": 0.708612859249115
+    },
+    {
+      "index": 9,
+      "relevance_score": 0.6028705835342407
+    },
+    {
+      "index": 14,
+      "relevance_score": 0.553558349609375
+    }
+  ],
+  "durationMs": 574,
+  "querySha256": "37f1e2ecd1e4b9c94487da24ef86def9ca3d43f5a8eff67af38c5d92c2f90cd9",
+  "queryChars": 50,
+  "documentSha256": [
+    "d0ae81225825af9186caabc074b561e9d6732e38797e9609404106e0ea4a3a52",
+    "f5d5cbc9ad56f54bb19986ea544148fd8216018eb5a0af7ebee9b44cfff201d5",
+    "334bdca173cdb82499ebb3e0539bf94536d0fd2c24540e0cb7189fcce6328dff",
+    "745965b982a1f0e7cae8cc7e86ef2cbab69d56748e4808e1a344690ff089b7ab",
+    "e908c0a201c0ba84684b1b241aa93d11976341a34a87756108323352c629527d",
+    "1b1963c350bc9103e3817adf6291c7868a2dd762e09dc449f0bbfa67e31952df",
+    "4d728403e7a1b6e3cb8135945f3e7ea4d8697bef7046f6049e06a6bcb65406ad",
+    "4df81012e79cd1946f612a6d79f1399b2778d6b1137c95312c15ee6117f8bdeb",
+    "8185fb783a37f1e92df236d723e831e2a0a50a48cf0855ea5237e18aec6ae2b3",
+    "dd5bc1893b06ea359225099ca2735a43dc7ca12e0aa8ee66c2f6d89367089e48",
+    "777bf4fe14d97d4e0a197ba3c142bfb764fa523be245a6ab66065b3bafaf1a10",
+    "29bb8a0d9ddc448613eafe2a4a0729ac059992b3c34364f6dcc246f69908a417",
+    "90e1fc9e0c73d085237df64f4d58e1f3e1e5807b2e4514efcee755b499b9913c",
+    "75872f5ec4058f9414522aaec90719d1b1e8bf15685d60b3429ddcab1f8c1f80",
+    "7e33e745f3005714773d52c8f37c6713308977c652194b026734320168f8453a",
+    "02ed5ec57a1f9285803576f4cb5b6ce8c519bebbea62d535dae81d99a9b04bb8",
+    "8dd76667cc58b86143eff0ecdef13f20cf2f7965f5bb7ab58c98135853bff68c",
+    "05d4d6388389065fb0b857b10515ecab0c173ea09779d61cb09c8f1961b20500",
+    "9a23f7223a818ff14dc99346a153fed20984ff6a9e0b42a8da24123651ec1a5f",
+    "83d7d72a67ceb65cfb589ad665ee66335492c77bee4ef5983e39669ba2419031"
+  ],
+  "documentChars": [
+    3188,
+    688,
+    689,
+    605,
+    767,
+    2937,
+    209,
+    194,
+    1127,
+    3010,
+    3173,
+    3153,
+    909,
+    726,
+    1493,
+    2523,
+    201,
+    1431,
+    3035,
+    2925
+  ],
+  "candidatePaths": [
+    "docs/ontology/objects/warehouse-inventory-control.md",
+    "docs/llm-wiki/concepts/invoicing/credit-note-auto-mail-cutoff-history.md",
+    "docs/llm-wiki/concepts/invoicing/credit-note-required-type-history.md",
+    "docs/llm-wiki/concepts/platform/lark-desktop-login-history.md",
+    "docs/llm-wiki/concepts/reporting/gross-profit-tax-quantity-history.md",
+    "docs/ontology/objects/b2b-invoice-integration.md",
+    "docs/ontology/objects/business-party.md",
+    "docs/ontology/objects/transaction-tax.md",
+    "docs/ontology/processes/purchase-return-to-supplier.md",
+    "docs/ontology/rules/commercial-partner-attribution.md",
+    "docs/ontology/objects/customer-credit.md",
+    "docs/ontology/objects/purchase-settlement.md",
+    "docs/llm-wiki/concepts/accounting/reverse-entry-type-history.md",
+    "docs/llm-wiki/concepts/inventory/borrowed-bikes-stock-history.md",
+    "docs/ontology/objects/deferred-service-revenue.md",
+    "docs/ontology/objects/journal-item-control.md",
+    "docs/ontology/objects/preorder-backorder.md",
+    "docs/ontology/objects/sales-delivery.md",
+    "docs/ontology/objects/sales-invoice.md",
+    "docs/ontology/objects/sales-return.md"
+  ],
+  "queryCAvailable": true
+}

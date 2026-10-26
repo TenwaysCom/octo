@@ -1,0 +1,100 @@
+{
+  "caseId": "T11",
+  "group": "A",
+  "payloadHash": "b0669e67fe8a59637fc0dad2470ac79ebc758f3006d22e3f5e14636de62db85f",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 0,
+      "relevance_score": 0.9943874478340149
+    },
+    {
+      "index": 1,
+      "relevance_score": 0.4621575176715851
+    },
+    {
+      "index": 4,
+      "relevance_score": 0.2977955937385559
+    },
+    {
+      "index": 14,
+      "relevance_score": 0.16285057365894318
+    },
+    {
+      "index": 13,
+      "relevance_score": 0.1227257028222084
+    }
+  ],
+  "durationMs": 410,
+  "querySha256": "b33412df85628476744539e3ddfc4b35b6bb986c98c1d5fa07b6b9b591a05921",
+  "queryChars": 37,
+  "documentSha256": [
+    "b9ee4491414e11d6c1db2a5c69c8493e39c88910caa77deec18d82632fd21eb8",
+    "d1492fd8d4563e5d14f1ad22955a3e6b20752d232595b1f98ef958d991834a32",
+    "d3da79dc8b18cc242dd9b7f9d119a881c82481f9c64fbc1ceaf1fa60c69f1038",
+    "2a3e23ace83dc8d860ec7db8fda4546c68ed139eae82f9692017088cb0141a2b",
+    "271af46297960cfb49f84f031642e8472d5406cc103f6bcdaf84ced6a70fe787",
+    "aa524b0124a223b2de069b943db09f87dcec94c0416bf36a309b4e31bd42c5c3",
+    "5e0f6039f3f009aa29312b13349d27b265270994cc079a57571fca864a78cd23",
+    "9f5d3dcce83f5f252440b47e7b8f1a5c4d0f3060a1557ce6e9984e49b8ced834",
+    "1dc191b3b0330c0fa6cdf67951776f5c7447404696fd1e7c51610a395b45ab75",
+    "bee1d758a5cec69a19adf4992952d57ae4860d4fdaa562ab8de3ddbde2cd2eac",
+    "3fc7a258b60e07c4d8c76fd9c3b0640cc37f179c19023153b50be2f8fafc6c40",
+    "33260a08acbbf6f57bfa8e283fb8dbe3998ee6b54269fc42e9517f132f12e528",
+    "e864f8220da5ebe02712aaea1d630b61ab7ee5d1f3c2a7765ba7a54c11e5a7e0",
+    "d086cd92bd57895606a9f1102ebed410292f1acc331e46a7ae72c3e4b0856801",
+    "7efd82524b4c556a9238952bfcb084fe6d7f8cd35465ab198fae535c009d896e",
+    "83b2e878026f6878d32e81bbf3b8692c419ce74b85ca6e3fcc6eadcd259198e1",
+    "a8695a6f921f382e8ac610db82367c8b5dfbac326a1472d380691253caecf0d5",
+    "1acb47e50ac8d7c24006f6704a102ba1a151067810823ba63bbb4d1e95255c30",
+    "afab090dbbfc47be82d46fd43133f62244597d9a1e84744e0cd5dcd0a72f5cc5",
+    "5ab7b220ca1c50c9ff6c21b08e6ef870a9c75db5d0accfa9334a1453d5061668"
+  ],
+  "documentChars": [
+    1001,
+    851,
+    960,
+    336,
+    1540,
+    979,
+    731,
+    554,
+    1046,
+    693,
+    2207,
+    205,
+    591,
+    2011,
+    1644,
+    1319,
+    370,
+    251,
+    707,
+    2243
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/sales/shopify-exchanged-product-discount-amount-history.md",
+    "docs/llm-wiki/concepts/integration/uk-shopify-variant-taxable-price-difference-history.md",
+    "docs/llm-wiki/concepts/integration/shopify-import-schedule-and-config-history.md",
+    "docs/llm-wiki/concepts/sales/markup-name-and-price-rules.md",
+    "docs/ontology/processes/b2c-sales-order.md",
+    "docs/llm-wiki/concepts/sales/pricelist-change-historical-order-history.md",
+    "docs/llm-wiki/concepts/integration/shopify-order-import-triage.md",
+    "docs/llm-wiki/concepts/payment/shopify-statement-sync-history.md",
+    "docs/llm-wiki/concepts/sales/pricelist-discount-not-applied-or-price-mismatch.md",
+    "docs/llm-wiki/concepts/sales/uk-shopify-empty-salesperson-default-history.md",
+    "docs/ontology/objects/sales-order.md",
+    "docs/llm-wiki/concepts/faq/shopify-order-not-synced-checklist.md",
+    "docs/llm-wiki/concepts/integration/shopify-paused-order-history.md",
+    "docs/ontology/objects/sales-order-amendment.md",
+    "docs/ontology/processes/sales-tax-determination-and-invoicing.md",
+    "docs/llm-wiki/concepts/reporting/export-grain-and-date-history.md",
+    "docs/llm-wiki/concepts/sales/automatic-order-email-customer-language.md",
+    "docs/llm-wiki/concepts/sales/contact-overview-grouped-product-details.md",
+    "docs/llm-wiki/concepts/sales/product-display-change-history.md",
+    "docs/ontology/objects/preorder-backorder.md"
+  ],
+  "queryCAvailable": true
+}

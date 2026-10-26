@@ -1,0 +1,100 @@
+{
+  "caseId": "N04",
+  "group": "A",
+  "payloadHash": "08cd8c2b3687f5034fb36375387882e04554c8fd9fb59b7ba9aed11a46c8ad9e",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 0,
+      "relevance_score": 0.3478434085845947
+    },
+    {
+      "index": 6,
+      "relevance_score": 0.033592477440834045
+    },
+    {
+      "index": 1,
+      "relevance_score": 0.023665981367230415
+    },
+    {
+      "index": 11,
+      "relevance_score": 0.018692228943109512
+    },
+    {
+      "index": 7,
+      "relevance_score": 0.01820467785000801
+    }
+  ],
+  "durationMs": 418,
+  "querySha256": "fee22bfcddd85355eabf0468a4f1cbef711253b32a55f7e1f0b74c1b68d0a129",
+  "queryChars": 24,
+  "documentSha256": [
+    "c156b15bb9011f3b6a838153f357d8407219f6d5b70d7bce5df67f642a37d286",
+    "52b9fc59e2811f2c399eb712999137bdaf25d1db481621960b41e84df8447807",
+    "04fe3ca8d4534b213e48fe4673db45eae847465c2bed08bfa8a3cec3ca7926a8",
+    "f8dec06a816fc72ad16a8af8e86da752080c17352423d2ca70fd72a5edf081a1",
+    "684a518d65975f9183b76723e9396409d33e27d8fade09fa11cb8ba14f7f48b1",
+    "9b8f91dfe5b07f1584658ad438e692cbd9d7638359be13f27baf31e679bfc8d3",
+    "593e0776873419ed8fa758bd99b087e5a60ffcf7f68f0f6e60b6b62003f0c074",
+    "bda6d319e02fafb390a4d018d76c61204fd576a64f0f21f70fe71d21d6a8ca83",
+    "9487974a653628eae7bfab4f86d77c5662a201c914563cd0e77ac7a4251344a9",
+    "3fa49d4c5e1147bedcc84ae49ca9cb027806137ec85ebe7e8a373c90cca7feb2",
+    "13cd5f0427d3864b77b459b76bda0bd6eb1b90f09247e1efd4e0f515d8bbfa49",
+    "fe5c5a0b3f47ae62d13a6912d613fd1f805914cd23906a9acd838777ebd75ecb",
+    "e038ff0bb309c0d2efdd52bd9dbfd4d8258130b63010f49f4a804273a5bffe53",
+    "254fc7056661115f2361f4fddfee3adbd9fca293e06f468c6c3e260be71a1408",
+    "a2a893e7c75946e596e929583e64e9d5dd9ef72f087d924b9a84cf84d5537419",
+    "f871e26629ebdcdb1ac0e845aaa996f8bdd169df0bd59d8444d2b0c421024c34",
+    "17b62bd3179ddf636aff11c0105ded9437c2b21cf55a7ef31822d55a97a9d745",
+    "a06ab01a95be5f5defbe10194adc0bd3aa617276e0ea12aa6e3b9d27cd270b0e",
+    "f15f8194077832299cd3cc3d5f141377aef6c0d55e6f957945e2845c53f1ec13",
+    "7928b77967748bc24dac5e94219186a94e9761c09ae31bc029a27d80923d1d97"
+  ],
+  "documentChars": [
+    502,
+    1823,
+    2263,
+    826,
+    631,
+    1407,
+    2229,
+    1648,
+    799,
+    906,
+    1820,
+    937,
+    269,
+    1440,
+    606,
+    622,
+    1350,
+    565,
+    1040,
+    2116
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/invoicing/eu-auto-invoice-job-timing-history.md",
+    "docs/ontology/objects/deferred-service-revenue.md",
+    "docs/ontology/objects/fixed-asset.md",
+    "docs/llm-wiki/concepts/invoicing/reshipment-auto-invoice-conflict-history.md",
+    "docs/llm-wiki/concepts/reporting/invoice-ready-filter-history.md",
+    "docs/ontology/processes/sales-invoicing.md",
+    "docs/ontology/objects/marketing-sales.md",
+    "docs/ontology/processes/b2c-leasing-sales.md",
+    "docs/ontology/processes/marketing-invoicing-and-cost-treatment.md",
+    "docs/ontology/processes/purchase-vendor-bill-processing.md",
+    "docs/ontology/processes/sales-tax-determination-and-invoicing.md",
+    "docs/llm-wiki/concepts/accounting/account-mapping-old-journal-history.md",
+    "docs/llm-wiki/concepts/accounting/credit-note-deferred-plan-cancel-history.md",
+    "docs/llm-wiki/concepts/delivery/invoiced-same-sku-reshipment-history.md",
+    "docs/llm-wiki/concepts/invoicing/credit-note-auto-mail-cutoff-history.md",
+    "docs/llm-wiki/concepts/invoicing/dynamo-gln-send-history.md",
+    "docs/llm-wiki/concepts/invoicing/price-and-invoicing-mismatch-triage.md",
+    "docs/llm-wiki/concepts/invoicing/rounding-promotion-after-invoice-history.md",
+    "docs/llm-wiki/concepts/purchase/po-buyer-vendor-correction-history.md",
+    "docs/ontology/objects/purchase-settlement.md"
+  ],
+  "queryCAvailable": false
+}

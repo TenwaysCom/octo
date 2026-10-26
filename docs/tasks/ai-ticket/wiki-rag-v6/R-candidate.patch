@@ -1,0 +1,250 @@
+--- a/server/src/adapters/filesystem/wiki-knowledge-reader.test.ts
++++ b/server/src/adapters/filesystem/wiki-knowledge-reader.test.ts
+@@ -67,7 +67,8 @@
+   it("searches English terms and follows entity links without counting navigation or raw as hits", async () => {
+     const { reader, put } = await fixture();
+     await put("entities/objects/account.md", "# objects\n- ledger missing account → [rule](../../concepts/accounting/report.md)");
+-    const hits = await reader.search({ question: "ledger", keywords: [], objects: [], environments: [] });
++    expect(await reader.search({ question: "ledger", keywords: [], objects: [], environments: [] })).toEqual([]);
++    const hits = await reader.search({ question: "ledger missing account", keywords: [], objects: [], environments: [] });
+     expect(hits.map((hit) => hit.path)).toEqual(["concepts/accounting/report.md"]);
+     expect(hits[0].historicalOnly).toBe(true);
+   });
+@@ -169,8 +170,8 @@
+     for (let i = 0; i < 22; i++) await put(`concepts/faq/report-${i}.md`, card());
+     expect(await reader.search(question)).toHaveLength(20);
+     expect(await reader.search({ ...question, question: "unmatchableword", keywords: [], objects: [] })).toEqual([]);
+-    await put("concepts/accounting/report.md", card("UK Odoo 17", "", "newuniqueword"));
+-    expect(await reader.search({ ...question, question: "newuniqueword", keywords: [], objects: [] })).toHaveLength(1);
++    await put("concepts/accounting/report.md", card("UK Odoo 17", "", "new_unique_word"));
++    expect(await reader.search({ ...question, question: "new_unique_word", keywords: [], objects: [] })).toHaveLength(1);
+     await expect(createWikiKnowledgeReader({ workspaceDir: "/nonexistent-wiki-fixture" }).search(question)).rejects.toMatchObject({ code: "WIKI_QA_UNAVAILABLE" });
+   });
+ 
+--- a/server/src/adapters/filesystem/wiki-knowledge-reader.ts
++++ b/server/src/adapters/filesystem/wiki-knowledge-reader.ts
+@@ -1,3 +1,4 @@
++import { createWikiRelevanceEvaluator, type RelevancePage } from "../../domain/wiki-relevance.js";
+ import { readFile, readdir, realpath, stat } from "node:fs/promises";
+ import { dirname, isAbsolute, relative, resolve } from "node:path";
+ import { redactSupportText } from "../../domain/support-ticket-analysis.js";
+@@ -132,7 +133,19 @@
+   // Keep full primary sources local to this run's candidate objects. They are
+   // never serialized into the rerank request or retained after candidates expire.
+   const originals = new WeakMap<WikiCandidate, WikiSourceEvidence[]>();
++  let relevance: ReturnType<typeof createWikiRelevanceEvaluator> | undefined;
++  let profiles = new Map<string, RelevancePage>();
+   return {
++    assessRelevance(question, candidate) {
++      if (candidate.knowledgeType === "ontology") return { eligible: true, reason: "ontology_unchanged", anchors: [] };
++      const page = profiles.get(candidate.path);
++      if (page?.environments?.length && question.environments.length && !page.environments.includes("待确认")
++        && !question.environments.some((env) => page.environments!.includes(env))) {
++        return { eligible: false, reason: "environment_mismatch", anchors: [] };
++      }
++      return page && relevance ? relevance.assess(question.question, page)
++        : { eligible: false, reason: "unverified_candidate", anchors: [] };
++    },
+     selectEvidence({ candidate, question, evidenceIds, signal }) {
+       signal?.throwIfAborted();
+       const queryTerms = terms([question.question, ...question.keywords, ...question.objects].join(" "));
+@@ -229,10 +242,16 @@
+           { source: wikiRoot, directory: "concepts" },
+           ...(ontologyRoot ? ["objects", "processes", "rules"].map((directory) => ({ source: ontologyRoot, directory, optional: true })) : []),
+         ];
++        const relevanceCorpus: RelevancePage[] = [];
+         for (const { source, directory, optional } of candidateDirectories) {
+           for (const path of await scan(source, directory, optional)) {
+             const text = await read(source, path);
+             if (!text) continue;
++            if (source.knowledgeType === "support_wiki") relevanceCorpus.push({
++              path, title: metadata(text, "title").join(" "), summary: metadata(text, "summary").join(" "),
++              objects: metadata(text, "objects"), environments: metadata(text, "environments"), metadata: ["objects", "processes"].flatMap((key) => metadata(text, key)).join(" "), searchTerms: metadata(text, "search_terms"),
++              body: text.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, ""),
++            });
+             const environments = metadata(text, "environments");
+             if (input.environments.length && environments.length && !environments.includes("待确认")
+               && !input.environments.some((environment) => environments.includes(environment))) continue;
+@@ -254,6 +273,8 @@
+             pages.push({ source, path, text, content, score });
+           }
+         }
++        profiles = new Map(relevanceCorpus.map((page) => [page.path, page]));
++        relevance = createWikiRelevanceEvaluator([...profiles.values()]);
+         // Navigation pages contribute links, never independent knowledge hits.
+         const navigation: Array<{ source: KnowledgeRoot; paths: string[] }> = [{
+           source: wikiRoot,
+@@ -268,12 +289,21 @@
+             for (const line of text.split("\n")) {
+               if (!wikiMatchCount(line, queryTerms)) continue;
+               const linked = linkedPages(line, path, sourcePages.map((page) => page.path));
+-              for (const page of sourcePages) if (linked.includes(page.path)) page.score += 1;
++              for (const page of sourcePages) if (linked.includes(page.path)) {
++                page.score += 1;
++                // Preserve the existing direct entity/index link's meaning;
++                // this does not expand navigation or create another candidate.
++                const profile = profiles.get(page.path);
++                if (profile && group.source.knowledgeType === "support_wiki") {
++                  profile.searchTerms.push(line.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1").replace(/^[-*\s]+/, "").trim());
++                }
++              }
+             }
+           }
+         }
+         const candidates: WikiCandidate[] = [];
+-        for (const page of pages.filter((page) => page.score > 0).sort((a, b) => b.score - a.score
++        for (const page of pages.filter((page) => page.score > 0 && (page.source.knowledgeType === "ontology"
++          || relevance!.assess(input.question, profiles.get(page.path)!).eligible)).sort((a, b) => b.score - a.score
+           || `${a.source.publicRoot}/${a.path}`.localeCompare(`${b.source.publicRoot}/${b.path}`)).slice(0, recallLimit)) {
+           input.signal?.throwIfAborted();
+           const id = `wiki-${candidates.length + 1}`;
+--- a/server/src/application/services/wiki-qa.service.ts
++++ b/server/src/application/services/wiki-qa.service.ts
+@@ -162,7 +162,13 @@
+     }, wikiRankingSchema, input, rerankCandidates), (result) => `已完成候选重排，选出 ${result.matches.length} 篇资料`);
+     const seen = new Set<string>();
+     return runStage("evidence", input, async () => {
+-      const evidence: WikiKnowledgeEvidence[] = ranked.matches.map((match, index) => {
++      const relevantMatches = ranked.matches.filter((match) => {
++        const candidate = rerankCandidates.find((item) => item.id === match.candidateId);
++        // Validate unknown IDs below; relevance must also be checked for an
++        // older candidate deliberately injected after the reader's Top20 gate.
++        return !candidate || !reader.assessRelevance || reader.assessRelevance(extracted, candidate).eligible;
++      });
++      const evidence: WikiKnowledgeEvidence[] = relevantMatches.map((match, index) => {
+         const candidate = rerankCandidates.find((item) => item.id === match.candidateId);
+         const sourcePath = candidate?.sourcePath ?? candidate?.path ?? "";
+         if (!candidate || seen.has(sourcePath) || new Set(match.evidenceIds).size !== match.evidenceIds.length
+--- a/server/src/domain/wiki-qa.ts
++++ b/server/src/domain/wiki-qa.ts
+@@ -65,6 +65,7 @@
+ 
+ export interface WikiKnowledgeReader {
+   search(input: WikiQuestion & { signal?: AbortSignal }): Promise<WikiCandidate[]>;
++  assessRelevance?(question: WikiQuestion, candidate: WikiCandidate): { eligible: boolean; reason: string; anchors: string[] };
+   selectEvidence?(input: { candidate: WikiCandidate; question: WikiQuestion; evidenceIds: string[]; signal?: AbortSignal }): WikiSourceEvidence[];
+ }
+ 
+--- /dev/null
++++ b/server/src/domain/wiki-relevance.test.ts
+@@ -0,0 +1,42 @@
++import { createWikiRelevanceEvaluator, type RelevancePage } from './wiki-relevance.js';
++const p = (body: string, searchTerms: string[] = []): RelevancePage => ({ path: 'concepts/test.md', title: '历史资料', body, searchTerms });
++const evaluator = (page: RelevancePage) => createWikiRelevanceEvaluator([page, ...Array.from({ length: 99 }, (_, i) => ({ path: `concepts/${i}.md`, title: '常见资料', body: 'order bill quantity 数量 订单 重复 没有 approval', searchTerms: [] }))]);
++describe('wiki primary-question relevance', () => {
++  it('rejects generic and connecting terms even when expansions mention a different intent', () => {
++    const page = p('出库单Demand与Quantity建议', ['order', 'but']);
++    const r = evaluator(page);
++    expect(r.assess('order but', page).eligible).toBe(false);
++    expect(r.assess('创建预订单默认仓库', page).eligible).toBe(false);
++  });
++  it('accepts complete business phrases and exact functions without depending on generic confirm tokens', () => {
++    const page = p('采购路径 _tw_purchase_original_currency_unit_price', ['confirm vendor bill', '供应商账单确认失败']);
++    const r = evaluator(page);
++    expect(r.assess('confirm vendor bill', page).reason).toBe('whole_business_phrase');
++    expect(r.assess('供应商账单确认失败', page).eligible).toBe(true);
++    expect(r.assess('_tw_purchase_original_currency_unit_price', page).eligible).toBe(true);
++  });
++  it('needs two independent clues including a distinctive clue for partial matches', () => {
++    const page = p('English German order');const r = evaluator(page);
++    expect(r.assess('English order', page).eligible).toBe(true);
++    expect(r.assess('English', page).eligible).toBe(false);
++  });
++  it('does not count overlapping Chinese bigrams as independent clues', () => {
++    const page = p('购物车');expect(evaluator(page).assess('购物车', page).eligible).toBe(false);
++  });
++  it('rejects a conflicting error class even when the object or function overlaps', () => {
++    const page = p('ValueError: Expected singleton: stock.move() _tw_purchase_original_currency_unit_price');
++    expect(evaluator(page).assess('AccessError _tw_purchase_original_currency_unit_price', page).eligible).toBe(false);
++  });
++});
++
++it('accepts a literal named object plus two title clues without admitting another object from expansions', () => {
++  const page = { ...p('历史记录'), title: '重复订单的历史调查', objects: ['StoreBridge'] };
++  const r = evaluator(page);
++  expect(r.assess('StoreBridge订单重复', page).eligible).toBe(true);
++  expect(r.assess('AnotherStore订单重复', page).eligible).toBe(false);
++});
++
++it('honors a bilingual primary object constraint despite a rare but generic quantity token', () => {
++  const page = { ...p('Quantity 仓库数量'), title: 'Demand Quantity 与仓库' };
++  expect(evaluator(page).assess('Pre-orders（预售订单）默认仓库和 quantity', page).reason).toBe('explicit_object_mismatch');
++});
+--- /dev/null
++++ b/server/src/domain/wiki-relevance.ts
+@@ -0,0 +1,75 @@
++import { wikiErrorSignatures, wikiQueryTerms } from './wiki-evidence.js';
++
++export interface RelevancePage { path: string; title: string; body: string; summary?: string; metadata?: string; objects?: string[]; environments?: string[]; searchTerms: string[] }
++export interface RelevanceDecision { eligible: boolean; reason: string; anchors: string[] }
++const normalize = (value: string) => value.normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}_]+/gu, ' ').replace(/\s+/g, ' ').trim();
++const glue = new Set('but then into through there here than all same instead because so such each every either both been yet just'.split(' '));
++const effective = (text: string) => wikiQueryTerms(text.replace(/([A-Za-z])(\d)/g, '$1 $2'))
++  .filter((t) => !glue.has(t) && !/^reference$/i.test(t))
++  .map((t) => /^[a-z]{5,}s$/.test(t) && !t.endsWith('ss') ? t.slice(0, -1) : t);
++const phraseHasContent = (phrase: string) => /[\u3400-\u9fff]{4,}/.test(phrase) || new Set(effective(phrase).filter((t) => /^[a-z_]/i.test(t))).size >= 2;
++const technicalAnchors = (text: string) => [...new Set([
++  ...(text.match(/\b(?:[A-Za-z]\w*(?:Error|Exception):\s*)?Expected singleton:\s*[\w.]+\(\)/g) ?? []),
++  ...(text.match(/\b_?[A-Za-z]\w*_[A-Za-z][\w.]*/g) ?? []).filter((a) => !/^(?:rpc_error|uncaughtpromise_error)$/i.test(a)),
++])];
++
++// Primary question establishes relevance. Expansions never establish it alone.
++// The whole corpus is local to a reader run; no cross-workspace global state.
++export function createWikiRelevanceEvaluator(pages: RelevancePage[]) {
++  const dfs = new Map<string, number>();
++  for (const page of pages) for (const term of new Set(effective(page.title + '\n' + page.body))) dfs.set(term, (dfs.get(term) ?? 0) + 1);
++  const rareMax = pages.length * 0.05;
++  const nonoverlapping = (terms: string[], question: string) => {
++    const words = terms.filter((t) => /^[a-z_0-9]/i.test(t));
++    const cn = terms.filter((t) => !/^[a-z_0-9]/i.test(t)).map((term) => ({ term, start: question.toLowerCase().indexOf(term) }))
++      .filter((t) => t.start >= 0).sort((a, b) => a.start - b.start || b.term.length - a.term.length);
++    let end = -1;
++    for (const item of cn) if (item.start >= end) { words.push(item.term); end = item.start + item.term.length; }
++    return words;
++  };
++  const assess = (question: string, page: RelevancePage): RelevanceDecision => {
++    const text = [page.title, page.body, page.summary ?? "", page.metadata ?? "", ...page.searchTerms].join('\n');
++    // A bilingual object explicitly named in the primary question is a
++    // constraint, not an optional keyword supplied by extraction.
++    const namedObjects = [...question.matchAll(/([A-Za-z]+(?:-[A-Za-z]+)+)\s*[（(][\u3400-\u9fff]/g)]
++      .map((m) => m[1].toLowerCase().replaceAll('-', '').replace(/s$/, ''));
++    const compact = text.toLowerCase().replace(/[^a-z]/g, '');
++    if (namedObjects.some((name) => !compact.includes(name))) {
++      return { eligible: false, reason: 'explicit_object_mismatch', anchors: namedObjects };
++    }
++    const signatures = wikiErrorSignatures(question);
++    const pageSignatures = wikiErrorSignatures(text);
++    if (signatures.length && pageSignatures.length && !signatures.some((s) => pageSignatures.includes(s))) {
++      return { eligible: false, reason: 'conflicting_error_signature', anchors: [] };
++    }
++    const technical = technicalAnchors(question).filter((anchor) => text.includes(anchor));
++    if (technical.length) return { eligible: true, reason: 'exact_technical_anchor', anchors: technical };
++    const q = ' ' + normalize(question) + ' ';
++    const phrases = [page.title, ...page.searchTerms].filter((p) => phraseHasContent(p) && q.includes(' ' + normalize(p) + ' '));
++    if (phrases.length) return { eligible: true, reason: 'whole_business_phrase', anchors: phrases };
++    if (phraseHasContent(question) && (' ' + normalize(text) + ' ').includes(q)) {
++      return { eligible: true, reason: 'whole_primary_question', anchors: [question] };
++    }
++    const available = new Set(effective(text));
++    const matched = effective(question).filter((term) => available.has(term));
++    const distinct = nonoverlapping(matched, question);
++    const rare = distinct.filter((term) => (dfs.get(term) ?? 0) <= rareMax && !/(?:error|exception)$/i.test(term) && !/^\d/.test(term));
++    // A literal named business object plus two independent title clues is
++    // a compound business anchor even when each word is common in this corpus.
++    const primaryObjects = new Set((question.toLowerCase().match(/[a-z0-9_]+(?:\.[a-z0-9_]+)*/g) ?? []));
++    const named = (page.objects ?? []).filter((object) => effective(object).length && primaryObjects.has(object.toLowerCase()));
++    const titleTerms = new Set(effective(page.title));
++    const titleClues = nonoverlapping(distinct.filter((term) => !/^\d/.test(term) && titleTerms.has(term)), question);
++    if (named.length && titleClues.length >= 2) {
++      return { eligible: true, reason: 'named_object_and_title_clues', anchors: [...named, ...titleClues] };
++    }
++    const accountIds = [...question.matchAll(/(?:科目|account|GL)\s*(\d{4,6})|\b(\d{4,6})\s*(?:科目|分录)/gi)]
++      .map((m) => m[1] ?? m[2]).filter((id) => new RegExp(`\\b${id}\\b`).test(text));
++    if (accountIds.length && distinct.some((t) => !/^\d/.test(t))) {
++      return { eligible: true, reason: 'typed_account_with_context', anchors: [...accountIds, ...distinct] };
++    }
++    return { eligible: distinct.length >= 2 && rare.length > 0,
++      reason: distinct.length >= 2 && rare.length ? 'combined_primary_clues' : 'insufficient_primary_clues', anchors: distinct };
++  };
++  return { assess, documentCount: pages.length, rareMax, documentFrequency: (term: string) => dfs.get(term) ?? 0 };
++}

@@ -203,3 +203,56 @@ it("shares the configured recall limit and validates integer bounds", async () =
     await expect(reader.search(question)).rejects.toMatchObject({ code: "WIKI_QA_UNAVAILABLE", diagnostic: { stage: "server.wiki_qa.retrieve.config" } });
   }
 });
+
+describe("optional concept discovery metadata", () => {
+  const query = (q: string): WikiQuestion => ({ question: q, keywords: [], objects: [], environments: [] });
+
+  it("retrieves search_terms-only hits with complete body and caveats, without inventing primary evidence", async () => {
+    const { reader, put } = await fixture();
+    await put("concepts/accounting/report.md", card("UK Odoo 17", 'search_terms: ["ALIAS_ONLY", "ALIAS_ONLY"]\n', '# 历史线索\n\n有过当次处理报告。\n\n## 适用限制\n仅限历史记录，仍未解决，不能直接照搬。'));
+    const hits = await reader.search(query("ALIAS_ONLY"));
+    expect(hits).toHaveLength(1);
+    expect(hits[0].content).toContain("有过当次处理报告");
+    expect(hits[0].content).toContain("仍未解决");
+    expect(hits[0].content.length).toBeLessThanOrEqual(2400);
+    expect(reader.selectEvidence!({ candidate: hits[0], question: query("ALIAS_ONLY"), evidenceIds: hits[0].sourceEvidence.map((s) => s.id) })).toEqual([]);
+  });
+
+  it("retrieves summary-only hits, preserving its unknown outcome and original body", async () => {
+    const { reader, put } = await fixture();
+    await put("concepts/accounting/report.md", card("UK Odoo 17", 'summary: "SUMMARY_ONLY，恢复尚未验证"\n', '# 历史线索\n\n具体处理仍需核对。'));
+    const hits = await reader.search(query("SUMMARY_ONLY"));
+    expect(hits).toHaveLength(1);
+    expect(hits[0].content).toContain("恢复尚未验证");
+    expect(hits[0].content).toContain("具体处理仍需核对");
+  });
+
+  it("does not extend concept discovery metadata to ontology pages", async () => {
+    const { reader, putOntology } = await fixture();
+    await putOntology("objects/neutral.md", '---\nstatus: draft\nsummary: ONTOLOGY_ALIAS_ONLY\nsearch_terms: [ONTOLOGY_ALIAS_ONLY]\n---\n# 中性定义\n\n业务定义保持原样。');
+    expect(await reader.search(query("ONTOLOGY_ALIAS_ONLY"))).toEqual([]);
+  });
+
+  it("counts a term once per existing scoring group, including a repeated summary or alias", async () => {
+    const { reader, put } = await fixture();
+    const body = '# NEUTRAL\n\nGROUP_TOKEN 仅供历史核对。';
+    await put("concepts/accounting/a.md", card("UK Odoo 17", 'objects: [GROUP_TOKEN]\nsummary: "GROUP_TOKEN"\n', body).replace('objects: [account.account]\n', ''));
+    await put("concepts/accounting/z.md", card("UK Odoo 17", 'objects: [GROUP_TOKEN]\nsummary: "GROUP_TOKEN GROUP_TOKEN"\nsearch_terms: [GROUP_TOKEN, GROUP_TOKEN]\n', body).replace('objects: [account.account]\n', ''));
+    expect((await reader.search(query("GROUP_TOKEN"))).map((hit) => hit.path)).toEqual(['concepts/accounting/a.md', 'concepts/accounting/z.md']);
+  });
+
+  it("refuses a metadata fallback that would drop an oversized caveat, and keeps environment exclusion", async () => {
+    const { reader, put } = await fixture();
+    await put("concepts/accounting/report.md", card("UK Odoo 17", 'search_terms: [ALIAS_ONLY]\n', '# 历史\n\n操作报告。\n\n## 限制\n'+ '不可复用'.repeat(700)));
+    expect((await reader.search(query("ALIAS_ONLY")))[0].content).toBe("");
+    expect(await reader.search({ ...query("ALIAS_ONLY"), environments: ['US Odoo 18'] })).toEqual([]);
+  });
+});
+
+// Added during static review before inspecting independent per-case results.
+it("keeps applicability boundaries on metadata-only hits even when the heading says scope", async () => {
+  const { reader, put } = await fixture();
+  await put("concepts/accounting/report.md", card("UK Odoo 17", 'search_terms: [SCOPE_ALIAS]\n', '# 历史线索\n\n支持曾报告处理。\n\n## 适用范围与待确认\n当前部署未核验，不能照搬。'));
+  const hit = (await reader.search({ question: 'SCOPE_ALIAS', keywords: [], objects: [], environments: [] }))[0];
+  expect(hit.content).toContain('当前部署未核验，不能照搬。');
+});

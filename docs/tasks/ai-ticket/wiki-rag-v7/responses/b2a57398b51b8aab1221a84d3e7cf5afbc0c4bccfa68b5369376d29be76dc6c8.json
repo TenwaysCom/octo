@@ -1,0 +1,100 @@
+{
+  "caseId": "H08",
+  "group": "B",
+  "payloadHash": "b2a57398b51b8aab1221a84d3e7cf5afbc0c4bccfa68b5369376d29be76dc6c8",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 19,
+      "relevance_score": 0.8229478597640991
+    },
+    {
+      "index": 2,
+      "relevance_score": 0.662754237651825
+    },
+    {
+      "index": 1,
+      "relevance_score": 0.43130844831466675
+    },
+    {
+      "index": 11,
+      "relevance_score": 0.3004549443721771
+    },
+    {
+      "index": 5,
+      "relevance_score": 0.2674607038497925
+    }
+  ],
+  "durationMs": 581,
+  "querySha256": "cb1bf04bb96a4189d2b0fd1876b26925b68d8eaa736282031e1afb9702f905b0",
+  "queryChars": 98,
+  "documentSha256": [
+    "8ef0f5382dc3ed0923701aaf65c23625810f25b14c07fbd727a7fdbbc3440909",
+    "b5b3fd4c5c7ba263d79590ef31e6ca88b284a3d6cbdc865b473fbdd6cfce69ea",
+    "6b6cb002dc2d5c5dbe8b79a57d66ecc44cfa65ddd0c91b300337ba2cbacae637",
+    "bb9a4d10de242e2c365921d0832e771db0d45e2d9ac9244d010b155b475340b3",
+    "cf0ce76516e750b7c8c26badf72af0e4bce78c616db15c580fa7c8cd3bf0b9ff",
+    "178a9b7ccce652eef5aa1bf7f18103c45ca4b20f72cbddb18d19b8fbd3ec595b",
+    "ddbacfe792a16376b94752c59c9c9f5ad9047eca0263241682538ca722e932e2",
+    "a75941bb1e72ea210e31919cdd734361ec768fcc810ed64e313d8e1433f201b1",
+    "d7ef91b4669349bcd16686ed0ad162b16a75c6ceac59adb8d25232f6c314eb62",
+    "4ad6e9e56ce5e58b45eefe05ebd8bb7edb1150f1231df58ad08c39afe434ef43",
+    "4d728403e7a1b6e3cb8135945f3e7ea4d8697bef7046f6049e06a6bcb65406ad",
+    "03c7a6e1f8ed1d6454e477f372e5643536c608879978a3c3551986bcade223c1",
+    "ce127c9ea8726e6e88e4ff1a1d07ea9224576a4744165780f644ae817dcc3f38",
+    "5a2d2377ca6324a663e7470b8138cd9b869111237adf9adb2729c2bd8537849e",
+    "351033b1652ab6563f9aabc6dc78348b9a617d2d69cd5fce22e7fd0c96ee45d8",
+    "5bc2846b517e6707776283aef4c07b413167edf07118c49e4f40fb39f90c4c74",
+    "f6271237bb8da370a104b43c07c646d58d2a05f85aff15ba579fd089973385b0",
+    "43174e4fa8eabd28a7b0056710b9f30d1c79b38a877bdae03e63eb2e18bf1f14",
+    "32f077bf5194f6ad878185868aab96f6431b0e412cf8ce87827413328323d31a",
+    "451e9b799785c4f1c925aec9e6acad930aaea221d3e9054b0f4a4918f9e4e6f0"
+  ],
+  "documentChars": [
+    3132,
+    3151,
+    3144,
+    819,
+    989,
+    1647,
+    911,
+    1020,
+    1382,
+    1134,
+    209,
+    3196,
+    936,
+    3165,
+    3150,
+    3094,
+    3193,
+    1026,
+    833,
+    3198
+  ],
+  "candidatePaths": [
+    "docs/ontology/objects/business-approval.md",
+    "docs/ontology/objects/warehouse-operation.md",
+    "docs/llm-wiki/concepts/approvals/approval-submission-and-progress-triage.md",
+    "docs/llm-wiki/concepts/approvals/change-request-scheduling-history.md",
+    "docs/llm-wiki/concepts/delivery/wms-send-queue-historical-case.md",
+    "docs/llm-wiki/concepts/inventory/warehouse-location-operation-type-change-checklist.md",
+    "docs/llm-wiki/concepts/sales/uk-odoo-approval-buttons-browser-cache.md",
+    "docs/llm-wiki/concepts/faq/contact-backorder-preorder-overview.md",
+    "docs/llm-wiki/concepts/delivery/approval-validate-and-backorder-history.md",
+    "docs/llm-wiki/concepts/inventory/purchase-return-original-receipt-value.md",
+    "docs/ontology/objects/business-party.md",
+    "docs/ontology/objects/warehouse-inventory-control.md",
+    "docs/llm-wiki/concepts/sales/marketing-approval-online-shipment-history.md",
+    "docs/ontology/objects/financial-reporting.md",
+    "docs/ontology/objects/purchase-settlement.md",
+    "docs/ontology/objects/sales-invoice.md",
+    "docs/ontology/objects/sales-order.md",
+    "docs/ontology/processes/budget-contract-payment-approval.md",
+    "docs/ontology/processes/standalone-approval-request.md",
+    "docs/llm-wiki/concepts/access/permission-request-and-effective-access.md"
+  ],
+  "queryCAvailable": false
+}

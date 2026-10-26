@@ -1,0 +1,10 @@
+{
+  "priorApprovalBlock": "Preserved; user explicitly authorized the destination and frozen content before the first actual request.",
+  "preparationCorrection": "redactSupportText imported from its actual support-ticket-analysis module after a preparatory TypeError; occurred before draft output, label freeze or new holdout model calls.",
+  "sampleSelection": "32 distinct incidents; original questions manually paraphrased/translated; 15/16 positive recall, U05 miss retained; all 8 negative pages chosen from actual recall before scoring. No post-score substitutions.",
+  "unusedBudget": 8,
+  "liveRetries": 0,
+  "newDContexts": 0,
+  "G": "disabled",
+  "qualityConclusion": "Not accepted; positive rescue not demonstrated, no-support high-score contexts remain, specialized coverage insufficient."
+}

@@ -1,0 +1,100 @@
+{
+  "caseId": "T06",
+  "group": "A",
+  "payloadHash": "f3684460ae89e18553afa05f6231ed8fa9ec6e712983cac21a2ef82fca33f201",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 0,
+      "relevance_score": 0.9898785352706909
+    },
+    {
+      "index": 2,
+      "relevance_score": 0.9411651492118835
+    },
+    {
+      "index": 16,
+      "relevance_score": 0.9285446405410767
+    },
+    {
+      "index": 4,
+      "relevance_score": 0.5884380340576172
+    },
+    {
+      "index": 7,
+      "relevance_score": 0.4959275722503662
+    }
+  ],
+  "durationMs": 442,
+  "querySha256": "ff44725a052fae01254c09e4d39d349ede1d4c5e695b491d48c6d0cb91d82e6d",
+  "queryChars": 42,
+  "documentSha256": [
+    "e75b44df8e3c74cb70e92570215acd8187d1a31305d5f4037240ee3b42684c5b",
+    "61e5e54fa0990d5921b90ff76f95482a9736befae6dc8fb92f39dbb418afcacd",
+    "f47eee8d72931ebe3f538583be0e7fdb995b1a10de3011053a4497c994cad649",
+    "42809f9346b809343fbc4b9b34570061a579c86ad0a21f333f4d9cc0814b4764",
+    "a6f9c4db9d3582b004a2dd362587a4c992cd5b3c61a006aded89e8928660d606",
+    "5cc6a3e1f74404e0653e9bd6c1cd141a77adfcf9f85f8270588eaae8f5d38a2a",
+    "8a323823dc7d5b11b15ce0ecfdf63349e041993da9e683bed30623336964d683",
+    "818304b660ca3a8bbf162162100f7c5285c4561e6bb4d81db85a0fb9d7fa97e4",
+    "3fbc22dce25daddaa1427a0e498f2d2ac7515c437ccd7569021a10f2fa40174e",
+    "80cc1316a42208eb12f2e1749de21af28c639cab097b03401b0333cdd7a98701",
+    "88e33735120a83b271efbece8b681885ab6304910fd40c5dacf98dcdfe4f7937",
+    "3eacbdd3086c8fd628a177231549483dc33134e327cc6a2ff173591fef735c04",
+    "70454553d0ef5ac0bcf1971ed702f6a35aa432086e8eb6344b875cb9dee0d270",
+    "5b80bd751d6876d016475303bf348b06dd4584facd4c33145b0d07d120eb6225",
+    "3b3b048f9bfd636bb1d6f72827c7c4ac945a68bd794f8f5d57177eada4198c95",
+    "1d0408662f450598e1af98aab246ad291ae18508cd61023326f568560b525284",
+    "601ff07b0032474dd63c7a0d4cb057e8498b6db7d82f8714ff79c41c83e575f5",
+    "257034e859386210731e85c11f4a1c13ef03184e89c4d16a338d7640ae895214",
+    "17223a108aa5064ee603b11cf0fb16be507e9cfe54486516c7ab4bf86be54d23",
+    "fddfc32d7cc3a26ddc93a3c0a83c3b87c1245d35be0fb8335738dbca483b86cc"
+  ],
+  "documentChars": [
+    699,
+    2444,
+    1351,
+    1180,
+    1004,
+    952,
+    930,
+    1368,
+    935,
+    1134,
+    2253,
+    667,
+    776,
+    737,
+    718,
+    740,
+    1729,
+    558,
+    935,
+    1220
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/approvals/approval-status-button-mapping-history.md",
+    "docs/ontology/objects/business-approval.md",
+    "docs/llm-wiki/concepts/approvals/approval-submission-and-progress-triage.md",
+    "docs/ontology/processes/embedded-business-record-approval.md",
+    "docs/llm-wiki/concepts/delivery/approval-stock-done-stages-history.md",
+    "docs/llm-wiki/concepts/inventory/start-stock-operation-button-check.md",
+    "docs/ontology/processes/budget-contract-payment-approval.md",
+    "docs/ontology/processes/warehouse-operation-approval.md",
+    "docs/llm-wiki/concepts/access/operation-access-and-button-triage.md",
+    "docs/llm-wiki/concepts/inventory/inbound-approve-validate-backorder.md",
+    "docs/ontology/objects/warehouse-operation.md",
+    "docs/llm-wiki/concepts/sales/approval-markdone-vs-approve-button-stuck.md",
+    "docs/ontology/processes/approval-policy-change.md",
+    "docs/ontology/processes/standalone-approval-request.md",
+    "docs/llm-wiki/concepts/approvals/approval-policy-change-checklist.md",
+    "docs/llm-wiki/concepts/approvals/change-request-scheduling-history.md",
+    "docs/llm-wiki/concepts/approvals/inflight-approval-owner-change-history.md",
+    "docs/llm-wiki/concepts/faq/approval-flow-config-change-checklist.md",
+    "docs/llm-wiki/concepts/sales/document-stuck-generic-triage.md",
+    "docs/llm-wiki/concepts/sales/mark-done-current-applicability-investigation.md"
+  ],
+  "queryCAvailable": true
+}

@@ -1,0 +1,100 @@
+{
+  "caseId": "H11",
+  "group": "A",
+  "payloadHash": "c09ae16d86780e9c9a8d07072beec9e4c2eab11c5eedbddf663792f0f7863dd7",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 8,
+      "relevance_score": 0.5674340724945068
+    },
+    {
+      "index": 7,
+      "relevance_score": 0.4364243149757385
+    },
+    {
+      "index": 16,
+      "relevance_score": 0.26329463720321655
+    },
+    {
+      "index": 10,
+      "relevance_score": 0.1731301099061966
+    },
+    {
+      "index": 5,
+      "relevance_score": 0.10390489548444748
+    }
+  ],
+  "durationMs": 529,
+  "querySha256": "874a5196e5cc93a1794b41dabe4169c61f93f137d57cb8f0939e8733c0f9f6ab",
+  "queryChars": 103,
+  "documentSha256": [
+    "48b9d8312826aae46751767825602d9742582a82c8fa6240bee37db8761f7bd5",
+    "ea83ea5b74a8e7c4e2a74be7b40c899924bc0ad7e7631211309bb5296c591a83",
+    "c536c2f501adfb35997e80f9dd467eaac158cc9d51d2344dbd0ac810c2ae41b8",
+    "086d1efda4d22ba17904d128d0f37c09b2b9d7d5c75c2ad320eb9d11a1eb79ec",
+    "5b80bd751d6876d016475303bf348b06dd4584facd4c33145b0d07d120eb6225",
+    "1d0408662f450598e1af98aab246ad291ae18508cd61023326f568560b525284",
+    "4cf58dc9783558797664d41b81b5457a8773370f7525b8e94bdecef7b847fc6e",
+    "b320ce79a806c8681a1e1e3e5e27317e111fa37dcad8e9e4801721aabf2790c1",
+    "4c2751d3ff80d3d960e604ceafde83684ad25ffd746d18ba68d17934bf43cbe5",
+    "48450ffcc908d80e99c6d62f64a596f23df471a06c30e25f38d95609aa13c4d5",
+    "b3febe734582b6ca18eca74071e334a5f15f96e64ddc2514470153035d3ddb02",
+    "42809f9346b809343fbc4b9b34570061a579c86ad0a21f333f4d9cc0814b4764",
+    "146dcd34ec37f991aae32c000bd4f8a0aee56beac60844261b54c94f70890f98",
+    "d0e2982f6a60acac82e30acfce303d508fe1afd2f34f739363c5a8d53c65001f",
+    "8a323823dc7d5b11b15ce0ecfdf63349e041993da9e683bed30623336964d683",
+    "a6b2cac1d78a29b1137fb763326802b46e2082200a06f8f9b2eb8512884066ff",
+    "bd471ad0beeaa3fcc1ea6977cbeda68f851b4e46898318f0a22feb0af03daf3c",
+    "56a22d28a2f9fc1e1b0f713c74f5e7362da5e77e97033bc1c1b1a0524f74e3c6",
+    "f3664110aa05ff00c2e074d9aa852307ae5d098728d1cdbca0094ff03b34f0f2",
+    "818304b660ca3a8bbf162162100f7c5285c4561e6bb4d81db85a0fb9d7fa97e4"
+  ],
+  "documentChars": [
+    2464,
+    692,
+    1404,
+    2335,
+    737,
+    740,
+    2453,
+    1951,
+    1639,
+    1059,
+    1467,
+    1180,
+    2366,
+    2267,
+    930,
+    1797,
+    1280,
+    2128,
+    2246,
+    1368
+  ],
+  "candidatePaths": [
+    "docs/ontology/objects/business-approval.md",
+    "docs/llm-wiki/concepts/reporting/gross-profit-direct-parent-customer-name-history.md",
+    "docs/llm-wiki/concepts/sales/contact-overview-create-sales-order.md",
+    "docs/ontology/objects/financial-reporting.md",
+    "docs/ontology/processes/standalone-approval-request.md",
+    "docs/llm-wiki/concepts/approvals/change-request-scheduling-history.md",
+    "docs/ontology/objects/business-party.md",
+    "docs/llm-wiki/concepts/sales/contact-tag-change-verification.md",
+    "docs/llm-wiki/concepts/approvals/approval-submission-and-progress-triage.md",
+    "docs/ontology/processes/employee-expense-submission-approval-and-reimbursement.md",
+    "docs/ontology/processes/customer-profile-validation.md",
+    "docs/ontology/processes/embedded-business-record-approval.md",
+    "docs/ontology/objects/b2b-portal-sales.md",
+    "docs/ontology/objects/b2c-sales.md",
+    "docs/ontology/processes/budget-contract-payment-approval.md",
+    "docs/llm-wiki/concepts/delivery/wms-payload-validation-triage.md",
+    "docs/llm-wiki/concepts/faq/contact-backorder-preorder-overview.md",
+    "docs/ontology/objects/portal-public-inquiry.md",
+    "docs/ontology/objects/sales-order.md",
+    "docs/ontology/processes/warehouse-operation-approval.md"
+  ],
+  "queryCAvailable": false
+}

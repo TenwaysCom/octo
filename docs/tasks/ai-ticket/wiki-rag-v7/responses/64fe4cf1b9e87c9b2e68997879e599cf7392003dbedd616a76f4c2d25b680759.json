@@ -1,0 +1,100 @@
+{
+  "caseId": "Q26",
+  "group": "A",
+  "payloadHash": "64fe4cf1b9e87c9b2e68997879e599cf7392003dbedd616a76f4c2d25b680759",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 6,
+      "relevance_score": 0.5239181518554688
+    },
+    {
+      "index": 4,
+      "relevance_score": 0.04088479280471802
+    },
+    {
+      "index": 14,
+      "relevance_score": 0.023525549098849297
+    },
+    {
+      "index": 7,
+      "relevance_score": 0.008722788654267788
+    },
+    {
+      "index": 9,
+      "relevance_score": 0.008666090667247772
+    }
+  ],
+  "durationMs": 410,
+  "querySha256": "7f424c833db76c47512e4bc8b17b9c2dbf1ab52d0410f877ce02fbe16514ba61",
+  "queryChars": 50,
+  "documentSha256": [
+    "02147da93a2c492ced7dfb2cc99585c3ac7ac8a5ebf0a55b27ccd9cbec00b3b6",
+    "74ad870a52c12a8b3eafdf8ebbfc9230613c23c4c06fef613d1da794340c06a2",
+    "e83f5053e7398070a444dd5bd36b5bc24a245e267dcf7369e6ace1f0d37d9c5d",
+    "35bbd8355e58f60614846207fcbca00381aec4887c57b8df7dd5ae71271b98e2",
+    "93e23bbbf4ae26156f5e22f8814f6e85dbd56805b290d14abe14eaabed6521a6",
+    "1d05b677cec40159d1367151280e9dcf441eb32326ee6aa4ad2db8bd1beb59fd",
+    "f2681c27cf7165682e937454ab16353cd6f362c69121f98cc8931e66d3c1753d",
+    "72448ebf412b434f00594fd851842cac4e3b17f51e55b38c917248720efbbb20",
+    "ca21a8f2062b5407deadcd2a79b4b01ec56a8b3794d093c21cc2a149d487e34d",
+    "90c2dd41194c8e263e94ba48170f3b4cc68cac928071431dcf7b3d265b3a5480",
+    "535c061687d6c06928fc954c1012347e6a2ed58f9026463563cfc58f44d119f1",
+    "db2491fe6b6a59d9975662ce644cc05be3074966587ce30a7242a8fe9aa9a18d",
+    "6102eecd1ef4f1c9cbd21afab538301c4614605304bdadce0b7a980b980c774a",
+    "da0a8fcffb27234c3a1aa20ec2a8c7e7bc7db92f79d8477c11e42c39d72d415f",
+    "ba72fd87e6233af233ff5bbd3f5d0472c25ebfc27dd4b19bb0f7376de23fbd3f",
+    "f6b65c468ef47fce50cdd5399a5939e551195fed0d882dc0d298d9418517a841",
+    "814f77855ef9954a634be6db3779b556f21ee94fe94279987229675be396ba54",
+    "229785e5c68cee9d488f88b0beb82f0b72d9c4ec97d4773cfa16524d80c7e2d2",
+    "12069e94798be7e1c5893fdbf31b61536c347bdcbb842898bb153aaffa3d4c44",
+    "83bcb6f4339b5816e8520378fffdbfd5e27932d1d5f0bbde2274cfddefd37552"
+  ],
+  "documentChars": [
+    252,
+    1077,
+    908,
+    1021,
+    1731,
+    688,
+    715,
+    1683,
+    2435,
+    2374,
+    1185,
+    88,
+    1826,
+    356,
+    600,
+    682,
+    1619,
+    275,
+    459,
+    494
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/faq/warehouse-location-operation-type-setup.md",
+    "docs/llm-wiki/concepts/inventory/location-type-direction-history.md",
+    "docs/llm-wiki/concepts/inventory/warehouse-location-operation-type-change-checklist.md",
+    "docs/llm-wiki/concepts/inventory/wms-to-send-after-sales-operation-type-filter.md",
+    "docs/llm-wiki/concepts/approvals/approval-submission-and-progress-triage.md",
+    "docs/llm-wiki/concepts/delivery/other-outbound-location-and-type-history.md",
+    "docs/llm-wiki/concepts/workforce/appraisal-scoring-history.md",
+    "docs/ontology/objects/sales-return.md",
+    "docs/ontology/objects/transaction-tax.md",
+    "docs/ontology/objects/warehouse-operation.md",
+    "docs/ontology/processes/warehouse-document-amendment.md",
+    "docs/llm-wiki/concepts/inventory/us18-return-location-and-operation-type-config.md",
+    "docs/ontology/objects/business-approval.md",
+    "docs/llm-wiki/concepts/accounting/cash-flow-fx-keep-first-account.md",
+    "docs/llm-wiki/concepts/accounting/journal-asset-field-release-history.md",
+    "docs/llm-wiki/concepts/accounting/journal-department-backfill-history.md",
+    "docs/llm-wiki/concepts/approvals/approval-policy-change-checklist.md",
+    "docs/llm-wiki/concepts/delivery/next-transfer-type-investigation.md",
+    "docs/llm-wiki/concepts/delivery/warehouse-document-amendment-checklist.md",
+    "docs/llm-wiki/concepts/integration/shopify-line-id-feedback-history.md"
+  ],
+  "queryCAvailable": false
+}

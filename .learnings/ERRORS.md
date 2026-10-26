@@ -26,6 +26,14 @@ source: [Hermes UI 优化 v4](../docs/tasks/ai-ticket/2026-10-21-lark-hermes-ans
 
 source: [TEN-144 测试部署与验收](../docs/tasks/ai-ticket/2026-10-21-lark-badcase-design.md)
 
+## [ERR-20260924-001] deepeval-model-string-uses-ambient-provider
+
+**Error:** 假设 `GEval(model="...")` 一定使用该名称对应的 OpenAI 裁判。DeepEval 4.1.0 的 initialize_model 会读取本地/环境中的 provider 选择，字符串模型名不足以固定评测口径。
+
+**Fix:** 为明确使用 OpenAI 的评测显式构造 GPTModel，绑定 model、endpoint、temperature 和环境凭据，再注入 GEval；将非敏感配置与引擎/评分代码版本保存到 Score，不把凭据写入产物。
+
+source: [Ticket AI Evals CLI](../docs/tasks/ai-ticket/2026-09-24-ticket-evals-cli.md)
+
 ## [ERR-20260916-001] launched-assumed-workflow-finished
 
 **Error:** 排查 Meegle 完成数量时，仅凭已同步的 `status=Launched` 判断流程已经完成，并把空完成时间当作数据缺失；保存的源响应实际仍有当前节点 Go-Live check。
@@ -255,7 +263,7 @@ source: [AGENTS.md 审查与优化](../docs/tasks/engineering-ops/2026-09-14-age
 
 - **Summary:** A read-only TypeScript diagnostic can fail before execution because `tsx` creates an IPC pipe in the system temporary directory.
 - **Error:** `listen EPERM: operation not permitted .../tsx-*/...pipe`.
-- **Fix:** Re-run the same non-mutating diagnostic with the required sandbox escalation; do not replace it with a command that exposes database configuration or raw snapshot payloads.
+- **Fix:** For pure local TypeScript diagnostics, run the file with `node --import ./server/node_modules/tsx/dist/loader.mjs` from the repository root to avoid the tsx CLI IPC server. Preserve a documented business entrypoint when required; if it still needs a socket, request only the same scoped escalation. Never expose database configuration or raw snapshot payloads. See [v14 local execution](../docs/tasks/ai-ticket/wiki-rag-v14/README.md).
 - **Status:** resolved with a read-only aggregate query.
 
 ## [ERR-20260811-005] github-user-chip-prop-regression
@@ -790,6 +798,7 @@ source: [AGENTS.md 审查与优化](../docs/tasks/engineering-ops/2026-09-14-age
 - **Verified fix:** 使用获批的沙箱外只读执行重新运行精确命令；CLI 返回 authenticated，PostgreSQL 查询只输出脱敏后的同步运行错误摘要。
 - **Recurrence:** 沙箱内读取 PM2 状态又因 `.pm2/*.sock` 权限与只读 `pm2.log` 失败；使用获批的精确 `pm2 status/jlist` 只读命令确认 staging API/Worker 仍加载旧 build。
 - **Recurrence:** Hermes ACP loopback 协议测试在沙箱内绑定 `127.0.0.1` 报 `listen EPERM`；同一测试获批在沙箱外运行后通过，不能把该失败归因于 Hermes 或审批实现。
+- **Recurrence:** 本地HTML的Playwright验证在Chromium启动时出现`crashpad/util/linux/socket.cc:45 setsockopt: 不允许的操作 (1)`及`SIGTRAP`；应使用获批的精确验证命令、隔离临时浏览器并阻止HTTP请求，不能据此判定页面脚本失败。见[Shadow分类复核任务](../docs/tasks/ai-ticket/2026-10-22-shadow-first10-eval-dataset.md)。
 
 ### ERR-20260903-004 — Inline tsx regex broke outer shell quoting
 
@@ -903,3 +912,25 @@ source: [Eval 状态与 My evals](../docs/tasks/ai-ticket/2026-09-01-lark-ticket
 - **Error:** 临时 Vite 浏览器 harness 直接导入 `/node_modules/.vite/deps/react*.js`，出现 `does not provide an export named`，改为直接取 default 后又出现 `Invalid hook call`，应用和 harness 使用了不同模块实例。
 - **Fix:** harness 使用 `react` 和 `react-dom/client` bare imports，交给 Vite 统一解析和重写，不硬编码预优化缓存文件路径。
 - **source:** [Lark App v17 mock 验证](../docs/tasks/ai-ticket/2026-09-23-lark-ticket-analysis-app.md#v17-公共信息与-wiki-即时分析)。
+
+## [ERR-20261021-001] wiki-rag-empty-after-score-relaxation
+
+- **Error:** Wiki RAG已有候选，降低重排分数门槛后最终 evidence 仍为空；错误假设是“Ticket原始聊天有记录，因此知识页必有依据，只需降低阈值”。
+- **Fix:** 分别核对源库messages/prepared、导出raw、知识段落、重排输入及后续错误类型/证据过滤；源哈希和snapshot_version相同不能证明raw正文未截断，重摄入须对照实际完整渲染内容。按候选身份恢复历史顺序再回放旧分数，不能把旧数组index用于变化后的候选列表。完整原文仍可能被后续摘录预算整组拒绝，应独立记录，不能把上游补齐宣称为答案恢复。 来源关联回退只用于原始词项未命中，不能将预算拒绝改作另一条定位理由。低频词也可能是中文碎片或不同意图的共有字段，硬过滤的旧命中损失与新错误配对必须分别报告。元数据命中同样不等于原文支持；新建元数据回退时须保留完整适用范围及后续未解决限制，超预算仍降级，不能只识别“限制”标题而遗漏“适用范围与待确认”。专用rerank应核对实际query／documents，不能以渲染但未发送的通用提示词判断模型行为；条件mock强制高分不代表真实精排误选，输入表示变化后也须重新验证分数和门槛。
+- **source:** [Vendor Bill Confirm漏检诊断](../docs/tasks/ai-ticket/2026-10-21-wiki-rag-vendor-bill-diagnosis.md)
+
+## [ERR-20261022-001] wiki-rag-policy-gap-shadowed-in-report
+
+**Error:** 隔离精排报告使用`{...policy, ...decision}`时，配置门槛`gap`被同名观测分差覆盖，按完整规则查找逐题结果时触发`StopIteration`；不能把报告字段混淆误当成算法已使用另一阈值。
+
+**Fix:** 将规则门槛与`observedGap`分开保存，在锁定前逐题重算准入并核对独立审计索引。首份报告保持不变，规范化结果另存并记录来源哈希；不能覆盖原始证据或用新的模型分数修补报告。
+
+source: [Wiki RAG v10隔离实验](../docs/tasks/ai-ticket/wiki-rag-v10/README.md)
+
+## [ERR-20261022-002] wiki-budget-admits-unrelated-linked-source
+
+**Error:** 错误假设“精排选对文章、原文链接属于本页、片段未被截断，就能安全扩预算”。同一Wiki页可能混合不同问题的工单，通用词“凭证”即可选中另一操作的聊天；扩预算会把原先未装入的异问题原文补入，文章ID不变也会新增问题—原文错配。
+
+**Fix:** 分别验证文章排序、阈值去留和每个新增原文单元的诉求匹配；用原始源片段哈希／完整单元校验保真，再对照问题操作审计相关性。页面层新增错配为0不能替代来源层验收。发现新增错配时保留首次证据并按门槛停止；后续来源范围修订另行锁定，不通过临时删来源、改gold或增大预算追通过。 一个局部窗口命中具体字段不能放行整份混合多事件的原文；相同“修改／审批”等动作也不能证明流程对象和当前事实一致。报告目标页命中之外，还须统计有效补充原文的误拒，避免总量不变掩盖来源损失。
+
+source: [Wiki RAG v13隔离实验](../docs/tasks/ai-ticket/wiki-rag-v13/README.md)、[v14来源准入实验](../docs/tasks/ai-ticket/wiki-rag-v14/README.md)

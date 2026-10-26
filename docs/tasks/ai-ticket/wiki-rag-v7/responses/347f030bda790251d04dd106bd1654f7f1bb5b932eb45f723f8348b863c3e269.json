@@ -1,0 +1,9 @@
+{
+  "caseId": "P06",
+  "group": "B",
+  "payloadHash": "347f030bda790251d04dd106bd1654f7f1bb5b932eb45f723f8348b863c3e269",
+  "topN": 5,
+  "state": "failed",
+  "errorCode": "WIKI_QA_RERANK_REQUEST_FAILED",
+  "durationMs": 105
+}

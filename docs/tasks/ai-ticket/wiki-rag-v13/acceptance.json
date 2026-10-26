@@ -1,0 +1,20 @@
+{
+  "decision": "NOT_ACCEPTED",
+  "reason": "Old-set gate failed: an unrelated same-page primary source was newly admitted.",
+  "checks": {
+    "cachedRerankInputsScoresAndPageSelectionUnchanged": "passed",
+    "baseline137EquivalentAndOldEvidencePreserved": "passed",
+    "completeUnitsAnd4800_7200Caps": "passed",
+    "U14Restored4482": "passed",
+    "U08Diagnostic2531AndRealThresholdRejectionUnchanged": "passed",
+    "oldEvidenceP95WithinPlus100ms": "passed",
+    "noNewQuestionSourceMismatch": "failed",
+    "new32CoverageAndBudgetBenefit": "not_run_due_to_gate",
+    "finalAnswers": "out_of_scope_not_generated"
+  },
+  "confirmedFailure": "confirmed-regression.json",
+  "new32Prepared": false,
+  "candidateApplied": false,
+  "deployed": false,
+  "G": "disabled"
+}

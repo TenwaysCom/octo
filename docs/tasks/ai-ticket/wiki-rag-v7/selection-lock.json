@@ -1,0 +1,504 @@
+{
+  "group": "A",
+  "threshold": 0.7,
+  "selectedAt": "2026-10-21 before any holdout model request",
+  "developmentSummarySha256": "a4a8e6619c6e9af35ad5a285a61d51818481d0c6bb43c32afbcace10e3d8b211",
+  "decision": "Only existing A/0.7 preserves every baseline gold/primary result and rejects the labeled development negatives. B/C changes rejected on development evidence. Validate unchanged baseline on fresh holdout; do not claim independent optimized-vs-baseline benefit.",
+  "comparisons": [
+    {
+      "group": "A",
+      "threshold": 0.1,
+      "eligible": false,
+      "lostBaselineGoldIds": [],
+      "lostBaselinePrimaryGoldIds": [],
+      "wrongAcceptedIds": [
+        "N13"
+      ],
+      "noAnswerAcceptedIds": [
+        "H07",
+        "H08",
+        "H09",
+        "H11",
+        "H12"
+      ]
+    },
+    {
+      "group": "A",
+      "threshold": 0.2,
+      "eligible": false,
+      "lostBaselineGoldIds": [],
+      "lostBaselinePrimaryGoldIds": [],
+      "wrongAcceptedIds": [],
+      "noAnswerAcceptedIds": [
+        "H07",
+        "H08",
+        "H09",
+        "H11",
+        "H12"
+      ]
+    },
+    {
+      "group": "A",
+      "threshold": 0.3,
+      "eligible": false,
+      "lostBaselineGoldIds": [],
+      "lostBaselinePrimaryGoldIds": [],
+      "wrongAcceptedIds": [],
+      "noAnswerAcceptedIds": [
+        "H07",
+        "H08",
+        "H09",
+        "H11",
+        "H12"
+      ]
+    },
+    {
+      "group": "A",
+      "threshold": 0.4,
+      "eligible": false,
+      "lostBaselineGoldIds": [],
+      "lostBaselinePrimaryGoldIds": [],
+      "wrongAcceptedIds": [],
+      "noAnswerAcceptedIds": [
+        "H07",
+        "H08",
+        "H09",
+        "H11"
+      ]
+    },
+    {
+      "group": "A",
+      "threshold": 0.5,
+      "eligible": false,
+      "lostBaselineGoldIds": [],
+      "lostBaselinePrimaryGoldIds": [],
+      "wrongAcceptedIds": [],
+      "noAnswerAcceptedIds": [
+        "H07",
+        "H08",
+        "H09",
+        "H11"
+      ]
+    },
+    {
+      "group": "A",
+      "threshold": 0.6,
+      "eligible": false,
+      "lostBaselineGoldIds": [],
+      "lostBaselinePrimaryGoldIds": [],
+      "wrongAcceptedIds": [],
+      "noAnswerAcceptedIds": [
+        "H08",
+        "H09"
+      ]
+    },
+    {
+      "group": "A",
+      "threshold": 0.7,
+      "eligible": true,
+      "lostBaselineGoldIds": [],
+      "lostBaselinePrimaryGoldIds": [],
+      "wrongAcceptedIds": [],
+      "noAnswerAcceptedIds": []
+    },
+    {
+      "group": "A",
+      "threshold": 0.8,
+      "eligible": false,
+      "lostBaselineGoldIds": [
+        "Q17",
+        "V08"
+      ],
+      "lostBaselinePrimaryGoldIds": [
+        "V08"
+      ],
+      "wrongAcceptedIds": [],
+      "noAnswerAcceptedIds": []
+    },
+    {
+      "group": "A",
+      "threshold": 0.9,
+      "eligible": false,
+      "lostBaselineGoldIds": [
+        "H04",
+        "Q17",
+        "Q19",
+        "Q22",
+        "V08"
+      ],
+      "lostBaselinePrimaryGoldIds": [
+        "H04",
+        "Q19",
+        "Q22",
+        "V08"
+      ],
+      "wrongAcceptedIds": [],
+      "noAnswerAcceptedIds": []
+    },
+    {
+      "group": "B",
+      "threshold": 0.1,
+      "eligible": false,
+      "lostBaselineGoldIds": [],
+      "lostBaselinePrimaryGoldIds": [
+        "Q18"
+      ],
+      "wrongAcceptedIds": [
+        "N13"
+      ],
+      "noAnswerAcceptedIds": [
+        "H07",
+        "H08",
+        "H09",
+        "H11",
+        "H12"
+      ]
+    },
+    {
+      "group": "B",
+      "threshold": 0.2,
+      "eligible": false,
+      "lostBaselineGoldIds": [],
+      "lostBaselinePrimaryGoldIds": [
+        "Q18"
+      ],
+      "wrongAcceptedIds": [],
+      "noAnswerAcceptedIds": [
+        "H07",
+        "H08",
+        "H09",
+        "H11",
+        "H12"
+      ]
+    },
+    {
+      "group": "B",
+      "threshold": 0.3,
+      "eligible": false,
+      "lostBaselineGoldIds": [],
+      "lostBaselinePrimaryGoldIds": [
+        "Q18"
+      ],
+      "wrongAcceptedIds": [],
+      "noAnswerAcceptedIds": [
+        "H07",
+        "H08",
+        "H09",
+        "H11",
+        "H12"
+      ]
+    },
+    {
+      "group": "B",
+      "threshold": 0.4,
+      "eligible": false,
+      "lostBaselineGoldIds": [],
+      "lostBaselinePrimaryGoldIds": [
+        "Q18"
+      ],
+      "wrongAcceptedIds": [],
+      "noAnswerAcceptedIds": [
+        "H07",
+        "H08",
+        "H09",
+        "H11",
+        "H12"
+      ]
+    },
+    {
+      "group": "B",
+      "threshold": 0.5,
+      "eligible": false,
+      "lostBaselineGoldIds": [],
+      "lostBaselinePrimaryGoldIds": [
+        "Q18"
+      ],
+      "wrongAcceptedIds": [],
+      "noAnswerAcceptedIds": [
+        "H07",
+        "H08",
+        "H09",
+        "H11"
+      ]
+    },
+    {
+      "group": "B",
+      "threshold": 0.6,
+      "eligible": false,
+      "lostBaselineGoldIds": [],
+      "lostBaselinePrimaryGoldIds": [
+        "Q18"
+      ],
+      "wrongAcceptedIds": [],
+      "noAnswerAcceptedIds": [
+        "H08",
+        "H09",
+        "H11"
+      ]
+    },
+    {
+      "group": "B",
+      "threshold": 0.7,
+      "eligible": false,
+      "lostBaselineGoldIds": [
+        "Q17",
+        "V08"
+      ],
+      "lostBaselinePrimaryGoldIds": [
+        "Q18",
+        "V08"
+      ],
+      "wrongAcceptedIds": [],
+      "noAnswerAcceptedIds": [
+        "H08",
+        "H09",
+        "H11"
+      ]
+    },
+    {
+      "group": "B",
+      "threshold": 0.8,
+      "eligible": false,
+      "lostBaselineGoldIds": [
+        "Q17",
+        "V08"
+      ],
+      "lostBaselinePrimaryGoldIds": [
+        "Q18",
+        "V08"
+      ],
+      "wrongAcceptedIds": [],
+      "noAnswerAcceptedIds": [
+        "H08",
+        "H09"
+      ]
+    },
+    {
+      "group": "B",
+      "threshold": 0.9,
+      "eligible": false,
+      "lostBaselineGoldIds": [
+        "H04",
+        "Q12",
+        "Q17",
+        "Q19",
+        "Q22",
+        "V08"
+      ],
+      "lostBaselinePrimaryGoldIds": [
+        "H04",
+        "Q12",
+        "Q18",
+        "Q19",
+        "Q22",
+        "V08"
+      ],
+      "wrongAcceptedIds": [],
+      "noAnswerAcceptedIds": []
+    },
+    {
+      "group": "C",
+      "threshold": 0.1,
+      "eligible": false,
+      "lostBaselineGoldIds": [
+        "H04",
+        "P01",
+        "Q18"
+      ],
+      "lostBaselinePrimaryGoldIds": [
+        "H04",
+        "P01",
+        "Q18"
+      ],
+      "wrongAcceptedIds": [
+        "N13"
+      ],
+      "noAnswerAcceptedIds": [
+        "H07",
+        "H08",
+        "H09",
+        "H11",
+        "H12"
+      ]
+    },
+    {
+      "group": "C",
+      "threshold": 0.2,
+      "eligible": false,
+      "lostBaselineGoldIds": [
+        "H04",
+        "P01",
+        "Q18"
+      ],
+      "lostBaselinePrimaryGoldIds": [
+        "H04",
+        "P01",
+        "Q18"
+      ],
+      "wrongAcceptedIds": [],
+      "noAnswerAcceptedIds": [
+        "H07",
+        "H08",
+        "H09",
+        "H11",
+        "H12"
+      ]
+    },
+    {
+      "group": "C",
+      "threshold": 0.3,
+      "eligible": false,
+      "lostBaselineGoldIds": [
+        "H04",
+        "P01",
+        "Q18"
+      ],
+      "lostBaselinePrimaryGoldIds": [
+        "H04",
+        "P01",
+        "Q18"
+      ],
+      "wrongAcceptedIds": [],
+      "noAnswerAcceptedIds": [
+        "H07",
+        "H08",
+        "H09",
+        "H11",
+        "H12"
+      ]
+    },
+    {
+      "group": "C",
+      "threshold": 0.4,
+      "eligible": false,
+      "lostBaselineGoldIds": [
+        "H04",
+        "P01",
+        "Q18"
+      ],
+      "lostBaselinePrimaryGoldIds": [
+        "H04",
+        "P01",
+        "Q18"
+      ],
+      "wrongAcceptedIds": [],
+      "noAnswerAcceptedIds": [
+        "H07",
+        "H08",
+        "H09",
+        "H11",
+        "H12"
+      ]
+    },
+    {
+      "group": "C",
+      "threshold": 0.5,
+      "eligible": false,
+      "lostBaselineGoldIds": [
+        "H04",
+        "P01",
+        "Q18"
+      ],
+      "lostBaselinePrimaryGoldIds": [
+        "H04",
+        "P01",
+        "Q18"
+      ],
+      "wrongAcceptedIds": [],
+      "noAnswerAcceptedIds": [
+        "H07",
+        "H08",
+        "H09",
+        "H11"
+      ]
+    },
+    {
+      "group": "C",
+      "threshold": 0.6,
+      "eligible": false,
+      "lostBaselineGoldIds": [
+        "H04",
+        "P01",
+        "Q18"
+      ],
+      "lostBaselinePrimaryGoldIds": [
+        "H04",
+        "P01",
+        "Q18"
+      ],
+      "wrongAcceptedIds": [],
+      "noAnswerAcceptedIds": [
+        "H08",
+        "H09",
+        "H11"
+      ]
+    },
+    {
+      "group": "C",
+      "threshold": 0.7,
+      "eligible": false,
+      "lostBaselineGoldIds": [
+        "H04",
+        "P01",
+        "Q18",
+        "V08"
+      ],
+      "lostBaselinePrimaryGoldIds": [
+        "H04",
+        "P01",
+        "Q18",
+        "V08"
+      ],
+      "wrongAcceptedIds": [],
+      "noAnswerAcceptedIds": [
+        "H08",
+        "H09",
+        "H11"
+      ]
+    },
+    {
+      "group": "C",
+      "threshold": 0.8,
+      "eligible": false,
+      "lostBaselineGoldIds": [
+        "H04",
+        "P01",
+        "Q17",
+        "Q18",
+        "V08"
+      ],
+      "lostBaselinePrimaryGoldIds": [
+        "H04",
+        "P01",
+        "Q18",
+        "V08"
+      ],
+      "wrongAcceptedIds": [],
+      "noAnswerAcceptedIds": [
+        "H08",
+        "H09"
+      ]
+    },
+    {
+      "group": "C",
+      "threshold": 0.9,
+      "eligible": false,
+      "lostBaselineGoldIds": [
+        "H04",
+        "P01",
+        "Q17",
+        "Q18",
+        "V08"
+      ],
+      "lostBaselinePrimaryGoldIds": [
+        "H04",
+        "P01",
+        "Q18",
+        "V08"
+      ],
+      "wrongAcceptedIds": [],
+      "noAnswerAcceptedIds": []
+    }
+  ],
+  "sameAsBaseline": true
+}

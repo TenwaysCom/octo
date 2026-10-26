@@ -1,0 +1,100 @@
+{
+  "caseId": "Q07",
+  "group": "A",
+  "payloadHash": "1978bb6b7782a18d14859d090455b27927ea386d7c961d6bfed9e0bc7b33190a",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 0,
+      "relevance_score": 0.24912412464618683
+    },
+    {
+      "index": 3,
+      "relevance_score": 0.20573902130126953
+    },
+    {
+      "index": 2,
+      "relevance_score": 0.06082917004823685
+    },
+    {
+      "index": 4,
+      "relevance_score": 0.015372974798083305
+    },
+    {
+      "index": 18,
+      "relevance_score": 0.012713822536170483
+    }
+  ],
+  "durationMs": 409,
+  "querySha256": "8e80beaa4d265578aa7a486b381ca49c1062150ad06e977c72a8d33f8043b0ce",
+  "queryChars": 63,
+  "documentSha256": [
+    "b4db622b422815061de16ea63b161608b328f0ab3897e68c88428ff6c6cb8dda",
+    "98fb1fb2855583a73dc6c0cc02868665c048b8ad594a6ef858657f0f51ae65ac",
+    "ddf33074fe6f486d73a3e84deab65adf1a1a33120ef4fa32d25abacdabe10061",
+    "13cd5f0427d3864b77b459b76bda0bd6eb1b90f09247e1efd4e0f515d8bbfa49",
+    "3fd91a89fd82d1d273b057480291a7dc335df9450f6c8f1bf1709bb184be9c2a",
+    "09216aa544029a3fdb34490004df0a107c8b0e09396c17c060b17eb569830587",
+    "81c92e8d9e6cca643c17b5d847e11e81b8a02e4852c40ba26f834b7e8c004571",
+    "afd66485582dbaf24e90dee10b1d2a15b023b92c414c4694086c46dc8e3f1a82",
+    "1f09f5c5a748c8966b0bb960fe1821df8da56f622655c169f129474584361b0d",
+    "16d7098c1fb738335260c2ae0e988994023d422311e4bebaf919fb80d791384d",
+    "6a9575db22e77bce0d84c561623748d83225a7e9cde16163716a033090809771",
+    "47fa7697a00039f59e95cc240ec9c7c6df1f560e81af011c28a9634a134bae81",
+    "e5815bc61bd91b4a4c5c04a423d9683625853e8ac2d9c3d1369d38f40766f986",
+    "3bf8ae9a5e95f64396a3b9490a9e92e0584f6cee664d494fe8bccbb9c28da8a3",
+    "51b05d4297d5a0ed95774e54e9624d3c0784917cb390366f21ed1720ae8b222f",
+    "b5006aee7b8e1f3f6117015e86ef020e7ad907e3b8ce721db35a31554ab30a7a",
+    "a536fc1028e7bc2c5a2148d406a9ce1078b89ebbb4f0ed3c8b4bdb55444388ad",
+    "f6c7cb9ea199fd3ac5a44a6dcfbf919e273ba5b15d9f163c1fcab3d888624be8",
+    "f8935ed82e30993cbff7572125e25afa9b709e99f6709d32cb2282a4e94c833a",
+    "c55a3e42f986129e8ed5972ef50761b9b761ce851502ecce0403837ac94e0b45"
+  ],
+  "documentChars": [
+    2466,
+    463,
+    1912,
+    1820,
+    1585,
+    1157,
+    1361,
+    1192,
+    688,
+    376,
+    494,
+    340,
+    569,
+    1018,
+    878,
+    369,
+    422,
+    961,
+    575,
+    504
+  ],
+  "candidatePaths": [
+    "docs/ontology/objects/transaction-tax.md",
+    "docs/llm-wiki/concepts/invoicing/student-discount-vat-detail-history.md",
+    "docs/ontology/processes/tax-report-preparation-and-filing.md",
+    "docs/ontology/processes/sales-tax-determination-and-invoicing.md",
+    "docs/ontology/objects/sales-invoice.md",
+    "docs/ontology/processes/purchase-tax-determination-and-billing.md",
+    "docs/ontology/objects/business-approval.md",
+    "docs/ontology/rules/commercial-partner-attribution.md",
+    "docs/llm-wiki/concepts/accounting/cash-flow-config-timing-history.md",
+    "docs/llm-wiki/concepts/accounting/currency-rate-staleness-triage.md",
+    "docs/llm-wiki/concepts/accounting/financial-report-config-preserve-on-module-update.md",
+    "docs/llm-wiki/concepts/integration/dzb-supplier-number-rejection-history.md",
+    "docs/llm-wiki/concepts/inventory/repeated-return-location-regression-history.md",
+    "docs/llm-wiki/concepts/inventory/reservation-residual-corrections-history.md",
+    "docs/llm-wiki/concepts/inventory/return-grade-conversion-history.md",
+    "docs/llm-wiki/concepts/inventory/return-picking-null-quant-location.md",
+    "docs/llm-wiki/concepts/invoicing/duplicate-employee-old-department-on-journal-item.md",
+    "docs/llm-wiki/concepts/invoicing/invoice-so-amount-mismatch.md",
+    "docs/llm-wiki/concepts/invoicing/tax-source-selection-history.md",
+    "docs/llm-wiki/concepts/invoicing/vendor-bill-confirm-stock-move-singleton-investigation.md"
+  ],
+  "queryCAvailable": true
+}

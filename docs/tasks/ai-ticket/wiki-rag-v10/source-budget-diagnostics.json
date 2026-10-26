@@ -1,0 +1,58 @@
+{
+  "measurementOnly": true,
+  "effectiveBudgetUnchanged": 2400,
+  "G": "disabled",
+  "rows": [
+    {
+      "id": "U08",
+      "expected": "concepts/accounting/journal-asset-field-release-history.md",
+      "candidateBodyChars": 758,
+      "actualSourcesKept": 0,
+      "actualPrimaryChars": 0,
+      "sourceDiagnostics": [
+        {
+          "path": "raw/transcripts/ticket-788.2026-09-11-859ea8bdee7a.md",
+          "requiredContextChars": 2531,
+          "hasLexicalHit": true,
+          "retainedAt2400": false,
+          "exceedsBudget": true,
+          "rawSha256": "c9b1fb735a33fe1261fcd0ef1b38e7b6c298b93e0b318a29c2f3a90bc6790bcc"
+        }
+      ]
+    },
+    {
+      "id": "U14",
+      "expected": "concepts/payment/invoice-auto-send-sales-team-historical-assignment.md",
+      "candidateBodyChars": 1089,
+      "actualSourcesKept": 0,
+      "actualPrimaryChars": 0,
+      "sourceDiagnostics": [
+        {
+          "path": "raw/transcripts/ticket-1702.2026-09-11-60ec8dd1bd66.md",
+          "requiredContextChars": 4482,
+          "hasLexicalHit": true,
+          "retainedAt2400": false,
+          "exceedsBudget": true,
+          "rawSha256": "7631756690dd29cdd3d02f69adc46ccda06e04f24ee7a6bad42703139a8fc882"
+        }
+      ]
+    },
+    {
+      "id": "U16",
+      "expected": "concepts/portal/password-reset-mail-history.md",
+      "candidateBodyChars": 405,
+      "actualSourcesKept": 1,
+      "actualPrimaryChars": 1735,
+      "sourceDiagnostics": [
+        {
+          "path": "raw/transcripts/ticket-1765.2026-09-11-e7bfb599bb46.md",
+          "requiredContextChars": 1735,
+          "hasLexicalHit": true,
+          "retainedAt2400": true,
+          "exceedsBudget": false,
+          "rawSha256": "eb663008a16f4fb5049a9d7d77983d2466a7f31683564cf3e3f06cecba59bba4"
+        }
+      ]
+    }
+  ]
+}

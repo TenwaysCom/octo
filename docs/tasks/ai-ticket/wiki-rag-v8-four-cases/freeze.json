@@ -1,0 +1,15 @@
+{
+  "casesSha256": "1fa43f4bfe9e6d13eac1816d4b27f596005cf03b62a7e7d7713ea44cb2fc1e9b",
+  "privateInputSha256": "16f4c0f1bcff1056f68cc49a8a850ec084be6e341688e95b57013c6681d4c7ae",
+  "codeSha256": "f57319696f7f0e0872de099bf9b0a1f603e6998cc8d5daa10a3bfda21b9c0bbe",
+  "v7InitialFreezeSha256": "473d3e23b52ac48a37aea63667e9cb02e1f219b62c96a037369ccafaaf9c8c0a",
+  "config": {
+    "mode": "rerank",
+    "model": "BAAI/bge-reranker-v2-m3",
+    "url": "https://api.siliconflow.cn/v1/rerank",
+    "minScore": 0.7,
+    "topN": 5,
+    "maxRequests": 6
+  },
+  "labelsFrozenBeforeScores": true
+}

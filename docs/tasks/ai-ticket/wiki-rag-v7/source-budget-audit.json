@@ -1,0 +1,30 @@
+{
+  "caseId": "T01",
+  "path": "raw/transcripts/ticket-1642.2026-09-11-b1c38c52b6a4.md",
+  "normalBudget": 2400,
+  "normalChars": 0,
+  "diagnosticRequiredChars": 3244,
+  "diagnosticOrdinals": [
+    "M1",
+    "M2",
+    "M3",
+    "M4",
+    "M5",
+    "M6",
+    "M9",
+    "M10",
+    "M11",
+    "M13",
+    "M14",
+    "M15",
+    "M16",
+    "M17",
+    "M18",
+    "M19",
+    "M20",
+    "M21"
+  ],
+  "conclusion": "query matches original; complete context rejected by existing budget",
+  "diagnosticOnly": true,
+  "actualEvidenceBudgetUnchanged": true
+}
