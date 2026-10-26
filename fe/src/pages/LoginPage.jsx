@@ -29,12 +29,12 @@ function LoginPage({ status, isBusy, extension, onLogin, onPluginLogin }) {
   </div>;
 }
 
-export function SessionLoadingPage() {
-  return <main className="session-loading" aria-live="polite" aria-label="正在恢复工作台会话">
+export function SessionLoadingPage({ message = "正在恢复工作台会话…" }) {
+  return <main className="session-loading" aria-live="polite" aria-label={message}>
     <div className="session-loading__content">
       <Brand />
       <span className="session-loading__indicator" aria-hidden="true" />
-      <p>正在恢复工作台会话…</p>
+      <p>{message}</p>
     </div>
   </main>;
 }

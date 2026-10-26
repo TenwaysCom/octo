@@ -336,6 +336,8 @@ export interface DatabaseSchema {
     record_id: string;
     ticket_title: string;
     snapshot_version: number;
+    source: Generated<"legacy" | "shadow">;
+    output_version: Generated<string>;
     ai_output_json: string;
     dataset_status: "draft" | "eval" | "badcase";
     manual_intent: string | null;

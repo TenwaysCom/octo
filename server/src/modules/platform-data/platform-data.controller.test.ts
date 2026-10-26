@@ -392,6 +392,8 @@ describe("web platform data controller", () => {
 
   it("returns validated Odoo.sh build data for GitHub PR rows", async () => {
     const service = { list: vi.fn().mockResolvedValue({ items: [{
+      odooShBuildState: "ready",
+      odooShBuildStale: true,
       owner: "TenwaysCom",
       repo: "Tenways",
       pullNumber: 1138,
@@ -441,6 +443,8 @@ describe("web platform data controller", () => {
     })).resolves.toEqual({
       statusCode: 200,
       body: { ok: true, data: { items: [expect.objectContaining({
+        odooShBuildState: "ready",
+        odooShBuildStale: true,
         headRef: "feature/m-1138",
         authorLogin: "octo",
         mergedBy: "maintainer",

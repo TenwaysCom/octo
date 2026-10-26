@@ -1,5 +1,6 @@
+import { useLarkTicketFieldEdits } from "../hooks/useLarkTicketFieldEdits.js";
 import { AcpPermissionPrompt } from "../components/ai-session/AcpPermissionPrompt.jsx";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAiSessionPanel } from "../hooks/useAiSessionPanel.js";
 import { aiRunStatusLabel } from "../lib/ai-session-panel.js";
 import { AiSessionCopyButton } from "../components/ai-session/AiSessionCopyButton.jsx";
@@ -9,7 +10,7 @@ import { LarkTicketEditableProperties } from "../components/lark-ticket/LarkTick
 import { LarkTicketSolutionEditor } from "../components/lark-ticket/LarkTicketSolutionEditor.jsx";
 import { formatDateTime } from "../lib/formatters.js";
 import { LARK_TICKET_AI_QUICK_ACTIONS } from "../lib/lark-ticket-ai-actions.js";
-import { getLarkTicketDetailNavigation, getLarkTicketFromNavigationContext, updateLarkTicketNavigationContext } from "../lib/lark-ticket-detail-navigation.js";
+import { getLarkTicketDetailNavigation, getLarkTicketFromNavigationContext } from "../lib/lark-ticket-detail-navigation.js";
 import { getTicketAiSections, getTicketAiShadowNotice } from "../lib/ticket-ai-sections.js";
 import { getLarkTicketDetailHash } from "../app/routes/workspace-routes.js";
 import { getLarkTicketAppHash } from "../lib/lark-ticket-app.js";
@@ -18,6 +19,7 @@ import {
   formatShadowDuration,
   getShadowIntentLabel,
   getShadowStatusLabel,
+  getShadowAssessmentDetails,
 } from "../lib/lark-ticket-shadow-ai.js";
 import { replyAcpPermission, confirmLarkTicketEffectDraft, listLarkTicketAiSessions, listLarkTicketEffectDrafts, loadLarkTicketAiSession, stopLarkTicketAiSession, streamLarkTicketAiSession } from "../services/lark-ticket-ai/lark-ticket-ai-api.js";
 import { loadLarkTicketSharedUrl } from "../services/lark-ticket/lark-ticket-api.js";
@@ -62,6 +64,7 @@ function ShadowAiPanel({ shadowAi }) {
       {typeof shadowAi.intentConfidence === "number" ? <TicketProperty label="置信度">{formatShadowConfidence(shadowAi.intentConfidence)}</TicketProperty> : null}
       {shadowAi.summary ? <TicketProperty label="问题总结"><ShadowLongText value={shadowAi.summary} /></TicketProperty> : null}
       {shadowAi.solutionSummary ? <TicketProperty label="方案摘要"><ShadowLongText value={shadowAi.solutionSummary} /></TicketProperty> : null}
+      {getShadowAssessmentDetails(shadowAi).map(({ label, value }) => <TicketProperty key={label} label={label}><ShadowLongText value={value} /></TicketProperty>)}
     </dl> : null}
     {shadowAi.status === "skipped" ? <p className="ticket-shadow-panel__note">跳过原因：{shadowAi.reason || "未记录"}</p> : null}
     {shadowAi.status === "error" ? <p className="ticket-shadow-panel__note">{shadowAi.errorCode || "SHADOW_FAILED"}{shadowAi.errorMessage ? `：${shadowAi.errorMessage}` : ""}</p> : null}
@@ -85,7 +88,8 @@ function formatTicketAiValue(value) {
   return String(value);
 }
 
-export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLogout, isBusy, breadcrumbs, larkTicketNavigationContext, onLarkTicketNavigationContextChange }) {
+export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLogout, isBusy, breadcrumbs, larkTicketNavigationContext, ticketFieldEdits }) {
+  const fieldEdits = useLarkTicketFieldEdits(ticketFieldEdits, apiBaseUrl);
   const snapshotTicket = getLarkTicketFromNavigationContext({ navigationContext: larkTicketNavigationContext, recordId: ticketRecordId });
   const [state, setState] = useState(() => snapshotTicket
     ? { status: "ready", ticket: snapshotTicket }
@@ -105,16 +109,24 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
       return undefined;
     }
     let active = true;
-    void getPlatformDataList({ apiBaseUrl, kind: "lark-tickets" }).then(
+    const readVersion = fieldEdits.getVersion();
+    void getPlatformDataList({ apiBaseUrl, kind: "lark-tickets", requestScope: fieldEdits.getReadScope() }).then(
       ({ items }) => {
-        if (active) setState({ status: "ready", ticket: items.find((item) => item.recordId === ticketRecordId) });
+        if (active) {
+          fieldEdits.accept(items, readVersion);
+          setState({ status: "ready", ticket: items.find((item) => item.recordId === ticketRecordId) });
+        }
       },
       () => { if (active) setState({ status: "error", ticket: undefined }); },
     );
     return () => { active = false; };
   }, [apiBaseUrl, snapshotTicket, ticketRecordId]);
 
-  const ticket = state.ticket;
+  const ticket = useMemo(() => fieldEdits.project(state.ticket), [fieldEdits, state.ticket, fieldEdits.getVersion()]);
+  const fieldSaveStatus = ticket ? fieldEdits.status(ticket) : { pending: 0, notices: [] };
+  const saveField = (field, option) => profile.workspaceAccess?.platformSync
+    ? fieldEdits.submit({ ticket, field, value: option.label, optionUserId: option.userId })
+    : Promise.reject(new Error("没有修改 Ticket 的权限。"));
   const ticketNavigation = getLarkTicketDetailNavigation({
     navigationContext: larkTicketNavigationContext,
     currentRecordId: ticketRecordId,
@@ -307,12 +319,7 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
           </section>
 
           <LarkTicketSolutionEditor ticket={ticket} apiBaseUrl={apiBaseUrl}
-            canEdit={Boolean(profile.workspaceAccess?.platformSync)}
-            onUpdated={(patch) => {
-              const matches = (item) => item?.baseId === patch.baseId && item?.tableId === patch.tableId && item?.recordId === patch.recordId;
-              setState((current) => matches(current.ticket) ? { ...current, ticket: { ...current.ticket, ...patch } } : current);
-              onLarkTicketNavigationContextChange?.((current) => updateLarkTicketNavigationContext(current, patch));
-            }} />
+            canEdit={Boolean(profile.workspaceAccess?.platformSync)} onSave={saveField} />
 
           <section className="ticket-detail-section">
             <h2>Resources</h2>
@@ -405,15 +412,13 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
             ticket={ticket}
             apiBaseUrl={apiBaseUrl}
             canEdit={Boolean(profile.workspaceAccess?.platformSync)}
-            onUpdated={(patch) => {
-              const matches = (item) => item?.baseId === patch.baseId && item?.tableId === patch.tableId && item?.recordId === patch.recordId;
-              setState((current) => matches(current.ticket) ? { ...current, ticket: { ...current.ticket, ...patch } } : current);
-              onLarkTicketNavigationContextChange?.((current) => updateLarkTicketNavigationContext(current, patch));
-            }}
+            onSave={saveField}
           >
             <TicketProperty label="创建时间">{ticket.createdAt ? formatDateTime(ticket.createdAt) : "未设置"}</TicketProperty>
             <TicketProperty label="关闭时间">{ticket.closedAt ? formatDateTime(ticket.closedAt) : "未设置"}</TicketProperty>
           </LarkTicketEditableProperties>
+          {fieldSaveStatus.pending > 0 ? <p className="ticket-property__message" role="status">正在保存 {fieldSaveStatus.pending} 项修改…</p> : null}
+          {fieldSaveStatus.notices.map((notice, index) => <p className="ticket-property__message ticket-property__message--error" role="alert" key={`${index}:${notice}`}>{notice}</p>)}
           <p className="ticket-detail__sync-time">同步于 {formatDateTime(ticket.syncedAt)}</p>
           {ticket.shadowAi ? <ShadowAiPanel shadowAi={ticket.shadowAi} /> : null}
         </aside>

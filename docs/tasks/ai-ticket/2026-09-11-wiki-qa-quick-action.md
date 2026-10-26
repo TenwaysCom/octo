@@ -2,9 +2,9 @@
 title: "Ticket wiki 问答 Quick Action"
 module: "ai-ticket"
 status: done
-requirement_version: 17
+requirement_version: 18
 created_on: 2026-09-11
-updated_on: 2026-09-22
+updated_on: 2026-09-27
 owner: Codex
 related:
   - "../../ai-dev/lifecycle/current-system-technical-objects.md"
@@ -14,7 +14,15 @@ related:
 
 ## 目标
 
-当前 v17 专用重排增加默认0.7的可配置最低分；v16 重排返回Top5、过滤后最多3篇供答案；v15 关键词去重后限量，保留其他校验；v14 让问题提取和答案共用现有effort配置；v13 优化答案上下文、知识模板及相关性过滤，为答案增加独立推理预算与安全用量/耗时指标；保留 v12：增加 Wiki 问答阶段 SSE 进度及 FE 中间过程展示；保留 v11：增加答案生成独立输入输出日志（沿用脱敏、按日轮转及失败隔离），保留 v10：本地召回最多 10 篇，全部进入重排，按相关性选最多 3 篇供最终答案生成。用户已确认：BGE 输入不带历史聊天，保留相关 Wiki 内容；重排后按相关知识及来源关联筛选原始消息片段，保留原文、上下文、前提、结果、纠正及来源，不搬整段聊天。general 模式继续保留证据核验输入。沿用双重排协议、消息短标签、独立诊断日志及现有超时策略。
+当前 v18 在既有 `docs/llm-wiki/concepts/` 外增加只读 `docs/ontology/` 召回源；仅将 `objects/`、`processes/`、`rules/` 作为知识候选，顶层索引只导航，复核/模板/示例和隐藏目录不进入候选。Ontology 正文可进入重排和答案上下文，但始终保留草稿、业务复核、环境与实现限制，并降级为历史参考，不冒充已上线事实或当前 Ticket 原始证据。沿用 v17 最低分、Top5/最多3篇、原始证据筛选、阶段进度及独立诊断日志等既有契约。
+
+## 验收标准（v18）
+
+- [x] `docs/ontology/{objects,processes,rules}/**/*.md` 与既有 concepts 共用召回上限和重排；顶层 `*-index.md` 仅导航，`reviews/`、`templates/`、`examples/`、`.git/` 不成为候选。
+- [x] 第二根目录执行独立 canonical path/符号链接边界校验；目录缺失不影响既有 concepts 召回。
+- [x] Ontology 正文保留给重排/答案，但结果始终为历史参考并展示 draft、`business_review: pending`、环境/实现与非 Ticket 原始证据限制。
+- [x] Wiki 问答和 Shadow 来源正确显示 `docs/llm-wiki/...` 或 `docs/ontology/...`，旧相对路径继续兼容。
+- [x] 定向单测、Server 构建与差异检查通过；不以本地验证宣称已部署或完成真实模型质量验收。
 
 ## 验收标准（v17）
 
@@ -95,9 +103,9 @@ related:
 ## 方案与决策
 
 - 用户确认 Server 检索＋模型重排、允许草稿、自动从 Ticket 提取问题、提取和回答复用问题总结provider/model，重排使用独立配置。
-- 读取 SUPPORT_QA_EU_WORKSPACE_DIR 下 docs/llm-wiki；以 concepts 为命中单位，index/entities 只辅助定位，raw 只供证据核对。
+- 读取 `SUPPORT_QA_EU_WORKSPACE_DIR` 下 `docs/llm-wiki` 与只读 `docs/ontology`：前者以 concepts 为命中单位、index/entities 只辅助定位、raw 只供证据核对；后者只以 objects/processes/rules 为命中单位，顶层 `*-index.md` 只辅助定位，reviews/templates/examples/隐藏目录不进入候选。两类候选共用召回上限和重排；Ontology 无 Ticket raw 证据，始终降级为历史参考并保留复核/环境/实现限制。
 - 三条独立 workflow_prompts：extract、rerank、answer；初始化只补缺失，不覆盖管理员模板。
-- 关键词召回最多10篇，全部候选的相关摘录及证据交给重排模型，选最多3篇供最终答案生成；中英文分词后标题4、对象/流程/标签3、正文2，匹配导航链接加1。同分按路径稳定排序。
+- 关键词召回由 `WIKI_QA_RECALL_LIMIT` 控制（默认20篇），全部候选的相关摘录及证据交给重排模型，选最多3篇供最终答案生成；中英文分词后标题4、对象/流程/标签3、正文2，Ontology 稳定路径按标题权重参与匹配，导航链接加1。同分按完整来源路径稳定排序。
 - 每篇正文最多2400字符，检查最多12个来源后按问题相关性选最多3个原始来源；general 重排保留原有共享2400字符摘录输入，专用重排不发送聊天。回答阶段从服务端保留的原始来源按相关链接、问题词、相邻消息及前提/结果/纠正规则重新摘取；完整片段共享2400字符预算，超出则省略并明确降级，不截断原文结论。只支持 schema 使用的 frontmatter 标量与字符串列表；无法识别的状态/环境保留未知。无新增依赖或向量数据库。
 - 原始 Ticket 只取“线程消息”节；Shadow AI 分析标为参考，不能被混入原始证据。
 - 新动作复用现有鉴权、Ticket SSE 和进程内一次性运行历史；用户审核后自行使用草稿。
@@ -119,6 +127,7 @@ related:
 | 2026-09-11 | v1 | in_progress | 真实 Ticket1192 首次运行 `c7db1a4c-a1f2-4e28-93ac-d05a00f5ed17` 完成；提取7743ms、重排32411ms、回答19914ms，返回1篇草稿/历史来源。页面呈现回复、来源编号与路径、审核提示；关闭重开 load200 且来源保留。 | 验收脚本同名按钮 strict-mode 冲突已用 exact 定位修正，非产品故障。 |
 | 2026-09-11 | v1 | in_progress | 取消运行 `a2a57883-6f97-4f95-9c5a-208b54c87975`：stop200，页面已停止，日志 AI_RUN_CANCELLED；重新执行启动独立运行 `76dfe038-555a-4aba-8b40-c4f1688a6527` 并返回200 SSE。 | 等待重试完成。 |
 | 2026-09-11 | v1 | done | 重试运行 `76dfe038-555a-4aba-8b40-c4f1688a6527` 完成：提取9711ms、重排56369ms、回答27989ms，生成2篇来源及审核提示；脚本正常退出0，日志 WEB_AI_RUN_FINISHED。完整本地 FE → Server → 智谱 → SSE → 页面链路及重开/取消/重试已跑通。 | 未部署或提交。使用正常插件登录协议的临时无头浏览器，不包含专用扩展 profile 的登录 UI 验收；没有读取导出浏览器 cookie/token 或执行 Ticket/wiki 写回动作。 |
+| 2026-09-27 | v18 | done | 增加 `docs/ontology` 只读召回、候选目录白名单、独立路径边界、状态限制与完整来源路径；定向 Server 89项、FE 全量47项、FE/Server 构建通过。真实目录以中文主题和稳定 ID 查询均命中目标 Ontology 页面。 | 未调用真实模型、未运行浏览器 E2E、未部署或重启服务；本地召回不等于重排/答案质量验收。 |
 
 ## 验证
 
@@ -392,3 +401,12 @@ Adapter只负责协议请求和形态校验，返回discriminated result；workf
 - 专用重排原始响应日志不变；app增加WIKI_QA_RERANK_SCORE_FILTERED事件，仅记阈值和输入/保留数量。非法配置明确失败，不静默回退。
 - 验证：service与rerank-client共110项通过，覆盖0.7边界、自定义值、全部过滤、零阈值、非法值及general隔离；Server构建、diff检查通过。未改实际env、未部署/重启或真实调用。
 - 用户要求回看历史分数：本地五轮Top3分别为18:08的0.363/0.304/0.079、18:19的0.826/0.740/0.634、18:25的0.619/0.543/0.291、18:49的0.958/0.939/0.912、18:58的0.422/0.379/0.358。按0.7仅分数过滤将分别保留0/2/0/3/0篇。三轮全过滤表明这是偏保守的初始值，未有人工标注证明这些低分候选无用；不能声明阈值已标定。旧octo日志14:54为0.752/0.684/0.546，可保留1篇。现存日志均top_n=3，没有新Top5运行证据。
+
+## 2026-09-27 v18 增加 Ontology 只读召回源
+
+- 用户确认在 `docs/llm-wiki/concepts/` 外增加现有 `docs/ontology/`。Ontology 只召回 `objects/`、`processes/`、`rules/`；顶层 `index.md`/`*-index.md` 仅做导航加权，`reviews/`、`templates/`、`examples/`、隐藏目录不成为候选。
+- Reader 为两个根分别做 realpath、范围、文件大小、Markdown 后缀与符号链接校验；Ontology 根或指定子目录缺失时保留既有 concepts 流程。两类候选共用 `WIKI_QA_RECALL_LIMIT` 和后续重排，不新增向量库或模型调用。
+- Ontology 相关正文保留给重排和答案，不要求伪造 raw evidence；服务强制将其降级为历史参考，并附带 draft、`business_review: pending`、环境、部分静态实现核对、非 Ticket 原始证据及不证明部署/当前事实等限制。
+- 来源改为仓库相对完整路径：新结果显示 `docs/llm-wiki/...` 或 `docs/ontology/...`；服务与 FE 对历史 `concepts/...` 路径保留兼容。
+- 验证通过：`wiki-knowledge-reader`、`wiki-qa.service`、`lark-ticket-ai` 三个文件共89项；`pnpm --dir fe check` 全量47项和 FE 构建；`pnpm --dir server build` 与 `git diff --check`。真实只读目录查询“销售订单修改”召回20篇，首位为 `docs/ontology/objects/sales-order-amendment.md`；稳定 ID `sales-order-amendment` 召回同一页面，均保留 draft/pending/历史参考限制。
+- 验证边界：没有把 Ontology 发送给真实重排或答案模型，没有运行浏览器 E2E、部署或服务重启；不据此宣称模型排序、答案质量或线上行为已验收。

@@ -37,6 +37,8 @@ export interface WikiSourceEvidence {
 export interface WikiCandidate {
   id: string;
   path: string;
+  sourcePath?: string;
+  knowledgeType?: "support_wiki" | "ontology";
   title: string;
   status: "draft" | "confirmed" | "unknown";
   environments: string[];

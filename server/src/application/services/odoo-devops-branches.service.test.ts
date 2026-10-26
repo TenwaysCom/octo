@@ -31,6 +31,62 @@ function createCache(overrides: Partial<Record<"get" | "set" | "delete" | "close
 }
 
 describe("OdooDevopsBranchesService", () => {
+  it("returns safe builds for all environments from cache without upstream requests", async () => {
+    const client = { listBranches: vi.fn() };
+    const cache = createCache({ get: vi.fn().mockImplementation(async (key: string) => JSON.stringify({ ...snapshot, environment: key.split(":").at(-1) })) });
+    const result = await new OdooDevopsBranchesService({ client, cache }).listBuildStatuses("batch-cached");
+    expect(result.actionRunId).toBe("batch-cached");
+    expect(result.environments).toEqual(["eu", "uk", "us"].map((environment) => ({
+      environment, state: "ready", stale: false,
+      builds: [{ branch: "uat_sprint_0810", status: "done", result: "success" }],
+    })));
+    expect(client.listBranches).not.toHaveBeenCalled();
+    expect(JSON.stringify(result)).not.toMatch(/connect_url|database_id|project_id/);
+  });
+
+  it("waits for cold snapshots and merges concurrent batches into one refresh per environment", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const client = { listBranches: vi.fn().mockImplementation(async (environment: string) => { await gate; return { ...snapshot, environment }; }) };
+    const service = new OdooDevopsBranchesService({ client, cache: createCache() });
+    const first = service.listBuildStatuses("batch-1");
+    const second = service.listBuildStatuses("batch-2");
+    await vi.waitFor(() => expect(client.listBranches).toHaveBeenCalledTimes(3));
+    release();
+    const results = await Promise.all([first, second]);
+    expect(results.every((result) => result.environments.every((entry) => entry.state === "ready"))).toBe(true);
+    expect(client.listBranches).toHaveBeenCalledTimes(3);
+    expect(results.map((result) => result.actionRunId)).toEqual(["batch-1", "batch-2"]);
+  });
+
+  it("keeps healthy environments and empty snapshots usable when one environment fails", async () => {
+    const client = { listBranches: vi.fn().mockImplementation(async (environment: string) => {
+      if (environment === "uk") throw new Error("private upstream failure");
+      return { ...snapshot, environment, ...(environment === "us" ? { items: [], total: 0 } : {}) };
+    }) };
+    const service = new OdooDevopsBranchesService({ client, cache: createCache() });
+    const result = await service.listBuildStatuses("batch-partial");
+    expect(result.environments.map((entry) => entry.state)).toEqual(["ready", "unavailable", "ready"]);
+    expect(result.environments[1]).toMatchObject({ builds: [], error: { layer: "server", module: "odoo-devops-branches", stage: "server.builds.read.failed", errorCode: "ODOO_DEVOPS_UNAVAILABLE" } });
+    expect(result.environments[2].builds).toEqual([]);
+    expect(JSON.stringify(result)).not.toContain("private upstream failure");
+    await service.listBuildStatuses("batch-backoff");
+    expect(client.listBranches).toHaveBeenCalledTimes(3);
+  });
+
+  it("returns stale builds immediately while refreshing environments in the background", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const cache = createCache({ get: vi.fn().mockImplementation(async (key: string) => JSON.stringify({ ...snapshot, environment: key.split(":").at(-1) })) });
+    const client = { listBranches: vi.fn().mockImplementation(async (environment: string) => { await gate; return { ...snapshot, environment }; }) };
+    const service = new OdooDevopsBranchesService({ client, cache, cacheTtlSeconds: 0 });
+    const result = await service.listBuildStatuses("batch-stale");
+    expect(result.environments.every((entry) => entry.stale && entry.state === "ready")).toBe(true);
+    expect(client.listBranches).toHaveBeenCalledTimes(3);
+    release();
+    await vi.waitFor(() => expect(cache.set).toHaveBeenCalledTimes(3));
+  });
+
   it("returns a validated Redis hit without calling Odoo DevOps", async () => {
     const client = { listBranches: vi.fn() };
     const cache = createCache({ get: vi.fn().mockResolvedValue(JSON.stringify(snapshot)) });
@@ -183,4 +239,30 @@ it("does not sync or cache a response from the wrong environment", async () => {
   await expect(service.refresh("eu")).rejects.toThrow("ODOO_SH_BUILD_ENVIRONMENT_MISMATCH");
   expect(onSnapshotSync).not.toHaveBeenCalled();
   expect(cache.set).not.toHaveBeenCalled();
+});
+
+it("cools down cold and stale page reads for thirty seconds after upstream failure", async () => {
+  vi.useFakeTimers();
+  try {
+    vi.setSystemTime(new Date("2026-09-24T00:00:00Z"));
+    const client = { listBranches: vi.fn().mockResolvedValue(snapshot) };
+    const service = new OdooDevopsBranchesService({ client, cache: createCache(), cacheTtlSeconds: 1 });
+    await service.list("eu");
+    vi.advanceTimersByTime(1001);
+    client.listBranches.mockRejectedValue(new Error("upstream 502"));
+    await expect(service.refresh("eu")).rejects.toThrow();
+    await expect(service.refresh("uk")).rejects.toThrow();
+    for (let i = 0; i < 3; i++) {
+      await expect(service.getOrStartRefresh("eu")).resolves.toMatchObject({ state: "ready", stale: true });
+      await expect(service.getOrStartRefresh("uk")).resolves.toEqual({ state: "unavailable" });
+      await expect(service.list("uk")).rejects.toThrow("ODOO_DEVOPS_UNAVAILABLE");
+    }
+    expect(client.listBranches).toHaveBeenCalledTimes(3);
+    vi.advanceTimersByTime(30_000);
+    client.listBranches.mockResolvedValue(snapshot);
+    await service.getOrStartRefresh("eu");
+    expect(client.listBranches).toHaveBeenCalledTimes(4);
+  } finally {
+    vi.useRealTimers();
+  }
 });

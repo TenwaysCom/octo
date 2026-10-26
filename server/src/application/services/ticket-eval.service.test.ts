@@ -4,12 +4,14 @@ import { WIKI_QA_PROMPTS } from "../../domain/workflow-prompts.js";
 const request = (): TicketEvalRequest => ({ scenario: "ticket.early_analysis", actionRunId: "eval-1",
   messages: [{ messageId: "m1", createdAt: "2026-09-24T00:00:00Z", senderRole: "user", text: "订单确认失败", hasArtifact: false }],
   exclusionTokens: ["rec-current"], config: { provider: "deepseek", model: "test", timeoutMs: 1000,
-    prompts: { "lark_ticket.support_qa.summarize": "{{ticket_context}}\n{{user_message}}" } } });
-const output = (ids = ["m1"]) => ({ version: "support-analysis-result-v1", analysis: {
-  segmentKey: "primary", intent: { intentType: "troubleshoot", confidence: .8, summary: "订单确认失败", keywords: [], evidenceMessageIds: ids },
+    prompts: { "lark_ticket.shadow.summarize": "{{ticket_context}}\n{{user_message}}" } } });
+const output = (ids = ["M1"]) => ({ version: "shadow-analysis-result-v2", analysis: {
+  segmentKey: "primary", intent: { intentType: "troubleshoot", intentSubtype: "workflow_stuck", confidence: .8, summary: "订单确认失败", keywords: [], evidenceMessageIds: ids },
   result: { resolutionStatus: "pending", solutionSummary: null, solutionSteps: [], resolverRef: null,
     resolvedAt: null, autoResolvable: false, suggestedAutomation: null, confidence: .8 },
-  quality: { scores: {}, summary: "尚未解决", criticalIssues: [], warnings: [] } }, summary: "订单确认失败" });
+  quality: { scores: {}, summary: "尚未解决", criticalIssues: [], warnings: [] },
+  businessRisk: { level: null, rationale: "缺少影响范围", evidenceMessageIds: [] as string[] },
+  replyAdvice: { advice: "undetermined", rationale: "信息不足", evidenceMessageIds: [] as string[] } }, summary: "订单确认失败" });
 
 describe("offline ticket eval service", () => {
   it("rejects expected answers and other extra fields at execution boundary", () => {
@@ -29,6 +31,24 @@ describe("offline ticket eval service", () => {
     } });
     expect(result).toMatchObject({ status: "invalid_output", error: { errorCode: "SHADOW_EVIDENCE_OUTSIDE_SNAPSHOT" } });
     expect(result.calls).toHaveLength(1);
+  });
+  it("maps v2 evidence in all sections back to window IDs", async () => {
+    const value = output();
+    value.analysis.businessRisk.evidenceMessageIds = ["M1"];
+    value.analysis.replyAdvice.evidenceMessageIds = ["M1"];
+    const result = await executeTicketEval(request(), { client: {
+      createJsonCompletion: async () => ({ content: JSON.stringify(value), model: "test" }),
+    } });
+    expect(result).toMatchObject({ status: "ok", output: { analysis: {
+      intent: { evidenceMessageIds: ["m1"] }, businessRisk: { evidenceMessageIds: ["m1"] }, replyAdvice: { evidenceMessageIds: ["m1"] },
+    } } });
+  });
+  it("rejects Wiki references when the early-analysis scene supplies no Wiki evidence", async () => {
+    const value = output(); value.summary = "建议使用历史方案 [W1]";
+    const result = await executeTicketEval(request(), { client: {
+      createJsonCompletion: async () => ({ content: JSON.stringify(value), model: "test" }),
+    } });
+    expect(result).toMatchObject({ status: "invalid_output", error: { errorCode: "SHADOW_WIKI_REFERENCE_INVALID" } });
   });
   it("does not expose provider exception payloads", async () => {
     const result = await executeTicketEval(request(), { client: {

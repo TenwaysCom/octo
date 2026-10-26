@@ -33,7 +33,7 @@ export async function exportTicketEvalRows(input: { connectionString: string; ba
       };
     });
     const promptRows = await db.query("SELECT key, prompt FROM workflow_prompts WHERE key = ANY($1::text[])", [[
-      "lark_ticket.support_qa.summarize", "lark_ticket.wiki_qa.extract", "lark_ticket.wiki_qa.rerank", "lark_ticket.wiki_qa.answer",
+      "lark_ticket.shadow.summarize", "lark_ticket.wiki_qa.extract", "lark_ticket.wiki_qa.rerank", "lark_ticket.wiki_qa.answer",
     ]]);
     await db.query("COMMIT");
     return { tickets: result, prompts: Object.fromEntries(promptRows.rows.filter((r) => r.prompt?.trim()).map((r) => [r.key, r.prompt])) };

@@ -3,6 +3,7 @@ import { supportsWikiQuestion, wikiQueryTerms } from "../../domain/wiki-evidence
 import { z } from "zod";
 import type { JsonCompletionClient } from "../../adapters/ai/json-completion-client.js";
 import { createTicketSummaryJsonCompletionClient, isTicketSummaryClientError } from "../../adapters/ai/ticket-summary-client.js";
+import { ZcodeChatError } from "../../adapters/zcode/zcode-chat-client.js";
 import { createWikiQaRerankClient, WikiQaRerankClientError, type WikiQaRerankClient } from "../../adapters/ai/wiki-qa-rerank-client.js";
 import { createWikiKnowledgeReader } from "../../adapters/filesystem/wiki-knowledge-reader.js";
 import { wikiQaExtractLog, type WikiQaExtractLog } from "../../adapters/filesystem/wiki-qa-extract-log.js";
@@ -41,8 +42,8 @@ async function runStage<T>(phase: WikiQaProgress["phase"], input: WikiQaInput, o
 
 // A page can aggregate many unrelated incidents. Only forward statements tied
 // to the selected primary sources; the original source excerpts remain available.
-function scopedWikiContent(content: string, sourcePaths: string[]): string {
-  if (!sourcePaths.length) return "";
+function scopedWikiContent(content: string, sourcePaths: string[], retainWithoutPrimaryEvidence = false): string {
+  if (!sourcePaths.length) return retainWithoutPrimaryEvidence ? content : "";
   const isOtherSource = (part: string) => /raw\/(?:transcripts|documents)\//.test(part)
     && !sourcePaths.some((path) => part.includes(path));
   return content.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, "")
@@ -122,8 +123,13 @@ export function createWikiQaService(deps: {
       phaseLog?.({ event: "failed", actionRunId: input.actionRunId, durationMs: Date.now() - start,
         errorCode: input.signal?.aborted ? "ABORTED" : isTicketSummaryClientError(error) ? error.code : "WIKI_QA_MODEL_FAILED" });
       input.signal?.throwIfAborted();
-      wikiLogger.warn({ ...base, layer: "adapter", errorCode: isTicketSummaryClientError(error) || error instanceof WikiQaRerankClientError ? error.code : "WIKI_QA_MODEL_FAILED", durationMs: Date.now() - start }, "WIKI_QA_MODEL_FAILED");
-      throw new WikiQaError("WIKI_QA_MODEL_FAILED", "Wiki 问答模型调用失败，请检查模型配置或稍后重新执行。", { ...base, layer: "adapter" });
+      wikiLogger.warn({ ...base, layer: "adapter", errorCode: isTicketSummaryClientError(error) || error instanceof WikiQaRerankClientError ? error.code : "WIKI_QA_MODEL_FAILED", durationMs: Date.now() - start,
+        ...(error instanceof ZcodeChatError ? { statusCode: error.statusCode, providerErrorCode: error.providerErrorCode } : {}),
+      }, "WIKI_QA_MODEL_FAILED");
+      const message = error instanceof ZcodeChatError && error.providerErrorCode === "1113"
+        ? "Wiki 问答模型账户余额不足或无可用资源包，请联系管理员检查智谱 API 账户余额和资源包后重新执行。"
+        : "Wiki 问答模型调用失败，请检查模型配置或稍后重新执行。";
+      throw new WikiQaError("WIKI_QA_MODEL_FAILED", message, { ...base, layer: "adapter" });
     }
     const parsed = (() => {
       try { return schema.safeParse(JSON.parse(content)); } catch { return undefined; }
@@ -158,20 +164,23 @@ export function createWikiQaService(deps: {
     return runStage("evidence", input, async () => {
       const evidence: WikiKnowledgeEvidence[] = ranked.matches.map((match, index) => {
         const candidate = rerankCandidates.find((item) => item.id === match.candidateId);
-        if (!candidate || seen.has(candidate.path) || new Set(match.evidenceIds).size !== match.evidenceIds.length
+        const sourcePath = candidate?.sourcePath ?? candidate?.path ?? "";
+        if (!candidate || seen.has(sourcePath) || new Set(match.evidenceIds).size !== match.evidenceIds.length
           || match.evidenceIds.some((id) => !candidate.sourceEvidence.some((source) => source.id === id))) {
           throw new WikiQaError("WIKI_QA_REFERENCE_INVALID", "Wiki 检索结果包含重复页面或候选之外的引用，请重新执行。", {
             actionRunId: input.actionRunId, layer: "server", module: "wiki-qa", stage: "server.wiki_qa.rerank",
           });
         }
-        seen.add(candidate.path);
+        seen.add(sourcePath);
         const sources = reader.selectEvidence
           ? reader.selectEvidence({ candidate, question: extracted, evidenceIds: match.evidenceIds, signal: input.signal })
           : candidate.sourceEvidence.filter((source) => match.evidenceIds.includes(source.id));
         const omittedEvidence = sources.length < match.evidenceIds.length;
         const historical = candidate.historicalOnly || !match.conditionsMatched || !sources.length || omittedEvidence || sources.some((source) => !source.complete);
-        return { sourceId: index + 1, path: candidate.path, title: candidate.title, status: candidate.status,
-          environments: candidate.environments, content: scopedWikiContent(candidate.content, sources.map((source) => source.path)), sourceEvidence: sources,
+        return { sourceId: index + 1, path: sourcePath, knowledgeType: candidate.knowledgeType,
+          title: candidate.title, status: candidate.status,
+          environments: candidate.environments,
+          content: scopedWikiContent(candidate.content, sources.map((source) => source.path), candidate.knowledgeType === "ontology"), sourceEvidence: sources,
           applicability: historical ? "historical_reference" : match.applicability,
           limitations: [...new Set([...candidate.limitations, ...match.limitations,
             ...(!match.conditionsMatched ? ["当前材料尚未确认处理路径的关键前提"] : []),
@@ -207,8 +216,10 @@ export function createWikiQaService(deps: {
             actionRunId: input.actionRunId, layer: "server", module: "wiki-qa", stage: "server.wiki_qa.answer",
           });
         }
-        const sources = retrieved.evidence.map((item) =>
-          `[${item.sourceId}] ${item.title.replace(/[\r\n]/g, " ")}（${item.status === "draft" ? "草稿" : item.status === "confirmed" ? "已确认" : "状态待确认"}${item.applicability === "historical_reference" ? "；仅供历史参考" : ""}）\n来源：docs/llm-wiki/${item.path}`);
+        const sources = retrieved.evidence.map((item) => {
+          const sourcePath = item.path.startsWith("docs/") ? item.path : `docs/llm-wiki/${item.path}`;
+          return `[${item.sourceId}] ${item.title.replace(/[\r\n]/g, " ")}（${item.status === "draft" ? "草稿" : item.status === "confirmed" ? "已确认" : "状态待确认"}${item.applicability === "historical_reference" ? "；仅供历史参考" : ""}）\n来源：${sourcePath}`;
+        });
         input.signal?.throwIfAborted();
         return { ...retrieved, answerMarkdown: [redactSupportText(answer.answerMarkdown), ...(sources.length ? ["参考资料：", ...sources] : [])].join("\n\n") };
       });
@@ -216,7 +227,7 @@ export function createWikiQaService(deps: {
   };
 }
 
-function wikiReasoningEffort(): "low" | "high" | "max" | undefined {
+export function wikiReasoningEffort(): "low" | "high" | "max" | undefined {
   const value = z.enum(["low", "high", "max", "provider"]).parse(process.env.WIKI_QA_ANSWER_REASONING_EFFORT?.trim() || "low");
   return value === "provider" ? undefined : value;
 }

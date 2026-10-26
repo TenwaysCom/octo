@@ -1,9 +1,11 @@
+import { useLarkTicketFieldEdits } from "../hooks/useLarkTicketFieldEdits.js";
+import { odooBuildRequests } from "../services/platform-data/odoo-build-requests.js";
 import { loadLarkTicketSharedUrl } from "../services/lark-ticket/lark-ticket-api.js";
 import { getTicketFilterOptions } from "../services/platform-data/platform-search-api.js";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { WorkspaceShell } from "../components/layout/WorkspaceShell.jsx";
-import { OdooShBuildGears, OdooShBuildStatus } from "../components/platform/OdooShBuildStatus.jsx";
+import { OdooShBuildGears, OdooShBuildsProvider, OdooShBuildStatus } from "../components/platform/OdooShBuildStatus.jsx";
 import { MeegleRelatedPeople } from "../components/platform/MeegleRelatedPeople.jsx";
 import { LarkTicketBadge } from "../components/lark-ticket/LarkTicketBadge.jsx";
 import { LarkTicketResponsible } from "../components/lark-ticket/LarkTicketResponsible.jsx";
@@ -53,7 +55,7 @@ import {
 } from "../lib/lark-ticket-view-config.js";
 import { createLarkTicketNavigationContext } from "../lib/lark-ticket-detail-navigation.js";
 import { getLarkTicketResourceUrl, LARK_TICKET_MENU_FIELD_ACTIONS } from "../lib/lark-ticket-context-menu.js";
-import { createLarkTicketMeegleWorkitem, loadLarkTicketFieldOptions, updateLarkTicketField } from "../services/lark-ticket/lark-ticket-actions-api.js";
+import { createLarkTicketMeegleWorkitem, loadLarkTicketFieldOptions } from "../services/lark-ticket/lark-ticket-actions-api.js";
 import {
   DEFAULT_MEEGLE_GROUP_BY,
   DEFAULT_MEEGLE_VISIBLE_COLUMNS,
@@ -209,7 +211,22 @@ function OdooShBuildDots({ builds }) {
   })}</span>;
 }
 
-function OdooShBuildStatusList({ builds }) {
+function CachedOdooShBuildStatus({ pullRequest, apiBaseUrl }) {
+  if (pullRequest.odooShBuildState === "refreshing") {
+    return <OdooShBuildStatus apiBaseUrl={apiBaseUrl} pullRequest={pullRequest} />;
+  }
+  if (pullRequest.odooShBuildState === "unavailable") return <small>构建状态暂不可用</small>;
+  if (pullRequest.odooShBuildState === "unmapped") return null;
+  return <span title={pullRequest.odooShBuildStale ? "旧数据" : undefined}>
+    {pullRequest.odooShBuilds?.length ? <OdooShBuildDots builds={pullRequest.odooShBuilds} /> : <small>无 Odoo.sh 构建</small>}
+    {pullRequest.odooShBuildStale ? <small>旧数据</small> : null}
+  </span>;
+}
+
+function OdooShBuildStatusList({ builds, pullRequest, apiBaseUrl }) {
+  if ((pullRequest.odooShBuildState && pullRequest.odooShBuildState !== "ready") || pullRequest.odooShBuildStale) {
+    return <CachedOdooShBuildStatus pullRequest={pullRequest} apiBaseUrl={apiBaseUrl} />;
+  }
   if (!builds?.length) return <p className="pr-preview-empty">暂无关联的 Odoo.sh 构建状态。</p>;
   return <div className="pr-preview-builds">{builds.map((build) => <div key={build.environment}>
     <strong>{build.environment.toUpperCase()}</strong>
@@ -485,7 +502,7 @@ function MeegleWorkitemCell({ columnKey, item, apiBaseUrl, nowTime, onPickPullRe
   return formatDateTime(item.sourceUpdatedAt || item.syncedAt);
 }
 
-function GitHubPullRequestCell({ columnKey, item }) {
+function GitHubPullRequestCell({ columnKey, item, apiBaseUrl }) {
   if (columnKey === "pullRequest") {
     return <><ExternalLink href={item.htmlUrl}>{item.title}</ExternalLink><small>#{item.pullNumber}</small></>;
   }
@@ -496,7 +513,7 @@ function GitHubPullRequestCell({ columnKey, item }) {
     return <GitHubPullRequestStatus isDraft={item.isDraft} state={item.state} />;
   }
   if (columnKey === "branch") {
-    return <><span className="github-pr-branch">{item.headRef || "-"}<OdooShBuildDots builds={item.odooShBuilds} /></span><small>{item.baseRef ? `→ ${item.baseRef}` : ""}</small></>;
+    return <><span className="github-pr-branch">{item.headRef || "-"}<CachedOdooShBuildStatus pullRequest={item} apiBaseUrl={apiBaseUrl} /></span><small>{item.baseRef ? `→ ${item.baseRef}` : ""}</small></>;
   }
   if (columnKey === "author") {
     return <GitHubUser login={item.authorLogin} />;
@@ -775,7 +792,7 @@ function MeegleWorkitemCard({ item, visibleColumns, apiBaseUrl, nowTime, onMeegl
   </article>;
 }
 
-function GitHubPullRequestCard({ item, visibleColumns, onPreviewCandidateChange }) {
+function GitHubPullRequestCard({ item, visibleColumns, onPreviewCandidateChange, apiBaseUrl }) {
   const columns = GITHUB_PULL_REQUEST_VIEW_COLUMNS.filter(({ key }) => key !== "pullRequest" && visibleColumns.includes(key));
   const layout = getKanbanCardLayout("github-pull-requests", visibleColumns, item);
   const description = getKanbanCardDescription("github-pull-requests", item);
@@ -793,8 +810,8 @@ function GitHubPullRequestCard({ item, visibleColumns, onPreviewCandidateChange 
       <ExternalLink className="table-link kanban-card__title" href={item.htmlUrl}>{item.title || `#${item.pullNumber}`}</ExternalLink>
       <KanbanCardPeople item={item} kind="github-pull-requests" />
     </div>
-    <KanbanCardSecondLine identifier={`#${item.pullNumber}`} statusColumn={columns.find(({ key }) => key === layout.statusKey)} time={layout.updatedAtKey ? getKanbanCardTime("github-pull-requests", item) : null} renderCell={(column) => <GitHubPullRequestCell columnKey={column.key} item={item} />} />
-    <KanbanCardFloatingMeta columns={floatingColumns} description={description} detailsId={`kanban-card-details-github-${item.owner}-${item.repo}-${item.pullNumber}`} renderCell={(column) => <GitHubPullRequestCell columnKey={column.key} item={item} />} />
+    <KanbanCardSecondLine identifier={`#${item.pullNumber}`} statusColumn={columns.find(({ key }) => key === layout.statusKey)} time={layout.updatedAtKey ? getKanbanCardTime("github-pull-requests", item) : null} renderCell={(column) => <GitHubPullRequestCell apiBaseUrl={apiBaseUrl} columnKey={column.key} item={item} />} />
+    <KanbanCardFloatingMeta columns={floatingColumns} description={description} detailsId={`kanban-card-details-github-${item.owner}-${item.repo}-${item.pullNumber}`} renderCell={(column) => <GitHubPullRequestCell apiBaseUrl={apiBaseUrl} columnKey={column.key} item={item} />} />
   </article>;
 }
 
@@ -855,7 +872,7 @@ function LoadMoreResults({ pager, loaded, isLoading, onLoadMore }) {
   </footer>;
 }
 
-function GitHubPullRequestPreviewModal({ preview, onClose, onRetry }) {
+function GitHubPullRequestPreviewModal({ preview, onClose, onRetry, apiBaseUrl }) {
   const { pullRequest } = preview;
   const linkedIds = new Set((pullRequest.meegleWorkitems || []).map((workitem) => workitem.workItemId));
   const unresolvedIds = (pullRequest.meegleIds || []).filter((workItemId) => !linkedIds.has(workItemId));
@@ -876,7 +893,7 @@ function GitHubPullRequestPreviewModal({ preview, onClose, onRetry }) {
       {preview.status === "ready" ? <>
       <div className="pr-preview-section">
         <h3>Odoo.sh 状态</h3>
-        <OdooShBuildStatusList builds={pullRequest.odooShBuilds} />
+        <OdooShBuildStatusList builds={pullRequest.odooShBuilds} pullRequest={pullRequest} apiBaseUrl={apiBaseUrl} />
       </div>
       <div className="pr-preview-section">
         <h3>描述</h3>
@@ -964,14 +981,17 @@ function MeeglePullRequestPicker({ picker, onClose, onSelect }) {
   </div>;
 }
 
-export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, breadcrumbs, platformListFilterState, onPlatformListFilterStateChange, onLarkTicketNavigationContextChange }) {
+export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, breadcrumbs, platformListFilterState, onPlatformListFilterStateChange, onLarkTicketNavigationContextChange, ticketFieldEdits }) {
+  const fieldEdits = useLarkTicketFieldEdits(ticketFieldEdits, apiBaseUrl);
+  const fieldSaveStatus = fieldEdits.status();
   const restoredFilters = platformListFilterState || {};
   const [searchInput, setSearchInput] = useState(() => restoredFilters.searchQuery || "");
   const ticketSearchInputRef = useRef(null);
   const [searchQuery, setSearchQuery] = useState(() => (restoredFilters.searchQuery || "").trim());
   const [ticketFilterOptions, setTicketFilterOptions] = useState({ values: {}, status: "loading" });
   const [filterOptionsRetry, setFilterOptionsRetry] = useState(0);
-  const [state, setState] = useState({ status: "loading", items: [], filterItems: [], filterItemsPage: page, sprints: [], relatedPersonOptions: [], pager: null, isLoadingMore: false });
+  const [rawState, setState] = useState({ status: "loading", items: [], filterItems: [], filterItemsPage: page, sprints: [], relatedPersonOptions: [], pager: null, isLoadingMore: false });
+  const state = page === "lark-tickets" ? { ...rawState, items: rawState.items.map(fieldEdits.project), filterItems: rawState.filterItems.map(fieldEdits.project) } : rawState;
   const [selectedStatuses, setSelectedStatuses] = useState(() => restoredFilters.selectedStatuses || null);
   const [selectedDateFilters, setSelectedDateFilters] = useState(() => normalizeFilterValues(
     restoredFilters.selectedDateFilters,
@@ -1048,7 +1068,6 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
   const [ticketContextMenu, setTicketContextMenu] = useState(null);
   const [ticketFieldOptions, setTicketFieldOptions] = useState({ key: "", status: "idle", fields: [] });
   const ticketCreateRunningRef = useRef(new Set());
-  const ticketFieldRunningRef = useRef(new Set());
   const ticketResourceRunningRef = useRef(false);
   const [ticketAction, setTicketAction] = useState(null);
   const [ticketActionMessage, setTicketActionMessage] = useState(null);
@@ -1263,6 +1282,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
   useEffect(() => {
     let active = true;
     const requestVersion = ++dataRequestVersionRef.current;
+    const readVersion = fieldEdits.getVersion();
     setState((current) => ({
       status: "loading",
       items: [],
@@ -1287,9 +1307,10 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
       noSprintFilter,
     });
     const isFiltered = Object.keys(filters).length > 0;
-    void getPlatformDataListPage({ apiBaseUrl, kind: page, filters }).then(
+    void getPlatformDataListPage({ apiBaseUrl, kind: page, filters, requestScope: page === "lark-tickets" ? fieldEdits.getReadScope() : "" }).then(
       (result) => {
         if (!active || dataRequestVersionRef.current !== requestVersion) return;
+        if (page === "lark-tickets") fieldEdits.accept(result.items, readVersion);
         setState((current) => ({
           status: "ready",
           items: result.items,
@@ -1311,6 +1332,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
     if (!pager?.hasMore || state.isLoadingMore || !Number.isInteger(pager.nextOffset)) return;
     const requestVersion = dataRequestVersionRef.current;
     const nextOffset = pager.nextOffset;
+    const readVersion = fieldEdits.getVersion();
     setState((current) => ({ ...current, isLoadingMore: true }));
     const filters = getPlatformListFilters({
       searchQuery,
@@ -1326,8 +1348,10 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
       noSprintFilter,
     });
     try {
-      const result = await getPlatformDataListPage({ apiBaseUrl, kind: page, filters, offset: nextOffset });
+      const result = await getPlatformDataListPage({ apiBaseUrl, kind: page, filters, offset: nextOffset,
+        requestScope: page === "lark-tickets" ? fieldEdits.getReadScope() : "" });
       if (dataRequestVersionRef.current !== requestVersion) return;
+      if (page === "lark-tickets") fieldEdits.accept(result.items, readVersion);
       setState((current) => current.pager?.nextOffset !== nextOffset ? current : {
         ...current,
         items: [...current.items, ...result.items],
@@ -1482,37 +1506,13 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
     setTicketContextMenu(null);
   }
 
-  async function runTicketFieldAction(field, option) {
+  function runTicketFieldAction(field, option) {
     const context = ticketContextMenu;
-    if (!context) return;
-    const recordId = context.ticket.recordId;
-    const key = JSON.stringify([context.ticket.baseId, context.ticket.tableId, recordId]);
-    if (ticketFieldRunningRef.current.has(key)) return;
-    ticketFieldRunningRef.current.add(key);
-    setTicketAction({ recordId, field, status: "running" });
-    try {
-      const result = await updateLarkTicketField({
-        apiBaseUrl,
-        ticket: context.ticket,
-        field,
-        value: option.label,
-        optionUserId: option.userId,
-        actionRunId: crypto.randomUUID(),
-      });
-      if (result.ticket) patchLarkTicketRow(recordId, result.ticket);
-      else setReloadVersion((version) => version + 1);
-      const actionLabel = LARK_TICKET_MENU_FIELD_ACTIONS.find((item) => item.field === field)?.label || field;
-      setTicketAction({ recordId, field, status: "done" });
-      setTicketActionMessage({ tone: result.syncFailed ? "error" : "success", text: result.syncFailed
-        ? "已写入 Lark Base，但列表同步失败，请稍后同步 Ticket。" : `${actionLabel}：${option.label}` });
-      setTicketContextMenu(null);
-    } catch (error) {
-      setTicketAction({ recordId, field, status: "error" });
-      setTicketContextMenu(null);
-      setTicketActionMessage({ tone: "error", text: getTicketActionErrorText(error) });
-    } finally {
-      ticketFieldRunningRef.current.delete(key);
-    }
+    if (!context || !profile.workspaceAccess?.platformSync) return;
+    setTicketContextMenu(null);
+    // The session queue owns completion and rollback even after this page unmounts.
+    void fieldEdits.submit({ ticket: fieldEdits.project(context.ticket), field, value: option.label,
+      optionUserId: option.userId }).catch(() => {});
   }
 
   async function openTicketResource(kind) {
@@ -1582,6 +1582,8 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
         apiBaseUrl,
         actionRunId: crypto.randomUUID(),
       });
+      odooBuildRequests.invalidate(apiBaseUrl);
+      githubPreviewCacheRef.current.clear();
       setReloadVersion((version) => version + 1);
     } catch {
       setResetError("DevOps 缓存重置失败，请稍后重试。");
@@ -1891,13 +1893,16 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
     }}><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 6 8 8M14 6l-8 8" /></svg></button> : null}
   </div> : null;
 
-  return <WorkspaceShell user={profile.user ?? {}} workspaceAccess={profile.workspaceAccess} activePage={page} onLogout={onLogout} isBusy={isBusy} breadcrumbs={breadcrumbs} breadcrumbActions={ticketSearch}>
+  return <OdooShBuildsProvider apiBaseUrl={apiBaseUrl} enabled={page === "meegle-workitems"}>
+    <WorkspaceShell user={profile.user ?? {}} workspaceAccess={profile.workspaceAccess} activePage={page} onLogout={onLogout} isBusy={isBusy} breadcrumbs={breadcrumbs} breadcrumbActions={ticketSearch}>
     <section className="profile-main list-page">
       <section className="list-section">
         {page === "lark-tickets" && ticketFilterOptions.status === "error" ? <p className="list-message list-message--error">筛选选项加载失败。<button className="secondary-button" type="button" onClick={() => setFilterOptionsRetry((value) => value + 1)}>重试</button></p> : null}
         {state.status === "loading" ? <p className="list-message">正在加载同步数据…</p> : null}
         {state.status === "error" ? <p className="list-message list-message--error">同步数据暂时无法读取，请稍后重试。</p> : null}
         {resetError ? <p className="list-message list-message--error">{resetError}</p> : null}
+        {page === "lark-tickets" && fieldSaveStatus.pending > 0 ? <p className="list-message" role="status">正在保存 {fieldSaveStatus.pending} 项修改…</p> : null}
+        {page === "lark-tickets" ? fieldSaveStatus.notices.map((notice, index) => <p className="list-message list-message--error" role="alert" key={`${index}:${notice}`}>{notice}</p>) : null}
         {ticketActionMessage ? createPortal(<div className={`ticket-notification ticket-notification--${ticketActionMessage.tone}`}>
           <span className="ticket-notification__icon" aria-hidden="true">{ticketActionMessage.tone === "error" ? "!" : "✓"}</span>
           <div className="ticket-notification__content" role={ticketActionMessage.tone === "error" ? "alert" : "status"} aria-atomic="true">
@@ -2163,7 +2168,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
               onToggleSubgroup={(subgroupKey) => setCollapsedGitHubSubgroups((current) => current.includes(subgroupKey)
                 ? current.filter((key) => key !== subgroupKey)
                 : [...current, subgroupKey])}
-              renderCard={(item) => <GitHubPullRequestCard item={item} visibleColumns={githubVisibleColumns} onPreviewCandidateChange={setGitHubPreviewCandidate} key={`${item.owner}-${item.repo}-${item.pullNumber}`} />}
+              renderCard={(item) => <GitHubPullRequestCard apiBaseUrl={apiBaseUrl} item={item} visibleColumns={githubVisibleColumns} onPreviewCandidateChange={setGitHubPreviewCandidate} key={`${item.owner}-${item.repo}-${item.pullNumber}`} />}
             />
             <footer className="list-pagination">
               <p className="list-results">已加载 <strong>{sortedItems.length}</strong> / {totalItems} 条结果 · {githubGroups.length} 个分组</p>
@@ -2243,7 +2248,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
           /> : null}
         </div> : null}
       </section>
-      {githubPreview ? <GitHubPullRequestPreviewModal
+      {githubPreview ? <GitHubPullRequestPreviewModal apiBaseUrl={apiBaseUrl}
         preview={githubPreview}
         onClose={closeGitHubPullRequestPreview}
         onRetry={() => { void openGitHubPullRequestPreview(githubPreview.pullRequest, { force: true }); }}
@@ -2267,8 +2272,9 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
         onReloadOptions={() => ensureTicketFieldOptions(ticketContextMenu.ticket.baseId, ticketContextMenu.ticket.tableId, { force: true })}
         optionsStatus={ticketFieldOptions.key === `${ticketContextMenu.ticket.baseId}:${ticketContextMenu.ticket.tableId}` ? ticketFieldOptions.status : "loading"}
         point={ticketContextMenu.point}
-        ticket={ticketContextMenu.ticket}
+        ticket={fieldEdits.project(ticketContextMenu.ticket)}
       /> : null}
     </section>
-  </WorkspaceShell>;
+  </WorkspaceShell>
+  </OdooShBuildsProvider>;
 }

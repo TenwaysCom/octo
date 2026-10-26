@@ -246,6 +246,8 @@ export const githubPullRequestListResponseSchema = z.object({
     meegleIds: z.array(z.string()),
     sourceUpdatedAt: z.string().optional(),
     syncedAt: z.string(),
+    odooShBuildState: z.enum(["ready", "refreshing", "unavailable", "unmapped"]).optional(),
+    odooShBuildStale: z.boolean().optional(),
     odooShBuilds: z.array(odooShBuildSchema),
   })),
   pager: platformDataPagerSchema,
@@ -270,6 +272,8 @@ export const githubPullRequestPreviewResponseSchema = z.object({
   meegleWorkitems: z.array(githubLinkedMeegleWorkitemSchema),
   sourceUpdatedAt: z.string().optional(),
   syncedAt: z.string(),
+  odooShBuildState: z.enum(["ready", "refreshing", "unavailable", "unmapped"]).optional(),
+  odooShBuildStale: z.boolean().optional(),
   odooShBuilds: z.array(odooShBuildSchema),
 });
 

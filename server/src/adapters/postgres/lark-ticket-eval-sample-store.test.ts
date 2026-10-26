@@ -3,11 +3,40 @@ import { createTestPostgresDatabase } from "./test-db.js";
 import { PostgresLarkTicketEvalSampleStore } from "./lark-ticket-eval-sample-store.js";
 import { updateLarkTicketEvalSampleSchema } from "../../domain/lark-ticket-eval-sample.js";
 
+it("keeps legacy and multiple Shadow results separate, rejects stale saves and preserves omitted annotations", async () => {
+  const { db } = await createTestPostgresDatabase();
+  try {
+    const store = new PostgresLarkTicketEvalSampleStore(db);
+    const reviewer = { id: "a", name: "Alice" }, other = { id: "b", name: "Bob" };
+    const timestamp = "2026-10-21T01:00:00.000Z";
+    const base = { ticket: { baseId: "base", tableId: "table", recordId: "r", title: "Title" }, snapshotVersion: 1,
+      aiOutput: {}, datasetStatus: "eval" as const, failureLabels: [], createdAt: timestamp, updatedAt: timestamp };
+    await store.create({ ...base, id: "legacy" }, reviewer, "legacy");
+    const first = await store.create({ ...base, id: "shadow1", source: "shadow", outputVersion: "v1", manualIntent: "人工意图", expectedOutcome: "预期" }, reviewer, "create1");
+    await store.create({ ...base, id: "shadow2", source: "shadow", outputVersion: "v2" }, reviewer, "create2");
+    expect(await store.list("a")).toHaveLength(3);
+    expect((await store.findByTicketSnapshot(base.ticket, 1))?.id).toBe("legacy");
+    await expect(store.create({ ...base, id: "shadow1", source: "shadow", outputVersion: "v1" }, other, "other-create"))
+      .rejects.toMatchObject({ code: "EVAL_SAMPLE_CONFLICT" });
+    const update = updateLarkTicketEvalSampleSchema.parse({ actionRunId: "update", expectedUpdatedAt: first.updatedAt,
+      datasetStatus: "badcase", failureLabels: ["fact_incorrect"], notes: "环境错误" });
+    const saved = await store.update(first.id, update, timestamp, other);
+    expect(saved).toMatchObject({ manualIntent: "人工意图", expectedOutcome: "预期", notes: "环境错误", evalBy: "Bob" });
+    await expect(store.update(first.id, { ...update, actionRunId: "stale" }, timestamp, reviewer)).rejects.toMatchObject({ code: "EVAL_SAMPLE_CONFLICT" });
+    expect(await store.update(first.id, update, timestamp, other)).toEqual(saved);
+    await expect(store.update(first.id, { ...update, expectedUpdatedAt: saved!.updatedAt, actionRunId: "empty-reason", notes: "" }, timestamp, reviewer))
+      .rejects.toMatchObject({ code: "BADCASE_REASON_REQUIRED" });
+    const restored = await store.update(first.id, { ...update, actionRunId: "restore", expectedUpdatedAt: saved!.updatedAt, datasetStatus: "eval" }, timestamp, reviewer);
+    expect(restored).toMatchObject({ datasetStatus: "eval", notes: "环境错误", failureLabels: ["fact_incorrect"] });
+    expect(await store.list("b", true)).toHaveLength(1);
+  } finally { await db.destroy(); }
+});
+
 it("allows unannotated draft/eval, requires a badcase label and rejects forged reviewer metadata", () => {
-  for (const datasetStatus of ["draft", "eval"]) expect(updateLarkTicketEvalSampleSchema.safeParse({ datasetStatus, actionRunId: "r" }).success).toBe(true);
-  expect(updateLarkTicketEvalSampleSchema.safeParse({ datasetStatus: "badcase", actionRunId: "r" }).success).toBe(false);
-  expect(updateLarkTicketEvalSampleSchema.safeParse({ datasetStatus: "badcase", actionRunId: "r", failureLabels: ["fact_incorrect"] }).success).toBe(true);
-  expect(updateLarkTicketEvalSampleSchema.safeParse({ datasetStatus: "eval", actionRunId: "r", reviewerId: "forged" }).success).toBe(false);
+  for (const datasetStatus of ["draft", "eval"]) expect(updateLarkTicketEvalSampleSchema.safeParse({ datasetStatus, actionRunId: "r", expectedUpdatedAt: "2026-09-21T01:00:00.000Z" }).success).toBe(true);
+  expect(updateLarkTicketEvalSampleSchema.safeParse({ datasetStatus: "badcase", actionRunId: "r", expectedUpdatedAt: "2026-09-21T01:00:00.000Z" }).success).toBe(false);
+  expect(updateLarkTicketEvalSampleSchema.safeParse({ datasetStatus: "badcase", actionRunId: "r", expectedUpdatedAt: "2026-09-21T01:00:00.000Z", failureLabels: ["fact_incorrect"] }).success).toBe(true);
+  expect(updateLarkTicketEvalSampleSchema.safeParse({ datasetStatus: "eval", actionRunId: "r", expectedUpdatedAt: "2026-09-21T01:00:00.000Z", reviewerId: "forged" }).success).toBe(false);
 });
 
 it("persists draft reviews, retains both reviewers and ignores replay after another user's save", async () => {
@@ -19,9 +48,10 @@ it("persists draft reviews, retains both reviewers and ignores replay after anot
     const sample = { id: "s", ticket: { baseId: "base", tableId: "table", recordId: "rec", title: "Example" }, snapshotVersion: 1,
       aiOutput: {}, datasetStatus: "eval" as const, failureLabels: [], createdAt: timestamp, updatedAt: timestamp };
     expect(await store.create(sample, alice, "create")).toMatchObject({ evalBy: "Alice", evalAt: timestamp, isMyEval: true });
-    const draft = updateLarkTicketEvalSampleSchema.parse({ datasetStatus: "draft", actionRunId: "draft" });
-    expect(await store.update("s", draft, timestamp, alice)).toMatchObject({ datasetStatus: "draft", evalBy: "Alice" });
-    const bobSave = await store.update("s", { ...draft, datasetStatus: "badcase", failureLabels: ["fact_incorrect"], actionRunId: "bad" }, timestamp, bob);
+    const draft = updateLarkTicketEvalSampleSchema.parse({ datasetStatus: "draft", actionRunId: "draft", expectedUpdatedAt: timestamp });
+    const aliceSave = await store.update("s", draft, timestamp, alice);
+    expect(aliceSave).toMatchObject({ datasetStatus: "draft", evalBy: "Alice" });
+    const bobSave = await store.update("s", { ...draft, expectedUpdatedAt: aliceSave!.updatedAt, datasetStatus: "badcase", failureLabels: ["fact_incorrect"], actionRunId: "bad" }, timestamp, bob);
     expect(bobSave).toMatchObject({ evalBy: "Bob", datasetStatus: "badcase" });
     expect(await store.update("s", draft, timestamp, alice)).toMatchObject({ evalBy: "Bob", datasetStatus: "badcase", evalAt: bobSave!.evalAt });
     expect(await store.list("a", true)).toEqual([expect.objectContaining({ id: "s", isMyEval: true, evalBy: "Bob" })]);

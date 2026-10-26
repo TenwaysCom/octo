@@ -7,6 +7,8 @@ import { formatDateTime } from "../../lib/formatters.js";
 import { listLarkTicketAiSessions, loadLarkTicketAiSession, stopLarkTicketAiSession, streamLarkTicketAiSession } from "../../services/lark-ticket-ai/lark-ticket-ai-api.js";
 import { AiSessionCopyButton } from "../ai-session/AiSessionCopyButton.jsx";
 import { LarkAppMarkdown } from "./LarkAppMarkdown.jsx";
+import { LarkShadowEvalControls } from "./LarkShadowEvalControls.jsx";
+import { LarkHermesPanel } from "./LarkHermesPanel.jsx";
 
 function ConfidenceBadge({ value, kind = "intent" }) {
   const descriptionId = useId();
@@ -20,23 +22,28 @@ function ConfidenceBadge({ value, kind = "intent" }) {
 
 export function LarkAppUnderstanding({ ticket }) {
   const descriptionId = useId();
+  const items = getLarkAppUnderstanding(ticket);
+  const sources = [...new Set(items.map((item) => item.source).filter(Boolean))];
+  const sharedSource = sources.length === 1 ? sources[0] : "";
   return <section className="lark-app__card lark-app__understanding">
     <div className="lark-app__understanding-heading"><h2>AI 诉求理解</h2>
+      {sharedSource && <span className="lark-app__badge lark-app__badge--source">{sharedSource}</span>}
       <span className="lark-app__confidence-wrap">
         <button type="button" className="lark-app__info" aria-label="AI 诉求理解说明" aria-describedby={descriptionId}>i</button>
         <span id={descriptionId} role="tooltip" className="lark-app__confidence-help">以上为已有 AI 推断，请结合最新讨论核对；期望结果、交付物及待补充信息仍需确认。</span>
       </span>
     </div>
-    <dl>{getLarkAppUnderstanding(ticket).map((item) => <div key={item.id}>
-      <dt>{item.label} {item.source && <span className="lark-app__badge lark-app__badge--source">{item.source}</span>}</dt>
-      <dd className="lark-app__scored-value"><span>{item.text || "待确认"}</span>{item.text && <ConfidenceBadge value={item.confidence} />}</dd>
+    <dl className="lark-app__understanding-list">{items.map((item) => <div className={`lark-app__understanding-${item.id}`} key={item.id}>
+      <dt>{item.label} {!sharedSource && item.source && <span className="lark-app__badge lark-app__badge--source">{item.source}</span>}</dt>
+      <dd className={`lark-app__scored-value${item.text ? "" : " lark-app__muted"}`}><span>{item.text || "待确认"}</span>{item.text && <ConfidenceBadge value={item.confidence} />}</dd>
     </div>)}</dl>
   </section>;
 }
 
-function SavedAnalysis({ ticket }) {
-  const shadow = ticket.shadowAi;
-  const previewLabels = ["意图", "关键词", "问题总结", "方案摘要"];
+function SavedAnalysis({ ticket, apiBaseUrl }) {
+  const [shadow, setShadow] = useState(ticket.shadowAi);
+  useEffect(() => { setShadow(ticket.shadowAi); }, [ticket.shadowAi]);
+  const previewLabels = ["意图", "关键词", "问题总结", "方案摘要", "业务风险", "风险依据", "回复时机（分析时）", "回复依据", ...(shadow?.wikiContext ? ["Wiki 参考"] : [])];
   const fields = shadow ? (shadow.status === "ok" ? ["intent", "summary", "answer"] : ["intent"])
     .flatMap((stage) => getShadowStageDetails(shadow, stage)) : [];
   const preview = shadow?.status === "ok"
@@ -46,6 +53,7 @@ function SavedAnalysis({ ticket }) {
   const renderFields = (items) => <dl>{items.map(({ label, value }) => <div key={label}><dt>{label}</dt><dd className="lark-app__scored-value"><span>{value}</span>{shadow?.status === "ok" && fields.some((field) => field.label === label) && (label === "意图" || label === "方案摘要") && <ConfidenceBadge value={label === "意图" ? shadow.intentConfidence : shadow.resultConfidence} kind={label === "意图" ? "intent" : "answer"} />}</dd></div>)}</dl>;
   return <section className="lark-app__card">
     <div className="lark-app__shadow-heading"><h2>Shadow AI · {shadow ? getShadowStatusLabel(shadow.status) : "暂无分析"}</h2>{shadow?.analyzedAt && <time className="lark-app__muted" dateTime={shadow.analyzedAt} title="Shadow 分析时间">{formatDateTime(shadow.analyzedAt)}</time>}</div>
+    <LarkShadowEvalControls ticket={ticket} apiBaseUrl={apiBaseUrl} onShadowLoaded={setShadow} />
     {preview.length > 0 && renderFields(preview)}
     {!shadow && <p className="lark-app__muted">暂无已保存的 Shadow AI 分析。</p>}
     {details.length > 0 && <details className="lark-app__shadow-more">
@@ -56,7 +64,10 @@ function SavedAnalysis({ ticket }) {
 }
 
 export function LarkAppAnalysis({ ticket, apiBaseUrl, replyReference }) {
+  const tabs = [["saved", "Shadow AI"], ["live", "WIKI Rag AI"], ["hermes", "Hermes Agent AI"]];
   const [tab, setTab] = useState("saved");
+  const [hermesVisited, setHermesVisited] = useState(false);
+  const selectTab = (id) => { setTab(id); if (id === "hermes") setHermesVisited(true); };
   const [history, setHistory] = useState({ status: "loading", items: [] });
   const refreshRef = useRef(null);
   const { drawer, panel, isStreaming } = useAiSessionPanel(JSON.stringify([apiBaseUrl, ticket.baseId, ticket.tableId, ticket.recordId]), {
@@ -93,12 +104,15 @@ export function LarkAppAnalysis({ ticket, apiBaseUrl, replyReference }) {
   const selected = history.items.find((item) => item.sessionId === drawer?.sessionId);
   return <>
     <div className="lark-app__tabs" role="tablist" aria-label="分析来源">
-      {[ ["saved", "Shadow AI"], ["live", "WIKI Rag AI"] ].map(([id, label]) => <button key={id} id={`lark-app-tab-${id}`} role="tab" aria-selected={tab === id} aria-controls={`lark-app-panel-${id}`} tabIndex={tab === id ? 0 : -1} onClick={() => setTab(id)} onKeyDown={(event) => {
+      {tabs.map(([id, label], index) => <button key={id} id={`lark-app-tab-${id}`} role="tab" aria-selected={tab === id} aria-controls={`lark-app-panel-${id}`} tabIndex={tab === id ? 0 : -1} onClick={() => selectTab(id)} onKeyDown={(event) => {
         if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
-          event.preventDefault(); const next = event.key === "Home" ? "saved" : event.key === "End" ? "live" : tab === "live" ? "saved" : "live";
-          setTab(next); document.getElementById(`lark-app-tab-${next}`)?.focus();
+          event.preventDefault(); const next = tabs[event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : (index + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length][0];
+          selectTab(next); document.getElementById(`lark-app-tab-${next}`)?.focus();
         }
       }}><span>{label}</span></button>)}
+    </div>
+    <div className="lark-app__panel" id="lark-app-panel-hermes" role="tabpanel" aria-labelledby="lark-app-tab-hermes" hidden={tab !== "hermes"}>
+      {hermesVisited && <LarkHermesPanel key={JSON.stringify([apiBaseUrl, ticket.baseId, ticket.tableId, ticket.recordId])} visible={tab === "hermes"} ticket={ticket} apiBaseUrl={apiBaseUrl} />}
     </div>
     <div className="lark-app__panel" id="lark-app-panel-live" role="tabpanel" aria-labelledby="lark-app-tab-live" hidden={tab !== "live"}>
       <section className="lark-app__card">
@@ -120,6 +134,6 @@ export function LarkAppAnalysis({ ticket, apiBaseUrl, replyReference }) {
         <ul className="lark-app__history">{history.items.map((session) => <li key={session.sessionId}><button disabled={isStreaming || drawer?.status === "loading"} onClick={() => void panel.open(session, { oneShot: true })} aria-pressed={drawer?.sessionId === session.sessionId}><span>{session.title || "Wiki 问答"}</span><small>{aiRunStatusLabel(session.runStatus)} · {session.updatedAt ? formatDateTime(session.updatedAt) : "时间未提供"}</small></button></li>)}</ul>
       </section>
     </div>
-    <div className="lark-app__panel" id="lark-app-panel-saved" role="tabpanel" aria-labelledby="lark-app-tab-saved" hidden={tab !== "saved"}>{replyReference}<SavedAnalysis ticket={ticket} /></div>
+    <div className="lark-app__panel" id="lark-app-panel-saved" role="tabpanel" aria-labelledby="lark-app-tab-saved" hidden={tab !== "saved"}>{replyReference}<SavedAnalysis ticket={ticket} apiBaseUrl={apiBaseUrl} /></div>
   </>;
 }

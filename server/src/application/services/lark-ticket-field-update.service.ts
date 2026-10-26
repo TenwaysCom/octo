@@ -5,6 +5,7 @@ import {
 } from "./lark-auth-client.factory.js";
 import { buildLarkTicketCleaningProjection } from "./lark-ticket-cleaning.js";
 import { PlatformSyncService } from "./platform-sync.service.js";
+import { larkTicketFieldMetadataCache, type LarkTicketFieldMetadataCache } from "./lark-ticket-field-metadata-cache.js";
 import {
   LARK_TICKET_FIELD_CANDIDATES,
   LARK_TICKET_CLOSED_AT_FIELD,
@@ -114,7 +115,8 @@ export interface LarkTicketFieldOptionsResult {
 }
 
 export interface LarkTicketFieldUpdateDeps extends AuthenticatedLarkClientFactoryDeps {
-  syncStore?: Pick<PlatformSyncStore, "listLarkBaseTickets">;
+  syncStore?: Pick<PlatformSyncStore, "listLarkBaseTickets"> & Partial<Pick<PlatformSyncStore, "getLarkBaseTicketsForCleaning">>;
+  fieldMetadataCache?: LarkTicketFieldMetadataCache;
   syncLarkBaseTicket?: (input: {
     masterUserId: string;
     larkBaseUrl?: string;
@@ -261,20 +263,34 @@ export async function updateLarkTicketField(
   deps: LarkTicketFieldUpdateDeps = {},
 ): Promise<LarkTicketFieldUpdateResult | LarkTicketFieldUpdateFailure> {
   const { masterUserId, larkBaseUrl, baseId, tableId, recordId, field, value, optionUserId, actionRunId } = request;
+  const startedAt = Date.now();
+  const timed = async <T>(stage: string, task: () => Promise<T>): Promise<T> => {
+    const start = Date.now();
+    try { return await task(); }
+    finally { serviceLogger.info({ actionRunId, layer: "server", module: MODULE, stage, elapsedMs: Date.now() - start }, "server.ticket-field.timing"); }
+  };
   serviceLogger.info({ actionRunId, baseId, tableId, recordId, field }, "server.workflow.started");
   try {
-    const { client } = await buildAuthenticatedLarkClient(
+    const { client, baseUrl } = await timed("server.ticket-field.auth", () => buildAuthenticatedLarkClient(
       masterUserId,
       larkBaseUrl ?? process.env.LARK_BASE_URL ?? "https://open.larksuite.com",
       deps,
-    );
+    ));
 
-    const record = await client.getRecord(baseId, tableId, recordId);
-    const recordFieldName = findRecordFieldName(record, field);
-    const tableFields = await client.getFields(baseId, tableId);
+    const syncStore = deps.syncStore ?? new PostgresPlatformSyncStore();
+    const refs = [{ baseId, tableId, recordId }];
+    const [snapshot] = await timed("server.ticket-field.snapshot.read", async () => await syncStore.getLarkBaseTicketsForCleaning?.(refs) ?? []);
+    const record = snapshot?.sourceFields
+      ? { record_id: recordId, fields: snapshot.sourceFields }
+      : await timed("server.ticket-field.record.read", () => client.getRecord(baseId, tableId, recordId));
+    const cache = deps.fieldMetadataCache ?? larkTicketFieldMetadataCache;
+    const cacheKey = JSON.stringify([baseUrl, masterUserId, baseId, tableId]);
+    const tableFields = await timed("server.ticket-field.metadata", () => cache.get(cacheKey, () => client.getFields(baseId, tableId)));
     const fieldMeta = findFieldByName(tableFields, field);
-    const fieldName = recordFieldName ?? fieldMeta?.field_name;
+    // Metadata is authoritative after a rename; local snapshots may still use the old name.
+    const fieldName = fieldMeta?.field_name ?? findRecordFieldName(record, field);
     if (!fieldName) {
+      cache.invalidate(cacheKey);
       throw new LarkTicketFieldUpdateError(
         "LARK_TICKET_FIELD_NOT_FOUND",
         `Ticket 表中未找到 ${field} 对应的字段。`,
@@ -282,20 +298,30 @@ export async function updateLarkTicketField(
     }
 
     const fieldValue = buildFieldValue(field, fieldMeta, value, optionUserId);
-    const updated: LarkBitableRecord = await client.updateRecord(baseId, tableId, recordId, {
+    const writeFields = {
       [fieldName]: fieldValue,
       ...(field === "status" && value === "Finish" ? { [LARK_TICKET_CLOSED_AT_FIELD]: Date.now() } : {}),
-    });
+    };
+    let updated: LarkBitableRecord;
+    try {
+      updated = await timed("server.ticket-field.write", () => client.updateRecord(baseId, tableId, recordId, writeFields));
+    } catch (error) {
+      // Refresh metadata on the next attempt; never automatically replay an uncertain write.
+      cache.invalidate(cacheKey);
+      throw error;
+    }
     serviceLogger.info({ actionRunId, recordId, field, fieldName }, "server.ticket-field.write");
 
     // A cleared text cell may be omitted from the update response. Do not
     // resurrect its pre-write value when merging a sparse platform response.
-    const mergedFields = { ...record.fields, ...(field === "solution" ? { [fieldName]: value } : {}), ...updated.fields };
-    const ticket = buildUpdatedTicketProjection(baseId, tableId, recordId, mergedFields);
+    const mergedFields = { ...record.fields, ...writeFields, ...updated.fields };
+    let ticket = buildUpdatedTicketProjection(baseId, tableId, recordId, mergedFields);
 
     try {
-      const syncLarkBaseTicket = deps.syncLarkBaseTicket ?? defaultSyncLarkBaseTicket;
-      await syncLarkBaseTicket({
+      const syncLarkBaseTicket = deps.syncLarkBaseTicket ?? ((input) => new PlatformSyncService({
+        createLarkClient: async () => client,
+      }).syncLarkBaseTicket(input));
+      await timed("server.ticket-field.sync", () => syncLarkBaseTicket({
         masterUserId,
         larkBaseUrl,
         baseId,
@@ -303,7 +329,9 @@ export async function updateLarkTicketField(
         recordId,
         actionRunId,
         cleanAfterSync: true,
-      });
+      }));
+      const [fresh] = await syncStore.getLarkBaseTicketsForCleaning?.(refs) ?? [];
+      if (fresh?.sourceFields) ticket = buildUpdatedTicketProjection(baseId, tableId, recordId, fresh.sourceFields);
     } catch (syncError) {
       // Partial success: Lark Base is updated, the local projection refresh failed.
       serviceLogger.warn({
@@ -322,7 +350,8 @@ export async function updateLarkTicketField(
       };
     }
 
-    serviceLogger.info({ actionRunId, recordId, field }, "server.workflow.completed");
+    serviceLogger.info({ actionRunId, recordId, field, layer: "server", module: MODULE, stage: "server.workflow.completed",
+      elapsedMs: Date.now() - startedAt, localSnapshotUsed: Boolean(snapshot?.sourceFields) }, "server.workflow.completed");
     return {
       ok: true,
       ...(actionRunId ? { actionRunId } : {}),
@@ -351,12 +380,15 @@ export async function getLarkTicketFieldOptions(
   deps: LarkTicketFieldUpdateDeps = {},
 ): Promise<LarkTicketFieldOptionsResult> {
   const { masterUserId, larkBaseUrl, baseId, tableId } = request;
-  const { client } = await buildAuthenticatedLarkClient(
+  const { client, baseUrl } = await buildAuthenticatedLarkClient(
     masterUserId,
     larkBaseUrl ?? process.env.LARK_BASE_URL ?? "https://open.larksuite.com",
     deps,
   );
-  const tableFields = await client.getFields(baseId, tableId);
+  const tableFields = await (deps.fieldMetadataCache ?? larkTicketFieldMetadataCache).get(
+    JSON.stringify([baseUrl, masterUserId, baseId, tableId]),
+    () => client.getFields(baseId, tableId),
+  );
 
   const selectFields: LarkTicketFieldOptionsItem[] = SELECT_SEMANTIC_FIELDS.flatMap((field) => {
     const fieldMeta = findFieldByName(tableFields, field);

@@ -104,14 +104,14 @@ describe("web Lark Ticket controller", () => {
 it("binds Eval creation, draft saves and My evals to the Web identity", async () => {
   const service = { create: vi.fn().mockResolvedValue({ id: "s" }), update: vi.fn().mockResolvedValue({ id: "s" }), list: vi.fn().mockResolvedValue([]) };
   const controller = createWebLarkTicketController({ evalDatasetService: service as never,
-    resolveSession: vi.fn().mockResolvedValue({ ok: true, masterUserId: "alice", user: { larkName: "Alice" } }) });
+    resolveSession: vi.fn().mockResolvedValue({ ok: true, masterUserId: "alice", role: "dev", user: { larkName: "Alice" } }) });
   expect((await controller.createEvalSample({ cookieHeader: "session", recordId: "r", body: { baseId: "b", tableId: "t", actionRunId: "create" } })).statusCode).toBe(200);
   expect(service.create).toHaveBeenCalledWith(expect.objectContaining({ reviewer: { id: "alice", name: "Alice" } }));
-  expect((await controller.updateEvalSample({ cookieHeader: "session", sampleId: "s", body: { datasetStatus: "draft", actionRunId: "save" } })).statusCode).toBe(200);
+  expect((await controller.updateEvalSample({ cookieHeader: "session", sampleId: "s", body: { datasetStatus: "draft", actionRunId: "save", expectedUpdatedAt: "2026-09-21T00:00:00.000Z" } })).statusCode).toBe(200);
   expect(service.update).toHaveBeenCalledWith(expect.objectContaining({ reviewer: { id: "alice", name: "Alice" }, update: expect.objectContaining({ datasetStatus: "draft" }) }));
   expect((await controller.listEvalSamples({ cookieHeader: "session", query: { mine: "true" } })).statusCode).toBe(200);
   expect(service.list).toHaveBeenCalledWith("alice", true);
-  expect((await controller.updateEvalSample({ cookieHeader: "session", sampleId: "s", body: { datasetStatus: "draft", actionRunId: "save", evalBy: "bob" } })).statusCode).toBe(400);
+  expect((await controller.updateEvalSample({ cookieHeader: "session", sampleId: "s", body: { datasetStatus: "draft", actionRunId: "save", expectedUpdatedAt: "2026-09-21T00:00:00.000Z", evalBy: "bob" } })).statusCode).toBe(400);
 });
 
 it("rejects unauthenticated Eval reads and writes before accessing the dataset", async () => {
@@ -122,4 +122,25 @@ it("rejects unauthenticated Eval reads and writes before accessing the dataset",
   expect((await controller.createEvalSample({ cookieHeader: undefined, recordId: "r", body: {} })).statusCode).toBe(401);
   expect((await controller.updateEvalSample({ cookieHeader: undefined, sampleId: "s", body: {} })).statusCode).toBe(401);
   for (const method of Object.values(service)) expect(method).not.toHaveBeenCalled();
+});
+
+it("protects Shadow evaluation with page permission and server identity, including scoped reads", async () => {
+  const service = { createShadow: vi.fn().mockResolvedValue({ id: "s" }), loadShadow: vi.fn().mockResolvedValue({ sample: null }), list: vi.fn().mockResolvedValue([]) };
+  const session = vi.fn().mockResolvedValue({ ok: true, masterUserId: "alice", role: "dev", user: { larkName: "Alice" } });
+  const controller = createWebLarkTicketController({ evalDatasetService: service as never, resolveSession: session });
+  const body = { baseId: "b", tableId: "t", outputVersion: "a".repeat(64), actionRunId: "run", datasetStatus: "badcase", failureLabels: ["fact_incorrect"], notes: "环境错误" };
+  expect((await controller.createShadowEvalSample({ cookieHeader: "session", recordId: "r", body })).statusCode).toBe(200);
+  expect(service.createShadow).toHaveBeenCalledWith(expect.objectContaining({ ticket: { baseId: "b", tableId: "t", recordId: "r" }, reviewer: { id: "alice", name: "Alice" } }));
+  expect((await controller.loadShadowEvalSample({ cookieHeader: "session", recordId: "r", query: { baseId: "b", tableId: "t", actionRunId: "read" } })).statusCode).toBe(200);
+  expect((await controller.listEvalSamples({ cookieHeader: "session", query: { baseId: "b", tableId: "t", recordId: "r" } })).statusCode).toBe(200);
+  expect(service.list).toHaveBeenCalledWith("alice", false, { baseId: "b", tableId: "t", recordId: "r" });
+  expect((await controller.listEvalSamples({ cookieHeader: "session", query: { baseId: "b" } })).statusCode).toBe(400);
+  expect((await controller.createShadowEvalSample({ cookieHeader: "session", recordId: "r", body: { ...body, reviewerId: "forged" } })).statusCode).toBe(400);
+  session.mockResolvedValue({ ok: true, masterUserId: "bob", role: "viewer", user: {} });
+  const denied = await controller.createShadowEvalSample({ cookieHeader: "session", recordId: "r", body });
+  expect(denied.statusCode).toBe(403);
+  expect(denied.body).toMatchObject({ error: { actionRunId: "run", layer: "server", module: "lark-ticket-eval-dataset", stage: "server.eval-dataset.auth" } });
+  expect((await controller.loadShadowEvalSample({ cookieHeader: "session", recordId: "r", query: {} })).statusCode).toBe(403);
+  expect((await controller.updateEvalSample({ cookieHeader: "session", sampleId: "s", body: {} })).statusCode).toBe(403);
+  expect(service.createShadow).toHaveBeenCalledTimes(1);
 });

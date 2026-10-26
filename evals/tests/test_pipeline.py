@@ -41,7 +41,7 @@ class PipelineTest(unittest.TestCase):
         return import_dataset(self.root, self.annotated())["dataset_id"]
 
     def fake_bridge(self, operation, data, **kwargs):
-        if operation == "defaults": return {"prompts": {"lark_ticket.support_qa.summarize": "{{ticket_context}}"}}
+        if operation == "defaults": return {"prompts": {"lark_ticket.shadow.summarize": "{{ticket_context}}"}}
         serialized = str(data)
         for secret in ("GOLD_SECRET", "SHADOW_SECRET", "FUTURE_SECRET", "SECRET_TITLE"):
             self.assertNotIn(secret, serialized)

@@ -1,4 +1,5 @@
 import type { JsonCompletionClient } from "../ai/json-completion-client.js";
+import { createModelRequestClient } from "../ai/model-request-client.js";
 import { logger } from "../../logger.js";
 
 const zcodeLogger = logger.child({ module: "zcode-chat-client" });
@@ -15,6 +16,7 @@ export class ZcodeChatError extends Error {
     message: string,
     readonly statusCode?: number,
     readonly causeCode?: string,
+    readonly providerErrorCode?: string,
   ) {
     super(message);
     this.name = "ZcodeChatError";
@@ -67,6 +69,8 @@ export function createZcodeChatClient(
       const timeoutId = globalThis.setTimeout(abort, timeoutMs);
       const startedAt = Date.now();
       const reasoningEffort = /^glm-5\.3(?:-flash)?$/i.test(model) ? input.reasoningEffort : undefined;
+      // Injected fetch implementations own their transport (e.g. test doubles).
+      const dispatcher = deps.fetchImpl ? undefined : createModelRequestClient(new URL(ENDPOINT).origin);
       try {
         const response = await fetchImpl(ENDPOINT, {
           method: "POST",
@@ -88,11 +92,17 @@ export function createZcodeChatClient(
             ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
           }),
           signal: controller.signal,
+          ...(dispatcher ? { dispatcher } : {}),
         });
         const durationMs = Date.now() - startedAt;
         if (!response.ok) {
-          zcodeLogger.warn({ ...baseLog, statusCode: response.status, durationMs, stage: "adapter.zcode.response", errorCode: "ZCODE_REQUEST_FAILED" }, "ZCODE_REQUEST_FAILED");
-          throw new ZcodeChatError("ZCODE_REQUEST_FAILED", `ZCode request failed with status ${response.status}.`, response.status);
+          // Only retain a numeric error code; provider text can contain private data.
+          const payload = await response.json().catch(() => undefined) as { error?: { code?: unknown } } | undefined;
+          const code = payload?.error?.code;
+          const providerErrorCode = (typeof code === "string" || typeof code === "number") && /^\d{1,8}$/.test(String(code))
+            ? String(code) : undefined;
+          zcodeLogger.warn({ ...baseLog, statusCode: response.status, providerErrorCode, durationMs: Date.now() - startedAt, stage: "adapter.zcode.response", errorCode: "ZCODE_REQUEST_FAILED" }, "ZCODE_REQUEST_FAILED");
+          throw new ZcodeChatError("ZCODE_REQUEST_FAILED", `ZCode request failed with status ${response.status}.`, response.status, undefined, providerErrorCode);
         }
         const data = await response.json().catch((error: unknown) => {
           if (error instanceof SyntaxError) return undefined;
@@ -132,6 +142,7 @@ export function createZcodeChatClient(
       } finally {
         globalThis.clearTimeout(timeoutId);
         input.signal?.removeEventListener("abort", abort);
+        await dispatcher?.destroy();
       }
     },
   };

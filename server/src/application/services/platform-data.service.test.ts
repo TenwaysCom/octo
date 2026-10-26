@@ -1,4 +1,5 @@
 import type { PlatformSyncStore } from "../../adapters/postgres/platform-sync-store.js";
+import { OdooDevopsBranchesService } from "./odoo-devops-branches.service.js";
 import { PlatformDataService } from "./platform-data.service.js";
 
 describe("PlatformDataService", () => {
@@ -226,7 +227,11 @@ describe("PlatformDataService", () => {
         };
       }),
     };
-    const service = new PlatformDataService(store, odooDevopsBranchesService);
+    const getOrStartRefresh = vi.fn(async (environment: "eu" | "uk" | "us") => ({
+      state: "ready" as const, stale: false, cached: true,
+      snapshot: await odooDevopsBranchesService.list(environment),
+    }));
+    const service = new PlatformDataService(store, { getOrStartRefresh });
 
     await expect(service.list("meegle-workitems", 50)).resolves.toMatchObject({
       items: [expect.objectContaining({
@@ -280,7 +285,11 @@ describe("PlatformDataService", () => {
         cached: false,
       })),
     };
-    const service = new PlatformDataService(store, odooDevopsBranchesService);
+    const getOrStartRefresh = vi.fn(async (environment: "eu" | "uk" | "us") => ({
+      state: "ready" as const, stale: false, cached: true,
+      snapshot: await odooDevopsBranchesService.list(environment),
+    }));
+    const service = new PlatformDataService(store, { getOrStartRefresh });
 
     const githubPullRequests = { statuses: ["open"], labels: ["bug"], offset: 50 };
     await expect(service.list("github-pull-requests", 50, { githubPullRequests })).resolves.toMatchObject({
@@ -302,6 +311,14 @@ describe("PlatformDataService", () => {
     expect(store.countGitHubPullRequests).toHaveBeenCalledWith(githubPullRequests);
     expect(store.listMeegleWorkitemsByIds).not.toHaveBeenCalled();
     expect(odooDevopsBranchesService.list).toHaveBeenCalledWith("uk");
+    getOrStartRefresh.mockImplementation(async (environment) => ({
+      state: "ready" as const, stale: true, cached: true,
+      snapshot: await odooDevopsBranchesService.list(environment),
+    }));
+    const stale = await service.list("github-pull-requests", 50);
+    expect(stale.items[0]).toMatchObject({ odooShBuildState: "ready", odooShBuildStale: true,
+      odooShBuilds: [{ environment: "uk", status: "done", result: "success" }],
+    });
   });
 
   it("loads linked Meegle details only for the requested GitHub PR preview", async () => {
@@ -326,7 +343,11 @@ describe("PlatformDataService", () => {
         cached: true,
       }),
     };
-    const service = new PlatformDataService(store, odooDevopsBranchesService);
+    const getOrStartRefresh = vi.fn(async (environment: "eu" | "uk" | "us") => ({
+      state: "ready" as const, stale: false, cached: true,
+      snapshot: await odooDevopsBranchesService.list(environment),
+    }));
+    const service = new PlatformDataService(store, { getOrStartRefresh });
 
     await expect(service.getGitHubPullRequestPreview({ owner: "TenwaysCom", repo: "tenways-ukk", pullNumber: 1138 })).resolves.toMatchObject({
       description: "PR description",
@@ -336,4 +357,30 @@ describe("PlatformDataService", () => {
     });
     expect(store.listMeegleWorkitemsByIds).toHaveBeenCalledWith(["123", "missing"]);
   });
+});
+
+it("returns local PR rows while a cold upstream is unresolved, then exposes failure without retrying", async () => {
+  let reject!: (error: Error) => void;
+  const client = { listBranches: vi.fn(() => new Promise<never>((_resolve, fail) => { reject = fail; })) };
+  const branches = new OdooDevopsBranchesService({ client, cache: {
+    get: vi.fn().mockResolvedValue(null), set: vi.fn(), delete: vi.fn(), close: vi.fn(),
+  } });
+  const store = {
+    listGitHubPullRequests: vi.fn().mockResolvedValue([
+      { owner: "TenwaysCom", repo: "tenways-ukk", pullNumber: 223, headRef: "feature/test" },
+      { owner: "TenwaysCom", repo: "tenways-ukk", pullNumber: 224, headRef: "feature/other" },
+    ]),
+    countGitHubPullRequests: vi.fn().mockResolvedValue(2),
+  } as unknown as PlatformSyncStore;
+  const service = new PlatformDataService(store, branches);
+  const result = await service.list("github-pull-requests", 1000);
+  expect(result.items).toHaveLength(2);
+  expect(result.items[0]).toMatchObject({ odooShBuildState: "refreshing", odooShBuilds: [] });
+  expect(client.listBranches).toHaveBeenCalledOnce();
+  reject(new Error("upstream 502"));
+  await vi.waitFor(async () => {
+    const failed = await service.list("github-pull-requests", 1000);
+    expect(failed.items[0]).toMatchObject({ odooShBuildState: "unavailable", odooShBuilds: [] });
+  });
+  expect(client.listBranches).toHaveBeenCalledOnce();
 });

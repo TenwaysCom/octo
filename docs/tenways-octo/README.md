@@ -37,6 +37,7 @@
 
 这些文档可以解释设计来源、历史取舍和未来方向，但不应直接作为当前接口、命名或实现依据。引用这组文档时，需要同时确认上面的当前系统文档和 `docs/ai-dev/` 规则。
 
+- [Ticket KCS 更新与使用设计](./ticket-kcs-update-and-use-design.md)：draft 提案，定义逐票记录的更新、确认、版本、wiki 摄入和问答消费；尚未实施。
 - [一期实施路线](./history/07-phase-1-rollout.md)：历史 rollout 计划，具体执行顺序以当前 issue map / execution plan 为准。
 - [详细开发计划](../superpowers/plans/2026-03-20-it-pm-assistant-implementation-plan.md)：早期开发计划，用于追溯背景，不作为当前实现 checklist。
 - [V2 Agent Platform / ACP 演进设计](./history/14-v2-architecture-design.md)：演进设想，当前 ACP 落点仍以 [ACP 设计](./17-acp-design.md) 为准。

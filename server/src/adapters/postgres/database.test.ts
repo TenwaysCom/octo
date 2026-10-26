@@ -1,7 +1,8 @@
+import { SHADOW_SUMMARY_PROMPT_KEY, DEFAULT_SHADOW_SUMMARY_PROMPT } from "../../domain/shadow-summary-prompt.js";
 import { describe, expect, it } from "vitest";
 import { Kysely, PostgresDialect, sql } from "kysely";
 import { newDb } from "pg-mem";
-import { migrateLegacyLarkTicketSupportQaSummaryPrompt, renameLegacyUserSshPublicKeyIdColumn } from "./database.js";
+import { seedShadowSummaryPrompt, migrateLegacyLarkTicketSupportQaSummaryPrompt, renameLegacyUserSshPublicKeyIdColumn } from "./database.js";
 import type { DatabaseSchema } from "./schema.js";
 import { createTestPostgresDatabase } from "./test-db.js";
 import {
@@ -144,4 +145,19 @@ describe("postgres database helpers", () => {
       public_key: "ssh-ed25519 AAAA legacy@host",
     });
   });
+});
+
+it("seeds Shadow separately and preserves administrator prompts on repeated initialization", async () => {
+  const { db } = await createTestPostgresDatabase();
+  try {
+    const shadow = await db.selectFrom("workflow_prompts").select("prompt").where("key", "=", SHADOW_SUMMARY_PROMPT_KEY).executeTakeFirstOrThrow();
+    expect(shadow.prompt).toBe(DEFAULT_SHADOW_SUMMARY_PROMPT);
+    for (const key of [SHADOW_SUMMARY_PROMPT_KEY, LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_KEY]) {
+      await db.updateTable("workflow_prompts").set({ prompt: `custom ${key}` }).where("key", "=", key).execute();
+    }
+    await seedShadowSummaryPrompt(db, "2026-09-23T10:00:00Z");
+    for (const key of [SHADOW_SUMMARY_PROMPT_KEY, LARK_TICKET_SUPPORT_QA_SUMMARIZE_PROMPT_KEY]) {
+      expect(await db.selectFrom("workflow_prompts").select("prompt").where("key", "=", key).executeTakeFirstOrThrow()).toEqual({ prompt: `custom ${key}` });
+    }
+  } finally { await db.destroy(); }
 });

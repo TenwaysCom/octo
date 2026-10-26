@@ -1,6 +1,25 @@
-import { useEffect, useRef, useState } from "react";
-import { getOdooShBuildTone } from "../../lib/odoo-sh-build-status.js";
-import { getGitHubPullRequestOdooShBuild } from "../../services/platform-data/platform-data-api.js";
+import { createContext, useContext, useEffect, useState } from "react";
+import { getOdooShBuildTone, getSharedOdooShBuildState, indexOdooShBuilds } from "../../lib/odoo-sh-build-status.js";
+import { odooBuildRequests } from "../../services/platform-data/odoo-build-requests.js";
+import { getAllGitHubPrOdooShBuilds } from "../../services/platform-data/platform-data-api.js";
+
+const OdooShBuildsContext = createContext(null);
+
+export function OdooShBuildsProvider({ apiBaseUrl, enabled = true, children }) {
+  const [state, setState] = useState({ status: "loading" });
+  useEffect(() => {
+    if (!enabled) return undefined;
+    let active = true;
+    setState({ status: "loading", apiBaseUrl });
+    void getAllGitHubPrOdooShBuilds({ apiBaseUrl }).then(
+      ({ environments }) => { if (active) setState({ status: "ready", apiBaseUrl, environments: indexOdooShBuilds(environments) }); },
+      () => { if (active) setState({ status: "unavailable", apiBaseUrl }); },
+    );
+    return () => { active = false; };
+  }, [apiBaseUrl, enabled]);
+  const value = !enabled ? null : state.apiBaseUrl === apiBaseUrl ? state : { status: "loading" };
+  return <OdooShBuildsContext.Provider value={value}>{children}</OdooShBuildsContext.Provider>;
+}
 
 function BuildDots({ builds }) {
   if (!builds.length) return <span className="odoo-sh-build-status__empty">无构建</span>;
@@ -43,45 +62,23 @@ function CompactBuildGear({ label, tone = "unknown", note = "" }) {
 }
 
 export function OdooShBuildStatus({ apiBaseUrl, pullRequest, compact = false }) {
-  const [status, setStatus] = useState("loading");
-  const [builds, setBuilds] = useState([]);
-  const retryTimerRef = useRef();
+  const shared = useContext(OdooShBuildsContext);
+  const [localState, setLocalState] = useState({ status: "loading", builds: [] });
 
   useEffect(() => {
-    let active = true;
-    async function load() {
-      clearTimeout(retryTimerRef.current);
-      if (active) setStatus("loading");
-      try {
-        const result = await getGitHubPullRequestOdooShBuild({
-          apiBaseUrl,
-          owner: pullRequest.owner,
-          repo: pullRequest.repo,
-          pullNumber: pullRequest.pullNumber,
-          headRef: pullRequest.headRef,
-        });
-        if (!active) return;
-        if (result.state === "refreshing") {
-          setStatus("refreshing");
-          retryTimerRef.current = setTimeout(() => { void load(); }, result.retryAfterMs || 1_000);
-          return;
-        }
-        setBuilds(result.build ? [{
-          environment: result.environment,
-          status: result.build.status,
-          result: result.build.result,
-        }] : []);
-        setStatus(result.stale ? "stale" : "ready");
-      } catch {
-        if (active) setStatus("unavailable");
-      }
-    }
-    void load();
-    return () => {
-      active = false;
-      clearTimeout(retryTimerRef.current);
-    };
-  }, [apiBaseUrl, pullRequest.headRef, pullRequest.owner, pullRequest.pullNumber, pullRequest.repo]);
+    if (shared !== null) return undefined;
+    return odooBuildRequests.subscribe({
+      apiBaseUrl,
+      owner: pullRequest.owner,
+      repo: pullRequest.repo,
+      pullNumber: pullRequest.pullNumber,
+      headRef: pullRequest.headRef,
+    }, setLocalState);
+  }, [apiBaseUrl, pullRequest.headRef, pullRequest.owner, pullRequest.pullNumber, pullRequest.repo, shared !== null]);
+
+  const { status, builds } = shared !== null
+    ? getSharedOdooShBuildState(shared, pullRequest)
+    : localState;
 
   if (compact) {
     if (status === "ready" || status === "stale") {

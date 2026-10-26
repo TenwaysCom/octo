@@ -1,6 +1,7 @@
 import { createWikiQaService } from "./wiki-qa.service.js";
 import { WikiQaError, type WikiCandidate } from "../../domain/wiki-qa.js";
 import { createWikiQaRerankClient } from "../../adapters/ai/wiki-qa-rerank-client.js";
+import { createZcodeChatClient } from "../../adapters/zcode/zcode-chat-client.js";
 
 const candidate = (id = "wiki-1"): WikiCandidate => ({
   id, path: `concepts/faq/${id}.md`, title: "报表科目显示", status: "draft", environments: ["UK Odoo 17"],
@@ -25,6 +26,26 @@ function fixture(candidates = [candidate()], ranking = { matches: [match()] }, a
 }
 
 describe("wiki QA service", () => {
+  it("explains provider balance exhaustion at extraction without starting retrieval", async () => {
+    const f = fixture();
+    const client = createZcodeChatClient({
+      apiKey: "test-key",
+      fetchImpl: vi.fn().mockResolvedValue(new Response(JSON.stringify({
+        error: { code: "1113", message: "private provider details" },
+      }), { status: 429 })),
+    });
+    const service = createWikiQaService({ ...f, client });
+    const onProgress = vi.fn();
+    await expect(service.answer({ ...input, onProgress })).rejects.toMatchObject({
+      code: "WIKI_QA_MODEL_FAILED",
+      message: expect.stringContaining("余额不足或无可用资源包"),
+      diagnostic: { actionRunId: input.actionRunId, stage: "server.wiki_qa.extract" },
+    });
+    expect(f.reader.search).not.toHaveBeenCalled();
+    expect(onProgress.mock.calls.at(-1)?.[0]).toMatchObject({ phase: "extract", status: "failed" });
+    expect(JSON.stringify(onProgress.mock.calls)).not.toContain("private provider details");
+  });
+
   it("emits ordered stage transitions before starting each operation", async () => {
     const f = fixture();
     const onProgress = vi.fn();
@@ -152,6 +173,40 @@ describe("wiki QA service", () => {
     expect(f.rerankClient.rerank).toHaveBeenCalledWith(expect.objectContaining({ actionRunId: input.actionRunId }));
     expect(f.client.createJsonCompletion.mock.calls.every(([request]) => request.actionRunId === input.actionRunId && !('tools' in request))).toBe(true);
     expect(f.promptStore.getByKey.mock.calls.flat()).toEqual(["lark_ticket.wiki_qa.extract", "lark_ticket.wiki_qa.rerank", "lark_ticket.wiki_qa.answer"]);
+  });
+
+  it("keeps recalled ontology content as a historical reference and renders its repository path", async () => {
+    const ontology: WikiCandidate = {
+      id: "ontology-1",
+      path: "objects/reporting.md",
+      sourcePath: "docs/ontology/objects/reporting.md",
+      knowledgeType: "ontology",
+      title: "报表业务定义",
+      status: "draft",
+      environments: [],
+      content: "## 报表规则\nPL 报表分组配置需要业务确认。",
+      sourceEvidence: [],
+      limitations: ["Ontology 业务规则待确认", "Ontology 页面不作为本 Ticket 的原始证据"],
+      historicalOnly: true,
+    };
+    const ranking = { matches: [{
+      candidateId: ontology.id,
+      applicability: "applicable" as const,
+      conditionsMatched: true,
+      evidenceIds: [],
+      limitations: [],
+    }] };
+    const f = fixture([ontology], ranking);
+    const result = await f.service.answer(input);
+    expect(result.evidence[0]).toMatchObject({
+      path: ontology.sourcePath,
+      knowledgeType: "ontology",
+      content: expect.stringContaining("PL 报表分组配置"),
+      applicability: "historical_reference",
+    });
+    expect(result.evidence[0].limitations).toContain("Ontology 业务规则待确认");
+    expect(result.answerMarkdown).toContain("来源：docs/ontology/objects/reporting.md");
+    expect(result.answerMarkdown).not.toContain("docs/llm-wiki/docs/ontology");
   });
 
   it("reranks all ten recalled bundles and supplies only the selected three to the answer", async () => {

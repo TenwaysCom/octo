@@ -1,3 +1,4 @@
+import { DEFAULT_SHADOW_SUMMARY_PROMPT, SHADOW_SUMMARY_PROMPT_KEY } from "../domain/shadow-summary-prompt.js";
 /** Local JSON protocol. No HTTP server, auth sessions, synchronization or business writes. */
 import { z } from "zod";
 import { executeTicketEval, ticketEvalRequestSchema } from "../application/services/ticket-eval.service.js";
@@ -11,6 +12,7 @@ async function main() {
   const envelope = z.object({ operation: z.enum(["export", "run", "defaults"]), data: z.unknown() }).strict().parse(request);
   if (envelope.operation === "defaults") return { prompts: {
     ...DEFAULT_LARK_TICKET_SUPPORT_QA_PROMPTS,
+    [SHADOW_SUMMARY_PROMPT_KEY]: DEFAULT_SHADOW_SUMMARY_PROMPT,
     ...Object.fromEntries(Object.values(WIKI_QA_PROMPTS).map((spec) => [spec.key, spec.prompt])),
   } };
   if (envelope.operation === "export") {

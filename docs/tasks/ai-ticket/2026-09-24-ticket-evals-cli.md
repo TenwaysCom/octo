@@ -4,7 +4,7 @@ module: ai-ticket
 status: done
 requirement_version: 1
 created_on: 2026-09-24
-updated_on: 2026-09-24
+updated_on: 2026-10-26
 closed_on: 2026-09-24
 owner: Codex
 related: []
@@ -57,3 +57,12 @@ Python 编排 + 本地 Node JSON 协议；固定执行器注册。真实数据�
 ## 后续验收
 
 选择小批 Ticket 导出、完成两种场景的人工标注，执行真实模型与裁判，人工校准阈值及评分偏差。0.7 仍是试验阈值，不接入发布门禁。
+
+
+## 2026-10-26 合并 main
+
+将 origin/main `37ee21a` 合入 feat/add-evals。三处文档冲突保留两边记录；Shadow 冲突保留 main 的独立 Prompt、v2 输出、M 引用回映射、风险/回复建议及 Wiki 引用门禁，并继续共用无持久化分析入口。
+
+早期分析场景版本升为 2，切换 `lark_ticket.shadow.summarize`。仅消息场景不增加知识检索，明确 Wiki unavailable 且拒绝 W 引用；旧标注可重新导入新数据集。Wiki QA 场景保留原消息呈现与版本。更新测试覆盖 v2 三个区域引用回映射及无证据 Wiki 引用拒绝。
+
+验证：Server 编译通过；目标 134 tests 通过；全量 192 files / 1295 tests 通过，2 files / 7 tests 按已有条件跳过；Python 16 tests 通过。按 main 的 package.json 补装缺失的 undici 开发依赖；未修改依赖声明。未运行真实模型/数据库、未部署或推送。

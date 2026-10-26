@@ -15,7 +15,7 @@ class Scenario:
     criteria: tuple
     expected_columns: tuple = ()
     output_field: str | None = None
-    prompt_keys: tuple = ("lark_ticket.support_qa.summarize",)
+    prompt_keys: tuple = ("lark_ticket.shadow.summarize",)
     requires_knowledge: bool = False
 
     def columns(self):
@@ -62,7 +62,7 @@ class Scenario:
 
 SCENARIOS = {
     s.id: s for s in (
-        Scenario("ticket.early_analysis", "分析", 1, ("intent", "summary"), (
+        Scenario("ticket.early_analysis", "分析", 2, ("intent", "summary"), (
             ("摘要准确完整", "对照原文与人工摘要，检查核心现象、需求和限制是否准确且无关键遗漏。"),
             ("事实忠实", "检查输出结论是否有窗口内消息支持，惩罚无依据的根因、结果及质量断言。"),
             ("信息不足表达", "检查是否区分已知事实、推测与尚缺信息。")),

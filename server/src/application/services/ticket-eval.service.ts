@@ -1,3 +1,4 @@
+import { buildShadowWikiContext, renderShadowWikiInput } from "../../domain/shadow-wiki-context.js";
 import { z } from "zod";
 import { analyzeTicketShadow } from "./lark-ticket-shadow-summary.service.js";
 import { createWikiQaService } from "./wiki-qa.service.js";
@@ -35,7 +36,9 @@ export async function executeTicketEval(request: TicketEvalRequest, deps: {
     const trace: Record<string, unknown> = { prompt: call.prompt }; calls.push(trace);
     const result = await client.createJsonCompletion(call); Object.assign(trace, result); return result;
   } };
-  const context = input.messages.map((m) => `[${m.messageId}] ${m.createdAt} ${m.senderLabel ?? m.senderRole}\n${m.text}${m.replyTo ? `\n回复: ${m.replyTo}` : ""}`).join("\n\n");
+  const evidenceIds = new Map(input.messages.map((m, index) => [`M${index + 1}`, m.messageId]));
+  const labels = new Map([...evidenceIds].map(([label, id]) => [id, input.scenario === "ticket.early_analysis" ? label : id]));
+  const context = input.messages.map((m) => `[${labels.get(m.messageId)}] ${m.createdAt} ${m.senderLabel ?? m.senderRole}\n${m.text}${m.replyTo ? `\n回复: ${labels.get(m.replyTo) ?? "outside window"}` : ""}`).join("\n\n");
   const promptStore = { async getByKey(key: string) {
     const prompt = input.config.prompts[key];
     if (!prompt?.trim()) throw new Error("EVAL_PROMPT_MISSING");
@@ -43,9 +46,10 @@ export async function executeTicketEval(request: TicketEvalRequest, deps: {
   } };
   try {
     if (input.scenario === "ticket.early_analysis") {
-      const template = await promptStore.getByKey("lark_ticket.support_qa.summarize");
-      const prompt = renderWorkflowPromptTemplate(template.prompt, { ticket_context: context, user_message: "仅分析所提供的消息；信息不足时明确说明。" });
-      const output = await analyzeTicketShadow({ prompt, messages: input.messages, client: tracedClient, actionRunId: input.actionRunId });
+      const template = await promptStore.getByKey("lark_ticket.shadow.summarize");
+      const prompt = [renderWorkflowPromptTemplate(template.prompt, { ticket_context: context, user_message: "仅分析所提供的消息；信息不足时明确说明。" }),
+        renderShadowWikiInput(buildShadowWikiContext([], "SHADOW_WIKI_UNAVAILABLE"))].join("\n\n");
+      const output = await analyzeTicketShadow({ prompt, evidenceIds, wikiSourceIds: new Set<number>(), client: tracedClient, actionRunId: input.actionRunId });
       return { status: "ok", output, calls };
     }
     if (!input.config.wikiWorkspace || !input.config.rerank) throw new Error("EVAL_WIKI_CONFIG_MISSING");

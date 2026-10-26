@@ -3,7 +3,7 @@ import { getLarkTicketOptionTone, isCurrentLarkTicketOption } from "../../lib/la
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { LarkTicketBadge } from "./LarkTicketBadge.jsx";
 import { LarkTicketResponsible } from "./LarkTicketResponsible.jsx";
-import { loadLarkTicketFieldOptions, updateLarkTicketField } from "../../services/lark-ticket/lark-ticket-actions-api.js";
+import { loadLarkTicketFieldOptions } from "../../services/lark-ticket/lark-ticket-actions-api.js";
 
 const PROPERTIES = [
   { field: "status", key: "ticketStatus", label: "状态", kind: "status" },
@@ -15,7 +15,7 @@ const PROPERTIES = [
 ];
 
 // The caller keys this editor by Ticket identity so drafts cannot cross records.
-export function LarkTicketEditableProperties({ ticket, apiBaseUrl, canEdit, onUpdated, children }) {
+export function LarkTicketEditableProperties({ ticket, apiBaseUrl, canEdit, onSave, children, className }) {
   const [editing, setEditing] = useState(null);
   const [query, setQuery] = useState("");
   const searchInput = useRef(null);
@@ -23,9 +23,6 @@ export function LarkTicketEditableProperties({ ticket, apiBaseUrl, canEdit, onUp
   const [position, setPosition] = useState(null);
   const anchor = useRef(null);
   const menu = useRef(null);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState(null);
-  const running = useRef(false);
   const requestVersion = useRef(0);
   useEffect(() => () => { requestVersion.current += 1; }, []);
 
@@ -74,41 +71,22 @@ export function LarkTicketEditableProperties({ ticket, apiBaseUrl, canEdit, onUp
   }, [editing]);
 
   function edit(field, button) {
-    if (!canEdit || running.current) return;
+    if (!canEdit) return;
     setQuery("");
     anchor.current = button;
     setEditing((current) => current === field ? null : field);
-    setMessage(null);
     if (options.status !== "ready" && options.status !== "loading") void loadOptions();
   }
 
-  async function save(property, option) {
-    if (!canEdit || running.current || !option) return;
-    if (property.kind !== "user" && isCurrentLarkTicketOption(ticket, property.field, option.label)) {
-      close(true);
-      return;
-    }
-    running.current = true;
-    setSaving(true);
-    setMessage(null);
-    try {
-      const result = await updateLarkTicketField({ apiBaseUrl, ticket, field: property.field,
-        value: option.label, optionUserId: option.userId, actionRunId: crypto.randomUUID() });
-      if (result.ticket) onUpdated(result.ticket);
-      close(true);
-      setMessage({ error: Boolean(result.syncFailed), text: result.syncFailed
-        ? "已写入 Lark Base，但 Octo 数据同步失败，请稍后同步 Ticket。"
-        : `${property.label}已更新并同步至 Lark Base。` });
-    } catch (error) {
-      setMessage({ error: true, text: error.message || "保存失败，请重试。" });
-    } finally {
-      running.current = false;
-      setSaving(false);
-    }
+  function save(property, option) {
+    if (!canEdit || !option) return;
+    close(true);
+    if (property.kind !== "user" && isCurrentLarkTicketOption(ticket, property.field, option.label)) return;
+    void onSave(property.field, option).catch(() => {});
   }
 
   return <>
-    <dl>
+    <dl className={className}>
       {PROPERTIES.map((property) => {
         const value = ticket[property.key];
         const display = property.kind === "user"
@@ -117,15 +95,14 @@ export function LarkTicketEditableProperties({ ticket, apiBaseUrl, canEdit, onUp
         const fieldOptions = options.fields.find((entry) => entry.field === property.field)?.options || [];
         const normalizedQuery = query.trim().toLocaleLowerCase();
         const visibleOptions = fieldOptions.filter((option) => option.label.toLocaleLowerCase().includes(normalizedQuery));
-        return <div className="ticket-property" key={property.field}>
+        return <div className="ticket-property" key={property.field} title={property.label}>
           <dt>{property.label}</dt>
           <dd>
             {canEdit ? <button className="ticket-property__edit" type="button" aria-label={`修改${property.label}`}
-              aria-haspopup="menu" aria-expanded={editing === property.field} disabled={saving}
+              aria-haspopup="menu" aria-expanded={editing === property.field}
               onClick={(event) => edit(property.field, event.currentTarget)}>{display}<span aria-hidden="true">⌄</span></button> : display}
             {canEdit && editing === property.field && position ? createPortal(
               <div className="ticket-property-menu" ref={menu} style={position} role="menu" aria-label={`修改${property.label}`} tabIndex={-1}
-                aria-busy={saving}
                 onKeyDown={(event) => {
                   if (event.nativeEvent.isComposing) return;
                   const inSearch = event.target === searchInput.current;
@@ -145,7 +122,7 @@ export function LarkTicketEditableProperties({ ticket, apiBaseUrl, canEdit, onUp
                 <div className="ticket-property-menu__heading">
                   <input ref={searchInput} autoFocus type="text" className="ticket-property-menu__search"
                     aria-label={`搜索${property.label}选项`} placeholder={`搜索${property.label}…`}
-                    value={query} disabled={saving} autoComplete="off"
+                    value={query} autoComplete="off"
                     onChange={(event) => setQuery(event.target.value)} />
                   <kbd>Esc</kbd>
                 </div>
@@ -157,7 +134,7 @@ export function LarkTicketEditableProperties({ ticket, apiBaseUrl, canEdit, onUp
                   {options.status === "ready" ? visibleOptions.map((option) => {
                     const current = isCurrentLarkTicketOption(ticket, property.field, option.label);
                     return <button type="button" role="menuitemradio" aria-checked={current}
-                      className="ticket-property-menu__option" key={option.userId || option.label} disabled={saving}
+                      className="ticket-property-menu__option" key={option.userId || option.label}
                       onClick={() => void save(property, option)}>
                       {property.kind === "user" ? <span className="ticket-context-menu__avatar" aria-hidden="true">{option.label.slice(0, 1)}</span>
                         : <span className={`ticket-context-menu__dot ticket-context-menu__dot--${getLarkTicketOptionTone(property.field, option.label)}`} aria-hidden="true" />}
@@ -166,14 +143,11 @@ export function LarkTicketEditableProperties({ ticket, apiBaseUrl, canEdit, onUp
                     </button>;
                   }) : null}
                 </div>
-                {saving ? <p className="ticket-property-menu__note" role="status">正在保存…</p> : null}
-                {message?.error ? <p className="ticket-property-menu__note ticket-property__message--error" role="alert">{message.text}</p> : null}
               </div>, document.body) : null}
           </dd>
         </div>;
       })}
       {children}
     </dl>
-    {message && !editing ? <p className={`ticket-property__message${message.error ? " ticket-property__message--error" : ""}`} role={message.error ? "alert" : "status"}>{message.text}</p> : null}
   </>;
 }

@@ -111,13 +111,23 @@ Ticket Answer / Document 与三个 Sprint Quick Actions 的新会话由 Server c
 
 `server/src/modules/public-config/automation-actions.config.ts` 是 automation 的唯一逻辑定义：Lark Ticket Answer/Document 快捷动作分别绑定稳定 `promptKey`、`skillProfile`、`skillId` 和版本化 `permissionProfileId`。具体路径、命令规则和超时不写入 action，也不返回浏览器；它们由 Server 策略实现持有。实际 Support-QA 环境目录统一由普通 Server 环境变量 `SUPPORT_QA_EU_WORKSPACE_DIR` 提供。
 
+##### llm-wiki 更新与生产接入
+
+平台同步、Shadow 分析与 wiki 摄入是三个独立环节：同步更新 Octo 数据快照；Shadow 可读取 wiki 并写 `shadow_ai`；wiki 内容由手动「生成文档」或具备取证权限的 workspace 执行 `write-support-qa` 更新。`wiki 问答` 只生成回复草稿，不写知识页。
+
+Ticket 摄入使用 DB-first：逐票取证并追加不可变 raw → 回读证据、查重和分流 → 按问题簇提炼 concepts → 核对证据、范围、状态与链接 → 更新 index/log/`_meta/state.jsonl`。原始快照或源字段变化时追加版本；账本登记不等于人工签核。当前 Schema/Skill 采用 concepts 优先、entities 按需维护，普通摄入不以实体 plan/check 为完成门槛；具体契约以 workspace 的 `docs/llm-wiki/SCHEMA.md` 与 `.agents/skills/write-support-qa/SKILL.md` 为准。
+
+**周期摄入尚未接入。** 2026-10-12 核查的 main 生产配置是平台数据每 10 分钟调度、Shadow 每 20 分钟轮询（静默期 20 分钟、每批最多 20 张）；它们都不会把新 Ticket 自动蒸馏成 wiki。核查的本机 Worker、PM2、deploy cron 与 systemd timer 未发现 wiki 摄入任务。
+
+同次核查确认生产 Server/Worker 在线、健康接口 200，部署产物已有 Wiki QA 与 Document 入口；production/staging 均指向 `/home/deploy/projects/odoo-eu-guide`，共用本地 wiki。同日按用户要求将取证脚本调整为优先读取生产 `octo/server/.env`（对应 `tenways_octo`），该文件不存在时再沿用测试及旧路径回退。以脚本实际选择的文件为准，取证前仍需核对环境；不支持仅凭外部环境变量覆盖数据源。进程、日志、账本快照及未执行的业务验收见[核查记录](../tasks/ai-ticket/2026-10-12-wiki-update-production-audit.md)，这些检查不证明真实问答或写入流程已验收。
+
 以下回调权限适用于 Kimi，不限制 Hermes 的原生工具或 Terminal 间接写入：
 
 | `permissionProfileId` | Write | Terminal |
 | --- | --- | --- |
 | `acp.chat-readonly.v1` | 禁止 | 禁止 |
-| `support-qa.answer.v1` | 仅 `os.tmpdir()/octo-support-qa/<actionRunId>/` | 当前 Ticket fetch、`git status`、受限 diff |
-| `support-qa.document.v1` | action 临时目录，加 `qa-cards/**/*.md`、`indexes/*.md`、`faq.md` | Answer 命令，加确定性 Eval 和 `update` / `analysis-update --dry-run --json` |
+| `support-qa.answer.v1` | action 临时目录，加 `docs/llm-wiki/queries/*.md`、`docs/llm-wiki/log.md` 查询沉淀 | 当前 Ticket fetch、`git status`、受限 diff |
+| `support-qa.document.v1` | Answer 范围，加 wiki 的 `raw/transcripts/ticket-*.md`、`concepts/**/*.md`、`entities/**/*.md`、`index.md`、`_meta/state.jsonl` | Answer 命令，加现有受控 Eval/dry-run 命令，以及固定 `python3 -B docs/llm-wiki/scripts/entity-maintenance.py plan\|check [--entity entities/...md ...] --json` |
 
 Octo 发起 ACP Session 时的 `mcpServers` 固定为空；这不保证禁用 Hermes 自身配置的 MCP。Kimi Write 回调只接受 UTF-8 文本且单文件最多 256 KiB；每次回调都阻止目录穿越、symlink 逃逸、`.git`、`.env*`、证书、SSH 和凭据文件。临时目录创建为 `0700`，文件写为 `0600`；草稿入库后删除，异常目录超过 24 小时才清理。Document 不能直接写 `knowledge-index.jsonl`。
 
@@ -283,6 +293,12 @@ pnpm --dir server exec pm2 save
 ```
 
 `scheduler.enabled` 是 Worker 定时任务总开关（`false` 时整个 Worker 空转）。`tasks.lark/meegle/github` 是各数据源同步的独立开关（缺省全开），`intervalMinutes` 可覆盖 `intervalsMinutes` 的平台默认值；`tasks.shadow` 是 Lark Ticket 影子 AI 分析任务（缺省关闭），`intervalMinutes` 是轮询间隔，`settleMinutes` 是工单静默多久才分析，`batchLimit` 是每轮条数，`summaryTimeoutSeconds` 是单次 Ticket Summary provider 请求超时。只跑 shadow 不跑同步时，把三个数据源任务置 `false`、`tasks.shadow.enabled` 置 `true` 即可。Quick Action 与 shadow 统一读取 `LARK_TICKET_SUMMARY_PROVIDER`、`LARK_TICKET_SUMMARY_MODEL` 和 `LARK_TICKET_SUMMARY_TIMEOUT_MS`：默认 `deepseek`，设为 `zcode` 时使用 `ZCODE_API_KEY` 和智谱标准 OpenAI Chat Completions 接口。任务级 `summaryTimeoutSeconds` 只覆盖 shadow 的通用超时；已有 `deepSeekTimeoutSeconds` 和 `acpTimeoutSeconds` 仅作为兼容别名读取。
+
+Shadow 独立使用 `lark_ticket.shadow.summarize` 提示词，正式问题总结保留原 key。新增业务风险与分析时回复建议，历史结果显示未评估；聊天模型输入使用短引用，preparedMessages 保留完整 ID。候选仍按原 Ticket 更新时间/错误状态筛选，不因提示词升级或仅聊天变化自动重算。实现与验证边界见 [Shadow 任务](../tasks/ai-ticket/2026-09-03-shadow-summary-worker.md)。
+
+Shadow 最终分析与 Wiki 提取/回答共用 `WIKI_QA_ANSWER_REASONING_EFFORT`：默认 `low`，支持 `low/high/max/provider`，`provider` 不发送该参数。仅 ZCode 的 `glm-5.3` / `glm-5.3-flash` 模型发送 reasoning_effort；其他模型/provider 忽略。环境变量修改后重启对应 Server/Worker。
+
+ZCode 模型客户端为每次原生 fetch 请求创建专用 Undici Client，关闭该连接独立的 headers/body 超时，由现有 AbortController 统一限制从请求到响应体读取的总时间，结束后销毁 Client；不修改全局 dispatcher。这样配置超过300秒时不会先触发默认响应头超时。网络连接等其他错误仍可能提前失败；Wiki 专用重排超时及 Shadow 的下一轮重试策略不变。这是单次模型请求时限，不是整条 Shadow 分析总时限。
 
 Worker 启动时把当前配置 scope 收敛到 `platform_sync_schedules`；删除或任务级禁用的配置 scope 会被禁用。错过的多个周期合并成一次，同 scope 已由手动或 CLI 运行占用时也直接合并到下一周期。临时网络、429 与 5xx 按 1/5/15 分钟退避，超过三次或遇到 checkpoint、授权、权限、配置错误时禁用该 schedule 并保存安全的 `blocked_reason`；修复配置或授权后重启 Worker 会按配置重新启用。
 
@@ -657,3 +673,6 @@ syncLark...    -> cleanLarkBaseTickets(...)
 Odoo 业务事件保留在 `odoo_sh_build_notifications`，完成正文生成后标记 `queued`；实际发送状态进入 `message_outbox`，发送 Worker 不依赖 Odoo 字段。其他业务可写入相同的 Lark 文本消息契约，本次未迁移其他发送链路。首次构建基线静默、业务事件转消息的事务边界、旧通知与不确定结果处理见 [生命周期](../ai-dev/lifecycle/current-system-technical-objects.md) 和 [任务台账](../tasks/platform-sync/2026-09-13-odoo-build-sync-and-message-delivery-workers.md)。
 
 Odoo 构建通知环境由 `scheduler.tasks.odooSh.notificationEnvironments` 控制，默认 `["eu"]`。EU / UK / US 数据仍全部同步；禁用环境不生成待发送消息，发送 Worker 启动前由 Odoo 生产端取消禁用环境已入队且尚未领取的消息。已发送、发送中、失败和结果未知的投递记录保留；重新启用环境不补发已取消或被抑制的历史事件。修改配置后需重启 Server。
+
+
+Shadow 最终分析前会复用 Wiki 问答的召回与重排，关联最多3篇 Wiki 及相关原始证据；检索失败仍基于聊天分析，并展示“Wiki 不可用”。Wiki 问答与 Shadow 的候选召回上限由 `WIKI_QA_RECALL_LIMIT` 共用，默认20，允许整数1–100；重排Top5、最终最多3篇不变。服务端/Worker 配置相同值后重启对应进程。Wiki 根目录和重排模型沿用现有 Wiki 配置，正式“问题总结”本轮不增加 Wiki 检索。一次成功 Shadow 分析通常包含问题提取、重排、最终分析三次模型调用，处理耗时包括这些阶段。

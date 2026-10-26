@@ -2,6 +2,30 @@
 
 Record concise compiler/runtime errors, failed commands, wrong assumptions, and their verified fixes here. Redact secrets, cookies, tokens, and sensitive payloads.
 
+## [ERR-20261021-004] answer-sources-ui-without-server-contract
+
+**Error:** Sources 卡片已有样式却无法显示；Server 只返回 ACP 回答，没有结构化来源事件，FE 依赖固定“依据”标题的 Markdown 提取漏掉正文引用。历史加载回归表现为缺少 `answer.sources`。
+
+**Fix:** Server 统一归一化回答引用，实时流在 done 前发送来源，运行快照保留、原生历史按用户轮次补齐；FE 消费同一结构化事件。回归同时覆盖流式 / 历史与无来源追问，避免只检查来源组件或把上一轮来源带到下一轮。
+
+source: [Hermes Sources Server API 修正](../docs/tasks/ai-ticket/2026-10-21-lark-hermes-answer-tab.md)
+
+## [ERR-20261021-003] lark-copy-icon-padding-override
+
+**Error:** Lark 分析页的共享复制图标偏向按钮右下方。`.lark-app button` 比 `.ticket-ai-message__copy` 优先级更高，将通用按钮 padding / border 套进固定尺寸图标按钮，挤压 SVG 可用空间。
+
+**Fix:** 在 Lark 作用域用明确的图标按钮选择器固定宽高、重置 padding / border，并让 SVG block 居中；图形绘制边界也以 viewBox 中心对称。共享按钮的通用样式不能代替宿主页面的优先级检查。
+
+source: [Hermes UI 优化 v4](../docs/tasks/ai-ticket/2026-10-21-lark-hermes-answer-tab.md)
+
+## [ERR-20261021-002] ticket-eval-actions-covered-by-tag-sidebar
+
+**Error:** 主站 1280px 且打开标签侧栏时，AI 输出行的“加入 Eval”按钮虽然 visible/enabled，Playwright 点击仍超时：`list-tag-sidebar subtree intercepts pointer events`。行内固定最小列宽超过侧栏之外的可用宽度，操作区溢出到侧栏下；只检查 viewport 或按钮禁用状态无法发现问题。
+
+**Fix:** 按 AI/Eval 列表容器宽度调整网格，让窄容器的操作区保留在首行；containment 只加在列表，不包住固定弹窗。验收时保留标签侧栏、关闭视图配置浮层，真实点击新增/编辑并回读保存结果。
+
+source: [TEN-144 测试部署与验收](../docs/tasks/ai-ticket/2026-10-21-lark-badcase-design.md)
+
 ## [ERR-20260924-001] deepeval-model-string-uses-ambient-provider
 
 **Error:** 假设 `GEval(model="...")` 一定使用该名称对应的 OpenAI 裁判。DeepEval 4.1.0 的 initialize_model 会读取本地/环境中的 provider 选择，字符串模型名不足以固定评测口径。
@@ -875,6 +899,12 @@ source: [AGENTS.md 审查与优化](../docs/tasks/engineering-ops/2026-09-14-age
 **Fix:** 对单列归属使用非相关 `id IN (SELECT sample_id ...)`；对复合 Ticket 键使用去重子查询 JOIN，保证在分页前筛选且审核记录不放大行数。并发和事务回滚仍需真实 PostgreSQL 验证。
 
 source: [Eval 状态与 My evals](../docs/tasks/ai-ticket/2026-09-01-lark-ticket-ai-output-eval-dataset-views.md)
+
+## [ERR-20261015-001] zcode-http-429-insufficient-balance
+
+- **Error:** Wiki 问答在 `server.wiki_qa.extract` 报 `WIKI_QA_MODEL_FAILED`，关联 adapter 为 `ZCODE_REQUEST_FAILED` / HTTP 429；真实最小请求返回服务商错误码 `1113`（余额或可用资源包不足）。
+- **Fix:** 不仅凭 HTTP 429 判断频率限制。安全提取数字服务商错误码，按已确认的1113提示管理员检查当前 API 账户余额/资源包；恢复可用额度后再验证完整流程，不用重试或放宽超时代替额度修复，不自动切换套餐端点。
+- **source:** [Wiki 问答 HTTP 429 排障](../docs/tasks/ai-ticket/2026-10-15-wiki-qa-provider-429.md)
 
 ## [ERR-20260923-001] vite-harness-react-prebundle-import
 

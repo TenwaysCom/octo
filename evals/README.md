@@ -133,3 +133,10 @@ pnpm --dir server build
 ```
 
 Python 测试包括真实 DeepEval + 本地假裁判，不调用外部模型；Server 测试使用 mock 数据库和模型。生产数据导出、真实模型质量、真实知识检索结果及部署需要单独验收。
+
+
+## 与 2026-10-26 main 合并后的兼容性
+
+早期分析场景版本升为 2，使用 Shadow 专用 `lark_ticket.shadow.summarize` Prompt 和 `shadow-analysis-result-v2` 输出。消息以 M 标签输入，意图、风险、回复建议的引用共同校验并回映射原 ID。原版本数据集需要从标注 Excel 重新导入；旧 Run 仍可查看已保存的报告，但不能按新场景重新评分。
+
+早期分析仍是纯五分钟消息场景，不自动增加 Wiki 检索；上下文明确标记 Wiki unavailable，拒绝任何 W 引用。线上 Shadow 保留 main 的 Wiki 检索及引用校验；完整 Wiki 问答继续由独立 ticket.reply 场景测试。

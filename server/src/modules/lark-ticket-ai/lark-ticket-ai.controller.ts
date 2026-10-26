@@ -20,7 +20,8 @@ import { WEB_SESSION_COOKIE_NAME } from "../lark-auth/lark-auth.controller.js";
 import { prepareAcpKimiEventStream, writeAcpKimiEvent } from "../acp-kimi/event-stream.js";
 import { logger } from "../../logger.js";
 import { WikiQaError } from "../../domain/wiki-qa.js";
-import { isOneShotTicketAiAction } from "../public-config/automation-actions.config.js";
+import { getTicketAiAutomationAction, isOneShotTicketAiAction } from "../public-config/automation-actions.config.js";
+import { getWebWorkspaceAccess } from "../lark-auth/web-workspace-access.js";
 import {
   createSupportTicketEffectDraftService,
   SupportTicketEffectDraftError,
@@ -59,6 +60,11 @@ function readCookie(cookieHeader: string | undefined, name: string): string | un
   }
 }
 
+function identityErrorBody(identity: { errorCode: string; errorMessage: string }) {
+  return { ok: false as const, error: { errorCode: identity.errorCode, errorMessage: identity.errorMessage,
+    layer: "server", module: "lark-ticket-ai", stage: "server.auth.checked" } };
+}
+
 function toErrorResponse(error: unknown) {
   if (error instanceof WikiQaError) return {
     statusCode: error.code === "WIKI_QA_UNAVAILABLE" ? 503 : 502,
@@ -92,6 +98,7 @@ function toErrorResponse(error: unknown) {
       body: {
         ok: false as const,
         error: {
+          layer: "server", module: "lark-ticket-ai", stage: "server.workflow.session",
           errorCode: error.code,
           errorMessage: error.message,
           ...(error.diagnostic ?? {}),
@@ -120,6 +127,9 @@ export function createWebLarkTicketAiController(deps: {
     if (!session.ok) {
       return { ok: false as const, statusCode: 401, errorCode: session.errorCode, errorMessage: session.errorMessage };
     }
+    if (!getWebWorkspaceAccess(session.role).platformLists) {
+      return { ok: false as const, statusCode: 403, errorCode: "WORKSPACE_ACCESS_DENIED", errorMessage: "当前账号没有 Ticket AI 页面访问权限。" };
+    }
     const operatorLarkId = await resolveOperatorLarkId(session.masterUserId);
     if (!operatorLarkId) {
       return { ok: false as const, statusCode: 403, errorCode: "IDENTITY_NOT_FOUND", errorMessage: "当前 Web 会话没有可用的 Lark 身份。" };
@@ -135,7 +145,7 @@ export function createWebLarkTicketAiController(deps: {
   return {
     async list(input: { cookieHeader: string | undefined; recordId: string; query: unknown }) {
       const identity = await resolveIdentity(input.cookieHeader);
-      if (!identity.ok) return { statusCode: identity.statusCode, body: { ok: false as const, error: { errorCode: identity.errorCode, errorMessage: identity.errorMessage } } };
+      if (!identity.ok) return { statusCode: identity.statusCode, body: identityErrorBody(identity) };
       try {
         const query = ticketSessionListQuerySchema.parse(input.query);
         const ticket = ticketRefSchema.parse({ ...query, recordId: input.recordId });
@@ -147,11 +157,15 @@ export function createWebLarkTicketAiController(deps: {
 
     async load(input: { cookieHeader: string | undefined; recordId: string; sessionId: string; body: unknown }) {
       const identity = await resolveIdentity(input.cookieHeader);
-      if (!identity.ok) return { statusCode: identity.statusCode, body: { ok: false as const, error: { errorCode: identity.errorCode, errorMessage: identity.errorMessage } } };
+      if (!identity.ok) return { statusCode: identity.statusCode, body: identityErrorBody(identity) };
       try {
         const body = ticketSessionLoadSchema.parse(input.body);
         const ticket = ticketRefSchema.parse({ ...body, recordId: input.recordId });
-        return { statusCode: 200, body: { ok: true as const, data: runs.load({ operatorLarkId: identity.operatorLarkId, resource: JSON.stringify(["ticket", ticket.baseId, ticket.tableId, ticket.recordId]) }, input.sessionId) ?? await service.loadSession({ operatorLarkId: identity.operatorLarkId, ticket, sessionId: input.sessionId }) } };
+        const run = runs.load({ operatorLarkId: identity.operatorLarkId, resource: JSON.stringify(["ticket", ticket.baseId, ticket.tableId, ticket.recordId]) }, input.sessionId);
+        const data = run ? {
+          ...(run.sessionId !== run.runId ? await service.getSessionMetadata({ operatorLarkId: identity.operatorLarkId, ticket, sessionId: run.sessionId }) : {}), ...run,
+        } : await service.loadSession({ operatorLarkId: identity.operatorLarkId, ticket, sessionId: input.sessionId });
+        return { statusCode: 200, body: { ok: true as const, data } };
       } catch (error) {
         return toErrorResponse(error);
       }
@@ -159,7 +173,7 @@ export function createWebLarkTicketAiController(deps: {
 
     async listEffectDrafts(input: { cookieHeader: string | undefined; recordId: string; query: unknown }) {
       const identity = await resolveIdentity(input.cookieHeader);
-      if (!identity.ok) return { statusCode: identity.statusCode, body: { ok: false as const, error: { errorCode: identity.errorCode, errorMessage: identity.errorMessage } } };
+      if (!identity.ok) return { statusCode: identity.statusCode, body: identityErrorBody(identity) };
       try {
         const query = ticketSessionListQuerySchema.parse(input.query);
         const ticket = ticketRefSchema.parse({ ...query, recordId: input.recordId });
@@ -172,7 +186,7 @@ export function createWebLarkTicketAiController(deps: {
 
     async confirmEffectDraft(input: { cookieHeader: string | undefined; recordId: string; draftId: string; body: unknown }) {
       const identity = await resolveIdentity(input.cookieHeader);
-      if (!identity.ok) return { statusCode: identity.statusCode, body: { ok: false as const, error: { errorCode: identity.errorCode, errorMessage: identity.errorMessage } } };
+      if (!identity.ok) return { statusCode: identity.statusCode, body: identityErrorBody(identity) };
       try {
         const body = ticketEffectDraftConfirmSchema.parse(input.body);
         const ticket = ticketRefSchema.parse({ ...body, recordId: input.recordId });
@@ -193,7 +207,7 @@ export function createWebLarkTicketAiController(deps: {
 
     async stop(input: { cookieHeader: string | undefined; recordId: string; sessionId: string; body: unknown }) {
       const identity = await resolveIdentity(input.cookieHeader);
-      if (!identity.ok) return { statusCode: identity.statusCode, body: { ok: false as const, error: { errorCode: identity.errorCode, errorMessage: identity.errorMessage } } };
+      if (!identity.ok) return { statusCode: identity.statusCode, body: identityErrorBody(identity) };
       try {
         const body = ticketSessionLoadSchema.extend({ runId: z.string().min(1) }).strict().parse(input.body);
         const ticket = ticketRefSchema.parse({ ...body, recordId: input.recordId });
@@ -204,7 +218,7 @@ export function createWebLarkTicketAiController(deps: {
     async chat(req: Request, res: Response) {
       const identity = await resolveIdentity(req.headers.cookie);
       if (!identity.ok) {
-        res.status(identity.statusCode).json({ ok: false, error: { errorCode: identity.errorCode, errorMessage: identity.errorMessage } });
+        res.status(identity.statusCode).json(identityErrorBody(identity));
         return;
       }
       let request: z.infer<typeof ticketSessionChatSchema>;
@@ -232,8 +246,13 @@ export function createWebLarkTicketAiController(deps: {
       };
       prepareAcpKimiEventStream(res);
       try {
+        const previous = request.sessionId ? runs.load(scope, request.sessionId) : undefined;
+        const metadata = request.sessionId && (!previous || previous.sessionId !== previous.runId)
+          ? await service.getSessionMetadata({ operatorLarkId: identity.operatorLarkId, ticket, sessionId: request.sessionId }) : undefined;
+        const configuredProvider = !request.sessionId && request.actionKey ? getTicketAiAutomationAction(request.actionKey)?.provider : undefined;
+        const agentProvider = metadata?.agentProvider ?? (configuredProvider === "hermes_acp" ? configuredProvider : undefined);
         await runs.execute({ ...scope, sessionId: request.sessionId, message: request.message,
-          actionKey: request.actionKey, actionRunId: request.actionRunId, oneShot: isOneShotTicketAiAction(request.actionKey) }, {
+          actionKey: request.actionKey ?? metadata?.actionKey, agentProvider, actionRunId: request.actionRunId, oneShot: isOneShotTicketAiAction(request.actionKey) }, {
           loadHistory: async () => await service.loadSession({ operatorLarkId: identity.operatorLarkId, ticket, sessionId: request.sessionId! }) as { events: AcpKimiStreamEvent[] },
           chat: (signal, emit, actionRunId) => service.chat({
             operatorLarkId: identity.operatorLarkId, masterUserId: identity.masterUserId, larkBaseUrl: identity.larkBaseUrl, ticket, message: request.message,

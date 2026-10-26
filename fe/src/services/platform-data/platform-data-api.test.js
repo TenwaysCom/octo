@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   getGitHubPullRequestOdooShBuild,
+  getAllGitHubPrOdooShBuilds,
   getMeegleSprintHistory,
   getMeeglePullRequestCandidates,
   getGitHubPullRequestPreview,
@@ -11,6 +12,37 @@ import {
   resetAllOdooDevopsBranchesCache,
 } from "./platform-data-api.js";
 import { getPlatformSyncSources, syncPlatformSource } from "./platform-sync-api.js";
+
+test("coalesces all-build requests and sends one actionRunId with the session cookie", async () => {
+  const requests = [];
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  const fetchImpl = async (url, options) => {
+    requests.push({ url, options });
+    await gate;
+    return { ok: true, json: async () => ({ ok: true, data: {
+      actionRunId: new URL(url, "https://test.invalid").searchParams.get("actionRunId"),
+      environments: ["eu", "uk", "us"].map((environment) => ({ environment, state: "ready", stale: false, builds: [] })),
+    } }) };
+  };
+  const first = getAllGitHubPrOdooShBuilds({ apiBaseUrl: "/all-builds-test", fetchImpl });
+  const second = getAllGitHubPrOdooShBuilds({ apiBaseUrl: "/all-builds-test", fetchImpl });
+  assert.strictEqual(first, second);
+  assert.equal(requests.length, 1);
+  assert.match(requests[0].url, /^\/all-builds-test\/web\/github-pr-odoo-devops-build\?all=true&actionRunId=.+/);
+  assert.equal(requests[0].options.credentials, "include");
+  release();
+  assert.equal((await first).environments.length, 3);
+  await getAllGitHubPrOdooShBuilds({ apiBaseUrl: "/all-builds-test", fetchImpl });
+  assert.equal(requests.length, 2);
+});
+
+test("rejects invalid batch build responses and clears failed in-flight requests", async () => {
+  for (const environments of [[], [null, null, null], Array.from({ length: 3 }, () => ({ environment: "eu", state: "ready", stale: false, builds: [] }))]) {
+    await assert.rejects(getAllGitHubPrOdooShBuilds({ apiBaseUrl: "/invalid-builds-test", fetchImpl: async (url) => ({ ok: true, json: async () => ({ ok: true, data: { actionRunId: new URL(url, "https://test.invalid").searchParams.get("actionRunId"), environments } }) }) }), /INVALID_ODOO_DEVOPS_BUILDS_RESPONSE/);
+  }
+  await assert.rejects(getAllGitHubPrOdooShBuilds({ apiBaseUrl: "/invalid-builds-test", fetchImpl: async () => ({ ok: false, json: async () => ({ ok: false, error: { errorCode: "UNAUTHENTICATED" } }) }) }), /UNAUTHENTICATED/);
+});
 
 test("loads a synced platform list with the browser session cookie", async () => {
   let request;
@@ -330,6 +362,20 @@ test("shares an in-flight list request across duplicate mounts", async () => {
   await assert.doesNotReject(first);
 });
 
+test("a new edit revision never reuses a list read started before the write", async () => {
+  const releases = [];
+  const fetchImpl = () => new Promise((resolve) => releases.push(() => resolve({ ok: true,
+    json: async () => ({ ok: true, data: { items: [] } }) })));
+  const options = { apiBaseUrl: "/edit-read-barrier-api", kind: "lark-tickets", fetchImpl };
+  const oldRead = getPlatformDataList({ ...options, requestScope: "session:0" });
+  const afterWrite = getPlatformDataList({ ...options, requestScope: "session:2" });
+  assert.notStrictEqual(oldRead, afterWrite);
+  assert.equal(releases.length, 2);
+  assert.strictEqual(afterWrite, getPlatformDataList({ ...options, requestScope: "session:2" }));
+  releases.forEach((release) => release());
+  await Promise.all([oldRead, afterWrite]);
+});
+
 test("requests every matching page while preserving multi-value server filters", async () => {
   const requests = [];
   const firstPage = Array.from({ length: 1000 }, (_, index) => ({ recordId: `rec-${index}` }));
@@ -592,4 +638,22 @@ test("rejects an invalid Meegle four-field response", async () => {
     }),
     { message: "INVALID_MEEGLE_WORKITEM_RESPONSE" },
   );
+});
+
+test("preserves and validates list build availability separately from an empty build array", async () => {
+  for (const state of ["ready", "refreshing", "unavailable", "unmapped", "invalid"]) {
+    const request = getPlatformDataListPage({ apiBaseUrl: "/api", kind: "github-pull-requests", fetchImpl: async () => ({
+      ok: true, json: async () => ({ ok: true, data: { items: [{
+        owner: "TenwaysCom", repo: "tenways-ukk", pullNumber: 223, title: "PR", state: "open",
+        htmlUrl: "https://github.com/TenwaysCom/tenways-ukk/pull/223", isDraft: false, syncedAt: "2026-09-24T00:00:00Z",
+        odooShBuilds: [], odooShBuildState: state, odooShBuildStale: false,
+      }] } }),
+    }) });
+    if (state === "invalid") await assert.rejects(request, /INVALID_GITHUB_PULL_REQUEST_RESPONSE/);
+    else {
+      const result = await request;
+      assert.equal(result.items[0].odooShBuildState, state);
+      assert.equal(result.items[0].odooShBuildStale, false);
+    }
+  }
 });
