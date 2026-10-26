@@ -1,7 +1,7 @@
 ---
 status: draft
 owner: TBD
-last_reviewed: 2026-09-22
+last_reviewed: 2026-09-24
 scope: 当前 Octo 技术对象在 extension、server、adapter 与平台间的生命周期图谱
 update_required_when:
   - 页面或动作配置契约变更
@@ -885,3 +885,11 @@ Lark 已写但本地同步失败仍是显式部分成功：FE 保留新值并提
 ### Lark App 创建 Meegle 工作项
 
 `#lark-app-thread-analysis` 的未关联 Ticket 可由有 platformSync 权限的用户调用既有 `POST /api/web/lark-tickets/:recordId/create-meegle-workitem`。FE 只携带源记录标识及 actionRunId；Server 的类型映射、创建、链接回写与单条同步契约保持现状。属性尚未保存时不开始创建，创建期间阻止同 Ticket 属性写入；App 会话状态按 Base/Table/Record 复用在途创建请求并保存结果，搜索切换不会串记录。成功结果投影到 Ticket 和导航缓存，多项链接分别展示；本地同步失败仍保留成功结果并提示，不自动重试。已有链接或平台返回已关联时阻止重复创建，无写权限只展示已有安全链接。此 FE 入口不增强跨进程幂等保证；实现与验证见[创建功能任务](../../tasks/platform-data/2026-10-21-lark-app-create-meegle.md)。
+
+### Ticket 离线 Evals
+
+独立 CLI 的生命周期为：只读导出 Ticket/线程/Shadow 及业务 Prompt → 单 Sheet 人工标注 → 全量校验并冻结 Dataset → Server 本地 JSON 执行器生成 Run → DeepEval 生成独立 Score → Excel 报告/比较。
+
+`analyzeTicketShadow` 是线上 Shadow Worker 与离线执行器共享的无持久化分析入口；Worker 保留候选筛选、上下文加载与 shadow_ai 写回。离线执行器仅接受窗口消息、显式模型/Prompt 和 actionRunId，Zod 拒绝 expected、Shadow 及当前 Ticket 字段。Wiki QA 使用复制并校验的知识目录及注入 Prompt，排除已识别同 Ticket 候选；这不证明知识在历史时点已存在，也不保证没有间接泄漏。
+
+Dataset、Run、Score 的身份与内容版本分离，真实数据保存在 Git 忽略目录。Python 负责标注和评测编排，Server 仍拥有业务分析和问答；不新增公共路由，不改变现有 FE Eval 样本和人工审核状态。协议、命令和存储见 [Evals 使用说明](../../../evals/README.md)，验证见 [任务记录](../../tasks/ai-ticket/2026-09-24-ticket-evals-cli.md)。
