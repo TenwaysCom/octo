@@ -32,6 +32,7 @@
 15. [用户身份系统设计](./18-user-identity-design.md)
 16. [插件使用文档](./20-extension-user-guide.md)
 17. [IT Platform Sync](./it-platform-sync.md)
+18. [Ticket AI / QA Agent 模块清单与研发顺序](./ticket-ai-qa-agent-capability-map.md)：按六类模块/入口功能列出现有能力、缺口和建议研发顺序，包含自动发现 thread、Base 建单与启动 Shadow 的入口规划。
 
 ## 历史 / 演进 / 参考文档
 

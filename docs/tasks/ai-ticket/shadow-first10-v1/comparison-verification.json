@@ -1,0 +1,39 @@
+{
+  "schema_version": "shadow-first10-comparison-v1",
+  "generated_at": "2026-10-22T10:48:56.978879+00:00",
+  "cases": 120,
+  "original_coverage": {
+    "available": 111,
+    "missing": 9
+  },
+  "v1_artifacts_unchanged": true,
+  "missing_original_case_ids": [
+    "S10-019",
+    "S10-024",
+    "S10-042",
+    "S10-056",
+    "S10-079",
+    "S10-099",
+    "S10-112",
+    "S10-114",
+    "S10-118"
+  ],
+  "available_without_intent_summary": 0,
+  "available_without_overall_summary": 0,
+  "historical_input_alignment": "unverified_may_include_later_messages",
+  "standalone_question_field_exists": false,
+  "displayed_question_fields": [
+    "intent.summary",
+    "summary"
+  ],
+  "external_model_calls": 0,
+  "platform_writes": 0,
+  "gold_cases": 0,
+  "v1_manifest_sha256": "8351814e9c77b5f0ca726ba80acbe64ee06414aa642add8f187d1a1f11908de6",
+  "comparison_script_sha256": "4c0ee7822bc5989527b0f4b05cf41f90ca6f2e7d02bf0134b6c3beb27b3a15f1",
+  "files": {
+    "comparison.private.csv": "e6ea92459d76a103e7dff98d12ac1a67b5afe5c003df9bfb7d535998c736460d",
+    "comparison.private.html": "7cf83df0b62b2cd204fc5aabda6623a044498b16f03a328a41a570afb70ac930",
+    "comparison.private.jsonl": "1bbd194cf77391ff3fb3eb80308b58685fdc921a3c28c75b6e67ccd1847e717e"
+  }
+}

@@ -790,6 +790,7 @@ source: [AGENTS.md 审查与优化](../docs/tasks/engineering-ops/2026-09-14-age
 - **Verified fix:** 使用获批的沙箱外只读执行重新运行精确命令；CLI 返回 authenticated，PostgreSQL 查询只输出脱敏后的同步运行错误摘要。
 - **Recurrence:** 沙箱内读取 PM2 状态又因 `.pm2/*.sock` 权限与只读 `pm2.log` 失败；使用获批的精确 `pm2 status/jlist` 只读命令确认 staging API/Worker 仍加载旧 build。
 - **Recurrence:** Hermes ACP loopback 协议测试在沙箱内绑定 `127.0.0.1` 报 `listen EPERM`；同一测试获批在沙箱外运行后通过，不能把该失败归因于 Hermes 或审批实现。
+- **Recurrence:** 本地HTML的Playwright验证在Chromium启动时出现`crashpad/util/linux/socket.cc:45 setsockopt: 不允许的操作 (1)`及`SIGTRAP`；应使用获批的精确验证命令、隔离临时浏览器并阻止HTTP请求，不能据此判定页面脚本失败。见[Shadow分类复核任务](../docs/tasks/ai-ticket/2026-10-22-shadow-first10-eval-dataset.md)。
 
 ### ERR-20260903-004 — Inline tsx regex broke outer shell quoting
 
