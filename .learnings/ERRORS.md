@@ -2,6 +2,14 @@
 
 Record concise compiler/runtime errors, failed commands, wrong assumptions, and their verified fixes here. Redact secrets, cookies, tokens, and sensitive payloads.
 
+## [ERR-20260924-001] deepeval-model-string-uses-ambient-provider
+
+**Error:** 假设 `GEval(model="...")` 一定使用该名称对应的 OpenAI 裁判。DeepEval 4.1.0 的 initialize_model 会读取本地/环境中的 provider 选择，字符串模型名不足以固定评测口径。
+
+**Fix:** 为明确使用 OpenAI 的评测显式构造 GPTModel，绑定 model、endpoint、temperature 和环境凭据，再注入 GEval；将非敏感配置与引擎/评分代码版本保存到 Score，不把凭据写入产物。
+
+source: [Ticket AI Evals CLI](../docs/tasks/ai-ticket/2026-09-24-ticket-evals-cli.md)
+
 ## [ERR-20260916-001] launched-assumed-workflow-finished
 
 **Error:** 排查 Meegle 完成数量时，仅凭已同步的 `status=Launched` 判断流程已经完成，并把空完成时间当作数据缺失；保存的源响应实际仍有当前节点 Go-Live check。

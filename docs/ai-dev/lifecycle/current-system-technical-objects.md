@@ -1,7 +1,7 @@
 ---
 status: draft
 owner: TBD
-last_reviewed: 2026-09-22
+last_reviewed: 2026-09-24
 scope: 当前 Octo 技术对象在 extension、server、adapter 与平台间的生命周期图谱
 update_required_when:
   - 页面或动作配置契约变更
@@ -858,3 +858,12 @@ Adapter 使用服务端 `WEKNORA_PUBLISH_TOKEN` 和固定频道兑换 → 浏览
 SDK 在到期前刷新；离开 Ticket/退出登录时销毁实例。接口所有响应 no-store，认证失败 401、
 配置缺失 503、兑换失败 502。Origin 来自 `WEKNORA_EMBED_ORIGIN` 或 OAuth callback origin，
 不信任客户端参数。实现与验证见[任务记录](../../tasks/ai-ticket/2026-09-20-weknora-widget.md)。
+
+
+### Ticket 离线 Evals
+
+独立 CLI 的生命周期为：只读导出 Ticket/线程/Shadow 及业务 Prompt → 单 Sheet 人工标注 → 全量校验并冻结 Dataset → Server 本地 JSON 执行器生成 Run → DeepEval 生成独立 Score → Excel 报告/比较。
+
+`analyzeTicketShadow` 是线上 Shadow Worker 与离线执行器共享的无持久化分析入口；Worker 保留候选筛选、上下文加载与 shadow_ai 写回。离线执行器仅接受窗口消息、显式模型/Prompt 和 actionRunId，Zod 拒绝 expected、Shadow 及当前 Ticket 字段。Wiki QA 使用复制并校验的知识目录及注入 Prompt，排除已识别同 Ticket 候选；这不证明知识在历史时点已存在，也不保证没有间接泄漏。
+
+Dataset、Run、Score 的身份与内容版本分离，真实数据保存在 Git 忽略目录。Python 负责标注和评测编排，Server 仍拥有业务分析和问答；不新增公共路由，不改变现有 FE Eval 样本和人工审核状态。协议、命令和存储见 [Evals 使用说明](../../../evals/README.md)，验证见 [任务记录](../../tasks/ai-ticket/2026-09-24-ticket-evals-cli.md)。

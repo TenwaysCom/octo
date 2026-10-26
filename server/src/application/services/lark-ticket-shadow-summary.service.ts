@@ -189,9 +189,8 @@ export function createLarkTicketShadowSummaryService(deps: LarkTicketShadowSumma
         ticket_context: buildTicketContext(ticket, snapshot),
         user_message: readUserMessage(ticket),
       });
-      const completion = await runTicketSummaryCompletion(getTicketSummaryClient, prompt, actionRunId);
-      const analysis = parseShadowAnalysis(completion.content);
-      assertEvidenceWithinSnapshot(analysis, snapshot.preparedMessages);
+      const analysis = await analyzeTicketShadow({ prompt, messages: snapshot.preparedMessages,
+        client: getTicketSummaryClient(), actionRunId });
 
       const durationMs = processingDurationMs();
       await writeShadow(ticket, {
@@ -473,4 +472,15 @@ function abortableDelay(ms: number, signal: AbortSignal): Promise<void> {
       resolve();
     }
   });
+}
+
+/** Shared one-shot analysis. No thread loading or persistence: callers own effects. */
+export async function analyzeTicketShadow(input: {
+  prompt: string; messages: PreparedTicketMessage[];
+  client: TicketSummaryJsonCompletionClient; actionRunId: string;
+}): Promise<ShadowAnalysisResult> {
+  const completion = await runTicketSummaryCompletion(() => input.client, input.prompt, input.actionRunId);
+  const analysis = parseShadowAnalysis(completion.content);
+  assertEvidenceWithinSnapshot(analysis, input.messages);
+  return analysis;
 }
