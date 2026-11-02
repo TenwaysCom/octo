@@ -855,6 +855,10 @@ Odoo.sh 业务同步与通用消息发送是两个独立调度的 Server-owned W
 
 通知目标由 `scheduler.tasks.odooSh.chatId` 配置，默认值见 `server/src/config/platform-sync-config.ts`。更换群只影响配置生效后新入队的消息，已有 `message_outbox` 记录保留生成时的目标群；最近一次更换见[任务记录](../../tasks/engineering-ops/2026-09-16-odoo-notification-chat.md)。
 
+DevOps 登录失效告警通过 `scheduler.tasks.odooSh.authFailureNotification` 单独配置 `enabled`、`chatId` 和 `recipientGithubLogins`，旧配置默认关闭，群缺省继承 Odoo.sh 群。接收人的 GitHub 登录名通过既有唯一 active 用户绑定解析成 Lark @；未绑定时仍生成群通知并记录未解析人数，不猜测用户身份。告警与构建失败的 `notificationEnvironments` 无关，覆盖共享会话访问的 EU/UK/US。
+
+定时刷新收集 adapter 的类型化 `ODOO_DEVOPS_AUTH_REQUIRED`（现有 401/403/重定向鉴权映射），将同轮失败环境合并成一条完整消息交给通用 outbox。网络错误、5xx 和未配置不会触发登录失效告警。会话 SHA-256 摘要与群组成幂等键，原始会话不进入消息、队列或日志；同一会话同一群跨轮次及重启只入队一次，更换会话后再次失效可以通知。该策略不发送定期催办或恢复通知，也不会因接收人列表修改补发同一会话的既有通知。准备失败可在下一轮重试，投递失败沿用通用发送器策略。配置修改后重启 Server 生效；实现与验证边界见[任务记录](../../tasks/platform-auth/2026-11-02-odoo-devops-session-rejected.md)。
+
 PM2 ecosystem 仅在 `NODE_ENV=production` 时注册 API Server 与独立 platform-sync-worker；其他环境只注册 API Server。此进程配置不关闭上述 Server 内调度，既有非 production Worker 的移除步骤见 [平台同步运行说明](../../tenways-octo/it-platform-sync.md)。
 
 业务同步启动后立即刷新 EU / UK / US，之后按配置间隔刷新（默认 30 分钟）。定时与页面读取共用每环境刷新 Promise。`odoo_sh_build_sync_state` 与首次快照原子保存，历史不通知，空项目也能初始化；后续为所有新增失败或失败转换写入 `odoo_sh_build_notifications` 业务事件。Odoo 生产端解析作者绑定、确定目标群并组装完整正文，在同一事务内写入 `message_outbox`、把事件标记为 `queued`；生成失败保留业务事件供后续刷新重试。build 恢复时生产端取消尚未领取的消息，已发送或发送中的消息不回滚。

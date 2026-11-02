@@ -1,7 +1,9 @@
 import "reflect-metadata";
 import "dotenv/config";
+import { createHash } from "node:crypto";
 import { readPlatformSyncSchedulerConfig, resolveBackgroundTaskConfig } from "./config/platform-sync-config.js";
 import { OdooShBuildRefreshScheduler } from "./application/services/odoo-sh-build-refresh-scheduler.js";
+import { OdooDevopsAuthNotificationService } from "./application/services/odoo-devops-auth-notification.service.js";
 import { createOdooShCommitAuthorResolver, parseOdooShAuthorGithubMapping } from "./application/services/odoo-sh-commit-author.service.js";
 import { odooDevopsBuildsSnapshotSchema } from "./modules/odoo-devops-branches/odoo-devops-branches.dto.js";
 import express, { type Request, type Response } from "express";
@@ -644,9 +646,18 @@ if (process.env.NODE_ENV !== "test" && process.env.VITEST !== "true") {
   } else {
     serverLogger.warn("Message delivery not started: task disabled or Lark app credentials missing; messages stay queued.");
   }
+  const authNotificationTask = tasks.odooSh.authFailureNotification;
+  const odooDevopsAuthNotification = authNotificationTask.enabled ? new OdooDevopsAuthNotificationService({
+    outbox: new PostgresMessageOutboxStore(),
+    users: getResolvedUserStore(),
+    sessionFingerprint: createHash("sha256").update(ODOO_DEVOPS_SESSION.trim()).digest("hex"),
+    chatId: authNotificationTask.chatId,
+    recipientGithubLogins: authNotificationTask.recipientGithubLogins,
+  }) : undefined;
   const odooShBuildRefreshScheduler = new OdooShBuildRefreshScheduler({
     refresh: (environment) => odooDevopsBranchesService.refresh(environment),
     intervalMs: tasks.odooSh.intervalMinutes * 60_000,
+    notifyAuthFailure: odooDevopsAuthNotification ? (input) => odooDevopsAuthNotification.notify(input) : undefined,
   });
   if (tasks.odooSh.enabled && ODOO_DEVOPS_SESSION) odooShBuildRefreshScheduler.start();
   else serverLogger.warn("ODOO_SH task not started: task disabled or ODOO_DEVOPS_SESSION missing.");

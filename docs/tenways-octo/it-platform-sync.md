@@ -674,5 +674,19 @@ Odoo 业务事件保留在 `odoo_sh_build_notifications`，完成正文生成后
 
 Odoo 构建通知环境由 `scheduler.tasks.odooSh.notificationEnvironments` 控制，默认 `["eu"]`。EU / UK / US 数据仍全部同步；禁用环境不生成待发送消息，发送 Worker 启动前由 Odoo 生产端取消禁用环境已入队且尚未领取的消息。已发送、发送中、失败和结果未知的投递记录保留；重新启用环境不补发已取消或被抑制的历史事件。修改配置后需重启 Server。
 
+DevOps 登录失效自动告警单独使用 `scheduler.tasks.odooSh.authFailureNotification`。例如：
+
+```json
+{
+  "enabled": true,
+  "chatId": "oc_a50cf5c83845e52e007b0394ad3e4470",
+  "recipientGithubLogins": ["uynil"]
+}
+```
+
+`chatId` 可指定其他群；省略时继承 Odoo.sh 群。`recipientGithubLogins` 是已有 Octo 用户绑定的 GitHub 登录名数组，例如 `uynil` 对应 Ben Lin，可配置多人，空数组只通知群。接收人缺少有效绑定时仍发送群通知并记录安全诊断。旧配置和示例默认关闭此告警；启用需要 `scheduler.enabled`、`odooSh.enabled` 和该项 `enabled` 同时开启，实际投递还需要现有 `messageDelivery` 启用及 Lark 应用凭据。
+
+Server 启动及每次 Odoo 定时刷新检测鉴权拒绝，将同轮 EU/UK/US 失败合并成一条告警；网络错误和上游 5xx 不触发登录失效通知。每个会话、每个群只入队一次，重启不重复；更换会话后再次失效会生成新告警，不定期催办，也不因接收人列表修改补发。配置按启动时读取，修改后需重启部署了新版代码的 Server。当前实现及本地/部署验证边界见[任务记录](../tasks/platform-auth/2026-11-02-odoo-devops-session-rejected.md)。
+
 
 Shadow 最终分析前会复用 Wiki 问答的召回与重排，关联最多3篇 Wiki 及相关原始证据；检索失败仍基于聊天分析，并展示“Wiki 不可用”。Wiki 问答与 Shadow 的候选召回上限由 `WIKI_QA_RECALL_LIMIT` 共用，默认20，允许整数1–100；重排Top5、最终最多3篇不变。服务端/Worker 配置相同值后重启对应进程。Wiki 根目录和重排模型沿用现有 Wiki 配置，正式“问题总结”本轮不增加 Wiki 检索。一次成功 Shadow 分析通常包含问题提取、重排、最终分析三次模型调用，处理耗时包括这些阶段。

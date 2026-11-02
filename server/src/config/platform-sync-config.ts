@@ -29,6 +29,11 @@ const odooShTaskSchema = z.object({
   notificationEnvironments: z.array(z.enum(["eu", "uk", "us"])).default(["eu"]),
   intervalMinutes: z.number().int().min(1).max(1440).default(30),
   chatId: z.string().trim().min(1).default("oc_a50cf5c83845e52e007b0394ad3e4470"),
+  authFailureNotification: z.object({
+    enabled: z.boolean().default(false),
+    chatId: z.string().trim().min(1).optional(),
+    recipientGithubLogins: z.array(z.string().trim().min(1)).default([]),
+  }).default({ enabled: false, recipientGithubLogins: [] }),
 });
 const messageDeliveryTaskSchema = z.object({
   enabled: z.boolean().default(true),
@@ -143,7 +148,15 @@ export function resolveBackgroundTaskConfig(scheduler: PlatformSyncConfig["sched
   const odooSh = odooShTaskSchema.parse(scheduler.tasks.odooSh ?? {});
   const messageDelivery = messageDeliveryTaskSchema.parse(scheduler.tasks.messageDelivery ?? {});
   return {
-    odooSh: { ...odooSh, enabled: scheduler.enabled && odooSh.enabled },
+    odooSh: {
+      ...odooSh,
+      enabled: scheduler.enabled && odooSh.enabled,
+      authFailureNotification: {
+        ...odooSh.authFailureNotification,
+        enabled: scheduler.enabled && odooSh.enabled && odooSh.authFailureNotification.enabled,
+        chatId: odooSh.authFailureNotification.chatId ?? odooSh.chatId,
+      },
+    },
     messageDelivery: { ...messageDelivery, enabled: scheduler.enabled && messageDelivery.enabled },
   };
 }

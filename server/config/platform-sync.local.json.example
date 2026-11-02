@@ -60,7 +60,12 @@
         "notificationEnvironments": ["eu"],
         "enabled": true,
         "intervalMinutes": 30,
-        "chatId": "oc_a50cf5c83845e52e007b0394ad3e4470"
+        "chatId": "oc_a50cf5c83845e52e007b0394ad3e4470",
+        "authFailureNotification": {
+          "enabled": false,
+          "chatId": "oc_a50cf5c83845e52e007b0394ad3e4470",
+          "recipientGithubLogins": ["uynil"]
+        }
       },
       "messageDelivery": {
         "enabled": true,

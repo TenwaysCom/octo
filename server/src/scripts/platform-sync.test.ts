@@ -424,6 +424,30 @@ describe("platform-sync script", () => {
 
 
 describe("background task configuration", () => {
+  it("keeps auth notifications opt-in and inherits the Odoo notification chat", () => {
+    const tasks = resolveBackgroundTaskConfig(parsePlatformSyncConfig({
+      github: [{ owner: "acme", repo: "app" }],
+      scheduler: { enabled: true, tasks: { odooSh: { chatId: "build-chat" } } },
+    }).scheduler);
+    expect(tasks.odooSh.authFailureNotification).toEqual({
+      enabled: false, chatId: "build-chat", recipientGithubLogins: [],
+    });
+  });
+
+  it("configures an independent auth notification chat and recipients and honors scheduling switches", () => {
+    const parse = (enabled: boolean, builds: boolean) => resolveBackgroundTaskConfig(parsePlatformSyncConfig({
+      github: [{ owner: "acme", repo: "app" }],
+      scheduler: { enabled, tasks: { odooSh: { enabled: builds, chatId: "build-chat", authFailureNotification: {
+        enabled: true, chatId: " auth-chat ", recipientGithubLogins: [" uynil ", "other"],
+      } } } },
+    }).scheduler);
+    expect(parse(true, true).odooSh.authFailureNotification).toEqual({
+      enabled: true, chatId: "auth-chat", recipientGithubLogins: ["uynil", "other"],
+    });
+    expect(parse(false, true).odooSh.authFailureNotification.enabled).toBe(false);
+    expect(parse(true, false).odooSh.authFailureNotification.enabled).toBe(false);
+  });
+
   it("honors the master switch and independent task switches", () => {
     const parse = (enabled: boolean, builds: boolean, delivery: boolean) => resolveBackgroundTaskConfig(parsePlatformSyncConfig({
       github: [{ owner: "acme", repo: "app" }],
@@ -438,6 +462,10 @@ describe("background task configuration", () => {
   });
 
   it.each([
+    { odooSh: { authFailureNotification: { enabled: "true" } } },
+    { odooSh: { authFailureNotification: { chatId: " " } } },
+    { odooSh: { authFailureNotification: { recipientGithubLogins: [" "] } } },
+    { odooSh: { authFailureNotification: { recipientGithubLogins: "uynil" } } },
     { odooSh: { notificationEnvironments: ["xx"] } },
     { odooSh: { intervalMinutes: 0 } }, { odooSh: { intervalMinutes: 1.5 } },
     { messageDelivery: { batchSize: 0 } }, { odooSh: { chatId: " " } },
