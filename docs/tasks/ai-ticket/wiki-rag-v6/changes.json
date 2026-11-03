@@ -1,0 +1,613 @@
+{
+  "lost_vs_A": [
+    "Q21"
+  ],
+  "gained_vs_A": [],
+  "wrong_pairs": [
+    {
+      "id": "Q31",
+      "split": "old_regression",
+      "path": "concepts/sales/uk-shopify-empty-salesperson-default-history.md",
+      "boundary": "只有邮箱读不到推测；需邮箱来源、发送事件和接收结果，不用其他订单邮件修复代答。",
+      "reference": {
+        "path": "concepts/sales/uk-shopify-empty-salesperson-default-history.md",
+        "actualRank": 12,
+        "eligibility": null,
+        "forcedRetained": true,
+        "source": "actual_control_candidate"
+      },
+      "A": {
+        "path": "concepts/sales/uk-shopify-empty-salesperson-default-history.md",
+        "actualRank": 12,
+        "eligibility": null,
+        "forcedRetained": true,
+        "source": "actual_control_candidate"
+      },
+      "B": {
+        "path": "concepts/sales/uk-shopify-empty-salesperson-default-history.md",
+        "actualRank": null,
+        "eligibility": {
+          "eligible": false,
+          "reason": "insufficient_primary_clues",
+          "anchors": [
+            "订单",
+            "没有"
+          ]
+        },
+        "forcedRetained": false,
+        "source": "actual_control_candidate"
+      },
+      "C": {
+        "path": "concepts/sales/uk-shopify-empty-salesperson-default-history.md",
+        "actualRank": 12,
+        "eligibility": null,
+        "forcedRetained": true,
+        "source": "actual_control_candidate"
+      },
+      "D": {
+        "path": "concepts/sales/uk-shopify-empty-salesperson-default-history.md",
+        "actualRank": null,
+        "eligibility": {
+          "eligible": false,
+          "reason": "insufficient_primary_clues",
+          "anchors": [
+            "订单",
+            "没有"
+          ]
+        },
+        "forcedRetained": false,
+        "source": "actual_control_candidate"
+      }
+    },
+    {
+      "id": "Q32",
+      "split": "old_regression",
+      "path": "concepts/sales/approval-activity-button-history.md",
+      "boundary": "缺审批类型/申请ID和视频正文；不以其他网页或App通知案例替代当前Lark群问题。",
+      "reference": {
+        "path": "concepts/sales/approval-activity-button-history.md",
+        "actualRank": 20,
+        "eligibility": null,
+        "forcedRetained": true,
+        "source": "actual_control_candidate"
+      },
+      "A": {
+        "path": "concepts/sales/approval-activity-button-history.md",
+        "actualRank": 20,
+        "eligibility": null,
+        "forcedRetained": true,
+        "source": "actual_control_candidate"
+      },
+      "B": {
+        "path": "concepts/sales/approval-activity-button-history.md",
+        "actualRank": null,
+        "eligibility": {
+          "eligible": false,
+          "reason": "insufficient_primary_clues",
+          "anchors": []
+        },
+        "forcedRetained": false,
+        "source": "actual_control_candidate"
+      },
+      "C": {
+        "path": "concepts/sales/approval-activity-button-history.md",
+        "actualRank": 20,
+        "eligibility": null,
+        "forcedRetained": true,
+        "source": "actual_control_candidate"
+      },
+      "D": {
+        "path": "concepts/sales/approval-activity-button-history.md",
+        "actualRank": null,
+        "eligibility": {
+          "eligible": false,
+          "reason": "insufficient_primary_clues",
+          "anchors": []
+        },
+        "forcedRetained": false,
+        "source": "actual_control_candidate"
+      }
+    },
+    {
+      "id": "Q34",
+      "split": "old_regression",
+      "path": "concepts/sales/automatic-order-email-customer-language.md",
+      "boundary": "历史只提字段需求并转需求审批，无实现；当前未找到交付知识不能断言产品不支持。",
+      "reference": {
+        "path": "concepts/sales/automatic-order-email-customer-language.md",
+        "actualRank": 7,
+        "eligibility": null,
+        "forcedRetained": true,
+        "source": "actual_control_candidate"
+      },
+      "A": {
+        "path": "concepts/sales/automatic-order-email-customer-language.md",
+        "actualRank": 7,
+        "eligibility": null,
+        "forcedRetained": true,
+        "source": "actual_control_candidate"
+      },
+      "B": {
+        "path": "concepts/sales/automatic-order-email-customer-language.md",
+        "actualRank": null,
+        "eligibility": {
+          "eligible": false,
+          "reason": "insufficient_primary_clues",
+          "anchors": [
+            "order"
+          ]
+        },
+        "forcedRetained": false,
+        "source": "actual_control_candidate"
+      },
+      "C": {
+        "path": "concepts/sales/automatic-order-email-customer-language.md",
+        "actualRank": 7,
+        "eligibility": null,
+        "forcedRetained": true,
+        "source": "actual_control_candidate"
+      },
+      "D": {
+        "path": "concepts/sales/automatic-order-email-customer-language.md",
+        "actualRank": null,
+        "eligibility": {
+          "eligible": false,
+          "reason": "insufficient_primary_clues",
+          "anchors": [
+            "order"
+          ]
+        },
+        "forcedRetained": false,
+        "source": "actual_control_candidate"
+      }
+    },
+    {
+      "id": "H12",
+      "split": "old_independent",
+      "path": "concepts/delivery/approval-validate-and-backorder-history.md",
+      "boundary": "Pre-order默认仓库／合计行新需求无已核对已上线答案",
+      "reference": {
+        "path": "concepts/delivery/approval-validate-and-backorder-history.md",
+        "actualRank": 7,
+        "eligibility": null,
+        "forcedRetained": true,
+        "source": "actual_control_candidate"
+      },
+      "A": {
+        "path": "concepts/delivery/approval-validate-and-backorder-history.md",
+        "actualRank": 7,
+        "eligibility": null,
+        "forcedRetained": true,
+        "source": "actual_control_candidate"
+      },
+      "B": {
+        "path": "concepts/delivery/approval-validate-and-backorder-history.md",
+        "actualRank": null,
+        "eligibility": {
+          "eligible": false,
+          "reason": "explicit_object_mismatch",
+          "anchors": [
+            "preorder"
+          ]
+        },
+        "forcedRetained": false,
+        "source": "actual_control_candidate"
+      },
+      "C": {
+        "path": "concepts/delivery/approval-validate-and-backorder-history.md",
+        "actualRank": 7,
+        "eligibility": null,
+        "forcedRetained": true,
+        "source": "actual_control_candidate"
+      },
+      "D": {
+        "path": "concepts/delivery/approval-validate-and-backorder-history.md",
+        "actualRank": null,
+        "eligibility": {
+          "eligible": false,
+          "reason": "explicit_object_mismatch",
+          "anchors": [
+            "preorder"
+          ]
+        },
+        "forcedRetained": false,
+        "source": "actual_control_candidate"
+      }
+    },
+    {
+      "id": "N11",
+      "split": "independent",
+      "path": "concepts/sales/automatic-order-email-customer-language.md",
+      "boundary": "DK运费金额模板bug，邮件语言案例不能解释金额",
+      "reference": {
+        "path": "concepts/sales/automatic-order-email-customer-language.md",
+        "actualRank": null,
+        "eligibility": null,
+        "forcedRetained": true,
+        "source": "unretrieved_metadata_probe"
+      },
+      "A": {
+        "path": "concepts/sales/automatic-order-email-customer-language.md",
+        "actualRank": null,
+        "eligibility": null,
+        "forcedRetained": true,
+        "source": "unretrieved_metadata_probe"
+      },
+      "B": {
+        "path": "concepts/sales/automatic-order-email-customer-language.md",
+        "actualRank": null,
+        "eligibility": {
+          "eligible": true,
+          "reason": "combined_primary_clues",
+          "anchors": [
+            "认邮",
+            "模板",
+            "实际"
+          ]
+        },
+        "forcedRetained": true,
+        "source": "unretrieved_metadata_probe"
+      },
+      "C": {
+        "path": "concepts/sales/automatic-order-email-customer-language.md",
+        "actualRank": null,
+        "eligibility": null,
+        "forcedRetained": true,
+        "source": "unretrieved_metadata_probe"
+      },
+      "D": {
+        "path": "concepts/sales/automatic-order-email-customer-language.md",
+        "actualRank": null,
+        "eligibility": {
+          "eligible": true,
+          "reason": "combined_primary_clues",
+          "anchors": [
+            "认邮",
+            "模板",
+            "实际"
+          ]
+        },
+        "forcedRetained": true,
+        "source": "unretrieved_metadata_probe"
+      }
+    },
+    {
+      "id": "N12",
+      "split": "independent",
+      "path": "concepts/accounting/currency-rate-staleness-triage.md",
+      "boundary": "汇率显示小数精度，汇率数据停止更新属于不同问题",
+      "reference": {
+        "path": "concepts/accounting/currency-rate-staleness-triage.md",
+        "actualRank": 4,
+        "eligibility": null,
+        "forcedRetained": true,
+        "source": "actual_control_candidate"
+      },
+      "A": {
+        "path": "concepts/accounting/currency-rate-staleness-triage.md",
+        "actualRank": 4,
+        "eligibility": null,
+        "forcedRetained": true,
+        "source": "actual_control_candidate"
+      },
+      "B": {
+        "path": "concepts/accounting/currency-rate-staleness-triage.md",
+        "actualRank": 3,
+        "eligibility": {
+          "eligible": true,
+          "reason": "combined_primary_clues",
+          "anchors": [
+            "rate",
+            "汇率",
+            "配置",
+            "系统",
+            "同步"
+          ]
+        },
+        "forcedRetained": true,
+        "source": "actual_control_candidate"
+      },
+      "C": {
+        "path": "concepts/accounting/currency-rate-staleness-triage.md",
+        "actualRank": 4,
+        "eligibility": null,
+        "forcedRetained": true,
+        "source": "actual_control_candidate"
+      },
+      "D": {
+        "path": "concepts/accounting/currency-rate-staleness-triage.md",
+        "actualRank": 3,
+        "eligibility": {
+          "eligible": true,
+          "reason": "combined_primary_clues",
+          "anchors": [
+            "rate",
+            "汇率",
+            "配置",
+            "系统",
+            "同步"
+          ]
+        },
+        "forcedRetained": true,
+        "source": "actual_control_candidate"
+      }
+    },
+    {
+      "id": "N13",
+      "split": "independent",
+      "path": "concepts/delivery/frame-number-field-capacity-test-history.md",
+      "boundary": "按车架号搜索发票，不是车架字段容量或扩大字段",
+      "reference": {
+        "path": "concepts/delivery/frame-number-field-capacity-test-history.md",
+        "actualRank": 5,
+        "eligibility": null,
+        "forcedRetained": true,
+        "source": "actual_control_candidate"
+      },
+      "A": {
+        "path": "concepts/delivery/frame-number-field-capacity-test-history.md",
+        "actualRank": 5,
+        "eligibility": null,
+        "forcedRetained": true,
+        "source": "actual_control_candidate"
+      },
+      "B": {
+        "path": "concepts/delivery/frame-number-field-capacity-test-history.md",
+        "actualRank": 5,
+        "eligibility": {
+          "eligible": true,
+          "reason": "combined_primary_clues",
+          "anchors": [
+            "frame",
+            "number",
+            "delivery",
+            "车架"
+          ]
+        },
+        "forcedRetained": true,
+        "source": "actual_control_candidate"
+      },
+      "C": {
+        "path": "concepts/delivery/frame-number-field-capacity-test-history.md",
+        "actualRank": 5,
+        "eligibility": null,
+        "forcedRetained": true,
+        "source": "actual_control_candidate"
+      },
+      "D": {
+        "path": "concepts/delivery/frame-number-field-capacity-test-history.md",
+        "actualRank": 5,
+        "eligibility": {
+          "eligible": true,
+          "reason": "combined_primary_clues",
+          "anchors": [
+            "frame",
+            "number",
+            "delivery",
+            "车架"
+          ]
+        },
+        "forcedRetained": true,
+        "source": "actual_control_candidate"
+      }
+    },
+    {
+      "id": "N14",
+      "split": "independent",
+      "path": "concepts/sales/pricelist-save-after-change-history.md",
+      "boundary": "价表规则改动日志／弹窗时机，不是价格保存后是否生效",
+      "reference": {
+        "path": "concepts/sales/pricelist-save-after-change-history.md",
+        "actualRank": null,
+        "eligibility": null,
+        "forcedRetained": true,
+        "source": "unretrieved_metadata_probe"
+      },
+      "A": {
+        "path": "concepts/sales/pricelist-save-after-change-history.md",
+        "actualRank": null,
+        "eligibility": null,
+        "forcedRetained": true,
+        "source": "unretrieved_metadata_probe"
+      },
+      "B": {
+        "path": "concepts/sales/pricelist-save-after-change-history.md",
+        "actualRank": null,
+        "eligibility": {
+          "eligible": true,
+          "reason": "combined_primary_clues",
+          "anchors": [
+            "改即",
+            "保存"
+          ]
+        },
+        "forcedRetained": true,
+        "source": "unretrieved_metadata_probe"
+      },
+      "C": {
+        "path": "concepts/sales/pricelist-save-after-change-history.md",
+        "actualRank": null,
+        "eligibility": null,
+        "forcedRetained": true,
+        "source": "unretrieved_metadata_probe"
+      },
+      "D": {
+        "path": "concepts/sales/pricelist-save-after-change-history.md",
+        "actualRank": null,
+        "eligibility": {
+          "eligible": true,
+          "reason": "combined_primary_clues",
+          "anchors": [
+            "改即",
+            "保存"
+          ]
+        },
+        "forcedRetained": true,
+        "source": "unretrieved_metadata_probe"
+      }
+    },
+    {
+      "id": "N15",
+      "split": "independent",
+      "path": "concepts/inventory/us-sku-basic-attributes-check.md",
+      "boundary": "STOP产品停用前提和时间，不是创建SKU的基础属性",
+      "reference": {
+        "path": "concepts/inventory/us-sku-basic-attributes-check.md",
+        "actualRank": 14,
+        "eligibility": null,
+        "forcedRetained": true,
+        "source": "actual_control_candidate"
+      },
+      "A": {
+        "path": "concepts/inventory/us-sku-basic-attributes-check.md",
+        "actualRank": 14,
+        "eligibility": null,
+        "forcedRetained": true,
+        "source": "actual_control_candidate"
+      },
+      "B": {
+        "path": "concepts/inventory/us-sku-basic-attributes-check.md",
+        "actualRank": 11,
+        "eligibility": {
+          "eligible": true,
+          "reason": "combined_primary_clues",
+          "anchors": [
+            "sku",
+            "没有",
+            "保留",
+            "库存",
+            "用途"
+          ]
+        },
+        "forcedRetained": true,
+        "source": "actual_control_candidate"
+      },
+      "C": {
+        "path": "concepts/inventory/us-sku-basic-attributes-check.md",
+        "actualRank": 14,
+        "eligibility": null,
+        "forcedRetained": true,
+        "source": "actual_control_candidate"
+      },
+      "D": {
+        "path": "concepts/inventory/us-sku-basic-attributes-check.md",
+        "actualRank": 11,
+        "eligibility": {
+          "eligible": true,
+          "reason": "combined_primary_clues",
+          "anchors": [
+            "sku",
+            "没有",
+            "保留",
+            "库存",
+            "用途"
+          ]
+        },
+        "forcedRetained": true,
+        "source": "actual_control_candidate"
+      }
+    },
+    {
+      "id": "N16",
+      "split": "independent",
+      "path": "concepts/invoicing/uk-automatic-invoice-mail-history.md",
+      "boundary": "Peppol电子发票平台集成新需求，不是历史自动邮件开关",
+      "reference": {
+        "path": "concepts/invoicing/uk-automatic-invoice-mail-history.md",
+        "actualRank": null,
+        "eligibility": null,
+        "forcedRetained": true,
+        "source": "unretrieved_metadata_probe"
+      },
+      "A": {
+        "path": "concepts/invoicing/uk-automatic-invoice-mail-history.md",
+        "actualRank": null,
+        "eligibility": null,
+        "forcedRetained": true,
+        "source": "unretrieved_metadata_probe"
+      },
+      "B": {
+        "path": "concepts/invoicing/uk-automatic-invoice-mail-history.md",
+        "actualRank": null,
+        "eligibility": {
+          "eligible": false,
+          "reason": "insufficient_primary_clues",
+          "anchors": [
+            "发票"
+          ]
+        },
+        "forcedRetained": false,
+        "source": "unretrieved_metadata_probe"
+      },
+      "C": {
+        "path": "concepts/invoicing/uk-automatic-invoice-mail-history.md",
+        "actualRank": null,
+        "eligibility": null,
+        "forcedRetained": true,
+        "source": "unretrieved_metadata_probe"
+      },
+      "D": {
+        "path": "concepts/invoicing/uk-automatic-invoice-mail-history.md",
+        "actualRank": null,
+        "eligibility": {
+          "eligible": false,
+          "reason": "insufficient_primary_clues",
+          "anchors": [
+            "发票"
+          ]
+        },
+        "forcedRetained": false,
+        "source": "unretrieved_metadata_probe"
+      }
+    }
+  ],
+  "consumption": {
+    "reference": {
+      "knowledge_and_primary_retained": 46,
+      "historical_reference_without_selected_primary": 12,
+      "filtered_by_existing_relevance_check": 1
+    },
+    "A": {
+      "knowledge_and_primary_retained": 46,
+      "historical_reference_without_selected_primary": 12,
+      "filtered_by_existing_relevance_check": 1
+    },
+    "B": {
+      "knowledge_and_primary_retained": 45,
+      "historical_reference_without_selected_primary": 12,
+      "filtered_by_existing_relevance_check": 1
+    },
+    "C": {
+      "knowledge_and_primary_retained": 47,
+      "historical_reference_without_selected_primary": 11,
+      "filtered_by_existing_relevance_check": 1
+    },
+    "D": {
+      "knowledge_and_primary_retained": 46,
+      "historical_reference_without_selected_primary": 11,
+      "filtered_by_existing_relevance_check": 1
+    }
+  },
+  "independent_primary": {
+    "reference": {
+      "positive_total": 6,
+      "knowledge_and_primary_retained": 5
+    },
+    "A": {
+      "positive_total": 6,
+      "knowledge_and_primary_retained": 5
+    },
+    "B": {
+      "positive_total": 6,
+      "knowledge_and_primary_retained": 5
+    },
+    "C": {
+      "positive_total": 6,
+      "knowledge_and_primary_retained": 5
+    },
+    "D": {
+      "positive_total": 6,
+      "knowledge_and_primary_retained": 5
+    }
+  }
+}

@@ -1,0 +1,53 @@
+--- a/docs/llm-wiki/concepts/invoicing/vendor-bill-confirm-stock-move-singleton-investigation.md
++++ b/docs/llm-wiki/concepts/invoicing/vendor-bill-confirm-stock-move-singleton-investigation.md
+@@ -1,9 +1,15 @@
+ ---
+ comment_id: tw-doc-c0d4ad611f154a58925d0c8590e4d99a
+-title: "Vendor Bill Confirm 报 ValueError: Expected singleton: stock.move()，历史案例能说明什么？"
+-summary: 三票完整堆栈均在采购原币估值路径报 stock.move 单例异常；历史恢复、临时日期处理和当前未解决问题须分别判断。
++title: "供应商账单确认失败／Vendor Bill Confirm 报 stock.move 单例异常，历史案例能说明什么？"
++summary: "供应商账单确认失败、Bill过账失败的历史调查：三票报 ValueError: Expected singleton: stock.move()，并涉及采购原币估值函数；根因未知，历史恢复不能照搬为当前修复。"
++search_terms:
++- confirm vendor bill
++- 供应商账单确认失败
++- Bill过账失败
++- "ValueError: Expected singleton: stock.move()"
++- _tw_purchase_original_currency_unit_price
+ created: '2026-10-21'
+-updated: '2026-10-21'
++updated: '2026-10-22'
+ type: concept
+ content_type: investigation
+ processes:
+@@ -28,9 +34,9 @@
+ applicability_status: needs_verification
+ ---
+ 
+-# Vendor Bill Confirm 报 ValueError: Expected singleton: stock.move()，历史案例能说明什么？
++# 供应商账单确认失败／Vendor Bill Confirm 报 stock.move 单例异常，历史案例能说明什么？
+ 
+-有相同技术报错的历史记录，但没有证据证明当前票可照搬历史处理。先区分错误签名、估值价差及财务日期规则。
++供应商账单确认失败（confirm vendor bill）或 Bill过账失败时，可先比对本页历史错误签名和采购原币估值路径。有相同报错的历史记录，但三票根因并未确认，也没有当前通用修复。历史恢复、SVL价差解释及财务日期规则须分别判断。
+ 
+ ## 错误与调用路径
+ 
+--- a/docs/llm-wiki/index.md
++++ b/docs/llm-wiki/index.md
+@@ -3,7 +3,7 @@
+ ---
+ # Wiki 索引
+ 
+-> 更新：2026-10-21；按实际去重路径统计：473 篇知识、39 个实体入口、5 篇查询记录、33 篇复核记录、5 份执行计划；另有 45 份复核附件、4 份计划附件。raw/transcripts 有 3932 份版本快照、覆盖 2055 个票号；raw/documents 有 2 份来源快照。
++> 导航更新：2026-10-22；统计快照：2026-10-21（按实际去重路径）：473 篇知识、39 个实体入口、5 篇查询记录、33 篇复核记录、5 份执行计划；另有 45 份复核附件、4 份计划附件。raw/transcripts 有 3932 份版本快照、覆盖 2055 个票号；raw/documents 有 2 份来源快照。
+ > 当前优先整理 concepts；39 个既有实体入口保留为辅助导航，未随知识持续同步复核，关联列表不代表完整覆盖。
+ > 统计不代表全库内容或生产行为已验证。473 篇已显式登记 content_type，0 篇存量待核对类型；旧 faq/ 目录不自动视为简答。
+ 
+@@ -313,7 +313,7 @@
+ 
+ ### 处理采购与库存
+ 
+-- [Vendor Bill Confirm 报 ValueError: Expected singleton: stock.move()，历史案例能说明什么？](concepts/invoicing/vendor-bill-confirm-stock-move-singleton-investigation.md) — 三票完整错误与历史处理分开核对，当前修复与根因待确认；investigation；draft；待确认
++- [供应商账单确认失败／Vendor Bill Confirm 报 stock.move 单例异常，历史案例能说明什么？](concepts/invoicing/vendor-bill-confirm-stock-move-singleton-investigation.md) — 原始错误 ValueError: Expected singleton: stock.move()；三票完整错误与历史处理分开核对，当前修复与根因待确认；investigation；draft；待确认
+ 
+ - [UK／US 维修费用产品与 79023 配置，哪部分有完成报告？](concepts/accounting/maintenance-fee-product-account-configuration-history.md) — UK 新建 Maintenance Fee 并配科目有支持报告；US 既有维修费用产品最后仅有人接手，不能说两站一致完成；historical_case；draft；UK Odoo 17、US Odoo 18
+ 

@@ -1,0 +1,1 @@
+{"provider":"zcode","model":"glm-5.3","timeoutMs":120000,"prompts":{},"wikiWorkspace":"/absolute/path/to/frozen-source-workspace","rerank":{"mode":"general","url":"https://open.bigmodel.cn/api/paas/v4/chat/completions","model":"glm-5.3-flash","minScore":0.7}}

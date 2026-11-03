@@ -1,0 +1,155 @@
+"""Summarize the locked old-set run. Never generates answers or new samples."""
+import difflib
+import hashlib
+import json
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[3]
+OUT = REPO / 'docs/tasks/ai-ticket/wiki-rag-v13'
+ROOT = Path('/tmp/octo-wiki-rag-v13')
+
+
+def read(p):
+    return json.loads(p.read_text())
+
+
+def write(name, x):
+    with (OUT / name).open('x') as f:
+        json.dump(x, f, ensure_ascii=False, indent=2)
+        f.write('\n')
+
+
+def sha(p):
+    return hashlib.sha256(p.read_bytes()).hexdigest()
+
+
+x = read(OUT / 'old-replay.json')
+v = read(OUT / 'verification.json')
+assert x['mechanicalPassed'] and v['passed'] and v['checks']['confirmedUnrelatedAddedSource']
+positives = [r for r in x['details'] if r['type'] == 'positive']
+stats = {}
+for arm in ['A', 'B']:
+    stats[arm] = {
+        'positiveCases': len(positives),
+        'positiveTargetBodyAndPrimary': sum(next(a for a in r['runs'] if a['arm'] == arm)['targetBodyAndPrimary'] for r in positives),
+        'allLabelledTargetBodyAndPrimary': x['summary'][arm]['targetBodyAndPrimary'],
+        'titleOnlyCards': x['summary'][arm]['titleOnly'],
+        'primaryCharsAcrossAllCases': x['summary'][arm]['primaryChars'],
+        'evidenceP95Ms': x['summary'][arm]['evidenceP95Ms'],
+    }
+e8 = next(r for r in x['details'] if r['id'] == 'E8-N2')
+regression = {
+    'id': 'E8-N2', 'question': e8['question'],
+    'correctRankedPage': 'concepts/accounting/journal-review-copy-history.md',
+    'rank': e8['ranked'][0]['rank'], 'score': e8['ranked'][0]['score'],
+    'correctSourceTicket': '1961', 'unrelatedAddedSourceTicket': '1488',
+    'A': e8['runs'][0]['final'], 'B': e8['runs'][1]['final'],
+    'sourceProof': v['knownRegression'][0],
+    'requestedOperation': '复制凭证后Review信息未清除',
+    'addedSourceOperation': 'Update Bank Line带出其他凭证内容／大额数字及费用穿透',
+    'classification': 'new unrelated primary unit within an already correctly selected page',
+    'notChanged': ['original page gold label', 'original specified wrong-page label', 'BGE input/score/threshold/page selection'],
+    'mechanism': 'The Wiki already associates both incidents; lexical primary selection matches only 凭证. Raising the shared allocation admits the previously omitted 824-character source unit.',
+    'articlePairVersusSourcePair': 'No new article was selected, but a new question-to-primary-source mismatch was introduced. Article-level zero cannot certify source-level relevance.',
+    'answerGenerated': False,
+}
+write('confirmed-regression.json', regression)
+write('summary.json', {
+    'phase': 'old_regression', 'cases': 137, 'stats': stats,
+    'gainedPositiveCases': x['gained'], 'lostPositiveCases': [],
+    'changedPages': x['changedPairs'], 'changedCases': len({r['id'] for r in x['details'] if r['changedPages']}),
+    'rankingAndPageSelectionIdentical': True,
+    'confirmedNewUnrelatedSourceUnits': 1, 'sourceSemanticAuditExhaustive': False,
+    'auditBoundary': 'Stop after first confirmed source-level relevance failure; remaining enriched units are not certified semantically safe.',
+    'networkRequests': 0, 'answerModelCalls': 0, 'judgeModelCalls': 0, 'G': 'disabled',
+    'holdout': {'planned': 32, 'prepared': 0, 'scored': 0, 'status': 'not_started_due_to_old_set_gate'},
+    'note': 'All-labelled target counts include correct alternative pages on negative-pair cases; positive-only counts are reported separately. Neither count is answerability or final-answer accuracy.',
+})
+write('acceptance.json', {
+    'decision': 'NOT_ACCEPTED', 'reason': 'Old-set gate failed: an unrelated same-page primary source was newly admitted.',
+    'checks': {
+        'cachedRerankInputsScoresAndPageSelectionUnchanged': 'passed',
+        'baseline137EquivalentAndOldEvidencePreserved': 'passed',
+        'completeUnitsAnd4800_7200Caps': 'passed',
+        'U14Restored4482': 'passed', 'U08Diagnostic2531AndRealThresholdRejectionUnchanged': 'passed',
+        'oldEvidenceP95WithinPlus100ms': 'passed',
+        'noNewQuestionSourceMismatch': 'failed',
+        'new32CoverageAndBudgetBenefit': 'not_run_due_to_gate',
+        'finalAnswers': 'out_of_scope_not_generated',
+    },
+    'confirmedFailure': 'confirmed-regression.json', 'new32Prepared': False,
+    'candidateApplied': False, 'deployed': False, 'G': 'disabled',
+})
+write('checks.json', {
+    'unitAndMock': {'exitCode': 0, 'testsPassed': 147, 'filesPassed': 5,
+        'command': 'pnpm --dir /tmp/octo-wiki-rag-v13/candidate/server test src/domain/wiki-primary-budget.test.ts src/domain/wiki-evidence.test.ts src/adapters/filesystem/wiki-knowledge-reader.test.ts src/application/services/wiki-qa.service.test.ts src/adapters/ai/wiki-qa-rerank-client.test.ts',
+        'newBudgetTests': 13, 'meaning': 'Budget boundaries and existing mock behavior; not a semantic relevance proof or live answer test.'},
+    'isolatedBuild': {'exitCode': 0, 'command': 'pnpm --dir /tmp/octo-wiki-rag-v13/candidate/server build'},
+    'experimentTypecheck': {'exitCode': 0, 'files': ['primary-budget-v13.mts', 'runtime-v13.mts', 'replay-v13.mts'],
+        'command': 'node server/node_modules/typescript/bin/tsc --noEmit --allowImportingTsExtensions --module NodeNext --moduleResolution NodeNext --target ES2022 --skipLibCheck --esModuleInterop --types node --typeRoots server/node_modules/@types server/examples/wiki-retrieval-eval/primary-budget-v13.mts server/examples/wiki-retrieval-eval/runtime-v13.mts server/examples/wiki-retrieval-eval/replay-v13.mts'},
+    'integrityAndSources': {'artifact': 'verification.json', 'passed': True, 'sourceUnitsVerified': v['sourceChecks']},
+    'liveRerank': 'not_run_due_to_old_set_gate', 'liveAnswer': 'not_run_explicitly_out_of_scope',
+    'deployedRuntime': 'not_run_no_deployment',
+})
+write('execution-notes.json', {
+    'replayHarnessCorrection': 'The first cached replay attempt tried to open a response file for Q33, which has zero candidates and no original rerank request. Fixed the empty-case branch before any v13 result was written; no policy, old data or model score changed. Subsequent 137-case replay passed mechanical checks.',
+    'allocationCohort': 'Minimal budget implementation extends only the baseline final <=3 pages; it never replaces or adds a page.',
+    'stopReason': 'At least one new unrelated primary source confirmed despite identical selected pages; do not silently weaken the source-level failure to article-level equality.',
+    'noRepairInsideLockedRun': 'No source relabelling, source whitelist, allocation retuning, G, or shared knowledge edits were introduced after this failure.',
+    'privateEvidence': '/tmp/octo-wiki-rag-v13 (directory 0700, evidence files 0600); reports contain hashes, counts and concise issue summaries, not raw transcripts.',
+})
+patch = []
+for name in ['domain/wiki-primary-budget.ts', 'domain/wiki-primary-budget.test.ts', 'domain/wiki-qa.ts',
+             'adapters/filesystem/wiki-knowledge-reader.ts', 'application/services/wiki-qa.service.ts']:
+    before = ROOT / 'baseline/server/src' / name
+    after = ROOT / 'candidate/server/src' / name
+    patch.append(''.join(difflib.unified_diff(before.read_text().splitlines(True) if before.exists() else [],
+                 after.read_text().splitlines(True), fromfile='a/server/src/' + name if before.exists() else '/dev/null',
+                 tofile='b/server/src/' + name)))
+with (OUT / 'candidate-full.patch').open('x') as f:
+    f.write(''.join(patch))
+report = f'''# v13：精排与原文预算隔离实验
+
+旧集原文相关性门槛未通过，候选不采用。按约定停止在旧137题阶段，没有准备新32题、没有真实模型请求；最终答案未生成，独立judge未调用，G关闭，不上线。
+
+## 结果
+
+| 旧集指标 | A：每页2400 | B：每页4800／每题共享7200 |
+| --- | ---: | ---: |
+| 纯正例有目标正文＋原文 | {stats['A']['positiveTargetBodyAndPrimary']} | {stats['B']['positiveTargetBodyAndPrimary']} |
+| 全部题型有标注目标正文＋原文 | {stats['A']['allLabelledTargetBodyAndPrimary']} | {stats['B']['allLabelledTargetBodyAndPrimary']} |
+| 仅标题的卡片数 | {stats['A']['titleOnlyCards']} | {stats['B']['titleOnlyCards']} |
+| 离线原文阶段P95 | {stats['A']['evidenceP95Ms']:.3f}ms | {stats['B']['evidenceP95Ms']:.3f}ms |
+
+纯正例恢复Q14／Q17／Q29／N01／P02／U14六题，原有目标与原文没有丢失。全题型计数包含负配对题中的正确其他文章，不能与纯正例口径混用。U14的约4482字符完整原文已恢复；U08约2531字符仅在离线预算诊断中可装入，真实主链路仍因0.666<0.7为空，未算补回。
+
+A／B共用旧真实精排响应，137题的BGE输入、原始分／排序、阈值资格和已入选页面均一致。只在基线已经入选的最多3页内补原文，没有改召回、0.7、G或文章选择。27题的30个页面发生证据内容变化；这些不是新增30篇正确文章，更不代表最终回答质量提升。
+
+## 确认的回归
+
+E8-N2问“US复制凭证为什么把原来的Review时间也复制过来了”。正确目标`concepts/accounting/journal-review-copy-history.md`原本就是第1名，分数0.926311。
+
+其Wiki来源同时关联工单1961（复制／修改后的Review信息）与1488（Update Bank Line数字异常及费用穿透）。A已有1961的2049字符；B额外装入1488的824字符，合计2873。新增原文只命中了通用词“凭证”，不含Review，无法支撑所问的复制复核时间问题。
+
+这是“同页混合不同问题来源＋词项选择过宽”在扩预算后暴露的原文错配。文章仍是正确文章，因此“没有新增错页”不能掩盖“新增了错误问题的原文”。来源路径本来就在Wiki内，G没有运行，也没有跨页借证。没有据此修改原文章gold或原指定错页标签。
+
+见[确认的回归](confirmed-regression.json)、[完整旧集回放](old-replay.json)、[30项变更索引](old-audit-index.json)和[验收结论](acceptance.json)。语义审计发现首个明确失败后停止，其余新增原文未被全量认证安全。
+
+## 边界和验证
+
+- 旧U26／U27／U29／U30／U32原高分支持不足仍存在；U29另补入旧采购审批／在途审批原文，不能证明新BTC实际配置。没有生成答案，不能称为已出现错误回答。
+- 原文单元保真和4800／7200硬边界通过，144个返回单元与未修改的原始选段函数逐一核对；G、适用性升级和共用应用改动均为0。
+- 147项单元／mock通过（含13项预算测试）；隔离候选build、实验脚本类型检查通过。测试证明预算及边界行为，不证明原文语义相关。
+- [完整性复核](verification.json)通过，含旧报告、隔离知识、共用代码和源片段校验；这里的passed是实验完整性，不是质量通过。
+- 精排真实新请求0／40，最终回答0，独立judge0；新32题未开始，因此独立收益／覆盖未验证。离线原文耗时不含网络、真实精排或最终生成，不代表生产速度。
+
+候选仅在`/tmp/octo-wiki-rag-v13/candidate`，完整可复现差异见[candidate-full.patch](candidate-full.patch)。原文仅保存在权限受限的隔离目录；共用服务、Wiki和线上配置未修改。当前结果支持继续评审“预算补充来源的范围”，本轮不追加规则修补或新实验。
+'''
+with (OUT / 'README.md').open('x') as f:
+    f.write(report)
+write('experiment-code.json', {name: sha(REPO / 'server/examples/wiki-retrieval-eval' / name) for name in
+      ['primary-budget-v13.mts', 'primary-budget-v13.test.ts', 'prepare-v13.py', 'runtime-v13.mts',
+       'replay-v13.mts', 'verify-v13.mts', 'report-v13.py']})
+write('artifact-sha256.json', {'files': {p.name: sha(p) for p in sorted(OUT.iterdir()) if p.is_file()}})
+print(json.dumps({'decision': 'NOT_ACCEPTED', 'positiveBodyAndPrimary': [stats['A']['positiveTargetBodyAndPrimary'], stats['B']['positiveTargetBodyAndPrimary']],
+                  'newUnrelatedSourceConfirmed': 1, 'newHoldout': 'not_started', 'networkRequests': 0, 'G': 'disabled'}))

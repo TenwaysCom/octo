@@ -1,0 +1,26 @@
+{
+  "first_rate_limit": {
+    "request": 183,
+    "status": 429,
+    "case": "P06",
+    "group": "B",
+    "action": "stopped; inspected status; one explicit retry preserved separately",
+    "retry_request": 184,
+    "retry_status": 200
+  },
+  "script_changes_after_first_freeze": [
+    "prepare-v7.mts: TypeScript any[] annotation only; inputs unchanged",
+    "run/analyze-v7.mts: preserve failed cache and explicitly resolve one inspected retry; model inputs, gold and thresholds unchanged"
+  ],
+  "validation": {
+    "unit_mock": "209 passed in 7 files",
+    "baseline_build": "passed",
+    "experiment_typecheck": "passed after type annotation",
+    "mock_boundary_checks": "passed; no network"
+  },
+  "packaging_checks": [
+    "Final freeze-prepare guard verified by actual refusal; subprocess expected error checked via stderr because host spawn message reported EPERM",
+    "A documents compared byte-for-byte with actual service request under mocked model; no network",
+    "Final type check and documentation links passed; frozen model inputs never changed"
+  ]
+}

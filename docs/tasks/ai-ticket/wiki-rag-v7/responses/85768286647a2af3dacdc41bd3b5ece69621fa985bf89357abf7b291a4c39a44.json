@@ -1,0 +1,100 @@
+{
+  "caseId": "H03",
+  "group": "B",
+  "payloadHash": "85768286647a2af3dacdc41bd3b5ece69621fa985bf89357abf7b291a4c39a44",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 0,
+      "relevance_score": 0.9494141936302185
+    },
+    {
+      "index": 4,
+      "relevance_score": 0.5888314247131348
+    },
+    {
+      "index": 13,
+      "relevance_score": 0.5362182259559631
+    },
+    {
+      "index": 5,
+      "relevance_score": 0.49773460626602173
+    },
+    {
+      "index": 3,
+      "relevance_score": 0.41053295135498047
+    }
+  ],
+  "durationMs": 529,
+  "querySha256": "7c16e7df5dd06ce615a473901595b2cdf70f1dcc7c1ac8d249909dbd95da8e89",
+  "queryChars": 100,
+  "documentSha256": [
+    "7cb0a453c8bc1242a89844ce9e60ad0c61a3457d57bf5eeb7ff69cf253eb05b1",
+    "c3cc840bc963219f76d6e1c370afebc9772907fd10af501cfceb737113ae2bc9",
+    "7c8b2fc7912805774ed490b72b724b7b698a5b96257f6f688f51cd824b42be4b",
+    "392430ee710d032bc98bcc6c28d2b52a2ca43700daad35beefe714814ca98ef8",
+    "cd1f03ff9e5dc34fe090fae080bd117a5449a8233a4c006bb215c89c65d96211",
+    "a8829220e36b8d1cafd914ec15b1602acf2ddbf88754173a964ea31b4050c5a3",
+    "4d728403e7a1b6e3cb8135945f3e7ea4d8697bef7046f6049e06a6bcb65406ad",
+    "7cc162f6ccde814b5de77fdb0bf8e22390060a9d7391a95865401427af82c29e",
+    "5d784488846cd27e89cc6b55bfa12a234490523c3c2d90dd86b787ac342b0a44",
+    "71a774b305bef9ca955e48838cbf0e621d624c78cc019b9b72fc170cb8394f28",
+    "414a264ae5d828aad86c30bfd671ca82d0b557d03cca48b92f6f5f626fb95f45",
+    "130ce9fb894d28e67fb1c11e29b5a2a9c97299fffdb595872a7045e8c6b10c50",
+    "c0afbf49b094bd8564d5394e17844883858cd40851701054c19a681511362b33",
+    "eed3f2ead119e2f201db5093af0edb7dae950da8b9dde3c5385751d4c9c4203f",
+    "eb4a7a7c9747f10d6fc50a97468cda09fb0cc2020d6b262a5d9b50769426adea",
+    "4ba156927de607d735fa5752481dfe7be319cd27b8480873ed49949b5a58270c",
+    "ecb8614a5ce0caf011289227eae6789bb00ada338955b95a9e7cd867fb1cf599",
+    "111750ee735f49dcdd66a87900b69bf14e52f1913a0f4d91f1cac4b1a4393a28",
+    "dd5bc1893b06ea359225099ca2735a43dc7ca12e0aa8ee66c2f6d89367089e48",
+    "e08e16d2a076834c402607fb3d97120920b599a3fb5b05d146ce430cf9d27e0b"
+  ],
+  "documentChars": [
+    1382,
+    3087,
+    1152,
+    1607,
+    3166,
+    3075,
+    209,
+    947,
+    1108,
+    3130,
+    1167,
+    1166,
+    540,
+    2549,
+    1736,
+    749,
+    1437,
+    914,
+    3010,
+    1417
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/invoicing/invoice-email-follows-sales-order-invoice-address.md",
+    "docs/ontology/objects/b2c-sales.md",
+    "docs/llm-wiki/concepts/integration/wms-address-contract-history.md",
+    "docs/llm-wiki/concepts/sales/partner-address-role-history.md",
+    "docs/ontology/objects/b2b-invoice-integration.md",
+    "docs/ontology/objects/sales-invoice.md",
+    "docs/ontology/objects/business-party.md",
+    "docs/llm-wiki/concepts/after_sales/service-ticket-delivery-address-history.md",
+    "docs/llm-wiki/concepts/invoicing/uk-automatic-invoice-mail-history.md",
+    "docs/ontology/objects/portal-public-inquiry.md",
+    "docs/llm-wiki/concepts/faq/contact-backorder-preorder-overview.md",
+    "docs/llm-wiki/concepts/payment/invoice-auto-send-sales-team-historical-assignment.md",
+    "docs/llm-wiki/concepts/sales/mail-notification-navigation.md",
+    "docs/ontology/processes/b2b-invoice-platform-delivery.md",
+    "docs/ontology/processes/b2c-leasing-sales.md",
+    "docs/llm-wiki/concepts/platform/confirmation-mail-test-and-delivery-history.md",
+    "docs/llm-wiki/concepts/portal/portal-email-and-archived-account-check.md",
+    "docs/ontology/processes/portal-general-inquiry-handling.md",
+    "docs/ontology/rules/commercial-partner-attribution.md",
+    "docs/llm-wiki/concepts/portal/portal-account-parent-company-invoices.md"
+  ],
+  "queryCAvailable": true
+}

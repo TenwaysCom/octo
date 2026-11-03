@@ -1,0 +1,73 @@
+{
+  "caseId": "Q21",
+  "group": "A",
+  "payloadHash": "f27d6a6c5d9af5bee063e0a6058d1468b8d7d3da702b123e01d63ecb367b33ca",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 0,
+      "relevance_score": 0.7636625170707703
+    },
+    {
+      "index": 1,
+      "relevance_score": 0.678487241268158
+    },
+    {
+      "index": 8,
+      "relevance_score": 0.01348877977579832
+    },
+    {
+      "index": 2,
+      "relevance_score": 0.011614197865128517
+    },
+    {
+      "index": 3,
+      "relevance_score": 0.0046758693642914295
+    }
+  ],
+  "durationMs": 289,
+  "querySha256": "1dd6689b442885c3579c193f1ab44151464a234eebbaa98295a7d2b4f0220ddd",
+  "queryChars": 67,
+  "documentSha256": [
+    "a08d49067f069e88a2401c204ed71b21fadaf9399505c696d6ad84e93d3f2fc8",
+    "c2330f2b19aa5c85a2f7273cc8b1ded6e83f56a777dc7e97da68a5418df6b32d",
+    "fe99d59681c1a4a02803d4bac2409c3b4f2d51de0aa37c7aa029db067773593b",
+    "b6cf7793dece86898c720b632b87355a96c80cb898d5f8a9c8d5f490e4ee2e1b",
+    "1e4ec104d7b9a6cbd7b2c1114a42eee10ec78e7cadfff5f9e10203c5c7d1ef61",
+    "5667a9b54041f888e46a71d9c13c20e2f29452bfc7691a15126f753b08a63b1f",
+    "d8b58f329d1da91e1893af6a357f8bcc0db2d25e2a38832ffd3ac806330f7658",
+    "12267b4da83961837c35eea62daafc37d7c4a3bdaa72030eb4de06b2f55855fb",
+    "a6ecb50161d1f585d1a6916b4d709636342d24cd6b79a51ec00f21902ba4a8e4",
+    "acd3db4ea2286e6d0d88cb898e849bf7bb5b7579b7b679ba483496d0d3018fdc",
+    "3ed40aef3f1fa06955ebb17bb40ce07878fff2b37ebb8f052e9d9bfc0cc5e490"
+  ],
+  "documentChars": [
+    1022,
+    1289,
+    2137,
+    1739,
+    518,
+    2415,
+    1706,
+    963,
+    1549,
+    559,
+    426
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/platform/browser-assets-and-widget-errors-history.md",
+    "docs/llm-wiki/concepts/platform/frontend-resource-refresh-history.md",
+    "docs/ontology/objects/b2b-invoice-integration.md",
+    "docs/ontology/objects/deferred-service-revenue.md",
+    "docs/ontology/objects/product-catalog.md",
+    "docs/ontology/objects/sales-delivery.md",
+    "docs/ontology/objects/sales-refund.md",
+    "docs/ontology/objects/warehouse-operation.md",
+    "docs/ontology/processes/b2b-invoice-platform-delivery.md",
+    "docs/ontology/processes/sales-delivery-withdrawal.md",
+    "docs/ontology/processes/sales-invoicing.md"
+  ],
+  "queryCAvailable": true
+}

@@ -1,0 +1,42 @@
+[
+  {
+    "id": "Q31",
+    "path": "docs/llm-wiki/concepts/sales/uk-shopify-empty-salesperson-default-history.md",
+    "mockScore": 1,
+    "retained": true,
+    "knowledgeChars": 685,
+    "primaryCount": 1,
+    "applicability": "historical_reference",
+    "interpretation": "Conditional survival if a wrong-topic candidate is selected; no actual model score or answer was measured."
+  },
+  {
+    "id": "Q32",
+    "path": "docs/llm-wiki/concepts/sales/approval-activity-button-history.md",
+    "mockScore": 1,
+    "retained": true,
+    "knowledgeChars": 1608,
+    "primaryCount": 1,
+    "applicability": "historical_reference",
+    "interpretation": "Conditional survival if a wrong-topic candidate is selected; no actual model score or answer was measured."
+  },
+  {
+    "id": "Q34",
+    "path": "docs/llm-wiki/concepts/sales/automatic-order-email-customer-language.md",
+    "mockScore": 1,
+    "retained": true,
+    "knowledgeChars": 836,
+    "primaryCount": 1,
+    "applicability": "historical_reference",
+    "interpretation": "Conditional survival if a wrong-topic candidate is selected; no actual model score or answer was measured."
+  },
+  {
+    "id": "H12",
+    "path": "docs/llm-wiki/concepts/delivery/approval-validate-and-backorder-history.md",
+    "mockScore": 1,
+    "retained": true,
+    "knowledgeChars": 1671,
+    "primaryCount": 2,
+    "applicability": "historical_reference",
+    "interpretation": "Conditional survival if a wrong-topic candidate is selected; no actual model score or answer was measured."
+  }
+]

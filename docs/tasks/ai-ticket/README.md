@@ -1,6 +1,12 @@
 # AI Ticket Tasks
 
+- [Shadow AI：Ticket最初十分钟动作评测数据集](2026-10-22-shadow-first10-eval-dataset.md) — done（需求v4）；[最新120例分类复核v2](shadow-first10-v2/README.md)逐条展示标准、证据与human/wait边界，现回答2/追问23/人工68/等待27，人工gold=0。已按用户授权整理到本地`feat/add-evals`，含17份冻结数据及相关脚本/文档；15项单测和暂存数据哈希/Schema通过，其他工作保留；未推送、未做模型评估或部署。
+
+- [Ticket AI 现有能力盘点与 QA Agent 演进缺口](2026-10-22-ticket-ai-qa-agent-capability-map.md) — done（v3完整清单交付）；按自动入口、Shadow、知识库、问答、评测、运行控制六类逐项整理现有能力/缺口及六步研发顺序；保留入口可独立、问答合并、人工直接处理和监控暂缓边界。仅文档，无应用改动或部署验证。
+
 - [Lark Ticket AI：Hermes Agent AI 页签需求确认](2026-10-21-lark-hermes-answer-tab.md) — done（v6）；Sources Server 实时 / 历史事件及 FE 卡片已接通并部署，定向回归与构建通过；用户确认正文 Inline citation 暂不处理，真实模型 / 完整流程验收未恢复。
+
+- [Wiki RAG：Vendor Bill Confirm 漏检诊断与修复](2026-10-21-wiki-rag-vendor-bill-diagnosis.md) — done（v16受限兜底采用）；保留v15字段召回／知识表达，新增0.7空通道下Support Wiki单篇Top1≥0.3／领先原Top2≥0.2／完整正文原文／历史参考兜底。238项单元／mock及build通过；未部署，无新增真实模型／答案，新32题不继续，G关闭。[阈值采用记录](wiki-rag-threshold-adoption/README.md)、[召回采用记录](wiki-rag-adoption/README.md)。
 
 - [TEN-144：Lark Shadow Eval / Badcase 标注](2026-10-21-lark-badcase-design.md) — done（v4）；测试部署/迁移与两端业务验收完成，用户确认飞书“测试可用”；评测区和共用表单已精简并更新测试站，49 个 FE 测试入口、6 组 mock 浏览器及 10 组真实部署回归通过，QA 数据已清理。
 
@@ -13,6 +19,8 @@
 - [LLM wiki 更新机制与生产接入核查](2026-10-12-wiki-update-production-audit.md) — done（核查与文档）；生产 Server/Worker 在线且已配置共用 wiki；平台同步与 Shadow 定期运行，wiki 摄入仍需手动执行；取证脚本已按 v2 改为优先生产 octo；环境选择检查通过，真实问答/写入未验收。
 
 - [User profile extractor 提炼与增量验证](2026-09-27-user-profile-extractor.md) — in_progress；需求v2仅输出JSON性格/沟通/需求特点，设计及原型已更新，20项测试通过；真实双用户验证需补需求人消息证据及外发授权，无数据库迁移或部署。
+
+- [Ticket AI Evals CLI](2026-09-24-ticket-evals-cli.md) — done；单 Sheet 标注、冻结数据集、Server 执行、DeepEval 评分与报告已实现，本地/mock 验证完成，真实数据/模型及部署未验证。
 
 - [Lark thread Ticket AI 只读应用](2026-09-23-lark-ticket-analysis-app.md) — in_progress；FE 分析/搜索与 H5 SDK 免登已实现，返回已验证用户 ID；签名及输入框菜单 openChatId 采集/日志已实现并通过本地验证；后台配置、部署与真实客户端验收待完成。
 

@@ -1,0 +1,15 @@
+{
+  "liveSha256": "255555dd51845ae6bcf8b2c81125c2ab6123e7939d7a83c02f107a7cc9e66307",
+  "policySha256": "c6d7ca6c3c228cb8fceae1f8845a29514afc807c0b2898cbf3e1875fa1f5f4fe",
+  "artifacts": {
+    "config.json": "5d08a66aa8c212ae7be3061a147e55c48d454f7ee2e3893a6c4e779ac939dd78",
+    "selection-lock.json": "264ce37cf03c72041d074dc4648f24d47401cd470e62574cd6b50ade7a27a6b1",
+    "development-normalized.json": "812c9717fc54ab45c969167d70cd8faa6b83f003cc34cdbb8f2cad5611af0843",
+    "development-audit.json": "e69983293ae37084395243dd0c13d67de0bac8f8e3f88c9e2a2f2152b3b0e135",
+    "development-summary.json": "02c1fd575697a930f525b029738c4e01c73b9c35fc4f94ab6a3800bd199f6b5f",
+    "candidate-revision-1.json": "52abcf34c496680d36d53285049b38e81d9f05738eb81d713a1ad624b57db9dc"
+  },
+  "G": "disabled",
+  "maxHttpRequests": 50,
+  "networkCallsBeforeFreeze": 0
+}

@@ -1,0 +1,77 @@
+{
+  "caseId": "D04",
+  "group": "A",
+  "payloadHash": "c1ae5f9087e12cd9349f7de5f3cb25a62eb76a8f68da756cd776dbcdb3698401",
+  "topN": 5,
+  "repeat": "stability-1",
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 0,
+      "relevance_score": 0.9896872639656067
+    },
+    {
+      "index": 2,
+      "relevance_score": 0.9238190650939941
+    },
+    {
+      "index": 1,
+      "relevance_score": 0.9150804281234741
+    },
+    {
+      "index": 11,
+      "relevance_score": 0.4132433235645294
+    },
+    {
+      "index": 10,
+      "relevance_score": 0.16432562470436096
+    }
+  ],
+  "durationMs": 278,
+  "querySha256": "5498676c23689ea6cb67e1a33a469319be74d554136a4e172c7f4cfedb858fba",
+  "queryChars": 32,
+  "documentSha256": [
+    "9d1914b32b90c30513fde7f7f523cc6753ca8452e8eff7feba3bafd53c6b7a19",
+    "4ef6649a8a6b6803b19b0be89985ad95141c393ab274df517a1e4ea43aed627a",
+    "1bc20e4f1bc4165794ee008e7c114c19f64e074ec91412570a526cf2d22740f9",
+    "174e95eea091f076a6d7eb4adf5db79a87586472ccd1bb2b047816984e770d64",
+    "3b13d3de454a40ecd08e8f004290541d58f892ed9e559dd0d969dd52987b63a7",
+    "105b2e7ccd21a7c1dfa657b81f8c74f685480302082f62204ed68b9909593fd3",
+    "bb97902d9c8c65a362d46288161f7d522d80d88946b0d4defb13ac06e1967929",
+    "74c04eebf7ff54bea1f58a644eec2e290d389a64bd9c253e8dec882fd09e0fb2",
+    "3e9d61754f28db2da7a8d123bb47af5f32c6b59e5acfd1a463c9ce3b3600b92e",
+    "d02963c86ec523aa8e95ac2a5c5204692084d6bf41fd6c68dfcb38570eeabdb4",
+    "213a5a6f03508b5c2f6d797a82adb46ed6bfa6505054ecbd5229fcbb359fc38a",
+    "b09d80b161faf3421134032ebc76a1ea814a2ed25f0ec405c80e850160ab9f67"
+  ],
+  "documentChars": [
+    1042,
+    957,
+    449,
+    75,
+    75,
+    72,
+    77,
+    75,
+    85,
+    1799,
+    285,
+    223
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/invoicing/vendor-bill-confirm-stock-move-singleton-investigation.md",
+    "docs/llm-wiki/concepts/accounting/bill-svl-exchange-history.md",
+    "docs/llm-wiki/concepts/sales/operation-error-navigation.md",
+    "docs/llm-wiki/concepts/delivery/outbound-export-line-grain-check.md",
+    "docs/llm-wiki/concepts/delivery/wms-feedback-duplicate-quantity-history.md",
+    "docs/llm-wiki/concepts/inventory/other-outbound-virtual-location-restore.md",
+    "docs/llm-wiki/concepts/inventory/purchase-return-eu-us-applicability-investigation.md",
+    "docs/llm-wiki/concepts/sales/returned-picking-scrapped-qty-delivered.md",
+    "docs/llm-wiki/concepts/sales/wms-quantity-field-trace.md",
+    "docs/ontology/objects/portal-public-inquiry.md",
+    "docs/ontology/objects/purchase-settlement.md",
+    "docs/ontology/objects/sales-delivery.md"
+  ],
+  "queryCAvailable": false
+}

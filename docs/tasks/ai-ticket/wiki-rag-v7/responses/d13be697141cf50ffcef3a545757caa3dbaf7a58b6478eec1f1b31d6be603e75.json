@@ -1,0 +1,100 @@
+{
+  "caseId": "N01",
+  "group": "B",
+  "payloadHash": "d13be697141cf50ffcef3a545757caa3dbaf7a58b6478eec1f1b31d6be603e75",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 0,
+      "relevance_score": 0.9990978240966797
+    },
+    {
+      "index": 3,
+      "relevance_score": 0.9440762996673584
+    },
+    {
+      "index": 1,
+      "relevance_score": 0.9394066333770752
+    },
+    {
+      "index": 17,
+      "relevance_score": 0.5421372056007385
+    },
+    {
+      "index": 6,
+      "relevance_score": 0.4531186819076538
+    }
+  ],
+  "durationMs": 464,
+  "querySha256": "fdb4d24bbf491dc86d26ce9cb1af306b15d65f42a3b2e2a71246430ede7450fe",
+  "queryChars": 33,
+  "documentSha256": [
+    "367204bfd0cb8e2ad22e863d433e6a1ac143f87ba972f4b5ecdf6784d0031110",
+    "4ad6e9e56ce5e58b45eefe05ebd8bb7edb1150f1231df58ad08c39afe434ef43",
+    "b5db67b2953427a85ad235d4aba3a70f31895159765fddbbbf55eb1e9a0b2167",
+    "6397711396a479f687f812c90b07ecc5305a87952e58e82e26f52183ebe92849",
+    "bc83f5de35bf979e95a1b2097baf4f9c5d7ae4219d89d6f30a2865a0c1241a0d",
+    "852080b3089c7c332a355b735b480bc68c8dffdb728ad8055ff816afb5b1d9b2",
+    "8185fb783a37f1e92df236d723e831e2a0a50a48cf0855ea5237e18aec6ae2b3",
+    "65983e160799b067614fe1f0fbc33044f92429f6f1970b882dfab41be8f62301",
+    "266ba74b05964180b903eb355a4beeab043d89ac456bed6438eee687dfe07323",
+    "fca6868545c3b32b64d48c1903e425f050b3e0f0ceadfc0741364d22380adfc4",
+    "4bc5bffa86bbf345e3a26bce3279c99f3c7323d256a546a4844dfcdfa01e4155",
+    "6533b7a6ac20dc0e0359c50f82c28f0b92dcd5a6d790cb93515dbcda7396923c",
+    "97d74754204dc9bbfbb9848ec81f6cbced14b9b48fadee19e890c4f61b975107",
+    "37e1aaa8e6ec22ea184e1d1a6d62555c02f68c8f95988d50e812846201ce7963",
+    "af0f0790f0276e32e02821c61b62fc5caa8376e15e6bb956a10826496b5804cc",
+    "2fd5cd84866eb80d736080ddd989277da331ce6c88acfc8c9e451f79e11c5ef0",
+    "e5a01e7cfe09b287e46ebf9efa716148fef6a88741dfdaeacb07605b67c026a6",
+    "91de6cb9ec87975df4e6ea399774e5f289d822e1426838e78da60a0a915ef1be",
+    "6b95507152bdefc1468b0a5fc700a82b8dd013d7c492cd8f4479382fb0a75a28",
+    "bef74f4008d8dfd01b08fe475a68307784a230fc27d4cb4c388ab14ce5ccf910"
+  ],
+  "documentChars": [
+    1440,
+    1134,
+    974,
+    1343,
+    811,
+    3186,
+    1127,
+    1233,
+    664,
+    1026,
+    3197,
+    1543,
+    1293,
+    654,
+    3005,
+    1114,
+    695,
+    909,
+    1101,
+    3159
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/inventory/purchase-return-eu-us-applicability-investigation.md",
+    "docs/llm-wiki/concepts/inventory/purchase-return-original-receipt-value.md",
+    "docs/llm-wiki/concepts/inventory/purchase-return-price-journal-and-location-anomalies.md",
+    "docs/llm-wiki/concepts/inventory/track-inventory-missing-stock-valuation.md",
+    "docs/llm-wiki/concepts/inventory/purchase-return-unit-price-zero.md",
+    "docs/ontology/objects/purchase-settlement.md",
+    "docs/ontology/processes/purchase-return-to-supplier.md",
+    "docs/ontology/processes/other-inbound-receipt.md",
+    "docs/llm-wiki/concepts/accounting/purchase-transit-currency-residual-history.md",
+    "docs/llm-wiki/concepts/inventory/inbound-approve-validate-backorder.md",
+    "docs/ontology/objects/warehouse-inventory-control.md",
+    "docs/llm-wiki/concepts/accounting/account-config-report-mapping-and-20030-residuals.md",
+    "docs/llm-wiki/concepts/inventory/return-grade-conversion-history.md",
+    "docs/llm-wiki/concepts/reporting/missing-record-and-actor-history.md",
+    "docs/ontology/objects/warehouse-operation.md",
+    "docs/llm-wiki/concepts/delivery/approval-stock-done-stages-history.md",
+    "docs/llm-wiki/concepts/inventory/return-grade-and-r-sku-history.md",
+    "docs/llm-wiki/concepts/inventory/us18-return-location-and-operation-type-config.md",
+    "docs/ontology/processes/purchase-inbound-receipt.md",
+    "docs/ontology/objects/business-approval.md"
+  ],
+  "queryCAvailable": false
+}

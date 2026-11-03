@@ -1,0 +1,27 @@
+{
+  "caseId": "D05",
+  "group": "B",
+  "payloadHash": "8eede82331d911b84f00bbdb1949e4a256d8d6ee31c66dd535fe9c28a262905c",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 0,
+      "relevance_score": 0.9706830382347107
+    }
+  ],
+  "durationMs": 105,
+  "querySha256": "4227c5fefab43a12eb943f1d1e9368b56992f5790d586f5c260410d6489471c2",
+  "queryChars": 41,
+  "documentSha256": [
+    "f6c0e4d76120b128cc75c59307c463f4baaee6cf305e2a212ce7ccba214a3080"
+  ],
+  "documentChars": [
+    1416
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/invoicing/vendor-bill-confirm-stock-move-singleton-investigation.md"
+  ],
+  "queryCAvailable": false
+}

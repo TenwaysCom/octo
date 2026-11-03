@@ -25,3 +25,9 @@ server/config/platform-sync.local.json
 intent_results.xlsx
 *.swp
 .zcode
+
+# Ticket evaluation business data and Python runtime
+/evals/artifacts/
+/evals/.venv/
+/evals/.env
+**/__pycache__/

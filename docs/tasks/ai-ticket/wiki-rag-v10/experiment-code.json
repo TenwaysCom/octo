@@ -1,0 +1,9 @@
+{
+  "server/examples/wiki-retrieval-eval/development-v10.mts": "ae86de8eba65be83a8b02c756faba19add40298fb6b1c7aac7a9fde78e2f5b83",
+  "server/examples/wiki-retrieval-eval/live-v10.mts": "da03fd5036f7747e28c14b5a6c3e95c2cb118649ddaef73686e1a8664550022b",
+  "server/examples/wiki-retrieval-eval/prepare-v10.py": "802b6180ccd3f24744cc4fc5ce0d175590f45f9a2c4e8d056b8e1130411dcf65",
+  "server/examples/wiki-retrieval-eval/select-v10.py": "33eddfa75686e73cbb70db69e89b925abf59715a3aadd4f7fad3823cdcadbf4a",
+  "server/examples/wiki-retrieval-eval/threshold-policy-v10.mts": "c6d7ca6c3c228cb8fceae1f8845a29514afc807c0b2898cbf3e1875fa1f5f4fe",
+  "server/examples/wiki-retrieval-eval/threshold-policy-v10.test.ts": "f8ee1c3927059aae82cd70213f17a6b53d20b76dd84ce243ca8c586f3d52abff",
+  "server/examples/wiki-retrieval-eval/verify-v10.mts": "8ad81b1f128c8ad104d09515895da7bf14afaacb5b990875060812c751495ba3"
+}

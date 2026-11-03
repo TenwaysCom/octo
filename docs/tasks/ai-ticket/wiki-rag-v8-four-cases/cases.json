@@ -1,0 +1,434 @@
+[
+  {
+    "id": "P1",
+    "type": "positive",
+    "ticket": 1969,
+    "question": "Review Journal Items只选80条数据，五分钟还在loading，怎样排查凭证复核很慢？",
+    "keywords": [
+      "review",
+      "journal items",
+      "loading",
+      "复核"
+    ],
+    "objects": [
+      "account.move.line"
+    ],
+    "expected": "concepts/accounting/journal-review-latency-history.md",
+    "wrong": null,
+    "source": "raw/transcripts/ticket-1969.2026-09-11-f120c91acc35.md",
+    "requestOrdinals": [
+      "M1"
+    ],
+    "boundary": "40条仅建议；后续500条变快及提速报告不证明缩批根因或当前恢复",
+    "input": {
+      "question": "Review Journal Items只选80条数据，五分钟还在loading，怎样排查凭证复核很慢？",
+      "keywords": [
+        "review",
+        "journal items",
+        "loading",
+        "复核"
+      ],
+      "objects": [
+        "account.move.line"
+      ],
+      "environments": []
+    },
+    "inputOrigin": "manual paraphrase of verified original current request; no reply or gold text inserted",
+    "rank20": {
+      "expected": 1,
+      "wrong": null
+    },
+    "sourceHashes": {
+      "raw/transcripts/ticket-1969.2026-09-11-f120c91acc35.md": "7ece0b95375611cf0be260dbd75434ed032bab9a752b6ffeb6539447826aaa75",
+      "concepts/accounting/journal-review-latency-history.md": "f2d15b5a2c4f36cac92ebce3498acacf141f13a5f3eefc6762fe42a3248aea2e"
+    },
+    "candidatePaths": [
+      "docs/llm-wiki/concepts/accounting/journal-review-latency-history.md",
+      "docs/llm-wiki/concepts/delivery/wms-send-failure-and-unknown-result.md",
+      "docs/llm-wiki/concepts/reporting/journal-export-session-history.md",
+      "docs/llm-wiki/concepts/sales/so-price-and-shipping-edit-triage.md",
+      "docs/llm-wiki/concepts/reporting/filter-language-timezone-history.md",
+      "docs/llm-wiki/concepts/accounting/journal-review-copy-history.md",
+      "docs/llm-wiki/concepts/platform/odoo-slow-operation-investigation.md",
+      "docs/ontology/objects/transaction-tax.md",
+      "docs/ontology/processes/tax-report-preparation-and-filing.md",
+      "docs/llm-wiki/concepts/accounting/cash-flow-config-timing-history.md",
+      "docs/llm-wiki/concepts/accounting/cancelled-journal-sequence-date-history.md",
+      "docs/llm-wiki/concepts/accounting/review-lock-mismatch-and-review-status-rules.md",
+      "docs/llm-wiki/concepts/accounting/cash-flow-fx-keep-first-account.md",
+      "docs/llm-wiki/concepts/accounting/journal-required-dimensions-and-country.md",
+      "docs/llm-wiki/concepts/accounting/locked-entry-unreview-after-modification.md",
+      "docs/llm-wiki/concepts/payment/historical-residual-balance-mismatch.md",
+      "docs/llm-wiki/concepts/reporting/journal-entry-pagination-history.md",
+      "docs/ontology/objects/journal-item-control.md",
+      "docs/llm-wiki/concepts/accounting/asset-value-depreciation-change-history.md",
+      "docs/llm-wiki/concepts/approvals/approval-submission-and-progress-triage.md"
+    ],
+    "querySha256": "16888dc8a689a47759b26108d0cc7b615a47a4384f15e47a79ef52ceb4058fac",
+    "documentSha256": [
+      "aed215f3c8e190db4a3aa75fecfbca40b6a739209265c663628c890131272ed4",
+      "135f635d9b90f3861afb06478a4246bda252e5d2904f945e254dfbf4fcb0bed5",
+      "8cce12b34a2bb78b4d5015eb1108ee5bab3f960d91d8142db3cbe654384c495b",
+      "902cee5d9d1200d3b833f7c3f031714119e7fecb66e4175eda719274badf7e03",
+      "570271216469bab74041da157f7e74e1f63208c49b65cc14482ecb304ef5020f",
+      "e2b48ab80f99bf0c18f481c008447a805bf84ffb4f82f4db3bc8f052967b181f",
+      "5c38521edbe4d88f8277c1aabbbdc6344753cd1214e718d4c6765ce374316a3a",
+      "e9158d7bee5de87915c1629fba2e3ecd3dcb2417b41ce4f0acd3fbfb433b89cc",
+      "e744b1734936701a3bf16de1527d2432e1841b0e8639ce169698990bb44e019f",
+      "162cd4d2d50da6d5b8c4697ce79b66ee91193d8f4d743f031eead1444515c11b",
+      "e548c444e2f9ce1984877c148101e3d5ff920643b9d582c3d7aac20c64829246",
+      "cb9072d071730836a1e28e613dd918ec7cc75b1cbfd4f292e17375b8e3f638b8",
+      "74afa45dde2c971ad7798d005512fbaff90df668896e84a073bce7920de354ac",
+      "4bc0629bf1fccbc986b47608475a125036eeb00655eedaba2a2f1216847c8157",
+      "9754efb8edb1683fc1d7120d9a40aa51d35c8b82279a50e9e8055579fc37fe40",
+      "90d7d7f3289edaa5a1904dbc1800c7f2fe579993d500bc56adce52002965271e",
+      "b5d77bd26d103cada909109bc9d4f77b3d5de6de92daeddb2e9e592df3f29da1",
+      "8599a0ccb0a75139f8ddb3a14f1d94752624885aeb75f92599a5cd63142e6a1f",
+      "43319c69c5bad71b39e7b12fe0059100f1fcb4bf72e9de1d844339af00174b81",
+      "82ed851129104e2fc2bb7e66e4b92f87c785e86ee1bfa71061ecb316d071644e"
+    ],
+    "documentChars": [
+      603,
+      746,
+      905,
+      272,
+      1283,
+      671,
+      1363,
+      2457,
+      2047,
+      915,
+      912,
+      885,
+      498,
+      420,
+      760,
+      977,
+      366,
+      2248,
+      890,
+      627
+    ]
+  },
+  {
+    "id": "P2",
+    "type": "positive",
+    "ticket": 718,
+    "question": "How do I remove or delete a document from the Sign app in Odoo?",
+    "keywords": [
+      "Sign",
+      "remove document",
+      "delete document"
+    ],
+    "objects": [
+      "Sign"
+    ],
+    "expected": "concepts/workforce/sign-document-archive-history.md",
+    "wrong": null,
+    "source": "raw/transcripts/ticket-718.2026-09-11-953d80ac6ecc.md",
+    "requestOrdinals": [
+      "M1"
+    ],
+    "boundary": "历史答复Archive，不证明永久删除、当前权限或签署记录处置",
+    "input": {
+      "question": "How do I remove or delete a document from the Sign app in Odoo?",
+      "keywords": [
+        "Sign",
+        "remove document",
+        "delete document"
+      ],
+      "objects": [
+        "Sign"
+      ],
+      "environments": []
+    },
+    "inputOrigin": "manual paraphrase of verified original current request; no reply or gold text inserted",
+    "rank20": {
+      "expected": 1,
+      "wrong": null
+    },
+    "sourceHashes": {
+      "raw/transcripts/ticket-718.2026-09-11-953d80ac6ecc.md": "f7175431e26761b3e33e360ee5616d337afbd0c6f0a08a1bdb09c80002daaded",
+      "concepts/workforce/sign-document-archive-history.md": "89efde9db12b2e39a24d6861714656e714344d7c24f3855b8badb31c5bc58f0c"
+    },
+    "candidatePaths": [
+      "docs/llm-wiki/concepts/workforce/sign-document-archive-history.md",
+      "docs/llm-wiki/concepts/faq/turbo-app-testflight-build-expired.md",
+      "docs/llm-wiki/concepts/integration/app-dealer-data-sync-history.md",
+      "docs/llm-wiki/concepts/workforce/employee-contract-sign-privacy-history.md",
+      "docs/llm-wiki/concepts/approvals/outbound-notification-client-history.md",
+      "docs/llm-wiki/concepts/portal/turbo-app-testflight-build-runtime-config-lark-1708.md",
+      "docs/llm-wiki/concepts/integration/turbo-customer-sync-abort-history.md",
+      "docs/llm-wiki/concepts/payment/turbo-overdue-after-payment-history.md",
+      "docs/llm-wiki/concepts/platform/pdf-signature-format-history.md",
+      "docs/llm-wiki/concepts/portal/turbo-android-pixel-startup-investigation.md",
+      "docs/llm-wiki/concepts/access/odoo-login-entry-triage.md",
+      "docs/llm-wiki/concepts/access/warehouse-delete-rights-history.md",
+      "docs/llm-wiki/concepts/accounting/journal-review-latency-history.md",
+      "docs/llm-wiki/concepts/delivery/wms-feedback-duplicate-quantity-history.md",
+      "docs/llm-wiki/concepts/faq/external-transfer-misc-checklist.md",
+      "docs/llm-wiki/concepts/integration/integration-config-checklist.md",
+      "docs/llm-wiki/concepts/integration/sync-and-availability-navigation.md",
+      "docs/llm-wiki/concepts/platform/database-expiry-warning-triage.md",
+      "docs/llm-wiki/concepts/sales/master-data-maintenance-navigation.md",
+      "docs/ontology/objects/deferred-service-revenue.md"
+    ],
+    "querySha256": "d839d0b8aa2800b3fb082588192c37002012307edf75f2e2b6b7a8e79d5e5c87",
+    "documentSha256": [
+      "e7fc563e0f31c0179d5579252a98304677c147eb11653109de657c2ec7e4d6ae",
+      "1dcbe10ddaa54f137bda171c009d964c7464d8cf9e0aa5c618dd4438d839b397",
+      "6ecd42304670c6b2bde330043e380e596f0295d837653e786668cadadbe14118",
+      "99d393ba987e9b4748d0c3476fdcce9aa36224da4152734b78c203a752895693",
+      "0c167f7403624afd4a9eb04d9da1bb703fdcb8b8241f4400934503ad373fc347",
+      "f4291713f4a9213dae0c1b6504cfffded74c1fac6f735faafdc822ef439cc1c7",
+      "b672aea478b99e508628e4848a2ed25d375c0248fad5474b2b676cea8c53a69a",
+      "909b9ad49c6e0366b6464da5ec387c7d68464281fb956c13e86b5b224d2e26d6",
+      "33a1945efa1282f43be6454728945dace1de7a35b8ee55eef89f394d5adead90",
+      "40c935b496c6cde73d16a8ed3e09269635cbd96d87bf62bbd2031876c6e2ba7f",
+      "7c9e78dedd9c5e7697e7bfd0b58aac86d1aad7b59741b1b8f3009e223b17e5c1",
+      "4d76a0264537ba15e7b1f2ad57c33fc688d252df9b96e3c97ab50652b2965245",
+      "aed215f3c8e190db4a3aa75fecfbca40b6a739209265c663628c890131272ed4",
+      "bd40f69100f8a411a76f19e28e9ca84078aee4feff091b327577e2989a78ffb1",
+      "72753beecb24ed68f0d820266054a6f331a0da5eb861ba7665e577ec4f0f7489",
+      "84054618893b3ffed76c766aca832a520a63f733aa7c896be4c12db4fd36edc7",
+      "ecd3f8786f11cb31c01a8ecf33fdec6d1e71bdbc587677dffab8f1b27a1a9a33",
+      "9a9291ba3ad8abf1e3ee24693fb3dea329f94b0de49fb30696bc03e3b1fd47a5",
+      "5d8f410d21b6d94064c3ab025811d6181da9a1020c0b750962ccf07623b1396b",
+      "b967afbae1418f571318b4d01f24ca1a0f44908cfef718c09a8ea8eb1239ba08"
+    ],
+    "documentChars": [
+      259,
+      248,
+      511,
+      170,
+      553,
+      496,
+      80,
+      72,
+      81,
+      90,
+      738,
+      527,
+      603,
+      472,
+      268,
+      327,
+      340,
+      996,
+      173,
+      1917
+    ]
+  },
+  {
+    "id": "N1",
+    "type": "negative_pair",
+    "ticket": 954,
+    "question": "Sign中非流程相关人员是否可以查看待签合同？",
+    "keywords": [
+      "Sign"
+    ],
+    "objects": [
+      "Sign"
+    ],
+    "expected": "concepts/workforce/employee-contract-sign-privacy-history.md",
+    "wrong": "concepts/workforce/sign-document-archive-history.md",
+    "source": "raw/transcripts/ticket-954.2026-09-11-5cd7e490ed78.md",
+    "requestOrdinals": [
+      "M1",
+      "M3"
+    ],
+    "boundary": "合同读取权限与文档归档不同；历史角色说明未做服务端授权验证，不能输出永久白名单",
+    "input": {
+      "question": "Sign中非流程相关人员是否可以查看待签合同？",
+      "keywords": [
+        "Sign"
+      ],
+      "objects": [
+        "Sign"
+      ],
+      "environments": []
+    },
+    "inputOrigin": "manual paraphrase of verified original current request; no reply or gold text inserted",
+    "rank20": {
+      "expected": 3,
+      "wrong": 6
+    },
+    "sourceHashes": {
+      "raw/transcripts/ticket-954.2026-09-11-5cd7e490ed78.md": "907b912730d979d7fa9c032ebcd8477a6f0462ec796cde1d5cb4bf52eaf23878",
+      "concepts/workforce/employee-contract-sign-privacy-history.md": "b84bb9a2772e65163416f4595521ab11a2b1e3cb19346870367d136c69768305",
+      "concepts/workforce/sign-document-archive-history.md": "89efde9db12b2e39a24d6861714656e714344d7c24f3855b8badb31c5bc58f0c"
+    },
+    "candidatePaths": [
+      "docs/ontology/objects/business-approval.md",
+      "docs/ontology/processes/budget-contract-payment-approval.md",
+      "docs/llm-wiki/concepts/workforce/employee-contract-sign-privacy-history.md",
+      "docs/llm-wiki/concepts/sales/preorder-pricelist-time-history.md",
+      "docs/ontology/objects/business-party.md",
+      "docs/llm-wiki/concepts/workforce/sign-document-archive-history.md",
+      "docs/ontology/processes/embedded-business-record-approval.md",
+      "docs/ontology/objects/b2b-portal-sales.md",
+      "docs/ontology/objects/b2c-sales.md",
+      "docs/ontology/objects/purchase-settlement.md",
+      "docs/ontology/objects/sales-invoice.md",
+      "docs/ontology/processes/fleet-vehicle-registration-assignment-and-maintenance.md",
+      "docs/llm-wiki/concepts/approvals/approval-submission-and-progress-triage.md",
+      "docs/llm-wiki/concepts/approvals/budget-contract-type-repair-history.md",
+      "docs/llm-wiki/concepts/approvals/inflight-approval-owner-change-history.md",
+      "docs/ontology/objects/access-governance.md",
+      "docs/ontology/objects/portal-public-inquiry.md",
+      "docs/ontology/processes/employee-expense-submission-approval-and-reimbursement.md",
+      "docs/ontology/processes/gross-profit-management-reporting.md",
+      "docs/ontology/processes/periodic-access-review.md"
+    ],
+    "querySha256": "aeefaa28d2204c9ca07a0baed18808490411ef632aaaa2dfb3e1fc73772dcbeb",
+    "documentSha256": [
+      "8a59bbc39aafae196a082d97c787b545ebe1faac9a262f11169b06211ba7bb9c",
+      "8a323823dc7d5b11b15ce0ecfdf63349e041993da9e683bed30623336964d683",
+      "99cc470f4c230e2e7896665945a25dd39adb71009c8ba5e266e1db2645e3ce64",
+      "59af57ca3e5495479808d14cf78ed29f2ed54918e9b892df9c422d9826d636f0",
+      "57c526bc79a25fa111890ac391154e7e549f0cc40ed7a84701807b1cb38e9336",
+      "41fc6efd1453a7a31f2ffcb26a4baf9c39a34787b0cf6daf8041f473aa02edd9",
+      "42809f9346b809343fbc4b9b34570061a579c86ad0a21f333f4d9cc0814b4764",
+      "aa1834e5ac91da15a5d1465b3cc8c0873b978939ef62c70334f9327a547e2297",
+      "7bec7646dd454f24ad1e95914af7059cf15cca0a41d8c70c74fe4bf0f75da402",
+      "745a2f27d72bede09ccbab18161254b7a0113cde8f6854e6b049956a7b132c6e",
+      "555e070d631e1af40a172964093b13225835d8594474752fe259f3d87b3b546e",
+      "ae6409711dfb3a275df61e53a5fd6670829141b6fd790f6dd5d51ddf13284942",
+      "519884feececde11e0f29221a4db8c5260e022a27a35aab6f917d5965e8c095e",
+      "0f5920b6be52b17252050cee714a2fe349044151124d3314d1eda2bc6ea47315",
+      "3b55ef41f4866b4c203c9e3aee04933ad5e2fc769be137dd33364829f2fa016c",
+      "65538fa7aefe47bb72488a6366707998b25826cf26afff84321f33501c40eaad",
+      "e53508c092a597735c5d22585c839948efb3997421ac0e8a7be37cb0f32d7617",
+      "48450ffcc908d80e99c6d62f64a596f23df471a06c30e25f38d95609aa13c4d5",
+      "86a46bc877db697401d9bf22e5f5504203d95d7156a831a623b6cec4e5cb06b5",
+      "27d27e217d49efcf831307da7540bd31c878fe80a9525fd891a680384cdf41ef"
+    ],
+    "documentChars": [
+      2462,
+      930,
+      518,
+      218,
+      2462,
+      342,
+      1180,
+      2224,
+      2240,
+      2081,
+      1761,
+      936,
+      1274,
+      988,
+      1519,
+      1451,
+      2357,
+      1059,
+      853,
+      790
+    ]
+  },
+  {
+    "id": "N2",
+    "type": "negative_pair",
+    "ticket": 1961,
+    "question": "US复制凭证为什么把原来的Review时间也复制过来了？",
+    "keywords": [
+      "review",
+      "journal"
+    ],
+    "objects": [],
+    "expected": "concepts/accounting/journal-review-copy-history.md",
+    "wrong": "concepts/accounting/journal-review-latency-history.md",
+    "source": "raw/transcripts/ticket-1961.2026-09-11-78705682c139.md",
+    "requestOrdinals": [
+      "M1",
+      "M2"
+    ],
+    "boundary": "复制／修改后审计字段继承，不是批量Review加载慢；原票日期描述矛盾、无当前审计验证",
+    "input": {
+      "question": "US复制凭证为什么把原来的Review时间也复制过来了？",
+      "keywords": [
+        "review",
+        "journal"
+      ],
+      "objects": [],
+      "environments": []
+    },
+    "inputOrigin": "manual paraphrase of verified original current request; no reply or gold text inserted",
+    "rank20": {
+      "expected": 1,
+      "wrong": 6
+    },
+    "sourceHashes": {
+      "raw/transcripts/ticket-1961.2026-09-11-78705682c139.md": "002dc5e7012a47f00ca351da75cba509bf84f2b30a7f455b68f3b1c28e61eb98",
+      "concepts/accounting/journal-review-copy-history.md": "0bb9bb43eb2b50547920cface1d12a59d54a56fe80be9af1938f85aa8aff1f48",
+      "concepts/accounting/journal-review-latency-history.md": "f2d15b5a2c4f36cac92ebce3498acacf141f13a5f3eefc6762fe42a3248aea2e"
+    },
+    "candidatePaths": [
+      "docs/llm-wiki/concepts/accounting/journal-review-copy-history.md",
+      "docs/llm-wiki/concepts/accounting/cash-flow-config-timing-history.md",
+      "docs/llm-wiki/concepts/reporting/journal-entry-pagination-history.md",
+      "docs/llm-wiki/concepts/accounting/other-outbound-account-followup-history.md",
+      "docs/llm-wiki/concepts/accounting/review-lock-mismatch-and-review-status-rules.md",
+      "docs/llm-wiki/concepts/accounting/journal-review-latency-history.md",
+      "docs/llm-wiki/concepts/accounting/review-audit-mismatch-history.md",
+      "docs/llm-wiki/concepts/delivery/next-transfer-type-investigation.md",
+      "docs/llm-wiki/concepts/inventory/loss-location-required-department-history.md",
+      "docs/llm-wiki/concepts/invoicing/reversal-cn-type-error-history.md",
+      "docs/llm-wiki/concepts/platform/browser-assets-and-widget-errors-history.md",
+      "docs/llm-wiki/concepts/reporting/gross-profit-quantity-sign-history.md",
+      "docs/llm-wiki/concepts/reporting/journal-export-session-history.md",
+      "docs/llm-wiki/concepts/sales/preorder-backorder-link-quantity-history.md",
+      "docs/ontology/objects/sales-return.md",
+      "docs/llm-wiki/concepts/accounting/account-mapping-old-journal-history.md",
+      "docs/llm-wiki/concepts/accounting/audit-journal-adje-history.md",
+      "docs/llm-wiki/concepts/accounting/bank-reconciliation-latency-history.md",
+      "docs/llm-wiki/concepts/accounting/cancelled-journal-sequence-date-history.md",
+      "docs/llm-wiki/concepts/accounting/expense-category-unit-price-history.md"
+    ],
+    "querySha256": "adea525d8ed5d20fdd98b8012c61c43802033b110af38f65b89701437e23e4ac",
+    "documentSha256": [
+      "d5c50d5e476d8fd8f1a13a1328853ee769d996f71c19f58f7c943164d7ee2285",
+      "e12029a7a946d08681f60ad701283f09b68e6d7bf371d548baea994b1683a93b",
+      "b5d77bd26d103cada909109bc9d4f77b3d5de6de92daeddb2e9e592df3f29da1",
+      "a5ce0f62e4263c178a4a872a0c67bc85190eb955f48c8630ccc744f94cb18693",
+      "cb9072d071730836a1e28e613dd918ec7cc75b1cbfd4f292e17375b8e3f638b8",
+      "11b781ce2e001494eb47310f2579748080e2ecab9990fbf5d77e1cd28fe2edde",
+      "6bce07b95653a59e8d2a0f99f8e6b1abcc5d8f75b90add80ce94c8606ef941a1",
+      "9aa759a298ca6f173810ea5da00245e1c3e9bb601cff1d32d16d88598024c114",
+      "bb381bfcd8b2c8060d938be0b18fef80b902534a55c46949334762b19a652acd",
+      "e43e7680565253de3a340f1da9bd09e4da407246e14ae082692a274a785b1b3a",
+      "3bfd66f49586cdfd848f5bb39470fc4fed551c44ae58067fb2c4f067bcbc6056",
+      "e422cef1feaa01d6daf39057b4ae79540eba62ecacc7f875e1c822d809029631",
+      "0bcd1dbd0351acdd739a2058a692d6f6b4498fea0c1552f7ec8b980fdd751ccf",
+      "bd4a75cd734ced78499178acde71d69a224970e305ee789f81cb13fdb2c41713",
+      "b163c4d6d10055533fa58b5ac851ac9fdd1039d646cac15c52352da27aeb61f1",
+      "fe5c5a0b3f47ae62d13a6912d613fd1f805914cd23906a9acd838777ebd75ecb",
+      "38835eee0fb83ed846361b749913a214567f579fd8c3f6a5f59c4f95842cb869",
+      "63125bcea250f64d6da9ec19ebac40090f8ab3b94a19d98e34d8f6cc6b8e1a40",
+      "e548c444e2f9ce1984877c148101e3d5ff920643b9d582c3d7aac20c64829246",
+      "3e007bcb75f6af02547d140dcf72f51ebed010f941db3b70338e1b64bc77f8f7"
+    ],
+    "documentChars": [
+      529,
+      812,
+      366,
+      679,
+      885,
+      466,
+      797,
+      624,
+      666,
+      863,
+      778,
+      715,
+      1285,
+      1411,
+      2428,
+      937,
+      378,
+      428,
+      912,
+      390
+    ]
+  }
+]

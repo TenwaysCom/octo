@@ -1,0 +1,723 @@
+{
+  "2": {
+    "question_history": [
+      {
+        "question": "是否手工导入订单",
+        "status": "pending",
+        "evidence_ids": [
+          "M3"
+        ],
+        "answer_evidence_ids": []
+      }
+    ]
+  },
+  "4": {
+    "question_history": [
+      {
+        "question": "是否选择入库类型",
+        "status": "answered",
+        "evidence_ids": [
+          "M2"
+        ],
+        "answer_evidence_ids": [
+          "M3"
+        ]
+      },
+      {
+        "question": "是否用next做return",
+        "status": "pending",
+        "evidence_ids": [
+          "M5",
+          "M6"
+        ],
+        "answer_evidence_ids": []
+      }
+    ],
+    "corrections": [
+      {
+        "previous_understanding": "可能选了入库类型",
+        "current_understanding": "没有可选类型，直接return就生成IN",
+        "evidence_ids": [
+          "M2",
+          "M3"
+        ]
+      }
+    ]
+  },
+  "10": {
+    "question_history": [
+      {
+        "question": "是转Backorder还是手动取消",
+        "status": "answered",
+        "evidence_ids": [
+          "M2"
+        ],
+        "answer_evidence_ids": [
+          "M3"
+        ]
+      }
+    ],
+    "corrections": [
+      {
+        "previous_understanding": "触发场景尚有两个候选",
+        "current_understanding": "已确认是转Backorder而非手动取消",
+        "evidence_ids": [
+          "M2",
+          "M3"
+        ]
+      }
+    ]
+  },
+  "11": {
+    "question_history": [
+      {
+        "question": "是否UK",
+        "status": "answered",
+        "evidence_ids": [
+          "M2"
+        ],
+        "answer_evidence_ids": [
+          "M3"
+        ]
+      }
+    ],
+    "corrections": [
+      {
+        "previous_understanding": "猜测UK环境",
+        "current_understanding": "用户明确为EU销售订单",
+        "evidence_ids": [
+          "M2",
+          "M3"
+        ]
+      }
+    ]
+  },
+  "12": {
+    "question_history": [
+      {
+        "question": "尝试指定入口登录并反馈",
+        "status": "pending",
+        "evidence_ids": [
+          "M2"
+        ],
+        "answer_evidence_ids": []
+      }
+    ]
+  },
+  "13": {
+    "question_history": [
+      {
+        "question": "为何导出这些JE",
+        "status": "answered",
+        "evidence_ids": [
+          "M1"
+        ],
+        "answer_evidence_ids": [
+          "M2"
+        ]
+      },
+      {
+        "question": "如何向EY沟通差异",
+        "status": "pending",
+        "evidence_ids": [
+          "M2"
+        ],
+        "answer_evidence_ids": []
+      }
+    ]
+  },
+  "15": {
+    "question_history": [
+      {
+        "question": "是否虚拟库位导致不计出库",
+        "status": "answered",
+        "evidence_ids": [
+          "M6"
+        ],
+        "answer_evidence_ids": [
+          "M7"
+        ]
+      }
+    ],
+    "corrections": [
+      {
+        "previous_understanding": "笼统归为单据操作问题",
+        "current_understanding": "用户补充此前转仓及退回后再次出库的经过",
+        "evidence_ids": [
+          "M3",
+          "M4",
+          "M6",
+          "M8"
+        ]
+      }
+    ]
+  },
+  "19": {
+    "question_history": [
+      {
+        "question": "仓库编码是否加前缀",
+        "status": "pending",
+        "evidence_ids": [
+          "M3"
+        ],
+        "answer_evidence_ids": []
+      }
+    ]
+  },
+  "20": {
+    "question_history": [
+      {
+        "question": "修改bill日期默认值的背景",
+        "status": "answered",
+        "evidence_ids": [
+          "M3"
+        ],
+        "answer_evidence_ids": [
+          "M4"
+        ]
+      }
+    ],
+    "corrections": [
+      {
+        "previous_understanding": "日期改动背景未知",
+        "current_understanding": "用户已说明多数bill date应沿用effective date以减少手填",
+        "evidence_ids": [
+          "M3",
+          "M4"
+        ]
+      }
+    ]
+  },
+  "21": {
+    "question_history": [
+      {
+        "question": "先确认历史数据再导入",
+        "status": "pending",
+        "evidence_ids": [
+          "M2"
+        ],
+        "answer_evidence_ids": []
+      }
+    ]
+  },
+  "22": {
+    "question_history": [
+      {
+        "question": "初始demand是否不等于quantity",
+        "status": "answered",
+        "evidence_ids": [
+          "M3"
+        ],
+        "answer_evidence_ids": [
+          "M4"
+        ]
+      },
+      {
+        "question": "执行validate后是否恢复",
+        "status": "pending",
+        "evidence_ids": [
+          "M5"
+        ],
+        "answer_evidence_ids": []
+      }
+    ]
+  },
+  "24": {
+    "question_history": [
+      {
+        "question": "BTC Other Outbound目的库位",
+        "status": "pending",
+        "evidence_ids": [
+          "M5"
+        ],
+        "answer_evidence_ids": []
+      },
+      {
+        "question": "是否合并信用冻结修复",
+        "status": "pending",
+        "evidence_ids": [
+          "M7"
+        ],
+        "answer_evidence_ids": []
+      }
+    ]
+  },
+  "25": {
+    "question_history": [
+      {
+        "question": "是否为链接指向的价格表",
+        "status": "unusable_answer",
+        "evidence_ids": [
+          "M4"
+        ],
+        "answer_evidence_ids": [
+          "M5"
+        ]
+      }
+    ]
+  },
+  "30": {
+    "question_history": [
+      {
+        "question": "原需求是否与当前要求一致",
+        "status": "pending",
+        "evidence_ids": [
+          "M3",
+          "M4"
+        ],
+        "answer_evidence_ids": []
+      }
+    ]
+  },
+  "31": {
+    "question_history": [
+      {
+        "question": "两人是否均需Refund申请权限",
+        "status": "partially_answered",
+        "evidence_ids": [
+          "M5"
+        ],
+        "answer_evidence_ids": [
+          "M6"
+        ]
+      }
+    ]
+  },
+  "33": {
+    "question_history": [
+      {
+        "question": "是否EU环境",
+        "status": "answered",
+        "evidence_ids": [
+          "M2"
+        ],
+        "answer_evidence_ids": [
+          "M3"
+        ]
+      }
+    ]
+  },
+  "34": {
+    "question_history": [
+      {
+        "question": "Available无法筛选的原因",
+        "status": "answered",
+        "evidence_ids": [
+          "M6"
+        ],
+        "answer_evidence_ids": [
+          "M7"
+        ]
+      }
+    ],
+    "corrections": [
+      {
+        "previous_understanding": "可以导出Excel替代",
+        "current_understanding": "用户要求直接在系统查看异常，拒绝导出替代",
+        "evidence_ids": [
+          "M5",
+          "M6"
+        ]
+      }
+    ]
+  },
+  "36": {
+    "question_history": [
+      {
+        "question": "第三项是否已能编辑",
+        "status": "disputed",
+        "evidence_ids": [
+          "M4"
+        ],
+        "answer_evidence_ids": [
+          "M5"
+        ]
+      }
+    ],
+    "corrections": [
+      {
+        "previous_understanding": "认为第三项已满足",
+        "current_understanding": "用户表示实测仍无法修改",
+        "evidence_ids": [
+          "M4",
+          "M5"
+        ]
+      }
+    ]
+  },
+  "37": {
+    "question_history": [
+      {
+        "question": "为什么别人能找到客户而我不能",
+        "status": "answered",
+        "evidence_ids": [
+          "M3"
+        ],
+        "answer_evidence_ids": [
+          "M4",
+          "M5"
+        ]
+      }
+    ]
+  },
+  "39": {
+    "question_history": [
+      {
+        "question": "Other单为何无法按库位带Carrier",
+        "status": "pending",
+        "evidence_ids": [
+          "M5"
+        ],
+        "answer_evidence_ids": []
+      }
+    ],
+    "corrections": [
+      {
+        "previous_understanding": "Other没有可自动带出的Carrier规则",
+        "current_understanding": "用户给出按库位分Carrier的具体映射",
+        "evidence_ids": [
+          "M3",
+          "M4",
+          "M5"
+        ]
+      }
+    ]
+  },
+  "44": {
+    "question_history": [
+      {
+        "question": "是否手动cancel全部摊销",
+        "status": "pending",
+        "evidence_ids": [
+          "M5"
+        ],
+        "answer_evidence_ids": []
+      }
+    ]
+  },
+  "45": {
+    "question_history": [
+      {
+        "question": "从哪个菜单进入该报表",
+        "status": "answered_in_unavailable_artifact",
+        "evidence_ids": [
+          "M8"
+        ],
+        "answer_evidence_ids": [
+          "M9",
+          "M10"
+        ]
+      }
+    ],
+    "corrections": [
+      {
+        "previous_understanding": "把对方报表当成调汇功能",
+        "current_understanding": "用户明确为Odoo报表，不是调汇",
+        "evidence_ids": [
+          "M3",
+          "M4",
+          "M5",
+          "M6"
+        ]
+      }
+    ]
+  },
+  "46": {
+    "question_history": [
+      {
+        "question": "US哪个模块功能及预期效果",
+        "status": "pending",
+        "evidence_ids": [
+          "M1"
+        ],
+        "answer_evidence_ids": []
+      }
+    ]
+  },
+  "63": {
+    "question_history": [
+      {
+        "question": "是否修改并推送模板",
+        "status": "pending",
+        "evidence_ids": [
+          "M2"
+        ],
+        "answer_evidence_ids": []
+      }
+    ]
+  },
+  "87": {
+    "question_history": [
+      {
+        "question": "重试访问Contacts并反馈",
+        "status": "pending",
+        "evidence_ids": [
+          "M2"
+        ],
+        "answer_evidence_ids": []
+      }
+    ]
+  },
+  "88": {
+    "question_history": [
+      {
+        "question": "系统应已恢复请确认",
+        "status": "pending",
+        "evidence_ids": [
+          "M2"
+        ],
+        "answer_evidence_ids": []
+      }
+    ]
+  },
+  "108": {
+    "question_history": [
+      {
+        "question": "要下载PDF还是关联明细",
+        "status": "pending",
+        "evidence_ids": [
+          "M3"
+        ],
+        "answer_evidence_ids": []
+      }
+    ]
+  },
+  "109": {
+    "question_history": [
+      {
+        "question": "限制提交还是新建且对应哪个审批类型",
+        "status": "pending",
+        "evidence_ids": [
+          "M2"
+        ],
+        "answer_evidence_ids": []
+      }
+    ]
+  },
+  "110": {
+    "question_history": [
+      {
+        "question": "哪个主体入账",
+        "status": "pending",
+        "evidence_ids": [
+          "M3"
+        ],
+        "answer_evidence_ids": []
+      }
+    ]
+  },
+  "111": {
+    "question_history": [
+      {
+        "question": "支付通知改给谁",
+        "status": "pending",
+        "evidence_ids": [
+          "M5"
+        ],
+        "answer_evidence_ids": []
+      }
+    ],
+    "corrections": [
+      {
+        "previous_understanding": "说明如何关闭支付通知",
+        "current_understanding": "用户关心自己不应作为支付通知接收人",
+        "evidence_ids": [
+          "M2",
+          "M4"
+        ]
+      }
+    ]
+  },
+  "112": {
+    "question_history": [
+      {
+        "question": "复制Portal授权错误原文",
+        "status": "pending",
+        "evidence_ids": [
+          "M3"
+        ],
+        "answer_evidence_ids": []
+      }
+    ]
+  },
+  "113": {
+    "question_history": [
+      {
+        "question": "提供service ticket编号",
+        "status": "answered_before_asked",
+        "evidence_ids": [
+          "M4"
+        ],
+        "answer_evidence_ids": [
+          "M1"
+        ]
+      }
+    ]
+  },
+  "114": {
+    "question_history": [
+      {
+        "question": "首次还是连续提交且是否多标签页",
+        "status": "pending",
+        "evidence_ids": [
+          "M3"
+        ],
+        "answer_evidence_ids": []
+      }
+    ]
+  },
+  "115": {
+    "question_history": [
+      {
+        "question": "刷新试试",
+        "status": "answered",
+        "evidence_ids": [
+          "M2",
+          "M4"
+        ],
+        "answer_evidence_ids": [
+          "M8"
+        ]
+      }
+    ]
+  },
+  "116": {
+    "question_history": [
+      {
+        "question": "是否有SKU清单",
+        "status": "answered_before_asked",
+        "evidence_ids": [
+          "M6"
+        ],
+        "answer_evidence_ids": [
+          "M2"
+        ]
+      }
+    ]
+  },
+  "118": {
+    "question_history": [
+      {
+        "question": "查询不到哪个SKU",
+        "status": "answered",
+        "evidence_ids": [
+          "M2"
+        ],
+        "answer_evidence_ids": [
+          "M3"
+        ]
+      }
+    ],
+    "corrections": [
+      {
+        "previous_understanding": "不知道哪一SKU查不到",
+        "current_understanding": "用户已提供具体SKU，后续需处理商品类型",
+        "evidence_ids": [
+          "M2",
+          "M3",
+          "M5",
+          "M6"
+        ]
+      }
+    ]
+  },
+  "119": {
+    "question_history": [
+      {
+        "question": "新增产品还是改价",
+        "status": "answered",
+        "evidence_ids": [
+          "M3"
+        ],
+        "answer_evidence_ids": [
+          "M4"
+        ]
+      },
+      {
+        "question": "是否新增后同时加折扣",
+        "status": "pending",
+        "evidence_ids": [
+          "M5"
+        ],
+        "answer_evidence_ids": []
+      }
+    ],
+    "corrections": [
+      {
+        "previous_understanding": "新增产品和改价两种候选",
+        "current_understanding": "用户明确是新增产品，折扣是后续单独细节",
+        "evidence_ids": [
+          "M3",
+          "M4",
+          "M5"
+        ]
+      }
+    ]
+  },
+  "120": {
+    "question_history": [
+      {
+        "question": "为何需要Marketing审批",
+        "status": "answered",
+        "evidence_ids": [
+          "M1"
+        ],
+        "answer_evidence_ids": [
+          "M3"
+        ]
+      }
+    ]
+  },
+  "6": {
+    "corrections": [
+      {
+        "previous_understanding": "将当前审批发送记录视为全部记录",
+        "current_understanding": "用户指出13日审批时并无发送记录",
+        "evidence_ids": [
+          "M2",
+          "M6",
+          "M7",
+          "M9"
+        ]
+      }
+    ]
+  },
+  "17": {
+    "corrections": [
+      {
+        "previous_understanding": "只询问模块是否存在",
+        "current_understanding": "新增诉求为开发其他入库模块",
+        "evidence_ids": [
+          "M1",
+          "M4",
+          "M5"
+        ]
+      }
+    ]
+  },
+  "18": {
+    "corrections": [
+      {
+        "previous_understanding": "同凭证银行加AP加AR属于不规范操作",
+        "current_understanding": "业务确认实际存在AP与AR互抵场景",
+        "evidence_ids": [
+          "M5",
+          "M6"
+        ]
+      }
+    ]
+  },
+  "23": {
+    "corrections": [
+      {
+        "previous_understanding": "用created on作为date",
+        "current_understanding": "用户需要actual done date",
+        "evidence_ids": [
+          "M2",
+          "M3",
+          "M4"
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,100 @@
+{
+  "caseId": "P01",
+  "group": "A",
+  "payloadHash": "6897d4da6e3eeaa9ef4e2e5e8bb940b8f133f2f6211347efdd598d7acf4ce483",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 0,
+      "relevance_score": 0.9649001955986023
+    },
+    {
+      "index": 1,
+      "relevance_score": 0.6808964014053345
+    },
+    {
+      "index": 17,
+      "relevance_score": 0.5128482580184937
+    },
+    {
+      "index": 6,
+      "relevance_score": 0.4105691611766815
+    },
+    {
+      "index": 8,
+      "relevance_score": 0.3219737708568573
+    }
+  ],
+  "durationMs": 453,
+  "querySha256": "0b71e9a500883226c8102f6d07ea71e6e16ac02024db021cc5b43e8881be95f5",
+  "queryChars": 113,
+  "documentSha256": [
+    "cd01b5379d8db0999cf563964f715cc5ce73a08b12e7a693132afffd7fb7e4a9",
+    "89fa66e778feb71d680499dbd9d6e252c03ee907e81eb4d8749e0ee6e9d20824",
+    "e422cef1feaa01d6daf39057b4ae79540eba62ecacc7f875e1c822d809029631",
+    "4f53dbd9decd58194f8f344ff62dc873254593b550791934c5c252512adcec31",
+    "724a4c0212c6073b3a82049960f962740ffcd315e2f20bb2546bfadf45fdbc31",
+    "1c2edb3139216309dc1427db2d512714872c91dcc25e79c63dfb7efe87db0bb5",
+    "062fb3720ad5ebda9617daa4b0140ede6ab9df7b94c16e04b72d13ad41422693",
+    "566f9925b91fd9bffe6f9bccf9f0d2a897a225aa863558bd2bf8ba0f3957a1c8",
+    "9a01b85fe13d079655aab0dbfa4720ffb1eac50bbae387664cbac0c9077aebba",
+    "6a323c46930982377c3d81ad76c15b87e50043fec6007bb87e12837c109778fc",
+    "fe547ded17d816444f94a2061805c316082c8bbc9bc8212f83277612b7fd95bc",
+    "bd4a75cd734ced78499178acde71d69a224970e305ee789f81cb13fdb2c41713",
+    "254fc7056661115f2361f4fddfee3adbd9fca293e06f468c6c3e260be71a1408",
+    "a48f8f3bd4458c339a01a391dd750e25dca770a316942bf46d5a49ae9a416576",
+    "7375bc17055ab052158c1e5479f3f0932fafce8b1ee1827356993d21846600f3",
+    "0ce8a9525484e16a4e9225bd56630a8a6324fb05ed90bc07c703d7d4821a7ba7",
+    "3804c1a411f9fb346e0852ba48ebf7dc5b51f49aa2fb05c78b35adb27e2832ce",
+    "d0315c600f389255fc130ccb7e5e3bbdd61e6ec6b64983fae1f17ba9a4b791f2",
+    "b1366400ddb674701c8d09325c8cb3dd596b98c4c5f4527bfcb8434a1f9fadee",
+    "00d6fc7a97b79b5afe8395e5645878091dd46e76fedb5ed1c04de25b058b5e8e"
+  ],
+  "documentChars": [
+    1482,
+    2351,
+    715,
+    1121,
+    972,
+    1277,
+    2221,
+    921,
+    1250,
+    1097,
+    718,
+    1411,
+    1440,
+    391,
+    578,
+    654,
+    795,
+    2391,
+    699,
+    575
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/inventory/reservation-residual-corrections-history.md",
+    "docs/ontology/objects/sales-available-inventory.md",
+    "docs/llm-wiki/concepts/reporting/gross-profit-quantity-sign-history.md",
+    "docs/llm-wiki/concepts/sales/returned-picking-scrapped-qty-delivered.md",
+    "docs/llm-wiki/concepts/sales/wms-quantity-field-trace.md",
+    "docs/llm-wiki/concepts/sales/contact-overview-quantity-and-status.md",
+    "docs/ontology/objects/warehouse-inventory-control.md",
+    "docs/ontology/processes/sales-available-inventory-evaluation.md",
+    "docs/ontology/processes/sku-conversion.md",
+    "docs/llm-wiki/concepts/inventory/start-stock-operation-button-check.md",
+    "docs/llm-wiki/concepts/reporting/sales-wms-quantity-field-history.md",
+    "docs/llm-wiki/concepts/sales/preorder-backorder-link-quantity-history.md",
+    "docs/llm-wiki/concepts/delivery/invoiced-same-sku-reshipment-history.md",
+    "docs/llm-wiki/concepts/inventory/free-to-use-location-scope-history.md",
+    "docs/llm-wiki/concepts/inventory/stock-view-export-grain-history.md",
+    "docs/llm-wiki/concepts/delivery/wms-feedback-duplicate-quantity-history.md",
+    "docs/llm-wiki/concepts/inventory/other-outbound-virtual-location-restore.md",
+    "docs/ontology/objects/warehouse-operation.md",
+    "docs/llm-wiki/concepts/inventory/repeated-return-location-regression-history.md",
+    "docs/llm-wiki/concepts/inventory/reservation-negative-regression-history.md"
+  ],
+  "queryCAvailable": true
+}

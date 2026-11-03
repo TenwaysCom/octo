@@ -1,0 +1,10 @@
+{
+  "stage": "stability",
+  "status": "approval_required",
+  "actualHttpRequests": 0,
+  "destination": "https://api.siliconflow.cn/v1/rerank",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "reason": "Automatic approval rejected transmission of internal question and Wiki document content because explicit consent to this external destination was not established.",
+  "noBypassAttempted": true,
+  "pending": "10 frozen stability requests; new 32-event holdout only after stability passes; 50 total HTTP cap."
+}

@@ -1,0 +1,100 @@
+{
+  "caseId": "D03",
+  "group": "B",
+  "payloadHash": "d03ca66d5df82ce6441ff0497108c37186d4a157708d41a3a7578b8c21c24538",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 2,
+      "relevance_score": 0.6434419751167297
+    },
+    {
+      "index": 4,
+      "relevance_score": 0.24692194163799286
+    },
+    {
+      "index": 0,
+      "relevance_score": 0.19882605969905853
+    },
+    {
+      "index": 3,
+      "relevance_score": 0.1889531910419464
+    },
+    {
+      "index": 10,
+      "relevance_score": 0.14894799888134003
+    }
+  ],
+  "durationMs": 387,
+  "querySha256": "31d5e6ed0183a20f68c494c56b0aa22420cd99e0b0aaf9d8f7df5e7b51649dc0",
+  "queryChars": 8,
+  "documentSha256": [
+    "69b0f55df62aee40aac2ffbe6d5567e6469ead4a7bd865cdc1bd53754c62047f",
+    "c6e097f158f262bad853342060f97a65b5cc0d8bca0a8dd9b8bae624af0ef97f",
+    "f579a95c89724713d240ec0c6ffb3969b1f3c84f2492c8bef5d6df8770689c6d",
+    "a1b08ab075254cbc82c25cfb1b8831dc96a74b909c301b78e6e375834183f2bd",
+    "c4c0585c9730963c410d73fe51e753e89912d187021fc5691aaed7e2d9d6c8e3",
+    "29acb43bc808cf8172c110988a50096a83577f379823613c0b0cd187be5c1e9f",
+    "f85f2cd65602fa522a906164ce7878c8d024616fa34560fe20a9947f7bfd2848",
+    "ace9d61c5d952ceadfa0d181994ad7cd2193ad156e70f459bd4b57c9ddc9c37d",
+    "4df81012e79cd1946f612a6d79f1399b2778d6b1137c95312c15ee6117f8bdeb",
+    "706292360f583834724a74ff9e91a9bdaf05cc52eefb6442953194c053007ad2",
+    "d30783da6ada20cb54e4d9c18dd7137300682dabb22bfcb4368a2b7c3bc23bef",
+    "fcaa792f6fc4f9a443194b9e08275b67f233b5def20a39f9636ef686ca877ae5",
+    "afa9f5648c675061b685d2de407ee70a51e6ba8392cbd20b54ad9cc76f4d2fc9",
+    "5727636606f5472bd400f27e7db2aff6524f9001969389e21bc7dc0d8ae8ebfc",
+    "746b2de069ca756aa61a44efc9a3eaaf3d1536d11ffff7ab423f20ab12a5cbcd",
+    "123441fcae6bd1488a10be904180b18d922ebcb1e86ef9d469f161dd9b8964e2",
+    "6e05f210bb3f9dbec4fd5cc4737a9f527e7a86c627080efed18c80c626f21e05",
+    "d9d610d7fc8a1131687b2a53291ef26831a1305d79a5bab5dd48bc59864d4390",
+    "72c50890783b124085d9768cdde466721e7c01098173639ee8c112028056433d",
+    "ed11ea7db1482a3d2bd4dec01f63a9aee8bf040f103d67b7894e9258e1db933b"
+  ],
+  "documentChars": [
+    978,
+    931,
+    1345,
+    847,
+    2467,
+    580,
+    690,
+    1097,
+    194,
+    1130,
+    1530,
+    1654,
+    471,
+    865,
+    840,
+    640,
+    397,
+    310,
+    619,
+    445
+  ],
+  "candidatePaths": [
+    "docs/ontology/processes/purchase-vendor-bill-processing.md",
+    "docs/llm-wiki/concepts/accounting/asset-value-depreciation-change-history.md",
+    "docs/llm-wiki/concepts/accounting/bill-svl-exchange-history.md",
+    "docs/llm-wiki/concepts/accounting/historical-entry-mandatory-fields-reverse.md",
+    "docs/llm-wiki/concepts/approvals/approval-submission-and-progress-triage.md",
+    "docs/llm-wiki/concepts/invoicing/bill-vendor-versus-journal-partner.md",
+    "docs/llm-wiki/concepts/invoicing/uk-inbound-bill-attachment-history.md",
+    "docs/llm-wiki/concepts/purchase/po-buyer-vendor-correction-history.md",
+    "docs/ontology/objects/transaction-tax.md",
+    "docs/ontology/processes/employee-expense-submission-approval-and-reimbursement.md",
+    "docs/ontology/processes/tax-report-preparation-and-filing.md",
+    "docs/llm-wiki/concepts/access/odoo-login-entry-triage.md",
+    "docs/llm-wiki/concepts/accounting/asset-bill-warning-history.md",
+    "docs/llm-wiki/concepts/accounting/cash-flow-config-timing-history.md",
+    "docs/llm-wiki/concepts/accounting/payment-request-owner-department-history.md",
+    "docs/llm-wiki/concepts/delivery/uk-reset-draft-wms-state-history.md",
+    "docs/llm-wiki/concepts/faq/approval-stuck-and-submit-failure-disposition.md",
+    "docs/llm-wiki/concepts/integration/integration-push-failure-triage.md",
+    "docs/llm-wiki/concepts/integration/turbo-customer-sync-abort-history.md",
+    "docs/llm-wiki/concepts/invoicing/amount-comparison-navigation.md"
+  ],
+  "queryCAvailable": false
+}

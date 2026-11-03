@@ -1,0 +1,100 @@
+{
+  "caseId": "T05",
+  "group": "A",
+  "payloadHash": "8ef0d0e5111696a8b74c0df97ce4079a283e09611c30252c663dae264099acf1",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 8,
+      "relevance_score": 0.9944759011268616
+    },
+    {
+      "index": 0,
+      "relevance_score": 0.09714525938034058
+    },
+    {
+      "index": 1,
+      "relevance_score": 0.06176019832491875
+    },
+    {
+      "index": 9,
+      "relevance_score": 0.026161201298236847
+    },
+    {
+      "index": 17,
+      "relevance_score": 0.02230319194495678
+    }
+  ],
+  "durationMs": 498,
+  "querySha256": "d58a0dcd0c79ea13804abe3a6c1ea3a2e7fa31938c00ad0223109997f76a3f3f",
+  "queryChars": 41,
+  "documentSha256": [
+    "f7f3fafce5c5d8a631bd3f409b010d6dc75dd38fa6565cc14001824ed2440a7b",
+    "2bc3fee5caedaa23f4fcef3561896f6dd33a4aa73035f095fc9c591d29bffb7f",
+    "d3da79dc8b18cc242dd9b7f9d119a881c82481f9c64fbc1ceaf1fa60c69f1038",
+    "7f9299e6b7fb0aa9d8b5148883fdb5005f8bc78d6471cd15ca37d12b0617bf8c",
+    "13be79c8713d5e4a28fa2ce4ea8d88451816a2a8432ca0b16378575b2300af6b",
+    "6e388dc91fcf5e2159fa8ea7c6b82a7e951f742e64f1cd09a2edcd79cb923f22",
+    "698efcdd0074be36c7e9591930c947d1d6ee3f785a7b88016bb148642ddc9696",
+    "acad279ca3720d8bf58cb55b100ae0cb9e35fb6a246209bb243e811dac58c8a0",
+    "278618c2039f4c4cc4fd33826774037f44a4bffd573e0ad15bec80af3934c27d",
+    "601ff07b0032474dd63c7a0d4cb057e8498b6db7d82f8714ff79c41c83e575f5",
+    "163c0e15a92d0a95080737b08d0233ea021f01847fb778df81e18ea35ec5ba6a",
+    "623dd2280cb91efc1a1279352c198c28ceadb6c383891a1cc330daaa09122fe1",
+    "6891fd5999c2583d9c811b9bee238317f1f0cf4ecffb23287eb6fc0db284c38d",
+    "28d1bc39f2c34624d97560e2f7359e10203969756027a85ae03264d543190e34",
+    "94689322dc299cc383b6434805ac37424b4ba7018a5b12b49f2b88a2eddc1b16",
+    "0a01418c4b1772e7c83dbabf78ea91a50043b7f6776ae0da6a3266f366a1ade8",
+    "e4a20f606cf967f9b462003943401373925cb96ad0494e7c66acb50097031b89",
+    "44e665a39bb22cd22518f3882bd90db3b71c1a55f53f6dddf18b755cc81776f6",
+    "8cabf78c34de9b121713c579d8b9125dfd0580f724a1b4510383d1ce0518f400",
+    "e8378430bff2d594b88b116049cdf9cc9c73a6adb85f3b452e8d9ffe8975f43a"
+  ],
+  "documentChars": [
+    394,
+    584,
+    960,
+    678,
+    904,
+    182,
+    172,
+    536,
+    453,
+    1729,
+    172,
+    359,
+    166,
+    161,
+    177,
+    275,
+    542,
+    600,
+    429,
+    690
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/sales/state-and-related-page-navigation.md",
+    "docs/llm-wiki/concepts/approvals/rapid-record-switch-wrong-done-history.md",
+    "docs/llm-wiki/concepts/integration/shopify-import-schedule-and-config-history.md",
+    "docs/llm-wiki/concepts/inventory/return-transfer-delivered-link-history.md",
+    "docs/llm-wiki/concepts/faq/contact-backorder-preorder-overview.md",
+    "docs/llm-wiki/concepts/accounting/bank-reconciliation-latency-history.md",
+    "docs/llm-wiki/concepts/accounting/journal-review-copy-history.md",
+    "docs/llm-wiki/concepts/accounting/other-outbound-account-followup-history.md",
+    "docs/llm-wiki/concepts/approvals/cancelled-record-approval-todo.md",
+    "docs/llm-wiki/concepts/approvals/inflight-approval-owner-change-history.md",
+    "docs/llm-wiki/concepts/integration/app-dealer-data-sync-history.md",
+    "docs/llm-wiki/concepts/payment/archived-customer-credit-balance-overpayment-bnk.md",
+    "docs/llm-wiki/concepts/payment/mandate-state-and-exclusion-history.md",
+    "docs/llm-wiki/concepts/sales/automatic-order-email-customer-language.md",
+    "docs/llm-wiki/concepts/sales/pricelist-change-historical-order-history.md",
+    "docs/llm-wiki/concepts/faq/doc-done-but-related-page-shows-stale-status.md",
+    "docs/llm-wiki/concepts/inventory/us18-return-location-and-operation-type-config.md",
+    "docs/llm-wiki/concepts/accounting/other-outbound-done-journal-history.md",
+    "docs/llm-wiki/concepts/accounting/resell-transfer-valuation-history.md",
+    "docs/llm-wiki/concepts/accounting/uk-20030-extra-entry-reconciliation-history.md"
+  ],
+  "queryCAvailable": true
+}

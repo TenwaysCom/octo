@@ -1,0 +1,100 @@
+{
+  "caseId": "Q06",
+  "group": "A",
+  "payloadHash": "346fde9b70f59ac860802ecd0471b36ecca860af03299dcc3287b361d9867d9a",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 17,
+      "relevance_score": 0.3953254222869873
+    },
+    {
+      "index": 7,
+      "relevance_score": 0.08766099065542221
+    },
+    {
+      "index": 9,
+      "relevance_score": 0.0681259036064148
+    },
+    {
+      "index": 5,
+      "relevance_score": 0.03820212930440903
+    },
+    {
+      "index": 19,
+      "relevance_score": 0.034590281546115875
+    }
+  ],
+  "durationMs": 330,
+  "querySha256": "50aae389438e4aec5ac6ad4f13aeb459207497671df1f4638c946067a7529f4e",
+  "queryChars": 38,
+  "documentSha256": [
+    "e4e02f5a8e45c277df5f57dae26c24d955f637db0a21f335ea3ab1e024a94a30",
+    "1dfaacae92c7435a2b232739d988f63f980eb85ccf379d8135487db95345dc15",
+    "385bb0979e6c697cfcd5e9a6c2ad3f7b08ca6c58809944685341fa89d9d1c801",
+    "283ea5040a6b67f834e984e1b3480ac4e5d2a19e4bf0fc7a617e2bc857cca0c4",
+    "49e0ea38f6839b3c4e98208296b5085b8bdfcbff1150c3cce92245903b2848da",
+    "5289ecd2d154e45c711d475549eda8ef755e1f18da0ec7a06211101a18752f50",
+    "3e360ae2b8053eff35f967d00063f4ece4a23603a998b7d7fba30ea38f9c04c5",
+    "4a9980a2d251d640f3a0ad6a80f0c9095150f95605e4d3523215004f3ab1ae7e",
+    "4d02fed6cc0715bf842c3cceb5710e7354e05c6539f85ca71051eed1c03b42f3",
+    "69906cc3dae78c565c64407faf6a3ffb07eca13728488fbe8c9f5a81317cf82c",
+    "883abe46740088adc39e6790f3c89b4acd034c4ac5bc8d6311e861b9ab3988fc",
+    "1e7e1195afab4f7ccb8c8f189a1e656a4ac220c22235efa7aaf29ba131e4c65a",
+    "22c5b3ead878b534e7a3d2ce8781346ce6401c3d1f2bf22ffbd9613603ea2a4d",
+    "873140ca8807cdb2a9a4eab5f1df94f78a87ad7c402a88ab4d4661b57f1ef233",
+    "ec5fd2ca2657eac5ec8d67fba1ea4eeac38fb6dee36fad1e3ef93a68d23ac60c",
+    "9e91d51b254f05e65326746331cb3b0f06813c8c3943a9b98392d84003328629",
+    "ec619182695973c5b95f5d39bb441a8f492d6e430e8c41109a9ced92ec50fa98",
+    "700509a0ea0fbd0b0586300ba2899900bf03b0ee7dc2356a83a04103bf8b5e72",
+    "318bdd96345dfde53ea6804fbc3e770de45e4c94d132adca5cdbdc4be8a980e2",
+    "24d1e5fa39d34553c8745ebda87bbff26a76c7f41d2c152d172a8f8bf45bfdb7"
+  ],
+  "documentChars": [
+    1356,
+    909,
+    1350,
+    515,
+    205,
+    1161,
+    1539,
+    439,
+    546,
+    951,
+    741,
+    601,
+    685,
+    727,
+    187,
+    582,
+    148,
+    955,
+    165,
+    1070
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/faq/contact-backorder-preorder-overview.md",
+    "docs/llm-wiki/concepts/sales/contact-overview-create-sales-order.md",
+    "docs/llm-wiki/concepts/sales/contact-overview-quantity-and-status.md",
+    "docs/llm-wiki/concepts/access/sales-team-order-visibility-history.md",
+    "docs/llm-wiki/concepts/inventory/manufacturing-time-edit-history.md",
+    "docs/llm-wiki/concepts/sales/sales-config-checklist.md",
+    "docs/llm-wiki/concepts/sales/sales-team-change-history-boundaries.md",
+    "docs/llm-wiki/concepts/sales/uk-manual-unit-price-discount-history.md",
+    "docs/llm-wiki/concepts/sales/uk-shopify-empty-salesperson-default-history.md",
+    "docs/llm-wiki/concepts/sales/approval-activity-button-history.md",
+    "docs/llm-wiki/concepts/invoicing/product-change-invoice-price-history.md",
+    "docs/llm-wiki/concepts/payment/invoice-auto-send-sales-team-historical-assignment.md",
+    "docs/llm-wiki/concepts/reporting/gross-profit-tax-quantity-history.md",
+    "docs/llm-wiki/concepts/reporting/oss-sales-historical-tax-code-block-investigation.md",
+    "docs/llm-wiki/concepts/reporting/sales-wms-quantity-field-history.md",
+    "docs/llm-wiki/concepts/sales/approval-markdone-vs-approve-button-stuck.md",
+    "docs/llm-wiki/concepts/sales/prepayment-credit-check-amount-calculation.md",
+    "docs/llm-wiki/concepts/sales/pricelist-discount-not-applied-or-price-mismatch.md",
+    "docs/llm-wiki/concepts/sales/sale-order-backorder-preorder-runtime-config-lark-1654.md",
+    "docs/llm-wiki/concepts/sales/so-flow-preorder-backorder-cancel-rules.md"
+  ],
+  "queryCAvailable": true
+}

@@ -1,0 +1,2567 @@
+{
+  "version": 6,
+  "cases": [
+    {
+      "id": "Q01",
+      "split": "old_regression",
+      "input": {
+        "question": "Configuring survey permissions for users",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/access/permission-request-and-effective-access.md"
+      ],
+      "help_type": "historical_candidate",
+      "boundary": "仅能证明当时按指定用户授 Survey；无参照账号全量复制或当前服务端范围验收。",
+      "source_tickets": [
+        "123"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-123.2026-09-11-5aee0c1d73fa.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "Q02",
+      "split": "old_regression",
+      "input": {
+        "question": "Payment Term has been approved but is not valid",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/sales/approval-activity-button-history.md"
+      ],
+      "help_type": "historical_candidate",
+      "boundary": "Mark Done 被称缺陷且计划调整；Approve 为历史临时建议，不能断言当前按钮语义。",
+      "source_tickets": [
+        "624"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-624.2026-09-11-349effffd6bd.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "Q03",
+      "split": "old_regression",
+      "input": {
+        "question": "Moevs could not access portal",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/portal/portal-email-and-archived-account-check.md"
+      ],
+      "help_type": "historical_candidate",
+      "boundary": "159 是账号归档与激活报告，不是邮箱占用或当前登录成功验证。",
+      "source_tickets": [
+        "159"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-159.2026-09-11-f0d1249dd967.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "Q04",
+      "split": "old_regression",
+      "input": {
+        "question": "SO审批按钮消失",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/sales/approval-activity-button-history.md"
+      ],
+      "help_type": "historical_candidate",
+      "boundary": "加组及按钮可见不证明服务端授权，不建议默认加管理组。",
+      "source_tickets": [
+        "640"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-640.2026-09-11-44a591fff980.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "Q05",
+      "split": "old_regression",
+      "input": {
+        "question": "customer has the price list set to a 1.85 markup, but the prices are not changing",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/sales/markup-name-and-price-rules.md"
+      ],
+      "help_type": "historical_candidate",
+      "boundary": "仅该价表当时无规则；不能说所有 Markup 都没有规则或只靠名称自动算价。",
+      "source_tickets": [
+        "139"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-139.2026-09-11-3928b320c211.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "Q06",
+      "split": "old_regression",
+      "input": {
+        "question": "DIscount is not applied on sales order",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/sales/swiss-discount-unit-price-history.md"
+      ],
+      "help_type": "historical_candidate",
+      "boundary": "该 Swiss 历史解释为折扣入单价，不能从空列确认所有订单金额正确。",
+      "source_tickets": [
+        "767"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-767.2026-09-11-6dc98e72f6aa.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "Q07",
+      "split": "old_regression",
+      "input": {
+        "question": "German customers, the NL BTW (VAT) rate of 21% is being applied",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/sales/delivery-address-country-tax-rate.md"
+      ],
+      "help_type": "historical_candidate",
+      "boundary": "业务要求该客户0%不是德国税务政策；旧单仍21%、未见新单验收。",
+      "source_tickets": [
+        "1473"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-1473.2026-09-11-003c2078a19b.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "Q08",
+      "split": "old_regression",
+      "input": {
+        "question": "can't open backorders; 500: Internal Server Error",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/portal/backorder-template-api-contract-500.md"
+      ],
+      "help_type": "historical_candidate",
+      "boundary": "权限初判已被否定；模板缺接口字段，只有支持报告恢复，无dealer复测。",
+      "source_tickets": [
+        "1744"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-1744.2026-09-11-087128c8192e.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "Q09",
+      "split": "old_regression",
+      "input": {
+        "question": "CMC response (HTTP 200): MySQL Query Error",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/delivery/cmc-outbound-company-required-error-response.md"
+      ],
+      "help_type": "historical_candidate",
+      "boundary": "HTTP200正文含SQL错误，不能证明仓收成功或把改注册名当修复。",
+      "source_tickets": [
+        "1829"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-1829.2026-09-11-028bf4440885.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "Q10",
+      "split": "old_regression",
+      "input": {
+        "question": "WDB2B/OUT/01529显示了错误,但是westerman实际已经收到这一单了",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/integration/wms-result-unknown-history.md"
+      ],
+      "help_type": "historical_candidate",
+      "boundary": "API超时但仓库已收到；不以Error直接改状态重推，唯一收单仍待核。",
+      "source_tickets": [
+        "2156"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-2156.2026-09-11-4510edd8e892.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "Q11",
+      "split": "old_regression",
+      "input": {
+        "question": "RET单总是出现SL≠customer的问题",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/inventory/repeated-return-location-regression-history.md"
+      ],
+      "help_type": "historical_candidate",
+      "boundary": "数量回正后仍无分录；数据修复报告不等于数量、估值、12280双验收。",
+      "source_tickets": [
+        "2100"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-2100.2026-09-11-4b6837a2710c.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "Q12",
+      "split": "old_regression",
+      "input": {
+        "question": "WCB2B/INT/00239生成一个split transfer之后，单据done了之后还是现在ready状态",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/inventory/inbound-approve-validate-backorder.md"
+      ],
+      "help_type": "historical_candidate",
+      "boundary": "审批与Validate及余量分开；当次用户成功，后续按钮缺失仍无人答，不一律建BO。",
+      "source_tickets": [
+        "2211"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-2211.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "Q13",
+      "split": "old_regression",
+      "input": {
+        "question": "S40698 这个SO从4PX仓库出库的车做了退件，但是delivered的数量没有变回0",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/sales/returned-picking-scrapped-qty-delivered.md"
+      ],
+      "help_type": "historical_candidate",
+      "boundary": "支持解释scrapped排除并报样本修复；为何误标及长期根治未知。",
+      "source_tickets": [
+        "1686"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-1686.2026-09-11-4f0b5478d71c.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "Q14",
+      "split": "old_regression",
+      "input": {
+        "question": "需要反冲历史的凭证，但是涉及必填信息导致无法反冲",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/accounting/historical-entry-mandatory-fields-reverse.md"
+      ],
+      "help_type": "historical_candidate",
+      "boundary": "临时停配置与7/23补缺字段发布分开，不能写所有posted字段可改或自动放开锁期。",
+      "source_tickets": [
+        "1734"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-1734.2026-09-11-e8546239c43a.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "Q15",
+      "split": "old_regression",
+      "input": {
+        "question": "现金流量表出现一串长数字",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/accounting/cash-flow-fx-keep-first-account.md"
+      ],
+      "help_type": "historical_candidate",
+      "boundary": "小额手调未解释大额，keep first account为报告能力，无用户执行与当前公式核验。",
+      "source_tickets": [
+        "1787"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-1787.2026-09-11-30d313880301.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "Q16",
+      "split": "old_regression",
+      "input": {
+        "question": "在uK的Trial Balance中，以下2个筛选方式对iNcycles20030余额的呈现为啥不一样",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/payment/reconciliation-currency-scope-history.md"
+      ],
+      "help_type": "historical_candidate",
+      "boundary": "明确UK，总平与原币余额并存，财务持续追问；不能说无须调整。",
+      "source_tickets": [
+        "1613"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-1613.2026-09-11-093f7e54a2ad.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "Q17",
+      "split": "old_regression",
+      "input": {
+        "question": "VAT tax report expanding the line it shows a balance of 8.274.519,73, so eur100 difference",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/invoicing/student-discount-vat-detail-history.md"
+      ],
+      "help_type": "historical_candidate",
+      "boundary": "+1a/-1a只是提议，4月非Q1调整要求未验收；不教改映射或反关账。",
+      "source_tickets": [
+        "1102"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-1102.2026-09-11-c83cff80ccae.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "Q18",
+      "split": "old_regression",
+      "input": {
+        "question": "shopify订单同步重复",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/integration/shopify-duplicate-push-history.md"
+      ],
+      "help_type": "historical_candidate",
+      "boundary": "7秒双推与一次内去重不同；关订阅改拉取不证明跨批幂等及旧重复已清。",
+      "source_tickets": [
+        "974"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-974.2026-09-11-f80048ecf9eb.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "Q19",
+      "split": "old_regression",
+      "input": {
+        "question": "#SPF55671A ODOO显示已经update in marketplace,但是shopify后台的状态一直显示未发货",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/integration/shopify-line-id-feedback-history.md"
+      ],
+      "help_type": "historical_candidate",
+      "boundary": "原行关联与手工新增行不同，内部同步成功不等于外部Shipment；不能定性cancel唯一原因。",
+      "source_tickets": [
+        "1295"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-1295.2026-09-11-c4520bcc69f3.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "Q20",
+      "split": "old_regression",
+      "input": {
+        "question": "The TWS Turbo beta has expired",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/portal/turbo-app-testflight-build-runtime-config-lark-1708.md"
+      ],
+      "help_type": "historical_candidate",
+      "boundary": "TestFlight build过期报告；1708和1732没有重装后用户确认，不判账号授权或Android故障。",
+      "source_tickets": [
+        "1708",
+        "1732"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-1708.2026-09-11-e4faabd784ab.md",
+        "raw/transcripts/ticket-1732.2026-09-11-7c8b4dda2d7e.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "Q21",
+      "split": "old_regression",
+      "input": {
+        "question": "AssetsLoadingError: web_editor.backend_assets_wysiwyg.min.js failed",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/platform/frontend-resource-refresh-history.md"
+      ],
+      "help_type": "historical_candidate",
+      "boundary": "只桌面快捷方式坏而另一入口能用；重存和缓存是建议，无修复验收。",
+      "source_tickets": [
+        "2060"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-2060.2026-09-11-714fd90b6036.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "Q22",
+      "split": "old_regression",
+      "input": {
+        "question": "Bank Statement Import - Hsbc - HSBC Collection was deactivated because it repeatedly timed out",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/integration/hsbc-stopped-bank-sync-history.md"
+      ],
+      "help_type": "historical_candidate",
+      "boundary": "重复超时任务停用仅转派且通知要求先审再启，无恢复；不自动重启。",
+      "source_tickets": [
+        "1056"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-1056.2026-09-11-43f74232975a.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "Q23",
+      "split": "old_regression",
+      "input": {
+        "question": "ODOO的Fleet模块从lark上自动关联的维修记录，附件显示不出来；",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/workforce/fleet-lark-attachment-link-history.md"
+      ],
+      "help_type": "historical_candidate",
+      "boundary": "过期仅可能、补PDF仅建议；车牌归一是独立开发需求，不能判全部Lark链接失效。",
+      "source_tickets": [
+        "1771"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-1771.2026-09-11-55c859a27603.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "Q24",
+      "split": "old_regression",
+      "input": {
+        "question": "[REFERENCE] in English instead of German",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/sales/automatic-order-email-customer-language.md"
+      ],
+      "help_type": "historical_candidate",
+      "boundary": "7月配置后仍失败，8/3用户确认德语，8/11措辞改动；不能只讲翻译已配置即成功。",
+      "source_tickets": [
+        "1455"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-1455.2026-09-11-2bd48e71851f.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "Q25",
+      "split": "old_regression",
+      "input": {
+        "question": "Odoo Tenways UK Customer invoices and credit notes",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/invoicing/uk-automatic-invoice-mail-history.md"
+      ],
+      "help_type": "historical_candidate",
+      "boundary": "七月中断、9/3报告修复补发；发出不等于客户收信或所有现时邮件正常。",
+      "source_tickets": [
+        "2125"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-2125.2026-09-11-7b752fc3c272.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "Q26",
+      "split": "old_regression",
+      "input": {
+        "question": "Appraisals The \"Add line\" under Type does not show",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/workforce/appraisal-scoring-history.md"
+      ],
+      "help_type": "historical_candidate",
+      "boundary": "818用户确认Add line显示，不证明所有HR服务端权限；1517权重是另一KPI校验，非物流重量。",
+      "source_tickets": [
+        "818",
+        "1517"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-818.2026-09-11-bfe5a0f798cf.md",
+        "raw/transcripts/ticket-1517.2026-09-11-22aeff15f928.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "Q27",
+      "split": "old_regression",
+      "input": {
+        "question": "The excess amount of this SO is only 150.98 euros, temporarily increased by 4k euros, but SO still cannot be processed",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/sales/temp-credit-confirm-history.md"
+      ],
+      "help_type": "historical_candidate",
+      "boundary": "建议再Confirm，Finance是否代确认未答，未有成功转单；不同于100%预付款计算。",
+      "source_tickets": [
+        "2038"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-2038.2026-09-11-6c7132936313.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "Q28",
+      "split": "old_regression",
+      "input": {
+        "question": "use in \"accounting\" the same filter that I use in \"contacts\", some of these dynamo customers are left out",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/reporting/sales-visibility-filter-change-history.md"
+      ],
+      "help_type": "historical_candidate",
+      "boundary": "当年无单初判被实际发票反驳；最终新filter仅截图，不复原完整表达式。",
+      "source_tickets": [
+        "2148"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-2148.2026-09-11-0a3b95763c8c.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "Q29",
+      "split": "old_regression",
+      "input": {
+        "question": "按以下截止到2026-6-30的BS结构表，帮忙导一份截止2026-6-30的TB（带Partner）格式",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/reporting/tb-export-bs-structure-change-historical-case.md"
+      ],
+      "help_type": "historical_candidate",
+      "boundary": "公司/截止日/Journal含ADJE范围未全验，重复导出不证明自助功能已交付。",
+      "source_tickets": [
+        "1805"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-1805.2026-09-22-0b7013ee5ecb.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "Q30",
+      "split": "old_regression",
+      "input": {
+        "question": "US和UK-Odoo的Operation type需要增加Tenways - Inventory Help: Inventory Adjustment",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/inventory/us18-return-location-and-operation-type-config.md"
+      ],
+      "help_type": "historical_candidate",
+      "boundary": "US18固定DL、自选DL、两步开发分开；7/30还问排期，不推EU流程已迁US。",
+      "source_tickets": [
+        "1795"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-1795.2026-09-22-1c7d6d3e076d.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "Q31",
+      "split": "old_regression",
+      "input": {
+        "question": "#SPF55875A 这个订单为什么没有同步到邮箱",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [],
+      "help_type": "needs_followup",
+      "boundary": "只有邮箱读不到推测；需邮箱来源、发送事件和接收结果，不用其他订单邮件修复代答。",
+      "source_tickets": [
+        "1075"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-1075.2026-09-11-43467e4b902f.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": [
+        "concepts/sales/uk-shopify-empty-salesperson-default-history.md"
+      ]
+    },
+    {
+      "id": "Q32",
+      "split": "old_regression",
+      "input": {
+        "question": "sent a request for approval but it's not shown on the approval chat in Lark",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [],
+      "help_type": "needs_followup",
+      "boundary": "缺审批类型/申请ID和视频正文；不以其他网页或App通知案例替代当前Lark群问题。",
+      "source_tickets": [
+        "1511"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-1511.2026-09-11-7701dbf77eb9.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": [
+        "concepts/sales/approval-activity-button-history.md"
+      ]
+    },
+    {
+      "id": "Q33",
+      "split": "old_regression",
+      "input": {
+        "question": "Not connecting to OneDrive",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [],
+      "help_type": "needs_followup",
+      "boundary": "只有转派，缺入口、错误、账号及结果，不能用其他微软/Odoo登录教程填原因。",
+      "source_tickets": [
+        "1906"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-1906.2026-09-11-93885a780f3c.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "Q34",
+      "split": "old_regression",
+      "input": {
+        "question": "set an option in Odoo linked to the outbound order to indicate whether the order was DOA or lost",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [],
+      "help_type": "no_safe_match",
+      "boundary": "历史只提字段需求并转需求审批，无实现；当前未找到交付知识不能断言产品不支持。",
+      "source_tickets": [
+        "1938"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-1938.2026-09-11-6103b30470ef.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": [
+        "concepts/sales/automatic-order-email-customer-language.md"
+      ]
+    },
+    {
+      "id": "Q35",
+      "split": "old_regression",
+      "input": {
+        "question": "每张已关闭工单都要新建 QA Card 吗？",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/faq/does-every-closed-ticket-need-a-qa-card.md"
+      ],
+      "help_type": "answer_ready",
+      "boundary": "按当前Schema的写作判据回答，不代表任何业务工单已审核。",
+      "source_tickets": [],
+      "source_paths": [],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "Q36",
+      "split": "old_regression",
+      "input": {
+        "question": "详细业务和技术事实应该放在哪里？",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/faq/where-detailed-technical-facts-live.md"
+      ],
+      "help_type": "answer_ready",
+      "boundary": "解释当前资料分工；链接存在不证明所有定义已读、实体已同步。",
+      "source_tickets": [],
+      "source_paths": [],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "V01",
+      "split": "old_regression",
+      "input": {
+        "question": "付款条件已经批了，为什么确认订单又要重新审批？",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/sales/approval-activity-button-history.md"
+      ],
+      "help_type": "historical_candidate",
+      "boundary": "Mark Done 被称缺陷且计划调整；Approve 为历史临时建议，不能断言当前按钮语义。",
+      "source_tickets": [
+        "624"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-624.2026-09-11-349effffd6bd.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "V02",
+      "split": "old_regression",
+      "input": {
+        "question": "价表叫 Markup，名字本身就会让价格变化吗？",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/sales/markup-name-and-price-rules.md"
+      ],
+      "help_type": "historical_candidate",
+      "boundary": "仅该价表当时无规则；不能说所有 Markup 都没有规则或只靠名称自动算价。",
+      "source_tickets": [
+        "139"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-139.2026-09-11-3928b320c211.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "V03",
+      "split": "old_regression",
+      "input": {
+        "question": "仓库已经收单，系统显示 Error，可以直接再送一次吗？",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/integration/wms-result-unknown-history.md"
+      ],
+      "help_type": "historical_candidate",
+      "boundary": "API超时但仓库已收到；不以Error直接改状态重推，唯一收单仍待核。",
+      "source_tickets": [
+        "2156"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-2156.2026-09-11-4510edd8e892.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "V04",
+      "split": "old_regression",
+      "input": {
+        "question": "库存补回了，为什么财务还是没有 12280 分录？",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/inventory/repeated-return-location-regression-history.md"
+      ],
+      "help_type": "historical_candidate",
+      "boundary": "数量回正后仍无分录；数据修复报告不等于数量、估值、12280双验收。",
+      "source_tickets": [
+        "2100"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-2100.2026-09-11-4b6837a2710c.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "V05",
+      "split": "old_regression",
+      "input": {
+        "question": "beta版本过期了，要重新申请权限吗？",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/portal/turbo-app-testflight-build-runtime-config-lark-1708.md"
+      ],
+      "help_type": "historical_candidate",
+      "boundary": "TestFlight build过期报告；1708和1732没有重装后用户确认，不判账号授权或Android故障。",
+      "source_tickets": [
+        "1708",
+        "1732"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-1708.2026-09-11-e4faabd784ab.md",
+        "raw/transcripts/ticket-1732.2026-09-11-7c8b4dda2d7e.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "V06",
+      "split": "old_regression",
+      "input": {
+        "question": "KPI 权重已经 100%，为什么还报 cannot exceed 1.0？",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/workforce/appraisal-scoring-history.md"
+      ],
+      "help_type": "historical_candidate",
+      "boundary": "KPI100%错误6/11仅报告修复；不用物流重量知识，不提供绕过保存校验。",
+      "source_tickets": [
+        "1517"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-1517.2026-09-11-22aeff15f928.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "V07",
+      "split": "old_regression",
+      "input": {
+        "question": "德国客户怎么自动套了荷兰 VAT？",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/sales/delivery-address-country-tax-rate.md"
+      ],
+      "help_type": "historical_candidate",
+      "boundary": "业务要求该客户0%不是德国税务政策；旧单仍21%、未见新单验收。",
+      "source_tickets": [
+        "1473"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-1473.2026-09-11-003c2078a19b.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "V08",
+      "split": "old_regression",
+      "input": {
+        "question": "怎么拿到按新 BS 结构且带 Partner 的 TB？",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/reporting/tb-export-bs-structure-change-historical-case.md"
+      ],
+      "help_type": "historical_candidate",
+      "boundary": "公司/截止日/Journal含ADJE范围未全验，重复导出不证明自助功能已交付。",
+      "source_tickets": [
+        "1805"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-1805.2026-09-22-0b7013ee5ecb.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "N01",
+      "split": "old_regression",
+      "input": {
+        "question": "EU采购退回按原入库价值已修，US Odoo18现在也可以照做吗？",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/inventory/purchase-return-original-receipt-value.md",
+        "concepts/inventory/track-inventory-missing-stock-valuation.md"
+      ],
+      "help_type": "historical_candidate",
+      "boundary": "EU历史修复不推US18；1764八月明确US差异，当前配置、估值链和财务处理需另核。",
+      "source_tickets": [
+        "1479",
+        "1764"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-1479.2026-09-11-9b2addee660f.md",
+        "raw/transcripts/ticket-1764.2026-09-11-11982a52a137.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "N02",
+      "split": "old_regression",
+      "input": {
+        "question": "CMC返回HTTP200，可以据此认定仓库已收到并完成发货吗？",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/delivery/cmc-outbound-company-required-error-response.md"
+      ],
+      "help_type": "historical_candidate",
+      "boundary": "HTTP200不代表SQL成功；不因缺收单证据直接重推或改法律名称。",
+      "source_tickets": [
+        "1829"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-1829.2026-09-11-028bf4440885.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "N03",
+      "split": "old_regression",
+      "input": {
+        "question": "现在所有 Mark Done 都只是关通知，只有 Approve 才算审批吗？",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/sales/approval-activity-button-history.md"
+      ],
+      "help_type": "historical_candidate",
+      "boundary": "原票计划修Mark Done可生效，不能回答当前永远只关通知；必须查现版本实现。",
+      "source_tickets": [
+        "624"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-624.2026-09-11-349effffd6bd.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "N04",
+      "split": "old_regression",
+      "input": {
+        "question": "现在UK和US也都固定每天中午12点自动开票吗？",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "historical literal question; no term_groups expansion",
+      "expected_pages": [
+        "concepts/invoicing/eu-auto-invoice-job-timing-history.md"
+      ],
+      "help_type": "historical_candidate",
+      "boundary": "2114只EU当时每日说明，未给时区；不能外推现在UK/US或固定12点。",
+      "source_tickets": [
+        "2114"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-2114.2026-09-11-731b5a13d3e0.md"
+      ],
+      "gold_status": "verified_existing_page_and_frozen_historical_boundary",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "D01",
+      "split": "old_development",
+      "input": {
+        "question": "confirm vendor bill",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "user problem-family development query; literal only",
+      "expected_pages": [
+        "concepts/invoicing/vendor-bill-confirm-stock-move-singleton-investigation.md"
+      ],
+      "help_type": "investigation",
+      "boundary": "历史案例／未解决调查线索，不证明相同根因或通用修复",
+      "source_tickets": [
+        "1935",
+        "2118",
+        "2370"
+      ],
+      "source_paths": [],
+      "gold_status": "verified",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "D02",
+      "split": "old_development",
+      "input": {
+        "question": "供应商账单确认失败",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "user problem-family development query; literal only",
+      "expected_pages": [
+        "concepts/invoicing/vendor-bill-confirm-stock-move-singleton-investigation.md"
+      ],
+      "help_type": "investigation",
+      "boundary": "历史案例／未解决调查线索，不证明相同根因或通用修复",
+      "source_tickets": [
+        "1935",
+        "2118",
+        "2370"
+      ],
+      "source_paths": [],
+      "gold_status": "verified",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "D03",
+      "split": "old_development",
+      "input": {
+        "question": "Bill过账失败",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "user problem-family development query; literal only",
+      "expected_pages": [
+        "concepts/invoicing/vendor-bill-confirm-stock-move-singleton-investigation.md"
+      ],
+      "help_type": "investigation",
+      "boundary": "历史案例／未解决调查线索，不证明相同根因或通用修复",
+      "source_tickets": [
+        "1935",
+        "2118",
+        "2370"
+      ],
+      "source_paths": [],
+      "gold_status": "verified",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "D04",
+      "split": "old_development",
+      "input": {
+        "question": "Expected singleton: stock.move()",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "user problem-family development query; literal only",
+      "expected_pages": [
+        "concepts/invoicing/vendor-bill-confirm-stock-move-singleton-investigation.md"
+      ],
+      "help_type": "investigation",
+      "boundary": "历史案例／未解决调查线索，不证明相同根因或通用修复",
+      "source_tickets": [
+        "1935",
+        "2118",
+        "2370"
+      ],
+      "source_paths": [],
+      "gold_status": "verified",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "D05",
+      "split": "old_development",
+      "input": {
+        "question": "_tw_purchase_original_currency_unit_price",
+        "keywords": [],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": "user problem-family development query; literal only",
+      "expected_pages": [
+        "concepts/invoicing/vendor-bill-confirm-stock-move-singleton-investigation.md"
+      ],
+      "help_type": "investigation",
+      "boundary": "历史案例／未解决调查线索，不证明相同根因或通用修复",
+      "source_tickets": [
+        "1935",
+        "2118",
+        "2370"
+      ],
+      "source_paths": [],
+      "gold_status": "verified",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "H01",
+      "split": "old_independent",
+      "input": {
+        "question": "用户在搜索栏输入搜索词并确认搜索后，系统自动更改了搜索词——请协助排查该搜索词被自动修改的问题。",
+        "keywords": [
+          "搜索词被自动更改",
+          "search term automatically changed",
+          "search bar",
+          "确认搜索后搜索词变化",
+          "search term modified after search",
+          "搜索栏"
+        ],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": {
+        "file": "wiki-qa-extract.2026-10-15.1.log",
+        "line": 1404,
+        "actionRunId": "d098cef4-7032-4c7c-8cfe-1954528e1fe7",
+        "kind": "frozen_saved_model_extraction"
+      },
+      "expected_pages": [
+        "concepts/platform/browser-translation-search-term-history.md"
+      ],
+      "help_type": "historical_reference",
+      "boundary": "仅源解决方案记载关闭翻译恢复，线程无直接复测，原因仍可能",
+      "source_tickets": [
+        "2341"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-2341.md"
+      ],
+      "gold_status": "verified_historical_reference",
+      "negative_note": null,
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "H02",
+      "split": "old_independent",
+      "input": {
+        "question": "用户在桌面端通过 Lark 登录后，账号显示为全新状态，看不到 TENWAYS 的设置/配置，Lark 登录进去为空白，请求协助解决。",
+        "keywords": [
+          "lark登录进去为空白",
+          "Lark desktop login blank",
+          "account shows as completely new",
+          "without the TENWAYS setup",
+          "登录后空白",
+          "账号数据为空",
+          "TENWAYS setup missing",
+          "Lark account issue"
+        ],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": {
+        "file": "wiki-qa-extract.2026-10-15.1.log",
+        "line": 1416,
+        "actionRunId": "64ec6057-fa55-4c96-a5ce-e84f05aad05b",
+        "kind": "frozen_saved_model_extraction"
+      },
+      "expected_pages": [
+        "concepts/platform/lark-desktop-login-history.md"
+      ],
+      "help_type": "historical_reference",
+      "boundary": "旧票手机扫码与组织选择提供历史核对，不证明当前空账号同一根因",
+      "source_tickets": [
+        "330"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-330.2026-09-11-224d2a7662a3.md"
+      ],
+      "gold_status": "verified_historical_reference",
+      "negative_note": null,
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "H03",
+      "split": "old_independent",
+      "input": {
+        "question": "如何在 Odoo 中查看发票（如 INV/2026/47990）实际发送到了哪个 email 地址（通过 ticket record / 消息邮件图标和联系人邮件图标查询），以及为何发送给了另一个地址",
+        "keywords": [
+          "invoice email address",
+          "INV/2026/47990",
+          "发票发送邮箱",
+          "如何查看发票发送到的email",
+          "message email icon",
+          "contact email icon",
+          "邮件发送记录",
+          "mail message",
+          "email recipient",
+          "收件人邮箱",
+          "wrong email received",
+          "发票邮件记录"
+        ],
+        "objects": [
+          "account.move",
+          "account.invoice (Odoo 17及以前写法)",
+          "mail.message",
+          "mail.tracking.value",
+          "res.partner"
+        ],
+        "environments": []
+      },
+      "input_source": {
+        "file": "wiki-qa-extract.2026-10-15.1.log",
+        "line": 1400,
+        "actionRunId": "c392f936-5beb-4565-bc63-4664cf394275",
+        "kind": "frozen_saved_model_extraction"
+      },
+      "expected_pages": [
+        "concepts/invoicing/invoice-email-follows-sales-order-invoice-address.md"
+      ],
+      "help_type": "historical_reference",
+      "boundary": "核对消息收件记录，不证明选址根因或实际送达",
+      "source_tickets": [
+        "2298"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-1568.2026-09-11-2c3f5efdb868.md",
+        "raw/transcripts/ticket-530.2026-09-11-b7acc6baf8ea.md",
+        "raw/transcripts/ticket-1639.2026-09-11-efe0fc81af0e.md",
+        "raw/transcripts/ticket-2298.md"
+      ],
+      "gold_status": "verified_historical_reference",
+      "negative_note": null,
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "H04",
+      "split": "old_independent",
+      "input": {
+        "question": "为什么出库单 EMTC/OUT/00985（以及 EMTC/OUT/01008）中产品 R-TEB091570002 这条记录无法选择 serial number？用户需要确认是否仍是序列号被占用/reserved_quantity 残留未释放导致（实物已卖出但单据无法 DONE），以及如何处理。",
+        "keywords": [
+          "EMTC/OUT/00985",
+          "EMTC/OUT/01008",
+          "R-TEB091570002",
+          "选不了serial number",
+          "serial number",
+          "序列号",
+          "批号",
+          "占用",
+          "被占用",
+          "reserved_quantity",
+          "预留",
+          "残留预留",
+          "非零库存",
+          "stock.reserved",
+          "无法DONE",
+          "数据修复",
+          "reservation",
+          "quantity reserved",
+          "move line 403387"
+        ],
+        "objects": [
+          "stock.move",
+          "stock.move.line",
+          "stock.quant",
+          "reserved_quantity",
+          "serial number / lot",
+          "出库单 EMTC/OUT/00985",
+          "出库单 EMTC/OUT/01008"
+        ],
+        "environments": []
+      },
+      "input_source": {
+        "file": "wiki-qa-extract.2026-10-15.1.log",
+        "line": 1396,
+        "actionRunId": "1f1e95e2-1515-47b7-8c42-50a6203ad240",
+        "kind": "frozen_saved_model_extraction"
+      },
+      "expected_pages": [
+        "concepts/inventory/reservation-residual-corrections-history.md"
+      ],
+      "help_type": "historical_reference",
+      "boundary": "首次修复报告后原单和新单仍不可选，不提供清零或永久修复",
+      "source_tickets": [
+        "2320"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-1680.2026-09-11-a01bee06bad7.md",
+        "raw/transcripts/ticket-1727.2026-09-11-48b8e5ffc033.md",
+        "raw/transcripts/ticket-1854.2026-09-11-fcb159a77e5d.md",
+        "raw/transcripts/ticket-2311.md",
+        "raw/transcripts/ticket-2320.md"
+      ],
+      "gold_status": "verified_historical_reference",
+      "negative_note": null,
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "H05",
+      "split": "old_independent",
+      "input": {
+        "question": "为什么Westerman订单回传状态不能及时自动同步到Odoo？Westerman系统 outbound scan=finished 后Odoo未自动抓取更新到 Ref update-finished 状态，远超预期的20分钟定时拉取间隔，需要手动update才能更新，是否自动同步定时任务未生效或延迟？",
+        "keywords": [
+          "Westerman",
+          "订单回传",
+          "时差",
+          "手动update",
+          "Ref update-finished",
+          "outbound scan=finished",
+          "定时拉取",
+          "20分钟",
+          "抓取",
+          "状态不更新",
+          "同步延迟",
+          "自动同步",
+          "定时任务",
+          "cron",
+          "update不及时",
+          "status sync delay",
+          "pull interval"
+        ],
+        "objects": [
+          "订单状态同步",
+          "stock.picking（回传状态）",
+          "定时拉取任务",
+          "Ref update-finished 状态"
+        ],
+        "environments": []
+      },
+      "input_source": {
+        "file": "wiki-qa-extract.2026-10-08.1.log",
+        "line": 40,
+        "actionRunId": "fd2fc5c3-5ed9-4e51-9fca-3d60719e270f",
+        "kind": "frozen_saved_model_extraction"
+      },
+      "expected_pages": [
+        "concepts/delivery/westerman-scheduled-feedback-history.md"
+      ],
+      "help_type": "historical_reference",
+      "boundary": "20分钟为回忆，手动更新不证明自动调度恢复",
+      "source_tickets": [
+        "2308"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-2000.2026-09-11-0c9424d56457.md",
+        "raw/transcripts/ticket-2308.md"
+      ],
+      "gold_status": "verified_historical_reference",
+      "negative_note": null,
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "H06",
+      "split": "old_independent",
+      "input": {
+        "question": "EU portal 服务中心工单页面错误地显示内部备注（internal notes）给经销商，例如 SER165187 和 SER163087，此前修复后又复现，需尽快排查并修复，防止经销商看到敏感信息。",
+        "keywords": [
+          "internal notes displayed wrongly",
+          "internal notes",
+          "dealer can see internal notes",
+          "service center",
+          "EU portal",
+          "ticket record",
+          "敏感信息泄露",
+          "内部备注",
+          "经销商可见",
+          "修复后复现",
+          "SER165187",
+          "SER163087",
+          "internal notes visibility",
+          "portal bug"
+        ],
+        "objects": [
+          "ticket record",
+          "internal notes",
+          "service center",
+          "dealer",
+          "claim SER165187",
+          "claim SER163087"
+        ],
+        "environments": [
+          "EU Odoo 17"
+        ]
+      },
+      "input_source": {
+        "file": "wiki-qa-extract.2026-10-09.1.log",
+        "line": 26,
+        "actionRunId": "36f1480d-5afc-4521-80e0-dfc1bded321c",
+        "kind": "frozen_saved_model_extraction"
+      },
+      "expected_pages": [
+        "concepts/portal/service-center-internal-message-exposure-history.md"
+      ],
+      "help_type": "historical_reference",
+      "boundary": "内部备注可见历史缺陷，首次修复后复发，不能当当前已修复",
+      "source_tickets": [],
+      "source_paths": [
+        "raw/transcripts/ticket-2096.2026-09-11-5bb589e6f605.md",
+        "raw/transcripts/ticket-2317.md"
+      ],
+      "gold_status": "verified_historical_reference",
+      "negative_note": null,
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "H07",
+      "split": "old_independent",
+      "input": {
+        "question": "UK Odoo 系统新增 CMC B2B 和 CMC B2C 两个仓库，如何与 CMC 系统做对接？是否仍用当前 CMC 的 APP 接口对接 UK-Odoo，还是需要 CMC 再次提供接口？另外，是否必须等 API 对接开始后才能正常配置 Odoo 仓库（参考 EU-Odoo 界面配置）？",
+        "keywords": [
+          "CMC B2B仓库",
+          "CMC B2C仓库",
+          "仓库对接",
+          "系统对接",
+          "UK-Odoo",
+          "CMC APP接口",
+          "API对接",
+          "界面配置",
+          "EU-Odoo配置参考",
+          "需求审批",
+          "warehouse integration",
+          "API integration",
+          "CMC interface",
+          "B2B warehouse",
+          "B2C warehouse"
+        ],
+        "objects": [
+          "stock.warehouse",
+          "CMC 系统",
+          "CMC APP 接口",
+          "需求审批流程",
+          "OA编号 202609150015"
+        ],
+        "environments": [
+          "UK Odoo 17"
+        ]
+      },
+      "input_source": {
+        "file": "wiki-qa-extract.2026-10-15.1.log",
+        "line": 1366,
+        "actionRunId": "18fcf8cc-6154-42d7-b857-3d1e39369df3",
+        "kind": "frozen_saved_model_extraction"
+      },
+      "expected_pages": [],
+      "help_type": "no_verified_current_solution",
+      "boundary": "UK新增CMC仓库接口方案和当前配置前置条件无已核对答案；其他历史WMS材料可作背景",
+      "source_tickets": [],
+      "source_paths": [],
+      "gold_status": "boundary_only_not_recall_positive",
+      "negative_note": "Candidate presence alone is not a false positive; answer safety unmeasured.",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "H08",
+      "split": "old_independent",
+      "input": {
+        "question": "UK Odoo 17 是否/何时可以新增 Manufacturing 生产制造模块（参考 EU-ODOO 的用法）；最新回复称不再开发此功能，当前待确认的是该需求是否正式取消或需撤回需求审批流程。",
+        "keywords": [
+          "UK Odoo 新增 Manufacturing",
+          "生产制造模块",
+          "参考 EU-ODOO Manufacturing 功能",
+          "上线时间",
+          "预计这一两周内可以上线使用吗",
+          "新功能开发",
+          "odoo 原生模块不支持",
+          "开发修改过的",
+          "需求申请",
+          "feature approval flow",
+          "IT development demand review process",
+          "需求审批",
+          "new function requirement type",
+          "ticket link",
+          "流程审批",
+          "现在不开发这个功能了",
+          "取消需求",
+          "撤回需求审批"
+        ],
+        "objects": [
+          "Manufacturing (mrp) 模块"
+        ],
+        "environments": [
+          "UK Odoo 17",
+          "EU Odoo 17"
+        ]
+      },
+      "input_source": {
+        "file": "wiki-qa-extract.2026-10-15.1.log",
+        "line": 1380,
+        "actionRunId": "3622b956-c213-43e1-a249-a84fd2f06dca",
+        "kind": "frozen_saved_model_extraction"
+      },
+      "expected_pages": [],
+      "help_type": "no_verified_current_solution",
+      "boundary": "UK Manufacturing需求取消／撤回状态无已核对答案，不能用旧制造单时间编辑案例回答",
+      "source_tickets": [],
+      "source_paths": [],
+      "gold_status": "boundary_only_not_recall_positive",
+      "negative_note": "Candidate presence alone is not a false positive; answer safety unmeasured.",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "H09",
+      "split": "old_independent",
+      "input": {
+        "question": "如何让 Finance 团队能查看 Sales Ops 在订单因信用额度被阻塞（Orders Blocked by Credit Limit / credit limit pop-up）时看到的信用额度信息？目前该弹窗需实时计算历史数据、仅在 confirm 按钮触发时计算，Finance 无法查看，需确认是否可配置还是需要开发（在 pending credit limit view 上增加该功能）。",
+        "keywords": [
+          "credit limit",
+          "Orders Blocked by Credit Limit",
+          "credit limit pop-up",
+          "Finance access",
+          "Sales Ops",
+          "temp credit",
+          "pending credit limit view",
+          "not yet invoiced",
+          "信用额度",
+          "额度弹窗",
+          "财务查看权限",
+          "配置或开发",
+          "确认按钮触发计算",
+          "实时计算历史数据",
+          "customer credit review",
+          "[REFERENCE] by credit limit"
+        ],
+        "objects": [
+          "sale.order",
+          "credit limit pop-up",
+          "pending credit limit view",
+          "res.users / access rights (Finance group)"
+        ],
+        "environments": [
+          "EU Odoo 17",
+          "UK Odoo 17",
+          "US Odoo 18"
+        ]
+      },
+      "input_source": {
+        "file": "wiki-qa-extract.2026-10-15.1.log",
+        "line": 1378,
+        "actionRunId": "b50d6494-5583-4771-80b3-6f882511fb39",
+        "kind": "frozen_saved_model_extraction"
+      },
+      "expected_pages": [],
+      "help_type": "no_verified_current_solution",
+      "boundary": "Finance信用弹窗权限方案未有已核对配置或交付；临时额度与确认角色材料仅背景",
+      "source_tickets": [],
+      "source_paths": [],
+      "gold_status": "boundary_only_not_recall_positive",
+      "negative_note": "Candidate presence alone is not a false positive; answer safety unmeasured.",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "H10",
+      "split": "old_independent",
+      "input": {
+        "question": "Lark法律文本审批与DocuSign电子签自动化升级：如何解决anycross的4M文件大小限制（签署文件无法自动生成）以及签署完成PDF无法回传申请表单的问题（更换开发平台或自建接口）？",
+        "keywords": [
+          "Lark法律文本审批",
+          "docusign电子签",
+          "anycross",
+          "自动化升级",
+          "文件大小限制4M",
+          "签署文件自动生成",
+          "手动上传文本",
+          "签署位置",
+          "PDF回传申请表单",
+          "审批评论区附件",
+          "错误率高",
+          "人工干预",
+          "自建接口",
+          "技术选型",
+          "更换开发平台",
+          "IT开发需求评审流程",
+          "ticket link"
+        ],
+        "objects": [],
+        "environments": []
+      },
+      "input_source": {
+        "file": "wiki-qa-extract.2026-10-15.1.log",
+        "line": 1430,
+        "actionRunId": "8db2641b-e498-40fe-a979-e4236883b8c8",
+        "kind": "frozen_saved_model_extraction"
+      },
+      "expected_pages": [],
+      "help_type": "no_verified_current_solution",
+      "boundary": "DocuSign/anycross 4M限制的新集成方案无已核对可执行答案",
+      "source_tickets": [],
+      "source_paths": [],
+      "gold_status": "boundary_only_not_recall_positive",
+      "negative_note": "Candidate presence alone is not a false positive; answer safety unmeasured.",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "H11",
+      "split": "old_independent",
+      "input": {
+        "question": "EU UK Odoo Contact 的 \"Group Company\" 字段优化需求：需提交新功能需求审批流程并推进，目标是尽量与毛利表同期（20261029）上线，因为毛利表连锁客户名称取数依赖该字段。",
+        "keywords": [
+          "Group Company",
+          "字段优化",
+          "需求申请",
+          "新功能审批",
+          "feature approval flow",
+          "需求审批",
+          "毛利表",
+          "连锁客户名称",
+          "取数依赖",
+          "20261029上线",
+          "Contact",
+          "催办",
+          "开发需求"
+        ],
+        "objects": [
+          "res.partner (Contact)",
+          "Group Company 字段",
+          "毛利表"
+        ],
+        "environments": []
+      },
+      "input_source": {
+        "file": "wiki-qa-extract.2026-10-15.1.log",
+        "line": 1382,
+        "actionRunId": "417e6a42-7c65-4136-8ff4-e2a6e1c775e9",
+        "kind": "frozen_saved_model_extraction"
+      },
+      "expected_pages": [],
+      "help_type": "no_verified_current_solution",
+      "boundary": "Group Company新字段需求的当期排期无已核对交付答案",
+      "source_tickets": [],
+      "source_paths": [],
+      "gold_status": "boundary_only_not_recall_positive",
+      "negative_note": "Candidate presence alone is not a false positive; answer safety unmeasured.",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": []
+    },
+    {
+      "id": "H12",
+      "split": "old_independent",
+      "input": {
+        "question": "能否在 Pre-orders（预售订单）中实现两项功能：1) 创建 pre-order 时默认自动填充 warehouse（仓库）字段（目前为空，需手动填写，希望像 sales orders 一样有默认仓库）；2) 在 pre-order 底部增加 total quantity（总数量）行以核对自行车总数（目前没有，sales orders 有）。",
+        "keywords": [
+          "pre-order",
+          "预售订单",
+          "default warehouse",
+          "默认仓库",
+          "warehouse 默认值",
+          "total quantity",
+          "数量合计行",
+          "total number of bikes",
+          "自行车总数量",
+          "sales order",
+          "销售订单",
+          "预购仓库默认填充",
+          "预购订单合计行",
+          "system change requirement approval",
+          "IT development demand review process"
+        ],
+        "objects": [
+          "pre-order",
+          "sale.order",
+          "warehouse",
+          "stock.warehouse",
+          "[REFERENCE] / total quantity"
+        ],
+        "environments": []
+      },
+      "input_source": {
+        "file": "wiki-qa-extract.2026-10-15.1.log",
+        "line": 1410,
+        "actionRunId": "2ccd52f3-6e58-4342-b307-e0d02295b551",
+        "kind": "frozen_saved_model_extraction"
+      },
+      "expected_pages": [],
+      "help_type": "no_verified_current_solution",
+      "boundary": "Pre-order默认仓库／合计行新需求无已核对已上线答案",
+      "source_tickets": [],
+      "source_paths": [],
+      "gold_status": "boundary_only_not_recall_positive",
+      "negative_note": "Candidate presence alone is not a false positive; answer safety unmeasured.",
+      "input_redaction": "redactSupportText on all structured input fields; expected labels never injected",
+      "v6_use": "development_regression_not_independent",
+      "wrong_pages": [
+        "concepts/delivery/approval-validate-and-backorder-history.md"
+      ]
+    },
+    {
+      "id": "P01",
+      "split": "independent",
+      "input": {
+        "question": "为什么 SKU 081101445001 在 Odoo 仓位 WCB2B/Stock 中计算有误，其 Reserved Quantity 显示为负数？需要修复并刷新/重新计算该 SKU 的 Reserved Quantity。",
+        "keywords": [
+          "sku 081101445001",
+          "Reserved Quantity",
+          "负数",
+          "库存预留数量为负",
+          "Odoo仓位",
+          "WCB2B/Stock",
+          "计算有误",
+          "重新刷新",
+          "重新计算",
+          "fix reserved quantity negative",
+          "stock reservation negative quantity"
+        ],
+        "objects": [
+          "stock.quant",
+          "stock.move",
+          "stock.picking",
+          "Reserved Quantity / product.category reserved fields"
+        ],
+        "environments": []
+      },
+      "input_source": {
+        "file": "wiki-qa-extract.2026-10-09.1.log",
+        "line": 16,
+        "actionRunId": "040d32be-9171-45ac-a5de-94f5d1f7fde1",
+        "kind": "saved_model_extraction"
+      },
+      "expected_pages": [
+        "concepts/inventory/reservation-residual-corrections-history.md"
+      ],
+      "source_tickets": [
+        "2311"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-2311.md"
+      ],
+      "gold_status": "historical_reference_verified_against_existing_body_and_linked_primary",
+      "help_type": "historical_reference",
+      "boundary": "负预留单笔处理报告，无方法、数值对账或用户恢复验收；不得清零",
+      "wrong_pages": [],
+      "input_redaction": "existing support redaction plus named customer replacement; no expansion from gold"
+    },
+    {
+      "id": "P02",
+      "split": "independent",
+      "input": {
+        "question": "[CUSTOMER]（为 [CUSTOMER] 提供奖品的公司，暂挂 retailer 标签）的客户标签如何设置——是否使用现有 Odoo 标签 \"Other Customer\"，并确认 Operations 认可后按此处理该类客户？",
+        "keywords": [
+          "[CUSTOMER]",
+          "new tag",
+          "create a tag",
+          "retailer",
+          "Other Customer",
+          "Fleet Sale",
+          "Company Purchase",
+          "contact tag management",
+          "prizes to [CUSTOMER]",
+          "supplier or retailer",
+          "Direct Sales B2B",
+          "Offline Channel",
+          "tag",
+          "标签",
+          "客户标签"
+        ],
+        "objects": [
+          "tag",
+          "contact",
+          "customer",
+          "sales team",
+          "customer channel"
+        ],
+        "environments": []
+      },
+      "input_source": {
+        "file": "wiki-qa-extract.2026-10-16.1.log",
+        "line": 52,
+        "actionRunId": "f1a5ded3-3a58-4f6b-b76f-10415b0b991c",
+        "kind": "saved_model_extraction"
+      },
+      "expected_pages": [
+        "concepts/sales/contact-tag-change-verification.md"
+      ],
+      "source_tickets": [
+        "2354"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-2354.md"
+      ],
+      "gold_status": "historical_reference_verified_against_existing_body_and_linked_primary",
+      "help_type": "historical_reference",
+      "boundary": "Other Customer历史建议以Operations无异议为条件，未证实实际打标或授权",
+      "wrong_pages": [],
+      "input_redaction": "existing support redaction plus named customer replacement; no expansion from gold"
+    },
+    {
+      "id": "P03",
+      "split": "independent",
+      "input": {
+        "question": "UK 9月毛利表中该发票的 sales team 与 contact 中显示不一致：用户希望修改 SO（销售订单）上的 sales team，并确认毛利表刷新后是否会随之更新；此外该客户母公司的 tag 显示为 retailer，是否应为 distributors。",
+        "keywords": [
+          "sales team 不一致",
+          "毛利表",
+          "刷新",
+          "修改 SO sales team",
+          "销售[REFERENCE] team 错误",
+          "SO 上的 sales team",
+          "contact 显示",
+          "tag retailer",
+          "母公司 distributors",
+          "gross profit report refresh",
+          "sales team mismatch",
+          "invoice sales team",
+          "UK 9月毛利表",
+          "tag 修改",
+          "批量刷新"
+        ],
+        "objects": [
+          "sale.order",
+          "crm.team (sales team)",
+          "res.partner (contact/tag)",
+          "毛利表"
+        ],
+        "environments": [
+          "UK Odoo 17"
+        ]
+      },
+      "input_source": {
+        "file": "wiki-qa-extract.2026-10-15.1.log",
+        "line": 1442,
+        "actionRunId": "b7451fc0-cdc8-46fa-8de1-e25e528ef928",
+        "kind": "saved_model_extraction"
+      },
+      "expected_pages": [
+        "concepts/sales/sales-team-change-history-boundaries.md"
+      ],
+      "source_tickets": [
+        "2342"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-2342.md"
+      ],
+      "gold_status": "historical_reference_verified_against_existing_body_and_linked_primary",
+      "help_type": "historical_reference",
+      "boundary": "客户调整报告与SO修改、批量刷新分开，后两者未验收",
+      "wrong_pages": [],
+      "input_redaction": "existing support redaction plus named customer replacement; no expansion from gold"
+    },
+    {
+      "id": "P04",
+      "split": "independent",
+      "input": {
+        "question": "UK Odoo 中，Aged Receivable 报表里 [CUSTOMER] 的应收总金额为 8295 英镑，但点击 Journal Item 后该客户余额为 25,283 英镑，为什么会有这个差异？（聊天中提及差异约 €16988，部分 matched 的条目未包含在 Dash 的 partner profile 中，需确认原因）",
+        "keywords": [
+          "Aged Receivable",
+          "[CUSTOMER]",
+          "应收总金额 8295 英镑",
+          "Journal Item 余额 25,283 英镑",
+          "差异 16988",
+          "matched items 未包含在 partner profile",
+          "账龄应收报表",
+          "partner ledger 对不上",
+          "Aged Partner Balance",
+          "aged receivable discrepancy",
+          "journal item balance mismatch",
+          "客户余额不一致"
+        ],
+        "objects": [
+          "account.move.line (Journal Item)",
+          "res.partner ([CUSTOMER])",
+          "Aged Receivable 报表 / account.aged.receivable"
+        ],
+        "environments": [
+          "UK Odoo 17"
+        ]
+      },
+      "input_source": {
+        "file": "wiki-qa-extract.2026-10-19.1.log",
+        "line": 8,
+        "actionRunId": "0f614134-1ffb-4bee-a3fa-b5f35168965e",
+        "kind": "saved_model_extraction"
+      },
+      "expected_pages": [
+        "concepts/reporting/financial-report-scope-history.md"
+      ],
+      "source_tickets": [
+        "2343"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-2343.2026-10-19-1b3130d6bb44.md"
+      ],
+      "gold_status": "historical_reference_verified_against_existing_body_and_linked_primary",
+      "help_type": "historical_reference",
+      "boundary": "已匹配项与跨Partner样例解释历史差异，不能建立通用AR公式或当前核销正确结论",
+      "wrong_pages": [],
+      "input_redaction": "existing support redaction plus named customer replacement; no expansion from gold"
+    },
+    {
+      "id": "P05",
+      "split": "independent",
+      "input": {
+        "question": "UK Odoo 中科目 20030 出现 1.38£ 意外余额：确认 Bill 后出现多余分录（如 STJ/2026/09/0193/0195），需排查该多余分录产生的根因（Bug）。",
+        "keywords": [
+          "20030科目",
+          "1.38￡余额",
+          "多余分录",
+          "STJ/2026/09/0193",
+          "STJ/2026/09/0195",
+          "BILL/2026/09/0018",
+          "confirm bill",
+          "核销",
+          "cancel 重新核销",
+          "bug排查",
+          "account balance residual",
+          "journal entry",
+          "reconciliation",
+          "unexpected balance"
+        ],
+        "objects": [
+          "account.account (20030)",
+          "account.move (BILL/2026/09/0018)",
+          "account.move / journal entry (STJ/2026/09/0193, STJ/2026/09/0195)",
+          "核销/对账 (reconciliation)"
+        ],
+        "environments": [
+          "UK Odoo 17"
+        ]
+      },
+      "input_source": {
+        "file": "wiki-qa-extract.2026-09-24.2.log",
+        "line": 30,
+        "actionRunId": "a09ba7a0-404a-467f-bdd9-b53172e6b360",
+        "kind": "saved_model_extraction"
+      },
+      "expected_pages": [
+        "concepts/accounting/uk-20030-extra-entry-reconciliation-history.md"
+      ],
+      "source_tickets": [
+        "2246"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-2246.md"
+      ],
+      "gold_status": "historical_reference_verified_against_existing_body_and_linked_primary",
+      "help_type": "historical_reference",
+      "boundary": "支持指出多余分录，成因和最终余额未知，不提供通用取消／反核销授权",
+      "wrong_pages": [],
+      "input_redaction": "existing support redaction plus named customer replacement; no expansion from gold"
+    },
+    {
+      "id": "P06",
+      "split": "independent",
+      "input": {
+        "question": "Ops建单时选择Tenways Office（EU Office）对应的contact，仓库总是接收不到地址和收件人，需要确认该Odoo contact（个人类型）设置是否有效及仓库收不到数据的原因",
+        "keywords": [
+          "Tenways Office",
+          "EU Office",
+          "contact",
+          "地址",
+          "收件人",
+          "仓库接收不到",
+          "ticket record",
+          "订单地址",
+          "联系人",
+          "个人类型contact",
+          "address",
+          "recipient",
+          "warehouse cannot receive address"
+        ],
+        "objects": [
+          "contact",
+          "Other/10169 Burger"
+        ],
+        "environments": []
+      },
+      "input_source": {
+        "file": "wiki-qa-extract.2026-09-24.2.log",
+        "line": 4,
+        "actionRunId": "77e73a67-4ecd-43ca-8fec-ef746f29bbbf",
+        "kind": "saved_model_extraction"
+      },
+      "expected_pages": [
+        "concepts/integration/wms-address-contract-history.md"
+      ],
+      "source_tickets": [
+        "2265"
+      ],
+      "source_paths": [
+        "raw/transcripts/ticket-2265.md"
+      ],
+      "gold_status": "historical_reference_verified_against_existing_body_and_linked_primary",
+      "help_type": "historical_reference",
+      "boundary": "本端已发为支持报告，末尾仍问联系人类型，未证明个人类型无效或对端已接收",
+      "wrong_pages": [],
+      "input_redaction": "existing support redaction plus named customer replacement; no expansion from gold"
+    },
+    {
+      "id": "N11",
+      "split": "independent",
+      "input": {
+        "question": "SO 确认邮件模板中 DK Delivery charges 显示 €30 而实际应为 €40/piece，请审查该 SO confirm template 并修正金额显示不一致的问题（SO/260618/00021），该问题已被确认为 bug 处理。",
+        "keywords": [
+          "SO confirm template",
+          "template review",
+          "SO/260618/00021",
+          "DK Delivery charges",
+          "€40/piece",
+          "€30",
+          "mismatch",
+          "金额显示不一致",
+          "销售订单确认模板",
+          "bug"
+        ],
+        "objects": [
+          "sale.order",
+          "SO confirm email template",
+          "mail template"
+        ],
+        "environments": []
+      },
+      "input_source": {
+        "file": "wiki-qa-extract.2026-10-17.1.log",
+        "line": 2,
+        "actionRunId": "64e454ce-c768-49c4-8a53-adef398ab504",
+        "kind": "saved_model_extraction"
+      },
+      "expected_pages": [],
+      "source_tickets": [],
+      "source_paths": [],
+      "gold_status": "verified_wrong_pair_no_verified_current_solution",
+      "help_type": "no_verified_current_solution",
+      "boundary": "DK运费金额模板bug，邮件语言案例不能解释金额",
+      "wrong_pages": [
+        "concepts/sales/automatic-order-email-customer-language.md"
+      ],
+      "input_redaction": "existing support redaction plus named customer replacement; no expansion from gold"
+    },
+    {
+      "id": "N12",
+      "split": "independent",
+      "input": {
+        "question": "Odoo JI 的 Journal Item 列表中 Currency Rate（汇率）字段如何配置为显示四位小数，且确保系统升级后配置不被刷掉（需同步修改代码）；确认后仅汇率显示四位小数，credit、debit、balance、amount in currency、Residual、Residual in Currency 等字段仍显示两位。",
+        "keywords": [
+          "Currency Rate",
+          "汇率",
+          "四位小数",
+          "journal item",
+          "decimal precision",
+          "小数位配置",
+          "视图配置",
+          "升级后配置丢失",
+          "currency rate display digits",
+          "配置调整",
+          "代码修改",
+          "account.move.line",
+          "digits"
+        ],
+        "objects": [
+          "account.move.line",
+          "res.currency",
+          "res.currency.rate",
+          "decimal.precision",
+          "ir.ui.view"
+        ],
+        "environments": [
+          "EU Odoo 17",
+          "UK Odoo 17",
+          "US Odoo 18"
+        ]
+      },
+      "input_source": {
+        "file": "wiki-qa-extract.2026-10-13.1.log",
+        "line": 2,
+        "actionRunId": "5ed35e1f-8148-426d-a398-baa2b632df65",
+        "kind": "saved_model_extraction"
+      },
+      "expected_pages": [],
+      "source_tickets": [],
+      "source_paths": [],
+      "gold_status": "verified_wrong_pair_no_verified_current_solution",
+      "help_type": "no_verified_current_solution",
+      "boundary": "汇率显示小数精度，汇率数据停止更新属于不同问题",
+      "wrong_pages": [
+        "concepts/accounting/currency-rate-staleness-triage.md"
+      ],
+      "input_redaction": "existing support redaction plus named customer replacement; no expansion from gold"
+    },
+    {
+      "id": "N13",
+      "split": "independent",
+      "input": {
+        "question": "为什么发票上列有 frame number（Longtail 车架号）但无法用 frame number 搜索发票？如何通过自定义过滤器（Invoice lines > Delivery SN contains）按 frame number 查找发票？",
+        "keywords": [
+          "frame number",
+          "framenumber",
+          "invoice",
+          "search invoices by frame number",
+          "Longtail",
+          "custom filter",
+          "Add Custom Filter",
+          "Invoice lines",
+          "Delivery SN",
+          "contains",
+          "按车架号搜索发票",
+          "自定义过滤器",
+          "发票搜索",
+          "Customers Invoices B2B & B2C",
+          "search option"
+        ],
+        "objects": [
+          "account.move",
+          "account.move.line",
+          "Delivery SN",
+          "lot/serial number"
+        ],
+        "environments": []
+      },
+      "input_source": {
+        "file": "wiki-qa-extract.2026-10-19.1.log",
+        "line": 30,
+        "actionRunId": "ea8e2d87-838d-41f3-9acd-f85e6a277b8c",
+        "kind": "saved_model_extraction"
+      },
+      "expected_pages": [],
+      "source_tickets": [],
+      "source_paths": [],
+      "gold_status": "verified_wrong_pair_no_verified_current_solution",
+      "help_type": "no_verified_current_solution",
+      "boundary": "按车架号搜索发票，不是车架字段容量或扩大字段",
+      "wrong_pages": [
+        "concepts/delivery/frame-number-field-capacity-test-history.md"
+      ],
+      "input_redaction": "existing support redaction plus named customer replacement; no expansion from gold"
+    },
+    {
+      "id": "N14",
+      "split": "independent",
+      "input": {
+        "question": "Pricelist rules 修改规则的两个问题：1) 修改 based on 字段的 pricelist 时日志记录遗漏（预期所有规则修改都应有日志记录）；2) 每次规则修改即触发一次提示弹窗，预期应在整个 pricelist 保存时一次性触发提示弹窗。",
+        "keywords": [
+          "Pricelist rules",
+          "pricelist 修改规则调整",
+          "based on 字段 pricelist",
+          "日志记录遗漏",
+          "规则修改日志",
+          "提示弹窗",
+          "save 触发弹窗",
+          "pricelist save",
+          "price rule modification",
+          "logging missing",
+          "chatter log",
+          "warning popup",
+          "价目表规则",
+          "价目表保存弹窗",
+          "修改日志",
+          "一次性提示"
+        ],
+        "objects": [
+          "product.pricelist",
+          "product.pricelist.item",
+          "mail.message / 日志记录"
+        ],
+        "environments": [
+          "EU Odoo 17",
+          "UK Odoo 17",
+          "US Odoo 18"
+        ]
+      },
+      "input_source": {
+        "file": "wiki-qa-extract.2026-09-24.2.log",
+        "line": 24,
+        "actionRunId": "660bceb0-fa35-47f7-be20-2722add92367",
+        "kind": "saved_model_extraction"
+      },
+      "expected_pages": [],
+      "source_tickets": [],
+      "source_paths": [],
+      "gold_status": "verified_wrong_pair_no_verified_current_solution",
+      "help_type": "no_verified_current_solution",
+      "boundary": "价表规则改动日志／弹窗时机，不是价格保存后是否生效",
+      "wrong_pages": [
+        "concepts/sales/pricelist-save-after-change-history.md"
+      ],
+      "input_redaction": "existing support redaction plus named customer replacement; no expansion from gold"
+    },
+    {
+      "id": "N15",
+      "split": "independent",
+      "input": {
+        "question": "为什么 Product Status 标记为 \"STOP\" 的已停产 SKU（以 CGO600 Pro V0 为例）在 Odoo 中仍处于 active 状态？如果没有特殊原因保留，停用或归档这些 SKU 的前提条件（如清空剩余库存、Shopify 用途等）和预期时间线是什么？",
+        "keywords": [
+          "discontinued SKUs",
+          "Product Status STOP",
+          "deactivate SKU",
+          "archive SKU",
+          "归档 SKU",
+          "停用产品",
+          "active product in Odoo",
+          "CGO600 Pro V0",
+          "out of production",
+          "no restocking",
+          "remaining stock clearance",
+          "清空库存",
+          "deactivation timeline",
+          "prerequisites for archiving",
+          "product archiving"
+        ],
+        "objects": [
+          "product.product",
+          "SKU",
+          "Product Status",
+          "stock"
+        ],
+        "environments": [
+          "EU Odoo 17",
+          "UK Odoo 17",
+          "US Odoo 18"
+        ]
+      },
+      "input_source": {
+        "file": "wiki-qa-extract.2026-10-19.1.log",
+        "line": 18,
+        "actionRunId": "a46beedb-2f17-47d1-9ff3-93d4ab9aa7d0",
+        "kind": "saved_model_extraction"
+      },
+      "expected_pages": [],
+      "source_tickets": [],
+      "source_paths": [],
+      "gold_status": "verified_wrong_pair_no_verified_current_solution",
+      "help_type": "no_verified_current_solution",
+      "boundary": "STOP产品停用前提和时间，不是创建SKU的基础属性",
+      "wrong_pages": [
+        "concepts/inventory/us-sku-basic-attributes-check.md"
+      ],
+      "input_redaction": "existing support redaction plus named customer replacement; no expansion from gold"
+    },
+    {
+      "id": "N16",
+      "split": "independent",
+      "input": {
+        "question": "能否为 EU e-invoicing（与欧洲电子发票平台集成，参考 Odoo Peppol 集成）创建 feature request approval，并按 IT 需求评审流程评估开发资源与排期？",
+        "keywords": [
+          "feature request approval",
+          "e-invoicing",
+          "EU 电子发票",
+          "Europe E-invoicing platform",
+          "Peppol integration",
+          "Odoo 集成",
+          "IT development demand review process",
+          "IT需求评审",
+          "开发资源",
+          "开发排期",
+          "feature approval flow",
+          "ticket link"
+        ],
+        "objects": [
+          "account.move",
+          "Peppol",
+          "e-invoicing"
+        ],
+        "environments": [
+          "EU Odoo 17"
+        ]
+      },
+      "input_source": {
+        "file": "wiki-qa-extract.2026-10-19.1.log",
+        "line": 64,
+        "actionRunId": "a22f622d-2945-49d5-89a2-886e60eafc31",
+        "kind": "saved_model_extraction"
+      },
+      "expected_pages": [],
+      "source_tickets": [],
+      "source_paths": [],
+      "gold_status": "verified_wrong_pair_no_verified_current_solution",
+      "help_type": "no_verified_current_solution",
+      "boundary": "Peppol电子发票平台集成新需求，不是历史自动邮件开关",
+      "wrong_pages": [
+        "concepts/invoicing/uk-automatic-invoice-mail-history.md"
+      ],
+      "input_redaction": "existing support redaction plus named customer replacement; no expansion from gold"
+    }
+  ],
+  "note": "All v5 65 cases are development/regression. Twelve new incidents frozen before implementation; no reader queries run yet."
+}

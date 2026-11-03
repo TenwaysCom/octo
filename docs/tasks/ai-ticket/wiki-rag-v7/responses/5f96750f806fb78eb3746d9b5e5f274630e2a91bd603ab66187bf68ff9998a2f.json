@@ -1,0 +1,100 @@
+{
+  "caseId": "T18",
+  "group": "A",
+  "payloadHash": "5f96750f806fb78eb3746d9b5e5f274630e2a91bd603ab66187bf68ff9998a2f",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 1,
+      "relevance_score": 0.6686675548553467
+    },
+    {
+      "index": 0,
+      "relevance_score": 0.2846248745918274
+    },
+    {
+      "index": 5,
+      "relevance_score": 0.2372150719165802
+    },
+    {
+      "index": 13,
+      "relevance_score": 0.21109884977340698
+    },
+    {
+      "index": 4,
+      "relevance_score": 0.20613180100917816
+    }
+  ],
+  "durationMs": 430,
+  "querySha256": "281a35319e1f1c520d5f89198ebeaeafbbfb5ef6acff7425e191463273bc92dd",
+  "queryChars": 38,
+  "documentSha256": [
+    "1d803b151b3f7f077d798651fba521ac898a11817f831c3e34f7864272761dde",
+    "257034e859386210731e85c11f4a1c13ef03184e89c4d16a338d7640ae895214",
+    "5b80bd751d6876d016475303bf348b06dd4584facd4c33145b0d07d120eb6225",
+    "12e3f5d658be681a3b76838ccea4fd8924f490b73316e94df009087a508e727d",
+    "9b2c03fc02d59c1d56e8a5f7d0dcc4105ccaec1a479b11ec1df6f5ba44ad655f",
+    "3d1bd1e985c5543fd74eead6581e732346a62b30dca61d2661b7a4e3cacaca1b",
+    "8a323823dc7d5b11b15ce0ecfdf63349e041993da9e683bed30623336964d683",
+    "42809f9346b809343fbc4b9b34570061a579c86ad0a21f333f4d9cc0814b4764",
+    "8c58413c2690727f134774eca9884e7f2605ae63ad36334ff8b0f94dcbdcfe05",
+    "192feceffbf9b1dfd5e4abf3e9c41c6542c0ccf86cd8a8919b6e5fcf1ab83b31",
+    "8ad5c91358d3cf196b51ae4a4c86c5d75edb579f5bd286d69740ad12a290e94f",
+    "7d7ea5e02f260941fc1f237830b599f71d6f4d86518c446c224e49bd71b687f2",
+    "1cf7b0d638b3a00d6f8dfe23f1b626afbdbcdeac3508d9af115d30526b07b425",
+    "818304b660ca3a8bbf162162100f7c5285c4561e6bb4d81db85a0fb9d7fa97e4",
+    "eff45f42c9b9fed44e9ae017d73253791a808ca7f5210f6f287bfad99334293c",
+    "601ff07b0032474dd63c7a0d4cb057e8498b6db7d82f8714ff79c41c83e575f5",
+    "f49d525a43301228fbb1275791ccf970fa9c40de5be0756fd216a655f41c71fc",
+    "f5b7f54fc9e57f839c776cd6f968c99547b20f16c4d0c14cb6f8494f25cd64ef",
+    "e34ec94a40cffa6b7e5405acb412712b363db0cc1ce2e018f190695ae4076f56",
+    "e75b44df8e3c74cb70e92570215acd8187d1a31305d5f4037240ee3b42684c5b"
+  ],
+  "documentChars": [
+    2482,
+    558,
+    737,
+    789,
+    1691,
+    2425,
+    930,
+    1180,
+    911,
+    366,
+    162,
+    1803,
+    532,
+    1368,
+    1808,
+    1729,
+    564,
+    514,
+    958,
+    699
+  ],
+  "candidatePaths": [
+    "docs/ontology/objects/business-approval.md",
+    "docs/llm-wiki/concepts/faq/approval-flow-config-change-checklist.md",
+    "docs/ontology/processes/standalone-approval-request.md",
+    "docs/ontology/processes/internal-stock-transfer.md",
+    "docs/llm-wiki/concepts/approvals/approval-policy-change-checklist.md",
+    "docs/ontology/objects/warehouse-operation.md",
+    "docs/ontology/processes/budget-contract-payment-approval.md",
+    "docs/ontology/processes/embedded-business-record-approval.md",
+    "docs/ontology/processes/other-outbound-execution.md",
+    "docs/llm-wiki/concepts/faq/approval-stuck-and-submit-failure-disposition.md",
+    "docs/llm-wiki/concepts/invoicing/document-followers-mail-history.md",
+    "docs/ontology/objects/sales-commercial-terms.md",
+    "docs/llm-wiki/concepts/approvals/payroll-chatter-log-history.md",
+    "docs/ontology/processes/warehouse-operation-approval.md",
+    "docs/llm-wiki/concepts/approvals/approval-submission-and-progress-triage.md",
+    "docs/llm-wiki/concepts/approvals/inflight-approval-owner-change-history.md",
+    "docs/ontology/processes/sales-refund-authorization.md",
+    "docs/ontology/processes/sales-terms-exception-approval.md",
+    "docs/ontology/processes/user-account-onboarding-and-offboarding.md",
+    "docs/llm-wiki/concepts/approvals/approval-status-button-mapping-history.md"
+  ],
+  "queryCAvailable": true
+}

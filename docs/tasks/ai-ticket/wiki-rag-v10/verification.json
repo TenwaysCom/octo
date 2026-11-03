@@ -1,0 +1,22 @@
+{
+  "status": "PASS",
+  "stage": "offline development only",
+  "frozenCases": 105,
+  "policyQualificationsRechecked": 1470,
+  "originalSourceAndEvidenceUnchanged": true,
+  "previousExperimentsUnchanged": true,
+  "originalAssociationG": "disabled",
+  "candidateBaselineEquivalence": "105/105 actual-service comparisons passed; r1 cached outputs byte-identical",
+  "unitAndMockTests": {
+    "files": 7,
+    "tests": 167,
+    "passed": true,
+    "includesNewBoundaryTests": 20
+  },
+  "isolatedBuild": "PASS",
+  "experimentScriptTypecheck": "PASS",
+  "realHttpRequests": 0,
+  "liveVerification": "NOT RUN: automatic approval rejected external transmission; no bypass attempted",
+  "finalAnswerModel": "NOT RUN",
+  "deployed": false
+}

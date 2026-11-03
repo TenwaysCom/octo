@@ -1,0 +1,15 @@
+--- a/docs/llm-wiki/concepts/invoicing/vendor-bill-confirm-stock-move-singleton-investigation.md
++++ b/docs/llm-wiki/concepts/invoicing/vendor-bill-confirm-stock-move-singleton-investigation.md
+@@ -43,9 +43,9 @@
+ 
+ ## 各票处理与限制
+ 
+-- [1935](../../raw/transcripts/ticket-1935.2026-10-21-d75c39020f26.md)：M3／M32（7月31日／8月4日UTC）有完整错误。UK 历史处理中曾临时调整日期，8月4日08:04用户称 Confirm 完成；后续还讨论月度固定汇率，9月28日仍在确认期末重估口径，不能把旧日期建议或早期汇率说法当当前规则。
+-- [2118](../../raw/transcripts/ticket-2118.2026-10-21-afb6098bcad0.md)：M1／M7／M12（8月28日、9月1日、9月2日UTC）同签名。9月2日建议重试后仍错；9月3日支持明确为 SVL 与 Bill 价差而非汇率，之后报告个别数据处理，用户确认可操作。没有具体修复数据、代码或永久修复验证。
+-- [2370](../../raw/transcripts/ticket-2370.2026-10-21-722ae7f23be9.md)：M1（10月20日06:21 UTC）及随后两条消息记录 Vendor Bill Confirm 报错和请求排查；本次三条消息未给出诊断、修复或恢复结果。当前实例与版本待核对。
++- [1935](../../raw/transcripts/ticket-1935.2026-10-21-d75c39020f26.md)： 原文定位：`ValueError: Expected singleton: stock.move()`、`_tw_purchase_original_currency_unit_price`。M3／M32（7月31日／8月4日UTC）有完整错误。UK 历史处理中曾临时调整日期，8月4日08:04用户称 Confirm 完成；后续还讨论月度固定汇率，9月28日仍在确认期末重估口径，不能把旧日期建议或早期汇率说法当当前规则。
++- [2118](../../raw/transcripts/ticket-2118.2026-10-21-afb6098bcad0.md)： 原文定位：`ValueError: Expected singleton: stock.move()`、`_tw_purchase_original_currency_unit_price`。M1／M7／M12（8月28日、9月1日、9月2日UTC）同签名。9月2日建议重试后仍错；9月3日支持明确为 SVL 与 Bill 价差而非汇率，之后报告个别数据处理，用户确认可操作。没有具体修复数据、代码或永久修复验证。
++- [2370](../../raw/transcripts/ticket-2370.2026-10-21-722ae7f23be9.md)： 原文定位：`ValueError: Expected singleton: stock.move()`、`_tw_purchase_original_currency_unit_price`。M1（10月20日06:21 UTC）及随后两条消息记录 Vendor Bill Confirm 报错和请求排查；本次三条消息未给出诊断、修复或恢复结果。当前实例与版本待核对。
+ 
+ ## 下一步取证与适用边界
+ 

@@ -1,0 +1,81 @@
+{
+  "id": "E8-N2",
+  "question": "US复制凭证为什么把原来的Review时间也复制过来了？",
+  "correctRankedPage": "concepts/accounting/journal-review-copy-history.md",
+  "rank": 1,
+  "score": 0.9263108372688293,
+  "correctSourceTicket": "1961",
+  "unrelatedAddedSourceTicket": "1488",
+  "A": [
+    {
+      "path": "concepts/accounting/journal-review-copy-history.md",
+      "knowledgeType": "support_wiki",
+      "title": "复制或修改凭证后 Review 信息为什么仍保留？",
+      "contentChars": 551,
+      "contentSha256": "ab347545ee311e10b8ad92d7a52e159be3541ae9a49b164c751bfdd9f6c435a9",
+      "primaryChars": 2049,
+      "sourcePaths": [
+        "raw/transcripts/ticket-1961.2026-09-11-78705682c139.md"
+      ],
+      "primarySha256": [
+        "6fa684e7c9e58afdfb02f05bf335d4b3257950dbb0991a3db8db2aee1ee55ace"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提",
+        "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据"
+      ]
+    }
+  ],
+  "B": [
+    {
+      "path": "concepts/accounting/journal-review-copy-history.md",
+      "knowledgeType": "support_wiki",
+      "title": "复制或修改凭证后 Review 信息为什么仍保留？",
+      "contentChars": 551,
+      "contentSha256": "ab347545ee311e10b8ad92d7a52e159be3541ae9a49b164c751bfdd9f6c435a9",
+      "primaryChars": 2873,
+      "sourcePaths": [
+        "raw/transcripts/ticket-1961.2026-09-11-78705682c139.md",
+        "raw/transcripts/ticket-1488.2026-09-11-c6a6f4340208.md"
+      ],
+      "primarySha256": [
+        "6fa684e7c9e58afdfb02f05bf335d4b3257950dbb0991a3db8db2aee1ee55ace",
+        "ab313a3aa1d679371950903addbd6ed557513e3d2de350ecda3474d94af54fc5"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提"
+      ]
+    }
+  ],
+  "sourceProof": {
+    "source": "raw/transcripts/ticket-1488.2026-09-11-c6a6f4340208.md",
+    "sourceSha256": "c4a23ff93073d7dcfaf4c5c0601f6d874d05ad89693f33e9fe8ada347f000524",
+    "unitSha256": "ab313a3aa1d679371950903addbd6ed557513e3d2de350ecda3474d94af54fc5",
+    "chars": 824,
+    "matchedTerms": [
+      "凭证"
+    ],
+    "hasReviewText": false,
+    "hasBankLineText": true,
+    "sourceAlreadyLinkedByWiki": true
+  },
+  "requestedOperation": "复制凭证后Review信息未清除",
+  "addedSourceOperation": "Update Bank Line带出其他凭证内容／大额数字及费用穿透",
+  "classification": "new unrelated primary unit within an already correctly selected page",
+  "notChanged": [
+    "original page gold label",
+    "original specified wrong-page label",
+    "BGE input/score/threshold/page selection"
+  ],
+  "mechanism": "The Wiki already associates both incidents; lexical primary selection matches only 凭证. Raising the shared allocation admits the previously omitted 824-character source unit.",
+  "articlePairVersusSourcePair": "No new article was selected, but a new question-to-primary-source mismatch was introduced. Article-level zero cannot certify source-level relevance.",
+  "answerGenerated": false
+}

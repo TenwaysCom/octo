@@ -1,0 +1,56 @@
+[
+  {
+    "case": "P01",
+    "path": "raw/transcripts/ticket-2311.md",
+    "sha256": "b3274d0a60a50e5785be2e9ac02a17a3dea2a33662b2ff9bf2def7b00c84f4e2",
+    "latin_chars": 726,
+    "han_chars": 176,
+    "boundary": "负预留单笔处理报告，无方法、数值对账或用户恢复验收；不得清零",
+    "note": "mixed-language source; character counts do not establish a successful cross-language fallback"
+  },
+  {
+    "case": "P02",
+    "path": "raw/transcripts/ticket-2354.md",
+    "sha256": "16f995fcefe35e13a3fc71fbbe36a878d9ac2a9c41c096db16b4c0089106ca3d",
+    "latin_chars": 3880,
+    "han_chars": 210,
+    "boundary": "Other Customer历史建议以Operations无异议为条件，未证实实际打标或授权",
+    "note": "mixed-language source; character counts do not establish a successful cross-language fallback"
+  },
+  {
+    "case": "P03",
+    "path": "raw/transcripts/ticket-2342.md",
+    "sha256": "a5353392efdcb7f69aa945ce0bd1b56488aa23c051ec18f7a040fb55d1916fc9",
+    "latin_chars": 1765,
+    "han_chars": 508,
+    "boundary": "客户调整报告与SO修改、批量刷新分开，后两者未验收",
+    "note": "mixed-language source; character counts do not establish a successful cross-language fallback"
+  },
+  {
+    "case": "P04",
+    "path": "raw/transcripts/ticket-2343.2026-10-19-1b3130d6bb44.md",
+    "sha256": "28f85b42ceeb27e17ebddf5e11898e7b25130c4e580a08c36bba822757f41f7b",
+    "latin_chars": 1273,
+    "han_chars": 242,
+    "boundary": "已匹配项与跨Partner样例解释历史差异，不能建立通用AR公式或当前核销正确结论",
+    "note": "mixed-language source; character counts do not establish a successful cross-language fallback"
+  },
+  {
+    "case": "P05",
+    "path": "raw/transcripts/ticket-2246.md",
+    "sha256": "9a69ca3640e57abfd5f1cd8d0eb3e73df73ca20e9990c467a14b78a518c0b669",
+    "latin_chars": 1477,
+    "han_chars": 372,
+    "boundary": "支持指出多余分录，成因和最终余额未知，不提供通用取消／反核销授权",
+    "note": "mixed-language source; character counts do not establish a successful cross-language fallback"
+  },
+  {
+    "case": "P06",
+    "path": "raw/transcripts/ticket-2265.md",
+    "sha256": "7e45b4228e3a8ac25e60604d3e0431452c46a1b4025b1c21f1f7e1ab9aca8251",
+    "latin_chars": 2041,
+    "han_chars": 666,
+    "boundary": "本端已发为支持报告，末尾仍问联系人类型，未证明个人类型无效或对端已接收",
+    "note": "mixed-language source; character counts do not establish a successful cross-language fallback"
+  }
+]

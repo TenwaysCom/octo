@@ -1,0 +1,100 @@
+{
+  "caseId": "V06",
+  "group": "A",
+  "payloadHash": "fbdebf1dc106d2907fc93b8bf34bd2ab78c3d0609c7a99c3135e803e53b2a181",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 0,
+      "relevance_score": 0.9321982860565186
+    },
+    {
+      "index": 18,
+      "relevance_score": 0.007684250827878714
+    },
+    {
+      "index": 14,
+      "relevance_score": 0.002193212043493986
+    },
+    {
+      "index": 6,
+      "relevance_score": 0.0020570955239236355
+    },
+    {
+      "index": 10,
+      "relevance_score": 0.0010262868599966168
+    }
+  ],
+  "durationMs": 300,
+  "querySha256": "c8eb7a9b7c831f3cc050d3670260bfbb2ac646b440f0e0b2d9215409cdd18ff4",
+  "queryChars": 38,
+  "documentSha256": [
+    "bbc5b47ff3842d19c2d4b50d9c661c6a469db106a22341684c4b735881c3ca8d",
+    "c1cac13bd0e2aa21bdfcba149e2645ae1be03b278ee24481ce1cf30b294ca02d",
+    "66d345e5090c212c3a89a6b624a58439680175c56c8b8b41fd33d643d27464a3",
+    "8ab7260f1229017207727d1aeb4e18be199e0c6bf5bc884f6c8e2f57bfb6f8d9",
+    "1ba07da5425d95f0ea6825d87cecab2658790baa114ebdfca6037088a36e3f47",
+    "778c13f69bb53ffe0bfc3b5c2c0251d316ae7156803d61188f515c197cc20fa6",
+    "dcca6343bfa65599a113e14169c7502cf69a01f7adeba3d110a248a298046a44",
+    "7fb8ed6d0c1cd8149387680dea79c937cbc478c75d52caaf505925f3fdcdbc6a",
+    "768fadb0ef96f2e25d4322bb09178907cf1b41bd2dc1ea95487da65464cb1f81",
+    "41122d571532816d3973df75a0d10530f76e894d0bc92847d02ade7bcbd13292",
+    "6e388dc91fcf5e2159fa8ea7c6b82a7e951f742e64f1cd09a2edcd79cb923f22",
+    "581fa5b47d97fcfed192f81ea5e11eec5558d74e4f540bdddd79d3070d63cbf4",
+    "240852571b754c76253c84da7352c2c1d3b6832f00910458ecbf420948073520",
+    "698efcdd0074be36c7e9591930c947d1d6ee3f785a7b88016bb148642ddc9696",
+    "0439643ab82950accf98ea32d6d46ed60653cb7d96f6779525b5ac1d90a4dfde",
+    "ac12ab7bc94be4e2e4e8cc3ec5438742239975ee44f65086c28bd839183112f6",
+    "2406d9427d2d72da9ee103135e559bdb36a4712c15fef36665f81783dc561ad4",
+    "ee21b1c654a7be275880da3d94e45bad8021849461b92649ce8cd9feb1f88b07",
+    "ec90eb58ae8e12f45611bc405dfb173627354f5becfc406e15b5dff196cea918",
+    "fbb81fba165ed990bd173164274edbf5e0d426f3b412f81ae7b9a825eec3967a"
+  ],
+  "documentChars": [
+    812,
+    302,
+    131,
+    166,
+    617,
+    662,
+    335,
+    137,
+    730,
+    183,
+    182,
+    216,
+    171,
+    172,
+    194,
+    171,
+    193,
+    216,
+    1162,
+    149
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/workforce/appraisal-scoring-history.md",
+    "docs/llm-wiki/concepts/delivery/westerman-booked-tracking-timing-history.md",
+    "docs/llm-wiki/concepts/inventory/free-to-use-location-scope-history.md",
+    "docs/llm-wiki/concepts/workforce/duplicate-department-retirement-history.md",
+    "docs/llm-wiki/concepts/sales/prepayment-credit-check-amount-calculation.md",
+    "docs/llm-wiki/concepts/inventory/reservation-residual-corrections-history.md",
+    "docs/llm-wiki/concepts/reporting/gross-profit-quantity-sign-history.md",
+    "docs/llm-wiki/concepts/sales/contact-overview-grouped-product-details.md",
+    "docs/llm-wiki/concepts/sales/shopify-exchanged-product-discount-amount-history.md",
+    "docs/llm-wiki/concepts/accounting/audit-journal-adje-history.md",
+    "docs/llm-wiki/concepts/accounting/bank-reconciliation-latency-history.md",
+    "docs/llm-wiki/concepts/accounting/cash-flow-config-timing-history.md",
+    "docs/llm-wiki/concepts/accounting/expense-category-unit-price-history.md",
+    "docs/llm-wiki/concepts/accounting/journal-review-copy-history.md",
+    "docs/llm-wiki/concepts/accounting/journal-review-latency-history.md",
+    "docs/llm-wiki/concepts/accounting/other-outbound-account-followup-history.md",
+    "docs/llm-wiki/concepts/accounting/resell-transfer-valuation-history.md",
+    "docs/llm-wiki/concepts/accounting/uk-20030-extra-entry-reconciliation-history.md",
+    "docs/llm-wiki/concepts/approvals/approval-submission-and-progress-triage.md",
+    "docs/llm-wiki/concepts/approvals/cancelled-record-approval-todo.md"
+  ],
+  "queryCAvailable": false
+}

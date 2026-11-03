@@ -1,0 +1,20 @@
+{
+  "checks": [
+    {
+      "id": "D02",
+      "top5_same": false,
+      "returned20": 20,
+      "returned5": 5,
+      "top_score": 0.6937901377677917
+    },
+    {
+      "id": "Q31",
+      "top5_same": true,
+      "returned20": 20,
+      "returned5": 5,
+      "top_score": 0.164445698261261
+    }
+  ],
+  "mainTopN": 5,
+  "reason": "Use full scores only if Top5 exactly identical in the frozen developer probes"
+}

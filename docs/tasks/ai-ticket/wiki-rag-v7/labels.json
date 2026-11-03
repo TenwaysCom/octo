@@ -1,0 +1,3569 @@
+{
+  "T01": {
+    "type": "positive",
+    "current_source": 1642,
+    "boundary": "历史Sales Team归属与入口可见性；不证明当前同因或授权改团队",
+    "candidate_labels": [
+      {
+        "path": "concepts/access/sales-team-order-visibility-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/access/sales-team-order-visibility-history.md",
+        "grade": 2,
+        "reason": "已核对的同一历史事件或对应字段答复；保留原文与适用限制",
+        "page_sha256": "4a3e96f8979d0f08453d3751597ad88cb4cceaca78cb0907f937681c95c457b0"
+      },
+      {
+        "path": "concepts/integration/turbo-customer-sync-abort-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/integration/turbo-customer-sync-abort-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "c7809bf29bc638fa679392263c1ec8215da988f9088902261c0e7e9c509ad3e8"
+      },
+      {
+        "path": "concepts/integration/turbo-customer-sync-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/integration/turbo-customer-sync-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "c38368fe8084259b179eea2d2488245e0bd2ab91c2333c00490aab70bc7c666b"
+      },
+      {
+        "path": "concepts/sales/product-selection-sku-check.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/product-selection-sku-check.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "afbc5bed6fe60ab91e823d65b1c804d4892257546e76478322b7a93fb90d1370"
+      },
+      {
+        "path": "concepts/platform/database-expiry-warning-triage.md",
+        "sourcePath": "docs/llm-wiki/concepts/platform/database-expiry-warning-triage.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "ea876c7b4fd5110adfab81a7e3acb2e08121630008714d0c01e8958c91dfbc5f"
+      },
+      {
+        "path": "concepts/sales/contact-overview-create-sales-order.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/contact-overview-create-sales-order.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "d98effac36b91ea71d1474bc6a3a337b251d7ca9e4ce7c08d205b84b9e43a46c"
+      },
+      {
+        "path": "concepts/reporting/sales-visibility-filter-change-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/reporting/sales-visibility-filter-change-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "5a8626d9153982dcacd7d015855c7197ff73c324c0c9a719c728d9707614ec1b"
+      },
+      {
+        "path": "concepts/sales/contact-tag-change-verification.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/contact-tag-change-verification.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "a2631cf36a7b09a8db8ddfec9b09e0590c38045a8edc605aee8953433d977250"
+      },
+      {
+        "path": "concepts/sales/uk-shopify-empty-salesperson-default-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/uk-shopify-empty-salesperson-default-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "c706210b95e2111215b7e44c2ffb510154a1f0e3ca716611c1df33f89d551514"
+      },
+      {
+        "path": "concepts/faq/contact-backorder-preorder-overview.md",
+        "sourcePath": "docs/llm-wiki/concepts/faq/contact-backorder-preorder-overview.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "0467ea545b41e74fa10ff4e6be19ba86ceab9e958b271bf0f5656d2945885e6f"
+      },
+      {
+        "path": "concepts/sales/zero-quantity-concurrent-order-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/zero-quantity-concurrent-order-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "7897b46fe59f8f82517487ddb65c902db68d2dd7a55b7a8e65c0a6ae4c702e75"
+      },
+      {
+        "path": "concepts/portal/portal-account-parent-company-invoices.md",
+        "sourcePath": "docs/llm-wiki/concepts/portal/portal-account-parent-company-invoices.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "b5b5c9047be87f007140c3259a87bfa42531a8d55d419ac04a813f5eb15e8d87"
+      },
+      {
+        "path": "concepts/payment/turbo-overdue-after-payment-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/payment/turbo-overdue-after-payment-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "fae3059393468be057403799f3f1c2f7c804326cba754442f67761ff404d04db"
+      },
+      {
+        "path": "concepts/portal/turbo-app-testflight-build-runtime-config-lark-1708.md",
+        "sourcePath": "docs/llm-wiki/concepts/portal/turbo-app-testflight-build-runtime-config-lark-1708.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "0ba59de3375b720e7799d71ae6c7b8fae1688dc6f9af6a84230b774e11d3d02a"
+      },
+      {
+        "path": "concepts/invoicing/invoice-email-follows-sales-order-invoice-address.md",
+        "sourcePath": "docs/llm-wiki/concepts/invoicing/invoice-email-follows-sales-order-invoice-address.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "4bf03e0bef539ac5c61d00a03c0667614ebd73d3959d13d969942e0f817d0f9f"
+      },
+      {
+        "path": "concepts/invoicing/zero-order-shopify-rate-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/invoicing/zero-order-shopify-rate-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "bf1b7a6dceeba3a234fd12240d3f8c13799f600e5e94b0ed7bc83952841d1898"
+      },
+      {
+        "path": "concepts/payment/invoice-auto-send-sales-team-historical-assignment.md",
+        "sourcePath": "docs/llm-wiki/concepts/payment/invoice-auto-send-sales-team-historical-assignment.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "3f30372a09e2ede367bb925e85f2da8e158acbf355b061b466dc66817503d91d"
+      },
+      {
+        "path": "concepts/sales/pricelist-discount-not-applied-or-price-mismatch.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/pricelist-discount-not-applied-or-price-mismatch.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "6d3f8add2498e3a39175adf291ea34915e3879e2aa2896549c7f166b4dee7781"
+      },
+      {
+        "path": "concepts/sales/so-flow-preorder-backorder-cancel-rules.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/so-flow-preorder-backorder-cancel-rules.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "636a44e400f8327b1858a8d81b410c4e6991fcb2e74b228e658c7e5f22667cfa"
+      },
+      {
+        "path": "concepts/workforce/fleet-instance-visibility-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/workforce/fleet-instance-visibility-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "227a88f1f5f5efaa797111fa4ac4067d54e922bcc9dac5917f9d36ecf6c859f0"
+      }
+    ],
+    "scope": "graded for this question use, not a claim the whole page is false or knowledge base has no related background"
+  },
+  "T02": {
+    "type": "positive",
+    "current_source": 1335,
+    "boundary": "1335仅UAT测试；锁期、净值与正式账簿验收未闭环",
+    "candidate_labels": [
+      {
+        "path": "objects/fixed-asset.md",
+        "sourcePath": "docs/ontology/objects/fixed-asset.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "4baa6870dbeaadc07cb6591f6bae1038c94b2997835eb63783bb753a6929e140"
+      },
+      {
+        "path": "concepts/accounting/asset-value-depreciation-change-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/accounting/asset-value-depreciation-change-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "c1e28460fe38a61dc78dba67c5d221c87816a6674d07cd09b1b2e2dd75a2d6e4"
+      },
+      {
+        "path": "concepts/faq/entry-field-edit-rules.md",
+        "sourcePath": "docs/llm-wiki/concepts/faq/entry-field-edit-rules.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "e2802704dde19d69a005ea8f22de6b6b81ded8a7e4018c25389c21fc5e7e426f"
+      },
+      {
+        "path": "processes/depreciating-fixed-asset-amendment.md",
+        "sourcePath": "docs/ontology/processes/depreciating-fixed-asset-amendment.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "eeef74a6097e019d47a5ea62ba21d9c641762cc12aa7c2c63886903de3fb8cec"
+      },
+      {
+        "path": "concepts/accounting/asset-re-evaluate-original-value.md",
+        "sourcePath": "docs/llm-wiki/concepts/accounting/asset-re-evaluate-original-value.md",
+        "grade": 2,
+        "reason": "已核对的同一历史事件或对应字段答复；保留原文与适用限制",
+        "page_sha256": "c8e3092769f32af84243ad36d27c27bda545038c206356ba88a96ce8ec11946f"
+      },
+      {
+        "path": "concepts/accounting/asset-list-residual-value-fields-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/accounting/asset-list-residual-value-fields-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "2763c5bc6148dadef7218ae5482fb30b3a1e8d9e61374ff34be10afdce0e535d"
+      },
+      {
+        "path": "processes/fixed-asset-acquisition-and-depreciation.md",
+        "sourcePath": "docs/ontology/processes/fixed-asset-acquisition-and-depreciation.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "e1c09cd3507bc89ad7788991365459b72d142134b9f441f2b16b74ff309482ea"
+      },
+      {
+        "path": "concepts/inventory/purchase-return-unit-price-zero.md",
+        "sourcePath": "docs/llm-wiki/concepts/inventory/purchase-return-unit-price-zero.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "bf3770de477896c8ea969d92a1ce894d9d0566c31f32bc52a40bf6c785462ec8"
+      },
+      {
+        "path": "objects/sales-order-amendment.md",
+        "sourcePath": "docs/ontology/objects/sales-order-amendment.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "4f12cdef85dc6ee3625fe5e9c64038b6a1d757a6e0c2c7f298ac3b2c24542d7d"
+      },
+      {
+        "path": "processes/unshipped-sales-order-amendment.md",
+        "sourcePath": "docs/ontology/processes/unshipped-sales-order-amendment.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "e4fcddcae8ab7669849c3b345176ccec778d8032dd1801d043c26a45c5e9605f"
+      },
+      {
+        "path": "concepts/accounting/accounting-change-navigation.md",
+        "sourcePath": "docs/llm-wiki/concepts/accounting/accounting-change-navigation.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "da6dfa8ffa572e0d9cc6abd7606bb08b68a122dfc8f5a9dae3f35e67d35cee8d"
+      },
+      {
+        "path": "concepts/delivery/warehouse-document-amendment-checklist.md",
+        "sourcePath": "docs/llm-wiki/concepts/delivery/warehouse-document-amendment-checklist.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "135ec2c471f590d8bfe052d249984c328ce7b7afa1d96cff95182a0f338ca6ee"
+      },
+      {
+        "path": "concepts/inventory/sku-location-change-confirmation.md",
+        "sourcePath": "docs/llm-wiki/concepts/inventory/sku-location-change-confirmation.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "587b674ff48c329e4ce57c8a3ba43b2d0785a37f9be9ebafd8f5ce68b12b2830"
+      },
+      {
+        "path": "concepts/sales/contact-tag-change-verification.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/contact-tag-change-verification.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "a2631cf36a7b09a8db8ddfec9b09e0590c38045a8edc605aee8953433d977250"
+      },
+      {
+        "path": "objects/preorder-backorder.md",
+        "sourcePath": "docs/ontology/objects/preorder-backorder.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "df5cf1a6efe95970a6b6a97644f9acfffccb4ebf562128b9e316734e9d233900"
+      },
+      {
+        "path": "objects/journal-item-control.md",
+        "sourcePath": "docs/ontology/objects/journal-item-control.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "baf4a5f92a6c5fbb65df132e9a6466cbbda7bf3db95477f3700c3450b849c6f4"
+      },
+      {
+        "path": "processes/journal-item-dimension-amendment.md",
+        "sourcePath": "docs/ontology/processes/journal-item-dimension-amendment.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "94e3413eaa8d9eb55fb2c27336a46a90d25c8b598d2776a9f5856a5af9cc229e"
+      },
+      {
+        "path": "concepts/access/permission-request-and-effective-access.md",
+        "sourcePath": "docs/llm-wiki/concepts/access/permission-request-and-effective-access.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "f1e7a80e252e5778fec309555f6fbdf7ed7e46a9b6967aca69622f763b56ef4f"
+      },
+      {
+        "path": "concepts/accounting/asset-bill-warning-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/accounting/asset-bill-warning-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "298417d946260ae2d48b6fcaa35fd0eee7fb8a80bc0662bf55d7124909a8eccc"
+      },
+      {
+        "path": "concepts/accounting/historical-entry-mandatory-fields-reverse.md",
+        "sourcePath": "docs/llm-wiki/concepts/accounting/historical-entry-mandatory-fields-reverse.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "9db8aa094f720832dbc1790851a3cb8f06c43ad85c3695e0a9f10730916bc307"
+      }
+    ],
+    "scope": "graded for this question use, not a claim the whole page is false or knowledge base has no related background"
+  },
+  "T03": {
+    "type": "positive",
+    "current_source": 1931,
+    "boundary": "局部调整报告，无最终根因或性能验收",
+    "candidate_labels": [
+      {
+        "path": "concepts/accounting/bank-reconciliation-latency-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/accounting/bank-reconciliation-latency-history.md",
+        "grade": 2,
+        "reason": "已核对的同一历史事件或对应字段答复；保留原文与适用限制",
+        "page_sha256": "b1921c02b98fee3439e62a14492d4a58a005d2a62391a48d2971827c196a9b7c"
+      },
+      {
+        "path": "concepts/payment/bank-reconciliation-differences.md",
+        "sourcePath": "docs/llm-wiki/concepts/payment/bank-reconciliation-differences.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "04621f7a310d51591d43b5425d75e6a81164acca962593dc808adc2073c0617c"
+      },
+      {
+        "path": "concepts/reporting/financial-report-opening-investigation.md",
+        "sourcePath": "docs/llm-wiki/concepts/reporting/financial-report-opening-investigation.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "0f7fea6fe52e63a4b37bf230f665c95fc4bc052ce42b28fe8f9a400744e5b3e8"
+      },
+      {
+        "path": "processes/sales-receipt-and-reconciliation.md",
+        "sourcePath": "docs/ontology/processes/sales-receipt-and-reconciliation.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "91d284fee3a8d26f5d9ca3fde006641c0ab440cedd28495b95aaa3822e557023"
+      },
+      {
+        "path": "objects/sales-receipt-reconciliation.md",
+        "sourcePath": "docs/ontology/objects/sales-receipt-reconciliation.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "06482498a929e07a5a4af00443d4c5a80923486a8392a7dcf6f24a4cbd08576e"
+      },
+      {
+        "path": "processes/foreign-currency-sales-receipt-reconciliation.md",
+        "sourcePath": "docs/ontology/processes/foreign-currency-sales-receipt-reconciliation.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "3f18adfe40b81d33ea4175cd926ef874ce086d77925ef6c8131a021b951dc9bb"
+      },
+      {
+        "path": "processes/purchase-payment-and-reconciliation.md",
+        "sourcePath": "docs/ontology/processes/purchase-payment-and-reconciliation.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "a944acb4d09604ca0e578a470b73bc8d5861fec8abe3d612b889c1c5c26a4793"
+      },
+      {
+        "path": "concepts/accounting/cash-flow-fx-keep-first-account.md",
+        "sourcePath": "docs/llm-wiki/concepts/accounting/cash-flow-fx-keep-first-account.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "cb604b0ca87680d9277690aa9e0acb81c9f5b459bad63bea0dca7a0e9f37752c"
+      },
+      {
+        "path": "processes/exchange-difference-reconciliation-and-revaluation.md",
+        "sourcePath": "docs/ontology/processes/exchange-difference-reconciliation-and-revaluation.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "b538d9c19bc01a1d08a3d75d3acd63b2990ec32ec6c2b2550fc0d53b3c23d1c7"
+      },
+      {
+        "path": "processes/journal-item-reconciliation.md",
+        "sourcePath": "docs/ontology/processes/journal-item-reconciliation.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "9a6e1801bae91cabd187d7590e8b92b6f8155a4733ae064b2a4a678009b16a67"
+      },
+      {
+        "path": "processes/sales-prepayment-settlement.md",
+        "sourcePath": "docs/ontology/processes/sales-prepayment-settlement.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "6f46dbe5d068951d582644c1acc86166d26cfd832af2d9039f801ef5ad846551"
+      },
+      {
+        "path": "concepts/access/permission-request-and-effective-access.md",
+        "sourcePath": "docs/llm-wiki/concepts/access/permission-request-and-effective-access.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "f1e7a80e252e5778fec309555f6fbdf7ed7e46a9b6967aca69622f763b56ef4f"
+      },
+      {
+        "path": "concepts/accounting/cancelled-journal-sequence-date-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/accounting/cancelled-journal-sequence-date-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "e4a60884eb14fb52278a935b1a66261e97e1b6f2091e068ee66894a876e28a21"
+      },
+      {
+        "path": "concepts/accounting/journal-required-dimensions-and-country.md",
+        "sourcePath": "docs/llm-wiki/concepts/accounting/journal-required-dimensions-and-country.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "6f5fccd67b4bd37f0ee43b9d783e035d9012386e8820014007105aa81fd7e6ee"
+      },
+      {
+        "path": "concepts/accounting/legacy-account-and-reversal-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/accounting/legacy-account-and-reversal-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "a568ab3cd177c735ef6925040f7716e03afd6c3a556f15833118c5eca46fa0d5"
+      },
+      {
+        "path": "concepts/inventory/return-grade-conversion-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/inventory/return-grade-conversion-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "08184ca5d1871d2e219efd68170a6eca111a33d73b71b0559aaa71310dfd5bd8"
+      },
+      {
+        "path": "concepts/inventory/track-inventory-missing-stock-valuation.md",
+        "sourcePath": "docs/llm-wiki/concepts/inventory/track-inventory-missing-stock-valuation.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "47c48cc14110eb697a1685576f7dc3dea32d621627a1dc187320aee33301164f"
+      },
+      {
+        "path": "concepts/payment/duplicate-bank-account-match-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/payment/duplicate-bank-account-match-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "50fa6905843ddffea0ad0c10f6f7b725508fa9e7cd7acc6f4f0ec6b93921827c"
+      },
+      {
+        "path": "concepts/portal/portal-email-and-archived-account-check.md",
+        "sourcePath": "docs/llm-wiki/concepts/portal/portal-email-and-archived-account-check.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "f3530365ca716630dd57ea2f0047bffcff2d2e5e39384fec95fac7f9340f7105"
+      },
+      {
+        "path": "concepts/purchase/bill-bank-send-money-config-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/purchase/bill-bank-send-money-config-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "eeb76e63e152bfc77a038f7e0dcd75bbef5e64420a7f4d02ec19e51ef5ca225c"
+      }
+    ],
+    "scope": "graded for this question use, not a claim the whole page is false or knowledge base has no related background"
+  },
+  "T04": {
+    "type": "positive",
+    "current_source": 1348,
+    "boundary": "只确认当时放出该列，不推及其他字段或重估",
+    "candidate_labels": [
+      {
+        "path": "concepts/accounting/asset-list-residual-value-fields-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/accounting/asset-list-residual-value-fields-history.md",
+        "grade": 2,
+        "reason": "已核对的同一历史事件或对应字段答复；保留原文与适用限制",
+        "page_sha256": "2763c5bc6148dadef7218ae5482fb30b3a1e8d9e61374ff34be10afdce0e535d"
+      },
+      {
+        "path": "objects/fixed-asset.md",
+        "sourcePath": "docs/ontology/objects/fixed-asset.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "4baa6870dbeaadc07cb6591f6bae1038c94b2997835eb63783bb753a6929e140"
+      },
+      {
+        "path": "concepts/faq/entry-field-edit-rules.md",
+        "sourcePath": "docs/llm-wiki/concepts/faq/entry-field-edit-rules.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "e2802704dde19d69a005ea8f22de6b6b81ded8a7e4018c25389c21fc5e7e426f"
+      },
+      {
+        "path": "concepts/reporting/filter-language-timezone-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/reporting/filter-language-timezone-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "c18cd1298380c93f3f4fc5e94d7a13173f354928b396d9530399eeaad762515b"
+      },
+      {
+        "path": "concepts/accounting/accounting-change-navigation.md",
+        "sourcePath": "docs/llm-wiki/concepts/accounting/accounting-change-navigation.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "da6dfa8ffa572e0d9cc6abd7606bb08b68a122dfc8f5a9dae3f35e67d35cee8d"
+      },
+      {
+        "path": "concepts/accounting/asset-re-evaluate-original-value.md",
+        "sourcePath": "docs/llm-wiki/concepts/accounting/asset-re-evaluate-original-value.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "c8e3092769f32af84243ad36d27c27bda545038c206356ba88a96ce8ec11946f"
+      },
+      {
+        "path": "objects/b2b-portal-sales.md",
+        "sourcePath": "docs/ontology/objects/b2b-portal-sales.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "759444b075679c093ff75addc227cdb57314ae9dc53836c31c3f6d2974c83825"
+      },
+      {
+        "path": "objects/portal-legal-terms.md",
+        "sourcePath": "docs/ontology/objects/portal-legal-terms.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "d74f216bf08c542b339db581ae0d9cf38bbdb161e7f3112cab970ab333c676e2"
+      },
+      {
+        "path": "processes/depreciating-fixed-asset-amendment.md",
+        "sourcePath": "docs/ontology/processes/depreciating-fixed-asset-amendment.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "eeef74a6097e019d47a5ea62ba21d9c641762cc12aa7c2c63886903de3fb8cec"
+      },
+      {
+        "path": "processes/fixed-asset-acquisition-and-depreciation.md",
+        "sourcePath": "docs/ontology/processes/fixed-asset-acquisition-and-depreciation.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "e1c09cd3507bc89ad7788991365459b72d142134b9f441f2b16b74ff309482ea"
+      },
+      {
+        "path": "concepts/accounting/asset-value-depreciation-change-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/accounting/asset-value-depreciation-change-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "c1e28460fe38a61dc78dba67c5d221c87816a6674d07cd09b1b2e2dd75a2d6e4"
+      },
+      {
+        "path": "concepts/accounting/review-lock-mismatch-and-review-status-rules.md",
+        "sourcePath": "docs/llm-wiki/concepts/accounting/review-lock-mismatch-and-review-status-rules.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "6148c4472214631661be01904cf5b57cafba7c969fa5ca8e022cf175289fb48a"
+      },
+      {
+        "path": "concepts/payment/unreconcile-matching-number-empty-lines-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/payment/unreconcile-matching-number-empty-lines-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "19c98cc400c24781cde5a242f3d73bf4306d31637681df3ac9507a8ad0046bdb"
+      },
+      {
+        "path": "concepts/sales/state-and-related-page-navigation.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/state-and-related-page-navigation.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "8cf2d5e5bf1803b5df3088f4b54b508ea213bf441b9c1ded126303d6e6bf16c9"
+      },
+      {
+        "path": "objects/business-party.md",
+        "sourcePath": "docs/ontology/objects/business-party.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "6eacccb59fffc5b9316fee78d65d903add60ada66a12062603a163c94c6f62a1"
+      },
+      {
+        "path": "objects/warehouse-inventory-control.md",
+        "sourcePath": "docs/ontology/objects/warehouse-inventory-control.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "0336bfa16eff88ba74e06679c366c379469952646a5828c03e32b8d970fe4a83"
+      },
+      {
+        "path": "concepts/sales/approval-markdone-vs-approve-button-stuck.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/approval-markdone-vs-approve-button-stuck.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "65ae3c99d7a14711707b0cfe5034382541accfee76094b9ff75e528293b95b12"
+      },
+      {
+        "path": "objects/financial-reporting.md",
+        "sourcePath": "docs/ontology/objects/financial-reporting.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "3f2c8fc0a1d140a14d42364efb51566179e2f7dc125e0ce8714ec27115179e91"
+      },
+      {
+        "path": "processes/balance-sheet-preparation.md",
+        "sourcePath": "docs/ontology/processes/balance-sheet-preparation.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "ca156fd047d80e043b923a3d1750de4542e9f9a78960d81fda000b11dff8711d"
+      },
+      {
+        "path": "concepts/access/two-factor-login-incident-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/access/two-factor-login-incident-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "10837c42a61bace52d79bd493798f78ab00528740f149c8e99a74b8d3ade99d5"
+      }
+    ],
+    "scope": "graded for this question use, not a claim the whole page is false or knowledge base has no related background"
+  },
+  "T05": {
+    "type": "positive",
+    "current_source": 1300,
+    "boundary": "取消与审批状态分开；Refuse为该票建议，未见复测",
+    "candidate_labels": [
+      {
+        "path": "concepts/sales/state-and-related-page-navigation.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/state-and-related-page-navigation.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "8cf2d5e5bf1803b5df3088f4b54b508ea213bf441b9c1ded126303d6e6bf16c9"
+      },
+      {
+        "path": "concepts/approvals/rapid-record-switch-wrong-done-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/approvals/rapid-record-switch-wrong-done-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "4d315c8911972f84d844454dd65a1fad0ebfb7f2a092fd7ff1408b30c01da7e7"
+      },
+      {
+        "path": "concepts/integration/shopify-import-schedule-and-config-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/integration/shopify-import-schedule-and-config-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "843e661ebac6cf8e9726d8ff6652ea89d8ed033917f27dda53d64e6f839cd0c5"
+      },
+      {
+        "path": "concepts/inventory/return-transfer-delivered-link-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/inventory/return-transfer-delivered-link-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "b8062f2f5e74b51141c403822cbf22acbea0dda5010f1135d2466c459f72c0ff"
+      },
+      {
+        "path": "concepts/faq/contact-backorder-preorder-overview.md",
+        "sourcePath": "docs/llm-wiki/concepts/faq/contact-backorder-preorder-overview.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "0467ea545b41e74fa10ff4e6be19ba86ceab9e958b271bf0f5656d2945885e6f"
+      },
+      {
+        "path": "concepts/accounting/bank-reconciliation-latency-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/accounting/bank-reconciliation-latency-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "b1921c02b98fee3439e62a14492d4a58a005d2a62391a48d2971827c196a9b7c"
+      },
+      {
+        "path": "concepts/accounting/journal-review-copy-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/accounting/journal-review-copy-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "0bb9bb43eb2b50547920cface1d12a59d54a56fe80be9af1938f85aa8aff1f48"
+      },
+      {
+        "path": "concepts/accounting/other-outbound-account-followup-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/accounting/other-outbound-account-followup-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "937ff0d0514eb50cfa692cda9520d2cc348874a91c79008f8b9b870b50b35f61"
+      },
+      {
+        "path": "concepts/approvals/cancelled-record-approval-todo.md",
+        "sourcePath": "docs/llm-wiki/concepts/approvals/cancelled-record-approval-todo.md",
+        "grade": 2,
+        "reason": "已核对的同一历史事件或对应字段答复；保留原文与适用限制",
+        "page_sha256": "e74c5ce9c54a2974c8c918718b4fd4b16233d0f25961f72b88dfd4a78206167e"
+      },
+      {
+        "path": "concepts/approvals/inflight-approval-owner-change-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/approvals/inflight-approval-owner-change-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "f0261a65e81a724a084cc909767bef41404281488311bbd0c7a6058e70ba908d"
+      },
+      {
+        "path": "concepts/integration/app-dealer-data-sync-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/integration/app-dealer-data-sync-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "aa55871f2d24df603e7a572b6470cd2e243438086da848896ff85ab0c771d6aa"
+      },
+      {
+        "path": "concepts/payment/archived-customer-credit-balance-overpayment-bnk.md",
+        "sourcePath": "docs/llm-wiki/concepts/payment/archived-customer-credit-balance-overpayment-bnk.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "b1978a2c70e9e1df28d5e7724f078c8eb2ed15db998f0f8010b6cbf9fa64901e"
+      },
+      {
+        "path": "concepts/payment/mandate-state-and-exclusion-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/payment/mandate-state-and-exclusion-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "9414512e99e8f59012dac68386d348acff422387991eb7e61c31780fd198ff4b"
+      },
+      {
+        "path": "concepts/sales/automatic-order-email-customer-language.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/automatic-order-email-customer-language.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "44cd9dd3c449c29fa4fbdf1956e1179efe914453f659017898e372edbbc1578a"
+      },
+      {
+        "path": "concepts/sales/pricelist-change-historical-order-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/pricelist-change-historical-order-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "c218f6eb69d66b2f98b6b6605999c94292e423c1b507517baa992f8c198d6196"
+      },
+      {
+        "path": "concepts/faq/doc-done-but-related-page-shows-stale-status.md",
+        "sourcePath": "docs/llm-wiki/concepts/faq/doc-done-but-related-page-shows-stale-status.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "533e1c5c3a23f21caecf03631f399b7c897ad1583589634cf07eb0e8087032f4"
+      },
+      {
+        "path": "concepts/inventory/us18-return-location-and-operation-type-config.md",
+        "sourcePath": "docs/llm-wiki/concepts/inventory/us18-return-location-and-operation-type-config.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "794bc9b0f1ed96653ad16ade6f246aeb45989f7471d4a2fb3bfe532f03690713"
+      },
+      {
+        "path": "concepts/accounting/other-outbound-done-journal-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/accounting/other-outbound-done-journal-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "cd7b0d8d15ab70fa714850b54f2829cc2a69f91a5383713145888e6b27ef8134"
+      },
+      {
+        "path": "concepts/accounting/resell-transfer-valuation-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/accounting/resell-transfer-valuation-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "9625ec82826460e9982260ad7da785d802f13157eb2f6e54397333fe43b9ee3e"
+      },
+      {
+        "path": "concepts/accounting/uk-20030-extra-entry-reconciliation-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/accounting/uk-20030-extra-entry-reconciliation-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "b057405759f71c761f7910f0cf3241b7c36ddff6d094823c4a88e02e757f81f8"
+      }
+    ],
+    "scope": "graded for this question use, not a claim the whole page is false or knowledge base has no related background"
+  },
+  "T06": {
+    "type": "positive",
+    "current_source": 1875,
+    "boundary": "waiting/pending为历史技术诊断及修复报告，未核验当前根因",
+    "candidate_labels": [
+      {
+        "path": "concepts/approvals/approval-status-button-mapping-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/approvals/approval-status-button-mapping-history.md",
+        "grade": 2,
+        "reason": "已核对的同一历史事件或对应字段答复；保留原文与适用限制",
+        "page_sha256": "6a7ea1a8290da9a1e2651a2eeed0e449c4efdae4bc4f87cc32fe0b9c0fd66ac7"
+      },
+      {
+        "path": "objects/business-approval.md",
+        "sourcePath": "docs/ontology/objects/business-approval.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "3783a307ba384dda428ecbd0ce2a72246f39d77f88dd5ee4773421d0cd6893e0"
+      },
+      {
+        "path": "concepts/approvals/approval-submission-and-progress-triage.md",
+        "sourcePath": "docs/llm-wiki/concepts/approvals/approval-submission-and-progress-triage.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "093b061f70c7f6d61e4b4a958f4bb27e312203b164e5862d881c00403d58cde0"
+      },
+      {
+        "path": "processes/embedded-business-record-approval.md",
+        "sourcePath": "docs/ontology/processes/embedded-business-record-approval.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "c1c0c2491701a3e8914ead0fb54867949cb66378c0fd80056268ed9f7452ddb6"
+      },
+      {
+        "path": "concepts/delivery/approval-stock-done-stages-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/delivery/approval-stock-done-stages-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "4e7b598c50fc8ea473e6c7165d457176b4ae99e095fa4aa5269573f59ec9e289"
+      },
+      {
+        "path": "concepts/inventory/start-stock-operation-button-check.md",
+        "sourcePath": "docs/llm-wiki/concepts/inventory/start-stock-operation-button-check.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "7318d0c1700c0bc0c463958c62b7016c0564960b1b6fc2c9cf5bea4b467600a9"
+      },
+      {
+        "path": "processes/budget-contract-payment-approval.md",
+        "sourcePath": "docs/ontology/processes/budget-contract-payment-approval.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "727d851dd896573b35d641931ed5f45acf67a8bd52e8edd6868fbff5a8fe0680"
+      },
+      {
+        "path": "processes/warehouse-operation-approval.md",
+        "sourcePath": "docs/ontology/processes/warehouse-operation-approval.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "31c510cd79edd14aa469adbefd36fafd277b6029552a2969d1848e984ecf1a6f"
+      },
+      {
+        "path": "concepts/access/operation-access-and-button-triage.md",
+        "sourcePath": "docs/llm-wiki/concepts/access/operation-access-and-button-triage.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "fc0e90cd75a785b2a27952f119e182996973a70d6ac6ff951cdd160a1055134e"
+      },
+      {
+        "path": "concepts/inventory/inbound-approve-validate-backorder.md",
+        "sourcePath": "docs/llm-wiki/concepts/inventory/inbound-approve-validate-backorder.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "9bf0aa325c400ccba055df6e60d86e1f006ee62771d48de9e87bb903e5f0e9ef"
+      },
+      {
+        "path": "objects/warehouse-operation.md",
+        "sourcePath": "docs/ontology/objects/warehouse-operation.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "7b9ac1d2349189b4d659019bdf48fca55c7d89cde24a24f6d657b058d98d3ce8"
+      },
+      {
+        "path": "concepts/sales/approval-markdone-vs-approve-button-stuck.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/approval-markdone-vs-approve-button-stuck.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "65ae3c99d7a14711707b0cfe5034382541accfee76094b9ff75e528293b95b12"
+      },
+      {
+        "path": "processes/approval-policy-change.md",
+        "sourcePath": "docs/ontology/processes/approval-policy-change.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "0b75155c8398025b5a94e68c3fb7fb69c6a6a52e7b7a9745e79f5718946df5bf"
+      },
+      {
+        "path": "processes/standalone-approval-request.md",
+        "sourcePath": "docs/ontology/processes/standalone-approval-request.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "8a72e843ae0355251e105a597aaf0740815de1845f3af328e3708dabd7d80647"
+      },
+      {
+        "path": "concepts/approvals/approval-policy-change-checklist.md",
+        "sourcePath": "docs/llm-wiki/concepts/approvals/approval-policy-change-checklist.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "437d303af8167e983787dd11608028c63e013602a1982e7539befd12b8a341c4"
+      },
+      {
+        "path": "concepts/approvals/change-request-scheduling-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/approvals/change-request-scheduling-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "f0a149f099b1df803dc572912ebc66b55ed080149d040cb3db6ad539ad5251bb"
+      },
+      {
+        "path": "concepts/approvals/inflight-approval-owner-change-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/approvals/inflight-approval-owner-change-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "f0261a65e81a724a084cc909767bef41404281488311bbd0c7a6058e70ba908d"
+      },
+      {
+        "path": "concepts/faq/approval-flow-config-change-checklist.md",
+        "sourcePath": "docs/llm-wiki/concepts/faq/approval-flow-config-change-checklist.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "5bfeef1897fe164006a2097af2eb1486f79c391fa90a2675b2a8fa040b6b6aae"
+      },
+      {
+        "path": "concepts/sales/document-stuck-generic-triage.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/document-stuck-generic-triage.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "02c22dbde69d50a2c5dfa41c22360516978eb6e66c0d9d2761a486f2cc90be18"
+      },
+      {
+        "path": "concepts/sales/mark-done-current-applicability-investigation.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/mark-done-current-applicability-investigation.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "9cca422fac4ecf35f471ee61137c2ab10831c351d188972d91c9f14d1cb895d9"
+      }
+    ],
+    "scope": "graded for this question use, not a claim the whole page is false or knowledge base has no related background"
+  },
+  "T07": {
+    "type": "positive",
+    "current_source": 580,
+    "boundary": "英文逗号为当时字段答复，无真实多收件投递验收",
+    "candidate_labels": [
+      {
+        "path": "concepts/delivery/delivery-note-multiple-email-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/delivery/delivery-note-multiple-email-history.md",
+        "grade": 2,
+        "reason": "已核对的同一历史事件或对应字段答复；保留原文与适用限制",
+        "page_sha256": "00092fde525212aa337640d5eada3b2c3267d49f8e19cfa57821e1ba24c5ec56"
+      },
+      {
+        "path": "concepts/integration/wms-address-contract-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/integration/wms-address-contract-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "f313f33a99eabbc3ad1edc1db86e2450537d20b7f2880a85acf6d3da184629cd"
+      },
+      {
+        "path": "objects/purchase-settlement.md",
+        "sourcePath": "docs/ontology/objects/purchase-settlement.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "b475c7ddace433a00e567a8926b9057cfa36511dc70231bc5ca3513db26869cf"
+      },
+      {
+        "path": "objects/warehouse-operation.md",
+        "sourcePath": "docs/ontology/objects/warehouse-operation.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "7b9ac1d2349189b4d659019bdf48fca55c7d89cde24a24f6d657b058d98d3ce8"
+      },
+      {
+        "path": "concepts/inventory/sku-warehouse-default-location-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/inventory/sku-warehouse-default-location-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "df122742e6c81e2f89bfadab4ad2128e6d754fa2dce9c5b3191b0d74193a0353"
+      },
+      {
+        "path": "concepts/inventory/warehouse-location-operation-type-change-checklist.md",
+        "sourcePath": "docs/llm-wiki/concepts/inventory/warehouse-location-operation-type-change-checklist.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "c632e6fc73c269cbb1d0fa907c55098aa0583d560f90af8e5ee66bbf94a6d1e7"
+      },
+      {
+        "path": "objects/business-party.md",
+        "sourcePath": "docs/ontology/objects/business-party.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "6eacccb59fffc5b9316fee78d65d903add60ada66a12062603a163c94c6f62a1"
+      },
+      {
+        "path": "objects/warehouse-inventory-control.md",
+        "sourcePath": "docs/ontology/objects/warehouse-inventory-control.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "0336bfa16eff88ba74e06679c366c379469952646a5828c03e32b8d970fe4a83"
+      },
+      {
+        "path": "processes/warehouse-operation-approval.md",
+        "sourcePath": "docs/ontology/processes/warehouse-operation-approval.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "31c510cd79edd14aa469adbefd36fafd277b6029552a2969d1848e984ecf1a6f"
+      },
+      {
+        "path": "concepts/invoicing/invoice-email-follows-sales-order-invoice-address.md",
+        "sourcePath": "docs/llm-wiki/concepts/invoicing/invoice-email-follows-sales-order-invoice-address.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "4bf03e0bef539ac5c61d00a03c0667614ebd73d3959d13d969942e0f817d0f9f"
+      },
+      {
+        "path": "objects/b2c-sales.md",
+        "sourcePath": "docs/ontology/objects/b2c-sales.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "d03fa059cf605a3e496b10d90725016a98f9d62960e1025eadaa37d13a172d37"
+      },
+      {
+        "path": "objects/portal-public-inquiry.md",
+        "sourcePath": "docs/ontology/objects/portal-public-inquiry.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "cb7e05f4f9f4a839dc74e3e728ea1c7eb71780bc1d885bc999df7e42a9a3da3c"
+      },
+      {
+        "path": "processes/budget-contract-payment-approval.md",
+        "sourcePath": "docs/ontology/processes/budget-contract-payment-approval.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "727d851dd896573b35d641931ed5f45acf67a8bd52e8edd6868fbff5a8fe0680"
+      },
+      {
+        "path": "processes/purchase-return-to-supplier.md",
+        "sourcePath": "docs/ontology/processes/purchase-return-to-supplier.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "3f7c577b22baf2f15d444b6d1419b2aa6bb7b9297dd6027ef916819d1135ddf6"
+      },
+      {
+        "path": "processes/stock-batch-operation.md",
+        "sourcePath": "docs/ontology/processes/stock-batch-operation.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "7fbf95b811ecbedb4d1fb6e417ef78c91909a96dbe81aa3f4174920a6c0ba929"
+      },
+      {
+        "path": "concepts/delivery/delivery-config-checklist.md",
+        "sourcePath": "docs/llm-wiki/concepts/delivery/delivery-config-checklist.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "531c4c4632703e74f1684b6117e16d1349176beb26fcf14ba0ad6c693d158610"
+      },
+      {
+        "path": "concepts/delivery/wms-receipt-disputed-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/delivery/wms-receipt-disputed-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "341e9adce39bf6d2d78d0e9f75ea8218e73b15bd3e44e8628d0605c15c765b26"
+      },
+      {
+        "path": "concepts/sales/mail-notification-navigation.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/mail-notification-navigation.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "ac7a7ba3ea0a04e320a2754dd32c3f282cf0be326745291b9aa72ba98438a59e"
+      },
+      {
+        "path": "processes/purchase-inbound-receipt.md",
+        "sourcePath": "docs/ontology/processes/purchase-inbound-receipt.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "62bd01b6d5d44ffd42c399fbbf48bd9fea7d987813832f8d37540646ed98014c"
+      },
+      {
+        "path": "processes/purchase-tax-determination-and-billing.md",
+        "sourcePath": "docs/ontology/processes/purchase-tax-determination-and-billing.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "f52b6dc2d38361e86c48a2789645707c39953e77a78b1ea9728417f586ce22ec"
+      }
+    ],
+    "scope": "graded for this question use, not a claim the whole page is false or knowledge base has no related background"
+  },
+  "T08": {
+    "type": "positive",
+    "current_source": 1437,
+    "boundary": "合并street1为历史讨论，不证明新接口或当前出库已更新",
+    "candidate_labels": [
+      {
+        "path": "concepts/delivery/cmc-street2-payload-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/delivery/cmc-street2-payload-history.md",
+        "grade": 2,
+        "reason": "已核对的同一历史事件或对应字段答复；保留原文与适用限制",
+        "page_sha256": "bd426ac0e50a63b5919cf28eca98061b955c75a0f716bf7e0d956ddaba696578"
+      },
+      {
+        "path": "concepts/integration/wms-address-contract-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/integration/wms-address-contract-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "f313f33a99eabbc3ad1edc1db86e2450537d20b7f2880a85acf6d3da184629cd"
+      },
+      {
+        "path": "concepts/inventory/sku-warehouse-default-location-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/inventory/sku-warehouse-default-location-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "df122742e6c81e2f89bfadab4ad2128e6d754fa2dce9c5b3191b0d74193a0353"
+      },
+      {
+        "path": "concepts/delivery/cmc-outbound-company-required-error-response.md",
+        "sourcePath": "docs/llm-wiki/concepts/delivery/cmc-outbound-company-required-error-response.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "23aa744527998f478d03fd2c74f2da5c983a94af00e4daa6ff111cf57f06f9dc"
+      },
+      {
+        "path": "concepts/faq/westerman-outbound-not-pushed-to-wms.md",
+        "sourcePath": "docs/llm-wiki/concepts/faq/westerman-outbound-not-pushed-to-wms.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "a37cd8fba2cb688f755c146a61e404b62bd2030eaf83210da82e294e78506786"
+      },
+      {
+        "path": "concepts/delivery/cancelled-picking-recovery-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/delivery/cancelled-picking-recovery-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "4643991ad0135f509d695eacb9bcdaed7329a88c9ba198ec4c0032f097684821"
+      },
+      {
+        "path": "concepts/delivery/other-outbound-location-and-type-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/delivery/other-outbound-location-and-type-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "23a130342bec7cde771126825207068595a0f01f05fcd3a72b7620a37a8b0d11"
+      },
+      {
+        "path": "concepts/delivery/warehouse-document-amendment-checklist.md",
+        "sourcePath": "docs/llm-wiki/concepts/delivery/warehouse-document-amendment-checklist.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "135ec2c471f590d8bfe052d249984c328ce7b7afa1d96cff95182a0f338ca6ee"
+      },
+      {
+        "path": "objects/warehouse-operation.md",
+        "sourcePath": "docs/ontology/objects/warehouse-operation.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "7b9ac1d2349189b4d659019bdf48fca55c7d89cde24a24f6d657b058d98d3ce8"
+      },
+      {
+        "path": "concepts/delivery/outbound-pod-export-field.md",
+        "sourcePath": "docs/llm-wiki/concepts/delivery/outbound-pod-export-field.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "fd18b5fae28f2c05ef7b728ad82ed7482544bb26b50c8e22fc84770e10c73c0a"
+      },
+      {
+        "path": "concepts/invoicing/eu-auto-invoice-job-timing-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/invoicing/eu-auto-invoice-job-timing-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "5f4da3ec3d81ec90a374b4a18c7834447fc4e5cb548ce83c430ee5334b839b70"
+      },
+      {
+        "path": "concepts/invoicing/uk-inbound-bill-attachment-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/invoicing/uk-inbound-bill-attachment-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "b2b639cca5885313ade48646a0a9c742f2297c4030610584585b00eebb9972ca"
+      },
+      {
+        "path": "concepts/delivery/sales-order-integration-contract-lark-1806.md",
+        "sourcePath": "docs/llm-wiki/concepts/delivery/sales-order-integration-contract-lark-1806.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "26c7af91ef323c554bbaa593fe8de8c420b6a0c1cd9d11b4784a3a3333c9d4ce"
+      },
+      {
+        "path": "concepts/delivery/service-center-outbound-split-correct-warehouse.md",
+        "sourcePath": "docs/llm-wiki/concepts/delivery/service-center-outbound-split-correct-warehouse.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "15e3c8702bebdebd5f8bc61614560731ab25de23ee0127fdbc5405321a4d3b04"
+      },
+      {
+        "path": "objects/b2c-sales.md",
+        "sourcePath": "docs/ontology/objects/b2c-sales.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "d03fa059cf605a3e496b10d90725016a98f9d62960e1025eadaa37d13a172d37"
+      },
+      {
+        "path": "objects/business-party.md",
+        "sourcePath": "docs/ontology/objects/business-party.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "6eacccb59fffc5b9316fee78d65d903add60ada66a12062603a163c94c6f62a1"
+      },
+      {
+        "path": "processes/warehouse-operation-approval.md",
+        "sourcePath": "docs/ontology/processes/warehouse-operation-approval.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "31c510cd79edd14aa469adbefd36fafd277b6029552a2969d1848e984ecf1a6f"
+      },
+      {
+        "path": "concepts/accounting/other-outbound-account-followup-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/accounting/other-outbound-account-followup-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "937ff0d0514eb50cfa692cda9520d2cc348874a91c79008f8b9b870b50b35f61"
+      },
+      {
+        "path": "concepts/approvals/ops-submission-notification-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/approvals/ops-submission-notification-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "0846187959089425ff60e14e0326b485f27e405c8bd80839e471ec8447930b22"
+      },
+      {
+        "path": "concepts/delivery/outbound-export-line-grain-check.md",
+        "sourcePath": "docs/llm-wiki/concepts/delivery/outbound-export-line-grain-check.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "15e7c3b4109bc3bbc8f999f921c8f7c8c97ddc2a9b49b9db7f9f05be4e45fd91"
+      }
+    ],
+    "scope": "graded for this question use, not a claim the whole page is false or knowledge base has no related background"
+  },
+  "T09": {
+    "type": "positive",
+    "current_source": 2054,
+    "boundary": "原票字段说明，不证明当前所有单据实现",
+    "candidate_labels": [
+      {
+        "path": "concepts/delivery/destination-country-source-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/delivery/destination-country-source-history.md",
+        "grade": 2,
+        "reason": "已核对的同一历史事件或对应字段答复；保留原文与适用限制",
+        "page_sha256": "10d0c2eb7aa0835dc257d9162dbfec08a45aa5b7490d1dea2c3cd7200e1e42ab"
+      },
+      {
+        "path": "concepts/sales/delivery-address-country-tax-rate.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/delivery-address-country-tax-rate.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "a877b02f9addb41aa03778690169e6abc8512c04b2b095a1ccc4fd9a33d212f3"
+      },
+      {
+        "path": "objects/business-party.md",
+        "sourcePath": "docs/ontology/objects/business-party.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "6eacccb59fffc5b9316fee78d65d903add60ada66a12062603a163c94c6f62a1"
+      },
+      {
+        "path": "concepts/accounting/accounting-change-navigation.md",
+        "sourcePath": "docs/llm-wiki/concepts/accounting/accounting-change-navigation.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "da6dfa8ffa572e0d9cc6abd7606bb08b68a122dfc8f5a9dae3f35e67d35cee8d"
+      },
+      {
+        "path": "concepts/integration/sync-and-availability-navigation.md",
+        "sourcePath": "docs/llm-wiki/concepts/integration/sync-and-availability-navigation.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "dc8f87d22ee5c25fa96afcf0e80265816654a7b77aa1b7258586bc285be64eff"
+      },
+      {
+        "path": "objects/b2c-sales.md",
+        "sourcePath": "docs/ontology/objects/b2c-sales.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "d03fa059cf605a3e496b10d90725016a98f9d62960e1025eadaa37d13a172d37"
+      },
+      {
+        "path": "concepts/integration/turbo-customer-sync-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/integration/turbo-customer-sync-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "c38368fe8084259b179eea2d2488245e0bd2ab91c2333c00490aab70bc7c666b"
+      },
+      {
+        "path": "objects/transaction-tax.md",
+        "sourcePath": "docs/ontology/objects/transaction-tax.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "1452c3d0d019f29dce96849ae2807d7ba5cc2a39cae65859a76b06ac4ec10c36"
+      },
+      {
+        "path": "concepts/delivery/warehouse-dispatch-and-return-navigation.md",
+        "sourcePath": "docs/llm-wiki/concepts/delivery/warehouse-dispatch-and-return-navigation.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "09f0a435ed438d6827e6ede6cb767c44c63bc7f868c717d0781cc8575381cf4f"
+      },
+      {
+        "path": "concepts/integration/wms-address-contract-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/integration/wms-address-contract-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "f313f33a99eabbc3ad1edc1db86e2450537d20b7f2880a85acf6d3da184629cd"
+      },
+      {
+        "path": "concepts/sales/dubai-country-selection-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/dubai-country-selection-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "12269afd70b383b23a3e243298f1f402d9d68717a86965204db56f65fabeabd1"
+      },
+      {
+        "path": "concepts/delivery/cmc-street2-payload-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/delivery/cmc-street2-payload-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "bd426ac0e50a63b5919cf28eca98061b955c75a0f716bf7e0d956ddaba696578"
+      },
+      {
+        "path": "concepts/invoicing/tax-source-selection-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/invoicing/tax-source-selection-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "adf8566dd4dbc0bf6badf9508c2a51adae3383edd9b879dee98321813c895adc"
+      },
+      {
+        "path": "concepts/workforce/workforce-support-navigation.md",
+        "sourcePath": "docs/llm-wiki/concepts/workforce/workforce-support-navigation.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "bc123a2e1f8d2365d77e4b3dff3cf7708a1c62cf70ef0584de7db9c73a57b63a"
+      },
+      {
+        "path": "processes/party-address-maintenance.md",
+        "sourcePath": "docs/ontology/processes/party-address-maintenance.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "cffe3d4a21cbd3338fdfed3d577c5bf8b285b5a9672d0481d2c24a901aebdd99"
+      },
+      {
+        "path": "objects/b2b-portal-sales.md",
+        "sourcePath": "docs/ontology/objects/b2b-portal-sales.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "759444b075679c093ff75addc227cdb57314ae9dc53836c31c3f6d2974c83825"
+      },
+      {
+        "path": "processes/b2c-leasing-sales.md",
+        "sourcePath": "docs/ontology/processes/b2c-leasing-sales.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "10f6d2002ef07e849801c64c638a8eaf6a0e6fe7fd8aceff54f3c3d38449ff8f"
+      },
+      {
+        "path": "processes/customer-sales-ownership-change.md",
+        "sourcePath": "docs/ontology/processes/customer-sales-ownership-change.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "963f6e5156306cd74dae80d39a039f33c68ee96416db60555ad897a8317fdfe8"
+      },
+      {
+        "path": "processes/portal-profile-maintenance.md",
+        "sourcePath": "docs/ontology/processes/portal-profile-maintenance.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "3c89e8bba25dd2942c75048dc14a1c6125698b63bfe768f8b8e884291364e1a9"
+      },
+      {
+        "path": "concepts/accounting/journal-required-dimensions-and-country.md",
+        "sourcePath": "docs/llm-wiki/concepts/accounting/journal-required-dimensions-and-country.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "6f5fccd67b4bd37f0ee43b9d783e035d9012386e8820014007105aa81fd7e6ee"
+      }
+    ],
+    "scope": "graded for this question use, not a claim the whole page is false or knowledge base has no related background"
+  },
+  "T10": {
+    "type": "positive",
+    "current_source": 1131,
+    "boundary": "历史国家选择答复，不推客户税务资格",
+    "candidate_labels": [
+      {
+        "path": "concepts/sales/dubai-country-selection-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/dubai-country-selection-history.md",
+        "grade": 2,
+        "reason": "已核对的同一历史事件或对应字段答复；保留原文与适用限制",
+        "page_sha256": "12269afd70b383b23a3e243298f1f402d9d68717a86965204db56f65fabeabd1"
+      },
+      {
+        "path": "processes/customer-profile-validation.md",
+        "sourcePath": "docs/ontology/processes/customer-profile-validation.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "37bdc1f65ddab30636a32436d4a82089a1b7566c6aaacdc33c453297bcff33b4"
+      },
+      {
+        "path": "concepts/delivery/destination-country-source-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/delivery/destination-country-source-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "10d0c2eb7aa0835dc257d9162dbfec08a45aa5b7490d1dea2c3cd7200e1e42ab"
+      },
+      {
+        "path": "concepts/integration/turbo-customer-sync-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/integration/turbo-customer-sync-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "c38368fe8084259b179eea2d2488245e0bd2ab91c2333c00490aab70bc7c666b"
+      },
+      {
+        "path": "objects/business-party.md",
+        "sourcePath": "docs/ontology/objects/business-party.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "6eacccb59fffc5b9316fee78d65d903add60ada66a12062603a163c94c6f62a1"
+      },
+      {
+        "path": "objects/b2b-portal-sales.md",
+        "sourcePath": "docs/ontology/objects/b2b-portal-sales.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "759444b075679c093ff75addc227cdb57314ae9dc53836c31c3f6d2974c83825"
+      },
+      {
+        "path": "concepts/sales/contact-overview-create-sales-order.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/contact-overview-create-sales-order.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "d98effac36b91ea71d1474bc6a3a337b251d7ca9e4ce7c08d205b84b9e43a46c"
+      },
+      {
+        "path": "processes/portal-profile-maintenance.md",
+        "sourcePath": "docs/ontology/processes/portal-profile-maintenance.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "3c89e8bba25dd2942c75048dc14a1c6125698b63bfe768f8b8e884291364e1a9"
+      },
+      {
+        "path": "concepts/integration/turbo-customer-sync-abort-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/integration/turbo-customer-sync-abort-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "c7809bf29bc638fa679392263c1ec8215da988f9088902261c0e7e9c509ad3e8"
+      },
+      {
+        "path": "concepts/sales/partner-country-and-order-tax-check.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/partner-country-and-order-tax-check.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "47c0df12512436af7009927e48cf88aef7a69d3401ef23c51d094cc0598addd8"
+      },
+      {
+        "path": "concepts/sales/pricelist-batch-update-historical-case.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/pricelist-batch-update-historical-case.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "9963e9d28f4d72107d7ca59002b501d301358990599ef921875d72bb73ed111b"
+      },
+      {
+        "path": "objects/b2c-sales.md",
+        "sourcePath": "docs/ontology/objects/b2c-sales.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "d03fa059cf605a3e496b10d90725016a98f9d62960e1025eadaa37d13a172d37"
+      },
+      {
+        "path": "concepts/faq/contact-backorder-preorder-overview.md",
+        "sourcePath": "docs/llm-wiki/concepts/faq/contact-backorder-preorder-overview.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "0467ea545b41e74fa10ff4e6be19ba86ceab9e958b271bf0f5656d2945885e6f"
+      },
+      {
+        "path": "concepts/reporting/missing-record-and-actor-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/reporting/missing-record-and-actor-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "de6c3e648252d3413e014674208e6faa6883a767d680532c065bc25911115374"
+      },
+      {
+        "path": "concepts/sales/delivery-address-country-tax-rate.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/delivery-address-country-tax-rate.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "a877b02f9addb41aa03778690169e6abc8512c04b2b095a1ccc4fd9a33d212f3"
+      },
+      {
+        "path": "concepts/sales/pricelist-and-product-maintenance-navigation.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/pricelist-and-product-maintenance-navigation.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "86025e38833de9c675f8ea0f0d14c19a6ecabc882855c6e3f8d795a762ea723e"
+      },
+      {
+        "path": "processes/sales-return-receipt-and-disposition.md",
+        "sourcePath": "docs/ontology/processes/sales-return-receipt-and-disposition.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "4942510267c53ac17cf5c25bc992559d6b0b1f5e1100e01a8976f104ff812810"
+      },
+      {
+        "path": "concepts/accounting/journal-required-dimensions-and-country.md",
+        "sourcePath": "docs/llm-wiki/concepts/accounting/journal-required-dimensions-and-country.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "6f5fccd67b4bd37f0ee43b9d783e035d9012386e8820014007105aa81fd7e6ee"
+      },
+      {
+        "path": "objects/portal-public-inquiry.md",
+        "sourcePath": "docs/ontology/objects/portal-public-inquiry.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "cb7e05f4f9f4a839dc74e3e728ea1c7eb71780bc1d885bc999df7e42a9a3da3c"
+      },
+      {
+        "path": "processes/b2b-portal-purchase.md",
+        "sourcePath": "docs/ontology/processes/b2b-portal-purchase.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "1060112b6c31e64612e40b9cdf38b2f82ecccefbf74d0f665d3fd944fe99875d"
+      }
+    ],
+    "scope": "graded for this question use, not a claim the whole page is false or knowledge base has no related background"
+  },
+  "T11": {
+    "type": "positive",
+    "current_source": 2322,
+    "boundary": "历史换商品折扣金额说明，动机推测；0税率仅该单说明",
+    "candidate_labels": [
+      {
+        "path": "concepts/sales/shopify-exchanged-product-discount-amount-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/shopify-exchanged-product-discount-amount-history.md",
+        "grade": 2,
+        "reason": "已核对的同一历史事件或对应字段答复；保留原文与适用限制",
+        "page_sha256": "5869804f7d3bc72a56569f0b1f18f2061f7562c8172031147d5bde43191a5aa9"
+      },
+      {
+        "path": "concepts/integration/uk-shopify-variant-taxable-price-difference-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/integration/uk-shopify-variant-taxable-price-difference-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "10fc1f194a52c2acb295f8f9320507d2a051d63b239ed13ffb44cffde43d9e31"
+      },
+      {
+        "path": "concepts/integration/shopify-import-schedule-and-config-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/integration/shopify-import-schedule-and-config-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "843e661ebac6cf8e9726d8ff6652ea89d8ed033917f27dda53d64e6f839cd0c5"
+      },
+      {
+        "path": "concepts/sales/markup-name-and-price-rules.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/markup-name-and-price-rules.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "e457ede05d001d6a89807a3ce5d7dba327f0a471791e0fd603e43c63852a1bf0"
+      },
+      {
+        "path": "processes/b2c-sales-order.md",
+        "sourcePath": "docs/ontology/processes/b2c-sales-order.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "650c0fbdc0588da9d69f8088f4d41706ecea2e52655345b6f6d8b4d73f6e7d5e"
+      },
+      {
+        "path": "concepts/sales/pricelist-change-historical-order-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/pricelist-change-historical-order-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "c218f6eb69d66b2f98b6b6605999c94292e423c1b507517baa992f8c198d6196"
+      },
+      {
+        "path": "concepts/integration/shopify-order-import-triage.md",
+        "sourcePath": "docs/llm-wiki/concepts/integration/shopify-order-import-triage.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "a824f273ddca0d135cccc5c59c9d64ff3447534ddbe1d3874d5193498b1b4fef"
+      },
+      {
+        "path": "concepts/payment/shopify-statement-sync-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/payment/shopify-statement-sync-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "caab82d1ed62a1a73c96b4c2fe81aa0dd566a70e052e01d980fb8613a41095f9"
+      },
+      {
+        "path": "concepts/sales/pricelist-discount-not-applied-or-price-mismatch.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/pricelist-discount-not-applied-or-price-mismatch.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "6d3f8add2498e3a39175adf291ea34915e3879e2aa2896549c7f166b4dee7781"
+      },
+      {
+        "path": "concepts/sales/uk-shopify-empty-salesperson-default-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/uk-shopify-empty-salesperson-default-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "c706210b95e2111215b7e44c2ffb510154a1f0e3ca716611c1df33f89d551514"
+      },
+      {
+        "path": "objects/sales-order.md",
+        "sourcePath": "docs/ontology/objects/sales-order.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "f9fcedb582c93fc396a0384e5ce9d46a70265962cded4c73a11f14a4da996ba8"
+      },
+      {
+        "path": "concepts/faq/shopify-order-not-synced-checklist.md",
+        "sourcePath": "docs/llm-wiki/concepts/faq/shopify-order-not-synced-checklist.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "7c1222ef97fd883080800926a61dd2fef2336aa90c4c78fb51c9efa162388673"
+      },
+      {
+        "path": "concepts/integration/shopify-paused-order-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/integration/shopify-paused-order-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "97e25fa002054a5c662d92ccf66985d39dd3c9c871128fdb2361f19791cd4c1b"
+      },
+      {
+        "path": "objects/sales-order-amendment.md",
+        "sourcePath": "docs/ontology/objects/sales-order-amendment.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "4f12cdef85dc6ee3625fe5e9c64038b6a1d757a6e0c2c7f298ac3b2c24542d7d"
+      },
+      {
+        "path": "processes/sales-tax-determination-and-invoicing.md",
+        "sourcePath": "docs/ontology/processes/sales-tax-determination-and-invoicing.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "be21c7eb945ea547c657f6587f4170097374336cfb5f9a719967285b725f3b98"
+      },
+      {
+        "path": "concepts/reporting/export-grain-and-date-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/reporting/export-grain-and-date-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "4af2ac761ae702a3e3230542373b4cb3ed83b8a9def6c3b95f75143c50e7e51e"
+      },
+      {
+        "path": "concepts/sales/automatic-order-email-customer-language.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/automatic-order-email-customer-language.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "44cd9dd3c449c29fa4fbdf1956e1179efe914453f659017898e372edbbc1578a"
+      },
+      {
+        "path": "concepts/sales/contact-overview-grouped-product-details.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/contact-overview-grouped-product-details.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "f80b0ad291bdae3b96c532d005665a876814b57a7e4ba1948b8d1513f3ff3b8f"
+      },
+      {
+        "path": "concepts/sales/product-display-change-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/product-display-change-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "7e8aa74a2b73b58ce37df1be47fd7983d61c894bfd33544c5d447ab345076ebc"
+      },
+      {
+        "path": "objects/preorder-backorder.md",
+        "sourcePath": "docs/ontology/objects/preorder-backorder.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "df5cf1a6efe95970a6b6a97644f9acfffccb4ebf562128b9e316734e9d233900"
+      }
+    ],
+    "scope": "graded for this question use, not a claim the whole page is false or knowledge base has no related background"
+  },
+  "T12": {
+    "type": "positive",
+    "current_source": 1612,
+    "boundary": "仅历史恢复反馈，无通用根因或可执行修复",
+    "candidate_labels": [
+      {
+        "path": "concepts/after_sales/contacts-owl-error-cannot-open-historical-case.md",
+        "sourcePath": "docs/llm-wiki/concepts/after_sales/contacts-owl-error-cannot-open-historical-case.md",
+        "grade": 2,
+        "reason": "已核对的同一历史事件或对应字段答复；保留原文与适用限制",
+        "page_sha256": "4048a410439a5858fcf17e4303393203f06332bb4b8d7a12d1b9aeec27e17c65"
+      },
+      {
+        "path": "concepts/faq/fleet-lark-attachment-link-not-openable.md",
+        "sourcePath": "docs/llm-wiki/concepts/faq/fleet-lark-attachment-link-not-openable.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "cfb592a3f12f8abdc5a2657c226e1bfad9c9f138e27cf86e896d115fdf4398a1"
+      },
+      {
+        "path": "concepts/platform/odoo-availability-triage.md",
+        "sourcePath": "docs/llm-wiki/concepts/platform/odoo-availability-triage.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "49e1526d70f822929e3051c1cc041fbd96f33b780c75325c134e405e1dfca00f"
+      },
+      {
+        "path": "concepts/platform/odoo-reachability-investigation.md",
+        "sourcePath": "docs/llm-wiki/concepts/platform/odoo-reachability-investigation.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "db3eca49ab2353575be04b5536a1cda407035a809e13172981fdde9b78210db6"
+      },
+      {
+        "path": "concepts/portal/survey-link-and-session-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/portal/survey-link-and-session-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "d2a54afaf286bb006ff30345303d1ed42ca2596a71b0ab1d01b89aa8e5c22228"
+      },
+      {
+        "path": "concepts/portal/survey-session-error-check.md",
+        "sourcePath": "docs/llm-wiki/concepts/portal/survey-session-error-check.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "428b7a009fc00c35361e9154d94fc75920b0fe20cc18b6df413c4ceaccfbadd5"
+      },
+      {
+        "path": "concepts/portal/turbo-android-pixel-startup-investigation.md",
+        "sourcePath": "docs/llm-wiki/concepts/portal/turbo-android-pixel-startup-investigation.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "a5c7d6cfff2a7dd3880d4e7f029c0cd1f0112f7cfc7bc6c6ae491c7aac6b7a39"
+      },
+      {
+        "path": "concepts/reporting/export-file-opening-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/reporting/export-file-opening-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "eba79fcb34d82499238e8cdcdb57c61e815f34030c6b9282b44f6b0a4d142921"
+      },
+      {
+        "path": "concepts/workforce/fleet-lark-attachment-link-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/workforce/fleet-lark-attachment-link-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "0c6b09e253db9ecca9f9a6a271e9fbbe82af5483bfb946feee4c59fbeb4400b2"
+      },
+      {
+        "path": "concepts/access/sales-team-order-visibility-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/access/sales-team-order-visibility-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "4a3e96f8979d0f08453d3751597ad88cb4cceaca78cb0907f937681c95c457b0"
+      },
+      {
+        "path": "concepts/delivery/service-centre-outbound-edit-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/delivery/service-centre-outbound-edit-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "a288378a1088279184afcbd14aeed11c43d67a1c390f05c1bf523d4fe737b3bd"
+      },
+      {
+        "path": "concepts/access/odoo-login-entry-triage.md",
+        "sourcePath": "docs/llm-wiki/concepts/access/odoo-login-entry-triage.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "1701a78b04dea67e1a73577df019d8c0810a207f83782aef379d76d107b69e82"
+      },
+      {
+        "path": "concepts/faq/odoo-availability-login-performance-triage.md",
+        "sourcePath": "docs/llm-wiki/concepts/faq/odoo-availability-login-performance-triage.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "7963f09767fd836b48c034f9669053257a914de60b01f22dc608fb2959914216"
+      },
+      {
+        "path": "concepts/faq/survey-link-error-check-login-first.md",
+        "sourcePath": "docs/llm-wiki/concepts/faq/survey-link-error-check-login-first.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "a892ccb8135e72c3d4a04dbe1e765d3fc000d98585e4b0d77000ae58e1bad728"
+      },
+      {
+        "path": "concepts/invoicing/historical-invoice-bill-access-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/invoicing/historical-invoice-bill-access-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "7d00a38444ac84a5163017cf4ccbfd284e298533a0418d5aecaeca044d2db062"
+      },
+      {
+        "path": "concepts/portal/portal-customer-blocked-operations-checklist.md",
+        "sourcePath": "docs/llm-wiki/concepts/portal/portal-customer-blocked-operations-checklist.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "78da2d4cde777fe5fbce0cf5d964bd67ccc7044a50fa6882eb84dd9b873ffd92"
+      },
+      {
+        "path": "concepts/reporting/financial-report-opening-investigation.md",
+        "sourcePath": "docs/llm-wiki/concepts/reporting/financial-report-opening-investigation.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "0f7fea6fe52e63a4b37bf230f665c95fc4bc052ce42b28fe8f9a400744e5b3e8"
+      },
+      {
+        "path": "concepts/workforce/workforce-support-navigation.md",
+        "sourcePath": "docs/llm-wiki/concepts/workforce/workforce-support-navigation.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "bc123a2e1f8d2365d77e4b3dff3cf7708a1c62cf70ef0584de7db9c73a57b63a"
+      },
+      {
+        "path": "objects/business-party.md",
+        "sourcePath": "docs/ontology/objects/business-party.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "6eacccb59fffc5b9316fee78d65d903add60ada66a12062603a163c94c6f62a1"
+      },
+      {
+        "path": "concepts/delivery/warehouse-document-amendment-checklist.md",
+        "sourcePath": "docs/llm-wiki/concepts/delivery/warehouse-document-amendment-checklist.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "135ec2c471f590d8bfe052d249984c328ce7b7afa1d96cff95182a0f338ca6ee"
+      }
+    ],
+    "scope": "graded for this question use, not a claim the whole page is false or knowledge base has no related background"
+  },
+  "T13": {
+    "type": "hard_negative",
+    "current_source": 2352,
+    "boundary": "费用行缺SO关联，不是退货数量正负号",
+    "candidate_labels": [
+      {
+        "path": "concepts/reporting/gross-profit-direct-parent-customer-name-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/reporting/gross-profit-direct-parent-customer-name-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "ed79e5956f02d9a6443936c7302602a2dbffccbc52c6d3cab2927217e1c7abc9"
+      },
+      {
+        "path": "concepts/reporting/gross-profit-quantity-sign-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/reporting/gross-profit-quantity-sign-history.md",
+        "grade": 0,
+        "reason": "费用行缺SO关联，不是退货数量正负号",
+        "page_sha256": "29690bebc8b9a9fc8c2c812884f6ded7634307161517b40f6c0733279ad23f42"
+      },
+      {
+        "path": "concepts/delivery/physical-shipment-status-invoice-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/delivery/physical-shipment-status-invoice-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "b95114e41e1fda3c8af8d65483854e7ea1f49fc46bbf86b108e018beae3a23a5"
+      },
+      {
+        "path": "concepts/inventory/return-transfer-delivered-link-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/inventory/return-transfer-delivered-link-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "b8062f2f5e74b51141c403822cbf22acbea0dda5010f1135d2466c459f72c0ff"
+      },
+      {
+        "path": "concepts/delivery/warehouse-document-amendment-checklist.md",
+        "sourcePath": "docs/llm-wiki/concepts/delivery/warehouse-document-amendment-checklist.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "135ec2c471f590d8bfe052d249984c328ce7b7afa1d96cff95182a0f338ca6ee"
+      },
+      {
+        "path": "concepts/sales/state-and-related-page-navigation.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/state-and-related-page-navigation.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "8cf2d5e5bf1803b5df3088f4b54b508ea213bf441b9c1ded126303d6e6bf16c9"
+      },
+      {
+        "path": "objects/financial-reporting.md",
+        "sourcePath": "docs/ontology/objects/financial-reporting.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "3f2c8fc0a1d140a14d42364efb51566179e2f7dc125e0ce8714ec27115179e91"
+      },
+      {
+        "path": "concepts/accounting/journal-review-copy-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/accounting/journal-review-copy-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "0bb9bb43eb2b50547920cface1d12a59d54a56fe80be9af1938f85aa8aff1f48"
+      },
+      {
+        "path": "concepts/workforce/public-holiday-import-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/workforce/public-holiday-import-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "89591ffb250ebba99e459594fcd4c554abce1a3fa659768a40459dbe6c3be432"
+      },
+      {
+        "path": "objects/business-party.md",
+        "sourcePath": "docs/ontology/objects/business-party.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "6eacccb59fffc5b9316fee78d65d903add60ada66a12062603a163c94c6f62a1"
+      },
+      {
+        "path": "concepts/delivery/cancelled-picking-recovery-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/delivery/cancelled-picking-recovery-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "4643991ad0135f509d695eacb9bcdaed7329a88c9ba198ec4c0032f097684821"
+      },
+      {
+        "path": "concepts/delivery/invoiced-same-sku-reshipment-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/delivery/invoiced-same-sku-reshipment-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "0288022c01a7ca4f97da00ecb3e58e48bd10d752a118286a0745fed7ed7833fe"
+      },
+      {
+        "path": "concepts/delivery/warehouse-dispatch-and-return-navigation.md",
+        "sourcePath": "docs/llm-wiki/concepts/delivery/warehouse-dispatch-and-return-navigation.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "09f0a435ed438d6827e6ede6cb767c44c63bc7f868c717d0781cc8575381cf4f"
+      },
+      {
+        "path": "concepts/delivery/westerman-booked-tracking-timing-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/delivery/westerman-booked-tracking-timing-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "cef15e09e6c407bf235e6cdc81181becd419716e3a316fe09f5217fd178d0dda"
+      },
+      {
+        "path": "concepts/faq/outbound-follower-receives-customer-message.md",
+        "sourcePath": "docs/llm-wiki/concepts/faq/outbound-follower-receives-customer-message.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "8b10c474c1e1d2cfe814967fe57516497b55e740c4de913862bbf4781e12ff83"
+      },
+      {
+        "path": "concepts/faq/westerman-outbound-not-pushed-to-wms.md",
+        "sourcePath": "docs/llm-wiki/concepts/faq/westerman-outbound-not-pushed-to-wms.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "a37cd8fba2cb688f755c146a61e404b62bd2030eaf83210da82e294e78506786"
+      },
+      {
+        "path": "concepts/reporting/sales-wms-quantity-field-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/reporting/sales-wms-quantity-field-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "26ef34c0ccbd5fd696f6dec5a7402764532e7b361d9044b91053018b6d6fe6a3"
+      },
+      {
+        "path": "processes/gross-profit-management-reporting.md",
+        "sourcePath": "docs/ontology/processes/gross-profit-management-reporting.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "2e2b937f7ffbaf9b4fe73c3ddbc7514dfbc2f5cb5f0eb33fe0bbe8b9ee9b719d"
+      },
+      {
+        "path": "concepts/sales/preorder-backorder-link-quantity-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/preorder-backorder-link-quantity-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "907d3e427a9e0f46ca44f27a3938772f39f44f5a6c1a193359a6e486e573ca51"
+      },
+      {
+        "path": "concepts/delivery/delivery-config-checklist.md",
+        "sourcePath": "docs/llm-wiki/concepts/delivery/delivery-config-checklist.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "531c4c4632703e74f1684b6117e16d1349176beb26fcf14ba0ad6c693d158610"
+      }
+    ],
+    "scope": "graded for this question use, not a claim the whole page is false or knowledge base has no related background"
+  },
+  "T14": {
+    "type": "hard_negative",
+    "current_source": 2351,
+    "boundary": "新前缀及长度配置，不是两张EU历史SO可手改编号",
+    "candidate_labels": [
+      {
+        "path": "objects/preorder-backorder.md",
+        "sourcePath": "docs/ontology/objects/preorder-backorder.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "df5cf1a6efe95970a6b6a97644f9acfffccb4ebf562128b9e316734e9d233900"
+      },
+      {
+        "path": "objects/sales-order.md",
+        "sourcePath": "docs/ontology/objects/sales-order.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "f9fcedb582c93fc396a0384e5ce9d46a70265962cded4c73a11f14a4da996ba8"
+      },
+      {
+        "path": "processes/sales-promotion-approval-and-application.md",
+        "sourcePath": "docs/ontology/processes/sales-promotion-approval-and-application.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "2f4f910b1e7cb82d3b057bcfb3444af6cbc41a7cf518615261dd758715a3fea2"
+      },
+      {
+        "path": "concepts/inventory/location-type-direction-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/inventory/location-type-direction-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "dea8abfeaf8d112ac44a40cf2f5bb5a3b235f61939e51214a90b2d4da394307a"
+      },
+      {
+        "path": "concepts/sales/automatic-order-email-customer-language.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/automatic-order-email-customer-language.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "44cd9dd3c449c29fa4fbdf1956e1179efe914453f659017898e372edbbc1578a"
+      },
+      {
+        "path": "concepts/inventory/us18-return-location-and-operation-type-config.md",
+        "sourcePath": "docs/llm-wiki/concepts/inventory/us18-return-location-and-operation-type-config.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "794bc9b0f1ed96653ad16ade6f246aeb45989f7471d4a2fb3bfe532f03690713"
+      },
+      {
+        "path": "concepts/sales/pricelist-discount-not-applied-or-price-mismatch.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/pricelist-discount-not-applied-or-price-mismatch.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "6d3f8add2498e3a39175adf291ea34915e3879e2aa2896549c7f166b4dee7781"
+      },
+      {
+        "path": "concepts/accounting/cancelled-journal-sequence-date-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/accounting/cancelled-journal-sequence-date-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "e4a60884eb14fb52278a935b1a66261e97e1b6f2091e068ee66894a876e28a21"
+      },
+      {
+        "path": "concepts/faq/contact-backorder-preorder-overview.md",
+        "sourcePath": "docs/llm-wiki/concepts/faq/contact-backorder-preorder-overview.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "0467ea545b41e74fa10ff4e6be19ba86ceab9e958b271bf0f5656d2945885e6f"
+      },
+      {
+        "path": "concepts/inventory/return-on-return-number-prefix-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/inventory/return-on-return-number-prefix-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "ca84010ffb470bdeead08be5508cba0b490a34c9ddee1bd979082566eb8a6fcd"
+      },
+      {
+        "path": "concepts/sales/cargo-discount-approval-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/cargo-discount-approval-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "8eb67f8e1f71be5f0ade9dcd512f923daab114efe74e6de281d52abca1d2e61d"
+      },
+      {
+        "path": "concepts/sales/manual-sales-order-number-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/manual-sales-order-number-history.md",
+        "grade": 0,
+        "reason": "新前缀及长度配置，不是两张EU历史SO可手改编号",
+        "page_sha256": "82473ec41ab91fd44c38176241f52e26e115fcf0b679e94065a2ab316d811ea1"
+      },
+      {
+        "path": "concepts/sales/sale-order-backorder-preorder-runtime-config-lark-1654.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/sale-order-backorder-preorder-runtime-config-lark-1654.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "d635507be40551da815aabb96e14a62e06ab7a1e0e13e55cedd6c68511bd7f68"
+      },
+      {
+        "path": "concepts/sales/sales-config-checklist.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/sales-config-checklist.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "bd6a4b89a39a10d0a3a88a7b0b9a6f9c21f027b092f548ca3b900e510b9efa1f"
+      },
+      {
+        "path": "objects/business-party.md",
+        "sourcePath": "docs/ontology/objects/business-party.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "6eacccb59fffc5b9316fee78d65d903add60ada66a12062603a163c94c6f62a1"
+      },
+      {
+        "path": "concepts/accounting/cash-flow-config-timing-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/accounting/cash-flow-config-timing-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "2fff317cc5430786d6abdb9543936e559474311d3114f0aabc80b11595be508c"
+      },
+      {
+        "path": "concepts/accounting/financial-report-config-preserve-on-module-update.md",
+        "sourcePath": "docs/llm-wiki/concepts/accounting/financial-report-config-preserve-on-module-update.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "1b8798d2cb421deae27df9c186e89113437382a3f773ce63fbadc45963514d8d"
+      },
+      {
+        "path": "concepts/sales/contact-overview-create-sales-order.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/contact-overview-create-sales-order.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "d98effac36b91ea71d1474bc6a3a337b251d7ca9e4ce7c08d205b84b9e43a46c"
+      },
+      {
+        "path": "concepts/sales/so-flow-preorder-backorder-cancel-rules.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/so-flow-preorder-backorder-cancel-rules.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "636a44e400f8327b1858a8d81b410c4e6991fcb2e74b228e658c7e5f22667cfa"
+      },
+      {
+        "path": "objects/customer-credit.md",
+        "sourcePath": "docs/ontology/objects/customer-credit.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "604543b7c242ee1a965de4f94e4bcae79f7ff0861994d0fa174c42452caca874"
+      }
+    ],
+    "scope": "graded for this question use, not a claim the whole page is false or knowledge base has no related background"
+  },
+  "T15": {
+    "type": "hard_negative",
+    "current_source": 2350,
+    "boundary": "新建Return Transit及首次退库Destination配置，不是Next Transfer字段仍显示Return Step2",
+    "candidate_labels": [
+      {
+        "path": "objects/warehouse-operation.md",
+        "sourcePath": "docs/ontology/objects/warehouse-operation.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "7b9ac1d2349189b4d659019bdf48fca55c7d89cde24a24f6d657b058d98d3ce8"
+      },
+      {
+        "path": "concepts/inventory/source-warehouse-masterdata-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/inventory/source-warehouse-masterdata-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "0ea441b4cb8247809e6ebd2fae2be11b00e5b1e7dff1e880901d9c1282bdb030"
+      },
+      {
+        "path": "concepts/inventory/warehouse-approver-location-check.md",
+        "sourcePath": "docs/llm-wiki/concepts/inventory/warehouse-approver-location-check.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "a5c0b7e42f377b8bdce65de1734b27c276d4dbbd02415e16076cfbac23979062"
+      },
+      {
+        "path": "concepts/inventory/warehouse-location-operation-type-change-checklist.md",
+        "sourcePath": "docs/llm-wiki/concepts/inventory/warehouse-location-operation-type-change-checklist.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "c632e6fc73c269cbb1d0fa907c55098aa0583d560f90af8e5ee66bbf94a6d1e7"
+      },
+      {
+        "path": "concepts/delivery/wms-payload-validation-triage.md",
+        "sourcePath": "docs/llm-wiki/concepts/delivery/wms-payload-validation-triage.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "6f7ff2e91ff98416b5af5fbfbb4739a34916473d31189a424c1118046c3c20b8"
+      },
+      {
+        "path": "concepts/integration/wms-address-contract-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/integration/wms-address-contract-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "f313f33a99eabbc3ad1edc1db86e2450537d20b7f2880a85acf6d3da184629cd"
+      },
+      {
+        "path": "concepts/inventory/location-type-direction-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/inventory/location-type-direction-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "dea8abfeaf8d112ac44a40cf2f5bb5a3b235f61939e51214a90b2d4da394307a"
+      },
+      {
+        "path": "concepts/inventory/sku-location-change-confirmation.md",
+        "sourcePath": "docs/llm-wiki/concepts/inventory/sku-location-change-confirmation.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "587b674ff48c329e4ce57c8a3ba43b2d0785a37f9be9ebafd8f5ce68b12b2830"
+      },
+      {
+        "path": "concepts/inventory/sku-warehouse-default-location-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/inventory/sku-warehouse-default-location-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "df122742e6c81e2f89bfadab4ad2128e6d754fa2dce9c5b3191b0d74193a0353"
+      },
+      {
+        "path": "concepts/portal/add-to-cart-regression-and-warehouse-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/portal/add-to-cart-regression-and-warehouse-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "9ed22b6a2bd4318184a74477ec9390254719d66b1a658b5614772daae4d6d18e"
+      },
+      {
+        "path": "concepts/portal/portal-email-and-archived-account-check.md",
+        "sourcePath": "docs/llm-wiki/concepts/portal/portal-email-and-archived-account-check.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "f3530365ca716630dd57ea2f0047bffcff2d2e5e39384fec95fac7f9340f7105"
+      },
+      {
+        "path": "objects/warehouse-inventory-control.md",
+        "sourcePath": "docs/ontology/objects/warehouse-inventory-control.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "0336bfa16eff88ba74e06679c366c379469952646a5828c03e32b8d970fe4a83"
+      },
+      {
+        "path": "concepts/portal/b2b-portal-access-and-dealer-ordering.md",
+        "sourcePath": "docs/llm-wiki/concepts/portal/b2b-portal-access-and-dealer-ordering.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "a04afc57ca41749d0bb2e0d00aad2d8f4c6a3f707e6808e3395413a669b2c807"
+      },
+      {
+        "path": "concepts/sales/contact-overview-create-sales-order.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/contact-overview-create-sales-order.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "d98effac36b91ea71d1474bc6a3a337b251d7ca9e4ce7c08d205b84b9e43a46c"
+      },
+      {
+        "path": "concepts/sales/contact-overview-quantity-and-status.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/contact-overview-quantity-and-status.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "ae3413e9873382bfcf8cfd7f4e29221e4224cab0dadf5b75ac06a4adaf51b02e"
+      },
+      {
+        "path": "processes/b2c-sales-order.md",
+        "sourcePath": "docs/ontology/processes/b2c-sales-order.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "650c0fbdc0588da9d69f8088f4d41706ecea2e52655345b6f6d8b4d73f6e7d5e"
+      },
+      {
+        "path": "processes/warehouse-operation-approval.md",
+        "sourcePath": "docs/ontology/processes/warehouse-operation-approval.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "31c510cd79edd14aa469adbefd36fafd277b6029552a2969d1848e984ecf1a6f"
+      },
+      {
+        "path": "concepts/delivery/next-transfer-type-investigation.md",
+        "sourcePath": "docs/llm-wiki/concepts/delivery/next-transfer-type-investigation.md",
+        "grade": 0,
+        "reason": "新建Return Transit及首次退库Destination配置，不是Next Transfer字段仍显示Return Step2",
+        "page_sha256": "2b5e95c9f9c07c5bbf6c9b184c8a1c7eeef149df86e5063eaf68bd8b432519dd"
+      },
+      {
+        "path": "concepts/faq/warehouse-location-operation-type-setup.md",
+        "sourcePath": "docs/llm-wiki/concepts/faq/warehouse-location-operation-type-setup.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "905a7e71815a10881f00330fe1be2d47cf53ede8a5c325b5278f53fa06a99494"
+      },
+      {
+        "path": "concepts/inventory/completed-picking-location-correction-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/inventory/completed-picking-location-correction-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "469c2d89bb3adf5b57763ed718cc79767ff9bd59bfcc9b6280b32f3c6bf65b29"
+      }
+    ],
+    "scope": "graded for this question use, not a claim the whole page is false or knowledge base has no related background"
+  },
+  "T16": {
+    "type": "hard_negative",
+    "current_source": 2338,
+    "boundary": "员工历史申请导出，不是公共假期导入",
+    "candidate_labels": [
+      {
+        "path": "objects/business-approval.md",
+        "sourcePath": "docs/ontology/objects/business-approval.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "3783a307ba384dda428ecbd0ce2a72246f39d77f88dd5ee4773421d0cd6893e0"
+      },
+      {
+        "path": "concepts/workforce/public-holiday-import-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/workforce/public-holiday-import-history.md",
+        "grade": 0,
+        "reason": "员工历史申请导出，不是公共假期导入",
+        "page_sha256": "89591ffb250ebba99e459594fcd4c554abce1a3fa659768a40459dbe6c3be432"
+      },
+      {
+        "path": "concepts/platform/lark-desktop-login-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/platform/lark-desktop-login-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "98678d39928e125ffd184d8c6eec6f9cb42899fbc2603beb156c27046c144add"
+      },
+      {
+        "path": "concepts/workforce/time-off-submission-and-retirement-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/workforce/time-off-submission-and-retirement-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "ad5454b6ebef4afbb9da88105a0b9f7d37d3d9e936e8fdbc535f4260ee6f8164"
+      },
+      {
+        "path": "concepts/platform/lark-mail-configuration-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/platform/lark-mail-configuration-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "1eda8742ecc128e73680315dab529fec16bdcac1d9f0112a224538d6bc1f8cc4"
+      },
+      {
+        "path": "concepts/workforce/workforce-support-navigation.md",
+        "sourcePath": "docs/llm-wiki/concepts/workforce/workforce-support-navigation.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "bc123a2e1f8d2365d77e4b3dff3cf7708a1c62cf70ef0584de7db9c73a57b63a"
+      },
+      {
+        "path": "concepts/accounting/payment-request-owner-department-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/accounting/payment-request-owner-department-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "7e4ea22ba92a6ef0ca4a6fe9860947959d3e769b47d81d878b8ba650abb60ea0"
+      },
+      {
+        "path": "concepts/invoicing/duplicate-employee-old-department-on-journal-item.md",
+        "sourcePath": "docs/llm-wiki/concepts/invoicing/duplicate-employee-old-department-on-journal-item.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "867d8950a3c81e5ee46252d937925f7c66e24a5c1890d2063d334f81be04aac5"
+      },
+      {
+        "path": "concepts/payment/citi-sepa-batch-booking-default-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/payment/citi-sepa-batch-booking-default-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "007915cf7d9d608ca29e59a674cd0172bced585b76d0c07ba0202e70ab815c56"
+      },
+      {
+        "path": "concepts/portal/service-center-internal-message-exposure-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/portal/service-center-internal-message-exposure-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "c0d96fa5898e32ae3b59ac2b3a8154a89e30fefd6bf5ff189e010a05d456052e"
+      },
+      {
+        "path": "objects/workforce-administration.md",
+        "sourcePath": "docs/ontology/objects/workforce-administration.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "90f140e30e136fbe5b4318e5c3bde9928c96fd7166cddb1e9bcabcc1bcc2d362"
+      },
+      {
+        "path": "processes/customer-sales-ownership-change.md",
+        "sourcePath": "docs/ontology/processes/customer-sales-ownership-change.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "963f6e5156306cd74dae80d39a039f33c68ee96416db60555ad897a8317fdfe8"
+      },
+      {
+        "path": "processes/standalone-approval-request.md",
+        "sourcePath": "docs/ontology/processes/standalone-approval-request.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "8a72e843ae0355251e105a597aaf0740815de1845f3af328e3708dabd7d80647"
+      },
+      {
+        "path": "concepts/accounting/journal-asset-field-release-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/accounting/journal-asset-field-release-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "8d0792951728c59b16d19c2e81d709a571aedcf0dd29ecbb0e4a3b7921db2398"
+      },
+      {
+        "path": "concepts/approvals/approval-submission-and-progress-triage.md",
+        "sourcePath": "docs/llm-wiki/concepts/approvals/approval-submission-and-progress-triage.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "093b061f70c7f6d61e4b4a958f4bb27e312203b164e5862d881c00403d58cde0"
+      },
+      {
+        "path": "concepts/approvals/payroll-chatter-log-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/approvals/payroll-chatter-log-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "d87d16745b4eddbce3b3249079889df84cf608289ee9528b590a848e0448686c"
+      },
+      {
+        "path": "concepts/delivery/done-picking-without-physical-shipment-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/delivery/done-picking-without-physical-shipment-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "c63a805723a391e58082ca526f175e16007199a5f7bfe21c11a40c2bb5263017"
+      },
+      {
+        "path": "concepts/delivery/sent-picking-split-and-order-line-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/delivery/sent-picking-split-and-order-line-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "da467f0cba8f2932deefc6864bd0ee09c06c67df38f2a4bbb7f75afa363ebd27"
+      },
+      {
+        "path": "concepts/delivery/wms-feedback-duplicate-quantity-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/delivery/wms-feedback-duplicate-quantity-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "0a556a6a3db876c068656baaabb822123b219f305bb499b306ff0410ffcc5bcd"
+      },
+      {
+        "path": "concepts/delivery/wms-receipt-disputed-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/delivery/wms-receipt-disputed-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "341e9adce39bf6d2d78d0e9f75ea8218e73b15bd3e44e8628d0605c15c765b26"
+      }
+    ],
+    "scope": "graded for this question use, not a claim the whole page is false or knowledge base has no related background"
+  },
+  "T17": {
+    "type": "hard_negative",
+    "current_source": 2356,
+    "boundary": "补bike model name，不是退回车等级选择或新增R-SKU",
+    "candidate_labels": [
+      {
+        "path": "concepts/accounting/historical-entry-mandatory-fields-reverse.md",
+        "sourcePath": "docs/llm-wiki/concepts/accounting/historical-entry-mandatory-fields-reverse.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "9db8aa094f720832dbc1790851a3cb8f06c43ad85c3695e0a9f10730916bc307"
+      },
+      {
+        "path": "objects/business-party.md",
+        "sourcePath": "docs/ontology/objects/business-party.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "6eacccb59fffc5b9316fee78d65d903add60ada66a12062603a163c94c6f62a1"
+      },
+      {
+        "path": "concepts/after_sales/mega-bike-kiel-wik-l-beck-claim-unknown-pending-analysis-lark-1655.md",
+        "sourcePath": "docs/llm-wiki/concepts/after_sales/mega-bike-kiel-wik-l-beck-claim-unknown-pending-analysis-lark-1655.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "813ab32f488dd3340029d6afc55876f058826cad315acf773266c21e6ba548a9"
+      },
+      {
+        "path": "concepts/delivery/wms-payload-validation-triage.md",
+        "sourcePath": "docs/llm-wiki/concepts/delivery/wms-payload-validation-triage.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "6f7ff2e91ff98416b5af5fbfbb4739a34916473d31189a424c1118046c3c20b8"
+      },
+      {
+        "path": "concepts/delivery/wms-push-failure-and-quantity-mismatch.md",
+        "sourcePath": "docs/llm-wiki/concepts/delivery/wms-push-failure-and-quantity-mismatch.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "6232e8f3f0d3dd6c9230e6a074b09ce76f8b463218b9840c22b63ca0f6bc8081"
+      },
+      {
+        "path": "objects/financial-reporting.md",
+        "sourcePath": "docs/ontology/objects/financial-reporting.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "3f2c8fc0a1d140a14d42364efb51566179e2f7dc125e0ce8714ec27115179e91"
+      },
+      {
+        "path": "concepts/accounting/report-data-mismatch-triage.md",
+        "sourcePath": "docs/llm-wiki/concepts/accounting/report-data-mismatch-triage.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "07175f5d98e384d0558e79b6f990807b1a5468e5fb8292c6d4edb57ee18d58fc"
+      },
+      {
+        "path": "concepts/inventory/return-grade-and-r-sku-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/inventory/return-grade-and-r-sku-history.md",
+        "grade": 0,
+        "reason": "补bike model name，不是退回车等级选择或新增R-SKU",
+        "page_sha256": "7722450c55c113ab6e8ed35c9fdec2458134117a483e6c96e7f1c08b9dc10632"
+      },
+      {
+        "path": "concepts/reporting/gross-profit-tax-quantity-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/reporting/gross-profit-tax-quantity-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "a61e3bc9572cdf98a5e01f62fa5e898bdb54cf77e888c49dd22ee04d2575efcf"
+      },
+      {
+        "path": "objects/preorder-backorder.md",
+        "sourcePath": "docs/ontology/objects/preorder-backorder.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "df5cf1a6efe95970a6b6a97644f9acfffccb4ebf562128b9e316734e9d233900"
+      },
+      {
+        "path": "objects/warehouse-inventory-control.md",
+        "sourcePath": "docs/ontology/objects/warehouse-inventory-control.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "0336bfa16eff88ba74e06679c366c379469952646a5828c03e32b8d970fe4a83"
+      },
+      {
+        "path": "concepts/access/operation-access-and-button-triage.md",
+        "sourcePath": "docs/llm-wiki/concepts/access/operation-access-and-button-triage.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "fc0e90cd75a785b2a27952f119e182996973a70d6ac6ff951cdd160a1055134e"
+      },
+      {
+        "path": "concepts/accounting/accounting-change-navigation.md",
+        "sourcePath": "docs/llm-wiki/concepts/accounting/accounting-change-navigation.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "da6dfa8ffa572e0d9cc6abd7606bb08b68a122dfc8f5a9dae3f35e67d35cee8d"
+      },
+      {
+        "path": "concepts/accounting/journal-required-dimensions-and-country.md",
+        "sourcePath": "docs/llm-wiki/concepts/accounting/journal-required-dimensions-and-country.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "6f5fccd67b4bd37f0ee43b9d783e035d9012386e8820014007105aa81fd7e6ee"
+      },
+      {
+        "path": "concepts/after_sales/contacts-owl-error-cannot-open-historical-case.md",
+        "sourcePath": "docs/llm-wiki/concepts/after_sales/contacts-owl-error-cannot-open-historical-case.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "4048a410439a5858fcf17e4303393203f06332bb4b8d7a12d1b9aeec27e17c65"
+      },
+      {
+        "path": "concepts/approvals/approval-manager-missing-check.md",
+        "sourcePath": "docs/llm-wiki/concepts/approvals/approval-manager-missing-check.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "b430265a895f95bd46af0b73b3ec89a524aa91d4bc2b66da21fcff8dea9f4841"
+      },
+      {
+        "path": "concepts/approvals/inflight-approval-owner-change-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/approvals/inflight-approval-owner-change-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "f0261a65e81a724a084cc909767bef41404281488311bbd0c7a6058e70ba908d"
+      },
+      {
+        "path": "concepts/delivery/delivery-note-multiple-email-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/delivery/delivery-note-multiple-email-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "00092fde525212aa337640d5eada3b2c3267d49f8e19cfa57821e1ba24c5ec56"
+      },
+      {
+        "path": "concepts/delivery/invoiced-same-sku-reshipment-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/delivery/invoiced-same-sku-reshipment-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "0288022c01a7ca4f97da00ecb3e58e48bd10d752a118286a0745fed7ed7833fe"
+      },
+      {
+        "path": "concepts/delivery/sales-order-integration-contract-lark-1806.md",
+        "sourcePath": "docs/llm-wiki/concepts/delivery/sales-order-integration-contract-lark-1806.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "26c7af91ef323c554bbaa593fe8de8c420b6a0c1cd9d11b4784a3a3333c9d4ce"
+      }
+    ],
+    "scope": "graded for this question use, not a claim the whole page is false or knowledge base has no related background"
+  },
+  "T18": {
+    "type": "hard_negative",
+    "current_source": 2327,
+    "boundary": "新增审批人配置，不是已有审批waiting/pending状态映射异常",
+    "candidate_labels": [
+      {
+        "path": "objects/business-approval.md",
+        "sourcePath": "docs/ontology/objects/business-approval.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "3783a307ba384dda428ecbd0ce2a72246f39d77f88dd5ee4773421d0cd6893e0"
+      },
+      {
+        "path": "concepts/faq/approval-flow-config-change-checklist.md",
+        "sourcePath": "docs/llm-wiki/concepts/faq/approval-flow-config-change-checklist.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "5bfeef1897fe164006a2097af2eb1486f79c391fa90a2675b2a8fa040b6b6aae"
+      },
+      {
+        "path": "processes/standalone-approval-request.md",
+        "sourcePath": "docs/ontology/processes/standalone-approval-request.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "8a72e843ae0355251e105a597aaf0740815de1845f3af328e3708dabd7d80647"
+      },
+      {
+        "path": "processes/internal-stock-transfer.md",
+        "sourcePath": "docs/ontology/processes/internal-stock-transfer.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "e239ffd730691ba963739d15735fea92dbbb4870ce37b44fdee1b4ddf4e4f6d2"
+      },
+      {
+        "path": "concepts/approvals/approval-policy-change-checklist.md",
+        "sourcePath": "docs/llm-wiki/concepts/approvals/approval-policy-change-checklist.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "437d303af8167e983787dd11608028c63e013602a1982e7539befd12b8a341c4"
+      },
+      {
+        "path": "objects/warehouse-operation.md",
+        "sourcePath": "docs/ontology/objects/warehouse-operation.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "7b9ac1d2349189b4d659019bdf48fca55c7d89cde24a24f6d657b058d98d3ce8"
+      },
+      {
+        "path": "processes/budget-contract-payment-approval.md",
+        "sourcePath": "docs/ontology/processes/budget-contract-payment-approval.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "727d851dd896573b35d641931ed5f45acf67a8bd52e8edd6868fbff5a8fe0680"
+      },
+      {
+        "path": "processes/embedded-business-record-approval.md",
+        "sourcePath": "docs/ontology/processes/embedded-business-record-approval.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "c1c0c2491701a3e8914ead0fb54867949cb66378c0fd80056268ed9f7452ddb6"
+      },
+      {
+        "path": "processes/other-outbound-execution.md",
+        "sourcePath": "docs/ontology/processes/other-outbound-execution.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "85b84795edad4a568f87d44f8d2fcf80c22308a87e39e6d41029482b9c3f2983"
+      },
+      {
+        "path": "concepts/faq/approval-stuck-and-submit-failure-disposition.md",
+        "sourcePath": "docs/llm-wiki/concepts/faq/approval-stuck-and-submit-failure-disposition.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "135cf86827d11b6a6dfa26b2adde1887cae91992947334cb70959af4f9d1022b"
+      },
+      {
+        "path": "concepts/invoicing/document-followers-mail-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/invoicing/document-followers-mail-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "04657eba9defb98d27f827feb6dde2583dec23dad0bac7b3f23230cef52d6203"
+      },
+      {
+        "path": "objects/sales-commercial-terms.md",
+        "sourcePath": "docs/ontology/objects/sales-commercial-terms.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "d0e7d5f37e07c8437bf89ac02a1c29528981b523d9eb5d7d8eab40d64aae9ce1"
+      },
+      {
+        "path": "concepts/approvals/payroll-chatter-log-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/approvals/payroll-chatter-log-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "d87d16745b4eddbce3b3249079889df84cf608289ee9528b590a848e0448686c"
+      },
+      {
+        "path": "processes/warehouse-operation-approval.md",
+        "sourcePath": "docs/ontology/processes/warehouse-operation-approval.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "31c510cd79edd14aa469adbefd36fafd277b6029552a2969d1848e984ecf1a6f"
+      },
+      {
+        "path": "concepts/approvals/approval-submission-and-progress-triage.md",
+        "sourcePath": "docs/llm-wiki/concepts/approvals/approval-submission-and-progress-triage.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "093b061f70c7f6d61e4b4a958f4bb27e312203b164e5862d881c00403d58cde0"
+      },
+      {
+        "path": "concepts/approvals/inflight-approval-owner-change-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/approvals/inflight-approval-owner-change-history.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "f0261a65e81a724a084cc909767bef41404281488311bbd0c7a6058e70ba908d"
+      },
+      {
+        "path": "processes/sales-refund-authorization.md",
+        "sourcePath": "docs/ontology/processes/sales-refund-authorization.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "a7949e566fcbd06fbf5118b5a2b353941f5927a4523b3ce51c8599c1115190f6"
+      },
+      {
+        "path": "processes/sales-terms-exception-approval.md",
+        "sourcePath": "docs/ontology/processes/sales-terms-exception-approval.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "4cf82772738fe0357d9c5de275bd11192a1c6de606fe7eaa46ce521a4e27d742"
+      },
+      {
+        "path": "processes/user-account-onboarding-and-offboarding.md",
+        "sourcePath": "docs/ontology/processes/user-account-onboarding-and-offboarding.md",
+        "grade": null,
+        "reason": "未作为错误标注；不在gold不自动等于错误",
+        "page_sha256": "e5dc6bde01527806ebfde417eff86d60f05bd4456da0f66dfbf0a672ea82b67c"
+      },
+      {
+        "path": "concepts/approvals/approval-status-button-mapping-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/approvals/approval-status-button-mapping-history.md",
+        "grade": 0,
+        "reason": "新增审批人配置，不是已有审批waiting/pending状态映射异常",
+        "page_sha256": "6a7ea1a8290da9a1e2651a2eeed0e449c4efdae4bc4f87cc32fe0b9c0fd66ac7"
+      }
+    ],
+    "scope": "graded for this question use, not a claim the whole page is false or knowledge base has no related background"
+  },
+  "T19": {
+    "type": "no_answer",
+    "current_source": 2353,
+    "boundary": "候选内无本次具体需求的实现／交付依据；仅同主题背景不算答案",
+    "candidate_labels": [
+      {
+        "path": "objects/business-party.md",
+        "sourcePath": "docs/ontology/objects/business-party.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "6eacccb59fffc5b9316fee78d65d903add60ada66a12062603a163c94c6f62a1"
+      },
+      {
+        "path": "concepts/sales/us-quotation-tax-bank-template-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/us-quotation-tax-bank-template-history.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "8b9cb2d768bc3b14c989629a952f7451134420b9eedf4967f06f163ff4584fb9"
+      },
+      {
+        "path": "concepts/accounting/accounting-config-checklist.md",
+        "sourcePath": "docs/llm-wiki/concepts/accounting/accounting-config-checklist.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "677c4c42853f45d349c7b75fbf89e90626b13682e1ccc5b3cbe0c791ae980a51"
+      },
+      {
+        "path": "concepts/sales/contact-overview-quantity-and-status.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/contact-overview-quantity-and-status.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "ae3413e9873382bfcf8cfd7f4e29221e4224cab0dadf5b75ac06a4adaf51b02e"
+      },
+      {
+        "path": "concepts/sales/contact-tag-change-verification.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/contact-tag-change-verification.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "a2631cf36a7b09a8db8ddfec9b09e0590c38045a8edc605aee8953433d977250"
+      },
+      {
+        "path": "objects/access-governance.md",
+        "sourcePath": "docs/ontology/objects/access-governance.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "a3d4f6bbf0d76667e4a577f2a7ffe1d00a37f2d98b8840adc824b391a2b439f3"
+      },
+      {
+        "path": "concepts/accounting/journal-required-dimensions-and-country.md",
+        "sourcePath": "docs/llm-wiki/concepts/accounting/journal-required-dimensions-and-country.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "6f5fccd67b4bd37f0ee43b9d783e035d9012386e8820014007105aa81fd7e6ee"
+      },
+      {
+        "path": "concepts/faq/contact-tag-and-master-data-change.md",
+        "sourcePath": "docs/llm-wiki/concepts/faq/contact-tag-and-master-data-change.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "580b4e9a30a546e1252fb9a637f81d80ba96759056aef2d28c784b26c5e0d12b"
+      },
+      {
+        "path": "concepts/payment/manual-journal-required-fields-partner-country.md",
+        "sourcePath": "docs/llm-wiki/concepts/payment/manual-journal-required-fields-partner-country.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "9bdf8e5adc02327d0d10c7a7e46be58b0d4df9c68277245648eea3adb6b99c97"
+      },
+      {
+        "path": "objects/b2c-sales.md",
+        "sourcePath": "docs/ontology/objects/b2c-sales.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "d03fa059cf605a3e496b10d90725016a98f9d62960e1025eadaa37d13a172d37"
+      },
+      {
+        "path": "objects/sales-invoice.md",
+        "sourcePath": "docs/ontology/objects/sales-invoice.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "072d6410e8bfd3fb43ac228596a38304af27c2fe7fb31a3bd32cb5825e603214"
+      },
+      {
+        "path": "rules/commercial-partner-attribution.md",
+        "sourcePath": "docs/ontology/rules/commercial-partner-attribution.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "65fe3b533f312a535bb9665b9093aa9441b0fce62eb66d51abcd0f55e5840eb7"
+      },
+      {
+        "path": "concepts/accounting/accounting-change-navigation.md",
+        "sourcePath": "docs/llm-wiki/concepts/accounting/accounting-change-navigation.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "da6dfa8ffa572e0d9cc6abd7606bb08b68a122dfc8f5a9dae3f35e67d35cee8d"
+      },
+      {
+        "path": "concepts/accounting/journal-asset-field-release-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/accounting/journal-asset-field-release-history.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "8d0792951728c59b16d19c2e81d709a571aedcf0dd29ecbb0e4a3b7921db2398"
+      },
+      {
+        "path": "concepts/faq/accounting-config-adjustments-checklist.md",
+        "sourcePath": "docs/llm-wiki/concepts/faq/accounting-config-adjustments-checklist.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "ed93266e97c332cadc97997377cda28bd14fd468c5765e6449d7e65062925a28"
+      },
+      {
+        "path": "concepts/faq/entry-field-edit-rules.md",
+        "sourcePath": "docs/llm-wiki/concepts/faq/entry-field-edit-rules.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "e2802704dde19d69a005ea8f22de6b6b81ded8a7e4018c25389c21fc5e7e426f"
+      },
+      {
+        "path": "concepts/payment/unreconcile-matching-number-empty-lines-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/payment/unreconcile-matching-number-empty-lines-history.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "19c98cc400c24781cde5a242f3d73bf4306d31637681df3ac9507a8ad0046bdb"
+      },
+      {
+        "path": "concepts/sales/configuration-change-navigation.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/configuration-change-navigation.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "bea3257170970ad08dfe511f5413b5e6ffe56cdb97f2536afc9fa628cd7bcce0"
+      },
+      {
+        "path": "concepts/sales/contact-overview-create-sales-order.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/contact-overview-create-sales-order.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "d98effac36b91ea71d1474bc6a3a337b251d7ca9e4ce7c08d205b84b9e43a46c"
+      },
+      {
+        "path": "objects/sales-receipt-reconciliation.md",
+        "sourcePath": "docs/ontology/objects/sales-receipt-reconciliation.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "06482498a929e07a5a4af00443d4c5a80923486a8392a7dcf6f24a4cbd08576e"
+      }
+    ],
+    "scope": "graded for this question use, not a claim the whole page is false or knowledge base has no related background"
+  },
+  "T20": {
+    "type": "no_answer",
+    "current_source": 2346,
+    "boundary": "候选内无本次具体需求的实现／交付依据；仅同主题背景不算答案",
+    "candidate_labels": [
+      {
+        "path": "concepts/portal/service-centre-claim-display-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/portal/service-centre-claim-display-history.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "a1679a42133635cfecfa46c91f4a4ec29384ee36bbb21f67e38c92e279c06c54"
+      },
+      {
+        "path": "objects/portal-legal-terms.md",
+        "sourcePath": "docs/ontology/objects/portal-legal-terms.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "d74f216bf08c542b339db581ae0d9cf38bbdb161e7f3112cab970ab333c676e2"
+      },
+      {
+        "path": "objects/business-party.md",
+        "sourcePath": "docs/ontology/objects/business-party.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "6eacccb59fffc5b9316fee78d65d903add60ada66a12062603a163c94c6f62a1"
+      },
+      {
+        "path": "concepts/portal/purchase-access-types-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/portal/purchase-access-types-history.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "d0d6430505935df4ca69583631ac2737d49e28623d42dfa9b206d3e29c0def83"
+      },
+      {
+        "path": "concepts/portal/service-center-internal-message-exposure-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/portal/service-center-internal-message-exposure-history.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "c0d96fa5898e32ae3b59ac2b3a8154a89e30fefd6bf5ff189e010a05d456052e"
+      },
+      {
+        "path": "objects/b2b-invoice-integration.md",
+        "sourcePath": "docs/ontology/objects/b2b-invoice-integration.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "a203ce0fc161c9bdcd7292dea9e67f392926214cad0566422e5f1954e7e34714"
+      },
+      {
+        "path": "objects/sales-order-amendment.md",
+        "sourcePath": "docs/ontology/objects/sales-order-amendment.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "4f12cdef85dc6ee3625fe5e9c64038b6a1d757a6e0c2c7f298ac3b2c24542d7d"
+      },
+      {
+        "path": "processes/portal-legal-terms-publication-and-acceptance.md",
+        "sourcePath": "docs/ontology/processes/portal-legal-terms-publication-and-acceptance.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "ea6bc6166203230455ba73d9536e9ce905a5089f8b5ab5863e76a6bb5ef25ca8"
+      },
+      {
+        "path": "concepts/faq/contact-backorder-preorder-overview.md",
+        "sourcePath": "docs/llm-wiki/concepts/faq/contact-backorder-preorder-overview.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "0467ea545b41e74fa10ff4e6be19ba86ceab9e958b271bf0f5656d2945885e6f"
+      },
+      {
+        "path": "concepts/sales/contact-overview-create-sales-order.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/contact-overview-create-sales-order.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "d98effac36b91ea71d1474bc6a3a337b251d7ca9e4ce7c08d205b84b9e43a46c"
+      },
+      {
+        "path": "concepts/sales/preorder-backorder-link-quantity-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/preorder-backorder-link-quantity-history.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "907d3e427a9e0f46ca44f27a3938772f39f44f5a6c1a193359a6e486e573ca51"
+      },
+      {
+        "path": "objects/portal-support-content.md",
+        "sourcePath": "docs/ontology/objects/portal-support-content.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "3dccd4699cdcf8c554229436a80bcda869e8de6743562c94a268e6443ff95f1e"
+      },
+      {
+        "path": "objects/preorder-backorder.md",
+        "sourcePath": "docs/ontology/objects/preorder-backorder.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "df5cf1a6efe95970a6b6a97644f9acfffccb4ebf562128b9e316734e9d233900"
+      },
+      {
+        "path": "concepts/portal/b2b-portal-access-and-dealer-ordering.md",
+        "sourcePath": "docs/llm-wiki/concepts/portal/b2b-portal-access-and-dealer-ordering.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "a04afc57ca41749d0bb2e0d00aad2d8f4c6a3f707e6808e3395413a669b2c807"
+      },
+      {
+        "path": "objects/sales-order.md",
+        "sourcePath": "docs/ontology/objects/sales-order.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "f9fcedb582c93fc396a0384e5ce9d46a70265962cded4c73a11f14a4da996ba8"
+      },
+      {
+        "path": "processes/b2c-leasing-sales.md",
+        "sourcePath": "docs/ontology/processes/b2c-leasing-sales.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "10f6d2002ef07e849801c64c638a8eaf6a0e6fe7fd8aceff54f3c3d38449ff8f"
+      },
+      {
+        "path": "concepts/portal/backorder-template-api-contract-500.md",
+        "sourcePath": "docs/llm-wiki/concepts/portal/backorder-template-api-contract-500.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "eca51b9ee81f6b45a347373c3c77ea1c393acca76fbe4128926b1dd32f43eebb"
+      },
+      {
+        "path": "objects/portal-public-inquiry.md",
+        "sourcePath": "docs/ontology/objects/portal-public-inquiry.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "cb7e05f4f9f4a839dc74e3e728ea1c7eb71780bc1d885bc999df7e42a9a3da3c"
+      },
+      {
+        "path": "objects/sales-invoice.md",
+        "sourcePath": "docs/ontology/objects/sales-invoice.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "072d6410e8bfd3fb43ac228596a38304af27c2fe7fb31a3bd32cb5825e603214"
+      },
+      {
+        "path": "processes/sales-order-confirmation.md",
+        "sourcePath": "docs/ontology/processes/sales-order-confirmation.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "0b1152aee75dfb90210513f3b8b8fc319786740f73f6ba0f860646c34680862c"
+      }
+    ],
+    "scope": "graded for this question use, not a claim the whole page is false or knowledge base has no related background"
+  },
+  "T21": {
+    "type": "no_answer",
+    "current_source": 2330,
+    "boundary": "候选内无本次具体需求的实现／交付依据；仅同主题背景不算答案",
+    "candidate_labels": [
+      {
+        "path": "concepts/sales/pricelist-batch-update-historical-case.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/pricelist-batch-update-historical-case.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "9963e9d28f4d72107d7ca59002b501d301358990599ef921875d72bb73ed111b"
+      },
+      {
+        "path": "concepts/invoicing/uk-automatic-invoice-mail-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/invoicing/uk-automatic-invoice-mail-history.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "45e85ddaf8d90994cb18209a14d77dd1a5ec78397828e0a5b0eb6f768553ce28"
+      },
+      {
+        "path": "concepts/sales/pricelist-and-product-maintenance-navigation.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/pricelist-and-product-maintenance-navigation.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "86025e38833de9c675f8ea0f0d14c19a6ecabc882855c6e3f8d795a762ea723e"
+      },
+      {
+        "path": "concepts/inventory/us-sku-basic-attributes-check.md",
+        "sourcePath": "docs/llm-wiki/concepts/inventory/us-sku-basic-attributes-check.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "b08229610bea0bb9bf44ea93571b9ed61098bb7d4efc7ac4d2990d0a1074653f"
+      },
+      {
+        "path": "objects/sales-pricelist.md",
+        "sourcePath": "docs/ontology/objects/sales-pricelist.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "c01f444109141bc6c9a536697d03e51584e57c0ea3a0e19caf4eec736f49f0f7"
+      },
+      {
+        "path": "processes/purchase-tax-determination-and-billing.md",
+        "sourcePath": "docs/ontology/processes/purchase-tax-determination-and-billing.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "f52b6dc2d38361e86c48a2789645707c39953e77a78b1ea9728417f586ce22ec"
+      },
+      {
+        "path": "processes/sales-invoicing.md",
+        "sourcePath": "docs/ontology/processes/sales-invoicing.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "d07741ced1ce39c8566b71ab30c9945c69bbe7d83d8bb6d94dfcf0bd87deb6c2"
+      },
+      {
+        "path": "concepts/invoicing/price-and-invoicing-mismatch-triage.md",
+        "sourcePath": "docs/llm-wiki/concepts/invoicing/price-and-invoicing-mismatch-triage.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "b368feae86268a75447da69b1a0b067d055ea9361b100eeec9cd8d7b94f86ecc"
+      },
+      {
+        "path": "concepts/sales/promotion-price-approval-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/promotion-price-approval-history.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "1ed8eb669ee250e9289628c78f89c45c50d861ff9fe4661a36232df1414fe59e"
+      },
+      {
+        "path": "objects/business-party.md",
+        "sourcePath": "docs/ontology/objects/business-party.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "6eacccb59fffc5b9316fee78d65d903add60ada66a12062603a163c94c6f62a1"
+      },
+      {
+        "path": "objects/preorder-backorder.md",
+        "sourcePath": "docs/ontology/objects/preorder-backorder.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "df5cf1a6efe95970a6b6a97644f9acfffccb4ebf562128b9e316734e9d233900"
+      },
+      {
+        "path": "objects/product-catalog.md",
+        "sourcePath": "docs/ontology/objects/product-catalog.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "310fd37f508031569f641d87d8597199f6e00e76ccc20c082ef7777038e70884"
+      },
+      {
+        "path": "objects/sales-order.md",
+        "sourcePath": "docs/ontology/objects/sales-order.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "f9fcedb582c93fc396a0384e5ce9d46a70265962cded4c73a11f14a4da996ba8"
+      },
+      {
+        "path": "processes/b2b-invoice-platform-delivery.md",
+        "sourcePath": "docs/ontology/processes/b2b-invoice-platform-delivery.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "1b21cd995d769068251eebb5bf5743ff1952e2235724575936872c8ec013af9c"
+      },
+      {
+        "path": "processes/customer-pricelist-change.md",
+        "sourcePath": "docs/ontology/processes/customer-pricelist-change.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "378140a58f77fe6c8422bcc58fcfdd4e76348ccfd2d4c25c3dd6b9fb927b2b30"
+      },
+      {
+        "path": "processes/sales-order-confirmation.md",
+        "sourcePath": "docs/ontology/processes/sales-order-confirmation.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "0b1152aee75dfb90210513f3b8b8fc319786740f73f6ba0f860646c34680862c"
+      },
+      {
+        "path": "processes/sales-pricelist-assignment-and-repricing.md",
+        "sourcePath": "docs/ontology/processes/sales-pricelist-assignment-and-repricing.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "d3a7ff61a3751ea168f625da40d721283a896374ef3cfde0ce1de94f1bf8cdf1"
+      },
+      {
+        "path": "concepts/integration/shopify-order-sku-mismatch-mapping-and-lifecycle.md",
+        "sourcePath": "docs/llm-wiki/concepts/integration/shopify-order-sku-mismatch-mapping-and-lifecycle.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "4275fe43179756e7d3f5f1143c5277b82199a1ac0c0a3461222ada0b6ecf7008"
+      },
+      {
+        "path": "objects/sales-invoice.md",
+        "sourcePath": "docs/ontology/objects/sales-invoice.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "072d6410e8bfd3fb43ac228596a38304af27c2fe7fb31a3bd32cb5825e603214"
+      },
+      {
+        "path": "concepts/approvals/approval-submission-and-progress-triage.md",
+        "sourcePath": "docs/llm-wiki/concepts/approvals/approval-submission-and-progress-triage.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "093b061f70c7f6d61e4b4a958f4bb27e312203b164e5862d881c00403d58cde0"
+      }
+    ],
+    "scope": "graded for this question use, not a claim the whole page is false or knowledge base has no related background"
+  },
+  "T22": {
+    "type": "no_answer",
+    "current_source": {
+      "file": "wiki-qa-extract.2026-09-22.1.log",
+      "line": 8,
+      "actionRunId": "4d0f2117-7684-41b9-b4fa-d7e6a7501ef6",
+      "kind": "saved_model_extraction"
+    },
+    "boundary": "无本次新功能具体实现／交付知识；非关键词同主题即支持",
+    "candidate_labels": [
+      {
+        "path": "objects/business-approval.md",
+        "sourcePath": "docs/ontology/objects/business-approval.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "3783a307ba384dda428ecbd0ce2a72246f39d77f88dd5ee4773421d0cd6893e0"
+      },
+      {
+        "path": "processes/budget-contract-payment-approval.md",
+        "sourcePath": "docs/ontology/processes/budget-contract-payment-approval.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "727d851dd896573b35d641931ed5f45acf67a8bd52e8edd6868fbff5a8fe0680"
+      },
+      {
+        "path": "objects/purchase-settlement.md",
+        "sourcePath": "docs/ontology/objects/purchase-settlement.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "b475c7ddace433a00e567a8926b9057cfa36511dc70231bc5ca3513db26869cf"
+      },
+      {
+        "path": "processes/purchase-prepayment-and-deduction.md",
+        "sourcePath": "docs/ontology/processes/purchase-prepayment-and-deduction.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "26fbc6939374279cace0691a2a6278665006fc644f2b2fc4210fd18b123bec3a"
+      },
+      {
+        "path": "concepts/purchase/prepayment-deduction-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/purchase/prepayment-deduction-history.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "86580e255cff6893a0c676f0ccc0d865727bdd72962f9731256680b0ffa03958"
+      },
+      {
+        "path": "objects/business-party.md",
+        "sourcePath": "docs/ontology/objects/business-party.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "6eacccb59fffc5b9316fee78d65d903add60ada66a12062603a163c94c6f62a1"
+      },
+      {
+        "path": "objects/sales-invoice.md",
+        "sourcePath": "docs/ontology/objects/sales-invoice.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "072d6410e8bfd3fb43ac228596a38304af27c2fe7fb31a3bd32cb5825e603214"
+      },
+      {
+        "path": "objects/cash-flow-allocation.md",
+        "sourcePath": "docs/ontology/objects/cash-flow-allocation.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "213a209e0569a359423b130df9531386a027fbc2bdd2d7933a73bcee29fec7d3"
+      },
+      {
+        "path": "objects/warehouse-operation.md",
+        "sourcePath": "docs/ontology/objects/warehouse-operation.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "7b9ac1d2349189b4d659019bdf48fca55c7d89cde24a24f6d657b058d98d3ce8"
+      },
+      {
+        "path": "processes/employee-expense-submission-approval-and-reimbursement.md",
+        "sourcePath": "docs/ontology/processes/employee-expense-submission-approval-and-reimbursement.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "6b32a1d3237d7f3595fc794bdd7082a8c226c75edcbcf4928884da9ea902f482"
+      },
+      {
+        "path": "objects/deferred-expense.md",
+        "sourcePath": "docs/ontology/objects/deferred-expense.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "a0863afabac88b56a004ee8ce431a552a405ab21f5fdeba3309919b0d1bba449"
+      },
+      {
+        "path": "objects/journal-item-control.md",
+        "sourcePath": "docs/ontology/objects/journal-item-control.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "baf4a5f92a6c5fbb65df132e9a6466cbbda7bf3db95477f3700c3450b849c6f4"
+      },
+      {
+        "path": "objects/sales-refund.md",
+        "sourcePath": "docs/ontology/objects/sales-refund.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "e1c4bc21a942ae5c9ecd144225f1c4fb01d97d2367ed878a7441ad4559d6f8a6"
+      },
+      {
+        "path": "objects/transaction-tax.md",
+        "sourcePath": "docs/ontology/objects/transaction-tax.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "1452c3d0d019f29dce96849ae2807d7ba5cc2a39cae65859a76b06ac4ec10c36"
+      },
+      {
+        "path": "processes/sales-credit-adjustment.md",
+        "sourcePath": "docs/ontology/processes/sales-credit-adjustment.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "b00ab27ff77022cd32d1908146e27d25d0e6b560a8d99bcb45f27fce7b9eab7a"
+      },
+      {
+        "path": "concepts/approvals/approval-submission-and-progress-triage.md",
+        "sourcePath": "docs/llm-wiki/concepts/approvals/approval-submission-and-progress-triage.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "093b061f70c7f6d61e4b4a958f4bb27e312203b164e5862d881c00403d58cde0"
+      },
+      {
+        "path": "concepts/invoicing/rounding-promotion-after-invoice-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/invoicing/rounding-promotion-after-invoice-history.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "226b55cf948695e28b25d2799a5abc1e17216a0b82c2abdb6fe569c836ccba55"
+      },
+      {
+        "path": "objects/marketing-sales.md",
+        "sourcePath": "docs/ontology/objects/marketing-sales.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "c566750ad057dbb62e47c14a6fa8c79012dd0dc7f6d65d97e5adb646e749a456"
+      },
+      {
+        "path": "objects/service-center-case.md",
+        "sourcePath": "docs/ontology/objects/service-center-case.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "094ada90b110981ddda4cc14bbc144a46fd16e25d443e00c2fcce39a61fe6f82"
+      },
+      {
+        "path": "rules/commercial-partner-attribution.md",
+        "sourcePath": "docs/ontology/rules/commercial-partner-attribution.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "65fe3b533f312a535bb9665b9093aa9441b0fce62eb66d51abcd0f55e5840eb7"
+      }
+    ],
+    "scope": "graded for this question use, not a claim the whole page is false or knowledge base has no related background"
+  },
+  "T23": {
+    "type": "no_answer",
+    "current_source": {
+      "file": "wiki-qa-extract.2026-09-27.1.log",
+      "line": 2,
+      "actionRunId": "8512dc02-2536-4543-a055-c3c274f57f3b",
+      "kind": "saved_model_extraction"
+    },
+    "boundary": "无本次新功能具体实现／交付知识；非关键词同主题即支持",
+    "candidate_labels": [
+      {
+        "path": "objects/business-party.md",
+        "sourcePath": "docs/ontology/objects/business-party.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "6eacccb59fffc5b9316fee78d65d903add60ada66a12062603a163c94c6f62a1"
+      },
+      {
+        "path": "concepts/invoicing/invoice-email-follows-sales-order-invoice-address.md",
+        "sourcePath": "docs/llm-wiki/concepts/invoicing/invoice-email-follows-sales-order-invoice-address.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "4bf03e0bef539ac5c61d00a03c0667614ebd73d3959d13d969942e0f817d0f9f"
+      },
+      {
+        "path": "objects/b2c-sales.md",
+        "sourcePath": "docs/ontology/objects/b2c-sales.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "d03fa059cf605a3e496b10d90725016a98f9d62960e1025eadaa37d13a172d37"
+      },
+      {
+        "path": "concepts/sales/partner-address-role-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/partner-address-role-history.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "bb2cb3493eafa7502c7ee75ebfd204b7202d7f0b427e1e64dac8ebefb6425e10"
+      },
+      {
+        "path": "concepts/faq/contact-backorder-preorder-overview.md",
+        "sourcePath": "docs/llm-wiki/concepts/faq/contact-backorder-preorder-overview.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "0467ea545b41e74fa10ff4e6be19ba86ceab9e958b271bf0f5656d2945885e6f"
+      },
+      {
+        "path": "concepts/after_sales/service-ticket-delivery-address-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/after_sales/service-ticket-delivery-address-history.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "9bc4b1447bbf6cae485927dcde0df72799bf22702432b7dc13e3fc8a0d0b5c2e"
+      },
+      {
+        "path": "objects/b2b-portal-sales.md",
+        "sourcePath": "docs/ontology/objects/b2b-portal-sales.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "759444b075679c093ff75addc227cdb57314ae9dc53836c31c3f6d2974c83825"
+      },
+      {
+        "path": "objects/sales-invoice.md",
+        "sourcePath": "docs/ontology/objects/sales-invoice.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "072d6410e8bfd3fb43ac228596a38304af27c2fe7fb31a3bd32cb5825e603214"
+      },
+      {
+        "path": "rules/commercial-partner-attribution.md",
+        "sourcePath": "docs/ontology/rules/commercial-partner-attribution.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "65fe3b533f312a535bb9665b9093aa9441b0fce62eb66d51abcd0f55e5840eb7"
+      },
+      {
+        "path": "objects/transaction-tax.md",
+        "sourcePath": "docs/ontology/objects/transaction-tax.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "1452c3d0d019f29dce96849ae2807d7ba5cc2a39cae65859a76b06ac4ec10c36"
+      },
+      {
+        "path": "processes/party-address-maintenance.md",
+        "sourcePath": "docs/ontology/processes/party-address-maintenance.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "cffe3d4a21cbd3338fdfed3d577c5bf8b285b5a9672d0481d2c24a901aebdd99"
+      },
+      {
+        "path": "concepts/invoicing/credit-note-required-type-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/invoicing/credit-note-required-type-history.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "305578d70273a7624391b0736f857b8445296ac0c18c529cc423533992b4f4ec"
+      },
+      {
+        "path": "concepts/accounting/journal-required-dimensions-and-country.md",
+        "sourcePath": "docs/llm-wiki/concepts/accounting/journal-required-dimensions-and-country.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "6f5fccd67b4bd37f0ee43b9d783e035d9012386e8820014007105aa81fd7e6ee"
+      },
+      {
+        "path": "concepts/sales/contact-tag-change-verification.md",
+        "sourcePath": "docs/llm-wiki/concepts/sales/contact-tag-change-verification.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "a2631cf36a7b09a8db8ddfec9b09e0590c38045a8edc605aee8953433d977250"
+      },
+      {
+        "path": "objects/b2b-invoice-integration.md",
+        "sourcePath": "docs/ontology/objects/b2b-invoice-integration.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "a203ce0fc161c9bdcd7292dea9e67f392926214cad0566422e5f1954e7e34714"
+      },
+      {
+        "path": "objects/customer-credit.md",
+        "sourcePath": "docs/ontology/objects/customer-credit.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "604543b7c242ee1a965de4f94e4bcae79f7ff0861994d0fa174c42452caca874"
+      },
+      {
+        "path": "processes/b2b-invoice-platform-delivery.md",
+        "sourcePath": "docs/ontology/processes/b2b-invoice-platform-delivery.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "1b21cd995d769068251eebb5bf5743ff1952e2235724575936872c8ec013af9c"
+      },
+      {
+        "path": "processes/b2c-sales-order.md",
+        "sourcePath": "docs/ontology/processes/b2c-sales-order.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "650c0fbdc0588da9d69f8088f4d41706ecea2e52655345b6f6d8b4d73f6e7d5e"
+      },
+      {
+        "path": "concepts/invoicing/bill-vendor-versus-journal-partner.md",
+        "sourcePath": "docs/llm-wiki/concepts/invoicing/bill-vendor-versus-journal-partner.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "6a8a401621983fdd7d5ff3001b7759c15db0f9272c4bc274a4068524f3ea24ef"
+      },
+      {
+        "path": "concepts/portal/portal-account-parent-company-invoices.md",
+        "sourcePath": "docs/llm-wiki/concepts/portal/portal-account-parent-company-invoices.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "b5b5c9047be87f007140c3259a87bfa42531a8d55d419ac04a813f5eb15e8d87"
+      }
+    ],
+    "scope": "graded for this question use, not a claim the whole page is false or knowledge base has no related background"
+  },
+  "T24": {
+    "type": "no_answer",
+    "current_source": {
+      "file": "wiki-qa-extract.2026-09-27.1.log",
+      "line": 6,
+      "actionRunId": "75dda176-45e6-4892-a9e9-85a9c27e93b7",
+      "kind": "saved_model_extraction"
+    },
+    "boundary": "无本次新功能具体实现／交付知识；非关键词同主题即支持",
+    "candidate_labels": [
+      {
+        "path": "objects/business-approval.md",
+        "sourcePath": "docs/ontology/objects/business-approval.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "3783a307ba384dda428ecbd0ce2a72246f39d77f88dd5ee4773421d0cd6893e0"
+      },
+      {
+        "path": "processes/budget-contract-payment-approval.md",
+        "sourcePath": "docs/ontology/processes/budget-contract-payment-approval.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "727d851dd896573b35d641931ed5f45acf67a8bd52e8edd6868fbff5a8fe0680"
+      },
+      {
+        "path": "processes/warehouse-operation-approval.md",
+        "sourcePath": "docs/ontology/processes/warehouse-operation-approval.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "31c510cd79edd14aa469adbefd36fafd277b6029552a2969d1848e984ecf1a6f"
+      },
+      {
+        "path": "processes/employee-expense-submission-approval-and-reimbursement.md",
+        "sourcePath": "docs/ontology/processes/employee-expense-submission-approval-and-reimbursement.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "6b32a1d3237d7f3595fc794bdd7082a8c226c75edcbcf4928884da9ea902f482"
+      },
+      {
+        "path": "objects/warehouse-operation.md",
+        "sourcePath": "docs/ontology/objects/warehouse-operation.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "7b9ac1d2349189b4d659019bdf48fca55c7d89cde24a24f6d657b058d98d3ce8"
+      },
+      {
+        "path": "objects/purchase-settlement.md",
+        "sourcePath": "docs/ontology/objects/purchase-settlement.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "b475c7ddace433a00e567a8926b9057cfa36511dc70231bc5ca3513db26869cf"
+      },
+      {
+        "path": "processes/standalone-approval-request.md",
+        "sourcePath": "docs/ontology/processes/standalone-approval-request.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "8a72e843ae0355251e105a597aaf0740815de1845f3af328e3708dabd7d80647"
+      },
+      {
+        "path": "objects/sales-invoice.md",
+        "sourcePath": "docs/ontology/objects/sales-invoice.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "072d6410e8bfd3fb43ac228596a38304af27c2fe7fb31a3bd32cb5825e603214"
+      },
+      {
+        "path": "processes/embedded-business-record-approval.md",
+        "sourcePath": "docs/ontology/processes/embedded-business-record-approval.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "c1c0c2491701a3e8914ead0fb54867949cb66378c0fd80056268ed9f7452ddb6"
+      },
+      {
+        "path": "concepts/approvals/approval-submission-and-progress-triage.md",
+        "sourcePath": "docs/llm-wiki/concepts/approvals/approval-submission-and-progress-triage.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "093b061f70c7f6d61e4b4a958f4bb27e312203b164e5862d881c00403d58cde0"
+      },
+      {
+        "path": "concepts/approvals/change-request-scheduling-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/approvals/change-request-scheduling-history.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "f0a149f099b1df803dc572912ebc66b55ed080149d040cb3db6ad539ad5251bb"
+      },
+      {
+        "path": "concepts/delivery/wms-send-failure-and-unknown-result.md",
+        "sourcePath": "docs/llm-wiki/concepts/delivery/wms-send-failure-and-unknown-result.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "33a89206ffeb2099f2eb17faeae57f6fe4cd9c8845ad3629a71d3053087fff6c"
+      },
+      {
+        "path": "concepts/faq/approval-stuck-and-submit-failure-disposition.md",
+        "sourcePath": "docs/llm-wiki/concepts/faq/approval-stuck-and-submit-failure-disposition.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "135cf86827d11b6a6dfa26b2adde1887cae91992947334cb70959af4f9d1022b"
+      },
+      {
+        "path": "objects/business-party.md",
+        "sourcePath": "docs/ontology/objects/business-party.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "6eacccb59fffc5b9316fee78d65d903add60ada66a12062603a163c94c6f62a1"
+      },
+      {
+        "path": "objects/marketing-sales.md",
+        "sourcePath": "docs/ontology/objects/marketing-sales.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "c566750ad057dbb62e47c14a6fa8c79012dd0dc7f6d65d97e5adb646e749a456"
+      },
+      {
+        "path": "objects/warehouse-inventory-control.md",
+        "sourcePath": "docs/ontology/objects/warehouse-inventory-control.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "0336bfa16eff88ba74e06679c366c379469952646a5828c03e32b8d970fe4a83"
+      },
+      {
+        "path": "processes/journal-item-dimension-amendment.md",
+        "sourcePath": "docs/ontology/processes/journal-item-dimension-amendment.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "94e3413eaa8d9eb55fb2c27336a46a90d25c8b598d2776a9f5856a5af9cc229e"
+      },
+      {
+        "path": "concepts/approvals/approval-manager-missing-check.md",
+        "sourcePath": "docs/llm-wiki/concepts/approvals/approval-manager-missing-check.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "b430265a895f95bd46af0b73b3ec89a524aa91d4bc2b66da21fcff8dea9f4841"
+      },
+      {
+        "path": "concepts/approvals/approval-policy-change-checklist.md",
+        "sourcePath": "docs/llm-wiki/concepts/approvals/approval-policy-change-checklist.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "437d303af8167e983787dd11608028c63e013602a1982e7539befd12b8a341c4"
+      },
+      {
+        "path": "concepts/delivery/approval-validate-and-backorder-history.md",
+        "sourcePath": "docs/llm-wiki/concepts/delivery/approval-validate-and-backorder-history.md",
+        "grade": 1,
+        "reason": "最多提供对象／流程背景，不支持本次具体字段开发、发布日期、零金额上传或对应新需求链接",
+        "page_sha256": "bb7cd487d87ae10e7a6fb0a71ee9021b9fa3d246b2c4a4f9d3974718f3560ad1"
+      }
+    ],
+    "scope": "graded for this question use, not a claim the whole page is false or knowledge base has no related background"
+  }
+}

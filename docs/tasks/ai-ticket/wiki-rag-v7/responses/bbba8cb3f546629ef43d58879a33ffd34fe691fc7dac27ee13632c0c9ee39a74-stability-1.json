@@ -1,0 +1,101 @@
+{
+  "caseId": "Q31",
+  "group": "A",
+  "payloadHash": "bbba8cb3f546629ef43d58879a33ffd34fe691fc7dac27ee13632c0c9ee39a74",
+  "topN": 5,
+  "repeat": "stability-1",
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 1,
+      "relevance_score": 0.164445698261261
+    },
+    {
+      "index": 0,
+      "relevance_score": 0.049463268369436264
+    },
+    {
+      "index": 11,
+      "relevance_score": 0.03661688044667244
+    },
+    {
+      "index": 15,
+      "relevance_score": 0.030314156785607338
+    },
+    {
+      "index": 5,
+      "relevance_score": 0.02732192724943161
+    }
+  ],
+  "durationMs": 375,
+  "querySha256": "fd46486114ea5fdab9054b60f6aadfa017da5141cc76309a77b4c4fba4e944f5",
+  "queryChars": 25,
+  "documentSha256": [
+    "d3da79dc8b18cc242dd9b7f9d119a881c82481f9c64fbc1ceaf1fa60c69f1038",
+    "33260a08acbbf6f57bfa8e283fb8dbe3998ee6b54269fc42e9517f132f12e528",
+    "4db00f4f9f4013bad8cb92c8d138450b0fab89971c766e2c35d181c76b67cc43",
+    "1acb47e50ac8d7c24006f6704a102ba1a151067810823ba63bbb4d1e95255c30",
+    "1d3753744eaba6e5e8e9fd4bbca6d52949020c59ce6d03d3e50672f8d10fa115",
+    "01134119b525b4ed1c14f59eeb9b8f295c28e2890cbfc94ce5410282bdbbb6b2",
+    "d4a35128759969a97224d48371d87634eaea33aa92de96c9acde773050547d7f",
+    "51960f6abbfcaf6c6d83e545c40ce742ac39d5ef9cb23842f9213176162b3d13",
+    "a8695a6f921f382e8ac610db82367c8b5dfbac326a1472d380691253caecf0d5",
+    "2a3e23ace83dc8d860ec7db8fda4546c68ed139eae82f9692017088cb0141a2b",
+    "449e269d75766669ef3a4befe3cf60c0aebc50c985b7dd5fbf1b1dfd162737bf",
+    "a3580ada1e38cdfd3f09cf81649a19cb71f487fb56134fce60185e2106ea82a2",
+    "aec50e6682df77d17f347c746c9f4ffc425e85a7717827029e241d385e7dc308",
+    "b32941d81cc129f74fee53e2c97a0cf1bc5b8aa1c9de0185a91e85998e3523a6",
+    "54ced56a933a1700b2a886aa290e92e763c193d8f2c06bc25d82e9140a15d731",
+    "d2854e16a42b3457bf4e3bbb6a15d8af934221a270e6e8510fbd58696677de2f",
+    "6ecd42304670c6b2bde330043e380e596f0295d837653e786668cadadbe14118",
+    "afab090dbbfc47be82d46fd43133f62244597d9a1e84744e0cd5dcd0a72f5cc5",
+    "5ab7b220ca1c50c9ff6c21b08e6ef870a9c75db5d0accfa9334a1453d5061668",
+    "eda83faa31e52dbe58f1775b1325d6d892b00662b32728b4658536d6bc8d0995"
+  ],
+  "documentChars": [
+    960,
+    205,
+    773,
+    251,
+    288,
+    576,
+    1335,
+    618,
+    370,
+    336,
+    591,
+    2350,
+    274,
+    1146,
+    255,
+    174,
+    511,
+    707,
+    2243,
+    2142
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/integration/shopify-import-schedule-and-config-history.md",
+    "docs/llm-wiki/concepts/faq/shopify-order-not-synced-checklist.md",
+    "docs/llm-wiki/concepts/sales/pricelist-change-historical-order-history.md",
+    "docs/llm-wiki/concepts/sales/contact-overview-grouped-product-details.md",
+    "docs/llm-wiki/concepts/sales/credit-blocked-order-mail-history.md",
+    "docs/llm-wiki/concepts/integration/turbo-customer-sync-history.md",
+    "docs/llm-wiki/concepts/invoicing/invoice-email-follows-sales-order-invoice-address.md",
+    "docs/llm-wiki/concepts/invoicing/uk-inbound-bill-attachment-history.md",
+    "docs/llm-wiki/concepts/sales/automatic-order-email-customer-language.md",
+    "docs/llm-wiki/concepts/sales/markup-name-and-price-rules.md",
+    "docs/llm-wiki/concepts/sales/order-received-template-history.md",
+    "docs/ontology/objects/business-party.md",
+    "docs/llm-wiki/concepts/approvals/ops-submission-notification-history.md",
+    "docs/llm-wiki/concepts/faq/contact-backorder-preorder-overview.md",
+    "docs/llm-wiki/concepts/faq/sales-order-price-not-tax-excluded-check-partner-country.md",
+    "docs/llm-wiki/concepts/faq/westerman-outbound-not-pushed-to-wms.md",
+    "docs/llm-wiki/concepts/integration/app-dealer-data-sync-history.md",
+    "docs/llm-wiki/concepts/sales/product-display-change-history.md",
+    "docs/ontology/objects/preorder-backorder.md",
+    "docs/ontology/objects/sales-order.md"
+  ],
+  "queryCAvailable": true
+}

@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Shadow first-ten-minute candidate decision v1 (offline evaluation only)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "action", "rationale", "evidence_ids", "blocking_conditions", "resume_conditions", "next_question", "clarification_kind", "waiting_for", "answer_boundary", "state"],
+  "properties": {
+    "id": {"type": "string", "pattern": "^S10-[0-9]{3}$"},
+    "action": {"enum": ["answer", "clarify", "human", "wait"]},
+    "rationale": {"$ref": "#/$defs/nonempty"},
+    "evidence_ids": {"$ref": "#/$defs/nonemptyEvidence"},
+    "blocking_conditions": {"$ref": "#/$defs/descriptions"},
+    "resume_conditions": {"$ref": "#/$defs/descriptions"},
+    "next_question": {"type": ["string", "null"]},
+    "clarification_kind": {"enum": ["main_problem", "prerequisite", null]},
+    "waiting_for": {"enum": ["requester", "business_confirmation", "human_investigation", "no_open_request", null]},
+    "answer_boundary": {"type": ["string", "null"]},
+    "state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["main_request", "main_problem_clarity", "gap_type", "question_history", "corrections_and_updates", "missing_or_blocking"],
+      "properties": {
+        "main_request": {"$ref": "#/$defs/nonempty"},
+        "main_problem_clarity": {"enum": ["clear", "unclear"]},
+        "gap_type": {"enum": ["none", "main_problem", "prerequisite", "investigation", "authority", "knowledge"]},
+        "question_history": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["question", "status", "evidence_ids", "answer_evidence_ids"],
+            "properties": {
+              "question": {"$ref": "#/$defs/nonempty"},
+              "status": {"enum": ["pending", "answered", "partially_answered", "unusable_answer", "disputed", "answered_in_unavailable_artifact", "answered_before_asked"]},
+              "evidence_ids": {"$ref": "#/$defs/nonemptyEvidence"},
+              "answer_evidence_ids": {"$ref": "#/$defs/evidence"}
+            }
+          }
+        },
+        "corrections_and_updates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["previous_understanding", "current_understanding", "evidence_ids"],
+            "properties": {
+              "previous_understanding": {"$ref": "#/$defs/nonempty"},
+              "current_understanding": {"$ref": "#/$defs/nonempty"},
+              "evidence_ids": {"$ref": "#/$defs/nonemptyEvidence"}
+            }
+          }
+        },
+        "missing_or_blocking": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["description", "evidence_ids"],
+            "properties": {
+              "description": {"$ref": "#/$defs/nonempty"},
+              "evidence_ids": {"$ref": "#/$defs/nonemptyEvidence"}
+            }
+          }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"action": {"const": "clarify"}}},
+      "then": {"properties": {"next_question": {"$ref": "#/$defs/nonempty"}, "clarification_kind": {"enum": ["main_problem", "prerequisite"]}}},
+      "else": {"properties": {"next_question": {"type": "null"}, "clarification_kind": {"type": "null"}}}
+    },
+    {
+      "if": {"properties": {"action": {"const": "wait"}}},
+      "then": {"properties": {"waiting_for": {"type": "string"}}},
+      "else": {"properties": {"waiting_for": {"type": "null"}}}
+    },
+    {
+      "if": {"properties": {"action": {"const": "answer"}}},
+      "then": {"properties": {"answer_boundary": {"$ref": "#/$defs/nonempty"}}},
+      "else": {"properties": {"answer_boundary": {"type": "null"}}}
+    }
+  ],
+  "$defs": {
+    "nonempty": {"type": "string", "minLength": 1},
+    "evidence": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^M[1-9][0-9]*$"}},
+    "nonemptyEvidence": {"allOf": [{"$ref": "#/$defs/evidence"}, {"minItems": 1}]},
+    "descriptions": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/nonempty"}}
+  }
+}

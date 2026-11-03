@@ -1,0 +1,43 @@
+{
+  "readerOnly": true,
+  "realRerankRequests": 0,
+  "answerCalls": 0,
+  "G": "disabled",
+  "rows": [
+    {
+      "question": "confirm vendor bill",
+      "rank": 1,
+      "knowledgeChars": 1187,
+      "primaryCount": 1,
+      "primaryChars": 1521
+    },
+    {
+      "question": "供应商账单确认失败",
+      "rank": 1,
+      "knowledgeChars": 1187,
+      "primaryCount": 0,
+      "primaryChars": 0
+    },
+    {
+      "question": "Bill过账失败",
+      "rank": 1,
+      "knowledgeChars": 1187,
+      "primaryCount": 1,
+      "primaryChars": 1521
+    },
+    {
+      "question": "Expected singleton: stock.move()",
+      "rank": 1,
+      "knowledgeChars": 1143,
+      "primaryCount": 1,
+      "primaryChars": 1395
+    },
+    {
+      "question": "_tw_purchase_original_currency_unit_price",
+      "rank": 1,
+      "knowledgeChars": 1143,
+      "primaryCount": 1,
+      "primaryChars": 1395
+    }
+  ]
+}

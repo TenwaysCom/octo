@@ -1,0 +1,101 @@
+{
+  "caseId": "D01",
+  "group": "A",
+  "payloadHash": "d04572b732148db0417d4df7720a3e31affba3c1deafe6360e1756bae2d84ab1",
+  "topN": 5,
+  "repeat": "stability-1",
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 1,
+      "relevance_score": 0.9775975346565247
+    },
+    {
+      "index": 12,
+      "relevance_score": 0.873919665813446
+    },
+    {
+      "index": 3,
+      "relevance_score": 0.8498767614364624
+    },
+    {
+      "index": 0,
+      "relevance_score": 0.7688471078872681
+    },
+    {
+      "index": 16,
+      "relevance_score": 0.5741321444511414
+    }
+  ],
+  "durationMs": 435,
+  "querySha256": "f94addf17f577bc070cb990ed6cd48529329dd272ed5efab53e63e08c8f61fef",
+  "queryChars": 19,
+  "documentSha256": [
+    "7511f05df962a30799dc5a8b8a4dee51e43efcc5efc02eadfc7644b888f89363",
+    "4252561f2f7d000876fc627a8f78bf6d6c2b50feefb4b514e3c6c027e81ae659",
+    "f15f8194077832299cd3cc3d5f141377aef6c0d55e6f957945e2845c53f1ec13",
+    "6cffc738412d71b8bed27b9471105328c5f89b3ffe35658141c032f247d85afd",
+    "4904e8727237df0763718acd9e6324ee09e5dfd9fb3f628d30cb6d9bb53846a6",
+    "26b552af86276cf4fef8e03dbeb70d85a58c912ca7f1e435004197303e492080",
+    "9275d3409da8b78ecde043acdb0bc7ee6377202b5479cf30ec68d04ffb385e42",
+    "a7b8dbaed53667c4dd3ad98cf246714dba64e5af000256b0a83193a3299210c1",
+    "51960f6abbfcaf6c6d83e545c40ce742ac39d5ef9cb23842f9213176162b3d13",
+    "37198dc6ec9051197c7bb26388187006c4eb3fb6ac2248c79c49765ac0c10b12",
+    "83b2e878026f6878d32e81bbf3b8692c419ce74b85ca6e3fcc6eadcd259198e1",
+    "cdedc8e6b6fc09af9e1f910ae522365c9f799d68a2a76e147ed752420492aef4",
+    "52af1f9fd06abc1e415511b52df729acae61a5a8b4f9a3383c64239f036af602",
+    "d7927e65c6c8e12a034abe6a2685190c7a885313791698e2b107c73fed78c573",
+    "4d47dfe736c5c663bee3ca78f6dbe3545dae16f21f396d4d9eb76d348fe75bbb",
+    "80cb62a8ac7abdad363b6ed6c64e47d13f7e0c62c60e472a792f60d0b4ec4319",
+    "602316b5ad677929196813ba910c734a5647a3c6de4dd2eab45d540c1c56267e",
+    "a32ff37228938fea5a0a2e1908432827b346b3bb1450c57bbba8202c9df0bd3f",
+    "721f371ffb436602f7c01d138503bd34ca7dcbe022ee73a5630426bfce974dc2",
+    "40410579d00d6230b573b86a569b296c104c159e890529e1de0228978fc0aeb3"
+  ],
+  "documentChars": [
+    537,
+    979,
+    1040,
+    1320,
+    769,
+    394,
+    400,
+    614,
+    618,
+    538,
+    1319,
+    2167,
+    1641,
+    957,
+    454,
+    824,
+    628,
+    566,
+    2261,
+    2002
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/invoicing/bill-vendor-versus-journal-partner.md",
+    "docs/llm-wiki/concepts/invoicing/vendor-bill-confirm-stock-move-singleton-investigation.md",
+    "docs/llm-wiki/concepts/purchase/po-buyer-vendor-correction-history.md",
+    "docs/llm-wiki/concepts/accounting/bill-svl-exchange-history.md",
+    "docs/llm-wiki/concepts/accounting/payment-request-owner-department-history.md",
+    "docs/llm-wiki/concepts/accounting/asset-bill-warning-history.md",
+    "docs/llm-wiki/concepts/invoicing/amount-comparison-navigation.md",
+    "docs/llm-wiki/concepts/invoicing/historical-invoice-bill-access-history.md",
+    "docs/llm-wiki/concepts/invoicing/uk-inbound-bill-attachment-history.md",
+    "docs/llm-wiki/concepts/purchase/prepayment-deduction-history.md",
+    "docs/llm-wiki/concepts/reporting/export-grain-and-date-history.md",
+    "docs/ontology/objects/business-approval.md",
+    "docs/ontology/processes/purchase-tax-determination-and-billing.md",
+    "docs/llm-wiki/concepts/accounting/account-archive-delete-history.md",
+    "docs/llm-wiki/concepts/accounting/accounting-change-navigation.md",
+    "docs/llm-wiki/concepts/accounting/reverse-entry-type-history.md",
+    "docs/llm-wiki/concepts/invoicing/document-followers-mail-history.md",
+    "docs/llm-wiki/concepts/payment/bank-batch-send-recovery-history.md",
+    "docs/ontology/objects/deferred-expense.md",
+    "docs/ontology/objects/purchase-settlement.md"
+  ],
+  "queryCAvailable": false
+}

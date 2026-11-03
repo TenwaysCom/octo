@@ -1,0 +1,100 @@
+{
+  "caseId": "T17",
+  "group": "A",
+  "payloadHash": "39186240b7699dee97925ba5289fe7748fcf41f5890ba39c8e248160b34e4a54",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 11,
+      "relevance_score": 0.1459003984928131
+    },
+    {
+      "index": 10,
+      "relevance_score": 0.07956460118293762
+    },
+    {
+      "index": 3,
+      "relevance_score": 0.07474526017904282
+    },
+    {
+      "index": 5,
+      "relevance_score": 0.06356986612081528
+    },
+    {
+      "index": 4,
+      "relevance_score": 0.01879230886697769
+    }
+  ],
+  "durationMs": 460,
+  "querySha256": "b6da64ac6c9ffa9231388b59f2f51fd634ffc37b049811acffdaf8a508618ee2",
+  "queryChars": 38,
+  "documentSha256": [
+    "0698f335f7cd600edbcc309c956bb50a4e7e387d33718a99e4fe308165d9eb43",
+    "97dec74e3c1b25f66caa6937fc5d5e567f19d6dde7a3060fd351c403074bc3e0",
+    "44b8565fb6f6f813924e95908102cac4536ca9903c0e05b83abd611baf7f2b45",
+    "a6b2cac1d78a29b1137fb763326802b46e2082200a06f8f9b2eb8512884066ff",
+    "551a0e9b0657cfd10be50cfed9e59f65d659d5671d7809cc5fd9f25e04077eee",
+    "20a96eda69088c1d36a9bd582a53e3a417c8a64bf127c21e74ba7d1a95bbf8a0",
+    "cba64288b05e42f42f8ed63ff894cd7e81bd24cd44d630aa886cedf5258ffc6f",
+    "8010b62b9a1cd7c32a6323bc82da2a71bc1b08e199dd8f9396adcb4bbe8ec0b2",
+    "22c5b3ead878b534e7a3d2ce8781346ce6401c3d1f2bf22ffbd9613603ea2a4d",
+    "b56806b8d9c208bb712b1b345e5bbda2374813e91829ae22cecbed1f1d256c25",
+    "fced50a99f42ca73a6b997e307ea16e0e9f6cac2487652c6da8ed862e659e726",
+    "4937aa537fd85a3c84a40048b7e664bbeca1b69115db11d37e002aab495e5921",
+    "83c78ac99ab03e17686f963c76eb5fe5e05dd97ff4dc1dd7198b0f1c4b60bdf0",
+    "8e2aa267af075cb98b34f904c5babe1e15e3cf8461a376c6583caf969bacaa70",
+    "e3a4f7945d0edbbe3874a5dbbc33bfea7f4e008205a5c9543a8e4931ed1a41a9",
+    "1e1359e1fb4dd0d70eb8248f519da474cc7be1d504c4935345339ead2690dc2e",
+    "9cb0ab4789c1d6f0e0a6857aa0a8e85fcb8e0f49536acc5ca02dcabddb625fee",
+    "95050ba4d2b0bf7bd3e08fd3e0ee617412b9b4d359c9fa56ae4df209458c02a4",
+    "254fc7056661115f2361f4fddfee3adbd9fca293e06f468c6c3e260be71a1408",
+    "a8b288179de1dadd9d4fdc94cd62d316c515320b68edcc2169a9506155e5503f"
+  ],
+  "documentChars": [
+    859,
+    1915,
+    519,
+    1797,
+    297,
+    2342,
+    1256,
+    541,
+    685,
+    2420,
+    2288,
+    1540,
+    524,
+    590,
+    632,
+    506,
+    1431,
+    378,
+    1440,
+    453
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/accounting/historical-entry-mandatory-fields-reverse.md",
+    "docs/ontology/objects/business-party.md",
+    "docs/llm-wiki/concepts/after_sales/mega-bike-kiel-wik-l-beck-claim-unknown-pending-analysis-lark-1655.md",
+    "docs/llm-wiki/concepts/delivery/wms-payload-validation-triage.md",
+    "docs/llm-wiki/concepts/delivery/wms-push-failure-and-quantity-mismatch.md",
+    "docs/ontology/objects/financial-reporting.md",
+    "docs/llm-wiki/concepts/accounting/report-data-mismatch-triage.md",
+    "docs/llm-wiki/concepts/inventory/return-grade-and-r-sku-history.md",
+    "docs/llm-wiki/concepts/reporting/gross-profit-tax-quantity-history.md",
+    "docs/ontology/objects/preorder-backorder.md",
+    "docs/ontology/objects/warehouse-inventory-control.md",
+    "docs/llm-wiki/concepts/access/operation-access-and-button-triage.md",
+    "docs/llm-wiki/concepts/accounting/accounting-change-navigation.md",
+    "docs/llm-wiki/concepts/accounting/journal-required-dimensions-and-country.md",
+    "docs/llm-wiki/concepts/after_sales/contacts-owl-error-cannot-open-historical-case.md",
+    "docs/llm-wiki/concepts/approvals/approval-manager-missing-check.md",
+    "docs/llm-wiki/concepts/approvals/inflight-approval-owner-change-history.md",
+    "docs/llm-wiki/concepts/delivery/delivery-note-multiple-email-history.md",
+    "docs/llm-wiki/concepts/delivery/invoiced-same-sku-reshipment-history.md",
+    "docs/llm-wiki/concepts/delivery/sales-order-integration-contract-lark-1806.md"
+  ],
+  "queryCAvailable": true
+}

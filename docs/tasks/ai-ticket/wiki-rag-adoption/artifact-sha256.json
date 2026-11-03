@@ -1,0 +1,9 @@
+{
+  "files": {
+    "README.md": "41c87e96f1ddc8ad0d17ef22ab34057eae5e0f28babecf35a242dbda9de65711",
+    "current-wiki-check.json": "86f66ede1012aff49d5dde4dc2fd0a94e8dec291982d34c4126d33135c6d9bce",
+    "knowledge-applied.patch": "b4db5d770890f5226881028e2c0d25767d99f71159745bf7c588fb87d2bdb380",
+    "regression.json": "2700e96a5bfb3ac64a77cf8f080f40f665c13ea53215b5ac32602b67a32f4f27",
+    "verification.json": "7504deb0055d6d9c0de2bd77eda25c31c31fd096f2e4537c6c49af13b9936fee"
+  }
+}

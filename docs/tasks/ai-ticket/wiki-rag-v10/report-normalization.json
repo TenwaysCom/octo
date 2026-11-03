@@ -1,0 +1,6 @@
+{
+  "reason": "Separate observedGap from configured gap; no model input, score, policy computation or final evidence changed.",
+  "sourceSha256": "0d17ba591eee6406e14437d02c1a3bf04805414e6c856c32eac01aae5a0b0ab0",
+  "normalizedSha256": "812c9717fc54ab45c969167d70cd8faa6b83f003cc34cdbb8f2cad5611af0843",
+  "originalResultsPreserved": true
+}

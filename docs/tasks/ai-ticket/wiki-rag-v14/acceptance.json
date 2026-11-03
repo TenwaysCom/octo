@@ -1,0 +1,68 @@
+{
+  "status": "NOT_ACCEPTED",
+  "oldGatePassed": false,
+  "new32Prepared": false,
+  "new32Called": 0,
+  "networkRequests": 0,
+  "answerCalls": 0,
+  "judgeCalls": 0,
+  "G": "disabled",
+  "productionChanges": false,
+  "gate": {
+    "knownMismatchBlocked": true,
+    "retained": [
+      {
+        "id": "Q14",
+        "retained": true
+      },
+      {
+        "id": "Q17",
+        "retained": true
+      },
+      {
+        "id": "Q29",
+        "retained": true
+      },
+      {
+        "id": "N01",
+        "retained": true
+      },
+      {
+        "id": "P02",
+        "retained": true
+      },
+      {
+        "id": "U14",
+        "retained": true
+      }
+    ],
+    "allSixGainsKept": true,
+    "unsafeAdmitted": 2,
+    "sourceSafetyPassed": false,
+    "performancePassed": true,
+    "gateP95Ms": 0.6071589999996831
+  },
+  "summary": {
+    "A": {
+      "purePositiveTargetBodyAndPrimary": 45,
+      "allTypesTargetBodyAndPrimary": 51,
+      "evidenceP50Ms": 0.10943499999848427,
+      "evidenceP95Ms": 1.0987800000002608,
+      "primaryChars": 119577
+    },
+    "B": {
+      "purePositiveTargetBodyAndPrimary": 51,
+      "allTypesTargetBodyAndPrimary": 57,
+      "evidenceP50Ms": 0.1396020000029239,
+      "evidenceP95Ms": 1.81836900000053,
+      "primaryChars": 185881
+    },
+    "C": {
+      "purePositiveTargetBodyAndPrimary": 51,
+      "allTypesTargetBodyAndPrimary": 57,
+      "evidenceP50Ms": 0.15100299999994604,
+      "evidenceP95Ms": 2.2957649999998466,
+      "primaryChars": 151937
+    }
+  }
+}

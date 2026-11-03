@@ -1,0 +1,100 @@
+--- a/server/src/adapters/filesystem/wiki-knowledge-reader.ts
++++ b/server/src/adapters/filesystem/wiki-knowledge-reader.ts
+@@ -239,13 +239,18 @@
+             const title = (source.knowledgeType === "ontology"
+               ? metadata(text, "title")[0] || text.match(/^#\s+(.+)$/m)?.[1] || path
+               : metadata(text, "title").join(" ")).toLowerCase();
+-            const tags = ["objects", "processes", "tags"].flatMap((key) => metadata(text, key)).join(" ").toLowerCase();
++            const supportWiki = source.knowledgeType === "support_wiki";
++            const summary = supportWiki ? metadata(text, "summary").join(" ") : "";
++            const searchTerms = supportWiki ? metadata(text, "search_terms").join(" ") : "";
++            const tags = [...["objects", "processes", "tags"].flatMap((key) => metadata(text, key)), searchTerms].join(" ").toLowerCase();
+             const content = source.knowledgeType === "ontology"
+               ? relevantOntologyContent(text, queryTerms)
+-              : relevantWikiContent(text, queryTerms);
++              : relevantWikiContent(text, queryTerms, 2400, {
++                matched: wikiMatchCount(`${searchTerms} ${summary}`, queryTerms) > 0, summary,
++              });
+             const pathScore = source.knowledgeType === "ontology" ? wikiMatchCount(path.replace(/\.md$/, ""), queryTerms) : 0;
+             const score = (wikiMatchCount(title, queryTerms) + pathScore) * 4
+-              + wikiMatchCount(tags, queryTerms) * 3 + wikiMatchCount(content, queryTerms) * 2;
++              + wikiMatchCount(tags, queryTerms) * 3 + wikiMatchCount(`${summary} ${content}`, queryTerms) * 2;
+             pages.push({ source, path, text, content, score });
+           }
+         }
+--- a/server/src/domain/wiki-evidence.ts
++++ b/server/src/domain/wiki-evidence.ts
+@@ -34,12 +34,26 @@
+ const qualification = /前提|条件|仅限|只有|除非|不适用|限制|例外|注意|冲突|纠正|更正|判断有误|仍未|未解决|失败|无效|仍然|尚未|不能|不要|不得|验证|恢复|已解决|成功|已修复|显示正常|prerequisite|condition|exception|not applicable|correction|incorrect|still|failed|doesn.t work|only if|unless|verified|resolved/i;
+ 
+ // Select complete sections/paragraphs: never slice a rule away from its caveat.
+-export function relevantWikiContent(text: string, terms: string[], maxLength = 2400): string {
++export function relevantWikiContent(text: string, terms: string[], maxLength = 2400, discovery?: { matched: boolean; summary: string }): string {
+   const clean = redactSupportText(text.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, "")).trim();
+   const sections = clean.split(/\n(?=#{1,6}\s)/).filter((section) =>
+     !/^#{1,6}\s+(?:Maintenance Notes|维护说明|维护备注|Related Tickets|关联工单|Resolution Summary Template|结论摘要模板)\s*$/im.test(section.split("\n")[0]));
+   const scored = sections.map((content, index) => ({ content, index, score: matches(content, terms) }));
+-  if (!scored.some((item) => item.score)) return "";
++  if (!scored.some((item) => item.score)) {
++    if (!discovery?.matched) return "";
++    // Aliases identify a page, not a source-backed action. Retain the whole
++    // introduction and every guard section; never retry a failed body match
++    // through this fallback to evade its original budget/qualification checks.
++    const intro = scored.find((item) => item.content.replace(/^#{1,6}[^\n]*$/gm, "")
++      .replace(/<a\b[^>]*><\/a>/g, "").trim());
++    if (!intro) return "";
++    const kept = scored.filter((item) => item === intro || qualification.test(item.content.split("\n")[0]));
++    const summary = redactSupportText(discovery.summary).trim();
++    const content = [summary ? `摘要（检索线索，非原始证据）：${summary}` : "", ...kept.map((item) => item.content)]
++      .filter(Boolean).join("\n\n");
++    const marker = "\n[元数据命中；完整首段及限制摘录，不代表原始证据已支持该问题]";
++    return content.length + marker.length <= maxLength ? content + marker : "";
++  }
+   const guards = scored.filter((item) => qualification.test(item.content.split("\n")[0]));
+   const guardSize = guards.reduce((sum, item) => sum + item.content.length + 2, 0);
+   if (guardSize > maxLength) return "";
+--- a/server/src/adapters/filesystem/wiki-knowledge-reader.test.ts
++++ b/server/src/adapters/filesystem/wiki-knowledge-reader.test.ts
+@@ -203,3 +203,42 @@
+     await expect(reader.search(question)).rejects.toMatchObject({ code: "WIKI_QA_UNAVAILABLE", diagnostic: { stage: "server.wiki_qa.retrieve.config" } });
+   }
+ });
++
++describe("optional concept discovery metadata", () => {
++  const query = (q: string): WikiQuestion => ({ question: q, keywords: [], objects: [], environments: [] });
++
++  it("retrieves search_terms-only hits with complete body and caveats, without inventing primary evidence", async () => {
++    const { reader, put } = await fixture();
++    await put("concepts/accounting/report.md", card("UK Odoo 17", 'search_terms: ["ALIAS_ONLY", "ALIAS_ONLY"]\n', '# 历史线索\n\n有过当次处理报告。\n\n## 适用限制\n仅限历史记录，仍未解决，不能直接照搬。'));
++    const hits = await reader.search(query("ALIAS_ONLY"));
++    expect(hits).toHaveLength(1);
++    expect(hits[0].content).toContain("有过当次处理报告");
++    expect(hits[0].content).toContain("仍未解决");
++    expect(hits[0].content.length).toBeLessThanOrEqual(2400);
++    expect(reader.selectEvidence!({ candidate: hits[0], question: query("ALIAS_ONLY"), evidenceIds: hits[0].sourceEvidence.map((s) => s.id) })).toEqual([]);
++  });
++
++  it("retrieves summary-only hits, preserving its unknown outcome and original body", async () => {
++    const { reader, put } = await fixture();
++    await put("concepts/accounting/report.md", card("UK Odoo 17", 'summary: "SUMMARY_ONLY，恢复尚未验证"\n', '# 历史线索\n\n具体处理仍需核对。'));
++    const hits = await reader.search(query("SUMMARY_ONLY"));
++    expect(hits).toHaveLength(1);
++    expect(hits[0].content).toContain("恢复尚未验证");
++    expect(hits[0].content).toContain("具体处理仍需核对");
++  });
++
++  it("counts a term once per existing scoring group, including a repeated summary or alias", async () => {
++    const { reader, put } = await fixture();
++    const body = '# NEUTRAL\n\nGROUP_TOKEN 仅供历史核对。';
++    await put("concepts/accounting/a.md", card("UK Odoo 17", 'objects: [GROUP_TOKEN]\nsummary: "GROUP_TOKEN"\n', body).replace('objects: [account.account]\n', ''));
++    await put("concepts/accounting/z.md", card("UK Odoo 17", 'objects: [GROUP_TOKEN]\nsummary: "GROUP_TOKEN GROUP_TOKEN"\nsearch_terms: [GROUP_TOKEN, GROUP_TOKEN]\n', body).replace('objects: [account.account]\n', ''));
++    expect((await reader.search(query("GROUP_TOKEN"))).map((hit) => hit.path)).toEqual(['concepts/accounting/a.md', 'concepts/accounting/z.md']);
++  });
++
++  it("refuses a metadata fallback that would drop an oversized caveat, and keeps environment exclusion", async () => {
++    const { reader, put } = await fixture();
++    await put("concepts/accounting/report.md", card("UK Odoo 17", 'search_terms: [ALIAS_ONLY]\n', '# 历史\n\n操作报告。\n\n## 限制\n'+ '不可复用'.repeat(700)));
++    expect((await reader.search(query("ALIAS_ONLY")))[0].content).toBe("");
++    expect(await reader.search({ ...query("ALIAS_ONLY"), environments: ['US Odoo 18'] })).toEqual([]);
++  });
++});

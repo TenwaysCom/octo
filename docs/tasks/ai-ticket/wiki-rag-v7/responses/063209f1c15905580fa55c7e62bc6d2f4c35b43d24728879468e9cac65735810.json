@@ -1,0 +1,100 @@
+{
+  "caseId": "T08",
+  "group": "A",
+  "payloadHash": "063209f1c15905580fa55c7e62bc6d2f4c35b43d24728879468e9cac65735810",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 0,
+      "relevance_score": 0.85479736328125
+    },
+    {
+      "index": 1,
+      "relevance_score": 0.7661253809928894
+    },
+    {
+      "index": 12,
+      "relevance_score": 0.3066083788871765
+    },
+    {
+      "index": 3,
+      "relevance_score": 0.2931751310825348
+    },
+    {
+      "index": 8,
+      "relevance_score": 0.12870213389396667
+    }
+  ],
+  "durationMs": 369,
+  "querySha256": "770bbb0bc01a4d541d08e2e19593d1b39a37982273600139a9849a8238693956",
+  "queryChars": 31,
+  "documentSha256": [
+    "63cdc5967d867b1b9210e5c26b2ea1876747c2b18c2ecd220acbbe939b10f103",
+    "aabcff8b6fd11c73949d4f734a170561eb7e7d252d314479494a04f6ad56bb22",
+    "b23e569ccde2a33d5ad694aeb75bd3ad6ed0365a3e3e15d3c8a490ef61a0ab69",
+    "063157167e2b498bd393356f0796b39abe907203a7a13f3e7c4182373ff6ddc6",
+    "d2854e16a42b3457bf4e3bbb6a15d8af934221a270e6e8510fbd58696677de2f",
+    "a088a7f60de066fdffdc1096d04452271b0ff6ea6b8ae4a77e51aef7cd8ea7d8",
+    "1d05b677cec40159d1367151280e9dcf441eb32326ee6aa4ad2db8bd1beb59fd",
+    "5178ea75e16b436d78a0660f1c7bfde9530a1ac229a16755f2593f4982169e7a",
+    "878210d93eb3fe9502ae2573b59ff26ee2e80dcbd8a0719ef35b522e3bab9249",
+    "0feb3698a960ea8289102ee8bbe0edf752d24c5701064f621126103048c6da1d",
+    "0b4990d3ed3f820b1eb84af0fc05e5ebdd990292c708f4b573ab74a6d3eabd71",
+    "51960f6abbfcaf6c6d83e545c40ce742ac39d5ef9cb23842f9213176162b3d13",
+    "4b429f53520404b99422c6f6ef57cd6bfc4843242131aafcc1ca5ee179426ccf",
+    "ce3749479b432ee4e6fa13fc611907cb1e132bce5f656091651551f113d1889d",
+    "2be9b98c6758de6ae9feb7761ce109e92c9265aaa16243337213334f1bc555dd",
+    "dcb02cb6e5eb84f3724ecd9581a48034be4eef56819f4f29eeab0b15d45125cb",
+    "818304b660ca3a8bbf162162100f7c5285c4561e6bb4d81db85a0fb9d7fa97e4",
+    "acad279ca3720d8bf58cb55b100ae0cb9e35fb6a246209bb243e811dac58c8a0",
+    "aec50e6682df77d17f347c746c9f4ffc425e85a7717827029e241d385e7dc308",
+    "eaeaaae423a7af62795c59f7e65fc2229163cd6e808a96758fbeb0e98e9a982e"
+  ],
+  "documentChars": [
+    636,
+    1094,
+    1156,
+    1203,
+    174,
+    1045,
+    688,
+    871,
+    2431,
+    347,
+    285,
+    618,
+    1119,
+    694,
+    1927,
+    2411,
+    1368,
+    536,
+    274,
+    173
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/delivery/cmc-street2-payload-history.md",
+    "docs/llm-wiki/concepts/integration/wms-address-contract-history.md",
+    "docs/llm-wiki/concepts/inventory/sku-warehouse-default-location-history.md",
+    "docs/llm-wiki/concepts/delivery/cmc-outbound-company-required-error-response.md",
+    "docs/llm-wiki/concepts/faq/westerman-outbound-not-pushed-to-wms.md",
+    "docs/llm-wiki/concepts/delivery/cancelled-picking-recovery-history.md",
+    "docs/llm-wiki/concepts/delivery/other-outbound-location-and-type-history.md",
+    "docs/llm-wiki/concepts/delivery/warehouse-document-amendment-checklist.md",
+    "docs/ontology/objects/warehouse-operation.md",
+    "docs/llm-wiki/concepts/delivery/outbound-pod-export-field.md",
+    "docs/llm-wiki/concepts/invoicing/eu-auto-invoice-job-timing-history.md",
+    "docs/llm-wiki/concepts/invoicing/uk-inbound-bill-attachment-history.md",
+    "docs/llm-wiki/concepts/delivery/sales-order-integration-contract-lark-1806.md",
+    "docs/llm-wiki/concepts/delivery/service-center-outbound-split-correct-warehouse.md",
+    "docs/ontology/objects/b2c-sales.md",
+    "docs/ontology/objects/business-party.md",
+    "docs/ontology/processes/warehouse-operation-approval.md",
+    "docs/llm-wiki/concepts/accounting/other-outbound-account-followup-history.md",
+    "docs/llm-wiki/concepts/approvals/ops-submission-notification-history.md",
+    "docs/llm-wiki/concepts/delivery/outbound-export-line-grain-check.md"
+  ],
+  "queryCAvailable": true
+}

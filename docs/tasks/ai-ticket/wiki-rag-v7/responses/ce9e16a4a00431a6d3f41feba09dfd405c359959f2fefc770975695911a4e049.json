@@ -1,0 +1,100 @@
+{
+  "caseId": "Q12",
+  "group": "B",
+  "payloadHash": "ce9e16a4a00431a6d3f41feba09dfd405c359959f2fefc770975695911a4e049",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 1,
+      "relevance_score": 0.8623888492584229
+    },
+    {
+      "index": 10,
+      "relevance_score": 0.6479947566986084
+    },
+    {
+      "index": 9,
+      "relevance_score": 0.4451279938220978
+    },
+    {
+      "index": 2,
+      "relevance_score": 0.23063892126083374
+    },
+    {
+      "index": 5,
+      "relevance_score": 0.1420426368713379
+    }
+  ],
+  "durationMs": 457,
+  "querySha256": "310e942d51c0902e8eb2c5b56f92037b517fd87962ec9121d23c68c927af84ce",
+  "queryChars": 56,
+  "documentSha256": [
+    "b6a358bb42820acea3c9ddfef038d2c163adbb335081a9f9c4e8364200b2e688",
+    "3fed49cde8e7cbed0c267b8fc0f67c46cffb7d4877cd7ccbf1d41bb86b3c043b",
+    "a998cca999b49fc631513c8b9343981d16fa2b1373509618fc0695e7cb208b6e",
+    "80c417576db790dca3c829227e0e6236df3b6fc8b4451477c0aaca471fdad436",
+    "a8829220e36b8d1cafd914ec15b1602acf2ddbf88754173a964ea31b4050c5a3",
+    "88d9ee90b52f861eb7afa464030cd368cd4b0c763e852c96c1c673dc353202ab",
+    "c675890d1bc1151c43b64c4a954e43d2c9537ce7307c508b588479b51bd9f2d4",
+    "97467a2f406ae71547e6ca5c9445158afa28248f193f682b0364d1d25dc21199",
+    "13d8e92320e7e37ffc597f3eb6c9376544951729bff262b86d7305dddefe567a",
+    "56fca421a449de97160023fd2ce456da2d0d849221d1eabbeb332a634f3e5b5b",
+    "e7afc9b20c38fd51865d6a1376a59c61a61325ad8444fcd5b48ef408d26a1f9b",
+    "db8b3a0a84275d45d69a2d475e552d7dfb58eb6e47ec45310aca5b182f2d11e6",
+    "13e9b3da55e74f975ff48862496c66c8f14e9cd8b2800621701558f348dd8ead",
+    "4d728403e7a1b6e3cb8135945f3e7ea4d8697bef7046f6049e06a6bcb65406ad",
+    "93beddf615806fe051a176a9428d695888e0b09b54e11702ca6daf348992f73f",
+    "a2c429fbe7aa09eb0352b5ffc4d411d88aaae3df86055d9a62f6e8dc142a7144",
+    "8dd76667cc58b86143eff0ecdef13f20cf2f7965f5bb7ab58c98135853bff68c",
+    "db78563f13f4d8abf05be83333ec4aa01d0335594dcbdc5b91dfef0ede60d0cc",
+    "7ad7c1d1efc341189c1470d1ad14e33e4371a400a25cbaff24d88a48ec884f71",
+    "f40fddd75e21e50b0f1d1b0e88b854cac98f6456d050dfbff8b7a38a5bf20edc"
+  ],
+  "documentChars": [
+    677,
+    1092,
+    1074,
+    687,
+    3075,
+    2379,
+    1274,
+    1254,
+    648,
+    1098,
+    319,
+    1173,
+    1309,
+    209,
+    3118,
+    1735,
+    201,
+    3133,
+    1490,
+    580
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/accounting/other-outbound-done-journal-history.md",
+    "docs/llm-wiki/concepts/inventory/inbound-approve-validate-backorder.md",
+    "docs/llm-wiki/concepts/inventory/stock-qty-mismatch-verification-order.md",
+    "docs/llm-wiki/concepts/inventory/warehouse-operation-latency-history.md",
+    "docs/ontology/objects/sales-invoice.md",
+    "docs/ontology/processes/b2b-invoice-platform-delivery.md",
+    "docs/ontology/processes/embedded-business-record-approval.md",
+    "docs/ontology/processes/warehouse-document-amendment.md",
+    "docs/llm-wiki/concepts/approvals/rapid-record-switch-wrong-done-history.md",
+    "docs/llm-wiki/concepts/delivery/cancelled-picking-recovery-history.md",
+    "docs/llm-wiki/concepts/faq/doc-done-but-related-page-shows-stale-status.md",
+    "docs/llm-wiki/concepts/integration/wms-retry-current-applicability-investigation.md",
+    "docs/llm-wiki/concepts/sales/mark-done-current-applicability-investigation.md",
+    "docs/ontology/objects/business-party.md",
+    "docs/ontology/objects/sales-refund.md",
+    "docs/ontology/processes/customer-sales-ownership-change.md",
+    "docs/ontology/objects/preorder-backorder.md",
+    "docs/ontology/objects/warehouse-operation.md",
+    "docs/ontology/processes/sales-invoicing.md",
+    "docs/llm-wiki/concepts/access/update-time-permission-question-history.md"
+  ],
+  "queryCAvailable": true
+}

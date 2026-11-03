@@ -1,0 +1,51 @@
+{
+  "cases": 137,
+  "status": "NOT_ACCEPTED",
+  "summary": {
+    "A": {
+      "purePositiveTargetBodyAndPrimary": 45,
+      "allTypesTargetBodyAndPrimary": 51,
+      "evidenceP50Ms": 0.10943499999848427,
+      "evidenceP95Ms": 1.0987800000002608,
+      "primaryChars": 119577
+    },
+    "B": {
+      "purePositiveTargetBodyAndPrimary": 51,
+      "allTypesTargetBodyAndPrimary": 57,
+      "evidenceP50Ms": 0.1396020000029239,
+      "evidenceP95Ms": 1.81836900000053,
+      "primaryChars": 185881
+    },
+    "C": {
+      "purePositiveTargetBodyAndPrimary": 51,
+      "allTypesTargetBodyAndPrimary": 57,
+      "evidenceP50Ms": 0.15100299999994604,
+      "evidenceP95Ms": 2.2957649999998466,
+      "primaryChars": 151937
+    }
+  },
+  "sixGainsRetained": true,
+  "incrementalSources": {
+    "B": {
+      "total": 32,
+      "historicalReference": 21,
+      "unsafeOrInsufficient": 11
+    },
+    "C": {
+      "total": 11,
+      "historicalReference": 9,
+      "unsafeOrInsufficient": 2
+    },
+    "rejected": {
+      "historicalReference": 12,
+      "unsafeOrInsufficient": 9
+    }
+  },
+  "new32Prepared": false,
+  "new32Called": 0,
+  "httpRequests": 0,
+  "answerCalls": 0,
+  "judgeCalls": 0,
+  "G": "disabled",
+  "productionChanges": false
+}

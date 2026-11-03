@@ -1,0 +1,138 @@
+{
+  "gained_hits": [
+    "Q02",
+    "Q07",
+    "Q24",
+    "Q25",
+    "Q27",
+    "Q28",
+    "D02",
+    "D03"
+  ],
+  "lost_hits": [],
+  "lower_gold_ranks": [
+    {
+      "id": "Q09",
+      "path": "concepts/delivery/cmc-outbound-company-required-error-response.md",
+      "before": 1,
+      "after": 2
+    },
+    {
+      "id": "Q12",
+      "path": "concepts/inventory/inbound-approve-validate-backorder.md",
+      "before": 2,
+      "after": 3
+    },
+    {
+      "id": "Q17",
+      "path": "concepts/invoicing/student-discount-vat-detail-history.md",
+      "before": 16,
+      "after": 17
+    },
+    {
+      "id": "Q18",
+      "path": "concepts/integration/shopify-duplicate-push-history.md",
+      "before": 3,
+      "after": 5
+    },
+    {
+      "id": "N03",
+      "path": "concepts/sales/approval-activity-button-history.md",
+      "before": 1,
+      "after": 2
+    }
+  ],
+  "remaining_misses": [
+    "Q01",
+    "Q06",
+    "V01"
+  ],
+  "new_candidates_on_boundary_cases": [
+    {
+      "id": "Q31",
+      "rank": 12,
+      "path": "docs/llm-wiki/concepts/sales/uk-shopify-empty-salesperson-default-history.md",
+      "matchedFields": {
+        "title": [
+          "订单"
+        ],
+        "objects": [],
+        "processes": [],
+        "search_terms": [
+          "订单",
+          "没有"
+        ],
+        "summary": [],
+        "selectedBody": [
+          "订单",
+          "没有"
+        ]
+      }
+    },
+    {
+      "id": "Q32",
+      "rank": 20,
+      "path": "docs/llm-wiki/concepts/sales/approval-activity-button-history.md",
+      "matchedFields": {
+        "title": [],
+        "objects": [],
+        "processes": [],
+        "search_terms": [
+          "but"
+        ],
+        "summary": [],
+        "selectedBody": []
+      }
+    },
+    {
+      "id": "Q34",
+      "rank": 7,
+      "path": "docs/llm-wiki/concepts/sales/automatic-order-email-customer-language.md",
+      "matchedFields": {
+        "title": [],
+        "objects": [],
+        "processes": [],
+        "search_terms": [
+          "order"
+        ],
+        "summary": [],
+        "selectedBody": []
+      }
+    },
+    {
+      "id": "H12",
+      "rank": 7,
+      "path": "docs/llm-wiki/concepts/delivery/approval-validate-and-backorder-history.md",
+      "matchedFields": {
+        "title": [
+          "quantity",
+          "demand"
+        ],
+        "objects": [],
+        "processes": [],
+        "search_terms": [
+          "quantity",
+          "demand",
+          "数量"
+        ],
+        "summary": [
+          "数量",
+          "没有"
+        ],
+        "selectedBody": [
+          "quantity",
+          "demand",
+          "reference",
+          "订单",
+          "实现",
+          "创建",
+          "自动",
+          "仓库",
+          "数量",
+          "核对",
+          "没有"
+        ]
+      }
+    }
+  ]
+}

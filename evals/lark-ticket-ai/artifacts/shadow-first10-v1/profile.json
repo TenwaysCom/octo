@@ -1,0 +1,28 @@
+{
+  "source_files": 3964,
+  "unique_tickets": 2055,
+  "duplicate_snapshot_files": 1909,
+  "eligible_unique_windows": 1897,
+  "excluded_tickets": {
+    "history_not_complete": 104,
+    "message_count_mismatch": 29,
+    "no_messages": 1,
+    "duplicate_thread_or_text": 24
+  },
+  "selected": 120,
+  "selected_strata": {
+    "correction": 15,
+    "multi": 30,
+    "question": 20,
+    "single": 20,
+    "english": 15,
+    "targeted_development_supplement": 20
+  },
+  "split": {
+    "development": 98,
+    "review_holdout": 22
+  },
+  "seed": "shadow-first10-v1",
+  "source_root": "/home/deploy/projects/odoo-eu-guide/docs/llm-wiki/raw/transcripts",
+  "created_at": "2026-10-22T10:39:49.021885+00:00"
+}

@@ -1,0 +1,100 @@
+{
+  "caseId": "Q28",
+  "group": "B",
+  "payloadHash": "057bbaf542af2502578a82695753c329f4c0e2fe7165e85edd1a49622d5f5b8f",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 3,
+      "relevance_score": 0.37081682682037354
+    },
+    {
+      "index": 4,
+      "relevance_score": 0.028444256633520126
+    },
+    {
+      "index": 1,
+      "relevance_score": 0.006685110740363598
+    },
+    {
+      "index": 2,
+      "relevance_score": 0.0007396853761747479
+    },
+    {
+      "index": 17,
+      "relevance_score": 0.0004026272217743099
+    }
+  ],
+  "durationMs": 387,
+  "querySha256": "1cc1dad523f7110e7d8a7ef0df20bfb8215f9eaa768f9fc99cfb87b3865b8576",
+  "queryChars": 105,
+  "documentSha256": [
+    "369552627d3e39f2645d07481f624e114d1891abd1129a928b79f53d45519907",
+    "83e402467e15e31121112824ed3ad18a255b5ade250ae5318fa3a1e987c822c7",
+    "23b8b828ad4c2d01175678e415d50628d41bdaab2feea70c9687e1375a34ea66",
+    "8de3e1cf93f9f1e4958d800aab4b4803ba528b6405e0620364b0bbf335ab2da4",
+    "93b6821cb3c435cd8e99072c64239dd72daea967a161ad0827b55ab675b5b25a",
+    "2bd9b085822cb5cb097cead91ec139921e7cddf3d25b18d1ee5801af6bc20486",
+    "8ba484163660a64ddb80cb818361c677cd75774e5d5b1c0fd33b9c0d481f1f52",
+    "256202711dbfc8aba1c906fe3cbe8c55d4fdba86990e054b3dc0ea52f8634fe4",
+    "5727636606f5472bd400f27e7db2aff6524f9001969389e21bc7dc0d8ae8ebfc",
+    "5fc1026dafd25169e2f4091b5a684c111a98b969b14d26947f517c3bfecf8baf",
+    "aee99c1c30a30ca24fc47c89fa714b354176383c2ffb3a19f81c3c98d922c4a4",
+    "ec05a45c88148216327667c9e5d66ba01115aaef24e5afc1929cbc1039fd3f75",
+    "dec4b5f483022db88d1bd45833e700c396cd6e39d3f229b6d009120b816de91c",
+    "374c40b6f80a16333a79f59e68a9a83b131dff06761c7b252c657273b5037bab",
+    "1eb84f55b3757024e9c0c049ba8ab61d7391385d4a7afe600a78fe118baadd87",
+    "a83c300079796b1d206253da8a249abb03527586fb2819e6c137061cd65cac72",
+    "93f03fd3f5bfc4cb5f8a63e97c362d61bca8c39a85d25b8d4f9a6a576a78b40c",
+    "15a3bb5ca1f9dedf816367ce1b293d915b9c414692ee6d9dacab92d9226898e6",
+    "8f505bd5120ea9005e08ec5e86f8ea2d8a1a762b605870d755422a4e5fa0dd9b",
+    "4469009832916807c932d80d1bae9cafff92d19fc53c5c39e1d5d44f1e55153e"
+  ],
+  "documentChars": [
+    252,
+    696,
+    797,
+    1275,
+    741,
+    274,
+    212,
+    733,
+    865,
+    302,
+    242,
+    274,
+    198,
+    259,
+    236,
+    350,
+    230,
+    1024,
+    331,
+    212
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/accounting/accounting-config-checklist.md",
+    "docs/llm-wiki/concepts/invoicing/dynamo-gln-send-history.md",
+    "docs/llm-wiki/concepts/after_sales/contacts-owl-error-cannot-open-historical-case.md",
+    "docs/llm-wiki/concepts/reporting/filter-language-timezone-history.md",
+    "docs/llm-wiki/concepts/access/sales-team-order-visibility-history.md",
+    "docs/llm-wiki/concepts/accounting/account-config-report-mapping-and-20030-residuals.md",
+    "docs/llm-wiki/concepts/accounting/accounting-change-navigation.md",
+    "docs/llm-wiki/concepts/accounting/asset-re-evaluate-original-value.md",
+    "docs/llm-wiki/concepts/accounting/cash-flow-config-timing-history.md",
+    "docs/llm-wiki/concepts/accounting/report-data-mismatch-triage.md",
+    "docs/llm-wiki/concepts/accounting/reverse-creditnote-rules-and-entry-direction-anomalies.md",
+    "docs/llm-wiki/concepts/accounting/review-lock-mismatch-and-review-status-rules.md",
+    "docs/llm-wiki/concepts/faq/accounting-config-adjustments-checklist.md",
+    "docs/llm-wiki/concepts/faq/currency-rate-stopped-ecb-discontinued.md",
+    "docs/llm-wiki/concepts/faq/entry-field-edit-rules.md",
+    "docs/llm-wiki/concepts/faq/manual-journal-70220-cost-adjustment-check-partner-country.md",
+    "docs/llm-wiki/concepts/invoicing/amount-comparison-navigation.md",
+    "docs/llm-wiki/concepts/invoicing/vendor-bill-confirm-stock-move-singleton-investigation.md",
+    "docs/llm-wiki/concepts/payment/manual-journal-required-fields-partner-country.md",
+    "docs/llm-wiki/concepts/sales/configuration-change-navigation.md"
+  ],
+  "queryCAvailable": true
+}

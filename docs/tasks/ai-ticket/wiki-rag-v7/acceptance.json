@@ -1,0 +1,40 @@
+{
+  "configuration": {
+    "group": "A",
+    "threshold": 0.7,
+    "sameAsBaseline": true
+  },
+  "ranking": {
+    "passed": true,
+    "actual": "12/12"
+  },
+  "thresholdRetention": {
+    "passed": true,
+    "actual": "11/12"
+  },
+  "hardNegativePairs": {
+    "passed": true,
+    "accepted": [],
+    "cases": 6
+  },
+  "noAnswer": {
+    "passed": true,
+    "accepted": [],
+    "cases": 6
+  },
+  "oldRegression": {
+    "passed": true,
+    "reason": "Selected configuration is unchanged A/0.7; no altered candidate accepted"
+  },
+  "sourceBoundaries": {
+    "passed": true,
+    "goldBodyAndPrimary": 10,
+    "baselineGoldBodyAndPrimary": 10,
+    "note": "Same unchanged source pipeline; T01 budget refusal preserved. No source repair claimed."
+  },
+  "newInputCandidates": {
+    "adopted": false,
+    "reason": "B/C fail developer constraints before independent evaluation; no holdout B/C claims"
+  },
+  "outcome": "Current A/0.7 passes this bounded holdout; no input or threshold change adopted; no deployment"
+}

@@ -54,6 +54,20 @@ function scopedWikiContent(content: string, sourcePaths: string[], retainWithout
     .join("\n\n");
 }
 
+function lowScoreTop1(results: Array<{ index: number; relevance_score: number }>, candidates: WikiCandidate[]) {
+  if (results.length > 5 || new Set(results.map((item) => item.index)).size !== results.length
+    || results.some((item) => !Number.isInteger(item.index) || item.index < 0 || item.index >= candidates.length
+      || !Number.isFinite(item.relevance_score) || item.relevance_score < 0 || item.relevance_score > 1)) {
+    throw new WikiQaRerankClientError("WIKI_QA_RERANK_RESPONSE_INVALID", "Wiki rerank returned invalid scores or candidate indices.");
+  }
+  const [first, second] = [...results].sort((a, b) => b.relevance_score - a.relevance_score || a.index - b.index);
+  // A missing competitor is unknown, never an assumed zero. Keep Ontology in
+  // the comparison, and never skip its top1 to promote a lower Support Wiki.
+  if (!second || first.relevance_score < 0.3 || candidates[first.index].knowledgeType !== "support_wiki"
+    || first.relevance_score - second.relevance_score + Number.EPSILON < 0.2) return undefined;
+  return first;
+}
+
 export function createWikiQaService(deps: {
   reader?: WikiKnowledgeReader;
   client?: JsonCompletionClient;
@@ -67,7 +81,7 @@ export function createWikiQaService(deps: {
   const extractLog = deps.extractLog ?? wikiQaExtractLog;
   const answerLog = deps.answerLog ?? wikiQaAnswerLog;
 
-  async function complete<T>(phase: keyof typeof WIKI_QA_PROMPTS, values: Record<string, string>, schema: z.ZodType<T>, input: WikiQaInput, candidates: WikiCandidate[] = []): Promise<T> {
+  async function complete<T>(phase: keyof typeof WIKI_QA_PROMPTS, values: Record<string, string>, schema: z.ZodType<T>, input: WikiQaInput, candidates: WikiCandidate[] = [], onLowScoreFallback?: (candidateId: string) => void): Promise<T> {
     input.signal?.throwIfAborted();
     const stage = `server.wiki_qa.${phase}`;
     const base = { actionRunId: input.actionRunId, layer: "server" as const, module: "wiki-qa", stage };
@@ -101,7 +115,16 @@ export function createWikiQaService(deps: {
         if (!parsedScore.success) throw new WikiQaRerankClientError("WIKI_QA_RERANK_CONFIG_INVALID", "Wiki rerank minimum score must be between 0 and 1.");
         const minScore = parsedScore.data;
         const accepted = result.results.filter((item) => item.relevance_score >= minScore);
-        wikiLogger.info({ ...base, minScore, received: result.results.length, accepted: accepted.length }, "WIKI_QA_RERANK_SCORE_FILTERED");
+        // Apply the agreed fallback only to the 0.7 channel. Explicit custom
+        // thresholds retain their existing meaning; later evidence rejection
+        // never retries ranking or promotes another candidate.
+        const fallback = minScore === 0.7 && !accepted.length ? lowScoreTop1(result.results, candidates) : undefined;
+        if (fallback) {
+          accepted.push(fallback);
+          onLowScoreFallback?.(candidates[fallback.index].id);
+        }
+        wikiLogger.info({ ...base, minScore, received: result.results.length, accepted: accepted.length,
+          lowScoreFallback: Boolean(fallback) }, "WIKI_QA_RERANK_SCORE_FILTERED");
         // Relevance scores cannot verify treatment prerequisites or source support.
         content = JSON.stringify({ matches: accepted.map(({ index }) => {
           const candidate = candidates[index];
@@ -110,7 +133,8 @@ export function createWikiQaService(deps: {
             applicability: "historical_reference",
             conditionsMatched: false,
             evidenceIds: candidate.sourceEvidence.map((source) => source.id),
-            limitations: ["专用重排仅评估相关性，原始证据与处理前提尚未逐项核验"],
+            limitations: ["专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+              ...(fallback ? ["低分Top1兜底，仅供历史参考，不代表当前问题已有确定处理方案"] : [])],
           };
         }) });
       } else {
@@ -157,9 +181,10 @@ export function createWikiQaService(deps: {
     const rerankCandidates = candidates;
     wikiLogger.info({ actionRunId: input.actionRunId, layer: "server", stage: "server.wiki_qa.retrieve", candidates: candidates.length, rerankCandidates: rerankCandidates.length }, "WIKI_QA_CANDIDATES_READY");
     if (!candidates.length) return { question: extracted.question, evidence: [] };
+    let lowScoreCandidateId: string | undefined;
     const ranked = await runStage("rerank", input, () => complete("rerank", {
       question: extracted.question, ticket_context: ticketContext, candidates: JSON.stringify(rerankCandidates),
-    }, wikiRankingSchema, input, rerankCandidates), (result) => `已完成候选重排，选出 ${result.matches.length} 篇资料`);
+    }, wikiRankingSchema, input, rerankCandidates, (candidateId) => { lowScoreCandidateId = candidateId; }), (result) => `已完成候选重排，选出 ${result.matches.length} 篇资料`);
     const seen = new Set<string>();
     return runStage("evidence", input, async () => {
       const evidence: WikiKnowledgeEvidence[] = ranked.matches.map((match, index) => {
@@ -189,10 +214,15 @@ export function createWikiQaService(deps: {
         };
       });
       const terms = wikiQueryTerms([extracted.question, ...extracted.keywords, ...extracted.objects].join(" "));
-      const supported = evidence.filter((item) => supportsWikiQuestion(extracted.question, terms,
+      const supported = evidence.filter((item) => !lowScoreCandidateId || (reader.selectEvidence
+        && item.content.trim() && item.sourceEvidence.length > 0
+        && item.sourceEvidence.every((source) => source.complete && source.content.trim())
+        && item.sourceEvidence.reduce((size, source) => size + source.content.length, 0) <= 2400))
+        .filter((item) => supportsWikiQuestion(extracted.question, terms,
         [item.title, item.content, ...item.sourceEvidence.map((source) => source.content)].join("\n")))
         .slice(0, 3).map((item, index) => ({ ...item, sourceId: index + 1 }));
-      wikiLogger.info({ actionRunId: input.actionRunId, layer: "server", stage: "server.wiki_qa.evidence", selected: evidence.length, supported: supported.length }, "WIKI_QA_EVIDENCE_FILTERED");
+      wikiLogger.info({ actionRunId: input.actionRunId, layer: "server", stage: "server.wiki_qa.evidence", selected: evidence.length, supported: supported.length,
+        lowScoreFallback: Boolean(lowScoreCandidateId) }, "WIKI_QA_EVIDENCE_FILTERED");
       return { question: extracted.question, evidence: supported };
     }, (result) => `已完成原始证据筛选，保留 ${result.evidence.length} 篇相关资料`);
   }

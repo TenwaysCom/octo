@@ -1,0 +1,67 @@
+{
+  "passed": true,
+  "requirementVersion": 16,
+  "adoption": "explicit user choice; no new model experiment",
+  "policy": {
+    "normalThreshold": 0.7,
+    "fallbackOnlyWhenNormalScoreChannelEmpty": true,
+    "top1Floor": 0.3,
+    "originalTop1Top2Gap": 0.2,
+    "inclusiveBoundaries": true,
+    "knowledgeType": "support_wiki",
+    "maxFallbackPages": 1,
+    "primaryPageChars": 2400,
+    "requiresSelectEvidence": true,
+    "allReturnedSourcesComplete": true,
+    "requiresNonemptyScopedBody": true,
+    "applicability": "historical_reference",
+    "highScoreEvidenceFailureDoesNotTriggerFallback": true,
+    "noRank2Promotion": true,
+    "customThresholdsOtherThan07Unchanged": true,
+    "generalModeUnchanged": true
+  },
+  "checks": {
+    "unitAndMock": {
+      "passed": true,
+      "tests": 238,
+      "files": 6,
+      "newFallbackTests": 28,
+      "logSha256": "cde11d369bf2e4f27a0d614459cd39a292b7de1d68223458b06f73a941427287"
+    },
+    "build": {
+      "passed": true,
+      "logSha256": "45debb918a68a8db6662567cde0461d3149e30a72d49b8e37b67ba71b157b9ef"
+    },
+    "realReaderWithMockRerank": "passed: late correction kept; over-budget full context rejected",
+    "oldArtifactsUnchanged": 431,
+    "v15RecallCodeAndWikiUnchanged": true,
+    "onlyTwoAdditionalApplicationFilesChanged": true
+  },
+  "applicationAfter": {
+    "adapters/filesystem/wiki-knowledge-reader.test.ts": "7c351035f3dedef5f8bfc2dfe45ceec26c949d65ea030960882158301e7ce32e",
+    "adapters/filesystem/wiki-knowledge-reader.ts": "a1b13a4214e326977c9f221835ff5ebceaec805b464ba9995287849d9ebb9d69",
+    "application/services/wiki-qa.service.test.ts": "e4d34c586ff0bfbbdf0cae5941a863ca8ca58cc54cd962b8cab6e925aa88163e",
+    "application/services/wiki-qa.service.ts": "dba7dd819d1469f007ef524432e27217809a085f63f47cf689c98e642610cc63",
+    "domain/wiki-evidence.test.ts": "74495587635572e8a9efab053a9c55db0dc1e807dfa27f93247837b356eb1bd7",
+    "domain/wiki-evidence.ts": "0553b36babfa3f3b24dc201d24f1f4d12c8c2496eee885eea0bf8a210d207601"
+  },
+  "differencesFromV10Experiment": [
+    "No experiment strategy interface or alternate threshold arms shipped.",
+    "Complete original source units are required; nonempty earlier previews or incomplete snapshots cannot qualify.",
+    "Machine-rounding tolerance preserves gap >=0.2 at values such as 0.3 and 0.1."
+  ],
+  "executionNotes": [
+    "Initial new empty-recall test incorrectly expected a rerank call; corrected to the existing no-candidate behavior. Production logic was unchanged by this test correction."
+  ],
+  "boundaries": {
+    "newHttpRequests": 0,
+    "finalAnswerModelCalls": 0,
+    "independentJudgeCalls": 0,
+    "new32Prepared": false,
+    "G": "disabled",
+    "sharedBudgetEnabled": false,
+    "serverDeployed": false,
+    "processRestarted": false
+  },
+  "qualityLimit": "The historical v10 results are unchanged. Tests validate policy and integration; current recall plus fallback has not undergone new real-model or final-answer quality validation."
+}

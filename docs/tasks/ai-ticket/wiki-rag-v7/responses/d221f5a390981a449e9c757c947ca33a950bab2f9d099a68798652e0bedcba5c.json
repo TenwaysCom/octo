@@ -1,0 +1,100 @@
+{
+  "caseId": "N15",
+  "group": "A",
+  "payloadHash": "d221f5a390981a449e9c757c947ca33a950bab2f9d099a68798652e0bedcba5c",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 0,
+      "relevance_score": 0.6094989776611328
+    },
+    {
+      "index": 1,
+      "relevance_score": 0.42680367827415466
+    },
+    {
+      "index": 2,
+      "relevance_score": 0.3824625611305237
+    },
+    {
+      "index": 15,
+      "relevance_score": 0.3327840566635132
+    },
+    {
+      "index": 7,
+      "relevance_score": 0.3067324161529541
+    }
+  ],
+  "durationMs": 546,
+  "querySha256": "215e8d26f6695581a005842bcd0952b54ad0e3505a2356172f21f657b8e99e41",
+  "queryChars": 139,
+  "documentSha256": [
+    "b5bc76dbfe0944a9a10cf3bd483a2d3f47a87a4a4893ac71ff320bdb4c4a6ba0",
+    "b85fec44e9873bd2a092926b0b7af2ff0e8d14ae910b038844c3f8b8ed6cf3f4",
+    "fe532c91046f92423326ae72d74847858a321743b8e5e774594b981ca11e6d34",
+    "6a3c032382bcfb386f7f45a74ad3800c776b59d5f57e2d93a62daa362d50ee28",
+    "ccada1dd9f689bc44ad98490d6bf792d03d110c27702f802b2ad4f1e5318e3a3",
+    "da94b8b89832392486ca6be6227dd0e63a174ca6015bdf10fbb135f1cc40886d",
+    "788e5d80021c32b5640b689f35c0db6befb3bef018c11fae647965fb8fe232c8",
+    "c7fa79512149c6279aaadc819a07deed17483f0856474251882ef78e9b5f3e72",
+    "dd258d9523fb4a2e01457bb3fdf077e7a30314417ba31d51bd1393fa6070cf63",
+    "4898c55dee5563b761591736afcfab5416e74b50e3b0da763f1176f71418d462",
+    "750d35647ce86dd70d341cb8ac8949767d1fe36a4d0cdcddd9cd11058f046e82",
+    "ab7731236a33ca91ae64dbf3c557fd8ad63d99025f1f11f2a322552a152494b9",
+    "34d08c7af97dd8fd2b63a794c40b7691811dfd314b5a41d6a5981ce24c3a50f9",
+    "f025cd38c5ce4b9e6dd500689f805bbc183f959d85ffb57644ec92324c8365f2",
+    "8599a0ccb0a75139f8ddb3a14f1d94752624885aeb75f92599a5cd63142e6a1f",
+    "a45ba14dbcb1e6b93749f7ecb459e5b572d6dec4587730736f6288515f846195",
+    "b2d9a535c30331ffa8f0c212a213d4623cdc06c39471d9b5ce2b6e3a55d2a226",
+    "b70361fafc0ea586f4f60e07d2cce7a325b85b526dad864211ebb4a4bcf73d17",
+    "d91fc97050ee44faa4b0ec8c9530bc0b7e0c0ee82084ef43993c169b1c3fe30f",
+    "34a8c18d1c27cb01ed76c8233f6a02d56c86253f25b5bd9bcbaf78890568c53c"
+  ],
+  "documentChars": [
+    1198,
+    2443,
+    1216,
+    2290,
+    1018,
+    1330,
+    478,
+    2357,
+    1555,
+    844,
+    777,
+    1397,
+    904,
+    2451,
+    2248,
+    1732,
+    1351,
+    889,
+    840,
+    1377
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/integration/shopify-order-sku-mismatch-mapping-and-lifecycle.md",
+    "docs/ontology/objects/product-catalog.md",
+    "docs/llm-wiki/concepts/inventory/sku-warehouse-default-location-history.md",
+    "docs/ontology/objects/business-approval.md",
+    "docs/llm-wiki/concepts/integration/shopify-import-schedule-and-config-history.md",
+    "docs/llm-wiki/concepts/integration/shopify-missing-sku-and-confirm-timing-history.md",
+    "docs/llm-wiki/concepts/integration/shopify-created-sku-category-history.md",
+    "docs/ontology/objects/warehouse-inventory-control.md",
+    "docs/ontology/processes/sales-order-closure.md",
+    "docs/llm-wiki/concepts/integration/shopify-order-import-triage.md",
+    "docs/llm-wiki/concepts/integration/shopify-product-category-history.md",
+    "docs/llm-wiki/concepts/sales/contact-overview-quantity-and-status.md",
+    "docs/llm-wiki/concepts/sales/pricelist-batch-update-historical-case.md",
+    "docs/ontology/objects/business-party.md",
+    "docs/ontology/objects/journal-item-control.md",
+    "docs/ontology/processes/external-wms-order-exchange.md",
+    "docs/llm-wiki/concepts/access/permission-request-and-effective-access.md",
+    "docs/llm-wiki/concepts/inventory/inventory-adjustment-lock-history.md",
+    "docs/llm-wiki/concepts/purchase/po-change-and-inbound-recreate-rules.md",
+    "docs/llm-wiki/concepts/reporting/export-grain-and-date-history.md"
+  ],
+  "queryCAvailable": false
+}

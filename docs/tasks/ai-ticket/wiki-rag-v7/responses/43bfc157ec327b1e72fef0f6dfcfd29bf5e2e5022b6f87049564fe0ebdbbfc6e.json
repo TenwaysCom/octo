@@ -1,0 +1,100 @@
+{
+  "caseId": "V02",
+  "group": "A",
+  "payloadHash": "43bfc157ec327b1e72fef0f6dfcfd29bf5e2e5022b6f87049564fe0ebdbbfc6e",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 1,
+      "relevance_score": 0.99025958776474
+    },
+    {
+      "index": 6,
+      "relevance_score": 0.9506906270980835
+    },
+    {
+      "index": 4,
+      "relevance_score": 0.7787987589836121
+    },
+    {
+      "index": 19,
+      "relevance_score": 0.6390160918235779
+    },
+    {
+      "index": 10,
+      "relevance_score": 0.2007010281085968
+    }
+  ],
+  "durationMs": 379,
+  "querySha256": "2a14648ba2a911ba54b0261272f5ed1e0561bfecbb9c58ac9f741e1f3dfbfdec",
+  "queryChars": 24,
+  "documentSha256": [
+    "17b62bd3179ddf636aff11c0105ded9437c2b21cf55a7ef31822d55a97a9d745",
+    "ae107a2836a4d78e570d78b108643dabc256c0d2caf6442e4d49c2e74566c800",
+    "883abe46740088adc39e6790f3c89b4acd034c4ac5bc8d6311e861b9ab3988fc",
+    "978fb1eb52584541846db4217009aac0c22b844d097482688a409fefbc7f2afb",
+    "1dc191b3b0330c0fa6cdf67951776f5c7447404696fd1e7c51610a395b45ab75",
+    "11e7c9165b9d511de503ba37b7aac7324cd74e5810cf53cba14147794d3aa305",
+    "04c9e369c8af811b0d52fb5ed8a70e9a9fcb5f2c4b3f5539973dff757556e392",
+    "34d08c7af97dd8fd2b63a794c40b7691811dfd314b5a41d6a5981ce24c3a50f9",
+    "86ca7f3ef40faaf5ee987fadb3dc57217074e9aa0c282323ef1a209d7ebbdc4d",
+    "eb984c9068981d7e5ca6f854f04cea0d295cb8577c52bdadf24b8696e9fe39c0",
+    "c1f3b49234bec9903d30dbbb0a48bc750eabc1e83f7039e6b53dde64ae55b7a8",
+    "2fa45c96566b616097be3ad684a46c40058d63076e5e6a8120dc43eefc91abb2",
+    "013f486f97fba0df475ff08472b0e43d25add772a85a9d805c46321c49004c7c",
+    "bbf11179899dcd2b7c580d4f18647d05afea24ea1ebce79d206d789edd29ba14",
+    "b8a39a2ce27967f6b6db2b21de7c1d7649d40b6c50b963fcef3af326b9d87269",
+    "1dd57d5e5e27c24dd7bc45612c51c1f89dcc313a135d1ae409db330fc6c0ada0",
+    "02d666233001a91eaa4b276c3af013e21515c164110fa6fb15536f6e106d91c0",
+    "4b3aae6a97b1e0dedd2c7e1d11d51013a351c64f0ea6bd32f69201d112ff6b24",
+    "0dff1779463b49e94154cf8c9fe5b79433ba5fe15b8dcb344b304e0551fcc009",
+    "d7fd2c2079ffe5f509b1f2b3427fa15b6d7a82bf6c16a532320fa5eeee45bd1f"
+  ],
+  "documentChars": [
+    1350,
+    653,
+    741,
+    2154,
+    1046,
+    755,
+    849,
+    904,
+    795,
+    489,
+    607,
+    213,
+    1734,
+    270,
+    398,
+    175,
+    170,
+    171,
+    446,
+    637
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/invoicing/price-and-invoicing-mismatch-triage.md",
+    "docs/llm-wiki/concepts/sales/markup-name-and-price-rules.md",
+    "docs/llm-wiki/concepts/invoicing/product-change-invoice-price-history.md",
+    "docs/ontology/objects/sales-pricelist.md",
+    "docs/llm-wiki/concepts/sales/pricelist-discount-not-applied-or-price-mismatch.md",
+    "docs/llm-wiki/concepts/sales/customer-pricelist-discount-rounding-history.md",
+    "docs/llm-wiki/concepts/sales/pricelist-and-product-maintenance-navigation.md",
+    "docs/llm-wiki/concepts/sales/pricelist-batch-update-historical-case.md",
+    "docs/ontology/processes/sales-pricelist-assignment-and-repricing.md",
+    "docs/llm-wiki/concepts/integration/uk-shopify-variant-taxable-price-difference-history.md",
+    "docs/llm-wiki/concepts/sales/pricelist-display-policy-history.md",
+    "docs/llm-wiki/concepts/sales/uk-manual-unit-price-discount-history.md",
+    "docs/ontology/processes/customer-pricelist-change.md",
+    "docs/llm-wiki/concepts/faq/config-masterdata-and-display-bugs-reference.md",
+    "docs/llm-wiki/concepts/faq/pricelist-and-product-maintenance-rules.md",
+    "docs/llm-wiki/concepts/faq/so-price-delivery-charge-edit-lock-rules.md",
+    "docs/llm-wiki/concepts/inventory/other-outbound-virtual-location-restore.md",
+    "docs/llm-wiki/concepts/inventory/purchase-return-price-journal-and-location-anomalies.md",
+    "docs/llm-wiki/concepts/platform/copied-account-mail-display-name-history.md",
+    "docs/llm-wiki/concepts/sales/cargo-discount-approval-history.md"
+  ],
+  "queryCAvailable": false
+}

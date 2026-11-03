@@ -1,0 +1,100 @@
+{
+  "caseId": "H05",
+  "group": "A",
+  "payloadHash": "13af943aae3f8f60176a1135efca269d93e3e54a58faddcc46674b4ee461b6d4",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 0,
+      "relevance_score": 0.9914953708648682
+    },
+    {
+      "index": 2,
+      "relevance_score": 0.9782415628433228
+    },
+    {
+      "index": 5,
+      "relevance_score": 0.9670917391777039
+    },
+    {
+      "index": 8,
+      "relevance_score": 0.9431459307670593
+    },
+    {
+      "index": 3,
+      "relevance_score": 0.9047402739524841
+    }
+  ],
+  "durationMs": 617,
+  "querySha256": "da44a11bdb51313f254525b9d70f2fa77c73e90e0306b1fefeeb1524e1ce686f",
+  "queryChars": 152,
+  "documentSha256": [
+    "af2d47c96fd564c75a10031b91ba3e5ee2d3a94fbf144fec7a934655b6e3643b",
+    "1dc191b3b0330c0fa6cdf67951776f5c7447404696fd1e7c51610a395b45ab75",
+    "96487419cb6e173ea811e16eb852167986d11d35c81fa713e57389e0b6b9a5a5",
+    "a45ba14dbcb1e6b93749f7ecb459e5b572d6dec4587730736f6288515f846195",
+    "d3da79dc8b18cc242dd9b7f9d119a881c82481f9c64fbc1ceaf1fa60c69f1038",
+    "5cdefb36c19cfc5bb8bff3bf00c383c2a9218ca44fae6032f70a797ad61e3abe",
+    "5235dd59220cb6fa739ece91fc58c9a45c91c1b028a1a8b278ee09b8a450dbd8",
+    "cefe2258729cc61736c65e0b1634bac49f73dce59f8fbddaf53d0b9919b72563",
+    "7484870c2f46dae7f256b495d91e4de2db3de563667e056ac4ed5805b10df620",
+    "28864e0c88067dfcc4d3465b070a4b0cd601527a13985dcf73f8b5326d2f2e88",
+    "37dc90988c606ae2667a2b039e8863fa7e1526741d0cb1a09df01add7d37d063",
+    "4b429f53520404b99422c6f6ef57cd6bfc4843242131aafcc1ca5ee179426ccf",
+    "28d77d61cdcdc3bb07941dd3ad27f3cb26d0a3560a473f7b5f6b717053b989de",
+    "0c202451cfc5f9666bb335b756735190b5e72a8a1f359a17bd60c03ce3584f99",
+    "65ae60dd8342bef59810fc786ff2afb21df0397a40b73a08161fd7ac3a9ae0e3",
+    "72753beecb24ed68f0d820266054a6f331a0da5eb861ba7665e577ec4f0f7489",
+    "cdda3437e087a037403fd043aeb30ea99f6aa8201b35b39cb8895084af695341",
+    "b6abda4ac328eb3a6be8727f90f57a04c96bf9d37a9eacedd9909068a31bf9e3",
+    "449e269d75766669ef3a4befe3cf60c0aebc50c985b7dd5fbf1b1dfd162737bf",
+    "a088a7f60de066fdffdc1096d04452271b0ff6ea6b8ae4a77e51aef7cd8ea7d8"
+  ],
+  "documentChars": [
+    1471,
+    1046,
+    712,
+    1732,
+    960,
+    1114,
+    2371,
+    1107,
+    1725,
+    1765,
+    2088,
+    1119,
+    2271,
+    690,
+    1011,
+    268,
+    676,
+    591,
+    591,
+    1045
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/delivery/westerman-scheduled-feedback-history.md",
+    "docs/llm-wiki/concepts/sales/pricelist-discount-not-applied-or-price-mismatch.md",
+    "docs/llm-wiki/concepts/delivery/westerman-booked-tracking-timing-history.md",
+    "docs/ontology/processes/external-wms-order-exchange.md",
+    "docs/llm-wiki/concepts/integration/shopify-import-schedule-and-config-history.md",
+    "docs/llm-wiki/concepts/delivery/stock-picking-integration-contract-lark-1815.md",
+    "docs/ontology/objects/warehouse-operation.md",
+    "docs/llm-wiki/concepts/accounting/currency-rate-staleness-triage.md",
+    "docs/llm-wiki/concepts/delivery/wms-feedback-and-marketplace-tracking-triage.md",
+    "docs/llm-wiki/concepts/approvals/inflight-approval-owner-change-history.md",
+    "docs/ontology/objects/purchase-settlement.md",
+    "docs/llm-wiki/concepts/delivery/sales-order-integration-contract-lark-1806.md",
+    "docs/ontology/objects/sales-order.md",
+    "docs/llm-wiki/concepts/sales/automatic-order-email-customer-language.md",
+    "docs/ontology/processes/product-channel-publication.md",
+    "docs/llm-wiki/concepts/faq/external-transfer-misc-checklist.md",
+    "docs/llm-wiki/concepts/integration/order-import-schedule-regression-history.md",
+    "docs/llm-wiki/concepts/sales/cart-recovery-mail-trigger-history.md",
+    "docs/llm-wiki/concepts/sales/order-received-template-history.md",
+    "docs/llm-wiki/concepts/delivery/cancelled-picking-recovery-history.md"
+  ],
+  "queryCAvailable": true
+}

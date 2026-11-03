@@ -1,0 +1,100 @@
+{
+  "caseId": "H09",
+  "group": "A",
+  "payloadHash": "7a20642c6e982797be06b62e5ff294cc2f551904ee1f3ceac4c4a65cce40c1c7",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 4,
+      "relevance_score": 0.652305006980896
+    },
+    {
+      "index": 0,
+      "relevance_score": 0.46670272946357727
+    },
+    {
+      "index": 18,
+      "relevance_score": 0.39932844042778015
+    },
+    {
+      "index": 7,
+      "relevance_score": 0.36284589767456055
+    },
+    {
+      "index": 13,
+      "relevance_score": 0.25892025232315063
+    }
+  ],
+  "durationMs": 508,
+  "querySha256": "432f51213976cc006f3b4108cdd7a05cd3895007b88b05b02dc065cf4f696141",
+  "queryChars": 202,
+  "documentSha256": [
+    "fc305d11d3a94721ffcb6ff53f95dcf9b85c76c10b708959e7f6bf29f85c9305",
+    "0fe437723b68b0928f1b6160b6139c704bf66d8e66c3735dae3e8c8b6cf566d6",
+    "c3c705d7814fbfb1a80e4c9b0c42098781b497a9b295e90ef4055164e25ecfff",
+    "5f9f2c315163b17f02b9f59b19246f8850d392125d799ec860def6a2f141b590",
+    "2bb4cda58bdb6da35d6b2a239b3368dd05eb250c75cf0f2c7d051c0e521e8e60",
+    "e4e02f5a8e45c277df5f57dae26c24d955f637db0a21f335ea3ab1e024a94a30",
+    "3f7f110fb0af46a499857f2eb66441fec98cf949fc353d9cff71f121e344595b",
+    "6f52d3b5a02a3cb2a0ced33bb3ed58dafeb12170d541a5eb2717c116fff42a4b",
+    "95a30d7f6ac24fcd09e1835e6984133d165d8251ff8087b68a722d627445fcda",
+    "56b4a5985676d13966d6c727469717cdfd2da96eb47fbf872efc9efc9028ebc7",
+    "821a223d72b6ef47c6c523246abbb55a4c7fe0b90a424cc583866c1cd55f2d79",
+    "5163206d4348159f1ef15d1b4c308a15eb31f3fda4ad58552935f417eafd2b72",
+    "bee1d758a5cec69a19adf4992952d57ae4860d4fdaa562ab8de3ddbde2cd2eac",
+    "c536c2f501adfb35997e80f9dd467eaac158cc9d51d2344dbd0ac810c2ae41b8",
+    "3be8358e84427175ac2513116170b7a59914b5172cfd92e08c2999a6f9b30df6",
+    "086d1efda4d22ba17904d128d0f37c09b2b9d7d5c75c2ad320eb9d11a1eb79ec",
+    "d364f0b750f39ca7b6710af3e9890ee99a3a7b8ceb8c633ac0a89d0fc4a23e82",
+    "30d91acfb0700f48301a3a618e0e06945c39b434024ef5820633843f9f339f83",
+    "d5f12b9548d25ea08ff70fd93e82ecadfee7ac9894a5f7af8541620ce457e163",
+    "58f6825ee350c5683aafb7a8106d8369d9e5237f48870afafc1e4617b2c52174"
+  ],
+  "documentChars": [
+    2449,
+    493,
+    1685,
+    769,
+    714,
+    1356,
+    2457,
+    1762,
+    419,
+    490,
+    700,
+    1775,
+    693,
+    1404,
+    822,
+    2335,
+    1651,
+    1794,
+    2279,
+    2403
+  ],
+  "candidatePaths": [
+    "docs/ontology/objects/customer-credit.md",
+    "docs/llm-wiki/concepts/sales/temp-credit-confirm-history.md",
+    "docs/llm-wiki/concepts/access/operation-access-and-button-triage.md",
+    "docs/llm-wiki/concepts/sales/credit-config-and-internal-trade-history.md",
+    "docs/llm-wiki/concepts/access/sales-team-order-visibility-history.md",
+    "docs/llm-wiki/concepts/faq/contact-backorder-preorder-overview.md",
+    "docs/ontology/objects/business-party.md",
+    "docs/llm-wiki/concepts/access/permission-request-and-effective-access.md",
+    "docs/llm-wiki/concepts/sales/configuration-change-navigation.md",
+    "docs/llm-wiki/concepts/sales/overdelivery-credit-occupation-history.md",
+    "docs/llm-wiki/concepts/sales/partner-country-and-order-tax-check.md",
+    "docs/llm-wiki/concepts/sales/so-price-and-shipping-edit-triage.md",
+    "docs/llm-wiki/concepts/sales/uk-shopify-empty-salesperson-default-history.md",
+    "docs/llm-wiki/concepts/sales/contact-overview-create-sales-order.md",
+    "docs/llm-wiki/concepts/sales/sale-order-cancel-loyalty-usage-log-permission.md",
+    "docs/ontology/objects/financial-reporting.md",
+    "docs/llm-wiki/concepts/access/odoo-login-entry-triage.md",
+    "docs/llm-wiki/concepts/sales/sales-team-change-history-boundaries.md",
+    "docs/ontology/objects/preorder-backorder.md",
+    "docs/ontology/objects/sales-invoice.md"
+  ],
+  "queryCAvailable": false
+}

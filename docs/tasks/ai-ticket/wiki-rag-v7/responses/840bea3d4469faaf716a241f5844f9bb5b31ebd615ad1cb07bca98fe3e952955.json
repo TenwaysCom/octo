@@ -1,0 +1,100 @@
+{
+  "caseId": "V07",
+  "group": "A",
+  "payloadHash": "840bea3d4469faaf716a241f5844f9bb5b31ebd615ad1cb07bca98fe3e952955",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 1,
+      "relevance_score": 0.02010641247034073
+    },
+    {
+      "index": 0,
+      "relevance_score": 0.01954234577715397
+    },
+    {
+      "index": 3,
+      "relevance_score": 0.012819495052099228
+    },
+    {
+      "index": 2,
+      "relevance_score": 0.004577917046844959
+    },
+    {
+      "index": 9,
+      "relevance_score": 0.0027181077748537064
+    }
+  ],
+  "durationMs": 444,
+  "querySha256": "c29ee9de715826dae496ac90a723f1fef8532acedabae162cf7fffe73e2611fb",
+  "queryChars": 17,
+  "documentSha256": [
+    "58d3ce33aa99f2e941ea12a47807b373498c5fcca9646fc8b810e440ed4d58a6",
+    "6ef79a595e1a900e0a96023f3c7e7c6786e3f6c9aa819eb2b215bc87c33ee9f9",
+    "e4adf38541e559a34111090609488ad104334f83f99d828174638c48fe2f676f",
+    "0c202451cfc5f9666bb335b756735190b5e72a8a1f359a17bd60c03ce3584f99",
+    "f845e250e8b3d45f7eff73d35e68ae52db23cfec08bf290d1981e8816e15c411",
+    "aae76edb1f75713967806405a7ce3d7e88ad0f752e9b292d2afd04825d231a49",
+    "594579005f0a01d6ef9b9ed8e0ca164059d63d2e184756480e906e8d382954c8",
+    "f97b6d3c807b88fffbee639f9a0c4d815942ce4582d4626f931fdc1a02f0de26",
+    "6b983263274315b5e77d4fb543983712e8276db9be49a8312cc0d8c832c84b7e",
+    "ee5ce3e324646a5d763ed8f6a50781930b052f18ab83013f232deb5ad4e83e29",
+    "2d49c56920c23e91fe755a31b371f50bb4e7b8ca4fbe45478c230de3cd50f305",
+    "2e5bfe1f58cccc8d27b66cfd921f8f9691f60c89a6b46aa55169e5fc4eb65152",
+    "140b7bb256a30c4c3c428ce649109abff29171b09c46be35d1f205a2dd068bff",
+    "6a3ca2fd49106b2343709f84ece1f639775dcf056bbe257f18a813e9127e255c",
+    "f080273456e91d31f4a049f13b6ae371c4be9d7d53c12a2c790a9164960ae306",
+    "43959b63b0e54f2b1c288e0b92e05fd3de1391dedd3580640812fa088b0141af",
+    "a2a893e7c75946e596e929583e64e9d5dd9ef72f087d924b9a84cf84d5537419",
+    "f871e26629ebdcdb1ac0e845aaa996f8bdd169df0bd59d8444d2b0c421024c34",
+    "a16dfc0687ec416d963578b3fe57bdaab40167a79164393e29ebb86fd89b8b83",
+    "4e44b6cb2dcd1d8030380f510475aa0b441e0cc62347c56ab8e15f66ba25df4a"
+  ],
+  "documentChars": [
+    433,
+    2484,
+    2344,
+    690,
+    668,
+    1614,
+    579,
+    1219,
+    878,
+    1825,
+    1300,
+    1529,
+    967,
+    453,
+    474,
+    588,
+    606,
+    622,
+    1045,
+    614
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/sales/delivery-address-country-tax-rate.md",
+    "docs/ontology/objects/business-party.md",
+    "docs/ontology/objects/b2b-portal-sales.md",
+    "docs/llm-wiki/concepts/sales/automatic-order-email-customer-language.md",
+    "docs/ontology/processes/portal-profile-maintenance.md",
+    "docs/ontology/objects/b2c-sales.md",
+    "docs/ontology/processes/b2b-portal-purchase.md",
+    "docs/ontology/processes/sales-return-receipt-and-disposition.md",
+    "docs/llm-wiki/concepts/payment/invoice-auto-send-sales-team-historical-assignment.md",
+    "docs/ontology/objects/customer-credit.md",
+    "docs/ontology/processes/customer-preorder-conversion.md",
+    "docs/ontology/processes/customer-profile-validation.md",
+    "docs/ontology/processes/customer-sales-ownership-change.md",
+    "docs/llm-wiki/concepts/accounting/uk-auto-reconciliation-coverage-history.md",
+    "docs/llm-wiki/concepts/delivery/outbound-message-followers.md",
+    "docs/llm-wiki/concepts/integration/sync-and-availability-navigation.md",
+    "docs/llm-wiki/concepts/invoicing/credit-note-auto-mail-cutoff-history.md",
+    "docs/llm-wiki/concepts/invoicing/dynamo-gln-send-history.md",
+    "docs/llm-wiki/concepts/invoicing/uk-automatic-invoice-mail-history.md",
+    "docs/llm-wiki/concepts/payment/mandate-state-and-exclusion-history.md"
+  ],
+  "queryCAvailable": false
+}

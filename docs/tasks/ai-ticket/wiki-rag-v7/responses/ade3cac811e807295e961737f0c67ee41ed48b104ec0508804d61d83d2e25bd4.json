@@ -1,0 +1,100 @@
+{
+  "caseId": "H02",
+  "group": "C",
+  "payloadHash": "ade3cac811e807295e961737f0c67ee41ed48b104ec0508804d61d83d2e25bd4",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 5,
+      "relevance_score": 0.6848179697990417
+    },
+    {
+      "index": 9,
+      "relevance_score": 0.6352323293685913
+    },
+    {
+      "index": 19,
+      "relevance_score": 0.6077447533607483
+    },
+    {
+      "index": 3,
+      "relevance_score": 0.5660957098007202
+    },
+    {
+      "index": 16,
+      "relevance_score": 0.47900107502937317
+    }
+  ],
+  "durationMs": 524,
+  "querySha256": "c6c09bf5703c3157334311732a97171754c89c1ee36c770067e71666483aa133",
+  "queryChars": 432,
+  "documentSha256": [
+    "e08e16d2a076834c402607fb3d97120920b599a3fb5b05d146ce430cf9d27e0b",
+    "46e84ae950d38ee219edd72fdab7cceaeed1188c04e1f90727443fd2e836272b",
+    "fcaa792f6fc4f9a443194b9e08275b67f233b5def20a39f9636ef686ca877ae5",
+    "745965b982a1f0e7cae8cc7e86ef2cbab69d56748e4808e1a344690ff089b7ab",
+    "4d728403e7a1b6e3cb8135945f3e7ea4d8697bef7046f6049e06a6bcb65406ad",
+    "a403f3245d92655fe12f46c3fea5aa04dc67891b96eacb65c0248aaca8161927",
+    "ee60f743727a3a00f11a08f78e3857100fd53060fe7352ff3ffa304e4a3686e3",
+    "4255b1145ddddba0ff9d294207e38611ed912d3869f81eef44db65ab4a267efd",
+    "497215450efcbde73b12163601b06910faabb9a01e4a5fbd918012f65b65d9f8",
+    "0b1ee15d60a19d349f69b6c3164fe10589c68fff971822d52df8594d9d8a9ef3",
+    "43618692159f4cc17cdf4283986a28cba160aaed3345b36c62f7062d3978131d",
+    "da1a68836670385357d491433aa4d8aa08f84b9ffe690dd12d1dca857dc593e4",
+    "1c71c8e9403ffd7d4afeb5ea14b9a1eba0c2ab48eee6c08f95900476a995f4ae",
+    "dd6445b6c654b532c32e5012cd4ebb16dd86becc0e8a311b27a96d66b2c41560",
+    "e719ba44ff460db1c6bc57b2f91e295101d605b2d565c2e956c13e69dd2f2698",
+    "5812c1ab23f725f3ea8eb7cc27a4039771ce3c2a1f1e6260b3ec7efc34feee0e",
+    "ce795549f9e3a107d84dbbc68ed7921f1a473e6886977417288495b8d87816bb",
+    "506faaf5df43c9090445be96aeb3c358caf00d5086024f330c2a33b94f4c138e",
+    "2edf5a1c6fdfe080583cebf1e4f3560012d5061ce49d0f99820ac82d685f499b",
+    "1fb8b59990d2b8177041d1483df209e581218e2d212da8a4bf47374c5aeae631"
+  ],
+  "documentChars": [
+    1417,
+    3175,
+    1654,
+    605,
+    209,
+    3182,
+    676,
+    1457,
+    1352,
+    3133,
+    3051,
+    3032,
+    3123,
+    404,
+    2672,
+    446,
+    3151,
+    1029,
+    1085,
+    1827
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/portal/portal-account-parent-company-invoices.md",
+    "docs/ontology/objects/portal-public-inquiry.md",
+    "docs/llm-wiki/concepts/access/odoo-login-entry-triage.md",
+    "docs/llm-wiki/concepts/platform/lark-desktop-login-history.md",
+    "docs/ontology/objects/business-party.md",
+    "docs/ontology/objects/workforce-administration.md",
+    "docs/llm-wiki/concepts/integration/turbo-customer-sync-history.md",
+    "docs/llm-wiki/concepts/inventory/wms-to-send-after-sales-operation-type-filter.md",
+    "docs/llm-wiki/concepts/reporting/sales-visibility-filter-change-history.md",
+    "docs/ontology/objects/access-governance.md",
+    "docs/ontology/objects/b2b-portal-sales.md",
+    "docs/ontology/objects/portal-support-content.md",
+    "docs/ontology/objects/service-center-case.md",
+    "docs/llm-wiki/concepts/faq/config-masterdata-and-display-bugs-reference.md",
+    "docs/llm-wiki/concepts/sales/contact-tag-change-verification.md",
+    "docs/llm-wiki/concepts/workforce/fleet-instance-visibility-history.md",
+    "docs/ontology/objects/sales-order.md",
+    "docs/ontology/processes/user-account-onboarding-and-offboarding.md",
+    "docs/llm-wiki/concepts/accounting/asset-re-evaluate-original-value.md",
+    "docs/llm-wiki/concepts/approvals/inflight-approval-owner-change-history.md"
+  ],
+  "queryCAvailable": true
+}

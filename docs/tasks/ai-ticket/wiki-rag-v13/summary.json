@@ -1,0 +1,48 @@
+{
+  "phase": "old_regression",
+  "cases": 137,
+  "stats": {
+    "A": {
+      "positiveCases": 91,
+      "positiveTargetBodyAndPrimary": 45,
+      "allLabelledTargetBodyAndPrimary": 51,
+      "titleOnlyCards": 27,
+      "primaryCharsAcrossAllCases": 119577,
+      "evidenceP95Ms": 1.0939599999999245
+    },
+    "B": {
+      "positiveCases": 91,
+      "positiveTargetBodyAndPrimary": 51,
+      "allLabelledTargetBodyAndPrimary": 57,
+      "titleOnlyCards": 19,
+      "primaryCharsAcrossAllCases": 185881,
+      "evidenceP95Ms": 1.7285389999997278
+    }
+  },
+  "gainedPositiveCases": [
+    "Q14",
+    "Q17",
+    "Q29",
+    "N01",
+    "P02",
+    "U14"
+  ],
+  "lostPositiveCases": [],
+  "changedPages": 30,
+  "changedCases": 27,
+  "rankingAndPageSelectionIdentical": true,
+  "confirmedNewUnrelatedSourceUnits": 1,
+  "sourceSemanticAuditExhaustive": false,
+  "auditBoundary": "Stop after first confirmed source-level relevance failure; remaining enriched units are not certified semantically safe.",
+  "networkRequests": 0,
+  "answerModelCalls": 0,
+  "judgeModelCalls": 0,
+  "G": "disabled",
+  "holdout": {
+    "planned": 32,
+    "prepared": 0,
+    "scored": 0,
+    "status": "not_started_due_to_old_set_gate"
+  },
+  "note": "All-labelled target counts include correct alternative pages on negative-pair cases; positive-only counts are reported separately. Neither count is answerability or final-answer accuracy."
+}

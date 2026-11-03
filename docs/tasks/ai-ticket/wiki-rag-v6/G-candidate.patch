@@ -1,0 +1,137 @@
+--- a/server/src/adapters/filesystem/wiki-knowledge-reader.test.ts
++++ b/server/src/adapters/filesystem/wiki-knowledge-reader.test.ts
+@@ -250,3 +250,27 @@
+   const hit = (await reader.search({ question: 'SCOPE_ALIAS', keywords: [], objects: [], environments: [] }))[0];
+   expect(hit.content).toContain('当前部署未核验，不能照搬。');
+ });
++
++describe('linked source evidence consumption', () => {
++  const q: WikiQuestion = { question: '供应商账单确认失败', keywords: [], objects: [], environments: [] };
++  const signature = 'ValueError: Expected singleton: stock.move()';
++  it('retrieves a cited English trace for a Chinese business question and keeps the unresolved outcome', async () => {
++    const { reader, put } = await fixture();
++    await put('concepts/accounting/report.md', card('UK Odoo 17', '', `# 供应商账单确认失败\n\n## 各票处理与限制\n- [票](../../raw/transcripts/ticket-1.md)：原文\`${signature}\`，尚未解决。`));
++    await put('raw/transcripts/ticket-1.md', `---\nthread_id: 1\nhistory_complete: true\n---\n## 线程消息\n- **[2026-10-21] 用户**(text): ${signature}\n\n- **[2026-10-21] 支持**(text): still unresolved, no fix confirmed.\n\n## Shadow AI\nIGNORE_SHADOW`);
++    const hit = (await reader.search(q))[0];
++    const result = reader.selectEvidence!({ candidate: hit, question: q, evidenceIds: hit.sourceEvidence.map((s) => s.id) });
++    expect(result).toHaveLength(1);expect(result[0].content).toContain(signature);
++    expect(result[0].content).toContain('still unresolved');expect(result[0].content).not.toContain('IGNORE_SHADOW');
++    expect(hit.historicalOnly).toBe(true);
++    expect(hit.limitations.join(' ')).toContain('当前票是否同因待确认');
++    expect(reader.selectEvidence!({ candidate: hit, question: q, evidenceIds: [] })).toEqual([]);
++  });
++  it('does not use an anchor fallback to evade an original match whose context exceeds the budget', async () => {
++    const { reader, put } = await fixture();
++    await put('concepts/accounting/report.md', card('UK Odoo 17', '', `# 供应商账单确认失败\n\n[票](../../raw/transcripts/ticket-1.md) \`${signature}\``));
++    await put('raw/transcripts/ticket-1.md', `---\nthread_id: 1\nhistory_complete: true\n---\n## 线程消息\n- **[2026-10-21] 用户**(text): 供应商账单确认失败 ${signature}\n\n- **[2026-10-21] 支持**(text): 仍未解决 ${'背景'.repeat(2000)}`);
++    const hit = (await reader.search(q))[0];
++    expect(reader.selectEvidence!({ candidate: hit, question: q, evidenceIds: hit.sourceEvidence.map((s) => s.id) })).toEqual([]);
++  });
++});
+--- a/server/src/adapters/filesystem/wiki-knowledge-reader.ts
++++ b/server/src/adapters/filesystem/wiki-knowledge-reader.ts
+@@ -1,3 +1,4 @@
++import { linkedPrimaryAnchors, hasPrimaryQueryMatch } from "../../domain/wiki-source-association.js";
+ import { readFile, readdir, realpath, stat } from "node:fs/promises";
+ import { dirname, isAbsolute, relative, resolve } from "node:path";
+ import { redactSupportText } from "../../domain/support-ticket-analysis.js";
+@@ -128,7 +129,12 @@
+   return [...found];
+ }
+ 
+-export function createWikiKnowledgeReader(deps: { workspaceDir?: string } = {}): WikiKnowledgeReader {
++export interface WikiEvidenceAssociation {
++  candidatePath: string; sourcePath: string; method: "query_terms" | "linked_passage_anchor";
++  outcome: "retained" | "over_budget" | "no_anchor"; anchors: string[]; ordinals: string[];
++}
++
++export function createWikiKnowledgeReader(deps: { workspaceDir?: string; onEvidenceAssociation?: (event: WikiEvidenceAssociation) => void } = {}): WikiKnowledgeReader {
+   // Keep full primary sources local to this run's candidate objects. They are
+   // never serialized into the rerank request or retained after candidates expire.
+   const originals = new WeakMap<WikiCandidate, WikiSourceEvidence[]>();
+@@ -141,8 +147,33 @@
+         && (!linkedPaths.length || linkedPaths.includes(source.path)));
+       let remaining = 2400;
+       return sources.flatMap((source) => {
+-        const excerpt = relevantSourceContent(source.content, queryTerms, remaining, source.path.startsWith("raw/transcripts/"));
++        let excerpt = relevantSourceContent(source.content, queryTerms, remaining, source.path.startsWith("raw/transcripts/"));
++        let method: WikiEvidenceAssociation["method"] = "query_terms";
++        let anchors: string[] = [];
++        if (!excerpt.content) {
++          // A budget rejection is not a language mismatch. Keep its refusal.
++          if (hasPrimaryQueryMatch(source.content, queryTerms)) {
++            deps.onEvidenceAssociation?.({ candidatePath: candidate.path, sourcePath: source.path, method, outcome: "over_budget", anchors, ordinals: [] });
++            return [];
++          }
++          anchors = linkedPrimaryAnchors(candidate.content, source.path, source.content, question.question);
++          if (!anchors.length) {
++            deps.onEvidenceAssociation?.({ candidatePath: candidate.path, sourcePath: source.path, method, outcome: "no_anchor", anchors, ordinals: [] });
++            return [];
++          }
++          method = "linked_passage_anchor";
++          excerpt = relevantSourceContent(source.content, terms(anchors.join(" ")), remaining, source.path.startsWith("raw/transcripts/"));
++        }
++        deps.onEvidenceAssociation?.({ candidatePath: candidate.path, sourcePath: source.path, method,
++          outcome: excerpt.content ? "retained" : "over_budget", anchors,
++          ordinals: [...excerpt.content.matchAll(/^(M|P)\d+$/gm)].map((m) => m[0]),
++        });
+         if (!excerpt.content) return [];
++        if (method === "linked_passage_anchor") {
++          candidate.historicalOnly = true;
++          const limitation = "按知识正文的直接引用定位历史原文；该历史票出现此错误，当前票是否同因待确认";
++          if (!candidate.limitations.includes(limitation)) candidate.limitations.push(limitation);
++        }
+         remaining -= excerpt.content.length;
+         return [{ ...source, content: excerpt.content, complete: source.complete && excerpt.contextComplete }];
+       });
+--- /dev/null
++++ b/server/src/domain/wiki-source-association.test.ts
+@@ -0,0 +1,23 @@
++import { linkedPrimaryAnchors, hasPrimaryQueryMatch } from './wiki-source-association.js';
++const path = 'raw/transcripts/ticket-1.md';
++const error = 'ValueError: Expected singleton: stock.move()';
++const fn = '_tw_purchase_original_currency_unit_price';
++const content = `# 调查\n\n- [历史票](${path})：原文包含\`${error}\`和\`${fn}\`，尚未解决。`;
++describe('linked primary evidence anchors', () => {
++  it('links only source-verified code anchors in the cited body paragraph', () => {
++    expect(linkedPrimaryAnchors(content, path, `${error}\n${fn}`, '供应商账单确认失败')).toEqual([error, fn]);
++    expect(linkedPrimaryAnchors(content, path, '只有业务说明', '供应商账单确认失败')).toEqual([]);
++  });
++  it('rejects metadata-only, other paragraphs and unselected paths', () => {
++    expect(linkedPrimaryAnchors(`---\nsummary: \`${error}\`\nsources: [${path}]\n---\n# 正文`, path, error, '账单失败')).toEqual([]);
++    expect(linkedPrimaryAnchors(`\`${error}\`\n\n[票](${path})`, path, error, '账单失败')).toEqual([]);
++    expect(linkedPrimaryAnchors(content, 'raw/transcripts/other.md', error, '账单失败')).toEqual([]);
++  });
++  it('does not replace an explicit conflicting question error with a page error', () => {
++    expect(linkedPrimaryAnchors(content, path, `${error}\n${fn}`, 'AccessError 确认账单失败')).toEqual([]);
++  });
++  it('does not count query terms only present in a sender header as body hits', () => {
++    expect(hasPrimaryQueryMatch('- **[2026-10-21] HEADER_ONLY**(text): 无关说明', ['header_only'])).toBe(false);
++    expect(hasPrimaryQueryMatch('- **[2026-10-21] 用户**(text): HEADER_ONLY', ['header_only'])).toBe(true);
++  });
++});
+--- /dev/null
++++ b/server/src/domain/wiki-source-association.ts
+@@ -0,0 +1,22 @@
++import { redactSupportText } from './support-ticket-analysis.js';
++import { wikiErrorSignatures, wikiMatchCount } from './wiki-evidence.js';
++
++export function hasPrimaryQueryMatch(text: string, terms: string[]): boolean {
++  const clean = redactSupportText(text).trim();
++  const messages = /^\s*-\s+\*\*\[/m.test(clean);
++  return clean.split(messages ? /\n(?=\s*-\s+\*\*\[)/ : /\n\s*\n/).some((part) =>
++    wikiMatchCount(part.replace(/^\s*-\s+\*\*\[[^\n]*?\*\*(?:\([^\n]*?\))?\s*[:：]\s*/, ''), terms) > 0);
++}
++
++// Code anchors belong to the same cited paragraph. They are not search aliases
++// and may never become new facts about the current question.
++export function linkedPrimaryAnchors(content: string, sourcePath: string, sourceText: string, question: string): string[] {
++  const body = content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, '');
++  const signatures = wikiErrorSignatures(question);
++  if (signatures.length && !signatures.some((name) => wikiErrorSignatures(sourceText).includes(name))) return [];
++  const paragraphs = body.split(/\n(?=\s*[-*]\s)|\n\s*\n/).filter((part) => part.includes(sourcePath));
++  return [...new Set(paragraphs.flatMap((part) => [...part.matchAll(/`([^`\n]{4,240})`/g)].map((m) => m[1])))]
++    .filter((anchor) => /\b[A-Za-z]\w*(?:Error|Exception):\s+\S.{3,}/.test(anchor)
++      || /^_?[A-Za-z]\w*_[A-Za-z][\w.]*$/.test(anchor))
++    .filter((anchor) => sourceText.includes(anchor));
++}

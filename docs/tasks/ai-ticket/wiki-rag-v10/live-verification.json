@@ -1,0 +1,26 @@
+{
+  "status": "PASS: evidence integrity and execution; quality decision remains NOT_ACCEPTED",
+  "requests": {
+    "total": 42,
+    "success200": 42,
+    "failures": 0,
+    "retries": 0,
+    "cap": 50,
+    "latencyMedianMs": 428,
+    "latencyP95Ms": 620
+  },
+  "stabilityCases": 10,
+  "independentCases": 32,
+  "recomputedPolicyDecisions": 168,
+  "inputsFrozenBeforeHoldoutScores": true,
+  "allWirePayloadHashesVerified": true,
+  "oldArtifactsAndSourceUnchanged": true,
+  "rawBudgetUnchanged": 2400,
+  "G": "disabled",
+  "unitAndMockTests": "167 passed previously; candidate source unchanged",
+  "isolatedBuild": "passed previously; candidate source unchanged",
+  "newScriptTypecheck": "PASS",
+  "extractionAndAnswerModels": "NOT CALLED",
+  "finalAnswerQuality": "NOT TESTED",
+  "deployed": false
+}

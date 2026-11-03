@@ -1,0 +1,33 @@
+{
+  "mode": "rerank",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "url": "https://api.siliconflow.cn/v1/rerank",
+  "timeoutMs": 125000,
+  "minScore": 0.7,
+  "recallLimit": 20,
+  "topN": 5,
+  "maxRequests": 310,
+  "finalMax": 3,
+  "originalAssociationEnabled": false,
+  "documentChars": 3200,
+  "queryChars": 2000,
+  "primaryChars": 2400,
+  "thresholdGrid": [
+    0.1,
+    0.2,
+    0.3,
+    0.4,
+    0.5,
+    0.6,
+    0.7,
+    0.8,
+    0.9
+  ],
+  "holdoutTypes": {
+    "positive": 12,
+    "hard_negative": 6,
+    "no_answer": 6
+  },
+  "queryCFallback": "use B only when current original request unavailable; report subset separately",
+  "primaryBudgetPer": "candidate"
+}

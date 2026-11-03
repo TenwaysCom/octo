@@ -1,0 +1,1493 @@
+{
+  "phase": "stability",
+  "cases": 10,
+  "passed": true,
+  "totalRequests": 10,
+  "originalAssociationEnabled": false,
+  "results": [
+    {
+      "id": "E8-P2",
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/workforce/sign-document-archive-history.md",
+          "score": 0.4791642129421234
+        },
+        {
+          "rank": 2,
+          "path": "objects/deferred-service-revenue.md",
+          "score": 0.02816782519221306
+        },
+        {
+          "rank": 3,
+          "path": "concepts/platform/database-expiry-warning-triage.md",
+          "score": 0.01115783117711544
+        },
+        {
+          "rank": 4,
+          "path": "concepts/access/odoo-login-entry-triage.md",
+          "score": 0.0034716520458459854
+        },
+        {
+          "rank": 5,
+          "path": "concepts/approvals/outbound-notification-client-history.md",
+          "score": 0.0019664904102683067
+        }
+      ],
+      "runs": [
+        {
+          "strategy": "A",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "no_high_score",
+          "lowFallback": false,
+          "s1": 0.4791642129421234,
+          "s2": 0.02816782519221306,
+          "observedGap": 0.45099638774991035,
+          "selected": [],
+          "final": []
+        },
+        {
+          "strategy": "B",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "uniform_lower_threshold",
+          "lowFallback": false,
+          "s1": 0.4791642129421234,
+          "s2": 0.02816782519221306,
+          "observedGap": 0.45099638774991035,
+          "selected": [
+            {
+              "path": "concepts/workforce/sign-document-archive-history.md",
+              "score": 0.4791642129421234
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/workforce/sign-document-archive-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 236,
+              "contentSha256": "758f99d737af4c8c417cb1addaeebf271f0dd4d97f04b2e7b310a19524e2e291",
+              "primaryChars": 524,
+              "primarySha256": [
+                "120c600ba48b2b11a69baa95c99d8b072682c1c3c9c228de62da59582cca2ff7"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-718.2026-09-11-953d80ac6ecc.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "C",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "low_top1_eligible",
+          "lowFallback": true,
+          "s1": 0.4791642129421234,
+          "s2": 0.02816782519221306,
+          "observedGap": 0.45099638774991035,
+          "selected": [
+            {
+              "path": "concepts/workforce/sign-document-archive-history.md",
+              "score": 0.4791642129421234
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/workforce/sign-document-archive-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 236,
+              "contentSha256": "758f99d737af4c8c417cb1addaeebf271f0dd4d97f04b2e7b310a19524e2e291",
+              "primaryChars": 524,
+              "primarySha256": [
+                "120c600ba48b2b11a69baa95c99d8b072682c1c3c9c228de62da59582cca2ff7"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-718.2026-09-11-953d80ac6ecc.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "D",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "low_top1_eligible",
+          "lowFallback": true,
+          "s1": 0.4791642129421234,
+          "s2": 0.02816782519221306,
+          "observedGap": 0.45099638774991035,
+          "selected": [
+            {
+              "path": "concepts/workforce/sign-document-archive-history.md",
+              "score": 0.4791642129421234
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/workforce/sign-document-archive-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 236,
+              "contentSha256": "758f99d737af4c8c417cb1addaeebf271f0dd4d97f04b2e7b310a19524e2e291",
+              "primaryChars": 524,
+              "primarySha256": [
+                "120c600ba48b2b11a69baa95c99d8b072682c1c3c9c228de62da59582cca2ff7"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-718.2026-09-11-953d80ac6ecc.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        }
+      ],
+      "comparison": {
+        "top1Changed": false,
+        "eligibilityChanged": false,
+        "finalChanged": false,
+        "oldReason": "low_top1_eligible",
+        "newReason": "low_top1_eligible",
+        "oldTopScore": 0.48261481523513794,
+        "newTopScore": 0.4791642129421234,
+        "oldTop1": "concepts/workforce/sign-document-archive-history.md",
+        "newTop1": "concepts/workforce/sign-document-archive-history.md"
+      }
+    },
+    {
+      "id": "Q08",
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/portal/backorder-template-api-contract-500.md",
+          "score": 0.43307730555534363
+        },
+        {
+          "rank": 2,
+          "path": "concepts/sales/sale-order-backorder-preorder-runtime-config-lark-1654.md",
+          "score": 0.1505594551563263
+        },
+        {
+          "rank": 3,
+          "path": "objects/sales-available-inventory.md",
+          "score": 0.11934530735015869
+        },
+        {
+          "rank": 4,
+          "path": "objects/sales-pricelist.md",
+          "score": 0.07475805282592773
+        },
+        {
+          "rank": 5,
+          "path": "concepts/integration/wms-carrier-resource-error-history.md",
+          "score": 0.061354245990514755
+        }
+      ],
+      "runs": [
+        {
+          "strategy": "A",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "no_high_score",
+          "lowFallback": false,
+          "s1": 0.43307730555534363,
+          "s2": 0.1505594551563263,
+          "observedGap": 0.28251785039901733,
+          "selected": [],
+          "final": []
+        },
+        {
+          "strategy": "B",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "uniform_lower_threshold",
+          "lowFallback": false,
+          "s1": 0.43307730555534363,
+          "s2": 0.1505594551563263,
+          "observedGap": 0.28251785039901733,
+          "selected": [
+            {
+              "path": "concepts/portal/backorder-template-api-contract-500.md",
+              "score": 0.43307730555534363
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/portal/backorder-template-api-contract-500.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 560,
+              "contentSha256": "d9c599b96e1ba95d7d051fbb5254ce6e46fb6a5cd5d75873a17f49552169c62b",
+              "primaryChars": 1737,
+              "primarySha256": [
+                "c0c528ecd158ec0a821fec4c92812bd2befbe442d61eb28e0cc2ec7dcfd34c12"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1744.2026-09-11-087128c8192e.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "C",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "low_top1_eligible",
+          "lowFallback": true,
+          "s1": 0.43307730555534363,
+          "s2": 0.1505594551563263,
+          "observedGap": 0.28251785039901733,
+          "selected": [
+            {
+              "path": "concepts/portal/backorder-template-api-contract-500.md",
+              "score": 0.43307730555534363
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/portal/backorder-template-api-contract-500.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 560,
+              "contentSha256": "d9c599b96e1ba95d7d051fbb5254ce6e46fb6a5cd5d75873a17f49552169c62b",
+              "primaryChars": 1737,
+              "primarySha256": [
+                "c0c528ecd158ec0a821fec4c92812bd2befbe442d61eb28e0cc2ec7dcfd34c12"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1744.2026-09-11-087128c8192e.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "D",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "low_top1_eligible",
+          "lowFallback": true,
+          "s1": 0.43307730555534363,
+          "s2": 0.1505594551563263,
+          "observedGap": 0.28251785039901733,
+          "selected": [
+            {
+              "path": "concepts/portal/backorder-template-api-contract-500.md",
+              "score": 0.43307730555534363
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/portal/backorder-template-api-contract-500.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 560,
+              "contentSha256": "d9c599b96e1ba95d7d051fbb5254ce6e46fb6a5cd5d75873a17f49552169c62b",
+              "primaryChars": 1737,
+              "primarySha256": [
+                "c0c528ecd158ec0a821fec4c92812bd2befbe442d61eb28e0cc2ec7dcfd34c12"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-1744.2026-09-11-087128c8192e.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        }
+      ],
+      "comparison": {
+        "top1Changed": false,
+        "eligibilityChanged": false,
+        "finalChanged": false,
+        "oldReason": "low_top1_eligible",
+        "newReason": "low_top1_eligible",
+        "oldTopScore": 0.43315786123275757,
+        "newTopScore": 0.43307730555534363,
+        "oldTop1": "concepts/portal/backorder-template-api-contract-500.md",
+        "newTop1": "concepts/portal/backorder-template-api-contract-500.md"
+      }
+    },
+    {
+      "id": "N04",
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/invoicing/eu-auto-invoice-job-timing-history.md",
+          "score": 0.3478434085845947
+        },
+        {
+          "rank": 2,
+          "path": "objects/marketing-sales.md",
+          "score": 0.033592477440834045
+        },
+        {
+          "rank": 3,
+          "path": "objects/deferred-service-revenue.md",
+          "score": 0.023665981367230415
+        },
+        {
+          "rank": 4,
+          "path": "concepts/accounting/account-mapping-old-journal-history.md",
+          "score": 0.018692228943109512
+        },
+        {
+          "rank": 5,
+          "path": "processes/b2c-leasing-sales.md",
+          "score": 0.01820467785000801
+        }
+      ],
+      "runs": [
+        {
+          "strategy": "A",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "no_high_score",
+          "lowFallback": false,
+          "s1": 0.3478434085845947,
+          "s2": 0.033592477440834045,
+          "observedGap": 0.3142509311437607,
+          "selected": [],
+          "final": []
+        },
+        {
+          "strategy": "B",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "uniform_lower_threshold",
+          "lowFallback": false,
+          "s1": 0.3478434085845947,
+          "s2": 0.033592477440834045,
+          "observedGap": 0.3142509311437607,
+          "selected": [
+            {
+              "path": "concepts/invoicing/eu-auto-invoice-job-timing-history.md",
+              "score": 0.3478434085845947
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/invoicing/eu-auto-invoice-job-timing-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 467,
+              "contentSha256": "e2181ff44a03556f471bdca868e730df5b38d18d604e49e777dda7656275add5",
+              "primaryChars": 1015,
+              "primarySha256": [
+                "836540476ec833099846805b2e50b64512a5b213154cb6a58b1bd9ad0d9b2d0c"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-2114.2026-09-11-731b5a13d3e0.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "C",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "low_top1_eligible",
+          "lowFallback": true,
+          "s1": 0.3478434085845947,
+          "s2": 0.033592477440834045,
+          "observedGap": 0.3142509311437607,
+          "selected": [
+            {
+              "path": "concepts/invoicing/eu-auto-invoice-job-timing-history.md",
+              "score": 0.3478434085845947
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/invoicing/eu-auto-invoice-job-timing-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 467,
+              "contentSha256": "e2181ff44a03556f471bdca868e730df5b38d18d604e49e777dda7656275add5",
+              "primaryChars": 1015,
+              "primarySha256": [
+                "836540476ec833099846805b2e50b64512a5b213154cb6a58b1bd9ad0d9b2d0c"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-2114.2026-09-11-731b5a13d3e0.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "D",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "low_top1_eligible",
+          "lowFallback": true,
+          "s1": 0.3478434085845947,
+          "s2": 0.033592477440834045,
+          "observedGap": 0.3142509311437607,
+          "selected": [
+            {
+              "path": "concepts/invoicing/eu-auto-invoice-job-timing-history.md",
+              "score": 0.3478434085845947
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/invoicing/eu-auto-invoice-job-timing-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 467,
+              "contentSha256": "e2181ff44a03556f471bdca868e730df5b38d18d604e49e777dda7656275add5",
+              "primaryChars": 1015,
+              "primarySha256": [
+                "836540476ec833099846805b2e50b64512a5b213154cb6a58b1bd9ad0d9b2d0c"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-2114.2026-09-11-731b5a13d3e0.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        }
+      ],
+      "comparison": {
+        "top1Changed": false,
+        "eligibilityChanged": false,
+        "finalChanged": false,
+        "oldReason": "low_top1_eligible",
+        "newReason": "low_top1_eligible",
+        "oldTopScore": 0.3478434085845947,
+        "newTopScore": 0.3478434085845947,
+        "oldTop1": "concepts/invoicing/eu-auto-invoice-job-timing-history.md",
+        "newTop1": "concepts/invoicing/eu-auto-invoice-job-timing-history.md"
+      }
+    },
+    {
+      "id": "Q26",
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/workforce/appraisal-scoring-history.md",
+          "score": 0.5240565538406372
+        },
+        {
+          "rank": 2,
+          "path": "concepts/approvals/approval-submission-and-progress-triage.md",
+          "score": 0.04228837043046951
+        },
+        {
+          "rank": 3,
+          "path": "concepts/accounting/journal-asset-field-release-history.md",
+          "score": 0.023335371166467667
+        },
+        {
+          "rank": 4,
+          "path": "objects/sales-return.md",
+          "score": 0.00891181267797947
+        },
+        {
+          "rank": 5,
+          "path": "objects/warehouse-operation.md",
+          "score": 0.008633478544652462
+        }
+      ],
+      "runs": [
+        {
+          "strategy": "A",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "no_high_score",
+          "lowFallback": false,
+          "s1": 0.5240565538406372,
+          "s2": 0.04228837043046951,
+          "observedGap": 0.4817681834101677,
+          "selected": [],
+          "final": []
+        },
+        {
+          "strategy": "B",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "uniform_lower_threshold",
+          "lowFallback": false,
+          "s1": 0.5240565538406372,
+          "s2": 0.04228837043046951,
+          "observedGap": 0.4817681834101677,
+          "selected": [
+            {
+              "path": "concepts/workforce/appraisal-scoring-history.md",
+              "score": 0.5240565538406372
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/workforce/appraisal-scoring-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 859,
+              "contentSha256": "5c19a9a53874db0dc9fee8e17ae583310b34a291e0d28d156935a7d14441b9b1",
+              "primaryChars": 1127,
+              "primarySha256": [
+                "7f1a22b1ff8175bef0a247f81cf803a5878bbe3b988e958748345ea645a175ce"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-818.2026-09-11-bfe5a0f798cf.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "C",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "low_top1_eligible",
+          "lowFallback": true,
+          "s1": 0.5240565538406372,
+          "s2": 0.04228837043046951,
+          "observedGap": 0.4817681834101677,
+          "selected": [
+            {
+              "path": "concepts/workforce/appraisal-scoring-history.md",
+              "score": 0.5240565538406372
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/workforce/appraisal-scoring-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 859,
+              "contentSha256": "5c19a9a53874db0dc9fee8e17ae583310b34a291e0d28d156935a7d14441b9b1",
+              "primaryChars": 1127,
+              "primarySha256": [
+                "7f1a22b1ff8175bef0a247f81cf803a5878bbe3b988e958748345ea645a175ce"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-818.2026-09-11-bfe5a0f798cf.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "D",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "low_top1_eligible",
+          "lowFallback": true,
+          "s1": 0.5240565538406372,
+          "s2": 0.04228837043046951,
+          "observedGap": 0.4817681834101677,
+          "selected": [
+            {
+              "path": "concepts/workforce/appraisal-scoring-history.md",
+              "score": 0.5240565538406372
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/workforce/appraisal-scoring-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 859,
+              "contentSha256": "5c19a9a53874db0dc9fee8e17ae583310b34a291e0d28d156935a7d14441b9b1",
+              "primaryChars": 1127,
+              "primarySha256": [
+                "7f1a22b1ff8175bef0a247f81cf803a5878bbe3b988e958748345ea645a175ce"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-818.2026-09-11-bfe5a0f798cf.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        }
+      ],
+      "comparison": {
+        "top1Changed": false,
+        "eligibilityChanged": false,
+        "finalChanged": false,
+        "oldReason": "low_top1_eligible",
+        "newReason": "low_top1_eligible",
+        "oldTopScore": 0.5239181518554688,
+        "newTopScore": 0.5240565538406372,
+        "oldTop1": "concepts/workforce/appraisal-scoring-history.md",
+        "newTop1": "concepts/workforce/appraisal-scoring-history.md"
+      }
+    },
+    {
+      "id": "H08",
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/access/permission-request-and-effective-access.md",
+          "score": 0.6428470611572266
+        },
+        {
+          "rank": 2,
+          "path": "concepts/approvals/approval-submission-and-progress-triage.md",
+          "score": 0.47515177726745605
+        },
+        {
+          "rank": 3,
+          "path": "objects/warehouse-inventory-control.md",
+          "score": 0.4284868538379669
+        },
+        {
+          "rank": 4,
+          "path": "objects/business-party.md",
+          "score": 0.36427080631256104
+        },
+        {
+          "rank": 5,
+          "path": "objects/warehouse-operation.md",
+          "score": 0.3483537435531616
+        }
+      ],
+      "runs": [
+        {
+          "strategy": "A",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "no_high_score",
+          "lowFallback": false,
+          "s1": 0.6428470611572266,
+          "s2": 0.47515177726745605,
+          "observedGap": 0.1676952838897705,
+          "selected": [],
+          "final": []
+        },
+        {
+          "strategy": "B",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "uniform_lower_threshold",
+          "lowFallback": false,
+          "s1": 0.6428470611572266,
+          "s2": 0.47515177726745605,
+          "observedGap": 0.1676952838897705,
+          "selected": [
+            {
+              "path": "concepts/access/permission-request-and-effective-access.md",
+              "score": 0.6428470611572266
+            },
+            {
+              "path": "concepts/approvals/approval-submission-and-progress-triage.md",
+              "score": 0.47515177726745605
+            },
+            {
+              "path": "objects/warehouse-inventory-control.md",
+              "score": 0.4284868538379669
+            },
+            {
+              "path": "objects/business-party.md",
+              "score": 0.36427080631256104
+            },
+            {
+              "path": "objects/warehouse-operation.md",
+              "score": 0.3483537435531616
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/access/permission-request-and-effective-access.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 0,
+              "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/approvals/approval-submission-and-progress-triage.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 2418,
+              "contentSha256": "6c5adac7bb846b8086a1b3b8df62586b5a9ac27890aa2360cb88b98d38543749",
+              "primaryChars": 1592,
+              "primarySha256": [
+                "ea9cc59bbd619f7d3d5e64236861f6b7ed639738fa0002006085f46e9507c827",
+                "8553a57d3b99d19515f28b82c8da94fec9ff445a1ba0abeadb408ce493243c97"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-2263.md",
+                "raw/transcripts/ticket-2300.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "docs/ontology/objects/warehouse-inventory-control.md",
+              "knowledgeType": "ontology",
+              "contentChars": 2346,
+              "contentSha256": "0ef2f75f8542fb8dfb5bc426f54283b5b25b640bea9ea3444bba462d62deecc6",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "C",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "low_top1_eligible",
+          "lowFallback": true,
+          "s1": 0.6428470611572266,
+          "s2": 0.47515177726745605,
+          "observedGap": 0.1676952838897705,
+          "selected": [
+            {
+              "path": "concepts/access/permission-request-and-effective-access.md",
+              "score": 0.6428470611572266
+            }
+          ],
+          "final": []
+        },
+        {
+          "strategy": "D",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "insufficient_gap",
+          "lowFallback": false,
+          "s1": 0.6428470611572266,
+          "s2": 0.47515177726745605,
+          "observedGap": 0.1676952838897705,
+          "selected": [],
+          "final": []
+        }
+      ],
+      "comparison": {
+        "top1Changed": false,
+        "eligibilityChanged": false,
+        "finalChanged": false,
+        "oldReason": "insufficient_gap",
+        "newReason": "insufficient_gap",
+        "oldTopScore": 0.647834300994873,
+        "newTopScore": 0.6428470611572266,
+        "oldTop1": "concepts/access/permission-request-and-effective-access.md",
+        "newTop1": "concepts/access/permission-request-and-effective-access.md"
+      }
+    },
+    {
+      "id": "H09",
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/access/sales-team-order-visibility-history.md",
+          "score": 0.6517106294631958
+        },
+        {
+          "rank": 2,
+          "path": "objects/customer-credit.md",
+          "score": 0.47553399205207825
+        },
+        {
+          "rank": 3,
+          "path": "objects/preorder-backorder.md",
+          "score": 0.4058845639228821
+        },
+        {
+          "rank": 4,
+          "path": "concepts/access/permission-request-and-effective-access.md",
+          "score": 0.3636445701122284
+        },
+        {
+          "rank": 5,
+          "path": "concepts/sales/contact-overview-create-sales-order.md",
+          "score": 0.25892025232315063
+        }
+      ],
+      "runs": [
+        {
+          "strategy": "A",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "no_high_score",
+          "lowFallback": false,
+          "s1": 0.6517106294631958,
+          "s2": 0.47553399205207825,
+          "observedGap": 0.17617663741111755,
+          "selected": [],
+          "final": []
+        },
+        {
+          "strategy": "B",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "uniform_lower_threshold",
+          "lowFallback": false,
+          "s1": 0.6517106294631958,
+          "s2": 0.47553399205207825,
+          "observedGap": 0.17617663741111755,
+          "selected": [
+            {
+              "path": "concepts/access/sales-team-order-visibility-history.md",
+              "score": 0.6517106294631958
+            },
+            {
+              "path": "objects/customer-credit.md",
+              "score": 0.47553399205207825
+            },
+            {
+              "path": "objects/preorder-backorder.md",
+              "score": 0.4058845639228821
+            },
+            {
+              "path": "concepts/access/permission-request-and-effective-access.md",
+              "score": 0.3636445701122284
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/access/sales-team-order-visibility-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 0,
+              "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "docs/ontology/objects/customer-credit.md",
+              "knowledgeType": "ontology",
+              "contentChars": 2382,
+              "contentSha256": "59bd0efdb268f2f1d79fe9c913ead31f43f43780f50eb6615cc0f2733e793bf7",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "docs/ontology/objects/preorder-backorder.md",
+              "knowledgeType": "ontology",
+              "contentChars": 2237,
+              "contentSha256": "1cde0eb25716046dafc76d1e0a1c95297379588d330acd33710240a57592d680",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "C",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "low_top1_eligible",
+          "lowFallback": true,
+          "s1": 0.6517106294631958,
+          "s2": 0.47553399205207825,
+          "observedGap": 0.17617663741111755,
+          "selected": [
+            {
+              "path": "concepts/access/sales-team-order-visibility-history.md",
+              "score": 0.6517106294631958
+            }
+          ],
+          "final": []
+        },
+        {
+          "strategy": "D",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "insufficient_gap",
+          "lowFallback": false,
+          "s1": 0.6517106294631958,
+          "s2": 0.47553399205207825,
+          "observedGap": 0.17617663741111755,
+          "selected": [],
+          "final": []
+        }
+      ],
+      "comparison": {
+        "top1Changed": false,
+        "eligibilityChanged": false,
+        "finalChanged": false,
+        "oldReason": "insufficient_gap",
+        "newReason": "insufficient_gap",
+        "oldTopScore": 0.652305006980896,
+        "newTopScore": 0.6517106294631958,
+        "oldTop1": "concepts/access/sales-team-order-visibility-history.md",
+        "newTop1": "concepts/access/sales-team-order-visibility-history.md"
+      }
+    },
+    {
+      "id": "N15",
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/integration/shopify-order-sku-mismatch-mapping-and-lifecycle.md",
+          "score": 0.6099101901054382
+        },
+        {
+          "rank": 2,
+          "path": "objects/product-catalog.md",
+          "score": 0.43115484714508057
+        },
+        {
+          "rank": 3,
+          "path": "concepts/inventory/sku-warehouse-default-location-history.md",
+          "score": 0.37962159514427185
+        },
+        {
+          "rank": 4,
+          "path": "processes/external-wms-order-exchange.md",
+          "score": 0.3391057550907135
+        },
+        {
+          "rank": 5,
+          "path": "objects/warehouse-inventory-control.md",
+          "score": 0.30678802728652954
+        }
+      ],
+      "runs": [
+        {
+          "strategy": "A",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "no_high_score",
+          "lowFallback": false,
+          "s1": 0.6099101901054382,
+          "s2": 0.43115484714508057,
+          "observedGap": 0.17875534296035767,
+          "selected": [],
+          "final": []
+        },
+        {
+          "strategy": "B",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "uniform_lower_threshold",
+          "lowFallback": false,
+          "s1": 0.6099101901054382,
+          "s2": 0.43115484714508057,
+          "observedGap": 0.17875534296035767,
+          "selected": [
+            {
+              "path": "concepts/integration/shopify-order-sku-mismatch-mapping-and-lifecycle.md",
+              "score": 0.6099101901054382
+            },
+            {
+              "path": "objects/product-catalog.md",
+              "score": 0.43115484714508057
+            },
+            {
+              "path": "concepts/inventory/sku-warehouse-default-location-history.md",
+              "score": 0.37962159514427185
+            },
+            {
+              "path": "processes/external-wms-order-exchange.md",
+              "score": 0.3391057550907135
+            },
+            {
+              "path": "objects/warehouse-inventory-control.md",
+              "score": 0.30678802728652954
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/integration/shopify-order-sku-mismatch-mapping-and-lifecycle.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 1432,
+              "contentSha256": "c88c63007cfbc9f93c2899cc886a14ca27e51b01cebd732617e3d186d8af0241",
+              "primaryChars": 2293,
+              "primarySha256": [
+                "ec0869b03593cf4518a460b8a56f4129b7011ac0d2899636dff0c51ed99377bf",
+                "5e4cd9eb553081cee194c53963a99a49528704842814959c79d8e0e8b83de0bb"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-422.2026-09-11-5579d0995ed3.md",
+                "raw/transcripts/ticket-1675.2026-09-11-124e97f962f4.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "docs/ontology/objects/product-catalog.md",
+              "knowledgeType": "ontology",
+              "contentChars": 2341,
+              "contentSha256": "1821543ca03c4af00af3ae02e4ecd08cf306216f5780a0bec35302dbcbb84899",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "concepts/inventory/sku-warehouse-default-location-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 1080,
+              "contentSha256": "c08a0fc79a7a711f087a7d046320215c37e0875c1fade8efa130bd62f1ca82f9",
+              "primaryChars": 1942,
+              "primarySha256": [
+                "739be10136b8f372ed60bf96f0fdda3790c77fe59d55f397a59f59685841d7a0",
+                "8e570820cde39315bd8f654476ed0e7adfc4168662261acb68a124b61dbb1f16"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-2016.2026-09-11-be032788bcf8.md",
+                "raw/transcripts/ticket-700.2026-09-11-4629e22176ea.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "C",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "low_top1_eligible",
+          "lowFallback": true,
+          "s1": 0.6099101901054382,
+          "s2": 0.43115484714508057,
+          "observedGap": 0.17875534296035767,
+          "selected": [
+            {
+              "path": "concepts/integration/shopify-order-sku-mismatch-mapping-and-lifecycle.md",
+              "score": 0.6099101901054382
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/integration/shopify-order-sku-mismatch-mapping-and-lifecycle.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 1432,
+              "contentSha256": "c88c63007cfbc9f93c2899cc886a14ca27e51b01cebd732617e3d186d8af0241",
+              "primaryChars": 2293,
+              "primarySha256": [
+                "ec0869b03593cf4518a460b8a56f4129b7011ac0d2899636dff0c51ed99377bf",
+                "5e4cd9eb553081cee194c53963a99a49528704842814959c79d8e0e8b83de0bb"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-422.2026-09-11-5579d0995ed3.md",
+                "raw/transcripts/ticket-1675.2026-09-11-124e97f962f4.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "D",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "insufficient_gap",
+          "lowFallback": false,
+          "s1": 0.6099101901054382,
+          "s2": 0.43115484714508057,
+          "observedGap": 0.17875534296035767,
+          "selected": [],
+          "final": []
+        }
+      ],
+      "comparison": {
+        "top1Changed": false,
+        "eligibilityChanged": false,
+        "finalChanged": false,
+        "oldReason": "insufficient_gap",
+        "newReason": "insufficient_gap",
+        "oldTopScore": 0.6094989776611328,
+        "newTopScore": 0.6099101901054382,
+        "oldTop1": "concepts/integration/shopify-order-sku-mismatch-mapping-and-lifecycle.md",
+        "newTop1": "concepts/integration/shopify-order-sku-mismatch-mapping-and-lifecycle.md"
+      }
+    },
+    {
+      "id": "D03",
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/accounting/bill-svl-exchange-history.md",
+          "score": 0.5209355354309082
+        },
+        {
+          "rank": 2,
+          "path": "processes/purchase-vendor-bill-processing.md",
+          "score": 0.3276691734790802
+        },
+        {
+          "rank": 3,
+          "path": "concepts/accounting/asset-value-depreciation-change-history.md",
+          "score": 0.21143022179603577
+        },
+        {
+          "rank": 4,
+          "path": "processes/tax-report-preparation-and-filing.md",
+          "score": 0.20463617146015167
+        },
+        {
+          "rank": 5,
+          "path": "objects/transaction-tax.md",
+          "score": 0.1996748447418213
+        }
+      ],
+      "runs": [
+        {
+          "strategy": "A",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "no_high_score",
+          "lowFallback": false,
+          "s1": 0.5209355354309082,
+          "s2": 0.3276691734790802,
+          "observedGap": 0.193266361951828,
+          "selected": [],
+          "final": []
+        },
+        {
+          "strategy": "B",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "uniform_lower_threshold",
+          "lowFallback": false,
+          "s1": 0.5209355354309082,
+          "s2": 0.3276691734790802,
+          "observedGap": 0.193266361951828,
+          "selected": [
+            {
+              "path": "concepts/accounting/bill-svl-exchange-history.md",
+              "score": 0.5209355354309082
+            },
+            {
+              "path": "processes/purchase-vendor-bill-processing.md",
+              "score": 0.3276691734790802
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/accounting/bill-svl-exchange-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 1728,
+              "contentSha256": "279480c61a738671b7af9319f5d86f6596f28cbe3fffc658be7b3fc4c361d077",
+              "primaryChars": 578,
+              "primarySha256": [
+                "2c2c4e5c2e8ce3f9635071bd39cd57ed26f8f1ec8a4b4ccbd3722144f077f835"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-84.2026-09-11-f0cd0d63f6ab.md"
+              ],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "docs/ontology/processes/purchase-vendor-bill-processing.md",
+              "knowledgeType": "ontology",
+              "contentChars": 1033,
+              "contentSha256": "95b69f359a40e68dc5b4565fe3d7b0012e092305b5f0ba6ad751a755dc7aea3d",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "C",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "low_top1_eligible",
+          "lowFallback": true,
+          "s1": 0.5209355354309082,
+          "s2": 0.3276691734790802,
+          "observedGap": 0.193266361951828,
+          "selected": [
+            {
+              "path": "concepts/accounting/bill-svl-exchange-history.md",
+              "score": 0.5209355354309082
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/accounting/bill-svl-exchange-history.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 1728,
+              "contentSha256": "279480c61a738671b7af9319f5d86f6596f28cbe3fffc658be7b3fc4c361d077",
+              "primaryChars": 578,
+              "primarySha256": [
+                "2c2c4e5c2e8ce3f9635071bd39cd57ed26f8f1ec8a4b4ccbd3722144f077f835"
+              ],
+              "sourcePaths": [
+                "raw/transcripts/ticket-84.2026-09-11-f0cd0d63f6ab.md"
+              ],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "D",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "insufficient_gap",
+          "lowFallback": false,
+          "s1": 0.5209355354309082,
+          "s2": 0.3276691734790802,
+          "observedGap": 0.193266361951828,
+          "selected": [],
+          "final": []
+        }
+      ],
+      "comparison": {
+        "top1Changed": false,
+        "eligibilityChanged": false,
+        "finalChanged": false,
+        "oldReason": "insufficient_gap",
+        "newReason": "insufficient_gap",
+        "oldTopScore": 0.5249767899513245,
+        "newTopScore": 0.5209355354309082,
+        "oldTop1": "concepts/accounting/bill-svl-exchange-history.md",
+        "newTop1": "concepts/accounting/bill-svl-exchange-history.md"
+      }
+    },
+    {
+      "id": "D02",
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "processes/purchase-vendor-bill-processing.md",
+          "score": 0.6967045664787292
+        },
+        {
+          "rank": 2,
+          "path": "objects/purchase-settlement.md",
+          "score": 0.6618281006813049
+        },
+        {
+          "rank": 3,
+          "path": "processes/purchase-payment-and-reconciliation.md",
+          "score": 0.560590922832489
+        },
+        {
+          "rank": 4,
+          "path": "objects/fixed-asset.md",
+          "score": 0.4722265601158142
+        },
+        {
+          "rank": 5,
+          "path": "objects/deferred-expense.md",
+          "score": 0.3432573974132538
+        }
+      ],
+      "runs": [
+        {
+          "strategy": "A",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "no_high_score",
+          "lowFallback": false,
+          "s1": 0.6967045664787292,
+          "s2": 0.6618281006813049,
+          "observedGap": 0.034876465797424316,
+          "selected": [],
+          "final": []
+        },
+        {
+          "strategy": "B",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "uniform_lower_threshold",
+          "lowFallback": false,
+          "s1": 0.6967045664787292,
+          "s2": 0.6618281006813049,
+          "observedGap": 0.034876465797424316,
+          "selected": [
+            {
+              "path": "processes/purchase-vendor-bill-processing.md",
+              "score": 0.6967045664787292
+            },
+            {
+              "path": "objects/purchase-settlement.md",
+              "score": 0.6618281006813049
+            },
+            {
+              "path": "processes/purchase-payment-and-reconciliation.md",
+              "score": 0.560590922832489
+            },
+            {
+              "path": "objects/fixed-asset.md",
+              "score": 0.4722265601158142
+            },
+            {
+              "path": "objects/deferred-expense.md",
+              "score": 0.3432573974132538
+            }
+          ],
+          "final": [
+            {
+              "path": "docs/ontology/processes/purchase-vendor-bill-processing.md",
+              "knowledgeType": "ontology",
+              "contentChars": 1033,
+              "contentSha256": "95b69f359a40e68dc5b4565fe3d7b0012e092305b5f0ba6ad751a755dc7aea3d",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "docs/ontology/objects/purchase-settlement.md",
+              "knowledgeType": "ontology",
+              "contentChars": 2383,
+              "contentSha256": "21b17a0df35bd1e27757c50ccedc378e5b379035307fcc7b1470085c2f0d04f4",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            },
+            {
+              "path": "docs/ontology/processes/purchase-payment-and-reconciliation.md",
+              "knowledgeType": "ontology",
+              "contentChars": 1059,
+              "contentSha256": "ecdc98eb31ce105387b827f0444b5938b16fdd035c3cf471b456949ad0ebacc5",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "C",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "low_ontology_not_rescued",
+          "lowFallback": false,
+          "s1": 0.6967045664787292,
+          "s2": 0.6618281006813049,
+          "observedGap": 0.034876465797424316,
+          "selected": [],
+          "final": []
+        },
+        {
+          "strategy": "D",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "insufficient_gap",
+          "lowFallback": false,
+          "s1": 0.6967045664787292,
+          "s2": 0.6618281006813049,
+          "observedGap": 0.034876465797424316,
+          "selected": [],
+          "final": []
+        }
+      ],
+      "comparison": {
+        "top1Changed": false,
+        "eligibilityChanged": false,
+        "finalChanged": false,
+        "oldReason": "insufficient_gap",
+        "newReason": "insufficient_gap",
+        "oldTopScore": 0.6938227415084839,
+        "newTopScore": 0.6967045664787292,
+        "oldTop1": "processes/purchase-vendor-bill-processing.md",
+        "newTop1": "processes/purchase-vendor-bill-processing.md"
+      }
+    },
+    {
+      "id": "T18",
+      "ranked": [
+        {
+          "rank": 1,
+          "path": "concepts/faq/approval-flow-config-change-checklist.md",
+          "score": 0.6717575192451477
+        },
+        {
+          "rank": 2,
+          "path": "objects/business-approval.md",
+          "score": 0.2917213439941406
+        },
+        {
+          "rank": 3,
+          "path": "objects/warehouse-operation.md",
+          "score": 0.23938985168933868
+        },
+        {
+          "rank": 4,
+          "path": "processes/warehouse-operation-approval.md",
+          "score": 0.21145474910736084
+        },
+        {
+          "rank": 5,
+          "path": "concepts/approvals/approval-policy-change-checklist.md",
+          "score": 0.20695680379867554
+        }
+      ],
+      "runs": [
+        {
+          "strategy": "A",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "no_high_score",
+          "lowFallback": false,
+          "s1": 0.6717575192451477,
+          "s2": 0.2917213439941406,
+          "observedGap": 0.3800361752510071,
+          "selected": [],
+          "final": []
+        },
+        {
+          "strategy": "B",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "uniform_lower_threshold",
+          "lowFallback": false,
+          "s1": 0.6717575192451477,
+          "s2": 0.2917213439941406,
+          "observedGap": 0.3800361752510071,
+          "selected": [
+            {
+              "path": "concepts/faq/approval-flow-config-change-checklist.md",
+              "score": 0.6717575192451477
+            }
+          ],
+          "final": [
+            {
+              "path": "concepts/faq/approval-flow-config-change-checklist.md",
+              "knowledgeType": "support_wiki",
+              "contentChars": 0,
+              "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "primaryChars": 0,
+              "primarySha256": [],
+              "sourcePaths": [],
+              "applicability": "historical_reference"
+            }
+          ]
+        },
+        {
+          "strategy": "C",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "low_top1_eligible",
+          "lowFallback": true,
+          "s1": 0.6717575192451477,
+          "s2": 0.2917213439941406,
+          "observedGap": 0.3800361752510071,
+          "selected": [
+            {
+              "path": "concepts/faq/approval-flow-config-change-checklist.md",
+              "score": 0.6717575192451477
+            }
+          ],
+          "final": []
+        },
+        {
+          "strategy": "D",
+          "floor": 0.3,
+          "gap": 0.2,
+          "reason": "low_top1_eligible",
+          "lowFallback": true,
+          "s1": 0.6717575192451477,
+          "s2": 0.2917213439941406,
+          "observedGap": 0.3800361752510071,
+          "selected": [
+            {
+              "path": "concepts/faq/approval-flow-config-change-checklist.md",
+              "score": 0.6717575192451477
+            }
+          ],
+          "final": []
+        }
+      ],
+      "comparison": {
+        "top1Changed": false,
+        "eligibilityChanged": false,
+        "finalChanged": false,
+        "oldReason": "low_top1_eligible",
+        "newReason": "low_top1_eligible",
+        "oldTopScore": 0.6686675548553467,
+        "newTopScore": 0.6717575192451477,
+        "oldTop1": "concepts/faq/approval-flow-config-change-checklist.md",
+        "newTop1": "concepts/faq/approval-flow-config-change-checklist.md"
+      }
+    }
+  ]
+}

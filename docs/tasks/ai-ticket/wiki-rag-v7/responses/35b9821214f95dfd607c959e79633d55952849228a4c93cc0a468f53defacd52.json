@@ -1,0 +1,100 @@
+{
+  "caseId": "P05",
+  "group": "A",
+  "payloadHash": "35b9821214f95dfd607c959e79633d55952849228a4c93cc0a468f53defacd52",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 0,
+      "relevance_score": 0.9914912581443787
+    },
+    {
+      "index": 6,
+      "relevance_score": 0.8114164471626282
+    },
+    {
+      "index": 12,
+      "relevance_score": 0.7859643697738647
+    },
+    {
+      "index": 1,
+      "relevance_score": 0.6146382093429565
+    },
+    {
+      "index": 17,
+      "relevance_score": 0.42148557305336
+    }
+  ],
+  "durationMs": 474,
+  "querySha256": "eae38ff3eeb21178d1a8f663d58f5cfdb23ac40bfb5d199634e5c219516de016",
+  "queryChars": 92,
+  "documentSha256": [
+    "cd83f49e274ba5b9157e539ad1e0d60e9f7e712e8a81d6b09279d25af39b3ac0",
+    "8170d80f50a791b0d71397545e3686dcc35253f92ba63c8a90d8f6f6f0436424",
+    "75bd887d35812a3f5690144c9b4fa9b4fc3c4bd474e3f3121bd7dc3f909e6828",
+    "92ba473c77398300974638e93997c5830ab1748852ff6ea6c3746df4c9e09163",
+    "172e53e8ef4e5901bc1603774429460b3dffbb797c1b7a827f01c9dc0f11eb3c",
+    "65a2d6e64ef055ae7b31e59e29454ff25b1a70868f19f2d06e64b87e012d3802",
+    "3783186911bc7aff3dfb085a7976f8d078ac3b1876be81f0d3256eda5177519c",
+    "f6153c4d7667558a1a7692fd7eda476dfe8020e2ceff973b5134fcfc81523f17",
+    "cba64288b05e42f42f8ed63ff894cd7e81bd24cd44d630aa886cedf5258ffc6f",
+    "2ced5c0f6fb02494e5cf41dad34b2af8d66ace48b80612f56f5c2bd1413c70ef",
+    "f804152950f6ecd1289ed8cbe8785ce8aff50837909f04a02d12aa2a93ab346b",
+    "a167ba616e1687516f4c897ab001c2902f2407c5173964a52841a29c9ee159d1",
+    "1df3271bba29067da88cef3a91543e5bcd90c368083fb81c722b3913ba4aba47",
+    "a7b8dbaed53667c4dd3ad98cf246714dba64e5af000256b0a83193a3299210c1",
+    "644478e774a41261a99acd4ea3bb880d4aa703e0740240fae31ba9202c9a97d0",
+    "83b2e878026f6878d32e81bbf3b8692c419ce74b85ca6e3fcc6eadcd259198e1",
+    "67badd7a7fc9b13286cc6a5967631e168ad2a51b6e9dec110929ac1ae48ee561",
+    "6cffc738412d71b8bed27b9471105328c5f89b3ffe35658141c032f247d85afd",
+    "b2919a5742e002ccd40abdbd243b2c8cf8f840b8ee8c25eb1800ed3b4ab92af9",
+    "033753d1d7237b0b75114c8f20d3c42538fc4c3f909abb6ea50efdad0e4cd7d9"
+  ],
+  "documentChars": [
+    913,
+    2073,
+    1197,
+    722,
+    2289,
+    707,
+    1517,
+    1147,
+    1256,
+    877,
+    907,
+    2509,
+    599,
+    614,
+    1057,
+    1319,
+    273,
+    1320,
+    1131,
+    2306
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/accounting/uk-20030-extra-entry-reconciliation-history.md",
+    "docs/ontology/objects/sales-receipt-reconciliation.md",
+    "docs/ontology/processes/exchange-difference-reconciliation-and-revaluation.md",
+    "docs/llm-wiki/concepts/accounting/journal-required-dimensions-and-country.md",
+    "docs/ontology/objects/journal-item-control.md",
+    "docs/ontology/processes/journal-item-reconciliation.md",
+    "docs/llm-wiki/concepts/accounting/account-config-report-mapping-and-20030-residuals.md",
+    "docs/llm-wiki/concepts/accounting/finance-configuration-change-checklist.md",
+    "docs/llm-wiki/concepts/accounting/report-data-mismatch-triage.md",
+    "docs/llm-wiki/concepts/accounting/legacy-account-and-reversal-history.md",
+    "docs/llm-wiki/concepts/payment/bank-reconciliation-differences.md",
+    "docs/ontology/objects/deferred-expense.md",
+    "docs/llm-wiki/concepts/accounting/purchase-transit-currency-residual-history.md",
+    "docs/llm-wiki/concepts/invoicing/historical-invoice-bill-access-history.md",
+    "docs/llm-wiki/concepts/payment/historical-residual-balance-mismatch.md",
+    "docs/llm-wiki/concepts/reporting/export-grain-and-date-history.md",
+    "docs/llm-wiki/concepts/faq/entry-field-edit-rules.md",
+    "docs/llm-wiki/concepts/accounting/bill-svl-exchange-history.md",
+    "docs/llm-wiki/concepts/accounting/journal-dimension-edit-eligibility.md",
+    "docs/ontology/objects/sales-invoice.md"
+  ],
+  "queryCAvailable": true
+}

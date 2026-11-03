@@ -1,0 +1,100 @@
+{
+  "caseId": "Q02",
+  "group": "B",
+  "payloadHash": "b78852b6eeba06f0b6af80e62d7e9ca976751e9c9eba19f9573bf1ebd5c1f948",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 0,
+      "relevance_score": 0.15556854009628296
+    },
+    {
+      "index": 10,
+      "relevance_score": 0.04220309108495712
+    },
+    {
+      "index": 9,
+      "relevance_score": 0.03490356728434563
+    },
+    {
+      "index": 11,
+      "relevance_score": 0.0338713563978672
+    },
+    {
+      "index": 3,
+      "relevance_score": 0.015931297093629837
+    }
+  ],
+  "durationMs": 385,
+  "querySha256": "be361bde0e315d8befd69d60ca4a6fcc701aef68bb5df0ca63ca4adfe62781d3",
+  "queryChars": 47,
+  "documentSha256": [
+    "0a3a1a090b3e7f12fae218cad24e89b233c43a0638d087fb799563c248a27950",
+    "eb333d358c4befb3b141ede7e2a159fee25717429e69a3e2b970ff54a39b85b9",
+    "ee96b5ba4d2c3852a7c89ca4061d96e9ed85999d84e3f69db5513980081a34bd",
+    "bf49c2c04baa857eff2987b299cf3893ad4b6425d02debe1c69a279e6392d848",
+    "472612ac163443cc0448145714a5cf5e6e48046e597701cab358ccfbb6aff9e0",
+    "a3db98def7a1d94c38c05eef3e78a1e7ec1557683d859eb58c57796ad55c678f",
+    "438b9c00d0f4be157de57d365a2eea013c52cbb9406d3f88854ce69111024c91",
+    "0a118625cc441cff648c7ee35741b31e8f412cb2a03fa9d122a5880195988079",
+    "18da044e877b1ccff0e2fb3f47d204f9f2aa9fcb2269471e4da87bbbf6c609d4",
+    "ace9d61c5d952ceadfa0d181994ad7cd2193ad156e70f459bd4b57c9ddc9c37d",
+    "dcdb7451f238833b0ec952131ca2c2dc140104c03c7afc56e2191e9e7cde9214",
+    "581c6e8a1f3b32f01680df54cf0d2de88a3e92d911a0bb49b948a8c1a127b4ac",
+    "76ef5d3a76fcc6f5bc5f168c77f26afa5ace827e8a80f8b281a2ac36523cc864",
+    "706292360f583834724a74ff9e91a9bdaf05cc52eefb6442953194c053007ad2",
+    "32f077bf5194f6ad878185868aab96f6431b0e412cf8ce87827413328323d31a",
+    "77c26bdc2269b35e824ef1f49073c1986790600f31ae3c38d3e078cb9b28d8d8",
+    "5b146277c4f2881ea50919ed3750396feab1fe7e86e0d2b8862332fc5f4581f4",
+    "d133b1ae01192a956b4718fdeaa2e0cbea9d244958d85b3b9f595910a1c0c440",
+    "ff6bbe347909e26391aecf4560141e539168848ec946d762cbcebe406d46e340",
+    "0e86e3fa583b5a267786bb450bbf2e8e4f95e102179e56e8f82c4c074ea4b59a"
+  ],
+  "documentChars": [
+    822,
+    2404,
+    1062,
+    593,
+    204,
+    190,
+    294,
+    1000,
+    348,
+    1097,
+    445,
+    2572,
+    2267,
+    1130,
+    833,
+    987,
+    297,
+    784,
+    531,
+    492
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/approvals/refund-mark-done-status-history.md",
+    "docs/ontology/objects/business-approval.md",
+    "docs/llm-wiki/concepts/payment/invoice-auto-send-sales-team-historical-assignment.md",
+    "docs/llm-wiki/concepts/sales/refund-approval-followup-history.md",
+    "docs/llm-wiki/concepts/integration/integration-config-checklist.md",
+    "docs/llm-wiki/concepts/payment/bank-reconciliation-differences.md",
+    "docs/llm-wiki/concepts/payment/payment-registration-blocked-checklist.md",
+    "docs/llm-wiki/concepts/payment/archived-customer-credit-balance-overpayment-bnk.md",
+    "docs/llm-wiki/concepts/payment/manual-journal-required-fields-partner-country.md",
+    "docs/llm-wiki/concepts/purchase/po-buyer-vendor-correction-history.md",
+    "docs/llm-wiki/concepts/sales/state-and-related-page-navigation.md",
+    "docs/ontology/objects/employee-expense.md",
+    "docs/ontology/objects/sales-refund.md",
+    "docs/ontology/processes/employee-expense-submission-approval-and-reimbursement.md",
+    "docs/ontology/processes/standalone-approval-request.md",
+    "docs/llm-wiki/concepts/accounting/partner-duplicate-balance-history.md",
+    "docs/llm-wiki/concepts/accounting/uk-20030-extra-entry-reconciliation-history.md",
+    "docs/llm-wiki/concepts/payment/bank-batch-send-recovery-history.md",
+    "docs/llm-wiki/concepts/payment/citi-sepa-batch-booking-default-history.md",
+    "docs/llm-wiki/concepts/payment/duplicate-bank-account-match-history.md"
+  ],
+  "queryCAvailable": true
+}

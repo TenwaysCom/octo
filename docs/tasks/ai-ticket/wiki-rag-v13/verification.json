@@ -1,0 +1,40 @@
+{
+  "checks": {
+    "sharedApplicationUnchanged": true,
+    "baselineUnchanged": true,
+    "knowledgeUnchanged": true,
+    "priorArtifactsUnchanged": true,
+    "candidateOnlyFrozenCodeAndTest": true,
+    "completeOriginalUnits": true,
+    "baselineEvidencePreserved": true,
+    "pageAndQuestionCaps": true,
+    "pageSelectionUnchanged": true,
+    "noApplicabilityUpgrade": true,
+    "noLiveOrAnswerArtifacts": true,
+    "confirmedUnrelatedAddedSource": true,
+    "mechanicalGateAgrees": true
+  },
+  "passed": true,
+  "sourceChecks": 144,
+  "cases": 137,
+  "networkRequests": 0,
+  "answerModelCalls": 0,
+  "judgeModelCalls": 0,
+  "G": "disabled",
+  "knownRegression": [
+    {
+      "source": "raw/transcripts/ticket-1488.2026-09-11-c6a6f4340208.md",
+      "sourceSha256": "c4a23ff93073d7dcfaf4c5c0601f6d874d05ad89693f33e9fe8ada347f000524",
+      "unitSha256": "ab313a3aa1d679371950903addbd6ed557513e3d2de350ecda3474d94af54fc5",
+      "chars": 824,
+      "matchedTerms": [
+        "凭证"
+      ],
+      "hasReviewText": false,
+      "hasBankLineText": true,
+      "sourceAlreadyLinkedByWiki": true
+    }
+  ],
+  "qualityGate": "failed: unrelated source added to an already correctly ranked page",
+  "meaning": "Verification success proves experimental integrity; it does not mean quality acceptance passed."
+}

@@ -1,0 +1,64 @@
+{
+  "caseId": "Q01",
+  "group": "A",
+  "payloadHash": "688eaf4424a4203d725fd934e49c8c6f8549d9e268d9974972494ee358ca53bf",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 1,
+      "relevance_score": 0.03931513428688049
+    },
+    {
+      "index": 6,
+      "relevance_score": 0.009986058808863163
+    },
+    {
+      "index": 5,
+      "relevance_score": 0.009633916430175304
+    },
+    {
+      "index": 4,
+      "relevance_score": 0.007185639347881079
+    },
+    {
+      "index": 2,
+      "relevance_score": 0.0037299671676009893
+    }
+  ],
+  "durationMs": 270,
+  "querySha256": "969911bb5359ce0e8225aa8f14dbe4fdfa9b78e796a959c987d7dc9cc0fe4149",
+  "queryChars": 40,
+  "documentSha256": [
+    "250caf061f52ffc3957eb430ac20cbf05972c5bf6f1edc7969d4819dc34ef835",
+    "f2d3e11062240885f87afe17805b6f695cb39af1a892039ffb18d85e70a05357",
+    "f74e19d69c99bdd7ef61969da1c2d841d7afd7638bb72a8d750ab5a14c65338a",
+    "797585b1c8a68f5db79a87dedb6b22d6d98815aeaf94f362f7881b991040fe7d",
+    "d3e2c922cb4be1da5ec690f30a4d4b691e56eb4115d5cdec9e10187d8c946f69",
+    "c8ea36dd42c625dc2a525cfc8ef227ba08cfdc7970ba5439219009e99a635cd6",
+    "bdf6698863d8cf0eddff2a263f993633cb16866c5f7d8301f32c49412920ef8f",
+    "6cdc337503d19654cfb5cac6ebc60afbdebe88e0891f0921178e9eedeaa3bc8d"
+  ],
+  "documentChars": [
+    820,
+    533,
+    601,
+    307,
+    540,
+    327,
+    769,
+    415
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/portal/survey-completion-notification-history.md",
+    "docs/llm-wiki/concepts/portal/survey-link-and-session-history.md",
+    "docs/llm-wiki/concepts/portal/survey-mail-volume-investigation.md",
+    "docs/llm-wiki/concepts/faq/survey-link-error-check-login-first.md",
+    "docs/llm-wiki/concepts/portal/survey-session-error-check.md",
+    "docs/llm-wiki/concepts/integration/sync-and-availability-navigation.md",
+    "docs/llm-wiki/concepts/portal/portal-customer-blocked-operations-checklist.md",
+    "docs/llm-wiki/concepts/sales/mail-notification-navigation.md"
+  ],
+  "queryCAvailable": true
+}

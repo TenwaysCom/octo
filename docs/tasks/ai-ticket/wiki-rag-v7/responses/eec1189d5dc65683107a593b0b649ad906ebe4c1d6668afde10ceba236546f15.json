@@ -1,0 +1,100 @@
+{
+  "caseId": "P04",
+  "group": "A",
+  "payloadHash": "eec1189d5dc65683107a593b0b649ad906ebe4c1d6668afde10ceba236546f15",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 0,
+      "relevance_score": 0.9908111095428467
+    },
+    {
+      "index": 19,
+      "relevance_score": 0.4579988420009613
+    },
+    {
+      "index": 8,
+      "relevance_score": 0.31217724084854126
+    },
+    {
+      "index": 10,
+      "relevance_score": 0.25503289699554443
+    },
+    {
+      "index": 14,
+      "relevance_score": 0.2394799143075943
+    }
+  ],
+  "durationMs": 518,
+  "querySha256": "fa983fbb419bc1a0a8233bd679d83649d790df5efcaf35fdc26ed5aa7705f4af",
+  "queryChars": 169,
+  "documentSha256": [
+    "4f4d3efe5cefac4e8542eb85072cb23a6696adf988d9047e86753b6bd1b40229",
+    "0a5e576b5345a82932c589acff4444963a1fcffe575bc41584199bd0402d6e27",
+    "6d12063d96481496a91607e11984f9bb97f995717b99f8f28eec9838e79a238b",
+    "cba64288b05e42f42f8ed63ff894cd7e81bd24cd44d630aa886cedf5258ffc6f",
+    "09d4da51333323056cd96fb110b366ecf381ef8095b60309a3e3a00e2afda126",
+    "88bcdeb3439d0fead14f041a3a45e126f6e17f9803eeddac424ba7c116b18253",
+    "36556884c8c5a665439b7f208954cae3d8078de8cd22c49549185d90c879ac5f",
+    "644478e774a41261a99acd4ea3bb880d4aa703e0740240fae31ba9202c9a97d0",
+    "0e413966d936b1ef648ee9de3c763d750d20e14f305a28fe1510ba9271ca40df",
+    "f5c3507a9ec7894bb28fbe3a66b833d13eace5408f4537876e50e0af716a253e",
+    "7b4fa3a592c3c1d3ed76528bce48f7c8681e761974bc8f256b6c485ff2d1a2c3",
+    "9275d3409da8b78ecde043acdb0bc7ee6377202b5479cf30ec68d04ffb385e42",
+    "ddf33074fe6f486d73a3e84deab65adf1a1a33120ef4fa32d25abacdabe10061",
+    "ada103aa174f767ccaf003e810daa68e3015f2ef821ac0651199b2c9c8a7f97d",
+    "2369139eb23682e2ba8aae5bd6d69a812d472e8d4bea7713668e823b021c986f",
+    "e6c177ce91b96136d86572d0f733a4500b0d53da98b44e1de18a486ef25f04cf",
+    "162cd4d2d50da6d5b8c4697ce79b66ee91193d8f4d743f031eead1444515c11b",
+    "21c0ca2efa20ac5156521fef4f3599150ff24c5acb4e8346005b432d0ea21919",
+    "b1366400ddb674701c8d09325c8cb3dd596b98c4c5f4527bfcb8434a1f9fadee",
+    "552ffc6e91d8f6c2813a3a46b5fd13b3bb77f421761c814c5840012eac1d334d"
+  ],
+  "documentChars": [
+    1381,
+    1159,
+    301,
+    1256,
+    2309,
+    945,
+    1026,
+    1057,
+    2220,
+    2431,
+    2465,
+    400,
+    1912,
+    554,
+    2157,
+    2358,
+    915,
+    871,
+    699,
+    2268
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/reporting/financial-report-scope-history.md",
+    "docs/llm-wiki/concepts/payment/archived-customer-credit-balance-overpayment-bnk.md",
+    "docs/llm-wiki/concepts/purchase/prepayment-deduction-history.md",
+    "docs/llm-wiki/concepts/accounting/report-data-mismatch-triage.md",
+    "docs/ontology/objects/b2c-sales.md",
+    "docs/llm-wiki/concepts/reporting/financial-report-opening-investigation.md",
+    "docs/llm-wiki/concepts/invoicing/invoice-so-amount-mismatch.md",
+    "docs/llm-wiki/concepts/payment/historical-residual-balance-mismatch.md",
+    "docs/ontology/objects/financial-reporting.md",
+    "docs/ontology/rules/commercial-partner-attribution.md",
+    "docs/ontology/objects/transaction-tax.md",
+    "docs/llm-wiki/concepts/invoicing/amount-comparison-navigation.md",
+    "docs/ontology/processes/tax-report-preparation-and-filing.md",
+    "docs/llm-wiki/concepts/accounting/currency-only-journal-difference-history.md",
+    "docs/ontology/objects/customer-credit.md",
+    "docs/ontology/objects/sales-return.md",
+    "docs/llm-wiki/concepts/accounting/cash-flow-config-timing-history.md",
+    "docs/llm-wiki/concepts/inventory/historical-location-move-gap-history.md",
+    "docs/llm-wiki/concepts/inventory/repeated-return-location-regression-history.md",
+    "docs/ontology/objects/journal-item-control.md"
+  ],
+  "queryCAvailable": true
+}

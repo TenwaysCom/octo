@@ -1,0 +1,32 @@
+{
+  "networkCalls": 0,
+  "incidents": [
+    {
+      "phase": "launcher",
+      "signature": "tsx CLI IPC listen EPERM",
+      "resolution": "Used node --import tsx loader without CLI IPC; no network or approval workaround."
+    },
+    {
+      "phase": "unit regression",
+      "signature": "2 baseline custom-threshold tests failed in initial isolated candidate",
+      "resolution": "Preserved configured threshold when no experimental policy is injected; r1 corrected before live calls; 167 tests pass."
+    },
+    {
+      "phase": "reporting",
+      "signature": "Observed gap shadowed configured gap; selection lookup StopIteration",
+      "resolution": "First reports preserved; normalized separate fields based on fixed loop order and independent audit index; all 1470 qualifications recomputed identically."
+    },
+    {
+      "phase": "offline verifier",
+      "signature": "Ontology candidate path differs from sourcePath prefix",
+      "resolution": "Resolved candidate identity using knowledgeType; did not alter model indices or experiment results."
+    },
+    {
+      "phase": "approval",
+      "signature": "External transmission rejected before process launch",
+      "resolution": "Stopped network work; completed offline checks; explicit destination/content approval pending. No bypass."
+    }
+  ],
+  "codeChanges": "Only experiment tools in repository and candidate service under /tmp; no server/src changes.",
+  "G": "disabled"
+}

@@ -1,0 +1,100 @@
+{
+  "caseId": "V01",
+  "group": "A",
+  "payloadHash": "46922c8e08be3ff4d95ddae24b19be66254bdd588515a630c67b0c86b1b28c9c",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 2,
+      "relevance_score": 0.5958371758460999
+    },
+    {
+      "index": 4,
+      "relevance_score": 0.4873821437358856
+    },
+    {
+      "index": 8,
+      "relevance_score": 0.4712137281894684
+    },
+    {
+      "index": 11,
+      "relevance_score": 0.34705987572669983
+    },
+    {
+      "index": 9,
+      "relevance_score": 0.2684309482574463
+    }
+  ],
+  "durationMs": 465,
+  "querySha256": "d0cb9d45af0127bc240704f038b4eaa2db261b16e0f544b5751e9b0c0681aded",
+  "queryChars": 23,
+  "documentSha256": [
+    "31006b29fb0c0086119cacbe38e1e2319352c1147321e4b15c9f20153e777f6c",
+    "8a323823dc7d5b11b15ce0ecfdf63349e041993da9e683bed30623336964d683",
+    "78644fa1146880f1178566973f85597027d0b07d2cdcaad463335fbaef0e2a3f",
+    "c4835ddde9aebf71fa00e7653103b8cd23e66e78c710c9041f3ebe3b7ff6f8ae",
+    "f5b7f54fc9e57f839c776cd6f968c99547b20f16c4d0c14cb6f8494f25cd64ef",
+    "3e48fb661423fc0df4ce4b05146a7a67dec2c485966643bfdc6bd9249edb9872",
+    "28d1bc39f2c34624d97560e2f7359e10203969756027a85ae03264d543190e34",
+    "667ae3bca17e4b86a54511a22171b2501ec065e0b31cf36f2d0dda0351787b2d",
+    "af4dd1d9ae25fe59bd80a3af6a8f3324306af8b5f156e844123667306eb76c48",
+    "464505967b8c96eb6c65813adc7fc803f554b7fecdc09efec6e15624ec3b3572",
+    "851e0225a5c4dafcfff728796e06e5050131880ed4ac9ae13fb80c2fb08a84db",
+    "78949826b04a94e5e2fe219448f97a2bb96c0517a15a29ff5fb503bdd5071a59",
+    "d6fff19f43be1d97c3d076c1a4f486235e0cf590de76fc1c5c31712208545f18",
+    "601ff07b0032474dd63c7a0d4cb057e8498b6db7d82f8714ff79c41c83e575f5",
+    "449e269d75766669ef3a4befe3cf60c0aebc50c985b7dd5fbf1b1dfd162737bf",
+    "140eeb9bc7405041e97158a5bc5ea30240dc5c5d301f240a038c8ec2cd41d8cd",
+    "6fb81eaf834bc4980b7491ed817430ae680759427f6be1a6e36a21d269d4737e",
+    "42809f9346b809343fbc4b9b34570061a579c86ad0a21f333f4d9cc0814b4764",
+    "97f1484085c88dbf4a6fe96791ec5f5d993f7b832feff7309b7ca6521a22441f",
+    "c536c2f501adfb35997e80f9dd467eaac158cc9d51d2344dbd0ac810c2ae41b8"
+  ],
+  "documentChars": [
+    1865,
+    930,
+    2358,
+    2496,
+    514,
+    1721,
+    161,
+    481,
+    1865,
+    2126,
+    1889,
+    2103,
+    1503,
+    1729,
+    591,
+    2474,
+    2379,
+    1180,
+    901,
+    1404
+  ],
+  "candidatePaths": [
+    "docs/ontology/objects/business-approval.md",
+    "docs/ontology/processes/budget-contract-payment-approval.md",
+    "docs/ontology/objects/preorder-backorder.md",
+    "docs/ontology/objects/purchase-settlement.md",
+    "docs/ontology/processes/sales-terms-exception-approval.md",
+    "docs/ontology/processes/sales-order-cancellation.md",
+    "docs/llm-wiki/concepts/sales/automatic-order-email-customer-language.md",
+    "docs/llm-wiki/concepts/sales/markup-name-and-price-rules.md",
+    "docs/ontology/objects/sales-commercial-terms.md",
+    "docs/ontology/objects/sales-order.md",
+    "docs/ontology/objects/customer-credit.md",
+    "docs/ontology/objects/sales-order-amendment.md",
+    "docs/ontology/processes/unshipped-sales-order-amendment.md",
+    "docs/llm-wiki/concepts/approvals/inflight-approval-owner-change-history.md",
+    "docs/llm-wiki/concepts/sales/order-received-template-history.md",
+    "docs/ontology/objects/business-party.md",
+    "docs/ontology/objects/warehouse-operation.md",
+    "docs/ontology/processes/embedded-business-record-approval.md",
+    "docs/ontology/processes/sales-promotion-approval-and-application.md",
+    "docs/llm-wiki/concepts/sales/contact-overview-create-sales-order.md"
+  ],
+  "queryCAvailable": false
+}

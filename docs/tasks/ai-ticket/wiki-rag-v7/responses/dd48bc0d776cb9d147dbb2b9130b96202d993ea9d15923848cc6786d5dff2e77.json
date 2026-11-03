@@ -1,0 +1,100 @@
+{
+  "caseId": "Q08",
+  "group": "A",
+  "payloadHash": "dd48bc0d776cb9d147dbb2b9130b96202d993ea9d15923848cc6786d5dff2e77",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 1,
+      "relevance_score": 0.43315786123275757
+    },
+    {
+      "index": 3,
+      "relevance_score": 0.15187065303325653
+    },
+    {
+      "index": 4,
+      "relevance_score": 0.11582743376493454
+    },
+    {
+      "index": 6,
+      "relevance_score": 0.07481534779071808
+    },
+    {
+      "index": 0,
+      "relevance_score": 0.0630488395690918
+    }
+  ],
+  "durationMs": 392,
+  "querySha256": "14851d44e487e1656af3c11ff330a2ae2524a1723d90f82b1fed39fcab517fa8",
+  "queryChars": 49,
+  "documentSha256": [
+    "03c66047f25b7289f5d14417dde0133cfeff312e06618856d2294dd34868b53e",
+    "748de3e0cf959d3a4be16de642c79df88cec7fcdfb0a4f1f5db4d6a2f2158df5",
+    "30e0859b4d8442d6de6295243c62fb866c443d5e3a8c86476e432820e63f70fc",
+    "5f0248b744855f276b15b19e8abdc292736cd0e9711fa1f7d70ecc89626df6e7",
+    "8246a37a14e0209f635060f21f18a69e4293607f103b98613afa66439d65bcd2",
+    "0f6979ac6661de79aa0f61df0a22f7c378188f4fedd6fa2f3b47f315e1eaccdb",
+    "5c879a9ac2e61387114e332c79d7bf898fef0e0f3241dc84c24bcde473591ac4",
+    "b163c4d6d10055533fa58b5ac851ac9fdd1039d646cac15c52352da27aeb61f1",
+    "44bcd23006e9a925565253a4337ddedb26fae417fdd3b5492a9f6572b2943519",
+    "11b781ce2e001494eb47310f2579748080e2ecab9990fbf5d77e1cd28fe2edde",
+    "27fb894d5cc6c6c64c28d545a5eff3705d582ab840a1d4a5ae6ec989bf318c38",
+    "9cb550da30176099b196cf75a8fb2e214093a2c0cc014f06328e7057f8a87b18",
+    "4f6570bc8f4c9338f2d0d0013560da9b20de31f972c63b2a990981becacbf882",
+    "6ad352f4290481effe29b0c923040d7eb0812fc815a8104bd165f465babea0ed",
+    "d5b357e2e7765098ebb6de69ecc67be5e5e4d1ae697f92b3dca5230e022c57d0",
+    "2085f8cccb6f61507cb82afc80deebb0046a24811d5e55a31cb95f1d7c1cb29c",
+    "022c8a5ce6ba6bbec94bfa8439b524e2da8334a0a83c6dadb15bddf4eba365ab",
+    "ddf7481970bbb4cdbedafb89cc140ad380d79df700eea102d8c9a0da3949c524",
+    "c3afb5d1938c48be4ab843f7e8cb7f8183c3ba49698add2bfc7bdcec4874c3ec",
+    "64fe0fc17455ade95e16fa000a3a093e9761cedd1504ffd5d7005b4c72ee6d8b"
+  ],
+  "documentChars": [
+    617,
+    696,
+    466,
+    569,
+    1767,
+    2262,
+    2096,
+    2428,
+    2354,
+    466,
+    773,
+    228,
+    633,
+    1181,
+    769,
+    786,
+    271,
+    839,
+    1254,
+    725
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/integration/wms-carrier-resource-error-history.md",
+    "docs/llm-wiki/concepts/portal/backorder-template-api-contract-500.md",
+    "docs/llm-wiki/concepts/portal/dealer-portal-delivery-address-server-failure.md",
+    "docs/llm-wiki/concepts/sales/sale-order-backorder-preorder-runtime-config-lark-1654.md",
+    "docs/ontology/objects/sales-available-inventory.md",
+    "docs/ontology/objects/sales-order.md",
+    "docs/ontology/objects/sales-pricelist.md",
+    "docs/ontology/objects/sales-return.md",
+    "docs/ontology/objects/warehouse-operation.md",
+    "docs/llm-wiki/concepts/accounting/journal-review-latency-history.md",
+    "docs/llm-wiki/concepts/delivery/frame-number-field-capacity-test-history.md",
+    "docs/llm-wiki/concepts/delivery/next-transfer-type-investigation.md",
+    "docs/llm-wiki/concepts/delivery/other-outbound-location-and-type-history.md",
+    "docs/llm-wiki/concepts/integration/shopify-missing-sku-and-confirm-timing-history.md",
+    "docs/llm-wiki/concepts/inventory/location-type-direction-history.md",
+    "docs/llm-wiki/concepts/inventory/purchase-return-eu-us-applicability-investigation.md",
+    "docs/llm-wiki/concepts/inventory/us-sku-basic-attributes-check.md",
+    "docs/llm-wiki/concepts/invoicing/vendor-bill-confirm-stock-move-singleton-investigation.md",
+    "docs/llm-wiki/concepts/portal/service-centre-claim-display-history.md",
+    "docs/llm-wiki/concepts/reporting/financial-report-scope-history.md"
+  ],
+  "queryCAvailable": true
+}

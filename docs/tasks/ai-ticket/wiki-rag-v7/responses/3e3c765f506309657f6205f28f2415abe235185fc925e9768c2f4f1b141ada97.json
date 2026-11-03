@@ -1,0 +1,100 @@
+{
+  "caseId": "Q11",
+  "group": "A",
+  "payloadHash": "3e3c765f506309657f6205f28f2415abe235185fc925e9768c2f4f1b141ada97",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 11,
+      "relevance_score": 0.12408263981342316
+    },
+    {
+      "index": 12,
+      "relevance_score": 0.0822291150689125
+    },
+    {
+      "index": 8,
+      "relevance_score": 0.07866779714822769
+    },
+    {
+      "index": 4,
+      "relevance_score": 0.054458312690258026
+    },
+    {
+      "index": 3,
+      "relevance_score": 0.04194333776831627
+    }
+  ],
+  "durationMs": 340,
+  "querySha256": "812e9d48a6e14eacf01144890bc968c0193df369e4b2d5e3f194232ee5b3a8d6",
+  "queryChars": 22,
+  "documentSha256": [
+    "2ac73723e902a661d996fcc59ce17a1d8abb5dd814bdf7edc75a2ed346aa5d54",
+    "7fb8ed6d0c1cd8149387680dea79c937cbc478c75d52caaf505925f3fdcdbc6a",
+    "74ad870a52c12a8b3eafdf8ebbfc9230613c23c4c06fef613d1da794340c06a2",
+    "029738cd05f2527da700d0492eb6ac60c5e56f4080655eb9a146f15e7bae3581",
+    "b23e569ccde2a33d5ad694aeb75bd3ad6ed0365a3e3e15d3c8a490ef61a0ab69",
+    "b92877910d90b3749f615ee339ee7aaf982726e6089210ee6b6d60d3dc5b8606",
+    "0cd4defbfd9f68bc4e5a3eabf97e6ff5bdd558c6aa77a304bbed1e614ada4931",
+    "a763c50a2f963b220ec0e74e3eae98cbd95b294bb59876947827e527c346bcf1",
+    "ba6d442bea5db3ff6ebb8eddf0c2b646be1c86eb5abff18a5ca088006ff27e11",
+    "b8f7469043fc82a579c66debd99f87ba12eeed98f52345821186b1e82f16df1a",
+    "2dd4122d5e3a9e9b477873746715ee73762e63a2f6ffc2ca29eccdc848550240",
+    "229785e5c68cee9d488f88b0beb82f0b72d9c4ec97d4773cfa16524d80c7e2d2",
+    "7bad163b6efc95d34c6e9b6d8a088b3382197f70728636ebdd6ce0887e1c9d6d",
+    "458c10e8c5783c913e461bd755619ea6028f93a58f8c5b0b5e0e49ed39ab221c",
+    "a88d5a95b1bba6e3b36758196c8862766afa419ad71160d954cf5d308591f097",
+    "9ff39fea828e41b2167ec585e14f9fd594c48c9951f8e87bf1bacdc6f0a76264",
+    "e5815bc61bd91b4a4c5c04a423d9683625853e8ac2d9c3d1369d38f40766f986",
+    "3bf8ae9a5e95f64396a3b9490a9e92e0584f6cee664d494fe8bccbb9c28da8a3",
+    "a32ff37228938fea5a0a2e1908432827b346b3bb1450c57bbba8202c9df0bd3f",
+    "8f5af6c4a93d735cb3fec5954214cd3a72a4c8d640b0bf0120f5655c126b1175"
+  ],
+  "documentChars": [
+    133,
+    137,
+    1077,
+    582,
+    1156,
+    176,
+    1644,
+    622,
+    500,
+    668,
+    1322,
+    275,
+    375,
+    211,
+    455,
+    516,
+    569,
+    1018,
+    566,
+    988
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/sales/contact-overview-create-sales-order.md",
+    "docs/llm-wiki/concepts/sales/contact-overview-grouped-product-details.md",
+    "docs/llm-wiki/concepts/inventory/location-type-direction-history.md",
+    "docs/llm-wiki/concepts/inventory/return-on-return-number-prefix-history.md",
+    "docs/llm-wiki/concepts/inventory/sku-warehouse-default-location-history.md",
+    "docs/llm-wiki/concepts/reporting/cancelled-lines-ey-export-investigation.md",
+    "docs/ontology/objects/business-party.md",
+    "docs/llm-wiki/concepts/accounting/credit-note-cost-sign-history.md",
+    "docs/llm-wiki/concepts/accounting/other-outbound-done-journal-history.md",
+    "docs/llm-wiki/concepts/accounting/reverse-entry-type-history.md",
+    "docs/llm-wiki/concepts/approvals/inflight-approval-owner-change-history.md",
+    "docs/llm-wiki/concepts/delivery/next-transfer-type-investigation.md",
+    "docs/llm-wiki/concepts/delivery/service-center-outbound-split-correct-warehouse.md",
+    "docs/llm-wiki/concepts/faq/does-every-closed-ticket-need-a-qa-card.md",
+    "docs/llm-wiki/concepts/integration/cmc-done-frame-refresh-history.md",
+    "docs/llm-wiki/concepts/inventory/borrowed-bikes-stock-history.md",
+    "docs/llm-wiki/concepts/inventory/repeated-return-location-regression-history.md",
+    "docs/llm-wiki/concepts/inventory/reservation-residual-corrections-history.md",
+    "docs/llm-wiki/concepts/payment/bank-batch-send-recovery-history.md",
+    "docs/llm-wiki/concepts/portal/b2b-portal-access-and-dealer-ordering.md"
+  ],
+  "queryCAvailable": true
+}

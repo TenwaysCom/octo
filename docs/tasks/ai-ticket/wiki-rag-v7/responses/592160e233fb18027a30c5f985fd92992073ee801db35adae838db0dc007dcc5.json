@@ -1,0 +1,100 @@
+{
+  "caseId": "P02",
+  "group": "C",
+  "payloadHash": "592160e233fb18027a30c5f985fd92992073ee801db35adae838db0dc007dcc5",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 0,
+      "relevance_score": 0.9521040320396423
+    },
+    {
+      "index": 3,
+      "relevance_score": 0.525592029094696
+    },
+    {
+      "index": 14,
+      "relevance_score": 0.3777284324169159
+    },
+    {
+      "index": 16,
+      "relevance_score": 0.13242660462856293
+    },
+    {
+      "index": 1,
+      "relevance_score": 0.11056921631097794
+    }
+  ],
+  "durationMs": 601,
+  "querySha256": "ba52dcdb0d54b88ee02609f9b4c103c84d8484f66a2bc4308f552ddd22cbf97b",
+  "queryChars": 334,
+  "documentSha256": [
+    "e719ba44ff460db1c6bc57b2f91e295101d605b2d565c2e956c13e69dd2f2698",
+    "4d728403e7a1b6e3cb8135945f3e7ea4d8697bef7046f6049e06a6bcb65406ad",
+    "898b7c906cf9bb9892c2bd9173b571deec33c77a1b5378e62ddc3b3cc4594e74",
+    "b71fb9a1ac9cda31c460f93ba9223c882ca838ca0553a1c7251d79d9ca0bfe1a",
+    "4df81012e79cd1946f612a6d79f1399b2778d6b1137c95312c15ee6117f8bdeb",
+    "5fbd372c564030c35f85005dc1793cd057d3038e3119b31262770ac448610873",
+    "5f204b839762ae45674969608c9eed5f3bc1e1b0a4c568158e98510e88aec0d9",
+    "dd5bc1893b06ea359225099ca2735a43dc7ca12e0aa8ee66c2f6d89367089e48",
+    "1ef7363f3636cae7cebfac3503af6b9e5ea8b1ec75ed7b98e9e6fff61b886f43",
+    "c5e48c93a07e6a8584fad25ea2c6aec4c10a73a4b8aac455634b11409702b2e4",
+    "4ab491e319ead8c00cc44aaa8e7343d40bc70a775c3806dc4bf4003c639a0874",
+    "0336286d0ff8d331a4e987edc514acc5bf7fa205646facadc72dc72f12f69438",
+    "93b6821cb3c435cd8e99072c64239dd72daea967a161ad0827b55ab675b5b25a",
+    "b03a1ba68d52684f8452256385083d12f99a8874bf9b415de2fe4463c1151612",
+    "f2ed8f39fdb976cdb698cb92052dd6271d11c59f77534d78aa7a7792ea7758b0",
+    "eed3f2ead119e2f201db5093af0edb7dae950da8b9dde3c5385751d4c9c4203f",
+    "89499ba92bd26a55b04e64f0ba0aae1d20bea6078275a01e0a614b187b4a4100",
+    "697a204f7375cc2d04d111a00d936f177ba78e133cde43621c66671400e08232",
+    "451e9b799785c4f1c925aec9e6acad930aaea221d3e9054b0f4a4918f9e4e6f0",
+    "4752892bff6c34d49c512032c03d9b882668b897791eb3d26482d4439999e67e"
+  ],
+  "documentChars": [
+    2672,
+    209,
+    3114,
+    1765,
+    194,
+    2965,
+    1403,
+    3010,
+    3161,
+    2124,
+    1405,
+    675,
+    741,
+    480,
+    754,
+    2549,
+    732,
+    3123,
+    3198,
+    770
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/sales/contact-tag-change-verification.md",
+    "docs/ontology/objects/business-party.md",
+    "docs/ontology/objects/b2c-sales.md",
+    "docs/llm-wiki/concepts/sales/sales-team-change-history-boundaries.md",
+    "docs/ontology/objects/transaction-tax.md",
+    "docs/ontology/objects/b2b-invoice-integration.md",
+    "docs/llm-wiki/concepts/sales/contact-overview-quantity-and-status.md",
+    "docs/ontology/rules/commercial-partner-attribution.md",
+    "docs/ontology/objects/b2b-portal-sales.md",
+    "docs/ontology/processes/customer-profile-validation.md",
+    "docs/llm-wiki/concepts/sales/contact-overview-create-sales-order.md",
+    "docs/ontology/processes/b2b-portal-purchase.md",
+    "docs/llm-wiki/concepts/access/sales-team-order-visibility-history.md",
+    "docs/llm-wiki/concepts/faq/contact-tag-and-master-data-change.md",
+    "docs/llm-wiki/concepts/sales/uk-shopify-empty-salesperson-default-history.md",
+    "docs/ontology/processes/b2b-invoice-platform-delivery.md",
+    "docs/llm-wiki/concepts/reporting/gross-profit-direct-parent-customer-name-history.md",
+    "docs/ontology/objects/portal-public-inquiry.md",
+    "docs/llm-wiki/concepts/access/permission-request-and-effective-access.md",
+    "docs/llm-wiki/concepts/sales/customer-pricelist-discount-rounding-history.md"
+  ],
+  "queryCAvailable": true
+}

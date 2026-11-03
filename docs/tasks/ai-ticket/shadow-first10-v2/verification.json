@@ -1,0 +1,77 @@
+{
+  "schema_version": "shadow-first10-ai-recheck-v2",
+  "created_at": "2026-10-23T02:25:02.825853+00:00",
+  "criteria_version": "shadow-first10-action-criteria-2026-10-23",
+  "cases": 120,
+  "actions_before": {
+    "wait": 30,
+    "clarify": 22,
+    "human": 64,
+    "answer": 4
+  },
+  "actions_after": {
+    "human": 68,
+    "wait": 27,
+    "clarify": 23,
+    "answer": 2
+  },
+  "transitions": {
+    "wait->human": 3,
+    "wait->wait": 27,
+    "clarify->clarify": 22,
+    "human->human": 63,
+    "answer->answer": 2,
+    "human->clarify": 1,
+    "answer->human": 2
+  },
+  "action_changed_case_ids": [
+    "S10-001",
+    "S10-014",
+    "S10-019",
+    "S10-083",
+    "S10-116",
+    "S10-117"
+  ],
+  "problem_state_changed_case_ids": [
+    "S10-019",
+    "S10-023",
+    "S10-068",
+    "S10-083",
+    "S10-093",
+    "S10-104",
+    "S10-116",
+    "S10-117"
+  ],
+  "waiting_target_changed_without_action_change": [
+    "S10-043"
+  ],
+  "rules_coverage": {
+    "H01": 26,
+    "W01": 13,
+    "Q02": 20,
+    "H02": 38,
+    "W04": 6,
+    "W03": 6,
+    "A01": 2,
+    "H03": 4,
+    "W02": 2,
+    "Q01": 3
+  },
+  "gold_cases": 0,
+  "external_model_calls": 0,
+  "historical_shadow_used_for_classification": false,
+  "v1_artifacts_unchanged": true,
+  "previous_comparison_artifacts_unchanged": true,
+  "criteria_sha256": "b49c76d44417b5c0824820c386770211c2da207572276a5e346c7ada4e9a3845",
+  "script_sha256": "8e3005e1a6c6e9f5893a46b3e55f204f8aeeb69184a73bc19358beda8a63e91d",
+  "v1_manifest_sha256": "8351814e9c77b5f0ca726ba80acbe64ee06414aa642add8f187d1a1f11908de6",
+  "old_comparison_manifest_sha256": "6749ec5c7f994d70bb22e51d49c537e079fe9132fb44b59a6898bd2f114a86dd",
+  "files": {
+    "classification-basis.private.jsonl": "86b184fbf71909f53e33126c841f1c2ed54b76bddb82e88bcba7ccc7d7d6f5cf",
+    "comparison.private.csv": "aebd8fd7d6df8784679cff8db83f6079399e24a1ccde3f435f2f4c9cfae21f55",
+    "comparison.private.html": "671ca5be08f8e53ab61795f1b81130d570978b97752d296943008164616cffeb",
+    "comparison.private.jsonl": "856bc9021db8b7fb53182e825d937f1018ab20f3c573e55e8a995db7543d8bce",
+    "labels.ai-rechecked.private.jsonl": "f5605e68dc99b46aef9b0442181a291c90938806e2a86055e24605ff55b5869d",
+    "recheck-notes.private.psv": "3e85600408881e4035288cb498eb4bcbac00adf1e5c749bdb4aa5148011c2f13"
+  }
+}

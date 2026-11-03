@@ -1,0 +1,100 @@
+{
+  "caseId": "Q36",
+  "group": "B",
+  "payloadHash": "29b5625cba1ea0e66050f41af16602b46042dd313bdf5c59d42387c2a6814afc",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 0,
+      "relevance_score": 0.9896025061607361
+    },
+    {
+      "index": 15,
+      "relevance_score": 0.3907790184020996
+    },
+    {
+      "index": 17,
+      "relevance_score": 0.009487519040703773
+    },
+    {
+      "index": 13,
+      "relevance_score": 0.009370259940624237
+    },
+    {
+      "index": 8,
+      "relevance_score": 0.00829796027392149
+    }
+  ],
+  "durationMs": 430,
+  "querySha256": "e4bca7006f1e6eedc5dd6bcf4e508694e8f014241de28e332fdf108a44ae4321",
+  "queryChars": 16,
+  "documentSha256": [
+    "972e9b051579cce7d04c1baabbbcd537e00e80b1a1ce7dcdc645a37aeed5a2d0",
+    "4d728403e7a1b6e3cb8135945f3e7ea4d8697bef7046f6049e06a6bcb65406ad",
+    "434ed0e393b251df1303538df5c7520948aa742c2881d9d017109ac915e50398",
+    "dd5ae7ac44b7e18f24cd3655b111cc8d4a958f2c3fcaa98a4c41cd42d01b08bd",
+    "114fc5449eb1de2eafacb860cddbd9da4bd75a935f9697dec6a1827ac621f9f7",
+    "5ebbb9679e863473016fd92609952d4547cfd7c36d939ccd6b31ec3db4d51b8c",
+    "9559bb6647b16da0665376ea68f0d8034a7a8392877693bcad8c3d33a8e1718a",
+    "5aa8dd70df9d99a0fc4471db1c4cf0afa6a1a999170e125d94aa87a20e3e0d67",
+    "e4c20cecab93afb574fb74edd9077a24731ec5ed6d92217b3f295bf81bd27515",
+    "bf0795a2a17201b69904e0c1ecdb42bc87af7162ebc0dcc915b93ece4f74855e",
+    "062c10291655885cef7ffe2df7a518b71548d3786b0983cb51d669035914e107",
+    "c675890d1bc1151c43b64c4a954e43d2c9537ce7307c508b588479b51bd9f2d4",
+    "e343ee161e8d9dc3d7b748d86ae7a052d13afba0c01571036906e187da58c243",
+    "2fee9d07903784e3e237cf0a273df48f897c41d449a3a6465290490ac60f70ff",
+    "30760343b6cf8eae2780a43f3a1c184ef682f973c867965668b3ce5695290f42",
+    "d12cb0aaa400906a3ef418daded32dd96fac7f5b0a1b01a671fb6552b6f9acb1",
+    "a2ecd5ca7ae819a97a32395a42d36e4071e328601ff4705f11c711a6a1b20f7b",
+    "2a3a7a4d4b1cd2b1b14cb0fb55e81868403db28f7d519bc0111d10d63981177b",
+    "93f03fd3f5bfc4cb5f8a63e97c362d61bca8c39a85d25b8d4f9a6a576a78b40c",
+    "8de3e1cf93f9f1e4958d800aab4b4803ba528b6405e0620364b0bbf335ab2da4"
+  ],
+  "documentChars": [
+    529,
+    209,
+    723,
+    566,
+    749,
+    602,
+    1040,
+    573,
+    3198,
+    3049,
+    3056,
+    1274,
+    2948,
+    2242,
+    688,
+    301,
+    443,
+    1818,
+    230,
+    1275
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/faq/where-detailed-technical-facts-live.md",
+    "docs/ontology/objects/business-party.md",
+    "docs/llm-wiki/concepts/delivery/cmc-street2-payload-history.md",
+    "docs/llm-wiki/concepts/accounting/accounting-change-navigation.md",
+    "docs/llm-wiki/concepts/delivery/service-center-outbound-split-correct-warehouse.md",
+    "docs/llm-wiki/concepts/invoicing/zero-order-shopify-rate-history.md",
+    "docs/llm-wiki/concepts/platform/database-expiry-warning-triage.md",
+    "docs/llm-wiki/concepts/portal/email-regrant-history.md",
+    "docs/ontology/objects/b2c-sales.md",
+    "docs/ontology/objects/business-approval.md",
+    "docs/ontology/objects/sales-order.md",
+    "docs/ontology/processes/embedded-business-record-approval.md",
+    "docs/ontology/rules/commercial-partner-attribution.md",
+    "docs/llm-wiki/concepts/access/operation-access-and-button-triage.md",
+    "docs/llm-wiki/concepts/delivery/done-picking-without-physical-shipment-history.md",
+    "docs/llm-wiki/concepts/faq/business-rules-and-usage-quick-reference.md",
+    "docs/llm-wiki/concepts/integration/sync-and-availability-navigation.md",
+    "docs/llm-wiki/concepts/inventory/reservation-residual-corrections-history.md",
+    "docs/llm-wiki/concepts/invoicing/amount-comparison-navigation.md",
+    "docs/llm-wiki/concepts/reporting/filter-language-timezone-history.md"
+  ],
+  "queryCAvailable": false
+}

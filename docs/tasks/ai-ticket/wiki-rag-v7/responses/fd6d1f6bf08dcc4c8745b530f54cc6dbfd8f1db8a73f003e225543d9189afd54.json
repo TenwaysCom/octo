@@ -1,0 +1,100 @@
+{
+  "caseId": "T09",
+  "group": "A",
+  "payloadHash": "fd6d1f6bf08dcc4c8745b530f54cc6dbfd8f1db8a73f003e225543d9189afd54",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 0,
+      "relevance_score": 0.998547375202179
+    },
+    {
+      "index": 7,
+      "relevance_score": 0.654799222946167
+    },
+    {
+      "index": 12,
+      "relevance_score": 0.358223557472229
+    },
+    {
+      "index": 5,
+      "relevance_score": 0.2906598746776581
+    },
+    {
+      "index": 2,
+      "relevance_score": 0.12585756182670593
+    }
+  ],
+  "durationMs": 402,
+  "querySha256": "c176a82ef6d79f8813bcefc524357359a815c148fc33e7ec5c37000cd8ce1327",
+  "queryChars": 43,
+  "documentSha256": [
+    "c91cf10b4ae0d964703c9b5d2fa283041e2dcc127ac56b57908900e90f59331e",
+    "cd239909385bc9031d30d85b0a928eee4668eb7bbb03b4ff742852b091aff2c9",
+    "87657ba55ec6b4b57d77739dffdb09102ed12c75abcd4e0e1ac9ad4ad768feb0",
+    "83c78ac99ab03e17686f963c76eb5fe5e05dd97ff4dc1dd7198b0f1c4b60bdf0",
+    "a8d2035c5c4a6a57442d4dc39d3298980dbf019e655e89860a251c67dd43302e",
+    "a2ae08c87852de410433ad5cf9c290af99d1ab14a336570c9fa6268a747d174d",
+    "01134119b525b4ed1c14f59eeb9b8f295c28e2890cbfc94ce5410282bdbbb6b2",
+    "8e4a7b192c66932247ce774ef0a3b2e06573ed9a3465ad9416b424311cbedd36",
+    "731d1b4ba5df69cf0a8677e70f726863d33d5afe2d392875e4fef04a268cc892",
+    "aabcff8b6fd11c73949d4f734a170561eb7e7d252d314479494a04f6ad56bb22",
+    "6a49c83eef0a5aaf04862e9cc3bf45607fc82ddda13cc615324c3ebb18a4b39d",
+    "63cdc5967d867b1b9210e5c26b2ea1876747c2b18c2ecd220acbbe939b10f103",
+    "422a4398aa97b53dbf96f6ec8d1fd612c42540c3f04d77b4f9ce299208d37631",
+    "79ed4550d3c461ade3c11bafd696901ab66aeb889029cbfd9bffe35e0801cbe0",
+    "ee014bd21520ed19405bd031e6757ae97711952d8f59b5f82e468848601fb541",
+    "7e6d1ff103449a044437adbb9064be1c119b9783d01b26b40e3046a9a22bcd02",
+    "bda6d319e02fafb390a4d018d76c61204fd576a64f0f21f70fe71d21d6a8ca83",
+    "140b7bb256a30c4c3c428ce649109abff29171b09c46be35d1f205a2dd068bff",
+    "43b416aab7507c8304fa60d53858d38aec9540b6ed9a2e007265702acfd00308",
+    "771a6584eae748a6e7d600389dafe0cba71eefa2b697a32f281e97ae5a4ac4ff"
+  ],
+  "documentChars": [
+    420,
+    757,
+    1903,
+    524,
+    648,
+    1611,
+    576,
+    2468,
+    543,
+    1094,
+    375,
+    636,
+    782,
+    418,
+    1630,
+    2113,
+    1648,
+    967,
+    994,
+    878
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/delivery/destination-country-source-history.md",
+    "docs/llm-wiki/concepts/sales/delivery-address-country-tax-rate.md",
+    "docs/ontology/objects/business-party.md",
+    "docs/llm-wiki/concepts/accounting/accounting-change-navigation.md",
+    "docs/llm-wiki/concepts/integration/sync-and-availability-navigation.md",
+    "docs/ontology/objects/b2c-sales.md",
+    "docs/llm-wiki/concepts/integration/turbo-customer-sync-history.md",
+    "docs/ontology/objects/transaction-tax.md",
+    "docs/llm-wiki/concepts/delivery/warehouse-dispatch-and-return-navigation.md",
+    "docs/llm-wiki/concepts/integration/wms-address-contract-history.md",
+    "docs/llm-wiki/concepts/sales/dubai-country-selection-history.md",
+    "docs/llm-wiki/concepts/delivery/cmc-street2-payload-history.md",
+    "docs/llm-wiki/concepts/invoicing/tax-source-selection-history.md",
+    "docs/llm-wiki/concepts/workforce/workforce-support-navigation.md",
+    "docs/ontology/processes/party-address-maintenance.md",
+    "docs/ontology/objects/b2b-portal-sales.md",
+    "docs/ontology/processes/b2c-leasing-sales.md",
+    "docs/ontology/processes/customer-sales-ownership-change.md",
+    "docs/ontology/processes/portal-profile-maintenance.md",
+    "docs/llm-wiki/concepts/accounting/journal-required-dimensions-and-country.md"
+  ],
+  "queryCAvailable": true
+}

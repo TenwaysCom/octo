@@ -213,12 +213,9 @@ export function createLarkTicketShadowSummaryService(deps: LarkTicketShadowSumma
         ticket_context: context.text,
         user_message: "请分析上述 Ticket；问题描述已包含在上下文中。",
       }), renderShadowWikiInput(wiki)].join("\n\n");
-      const completion = await runTicketSummaryCompletion(getTicketSummaryClient, prompt, actionRunId);
-      const analysis = parseShadowAnalysis(completion.content, actionRunId);
-      resolveEvidenceWithinInput(analysis, context.evidenceIds);
-      if (hasInvalidShadowWikiReferences(analysis, new Set(wiki.info.sources.map((source) => source.sourceId)))) {
-        throw new LarkTicketShadowSummaryError("SHADOW_WIKI_REFERENCE_INVALID", "Shadow analysis referenced Wiki sources not provided to this run.", "server.shadow.validate");
-      }
+      const analysis = await analyzeTicketShadow({ prompt, evidenceIds: context.evidenceIds,
+        wikiSourceIds: new Set(wiki.info.sources.map((source) => source.sourceId)),
+        client: getTicketSummaryClient(), actionRunId });
 
       const durationMs = processingDurationMs();
       await writeShadow(ticket, {
@@ -497,4 +494,18 @@ function abortableDelay(ms: number, signal: AbortSignal): Promise<void> {
       resolve();
     }
   });
+}
+
+/** Shared one-shot analysis. No thread loading or persistence: callers own effects. */
+export async function analyzeTicketShadow(input: {
+  prompt: string; evidenceIds: Map<string, string>; wikiSourceIds: Set<number>;
+  client: TicketSummaryJsonCompletionClient; actionRunId: string;
+}): Promise<ShadowAnalysisResult> {
+  const completion = await runTicketSummaryCompletion(() => input.client, input.prompt, input.actionRunId);
+  const analysis = parseShadowAnalysis(completion.content, input.actionRunId);
+  resolveEvidenceWithinInput(analysis, input.evidenceIds);
+  if (hasInvalidShadowWikiReferences(analysis, input.wikiSourceIds)) {
+    throw new LarkTicketShadowSummaryError("SHADOW_WIKI_REFERENCE_INVALID", "Shadow analysis referenced Wiki sources not provided to this run.", "server.shadow.validate");
+  }
+  return analysis;
 }

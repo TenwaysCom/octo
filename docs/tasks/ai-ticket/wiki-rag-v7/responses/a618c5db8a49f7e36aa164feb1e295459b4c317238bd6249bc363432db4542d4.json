@@ -1,0 +1,100 @@
+{
+  "caseId": "T04",
+  "group": "A",
+  "payloadHash": "a618c5db8a49f7e36aa164feb1e295459b4c317238bd6249bc363432db4542d4",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 0,
+      "relevance_score": 0.9905015230178833
+    },
+    {
+      "index": 1,
+      "relevance_score": 0.230353444814682
+    },
+    {
+      "index": 8,
+      "relevance_score": 0.1791674941778183
+    },
+    {
+      "index": 5,
+      "relevance_score": 0.06310456991195679
+    },
+    {
+      "index": 4,
+      "relevance_score": 0.054718393832445145
+    }
+  ],
+  "durationMs": 422,
+  "querySha256": "50d72af4718e6ed6e12c0bf95717bc6905e4e840910e2cbc347f86cc73f0e03a",
+  "queryChars": 41,
+  "documentSha256": [
+    "497d820f06dfec29ee5ffb4550400aff879d946955b1f0c3d003da6c06b1fc4d",
+    "3b51563aed991568ebbb925da5d75a6afe8cf0ace83960f58a2c0f7b5831a1a8",
+    "67badd7a7fc9b13286cc6a5967631e168ad2a51b6e9dec110929ac1ae48ee561",
+    "570271216469bab74041da157f7e74e1f63208c49b65cc14482ecb304ef5020f",
+    "83c78ac99ab03e17686f963c76eb5fe5e05dd97ff4dc1dd7198b0f1c4b60bdf0",
+    "f4273493f848c5ad30145f5448df6de113efa6ac4cc3c2b745336e00bd8c646c",
+    "bef28abe4c147843007e4836136bf938fb371d94c3a7f029a45cc126d6992c91",
+    "ab898e24de27811c00f0bba24036357738da1ba7482dfe04551c2bd810ec4651",
+    "b88276167bcf8b78b17b6f65d9d15ea6f5774bca526d45808d54101d42f299e1",
+    "7cc93c80e0fe61f86c0970ea504e253ab6fe6ba3f10d6ec09fe708b24ea7ba6d",
+    "43319c69c5bad71b39e7b12fe0059100f1fcb4bf72e9de1d844339af00174b81",
+    "cb9072d071730836a1e28e613dd918ec7cc75b1cbfd4f292e17375b8e3f638b8",
+    "a6a1adf7f5911a06f97ee6d359433de13c75a152a3db591a7ff4a0a09005b404",
+    "f7f3fafce5c5d8a631bd3f409b010d6dc75dd38fa6565cc14001824ed2440a7b",
+    "56d401e8b1ef541561249383a527363c4d85c7c63dd663317674aacc9c93400d",
+    "a167fc461d1664796868912197d08dc9f4e5082f9de2410c7822fda49cfdc477",
+    "3eacbdd3086c8fd628a177231549483dc33134e327cc6a2ff173591fef735c04",
+    "cc2e5ebd2a1992f6904bec6b43e3defd2b39259d74e6920d6c01741775fabe9f",
+    "6992ec55ef3666b6008016d47d79924aead2dc06d4e6aa32f0d33337c2d196a4",
+    "adb17b6017e98135c9214f718c1ef630b1af7158853df8292c1a03abd86dbb1d"
+  ],
+  "documentChars": [
+    675,
+    2350,
+    273,
+    1283,
+    524,
+    875,
+    1678,
+    1968,
+    1286,
+    811,
+    890,
+    885,
+    924,
+    394,
+    2369,
+    2359,
+    667,
+    2186,
+    534,
+    176
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/accounting/asset-list-residual-value-fields-history.md",
+    "docs/ontology/objects/fixed-asset.md",
+    "docs/llm-wiki/concepts/faq/entry-field-edit-rules.md",
+    "docs/llm-wiki/concepts/reporting/filter-language-timezone-history.md",
+    "docs/llm-wiki/concepts/accounting/accounting-change-navigation.md",
+    "docs/llm-wiki/concepts/accounting/asset-re-evaluate-original-value.md",
+    "docs/ontology/objects/b2b-portal-sales.md",
+    "docs/ontology/objects/portal-legal-terms.md",
+    "docs/ontology/processes/depreciating-fixed-asset-amendment.md",
+    "docs/ontology/processes/fixed-asset-acquisition-and-depreciation.md",
+    "docs/llm-wiki/concepts/accounting/asset-value-depreciation-change-history.md",
+    "docs/llm-wiki/concepts/accounting/review-lock-mismatch-and-review-status-rules.md",
+    "docs/llm-wiki/concepts/payment/unreconcile-matching-number-empty-lines-history.md",
+    "docs/llm-wiki/concepts/sales/state-and-related-page-navigation.md",
+    "docs/ontology/objects/business-party.md",
+    "docs/ontology/objects/warehouse-inventory-control.md",
+    "docs/llm-wiki/concepts/sales/approval-markdone-vs-approve-button-stuck.md",
+    "docs/ontology/objects/financial-reporting.md",
+    "docs/ontology/processes/balance-sheet-preparation.md",
+    "docs/llm-wiki/concepts/access/two-factor-login-incident-history.md"
+  ],
+  "queryCAvailable": true
+}

@@ -1,0 +1,76 @@
+{
+  "passed": true,
+  "stage": "v15 component adoption, not a new model experiment",
+  "checks": {
+    "oldExperimentArtifactsUnchanged": 426,
+    "onlyFourApplicationFilesChanged": [
+      "adapters/filesystem/wiki-knowledge-reader.test.ts",
+      "adapters/filesystem/wiki-knowledge-reader.ts",
+      "domain/wiki-evidence.test.ts",
+      "domain/wiki-evidence.ts"
+    ],
+    "sourceCodeExactlyV5Candidate": true,
+    "frozenReaderRuns": 130,
+    "primarySelectionChecks": 2464,
+    "unitAndMock": {
+      "passed": true,
+      "tests": 210,
+      "files": 6,
+      "logSha256": "02006c45e19043d5eba9d605fd64fddf26ca67949709c3d5abe9ca2bee078057"
+    },
+    "build": {
+      "passed": true,
+      "logSha256": "45debb918a68a8db6662567cde0461d3149e30a72d49b8e37b67ba71b157b9ef"
+    },
+    "scriptTypecheck": {
+      "passed": true,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "wikiReadBackMatchesReviewedPatch": true
+  },
+  "applicationAfter": {
+    "adapters/filesystem/wiki-knowledge-reader.test.ts": "7c351035f3dedef5f8bfc2dfe45ceec26c949d65ea030960882158301e7ce32e",
+    "adapters/filesystem/wiki-knowledge-reader.ts": "a1b13a4214e326977c9f221835ff5ebceaec805b464ba9995287849d9ebb9d69",
+    "domain/wiki-evidence.test.ts": "74495587635572e8a9efab053a9c55db0dc1e807dfa27f93247837b356eb1bd7",
+    "domain/wiki-evidence.ts": "0553b36babfa3f3b24dc201d24f1f4d12c8c2496eee885eea0bf8a210d207601"
+  },
+  "wikiChanges": [
+    {
+      "path": "/home/deploy/projects/odoo-eu-guide/docs/llm-wiki/concepts/invoicing/vendor-bill-confirm-stock-move-singleton-investigation.md",
+      "beforeSha256": "4b3d9c076819d3c05af2556456ce08a03436c546e8ef9640f4cee9914467251f",
+      "afterSha256": "7128ae54d6e353c719ba4d81021faa308973ed04eb3fe3aa67b206a1b95f07f8"
+    },
+    {
+      "path": "/home/deploy/projects/odoo-eu-guide/docs/llm-wiki/index.md",
+      "beforeSha256": "48e994aabf5ad392cfd31a8696102c88eee0b958e816a2ce88dc84e11ca9acdd",
+      "afterSha256": "00c69a8014144b1025bd845613ba247538dc7b4a2e307a38f8761f0335158757"
+    }
+  ],
+  "retained": {
+    "rerankInput": "existing representation",
+    "rerankDefaultMinScore": 0.7,
+    "primaryPerPageChars": 2400,
+    "G": "disabled"
+  },
+  "notAdopted": [
+    "R hard page filter",
+    "G raw anchor fallback",
+    "v10 low-score rescue",
+    "v13 shared budget",
+    "v14 direct source gate"
+  ],
+  "realRerankRequests": 0,
+  "answerCalls": 0,
+  "judgeCalls": 0,
+  "deployment": {
+    "serverDeployed": false,
+    "processRestarted": false,
+    "sharedWikiTextUpdated": true
+  },
+  "limitations": [
+    "Current Chinese business query recalls the page but still yields no primary evidence.",
+    "New recall representation is not validated by replaying old rerank scores.",
+    "Real model end-to-end quality and deployed runtime unverified.",
+    "Upstream exporter was not modified or retested in v15."
+  ]
+}

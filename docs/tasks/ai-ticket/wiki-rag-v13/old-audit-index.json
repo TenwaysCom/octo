@@ -1,0 +1,1629 @@
+[
+  {
+    "id": "Q04",
+    "type": "positive",
+    "question": "SO审批按钮消失",
+    "path": "docs/llm-wiki/concepts/sales/mark-done-current-applicability-investigation.md",
+    "knownGold": false,
+    "knownWrong": false,
+    "A": {
+      "path": "concepts/sales/mark-done-current-applicability-investigation.md",
+      "knowledgeType": "support_wiki",
+      "title": "当前 Mark Done 会完成审批，还是只关闭活动？",
+      "contentChars": 1595,
+      "contentSha256": "511060e47f42a14065c0dd2099ceeb0f3db5205387cf1da01d4a783ff6b1d66b",
+      "primaryChars": 1136,
+      "sourcePaths": [
+        "raw/transcripts/ticket-624.2026-10-15-88ce4e0710f3.md"
+      ],
+      "primarySha256": [
+        "218da51f3afecafc965bd9904e0abd1ab6766b33db5c4d9d38fea5afe6d54c3d"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提",
+        "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据"
+      ]
+    },
+    "B": {
+      "path": "concepts/sales/mark-done-current-applicability-investigation.md",
+      "knowledgeType": "support_wiki",
+      "title": "当前 Mark Done 会完成审批，还是只关闭活动？",
+      "contentChars": 1595,
+      "contentSha256": "511060e47f42a14065c0dd2099ceeb0f3db5205387cf1da01d4a783ff6b1d66b",
+      "primaryChars": 3583,
+      "sourcePaths": [
+        "raw/transcripts/ticket-615.2026-10-15-a2460d69332e.md",
+        "raw/transcripts/ticket-624.2026-10-15-88ce4e0710f3.md"
+      ],
+      "primarySha256": [
+        "625352d3c3cf78b9710b582d82a4e72231ee568c1490b64d727735c1df45e0f4",
+        "218da51f3afecafc965bd9904e0abd1ab6766b33db5c4d9d38fea5afe6d54c3d"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提"
+      ]
+    }
+  },
+  {
+    "id": "Q09",
+    "type": "positive",
+    "question": "CMC response (HTTP 200): MySQL Query Error",
+    "path": "docs/llm-wiki/concepts/integration/wms-result-unknown-history.md",
+    "knownGold": false,
+    "knownWrong": false,
+    "A": {
+      "path": "concepts/integration/wms-result-unknown-history.md",
+      "knowledgeType": "support_wiki",
+      "title": "队列 Done 或接口超时，仓库到底是否收到？",
+      "contentChars": 1843,
+      "contentSha256": "bf6fd0db4560e0099f647b8666a8d5a0c2ade12a476173e2b96fce168699cff7",
+      "primaryChars": 2118,
+      "sourcePaths": [
+        "raw/transcripts/ticket-2156.2026-10-15-9e2294cd3d06.md"
+      ],
+      "primarySha256": [
+        "a4e556c88ea30906c6575178c187dd2e5d580b37f7d67e8d6bf3060b6a53f347"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "本轮按相关性摘录最多 3 个原始来源，其余未核对",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提",
+        "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据"
+      ]
+    },
+    "B": {
+      "path": "concepts/integration/wms-result-unknown-history.md",
+      "knowledgeType": "support_wiki",
+      "title": "队列 Done 或接口超时，仓库到底是否收到？",
+      "contentChars": 1843,
+      "contentSha256": "bf6fd0db4560e0099f647b8666a8d5a0c2ade12a476173e2b96fce168699cff7",
+      "primaryChars": 2624,
+      "sourcePaths": [
+        "raw/transcripts/ticket-2156.2026-10-15-9e2294cd3d06.md",
+        "raw/transcripts/ticket-911.2026-09-11-7780879c0fc5.md"
+      ],
+      "primarySha256": [
+        "a4e556c88ea30906c6575178c187dd2e5d580b37f7d67e8d6bf3060b6a53f347",
+        "9667c36aab645438a33ad1c54be1b672ae6c36bd22952cade653f6281ec8aac7"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "本轮按相关性摘录最多 3 个原始来源，其余未核对",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提",
+        "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据"
+      ]
+    }
+  },
+  {
+    "id": "Q12",
+    "type": "positive",
+    "question": "WCB2B/INT/00239生成一个split transfer之后，单据done了之后还是现在ready状态",
+    "path": "docs/llm-wiki/concepts/inventory/inbound-approve-validate-backorder.md",
+    "knownGold": true,
+    "knownWrong": false,
+    "A": {
+      "path": "concepts/inventory/inbound-approve-validate-backorder.md",
+      "knowledgeType": "support_wiki",
+      "title": "入库审批通过后仍 Ready，Validate 和欠货单应怎样理解？",
+      "contentChars": 880,
+      "contentSha256": "6d80b5aac652369304fe327c00f95c775148cad6ab5ed0c25b687240053ad356",
+      "primaryChars": 1786,
+      "sourcePaths": [
+        "raw/transcripts/ticket-2211.md",
+        "raw/transcripts/ticket-2196.md"
+      ],
+      "primarySha256": [
+        "3307e88830d54d3635a722db115c903c314548a4ccee0ab902061f6327a57051",
+        "9426a8f6d70203ae0533c568e6c62f4302ada821177a935de80cb0b1470b88d8"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提",
+        "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据"
+      ]
+    },
+    "B": {
+      "path": "concepts/inventory/inbound-approve-validate-backorder.md",
+      "knowledgeType": "support_wiki",
+      "title": "入库审批通过后仍 Ready，Validate 和欠货单应怎样理解？",
+      "contentChars": 880,
+      "contentSha256": "6d80b5aac652369304fe327c00f95c775148cad6ab5ed0c25b687240053ad356",
+      "primaryChars": 2826,
+      "sourcePaths": [
+        "raw/transcripts/ticket-2211.md",
+        "raw/transcripts/ticket-2196.md",
+        "raw/transcripts/ticket-1248.2026-09-11-136b8d8131cd.md"
+      ],
+      "primarySha256": [
+        "3307e88830d54d3635a722db115c903c314548a4ccee0ab902061f6327a57051",
+        "9426a8f6d70203ae0533c568e6c62f4302ada821177a935de80cb0b1470b88d8",
+        "765c1bc46d4baa57bc6817db7389b7652505f1fe65f35cb64dd9308c39c7ee8a"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提"
+      ]
+    }
+  },
+  {
+    "id": "Q13",
+    "type": "positive",
+    "question": "S40698 这个SO从4PX仓库出库的车做了退件，但是delivered的数量没有变回0",
+    "path": "docs/llm-wiki/concepts/sales/returned-picking-scrapped-qty-delivered.md",
+    "knownGold": true,
+    "knownWrong": false,
+    "A": {
+      "path": "concepts/sales/returned-picking-scrapped-qty-delivered.md",
+      "knowledgeType": "support_wiki",
+      "title": "正常退货被标 scrapped，已交付数量为何未减少？",
+      "contentChars": 1116,
+      "contentSha256": "710c5d5be4e9e1adb13efb18e593de8312cc69608765e992faa2184ba18131a4",
+      "primaryChars": 1967,
+      "sourcePaths": [
+        "raw/transcripts/ticket-1686.2026-09-11-4f0b5478d71c.md"
+      ],
+      "primarySha256": [
+        "928880e368971e84b2f2c359cf00fb8f6aa6002db2605d7d052880bbabb5344b"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提",
+        "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据"
+      ]
+    },
+    "B": {
+      "path": "concepts/sales/returned-picking-scrapped-qty-delivered.md",
+      "knowledgeType": "support_wiki",
+      "title": "正常退货被标 scrapped，已交付数量为何未减少？",
+      "contentChars": 1116,
+      "contentSha256": "710c5d5be4e9e1adb13efb18e593de8312cc69608765e992faa2184ba18131a4",
+      "primaryChars": 4067,
+      "sourcePaths": [
+        "raw/transcripts/ticket-1686.2026-09-11-4f0b5478d71c.md",
+        "raw/transcripts/ticket-252.2026-09-11-be0dac9212b1.md",
+        "raw/transcripts/ticket-339.2026-09-11-c435b30490f8.md"
+      ],
+      "primarySha256": [
+        "928880e368971e84b2f2c359cf00fb8f6aa6002db2605d7d052880bbabb5344b",
+        "d094267319d9bfe9fcb92ab0395f768ffd07bede49725c717948ecfc024e7370",
+        "9ed5b698d97af389ec4314881311b217364ce06f1330ce7f2b390f34200b3fce"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提"
+      ]
+    }
+  },
+  {
+    "id": "Q14",
+    "type": "positive",
+    "question": "需要反冲历史的凭证，但是涉及必填信息导致无法反冲",
+    "path": "docs/llm-wiki/concepts/accounting/historical-entry-mandatory-fields-reverse.md",
+    "knownGold": true,
+    "knownWrong": false,
+    "A": {
+      "path": "concepts/accounting/historical-entry-mandatory-fields-reverse.md",
+      "knowledgeType": "support_wiki",
+      "title": "历史凭证缺必填字段导致反冲失败，临时放开与后续发布有什么区别？",
+      "contentChars": 0,
+      "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "primaryChars": 0,
+      "sourcePaths": [],
+      "primarySha256": [],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提",
+        "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据",
+        "未找到支撑当前判断的原始证据"
+      ]
+    },
+    "B": {
+      "path": "concepts/accounting/historical-entry-mandatory-fields-reverse.md",
+      "knowledgeType": "support_wiki",
+      "title": "历史凭证缺必填字段导致反冲失败，临时放开与后续发布有什么区别？",
+      "contentChars": 791,
+      "contentSha256": "e278496a6d17082905369f3ac909eed50ffded425d9ccbf76d2f2c5bc53409c3",
+      "primaryChars": 4526,
+      "sourcePaths": [
+        "raw/transcripts/ticket-1734.2026-09-11-e8546239c43a.md"
+      ],
+      "primarySha256": [
+        "7dcd7377063759c836e6ae3b7033663bd3f35a1267dd13c407c93d45bc7fe375"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提"
+      ]
+    }
+  },
+  {
+    "id": "Q17",
+    "type": "positive",
+    "question": "VAT tax report expanding the line it shows a balance of 8.274.519,73, so eur100 difference",
+    "path": "docs/llm-wiki/concepts/invoicing/student-discount-vat-detail-history.md",
+    "knownGold": true,
+    "knownWrong": false,
+    "A": {
+      "path": "concepts/invoicing/student-discount-vat-detail-history.md",
+      "knowledgeType": "support_wiki",
+      "title": "VAT 与明细差 EUR 100，学生折扣科目方向已确定了吗？",
+      "contentChars": 0,
+      "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "primaryChars": 0,
+      "sourcePaths": [],
+      "primarySha256": [],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提",
+        "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据",
+        "未找到支撑当前判断的原始证据"
+      ]
+    },
+    "B": {
+      "path": "concepts/invoicing/student-discount-vat-detail-history.md",
+      "knowledgeType": "support_wiki",
+      "title": "VAT 与明细差 EUR 100，学生折扣科目方向已确定了吗？",
+      "contentChars": 426,
+      "contentSha256": "dc7ae50e0059361310749414ed644275d648d9c8900a6adc738f1a84e5d1a45b",
+      "primaryChars": 3112,
+      "sourcePaths": [
+        "raw/transcripts/ticket-1102.2026-09-11-c83cff80ccae.md"
+      ],
+      "primarySha256": [
+        "1f0ee87f8f53e086e21fe317ecf0091918d7a2ef596e6db7c9892668828ae0e0"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提"
+      ]
+    }
+  },
+  {
+    "id": "Q18",
+    "type": "positive",
+    "question": "shopify订单同步重复",
+    "path": "docs/llm-wiki/concepts/integration/shopify-import-schedule-and-config-history.md",
+    "knownGold": false,
+    "knownWrong": false,
+    "A": {
+      "path": "concepts/integration/shopify-import-schedule-and-config-history.md",
+      "knowledgeType": "support_wiki",
+      "title": "过了一轮拉取仍没有 Shopify 订单，为什么不能一直等待或重复导入？",
+      "contentChars": 1027,
+      "contentSha256": "fc116a5e46941ea2b2293f159df8fb5cb2c5a6d2104b5c5cb5349bc1e1456db7",
+      "primaryChars": 1504,
+      "sourcePaths": [
+        "raw/transcripts/ticket-1002.2026-09-11-580e8cfcc9a2.md",
+        "raw/transcripts/ticket-301.2026-09-11-e81305cba051.md"
+      ],
+      "primarySha256": [
+        "576173bbc73cae29ab1f4cef33cd6399fb896875ee6c2e966a9b3de7b0351da3",
+        "fea41c2522b70f95d0f7c614c8c1f6545d847afd26d4d2e8dd28bbb9380f2ae7"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提",
+        "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据"
+      ]
+    },
+    "B": {
+      "path": "concepts/integration/shopify-import-schedule-and-config-history.md",
+      "knowledgeType": "support_wiki",
+      "title": "过了一轮拉取仍没有 Shopify 订单，为什么不能一直等待或重复导入？",
+      "contentChars": 1027,
+      "contentSha256": "fc116a5e46941ea2b2293f159df8fb5cb2c5a6d2104b5c5cb5349bc1e1456db7",
+      "primaryChars": 3751,
+      "sourcePaths": [
+        "raw/transcripts/ticket-1002.2026-09-11-580e8cfcc9a2.md",
+        "raw/transcripts/ticket-1816.2026-09-11-05a346b0e563.md",
+        "raw/transcripts/ticket-301.2026-09-11-e81305cba051.md"
+      ],
+      "primarySha256": [
+        "576173bbc73cae29ab1f4cef33cd6399fb896875ee6c2e966a9b3de7b0351da3",
+        "1be24045769ca0110253e96568bb5f578ba8a804315a9345a82c2d7c86b3c2c5",
+        "fea41c2522b70f95d0f7c614c8c1f6545d847afd26d4d2e8dd28bbb9380f2ae7"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提"
+      ]
+    }
+  },
+  {
+    "id": "Q29",
+    "type": "positive",
+    "question": "按以下截止到2026-6-30的BS结构表，帮忙导一份截止2026-6-30的TB（带Partner）格式",
+    "path": "docs/llm-wiki/concepts/reporting/tb-export-bs-structure-change-historical-case.md",
+    "knownGold": true,
+    "knownWrong": false,
+    "A": {
+      "path": "concepts/reporting/tb-export-bs-structure-change-historical-case.md",
+      "knowledgeType": "support_wiki",
+      "title": "新 BS 结构下 TB 导出，哪些口径和功能仍未验收？",
+      "contentChars": 0,
+      "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "primaryChars": 0,
+      "sourcePaths": [],
+      "primarySha256": [],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提",
+        "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据",
+        "未找到支撑当前判断的原始证据"
+      ]
+    },
+    "B": {
+      "path": "concepts/reporting/tb-export-bs-structure-change-historical-case.md",
+      "knowledgeType": "support_wiki",
+      "title": "新 BS 结构下 TB 导出，哪些口径和功能仍未验收？",
+      "contentChars": 792,
+      "contentSha256": "db70e78ef60817bf6af24ad61d240f9703ec5d5dd1cf042c6793794f1573619b",
+      "primaryChars": 2421,
+      "sourcePaths": [
+        "raw/transcripts/ticket-1805.2026-09-22-0b7013ee5ecb.md"
+      ],
+      "primarySha256": [
+        "1cb106f13ed0bb7459d5631fbebf8c5e19b6f9eb4a919c95121093aff8970104"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提"
+      ]
+    }
+  },
+  {
+    "id": "N01",
+    "type": "positive",
+    "question": "EU采购退回按原入库价值已修，US Odoo18现在也可以照做吗？",
+    "path": "docs/llm-wiki/concepts/inventory/purchase-return-eu-us-applicability-investigation.md",
+    "knownGold": false,
+    "knownWrong": false,
+    "A": {
+      "path": "concepts/inventory/purchase-return-eu-us-applicability-investigation.md",
+      "knowledgeType": "support_wiki",
+      "title": "采购退回按原入库价值，Odoo17和US18现在是否相同？",
+      "contentChars": 0,
+      "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "primaryChars": 0,
+      "sourcePaths": [],
+      "primarySha256": [],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提",
+        "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据",
+        "未找到支撑当前判断的原始证据"
+      ]
+    },
+    "B": {
+      "path": "concepts/inventory/purchase-return-eu-us-applicability-investigation.md",
+      "knowledgeType": "support_wiki",
+      "title": "采购退回按原入库价值，Odoo17和US18现在是否相同？",
+      "contentChars": 1768,
+      "contentSha256": "987ec8d1b86f5e8daad5d6c13a636b96fe1b7d2579e7db7dcf280ec66343f774",
+      "primaryChars": 3223,
+      "sourcePaths": [
+        "raw/transcripts/ticket-1479.2026-10-15-3d8342473c55.md"
+      ],
+      "primarySha256": [
+        "383adc910f93bf2bfca3109990d2d8a488388befc0b0ef5406bc3066b687dbed"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提",
+        "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据"
+      ]
+    }
+  },
+  {
+    "id": "N01",
+    "type": "positive",
+    "question": "EU采购退回按原入库价值已修，US Odoo18现在也可以照做吗？",
+    "path": "docs/llm-wiki/concepts/inventory/purchase-return-original-receipt-value.md",
+    "knownGold": true,
+    "knownWrong": false,
+    "A": {
+      "path": "concepts/inventory/purchase-return-original-receipt-value.md",
+      "knowledgeType": "support_wiki",
+      "title": "采购退回按原入库价值的修复，何时报告上线？",
+      "contentChars": 0,
+      "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "primaryChars": 0,
+      "sourcePaths": [],
+      "primarySha256": [],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提",
+        "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据",
+        "未找到支撑当前判断的原始证据"
+      ]
+    },
+    "B": {
+      "path": "concepts/inventory/purchase-return-original-receipt-value.md",
+      "knowledgeType": "support_wiki",
+      "title": "采购退回按原入库价值的修复，何时报告上线？",
+      "contentChars": 1290,
+      "contentSha256": "737cc73e871c01b84e8bce0e70cd3661f30ea42317e279f3bafb4c2acd0b80b7",
+      "primaryChars": 3223,
+      "sourcePaths": [
+        "raw/transcripts/ticket-1479.2026-10-15-3d8342473c55.md"
+      ],
+      "primarySha256": [
+        "383adc910f93bf2bfca3109990d2d8a488388befc0b0ef5406bc3066b687dbed"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提"
+      ]
+    }
+  },
+  {
+    "id": "N02",
+    "type": "positive",
+    "question": "CMC返回HTTP200，可以据此认定仓库已收到并完成发货吗？",
+    "path": "docs/llm-wiki/concepts/integration/wms-result-unknown-history.md",
+    "knownGold": false,
+    "knownWrong": false,
+    "A": {
+      "path": "concepts/integration/wms-result-unknown-history.md",
+      "knowledgeType": "support_wiki",
+      "title": "队列 Done 或接口超时，仓库到底是否收到？",
+      "contentChars": 1948,
+      "contentSha256": "b392e7f24e935335b0201b9f798057c8351e3eff95933a2418e06b3b5e73920b",
+      "primaryChars": 1287,
+      "sourcePaths": [
+        "raw/transcripts/ticket-1183.2026-09-11-074aa0db3400.md",
+        "raw/transcripts/ticket-1374.2026-09-11-530265f187e1.md"
+      ],
+      "primarySha256": [
+        "81a2467e1399ca24e6e8a4af02755cf43c82f8c07c336c7ea705e26b0ce87144",
+        "965d7e63ed3f87456de1e0e93cf7d50f423138b401ba9c9f7d95c5810984a905"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "本轮按相关性摘录最多 3 个原始来源，其余未核对",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提",
+        "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据"
+      ]
+    },
+    "B": {
+      "path": "concepts/integration/wms-result-unknown-history.md",
+      "knowledgeType": "support_wiki",
+      "title": "队列 Done 或接口超时，仓库到底是否收到？",
+      "contentChars": 1948,
+      "contentSha256": "b392e7f24e935335b0201b9f798057c8351e3eff95933a2418e06b3b5e73920b",
+      "primaryChars": 3965,
+      "sourcePaths": [
+        "raw/transcripts/ticket-2156.2026-10-15-9e2294cd3d06.md",
+        "raw/transcripts/ticket-1183.2026-09-11-074aa0db3400.md",
+        "raw/transcripts/ticket-1374.2026-09-11-530265f187e1.md"
+      ],
+      "primarySha256": [
+        "b87cea9dfaaef6bb73fa326e47a44f1d645078ffb5bdad84501edbfee51f5a23",
+        "81a2467e1399ca24e6e8a4af02755cf43c82f8c07c336c7ea705e26b0ce87144",
+        "965d7e63ed3f87456de1e0e93cf7d50f423138b401ba9c9f7d95c5810984a905"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "本轮按相关性摘录最多 3 个原始来源，其余未核对",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提"
+      ]
+    }
+  },
+  {
+    "id": "N02",
+    "type": "positive",
+    "question": "CMC返回HTTP200，可以据此认定仓库已收到并完成发货吗？",
+    "path": "docs/llm-wiki/concepts/integration/wms-retry-current-applicability-investigation.md",
+    "knownGold": false,
+    "knownWrong": false,
+    "A": {
+      "path": "concepts/integration/wms-retry-current-applicability-investigation.md",
+      "knowledgeType": "support_wiki",
+      "title": "WMS Error 或 HTTP 200，现在能否据此重试？",
+      "contentChars": 0,
+      "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "primaryChars": 0,
+      "sourcePaths": [],
+      "primarySha256": [],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提",
+        "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据",
+        "未找到支撑当前判断的原始证据"
+      ]
+    },
+    "B": {
+      "path": "concepts/integration/wms-retry-current-applicability-investigation.md",
+      "knowledgeType": "support_wiki",
+      "title": "WMS Error 或 HTTP 200，现在能否据此重试？",
+      "contentChars": 1576,
+      "contentSha256": "47f6f1559c7f0bdc30239c88fa33716cc7549bf8786ab4b2ae36c9f1e6470cbf",
+      "primaryChars": 2678,
+      "sourcePaths": [
+        "raw/transcripts/ticket-2156.2026-10-15-9e2294cd3d06.md"
+      ],
+      "primarySha256": [
+        "b87cea9dfaaef6bb73fa326e47a44f1d645078ffb5bdad84501edbfee51f5a23"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提",
+        "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据"
+      ]
+    }
+  },
+  {
+    "id": "D01",
+    "type": "positive",
+    "question": "confirm vendor bill",
+    "path": "docs/llm-wiki/concepts/accounting/bill-svl-exchange-history.md",
+    "knownGold": false,
+    "knownWrong": false,
+    "A": {
+      "path": "concepts/accounting/bill-svl-exchange-history.md",
+      "knowledgeType": "support_wiki",
+      "title": "Bill、SVL 与分录本位币不一致，能靠改会计日期解决吗？",
+      "contentChars": 1728,
+      "contentSha256": "279480c61a738671b7af9319f5d86f6596f28cbe3fffc658be7b3fc4c361d077",
+      "primaryChars": 578,
+      "sourcePaths": [
+        "raw/transcripts/ticket-84.2026-09-11-f0cd0d63f6ab.md"
+      ],
+      "primarySha256": [
+        "2c2c4e5c2e8ce3f9635071bd39cd57ed26f8f1ec8a4b4ccbd3722144f077f835"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "本轮按相关性摘录最多 3 个原始来源，其余未核对",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提",
+        "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据"
+      ]
+    },
+    "B": {
+      "path": "concepts/accounting/bill-svl-exchange-history.md",
+      "knowledgeType": "support_wiki",
+      "title": "Bill、SVL 与分录本位币不一致，能靠改会计日期解决吗？",
+      "contentChars": 1728,
+      "contentSha256": "279480c61a738671b7af9319f5d86f6596f28cbe3fffc658be7b3fc4c361d077",
+      "primaryChars": 4601,
+      "sourcePaths": [
+        "raw/transcripts/ticket-2118.2026-10-21-afb6098bcad0.md",
+        "raw/transcripts/ticket-84.2026-09-11-f0cd0d63f6ab.md"
+      ],
+      "primarySha256": [
+        "320456cd6e6a45f6309cd9f75ace52985f9147bf29bafed1491edd40a7979d25",
+        "2c2c4e5c2e8ce3f9635071bd39cd57ed26f8f1ec8a4b4ccbd3722144f077f835"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "本轮按相关性摘录最多 3 个原始来源，其余未核对",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提",
+        "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据"
+      ]
+    }
+  },
+  {
+    "id": "H03",
+    "type": "positive",
+    "question": "如何在 Odoo 中查看发票（如 INV/2026/47990）实际发送到了哪个 email 地址（通过 ticket record / 消息邮件图标和联系人邮件图标查询），以及为何发送给了另一个地址",
+    "path": "docs/llm-wiki/concepts/invoicing/invoice-email-follows-sales-order-invoice-address.md",
+    "knownGold": true,
+    "knownWrong": false,
+    "A": {
+      "path": "concepts/invoicing/invoice-email-follows-sales-order-invoice-address.md",
+      "knowledgeType": "support_wiki",
+      "title": "客户没收到发票，如何核对订单发票地址与邮箱？",
+      "contentChars": 1703,
+      "contentSha256": "8cd719a98681f5c6d9644fe14a97879f2a32138a43797e9c2f8286fce0af3ec8",
+      "primaryChars": 995,
+      "sourcePaths": [
+        "raw/transcripts/ticket-2298.md"
+      ],
+      "primarySha256": [
+        "02bfd408dfba70a3e0d9de197976f04fc21344cd48f94b29f9b7b2dfa0c0dfc9"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "本轮按相关性摘录最多 3 个原始来源，其余未核对",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提",
+        "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据"
+      ]
+    },
+    "B": {
+      "path": "concepts/invoicing/invoice-email-follows-sales-order-invoice-address.md",
+      "knowledgeType": "support_wiki",
+      "title": "客户没收到发票，如何核对订单发票地址与邮箱？",
+      "contentChars": 1703,
+      "contentSha256": "8cd719a98681f5c6d9644fe14a97879f2a32138a43797e9c2f8286fce0af3ec8",
+      "primaryChars": 4712,
+      "sourcePaths": [
+        "raw/transcripts/ticket-2298.md",
+        "raw/transcripts/ticket-1568.2026-09-11-2c3f5efdb868.md"
+      ],
+      "primarySha256": [
+        "02bfd408dfba70a3e0d9de197976f04fc21344cd48f94b29f9b7b2dfa0c0dfc9",
+        "c271a698ac2f484f0c968444f74e447c16662f81c385363a68fe5142cb60e74e"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "本轮按相关性摘录最多 3 个原始来源，其余未核对",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提",
+        "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据"
+      ]
+    }
+  },
+  {
+    "id": "H04",
+    "type": "positive",
+    "question": "为什么出库单 EMTC/OUT/00985（以及 EMTC/OUT/01008）中产品 R-TEB091570002 这条记录无法选择 serial number？用户需要确认是否仍是序列号被占用/reserved_quantity 残留未释放导致（实物已卖出但单据无法 DONE），以及如何处理。",
+    "path": "docs/llm-wiki/concepts/inventory/reservation-residual-corrections-history.md",
+    "knownGold": true,
+    "knownWrong": false,
+    "A": {
+      "path": "concepts/inventory/reservation-residual-corrections-history.md",
+      "knowledgeType": "support_wiki",
+      "title": "预留残留的历史数据处理，为什么不能等同根治？",
+      "contentChars": 1323,
+      "contentSha256": "d202a26ab3aa1bbbb72e6e0f76dd0c0d8b1e62c89cdbc93cd75ec62140bfdb75",
+      "primaryChars": 873,
+      "sourcePaths": [
+        "raw/transcripts/ticket-1680.2026-09-11-a01bee06bad7.md"
+      ],
+      "primarySha256": [
+        "acef5fd412e8ef85fc3ad953c5fd9acba28ec87d07202cee3d9577ab8de4fd58"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "本轮按相关性摘录最多 3 个原始来源，其余未核对",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提",
+        "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据"
+      ]
+    },
+    "B": {
+      "path": "concepts/inventory/reservation-residual-corrections-history.md",
+      "knowledgeType": "support_wiki",
+      "title": "预留残留的历史数据处理，为什么不能等同根治？",
+      "contentChars": 2375,
+      "contentSha256": "675a509d921f16fa0cebfab9398bda97e3efa234530aa69155559104c94b1c4c",
+      "primaryChars": 4302,
+      "sourcePaths": [
+        "raw/transcripts/ticket-2320.md",
+        "raw/transcripts/ticket-1680.2026-09-11-a01bee06bad7.md"
+      ],
+      "primarySha256": [
+        "1f032d55ac4ee6233c71f124d7d65fac483dc000bae8cc074ce85020772e3a41",
+        "acef5fd412e8ef85fc3ad953c5fd9acba28ec87d07202cee3d9577ab8de4fd58"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "本轮按相关性摘录最多 3 个原始来源，其余未核对",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提",
+        "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据"
+      ]
+    }
+  },
+  {
+    "id": "H05",
+    "type": "positive",
+    "question": "为什么Westerman订单回传状态不能及时自动同步到Odoo？Westerman系统 outbound scan=finished 后Odoo未自动抓取更新到 Ref update-finished 状态，远超预期的20分钟定时拉取间隔，需要手动update才能更新，是否自动同步定时任务未生效或延迟？",
+    "path": "docs/llm-wiki/concepts/delivery/westerman-scheduled-feedback-history.md",
+    "knownGold": true,
+    "knownWrong": false,
+    "A": {
+      "path": "concepts/delivery/westerman-scheduled-feedback-history.md",
+      "knowledgeType": "support_wiki",
+      "title": "Westerman 已交付而 Odoo 整批没更新，曾有哪些调度证据？",
+      "contentChars": 1623,
+      "contentSha256": "f540e29c71ce4e8324cd6e48b50b0fccdbbfbe3d65a49383e8233851bc728729",
+      "primaryChars": 1394,
+      "sourcePaths": [
+        "raw/transcripts/ticket-2308.md"
+      ],
+      "primarySha256": [
+        "53291f5c26104512be479cb59cf48d0d2f969652b5998ad744d13dcc10e84156"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提",
+        "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据"
+      ]
+    },
+    "B": {
+      "path": "concepts/delivery/westerman-scheduled-feedback-history.md",
+      "knowledgeType": "support_wiki",
+      "title": "Westerman 已交付而 Odoo 整批没更新，曾有哪些调度证据？",
+      "contentChars": 1623,
+      "contentSha256": "f540e29c71ce4e8324cd6e48b50b0fccdbbfbe3d65a49383e8233851bc728729",
+      "primaryChars": 2576,
+      "sourcePaths": [
+        "raw/transcripts/ticket-2308.md",
+        "raw/transcripts/ticket-2000.2026-09-11-0c9424d56457.md"
+      ],
+      "primarySha256": [
+        "53291f5c26104512be479cb59cf48d0d2f969652b5998ad744d13dcc10e84156",
+        "877eebfc58ec8d676ccbaccbd5125a529d2d381cefb053bd1e204d6809c6e67b"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提"
+      ]
+    }
+  },
+  {
+    "id": "H06",
+    "type": "positive",
+    "question": "EU portal 服务中心工单页面错误地显示内部备注（internal notes）给经销商，例如 SER165187 和 SER163087，此前修复后又复现，需尽快排查并修复，防止经销商看到敏感信息。",
+    "path": "docs/llm-wiki/concepts/portal/service-center-internal-message-exposure-history.md",
+    "knownGold": true,
+    "knownWrong": false,
+    "A": {
+      "path": "concepts/portal/service-center-internal-message-exposure-history.md",
+      "knowledgeType": "support_wiki",
+      "title": "Service Center 内部通信在 Dealer 页面可见的历史缺陷",
+      "contentChars": 1456,
+      "contentSha256": "58379d7fb7898f0ee0caabfc06ac4aad20b9f9719f5821ec8cbb1a1ce811d228",
+      "primaryChars": 1285,
+      "sourcePaths": [
+        "raw/transcripts/ticket-2317.md"
+      ],
+      "primarySha256": [
+        "d241efa2aa101be4b5d56dce8201eed039b4d1576419f054f1ae6eabd48eb77d"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提",
+        "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据"
+      ]
+    },
+    "B": {
+      "path": "concepts/portal/service-center-internal-message-exposure-history.md",
+      "knowledgeType": "support_wiki",
+      "title": "Service Center 内部通信在 Dealer 页面可见的历史缺陷",
+      "contentChars": 1678,
+      "contentSha256": "10edcec1b1bd289b9f18c7479d7488c0f2156b9bee8df6619921147ab99861f3",
+      "primaryChars": 2700,
+      "sourcePaths": [
+        "raw/transcripts/ticket-2317.md",
+        "raw/transcripts/ticket-2096.2026-09-11-5bb589e6f605.md"
+      ],
+      "primarySha256": [
+        "d241efa2aa101be4b5d56dce8201eed039b4d1576419f054f1ae6eabd48eb77d",
+        "a13dac1d1484f976228c9c027c7deb0bb9d9db3e6c2ab34b439255f99eac0288"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提"
+      ]
+    }
+  },
+  {
+    "id": "P02",
+    "type": "positive",
+    "question": "[CUSTOMER]（为 [CUSTOMER] 提供奖品的公司，暂挂 retailer 标签）的客户标签如何设置——是否使用现有 Odoo 标签 \"Other Customer\"，并确认 Operations 认可后按此处理该类客户？",
+    "path": "docs/llm-wiki/concepts/sales/contact-tag-change-verification.md",
+    "knownGold": true,
+    "knownWrong": false,
+    "A": {
+      "path": "concepts/sales/contact-tag-change-verification.md",
+      "knowledgeType": "support_wiki",
+      "title": "Contact 标签或主数据字段变更前后要核对什么？",
+      "contentChars": 0,
+      "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "primaryChars": 0,
+      "sourcePaths": [],
+      "primarySha256": [],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "本轮按相关性摘录最多 3 个原始来源，其余未核对",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提",
+        "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据",
+        "未找到支撑当前判断的原始证据"
+      ]
+    },
+    "B": {
+      "path": "concepts/sales/contact-tag-change-verification.md",
+      "knowledgeType": "support_wiki",
+      "title": "Contact 标签或主数据字段变更前后要核对什么？",
+      "contentChars": 1814,
+      "contentSha256": "5f9c3f6d6f685a54baf125b3dead15fe113b641675fc261f0ce9a4d2b9f8ce6d",
+      "primaryChars": 3020,
+      "sourcePaths": [
+        "raw/transcripts/ticket-2354.md"
+      ],
+      "primarySha256": [
+        "f15fd0be25dcdfc8155634dc2eda245d9934b0aa822a130b0debb3bb21556828"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "本轮按相关性摘录最多 3 个原始来源，其余未核对",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提",
+        "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据"
+      ]
+    }
+  },
+  {
+    "id": "P04",
+    "type": "positive",
+    "question": "UK Odoo 中，Aged Receivable 报表里 [CUSTOMER] 的应收总金额为 8295 英镑，但点击 Journal Item 后该客户余额为 25,283 英镑，为什么会有这个差异？（聊天中提及差异约 €16988，部分 matched 的条目未包含在 Dash 的 partner profile 中，需确认原因）",
+    "path": "docs/llm-wiki/concepts/reporting/financial-report-scope-history.md",
+    "knownGold": true,
+    "knownWrong": false,
+    "A": {
+      "path": "concepts/reporting/financial-report-scope-history.md",
+      "knowledgeType": "support_wiki",
+      "title": "BS、TB、账龄和分析页数字不同，哪些历史判断被修正？",
+      "contentChars": 552,
+      "contentSha256": "a104e86fbc37e4e444744287265b1af1b988b18b878048849e695635fe47ff71",
+      "primaryChars": 1024,
+      "sourcePaths": [
+        "raw/transcripts/ticket-2343.2026-10-19-1b3130d6bb44.md"
+      ],
+      "primarySha256": [
+        "0d5e3d65846dbafe57a2e2c2783c87ee649259042d97c9fc04bb11b965135dd6"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "本轮按相关性摘录最多 3 个原始来源，其余未核对",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提",
+        "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据"
+      ]
+    },
+    "B": {
+      "path": "concepts/reporting/financial-report-scope-history.md",
+      "knowledgeType": "support_wiki",
+      "title": "BS、TB、账龄和分析页数字不同，哪些历史判断被修正？",
+      "contentChars": 849,
+      "contentSha256": "e51dc6bd48fb2f179d89d886ec63ba43c90b0817a06371ff2ad955aa8331b845",
+      "primaryChars": 2715,
+      "sourcePaths": [
+        "raw/transcripts/ticket-2343.2026-10-19-1b3130d6bb44.md",
+        "raw/documents/eight-ticket-image-evidence-2026-10-19/source.md"
+      ],
+      "primarySha256": [
+        "0d5e3d65846dbafe57a2e2c2783c87ee649259042d97c9fc04bb11b965135dd6",
+        "a372d7bfe50961a0a5c7a5efb852aef9414b9e6d226566bb98661dfd5c5b9caa"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "本轮按相关性摘录最多 3 个原始来源，其余未核对",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提",
+        "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据"
+      ]
+    }
+  },
+  {
+    "id": "P05",
+    "type": "positive",
+    "question": "UK Odoo 中科目 20030 出现 1.38£ 意外余额：确认 Bill 后出现多余分录（如 STJ/2026/09/0193/0195），需排查该多余分录产生的根因（Bug）。",
+    "path": "docs/llm-wiki/concepts/accounting/purchase-transit-currency-residual-history.md",
+    "knownGold": false,
+    "knownWrong": false,
+    "A": {
+      "path": "concepts/accounting/purchase-transit-currency-residual-history.md",
+      "knowledgeType": "support_wiki",
+      "title": "采购中转有余额，尾差与本位币差额怎样区分？",
+      "contentChars": 696,
+      "contentSha256": "7bf0200fb24a2a4b533c185611d770e6294cd7043d0423eab6c3ddba5849b81d",
+      "primaryChars": 2173,
+      "sourcePaths": [
+        "raw/transcripts/ticket-1749.2026-09-11-9c1b613f14bb.md",
+        "raw/transcripts/ticket-164.2026-09-11-a7160bf769c0.md"
+      ],
+      "primarySha256": [
+        "218a03aa4169b5b47db9349f2c5312111fde4617bfd8473dfba53bb50656919d",
+        "8bc25cf317dcc3396b2c617d4a10a55756205862d91eb8622d625b944d25aa10"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提",
+        "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据"
+      ]
+    },
+    "B": {
+      "path": "concepts/accounting/purchase-transit-currency-residual-history.md",
+      "knowledgeType": "support_wiki",
+      "title": "采购中转有余额，尾差与本位币差额怎样区分？",
+      "contentChars": 696,
+      "contentSha256": "7bf0200fb24a2a4b533c185611d770e6294cd7043d0423eab6c3ddba5849b81d",
+      "primaryChars": 3142,
+      "sourcePaths": [
+        "raw/transcripts/ticket-1749.2026-09-11-9c1b613f14bb.md",
+        "raw/transcripts/ticket-407.2026-09-11-d106c8234633.md",
+        "raw/transcripts/ticket-164.2026-09-11-a7160bf769c0.md"
+      ],
+      "primarySha256": [
+        "218a03aa4169b5b47db9349f2c5312111fde4617bfd8473dfba53bb50656919d",
+        "4870116c56ea2163ed3839238b642a0ff1ac41e2ce13ee9fff2c9f3033f9a6b6",
+        "8bc25cf317dcc3396b2c617d4a10a55756205862d91eb8622d625b944d25aa10"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提"
+      ]
+    }
+  },
+  {
+    "id": "P06",
+    "type": "positive",
+    "question": "Ops建单时选择Tenways Office（EU Office）对应的contact，仓库总是接收不到地址和收件人，需要确认该Odoo contact（个人类型）设置是否有效及仓库收不到数据的原因",
+    "path": "docs/llm-wiki/concepts/integration/wms-address-contract-history.md",
+    "knownGold": true,
+    "knownWrong": false,
+    "A": {
+      "path": "concepts/integration/wms-address-contract-history.md",
+      "knowledgeType": "support_wiki",
+      "title": "仓库追问地址或收件人，接口传参与实际收货怎样区分？",
+      "contentChars": 638,
+      "contentSha256": "c7c52f46ef579c10a627decb37d5a7faa1cacf62bae130b66e904092a4a61192",
+      "primaryChars": 1872,
+      "sourcePaths": [
+        "raw/transcripts/ticket-2265.md"
+      ],
+      "primarySha256": [
+        "208afd1e1ab54155bf3efe28a2c0a0c5312ab00836009c64118e4044d1bdf0f1"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "本轮按相关性摘录最多 3 个原始来源，其余未核对",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提",
+        "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据"
+      ]
+    },
+    "B": {
+      "path": "concepts/integration/wms-address-contract-history.md",
+      "knowledgeType": "support_wiki",
+      "title": "仓库追问地址或收件人，接口传参与实际收货怎样区分？",
+      "contentChars": 1190,
+      "contentSha256": "1db2a49d627ce841e33bef1ca0a58df172ab13b5cde22619c346c2e6a1670596",
+      "primaryChars": 4203,
+      "sourcePaths": [
+        "raw/transcripts/ticket-2265.md",
+        "raw/transcripts/ticket-1832.2026-09-11-f2d4a3e39d2f.md",
+        "raw/transcripts/ticket-1930.2026-09-11-d486e3c205c0.md"
+      ],
+      "primarySha256": [
+        "208afd1e1ab54155bf3efe28a2c0a0c5312ab00836009c64118e4044d1bdf0f1",
+        "c8bf3232a53337675353e7730163ee92446d3982f6cdbd9f549679e10c4e3b1c",
+        "b38ea0bc8c6cf340d5c1618cabb0f6c5226c04897843177201d8b4dcdb70852c"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "本轮按相关性摘录最多 3 个原始来源，其余未核对",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提"
+      ]
+    }
+  },
+  {
+    "id": "T01",
+    "type": "positive",
+    "question": "在Contacts能找到S77568，但Sales和Turbo都看不到这张订单，应该核对什么？",
+    "path": "docs/llm-wiki/concepts/reporting/sales-visibility-filter-change-history.md",
+    "knownGold": false,
+    "knownWrong": false,
+    "A": {
+      "path": "concepts/reporting/sales-visibility-filter-change-history.md",
+      "knowledgeType": "support_wiki",
+      "title": "Turbo 没显示订单，历史上有哪些归属、筛选和口径差异？",
+      "contentChars": 987,
+      "contentSha256": "5557ee579cbf5de52354ecd6e8d275c075ab2f2dc96fd03013fff8486042743e",
+      "primaryChars": 1838,
+      "sourcePaths": [
+        "raw/transcripts/ticket-2148.2026-09-11-0a3b95763c8c.md",
+        "raw/transcripts/ticket-1040.2026-09-11-d989aa69c290.md"
+      ],
+      "primarySha256": [
+        "172b208c07ff8df3ed101cad95d3b3eeb91555f1cc1f21554d60ec1d2fb2daae",
+        "f4b97e1429d0bd5476ae6e34d24283948196845e4e151711f4f4d2fe622b41bd"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "本轮按相关性摘录最多 3 个原始来源，其余未核对",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提",
+        "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据"
+      ]
+    },
+    "B": {
+      "path": "concepts/reporting/sales-visibility-filter-change-history.md",
+      "knowledgeType": "support_wiki",
+      "title": "Turbo 没显示订单，历史上有哪些归属、筛选和口径差异？",
+      "contentChars": 1516,
+      "contentSha256": "b9b41b1f65291f7324261deedf3bd35d3d449fefc474863612ba0cb4b6004873",
+      "primaryChars": 4305,
+      "sourcePaths": [
+        "raw/transcripts/ticket-2148.2026-09-11-0a3b95763c8c.md",
+        "raw/transcripts/ticket-2239.md",
+        "raw/transcripts/ticket-1040.2026-09-11-d989aa69c290.md"
+      ],
+      "primarySha256": [
+        "172b208c07ff8df3ed101cad95d3b3eeb91555f1cc1f21554d60ec1d2fb2daae",
+        "57cb68000df07244f5eeacb55c0b688767ccdcc149cd3d6fc5778fcaec56f1bd",
+        "f4b97e1429d0bd5476ae6e34d24283948196845e4e151711f4f4d2fe622b41bd"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "本轮按相关性摘录最多 3 个原始来源，其余未核对",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提"
+      ]
+    }
+  },
+  {
+    "id": "T06",
+    "type": "positive",
+    "question": "UK Odoo审批上一人两周前已通过，流程仍停在上一人，我无法操作下一节点，怎么办？",
+    "path": "docs/llm-wiki/concepts/approvals/inflight-approval-owner-change-history.md",
+    "knownGold": false,
+    "knownWrong": false,
+    "A": {
+      "path": "concepts/approvals/inflight-approval-owner-change-history.md",
+      "knowledgeType": "support_wiki",
+      "title": "为什么更换审批人后，进行中的审批仍指向旧人员？",
+      "contentChars": 2384,
+      "contentSha256": "013cb46ade604fa71f94d6c7ab349709c55bbd6bff765cf2b2f08c090bdf52f4",
+      "primaryChars": 2372,
+      "sourcePaths": [
+        "raw/transcripts/ticket-1564.2026-09-11-2d762f39e5f4.md",
+        "raw/transcripts/ticket-898.2026-09-11-dea154c93581.md"
+      ],
+      "primarySha256": [
+        "14800453d17cd5055ed3f0da6d2442943588d24a5816a58308123e2ecb117605",
+        "2fa8c5629dd200f953d95e9d5a59930f8cf0d49e275a947ef6812c76747ee7eb"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "本轮按相关性摘录最多 3 个原始来源，其余未核对",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提",
+        "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据"
+      ]
+    },
+    "B": {
+      "path": "concepts/approvals/inflight-approval-owner-change-history.md",
+      "knowledgeType": "support_wiki",
+      "title": "为什么更换审批人后，进行中的审批仍指向旧人员？",
+      "contentChars": 2384,
+      "contentSha256": "013cb46ade604fa71f94d6c7ab349709c55bbd6bff765cf2b2f08c090bdf52f4",
+      "primaryChars": 3359,
+      "sourcePaths": [
+        "raw/transcripts/ticket-1564.2026-09-11-2d762f39e5f4.md",
+        "raw/transcripts/ticket-322.2026-09-11-33990596ef5e.md",
+        "raw/transcripts/ticket-898.2026-09-11-dea154c93581.md"
+      ],
+      "primarySha256": [
+        "14800453d17cd5055ed3f0da6d2442943588d24a5816a58308123e2ecb117605",
+        "fca14e92dc696630f38c56d3931662fb4c8230909424ea1be338188214e11c34",
+        "2fa8c5629dd200f953d95e9d5a59930f8cf0d49e275a947ef6812c76747ee7eb"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "本轮按相关性摘录最多 3 个原始来源，其余未核对",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提"
+      ]
+    }
+  },
+  {
+    "id": "T08",
+    "type": "positive",
+    "question": "WCB2C出库的地址2为什么没有传到CMC仓库，经常缺门牌号？",
+    "path": "docs/llm-wiki/concepts/integration/wms-address-contract-history.md",
+    "knownGold": false,
+    "knownWrong": false,
+    "A": {
+      "path": "concepts/integration/wms-address-contract-history.md",
+      "knowledgeType": "support_wiki",
+      "title": "仓库追问地址或收件人，接口传参与实际收货怎样区分？",
+      "contentChars": 694,
+      "contentSha256": "35217366b44327ce1461f9938a93443fa9501d9bb1e400a831ffe77439ef5100",
+      "primaryChars": 2242,
+      "sourcePaths": [
+        "raw/transcripts/ticket-1832.2026-09-11-f2d4a3e39d2f.md",
+        "raw/transcripts/ticket-1264.2026-09-11-d1bf7157d202.md"
+      ],
+      "primarySha256": [
+        "c8bf3232a53337675353e7730163ee92446d3982f6cdbd9f549679e10c4e3b1c",
+        "fa05b20f0fa385bb2d78c15c5c3a171453dea7657598ac9333d2c0f29e23c61c"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "本轮按相关性摘录最多 3 个原始来源，其余未核对",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提",
+        "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据"
+      ]
+    },
+    "B": {
+      "path": "concepts/integration/wms-address-contract-history.md",
+      "knowledgeType": "support_wiki",
+      "title": "仓库追问地址或收件人，接口传参与实际收货怎样区分？",
+      "contentChars": 1190,
+      "contentSha256": "1db2a49d627ce841e33bef1ca0a58df172ab13b5cde22619c346c2e6a1670596",
+      "primaryChars": 3717,
+      "sourcePaths": [
+        "raw/transcripts/ticket-1832.2026-09-11-f2d4a3e39d2f.md",
+        "raw/transcripts/ticket-2265.md",
+        "raw/transcripts/ticket-1264.2026-09-11-d1bf7157d202.md"
+      ],
+      "primarySha256": [
+        "c8bf3232a53337675353e7730163ee92446d3982f6cdbd9f549679e10c4e3b1c",
+        "6c0cc84a57ee19a3eee921e5103acbee98397c7a21e263ec031ce35f9c2f2589",
+        "fa05b20f0fa385bb2d78c15c5c3a171453dea7657598ac9333d2c0f29e23c61c"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "本轮按相关性摘录最多 3 个原始来源，其余未核对",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提"
+      ]
+    }
+  },
+  {
+    "id": "T12",
+    "type": "positive",
+    "question": "Odoo Contacts打不开，报UncaughtPromiseError > OwlError，Caused by EvalError: Can not evaluate python expression，如何处理？",
+    "path": "docs/llm-wiki/concepts/after_sales/contacts-owl-error-cannot-open-historical-case.md",
+    "knownGold": true,
+    "knownWrong": false,
+    "A": {
+      "path": "concepts/after_sales/contacts-owl-error-cannot-open-historical-case.md",
+      "knowledgeType": "support_wiki",
+      "title": "Contacts 页面 OwlError 无法打开，历史恢复说明能支持什么？",
+      "contentChars": 799,
+      "contentSha256": "bd068794f3ab5c849708b8ca13d7e9391c0fcee80b52ed6c722a122174e77a12",
+      "primaryChars": 2360,
+      "sourcePaths": [
+        "raw/transcripts/ticket-1612.2026-09-11-96e47797da86.md"
+      ],
+      "primarySha256": [
+        "f4f8b3ccecbf8c77e034c14d9c6869e4f3dd817410b4fae66dd333bd954f3605"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提",
+        "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据"
+      ]
+    },
+    "B": {
+      "path": "concepts/after_sales/contacts-owl-error-cannot-open-historical-case.md",
+      "knowledgeType": "support_wiki",
+      "title": "Contacts 页面 OwlError 无法打开，历史恢复说明能支持什么？",
+      "contentChars": 799,
+      "contentSha256": "bd068794f3ab5c849708b8ca13d7e9391c0fcee80b52ed6c722a122174e77a12",
+      "primaryChars": 3016,
+      "sourcePaths": [
+        "raw/transcripts/ticket-1612.2026-09-11-96e47797da86.md",
+        "raw/transcripts/ticket-1611.2026-09-11-d0afb92c849b.md"
+      ],
+      "primarySha256": [
+        "f4f8b3ccecbf8c77e034c14d9c6869e4f3dd817410b4fae66dd333bd954f3605",
+        "916c9bce0ca9d8bd917ad39413e26e48419539d4a0eb00ddf556824da7a4447f"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提"
+      ]
+    }
+  },
+  {
+    "id": "E8-N2",
+    "type": "negative_pair",
+    "question": "US复制凭证为什么把原来的Review时间也复制过来了？",
+    "path": "docs/llm-wiki/concepts/accounting/journal-review-copy-history.md",
+    "knownGold": true,
+    "knownWrong": false,
+    "A": {
+      "path": "concepts/accounting/journal-review-copy-history.md",
+      "knowledgeType": "support_wiki",
+      "title": "复制或修改凭证后 Review 信息为什么仍保留？",
+      "contentChars": 551,
+      "contentSha256": "ab347545ee311e10b8ad92d7a52e159be3541ae9a49b164c751bfdd9f6c435a9",
+      "primaryChars": 2049,
+      "sourcePaths": [
+        "raw/transcripts/ticket-1961.2026-09-11-78705682c139.md"
+      ],
+      "primarySha256": [
+        "6fa684e7c9e58afdfb02f05bf335d4b3257950dbb0991a3db8db2aee1ee55ace"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提",
+        "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据"
+      ]
+    },
+    "B": {
+      "path": "concepts/accounting/journal-review-copy-history.md",
+      "knowledgeType": "support_wiki",
+      "title": "复制或修改凭证后 Review 信息为什么仍保留？",
+      "contentChars": 551,
+      "contentSha256": "ab347545ee311e10b8ad92d7a52e159be3541ae9a49b164c751bfdd9f6c435a9",
+      "primaryChars": 2873,
+      "sourcePaths": [
+        "raw/transcripts/ticket-1961.2026-09-11-78705682c139.md",
+        "raw/transcripts/ticket-1488.2026-09-11-c6a6f4340208.md"
+      ],
+      "primarySha256": [
+        "6fa684e7c9e58afdfb02f05bf335d4b3257950dbb0991a3db8db2aee1ee55ace",
+        "ab313a3aa1d679371950903addbd6ed557513e3d2de350ecda3474d94af54fc5"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提"
+      ]
+    }
+  },
+  {
+    "id": "U10",
+    "type": "positive",
+    "question": "An outbound order has a POD LINK, but the POD field is blank when exported from Odoo. Why?",
+    "path": "docs/llm-wiki/concepts/delivery/wms-feedback-and-marketplace-tracking-triage.md",
+    "knownGold": false,
+    "knownWrong": false,
+    "A": {
+      "path": "concepts/delivery/wms-feedback-and-marketplace-tracking-triage.md",
+      "knowledgeType": "support_wiki",
+      "title": "跟踪号、车架号、数量或 POD 没回传，先查哪一段？",
+      "contentChars": 1895,
+      "contentSha256": "bc2668c92f760ba543bd5f717b5a71cbb49ed613b74debaa8676807af75a2167",
+      "primaryChars": 2295,
+      "sourcePaths": [
+        "raw/transcripts/ticket-2087.2026-09-11-b0aae4f4d7bd.md",
+        "raw/transcripts/ticket-2243.md"
+      ],
+      "primarySha256": [
+        "a37323c61dddf020970fc06963a6bac55bf2022f6c705807354ae10d8d77fca3",
+        "a8399002fe7ccf095ca19e0e7ee64546ea6c7f87c5a27452fd0d1ca268a8334b"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "本轮按相关性摘录最多 3 个原始来源，其余未核对",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提",
+        "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据"
+      ]
+    },
+    "B": {
+      "path": "concepts/delivery/wms-feedback-and-marketplace-tracking-triage.md",
+      "knowledgeType": "support_wiki",
+      "title": "跟踪号、车架号、数量或 POD 没回传，先查哪一段？",
+      "contentChars": 1895,
+      "contentSha256": "bc2668c92f760ba543bd5f717b5a71cbb49ed613b74debaa8676807af75a2167",
+      "primaryChars": 2550,
+      "sourcePaths": [
+        "raw/transcripts/ticket-2087.2026-09-11-b0aae4f4d7bd.md",
+        "raw/transcripts/ticket-2243.md",
+        "raw/transcripts/ticket-1513.2026-09-11-abe5e2a78904.md"
+      ],
+      "primarySha256": [
+        "a37323c61dddf020970fc06963a6bac55bf2022f6c705807354ae10d8d77fca3",
+        "a8399002fe7ccf095ca19e0e7ee64546ea6c7f87c5a27452fd0d1ca268a8334b",
+        "2375a9c190dc44d3e7f7167d7ba593dec0bb1f9250ae606b631e7ce27f5d3c05"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "本轮按相关性摘录最多 3 个原始来源，其余未核对",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提"
+      ]
+    }
+  },
+  {
+    "id": "U14",
+    "type": "positive",
+    "question": "Odoo发票审核后自动发给客户覆盖哪些Sales Team？线上和Marketing发票能否取消自动发送？",
+    "path": "docs/llm-wiki/concepts/payment/invoice-auto-send-sales-team-historical-assignment.md",
+    "knownGold": true,
+    "knownWrong": false,
+    "A": {
+      "path": "concepts/payment/invoice-auto-send-sales-team-historical-assignment.md",
+      "knowledgeType": "support_wiki",
+      "title": "历史 Branding 订单发票为何仍自动发送？",
+      "contentChars": 0,
+      "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "primaryChars": 0,
+      "sourcePaths": [],
+      "primarySha256": [],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提",
+        "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据",
+        "未找到支撑当前判断的原始证据"
+      ]
+    },
+    "B": {
+      "path": "concepts/payment/invoice-auto-send-sales-team-historical-assignment.md",
+      "knowledgeType": "support_wiki",
+      "title": "历史 Branding 订单发票为何仍自动发送？",
+      "contentChars": 1093,
+      "contentSha256": "33ca4c50c1438ec06c8137f4a2b57a2e2c20b9d1ad8332520e2ddae0fee00f4b",
+      "primaryChars": 4482,
+      "sourcePaths": [
+        "raw/transcripts/ticket-1702.2026-09-11-60ec8dd1bd66.md"
+      ],
+      "primarySha256": [
+        "8a73dc1efa9a09324bd204b0c8ae3ea675757c5da3159b2df2c4f759b4d975fb"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提"
+      ]
+    }
+  },
+  {
+    "id": "U29",
+    "type": "no_answer",
+    "question": "新增BTC Other Outbound要沿用Marketing Other Outbound审批流并替换首位审批人，这次EU/UK销售审批调整的实际配置结果是什么？",
+    "path": "docs/llm-wiki/concepts/approvals/approval-policy-change-checklist.md",
+    "knownGold": false,
+    "knownWrong": false,
+    "A": {
+      "path": "concepts/approvals/approval-policy-change-checklist.md",
+      "knowledgeType": "support_wiki",
+      "title": "调整审批节点或审批人时，要核对哪些生效边界？",
+      "contentChars": 2388,
+      "contentSha256": "ec21ada78abacb02aa90759a3d126ec1ae4511e1cd7a5067818b35a5d7cc7489",
+      "primaryChars": 1374,
+      "sourcePaths": [
+        "raw/transcripts/ticket-446.2026-09-11-82f585cb843a.md",
+        "raw/transcripts/ticket-511.2026-09-11-5edef2c7c4c6.md"
+      ],
+      "primarySha256": [
+        "bdb994b4a9814f4b5d9824057f8ee25ac8068e1a88d4d95d8b4dc115263f2110",
+        "ab89d980fd658ca27af0cfd99cadd615733ffd09713625b163b1bd3d004684ac"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "本轮按相关性摘录最多 3 个原始来源，其余未核对",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提",
+        "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据"
+      ]
+    },
+    "B": {
+      "path": "concepts/approvals/approval-policy-change-checklist.md",
+      "knowledgeType": "support_wiki",
+      "title": "调整审批节点或审批人时，要核对哪些生效边界？",
+      "contentChars": 2388,
+      "contentSha256": "ec21ada78abacb02aa90759a3d126ec1ae4511e1cd7a5067818b35a5d7cc7489",
+      "primaryChars": 3567,
+      "sourcePaths": [
+        "raw/transcripts/ticket-446.2026-09-11-82f585cb843a.md",
+        "raw/transcripts/ticket-511.2026-09-11-5edef2c7c4c6.md",
+        "raw/transcripts/ticket-351.2026-09-11-7e3f92f632c5.md"
+      ],
+      "primarySha256": [
+        "bdb994b4a9814f4b5d9824057f8ee25ac8068e1a88d4d95d8b4dc115263f2110",
+        "ab89d980fd658ca27af0cfd99cadd615733ffd09713625b163b1bd3d004684ac",
+        "9998556bcd1175b5bce035ac1db73e62089f80780abb6e66990fcd15ff7e4932"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "本轮按相关性摘录最多 3 个原始来源，其余未核对",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提"
+      ]
+    }
+  },
+  {
+    "id": "U29",
+    "type": "no_answer",
+    "question": "新增BTC Other Outbound要沿用Marketing Other Outbound审批流并替换首位审批人，这次EU/UK销售审批调整的实际配置结果是什么？",
+    "path": "docs/llm-wiki/concepts/approvals/inflight-approval-owner-change-history.md",
+    "knownGold": false,
+    "knownWrong": false,
+    "A": {
+      "path": "concepts/approvals/inflight-approval-owner-change-history.md",
+      "knowledgeType": "support_wiki",
+      "title": "为什么更换审批人后，进行中的审批仍指向旧人员？",
+      "contentChars": 2384,
+      "contentSha256": "013cb46ade604fa71f94d6c7ab349709c55bbd6bff765cf2b2f08c090bdf52f4",
+      "primaryChars": 1605,
+      "sourcePaths": [
+        "raw/transcripts/ticket-1564.2026-09-11-2d762f39e5f4.md"
+      ],
+      "primarySha256": [
+        "2e598ce67d85b71f84c3d1413c166c8b9f1c5055bf15b88639c734216d97887d"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "本轮按相关性摘录最多 3 个原始来源，其余未核对",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提",
+        "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据"
+      ]
+    },
+    "B": {
+      "path": "concepts/approvals/inflight-approval-owner-change-history.md",
+      "knowledgeType": "support_wiki",
+      "title": "为什么更换审批人后，进行中的审批仍指向旧人员？",
+      "contentChars": 2384,
+      "contentSha256": "013cb46ade604fa71f94d6c7ab349709c55bbd6bff765cf2b2f08c090bdf52f4",
+      "primaryChars": 2592,
+      "sourcePaths": [
+        "raw/transcripts/ticket-1564.2026-09-11-2d762f39e5f4.md",
+        "raw/transcripts/ticket-322.2026-09-11-33990596ef5e.md"
+      ],
+      "primarySha256": [
+        "2e598ce67d85b71f84c3d1413c166c8b9f1c5055bf15b88639c734216d97887d",
+        "fca14e92dc696630f38c56d3931662fb4c8230909424ea1be338188214e11c34"
+      ],
+      "applicability": "historical_reference",
+      "limitations": [
+        "草稿资料，尚未人工确认",
+        "当前问题或资料的适用环境待确认",
+        "本轮按相关性摘录最多 3 个原始来源，其余未核对",
+        "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+        "当前材料尚未确认处理路径的关键前提",
+        "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据"
+      ]
+    }
+  }
+]

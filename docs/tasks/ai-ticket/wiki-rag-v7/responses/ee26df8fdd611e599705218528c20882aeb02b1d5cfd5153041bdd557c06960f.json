@@ -1,0 +1,100 @@
+{
+  "caseId": "N14",
+  "group": "A",
+  "payloadHash": "ee26df8fdd611e599705218528c20882aeb02b1d5cfd5153041bdd557c06960f",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 10,
+      "relevance_score": 0.9196420907974243
+    },
+    {
+      "index": 0,
+      "relevance_score": 0.6421484351158142
+    },
+    {
+      "index": 9,
+      "relevance_score": 0.5176407694816589
+    },
+    {
+      "index": 6,
+      "relevance_score": 0.44780224561691284
+    },
+    {
+      "index": 8,
+      "relevance_score": 0.25567156076431274
+    }
+  ],
+  "durationMs": 574,
+  "querySha256": "a699d62a1302d268ea0240d3393ac9988531a57fbc744f9885bd7097f0c2392c",
+  "queryChars": 129,
+  "documentSha256": [
+    "b0f66f18972025384fbaa16f75e49451074e234e79fc48fa6b4a01b7c29feb3a",
+    "af819d3a02030e83459a4ddfc279bcd25306ed05600848e8af12d8064c5aaa89",
+    "67badd7a7fc9b13286cc6a5967631e168ad2a51b6e9dec110929ac1ae48ee561",
+    "728a305c59da916f92f0fe3d4f062258a3cd25503ad0d0604637a848de27ca27",
+    "db26f5b9fe75f46f4415ddfb2487efb1dbd9d807d27d1b642ab7e078a7876272",
+    "ce6739aec28d6e5fa5a11a1f31abe37bc27573b344fbcdd3def6cae50aa623db",
+    "1dc191b3b0330c0fa6cdf67951776f5c7447404696fd1e7c51610a395b45ab75",
+    "54a285e2e743aa960d895aff6c3ac60e446b7f00e5140d6b552e1a09866032ab",
+    "efcd1c0dfba13f006c4101f37880dd850643dcc03e8f24454e59d8326745b0ae",
+    "ae107a2836a4d78e570d78b108643dabc256c0d2caf6442e4d49c2e74566c800",
+    "1809f65fc1198a8fb20c90b1fb5252754cd427d14c68f9f5bea66232c1c32116",
+    "b88276167bcf8b78b17b6f65d9d15ea6f5774bca526d45808d54101d42f299e1",
+    "5e4b2c5800b51b5d92621b2cf2ab82f89d62d7be9fd0d5d4050dcaacaf2a7406",
+    "fc82c136277c6f4581bb613223d54b27364dc434048d78e06d6a16a607611882",
+    "d05a7ad7d1307af52fe24cd25161c766a45f7ac05567b6e401b16d612b3971af",
+    "e349d1eb19f42bd22f44fb98eefae0081135cbc403f4b5cafc4bf5bf75cb71a5",
+    "c3c705d7814fbfb1a80e4c9b0c42098781b497a9b295e90ef4055164e25ecfff",
+    "24b62e931b54bdb38c96ec0766d37e8e18a1f42c88ffd97158220c535ed5cc87",
+    "6f33df7545db188e0080a114457f90ebfd633a67a65f567326924363bd5238db",
+    "5163206d4348159f1ef15d1b4c308a15eb31f3fda4ad58552935f417eafd2b72"
+  ],
+  "documentChars": [
+    2447,
+    2242,
+    273,
+    2346,
+    2343,
+    2500,
+    1046,
+    1956,
+    1714,
+    653,
+    2439,
+    1286,
+    2248,
+    2244,
+    2418,
+    2077,
+    1685,
+    714,
+    1256,
+    1775
+  ],
+  "candidatePaths": [
+    "docs/ontology/objects/business-party.md",
+    "docs/ontology/rules/commercial-partner-attribution.md",
+    "docs/llm-wiki/concepts/faq/entry-field-edit-rules.md",
+    "docs/ontology/objects/fixed-asset.md",
+    "docs/ontology/rules/portal-language-and-page-governance.md",
+    "docs/ontology/objects/business-approval.md",
+    "docs/llm-wiki/concepts/sales/pricelist-discount-not-applied-or-price-mismatch.md",
+    "docs/ontology/objects/sales-invoice.md",
+    "docs/ontology/processes/customer-pricelist-change.md",
+    "docs/llm-wiki/concepts/sales/markup-name-and-price-rules.md",
+    "docs/ontology/objects/sales-pricelist.md",
+    "docs/ontology/processes/depreciating-fixed-asset-amendment.md",
+    "docs/ontology/objects/preorder-backorder.md",
+    "docs/ontology/objects/sales-order.md",
+    "docs/ontology/objects/product-catalog.md",
+    "docs/ontology/objects/sales-order-amendment.md",
+    "docs/llm-wiki/concepts/access/operation-access-and-button-triage.md",
+    "docs/llm-wiki/concepts/accounting/journal-asset-field-release-history.md",
+    "docs/llm-wiki/concepts/inventory/wms-to-send-after-sales-operation-type-filter.md",
+    "docs/llm-wiki/concepts/sales/so-price-and-shipping-edit-triage.md"
+  ],
+  "queryCAvailable": false
+}

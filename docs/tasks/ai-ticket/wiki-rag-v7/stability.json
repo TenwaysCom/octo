@@ -1,0 +1,65 @@
+{
+  "checks": [
+    {
+      "caseId": "D04",
+      "sameOrder": true,
+      "sameAcceptedAt07": true,
+      "maxScoreDelta": 0.005023404955863953
+    },
+    {
+      "caseId": "Q21",
+      "sameOrder": true,
+      "sameAcceptedAt07": true,
+      "maxScoreDelta": 2.1846964955329895e-05
+    },
+    {
+      "caseId": "D01",
+      "sameOrder": true,
+      "sameAcceptedAt07": true,
+      "maxScoreDelta": 0.009355604648590088
+    },
+    {
+      "caseId": "Q32",
+      "sameOrder": true,
+      "sameAcceptedAt07": true,
+      "maxScoreDelta": 0.0012301802635192871
+    },
+    {
+      "caseId": "Q18",
+      "sameOrder": true,
+      "sameAcceptedAt07": true,
+      "maxScoreDelta": 0.0003089308738708496
+    },
+    {
+      "caseId": "H12",
+      "sameOrder": true,
+      "sameAcceptedAt07": true,
+      "maxScoreDelta": 0.006907552480697632
+    },
+    {
+      "caseId": "Q31",
+      "sameOrder": true,
+      "sameAcceptedAt07": true,
+      "maxScoreDelta": 0.0012814607471227646
+    },
+    {
+      "caseId": "Q02",
+      "sameOrder": true,
+      "sameAcceptedAt07": true,
+      "maxScoreDelta": 0.0
+    },
+    {
+      "caseId": "Q34",
+      "sameOrder": true,
+      "sameAcceptedAt07": true,
+      "maxScoreDelta": 0.0025515109300613403
+    },
+    {
+      "caseId": "D02",
+      "sameOrder": true,
+      "sameAcceptedAt07": true,
+      "maxScoreDelta": 0.0028975605964660645
+    }
+  ],
+  "conclusion": "Compare repeat order, score movement and threshold decisions separately"
+}

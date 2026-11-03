@@ -1,0 +1,100 @@
+{
+  "caseId": "T02",
+  "group": "A",
+  "payloadHash": "0ea367f3e0a88d4b7711b9a746bd0c24e153579dde1551ba89f1e31c44afb764",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 0,
+      "relevance_score": 0.8921472430229187
+    },
+    {
+      "index": 4,
+      "relevance_score": 0.6334705948829651
+    },
+    {
+      "index": 8,
+      "relevance_score": 0.5175422430038452
+    },
+    {
+      "index": 6,
+      "relevance_score": 0.5113896727561951
+    },
+    {
+      "index": 17,
+      "relevance_score": 0.48718497157096863
+    }
+  ],
+  "durationMs": 422,
+  "querySha256": "f2b0c0c880aa9ab935dc26fc1513a6783ba5be2e3d15c6157e2930f1e0a98a93",
+  "queryChars": 27,
+  "documentSha256": [
+    "616ceda9e392b0958e76e5cf7cdd661349cd4604d1a3881e7c8f37d66eeed4e6",
+    "43319c69c5bad71b39e7b12fe0059100f1fcb4bf72e9de1d844339af00174b81",
+    "67badd7a7fc9b13286cc6a5967631e168ad2a51b6e9dec110929ac1ae48ee561",
+    "b88276167bcf8b78b17b6f65d9d15ea6f5774bca526d45808d54101d42f299e1",
+    "f4273493f848c5ad30145f5448df6de113efa6ac4cc3c2b745336e00bd8c646c",
+    "497d820f06dfec29ee5ffb4550400aff879d946955b1f0c3d003da6c06b1fc4d",
+    "7cc93c80e0fe61f86c0970ea504e253ab6fe6ba3f10d6ec09fe708b24ea7ba6d",
+    "678f3ba3a216e0ad37385206aa80140c4695a7576b225902214196e135553f7b",
+    "5d389f11e1700bac537e1b8020d5fe324f0a1cac3697e3ba0851f70983d957ac",
+    "d6fff19f43be1d97c3d076c1a4f486235e0cf590de76fc1c5c31712208545f18",
+    "83c78ac99ab03e17686f963c76eb5fe5e05dd97ff4dc1dd7198b0f1c4b60bdf0",
+    "06d368c7afc39f19949b2e81e02ccfaea4025748ba33970fbc6da13f184d6b9f",
+    "f22a809371f57eb9117959e83948bdd7363a6db0afc2b725631de1e260ad7e64",
+    "e7c866ffbd9da4e4969948682abb2ba4b51748645b717fdf3d7ef56b82f79c5a",
+    "1e31ad5e5ff5c158d713b130e87fd33e502894792d0208d5841d433fa129eb5a",
+    "dde27860f1a7abbb7548791ea08cc14d0e43d45d513526b1143549e3239bb12f",
+    "00ac24c6183340791ee60c3b872917c55705959752737317c44d38178bde58d4",
+    "6f52d3b5a02a3cb2a0ced33bb3ed58dafeb12170d541a5eb2717c116fff42a4b",
+    "26b552af86276cf4fef8e03dbeb70d85a58c912ca7f1e435004197303e492080",
+    "3eba2a9c5ec4bc8ffa5151de19989572a67bd93eba2c50f65aad03c0f4321a15"
+  ],
+  "documentChars": [
+    2499,
+    890,
+    273,
+    1286,
+    875,
+    675,
+    811,
+    543,
+    2149,
+    1503,
+    524,
+    531,
+    452,
+    1700,
+    2474,
+    1998,
+    778,
+    1762,
+    394,
+    517
+  ],
+  "candidatePaths": [
+    "docs/ontology/objects/fixed-asset.md",
+    "docs/llm-wiki/concepts/accounting/asset-value-depreciation-change-history.md",
+    "docs/llm-wiki/concepts/faq/entry-field-edit-rules.md",
+    "docs/ontology/processes/depreciating-fixed-asset-amendment.md",
+    "docs/llm-wiki/concepts/accounting/asset-re-evaluate-original-value.md",
+    "docs/llm-wiki/concepts/accounting/asset-list-residual-value-fields-history.md",
+    "docs/ontology/processes/fixed-asset-acquisition-and-depreciation.md",
+    "docs/llm-wiki/concepts/inventory/purchase-return-unit-price-zero.md",
+    "docs/ontology/objects/sales-order-amendment.md",
+    "docs/ontology/processes/unshipped-sales-order-amendment.md",
+    "docs/llm-wiki/concepts/accounting/accounting-change-navigation.md",
+    "docs/llm-wiki/concepts/delivery/warehouse-document-amendment-checklist.md",
+    "docs/llm-wiki/concepts/inventory/sku-location-change-confirmation.md",
+    "docs/llm-wiki/concepts/sales/contact-tag-change-verification.md",
+    "docs/ontology/objects/preorder-backorder.md",
+    "docs/ontology/objects/journal-item-control.md",
+    "docs/ontology/processes/journal-item-dimension-amendment.md",
+    "docs/llm-wiki/concepts/access/permission-request-and-effective-access.md",
+    "docs/llm-wiki/concepts/accounting/asset-bill-warning-history.md",
+    "docs/llm-wiki/concepts/accounting/historical-entry-mandatory-fields-reverse.md"
+  ],
+  "queryCAvailable": true
+}

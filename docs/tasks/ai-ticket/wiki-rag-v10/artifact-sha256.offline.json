@@ -1,0 +1,25 @@
+{
+  "scope": "Immutable offline-stage evidence; README is a progress entry point and excluded.",
+  "files": {
+    "approval-block.json": "adb874d9768dd6f7f58909c3271e098f8d56f550580337f1e19ba13dc96d8903",
+    "audit-index-r1.json": "a09d39d6c6f1ef1d89d139424112408615ba19fcd12711ef439b1113b3048c11",
+    "audit-index.json": "a09d39d6c6f1ef1d89d139424112408615ba19fcd12711ef439b1113b3048c11",
+    "candidate-r1.patch": "149ec1548bb349bca6b2558ae5ba077411430ae744b5e5012b094a364ed7fb01",
+    "candidate-revision-1.json": "52abcf34c496680d36d53285049b38e81d9f05738eb81d713a1ad624b57db9dc",
+    "candidate.patch": "03de5463a63bf4a53a424f19042c373178dc8f9766810fbbd1c75738064101b3",
+    "config.json": "5d08a66aa8c212ae7be3061a147e55c48d454f7ee2e3893a6c4e779ac939dd78",
+    "development-audit.json": "e69983293ae37084395243dd0c13d67de0bac8f8e3f88c9e2a2f2152b3b0e135",
+    "development-normalized.json": "812c9717fc54ab45c969167d70cd8faa6b83f003cc34cdbb8f2cad5611af0843",
+    "development-r1.json": "0d17ba591eee6406e14437d02c1a3bf04805414e6c856c32eac01aae5a0b0ab0",
+    "development-summary.json": "02c1fd575697a930f525b029738c4e01c73b9c35fc4f94ab6a3800bd199f6b5f",
+    "development.json": "0d17ba591eee6406e14437d02c1a3bf04805414e6c856c32eac01aae5a0b0ab0",
+    "execution-notes.json": "532dfbb2dd1890a01839a269812721f7140528affdef84cc16c2b128fef0e321",
+    "experiment-code.json": "3b73cc3341d15f9e56406a65eacf049992e91337fdb87fe8a010210e7ca9f214",
+    "initial-freeze.json": "e2ff9c4d22a223c103173789b637656a1cdaf3877f0f18f41ae729356a6d7914",
+    "live-code-freeze-r1.json": "7e1bd5eb2e233d3a98ea721f21921f7963def85f05ed11e08fa47149795ff943",
+    "live-code-freeze.json": "f634fc5c142bdedec428fa478dbe66cc806e7a6743f9288c4fb554ff3eb063c4",
+    "report-normalization.json": "2c47e2901f9397385da79b9002dcd5ab941f28a273430e194d945ca809e31cba",
+    "selection-lock.json": "264ce37cf03c72041d074dc4648f24d47401cd470e62574cd6b50ade7a27a6b1",
+    "verification.json": "241ef22dfab886172746b11cd39cf8d49182922c127f00141cd20ac5f00a30c3"
+  }
+}

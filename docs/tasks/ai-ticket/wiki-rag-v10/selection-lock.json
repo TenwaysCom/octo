@@ -1,0 +1,25 @@
+{
+  "strategy": "D",
+  "floor": 0.3,
+  "gap": 0.2,
+  "selectionObjective": "No erroneous/uncertain/unusable new context, baseline payload unchanged, P2 recovered; maximize primary gold then acceptable additions; conservative floor/gap tie-break.",
+  "developmentSha256": "812c9717fc54ab45c969167d70cd8faa6b83f003cc34cdbb8f2cad5611af0843",
+  "auditSha256": "e69983293ae37084395243dd0c13d67de0bac8f8e3f88c9e2a2f2152b3b0e135",
+  "summarySha256": "02c1fd575697a930f525b029738c4e01c73b9c35fc4f94ab6a3800bd199f6b5f",
+  "revisionSha256": "52abcf34c496680d36d53285049b38e81d9f05738eb81d713a1ad624b57db9dc",
+  "stabilityCases": [
+    "E8-P2",
+    "Q08",
+    "N04",
+    "Q26",
+    "H08",
+    "H09",
+    "N15",
+    "D03",
+    "D02",
+    "T18"
+  ],
+  "holdoutSeen": false,
+  "liveCallsBeforeLock": 0,
+  "G": "disabled"
+}

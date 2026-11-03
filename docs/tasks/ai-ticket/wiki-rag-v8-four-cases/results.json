@@ -1,0 +1,243 @@
+{
+  "model": "BAAI/bge-reranker-v2-m3",
+  "minScore": 0.7,
+  "requests": 6,
+  "sourceAssociation": "unchanged baseline; G disabled",
+  "results": [
+    {
+      "id": "P1",
+      "ticket": 1969,
+      "type": "positive",
+      "rank20": {
+        "expected": 1,
+        "wrong": null
+      },
+      "expected": {
+        "rank": 1,
+        "score": 0.9470843076705933
+      },
+      "wrong": null,
+      "wrongDiagnosticOnly": null,
+      "expectedAccepted": true,
+      "wrongAccepted": false,
+      "top5": [
+        {
+          "rank": 1,
+          "path": "concepts/accounting/journal-review-latency-history.md",
+          "score": 0.9470843076705933
+        },
+        {
+          "rank": 2,
+          "path": "objects/journal-item-control.md",
+          "score": 0.5213616490364075
+        },
+        {
+          "rank": 3,
+          "path": "concepts/platform/odoo-slow-operation-investigation.md",
+          "score": 0.4395771920681
+        },
+        {
+          "rank": 4,
+          "path": "objects/transaction-tax.md",
+          "score": 0.188316211104393
+        },
+        {
+          "rank": 5,
+          "path": "processes/tax-report-preparation-and-filing.md",
+          "score": 0.13701649010181427
+        }
+      ],
+      "final": [
+        {
+          "path": "docs/llm-wiki/concepts/accounting/journal-review-latency-history.md",
+          "contentChars": 559,
+          "primaryChars": 1004,
+          "sourcePaths": [
+            "raw/transcripts/ticket-1969.2026-09-11-f120c91acc35.md"
+          ],
+          "applicability": "historical_reference",
+          "limitations": [
+            "草稿资料，尚未人工确认",
+            "当前问题或资料的适用环境待确认",
+            "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+            "当前材料尚未确认处理路径的关键前提"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P2",
+      "ticket": 718,
+      "type": "positive",
+      "rank20": {
+        "expected": 1,
+        "wrong": null
+      },
+      "expected": {
+        "rank": 1,
+        "score": 0.48261481523513794
+      },
+      "wrong": null,
+      "wrongDiagnosticOnly": null,
+      "expectedAccepted": false,
+      "wrongAccepted": false,
+      "top5": [
+        {
+          "rank": 1,
+          "path": "concepts/workforce/sign-document-archive-history.md",
+          "score": 0.48261481523513794
+        },
+        {
+          "rank": 2,
+          "path": "objects/deferred-service-revenue.md",
+          "score": 0.02834681235253811
+        },
+        {
+          "rank": 3,
+          "path": "concepts/platform/database-expiry-warning-triage.md",
+          "score": 0.010890359058976173
+        },
+        {
+          "rank": 4,
+          "path": "concepts/access/odoo-login-entry-triage.md",
+          "score": 0.0034701938275247812
+        },
+        {
+          "rank": 5,
+          "path": "concepts/approvals/outbound-notification-client-history.md",
+          "score": 0.001995942322537303
+        }
+      ],
+      "final": []
+    },
+    {
+      "id": "N1",
+      "ticket": 954,
+      "type": "negative_pair",
+      "rank20": {
+        "expected": 3,
+        "wrong": 6
+      },
+      "expected": {
+        "rank": 1,
+        "score": 0.7270592451095581
+      },
+      "wrong": null,
+      "wrongDiagnosticOnly": {
+        "rank": 7,
+        "score": 0.0040084803476929665
+      },
+      "expectedAccepted": true,
+      "wrongAccepted": false,
+      "top5": [
+        {
+          "rank": 1,
+          "path": "concepts/workforce/employee-contract-sign-privacy-history.md",
+          "score": 0.7270592451095581
+        },
+        {
+          "rank": 2,
+          "path": "objects/business-party.md",
+          "score": 0.009546486660838127
+        },
+        {
+          "rank": 3,
+          "path": "objects/business-approval.md",
+          "score": 0.005208008922636509
+        },
+        {
+          "rank": 4,
+          "path": "objects/b2c-sales.md",
+          "score": 0.004617069382220507
+        },
+        {
+          "rank": 5,
+          "path": "processes/budget-contract-payment-approval.md",
+          "score": 0.004532674793154001
+        }
+      ],
+      "final": [
+        {
+          "path": "docs/llm-wiki/concepts/workforce/employee-contract-sign-privacy-history.md",
+          "contentChars": 567,
+          "primaryChars": 575,
+          "sourcePaths": [
+            "raw/transcripts/ticket-954.2026-09-11-5cd7e490ed78.md"
+          ],
+          "applicability": "historical_reference",
+          "limitations": [
+            "草稿资料，尚未人工确认",
+            "当前问题或资料的适用环境待确认",
+            "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+            "当前材料尚未确认处理路径的关键前提"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "N2",
+      "ticket": 1961,
+      "type": "negative_pair",
+      "rank20": {
+        "expected": 1,
+        "wrong": 6
+      },
+      "expected": {
+        "rank": 1,
+        "score": 0.9263108372688293
+      },
+      "wrong": null,
+      "wrongDiagnosticOnly": {
+        "rank": 9,
+        "score": 0.003928547725081444
+      },
+      "expectedAccepted": true,
+      "wrongAccepted": false,
+      "top5": [
+        {
+          "rank": 1,
+          "path": "concepts/accounting/journal-review-copy-history.md",
+          "score": 0.9263108372688293
+        },
+        {
+          "rank": 2,
+          "path": "concepts/accounting/review-lock-mismatch-and-review-status-rules.md",
+          "score": 0.04554629325866699
+        },
+        {
+          "rank": 3,
+          "path": "concepts/accounting/review-audit-mismatch-history.md",
+          "score": 0.01611633598804474
+        },
+        {
+          "rank": 4,
+          "path": "concepts/sales/preorder-backorder-link-quantity-history.md",
+          "score": 0.008131573908030987
+        },
+        {
+          "rank": 5,
+          "path": "concepts/accounting/cash-flow-config-timing-history.md",
+          "score": 0.008078519254922867
+        }
+      ],
+      "final": [
+        {
+          "path": "docs/llm-wiki/concepts/accounting/journal-review-copy-history.md",
+          "contentChars": 551,
+          "primaryChars": 2049,
+          "sourcePaths": [
+            "raw/transcripts/ticket-1961.2026-09-11-78705682c139.md"
+          ],
+          "applicability": "historical_reference",
+          "limitations": [
+            "草稿资料，尚未人工确认",
+            "当前问题或资料的适用环境待确认",
+            "专用重排仅评估相关性，原始证据与处理前提尚未逐项核验",
+            "当前材料尚未确认处理路径的关键前提",
+            "部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据"
+          ]
+        }
+      ]
+    }
+  ]
+}

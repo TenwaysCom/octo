@@ -1,0 +1,100 @@
+{
+  "caseId": "Q05",
+  "group": "B",
+  "payloadHash": "66f5f2009f689f016c6384fd40bcb82874af78409a88a260d0de100210e15305",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 0,
+      "relevance_score": 0.9957758784294128
+    },
+    {
+      "index": 1,
+      "relevance_score": 0.8689486980438232
+    },
+    {
+      "index": 11,
+      "relevance_score": 0.7494433522224426
+    },
+    {
+      "index": 9,
+      "relevance_score": 0.41283926367759705
+    },
+    {
+      "index": 12,
+      "relevance_score": 0.27826768159866333
+    }
+  ],
+  "durationMs": 447,
+  "querySha256": "4247a2fdbee491ef5e2e7dd4ba096f09c33843759e4c22b3540dbedaea31b0dc",
+  "queryChars": 81,
+  "documentSha256": [
+    "abf3edc9204a6dbcfc91a8105447b725dfd379157f078c79fdfc38af5841791a",
+    "86f0048887c28715fd92a2b5c554618ea11c0992a56d3af5ca917da1a0300c3d",
+    "d7cc2392c21c75f4a46382b4fc7912d078e7c5148aa2383b9e11ecaa80290d3c",
+    "c675890d1bc1151c43b64c4a954e43d2c9537ce7307c508b588479b51bd9f2d4",
+    "90e1fc9e0c73d085237df64f4d58e1f3e1e5807b2e4514efcee755b499b9913c",
+    "75872f5ec4058f9414522aaec90719d1b1e8bf15685d60b3429ddcab1f8c1f80",
+    "65fd09c7e6abd3794e8ba3dbc8d542a11a25c7c7b64f6e37983d7ac9b8e2ac64",
+    "4fc2a5d47318cafb339fe186039dffc31f526fc27657e4fc47bbe5ec3c47d928",
+    "4697126d5166bd307660f0d90cb8dee1262e9fb2187a0de1bdc990a79a4dc584",
+    "0d5189551a0fea54bba55d2ab84bd3e5850dab6436558dfd5bd29b5a5f663fdd",
+    "e719ba44ff460db1c6bc57b2f91e295101d605b2d565c2e956c13e69dd2f2698",
+    "2d726922ae41fb466da24b75395d8b084b57b78e2389d8facfc6a7e830e0f862",
+    "81b5fe970267e56a2dd574d0e427dd63b8d5e81b5473bc3667c9cb48a05df999",
+    "06e11b2e175a6923e5ecb0a4ed4bfef9474bc69218f6c354090e3ca941787926",
+    "5a1cd20a366a0ec882339b790bd0671f699c926600265de2e7eb0c355983e338",
+    "d9f4f8bb207cd65a489ab268d296efdc4ebd8eea238d9b575a92509d8ad249c4",
+    "4d728403e7a1b6e3cb8135945f3e7ea4d8697bef7046f6049e06a6bcb65406ad",
+    "99aba431b1fea99b781107a7e53417c6738b00fe4bfebaa1b7f3b1366d913d0f",
+    "8dd76667cc58b86143eff0ecdef13f20cf2f7965f5bb7ab58c98135853bff68c",
+    "05ea138501d5a9c61b7025adddd0952ac1fb8e1d68a1d05bea670520cf26b14d"
+  ],
+  "documentChars": [
+    613,
+    1084,
+    2229,
+    1274,
+    909,
+    726,
+    1419,
+    767,
+    828,
+    773,
+    2672,
+    893,
+    714,
+    1237,
+    586,
+    2756,
+    209,
+    726,
+    201,
+    1289
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/sales/markup-name-and-price-rules.md",
+    "docs/llm-wiki/concepts/sales/pricelist-discount-not-applied-or-price-mismatch.md",
+    "docs/ontology/objects/business-approval.md",
+    "docs/ontology/processes/embedded-business-record-approval.md",
+    "docs/llm-wiki/concepts/accounting/reverse-entry-type-history.md",
+    "docs/llm-wiki/concepts/inventory/borrowed-bikes-stock-history.md",
+    "docs/llm-wiki/concepts/invoicing/amount-difference-context-history.md",
+    "docs/llm-wiki/concepts/payment/bank-batch-send-recovery-history.md",
+    "docs/llm-wiki/concepts/purchase/po-quantity-price-correction-history.md",
+    "docs/llm-wiki/concepts/sales/cargo-discount-approval-history.md",
+    "docs/llm-wiki/concepts/sales/contact-tag-change-verification.md",
+    "docs/llm-wiki/concepts/sales/pricelist-and-product-maintenance-navigation.md",
+    "docs/llm-wiki/concepts/sales/pricelist-display-policy-history.md",
+    "docs/llm-wiki/concepts/sales/so-price-and-shipping-edit-triage.md",
+    "docs/llm-wiki/concepts/sales/swiss-discount-unit-price-history.md",
+    "docs/ontology/objects/b2c-sales.md",
+    "docs/ontology/objects/business-party.md",
+    "docs/ontology/objects/deferred-service-revenue.md",
+    "docs/ontology/objects/preorder-backorder.md",
+    "docs/ontology/objects/sales-receipt-reconciliation.md"
+  ],
+  "queryCAvailable": true
+}

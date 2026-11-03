@@ -1,0 +1,384 @@
+[
+  {
+    "path": "concepts/accounting/asset-re-evaluate-original-value.md",
+    "search_terms": "- Original Value\n- Re-Evaluate\n- Modify Depreciation",
+    "sources": [
+      "raw/transcripts/ticket-1335.2026-09-11-43e21dc54a24.md"
+    ],
+    "status": "retained unchanged; existing phrases and body checked; no independent-query aliases added",
+    "sha256": "c8e3092769f32af84243ad36d27c27bda545038c206356ba88a96ce8ec11946f"
+  },
+  {
+    "path": "concepts/accounting/cash-flow-fx-keep-first-account.md",
+    "search_terms": "- \"现金流量表出现一串长数字\"",
+    "sources": [
+      "raw/transcripts/ticket-1787.2026-09-11-30d313880301.md"
+    ],
+    "status": "retained unchanged; existing phrases and body checked; no independent-query aliases added",
+    "sha256": "cb604b0ca87680d9277690aa9e0acb81c9f5b459bad63bea0dca7a0e9f37752c"
+  },
+  {
+    "path": "concepts/delivery/approval-validate-and-backorder-history.md",
+    "search_terms": "- Demand 不等于 Quantity\n- EMTC/OUT/00942\n- demand 数量改为1",
+    "sources": [
+      "raw/transcripts/ticket-1220.2026-09-11-4b18e997e3df.md",
+      "raw/transcripts/ticket-2273.md"
+    ],
+    "status": "retained unchanged; existing phrases and body checked; no independent-query aliases added",
+    "sha256": "bb7cd487d87ae10e7a6fb0a71ee9021b9fa3d246b2c4a4f9d3974718f3560ad1"
+  },
+  {
+    "path": "concepts/delivery/cmc-outbound-company-required-error-response.md",
+    "search_terms": "- \"MySQL Query Error\"",
+    "sources": [
+      "raw/transcripts/ticket-1829.2026-10-15-bda4aaa35d98.md"
+    ],
+    "status": "retained unchanged; existing phrases and body checked; no independent-query aliases added",
+    "sha256": "23aa744527998f478d03fd2c74f2da5c983a94af00e4daa6ff111cf57f06f9dc"
+  },
+  {
+    "path": "concepts/faq/contact-backorder-preorder-overview.md",
+    "search_terms": "- \"Contact\"\n  - \"Pre Order\"\n  - \"Back Order\"\n  - \"总览\"\n  - \"合单\"",
+    "sources": [
+      "raw/documents/contact-backorder-preorder-overview-r668/source.md",
+      "raw/transcripts/ticket-1894.2026-09-11-7f460901ff99.md"
+    ],
+    "status": "retained unchanged; existing phrases and body checked; no independent-query aliases added",
+    "sha256": "0467ea545b41e74fa10ff4e6be19ba86ceab9e958b271bf0f5656d2945885e6f"
+  },
+  {
+    "path": "concepts/integration/hsbc-stopped-bank-sync-history.md",
+    "search_terms": "- \"Bank Statement Import - Hsbc - HSBC Collection\"",
+    "sources": [
+      "raw/transcripts/ticket-1056.2026-09-11-43f74232975a.md"
+    ],
+    "status": "retained unchanged; existing phrases and body checked; no independent-query aliases added",
+    "sha256": "eb8b909e6e6426cb5e313340788f3aa690d692c0ef3ac3114a9d6493040d783c"
+  },
+  {
+    "path": "concepts/integration/shopify-line-id-feedback-history.md",
+    "search_terms": "- \"update in marketplace\"",
+    "sources": [
+      "raw/transcripts/ticket-1295.2026-09-11-c4520bcc69f3.md"
+    ],
+    "status": "retained unchanged; existing phrases and body checked; no independent-query aliases added",
+    "sha256": "86cb60b417cfd2dd47512344ad861f069a620e48f6932fc0c4365fa05faac940"
+  },
+  {
+    "path": "concepts/integration/shopify-order-import-triage.md",
+    "search_terms": "- 没同步\n- 没抓取\n- 缺 SKU\n- Shopify 导入",
+    "sources": [],
+    "status": "retained unchanged; existing phrases and body checked; no independent-query aliases added",
+    "sha256": "a824f273ddca0d135cccc5c59c9d64ff3447534ddbe1d3874d5193498b1b4fef"
+  },
+  {
+    "path": "concepts/integration/shopify-order-sku-mismatch-mapping-and-lifecycle.md",
+    "search_terms": "- listing\n- 旧 SKU\n- 重复映射\n- Shopify variant",
+    "sources": [
+      "raw/transcripts/ticket-422.2026-09-11-5579d0995ed3.md",
+      "raw/transcripts/ticket-487.2026-09-11-bfdda162e93b.md",
+      "raw/transcripts/ticket-1675.2026-09-11-124e97f962f4.md"
+    ],
+    "status": "retained unchanged; existing phrases and body checked; no independent-query aliases added",
+    "sha256": "4275fe43179756e7d3f5f1143c5277b82199a1ac0c0a3461222ada0b6ecf7008"
+  },
+  {
+    "path": "concepts/integration/uk-shopify-variant-taxable-price-difference-history.md",
+    "search_terms": "- UK Shopify 导入后含税价不一致\n  - taxable false\n  - TW2013UK\n  - 1199 1438.80",
+    "sources": [
+      "raw/transcripts/ticket-2325.md"
+    ],
+    "status": "retained unchanged; existing phrases and body checked; no independent-query aliases added",
+    "sha256": "10fc1f194a52c2acb295f8f9320507d2a051d63b239ed13ffb44cffde43d9e31"
+  },
+  {
+    "path": "concepts/integration/wms-retry-current-applicability-investigation.md",
+    "search_terms": "- CMC MySQL Query Error HTTP 200\n- Westerman API timeout retry",
+    "sources": [
+      "raw/transcripts/ticket-1829.2026-10-15-bda4aaa35d98.md",
+      "raw/transcripts/ticket-2156.2026-10-15-9e2294cd3d06.md"
+    ],
+    "status": "retained unchanged; existing phrases and body checked; no independent-query aliases added",
+    "sha256": "e10d8b7c277e355501aa146d3c4d6e6c25d905f5b9a7e13cd0d4620aa8acb671"
+  },
+  {
+    "path": "concepts/inventory/purchase-return-eu-us-applicability-investigation.md",
+    "search_terms": "- EU US Odoo18 purchase return original receipt value\n- 采购退回 原入库价值 20030",
+    "sources": [
+      "raw/transcripts/ticket-1479.2026-10-15-3d8342473c55.md",
+      "raw/transcripts/ticket-1764.2026-10-15-8a5cbb1471e7.md"
+    ],
+    "status": "retained unchanged; existing phrases and body checked; no independent-query aliases added",
+    "sha256": "c83247115e2ac5f48a93a0a2ee941f24d916d6f19c48848c1b54cd5c7a1e5254"
+  },
+  {
+    "path": "concepts/inventory/repeated-return-location-regression-history.md",
+    "search_terms": "- \"RET单总是出现SL≠customer的问题\"",
+    "sources": [
+      "raw/transcripts/ticket-2052.2026-09-11-a1b90c777d5e.md",
+      "raw/transcripts/ticket-2100.2026-09-11-4b6837a2710c.md",
+      "raw/transcripts/ticket-2150.2026-09-11-bd81e3f434a8.md"
+    ],
+    "status": "retained unchanged; existing phrases and body checked; no independent-query aliases added",
+    "sha256": "6e71d2f7ba98f57ce8af78ed19567ded4e6dd5811daa8083cb22522b34d3b3d4"
+  },
+  {
+    "path": "concepts/inventory/reservation-residual-corrections-history.md",
+    "search_terms": "- Qty 为零却有负预留\n- Reserved Quantity 负数\n- WCB2B/Stock 081101445001\n- reserved_quantity=2\n- move line 403387\n- EMTC/OUT/00985\n- EMTC/OUT/01008",
+    "sources": [
+      "raw/transcripts/ticket-1680.2026-09-11-a01bee06bad7.md",
+      "raw/transcripts/ticket-1727.2026-09-11-48b8e5ffc033.md",
+      "raw/transcripts/ticket-1854.2026-09-11-fcb159a77e5d.md",
+      "raw/transcripts/ticket-2311.md",
+      "raw/transcripts/ticket-2320.md"
+    ],
+    "status": "retained unchanged; existing phrases and body checked; no independent-query aliases added",
+    "sha256": "58577695304be68ba6b8c7cce38c68b470cd73012aa850c7e4afde1e9061b6db"
+  },
+  {
+    "path": "concepts/inventory/us-sku-basic-attributes-check.md",
+    "search_terms": "- odoo us 如何维护 SKU\n  - 名字 SKU 产品分类 产品系统类别\n  - US 产品创建",
+    "sources": [
+      "raw/transcripts/ticket-2279.md"
+    ],
+    "status": "retained unchanged; existing phrases and body checked; no independent-query aliases added",
+    "sha256": "b08229610bea0bb9bf44ea93571b9ed61098bb7d4efc7ac4d2990d0a1074653f"
+  },
+  {
+    "path": "concepts/invoicing/uk-automatic-invoice-mail-history.md",
+    "search_terms": "- \"Odoo Tenways UK Customer invoices and credit notes\"",
+    "sources": [
+      "raw/transcripts/ticket-976.2026-09-11-f28d45d28a70.md",
+      "raw/transcripts/ticket-1042.2026-09-11-98318ae2a34d.md",
+      "raw/transcripts/ticket-1206.2026-09-11-c8bc15dd76a7.md",
+      "raw/transcripts/ticket-2125.2026-09-11-7b752fc3c272.md",
+      "raw/transcripts/ticket-727.2026-09-11-f1c778559b5d.md",
+      "raw/transcripts/ticket-136.2026-09-11-9e9933f5dabb.md"
+    ],
+    "status": "retained unchanged; existing phrases and body checked; no independent-query aliases added",
+    "sha256": "45e85ddaf8d90994cb18209a14d77dd1a5ec78397828e0a5b0eb6f768553ce28"
+  },
+  {
+    "path": "concepts/payment/reconciliation-currency-scope-history.md",
+    "search_terms": "- \"在uK的Trial Balance中，以下2个筛选方式对iNcycles20030余额的呈现为啥不一样\"",
+    "sources": [
+      "raw/transcripts/ticket-175.2026-09-11-4d6d22a4be3e.md",
+      "raw/transcripts/ticket-226.2026-09-11-8ae4d3da8006.md",
+      "raw/transcripts/ticket-286.2026-09-11-2cfebf970d9a.md",
+      "raw/transcripts/ticket-586.2026-09-11-3172a0f30dfd.md",
+      "raw/transcripts/ticket-1613.2026-09-11-093f7e54a2ad.md",
+      "raw/transcripts/ticket-2135.2026-09-11-1bcec6391959.md"
+    ],
+    "status": "retained unchanged; existing phrases and body checked; no independent-query aliases added",
+    "sha256": "4bf326ec912270c0564dfa95bde11b76b03d931babad70cf97bbd7abe1b4a522"
+  },
+  {
+    "path": "concepts/platform/database-expiry-warning-triage.md",
+    "search_terms": "- Database will be deleted\n- database expired\n- 数据库过期\n- 续费",
+    "sources": [
+      "raw/transcripts/ticket-1168.2026-09-11-03501928c241.md",
+      "raw/transcripts/ticket-1169.2026-09-11-b4b27f8c12f5.md",
+      "raw/transcripts/ticket-1170.2026-09-11-ab04f89ede42.md",
+      "raw/transcripts/ticket-1171.2026-09-11-8cfd143d1682.md",
+      "raw/transcripts/ticket-1172.2026-09-11-a160a37afb66.md",
+      "raw/transcripts/ticket-1179.2026-09-11-13706a9f6535.md"
+    ],
+    "status": "retained unchanged; existing phrases and body checked; no independent-query aliases added",
+    "sha256": "ea876c7b4fd5110adfab81a7e3acb2e08121630008714d0c01e8958c91dfbc5f"
+  },
+  {
+    "path": "concepts/platform/frontend-resource-refresh-history.md",
+    "search_terms": "- RPC OwlError 浏览器缓存\n- warranty claim refresh clear cookies\n- Aftersales cannot open warranty claim",
+    "sources": [
+      "raw/transcripts/ticket-1967.2026-09-11-d394bde2594b.md",
+      "raw/transcripts/ticket-2060.2026-09-11-714fd90b6036.md",
+      "raw/transcripts/ticket-925.2026-09-11-adb0bde018cf.md",
+      "raw/transcripts/ticket-931.2026-09-11-62db109f99e3.md",
+      "raw/transcripts/ticket-1456.2026-09-11-2823cbc56833.md",
+      "raw/transcripts/ticket-2347.md"
+    ],
+    "status": "retained unchanged; existing phrases and body checked; no independent-query aliases added",
+    "sha256": "0bce46f073c377b06255d50f0af303f82f122236ba45de2ca1ffd386427eff8a"
+  },
+  {
+    "path": "concepts/platform/session-expired-csrf-triage.md",
+    "search_terms": "- RPC_ERROR\n- invalid CSRF token\n- Session expired",
+    "sources": [
+      "raw/transcripts/ticket-1728.2026-09-11-a7319495f169.md",
+      "raw/transcripts/ticket-1868.2026-09-11-1bcaf0534383.md"
+    ],
+    "status": "retained unchanged; existing phrases and body checked; no independent-query aliases added",
+    "sha256": "d154abc4d34a5539ab1650be85df3640385203adce5a52a2afb51e4e90caf49d"
+  },
+  {
+    "path": "concepts/portal/portal-account-parent-company-invoices.md",
+    "search_terms": "- Portal 账号绑定子联系人 看不到主公司发票\n- Kwik-Fit Nederland\n- portal account parent company invoices",
+    "sources": [
+      "raw/transcripts/ticket-1494.2026-09-11-a23167f44a19.md",
+      "raw/transcripts/ticket-2245.md"
+    ],
+    "status": "retained unchanged; existing phrases and body checked; no independent-query aliases added",
+    "sha256": "b5b5c9047be87f007140c3259a87bfa42531a8d55d419ac04a813f5eb15e8d87"
+  },
+  {
+    "path": "concepts/portal/service-center-internal-message-exposure-history.md",
+    "search_terms": "- internal notes displayed wrongly in the EU portal\n- SER165187 SER163087\n- 内部备注 修复后复发",
+    "sources": [
+      "raw/transcripts/ticket-2096.2026-09-11-5bb589e6f605.md",
+      "raw/transcripts/ticket-2317.md"
+    ],
+    "status": "retained unchanged; existing phrases and body checked; no independent-query aliases added",
+    "sha256": "c0d96fa5898e32ae3b59ac2b3a8154a89e30fefd6bf5ff189e010a05d456052e"
+  },
+  {
+    "path": "concepts/portal/turbo-app-testflight-build-runtime-config-lark-1708.md",
+    "search_terms": "- TWS Turbo beta has expired\n- TestFlight\n- build 过期",
+    "sources": [
+      "raw/transcripts/ticket-1708.2026-09-11-e4faabd784ab.md",
+      "raw/transcripts/ticket-1732.2026-09-11-7c8b4dda2d7e.md"
+    ],
+    "status": "retained unchanged; existing phrases and body checked; no independent-query aliases added",
+    "sha256": "0ba59de3375b720e7799d71ae6c7b8fae1688dc6f9af6a84230b774e11d3d02a"
+  },
+  {
+    "path": "concepts/reporting/batch-search-in-operator-history.md",
+    "search_terms": "- 批量搜索\n- 空格拆分\n- SO\n- marketplaces\n- IN",
+    "sources": [
+      "raw/transcripts/ticket-2070.2026-09-11-8eddd6fe35ef.md"
+    ],
+    "status": "retained unchanged; existing phrases and body checked; no independent-query aliases added",
+    "sha256": "8ef95048ca34d775d88b9aad05fa075c1c16e3accbcc450d142f89f09df4c368"
+  },
+  {
+    "path": "concepts/reporting/sales-visibility-filter-change-history.md",
+    "search_terms": "- dynamo customers are left out",
+    "sources": [
+      "raw/transcripts/ticket-106.2026-09-11-2fa2ad04accc.md",
+      "raw/transcripts/ticket-1040.2026-09-11-d989aa69c290.md",
+      "raw/transcripts/ticket-1041.2026-09-11-1060cd57b019.md",
+      "raw/transcripts/ticket-1047.2026-09-11-e940d1763600.md",
+      "raw/transcripts/ticket-2148.2026-09-11-0a3b95763c8c.md",
+      "raw/transcripts/ticket-2239.md"
+    ],
+    "status": "retained unchanged; existing phrases and body checked; no independent-query aliases added",
+    "sha256": "5a8626d9153982dcacd7d015855c7197ff73c324c0c9a719c728d9707614ec1b"
+  },
+  {
+    "path": "concepts/sales/approval-activity-button-history.md",
+    "search_terms": "- \"Payment Term has been approved but is not valid\"\n- \"SO审批按钮消失\"",
+    "sources": [
+      "raw/transcripts/ticket-615.2026-10-15-a2460d69332e.md",
+      "raw/transcripts/ticket-624.2026-10-15-88ce4e0710f3.md",
+      "raw/transcripts/ticket-640.2026-09-11-44a591fff980.md",
+      "raw/transcripts/ticket-674.2026-09-11-dd76b96c5e2c.md",
+      "raw/transcripts/ticket-916.2026-09-11-4779b668edcc.md",
+      "raw/transcripts/ticket-993.2026-09-11-8d767a6c2e31.md"
+    ],
+    "status": "retained unchanged; existing phrases and body checked; no independent-query aliases added",
+    "sha256": "6d52c2c0a137c8560348c5128f1f0e62540ef323b0830bf6b62d33c07ff4486a"
+  },
+  {
+    "path": "concepts/sales/automatic-order-email-customer-language.md",
+    "search_terms": "- \"Order confirmation in English instead of German\"",
+    "sources": [
+      "raw/transcripts/ticket-1368.2026-09-11-03f57e226f22.md",
+      "raw/transcripts/ticket-1455.2026-09-11-2bd48e71851f.md"
+    ],
+    "status": "retained unchanged; existing phrases and body checked; no independent-query aliases added",
+    "sha256": "44cd9dd3c449c29fa4fbdf1956e1179efe914453f659017898e372edbbc1578a"
+  },
+  {
+    "path": "concepts/sales/contact-overview-create-sales-order.md",
+    "search_terms": "- \"Create Sales Order\"\n  - \"Quotation\"\n  - \"Contact\"\n  - \"Pre Orders\"\n  - \"Back Orders\"\n  - \"转单\"",
+    "sources": [
+      "raw/documents/contact-backorder-preorder-overview-r668/source.md"
+    ],
+    "status": "retained unchanged; existing phrases and body checked; no independent-query aliases added",
+    "sha256": "d98effac36b91ea71d1474bc6a3a337b251d7ca9e4ce7c08d205b84b9e43a46c"
+  },
+  {
+    "path": "concepts/sales/contact-overview-days-waiting.md",
+    "search_terms": "- \"Days Waiting\"\n  - \"等待天数\"\n  - \"Terminated Date\"\n  - \"Created Date\"",
+    "sources": [
+      "raw/documents/contact-backorder-preorder-overview-r668/source.md"
+    ],
+    "status": "retained unchanged; existing phrases and body checked; no independent-query aliases added",
+    "sha256": "7c2f28bcc3236206ea5e2c35a10a82b35c5fe4484627818bf84b4a39c04021f3"
+  },
+  {
+    "path": "concepts/sales/contact-overview-grouped-product-details.md",
+    "search_terms": "- \"Contact\"\n  - \"Pre Orders\"\n  - \"Back Orders\"\n  - \"Group By\"\n  - \"分组\"\n  - \"无法展开\"",
+    "sources": [
+      "raw/documents/contact-backorder-preorder-overview-r668/source.md"
+    ],
+    "status": "retained unchanged; existing phrases and body checked; no independent-query aliases added",
+    "sha256": "f80b0ad291bdae3b96c532d005665a876814b57a7e4ba1948b8d1513f3ff3b8f"
+  },
+  {
+    "path": "concepts/sales/contact-overview-quantity-and-status.md",
+    "search_terms": "- \"Requested Qty\"\n  - \"Remaining Qty\"\n  - \"Available Quantity\"\n  - \"Fulfillment Status\"\n  - \"Ready to Ship\"",
+    "sources": [
+      "raw/documents/contact-backorder-preorder-overview-r668/source.md"
+    ],
+    "status": "retained unchanged; existing phrases and body checked; no independent-query aliases added",
+    "sha256": "ae3413e9873382bfcf8cfd7f4e29221e4224cab0dadf5b75ac06a4adaf51b02e"
+  },
+  {
+    "path": "concepts/sales/delivery-address-country-tax-rate.md",
+    "search_terms": "- \"German customers, the NL BTW (VAT) rate of 21% is being applied\"",
+    "sources": [
+      "raw/transcripts/ticket-1473.2026-09-11-003c2078a19b.md"
+    ],
+    "status": "retained unchanged; existing phrases and body checked; no independent-query aliases added",
+    "sha256": "a877b02f9addb41aa03778690169e6abc8512c04b2b095a1ccc4fd9a33d212f3"
+  },
+  {
+    "path": "concepts/sales/mark-done-current-applicability-investigation.md",
+    "search_terms": "- Mark Done Approve Payment Term\n- MarkAsDone Studio grant_approval",
+    "sources": [
+      "raw/transcripts/ticket-615.2026-10-15-a2460d69332e.md",
+      "raw/transcripts/ticket-624.2026-10-15-88ce4e0710f3.md"
+    ],
+    "status": "retained unchanged; existing phrases and body checked; no independent-query aliases added",
+    "sha256": "9cca422fac4ecf35f471ee61137c2ab10831c351d188972d91c9f14d1cb895d9"
+  },
+  {
+    "path": "concepts/sales/shopify-exchanged-product-discount-amount-history.md",
+    "search_terms": "- Shopify 外币订单价格有误\n  - SPF62003A\n  - CHF 1999 1987.36\n  - 换商品 折扣展示",
+    "sources": [
+      "raw/transcripts/ticket-2322.md"
+    ],
+    "status": "retained unchanged; existing phrases and body checked; no independent-query aliases added",
+    "sha256": "5869804f7d3bc72a56569f0b1f18f2061f7562c8172031147d5bde43191a5aa9"
+  },
+  {
+    "path": "concepts/sales/temp-credit-confirm-history.md",
+    "search_terms": "- \"temp CL\"\n- \"SO still cannot be processed\"",
+    "sources": [
+      "raw/transcripts/ticket-2038.2026-09-11-6c7132936313.md"
+    ],
+    "status": "retained unchanged; existing phrases and body checked; no independent-query aliases added",
+    "sha256": "1d79de86df9d9e978523a2ceda8ae6bb0bd382cfb9719283b9eea7a6475ff705"
+  },
+  {
+    "path": "concepts/sales/uk-shopify-empty-salesperson-default-history.md",
+    "search_terms": "- UK 很多线上订单没有salesperson\n  - Shopify salesperson none\n  - Website B2C",
+    "sources": [
+      "raw/transcripts/ticket-2272.md"
+    ],
+    "status": "retained unchanged; existing phrases and body checked; no independent-query aliases added",
+    "sha256": "c706210b95e2111215b7e44c2ffb510154a1f0e3ca716611c1df33f89d551514"
+  },
+  {
+    "path": "concepts/workforce/appraisal-scoring-history.md",
+    "search_terms": "- \"Appraisals The \\\"Add line\\\" under Type does not show\"",
+    "sources": [
+      "raw/transcripts/ticket-353.2026-09-11-c69cde383f50.md",
+      "raw/transcripts/ticket-354.2026-09-11-aa97a7735ea7.md",
+      "raw/transcripts/ticket-818.2026-09-11-bfe5a0f798cf.md",
+      "raw/transcripts/ticket-1517.2026-09-11-22aeff15f928.md"
+    ],
+    "status": "retained unchanged; existing phrases and body checked; no independent-query aliases added",
+    "sha256": "4d64e2d6e0308bc6a44e8c65d6020e6378a2080e7f169626259d232c8325a4ce"
+  }
+]

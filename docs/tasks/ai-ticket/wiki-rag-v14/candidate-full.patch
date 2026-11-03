@@ -1,0 +1,378 @@
+--- a/server/src/adapters/filesystem/wiki-knowledge-reader.ts
++++ b/server/src/adapters/filesystem/wiki-knowledge-reader.ts
+@@ -133,13 +133,13 @@
+   // never serialized into the rerank request or retained after candidates expire.
+   const originals = new WeakMap<WikiCandidate, WikiSourceEvidence[]>();
+   return {
+-    selectEvidence({ candidate, question, evidenceIds, signal }) {
++    selectEvidence({ candidate, question, evidenceIds, signal, maxChars = 2400 }) {
+       signal?.throwIfAborted();
+       const queryTerms = terms([question.question, ...question.keywords, ...question.objects].join(" "));
+       const linkedPaths = sourcePaths(candidate.content);
+       const sources = (originals.get(candidate) ?? []).filter((source) => evidenceIds.includes(source.id)
+         && (!linkedPaths.length || linkedPaths.includes(source.path)));
+-      let remaining = 2400;
++      let remaining = maxChars;
+       return sources.flatMap((source) => {
+         const excerpt = relevantSourceContent(source.content, queryTerms, remaining, source.path.startsWith("raw/transcripts/"));
+         if (!excerpt.content) return [];
+--- a/server/src/application/services/wiki-qa.service.ts
++++ b/server/src/application/services/wiki-qa.service.ts
+@@ -1,3 +1,5 @@
++import type { WikiSourceEvidence } from "../../domain/wiki-qa.js";
++import { allocatePrimaryBudget } from "../../domain/wiki-primary-budget.js";
+ import { compactWikiAnswerContext } from "../../domain/wiki-answer-context.js";
+ import { supportsWikiQuestion, wikiQueryTerms } from "../../domain/wiki-evidence.js";
+ import { z } from "zod";
+@@ -61,6 +63,8 @@
+   promptStore?: Pick<WorkflowPromptStore, "getByKey">;
+   extractLog?: WikiQaExtractLog;
+   answerLog?: WikiQaAnswerLog;
++  rawBudget?: { page: number; total: number };
++  primaryGate?: (question: string, source: WikiSourceEvidence) => boolean;
+ } = {}) {
+   const reader = deps.reader ?? createWikiKnowledgeReader();
+   const promptStore = deps.promptStore ?? getWorkflowPromptStore();
+@@ -189,9 +193,42 @@
+         };
+       });
+       const terms = wikiQueryTerms([extracted.question, ...extracted.keywords, ...extracted.objects].join(" "));
+-      const supported = evidence.filter((item) => supportsWikiQuestion(extracted.question, terms,
++      let supported = evidence.filter((item) => supportsWikiQuestion(extracted.question, terms,
+         [item.title, item.content, ...item.sourceEvidence.map((source) => source.content)].join("\n")))
+         .slice(0, 3).map((item, index) => ({ ...item, sourceId: index + 1 }));
++      if (deps.rawBudget && reader.selectEvidence) {
++        // Extend only the baseline's already selected <=3 pages. Ranking and page selection are unchanged.
++        const plans = supported.map((item) => {
++          const candidate = rerankCandidates.find(c => (c.sourcePath ?? c.path) === item.path)!;
++          const match = ranked.matches.find(m => m.candidateId === candidate.id)!;
++          return { key: item.path, existing: item.sourceEvidence, units: reader.selectEvidence!({
++            candidate, question: extracted, evidenceIds: match.evidenceIds, signal: input.signal, maxChars: Number.MAX_SAFE_INTEGER,
++          }) };
++        });
++        const allocation = allocatePrimaryBudget(plans, deps.rawBudget);
++        if (deps.primaryGate) {
++          for (const page of allocation.pages) {
++            const existing = plans.find(p => p.key === page.key)!.existing;
++            page.sources = page.sources.filter(source => existing.some(old => old.id === source.id)
++              || deps.primaryGate!(extracted.question, source));
++          }
++        }
++        supported = supported.map((item) => {
++          const candidate = rerankCandidates.find(c => (c.sourcePath ?? c.path) === item.path)!;
++          const match = ranked.matches.find(m => m.candidateId === candidate.id)!;
++          const sources = allocation.pages.find(p => p.key === item.path)!.sources;
++          const omittedEvidence = sources.length < match.evidenceIds.length;
++          const historical = candidate.historicalOnly || !match.conditionsMatched || !sources.length || omittedEvidence || sources.some(s => !s.complete);
++          return { ...item, sourceEvidence: sources,
++            content: scopedWikiContent(candidate.content, sources.map(s => s.path), candidate.knowledgeType === "ontology"),
++            applicability: historical ? "historical_reference" : match.applicability,
++            limitations: [...new Set([...candidate.limitations, ...match.limitations,
++              ...(!match.conditionsMatched ? ["当前材料尚未确认处理路径的关键前提"] : []),
++              ...(omittedEvidence ? ["部分来源未找到相关原文片段或完整上下文超出摘录预算，未作为本轮支持证据"] : []),
++              ...(!sources.length ? ["未找到支撑当前判断的原始证据"] : [])])],
++          };
++        });
++      }
+       wikiLogger.info({ actionRunId: input.actionRunId, layer: "server", stage: "server.wiki_qa.evidence", selected: evidence.length, supported: supported.length }, "WIKI_QA_EVIDENCE_FILTERED");
+       return { question: extracted.question, evidence: supported };
+     }, (result) => `已完成原始证据筛选，保留 ${result.evidence.length} 篇相关资料`);
+--- /dev/null
++++ b/server/src/domain/wiki-primary-budget.test.ts
+@@ -0,0 +1,70 @@
++// Copied into /tmp candidate/server/src/domain before running scoped Vitest.
++import { allocatePrimaryBudget } from './wiki-primary-budget.js';
++
++const unit = (id: string, chars: number, path = id) => ({ id, path, content: '文'.repeat(chars), complete: true });
++describe('v13 shared primary evidence budget', () => {
++  it('reserves later baseline evidence before extending a high ranked page', () => {
++    const keep = unit('keep', 2400);
++    const x = allocatePrimaryBudget([
++      { key: 'first', existing: [], units: [unit('long', 4800)] },
++      { key: 'second', existing: [keep], units: [keep] },
++    ], { page: 4800, total: 7200 });
++    expect(x.reserved).toBe(2400); expect(x.used).toBe(7200);
++    expect(x.pages.map(p => p.sources.map(s => s.id))).toEqual([['long'], ['keep']]);
++  });
++  it.each([2400, 2401, 4800])('keeps a complete %i-character unit', n => {
++    const u = unit('u', n);
++    expect(allocatePrimaryBudget([{ key: 'p', existing: [], units: [u] }], { page: 4800, total: 7200 }).pages[0].sources).toEqual([u]);
++  });
++  it('rejects a 4801-character unit without cutting a later correction', () => {
++    const u = { ...unit('u', 4790), content: '文'.repeat(4790) + '\n更正：此前操作失败。' };
++    expect(u.content.length).toBeGreaterThan(4800);
++    const x = allocatePrimaryBudget([{ key: 'p', existing: [], units: [u] }], { page: 4800, total: 7200 });
++    expect(x.pages[0].sources).toEqual([]); expect(x.decisions[0].reason).toBe('page_limit');
++  });
++  it('does not evict baseline evidence when an earlier extension would exceed the total', () => {
++    const keep = unit('keep', 2400);
++    const x = allocatePrimaryBudget([
++      { key: 'p1', existing: [], units: [unit('long', 4800)] },
++      { key: 'p2', existing: [keep], units: [keep] },
++      { key: 'p3', existing: [], units: [unit('extra', 1)] },
++    ], { page: 4800, total: 7200 });
++    expect(x.used).toBe(7200); expect(x.pages[1].sources).toEqual([keep]);
++    expect(x.decisions.at(-1)?.reason).toBe('total_limit');
++  });
++  it('preserves source order even when a later source was reserved first', () => {
++    const a = unit('a', 2531), b = unit('b', 1000);
++    const x = allocatePrimaryBudget([{ key: 'p', existing: [b], units: [a, b] }], { page: 4800, total: 7200 });
++    expect(x.pages[0].sources).toEqual([a, b]);
++  });
++  it('shares 7200 between whole packages of 4482 and 2531 without admitting a third', () => {
++    const x = allocatePrimaryBudget([4482, 2531, 188].map((n, i) => ({ key: String(i), existing: [], units: [unit(String(i), n)] })),
++      { page: 4800, total: 7200 });
++    expect(x.used).toBe(7013); expect(x.pages[2].sources).toEqual([]);
++  });
++  it('counts JavaScript string length including Unicode and ordinal wrappers', () => {
++    const u = { ...unit('u', 0), content: '[M1] 🧪\n更正：UK仍未验证' };
++    const x = allocatePrimaryBudget([{ key: 'p', existing: [], units: [u] }], { page: u.content.length, total: u.content.length });
++    expect(x.used).toBe(u.content.length); expect(x.pages[0].sources[0].content).toBe(u.content);
++  });
++  it('retains incomplete-source status and does not manufacture primary evidence for ontology', () => {
++    const u = { ...unit('u', 100), complete: false };
++    const x = allocatePrimaryBudget([{ key: 'support', existing: [u], units: [u] }, { key: 'ontology', existing: [], units: [] }], { page: 4800, total: 7200 });
++    expect(x.pages[0].sources[0].complete).toBe(false); expect(x.pages[1].sources).toEqual([]);
++  });
++  it('rejects a changed or borrowed baseline unit', () => {
++    expect(() => allocatePrimaryBudget([{ key: 'p', existing: [unit('x', 5, 'source-one')], units: [unit('x', 5, 'source-two')] }],
++      { page: 4800, total: 7200 })).toThrow('BASELINE_UNIT_CHANGED');
++  });
++  it('rejects duplicate units, duplicate pages and more than three pages', () => {
++    const u = unit('u', 1);
++    expect(() => allocatePrimaryBudget([{ key: 'p', existing: [], units: [u, u] }], { page: 4800, total: 7200 })).toThrow('DUPLICATE_SOURCE_UNIT');
++    expect(() => allocatePrimaryBudget(['p', 'p'].map(key => ({ key, existing: [], units: [] })), { page: 4800, total: 7200 })).toThrow('INVALID_BUDGET_INPUT');
++    expect(() => allocatePrimaryBudget(['1', '2', '3', '4'].map(key => ({ key, existing: [], units: [] })), { page: 4800, total: 7200 })).toThrow('INVALID_BUDGET_INPUT');
++  });
++  it('fails instead of silently dropping baseline units over either cap', () => {
++    const u = unit('u', 2400);
++    expect(() => allocatePrimaryBudget([{ key: 'p', existing: [u], units: [u] }], { page: 2399, total: 7200 })).toThrow('BASELINE_PAGE_OVER_LIMIT');
++    expect(() => allocatePrimaryBudget([{ key: 'p', existing: [u], units: [u] }], { page: 4800, total: 2399 })).toThrow('BASELINE_TOTAL_OVER_LIMIT');
++  });
++});
+--- /dev/null
++++ b/server/src/domain/wiki-primary-budget.ts
+@@ -0,0 +1,44 @@
++// Experiment-only policy, copied into the isolated candidate; never imported by production.
++export interface PrimaryUnit { id: string; path: string; content: string; complete: boolean }
++export interface BudgetPage { key: string; existing: PrimaryUnit[]; units: PrimaryUnit[] }
++export interface BudgetLimits { page: number; total: number }
++
++export function allocatePrimaryBudget(pages: BudgetPage[], limits: BudgetLimits) {
++  if (![limits.page, limits.total].every(n => Number.isSafeInteger(n) && n > 0)
++    || pages.length > 3 || new Set(pages.map(p => p.key)).size !== pages.length) throw new Error('INVALID_BUDGET_INPUT');
++  const kept = new Map<string, Set<string>>();
++  const sizes = new Map<string, number>();
++  const decisions: { page: string; source: string; chars: number; reason: string }[] = [];
++  let used = 0;
++  for (const p of pages) {
++    if (new Set(p.units.map(u => u.id)).size !== p.units.length
++      || new Set(p.existing.map(u => u.id)).size !== p.existing.length) throw new Error('DUPLICATE_SOURCE_UNIT');
++    const ids = new Set<string>();
++    let size = 0;
++    for (const old of p.existing) {
++      const unit = p.units.find(u => u.id === old.id);
++      if (!unit || unit.path !== old.path || unit.content !== old.content || unit.complete !== old.complete
++        || !unit.content) throw new Error('BASELINE_UNIT_CHANGED');
++      ids.add(unit.id); size += unit.content.length;
++      decisions.push({ page: p.key, source: unit.path, chars: unit.content.length, reason: 'baseline_reserved' });
++    }
++    if (size > limits.page) throw new Error('BASELINE_PAGE_OVER_LIMIT');
++    used += size; kept.set(p.key, ids); sizes.set(p.key, size);
++  }
++  if (used > limits.total) throw new Error('BASELINE_TOTAL_OVER_LIMIT');
++  const reserved = used;
++  for (const p of pages) {
++    const ids = kept.get(p.key)!;
++    for (const unit of p.units) {
++      if (ids.has(unit.id) || !unit.content) continue;
++      const size = unit.content.length;
++      const reason = sizes.get(p.key)! + size > limits.page ? 'page_limit'
++        : used + size > limits.total ? 'total_limit' : 'added';
++      decisions.push({ page: p.key, source: unit.path, chars: size, reason });
++      if (reason !== 'added') continue;
++      ids.add(unit.id); sizes.set(p.key, sizes.get(p.key)! + size); used += size;
++    }
++  }
++  return { reserved, used, decisions,
++    pages: pages.map(p => ({ key: p.key, sources: p.units.filter(u => kept.get(p.key)!.has(u.id)) })) };
++}
+--- /dev/null
++++ b/server/src/domain/wiki-primary-focus.test.ts
+@@ -0,0 +1,57 @@
++// Copied into the isolated server; Vitest globals follow project conventions.
++import { checkAddedPrimary } from './wiki-primary-focus.js';
++import { allocatePrimaryBudget } from './wiki-primary-budget.js';
++
++describe('v14 incremental direct question focus', () => {
++  it('does not admit a source on a generic object alone', () => {
++    expect(checkAddedPrimary('凭证如何复制Review时间？', 'M1\n凭证有金额。').allow).toBe(false);
++  });
++  it('recognizes a field without a field-name whitelist', () => {
++    const r = checkAddedPrimary('复制AuditStamp时间后仍保留？', 'M1\nAuditStamp remains after copying.');
++    expect(r.allow).toBe(true); expect(r.anchors).toContain('auditstamp');
++  });
++  it('does not bypass an explicit field with two broad action clues', () => {
++    expect(checkAddedPrimary('复制AuditStamp时间失败', 'M1\n复制失败').allow).toBe(false);
++  });
++  it('requires the detailed error cause rather than a broad wrapper', () => {
++    expect(checkAddedPrimary('OwlError Caused by EvalError', 'M1\nOwlError: import failed.').allow).toBe(false);
++    expect(checkAddedPrimary('OwlError Caused by EvalError', 'M1\nEvalError occurred.').allow).toBe(true);
++  });
++  it('uses two distinct clue families with an action', () => {
++    expect(checkAddedPrimary('反冲时必填缺失', 'M1\n历史反冲遇到必填限制。').allow).toBe(true);
++    expect(checkAddedPrimary('反冲反冲反冲', 'M1\n反冲。反冲。').allow).toBe(false);
++  });
++  it('does not count synonyms as independent clues', () => {
++    expect(checkAddedPrimary('反冲 reverse', 'M1\n反冲 reverse reversal').allow).toBe(false);
++  });
++  it('does not bridge distant original messages', () => {
++    expect(checkAddedPrimary('反冲必填', 'M1\n反冲\n\nM9\n必填').allow).toBe(false);
++    expect(checkAddedPrimary('反冲必填', 'M1\n反冲\n\nM2\n必填').allow).toBe(true);
++  });
++  it('ignores sender metadata and source identity as evidence', () => {
++    expect(checkAddedPrimary('反冲必填', 'M1\n- **[2026-10-22] 反冲必填**(user): 凭证').allow).toBe(false);
++  });
++  it('has no automatic translation or generated keyword fallback', () => {
++    expect(checkAddedPrimary('复制复核信息', 'M1\ncopy review information').allow).toBe(false);
++  });
++  it('fails closed on missing or duplicated block ordinals', () => {
++    expect(checkAddedPrimary('反冲必填','反冲必填').allow).toBe(false);
++    expect(checkAddedPrimary('反冲必填','M1\n反冲必填\n\nM1\n反冲必填').allow).toBe(false);
++  });
++  it('only removes additions after budget allocation without refilling', () => {
++    const unit = (id: string, content: string) => ({ id, path: id, content, complete: false });
++    const old = unit('old', 'M1\n凭证');
++    const bad = unit('bad', 'M1\n凭证金额');
++    const later = unit('later', 'M1\n反冲必填');
++    const budget = allocatePrimaryBudget([{ key: 'p', existing: [old], units: [old, bad, later] }],
++      { page: old.content.length + bad.content.length, total: 7200 });
++    const sources = budget.pages[0].sources.filter(s => s.id === old.id || checkAddedPrimary('反冲必填', s.content).allow);
++    expect(sources).toEqual([old]); expect(sources[0].complete).toBe(false);
++  });
++  it('keeps the entire original unit including a later reversal', () => {
++    const content = 'M1\n反冲必填\n\nM8\n更正：之前操作无效，不能照做。';
++    expect(checkAddedPrimary('反冲必填', content).allow).toBe(true);
++    // Gate returns a decision, never a replacement/truncated source body.
++    expect('content' in checkAddedPrimary('反冲必填', content)).toBe(false);
++  });
++});
+--- /dev/null
++++ b/server/src/domain/wiki-primary-focus.ts
+@@ -0,0 +1,105 @@
++// Isolated v14 experiment. No Wiki anchors, generated keywords, source IDs or models.
++export const focusPolicy = {
++  version: 'v14-r1',
++  generic: ['odoo', 'eu', 'uk', 'us', 'so', 'po', 'inv', 'je', 'ap', 'ar', 'vat', 'cmc', 'api', 'http',
++    'customer', 'customers', 'contact', 'contacts', 'invoice', 'invoices', 'bill', 'vendor', 'order', 'orders',
++    'sales', 'stock', 'warehouse', 'shopify', 'turbo', 'marketing', 'operations', 'team', 'partner',
++    'what', 'why', 'how', 'can', 'could', 'should', 'the', 'an', 'other'],
++  families: {
++    reverse: ['反冲', '冲销', 'reverse', 'reversal'],
++    copy: ['复制', 'duplicate', 'duplicated', 'copy', 'copied'],
++    sync: ['同步', 'sync', 'synced', 'synchronize'],
++    export: ['导出', 'export', 'exported', 'exporting'],
++    import: ['导入', 'import', 'imported', 'importing'],
++    return: ['退回', '退货', 'return', 'returned'],
++    approve: ['审批', '审核', '复核', 'approve', 'approved', 'approval'],
++    send: ['发送', '推送', 'send', 'sent', 'sending'],
++    receive: ['接收', '收到', 'receive', 'received'],
++    modify: ['修改', '调整', '替换', 'change', 'changed', 'adjust', 'adjustment'],
++    reserve: ['占用', '预留', 'reserved', 'reserve'],
++    reset: ['重置', '清除', '清空', 'reset', 'clear'],
++    expand: ['展开', 'expanding', 'expand'],
++    validate: ['校验', 'validate', 'validation'],
++    cancel: ['取消', 'cancel', 'cancelled'],
++    fail: ['失败', '报错', '无法', '失败', 'failed', 'fails', 'failure'],
++    missing: ['缺失', '缺少', 'missing', 'blank'],
++    mandatory: ['必填', 'mandatory', 'required'],
++    difference: ['差异', '差额', '差价', '不一致', 'difference', 'different', 'mismatch'],
++    balance: ['余额', 'balance'],
++    value: ['价值', 'value', 'valuation'],
++    quantity: ['数量', 'quantity'],
++    format: ['格式', 'format'],
++    structure: ['结构', 'structure'],
++    permission: ['权限', 'permission', 'permissions'],
++    button: ['按钮', 'button'],
++    node: ['节点', 'node'],
++    status: ['状态', 'status', 'state'],
++  },
++  actions: ['reverse', 'copy', 'sync', 'export', 'import', 'return', 'approve', 'send', 'receive',
++    'modify', 'reserve', 'reset', 'expand', 'validate', 'cancel', 'fail', 'missing', 'mandatory'],
++  fieldSuffix: '时间|字段|状态|值|信息|属性|列',
++  windows: 'direct matching M/P block plus returned original ordinal neighbors only',
++  minimumIndependentFamilies: 2,
++} as const;
++
++export interface FocusDecision {
++  allow: boolean; reason: string; anchors: string[]; families: string[]; ordinals: string[];
++}
++const lower = (s: string) => s.normalize('NFKC').toLowerCase();
++const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
++function contains(text: string, term: string) {
++  const t = lower(text), q = lower(term);
++  return /^[a-z0-9_. -]+$/.test(q)
++    ? new RegExp(`(?<![a-z0-9_])${escape(q).replace(/ /g, '\\s+')}(?![a-z0-9_])`, 'i').test(t)
++    : t.includes(q);
++}
++function body(s: string) {
++  return s.replace(/^\s*-\s+\*\*\[[^\n]*?\*\*(?:\([^\n]*?\))?\s*[:：]\s*/, '')
++    .replace(/^\s*(?:###|##|#)\s+[^\n]*$/gm, '')
++    .replace(/^\s*-\s*(?:message_id|sender_role|has_artifact|reply_to):[^\n]*$/gm, '')
++    .replace(/https?:\/\/\S+|om_[a-z0-9]+|@(?:[A-Za-z]+\s*){1,3}/g, '');
++}
++function anchors(question: string) {
++  const q = question.replace(/\[[A-Z_]+\]|https?:\/\/\S+|@[\w.-]+/g, '');
++  const generic = new Set<string>(focusPolicy.generic);
++  const all = [
++    ...q.matchAll(/\b[a-zA-Z_]\w*(?:\.\w+|_\w+)+\b/g),
++    ...q.matchAll(/\b[A-Z]{2,8}\b/g),
++    ...q.matchAll(/\b[A-Z][a-z]+(?:[A-Z][a-z]+)+\b/g),
++    ...q.matchAll(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\b/g),
++    ...q.matchAll(new RegExp(`\\b[A-Za-z][A-Za-z0-9_]+(?=${focusPolicy.fieldSuffix})`, 'g')),
++    ...q.matchAll(/[`"“]([^`"”\n]{3,80})[`"”]/g),
++  ].map(m => lower(m[1] ?? m[0])).filter(t => !generic.has(t) && !/^\d+$/.test(t));
++  return [...new Set(all)];
++}
++
++export function checkAddedPrimary(question: string, content: string): FocusDecision {
++  const reject = (reason: string): FocusDecision => ({ allow: false, reason, anchors: [], families: [], ordinals: [] });
++  if (!question.trim() || !content.trim()) return reject('empty_input');
++  const blocks = [...content.matchAll(/(?:^|\n\n)([MP])(\d+)\n([\s\S]*?)(?=\n\n[MP]\d+\n|$)/g)]
++    .map(m => ({ type: m[1], n: Number(m[2]), ordinal: m[1] + m[2], text: body(m[3]) }));
++  if (!blocks.length || new Set(blocks.map(b => b.ordinal)).size !== blocks.length) return reject('invalid_ordinals');
++  const cause = question.match(/Caused by\s*:?\s*([A-Za-z]\w*(?:Error|Exception))\b/i)?.[1];
++  const fieldNames = [...question.matchAll(new RegExp(`\\b[A-Za-z][A-Za-z0-9_]+(?=${focusPolicy.fieldSuffix})`, 'g'))]
++    .map(m => lower(m[0]));
++  const mandatory = cause ? [lower(cause)] : fieldNames;
++  const direct = anchors(question);
++  const families = Object.entries(focusPolicy.families)
++    .map(([key, words]) => ({ key, words: words.filter(w => contains(question, w)) }))
++    .filter(f => f.words.length);
++  for (const b of blocks) {
++    // A keyword in an isolated late qualification does not bridge an ordinal gap.
++    if (!direct.some(a => contains(b.text, a)) && !families.some(f => f.words.some(w => contains(b.text, w)))) continue;
++    const window = blocks.filter(x => x.type === b.type && Math.abs(x.n - b.n) <= 1);
++    const text = window.map(x => x.text).join('\n');
++    if (mandatory.length && !mandatory.some(t => contains(text, t))) continue;
++    const hits = direct.filter(a => contains(text, a));
++    const f = families.filter(x => x.words.some(w => contains(text, w))).map(x => x.key);
++    if (hits.length) return { allow: true, reason: 'direct_specific_anchor', anchors: hits,
++      families: f, ordinals: window.map(x => x.ordinal) };
++    if (f.length >= focusPolicy.minimumIndependentFamilies && f.some(k => (focusPolicy.actions as readonly string[]).includes(k))) {
++      return { allow: true, reason: 'independent_direct_clues', anchors: [], families: f, ordinals: window.map(x => x.ordinal) };
++    }
++  }
++  return reject(mandatory.length ? 'specific_detail_missing' : 'no_direct_focus');
++}
+--- a/server/src/domain/wiki-qa.ts
++++ b/server/src/domain/wiki-qa.ts
+@@ -65,7 +65,7 @@
+ 
+ export interface WikiKnowledgeReader {
+   search(input: WikiQuestion & { signal?: AbortSignal }): Promise<WikiCandidate[]>;
+-  selectEvidence?(input: { candidate: WikiCandidate; question: WikiQuestion; evidenceIds: string[]; signal?: AbortSignal }): WikiSourceEvidence[];
++  selectEvidence?(input: { candidate: WikiCandidate; question: WikiQuestion; evidenceIds: string[]; signal?: AbortSignal; maxChars?: number }): WikiSourceEvidence[];
+ }
+ 
+ export class WikiQaError extends Error {

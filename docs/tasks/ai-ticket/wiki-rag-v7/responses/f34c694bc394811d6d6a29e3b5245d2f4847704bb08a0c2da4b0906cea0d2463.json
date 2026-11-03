@@ -1,0 +1,100 @@
+{
+  "caseId": "Q24",
+  "group": "A",
+  "payloadHash": "f34c694bc394811d6d6a29e3b5245d2f4847704bb08a0c2da4b0906cea0d2463",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 1,
+      "relevance_score": 0.03615659847855568
+    },
+    {
+      "index": 3,
+      "relevance_score": 0.03371527045965195
+    },
+    {
+      "index": 4,
+      "relevance_score": 0.0323115810751915
+    },
+    {
+      "index": 13,
+      "relevance_score": 0.025011826306581497
+    },
+    {
+      "index": 12,
+      "relevance_score": 0.018041417002677917
+    }
+  ],
+  "durationMs": 358,
+  "querySha256": "15d5359ff327482198fe6bbdbed708e8695ed5bc27664259719a4a57a09c3dc8",
+  "queryChars": 40,
+  "documentSha256": [
+    "5a168888e6967086bc5a21a3f497acef97e6293ff4b7c018e2144bb173e1feb1",
+    "5450077374d5108a5c1f72acf246c90d854194765ca1632ae02288456acc9b03",
+    "325623dae0ed2d794c7634f77488b2dc89dd7dbe26a7f0574a113d91406a8571",
+    "03cc137bf59feb0164ae0d1d89ca7347f6a168a325670afd76baa90cfa08a3a0",
+    "2523ea6b4d3d0631f759016f8724ba97c639cb0adc003360820a3aed6ec715ba",
+    "00ce0fc0ba1d5816858265c581dae6ba5b6ad59fd5c52df612fdaa1f3f07e483",
+    "ce8aeafcb0133c9907179c7c7b5ddf4a6cf9858db37365e3dcf56a456e786948",
+    "92fca304cb8f393a9c80e5d1714275eff2e3f970d5745896bf6addbd3a42429d",
+    "a37da99438260b08b89569d4a0a2edeba9012f64bfecc6ffd1064630d40a3e3e",
+    "60dcbb2a2efe19db9012f91df43b5bc5a6c444c33e24078f6252453335e0f584",
+    "86f416b8d15c19ece84f7280358f8e4e9ba91024ab7283957c329976a487f872",
+    "c6e3ee2a8dad82bdd35d781329e51a82e3522aebabd21ba590f5248ea2e83df2",
+    "7f8371480affe0ddc35a330511977924768cc9198b14184d17896198ff224a2b",
+    "9b0967bd606e3b9d8225aafbe6a7673a3372afb876b335b9740b7b2ed1317eba",
+    "018b00e141da6e9f2dd8c2877a12946446578cdd5cb817587be623badbf70a81",
+    "b528c2c7c1d7de2500882f509f088a9c55874ef6711fe06d9b7cdac66d55e8cb",
+    "4ef6649a8a6b6803b19b0be89985ad95141c393ab274df517a1e4ea43aed627a",
+    "76981d04ca1492e0f9eaaadcf67c10fd58d119b610d0d79a7968e3b10a4d8c7f",
+    "98364f9acc7418b8beb000901057d6b1ba5914279c4411688d54aa490e4152d7",
+    "1f09f5c5a748c8966b0bb960fe1821df8da56f622655c169f129474584361b0d"
+  ],
+  "documentChars": [
+    484,
+    1873,
+    1095,
+    1444,
+    1204,
+    397,
+    314,
+    407,
+    734,
+    843,
+    551,
+    311,
+    378,
+    438,
+    653,
+    341,
+    957,
+    736,
+    601,
+    688
+  ],
+  "candidatePaths": [
+    "docs/llm-wiki/concepts/integration/wms-key-reference-contract-history.md",
+    "docs/ontology/objects/b2b-invoice-integration.md",
+    "docs/llm-wiki/concepts/access/odoo-login-entry-triage.md",
+    "docs/llm-wiki/concepts/access/operation-access-and-button-triage.md",
+    "docs/llm-wiki/concepts/access/permission-request-and-effective-access.md",
+    "docs/llm-wiki/concepts/access/sales-team-order-visibility-history.md",
+    "docs/llm-wiki/concepts/access/update-time-permission-question-history.md",
+    "docs/llm-wiki/concepts/access/warehouse-field-visibility-history.md",
+    "docs/llm-wiki/concepts/accounting/account-archive-delete-history.md",
+    "docs/llm-wiki/concepts/accounting/account-mapping-old-journal-history.md",
+    "docs/llm-wiki/concepts/accounting/accounting-lock-date-history.md",
+    "docs/llm-wiki/concepts/accounting/asset-bill-warning-history.md",
+    "docs/llm-wiki/concepts/accounting/asset-list-residual-value-fields-history.md",
+    "docs/llm-wiki/concepts/accounting/asset-re-evaluate-original-value.md",
+    "docs/llm-wiki/concepts/accounting/asset-value-depreciation-change-history.md",
+    "docs/llm-wiki/concepts/accounting/bank-reconciliation-latency-history.md",
+    "docs/llm-wiki/concepts/accounting/bill-svl-exchange-history.md",
+    "docs/llm-wiki/concepts/accounting/cancelled-journal-sequence-date-history.md",
+    "docs/llm-wiki/concepts/accounting/cash-flow-complex-match-history.md",
+    "docs/llm-wiki/concepts/accounting/cash-flow-config-timing-history.md"
+  ],
+  "queryCAvailable": true
+}

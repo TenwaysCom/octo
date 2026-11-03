@@ -1,0 +1,12 @@
+{"event":"started","number":1,"caseId":"P1","topN":5,"payloadSha256":"9fcf8cd80deb2b02c79fd68d9b8956e988a352c90831f03a228521e752f8dfa0","time":"2026-10-21T11:32:02.987Z"}
+{"event":"response","number":1,"statusCode":200,"durationMs":500}
+{"event":"started","number":2,"caseId":"P2","topN":5,"payloadSha256":"2ec977488d98233e4e2c519127208ab9445a6492b298ba4e2ad8861340410838","time":"2026-10-21T11:32:03.571Z"}
+{"event":"response","number":2,"statusCode":200,"durationMs":628}
+{"event":"started","number":3,"caseId":"N1","topN":5,"payloadSha256":"ef8e02f855a4173eac03037602c2bad99c2a3853f689f275eb350c26885f09c8","time":"2026-10-21T11:32:04.339Z"}
+{"event":"response","number":3,"statusCode":200,"durationMs":481}
+{"event":"started","number":4,"caseId":"N1","topN":20,"payloadSha256":"37dc982b76c7ccbcbfbc742ab679dfb734d092de991810f971045d461b421cc9","time":"2026-10-21T11:32:04.821Z"}
+{"event":"response","number":4,"statusCode":200,"durationMs":531}
+{"event":"started","number":5,"caseId":"N2","topN":5,"payloadSha256":"3e468236f93805f35827fb17281163b1ccb7ce8a0a632c4db0e22edd36f09178","time":"2026-10-21T11:32:05.467Z"}
+{"event":"response","number":5,"statusCode":200,"durationMs":405}
+{"event":"started","number":6,"caseId":"N2","topN":20,"payloadSha256":"bd188b288211d1dc9567ecc5c7faad97628ffc6553ab14aa8b6ab7416bddac7e","time":"2026-10-21T11:32:05.873Z"}
+{"event":"response","number":6,"statusCode":200,"durationMs":377}

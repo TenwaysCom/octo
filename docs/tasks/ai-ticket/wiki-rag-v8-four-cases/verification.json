@@ -1,0 +1,16 @@
+{
+  "execution": "PASS",
+  "frozen_inputs_and_code": "PASS",
+  "v7_artifacts_unchanged": "PASS",
+  "typecheck": "PASS",
+  "model_requests": 6,
+  "status200": 6,
+  "positive_top1": "2/2",
+  "positive_accepted": "1/2",
+  "explicit_negative_pairs_accepted": "0/2",
+  "negative_questions_correct_alternative_retained": "2/2",
+  "unit_tests": "not rerun; no application source changes",
+  "answer_generation_and_deployment": "not performed",
+  "original_association_G": "disabled; candidate preserved",
+  "preparation_note": "Before any model scores, long-query/object expansion preflight did not recall wrong pages; compact source-grounded questions used. No model-score-based sample replacement."
+}

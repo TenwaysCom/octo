@@ -1,0 +1,47 @@
+{
+  "unitAndMock": {
+    "passed": true,
+    "tests": 159,
+    "files": 6,
+    "focusTests": 12,
+    "logSha256": "904e00a5420d8d5ea8fddf3e10b065c4aa8df95cc15331e3e844ae0a7bbbad22",
+    "scope": "isolated candidate only"
+  },
+  "build": {
+    "passed": true,
+    "command": "pnpm build",
+    "cwd": "/tmp/octo-wiki-rag-v14/candidate/server",
+    "logSha256": "7070bd8c49dc0e5f59eac1a7b37b6d255aea709fe134f12c2532822df19b873e"
+  },
+  "experimentTypecheck": {
+    "passed": true,
+    "files": [
+      "primary-focus-v14.mts",
+      "replay-v14.mts",
+      "verify-v14.mts"
+    ],
+    "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "integrity": {
+    "passed": true,
+    "originalUnitsChecked": 123,
+    "baselineUnitsPreserved": 112
+  },
+  "quality": {
+    "passed": false,
+    "reason": "2 unsafe incremental units still admitted"
+  },
+  "liveRerank": {
+    "requests": 0,
+    "reason": "old137 gate failed; cached real scores reused"
+  },
+  "finalAnswer": {
+    "requests": 0
+  },
+  "independentJudge": {
+    "requests": 0
+  },
+  "deployedRuntime": {
+    "run": false
+  }
+}

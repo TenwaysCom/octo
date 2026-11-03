@@ -1,0 +1,100 @@
+{
+  "caseId": "T22",
+  "group": "A",
+  "payloadHash": "0e7071bb8146ffd328e855512ff79ef724f2ebb22b7cfc41e53598367d094a36",
+  "topN": 5,
+  "state": "completed",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "results": [
+    {
+      "index": 2,
+      "relevance_score": 0.6549646854400635
+    },
+    {
+      "index": 6,
+      "relevance_score": 0.5368640422821045
+    },
+    {
+      "index": 10,
+      "relevance_score": 0.44161874055862427
+    },
+    {
+      "index": 13,
+      "relevance_score": 0.411940336227417
+    },
+    {
+      "index": 0,
+      "relevance_score": 0.3616434633731842
+    }
+  ],
+  "durationMs": 560,
+  "querySha256": "63d547bc4713f4ee6f01cd1dc458af4b0d0fa61554a0729aaa633372745714f2",
+  "queryChars": 145,
+  "documentSha256": [
+    "08b981820c29ebfda3ae335bea46b6fd1094b46fa10ddef2198ffd6874b8eeb2",
+    "8a323823dc7d5b11b15ce0ecfdf63349e041993da9e683bed30623336964d683",
+    "24fecf47b9650ff6458f424607961411b15478331e51c82e7b9462c436821310",
+    "af137dd4775bb16bdfe1b3206a9822b5847bb3a4d92671c4177f8353bfea8aa2",
+    "5ac0e4aa0c4e5172f45071a514a54ff75842641076db64ed1d3d854aef649412",
+    "87703ad8d96c1d7a6a9e58b4b5a250387dfa7aa45f173b5a4dfe479773946038",
+    "7c89fa56f7410fda8058b6afd43de8427fedc4b553fa50cbc872d89e22b05f9b",
+    "d3199d2bc34aa4fc239a2d0843204a5d5451e9f9fdcc26f3cde6587875c6c773",
+    "0954809d9709fbd519e046e18030056a1e0b170c054c116b603961e1958ac514",
+    "48450ffcc908d80e99c6d62f64a596f23df471a06c30e25f38d95609aa13c4d5",
+    "811bdeb0386d377d77bfb0c4771f1cdf8d802c3cb64458377290466951506aa9",
+    "e99848d7fdcd42eb04cf35216bb6de1d11a201accd3bab74a654f88e4c0809d5",
+    "d925c986ee2aa7a5c36c229786231f908b73dfaa6043b76019164fc266b77960",
+    "57247d023f75cd895a915f867bca5bcb4d3d43376d3a085e5db25a705e036ff2",
+    "051fc56703913951696ffa34951a6c206c903fff6742b156db58cb3cf443f2a1",
+    "4c2751d3ff80d3d960e604ceafde83684ad25ffd746d18ba68d17934bf43cbe5",
+    "5f8ae238706a77359180266f5cf1bcdfc62ec51ef50a662512f0aaa8c62e74d0",
+    "11f7afdf39139473dbec9e4356b8ee1f929f4ceed8151eebb07b8c5f699794f9",
+    "546ffd5ee228a5d0b831f3f1b749692b27eb6f02a38f9e42251e972d2c8b0930",
+    "22e60da5dbbf7fabfa8ed22025566190baf57429ae3a9dd8f8de9566b64f4cc0"
+  ],
+  "documentChars": [
+    1878,
+    930,
+    2125,
+    1006,
+    596,
+    2485,
+    2322,
+    2262,
+    2379,
+    1059,
+    2444,
+    2488,
+    2339,
+    2475,
+    1288,
+    1639,
+    623,
+    2255,
+    2484,
+    2208
+  ],
+  "candidatePaths": [
+    "docs/ontology/objects/business-approval.md",
+    "docs/ontology/processes/budget-contract-payment-approval.md",
+    "docs/ontology/objects/purchase-settlement.md",
+    "docs/ontology/processes/purchase-prepayment-and-deduction.md",
+    "docs/llm-wiki/concepts/purchase/prepayment-deduction-history.md",
+    "docs/ontology/objects/business-party.md",
+    "docs/ontology/objects/sales-invoice.md",
+    "docs/ontology/objects/cash-flow-allocation.md",
+    "docs/ontology/objects/warehouse-operation.md",
+    "docs/ontology/processes/employee-expense-submission-approval-and-reimbursement.md",
+    "docs/ontology/objects/deferred-expense.md",
+    "docs/ontology/objects/journal-item-control.md",
+    "docs/ontology/objects/sales-refund.md",
+    "docs/ontology/objects/transaction-tax.md",
+    "docs/ontology/processes/sales-credit-adjustment.md",
+    "docs/llm-wiki/concepts/approvals/approval-submission-and-progress-triage.md",
+    "docs/llm-wiki/concepts/invoicing/rounding-promotion-after-invoice-history.md",
+    "docs/ontology/objects/marketing-sales.md",
+    "docs/ontology/objects/service-center-case.md",
+    "docs/ontology/rules/commercial-partner-attribution.md"
+  ],
+  "queryCAvailable": true
+}
