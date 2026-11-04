@@ -23,6 +23,31 @@ describe("Lark thread intake range controller", () => {
     expect(scanRange).toHaveBeenCalledWith({ ...body, apply: false, maxTickets: 5 });
   });
 
+  it("generates a trace ID before scanning and preserves it on failure when none is supplied", async () => {
+    const scanRange = vi.fn().mockRejectedValue(new Error("PLATFORM_PERMISSION_DENIED"));
+    const controller = createLarkThreadTicketIntakeController({ ensureSession: ensureSession("pm"), scanRange });
+    const result = await controller({ body: { ...body, actionRunId: undefined } });
+    const requestId = scanRange.mock.calls[0][0].actionRunId;
+    expect(requestId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(result).toMatchObject({ statusCode: 502, body: { error: { actionRunId: requestId, errorCode: "PLATFORM_PERMISSION_DENIED" } } });
+  });
+
+  it.each(["  ", "x".repeat(129)])("returns a generated trace ID for invalid request IDs without scanning", async (actionRunId) => {
+    const scanRange = vi.fn();
+    const controller = createLarkThreadTicketIntakeController({ ensureSession: ensureSession("pm"), scanRange });
+    const result = await controller({ body: { ...body, actionRunId } });
+    expect(result).toMatchObject({ statusCode: 400, body: { error: { actionRunId: expect.stringMatching(/^[0-9a-f-]{36}$/), errorCode: "INVALID_REQUEST" } } });
+    expect(scanRange).not.toHaveBeenCalled();
+  });
+
+  it("normalizes a supplied trace ID consistently for the scanner and failure response", async () => {
+    const scanRange = vi.fn().mockRejectedValue(new Error("PLATFORM_PERMISSION_DENIED"));
+    const controller = createLarkThreadTicketIntakeController({ ensureSession: ensureSession("pm"), scanRange });
+    const result = await controller({ body: { ...body, actionRunId: " request_1 " } });
+    expect(scanRange).toHaveBeenCalledWith(expect.objectContaining({ actionRunId: "request_1" }));
+    expect(result).toMatchObject({ body: { error: { actionRunId: "request_1" } } });
+  });
+
   it.each([
     { endTime: body.startTime }, { endTime: "yesterday" }, { startTime: "2026-11-02T23:00:00" },
     { maxTickets: 0 }, { maxTickets: 51 }, { apply: "true" }, { masterUserId: "forged" },

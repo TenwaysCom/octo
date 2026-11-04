@@ -2,6 +2,14 @@
 
 Record concise compiler/runtime errors, failed commands, wrong assumptions, and their verified fixes here. Redact secrets, cookies, tokens, and sensitive payloads.
 
+## [ERR-20261104-001] definite-write-rejection-marked-outcome-unknown
+
+**Error:** Lark 创建或回帖首次返回明确的限流/权限拒绝后，状态保留 creating/replying，下一次变为 outcome_unknown，恢复权限或限流后仍不能重试。把所有派发异常都当作执行结果未知，混淆了“平台明确未接受”与“无法确认是否已执行”。
+
+**Fix:** 在 adapter 保守识别已知明确拒绝，原子恢复可重试阶段并累计失败次数，保留原幂等标识；进入派发阶段不能清零失败计数。超时、5xx、未知结果及旧 outcome_unknown 仍需人工核实，不能为恢复可用性而盲目重发。
+
+source: [Lark 话题登记 review 修复](../docs/tasks/platform-sync/2026-11-03-lark-thread-ticket-intake.md)
+
 ## [ERR-20261103-003] lark-sdk-default-error-logger-exposes-headers
 
 **Error:** Lark SDK 默认错误输出在请求 HTTP 400 时打印 AxiosError，其中 request._header 包含 Authorization；只清洗 adapter 自己的 Pino 日志不能拦截 SDK stdout。只监视 console.error 的测试也不能覆盖 SDK 通过 console.log 输出错误的行为。

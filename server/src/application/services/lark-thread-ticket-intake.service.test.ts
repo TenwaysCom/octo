@@ -1,9 +1,15 @@
-import type { LarkThreadMessage } from "../../adapters/lark/lark-client.js";
+import { LarkAPIError, type LarkThreadMessage } from "../../adapters/lark/lark-client.js";
 import { createTestPostgresDatabase } from "../../adapters/postgres/test-db.js";
 import { PostgresLarkThreadTicketIntakeStore } from "../../adapters/postgres/lark-thread-ticket-intake-store.js";
 import type { LarkBaseTicketSyncItem } from "../../adapters/postgres/platform-sync-store.js";
 import { createLarkThreadTicketIntakeService, larkThreadTicketSourceKey, type LarkThreadTicketSource } from "./lark-thread-ticket-intake.service.js";
 import type { PlatformSyncCoordinator } from "./platform-sync-coordinator.js";
+import { logger } from "../../logger.js";
+
+vi.mock("../../logger.js", () => {
+  const log = { info: vi.fn(), warn: vi.fn(), debug: vi.fn(), error: vi.fn(), child: () => log };
+  return { logger: log };
+});
 
 const source: LarkThreadTicketSource = { chatId: "oc_test", baseId: "base", tableId: "table", titleFieldName: "Title", sourceUpdatedAtFieldName: "最后更新时间" };
 const root: LarkThreadMessage = { message_id: "om_root", chat_id: source.chatId, thread_id: "omt_root", msg_type: "text",
@@ -37,9 +43,10 @@ async function setup() {
   const titleClient = { createJsonCompletion: vi.fn().mockResolvedValue({ content: '{"title":"促销无法应用到订单"}', model: "test" }) };
   let currentTime = new Date("2026-11-03T00:00:00Z");
   const coordinator = { runExclusive: vi.fn().mockImplementation(async (input) => ({ ...await input.execute({ actionRunId: input.actionRunId ?? "scan", runId: "run", startedAt: currentTime.toISOString() }), runId: "run", actionRunId: input.actionRunId ?? "scan" })) } as Pick<PlatformSyncCoordinator, "runExclusive">;
+  const createClient = vi.fn().mockResolvedValue(client);
   const service = createLarkThreadTicketIntakeService({ store, syncStore, syncService, shadowService, titleClient,
-    coordinator, createClient: async () => client, masterUserId: "master", sources: [source], now: () => currentTime });
-  return { ...database, store, client, service, syncService, syncStore, shadowService, titleClient, ticket, events,
+    coordinator, createClient, masterUserId: "master", sources: [source], now: () => currentTime });
+  return { ...database, store, client, service, syncService, syncStore, shadowService, titleClient, ticket, events, coordinator, createClient,
     setNow: (value: string) => { currentTime = new Date(value); },
     close: async () => { await database.db.destroy(); await database.pool.end(); },
   };
@@ -154,10 +161,61 @@ describe("Lark thread ticket intake (mock platform + memory PostgreSQL)", () => 
     } finally { await ctx.close(); }
   });
 
-  it.each(["createRecord", "replyToMessage"] as const)("does not repeat %s after an uncertain write", async (method) => {
+  it.each([
+    ["createRecord", 99991400, "pending", "PLATFORM_RATE_LIMITED"],
+    ["createRecord", 403, "pending", "PLATFORM_PERMISSION_DENIED"],
+    ["replyToMessage", 99991400, "titled", "PLATFORM_RATE_LIMITED"],
+    ["replyToMessage", 403, "titled", "PLATFORM_PERMISSION_DENIED"],
+  ] as const)("retries a definite %s rejection (%s) using the original idempotency key", async (method, code, retryStage, errorCode) => {
     const ctx = await setup();
     try {
-      ctx.client[method].mockRejectedValueOnce(new Error("TIMEOUT"));
+      ctx.client[method].mockRejectedValueOnce(new LarkAPIError("Rejected", code));
+      const first = await ctx.service.processMessage(source.chatId, root.message_id);
+      expect(first).toMatchObject({ status: "failed", stage: `server.thread_ticket.${retryStage}`, errorCode });
+      const failed = await ctx.store.get(larkThreadTicketSourceKey(source), root.thread_id!);
+      expect(failed).toMatchObject({ stage: retryStage, attempts: 1, action_run_id: first.actionRunId });
+      expect(await ctx.service.processMessage(source.chatId, root.message_id)).toMatchObject({ status: "done", actionRunId: first.actionRunId });
+      expect(ctx.client.createRecord).toHaveBeenCalledTimes(method === "createRecord" ? 2 : 1);
+      expect(ctx.shadowService.summarizeOne).toHaveBeenCalledTimes(1);
+      expect(ctx.client.updateRecord).toHaveBeenCalledTimes(1);
+      expect(ctx.client.replyToMessage).toHaveBeenCalledTimes(method === "replyToMessage" ? 2 : 1);
+      if (method === "createRecord") {
+        expect(ctx.client.createRecord.mock.calls.map((call) => call[3])).toEqual([{ clientToken: first.actionRunId }, { clientToken: first.actionRunId }]);
+      } else {
+        expect(ctx.client.replyToMessage.mock.calls.map((call) => call[3])).toEqual([
+          { reply_in_thread: true, uuid: first.actionRunId }, { reply_in_thread: true, uuid: first.actionRunId },
+        ]);
+      }
+    } finally { await ctx.close(); }
+  });
+
+  it.each(["createRecord", "replyToMessage"] as const)("limits automatic %s rejection retries to five and still allows a manual retry", async (method) => {
+    const ctx = await setup();
+    try {
+      const run = await ctx.store.enqueue(larkThreadTicketSourceKey(source), root.thread_id!, root.message_id);
+      ctx.client[method].mockRejectedValue(new LarkAPIError("Rate limited", 99991400));
+      for (let attempt = 1; attempt <= 5; attempt++) {
+        expect(await ctx.service.runOnce()).toEqual([expect.objectContaining({ status: "failed", actionRunId: run.action_run_id })]);
+        expect(await ctx.store.get(run.source_key, run.thread_id)).toMatchObject({ attempts: attempt, stage: method === "createRecord" ? "pending" : "titled" });
+      }
+      expect(await ctx.service.runOnce()).toEqual([]);
+      expect(ctx.client[method]).toHaveBeenCalledTimes(5);
+      if (method === "createRecord") ctx.client.createRecord.mockResolvedValueOnce({ record_id: "rec_new", fields: {} });
+      else ctx.client.replyToMessage.mockResolvedValueOnce({ message_id: "om_confirmation" });
+      expect(await ctx.service.processMessage(source.chatId, root.message_id)).toMatchObject({ status: "done", actionRunId: run.action_run_id });
+      expect(ctx.client[method]).toHaveBeenCalledTimes(6);
+    } finally { await ctx.close(); }
+  });
+
+  it.each([
+    ["createRecord", new Error("TIMEOUT")], ["replyToMessage", new Error("TIMEOUT")],
+    ["createRecord", new LarkAPIError("Server error", 500)], ["replyToMessage", new LarkAPIError("Server error", 500)],
+    ["createRecord", new LarkAPIError("Request timeout", 408)], ["replyToMessage", new LarkAPIError("Request timeout", 408)],
+    ["createRecord", new LarkAPIError("Unknown outcome")], ["replyToMessage", new LarkAPIError("Unknown outcome")],
+  ] as const)("does not repeat %s after an uncertain write (%s)", async (method, error) => {
+    const ctx = await setup();
+    try {
+      ctx.client[method].mockRejectedValueOnce(error);
       expect(await ctx.service.processMessage(source.chatId, root.message_id)).toMatchObject({ status: "outcome_unknown" });
       expect(await ctx.service.processMessage(source.chatId, root.message_id)).toMatchObject({ status: "outcome_unknown" });
       expect(ctx.client[method]).toHaveBeenCalledTimes(1);
@@ -228,6 +286,36 @@ describe("Lark thread ticket intake (mock platform + memory PostgreSQL)", () => 
       await ctx.service.runOnce();
       expect((await ctx.store.initializeScan(larkThreadTicketSourceKey(source), "ignored")).watermark).toBe("2026-11-03T00:00:00.000Z");
       expect(ctx.client.createRecord).not.toHaveBeenCalled();
+    } finally { await ctx.close(); }
+  });
+
+  it("uses the scan audit ID for discovery and its failure log", async () => {
+    const ctx = await setup();
+    try {
+      await ctx.service.runOnce();
+      ctx.setNow("2026-11-03T00:02:00Z");
+      ctx.client.getChatMessages.mockRejectedValueOnce(new LarkAPIError("Forbidden", 403));
+      await ctx.service.runOnce();
+      const audit = vi.mocked(ctx.coordinator.runExclusive).mock.calls.at(-1)![0];
+      expect(audit).toMatchObject({ trigger: "scheduled", actionRunId: expect.any(String) });
+      expect(ctx.createClient).toHaveBeenCalledWith(source, audit.actionRunId);
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({
+        actionRunId: audit.actionRunId, sourceKey: larkThreadTicketSourceKey(source),
+        layer: "server", stage: "server.thread_ticket.scan", errorCode: "PLATFORM_PERMISSION_DENIED",
+      }), "LARK_THREAD_TICKET_SCAN_FAILED");
+    } finally { await ctx.close(); }
+  });
+
+  it("links each persisted ticket execution to the parent interval scan", async () => {
+    const ctx = await setup();
+    try {
+      const response = await ctx.service.scanRange({ ...range, apply: true, actionRunId: "request_1" });
+      const [ticket] = response.results;
+      expect(ctx.coordinator.runExclusive).toHaveBeenCalledWith(expect.objectContaining({ actionRunId: "request_1", trigger: "manual" }));
+      expect(ctx.createClient).toHaveBeenCalledWith(source, "request_1");
+      expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({
+        actionRunId: ticket!.actionRunId, parentActionRunId: "request_1", threadId: root.thread_id,
+      }), "LARK_THREAD_TICKET_COMPLETED");
     } finally { await ctx.close(); }
   });
 

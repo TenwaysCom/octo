@@ -50,20 +50,22 @@ export class PostgresLarkThreadTicketIntakeStore {
   }
 
   async advance(run: LarkThreadTicketIntake, stage: IntakeStage, fields: Partial<Pick<LarkThreadTicketIntake,
-    "record_id" | "title" | "reply_message_id" | "error_code"
+    "record_id" | "title" | "reply_message_id" | "error_code" | "attempts"
   >> = {}): Promise<LarkThreadTicketIntake> {
     const row = await this.db.updateTable("lark_thread_ticket_intakes")
-      .set({ ...fields, stage, error_code: fields.error_code ?? null, attempts: 0, updated_at: new Date().toISOString() })
+      .set({ attempts: 0, ...fields, stage, error_code: fields.error_code ?? null, updated_at: new Date().toISOString() })
       .where("source_key", "=", run.source_key).where("thread_id", "=", run.thread_id)
       .where("stage", "=", run.stage).returningAll().executeTakeFirst();
     if (!row) throw new Error("LARK_THREAD_TICKET_STAGE_CONFLICT");
     return row;
   }
 
-  async recordFailure(run: LarkThreadTicketIntake, errorCode: string): Promise<void> {
-    await this.db.updateTable("lark_thread_ticket_intakes")
-      .set({ error_code: errorCode, attempts: run.attempts + 1, updated_at: new Date().toISOString() })
+  async recordFailure(run: LarkThreadTicketIntake, errorCode: string, retryStage?: "pending" | "titled"): Promise<LarkThreadTicketIntake> {
+    const row = await this.db.updateTable("lark_thread_ticket_intakes")
+      .set({ stage: retryStage ?? run.stage, error_code: errorCode, attempts: run.attempts + 1, updated_at: new Date().toISOString() })
       .where("source_key", "=", run.source_key).where("thread_id", "=", run.thread_id)
-      .where("stage", "=", run.stage).execute();
+      .where("stage", "=", run.stage).returningAll().executeTakeFirst();
+    if (!row) throw new Error("LARK_THREAD_TICKET_STAGE_CONFLICT");
+    return row;
   }
 }

@@ -1,4 +1,5 @@
 import type { Express } from "express";
+import { randomUUID } from "node:crypto";
 import { ZodError } from "zod";
 import { createActionErrorEnvelope, getActionRunId } from "../../application/action-error-envelope.js";
 import { getSharedDatabase } from "../../adapters/postgres/database.js";
@@ -15,7 +16,8 @@ export function createLarkThreadTicketIntakeController(deps: {
   scanRange?: ReturnType<typeof createLarkThreadTicketIntakeRuntime>["scanRange"];
 } = {}) {
   return async (input: { cookieHeader?: string; body: unknown }) => {
-    const actionRunId = getActionRunId(input.body);
+    const suppliedActionRunId = getActionRunId(input.body)?.trim();
+    const actionRunId = suppliedActionRunId && suppliedActionRunId.length <= 128 ? suppliedActionRunId : randomUUID();
     const failure = (statusCode: number, errorCode: string, stage: string) => ({ statusCode, body: { ok: false as const,
       error: createActionErrorEnvelope({ module: "lark-thread-ticket-intake", stage, actionRunId, errorCode, errorMessage: errorCode }),
     } });

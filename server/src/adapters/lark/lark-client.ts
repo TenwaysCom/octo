@@ -174,6 +174,14 @@ export class LarkNotFoundError extends LarkAPIError {
   }
 }
 
+/** Only known rejections prove that a write was not accepted. */
+export function isLarkWriteDefinitelyRejected(error: unknown): boolean {
+  if (!(error instanceof LarkAPIError)) return false;
+  return error instanceof LarkAuthenticationError || error instanceof LarkNotFoundError
+    || [400, 401, 403, 404, 422, 429, 99991004, 99991002, 99991672, 99991400, 99991401, 99991403]
+      .includes(error.statusCode ?? 0);
+}
+
 export class LarkBatchCreateError extends Error {
   constructor(
     message: string,

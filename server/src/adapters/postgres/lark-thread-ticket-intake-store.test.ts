@@ -34,4 +34,22 @@ describe("PostgresLarkThreadTicketIntakeStore (pg-mem)", () => {
       expect(await store.listPending("source", 5)).toEqual([]);
     } finally { await db.destroy(); await pool.end(); }
   });
+
+  it("atomically restores a rejected write to its retry stage without losing attempts", async () => {
+    const { db, pool } = await createTestPostgresDatabase();
+    try {
+      const store = new PostgresLarkThreadTicketIntakeStore(db);
+      const pending = await store.enqueue("source", "thread", "root");
+      const creating = await store.advance(pending, "creating", { attempts: pending.attempts });
+      const rejected = await store.recordFailure(creating, "PLATFORM_RATE_LIMITED", "pending");
+      expect(rejected).toMatchObject({ stage: "pending", attempts: 1, error_code: "PLATFORM_RATE_LIMITED" });
+      await expect(store.recordFailure(creating, "PLATFORM_RATE_LIMITED", "pending")).rejects.toThrow("STAGE_CONFLICT");
+      const retrying = await store.advance(rejected, "creating", { attempts: rejected.attempts });
+      expect(retrying.attempts).toBe(1);
+      const failedAgain = await store.recordFailure(retrying, "PLATFORM_RATE_LIMITED", "pending");
+      expect(failedAgain.attempts).toBe(2);
+      const created = await store.advance(failedAgain, "created", { record_id: "record" });
+      expect(created.attempts).toBe(0);
+    } finally { await db.destroy(); await pool.end(); }
+  });
 });

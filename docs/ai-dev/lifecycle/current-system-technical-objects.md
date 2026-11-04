@@ -898,7 +898,9 @@ Lark 已写但本地同步失败仍是显式部分成功：FE 保留新值并提
 
 客户端数字 threadid 与 API omt ID 不同。AppLink 入口验证数字话题回复 → root message → 配置群及 canonical ID，把原链接保存在 intake 的 message_link 并以 canonical ID 持久去重；生成链接使用 openthreadid/openchatid，保留原链接数字参数，解析优先 Open ID。自动入口遇到旧数字链接时只在需要时查询一条回复映射别名、进程内缓存，无法证明身份时不创建。单条 CLI 只初始化两张 intake 状态表，不触发全应用迁移；没有回复也没有已知根消息 ID 时不能以 threadid 冒充 message_id。
 
-`lark_thread_ticket_intakes` 的正常生命周期为 `pending → creating → created → analyzed → titled → replying → replied → done`；`existing` 表示 Base 已有记录，`outcome_unknown` 表示创建或回帖结果需要人工核实。稳定 actionRunId 贯穿单条 Base 写入/同步、shadow、标题及确认。复用 coordinator scope lease 和阶段条件更新；已知创建成功后只续跑后续步骤，已确认后只补表情，不重发确认。单阶段五次失败停止自动重试；不确定写入不得自动重试。
+`lark_thread_ticket_intakes` 的正常生命周期为 `pending → creating → created → analyzed → titled → replying → replied → done`；`existing` 表示 Base 已有记录，`outcome_unknown` 表示创建或回帖结果需要人工核实。adapter 确认未执行的拒绝允许 `creating → pending` / `replying → titled`，阶段 CAS 同时保存错误和累计失败次数；派发不重置计数，单阶段五次失败后停止自动重试，显式单条调用仍可人工重试。超时、5xx 或其他未能确认的写入不得自动重试，旧 outcome_unknown 也不自动恢复。已知创建成功后只续跑后续步骤，已确认后只补表情，不重发确认。
+
+稳定的工单 actionRunId 贯穿单条 Base 写入/同步、shadow、标题及确认；每次扫描单独生成 actionRunId，并通过 coordinator context 传至消息读取。HTTP 入口在缺省时生成 ID，错误响应保留相同值；自动扫描失败日志同时携带 ID 和 sourceKey。工单完成/失败日志记录 parentActionRunId，关联本次扫描与持久化执行，复用原幂等标识而不因重试生成新工单。
 
 新建只调用单条同步与 shadow，不等待周期候选的 settle；标题由现有 Summary provider 生成，写回 Base 并读回本地快照后才确认实际编号/标题，再给根消息添加 JIAYI。新话题无回复时，通过源链接中的 messageid 获取根消息，验证 thread 归属后保存完整上下文。正式 ticket_ai 保持独立。
 

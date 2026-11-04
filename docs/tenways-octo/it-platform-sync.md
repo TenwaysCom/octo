@@ -135,7 +135,9 @@ Lark Ticket full/incremental 同步只维护 Ticket 字段和 `lark_message_link
 
 新单顺序为：创建 Base record（保存源问题和含 openthreadid/openchatid/messageid 的链接；单条 AppLink 保留原数字 threadid/chatid）→ 单条同步/清洗到 Octo → 立即 shadow AI → 通过同一 provider 生成不超过 120 字符的标题 → 回写 Base 并单条读回 → 在线程确认实际标题、Base 自动生成编号 → 在源根消息添加 `JIAYI`（+1）。缺失编号、分析失败或标题未确认时不回帖。尚无回复的新话题通过链接中的根 messageid 读取问题，并校验根消息属于同一 thread。新单分析跳过三小时候选等待，但仍只写 `shadow_ai`，不改正式分析。
 
-`lark_thread_ticket_intakes` 按 source + thread 保存稳定 actionRunId、创建/分析/标题/确认/表情进度，复用既有 coordinator 的 scope lease。已创建记录续跑不会另建；确认已成功而表情失败只补表情。同一阶段连续失败五次后停止自动重试，可通过指定单条入口人工重试。创建/回帖超时或崩溃导致结果未知时，保留 `creating`/`replying`，下次转为 `outcome_unknown`，不自动重发；人工核实平台结果后修复该登记记录，不删除记录来盲目重试。
+`lark_thread_ticket_intakes` 按 source + thread 保存稳定 actionRunId、创建/分析/标题/确认/表情进度，复用既有 coordinator 的 scope lease。已创建记录续跑不会另建；确认已成功而表情失败只补表情。adapter 识别已知明确未执行的拒绝（例如权限拒绝、限流），创建/回帖分别恢复到 `pending`/`titled`，原子保存错误与失败次数，并沿用原创建 client_token / 回帖 uuid；进入派发阶段不清零失败次数。同一阶段连续失败五次后停止自动重试，修复权限或输入后可通过指定单条入口人工重试。超时、5xx、未知平台错误或崩溃导致结果未知时，保留 `creating`/`replying`，下次转为 `outcome_unknown`，不自动重发；人工核实平台结果后修复该登记记录，不删除记录来盲目重试。已有 `outcome_unknown` 不会因代码更新自动重新派发。
+
+每次手动请求和自动扫描都有扫描 actionRunId，贯穿 coordinator、源消息读取及失败日志（含 sourceKey）。HTTP 省略该字段时在入口生成，错误响应也保留相同 ID。每条工单继续使用其持久化 actionRunId 关联写入、同步及 AI，完成/失败日志用 parentActionRunId 指向本次扫描，保证重试幂等性和批次追踪同时可用。
 
 单条测试入口不扫描群历史、不推进自动游标，预览仅校验参数与配置。支持根消息 ID 或一个 AppLink，两者互斥：
 

@@ -2,7 +2,7 @@
 title: "Lark 群话题自动登记 Ticket"
 module: platform-sync
 status: done
-requirement_version: 5
+requirement_version: 6
 created_on: 2026-11-03
 updated_on: 2026-11-04
 closed_on: 2026-11-04
@@ -19,17 +19,19 @@ related:
 
 ## 验收标准
 
+- [x] v6：明确未执行的创建/回帖拒绝可从原阶段重试；连续五次失败停止自动重试，修复后可单条人工重试；超时、5xx、未知结果继续禁止自动重发（本地 mock）。
+- [x] v6：HTTP 省略追踪 ID 时由入口生成，贯穿扫描与错误响应；自动扫描的 coordinator、adapter 及失败日志使用同一扫描 ID，并关联持久化的单工单执行 ID（本地 mock）。
 - [x] v5：说明自动 Worker 和手动区间入口；以 Application Bot 预览北京时间 2026-11-03 19:15:00 至 19:18:00 的指定群话题（半开区间），仅扫描，不创建、回帖、加表情或推进自动游标。
 - [x] v4：话题读取、Base 创建及标题更新、同步读取、shadow 上下文、回复和 +1 统一使用 Application Bot（tenant token），不依赖 Ben Lin 的用户授权。
 - [x] v4：用原测试话题验证应用权限及实际发送身份；用户随后清理相关测试数据，按该话题重新创建并验证 Bot 全链路。真实批量仍不执行。
 - [x] 群 `oc_01f7302959b7723a026f21daae6c622b` 的用户新话题均为工单；回复、机器人及系统消息不另行建单（本地 mock）。
 - [x] 首次启用从启用时点开始扫描；后续持久化游标、分页与重叠扫描去重，分页失败不推进水位（本地 mock）。
-- [x] 已有 Base 工单按源 thread 去重；创建、分析、标题、确认消息、表情有持久化进度，部分失败可恢复（本地 mock）。
+- [x] 已有 Base 工单按源 thread 去重；创建、分析、标题、确认消息、表情有持久化进度，部分失败可恢复（v6 已补明确拒绝恢复回归）。
 - [x] 立即分析新工单，不受既有 shadow worker 的三小时 settle 限制；分析不写正式 ticket_ai（本地 mock）。
 - [x] 确认使用 Base 实际生成编号和回读标题，确认发送后才添加 JIAYI（+1）表情（本地 mock）。
 - [x] 提供指定单条源消息的受控入口，不触发扫描/批量创建。
 - [x] 批量入口接受显式起止时间，支持按区间手动测试；不改写正常扫描游标，不夹带区间外工单。
-- [x] 静态检查及聚焦 mock 测试通过（既有入口 env 子进程用例失败单列下文）。
+- [x] 静态检查及聚焦 mock 测试通过（v6 修复后重新验证；既有入口 env 子进程用例失败单列下文）。
 - [x] 真实单条验证：仅测试用户提供的 thread `7703902781853159175`，完整链路及重复提交通过；真实批量测试由用户自行执行。
 
 ## 背景与范围
@@ -46,6 +48,7 @@ related:
 - v3：用户提供 AppLink（threadid `7703902781853159175`、链接 chatid `7538726794547986470`）授权单条真实测试。先核实客户端数字 ID 与 Open API 标识关系，再沿同一流程执行，不扩大为群历史创建；相关单条入口与去重验收重新打开实测边界。
 - v4：仅登记运行时切换为 Application Bot；worker、单条 CLI 和区间 HTTP 入口不再要求个人 master user。共享同步/shadow 接口中的 masterUserId 使用内部应用标识并注入应用客户端，不能回退为个人令牌。已完成登记的正常重复输入仍直接返回原结果；本次旧测试记录被用户清理后的单条状态修复不增加重置接口或自动重建行为。
 - v5：用户要求指定时间段模拟测试，仅执行既有 scanRange(apply=false)；沿用隔离配置，不启动 Worker，不执行真实批量创建。当前该能力提供 Worker 与 HTTP API，现有 Sync Status 页面尚无该话题登记区间按钮。
+- v6：修复 PR #183 review 的两项 P2。平台明确未执行的拒绝恢复 pending/titled，并保留失败次数及稳定幂等标识；不确定写入仍保留人工核实边界。源扫描追踪 ID 与工单持久化 ID 分层，通过 parentActionRunId 关联，不把重试改成新工单。本次只执行本地回归，更新既有 PR，不进行真实批量、部署或运行状态修复。
 
 ## 进展记录
 
@@ -65,6 +68,8 @@ related:
 | 2026-11-04 | v4 | done | Application Bot 为 Octo Assistant；确认 2458 已不存在后，只定向重置该话题旧登记行（匹配 source/thread/旧 actionRunId/record/stage），生成新 actionRunId `39f0aa21-a15a-46c2-be1c-0b00aaee5127`。Bot 单条执行到 done，创建 `reczz28VR7opodHM` / 编号 **2462**；创建/修改审计为 Application Bot，线程回复 sender_type=app 且 sender.id 与当前 appId 一致，应用自己的 JIAYI 存在。Base/Octo 标题编号和 shadow=ok 均读回；重复提交返回相同记录与 actionRunId。14 文件 201 用例及 build 通过。 | 本次只创建这一条，未执行真实批量、部署或自动任务。 |
 | 2026-11-04 | v5 | in_progress | 用户询问后台入口并要求 20261103 19:15–19:18 模拟测试；明确按 Asia/Shanghai、apply=false 扫描指定群。已核对 Worker 开关、路由与预览分支，复用上次构建及隔离配置。 | 执行真实 Lark 区间读取并核对候选与登记/自动游标未变；不做真实批量创建。 |
 | 2026-11-04 | v5 | done | 使用已构建 Bot 运行时调用 scanRange，起止为 `2026-11-03T19:15:00+08:00` / `2026-11-03T19:18:00+08:00`、apply=false、maxTickets=50，actionRunId `a6f200de-72cc-400d-94fa-2baf0e13a1fa`。matched=1，候选为原根消息 `om_x100b61a862f804a4ff7e147e0d79953` / thread `omt_198c4a0a7e8f585b`，创建时间 19:17:23.385（北京时间）；results=[]。 | 来源登记行及自动扫描状态执行前后完全一致；临时脚本另行阻止 Base 创建/更新、回帖、表情调用。仅 coordinator 运行审计/租约沿既有机制更新。未验证已部署 HTTP、未启用 Worker、未真实批量创建。 |
+| 2026-11-04 | v6 | in_progress | 用户要求修复 review 问题；重新打开失败恢复、追踪 ID 和本地检查验收。已复核错误类型、状态 CAS 与各入口。 | 补明确拒绝/未知写入/五次失败/追踪关联回归，再更新 PR；不进行真实平台写入。 |
+| 2026-11-04 | v6 | done | adapter 保守识别明确拒绝，创建/回帖恢复 pending/titled；CAS 原子保存错误、阶段和累计失败次数，派发保留次数与原幂等标识。HTTP 默认生成并规范化 actionRunId；源扫描 ID 贯穿 coordinator/adapter/失败日志，工单通过 parentActionRunId 关联扫描。新增 23 个回归场景，14 文件 **224 用例通过**，Server build 与 diff check 通过。 | 覆盖 403/平台限流恢复、五次上限及人工重试、超时/408/5xx/未知不重发、状态 CAS 和追踪关联。只作本地验证，既有 outcome_unknown 不自动恢复；未真实批量、部署或迁移。 |
 
 ## 验证
 
@@ -72,7 +77,7 @@ related:
 | --- | --- | --- | --- |
 | 静态检查 | 通过 | `pnpm --dir server build`；`git diff --check` | 只验证本地代码；无 FE/extension 变更 |
 | 单元测试 | 通过 | 下列聚焦组合的 DTO/controller、adapter、配置、shadow、thread、同步与 CLI 用例 | 平台协议及 provider 均为 mock |
-| Mock integration | 通过 | intake service 20 用例；store 2 用例；应用身份 factory 2 用例；最新聚焦组合共 14 文件 / 201 用例 | pg-mem 验证分支/CAS，不等于真实 PostgreSQL 锁交错或 live Lark |
+| Mock integration | 通过 | intake service 34 用例；store 3 用例；应用身份 factory 2 用例；adapter 21、controller 15 用例；最新聚焦组合共 14 文件 / 224 用例 | pg-mem 验证分支/CAS，不等于真实 PostgreSQL 锁交错或 live Lark |
 | 路由注册 | 通过 | `pnpm --dir server test src/index.test.ts -t 'index routes'`：3 通过 | 该命令只选路由用例 |
 | 既有入口 env 回归 | 失败（基线同样失败） | `pnpm --dir server test src/index.test.ts`：`expected '' to contain 'ENTRY_LOG_LEVEL=debug'`；HEAD 临时副本相同 | 不是本次引入；独立 child smoke 成功不能冒充该 Vitest 用例通过 |
 | Live 单条 | 通过 | v4：同一话题 → Bot 创建 `reczz28VR7opodHM` / 编号 2462；下列 read-back 证据。v3 的 2458 为历史用户身份测试，已由用户清理 | 只测试指定话题；未作真实批量测试 |
@@ -106,6 +111,9 @@ pnpm --dir server test \
 | 对同一单条输入再次执行 | 不增加 Base 记录及确认消息 | Mock 与真实单条均通过；同记录/同 actionRunId，确认计数 1 |
 | 用户提交时间区间，先 apply=false，再 apply=true/maxTickets=1 | 预览给出候选；只处理区间内至多一条，自动游标及其他待办不变 | Mock 通过；v5 真实区间预览通过，实际区间创建交由用户 |
 | 分析或标题失败后单条重试；表情失败后单条重试 | 保留已建单，继续未完成阶段；不重发成功确认 | Mock 通过；真实未执行 |
+| 创建或回帖先被限流/权限拒绝，再恢复；连续拒绝五次 | 恢复原阶段，沿用原幂等标识；第五次后自动停止，手动单条仍可续跑；已成功步骤不重复 | v6 Mock 通过；未制造真实平台拒绝 |
+| 创建/回帖超时、408、5xx 或未知平台结果后重试 | 进入人工核实边界，不自动重发 | v6 Mock 通过；未制造真实未知写入 |
+| HTTP 请求不带 ID 后扫描失败，或自动扫描权限拒绝 | 响应/审计/adapter/扫描失败日志 ID 一致；单工单执行关联 parentActionRunId | v6 Controller/service mock 通过；未验证部署日志 |
 | 普通 dev 或未登录调用区间接口 | 403 / 401，不调用扫描或写入 | Controller mock 通过 |
 
 v4 Application Bot 单条真实 read-back（当前）：
@@ -127,3 +135,4 @@ v3 用户身份单条真实 read-back（历史，记录已由用户清理）：
 ## 关联
 
 - [同步运行说明](../../tenways-octo/it-platform-sync.md)
+- [PR #183](https://github.com/TenwaysCom/octo/pull/183)

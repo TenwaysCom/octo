@@ -1,11 +1,28 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { LarkBatchCreateError, LarkClient } from "./lark-client.js";
+import { LarkAPIError, LarkBatchCreateError, LarkClient, isLarkWriteDefinitelyRejected } from "./lark-client.js";
 
 describe("lark-client", () => {
   const requestMock = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it.each([
+    { name: "permission refusal", reject: true, response: { response: { status: 403, data: { code: 99991672, msg: "Forbidden" } } }, definite: true },
+    { name: "platform rate limit", reject: false, response: { code: 99991400, msg: "Rate limited" }, definite: true },
+    { name: "HTTP server failure", reject: true, response: { response: { status: 500, data: { code: 1255001, msg: "Server error" } } }, definite: false },
+    { name: "transport timeout", reject: true, response: new Error("TIMEOUT"), definite: false },
+  ])("distinguishes a normalized $name from an uncertain write", async ({ reject, response, definite }) => {
+    const client = new LarkClient({ accessToken: "test-token" });
+    (client as unknown as { client: { request: typeof requestMock } }).client = { request: requestMock };
+    if (reject) requestMock.mockRejectedValueOnce(response);
+    else requestMock.mockResolvedValueOnce(response);
+    let failure: unknown;
+    try { await client.createRecord("base", "table", { Title: "test" }); }
+    catch (error) { failure = error; }
+    expect(failure).toBeInstanceOf(LarkAPIError);
+    expect(isLarkWriteDefinitelyRejected(failure)).toBe(definite);
   });
 
   it.each(["application", "user"] as const)("authenticates %s requests using the intended identity", async (identity) => {

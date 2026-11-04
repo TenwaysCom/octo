@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { LarkClient, LarkThreadMessage, LarkBitableField } from "../../adapters/lark/lark-client.js";
-import { LarkAPIError, LarkAuthenticationError, LarkNotFoundError } from "../../adapters/lark/lark-client.js";
+import { LarkAPIError, LarkAuthenticationError, LarkNotFoundError, isLarkWriteDefinitelyRejected } from "../../adapters/lark/lark-client.js";
 import type { PostgresLarkThreadTicketIntakeStore, LarkThreadTicketIntake } from "../../adapters/postgres/lark-thread-ticket-intake-store.js";
 import type { PlatformSyncStore, LarkBaseTicketSyncItem } from "../../adapters/postgres/platform-sync-store.js";
 import { createTicketSummaryJsonCompletionClient, type TicketSummaryJsonCompletionClient } from "../../adapters/ai/ticket-summary-client.js";
@@ -19,7 +19,7 @@ import type { PlatformSyncService } from "./platform-sync.service.js";
 import type { PlatformSyncCoordinator } from "./platform-sync-coordinator.js";
 
 const log = logger.child({ module: "lark-thread-ticket-intake" });
-type IntakeBatch = { existingThreads?: Promise<Map<string, string>> };
+type IntakeBatch = { existingThreads?: Promise<Map<string, string>>; parentActionRunId: string };
 type Client = Pick<LarkClient, "getChatMessages" | "getThreadMessages" | "getMessage" | "getFields" | "listRecords" | "createRecord" | "updateRecord" | "replyToMessage" | "addMessageReaction">;
 export type LarkThreadTicketSource = NonNullable<PlatformSyncConfig["scheduler"]["tasks"]["larkThreadTickets"]>["sources"][number]
   & PlatformSyncConfig["larkBase"][number];
@@ -136,9 +136,10 @@ export function createLarkThreadTicketIntakeService(deps: {
     throw new Error("LARK_THREAD_TICKET_PAGE_LIMIT");
   }
 
-  async function processOne(source: LarkThreadTicketSource, initial: LarkThreadTicketIntake, batch: IntakeBatch = {}): Promise<LarkThreadTicketIntakeResult> {
+  async function processOne(source: LarkThreadTicketSource, initial: LarkThreadTicketIntake, batch: IntakeBatch): Promise<LarkThreadTicketIntakeResult> {
     let run = initial;
-    const baseLog = { operation: "lark_thread_ticket_intake", layer: "server", actionRunId: run.action_run_id, threadId: run.thread_id };
+    const baseLog = { operation: "lark_thread_ticket_intake", layer: "server", actionRunId: run.action_run_id,
+      parentActionRunId: batch.parentActionRunId, sourceKey: larkThreadTicketSourceKey(source), threadId: run.thread_id };
     try {
       if (["done", "existing", "outcome_unknown"].includes(run.stage)) return result();
       // A crash/timeout after dispatch cannot be interpreted as a failed write.
@@ -190,7 +191,7 @@ export function createLarkThreadTicketIntakeService(deps: {
         if (fields.link.type === 15) payload[fields.link.field_name] = { text: "Lark thread", link: link.href };
         else payload[fields.link.field_name] = link.href;
         if (fields.requester?.type === 11 && root.sender?.id_type === "open_id" && root.sender.id) payload[fields.requester.field_name] = [{ id: root.sender.id }];
-        run = await deps.store.advance(run, "creating");
+        run = await deps.store.advance(run, "creating", { attempts: run.attempts });
         const record = await client.createRecord(source.baseId, source.tableId, payload, { clientToken: run.action_run_id });
         if (!record.record_id) throw new Error("LARK_THREAD_TICKET_CREATE_UNCONFIRMED");
         existingThreads.set(run.thread_id, record.record_id);
@@ -216,7 +217,7 @@ export function createLarkThreadTicketIntakeService(deps: {
       }
       if (run.stage === "titled") {
         if (!ticket.ticketNumber || ticket.title !== run.title) throw new Error("LARK_THREAD_TICKET_CONFIRMATION_NOT_READY");
-        run = await deps.store.advance(run, "replying");
+        run = await deps.store.advance(run, "replying", { attempts: run.attempts });
         const reply = await client.replyToMessage(run.root_message_id, "text", JSON.stringify({
           text: `已记录工单\ntitle：${ticket.title}\n编号：${ticket.ticketNumber}`,
         }), { reply_in_thread: true, uuid: run.action_run_id });
@@ -231,7 +232,12 @@ export function createLarkThreadTicketIntakeService(deps: {
       return result();
     } catch (error) {
       const code = safeIntakeErrorCode(error);
-      await deps.store.recordFailure(run, code);
+      let retryStage: "pending" | "titled" | undefined;
+      if (isLarkWriteDefinitelyRejected(error)) {
+        if (run.stage === "creating") retryStage = "pending";
+        else if (run.stage === "replying") retryStage = "titled";
+      }
+      run = await deps.store.recordFailure(run, code, retryStage);
       log.warn({ ...baseLog, stage: `server.thread_ticket.${run.stage}`, errorCode: code, recordId: run.record_id }, "LARK_THREAD_TICKET_FAILED");
       return { ...result(), status: ["creating", "replying"].includes(run.stage) ? "outcome_unknown" : "failed", errorCode: code };
     }
@@ -265,13 +271,13 @@ export function createLarkThreadTicketIntakeService(deps: {
     return [...topics.values()];
   }
 
-  async function scan(source: LarkThreadTicketSource): Promise<void> {
+  async function scan(source: LarkThreadTicketSource, actionRunId: string): Promise<void> {
     const end = Math.floor(now().getTime() / 1000);
     const startAt = source.startAt ? new Date(source.startAt).toISOString() : new Date(end * 1000).toISOString();
     const cursor = await deps.store.initializeScan(larkThreadTicketSourceKey(source), startAt);
     const start = Math.max(Math.floor(Date.parse(cursor.startedAt) / 1000), Math.floor(Date.parse(cursor.watermark) / 1000) - 60);
     if (start >= end) return;
-    const topics = await discover(source, new Date(start * 1000).toISOString(), new Date(end * 1000).toISOString(), randomUUID());
+    const topics = await discover(source, new Date(start * 1000).toISOString(), new Date(end * 1000).toISOString(), actionRunId);
     for (const message of topics) {
       if (Date.parse(message.create_time!) < Date.parse(cursor.startedAt)) continue;
       await deps.store.enqueue(larkThreadTicketSourceKey(source), message.thread_id!, message.message_id);
@@ -279,9 +285,11 @@ export function createLarkThreadTicketIntakeService(deps: {
     await deps.store.advanceScan(larkThreadTicketSourceKey(source), new Date(end * 1000).toISOString());
   }
 
-  async function exclusive<T>(source: LarkThreadTicketSource, execute: () => Promise<T>, actionRunId?: string): Promise<T> {
+  async function exclusive<T>(source: LarkThreadTicketSource, execute: (actionRunId: string) => Promise<T>,
+    actionRunId: string = randomUUID(), trigger: "manual" | "scheduled" = "manual"): Promise<T> {
     const result = await deps.coordinator.runExclusive({ platform: "lark", scopeKey: `thread-tickets:${larkThreadTicketSourceKey(source)}`,
-      mode: "full", cleanAfterSync: true, trigger: actionRunId ? "manual" : "scheduled", actionRunId, execute: async () => ({ listed: 0, synced: 0, skippedInactive: 0, value: await execute() }),
+      mode: "full", cleanAfterSync: true, trigger, actionRunId,
+      execute: async (context) => ({ listed: 0, synced: 0, skippedInactive: 0, value: await execute(context.actionRunId) }),
     });
     return result.value;
   }
@@ -291,8 +299,8 @@ export function createLarkThreadTicketIntakeService(deps: {
       const source = deps.sources.find((item) => item.chatId === chatId);
       if (!source) throw new Error("LARK_THREAD_TICKET_SOURCE_REQUIRED");
       const link = parseSourceLink(messageLink);
-      return exclusive(source, async () => {
-        const client = await deps.createClient(source, randomUUID());
+      return exclusive(source, async (actionRunId) => {
+        const client = await deps.createClient(source, actionRunId);
         const clientId = link.searchParams.get("threadid");
         const page = await client.getThreadMessages(clientId ?? parseLarkThreadId(link.href)!, { pageSize: 1, sortType: "ByCreateTimeAsc" });
         const reply = page.items[0];
@@ -305,7 +313,7 @@ export function createLarkThreadTicketIntakeService(deps: {
         const openThreadId = link.searchParams.get("openthreadid") ?? link.searchParams.get("open_thread_id");
         if (openThreadId && root.thread_id !== openThreadId) throw new Error("LARK_THREAD_TICKET_SOURCE_INVALID");
         if (clientId) threadAliases.set(`${chatId}/${clientId}`, root.thread_id!);
-        return processOne(source, await deps.store.enqueue(larkThreadTicketSourceKey(source), root.thread_id!, root.message_id, link.href));
+        return processOne(source, await deps.store.enqueue(larkThreadTicketSourceKey(source), root.thread_id!, root.message_id, link.href), { parentActionRunId: actionRunId });
       });
     },
     async scanRange(input: LarkThreadTicketRangeInput) {
@@ -313,9 +321,9 @@ export function createLarkThreadTicketIntakeService(deps: {
       const source = deps.sources.find((item) => item.chatId === request.chatId);
       if (!source) throw new Error("LARK_THREAD_TICKET_SOURCE_REQUIRED");
       const actionRunId = request.actionRunId ?? randomUUID();
-      return exclusive(source, async () => {
-        const topics = await discover(source, request.startTime, request.endTime, actionRunId);
-        const batch: IntakeBatch = {};
+      return exclusive(source, async (scanActionRunId) => {
+        const topics = await discover(source, request.startTime, request.endTime, scanActionRunId);
+        const batch: IntakeBatch = { parentActionRunId: scanActionRunId };
         const results: LarkThreadTicketIntakeResult[] = [];
         let remaining = 0;
         let alreadyRecorded = 0;
@@ -338,29 +346,31 @@ export function createLarkThreadTicketIntakeService(deps: {
     async processMessage(chatId: string, messageId: string): Promise<LarkThreadTicketIntakeResult> {
       const source = deps.sources.find((item) => item.chatId === chatId);
       if (!source || !messageId) throw new Error("LARK_THREAD_TICKET_SOURCE_REQUIRED");
-      return exclusive(source, async () => {
-        const client = await deps.createClient(source, randomUUID());
+      return exclusive(source, async (actionRunId) => {
+        const client = await deps.createClient(source, actionRunId);
         const message = await client.getMessage(messageId);
         if (!isUserTopic(message) || message.chat_id !== chatId) throw new Error("LARK_THREAD_TICKET_SOURCE_INVALID");
-        return processOne(source, await deps.store.enqueue(larkThreadTicketSourceKey(source), message.thread_id!, message.message_id));
+        return processOne(source, await deps.store.enqueue(larkThreadTicketSourceKey(source), message.thread_id!, message.message_id), { parentActionRunId: actionRunId });
       });
     },
     async runOnce(signal?: AbortSignal): Promise<LarkThreadTicketIntakeResult[]> {
       const results: LarkThreadTicketIntakeResult[] = [];
       for (const source of deps.sources) {
         if (signal?.aborted) break;
+        const actionRunId = randomUUID();
         try {
-          await exclusive(source, async () => {
-            await scan(source);
-            const batch: IntakeBatch = {};
+          await exclusive(source, async (scanActionRunId) => {
+            await scan(source, scanActionRunId);
+            const batch: IntakeBatch = { parentActionRunId: scanActionRunId };
             const pending = await deps.store.listPending(larkThreadTicketSourceKey(source), deps.batchLimit ?? 5);
             for (const run of pending) {
               if (signal?.aborted) break;
               results.push(await processOne(source, run, batch));
             }
-          });
+          }, actionRunId, "scheduled");
         } catch (error) {
-          log.warn({ operation: "lark_thread_ticket_intake", layer: "server", stage: "server.thread_ticket.scan", errorCode: safeIntakeErrorCode(error) }, "LARK_THREAD_TICKET_SCAN_FAILED");
+          log.warn({ operation: "lark_thread_ticket_intake", layer: "server", actionRunId,
+            sourceKey: larkThreadTicketSourceKey(source), stage: "server.thread_ticket.scan", errorCode: safeIntakeErrorCode(error) }, "LARK_THREAD_TICKET_SCAN_FAILED");
         }
       }
       return results;
