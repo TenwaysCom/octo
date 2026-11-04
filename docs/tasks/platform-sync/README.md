@@ -10,5 +10,7 @@
 
 - [Lark 群话题自动登记 Ticket](./2026-11-03-lark-thread-ticket-intake.md) — v7 已复用现有 thread ID 缓存查重，76 个相关用例及构建通过；指定 pending 恢复为工单 2465 / done，真实读回与重复提交通过。后续 Done 修复已重载同一生产 Worker，运行时证据见 Done 任务。
 
+- [GitHub EU、UK 增量搜索失败与定时任务停用排查](./2026-10-29-github-incremental-search-incomplete.md) — 已恢复两个定时任务，现有 Worker 同步 EU 9 条、UK 4 条均成功；按用户要求暂不修改错误处理，再次报错时再修复。
+
 - [Ticket 字段编辑与 Lark 同步性能优化](./2026-10-21-lark-ticket-edit-sync-performance.md) — 第一阶段及 Lark App 六属性编辑完成；立即回显、连续编辑、版本保护和元数据缓存已实现，本地验证通过，尚未部署。
 - [Odoo.sh 构建同步与通用消息发送 Worker](./2026-09-13-odoo-build-sync-and-message-delivery-workers.md)

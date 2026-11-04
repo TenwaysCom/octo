@@ -951,3 +951,8 @@ source: [Eval 状态与 My evals](../docs/tasks/ai-ticket/2026-09-01-lark-ticket
 - **Error:** 临时 Vite 浏览器 harness 直接导入 `/node_modules/.vite/deps/react*.js`，出现 `does not provide an export named`，改为直接取 default 后又出现 `Invalid hook call`，应用和 harness 使用了不同模块实例。
 - **Fix:** harness 使用 `react` 和 `react-dom/client` bare imports，交给 Vite 统一解析和重写，不硬编码预优化缓存文件路径。
 - **source:** [Lark App v17 mock 验证](../docs/tasks/ai-ticket/2026-09-23-lark-ticket-analysis-app.md#v17-公共信息与-wiki-即时分析)。
+### ERR-20261029-001 — GitHub 搜索不完整导致定时同步停用
+
+- **Error:** `GITHUB_INCREMENTAL_SEARCH_INCOMPLETE` 后 `platform_sync_schedules.enabled=false`、`blocked_reason` 保留该错误，之后手动同步成功仍不恢复定时同步。
+- **Fix:** 分别核验搜索 `incomplete_results` 和 `total_count`；现有代码将二者合为同一错误且判为不可重试。当前搜索正常时仍需单独恢复 schedule；后续代码修复应区分临时不完整与数量超限，保留不完整结果不得推进 watermark 的保护。
+- **source:** [GitHub EU、UK 增量搜索排查](../docs/tasks/platform-sync/2026-10-29-github-incremental-search-incomplete.md)
