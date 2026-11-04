@@ -132,7 +132,7 @@ related:
 | 首次指定 pending 续跑 | 原 actionRunId `a54a30bc-93e9-4830-9a29-4929ff110324`，按 source/thread/root ID 三者核对后调用既有 `processMessage` | 首次新代码尚未取得执行权即收到 `SYNC_ALREADY_RUNNING`；未删除/抢占锁。续跑前该 pending 已有旧 Worker 累计 2 次失败，旧日志错误为 `LARK_PLATFORM_REJECTED`，不能继续沿用早先 attempts=0 的历史快照解释当前状态 |
 | Live 指定单条恢复 | 16:08 确认原租约已释放后再次按原登记调用既有 `processMessage` | 16:10:45 返回 done、record `reczz28VWtNVYqSc`、编号 **2465**，confirmationSent/reactionAdded 均为 true，attempts 清零、error_code 清空。未执行扫描或重置；原 actionRunId 保持不变 |
 | Live 结果读回与重复提交 | 只读 actionRunId `a375e0ed-c282-4b1a-87d8-8749642ac735`；随后同一根消息再次提交 | Base 标题与登记标题一致、Octo 标题一致、Base/Octo 编号一致、shadow=ok；回帖群/话题/标题/编号正确且 sender 为当前 app，应用自己的 JIAYI 存在；重复执行仍为同 record/同 actionRunId/done。只输出布尔核对结果和非敏感结果 ID，不记录业务正文 |
-| 常驻运行时 | 未重启或部署 Worker | 上述使用本地新编译代码直接执行单条；常驻实例采用新逻辑仍需后续正常发布/重启，单条成功不能替代该部署验证 |
+| 常驻运行时 | 本轮单条验证时未重启；后续 Done 修复已重载同一 Worker | 后续于 2026-11-04 18:24 北京时间由 PM2 优雅重启当前生产 Worker；该进程同时加载缓存查重实现。重载及运行证据见 [Done 任务 v7](./2026-11-04-lark-finished-ticket-reaction.md#v7-修复和真实验证)，不据此宣称新增一次 intake 的真实创建验收 |
 
 本轮对可复用失误作了复核：主要遗漏是持久化缓存已含 canonical ID，而新建查重只用了空的进程别名缓存。已由已有缓存不重读历史、缓存歧义不误判及 factory 注入回归覆盖，不为同一失误另造通用学习条目。
 

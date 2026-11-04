@@ -914,4 +914,6 @@ Lark 快照 UPSERT 对相同源版本和源字段执行条件更新；完全相�
 
 Done 任务默认关闭，每 10 分钟按目标 Base/Table 的源最后修改时间扫描，上次成功扫描截止时间回退 5 分钟且不越过首次启用边界，状态默认 Finish 且可配置。`lark_ticket_done_scans` 独立维护水位；全部分页入队后才推进。`lark_ticket_done_reactions` 为应用/记录/源版本/链接保存稳定待办及 actionRunId，正常阶段为 pending → adding → done；状态/链接变化为 cancelled，明确权限/输入问题为 blocked，无法确认写入为 outcome_unknown。
 
-应用客户端读取并验证关联话题根消息，添加前检查当前 Bot 自己的 DONE，写后读回确认 reaction ID。目标表 scope 与应用/根消息 scope 两层租约避免并发派发；同一根消息的结果未知记录也会阻止其他版本待办重新发送。失败按单条退避并最多五次自动尝试，未知写入只读对账。手动区间预览不建待办或改游标；显式单条 --apply 与 Worker 复用处理逻辑，不撤回重新打开工单的表情。配置、命令和未部署边界见[Done 任务](../../tasks/platform-sync/2026-11-04-lark-finished-ticket-reaction.md)及[运行说明](../../tenways-octo/it-platform-sync.md#自动添加-done-表情)。
+远端日期条件只保留 `TODATE(start)` 下界及目标状态，完整分页后按系统 `record.updated_time` 的毫秒值精确执行 `[start,end)`。不使用日精度的 `TODATE(end)` 截断同日窗口；范围外的宽筛候选不入队。已因旧筛选漏选且被水位越过的指定记录通过既有单条入口恢复，不回退自动水位或批量补历史。
+
+应用客户端读取并验证关联话题根消息，添加前检查当前 Bot 自己的 DONE，写后读回确认 reaction ID。目标表 scope 与应用/根消息 scope 两层租约避免并发派发；同一根消息的结果未知记录也会阻止其他版本待办重新发送。失败按单条退避并最多五次自动尝试，未知写入只读对账。手动区间预览不建待办或改游标；显式单条 --apply 与 Worker 复用处理逻辑，不撤回重新打开工单的表情。配置、命令和验证边界见[Done 任务](../../tasks/platform-sync/2026-11-04-lark-finished-ticket-reaction.md)及[运行说明](../../tenways-octo/it-platform-sync.md#自动添加-done-表情)。

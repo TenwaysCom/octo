@@ -2,6 +2,14 @@
 
 Record concise compiler/runtime errors, failed commands, wrong assumptions, and their verified fixes here. Redact secrets, cookies, tokens, and sensitive payloads.
 
+## [ERR-20261104-003] lark-todate-intraday-window-returns-empty
+
+**Error:** Lark Base 使用 `>= TODATE(ISO start)` 与 `< TODATE(ISO end)` 构造同一天的分钟范围时，真实接口返回空；HTTP 成功及正常翻页使任务继续推进水位，符合状态的记录从未入队，形成静默漏选。不能用只返回预设记录的 mock 证明平台支持该日期精度。
+
+**Fix:** 将远端日期条件作为宽筛，在服务端用可信系统更新时间精确执行半开时间窗；避免依赖 TODATE 的日内上界。已经越过水位的遗漏需按启用边界和用户确认范围受控恢复。直接将日期表达式替换成 Unix 毫秒数字也须真实验证，不能假定可行。
+
+source: [Done 表情运行时漏选诊断](../docs/tasks/platform-sync/2026-11-04-lark-finished-ticket-reaction.md)
+
 ## [ERR-20261104-002] source-version-idempotency-bypasses-unknown-effect
 
 **Error:** 以工单源版本作为待办幂等键时，表情 POST 超时后出现新版本，可能生成另一条 pending 待办；仅检查当前待办的 outcome_unknown，不能阻止它向同一消息再次派发。只有运行互斥也不足以保护先前已释放租约的未知操作。

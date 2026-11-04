@@ -46,6 +46,45 @@ async function fixture(targetStatus = "Finish") {
 }
 
 describe("Done reactions with persisted state and coordinated leases", () => {
+  it("finds a same-day Finish change when Lark TODATE comparisons discard the time of day", async () => {
+    const f = await fixture();
+    f.setTime("2027-01-01T09:40:00.000Z");
+    await f.runtime.runOnce();
+    f.record.updated_time = "2027-01-01T09:48:00.000Z";
+    f.client.listRecords.mockImplementation(async (_base, _table, options) => {
+      const comparisons = [...options.filter.matchAll(/(>=|<)\s*TODATE\("([^\"]+)"\)/g)];
+      const timestamp = Date.parse(f.record.updated_time);
+      const matches = comparisons.every(([, operator, value]) => {
+        const day = Date.parse(`${value.slice(0, 10)}T00:00:00.000Z`);
+        return operator === ">=" ? timestamp >= day : timestamp < day;
+      });
+      return { records: matches ? [f.record] : [], hasMore: false };
+    });
+    f.setTime("2027-01-01T09:55:00.000Z");
+    await f.runtime.runOnce();
+    expect(f.client.createMessageReaction).toHaveBeenCalledExactlyOnceWith("om_root", "DONE");
+    expect(await f.db.selectFrom("lark_ticket_done_reactions").select(["record_id", "stage"]).execute())
+      .toEqual([{ record_id: "rec_1", stage: "done" }]);
+  });
+
+  it.each([
+    ["same day", "2027-01-01T09:40:00.000Z", "2027-01-01T09:55:00.000Z"],
+    ["across midnight", "2027-01-01T23:55:00.000Z", "2027-01-02T00:05:00.000Z"],
+  ])("filters a broad multi-page response to the exact half-open window %s", async (_label, startTime, endTime) => {
+    const f = await fixture();
+    const recordAt = (recordId: string, timestamp: number) => ({ ...f.record, record_id: recordId, updated_time: new Date(timestamp).toISOString() });
+    f.client.listRecords.mockResolvedValueOnce({ records: [
+      recordAt("before_start", Date.parse(startTime) - 1), recordAt("after_end", Date.parse(endTime) + 1),
+    ], hasMore: true, nextPageToken: "later" }).mockResolvedValueOnce({ records: [
+      recordAt("at_start", Date.parse(startTime)), recordAt("before_end", Date.parse(endTime) - 1), recordAt("at_end", Date.parse(endTime)),
+    ], hasMore: false });
+    const records = await f.runtime.preview({ baseId: "base", tableId: "table", startTime, endTime });
+    expect(records.map((record) => record.recordId)).toEqual(["at_start", "before_end"]);
+    expect(f.client.listRecords.mock.calls[1]?.[2].pageToken).toBe("later");
+    expect(await f.db.selectFrom("lark_ticket_done_reactions").selectAll().execute()).toEqual([]);
+    expect(f.client.createMessageReaction).not.toHaveBeenCalled();
+  });
+
   it("starts without backfill, then scans every incremental range with a five minute overlap", async () => {
     const f = await fixture();
     await f.runtime.runOnce();

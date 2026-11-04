@@ -99,7 +99,8 @@ export function createLarkTicketDoneReactionService(deps: {
     const client = await deps.createClient(source, actionRunId);
     const status = await statusField(client, source);
     const updated = buildLarkUpdatedSinceFilter(source.sourceUpdatedAtFieldName, Date.parse(range.startTime));
-    const filter = `AND(${updated},CurrentValue.[${source.sourceUpdatedAtFieldName}] < TODATE(${JSON.stringify(range.endTime)}),CurrentValue.[${status}] = ${JSON.stringify(deps.targetStatus)})`;
+    // Lark TODATE filters discard the time of day; enforce the exact window below.
+    const filter = `AND(${updated},CurrentValue.[${status}] = ${JSON.stringify(deps.targetStatus)})`;
     const records: LarkBitableRecord[] = [];
     const seen = new Set<string>();
     let pageToken: string | undefined;
