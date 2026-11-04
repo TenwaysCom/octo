@@ -2,6 +2,14 @@
 
 Record concise compiler/runtime errors, failed commands, wrong assumptions, and their verified fixes here. Redact secrets, cookies, tokens, and sensitive payloads.
 
+## [ERR-20261104-002] source-version-idempotency-bypasses-unknown-effect
+
+**Error:** 以工单源版本作为待办幂等键时，表情 POST 超时后出现新版本，可能生成另一条 pending 待办；仅检查当前待办的 outcome_unknown，不能阻止它向同一消息再次派发。只有运行互斥也不足以保护先前已释放租约的未知操作。
+
+**Fix:** 对外部效果本身（应用/根消息/表情）串行化，并在该锁内查询所有版本的持久化未知状态。旧操作未确认前，新版本只能读回核实或等待，不能重新派发。读回查询的拒绝也不能被误当作原 POST 明确未执行。
+
+source: [Done 表情任务](../docs/tasks/platform-sync/2026-11-04-lark-finished-ticket-reaction.md)
+
 ## [ERR-20261104-001] definite-write-rejection-marked-outcome-unknown
 
 **Error:** Lark 创建或回帖首次返回明确的限流/权限拒绝后，状态保留 creating/replying，下一次变为 outcome_unknown，恢复权限或限流后仍不能重试。把所有派发异常都当作执行结果未知，混淆了“平台明确未接受”与“无法确认是否已执行”。

@@ -589,7 +589,14 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
           synced_at: eb.ref("excluded.synced_at"),
           last_seen_at: eb.ref("excluded.last_seen_at"),
           stale: false,
-        }))).execute();
+        })).where((eb) => eb.or([
+          eb("lark_base_ticket_syncs.title", "!=", eb.ref("excluded.title")),
+          sql<SqlBool>`coalesce(lark_base_ticket_syncs.ticket_status, '') <> coalesce(excluded.ticket_status, '')`,
+          sql<SqlBool>`lark_base_ticket_syncs.fields_json::jsonb <> excluded.fields_json::jsonb`,
+          sql<SqlBool>`coalesce(lark_base_ticket_syncs.created_time, '') <> coalesce(excluded.created_time, '')`,
+          sql<SqlBool>`coalesce(lark_base_ticket_syncs.source_updated_at, '') <> coalesce(excluded.source_updated_at, '')`,
+          eb("lark_base_ticket_syncs.stale", "=", true),
+        ]))).execute();
 
       const sharedUrls = batch.filter((input) => input.record.shared_url);
       if (sharedUrls.length > 0) {
@@ -607,7 +614,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
           .doUpdateSet((eb) => ({
             shared_url: eb.ref("excluded.shared_url"),
             updated_at: eb.ref("excluded.updated_at"),
-          }))).execute();
+          })).where(sql<SqlBool>`coalesce(lark_base_ticket_octo.shared_url, '') <> excluded.shared_url`)).execute();
       }
     }
   }

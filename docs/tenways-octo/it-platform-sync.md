@@ -60,7 +60,50 @@ HTTP 路由如下。所有请求都可携带 `actionRunId`；Base ticket 可指�
 
 Web Integrations 还提供受 Web 会话保护的同步状态页：展示 Lark Ticket、Meegle User Story、Meegle Tech Task、Meegle Production Bug，以及 GitHub Odoo EU、GitHub Odoo UK、GitHub Odoo US。每个 GitHub 卡片对应一个明确仓库，最近同步时间只从该仓库快照计算，单项同步也只读取该仓库。Web 的单项同步固定为“同步后清洗”：只清洗本次成功写入的快照。服务端从 `platform-sync.local.json` 解析实际 target，并从 HttpOnly Web session 获取 `masterUserId`；浏览器不会接收或传递用户 ID、平台 token、Base/Table ID 或仓库标识；未配置来源在页面明确显示为“未配置”。Web 的 Lark Ticket、Meegle 工作项和 GitHub PR 列表每页最多读取 1000 条快照。
 
-同步来源接口同时投影持久化 schedule、有效 scope lease 与 run audit。页面首次加载时读取任务状态，之后每 10 秒轻量轮询一次；若后台任务持有有效 lease，卡片显示“同步中”并禁用“立即同步”。轮询间隙即使发起重复请求，服务端仍以相同 scope lease 拒绝并返回 `409 SYNC_ALREADY_RUNNING`。查询状态时有效 lease 对应的运行优先于更晚的 skipped 审计，过期 lease 不会让按钮永久禁用。
+同步来源接口同时投影持久化 schedule、有效 scope lease 与 run audit。页面首次加载、点击“刷新状态”及单项同步完成后读取状态；若后台任务持有有效 lease，卡片显示“同步中”并禁用“立即同步”。两次读取间即使发起重复请求，服务端仍以相同 scope lease 拒绝并返回 `409 SYNC_ALREADY_RUNNING`。查询状态时有效 lease 对应的运行优先于更晚的 skipped 审计。
+
+`GET /api/web/platform-sync-sources` 还返回只读 `backgroundTasks`，页面展示“自动创建 Ticket”和“自动添加 Done 表情”。自动创建读取 `scheduler.tasks.larkThreadTickets` 的配置，启用状态同时受 scheduler 总开关约束；卡片显示扫描间隔、每个来源的处理上限、来源群数量和最近运行结果/时间/安全错误码。运行审计使用独立 `thread-tickets:<chat>/<base>/<table>` scope，不复用 Base 快照同步状态；只有有效租约对应的运行才标为执行中，遗留 running 审计但没有有效租约时显示状态未知。配置启用与进程健康分开解释，未提供进程心跳保证。状态查询失败时仅该卡片降级，既有数据源仍可查看。Web 配置路径支持与 Worker 一致的 `PLATFORM_SYNC_CONFIG_PATH`，未指定时使用默认文件。
+
+Done 表情任务现已实现，接口返回 `implemented=true`，卡片从实际配置展示启用状态、扫描间隔、重叠窗口、目标状态、目标表数量及 `done-reactions:<base>/<table>` 的运行记录。两项任务独立降级，均不提供写入触发按钮；页面刷新不会创建工单、添加表情或修改扫描水位。实现与验证见[状态展示任务](../tasks/platform-sync/2026-11-04-ticket-worker-status.md)和[Done 任务](../tasks/platform-sync/2026-11-04-lark-finished-ticket-reaction.md)。
+
+### 工单无变化时跳过实际写入
+
+Base 到 Octo 仍读取增量重叠窗口，但共用 UPSERT 在 PostgreSQL 冲突更新中原子比较源更新时间、字段 JSON、标题、状态、创建时间及 stale 标记。完全相同的快照不执行 UPDATE，也不刷新 `synced_at` / `last_seen_at`；JSON 键顺序不同不构成变化。共享链接只有变化时才更新，保留 Octo 的 Ticket AI / Shadow AI。清洗前仅筛选派生字段与预期不同的记录，既跳过一致数据的清洗写入，也允许修复此前源已写入但清洗失败的记录。
+
+同步响应中的 `synced` 仍表示本轮消费的源记录数量，不等于数据库实际 UPDATE 行数；水位仍按已读取的源更新时间计算。本优化不消除远端重叠读取或数据库冲突检查。验证见[无变化同步任务](../tasks/platform-sync/2026-11-04-lark-unchanged-sync.md)。
+
+### 自动添加 Done 表情
+
+独立 platform worker 使用 `scheduler.tasks.larkTicketDoneReaction`，默认关闭，且受 `scheduler.enabled` 总开关约束：
+
+```json
+{
+  "enabled": false,
+  "intervalMinutes": 10,
+  "overlapMinutes": 5,
+  "targetStatus": "Finish"
+}
+```
+
+任务处理 `larkBase` 中配置的全部 Base/Table，按其 `statusFieldName`（未指定时解析候选字段）及 `sourceUpdatedAtFieldName` 查询；不按群过滤，也不依赖自动登记是否创建过该工单。应用凭据仅取服务端的 `LARK_APP_ID` / `LARK_APP_SECRET`，读取及表情写入使用同一 Application Bot，不回退个人授权。配置在 Worker 启动时加载，修改后需重启 Worker。
+
+首次执行仅保存启用时间；后续区间为 `[max(enabledAt, 上次成功扫描截止时间 - overlapMinutes), 本轮开始时间)`。按 Base 最后修改时间发现当前状态匹配 `targetStatus` 的记录，全部分页入队成功后才推进水位。正常每 10 分钟执行时覆盖约 15 分钟；停机后沿用旧水位。旧工单在启用后刚完成可进入候选，历史已完成但之后编辑其他字段也可进入候选；不保证捕获两轮之间短暂经过的状态。
+
+添加前重读记录，确认状态和消息链接仍匹配，再解析根 `om_` 消息。新链接优先 `messageid`；兼容 Open ID 及旧数字话题链接，但必须验证实际根消息和话题归属。缺少链接、根消息无法证明、消息撤回或 Bot 无权访问时保留单条错误，不阻断其他工单。
+
+`lark_ticket_done_scans` 保存启用边界与水位，`lark_ticket_done_reactions` 按应用/记录/源版本/链接持久化不可变待办及稳定 actionRunId。添加前分页检查当前应用自己的 `DONE`，不把其他用户的同款表情算成 Bot 已完成。目标表租约防止扫描重叠；应用/根消息租约串行化表情操作，跨记录、跨版本仍受未确认写入约束。
+
+派发前写入 `adding`，成功读回 Bot 表情后写入 `done`。超时、崩溃或读回失败进入结果未知，只读核实，不自动重发；新版本待办也不能绕过同一根消息上已有的结果未知操作。明确拒绝可退避重试，单条最多五次自动失败尝试；权限或链接错误保留 blocked 状态。重新打开工单不会自动撤回表情，既有 `JIAYI` 保留。
+
+提供同一服务的手动验证入口：时间区间只读预览，不入队、不推进水位；指定单条 record 加 `--apply` 才写表情，单条执行也不改变自动水位。范围预览不接受 `--apply`。以下均为命令说明，本次未执行真实写入：
+
+```bash
+pnpm --dir server platform:lark-ticket-done --base-id BASE --table-id TABLE --start-time 2026-11-04T19:00:00+08:00 --end-time 2026-11-04T19:10:00+08:00
+pnpm --dir server platform:lark-ticket-done --base-id BASE --table-id TABLE --record-id RECORD
+pnpm --dir server platform:lark-ticket-done --base-id BASE --table-id TABLE --record-id RECORD --apply
+```
+
+部署时需通过现有 schema 初始化流程创建两张表与索引（先 build，再按实际环境执行既有迁移），随后按需配置并重启 Worker。本次未迁移真实数据库、未启用自动任务、未重启服务、未执行真实平台 E2E；首次真实单条由用户提供工单后验证，真实批量测试由用户执行。
 
 Web Lark Ticket 列表默认按状态分组并按状态升序排列，提供“进行中”“未分类”“未同步”快速过滤；“进行中”包含状态不是 `Finish`、`Cancelled`、`Rejected` 的 Ticket。列表也支持切换为按 Issue 类型、需求人、负责人、紧急度分组或不分组，并可配置排序字段、排序方向和显示字段。
 

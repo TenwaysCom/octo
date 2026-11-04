@@ -264,7 +264,7 @@ describe("PlatformSyncService", () => {
     } as GitHubPrDetails }, { pullRequest: {
       number: 2, title: "Second", html_url: "https://github.com/acme/app/pull/2", state: "open", merged_at: null, draft: false,
     } as GitHubPrDetails });
-    store.lark.push({ record: { record_id: "rec-1", fields: {} }, title: "First" }, { record: { record_id: "rec-2", fields: {} }, title: "Second" });
+    store.lark.push({ record: { record_id: "rec-1", fields: { 编号: "1" } }, title: "First" }, { record: { record_id: "rec-2", fields: { 编号: "2" } }, title: "Second" });
     vi.spyOn(store, "applyMeegleWorkitemCleaning").mockImplementation(async ({ workItemId }) => {
       if (workItemId === "1") throw new Error("Meegle cleaning failed");
       store.cleanedMeegle.push(workItemId);
@@ -297,6 +297,21 @@ describe("PlatformSyncService", () => {
       expect.objectContaining({ recordId: "rec-1" }),
       expect.objectContaining({ recordId: "rec-2" }),
     ]);
+  });
+
+  it("skips consistent cleaning but still repairs a previous incomplete cleaning", async () => {
+    const store = createStore();
+    const get = vi.spyOn(store, "getLarkBaseTicketsForCleaning");
+    const write = vi.spyOn(store, "applyLarkBaseTicketCleanings");
+    const service = new PlatformSyncService({ store });
+    const ref = { baseId: "base", tableId: "table", recordId: "rec-1" };
+    const snapshot = { ...ref, title: "One", sourceFields: { 编号: "1" }, syncedAt: "2026-11-04T00:00:00Z" };
+    get.mockResolvedValueOnce([{ ...snapshot, ticketNumber: "1" }]);
+    await expect(service.cleanLarkBaseTickets([ref])).resolves.toBe(0);
+    expect(write).not.toHaveBeenCalled();
+    get.mockResolvedValueOnce([snapshot]);
+    await expect(service.cleanLarkBaseTickets([ref])).resolves.toBe(1);
+    expect(write).toHaveBeenCalledWith([expect.objectContaining({ ticketNumber: "1" })]);
   });
 
   it("does not write Ticket AI fields back during a Lark snapshot sync", async () => {

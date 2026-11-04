@@ -905,3 +905,13 @@ Lark 已写但本地同步失败仍是显式部分成功：FE 保留新值并提
 新建只调用单条同步与 shadow，不等待周期候选的 settle；标题由现有 Summary provider 生成，写回 Base 并读回本地快照后才确认实际编号/标题，再给根消息添加 JIAYI。新话题无回复时，通过源链接中的 messageid 获取根消息，验证 thread 归属后保存完整上下文。正式 ticket_ai 保持独立。
 
 `POST /api/web/platform-sync/lark-thread-tickets` 使用 Web session 与 platformSync 权限，严格 Zod 校验 chatId/startTime/endTime/apply/maxTickets/actionRunId。时间为带时区 ISO、秒精度的半开区间；默认预览，apply=true 才处理本区间内至多 maxTickets 条。区间入口与指定单条 CLI 均不改变自动游标、不消费其他待办，超额候选不进入自动队列。配置、请求示例与部分成功语义见[同步运行说明](../../tenways-octo/it-platform-sync.md#群话题自动登记工单)，验证边界见[任务](../../tasks/platform-sync/2026-11-03-lark-thread-ticket-intake.md)。
+
+数据同步页通过既有 `GET /api/web/platform-sync-sources` 的 `backgroundTasks` 展示话题登记任务及 Done 表情任务的启用配置和专属 scope 运行记录。有效租约是“执行中”的判断依据，遗留 running 审计不能证明进程仍存活；状态查询不读取 Lark、不写扫描水位或触发任务。Done 卡片展示实际扫描间隔、重叠窗口、目标状态与目标表数量。配置读取与降级边界见[状态展示任务](../../tasks/platform-sync/2026-11-04-ticket-worker-status.md)。
+
+### 工单重复快照与完成表情
+
+Lark 快照 UPSERT 对相同源版本和源字段执行条件更新；完全相同的数据不刷新同步/观察时间，也不覆盖本地 AI。清洗只写与既有派生字段不同的投影，保留先前清洗失败后的修复机会。远端增量重叠读取与水位契约不变，见[无变化同步任务](../../tasks/platform-sync/2026-11-04-lark-unchanged-sync.md)。
+
+Done 任务默认关闭，每 10 分钟按目标 Base/Table 的源最后修改时间扫描，上次成功扫描截止时间回退 5 分钟且不越过首次启用边界，状态默认 Finish 且可配置。`lark_ticket_done_scans` 独立维护水位；全部分页入队后才推进。`lark_ticket_done_reactions` 为应用/记录/源版本/链接保存稳定待办及 actionRunId，正常阶段为 pending → adding → done；状态/链接变化为 cancelled，明确权限/输入问题为 blocked，无法确认写入为 outcome_unknown。
+
+应用客户端读取并验证关联话题根消息，添加前检查当前 Bot 自己的 DONE，写后读回确认 reaction ID。目标表 scope 与应用/根消息 scope 两层租约避免并发派发；同一根消息的结果未知记录也会阻止其他版本待办重新发送。失败按单条退避并最多五次自动尝试，未知写入只读对账。手动区间预览不建待办或改游标；显式单条 --apply 与 Worker 复用处理逻辑，不撤回重新打开工单的表情。配置、命令和未部署边界见[Done 任务](../../tasks/platform-sync/2026-11-04-lark-finished-ticket-reaction.md)及[运行说明](../../tenways-octo/it-platform-sync.md#自动添加-done-表情)。

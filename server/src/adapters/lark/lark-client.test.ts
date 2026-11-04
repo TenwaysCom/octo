@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { vi } from "vitest";
 import { LarkAPIError, LarkBatchCreateError, LarkClient, isLarkWriteDefinitelyRejected } from "./lark-client.js";
 
 describe("lark-client", () => {
@@ -6,6 +6,24 @@ describe("lark-client", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("lists paginated DONE reactions and preserves reaction identity on creation", async () => {
+    const client = new LarkClient({ accessToken: "test-token" });
+    (client as unknown as { client: { request: typeof requestMock } }).client = { request: requestMock };
+    const reaction = { reaction_id: "reaction_1", operator: { operator_type: "app", operator_id: "cli_app" }, reaction_type: { emoji_type: "DONE" } };
+    requestMock.mockResolvedValueOnce({ code: 0, data: { items: [reaction], has_more: true, page_token: "next" } });
+    await expect(client.listMessageReactions("om_root", { emojiType: "DONE", pageToken: "previous" }))
+      .resolves.toEqual({ items: [reaction], hasMore: true, pageToken: "next" });
+    expect(requestMock).toHaveBeenLastCalledWith(expect.objectContaining({
+      method: "GET", url: "/open-apis/im/v1/messages/om_root/reactions",
+      params: { reaction_type: "DONE", page_token: "previous", page_size: 50 },
+    }), expect.anything());
+    requestMock.mockResolvedValueOnce({ code: 0, data: reaction });
+    await expect(client.createMessageReaction("om_root", "DONE")).resolves.toEqual(reaction);
+    expect(requestMock).toHaveBeenLastCalledWith(expect.objectContaining({
+      method: "POST", data: { reaction_type: { emoji_type: "DONE" } },
+    }), expect.anything());
   });
 
   it.each([

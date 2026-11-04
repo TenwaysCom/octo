@@ -22,6 +22,12 @@ export interface LarkBitableRecord {
   shared_url?: string;
 }
 
+export interface LarkMessageReaction {
+  reaction_id?: string;
+  operator?: { operator_id: string; operator_type: "app" | "user" };
+  reaction_type?: { emoji_type: string };
+}
+
 type LarkRawBitableRecord = {
   record_id?: string;
   fields?: Record<string, unknown>;
@@ -711,11 +717,23 @@ export class LarkClient {
    * Add a reaction to a message
    */
   async addMessageReaction(messageId: string, emojiType: string): Promise<void> {
-    await this.request<void>("POST", `/open-apis/im/v1/messages/${messageId}/reactions`, {
+    await this.createMessageReaction(messageId, emojiType);
+  }
+
+  async createMessageReaction(messageId: string, emojiType: string): Promise<LarkMessageReaction> {
+    return this.request<LarkMessageReaction>("POST", `/open-apis/im/v1/messages/${messageId}/reactions`, {
       reaction_type: {
         emoji_type: emojiType,
       },
     });
+  }
+
+  async listMessageReactions(messageId: string, options: { emojiType?: string; pageToken?: string } = {}) {
+    const data = await this.request<{ items?: LarkMessageReaction[]; has_more?: boolean; page_token?: string }>(
+      "GET", `/open-apis/im/v1/messages/${messageId}/reactions`, undefined,
+      { reaction_type: options.emojiType, page_token: options.pageToken, page_size: 50 },
+    );
+    return { items: data.items ?? [], hasMore: data.has_more ?? false, pageToken: data.page_token };
   }
 
   // ==================== Error Handling ====================

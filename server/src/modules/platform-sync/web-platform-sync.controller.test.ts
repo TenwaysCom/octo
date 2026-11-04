@@ -1,7 +1,11 @@
-import { describe, expect, it, vi } from "vitest";
+import { vi } from "vitest";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { PlatformSyncCoordinatorError } from "../../application/services/platform-sync-coordinator.js";
 import { MEEGLE_SPRINT_WORKITEM_TYPE_KEY } from "../../domain/meegle-workitem-types.js";
 import { createWebPlatformSyncController } from "./web-platform-sync.controller.js";
+import type { PlatformSyncScopeStatus } from "../../adapters/postgres/platform-sync-status-store.js";
 
 const config = {
   meegle: [{
@@ -131,6 +135,10 @@ describe("web platform sync controller", () => {
             lastAnalyzedAt: "2026-09-03T01:00:00.000Z",
             enabled: false,
           },
+          backgroundTasks: [
+            expect.objectContaining({ id: "lark-thread-tickets", configured: false, enabled: false, running: false }),
+            expect.objectContaining({ id: "lark-ticket-done-reaction", label: "自动添加 Done 表情", implemented: true, enabled: false }),
+          ],
         },
       },
     });
@@ -190,6 +198,135 @@ describe("web platform sync controller", () => {
     expect(result).toMatchObject({
       statusCode: 200,
       body: { data: { shadowSummary: { enabled: true } } },
+    });
+  });
+
+  describe("Ticket background task status", () => {
+    it("exposes Done configuration and its dedicated run scope", async () => {
+      const mocks = createController();
+      mocks.statusStore.list.mockResolvedValueOnce([]).mockResolvedValueOnce([{
+        platform: "lark", scopeKey: "done-reactions:base/table", scheduled: false, leaseActive: true,
+        runStatus: "running", lastRunAt: "2026-11-04T01:00:00Z",
+      }]);
+      const controller = createWebPlatformSyncController({ ...mocks,
+        ensureSession: async () => ({ ok: true, masterUserId: "user_1", role: "devops" } as never),
+        loadConfig: async () => ({ ...config, scheduler: { enabled: true, tasks: {
+          shadow: { enabled: false }, larkTicketDoneReaction: { enabled: true, intervalMinutes: 10, overlapMinutes: 5, targetStatus: "Resolved" },
+        } } }),
+      });
+      await expect(controller.list({ cookieHeader: "octo_web_session=session" })).resolves.toMatchObject({
+        body: { data: { backgroundTasks: [ expect.objectContaining({ id: "lark-thread-tickets" }),
+          { id: "lark-ticket-done-reaction", implemented: true, configured: true, enabled: true, running: true,
+            intervalMinutes: 10, overlapMinutes: 5, targetStatus: "Resolved", targetCount: 1 },
+        ] } },
+      });
+      expect(mocks.statusStore.list).toHaveBeenLastCalledWith([
+        { platform: "lark", scopeKey: "done-reactions:base/table" },
+      ], { includeSnapshots: false });
+    });
+
+    function withTask(options: { schedulerEnabled?: boolean; taskEnabled?: boolean; statuses?: PlatformSyncScopeStatus[] } = {}) {
+      const mocks = createController();
+      mocks.statusStore.list.mockResolvedValueOnce([]).mockResolvedValueOnce(options.statuses ?? []);
+      const controller = createWebPlatformSyncController({
+        ...mocks,
+        ensureSession: async () => ({ ok: true, masterUserId: "user_1", role: "devops" } as never),
+        loadConfig: async () => ({
+          ...config,
+          scheduler: {
+            enabled: options.schedulerEnabled ?? true,
+            tasks: {
+              shadow: { enabled: false },
+              larkThreadTickets: {
+                enabled: options.taskEnabled ?? true, intervalMinutes: 2, batchLimit: 7,
+                sources: [{ chatId: "oc_source", baseId: "base", tableId: "table" }],
+              },
+            },
+          },
+        }),
+      });
+      return { ...mocks, controller };
+    }
+
+    it("reads the worker config path and applies shared intake defaults", async () => {
+      const directory = await mkdtemp(join(tmpdir(), "octo-task-status-"));
+      try {
+        const path = join(directory, "config.json");
+        await writeFile(path, JSON.stringify({
+          ...config,
+          scheduler: { enabled: true, tasks: { larkThreadTickets: {
+            enabled: true, sources: [{ chatId: "oc_source", baseId: "base", tableId: "table" }],
+          } } },
+        }));
+        vi.stubEnv("PLATFORM_SYNC_CONFIG_PATH", path);
+        const mocks = createController();
+        const controller = createWebPlatformSyncController({
+          ...mocks,
+          ensureSession: async () => ({ ok: true, masterUserId: "user_1", role: "devops" } as never),
+        });
+        await expect(controller.list({ cookieHeader: "octo_web_session=session" })).resolves.toMatchObject({
+          statusCode: 200, body: { data: { backgroundTasks: [
+            { configured: true, enabled: true, intervalMinutes: 1, batchLimit: 5 },
+            { implemented: true, enabled: false },
+          ] } },
+        });
+      } finally {
+        vi.unstubAllEnvs();
+        await rm(directory, { recursive: true, force: true });
+      }
+    });
+
+    it("reads the intake scope separately from Base snapshots and returns configured task settings", async () => {
+      const { controller, statusStore, service } = withTask({ statuses: [{
+        platform: "lark", scopeKey: "thread-tickets:oc_source/base/table", scheduled: false,
+        runStatus: "failed", lastRunAt: "2026-11-04T01:00:00Z", lastCompletedAt: "2026-11-04T01:01:00Z",
+        lastErrorCode: "LARK_PERMISSION_DENIED", leaseActive: false,
+      }] });
+      await expect(controller.list({ cookieHeader: "octo_web_session=session" })).resolves.toMatchObject({
+        statusCode: 200, body: { data: { backgroundTasks: [
+          { id: "lark-thread-tickets", implemented: true, configured: true, enabled: true,
+            intervalMinutes: 2, batchLimit: 7, sourceCount: 1, running: false, runStatus: "failed",
+            lastRunAt: "2026-11-04T01:00:00Z", lastCompletedAt: "2026-11-04T01:01:00Z", lastErrorCode: "LARK_PERMISSION_DENIED" },
+          { id: "lark-ticket-done-reaction", implemented: true, enabled: false },
+        ] } },
+      });
+      expect(statusStore.list).toHaveBeenNthCalledWith(2, [
+        { platform: "lark", scopeKey: "thread-tickets:oc_source/base/table" },
+      ], { includeSnapshots: false });
+      expect(service.incrementalSyncLarkBaseTickets).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      { schedulerEnabled: false, taskEnabled: true },
+      { schedulerEnabled: true, taskEnabled: false },
+    ])("respects the scheduler and task switches: %j", async (switches) => {
+      const { controller } = withTask(switches);
+      await expect(controller.list({ cookieHeader: "octo_web_session=session" })).resolves.toMatchObject({
+        body: { data: { backgroundTasks: [ { id: "lark-thread-tickets", configured: true, enabled: false }, { implemented: true } ] } },
+      });
+    });
+
+    it.each([true, false])("only reports active execution with a valid lease: %s", async (leaseActive) => {
+      const { controller } = withTask({ statuses: [{
+        platform: "lark", scopeKey: "thread-tickets:oc_source/base/table", scheduled: false,
+        runStatus: "running", lastRunAt: "2026-11-04T01:00:00Z", leaseActive,
+      }] });
+      await expect(controller.list({ cookieHeader: "octo_web_session=session" })).resolves.toMatchObject({
+        body: { data: { backgroundTasks: [ { id: "lark-thread-tickets", running: leaseActive, runStatus: "running" }, { implemented: true } ] } },
+      });
+    });
+
+    it("keeps data sources and the Done card visible when intake status cannot be read", async () => {
+      const { controller, statusStore } = withTask();
+      statusStore.list.mockReset().mockResolvedValueOnce([]).mockRejectedValueOnce(new Error("private database details"));
+      const result = await controller.list({ cookieHeader: "octo_web_session=session" });
+      expect(result).toMatchObject({
+        statusCode: 200, body: { data: {
+          sources: expect.arrayContaining([expect.objectContaining({ id: "lark-tickets" })]),
+          backgroundTasks: [ { id: "lark-thread-tickets", statusUnavailable: true }, { implemented: true, enabled: false } ],
+        } },
+      });
+      expect(JSON.stringify(result)).not.toContain("private database details");
     });
   });
 

@@ -24,7 +24,7 @@ const shadowTaskSchema = z.object({
   acpTimeoutSeconds: z.number().int().min(30).max(1800).optional(),
 });
 
-const larkThreadTicketsTaskSchema = z.object({
+export const larkThreadTicketsTaskSchema = z.object({
   enabled: z.boolean().default(false),
   intervalMinutes: z.number().int().min(1).max(1440).default(1),
   batchLimit: z.number().int().min(1).max(50).default(5),
@@ -35,6 +35,13 @@ const larkThreadTicketsTaskSchema = z.object({
     // Omit for new topics only, starting at the first worker scan.
     startAt: z.iso.datetime({ offset: true }).optional(),
   })).default([]),
+});
+
+export const larkTicketDoneReactionTaskSchema = z.object({
+  enabled: z.boolean().default(false),
+  intervalMinutes: z.number().int().min(1).max(1440).default(10),
+  overlapMinutes: z.number().int().min(0).max(1440).default(5),
+  targetStatus: z.string().trim().min(1).max(120).default("Finish"),
 });
 
 const odooShTaskSchema = z.object({
@@ -73,6 +80,7 @@ const platformSyncSchedulerSchema = z.object({
     github: syncTaskToggleSchema.default({ enabled: true }),
     shadow: shadowTaskSchema.default({ enabled: false }),
     larkThreadTickets: larkThreadTicketsTaskSchema.optional(),
+    larkTicketDoneReaction: larkTicketDoneReactionTaskSchema.optional(),
     odooSh: odooShTaskSchema.optional(),
     messageDelivery: messageDeliveryTaskSchema.optional(),
   }).default({
@@ -122,6 +130,9 @@ const platformSyncConfigSchema = z.object({
     });
   }
   const task = value.scheduler.tasks.larkThreadTickets;
+  if (value.scheduler.tasks.larkTicketDoneReaction?.enabled && value.larkBase.length === 0) {
+    context.addIssue({ code: "custom", path: ["scheduler", "tasks", "larkTicketDoneReaction"], message: "Done reactions require a Lark Base target" });
+  }
   if (task?.enabled && task.sources.length === 0) {
     context.addIssue({ code: "custom", path: ["scheduler", "tasks", "larkThreadTickets", "sources"], message: "Enabled thread intake requires a source chat and Base target" });
   }

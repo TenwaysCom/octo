@@ -560,6 +560,7 @@ test("loads and triggers a configured platform sync source with the web session"
           data: {
             sources: [{ id: "lark-tickets", label: "Lark Ticket", configured: true }],
             shadowSummary: { ok: 2, skipped: 1, error: 0, pending: 3, lastAnalyzedAt: "2026-09-03T01:00:00.000Z", enabled: true },
+            backgroundTasks: [{ id: "lark-thread-tickets", implemented: true, enabled: true }],
           },
         }),
       };
@@ -568,6 +569,7 @@ test("loads and triggers a configured platform sync source with the web session"
   assert.deepEqual(result, {
     sources: [{ id: "lark-tickets", label: "Lark Ticket", configured: true }],
     shadowSummary: { ok: 2, skipped: 1, error: 0, pending: 3, lastAnalyzedAt: "2026-09-03T01:00:00.000Z", enabled: true },
+    backgroundTasks: [{ id: "lark-thread-tickets", implemented: true, enabled: true }],
   });
 
   let request;
@@ -583,6 +585,14 @@ test("loads and triggers a configured platform sync source with the web session"
   assert.equal(request.url, "/api/web/platform-sync-sources/lark-tickets");
   assert.equal(request.options.method, "POST");
   assert.deepEqual(JSON.parse(request.options.body), { actionRunId: "sync_1" });
+});
+
+test("older sync status responses remain usable without background tasks", async () => {
+  const result = await getPlatformSyncSources({
+    apiBaseUrl: "/api",
+    fetchImpl: async () => ({ ok: true, json: async () => ({ ok: true, data: { sources: [] } }) }),
+  });
+  assert.deepEqual(result.backgroundTasks, []);
 });
 
 function expectGitHubPullRequestWithBuild() {

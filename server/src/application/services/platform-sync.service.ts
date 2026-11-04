@@ -635,15 +635,18 @@ export class PlatformSyncService {
 
   async cleanLarkBaseTickets(refs: LarkBaseTicketSyncRef[]): Promise<number> {
     const snapshots = await this.syncStore.getLarkBaseTicketsForCleaning(refs);
-    const inputs = snapshots.map((snapshot) => {
+    const cleaningFields = ["ticketNumber", "issueType", "requester", "responsible", "priority", "detailDescription", "meegleLink", "larkMessageLink"] as const;
+    const inputs = snapshots.flatMap((snapshot) => {
       const ticket = buildLarkTicketCleaningProjection(snapshot.sourceFields, snapshot.createdTime);
-      return {
+      if (cleaningFields.every((field) => snapshot[field] === ticket[field])) return [];
+      return [{
         baseId: snapshot.baseId,
         tableId: snapshot.tableId,
         recordId: snapshot.recordId,
         ...ticket,
-      };
+      }];
     });
+    if (inputs.length === 0) return 0;
     try {
       return await this.syncStore.applyLarkBaseTicketCleanings(inputs);
     } catch (error) {

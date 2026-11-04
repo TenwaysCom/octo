@@ -4,6 +4,7 @@ import { PlatformSyncCoordinator } from "../application/services/platform-sync-c
 import { PlatformSyncService } from "../application/services/platform-sync.service.js";
 import { createLarkTicketShadowSummaryService } from "../application/services/lark-ticket-shadow-summary.service.js";
 import { createLarkThreadTicketIntakeRuntime } from "../application/services/lark-thread-ticket-intake.factory.js";
+import { createLarkTicketDoneReactionRuntime } from "../application/services/lark-ticket-done-reaction.factory.js";
 import {
   buildPlatformSyncScheduleDefinitions,
   PlatformSyncWorker,
@@ -50,6 +51,11 @@ export async function runPlatformSyncWorker(): Promise<void> {
     configureLocalLarkAuth(larkTokenStore);
 
     const loops: Promise<void>[] = [];
+    if (config.scheduler.enabled && config.scheduler.tasks.larkTicketDoneReaction?.enabled) {
+      loops.push(createLarkTicketDoneReactionRuntime({ db, config }).run(abortController.signal));
+      workerLogger.info({ operation: "lark_ticket_done_reaction", layer: "server", stage: "server.ticket_done.scheduler_started",
+        targets: config.larkBase.length }, "LARK_TICKET_DONE_STARTED");
+    }
     if (config.scheduler.enabled && config.scheduler.tasks.larkThreadTickets?.enabled) {
       const intake = createLarkThreadTicketIntakeRuntime({ db, config });
       loops.push(intake.run(abortController.signal));
