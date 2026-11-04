@@ -59,15 +59,53 @@ function ShadowSummaryCard({ summary }) {
   </article>;
 }
 
+export function TicketBackgroundTaskCard({ task }) {
+  const expiredRun = task.runStatus === "running" && !task.running;
+  const statusLabel = !task.implemented ? "尚未实现"
+    : task.statusUnavailable ? "状态暂不可用"
+      : !task.configured ? "未配置"
+        : task.running ? "执行中"
+          : !task.enabled ? "未启用"
+            : expiredRun ? "状态未知"
+              : task.runStatus === "failed" ? "最近失败" : "已启用";
+  const runLabel = expiredRun
+    ? "状态未知（无有效运行租约）"
+    : RUN_STATUS_LABELS[task.runStatus] ?? "暂无运行记录";
+  return <article className="sync-source-card" data-test={task.id}>
+    <div className="sync-source-card__heading">
+      <div><p className="profile-card__eyebrow">TICKET AUTOMATION</p><h2>{task.label}</h2></div>
+      <span className={`status-badge ${task.implemented && task.configured && task.enabled && !task.statusUnavailable && !expiredRun && task.runStatus !== "failed" ? "status-badge--ready" : "status-badge--attention"}`}>
+        <span />{statusLabel}
+      </span>
+    </div>
+    {!task.implemented ? <p>任务尚未实现，当前不会自动添加 Done 表情。</p> : <>
+      <dl className="authorization-details">
+        <div><dt>自动执行</dt><dd>{task.enabled ? "已启用（配置）" : "未启用"}</dd></div>
+        <div><dt>扫描间隔</dt><dd>每 {task.intervalMinutes} 分钟</dd></div>
+        {task.batchLimit !== undefined ? <div><dt>每轮处理上限</dt><dd>每个来源 {task.batchLimit} 条</dd></div> : null}
+        {task.sourceCount !== undefined ? <div><dt>来源群数量</dt><dd>{task.sourceCount}</dd></div> : null}
+        {task.targetStatus !== undefined ? <div><dt>目标状态</dt><dd>{task.targetStatus}</dd></div> : null}
+        {task.overlapMinutes !== undefined ? <div><dt>重叠窗口</dt><dd>{task.overlapMinutes} 分钟</dd></div> : null}
+        {task.targetCount !== undefined ? <div><dt>目标表数量</dt><dd>{task.targetCount}</dd></div> : null}
+        <div><dt>最近任务结果</dt><dd>{task.statusUnavailable ? "暂不可用" : runLabel}</dd></div>
+        <div><dt>最近执行</dt><dd>{task.statusUnavailable ? "暂不可用" : task.lastRunAt ? formatDateTime(task.lastRunAt) : "暂无运行记录"}</dd></div>
+        <div><dt>执行结束</dt><dd>{task.statusUnavailable ? "暂不可用" : task.lastCompletedAt ? formatDateTime(task.lastCompletedAt) : "暂无完成记录"}</dd></div>
+        {task.lastErrorCode ? <div><dt>失败原因</dt><dd>{task.lastErrorCode}</dd></div> : null}
+      </dl>
+      {task.statusUnavailable ? <p role="status">任务运行记录暂时无法读取，请刷新重试。</p> : null}
+    </>}
+  </article>;
+}
+
 export function SyncStatusPage({ profile, apiBaseUrl, onLogout, isBusy, breadcrumbs }) {
-  const [state, setState] = useState({ status: "loading", sources: [], shadowSummary: undefined });
+  const [state, setState] = useState({ status: "loading", sources: [], shadowSummary: undefined, backgroundTasks: [] });
   const [runningId, setRunningId] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorBySource, setErrorBySource] = useState({});
 
   const load = useCallback(async () => {
-    const { sources, shadowSummary } = await getPlatformSyncSources({ apiBaseUrl });
-    setState({ status: "ready", sources, shadowSummary });
+    const { sources, shadowSummary, backgroundTasks } = await getPlatformSyncSources({ apiBaseUrl });
+    setState({ status: "ready", sources, shadowSummary, backgroundTasks });
   }, [apiBaseUrl]);
 
   useEffect(() => {
@@ -107,7 +145,7 @@ export function SyncStatusPage({ profile, apiBaseUrl, onLogout, isBusy, breadcru
       <header className="shortcuts-page__header">
         <p className="eyebrow">INTEGRATIONS</p>
         <h1>数据同步</h1>
-        <p>查看数据源的快照状态，并按需发起单个数据源同步。</p>
+        <p>查看数据源同步及 Ticket 自动任务状态，并按需发起单个数据源同步。</p>
         <button className="secondary-button" type="button" disabled={isRefreshing} onClick={() => void refresh()}>{isRefreshing ? "刷新中…" : "刷新状态"}</button>
       </header>
       {state.status === "loading" ? <p className="list-message">正在读取同步状态…</p> : null}
@@ -122,6 +160,7 @@ export function SyncStatusPage({ profile, apiBaseUrl, onLogout, isBusy, breadcru
           onSync={() => void sync(source.id)}
         />)}
         {state.shadowSummary ? <ShadowSummaryCard summary={state.shadowSummary} /> : null}
+        {state.backgroundTasks.map((task) => <TicketBackgroundTaskCard key={task.id} task={task} />)}
       </section> : null}
     </section>
   </WorkspaceShell>;

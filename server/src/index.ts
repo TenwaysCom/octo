@@ -84,6 +84,7 @@ import {
   createWebPlatformDataController,
 } from "./modules/platform-data/platform-data.controller.js";
 import { createWebPlatformSyncController } from "./modules/platform-sync/web-platform-sync.controller.js";
+import { registerLarkThreadTicketIntakeRoutes } from "./modules/platform-sync/lark-thread-ticket-intake.controller.js";
 import { PlatformDataService } from "./application/services/platform-data.service.js";
 import { registerWebPlatformSearchRoutes } from "./modules/platform-data/platform-search.controller.js";
 import { createHttpOdooDevopsBranchesClient } from "./adapters/odoo-devops/odoo-devops-branches-client.js";
@@ -476,6 +477,7 @@ app.get("/api/web/platform-data/github-pull-request-preview", async (req, res) =
   res.status(result.statusCode).json(result.body);
 });
 registerWebLarkTicketRoutes(app);
+registerLarkThreadTicketIntakeRoutes(app);
 registerWeKnoraRoutes(app);
 app.get("/api/web/platform-sync-sources", async (req, res) => {
   const result = await webPlatformSyncController.list({ cookieHeader: req.headers.cookie });

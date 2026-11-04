@@ -34,6 +34,7 @@ const DEFAULT_EXEMPT_PATHS = new Set([
   "/api/web/platform-data/github-pull-request-preview",
   "/api/web/meegle-sprints",
   "/api/web/platform-sync-sources",
+  "/api/web/platform-sync/lark-thread-tickets",
   "/api/web/odoo-devops-branches",
   "/api/web/github-pr-odoo-devops-build",
   "/api/web/odoo-devops-branches/reset-cache",

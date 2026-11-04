@@ -1,4 +1,4 @@
-import { LARK_TICKET_CLOSED_AT_FIELD, LARK_TICKET_FIELD_CANDIDATES } from "../../domain/lark-ticket-fields.js";
+import { LARK_TICKET_CLOSED_AT_FIELD, LARK_TICKET_FIELD_CANDIDATES, LARK_TICKET_DESCRIPTION_FIELD_CANDIDATES, LARK_TICKET_MESSAGE_LINK_FIELD_CANDIDATES } from "../../domain/lark-ticket-fields.js";
 
 const TICKET_NUMBER_FIELDS = ["Ticket 编号", "Ticket编号", "ticket编号", "Ticket Number", "Ticket No.", "编号"];
 const ISSUE_TYPE_FIELDS = LARK_TICKET_FIELD_CANDIDATES.issueType;
@@ -7,9 +7,9 @@ const RESPONSIBLE_FIELDS = LARK_TICKET_FIELD_CANDIDATES.responsible;
 const URGENCY_FIELDS = LARK_TICKET_FIELD_CANDIDATES.priority;
 const BUSINESS_LINE_FIELDS = LARK_TICKET_FIELD_CANDIDATES.businessLine;
 const CREATED_AT_FIELDS = ["创建时间", "Created Time", "Created At"];
-const DETAIL_DESCRIPTION_FIELDS = ["Details Description", "Issue Description"];
+const DETAIL_DESCRIPTION_FIELDS = LARK_TICKET_DESCRIPTION_FIELD_CANDIDATES;
 const MEEGLE_LINK_FIELDS = ["meegle链接", "Meegle Link", "meegleLink"];
-const LARK_MESSAGE_LINK_FIELDS = ["Lark Message Link", "Message Link", "Thread Link", "Chat Link", "lark_message_link"];
+const LARK_MESSAGE_LINK_FIELDS = LARK_TICKET_MESSAGE_LINK_FIELD_CANDIDATES;
 const LARK_MESSAGE_LINK_PATTERN = /https?:\/\/[^\s"'<>)\]]*(?:threadid|chatid|messageid)=[^\s"'<>)\]]*/i;
 
 export interface LarkTicketCleaningProjection {
@@ -66,6 +66,16 @@ function readField(fields: Record<string, unknown>, names: string[]): string | u
 }
 
 function readUrl(fields: Record<string, unknown>, names: string[]): string | undefined {
+  for (const name of names) {
+    const value = fields[name];
+    const values = Array.isArray(value) ? value : [value];
+    for (const item of values) {
+      if (!item || typeof item !== "object") continue;
+      const hyperlink = item as Record<string, unknown>;
+      const url = findUrl(valueToText(hyperlink.link ?? hyperlink.url));
+      if (url) return url;
+    }
+  }
   const text = readField(fields, names);
   if (!text) return undefined;
   return findUrl(text) ?? text;

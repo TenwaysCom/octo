@@ -833,6 +833,34 @@ describe("PostgresPlatformSyncStore", () => {
     await pool.end();
   });
 
+  it("does not rewrite unchanged Lark source or shared-link rows, including reordered JSON keys", async () => {
+    const { db, pool } = await createTestPostgresDatabase();
+    try {
+      const store = new PostgresPlatformSyncStore(db);
+      const input = { baseId: "base", tableId: "table", title: "One", status: "Open", record: {
+        record_id: "rec-1", fields: { a: 1, nested: { x: 2, y: 3 } },
+        updated_time: "2026-11-04T00:00:00Z", shared_url: "https://example.com/record",
+      } };
+      await store.upsertLarkBaseTicket(input);
+      const sentinel = "2026-01-01T00:00:00Z";
+      await db.updateTable("lark_base_ticket_syncs").set({ synced_at: sentinel, last_seen_at: sentinel }).execute();
+      await db.updateTable("lark_base_ticket_octo").set({ updated_at: sentinel, shadow_ai: '{"status":"ok"}' }).execute();
+      await store.upsertLarkBaseTicket({ ...input, record: { ...input.record, fields: { nested: { y: 3, x: 2 }, a: 1 } } });
+      expect(await db.selectFrom("lark_base_ticket_syncs").select(["synced_at", "last_seen_at"]).executeTakeFirstOrThrow())
+        .toEqual({ synced_at: sentinel, last_seen_at: sentinel });
+      expect(await db.selectFrom("lark_base_ticket_octo").select(["updated_at", "shadow_ai"]).executeTakeFirstOrThrow())
+        .toEqual({ updated_at: sentinel, shadow_ai: '{"status":"ok"}' });
+      await store.upsertLarkBaseTicket({ ...input, record: { ...input.record, fields: { a: 9 } } });
+      expect((await db.selectFrom("lark_base_ticket_syncs").select("synced_at").executeTakeFirstOrThrow()).synced_at).not.toBe(sentinel);
+      await db.updateTable("lark_base_ticket_syncs").set({ stale: true }).execute();
+      await store.upsertLarkBaseTicket({ ...input, record: { ...input.record, fields: { a: 9 } } });
+      expect((await db.selectFrom("lark_base_ticket_syncs").select("stale").executeTakeFirstOrThrow()).stale).toBe(false);
+      await store.upsertLarkBaseTicket({ ...input, record: { ...input.record, shared_url: "https://example.com/new" } });
+      expect(await db.selectFrom("lark_base_ticket_octo").select(["shared_url", "shadow_ai"]).executeTakeFirstOrThrow())
+        .toEqual({ shared_url: "https://example.com/new", shadow_ai: '{"status":"ok"}' });
+    } finally { await db.destroy(); await pool.end(); }
+  });
+
   it("marks snapshots not seen by a completed full scope as stale without deleting them", async () => {
     const { db, pool } = await createTestPostgresDatabase();
     const store = new PostgresPlatformSyncStore(db);

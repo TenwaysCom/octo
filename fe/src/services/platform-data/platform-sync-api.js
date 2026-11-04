@@ -10,7 +10,11 @@ export async function getPlatformSyncSources({ apiBaseUrl, fetchImpl = fetch }) 
   if (!response.ok || !payload?.ok || !Array.isArray(payload.data?.sources)) {
     throw new Error(payload?.error?.errorCode || "SYNC_SOURCES_LOAD_FAILED");
   }
-  return { sources: payload.data.sources, shadowSummary: payload.data.shadowSummary };
+  return {
+    sources: payload.data.sources,
+    shadowSummary: payload.data.shadowSummary,
+    backgroundTasks: Array.isArray(payload.data.backgroundTasks) ? payload.data.backgroundTasks : [],
+  };
 }
 
 export async function syncPlatformSource({ apiBaseUrl, sourceId, actionRunId, fetchImpl = fetch }) {

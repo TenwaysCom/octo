@@ -24,6 +24,26 @@ const shadowTaskSchema = z.object({
   acpTimeoutSeconds: z.number().int().min(30).max(1800).optional(),
 });
 
+export const larkThreadTicketsTaskSchema = z.object({
+  enabled: z.boolean().default(false),
+  intervalMinutes: z.number().int().min(1).max(1440).default(1),
+  batchLimit: z.number().int().min(1).max(50).default(5),
+  sources: z.array(z.object({
+    chatId: z.string().trim().min(1),
+    baseId: z.string().trim().min(1),
+    tableId: z.string().trim().min(1),
+    // Omit for new topics only, starting at the first worker scan.
+    startAt: z.iso.datetime({ offset: true }).optional(),
+  })).default([]),
+});
+
+export const larkTicketDoneReactionTaskSchema = z.object({
+  enabled: z.boolean().default(false),
+  intervalMinutes: z.number().int().min(1).max(1440).default(10),
+  overlapMinutes: z.number().int().min(0).max(1440).default(5),
+  targetStatus: z.string().trim().min(1).max(120).default("Finish"),
+});
+
 const odooShTaskSchema = z.object({
   enabled: z.boolean().default(true),
   notificationEnvironments: z.array(z.enum(["eu", "uk", "us"])).default(["eu"]),
@@ -59,6 +79,8 @@ const platformSyncSchedulerSchema = z.object({
     meegle: syncTaskToggleSchema.default({ enabled: true }),
     github: syncTaskToggleSchema.default({ enabled: true }),
     shadow: shadowTaskSchema.default({ enabled: false }),
+    larkThreadTickets: larkThreadTicketsTaskSchema.optional(),
+    larkTicketDoneReaction: larkTicketDoneReactionTaskSchema.optional(),
     odooSh: odooShTaskSchema.optional(),
     messageDelivery: messageDeliveryTaskSchema.optional(),
   }).default({
@@ -106,6 +128,20 @@ const platformSyncConfigSchema = z.object({
       code: "custom",
       message: "At least one Meegle, GitHub, or Lark Base target is required",
     });
+  }
+  const task = value.scheduler.tasks.larkThreadTickets;
+  if (value.scheduler.tasks.larkTicketDoneReaction?.enabled && value.larkBase.length === 0) {
+    context.addIssue({ code: "custom", path: ["scheduler", "tasks", "larkTicketDoneReaction"], message: "Done reactions require a Lark Base target" });
+  }
+  if (task?.enabled && task.sources.length === 0) {
+    context.addIssue({ code: "custom", path: ["scheduler", "tasks", "larkThreadTickets", "sources"], message: "Enabled thread intake requires a source chat and Base target" });
+  }
+  const chats = new Set<string>();
+  for (const source of task?.sources ?? []) {
+    if (chats.has(source.chatId) || !value.larkBase.some((target) => target.baseId === source.baseId && target.tableId === source.tableId)) {
+      context.addIssue({ code: "custom", path: ["scheduler", "tasks", "larkThreadTickets", "sources"], message: "Each chat must have one configured Lark Base target" });
+    }
+    chats.add(source.chatId);
   }
 });
 

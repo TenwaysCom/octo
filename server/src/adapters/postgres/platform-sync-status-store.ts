@@ -18,12 +18,13 @@ export interface PlatformSyncScopeStatus extends PlatformSyncScopeRef {
   lastCompletedAt?: string;
   lastSyncedAt?: string;
   lastErrorCode?: string;
+  leaseActive?: boolean;
 }
 
 export class PostgresPlatformSyncStatusStore {
   constructor(private readonly db: Kysely<DatabaseSchema>) {}
 
-  async list(scopes: PlatformSyncScopeRef[]): Promise<PlatformSyncScopeStatus[]> {
+  async list(scopes: PlatformSyncScopeRef[], options: { includeSnapshots?: boolean } = {}): Promise<PlatformSyncScopeStatus[]> {
     return Promise.all(scopes.map(async (scope) => {
       const [schedule, activeRun, latestRun, lastSyncedAt] = await Promise.all([
         this.db.selectFrom("platform_sync_schedules")
@@ -51,7 +52,7 @@ export class PostgresPlatformSyncStatusStore {
           .orderBy("started_at", "desc")
           .limit(1)
           .executeTakeFirst(),
-        this.latestSnapshotAt(scope),
+        options.includeSnapshots === false ? undefined : this.latestSnapshotAt(scope),
       ]);
       const visibleRun = activeRun ?? latestRun;
       return {
@@ -65,6 +66,7 @@ export class PostgresPlatformSyncStatusStore {
         lastCompletedAt: visibleRun?.completed_at ?? undefined,
         lastSyncedAt,
         lastErrorCode: visibleRun?.error_code ?? undefined,
+        leaseActive: Boolean(activeRun),
       };
     }));
   }

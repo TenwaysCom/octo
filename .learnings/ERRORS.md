@@ -2,6 +2,46 @@
 
 Record concise compiler/runtime errors, failed commands, wrong assumptions, and their verified fixes here. Redact secrets, cookies, tokens, and sensitive payloads.
 
+## [ERR-20261104-002] source-version-idempotency-bypasses-unknown-effect
+
+**Error:** 以工单源版本作为待办幂等键时，表情 POST 超时后出现新版本，可能生成另一条 pending 待办；仅检查当前待办的 outcome_unknown，不能阻止它向同一消息再次派发。只有运行互斥也不足以保护先前已释放租约的未知操作。
+
+**Fix:** 对外部效果本身（应用/根消息/表情）串行化，并在该锁内查询所有版本的持久化未知状态。旧操作未确认前，新版本只能读回核实或等待，不能重新派发。读回查询的拒绝也不能被误当作原 POST 明确未执行。
+
+source: [Done 表情任务](../docs/tasks/platform-sync/2026-11-04-lark-finished-ticket-reaction.md)
+
+## [ERR-20261104-001] definite-write-rejection-marked-outcome-unknown
+
+**Error:** Lark 创建或回帖首次返回明确的限流/权限拒绝后，状态保留 creating/replying，下一次变为 outcome_unknown，恢复权限或限流后仍不能重试。把所有派发异常都当作执行结果未知，混淆了“平台明确未接受”与“无法确认是否已执行”。
+
+**Fix:** 在 adapter 保守识别已知明确拒绝，原子恢复可重试阶段并累计失败次数，保留原幂等标识；进入派发阶段不能清零失败计数。超时、5xx、未知结果及旧 outcome_unknown 仍需人工核实，不能为恢复可用性而盲目重发。
+
+source: [Lark 话题登记 review 修复](../docs/tasks/platform-sync/2026-11-03-lark-thread-ticket-intake.md)
+
+## [ERR-20261103-003] lark-sdk-default-error-logger-exposes-headers
+
+**Error:** Lark SDK 默认错误输出在请求 HTTP 400 时打印 AxiosError，其中 request._header 包含 Authorization；只清洗 adapter 自己的 Pino 日志不能拦截 SDK stdout。只监视 console.error 的测试也不能覆盖 SDK 通过 console.log 输出错误的行为。
+
+**Fix:** 构造 SDK client 时显式注入丢弃原始参数的 logger，业务诊断统一由 adapter 写安全摘要；回归同时检查 stdout 与 stderr 的日志出口。实际暴露的访问凭据必须更新，并通过只读请求确认旧访问令牌失效，不能只假定刷新等于失效。
+
+source: [Lark 单条建单实测](../docs/tasks/platform-sync/2026-11-03-lark-thread-ticket-intake.md)
+
+## [ERR-20261103-002] lark-client-thread-id-is-not-open-thread-id
+
+**Error:** AppLink 的数字 threadid 可以用于获取话题回复，但不能用于单消息 get（HTTP 400 / code 99992354）；回复返回的 thread_id 是 omt Open ID。直接以 API ID 和 Base 旧链接数字 ID 比较会漏去重。
+
+**Fix:** 从指定话题回复取得 root_id，再读取根消息核对群与 canonical thread；保留已验证的客户端/Open ID 别名进行去重。生成 Open API 标识的 AppLink 使用 openthreadid/openchatid，读取同时兼容原数字 threadid。无法解析时不假定不存在工单。
+
+source: [Lark 单条建单实测](../docs/tasks/platform-sync/2026-11-03-lark-thread-ticket-intake.md)
+
+## [ERR-20261103-001] lark-hyperlink-label-hides-thread-id
+
+**Error:** Base hyperlink `{text: "Lark thread", link: "https://…?threadid=…"}` 被通用字段文本清洗优先读成展示名，导致 Ticket 的 larkMessageLink 缺失真实 URL，thread 去重与 AI 上下文无法定位。
+
+**Fix:** URL 字段先读取 link/url，再回退文本；去重分页读取实际 message-link 列并解析 URL，不依赖超链接显示名的文本筛选语义。
+
+source: [Lark 群话题登记任务](../docs/tasks/platform-sync/2026-11-03-lark-thread-ticket-intake.md)
+
 ## [ERR-20261021-004] answer-sources-ui-without-server-contract
 
 **Error:** Sources 卡片已有样式却无法显示；Server 只返回 ACP 回答，没有结构化来源事件，FE 依赖固定“依据”标题的 Markdown 提取漏掉正文引用。历史加载回归表现为缺少 `answer.sources`。

@@ -111,6 +111,7 @@ interface ThreadContextLike {
     larkBaseUrl: string;
     ticket: LarkBaseTicketSyncItem;
     forceFull?: boolean;
+    actionRunId?: string;
   }): Promise<LarkTicketThreadContextResult>;
 }
 
@@ -155,8 +156,8 @@ export function createLarkTicketShadowSummaryService(deps: LarkTicketShadowSumma
   async function summarizeTicket(
     ticket: LarkBaseTicketSyncItem,
     promptTemplate: string,
+    actionRunId: string = randomUUID(),
   ): Promise<"ok" | "skipped"> {
-    const actionRunId = randomUUID();
     const processingStartedAt = now();
     const analyzedAt = processingStartedAt.toISOString();
     const processingDurationMs = () => Math.max(0, now().getTime() - processingStartedAt.getTime());
@@ -181,6 +182,7 @@ export function createLarkTicketShadowSummaryService(deps: LarkTicketShadowSumma
         masterUserId: deps.masterUserId,
         larkBaseUrl: deps.larkBaseUrl ?? process.env.LARK_BASE_URL ?? "https://open.feishu.cn",
         ticket,
+        actionRunId,
       });
       const snapshot = thread.snapshot;
       if (thread.source === "none" || !snapshot || snapshot.preparedMessages.length === 0) {
@@ -272,7 +274,7 @@ export function createLarkTicketShadowSummaryService(deps: LarkTicketShadowSumma
     }
   }
 
-  async function runOnce(): Promise<ShadowSummaryRunResult> {
+  async function readPrompt(): Promise<string> {
     const promptRecord = await promptStore.getByKey(promptKey);
     const promptTemplate = promptRecord?.prompt.trim()
       || (promptKey === SHADOW_SUMMARY_PROMPT_KEY ? DEFAULT_SHADOW_SUMMARY_PROMPT : undefined);
@@ -283,6 +285,11 @@ export function createLarkTicketShadowSummaryService(deps: LarkTicketShadowSumma
         "server.shadow.config",
       );
     }
+    return promptTemplate;
+  }
+
+  async function runOnce(): Promise<ShadowSummaryRunResult> {
+    const promptTemplate = await readPrompt();
     const olderThan = new Date(now().getTime() - settleMs).toISOString();
     const candidates = await syncStore.listLarkTicketShadowSummaryCandidates({ olderThan, limit: batchLimit });
     const result: ShadowSummaryRunResult = { considered: candidates.length, summarized: 0, skipped: 0, failed: 0 };
@@ -303,6 +310,10 @@ export function createLarkTicketShadowSummaryService(deps: LarkTicketShadowSumma
 
   return {
     runOnce,
+    // Explicit new-ticket intake bypasses only candidate selection/settle time.
+    async summarizeOne(ticket: LarkBaseTicketSyncItem, actionRunId: string): Promise<"ok" | "skipped"> {
+      return summarizeTicket(ticket, await readPrompt(), actionRunId);
+    },
 
     async run(signal: AbortSignal): Promise<void> {
       while (!signal.aborted) {

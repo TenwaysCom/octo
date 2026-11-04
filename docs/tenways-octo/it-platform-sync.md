@@ -2,7 +2,7 @@
 status: draft
 owner: TBD
 last_reviewed: 2026-09-01
-scope: Octo 对 Lark Base、Meegle Work Item、GitHub Pull Request 的只读快照同步与演进设计
+scope: Octo 平台快照同步、Lark 话题登记与增量调度
 update_required_when:
   - 同步范围、触发方式或外部平台适配变更
   - 快照表、字段归属、清洗规则或增量游标变更
@@ -60,7 +60,50 @@ HTTP 路由如下。所有请求都可携带 `actionRunId`；Base ticket 可指�
 
 Web Integrations 还提供受 Web 会话保护的同步状态页：展示 Lark Ticket、Meegle User Story、Meegle Tech Task、Meegle Production Bug，以及 GitHub Odoo EU、GitHub Odoo UK、GitHub Odoo US。每个 GitHub 卡片对应一个明确仓库，最近同步时间只从该仓库快照计算，单项同步也只读取该仓库。Web 的单项同步固定为“同步后清洗”：只清洗本次成功写入的快照。服务端从 `platform-sync.local.json` 解析实际 target，并从 HttpOnly Web session 获取 `masterUserId`；浏览器不会接收或传递用户 ID、平台 token、Base/Table ID 或仓库标识；未配置来源在页面明确显示为“未配置”。Web 的 Lark Ticket、Meegle 工作项和 GitHub PR 列表每页最多读取 1000 条快照。
 
-同步来源接口同时投影持久化 schedule、有效 scope lease 与 run audit。页面首次加载时读取任务状态，之后每 10 秒轻量轮询一次；若后台任务持有有效 lease，卡片显示“同步中”并禁用“立即同步”。轮询间隙即使发起重复请求，服务端仍以相同 scope lease 拒绝并返回 `409 SYNC_ALREADY_RUNNING`。查询状态时有效 lease 对应的运行优先于更晚的 skipped 审计，过期 lease 不会让按钮永久禁用。
+同步来源接口同时投影持久化 schedule、有效 scope lease 与 run audit。页面首次加载、点击“刷新状态”及单项同步完成后读取状态；若后台任务持有有效 lease，卡片显示“同步中”并禁用“立即同步”。两次读取间即使发起重复请求，服务端仍以相同 scope lease 拒绝并返回 `409 SYNC_ALREADY_RUNNING`。查询状态时有效 lease 对应的运行优先于更晚的 skipped 审计。
+
+`GET /api/web/platform-sync-sources` 还返回只读 `backgroundTasks`，页面展示“自动创建 Ticket”和“自动添加 Done 表情”。自动创建读取 `scheduler.tasks.larkThreadTickets` 的配置，启用状态同时受 scheduler 总开关约束；卡片显示扫描间隔、每个来源的处理上限、来源群数量和最近运行结果/时间/安全错误码。运行审计使用独立 `thread-tickets:<chat>/<base>/<table>` scope，不复用 Base 快照同步状态；只有有效租约对应的运行才标为执行中，遗留 running 审计但没有有效租约时显示状态未知。配置启用与进程健康分开解释，未提供进程心跳保证。状态查询失败时仅该卡片降级，既有数据源仍可查看。Web 配置路径支持与 Worker 一致的 `PLATFORM_SYNC_CONFIG_PATH`，未指定时使用默认文件。
+
+Done 表情任务现已实现，接口返回 `implemented=true`，卡片从实际配置展示启用状态、扫描间隔、重叠窗口、目标状态、目标表数量及 `done-reactions:<base>/<table>` 的运行记录。两项任务独立降级，均不提供写入触发按钮；页面刷新不会创建工单、添加表情或修改扫描水位。实现与验证见[状态展示任务](../tasks/platform-sync/2026-11-04-ticket-worker-status.md)和[Done 任务](../tasks/platform-sync/2026-11-04-lark-finished-ticket-reaction.md)。
+
+### 工单无变化时跳过实际写入
+
+Base 到 Octo 仍读取增量重叠窗口，但共用 UPSERT 在 PostgreSQL 冲突更新中原子比较源更新时间、字段 JSON、标题、状态、创建时间及 stale 标记。完全相同的快照不执行 UPDATE，也不刷新 `synced_at` / `last_seen_at`；JSON 键顺序不同不构成变化。共享链接只有变化时才更新，保留 Octo 的 Ticket AI / Shadow AI。清洗前仅筛选派生字段与预期不同的记录，既跳过一致数据的清洗写入，也允许修复此前源已写入但清洗失败的记录。
+
+同步响应中的 `synced` 仍表示本轮消费的源记录数量，不等于数据库实际 UPDATE 行数；水位仍按已读取的源更新时间计算。本优化不消除远端重叠读取或数据库冲突检查。验证见[无变化同步任务](../tasks/platform-sync/2026-11-04-lark-unchanged-sync.md)。
+
+### 自动添加 Done 表情
+
+独立 platform worker 使用 `scheduler.tasks.larkTicketDoneReaction`，默认关闭，且受 `scheduler.enabled` 总开关约束：
+
+```json
+{
+  "enabled": false,
+  "intervalMinutes": 10,
+  "overlapMinutes": 5,
+  "targetStatus": "Finish"
+}
+```
+
+任务处理 `larkBase` 中配置的全部 Base/Table，按其 `statusFieldName`（未指定时解析候选字段）及 `sourceUpdatedAtFieldName` 查询；不按群过滤，也不依赖自动登记是否创建过该工单。应用凭据仅取服务端的 `LARK_APP_ID` / `LARK_APP_SECRET`，读取及表情写入使用同一 Application Bot，不回退个人授权。配置在 Worker 启动时加载，修改后需重启 Worker。
+
+首次执行仅保存启用时间；后续区间为 `[max(enabledAt, 上次成功扫描截止时间 - overlapMinutes), 本轮开始时间)`。按 Base 最后修改时间发现当前状态匹配 `targetStatus` 的记录，全部分页入队成功后才推进水位。正常每 10 分钟执行时覆盖约 15 分钟；停机后沿用旧水位。旧工单在启用后刚完成可进入候选，历史已完成但之后编辑其他字段也可进入候选；不保证捕获两轮之间短暂经过的状态。
+
+添加前重读记录，确认状态和消息链接仍匹配，再解析根 `om_` 消息。新链接优先 `messageid`；兼容 Open ID 及旧数字话题链接，但必须验证实际根消息和话题归属。缺少链接、根消息无法证明、消息撤回或 Bot 无权访问时保留单条错误，不阻断其他工单。
+
+`lark_ticket_done_scans` 保存启用边界与水位，`lark_ticket_done_reactions` 按应用/记录/源版本/链接持久化不可变待办及稳定 actionRunId。添加前分页检查当前应用自己的 `DONE`，不把其他用户的同款表情算成 Bot 已完成。目标表租约防止扫描重叠；应用/根消息租约串行化表情操作，跨记录、跨版本仍受未确认写入约束。
+
+派发前写入 `adding`，成功读回 Bot 表情后写入 `done`。超时、崩溃或读回失败进入结果未知，只读核实，不自动重发；新版本待办也不能绕过同一根消息上已有的结果未知操作。明确拒绝可退避重试，单条最多五次自动失败尝试；权限或链接错误保留 blocked 状态。重新打开工单不会自动撤回表情，既有 `JIAYI` 保留。
+
+提供同一服务的手动验证入口：时间区间只读预览，不入队、不推进水位；指定单条 record 加 `--apply` 才写表情，单条执行也不改变自动水位。范围预览不接受 `--apply`。以下均为命令说明，本次未执行真实写入：
+
+```bash
+pnpm --dir server platform:lark-ticket-done --base-id BASE --table-id TABLE --start-time 2026-11-04T19:00:00+08:00 --end-time 2026-11-04T19:10:00+08:00
+pnpm --dir server platform:lark-ticket-done --base-id BASE --table-id TABLE --record-id RECORD
+pnpm --dir server platform:lark-ticket-done --base-id BASE --table-id TABLE --record-id RECORD --apply
+```
+
+部署时需通过现有 schema 初始化流程创建两张表与索引（先 build，再按实际环境执行既有迁移），随后按需配置并重启 Worker。本次未迁移真实数据库、未启用自动任务、未重启服务、未执行真实平台 E2E；首次真实单条由用户提供工单后验证，真实批量测试由用户执行。
 
 Web Lark Ticket 列表默认按状态分组并按状态升序排列，提供“进行中”“未分类”“未同步”快速过滤；“进行中”包含状态不是 `Finish`、`Cancelled`、`Rejected` 的 Ticket。列表也支持切换为按 Issue 类型、需求人、负责人、紧急度分组或不分组，并可配置排序字段、排序方向和显示字段。
 
@@ -100,6 +143,72 @@ Lark Ticket full/incremental 同步只维护 Ticket 字段和 `lark_message_link
 同一 Server 进程内，对同一用户和 Ticket 的并发 ensure 会合并为一个 Lark 请求。ACP 新 Session 的首轮 prompt 包含本次快照，并把 `thread_id`、`thread_snapshot_version` 和同步时间写入 `acp_kimi_session_owners`；同一 Session 的后续 turn 依赖会话内已注入上下文，不再次 ensure，保证一次分析使用固定上下文。
 
 `POST /api/internal/acp/ticket-context/messages` 为 ACP Agent / 受控 Skill 提供同一 ensure 能力。请求使用 `ticket-thread-context-v1` DTO，不能提交 `masterUserId`；Server 通过独立 `octo-acp-ticket-context` SSHSIG namespace、`x-octo-acp-context-*` headers、直接 TCP 来源 CIDR 和 `user_ssh_public_keys` 解析用户。允许网段由 `OCTO_ACP_TICKET_CONTEXT_ALLOWED_CIDRS` 配置，未设置时沿用 `OCTO_TICKET_AI_ALLOWED_CIDRS`。响应包含 decision/source、快照版本、完整性、冻结状态和规范化消息，不返回 Lark token 或图片二进制。
+
+#### 群话题自动登记工单
+
+独立 `platform-sync-worker` 新增 `scheduler.tasks.larkThreadTickets`，默认关闭。源群显式绑定 `larkBase` 中已有的 Base/Table；当前需求群为 `oc_01f7302959b7723a026f21daae6c622b`，其中每个用户新话题都登记为 Ticket，话题回复、已撤回消息及机器人/系统根消息不另行建单。
+
+当前入口为独立 Worker（构建后 `pnpm --dir server platform:sync:worker`）及下述区间 HTTP API；后台「数据同步」页面尚未提供该话题登记任务的开关或时间区间测试按钮。
+
+```json
+{
+  "scheduler": {
+    "enabled": true,
+    "tasks": {
+      "larkThreadTickets": {
+        "enabled": false,
+        "intervalMinutes": 1,
+        "batchLimit": 5,
+        "sources": [{
+          "chatId": "oc_01f7302959b7723a026f21daae6c622b",
+          "baseId": "与 larkBase 中一致的 Base ID",
+          "tableId": "与 larkBase 中一致的 Table ID"
+        }]
+      }
+    }
+  }
+}
+```
+
+该片段合并到现有配置，不能覆盖已有 target。启用自动任务需同时打开 scheduler 总开关与该任务开关，配置变更后重启 Worker。手动区间与单条入口只要求 source 配置，不要求打开自动任务。该登记流程统一使用 `LARK_APP_ID` / `LARK_APP_SECRET` 对应 Application Bot 的 tenant token，SDK 缓存及刷新应用凭据；话题读取、Base 创建/更新、单条同步、shadow 上下文、线程回复及表情均为应用身份，不读取 `PLATFORM_SYNC_MASTER_USER_ID` 的用户令牌。应用需要相应 API scope、目标 Base 编辑权限，以及群内读取/回复/表情权限；缺失时明确失败，不回退用户身份。其他已有同步任务仍沿用各自授权。AI 沿用现有 Ticket Summary provider/model 配置。
+
+首次自动扫描默认从启用时点开始；可选 source `startAt` 是带时区的 ISO 时间，仅在首次初始化生效。独立表 `lark_thread_ticket_scans` 保存起始边界和水位，后续带 60 秒重叠分页；成功登记发现的候选后才推进水位，后台按 batchLimit 顺序处理。任务不是历史补录默认入口。
+
+每轮需要新建时，分页只读取 Base 的 `Lark Message Link`（兼容现有同义字段）列，建立本轮共享索引，不依赖超链接展示名称或远端文本筛选。URL 中客户端数字 `threadid` 与 Open API `omt_…` 是不同标识；读取优先 `openthreadid`/`open_thread_id`，兼容旧 `threadid`。单条 AppLink 先通过该话题的回复取得根消息，核对真实群与 canonical thread ID，再以原数字 ID 与 Open ID 双重去重。自动入口遇到只有数字 ID 的历史链接时按需读取一条回复确认别名，并在进程内缓存；无法确认身份时停止新建，返回 `LARK_THREAD_TICKET_DEDUP_UNRESOLVED`，不能把未解析当作没有工单。已有记录标记 `existing`，不重复创建或确认。索引读取失败时不创建。目标表需有独立文本标题字段（优先 target.titleFieldName）、描述字段（`Details Description` 或不与标题重叠的 `Issue Description`）及文本/超链接 message-link 字段；不自动改表结构。
+
+新单顺序为：创建 Base record（保存源问题和含 openthreadid/openchatid/messageid 的链接；单条 AppLink 保留原数字 threadid/chatid）→ 单条同步/清洗到 Octo → 立即 shadow AI → 通过同一 provider 生成不超过 120 字符的标题 → 回写 Base 并单条读回 → 在线程确认实际标题、Base 自动生成编号 → 在源根消息添加 `JIAYI`（+1）。缺失编号、分析失败或标题未确认时不回帖。尚无回复的新话题通过链接中的根 messageid 读取问题，并校验根消息属于同一 thread。新单分析跳过三小时候选等待，但仍只写 `shadow_ai`，不改正式分析。
+
+`lark_thread_ticket_intakes` 按 source + thread 保存稳定 actionRunId、创建/分析/标题/确认/表情进度，复用既有 coordinator 的 scope lease。已创建记录续跑不会另建；确认已成功而表情失败只补表情。adapter 识别已知明确未执行的拒绝（例如权限拒绝、限流），创建/回帖分别恢复到 `pending`/`titled`，原子保存错误与失败次数，并沿用原创建 client_token / 回帖 uuid；进入派发阶段不清零失败次数。同一阶段连续失败五次后停止自动重试，修复权限或输入后可通过指定单条入口人工重试。超时、5xx、未知平台错误或崩溃导致结果未知时，保留 `creating`/`replying`，下次转为 `outcome_unknown`，不自动重发；人工核实平台结果后修复该登记记录，不删除记录来盲目重试。已有 `outcome_unknown` 不会因代码更新自动重新派发。
+
+每次手动请求和自动扫描都有扫描 actionRunId，贯穿 coordinator、源消息读取及失败日志（含 sourceKey）。HTTP 省略该字段时在入口生成，错误响应也保留相同 ID。每条工单继续使用其持久化 actionRunId 关联写入、同步及 AI，完成/失败日志用 parentActionRunId 指向本次扫描，保证重试幂等性和批次追踪同时可用。
+
+单条测试入口不扫描群历史、不推进自动游标，预览仅校验参数与配置。支持根消息 ID 或一个 AppLink，两者互斥：
+
+```bash
+pnpm --dir server platform:create-lark-thread-ticket --chat-id oc_01f7302959b7723a026f21daae6c622b --message-id om_ROOT_MESSAGE_ID
+# 或传完整链接；数字 chatid 不直接视为 Open API 群 ID，以实际根消息核对群归属
+pnpm --dir server platform:create-lark-thread-ticket --chat-id oc_01f7302959b7723a026f21daae6c622b --thread-link 'https://applink.larksuite.com/client/thread/open?threadid=CLIENT_THREAD_ID&chatid=CLIENT_CHAT_ID&thread_position=1'
+# 上述单条输入追加 --apply：创建、分析、回帖及 +1
+```
+
+单条 CLI 仅初始化本任务的两张状态表（包括可选源链接列），不运行整个应用 schema 初始化。只有数字 threadid 且无任何回复的 AppLink 无法从该入口确认根消息时，返回 `LARK_THREAD_TICKET_ROOT_REQUIRED`，应提供根消息 ID；不能把数字 threadid 直接用于 get-message。
+
+区间入口为 `POST /api/web/platform-sync/lark-thread-tickets`，要求 opaque Web session 及 `platformSync` 权限，身份由服务端配置决定，客户端不能提交 masterUserId。时间使用带时区的 ISO 格式、秒精度，区间为 `[startTime, endTime)`，按根消息创建时间筛选。示例请求体：
+
+```json
+{
+  "chatId": "oc_01f7302959b7723a026f21daae6c622b",
+  "startTime": "2026-11-03T09:00:00+08:00",
+  "endTime": "2026-11-03T10:00:00+08:00",
+  "apply": false,
+  "maxTickets": 5,
+  "actionRunId": "thread-intake-interval-test"
+}
+```
+
+`apply` 默认 false，只返回匹配数和最多 maxTickets 个候选的 messageId/threadId/createdAt，不创建或排队。`apply=true` 才实际处理，maxTickets 默认 5、范围 1–50；超额候选不排入自动队列。区间入口不修改自动扫描水位、不消费区间外待办。响应 `data` 包含 `matched/candidates/results/remaining/alreadyRecorded/needsReview`；逐条结果包含 recordId、actionRunId、stage、errorCode、confirmationSent、reactionAdded。HTTP 200 表示区间执行已返回，不能替代逐条结果判断；remaining 大于零可再次提交相同区间。预览候选不等于 Base 尚未登记，实际处理时才核查 Base 去重。
+
+单条真实验证及指定时间区间预览已通过，具体编号、候选、读回与重复执行证据只维护在[任务记录](../tasks/platform-sync/2026-11-03-lark-thread-ticket-intake.md)。使用隔离配置，自动任务仍未部署或启用，真实区间创建由用户执行。Lark SDK 显式注入不输出原始参数的 logger，避免 Axios 错误把授权头写到 stdout；adapter 保留结构化安全摘要。表情标识依据 [Lark 官方 CLI reaction 文档](https://github.com/larksuite/cli/blob/main/skills/lark-im/references/lark-im-reactions.md)，创建幂等参数依据 [Base 创建记录 API](https://open.feishu.cn/document/server-docs/docs/bitable-v1/app-table-record/create)。
 
 #### 会话存储边界
 

@@ -30,6 +30,7 @@ import {
 import { resolveLarkWebSessionIdentity } from "../lark-auth/lark-auth.service.js";
 import { WEB_SESSION_COOKIE_NAME } from "../lark-auth/lark-auth.controller.js";
 import { getWebWorkspaceAccess } from "../lark-auth/web-workspace-access.js";
+import { larkThreadTicketsTaskSchema, larkTicketDoneReactionTaskSchema } from "../../config/platform-sync-config.js";
 
 const DEFAULT_CONFIG_PATH = fileURLToPath(new URL("../../../config/platform-sync.local.json", import.meta.url));
 const sourceIdSchema = z.enum([
@@ -62,6 +63,8 @@ const configSchema = z.object({
     enabled: z.boolean().default(false),
     tasks: z.object({
       shadow: z.object({ enabled: z.boolean().default(false) }).default({ enabled: false }),
+      larkThreadTickets: larkThreadTicketsTaskSchema.optional(),
+      larkTicketDoneReaction: larkTicketDoneReactionTaskSchema.optional(),
     }).default({ shadow: { enabled: false } }),
   }).optional(),
 });
@@ -105,7 +108,7 @@ function readCookie(cookieHeader: string | undefined, name: string): string | un
   }
 }
 
-async function loadPlatformSyncConfig(path = DEFAULT_CONFIG_PATH): Promise<PlatformSyncConfig> {
+async function loadPlatformSyncConfig(path = process.env.PLATFORM_SYNC_CONFIG_PATH || DEFAULT_CONFIG_PATH): Promise<PlatformSyncConfig> {
   return configSchema.parse(JSON.parse(await readFile(path, "utf8")));
 }
 
@@ -189,6 +192,47 @@ export function createWebPlatformSyncController(deps: {
     }
   }
 
+  async function readTicketBackgroundTasks(config: PlatformSyncConfig) {
+    const task = config.scheduler?.tasks.larkThreadTickets;
+    const sources = task?.sources ?? [];
+    const configured = sources.length > 0 && sources.every((source) => config.larkBase.some(
+      (target) => target.baseId === source.baseId && target.tableId === source.tableId,
+    ));
+    const creation = {
+      id: "lark-thread-tickets",
+      label: "自动创建 Ticket",
+      implemented: true,
+      configured,
+      enabled: Boolean(config.scheduler?.enabled && task?.enabled),
+      intervalMinutes: task?.intervalMinutes ?? 1,
+      batchLimit: task?.batchLimit ?? 5,
+      sourceCount: sources.length,
+    };
+    const doneConfig = larkTicketDoneReactionTaskSchema.parse(config.scheduler?.tasks.larkTicketDoneReaction ?? {});
+    const done = { id: "lark-ticket-done-reaction", label: "自动添加 Done 表情", implemented: true,
+      configured: config.larkBase.length > 0, enabled: Boolean(config.scheduler?.enabled && doneConfig.enabled),
+      intervalMinutes: doneConfig.intervalMinutes, overlapMinutes: doneConfig.overlapMinutes,
+      targetStatus: doneConfig.targetStatus, targetCount: config.larkBase.length };
+    async function readTask<T extends object>(definition: T, scopes: PlatformSyncScopeRef[]) {
+      try {
+        const statuses = scopes.length ? await getStatusStore().list(uniqueScopes(scopes), { includeSnapshots: false }) : [];
+        const latest = statuses.filter((status) => status.lastRunAt)
+          .sort((a, b) => b.lastRunAt!.localeCompare(a.lastRunAt!))[0];
+        const active = statuses.find((status) => status.leaseActive && status.runStatus === "running");
+        const visible = active ?? latest;
+        return { ...definition, running: Boolean(active), runStatus: visible?.runStatus,
+          lastRunAt: visible?.lastRunAt, lastCompletedAt: visible?.lastCompletedAt, lastErrorCode: visible?.lastErrorCode };
+      } catch { return { ...definition, statusUnavailable: true }; }
+    }
+    return Promise.all([
+      readTask(creation, sources.map((source) => ({
+        platform: "lark" as const,
+        scopeKey: `thread-tickets:${source.chatId}/${source.baseId}/${source.tableId}`,
+      }))),
+      readTask(done, config.larkBase.map((source) => ({ platform: "lark" as const, scopeKey: `done-reactions:${source.baseId}/${source.tableId}` }))),
+    ]);
+  }
+
   return {
     async list(input: { cookieHeader: string | undefined }) {
       const session = await sessionFor(input.cookieHeader);
@@ -198,13 +242,16 @@ export function createWebPlatformSyncController(deps: {
         const config = await loadConfig();
         const definitions = sourceDefinitions(config);
         const statuses = await getStatusStore().list(uniqueScopes(definitions.flatMap((source) => source.scopes)));
-        const shadowSummary = await readShadowSummaryWatermark(config);
+        const [shadowSummary, backgroundTasks] = await Promise.all([
+          readShadowSummaryWatermark(config), readTicketBackgroundTasks(config),
+        ]);
         return {
           statusCode: 200,
           body: {
             ok: true as const,
             data: {
               sources: projectSourceStatuses(definitions, statuses),
+              backgroundTasks,
               ...(shadowSummary ? { shadowSummary } : {}),
             },
           },

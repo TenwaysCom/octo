@@ -79,7 +79,7 @@ export interface PlatformSyncServiceDeps {
   store?: PlatformSyncStore;
   resolvedUserStore?: ResolvedUserStore;
   createMeegleClient?: (input: { masterUserId: string; projectKey: string }) => Promise<MeegleSyncClient>;
-  createLarkClient?: (input: { masterUserId: string; larkBaseUrl?: string }) => Promise<LarkClient>;
+  createLarkClient?: (input: { masterUserId: string; larkBaseUrl?: string; actionRunId?: string }) => Promise<LarkClient>;
   createGitHubClient?: () => GitHubClient;
 }
 
@@ -401,7 +401,7 @@ export class PlatformSyncService {
   }
 
   async syncLarkBaseTicket(request: SyncLarkBaseTicketRequest) {
-    const client = await this.getLarkClient(request.masterUserId, request.larkBaseUrl);
+    const client = await this.getLarkClient(request.masterUserId, request.larkBaseUrl, request.actionRunId);
     const [record] = await this.getLarkRecordsInBatches(
       client,
       request.baseId,
@@ -635,15 +635,18 @@ export class PlatformSyncService {
 
   async cleanLarkBaseTickets(refs: LarkBaseTicketSyncRef[]): Promise<number> {
     const snapshots = await this.syncStore.getLarkBaseTicketsForCleaning(refs);
-    const inputs = snapshots.map((snapshot) => {
+    const cleaningFields = ["ticketNumber", "issueType", "requester", "responsible", "priority", "detailDescription", "meegleLink", "larkMessageLink"] as const;
+    const inputs = snapshots.flatMap((snapshot) => {
       const ticket = buildLarkTicketCleaningProjection(snapshot.sourceFields, snapshot.createdTime);
-      return {
+      if (cleaningFields.every((field) => snapshot[field] === ticket[field])) return [];
+      return [{
         baseId: snapshot.baseId,
         tableId: snapshot.tableId,
         recordId: snapshot.recordId,
         ...ticket,
-      };
+      }];
     });
+    if (inputs.length === 0) return 0;
     try {
       return await this.syncStore.applyLarkBaseTicketCleanings(inputs);
     } catch (error) {
@@ -848,9 +851,9 @@ export class PlatformSyncService {
     return this.store;
   }
 
-  private async getLarkClient(masterUserId: string, larkBaseUrl?: string): Promise<LarkClient> {
+  private async getLarkClient(masterUserId: string, larkBaseUrl?: string, actionRunId?: string): Promise<LarkClient> {
     if (this.deps.createLarkClient) {
-      return this.deps.createLarkClient({ masterUserId, larkBaseUrl });
+      return this.deps.createLarkClient({ masterUserId, larkBaseUrl, ...(actionRunId ? { actionRunId } : {}) });
     }
     const { client } = await buildAuthenticatedLarkClient(
       masterUserId,

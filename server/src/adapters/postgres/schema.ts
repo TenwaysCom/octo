@@ -1,6 +1,50 @@
 import type { Generated } from "kysely";
 
 export interface DatabaseSchema {
+  lark_ticket_done_scans: {
+    source_key: string;
+    enabled_at: string;
+    watermark: string;
+    updated_at: string;
+  };
+  lark_ticket_done_reactions: {
+    job_id: string;
+    source_key: string;
+    app_id: string;
+    record_id: string;
+    source_updated_at: string;
+    message_link: string;
+    root_message_id: string | null;
+    reaction_id: string | null;
+    action_run_id: string;
+    stage: string;
+    attempts: number;
+    next_retry_at: string;
+    error_code: string | null;
+    created_at: string;
+    updated_at: string;
+  };
+  lark_thread_ticket_scans: {
+    source_key: string;
+    started_at: string;
+    watermark: string;
+    updated_at: string;
+  };
+  lark_thread_ticket_intakes: {
+    source_key: string;
+    thread_id: string;
+    root_message_id: string;
+    message_link: string | null;
+    action_run_id: string;
+    stage: string;
+    record_id: string | null;
+    title: string | null;
+    reply_message_id: string | null;
+    error_code: string | null;
+    attempts: number;
+    created_at: string;
+    updated_at: string;
+  };
   workflow_prompts: {
     key: string;
     prompt: string;

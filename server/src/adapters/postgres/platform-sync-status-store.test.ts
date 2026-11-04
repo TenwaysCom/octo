@@ -89,9 +89,30 @@ describe("PostgresPlatformSyncStatusStore", () => {
       runTrigger: "scheduled",
       lastRunAt: activeRun.startedAt,
       lastErrorCode: undefined,
+      leaseActive: true,
     })]);
 
     await db.destroy();
     await pool.end();
+  });
+
+  it("reads intake audit without querying platform snapshots or inventing a live lease", async () => {
+    const { db, pool } = await createTestPostgresDatabase();
+    try {
+      const scopeKey = "thread-tickets:oc_source/base/table";
+      await new PostgresPlatformSyncRunStore(db).start({
+        platform: "lark", scopeKey, mode: "full", cleanAfterSync: true, trigger: "scheduled",
+      });
+      const selects = vi.spyOn(db, "selectFrom");
+      await expect(new PostgresPlatformSyncStatusStore(db).list([
+        { platform: "lark", scopeKey },
+      ], { includeSnapshots: false })).resolves.toEqual([expect.objectContaining({
+        scopeKey, runStatus: "running", leaseActive: false, lastSyncedAt: undefined,
+      })]);
+      expect(selects).not.toHaveBeenCalledWith("lark_base_ticket_syncs");
+    } finally {
+      await db.destroy();
+      await pool.end();
+    }
   });
 });
