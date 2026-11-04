@@ -162,6 +162,35 @@ export class PostgresLarkTicketThreadSyncStore implements LarkTicketThreadSyncSt
       .executeTakeFirst());
   }
 
+  async listThreadAliases(input: Pick<LarkTicketThreadRef, "baseId" | "tableId"> & {
+    threadIds: readonly string[];
+  }): Promise<Map<string, string>> {
+    if (!input.threadIds.length) return new Map();
+    const rows = await this.database.selectFrom("lark_ticket_thread_syncs")
+      .select(["thread_id", "messages_json"])
+      .where("base_id", "=", input.baseId)
+      .where("table_id", "=", input.tableId)
+      .where("thread_id", "in", input.threadIds)
+      .execute();
+    const candidates = new Map<string, Set<string>>();
+    for (const row of rows) {
+      if (!/^\d+$/.test(row.thread_id)) continue;
+      const ids = candidates.get(row.thread_id) ?? new Set<string>();
+      for (const message of parseMessages(row.messages_json)) {
+        if (message && typeof message.threadId === "string" && message.threadId.startsWith("omt_") && message.threadId.length > 4) {
+          ids.add(message.threadId);
+        }
+      }
+      candidates.set(row.thread_id, ids);
+    }
+    // Conflicting snapshots cannot establish which topic a numeric link names.
+    const aliases = new Map<string, string>();
+    for (const [numericId, ids] of candidates) {
+      if (ids.size === 1) aliases.set(numericId, [...ids][0]!);
+    }
+    return aliases;
+  }
+
   async saveSuccessfulSync(input: LarkTicketThreadRef & {
     messageLink: string;
     threadId: string;

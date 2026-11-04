@@ -8,7 +8,7 @@
 
 - [Lark 工单数据未变化时跳过写入](./2026-11-04-lark-unchanged-sync.md) — 相同源快照及共享链接不再改写，已一致的清洗投影跳过写入，保留清洗修复能力；本地相关验证通过，未部署。
 
-- [Lark 群话题自动登记 Ticket](./2026-11-03-lark-thread-ticket-intake.md) — Application Bot 单条及指定时间段预览通过；v6 已修复明确拒绝后的续跑和扫描追踪 ID，224 个相关用例通过。未启用自动任务，真实批量创建由用户测试。
+- [Lark 群话题自动登记 Ticket](./2026-11-03-lark-thread-ticket-intake.md) — v7 已复用现有 thread ID 缓存查重，76 个相关用例及构建通过；锁释放后指定 pending 恢复为工单 2465 / done，真实读回与重复提交通过。仅单条使用新代码，常驻 Worker 未重启。
 
 - [Ticket 字段编辑与 Lark 同步性能优化](./2026-10-21-lark-ticket-edit-sync-performance.md) — 第一阶段及 Lark App 六属性编辑完成；立即回显、连续编辑、版本保护和元数据缓存已实现，本地验证通过，尚未部署。
 - [Odoo.sh 构建同步与通用消息发送 Worker](./2026-09-13-odoo-build-sync-and-message-delivery-workers.md)

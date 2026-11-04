@@ -896,7 +896,7 @@ Lark 已写但本地同步失败仍是显式部分成功：FE 保留新值并提
 
 登记运行时以既有应用凭据构建 Application Bot 客户端，由 SDK 获取缓存 tenant token；注入单条同步和 shadow 的 thread context，保证读取、创建/标题写回、回复及表情统一为应用身份，不依赖个人用户授权。共享接口中的 masterUserId 在该流程为内部 `lark-app:<appId>` 标识，不用于查找用户令牌；缺少应用凭据或平台权限时不回退用户身份。其他同步流程不受此切换影响。
 
-客户端数字 threadid 与 API omt ID 不同。AppLink 入口验证数字话题回复 → root message → 配置群及 canonical ID，把原链接保存在 intake 的 message_link 并以 canonical ID 持久去重；生成链接使用 openthreadid/openchatid，保留原链接数字参数，解析优先 Open ID。自动入口遇到旧数字链接时只在需要时查询一条回复映射别名、进程内缓存，无法证明身份时不创建。单条 CLI 只初始化两张 intake 状态表，不触发全应用迁移；没有回复也没有已知根消息 ID 时不能以 threadid 冒充 message_id。
+客户端数字 threadid 与 API omt ID 不同。AppLink 入口验证数字话题回复 → root message → 配置群及 canonical ID，把原链接保存在 intake 的 message_link 并以 canonical ID 持久去重；生成链接使用 openthreadid/openchatid，保留原链接数字参数，解析优先 Open ID。自动入口先按 Base/Table 复用现有 `lark_ticket_thread_syncs.thread_id` 与 `messages_json.messages[].threadId` 的唯一对应映射，先完成本地比较；仍无匹配时才对缺失映射的数字链接查询一条回复并验证来源群，在进程内缓存新映射。该查询不修改既有话题快照或新建表，未有完整缓存的缺失项重启后可能再次查询；歧义、空结果或其他无法证明身份的情况不视作没有工单。单条 CLI 只初始化两张 intake 状态表，不触发全应用迁移；没有回复也没有已知根消息 ID 时不能以 threadid 冒充 message_id。
 
 `lark_thread_ticket_intakes` 的正常生命周期为 `pending → creating → created → analyzed → titled → replying → replied → done`；`existing` 表示 Base 已有记录，`outcome_unknown` 表示创建或回帖结果需要人工核实。adapter 确认未执行的拒绝允许 `creating → pending` / `replying → titled`，阶段 CAS 同时保存错误和累计失败次数；派发不重置计数，单阶段五次失败后停止自动重试，显式单条调用仍可人工重试。超时、5xx 或其他未能确认的写入不得自动重试，旧 outcome_unknown 也不自动恢复。已知创建成功后只续跑后续步骤，已确认后只补表情，不重发确认。
 

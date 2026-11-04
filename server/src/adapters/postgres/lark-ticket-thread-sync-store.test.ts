@@ -2,6 +2,37 @@ import { PostgresLarkTicketThreadSyncStore } from "./lark-ticket-thread-sync-sto
 import { createTestPostgresDatabase } from "./test-db.js";
 
 describe("PostgresLarkTicketThreadSyncStore", () => {
+  it("reads scoped numeric aliases from existing snapshots without accepting ambiguous or malformed mappings", async () => {
+    const { db, pool } = await createTestPostgresDatabase();
+    const store = new PostgresLarkTicketThreadSyncStore(db);
+    try {
+      const snapshots = [
+        { recordId: "valid", threadId: "111", ids: ["omt_one", "omt_one"] },
+        { recordId: "ambiguous", threadId: "222", ids: ["omt_two", "omt_other"] },
+        { recordId: "conflict_a", threadId: "333", ids: ["omt_three"] },
+        { recordId: "conflict_b", threadId: "333", ids: ["omt_conflicting"] },
+        { recordId: "malformed", threadId: "444", ids: [] },
+        { recordId: "not_requested", threadId: "555", ids: ["omt_unrequested"] },
+        { recordId: "other_base", baseId: "other", threadId: "111", ids: ["omt_wrong_base"] },
+        { recordId: "other_table", tableId: "other", threadId: "111", ids: ["omt_wrong_table"] },
+      ];
+      for (const snapshot of snapshots) {
+        await store.saveSuccessfulSync({
+          baseId: snapshot.baseId ?? "base", tableId: snapshot.tableId ?? "table", recordId: snapshot.recordId,
+          threadId: snapshot.threadId, messageLink: `https://applink.larksuite.com/client/thread/open?threadid=${snapshot.threadId}`,
+          messages: snapshot.ids.map((threadId, index) => ({ messageId: `om_${index}`, threadId })),
+          historyComplete: true, checkedAt: "2026-11-04T00:00:00Z",
+        });
+      }
+      await db.updateTable("lark_ticket_thread_syncs").set({ messages_json: "invalid JSON" }).where("record_id", "=", "malformed").execute();
+      const before = await db.selectFrom("lark_ticket_thread_syncs").selectAll().execute();
+      expect(await store.listThreadAliases({ baseId: "base", tableId: "table", threadIds: ["111", "222", "333", "444"] }))
+        .toEqual(new Map([["111", "omt_one"]]));
+      expect(await store.listThreadAliases({ baseId: "base", tableId: "table", threadIds: [] })).toEqual(new Map());
+      expect(await db.selectFrom("lark_ticket_thread_syncs").selectAll().execute()).toEqual(before);
+    } finally { await db.destroy(); await pool.end(); }
+  });
+
   it("rebuilds v2 cache on read without writing source or cache, then persists v3 on sync", async () => {
     const { db, pool } = await createTestPostgresDatabase();
     const store = new PostgresLarkTicketThreadSyncStore(db);

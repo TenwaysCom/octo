@@ -6,6 +6,7 @@ import { createLarkThreadTicketIntakeRuntime } from "./lark-thread-ticket-intake
 import { createLarkThreadTicketIntakeService } from "./lark-thread-ticket-intake.service.js";
 import { createLarkTicketThreadContextService } from "./lark-ticket-thread-context.service.js";
 import { createLarkTicketShadowSummaryService } from "./lark-ticket-shadow-summary.service.js";
+import { PostgresLarkTicketThreadSyncStore } from "../../adapters/postgres/lark-ticket-thread-sync-store.js";
 
 vi.mock("../../adapters/lark/lark-client.js", () => ({ LarkClient: vi.fn() }));
 vi.mock("../../adapters/ai/ticket-summary-client.js", () => ({ createTicketSummaryJsonCompletionClient: vi.fn() }));
@@ -29,7 +30,16 @@ const config = parsePlatformSyncConfig({
 });
 
 describe("Lark thread intake application identity", () => {
-  afterEach(() => { vi.clearAllMocks(); vi.unstubAllEnvs(); });
+  afterEach(() => { vi.clearAllMocks(); vi.restoreAllMocks(); vi.unstubAllEnvs(); });
+
+  it("injects the existing thread cache lookup scoped to the configured Base and table", async () => {
+    const aliases = new Map([["7704136071327518471", "omt_existing"]]);
+    const lookup = vi.spyOn(PostgresLarkTicketThreadSyncStore.prototype, "listThreadAliases").mockResolvedValue(aliases);
+    createLarkThreadTicketIntakeRuntime({ db: {} as Kysely<DatabaseSchema>, config, appId: "cli_app", appSecret: "secret" });
+    const deps = vi.mocked(createLarkThreadTicketIntakeService).mock.calls[0]![0];
+    expect(await deps.loadThreadAliases!(deps.sources[0]!, ["7704136071327518471"])).toEqual(aliases);
+    expect(lookup).toHaveBeenCalledWith({ baseId: "base", tableId: "table", threadIds: ["7704136071327518471"] });
+  });
 
   it("injects application clients into intake, sync and shadow thread reads without a user authorization", async () => {
     vi.stubEnv("PLATFORM_SYNC_MASTER_USER_ID", "");

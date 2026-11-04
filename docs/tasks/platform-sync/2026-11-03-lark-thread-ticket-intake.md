@@ -2,7 +2,7 @@
 title: "Lark 群话题自动登记 Ticket"
 module: platform-sync
 status: done
-requirement_version: 6
+requirement_version: 7
 created_on: 2026-11-03
 updated_on: 2026-11-04
 closed_on: 2026-11-04
@@ -19,6 +19,9 @@ related:
 
 ## 验收标准
 
+- [x] v7：创建前复用同一 Base/Table 已有话题缓存中的数字 ID → canonical ID 映射，已缓存话题不重新调用 Lark；已知匹配优先于未解析旧链接。
+- [x] v7：仅对缺失映射读取一条消息，核对来源群和 canonical ID；空结果、歧义或读取失败不能作为无重复的依据，原有幂等和续跑语义保留。
+- [x] v7：相关回归及构建通过；核实用户指定 pending 行的最新状态，按单条入口处理，不执行历史批量、数据库重置或常驻进程重启。锁释放后恢复到 done，真实读回及重复提交通过。
 - [x] v6：明确未执行的创建/回帖拒绝可从原阶段重试；连续五次失败停止自动重试，修复后可单条人工重试；超时、5xx、未知结果继续禁止自动重发（本地 mock）。
 - [x] v6：HTTP 省略追踪 ID 时由入口生成，贯穿扫描与错误响应；自动扫描的 coordinator、adapter 及失败日志使用同一扫描 ID，并关联持久化的单工单执行 ID（本地 mock）。
 - [x] v5：说明自动 Worker 和手动区间入口；以 Application Bot 预览北京时间 2026-11-03 19:15:00 至 19:18:00 的指定群话题（半开区间），仅扫描，不创建、回帖、加表情或推进自动游标。
@@ -40,6 +43,7 @@ related:
 
 ## 方案与决策
 
+- v7：用户要求修复历史查重阻塞。复用现有 `lark_ticket_thread_syncs.thread_id` 与 `messages_json.messages[].threadId`，按 Base/Table 读取已验证映射并先完成本地匹配；只有缺失映射调用单条话题读取，新读映射继续沿用现有进程缓存。不新增表、字段、配置或后台历史补录任务。当前 Base 的链接列仍是是否已有工单的权威，不能仅靠本地缓存未命中决定新建。本轮允许对用户指定单条登记做既有入口续跑；不批量建单、不重启常驻进程。
 - 配置沿用 platform-sync 文件和 scheduler 总开关，新增任务默认关闭，源群显式关联已配置 Base/Table；不推断其他群。
 - 新增 PostgreSQL 扫描游标与分阶段登记记录，复用既有 coordinator 的 scope lease；创建/回帖结果不确定时保留人工核实状态，不盲目重发。
 - v4：登记流程使用既有 LARK_APP_ID/LARK_APP_SECRET，SDK 获取和缓存 tenant token；复用单条同步及 shadow provider，注入应用客户端。既有其他同步任务的用户授权不变。标题从脱敏源问题及 shadow 结果生成并校验。
@@ -54,6 +58,10 @@ related:
 
 | 日期 | 需求版本 | 状态 | 结果与证据 | 未验证边界 / 下一步 |
 | --- | --- | --- | --- | --- |
+| 2026-11-04 | v7 | in_progress | 已确认缓存可提供现有映射，用户要求处理；先以回归测试重现已有缓存仍读历史话题，再修改 store 查询、service 查重与 factory 注入 | 先完成本地验证，再只核对/处理指定 pending 行；没有部署或重启授权扩展 |
+| 2026-11-04 | v7 | in_progress | 缓存查询、先本地后远端的两轮比较及 factory 注入已实现；新增 3 个用例先红后绿，相关 7 文件 / 74 用例通过，Server build 通过。真实只读查询缓存耗时 75ms；指定单条续跑被 `SYNC_ALREADY_RUNNING` 拒绝 | 未重启常驻 Worker；指定登记仍 pending，不能抢占有效租约，也不能宣称已部署或已建单 |
+| 2026-11-04 | v7 | in_progress | 用户确认按上述流程优化；补充多工单共用同批映射、已完成登记跳过所有查重读取，以及无有效 ID 后缀不得继续建单的回归。非法 `omt_` 用例先红后绿，相关 7 文件 / 76 用例及构建通过；16:08 只读确认原锁已释放后按原登记发起单条续跑 | 等待该条执行结果及安全读回；仍不重启 Worker、不改变运行配置或批量扫描 |
+| 2026-11-04 | v7 | done | 指定 thread `omt_198f5b76310f9851` 沿用 actionRunId `a54a30bc-93e9-4830-9a29-4929ff110324`，16:10:45 到达 done；创建 record `reczz28VWtNVYqSc` / 编号 **2465**。Base/Octo 标题及编号、shadow=ok、Bot 确认和应用自己的 JIAYI 均读回；重复提交返回相同 record/actionRunId/done | 仅这一条真实创建；不推进扫描游标、不批量建单、不改配置或重启常驻 Worker。此为新编译代码的真实单条验收，不能宣称常驻 Worker 已采用修复 |
 | 2026-11-03 | v1 | in_progress | 已核查现有 worker、Base 同步、thread context 与 shadow 流程；用户确认群范围。 | 实施与本地 mock 验证；真实单条工单尚未提供。 |
 | 2026-11-03 | v2 | in_progress | 用户明确以 Base message link 的 thread ID 去重，并要求批量入口支持起止时间区间。已复核配置、扫描、去重及验证范围。 | 增加区间入口及对应 mock 测试，不执行真实批量。 |
 | 2026-11-03 | v2 | in_progress | 实现 worker 任务、单条 CLI、受 Web session/platformSync 保护的区间 HTTP 接口及持久化状态。Base 去重读取实际链接 URL；补齐新话题无回复时的根消息上下文和超链接 URL 清洗。13 个聚焦文件 191 个用例通过，Server build 通过。 | 尚未配置/启用运行实例；真实单条待用户提供，真实批量由用户执行。 |
@@ -71,7 +79,64 @@ related:
 | 2026-11-04 | v6 | in_progress | 用户要求修复 review 问题；重新打开失败恢复、追踪 ID 和本地检查验收。已复核错误类型、状态 CAS 与各入口。 | 补明确拒绝/未知写入/五次失败/追踪关联回归，再更新 PR；不进行真实平台写入。 |
 | 2026-11-04 | v6 | done | adapter 保守识别明确拒绝，创建/回帖恢复 pending/titled；CAS 原子保存错误、阶段和累计失败次数，派发保留次数与原幂等标识。HTTP 默认生成并规范化 actionRunId；源扫描 ID 贯穿 coordinator/adapter/失败日志，工单通过 parentActionRunId 关联扫描。新增 23 个回归场景，14 文件 **224 用例通过**，Server build 与 diff check 通过。 | 覆盖 403/平台限流恢复、五次上限及人工重试、超时/408/5xx/未知不重发、状态 CAS 和追踪关联。只作本地验证，既有 outcome_unknown 不自动恢复；未真实批量、部署或迁移。 |
 
-## 验证
+### 2026-11-04 运行时 pending 只读排查
+
+用户询问 Ticket Intake 为何停留在 `pending`。北京时间 14:52–14:54 读取当前本地配置、应用日志及配置数据库（显式 `BEGIN READ ONLY`），未执行平台写入、状态修复或进程操作：
+
+- 当前配置的 scheduler 与 intake 均已开启，间隔 10 分钟，每轮每来源上限 5 条；这反映排查时的配置，不改变上文各实施阶段“未部署/未启用”的历史验证边界。
+- 数据库仅有一条登记，actionRunId `a54a30bc-93e9-4830-9a29-4929ff110324`，14:43:32 入队后仍为 `pending`，`record_id=null`、`attempts=0`、`error_code=null`，尚未进入创建派发阶段。
+- 同一追踪 ID 的日志包含 1 次字段读取、1 次源消息读取、5 次 Base 记录分页及 201 次话题消息读取，最后一条在 14:48:43；没有创建请求。对应 `processOne` 的旧数字 thread ID 别名逐条解析分支，创建前去重耗时超过 5 分钟。
+- 14:48:45 出现新 PID 的 intake 启动日志，随后扫描报 `SYNC_ALREADY_RUNNING`。数据库旧轮次仍为 `running`，租约到 15:03:30 才到期，说明重启后旧租约继续阻止新轮次接管；按当前 10 分钟轮询配置，不能保证到期瞬间立即续跑。
+
+本轮仅解释现状，未修改业务代码、运行配置、租约或登记行；未运行应用测试，未验证后续自动恢复。日志证据为 `server/logs/app.2026-11-04.1.log` 的上述追踪 ID；数据库仅提取阶段、错误码、计数、审计时间与租约时间，未读取业务正文或输出凭据。
+
+### 2026-11-04 数字 threadid 与 Open API thread_id 实施前调研
+
+本节记录 v7 实施前按 research skill 查阅官方开放平台文档、官方 Node SDK 与 CLI 源码，并读取本地缓存和两类真实 Lark 响应的结果。当时只解释去重方案；未修改业务代码、配置、登记状态或租约，未创建/更新 Base、回帖或加表情。后续实现与验证见下一节。
+
+**结论：目前未找到公开的数字 `threadid` ↔ `omt_...` 纯转换 API 或官方转换算法。已有缓存已保存两种标识的对应关系，可先用它比较；不能把缓存未命中视为没有工单。** 不假设这些 ID 可通过进制、截取或 hash 算法互转。
+
+官方证据与未找到的能力：
+
+| 问题 | 官方证实 / 检索结果 | 来源 |
+| --- | --- | --- |
+| Open API 话题 ID 是什么 | 文档说明 `thread_id` 在当前租户内唯一，格式以 `omt_` 开头；可从消息事件、消息详情或历史消息响应获取。没有给出与客户端数字 ID 的转换规则。 | [话题概述](https://open.larkoffice.com/document/im-v1/message/thread-introduction) |
+| 能否用话题 ID 只读取一条消息来归一化 | `GET /open-apis/im/v1/messages` 支持 `container_id_type=thread`、`container_id=<thread_id>`；`page_size` 范围 1–50，响应消息带 `thread_id`。`thread` 不支持起止时间过滤。公开文档引用上述 `omt_` ID 说明，**没有明确承诺数字 ID 也受支持**；数字入参可用是下方本租户实测结果。 | [获取会话历史消息](https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/im-v1/message/list) |
+| 当前根 `om_...` 能否直接返回数字 ID 或消息链接 | 官方 Node SDK 的 `im.message.get` 调用 `GET /im/v1/messages/:message_id`，响应模型含 `thread_id`，并声明可选 `message_app_link`、`message_position`、`thread_message_position`；可选字段不保证返回，也不保证链接包含数字 `threadid`。当前根消息的真实响应没有 `message_app_link`，见下方。 | [官方 Node SDK get 定义（固定 commit）](https://github.com/larksuite/node-sdk/blob/b188be60134d409b61259546bcf69c731d2b0b7c/code-gen/projects/im.ts#L1005-L1070) |
+| 是否有读取话题详情、同时取 `thread.id` 和 `open_thread_id` 的公开方法 | 在所查官方 `im-v1` API 目录及 Node SDK 的 `im.thread` 中，只找到 `forward`，未找到 `thread.get`、`id/open_thread_id` 双字段读取或纯 ID 转换方法。这是本次检索边界，不能据此断言平台绝对不存在其他能力。 | [消息 API 目录](https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/im-v1)、[官方 Node SDK thread 资源（固定 commit）](https://github.com/larksuite/node-sdk/blob/b188be60134d409b61259546bcf69c731d2b0b7c/code-gen/projects/im.ts#L5373-L5467) |
+| 官方 CLI 如何产生消息链接 | CLI 优先保留响应 `message_app_link`；没有时使用 `thread_id`、`chat_id` 和话题位置组装 AppLink，写入 `openthreadid` / `open_thread_id` 等参数。该实现直接使用 Open ID，不进行数字转换，所以 CLI 输出链接不能证明已经取得数字 ID。其 `+threads-messages-list` 命令还会拒绝纯数字输入；应区分 CLI 校验与服务端 API 的实际能力。 | [官方 CLI 链接组装（固定 commit）](https://github.com/larksuite/cli/blob/d5209485e57a0c2205ab88959811bfefe905ce29/shortcuts/im/convert_lib/content_convert.go#L246-L318)、[CLI 输入校验](https://github.com/larksuite/cli/blob/d5209485e57a0c2205ab88959811bfefe905ce29/shortcuts/im/im_threads_messages_list.go#L82-L95) |
+
+本地缓存及真实只读证据（由本轮主排查提取，仅保存标识、计数与字段是否存在）：
+
+- 当前 Base/Table 的 `lark_ticket_thread_syncs` 有 **2081 行**，每行 `thread_id` 均为数字，同时每行 `messages_json.messages[*].threadId` 已包含一个不同的 `omt_...` canonical ID；本次未见单行包含多个不同 canonical ID 的歧义。例如 `7704136071327518471` → `omt_198f1e396ecf185b`（record `reczz28VR17xSBb8`），`7703868420768403210` → `omt_198c2b4a2e4f1856`。这些是已经读取过的话题留下的映射，不需要重新向 Lark 逐条请求。
+- 本地工单快照有 **2165 条**，2110 条有链接，其中 2109 条包含数字 `threadid`；按现有 canonical 映射比较后，有 **26 条数字链接未命中**。这是本地快照覆盖情况，不能代表实时 Base；未命中可能是缓存缺失，不能直接判定不存在同源工单。当前 `omt_198f5b76310f9851` 没有命中缓存映射，仍保留“去重尚未完整确定”的边界。
+- Application Bot 调用既有 `getThreadMessages('7704136071327518471', { pageSize: 1, sortType: 'ByCreateTimeAsc' })`，返回 1 条消息，`thread_id=omt_198f1e396ecf185b`，群 ID 与 intake 来源一致，且对应关系与缓存相同；actionRunId `5758b309-ffbf-497d-beee-75a724bee3bf`。这证明**本次该数字话题 ID 可作为 thread 容器输入并读回 canonical ID**；不需要读取完整话题分页，但仍是一条真实消息读取。
+- 同一追踪下，读取当前根消息 `om_x100b6199753cfca8ffdebc4ce1c7cc4` 得到 `thread_id=omt_198f5b76310f9851`，群 ID 匹配。随后以原始 `GET /im/v1/messages/:message_id` 补查可选字段，存在 `message_position`、`thread_message_position`、`thread_id`，**没有 `message_app_link`**；actionRunId `e33c6768-84f7-40b2-98ee-cb361b882336`。因此本次不能通过根消息返回的 URL 直接取得数字 `threadid`。
+
+据此推导的改进方向（尚未实施）：优先按相同 Base/Table/source 使用现有缓存构造 `numeric → canonical` 映射，再与新根消息的 `omt_...` 比较；只对当前 Base 中尚无映射的数字链接按需读取 `page_size=1` 并持久化映射，避免每条新 intake 都重读全部历史话题。空消息、删除、不可见、权限失败或缓存遗漏应保留为“未解析”，不能当作没有重复。历史链接可继续保留，新数据的去重应记录 canonical ID 以便后续直接比较；这属于方案建议，本轮没有新增字段或改变运行逻辑。
+
+待验证：当前 26 条未解析链接的实时 Base 存在性及可读性；空/已删除/不可见话题的单条读取边界；若后续要依赖 `message_app_link`，需验证实际返回条件及链接参数格式。静态验证仅检查本节引用的官方源码路径/行号和文档 diff；本轮不运行应用测试，以上 Live 读取不等于部署验证或性能改进已生效。
+
+### v7 实现与验证
+
+- 在现有 thread cache store 增加按 Base/Table 和当前 Base 数字链接集合读取唯一别名映射的方法；不接受单行或多记录冲突，不写回原始/清洗话题快照。factory 显式注入该查询，同一批次只加载一次。
+- `processOne` 先比较全部本地已知映射；存在已知匹配时不访问其他缺失项。全部本地比较仍无匹配时才逐条读取缺失映射，要求返回 canonical ID 的消息属于配置来源群；新读映射继续使用原有进程缓存，不新增持久化字段或表。
+- 原始创建、标题、确认、表情及未知写入边界保持原样；缓存或远端读取失败时不创建。没有为了让测试通过而跳过未解析旧链接。
+
+| 验证类型 | 命令 / 证据 | 结果与边界 |
+| --- | --- | --- |
+| 故障回归 | `pnpm --dir server test src/application/services/lark-thread-ticket-intake.service.test.ts -t 'cached alias match\|aliases are already cached\|reads only the missing alias'` | 实现前 3 个用例失败，实现后通过；覆盖已缓存仍读历史、已知重复被未解析项阻断、远端返回其他群被误信 |
+| 单测与模拟集成 | `pnpm --dir server test src/application/services/lark-thread-ticket-intake.service.test.ts src/application/services/lark-thread-ticket-intake.factory.test.ts src/adapters/postgres/lark-ticket-thread-sync-store.test.ts src/adapters/postgres/lark-thread-ticket-intake-store.test.ts src/application/services/lark-ticket-thread-context.service.test.ts src/modules/platform-sync/lark-thread-ticket-intake.controller.test.ts src/scripts/create-lark-thread-ticket.test.ts` | 最新 7 文件 / 76 用例通过；service 与 stores 使用 pg-mem，Lark 为 mock；factory 验证实际缓存查询依赖的注入，补充批次共享、完成后无重复查重及非法空 ID 后缀回归 |
+| 静态检查 | `pnpm --dir server build`、`git diff --check`、相对文档链接检查 | 构建及 diff 检查通过；修改段落无新增断链。全篇检查发现两条 HEAD 已有的其他任务断链，保留原样；未改 FE/extension |
+| Live 只读去重预检 | actionRunId `f11ea7d3-7e92-4608-ad0d-b12a33633fbd` | 当前 Base 去重后有 1971 个链接 ID，1970 为数字；新 store 可复用其中 1927 个映射，真实查询耗时约 75ms；43 个缺失映射均以单条读取解析成功，无一匹配指定当前 thread。该范围为此次真实 Base，和前一节本地快照的 26 个缺失项不同，不混为同一覆盖率；未写平台或登记行 |
+| 首次指定 pending 续跑 | 原 actionRunId `a54a30bc-93e9-4830-9a29-4929ff110324`，按 source/thread/root ID 三者核对后调用既有 `processMessage` | 首次新代码尚未取得执行权即收到 `SYNC_ALREADY_RUNNING`；未删除/抢占锁。续跑前该 pending 已有旧 Worker 累计 2 次失败，旧日志错误为 `LARK_PLATFORM_REJECTED`，不能继续沿用早先 attempts=0 的历史快照解释当前状态 |
+| Live 指定单条恢复 | 16:08 确认原租约已释放后再次按原登记调用既有 `processMessage` | 16:10:45 返回 done、record `reczz28VWtNVYqSc`、编号 **2465**，confirmationSent/reactionAdded 均为 true，attempts 清零、error_code 清空。未执行扫描或重置；原 actionRunId 保持不变 |
+| Live 结果读回与重复提交 | 只读 actionRunId `a375e0ed-c282-4b1a-87d8-8749642ac735`；随后同一根消息再次提交 | Base 标题与登记标题一致、Octo 标题一致、Base/Octo 编号一致、shadow=ok；回帖群/话题/标题/编号正确且 sender 为当前 app，应用自己的 JIAYI 存在；重复执行仍为同 record/同 actionRunId/done。只输出布尔核对结果和非敏感结果 ID，不记录业务正文 |
+| 常驻运行时 | 未重启或部署 Worker | 上述使用本地新编译代码直接执行单条；常驻实例采用新逻辑仍需后续正常发布/重启，单条成功不能替代该部署验证 |
+
+本轮对可复用失误作了复核：主要遗漏是持久化缓存已含 canonical ID，而新建查重只用了空的进程别名缓存。已由已有缓存不重读历史、缓存歧义不误判及 factory 注入回归覆盖，不为同一失误另造通用学习条目。
+
+## v6 及更早验证
 
 | 类型 | 结果 | 证据 | 边界 |
 | --- | --- | --- | --- |

@@ -19,7 +19,11 @@ import type { PlatformSyncService } from "./platform-sync.service.js";
 import type { PlatformSyncCoordinator } from "./platform-sync-coordinator.js";
 
 const log = logger.child({ module: "lark-thread-ticket-intake" });
-type IntakeBatch = { existingThreads?: Promise<Map<string, string>>; parentActionRunId: string };
+type IntakeBatch = {
+  existingThreads?: Promise<Map<string, string>>;
+  cachedThreadAliases?: Promise<ReadonlyMap<string, string>>;
+  parentActionRunId: string;
+};
 type Client = Pick<LarkClient, "getChatMessages" | "getThreadMessages" | "getMessage" | "getFields" | "listRecords" | "createRecord" | "updateRecord" | "replyToMessage" | "addMessageReaction">;
 export type LarkThreadTicketSource = NonNullable<PlatformSyncConfig["scheduler"]["tasks"]["larkThreadTickets"]>["sources"][number]
   & PlatformSyncConfig["larkBase"][number];
@@ -71,6 +75,7 @@ export function createLarkThreadTicketIntakeService(deps: {
   shadowService: Pick<ReturnType<typeof createLarkTicketShadowSummaryService>, "summarizeOne">;
   coordinator: Pick<PlatformSyncCoordinator, "runExclusive">;
   createClient: (source: LarkThreadTicketSource, actionRunId: string) => Promise<Client>;
+  loadThreadAliases?: (source: LarkThreadTicketSource, threadIds: string[]) => Promise<ReadonlyMap<string, string>>;
   masterUserId: string;
   sources: LarkThreadTicketSource[];
   batchLimit?: number;
@@ -160,18 +165,27 @@ export function createLarkThreadTicketIntakeService(deps: {
         // A supplied client link gives both aliases. Automatic discovery must
         // resolve legacy numeric links before deciding that no Ticket exists.
         if (!existingId && !clientThreadId) {
-          for (const [linkedId, recordId] of existingThreads) {
-            if (!/^\d+$/.test(linkedId)) continue;
+          const numericLinks = [...existingThreads].filter(([id]) => /^\d+$/.test(id));
+          batch.cachedThreadAliases ??= deps.loadThreadAliases?.(source, numericLinks.map(([id]) => id)) ?? Promise.resolve(new Map());
+          const cachedAliases = await batch.cachedThreadAliases;
+          const unresolved: [string, string][] = [];
+          // Finish local comparisons first: an unrelated unreadable old topic
+          // must not prevent finding a duplicate already present in the cache.
+          for (const [linkedId, recordId] of numericLinks) {
             const aliasKey = `${source.chatId}/${linkedId}`;
-            let canonical = threadAliases.get(aliasKey);
-            if (!canonical) {
-              const page = await client.getThreadMessages(linkedId, { pageSize: 1, sortType: "ByCreateTimeAsc" });
-              const message = page.items.find((item) => item.thread_id && item.chat_id);
-              if (!message?.thread_id) throw new Error("LARK_THREAD_TICKET_DEDUP_UNRESOLVED");
-              canonical = message.thread_id;
-              threadAliases.set(aliasKey, canonical);
-            }
+            const canonical = threadAliases.get(aliasKey) ?? cachedAliases.get(linkedId);
+            if (!canonical) { unresolved.push([linkedId, recordId]); continue; }
             if (canonical === run.thread_id) { existingId = recordId; break; }
+          }
+          if (!existingId) {
+            for (const [linkedId, recordId] of unresolved) {
+              const page = await client.getThreadMessages(linkedId, { pageSize: 1, sortType: "ByCreateTimeAsc" });
+              const message = page.items.find((item) => item.chat_id === source.chatId
+                && item.thread_id?.startsWith("omt_") && item.thread_id.length > 4);
+              if (!message?.thread_id) throw new Error("LARK_THREAD_TICKET_DEDUP_UNRESOLVED");
+              threadAliases.set(`${source.chatId}/${linkedId}`, message.thread_id);
+              if (message.thread_id === run.thread_id) { existingId = recordId; break; }
+            }
           }
         }
         if (existingId) {

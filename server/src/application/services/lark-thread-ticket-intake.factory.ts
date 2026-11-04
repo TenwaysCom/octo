@@ -39,7 +39,8 @@ export function createLarkThreadTicketIntakeRuntime(deps: {
   const shadowTask = config.scheduler.tasks.shadow;
   const summaryTimeoutSeconds = shadowTask.summaryTimeoutSeconds ?? shadowTask.deepSeekTimeoutSeconds ?? shadowTask.acpTimeoutSeconds;
   const summaryOptions = summaryTimeoutSeconds ? { timeoutMs: summaryTimeoutSeconds * 1000 } : {};
-  const threadContext = createLarkTicketThreadContextService({ store: new PostgresLarkTicketThreadSyncStore(db), buildClient });
+  const threadStore = new PostgresLarkTicketThreadSyncStore(db);
+  const threadContext = createLarkTicketThreadContextService({ store: threadStore, buildClient });
   return createLarkThreadTicketIntakeService({
     store: new PostgresLarkThreadTicketIntakeStore(db),
     syncStore,
@@ -48,6 +49,7 @@ export function createLarkThreadTicketIntakeRuntime(deps: {
     batchLimit: config.scheduler.tasks.larkThreadTickets?.batchLimit,
     pollIntervalMs: (config.scheduler.tasks.larkThreadTickets?.intervalMinutes ?? 1) * 60_000,
     createClient: async (source, actionRunId) => (await buildClient(masterUserId, baseUrl(source.larkBaseUrl), actionRunId)).client,
+    loadThreadAliases: (source, threadIds) => threadStore.listThreadAliases({ baseId: source.baseId, tableId: source.tableId, threadIds }),
     summaryTimeoutMs: summaryOptions.timeoutMs,
     syncService: new PlatformSyncService({ store: syncStore, createLarkClient: async (input) => (await buildClient(input.masterUserId, baseUrl(input.larkBaseUrl), input.actionRunId)).client }),
     shadowService: {

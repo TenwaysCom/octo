@@ -44,9 +44,10 @@ async function setup() {
   let currentTime = new Date("2026-11-03T00:00:00Z");
   const coordinator = { runExclusive: vi.fn().mockImplementation(async (input) => ({ ...await input.execute({ actionRunId: input.actionRunId ?? "scan", runId: "run", startedAt: currentTime.toISOString() }), runId: "run", actionRunId: input.actionRunId ?? "scan" })) } as Pick<PlatformSyncCoordinator, "runExclusive">;
   const createClient = vi.fn().mockResolvedValue(client);
+  const loadThreadAliases = vi.fn().mockResolvedValue(new Map<string, string>());
   const service = createLarkThreadTicketIntakeService({ store, syncStore, syncService, shadowService, titleClient,
-    coordinator, createClient, masterUserId: "master", sources: [source], now: () => currentTime });
-  return { ...database, store, client, service, syncService, syncStore, shadowService, titleClient, ticket, events, coordinator, createClient,
+    coordinator, createClient, loadThreadAliases, masterUserId: "master", sources: [source], now: () => currentTime });
+  return { ...database, store, client, service, syncService, syncStore, shadowService, titleClient, ticket, events, coordinator, createClient, loadThreadAliases,
     setNow: (value: string) => { currentTime = new Date(value); },
     close: async () => { await database.db.destroy(); await database.pool.end(); },
   };
@@ -120,6 +121,107 @@ describe("Lark thread ticket intake (mock platform + memory PostgreSQL)", () => 
       ctx.client.listRecords.mockResolvedValueOnce({ records: [{ record_id: "rec_numeric", fields: { "Lark Message Link": "https://applink.larksuite.com/client/thread/open?threadid=7703902781853159175" } }], hasMore: false });
       expect(await ctx.service.processMessage(source.chatId, root.message_id)).toMatchObject({ status: "existing", recordId: "rec_numeric" });
       expect(ctx.client.getThreadMessages).toHaveBeenCalledWith("7703902781853159175", { pageSize: 1, sortType: "ByCreateTimeAsc" });
+      expect(ctx.client.createRecord).not.toHaveBeenCalled();
+    } finally { await ctx.close(); }
+  });
+
+  it("uses a cached alias match before reading any unrelated historical topic", async () => {
+    const ctx = await setup();
+    try {
+      ctx.client.listRecords.mockResolvedValueOnce({ records: [
+        { record_id: "rec_unmapped", fields: { "Lark Message Link": "https://applink.larksuite.com/client/thread/open?threadid=111" } },
+        { record_id: "rec_cached", fields: { "Lark Message Link": "https://applink.larksuite.com/client/thread/open?threadid=222" } },
+      ], hasMore: false });
+      ctx.loadThreadAliases.mockResolvedValue(new Map([["222", root.thread_id!]]));
+      ctx.client.getThreadMessages.mockRejectedValue(new Error("UNRELATED_HISTORY_UNAVAILABLE"));
+      expect(await ctx.service.processMessage(source.chatId, root.message_id)).toMatchObject({ status: "existing", recordId: "rec_cached" });
+      expect(ctx.client.getThreadMessages).not.toHaveBeenCalled();
+      expect(ctx.client.createRecord).not.toHaveBeenCalled();
+    } finally { await ctx.close(); }
+  });
+
+  it("creates a new ticket without rereading historical topics whose aliases are already cached", async () => {
+    const ctx = await setup();
+    try {
+      ctx.client.listRecords.mockResolvedValueOnce({ records: [
+        { record_id: "rec_old", fields: { "Lark Message Link": "https://applink.larksuite.com/client/thread/open?threadid=111" } },
+      ], hasMore: false });
+      ctx.loadThreadAliases.mockResolvedValue(new Map([["111", "omt_old"]]));
+      ctx.client.getThreadMessages.mockRejectedValue(new Error("UNRELATED_HISTORY_UNAVAILABLE"));
+      expect(await ctx.service.processMessage(source.chatId, root.message_id)).toMatchObject({ status: "done" });
+      expect(ctx.client.getThreadMessages).not.toHaveBeenCalled();
+      expect(ctx.client.createRecord).toHaveBeenCalledTimes(1);
+    } finally { await ctx.close(); }
+  });
+
+  it("reads only the missing alias and verifies its source chat before comparing IDs", async () => {
+    const ctx = await setup();
+    try {
+      ctx.client.listRecords.mockResolvedValueOnce({ records: [
+        { record_id: "rec_old", fields: { "Lark Message Link": "https://applink.larksuite.com/client/thread/open?threadid=111" } },
+        { record_id: "rec_new", fields: { "Lark Message Link": "https://applink.larksuite.com/client/thread/open?threadid=222" } },
+      ], hasMore: false });
+      ctx.loadThreadAliases.mockResolvedValue(new Map([["111", "omt_old"]]));
+      ctx.client.getThreadMessages.mockResolvedValue({ items: [{ ...root, chat_id: "oc_other" }], hasMore: false });
+      expect(await ctx.service.processMessage(source.chatId, root.message_id)).toMatchObject({ status: "failed", errorCode: "LARK_THREAD_TICKET_DEDUP_UNRESOLVED" });
+      expect(ctx.client.getThreadMessages).toHaveBeenCalledTimes(1);
+      expect(ctx.client.getThreadMessages).toHaveBeenCalledWith("222", { pageSize: 1, sortType: "ByCreateTimeAsc" });
+      expect(ctx.client.createRecord).not.toHaveBeenCalled();
+    } finally { await ctx.close(); }
+  });
+
+  it("resolves a missing alias once and reuses it when creation is retried", async () => {
+    const ctx = await setup();
+    try {
+      ctx.client.listRecords.mockResolvedValue({ records: [
+        { record_id: "rec_cached", fields: { "Lark Message Link": "https://applink.larksuite.com/client/thread/open?threadid=111" } },
+        { record_id: "rec_missing", fields: { "Lark Message Link": "https://applink.larksuite.com/client/thread/open?threadid=222" } },
+      ], hasMore: false });
+      ctx.loadThreadAliases.mockResolvedValue(new Map([["111", "omt_cached"]]));
+      ctx.client.getThreadMessages.mockResolvedValue({ items: [{ ...root, thread_id: "omt_old" }], hasMore: false });
+      ctx.client.createRecord.mockRejectedValueOnce(new LarkAPIError("Rejected", 403));
+      expect(await ctx.service.processMessage(source.chatId, root.message_id)).toMatchObject({ status: "failed" });
+      expect(await ctx.service.processMessage(source.chatId, root.message_id)).toMatchObject({ status: "done" });
+      expect(ctx.client.getThreadMessages).toHaveBeenCalledTimes(1);
+      expect(ctx.client.getThreadMessages).toHaveBeenCalledWith("222", { pageSize: 1, sortType: "ByCreateTimeAsc" });
+    } finally { await ctx.close(); }
+  });
+
+  it.each(["empty_reply", "invalid_open_id", "cache_failure"])("does not create when alias lookup has %s", async (reason) => {
+    const ctx = await setup();
+    try {
+      ctx.client.listRecords.mockResolvedValueOnce({ records: [
+        { record_id: "rec_old", fields: { "Lark Message Link": "https://applink.larksuite.com/client/thread/open?threadid=111" } },
+      ], hasMore: false });
+      if (reason === "cache_failure") ctx.loadThreadAliases.mockRejectedValue(new Error("CACHE_UNAVAILABLE"));
+      else if (reason === "invalid_open_id") ctx.client.getThreadMessages.mockResolvedValue({ items: [{ ...root, thread_id: "omt_" }], hasMore: false });
+      else ctx.client.getThreadMessages.mockResolvedValue({ items: [], hasMore: false });
+      expect(await ctx.service.processMessage(source.chatId, root.message_id)).toMatchObject({ status: "failed" });
+      expect(ctx.client.createRecord).not.toHaveBeenCalled();
+    } finally { await ctx.close(); }
+  });
+
+  it("shares cached aliases across tickets in one interval and skips all lookup on completed retries", async () => {
+    const ctx = await setup();
+    try {
+      ctx.client.getChatMessages.mockResolvedValue({ items: [root, { ...root, message_id: "om_second", thread_id: "omt_second" }], hasMore: false });
+      ctx.client.getMessage.mockImplementation(async (id) => ({ ...root, message_id: id, thread_id: id === root.message_id ? root.thread_id : "omt_second" }));
+      ctx.client.listRecords.mockResolvedValue({ records: [
+        { record_id: "rec_first", fields: { "Lark Message Link": "https://applink.larksuite.com/client/thread/open?threadid=111" } },
+        { record_id: "rec_second", fields: { "Lark Message Link": "https://applink.larksuite.com/client/thread/open?threadid=222" } },
+      ], hasMore: false });
+      ctx.loadThreadAliases.mockResolvedValue(new Map([["111", root.thread_id!], ["222", "omt_second"]]));
+      const result = await ctx.service.scanRange({ chatId: source.chatId, startTime: "2026-11-03T00:00:00Z", endTime: "2026-11-03T01:00:00Z", apply: true, maxTickets: 2 });
+      expect(result.results.map((item) => ({ status: item.status, recordId: item.recordId }))).toEqual([
+        { status: "existing", recordId: "rec_first" }, { status: "existing", recordId: "rec_second" },
+      ]);
+      expect(ctx.loadThreadAliases).toHaveBeenCalledTimes(1);
+      expect(ctx.client.getThreadMessages).not.toHaveBeenCalled();
+      ctx.loadThreadAliases.mockClear();
+      ctx.client.listRecords.mockClear();
+      expect(await ctx.service.processMessage(source.chatId, root.message_id)).toMatchObject({ status: "existing", recordId: "rec_first" });
+      expect(ctx.loadThreadAliases).not.toHaveBeenCalled();
+      expect(ctx.client.listRecords).not.toHaveBeenCalled();
       expect(ctx.client.createRecord).not.toHaveBeenCalled();
     } finally { await ctx.close(); }
   });
