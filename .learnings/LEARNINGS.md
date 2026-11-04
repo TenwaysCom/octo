@@ -539,8 +539,9 @@ source: [Hermes ACP 当前材料验收设计](../docs/tasks/acp/2026-09-05-herme
 ## [LRN-20260831-007] lark-thread-root-id-boundary
 
 - **Context:** A Lark Ticket link provides a `threadid`, while the single-message endpoint requires a message ID. Treating them as interchangeable caused HTTP 400 and marked reply-only snapshots complete.
-- **Rule:** Fetch a thread with `thread_id`, derive the root message ID from a reply's `root_id`, then fetch the root message by that ID. A historical snapshot containing replies but no stored corresponding root must be selected for a forced full repair before it can be treated as complete.
-- **Verified outcome:** Thread-context and backfill tests cover root-ID lookup, reject `thread_id` as the message request ID, and reselect reply-only snapshots; Server TypeScript build passes.
+- **Rule:** Fetch a thread with `thread_id`, derive the root message ID from a reply's `root_id`, then fetch the root message by that ID. A new topic without replies needs an explicit root `messageid` from its source link, validated against the same thread. A historical snapshot containing replies but no stored corresponding root must be selected for a forced full repair before it can be treated as complete.
+
+source: [Lark 话题登记 Ticket](../docs/tasks/platform-sync/2026-11-03-lark-thread-ticket-intake.md)
 
 ## [LRN-20260901-001] local-candidate-remote-write-snapshot-refresh
 

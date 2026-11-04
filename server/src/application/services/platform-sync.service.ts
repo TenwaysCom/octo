@@ -79,7 +79,7 @@ export interface PlatformSyncServiceDeps {
   store?: PlatformSyncStore;
   resolvedUserStore?: ResolvedUserStore;
   createMeegleClient?: (input: { masterUserId: string; projectKey: string }) => Promise<MeegleSyncClient>;
-  createLarkClient?: (input: { masterUserId: string; larkBaseUrl?: string }) => Promise<LarkClient>;
+  createLarkClient?: (input: { masterUserId: string; larkBaseUrl?: string; actionRunId?: string }) => Promise<LarkClient>;
   createGitHubClient?: () => GitHubClient;
 }
 
@@ -401,7 +401,7 @@ export class PlatformSyncService {
   }
 
   async syncLarkBaseTicket(request: SyncLarkBaseTicketRequest) {
-    const client = await this.getLarkClient(request.masterUserId, request.larkBaseUrl);
+    const client = await this.getLarkClient(request.masterUserId, request.larkBaseUrl, request.actionRunId);
     const [record] = await this.getLarkRecordsInBatches(
       client,
       request.baseId,
@@ -848,9 +848,9 @@ export class PlatformSyncService {
     return this.store;
   }
 
-  private async getLarkClient(masterUserId: string, larkBaseUrl?: string): Promise<LarkClient> {
+  private async getLarkClient(masterUserId: string, larkBaseUrl?: string, actionRunId?: string): Promise<LarkClient> {
     if (this.deps.createLarkClient) {
-      return this.deps.createLarkClient({ masterUserId, larkBaseUrl });
+      return this.deps.createLarkClient({ masterUserId, larkBaseUrl, ...(actionRunId ? { actionRunId } : {}) });
     }
     const { client } = await buildAuthenticatedLarkClient(
       masterUserId,

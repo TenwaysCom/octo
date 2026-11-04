@@ -82,8 +82,36 @@ function createTicket(ticketStatus = "In Progress") {
 }
 
 describe("Lark Ticket thread context ensure", () => {
+  it("includes the linked root question when a newly created topic has no replies", async () => {
+    const { store } = createStore();
+    const client = {
+      getThreadMessages: vi.fn().mockResolvedValue({ items: [], hasMore: false }),
+      getMessage: vi.fn().mockResolvedValue({ message_id: "root_new", thread_id: "thread_1", msg_type: "text", content: '{"text":"New question"}', sender: { sender_type: "user" } }),
+    };
+    const buildClient = vi.fn().mockResolvedValue({ client });
+    const service = createLarkTicketThreadContextService({ store, buildClient, now: () => now });
+    const result = await service.ensure({ masterUserId: "usr_1", larkBaseUrl: "https://open.larksuite.com", actionRunId: "intake_trace",
+      ticket: { ...createTicket(), larkMessageLink: `${messageLink}&messageid=root_new` },
+    });
+    expect(result.snapshot?.preparedMessages).toEqual([expect.objectContaining({ messageId: "root_new", text: "New question" })]);
+    expect(result.snapshot?.historyComplete).toBe(true);
+    expect(client.getMessage).toHaveBeenCalledWith("root_new");
+    expect(buildClient).toHaveBeenCalledWith("usr_1", "https://open.larksuite.com", "intake_trace");
+  });
+
+  it("rejects a linked root message belonging to a different thread", async () => {
+    const { store } = createStore();
+    const client = { getThreadMessages: vi.fn().mockResolvedValue({ items: [], hasMore: false }),
+      getMessage: vi.fn().mockResolvedValue({ message_id: "root_new", thread_id: "another_thread" }) };
+    const service = createLarkTicketThreadContextService({ store, buildClient: async () => ({ client }), now: () => now });
+    await expect(service.ensure({ masterUserId: "usr_1", larkBaseUrl: "https://open.larksuite.com",
+      ticket: { ...createTicket(), larkMessageLink: `${messageLink}&messageid=root_new` },
+    })).rejects.toThrow("unavailable");
+    expect(store.saveSuccessfulSync).not.toHaveBeenCalled();
+  });
   it("extracts the thread id and skips Lark for a fresh active snapshot", async () => {
     expect(parseLarkThreadId(messageLink)).toBe("thread_1");
+    expect(parseLarkThreadId("https://applink.larksuite.com/client/thread/open?threadid=123&openthreadid=omt_1")).toBe("omt_1");
     const { store } = createStore(createSnapshot());
     const buildClient = vi.fn();
     const service = createLarkTicketThreadContextService({ store, buildClient, now: () => now });

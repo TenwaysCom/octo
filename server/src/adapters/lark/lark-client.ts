@@ -59,6 +59,7 @@ export interface LarkBitableBase {
 
 export interface LarkThreadMessage {
   message_id: string;
+  chat_id?: string;
   root_id?: string;
   parent_id?: string;
   thread_id?: string;
@@ -85,6 +86,7 @@ export interface ListLarkThreadMessagesOptions {
 
 type RawLarkMessage = {
   message_id?: string;
+  chat_id?: string;
   root_id?: string;
   parent_id?: string;
   thread_id?: string;
@@ -118,6 +120,7 @@ function normalizeMessageTime(value: unknown): string | undefined {
 function normalizeMessage(item: RawLarkMessage): LarkThreadMessage {
   return {
     message_id: item.message_id || "",
+    chat_id: item.chat_id,
     root_id: item.root_id,
     parent_id: item.parent_id,
     thread_id: item.thread_id,
@@ -183,10 +186,13 @@ export class LarkBatchCreateError extends Error {
 
 // ==================== Client Options ====================
 
-export interface LarkClientOptions {
-  accessToken: string;
+export type LarkClientOptions = {
   baseUrl?: string;
-}
+  actionRunId?: string;
+} & (
+  | { accessToken: string; appId?: never; appSecret?: never }
+  | { accessToken?: never; appId: string; appSecret: string }
+);
 
 type LarkMessageReceiveIdType = "open_id" | "chat_id";
 
@@ -205,20 +211,33 @@ export interface BatchGetRecordsResult {
 // ==================== LarkClient Class ====================
 
 export class LarkClient {
+  private readonly log: typeof clientLogger;
   private client: lark.Client;
-  private accessToken: string;
+  private accessToken?: string;
   private baseUrl: string;
 
   constructor(options: LarkClientOptions) {
+    this.log = clientLogger.child({ actionRunId: options.actionRunId, layer: "adapter" });
     this.accessToken = options.accessToken;
     this.baseUrl = options.baseUrl || "https://open.feishu.cn";
 
-    // Initialize with dummy credentials - we'll use user token directly
+    // Application clients use the SDK's cached tenant token. User clients
+    // continue to pass their explicit user token on every request.
     this.client = new lark.Client({
-      appId: "dummy",
-      appSecret: "dummy",
+      appId: options.appId ?? "dummy",
+      appSecret: options.appSecret ?? "dummy",
       appType: lark.AppType.SelfBuild,
       domain: this.baseUrl.includes("feishu") ? lark.Domain.Feishu : lark.Domain.Lark,
+      // SDK Axios errors can include the raw Authorization header. All request
+      // diagnostics are emitted by this adapter using safe summaries below.
+      loggerLevel: lark.LoggerLevel.fatal,
+      logger: {
+        error: () => undefined,
+        warn: () => undefined,
+        info: () => undefined,
+        debug: () => undefined,
+        trace: () => undefined,
+      },
     });
   }
 
@@ -230,17 +249,17 @@ export class LarkClient {
     data?: Record<string, unknown>,
     params?: Record<string, unknown>,
   ): Promise<T> {
-    clientLogger.debug({ method, url, params }, "LARK_REQUEST_START");
+    this.log.debug({ method, url, stage: "adapter.lark.request" }, "LARK_REQUEST_START");
     try {
       const response = await this.client.request({
         method: method as "GET" | "POST" | "PUT" | "DELETE",
         url,
         data,
         params,
-      }, lark.withUserAccessToken(this.accessToken));
+      }, this.accessToken ? lark.withUserAccessToken(this.accessToken) : undefined);
 
       if (response.code !== 0) {
-        clientLogger.warn({ method, url, code: response.code, msg: response.msg, data: response.data }, "LARK_REQUEST_ERROR");
+        this.log.warn({ method, url, stage: "adapter.lark.response", errorCode: "LARK_PLATFORM_REJECTED", code: response.code }, "LARK_REQUEST_ERROR");
         throw this.createError(response.msg, response.code, response.data);
       }
 
@@ -255,13 +274,14 @@ export class LarkClient {
       };
       const httpStatus = axiosError.response?.status;
       const responseData = axiosError.response?.data;
-      clientLogger.warn(
+      this.log.warn(
         {
           method,
           url,
           httpStatus,
-          responseData,
-          error: error instanceof Error ? error.message : String(error),
+          stage: "adapter.lark.response",
+          errorCode: "LARK_REQUEST_FAILED",
+          platformCode: typeof responseData?.code === "number" ? responseData.code : undefined,
         },
         "LARK_REQUEST_CATCH",
       );
@@ -328,33 +348,45 @@ export class LarkClient {
   }
 
   async getFields(baseId: string, tableId: string): Promise<LarkBitableField[]> {
-    const data = await this.request<{
-      items?: Array<{
-        field_id: string;
-        field_name: string;
-        type?: number;
-        ui_type?: string;
-        property?: {
-          options?: Array<{ id?: string; name?: unknown }>;
-        };
-      }>;
-    }>("GET", `/open-apis/bitable/v1/apps/${baseId}/tables/${tableId}/fields`);
-    return (data.items || []).map((field) => ({
-      field_id: field.field_id,
-      field_name: field.field_name,
-      ...(field.type === undefined ? {} : { type: field.type }),
-      ...(field.ui_type === undefined ? {} : { ui_type: field.ui_type }),
-      ...(field.property?.options?.length
-        ? {
-          options: field.property.options
-            .filter((option) => typeof option?.name === "string" && option.name.trim() !== "")
-            .map((option) => ({
-              name: option.name as string,
-              ...(option.id === undefined ? {} : { id: option.id }),
-            })),
-        }
-        : {}),
-    }));
+    const fields: LarkBitableField[] = [];
+    const seenTokens = new Set<string>();
+    let pageToken: string | undefined;
+    do {
+      const data = await this.request<{
+        has_more?: boolean;
+        page_token?: string;
+        items?: Array<{
+          field_id: string;
+          field_name: string;
+          type?: number;
+          ui_type?: string;
+          property?: {
+            options?: Array<{ id?: string; name?: unknown }>;
+          };
+        }>;
+      }>("GET", `/open-apis/bitable/v1/apps/${baseId}/tables/${tableId}/fields`, undefined, { page_size: 100, page_token: pageToken });
+      fields.push(...(data.items || []).map((field) => ({
+        field_id: field.field_id,
+        field_name: field.field_name,
+        ...(field.type === undefined ? {} : { type: field.type }),
+        ...(field.ui_type === undefined ? {} : { ui_type: field.ui_type }),
+        ...(field.property?.options?.length
+          ? {
+            options: field.property.options
+              .filter((option) => typeof option?.name === "string" && option.name.trim() !== "")
+              .map((option) => ({
+                name: option.name as string,
+                ...(option.id === undefined ? {} : { id: option.id }),
+              })),
+          }
+          : {}),
+      })));
+      if (!data.has_more) return fields;
+      if (!data.page_token || seenTokens.has(data.page_token) || seenTokens.size >= 1000) throw new LarkAPIError("LARK_FIELD_PAGINATION_INVALID");
+      seenTokens.add(data.page_token);
+      pageToken = data.page_token;
+    } while (pageToken);
+    return fields;
   }
 
   // ==================== Bitable Record Methods ====================
@@ -386,6 +418,7 @@ export class LarkClient {
       pageToken?: string;
       filter?: string;
       sort?: string;
+      fieldNames?: string[];
       /** Include Bitable's created_time and last_modified_time system fields. */
       automaticFields?: boolean;
     },
@@ -402,6 +435,7 @@ export class LarkClient {
       page_token: options?.pageToken,
       filter: options?.filter,
       sort: options?.sort,
+      ...(options?.fieldNames ? { field_names: JSON.stringify(options.fieldNames) } : {}),
       automatic_fields: options?.automaticFields ? true : undefined,
     });
 
@@ -450,6 +484,7 @@ export class LarkClient {
     baseId: string,
     tableId: string,
     fields: Record<string, unknown>,
+    options?: { clientToken?: string },
   ): Promise<LarkBitableRecord> {
     const data = await this.request<{
       record?: {
@@ -459,7 +494,7 @@ export class LarkClient {
       };
     }>("POST", `/open-apis/bitable/v1/apps/${baseId}/tables/${tableId}/records`, {
       fields,
-    });
+    }, options?.clientToken ? { client_token: options.clientToken } : undefined);
 
     return this.mapRecord(data.record);
   }
@@ -586,7 +621,7 @@ export class LarkClient {
     messageId: string,
     msgType: "text" | "post" | "image" | "file" | "interactive",
     content: string,
-    options?: { reply_in_thread?: boolean },
+    options?: { reply_in_thread?: boolean; uuid?: string },
   ): Promise<{ message_id: string }> {
     const data = await this.request<{
       message_id?: string;
@@ -594,6 +629,7 @@ export class LarkClient {
       msg_type: msgType,
       content,
       reply_in_thread: options?.reply_in_thread ?? false,
+      ...(options?.uuid ? { uuid: options.uuid } : {}),
     });
 
     return {
@@ -610,6 +646,28 @@ export class LarkClient {
       `/open-apis/im/v1/messages/${messageId}`,
     );
     return normalizeMessage(data.items?.[0] ?? data);
+  }
+
+  /** List chat messages for new-thread discovery; timestamps are Unix seconds. */
+  async getChatMessages(chatId: string, options: ListLarkThreadMessagesOptions = {}): Promise<{
+    items: LarkThreadMessage[];
+    hasMore: boolean;
+    pageToken?: string;
+  }> {
+    const data = await this.request<{
+      items?: RawLarkMessage[];
+      has_more?: boolean;
+      page_token?: string;
+    }>("GET", "/open-apis/im/v1/messages", undefined, {
+      container_id_type: "chat",
+      container_id: chatId,
+      page_size: Math.min(Math.max(options.pageSize ?? 50, 1), 50),
+      page_token: options.pageToken,
+      start_time: options.startTime,
+      end_time: options.endTime,
+      sort_type: options.sortType ?? "ByCreateTimeAsc",
+    });
+    return { items: (data.items || []).map(normalizeMessage), hasMore: data.has_more ?? false, pageToken: data.page_token };
   }
 
   /**

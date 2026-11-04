@@ -25,6 +25,8 @@ export const LARK_TICKET_SEMANTIC_FIELDS = Object.keys(
 ) as LarkTicketSemanticField[];
 
 export const LARK_TICKET_CLOSED_AT_FIELD = "关闭时间";
+export const LARK_TICKET_DESCRIPTION_FIELD_CANDIDATES = ["Details Description", "Issue Description"];
+export const LARK_TICKET_MESSAGE_LINK_FIELD_CANDIDATES = ["Lark Message Link", "Message Link", "Thread Link", "Chat Link", "lark_message_link"];
 
 // Title candidates shared by the sync upsert and the field-update projection.
 export const LARK_TICKET_TITLE_FIELD_CANDIDATES = [

@@ -8,6 +8,43 @@ describe("lark-client", () => {
     vi.clearAllMocks();
   });
 
+  it.each(["application", "user"] as const)("authenticates %s requests using the intended identity", async (identity) => {
+    const client = new LarkClient(identity === "application"
+      ? { appId: "cli_app", appSecret: "app-secret", baseUrl: "https://open.larksuite.com" }
+      : { accessToken: "user-token", baseUrl: "https://open.larksuite.com" });
+    const sdk = (client as unknown as { client: {
+      appId: string;
+      tokenManager: { getTenantAccessToken: () => Promise<string> };
+      httpInstance: { request: (...args: unknown[]) => Promise<unknown> };
+    } }).client;
+    const tenantToken = vi.fn().mockResolvedValue("tenant-token");
+    const httpRequest = vi.fn().mockResolvedValue({ code: 0, data: { items: [] } });
+    sdk.tokenManager.getTenantAccessToken = tenantToken;
+    sdk.httpInstance = { request: httpRequest };
+
+    await client.getFields("base", "table");
+
+    expect(httpRequest).toHaveBeenCalledWith(expect.objectContaining({
+      headers: expect.objectContaining({ Authorization: `Bearer ${identity === "application" ? "tenant-token" : "user-token"}` }),
+    }));
+    expect(tenantToken).toHaveBeenCalledTimes(identity === "application" ? 1 : 0);
+    if (identity === "application") expect(sdk.appId).toBe("cli_app");
+  });
+
+  it.each(["application", "user"] as const)("suppresses raw SDK %s errors that could expose credentials", (identity) => {
+    const stdoutLog = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      const client = new LarkClient(identity === "application"
+        ? { appId: "cli_app", appSecret: "test-secret" }
+        : { accessToken: "test-token" });
+      const sdk = (client as unknown as { client: { logger: { error: (...args: unknown[]) => void } } }).client;
+      sdk.logger.error({ config: { headers: { Authorization: "Bearer test-secret" }, data: { app_secret: "test-secret" } } });
+      expect(stdoutLog).not.toHaveBeenCalled();
+      expect(errorLog).not.toHaveBeenCalled();
+    } finally { errorLog.mockRestore(); stdoutLog.mockRestore(); }
+  });
+
   it("batchGetRecords calls the batch_get endpoint and returns record buckets", async () => {
     const client = new LarkClient({
       accessToken: "token_123",
@@ -309,5 +346,41 @@ describe("lark-client", () => {
       name: "LarkBatchCreateError",
       createdRecords: [expect.objectContaining({ record_id: "rec_1" })],
     });
+  });
+
+  it("lists bounded chat history and preserves the source chat/thread identity", async () => {
+    const client = new LarkClient({ accessToken: "token", actionRunId: "trace" });
+    (client as unknown as { client: { request: typeof requestMock } }).client = { request: requestMock };
+    requestMock.mockResolvedValueOnce({ code: 0, data: { items: [{ message_id: "om_root", chat_id: "oc_chat", thread_id: "omt_thread", create_time: "1793664000000", body: { content: '{"text":"question"}' } }], has_more: true, page_token: "next" } });
+    expect(await client.getChatMessages("oc_chat", { startTime: "1793664000", endTime: "1793667600", pageSize: 100 })).toMatchObject({ hasMore: true, pageToken: "next", items: [{ chat_id: "oc_chat", thread_id: "omt_thread", create_time: "2026-11-03T00:00:00.000Z" }] });
+    expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({ params: expect.objectContaining({ container_id_type: "chat", container_id: "oc_chat", start_time: "1793664000", end_time: "1793667600", page_size: 50 }) }), expect.anything());
+  });
+
+  it("sends stable creation and reply identifiers to Lark", async () => {
+    const client = new LarkClient({ accessToken: "token" });
+    (client as unknown as { client: { request: typeof requestMock } }).client = { request: requestMock };
+    requestMock.mockResolvedValueOnce({ code: 0, data: { record: { record_id: "rec", fields: {} } } });
+    await client.createRecord("base", "table", { Title: "ticket" }, { clientToken: "uuid" });
+    expect(requestMock).toHaveBeenLastCalledWith(expect.objectContaining({ params: { client_token: "uuid" }, data: { fields: { Title: "ticket" } } }), expect.anything());
+    requestMock.mockResolvedValueOnce({ code: 0, data: { message_id: "om_reply" } });
+    await client.replyToMessage("om_root", "text", '{"text":"recorded"}', { reply_in_thread: true, uuid: "uuid" });
+    expect(requestMock).toHaveBeenLastCalledWith(expect.objectContaining({ data: { msg_type: "text", content: '{"text":"recorded"}', reply_in_thread: true, uuid: "uuid" } }), expect.anything());
+  });
+
+  it("requests only selected Base columns when building the thread deduplication index", async () => {
+    const client = new LarkClient({ accessToken: "token" });
+    (client as unknown as { client: { request: typeof requestMock } }).client = { request: requestMock };
+    requestMock.mockResolvedValueOnce({ code: 0, data: { items: [], has_more: false } });
+    await client.listRecords("base", "table", { fieldNames: ["Lark Message Link"] });
+    expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({ params: expect.objectContaining({ field_names: '["Lark Message Link"]' }) }), expect.anything());
+  });
+
+  it("reads later field metadata pages before resolving intake field names", async () => {
+    const client = new LarkClient({ accessToken: "token" });
+    (client as unknown as { client: { request: typeof requestMock } }).client = { request: requestMock };
+    requestMock.mockResolvedValueOnce({ code: 0, data: { items: [{ field_id: "title", field_name: "Title", type: 1 }], has_more: true, page_token: "fields2" } })
+      .mockResolvedValueOnce({ code: 0, data: { items: [{ field_id: "link", field_name: "Lark Message Link", type: 15 }], has_more: false } });
+    expect(await client.getFields("base", "table")).toHaveLength(2);
+    expect(requestMock).toHaveBeenLastCalledWith(expect.objectContaining({ params: { page_size: 100, page_token: "fields2" } }), expect.anything());
   });
 });

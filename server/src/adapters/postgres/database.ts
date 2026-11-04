@@ -85,7 +85,36 @@ export function createPostgresDatabase(
   });
 }
 
+export async function ensureLarkThreadTicketIntakeSchema(db: Kysely<DatabaseSchema>): Promise<void> {
+  await db.schema.createTable("lark_thread_ticket_scans").ifNotExists()
+    .addColumn("source_key", "text", (c) => c.primaryKey())
+    .addColumn("started_at", "text", (c) => c.notNull())
+    .addColumn("watermark", "text", (c) => c.notNull())
+    .addColumn("updated_at", "text", (c) => c.notNull())
+    .execute();
+  await db.schema.createTable("lark_thread_ticket_intakes").ifNotExists()
+    .addColumn("source_key", "text", (c) => c.notNull())
+    .addColumn("thread_id", "text", (c) => c.notNull())
+    .addColumn("root_message_id", "text", (c) => c.notNull())
+    .addColumn("message_link", "text")
+    .addColumn("action_run_id", "text", (c) => c.notNull())
+    .addColumn("stage", "text", (c) => c.notNull())
+    .addColumn("record_id", "text")
+    .addColumn("title", "text")
+    .addColumn("reply_message_id", "text")
+    .addColumn("error_code", "text")
+    .addColumn("attempts", "integer", (c) => c.notNull().defaultTo(0))
+    .addColumn("created_at", "text", (c) => c.notNull())
+    .addColumn("updated_at", "text", (c) => c.notNull())
+    .addPrimaryKeyConstraint("lark_thread_ticket_intakes_pkey", ["source_key", "thread_id"])
+    .execute();
+  await db.schema.createIndex("lark_thread_ticket_intakes_pending").ifNotExists()
+    .on("lark_thread_ticket_intakes").columns(["source_key", "stage", "updated_at"]).execute();
+  await sql`ALTER TABLE lark_thread_ticket_intakes ADD COLUMN IF NOT EXISTS message_link text`.execute(db);
+}
+
 export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<void> {
+  await ensureLarkThreadTicketIntakeSchema(db);
   await db.schema
     .createTable("workflow_prompts")
     .ifNotExists()
@@ -1157,6 +1186,8 @@ function isUndefinedColumn(error: unknown, column: string): boolean {
 }
 
 export async function resetPostgresDatabase(db: Kysely<DatabaseSchema>): Promise<void> {
+  await sql`DROP TABLE IF EXISTS lark_thread_ticket_intakes`.execute(db);
+  await sql`DROP TABLE IF EXISTS lark_thread_ticket_scans`.execute(db);
   await sql`DROP TABLE IF EXISTS platform_sync_leases`.execute(db);
   await sql`DROP TABLE IF EXISTS platform_sync_schedules`.execute(db);
   await sql`DROP TABLE IF EXISTS platform_sync_runs`.execute(db);

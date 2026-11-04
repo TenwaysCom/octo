@@ -889,3 +889,17 @@ Lark 已写但本地同步失败仍是显式部分成功：FE 保留新值并提
 ### Lark App 创建 Meegle 工作项
 
 `#lark-app-thread-analysis` 的未关联 Ticket 可由有 platformSync 权限的用户调用既有 `POST /api/web/lark-tickets/:recordId/create-meegle-workitem`。FE 只携带源记录标识及 actionRunId；Server 的类型映射、创建、链接回写与单条同步契约保持现状。属性尚未保存时不开始创建，创建期间阻止同 Ticket 属性写入；App 会话状态按 Base/Table/Record 复用在途创建请求并保存结果，搜索切换不会串记录。成功结果投影到 Ticket 和导航缓存，多项链接分别展示；本地同步失败仍保留成功结果并提示，不自动重试。已有链接或平台返回已关联时阻止重复创建，无写权限只展示已有安全链接。此 FE 入口不增强跨进程幂等保证；实现与验证见[创建功能任务](../../tasks/platform-data/2026-10-21-lark-app-create-meegle.md)。
+
+### Lark 话题登记 Ticket
+
+独立 platform worker 的 `larkThreadTickets` 任务（默认关闭）按配置群发现用户根话题；Base message-link 实际 URL 中的 threadid 是已有工单去重依据。每轮按需分页读取链接列并共享索引，不能用链接展示名称替代 URL。`lark_thread_ticket_scans` 独立维护首次起始边界与后续水位，成功发现入队后才推进，重叠扫描由登记表去重。首次默认不补历史。
+
+登记运行时以既有应用凭据构建 Application Bot 客户端，由 SDK 获取缓存 tenant token；注入单条同步和 shadow 的 thread context，保证读取、创建/标题写回、回复及表情统一为应用身份，不依赖个人用户授权。共享接口中的 masterUserId 在该流程为内部 `lark-app:<appId>` 标识，不用于查找用户令牌；缺少应用凭据或平台权限时不回退用户身份。其他同步流程不受此切换影响。
+
+客户端数字 threadid 与 API omt ID 不同。AppLink 入口验证数字话题回复 → root message → 配置群及 canonical ID，把原链接保存在 intake 的 message_link 并以 canonical ID 持久去重；生成链接使用 openthreadid/openchatid，保留原链接数字参数，解析优先 Open ID。自动入口遇到旧数字链接时只在需要时查询一条回复映射别名、进程内缓存，无法证明身份时不创建。单条 CLI 只初始化两张 intake 状态表，不触发全应用迁移；没有回复也没有已知根消息 ID 时不能以 threadid 冒充 message_id。
+
+`lark_thread_ticket_intakes` 的正常生命周期为 `pending → creating → created → analyzed → titled → replying → replied → done`；`existing` 表示 Base 已有记录，`outcome_unknown` 表示创建或回帖结果需要人工核实。稳定 actionRunId 贯穿单条 Base 写入/同步、shadow、标题及确认。复用 coordinator scope lease 和阶段条件更新；已知创建成功后只续跑后续步骤，已确认后只补表情，不重发确认。单阶段五次失败停止自动重试；不确定写入不得自动重试。
+
+新建只调用单条同步与 shadow，不等待周期候选的 settle；标题由现有 Summary provider 生成，写回 Base 并读回本地快照后才确认实际编号/标题，再给根消息添加 JIAYI。新话题无回复时，通过源链接中的 messageid 获取根消息，验证 thread 归属后保存完整上下文。正式 ticket_ai 保持独立。
+
+`POST /api/web/platform-sync/lark-thread-tickets` 使用 Web session 与 platformSync 权限，严格 Zod 校验 chatId/startTime/endTime/apply/maxTickets/actionRunId。时间为带时区 ISO、秒精度的半开区间；默认预览，apply=true 才处理本区间内至多 maxTickets 条。区间入口与指定单条 CLI 均不改变自动游标、不消费其他待办，超额候选不进入自动队列。配置、请求示例与部分成功语义见[同步运行说明](../../tenways-octo/it-platform-sync.md#群话题自动登记工单)，验证边界见[任务](../../tasks/platform-sync/2026-11-03-lark-thread-ticket-intake.md)。

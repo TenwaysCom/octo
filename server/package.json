@@ -13,6 +13,7 @@
     "platform:sync": "tsx ./src/scripts/platform-sync.ts",
     "platform:sync:worker": "node ./dist/scripts/platform-sync-worker.js",
     "platform:sync:worker:dev": "tsx ./src/scripts/platform-sync-worker.ts",
+    "platform:create-lark-thread-ticket": "tsx ./src/scripts/create-lark-thread-ticket.ts",
     "platform:clean-meegle": "tsx ./src/scripts/clean-meegle-sync-snapshots.ts",
     "platform:clean-history": "tsx ./src/scripts/clean-platform-sync-snapshots.ts",
     "platform:init-checkpoints": "tsx ./src/scripts/backfill-platform-sync-checkpoints.ts",

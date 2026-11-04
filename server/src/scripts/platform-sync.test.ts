@@ -95,6 +95,15 @@ describe("platform-sync script", () => {
     expect(() => parsePlatformSyncConfig({ larkBase: [{ baseId: "base" }] })).toThrow();
   });
 
+  it("keeps thread intake off by default and binds each source chat to one existing Base target", () => {
+    const target = { baseId: "base", tableId: "table" };
+    expect(parsePlatformSyncConfig({ larkBase: [target] }).scheduler.tasks.larkThreadTickets).toBeUndefined();
+    const input = { larkBase: [target], scheduler: { tasks: { larkThreadTickets: { sources: [{ ...target, chatId: "oc_test" }] } } } };
+    expect(parsePlatformSyncConfig(input).scheduler.tasks.larkThreadTickets).toMatchObject({ enabled: false, intervalMinutes: 1 });
+    expect(() => parsePlatformSyncConfig({ larkBase: [target], scheduler: { tasks: { larkThreadTickets: { enabled: true } } } })).toThrow();
+    expect(() => parsePlatformSyncConfig({ ...input, larkBase: [{ baseId: "other", tableId: "table" }] })).toThrow();
+  });
+
   it("runs all configured platforms in order by default", async () => {
     const syncRunner = runner();
     const result = await runPlatformSync(parsePlatformSyncArgs([]), config(), syncRunner);

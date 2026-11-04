@@ -39,7 +39,7 @@ export interface LarkTicketThreadContextResult {
 
 export interface LarkTicketThreadContextServiceDeps {
   store?: LarkTicketThreadSyncStore;
-  buildClient?: (masterUserId: string, baseUrl: string) => Promise<{ client: LarkThreadClient }>;
+  buildClient?: (masterUserId: string, baseUrl: string, actionRunId?: string) => Promise<{ client: LarkThreadClient }>;
   now?: () => Date;
   maxAgeMs?: number;
   fullReconcileAgeMs?: number;
@@ -64,7 +64,8 @@ function readPositiveInteger(value: string | undefined, fallback: number): numbe
 export function parseLarkThreadId(messageLink: string | undefined): string | undefined {
   if (!messageLink) return undefined;
   try {
-    return new URL(messageLink).searchParams.get("threadid")?.trim() || undefined;
+    const params = new URL(messageLink).searchParams;
+    return (params.get("openthreadid") || params.get("open_thread_id") || params.get("threadid"))?.trim() || undefined;
   } catch {
     const match = messageLink.match(/[?&]threadid=([^&#\s]+)/i);
     if (!match) return undefined;
@@ -241,6 +242,7 @@ export function createLarkTicketThreadContextService(
     larkBaseUrl: string;
     ticket: LarkBaseTicketSyncItem;
     forceFull?: boolean;
+    actionRunId?: string;
   }): Promise<LarkTicketThreadContextResult> {
     const ref = {
       baseId: input.ticket.baseId,
@@ -270,17 +272,27 @@ export function createLarkTicketThreadContextService(
     }
 
     try {
-      const { client } = await buildClient(input.masterUserId, input.larkBaseUrl);
+      const { client } = await buildClient(input.masterUserId, input.larkBaseUrl, input.actionRunId);
       const isFull = decision === "full";
       const startTime = isFull
         ? undefined
         : toIncrementalStartTime(current?.watermarkCreatedAt, overlapSeconds);
       const replies = await listAllThreadMessages(client, threadId, startTime);
-      const rootMessageId = isFull ? findRootMessageId(replies) : undefined;
+      // Newly registered topics may not have any replies yet. Intake links carry
+      // the root message ID so the first analysis still includes the question.
+      const linkedRootId = (() => {
+        try { return new URL(input.ticket.larkMessageLink ?? "").searchParams.get("messageid") || undefined; }
+        catch { return undefined; }
+      })();
+      const replyRootId = isFull ? findRootMessageId(replies) : undefined;
+      const rootMessageId = isFull ? replyRootId ?? linkedRootId : undefined;
       if (isFull && !rootMessageId && replies.length > 0) {
         throw new Error("Lark thread replies did not include a root message ID.");
       }
       const root = rootMessageId ? await client.getMessage(rootMessageId) : undefined;
+      if (isFull && !replyRootId && linkedRootId && (root?.message_id !== linkedRootId || root.thread_id !== threadId || root.deleted)) {
+        throw new Error("LARK_THREAD_ROOT_MISMATCH");
+      }
       const normalized = [...(root ? [root] : []), ...replies]
         .map(normalizeMessage)
         .filter((message): message is LarkTicketThreadMessage => Boolean(message));
@@ -303,6 +315,9 @@ export function createLarkTicketThreadContextService(
         frozenStatus: terminalStatus,
       });
       threadLogger.info({
+        actionRunId: input.actionRunId,
+        layer: "server",
+        stage: "server.thread_context.completed",
         baseId: ref.baseId,
         tableId: ref.tableId,
         recordId: ref.recordId,
@@ -332,6 +347,7 @@ export function createLarkTicketThreadContextService(
       larkBaseUrl: string;
       ticket: LarkBaseTicketSyncItem;
       forceFull?: boolean;
+      actionRunId?: string;
     }): Promise<LarkTicketThreadContextResult> {
       const threadId = parseLarkThreadId(input.ticket.larkMessageLink);
       const key = [

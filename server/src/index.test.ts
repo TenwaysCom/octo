@@ -55,6 +55,7 @@ describe("index routes", () => {
         "GET /api/weknora/embed-token",
         "POST /api/web/acp/permissions/reply",
         "GET /api/web/platform-data/lark-tickets",
+        "POST /api/web/platform-sync/lark-thread-tickets",
         "GET /api/web/platform-data/search",
         "GET /api/web/platform-data/lark-ticket-filter-options",
         "GET /api/web/platform-data/meegle-workitems",

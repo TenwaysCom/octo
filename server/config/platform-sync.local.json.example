@@ -52,6 +52,16 @@
         "batchLimit": 2,
         "summaryTimeoutSeconds": 300
       },
+      "larkThreadTickets": {
+        "enabled": false,
+        "intervalMinutes": 1,
+        "batchLimit": 5,
+        "sources": [{
+          "chatId": "oc_01f7302959b7723a026f21daae6c622b",
+          "baseId": "app_xxx",
+          "tableId": "tbl_xxx"
+        }]
+      },
       "help": {
         "leaseSeconds": 1200,
         "settleMinutes": "表示只有 source_updated_at 早于当前时间 3 小时的 Ticket，才会进入 Shadow 分析候选。"

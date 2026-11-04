@@ -145,6 +145,12 @@ function makeDeps(input: {
 }
 
 describe("lark-ticket-shadow-summary.service", () => {
+  it("analyzes one new intake immediately and preserves its actionRunId", async () => {
+    const { service, writes, actionRunIds } = makeDeps({ candidates: [], threadResult: { source: "lark", snapshot: makeSnapshot() } });
+    expect(await service.summarizeOne(makeTicket({ sourceUpdatedAt: "2026-09-03T04:59:59Z" }), "intake_trace")).toBe("ok");
+    expect(actionRunIds).toEqual(["intake_trace"]);
+    expect(writes[0]).toMatchObject({ status: "ok", actionRunId: "intake_trace" });
+  });
   it.each([
     [undefined, "low"], ["", "low"], ["low", "low"],
     ["high", "high"], ["max", "max"], ["provider", undefined],
