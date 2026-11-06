@@ -1,3 +1,4 @@
+import { LarkTicketSaveStatus } from "../components/lark-ticket/LarkTicketSaveStatus.jsx";
 import { useEffect, useMemo, useState } from "react";
 import { useLarkTicketFieldEdits } from "../hooks/useLarkTicketFieldEdits.js";
 import { getPlatformDataList } from "../services/platform-data/platform-data-api.js";
@@ -78,7 +79,7 @@ function Roadmap() {
 }
 
 export function LarkTicketAppPage({ apiBaseUrl, appHash, profile, ticketFieldEdits }) {
-  const fieldEdits = useLarkTicketFieldEdits(ticketFieldEdits, apiBaseUrl);
+  const fieldEdits = useLarkTicketFieldEdits(ticketFieldEdits, apiBaseUrl, profile?.user?.id);
   const context = parseLarkTicketAppHash(appHash);
   const [state, setState] = useState({ status: "loading", items: [] });
   const [query, setQuery] = useState("");
@@ -166,8 +167,7 @@ export function LarkTicketAppPage({ apiBaseUrl, appHash, profile, ticketFieldEdi
                       <LarkTicketDeleteButton ticket={ticket} fieldEdits={fieldEdits} canEdit={canEdit} />
                     </span>
                   </div>
-                  {saveStatus.pending > 0 ? <p className="ticket-property__message" role="status">正在保存 {saveStatus.pending} 项修改…</p> : null}
-                  {saveStatus.notices.map((notice, index) => <p className="ticket-property__message ticket-property__message--error" role="alert" key={`${index}:${notice}`}>{notice}</p>)}
+                  <LarkTicketSaveStatus edits={fieldEdits} ticket={ticket} />
                   {creating ? <p className="ticket-property__message" role="status">正在创建 Meegle 工作项…</p> : null}
                   {creation.status === "done" ? <p className={`ticket-property__message${creation.result.syncFailed ? " ticket-property__message--error" : ""}`} role={creation.result.syncFailed ? "alert" : "status"}>
                     已创建 Meegle 工作项 {creation.result.workitemId}{creation.result.syncFailed ? "，但 Octo 同步失败，请稍后同步 Ticket。" : "。"}

@@ -1,6 +1,42 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createLarkTicketMeegleWorkitem, loadLarkTicketFieldOptions, updateLarkTicketField, markLarkTicketDeleted } from "./lark-ticket-actions-api.js";
+import { createLarkTicketMeegleWorkitem, loadLarkTicketFieldOptions, updateLarkTicketField, markLarkTicketDeleted,
+  submitLarkTicketFields, getLarkTicketFieldSubmission, reconcileLarkTicketFields, retryLarkTicketFieldsSync, loadLarkTicketEditableFields } from "./lark-ticket-actions-api.js";
+
+test("batch submission sends only changed fields, expected values, account guard and stable IDs", async () => {
+  const changes = [{ field: "priority", value: "P3", expected: { value: "P1" } }, { field: "responsible", value: "Lin", optionUserId: "ou_lin", expected: { value: "Ada", userIds: ["ou_ada"] } }];
+  const input = { apiBaseUrl: "/api", ticket: { baseId: "base", tableId: "table", recordId: "rec/1", solution: "never send" },
+    expectedUserId: "user", submissionId: "submission", actionRunId: "action", changes };
+  const result = await submitLarkTicketFields({ ...input, fetchImpl: async (url, options) => {
+    assert.equal(url, "/api/web/lark-tickets/rec%2F1/field-submissions");
+    assert.equal(options.credentials, "include"); assert.equal(options.method, "POST");
+    assert.deepEqual(JSON.parse(options.body), { baseId: "base", tableId: "table", expectedUserId: "user", submissionId: "submission", actionRunId: "action", changes });
+    return { ok: true, json: async () => ({ ok: true, data: { state: "saved_pending_sync", larkBaseUpdated: true, syncFailed: true } }) };
+  } });
+  assert.equal(result.state, "saved_pending_sync");
+});
+
+test("recovery and sync calls reference the submission without replaying field values", async () => {
+  const input = { apiBaseUrl: "/api", ticket: { baseId: "base", tableId: "table", recordId: "record" }, expectedUserId: "user", submissionId: "id" };
+  for (const [call, path, method] of [[getLarkTicketFieldSubmission, "field-submissions/id", "GET"],
+    [reconcileLarkTicketFields, "field-submissions/id/reconcile", "POST"], [retryLarkTicketFieldsSync, "field-submissions/id/sync", "POST"],
+    [loadLarkTicketEditableFields, "editable-fields", "GET"]]) {
+    await call({ ...input, fetchImpl: async (url, options) => {
+      assert.equal(options.method, method);
+      assert.equal(url, `/api/web/lark-tickets/record/${path}${method === "GET" ? "?baseId=base&tableId=table&expectedUserId=user" : ""}`);
+      if (method === "POST") assert.deepEqual(JSON.parse(options.body), { baseId: "base", tableId: "table", expectedUserId: "user" });
+      return { ok: true, json: async () => ({ ok: true, data: { state: "unknown" } }) };
+    } });
+  }
+});
+
+test("transport timeout remains ambiguous and never automatically retries a POST", async () => {
+  let calls = 0;
+  await assert.rejects(submitLarkTicketFields({ apiBaseUrl: "/api", ticket: { baseId: "b", tableId: "t", recordId: "r" }, timeoutMs: 1,
+    fetchImpl: async (_url, options) => { calls++; return new Promise((_resolve, reject) => options.signal.addEventListener("abort", () => reject(new Error("timeout")))); },
+  }), /timeout/);
+  assert.equal(calls, 1);
+});
 
 test("loads ticket field options with the browser session", async () => {
   let request;

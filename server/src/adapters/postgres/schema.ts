@@ -1,6 +1,13 @@
 import type { Generated } from "kysely";
 
 export interface DatabaseSchema {
+  lark_ticket_field_submissions: {
+    submission_id: string; master_user_id: string; base_url: string;
+    base_id: string; table_id: string; record_id: string;
+    request_hash: string; changes_json: string; action_run_id: string;
+    state: string; result_json: string; active_ticket_key: string | null;
+    created_at: string; updated_at: string;
+  };
   lark_ticket_done_scans: {
     source_key: string;
     enabled_at: string;

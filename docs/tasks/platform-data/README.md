@@ -1,5 +1,7 @@
 # Platform Data Tasks
 
+- [Ticket 合并自动保存与提交恢复](2026-11-06-lark-ticket-batched-autosave.md) — done；六属性 1 秒合并、持久提交与冲突/超时恢复完成，Server/FE 及合成浏览器通过；未部署。
+
 范围：Meegle Workitem、Lark Ticket、GitHub PR 的列表、详情、本地扩展数据、关联展示与 Platform Data Web API。平台拉取、清洗、checkpoint、stale、回写与对账归 `platform-sync`；平台授权归 `platform-auth`；AI 分析与自动化归对应 AI 模块。记录规则见 [Tasks 台账](../README.md)。
 
 - [Ticket 源记录错误识别与 Octo 删除标记](2026-11-06-lark-ticket-source-errors-and-deletion.md) — done；错误分类、两处确认入口及本地软删除完成；Server/FE 与浏览器模拟验收通过，未部署。

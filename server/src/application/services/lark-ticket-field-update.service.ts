@@ -143,7 +143,7 @@ function isSingleSelectField(field: LarkBitableField | undefined): boolean {
   return field?.type === LARK_FIELD_TYPE_SINGLE_SELECT;
 }
 
-function findFieldByName(fields: LarkBitableField[], semantic: LarkTicketSemanticField): LarkBitableField | undefined {
+export function findFieldByName(fields: LarkBitableField[], semantic: LarkTicketSemanticField): LarkBitableField | undefined {
   const candidates = LARK_TICKET_FIELD_CANDIDATES[semantic];
   return fields.find((field) => candidates.includes(field.field_name));
 }
@@ -154,7 +154,7 @@ function findRecordFieldName(record: LarkBitableRecord, semantic: LarkTicketSema
   return candidates.find((name) => keys.includes(name));
 }
 
-function buildFieldValue(
+export function buildFieldValue(
   semantic: LarkTicketSemanticField,
   field: LarkBitableField | undefined,
   value: string,
@@ -197,7 +197,7 @@ function larkValueToText(value: unknown): string {
   return "";
 }
 
-function buildUpdatedTicketProjection(
+export function buildUpdatedTicketProjection(
   baseId: string,
   tableId: string,
   recordId: string,

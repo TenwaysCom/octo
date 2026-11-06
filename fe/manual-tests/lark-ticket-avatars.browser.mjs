@@ -41,7 +41,7 @@ try {
       { field: "responsible", kind: "user", options: Object.values(people).map((person) => ({ label: person.name, userId: person.userId, avatarUrl: person.avatarUrl })) },
       { field: "requester", kind: "user", options: Object.values(people).map((person) => ({ label: person.name, userId: person.userId, avatarUrl: person.avatarUrl })) },
     ] });
-    if (path.endsWith("/fields")) { writes.push({ route, input: route.request().postDataJSON() }); return; }
+    if (path.endsWith("/field-submissions")) { writes.push({ route, input: route.request().postDataJSON() }); return; }
     if (path.endsWith("/ai-sessions")) return ok({ sessions: [] });
     return route.fulfill({ status: 503, json: { ok: false, error: { errorCode: "FIXTURE_UNAVAILABLE" } } });
   });
@@ -107,15 +107,17 @@ try {
   await expect(owner().locator("img")).toHaveCount(0);
   const first = writes[0];
   tickets[0].responsible = "Zoe"; tickets[0].responsiblePeople = [people.Zoe];
-  await first.route.fulfill({ json: { ok: true, data: { larkBaseUpdated: true, recordId: "avatar-a", field: "responsible", ticket: structuredClone(tickets[0]) } } });
+  await first.route.fulfill({ json: { ok: true, data: { state: "saved", larkBaseUpdated: true, recordId: "avatar-a", ticket: structuredClone(tickets[0]) } } });
   await loaded(owner().locator('img[src="https://avatar.test/zoe.svg"]'));
   await chooseOwner("Lin");
   await expect.poll(() => writes.length).toBe(2);
   await expect(owner()).toContainText("Lin");
-  await writes[1].route.fulfill({ status: 502, json: { ok: false, error: { errorCode: "MOCK_WRITE_REJECTED", errorMessage: "Synthetic rejection" } } });
+  await writes[1].route.fulfill({ json: { ok: true, data: { state: "rejected", larkBaseUpdated: false, errorCode: "MOCK_WRITE_REJECTED", errorMessage: "Synthetic rejection" } } });
+  await expect(owner()).toContainText("Lin");
+  await page.getByRole("button", { name: "放弃未保存修改", exact: true }).click();
   await expect(owner()).toContainText("Zoe");
   await loaded(owner().locator('img[src="https://avatar.test/zoe.svg"]'));
-  process.stdout.write("PASS: detail keeps 19px size; owner changes immediately, accepts new avatar and rolls back on failure\n");
+  process.stdout.write("PASS: detail keeps 19px size; failed owner draft stays visible, explicit discard restores the confirmed avatar\n");
 
   await page.setViewportSize({ width: 390, height: 844 });
   await loaded(owner().locator("img"));

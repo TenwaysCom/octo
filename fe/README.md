@@ -35,7 +35,7 @@ Ticket 详情页可通过“打开 Ticket AI 小窗”进入。顶部常驻标�
 Wiki 后的 `Hermes Agent AI` 页签复用“回答问题”ACP 入口，手动启动、支持追问、工具审批及停止。仅显示当前账号 / Ticket 的 Hermes Answer 会话，与主站详情互通；聊天资料版本/同步时间来自 Server，旧会话不自动刷新材料，需要最新资料时新建对话。页签切换保留当前输入；离开页面不停止已接受的后台任务。新页签不提供业务草稿确认写回按钮。Reasoning、工具步骤与答案分层展示，思考可折叠阅读；Sources 消费 Server 的 `answer.sources` 实时 / 历史事件，按轮次展示回答引用；不从工具记录推断来源，不在 FE 解析 Markdown。
 本地模拟交互可运行 `pnpm --dir fe exec node manual-tests/lark-hermes.browser.mjs`（复用 Extension Playwright，浏览器路径配置同下文 Eval 脚本）；[实现与验收记录](../docs/tasks/ai-ticket/2026-10-21-lark-hermes-answer-tab.md)区分 mock 和真实 Hermes / 部署验证。
 
-标题下六项属性（状态、紧急度、需求人、负责人、类型、Business Line）支持有 `platformSync` 权限的用户点击编辑；仅有查看权限时保持只读。复用列表/详情的共享队列，立即回显、允许连续修改，并按字段处理失败回滚和部分成功；搜索切换 Ticket 不串值，修改属性不重置回复草稿。
+标题下六项属性（状态、紧急度、需求人、负责人、类型、Business Line）支持有 `platformSync` 权限的用户点击编辑；仅有查看权限时保持只读。复用列表/详情的共享队列，立即回显、停手 1 秒按 Ticket 合并保存，最长等 3 秒；冲突和明确失败保留草稿，支持核对及同步恢复；搜索切换 Ticket 不串值，修改属性不重置回复草稿。
 
 未关联 Meegle 的 Ticket 支持有 `platformSync` 权限的用户点击“创建 Meegle”，复用现有 Server 创建与链接回写流程。等待属性保存完成后才能开始创建，创建期间暂停该 Ticket 的属性修改并防重复提交；成功后直接显示返回的工作项链接，部分同步失败也保留结果。已有链接只展示“打开 Meegle”；两个入口均紧随“原始讨论”同行显示，窄屏自然换行。状态和结果在当前登录会话内按 Ticket 隔离，搜索切换不会串入其他记录。验证及边界见[创建功能任务](../docs/tasks/platform-data/2026-10-21-lark-app-create-meegle.md)。
 
@@ -159,11 +159,19 @@ Ticket 列表、详情及 Lark App 的需求人/负责人徽章使用 Server 返
 
 点击人员展开的选择列表也使用相同头像缓存：既有 `field-options` 接口的人员选项增加可选 `avatarUrl`，Server 一次批量查询并按 `userId` 匹配。列表菜单、详情及 App 属性菜单均保留 16px 尺寸、搜索和选中行为，缺失或图片失败时回退首字；不按姓名推断头像。
 
-可运行 `OCTO_FIELD_BROWSER_EXECUTABLE=<已有 Chromium 路径> pnpm --dir fe exec node manual-tests/lark-ticket-avatars.browser.mjs` 验证列表、详情、窄屏 App、图片失败和编辑回滚；全部使用合成 API/图片，真实库只读及部署边界见 [头像展示任务](../docs/tasks/platform-data/2026-11-06-lark-ticket-contact-avatars.md)。
+可运行 `OCTO_FIELD_BROWSER_EXECUTABLE=<已有 Chromium 路径> pnpm --dir fe exec node manual-tests/lark-ticket-avatars.browser.mjs` 验证列表、详情、窄屏 App、图片失败及失败草稿放弃后的头像恢复；全部使用合成 API/图片，真实库只读及部署边界见 [头像展示任务](../docs/tasks/platform-data/2026-11-06-lark-ticket-contact-avatars.md)。
 
-Ticket 列表、详情属性及 Lark App 属性栏在选值后立即关闭菜单、回显并显示保存中，可以连续修改。App 按登录用户及 API 地址持有共享队列；同一 Ticket 请求依次发送，失败只恢复对应字段到最后已确认值，旧响应不会整条覆盖更新的修改。详情导航缓存同步更新，列表请求按编辑版本隔离并发复用。解决方案提交共用该队列。Lark 已写但本地同步失败时保留新值并提示；退出登录取消未发送修改。队列仅在当前页面会话内有效，未提供刷新后的持久化恢复。
+Ticket 列表、详情及 Lark App 六属性在选值后立即回显，停手 1 秒合并提交，连续编辑最长等 3 秒。同字段最后选择生效、改回基线不请求；发送中仍可编辑下一批，旧响应不能覆盖新选择。App 按登录用户、API 地址和完整 Base/Table/Record 隔离队列，列表及导航缓存同步投影。
 
-Server 元数据缓存及减少远端读取的契约、模拟浏览器检查入口和真实平台验证边界见[任务记录](../docs/tasks/platform-sync/2026-10-21-lark-ticket-edit-sync-performance.md)。
+草稿与提交编号写入 sessionStorage，刷新先核对已发批次和最新 Lark 数据再恢复；换账号不续发旧账号草稿，退出登录清除草稿。字段冲突展示本地/远端值并等待用户选择；明确拒绝保留内容，可重新核对或放弃草稿。超时暂停该 Ticket 后续发送并按编号查询/回读，仍允许编辑；已写入但 Octo 同步失败显示“已保存，待同步”，重试只同步。存储不可用会提示，关闭标签不承诺草稿恢复。
+
+六属性调用新批量接口，解决方案继续原手动保存接口。接口示例、结果状态、兼容及并发限制见[接入契约](../docs/tenways-octo/lark-ticket-batched-save.md)。合成浏览器检查：
+
+```bash
+OCTO_FIELD_BROWSER_EXECUTABLE=/opt/google/chrome/chrome pnpm --dir fe exec node manual-tests/lark-ticket-batched-save.browser.mjs
+```
+
+该检查不验证真实账号、Lark 写入或部署。旧 `lark-ticket-field-edits.browser.mjs` 记录逐字段发送/失败回滚的旧行为，当前批量保存验收使用新脚本；当前证据及范围见[任务记录](../docs/tasks/platform-data/2026-11-06-lark-ticket-batched-autosave.md)。
 
 ## 共享颜色主题
 

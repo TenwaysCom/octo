@@ -147,6 +147,21 @@ export async function ensureLarkContactAvatarColumns(db: Kysely<DatabaseSchema>)
 }
 
 export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<void> {
+  await db.schema.createTable("lark_ticket_field_submissions").ifNotExists()
+    .addColumn("submission_id", "text", (c) => c.primaryKey())
+    .addColumn("master_user_id", "text", (c) => c.notNull())
+    .addColumn("base_url", "text", (c) => c.notNull())
+    .addColumn("base_id", "text", (c) => c.notNull())
+    .addColumn("table_id", "text", (c) => c.notNull())
+    .addColumn("record_id", "text", (c) => c.notNull())
+    .addColumn("request_hash", "text", (c) => c.notNull())
+    .addColumn("changes_json", "text", (c) => c.notNull())
+    .addColumn("action_run_id", "text", (c) => c.notNull())
+    .addColumn("state", "text", (c) => c.notNull())
+    .addColumn("result_json", "text", (c) => c.notNull())
+    .addColumn("active_ticket_key", "text", (c) => c.unique())
+    .addColumn("created_at", "text", (c) => c.notNull())
+    .addColumn("updated_at", "text", (c) => c.notNull()).execute();
   await ensureLarkThreadTicketIntakeSchema(db);
   await ensureLarkTicketDoneSchema(db);
   await db.schema
@@ -1229,6 +1244,7 @@ function isUndefinedColumn(error: unknown, column: string): boolean {
 }
 
 export async function resetPostgresDatabase(db: Kysely<DatabaseSchema>): Promise<void> {
+  await db.schema.dropTable("lark_ticket_field_submissions").ifExists().execute();
   await sql`DROP TABLE IF EXISTS lark_ticket_done_reactions`.execute(db);
   await sql`DROP TABLE IF EXISTS lark_ticket_done_scans`.execute(db);
   await sql`DROP TABLE IF EXISTS lark_thread_ticket_intakes`.execute(db);

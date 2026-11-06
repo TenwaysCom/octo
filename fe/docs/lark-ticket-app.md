@@ -2,9 +2,9 @@
 
 本地页面：`http://localhost:4173/#lark-app-thread-analysis`。部署后使用 FE 的同源地址。页面复用 Web Session 和平台列表权限，通过既有 GET 接口读取 Ticket；用户手动点击后，复用现有 AI Session 接口执行 Wiki 问答。保留 H5 SDK 免登；v13 已移除 openChatId 采集、签名请求和会话诊断展示，通过标题/编号搜索选择 Ticket。
 
-选中 Ticket 后，标题下属性栏支持编辑状态、紧急度、需求人、负责人、类型与 Business Line；仅 `workspaceAccess.platformSync` 为真时显示编辑按钮，其他用户只读。选项由既有 `GET /api/web/lark-tickets/field-options` 提供，写入复用 `POST /api/web/lark-tickets/:recordId/fields`，服务端仍独立鉴权。
+选中 Ticket 后，标题下属性栏支持编辑状态、紧急度、需求人、负责人、类型与 Business Line；仅 `workspaceAccess.platformSync` 为真时显示编辑按钮，其他用户只读。选项由既有 `GET /api/web/lark-tickets/field-options` 提供，写入使用 `POST /api/web/lark-tickets/:recordId/field-submissions`，服务端仍独立鉴权。
 
-选值后立即回显并关闭菜单，同一 Ticket 按序提交，其他字段可以继续选择。与主站共用 App 会话内队列，失败只回滚对应修改，旧完整响应不覆盖后续值；Lark 已写但本地同步失败时保留新值并提示。搜索切换 Ticket 后在途操作继续，状态和错误按完整 Base/Table/Record 标识隔离；修改属性不会重置回复草稿或切换 AI 页签。读取请求沿用编辑版本门禁，未提供刷新后的待发送修改持久化恢复。
+选值后立即回显并关闭菜单；同 Ticket 停手 1 秒合并提交，最长等 3 秒，同字段只保留最后选择，改回基线不发送。保存中可继续整理下一批。与主站共用工作台队列及 sessionStorage 草稿，刷新后核对当前账号、提交编号与最新 Lark 数据再恢复，换账号不发送旧草稿。冲突展示双方值并等待选择，明确拒绝保留草稿；未知结果暂停发送并提供重新核对；已保存但本地同步失败仅重试同步。搜索切换 Ticket 不串记录，属性更新不重置回复草稿或 AI 页签。完整[接口契约](../../docs/tenways-octo/lark-ticket-batched-save.md)。
 
 标题信息区在“原始讨论”旁同行提供“创建 Meegle”（窄屏自然换行）：仅有 `platformSync` 权限且没有已有 Meegle 关联时可用，复用 `POST /api/web/lark-tickets/:recordId/create-meegle-workitem` 并提交 actionRunId。先等待属性保存完成，创建期间暂停同 Ticket 的属性修改并复用在途请求，搜索切换后仍保留创建状态。类型映射、平台创建和 Lark 链接回写均由既有 Server workflow 负责。
 
@@ -99,14 +99,14 @@ Server 的 `/api/lark/auth/h5/signature` 接口保持现状，本页面已无调
 - 搜索切到其他 Ticket 再返回：显示原记录的创建状态；成功时只更新原记录，不影响当前其他 Ticket，回复草稿不因同 Ticket 创建结果而重置。
 - 成功后显示所有返回链接；部分同步失败时仍保留结果与链接，不重新提供创建按钮。链接只接受 HTTP(S)。
 - 创建失败显示原因，明确点击才重试。Server 返回已有链接时显示重新读取入口，不重复创建；已有关联的只读用户仅显示打开链接。
-- 本地模拟检查与属性编辑共用 `node fe/manual-tests/lark-ticket-field-edits.browser.mjs`，真实 Lark/Meegle 写入及部署状态以[任务记录](../../docs/tasks/platform-data/2026-10-21-lark-app-create-meegle.md)为准。
+- 批量属性编辑的本地模拟检查使用 `node fe/manual-tests/lark-ticket-batched-save.browser.mjs`，真实 Lark/Meegle 写入及部署状态以[任务记录](../../docs/tasks/platform-data/2026-10-21-lark-app-create-meegle.md)为准。
 
 ### 属性编辑
 
-- 有 `platformLists` 和 `platformSync` 权限：选中 Ticket，六项属性均可点选、搜索选项并保存；连续修改时立即回显，提示待保存数量。无写权限不显示编辑按钮。
-- 连续修改不同字段或同一字段，延迟返回旧响应，再让后续操作失败：只回滚对应字段到最后已确认值，保留其他字段的新值。人员写入携带选项的 userId。
-- 保存中搜索切换到其他 Ticket，再返回：值和失败提示不串记录；Lark 已写但本地同步失败时保留新值并提示部分成功。已输入的回复草稿不因同一 Ticket 属性更新而重置。
-- 390px 窄屏可打开浮层、搜索及选值，页面不产生横向溢出。模拟检查入口：`node fe/manual-tests/lark-ticket-field-edits.browser.mjs`；需要时用 `OCTO_FIELD_BROWSER_EXECUTABLE` 指定已安装 Chromium。
+- 有 `platformLists` 和 `platformSync` 权限：选中 Ticket，六项属性均可点选、搜索选项并保存；连续修改时立即回显并合并保存，展示保存状态。无写权限不显示编辑按钮。
+- 连续修改三项只产生一次提交；保存中再修改进入下一批，旧响应只确认自己的字段。明确失败保留草稿，冲突展示双方值并等待选择。人员写入携带选项的 userId。
+- 保存中搜索切换到其他 Ticket，再返回：值和失败提示不串记录；Lark 已写但本地同步失败时保留新值并提示“已保存，待同步”，支持只重试同步。已输入的回复草稿不因同一 Ticket 属性更新而重置。
+- 390px 窄屏可打开浮层、搜索及选值，页面不产生横向溢出。模拟检查入口：`node fe/manual-tests/lark-ticket-batched-save.browser.mjs`；需要时用 `OCTO_FIELD_BROWSER_EXECUTABLE` 指定已安装 Chromium。
 
 ### Shadow Eval 标注
 

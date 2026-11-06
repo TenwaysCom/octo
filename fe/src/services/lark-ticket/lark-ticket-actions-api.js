@@ -52,7 +52,42 @@ export async function createLarkTicketMeegleWorkitem({ apiBaseUrl, ticket, actio
 function apiError(payload, fallbackCode) {
   const error = new Error(payload?.error?.errorMessage || payload?.error?.errorCode || fallbackCode);
   error.code = payload?.error?.errorCode || fallbackCode;
+  error.details = payload?.error;
   return error;
+}
+
+// The client timeout detaches observation only. The Server continues recording the submission result.
+async function submissionRequest({ apiBaseUrl, ticket, expectedUserId, path = "", method = "GET", body, fetchImpl = fetch, timeoutMs = 15_000 }) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const reference = { baseId: ticket.baseId, tableId: ticket.tableId, expectedUserId };
+  const suffix = method === "GET" ? `?${new URLSearchParams(reference)}` : "";
+  try {
+    const response = await fetchImpl(buildApiUrl(apiBaseUrl, `/web/lark-tickets/${encodeURIComponent(ticket.recordId)}/${path}${suffix}`), {
+      method, credentials: "include", signal: controller.signal,
+      ...(method !== "GET" ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...reference, ...body }) } : {}),
+    });
+    const payload = await response.json().catch(() => undefined);
+    if (!response.ok || !payload?.ok) throw apiError(payload, "TICKET_SUBMISSION_FAILED");
+    return payload.data;
+  } finally { clearTimeout(timer); }
+}
+export function submitLarkTicketFields(input) {
+  return submissionRequest({ ...input, path: "field-submissions", method: "POST", body: {
+    submissionId: input.submissionId, actionRunId: input.actionRunId, changes: input.changes,
+  } });
+}
+export function getLarkTicketFieldSubmission(input) {
+  return submissionRequest({ ...input, path: `field-submissions/${encodeURIComponent(input.submissionId)}` });
+}
+export function reconcileLarkTicketFields(input) {
+  return submissionRequest({ ...input, path: `field-submissions/${encodeURIComponent(input.submissionId)}/reconcile`, method: "POST" });
+}
+export function retryLarkTicketFieldsSync(input) {
+  return submissionRequest({ ...input, path: `field-submissions/${encodeURIComponent(input.submissionId)}/sync`, method: "POST" });
+}
+export function loadLarkTicketEditableFields(input) {
+  return submissionRequest({ ...input, path: "editable-fields" });
 }
 
 export async function markLarkTicketDeleted({ apiBaseUrl, ticket, actionRunId, fetchImpl = fetch }) {

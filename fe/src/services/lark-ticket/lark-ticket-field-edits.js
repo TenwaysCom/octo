@@ -1,4 +1,5 @@
 import { createLarkTicketMeegleWorkitem, updateLarkTicketField, markLarkTicketDeleted } from "./lark-ticket-actions-api.js";
+import { BATCH_FIELDS, createLarkTicketBatchedEdits } from "./lark-ticket-batched-edits.js";
 
 const FIELDS = {
   status: ["ticketStatus", "状态"], priority: ["priority", "紧急度"],
@@ -11,14 +12,16 @@ const keyOf = (ticket) => JSON.stringify([ticket.baseId, ticket.tableId, ticket.
 const sameValue = (left, right) => left === right || (Array.isArray(left) && Array.isArray(right) && left.length === right.length
   && left.every((person, index) => person.name === right[index].name && person.userId === right[index].userId));
 
-/** Session-owned UI state, not a durable save queue. Only one request per Ticket is sent at a time. */
-export function createLarkTicketFieldEdits({ apiBaseUrl, update = updateLarkTicketField, createMeegle = createLarkTicketMeegleWorkitem, markDeleted = markLarkTicketDeleted, onPatch } = {}) {
+/** Workbench-owned edits. Six properties are batched; the explicit solution save retains its existing contract. */
+export function createLarkTicketFieldEdits({ apiBaseUrl, update = updateLarkTicketField, createMeegle = createLarkTicketMeegleWorkitem, markDeleted = markLarkTicketDeleted, onPatch, ...batchOptions } = {}) {
   const records = new Map();
   const listeners = new Set();
   let revision = 0;
   let disposed = false;
   let owners = 0;
   const readScope = crypto.randomUUID();
+  const batch = createLarkTicketBatchedEdits({ ...batchOptions, update: batchOptions.updateFields, apiBaseUrl, getVersion: () => revision,
+    changed: (ticketPatch) => { if (ticketPatch) onPatch?.(ticketPatch); changed(); } });
 
   function recordFor(ticket) {
     const key = keyOf(ticket);
@@ -94,6 +97,7 @@ export function createLarkTicketFieldEdits({ apiBaseUrl, update = updateLarkTick
   const edits = {
     retain() {
       owners += 1;
+      batch.start();
       return () => {
         owners -= 1;
         // React StrictMode replays effect setup/cleanup without replacing memoized state.
@@ -105,11 +109,12 @@ export function createLarkTicketFieldEdits({ apiBaseUrl, update = updateLarkTick
     getReadScope: () => `${readScope}:${revision}`,
     project(ticket) {
       const record = ticket && records.get(keyOf(ticket));
-      return record ? { ...ticket, ...patch(record) } : ticket;
+      return batch.project(record ? { ...ticket, ...patch(record) } : ticket);
     },
     // Only a read started after settlement may supersede a confirmed patch. Navigation snapshots
     // and reads already in flight when the user edited are deliberately not fresh-read evidence.
     accept(tickets, readVersion) {
+      batch.accept(tickets, readVersion);
       let accepted = false;
       for (const ticket of tickets) {
         const record = records.get(keyOf(ticket));
@@ -129,15 +134,31 @@ export function createLarkTicketFieldEdits({ apiBaseUrl, update = updateLarkTick
       if (accepted) changed();
     },
     status(ticket) {
+      const batched = batch.status(ticket);
       const selected = ticket ? [records.get(keyOf(ticket))].filter(Boolean) : [...records.values()];
-      return { pending: selected.reduce((count, record) => count + record.pending.length, 0),
+      return { ...batched, pending: batched.pending + selected.reduce((count, record) => count + record.pending.length, 0),
         blocked: selected.some((record) => Boolean(blocked(record))),
-        notices: selected.flatMap((record) => [...record.notices.values()]) };
+        notices: [...batched.notices, ...selected.flatMap((record) => [...record.notices.values()])] };
     },
+    async recheck(ticket) {
+      await batch.recheck(ticket);
+      if (disposed) return;
+      const phase = batch.status(ticket).entries[0]?.phase;
+      const record = records.get(keyOf(ticket));
+      if (record?.sourceError && (!phase || ["waiting", "saved", "conflict"].includes(phase))) {
+        delete record.sourceError;
+        record.notices.delete("source");
+        changed(record);
+      }
+    },
+    discardDraft: batch.discardDraft,
+    resolveConflict: batch.resolveConflict,
+    retrySync: batch.retrySync,
     reportSourceError(ticket, error) {
       if (disposed || !["LARK_TICKET_SOURCE_NOT_FOUND", "LARK_TICKET_DELETED"].includes(error?.code)) return;
       const record = recordFor(ticket);
       blockMissingSource(record, error);
+      batch.block(ticket, error);
       changed(record);
     },
     deletionStatus(ticket) { return records.get(keyOf(ticket))?.deletion ?? { status: "idle" }; },
@@ -146,7 +167,7 @@ export function createLarkTicketFieldEdits({ apiBaseUrl, update = updateLarkTick
       const record = recordFor(ticket);
       if (record.deletion?.status === "running") return record.deletion.completion;
       if (record.deletion?.status === "done") return Promise.resolve(record.deletion.result);
-      if (record.pending.length || record.creation?.status === "running") return Promise.reject(new Error("请等待当前操作完成后再标记删除。"));
+      if (record.pending.length || batch.status(ticket).pending || record.creation?.status === "running") return Promise.reject(new Error("请等待当前操作完成后再标记删除。"));
       const deletion = { status: "running" };
       record.deletion = deletion;
       deletion.completion = Promise.resolve().then(() => {
@@ -176,7 +197,7 @@ export function createLarkTicketFieldEdits({ apiBaseUrl, update = updateLarkTick
       if (ticket.meegleLink?.trim() || record.creation?.errorCode === "MEEGLE_LINK_ALREADY_EXISTS") {
         return Promise.reject(new Error("该 Ticket 已有 Meegle 链接，无需重复创建。"));
       }
-      if (record.pending.length) return Promise.reject(new Error("请等待属性保存完成后再创建。"));
+      if (record.pending.length || batch.status(ticket).pending) return Promise.reject(new Error("请等待属性保存完成后再创建。"));
       const creation = { status: "running", actionRunId };
       record.creation = creation;
       // Install the shared promise before dispatch, including synchronous transport failures.
@@ -214,6 +235,11 @@ export function createLarkTicketFieldEdits({ apiBaseUrl, update = updateLarkTick
         changed(record);
         return Promise.reject(new Error(message));
       }
+      if (Object.hasOwn(BATCH_FIELDS, field)) {
+        if (record.pending.length) return Promise.reject(new Error("请等待解决方案保存完成后再修改属性。"));
+        return batch.submit({ ticket, field, value, optionUserId });
+      }
+      if (batch.status(ticket).pending) return Promise.reject(new Error("请等待属性保存完成后再保存解决方案。"));
       if (!record.confirmed.has(key)) record.confirmed.set(key, { value: ticket[key], settledAt: Infinity, syncFailed: false });
       const peopleKey = ["requester", "responsible"].includes(field) && Array.isArray(ticket[`${field}People`]) ? `${field}People` : undefined;
       if (peopleKey && !record.confirmed.has(peopleKey)) record.confirmed.set(peopleKey, { value: ticket[peopleKey], settledAt: Infinity, syncFailed: false });
@@ -226,7 +252,8 @@ export function createLarkTicketFieldEdits({ apiBaseUrl, update = updateLarkTick
       void drain(record);
       return completion;
     },
-    dispose() {
+    dispose(options) {
+      batch.dispose(options);
       disposed = true;
       for (const record of records.values()) {
         const unsent = record.pending.splice(record.running ? 1 : 0);

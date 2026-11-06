@@ -1,3 +1,4 @@
+import { LarkTicketSaveStatus } from "../components/lark-ticket/LarkTicketSaveStatus.jsx";
 import { useLarkTicketFieldEdits } from "../hooks/useLarkTicketFieldEdits.js";
 import { odooBuildRequests } from "../services/platform-data/odoo-build-requests.js";
 import { loadLarkTicketSharedUrl } from "../services/lark-ticket/lark-ticket-api.js";
@@ -982,8 +983,7 @@ function MeeglePullRequestPicker({ picker, onClose, onSelect }) {
 }
 
 export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, breadcrumbs, platformListFilterState, onPlatformListFilterStateChange, onLarkTicketNavigationContextChange, ticketFieldEdits }) {
-  const fieldEdits = useLarkTicketFieldEdits(ticketFieldEdits, apiBaseUrl);
-  const fieldSaveStatus = fieldEdits.status();
+  const fieldEdits = useLarkTicketFieldEdits(ticketFieldEdits, apiBaseUrl, profile?.user?.id);
   const restoredFilters = platformListFilterState || {};
   const [searchInput, setSearchInput] = useState(() => restoredFilters.searchQuery || "");
   const ticketSearchInputRef = useRef(null);
@@ -1902,8 +1902,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
         {state.status === "loading" ? <p className="list-message">正在加载同步数据…</p> : null}
         {state.status === "error" ? <p className="list-message list-message--error">同步数据暂时无法读取，请稍后重试。</p> : null}
         {resetError ? <p className="list-message list-message--error">{resetError}</p> : null}
-        {page === "lark-tickets" && fieldSaveStatus.pending > 0 ? <p className="list-message" role="status">正在保存 {fieldSaveStatus.pending} 项修改…</p> : null}
-        {page === "lark-tickets" ? fieldSaveStatus.notices.map((notice, index) => <p className="list-message list-message--error" role="alert" key={`${index}:${notice}`}>{notice}</p>) : null}
+        {page === "lark-tickets" ? <LarkTicketSaveStatus edits={fieldEdits} className="list-message" /> : null}
         {ticketActionMessage ? createPortal(<div className={`ticket-notification ticket-notification--${ticketActionMessage.tone}`}>
           <span className="ticket-notification__icon" aria-hidden="true">{ticketActionMessage.tone === "error" ? "!" : "✓"}</span>
           <div className="ticket-notification__content" role={ticketActionMessage.tone === "error" ? "alert" : "status"} aria-atomic="true">

@@ -32,6 +32,7 @@ update_required_when:
 | `MeegleAuthCredential` | Server auth store, extension auth bridge triggers | `extension/src/content-scripts/meegle.ts`, `extension/src/background/handlers/meegle-auth.ts`, `server/src/modules/meegle-auth/*` | 使用 auth-code bridge；不能把 cookie 发给 server |
 | `LarkAuthCredential` | Server auth store, extension OAuth callback bridge | `extension/src/background/handlers/lark-auth.ts`, `extension/src/content-scripts/lark-auth-callback.ts`, `server/src/modules/lark-auth/*` | OAuth session/callback 已存在；以 `open_id` 作为唯一 Lark 外部用户标识；live E2E 保护线不足 |
 | `LarkBitableRecord` | Lark adapter / server workflow | `server/src/modules/lark-base/lark-base-workflow.service.ts`, `server/src/adapters/lark/lark-client.ts` | server 读取记录并构建 Meegle draft |
+| `TicketFieldSubmission` | Server workflow / PostgreSQL; FE owns drafts | `server/src/application/services/lark-ticket-field-submission.service.ts`, `server/src/adapters/postgres/lark-ticket-field-submission-store.ts`, `fe/src/services/lark-ticket/lark-ticket-batched-edits.js` | 六属性按 Ticket 合并，字段级冲突检查、持久提交身份与结果、未知结果写锁、只重试同步；浏览器草稿按账号恢复。详见[接入契约](../../tenways-octo/lark-ticket-batched-save.md)。 |
 | `LarkContactAvatar` | Server extraction/people services / PostgreSQL contact store | `server/src/application/services/lark-ticket-avatar-extraction.service.ts`, `server/src/application/services/lark-ticket-people.service.ts`, `server/src/adapters/postgres/lark-contact-store.ts` | 离线按 Ticket 区间提取并按 open_id 增量更新 avatar_url/avatar_source_synced_at；仅较新观察可覆盖，保留其他联系人信息，默认预览，apply 只补列，无自动调度或图片下载。Web 列表及字段更新按源人员 ID 一次批量读取头像，透出最小 requesterPeople/responsiblePeople，保留旧姓名字段；field-options 人员选项复用同一批量查询并提供 avatarUrl。共享 FE 徽章及 16px 人员选择菜单显示头像，缺图回退首字，编辑时姓名/ID/头像一起确认及回滚。详见 [提取任务 v2](../../tasks/platform-sync/2026-11-06-lark-ticket-avatar-extraction.md) 与 [展示任务 v2](../../tasks/platform-data/2026-11-06-lark-ticket-contact-avatars.md)。 |
 | `WorkitemMapping` | Server workflow config | `server/src/modules/lark-base/lark-base-workflow.service.ts`, `server/src/modules/lark-base/lark-base-workflow-config.ts` | 支持 env/config 映射；仍有 hardcoded fallback |
 | `ExecutionDraft` | Server workflow | `server/src/validators/agent-output/execution-draft.ts`, `server/src/modules/lark-base/lark-base-workflow.service.ts` | Lark record 到 Meegle create 的中间对象 |
@@ -881,19 +882,15 @@ SDK 在到期前刷新；离开 Ticket/退出登录时销毁实例。接口所�
 
 ### Lark Ticket 字段编辑与确认
 
-列表、详情属性、解决方案和 `#lark-app-thread-analysis` 属性栏共用 App 会话内的 `lark-ticket-field-edits`。Lark App 与详情复用六字段编辑组件，有 platformSync 权限时可编辑，其他用户保持只读。选择属性后立即回显并提示保存中，同一 Base/Table/Record 的修改依次发送；确认响应只更新本次字段（状态可附带关闭时间），失败以最后已确认值和更新的在途修改重建显示。导航缓存同步更新，列表请求复用按会话与编辑版本隔离，保存前开始的读取不能覆盖较新的编辑。退出登录取消尚未发送的修改；该客户端队列不提供刷新或重启后的持久化保证。
+列表、详情和 `#lark-app-thread-analysis` 六属性共用 App 持有的队列。选择后立即回显，同 Ticket 停手 1 秒合并、最长等 3 秒；同字段只留最后选择，改回基线不发送。已发批次不可变，后续修改独立排队；响应只确认本批字段（Finish 可附关闭时间），不能覆盖后来选择或无关字段。列表和导航缓存受编辑版本门禁保护。
 
-`POST /api/web/lark-tickets/:recordId/fields` 继续同步确认 Lark 写入及本地快照同步。Server 每次先解析实际用户授权，字段元数据按授权域名、masterUserId、Base/Table 缓存 5 分钟、最多 256 项；选项与写入共用缓存并合并并发读取，失败不缓存，字段缺失或写入失败使缓存失效。已有本地源字段时不再写前读取 Lark 记录，仍保留写后 Batch Get、UPSERT 和清洗，并用读回后的本地字段构造响应。缓存命中且本地快照存在时为两次远端数据 API 调用。
+六属性使用 `POST /api/web/lark-tickets/:recordId/field-submissions`。Server 通过 Web session、platformSync 及 expectedUserId 校验账号；回读 Lark 当前记录，按字段 expected 值检查冲突，人员优先比较 open ID。仅写实际修改字段，一次更新、一次单 Ticket 同步清洗；状态 Finish 在同次更新写服务器关闭时间。元数据仍按用户/域名/Base/Table 缓存。源回读与更新之间没有 Lark 原子条件锁，不能保证与 Lark 网页编辑完全互斥。
 
-Lark 已写但本地同步失败仍是显式部分成功：FE 保留新值并提示，不回滚成未写入或自动重写。阶段日志记录 actionRunId、layer/module/stage 及安全耗时摘要，不记录字段正文或凭据。实现、验收及未部署边界见[性能优化任务](../../tasks/platform-sync/2026-10-21-lark-ticket-edit-sync-performance.md)。
+`lark_ticket_field_submissions` 持久保存提交编号、用户、完整记录身份、差异、请求哈希和结果。状态为 preparing → writing → saved_pending_sync → saved；明确拒绝为 rejected、写前冲突为 conflict、无法确认写入为 unknown。唯一 active_ticket_key 阻止未确认 Ticket 被新提交越过，相同编号重放只返回已有状态，不重写。重新核对通过该编号读取结果并回读对应字段；写入中/未知且未匹配时继续暂停，不能因读回旧值断言未写入。确认 Lark 已成功时只重试同步，不重复写 Lark。跨进程 preparing 可通过 CAS 安全取消为 not_applied；已进入 writing 的操作不能以超时自动释放写锁。
 
-### Lark Ticket 源记录错误与本地删除
+FE 将六属性差异、基线和提交身份保存在按 API 地址与账号隔离的 sessionStorage，逐次更新并在 pagehide/beforeunload 补存。同一标签刷新先验证登录用户，再查询已发批次或回读未发草稿，核对后恢复提交；未解决冲突保留草稿并展示双方值。明确拒绝保留草稿，可重新核对或放弃未保存修改；未知结果仍允许整理后续草稿。换账号清除上一账号暂存，显式退出清除当前草稿；服务端账号守卫同时防止 cookie 已切换时派发旧账号编辑。存储不可用时提示刷新恢复限制；关闭标签不承诺恢复。
 
-共享链接读取与字段写入区分源记录不存在、记录/应用权限不足、授权不可用及 Base/Table 不存在。只有 Lark `1254043` 或 batch_get 对指定 recordId 返回 `absent_record_ids` 才返回 `LARK_TICKET_SOURCE_NOT_FOUND`（源记录不存在，可能已删除）；`forbidden_record_ids` 和 `403/99991672/99991676` 对应 `LARK_TICKET_SOURCE_FORBIDDEN`。通用 404、空 records 或缺少共享链接不证明记录已删除。FE 保留错误码与可操作提示；源记录不存在时暂停此 Ticket 的后续属性修改并取消尚未发送的修改，其他 Ticket 不受影响。已有缓存共享 URL 继续复用，不代表执行了实时存活检查。
-
-有 platformSync 权限的用户可从 Ticket AI 小窗或完整详情确认执行 `POST /api/web/lark-tickets/:recordId/mark-deleted`，body 为 `{ baseId, tableId, actionRunId }`；Server 从 Web Session 获取操作人，Zod 严格校验，返回 `{ ok, data: { deletedAt, actionRunId, layer, module, stage } }`。此动作不需要有效的 Lark API 授权，仅在 `lark_base_ticket_octo` 保存 `deleted_at/deleted_by`，按完整标识幂等保留首次标记时间与操作人；不删除远端记录或源快照/AI/历史，也不自动判定删除。
-
-普通 Ticket 列表、计数、全局搜索、筛选项及 Shadow 自动分析候选排除本地删除记录；后续源同步、链接和 AI 更新不会清除此标记。内部按引用读取仍可访问历史并携带 deletedAt；字段更新拒绝已标记记录。FE 删除与属性/Meegle 创建共用会话状态保护，等待当前操作完成后才能标记；该保护不承诺跨浏览器或跨进程锁。本次未增加恢复界面。数据库初始化与幂等 schema migration 均增加两个 nullable 列；部署需要更新 Server 与 FE 并应用 schema。实现与验证见[任务记录](../../tasks/platform-data/2026-11-06-lark-ticket-source-errors-and-deletion.md)。
+原单字段 `/fields` 保留兼容，解决方案继续手动保存，不纳入六属性自动合并或刷新暂存。当前工作台禁止解决方案保存与属性批次同时派发；Meegle 创建及本地删除等待未保存内容处理。旧单字段客户端不获得新批量协议的提交恢复保证。接口、状态与验证见[批量自动保存任务](../../tasks/platform-data/2026-11-06-lark-ticket-batched-autosave.md)和[接入契约](../../tenways-octo/lark-ticket-batched-save.md)。
 
 ### Lark App 创建 Meegle 工作项
 

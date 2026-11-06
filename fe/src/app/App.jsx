@@ -72,7 +72,7 @@ export function App({ apiBaseUrl }) {
   const [breadcrumbs, setBreadcrumbs] = useState(() => appendWorkspaceBreadcrumb([], getWorkspaceRoute(window.location.hash)));
   const [platformListFilterStates, setPlatformListFilterStates] = useState({});
   const [larkTicketNavigationContext, setLarkTicketNavigationContext] = useState(null);
-  const ticketFieldEdits = useMemo(() => createLarkTicketFieldEdits({ apiBaseUrl,
+  const ticketFieldEdits = useMemo(() => createLarkTicketFieldEdits({ apiBaseUrl, masterUserId: profile?.user?.id,
     onPatch: (patch) => setLarkTicketNavigationContext((current) => updateLarkTicketNavigationContext(current, patch)),
   }), [apiBaseUrl, profile?.user?.id]);
   useEffect(() => ticketFieldEdits.retain(), [ticketFieldEdits]);
@@ -152,7 +152,7 @@ export function App({ apiBaseUrl }) {
   }, [profile]);
 
   const logout = useCallback(async () => {
-    ticketFieldEdits.dispose();
+    ticketFieldEdits.dispose({ discardDrafts: true });
     setIsBusy(true);
     await logoutWebAuthSession({ apiBaseUrl });
     setProfile(undefined);

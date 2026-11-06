@@ -1,4 +1,5 @@
 import type { Express } from "express";
+import { registerTicketFieldSubmissionRoutes } from "./lark-ticket-field-submission.controller.js";
 import { z, ZodError } from "zod";
 import {
   createLarkTicketService,
@@ -427,6 +428,7 @@ function evalDatasetErrorResponse(error: unknown, body?: unknown) {
 }
 
 export function registerWebLarkTicketRoutes(app: Express) {
+  registerTicketFieldSubmissionRoutes(app);
   const controller = createWebLarkTicketController();
   app.post("/api/web/lark-tickets/:recordId/mark-deleted", async (req, res) => {
     const result = await controller.markDeleted({ cookieHeader: req.headers.cookie, recordId: req.params.recordId, body: req.body });

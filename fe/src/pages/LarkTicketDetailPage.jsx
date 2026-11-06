@@ -1,3 +1,4 @@
+import { LarkTicketSaveStatus } from "../components/lark-ticket/LarkTicketSaveStatus.jsx";
 import { useLarkTicketFieldEdits } from "../hooks/useLarkTicketFieldEdits.js";
 import { AcpPermissionPrompt } from "../components/ai-session/AcpPermissionPrompt.jsx";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -90,7 +91,7 @@ function formatTicketAiValue(value) {
 }
 
 export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLogout, isBusy, breadcrumbs, larkTicketNavigationContext, ticketFieldEdits }) {
-  const fieldEdits = useLarkTicketFieldEdits(ticketFieldEdits, apiBaseUrl);
+  const fieldEdits = useLarkTicketFieldEdits(ticketFieldEdits, apiBaseUrl, profile?.user?.id);
   const snapshotTicket = getLarkTicketFromNavigationContext({ navigationContext: larkTicketNavigationContext, recordId: ticketRecordId });
   const [state, setState] = useState(() => snapshotTicket
     ? { status: "ready", ticket: snapshotTicket }
@@ -435,8 +436,7 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
             <TicketProperty label="创建时间">{ticket.createdAt ? formatDateTime(ticket.createdAt) : "未设置"}</TicketProperty>
             <TicketProperty label="关闭时间">{ticket.closedAt ? formatDateTime(ticket.closedAt) : "未设置"}</TicketProperty>
           </LarkTicketEditableProperties>
-          {fieldSaveStatus.pending > 0 ? <p className="ticket-property__message" role="status">正在保存 {fieldSaveStatus.pending} 项修改…</p> : null}
-          {fieldSaveStatus.notices.map((notice, index) => <p className="ticket-property__message ticket-property__message--error" role="alert" key={`${index}:${notice}`}>{notice}</p>)}
+          <LarkTicketSaveStatus edits={fieldEdits} ticket={ticket} />
           <p className="ticket-detail__sync-time">同步于 {formatDateTime(ticket.syncedAt)}</p>
           {ticket.shadowAi ? <ShadowAiPanel shadowAi={ticket.shadowAi} /> : null}
         </aside>
