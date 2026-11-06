@@ -908,7 +908,7 @@ FE 将六属性差异、基线和提交身份保存在按 API 地址与账号隔
 
 稳定的工单 actionRunId 贯穿单条 Base 写入/同步、shadow、标题及确认；每次扫描单独生成 actionRunId，并通过 coordinator context 传至消息读取。HTTP 入口在缺省时生成 ID，错误响应保留相同值；自动扫描失败日志同时携带 ID 和 sourceKey。工单完成/失败日志记录 parentActionRunId，关联本次扫描与持久化执行，复用原幂等标识而不因重试生成新工单。
 
-新建只调用单条同步与 shadow，不等待周期候选的 settle；标题由现有 Summary provider 生成，写回 Base 并读回本地快照后才确认实际编号/标题，再给根消息添加 JIAYI。新话题无回复时，通过源链接中的 messageid 获取根消息，验证 thread 归属后保存完整上下文。正式 ticket_ai 保持独立。
+新建描述仅保存源消息正文，话题链接单独写入 `Lark Message Link`，不在描述末尾重复追加。新建只调用单条同步与 shadow，不等待周期候选的 settle；标题由现有 Summary provider 生成，写回 Base 并读回本地快照后才确认实际编号/标题，再给根消息添加 JIAYI。新话题无回复时，通过源链接中的 messageid 获取根消息，验证 thread 归属后保存完整上下文。正式 ticket_ai 保持独立。
 
 `POST /api/web/platform-sync/lark-thread-tickets` 使用 Web session 与 platformSync 权限，严格 Zod 校验 chatId/startTime/endTime/apply/maxTickets/actionRunId。时间为带时区 ISO、秒精度的半开区间；默认预览，apply=true 才处理本区间内至多 maxTickets 条。区间入口与指定单条 CLI 均不改变自动游标、不消费其他待办，超额候选不进入自动队列。配置、请求示例与部分成功语义见[同步运行说明](../../tenways-octo/it-platform-sync.md#群话题自动登记工单)，验证边界见[任务](../../tasks/platform-sync/2026-11-03-lark-thread-ticket-intake.md)。
 

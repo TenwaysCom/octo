@@ -61,6 +61,7 @@ describe("Lark thread ticket intake (mock platform + memory PostgreSQL)", () => 
       expect(result).toMatchObject({ status: "done", recordId: "rec_new" });
       expect(ctx.events).toEqual(["create", "sync", "shadow", "title", "sync", "reply", "reaction"]);
       expect(ctx.client.createRecord).toHaveBeenCalledWith("base", "table", expect.objectContaining({
+        "Details Description": "Promotion cannot be applied",
         Requester: [{ id: "ou_user" }], "Lark Message Link": expect.objectContaining({ link: expect.stringContaining("threadid=omt_root") }),
       }), { clientToken: result.actionRunId });
       expect(ctx.shadowService.summarizeOne).toHaveBeenCalledWith(expect.objectContaining({ recordId: "rec_new" }), result.actionRunId);

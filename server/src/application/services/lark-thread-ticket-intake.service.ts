@@ -200,7 +200,7 @@ export function createLarkThreadTicketIntakeService(deps: {
         link.searchParams.set("messageid", run.root_message_id);
         const payload: Record<string, unknown> = {
           [fields.title.field_name]: text.split("\n").find((line) => line.trim())?.slice(0, 120) || "新工单",
-          [fields.description.field_name]: `${text}\n\n${link.href}`,
+          [fields.description.field_name]: text,
         };
         if (fields.link.type === 15) payload[fields.link.field_name] = { text: "Lark thread", link: link.href };
         else payload[fields.link.field_name] = link.href;

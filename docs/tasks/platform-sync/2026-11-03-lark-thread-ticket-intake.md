@@ -2,10 +2,10 @@
 title: "Lark 群话题自动登记 Ticket"
 module: platform-sync
 status: done
-requirement_version: 7
+requirement_version: 14
 created_on: 2026-11-03
-updated_on: 2026-11-04
-closed_on: 2026-11-04
+updated_on: 2026-11-06
+closed_on: 2026-11-06
 owner: Codex
 related:
   - "../../tenways-octo/it-platform-sync.md"
@@ -17,8 +17,11 @@ related:
 
 在独立 platform worker 中扫描指定群的新话题，创建 Lark Base record，单条同步及清洗至 Octo，立即执行既有 shadow AI，生成并回写合适标题，再在线程内确认“已记录工单 / title：… / 编号：…”，最后在根消息添加 +1 表情。
 
+v14：新建 Ticket 的描述只保存源消息正文，话题链接单独写入 `Lark Message Link`，不再在描述末尾重复拼接。此调整仅改新建 payload，不清理历史描述。
+
 ## 验收标准
 
+- [x] v14：新建描述与源消息正文一致，不再追加话题 URL；独立 `Lark Message Link` 的真实 URL 保留，相关 mock integration 与构建通过。
 - [x] v7：创建前复用同一 Base/Table 已有话题缓存中的数字 ID → canonical ID 映射，已缓存话题不重新调用 Lark；已知匹配优先于未解析旧链接。
 - [x] v7：仅对缺失映射读取一条消息，核对来源群和 canonical ID；空结果、歧义或读取失败不能作为无重复的依据，原有幂等和续跑语义保留。
 - [x] v7：相关回归及构建通过；核实用户指定 pending 行的最新状态，按单条入口处理，不执行历史批量、数据库重置或常驻进程重启。锁释放后恢复到 done，真实读回及重复提交通过。
@@ -43,6 +46,7 @@ related:
 
 ## 方案与决策
 
+- v14：删除描述字段的 URL 拼接，替代此前在描述和独立字段重复保存话题链接的行为；只调整新建 payload，沿用已有链接生成、独立字段写入、查重和后续分析流程。本轮不处理历史描述，不部署或重启 Worker。
 - v7：用户要求修复历史查重阻塞。复用现有 `lark_ticket_thread_syncs.thread_id` 与 `messages_json.messages[].threadId`，按 Base/Table 读取已验证映射并先完成本地匹配；只有缺失映射调用单条话题读取，新读映射继续沿用现有进程缓存。不新增表、字段、配置或后台历史补录任务。当前 Base 的链接列仍是是否已有工单的权威，不能仅靠本地缓存未命中决定新建。本轮允许对用户指定单条登记做既有入口续跑；不批量建单、不重启常驻进程。
 - 配置沿用 platform-sync 文件和 scheduler 总开关，新增任务默认关闭，源群显式关联已配置 Base/Table；不推断其他群。
 - 新增 PostgreSQL 扫描游标与分阶段登记记录，复用既有 coordinator 的 scope lease；创建/回帖结果不确定时保留人工核实状态，不盲目重发。
@@ -58,6 +62,8 @@ related:
 
 | 日期 | 需求版本 | 状态 | 结果与证据 | 未验证边界 / 下一步 |
 | --- | --- | --- | --- | --- |
+| 2026-11-06 | v14 | in_progress | 用户要求去掉描述末尾的话题 URL 拼接；已核对独立链接字段及去重读取，调整新建 payload 和现有创建用例断言。 | 待聚焦 mock integration、构建及 diff 检查；不写平台或历史记录。 |
+| 2026-11-06 | v14 | done | 已删除描述 URL 拼接，现有创建用例同时断言纯正文描述和独立链接字段；44 个 mock integration 用例、Server build、diff check 通过。 | 仅本地代码验证；未执行 live E2E、部署或 Worker 重启，历史描述未清理。 |
 | 2026-11-04 | v7 | in_progress | 已确认缓存可提供现有映射，用户要求处理；先以回归测试重现已有缓存仍读历史话题，再修改 store 查询、service 查重与 factory 注入 | 先完成本地验证，再只核对/处理指定 pending 行；没有部署或重启授权扩展 |
 | 2026-11-04 | v7 | in_progress | 缓存查询、先本地后远端的两轮比较及 factory 注入已实现；新增 3 个用例先红后绿，相关 7 文件 / 74 用例通过，Server build 通过。真实只读查询缓存耗时 75ms；指定单条续跑被 `SYNC_ALREADY_RUNNING` 拒绝 | 未重启常驻 Worker；指定登记仍 pending，不能抢占有效租约，也不能宣称已部署或已建单 |
 | 2026-11-04 | v7 | in_progress | 用户确认按上述流程优化；补充多工单共用同批映射、已完成登记跳过所有查重读取，以及无有效 ID 后缀不得继续建单的回归。非法 `omt_` 用例先红后绿，相关 7 文件 / 76 用例及构建通过；16:08 只读确认原锁已释放后按原登记发起单条续跑 | 等待该条执行结果及安全读回；仍不重启 Worker、不改变运行配置或批量扫描 |
@@ -78,6 +84,14 @@ related:
 | 2026-11-04 | v5 | done | 使用已构建 Bot 运行时调用 scanRange，起止为 `2026-11-03T19:15:00+08:00` / `2026-11-03T19:18:00+08:00`、apply=false、maxTickets=50，actionRunId `a6f200de-72cc-400d-94fa-2baf0e13a1fa`。matched=1，候选为原根消息 `om_x100b61a862f804a4ff7e147e0d79953` / thread `omt_198c4a0a7e8f585b`，创建时间 19:17:23.385（北京时间）；results=[]。 | 来源登记行及自动扫描状态执行前后完全一致；临时脚本另行阻止 Base 创建/更新、回帖、表情调用。仅 coordinator 运行审计/租约沿既有机制更新。未验证已部署 HTTP、未启用 Worker、未真实批量创建。 |
 | 2026-11-04 | v6 | in_progress | 用户要求修复 review 问题；重新打开失败恢复、追踪 ID 和本地检查验收。已复核错误类型、状态 CAS 与各入口。 | 补明确拒绝/未知写入/五次失败/追踪关联回归，再更新 PR；不进行真实平台写入。 |
 | 2026-11-04 | v6 | done | adapter 保守识别明确拒绝，创建/回帖恢复 pending/titled；CAS 原子保存错误、阶段和累计失败次数，派发保留次数与原幂等标识。HTTP 默认生成并规范化 actionRunId；源扫描 ID 贯穿 coordinator/adapter/失败日志，工单通过 parentActionRunId 关联扫描。新增 23 个回归场景，14 文件 **224 用例通过**，Server build 与 diff check 通过。 | 覆盖 403/平台限流恢复、五次上限及人工重试、超时/408/5xx/未知不重发、状态 CAS 和追踪关联。只作本地验证，既有 outcome_unknown 不自动恢复；未真实批量、部署或迁移。 |
+
+### v14 描述去重验证
+
+| 类型 | 命令 / 结果 | 边界 |
+| --- | --- | --- |
+| 静态检查 | `pnpm --dir server build`、`git diff --check` 通过 | 本地编译及 diff 检查 |
+| Mock integration | `pnpm --dir server test src/application/services/lark-thread-ticket-intake.service.test.ts`：1 文件 / 44 用例通过 | Lark 为 mock、数据库为 pg-mem；创建断言覆盖描述只含原文、独立链接 URL 保留 |
+| Live E2E / 已部署运行时 | 未执行 | 本次仅调整本地 payload，无平台或历史数据写入；尚未重载 Worker |
 
 ### 2026-11-04 运行时 pending 只读排查
 
