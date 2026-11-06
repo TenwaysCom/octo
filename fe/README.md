@@ -39,6 +39,8 @@ Wiki 后的 `Hermes Agent AI` 页签复用“回答问题”ACP 入口，手动�
 
 未关联 Meegle 的 Ticket 支持有 `platformSync` 权限的用户点击“创建 Meegle”，复用现有 Server 创建与链接回写流程。等待属性保存完成后才能开始创建，创建期间暂停该 Ticket 的属性修改并防重复提交；成功后直接显示返回的工作项链接，部分同步失败也保留结果。已有链接只展示“打开 Meegle”；两个入口均紧随“原始讨论”同行显示，窄屏自然换行。状态和结果在当前登录会话内按 Ticket 隔离，搜索切换不会串入其他记录。验证及边界见[创建功能任务](../docs/tasks/platform-data/2026-10-21-lark-app-create-meegle.md)。
 
+Meegle 操作后提供“打开 Lark Base”，在新标签页打开当前 Ticket 的 Base 记录。已有共享链接直接使用；缺失时通过既有接口读取，失败可点击重试。查看用户也可使用，窄屏自然换行。验证见[入口任务](../docs/tasks/platform-data/2026-11-06-lark-ticket-app-open-base.md)。
+
 Shadow 区支持一键纳入 Eval、标记 Badcase 和编辑标注，复用主站样本。每版 Shadow 独立冻结；Badcase 至少一个失败标签并填写失败原因。主站 Eval 视图可选择历史评测版本；两个入口统一执行并发版本检查，冲突后重读保留已填写修改。
 操作区按当前状态突出主操作，已标记 Badcase 统一从“编辑标注”进入。共用表单优先展示标签和原因，分析详情及选填人工标准可展开；已有人工标准自动展开，首次保存因输出更新而重读时自动展开新分析。弹窗正文独立滚动，保存按钮和错误提示保持可见，折叠内容不参与 Tab 导航。
 浏览器模拟验收可运行 `pnpm --dir fe exec node manual-tests/lark-ticket-eval.browser.mjs`，复用 Extension 的 Playwright devDependency 和已安装的 Chromium；版本不匹配时通过 `OCTO_EVAL_BROWSER_EXECUTABLE` 指定已有浏览器。该脚本仅使用合成数据和模拟 API，不验证真实免登或部署。

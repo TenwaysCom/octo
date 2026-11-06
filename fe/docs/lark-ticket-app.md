@@ -10,6 +10,8 @@
 
 创建成功后显示“打开 Meegle”，多项结果分别展示链接，不重新创建已完成结果。`syncFailed` 时保留链接并提示 Octo 同步失败；失败不自动重试。已有链接直接显示打开入口；Server 返回 `MEEGLE_LINK_ALREADY_EXISTS` 时阻止再次创建，提供显式重新读取 Ticket 的入口。仅展示 HTTP(S) 链接，无写权限的用户仍可打开已有链接。创建状态仅在当前登录会话内有效，未增加服务端幂等能力或跨进程 exactly-once 保证。
 
+Meegle 操作后显示“打开 Lark Base”，在新标签页打开当前 Ticket 的 Base 记录；没有 Meegle 关联或写权限时同样可用。优先使用已有 `sharedUrl`，缺失时复用 `GET /api/web/lark-tickets/:recordId/shared-url`，加载期间禁用入口，失败显示重试。仅允许 HTTP(S) 链接，切换 Ticket 隔离加载结果，窄屏自然换行。
+
 ## 开发者后台配置
 
 1. 在目标自建应用启用网页应用能力，将首页设为 `<Octo FE origin>/#lark-app-thread-analysis`。应用域名应与现有 OAuth 回调和 `/api` 同源部署相符。
