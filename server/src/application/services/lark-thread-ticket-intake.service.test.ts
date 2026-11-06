@@ -11,7 +11,7 @@ vi.mock("../../logger.js", () => {
   return { logger: log };
 });
 
-const source: LarkThreadTicketSource = { chatId: "oc_test", baseId: "base", tableId: "table", titleFieldName: "Title", sourceUpdatedAtFieldName: "最后更新时间" };
+const source: LarkThreadTicketSource = { chatId: "oc_test", clientChatId: "7538726794547986470", baseId: "base", tableId: "table", titleFieldName: "Title", sourceUpdatedAtFieldName: "最后更新时间" };
 const root: LarkThreadMessage = { message_id: "om_root", chat_id: source.chatId, thread_id: "omt_root", msg_type: "text",
   content: '{"text":"Promotion cannot be applied"}', create_time: "2026-11-03T00:00:30.000Z", sender: { id: "ou_user", id_type: "open_id", sender_type: "user" } };
 const range = { chatId: source.chatId, startTime: "2026-11-03T00:00:00Z", endTime: "2026-11-03T01:00:00Z" };
@@ -22,6 +22,7 @@ async function setup() {
   const events: string[] = [];
   const ticket: LarkBaseTicketSyncItem = { baseId: source.baseId, tableId: source.tableId, recordId: "rec_new", title: "Promotion cannot be applied", ticketNumber: "1234", detailDescription: "Promotion cannot be applied", syncedAt: "2026-11-03T00:01:00Z" };
   const client = {
+    resolveClientThreadId: vi.fn().mockResolvedValue("7704994279696895756"),
     getChatMessages: vi.fn().mockResolvedValue({ items: [root], hasMore: false }),
     getThreadMessages: vi.fn().mockResolvedValue({ items: [{ ...root, message_id: "om_reply", root_id: root.message_id, parent_id: root.message_id }], hasMore: false }),
     getMessage: vi.fn().mockImplementation(async (id) => ({ ...root, message_id: id, thread_id: id === "om_root" ? root.thread_id : `omt_${id}` })),
@@ -62,8 +63,9 @@ describe("Lark thread ticket intake (mock platform + memory PostgreSQL)", () => 
       expect(ctx.events).toEqual(["create", "sync", "shadow", "title", "sync", "reply", "reaction"]);
       expect(ctx.client.createRecord).toHaveBeenCalledWith("base", "table", expect.objectContaining({
         "Details Description": "Promotion cannot be applied",
-        Requester: [{ id: "ou_user" }], "Lark Message Link": expect.objectContaining({ link: expect.stringContaining("threadid=omt_root") }),
+        Requester: [{ id: "ou_user" }], "Lark Message Link": { text: "Lark thread", link: "https://applink.larksuite.com/client/thread/open?threadid=7704994279696895756&chatid=7538726794547986470&thread_position=0" },
       }), { clientToken: result.actionRunId });
+      expect(await ctx.store.get(larkThreadTicketSourceKey(source), root.thread_id!)).toMatchObject({ client_thread_id: "7704994279696895756" });
       expect(ctx.shadowService.summarizeOne).toHaveBeenCalledWith(expect.objectContaining({ recordId: "rec_new" }), result.actionRunId);
       expect(ctx.client.replyToMessage).toHaveBeenCalledWith("om_root", "text", JSON.stringify({ text: "已记录工单\ntitle：促销无法应用到订单\n编号：1234" }), { reply_in_thread: true, uuid: result.actionRunId });
       expect(ctx.client.addMessageReaction).toHaveBeenCalledWith("om_root", "JIAYI");
@@ -100,6 +102,30 @@ describe("Lark thread ticket intake (mock platform + memory PostgreSQL)", () => 
     } finally { await ctx.close(); }
   });
 
+  it("does not persist a mapping or create a ticket when numeric ID verification fails", async () => {
+    const ctx = await setup();
+    try {
+      ctx.client.resolveClientThreadId.mockRejectedValueOnce(new Error("LARK_THREAD_TICKET_CLIENT_ID_UNVERIFIED"));
+      expect(await ctx.service.processMessage(source.chatId, root.message_id)).toMatchObject({ status: "failed", errorCode: "LARK_THREAD_TICKET_CLIENT_ID_UNVERIFIED" });
+      expect(ctx.client.createRecord).not.toHaveBeenCalled();
+      expect(await ctx.store.get(larkThreadTicketSourceKey(source), root.thread_id!)).toMatchObject({ client_thread_id: null, stage: "pending" });
+    } finally { await ctx.close(); }
+  });
+
+  it("reuses the persisted numeric ID after a rejected creation, including a new service instance", async () => {
+    const ctx = await setup();
+    try {
+      ctx.client.createRecord.mockRejectedValueOnce(new LarkAPIError("Rejected", 403));
+      expect(await ctx.service.processMessage(source.chatId, root.message_id)).toMatchObject({ status: "failed" });
+      ctx.client.resolveClientThreadId.mockRejectedValue(new Error("MUST_USE_SAVED_MAPPING"));
+      const service = createLarkThreadTicketIntakeService({ store: ctx.store, syncStore: ctx.syncStore, syncService: ctx.syncService,
+        shadowService: ctx.shadowService, titleClient: ctx.titleClient, coordinator: ctx.coordinator, createClient: ctx.createClient,
+        loadThreadAliases: ctx.loadThreadAliases, masterUserId: "master", sources: [source] });
+      expect(await service.processMessage(source.chatId, root.message_id)).toMatchObject({ status: "done" });
+      expect(ctx.client.resolveClientThreadId).toHaveBeenCalledTimes(1);
+    } finally { await ctx.close(); }
+  });
+
   it("accepts one client thread link, verifies the group and preserves both thread aliases", async () => {
     const ctx = await setup();
     try {
@@ -109,7 +135,9 @@ describe("Lark thread ticket intake (mock platform + memory PostgreSQL)", () => 
       const payload = ctx.client.createRecord.mock.calls[0][2];
       const savedLink = new URL(payload["Lark Message Link"].link);
       expect(savedLink.searchParams.get("threadid")).toBe("7703902781853159175");
-      expect(savedLink.searchParams.get("openthreadid")).toBe(root.thread_id);
+      expect(savedLink.searchParams.get("openthreadid")).toBeNull();
+      expect(savedLink.searchParams.get("thread_position")).toBe("0");
+      expect(ctx.client.resolveClientThreadId).not.toHaveBeenCalled();
       await ctx.service.processMessage(source.chatId, root.message_id);
       expect(ctx.client.createRecord).toHaveBeenCalledTimes(1);
       expect(ctx.client.getChatMessages).not.toHaveBeenCalled();

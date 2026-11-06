@@ -13,6 +13,40 @@ describe("lark-client", () => {
   });
   const requestMock = vi.fn();
 
+  it.each(["root", "reply"])("verifies a candidate numeric thread ID against the actual %s before returning it", async (kind) => {
+    const client = new LarkClient({ accessToken: "test-token" });
+    (client as unknown as { client: { request: typeof requestMock } }).client = { request: requestMock };
+    const root = { message_id: "om_root", chat_id: "oc_chat", thread_id: "omt_19882bb05bcf1850" };
+    requestMock.mockResolvedValueOnce({ code: 0, data: { items: [{ ...root,
+      ...(kind === "reply" ? { message_id: "om_reply", root_id: root.message_id } : {}),
+    }] } });
+    await expect(client.resolveClientThreadId(root)).resolves.toBe("7704994279696895756");
+    expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({
+      method: "GET", params: expect.objectContaining({ container_id: "7704994279696895756", page_size: 1 }),
+    }), expect.anything());
+  });
+
+  it.each([
+    [],
+    [{ message_id: "om_root", chat_id: "oc_other", thread_id: "omt_19882bb05bcf1850" }],
+    [{ message_id: "om_root", chat_id: "oc_chat", thread_id: "omt_other" }],
+    [{ message_id: "om_other", chat_id: "oc_chat", thread_id: "omt_19882bb05bcf1850" }],
+  ].map((items) => ({ items })))("rejects unverified numeric thread mappings ($items)", async ({ items }) => {
+    const client = new LarkClient({ accessToken: "test-token" });
+    (client as unknown as { client: { request: typeof requestMock } }).client = { request: requestMock };
+    requestMock.mockResolvedValueOnce({ code: 0, data: { items } });
+    await expect(client.resolveClientThreadId({ message_id: "om_root", chat_id: "oc_chat", thread_id: "omt_19882bb05bcf1850" }))
+      .rejects.toThrow("LARK_THREAD_TICKET_CLIENT_ID_UNVERIFIED");
+  });
+
+  it.each(["omt_", "omt_nothex", "omt_10000000000000000", "7704994279696895756"])("does not query malformed Open thread ID %s", async (thread_id) => {
+    const client = new LarkClient({ accessToken: "test-token" });
+    (client as unknown as { client: { request: typeof requestMock } }).client = { request: requestMock };
+    await expect(client.resolveClientThreadId({ message_id: "om_root", chat_id: "oc_chat", thread_id }))
+      .rejects.toThrow("LARK_THREAD_TICKET_CLIENT_ID_UNVERIFIED");
+    expect(requestMock).not.toHaveBeenCalled();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
   });

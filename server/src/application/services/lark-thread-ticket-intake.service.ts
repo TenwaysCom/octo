@@ -24,7 +24,7 @@ type IntakeBatch = {
   cachedThreadAliases?: Promise<ReadonlyMap<string, string>>;
   parentActionRunId: string;
 };
-type Client = Pick<LarkClient, "getChatMessages" | "getThreadMessages" | "getMessage" | "getFields" | "listRecords" | "createRecord" | "updateRecord" | "replyToMessage" | "addMessageReaction">;
+type Client = Pick<LarkClient, "getChatMessages" | "getThreadMessages" | "getMessage" | "resolveClientThreadId" | "getFields" | "listRecords" | "createRecord" | "updateRecord" | "replyToMessage" | "addMessageReaction">;
 export type LarkThreadTicketSource = NonNullable<PlatformSyncConfig["scheduler"]["tasks"]["larkThreadTickets"]>["sources"][number]
   & PlatformSyncConfig["larkBase"][number];
 
@@ -85,8 +85,8 @@ export function createLarkThreadTicketIntakeService(deps: {
   now?: () => Date;
 }) {
   const now = deps.now ?? (() => new Date());
-  // Store only aliases verified by Lark. Client numeric IDs and Open API IDs
-  // cannot be inferred from one another.
+  // Only platform-verified aliases are authoritative; candidate ID arithmetic
+  // must never replace the identity check.
   const threadAliases = new Map<string, string>();
 
   function parseSourceLink(value: string): URL {
@@ -160,7 +160,7 @@ export function createLarkThreadTicketIntakeService(deps: {
         batch.existingThreads ??= loadExistingThreads(client, source, fields.link.field_name);
         const existingThreads = await batch.existingThreads;
         const originalLink = run.message_link ? parseSourceLink(run.message_link) : undefined;
-        const clientThreadId = originalLink?.searchParams.get("threadid");
+        const clientThreadId = run.client_thread_id ?? originalLink?.searchParams.get("threadid");
         let existingId = existingThreads.get(run.thread_id) ?? (clientThreadId ? existingThreads.get(clientThreadId) : undefined);
         // A supplied client link gives both aliases. Automatic discovery must
         // resolve legacy numeric links before deciding that no Ticket exists.
@@ -193,11 +193,18 @@ export function createLarkThreadTicketIntakeService(deps: {
           return result();
         }
         const text = prepareMessageContent(root.content, root.msg_type).text;
-        const link = originalLink ?? new URL(`https://applink.${source.larkBaseUrl?.includes("feishu") ? "feishu.cn" : "larksuite.com"}/client/thread/open`);
-        link.searchParams.set("openthreadid", run.thread_id);
-        link.searchParams.set("openchatid", source.chatId);
-        link.searchParams.set("thread_position", "1");
-        link.searchParams.set("messageid", run.root_message_id);
+        const suppliedChatId = originalLink?.searchParams.get("chatid");
+        const clientChatId = source.clientChatId ?? suppliedChatId;
+        if (!clientChatId || !/^[1-9]\d*$/.test(clientChatId)) throw new Error("LARK_THREAD_TICKET_CLIENT_CHAT_REQUIRED");
+        if (source.clientChatId && suppliedChatId && source.clientChatId !== suppliedChatId) throw new Error("LARK_THREAD_TICKET_SOURCE_INVALID");
+        if (!run.client_thread_id) {
+          const numericId = clientThreadId && /^[1-9]\d*$/.test(clientThreadId) ? clientThreadId : await client.resolveClientThreadId(root);
+          run = await deps.store.advance(run, "pending", { client_thread_id: numericId, attempts: run.attempts });
+        }
+        const link = new URL("https://applink.larksuite.com/client/thread/open");
+        link.searchParams.set("threadid", run.client_thread_id!);
+        link.searchParams.set("chatid", clientChatId);
+        link.searchParams.set("thread_position", "0");
         const payload: Record<string, unknown> = {
           [fields.title.field_name]: text.split("\n").find((line) => line.trim())?.slice(0, 120) || "新工单",
           [fields.description.field_name]: text,

@@ -169,6 +169,7 @@ Lark Ticket full/incremental 同步只维护 Ticket 字段和 `lark_message_link
         "batchLimit": 5,
         "sources": [{
           "chatId": "oc_01f7302959b7723a026f21daae6c622b",
+          "clientChatId": "7538726794547986470",
           "baseId": "与 larkBase 中一致的 Base ID",
           "tableId": "与 larkBase 中一致的 Table ID"
         }]
@@ -184,7 +185,9 @@ Lark Ticket full/incremental 同步只维护 Ticket 字段和 `lark_message_link
 
 每轮需要新建时，分页只读取 Base 的 `Lark Message Link`（兼容现有同义字段）列，建立本轮共享索引，不依赖超链接展示名称或远端文本筛选。URL 中客户端数字 `threadid` 与 Open API `omt_…` 是不同标识；读取优先 `openthreadid`/`open_thread_id`，兼容旧 `threadid`。单条 AppLink 先通过该话题的回复取得根消息，核对真实群与 canonical thread ID，再以原数字 ID 与 Open ID 双重去重。自动入口优先复用同一 Base/Table 的已有 `lark_ticket_thread_syncs`：`thread_id` 是源链接标识，`messages_json.messages[].threadId` 保存消息返回的 canonical ID；只有唯一对应关系才作为有效映射，同轮共享读取结果。先完成所有已有映射的本地比较，命中即可标记 `existing`；仍无匹配时，只对缺失映射的数字链接读取一条回复，验证来源群及 canonical ID 后在进程内缓存。缓存读取不修改原始话题快照；新补映射仅进程内复用，未有完整话题缓存的链接在重启后可能再次查询。无法确认身份时停止新建，返回 `LARK_THREAD_TICKET_DEDUP_UNRESOLVED`，不能把未解析当作没有工单。已有记录不重复创建或确认。索引或缓存读取失败时不创建。目标表需有独立文本标题字段（优先 target.titleFieldName）、描述字段（`Details Description` 或不与标题重叠的 `Issue Description`）及文本/超链接 message-link 字段；不自动改表结构。
 
-新单顺序为：创建 Base record（描述仅保存源消息正文，话题链接单独写入 `Lark Message Link`，不在描述末尾重复追加）→ 单条同步/清洗到 Octo → 立即 shadow AI → 通过同一 provider 生成不超过 120 字符的标题 → 回写 Base 并单条读回 → 在线程确认实际标题、Base 自动生成编号 → 在源根消息添加 `JIAYI`（+1）。缺失编号、分析失败或标题未确认时不回帖。尚无回复的新话题通过链接中的根 messageid 读取问题，并校验根消息属于同一 thread。新单分析跳过三小时候选等待，但仍只写 `shadow_ai`，不改正式分析。
+新建链接使用 `https://applink.larksuite.com/client/thread/open?threadid=<数字ID>&chatid=<clientChatId>&thread_position=0`。`clientChatId` 是来源群固定的客户端数字 ID，与 Open API `chatId=oc_…` 分开配置；自动创建缺少该配置时明确失败。adapter 通过本项目缓存样本发现的 XOR 关系生成数字话题 ID 候选，再以该候选单条读取话题，要求 canonical `thread_id`、群和根消息三者一致才返回；这不是官方转换契约，空结果、失配或 API 失败时不能建单。已验证的数字 ID 写入 `lark_thread_ticket_intakes.client_thread_id`，后续重试或进程重启复用，原 `thread_id` 仍保存 canonical `omt_…`。手动数字 AppLink 已经同样核对来源，直接保留其数字 ID；不再按 API 域名生成飞书客户端链接。
+
+新单顺序为：创建 Base record（描述仅保存源消息正文，上述数字链接单独写入 `Lark Message Link`，不在描述末尾重复追加）→ 单条同步/清洗到 Octo → 立即 shadow AI → 通过同一 provider 生成不超过 120 字符的标题 → 回写 Base 并单条读回 → 在线程确认实际标题、Base 自动生成编号 → 在源根消息添加 `JIAYI`（+1）。缺失编号、分析失败或标题未确认时不回帖。数字话题容器返回根消息本身时，上下文直接识别该根消息，无需回复或在链接中额外附带 messageid；旧链接的显式根 messageid 继续兼容。新单分析跳过三小时候选等待，但仍只写 `shadow_ai`，不改正式分析。schema 初始化只新增可空 client_thread_id；更新部署需重载 Worker，已有工单链接不会自动回填。
 
 `lark_thread_ticket_intakes` 按 source + thread 保存稳定 actionRunId、创建/分析/标题/确认/表情进度，复用既有 coordinator 的 scope lease。已创建记录续跑不会另建；确认已成功而表情失败只补表情。adapter 识别已知明确未执行的拒绝（例如权限拒绝、限流），创建/回帖分别恢复到 `pending`/`titled`，原子保存错误与失败次数，并沿用原创建 client_token / 回帖 uuid；进入派发阶段不清零失败次数。同一阶段连续失败五次后停止自动重试，修复权限或输入后可通过指定单条入口人工重试。超时、5xx、未知平台错误或崩溃导致结果未知时，保留 `creating`/`replying`，下次转为 `outcome_unknown`，不自动重发；人工核实平台结果后修复该登记记录，不删除记录来盲目重试。已有 `outcome_unknown` 不会因代码更新自动重新派发。
 

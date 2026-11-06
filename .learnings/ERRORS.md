@@ -54,7 +54,7 @@ source: [Lark 单条建单实测](../docs/tasks/platform-sync/2026-11-03-lark-th
 
 **Error:** AppLink 的数字 threadid 可以用于获取话题回复，但不能用于单消息 get（HTTP 400 / code 99992354）；回复返回的 thread_id 是 omt Open ID。直接以 API ID 和 Base 旧链接数字 ID 比较会漏去重。
 
-**Fix:** 从指定话题回复取得 root_id，再读取根消息核对群与 canonical thread；保留已验证的客户端/Open ID 别名进行去重。生成 Open API 标识的 AppLink 使用 openthreadid/openchatid，读取同时兼容原数字 threadid。无法解析时不假定不存在工单。
+**Fix:** 从话题首条消息的 root_id 或根消息自身取得 om 标识，再核对群与 canonical thread；保留已验证的客户端/Open ID 别名进行去重。新建链接使用已验证的数字 threadid、来源群 clientChatId 和 Lark 域名。XOR 经验关系只生成候选，必须逐条 API 核对 canonical ID、群和根消息后才持久化；不能因 CLI 能组装 Open ID 链接就断言客户端可打开。无法解析时不假定不存在工单。
 
 source: [Lark 单条建单实测](../docs/tasks/platform-sync/2026-11-03-lark-thread-ticket-intake.md)
 
