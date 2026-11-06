@@ -42,6 +42,42 @@ test("immediately projects continuous edits, serializes requests and ignores unr
   assert.deepEqual(edits.project(ticket), { ...ticket, ticketStatus: "In Progress", priority: "P0", responsible: "Lin" });
 });
 
+test("person edits keep names, IDs and avatars together through consecutive writes and rollback", async () => {
+  const { edits, requests, submit } = fixture();
+  const original = { ...ticket, responsiblePeople: [{ userId: "ou_ada", name: "Ada", avatarUrl: "https://example.com/ada.png" }] };
+  const first = submit("responsible", "Lin", original, "ou_lin");
+  assert.deepEqual(edits.project(original).responsiblePeople, [{ userId: "ou_lin", name: "Lin" }]);
+  const second = submit("responsible", "Zoe", edits.project(original), "ou_zoe");
+  const confirmed = [{ userId: "ou_lin", name: "Lin", avatarUrl: "https://example.com/lin.png" }];
+  requests[0].resolve({ ticket: { responsible: "Lin", responsiblePeople: confirmed } });
+  await first;
+  assert.deepEqual(edits.project(original).responsiblePeople, [{ userId: "ou_zoe", name: "Zoe" }]);
+  edits.accept([original], edits.getVersion());
+  assert.equal(edits.project(original).responsiblePeople[0].userId, "ou_zoe");
+  requests[1].reject(new Error("rejected"));
+  await assert.rejects(second);
+  assert.equal(edits.project(original).responsible, "Lin");
+  assert.deepEqual(edits.project(original).responsiblePeople, confirmed);
+});
+
+test("failed person writes restore the original avatar, and partial sync keeps the selected identity", async () => {
+  const { edits, requests, submit } = fixture();
+  const original = { ...ticket, responsiblePeople: [{ userId: "ou_ada", name: "Ada", avatarUrl: "https://example.com/ada.png" }] };
+  const failed = submit("responsible", "Lin", original, "ou_lin");
+  requests[0].reject(new Error("rejected"));
+  await assert.rejects(failed);
+  assert.deepEqual(edits.project(original).responsiblePeople, original.responsiblePeople);
+  const partial = submit("responsible", "Lin", original, "ou_lin");
+  requests[1].resolve({ syncFailed: true });
+  await partial;
+  edits.accept([original], edits.getVersion());
+  assert.equal(edits.project(original).responsiblePeople[0].userId, "ou_lin");
+  const fresh = { ...original, responsible: "Lin", responsiblePeople: [{ userId: "ou_lin", name: "Lin", avatarUrl: "https://example.com/lin.png" }] };
+  edits.accept([fresh], edits.getVersion());
+  assert.deepEqual(edits.project(fresh).responsiblePeople, fresh.responsiblePeople);
+  assert.equal(edits.status(fresh).notices.length, 0);
+});
+
 test("multiple failed edits roll back to the last confirmed value, not another failed optimistic value", async () => {
   const { edits, requests, submit } = fixture();
   const first = submit("status", "B");

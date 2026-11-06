@@ -7,6 +7,7 @@ import {
 } from "./lark-ticket-field-update.service.js";
 
 const authDeps = {
+  contactStore: { listAvatarsByOpenIds: vi.fn().mockResolvedValue([]) },
   fieldMetadataCache: new LarkTicketFieldMetadataCache(),
   syncStore: { listLarkBaseTickets: vi.fn().mockResolvedValue([]), getLarkBaseTicketsForCleaning: vi.fn().mockResolvedValue([]) },
   getLarkTokenStore: (() => ({
@@ -53,6 +54,17 @@ function createClient(overrides: Record<string, unknown> = {}) {
 }
 
 describe("lark-ticket-field-update service", () => {
+  it("returns the newly selected person's cached avatar after sync", async () => {
+    const client = createClient({ updateRecord: vi.fn().mockResolvedValue({ record_id: "rec_1", fields: { 负责人: [{ id: "ou_new", name: "New owner" }] } }) });
+    const contactStore = { listAvatarsByOpenIds: vi.fn().mockResolvedValue([{ openId: "ou_new", avatarUrl: "https://example.com/new.png" }]) };
+    const result = await updateLarkTicketField({ masterUserId: "user_1", baseId: "app_1", tableId: "tbl_1", recordId: "rec_1", field: "responsible", value: "New owner", optionUserId: "ou_new" }, {
+      ...authDeps, contactStore, createLarkClient: () => client as never, syncLarkBaseTicket: vi.fn(),
+      syncStore: { listLarkBaseTickets: vi.fn(), getLarkBaseTicketsForCleaning: vi.fn().mockResolvedValue([{ sourceFields: { 负责人: [{ id: "ou_new", name: "New owner" }] } }]) },
+    });
+    expect(result).toMatchObject({ ok: true, ticket: { responsible: "New owner", responsiblePeople: [{ userId: "ou_new", name: "New owner", avatarUrl: "https://example.com/new.png" }] } });
+    expect(contactStore.listAvatarsByOpenIds).toHaveBeenCalledTimes(1);
+  });
+
   it("reuses options metadata and local snapshots across consecutive writes without a pre-write Lark read", async () => {
     const client = createClient();
     const syncStore = {
@@ -350,6 +362,41 @@ describe("lark-ticket-field-update service", () => {
 });
 
 describe("lark-ticket-field-options service", () => {
+  it("batch-loads option avatars by open ID, keeps same-name identities separate and omits source/profile data", async () => {
+    const client = createClient();
+    const contactStore = { listAvatarsByOpenIds: vi.fn().mockResolvedValue([
+      { openId: "ou_a", avatarUrl: "https://example.com/a.png", email: "private@example.com" },
+      { openId: "ou_b", avatarUrl: "https://example.com/b.png" },
+    ]) };
+    const result = await getLarkTicketFieldOptions({ masterUserId: "user_1", baseId: "app_1", tableId: "tbl_1" }, {
+      ...authDeps, contactStore, createLarkClient: () => client as never,
+      syncStore: { listLarkBaseTickets: vi.fn().mockResolvedValue([{ sourceFields: {
+        需求人: [{ id: "ou_a", name: "Same name", avatar_url: "https://example.com/old.png" }, { name: "No ID" }],
+        Responsible: [{ id: "ou_b", name: "Same name" }, { id: "ou_missing", name: "No cache" }],
+      } }]) },
+    });
+    expect(contactStore.listAvatarsByOpenIds).toHaveBeenCalledTimes(1);
+    expect(new Set(contactStore.listAvatarsByOpenIds.mock.calls[0][0])).toEqual(new Set(["ou_a", "ou_b", "ou_missing"]));
+    const options = result.fields.find((field) => field.field === "responsible")!.options;
+    expect(options.filter((option) => option.label === "Same name")).toEqual([
+      { label: "Same name", userId: "ou_a", avatarUrl: "https://example.com/a.png" },
+      { label: "Same name", userId: "ou_b", avatarUrl: "https://example.com/b.png" },
+    ]);
+    expect(options.find((option) => option.label === "No ID")).toEqual({ label: "No ID" });
+    expect(options.find((option) => option.label === "No cache")).toEqual({ label: "No cache", userId: "ou_missing" });
+    expect(result.fields.find((field) => field.field === "requester")!.options).toEqual(options);
+    expect(JSON.stringify(result)).not.toMatch(/private@example|old.png|avatar_url/);
+  });
+
+  it("keeps the option list available when the avatar cache fails", async () => {
+    const result = await getLarkTicketFieldOptions({ masterUserId: "user_1", baseId: "app_1", tableId: "tbl_1" }, {
+      ...authDeps, createLarkClient: () => createClient() as never,
+      contactStore: { listAvatarsByOpenIds: vi.fn().mockRejectedValue(new Error("cache unavailable")) },
+      syncStore: { listLarkBaseTickets: vi.fn().mockResolvedValue([{ sourceFields: { 需求人: [{ id: "ou_a", name: "Ada" }] } }]) },
+    });
+    expect(result.fields.find((field) => field.field === "requester")!.options).toEqual([{ label: "Ada", userId: "ou_a" }]);
+  });
+
   it("returns select options from field metadata and person options from synced tickets", async () => {
     const client = createClient();
     const result = await getLarkTicketFieldOptions({

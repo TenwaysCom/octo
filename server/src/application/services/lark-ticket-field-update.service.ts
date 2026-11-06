@@ -4,6 +4,7 @@ import {
   type AuthenticatedLarkClientFactoryDeps,
 } from "./lark-auth-client.factory.js";
 import { buildLarkTicketCleaningProjection } from "./lark-ticket-cleaning.js";
+import { loadLarkTicketAvatarUrls, resolveLarkTicketPeople, type LarkTicketPeopleDeps, type LarkTicketPeopleProjection } from "./lark-ticket-people.service.js";
 import { PlatformSyncService } from "./platform-sync.service.js";
 import { larkTicketFieldMetadataCache, type LarkTicketFieldMetadataCache } from "./lark-ticket-field-metadata-cache.js";
 import {
@@ -66,7 +67,7 @@ export interface UpdateLarkTicketFieldRequest {
   actionRunId?: string;
 }
 
-export interface UpdatedLarkTicketProjection {
+export interface UpdatedLarkTicketProjection extends LarkTicketPeopleProjection {
   baseId: string;
   tableId: string;
   recordId: string;
@@ -100,6 +101,7 @@ export interface LarkTicketFieldUpdateFailure {
 export interface LarkTicketFieldOptionItem {
   label: string;
   userId?: string;
+  avatarUrl?: string;
 }
 
 export interface LarkTicketFieldOptionsItem {
@@ -114,7 +116,7 @@ export interface LarkTicketFieldOptionsResult {
   fields: LarkTicketFieldOptionsItem[];
 }
 
-export interface LarkTicketFieldUpdateDeps extends AuthenticatedLarkClientFactoryDeps {
+export interface LarkTicketFieldUpdateDeps extends AuthenticatedLarkClientFactoryDeps, LarkTicketPeopleDeps {
   syncStore?: Pick<PlatformSyncStore, "listLarkBaseTickets"> & Partial<Pick<PlatformSyncStore, "getLarkBaseTicketsForCleaning">>;
   fieldMetadataCache?: LarkTicketFieldMetadataCache;
   syncLarkBaseTicket?: (input: {
@@ -205,6 +207,8 @@ function buildUpdatedTicketProjection(
     baseId,
     tableId,
     recordId,
+    requesterPeople: [],
+    responsiblePeople: [],
     title: readFieldText(fields, LARK_TICKET_TITLE_FIELD_CANDIDATES) || recordId,
     ...(projection.issueType ? { issueType: projection.issueType } : {}),
     ...(projection.businessLine ? { businessLine: projection.businessLine } : {}),
@@ -315,6 +319,7 @@ export async function updateLarkTicketField(
     // A cleared text cell may be omitted from the update response. Do not
     // resurrect its pre-write value when merging a sparse platform response.
     const mergedFields = { ...record.fields, ...writeFields, ...updated.fields };
+    let personFields = mergedFields;
     let ticket = buildUpdatedTicketProjection(baseId, tableId, recordId, mergedFields);
 
     try {
@@ -331,7 +336,10 @@ export async function updateLarkTicketField(
         cleanAfterSync: true,
       }));
       const [fresh] = await syncStore.getLarkBaseTicketsForCleaning?.(refs) ?? [];
-      if (fresh?.sourceFields) ticket = buildUpdatedTicketProjection(baseId, tableId, recordId, fresh.sourceFields);
+      if (fresh?.sourceFields) {
+        personFields = fresh.sourceFields;
+        ticket = buildUpdatedTicketProjection(baseId, tableId, recordId, fresh.sourceFields);
+      }
     } catch (syncError) {
       // Partial success: Lark Base is updated, the local projection refresh failed.
       serviceLogger.warn({
@@ -350,6 +358,7 @@ export async function updateLarkTicketField(
       };
     }
 
+    Object.assign(ticket, (await resolveLarkTicketPeople([personFields], deps))[0]);
     serviceLogger.info({ actionRunId, recordId, field, layer: "server", module: MODULE, stage: "server.workflow.completed",
       elapsedMs: Date.now() - startedAt, localSnapshotUsed: Boolean(snapshot?.sourceFields) }, "server.workflow.completed");
     return {
@@ -403,6 +412,11 @@ export async function getLarkTicketFieldOptions(
   const syncStore = deps.syncStore ?? new PostgresPlatformSyncStore();
   const items = await syncStore.listLarkBaseTickets(PERSON_OPTIONS_SCAN_LIMIT);
   const personOptions = collectPersonOptions(items);
+  const avatars = await loadLarkTicketAvatarUrls(personOptions.flatMap((option) => option.userId ? [option.userId] : []), deps);
+  for (const option of personOptions) {
+    const avatarUrl = option.userId ? avatars.get(option.userId) : undefined;
+    if (avatarUrl) option.avatarUrl = avatarUrl;
+  }
   const userFields: LarkTicketFieldOptionsItem[] = USER_SEMANTIC_FIELDS.map((field) => ({
     field,
     kind: "user" as const,

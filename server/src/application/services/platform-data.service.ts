@@ -13,6 +13,7 @@ import {
   resolveGitHubRepoEnvironment,
 } from "./odoo-devops-environment-mapping.js";
 import { buildLarkTicketCleaningProjection } from "./lark-ticket-cleaning.js";
+import { resolveLarkTicketPeople, type LarkTicketPeopleDeps } from "./lark-ticket-people.service.js";
 import {
   buildMeegleSprintSnapshot,
   buildMeegleSprintWorkitemProjections,
@@ -33,6 +34,7 @@ export class PlatformDataService {
   constructor(
     store?: PlatformSyncStore,
     private readonly odooDevopsBranchesService?: Pick<OdooDevopsBranchesService, "getOrStartRefresh">,
+    private readonly larkTicketPeopleDeps: LarkTicketPeopleDeps = {},
   ) {
     this.store = store;
   }
@@ -45,12 +47,14 @@ export class PlatformDataService {
             this.syncStore.listLarkBaseTickets(limit, filters.larkTickets),
             this.syncStore.countLarkBaseTickets(filters.larkTickets),
           ]);
+          const people = await resolveLarkTicketPeople(items.map((item) => item.sourceFields), this.larkTicketPeopleDeps);
           return {
-            items: items.map(({ sourceFields, ...item }) => {
+            items: items.map(({ sourceFields, ...item }, index) => {
               const projection = buildLarkTicketCleaningProjection(sourceFields, item.createdTime);
               const requester = item.requester ?? projection.requester;
               return {
                 ...item,
+                ...people[index],
                 ...(requester ? { requester } : {}),
                 ...(projection.businessLine ? { businessLine: projection.businessLine } : {}),
                 ...(projection.createdAt ? { createdAt: projection.createdAt } : {}),

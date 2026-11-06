@@ -117,6 +117,12 @@ Web Meegle 工作项列表默认按状态分组，也支持切换为按类型、
 
 Lark Ticket 详情 Properties 的状态、紧急度、需求人、负责人、类型和 Business Line 支持点击编辑；仅 `platformSync` 权限用户显示编辑入口。字段写入复用独立的 Web Ticket action workflow：写回 Lark Base 后单条同步并清洗，再更新详情与前后导航快照；同步失败显示部分成功。创建/关闭时间及 Shadow AI 仍只读。
 
+#### 从 Ticket 快照增量提取联系人头像
+
+离线脚本从指定 Base/Table、半开时间区间内的 `lark_base_ticket_syncs.fields_json` 提取人员头像 URL，按 `ou_` open ID 去重并写入已有 `lark_contacts.avatar_url`。默认按 Ticket 创建时间筛选，也可选源更新时间或同步时间。来源 Ticket 的 `synced_at` 记入 `avatar_source_synced_at`；只接受较新的观察，已有同时间或更新头像保持原值。新联系人建立 open ID 与头像，已有联系人邮箱、姓名、Meegle 关联保留，普通通讯录同步不清空头像。默认只读预览，`--apply` 仅幂等补充两列并事务写入；不修改 Ticket、认证资料或外部平台，不下载图片、不新增调度。命令和字段语义见 [Server 使用说明](../../server/README.md#从-ticket-区间提取联系人头像)，执行证据见 [任务记录](../tasks/platform-sync/2026-11-06-lark-ticket-avatar-extraction.md)。
+
+Ticket 列表与字段更新响应新增 `requesterPeople`、`responsiblePeople` 数组，每项只含 `name`、可选 `userId`（Lark open ID）及 `avatarUrl`；原姓名字符串与筛选契约保留。Server 从源快照识别当前人员，每批请求只查一次 `lark_contacts`，不按姓名关联，不返回源字段、邮箱或联系人其他资料。头像查询失败/缓存缺失时仍返回人员身份，由 FE 展示首字；图片错误也降级首字。列表、详情和 Lark App 当前人员徽章共用展示，编辑队列同时维护姓名、ID 与头像，防止旧响应或失败串人。既有 `field-options` 接口的人员选项同样一次批量查询缓存并提供可选 `avatarUrl`；列表和属性编辑的人员选择菜单复用图片/首字降级，保留 16px、搜索、当前状态与选择行为。筛选圆点、看板聚合头像及登录用户头像维持既有行为。实现及验证见 [展示任务](../tasks/platform-data/2026-11-06-lark-ticket-contact-avatars.md)。
+
 ### 2.3 Lark Ticket AI Sessions
 
 Lark Ticket 详情页可基于当前同步快照的标题、描述与资源创建 Kimi ACP AI Session。会话归属保存在 `acp_kimi_session_owners`：每条 Ticket Session 同时绑定 Lark `base_id + table_id + record_id` 与服务端解析出的 Lark 用户身份。它不向 Lark 回写消息或评论。

@@ -35,6 +35,25 @@ pnpm --dir server db:import-sqlite -- --sqlite ./data/tenways-octo.sqlite
 4. 如果要导入旧 SQLite 数据，运行 `pnpm --dir server db:import-sqlite -- --sqlite ./data/tenways-octo.sqlite`
 5. 启动服务，后续运行时只使用 PostgreSQL
 
+### 从 Ticket 区间提取联系人头像
+
+读取指定 Base/Table 的 `lark_base_ticket_syncs.fields_json`，从人员对象和人员数组提取 `id + avatar_url`，按 `open_id` 去重后写入 `lark_contacts.avatar_url`。只接受 `ou_` ID 和 HTTP(S) URL；新联系人只建立 open ID 与头像，邮箱、姓名和 Meegle 关联留空，已有联系人的这些信息保持原值。
+
+```bash
+pnpm --dir server platform:extract-lark-ticket-avatars -- \
+  --base-id YOUR_BASE_ID --table-id YOUR_TABLE_ID \
+  --start-time 2026-11-01T00:00:00+08:00 \
+  --end-time 2026-11-07T00:00:00+08:00
+```
+
+默认仅做数据库只读预览，不补列、不写入。时间必填且必须带时区，区间为 `[start, end)`，默认筛选 `created_time`；可用 `--time-field source_updated_at` 或 `--time-field synced_at` 切换。空时间不命中区间，无法转换为时间的历史值会使查询失败。
+
+同一命令增加 `--apply` 后，脚本仅为现有 `lark_contacts` 幂等补充 `avatar_url`、`avatar_source_synced_at` 两列，并在事务内增量 upsert；无需先运行整库迁移。它沿用 `server/.env` 的 `POSTGRES_URI` / `DATABASE_URL` 和 SSH tunnel 配置。若使用 `db:migrate` 完成迁移，仍需先 build。
+
+`avatar_source_synced_at` 取来源 Ticket 的 `synced_at`，表示观察时间。同一个人优先采用最近同步的有效头像；同批相同时间按 record ID、字段名及 URL 的稳定顺序取首项，数据库已有相同或较新观察时间的头像保持原值。重复运行不产生重复联系人，普通通讯录同步也保留已提取的头像。后续可用 `--time-field synced_at` 选择新增同步区间；脚本不维护自动水位。统计只输出数量和区间，不打印头像地址或人员资料，不下载图片。预览的 `uniqueUsers` 是提取数量，不是预计新增/更新行数；实际写入以 apply 的 `written` 为准。
+
+实现及验证边界见 [任务记录](../docs/tasks/platform-sync/2026-11-06-lark-ticket-avatar-extraction.md)。
+
 ### 通过 SSH 连接 PostgreSQL
 
 默认直接使用 `POSTGRES_URI`。当数据库仅能从堡垒机访问时，在 `server/.env` 或进程环境中启用 tunnel：

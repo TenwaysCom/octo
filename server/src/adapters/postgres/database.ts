@@ -141,6 +141,11 @@ export async function ensureLarkTicketDoneSchema(db: Kysely<DatabaseSchema>): Pr
     .on("lark_ticket_done_reactions").columns(["app_id", "root_message_id", "stage"]).execute();
 }
 
+export async function ensureLarkContactAvatarColumns(db: Kysely<DatabaseSchema>): Promise<void> {
+  await sql`ALTER TABLE lark_contacts ADD COLUMN IF NOT EXISTS avatar_url text`.execute(db);
+  await sql`ALTER TABLE lark_contacts ADD COLUMN IF NOT EXISTS avatar_source_synced_at text`.execute(db);
+}
+
 export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<void> {
   await ensureLarkThreadTicketIntakeSchema(db);
   await ensureLarkTicketDoneSchema(db);
@@ -244,9 +249,13 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .addColumn("email", "text")
     .addColumn("name", "text")
     .addColumn("meegle_user_key", "text")
+    .addColumn("avatar_url", "text")
+    .addColumn("avatar_source_synced_at", "text")
     .addColumn("created_at", "text", (column) => column.notNull())
     .addColumn("updated_at", "text", (column) => column.notNull())
     .execute();
+
+  await ensureLarkContactAvatarColumns(db);
 
   await db.schema
     .createTable("user_tokens")

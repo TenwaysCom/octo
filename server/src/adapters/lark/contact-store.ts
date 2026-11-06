@@ -3,6 +3,8 @@ export interface LarkContactRecord {
   email: string | null;
   name: string | null;
   meegleUserKey: string | null;
+  avatarUrl?: string | null;
+  avatarSourceSyncedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -57,6 +57,12 @@ test("keeps field items usable when their options have not loaded", () => {
   }
 });
 
+test("person option models retain avatar URLs alongside their stable user IDs", () => {
+  const options = [{ label: "Same name", userId: "ou_a", avatarUrl: "https://example.com/a.png" }, { label: "Same name", userId: "ou_b", avatarUrl: "https://example.com/b.png" }];
+  const entry = buildLarkTicketMenuSections({ ticket, fieldOptions: [{ field: "responsible", kind: "user", options }] })[0].items.find((item) => item.field === "responsible");
+  assert.deepEqual(entry.options.map(({ userId, avatarUrl }) => ({ userId, avatarUrl })), options.map(({ userId, avatarUrl }) => ({ userId, avatarUrl })));
+});
+
 test("matches the current value case-insensitively across multi-person fields", () => {
   assert.equal(isCurrentLarkTicketOption(ticket, "responsible", "lin"), true);
   assert.equal(isCurrentLarkTicketOption(ticket, "responsible", "Zhang"), true);

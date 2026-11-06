@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { UserAvatar } from "../user/User.jsx";
 import {
   buildLarkTicketMenuSections,
   getLarkTicketMenuPosition,
@@ -24,10 +25,6 @@ function ChevronIcon() {
 
 function CheckIcon() {
   return <svg aria-hidden="true" className="ticket-context-menu__check" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} viewBox="0 0 12 12"><path d="m2 6.5 2.6 2.6L10 3.5" /></svg>;
-}
-
-function PersonAvatar({ label }) {
-  return <span aria-hidden="true" className="ticket-context-menu__avatar">{label.slice(0, 1).toLocaleUpperCase()}</span>;
 }
 
 export function LarkTicketContextMenu({
@@ -221,7 +218,7 @@ export function LarkTicketContextMenu({
                 onClick={() => runFieldAction(item, option)}
               >
                 {item.optionsKind === "user"
-                  ? <PersonAvatar label={option.label} />
+                  ? <UserAvatar name={option.label} avatarUrl={option.avatarUrl} className="ticket-context-menu__avatar" />
                   : <span aria-hidden="true" className={`ticket-context-menu__dot ticket-context-menu__dot--${option.tone}`} />}
                 <span className="ticket-context-menu__label">{option.label}</span>
                 <small className="ticket-context-menu__count">{option.count}</small>

@@ -100,8 +100,8 @@ export function buildLarkTicketRow(item, visibleColumns = []) {
   if (visible.has("status")) leading.push({ key: "status", type: "lark-badge", kind: "status", value: item.ticketStatus });
   const trailing = [];
   if (visible.has("businessLine")) trailing.push({ key: "businessLine", type: "lark-badge", kind: "business-line", value: item.businessLine, title: `Business line: ${item.businessLine || "未设置"}` });
-  if (visible.has("requester")) trailing.push({ key: "requester", type: "lark-users", value: item.requester, hideOnSmall: true });
-  if (visible.has("responsible")) trailing.push({ key: "responsible", type: "lark-users", value: item.responsible });
+  if (visible.has("requester")) trailing.push({ key: "requester", type: "lark-users", value: item.requester, ...(item.requesterPeople ? { people: item.requesterPeople } : {}), hideOnSmall: true });
+  if (visible.has("responsible")) trailing.push({ key: "responsible", type: "lark-users", value: item.responsible, ...(item.responsiblePeople ? { people: item.responsiblePeople } : {}) });
   for (const [key, label] of [["createdAt", "创建"], ["closedAt", "关闭"]]) {
     if (visible.has(key)) trailing.push({ key, type: "date", value: item[key], text: `${label} ${formatDateTime(item[key])}`, title: `${label}时间` });
   }

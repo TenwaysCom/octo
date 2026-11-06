@@ -2,6 +2,14 @@
 
 Record concise compiler/runtime errors, failed commands, wrong assumptions, and their verified fixes here. Redact secrets, cookies, tokens, and sensitive payloads.
 
+## [ERR-20261106-001] pg-mem-conflict-where-false-returning
+
+**Error:** `INSERT ... ON CONFLICT DO UPDATE ... WHERE false RETURNING ...` 在 pg-mem 返回已有行，导致重复运行写入计数测试报 `expected 1 to be +0`；真实 PostgreSQL 此时不返回行。
+
+**Fix:** 模拟数据库断言持久化后的值和时间不变；用真实 PostgreSQL 会话临时表验证无操作返回计数及事务回滚，不为模拟器差异改写生产条件更新逻辑。
+
+source: [Ticket 头像提取](../docs/tasks/platform-sync/2026-11-06-lark-ticket-avatar-extraction.md)
+
 ## [ERR-20261104-003] lark-todate-intraday-window-returns-empty
 
 **Error:** Lark Base 使用 `>= TODATE(ISO start)` 与 `< TODATE(ISO end)` 构造同一天的分钟范围时，真实接口返回空；HTTP 成功及正常翻页使任务继续推进水位，符合状态的记录从未入队，形成静默漏选。不能用只返回预设记录的 mock 证明平台支持该日期精度。

@@ -122,6 +122,8 @@ export interface DatabaseSchema {
     email: string | null;
     name: string | null;
     meegle_user_key: string | null;
+    avatar_url: string | null;
+    avatar_source_synced_at: string | null;
     created_at: string;
     updated_at: string;
   };

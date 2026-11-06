@@ -3,6 +3,7 @@ import { getLarkTicketOptionTone, isCurrentLarkTicketOption } from "../../lib/la
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { LarkTicketBadge } from "./LarkTicketBadge.jsx";
 import { LarkTicketResponsible } from "./LarkTicketResponsible.jsx";
+import { UserAvatar } from "../user/User.jsx";
 import { loadLarkTicketFieldOptions } from "../../services/lark-ticket/lark-ticket-actions-api.js";
 
 const PROPERTIES = [
@@ -90,7 +91,7 @@ export function LarkTicketEditableProperties({ ticket, apiBaseUrl, canEdit, onSa
       {PROPERTIES.map((property) => {
         const value = ticket[property.key];
         const display = property.kind === "user"
-          ? <LarkTicketResponsible responsible={value} />
+          ? <LarkTicketResponsible responsible={value} people={ticket[`${property.key}People`]} />
           : <LarkTicketBadge kind={property.kind} value={value} />;
         const fieldOptions = options.fields.find((entry) => entry.field === property.field)?.options || [];
         const normalizedQuery = query.trim().toLocaleLowerCase();
@@ -136,7 +137,7 @@ export function LarkTicketEditableProperties({ ticket, apiBaseUrl, canEdit, onSa
                     return <button type="button" role="menuitemradio" aria-checked={current}
                       className="ticket-property-menu__option" key={option.userId || option.label}
                       onClick={() => void save(property, option)}>
-                      {property.kind === "user" ? <span className="ticket-context-menu__avatar" aria-hidden="true">{option.label.slice(0, 1)}</span>
+                      {property.kind === "user" ? <UserAvatar name={option.label} avatarUrl={option.avatarUrl} className="ticket-context-menu__avatar" />
                         : <span className={`ticket-context-menu__dot ticket-context-menu__dot--${getLarkTicketOptionTone(property.field, option.label)}`} aria-hidden="true" />}
                       <span className="ticket-property-menu__label">{option.label}</span>
                       {current ? <svg className="ticket-property-menu__check" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="m3 8 3 3 7-7" /></svg> : null}

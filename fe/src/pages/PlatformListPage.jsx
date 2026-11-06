@@ -313,10 +313,10 @@ function LarkTicketCell({ columnKey, item, onTicketFieldClick }) {
     return item.solution || "暂无解决方案";
   }
   if (columnKey === "requester") {
-    return <LarkTicketResponsible responsible={item.requester} />;
+    return <LarkTicketResponsible responsible={item.requester} people={item.requesterPeople} />;
   }
   if (columnKey === "responsible") {
-    return <LarkTicketResponsible responsible={item.responsible} />;
+    return <LarkTicketResponsible responsible={item.responsible} people={item.responsiblePeople} />;
   }
   if (columnKey === "priority") {
     return <LarkTicketBadge kind="priority" value={item.priority} />;
@@ -387,7 +387,7 @@ function WorkitemRowMeta({ meta, apiBaseUrl, onPickPullRequest, onTicketFieldCli
   } else if (meta.type === "github-user") {
     content = <GitHubUser login={meta.login} />;
   } else if (meta.type === "lark-users") {
-    content = <LarkTicketResponsible responsible={meta.value} />;
+    content = <LarkTicketResponsible responsible={meta.value} people={meta.people} />;
   } else if (meta.type === "related-people") {
     content = <MeegleRelatedPeople relatedPeople={meta.relatedPeople} />;
   } else if (meta.type === "date") {

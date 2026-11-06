@@ -2,6 +2,10 @@
 
 范围：Lark、Meegle、GitHub 等平台之间的同步、回写、对账与排障。记录规则见 [Tasks 台账](../README.md)。
 
+- [生产联系人头像补充到测试库](./2026-11-06-copy-lark-contact-avatars-to-test.md) — done；tenways_octo_test_1021 已补 113 个头像（更新 98、新增 15），事务提交及读回通过；生产只读。
+
+- [Ticket 区间提取人员头像](./2026-11-06-lark-ticket-avatar-extraction.md) — done；按 open_id 增量更新 lark_contacts 头像，35 个相关测试、构建及 PostgreSQL 临时表验证通过；真实库仅预览，未 apply。
+
 - [数据同步页展示 Ticket 自动任务状态](./2026-11-04-ticket-worker-status.md) — 两项任务卡片完成，展示配置及实际运行记录；Done 已由后续实现任务升级为可运行状态展示；未部署或启用 Worker。
 
 - [工单按配置状态自动添加 Done 表情](./2026-11-04-lark-finished-ticket-reaction.md) — v7 已修复同日 TODATE 上界漏选，74 个相关用例及构建通过；2464 已补 Bot DONE 并验证重复执行。生产 Worker 已加载修复，首轮自动扫描成功；未回退水位或补扫历史。

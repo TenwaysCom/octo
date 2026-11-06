@@ -3,6 +3,19 @@ import { OdooDevopsBranchesService } from "./odoo-devops-branches.service.js";
 import { PlatformDataService } from "./platform-data.service.js";
 
 describe("PlatformDataService", () => {
+  it("attaches contact avatars to list people without exposing raw source fields", async () => {
+    const store = {
+      listLarkBaseTickets: vi.fn().mockResolvedValue([{ baseId: "base", tableId: "table", recordId: "ticket", requester: "Ada", responsible: "Lin", sourceFields: {
+        需求人: [{ id: "ou_ada", name: "Ada", email: "private@example.com" }], Responsible: [{ id: "ou_lin", name: "Lin" }],
+      } }]), countLarkBaseTickets: vi.fn().mockResolvedValue(1),
+    } as unknown as PlatformSyncStore;
+    const contactStore = { listAvatarsByOpenIds: vi.fn().mockResolvedValue([{ openId: "ou_ada", avatarUrl: "https://example.com/ada.png" }]) };
+    const result = await new PlatformDataService(store, undefined, { contactStore }).list("lark-tickets", 50);
+    expect(result.items[0]).toMatchObject({ requester: "Ada", responsible: "Lin", requesterPeople: [{ userId: "ou_ada", name: "Ada", avatarUrl: "https://example.com/ada.png" }], responsiblePeople: [{ userId: "ou_lin", name: "Lin" }] });
+    expect(JSON.stringify(result)).not.toMatch(/sourceFields|private@example/);
+    expect(contactStore.listAvatarsByOpenIds).toHaveBeenCalledTimes(1);
+  });
+
   it("projects Base creation/closing milliseconds and solution text without inferring a close time", async () => {
     const store = {
       listLarkBaseTickets: vi.fn().mockResolvedValue([

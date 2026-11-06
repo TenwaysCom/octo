@@ -153,6 +153,12 @@ FE 为每次运行的每个阶段显示一条状态，完成后更新原条目�
 
 ## Ticket 字段连续编辑
 
+Ticket 列表、详情及 Lark App 的需求人/负责人徽章使用 Server 返回的 `requesterPeople`、`responsiblePeople`：人员 `userId` 来自 Ticket 源人员对象，`avatarUrl` 来自 `lark_contacts`，只按 open ID 匹配。缺少缓存或图片加载失败时保留姓名首字；旧接口仅返回姓名字符串时仍可显示。现有头像尺寸、标签及列表筛选保持；字段编辑时人员数组与姓名一起回显、确认和回滚，不沿用上一位人员的头像。
+
+点击人员展开的选择列表也使用相同头像缓存：既有 `field-options` 接口的人员选项增加可选 `avatarUrl`，Server 一次批量查询并按 `userId` 匹配。列表菜单、详情及 App 属性菜单均保留 16px 尺寸、搜索和选中行为，缺失或图片失败时回退首字；不按姓名推断头像。
+
+可运行 `OCTO_FIELD_BROWSER_EXECUTABLE=<已有 Chromium 路径> pnpm --dir fe exec node manual-tests/lark-ticket-avatars.browser.mjs` 验证列表、详情、窄屏 App、图片失败和编辑回滚；全部使用合成 API/图片，真实库只读及部署边界见 [头像展示任务](../docs/tasks/platform-data/2026-11-06-lark-ticket-contact-avatars.md)。
+
 Ticket 列表、详情属性及 Lark App 属性栏在选值后立即关闭菜单、回显并显示保存中，可以连续修改。App 按登录用户及 API 地址持有共享队列；同一 Ticket 请求依次发送，失败只恢复对应字段到最后已确认值，旧响应不会整条覆盖更新的修改。详情导航缓存同步更新，列表请求按编辑版本隔离并发复用。解决方案提交共用该队列。Lark 已写但本地同步失败时保留新值并提示；退出登录取消未发送修改。队列仅在当前页面会话内有效，未提供刷新后的持久化恢复。
 
 Server 元数据缓存及减少远端读取的契约、模拟浏览器检查入口和真实平台验证边界见[任务记录](../docs/tasks/platform-sync/2026-10-21-lark-ticket-edit-sync-performance.md)。

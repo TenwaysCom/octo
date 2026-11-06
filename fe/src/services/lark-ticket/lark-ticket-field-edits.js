@@ -8,6 +8,8 @@ const FIELDS = {
 };
 const identity = ({ baseId, tableId, recordId }) => ({ baseId, tableId, recordId });
 const keyOf = (ticket) => JSON.stringify([ticket.baseId, ticket.tableId, ticket.recordId]);
+const sameValue = (left, right) => left === right || (Array.isArray(left) && Array.isArray(right) && left.length === right.length
+  && left.every((person, index) => person.name === right[index].name && person.userId === right[index].userId));
 
 /** Session-owned UI state, not a durable save queue. Only one request per Ticket is sent at a time. */
 export function createLarkTicketFieldEdits({ apiBaseUrl, update = updateLarkTicketField, createMeegle = createLarkTicketMeegleWorkitem, onPatch } = {}) {
@@ -27,7 +29,7 @@ export function createLarkTicketFieldEdits({ apiBaseUrl, update = updateLarkTick
 
   function patch(record) {
     return Object.assign({}, Object.fromEntries([...record.confirmed].map(([key, entry]) => [key, entry.value])),
-      ...record.pending.map((op) => ({ [op.key]: op.value })));
+      ...record.pending.map((op) => ({ [op.key]: op.value, ...(op.peopleKey ? { [op.peopleKey]: op.people } : {}) })));
   }
 
   function changed(record) {
@@ -47,6 +49,8 @@ export function createLarkTicketFieldEdits({ apiBaseUrl, update = updateLarkTick
         if (!disposed) {
           const value = result.ticket && Object.hasOwn(result.ticket, op.key) ? result.ticket[op.key] : op.value;
           record.confirmed.set(op.key, { value, settledAt: revision + 1, syncFailed: Boolean(result.syncFailed) });
+          const peopleKey = op.peopleKey || (["requester", "responsible"].includes(op.field) && Array.isArray(result.ticket?.[`${op.field}People`]) ? `${op.field}People` : null);
+          if (peopleKey) record.confirmed.set(peopleKey, { value: result.ticket?.[peopleKey] ?? op.people, settledAt: revision + 1, syncFailed: Boolean(result.syncFailed) });
           if (op.field === "status" && result.ticket && Object.hasOwn(result.ticket, "closedAt")) {
             record.confirmed.set("closedAt", { value: result.ticket.closedAt, settledAt: revision + 1, syncFailed: false });
           }
@@ -58,6 +62,7 @@ export function createLarkTicketFieldEdits({ apiBaseUrl, update = updateLarkTick
         if (!disposed) {
           // Keep the last confirmed value, not the previous optimistic value (which may also have failed).
           record.confirmed.get(op.key).settledAt = revision + 1;
+          if (op.peopleKey) record.confirmed.get(op.peopleKey).settledAt = revision + 1;
           record.notices.set(op.key, `${record.label}：${FIELDS[op.field][1]}保存失败：${error.message || "请重试。"}`);
         }
         op.reject(error);
@@ -94,8 +99,8 @@ export function createLarkTicketFieldEdits({ apiBaseUrl, update = updateLarkTick
         if (!record) continue;
         const freshPatch = {};
         for (const [key, entry] of record.confirmed) {
-          if (entry.settledAt > readVersion || record.pending.some((op) => op.key === key || (key === "closedAt" && op.field === "status"))) continue;
-          if (entry.syncFailed && ticket[key] !== entry.value) continue;
+          if (entry.settledAt > readVersion || record.pending.some((op) => op.key === key || op.peopleKey === key || (key === "closedAt" && op.field === "status"))) continue;
+          if (entry.syncFailed && !sameValue(ticket[key], entry.value)) continue;
           record.confirmed.delete(key);
           if (entry.syncFailed) record.notices.delete(key);
           freshPatch[key] = ticket[key];
@@ -158,9 +163,12 @@ export function createLarkTicketFieldEdits({ apiBaseUrl, update = updateLarkTick
         return Promise.reject(new Error(message));
       }
       if (!record.confirmed.has(key)) record.confirmed.set(key, { value: ticket[key], settledAt: Infinity, syncFailed: false });
+      const peopleKey = ["requester", "responsible"].includes(field) && Array.isArray(ticket[`${field}People`]) ? `${field}People` : undefined;
+      if (peopleKey && !record.confirmed.has(peopleKey)) record.confirmed.set(peopleKey, { value: ticket[peopleKey], settledAt: Infinity, syncFailed: false });
+      const people = peopleKey ? [{ name: value, ...(optionUserId ? { userId: optionUserId } : {}) }] : undefined;
       record.notices.delete(key);
       const completion = new Promise((resolve, reject) => {
-        record.pending.push({ field, key, value, optionUserId, actionRunId, resolve, reject });
+        record.pending.push({ field, key, value, optionUserId, ...(peopleKey ? { peopleKey, people } : {}), actionRunId, resolve, reject });
       });
       changed(record);
       void drain(record);
