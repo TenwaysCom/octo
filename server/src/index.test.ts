@@ -65,6 +65,7 @@ describe("index routes", () => {
         "GET /api/web/platform-data/github-pull-request-preview",
         "GET /api/web/meegle-sprints",
         "GET /api/web/lark-tickets/:recordId/shared-url",
+        "POST /api/web/lark-tickets/:recordId/mark-deleted",
         "PUT /api/web/lark-tickets/:recordId/support-analysis",
         "GET /api/web/lark-ticket-eval-samples",
         "POST /api/web/lark-tickets/:recordId/eval-sample",

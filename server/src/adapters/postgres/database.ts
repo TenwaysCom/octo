@@ -784,6 +784,8 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     .addColumn("table_id", "text", (column) => column.notNull())
     .addColumn("record_id", "text", (column) => column.notNull())
     .addColumn("shared_url", "text")
+    .addColumn("deleted_at", "text")
+    .addColumn("deleted_by", "text")
     .addColumn("ticket_ai", "text", (column) => column.notNull().defaultTo("{}"))
     .addColumn("shadow_ai", "text", (column) => column.notNull().defaultTo("{}"))
     .addColumn("local_json", "text", (column) => column.notNull().defaultTo("{}"))
@@ -1111,6 +1113,9 @@ export async function ensurePostgresSchema(db: Kysely<DatabaseSchema>): Promise<
     ALTER TABLE lark_base_ticket_octo
     ADD COLUMN IF NOT EXISTS shared_url text
   `.execute(db);
+  for (const column of ["deleted_at", "deleted_by"]) {
+    await sql.raw(`ALTER TABLE lark_base_ticket_octo ADD COLUMN IF NOT EXISTS ${column} text`).execute(db);
+  }
   await sql`
     ALTER TABLE lark_base_ticket_octo
     ADD COLUMN IF NOT EXISTS ticket_ai text NOT NULL DEFAULT '{}'

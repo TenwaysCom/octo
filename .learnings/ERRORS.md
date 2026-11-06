@@ -2,6 +2,14 @@
 
 Record concise compiler/runtime errors, failed commands, wrong assumptions, and their verified fixes here. Redact secrets, cookies, tokens, and sensitive payloads.
 
+## [ERR-20261106-002] ticket-source-errors-collapse-to-shared-url-missing
+
+**Error:** Lark batch_get 的 `absent_record_ids`、`forbidden_record_ids` 均被当成缺少 shared_url；直接返回的 `1254043 / RecordIdNotFound` 也丢失业务含义，使保留的 Octo 快照无法解释源记录已不存在的情况。
+
+**Fix:** 依据指定记录的 absent/forbidden 桶及明确平台错误码分类，贯穿 Server 业务错误和 FE 提示。空 records、缺少 URL、通用 404 不作删除依据；本地删除另存人工标记，不能复用下一轮同步会清除的 stale。
+
+source: [Ticket 源记录错误与删除标记](../docs/tasks/platform-data/2026-11-06-lark-ticket-source-errors-and-deletion.md)
+
 ## [ERR-20261106-001] pg-mem-conflict-where-false-returning
 
 **Error:** `INSERT ... ON CONFLICT DO UPDATE ... WHERE false RETURNING ...` 在 pg-mem 返回已有行，导致重复运行写入计数测试报 `expected 1 to be +0`；真实 PostgreSQL 此时不返回行。

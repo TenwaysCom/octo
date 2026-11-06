@@ -19,6 +19,77 @@ function fixture() {
   return { edits, requests, patches, submit, creates };
 }
 
+test("missing source cancels unsent edits and blocks only that Ticket", async () => {
+  const { edits, requests, submit } = fixture();
+  const first = submit("status", "Finish");
+  const second = submit("priority", "P0");
+  const third = submit("responsible", "Lin", ticket, "ou_lin");
+  const missing = Object.assign(new Error("Lark Base 源记录不存在，可能已被删除。"), { code: "LARK_TICKET_SOURCE_NOT_FOUND" });
+  requests[0].reject(missing);
+  await Promise.all([assert.rejects(first), assert.rejects(second), assert.rejects(third)]);
+  assert.equal(requests.length, 1);
+  assert.equal(edits.status(ticket).pending, 0);
+  assert.equal(edits.status(ticket).blocked, true);
+  assert.deepEqual(edits.project(ticket), ticket);
+  await assert.rejects(submit("status", "Open"), /暂停修改/);
+  const another = submit("priority", "P1", { ...ticket, tableId: "another-table" });
+  requests[1].resolve({});
+  await another;
+  assert.equal(edits.status({ ...ticket, tableId: "another-table" }).blocked, false);
+});
+
+test("link source errors block pending writes but permission errors permit a later retry", async () => {
+  const { edits, requests, submit } = fixture();
+  edits.reportSourceError(ticket, Object.assign(new Error("无权限"), { code: "LARK_TICKET_SOURCE_FORBIDDEN" }));
+  assert.equal(edits.status(ticket).blocked, false);
+  const first = submit("status", "Finish");
+  const queued = submit("priority", "P0");
+  edits.reportSourceError(ticket, Object.assign(new Error("源记录不存在"), { code: "LARK_TICKET_SOURCE_NOT_FOUND" }));
+  await assert.rejects(queued);
+  requests[0].resolve({});
+  await first;
+  assert.equal(requests.length, 1);
+  assert.equal(edits.status(ticket).blocked, true);
+});
+
+test("local deletion waits for other writes, deduplicates requests and keeps navigation snapshots deleted", async () => {
+  const requests = [];
+  const edits = createLarkTicketFieldEdits({ markDeleted: (input) => new Promise((resolve, reject) => requests.push({ input, resolve, reject })) });
+  const first = edits.markDeleted({ ticket, actionRunId: "delete-run" });
+  assert.equal(edits.markDeleted({ ticket }), first);
+  await assert.rejects(edits.submit({ ticket, field: "status", value: "Finish" }), /暂停修改/);
+  await Promise.resolve();
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].input.actionRunId, "delete-run");
+  requests[0].resolve({ deletedAt: "2026-11-06T00:00:00Z" });
+  await first;
+  edits.accept([ticket], edits.getVersion());
+  assert.equal(edits.project(ticket).deletedAt, "2026-11-06T00:00:00Z");
+  assert.equal(edits.project({ ...ticket, baseId: "other" }).deletedAt, undefined);
+  await edits.markDeleted({ ticket });
+  assert.equal(requests.length, 1);
+  const pending = fixture();
+  const writing = pending.submit("status", "Finish");
+  await assert.rejects(pending.edits.markDeleted({ ticket }), /等待当前操作/);
+  pending.requests[0].resolve({});
+  await writing;
+});
+
+test("failed deletion permits an explicit retry and does not hide the Ticket", async () => {
+  let count = 0;
+  const edits = createLarkTicketFieldEdits({ markDeleted: async () => {
+    count += 1;
+    if (count === 1) throw new Error("标记失败");
+    return { deletedAt: "2026-11-06T00:00:00Z" };
+  } });
+  await assert.rejects(edits.markDeleted({ ticket }), /标记失败/);
+  assert.equal(edits.project(ticket).deletedAt, undefined);
+  assert.equal(edits.status(ticket).blocked, false);
+  assert.equal(count, 1);
+  await edits.markDeleted({ ticket });
+  assert.equal(count, 2);
+});
+
 test("immediately projects continuous edits, serializes requests and ignores unrelated fields in old responses", async () => {
   const { edits, requests, submit } = fixture();
   const first = submit("status", "In Progress");

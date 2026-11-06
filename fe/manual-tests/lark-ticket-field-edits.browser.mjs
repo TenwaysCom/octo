@@ -21,6 +21,9 @@ try {
     issueType: "Bug", responsible: "Ada", requester: "Ada", solution: "Original solution", syncedAt: "2026-10-21T00:00:00Z", sharedUrl: "https://example.com/base", larkMessageLink: "https://example.com/discussion" }));
   const writes = [];
   const creates = [];
+  const deletions = [];
+  const deleted = new Set();
+  const sharedErrors = new Map();
   let allowEditing = true;
   const fieldKeys = { status: "ticketStatus", priority: "priority", responsible: "responsible", requester: "requester",
     issueType: "issueType", businessLine: "businessLine", solution: "solution" };
@@ -29,7 +32,7 @@ try {
     const path = new URL(route.request().url()).pathname;
     const ok = (data) => route.fulfill({ json: { ok: true, data } });
     if (path === "/api/web/profile") return ok({ user: { id: "fixture-user", larkName: "Synthetic QA" }, workspaceAccess: { platformLists: true, platformSync: allowEditing } });
-    if (path === "/api/web/platform-data/lark-tickets") return ok({ items: structuredClone(tickets) });
+    if (path === "/api/web/platform-data/lark-tickets") return ok({ items: structuredClone(tickets.filter((ticket) => !deleted.has(ticket.recordId))) });
     if (path === "/api/web/platform-data/lark-ticket-filter-options") return ok({ requester: ["Ada"], responsible: ["Ada"], issueType: ["Bug"] });
     if (path.endsWith("/field-options")) return ok({ fields: [
       { field: "status", kind: "select", options: ["Open", "In Progress", "Finish"].map((label) => ({ label })) },
@@ -46,6 +49,15 @@ try {
     if (path.endsWith("/create-meegle-workitem")) {
       creates.push({ route, input: route.request().postDataJSON(), recordId: path.split("/").at(-2) });
       return;
+    }
+    if (path.endsWith("/mark-deleted")) {
+      deletions.push({ route, input: route.request().postDataJSON(), recordId: path.split("/").at(-2) });
+      return;
+    }
+    if (path.endsWith("/shared-url")) {
+      const error = sharedErrors.get(path.split("/").at(-2));
+      if (error) return route.fulfill({ status: 404, json: { ok: false, error } });
+      return ok({ sharedUrl: "https://example.com/base" });
     }
     if (path.endsWith("/ai-sessions")) return ok({ sessions: [] });
     return route.fulfill({ status: 503, json: { ok: false, error: { errorCode: "FIXTURE_UNAVAILABLE" } } });
@@ -272,6 +284,59 @@ try {
   await expect(createButton()).toHaveCount(0);
   assert.equal(creates.length, 4);
   process.stdout.write("PASS: existing links and server conflicts prevent duplicate creation; read-only users can open safe links\n");
+  const deleteButton = () => page.getByRole("button", { name: "标记删除 Octo Ticket", exact: true });
+  await expect(deleteButton()).toHaveCount(0);
+  tickets.push({ ...tickets[0], recordId: "r4", title: "Synthetic Ticket D", ticketNumber: "TEST-4", sharedUrl: undefined, meegleLink: undefined });
+  sharedErrors.set("r4", { errorCode: "LARK_TICKET_SOURCE_FORBIDDEN", errorMessage: "没有访问该 Lark Base 记录的权限，请联系管理员。" });
+  allowEditing = true;
+  await page.reload();
+  await switchTicket("Synthetic Ticket D");
+  await expect(page.getByRole("alert").filter({ hasText: "没有访问该 Lark Base" })).toBeVisible();
+  await expect(property("状态")).toBeEnabled();
+  sharedErrors.set("r4", { errorCode: "LARK_TICKET_SOURCE_NOT_FOUND", errorMessage: "Lark Base 源记录不存在，可能已被删除。Octo 仍保留历史数据，可核对后标记删除。" });
+  await page.getByRole("button", { name: "打开 Lark Base（重试） ↗", exact: true }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "源记录不存在" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^修改/ })).toHaveCount(0);
+  await expect(createButton()).toBeDisabled();
+  await expect(deleteButton()).toBeEnabled();
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  await page.screenshot({ path: "/tmp/octo-ticket-source-missing.png", fullPage: true });
+  page.once("dialog", (dialog) => dialog.dismiss());
+  await deleteButton().click();
+  assert.equal(deletions.length, 0);
+  page.once("dialog", (dialog) => dialog.accept());
+  await deleteButton().click();
+  await expect.poll(() => deletions.length).toBe(1);
+  assert.equal(deletions[0].input.baseId, "b");
+  assert.equal(deletions[0].input.tableId, "t");
+  assert.equal(typeof deletions[0].input.actionRunId, "string");
+  await expect(page.getByRole("button", { name: "正在标记删除…", exact: true })).toBeDisabled();
+  await deletions[0].route.fulfill({ status: 500, json: { ok: false, error: { errorCode: "LARK_TICKET_MARK_DELETED_FAILED", errorMessage: "模拟标记失败" } } });
+  await expect(page.getByRole("alert").filter({ hasText: "模拟标记失败" })).toBeVisible();
+  page.once("dialog", (dialog) => dialog.accept());
+  await deleteButton().click();
+  await expect.poll(() => deletions.length).toBe(2);
+  deleted.add("r4");
+  await deletions[1].route.fulfill({ json: { ok: true, data: { deletedAt: "2026-11-06T00:00:00Z" } } });
+  await expect(page.getByRole("heading", { name: "此 Ticket 已在 Octo 标记删除", exact: true })).toBeVisible();
+  await page.getByRole("searchbox", { name: "搜索 Ticket 标题" }).fill("Synthetic Ticket D");
+  await expect(page.locator(".lark-app__tickets a")).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "未找到此 Ticket", exact: true })).toBeVisible();
+  await switchTicket("Synthetic Ticket C");
+  await expect(property("状态")).toBeEnabled();
+  process.stdout.write("PASS: source permission and absence have distinct guidance; missing source pauses edits; local deletion confirms, retries explicitly and remains hidden after refresh\n");
+
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.getByRole("link", { name: "完整详情 ↗", exact: true }).evaluate((link) => { window.location.hash = new URL(link.href).hash; });
+  await expect(deleteButton()).toBeVisible();
+  page.once("dialog", (dialog) => dialog.accept());
+  await deleteButton().click();
+  await expect.poll(() => deletions.length).toBe(3);
+  deleted.add("r3");
+  await deletions[2].route.fulfill({ json: { ok: true, data: { deletedAt: "2026-11-06T00:00:00Z" } } });
+  await expect(page.getByRole("heading", { name: "此 Ticket 已在 Octo 标记删除", exact: true })).toBeVisible();
+  process.stdout.write("PASS: full detail shares the same local deletion action\n");
   assert.deepEqual(errors, []);
 } catch (error) {
   // Only synthetic fixture data is displayed in this browser.

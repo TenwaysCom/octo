@@ -54,3 +54,15 @@ function apiError(payload, fallbackCode) {
   error.code = payload?.error?.errorCode || fallbackCode;
   return error;
 }
+
+export async function markLarkTicketDeleted({ apiBaseUrl, ticket, actionRunId, fetchImpl = fetch }) {
+  const response = await fetchImpl(buildApiUrl(apiBaseUrl, `/web/lark-tickets/${encodeURIComponent(ticket.recordId)}/mark-deleted`), {
+    method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ baseId: ticket.baseId, tableId: ticket.tableId, actionRunId }),
+  });
+  const payload = await response.json().catch(() => undefined);
+  if (!response.ok || !payload?.ok || typeof payload.data?.deletedAt !== "string") {
+    throw apiError(payload, "LARK_TICKET_MARK_DELETED_FAILED");
+  }
+  return payload.data;
+}

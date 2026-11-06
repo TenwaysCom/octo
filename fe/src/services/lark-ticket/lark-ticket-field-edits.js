@@ -1,4 +1,4 @@
-import { createLarkTicketMeegleWorkitem, updateLarkTicketField } from "./lark-ticket-actions-api.js";
+import { createLarkTicketMeegleWorkitem, updateLarkTicketField, markLarkTicketDeleted } from "./lark-ticket-actions-api.js";
 
 const FIELDS = {
   status: ["ticketStatus", "状态"], priority: ["priority", "紧急度"],
@@ -12,7 +12,7 @@ const sameValue = (left, right) => left === right || (Array.isArray(left) && Arr
   && left.every((person, index) => person.name === right[index].name && person.userId === right[index].userId));
 
 /** Session-owned UI state, not a durable save queue. Only one request per Ticket is sent at a time. */
-export function createLarkTicketFieldEdits({ apiBaseUrl, update = updateLarkTicketField, createMeegle = createLarkTicketMeegleWorkitem, onPatch } = {}) {
+export function createLarkTicketFieldEdits({ apiBaseUrl, update = updateLarkTicketField, createMeegle = createLarkTicketMeegleWorkitem, markDeleted = markLarkTicketDeleted, onPatch } = {}) {
   const records = new Map();
   const listeners = new Set();
   let revision = 0;
@@ -29,8 +29,23 @@ export function createLarkTicketFieldEdits({ apiBaseUrl, update = updateLarkTick
 
   function patch(record) {
     return Object.assign({}, Object.fromEntries([...record.confirmed].map(([key, entry]) => [key, entry.value])),
-      ...record.pending.map((op) => ({ [op.key]: op.value, ...(op.peopleKey ? { [op.peopleKey]: op.people } : {}) })));
+      ...record.pending.map((op) => ({ [op.key]: op.value, ...(op.peopleKey ? { [op.peopleKey]: op.people } : {}) })),
+      record.deletedAt ? { deletedAt: record.deletedAt } : {});
   }
+
+  function blockMissingSource(record, error) {
+    if (!["LARK_TICKET_SOURCE_NOT_FOUND", "LARK_TICKET_DELETED"].includes(error?.code)) return;
+    record.sourceError = error.message || "源记录不可用，请核对后刷新页面。";
+    record.notices.set("source", record.sourceError);
+    const unsent = record.pending.splice(record.running ? 1 : 0);
+    for (const op of unsent) {
+      record.confirmed.get(op.key).settledAt = revision + 1;
+      if (op.peopleKey) record.confirmed.get(op.peopleKey).settledAt = revision + 1;
+      op.reject(error);
+    }
+  }
+
+  const blocked = (record) => record?.sourceError || record?.deletedAt || record?.deletion?.status === "running";
 
   function changed(record) {
     revision += 1;
@@ -60,10 +75,12 @@ export function createLarkTicketFieldEdits({ apiBaseUrl, update = updateLarkTick
         op.resolve(result);
       } catch (error) {
         if (!disposed) {
+          blockMissingSource(record, error);
           // Keep the last confirmed value, not the previous optimistic value (which may also have failed).
           record.confirmed.get(op.key).settledAt = revision + 1;
           if (op.peopleKey) record.confirmed.get(op.peopleKey).settledAt = revision + 1;
-          record.notices.set(op.key, `${record.label}：${FIELDS[op.field][1]}保存失败：${error.message || "请重试。"}`);
+          if (record.sourceError) record.notices.delete(op.key);
+          else record.notices.set(op.key, `${record.label}：${FIELDS[op.field][1]}保存失败：${error.message || "请重试。"}`);
         }
         op.reject(error);
       } finally {
@@ -107,19 +124,53 @@ export function createLarkTicketFieldEdits({ apiBaseUrl, update = updateLarkTick
           accepted = true;
         }
         if (Object.keys(freshPatch).length) onPatch?.({ ...record.ticket, ...freshPatch });
-        if (!record.pending.length && !record.confirmed.size && !record.notices.size && !record.creation) records.delete(keyOf(ticket));
+        if (!record.pending.length && !record.confirmed.size && !record.notices.size && !record.creation && !record.deletion) records.delete(keyOf(ticket));
       }
       if (accepted) changed();
     },
     status(ticket) {
       const selected = ticket ? [records.get(keyOf(ticket))].filter(Boolean) : [...records.values()];
       return { pending: selected.reduce((count, record) => count + record.pending.length, 0),
+        blocked: selected.some((record) => Boolean(blocked(record))),
         notices: selected.flatMap((record) => [...record.notices.values()]) };
+    },
+    reportSourceError(ticket, error) {
+      if (disposed || !["LARK_TICKET_SOURCE_NOT_FOUND", "LARK_TICKET_DELETED"].includes(error?.code)) return;
+      const record = recordFor(ticket);
+      blockMissingSource(record, error);
+      changed(record);
+    },
+    deletionStatus(ticket) { return records.get(keyOf(ticket))?.deletion ?? { status: "idle" }; },
+    markDeleted({ ticket, actionRunId = crypto.randomUUID() }) {
+      if (disposed) return Promise.reject(new Error("登录状态已变化，请重新打开页面。"));
+      const record = recordFor(ticket);
+      if (record.deletion?.status === "running") return record.deletion.completion;
+      if (record.deletion?.status === "done") return Promise.resolve(record.deletion.result);
+      if (record.pending.length || record.creation?.status === "running") return Promise.reject(new Error("请等待当前操作完成后再标记删除。"));
+      const deletion = { status: "running" };
+      record.deletion = deletion;
+      deletion.completion = Promise.resolve().then(() => {
+        if (disposed) throw new Error("登录状态已变化，未发送删除标记请求。");
+        return markDeleted({ apiBaseUrl, ticket: record.ticket, actionRunId });
+      }).then((result) => {
+        if (!disposed) {
+          record.deletedAt = result.deletedAt;
+          record.deletion = { status: "done", result };
+          changed(record);
+        }
+        return result;
+      }, (error) => {
+        if (!disposed) { record.deletion = { status: "error", message: error.message }; changed(record); }
+        throw error;
+      });
+      changed(record);
+      return deletion.completion;
     },
     creationStatus(ticket) { return records.get(keyOf(ticket))?.creation ?? { status: "idle" }; },
     createMeegle({ ticket, actionRunId = crypto.randomUUID() }) {
       if (disposed) return Promise.reject(new Error("登录状态已变化，请重新打开页面。"));
       const record = recordFor(ticket);
+      if (blocked(record)) return Promise.reject(new Error("此 Ticket 暂停修改，请核对源记录或刷新页面。"));
       if (record.creation?.status === "running") return record.creation.completion;
       if (record.creation?.status === "done") return Promise.resolve(record.creation.result);
       if (ticket.meegleLink?.trim() || record.creation?.errorCode === "MEEGLE_LINK_ALREADY_EXISTS") {
@@ -156,6 +207,7 @@ export function createLarkTicketFieldEdits({ apiBaseUrl, update = updateLarkTick
       if (disposed) return Promise.reject(new Error("登录状态已变化，请重新打开页面。"));
       const [key] = FIELDS[field];
       const record = recordFor(ticket);
+      if (blocked(record)) return Promise.reject(new Error("此 Ticket 暂停修改，请核对源记录或刷新页面。"));
       if (record.creation?.status === "running") {
         const message = "Meegle 创建期间未发送本次属性修改，请完成后重新选择。";
         record.notices.set(key, `${record.label}：${message}`);

@@ -27,6 +27,7 @@ import { PostgresLarkTicketThreadSyncStore, type LarkTicketThreadSyncStore } fro
 const ticketSharedUrlQuerySchema = z.object({
   baseId: z.string().trim().min(1),
   tableId: z.string().trim().min(1),
+  actionRunId: z.string().trim().min(1).max(128).optional(),
 });
 const ticketFieldOptionsQuerySchema = z.object({
   baseId: z.string().trim().min(1),
@@ -129,9 +130,10 @@ export function createWebLarkTicketController(deps: {
 
   return {
     async loadSharedUrl(input: { cookieHeader: string | undefined; recordId: string; query: unknown }) {
+      const diagnostics = ticketDiagnostics(input.query, "server.ticket.shared-url");
       const session = await resolveSession(readCookie(input.cookieHeader, WEB_SESSION_COOKIE_NAME));
       if (!session.ok) {
-        return { statusCode: 401, body: { ok: false as const, error: { errorCode: session.errorCode, errorMessage: session.errorMessage } } };
+        return { statusCode: 401, body: { ok: false as const, error: { ...diagnostics, errorCode: session.errorCode, errorMessage: session.errorMessage } } };
       }
       try {
         const query = ticketSharedUrlQuerySchema.parse(input.query);
@@ -139,16 +141,39 @@ export function createWebLarkTicketController(deps: {
           masterUserId: session.masterUserId,
           larkBaseUrl: session.baseUrl,
           ticket: { baseId: query.baseId, tableId: query.tableId, recordId: input.recordId },
+          ...(query.actionRunId ? { actionRunId: query.actionRunId } : {}),
         });
         return { statusCode: 200, body: { ok: true as const, data } };
       } catch (error) {
         if (error instanceof ZodError) {
-          return { statusCode: 400, body: { ok: false as const, error: { errorCode: "INVALID_REQUEST", errorMessage: error.message } } };
+          return { statusCode: 400, body: { ok: false as const, error: { ...diagnostics, errorCode: "INVALID_REQUEST", errorMessage: error.message } } };
         }
         if (error instanceof LarkTicketError) {
-          return { statusCode: 404, body: { ok: false as const, error: { errorCode: error.code, errorMessage: error.message } } };
+          return { statusCode: error.statusCode, body: { ok: false as const, error: {
+            ...diagnostics, errorCode: error.code, errorMessage: error.message,
+          } } };
         }
-        return { statusCode: 500, body: { ok: false as const, error: { errorCode: "LARK_TICKET_SHARED_URL_LOAD_FAILED", errorMessage: "无法获取 Lark Ticket 详情链接。" } } };
+        return { statusCode: 500, body: { ok: false as const, error: { ...diagnostics, errorCode: "LARK_TICKET_SHARED_URL_LOAD_FAILED", errorMessage: "无法获取 Lark Ticket 详情链接，请检查 Lark 授权及记录访问权限后重试。" } } };
+      }
+    },
+
+    async markDeleted(input: { cookieHeader: string | undefined; recordId: string; body: unknown }) {
+      const diagnostics = ticketDiagnostics(input.body, "server.ticket.mark-deleted");
+      const auth = await resolveTicketWriteSession(input.cookieHeader);
+      if (!auth.ok) return { ...auth.response, body: { ok: false as const, error: { ...diagnostics, ...auth.response.body.error } } };
+      try {
+        const body = ticketCreateMeegleSchema.parse(input.body);
+        const recordId = z.string().trim().min(1).max(240).parse(input.recordId);
+        const result = await service.markDeleted({
+          ticket: { baseId: body.baseId, tableId: body.tableId, recordId }, masterUserId: auth.session.masterUserId, actionRunId: body.actionRunId,
+        });
+        return { statusCode: 200, body: { ok: true as const, data: { ...diagnostics, deletedAt: result.deletedAt } } };
+      } catch (error) {
+        const statusCode = error instanceof ZodError ? 400 : error instanceof LarkTicketError ? error.statusCode : 500;
+        return { statusCode, body: { ok: false as const, error: { ...diagnostics,
+          errorCode: error instanceof ZodError ? "INVALID_REQUEST" : error instanceof LarkTicketError ? error.code : "LARK_TICKET_MARK_DELETED_FAILED",
+          errorMessage: error instanceof LarkTicketError ? error.message : "无法标记删除此 Ticket，请刷新后重试。",
+        } } };
       }
     },
 
@@ -367,10 +392,18 @@ export function createWebLarkTicketController(deps: {
 }
 
 function fieldUpdateErrorStatusCode(errorCode: string): number {
+  if (errorCode === "LARK_TICKET_SOURCE_NOT_FOUND" || errorCode === "LARK_TICKET_SOURCE_RESOURCE_NOT_FOUND") return 404;
+  if (errorCode === "LARK_TICKET_SOURCE_FORBIDDEN") return 403;
+  if (errorCode === "LARK_TICKET_DELETED") return 409;
   if (errorCode === "LARK_TICKET_FIELD_NOT_FOUND") return 404;
   if (errorCode === "LARK_TICKET_USER_ID_REQUIRED") return 400;
   if (errorCode === "LARK_AUTH_REQUIRED") return 401;
   return 502;
+}
+
+function ticketDiagnostics(input: unknown, stage: string) {
+  const parsed = z.object({ actionRunId: z.string().trim().min(1).max(128) }).safeParse(input);
+  return { layer: "server", module: "lark-ticket", stage, ...(parsed.success ? { actionRunId: parsed.data.actionRunId } : {}) };
 }
 
 function createMeegleErrorStatusCode(errorCode: string): number {
@@ -395,6 +428,10 @@ function evalDatasetErrorResponse(error: unknown, body?: unknown) {
 
 export function registerWebLarkTicketRoutes(app: Express) {
   const controller = createWebLarkTicketController();
+  app.post("/api/web/lark-tickets/:recordId/mark-deleted", async (req, res) => {
+    const result = await controller.markDeleted({ cookieHeader: req.headers.cookie, recordId: req.params.recordId, body: req.body });
+    res.status(result.statusCode).json(result.body);
+  });
   app.get("/api/web/lark-tickets/field-options", async (req, res) => {
     const result = await controller.loadTicketFieldOptions({ cookieHeader: req.headers.cookie, query: req.query });
     res.status(result.statusCode).json(result.body);

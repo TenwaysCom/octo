@@ -72,6 +72,7 @@ export interface PlatformSyncStore {
     status?: string;
   }): Promise<void>;
   upsertLarkBaseTickets(inputs: LarkBaseTicketUpsertInput[]): Promise<void>;
+  markLarkBaseTicketDeleted(input: LarkBaseTicketSyncRef & { deletedBy: string }): Promise<{ deletedAt: string; deletedBy: string }>;
   setLarkBaseTicketSharedUrl(input: {
     baseId: string;
     tableId: string;
@@ -263,6 +264,7 @@ export interface LarkBaseTicketSyncItem {
   title: string;
   ticketStatus?: string;
   sharedUrl?: string;
+  deletedAt?: string;
   createdTime?: string;
   sourceFields?: Record<string, unknown>;
   ticketNumber?: string;
@@ -643,6 +645,20 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
       })).execute();
   }
 
+  async markLarkBaseTicketDeleted(input: LarkBaseTicketSyncRef & { deletedBy: string }): Promise<{ deletedAt: string; deletedBy: string }> {
+    const now = new Date().toISOString();
+    const row = await this.db.insertInto("lark_base_ticket_octo").values({
+      base_id: input.baseId, table_id: input.tableId, record_id: input.recordId,
+      deleted_at: now, deleted_by: input.deletedBy, shared_url: null,
+      ticket_ai: "{}", shadow_ai: "{}", local_json: "{}", created_at: now, updated_at: now,
+    }).onConflict((conflict) => conflict.columns(["base_id", "table_id", "record_id"]).doUpdateSet({
+      deleted_at: sql<string>`coalesce(lark_base_ticket_octo.deleted_at, ${now})`,
+      deleted_by: sql<string>`coalesce(lark_base_ticket_octo.deleted_by, ${input.deletedBy})`,
+      updated_at: now,
+    })).returning(["deleted_at", "deleted_by"]).executeTakeFirstOrThrow();
+    return { deletedAt: row.deleted_at!, deletedBy: row.deleted_by! };
+  }
+
   async upsertLarkBaseTicketAi(input: LarkBaseTicketSyncRef & { fields: LarkTicketAiFields }): Promise<boolean> {
     const fields = pickLarkTicketAiFields(input.fields);
     if (!Object.keys(fields).length) return false;
@@ -702,6 +718,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
         "sync.source_updated_at", "sync.synced_at", "sync.fields_json", "octo.shared_url as octo_shared_url", "octo.ticket_ai as octo_ticket_ai", "octo.shadow_ai as octo_shadow_ai",
       ])
       .where("sync.ticket_status", "not in", ["Cancelled", "Rejected"])
+      .where("octo.deleted_at", "is", null)
       .where("sync.source_updated_at", "is not", null)
       .where("sync.source_updated_at", "!=", "")
       .where("sync.source_updated_at", "<", input.olderThan)
@@ -730,7 +747,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
       count(*) filter (where shadow_ai::jsonb ->> 'status' = 'skipped') as skipped,
       count(*) filter (where shadow_ai::jsonb ->> 'status' = 'error') as error,
       max(shadow_ai::jsonb ->> 'analyzedAt') filter (where shadow_ai::jsonb ->> 'status' = 'ok') as last_analyzed_at
-      from lark_base_ticket_octo`.execute(this.db);
+      from lark_base_ticket_octo where deleted_at is null`.execute(this.db);
     const counts = countsRow.rows[0];
     const pendingRow = await this.db.selectFrom("lark_base_ticket_syncs as sync")
       .leftJoin("lark_base_ticket_octo as octo", (join) => join
@@ -739,6 +756,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
         .onRef("octo.record_id", "=", "sync.record_id"))
       .select((eb) => eb.fn.countAll().as("count"))
       .where("sync.ticket_status", "not in", ["Cancelled", "Rejected"])
+      .where("octo.deleted_at", "is", null)
       .where("sync.source_updated_at", "is not", null)
       .where("sync.source_updated_at", "!=", "")
       .where("sync.source_updated_at", "<", input.olderThan)
@@ -819,7 +837,7 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
         .select([
           "sync.base_id", "sync.table_id", "sync.record_id", "sync.title", "sync.ticket_status", "sync.created_time",
           "sync.ticket_number", "sync.issue_type", "sync.requester", "sync.responsible", "sync.priority", "sync.detail_description", "sync.meegle_link", "sync.lark_message_link",
-          "sync.source_updated_at", "sync.synced_at", "sync.fields_json", "octo.shared_url as octo_shared_url", "octo.ticket_ai as octo_ticket_ai", "octo.shadow_ai as octo_shadow_ai",
+          "sync.source_updated_at", "sync.synced_at", "sync.fields_json", "octo.shared_url as octo_shared_url", "octo.ticket_ai as octo_ticket_ai", "octo.shadow_ai as octo_shadow_ai", "octo.deleted_at as octo_deleted_at",
         ])
         .where((eb) => eb.or(batch.map((ref) => eb.and([
           eb("sync.base_id", "=", ref.baseId),
@@ -1500,7 +1518,8 @@ export class PostgresPlatformSyncStore implements PlatformSyncStore {
       .leftJoin("lark_base_ticket_octo as octo", (join) => join
         .onRef("octo.base_id", "=", "sync.base_id")
         .onRef("octo.table_id", "=", "sync.table_id")
-        .onRef("octo.record_id", "=", "sync.record_id"));
+        .onRef("octo.record_id", "=", "sync.record_id"))
+      .where("octo.deleted_at", "is", null);
     if (filters.query) {
       const searchQuery = filters.query.toLowerCase();
       const numberQuery = searchQuery.replace(/^#/, "") || searchQuery;
@@ -1690,6 +1709,7 @@ type LarkBaseTicketSyncRow = {
   title: string;
   ticket_status: string | null;
   octo_shared_url: string | null;
+  octo_deleted_at?: string | null;
   octo_ticket_ai?: string | null;
   octo_shadow_ai?: string | null;
   created_time: string | null;
@@ -1789,6 +1809,7 @@ function toLarkBaseTicketSyncItem(row: LarkBaseTicketSyncRow): LarkBaseTicketSyn
     title: row.title,
     ticketStatus: row.ticket_status ?? undefined,
     sharedUrl: row.octo_shared_url ?? undefined,
+    deletedAt: row.octo_deleted_at ?? undefined,
     createdTime: row.created_time ?? undefined,
     sourceFields: parseRecord(row.fields_json),
     ticketNumber: row.ticket_number ?? undefined,

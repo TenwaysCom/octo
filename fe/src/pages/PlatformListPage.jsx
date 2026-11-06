@@ -991,7 +991,7 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
   const [ticketFilterOptions, setTicketFilterOptions] = useState({ values: {}, status: "loading" });
   const [filterOptionsRetry, setFilterOptionsRetry] = useState(0);
   const [rawState, setState] = useState({ status: "loading", items: [], filterItems: [], filterItemsPage: page, sprints: [], relatedPersonOptions: [], pager: null, isLoadingMore: false });
-  const state = page === "lark-tickets" ? { ...rawState, items: rawState.items.map(fieldEdits.project), filterItems: rawState.filterItems.map(fieldEdits.project) } : rawState;
+  const state = page === "lark-tickets" ? { ...rawState, items: rawState.items.map(fieldEdits.project).filter((ticket) => !ticket.deletedAt), filterItems: rawState.filterItems.map(fieldEdits.project).filter((ticket) => !ticket.deletedAt) } : rawState;
   const [selectedStatuses, setSelectedStatuses] = useState(() => restoredFilters.selectedStatuses || null);
   const [selectedDateFilters, setSelectedDateFilters] = useState(() => normalizeFilterValues(
     restoredFilters.selectedDateFilters,
@@ -1542,10 +1542,11 @@ export function PlatformListPage({ profile, page, apiBaseUrl, onLogout, isBusy, 
       if (!tab.closed) tab.location.replace(sharedUrl);
       setTicketAction({ recordId: ticket.recordId, field: kind, status: "done" });
       closeTicketContextMenu();
-    } catch {
+    } catch (error) {
       tab.close();
       setTicketAction({ recordId: ticket.recordId, field: kind, status: "error" });
-      setTicketActionMessage({ tone: "error", text: "Lark Base 记录链接暂时无法获取，请重试。" });
+      fieldEdits.reportSourceError(ticket, error);
+      setTicketActionMessage({ tone: "error", text: error.message || "Lark Base 记录链接暂时无法获取，请重试。" });
     } finally {
       ticketResourceRunningRef.current = false;
     }

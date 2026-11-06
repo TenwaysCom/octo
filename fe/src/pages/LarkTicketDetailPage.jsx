@@ -7,6 +7,7 @@ import { AiSessionCopyButton } from "../components/ai-session/AiSessionCopyButto
 import { WorkspaceShell } from "../components/layout/WorkspaceShell.jsx";
 import { LarkTicketBadge } from "../components/lark-ticket/LarkTicketBadge.jsx";
 import { LarkTicketEditableProperties } from "../components/lark-ticket/LarkTicketEditableProperties.jsx";
+import { LarkTicketDeleteButton } from "../components/lark-ticket/LarkTicketDeleteButton.jsx";
 import { LarkTicketSolutionEditor } from "../components/lark-ticket/LarkTicketSolutionEditor.jsx";
 import { formatDateTime } from "../lib/formatters.js";
 import { LARK_TICKET_AI_QUICK_ACTIONS } from "../lib/lark-ticket-ai-actions.js";
@@ -95,6 +96,7 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
     ? { status: "ready", ticket: snapshotTicket }
     : { status: "loading", ticket: undefined });
   const [sharedUrlStatus, setSharedUrlStatus] = useState("idle");
+  const [sharedUrlError, setSharedUrlError] = useState("");
   const [aiSessions, setAiSessions] = useState({ status: "idle", items: [], error: "" });
   const refreshAiSessionsRef = useRef(null);
   const [effectDrafts, setEffectDrafts] = useState({ status: "idle", items: [], error: "" });
@@ -140,11 +142,13 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
 
   useEffect(() => {
     if (!ticket || ticket.sharedUrl) {
+      setSharedUrlError("");
       setSharedUrlStatus(ticket?.sharedUrl ? "ready" : "idle");
       return undefined;
     }
     let active = true;
     setSharedUrlStatus("loading");
+    setSharedUrlError("");
     void loadLarkTicketSharedUrl({ apiBaseUrl, ticket }).then(
       (sharedUrl) => {
         if (!active) return;
@@ -153,10 +157,17 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
           : current);
         setSharedUrlStatus("ready");
       },
-      () => { if (active) setSharedUrlStatus("error"); },
+      (error) => {
+        if (!active) return;
+        setSharedUrlStatus("error");
+        fieldEdits.reportSourceError(ticket, error);
+        if (!["LARK_TICKET_SOURCE_NOT_FOUND", "LARK_TICKET_DELETED"].includes(error.code)) {
+          setSharedUrlError(error.message);
+        }
+      },
     );
     return () => { active = false; };
-  }, [apiBaseUrl, ticket?.baseId, ticket?.recordId, ticket?.sharedUrl, ticket?.tableId]);
+  }, [apiBaseUrl, ticket?.baseId, ticket?.recordId, ticket?.sharedUrl, ticket?.tableId, fieldEdits]);
 
   async function refreshAiSessions() {
     await refreshAiSessionsRef.current?.();
@@ -283,6 +294,11 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
     return <WorkspaceShell user={profile.user ?? {}} workspaceAccess={profile.workspaceAccess} activePage="lark-tickets" onLogout={onLogout} isBusy={isBusy} breadcrumbs={breadcrumbs}><TicketLoadingState>未在当前同步快照中找到该 Ticket。</TicketLoadingState></WorkspaceShell>;
   }
 
+  if (ticket.deletedAt) {
+    return <WorkspaceShell user={profile.user ?? {}} workspaceAccess={profile.workspaceAccess} activePage="lark-tickets" onLogout={onLogout} isBusy={isBusy} breadcrumbs={breadcrumbs}>
+      <main className="profile-main"><h1>此 Ticket 已在 Octo 标记删除</h1><p>已从列表和搜索中隐藏，历史数据已保留。</p><a href="#lark-tickets">返回 Ticket 列表</a></main>
+    </WorkspaceShell>;
+  }
   const ticketNumber = ticket.ticketNumber || ticket.recordId;
   const resources = [
     [ticket.sharedUrl, "在 Lark Base 中打开"],
@@ -319,11 +335,13 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
           </section>
 
           <LarkTicketSolutionEditor ticket={ticket} apiBaseUrl={apiBaseUrl}
-            canEdit={Boolean(profile.workspaceAccess?.platformSync)} onSave={saveField} />
+            canEdit={Boolean(profile.workspaceAccess?.platformSync) && !fieldSaveStatus.blocked} onSave={saveField} />
 
           <section className="ticket-detail-section">
             <h2>Resources</h2>
             {resources.length ? <div className="ticket-resource-list">{resources.map(([href, label]) => <ExternalResource href={href} key={label}>{label}</ExternalResource>)}</div> : sharedUrlStatus === "loading" ? <p className="ticket-section-empty">正在获取 Lark Ticket 链接…</p> : <p className="ticket-section-empty">暂无关联资源。</p>}
+            {sharedUrlError ? <p role="alert" className="ticket-property__message ticket-property__message--error">{sharedUrlError}</p> : null}
+            <LarkTicketDeleteButton ticket={ticket} fieldEdits={fieldEdits} canEdit={Boolean(profile.workspaceAccess?.platformSync)} />
           </section>
 
           <section className="ticket-detail-section ticket-ai-data">
@@ -411,7 +429,7 @@ export function LarkTicketDetailPage({ profile, ticketRecordId, apiBaseUrl, onLo
             key={JSON.stringify([apiBaseUrl, ticket.baseId, ticket.tableId, ticket.recordId])}
             ticket={ticket}
             apiBaseUrl={apiBaseUrl}
-            canEdit={Boolean(profile.workspaceAccess?.platformSync)}
+            canEdit={Boolean(profile.workspaceAccess?.platformSync) && !fieldSaveStatus.blocked}
             onSave={saveField}
           >
             <TicketProperty label="创建时间">{ticket.createdAt ? formatDateTime(ticket.createdAt) : "未设置"}</TicketProperty>

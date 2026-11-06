@@ -887,6 +887,14 @@ SDK 在到期前刷新；离开 Ticket/退出登录时销毁实例。接口所�
 
 Lark 已写但本地同步失败仍是显式部分成功：FE 保留新值并提示，不回滚成未写入或自动重写。阶段日志记录 actionRunId、layer/module/stage 及安全耗时摘要，不记录字段正文或凭据。实现、验收及未部署边界见[性能优化任务](../../tasks/platform-sync/2026-10-21-lark-ticket-edit-sync-performance.md)。
 
+### Lark Ticket 源记录错误与本地删除
+
+共享链接读取与字段写入区分源记录不存在、记录/应用权限不足、授权不可用及 Base/Table 不存在。只有 Lark `1254043` 或 batch_get 对指定 recordId 返回 `absent_record_ids` 才返回 `LARK_TICKET_SOURCE_NOT_FOUND`（源记录不存在，可能已删除）；`forbidden_record_ids` 和 `403/99991672/99991676` 对应 `LARK_TICKET_SOURCE_FORBIDDEN`。通用 404、空 records 或缺少共享链接不证明记录已删除。FE 保留错误码与可操作提示；源记录不存在时暂停此 Ticket 的后续属性修改并取消尚未发送的修改，其他 Ticket 不受影响。已有缓存共享 URL 继续复用，不代表执行了实时存活检查。
+
+有 platformSync 权限的用户可从 Ticket AI 小窗或完整详情确认执行 `POST /api/web/lark-tickets/:recordId/mark-deleted`，body 为 `{ baseId, tableId, actionRunId }`；Server 从 Web Session 获取操作人，Zod 严格校验，返回 `{ ok, data: { deletedAt, actionRunId, layer, module, stage } }`。此动作不需要有效的 Lark API 授权，仅在 `lark_base_ticket_octo` 保存 `deleted_at/deleted_by`，按完整标识幂等保留首次标记时间与操作人；不删除远端记录或源快照/AI/历史，也不自动判定删除。
+
+普通 Ticket 列表、计数、全局搜索、筛选项及 Shadow 自动分析候选排除本地删除记录；后续源同步、链接和 AI 更新不会清除此标记。内部按引用读取仍可访问历史并携带 deletedAt；字段更新拒绝已标记记录。FE 删除与属性/Meegle 创建共用会话状态保护，等待当前操作完成后才能标记；该保护不承诺跨浏览器或跨进程锁。本次未增加恢复界面。数据库初始化与幂等 schema migration 均增加两个 nullable 列；部署需要更新 Server 与 FE 并应用 schema。实现与验证见[任务记录](../../tasks/platform-data/2026-11-06-lark-ticket-source-errors-and-deletion.md)。
+
 ### Lark App 创建 Meegle 工作项
 
 `#lark-app-thread-analysis` 的未关联 Ticket 可由有 platformSync 权限的用户调用既有 `POST /api/web/lark-tickets/:recordId/create-meegle-workitem`。FE 只携带源记录标识及 actionRunId；Server 的类型映射、创建、链接回写与单条同步契约保持现状。属性尚未保存时不开始创建，创建期间阻止同 Ticket 属性写入；App 会话状态按 Base/Table/Record 复用在途创建请求并保存结果，搜索切换不会串记录。成功结果投影到 Ticket 和导航缓存，多项链接分别展示；本地同步失败仍保留成功结果并提示，不自动重试。已有链接或平台返回已关联时阻止重复创建，无写权限只展示已有安全链接。此 FE 入口不增强跨进程幂等保证；实现与验证见[创建功能任务](../../tasks/platform-data/2026-10-21-lark-app-create-meegle.md)。

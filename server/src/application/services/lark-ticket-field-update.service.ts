@@ -7,6 +7,7 @@ import { buildLarkTicketCleaningProjection } from "./lark-ticket-cleaning.js";
 import { loadLarkTicketAvatarUrls, resolveLarkTicketPeople, type LarkTicketPeopleDeps, type LarkTicketPeopleProjection } from "./lark-ticket-people.service.js";
 import { PlatformSyncService } from "./platform-sync.service.js";
 import { larkTicketFieldMetadataCache, type LarkTicketFieldMetadataCache } from "./lark-ticket-field-metadata-cache.js";
+import { LarkTicketError, toLarkTicketSourceError } from "./lark-ticket.service.js";
 import {
   LARK_TICKET_FIELD_CANDIDATES,
   LARK_TICKET_CLOSED_AT_FIELD,
@@ -222,7 +223,8 @@ function buildUpdatedTicketProjection(
 }
 
 function toFailure(request: UpdateLarkTicketFieldRequest, error: unknown, stage: string): LarkTicketFieldUpdateFailure {
-  const typed = error instanceof LarkTicketFieldUpdateError ? error : undefined;
+  const sourceError = toLarkTicketSourceError(error);
+  const typed = sourceError ?? (error instanceof LarkTicketFieldUpdateError || error instanceof LarkTicketError ? error : undefined);
   return {
     ok: false,
     error: createActionErrorEnvelopeFromError(error, {
@@ -278,12 +280,13 @@ export async function updateLarkTicketField(
     const { client, baseUrl } = await timed("server.ticket-field.auth", () => buildAuthenticatedLarkClient(
       masterUserId,
       larkBaseUrl ?? process.env.LARK_BASE_URL ?? "https://open.larksuite.com",
-      deps,
+      { ...deps, actionRunId },
     ));
 
     const syncStore = deps.syncStore ?? new PostgresPlatformSyncStore();
     const refs = [{ baseId, tableId, recordId }];
     const [snapshot] = await timed("server.ticket-field.snapshot.read", async () => await syncStore.getLarkBaseTicketsForCleaning?.(refs) ?? []);
+    if (snapshot?.deletedAt) throw new LarkTicketError("LARK_TICKET_DELETED", "此 Ticket 已在 Octo 标记删除。", 409);
     const record = snapshot?.sourceFields
       ? { record_id: recordId, fields: snapshot.sourceFields }
       : await timed("server.ticket-field.record.read", () => client.getRecord(baseId, tableId, recordId));

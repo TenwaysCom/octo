@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createLarkTicketMeegleWorkitem, loadLarkTicketFieldOptions, updateLarkTicketField } from "./lark-ticket-actions-api.js";
+import { createLarkTicketMeegleWorkitem, loadLarkTicketFieldOptions, updateLarkTicketField, markLarkTicketDeleted } from "./lark-ticket-actions-api.js";
 
 test("loads ticket field options with the browser session", async () => {
   let request;
@@ -56,6 +56,21 @@ test("surfaces server error codes from a failed field update", async () => {
     actionRunId: "run_1",
     fetchImpl: async () => ({ ok: false, json: async () => ({ ok: false, error: { errorCode: "LARK_TICKET_FIELD_NOT_FOUND", errorMessage: "missing" } }) }),
   }), (error) => error.code === "LARK_TICKET_FIELD_NOT_FOUND");
+});
+
+test("marks a local deletion using the session, full Ticket reference and action id", async () => {
+  const result = await markLarkTicketDeleted({ apiBaseUrl: "/api", ticket: { baseId: "b", tableId: "t", recordId: "rec/1" }, actionRunId: "delete-run",
+    fetchImpl: async (url, options) => {
+      assert.equal(url, "/api/web/lark-tickets/rec%2F1/mark-deleted");
+      assert.equal(options.credentials, "include");
+      assert.equal(options.method, "POST");
+      assert.deepEqual(JSON.parse(options.body), { baseId: "b", tableId: "t", actionRunId: "delete-run" });
+      return { ok: true, json: async () => ({ ok: true, data: { deletedAt: "2026-11-06T00:00:00Z" } }) };
+    } });
+  assert.equal(result.deletedAt, "2026-11-06T00:00:00Z");
+  await assert.rejects(markLarkTicketDeleted({ apiBaseUrl: "/api", ticket: { baseId: "b", tableId: "t", recordId: "rec" }, actionRunId: "delete-run",
+    fetchImpl: async () => ({ ok: false, json: async () => ({ ok: false, error: { errorCode: "WORKSPACE_ACCESS_DENIED", errorMessage: "无权删除" } }) }),
+  }), (error) => error.code === "WORKSPACE_ACCESS_DENIED");
 });
 
 test("sends multiline or empty solution text and preserves partial sync results", async () => {

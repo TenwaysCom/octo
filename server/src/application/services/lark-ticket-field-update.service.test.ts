@@ -1,4 +1,5 @@
 import { LarkTicketFieldMetadataCache } from "./lark-ticket-field-metadata-cache.js";
+import { LarkAPIError } from "../../adapters/lark/lark-client.js";
 import {
   createLarkTicketMeegleWorkitem,
   getLarkTicketFieldOptions,
@@ -54,6 +55,30 @@ function createClient(overrides: Record<string, unknown> = {}) {
 }
 
 describe("lark-ticket-field-update service", () => {
+  it.each([
+    [1254043, "LARK_TICKET_SOURCE_NOT_FOUND"], [403, "LARK_TICKET_SOURCE_FORBIDDEN"],
+    [99991677, "LARK_AUTH_REQUIRED"], [1254041, "LARK_TICKET_SOURCE_RESOURCE_NOT_FOUND"],
+    [404, "LARK_API_ERROR"],
+  ])("preserves the meaning of rejected writes (%s) without replaying them", async (code, expected) => {
+    const client = createClient({ updateRecord: vi.fn().mockRejectedValue(new LarkAPIError("platform error", code as number)) });
+    const syncLarkBaseTicket = vi.fn();
+    const result = await updateLarkTicketField({ masterUserId: "user_1", baseId: "app_1", tableId: "tbl_1", recordId: "rec_1",
+      field: "status", value: "Done", actionRunId: "source-run" }, { ...authDeps, createLarkClient: () => client as never, syncLarkBaseTicket });
+    expect(result).toMatchObject({ ok: false, error: { errorCode: expected, actionRunId: "source-run", layer: "server", module: "lark-ticket-field-update", stage: "server.workflow.failed" } });
+    expect(client.updateRecord).toHaveBeenCalledTimes(1);
+    expect(syncLarkBaseTicket).not.toHaveBeenCalled();
+  });
+
+  it("rejects property writes on locally deleted Tickets before calling Lark data APIs", async () => {
+    const client = createClient();
+    const result = await updateLarkTicketField({ masterUserId: "user_1", baseId: "app_1", tableId: "tbl_1", recordId: "rec_1", field: "status", value: "Done" }, {
+      ...authDeps, createLarkClient: () => client as never,
+      syncStore: { listLarkBaseTickets: vi.fn(), getLarkBaseTicketsForCleaning: vi.fn().mockResolvedValue([{ deletedAt: "2026-11-06T00:00:00Z" }]) },
+    });
+    expect(result).toMatchObject({ ok: false, error: { errorCode: "LARK_TICKET_DELETED" } });
+    expect(client.getRecord).not.toHaveBeenCalled();
+    expect(client.updateRecord).not.toHaveBeenCalled();
+  });
   it("returns the newly selected person's cached avatar after sync", async () => {
     const client = createClient({ updateRecord: vi.fn().mockResolvedValue({ record_id: "rec_1", fields: { 负责人: [{ id: "ou_new", name: "New owner" }] } }) });
     const contactStore = { listAvatarsByOpenIds: vi.fn().mockResolvedValue([{ openId: "ou_new", avatarUrl: "https://example.com/new.png" }]) };

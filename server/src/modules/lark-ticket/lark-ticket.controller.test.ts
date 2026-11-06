@@ -1,6 +1,39 @@
-import { createWebLarkTicketController } from "./lark-ticket.controller.js";
+import { createWebLarkTicketController, registerWebLarkTicketRoutes } from "./lark-ticket.controller.js";
+import { LarkTicketError } from "../../application/services/lark-ticket.service.js";
 
 describe("web Lark Ticket controller", () => {
+  const deletionInput = { cookieHeader: "octo_web_session=s", recordId: "rec_1", body: { baseId: "app_1", tableId: "tbl_1", actionRunId: "delete-run" } };
+  const pmSession = { ok: true, role: "pm", masterUserId: "server-user", baseUrl: "https://open.larksuite.com", user: {} };
+
+  it("registers the local deletion endpoint", () => {
+    const app = { post: vi.fn(), get: vi.fn(), put: vi.fn() };
+    registerWebLarkTicketRoutes(app as never);
+    expect(app.post).toHaveBeenCalledWith("/api/web/lark-tickets/:recordId/mark-deleted", expect.any(Function));
+  });
+
+  it("uses only the Web identity for deletion and returns action diagnostics", async () => {
+    const service = { markDeleted: vi.fn().mockResolvedValue({ deletedAt: "2026-11-06T00:00:00Z", deletedBy: "server-user" }) };
+    const controller = createWebLarkTicketController({ service: service as never, resolveSession: vi.fn().mockResolvedValue(pmSession) });
+    expect(await controller.markDeleted(deletionInput)).toMatchObject({ statusCode: 200, body: { ok: true, data: { deletedAt: "2026-11-06T00:00:00Z", actionRunId: "delete-run", layer: "server", module: "lark-ticket", stage: "server.ticket.mark-deleted" } } });
+    expect(service.markDeleted).toHaveBeenCalledWith({ ticket: { baseId: "app_1", tableId: "tbl_1", recordId: "rec_1" }, masterUserId: "server-user", actionRunId: "delete-run" });
+    expect(await controller.markDeleted({ ...deletionInput, body: { ...deletionInput.body, masterUserId: "forged-user" } })).toMatchObject({ statusCode: 400 });
+    expect(service.markDeleted).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    [{ ok: false, errorCode: "UNAUTHENTICATED" }, 401], [{ ...pmSession, role: "dev" }, 403],
+  ])("denies unauthorized deletion (%#)", async (session, statusCode) => {
+    const service = { markDeleted: vi.fn() };
+    const controller = createWebLarkTicketController({ service: service as never, resolveSession: vi.fn().mockResolvedValue(session) });
+    expect(await controller.markDeleted(deletionInput)).toMatchObject({ statusCode, body: { ok: false, error: { actionRunId: "delete-run", layer: "server" } } });
+    expect(service.markDeleted).not.toHaveBeenCalled();
+  });
+
+  it.each([["LARK_TICKET_SOURCE_NOT_FOUND", 404], ["LARK_TICKET_SOURCE_FORBIDDEN", 403], ["LARK_AUTH_REQUIRED", 401]] as const)("exposes %s for link errors", async (code, statusCode) => {
+    const controller = createWebLarkTicketController({ service: { loadSharedUrl: vi.fn().mockRejectedValue(new LarkTicketError(code, "safe guidance", statusCode)) } as never,
+      resolveSession: vi.fn().mockResolvedValue(pmSession) });
+    expect(await controller.loadSharedUrl({ ...deletionInput, query: deletionInput.body })).toMatchObject({ statusCode, body: { ok: false, error: { errorCode: code, errorMessage: "safe guidance", actionRunId: "delete-run" } } });
+  });
   it("uses the server-resolved Web identity to load and persist a Ticket shared URL", async () => {
     const service = { loadSharedUrl: vi.fn().mockResolvedValue({ sharedUrl: "https://example.larksuite.com/base/app_1?record=rec_1" }) };
     const controller = createWebLarkTicketController({
@@ -30,7 +63,7 @@ describe("web Lark Ticket controller", () => {
 
     await expect(controller.loadSharedUrl({ cookieHeader: undefined, recordId: "rec_1", query: {} })).resolves.toEqual({
       statusCode: 401,
-      body: { ok: false, error: { errorCode: "UNAUTHENTICATED", errorMessage: "Missing web session." } },
+      body: { ok: false, error: { errorCode: "UNAUTHENTICATED", errorMessage: "Missing web session.", layer: "server", module: "lark-ticket", stage: "server.ticket.shared-url" } },
     });
   });
 

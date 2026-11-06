@@ -12,6 +12,8 @@
 
 Meegle 操作后显示“打开 Lark Base”，在新标签页打开当前 Ticket 的 Base 记录；没有 Meegle 关联或写权限时同样可用。优先使用已有 `sharedUrl`，缺失时复用 `GET /api/web/lark-tickets/:recordId/shared-url`，加载期间禁用入口，失败显示重试。仅允许 HTTP(S) 链接，切换 Ticket 隔离加载结果，窄屏自然换行。
 
+读取失败显示对应的源记录不存在、权限不足或授权不可用提示。仅在明确确认源记录不存在时暂停当前 Ticket 属性修改；不会自动删除。有 `platformSync` 权限的用户可点击“标记删除 Octo Ticket”，确认后从 Octo 列表和搜索中隐藏，历史数据保留。先等待当前属性保存或 Meegle 创建完成；失败可手动重试。完整详情提供同一入口。契约和验证见[任务记录](../../docs/tasks/platform-data/2026-11-06-lark-ticket-source-errors-and-deletion.md)。
+
 ## 开发者后台配置
 
 1. 在目标自建应用启用网页应用能力，将首页设为 `<Octo FE origin>/#lark-app-thread-analysis`。应用域名应与现有 OAuth 回调和 `/api` 同源部署相符。

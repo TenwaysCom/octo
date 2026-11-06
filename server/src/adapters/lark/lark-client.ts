@@ -180,6 +180,17 @@ export class LarkNotFoundError extends LarkAPIError {
   }
 }
 
+/** A generic HTTP 404 does not prove that a particular Base record was deleted. */
+export function classifyLarkRecordError(error: unknown): "record-not-found" | "forbidden" | "auth-required" | "resource-not-found" | undefined {
+  if (!(error instanceof LarkAPIError)) return undefined;
+  const code = error.statusCode;
+  if (code === 1254043) return "record-not-found";
+  if ([1254040, 1254041].includes(code ?? 0)) return "resource-not-found";
+  if ([403, 99991672, 99991676].includes(code ?? 0)) return "forbidden";
+  if (error instanceof LarkAuthenticationError || [401, 99991661, 99991663, 99991668, 99991677, 99991679].includes(code ?? 0)) return "auth-required";
+  return undefined;
+}
+
 /** Only known rejections prove that a write was not accepted. */
 export function isLarkWriteDefinitelyRejected(error: unknown): boolean {
   if (!(error instanceof LarkAPIError)) return false;

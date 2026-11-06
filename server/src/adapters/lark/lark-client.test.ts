@@ -1,7 +1,16 @@
 import { vi } from "vitest";
-import { LarkAPIError, LarkBatchCreateError, LarkClient, isLarkWriteDefinitelyRejected } from "./lark-client.js";
+import { LarkAPIError, LarkBatchCreateError, LarkClient, isLarkWriteDefinitelyRejected, classifyLarkRecordError } from "./lark-client.js";
 
 describe("lark-client", () => {
+  it.each([
+    [1254043, "record-not-found"], [1254040, "resource-not-found"], [1254041, "resource-not-found"],
+    [403, "forbidden"], [99991672, "forbidden"], [99991676, "forbidden"],
+    [99991668, "auth-required"], [99991677, "auth-required"], [99991679, "auth-required"],
+    [404, undefined], [500, undefined], [1254044, undefined],
+  ])("classifies platform code %s without treating generic failures as deleted records", (code, expected) => {
+    expect(classifyLarkRecordError(new LarkAPIError("test", code as number))).toBe(expected);
+    expect(classifyLarkRecordError(new Error("RecordIdNotFound"))).toBeUndefined();
+  });
   const requestMock = vi.fn();
 
   beforeEach(() => {

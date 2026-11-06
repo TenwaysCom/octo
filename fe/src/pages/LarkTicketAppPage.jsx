@@ -7,6 +7,7 @@ import { formatDateTime } from "../lib/formatters.js";
 import { getLarkTicketResourceUrl } from "../lib/lark-ticket-context-menu.js";
 import { getLarkTicketDetailHash } from "../app/routes/workspace-routes.js";
 import { LarkTicketEditableProperties } from "../components/lark-ticket/LarkTicketEditableProperties.jsx";
+import { LarkTicketDeleteButton } from "../components/lark-ticket/LarkTicketDeleteButton.jsx";
 import { LarkAppAnalysis, LarkAppUnderstanding } from "../components/lark-ticket/LarkAppAnalysis.jsx";
 import { BrandMark, ProfileAvatar } from "../components/layout/WorkspaceShell.jsx";
 import "../styles/lark-ticket-app.css";
@@ -30,7 +31,7 @@ function SafeLink({ href, children }) {
   } catch { return null; }
 }
 
-function LarkBaseLink({ apiBaseUrl, ticket }) {
+function LarkBaseLink({ apiBaseUrl, ticket, fieldEdits }) {
   const knownUrl = getLarkTicketResourceUrl(ticket.sharedUrl);
   const [state, setState] = useState({ status: "loading", url: null });
   const [retry, setRetry] = useState(0);
@@ -42,14 +43,18 @@ function LarkBaseLink({ apiBaseUrl, ticket }) {
       const url = getLarkTicketResourceUrl(value);
       if (!url) throw new Error("INVALID_SHARED_URL");
       if (active) setState({ status: "ready", url });
-    }).catch(() => { if (active) setState({ status: "error", url: null }); });
+    }).catch((error) => {
+      if (!active) return;
+      setState({ status: "error", url: null, message: error.message });
+      fieldEdits.reportSourceError(ticket, error);
+    });
     return () => { active = false; };
-  }, [apiBaseUrl, ticket.baseId, ticket.tableId, ticket.recordId, knownUrl, retry]);
+  }, [apiBaseUrl, ticket.baseId, ticket.tableId, ticket.recordId, knownUrl, retry, fieldEdits]);
   if (knownUrl || state.url) return <SafeLink href={knownUrl || state.url}>打开 Lark Base</SafeLink>;
-  return <button type="button" disabled={state.status === "loading"} onClick={() => setRetry((value) => value + 1)}
-    title={state.status === "error" ? "记录链接获取失败，点击重试" : "正在获取 Lark Base 记录链接"}>
+  return <><button type="button" disabled={state.status === "loading"} onClick={() => setRetry((value) => value + 1)}
+    title={state.status === "error" ? state.message : "正在获取 Lark Base 记录链接"}>
     打开 Lark Base{state.status === "error" ? "（重试）" : ""} ↗
-  </button>;
+  </button>{state.status === "error" && !fieldEdits.status(ticket).blocked ? <span role="alert" className="ticket-property__message ticket-property__message--error">{state.message}</span> : null}</>;
 }
 
 function ReplyReference({ answer }) {
@@ -112,7 +117,7 @@ export function LarkTicketAppPage({ apiBaseUrl, appHash, profile, ticketFieldEdi
   };
   const analysis = ticket ? getLarkAppAnalysis(ticket) : [];
   const search = query.trim().toLowerCase();
-  const matches = state.items.filter((item) => `${item.ticketNumber || ""} ${item.title}`.toLowerCase().includes(search));
+  const matches = state.items.filter((item) => !fieldEdits.project(item).deletedAt && `${item.ticketNumber || ""} ${item.title}`.toLowerCase().includes(search));
   return <main className="lark-app">
     <header className="lark-app__header">
       <div className="lark-app__header-row"><div className="lark-app__brand"><BrandMark /><div><strong>Ticket AI</strong><small>Octo · 讨论助手</small></div></div>
@@ -134,7 +139,8 @@ export function LarkTicketAppPage({ apiBaseUrl, appHash, profile, ticketFieldEdi
       {context.invalid ? <section className="lark-app__card"><h1>入口链接不完整</h1><p>请返回搜索页选择 Ticket。</p><a href="#lark-app-thread-analysis">搜索 Ticket</a></section>
         : state.status === "loading" ? <p role="status" className="lark-app__notice">正在读取已有分析…</p>
           : state.status === "error" ? <section className="lark-app__card" role="alert"><h1>读取失败</h1><p>请检查网络及 Octo 登录状态后重试。</p><button onClick={() => setRefresh((value) => value + 1)}>重试</button><a href="#integrations">检查登录状态</a></section>
-            : context.ref && !ticket ? <section className="lark-app__card"><h1>未找到此 Ticket</h1><p>该记录可能尚未同步，或你没有查看权限。</p><a href="#lark-app-thread-analysis">选择其他 Ticket</a></section>
+            : ticket?.deletedAt ? <section className="lark-app__card"><h1>此 Ticket 已在 Octo 标记删除</h1><p>已从列表和搜索中隐藏，历史数据已保留。</p><a href="#lark-app-thread-analysis">选择其他 Ticket</a></section>
+            : context.ref && !ticket ? <section className="lark-app__card"><h1>未找到此 Ticket</h1><p>该记录可能已标记删除、尚未同步，或你没有查看权限。</p><a href="#lark-app-thread-analysis">选择其他 Ticket</a></section>
               : !ticket ? <section className="lark-app__card">
                 <h1>查看 Ticket 分析</h1><p className="lark-app__muted">在上方输入标题关键词，选择对应 Ticket 后查看已有 AI 分析。</p>
               </section> : <>
@@ -144,19 +150,20 @@ export function LarkTicketAppPage({ apiBaseUrl, appHash, profile, ticketFieldEdi
                     <LarkTicketEditableProperties
                       key={JSON.stringify([apiBaseUrl, ticket.baseId, ticket.tableId, ticket.recordId])}
                       className="lark-app__property-fields" ticket={ticket} apiBaseUrl={apiBaseUrl}
-                      canEdit={canEdit && !creating} onSave={saveField} />
+                      canEdit={canEdit && !creating && !saveStatus.blocked} onSave={saveField} />
                     <time className="lark-app__muted" dateTime={ticket.syncedAt} title="Ticket 同步时间">{formatDateTime(ticket.syncedAt)}</time>
                     <a href={getLarkTicketDetailHash(ticket.recordId)} target="_blank" rel="noreferrer">完整详情 ↗</a>
                     <SafeLink href={ticket.larkMessageLink}>原始讨论</SafeLink>
                     <span className="lark-app__resource-actions" role="group" aria-label="关联资源">
-                      {canEdit && !hasMeegle ? <button type="button" disabled={creating || saveStatus.pending > 0}
+                      {canEdit && !hasMeegle ? <button type="button" disabled={creating || saveStatus.pending > 0 || saveStatus.blocked}
                         title={saveStatus.pending ? "请等待属性保存完成后再创建" : undefined} onClick={createMeegle}>
                         {creating ? "正在创建 Meegle…" : "创建 Meegle"}
                       </button> : null}
                       {meegleLinks.map((href, index) => <SafeLink href={href} key={href}>打开 Meegle{meegleLinks.length > 1 ? ` ${index + 1}` : ""}</SafeLink>)}
                       {hasMeegle && !meegleLinks.length ? <span className="lark-app__muted">已关联 Meegle 工作项</span> : null}
                       {creation.errorCode === "MEEGLE_LINK_ALREADY_EXISTS" && !meegleLinks.length ? <button type="button" onClick={() => setRefresh((value) => value + 1)}>重新读取 Ticket</button> : null}
-                      <LarkBaseLink key={JSON.stringify([apiBaseUrl, ticket.baseId, ticket.tableId, ticket.recordId])} apiBaseUrl={apiBaseUrl} ticket={ticket} />
+                      <LarkBaseLink key={JSON.stringify([apiBaseUrl, ticket.baseId, ticket.tableId, ticket.recordId])} apiBaseUrl={apiBaseUrl} ticket={ticket} fieldEdits={fieldEdits} />
+                      <LarkTicketDeleteButton ticket={ticket} fieldEdits={fieldEdits} canEdit={canEdit} />
                     </span>
                   </div>
                   {saveStatus.pending > 0 ? <p className="ticket-property__message" role="status">正在保存 {saveStatus.pending} 项修改…</p> : null}

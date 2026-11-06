@@ -1,8 +1,47 @@
 import { createLarkTicketService } from "./lark-ticket.service.js";
+import { LarkAPIError } from "../../adapters/lark/lark-client.js";
 
 const ticket = { baseId: "app_1", tableId: "tbl_1", recordId: "rec_1" };
 
 describe("Lark Ticket service", () => {
+  it.each([
+    [{ records: [], absent_record_ids: ["rec_1"], forbidden_record_ids: [] }, "LARK_TICKET_SOURCE_NOT_FOUND"],
+    [{ records: [], absent_record_ids: [], forbidden_record_ids: ["rec_1"] }, "LARK_TICKET_SOURCE_FORBIDDEN"],
+    [new LarkAPIError("RecordIdNotFound", 1254043), "LARK_TICKET_SOURCE_NOT_FOUND"],
+    [new LarkAPIError("Forbidden", 99991672), "LARK_TICKET_SOURCE_FORBIDDEN"],
+    [new LarkAPIError("token expire", 99991677), "LARK_AUTH_REQUIRED"],
+    [{ records: [], absent_record_ids: [], forbidden_record_ids: [] }, "LARK_TICKET_SHARED_URL_NOT_FOUND"],
+  ])("distinguishes missing source records from inaccessible records", async (result, code) => {
+    const service = createLarkTicketService({
+      syncStore: {
+        getLarkBaseTicketsForCleaning: vi.fn().mockResolvedValue([{ ...ticket, title: "Ticket" }]),
+        setLarkBaseTicketSharedUrl: vi.fn(),
+      },
+      getLarkTokenStore: () => ({ get: vi.fn().mockResolvedValue({ userToken: "test", baseUrl: "https://open.larksuite.com" }) }) as never,
+      createLarkClient: () => ({ batchGetRecords: async () => {
+        if (result instanceof Error) throw result;
+        return result;
+      } }) as never,
+    });
+    await expect(service.loadSharedUrl({ masterUserId: "user_1", larkBaseUrl: "https://open.larksuite.com", ticket }))
+      .rejects.toMatchObject({ code });
+  });
+
+  it("marks only the local Ticket deleted without resolving Lark authorization", async () => {
+    const getLarkTokenStore = vi.fn();
+    const syncStore = {
+      getLarkBaseTicketsForCleaning: vi.fn().mockResolvedValue([{ ...ticket, title: "Ticket" }]),
+      setLarkBaseTicketSharedUrl: vi.fn(),
+      markLarkBaseTicketDeleted: vi.fn().mockResolvedValue({ deletedAt: "2026-11-06T00:00:00Z", deletedBy: "user_1" }),
+    };
+    const service = createLarkTicketService({ syncStore, getLarkTokenStore });
+    await expect(service.markDeleted({ ticket, masterUserId: "user_1", actionRunId: "delete-run" })).resolves.toMatchObject({ deletedAt: "2026-11-06T00:00:00Z" });
+    expect(syncStore.markLarkBaseTicketDeleted).toHaveBeenCalledWith({ ...ticket, deletedBy: "user_1" });
+    expect(getLarkTokenStore).not.toHaveBeenCalled();
+    syncStore.getLarkBaseTicketsForCleaning.mockResolvedValue([]);
+    await expect(service.markDeleted({ ticket, masterUserId: "user_1", actionRunId: "delete-run" })).rejects.toMatchObject({ code: "LARK_TICKET_NOT_FOUND" });
+    expect(syncStore.markLarkBaseTicketDeleted).toHaveBeenCalledTimes(1);
+  });
   it("loads the Lark shared URL and persists it in the Octo-owned Ticket record", async () => {
     const syncStore = {
       getLarkBaseTicketsForCleaning: vi.fn().mockResolvedValue([{ ...ticket, title: "Ticket", syncedAt: "2026-08-12T00:00:00.000Z" }]),

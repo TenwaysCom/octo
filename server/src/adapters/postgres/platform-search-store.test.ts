@@ -30,6 +30,10 @@ describe("platform snapshot search", () => {
       expect(await search("missing")).toEqual([]);
       expect(all.every((row) => !("fields_json" in row))).toBe(true);
       expect(await store.listTicketFilterOptions()).toEqual({ requester: ["Ada", "Bob"], responsible: ["Ann"], issueType: ["Bug"] });
+      await sync.markLarkBaseTicketDeleted({ baseId: "base", tableId: "table", recordId: "rec-1", deletedBy: "user" });
+      expect(await search("cHeCkOuT")).toHaveLength(2);
+      expect(await store.search({ query: "142", limit: 20, offset: 0, kind: "lark-tickets" })).toEqual([]);
+      expect(await store.listTicketFilterOptions()).toEqual({ requester: [], responsible: [], issueType: [] });
     } finally { await db.destroy(); await pool.end(); }
   });
 

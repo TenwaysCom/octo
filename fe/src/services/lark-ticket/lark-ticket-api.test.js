@@ -6,6 +6,7 @@ test("loads a missing Ticket shared URL through the browser session", async () =
   let request;
   const sharedUrl = await loadLarkTicketSharedUrl({
     apiBaseUrl: "/api",
+    actionRunId: "shared-url-run",
     ticket: { baseId: "app_1", tableId: "tbl_1", recordId: "rec_1" },
     fetchImpl: async (url, options) => {
       request = { url, options };
@@ -14,7 +15,7 @@ test("loads a missing Ticket shared URL through the browser session", async () =
   });
 
   assert.equal(sharedUrl, "https://example.larksuite.com/base/app_1?record=rec_1");
-  assert.equal(request.url, "/api/web/lark-tickets/rec_1/shared-url?baseId=app_1&tableId=tbl_1");
+  assert.equal(request.url, "/api/web/lark-tickets/rec_1/shared-url?baseId=app_1&tableId=tbl_1&actionRunId=shared-url-run");
   assert.equal(request.options.credentials, "include");
 });
 
@@ -30,4 +31,12 @@ test("loads prepared Ticket thread messages with the browser session", async () 
   assert.equal(requests[0].url, "/api/web/lark-tickets/rec_1/prepared-messages?baseId=app_1&tableId=tbl_1");
   assert.equal(requests[0].options.credentials, "include");
   assert.deepEqual(prepared.messages, [{ messageId: "om_1", text: "hello" }]);
+});
+
+test("preserves source absence, permission and auth codes with their guidance", async () => {
+  for (const code of ["LARK_TICKET_SOURCE_NOT_FOUND", "LARK_TICKET_SOURCE_FORBIDDEN", "LARK_AUTH_REQUIRED"]) {
+    await assert.rejects(loadLarkTicketSharedUrl({ apiBaseUrl: "/api", ticket: { baseId: "b", tableId: "t", recordId: "r" },
+      fetchImpl: async () => ({ ok: false, json: async () => ({ ok: false, error: { errorCode: code, errorMessage: "对应的操作提示" } }) }),
+    }), (error) => error.code === code && error.message === "对应的操作提示");
+  }
 });

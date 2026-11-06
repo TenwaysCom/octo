@@ -129,6 +129,7 @@ function createStore(): PlatformSyncStore & {
     async countGitHubPullRequests() { return 0; },
     async listLarkBaseTickets() { return []; },
     async countLarkBaseTickets() { return 0; },
+    async markLarkBaseTicketDeleted() { throw new Error("Not used by sync"); },
     async upsertLarkBaseTicketShadowAi() { return undefined; },
     async listLarkTicketShadowSummaryCandidates() { return []; },
     async getLarkTicketShadowSummaryWatermark() { return { ok: 0, skipped: 0, error: 0, pending: 0 }; },

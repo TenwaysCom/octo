@@ -27,10 +27,13 @@ export class PostgresPlatformSearchStore {
       with candidates as (
         select 'lark-tickets'::text as kind, title,
           coalesce(ticket_number, '') as number, coalesce(ticket_status, '') as status,
-          base_id || '/' || table_id as scope, record_id as source_id,
+          sync.base_id || '/' || sync.table_id as scope, sync.record_id as source_id,
           null::text as item_type_key, issue_type as item_type, null::text as url,
           coalesce(ticket_number, '') as search_number
-        from lark_base_ticket_syncs
+        from lark_base_ticket_syncs sync
+        left join lark_base_ticket_octo octo on octo.base_id = sync.base_id
+          and octo.table_id = sync.table_id and octo.record_id = sync.record_id
+        where octo.deleted_at is null
         union all
         select 'meegle-workitems', title, case when work_item_key is null or work_item_key = '' then work_item_id else work_item_key end,
           coalesce(status, ''), project_key, work_item_id, work_item_type_key, work_item_type,
@@ -58,7 +61,10 @@ export class PostgresPlatformSearchStore {
   }
 
   async listTicketFilterOptions() {
-    const rows = await this.db.selectFrom("lark_base_ticket_syncs")
+    const rows = await this.db.selectFrom("lark_base_ticket_syncs as sync")
+      .leftJoin("lark_base_ticket_octo as octo", (join) => join.onRef("octo.base_id", "=", "sync.base_id")
+        .onRef("octo.table_id", "=", "sync.table_id").onRef("octo.record_id", "=", "sync.record_id"))
+      .where("octo.deleted_at", "is", null)
       .select(["requester", "responsible", "issue_type"]).distinct().execute();
     const values = (key: "requester" | "responsible" | "issue_type", people = false) => [...new Set(rows.flatMap((row) => {
       const value = row[key] || "";

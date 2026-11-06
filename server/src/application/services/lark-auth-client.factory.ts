@@ -5,7 +5,7 @@
  * Centralizes token expiry checks so business code doesn't need to handle it.
  */
 
-import { LarkClient } from "../../adapters/lark/lark-client.js";
+import { LarkClient, LarkAuthenticationError } from "../../adapters/lark/lark-client.js";
 import type { LarkTokenStore, StoredLarkToken } from "../../adapters/lark/token-store.js";
 import { getSharedLarkTokenStore } from "../../adapters/postgres/lark-token-store.js";
 import {
@@ -14,6 +14,7 @@ import {
 } from "../../modules/lark-auth/lark-auth.service.js";
 
 export interface AuthenticatedLarkClientFactoryDeps {
+  actionRunId?: string;
   getLarkTokenStore?: () => LarkTokenStore;
   refreshLarkToken?: typeof refreshLarkToken;
   refreshStoredLarkCredential?: typeof refreshStoredLarkCredentialWithLock;
@@ -79,7 +80,7 @@ export async function buildAuthenticatedLarkClient(
   });
 
   if (!stored) {
-    throw new Error("Lark token not found for user");
+    throw new LarkAuthenticationError("Lark token not found for user");
   }
 
   let accessToken = stored.userToken;
@@ -128,7 +129,7 @@ export async function buildAuthenticatedLarkClient(
 
   const client = deps.createLarkClient
     ? deps.createLarkClient(accessToken, stored.baseUrl)
-    : new LarkClient({ accessToken, baseUrl: stored.baseUrl });
+    : new LarkClient({ accessToken, baseUrl: stored.baseUrl, actionRunId: deps.actionRunId });
 
   return { client, baseUrl: stored.baseUrl };
 }

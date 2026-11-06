@@ -2,6 +2,29 @@ import { createTestPostgresDatabase } from "./test-db.js";
 import { extractMeegleIds, PostgresPlatformSyncStore } from "./platform-sync-store.js";
 
 describe("PostgresPlatformSyncStore", () => {
+  it("keeps a scoped, idempotent deletion marker through resync and Octo metadata updates", async () => {
+    const { db, pool } = await createTestPostgresDatabase();
+    try {
+      const store = new PostgresPlatformSyncStore(db);
+      const ref = { baseId: "base", tableId: "table", recordId: "same-id" };
+      const record = { record_id: ref.recordId, fields: { Title: "History" } };
+      await store.upsertLarkBaseTicket({ ...ref, record, title: "History" });
+      await store.upsertLarkBaseTicket({ ...ref, tableId: "other-table", record, title: "Other" });
+      await store.upsertLarkBaseTicketShadowAi({ ...ref, shadow: { status: "ok", summary: "preserved" } });
+      const first = await store.markLarkBaseTicketDeleted({ ...ref, deletedBy: "original-user" });
+      const second = await store.markLarkBaseTicketDeleted({ ...ref, deletedBy: "another-user" });
+      expect(second).toEqual(first);
+      expect(first.deletedBy).toBe("original-user");
+      await store.upsertLarkBaseTicket({ ...ref, record, title: "Resynced history" });
+      await store.setLarkBaseTicketSharedUrl({ ...ref, sharedUrl: "https://example.com/base" });
+      expect(await store.countLarkBaseTickets()).toBe(1);
+      expect(await store.listLarkBaseTickets(10)).toEqual([expect.objectContaining({ tableId: "other-table" })]);
+      expect(await store.countLarkBaseTickets({ query: "Resynced" })).toBe(0);
+      const [history] = await store.getLarkBaseTicketsForCleaning([ref]);
+      expect(history).toMatchObject({ deletedAt: first.deletedAt, sourceFields: record.fields, shadowAi: { summary: "preserved" } });
+      expect(await db.selectFrom("lark_base_ticket_octo").select(["deleted_at", "deleted_by"]).where("table_id", "=", "table").executeTakeFirst()).toEqual({ deleted_at: first.deletedAt, deleted_by: "original-user" });
+    } finally { await db.destroy(); await pool.end(); }
+  });
   it("extracts unique m- and f- Meegle IDs from a PR title and description", () => {
     expect(extractMeegleIds(
       "M-123 implements F-456",

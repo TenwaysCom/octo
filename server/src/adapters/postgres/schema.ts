@@ -455,6 +455,8 @@ export interface DatabaseSchema {
     table_id: string;
     record_id: string;
     shared_url: string | null;
+    deleted_at: string | null;
+    deleted_by: string | null;
     ticket_ai: string;
     shadow_ai: string;
     local_json: string;
