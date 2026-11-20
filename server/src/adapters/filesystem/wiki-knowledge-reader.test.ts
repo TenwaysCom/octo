@@ -111,6 +111,87 @@ describe("wiki knowledge reader", () => {
     expect(hits[0].content.length).toBeLessThanOrEqual(2400);
   });
 
+  it("recalls a short KCS result inside an oversized case and reads its referenced source beyond the start of the index", async () => {
+    const { reader, put } = await fixture();
+    const verification = Array.from({ length: 20 }, (_, index) => `库存流程背景 ${index} ${"无关库存内容".repeat(24)}。`).join("\n\n");
+    const index = Array.from({ length: 20 }, (_, index) => `- M${index + 1} [无关来源](../../../raw/documents/inventory-${index}.md) ${"库存内容".repeat(24)}`).join("\n");
+    const sourcePath = "raw/documents/kcs-export.md";
+    await put(sourcePath, "EXPORT_CASE: Support reviewed the export template.");
+    await put("kcs/demo-base/demo-table/rec-long-case.md", [
+      "## 历史模板核对", "### 当前结果", "EXPORT_CASE 下载后列名一致，其他模板未核对（F80）。",
+      "### 关键处理与验证", verification,
+      "管理员使用示例模板复测（F80）。", "更正：文件能打开，仍未验证字段映射。",
+      "### 遇到类似情况", "适用前提：导出账号须有模板读取权限。",
+      "### 待确认", "导出列的字段映射仍待核对。", "### 来源与范围", "测试只覆盖同一模板的一次操作。",
+      "#### 来源索引", index, `- [F80 核对记录](../../../${sourcePath})`,
+    ].join("\n\n"));
+
+    const query = { question: "EXPORT_CASE", keywords: [], objects: [], environments: [], includeKcs: true };
+    const hits = await reader.search(query);
+    expect(hits).toHaveLength(1);
+    expect(hits[0]).toMatchObject({ knowledgeType: "kcs", historicalOnly: true });
+    expect(hits[0].content.length).toBeLessThanOrEqual(2400);
+    for (const kept of ["下载后列名一致", "管理员使用示例模板复测", "仍未验证字段映射", "导出账号须有模板读取权限",
+      "导出列的字段映射仍待核对", "测试只覆盖同一模板的一次操作", "F80 核对记录", "未包含的内容未经本轮核对"]) {
+      expect(hits[0].content).toContain(kept);
+    }
+    expect(hits[0].content).not.toMatch(/库存流程背景|inventory-0\.md/);
+    expect(hits[0].sourceEvidence[0].path).toBe(sourcePath);
+    const selected = reader.selectEvidence!({ candidate: hits[0], question: query, evidenceIds: [hits[0].sourceEvidence[0].id] });
+    expect(selected).toMatchObject([{ path: sourcePath, complete: true, content: expect.stringContaining("Support reviewed the export template") }]);
+  });
+
+  it("retains the matching KCS table row with its verification gap when unrelated rows exceed the budget", async () => {
+    const { reader, put } = await fixture();
+    const otherCases = Array.from({ length: 30 }, (_, index) => `| 库存同步 ${index} | ${"背景说明".repeat(30)} | 库存未复测 |`);
+    await put("kcs/demo-base/demo-table/rec-many-cases.md", [
+      "## 多诉求测试", "", "### 当前结果", "",
+      "| 诉求 | 处理结果 | 还没核对 |", "| --- | --- | --- |",
+      ...otherCases, "| KCS_ROW_CASE | 模板绑定完成（M2） | 还没有验证权限较低的账号（M3） |", "",
+      "### 遇到类似情况", "", "先核对测试账号的适用范围。", "",
+      "### 来源与范围", "", "仅使用了一次会话。",
+    ].join("\n"));
+
+    const hits = await reader.search({ question: "KCS_ROW_CASE", keywords: [], objects: [], environments: [], includeKcs: true });
+    expect(hits).toHaveLength(1);
+    expect(hits[0].content.length).toBeLessThanOrEqual(2400);
+    expect(hits[0].content).toContain("| KCS_ROW_CASE | 模板绑定完成（M2） | 还没有验证权限较低的账号（M3） |");
+    expect(hits[0].content).toContain("先核对测试账号的适用范围");
+    expect(hits[0].content).not.toContain("库存未复测");
+  });
+
+  it.each(["complete", "fields-only", "compacted"])("reads the Lark solution field beside KCS chat evidence (%s)", async (snapshot) => {
+    const { reader, put } = await fixture();
+    const fieldsOnly = snapshot === "fields-only";
+    const complete = snapshot === "complete";
+    const sourcePath = "raw/transcripts/ticket-kcs-field.md";
+    const firstMessage = "- **[2026-09-22T10:00:00Z] 用户 1**(user): TEMPLATE_CHECK 示例账号已核对。";
+    await put(sourcePath, [
+      "---", `thread_id: ${fieldsOnly ? '""' : '"demo-thread"'}`, `history_complete: ${!fieldsOnly}`,
+      `render_complete: ${snapshot !== "compacted"}`, "---", "# Demo Ticket", "",
+      "<!-- octo-ticket-fields:start -->", "## Ticket 源字段", "", '- Business line: "Demo"', "",
+      "### 解决方案（Lark Base 记录）", "", "> TEMPLATE_CHECK 处理人员调整模板。", "> 仅适用示例账号。联系 demo@example.com。",
+      "<!-- octo-ticket-fields:end -->", "",
+      "<!-- octo-thread-messages:start -->", "## 线程消息", "",
+      fieldsOnly ? "无线程快照；没有可用的预处理原始消息。" : firstMessage, "<!-- octo-thread-messages:end -->", "",
+      "## Shadow AI 完整分析记录", "TEMPLATE_CHECK PRIVATE_ANALYSIS",
+    ].join("\n"));
+    await put("kcs/demo-base/demo-table/rec-solution.md", [
+      "## 模板问题", "### 当前结果", "TEMPLATE_CHECK 调整了示例模板。", "### 来源与范围",
+      `- [原始工单快照](../../../${sourcePath})`,
+    ].join("\n\n"));
+
+    const query = { question: "TEMPLATE_CHECK", keywords: [], objects: [], environments: [], includeKcs: true };
+    const [hit] = await reader.search(query);
+    expect(hit.sourceEvidence).toMatchObject([{ path: sourcePath, complete, content: expect.stringContaining("解决方案（Lark Base 源字段）") }]);
+    const [evidence] = reader.selectEvidence!({ candidate: hit, question: query, evidenceIds: [hit.sourceEvidence[0].id] });
+    expect(evidence).toMatchObject({ path: sourcePath, complete });
+    expect(evidence.content).toContain("解决方案（Lark Base 源字段）\nTEMPLATE_CHECK 处理人员调整模板。\n仅适用示例账号。联系 [EMAIL]。");
+    expect(evidence.content).not.toMatch(/demo@example\.com|PRIVATE_ANALYSIS|octo-thread-messages|无线程快照/);
+    if (fieldsOnly) expect(evidence.content).not.toMatch(/^M\d+$/m);
+    else expect(evidence.content).toContain(`M1\n${firstMessage}`);
+  });
+
   it("recalls stable ontology IDs before redacting reference-like output", async () => {
     const { reader, putOntology } = await fixture();
     await putOntology("objects/sales-order-amendment.md", `---\nstatus: draft\nbusiness_review: pending\n---\n# 销售订单修改\n\n<a id="sales-order-amendment"></a>\n## \`sales-order-amendment\`\n保留业务历史。\n`);

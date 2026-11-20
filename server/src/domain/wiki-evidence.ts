@@ -32,17 +32,22 @@ export function supportsWikiQuestion(question: string, terms: string[], content:
   return signatures.length ? matches(content, signatures) > 0 : matches(content, terms) > 0;
 }
 const qualification = /前提|条件|仅限|只有|除非|不适用|限制|例外|注意|冲突|纠正|更正|判断有误|仍未|未解决|失败|无效|仍然|尚未|不能|不要|不得|验证|恢复|已解决|成功|已修复|显示正常|prerequisite|condition|exception|not applicable|correction|incorrect|still|failed|doesn.t work|only if|unless|verified|resolved/i;
+const excerptNotice = "[相关知识摘录；未包含的内容未经本轮核对]";
+
+function wikiSections(text: string): string[] {
+  const clean = redactSupportText(text.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, "")).trim();
+  return clean.split(/\n(?=#{1,6}\s)/).filter((section) =>
+    !/^#{1,6}\s+(?:Maintenance Notes|维护说明|维护备注|Related Tickets|关联工单|Resolution Summary Template|结论摘要模板)\s*$/im.test(section.split("\n")[0]));
+}
 
 // Select complete sections/paragraphs: never slice a rule away from its caveat.
-export function relevantWikiContent(text: string, terms: string[], maxLength = 2400, keepHeadings?: RegExp): string {
-  const clean = redactSupportText(text.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, "")).trim();
-  const sections = clean.split(/\n(?=#{1,6}\s)/).filter((section) =>
-    !/^#{1,6}\s+(?:Maintenance Notes|维护说明|维护备注|Related Tickets|关联工单|Resolution Summary Template|结论摘要模板)\s*$/im.test(section.split("\n")[0]));
+export function relevantWikiContent(text: string, terms: string[], maxLength = 2400): string {
+  const sections = wikiSections(text);
   const scored = sections.map((content, index) => ({ content, index, score: matches(content, terms) }));
   if (!scored.some((item) => item.score)) return "";
   const guards = scored.filter((item) => {
     const heading = item.content.split("\n")[0];
-    return qualification.test(heading) || keepHeadings?.test(heading);
+    return qualification.test(heading);
   });
   const guardSize = guards.reduce((sum, item) => sum + item.content.length + 2, 0);
   if (guardSize > maxLength) return "";
@@ -57,21 +62,86 @@ export function relevantWikiContent(text: string, terms: string[], maxLength = 2
   }
   if (!kept.some((item) => item.score > 0)) return "";
   const content = kept.sort((a, b) => a.index - b.index).map((item) => item.content).join("\n\n");
-  return content ? `${content}\n[相关知识摘录；未包含的内容未经本轮核对]` : "";
+  return content ? `${content}\n${excerptNotice}` : "";
+}
+
+function matchingKcsResultRows(section: string, terms: string[]): string {
+  if (!/^#{1,6}[ \t]+当前结果(?:\s|$)/.test(section)) return section;
+  const lines = section.split("\n");
+  const header = lines.findIndex((line) => /^\|\s*诉求\s*\|\s*处理结果\s*\|\s*还没核对\s*\|\s*$/.test(line));
+  if (header < 0 || !/^\|(?:\s*:?-+:?\s*\|){3}\s*$/.test(lines[header + 1] ?? "")) return section;
+  const dataStart = header + 2;
+  const nextBlock = lines.findIndex((line, index) => index >= dataStart && !/^\|.*\|\s*$/.test(line));
+  const dataEnd = nextBlock < 0 ? lines.length : nextBlock;
+  const rows = lines.slice(dataStart, dataEnd).filter((line) => matches(line, terms) > 0);
+  if (!rows.length) return section;
+  return [...lines.slice(0, dataStart), ...rows, ...lines.slice(dataEnd)].join("\n");
+}
+
+const kcsSourceIndexHeading = /^#{1,6}[ \t]+来源索引(?:\s|$)/;
+const kcsSourceNumber = /\b[FMHK]\d+\b/g;
+const kcsVerificationHeading = /^#{1,6}[ \t]+关键处理与验证(?:\s|$)/;
+const kcsRestriction = /前提|条件|仅限|仅在|只在|只有|除非|不适用|限制|例外|注意|冲突|纠正|更正|判断有误|仍未|未解决|失败|无效|仍然|尚未|未经|不能|不要|不得|待核对|待确认|prerequisite|condition|exception|not applicable|correction|incorrect|still|failed|doesn.t work|only if|unless/i;
+
+function citesKcsSource(text: string, sourceNumbers: Set<string>): boolean {
+  return text.match(kcsSourceNumber)?.some((number) => sourceNumbers.has(number)) ?? false;
+}
+
+function relevantKcsVerification(section: string, terms: string[], sourceNumbers: Set<string>): string {
+  if (!kcsVerificationHeading.test(section)) return section;
+  const [heading, ...lines] = section.split("\n");
+  const paragraphs = lines.join("\n").trim().split(/\n[ \t]*\n/).filter((paragraph) =>
+    matches(paragraph, terms) || kcsRestriction.test(paragraph) || citesKcsSource(paragraph, sourceNumbers));
+  return paragraphs.length ? [heading, ...paragraphs].join("\n\n") : "";
+}
+
+export function relevantKcsContent(text: string, terms: string[], maxLength = 2400): string {
+  const sections = wikiSections(text.replaceAll("\r\n", "\n")).map((section) => section.trim());
+  const indexSections = sections.filter((section) => kcsSourceIndexHeading.test(section));
+  const caseSections = sections.filter((section) => !kcsSourceIndexHeading.test(section));
+  let content = caseSections.join("\n\n");
+  const budget = maxLength - excerptNotice.length - 1;
+  if (content.length > budget) {
+    const sourceNumbers = new Set(caseSections.filter((section) => !kcsVerificationHeading.test(section)).join("\n").match(kcsSourceNumber));
+    const compactSections = caseSections.map((section) => relevantKcsVerification(section, terms, sourceNumbers)).filter(Boolean);
+    content = compactSections.join("\n\n");
+    // Every KCS table row includes the result and its own verification gap.
+    // Keep the rest of the case together, including shared reuse conditions.
+    if (content.length > budget) content = compactSections.map((section) => matchingKcsResultRows(section, terms)).join("\n\n");
+  }
+  if (content.length > budget || !matches(content, terms)) return "";
+  const sourceNumbers = new Set(content.match(kcsSourceNumber));
+  for (const section of indexSections) {
+    if (content.length + section.length + 2 <= budget) {
+      content += `\n\n${section}`;
+      continue;
+    }
+    const [heading, ...lines] = section.split("\n");
+    const entries = lines.join("\n").trim().split(/\n(?=[-*+]\s)/);
+    let indexContent = heading;
+    for (const entry of entries) {
+      if (!citesKcsSource(entry, sourceNumbers) && !/\[原始工单快照\]\([^)]+\)/.test(entry)) continue;
+      if (content.length + indexContent.length + entry.length + 4 > budget) continue;
+      indexContent += `\n\n${entry.trim()}`;
+    }
+    if (indexContent !== heading) content += `\n\n${indexContent}`;
+  }
+  return `${content}\n${excerptNotice}`;
 }
 
 export interface SourceExcerpt { content: string; contextComplete: boolean }
 
 // Input is the original source, not the earlier budget-truncated rerank excerpt.
 // M/P ordinals identify source blocks; original text, sender and time stay intact.
-export function relevantSourceContent(text: string, terms: string[], maxLength: number, transcript: boolean): SourceExcerpt {
+export function relevantSourceContent(text: string, terms: string[], maxLength: number, transcript: boolean, solution = ""): SourceExcerpt {
   const clean = redactSupportText(text).trim();
+  const field = redactSupportText(solution);
   const hasMessageHeaders = /^\s*-\s+\*\*\[/m.test(clean);
   const blocks = clean.split(hasMessageHeaders ? /\n(?=\s*-\s+\*\*\[)/ : /\n\s*\n/)
     .map((content) => content.trim()).filter(Boolean);
   const body = (content: string) => content.replace(/^\s*-\s+\*\*\[[^\n]*?\*\*(?:\([^\n]*?\))?\s*[:：]\s*/, "");
   const hitIndices = blocks.flatMap((content, index) => matches(body(content), terms) > 0 ? [index] : []);
-  if (!hitIndices.length) return { content: "", contextComplete: false };
+  if (!hitIndices.length && !matches(field, terms)) return { content: "", contextComplete: false };
   const selected = new Set<number>();
   for (const index of hitIndices) {
     selected.add(index);
@@ -87,8 +157,10 @@ export function relevantSourceContent(text: string, terms: string[], maxLength: 
       if (index > 0) selected.add(index - 1);
     }
   });
-  const content = [...selected].sort((a, b) => a - b)
-    .map((index) => `${transcript ? "M" : "P"}${index + 1}\n${blocks[index]}`).join("\n\n");
+  const evidence = [...selected].sort((a, b) => a - b)
+    .map((index) => `${transcript ? "M" : "P"}${index + 1}\n${blocks[index]}`);
+  if (field) evidence.unshift(`解决方案（Lark Base 源字段）\n${field}`);
+  const content = evidence.join("\n\n");
   // Do not keep a successful action while silently clipping its later reversal.
   if (content.length > maxLength) return { content: "", contextComplete: false };
   return { content, contextComplete: true };

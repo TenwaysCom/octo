@@ -1,10 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { config } from "dotenv";
 import { sql } from "kysely";
 import { z } from "zod";
 import { createTicketSummaryJsonCompletionClient } from "../adapters/ai/ticket-summary-client.js";
 import { createPostgresDatabase } from "../adapters/postgres/database.js";
+import { preparedMessagesDocument, readThreadMessages } from "../adapters/postgres/lark-ticket-thread-sync-store.js";
 import { buildLarkTicketCleaningProjection } from "../application/services/lark-ticket-cleaning.js";
 import { redactSupportText } from "../domain/support-ticket-analysis.js";
 
@@ -23,14 +26,19 @@ const draftSchema = z.discriminatedUnion("record", [
   }).strict(),
 ]);
 
-function parseJson(value: string | null): unknown {
-  return value === null ? null : JSON.parse(value);
+interface TicketKcsCliDeps {
+  openDatabase: () => ReturnType<typeof createPostgresDatabase>;
+  createCompletionClient: () => ReturnType<typeof createTicketSummaryJsonCompletionClient>;
+  readPrompt: () => string;
+  now: () => number;
+  write: (line: string) => void;
+  writeError: (line: string) => void;
 }
 
-async function listSnapshots([baseId, tableId, selector]: [string, string, string], single: boolean) {
+async function listSnapshots([baseId, tableId, selector]: [string, string, string], single: boolean, deps: TicketKcsCliDeps) {
   const cutoff = single ? 0 : Date.parse(selector);
   if (!Number.isFinite(cutoff)) throw new Error("Invalid activation time.");
-  const db = createPostgresDatabase();
+  const db = deps.openDatabase();
   try {
     const rows = await db.transaction().setAccessMode("read only").execute((trx) =>
       trx.selectFrom("lark_base_ticket_syncs as ticket")
@@ -43,7 +51,7 @@ async function listSnapshots([baseId, tableId, selector]: [string, string, strin
           "ticket.title", "ticket.issue_type", "ticket.ticket_status", "ticket.fields_json",
           "ticket.shared_url", "ticket.source_updated_at", "ticket.created_time",
           "thread.thread_id", "thread.snapshot_version", "thread.history_complete",
-          "thread.last_successful_sync_at", "thread.prepared_messages_json",
+          "thread.last_successful_sync_at", "thread.prepared_messages_json", "thread.messages_json",
         ])
         .where("ticket.base_id", "=", baseId)
         .where("ticket.table_id", "=", tableId)
@@ -51,14 +59,18 @@ async function listSnapshots([baseId, tableId, selector]: [string, string, strin
         .$if(single, (query) => query.where("ticket.record_id", "=", selector))
         .where(sql<boolean>`lower(btrim(ticket.ticket_status)) = 'finish'`)
         .orderBy("ticket.record_id").execute());
-    const now = Date.now();
+    const now = deps.now();
     let exported = false;
     for (const row of rows) {
-      const fields = databaseFields.parse(parseJson(row.fields_json));
+      const fields = databaseFields.parse(JSON.parse(row.fields_json));
       const projection = buildLarkTicketCleaningProjection(fields, row.created_time ?? undefined);
       const closedAt = projection.closedAt;
       if (!closedAt || Date.parse(closedAt) <= cutoff || Date.parse(closedAt) > now) continue;
       if (!row.ticket_number?.trim() || !identity.safeParse(row.ticket_number).success) continue;
+      const { messages_json, prepared_messages_json, snapshot_version } = row;
+      const preparedMessages = snapshot_version !== null && messages_json !== null
+        ? preparedMessagesDocument(readThreadMessages({ messages_json, prepared_messages_json, snapshot_version }).preparedMessages, snapshot_version)
+        : null;
       const snapshot = {
         base_id: row.base_id,
         table_id: row.table_id,
@@ -78,12 +90,12 @@ async function listSnapshots([baseId, tableId, selector]: [string, string, strin
         thread: {
           thread_id: row.thread_id,
           snapshot_version: row.snapshot_version,
-          history_complete: row.history_complete,
+          history_complete: preparedMessages ? row.history_complete === true && preparedMessages.messages.length > 0 : null,
           last_successful_sync_at: row.last_successful_sync_at,
-          prepared_messages: parseJson(row.prepared_messages_json),
+          prepared_messages: preparedMessages,
         },
       };
-      process.stdout.write(JSON.stringify(snapshot) + "\n");
+      deps.write(JSON.stringify(snapshot) + "\n");
       exported = true;
     }
     if (single && !exported) throw new Error("No eligible closed ticket snapshot found.");
@@ -92,9 +104,9 @@ async function listSnapshots([baseId, tableId, selector]: [string, string, strin
   }
 }
 
-async function checkSyncReadiness([baseId, tableId, maxAgeMinutes]: [string, string, number]) {
+async function checkSyncReadiness([baseId, tableId, maxAgeMinutes]: [string, string, number], deps: TicketKcsCliDeps) {
   const scopeKey = `${baseId}/${tableId}`;
-  const db = createPostgresDatabase();
+  const db = deps.openDatabase();
   try {
     const latest = await db.transaction().setAccessMode("read only").execute((trx) =>
       trx.selectFrom("platform_sync_runs")
@@ -106,33 +118,47 @@ async function checkSyncReadiness([baseId, tableId, maxAgeMinutes]: [string, str
         .orderBy("started_at", "desc")
         .executeTakeFirst());
     const completedAt = latest?.completed_at ?? null;
-    const age = completedAt ? Date.now() - Date.parse(completedAt) : Number.NaN;
+    const age = completedAt ? deps.now() - Date.parse(completedAt) : Number.NaN;
     const ready = latest?.status === "succeeded" && age >= 0 && age <= maxAgeMinutes * 60000;
-    process.stdout.write(JSON.stringify({ stage: "octo_sync", ready, status: latest?.status ?? "missing", completed_at: completedAt }) + "\n");
-    if (!ready) process.exitCode = 3;
+    deps.write(JSON.stringify({ stage: "octo_sync", ready, status: latest?.status ?? "missing", completed_at: completedAt }) + "\n");
+    return ready ? 0 : 3;
   } finally {
     await db.destroy();
   }
 }
 
-async function renderDraft() {
-  const prompt = readFileSync(0, "utf8").trim();
+async function renderDraft(deps: TicketKcsCliDeps) {
+  const prompt = deps.readPrompt().trim();
   if (!prompt || prompt.length > 90000) throw new Error("Invalid KCS prompt.");
-  const result = await createTicketSummaryJsonCompletionClient().createJsonCompletion({
+  const result = await deps.createCompletionClient().createJsonCompletion({
     prompt, actionRunId: randomUUID(), reasoningEffort: "low",
   });
-  process.stdout.write(JSON.stringify(draftSchema.parse(JSON.parse(result.content))) + "\n");
+  deps.write(JSON.stringify(draftSchema.parse(JSON.parse(result.content))) + "\n");
 }
 
-config({ quiet: true });
-const [action, ...args] = process.argv.slice(2);
-try {
-  if (action === "snapshots") await listSnapshots(syncScope.parse(args), false);
-  else if (action === "snapshot") await listSnapshots(ticketScope.parse(args), true);
-  else if (action === "sync-ready") await checkSyncReadiness(syncReadinessScope.parse(args));
-  else if (action === "render" && !args.length) await renderDraft();
-  else throw new Error("Unknown ticket-kcs action.");
-} catch {
-  process.stderr.write("ticket-kcs failed. Check command arguments, source connection, and the Ticket Summary provider configuration.\n");
-  process.exitCode = 1;
+export async function runTicketKcs(argv: string[], deps: TicketKcsCliDeps): Promise<0 | 1 | 3> {
+  const [action, ...args] = argv;
+  try {
+    if (action === "snapshots") await listSnapshots(syncScope.parse(args), false, deps);
+    else if (action === "snapshot") await listSnapshots(ticketScope.parse(args), true, deps);
+    else if (action === "sync-ready") return await checkSyncReadiness(syncReadinessScope.parse(args), deps);
+    else if (action === "render" && !args.length) await renderDraft(deps);
+    else throw new Error("Unknown ticket-kcs action.");
+    return 0;
+  } catch {
+    deps.writeError("ticket-kcs failed. Check command arguments, source connection, and the Ticket Summary provider configuration.\n");
+    return 1;
+  }
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+  config({ quiet: true });
+  process.exitCode = await runTicketKcs(process.argv.slice(2), {
+    openDatabase: createPostgresDatabase,
+    createCompletionClient: createTicketSummaryJsonCompletionClient,
+    readPrompt: () => readFileSync(0, "utf8"),
+    now: Date.now,
+    write: (line) => process.stdout.write(line),
+    writeError: (line) => process.stderr.write(line),
+  });
 }
