@@ -1,4 +1,5 @@
 import type { Kysely, Selectable } from "kysely";
+import { z } from "zod";
 import { getSharedDatabase } from "./database.js";
 import type { DatabaseSchema } from "./schema.js";
 import {
@@ -78,12 +79,47 @@ export interface LarkTicketThreadSyncStore {
   markFailure(ref: LarkTicketThreadRef, error: string, checkedAt: string): Promise<void>;
 }
 
+const rawMessagesSchema = z.object({
+  schemaVersion: z.literal(1),
+  messages: z.array(z.object({
+    messageId: z.string().min(1),
+    rootId: z.string().optional(),
+    parentId: z.string().optional(),
+    threadId: z.string().optional(),
+    messageType: z.string().optional(),
+    createdAt: z.string().optional(),
+    updatedAt: z.string().optional(),
+    deleted: z.boolean().optional(),
+    senderId: z.string().optional(),
+    senderType: z.string().optional(),
+    content: z.string().optional(),
+  })),
+});
+
+const preparedMessagesSchema = z.object({
+  schemaVersion: z.literal(1),
+  redactionVersion: z.literal(SUPPORT_REDACTION_VERSION),
+  snapshotVersion: z.number(),
+  messages: z.array(z.object({
+    messageId: z.string().min(1),
+    replyTo: z.string().optional(),
+    createdAt: z.string().optional(),
+    senderRole: z.enum(["user", "bot", "system", "unknown"]),
+    senderLabel: z.string().optional(),
+    text: z.string(),
+    hasArtifact: z.boolean(),
+  })).refine((messages) => new Set(messages.map((message) => message.messageId)).size === messages.length),
+});
+
+function isRawMessagesDocument(document: unknown): document is LarkTicketThreadMessagesDocument {
+  return rawMessagesSchema.safeParse(document).success;
+}
+
 function parseMessages(value: string): LarkTicketThreadMessage[] {
   try {
-    const document = JSON.parse(value) as Partial<LarkTicketThreadMessagesDocument>;
-    return document.schemaVersion === 1 && Array.isArray(document.messages)
-      ? document.messages
-      : [];
+    const document: unknown = JSON.parse(value);
+    // Snapshot versioning compares serialized messages, including their key order.
+    return isRawMessagesDocument(document) ? document.messages : [];
   } catch {
     return [];
   }
@@ -96,40 +132,45 @@ function serializeMessages(messages: LarkTicketThreadMessage[]): string {
 function parsePreparedMessages(value: string | null, snapshotVersion: number): PreparedTicketMessage[] | undefined {
   if (!value) return undefined;
   try {
-    const document = JSON.parse(value) as Partial<PreparedLarkTicketThreadMessagesDocument>;
-    return document.schemaVersion === 1
-      && document.redactionVersion === SUPPORT_REDACTION_VERSION
-      && document.snapshotVersion === snapshotVersion
-      && Array.isArray(document.messages)
-      ? document.messages
-      : undefined;
+    const document = preparedMessagesSchema.parse(JSON.parse(value));
+    return document.snapshotVersion === snapshotVersion ? document.messages : undefined;
   } catch {
     return undefined;
   }
 }
 
-export function serializePreparedMessages(messages: PreparedTicketMessage[], snapshotVersion: number): string {
-  return JSON.stringify({
+export function readThreadMessages(row: Pick<Selectable<DatabaseSchema["lark_ticket_thread_syncs"]>,
+  "messages_json" | "prepared_messages_json" | "snapshot_version">) {
+  const messages = parseMessages(row.messages_json);
+  const preparedMessages = parsePreparedMessages(row.prepared_messages_json, row.snapshot_version)
+    ?? prepareTicketThread(messages);
+  return { messages, preparedMessages };
+}
+
+export function preparedMessagesDocument(messages: PreparedTicketMessage[], snapshotVersion: number): PreparedLarkTicketThreadMessagesDocument {
+  return {
     schemaVersion: 1,
     redactionVersion: SUPPORT_REDACTION_VERSION,
     snapshotVersion,
     messages,
-  } satisfies PreparedLarkTicketThreadMessagesDocument);
+  };
+}
+
+export function serializePreparedMessages(messages: PreparedTicketMessage[], snapshotVersion: number): string {
+  return JSON.stringify(preparedMessagesDocument(messages, snapshotVersion));
 }
 
 function toSnapshot(
   row: Selectable<DatabaseSchema["lark_ticket_thread_syncs"]> | undefined,
 ): LarkTicketThreadSnapshot | undefined {
   if (!row) return undefined;
-  const messages = parseMessages(row.messages_json);
   return {
     baseId: row.base_id,
     tableId: row.table_id,
     recordId: row.record_id,
     messageLink: row.message_link,
     threadId: row.thread_id,
-    messages,
-    preparedMessages: parsePreparedMessages(row.prepared_messages_json, row.snapshot_version) ?? prepareTicketThread(messages),
+    ...readThreadMessages(row),
     snapshotVersion: row.snapshot_version,
     historyComplete: row.history_complete,
     watermarkCreatedAt: row.watermark_created_at ?? undefined,

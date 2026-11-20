@@ -11,7 +11,7 @@ import { wikiQaAnswerLog, type WikiQaAnswerLog } from "../../adapters/filesystem
 import { getWorkflowPromptStore, type WorkflowPromptStore } from "../../adapters/postgres/workflow-prompt-store.js";
 import { redactSupportText } from "../../domain/support-ticket-analysis.js";
 import { WIKI_QA_PROMPTS, renderWorkflowPromptTemplate } from "../../domain/workflow-prompts.js";
-import { WikiQaError, wikiQuestionSchema, wikiRankingSchema, type WikiCandidate, type WikiKnowledgeEvidence, type WikiKnowledgeReader, type WikiQaProgress } from "../../domain/wiki-qa.js";
+import { WikiQaError, wikiQuestionSchema, wikiRankingSchema, type WikiCandidate, type WikiKcsSearchScope, type WikiKnowledgeEvidence, type WikiKnowledgeReader, type WikiQaProgress } from "../../domain/wiki-qa.js";
 import { logger } from "../../logger.js";
 
 const wikiLogger = logger.child({ module: "wiki-qa" });
@@ -144,11 +144,14 @@ export function createWikiQaService(deps: {
     return parsed.data;
   }
 
-  async function retrieve(input: WikiQaInput): Promise<{ question: string; evidence: WikiKnowledgeEvidence[] }> {
+  async function retrieve(input: WikiQaInput & WikiKcsSearchScope): Promise<{ question: string; evidence: WikiKnowledgeEvidence[] }> {
     const ticketContext = redactSupportText(input.ticketContext);
     const extracted = await runStage("extract", input, () => complete("extract", { ticket_context: ticketContext }, wikiQuestionSchema, input));
     let candidates;
-    try { candidates = await runStage("retrieve", input, () => reader.search({ ...extracted, signal: input.signal }),
+    const scope: WikiKcsSearchScope = input.includeKcs
+      ? { includeKcs: true, excludedKcsPath: input.excludedKcsPath }
+      : {};
+    try { candidates = await runStage("retrieve", input, () => reader.search({ ...extracted, ...scope, signal: input.signal }),
       (items) => `已完成知识召回，找到 ${items.length} 篇候选`); } catch (error) {
       if (error instanceof WikiQaError) throw new WikiQaError(error.code, error.message, { ...error.diagnostic, actionRunId: input.actionRunId });
       throw error;
@@ -177,10 +180,15 @@ export function createWikiQaService(deps: {
           : candidate.sourceEvidence.filter((source) => match.evidenceIds.includes(source.id));
         const omittedEvidence = sources.length < match.evidenceIds.length;
         const historical = candidate.historicalOnly || !match.conditionsMatched || !sources.length || omittedEvidence || sources.some((source) => !source.complete);
+        // A KCS excerpt covers one historical ticket. Its source index and
+        // verification gaps still matter when only some raw sources fit.
+        const content = candidate.knowledgeType === "kcs"
+          ? candidate.content
+          : scopedWikiContent(candidate.content, sources.map((source) => source.path), candidate.knowledgeType === "ontology");
         return { sourceId: index + 1, path: sourcePath, knowledgeType: candidate.knowledgeType,
           title: candidate.title, status: candidate.status,
           environments: candidate.environments,
-          content: scopedWikiContent(candidate.content, sources.map((source) => source.path), candidate.knowledgeType === "ontology"), sourceEvidence: sources,
+          content, sourceEvidence: sources,
           applicability: historical ? "historical_reference" : match.applicability,
           limitations: [...new Set([...candidate.limitations, ...match.limitations,
             ...(!match.conditionsMatched ? ["当前材料尚未确认处理路径的关键前提"] : []),

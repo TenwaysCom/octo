@@ -38,7 +38,7 @@ export interface WikiCandidate {
   id: string;
   path: string;
   sourcePath?: string;
-  knowledgeType?: "support_wiki" | "ontology";
+  knowledgeType?: "support_wiki" | "ontology" | "kcs";
   title: string;
   status: "draft" | "confirmed" | "unknown";
   environments: string[];
@@ -63,8 +63,12 @@ export interface WikiKnowledgeEvidence extends Omit<WikiCandidate, "id" | "histo
   applicability: "applicable" | "historical_reference";
 }
 
+export type WikiKcsSearchScope =
+  | { includeKcs?: false; excludedKcsPath?: never }
+  | { includeKcs: true; excludedKcsPath?: string };
+
 export interface WikiKnowledgeReader {
-  search(input: WikiQuestion & { signal?: AbortSignal }): Promise<WikiCandidate[]>;
+  search(input: WikiQuestion & WikiKcsSearchScope & { signal?: AbortSignal }): Promise<WikiCandidate[]>;
   selectEvidence?(input: { candidate: WikiCandidate; question: WikiQuestion; evidenceIds: string[]; signal?: AbortSignal }): WikiSourceEvidence[];
 }
 

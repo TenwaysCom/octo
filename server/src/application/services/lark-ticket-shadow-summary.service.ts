@@ -203,7 +203,10 @@ export function createLarkTicketShadowSummaryService(deps: LarkTicketShadowSumma
       let wiki: ReturnType<typeof buildShadowWikiContext>;
       try {
         const wikiService = deps.wikiQaService ?? createWikiQaService({ client: getTicketSummaryClient(), promptStore });
-        const retrieved = await wikiService.retrieve({ ticketContext: context.text, actionRunId });
+        const retrieved = await wikiService.retrieve({
+          ticketContext: context.text, actionRunId, includeKcs: true,
+          excludedKcsPath: `kcs/${ticket.baseId}/${ticket.tableId}/${ticket.recordId}.md`,
+        });
         wiki = buildShadowWikiContext(retrieved.evidence);
       } catch (error) {
         const errorCode: ShadowWikiContext["errorCode"] = error instanceof WikiQaError ? error.code : "SHADOW_WIKI_UNAVAILABLE";

@@ -2,15 +2,18 @@ import { readFile, readdir, realpath, stat } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { redactSupportText } from "../../domain/support-ticket-analysis.js";
 import { WikiQaError, type WikiCandidate, type WikiKnowledgeReader, type WikiSourceEvidence } from "../../domain/wiki-qa.js";
-import { relevantSourceContent, relevantWikiContent, wikiMatchCount, wikiQueryTerms as terms } from "../../domain/wiki-evidence.js";
+import { relevantKcsContent, relevantSourceContent, relevantWikiContent, wikiMatchCount, wikiQueryTerms as terms } from "../../domain/wiki-evidence.js";
 
 const MAX_FILE_BYTES = 256 * 1024;
 const DEFAULT_RECALL_LIMIT = 20;
+const KCS_ID = /^[A-Za-z0-9_-]+$/;
+
+type OriginalEvidence = WikiSourceEvidence & { solution?: string };
 
 interface KnowledgeRoot {
   root: string;
   publicRoot: "docs/llm-wiki" | "docs/ontology";
-  knowledgeType: "support_wiki" | "ontology";
+  knowledgeType: NonNullable<WikiCandidate["knowledgeType"]>;
 }
 
 function readRecallLimit(): number {
@@ -115,6 +118,13 @@ function sourcePaths(text: string): string[] {
   return [...new Set(text.match(/raw\/(?:transcripts|documents)\/[^\s\]\)"'<>]+\.md/g) ?? [])];
 }
 
+function kcsTranscriptSolution(source: string): string | undefined {
+  const fields = source.match(/^##[ \t]+Ticket 源字段[ \t]*\r?\n([\s\S]*?)(?=^##[ \t]|$(?![\s\S]))/m)?.[1];
+  const solution = fields?.match(/^###[ \t]+解决方案（Lark Base 记录）[ \t]*\r?\n(?:[ \t]*\r?\n)*((?:^>[^\r\n]*\r?\n?)+)/m)?.[1]
+    .replace(/^>[ \t]?/gm, "").trim();
+  return solution && solution !== "暂无解决方案。" ? solution : undefined;
+}
+
 function linkedPages(text: string, path: string, pages: string[]): string[] {
   const links = [...text.matchAll(/\]\(([^)\s]+)(?:\s+[^)]*)?\)|\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g)];
   const found = new Set<string>();
@@ -131,7 +141,7 @@ function linkedPages(text: string, path: string, pages: string[]): string[] {
 export function createWikiKnowledgeReader(deps: { workspaceDir?: string } = {}): WikiKnowledgeReader {
   // Keep full primary sources local to this run's candidate objects. They are
   // never serialized into the rerank request or retained after candidates expire.
-  const originals = new WeakMap<WikiCandidate, WikiSourceEvidence[]>();
+  const originals = new WeakMap<WikiCandidate, OriginalEvidence[]>();
   return {
     selectEvidence({ candidate, question, evidenceIds, signal }) {
       signal?.throwIfAborted();
@@ -140,8 +150,12 @@ export function createWikiKnowledgeReader(deps: { workspaceDir?: string } = {}):
       const sources = (originals.get(candidate) ?? []).filter((source) => evidenceIds.includes(source.id)
         && (!linkedPaths.length || linkedPaths.includes(source.path)));
       let remaining = 2400;
-      return sources.flatMap((source) => {
-        const excerpt = relevantSourceContent(source.content, queryTerms, remaining, source.path.startsWith("raw/transcripts/"));
+      return sources.flatMap(({ solution, ...source }) => {
+        const isTranscript = source.path.startsWith("raw/transcripts/");
+        const excerpt = relevantSourceContent(source.content, queryTerms, remaining, isTranscript, {
+          solution,
+          allowUnmatchedTranscript: candidate.knowledgeType === "kcs" && linkedPaths.includes(source.path),
+        });
         if (!excerpt.content) return [];
         remaining -= excerpt.content.length;
         return [{ ...source, content: excerpt.content, complete: source.complete && excerpt.contextComplete }];
@@ -182,13 +196,14 @@ export function createWikiKnowledgeReader(deps: { workspaceDir?: string } = {}):
         };
         async function read(source: KnowledgeRoot, path: string, optional = false): Promise<string | undefined> {
           input.signal?.throwIfAborted();
-          if (path.split("/").includes("..") || !within(source, resolve(source.root, path)) || !path.endsWith(".md")) return undefined;
+          const requested = resolve(source.root, path);
+          if (path.split("/").includes("..") || !within(source, requested) || !path.endsWith(".md")) return undefined;
           let canonical: string;
-          try { canonical = await realpath(resolve(source.root, path)); } catch (error) {
+          try { canonical = await realpath(requested); } catch (error) {
             if (optional && (error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
             throw error;
           }
-          if (!within(source, canonical)) return undefined;
+          if (!within(source, canonical) || (source.knowledgeType === "kcs" && canonical !== requested)) return undefined;
           const rawKind = source.knowledgeType === "support_wiki"
             ? ["raw/transcripts/", "raw/documents/"].find((prefix) => path.startsWith(prefix))
             : undefined;
@@ -201,19 +216,25 @@ export function createWikiKnowledgeReader(deps: { workspaceDir?: string } = {}):
         }
         async function scan(source: KnowledgeRoot, directory: string, optional = false): Promise<string[]> {
           input.signal?.throwIfAborted();
+          const requested = resolve(source.root, directory);
+          const kcsDepth = source.knowledgeType === "kcs" ? directory.split("/").length : undefined;
           let canonical: string;
-          try { canonical = await realpath(resolve(source.root, directory)); } catch (error) {
+          try { canonical = await realpath(requested); } catch (error) {
             if (optional && (error as NodeJS.ErrnoException).code === "ENOENT") return [];
             throw error;
           }
-          if (!within(source, canonical)) return [];
+          if (!within(source, canonical) || (kcsDepth !== undefined && canonical !== requested)) return [];
           const entries = await readdir(canonical, { withFileTypes: true });
           const paths: string[] = [];
           for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
             if (entry.name.startsWith(".") || entry.isSymbolicLink()) continue;
             const path = `${directory}/${entry.name}`;
-            if (entry.isDirectory()) paths.push(...await scan(source, path));
-            else if (entry.isFile() && entry.name.endsWith(".md")) paths.push(path);
+            if (entry.isDirectory() && (kcsDepth === undefined || (kcsDepth < 3 && KCS_ID.test(entry.name)))) {
+              paths.push(...await scan(source, path));
+            } else if (entry.isFile() && entry.name.endsWith(".md")
+              && (kcsDepth === undefined || (kcsDepth === 3 && KCS_ID.test(entry.name.slice(0, -3))))) {
+              paths.push(path);
+            }
           }
           return paths;
         }
@@ -224,29 +245,39 @@ export function createWikiKnowledgeReader(deps: { workspaceDir?: string } = {}):
             .map((entry) => entry.name).sort((a, b) => a.localeCompare(b));
         }
         const queryTerms = terms([input.question, ...input.keywords, ...input.objects].join(" "));
-        const pages: Array<{ source: KnowledgeRoot; path: string; text: string; content: string; score: number }> = [];
+        const pages: Array<{ source: KnowledgeRoot; path: string; text: string; title: string; content: string; score: number }> = [];
         const candidateDirectories: Array<{ source: KnowledgeRoot; directory: string; optional?: boolean }> = [
           { source: wikiRoot, directory: "concepts" },
           ...(ontologyRoot ? ["objects", "processes", "rules"].map((directory) => ({ source: ontologyRoot, directory, optional: true })) : []),
         ];
+        if (input.includeKcs) {
+          candidateDirectories.push({ source: { ...wikiRoot, knowledgeType: "kcs" }, directory: "kcs", optional: true });
+        }
         for (const { source, directory, optional } of candidateDirectories) {
+          const isKcs = source.knowledgeType === "kcs";
           for (const path of await scan(source, directory, optional)) {
-            const text = await read(source, path);
+            if (isKcs && path === input.excludedKcsPath) continue;
+            const text = await read(source, path, isKcs);
             if (!text) continue;
+            if (metadata(text, "applicability_status")[0] === "superseded"
+              || metadata(text, "retrieval_status")[0] === "excluded") continue;
             const environments = metadata(text, "environments");
             if (input.environments.length && environments.length && !environments.includes("待确认")
               && !input.environments.some((environment) => environments.includes(environment))) continue;
-            const title = (source.knowledgeType === "ontology"
-              ? metadata(text, "title")[0] || text.match(/^#\s+(.+)$/m)?.[1] || path
-              : metadata(text, "title").join(" ")).toLowerCase();
+            const titles = metadata(text, "title");
+            const heading = (isKcs ? text.match(/^##[ \t]+(.+)$/m)?.[1] : undefined)
+              || text.match(/^#\s+(.+)$/m)?.[1];
+            const title = titles[0] || heading || path;
+            const searchableTitle = source.knowledgeType === "support_wiki"
+              ? titles.join(" ")
+              : titles[0] || heading || (isKcs ? "" : path);
             const tags = ["objects", "processes", "tags"].flatMap((key) => metadata(text, key)).join(" ").toLowerCase();
-            const content = source.knowledgeType === "ontology"
-              ? relevantOntologyContent(text, queryTerms)
-              : relevantWikiContent(text, queryTerms);
+            const content = isKcs ? relevantKcsContent(text, queryTerms) : source.knowledgeType === "ontology"
+              ? relevantOntologyContent(text, queryTerms) : relevantWikiContent(text, queryTerms);
             const pathScore = source.knowledgeType === "ontology" ? wikiMatchCount(path.replace(/\.md$/, ""), queryTerms) : 0;
-            const score = (wikiMatchCount(title, queryTerms) + pathScore) * 4
+            const score = (wikiMatchCount(searchableTitle, queryTerms) + pathScore) * 4
               + wikiMatchCount(tags, queryTerms) * 3 + wikiMatchCount(content, queryTerms) * 2;
-            pages.push({ source, path, text, content, score });
+            pages.push({ source, path, text, title, content, score });
           }
         }
         // Navigation pages contribute links, never independent knowledge hits.
@@ -290,39 +321,49 @@ export function createWikiKnowledgeReader(deps: { workspaceDir?: string } = {}):
             }
             limitations.push("Ontology 仅作为业务建模参考，不证明当前环境已上线或本 Ticket 已发生相应事实");
           }
-          const sources: WikiSourceEvidence[] = [];
-          const paths = page.source.knowledgeType === "support_wiki" ? sourcePaths(page.text) : [];
+          const isKcs = page.source.knowledgeType === "kcs";
+          if (isKcs) limitations.push("KCS 为历史工单摘要，仅供排查参考，需核对当前工单的适用条件");
+          const sources: OriginalEvidence[] = [];
+          const content = page.content;
+          const linkedPaths = sourcePaths(content);
+          const allPaths = page.source.knowledgeType === "ontology" ? [] : sourcePaths(page.text);
+          const paths = isKcs ? [...new Set([...linkedPaths, ...allPaths])] : allPaths;
           for (const path of paths.slice(0, 12)) {
             const source = await read(wikiRoot, path, true);
             if (!source) { limitations.push("部分原始来源不可读取"); continue; }
             // Shadow AI analysis in a raw snapshot is not primary evidence.
-            const thread = source.match(/^##\s+线程消息[^\n]*\n([\s\S]*?)(?=^##\s|$(?![\s\S]))/m)?.[1]?.trim() ?? "";
+            let thread = source.match(/^##\s+线程消息[^\n]*\n([\s\S]*?)(?=^##\s|$(?![\s\S]))/m)?.[1]?.trim() ?? "";
             const isTranscript = path.startsWith("raw/transcripts/");
+            const solution = isKcs && isTranscript ? kcsTranscriptSolution(source) : undefined;
+            if (isKcs && isTranscript) {
+              thread = thread.replace(/^<!-- octo-thread-messages:end -->[ \t]*\r?$/m, "").trim();
+              if (thread === "无线程快照；没有可用的预处理原始消息。") thread = "";
+            }
             const content = isTranscript ? thread : source.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, "");
             const complete = isTranscript ? metadata(source, "history_complete")[0] === "true"
-              && Boolean(metadata(source, "thread_id")[0]) && Boolean(thread) : Boolean(content.trim());
-            sources.push({ id: `${id}-source-${sources.length + 1}`, path, complete, content });
+              && Boolean(metadata(source, "thread_id")[0]) && Boolean(thread)
+              && (!isKcs || metadata(source, "render_complete")[0] !== "false") : Boolean(content.trim());
+            sources.push({ id: `${id}-source-${sources.length + 1}`, path, complete, content, solution });
           }
           if (paths.length > 12) limitations.push("本轮仅核对前 12 个原始来源");
           if (page.source.knowledgeType === "ontology") limitations.push("Ontology 页面不作为本 Ticket 的原始证据");
           else if (!sources.length || sources.some((source) => !source.complete)) limitations.push("原始证据缺失或聊天快照不完整");
-          const content = page.content;
-          const linkedPaths = sourcePaths(content);
-          const sourceScore = (source: WikiSourceEvidence) => wikiMatchCount(source.content, queryTerms);
+          const sourceScore = (source: OriginalEvidence) => wikiMatchCount(`${source.solution ?? ""}\n${source.content}`, queryTerms);
           const selectedSources = sources.sort((a, b) => Number(linkedPaths.includes(b.path)) - Number(linkedPaths.includes(a.path))
             || sourceScore(b) - sourceScore(a) || a.path.localeCompare(b.path)).slice(0, 3);
           if (sources.length > selectedSources.length) limitations.push("本轮按相关性摘录最多 3 个原始来源，其余未核对");
-          const sourceEvidence = selectedSources.map((source) => ({ ...source,
-            content: excerpt(source.content, queryTerms, Math.floor(2400 / selectedSources.length)),
+          const sourceEvidence = selectedSources.map(({ solution, ...source }) => ({ ...source,
+            content: excerpt(solution ? `解决方案（Lark Base 源字段）\n${solution}\n\n${source.content}` : source.content,
+              queryTerms, Math.floor(2400 / selectedSources.length)),
           }));
           const lowConfidence = metadata(page.text, "confidence")[0] === "low";
           if (lowConfidence) limitations.push("资料置信度低，仅供历史参考");
           if (!content) limitations.push("未能在预算内摘取完整相关知识段落");
           const candidate: WikiCandidate = { id, path: page.path, sourcePath: `${page.source.publicRoot}/${page.path}`,
             knowledgeType: page.source.knowledgeType,
-            title: redactSupportText(metadata(page.text, "title")[0] || page.text.match(/^#\s+(.+)$/m)?.[1] || page.path),
+            title: redactSupportText(page.title),
             status, environments, content, sourceEvidence,
-            limitations: [...new Set(limitations)], historicalOnly: page.source.knowledgeType === "ontology"
+            limitations: [...new Set(limitations)], historicalOnly: isKcs || page.source.knowledgeType === "ontology"
               || unknownEnvironment || status === "unknown" || lowConfidence || !sourceEvidence.some((source) => source.complete),
           };
           originals.set(candidate, selectedSources);
