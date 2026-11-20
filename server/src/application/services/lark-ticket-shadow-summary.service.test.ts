@@ -1,3 +1,7 @@
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { createWikiKnowledgeReader } from "../../adapters/filesystem/wiki-knowledge-reader.js";
 import { createWikiQaService } from "./wiki-qa.service.js";
 import { WikiQaError, type WikiKnowledgeEvidence } from "../../domain/wiki-qa.js";
 import type { LarkBaseTicketSyncItem } from "../../adapters/postgres/platform-sync-store.js";
@@ -501,6 +505,98 @@ describe("Shadow Wiki retrieval", () => {
     expect(prompts[0]).toContain('"reference":"W1"');
     expect(prompts[0]).toContain("不得用历史损失抬高本 Ticket 风险");
     expect(writes[0]).toMatchObject({ wikiContext: { status: "matched", sources: [{ sourceId: 1, path: historicalWiki.path }] }, wikiEvidence: [historicalWiki], analysis: { analysis: { intent: { evidenceMessageIds: ["om_1"] } } } });
+  });
+
+  it.each([true, false])("passes a historical KCS result, reuse conditions and source index to Shadow (metadata: %s)", async (withMetadata) => {
+    const workspaceDir = await mkdtemp(join(tmpdir(), "shadow-kcs-"));
+    try {
+      const wikiRoot = join(workspaceDir, "docs", "llm-wiki");
+      const kcsDir = join(wikiRoot, "kcs", "base-1", "table-1");
+      const resultPath = "raw/documents/price-list-retest.md";
+      const gapPath = "raw/documents/channel-coverage.md";
+      await mkdir(join(wikiRoot, "concepts"), { recursive: true });
+      await mkdir(kcsDir, { recursive: true });
+      await mkdir(join(wikiRoot, "raw", "documents"), { recursive: true });
+      await writeFile(join(wikiRoot, resultPath), "The support team retested promotion after changing the price list.");
+      await writeFile(join(wikiRoot, gapPath), "Other sales channels were outside the retest.");
+      const title = "订单无法添加 promotion · DEMO-001";
+      const frontmatter = (environment: string) => [
+        "---", `title: ${JSON.stringify(title)}`, `environments: ${JSON.stringify([environment])}`, "---",
+      ];
+      const result = `更换价目表后已可选择（[M1](../../../${resultPath})）`;
+      const table = [
+        "| 诉求 | 处理结果 | 还没核对 |",
+        "| --- | --- | --- |",
+        `| 添加优惠 | ${result} | 其他销售渠道还没复测 |`,
+        "| 打印订单 | 已答复打印入口 | 用户尚未反馈打印结果 |",
+      ];
+      const history = [
+        `## ${title}`,
+        "",
+        "### 当前结果",
+        "",
+        ...(withMetadata ? table : [`添加优惠时，${result}。其他销售渠道还没复测。`]),
+        "",
+        "### 遇到类似情况",
+        "",
+        "先核对订单选择的价目表，适用于同一销售渠道。",
+        "",
+        "### 待确认",
+        "",
+        `是否覆盖线上渠道仍待确认（[M2](../../../${gapPath})）。`,
+        "",
+        "### 来源与范围",
+        "",
+        "- **材料范围**　只读取测试人员的复测记录。",
+        "",
+        "#### 来源索引",
+        "",
+        `- [M1 价目表复测](../../../${resultPath})`,
+        `- [M2 渠道覆盖范围](../../../${gapPath})`,
+      ];
+      await writeFile(join(kcsDir, "rec-history.md"), [...(withMetadata ? frontmatter("EU Odoo 17") : []), ...history].join("\n"));
+      await writeFile(join(kcsDir, "rec-other-environment.md"), [...frontmatter("US Odoo 18"), ...history].join("\n"));
+      await writeFile(join(kcsDir, "rec-1.md"), [...frontmatter("EU Odoo 17"), ...history].join("\n"));
+      await writeFile(join(kcsDir, "promotion.md"), "## 库存盘点\n");
+
+      const client = { createJsonCompletion: vi.fn().mockResolvedValue({
+        content: JSON.stringify({ question: "promotion", keywords: ["promotion"], objects: [], environments: ["EU Odoo 17"] }),
+        model: "extract",
+      }) };
+      const rerankClient = { rerank: vi.fn().mockResolvedValue({
+        mode: "general", model: "rank",
+        content: JSON.stringify({ matches: [{ candidateId: "wiki-1", applicability: "applicable", conditionsMatched: true, evidenceIds: ["wiki-1-source-1"], limitations: [] }] }),
+      }) };
+      const wiki = createWikiQaService({
+        reader: createWikiKnowledgeReader({ workspaceDir }), client, rerankClient,
+        promptStore: { getByKey: async () => undefined }, extractLog: vi.fn(), answerLog: vi.fn(),
+      });
+      await expect(wiki.retrieve({ ticketContext: "promotion", actionRunId: "default-retrieval" })).resolves.toMatchObject({ evidence: [] });
+      expect(rerankClient.rerank).not.toHaveBeenCalled();
+
+      const { service, writes, prompts } = makeDeps({
+        candidates: [makeTicket()], threadResult: { source: "lark", snapshot: makeSnapshot() }, wikiQaService: wiki,
+      });
+      expect(await service.runOnce()).toMatchObject({ summarized: 1 });
+      expect(rerankClient.rerank).toHaveBeenCalledTimes(1);
+      expect(rerankClient.rerank.mock.calls[0][0].documents).toHaveLength(1);
+      expect(prompts[0]).toContain("更换价目表后已可选择");
+      expect(prompts[0]).toContain("其他销售渠道还没复测");
+      expect(prompts[0]).toContain("适用于同一销售渠道");
+      expect(prompts[0]).toContain("是否覆盖线上渠道仍待确认");
+      expect(prompts[0]).toContain("只读取测试人员的复测记录");
+      expect(prompts[0]).toContain(`[M2 渠道覆盖范围](../../../${gapPath})`);
+      expect(prompts[0]).not.toContain("Other sales channels were outside the retest.");
+      expect(writes[0]).toMatchObject({
+        wikiContext: {
+          status: "matched",
+          sources: [{ sourceId: 1, path: "docs/llm-wiki/kcs/base-1/table-1/rec-history.md", title, applicability: "historical_reference" }],
+        },
+        wikiEvidence: [{ knowledgeType: "kcs", sourceEvidence: [{ path: resultPath, complete: true }] }],
+      });
+    } finally {
+      await rm(workspaceDir, { recursive: true, force: true });
+    }
   });
 
   it("distinguishes a successful empty retrieval from an unavailable Wiki", async () => {

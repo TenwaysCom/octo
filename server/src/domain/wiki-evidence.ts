@@ -34,13 +34,16 @@ export function supportsWikiQuestion(question: string, terms: string[], content:
 const qualification = /前提|条件|仅限|只有|除非|不适用|限制|例外|注意|冲突|纠正|更正|判断有误|仍未|未解决|失败|无效|仍然|尚未|不能|不要|不得|验证|恢复|已解决|成功|已修复|显示正常|prerequisite|condition|exception|not applicable|correction|incorrect|still|failed|doesn.t work|only if|unless|verified|resolved/i;
 
 // Select complete sections/paragraphs: never slice a rule away from its caveat.
-export function relevantWikiContent(text: string, terms: string[], maxLength = 2400): string {
+export function relevantWikiContent(text: string, terms: string[], maxLength = 2400, keepHeadings?: RegExp): string {
   const clean = redactSupportText(text.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, "")).trim();
   const sections = clean.split(/\n(?=#{1,6}\s)/).filter((section) =>
     !/^#{1,6}\s+(?:Maintenance Notes|维护说明|维护备注|Related Tickets|关联工单|Resolution Summary Template|结论摘要模板)\s*$/im.test(section.split("\n")[0]));
   const scored = sections.map((content, index) => ({ content, index, score: matches(content, terms) }));
   if (!scored.some((item) => item.score)) return "";
-  const guards = scored.filter((item) => qualification.test(item.content.split("\n")[0]));
+  const guards = scored.filter((item) => {
+    const heading = item.content.split("\n")[0];
+    return qualification.test(heading) || keepHeadings?.test(heading);
+  });
   const guardSize = guards.reduce((sum, item) => sum + item.content.length + 2, 0);
   if (guardSize > maxLength) return "";
   const selected = scored.filter((item) => item.score > 0 && !guards.includes(item))

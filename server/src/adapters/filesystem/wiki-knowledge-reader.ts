@@ -6,11 +6,12 @@ import { relevantSourceContent, relevantWikiContent, wikiMatchCount, wikiQueryTe
 
 const MAX_FILE_BYTES = 256 * 1024;
 const DEFAULT_RECALL_LIMIT = 20;
+const KCS_CONTEXT_HEADINGS = /^#{1,6}\s+(?:当前结果|遇到类似情况|待确认|来源与范围|来源索引|还没核对|类似情况怎么参考)(?:\s|$)/;
 
 interface KnowledgeRoot {
   root: string;
   publicRoot: "docs/llm-wiki" | "docs/ontology";
-  knowledgeType: "support_wiki" | "ontology";
+  knowledgeType: NonNullable<WikiCandidate["knowledgeType"]>;
 }
 
 function readRecallLimit(): number {
@@ -224,29 +225,38 @@ export function createWikiKnowledgeReader(deps: { workspaceDir?: string } = {}):
             .map((entry) => entry.name).sort((a, b) => a.localeCompare(b));
         }
         const queryTerms = terms([input.question, ...input.keywords, ...input.objects].join(" "));
-        const pages: Array<{ source: KnowledgeRoot; path: string; text: string; content: string; score: number }> = [];
+        const pages: Array<{ source: KnowledgeRoot; path: string; text: string; title: string; content: string; score: number }> = [];
         const candidateDirectories: Array<{ source: KnowledgeRoot; directory: string; optional?: boolean }> = [
           { source: wikiRoot, directory: "concepts" },
           ...(ontologyRoot ? ["objects", "processes", "rules"].map((directory) => ({ source: ontologyRoot, directory, optional: true })) : []),
         ];
+        if (input.includeKcs) {
+          candidateDirectories.push({ source: { ...wikiRoot, knowledgeType: "kcs" }, directory: "kcs", optional: true });
+        }
         for (const { source, directory, optional } of candidateDirectories) {
+          const isKcs = source.knowledgeType === "kcs";
           for (const path of await scan(source, directory, optional)) {
-            const text = await read(source, path);
+            if (isKcs && path === input.excludedKcsPath) continue;
+            const text = await read(source, path, isKcs);
             if (!text) continue;
             const environments = metadata(text, "environments");
             if (input.environments.length && environments.length && !environments.includes("待确认")
               && !input.environments.some((environment) => environments.includes(environment))) continue;
-            const title = (source.knowledgeType === "ontology"
-              ? metadata(text, "title")[0] || text.match(/^#\s+(.+)$/m)?.[1] || path
-              : metadata(text, "title").join(" ")).toLowerCase();
+            const titles = metadata(text, "title");
+            const heading = (isKcs ? text.match(/^##[ \t]+(.+)$/m)?.[1] : undefined)
+              || text.match(/^#\s+(.+)$/m)?.[1];
+            const title = titles[0] || heading || path;
+            const searchableTitle = source.knowledgeType === "support_wiki"
+              ? titles.join(" ")
+              : titles[0] || heading || (isKcs ? "" : path);
             const tags = ["objects", "processes", "tags"].flatMap((key) => metadata(text, key)).join(" ").toLowerCase();
             const content = source.knowledgeType === "ontology"
               ? relevantOntologyContent(text, queryTerms)
-              : relevantWikiContent(text, queryTerms);
+              : relevantWikiContent(text, queryTerms, undefined, isKcs ? KCS_CONTEXT_HEADINGS : undefined);
             const pathScore = source.knowledgeType === "ontology" ? wikiMatchCount(path.replace(/\.md$/, ""), queryTerms) : 0;
-            const score = (wikiMatchCount(title, queryTerms) + pathScore) * 4
+            const score = (wikiMatchCount(searchableTitle, queryTerms) + pathScore) * 4
               + wikiMatchCount(tags, queryTerms) * 3 + wikiMatchCount(content, queryTerms) * 2;
-            pages.push({ source, path, text, content, score });
+            pages.push({ source, path, text, title, content, score });
           }
         }
         // Navigation pages contribute links, never independent knowledge hits.
@@ -290,8 +300,10 @@ export function createWikiKnowledgeReader(deps: { workspaceDir?: string } = {}):
             }
             limitations.push("Ontology 仅作为业务建模参考，不证明当前环境已上线或本 Ticket 已发生相应事实");
           }
+          const isKcs = page.source.knowledgeType === "kcs";
+          if (isKcs) limitations.push("KCS 为历史工单摘要，仅供排查参考，需核对当前工单的适用条件");
           const sources: WikiSourceEvidence[] = [];
-          const paths = page.source.knowledgeType === "support_wiki" ? sourcePaths(page.text) : [];
+          const paths = page.source.knowledgeType === "ontology" ? [] : sourcePaths(page.text);
           for (const path of paths.slice(0, 12)) {
             const source = await read(wikiRoot, path, true);
             if (!source) { limitations.push("部分原始来源不可读取"); continue; }
@@ -320,9 +332,9 @@ export function createWikiKnowledgeReader(deps: { workspaceDir?: string } = {}):
           if (!content) limitations.push("未能在预算内摘取完整相关知识段落");
           const candidate: WikiCandidate = { id, path: page.path, sourcePath: `${page.source.publicRoot}/${page.path}`,
             knowledgeType: page.source.knowledgeType,
-            title: redactSupportText(metadata(page.text, "title")[0] || page.text.match(/^#\s+(.+)$/m)?.[1] || page.path),
+            title: redactSupportText(page.title),
             status, environments, content, sourceEvidence,
-            limitations: [...new Set(limitations)], historicalOnly: page.source.knowledgeType === "ontology"
+            limitations: [...new Set(limitations)], historicalOnly: isKcs || page.source.knowledgeType === "ontology"
               || unknownEnvironment || status === "unknown" || lowConfidence || !sourceEvidence.some((source) => source.complete),
           };
           originals.set(candidate, selectedSources);

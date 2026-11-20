@@ -2,10 +2,10 @@
 title: "Lark Ticket 影子模式 AI 问题总结后台任务"
 module: "ai-ticket"
 status: done
-requirement_version: 16
+requirement_version: 17
 created_on: 2026-09-03
-updated_on: 2026-09-24
-closed_on: 2026-09-24
+updated_on: 2026-11-20
+closed_on: 2026-11-20
 owner: TBD
 related:
   - "docs/ai-dev/prompts/support-intent-analysis-v2.md"
@@ -14,6 +14,8 @@ related:
 # Lark Ticket 影子模式 AI 问题总结后台任务
 
 ## 目标
+
+v17：Shadow 分析进行中工单时，从本地 KCS 召回其他工单的处理经验。依据本票提取的问题和关键词搜索 KCS 正文，沿用现有重排与来源上限。KCS 作为历史参考，按 record ID 读取本票 KCS 不在本次范围。
 
 v16：Shadow 最终分析与 Wiki 提取/回答共用 WIKI_QA_ANSWER_REASONING_EFFORT，默认 low；provider 不传推理强度。仅调整此调用配置，不修改生产环境配置。
 
@@ -28,6 +30,9 @@ v12：正式问题总结的 thread 输入与 Shadow 共用完整消息选取、�
 v11：Shadow 一次 JsonCompletionClient 调用在现有意图、结果、质量、总结上新增业务风险与回复时机（各三个字段）。参考 Wiki 复用短引用/回复关系与堆栈精简，按完整消息块保留初始诉求和最新消息，补齐完整性、字段脱敏、实际输入证据校验和安全诊断。只写 shadow_ai，正式 Ticket AI、Wiki 行为、调度和模型参数不变。
 
 ## 验收标准
+
+- [x] v17 进行中工单可从本地 KCS 召回相关历史案例，处理结果和待核对项进入 Shadow，保留来源和历史参考限制。Wiki 问答仍使用既有候选范围。
+- [x] v17 兼容指南生成的 KCS 正文和元数据。来源筛选后仍可查看复用前提、验证缺口和来源索引。重开工单排除本票已有的 KCS。
 
 - [x] v16 Shadow 最终分析使用共用 reasoning effort 解析，验证默认值、low/high/max、provider 和非法配置；相关测试与构建通过。
 
@@ -210,3 +215,15 @@ v15 发布边界：本轮修复未部署、未重启、未改生产配置/数据
 - 仅修改本地调用与配置说明，未改生产环境变量、未部署或重启、未触发历史重算；没有继续或修改并行进行的HTTP超时修复。
 
 2026-09-24 提交前联合验证：v15超时修复与已暂存的v16 reasoning effort改动共同执行5个目标文件138项测试通过，server build通过；仅本地Git交付，不推送、不部署。
+
+## 2026-11-20 v17 Shadow 召回历史 KCS
+
+Shadow 按本票提取的关键词检索本地 `docs/llm-wiki/kcs/`，与其他候选共用粗筛、重排和来源上限。KCS 摘录保留相关处理结果、待核对项和复用提示，按历史参考交给 Shadow。目录缺失时沿用现有知识检索。
+
+服务端 TypeScript 构建通过。定向测试共 160 项通过，覆盖 Wiki reader、证据筛选、Wiki 问答及 Shadow。新增模拟集成测试使用实际临时目录和本地 Markdown，模型使用替身。验证了默认检索范围、关键词命中、环境筛选、历史来源与最终分析输入。部署和真实模型命中率待验证。
+
+Shadow 按指南的标题读取 KCS 业务标题、当前结果、复用条件、待确认项和来源索引。带 `title` 和 `environments` 元数据时用于标题和环境筛选。没有标题元数据的历史文档使用二级标题。摘录遵守既有正文预算。选中的原文片段单独提供，来源索引保留查阅路径。Shadow 在读取候选文件前跳过本票三元组对应的路径，避免重开工单召回自身。
+
+关闭后的 KCS 归档可使用服务端构建产物 `dist/scripts/ticket-kcs.js`。在 `server/` 运行。 `snapshot` 和 `snapshots` 从本地已同步数据读取已关闭的工单及线程。`sync-ready` 检查相应工单表的最近一次同步。`render` 从标准输入读取摘要提示，并复用当前 Ticket Summary 模型配置。
+
+服务端 TypeScript 构建通过。定向测试共 195 项通过，覆盖文件读取、证据抽取、重排、Wiki 问答及 Shadow。Shadow 模拟集成使用临时 Markdown 目录和替身模型，覆盖单诉求、多个诉求、缺少元数据、环境筛选、本票排除和部分原文入选后的来源追溯。真实在途工单、模型效果和部署待验证。
