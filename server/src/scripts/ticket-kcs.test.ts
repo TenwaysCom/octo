@@ -134,6 +134,44 @@ describe("ticket-kcs CLI", () => {
     }
   });
 
+  it("exports eligible snapshots before and after rows with malformed source fields", async () => {
+    const { db, pool } = await database();
+    try {
+      await db.insertInto("lark_base_ticket_syncs").values([
+        ticket("a-valid"),
+        { ...ticket("b-invalid-json"), fields_json: "MALFORMED_PRIVATE_FIELDS" },
+        { ...ticket("c-invalid-shape"), fields_json: '["PRIVATE_FIELDS_ARRAY"]' },
+        ticket("d-valid"),
+      ]).execute();
+
+      const result = await invoke(["snapshots", scope.base_id, scope.table_id, "2026-11-01T00:00:00+08:00"], { openDatabase: () => db });
+      expect(result.exitCode).toBe(0);
+      expect(result.output.map((row) => row.record_id)).toEqual(["a-valid", "d-valid"]);
+      expect(result.errors).toEqual(["ticket-kcs skipped 2 snapshots with invalid fields_json.\n"]);
+    } finally {
+      await db.destroy();
+      await pool.end();
+    }
+  });
+
+  it("fails without emitting a snapshot when the selected ticket has malformed source fields", async () => {
+    const { db, pool } = await database();
+    try {
+      await db.insertInto("lark_base_ticket_syncs").values({
+        ...ticket("invalid"), fields_json: "MALFORMED_PRIVATE_FIELDS",
+      }).execute();
+
+      expect(await invoke(["snapshot", scope.base_id, scope.table_id, "invalid"], { openDatabase: () => db })).toEqual({
+        exitCode: 1,
+        output: [],
+        errors: ["ticket-kcs failed. The selected snapshot has invalid fields_json.\n"],
+      });
+    } finally {
+      await db.destroy();
+      await pool.end();
+    }
+  });
+
   it.each([
     ["succeeded", "2026-11-01T01:30:00Z", 0],
     ["succeeded", "2026-11-01T01:29:59Z", 3],

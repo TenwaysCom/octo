@@ -35,7 +35,18 @@ interface TicketKcsCliDeps {
   writeError: (line: string) => void;
 }
 
-async function listSnapshots([baseId, tableId, selector]: [string, string, string], single: boolean, deps: TicketKcsCliDeps) {
+function readDatabaseFields(value: string) {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    return undefined;
+  }
+  const fields = databaseFields.safeParse(parsed);
+  return fields.success ? fields.data : undefined;
+}
+
+async function listSnapshots([baseId, tableId, selector]: [string, string, string], single: boolean, deps: TicketKcsCliDeps): Promise<0 | 1> {
   const cutoff = single ? 0 : Date.parse(selector);
   if (!Number.isFinite(cutoff)) throw new Error("Invalid activation time.");
   const db = deps.openDatabase();
@@ -61,8 +72,17 @@ async function listSnapshots([baseId, tableId, selector]: [string, string, strin
         .orderBy("ticket.record_id").execute());
     const now = deps.now();
     let exported = false;
+    let invalidFields = 0;
     for (const row of rows) {
-      const fields = databaseFields.parse(JSON.parse(row.fields_json));
+      const fields = readDatabaseFields(row.fields_json);
+      if (!fields) {
+        if (single) {
+          deps.writeError("ticket-kcs failed. The selected snapshot has invalid fields_json.\n");
+          return 1;
+        }
+        invalidFields += 1;
+        continue;
+      }
       const projection = buildLarkTicketCleaningProjection(fields, row.created_time ?? undefined);
       const closedAt = projection.closedAt;
       if (!closedAt || Date.parse(closedAt) <= cutoff || Date.parse(closedAt) > now) continue;
@@ -99,6 +119,11 @@ async function listSnapshots([baseId, tableId, selector]: [string, string, strin
       exported = true;
     }
     if (single && !exported) throw new Error("No eligible closed ticket snapshot found.");
+    if (invalidFields) {
+      const label = invalidFields === 1 ? "snapshot" : "snapshots";
+      deps.writeError(`ticket-kcs skipped ${invalidFields} ${label} with invalid fields_json.\n`);
+    }
+    return 0;
   } finally {
     await db.destroy();
   }
@@ -139,8 +164,8 @@ async function renderDraft(deps: TicketKcsCliDeps) {
 export async function runTicketKcs(argv: string[], deps: TicketKcsCliDeps): Promise<0 | 1 | 3> {
   const [action, ...args] = argv;
   try {
-    if (action === "snapshots") await listSnapshots(syncScope.parse(args), false, deps);
-    else if (action === "snapshot") await listSnapshots(ticketScope.parse(args), true, deps);
+    if (action === "snapshots") return await listSnapshots(syncScope.parse(args), false, deps);
+    else if (action === "snapshot") return await listSnapshots(ticketScope.parse(args), true, deps);
     else if (action === "sync-ready") return await checkSyncReadiness(syncReadinessScope.parse(args), deps);
     else if (action === "render" && !args.length) await renderDraft(deps);
     else throw new Error("Unknown ticket-kcs action.");

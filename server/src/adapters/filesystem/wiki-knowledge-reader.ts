@@ -6,6 +6,7 @@ import { relevantKcsContent, relevantSourceContent, relevantWikiContent, wikiMat
 
 const MAX_FILE_BYTES = 256 * 1024;
 const DEFAULT_RECALL_LIMIT = 20;
+const KCS_ID = /^[A-Za-z0-9_-]+$/;
 
 type OriginalEvidence = WikiSourceEvidence & { solution?: string };
 
@@ -150,7 +151,11 @@ export function createWikiKnowledgeReader(deps: { workspaceDir?: string } = {}):
         && (!linkedPaths.length || linkedPaths.includes(source.path)));
       let remaining = 2400;
       return sources.flatMap(({ solution, ...source }) => {
-        const excerpt = relevantSourceContent(source.content, queryTerms, remaining, source.path.startsWith("raw/transcripts/"), solution);
+        const isTranscript = source.path.startsWith("raw/transcripts/");
+        const excerpt = relevantSourceContent(source.content, queryTerms, remaining, isTranscript, {
+          solution,
+          allowUnmatchedTranscript: candidate.knowledgeType === "kcs" && linkedPaths.includes(source.path),
+        });
         if (!excerpt.content) return [];
         remaining -= excerpt.content.length;
         return [{ ...source, content: excerpt.content, complete: source.complete && excerpt.contextComplete }];
@@ -191,13 +196,14 @@ export function createWikiKnowledgeReader(deps: { workspaceDir?: string } = {}):
         };
         async function read(source: KnowledgeRoot, path: string, optional = false): Promise<string | undefined> {
           input.signal?.throwIfAborted();
-          if (path.split("/").includes("..") || !within(source, resolve(source.root, path)) || !path.endsWith(".md")) return undefined;
+          const requested = resolve(source.root, path);
+          if (path.split("/").includes("..") || !within(source, requested) || !path.endsWith(".md")) return undefined;
           let canonical: string;
-          try { canonical = await realpath(resolve(source.root, path)); } catch (error) {
+          try { canonical = await realpath(requested); } catch (error) {
             if (optional && (error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
             throw error;
           }
-          if (!within(source, canonical)) return undefined;
+          if (!within(source, canonical) || (source.knowledgeType === "kcs" && canonical !== requested)) return undefined;
           const rawKind = source.knowledgeType === "support_wiki"
             ? ["raw/transcripts/", "raw/documents/"].find((prefix) => path.startsWith(prefix))
             : undefined;
@@ -210,19 +216,25 @@ export function createWikiKnowledgeReader(deps: { workspaceDir?: string } = {}):
         }
         async function scan(source: KnowledgeRoot, directory: string, optional = false): Promise<string[]> {
           input.signal?.throwIfAborted();
+          const requested = resolve(source.root, directory);
+          const kcsDepth = source.knowledgeType === "kcs" ? directory.split("/").length : undefined;
           let canonical: string;
-          try { canonical = await realpath(resolve(source.root, directory)); } catch (error) {
+          try { canonical = await realpath(requested); } catch (error) {
             if (optional && (error as NodeJS.ErrnoException).code === "ENOENT") return [];
             throw error;
           }
-          if (!within(source, canonical)) return [];
+          if (!within(source, canonical) || (kcsDepth !== undefined && canonical !== requested)) return [];
           const entries = await readdir(canonical, { withFileTypes: true });
           const paths: string[] = [];
           for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
             if (entry.name.startsWith(".") || entry.isSymbolicLink()) continue;
             const path = `${directory}/${entry.name}`;
-            if (entry.isDirectory()) paths.push(...await scan(source, path));
-            else if (entry.isFile() && entry.name.endsWith(".md")) paths.push(path);
+            if (entry.isDirectory() && (kcsDepth === undefined || (kcsDepth < 3 && KCS_ID.test(entry.name)))) {
+              paths.push(...await scan(source, path));
+            } else if (entry.isFile() && entry.name.endsWith(".md")
+              && (kcsDepth === undefined || (kcsDepth === 3 && KCS_ID.test(entry.name.slice(0, -3))))) {
+              paths.push(path);
+            }
           }
           return paths;
         }
@@ -247,6 +259,8 @@ export function createWikiKnowledgeReader(deps: { workspaceDir?: string } = {}):
             if (isKcs && path === input.excludedKcsPath) continue;
             const text = await read(source, path, isKcs);
             if (!text) continue;
+            if (metadata(text, "applicability_status")[0] === "superseded"
+              || metadata(text, "retrieval_status")[0] === "excluded") continue;
             const environments = metadata(text, "environments");
             if (input.environments.length && environments.length && !environments.includes("待确认")
               && !input.environments.some((environment) => environments.includes(environment))) continue;

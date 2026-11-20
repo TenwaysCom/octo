@@ -133,7 +133,10 @@ export interface SourceExcerpt { content: string; contextComplete: boolean }
 
 // Input is the original source, not the earlier budget-truncated rerank excerpt.
 // M/P ordinals identify source blocks; original text, sender and time stay intact.
-export function relevantSourceContent(text: string, terms: string[], maxLength: number, transcript: boolean, solution = ""): SourceExcerpt {
+export function relevantSourceContent(
+  text: string, terms: string[], maxLength: number, transcript: boolean,
+  { solution = "", allowUnmatchedTranscript = false }: { solution?: string; allowUnmatchedTranscript?: boolean } = {},
+): SourceExcerpt {
   const clean = redactSupportText(text).trim();
   const field = redactSupportText(solution);
   const hasMessageHeaders = /^\s*-\s+\*\*\[/m.test(clean);
@@ -141,7 +144,10 @@ export function relevantSourceContent(text: string, terms: string[], maxLength: 
     .map((content) => content.trim()).filter(Boolean);
   const body = (content: string) => content.replace(/^\s*-\s+\*\*\[[^\n]*?\*\*(?:\([^\n]*?\))?\s*[:：]\s*/, "");
   const hitIndices = blocks.flatMap((content, index) => matches(body(content), terms) > 0 ? [index] : []);
-  if (!hitIndices.length && !matches(field, terms)) return { content: "", contextComplete: false };
+  const hasMatch = hitIndices.length > 0 || matches(field, terms) > 0;
+  if (!hasMatch && (!transcript || !allowUnmatchedTranscript || !blocks.length)) {
+    return { content: "", contextComplete: false };
+  }
   const selected = new Set<number>();
   for (const index of hitIndices) {
     selected.add(index);
@@ -152,13 +158,13 @@ export function relevantSourceContent(text: string, terms: string[], maxLength: 
   // Late corrections and prerequisites may not repeat the query's keywords.
   // Conservatively keep these in the related source, even outside hit windows.
   blocks.forEach((content, index) => {
-    if (qualification.test(body(content))) {
+    if (hasMatch && qualification.test(body(content))) {
       selected.add(index);
       if (index > 0) selected.add(index - 1);
     }
   });
-  const evidence = [...selected].sort((a, b) => a - b)
-    .map((index) => `${transcript ? "M" : "P"}${index + 1}\n${blocks[index]}`);
+  const evidence = blocks.flatMap((content, index) => !hasMatch || selected.has(index)
+    ? [`${transcript ? "M" : "P"}${index + 1}\n${content}`] : []);
   if (field) evidence.unshift(`解决方案（Lark Base 源字段）\n${field}`);
   const content = evidence.join("\n\n");
   // Do not keep a successful action while silently clipping its later reversal.

@@ -141,6 +141,42 @@ describe("wiki knowledge reader", () => {
     expect(selected).toMatchObject([{ path: sourcePath, complete: true, content: expect.stringContaining("Support reviewed the export template") }]);
   });
 
+  it("recalls KCS only at the canonical base, table and record path", async () => {
+    const { reader, put } = await fixture();
+    const validPath = "kcs/demo_base/demo-table/rec-valid_01.md";
+    const text = "## Tariff\n\n### 当前结果\nTariff classification was reviewed.\n";
+    await Promise.all([
+      validPath,
+      "kcs/demo_base/demo-table/assets/rec-valid_01/notes.md",
+      "kcs/demo_base/demo-table/guides/notes.md",
+      "kcs/demo_base/notes.md",
+      "kcs/demo.base/demo-table/rec-invalid.md",
+      "kcs/demo_base/demo table/rec-invalid.md",
+      "kcs/demo_base/demo-table/rec.invalid.md",
+    ].map((path) => put(path, text)));
+
+    expect(await reader.search({ question: "tariff", keywords: [], objects: [], environments: [], includeKcs: true }))
+      .toMatchObject([{ path: validPath, knowledgeType: "kcs", historicalOnly: true }]);
+  });
+
+  it("omits superseded or explicitly excluded pages before ranking", async () => {
+    const { reader, put } = await fixture();
+    const activePath = "concepts/current-tariff.md";
+    const legacyPath = "kcs/demo-base/demo-table/rec-legacy.md";
+    const content = "## Tariff\n\n### 当前结果\nTariff classification was reviewed.\n";
+    await Promise.all([
+      put(activePath, `---\ntitle: Tariff\napplicability_status: current\nretrieval_status: conditional\n---\n${content}`),
+      put(legacyPath, content),
+      put("concepts/superseded-tariff.md", `---\ntitle: Tariff\napplicability_status: "superseded"\n---\n${content}`),
+      put("concepts/excluded-tariff.md", `---\ntitle: Tariff\nretrieval_status: excluded\n---\n${content}`),
+      put("kcs/demo-base/demo-table/rec-excluded.md", `---\ntitle: Tariff\nretrieval_status: excluded\n---\n${content}`),
+      put("index.md", "# Tariff index\n- Tariff [superseded](concepts/superseded-tariff.md)\n"),
+    ]);
+
+    const hits = await reader.search({ question: "tariff", keywords: [], objects: [], environments: [], includeKcs: true });
+    expect(hits.map((hit) => hit.path).sort()).toEqual([activePath, legacyPath]);
+  });
+
   it("retains the matching KCS table row with its verification gap when unrelated rows exceed the budget", async () => {
     const { reader, put } = await fixture();
     const otherCases = Array.from({ length: 30 }, (_, index) => `| 库存同步 ${index} | ${"背景说明".repeat(30)} | 库存未复测 |`);
@@ -190,6 +226,61 @@ describe("wiki knowledge reader", () => {
     expect(evidence.content).not.toMatch(/demo@example\.com|PRIVATE_ANALYSIS|octo-thread-messages|无线程快照/);
     if (fieldsOnly) expect(evidence.content).not.toMatch(/^M\d+$/m);
     else expect(evidence.content).toContain(`M1\n${firstMessage}`);
+  });
+
+  it.each([true, false])("selects a short linked KCS transcript across languages (render complete: %s)", async (renderComplete) => {
+    const { reader, put } = await fixture();
+    const sourcePath = "raw/transcripts/ticket-warranty.md";
+    const messages = [
+      "- **[2026-09-22T10:00:00Z] 用户 1**(text): Which serial range appears on the returned unit?",
+      "- **[2026-09-22T10:01:00Z] 处理人 1**(text): The range is printed beside the hinge.",
+      "- **[2026-09-22T10:02:00Z] 处理人 1**(text): The alternate label still needs inspection.",
+    ];
+    await put(sourcePath, [
+      "---", "thread_id: demo-thread", "history_complete: true", `render_complete: ${renderComplete}`,
+      "---", "## 线程消息", ...messages, "<!-- octo-thread-messages:end -->", "## Shadow AI", "PRIVATE_ANALYSIS",
+    ].join("\n"));
+    await put("kcs/demo-base/demo-table/rec-warranty.md", [
+      "## 保修件批次", "### 当前结果", "保修件批次可查看标签。",
+      "#### 来源索引", `- [M1 原始工单快照](../../../${sourcePath})`,
+    ].join("\n\n"));
+
+    const query = { question: "如何查看保修件批次", keywords: [], objects: [], environments: [], includeKcs: true };
+    const [hit] = await reader.search(query);
+    expect(hit.historicalOnly).toBe(true);
+    const [source] = hit.sourceEvidence;
+    expect(reader.selectEvidence!({ candidate: hit, question: query, evidenceIds: [source.id] })).toEqual([{
+      id: source.id, path: sourcePath, complete: renderComplete,
+      content: messages.map((message, index) => `M${index + 1}\n${message}`).join("\n\n"),
+    }]);
+  });
+
+  it("keeps unmatched transcripts out without a KCS excerpt link or room for every message", async () => {
+    const { reader, put } = await fixture();
+    const shortPath = "raw/transcripts/ticket-short.md";
+    const longPath = "raw/transcripts/ticket-long.md";
+    const transcript = (body: string) => `---\nthread_id: demo-thread\nhistory_complete: true\n---\n## 线程消息\n${body}\n`;
+    const message = "- **[2026-09-22T10:00:00Z] 用户 1**(text): The recording was filed.";
+    const longMessage = `- **[2026-09-22T10:01:00Z] 处理人 1**(text): ${"Details to retain. ".repeat(150)}`;
+    const body = "## 保修件批次\n\n### 当前结果\n保修件批次可查看标签。";
+    const link = (path: string) => `\n\n[原始工单快照](/${path})`;
+    await Promise.all([
+      put(shortPath, transcript(message)),
+      put(longPath, transcript(`${message}\n${longMessage}`)),
+      put("kcs/demo-base/demo-table/rec-no-link.md", `---\nsources: [${shortPath}]\n---\n${body}`),
+      put("kcs/demo-base/demo-table/rec-too-long.md", body + link(longPath)),
+      put("concepts/ordinary-wiki.md", body + link(shortPath)),
+    ]);
+
+    const query = { question: "如何查看保修件批次", keywords: [], objects: [], environments: [], includeKcs: true };
+    const hits = await reader.search(query);
+    expect(hits.map((hit) => hit.path).sort()).toEqual([
+      "concepts/ordinary-wiki.md", "kcs/demo-base/demo-table/rec-no-link.md", "kcs/demo-base/demo-table/rec-too-long.md",
+    ]);
+    for (const hit of hits) {
+      expect(hit.sourceEvidence).toHaveLength(1);
+      expect(reader.selectEvidence!({ candidate: hit, question: query, evidenceIds: [hit.sourceEvidence[0].id] })).toEqual([]);
+    }
   });
 
   it("recalls stable ontology IDs before redacting reference-like output", async () => {
