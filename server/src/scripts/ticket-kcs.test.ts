@@ -372,6 +372,66 @@ describe("ticket-kcs image evidence", () => {
     ] });
   });
 
+  it.each([
+    {
+      input: {
+        visible_text: ["Label 1", " Label 1 ", null, " ", "X".repeat(240), ...Array.from({ length: 7 }, (_, i) => `Label ${i + 2}`)],
+        limitations: [" Visible dialog only ", false, "Y".repeat(600), "ignored tail"],
+        extra: "PRIVATE_IGNORED_FIELD",
+      },
+      visible_text: ["Label 1", "X".repeat(200), "Label 2", "Label 3", "Label 4", "Label 5"],
+      limitations: "Visible dialog only；" + "Y".repeat(200) + "；ignored tail",
+    },
+    {
+      input: { visible_text: { bad: true }, limitations: { bad: true } },
+      visible_text: [], limitations: "识读范围仅限这张图片中的可见内容。",
+    },
+    {
+      input: {}, visible_text: [], limitations: "识读范围仅限这张图片中的可见内容。",
+    },
+    {
+      input: { limitations: "Z".repeat(800) }, visible_text: [], limitations: "Z".repeat(400),
+    },
+  ])("retains a valid observation with missing or irregular GLM auxiliary fields %#", async ({ input, visible_text, limitations }) => {
+    const { events, options } = captureImageLogs();
+    const model = "glm-4.6v";
+    const observation = "PRIVATE_DIAL0G: error text from demo@example.com";
+    const content = `  \n\`\`\`json\n${JSON.stringify({ observation, ...input })}\n\`\`\` \n`;
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ model, choices: [{ message: { content } }] }));
+    const result = await invoke(["inspect-image"], {
+      ...options, readPrompt: imagePrompt,
+      createVisionClient: () => createZcodeChatClient({ model, apiKey: "PRIVATE_KEY", fetchImpl }),
+    });
+    expect(result).toEqual({ exitCode: 0, errors: [], output: [{
+      observation: "PRIVATE_DIAL0G: error text from [EMAIL]", visible_text, limitations, model,
+    }] });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(events.at(-1)).toMatchObject({ phase: "completed", stage: "server.kcs-image.output_validation" });
+    expect(JSON.stringify(events)).not.toMatch(/PRIVATE_DIAL0G|PRIVATE_IGNORED_FIELD|PRIVATE_KEY|demo@example.com|iVBORw0KGgo/);
+  });
+
+  it.each([
+    ["PRIVATE_RESPONSE_TEXT", "glm-4.6v"],
+    [JSON.stringify({ observation: "   ", visible_text: ["PRIVATE_RESPONSE_TEXT"] }), "glm-4.6v"],
+    [JSON.stringify({ observation: 123 }), "glm-4.6v"],
+    [JSON.stringify({ observation: "x".repeat(1201) }), "glm-4.6v"],
+    [JSON.stringify({ observation: "PRIVATE_RESPONSE_TEXT", visible_text: [], limitations: "scope" }), "PRIVATE MODEL TEXT"],
+    [JSON.stringify({ observation: "PRIVATE_RESPONSE_TEXT", visible_text: [], limitations: "scope" }), "wrong-model"],
+  ])("rejects invalid model observations or model identity %#", async (content, responseModel) => {
+    const { events, options } = captureImageLogs();
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(Response.json({
+      model: responseModel, choices: [{ message: { content } }],
+    }));
+    const result = await invoke(["inspect-image"], {
+      ...options, readPrompt: imagePrompt,
+      createVisionClient: (model) => createZcodeChatClient({ model, apiKey: "PRIVATE_KEY", fetchImpl }),
+    });
+    expect(result).toMatchObject({ exitCode: 1, output: [] });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(events.at(-1)).toMatchObject({ phase: "failed", stage: "server.kcs-image.output_validation", errorCode: "KCS_IMAGE_OUTPUT_INVALID" });
+    expect(JSON.stringify(events)).not.toMatch(/PRIVATE_RESPONSE_TEXT|PRIVATE MODEL TEXT|PRIVATE_KEY|iVBORw0KGgo/);
+  });
+
   it("keeps the requested position when one message uses the same Lark image twice", async () => {
     const { db, pool } = await imageDatabase();
     const context = { ...imageLogContext, imageIndex: 2 };
