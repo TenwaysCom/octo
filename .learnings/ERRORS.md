@@ -2,6 +2,14 @@
 
 Record concise compiler/runtime errors, failed commands, wrong assumptions, and their verified fixes here. Redact secrets, cookies, tokens, and sensitive payloads.
 
+## [ERR-20261121-KCS] skipped-result-rejected-by-producer-schema
+
+**Error:** Guide 将证据不足结果改为 `record=false` 加 `reason`/`markdown` 后，Octo CLI 的严格 schema 仍只允许 `record`，生成被拒绝。只让模拟 CLI 回传新结构的消费者测试无法发现生产者协议不匹配。
+
+**Fix:** 同时更新生产者判别联合，并让实际编译 CLI 接到消费者 Shell 入口回放；只替换外部模型，不替换被验证的协议边界。保留旧结构兼容和未知字段拒绝。
+
+source: [KCS 跳过结果协议 v21](../docs/tasks/ai-ticket/2026-09-03-shadow-summary-worker.md#2026-11-21-v21-kcs-跳过结果协议)
+
 ## [ERR-20261106-002] ticket-source-errors-collapse-to-shared-url-missing
 
 **Error:** Lark batch_get 的 `absent_record_ids`、`forbidden_record_ids` 均被当成缺少 shared_url；直接返回的 `1254043 / RecordIdNotFound` 也丢失业务含义，使保留的 Octo 快照无法解释源记录已不存在的情况。

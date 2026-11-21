@@ -218,8 +218,21 @@ describe("ticket-kcs CLI", () => {
   });
 
   it.each([
+    { record: false },
+    { record: false, reason: "只有导出请求，缺少交付回执。" },
+    { record: false, reason: "缺少处理证据。", markdown: "### 当前结果\n请求已记录，结果待核对（M1）。" },
+  ])("preserves insufficient-evidence review material through render (%j)", async (draft) => {
+    const createJsonCompletion = vi.fn().mockResolvedValue({ content: JSON.stringify(draft), model: "test" });
+    const result = await invoke(["render"], { createCompletionClient: () => ({ createJsonCompletion }) });
+    expect(createJsonCompletion).toHaveBeenCalledOnce();
+    expect(result).toEqual({ exitCode: 0, output: [draft], errors: [] });
+  });
+
+  it.each([
     "not JSON",
     JSON.stringify({ record: false, unexpected: "PROVIDER_CONTENT" }),
+    JSON.stringify({ record: false, reason: ["PROVIDER_CONTENT"] }),
+    JSON.stringify({ record: false, markdown: { text: "PROVIDER_CONTENT" } }),
     JSON.stringify({ record: true, title: "List export", environments: ["Unsupported"], markdown: "Outcome" }),
   ])("returns an error without emitting an invalid provider response (%s)", async (content) => {
     const result = await invoke(["render"], { createCompletionClient: () => ({ createJsonCompletion: async () => ({ content, model: "test" }) }) });

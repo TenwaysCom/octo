@@ -31,7 +31,11 @@ const visionModel = z.string().regex(/^[A-Za-z0-9_.-]{1,128}$/);
 const syncReadinessScope = z.tuple([identity, identity, z.coerce.number().int().min(1).max(1440)]);
 const databaseFields = z.record(z.string(), z.unknown());
 const draftSchema = z.discriminatedUnion("record", [
-  z.object({ record: z.literal(false) }).strict(),
+  z.object({
+    record: z.literal(false),
+    reason: z.string().optional(),
+    markdown: z.string().max(16000).optional(),
+  }).strict(),
   z.object({
     record: z.literal(true),
     title: z.string().trim().min(1).max(200),

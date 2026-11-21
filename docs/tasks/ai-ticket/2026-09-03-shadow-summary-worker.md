@@ -2,7 +2,7 @@
 title: "Lark Ticket 影子模式 AI 问题总结后台任务"
 module: "ai-ticket"
 status: in_progress
-requirement_version: 20
+requirement_version: 21
 created_on: 2026-09-03
 updated_on: 2026-11-21
 owner: TBD
@@ -13,6 +13,8 @@ related:
 # Lark Ticket 影子模式 AI 问题总结后台任务
 
 ## 目标
+
+v21 对齐 Octo 与 Guide 的 KCS 审核返回协议。`record=false` 保留可选的 `reason` 和 `markdown`，使证据不足正常进入 DSH，继续严格拒绝未知字段和错误字段类型。验收包含实际编译 CLI 到 Guide 两个批处理入口。
 
 v20 保留可用的 KCS 图片观察，并给 Guide 的单票图片请求设定共享时限。原图归档失败时保留文字图注和来源。
 
@@ -36,6 +38,8 @@ v11：Shadow 一次 JsonCompletionClient 调用在现有意图、结果、质量
 
 ## 验收标准
 
+- [x] v21 `record=false` 可携带原因和事实草稿，严格拒绝未知字段及错误类型，兼容旧的仅 `record=false` 返回。
+- [x] v21 使用实际编译 Octo CLI 和已部署 Guide 的两个 Shell 入口回放；旧版复现失败，新版进入待审核，编辑后保留原因，重跑不再生成。模型输出为隔离替身，未调用外部平台。
 - [x] v20 有效观察可携带超量、缺失或形状不符的辅助字段。CLI 整理后输出规范字段，拒绝无效观察和不匹配的模型身份。关联日志只含安全元数据。
 - [x] v20 Guide 按每次图片请求的剩余预算设置时限，耗尽后仍可复用缓存。缓存写入或归档故障时，保留成功识读和文字发布。
 
@@ -300,3 +304,11 @@ Wiki 检索只从 `kcs/<base_id>/<table_id>/<record_id>.md` 召回历史工单�
 ## 2026-11-21 v20 KCS 图片处理
 
 `pnpm --dir server test --configLoader runner src/scripts/ticket-kcs.test.ts` 的 40 项测试和 `pnpm --dir server build` 通过。测试在 CLI 注入 GLM 响应，覆盖辅助字段超限、缺失、格式偏差、模型身份校验和日志脱敏。Guide 的 52 项 KCS 测试及 18 项快照测试通过。图片回归用假时钟验证剩余预算，模拟磁盘写入失败并读回本地文章和测试库中的文字图注。本轮验收在本地隔离副本进行。
+
+## 2026-11-21 v21 KCS 跳过结果协议
+
+10 月 30 日的定向补录出现生成失败，核对发现 Guide 已要求 `record=false` 携带原因和可选草稿，Octo 的严格判别联合仍只接受 `record=false`。新增原因或正文因而在生产者边界被拒绝，消费者无法取得审核材料。
+
+保留判别联合和未知字段拒绝，仅在不生成分支允许可选字符串 `reason`、`markdown`，正文沿用 16000 字符限制。原来的无原因返回继续兼容；错误类型仍拒绝，异常日志不回显模型内容。
+
+先用两个回归复现拒绝，再通过 45 项 CLI 测试和服务端构建。`/tmp/kcs-2026-10-30/verify-contract.py` 将真实编译 CLI 接到实际 Guide 的 daily/backfill，使用固定模型输出替身：旧包两入口均 failed，新包均 needs_review，保存后原因保留，重复运行不生成可发布正文。该验证不包含真实 GLM、知识库写入或生产部署证明；部署及授权工单重试单独记录。
