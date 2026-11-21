@@ -930,6 +930,8 @@ Done 任务默认关闭，每 10 分钟按目标 Base/Table 的源最后修改�
 
 `ticket-kcs image <base> <table> <record> <messageId> <imageKey>` 核对该资源当前属于对应的已同步 Finish 工单，再通过飞书 SDK 使用平台同步用户令牌下载。输出包含 PNG 或 JPEG 原始字节的 Base64、MIME 类型和 SHA-256，原图大小上限为 5 MiB。将输出交给 KCS 生成器，避免把原图和图片键写入日志。
 
-`ticket-kcs inspect-image` 从标准输入接收 MIME 类型和 Base64，向 GLM 发送真实图像并返回可见内容、可辨文字、识读范围和模型。部署侧通过 `KCS_VISION_MODEL` 选择图片模型，默认 `glm-4.6v`，沿用 `ZCODE_API_KEY`。正文继续用既有 Ticket Summary provider。Guide 的日常生成与历史补录共用图片缓存和本地草稿路径，发布沿用人工批准。
+`ticket-kcs inspect-image` 从标准输入接收 MIME 类型和 Base64，向 GLM 发送真实图像并返回可见内容、可辨文字、识读范围和模型。部署侧通过 `KCS_VISION_MODEL` 选择图片模型，默认 `glm-4.6v`，沿用 `ZCODE_API_KEY`。正文继续用既有 Ticket Summary provider。Guide 的日常生成与历史补录共用图片缓存和本地草稿路径，发布由既有逐票流程和例外审核状态管理。
+
+`inspect-image` 要求有效的 JSON、最长 1200 字符的非空观察和匹配的模型身份。输出始终含 `observation`、`visible_text`、`limitations` 和 `model`。可辨文字经脱敏、去重后最多保留 6 条，每条最多 200 字符。没有有效可辨文字时返回空列表。范围说明最长 400 字符，缺失或无效时使用默认的可见范围说明。模型响应中的其他字段会被忽略。
 
 Guide 为每张需要处理的图生成 `actionRunId`，并随日志上下文传给 `image` 和 `inspect-image`。下载仍以 CLI 参数和当前工单归属为准。Octo 在 `KCS_IMAGE_LOG_DIR`（默认 `./logs`）写入按日轮转的 `kcs-images.YYYY-MM-DD.N.log`，记录校验、下载和识读阶段、安全错误码与图片元数据。Adapter 日志沿用同一个 `actionRunId`。标准输出继续承载原有 JSON。详见[任务日志验收](../../tasks/ai-ticket/2026-09-03-shadow-summary-worker.md#2026-11-21-v19-kcs-图片接口日志)。

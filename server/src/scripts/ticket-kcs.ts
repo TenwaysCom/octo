@@ -279,14 +279,10 @@ async function inspectImage(args: string[], deps: TicketKcsCliDeps, trace: Image
     return result;
   });
   const output = await trace.stage("output_validation", "KCS_IMAGE_OUTPUT_INVALID", () => {
-    const json = result.content.replace(/^```(?:json)?\s*([\s\S]*?)\s*```$/i, "$1");
+    if (result.model !== requestedModel) throw new KcsImageError("KCS_IMAGE_OUTPUT_INVALID");
+    const json = result.content.trim().replace(/^```(?:json)?\s*([\s\S]*?)\s*```$/i, "$1");
     const evidence = kcsVisionEvidence.parse(JSON.parse(json));
-    return {
-      observation: redactSupportText(evidence.observation),
-      visible_text: evidence.visible_text.map(redactSupportText),
-      limitations: redactSupportText(evidence.limitations),
-      model: visionModel.parse(result.model),
-    };
+    return { ...evidence, model: result.model };
   });
   deps.write(JSON.stringify(output) + "\n");
 }

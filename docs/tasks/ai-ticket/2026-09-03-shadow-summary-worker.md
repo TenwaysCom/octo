@@ -2,7 +2,7 @@
 title: "Lark Ticket 影子模式 AI 问题总结后台任务"
 module: "ai-ticket"
 status: in_progress
-requirement_version: 19
+requirement_version: 20
 created_on: 2026-09-03
 updated_on: 2026-11-21
 owner: TBD
@@ -13,6 +13,8 @@ related:
 # Lark Ticket 影子模式 AI 问题总结后台任务
 
 ## 目标
+
+v20 保留可用的 KCS 图片观察，并给 Guide 的单票图片请求设定共享时限。原图归档失败时保留文字图注和来源。
 
 v19 为 KCS 下载和识读补充按工单、图片和请求定位的安全日志，覆盖日常生成和历史补录。
 
@@ -33,6 +35,9 @@ v12：正式问题总结的 thread 输入与 Shadow 共用完整消息选取、�
 v11：Shadow 一次 JsonCompletionClient 调用在现有意图、结果、质量、总结上新增业务风险与回复时机（各三个字段）。参考 Wiki 复用短引用/回复关系与堆栈精简，按完整消息块保留初始诉求和最新消息，补齐完整性、字段脱敏、实际输入证据校验和安全诊断。只写 shadow_ai，正式 Ticket AI、Wiki 行为、调度和模型参数不变。
 
 ## 验收标准
+
+- [x] v20 有效观察可携带超量、缺失或形状不符的辅助字段。CLI 整理后输出规范字段，拒绝无效观察和不匹配的模型身份。关联日志只含安全元数据。
+- [x] v20 Guide 按每次图片请求的剩余预算设置时限，耗尽后仍可复用缓存。缓存写入或归档故障时，保留成功识读和文字发布。
 
 - [x] v19 验证成功、图片校验错误、GLM 超时、账户限流及服务过载的日志。日志可串联同一次逐图处理，只含允许的元数据和固定错误码。
 - [x] v19 验证两条 Shell 入口传递同一逐图上下文，日志正常落盘且日志故障不改变 CLI 输出或退出状态。
@@ -291,3 +296,7 @@ Wiki 检索只从 `kcs/<base_id>/<table_id>/<record_id>.md` 召回历史工单�
 通过已部署 CLI 下载真实 #2459 的 M1 图片1，再单次调用 `glm-5.3-flash` 验收日志。读回同一关联 ID `d6fa9509-5611-4be0-bd77-c7a993f1be22` 的 14 条记录，覆盖 scope、download、input_validation、recognition、output_validation；识读 HTTP 200，可得用量为 5423 tokens。原图 SHA-256 与先前验收一致。检查专用日志未含图片资源键、Base64、识读正文或凭据。该次调用只验证接口及日志，没有生成或发布文章；每日模型仍为 `glm-4.6v`。
 
 实际日志在 `~/.config/odoo-kcs/logs/kcs-images.2026-11-21.1.log`。验收摘要和此前三并发报告分别保留在 `logs/probes/image-log-verification-2026-11-21.json` 和 `logs/probes/glm-5.3-flash-concurrency-2026-11-21.json`。回滚清单及旧文件保留在 `runtime/releases/ec67f1b-52e7cd0/`。代码已更新到原 PR #190 和 Guide #7，尚未合并。
+
+## 2026-11-21 v20 KCS 图片处理
+
+`pnpm --dir server test --configLoader runner src/scripts/ticket-kcs.test.ts` 的 40 项测试和 `pnpm --dir server build` 通过。测试在 CLI 注入 GLM 响应，覆盖辅助字段超限、缺失、格式偏差、模型身份校验和日志脱敏。Guide 的 52 项 KCS 测试及 18 项快照测试通过。图片回归用假时钟验证剩余预算，模拟磁盘写入失败并读回本地文章和测试库中的文字图注。本轮验收在本地隔离副本进行。
