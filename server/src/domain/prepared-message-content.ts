@@ -17,7 +17,9 @@ const ARTIFACT_LABELS: Record<string, string> = {
   img: "图片", image: "图片", file: "附件", audio: "音频", media: "视频", video: "视频",
 };
 
-function renderNode(value: unknown): PreparedMessageContent {
+type DecodedMessageContent = PreparedMessageContent & { imageKeys?: (string | null)[] };
+
+function renderNode(value: unknown): DecodedMessageContent {
   if (!object(value)) return { text: "[不支持的内容]", hasArtifact: false };
   const tag = string(value.tag);
   if (tag === "text" || tag === "md") {
@@ -34,7 +36,11 @@ function renderNode(value: unknown): PreparedMessageContent {
   const artifact = ARTIFACT_LABELS[tag];
   if (artifact) {
     const name = tag === "file" ? string(value.file_name) : "";
-    return { text: `[${artifact}${name ? `：${name}` : ""}]`, hasArtifact: true };
+    return {
+      text: `[${artifact}${name ? `：${name}` : ""}]`,
+      hasArtifact: true,
+      ...(artifact === "图片" ? { imageKeys: [string(value.image_key) || null] } : {}),
+    };
   }
   return { text: "[不支持的内容]", hasArtifact: false };
 }
@@ -43,20 +49,22 @@ function rows(value: unknown): unknown[][] | undefined {
   return Array.isArray(value) && value.every(Array.isArray) ? value : undefined;
 }
 
-function renderRows(value: unknown[][]): PreparedMessageContent {
+function renderRows(value: unknown[][]): DecodedMessageContent {
   let hasArtifact = false;
+  const imageKeys: (string | null)[] = [];
   const text = value.map((row) => row.map((node) => {
     const rendered = renderNode(node);
     hasArtifact ||= rendered.hasArtifact;
+    if (rendered.imageKeys) imageKeys.push(...rendered.imageKeys);
     return rendered.text;
   }).join("")).join("\n");
-  return { text, hasArtifact };
+  return { text, hasArtifact, imageKeys };
 }
 
 /** Decode the wire content once; never merge alternative post representations. */
-export function prepareMessageContent(content: string | undefined, messageType: string | undefined): PreparedMessageContent {
+function decodeMessageContent(content: string | undefined, messageType: string | undefined): DecodedMessageContent {
   const raw = content || "";
-  const finish = (result: PreparedMessageContent): PreparedMessageContent => ({
+  const finish = (result: DecodedMessageContent): DecodedMessageContent => ({
     ...result,
     text: result.text.replace(/@_user_\d+\b/g, "[未知提及]")
       .replace(/\r\n?/g, "\n").replace(/\n[\t ]*\n(?:[\t ]*\n)+/g, "\n\n").trim() || "[空消息]",
@@ -97,7 +105,17 @@ export function prepareMessageContent(content: string | undefined, messageType: 
     const primaryResult = primary && renderRows(primary);
     const rendered = primaryResult?.text.trim() ? primaryResult : fallback ? renderRows(fallback) : primaryResult;
     if (!rendered) return finish({ text: "[消息内容解析失败]", hasArtifact: false });
-    return finish({ text: [string(decoded.title), rendered.text].filter(Boolean).join("\n"), hasArtifact: rendered.hasArtifact });
+    return finish({ ...rendered, text: [string(decoded.title), rendered.text].filter(Boolean).join("\n") });
   }
   return finish({ text: "[不支持的内容]", hasArtifact: false });
+}
+
+export function prepareMessageContent(content: string | undefined, messageType: string | undefined): PreparedMessageContent {
+  const { text, hasArtifact } = decodeMessageContent(content, messageType);
+  return { text, hasArtifact };
+}
+
+export function readMessageImageKeys(content: string | undefined, messageType: string | undefined): (string | null)[] {
+  if (messageType !== "post" && messageType !== "image" && messageType !== "img") return [];
+  return decodeMessageContent(content, messageType).imageKeys ?? [];
 }

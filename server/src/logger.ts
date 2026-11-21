@@ -80,6 +80,26 @@ export function createFileLogger(destination: string, level?: string, onError?: 
   });
 }
 
+export function openFileLogger(destination: string, level: string, onError: (error: Error) => void) {
+  const transport = pino.transport({
+    ...createDailyRotatingFileTransport(destination),
+    worker: { autoEnd: false },
+  });
+  transport.on("error", onError);
+  const ready = new Promise<boolean>((resolve) => transport.once("ready", () => resolve(true)));
+  const closed = new Promise<boolean>((resolve) => transport.once("close", () => resolve(false)));
+  return {
+    logger: pino(createLoggerOptions(level), transport),
+    async close() {
+      if (await Promise.race([closed, ready])) {
+        if ("ref" in transport && typeof transport.ref === "function") transport.ref();
+        transport.end();
+      }
+      await closed;
+    },
+  };
+}
+
 function createStreamLogger(destination: string) {
   const stream = destination === "stdout" ? process.stdout : process.stderr;
 

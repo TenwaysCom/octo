@@ -1,3 +1,5 @@
+import { Readable } from "node:stream";
+import { defaultHttpInstance } from "@larksuiteoapi/node-sdk";
 import { vi } from "vitest";
 import { LarkAPIError, LarkBatchCreateError, LarkClient, isLarkWriteDefinitelyRejected, classifyLarkRecordError } from "./lark-client.js";
 
@@ -15,6 +17,40 @@ describe("lark-client", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("downloads an image through the SDK user identity and enforces a streaming size limit", async () => {
+    const client = new LarkClient({ accessToken: "user-token" });
+    const data = Buffer.from([1, 2, 3, 4]);
+    const get = vi.spyOn(client["client"].im.messageResource, "get");
+    get.mockImplementation(async () => ({
+      getReadableStream: () => Readable.from([data.subarray(0, 2), data.subarray(2)]),
+      writeFile: async () => undefined,
+      headers: {},
+    }));
+    const input = { messageId: "om_message", imageKey: "img_original" };
+    await expect(client.downloadMessageImage({ ...input, maxBytes: 4 })).resolves.toEqual(data);
+    await expect(client.downloadMessageImage({ ...input, maxBytes: 3 })).rejects.toThrow("could not be downloaded");
+    expect(get).toHaveBeenCalledWith({
+      path: { message_id: input.messageId, file_key: input.imageKey }, params: { type: "image" },
+    }, expect.anything());
+  });
+
+  it("cancels an image download that stalls before the SDK returns a stream", async () => {
+    const request = vi.fn();
+    const interceptor = defaultHttpInstance.interceptors.request.use((config) => {
+      request({ timeout: config.timeout, signal: config.signal });
+      throw Object.assign(new Error("PRIVATE_SDK_ERROR"), { code: "ECONNABORTED" });
+    });
+    try {
+      const client = new LarkClient({ accessToken: "private-token" });
+      const input = { messageId: "om_message", imageKey: "img_private" };
+      await expect(client.downloadMessageImage({ ...input, maxBytes: 4 }))
+        .rejects.toMatchObject({ code: "LARK_IMAGE_TIMEOUT", message: "Lark message image could not be downloaded." });
+      expect(request).toHaveBeenCalledWith({ timeout: 60_000, signal: expect.any(AbortSignal) });
+    } finally {
+      defaultHttpInstance.interceptors.request.eject(interceptor);
+    }
   });
 
   it("lists paginated DONE reactions and preserves reaction identity on creation", async () => {

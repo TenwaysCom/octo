@@ -6,11 +6,25 @@
  * Used for reading A1 support tickets and A2 requirements
  */
 
+import { addAbortSignal } from "node:stream";
 import * as lark from "@larksuiteoapi/node-sdk";
+import { z } from "zod";
 import { logger } from "../../logger.js";
 import { normalizeLarkTimestamp } from "./lark-timestamp.js";
 
 const clientLogger = logger.child({ module: "lark-client" });
+const imageTimeoutMs = 60_000;
+const defaultLarkHttp: lark.HttpInstance = lark.defaultHttpInstance;
+const larkHttpInstance: lark.HttpInstance = {
+  ...defaultLarkHttp,
+  request: (options) => {
+    const isImageStream = options.responseType === "stream" && options.params?.type === "image"
+      && /\/im\/v1\/messages\/[^/]+\/resources\/[^/]+$/.test(options.url ?? "");
+    return lark.defaultHttpInstance.request(isImageStream
+      ? { ...options, timeout: imageTimeoutMs, signal: AbortSignal.timeout(imageTimeoutMs) }
+      : options);
+  },
+};
 
 // ==================== Data Types ====================
 
@@ -169,6 +183,27 @@ export class LarkAuthenticationError extends LarkAPIError {
   }
 }
 
+type LarkImageErrorCode = "LARK_IMAGE_AUTH_REQUIRED" | "LARK_IMAGE_STREAM_INVALID" | "LARK_IMAGE_TOO_LARGE"
+  | "LARK_IMAGE_DOWNLOAD_FAILED" | "LARK_IMAGE_TIMEOUT";
+
+export class LarkImageDownloadError extends Error {
+  constructor(
+    readonly code: LarkImageErrorCode,
+    readonly httpStatus?: number,
+    readonly providerErrorCode?: number,
+  ) {
+    super("Lark message image could not be downloaded.");
+  }
+}
+
+const larkImageSdkError = z.object({
+  code: z.enum(["ABORT_ERR", "ECONNABORTED", "ETIMEDOUT", "ERR_CANCELED"]).optional().catch(undefined),
+  response: z.object({
+    status: z.int().min(100).max(599).optional().catch(undefined),
+    data: z.object({ code: z.int().min(1).max(99999999).optional().catch(undefined) }).optional().catch(undefined),
+  }).optional().catch(undefined),
+});
+
 export class LarkNotFoundError extends LarkAPIError {
   constructor(
     message: string,
@@ -253,6 +288,7 @@ export class LarkClient {
       appSecret: options.appSecret ?? "dummy",
       appType: lark.AppType.SelfBuild,
       domain: this.baseUrl.includes("feishu") ? lark.Domain.Feishu : lark.Domain.Lark,
+      httpInstance: larkHttpInstance,
       // SDK Axios errors can include the raw Authorization header. All request
       // diagnostics are emitted by this adapter using safe summaries below.
       loggerLevel: lark.LoggerLevel.fatal,
@@ -311,6 +347,45 @@ export class LarkClient {
         "LARK_REQUEST_CATCH",
       );
       throw this.handleRequestError(error);
+    }
+  }
+
+  async downloadMessageImage({ messageId, imageKey, maxBytes }: {
+    messageId: string;
+    imageKey: string;
+    maxBytes: number;
+  }): Promise<Buffer> {
+    const operation = "downloadMessageImage";
+    try {
+      if (!this.accessToken) throw new LarkImageDownloadError("LARK_IMAGE_AUTH_REQUIRED");
+      const resource = await this.client.im.messageResource.get({
+        path: { message_id: messageId, file_key: imageKey },
+        params: { type: "image" },
+      }, lark.withUserAccessToken(this.accessToken));
+      const stream = addAbortSignal(AbortSignal.timeout(imageTimeoutMs), resource.getReadableStream());
+      try {
+        const chunks: Buffer[] = [];
+        let size = 0;
+        for await (const chunk of stream) {
+          if (!Buffer.isBuffer(chunk)) throw new LarkImageDownloadError("LARK_IMAGE_STREAM_INVALID");
+          size += chunk.length;
+          if (size > maxBytes) throw new LarkImageDownloadError("LARK_IMAGE_TOO_LARGE");
+          chunks.push(chunk);
+        }
+        return Buffer.concat(chunks, size);
+      } finally {
+        stream.destroy();
+      }
+    } catch (error) {
+      // The SDK error may contain user credentials and the resource key.
+      const sdk = larkImageSdkError.safeParse(error).data;
+      const failure = error instanceof LarkImageDownloadError ? error : new LarkImageDownloadError(
+        sdk?.code ? "LARK_IMAGE_TIMEOUT" : "LARK_IMAGE_DOWNLOAD_FAILED",
+        sdk?.response?.status, sdk?.response?.data?.code,
+      );
+      this.log.warn({ operation, stage: "adapter.lark.response", errorCode: failure.code,
+        httpStatus: failure.httpStatus, providerErrorCode: failure.providerErrorCode }, failure.code);
+      throw failure;
     }
   }
 
