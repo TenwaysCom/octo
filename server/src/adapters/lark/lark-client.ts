@@ -6,6 +6,7 @@
  * Used for reading A1 support tickets and A2 requirements
  */
 
+import { addAbortSignal } from "node:stream";
 import * as lark from "@larksuiteoapi/node-sdk";
 import { logger } from "../../logger.js";
 import { normalizeLarkTimestamp } from "./lark-timestamp.js";
@@ -311,6 +312,39 @@ export class LarkClient {
         "LARK_REQUEST_CATCH",
       );
       throw this.handleRequestError(error);
+    }
+  }
+
+  async downloadMessageImage({ messageId, imageKey, maxBytes }: {
+    messageId: string;
+    imageKey: string;
+    maxBytes: number;
+  }): Promise<Buffer> {
+    const operation = "downloadMessageImage";
+    try {
+      if (!this.accessToken) throw new Error("Lark user authentication required.");
+      const resource = await this.client.im.messageResource.get({
+        path: { message_id: messageId, file_key: imageKey },
+        params: { type: "image" },
+      }, lark.withUserAccessToken(this.accessToken));
+      const stream = addAbortSignal(AbortSignal.timeout(60_000), resource.getReadableStream());
+      try {
+        const chunks: Buffer[] = [];
+        let size = 0;
+        for await (const chunk of stream) {
+          if (!Buffer.isBuffer(chunk)) throw new Error("Invalid Lark resource stream.");
+          size += chunk.length;
+          if (size > maxBytes) throw new Error("Lark image exceeds the size limit.");
+          chunks.push(chunk);
+        }
+        return Buffer.concat(chunks, size);
+      } finally {
+        stream.destroy();
+      }
+    } catch {
+      // The SDK error may contain user credentials and the resource key.
+      this.log.warn({ operation, stage: "adapter.lark.response", errorCode: "LARK_IMAGE_DOWNLOAD_FAILED" }, "LARK_IMAGE_DOWNLOAD_FAILED");
+      throw new Error("Lark message image could not be downloaded.");
     }
   }
 

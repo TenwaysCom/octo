@@ -1,6 +1,9 @@
+import { createHash } from "node:crypto";
 import { DataType } from "pg-mem";
 import { createTestPostgresDatabase } from "../adapters/postgres/test-db.js";
 import { serializePreparedMessages } from "../adapters/postgres/lark-ticket-thread-sync-store.js";
+import { createZcodeChatClient } from "../adapters/zcode/zcode-chat-client.js";
+import { MAX_KCS_IMAGE_BYTES } from "../domain/kcs-image-evidence.js";
 import { runTicketKcs } from "./ticket-kcs.js";
 
 const scope = { base_id: "demo-base", table_id: "demo-table" };
@@ -216,5 +219,123 @@ describe("ticket-kcs CLI", () => {
     const result = await invoke(["render"], { createCompletionClient: () => ({ createJsonCompletion: async () => ({ content, model: "test" }) }) });
     expect(result).toMatchObject({ exitCode: 1, output: [], errors: [expect.stringContaining("ticket-kcs failed")] });
     expect(result.errors.join("\n")).not.toContain(content);
+  });
+});
+
+const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aUqkAAAAASUVORK5CYII=", "base64");
+
+async function imageDatabase() {
+  const fixture = await database();
+  const { db } = fixture;
+  await db.insertInto("lark_base_ticket_syncs").values([ticket("images"), ticket("other")]).execute();
+  await db.insertInto("lark_ticket_thread_syncs").values({
+    ...scope, record_id: "images", thread_id: "test-thread", message_link: "https://example.com/thread",
+    messages_json: JSON.stringify({ schemaVersion: 1, messages: [
+      { messageId: "m1", messageType: "text", content: "Request: inspect this error" },
+      { messageId: "m2", messageType: "image", content: JSON.stringify({ image_key: "standalone" }) },
+      { messageId: "m3", messageType: "post", content: JSON.stringify({
+        content: [[{ tag: "img", image_key: "embedded" }, { tag: "img" }]],
+        content_v2: [[{ tag: "img", image_key: "alternate-must-not-be-used" }]],
+      }) },
+      { messageId: "m4", messageType: "post", content: JSON.stringify({
+        content: [[{ tag: "text", text: "  " }]],
+        content_v2: [[{ tag: "img", image_key: "fallback" }]],
+      }) },
+      { messageId: "m5", messageType: "image", deleted: true, content: JSON.stringify({ image_key: "deleted" }) },
+    ] }),
+    snapshot_version: 1, history_complete: true, last_successful_sync_at: closedAt,
+    created_at: closedAt, updated_at: closedAt,
+  }).execute();
+  return fixture;
+}
+
+describe("ticket-kcs image evidence", () => {
+  it("exports ordered standalone and post sources, including a missing key", async () => {
+    const { db, pool } = await imageDatabase();
+    try {
+      const result = await invoke(["snapshots", scope.base_id, scope.table_id, "2000-01-01T00:00:00Z"], { openDatabase: () => db });
+      expect(result.exitCode).toBe(0);
+      expect(result.output[0].images).toEqual([
+        { message_id: "m2", message_index: 2, image_index: 1, image_key: "standalone" },
+        { message_id: "m3", message_index: 3, image_index: 1, image_key: "embedded" },
+        { message_id: "m3", message_index: 3, image_index: 2, image_key: null },
+        { message_id: "m4", message_index: 4, image_index: 1, image_key: "fallback" },
+      ]);
+      expect(result.output[0]).toMatchObject({ image_manifest_version: 1, image_counts: { 2: 1, 3: 2, 4: 1 } });
+      expect(result.output[1]).toHaveProperty("image_manifest_version", 1);
+      expect(result.output[1]).not.toHaveProperty("images");
+    } finally {
+      await db.destroy();
+      await pool.end();
+    }
+  });
+
+  it.each([
+    { recordId: "images", messageId: "m2", imageKey: "standalone", allowed: true },
+    { recordId: "other", messageId: "m2", imageKey: "standalone", allowed: false },
+    { recordId: "images", messageId: "m3", imageKey: "alternate-must-not-be-used", allowed: false },
+    { recordId: "images", messageId: "m3", imageKey: "standalone", allowed: false },
+    { recordId: "images", messageId: "m5", imageKey: "deleted", allowed: false },
+  ])("authenticates resource membership before download for $recordId/$messageId/$imageKey", async ({
+    recordId, messageId, imageKey, allowed,
+  }) => {
+    const { db, pool } = await imageDatabase();
+    try {
+      const downloadMessageImage = vi.fn().mockResolvedValue(png);
+      const createImageClient = vi.fn().mockResolvedValue({ downloadMessageImage });
+      const result = await invoke(["image", scope.base_id, scope.table_id, recordId, messageId, imageKey], {
+        openDatabase: () => db, createImageClient,
+      });
+      if (allowed) {
+        expect(result).toEqual({ exitCode: 0, errors: [], output: [{
+          media_type: "image/png", sha256: createHash("sha256").update(png).digest("hex"),
+          data_base64: png.toString("base64"),
+        }] });
+        expect(downloadMessageImage).toHaveBeenCalledWith({ messageId, imageKey, maxBytes: MAX_KCS_IMAGE_BYTES });
+      } else {
+        expect(result).toMatchObject({ exitCode: 1, output: [] });
+        expect(createImageClient).not.toHaveBeenCalled();
+        expect(result.errors.join("")).not.toContain(imageKey);
+      }
+    } finally {
+      await db.destroy();
+      await pool.end();
+    }
+  });
+
+  it("sends validated original PNG pixels in a GLM image_url and returns bounded factual evidence", async () => {
+    const observation = { observation: "The window contains an error.", visible_text: ["Export error"],
+      limitations: "The workflow after the error is outside the screenshot." };
+    const model = "glm-4.6v";
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({
+      model, choices: [{ finish_reason: "stop", message: { content: JSON.stringify(observation) } }],
+    })));
+    const result = await invoke(["inspect-image"], {
+      readPrompt: () => JSON.stringify({ media_type: "image/png", data_base64: png.toString("base64") }),
+      createVisionClient: () => createZcodeChatClient({ model, apiKey: "test-only", fetchImpl }),
+    });
+    expect(result).toEqual({ exitCode: 0, errors: [], output: [{ ...observation, model }] });
+    const requestBody = fetchImpl.mock.calls[0]?.[1]?.body;
+    expect(typeof requestBody).toBe("string");
+    expect(JSON.parse(String(requestBody))).toMatchObject({ model, messages: [
+      { role: "system" },
+      { role: "user", content: [
+        { type: "image_url", image_url: { url: `data:image/png;base64,${png.toString("base64")}` } },
+        { type: "text", text: expect.any(String) },
+      ] },
+    ] });
+  });
+
+  it.each([
+    { media_type: "image/jpeg", data_base64: png.toString("base64") },
+    { media_type: "image/png", data_base64: "bm90IGEgcG5n" },
+    { media_type: "image/png", data_base64: png.toString("base64") + " " },
+    { media_type: "image/png", data_base64: png.toString("base64"), unexpected: "field" },
+  ])("rejects image bytes that do not match the vision contract", async (input) => {
+    const createVisionClient = vi.fn();
+    const result = await invoke(["inspect-image"], { readPrompt: () => JSON.stringify(input), createVisionClient });
+    expect(result).toMatchObject({ exitCode: 1, output: [] });
+    expect(createVisionClient).not.toHaveBeenCalled();
+    expect(result.errors.join("")).not.toContain(input.data_base64);
   });
 });

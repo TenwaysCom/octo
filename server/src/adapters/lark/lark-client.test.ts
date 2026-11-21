@@ -1,3 +1,4 @@
+import { Readable } from "node:stream";
 import { vi } from "vitest";
 import { LarkAPIError, LarkBatchCreateError, LarkClient, isLarkWriteDefinitelyRejected, classifyLarkRecordError } from "./lark-client.js";
 
@@ -15,6 +16,23 @@ describe("lark-client", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("downloads an image through the SDK user identity and enforces a streaming size limit", async () => {
+    const client = new LarkClient({ accessToken: "user-token" });
+    const data = Buffer.from([1, 2, 3, 4]);
+    const get = vi.spyOn(client["client"].im.messageResource, "get");
+    get.mockImplementation(async () => ({
+      getReadableStream: () => Readable.from([data.subarray(0, 2), data.subarray(2)]),
+      writeFile: async () => undefined,
+      headers: {},
+    }));
+    const input = { messageId: "om_message", imageKey: "img_original" };
+    await expect(client.downloadMessageImage({ ...input, maxBytes: 4 })).resolves.toEqual(data);
+    await expect(client.downloadMessageImage({ ...input, maxBytes: 3 })).rejects.toThrow("could not be downloaded");
+    expect(get).toHaveBeenCalledWith({
+      path: { message_id: input.messageId, file_key: input.imageKey }, params: { type: "image" },
+    }, expect.anything());
   });
 
   it("lists paginated DONE reactions and preserves reaction identity on creation", async () => {

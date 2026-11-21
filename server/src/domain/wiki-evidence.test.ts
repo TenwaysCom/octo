@@ -1,4 +1,4 @@
-import { relevantSourceContent, relevantWikiContent, wikiQueryTerms, wikiMatchCount, supportsWikiQuestion } from "./wiki-evidence.js";
+import { relevantKcsContent, relevantSourceContent, relevantWikiContent, wikiQueryTerms, wikiMatchCount, supportsWikiQuestion } from "./wiki-evidence.js";
 
 const message = (index: number, text: string) => `- **[2026-09-22T10:00:00.000] 用户 ${index % 2}**(text): ${text}`;
 
@@ -57,4 +57,21 @@ it("requires the specific cause when generic wrappers are present", () => {
   const question = "OwlError Caused by: NotFoundError insertBefore";
   expect(supportsWikiQuestion(question, ["claim"], "claim OwlError server error")).toBe(false);
   expect(supportsWikiQuestion(question, ["claim"], "NotFoundError: insertBefore")).toBe(true);
+});
+
+describe("relevantKcsContent with original image evidence", () => {
+  it("retains case facts and original source references when the image appendix exceeds the recall budget", () => {
+    const markdown = [
+      "### 当前结果", "", "导出窗口显示 ExportPermissionError（M1 图片2，模型识读）。", "",
+      "### 关键处理与验证", "", "只复现导出窗口错误，未核对其他权限。", "",
+      "#### 来源索引", "", "- M1 线程第 1 条消息。", "",
+      "- [原始工单快照](../../../raw/transcripts/ticket.md)", "",
+      "## 原图证据", "", "仅有图注的资料".repeat(1000), "",
+      "![M1 图片2](assets/rec_case/M1-2-example.jpeg)",
+    ].join("\n");
+    const excerpt = relevantKcsContent(markdown, ["exportpermissionerror"]);
+    expect(excerpt).toContain("ExportPermissionError（M1 图片2，模型识读）");
+    expect(excerpt).toContain("原始工单快照");
+    expect(excerpt).not.toContain("仅有图注的资料");
+  });
 });

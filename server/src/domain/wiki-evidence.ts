@@ -78,6 +78,7 @@ function matchingKcsResultRows(section: string, terms: string[]): string {
   return [...lines.slice(0, dataStart), ...rows, ...lines.slice(dataEnd)].join("\n");
 }
 
+const kcsImageAppendixHeading = /^#{1,6}[ \t]+原图证据[ \t]*(?:\n|$)/;
 const kcsSourceIndexHeading = /^#{1,6}[ \t]+来源索引(?:\s|$)/;
 const kcsSourceNumber = /\b[FMHK]\d+\b/g;
 const kcsVerificationHeading = /^#{1,6}[ \t]+关键处理与验证(?:\s|$)/;
@@ -98,7 +99,8 @@ function relevantKcsVerification(section: string, terms: string[], sourceNumbers
 export function relevantKcsContent(text: string, terms: string[], maxLength = 2400): string {
   const sections = wikiSections(text.replaceAll("\r\n", "\n")).map((section) => section.trim());
   const indexSections = sections.filter((section) => kcsSourceIndexHeading.test(section));
-  const caseSections = sections.filter((section) => !kcsSourceIndexHeading.test(section));
+  const caseSections = sections.filter((section) =>
+    !kcsSourceIndexHeading.test(section) && !kcsImageAppendixHeading.test(section));
   let content = caseSections.join("\n\n");
   const budget = maxLength - excerptNotice.length - 1;
   if (content.length > budget) {

@@ -23,7 +23,11 @@ export class ZcodeChatError extends Error {
   }
 }
 
-export type ZcodeJsonCompletionClient = JsonCompletionClient;
+export interface ZcodeJsonCompletionClient extends JsonCompletionClient {
+  createJsonCompletion(input: Parameters<JsonCompletionClient["createJsonCompletion"]>[0] & {
+    imageDataUri?: string;
+  }): ReturnType<JsonCompletionClient["createJsonCompletion"]>;
+}
 
 export interface ZcodeChatClientDeps {
   apiKey?: string;
@@ -59,6 +63,10 @@ export function createZcodeChatClient(
         zcodeLogger.warn({ ...baseLog, durationMs: 0, stage: "adapter.zcode.config", errorCode: "ZCODE_API_KEY_MISSING" }, "ZCODE_API_KEY_MISSING");
         throw new ZcodeChatError("ZCODE_API_KEY_MISSING", "ZCode API key is not configured.");
       }
+      const userContent = input.imageDataUri ? [
+        { type: "image_url", image_url: { url: input.imageDataUri } },
+        { type: "text", text: input.prompt },
+      ] : input.prompt;
       const controller = new AbortController();
       const abort = () => controller.abort();
       if (input.signal?.aborted) {
@@ -85,26 +93,28 @@ export function createZcodeChatClient(
                 role: "system",
                 content: "Return only a valid JSON object that conforms to the requested schema.",
               },
-              { role: "user", content: input.prompt },
+              { role: "user", content: userContent },
             ],
             response_format: { type: "json_object" },
             temperature: 0.2,
+            ...(input.imageDataUri ? { max_tokens: 1600, thinking: { type: "disabled" } } : {}),
             ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
           }),
           signal: controller.signal,
           ...(dispatcher ? { dispatcher } : {}),
         });
         const durationMs = Date.now() - startedAt;
+        const readResponse = () => input.imageDataUri ? readBoundedJson(response, 32768) : response.json();
         if (!response.ok) {
           // Only retain a numeric error code; provider text can contain private data.
-          const payload = await response.json().catch(() => undefined) as { error?: { code?: unknown } } | undefined;
+          const payload = await readResponse().catch(() => undefined) as { error?: { code?: unknown } } | undefined;
           const code = payload?.error?.code;
           const providerErrorCode = (typeof code === "string" || typeof code === "number") && /^\d{1,8}$/.test(String(code))
             ? String(code) : undefined;
           zcodeLogger.warn({ ...baseLog, statusCode: response.status, providerErrorCode, durationMs: Date.now() - startedAt, stage: "adapter.zcode.response", errorCode: "ZCODE_REQUEST_FAILED" }, "ZCODE_REQUEST_FAILED");
           throw new ZcodeChatError("ZCODE_REQUEST_FAILED", `ZCode request failed with status ${response.status}.`, response.status, undefined, providerErrorCode);
         }
-        const data = await response.json().catch((error: unknown) => {
+        const data = await readResponse().catch((error: unknown) => {
           if (error instanceof SyntaxError) return undefined;
           throw error;
         }) as {
@@ -151,4 +161,23 @@ export function createZcodeChatClient(
 function readPositiveInt(value: string | undefined, fallback: number): number {
   const parsed = Number(value);
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+async function readBoundedJson(response: Response, maxBytes: number): Promise<unknown> {
+  const reader = response.body?.getReader();
+  if (!reader) throw new SyntaxError("Missing provider body.");
+  let size = 0;
+  const decoder = new TextDecoder();
+  let body = "";
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) return JSON.parse(body + decoder.decode());
+      size += value.byteLength;
+      if (size > maxBytes) throw new SyntaxError("Provider body exceeded the vision response limit.");
+      body += decoder.decode(value, { stream: true });
+    }
+  } finally {
+    await reader.cancel().catch(() => undefined);
+  }
 }
