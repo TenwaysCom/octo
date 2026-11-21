@@ -41,6 +41,24 @@ describe("ZCode chat client", () => {
     expect(init.body).not.toContain("secret-key");
   });
 
+  it.each([
+    { label: "missing", fields: {} },
+    { label: "null", fields: { model: null } },
+    { label: "numeric", fields: { model: 123 } },
+  ])("requires a provider model for images and falls back for text when the model is $label", async ({ fields }) => {
+    const fetchImpl = vi.fn<typeof fetch>().mockImplementation(async () => Response.json({
+      ...fields,
+      choices: [{ message: { content: "{}" } }],
+    }));
+    const client = createZcodeChatClient({ apiKey: "test-key", model: "glm-4.6v", fetchImpl });
+    const input = { prompt: "return json", actionRunId: "model-identity-test" };
+
+    await expect(client.createJsonCompletion(input))
+      .resolves.toEqual({ content: "{}", model: "glm-4.6v" });
+    await expect(client.createJsonCompletion({ ...input, imageDataUri: "data:image/png;base64,aW1hZ2U=" }))
+      .rejects.toMatchObject({ code: "ZCODE_RESPONSE_INVALID", statusCode: 200 });
+  });
+
   it("fails before fetch when the API key is missing", async () => {
     const fetchImpl = vi.fn();
     const client = createZcodeChatClient({ apiKey: "", fetchImpl });
