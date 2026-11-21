@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { readSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -19,6 +19,9 @@ import { readMessageImageKeys } from "../domain/prepared-message-content.js";
 import { refreshStoredLarkCredentialWithLock } from "../modules/lark-auth/lark-auth.service.js";
 import { buildLarkTicketCleaningProjection } from "../application/services/lark-ticket-cleaning.js";
 import { redactSupportText } from "../domain/support-ticket-analysis.js";
+import {
+  createImageTrace, createKcsImageLogger, imageLogId, imageLogMetadata, KcsImageError, type ImageTrace,
+} from "./kcs-image-log.js";
 
 const identity = z.string().regex(/^[A-Za-z0-9_-]+$/);
 const syncScope = z.tuple([identity, identity, z.iso.datetime({ offset: true })]);
@@ -41,8 +44,10 @@ interface TicketKcsCliDeps {
   openDatabase: () => ReturnType<typeof createPostgresDatabase>;
   createCompletionClient: () => ReturnType<typeof createTicketSummaryJsonCompletionClient>;
   readPrompt: (maxBytes: number) => string;
-  createVisionClient?: () => ReturnType<typeof createZcodeChatClient>;
+  createVisionClient?: (model: string) => ReturnType<typeof createZcodeChatClient>;
   createImageClient?: (db: ReturnType<typeof createPostgresDatabase>, actionRunId: string) => Promise<Pick<LarkClient, "downloadMessageImage">>;
+  imageLogContext?: string;
+  imageLogger?: ReturnType<typeof createKcsImageLogger>["logger"];
   now: () => number;
   write: (line: string) => void;
   writeError: (line: string) => void;
@@ -166,35 +171,57 @@ function readImageReferences({ messages, preparedMessages }: ReturnType<typeof r
 }
 
 async function downloadImage(
-  [baseId, tableId, recordId, messageId, imageKey]: z.infer<typeof imageScope>, deps: TicketKcsCliDeps,
+  args: string[], deps: TicketKcsCliDeps, trace: ImageTrace,
 ) {
-  const db = deps.openDatabase();
+  let db: ReturnType<TicketKcsCliDeps["openDatabase"]> | undefined;
   try {
-    const row = await db.transaction().setAccessMode("read only").execute((trx) =>
-      trx.selectFrom("lark_ticket_thread_syncs as thread")
-        .innerJoin("lark_base_ticket_syncs as ticket", (join) => join
-          .onRef("thread.base_id", "=", "ticket.base_id")
-          .onRef("thread.table_id", "=", "ticket.table_id")
-          .onRef("thread.record_id", "=", "ticket.record_id"))
-        .select(["thread.messages_json", "thread.prepared_messages_json", "thread.snapshot_version"])
-        .where("ticket.base_id", "=", baseId)
-        .where("ticket.table_id", "=", tableId)
-        .where("ticket.record_id", "=", recordId)
-        .where("ticket.stale", "=", false)
-        .where(sql<boolean>`lower(btrim(ticket.ticket_status)) = 'finish'`)
-        .executeTakeFirst());
-    if (!row || !readImageReferences(readThreadMessages(row)).some((reference) =>
-      reference.message_id === messageId && reference.image_key === imageKey)) {
-      throw new Error("Image is outside the selected Ticket snapshot.");
-    }
-    const client = await (deps.createImageClient ?? createLarkImageClient)(db, randomUUID());
-    const bytes = await client.downloadMessageImage({ messageId, imageKey, maxBytes: MAX_KCS_IMAGE_BYTES });
-    const mediaType = kcsImageType(bytes);
-    if (!mediaType) throw new Error("Unsupported KCS image bytes.");
-    deps.write(JSON.stringify({ media_type: mediaType, sha256: createHash("sha256").update(bytes).digest("hex"),
+    const { database, messageId, imageKey } = await trace.stage("scope", "KCS_IMAGE_SCOPE_CHECK_FAILED", async () => {
+      const parsed = imageScope.safeParse(args);
+      if (!parsed.success) throw new KcsImageError("KCS_IMAGE_SCOPE_INVALID");
+      const [baseId, tableId, recordId, messageId, imageKey] = parsed.data;
+      const database = deps.openDatabase();
+      db = database;
+      const row = await database.transaction().setAccessMode("read only").execute((trx) =>
+        trx.selectFrom("lark_ticket_thread_syncs as thread")
+          .innerJoin("lark_base_ticket_syncs as ticket", (join) => join
+            .onRef("thread.base_id", "=", "ticket.base_id")
+            .onRef("thread.table_id", "=", "ticket.table_id")
+            .onRef("thread.record_id", "=", "ticket.record_id"))
+          .select(["thread.messages_json", "thread.prepared_messages_json", "thread.snapshot_version", "ticket.ticket_number"])
+          .where("ticket.base_id", "=", baseId)
+          .where("ticket.table_id", "=", tableId)
+          .where("ticket.record_id", "=", recordId)
+          .where("ticket.stale", "=", false)
+          .where(sql<boolean>`lower(btrim(ticket.ticket_status)) = 'finish'`)
+          .executeTakeFirst());
+      if (!row) throw new KcsImageError("KCS_IMAGE_SCOPE_INVALID");
+      const references = readImageReferences(readThreadMessages(row)).filter((reference) =>
+        reference.message_id === messageId && reference.image_key === imageKey);
+      const reference = references.find((reference) => reference.message_index === trace.position.messageIndex
+        && reference.image_index === trace.position.imageIndex) ?? references[0];
+      if (!reference) throw new KcsImageError("KCS_IMAGE_SCOPE_INVALID");
+      trace.addDetails({
+        ticketNo: imageLogId.safeParse(row.ticket_number).data,
+        messageIndex: reference.message_index,
+        imageIndex: reference.image_index,
+      });
+      return { database, messageId, imageKey };
+    });
+    const { bytes, mediaType, sha256 } = await trace.stage("download", "KCS_IMAGE_DOWNLOAD_FAILED", async () => {
+      const client = await (deps.createImageClient ?? createLarkImageClient)(database, trace.actionRunId);
+      const bytes = await client.downloadMessageImage({ messageId, imageKey, maxBytes: MAX_KCS_IMAGE_BYTES });
+      const mediaType = kcsImageType(bytes);
+      const metadata = imageLogMetadata(bytes, mediaType);
+      trace.addDetails(metadata);
+      return { bytes, mediaType, sha256: metadata.sha256 };
+    });
+    await trace.stage("output_validation", "KCS_IMAGE_BYTES_INVALID", () => {
+      if (!mediaType) throw new KcsImageError("KCS_IMAGE_BYTES_INVALID");
+    });
+    deps.write(JSON.stringify({ media_type: mediaType, sha256,
       data_base64: bytes.toString("base64") }) + "\n");
   } finally {
-    await db.destroy();
+    await db?.destroy();
   }
 }
 
@@ -225,21 +252,43 @@ const VISION_PROMPT = [
   '格式示例：{"observation":"图中可见错误提示","visible_text":["Error"],"limitations":"只覆盖此界面"}。',
 ].join(" ");
 
-async function inspectImage(deps: TicketKcsCliDeps) {
-  const imageDataUri = kcsVisionInput.parse(JSON.parse(deps.readPrompt(MAX_KCS_IMAGE_BASE64 + 256)));
-  const client = deps.createVisionClient?.() ?? createZcodeChatClient({
-    model: visionModel.parse(process.env.KCS_VISION_MODEL?.trim() || "glm-4.6v"),
-    timeoutMs: 60_000,
+async function inspectImage(args: string[], deps: TicketKcsCliDeps, trace: ImageTrace) {
+  const requestedModel = visionModel.safeParse(process.env.KCS_VISION_MODEL?.trim() || "glm-4.6v").data;
+  trace.addDetails({ requestedModel });
+  await trace.stage("scope", "KCS_IMAGE_SCOPE_INVALID", () => {
+    if (args.length) throw new KcsImageError("KCS_IMAGE_SCOPE_INVALID");
   });
-  const result = await client.createJsonCompletion({ prompt: VISION_PROMPT, imageDataUri, actionRunId: randomUUID() });
-  const json = result.content.replace(/^```(?:json)?\s*([\s\S]*?)\s*```$/i, "$1");
-  const evidence = kcsVisionEvidence.parse(JSON.parse(json));
-  deps.write(JSON.stringify({
-    observation: redactSupportText(evidence.observation),
-    visible_text: evidence.visible_text.map(redactSupportText),
-    limitations: redactSupportText(evidence.limitations),
-    model: visionModel.parse(result.model),
-  }) + "\n");
+  const imageDataUri = await trace.stage("input_validation", "KCS_IMAGE_INPUT_INVALID", () => {
+    const image = kcsVisionInput.parse(JSON.parse(deps.readPrompt(MAX_KCS_IMAGE_BASE64 + 256)));
+    trace.addDetails(imageLogMetadata(image.bytes, image.mediaType));
+    return image.imageDataUri;
+  });
+  const result = await trace.stage("recognition", "KCS_IMAGE_RECOGNITION_FAILED", async () => {
+    if (!requestedModel) throw new KcsImageError("KCS_VISION_MODEL_INVALID");
+    const client = deps.createVisionClient?.(requestedModel) ?? createZcodeChatClient({ model: requestedModel, timeoutMs: 60_000 });
+    const result = await client.createJsonCompletion({
+      prompt: VISION_PROMPT, imageDataUri, actionRunId: trace.actionRunId, collectDiagnostics: true,
+    });
+    const timing = result.diagnostics;
+    trace.addDetails({
+      responseModel: visionModel.safeParse(result.model).data, httpStatus: timing?.httpStatus,
+      responseHeadersMs: timing?.responseHeadersMs, providerDurationMs: timing?.totalMs,
+      promptTokens: timing?.promptTokens, completionTokens: timing?.completionTokens,
+      totalTokens: timing?.totalTokens, reasoningTokens: timing?.reasoningTokens,
+    });
+    return result;
+  });
+  const output = await trace.stage("output_validation", "KCS_IMAGE_OUTPUT_INVALID", () => {
+    const json = result.content.replace(/^```(?:json)?\s*([\s\S]*?)\s*```$/i, "$1");
+    const evidence = kcsVisionEvidence.parse(JSON.parse(json));
+    return {
+      observation: redactSupportText(evidence.observation),
+      visible_text: evidence.visible_text.map(redactSupportText),
+      limitations: redactSupportText(evidence.limitations),
+      model: visionModel.parse(result.model),
+    };
+  });
+  deps.write(JSON.stringify(output) + "\n");
 }
 
 function readStdin(maxBytes: number) {
@@ -293,9 +342,11 @@ export async function runTicketKcs(argv: string[], deps: TicketKcsCliDeps): Prom
     if (action === "snapshots") return await listSnapshots(syncScope.parse(args), false, deps);
     else if (action === "snapshot") return await listSnapshots(ticketScope.parse(args), true, deps);
     else if (action === "sync-ready") return await checkSyncReadiness(syncReadinessScope.parse(args), deps);
-    else if (action === "image") await downloadImage(imageScope.parse(args), deps);
-    else if (action === "inspect-image" && !args.length) await inspectImage(deps);
-    else if (action === "render" && !args.length) await renderDraft(deps);
+    else if (action === "image" || action === "inspect-image") {
+      const trace = createImageTrace(action, args, deps.imageLogContext, deps.imageLogger);
+      if (action === "image") await downloadImage(args, deps, trace);
+      else await inspectImage(args, deps, trace);
+    } else if (action === "render" && !args.length) await renderDraft(deps);
     else throw new Error("Unknown ticket-kcs action.");
     return 0;
   } catch {
@@ -312,12 +363,19 @@ export async function runTicketKcs(argv: string[], deps: TicketKcsCliDeps): Prom
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   config({ quiet: true });
-  process.exitCode = await runTicketKcs(process.argv.slice(2), {
+  const args = process.argv.slice(2);
+  const writeError = (line: string) => process.stderr.write(line);
+  const imageLog = args[0] === "image" || args[0] === "inspect-image"
+    ? createKcsImageLogger(process.env.KCS_IMAGE_LOG_DIR?.trim() || "./logs", writeError) : undefined;
+  process.exitCode = await runTicketKcs(args, {
     openDatabase: createPostgresDatabase,
     createCompletionClient: createTicketSummaryJsonCompletionClient,
     readPrompt: readStdin,
+    imageLogContext: process.env.KCS_IMAGE_LOG_CONTEXT,
+    imageLogger: imageLog?.logger,
     now: Date.now,
     write: (line) => process.stdout.write(line),
-    writeError: (line) => process.stderr.write(line),
+    writeError,
   });
+  await imageLog?.close();
 }

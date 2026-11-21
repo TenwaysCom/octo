@@ -1,5 +1,6 @@
 export interface CompletionDiagnostics {
   responseHeadersMs: number; totalMs: number;
+  httpStatus?: number;
   promptTokens?: number; completionTokens?: number; totalTokens?: number; reasoningTokens?: number;
   reasoningEffort?: "low" | "high" | "max";
 }

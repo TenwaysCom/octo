@@ -1,4 +1,5 @@
 import { Readable } from "node:stream";
+import { defaultHttpInstance } from "@larksuiteoapi/node-sdk";
 import { vi } from "vitest";
 import { LarkAPIError, LarkBatchCreateError, LarkClient, isLarkWriteDefinitelyRejected, classifyLarkRecordError } from "./lark-client.js";
 
@@ -33,6 +34,23 @@ describe("lark-client", () => {
     expect(get).toHaveBeenCalledWith({
       path: { message_id: input.messageId, file_key: input.imageKey }, params: { type: "image" },
     }, expect.anything());
+  });
+
+  it("cancels an image download that stalls before the SDK returns a stream", async () => {
+    const request = vi.fn();
+    const interceptor = defaultHttpInstance.interceptors.request.use((config) => {
+      request({ timeout: config.timeout, signal: config.signal });
+      throw Object.assign(new Error("PRIVATE_SDK_ERROR"), { code: "ECONNABORTED" });
+    });
+    try {
+      const client = new LarkClient({ accessToken: "private-token" });
+      const input = { messageId: "om_message", imageKey: "img_private" };
+      await expect(client.downloadMessageImage({ ...input, maxBytes: 4 }))
+        .rejects.toMatchObject({ code: "LARK_IMAGE_TIMEOUT", message: "Lark message image could not be downloaded." });
+      expect(request).toHaveBeenCalledWith({ timeout: 60_000, signal: expect.any(AbortSignal) });
+    } finally {
+      defaultHttpInstance.interceptors.request.eject(interceptor);
+    }
   });
 
   it("lists paginated DONE reactions and preserves reaction identity on creation", async () => {

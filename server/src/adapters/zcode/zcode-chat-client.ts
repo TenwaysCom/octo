@@ -79,6 +79,7 @@ export function createZcodeChatClient(
       const reasoningEffort = /^glm-5\.3(?:-flash)?$/i.test(model) ? input.reasoningEffort : undefined;
       // Injected fetch implementations own their transport (e.g. test doubles).
       const dispatcher = deps.fetchImpl ? undefined : createModelRequestClient(new URL(ENDPOINT).origin);
+      let statusCode: number | undefined;
       try {
         const response = await fetchImpl(ENDPOINT, {
           method: "POST",
@@ -103,11 +104,15 @@ export function createZcodeChatClient(
           signal: controller.signal,
           ...(dispatcher ? { dispatcher } : {}),
         });
+        statusCode = response.status;
         const durationMs = Date.now() - startedAt;
         const readResponse = () => input.imageDataUri ? readBoundedJson(response, 32768) : response.json();
         if (!response.ok) {
           // Only retain a numeric error code; provider text can contain private data.
-          const payload = await readResponse().catch(() => undefined) as { error?: { code?: unknown } } | undefined;
+          const payload = await readResponse().catch((error: unknown) => {
+            if (input.imageDataUri && controller.signal.aborted) throw error;
+            return undefined;
+          }) as { error?: { code?: unknown } } | undefined;
           const code = payload?.error?.code;
           const providerErrorCode = (typeof code === "string" || typeof code === "number") && /^\d{1,8}$/.test(String(code))
             ? String(code) : undefined;
@@ -125,13 +130,14 @@ export function createZcodeChatClient(
         const content = data?.choices?.[0]?.message?.content;
         if (typeof content !== "string" || !content.trim() || data?.choices?.[0]?.finish_reason === "length") {
           zcodeLogger.warn({ ...baseLog, statusCode: response.status, durationMs, stage: "adapter.zcode.response", errorCode: "ZCODE_RESPONSE_INVALID" }, "ZCODE_RESPONSE_INVALID");
-          throw new ZcodeChatError("ZCODE_RESPONSE_INVALID", "ZCode returned an empty or truncated completion.");
+          throw new ZcodeChatError("ZCODE_RESPONSE_INVALID", "ZCode returned an empty or truncated completion.", response.status);
         }
         const responseModel = typeof data?.model === "string" ? data.model : model;
-        zcodeLogger.info({ ...baseLog, model: responseModel, statusCode: response.status, durationMs: Date.now() - startedAt, responseHeadersMs: durationMs, stage: "adapter.zcode.completed" }, "ZCODE_COMPLETION_COMPLETED");
+        const logModel = input.imageDataUri && !/^[A-Za-z0-9_.-]{1,128}$/.test(responseModel) ? model : responseModel;
+        zcodeLogger.info({ ...baseLog, model: logModel, statusCode: response.status, durationMs: Date.now() - startedAt, responseHeadersMs: durationMs, stage: "adapter.zcode.completed" }, "ZCODE_COMPLETION_COMPLETED");
         const number = (value: unknown) => typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : undefined;
         return { content: content.trim(), model: responseModel, ...(input.collectDiagnostics ? { diagnostics: {
-          responseHeadersMs: durationMs, totalMs: Date.now() - startedAt, reasoningEffort,
+          responseHeadersMs: durationMs, totalMs: Date.now() - startedAt, httpStatus: response.status, reasoningEffort,
           promptTokens: number(data?.usage?.prompt_tokens), completionTokens: number(data?.usage?.completion_tokens),
           totalTokens: number(data?.usage?.total_tokens), reasoningTokens: number(data?.usage?.completion_tokens_details?.reasoning_tokens),
         } } : {}) };
@@ -141,8 +147,8 @@ export function createZcodeChatClient(
         }
         const durationMs = Date.now() - startedAt;
         if (controller.signal.aborted) {
-          zcodeLogger.warn({ ...baseLog, durationMs, stage: "adapter.zcode.timeout", errorCode: "ZCODE_TIMEOUT" }, "ZCODE_TIMEOUT");
-          throw new ZcodeChatError("ZCODE_TIMEOUT", `ZCode request timed out after ${timeoutMs}ms.`);
+          zcodeLogger.warn({ ...baseLog, durationMs, statusCode, stage: "adapter.zcode.timeout", errorCode: "ZCODE_TIMEOUT" }, "ZCODE_TIMEOUT");
+          throw new ZcodeChatError("ZCODE_TIMEOUT", `ZCode request timed out after ${timeoutMs}ms.`, statusCode);
         }
         const code = (error as { cause?: { code?: unknown }; code?: unknown } | undefined)?.cause?.code
           ?? (error as { code?: unknown } | undefined)?.code;

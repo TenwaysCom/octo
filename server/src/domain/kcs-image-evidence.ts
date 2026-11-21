@@ -24,7 +24,7 @@ export const kcsVisionInput = z.object({
 }).strict().transform(({ media_type, data_base64 }, ctx) => {
   const bytes = Buffer.from(data_base64, "base64");
   if (bytes.toString("base64") === data_base64 && kcsImageType(bytes) === media_type) {
-    return `data:${media_type};base64,${data_base64}`;
+    return { bytes, mediaType: media_type, imageDataUri: `data:${media_type};base64,${data_base64}` };
   }
   ctx.addIssue({ code: "custom", message: "Invalid KCS image data." });
   return z.NEVER;
