@@ -36,7 +36,7 @@ v11：Shadow 一次 JsonCompletionClient 调用在现有意图、结果、质量
 
 - [x] v19 验证成功、图片校验错误、GLM 超时、账户限流及服务过载的日志。日志可串联同一次逐图处理，只含允许的元数据和固定错误码。
 - [x] v19 验证两条 Shell 入口传递同一逐图上下文，日志正常落盘且日志故障不改变 CLI 输出或退出状态。
-- [ ] v19 在运行主机隔离执行一张真实图片，并读回专用日志。
+- [x] v19 在运行主机隔离执行一张真实图片，并读回专用日志。
 
 - [x] v18 导出独立图片消息和富文本图片的有序引用。原图下载校验归属，识读实际收到的图像字节。
 - [x] v18 日常生成和指定历史补录共用原图缓存、识读与归档逻辑。失败留待重试，附件变化后旧稿暂停发布，成功草稿保留人工审批。
@@ -281,3 +281,13 @@ Wiki 检索只从 `kcs/<base_id>/<table_id>/<record_id>.md` 召回历史工单�
 下载和识读共用同一次逐图处理的 `actionRunId`。缓存命中时没有对应的接口事件。日志以 `phase` 保存各阶段开始和结果，GLM 错误 `1302` 和 `1305` 分别记录为 `ZCODE_ACCOUNT_RATE_LIMITED` 和 `ZCODE_SERVICE_OVERLOADED`。日志写入失败时，CLI 用 stderr 输出 `KCS_IMAGE_LOG_WRITE_FAILED`。Guide 将这一固定诊断转发给批次。
 
 本地构建后运行编译版 CLI，三个并发识读进程在同一份轮转文件中写入 24 条完整 JSON 日志，每个进程返回原有 JSON。经替身验证 GLM 的两类 429、响应体超时、飞书 SDK 下载超时和图片校验失败。日志目录不可写时，CLI 仍返回成功识读结果且只调用一次模型。Guide 验证了 daily 和 backfill 的上下文转发、缓存跳过和工单号规范化。真实平台和运行主机读回待记录。
+
+### v19 主机日志验收
+
+服务端构建及 CLI、Lark、ZCode、logger 四个定向文件的 81 项测试通过；Guide KCS 53 项和原始快照 18 项通过。源码子进程回归验证了三并发的 24 条完整 JSONL，以及日志目录失效时保留接口结果和单次模型调用。本轮没有调用线上服务来人为触发限流或超时。
+
+主机每日独立工具已接入 Octo `ec67f1b`，Guide 入口已接入 `52e7cd0`。`daily.env` 新增 `KCS_IMAGE_LOG_DIR=/home/deploy/.config/odoo-kcs/logs`。正式配置只读预检的生成和发布均返回 0，定时器仍为每日 02:15。仅更新每日工具及 Guide 文件，无服务重启、历史重算或 KCS 审批变更。
+
+通过已部署 CLI 下载真实 #2459 的 M1 图片1，再单次调用 `glm-5.3-flash` 验收日志。读回同一关联 ID `d6fa9509-5611-4be0-bd77-c7a993f1be22` 的 14 条记录，覆盖 scope、download、input_validation、recognition、output_validation；识读 HTTP 200，可得用量为 5423 tokens。原图 SHA-256 与先前验收一致。检查专用日志未含图片资源键、Base64、识读正文或凭据。该次调用只验证接口及日志，没有生成或发布文章；每日模型仍为 `glm-4.6v`。
+
+实际日志在 `~/.config/odoo-kcs/logs/kcs-images.2026-11-21.1.log`。验收摘要和此前三并发报告分别保留在 `logs/probes/image-log-verification-2026-11-21.json` 和 `logs/probes/glm-5.3-flash-concurrency-2026-11-21.json`。回滚清单及旧文件保留在 `runtime/releases/ec67f1b-52e7cd0/`。代码已更新到原 PR #190 和 Guide #7，尚未合并。
