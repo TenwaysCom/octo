@@ -132,7 +132,12 @@ export function createZcodeChatClient(
           zcodeLogger.warn({ ...baseLog, statusCode: response.status, durationMs, stage: "adapter.zcode.response", errorCode: "ZCODE_RESPONSE_INVALID" }, "ZCODE_RESPONSE_INVALID");
           throw new ZcodeChatError("ZCODE_RESPONSE_INVALID", "ZCode returned an empty or truncated completion.", response.status);
         }
-        const responseModel = typeof data?.model === "string" ? data.model : model;
+        const providerModel = data?.model;
+        if (input.imageDataUri && typeof providerModel !== "string") {
+          zcodeLogger.warn({ ...baseLog, statusCode: response.status, durationMs, stage: "adapter.zcode.response", errorCode: "ZCODE_RESPONSE_INVALID" }, "ZCODE_RESPONSE_INVALID");
+          throw new ZcodeChatError("ZCODE_RESPONSE_INVALID", "ZCode did not return a model identifier for the image completion.", response.status);
+        }
+        const responseModel = typeof providerModel === "string" ? providerModel : model;
         const logModel = input.imageDataUri && !/^[A-Za-z0-9_.-]{1,128}$/.test(responseModel) ? model : responseModel;
         zcodeLogger.info({ ...baseLog, model: logModel, statusCode: response.status, durationMs: Date.now() - startedAt, responseHeadersMs: durationMs, stage: "adapter.zcode.completed" }, "ZCODE_COMPLETION_COMPLETED");
         const number = (value: unknown) => typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : undefined;
