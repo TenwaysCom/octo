@@ -42,6 +42,7 @@ export interface DatabaseSchema {
     thread_id: string;
     root_message_id: string;
     message_link: string | null;
+    client_thread_id: string | null;
     action_run_id: string;
     stage: string;
     record_id: string | null;

@@ -111,6 +111,7 @@ export async function ensureLarkThreadTicketIntakeSchema(db: Kysely<DatabaseSche
   await db.schema.createIndex("lark_thread_ticket_intakes_pending").ifNotExists()
     .on("lark_thread_ticket_intakes").columns(["source_key", "stage", "updated_at"]).execute();
   await sql`ALTER TABLE lark_thread_ticket_intakes ADD COLUMN IF NOT EXISTS message_link text`.execute(db);
+  await sql`ALTER TABLE lark_thread_ticket_intakes ADD COLUMN IF NOT EXISTS client_thread_id text`.execute(db);
 }
 
 export async function ensureLarkTicketDoneSchema(db: Kysely<DatabaseSchema>): Promise<void> {

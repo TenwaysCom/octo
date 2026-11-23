@@ -30,6 +30,7 @@ export const larkThreadTicketsTaskSchema = z.object({
   batchLimit: z.number().int().min(1).max(50).default(5),
   sources: z.array(z.object({
     chatId: z.string().trim().min(1),
+    clientChatId: z.string().regex(/^[1-9]\d*$/).optional(),
     baseId: z.string().trim().min(1),
     tableId: z.string().trim().min(1),
     // Omit for new topics only, starting at the first worker scan.

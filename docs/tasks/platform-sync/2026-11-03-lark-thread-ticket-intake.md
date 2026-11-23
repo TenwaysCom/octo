@@ -2,10 +2,10 @@
 title: "Lark 群话题自动登记 Ticket"
 module: platform-sync
 status: done
-requirement_version: 7
+requirement_version: 15
 created_on: 2026-11-03
-updated_on: 2026-11-04
-closed_on: 2026-11-04
+updated_on: 2026-11-23
+closed_on: 2026-11-23
 owner: Codex
 related:
   - "../../tenways-octo/it-platform-sync.md"
@@ -17,8 +17,21 @@ related:
 
 在独立 platform worker 中扫描指定群的新话题，创建 Lark Base record，单条同步及清洗至 Octo，立即执行既有 shadow AI，生成并回写合适标题，再在线程内确认“已记录工单 / title：… / 编号：…”，最后在根消息添加 +1 表情。
 
+v14：新建 Ticket 的描述只保存源消息正文，话题链接单独写入 `Lark Message Link`，不再在描述末尾重复拼接。此调整仅改新建 payload，不清理历史描述。
+
+v15：用户授权重新构建 server、重启生产 platform worker，并补完 actionRunId `9848f89a-47ec-4968-80f0-e48f33cf543e` 对应话题。恢复编译版 ID 解析方法后，沿既有登记、租约及幂等流程完成建单、AI 分析、标题、话题回复和 +1，并读回生产结果。
+
 ## 验收标准
 
+- [x] v15：server 构建和相关回归通过，实际编译版提供 `resolveClientThreadId`。
+- [x] v15：生产 Worker 重启后 online，运行日志确认话题任务已启动。
+- [x] v15：指定话题的原登记到达 done，Base 建单和 Octo shadow=ok，标题编号一致，原话题恰好一条 Bot 确认，根消息存在该 Bot 的 +1。
+- [x] v14：新建描述与源消息正文一致，不再追加话题 URL；独立 `Lark Message Link` 的真实 URL 保留，相关 mock integration 与构建通过。
+- [x] v13：用户已授权修复 v12 盘点的 18 条历史 message link。逐条验证话题/群/根消息后，只回写 Lark Message Link 为数字 Lark 链接；回读确认并同步本地快照，保留 Issue 类型及 AI 数据。
+- [x] v13：记录逐条结果与剩余旧前缀数量；保留可恢复的旧链接计划，不创建/删除工单、不回帖/加表情、不重启 Worker。
+- [x] v12：只读统计当前 Ticket 表中 `https://applink.feishu.cn/client/thread/open?` 前缀的历史链接数量及 Issue 类型，核对本地快照和实时 Base；不执行历史修复。
+- [x] v11：新建 Ticket 使用数字 `thread/open?threadid=…&chatid=…&thread_position=0`，来源配置保存固定 clientChatId；候选数字 ID 必须经 API 核对 canonical ID、群与根消息后才能写入数据库和生成链接。`chat/open` 不作为最终方案。
+- [x] v11：持久化已验证的 client_thread_id，重试/重建服务复用；校验失败不入库、不建单。保留去重和未回复新话题的根消息上下文，完成回归、构建及指定映射数据库读回；平台链接修改与部署验证单独记录。
 - [x] v7：创建前复用同一 Base/Table 已有话题缓存中的数字 ID → canonical ID 映射，已缓存话题不重新调用 Lark；已知匹配优先于未解析旧链接。
 - [x] v7：仅对缺失映射读取一条消息，核对来源群和 canonical ID；空结果、歧义或读取失败不能作为无重复的依据，原有幂等和续跑语义保留。
 - [x] v7：相关回归及构建通过；核实用户指定 pending 行的最新状态，按单条入口处理，不执行历史批量、数据库重置或常驻进程重启。锁释放后恢复到 done，真实读回及重复提交通过。
@@ -43,6 +56,12 @@ related:
 
 ## 方案与决策
 
+- v14：删除描述字段的 URL 拼接，替代此前在描述和独立字段重复保存话题链接的行为；只调整新建 payload，沿用已有链接生成、独立字段写入、查重和后续分析流程。本轮不处理历史描述，不部署或重启 Worker。
+- v13：用户明确要求修复这些历史 message link，替代 v12“只盘点、不回写”的执行范围。仅处理已盘点且仍使用旧前缀的 18 条记录；先完整预检生成旧/新链接计划，后逐条重读、防止覆盖并发链接变更，只更新源链接字段，经 read-back 成功再走现有单条同步/清洗。对不确定写入先读取实际链接，不盲目重发；不修改描述正文、分类或 AI 分析。不会重载 Worker。
+- v12：用户追问历史飞书域名链接是否已处理、数量与 Issue 类型。本次只做现状盘点，按工单 record 去重并对照实时 Base；v11 的单条映射入库不算历史 Base 链接修复，不扩大为批量回写。
+- v11：用户要求通过 omt 查得数字 threadid 并入库。只读核对本地 2081 个缓存样本，全部满足 `numeric = BigInt(omt 后十六进制) XOR 0x736588c9260f175c`，无歧义；这是本项目经验关系，不是官方契约。目标转换为 `7704994279696895756`，单条 API 读回 canonical/群/根消息三者一致，用户确认数字链接正确打开。采用“生成候选→API 独立验证→持久化”的实现；失配/空结果/读取失败明确停止，不把推导当作验证。新增来源 clientChatId 与 intake 可空 client_thread_id，不新建表；允许仅补当前映射，不批量改写历史 Base 链接或重启。
+- v10：用户确认原数字格式能正确打开，并明确最终必须保留数字 `thread/open`。先继续官方 ID 来源、客户端 API 与本地缓存调研；采用已验证 `chat/open` 的建议 superseded，不据此修改运行时。不能把其他话题的数字 ID 套用于当前话题。
+- v9：用户报告自动创建链接使用飞书域名及 Open ID 参数而无法打开，要求可正常进入原话题的 Lark 链接。用户确认两个示例不是同一话题，随后要求先查官方文档获取链接的方式，并接受研究 token 消息链接（v8 仅限数字格式的假设 superseded）。重新打开链接生成验收；旧 v3“规范链接”结论不再作为客户端可打开的证据。运行时修改暂缓，不执行历史批量修复或重启；数字格式和固定位置仅为原始样例，不作为已验证 API 契约。
 - v7：用户要求修复历史查重阻塞。复用现有 `lark_ticket_thread_syncs.thread_id` 与 `messages_json.messages[].threadId`，按 Base/Table 读取已验证映射并先完成本地匹配；只有缺失映射调用单条话题读取，新读映射继续沿用现有进程缓存。不新增表、字段、配置或后台历史补录任务。当前 Base 的链接列仍是是否已有工单的权威，不能仅靠本地缓存未命中决定新建。本轮允许对用户指定单条登记做既有入口续跑；不批量建单、不重启常驻进程。
 - 配置沿用 platform-sync 文件和 scheduler 总开关，新增任务默认关闭，源群显式关联已配置 Base/Table；不推断其他群。
 - 新增 PostgreSQL 扫描游标与分阶段登记记录，复用既有 coordinator 的 scope lease；创建/回帖结果不确定时保留人工核实状态，不盲目重发。
@@ -58,6 +77,27 @@ related:
 
 | 日期 | 需求版本 | 状态 | 结果与证据 | 未验证边界 / 下一步 |
 | --- | --- | --- | --- | --- |
+| 2026-11-23 | v15（提交状态核查） | done | 实时 GitHub API 确认 main 为 `24dfaa1`（PR #191，11-21 22:39:31），server/package.json 为 0.12.1。正式目录 main 为 `29ece33`，工作区版本号 0.12.2 尚未提交，14 个已跟踪修改、2 个未跟踪文件。本地 origin/main 缓存仍为 `0a7c5db`。共同祖先为 0a7c5db，本地独有 2794306/29ece33 两个提交，GitHub 独有 #189/#190/#191 三个提交；只读 merge-tree 未发现文本冲突。Shadow/KCS 部分工作区文件已与 GitHub 相同，reader/evidence/CLI 仍有差异；当前 KCS 独立运行包为 24dfaa1-4bc5e24。 | 尚未执行源码整合、Git 提交或推送。后续需保留两侧功能，整理重复或旧版工作区修改，再验证自动建单及 KCS 后统一提交、构建部署。 |
+| 2026-11-23 | v15（覆盖来源追溯） | done | 已定位 11-21 20:48:24 的 KCS 图片能力发布。聊天「优化工单总结文档格式」执行 `/tmp/kcs-ship/install_octo_modules.py production`，从发布包 `0db9aa5-b876fee` 复制 9 个编译模块到生产 dist，并重载 server/worker。保留的覆盖前备份有 `resolveClientThreadId`，发布文件没有；发布清单 SHA-256 与该文件一致。构建所用提交 0db9aa5 不包含生产源码的 29ece33，按文件安装覆盖了完整 Lark client，而保留的 intake 仍调用已丢失的方法。 | 只读追溯完成；构建、复制、重载及备份内容相互印证。细节见下方覆盖来源记录。 |
+| 2026-11-23 | v15 | done | 新 Worker 自动续跑原登记，11:16:25 到达 done，创建工单 **2560** / `reczz28cy1gw5fmW`，actionRunId 沿用 `9848f89a-47ec-4968-80f0-e48f33cf543e`。11:16:29 实际平台读回全部通过：shadow=ok，Base/Octo/登记标题及编号一致，数字链接正确，原话题恰好 1 条当前 App 的确认，根消息恰好 1 个该 App 的 JIAYI。11:16:46 队列为 89 done、0 待处理，Worker 持续 online。 | 已完成指定话题生产链路恢复；本轮使用当前工作区重建。 |
+| 2026-11-23 | v15 | in_progress | 4 个相关测试文件共 94 用例通过，`pnpm --dir server build` 成功，实际 dist 的解析方法为 function。11:14:21 重启生产 Worker，PID 2844910 → 2357124，PM2 online，新进程已开始处理原 actionRunId。 | 等待原登记完成及平台读回。 |
+| 2026-11-23 | v15 | in_progress | 用户授权重新构建、重启 Worker 和指定话题续跑，重新打开运行产物与真实链路验收。 | 先验证构建及编译版方法，再重启并沿原登记补跑，最后读回平台和数据库。 |
+| 2026-11-23 | v14（自动建单故障定位） | done | 只读核对生产数据库、日志和 PM2。扫描正常推进，88 条 done、1 条 pending；新话题 10:32:43 入队，10:34、10:44、10:54、11:05 四次失败，record_id 与 client_thread_id 均为空，actionRunId `9848f89a-47ec-4968-80f0-e48f33cf543e`。当前 `dist/adapters/lark/lark-client.js` 缺少 `resolveClientThreadId`，现有 intake 仍调用它，最小执行复现 TypeError。源码保有该方法；针对同一真实根消息只读验证，编译版调用失败，源码版成功解析并通过 canonical/群/根消息校验。PM2 Worker PID 2844910 online，11-21 20:48:32 启动，入口为当前 server/dist。 | 本轮完成定位，故障在创建前的话题链接 ID 解析。编译文件 mtime 为 11-21 20:30:17，具体覆盖来源未追溯。首次只读读取源消息遇 Lark HTTP 504，再次读取及源码解析成功。尚未重建、重启或补跑，后续步骤尚未验证；待重新生成一致产物、加载并单条恢复。 |
+| 2026-11-17 | v14（2534 单条续跑） | done | 北京时间 18:02:22 生产续跑完成。原 Base record `reczz28aebj6FrrH`、编号 2534、actionRunId `b852647f-d3c0-4cc6-93ea-7e5430533656` 均沿用。数据库读回 `done`、`shadow=ok`，Base 和 Octo 标题与登记标题一致。Lark 读回原话题恰好 1 条 Octo Bot 确认，标题和编号匹配，根消息恰好 1 个该 Bot 的 `JIAYI`。 | 已验证这条生产工单的续跑和实际平台结果。 |
+| 2026-11-17 | v14（2534 单条续跑） | in_progress | 用户授权补完已创建工单 2534 的 AI 分析、标题、话题确认和 +1。复用现有单条入口，沿原 record 和 actionRunId 从已保存阶段推进。 | 先核对生产状态及 Lark 源话题，完成后读回 Base 标题、Octo 分析、同一话题的 Bot 回复及根消息表情。 |
+| 2026-11-17 | v14（运行状态核查） | done | 17:58 北京时间只读核对生产日志和数据库：工单 2534 / `reczz28aebj6FrrH` 在 14:58–15:38 五次因智谱 `ZCODE_REQUEST_FAILED` / HTTP 401 停在 `created`。17:55:49 Worker 已重启，17:55:53–17:57:45 同一新 PID 的 ZCode 请求 12 次 HTTP 200，5 条其他工单 shadow 分析完成；扫描水位推进至 17:55:49。数据库共 63 条 done、1 条 created；2534 仍 attempts=5、confirmation_sent=false。 | 鉴权调用已恢复，但 2534 尚未续跑；`listPending` 只取 attempts<5，重启不会解除该条重试上限。401 不能区分旧 key 过期、撤销或配置失配；此链路使用 ZCODE_API_KEY，非 Octo HTTP 接口 key。本轮仅查询，未修改配置、重启进程或执行真实补跑；未验证重启后的新工单完整链路。 |
+| 2026-11-06 | v14 | in_progress | 用户要求去掉描述末尾的话题 URL 拼接；已核对独立链接字段及去重读取，调整新建 payload 和现有创建用例断言。 | 待聚焦 mock integration、构建及 diff 检查；不写平台或历史记录。 |
+| 2026-11-06 | v14 | done | 已删除描述 URL 拼接，现有创建用例同时断言纯正文描述和独立链接字段；44 个 mock integration 用例、Server build、diff check 通过。 | 仅本地代码验证；未执行 live E2E、部署或 Worker 重启，历史描述未清理。 |
+| 2026-11-06 | v13 | in_progress | 已获历史 18 条链接修复授权；开始按既有快照和实时记录构造精确计划，使用实际 adapter 校验每条数字 ID。 | 完整预检后才写；不扩大到其他链接或任务。 |
+| 2026-11-06 | v13 | in_progress | 18 条全部通过 canonical/群/根消息和数字 ID 的 API 预检，18 个数字 ID 唯一；已保存逐条旧/新链接计划及 AI/本地数据校验摘要。 | actionRunId `fbd73c16-1d5b-4d1e-be74-b2ab3ef908e1`；计划 `/tmp/octo-link-repair/plan.json`。下一步仅写该计划中的链接字段。 |
+| 2026-11-06 | v13 | done | 18 条链接全部回写、逐条 read-back 通过、18 条单条同步/清洗和 intake 数字映射更新完成，失败 0；独立批量读回 18/18 与本地一致。实时 Base 完整 5 页与本地重新扫描，旧链接字段前缀均为 0；2257 条总记录未变。 | 写入/验证 actionRunId `fbd73c16-1d5b-4d1e-be74-b2ab3ef908e1`；残留复核 `93c0e9b0-4435-4d2e-88b6-a1a5cb21494c`。分类及 AI/本地数据摘要未变；未重载 Worker。 |
+| 2026-11-06 | v12 | done | 北京时间 21:11 只读核对：当前 Ticket 表中指定前缀共 18 条，Issue 类型为问答 11、feature 5、产品信息维护 1、配置 1；实时 Base 与本地快照数量、record 集合及分类一致，全部为 Open ID 参数。 | actionRunId `34f33671-25c0-4443-bf7b-0eb847ff1751`；历史链接尚未回写，本轮无平台/数据库写入、无 Worker 操作。 |
+| 2026-11-06 | v11 | in_progress | 候选数字 ID 的 API 首条消息就是原根消息，用户确认数字链接可正确打开。已开始增加 adapter 校验、映射持久化与数字链接生成；先红回归捕获旧 Open ID URL。 | 只改本地代码；单条映射写库及构建/聚焦验证待完成。 |
+| 2026-11-06 | v11 | done | adapter 逐条验证候选，intake 保存 client_thread_id 并复用，生成 Lark 数字链接且定位 0；补 numeric 容器根消息识别。10 文件 154 个用例及构建通过。来源 clientChatId 已配置；仅为指定已完成工单补列并保存映射/源链接，事务提交后读回一致，原阶段/record 不变。 | 保存 actionRunId `322280bd-a07c-4293-b4fb-4e02789ae7c4`。未修改任何 Base 历史链接、未创建新工单、未重启或部署 Worker。 |
+| 2026-11-06 | v10 | in_progress | 用户确认 chat/open 加 API 群内位置可定位原话题，但最终选择必须数字 thread/open，要求继续查 ID 来源；重新按此约束调研。只读缓存查询仅命中当前工单的 omt 标识，没有该话题的数字别名。 | actionRunId `8917fbc9-46dd-4437-ae24-f4db89365177`；未改业务代码、平台数据或运行进程。 |
+| 2026-11-06 | v8 | in_progress | 数字源链接完整断言已复现失败：创建流程追加 Open ID 和 messageid，并强制 thread_position=1。正在核查自动入口的数字 ID 来源及域名选择。 | 尚未修改运行时逻辑，未部署或写入平台。 |
+| 2026-11-06 | v8 | in_progress | 只读核对用户失败话题对应 `reczz28WLje5woXO`，登记 done、无源数字链接。根消息身份与来源群匹配；API 没有 message_app_link 或数字 ID 字段，message_position=25340、thread_message_position=-1。按用户最新要求转为官方文档调研；临时失败断言已恢复，不留下测试失败。 | actionRunId `e88cab53-b2f2-466b-b12a-88882d892ce1`；未输出正文/凭据，未修改平台或运行时。已给出按官方 CLI 规则生成的候选链接，请用户核对客户端打开结果。 |
+| 2026-11-06 | v9 | in_progress | 用户允许研究 token 消息链接。官方文档/SDK 未找到专用 thread permalink 或 token 消息链接生成接口；按 CLI 规则组装的 Lark 域名、双式 Open ID 参数及 API 实际位置 -1 的候选链接经用户验证仍无法打开/跳转错误，不能作为修复。 | 正在验证 chat/open 加 API message_position=25340 的替代定位；不修改代码或历史工单。 |
 | 2026-11-04 | v7 | in_progress | 已确认缓存可提供现有映射，用户要求处理；先以回归测试重现已有缓存仍读历史话题，再修改 store 查询、service 查重与 factory 注入 | 先完成本地验证，再只核对/处理指定 pending 行；没有部署或重启授权扩展 |
 | 2026-11-04 | v7 | in_progress | 缓存查询、先本地后远端的两轮比较及 factory 注入已实现；新增 3 个用例先红后绿，相关 7 文件 / 74 用例通过，Server build 通过。真实只读查询缓存耗时 75ms；指定单条续跑被 `SYNC_ALREADY_RUNNING` 拒绝 | 未重启常驻 Worker；指定登记仍 pending，不能抢占有效租约，也不能宣称已部署或已建单 |
 | 2026-11-04 | v7 | in_progress | 用户确认按上述流程优化；补充多工单共用同批映射、已完成登记跳过所有查重读取，以及无有效 ID 后缀不得继续建单的回归。非法 `omt_` 用例先红后绿，相关 7 文件 / 76 用例及构建通过；16:08 只读确认原锁已释放后按原登记发起单条续跑 | 等待该条执行结果及安全读回；仍不重启 Worker、不改变运行配置或批量扫描 |
@@ -78,6 +118,85 @@ related:
 | 2026-11-04 | v5 | done | 使用已构建 Bot 运行时调用 scanRange，起止为 `2026-11-03T19:15:00+08:00` / `2026-11-03T19:18:00+08:00`、apply=false、maxTickets=50，actionRunId `a6f200de-72cc-400d-94fa-2baf0e13a1fa`。matched=1，候选为原根消息 `om_x100b61a862f804a4ff7e147e0d79953` / thread `omt_198c4a0a7e8f585b`，创建时间 19:17:23.385（北京时间）；results=[]。 | 来源登记行及自动扫描状态执行前后完全一致；临时脚本另行阻止 Base 创建/更新、回帖、表情调用。仅 coordinator 运行审计/租约沿既有机制更新。未验证已部署 HTTP、未启用 Worker、未真实批量创建。 |
 | 2026-11-04 | v6 | in_progress | 用户要求修复 review 问题；重新打开失败恢复、追踪 ID 和本地检查验收。已复核错误类型、状态 CAS 与各入口。 | 补明确拒绝/未知写入/五次失败/追踪关联回归，再更新 PR；不进行真实平台写入。 |
 | 2026-11-04 | v6 | done | adapter 保守识别明确拒绝，创建/回帖恢复 pending/titled；CAS 原子保存错误、阶段和累计失败次数，派发保留次数与原幂等标识。HTTP 默认生成并规范化 actionRunId；源扫描 ID 贯穿 coordinator/adapter/失败日志，工单通过 parentActionRunId 关联扫描。新增 23 个回归场景，14 文件 **224 用例通过**，Server build 与 diff check 通过。 | 覆盖 403/平台限流恢复、五次上限及人工重试、超时/408/5xx/未知不重发、状态 CAS 和追踪关联。只作本地验证，既有 outcome_unknown 不自动恢复；未真实批量、部署或迁移。 |
+
+### v15 生产恢复验证（2026-11-23）
+
+| 类型 | 命令 / 结果 | 边界 |
+| --- | --- | --- |
+| 单测 / Mock integration | `pnpm --dir server test src/adapters/lark/lark-client.test.ts src/application/services/lark-thread-ticket-intake.service.test.ts src/application/services/lark-thread-ticket-intake.factory.test.ts src/adapters/postgres/lark-thread-ticket-intake-store.test.ts`，4 文件 / 94 用例通过 | 现有 adapter、service、factory、store 回归；平台调用为 mock，store 使用 pg-mem |
+| 静态检查 / 构建 | `pnpm --dir server build` 成功，实际 dist 的 `LarkClient.prototype.resolveClientThreadId` 为 function | 按当前工作区构建，包含既有源码改动 |
+| 已部署运行时 | `pm2 restart octo-platform-sync-worker-production`；11:14:22 新 PID 2357124 记录 scheduler_started，11:16:25 原 actionRunId 的 server.thread_ticket.done | 新 Worker 自动续跑原登记；生产 Server PID 2844623、启动时间与重启次数读回一致 |
+| 真实平台读回 | Base `reczz28cy1gw5fmW` / 编号 2560；Bot 确认 `om_x100b7f0f4eb6d8a0ff9bfe054edb7a5`；shadow=ok、标题一致、回复群/话题/内容匹配、自有 JIAYI 存在，全部断言通过 | 仅验证指定话题及恢复后的当前队列，不扩展为所有同步任务的完整验收 |
+
+### v15 编译产物覆盖来源（2026-11-23 追溯）
+
+用户要求追查哪次构建或部署覆盖了 Lark client。操作来自聊天「优化工单总结文档格式」（`01a1f71e-5061-75a2-9f07-9e428b472492`），当时在发布 KCS 图片读取与诊断能力，对应 Octo PR #190、提交 `0db9aa516923bbe57f454794dc63bc8c0c3b60fd`。
+
+| 北京时间 | 已核对事实 | 证据位置 |
+| --- | --- | --- |
+| 11-21 20:30:11–20:30:17 | 子任务 `/root/ship_fix_octo_model` 在 `/tmp/kcs-image-opt/octo` 执行 `pnpm --dir server build`，发布包中 Lark client 的 mtime 为 20:30:17.668297 | 子任务 session `01a1fe14-8221-7a62-8799-d847e05a1bc4` 的调用 `call_c46b70b3ed2c43569eca5484fc6cd8bf`；`/tmp/kcs-ship/octo-model-build.log` |
+| 11-21 20:39–20:42 | `stage_runtime.py` 从上述临时工作目录复制完整 dist 到发布包；`install_octo_modules.py` 指定安装 9 个模块，列表包含完整 `adapters/lark/lark-client` | `/tmp/kcs-ship/stage_runtime.py:12`；`/tmp/kcs-ship/install_octo_modules.py:8` |
+| 11-21 20:48:24 | 执行 `python3 -B /tmp/kcs-ship/install_octo_modules.py production`，随后 `pm2 reload octo-server-production --silent` 和 `pm2 reload octo-platform-sync-worker-production --silent` | 主聊天调用 `call_52b83656c51a47e28df8d4618189c04d`；回执 installed_modules=9 |
+| 11-21 20:48:29–20:48:32 | PM2 确认生产 server、worker 依次重载；生产健康检查随后通过 | `/home/deploy/.pm2/pm2.log:14534`、`:14571`；主聊天读取执行 session 76148 的成功回执 |
+
+发布目录为 `/home/deploy/.config/odoo-kcs/runtime/releases/0db9aa5-b876fee`。两份保留文件及发布清单给出了内容证据：
+
+- 覆盖前的 `before/octo-production/adapters/lark/lark-client.js` 包含 `resolveClientThreadId`，SHA-256 为 `4dcd95bff14c2ae672c320c322fa42236a7a5f294c038d2b7ca99fc235d59167`。
+- 发布的 `octo-server/dist/adapters/lark/lark-client.js` 缺少该方法，SHA-256 为 `afbed6c12e450107150fc685dce8b1bd15e7e9be233fba760e27cfa17f3cb486`，与 `before/octo-production/manifest.json` 记录的安装摘要相同。类方法对比确认本次替换新增 `downloadMessageImage`，同时丢失 `resolveClientThreadId`。
+- `git merge-base --is-ancestor 29ece33 0db9aa5` 返回 1，且 `git show 0db9aa5:server/src/adapters/lark/lark-client.ts` 不包含解析方法。生产源码 HEAD 为 29ece33。发布使用了另一条提交基线，只替换编译模块，生产源码及 intake 调用方仍保留原版本。
+- 安装脚本通过 `shutil.copy2(src, temp)` 保留构建文件时间，再 `temp.replace(dest)` 覆盖目标。因此此前看到的 20:30 是文件的构建时间，实际生产覆盖发生在 20:48 的安装操作。
+
+当时的发布校验核对了复制文件摘要、PM2 online 和健康接口，没有覆盖自动建单调用链。上述来源追溯不包含新的运行时修改。
+
+### v14 描述去重验证
+
+| 类型 | 命令 / 结果 | 边界 |
+| --- | --- | --- |
+| 静态检查 | `pnpm --dir server build`、`git diff --check` 通过 | 本地编译及 diff 检查 |
+| Mock integration | `pnpm --dir server test src/application/services/lark-thread-ticket-intake.service.test.ts`：1 文件 / 44 用例通过 | Lark 为 mock、数据库为 pg-mem；创建断言覆盖描述只含原文、独立链接 URL 保留 |
+| Live E2E / 已部署运行时 | 未执行 | 本次仅调整本地 payload，无平台或历史数据写入；尚未重载 Worker |
+
+### v13 历史链接修复与验证
+
+- 修复范围为 v12 的 18 条（工单编号 2464–2481），未扩大到其他记录。每条读取原 Base 链接并核对本地快照，检查源 canonical thread、配置群和根消息，再用编译后的 `resolveClientThreadId` 单条验证候选数字 ID；全部通过后才开始写。
+- 只向 Base 发送一个字段的更新：`Lark Message Link`。新 URL 统一为 `https://applink.larksuite.com/client/thread/open?threadid=<已验证数字ID>&chatid=7538726794547986470&thread_position=0`，保留原 hyperlink 展示文字。每次派发前重新读取当前链接，只有仍为计划旧值或已是目标值才处理；不确定响应先 read-back，不自动重发。
+- 逐条确认源链接后，复用 `PlatformSyncService.syncLarkBaseTicket(cleanAfterSync=true)` 同步/清洗到本地，再只更新对应 intake 的 `client_thread_id/message_link`，以 source/thread/root/record 限定映射更新。18 条全部完成；状态和其他工作流字段未修改。没有创建/删除工单、发送消息、添加表情、触发 AI 分析或重载 Worker。
+- 每条回写前后的标题、Issue 类型、状态、工单编号摘要相同；操作前后 `ticket_ai/shadow_ai/local_json` 校验摘要一致。分类仍为问答 11、feature 5、产品信息维护 1、配置 1。描述正文没有回写，本次“旧前缀为 0”仅指 `Lark Message Link` 字段，不包含正文中可能保留的旧 URL。
+- 北京时间 2026-11-06 21:19 独立批量读取全部 18 条，数字链接及分类与本地一致；再次完整扫描实时 Base 的 5 页/2257 条记录，旧字段前缀剩余 0，本地也剩余 0。
+
+| 验证类型 | 结果与证据 | 边界 |
+| --- | --- | --- |
+| 构建 / 静态检查 | `pnpm --dir server build`、临时脚本 `node --check`、`git diff --check` 通过 | 本轮只执行数据修复和记录更新，未新增应用代码，未重复运行既有 154 个用例 |
+| Live 预检 / 写入 / 逐条读回 | actionRunId `fbd73c16-1d5b-4d1e-be74-b2ab3ef908e1`；18 验证、18 更新、18 同步、18 映射保存、失败 0 | API 核对群、canonical 和根消息；只写计划内一个 Base 字段 |
+| 独立批量读回 | `/tmp/octo-link-repair/verification.json`，remoteVerified=18、localVerified=18 | 逐条链接/分类符合目标；未逐条点击客户端，模板来自前一轮已确认打开的数字链接 |
+| 全表旧前缀复核 | actionRunId `93c0e9b0-4435-4d2e-88b6-a1a5cb21494c`；`/tmp/octo-link-repair/after-inventory.json` | 实时 Base 5 页/2257 条，本地与实时旧链接字段命中数均为 0 |
+| 恢复 / 审计材料 | `/tmp/octo-link-repair/plan.json` 保存逐条旧/新 URL 与标识；`outcome.json` 保存逐条结果，`repair.mjs`、`verify.mjs`、`check-prefix.mjs` 保留执行逻辑 | 无正文/凭据；若需回滚，只恢复对应记录的该链接字段并重新同步，不恢复已变化的其他字段 |
+
+### v12 历史飞书域名链接盘点
+
+- 统计范围：配置的 Ticket Base/Table，链接字段 `Lark Message Link` 严格以 `https://applink.feishu.cn/client/thread/open?` 开头；分类取源字段 `Issue 类型`。粒度为 Base/Table/record，一条 Ticket 计一次，不根据消息或链接中的参数重复计数。
+- 只读读取 `lark_base_ticket_syncs` 的标识、链接、分类、stale 与同步时间；18 条均非 stale。实时 Base 仅请求链接与类型两列，完整读取 5 页、2257 条记录，无重复 record，命中 18 条。两端 record 集合相同、分组总和均为 18，无未分类项；全部 18 条都使用 Open ID 参数。
+- 类型明细：问答 11；feature 5；产品信息维护 1；配置 1。
+- 查询时间：北京时间 2026-11-06 21:11:41–21:11:54，actionRunId `34f33671-25c0-4443-bf7b-0eb847ff1751`。工作脚本及仅含汇总的结果保存在 `/tmp/octo-link-inventory/query.mjs`、`/tmp/octo-link-inventory/result.json`。本地查询使用显式只读事务；未调用任何平台写接口。
+- 本地筛选等价于 `SELECT issue_type, count(*) FROM lark_base_ticket_syncs WHERE lark_message_link LIKE 'https://applink.feishu.cn/client/thread/open?%' GROUP BY issue_type`；实时数据由既有链接清洗函数读取 hyperlink 的真实 URL 后匹配前缀。未输出消息正文、凭据或用户资料。
+- 结论边界：v11 只修本地新建逻辑并为指定一条 intake 保存数字映射，未更新 Base 的历史 `Lark Message Link`。这 18 条仍待单独授权执行回写；本次盘点不修改链接或元数据。仅文档记录更新，`git diff --check` 验证，无应用行为变更，不重跑测试套件。
+
+### v11 实现与验证
+
+- `resolveClientThreadId` 中的 XOR 只生成候选；其来源为 2081 个本地唯一映射的统计，未找到官方算法承诺。每个新候选必须由话题单条读取验证 canonical `thread_id`、`chat_id` 以及 `root_id` 或根消息自身的 `message_id`；空列表、其他群/话题/根消息、非法标识均拒绝。此能力不依赖用户令牌或任何客户端凭据。
+- `lark_thread_ticket_intakes.client_thread_id` 为可空文本列；新增行和旧行均兼容，schema 初始化幂等补列。保存映射时保留原阶段、失败次数和 actionRunId，拒绝创建后重建 service 仍复用该值。来源 `clientChatId` 由 Zod 校验为正整数文本，与 `oc_…` 分开，不发生 JavaScript Number 精度丢失。
+- 默认配置中只补当前来源的 `clientChatId=7538726794547986470`；未改变开关或调度周期。此 local JSON 被 Git 忽略，部署其他配置需同步同一字段。
+- 持久化脚本首次漏传 `readPlatformSyncConfig` 的必需路径参数，在读配置阶段失败、尚无数据库写入；补全参数后成功。此为一次性脚本错误，不加入通用错误库。
+
+| 类型 | 命令 / 证据 | 结果与边界 |
+| --- | --- | --- |
+| 故障回归 | adapter 候选验证及 intake 完整数字链接断言 | 旧实现 8 个聚焦用例失败，修复后通过；另覆盖无映射时不建单、重建 service 复用、numeric 容器没有回复时读取根消息 |
+| 单测 / Mock integration | `pnpm --dir server test src/adapters/lark/lark-client.test.ts src/adapters/postgres/lark-thread-ticket-intake-store.test.ts src/adapters/postgres/lark-ticket-thread-sync-store.test.ts src/application/services/lark-thread-ticket-intake.service.test.ts src/application/services/lark-thread-ticket-intake.factory.test.ts src/application/services/lark-ticket-thread-context.service.test.ts src/application/services/lark-ticket-done-reaction.service.test.ts src/application/services/platform-sync-worker.test.ts src/modules/platform-sync/lark-thread-ticket-intake.controller.test.ts src/scripts/create-lark-thread-ticket.test.ts --reporter=dot` | 10 文件 / 154 用例通过；平台为 mock、数据库为 pg-mem，不等于真实新建完整流程 |
+| 静态检查 | `pnpm --dir server build`、`git diff --check` | 通过；未修改 FE/extension，无新增依赖 |
+| Live 只读 API | actionRunId `c9a72244-709a-4fb2-824b-d601e8057d3e`；保存前另用实际编译 adapter 再验证 | 数字 `7704994279696895756` 返回目标 canonical ID、配置群，首条 message_id 就是登记的根消息；没有向平台写入 |
+| 客户端打开 | 用户在本聊天确认数字链接可正确打开原话题 | 已验证该条数字 thread/open，thread_position=0；不推广成所有客户端/所有租户保证 |
+| 指定映射写库 | actionRunId `322280bd-a07c-4293-b4fb-4e02789ae7c4` | 仅 `ALTER … ADD COLUMN IF NOT EXISTS client_thread_id text`，然后按 source/thread/root/actionRunId/record/stage 全部匹配更新 `reczz28WLje5woXO` 的映射及 message_link；提交后另行读回一致，仍 done、同一 record。没有执行整库迁移或 reset |
+| 未执行 | 新建工单 live E2E、部署/Worker 重载、历史 Base 链接回写 | 尚未验证常驻 Worker 使用新逻辑；更新构建和配置后须重载生效。原失败 Base 记录的 Lark Message Link 仍需另行定向修复 |
 
 ### 2026-11-04 运行时 pending 只读排查
 
@@ -201,3 +320,31 @@ v3 用户身份单条真实 read-back（历史，记录已由用户清理）：
 
 - [同步运行说明](../../tenways-octo/it-platform-sync.md)
 - [PR #183](https://github.com/TenwaysCom/octo/pull/183)
+
+
+### 2026-11-06 官方话题跳转链接 API 调研
+
+本节仅调查公开官方文档、官方 Node SDK 与 CLI 源码，不修改业务代码，不调用真实平台 API，不生成或保存消息链接 token。两个用户样例属于不同话题，不能互相借用数字 ID。主排查本轮已读到目标根消息 `thread_id=omt_19882bb05bcf1850`、`message_position=25340`、`thread_message_position=-1`，没有 `message_app_link` 或客户端数字 ID；这里只引用这一安全字段摘要，不重新读取。
+
+**结论：未找到“输入现有话题 Open ID，API 保证返回可打开的规范链接/数字 ID/token 消息链接”的公开接口。官方 CLI 确实提供无数字 ID 的组装方式，但用户已确认本话题按其 Lark 域名、四个 Open ID 参数及真实位置 `-1` 组装后仍无法正确打开；该路径不能作为已验证修复。**
+
+| 核查项 | 官方证据与适用边界 |
+| --- | --- |
+| 从现有消息读取链接 | `GET /open-apis/im/v1/messages/:message_id` 是消息读取 API。公开文档查询参数只有 `user_id_type`、`card_msg_content_type`；Node SDK 另外声明 `with_sender_name`，响应含可选 `message_app_link?: string`、`message_position?: string`、`thread_message_position?: string`。本次没有发现 `with_link`、`with_app_link` 等打开链接返回的参数，也没有文档承诺该可选字段必返。公开响应文档当前甚至没有列出该链接字段，不能把 SDK 类型当成返回保证。[官方消息读取文档](https://open.feishu.cn/document/server-docs/im-v1/message/get)、[官方 SDK 固定版本](https://github.com/larksuite/node-sdk/blob/b188be60134d409b61259546bcf69c731d2b0b7c/code-gen/projects/im.ts#L1005-L1070) |
+| CLI 输出是否就是 API 原值 | CLI 优先保留 API 非空 `message_app_link`；缺失时自行补同名字段。组装优先使用 `thread_id + chat_id + thread_message_position`；缺少话题定位信息时才尝试 `chat_id + message_position`。因此看到 CLI 的 `message_app_link`，不能据此声称 API 返回了 URL。[官方 CLI 固定版本](https://github.com/larksuite/cli/blob/05ac58ffa089fe7a171205ac1d1e97ee50196ec8/shortcuts/im/convert_lib/content_convert.go#L246-L318) |
+| 无数字 ID 的话题链接格式 | 官方 CLI 用 `/client/thread/open`，同时写入 `openthreadid`、`open_thread_id`、`openchatid`、`open_chat_id`，注释说明兼容 PC/移动端；`thread_position` 来自真实消息的 `thread_message_position`，没有固定成 `1` 或把 Open ID 填入数字 `threadid/chatid`。源码测试也明确保留 `-1`。这证明官方客户端工具采用该组合；**本轮用户客户端验证该组合仍无法正确打开目标话题**。[组装实现](https://github.com/larksuite/cli/blob/05ac58ffa089fe7a171205ac1d1e97ee50196ec8/shortcuts/im/convert_lib/content_convert.go#L288-L318)、[负数位置测试](https://github.com/larksuite/cli/blob/05ac58ffa089fe7a171205ac1d1e97ee50196ec8/shortcuts/im/convert_lib/content_media_misc_test.go#L377-L390) |
+| Lark/飞书域名 | 官方 CLI 按品牌区分：Lark 为 `applink.larksuite.com`，飞书为 `applink.feishu.cn`。本项目当前来源是 Lark，不能由中文文档域名推导客户端域名。品牌修正与数字 ID 转换是两个问题。[官方品牌 endpoint 定义](https://github.com/larksuite/cli/blob/05ac58ffa089fe7a171205ac1d1e97ee50196ec8/internal/core/types.go#L129-L146) |
+| 能否搜索获得数字 ID | `POST /open-apis/im/v1/messages/search` 返回 `meta_data.chat_id/thread_id/position/thread_position`；官方示例明确是 `oc_...` 和 `omt_...`，未提供数字 `chatid/threadid` 或转换关系。该文档鉴权列为 `user_access_token`、权限 `search:message`；CLI 却声明 user/bot 均支持，两者存在能力描述差异。本轮不做实测、不把搜索当成数字映射接口，也不将 Application Bot 流程改为个人身份。[官方搜索文档](https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/im-v1/message/search)、[CLI 身份声明](https://github.com/larksuite/cli/blob/05ac58ffa089fe7a171205ac1d1e97ee50196ec8/shortcuts/im/im_messages_search.go#L29-L35) |
+| `client/message/link/open?token=...` 能否替代 | Lark 帮助说明客户端可复制普通聊天中的单条/多条消息链接，也可复制普通聊天 thread 内的消息或整串回复；同时明确 “This feature is not supported in topic groups.” 因此普通聊天的 thread 与话题模式群不能混为一谈。该帮助没有提供 token 签发 API。本次所查公开 IM API、SDK、CLI 没有找到为已有消息生成该 token 的接口，不能假设 token 可由 `om_/omt_/oc_` 计算出来。[Lark 官方帮助](https://www.larksuite.com/hc/en-US/articles/424807561494-copy-and-paste-a-message-link)、[官方消息 API 目录](https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/im-v1) |
+
+官方 CLI 的组装模板如下（参数值必须分别 URL 编码）；该模板在当前目标话题的用户客户端验证失败，保留作证据：
+
+```text
+https://applink.larksuite.com/client/thread/open?openthreadid=<omt_...>&open_thread_id=<omt_...>&openchatid=<oc_...>&open_chat_id=<oc_...>&thread_position=<API返回的thread_message_position>
+```
+
+当前目标根消息的位置为 `-1`，用户已验证保留该原值、采用 Lark 域名及全部四个 Open ID 参数后仍打不开或跳错位置。没有依据凭其他话题样例强制成 `0/1` 或替换数字 ID。主排查另外提供 `https://applink.larksuite.com/client/chat/open?openChatId=<oc_...>&position=<message_position>` 会话位置候选，目标位置取真实 API 返回的 `25340`；用户确认能够定位原话题，但随后明确最终必须使用数字 `thread/open`，因此不以该替代方案关闭任务。继续核查数字 ID 来源。
+
+检索边界：核查官方消息读取/历史列表/搜索文档、话题说明、官方 Node SDK `b188be6` 及 CLI `05ac58f` 的链接组装和 IM 资源目录；未找到独立 `thread.get`、链接生成 API、数字 ID 转换 API 或复制消息 token 签发 API。转发/合并转发/话题转发即使返回 `message_app_link`，也是创建新消息的写操作，不是读取原话题链接，本轮不采用。官方仓库的 [#2706](https://github.com/larksuite/cli/issues/2706) 和 [#1031](https://github.com/larksuite/cli/issues/1031) 是用户请求，不能作为平台能力或不可用性的官方承诺。
+
+验证：已检查引用的官方原文、固定 commit 源码路径/行号及文档 diff。未运行应用测试；本子调研未执行 live API 或客户端操作；上述客户端失败由本轮用户反馈提供。没有业务代码变更、部署、重启或历史链接修复。`chat/open` 候选的验收由主排查继续记录，以上调研不替代客户端验收。
