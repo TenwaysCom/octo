@@ -9,7 +9,7 @@ Octo 把 IT 支持、研发执行和交付信息放进同一工作台。Lark Bas
 | Web 工作台与 Lark 内嵌 Ticket AI | 查看工单、工作项、Sprint 和 PR。按权限编辑工单、执行同步或打开分析。 | [工作台路由](../../fe/src/app/routes/workspace-routes.js) · [FE 接入说明](../../fe/README.md) |
 | 浏览器插件 | 识别当前平台页面，采集单条或批量上下文，触发授权和页面动作。 | [插件使用文档](20-extension-user-guide.md) · [页面动作规则](../ai-dev/rules/system-boundaries-and-code-rules.md#3-action-config-and-executor-contract) |
 | Octo Server | 解析身份和权限，编排业务操作，保存本地数据，通过 adapter 调用外部平台。 | [API 注册](../../server/src/index.ts) · [Server 规则](../ai-dev/rules/server-code-rules.md) |
-| 平台同步 Worker | 按配置运行同步及独立后台任务，包括 Lark 话题登记、完成表情等。 | [Worker](../../server/src/application/services/platform-sync-worker.ts) · [同步与调度](it-platform-sync.md) |
+| 平台同步 Worker | 按配置运行同步及独立后台任务，包括 Lark 话题登记、完成表情等。 | [Worker 入口](../../server/src/scripts/platform-sync-worker.ts) · [同步与调度](it-platform-sync.md) |
 
 ## 数据归属与身份
 

@@ -40,13 +40,14 @@ related:
 | 2026-11-23 | v1 | in_progress | 未找到同项任务记录和现成术语表。建立台账并开始核对领域入口。 | 静态交叉核对与文档验证。 |
 | 2026-11-23 | v1 | done | 重写[领域索引](../../tenways-octo/README.md)，新增[术语表](../../tenways-octo/GLOSSARY.md)，同步项目与 AI Dev 入口。将既有 KCS CLI 和逐票编辑提案分别链接到对应资料。 | 本次验证覆盖仓库文档与源码。 |
 | 2026-11-23 | v1 | done | 在 [AGENTS.md Reading Guide](../../../AGENTS.md#reading-guide)加入领域索引和术语表，供 agent 接手业务模块时查阅。 | 核对两个链接及文档差异。 |
+| 2026-11-23 | v1 | done | 提交前复核全部 7 个变更文件，对照身份约束、建单、Sprint 归属、PR 关联、AI 和 KCS 实现。修正 Worker 引用，指向同时启动各后台任务的脚本入口。120 个本地链接、13 个标题锚点检查通过。 | 仅文档变化，不构建或重启业务服务。 |
 
 ## 验证
 
 | 类型 | 结果 | 证据 | 边界 |
 | --- | --- | --- | --- |
 | 源码核对 | 通过 | 对照当前分支的[数据库身份约束](../../../server/src/adapters/postgres/database.ts)、[Web 路由](../../../fe/src/app/routes/workspace-routes.js)、[建单](../../../server/src/modules/lark-base/lark-base-workflow.service.ts)、[线程上下文](../../../server/src/application/services/lark-ticket-thread-context.service.ts)和 [KCS CLI](../../../server/src/scripts/ticket-kcs.ts)。 | 引用反映 checkout 的实现。 |
-| 文档检查 | 通过 | 检查所有变更 Markdown 的本地路径和标题锚点，检查 `git diff --check`。 | 检查范围为仓库内链接和文档差异。 |
+| 文档检查 | 通过 | 全部 7 个文件的 120 个本地链接、13 个标题锚点可达；`git diff --check` 通过。复核脚本位于 `/tmp/octo-doc-review-20261123/check_links.py`。 | 检查范围为仓库内链接和文档差异。 |
 | 单测、模拟集成、Live E2E、部署验证 | 未执行 | 文档任务。 | 运行时验证记录见各业务任务。 |
 
 ## 关联
