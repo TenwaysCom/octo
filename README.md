@@ -1,19 +1,20 @@
 # Octo - Tenways IT Assistant
 
-跨平台协同助手，帮助用户在 Lark、Meegle、GitHub 之间更高效地推进建单、分析和协作。
+Tenways IT 协同助手，连接 Lark 工单、Meegle 研发工作项、GitHub PR 和 Odoo.sh 构建信息。
 
 ## 核心能力
 
-- Lark Base 记录到 Meegle workitem 的半自动建单
-- Meegle workitem 状态和 Lark 记录的回写协同
-- GitHub 分支创建与交付信息辅助
-- PM 即时分析
+- Web 工作台查看工单、研发工作项、Sprint 历史和 PR
+- 浏览器插件触发跨平台建单、回写、GitHub 分支动作和 PM 即时分析
+- IT 工单分析、Wiki 问答、ACP 会话和评测
+- 按配置同步外部平台数据，登记 Lark 群话题并处理完成表情
 
 ## 项目结构
 
 ```text
 octo/
 ├── extension/              # 浏览器扩展
+├── fe/                     # Web 工作台与 Lark Ticket AI 应用
 ├── server/                 # 服务端 API
 ├── docs/                   # 产品、架构、治理与实施文档
 ├── AGENTS.md               # AI agent 开发规则入口
@@ -103,8 +104,10 @@ pnpm --dir extension build
 ## 文档索引
 
 - [服务端文档](server/README.md)
+- [Web 工作台文档](fe/README.md)
 - [扩展文档](extension/README.md)
-- [产品与架构文档索引](docs/tenways-octo/README.md)
+- [Octo 领域与产品文档](docs/tenways-octo/README.md)
+- [Octo 领域术语表](docs/tenways-octo/GLOSSARY.md)
 - [总体架构](docs/tenways-octo/04-architecture.md)
 - [插件消息协议与 API Schema](docs/tenways-octo/11-extension-message-and-api-schema.md)
 - [代码结构与校验设计](docs/tenways-octo/13-code-structure-and-validation-design.md)

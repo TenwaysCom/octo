@@ -19,11 +19,12 @@ Octo 当前的治理目标是：让工程师和 AI 在改动前能判断逻辑�
 
 ## 1. System Model
 
-Octo 由三层组成：
+业务对象、数据归属和跨平台关系见 [Octo 领域与产品文档](../tenways-octo/README.md)。术语集中在[领域术语表](../tenways-octo/GLOSSARY.md)。
 
 | Layer | Responsibility | Should not own |
 | --- | --- | --- |
 | Extension | 页面识别、上下文采集、授权触发、popup/sidebar UI、把用户动作交给 server | 业务 workflow、Meegle/Lark 字段规则、跨平台 mapping、复杂状态机 |
+| FE | Web 工作台、Lark 内嵌应用、交互与 Server API 消费 | 平台授权凭据、跨平台 workflow、源端字段定义 |
 | Server | 业务动作目录、identity/auth、workflow 编排、平台 API 调用、数据持久化、错误归一化 | 浏览器 DOM 细节、页面注入实现、平台字段硬编码散落在业务服务 |
 | Platform adapters | Lark/Meegle/GitHub API 封装、平台错误转换、请求/响应日志 | PM 业务语义、UI 行为、跨模块 orchestration |
 
@@ -40,6 +41,7 @@ Octo 由三层组成：
 
 | Task | Required context |
 | --- | --- |
+| 接手业务模块、核对术语或对象归属 | [Octo 领域与产品文档](../tenways-octo/README.md) |
 | 开始任意开发、排障或文档治理任务 | `rules/development-workflow.md` |
 | 提需求或创建 AI/dev 任务 | `templates/ai-task-template.md` |
 | 做 PR review | `templates/pr-review-checklist.md` |

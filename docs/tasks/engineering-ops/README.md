@@ -1,5 +1,6 @@
 # Engineering Ops Tasks
 
+- [重建 Octo 领域知识](2026-11-23-rebuild-domain-knowledge.md)
 - [统一 Octo 源码与部署运行产物](2026-11-23-unify-octo-source-and-runtime.md) — done；双方源码与原工作区改动已整合，PR #192 已合并，完整 server 和 KCS CLI 验证通过，正式服务与独立 CLI 已完成同源部署。
 范围：测试与质量、CI/CD、构建发布、运行稳定性、技术债、文档规范与研发治理。具体业务逻辑修复仍归原模块；记录规则见 [Tasks 台账](../README.md)。
 

@@ -24,6 +24,7 @@ Before non-trivial changes, read the relevant documents and sections for the aff
 
 | When | Read |
 | --- | --- |
+| Taking over a business module or checking domain terms and data ownership | [Domain index](docs/tenways-octo/README.md) and [Domain glossary](docs/tenways-octo/GLOSSARY.md) |
 | Development, troubleshooting, or documentation work | [Development workflow](docs/ai-dev/rules/development-workflow.md) |
 | Technical object or lifecycle changes | [Current technical objects](docs/ai-dev/lifecycle/current-system-technical-objects.md) |
 | Cross-layer actions, auth, or API contracts | [System boundaries](docs/ai-dev/rules/system-boundaries-and-code-rules.md) |
