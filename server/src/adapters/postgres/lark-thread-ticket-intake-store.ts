@@ -30,7 +30,7 @@ export class PostgresLarkThreadTicketIntakeStore {
   async enqueue(sourceKey: string, threadId: string, rootMessageId: string, messageLink?: string): Promise<LarkThreadTicketIntake> {
     const now = new Date().toISOString();
     await this.db.insertInto("lark_thread_ticket_intakes").values({
-      source_key: sourceKey, thread_id: threadId, root_message_id: rootMessageId, message_link: messageLink ?? null,
+      source_key: sourceKey, thread_id: threadId, root_message_id: rootMessageId, message_link: messageLink ?? null, client_thread_id: null,
       action_run_id: randomUUID(), stage: "pending", record_id: null, title: null,
       reply_message_id: null, error_code: null, attempts: 0, created_at: now, updated_at: now,
     }).onConflict((c) => c.columns(["source_key", "thread_id"]).doNothing()).execute();
@@ -50,7 +50,7 @@ export class PostgresLarkThreadTicketIntakeStore {
   }
 
   async advance(run: LarkThreadTicketIntake, stage: IntakeStage, fields: Partial<Pick<LarkThreadTicketIntake,
-    "record_id" | "title" | "reply_message_id" | "error_code" | "attempts"
+    "record_id" | "title" | "reply_message_id" | "error_code" | "attempts" | "client_thread_id"
   >> = {}): Promise<LarkThreadTicketIntake> {
     const row = await this.db.updateTable("lark_thread_ticket_intakes")
       .set({ attempts: 0, ...fields, stage, error_code: fields.error_code ?? null, updated_at: new Date().toISOString() })

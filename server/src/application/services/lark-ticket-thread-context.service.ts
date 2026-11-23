@@ -185,7 +185,8 @@ function toIncrementalStartTime(watermark: string | undefined, overlapSeconds: n
 }
 
 function findRootMessageId(messages: LarkApiThreadMessage[]): string | undefined {
-  return messages.find((message) => typeof message.root_id === "string" && message.root_id.trim())?.root_id?.trim();
+  return messages.find((message) => typeof message.root_id === "string" && message.root_id.trim())?.root_id?.trim()
+    ?? messages.find((message) => message.message_id && message.thread_id && !message.root_id && !message.parent_id)?.message_id;
 }
 
 async function listAllThreadMessages(

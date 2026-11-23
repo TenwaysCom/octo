@@ -62,7 +62,7 @@ source: [Lark 单条建单实测](../docs/tasks/platform-sync/2026-11-03-lark-th
 
 **Error:** AppLink 的数字 threadid 可以用于获取话题回复，但不能用于单消息 get（HTTP 400 / code 99992354）；回复返回的 thread_id 是 omt Open ID。直接以 API ID 和 Base 旧链接数字 ID 比较会漏去重。
 
-**Fix:** 从指定话题回复取得 root_id，再读取根消息核对群与 canonical thread；保留已验证的客户端/Open ID 别名进行去重。生成 Open API 标识的 AppLink 使用 openthreadid/openchatid，读取同时兼容原数字 threadid。无法解析时不假定不存在工单。
+**Fix:** 从话题首条消息的 root_id 或根消息自身取得 om 标识，再核对群与 canonical thread；保留已验证的客户端/Open ID 别名进行去重。新建链接使用已验证的数字 threadid、来源群 clientChatId 和 Lark 域名。XOR 经验关系只生成候选，必须逐条 API 核对 canonical ID、群和根消息后才持久化；不能因 CLI 能组装 Open ID 链接就断言客户端可打开。无法解析时不假定不存在工单。
 
 source: [Lark 单条建单实测](../docs/tasks/platform-sync/2026-11-03-lark-thread-ticket-intake.md)
 
@@ -980,3 +980,9 @@ source: [Eval 状态与 My evals](../docs/tasks/ai-ticket/2026-09-01-lark-ticket
 - **Error:** `GITHUB_INCREMENTAL_SEARCH_INCOMPLETE` 后 `platform_sync_schedules.enabled=false`、`blocked_reason` 保留该错误，之后手动同步成功仍不恢复定时同步。
 - **Fix:** 分别核验搜索 `incomplete_results` 和 `total_count`；现有代码将二者合为同一错误且判为不可重试。当前搜索正常时仍需单独恢复 schedule；后续代码修复应区分临时不完整与数量超限，保留不完整结果不得推进 watermark 的保护。
 - **source:** [GitHub EU、UK 增量搜索排查](../docs/tasks/platform-sync/2026-10-29-github-incremental-search-incomplete.md)
+
+### ERR-20261123-001 — 自动建单的编译版 Lark client 缺失方法
+
+- **Error:** 自动登记停在 pending，只有 `LARK_THREAD_TICKET_FAILED`，且未生成 record_id。在实际 `server/dist` 入口导入 LarkClient 后调用 `resolveClientThreadId`，报 `TypeError: client.resolveClientThreadId is not a function`；源码中保有该方法。
+- **Fix:** 对照实际进程入口、编译模块、发布清单及覆盖前备份，识别不同源码基线构建的共享 adapter 被按文件替换的情况。发布基线须包含现有调用方依赖的方法，不能仅凭复制文件摘要和健康接口通过判断兼容。恢复时先统一源码与产物，检查方法及调用方后重载 Worker，再通过既有单条入口续跑原登记并读回平台结果。
+- **source:** [Lark 群话题自动登记 Ticket](../docs/tasks/platform-sync/2026-11-03-lark-thread-ticket-intake.md)

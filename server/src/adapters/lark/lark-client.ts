@@ -748,6 +748,21 @@ export class LarkClient {
     return normalizeMessage(data.items?.[0] ?? data);
   }
 
+  /** The XOR relation is empirical. Never use its result without API verification. */
+  async resolveClientThreadId(root: Pick<LarkThreadMessage, "message_id" | "chat_id" | "thread_id">): Promise<string> {
+    if (!root.chat_id || !/^omt_[0-9a-f]{16}$/i.test(root.thread_id ?? "")) {
+      throw new Error("LARK_THREAD_TICKET_CLIENT_ID_UNVERIFIED");
+    }
+    const candidate = (BigInt(`0x${root.thread_id!.slice(4)}`) ^ 0x736588c9260f175cn).toString();
+    const page = await this.getThreadMessages(candidate, { pageSize: 1, sortType: "ByCreateTimeAsc" });
+    const first = page.items[0];
+    if (!first || first.thread_id !== root.thread_id || first.chat_id !== root.chat_id
+      || (first.root_id || first.message_id) !== root.message_id || first.deleted) {
+      throw new Error("LARK_THREAD_TICKET_CLIENT_ID_UNVERIFIED");
+    }
+    return candidate;
+  }
+
   /** List chat messages for new-thread discovery; timestamps are Unix seconds. */
   async getChatMessages(chatId: string, options: ListLarkThreadMessagesOptions = {}): Promise<{
     items: LarkThreadMessage[];

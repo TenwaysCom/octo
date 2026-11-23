@@ -1,8 +1,11 @@
 # Engineering Ops Tasks
 
+- [统一 Octo 源码与部署运行产物](2026-11-23-unify-octo-source-and-runtime.md) — in_progress；两侧源码已整合，完整 server 回归和实际 KCS CLI 验证通过，待提交推送及统一部署。
 范围：测试与质量、CI/CD、构建发布、运行稳定性、技术债、文档规范与研发治理。具体业务逻辑修复仍归原模块；记录规则见 [Tasks 台账](../README.md)。
 
 - [Server 版本更新至 0.12.1](2026-11-06-version-0-12-1.md)
+
+- [GitHub push 使用 ben 密钥仍报 publickey 的排查](2026-11-04-github-ssh-ben-authentication.md) — 已确认 Git 使用 ben，但公钥阶段曾被间歇拒绝；原配置推送及远端提交回读成功，具体诱因未定，未修改 SSH 配置。
 
 - [Server 版本更新至 0.11.7](2026-10-21-version-0-11-7.md)
 - [插件与 Server 版本更新至 0.11.4](2026-09-24-version-0-11-4.md)

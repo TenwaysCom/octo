@@ -109,6 +109,17 @@ describe("Lark Ticket thread context ensure", () => {
     })).rejects.toThrow("unavailable");
     expect(store.saveSuccessfulSync).not.toHaveBeenCalled();
   });
+
+  it("reads the root returned by a numeric topic container without requiring replies or extra URL parameters", async () => {
+    const { store } = createStore();
+    const root = { message_id: "om_root", thread_id: "omt_19882bb05bcf1850", msg_type: "text", content: '{"text":"New question"}', sender: { sender_type: "user" } };
+    const client = { getThreadMessages: vi.fn().mockResolvedValue({ items: [root], hasMore: false }), getMessage: vi.fn().mockResolvedValue(root) };
+    const service = createLarkTicketThreadContextService({ store, buildClient: async () => ({ client }), now: () => now });
+    const result = await service.ensure({ masterUserId: "usr_1", larkBaseUrl: "https://open.larksuite.com",
+      ticket: { ...createTicket(), larkMessageLink: "https://applink.larksuite.com/client/thread/open?threadid=7704994279696895756&chatid=7538726794547986470&thread_position=0" } });
+    expect(result.snapshot?.preparedMessages).toEqual([expect.objectContaining({ messageId: "om_root", text: "New question" })]);
+    expect(result.snapshot?.historyComplete).toBe(true);
+  });
   it("extracts the thread id and skips Lark for a fresh active snapshot", async () => {
     expect(parseLarkThreadId(messageLink)).toBe("thread_1");
     expect(parseLarkThreadId("https://applink.larksuite.com/client/thread/open?threadid=123&openthreadid=omt_1")).toBe("omt_1");

@@ -1,0 +1,7 @@
+ts	phase	decision	why	evidence	result
+2026-11-23T03:55:20.397061+00:00	frame	在独立 worktree 整合，保留原工作区快照	生产目录和验证构建各自有独立写入目录	/tmp/octo-unify-20261123/manifest.json	原16个文件已备份
+2026-11-23T03:55:20.397071+00:00	merge	从24dfaa1合并29ece33，采用更新KCS实现并保留本地配置和排障文档	合并双方已实现能力，避免旧工作区副本覆盖后续修复	git diff --cached; /tmp/octo-unify-20261123/selected-working-tree.patch	自动合并成功，两项Lark方法均保留
+2026-11-23T03:58:57.346572+00:00	verification	完整 server 回归及编译 CLI 回放通过	直接运行统一源码与实际构建产物，检查两侧功能	server-tests.log; server-build.log; vision-cli.json; contract-proof.json; pipeline-proof.json	1570通过、7跳过，CLI隔离验证通过
+2026-11-23T03:58:57.346583+00:00	verification	将产物探针切到 server cwd 并为日志指定临时目录	首次探针路径和沙箱日志目录错误属于验证入口问题	/tmp/octo-unify-20261123/probe-app.log	实际两项方法与编译KCS入口均为function
+2026-11-23T03:58:57.346586+00:00	review	保留既有注释，未发现本次新增的虚假约束	只读Comment Sicko检查没有可证明问题	comment_review报告	0项问题
+2026-11-23T03:58:57.346588+00:00	delivery	使用保留双方历史的合并提交	正式目录可快进到统一历史，避免重写共享分支	29ece33; origin/main24dfaa1	待提交
