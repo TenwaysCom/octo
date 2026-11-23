@@ -12,6 +12,7 @@ related:
   - "https://github.com/TenwaysCom/octo/pull/189"
   - "https://github.com/TenwaysCom/octo/pull/190"
   - "https://github.com/TenwaysCom/octo/pull/191"
+  - "https://github.com/TenwaysCom/octo/pull/192"
 ---
 
 # 统一 Octo 源码与部署运行产物
@@ -67,7 +68,8 @@ KCS Guide 继续使用当前 4bc5e24。部署复用现有进程名和配置，�
 | 静态差异 | 通过初查 | 合并无文本冲突；最终 diff 与链接检查待执行。 |
 | 单测和模拟集成 | 通过 | 完整 server 回归 205 文件通过、2 文件跳过；1570 用例通过、7 用例按原配置跳过。 |
 | 构建与实际 CLI | 通过 | server build 通过。实际编译版两项 Lark 方法为 function。图片 CLI 的 5 类响应、Guide daily/backfill 的跳过审核协议，以及隔离审核保存/发布/重试/图片预算回放均通过。模型和业务状态使用临时替身。 |
-| 注释审查 | 通过 | 独立只读审查 0 项问题，无新增 lint/TypeScript 抑制。 |
+| 注释审查 | 通过 | comment_review 独立核对 client 的候选验证注释、intake 别名约束与新增抑制，0 项问题。 |
+| 独立执行验证 | PASS+NOTES | 对比准确基线 24dfaa1 与提交 842b790，163 项聚焦测试通过。两边实际 dist 对照显示新版本同时保留两项 client 行为，图片响应与 daily/backfill/review 回放通过。证据在 `/tmp/octo-unify-independent-842b790/`。备注为两处证据路径，已追加勘误。 |
 | 真实运行时 | 待执行 | 验证同一提交的实际产物、进程和既有工单，使用安全摘要。 |
 
 ## 决策记录
@@ -75,3 +77,5 @@ KCS Guide 继续使用当前 4bc5e24。部署复用现有进程名和配置，�
 [本次决策与验证记录](2026-11-23-unify-octo-source-and-runtime.decisions.tsv)
 
 验证命令与安全摘要保存在 `/tmp/octo-unify-20261123/`。`server-tests.log`、`server-build.log`、`vision-cli.json`、`contract-proof.json`、`pipeline-proof.json` 分别记录各层结果。环境未安装 cursor-team-kit 的 deslop/control-cli，本次以独立注释审查、仓库完整回归和实际编译 CLI 回放完成对应检查。
+
+独立验证使用本环境可用的 OpenAI 模型，未取得跨供应商复核。原决策记录中的 `probe-app.log` 不存在，实际结果应读 `/tmp/octo-unify-independent-842b790/dist-probe.jsonl`。注释审查结果已归入上表，交付提交为 842b790，PR 为 #192。后续仅更新交付文档时按 server/src、package 和 ecosystem 的树差异确认验证仍覆盖实际代码。
