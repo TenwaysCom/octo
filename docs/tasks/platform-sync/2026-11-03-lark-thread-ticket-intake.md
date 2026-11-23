@@ -77,6 +77,7 @@ v15：用户授权重新构建 server、重启生产 platform worker，并补完
 
 | 日期 | 需求版本 | 状态 | 结果与证据 | 未验证边界 / 下一步 |
 | --- | --- | --- | --- | --- |
+| 2026-11-23 | v15（源码统一交付） | done | 双方源码已通过 PR #192 整合并部署，正式和 KCS client 同时保留话题 ID 解析和图片读取；工单 2560 仍 done、shadow=ok，确认与 +1 各一个。 | 提交、工作区整理及完整验证见[统一源码与运行产物](../engineering-ops/2026-11-23-unify-octo-source-and-runtime.md)。 |
 | 2026-11-23 | v15（提交状态核查） | done | 实时 GitHub API 确认 main 为 `24dfaa1`（PR #191，11-21 22:39:31），server/package.json 为 0.12.1。正式目录 main 为 `29ece33`，工作区版本号 0.12.2 尚未提交，14 个已跟踪修改、2 个未跟踪文件。本地 origin/main 缓存仍为 `0a7c5db`。共同祖先为 0a7c5db，本地独有 2794306/29ece33 两个提交，GitHub 独有 #189/#190/#191 三个提交；只读 merge-tree 未发现文本冲突。Shadow/KCS 部分工作区文件已与 GitHub 相同，reader/evidence/CLI 仍有差异；当前 KCS 独立运行包为 24dfaa1-4bc5e24。 | 尚未执行源码整合、Git 提交或推送。后续需保留两侧功能，整理重复或旧版工作区修改，再验证自动建单及 KCS 后统一提交、构建部署。 |
 | 2026-11-23 | v15（覆盖来源追溯） | done | 已定位 11-21 20:48:24 的 KCS 图片能力发布。聊天「优化工单总结文档格式」执行 `/tmp/kcs-ship/install_octo_modules.py production`，从发布包 `0db9aa5-b876fee` 复制 9 个编译模块到生产 dist，并重载 server/worker。保留的覆盖前备份有 `resolveClientThreadId`，发布文件没有；发布清单 SHA-256 与该文件一致。构建所用提交 0db9aa5 不包含生产源码的 29ece33，按文件安装覆盖了完整 Lark client，而保留的 intake 仍调用已丢失的方法。 | 只读追溯完成；构建、复制、重载及备份内容相互印证。细节见下方覆盖来源记录。 |
 | 2026-11-23 | v15 | done | 新 Worker 自动续跑原登记，11:16:25 到达 done，创建工单 **2560** / `reczz28cy1gw5fmW`，actionRunId 沿用 `9848f89a-47ec-4968-80f0-e48f33cf543e`。11:16:29 实际平台读回全部通过：shadow=ok，Base/Octo/登记标题及编号一致，数字链接正确，原话题恰好 1 条当前 App 的确认，根消息恰好 1 个该 App 的 JIAYI。11:16:46 队列为 89 done、0 待处理，Worker 持续 online。 | 已完成指定话题生产链路恢复；本轮使用当前工作区重建。 |
