@@ -83,3 +83,10 @@ related:
 - 角色、OAuth/H5、认证 controller、HTTP 认证和入口回归 74/74 通过，服务端构建通过。另从最新 `origin/main` (`d22099b`) 用独立暂存索引组装精确候选，在隔离导出目录重复上述 74 项及构建，均通过；没有夹带 `feat/add-evals` 的其他提交。
 - 配套插件 review 修复每个 WebSocket 新订阅的实时撤权和设置隔离，并通过原生 Host 集成。完整插件回归 222 项，221 通过；唯一 KCS 环境断言已在基线复现。桌面/390px 手机、已核验查询启动、未核验身份提示及保留原页面的新窗口验证链接已浏览器复验。
 - 独立 PR 分支为 `codex/data-query-it-access`，关联插件分支为 `codex/data-query-platform`；提交、PR 及交付记录在关联插件 #23 继续回读记录。不自动合并或部署，真实角色和内网连接仍未验收。
+
+
+### 提交与 PR
+
+- Octo 配套权限：[PR #193](https://github.com/TenwaysCom/octo/pull/193)，代码提交 `768cf4f`；独立分支从最新 main 建立，仅包含本任务八个文件。
+- DSH 查询平台：[PR #25](https://github.com/TenwaysCom/octo-dsh-plugins/pull/25)，提交 `537a824`，版本 `0.2.10`。
+- 已推送并创建 PR，未合并、发布或部署。建议先部署 Octo 配套，再执行插件专用库迁移并部署 DSH；实际 IT 角色及内网三地连接仍需验收。
