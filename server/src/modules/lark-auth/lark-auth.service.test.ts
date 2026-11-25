@@ -98,10 +98,76 @@ describe("lark-auth.service", () => {
       throw new Error("Expected plugin login completion to succeed");
     }
     await expect(ensureLarkWebSession(completed.sessionToken)).resolves.toMatchObject({ ok: true });
+    await expect(ensureLarkWebSession(`verified-v1.${completed.sessionToken}`)).resolves.toMatchObject({ ok: false, errorCode: "UNAUTHENTICATED" });
     await expect(completeWebPluginLoginChallenge({
       challengeId: challenge.challengeId,
       browserProof: challenge.browserProof,
     })).resolves.toMatchObject({ ok: false, errorCode: "WEB_PLUGIN_LOGIN_INVALID" });
+  });
+
+  it("requires verified identity before granting IT data queries to a plugin session", async () => {
+    const user = await resolvedUserStore.create({
+      status: "active",
+      larkTenantKey: "tenant_data_query",
+      larkId: "ou_data_query",
+      role: "IT",
+    });
+    await tokenStore.save({
+      masterUserId: user.id,
+      tenantKey: "tenant_data_query",
+      larkUserId: "ou_data_query",
+      baseUrl: "https://open.larksuite.com",
+      userToken: "fixture_data_query_token",
+      userTokenExpiresAt: "2099-01-01T00:00:00.000Z",
+      credentialStatus: "active",
+    });
+    const challenge = await createWebPluginLoginChallenge();
+    await approveWebPluginLoginChallenge({ challengeId: challenge.challengeId, masterUserId: user.id });
+    const completed = await completeWebPluginLoginChallenge({
+      challengeId: challenge.challengeId,
+      browserProof: challenge.browserProof,
+    });
+    if (!completed.ok) throw new Error("Expected plugin login completion to succeed");
+
+    const profile = await getLarkWebProfile(completed.sessionToken);
+    expect(profile).toMatchObject({
+      ok: true,
+      profile: { workspaceAccess: { platformLists: false, platformSync: false, dataQuery: false, dataQueryRequiresVerification: true } },
+    });
+    if (!profile.ok) throw new Error("Expected authenticated web profile");
+    expect(profile.profile.user).not.toHaveProperty("role");
+    expect(profile.profile).not.toHaveProperty("role");
+
+    await resolvedUserStore.update({ ...user, role: "viewer" });
+    await expect(getLarkWebProfile(completed.sessionToken)).resolves.toMatchObject({
+      ok: true,
+      profile: { workspaceAccess: { dataQuery: false } },
+    });
+    await expect(getLarkWebProfile(undefined)).resolves.toMatchObject({
+      ok: false,
+      errorCode: "UNAUTHENTICATED",
+    });
+  });
+
+  it("grants IT queries to an OAuth-verified session, rejects changed tokens and follows role revocation", async () => {
+    const user = await resolvedUserStore.create({ status: "active", larkTenantKey: "tenant_verified_query", larkId: "ou_verified_query", role: "IT" });
+    await startLarkOauthSession({ state: "verified_query_state", baseUrl: "https://open.larksuite.com" });
+    const replies = [
+      { code: 0, app_access_token: "fixture_app_token" },
+      { code: 0, data: { access_token: "fixture_user_token", refresh_token: "fixture_refresh_token", expires_in: 7200, refresh_token_expires_in: 604800, token_type: "Bearer" } },
+      { code: 0, data: { open_id: "ou_verified_query", tenant_key: "tenant_verified_query", name: "Query user", email: "query@example.com" } },
+    ];
+    const fetchImpl: typeof fetch = async () => {
+      const reply = replies.shift();
+      if (!reply) throw new Error("Unexpected provider request");
+      return Response.json(reply);
+    };
+    const result = await handleLarkWebAuthCallback({ state: "verified_query_state", code: "fixture_verified_code" }, { fetchImpl });
+    if (result.kind !== "ready") throw new Error("Expected verified OAuth session");
+    await expect(getLarkWebProfile(result.sessionToken)).resolves.toMatchObject({ ok: true, profile: { workspaceAccess: { dataQuery: true, dataQueryRequiresVerification: false } } });
+    await expect(getLarkWebProfile(result.sessionToken.replace("verified-v1.", ""))).resolves.toMatchObject({ ok: false, errorCode: "UNAUTHENTICATED" });
+    await resolvedUserStore.update({ ...user, role: "viewer" });
+    await expect(getLarkWebProfile(result.sessionToken)).resolves.toMatchObject({ ok: true, profile: { workspaceAccess: { dataQuery: false, dataQueryRequiresVerification: false } } });
   });
 
   it("returns a sanitized Meegle authorization status for the web profile", async () => {
@@ -147,7 +213,7 @@ describe("lark-auth.service", () => {
       ok: true,
       profile: {
         user: { githubId: "octo" },
-        workspaceAccess: { platformLists: true, platformSync: true },
+        workspaceAccess: { platformLists: true, platformSync: true, dataQuery: false },
         larkAuthorization: { status: "ready" },
         meegleAuthorization: { status: "ready" },
       },

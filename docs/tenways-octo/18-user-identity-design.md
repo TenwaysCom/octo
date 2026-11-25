@@ -762,3 +762,19 @@ flowchart TD
 - `master_user_id` 是系统内唯一稳定引用
 
 在当前“一张大表、1 对 1 绑定”的约束下，这已经是足够清晰且可演进的最小方案。
+
+
+## 19. 数据查询权限
+
+`GET /api/web/profile` 继续通过 opaque HttpOnly Web session 解析当前 active 用户，从服务端 `users.role` 派生 `workspaceAccess.dataQuery` 布尔值，不接收调用方指定的用户 ID 或角色。
+
+当前角色字段为自由文本；数据查询仅认可按逗号或空白分隔、忽略大小写后的完整 `it` token。例如 `IT`、`dev, IT` 可以查询，`audit`、`non-it`、`it-support`、`devops` 和 `admin` 本身不授予查询权限。该规则不改动现有 `platformLists`、`platformSync` 的判断。
+
+`dataQuery` 是独立能力：单独 `IT` 角色的 `platformLists` 和 `platformSync` 仍为 false。DSH 查询入口必须明确使用 `dataQuery` 验证当前用户，不能把平台列表权限、工作台成员或管理员角色当作 IT 身份，也不能为了进入查询平台而自动授予工单访问。缺少此字段时查询应拒绝。撤销 IT 角色后，下一次认证读取返回 false；执行端仍需在每次查询前重新授权。
+
+此能力统一授权 EU、UK、US，凭证和数据库范围由 DSH 部署配置维护。角色数据是否已按该规则分配，以及配置是否已部署，需单独验收，源码规则不证明线上角色或数据库可用。
+
+
+敏感数据查询还要求会话身份已通过服务端 OAuth 或 H5 授权码交换核验。新核验会话使用服务端生成的 `verified-v1.` token 格式，完整 token 的摘要保存在原有 session store；客户端增删标记不会匹配已保存的会话。插件审批及旧格式会话继续保留原有普通平台权限，但不因此取得新数据查询权限；IT 用户需重新通过 OAuth/H5 登录。此条件不增加数据库迁移，也不改变原插件登录本身。
+
+角色符合但会话未核验时，profile 返回 `dataQuery=false`、`dataQueryRequiresVerification=true`。DSH 提供同源 `/api/lark/auth/web/start` 入口及明确提示，用户核验后返回原查询页面重新检查。没有完整 IT 角色时，不会因会话已核验而授权查询。
