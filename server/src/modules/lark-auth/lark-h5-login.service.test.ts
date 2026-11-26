@@ -24,6 +24,19 @@ describe("H5 login identity and session", () => {
     const deps: LarkAuthServiceDeps = { appId: "cli_test", appSecret: "secret", fetchImpl, resolvedUserStore, oauthSessionStore, tokenStore, webSessionStore: new PostgresWebSessionStore(db) };
     return { db, deps, fetchImpl, resolvedUserStore, tokenStore, oauthSessionStore };
   }
+  it("allows IT queries after provider-verified H5 identity and removes them when the role changes", async () => {
+    const { db, deps, resolvedUserStore } = await setup();
+    try {
+      const user = await resolvedUserStore.create({ status: "active", larkTenantKey: "tenant_a", larkId: "ou_current", role: "IT" });
+      const challenge = await startLarkH5Login(baseUrl, deps);
+      const result = await completeLarkH5Login({ ...challenge, code: "code", actionRunId }, deps);
+      if (!result.ok) throw new Error("Expected H5 login");
+      await expect(getLarkWebProfile(result.sessionToken, deps)).resolves.toMatchObject({ ok: true, profile: { workspaceAccess: { dataQuery: true, dataQueryRequiresVerification: false } } });
+      await resolvedUserStore.update({ ...user, role: "viewer" });
+      await expect(getLarkWebProfile(result.sessionToken, deps)).resolves.toMatchObject({ ok: true, profile: { workspaceAccess: { dataQuery: false } } });
+    } finally { await db.destroy(); }
+  });
+
   it("reuses the tenant-scoped user, preserves permissions/tokens, and exposes verified IDs", async () => {
     const { db, deps, resolvedUserStore, tokenStore } = await setup();
     try {

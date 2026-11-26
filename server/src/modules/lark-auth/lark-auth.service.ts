@@ -700,7 +700,7 @@ export interface LarkWebAuthUser {
 
 export interface LarkWebProfile {
   user: LarkWebAuthUser;
-  workspaceAccess: WebWorkspaceAccess;
+  workspaceAccess: WebWorkspaceAccess & { dataQueryRequiresVerification: boolean };
   larkAuthorization: {
     status: "ready" | "require_auth";
     authorizedAt?: string;
@@ -716,6 +716,8 @@ export type LarkWebAuthCallbackResult =
   | { kind: "ready"; sessionToken: string; user: LarkWebAuthUser }
   | { kind: "failed"; page: LarkAuthCallbackPage };
 
+const VERIFIED_WEB_SESSION_PREFIX = "verified-v1.";
+
 function hashWebSessionToken(sessionToken: string): string {
   return createHash("sha256").update(sessionToken).digest("base64url");
 }
@@ -727,8 +729,9 @@ function hashWebPluginLoginValue(value: string): string {
 async function createLarkWebSession(input: {
   masterUserId: string;
   baseUrl: string;
+  identityVerified?: boolean;
 }, deps: LarkAuthServiceDeps): Promise<string> {
-  const sessionToken = randomBytes(32).toString("base64url");
+  const sessionToken = `${input.identityVerified ? VERIFIED_WEB_SESSION_PREFIX : ""}${randomBytes(32).toString("base64url")}`;
   await getWebSessionStore(deps).create({
     sessionTokenHash: hashWebSessionToken(sessionToken),
     masterUserId: input.masterUserId,
@@ -836,6 +839,7 @@ export async function handleLarkWebAuthCallback(
     const sessionToken = await createLarkWebSession({
       masterUserId: resolvedUser.id,
       baseUrl: session.baseUrl,
+      identityVerified: true,
     }, deps);
 
     return {
@@ -907,7 +911,7 @@ export async function completeLarkH5Login(input: {
     const user = await upsertLarkWebUser(getResolvedStore(deps), userInfo);
     // Minimal login authorization must not replace the user's existing broader API credentials.
     await store.markCompleted({ state, authCode: "", externalUserKey: userInfo.openId, masterUserId: user.id });
-    const sessionToken = await createLarkWebSession({ masterUserId: user.id, baseUrl: challenge.baseUrl }, deps);
+    const sessionToken = await createLarkWebSession({ masterUserId: user.id, baseUrl: challenge.baseUrl, identityVerified: true }, deps);
     serviceLogger.info({ ...log, stage: "session", masterUserId: user.id }, "LARK_H5_LOGIN_OK");
     return { ok: true as const, sessionToken };
   } catch {
@@ -920,7 +924,7 @@ async function resolveLarkWebSession(
   sessionToken: string | undefined,
   overrides?: Partial<LarkAuthServiceDeps>,
 ): Promise<
-  | { ok: true; masterUserId: string; baseUrl: string; role?: string; meegleUserKey?: string; user: LarkWebAuthUser }
+  | { ok: true; masterUserId: string; baseUrl: string; identityVerified: boolean; role?: string; meegleUserKey?: string; user: LarkWebAuthUser }
   | { ok: false; errorCode: string; errorMessage: string }
 > {
   if (!sessionToken) {
@@ -942,6 +946,7 @@ async function resolveLarkWebSession(
     ok: true,
     masterUserId: session.masterUserId,
     baseUrl: session.baseUrl,
+    identityVerified: sessionToken.startsWith(VERIFIED_WEB_SESSION_PREFIX),
     role: user.role ?? undefined,
     meegleUserKey: user.meegleUserKey ?? undefined,
     user: {
@@ -1001,6 +1006,7 @@ export async function getLarkWebProfile(
     })
     : undefined;
 
+  const roleAccess = getWebWorkspaceAccess(resolvedUser?.role ?? session.role);
   return {
     ok: true,
     profile: {
@@ -1011,7 +1017,11 @@ export async function getLarkWebProfile(
         larkTenantKey: resolvedUser?.larkTenantKey ?? undefined,
         githubId: resolvedUser?.githubId ?? undefined,
       },
-      workspaceAccess: getWebWorkspaceAccess(resolvedUser?.role ?? session.role),
+      workspaceAccess: {
+        ...roleAccess,
+        dataQuery: roleAccess.dataQuery && session.identityVerified,
+        dataQueryRequiresVerification: roleAccess.dataQuery && !session.identityVerified,
+      },
       larkAuthorization: {
         status: status.status === "ready" ? "ready" : "require_auth",
         authorizedAt: stored?.lastAuthAt,
